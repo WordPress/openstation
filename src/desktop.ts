@@ -1595,6 +1595,22 @@ export interface OpenStationPublicApi {
 	 */
 	broadcast: < T = unknown >( topic: string, payload: T ) => void;
 	/**
+	 * Announce that content of one type was created, updated,
+	 * trashed, untrashed or deleted — the typed wrapper over
+	 * `broadcast( 'os.<type>.changed', { source, action, ids } )`
+	 * that the Recycle Bin, its dock icon and the shell's
+	 * iframe-reload subscriber all listen for. A window that
+	 * mutates content through its own REST endpoints must call
+	 * this, or its changes only reach other windows on the
+	 * Heartbeat cadence (15–60 s).
+	 */
+	announceContentChange: (
+		type: string,
+		action: 'created' | 'updated' | 'trashed' | 'untrashed' | 'deleted',
+		ids: number | number[],
+		source?: string,
+	) => void;
+	/**
 	 * Subscribe to broadcast topics. Returns an unsubscribe handle.
 	 * Use `'*'` to receive every payload.
 	 *

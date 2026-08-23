@@ -769,6 +769,7 @@ window.wp.os = {
     heartbeat:         HeartbeatBus,                           // wp Heartbeat bus
     broadcast:         < T >( topic, payload ) => void,        // cross-window
     subscribe:         ( topic, cb ) => () => void,            // cross-window
+    announceContentChange: ( type, action, ids, source? ) => void, // os.<type>.changed producer
 
     // Framework features
     presence:          PresenceApi,
@@ -2454,7 +2455,30 @@ wp.os.subscribe( 'posts/updated', ( { id } ) => {
 }
 ```
 
-Publishers: the server-side changelog relayed through the chromeless footer (`source: 'admin'`), the block-editor save-watcher (`'editor'`), the Heartbeat catch-all (`'heartbeat'` — may repeat a change delivered earlier by a faster path; treat refreshes as idempotent), and client-side emitters that identify themselves (`'recycle-bin'`, `'posts-window'`, your plugin). Subscribing to your type's topic is all a list window needs to stay live; publishing is one `openstation_content_changes_record()` call server-side (see [hooks-reference.md → Content-change realtime layer](./hooks-reference.md#content-change-realtime-layer)) or a direct `wp.os.broadcast()` client-side — set a distinctive `source` so you can skip your own echoes.
+Publishers: the server-side changelog relayed through the chromeless footer (`source: 'admin'`), the block-editor save-watcher (`'editor'`), the Heartbeat catch-all (`'heartbeat'` — may repeat a change delivered earlier by a faster path; treat refreshes as idempotent), and client-side emitters that identify themselves (`'recycle-bin'`, `'posts-window'`, your plugin). Subscribing to your type's topic is all a list window needs to stay live; publishing is one `openstation_content_changes_record()` call server-side (see [hooks-reference.md → Content-change realtime layer](./hooks-reference.md#content-change-realtime-layer)) or `wp.os.announceContentChange()` client-side — set a distinctive `source` so you can skip your own echoes.
+
+---
+
+### `announceContentChange( type, action, ids, source? )` — Stable
+
+The typed producer for the `os.<type>.changed` family — a wrapper over `broadcast()` that emits the exact envelope above, so producers stop hand-rolling it (a drifted payload fails silently: the bin just stops updating).
+
+**When you must call it:** whenever your window mutates content through **your own REST endpoints**. The shell sees its own mutations, and the server-side changelog covers chromeless admin pages — but a native window POSTing to `your-plugin/v1/...` is invisible to every other open window until the Heartbeat catch-all delivers the change 15–60 s later. Announcing is what makes the Recycle Bin, the bin's dock badge, and any list window showing your type update the moment your call resolves.
+
+```typescript
+wp.os.announceContentChange(
+    type:   string,                                                    // post type, or bin entity kind
+    action: 'created' | 'updated' | 'trashed' | 'untrashed' | 'deleted',
+    ids:    number | number[],                                         // invalid / empty → no-op
+    source?: string,                                                   // your emitter id
+): void;
+```
+
+```javascript
+// After your delete endpoint resolves:
+await apiDelete( `/my-plugin/v1/things/${ id }` );
+wp.os.announceContentChange( 'my_thing', 'trashed', id, 'my-plugin' );
+```
 
 **Heartbeat fields** — the shell contributes `openstation_content_changes_seen_ts` (server-ms high-water mark, `0` on the handshake tick) and consumes `openstation_content_changes: { ts, entries: [ { ts, type, action, ids } ] }`, re-broadcasting each fresh entry on this bus. Timestamps are server-clock; the first tick is a pure handshake so client/server skew can never drop changes.
 

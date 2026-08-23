@@ -34,7 +34,7 @@ import {
 } from '../dock-helpers';
 import { renderIcon } from '../icon';
 import { deriveWindowId } from '../utils';
-import { broadcast, subscribe } from '../broadcast';
+import { announceContentChange, broadcast, subscribe } from '../broadcast';
 import { devtools } from '../devtools';
 import { showToast } from '../toast';
 import { activity } from '../activity';
@@ -239,7 +239,8 @@ export const RESERVED_NAMESPACE_KEYS: ReadonlySet< string > = new Set( [
 	'registerWindowChrome', 'unregisterWindowChrome', 'listWindowChromes',
 	'applyWindowChrome',
 	'connect', 'getConnection',
-	'broadcast', 'subscribe', 'registerPalette', 'unregisterPalette',
+	'broadcast', 'subscribe', 'announceContentChange',
+	'registerPalette', 'unregisterPalette',
 	'listPalettes', 'openPalette', 'devtools', 'createSharedStore',
 	'presence', 'selection', 'activity', 'heartbeat', 'showToast',
 	'renderKeyedList',
@@ -762,6 +763,7 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 		getConnection,
 		broadcast,
 		subscribe,
+		announceContentChange,
 		registerPalette,
 		unregisterPalette,
 		listPalettes,

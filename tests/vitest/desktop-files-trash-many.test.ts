@@ -44,6 +44,7 @@ const rest = {
 
 let toasts: Toast[] = [];
 let broadcasts: Array< { topic: string; payload: Record< string, unknown > } > = [];
+let broadcastListener: ( ( e: Event ) => void ) | null = null;
 
 async function load(): Promise< {
 	trash: TrashModule;
@@ -58,9 +59,23 @@ async function load(): Promise< {
 	const wp = ( window as unknown as { wp: Record< string, unknown > } ).wp;
 	wp.os = {
 		showToast: ( t: Toast ) => toasts.push( t ),
-		broadcast: ( topic: string, payload: Record< string, unknown > ) =>
-			broadcasts.push( { topic, payload } ),
 	};
+	// The trash module announces through the module-level bus (via
+	// `announceContentChange`), so observe the real `os-broadcast`
+	// CustomEvent rather than a `wp.os.broadcast` mock. One listener,
+	// re-armed per load.
+	if ( broadcastListener ) {
+		document.removeEventListener( 'os-broadcast', broadcastListener );
+	}
+	broadcastListener = ( e: Event ): void => {
+		const detail = (
+			e as CustomEvent< { topic: string; payload: Record< string, unknown > } >
+		 ).detail;
+		if ( detail ) {
+			broadcasts.push( { topic: detail.topic, payload: detail.payload } );
+		}
+	};
+	document.addEventListener( 'os-broadcast', broadcastListener );
 	const store = await import( '../../src/desktop-files/store' );
 	store.__resetFilesStoreForTests();
 	// `trash.ts` reads REST + the store through `layer-deps`; swapping
