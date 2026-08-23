@@ -1022,6 +1022,90 @@
 }
 
 /*
+ * Missing-import warner demo — the sentence and the snippet it talks
+ * about, in the section box.
+ *
+ * The snippet is shown because the section's whole subject is three
+ * tags and it used to show none of them: the live copies have to be
+ * real elements for the warner to fire, and a real element is exactly
+ * what cannot be read, so the box sat empty under a sentence pointing
+ * at nothing.
+ *
+ * One column by default; two equal halves once the window is wide
+ * enough for the prose to still have a paragraph's worth of room
+ * beside the code.
+ *
+ * Both tracks are `1fr` — the split is the box in half, and neither
+ * side carries a fixed width. A hard cap on the prose would leave a
+ * gutter of nothing between two columns that both had more to say.
+ * `minmax( 0, … )` on each so a long line of code shrinks the track to
+ * its share and scrolls inside the `<pre>` rather than pushing the
+ * grid wider than the section box.
+ *
+ * The container is the OS Settings WINDOW (`container-type` further
+ * down this file), not the viewport: this panel is a window inside the
+ * shell, so window width is the only width that moves here.
+ */
+.os-settings__help-warner {
+	display: grid;
+	gap: 16px;
+	align-items: start;
+}
+
+@container (min-width: 1350px) {
+	.os-settings__help-warner {
+		grid-template-columns: minmax( 0, 1fr ) minmax( 0, 1fr );
+	}
+}
+
+.os-settings__help-warner-text {
+	margin: 0;
+	font-size: 14px;
+	line-height: 1.55;
+	color: var( --os-ui-fg-muted, #646970 );
+}
+
+/*
+ * `overflow-x: auto` rather than wrapping: the first tag is 56
+ * characters of deliberately absurd component name, and breaking a tag
+ * across lines turns the one thing the reader is here to recognise
+ * into two things. The section box clips (`::part( body )` sets
+ * `overflow: hidden`), so the scroll has to live on the `<pre>`.
+ */
+.os-settings__help-warner-code {
+	margin: 0;
+	padding: 12px 14px;
+	overflow-x: auto;
+	background: var( --os-ui-surface, #fff );
+	border: 1px solid var( --os-ui-border, #dcdcde );
+	border-radius: 6px;
+	font-family: var( --os-ui-font-mono, Menlo, Consolas, monospace );
+	font-size: 12px;
+	line-height: 1.6;
+	color: var( --os-ui-fg, #1d2327 );
+	tab-size: 2;
+}
+
+/*
+ * The `<code>` inside is the whole block, not a run of inline code.
+ *
+ * Left inline it inherits wp-admin's own `code` chip — a wash and a
+ * padding meant for a word mid-sentence — and an inline box wrapped
+ * over nine lines paints that wash once per LINE BOX, so the two blank
+ * lines in the snippet cut it into three chips and the one code block
+ * read as three. `display: block` gives it a single box, and the
+ * `<pre>` above is the only surface.
+ */
+.os-settings__help-warner-code code {
+	display: block;
+	padding: 0;
+	border: 0;
+	background: none;
+	font: inherit;
+	color: inherit;
+}
+
+/*
  * Search box + nav share one column so the field stays pinned while
  * the component list below it scrolls.
  */
