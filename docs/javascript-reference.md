@@ -2998,7 +2998,7 @@ Remove a title-bar button by id, or read a snapshot of every registered button d
 
 ### `registerUnfocusEffect( def )` — Experimental
 
-Register a visual treatment applied to every window that **isn't** focused — surfaced in **OpenStation Preferences → Effects → "Unfocused windows"**. The built-in effects (`darken` dims, `frost` blurs to frosted glass, `grayscale` drains colour) are registered through this same hook; plugins add their own the identical way. The framework owns *when* the effect runs (focus changes, the user's selection, minimized-window exclusion); your def owns *what* it does.
+Register a visual treatment applied to every window that **isn't** focused — surfaced in **OpenStation Preferences → Effects → "Unfocused windows"**. The built-in effects (`darken` dims, `frost` blurs to frosted glass, `grayscale` drains colour) are registered through this same hook; plugins add their own the identical way. The framework owns *when* the effect runs (focus changes, the user's selection, and the exclusions below); your def owns *what* it does. Exempt, whatever effect is selected: **minimized** windows, **split-view tiles** (`snapped-left` / `snapped-right` — the half that doesn't hold focus stays untouched so both sides of a split stay workable; the exemption is partner-blind, a tile qualifies whether or not the opposite half is filled), and windows hosting a `<canvas>` in the parent document (filtering a live WebGL surface can cost its context).
 
 **Throws** a `RegistrationError` on validation failure (bad/missing `id`, the reserved id `'none'`, or neither `className` nor `apply` provided).
 
