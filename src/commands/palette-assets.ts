@@ -64,7 +64,7 @@ function storeReady(): boolean {
 		window as unknown as {
 			wp?: { data?: { select?: ( store: string ) => unknown } };
 		}
-	 ).wp;
+	).wp;
 	try {
 		return !! wp?.data?.select?.( 'core/commands' );
 	} catch {
