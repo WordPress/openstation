@@ -57,6 +57,12 @@ class Tests_OpenStation_NativeWindowLazyScript extends WP_UnitTestCase {
 		return null;
 	}
 
+	/** The handle-keyed script-data half of the collector's bundle. */
+	private function script_data() {
+		$bundle = openstation_collect_native_windows_payload();
+		return $bundle['scriptData'];
+	}
+
 	// --------------------------------------------------------------
 	// preload_script
 	// --------------------------------------------------------------
@@ -108,11 +114,12 @@ class Tests_OpenStation_NativeWindowLazyScript extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Companions resolve to the same shape the main script travels
-	 * in — URL plus the harvested `wp_add_inline_script` data — so
-	 * the shell's loader can replay them around the script tag.
+	 * A companion's resolved data — URL plus the harvested
+	 * `wp_add_inline_script` blobs — lives ONCE in the handle-keyed
+	 * `scriptData` map; the entry itself only names the handle. The
+	 * shell joins the two on receipt.
 	 *
-	 * @covers ::openstation_build_native_windows_payload
+	 * @covers ::openstation_collect_native_windows_payload
 	 */
 	public function test_companion_scripts_resolve_with_inline_data() {
 		$this->register_demo_script( 'demo-main', 'https://example.test/main.js' );
@@ -129,13 +136,14 @@ class Tests_OpenStation_NativeWindowLazyScript extends WP_UnitTestCase {
 
 		$entry = $this->payload_entry( 'demo-companion-one' );
 		$this->assertNotNull( $entry );
-		$this->assertCount( 1, $entry['companionScripts'] );
-		$companion = $entry['companionScripts'][0];
-		$this->assertSame( 'demo-extra', $companion['scriptHandle'] );
-		$this->assertStringContainsString( 'extra.js', $companion['scriptUrl'] );
+		$this->assertSame( array( 'demo-extra' ), $entry['companionScripts'] );
+
+		$data = $this->script_data();
+		$this->assertArrayHasKey( 'demo-extra', $data );
+		$this->assertStringContainsString( 'extra.js', $data['demo-extra']['url'] );
 		$this->assertSame(
 			array( 'window.demoExtraConfig={a:1};' ),
-			$companion['scriptBefore']
+			$data['demo-extra']['before']
 		);
 	}
 
@@ -158,15 +166,12 @@ class Tests_OpenStation_NativeWindowLazyScript extends WP_UnitTestCase {
 
 		$entry = $this->payload_entry( 'demo-companion-order' );
 		$this->assertNotNull( $entry );
-		$this->assertSame(
-			array( 'demo-b', 'demo-a' ),
-			wp_list_pluck( $entry['companionScripts'], 'scriptHandle' )
-		);
+		$this->assertSame( array( 'demo-b', 'demo-a' ), $entry['companionScripts'] );
 	}
 
 	/**
-	 * A handle nobody registered resolves to no URL, and an entry the
-	 * loader would skip anyway is not worth shipping. Same silent
+	 * A handle nobody registered resolves to no URL, and a name the
+	 * loader could never resolve is not worth shipping. Same silent
 	 * drop the `style` arg does.
 	 *
 	 * @covers ::openstation_build_native_windows_payload
@@ -181,10 +186,8 @@ class Tests_OpenStation_NativeWindowLazyScript extends WP_UnitTestCase {
 
 		$entry = $this->payload_entry( 'demo-companion-missing' );
 		$this->assertNotNull( $entry );
-		$this->assertSame(
-			array( 'demo-real' ),
-			wp_list_pluck( $entry['companionScripts'], 'scriptHandle' )
-		);
+		$this->assertSame( array( 'demo-real' ), $entry['companionScripts'] );
+		$this->assertArrayNotHasKey( 'never-registered', $this->script_data() );
 	}
 
 	// --------------------------------------------------------------
@@ -259,7 +262,8 @@ class Tests_OpenStation_NativeWindowLazyScript extends WP_UnitTestCase {
 
 		$entry = $this->payload_entry( 'demo-config-filter' );
 		$this->assertNotNull( $entry );
-		$l10n = implode( "\n", $entry['scriptL10n'] );
+		$data = $this->script_data();
+		$l10n = implode( "\n", $data['demo-main']['l10n'] );
 		$this->assertStringContainsString( 'emit-time', $l10n );
 		$this->assertStringContainsString( 'snapshot', $l10n );
 	}
@@ -323,9 +327,10 @@ class Tests_OpenStation_NativeWindowLazyScript extends WP_UnitTestCase {
 
 		$entry = $this->payload_entry( 'demo-config-bogus' );
 		$this->assertNotNull( $entry );
+		$data = $this->script_data();
 		$this->assertStringNotContainsString(
 			'openStationWindowConfig',
-			implode( "\n", $entry['scriptL10n'] )
+			implode( "\n", isset( $data['demo-main']['l10n'] ) ? $data['demo-main']['l10n'] : array() )
 		);
 	}
 
@@ -388,10 +393,7 @@ class Tests_OpenStation_NativeWindowLazyScript extends WP_UnitTestCase {
 
 		$entry = $this->payload_entry( 'demo-companion-dup' );
 		$this->assertNotNull( $entry );
-		$this->assertSame(
-			array( 'demo-dup' ),
-			wp_list_pluck( $entry['companionScripts'], 'scriptHandle' )
-		);
+		$this->assertSame( array( 'demo-dup' ), $entry['companionScripts'] );
 	}
 
 	// --------------------------------------------------------------
@@ -399,18 +401,19 @@ class Tests_OpenStation_NativeWindowLazyScript extends WP_UnitTestCase {
 	// --------------------------------------------------------------
 
 	/**
-	 * Windows sharing one bundle each carry the WHOLE handle's config
-	 * set, own window first. The shell fetches a URL once, so a
-	 * config that only travelled with its own entry was dropped for
-	 * every sibling after the first — the Pages window opened to
-	 * "[desktop-mode-pages] config blob is missing" whenever Posts
-	 * had loaded the shared bundle first, and the Users window's
-	 * embedded Profile form could never see the user-edit config at
-	 * all.
+	 * A shared bundle's script data — including the whole handle's
+	 * synthesized config set — lives ONCE in the `scriptData` map.
+	 * The shell fetches a URL once, so config that only travelled
+	 * with its own entry was dropped for every sibling after the
+	 * first ("[desktop-mode-pages] config blob is missing"), and a
+	 * bundle serving one window from inside another (the Users
+	 * window's embedded Profile form reads the user-edit config)
+	 * could never see it at all. Keying by handle fixes both AND
+	 * stops the payload serializing four copies of identical data.
 	 *
-	 * @covers ::openstation_build_native_windows_payload
+	 * @covers ::openstation_collect_native_windows_payload
 	 */
-	public function test_windows_sharing_a_bundle_carry_each_others_config() {
+	public function test_windows_sharing_a_bundle_share_one_config_set() {
 		$this->register_demo_script( 'demo-shared', 'https://example.test/shared.js' );
 		$this->register_demo_window(
 			'demo-shared-posts',
@@ -431,17 +434,20 @@ class Tests_OpenStation_NativeWindowLazyScript extends WP_UnitTestCase {
 		$pages = $this->payload_entry( 'demo-shared-pages' );
 		$this->assertNotNull( $posts );
 		$this->assertNotNull( $pages );
+		// Entries carry no resolved data of their own any more — the
+		// handle name is the reference.
+		$this->assertArrayNotHasKey( 'scriptL10n', $posts );
+		$this->assertSame( 'demo-shared', $posts['scriptHandle'] );
+		$this->assertSame( 'demo-shared', $pages['scriptHandle'] );
 
-		foreach ( array( 'posts' => $posts, 'pages' => $pages ) as $label => $entry ) {
-			$l10n = implode( "\n", $entry['scriptL10n'] );
-			$this->assertStringContainsString( '"demo-shared-posts"', $l10n, "The $label entry must carry the posts config." );
-			$this->assertStringContainsString( '"demo-shared-pages"', $l10n, "The $label entry must carry the pages config." );
-		}
-
-		// Own window's assignment leads, so a bundle that reads its
-		// config synchronously at load sees its host first.
-		$this->assertStringContainsString( '"demo-shared-posts"', $posts['scriptL10n'][0] );
-		$this->assertStringContainsString( '"demo-shared-pages"', $pages['scriptL10n'][0] );
+		$data = $this->script_data();
+		$this->assertArrayHasKey( 'demo-shared', $data );
+		$l10n = implode( "\n", $data['demo-shared']['l10n'] );
+		$this->assertStringContainsString( '"demo-shared-posts"', $l10n );
+		$this->assertStringContainsString( '"demo-shared-pages"', $l10n );
+		// Exactly once each — the dedupe is the point.
+		$this->assertSame( 1, substr_count( $l10n, '"demo-shared-posts"' ) );
+		$this->assertSame( 1, substr_count( $l10n, '"demo-shared-pages"' ) );
 	}
 
 	// --------------------------------------------------------------
@@ -570,10 +576,10 @@ class Tests_OpenStation_NativeWindowLazyScript extends WP_UnitTestCase {
 			}
 		}
 		$this->assertNotNull( $entry );
-		$this->assertCount( 1, $entry['companionScripts'] );
+		$this->assertSame( array( 'demo-extra' ), $entry['companionScripts'] );
 		$this->assertSame(
 			array( 'window.demoProbeConfig={b:2};' ),
-			$entry['companionScripts'][0]['scriptBefore']
+			$payload['nativeWindowScriptData']['demo-extra']['before']
 		);
 	}
 }

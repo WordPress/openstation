@@ -223,6 +223,9 @@ function openstation_enqueue_assets() {
 	$native_windows                    = isset( $menu_payload['nativeWindows'] )
 		? $menu_payload['nativeWindows']
 		: array();
+	$native_window_script_data         = isset( $menu_payload['nativeWindowScriptData'] )
+		? $menu_payload['nativeWindowScriptData']
+		: array();
 	$server_widgets                    = isset( $menu_payload['serverWidgets'] )
 		? $menu_payload['serverWidgets']
 		: array();
@@ -469,6 +472,10 @@ function openstation_enqueue_assets() {
 			// (vs. this boot state) is caught without a wasted probe. GH#325.
 			'menuSig'                       => isset( $menu_payload['menuSig'] ) ? (string) $menu_payload['menuSig'] : '',
 			'nativeWindows'                 => $native_windows,
+			// Handle-keyed script data the entries above reference —
+			// one copy per bundle, not one per window. See
+			// `openstation_collect_native_windows_payload()`.
+			'nativeWindowScriptData'        => $native_window_script_data,
 			'serverWidgets'                 => $server_widgets,
 			'serverWallpapers'              => $server_wallpapers,
 			'serverCommandScripts'          => $server_command_scripts,

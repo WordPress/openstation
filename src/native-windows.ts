@@ -37,9 +37,13 @@ import {
 import type { SystemDockItem } from './dock';
 import type {
 	NativeRenderContext,
+	NativeWindowCompanionScript,
 	NativeWindowDef,
 	NativeWindowIframeContent,
+	NativeWindowScriptData,
 	NativeWindowServerEntry,
+	NativeWindowTabEntry,
+	NativeWindowWireEntry,
 } from './types';
 import type { WindowManager } from './window-manager';
 import type { Window as DesktopWindow } from './window';
@@ -1003,6 +1007,84 @@ function declareServerTabs(
 		// The window's own template is the pane that opens.
 		tabs.find( ( tab ) => tab.isMain )?.value,
 	);
+}
+
+/**
+ * Join wire-format native-window entries with the handle-keyed
+ * script-data map into the full entries the sync consumes.
+ *
+ * The payload ships script data ONCE per handle
+ * (`nativeWindowScriptData`) because several windows share one
+ * bundle — Posts, Pages, Users and Profile all ride
+ * `os-posts-window`, and inlining each entry's resolved copy
+ * serialized the same blobs four times over. Entries reference
+ * handles; this join puts the resolved url / inline data back on
+ * each entry, companions and tabs included.
+ *
+ * Tolerant of the OLD inline format on purpose: a live session that
+ * predates the split can receive a bridge payload from a newer
+ * server (or vice versa during a deploy), so an entry that still
+ * carries its own resolved fields — or companion OBJECTS rather
+ * than handle strings — passes through untouched.
+ */
+export function hydrateServerEntries(
+	entries: NativeWindowWireEntry[],
+	scriptData?: NativeWindowScriptData,
+): NativeWindowServerEntry[] {
+	const data = scriptData ?? {};
+	return entries.map( ( entry ) => {
+		const own = entry.scriptHandle ? data[ entry.scriptHandle ] : undefined;
+
+		const companions: NativeWindowCompanionScript[] = [];
+		for ( const companion of entry.companionScripts ?? [] ) {
+			if ( typeof companion !== 'string' ) {
+				companions.push( companion );
+				continue;
+			}
+			const resolved = data[ companion ];
+			if ( ! resolved?.url ) {
+				continue;
+			}
+			companions.push( {
+				scriptUrl: resolved.url,
+				scriptHandle: companion,
+				scriptBefore: resolved.before,
+				scriptAfter: resolved.after,
+				scriptL10n: resolved.l10n,
+				scriptTranslations: resolved.translations,
+			} );
+		}
+
+		const tabs: NativeWindowTabEntry[] = ( entry.tabs ?? [] ).map(
+			( tab ) => {
+				if ( typeof tab.scriptUrl === 'string' ) {
+					return tab as NativeWindowTabEntry;
+				}
+				const resolved = tab.scriptHandle
+					? data[ tab.scriptHandle ]
+					: undefined;
+				return {
+					...tab,
+					scriptUrl: resolved?.url ?? '',
+					scriptBefore: resolved?.before,
+					scriptAfter: resolved?.after,
+					scriptL10n: resolved?.l10n,
+					scriptTranslations: resolved?.translations,
+				};
+			},
+		);
+
+		return {
+			...entry,
+			scriptUrl: entry.scriptUrl ?? own?.url ?? '',
+			scriptBefore: entry.scriptBefore ?? own?.before,
+			scriptAfter: entry.scriptAfter ?? own?.after,
+			scriptL10n: entry.scriptL10n ?? own?.l10n,
+			scriptTranslations: entry.scriptTranslations ?? own?.translations,
+			companionScripts: companions,
+			tabs,
+		};
+	} );
 }
 
 export function createNativeWindowSync(

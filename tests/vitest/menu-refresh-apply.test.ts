@@ -196,7 +196,12 @@ describe( 'menu-refresh-apply.createApplyPayload', () => {
 			serverGames: games,
 		} );
 
-		expect( syncs.nativeWindows ).toHaveBeenCalledWith( nativeWindows );
+		// Native-window entries are hydrated on the way through —
+		// wire format references script handles; the sync gets full
+		// entries (see hydrateServerEntries).
+		expect( syncs.nativeWindows ).toHaveBeenCalledWith( [
+			expect.objectContaining( { id: 'calc', scriptUrl: '' } ),
+		] );
 		expect( syncs.widgets ).toHaveBeenCalledWith( widgets );
 		expect( syncs.wallpapers ).toHaveBeenCalledWith( wallpapers );
 		expect( syncs.commands ).toHaveBeenCalledWith( cmdScripts, cmds );

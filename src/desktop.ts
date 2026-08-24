@@ -140,6 +140,7 @@ import { WidgetLayer } from './widgets/layer';
 import {
 	createNativeWindowSync,
 	createRegisterWindow,
+	hydrateServerEntries,
 	type WindowLifecycleHandlers,
 } from './native-windows';
 import { iconsApi, renderDesktopIcons, type IconsApi } from './desktop-icons';
@@ -3040,9 +3041,14 @@ function init(): void {
 	// Initial native-window registry sync — runs AFTER the dispatcher
 	// is wired so plugin-owned tiles route through the dispatcher's
 	// `appendSystemTile` callback rather than hitting the no-op
-	// fallback while the dispatcher is still null.
+	// fallback while the dispatcher is still null. Entries arrive in
+	// wire format (script data keyed by handle in a sibling map, one
+	// copy per bundle) — join them before the sync consumes them.
 	void syncNativeWindows(
-		Array.isArray( config.nativeWindows ) ? config.nativeWindows : [],
+		hydrateServerEntries(
+			Array.isArray( config.nativeWindows ) ? config.nativeWindows : [],
+			config.nativeWindowScriptData,
+		),
 	);
 
 	// Bootstrap: restore session (if any), then decide whether to also

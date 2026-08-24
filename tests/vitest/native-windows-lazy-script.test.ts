@@ -23,7 +23,10 @@
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { Dock } from '../../src/dock';
-import { createNativeWindowSync } from '../../src/native-windows';
+import {
+	createNativeWindowSync,
+	hydrateServerEntries,
+} from '../../src/native-windows';
 import * as vendorLoader from '../../src/wallpapers/vendor-loader';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 import { __resetNativeWindowGeometryForTests } from '../../src/window-manager/native-window-geometry';
@@ -300,6 +303,115 @@ describe( 'native-windows — deferred bundle loading', () => {
 
 		expect( loaded ).toEqual( [] );
 		expect( body.querySelector( '[data-id="declarative"]' ) ).not.toBeNull();
+	} );
+
+	// ----------------------------------------------------------
+	// Wire-format hydration — entries reference handles, the
+	// script data lives once per handle in a sibling map
+	// ----------------------------------------------------------
+
+	test( 'hydration joins entry, companions and tabs with the handle map', async () => {
+		const wire = {
+			...entry( 'explorer' ),
+			scriptUrl: undefined,
+			scriptHandle: 'os-explorer',
+			companionScripts: [ 'os-woo', 'never-resolved' ],
+			tabs: [
+				{
+					value: 'scoreboard',
+					label: 'Scores',
+					isMain: false,
+					scriptHandle: 'os-scores',
+				},
+			],
+		} as unknown as Parameters< typeof hydrateServerEntries >[ 0 ][ 0 ];
+
+		const [ hydrated ] = hydrateServerEntries( [ wire ], {
+			'os-explorer': {
+				url: 'https://example.test/explorer.js',
+				l10n: [ 'window.openStationWindowConfig={};' ],
+			},
+			'os-woo': {
+				url: 'https://example.test/woo.js',
+				before: [ 'window.openStationWooConfig={};' ],
+			},
+			'os-scores': { url: 'https://example.test/scores.js' },
+		} );
+
+		expect( hydrated.scriptUrl ).toBe( 'https://example.test/explorer.js' );
+		expect( hydrated.scriptL10n ).toEqual( [
+			'window.openStationWindowConfig={};',
+		] );
+		expect( hydrated.companionScripts ).toEqual( [
+			{
+				scriptUrl: 'https://example.test/woo.js',
+				scriptHandle: 'os-woo',
+				scriptBefore: [ 'window.openStationWooConfig={};' ],
+				scriptAfter: undefined,
+				scriptL10n: undefined,
+				scriptTranslations: undefined,
+			},
+		] );
+		expect( hydrated.tabs?.[ 0 ].scriptUrl ).toBe(
+			'https://example.test/scores.js',
+		);
+	} );
+
+	test( 'hydration passes old-format inline entries through untouched', async () => {
+		const inline = entry( 'legacy', {
+			scriptL10n: [ 'window.legacy=1;' ],
+			companionScripts: [
+				{ scriptUrl: 'https://example.test/companion.js', scriptHandle: 'c' },
+			],
+		} );
+
+		const [ hydrated ] = hydrateServerEntries( [ inline ], undefined );
+
+		expect( hydrated.scriptUrl ).toBe( 'https://example.test/legacy.js' );
+		expect( hydrated.scriptL10n ).toEqual( [ 'window.legacy=1;' ] );
+		expect( hydrated.companionScripts ).toEqual(
+			inline.companionScripts,
+		);
+	} );
+
+	test( 'a hydrated shared handle delivers every sibling config on one load', async () => {
+		const h = setupHarness();
+		const shared = {
+			url: 'https://example.test/shared.js',
+			l10n: [
+				'window.openStationWindowConfig={posts:1};',
+				'window.openStationWindowConfig={pages:1};',
+			],
+		};
+		const [ posts, pages ] = hydrateServerEntries(
+			[
+				{ ...entry( 'posts' ), scriptUrl: undefined, scriptHandle: 'demo-shared' },
+				{ ...entry( 'pages' ), scriptUrl: undefined, scriptHandle: 'demo-shared' },
+			] as unknown as Parameters< typeof hydrateServerEntries >[ 0 ],
+			{ 'demo-shared': shared },
+		);
+		installTemplate( posts );
+		installTemplate( pages );
+		const { sync, openById } = createNativeWindowSync( depsFromHarness( h ) );
+		await sync( [ posts, pages ] );
+
+		let extras: unknown;
+		vi.mocked( vendorLoader.loadVendorScript ).mockImplementation(
+			async ( url: string, e?: unknown ) => {
+				loaded.push( url );
+				extras = e;
+			},
+		);
+
+		openById( 'pages' );
+		await runRender( h.managerOpen );
+
+		expect( loaded ).toEqual( [ 'https://example.test/shared.js' ] );
+		// Whichever window loads the bundle carries the whole
+		// handle's config set — the sibling never needs a second copy.
+		expect(
+			( extras as { l10n?: string[] } ).l10n,
+		).toEqual( shared.l10n );
 	} );
 
 	// ----------------------------------------------------------

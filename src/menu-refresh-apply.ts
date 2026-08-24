@@ -31,8 +31,11 @@ import type {
 	DesktopWidgetServerEntry,
 	DesktopWindowNoticeServerEntry,
 	DesktopThemeServerEntry,
+	NativeWindowScriptData,
 	NativeWindowServerEntry,
+	NativeWindowWireEntry,
 } from './types';
+import { hydrateServerEntries } from './native-windows';
 import { applyServerWindowNotices } from './window-notices-server-sync';
 import { applyAdminBarUpdates } from './admin-bar-updates';
 
@@ -40,6 +43,7 @@ import { applyAdminBarUpdates } from './admin-bar-updates';
 export interface MenuRefreshPayload {
 	dockItems?: unknown;
 	nativeWindows?: unknown;
+	nativeWindowScriptData?: unknown;
 	serverWidgets?: unknown;
 	serverWallpapers?: unknown;
 	serverCommandScripts?: unknown;
@@ -305,8 +309,17 @@ export function createApplyPayload(
 		// deactivated disappear. All without a shell reload.
 		if ( Array.isArray( nativeWindows ) ) {
 			const prevNativeWindows = config.nativeWindows;
+			// Wire-format entries + handle-keyed script data — join
+			// them the same way the boot path does. A payload from an
+			// older server carries no map; the hydrator passes its
+			// inline entries through untouched.
 			void syncNativeWindows(
-				nativeWindows as NativeWindowServerEntry[],
+				hydrateServerEntries(
+					nativeWindows as NativeWindowWireEntry[],
+					payload.nativeWindowScriptData as
+						| NativeWindowScriptData
+						| undefined,
+				),
 			);
 			config.nativeWindows =
 				nativeWindows as DesktopConfig[ 'nativeWindows' ];

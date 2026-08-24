@@ -819,6 +819,46 @@ export interface NativeWindowCompanionScript {
 }
 
 /**
+ * Handle-keyed script data the native-window payload entries
+ * reference — one resolved copy per bundle, however many windows,
+ * companions and tabs name it. Built by
+ * `openstation_collect_native_windows_payload()`; joined back onto
+ * the entries by `hydrateServerEntries()` before the sync consumes
+ * them. Field names mirror `openstation_resolve_script_payload()`.
+ */
+export type NativeWindowScriptData = Record<
+	string,
+	{
+		url: string;
+		before?: string[];
+		after?: string[];
+		l10n?: string[];
+		translations?: string;
+	}
+>;
+
+/**
+ * A native-window entry as it travels on the wire: script data is
+ * referenced by HANDLE (companions are handle strings, the entry and
+ * its tabs carry no resolved url/inline fields) and lives once per
+ * handle in {@link NativeWindowScriptData}. `hydrateServerEntries()`
+ * joins the two into full {@link NativeWindowServerEntry} objects.
+ * The resolved fields stay optional here because an old-format
+ * payload (a bridge emission from a not-yet-reloaded page) may still
+ * inline them — the hydrator passes those through untouched.
+ */
+export type NativeWindowWireEntry = Omit<
+	NativeWindowServerEntry,
+	'scriptUrl' | 'companionScripts' | 'tabs'
+> & {
+	scriptUrl?: string;
+	companionScripts?: Array< string | NativeWindowCompanionScript >;
+	tabs?: Array<
+		Omit< NativeWindowTabEntry, 'scriptUrl' > & { scriptUrl?: string }
+	>;
+};
+
+/**
  * One companion stylesheet attached to a native window through the
  * `styles` registration arg. Same resolved shape the window's own
  * `style` travels in, but injected on the window's FIRST OPEN rather
@@ -1759,9 +1799,16 @@ export interface DesktopConfig {
 	 * Server-declared native windows (from `openstation_register_window()`).
 	 * Shell auto-registers system tiles at boot + syncs them on every
 	 * live menu refresh so plugin activate / deactivate maps to tile
-	 * add / remove with no browser reload.
+	 * add / remove with no browser reload. Wire-format entries — join
+	 * them with {@link DesktopConfig.nativeWindowScriptData} through
+	 * `hydrateServerEntries()` before handing them to the sync.
 	 */
-	nativeWindows: NativeWindowServerEntry[];
+	nativeWindows: NativeWindowWireEntry[];
+	/**
+	 * Handle-keyed script data the `nativeWindows` entries reference —
+	 * one resolved copy per bundle, however many windows share it.
+	 */
+	nativeWindowScriptData?: NativeWindowScriptData;
 	/**
 	 * Server-declared widgets (from `openstation_register_widget()`).
 	 * Same lifecycle story as native windows — shell syncs the

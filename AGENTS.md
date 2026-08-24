@@ -234,7 +234,8 @@ When the user installs or activates a plugin, the **chromeless bridge** inside t
 Payload shape (`openstation_build_menu_payload()` in `includes/core/payload.php` builds it, `includes/render/chromeless-bridge.php` emits it, `src/menu-refresh-apply.ts` owns the consumer contract — `createApplyPayload()` there returns the `applyPayload` function that `src/boot/menu-refresh.ts` wires up):
 
 ```
-{ dockItems, nativeWindows, serverWidgets, serverWallpapers,
+{ dockItems, nativeWindows, nativeWindowScriptData,
+  serverWidgets, serverWallpapers,
   serverCommandScripts, serverCommands,
   serverSettingsTabScripts, serverSettingsTabs,
   serverDockRailRendererScripts, serverTitleBarButtonScripts,
