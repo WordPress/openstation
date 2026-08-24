@@ -2012,13 +2012,15 @@ add_action( 'admin_enqueue_scripts', 'openstation_my_wordpress_woo_enqueue', 5 )
  * guarantee the old boot-time enqueue gave, at the cost of nothing
  * until the window opens.
  *
- * `styles` handles inject on the same first open, after the window's
- * own stylesheet. Source order matters here: this sheet overrides
+ * `styles` handles inject on the same first open, in ARRAY ORDER —
+ * and that order is the whole ballgame here: this sheet overrides
  * `my-wordpress.css` at EQUAL specificity (the ribbon and panel
- * chrome), which the enqueue path guaranteed through a
- * `wp_register_style` dependency — appended-last injection gives the
- * identical ordering, because the Explorer's own CSS is enqueued
- * eagerly and is already in `<head>` when this one lands.
+ * chrome), which the old enqueue path guaranteed through a
+ * `wp_register_style` dependency. The Explorer's registration
+ * declares its own sheet first in `styles` (see the comment in
+ * `includes/my-wordpress/window.php`), this filter APPENDS, so the
+ * Woo sheet lands after it in `<head>` and wins by source order.
+ * Prepending here would silently invert the cascade.
  *
  * @param array $window_args Args passed to `openstation_register_window()`.
  * @return array

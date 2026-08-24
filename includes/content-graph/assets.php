@@ -2,12 +2,13 @@
 /**
  * OpenStation — Content Graph: asset registration.
  *
- * Mirrors the my-wordpress / recycle-bin / posts-window modules: the
- * bundle script + CSS handles are registered on `init` priority 5, and
- * the native-window sync lazy-loads the script the first time the
- * Content Graph window opens. The CSS is enqueued eagerly in admin
- * context (cheap, ~3KB) so the empty-state spinner has its layout the
- * moment the window mounts.
+ * Mirrors the my-wordpress / posts-window modules: the bundle script
+ * + CSS handles are registered on `init` priority 5, and the
+ * native-window sync lazy-loads BOTH the first time the Content Graph
+ * window opens — the script via the registration's `script` arg, the
+ * CSS as a `styles` companion (see the registration in `window.php`).
+ * Nothing is enqueued eagerly; a session that never opens the
+ * Corkboard downloads neither.
  *
  * @package OpenStation
  */
