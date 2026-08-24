@@ -1245,7 +1245,7 @@ export function createNativeWindowSync(
 	 * The script TAG dedupes by URL, but the harvested data an entry
 	 * carries is not guaranteed to have ridden the tag that loaded
 	 * the URL. Four windows share `os-posts-window[.min].js` (Posts,
-	 * Pages, Users, Profile); since the handle-keyed script-data map
+	 * Pages, Users, Profile); with the handle-keyed script-data map,
 	 * every sibling hydrates from the SAME blobs — including the
 	 * whole handle's `openStationWindowConfig[ id ]` set — so this
 	 * replay is normally a harmless idempotent repeat. It stays
