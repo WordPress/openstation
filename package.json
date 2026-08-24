@@ -83,6 +83,7 @@
 		"test": "npm run test:js",
 		"test:js": "vitest run",
 		"test:js:watch": "vitest",
+		"perf:boot-cost": "node bin/boot-cost.mjs",
 		"env:start": "wp-env start",
 		"env:start:tests": "wp-env start --config=.wp-env.tests.json",
 		"env:stop": "wp-env stop",
