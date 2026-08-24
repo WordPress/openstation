@@ -252,7 +252,7 @@ function buildFallbackGlyph(): HTMLElement {
 	return fallback;
 }
 
-/** Pick the best available icon URL (svg > 256 > 128 > 1x). */
+/** Pick the best available icon URL (svg > 256 > 128 > 1x > default). */
 export function pickIcon(
 	icons: Record< string, string > | undefined,
 ): string | null {
@@ -263,11 +263,11 @@ export function pickIcon(
 		icons.svg ??
 		icons[ '256' ] ??
 		icons[ '256x256' ] ??
-		icons.default ??
 		icons[ '128' ] ??
 		icons[ '128x128' ] ??
 		icons[ '2x' ] ??
 		icons[ '1x' ] ??
+		icons.default ??
 		Object.values( icons )[ 0 ] ??
 		null
 	);
