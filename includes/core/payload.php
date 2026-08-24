@@ -2367,9 +2367,14 @@ function openstation_collect_native_windows_payload() {
 	}
 
 	// Append each handle's synthesized config set to its map entry —
-	// once, after the handle's own harvested data, matching the order
-	// the print pipeline used. Configs for handles that resolved to
-	// nothing are undeliverable and drop, exactly as they always did.
+	// once, after the handle's own harvested data. The snippets land
+	// in REGISTRY-ITERATION order for every consumer of the handle;
+	// the old per-entry shape put each window's own config first, an
+	// ordering nothing could observe (each snippet assigns a distinct
+	// `openStationWindowConfig[ id ]` key and none reads another), so
+	// it is deliberately not preserved. Configs for handles that
+	// resolved to nothing are undeliverable and drop, exactly as they
+	// always did.
 	foreach ( $config_snippets_by_handle as $handle => $snippets ) {
 		if ( ! isset( $script_data[ $handle ] ) ) {
 			continue;

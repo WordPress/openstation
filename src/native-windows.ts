@@ -1242,14 +1242,18 @@ export function createNativeWindowSync(
 	/**
 	 * Per-entry inline data already replayed, keyed `id|url`.
 	 *
-	 * The script TAG dedupes by URL, but the harvested data does not
-	 * belong to the URL — it belongs to the entry. Four windows share
-	 * `os-posts-window[.min].js` (Posts, Pages, Users, Profile), and
-	 * each entry's `scriptL10n` carries its OWN synthesized
-	 * `openStationWindowConfig[ id ]` assignment. Skipping a
-	 * sibling's data because the bundle was already fetched is how
-	 * the Pages window opened to "[desktop-mode-pages] config blob is
-	 * missing" whenever Posts had opened first.
+	 * The script TAG dedupes by URL, but the harvested data an entry
+	 * carries is not guaranteed to have ridden the tag that loaded
+	 * the URL. Four windows share `os-posts-window[.min].js` (Posts,
+	 * Pages, Users, Profile); since the handle-keyed script-data map
+	 * every sibling hydrates from the SAME blobs — including the
+	 * whole handle's `openStationWindowConfig[ id ]` set — so this
+	 * replay is normally a harmless idempotent repeat. It stays
+	 * because it is also the safety net for old-format payloads
+	 * (entries carrying genuinely per-entry data), where skipping a
+	 * sibling's data because the bundle was already fetched is
+	 * exactly how the Pages window opened to "[desktop-mode-pages]
+	 * config blob is missing" whenever Posts had opened first.
 	 */
 	const injectedScriptData = new Set< string >();
 

@@ -323,6 +323,17 @@ export function createApplyPayload(
 			);
 			config.nativeWindows =
 				nativeWindows as DesktopConfig[ 'nativeWindows' ];
+			// Persist the map beside the entries it decodes —
+			// `wp.os.debug.window()` resolves URLs through
+			// `config.nativeWindowScriptData` directly, so leaving the
+			// boot-time copy in place would report an empty URL for
+			// any window whose plugin activated (or whose bundle
+			// changed) after boot. An old-format payload carries no
+			// map; keep the previous one rather than wiping it.
+			if ( payload.nativeWindowScriptData ) {
+				config.nativeWindowScriptData =
+					payload.nativeWindowScriptData as DesktopConfig[ 'nativeWindowScriptData' ];
+			}
 			emitRegistryChanged(
 				'native-windows',
 				prevNativeWindows as ReadonlyArray< { id?: unknown } > | undefined,
