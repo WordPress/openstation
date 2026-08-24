@@ -2267,6 +2267,31 @@ export interface DesktopConfig {
 	 */
 	deferredStyles?: Record< string, { url: string; inline?: string[] } >;
 	/**
+	 * Ordered manifest of the Core command-palette asset chain —
+	 * `wp-commands` + `wp-core-commands` and their full dependency
+	 * closure (the Gutenberg runtime), resolved server-side in print
+	 * order with each handle's inline data harvested alongside.
+	 * Replayed by `ensureCommandPaletteAssets()`
+	 * (`src/commands/palette-assets.ts`) on the first palette
+	 * invocation instead of being enqueued on every boot.
+	 * `null` / absent on pre-6.9 sites.
+	 */
+	commandPalette?: {
+		scripts: Array< {
+			handle: string;
+			url: string;
+			before?: string[];
+			after?: string[];
+			l10n?: string[];
+			translations?: string;
+		} >;
+		styles: Array< {
+			handle: string;
+			url: string;
+			inline?: string[];
+		} >;
+	} | null;
+	/**
 	 * Authenticated admin-AJAX URL returning the cached OpenStation journal
 	 * RSS payload. Requested only when the About tab first becomes visible.
 	 */

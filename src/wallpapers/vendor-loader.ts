@@ -38,7 +38,7 @@ const pending = new Map<string, Promise<void>>();
  * @param url Candidate URL.
  * @return The existing tag, or `null`.
  */
-function findScriptByPath( url: string ): HTMLScriptElement | null {
+export function findScriptByPath( url: string ): HTMLScriptElement | null {
 	let origin: string;
 	let path: string;
 	try {

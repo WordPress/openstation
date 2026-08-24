@@ -1923,6 +1923,137 @@ function openstation_resolve_style_payload( $handle ) {
 }
 
 /**
+ * Build the deferred command-palette asset manifest.
+ *
+ * `wp_enqueue_command_palette_assets()` (WP 6.9+) enqueues
+ * `wp-commands` + `wp-core-commands` and attaches the inline
+ * `wp.coreCommands.initializeCommandPalette( … )` call that seeds the
+ * `core/commands` store. Its transitive dependency chain is the whole
+ * Gutenberg runtime — `wp-block-editor`, `wp-components`, React,
+ * `wp-core-data`, some forty bundles, ~800 KB gzipped — which the
+ * shell used to pay on EVERY boot so that the ⌘K palette's baseline
+ * commands existed if the user ever opened it.
+ *
+ * This builder lets Core do exactly what it would have done — the
+ * menu-command serialization and the inline init included — then
+ * UNWINDS the enqueue: it snapshots the script/style queues, calls
+ * the Core function, diffs out the roots it added, restores the
+ * queues so nothing prints at boot, and resolves the full ordered
+ * dependency chain on CLONES (the live `$to_do` is never touched).
+ * Each handle in the chain is harvested into the same
+ * url/before/after/l10n/translations shape the native-window lazy
+ * loader uses, and the shell replays the list — in order — the first
+ * time the palette is invoked (`src/commands/palette-assets.ts`).
+ *
+ * Handles with no `src` (pure aggregators) are kept whenever they
+ * carry inline data; dropping them would lose middleware and locale
+ * setup the chain depends on. Handles another plugin already
+ * enqueued at boot print normally and are skipped client-side by a
+ * same-path DOM sniff — the manifest deliberately lists them anyway,
+ * because which ones those are differs per site and per screen.
+ *
+ * Returns `null` on pre-6.9 sites (no Core palette to defer).
+ *
+ * @return array{scripts:array<int,array<string,mixed>>,styles:array<int,array<string,mixed>>}|null
+ */
+function openstation_build_command_palette_assets_payload() {
+	if ( ! function_exists( 'wp_enqueue_command_palette_assets' ) ) {
+		return null;
+	}
+	$scripts = wp_scripts();
+	$styles  = wp_styles();
+	if ( ! $scripts || ! $styles ) {
+		return null;
+	}
+
+	// `wp_enqueue_command_palette_assets()` reads `$submenu` without
+	// guarding the global — initialize defensively (test contexts,
+	// edge-case admin requests where the menu wasn't built yet).
+	global $menu, $submenu;
+	// phpcs:disable WordPress.WP.GlobalVariablesOverride.Prohibited -- initializing an unset global to its documented empty shape, not replacing a built menu.
+	if ( ! isset( $submenu ) || ! is_array( $submenu ) ) {
+		$submenu = array();
+	}
+	if ( ! isset( $menu ) || ! is_array( $menu ) ) {
+		$menu = array();
+	}
+	// phpcs:enable WordPress.WP.GlobalVariablesOverride.Prohibited
+
+	$script_queue_before = $scripts->queue;
+	$style_queue_before  = $styles->queue;
+
+	wp_enqueue_command_palette_assets();
+
+	$script_roots = array_values( array_diff( $scripts->queue, $script_queue_before ) );
+	$style_roots  = array_values( array_diff( $styles->queue, $style_queue_before ) );
+
+	// Unwind: the boot page must not print any of it. The inline init
+	// stays attached to the `wp-core-commands` HANDLE — that is the
+	// point: the harvest below captures it, and if some other screen
+	// legitimately enqueues the handle, it prints as Core intended.
+	$scripts->queue = $script_queue_before;
+	$styles->queue  = $style_queue_before;
+
+	$out = array(
+		'scripts' => array(),
+		'styles'  => array(),
+	);
+
+	// Ordered dependency chains, resolved on clones so the request's
+	// real `$to_do` / `$done` state is untouched.
+	$script_probe        = clone $scripts;
+	$script_probe->to_do = array();
+	$script_probe->done  = array();
+	$script_probe->all_deps( $script_roots );
+	foreach ( $script_probe->to_do as $handle ) {
+		$payload = openstation_resolve_script_payload( $handle );
+		if ( '' === $payload['url'] ) {
+			// Src-less aggregator — keep it only for its inline data.
+			$registered = isset( $scripts->registered[ $handle ] ) ? $scripts->registered[ $handle ] : null;
+			if ( $registered ) {
+				foreach ( array( 'before', 'after' ) as $position ) {
+					if ( isset( $registered->extra[ $position ] ) && is_array( $registered->extra[ $position ] ) ) {
+						$payload[ $position ] = array_values( array_filter( array_map( 'strval', $registered->extra[ $position ] ) ) );
+					}
+				}
+				if ( ! empty( $registered->extra['data'] ) && is_string( $registered->extra['data'] ) ) {
+					$payload['l10n'][] = $registered->extra['data'];
+				}
+			}
+			if ( empty( $payload['before'] ) && empty( $payload['after'] ) && empty( $payload['l10n'] ) ) {
+				continue;
+			}
+		}
+		$out['scripts'][] = array(
+			'handle'       => (string) $handle,
+			'url'          => $payload['url'],
+			'before'       => $payload['before'],
+			'after'        => $payload['after'],
+			'l10n'         => $payload['l10n'],
+			'translations' => $payload['translations'],
+		);
+	}
+
+	$style_probe        = clone $styles;
+	$style_probe->to_do = array();
+	$style_probe->done  = array();
+	$style_probe->all_deps( $style_roots );
+	foreach ( $style_probe->to_do as $handle ) {
+		$style_payload = openstation_resolve_style_payload( $handle );
+		if ( '' === $style_payload['url'] ) {
+			continue;
+		}
+		$out['styles'][] = array(
+			'handle' => (string) $handle,
+			'url'    => $style_payload['url'],
+			'inline' => $style_payload['inline'],
+		);
+	}
+
+	return $out;
+}
+
+/**
  * Resolve a list of style handles into the `deferredStyles` config
  * map: handle → `array( 'url' => …, 'inline' => string[] )`.
  *

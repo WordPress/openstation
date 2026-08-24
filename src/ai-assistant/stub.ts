@@ -21,6 +21,7 @@
  */
 
 import type { AskFn } from '../ai/ask';
+import { ensureCommandPaletteAssets } from '../commands/palette-assets';
 import { ensureDeferredStyle } from '../deferred-styles';
 import type {
 	AiAssistantApi,
@@ -123,6 +124,16 @@ export class AiAssistantStub implements AiAssistantApi {
 		// a boot enqueue — inject it here so the `<link>` fetches in
 		// parallel with the impl bundle below.
 		ensureDeferredStyle( 'desktop-mode-ai-assistant' );
+		// First palette invocation is also the moment the Core
+		// command-palette runtime starts loading (the WP baseline
+		// commands the palette lists). Fire-and-forget: the palette
+		// opens immediately with the shell's own commands, and the
+		// WP set pops in when the chain lands — the harvester
+		// listens for `os-command-palette-ready`.
+		ensureCommandPaletteAssets().catch( ( err ) => {
+			// eslint-disable-next-line no-console -- a failed palette-runtime load would otherwise be silent; the palette still works with shell commands only.
+			console.warn( '[openstation] command-palette runtime failed to load', err );
+		} );
 		this._loadPromise = loadImpl( this._scriptUrl ).then( ( factory ) => {
 			const real = factory( this._config ) as LoadedAi;
 			if ( this._pendingAsk ) {

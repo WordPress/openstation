@@ -131,6 +131,7 @@ import {
 import { IframeCommandBridge } from './commands/iframe-bridge';
 import { installWindowActivityNotifier } from './window-activity-notifier';
 import { ShellCommandHarvester } from './commands/shell-harvester';
+import { PALETTE_ASSETS_READY_EVENT } from './commands/palette-assets';
 import { type ScriptExtras } from './wallpapers/vendor-loader';
 import {
 	type WallpaperSurface,
@@ -2358,10 +2359,23 @@ function init(): void {
 		// (Posts, Files, Plugins, Comments) contribute none, so the user
 		// would never see the WP baseline while one of those is focused.
 		// Re-harvests automatically on `os-plugins-changed`.
-		new ShellCommandHarvester( {
+		//
+		// The Core palette runtime is no longer on the boot page — it
+		// loads on the first palette invocation (`palette-assets.ts`).
+		// This idle `install()` is therefore usually a graceful no-op
+		// (it only bites when another plugin shipped `wp.data` at
+		// boot); the listener below finishes the job the moment the
+		// lazy chain lands.
+		const shellHarvester = new ShellCommandHarvester( {
 			manager,
 			adminUrl: config.adminUrl,
-		} ).install();
+		} );
+		shellHarvester.install();
+		document.addEventListener(
+			PALETTE_ASSETS_READY_EVENT,
+			() => shellHarvester.install(),
+			{ once: true },
+		);
 	} );
 
 	// Programmatic `os-open-ai` dispatches route through
