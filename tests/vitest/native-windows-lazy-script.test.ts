@@ -301,4 +301,126 @@ describe( 'native-windows — deferred bundle loading', () => {
 		expect( loaded ).toEqual( [] );
 		expect( body.querySelector( '[data-id="declarative"]' ) ).not.toBeNull();
 	} );
+
+	// ----------------------------------------------------------
+	// Companion styles (`styles` arg → payload `companionStyles`)
+	// ----------------------------------------------------------
+
+	// `document.head` survives the afterEach body reset, so every
+	// test uses its own stylesheet URL — a link left by one test must
+	// not satisfy (or break) the next test's assertions.
+	const cssLinks = ( url: string ) =>
+		document.head.querySelectorAll( `link[rel="stylesheet"][href="${ url }"]` );
+
+	test( 'sync does NOT inject a companion stylesheet', async () => {
+		const url = 'https://example.test/companion-lazy.css';
+		const h = setupHarness();
+		const e = entry( 'explorer', {
+			companionStyles: [ { styleUrl: url, styleHandle: 'woo-css' } ],
+		} );
+		const { sync } = createNativeWindowSync( depsFromHarness( h ) );
+
+		await sync( [ e ] );
+
+		expect( cssLinks( url ) ).toHaveLength( 0 );
+	} );
+
+	test( 'the first open injects companion styles, after the window\'s own', async () => {
+		const url = 'https://example.test/companion-order.css';
+		const h = setupHarness();
+		const e = entry( 'explorer', {
+			styleUrl: 'https://example.test/explorer-own.css',
+			styleHandle: 'explorer-css',
+			companionStyles: [
+				{
+					styleUrl: url,
+					styleHandle: 'woo-css',
+					styleInline: [ '.os-woo{color:red}' ],
+				},
+			],
+		} );
+		installTemplate( e );
+		const { sync, openById } = createNativeWindowSync( depsFromHarness( h ) );
+		await sync( [ e ] );
+
+		openById( 'explorer' );
+		await runRender( h.managerOpen );
+
+		const links = Array.from(
+			document.head.querySelectorAll< HTMLLinkElement >(
+				'link[rel="stylesheet"]',
+			),
+		).map( ( l ) => l.href );
+		// The window's own style landed at sync, the companion at
+		// open — appended later, so its equal-specificity overrides
+		// win by source order.
+		expect(
+			links.indexOf( 'https://example.test/explorer-own.css' ),
+		).toBeGreaterThanOrEqual( 0 );
+		expect(
+			links.indexOf( 'https://example.test/explorer-own.css' ),
+		).toBeLessThan( links.indexOf( url ) );
+		// Inline blobs replay as a <style> carrying the handle.
+		const inline = document.head.querySelector< HTMLStyleElement >(
+			'style[data-os-style-handle="woo-css"]',
+		);
+		expect( inline?.textContent ).toBe( '.os-woo{color:red}' );
+	} );
+
+	test( 'two windows sharing a companion stylesheet inject it once', async () => {
+		const url = 'https://example.test/companion-shared.css';
+		const h = setupHarness();
+		const explorer = entry( 'explorer', {
+			companionStyles: [ { styleUrl: url, styleHandle: 'woo-css' } ],
+		} );
+		const customer = entry( 'customer', {
+			companionStyles: [ { styleUrl: url, styleHandle: 'woo-css' } ],
+		} );
+		installTemplate( explorer );
+		installTemplate( customer );
+		const { sync, openById } = createNativeWindowSync( depsFromHarness( h ) );
+		await sync( [ explorer, customer ] );
+
+		openById( 'explorer' );
+		await runRender( h.managerOpen, 0 );
+		openById( 'customer' );
+		await runRender( h.managerOpen, 1 );
+
+		expect( cssLinks( url ) ).toHaveLength( 1 );
+	} );
+
+	test( 'preloadScript brings companion styles in at sync too', async () => {
+		const url = 'https://example.test/companion-preload.css';
+		const h = setupHarness();
+		const e = entry( 'badge-poller', {
+			preloadScript: true,
+			companionStyles: [ { styleUrl: url, styleHandle: 'woo-css' } ],
+		} );
+		const { sync } = createNativeWindowSync( depsFromHarness( h ) );
+
+		await sync( [ e ] );
+
+		expect( cssLinks( url ) ).toHaveLength( 1 );
+	} );
+
+	test( 'a server-printed companion link is detected, not duplicated', async () => {
+		const url = 'https://example.test/companion-printed.css';
+		const h = setupHarness();
+		const printed = document.createElement( 'link' );
+		printed.rel = 'stylesheet';
+		printed.href = url;
+		document.head.appendChild( printed );
+
+		const e = entry( 'explorer', {
+			companionStyles: [ { styleUrl: url, styleHandle: 'woo-css' } ],
+		} );
+		installTemplate( e );
+		const { sync, openById } = createNativeWindowSync( depsFromHarness( h ) );
+		await sync( [ e ] );
+
+		openById( 'explorer' );
+		await runRender( h.managerOpen );
+
+		expect( cssLinks( url ) ).toHaveLength( 1 );
+	} );
 } );

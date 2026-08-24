@@ -818,6 +818,20 @@ export interface NativeWindowCompanionScript {
 	scriptTranslations?: string;
 }
 
+/**
+ * One companion stylesheet attached to a native window through the
+ * `styles` registration arg. Same resolved shape the window's own
+ * `style` travels in, but injected on the window's FIRST OPEN rather
+ * than when the window registers — a stylesheet that only paints
+ * surfaces inside the window is deliberately deferred until the
+ * window is shown.
+ */
+export interface NativeWindowCompanionStyle {
+	styleUrl: string;
+	styleHandle?: string;
+	styleInline?: string[];
+}
+
 export interface NativeWindowServerEntry {
 	/** Window id + dock-tile id. */
 	id: string;
@@ -920,6 +934,17 @@ export interface NativeWindowServerEntry {
 	 * `WP_Styles::print_inline_style()` would have written.
 	 */
 	styleInline?: string[];
+	/**
+	 * Companion stylesheets (`styles` arg) injected on the window's
+	 * first open, after the window's own style, in declared order —
+	 * so a companion's equal-specificity overrides win by source
+	 * order, the same contract a `wp_register_style` dependency gives
+	 * on the print path. The styles-side mirror of
+	 * `companionScripts`, deferred because a sheet that only paints
+	 * this window's surfaces is dead weight on every document that
+	 * never shows it.
+	 */
+	companionStyles?: NativeWindowCompanionStyle[];
 	/**
 	 * Attribution of the registering plugin. Mirrors `scriptHandle` for
 	 * windows registered via `openstation_register_window()`. Devtools

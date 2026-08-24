@@ -1350,7 +1350,7 @@ await wp.os.myWordpress.trashEntity( 'posts', 42 );
 
 Resolves `true` once the bundle is in the tab — immediately on a repeat call, since loads are deduplicated by URL and concurrent callers share one `<script>`. Resolves `false` when no native window is registered with that id. A network failure still resolves `true` and reports through the `os.shell.error` action, so **check for the API you came for rather than trusting the boolean**.
 
-Companion bundles declared via the window's `'scripts'` arg load first, in declaration order, exactly as they would on an open.
+Companion bundles declared via the window's `'scripts'` arg load first, in declaration order, exactly as they would on an open — and companion stylesheets (`'styles'`) are injected too, so a bundle whose API renders into the page arrives styled.
 
 If the API you need has an early stub in the always-loaded shell bundle (WP Explorer's does — see `wp.os.myWordpress`), call it directly instead: the stub forwards through this same path for you.
 

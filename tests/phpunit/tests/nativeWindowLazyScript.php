@@ -395,6 +395,79 @@ class Tests_OpenStation_NativeWindowLazyScript extends WP_UnitTestCase {
 	}
 
 	// --------------------------------------------------------------
+	// styles (companion stylesheets)
+	// --------------------------------------------------------------
+
+	/**
+	 * @covers ::openstation_build_native_windows_payload
+	 */
+	public function test_companion_styles_default_to_empty() {
+		$this->register_demo_window( 'demo-style-none' );
+
+		$entry = $this->payload_entry( 'demo-style-none' );
+		$this->assertNotNull( $entry );
+		$this->assertSame( array(), $entry['companionStyles'] );
+	}
+
+	/**
+	 * Companion styles resolve to the same shape the window's own
+	 * `style` travels in — URL plus harvested `wp_add_inline_style`
+	 * blobs — so the shell can replay both on the first open.
+	 * Unregistered handles drop silently, like script companions.
+	 *
+	 * @covers ::openstation_register_window
+	 * @covers ::openstation_build_native_windows_payload
+	 */
+	public function test_companion_styles_resolve_with_inline_data() {
+		wp_register_style( 'demo-style-extra', 'https://example.test/extra.css', array(), '1.0.0' );
+		wp_add_inline_style( 'demo-style-extra', '.demo{color:red}' );
+
+		$this->register_demo_window(
+			'demo-style-one',
+			array( 'styles' => array( 'demo-style-extra', 'never-registered', '' ) )
+		);
+
+		$entry = $this->payload_entry( 'demo-style-one' );
+		$this->assertNotNull( $entry );
+		$this->assertCount( 1, $entry['companionStyles'] );
+		$companion = $entry['companionStyles'][0];
+		$this->assertSame( 'demo-style-extra', $companion['styleHandle'] );
+		$this->assertStringContainsString( 'extra.css', $companion['styleUrl'] );
+		$this->assertSame( array( '.demo{color:red}' ), $companion['styleInline'] );
+
+		wp_deregister_style( 'demo-style-extra' );
+	}
+
+	/**
+	 * Preload means "everything at boot": a window that opted its
+	 * bundle back into the boot load gets its companion styles
+	 * enqueued through the normal print pipeline too, so a preloaded
+	 * first open paints styled.
+	 *
+	 * @covers ::openstation_enqueue_native_window_scripts
+	 */
+	public function test_preload_enqueues_companion_styles() {
+		wp_register_style( 'demo-style-preload', 'https://example.test/preload.css', array(), '1.0.0' );
+		$this->register_demo_script( 'demo-main', 'https://example.test/main.js' );
+		$this->register_demo_window(
+			'demo-style-eager',
+			array(
+				'script'         => 'demo-main',
+				'styles'         => array( 'demo-style-preload' ),
+				'preload_script' => true,
+			)
+		);
+
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		openstation_enqueue_native_window_scripts();
+
+		$this->assertTrue( wp_style_is( 'demo-style-preload', 'enqueued' ) );
+
+		wp_dequeue_style( 'demo-style-preload' );
+		wp_deregister_style( 'demo-style-preload' );
+	}
+
+	// --------------------------------------------------------------
 	// The menu-refresh probe's payload
 	// --------------------------------------------------------------
 

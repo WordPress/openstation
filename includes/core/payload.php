@@ -2074,6 +2074,30 @@ function openstation_build_native_windows_payload() {
 		$style_handle  = isset( $entry['style'] ) ? (string) $entry['style'] : '';
 		$style_payload = openstation_resolve_style_payload( $style_handle );
 
+		// Companion style handles (`styles` arg) — stylesheets the
+		// shell injects on the window's FIRST OPEN, after the window's
+		// own style, in declared order. The styles-side mirror of
+		// `companionScripts`, with different timing on purpose: the
+		// window's own `style` lands when the window registers so a
+		// mid-session activation paints, but a companion exists to be
+		// deferred — it costs nothing until the window is actually
+		// shown. Unregistered handles drop, same as script companions.
+		$companion_styles = array();
+		if ( ! empty( $entry['styles'] ) && is_array( $entry['styles'] ) ) {
+			foreach ( $entry['styles'] as $companion_style_handle ) {
+				$companion_style_handle  = (string) $companion_style_handle;
+				$companion_style_payload = openstation_resolve_style_payload( $companion_style_handle );
+				if ( '' === $companion_style_payload['url'] ) {
+					continue;
+				}
+				$companion_styles[] = array(
+					'styleUrl'    => $companion_style_payload['url'],
+					'styleHandle' => $companion_style_handle,
+					'styleInline' => $companion_style_payload['inline'],
+				);
+			}
+		}
+
 		// `config` arg on `openstation_register_window()` — discoverable
 		// alternative to `wp_localize_script`. We synthesize a localize
 		// snippet so it lands through the same delivery path as native
@@ -2148,6 +2172,7 @@ function openstation_build_native_windows_payload() {
 			'styleUrl'           => $style_payload['url'],
 			'styleHandle'        => $style_handle,
 			'styleInline'        => $style_payload['inline'],
+			'companionStyles'    => $companion_styles,
 			'tabs'               => $tab_descriptors,
 		);
 	}

@@ -1068,21 +1068,29 @@ export function createNativeWindowSync(
 		injectedTemplates.add( entry.templateId );
 	};
 
-	const ensureStyle = ( entry: NativeWindowServerEntry ): void => {
-		const url = entry.styleUrl;
+	/**
+	 * Inject one stylesheet (link + inline blobs), once per URL.
+	 *
+	 * `wp_print_styles` already ran when the parent shell page was
+	 * rendered, but a plugin activated mid-session never got its
+	 * `admin_enqueue_scripts` callback hit on this page. Inject the
+	 * `<link>` ourselves so the window's CSS lands before the
+	 * render callback queries the body for mount points.
+	 *
+	 * Idempotent on every dimension we care about: tracked by URL
+	 * in `loadedStyles`, AND a defensive `head` lookup so a
+	 * server-rendered `<link>` (plugin active at boot) is detected
+	 * and skipped — same shape as `ensureTemplate`'s guard.
+	 */
+	const injectStylesheet = ( style: {
+		styleUrl?: string;
+		styleHandle?: string;
+		styleInline?: string[];
+	} ): void => {
+		const url = style.styleUrl;
 		if ( ! url || loadedStyles.has( url ) ) {
 			return;
 		}
-		// `wp_print_styles` already ran when the parent shell page was
-		// rendered, but a plugin activated mid-session never got its
-		// `admin_enqueue_scripts` callback hit on this page. Inject the
-		// `<link>` ourselves so the window's CSS lands before the
-		// render callback queries the body for mount points.
-		//
-		// Idempotent on every dimension we care about: tracked by URL
-		// in `loadedStyles`, AND a defensive `head` lookup so a
-		// server-rendered `<link>` (plugin active at boot) is detected
-		// and skipped — same shape as `ensureTemplate`'s guard.
 		// Defensive lookup against `<link>`s the server printed at boot
 		// (plugin active at page load) so we don't duplicate. Escape `\`
 		// and `"` for the attribute selector — the URL is resolved by
@@ -1095,8 +1103,8 @@ export function createNativeWindowSync(
 			const link = document.createElement( 'link' );
 			link.rel = 'stylesheet';
 			link.href = url;
-			if ( entry.styleHandle ) {
-				link.dataset.osStyleHandle = entry.styleHandle;
+			if ( style.styleHandle ) {
+				link.dataset.osStyleHandle = style.styleHandle;
 			}
 			document.head.appendChild( link );
 		}
@@ -1104,20 +1112,42 @@ export function createNativeWindowSync(
 		// the link so the cascade matches what the print pipeline would
 		// have written. One blob per inline string keeps stack traces
 		// useful in DevTools when a rule misbehaves.
-		if ( Array.isArray( entry.styleInline ) ) {
-			for ( const css of entry.styleInline ) {
+		if ( Array.isArray( style.styleInline ) ) {
+			for ( const css of style.styleInline ) {
 				if ( typeof css !== 'string' || css === '' ) {
 					continue;
 				}
-				const style = document.createElement( 'style' );
-				if ( entry.styleHandle ) {
-					style.dataset.osStyleHandle = entry.styleHandle;
+				const el = document.createElement( 'style' );
+				if ( style.styleHandle ) {
+					el.dataset.osStyleHandle = style.styleHandle;
 				}
-				style.textContent = css;
-				document.head.appendChild( style );
+				el.textContent = css;
+				document.head.appendChild( el );
 			}
 		}
 		loadedStyles.add( url );
+	};
+
+	const ensureStyle = ( entry: NativeWindowServerEntry ): void => {
+		injectStylesheet( entry );
+	};
+
+	/**
+	 * Inject the window's companion stylesheets (`styles` arg), in
+	 * declared order. Runs on the first-open path, NOT at sync: a
+	 * companion sheet only paints surfaces inside this window, so it
+	 * is deliberately deferred until the window is actually shown.
+	 *
+	 * Appended to `<head>` after everything the server printed and
+	 * after the window's own style (which `ensureStyle` handled at
+	 * registration), so at equal specificity a companion's overrides
+	 * win by source order — the same contract a `wp_register_style`
+	 * dependency gives on the print path.
+	 */
+	const ensureCompanionStyles = ( entry: NativeWindowServerEntry ): void => {
+		for ( const companion of entry.companionStyles ?? [] ) {
+			injectStylesheet( companion );
+		}
 	};
 
 	/**
@@ -1180,6 +1210,10 @@ export function createNativeWindowSync(
 	const ensureScript = async (
 		entry: NativeWindowServerEntry,
 	): Promise< void > => {
+		// Companion styles first — the `<link>` fetches in parallel
+		// with the bundles below, so by the time the render callback
+		// paints, the CSS has had the whole script load to arrive.
+		ensureCompanionStyles( entry );
 		for ( const companion of entry.companionScripts ?? [] ) {
 			if ( ! companion.scriptUrl ) {
 				continue;
