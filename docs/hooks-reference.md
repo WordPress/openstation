@@ -3021,7 +3021,6 @@ The default URL is resolved in priority:
 2. **The directory's own `icons` map** — whatever wp.org returned for this plugin, cached in the `update_plugins` transient, read `svg` → `2x` → `1x` exactly as core's "Add Plugins" cards read it. Used verbatim, `?rev=` cache-buster included. `default` (wp.org's generated geopattern for plugins that uploaded no art) is skipped, so an iconless plugin still gets the window's placeholder.
 3. **Guessed wp.org SVN asset** — `https://ps.w.org/<slug>/assets/icon.svg`, for when that metadata isn't cached. `<slug>` is the directory slug when known, else the folder name, else the textdomain. Guessing is last because both halves are unknowable: the format (Gutenberg and UpdraftPlus ship JPEG only) and the slug (`hello.php` is listed as `hello-dolly`). The JS card walks a candidate chain (SVG → 256 PNG/JPEG/GIF → 128 PNG/JPEG/GIF) on `<img>` error for URLs of exactly this shape, then drops to the placeholder. Local, `icons`-map and custom URLs are one-shot, then placeholder.
 
-
 ### `openstation_plugins_window_local_icon_candidates` — Experimental *(filter)*
 
 Filter the ordered list of relative paths probed inside an installed plugin's folder when looking for a card icon. The first existing file wins; later entries are ignored. Use this to support a non-standard icon convention (e.g. `branding/logo.svg`, `icon@2x.svg`) without forking the resolver.
