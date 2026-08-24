@@ -23,6 +23,22 @@
  * item that answers "what does this do right now?" is the honest
  * shape for a toggle: a window is in one place or the other, never
  * both, so two competing items would misdescribe it.
+ *
+ * ## Two row shapes
+ *
+ * A **verb** row runs and closes the menu — "Send to your Mac",
+ * "Reload". A **checkbox** row (`checkable`, with a `checked`
+ * predicate) reports a persistent per-window preference and stays
+ * open when clicked, so the user sees the indicator flip where they
+ * are looking. `checked` is re-read on every open alongside `label`
+ * and `isVisible`, which is what lets a plugin persist a preference
+ * and repaint nothing: the row asks, it is never told.
+ *
+ * A relabelling verb and a checkbox are not interchangeable. Use the
+ * former when the two states are two *places* the window can be, and
+ * the latter when they are one setting the window either has or does
+ * not — a checkbox says "there is a thing here, and it is currently
+ * off", which a label reading "Show pins" alone cannot.
  */
 
 import { throwOnRegistrationErrors } from '../registration-errors';
@@ -61,9 +77,33 @@ export interface WindowActionDef {
 	 */
 	isVisible?: ( window: DesktopWindow ) => boolean;
 	/**
-	 * Handler. The shell closes the menu before calling it, so a
-	 * handler that opens a dialog or navigates does not have to
-	 * compete with a still-painted popover.
+	 * Paint this row as a checkbox rather than a verb. Requires
+	 * `checked`; the pair is what turns the row into a report of a
+	 * preference instead of a button.
+	 */
+	checkable?: boolean;
+	/**
+	 * Current check state, read on every menu open. Required when
+	 * `checkable` is set — a checkbox with no reader would be a row
+	 * that can be flipped but never asked, and would go stale the
+	 * moment anything but this menu changed the value.
+	 *
+	 * A throwing reader paints the row unchecked rather than dropping
+	 * it: losing the indicator is recoverable, losing the row is not.
+	 */
+	checked?: ( window: DesktopWindow ) => boolean;
+	/**
+	 * Whether selecting the row closes the menu. Defaults to `true`
+	 * for a verb and `false` for a checkbox, which is the behaviour
+	 * each shape wants; set it explicitly to override either.
+	 */
+	closeOnSelect?: boolean;
+	/**
+	 * Handler. For a verb the shell closes the menu before calling it,
+	 * so a handler that opens a dialog or navigates does not have to
+	 * compete with a still-painted popover. For a checkbox the shell
+	 * flips the indicator optimistically first and leaves the menu
+	 * open, then calls this.
 	 */
 	onSelect: ( window: DesktopWindow ) => void;
 	/**
@@ -143,6 +183,15 @@ export function registerWindowAction( def: WindowActionDef ): void {
 			typeof def.isVisible !== 'function'
 		) {
 			errors.push( 'isVisible (must be a function when set)' );
+		}
+		if ( def.checked !== undefined && typeof def.checked !== 'function' ) {
+			errors.push( 'checked (must be a function when set)' );
+		} else if ( def.checkable && typeof def.checked !== 'function' ) {
+			// Caught here rather than papered over at paint time: a
+			// checkbox with no reader renders as permanently unchecked,
+			// which looks like a bug in the plugin's persistence and is
+			// not one.
+			errors.push( 'checked (required when checkable is set)' );
 		}
 	}
 
@@ -245,6 +294,33 @@ export function resolveActionIcon(
 		}
 	}
 	return def.icon ?? '';
+}
+
+/**
+ * Whether a checkable action's box is currently ticked.
+ *
+ * Read on every menu open, never cached: the plugin owns the value
+ * and may change it from anywhere (another window's row, a settings
+ * panel, a REST response landing late). Asking on open is what keeps
+ * "what the row says" and "what the plugin thinks" from drifting
+ * apart for longer than one open.
+ *
+ * @param def    Action.
+ * @param window The window the menu belongs to.
+ * @return True to paint the row ticked. Always false for a verb row.
+ */
+export function isActionChecked(
+	def: WindowActionDef,
+	window: DesktopWindow,
+): boolean {
+	if ( ! def.checkable || typeof def.checked !== 'function' ) {
+		return false;
+	}
+	try {
+		return !! def.checked( window );
+	} catch {
+		return false;
+	}
 }
 
 /**

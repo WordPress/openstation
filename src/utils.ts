@@ -70,6 +70,20 @@ const IDENTITY_PARAMS: readonly string[] = [
 ];
 
 /**
+ * {@link IDENTITY_PARAMS} minus `p`, the site editor's own route.
+ *
+ * `p` separates windows — two templates are two windows — but not
+ * pages: `site-editor.php` is one screen with a client-side router
+ * behind it. WordPress redirects it, carrying any query string (ours
+ * always carries `openstation_chromeless=1`), to `…&p=/`, so counting
+ * `p` here left that URL owned by no submenu tab and the Appearance
+ * window's whole strip went dark once the editor loaded.
+ */
+const PAGE_IDENTITY_PARAMS: readonly string[] = IDENTITY_PARAMS.filter(
+	( key ) => key !== 'p',
+);
+
+/**
  * Collapse a URL path (plus its significant query params) into a clean
  * slug that is safe to use as a DOM id attribute.
  */
@@ -176,16 +190,16 @@ export function applyTileEntryStagger( tile: HTMLElement ): void {
  * Returns a key identifying the admin *page* a URL points at, ignoring
  * every param that only varies the view of that page — `action`,
  * `paged`, `s`, filters, nonces, feedback flags. Only
- * {@link IDENTITY_PARAMS} survive, so `nav-menus.php`,
+ * {@link PAGE_IDENTITY_PARAMS} survive, so `nav-menus.php`,
  * `nav-menus.php?action=locations`, and `nav-menus.php?action=edit&menu=2`
  * all collapse to the same key, while `edit-tags.php?taxonomy=category`
  * and `edit-tags.php?taxonomy=post_tag` stay apart.
  *
  * Same identity rule {@link deriveWindowId} uses to decide which window
- * owns a URL, minus the slugification — this variant compares URLs
- * rather than minting DOM ids, so it keeps the raw pathname and needs
- * no `adminUrl` base. Used by the submenu tab strip to keep a tab lit
- * while the user moves around within its page.
+ * owns a URL, minus the slugification and the in-screen route — this
+ * variant compares URLs rather than minting DOM ids, so it keeps the
+ * raw pathname and needs no `adminUrl` base. Used by the submenu tab
+ * strip to keep a tab lit while the user moves around within its page.
  *
  * Falls back to the raw URL if parsing fails.
  */
@@ -193,7 +207,7 @@ export function pageIdentityKey( url: string ): string {
 	try {
 		const parsed = new URL( url, window.location.origin );
 		const significant = new URLSearchParams();
-		for ( const key of IDENTITY_PARAMS ) {
+		for ( const key of PAGE_IDENTITY_PARAMS ) {
 			const value = parsed.searchParams.get( key );
 			if ( value ) {
 				significant.set( key, value );

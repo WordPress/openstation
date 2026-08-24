@@ -270,6 +270,8 @@ import { installRecycleBinDropTargets } from './desktop-files/recycle-bin-target
 import { installAgentTileDropHandlers } from './desktop-files/agent-drop-targets';
 import { startFilesHeartbeat } from './desktop-files/heartbeat';
 import { startFilesRestoreSync } from './desktop-files/restore-sync';
+import { listPlacements } from './desktop-files/rest';
+import { setFolderPlacements } from './desktop-files/store';
 import { buildOccupiedSet, snapToEmptyCell } from './desktop-files/grid';
 import {
 	buildMenuItems as buildWallpaperMenuItems,
@@ -1593,6 +1595,22 @@ export interface OpenStationPublicApi {
 	 */
 	broadcast: < T = unknown >( topic: string, payload: T ) => void;
 	/**
+	 * Announce that content of one type was created, updated,
+	 * trashed, untrashed or deleted — the typed wrapper over
+	 * `broadcast( 'os.<type>.changed', { source, action, ids } )`
+	 * that the Recycle Bin, its dock icon and the shell's
+	 * iframe-reload subscriber all listen for. A window that
+	 * mutates content through its own REST endpoints must call
+	 * this, or its changes only reach other windows on the
+	 * Heartbeat cadence (15–60 s).
+	 */
+	announceContentChange: (
+		type: string,
+		action: 'created' | 'updated' | 'trashed' | 'untrashed' | 'deleted',
+		ids: number | number[],
+		source?: string,
+	) => void;
+	/**
 	 * Subscribe to broadcast topics. Returns an unsubscribe handle.
 	 * Use `'*'` to receive every payload.
 	 *
@@ -2500,13 +2518,16 @@ function init(): void {
 		findDockEntry: findDockEntryForUrl,
 	} );
 
-	// Station Home is the shell's always-on answer to the ordinary
-	// WordPress Dashboard URL. The explicit classic escape carries the
-	// `desktop_mode_classic` flag and is excluded by the shared matcher.
+	// Station Home claims the ordinary WordPress Dashboard URL when
+	// the user opts in via OS Settings → Features (default off, so
+	// custom dashboards keep rendering in the chromeless iframe). The
+	// explicit classic escape carries the `desktop_mode_classic` flag
+	// and is excluded by the shared matcher.
 	registerNativeUrlRemap( {
 		id: 'desktop-mode-dashboard',
 		nativeWindowId: 'desktop-mode-dashboard',
 		matches: ( _url, parsed ) => matchesStationHomeUrl( parsed ),
+		enabled: ( snapshot ) => snapshot.stationHomeEnabled === true,
 	} );
 
 	// Native Posts window (replaces `edit.php` when the user opts in
@@ -3075,6 +3096,17 @@ function init(): void {
 	 * treat that as "nothing to open", not as an error.
 	 */
 	function openNativeWindowById( nativeId: string ): boolean {
+		// Station Home is opt-in (OS Settings → Features). Refusing the
+		// id here — not just in the URL remap above — is what keeps a
+		// saved session from resurrecting the window for a user who
+		// never opted in: every 1.1.2 session has it open, and restore
+		// reopens native windows by id without consulting the remap.
+		if (
+			nativeId === 'desktop-mode-dashboard' &&
+			osSettings.getOsSettingsSnapshot().stationHomeEnabled !== true
+		) {
+			return false;
+		}
 		if ( nativeId === OS_SETTINGS_WINDOW_ID ) {
 			openOsSettings();
 			return true;
@@ -3811,6 +3843,20 @@ function init(): void {
 		syncServerGames,
 		syncServerDesktopThemes,
 		renderIcons,
+		// Registered icons surface on files-layer desktops as REAL
+		// placement rows the server mints/hides at read time — one
+		// root refetch per icon-set change is what makes a payload's
+		// new/removed icons visible there without an F5.
+		refreshRootPlacements: () => {
+			void listPlacements( 0 )
+				.then( ( res ) => {
+					setFolderPlacements( 0, res.placements );
+				} )
+				.catch( () => {
+					// Non-fatal — the wallpaper reconciles on the
+					// next boot's placement hydration.
+				} );
+		},
 		syncShortcuts: syncShortcutsNow,
 	} );
 

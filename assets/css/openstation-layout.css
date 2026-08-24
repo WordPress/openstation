@@ -493,6 +493,32 @@ body.os-constellation-open .os-dock__tooltip {
 	opacity: 0.6;
 }
 
+.os-constellation__row-offsite {
+	flex: 0 0 auto;
+	font-size: 14px;
+	width: 14px;
+	height: 14px;
+	opacity: 0.55;
+}
+
+/*
+ * Reaches screen readers, never the eye. It rides beside the row's own
+ * label so the accessible name reads "Docs (opens in a new tab)"; an
+ * `aria-label` on the row would have replaced that name rather than
+ * extended it, taking the label and any plugin-appended meta with it.
+ */
+.os-constellation__row-note {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	border: 0;
+	overflow: hidden;
+	white-space: nowrap;
+	clip-path: inset( 50% );
+}
+
 /* ---- Head -------------------------------------------------------- */
 
 .os-constellation__head {

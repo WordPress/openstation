@@ -235,3 +235,66 @@ export function installBroadcastReceiver(): void {
 		broadcast( data.topic, data.payload );
 	} );
 }
+
+/**
+ * The verbs the shell's content-change subscribers understand —
+ * the same set `includes/content-changes.php` records server-side.
+ */
+export type ContentChangeAction =
+	| 'created'
+	| 'updated'
+	| 'trashed'
+	| 'untrashed'
+	| 'deleted';
+
+/**
+ * Announce that content of one type changed — the cooperative half
+ * of the shell's real-time story.
+ *
+ * The shell can only see mutations it performs itself. A window
+ * that trashes, restores or deletes content through **its own REST
+ * endpoints** is invisible to every other open window until the
+ * Heartbeat catch-all drips the change in (15–60 s later): the
+ * Recycle Bin keeps listing a form the builder just trashed, the
+ * bin icon stays empty-looking while it is holding something.
+ * Announcing is how a window tells the rest of the desktop *now*.
+ *
+ * This is a thin, typed wrapper over
+ * `broadcast( 'os.<type>.changed', { source, action, ids } )` — the
+ * exact topic and payload the Recycle Bin window, the bin's dock
+ * icon, and the shell's iframe-reload subscriber already listen
+ * for. It exists so producers stop hand-rolling the envelope: two
+ * in-tree modules (pinned notes, files-on-desktop) and every
+ * third-party window need the same five lines, and a drifted
+ * payload fails silently.
+ *
+ * No-ops on an empty or invalid id list, so callers can pass a
+ * server response's ids straight through without guarding.
+ *
+ * @public
+ *
+ * @param type   Post type (or bin entity kind: `comment`,
+ *               `placement`, `shortcut`, `folder`) that changed.
+ * @param action What happened to it.
+ * @param ids    Affected id, or list of ids.
+ * @param source Optional producer tag (e.g. `'my-plugin'`), so a
+ *               producer that also subscribes can skip its own
+ *               emissions.
+ */
+export function announceContentChange(
+	type: string,
+	action: ContentChangeAction,
+	ids: number | number[],
+	source = '',
+): void {
+	const list = ( Array.isArray( ids ) ? ids : [ ids ] )
+		.map( ( id ) => Math.floor( Number( id ) ) )
+		.filter( ( id ) => Number.isFinite( id ) && id > 0 );
+	const slug = String( type ).trim();
+
+	if ( '' === slug || 0 === list.length ) {
+		return;
+	}
+
+	broadcast( `os.${ slug }.changed`, { source, action, ids: list } );
+}

@@ -116,9 +116,24 @@ Dock URLs flow into the shell config as JSON, then end up assigned to `iframe.sr
 
 Some plugins register a top-level menu with a stub callback whose actual landing page is the first submenu (`add_menu_page( …, 'woocommerce', null, … )` then `add_submenu_page( 'woocommerce', …, 'wc-admin', … )`). Classic admin's `wp-admin/menu-header.php` rewrites the parent's clickable link to the first submenu's URL. Hitting `?page=woocommerce` directly invokes the stub and 500s.
 
-**Fix**: `openstation_build_dock_items()` mirrors this — if a parent menu has any visible submenu, the parent's effective URL is the first capability-passing submenu's URL.
+**Fix**: `openstation_build_dock_items()` mirrors this — if a parent menu has any visible submenu, the parent's effective URL is the first capability-passing submenu's URL. A menu that registered a self-link keeps its own URL instead, wherever in the list that link sits: it has a working page of its own, and the fallthrough is only for menus that don't.
 
 **Plugins this addresses**: WooCommerce, historically Yoast SEO, several membership / LMS plugins.
+
+### Admin menus that point at another host (WordPress.com)
+
+A site can be hosted somewhere that extends the admin menu with links to its own control panel. WordPress.com is the case that surfaced this: My Home, Theme Showcase, Hosting and friends are `wordpress.com` URLs, and Jetpack also repoints Core entries — Appearance → Themes, Plugins → Add Plugin, Users → All Users — at their Calypso counterparts. None of them can load in a window; the remote origin refuses the frame. Routing them to a browser tab instead, which is what the shell used to do, takes the user out of the desktop on a click that looked like every other dock click.
+
+**Fix**, all in `openstation_build_dock_items()`:
+
+1. Any menu whose resolved URL is off-site is dropped. `openstation_menu_item_is_external()` is the classifier, and it is filterable.
+2. A child of a menu a regular plugin registered (`pluginFile` non-null) is the exception — a docs or account link under a plugin's own menu is a normal thing to ship. It keeps its row, flagged `offSite`, which the constellation marks with an outbound glyph and the in-window tab strip skips.
+3. Rows carrying `hide-if-js` are dropped, which is also what removes the duplicate submenus WordPress.com produced: Jetpack keeps the wp-admin original and marks it hidden rather than replacing it, so the dock was rendering both copies.
+4. Except when that hidden row is the original of an off-site row we just dropped — then it takes the dropped row's place in the list, and the menu opens the wp-admin screen Core registered. This is what puts Themes, Add Plugin and All Users back.
+
+**Icons**: `Base_Admin_Menu::override_svg_icons()` moves every SVG-data-URI menu icon into an inline stylesheet and sets `$menu[ $i ][6]` to `'none'`, which left Jetpack, MailPoet and every other plugin shipping vector art with a generic gear in the dock. `openstation_snapshot_menu_icons()` samples `$menu` at several points across `admin_menu` and records, write-once, the first real icon each slug wore; the builder falls back to it when the live value has been blanked. Sampling rather than parking one priority below the known rewriter is deliberate — registrations and rewrites both happen at arbitrary priorities, and the live value still wins whenever there is one, so a menu that genuinely changes its icon is unaffected.
+
+Nothing here is WordPress.com-specific: the rules read the menu arrays, not the host. That cuts both ways, and rule 1 is the one to know about: a plugin that registers its **top-level** menu as a link to its own hosted service loses its dock tile on any site, where before it opened a browser tab. Children are the documented exception, top-level entries are not, because a tile that can never open a window is a tile that lies about what a dock click does.
 
 ### Empty submenu titles
 
@@ -284,6 +299,53 @@ Detection is by visible text content on the clicked element rather than by selec
 **Tests**: `tests/phpunit/tests/diviCompat.php` — `test_iframe_patch_emits_in_chromeless_for_divi`, `test_iframe_patch_skips_when_not_chromeless`, `test_iframe_patch_skips_without_divi`, `test_parent_listener_emits_on_shell_for_divi`, `test_parent_listener_skips_in_chromeless_request`, `test_parent_listener_skips_when_openstation_disabled`, `test_parent_listener_skips_without_divi`, `test_is_active_true_for_divi_theme`, `test_is_active_false_for_other_theme`. Vitest covers `os-confirm-dialog`'s `hideCancel` / `dismissable` props in `src/ui/components/os-confirm-dialog/os-confirm-dialog.test.ts`.
 
 > **Note**: shims 1–3 remain in place. Shim 1 (deps fix) is needed so the Divi block actually *renders* with its "Use Divi Builder" button — that label is what the click handler matches on. Shims 2 (`__Cypress__`) and 3 (preloader bridge) remain as defense-in-depth for users who *don't* take the handoff and let VB load inside the iframe anyway (e.g., older Divi versions that don't show our match-text buttons, or third-party plugins that activate VB through an unintercepted path).
+
+## The asset side: force-dequeue plugins (the asset guard)
+
+**File**: `includes/render/asset-guard.php`.
+
+A class of plugins force-dequeues every admin style and script that
+isn't on their own allowlist when one of their screens renders, to
+protect their (usually React-heavy) UI from foreign CSS. The
+canonical example is **MailPoet's `ConflictResolver`**: on every
+MailPoet page it strips all styles/scripts whose `src` doesn't match
+its allowlist, hooked at `PHP_INT_MAX` on the enqueue hooks and
+`PHP_INT_MIN` on the print hooks. Several "asset cleanup" plugins
+ship the same pattern.
+
+Inside a chromeless iframe that strips `os-chromeless` — the sidebar
+menu and classic layout come back *inside the window* (the admin bar
+stays gone, because its suppression is PHP-side; the visual split is
+the tell for this bug class). On a shell page it would strip the
+desktop's own CSS/JS wholesale.
+
+No enqueue priority can win a war both sides fight with
+`PHP_INT_MAX`, so the guard doesn't fight there. It snapshots every
+queued handle served from the OpenStation plugin URL during
+`admin_enqueue_scripts`, then re-asserts any that went missing via
+Core's `print_styles_array` / `print_scripts_array` filters — which
+run *inside* `WP_Dependencies::do_items()`, after every dequeue at
+every priority has already had its say. Re-asserted styles land at
+the end of the print list, i.e. after the stripper's own sheets in
+the cascade — exactly where chromeless overrides want to be.
+
+The guard never re-asserts assets that aren't ours: the stripper is
+usually stripping for a reason, and undoing it wholesale would
+recreate the conflicts it resolves. Our sheets are scoped to the
+`os-chromeless` / `os-active` body classes, so re-asserting them
+can't bleed into the host page's UI. Third-party chromeless
+overrides can opt in via the `openstation_guarded_styles` /
+`openstation_guarded_scripts` filters (see
+[hooks-reference](./hooks-reference.md#openstation_guarded_styles--openstation_guarded_scripts--stable-filters)).
+
+**Plugins this addresses**: MailPoet (all admin screens), and any
+allowlist-based asset-cleanup plugin active on an admin page a
+OpenStation user opens.
+
+**Test**: `tests/phpunit/tests/assetGuard.php` — snapshot scoping and
+idempotence, dependency-ordered re-assertion, done/present/unregistered
+skips, the filter escape hatch, and the footer-pass-only rule for
+scripts.
 
 ## The site-window side: WooCommerce
 

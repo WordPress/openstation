@@ -769,6 +769,7 @@ window.wp.os = {
     heartbeat:         HeartbeatBus,                           // wp Heartbeat bus
     broadcast:         < T >( topic, payload ) => void,        // cross-window
     subscribe:         ( topic, cb ) => () => void,            // cross-window
+    announceContentChange: ( type, action, ids, source? ) => void, // os.<type>.changed producer
 
     // Framework features
     presence:          PresenceApi,
@@ -857,7 +858,7 @@ manager.closeDesktop( id: string ): void;
     width?:        number;
     height?:       number;
     initialState?: 'normal' | 'minimized' | 'maximized' | 'fullscreen';
-    submenu?:      { title: string; url: string }[];
+    submenu?:      { title: string; url: string; offSite?: boolean }[];
 }
 ```
 
@@ -911,7 +912,7 @@ Ownership is about z-order and focus. For a *visual* relationship between peer w
 
 To react to a blocked focus attempt, subscribe to [`os-window-child-blocked`](#os-window-child-blocked) or the `os.window.child-blocked` action.
 
-**`config.submenu`** — when present, the shell renders the array as an in-window tab strip below the title bar so the user can navigate child pages without leaving the window. Pass `item.submenu` whenever you open a window from a dock context — `openItem` and `openSubmenuPick` (in custom rail renderers) propagate it for you. Skip it for native windows that don't have admin sub-pages. The shell strips WordPress's auto-prepended self-link entry server-side, so `submenu.length > 0` reliably means "has real children" (no defensive filtering needed in your code). The shell prepends a synthetic "back to parent" tab (label = `config.title`, URL = `config.url`) as the first tab so the user can return to the parent listing without closing the window. If a caller-supplied submenu entry already points at `config.url` the synthetic tab is suppressed to avoid two tabs claiming the same URL.
+**`config.submenu`** — when present, the shell renders the array as an in-window tab strip below the title bar so the user can navigate child pages without leaving the window. Entries flagged `offSite` are skipped: a tab loads its URL into this window's iframe, which an off-site origin refuses. Pass `item.submenu` whenever you open a window from a dock context — `openItem` and `openSubmenuPick` (in custom rail renderers) propagate it for you. Skip it for native windows that don't have admin sub-pages. The shell strips WordPress's auto-prepended self-link entry server-side, so `submenu.length > 0` reliably means "has real children" (no defensive filtering needed in your code). The shell prepends a synthetic "back to parent" tab (label = `config.title`, URL = `config.url`) as the first tab so the user can return to the parent listing without closing the window. If a caller-supplied submenu entry already points at `config.url` the synthetic tab is suppressed to avoid two tabs claiming the same URL.
 
 Every iframe window gets the strip element, whether or not it has a submenu, because external sub-tabs can be added to it later. Its navigation semantics follow its contents: `role="tablist"` plus an `aria-label` of `"<title> sub-pages"` while it holds tabs, `role="presentation"` while it is empty — so a window with no sub-pages never advertises an empty tab list to assistive tech.
 
@@ -2454,7 +2455,30 @@ wp.os.subscribe( 'posts/updated', ( { id } ) => {
 }
 ```
 
-Publishers: the server-side changelog relayed through the chromeless footer (`source: 'admin'`), the block-editor save-watcher (`'editor'`), the Heartbeat catch-all (`'heartbeat'` — may repeat a change delivered earlier by a faster path; treat refreshes as idempotent), and client-side emitters that identify themselves (`'recycle-bin'`, `'posts-window'`, your plugin). Subscribing to your type's topic is all a list window needs to stay live; publishing is one `openstation_content_changes_record()` call server-side (see [hooks-reference.md → Content-change realtime layer](./hooks-reference.md#content-change-realtime-layer)) or a direct `wp.os.broadcast()` client-side — set a distinctive `source` so you can skip your own echoes.
+Publishers: the server-side changelog relayed through the chromeless footer (`source: 'admin'`), the block-editor save-watcher (`'editor'`), the Heartbeat catch-all (`'heartbeat'` — may repeat a change delivered earlier by a faster path; treat refreshes as idempotent), and client-side emitters that identify themselves (`'recycle-bin'`, `'posts-window'`, your plugin). Subscribing to your type's topic is all a list window needs to stay live; publishing is one `openstation_content_changes_record()` call server-side (see [hooks-reference.md → Content-change realtime layer](./hooks-reference.md#content-change-realtime-layer)) or `wp.os.announceContentChange()` client-side — set a distinctive `source` so you can skip your own echoes.
+
+---
+
+### `announceContentChange( type, action, ids, source? )` — Stable
+
+The typed producer for the `os.<type>.changed` family — a wrapper over `broadcast()` that emits the exact envelope above, so producers stop hand-rolling it (a drifted payload fails silently: the bin just stops updating).
+
+**When you must call it:** whenever your window mutates content through **your own REST endpoints**. The shell sees its own mutations, and the server-side changelog covers chromeless admin pages — but a native window POSTing to `your-plugin/v1/...` is invisible to every other open window until the Heartbeat catch-all delivers the change 15–60 s later. Announcing is what makes the Recycle Bin, the bin's dock badge, and any list window showing your type update the moment your call resolves.
+
+```typescript
+wp.os.announceContentChange(
+    type:   string,                                                    // post type, or bin entity kind
+    action: 'created' | 'updated' | 'trashed' | 'untrashed' | 'deleted',
+    ids:    number | number[],                                         // invalid / empty → no-op
+    source?: string,                                                   // your emitter id
+): void;
+```
+
+```javascript
+// After your delete endpoint resolves:
+await apiDelete( `/my-plugin/v1/things/${ id }` );
+wp.os.announceContentChange( 'my_thing', 'trashed', id, 'my-plugin' );
+```
 
 **Heartbeat fields** — the shell contributes `openstation_content_changes_seen_ts` (server-ms high-water mark, `0` on the handshake tick) and consumes `openstation_content_changes: { ts, entries: [ { ts, type, action, ids } ] }`, re-broadcasting each fresh entry on this bus. Timestamps are server-clock; the first tick is a pure handshake so client/server skew can never drop changes.
 
@@ -2974,7 +2998,7 @@ Remove a title-bar button by id, or read a snapshot of every registered button d
 
 ### `registerUnfocusEffect( def )` — Experimental
 
-Register a visual treatment applied to every window that **isn't** focused — surfaced in **OpenStation Preferences → Effects → "Unfocused windows"**. The built-in effects (`darken` dims, `frost` blurs to frosted glass, `grayscale` drains colour) are registered through this same hook; plugins add their own the identical way. The framework owns *when* the effect runs (focus changes, the user's selection, minimized-window exclusion); your def owns *what* it does.
+Register a visual treatment applied to every window that **isn't** focused — surfaced in **OpenStation Preferences → Effects → "Unfocused windows"**. The built-in effects (`darken` dims, `frost` blurs to frosted glass, `grayscale` drains colour) are registered through this same hook; plugins add their own the identical way. The framework owns *when* the effect runs (focus changes, the user's selection, and the exclusions below); your def owns *what* it does. Exempt, whatever effect is selected: **minimized** windows, **split-view tiles** (`snapped-left` / `snapped-right` — the half that doesn't hold focus stays untouched so both sides of a split stay workable; the exemption is partner-blind, a tile qualifies whether or not the opposite half is filled), and windows hosting a `<canvas>` in the parent document (filtering a live WebGL surface can cost its context).
 
 **Throws** a `RegistrationError` on validation failure (bad/missing `id`, the reserved id `'none'`, or neither `className` nor `apply` provided).
 
@@ -2992,7 +3016,7 @@ Register a visual treatment applied to every window that **isn't** focused — s
 
 At least one of `className` / `apply` is required.
 
-> **Windows hosting a WebGL `<canvas>` are exempt.** Native Pixi scenes (content graph, posts mind-map / tag-cloud, the About scene) render a live WebGL canvas in the parent DOM; a CSS `filter` over such an element can trigger a GPU context loss that crashes the canvas's render loop. The engine detects a `<canvas>` in the window root and skips the effect for that window. Canvases inside *iframe* windows live in a separate document and aren't affected.
+> **Windows hosting a WebGL `<canvas>` are exempt.** Native Pixi scenes (content graph and posts mind-map / tag-cloud) render a live WebGL canvas in the parent DOM; a CSS `filter` over such an element can trigger a GPU context loss that crashes the canvas's render loop. The engine detects a `<canvas>` in the window root and skips the effect for that window. Canvases inside *iframe* windows live in a separate document and aren't affected.
 
 ```javascript
 wp.os.ready( () => {
@@ -3594,7 +3618,7 @@ Register a tab in the OpenStation Preferences window. The tab is appended (or so
 | Field | Type | Notes |
 |---|---|---|
 | `isAdmin` | `boolean` | `true` when current user has `manage_options`. |
-| `getOsSettings()` | `function` | Snapshot of the persisted OpenStation Preferences state — `{ wallpaper, accent, dockSize, windowRadius, unfocusEffect, ai: { enabled } }` plus `adminBarMode` (`'static'` \| `'dynamic'` \| `'hidden'` — how the WordPress admin bar presents above the shell; emitted as a `os-admin-bar-<mode>` body class), `desktopLayout`, `dockPlacement` (`'bottom'` \| `'left'` \| `'right'` — which edge the dock sits on; read by the one-rail layouts, ignored by `classic`), `dockRailRenderer`, `desktopTheme`, `appliedThemeRecommendations`, the native-window opt-ins (`nativePostsEnabled`, `nativePostsHiddenColumns`, `nativePagesEnabled`, `nativeUsersEnabled`, `nativePluginsEnabled`, `nativeCommentsEnabled`), `developerModeEnabled`, `foldersSharingEnabled`, `navPlacement`, `navOrder`, and `dockPromotedPositions` — see `OsSettingsSnapshot` in `src/settings/registry.ts` for the authoritative shape. `navPlacement` maps a nav-item id to `'rail' | 'desktop' | 'both' | 'hidden'` and `navOrder` is a flat ordering hint across every rail zone; both replaced the pre-navigation `itemVisibility` / `dockOrder` (see [migration-navigation.md](./migration-navigation.md)). `unfocusEffect` is the active unfocused-window effect id (`'darken'` default, `'none'` disables). `windowReveal` is the active window-reveal id — the clip-path transition that uncovers a window's content when it finishes loading (`'none'` by default; reveals are opt-in) — and `windowRevealDuration` is the global speed override in ms (`0`, the default, means each reveal keeps its own timing). `ai.enabled` is the per-user AI assistant toggle (opt-in, default off; enable-able only once a provider is configured in Settings → Connectors). `developerModeEnabled` (default `false`) gates developer-facing surfaces — the Starter Widget in the add-widget picker and the OpenStation Preferences → Components tab's missing-import-warner demo — set from OpenStation Preferences → Features. **Removed:** `ai.apiKey`, `ai.transport`, `ai.provider` and `ai.model` were removed — credentials live in WordPress Core's Settings → Connectors and provider + model selection is delegated to the Core AI Client. Read-only; returns a defensive copy. |
+| `getOsSettings()` | `function` | Snapshot of the persisted OpenStation Preferences state — `{ wallpaper, accent, dockSize, windowRadius, unfocusEffect, ai: { enabled } }` plus `adminBarMode` (`'static'` \| `'dynamic'` \| `'hidden'` — how the WordPress admin bar presents above the shell; emitted as a `os-admin-bar-<mode>` body class), `desktopLayout`, `dockPlacement` (`'bottom'` \| `'left'` \| `'right'` — which edge the dock sits on; read by the one-rail layouts, ignored by `classic`), `dockRailRenderer`, `desktopTheme`, `appliedThemeRecommendations`, the native-window opt-ins (`nativePostsEnabled`, `nativePostsHiddenColumns`, `nativePagesEnabled`, `nativeUsersEnabled`, `nativePluginsEnabled`, `nativeCommentsEnabled`, `stationHomeEnabled` — Station Home as the Dashboard, default off), `developerModeEnabled`, `foldersSharingEnabled`, `navPlacement`, `navOrder`, and `dockPromotedPositions` — see `OsSettingsSnapshot` in `src/settings/registry.ts` for the authoritative shape. `navPlacement` maps a nav-item id to `'rail' | 'desktop' | 'both' | 'hidden'` and `navOrder` is a flat ordering hint across every rail zone; both replaced the pre-navigation `itemVisibility` / `dockOrder` (see [migration-navigation.md](./migration-navigation.md)). `unfocusEffect` is the active unfocused-window effect id (`'darken'` default, `'none'` disables). `windowReveal` is the active window-reveal id — the clip-path transition that uncovers a window's content when it finishes loading (`'none'` by default; reveals are opt-in) — and `windowRevealDuration` is the global speed override in ms (`0`, the default, means each reveal keeps its own timing). `ai.enabled` is the per-user AI assistant toggle (opt-in, default off; enable-able only once a provider is configured in Settings → Connectors). `developerModeEnabled` (default `false`) gates developer-facing surfaces — the Starter Widget in the add-widget picker and the OpenStation Preferences → Components tab's missing-import-warner demo — set from OpenStation Preferences → Features. **Removed:** `ai.apiKey`, `ai.transport`, `ai.provider` and `ai.model` were removed — credentials live in WordPress Core's Settings → Connectors and provider + model selection is delegated to the Core AI Client. Read-only; returns a defensive copy. |
 | `subscribeOsSettings( cb )` | `function` | Subscribe to in-panel OpenStation Preferences changes (user toggles a feature in the Features tab, etc.). Returns an unsubscribe function. Fires on local edits only — cross-device changes arrive on the next page load. |
 
 ```javascript
@@ -4798,7 +4822,7 @@ interface DockItem {
     icon:     string;        // dashicon class | `data:` URI | `http(s):` URL
     url:      string;        // admin URL the tile opens
     badge:    number;        // numeric badge; 0 = no badge
-    submenu:  { title: string; url: string }[];
+    submenu:  { title: string; url: string; offSite?: boolean }[];
     multi:    boolean;       // hover-peek + Ghost Card eligibility
     isCore:   boolean;       // true for WP-shipped menus, false for plugin-contributed
     pluginFile: string | null; // owning plugin file (e.g. `woocommerce/woocommerce.php`)
@@ -4826,6 +4850,10 @@ interface DockItem {
 - `submenu.length > 0` reliably means "has real child links" — every entry points at a distinct URL.
 
 A custom rail renderer that decides whether to show a submenu indicator (a chevron, a hover treatment) can read `item.submenu.length > 0` without defensive `submenu.length > 1` or self-URL filtering. The framework owns the contract.
+
+**`submenu[].offSite`** — the row leaves the site. Off-site admin-menu entries are dropped server-side; the survivors are children of a plugin's own menu (a docs or account link), and they carry this flag. Nothing off-site can load in an iframe, so a surface that routes a URL into a window must skip them: the in-window tab strip does, and the constellation flyout marks them with an outbound glyph and hands them to the browser instead. `tryOpenExternalUrl()` is the shared escape; a renderer calling `openSubmenuPick` gets it for free.
+
+The name is `offSite` rather than `external` because the tab strip already spends that word on a different thing: a tab with `data-kind="external"` is a plugin-opened sub-iframe, which is on-site.
 
 **Lifecycle pairing — `replaceItems` ↔ `appendSystemItem`** — these are independent update paths. `replaceItems( items )` swaps the menu-derived tiles wholesale (the live menu refresh fires it on every plugin activation / deactivation). `appendSystemItem` / `removeSystemItem` track the JS-owned cohort (OpenStation Preferences, plugin native-window launchers).
 
@@ -5241,7 +5269,7 @@ The built-in Snow wallpaper (`src/plugins/snow-wallpaper/`) is the canonical in-
 | `getOsSettings()` | Stable | Defensive copy of the persisted OpenStation Preferences snapshot — same shape a settings tab's `ctx.getOsSettings()` returns. |
 | `subscribeOsSettings( cb )` | Stable | Subscribe to OpenStation Preferences changes; returns an unsubscribe function. Mirrors the settings-tab `ctx.subscribeOsSettings` API. |
 | `updateOsSettings( patch, opts? )` | Stable | Patch + persist the OpenStation Preferences state (whitelisted keys only). See [`updateOsSettings`](#updateossettings-patch-opts---stable). |
-| `config` | Stable | The `DesktopConfig` that booted the shell. Notable read-only fields plugins reach for: `pluginUrl` (no trailing slash) and `pluginVersion` (the active plugin semver — surfaced in OpenStation Preferences → About; useful for version-gated features); `notesUrl` (string — REST base for the pinned-notes controller at `/desktop-mode/v1/notes`; the notes layer only boots when present); `canCreatePosts` (boolean — whether the current user has `edit_posts`, gating the note "Convert to post" affordances). Filterable server-side via `openstation_shell_config`. |
+| `config` | Stable | The `DesktopConfig` that booted the shell. Notable read-only fields plugins reach for: `pluginUrl` (no trailing slash) and `pluginVersion` (the active plugin semver — surfaced in OpenStation Preferences → About; useful for version-gated features); `aboutFeedUrl` (authenticated admin-AJAX URL used lazily by About's OpenStation Journal view); `notesUrl` (string — REST base for the pinned-notes controller at `/desktop-mode/v1/notes`; the notes layer only boots when present); `canCreatePosts` (boolean — whether the current user has `edit_posts`, gating the note "Convert to post" affordances). Filterable server-side via `openstation_shell_config`. |
 
 ### System tiles
 
@@ -7322,11 +7350,53 @@ wp.os.registerWindowAction( {
 | `icon` | `string \| ( win ) => string` | Dashicons class. Optional; also re-read per open. |
 | `order` | `number` | Sort order among registered rows. Default `100`. |
 | `isVisible` | `( win ) => boolean` | Optional. Re-read per open; omit to show everywhere. |
-| `onSelect` | `( win ) => void` | Required. The menu is closed before it is called. |
+| `checkable` | `boolean` | Paint the row as a checkbox instead of a verb. Requires `checked`. |
+| `checked` | `( win ) => boolean` | Required with `checkable`. Re-read per open. |
+| `closeOnSelect` | `boolean` | Whether selecting closes the menu. Defaults to `true` for a verb, `false` for a checkbox. |
+| `onSelect` | `( win ) => void` | Required. For a verb the menu is closed before it is called; for a checkbox the tick flips first and the menu stays open. |
 | `owner` | `string` | Script handle, for live unregistration on deactivation. See below. |
 
 Also: `wp.os.unregisterWindowAction( id )` and
 `wp.os.listWindowActions()`.
+
+**Checkbox rows.** Set `checkable` with a `checked` reader and the row
+reports a preference instead of running a verb:
+
+```js
+wp.os.registerWindowAction( {
+    id: 'my-plugin/show-pins',
+    label: 'Show pins',
+    checkable: true,
+    checked: () => localStorage.getItem( 'my-plugin/pins' ) === '1',
+    isVisible: ( win ) => win.id === 'my-plugin-board',
+    onSelect: () => {
+        const next = localStorage.getItem( 'my-plugin/pins' ) === '1' ? '0' : '1';
+        localStorage.setItem( 'my-plugin/pins', next );
+        repaint();
+    },
+} );
+```
+
+`checked` is asked on every open, never told — so persist the value
+and repaint nothing; the row cannot go stale for longer than one open,
+however the value changed (another window, a settings panel, a REST
+response landing late). The shell flips the tick optimistically on
+click and leaves the menu open, so the user sees it land and can flip
+it back without reopening. A `checked` that throws paints the row
+unchecked rather than dropping it: losing the indicator is recoverable,
+losing the row is not.
+
+Registering `checkable` without `checked` throws — a checkbox nobody
+can ask renders permanently unticked, which reads as broken
+persistence in your plugin rather than a missing field here.
+
+**Checkbox or relabelling verb?** Both express a two-state thing, and
+they are not interchangeable. Use a relabelling `label` function when
+the two states are two *places* the window can be ("Send to your Mac"
+/ "Bring back into OpenStation") — the row names the move. Use a
+checkbox when they are one setting the window either has or does not:
+a tick says "there is a thing here, and it is currently off", which a
+label reading "Show pins" alone cannot.
 
 **Making `owner` mean something.** Pair it with the PHP opt-in
 [`openstation_register_window_action_script( 'my-plugin-shell' )`](./hooks-reference.md#openstation_register_window_action_script-handle--experimental-php-function)
@@ -7340,7 +7410,7 @@ inert: the row stays until the next page reload. That is deliberate
 backwards-compat, the same bargain commands and title-bar buttons
 offer, but it does mean `owner` alone is not the whole opt-in.
 
-**Why `label` / `icon` / `isVisible` may be functions.** They are read
+**Why `label` / `icon` / `isVisible` / `checked` may be functions.** They are read
 fresh every time the menu opens, not once at registration. That is what
 lets one row express a toggle whose meaning depends on state — "Send to
 your Mac" becoming "Bring back into OpenStation" for the same window —

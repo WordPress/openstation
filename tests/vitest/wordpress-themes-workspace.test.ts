@@ -39,12 +39,17 @@ describe("WordPress Themes workspace", () => {
 
 	test("single-theme mode becomes a screenshot-led workspace with visible actions", () => {
 		expect(COMPACT_WORKSPACE_CSS).toContain(
+			"#wpbody-content { padding: 10px 16px;",
+		);
+		expect(COMPACT_WORKSPACE_CSS).toContain(
 			".themes.single-theme .theme-overlay.active .theme-wrap",
 		);
-		expect(COMPACT_WORKSPACE_CSS).toContain('"screenshot info"');
-		expect(COMPACT_WORKSPACE_CSS).toContain('"screenshot actions"');
+		expect(COMPACT_WORKSPACE_CSS).toContain('"screenshot details"');
 		expect(COMPACT_WORKSPACE_CSS).toMatch(
 			/\.themes\.single-theme[^{]+\.theme-actions\s*\{[^}]*position:\s*static;/s,
+		);
+		expect(COMPACT_WORKSPACE_CSS).toMatch(
+			/\.theme-actions \.inactive-theme\s*\{[^}]*display:\s*none;/s,
 		);
 	});
 

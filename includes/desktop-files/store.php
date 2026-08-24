@@ -605,8 +605,10 @@ function openstation_files_get_for_user_folder( $user_id, $parent_id = 0 ) {
  *      other tile (drag, sort, right-click, clean up).
  *
  * Idempotent on both axes: a folder/shortcut that already has
- * any placement is left alone. Coordinates use the column-major
- * grid that `src/desktop-files/grid.ts` mirrors on the JS side.
+ * any placement is left alone. Coordinates come from
+ * `includes/desktop-files/grid.php`, which mirrors
+ * `src/desktop-files/grid.ts` — pitch, reading order, and the
+ * assumed canvas the scan wraps at.
  *
  * Called by the placements list endpoint when the requested
  * folder is the root (`parent_id=0`).
@@ -683,8 +685,9 @@ function openstation_files_auto_place_orphans( $user_id ) {
 
 	// Build an occupied set from EXISTING root placements so
 	// we never drop an orphan on top of a tile the user
-	// already has. Cell math mirrors `src/desktop-files/grid.ts`
-	// (padding 16 + col 96 + row 110).
+	// already has. Cell math lives in
+	// `includes/desktop-files/grid.php`, the mirror of
+	// `src/desktop-files/grid.ts`.
 	$existing = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT x, y FROM {$tables['placements']}
@@ -695,45 +698,31 @@ function openstation_files_auto_place_orphans( $user_id ) {
 		),
 		ARRAY_A
 	);
-	$occupied = array();
-	foreach ( (array) $existing as $row ) {
-		$col                         = max( 0, (int) round( ( (int) $row['x'] - 16 ) / 96 ) );
-		$row_idx                     = max( 0, (int) round( ( (int) $row['y'] - 16 ) / 110 ) );
-		$occupied[ "$col,$row_idx" ] = true;
-	}
+	$occupied = openstation_files_grid_occupied( $existing );
 
-	$find_next = function () use ( &$occupied ) {
-		for ( $col = 0; $col < 999; $col++ ) {
-			for ( $row = 0; $row < 999; $row++ ) {
-				$key = "$col,$row";
-				if ( ! isset( $occupied[ $key ] ) ) {
-					$occupied[ $key ] = true;
-					return array( $col, $row );
-				}
-			}
-		}
-		return array( 0, 0 );
-	};
+	// The desktop reads in columns, and the scan wraps to the next one
+	// at the assumed canvas height rather than running a column 999
+	// cells deep. The server has no viewport; a slot it invents below
+	// the fold is a tile the user cannot reach, because the layer that
+	// renders it does not scroll.
+	$order = openstation_files_grid_order( 0 );
 
-	$placed    = 0;
-	$emit_at   = function ( $type, $ref, $col, $row ) use ( $user_id, &$occupied, &$placed ) {
+	$placed  = 0;
+	$emit_at = function ( $type, $ref, $col, $row ) use ( $user_id, &$occupied, &$placed ) {
 		$occupied[ "$col,$row" ] = true;
 		$result                  = openstation_files_place(
 			$user_id,
 			0,
 			$type,
 			(string) $ref,
-			array(
-				'x' => 16 + $col * 96,
-				'y' => 16 + $row * 110,
-			)
+			openstation_files_grid_cell_to_point( $col, $row )
 		);
 		if ( ! is_wp_error( $result ) ) {
 			++$placed;
 		}
 	};
-	$emit_next = function ( $type, $ref ) use ( $find_next, $emit_at ) {
-		list( $col, $row ) = $find_next();
+	$emit_next = function ( $type, $ref ) use ( &$occupied, $order, $emit_at ) {
+		list( $col, $row ) = openstation_files_grid_next_free( $occupied, $order );
 		$emit_at( $type, $ref, $col, $row );
 	};
 

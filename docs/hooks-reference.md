@@ -1161,6 +1161,7 @@ array(
     'sessionUrl'       => string,   // REST session URL
     'restUrl'          => string,   // REST API root from rest_url(); compose with joinRestUrl() for pretty/plain permalink safety
     'restNonce'        => string,   // X-WP-Nonce
+    'aboutFeedUrl'     => string,   // nonced admin-AJAX URL for the lazy About journal feed
     'dockItems'        => array[],  // see openstation_dock_items
     'session'          => array,    // prior session snapshot or empty
     'fromPortal'       => bool,     // request was forwarded by the /openstation/ portal
@@ -1214,6 +1215,12 @@ array(
 Items built from the admin menu also carry `selfLabel`, `multi`, `placement`, `isCore`, `pluginFile`, and `pluginName` keys — see the `openstation_dock_item_multi` and `openstation_dock_placement` filters below.
 
 **`submenu` excludes the menu's own page.** WordPress auto-prepends a self-link to every parent menu (`All Posts` → `edit.php`, the same URL as the parent), and the builder strips it so `count( $submenu )` reliably means "how many distinct child pages" — the in-window tab strip would otherwise grow a duplicate first tab, and the right-click popover keys its suppression off an empty list. The stripped entry's label survives on **`selfLabel`** (`''` when the menu had none), so a surface that *lists* a menu's pages can put the main page back where wp-admin has it. The constellation flyout does exactly that, pointing the row at the item's `url`.
+
+**Off-site menu entries never reach the dock.** Nothing on another host can load in a window, so a menu whose URL points off-site is dropped rather than turned into a tile that can only escape to a browser tab. The one exception is a child of a menu a regular plugin registered (`pluginFile` is non-null) whose own URL stays on-site: those keep their row and carry `'offSite' => true`, which the constellation marks as leaving the site and the in-window tab strip skips. The classifier is [`openstation_menu_item_is_external`](#openstation_menu_item_is_external--stable).
+
+**A rescued menu takes on the identity of the slug it adopted.** When a menu's own slug points off-site and a surviving child stands in for it, `multi`, `placement`, `isCore`, `pluginFile` and the `$menu_slug` passed to `openstation_dock_item` are all derived from that child's slug, not from the off-site one. Otherwise a rescued Plugins tile reports as a plugin menu owned by whoever registered the replacement.
+
+**Rows a host hid stay hidden, unless dropping them would lose the page.** A `$menu` / `$submenu` row carrying the `hide-if-js` class is out of the classic sidebar and out of the dock too. WordPress.com is why the rule has an exception: rather than repoint a Core entry at wordpress.com, Jetpack marks the wp-admin original `hide-if-js` and appends a Calypso duplicate beside it. When the duplicate is dropped as off-site, the original takes its place in the list — so Appearance → Themes, Plugins → Add Plugin and Users → All Users open the wp-admin screens Core registered.
 
 **Example — add a virtual dock item:**
 
@@ -1320,6 +1327,31 @@ add_filter( 'openstation_dock_placement', function ( $placement, $slug ) {
 Ordering within the dock is set server-side: core WordPress menus (Dashboard, Posts, Media, Users, Settings, CPTs, taxonomies, …) are sorted before plugin-contributed top-level menus. To fully reorder, use `openstation_dock_items` — it receives the built list and returns a reshaped one.
 
 The live menu-refresh path (chromeless `plugins.php` iframe postMessage, plus the hidden iframe spawned by `wp.os.refreshMenu()`) runs the same builder from real admin context, so a filter change takes effect without a full tab reload.
+
+---
+
+### `openstation_menu_item_is_external` — Stable
+
+Whether a resolved admin-menu URL counts as off-site. Off-site entries are dropped from the dock payload (see [`openstation_dock_items`](#openstation_dock_items--stable) for the exception plugin menus get), because nothing on another host can load in a window.
+
+```php
+apply_filters( 'openstation_menu_item_is_external', bool $external, string $url );
+```
+
+By default a URL is off-site when its host matches neither `admin_url()`'s nor `home_url()`'s. Both count, so a site running its admin on a separate domain from its front end isn't misread.
+
+**Example — keep a trusted sibling domain in the dock:**
+
+```php
+add_filter( 'openstation_menu_item_is_external', function ( $external, $url ) {
+    if ( str_contains( $url, 'admin.internal.example.com' ) ) {
+        return false;
+    }
+    return $external;
+}, 10, 2 );
+```
+
+An entry you allow back in still has to survive the browser: a host that sends `X-Frame-Options` or a `frame-ancestors` policy refuses the iframe whatever this filter says.
 
 ---
 
@@ -3732,6 +3764,8 @@ An interactive PixiJS map of post links — every public post type participates 
 
 The window and icon are titled **Corkboard** — a thing you can have on a desk, rather than the name of the data structure behind it. The module directory, window id, REST routes, and every hook below keep the `content_graph` slug.
 
+Nodes are drawn as **discs coloured by post type**, using the same palette the relationship satellites use so a focused post and the bubbles fanned around it read as one system. The original **pin** look — the post type's Dashicon glyph as the node body — is one row away in the window's ⋯ menu ("Show pins"), and the choice persists in `localStorage` under `desktop-mode/corkboard-node-style`. Either way the focused node reveals its glyph, so focus never costs the user the type information. The row is an ordinary checkbox registered through the public [`registerWindowAction`](./javascript-reference.md#wposregisterwindowaction--experimental) surface — see [`examples/window-action.md`](./examples/window-action.md) to add your own.
+
 ### `openstation_content_graph_user_can_use` — Experimental (filter)
 
 ```php
@@ -3764,6 +3798,86 @@ apply_filters( 'openstation_content_graph_icon_args',   array $icon_args ): arra
 ```
 
 Tweak the args passed to `openstation_register_window()` / `openstation_register_icon()` for the Corkboard — dimensions, dashicon, icon position, or the `config` blob (REST endpoints, edit-URL bases, `siteName`, post-type descriptors).
+
+---
+
+## Code Blue
+
+An error-log reader: tails the logs the install can produce (WP debug log, PHP error log, anything a plugin registers), parses them into structured entries, and renders a severity histogram plus a grouped issue list. Registers a native window (`openstation-code-blue`) plus a desktop icon on `init` priority 20. Server module: `includes/code-blue/`. The REST routes live under the plugin's frozen `desktop-mode/v1` namespace like every other route.
+
+The whole surface — icon, window, nav entry, and REST routes — sits behind one gate with two conditions, both required: **Developer mode** (`developerModeEnabled` in OpenStation Preferences, off by default — Code Blue is a developer-facing surface and registers nothing until the user flips it) and a capability — `manage_options`, raised to `manage_network_options` on multisite, since log content leaks server paths and SQL and the debug/PHP error logs are network-wide files. Flipping the Preferences toggle takes effect live: once the settings save persists, the panel spends one [`wp.os.refreshMenu()`](./javascript-reference.md) probe and the icon/window appear (or disappear) without a reload.
+
+### REST — `desktop-mode/v1/code-blue/*` — Experimental
+
+- `GET /sources` — log sources plus the environment card (`WP_DEBUG*` constants, versions, environment type).
+- `GET /entries?source=<id>` — parsed entries from one source's trailing window: `{ source, entries, truncated, scanned_bytes, dropped_entries, generated_at }`. Each entry: `{ timestamp, level, label, message, file, line, trace, signature }` where `level` is one of `fatal | error | warning | deprecated | notice | info` and `signature` is the server-computed grouping key.
+- `DELETE /entries?source=<id>` — truncates the log file to zero bytes.
+
+### `openstation_code_blue_user_can_use` — Experimental (filter)
+
+```php
+apply_filters( 'openstation_code_blue_user_can_use', bool $can ): bool
+```
+
+Permission gate for the icon, the window, and every REST route. Default: Developer mode enabled in OpenStation Preferences AND `current_user_can( 'manage_options' )` (`manage_network_options` on multisite).
+
+### `openstation_code_blue_log_sources` — Experimental (filter)
+
+```php
+apply_filters( 'openstation_code_blue_log_sources', array[] $sources ): array[]
+```
+
+The log files the window offers. Each entry declares `id` (slug), `label`, and `path` (absolute file path); file metadata (`exists`, `readable`, `writable`, `size`, `mtime`) is derived after filtering. Defaults: the WP debug log (`WP_DEBUG_LOG`, string form respected) and the `error_log` PHP directive. See [`examples/code-blue-log-source.md`](./examples/code-blue-log-source.md).
+
+### `openstation_code_blue_entries` — Experimental (filter)
+
+```php
+apply_filters( 'openstation_code_blue_entries', array[] $entries, array $source, string $raw ): array[]
+```
+
+The parsed entries for one source, before the entry cap is applied. The escape hatch for logs the built-in parser doesn't understand (Monolog, ISO-timestamped formats): re-parse `$raw` yourself for your own `$source` and return your own entry array. Each entry: `timestamp` (int|null), `level`, `label`, `message`, `file`, `line`, `trace`, `signature` — build them with `openstation_code_blue_make_entry()` to get the location extraction and grouping signature for free.
+
+### `openstation_code_blue_environment` — Experimental (filter)
+
+```php
+apply_filters( 'openstation_code_blue_environment', array[] $rows ): array[]
+```
+
+The environment rows shown as chips in the window. Each: `key`, `label`, `value` (string), `on` (bool renders an on/off tone, null renders neutral).
+
+### `openstation_code_blue_max_bytes` / `openstation_code_blue_max_entries` — Experimental (filter)
+
+```php
+apply_filters( 'openstation_code_blue_max_bytes',   int $max_bytes ):   int // default 1 MiB, floor 4 KiB
+apply_filters( 'openstation_code_blue_max_entries', int $max_entries ): int // default 3000, floor 100
+```
+
+Caps on the trailing window read from a log file per request, and on how many parsed entries a response may carry (the oldest are dropped first).
+
+### `openstation_code_blue_template_html` — Experimental (filter)
+
+```php
+apply_filters( 'openstation_code_blue_template_html', string $html ): string
+```
+
+The window's static template body before it's `wp_kses`'d. The bundle mounts into `[data-os-code-blue-root]` — keep that hook intact.
+
+### `openstation_code_blue_window_args` / `openstation_code_blue_icon_args` — Experimental (filter)
+
+```php
+apply_filters( 'openstation_code_blue_window_args', array $window_args ): array
+apply_filters( 'openstation_code_blue_icon_args',   array $icon_args ):   array
+```
+
+Tweak the args passed to `openstation_register_window()` / `openstation_register_icon()` for Code Blue — dimensions, icon, icon position, or the `config` blob (`apiBase`, `restNonce`).
+
+### `openstation_code_blue_log_cleared` — Experimental (action)
+
+```php
+do_action( 'openstation_code_blue_log_cleared', string $id, string $path )
+```
+
+Fires after the `DELETE /entries` route truncates a log file.
 
 ---
 
@@ -4331,6 +4445,44 @@ add_filter( 'openstation_deferred_styles', function ( $handles ) {
     return $handles;
 } );
 ```
+
+### `openstation_guarded_styles` / `openstation_guarded_scripts` — Stable *(filters)*
+
+Filter the asset handles the **asset guard** re-asserts at print time.
+
+Some plugins force-dequeue every style and script that isn't on their
+own allowlist when one of their admin screens renders (MailPoet's
+`ConflictResolver` is the canonical example). Inside a chromeless
+iframe that would strip `os-chromeless` and put the raw admin chrome
+back inside the window; on a shell page it would strip the desktop
+itself. The guard snapshots every enqueued handle served from the
+OpenStation plugin URL and re-adds any that went missing via Core's
+`print_styles_array` / `print_scripts_array` filters — which run inside
+the print pass itself, after every dequeue at every priority has
+already happened.
+
+The snapshot only covers OpenStation's own handles. If your plugin
+enqueues chromeless overrides (via `openstation_chromeless_styles`) or
+iframe-side scripts and an asset-cleanup plugin strips them, add your
+handles here:
+
+```php
+apply_filters( 'openstation_guarded_styles', string[] $handles );
+apply_filters( 'openstation_guarded_scripts', string[] $handles );
+```
+
+```php
+add_filter( 'openstation_guarded_styles', function ( $handles ) {
+    $handles[] = 'my-plugin-chromeless-overrides';
+    return $handles;
+} );
+```
+
+- **Param** `string[] $handles` — default: every handle the current
+  page enqueued from the OpenStation plugin directory.
+- **Return** `string[]` — handles must be registered; unregistered
+  entries are skipped. Dependencies are re-added automatically.
+  Scripts are only re-asserted during the admin footer print pass.
 
 ---
 

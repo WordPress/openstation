@@ -126,7 +126,7 @@ import {
 import type { PanelTabEntry } from './tabs';
 import {
 	closeActionsMenu,
-	flipStartupCheckOptimistically,
+	flipMenuItemCheckOptimistically,
 	openActionsMenu,
 	refreshStartupCheckState,
 	toggleActionsMenu,
@@ -1181,7 +1181,7 @@ export class Window {
 					// optimistic flip + the server-confirmation refresh
 					// feels instant.
 					e.stopPropagation();
-					flipStartupCheckOptimistically( startup );
+					flipMenuItemCheckOptimistically( startup );
 					this.onToggleStartup?.( this );
 				} );
 				// Refresh the check state whenever the public

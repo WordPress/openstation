@@ -38,6 +38,7 @@ defined( 'ABSPATH' ) || exit;
 - [Add a row to a window's ⋯ menu (Experimental)](./window-action.md)
 - [React to a window being set free onto the real desktop (Experimental)](./desktop-host.md)
 - [Inject data into `openStationConfig`](./inject-shell-config.md)
+- [Code Blue — register your plugin's log file](./code-blue-log-source.md)
 - [Register a wallpaper (CSS + canvas)](./register-wallpaper.md)
 - [Register a game — launcher tile, scoreboard, challenges (Experimental)](./register-game.md)
 - [Restyle and drive Mio (Experimental)](./mio-customization.md)

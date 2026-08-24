@@ -203,6 +203,12 @@ function openstation_default_os_settings() {
 		// (Beta); the server-side cap gate (`edit_posts`) means the
 		// toggle only matters for users who could see the Comments tile.
 		'nativeCommentsEnabled'       => false,
+		// Per-user opt-IN for Station Home, the native Dashboard
+		// window. Defaults OFF: the ordinary `index.php` Dashboard
+		// (including any custom dashboard a plugin builds there) opens
+		// as a chromeless iframe until the user opts in via OS
+		// Settings → Features → Beta features.
+		'stationHomeEnabled'          => false,
 		// When true, left-clicking the empty wallpaper triggers the
 		// "Show desktop" toggle (macOS-style) and the matching entry is
 		// hidden from the wallpaper context menu. When false (default),
@@ -232,9 +238,10 @@ function openstation_default_os_settings() {
 		'showPostStatusRibbons'       => true,
 		// Unlocks developer-facing surfaces meant for plugin
 		// authors: the Starter Widget appears in the add-widget
-		// picker, and the OS Settings → Components tab runs its
-		// intentional missing-import-warner demo. Off by default.
-		// Per-user.
+		// picker, the OS Settings → Components tab runs its
+		// intentional missing-import-warner demo, and the Code Blue
+		// error-log reader registers (icon, window, REST routes).
+		// Off by default. Per-user.
 		'developerModeEnabled'        => false,
 		// Per-user opt-OUT for the folder-sharing feature. Defaults
 		// ON. When false:
@@ -735,6 +742,10 @@ function openstation_sanitize_os_settings( $raw ) {
 		? (bool) $raw['nativeCommentsEnabled']
 		: $defaults['nativeCommentsEnabled'];
 
+	$station_home_enabled = isset( $raw['stationHomeEnabled'] )
+		? (bool) $raw['stationHomeEnabled']
+		: $defaults['stationHomeEnabled'];
+
 	$show_desktop_on_wallpaper_click = isset( $raw['showDesktopOnWallpaperClick'] )
 		? (bool) $raw['showDesktopOnWallpaperClick']
 		: $defaults['showDesktopOnWallpaperClick'];
@@ -903,6 +914,7 @@ function openstation_sanitize_os_settings( $raw ) {
 		'nativeUsersEnabled'          => $native_users_enabled,
 		'nativePluginsEnabled'        => $native_plugins_enabled,
 		'nativeCommentsEnabled'       => $native_comments_enabled,
+		'stationHomeEnabled'          => $station_home_enabled,
 		'showDesktopOnWallpaperClick' => $show_desktop_on_wallpaper_click,
 		'mioEnabled'                  => $mio_enabled,
 		'mioStyle'                    => $mio_style,

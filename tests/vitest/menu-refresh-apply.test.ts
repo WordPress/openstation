@@ -264,6 +264,86 @@ describe( 'menu-refresh-apply.createApplyPayload', () => {
 			expect( config.desktopIcons ).toEqual( [] );
 		} );
 
+		test( 'the dispatcher and the files-layer sync both learn about new icons', () => {
+			// `renderIcons` only repaints the legacy `.os-icons` rail,
+			// which is display:none whenever a files layer is mounted
+			// — on those desktops the visible tiles come from the nav
+			// model. A fresh icon list must therefore ALSO reach
+			// `applyDesktopIcons` (the dispatcher) and re-run
+			// `syncShortcuts` AFTER it, so the shortcut reconciliation
+			// reads the dispatcher's updated answer.
+			const calls: string[] = [];
+			const applyDesktopIcons = vi.fn( () => {
+				calls.push( 'applyDesktopIcons' );
+			} );
+			const { deps, syncShortcuts } = makeDeps( { applyDesktopIcons } );
+			syncShortcuts.mockImplementation( () => {
+				calls.push( 'syncShortcuts' );
+			} );
+			const apply = createApplyPayload( deps );
+
+			const icons = [
+				{ id: 'jorvy', title: 'Jorvy', icon: 'dashicons-star-filled' },
+			];
+			apply( { dockItems: [ ...MIN_DOCK ], desktopIcons: icons } );
+
+			expect( applyDesktopIcons ).toHaveBeenCalledWith( icons );
+			// syncShortcuts runs once for dockItems and once after the
+			// icons landed — the LAST call must come after
+			// applyDesktopIcons.
+			expect( calls[ calls.length - 1 ] ).toBe( 'syncShortcuts' );
+			expect(
+				calls.indexOf( 'applyDesktopIcons' ),
+			).toBeLessThan( calls.lastIndexOf( 'syncShortcuts' ) );
+		} );
+
+		test( 'a changed icon id-set triggers the root-placements refetch', () => {
+			// Files-layer desktops paint registered icons from REAL
+			// placement rows only the server can mint (on add) or
+			// mark missing (on remove) — without this refetch a new
+			// icon is invisible there until F5.
+			const refreshRootPlacements = vi.fn();
+			const { deps, config } = makeDeps( { refreshRootPlacements } );
+			const apply = createApplyPayload( deps );
+
+			apply( {
+				dockItems: [ ...MIN_DOCK ],
+				desktopIcons: [
+					{ id: 'jorvy', title: 'Jorvy', icon: 'dashicons-star-filled' },
+				],
+			} );
+			expect( refreshRootPlacements ).toHaveBeenCalledTimes( 1 );
+
+			// Same id-set again (payloads also arrive on ordinary
+			// plugin-page navigations) — no wasted REST round-trip.
+			apply( {
+				dockItems: [ ...MIN_DOCK ],
+				desktopIcons: [
+					{ id: 'jorvy', title: 'Jorvy', icon: 'dashicons-star-filled' },
+				],
+			} );
+			expect( refreshRootPlacements ).toHaveBeenCalledTimes( 1 );
+
+			// Removal is a change too — the refetch is what turns the
+			// tile into its missing state without an F5.
+			apply( { dockItems: [ ...MIN_DOCK ], desktopIcons: [] } );
+			expect( refreshRootPlacements ).toHaveBeenCalledTimes( 2 );
+			expect( config.desktopIcons ).toEqual( [] );
+		} );
+
+		test( 'applyDesktopIcons is optional — omitting it does not throw', () => {
+			const { deps } = makeDeps( { applyDesktopIcons: undefined } );
+			const apply = createApplyPayload( deps );
+			expect( () =>
+				apply( {
+					dockItems: [ ...MIN_DOCK ],
+					desktopIcons: [
+						{ id: 'x', title: 'X', icon: 'dashicons-star-filled' },
+					],
+				} ),
+			).not.toThrow();
+		} );
+
 		test( 'missing key: leaves prior icon state untouched', () => {
 			const { deps, renderIcons, config } = makeDeps();
 			const prior = [

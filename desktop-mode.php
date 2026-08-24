@@ -3,7 +3,7 @@
  * Plugin Name:       OpenStation
  * Plugin URI:        https://github.com/WordPress/openstation
  * Description:       Renders the WordPress admin as a desktop OS. Admin screens become draggable, resizable, minimizable windows floating on a desktop with a dock. Purely opt-in per user.
- * Version:           1.1.1
+ * Version:           1.1.2
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            Daniel López Sánchez
@@ -18,7 +18,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'OPENSTATION_VERSION', '1.1.1' );
+define( 'OPENSTATION_VERSION', '1.1.2' );
 define( 'OPENSTATION_FILE', __FILE__ );
 define( 'OPENSTATION_DIR', plugin_dir_path( __FILE__ ) );
 define( 'OPENSTATION_URL', plugin_dir_url( __FILE__ ) );
@@ -100,6 +100,10 @@ require_once OPENSTATION_DIR . 'includes/session.php';
 require_once OPENSTATION_DIR . 'includes/presence.php';
 require_once OPENSTATION_DIR . 'includes/nonce-refresh.php';
 require_once OPENSTATION_DIR . 'includes/os-settings.php';
+// The About journal is still lazy — this file only registers its authenticated
+// AJAX action. Load the registration unconditionally so alternate admin-ajax
+// bootstraps cannot skip it while classifying the request shape.
+require_once OPENSTATION_DIR . 'includes/about-feed.php';
 require_once OPENSTATION_DIR . 'includes/seen-intros.php';
 // One-time data migrations. After os-settings.php and seen-intros.php,
 // whose meta-key constants and helpers the migrations call.
@@ -169,6 +173,7 @@ require_once OPENSTATION_DIR . 'includes/comments-window/bootstrap.php';
 require_once OPENSTATION_DIR . 'includes/station-home/bootstrap.php';
 require_once OPENSTATION_DIR . 'includes/my-wordpress/bootstrap.php';
 require_once OPENSTATION_DIR . 'includes/content-graph/bootstrap.php';
+require_once OPENSTATION_DIR . 'includes/code-blue/bootstrap.php';
 require_once OPENSTATION_DIR . 'includes/living-tree/bootstrap.php';
 require_once OPENSTATION_DIR . 'includes/games/bootstrap.php';
 require_once OPENSTATION_DIR . 'includes/agents/bootstrap.php';

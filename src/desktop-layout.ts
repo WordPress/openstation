@@ -41,6 +41,7 @@ import {
 import type { WindowManager } from './window-manager';
 import { deriveWindowId } from './utils';
 import { resolveNativeUrlRemap } from './native-url-remap';
+import { tryOpenExternalUrl } from './external-url';
 import type {
 	DesktopLayoutId,
 	DockPlacementId,
@@ -627,6 +628,11 @@ export function createLayoutDispatcher(
 			} );
 		},
 		openSubmenuPick: ( item, sub ) => {
+			// A plugin's off-site child can't be iframed — hand it to
+			// the browser, the same way the constellation row does.
+			if ( tryOpenExternalUrl( sub.url ) ) {
+				return;
+			}
 			deps.windowManager.open( {
 				id: deriveWindowId( sub.url, deps.adminUrl ),
 				baseId: deriveWindowId( item.url, deps.adminUrl ),

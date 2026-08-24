@@ -229,6 +229,32 @@ class Tests_OpenStation_OsSettings extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Station Home defaults OFF — the classic Dashboard (and any custom
+	 * dashboard a plugin builds there) stays until the user opts in.
+	 *
+	 * @covers ::openstation_default_os_settings
+	 */
+	public function test_default_station_home_is_opt_in() {
+		$defaults = openstation_default_os_settings();
+		$this->assertFalse( $defaults['stationHomeEnabled'] );
+	}
+
+	/**
+	 * @covers ::openstation_sanitize_os_settings
+	 */
+	public function test_sanitize_keeps_station_home_opt_in() {
+		$clean = openstation_sanitize_os_settings(
+			array( 'stationHomeEnabled' => true )
+		);
+		$this->assertTrue( $clean['stationHomeEnabled'] );
+
+		$clean = openstation_sanitize_os_settings(
+			array( 'stationHomeEnabled' => '' )
+		);
+		$this->assertFalse( $clean['stationHomeEnabled'] );
+	}
+
+	/**
 	 * @covers ::openstation_sanitize_os_settings
 	 */
 	public function test_sanitize_drops_legacy_ai_credential_and_preference_fields() {

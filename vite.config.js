@@ -343,6 +343,16 @@ const TARGETS = {
 		fileBase: 'content-graph',
 		iifeName: 'openStationContentGraph',
 	},
+	// Code Blue — error-log reader. Tails the WP debug log / PHP
+	// error log via the Code Blue REST routes and renders a severity
+	// histogram + grouped issue list. Registers a render callback on
+	// `window.openStationNativeWindows['openstation-code-blue']` and
+	// re-registers the `<os-*>` tags it instantiates (idempotent).
+	'code-blue': {
+		entry:    'src/code-blue/index.ts',
+		fileBase: 'code-blue',
+		iifeName: 'openStationCodeBlue',
+	},
 	// Games hub — launcher grid + scoreboard + challenges client.
 	// Registers a render callback on
 	// `window.openStationNativeWindows['desktop-mode-games']`; the
@@ -449,16 +459,6 @@ const TARGETS = {
 		entry:    'src/plugins/snow-wallpaper/index.ts',
 		fileBase: 'snow-wallpaper',
 		iifeName: 'openStationSnowWallpaper',
-	},
-	// About-scene — the PixiJS particle scene rendered inside OS
-	// Settings → About. ~25 kB of code that only ever runs after the
-	// user explicitly opens that tab. Loaded by the main-bundle
-	// `about-scene-loader.ts` on first mount; publishes
-	// `window.openStationMountAboutScene`.
-	'about-scene': {
-		entry:    'src/settings/sections/about-scene-entry.ts',
-		fileBase: 'about-scene',
-		iifeName: 'openStationAboutScene',
 	},
 	// OS Settings panel — the big lazy bundle (Stage 8). Hosts every
 	// section renderer + the `<os-*>` components only the panel

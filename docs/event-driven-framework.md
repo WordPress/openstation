@@ -279,6 +279,17 @@ but publish your events under your plugin's slug:
 | `os/game-score-recorded` | No | After a game's `submitScore()` write resolves (free play and challenge completion both). Games play in their own window, so this is how a leaderboard in another window learns it went stale. Payload carries `challengeId` on the completion path. |
 | `os/upload-hud-complete` | No | After a file dropped on the shell finishes uploading — `{ filename, attachmentId }`. Published by the progress HUD, not the uploader: the upload runs on XHR (the only transport that reports determinate progress) and so never routes through `wp.os.fetch`, which makes this the bus's only view of a completed drop. |
 
+**Content-change announcements.** The `os.<type>.changed` topic
+family is the bus's highest-traffic convention, and
+`wp.os.announceContentChange( type, action, ids, source? )` is its
+typed producer. The rule of thumb: **a window that mutates content
+through its own REST endpoints must announce** — the shell cannot
+see third-party REST traffic, so without the announcement the
+Recycle Bin, its dock badge and every other list window only learn
+of the change from the Heartbeat catch-all, 15–60 seconds later.
+See [javascript-reference.md → `announceContentChange`](./javascript-reference.md)
+for the envelope.
+
 **Activity ↔ broadcast mirror.** `wp.os.broadcast(topic, payload)`
 publishes both onto the broadcast bus (cross-iframe, cross-tab)
 AND onto the activity bus (in-tab) under the same topic name.

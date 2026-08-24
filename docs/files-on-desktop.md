@@ -371,8 +371,46 @@ A gap you can see is the thing worth tuning; the pitch just follows.
 `src/desktop-files/grid.ts` mirrors these numbers for the layout
 maths (which can't read CSS) and exports `GRID_METRICS` /
 `GRID_METRICS_LARGE` so no surface has to restate them.
-`tests/vitest/grid-metrics.test.ts` parses the stylesheet and fails
-if the two ever drift.
+`includes/desktop-files/grid.php` mirrors them again, because the
+server picks cells for tiles it will never see rendered.
+`tests/vitest/grid-metrics.test.ts` parses the stylesheet and
+`Tests_OpenStation_DesktopFilesGrid` parses the TypeScript, so a
+number that moves in one language and not the others fails a test
+that names the other one.
+
+### Reading order
+
+The other half of "one grid" is which way a canvas reads.
+
+| Canvas | Order | Why |
+|---|---|---|
+| The desktop root (`folderId` 0) | **column** — fill a column top-to-bottom, then start the next | It is tall, it is the surface users hold a mental map of, and every desktop metaphor worth copying fills a column first. |
+| A folder window | **row** — fill a row left-to-right, then drop | It is wide and short; a column-major fill runs a two-item folder off the bottom of its own window. |
+
+**The order belongs to the canvas, not to the operation.** Every path
+that allocates a cell asks the same question — a drop, a sort, the
+displacement of a collision on repaint, the rescue of tiles that
+drifted out of view — via `orderForFolder()` on the client and
+`openstation_files_grid_order()` on the server. When they each
+answered for themselves, the desktop arrived as a row of icons on
+some page loads and as columns on others, depending on which pass ran
+last.
+
+Two rules follow, both tested:
+
+- **A scan is bounded by the canvas it packs.** `nextFreeCell()`
+  wraps at `gridRows()` for a column and `gridCols()` for a row. The
+  layer is `position: absolute; inset: 0` and does not scroll, so a
+  cell allocated past the edge isn't below the fold — there is no
+  fold — it is unreachable.
+- **An unmeasurable canvas is not a one-cell canvas.** A host that
+  hasn't been laid out yet reports `0`; believing it is exactly how a
+  column turns into a row, since a column-major scan one row tall
+  *is* a row. `GRID_FALLBACK_ROWS` / `GRID_FALLBACK_COLS` are what a
+  caller with nothing to measure gets — the server always, the client
+  before first layout. They are deliberately small: wrapping one cell
+  early costs a column the canvas had room for, wrapping one cell
+  late loses a tile.
 
 Two consequences worth knowing, both learned the hard way:
 
@@ -515,8 +553,9 @@ the iframe, is an ordinary `dragover` / `drop` pair.
 The files canvas accepts those too. Drop an attachment on the
 wallpaper, on a folder window's canvas, or on a closed folder tile and
 it files as a shortcut exactly as a drag from WP Explorer would —
-same row-major packing, same optimistic store upsert, same
-`os.files.shortcut-dropped` action.
+same packing in the destination's [reading order](#reading-order),
+same optimistic store upsert, same `os.files.shortcut-dropped`
+action.
 
 The payload is read from whichever channel carries it:
 
@@ -593,22 +632,32 @@ targets:
   - Each folder tile — accepts the same payloads but routes them
     INTO that folder (sets `parentId` on the move, or POSTs a new
     placement with `parentId = folderId`). Both branches also
-    **re-pack row-major** into the destination's first free cells
-    rather than carrying the coordinates the tile had outside. The
-    destination window is usually not mounted, so there is nothing
-    to measure and aim at; landing at the top-left is the outcome
-    that's visible whatever size the folder turns out to be. A tile
-    filed from low down a tall desktop would otherwise keep a `y`
-    no folder canvas reaches.
+    **re-pack into the destination's first free cells**, in that
+    canvas's [reading order](#reading-order), rather than carrying
+    the coordinates the tile had outside. The destination window is
+    usually not mounted, so there is nothing to measure and aim at;
+    the declared fallback bounds keep the landing slot visible
+    whatever size the folder turns out to be. A tile filed from low
+    down a tall desktop would otherwise keep a `y` no folder canvas
+    reaches.
 
 A layer is `position: absolute; inset: 0` and does **not** scroll,
 so a tile positioned past an edge isn't below a fold — there is no
 fold — it is unreachable. `FilesLayer.reflow()` is the safety net:
 after every paint, and on every host resize, any tile whose stored
-cell falls outside the canvas (either edge) is packed into view.
+box falls outside the canvas (either edge) is packed into view.
 The reflow is **visual only** — nothing is persisted until the user
 drags or sorts — so a layout that merely doesn't fit the current
 window size is restored the moment there's room for it again.
+
+Because it is visual only, a rescue re-derives its verdict on every
+load, which makes two properties load-bearing rather than nice to
+have. It packs in the canvas's own reading order, so a rescue can
+never be what turns a column of icons into a row. And it measures
+the **tile** box, not the cell box: a cell carries the gap that
+separates it from the next one, and a tile in the last row has
+nothing after it, so asking whether its gap fits condemns a
+fully-visible tile and repacks the whole canvas around it.
 
 Pinned tiles (registered with `pinned: true` via
 `openstation_register_icon`) skip drag wiring entirely. A pointerdown

@@ -218,6 +218,7 @@ export class OsSettings implements SettingsCtx {
 			nativeUsersEnabled: this.state.nativeUsersEnabled,
 			nativePluginsEnabled: this.state.nativePluginsEnabled,
 			nativeCommentsEnabled: this.state.nativeCommentsEnabled,
+			stationHomeEnabled: this.state.stationHomeEnabled,
 			developerModeEnabled: this.state.developerModeEnabled,
 			foldersSharingEnabled: this.state.foldersSharingEnabled,
 			showPostStatusRibbons: this.state.showPostStatusRibbons,

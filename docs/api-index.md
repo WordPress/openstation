@@ -25,7 +25,7 @@ The full surface is documented in [`javascript-reference.md`](./javascript-refer
 | `HOOKS` | `typeof HOOKS` *(typed hook-name constants)* | Stable |
 | `hooks` | `wp.hooks` bridge | Stable |
 | `saveSession` | `() => void` | Stable |
-| `registerWindowAction` / `unregisterWindowAction` / `listWindowActions` | `( def: WindowActionDef ) => void` *(rows in every window's ⋯ menu; `label`/`icon`/`isVisible` may be per-window functions)* | Experimental |
+| `registerWindowAction` / `unregisterWindowAction` / `listWindowActions` | `( def: WindowActionDef ) => void` *(rows in every window's ⋯ menu, as verbs or checkboxes; `label`/`icon`/`isVisible`/`checked` may be per-window functions)* | Experimental |
 | [`electron`](./desktop-host.md) | `ElectronAdapterApi` *(set a window free into a real OS window; published by the Electron Adapter extension, absent in a browser)* | Experimental |
 
 ### HTTP & UI primitives — must-know

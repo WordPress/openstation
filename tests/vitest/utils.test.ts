@@ -143,6 +143,19 @@ describe( 'utils/deriveWindowId', () => {
 		expect( one ).not.toBe( two );
 	} );
 
+	test( 'separates site-editor entities by the `p` route', () => {
+		// The counterpart to `pageIdentityKey` dropping `p`.
+		const home = deriveWindowId(
+			`${ ADMIN }site-editor.php?p=/wp_template/twentytwentyfive//home`,
+			ADMIN,
+		);
+		const footer = deriveWindowId(
+			`${ ADMIN }site-editor.php?p=/wp_template_part/twentytwentyfive//footer`,
+			ADMIN,
+		);
+		expect( home ).not.toBe( footer );
+	} );
+
 	test( 'falls back to slugify for non-URL input', () => {
 		expect( deriveWindowId( 'index.php', ADMIN ) ).toBe( 'index-php' );
 	} );

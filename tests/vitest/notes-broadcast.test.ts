@@ -4,6 +4,8 @@
  * still looked empty after one was trashed.
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import { subscribe } from '../../src/broadcast';
+import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 import { trashNoteWithUndo } from '../../src/notes/trash';
 import { NOTES_POST_TYPE, type Note } from '../../src/notes/types';
 import {
@@ -28,17 +30,28 @@ const NOTE: Note = {
 };
 
 describe( 'notes bin broadcast', () => {
-	let broadcast: ReturnType< typeof vi.fn >;
+	// Observed on the real bus, not a `wp.os` mock: the notes module
+	// publishes through the shared `announceContentChange()` helper,
+	// which rides the module-level broadcast directly.
+	let published: Array< Record< string, unknown > >;
+	let unsubscribe: () => void;
 	let undoAction: ( () => void ) | null;
 
 	beforeEach( () => {
+		installHooksStub();
 		__resetNotesRestForTests();
 		installNotesRestDeps( { baseUrl: 'https://example.test/notes', nonce: 'n' } );
-		broadcast = vi.fn();
+		published = [];
+		unsubscribe = subscribe( `os.${ NOTES_POST_TYPE }.changed`, ( payload ) => {
+			published.push( payload as Record< string, unknown > );
+		} );
 		undoAction = null;
-		( window as unknown as { wp: { os: Record< string, unknown > } } ).wp = {
+		// Merge, never assign: `installHooksStub()` above parked
+		// `wp.hooks` on the same global, and the real bus reads it.
+		const w = window as unknown as { wp?: Record< string, unknown > };
+		w.wp = {
+			...( w.wp ?? {} ),
 			os: {
-				broadcast,
 				showToast: ( opts: { action?: { onClick: () => void } } ) => {
 					undoAction = opts.action?.onClick ?? null;
 				},
@@ -55,25 +68,25 @@ describe( 'notes bin broadcast', () => {
 	} );
 
 	afterEach( () => {
+		unsubscribe();
 		vi.unstubAllGlobals();
+		clearHooksStub();
 		delete ( window as unknown as { wp?: unknown } ).wp;
 	} );
 
 	test( 'trashing publishes a trashed delta the bin can count', async () => {
 		await trashNoteWithUndo( NOTE, { onEvict: () => undefined, onRestore: () => undefined } );
-		expect( broadcast ).toHaveBeenCalledWith(
-			`os.${ NOTES_POST_TYPE }.changed`,
+		expect( published ).toContainEqual(
 			expect.objectContaining( { action: 'trashed', ids: [ 7 ] } ),
 		);
 	} );
 
 	test( 'Undo publishes the matching untrashed delta', async () => {
 		await trashNoteWithUndo( NOTE, { onEvict: () => undefined, onRestore: () => undefined } );
-		broadcast.mockClear();
+		published.length = 0;
 		undoAction?.();
 		await new Promise( ( r ) => setTimeout( r, 10 ) );
-		expect( broadcast ).toHaveBeenCalledWith(
-			`os.${ NOTES_POST_TYPE }.changed`,
+		expect( published ).toContainEqual(
 			expect.objectContaining( { action: 'untrashed', ids: [ 7 ] } ),
 		);
 	} );
@@ -85,7 +98,7 @@ describe( 'notes bin broadcast', () => {
 		);
 		vi.spyOn( console, 'error' ).mockImplementation( () => undefined );
 		await trashNoteWithUndo( NOTE, { onEvict: () => undefined, onRestore: () => undefined } );
-		expect( broadcast ).not.toHaveBeenCalled();
+		expect( published ).toEqual( [] );
 	} );
 
 	test( 'the topic matches the slug the bin config ships', () => {

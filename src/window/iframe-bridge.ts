@@ -55,7 +55,7 @@ export interface AdminLinkDockEntry {
 	 * Optional — falls back to the destination URL when missing.
 	 */
 	url?: string;
-	submenu?: { title: string; url: string }[];
+	submenu?: { title: string; url: string; offSite?: boolean }[];
 	multi?: boolean;
 }
 
@@ -87,7 +87,7 @@ interface AdminLinkDispatchDeps {
 		title: string;
 		titleFromPage?: boolean;
 		icon: string;
-		submenu?: { title: string; url: string }[];
+		submenu?: { title: string; url: string; offSite?: boolean }[];
 		selfLabel?: string;
 		multi?: boolean;
 	} ): void;

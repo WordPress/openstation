@@ -55,6 +55,14 @@ function openstation_build_dock_items() {
 			continue;
 		}
 
+		// Skip menus something took out of the classic sidebar. A dock
+		// that shows what wp-admin hides isn't a faithful mirror of the
+		// menu, and on WordPress.com it double-renders every entry
+		// Jetpack replaced with a Calypso link.
+		if ( openstation_menu_item_is_hidden( $item ) ) {
+			continue;
+		}
+
 		$title = openstation_menu_item_title( $item[0] );
 
 		// Extract badge count from the title HTML.
@@ -84,7 +92,19 @@ function openstation_build_dock_items() {
 		// Determine the icon. Menu entries can set `$item[6]` to anything
 		// — a dashicon class, a remote URL, a data:URI, 'none', or 'div'
 		// — so normalize before we serialize it for the shell JS.
-		$icon = openstation_sanitize_dock_icon( $item[6] ?? '' );
+		//
+		// A blanked value falls back to whatever the row carried before
+		// anything on `admin_menu` rewrote it, which is how plugin
+		// artwork survives Jetpack's SVG-to-stylesheet move on
+		// WordPress.com — see `openstation_snapshot_menu_icons()`.
+		$raw_icon = (string) ( $item[6] ?? '' );
+		if ( '' === $raw_icon || 'none' === $raw_icon || 'div' === $raw_icon ) {
+			$snapshot = openstation_menu_icon_snapshot();
+			if ( isset( $snapshot[ $item[2] ] ) ) {
+				$raw_icon = $snapshot[ $item[2] ];
+			}
+		}
+		$icon = openstation_sanitize_dock_icon( $raw_icon );
 
 		// Build the full URL for the menu item.
 		//
@@ -94,8 +114,17 @@ function openstation_build_dock_items() {
 		// The effective `$url` we ship to the shell can be rewritten
 		// further down to the first visible submenu's URL — see the
 		// note after the loop.
-		$parent_url = openstation_menu_item_url( $item[2] );
-		$url        = $parent_url;
+		$parent_url      = openstation_menu_item_url( $item[2] );
+		$parent_external = openstation_menu_item_is_external( $parent_url );
+
+		// A menu owned by a regular plugin is allowed to keep off-site
+		// children — a docs or support link under a plugin's own menu is
+		// a normal thing to ship, and the flyout marks it as leaving the
+		// site. Everything else drops them: a Core menu whose child was
+		// repointed off-site (WordPress.com does this to Appearance →
+		// Themes) gets its wp-admin original back instead, below.
+		$plugin_file         = openstation_resolve_menu_plugin_file( $item[2] );
+		$allow_external_subs = null !== $plugin_file && ! $parent_external;
 
 		// Build submenu items.
 		//
@@ -114,9 +143,16 @@ function openstation_build_dock_items() {
 		// Detection by URL (post-`openstation_menu_item_url()` normalize)
 		// rather than slug equality covers plugins that register a child
 		// at a different slug pointing at the parent's URL.
-		$sub_items             = array();
-		$first_visible_sub_url = null;
-		$self_label            = '';
+		//
+		// Two passes, because the second decision depends on the first:
+		// a `hide-if-js` row is normally noise, but when it is the
+		// wp-admin original of an off-site row we just dropped, it is
+		// the route back to the page Core intended. The original takes
+		// the replacement's place in the list, so the menu reads the way
+		// it would have if nothing had swapped the row out.
+		$rows             = array();
+		$restore_slots    = array();
+		$dropped_off_site = 0;
 		if ( ! empty( $submenu[ $item[2] ] ) ) {
 			foreach ( $submenu[ $item[2] ] as $sub_item ) {
 				if ( ! empty( $sub_item[1] ) && ! current_user_can( $sub_item[1] ) ) {
@@ -128,57 +164,204 @@ function openstation_build_dock_items() {
 				// when `<body class=\"no-customize-support\">`". The
 				// Customizer is supported inside chromeless iframes, so
 				// these entries belong in the dock.
-				$sub_url = openstation_menu_item_url( $sub_item[2] );
-				// Capture the first capability-passing submenu URL so
-				// we can use it as the parent's effective URL below
-				// (mirrors `wp-admin/menu-header.php`). Captured BEFORE
-				// the self-link strip so plugins whose first submenu IS
-				// the auto-prepended self-link land on the parent URL
-				// (a no-op rewrite — preserves existing behavior).
-				if ( null === $first_visible_sub_url ) {
-					$first_visible_sub_url = $sub_url;
-				}
-				// Self-link strip — `$sub_url === $parent_url` covers
-				// WP's auto-prepended entry AND any plugin-registered
-				// alias that happens to land on the parent URL.
-				if ( $sub_url === $parent_url ) {
-					// Keep its LABEL, though. The stripped entry is a
-					// real row in wp-admin's own menu ("All Posts",
-					// "All Pages"), and the constellation flyout lists
-					// it as the first thing the menu opens — a list of
-					// a menu's pages that omits its main page reads as
-					// a bug.
-					//
-					// Carried separately rather than left in `submenu`
-					// because `submenu` has two other consumers that
-					// need it to mean "distinct child links only": the
-					// in-window tab strip, which would grow a duplicate
-					// first tab, and the right-click popover, which is
-					// suppressed on `length === 0`.
-					//
-					// First one only — a plugin can register several
-					// aliases onto the parent URL, and the canonical
-					// self-link is the one WordPress prepends.
-					if ( '' === $self_label ) {
-						$self_label = openstation_menu_item_title( $sub_item[0] );
+				$sub_url      = openstation_menu_item_url( $sub_item[2] );
+				$sub_external = openstation_menu_item_is_external( $sub_url );
+
+				if ( $sub_external && ! $allow_external_subs ) {
+					++$dropped_off_site;
+					// Leave a slot behind, in case the wp-admin row this
+					// entry displaced is still in the list.
+					$dropped_title = openstation_menu_item_title( $sub_item[0] );
+					if ( '' !== $dropped_title && ! isset( $restore_slots[ $dropped_title ] ) ) {
+						$rows[]                          = array( 'restore' => $dropped_title );
+						$restore_slots[ $dropped_title ] = count( $rows ) - 1;
 					}
 					continue;
 				}
-				// Skip entries with no resolvable title. Plugins (e.g.
-				// WooCommerce's `wc-addons` Extensions row) register
-				// `menu_title => null` to hide a row from classic admin's
-				// left menu while keeping the page reachable. Without
-				// this guard the dock renders an empty, label-less tab
-				// that visually duplicates a sibling entry.
-				$sub_title = openstation_menu_item_title( $sub_item[0] );
-				if ( '' === $sub_title ) {
-					continue;
-				}
-				$sub_items[] = array(
-					'title' => $sub_title,
-					'url'   => $sub_url,
+
+				$rows[] = array(
+					'raw_title' => $sub_item[0],
+					'slug'      => (string) $sub_item[2],
+					'url'       => $sub_url,
+					'external'  => $sub_external,
+					'hidden'    => openstation_menu_item_is_hidden( $sub_item ),
 				);
 			}
+		}
+
+		// Second pass. A hidden row moves into the slot its replacement
+		// left; one whose replacement was the top-level slug itself
+		// stays where it is (there is no slot — the menu row is not part
+		// of this list). Every other hidden row, and every slot nothing
+		// claimed, drops out.
+		$restored = array();
+		$keep     = array_fill( 0, count( $rows ), true );
+		foreach ( $rows as $i => $row ) {
+			if ( isset( $row['restore'] ) || ! $row['hidden'] ) {
+				continue;
+			}
+			$keep[ $i ] = false;
+			$row_title  = openstation_menu_item_title( $row['raw_title'] );
+			if ( '' === $row_title || isset( $restored[ $row_title ] ) ) {
+				continue;
+			}
+			if ( isset( $restore_slots[ $row_title ] ) ) {
+				$rows[ $restore_slots[ $row_title ] ] = $row;
+				$restored[ $row_title ]               = true;
+			} elseif ( $parent_external && $row_title === $title ) {
+				// The menu's own row, hidden in place. WordPress builds
+				// a parent's self-link by copying the menu row's first
+				// four fields, so its label is the menu's label, which
+				// is what makes the comparison hold.
+				$keep[ $i ]             = true;
+				$restored[ $row_title ] = true;
+			}
+		}
+
+		// Last resort for a menu whose own slug points off-site: if
+		// nothing on-site survived, take the first hidden on-site row
+		// rather than lose the menu. The label comparison above is the
+		// precise answer and covers the ordinary case, but it breaks the
+		// moment a host relabels the menu row without relabelling the
+		// self-link it already generated. Showing a row someone hid
+		// beats dropping a working menu off the dock.
+		if ( $parent_external ) {
+			$has_on_site = false;
+			foreach ( $rows as $i => $row ) {
+				if ( ! isset( $row['restore'] ) && $keep[ $i ] && ! $row['external'] ) {
+					$has_on_site = true;
+					break;
+				}
+			}
+			if ( ! $has_on_site ) {
+				foreach ( $rows as $i => $row ) {
+					if ( isset( $row['restore'] ) || ! $row['hidden'] || $row['external'] ) {
+						continue;
+					}
+					$keep[ $i ] = true;
+					break;
+				}
+			}
+		}
+
+		$kept_rows = array();
+		foreach ( $rows as $i => $row ) {
+			if ( isset( $row['restore'] ) || ! $keep[ $i ] ) {
+				continue;
+			}
+			$kept_rows[] = $row;
+		}
+		$rows = $kept_rows;
+
+		// When the top-level slug itself points off-site, the menu's
+		// identity is now whichever child survived — adopt it before the
+		// self-link strip runs, so a restored original collapses into
+		// `selfLabel` instead of becoming a child that duplicates its
+		// own parent.
+		//
+		// Identity travels with it. Everything below keys off the menu's
+		// slug — whether it's a Core menu, whether a plugin owns it,
+		// whether it opens more than one window, and which slug the
+		// `openstation_dock_item` filter is told about. Left on the
+		// off-site slug, a rescued Plugins tile reads as a plugin menu
+		// owned by whoever registered the replacement, sorts to the far
+		// end of the dock, and offers to deactivate them.
+		$identity_slug = (string) $item[2];
+		if ( $parent_external ) {
+			foreach ( $rows as $row ) {
+				if ( ! $row['external'] ) {
+					$parent_url    = $row['url'];
+					$identity_slug = $row['slug'];
+					break;
+				}
+			}
+		}
+
+		// A menu that only ever pointed at its children, and whose
+		// children we just took away. Checked only for menus the
+		// off-site rule actually touched, so a menu registering its page
+		// hook in some way we don't recognise is left exactly as it was.
+		$parent_is_container = $dropped_off_site > 0
+			&& ! $parent_external
+			&& ! openstation_menu_slug_has_page( $item[2] );
+
+		$url                   = $parent_url;
+		$sub_items             = array();
+		$first_visible_sub_url = null;
+		$has_self_link         = false;
+		$self_label            = '';
+		foreach ( $rows as $row ) {
+			$sub_url = $row['url'];
+			if ( $parent_is_container && $sub_url === $parent_url ) {
+				// A row pointing back at a menu with no page is a dead
+				// end, not a way back — it can't name the menu and it
+				// can't stand in for it.
+				continue;
+			}
+			// Capture the first capability-passing submenu URL so
+			// we can use it as the parent's effective URL below
+			// (mirrors `wp-admin/menu-header.php`). Captured BEFORE
+			// the self-link strip so plugins whose first submenu IS
+			// the auto-prepended self-link land on the parent URL
+			// (a no-op rewrite — preserves existing behavior). Never
+			// an off-site child, which would take the whole tile with
+			// it when the final external check runs.
+			if ( null === $first_visible_sub_url && ! $row['external'] ) {
+				$first_visible_sub_url = $sub_url;
+			}
+			// Self-link strip — `$sub_url === $parent_url` covers
+			// WP's auto-prepended entry AND any plugin-registered
+			// alias that happens to land on the parent URL.
+			if ( $sub_url === $parent_url ) {
+				$has_self_link = true;
+				// Keep its LABEL, though. The stripped entry is a
+				// real row in wp-admin's own menu ("All Posts",
+				// "All Pages"), and the constellation flyout lists
+				// it as the first thing the menu opens — a list of
+				// a menu's pages that omits its main page reads as
+				// a bug.
+				//
+				// Carried separately rather than left in `submenu`
+				// because `submenu` has two other consumers that
+				// need it to mean "distinct child links only": the
+				// in-window tab strip, which would grow a duplicate
+				// first tab, and the right-click popover, which is
+				// suppressed on `length === 0`.
+				//
+				// First one only — a plugin can register several
+				// aliases onto the parent URL, and the canonical
+				// self-link is the one WordPress prepends.
+				if ( '' === $self_label ) {
+					$self_label = openstation_menu_item_title( $row['raw_title'] );
+				}
+				continue;
+			}
+			// Skip entries with no resolvable title. Plugins (e.g.
+			// WooCommerce's `wc-addons` Extensions row) register
+			// `menu_title => null` to hide a row from classic admin's
+			// left menu while keeping the page reachable. Without
+			// this guard the dock renders an empty, label-less tab
+			// that visually duplicates a sibling entry.
+			$sub_title = openstation_menu_item_title( $row['raw_title'] );
+			if ( '' === $sub_title ) {
+				continue;
+			}
+			$sub_entry = array(
+				'title' => $sub_title,
+				'url'   => $sub_url,
+			);
+			if ( $row['external'] ) {
+				// Consumers that route a URL into a window skip these;
+				// the ones that can hand a link to the browser mark
+				// them as leaving the site.
+				//
+				// `offSite` rather than `external`: the window's tab
+				// strip already calls plugin-opened sub-iframe tabs
+				// "external" (`data-kind="external"`), and that is a
+				// different thing entirely.
+				$sub_entry['offSite'] = true;
+			}
+			$sub_items[] = $sub_entry;
 		}
 
 		// Mirror `wp-admin/menu-header.php`: when a parent menu has any
@@ -190,8 +373,31 @@ function openstation_build_dock_items() {
 		// (`?page=wc-admin` for WC). Without this rewrite the dock
 		// icon points users at a broken URL that classic admin would
 		// never have linked to.
-		if ( null !== $first_visible_sub_url ) {
+		//
+		// A menu that registered a self-link has a working page of its
+		// own and keeps it, wherever in the list that link sits. Only
+		// the WooCommerce shape — no self-link at all — needs a child to
+		// stand in. Position matters here because a restored wp-admin
+		// row inherits the slot its off-site replacement held, which on
+		// WordPress.com puts `plugin-install.php` first under Plugins.
+		if ( null !== $first_visible_sub_url && ! $has_self_link ) {
 			$url = $first_visible_sub_url;
+		}
+
+		// Nothing on this menu resolves to a page we can open. Hosts
+		// that link their own control panel from the admin menu
+		// (WordPress.com's My Home, Theme Showcase, Hosting) land here,
+		// and so does a Core menu whose slug was repointed off-site with
+		// no wp-admin child left to fall back to.
+		if ( openstation_menu_item_is_external( $url ) ) {
+			continue;
+		}
+
+		// A container menu with nothing left to stand in for it. Its
+		// URL resolves to core's "Cannot load <slug>." page, which is a
+		// worse tile than no tile.
+		if ( $parent_is_container && $url === $parent_url ) {
+			continue;
 		}
 
 		$dock_item = array(
@@ -206,10 +412,12 @@ function openstation_build_dock_items() {
 			// named the way wp-admin names it. Empty when the menu had
 			// no self-link to strip.
 			'selfLabel'  => $self_label,
-			'multi'      => openstation_dock_item_is_multi( $item[2] ),
-			'placement'  => openstation_dock_placement( $item[2] ),
-			'isCore'     => openstation_is_core_menu_slug( $item[2] ),
-			'pluginFile' => openstation_resolve_menu_plugin_file( $item[2] ),
+			'multi'      => openstation_dock_item_is_multi( $identity_slug ),
+			'placement'  => openstation_dock_placement( $identity_slug ),
+			'isCore'     => openstation_is_core_menu_slug( $identity_slug ),
+			'pluginFile' => $identity_slug === (string) $item[2]
+				? $plugin_file
+				: openstation_resolve_menu_plugin_file( $identity_slug ),
 			'pluginName' => null,
 		);
 		if ( $dock_item['pluginFile'] ) {
@@ -222,7 +430,7 @@ function openstation_build_dock_items() {
 		 * @param array  $dock_item The dock item data.
 		 * @param string $menu_slug The menu slug.
 		 */
-		$dock_item = apply_filters( 'openstation_dock_item', $dock_item, $item[2] );
+		$dock_item = apply_filters( 'openstation_dock_item', $dock_item, $identity_slug );
 
 		$items[] = $dock_item;
 	}
@@ -234,6 +442,173 @@ function openstation_build_dock_items() {
 	 */
 	return apply_filters( 'openstation_dock_items', $items );
 }
+
+/**
+ * Whether a resolved menu URL points at a host other than this site's.
+ *
+ * OpenStation opens admin pages inside iframes, and an off-site URL
+ * cannot load in one — the remote origin's `X-Frame-Options` /
+ * `frame-ancestors` header refuses it. Hosts that extend the admin
+ * menu with links to their own control panel (WordPress.com registers
+ * My Home, Theme Showcase, Hosting and friends as `wordpress.com`
+ * URLs) would therefore fill the dock with tiles that can only ever
+ * escape to a browser tab, which breaks the shell's navigation model.
+ * Those entries are dropped from the payload instead.
+ *
+ * Both `admin_url()` and `home_url()` hosts count as ours: a site can
+ * run its admin on a different domain than its front end.
+ *
+ * @param string $url Absolute URL, as returned by `openstation_menu_item_url()`.
+ * @return bool True when the URL is off-site.
+ */
+function openstation_menu_item_is_external( $url ) {
+	$host     = wp_parse_url( (string) $url, PHP_URL_HOST );
+	$external = false;
+
+	if ( $host ) {
+		$ours = array();
+		foreach ( array( admin_url(), home_url() ) as $known ) {
+			$known_host = wp_parse_url( $known, PHP_URL_HOST );
+			if ( $known_host ) {
+				$ours[] = strtolower( $known_host );
+			}
+		}
+		$external = ! in_array( strtolower( $host ), $ours, true );
+	}
+
+	/**
+	 * Filters whether an admin-menu URL counts as off-site.
+	 *
+	 * @param bool   $external Whether the URL points off-site.
+	 * @param string $url      The resolved menu URL.
+	 */
+	return (bool) apply_filters( 'openstation_menu_item_is_external', $external, $url );
+}
+
+/**
+ * Whether a `$menu` / `$submenu` row carries the `hide-if-js` class.
+ *
+ * Core never sets it on a menu row, so it reads as "some other code
+ * took this entry out of the sidebar". Jetpack's admin-menu
+ * customisation on WordPress.com uses it heavily: rather than replace
+ * a Core entry with its wordpress.com counterpart, it marks the
+ * original `hide-if-js` and appends a duplicate pointing at Calypso.
+ * Honouring the class is what keeps those pairs from rendering twice
+ * in the dock.
+ *
+ * @param array $item A `$menu` or `$submenu` row.
+ * @return bool True when the row is hidden from the classic sidebar.
+ */
+function openstation_menu_item_is_hidden( $item ) {
+	return ! empty( $item[4] ) && false !== strpos( (string) $item[4], 'hide-if-js' );
+}
+
+/**
+ * Whether a top-level menu slug has a page of its own behind it.
+ *
+ * `add_menu_page()` accepts a `null` callback, which registers a menu
+ * that is nothing but a container for its children — WordPress links
+ * such a parent to its first submenu and `admin.php` refuses the slug
+ * directly with "Cannot load <slug>." WordPress.com's Upgrades menu is
+ * one: `paid-upgrades.php` has no callback and no self-link, and every
+ * child is a wordpress.com URL. Drop the children and the tile is left
+ * pointing at core's error page.
+ *
+ * Two ways a slug earns a page: it names a real file under `wp-admin/`,
+ * or something is listening on its page hook — the same `has_action()`
+ * test `get_plugin_page_hook()` makes before `admin.php` gives up.
+ * Anything we can't answer counts as a page, so an unusual registration
+ * costs a menu nothing.
+ *
+ * @param string $slug The menu slug from `$menu[$i][2]`.
+ * @return bool False only when the slug is provably a container.
+ */
+function openstation_menu_slug_has_page( $slug ) {
+	if ( openstation_is_admin_file_slug( $slug ) ) {
+		return true;
+	}
+
+	if ( ! function_exists( 'get_plugin_page_hookname' ) ) {
+		return true;
+	}
+
+	$hookname = get_plugin_page_hookname( $slug, '' );
+	if ( empty( $hookname ) ) {
+		return true;
+	}
+
+	return has_action( $hookname );
+}
+
+/**
+ * Lazy accessor for the pre-rewrite menu icon snapshot: `slug → icon`.
+ *
+ * Populated by {@see openstation_snapshot_menu_icons()}.
+ *
+ * @return array<string,string>
+ */
+function &openstation_menu_icon_snapshot() {
+	static $map = null;
+	if ( null === $map ) {
+		$map = array();
+	}
+	return $map;
+}
+
+/**
+ * Record the first real icon each menu row is seen wearing.
+ *
+ * A menu row's icon is not final when it is registered. Anything on
+ * `admin_menu` can rewrite `$menu[ $i ][6]`, and the rewrite that hurts
+ * is to `'none'` — the row keeps its picture in the sidebar, painted
+ * from a stylesheet instead, and the menu array stops carrying it. The
+ * dock reads the array, so those menus arrived wearing a generic gear.
+ * Jetpack's `override_svg_icons()` does this to every SVG-data-URI icon
+ * on WordPress.com, which is where it was found, but nothing about the
+ * move is specific to that host.
+ *
+ * Rather than sit at one priority chosen to undercut one known rewriter,
+ * sample repeatedly and **never overwrite**: the map keeps the earliest
+ * real icon each slug had, whenever it appeared and whoever blanked it
+ * afterwards. Write-once is safe because the map is only ever consulted
+ * as a fallback — a menu that genuinely changes its icon still ships the
+ * live value.
+ *
+ * A slug that had no real icon at any sample point is simply absent, and
+ * the caller lands on the generic fallback it would have had anyway.
+ */
+function openstation_snapshot_menu_icons() {
+	global $menu;
+
+	if ( ! is_array( $menu ) ) {
+		return;
+	}
+
+	$map = &openstation_menu_icon_snapshot();
+
+	foreach ( $menu as $item ) {
+		if ( empty( $item[2] ) || empty( $item[6] ) ) {
+			continue;
+		}
+		$slug = (string) $item[2];
+		if ( isset( $map[ $slug ] ) ) {
+			continue;
+		}
+		$icon = (string) $item[6];
+		if ( 'none' === $icon || 'div' === $icon ) {
+			continue;
+		}
+		$map[ $slug ] = $icon;
+	}
+}
+// Spread across the hook rather than parked just below any one
+// rewriter: registrations and rewrites both happen at arbitrary
+// priorities, and only a sample taken before a given rewrite can see
+// what it overwrote.
+foreach ( array( 11, 100, 1000, 99998, PHP_INT_MAX ) as $openstation_icon_snapshot_priority ) {
+	add_action( 'admin_menu', 'openstation_snapshot_menu_icons', $openstation_icon_snapshot_priority );
+}
+unset( $openstation_icon_snapshot_priority );
 
 /**
  * Sanitizes a dock icon value for safe injection into the shell JS.

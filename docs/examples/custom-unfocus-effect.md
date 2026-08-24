@@ -12,11 +12,23 @@ public hook a plugin would use. This page shows a plugin adding its own.
 ## How it works
 
 The framework owns *when* the chosen effect runs — it watches focus
-changes, the user's selection, and excludes minimized windows — and
-toggles your effect on every unfocused window's root element
-(`.os-window`). Your def owns *what* the effect is: either a
-CSS class to toggle (the cheap path) or `apply`/`clear` callbacks for
-anything a static class can't express.
+changes, the user's selection, and window state — and toggles your
+effect on every unfocused window's root element (`.os-window`). Your
+def owns *what* the effect is: either a CSS class to toggle (the cheap
+path) or `apply`/`clear` callbacks for anything a static class can't
+express.
+
+Three kinds of window are exempt, whatever effect is selected:
+
+- **Minimized windows** — nothing is on screen to treat.
+- **Split-view tiles** (`snapped-left` / `snapped-right`) — snapping is
+  the "work on these side by side" gesture, so the half that doesn't
+  hold focus stays untouched. The exemption is per-window and
+  partner-blind: a tile is exempt whether or not the opposite half is
+  filled.
+- **Windows hosting a `<canvas>` in the parent document** — a CSS
+  `filter` over a live WebGL surface can cost the context, which would
+  crash the native Pixi scenes.
 
 The user picks among registered effects (plus a "None" option) in
 OpenStation Preferences; the choice persists per-user as the `unfocusEffect`
