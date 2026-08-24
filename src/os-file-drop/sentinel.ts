@@ -22,7 +22,9 @@
  * drag types, not `Files`.
  */
 
+import { __ } from '../i18n';
 import { loadVendorScript } from '../wallpapers/vendor-loader';
+import { showToast } from '../toast';
 import type { CapturedDrop } from './index';
 
 interface SentinelArgs {
@@ -42,9 +44,9 @@ function dragCarriesFiles( ev: DragEvent ): boolean {
 	return Array.from( types ).includes( 'Files' );
 }
 
-export function installFileDropSentinel( args: SentinelArgs ): void {
+export function installFileDropSentinel( args: SentinelArgs ): () => void {
 	if ( ! args.bundleUrl ) {
-		return;
+		return () => undefined;
 	}
 	let loading: Promise< void > | null = null;
 	let booted = false;
@@ -81,6 +83,19 @@ export function installFileDropSentinel( args: SentinelArgs ): void {
 						'[openstation] file-drop bundle failed to load',
 						err,
 					);
+					// A captured drop is USER DATA in limbo — failing
+					// it silently would read as the desktop eating
+					// files. Say so, and let the retry-on-next-gesture
+					// contract do the rest.
+					if ( captured.length > 0 ) {
+						captured.length = 0;
+						showToast( {
+							message: __(
+								'That drop could not be processed — please try again.',
+								'desktop-mode',
+							),
+						} );
+					}
 				} );
 		}
 		return loading;
@@ -94,6 +109,11 @@ export function installFileDropSentinel( args: SentinelArgs ): void {
 	const onDragOver = ( ev: DragEvent ): void => {
 		if ( ! booted && dragCarriesFiles( ev ) ) {
 			ev.preventDefault();
+			// Same cursor the real manager shows, so the pre-boot →
+			// post-boot handover doesn't flicker the drag icon.
+			if ( ev.dataTransfer ) {
+				ev.dataTransfer.dropEffect = 'copy';
+			}
 		}
 	};
 	const onDrop = ( ev: DragEvent ): void => {
@@ -116,4 +136,7 @@ export function installFileDropSentinel( args: SentinelArgs ): void {
 	window.addEventListener( 'dragenter', onDragEnter, true );
 	window.addEventListener( 'dragover', onDragOver );
 	window.addEventListener( 'drop', onDrop );
+	// The teardown the boot path runs itself; returned for callers
+	// (and tests) that need to uninstall an un-booted sentinel.
+	return teardown;
 }

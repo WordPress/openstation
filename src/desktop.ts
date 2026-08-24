@@ -104,6 +104,7 @@ import { startUnfocusEngine } from './effects/unfocus-engine';
 import { startWindowRevealEngine } from './reveals/engine';
 import { createDockRailRendererSync } from './dock-rail/server-sync';
 import { loadVendorScript } from './wallpapers/vendor-loader';
+import { installDockConstellationSentinel } from './dock-constellation/sentinel';
 import {
 	type WindowThemeDef,
 } from './window-chrome/themes/registry';
@@ -2749,49 +2750,16 @@ function init(): void {
 		// first pointer entering a dock rail — hover UI has no
 		// boot-time job, and the flyout's own hover-intent delay
 		// covers the one-time fetch.
-		{
-			const constellationDeps = {
+		installDockConstellationSentinel( {
+			bundleUrl: config.dockConstellationBundleUrl ?? '',
+			deps: {
 				windowManager: manager,
 				adminUrl: config.adminUrl,
 				getMenuItems: () => layoutDispatcher?.getMenuItems() ?? [],
 				getSystemItem: ( id: string ) =>
 					layoutDispatcher?.getSystemTile( id ) ?? null,
-			};
-			const onFirstDockHover = ( ev: Event ): void => {
-				const target = ev.target;
-				if (
-					! ( target instanceof Element ) ||
-					! target.closest( '.os-dock' )
-				) {
-					return;
-				}
-				document.removeEventListener(
-					'pointerover',
-					onFirstDockHover,
-					true,
-				);
-				void loadVendorScript(
-					config.dockConstellationBundleUrl ?? '',
-				)
-					.then( () => {
-						window.openStationDockConstellation?.mount(
-							constellationDeps,
-						);
-					} )
-					.catch( () => {
-						// A dock without a flyout still works — every
-						// submenu is reachable through the window's
-						// own tab strip.
-					} );
-			};
-			if ( config.dockConstellationBundleUrl ) {
-				document.addEventListener(
-					'pointerover',
-					onFirstDockHover,
-					true,
-				);
-			}
-		}
+			},
+		} );
 
 		// The notch — the site assistant's front door, and the shell's
 		// place to speak from. Deliberately not a dock tile: the rail

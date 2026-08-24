@@ -61,6 +61,7 @@ const SPLIT_AREAS: ReadonlyArray< {
 	{
 		dir: 'dock-constellation',
 		allowed: [
+			'dock-constellation/sentinel.ts',
 			// Deliberate zero-import leaf — dock-peek stands down
 			// while the flyout owns the hover gesture.
 			'dock-constellation/active.ts',

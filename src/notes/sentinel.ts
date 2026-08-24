@@ -37,9 +37,9 @@ interface SentinelArgs extends BootNotesOptions {
 	hasNotes: boolean;
 }
 
-export function installNotesSentinel( args: SentinelArgs ): void {
+export function installNotesSentinel( args: SentinelArgs ): () => void {
 	if ( ! args.bundleUrl ) {
-		return;
+		return () => undefined;
 	}
 	let loading: Promise< NotesLayer | null > | null = null;
 	const stashedCreations: Event[] = [];
@@ -151,4 +151,11 @@ export function installNotesSentinel( args: SentinelArgs ): void {
 				: ( cb: () => void ) => window.setTimeout( cb, 200 );
 		idle( () => void ensure() );
 	}
+
+	// Uninstall for callers (and tests) tearing down an un-booted
+	// sentinel; the boot path removes the gesture listeners itself.
+	return () => {
+		document.removeEventListener( NOTE_CREATED_EVENT, onNoteCreated );
+		window.removeEventListener( 'dragstart', onDragStart, true );
+	};
 }

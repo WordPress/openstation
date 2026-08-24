@@ -525,9 +525,11 @@ const TARGETS = {
 		fileBase: 'file-drop',
 		iifeName: 'openStationFileDrop',
 	},
-	// Click-opened desktop-files surfaces: the file preview overlay,
-	// the share-settings modal, and the URL-file dialog. Loaded on
-	// first use by `src/desktop-files/overlays-loader.ts`.
+	// Click-opened desktop-files surfaces: the share-settings /
+	// share-invite modals and the URL-file dialog. Loaded on first
+	// use by `src/desktop-files/overlays-loader.ts`. (The file
+	// PREVIEW pane deliberately stays in the shell for now — see the
+	// folder-window renderer note in `built-in-openers.ts`.)
 	'files-overlays': {
 		entry:    'src/desktop-files/overlays-entry.ts',
 		fileBase: 'files-overlays',
