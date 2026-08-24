@@ -109,14 +109,19 @@ function openstation_alphabet_soup_register() {
 add_action( 'init', 'openstation_alphabet_soup_register', 20 );
 
 /**
- * Enqueue the Alphabet Soup window styles. The game's script is
- * lazily loaded by the framework on first launch, but its CSS is
- * tiny and must already be present when the window opens.
+ * Ride the Alphabet Soup window styles on the Games window as a
+ * companion — same shape as Inkfall; see
+ * `openstation_inkfall_window_styles()` for the reasoning.
+ *
+ * @param array $window_args Args passed to `openstation_register_window()`.
+ * @return array
  */
-function openstation_alphabet_soup_enqueue_styles() {
-	if ( ! function_exists( 'openstation_games_user_can_use' ) || ! openstation_games_user_can_use() ) {
-		return;
+function openstation_alphabet_soup_window_styles( $window_args ) {
+	if ( ! is_array( $window_args ) ) {
+		return $window_args;
 	}
-	wp_enqueue_style( 'os-game-alphabet-soup' );
+	$window_args['styles']   = isset( $window_args['styles'] ) ? (array) $window_args['styles'] : array();
+	$window_args['styles'][] = 'os-game-alphabet-soup';
+	return $window_args;
 }
-add_action( 'admin_enqueue_scripts', 'openstation_alphabet_soup_enqueue_styles', 30 );
+add_filter( 'openstation_games_window_args', 'openstation_alphabet_soup_window_styles' );

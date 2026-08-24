@@ -1923,6 +1923,36 @@ function openstation_resolve_style_payload( $handle ) {
 }
 
 /**
+ * Resolve a list of style handles into the `deferredStyles` config
+ * map: handle → `array( 'url' => …, 'inline' => string[] )`.
+ *
+ * For shell surfaces that render on demand but are NOT native
+ * windows — the Preferences panel, the AI assistant, the bug-report
+ * window — so the `styles` companion mechanism can't carry their
+ * CSS. The shell reads this map off `openStationConfig.deferredStyles`
+ * and injects each sheet the first time its surface opens
+ * (`ensureDeferredStyle()` in `src/deferred-styles.ts`).
+ *
+ * Handles that resolve to nothing (never registered) are dropped, so
+ * the client map only ever holds injectable entries.
+ *
+ * @param string[] $handles Registered style handles.
+ * @return array<string, array{url:string, inline:string[]}>
+ */
+function openstation_build_deferred_styles( $handles ) {
+	$out = array();
+	foreach ( (array) $handles as $handle ) {
+		$handle  = (string) $handle;
+		$payload = openstation_resolve_style_payload( $handle );
+		if ( '' === $payload['url'] ) {
+			continue;
+		}
+		$out[ $handle ] = $payload;
+	}
+	return $out;
+}
+
+/**
  * Fire a `_doing_it_wrong()` notice exactly once per handle per
  * request. Shared by every `openstation_build_desktop_*_scripts_payload()`
  * caller — payload builders run on every shell-config rebuild
@@ -2017,6 +2047,35 @@ function openstation_build_native_windows_payload() {
 		return array();
 	}
 
+	// Synthesized `openStationWindowConfig[ id ]` assignments, grouped
+	// by SCRIPT HANDLE rather than kept per window. Several windows
+	// share one bundle (Posts / Pages / Users / Profile all ride
+	// `os-posts-window`), and the shell fetches a URL once — so a
+	// config that only travels with its own window's entry is dropped
+	// for every sibling after the first, and a bundle whose code
+	// serves one window from inside another (the Users window mounts
+	// the Profile form, which reads the user-edit config) never sees
+	// it at all. Shipping the whole handle's config set on every entry
+	// that names the handle means whichever entry loads the bundle
+	// delivers all of them; the assignments are keyed by id, so
+	// replaying a sibling's copy is idempotent.
+	$config_snippets_by_handle = array();
+	foreach ( $registry as $entry ) {
+		$handle = isset( $entry['script'] ) ? (string) $entry['script'] : '';
+		if ( '' === $handle || ! is_callable( $entry['template'] ) ) {
+			continue;
+		}
+		$window_config = openstation_filter_native_window_config( $entry );
+		if ( empty( $window_config ) ) {
+			continue;
+		}
+		$config_snippets_by_handle[ $handle ][ $entry['id'] ] = sprintf(
+			'window.openStationWindowConfig=window.openStationWindowConfig||{};window.openStationWindowConfig[%s]=%s;',
+			wp_json_encode( $entry['id'] ),
+			wp_json_encode( $window_config )
+		);
+	}
+
 	$out = array();
 	foreach ( $registry as $entry ) {
 		if ( ! is_callable( $entry['template'] ) ) {
@@ -2104,13 +2163,31 @@ function openstation_build_native_windows_payload() {
 		// `wp_localize_script`. The bundle reads
 		// `window.openStationWindowConfig[id]` (or via
 		// `wp.os.getWindowConfig(id)`).
-		$window_config = openstation_filter_native_window_config( $entry );
-		if ( ! empty( $window_config ) ) {
-			$script_payload['l10n'][] = sprintf(
-				'window.openStationWindowConfig=window.openStationWindowConfig||{};window.openStationWindowConfig[%s]=%s;',
-				wp_json_encode( $entry['id'] ),
-				wp_json_encode( $window_config )
-			);
+		//
+		// The whole HANDLE's config set rides along, own window first —
+		// see `$config_snippets_by_handle` above for why a shared
+		// bundle must carry its siblings' configs too.
+		if ( '' !== $script_handle && isset( $config_snippets_by_handle[ $script_handle ] ) ) {
+			$handle_snippets = $config_snippets_by_handle[ $script_handle ];
+			if ( isset( $handle_snippets[ $entry['id'] ] ) ) {
+				$script_payload['l10n'][] = $handle_snippets[ $entry['id'] ];
+				unset( $handle_snippets[ $entry['id'] ] );
+			}
+			foreach ( $handle_snippets as $sibling_snippet ) {
+				$script_payload['l10n'][] = $sibling_snippet;
+			}
+		} elseif ( '' === $script_handle ) {
+			// A window with no bundle keeps the old shape: its config
+			// snippet is synthesized onto the (never-delivered) script
+			// payload, preserving behavior for declarative windows.
+			$window_config = openstation_filter_native_window_config( $entry );
+			if ( ! empty( $window_config ) ) {
+				$script_payload['l10n'][] = sprintf(
+					'window.openStationWindowConfig=window.openStationWindowConfig||{};window.openStationWindowConfig[%s]=%s;',
+					wp_json_encode( $entry['id'] ),
+					wp_json_encode( $window_config )
+				);
+			}
 		}
 
 		// Tab metadata (label + extra script payloads) ships alongside

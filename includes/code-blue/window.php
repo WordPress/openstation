@@ -84,7 +84,7 @@ function openstation_code_blue_register_window() {
 		'icon'       => $icon_uri,
 		'template'   => 'openstation_code_blue_render_template',
 		'script'     => 'openstation-code-blue',
-		'style'      => 'openstation-code-blue',
+		'styles'     => array( 'openstation-code-blue' ),
 		'width'      => 1060,
 		'height'     => 700,
 		'min_width'  => 720,

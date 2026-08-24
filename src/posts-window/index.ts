@@ -670,7 +670,7 @@ function buildCommentsCell( row: PostListItem ): HTMLElement {
 
 	if ( count === null ) {
 		cell.textContent = '—';
-		cell.style.color = 'var(--wp-admin-theme-fg-muted, #8c8f94)';
+		cell.style.color = 'var(--os-ui-fg-muted, #8c8f94)';
 		return cell;
 	}
 
@@ -684,13 +684,13 @@ function buildCommentsCell( row: PostListItem ): HTMLElement {
 		color:
 			count > 0
 				? 'var(--wp-admin-theme-color, #2271b1)'
-				: 'var(--wp-admin-theme-fg-muted, #8c8f94)',
+				: 'var(--os-ui-fg-muted, #8c8f94)',
 	} as Partial< CSSStyleDeclaration > );
 
 	const label = document.createElement( 'span' );
 	label.textContent = String( count );
 	if ( count === 0 ) {
-		label.style.color = 'var(--wp-admin-theme-fg-muted, #8c8f94)';
+		label.style.color = 'var(--os-ui-fg-muted, #8c8f94)';
 	}
 
 	cell.appendChild( icon );

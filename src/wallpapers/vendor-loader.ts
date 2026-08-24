@@ -253,6 +253,22 @@ function injectInline( code: string ): void {
 }
 
 /**
+ * Inject one inline `<script>` outside a `loadVendorScript()` call.
+ *
+ * For harvested handle data that has to land even though the bundle
+ * it belongs to is NOT being fetched: two native windows can share
+ * one script URL (Posts / Pages / Users / Profile all ride
+ * `os-posts-window`), and the URL-keyed dedupe means only the first
+ * window's load carries its extras through `loadVendorScript`. The
+ * sibling's per-entry data — most critically its synthesized
+ * `openStationWindowConfig[ id ]` assignment — is injected through
+ * this on its own first open instead.
+ */
+export function injectInlineScript( code: string ): void {
+	injectInline( code );
+}
+
+/**
  * Narrow helper for escaping strings into a CSS attribute selector.
  * Using the modern `CSS.escape()` when available, falling back to a
  * manual regex replacement. Older browsers that predate `CSS.escape`

@@ -160,6 +160,7 @@ import {
 	BUG_REPORT_WINDOW_ID,
 	renderBugReport,
 } from './bug-report';
+import { ensureDeferredStyle } from './deferred-styles';
 import { showToast, type ToastOptions } from './toast';
 import {
 	bootstrapPwa,
@@ -2935,6 +2936,9 @@ function init(): void {
 	 * and any future widget all reach the same window instance.
 	 */
 	function openBugReport(): void {
+		// The window's stylesheet is a `deferredStyles` entry, not a
+		// boot enqueue — inject on first open.
+		ensureDeferredStyle( 'desktop-mode-bug-report' );
 		void manager.open( {
 			id: BUG_REPORT_WINDOW_ID,
 			baseId: BUG_REPORT_WINDOW_ID,

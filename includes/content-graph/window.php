@@ -191,7 +191,7 @@ function openstation_content_graph_register_window() {
 		'icon'       => $icon_uri,
 		'template'   => 'openstation_content_graph_render_template',
 		'script'     => 'desktop-mode-content-graph',
-		'style'      => 'desktop-mode-content-graph',
+		'styles'     => array( 'desktop-mode-content-graph' ),
 		'width'      => 1080,
 		'height'     => 720,
 		'min_width'  => 720,
@@ -245,15 +245,3 @@ function openstation_content_graph_register_window() {
 	openstation_register_icon( 'desktop-mode-content-graph', $icon_args );
 }
 add_action( 'init', 'openstation_content_graph_register_window', 20 );
-
-/**
- * Enqueue the bundle's CSS in admin context. The script is lazy-
- * loaded by the native-window sync.
- */
-function openstation_content_graph_enqueue_styles() {
-	if ( ! openstation_content_graph_user_can_use() ) {
-		return;
-	}
-	wp_enqueue_style( 'desktop-mode-content-graph' );
-}
-add_action( 'admin_enqueue_scripts', 'openstation_content_graph_enqueue_styles', 30 );

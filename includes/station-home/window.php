@@ -143,7 +143,7 @@ function openstation_station_home_register_window() {
 			'icon'             => 'dashicons-dashboard',
 			'template'         => 'openstation_station_home_render_template',
 			'script'           => 'os-station-home',
-			'style'            => 'os-station-home',
+			'styles'           => array( 'os-station-home' ),
 			'width'            => 1240,
 			'height'           => 760,
 			'min_width'        => 640,

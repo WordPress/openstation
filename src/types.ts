@@ -2258,6 +2258,15 @@ export interface DesktopConfig {
 	 */
 	aiAssistantBundleUrl?: string;
 	/**
+	 * Stylesheets for shell surfaces that render on demand and are
+	 * NOT native windows (the Preferences panel, the AI assistant,
+	 * the bug-report window), keyed by style handle. Injected once,
+	 * on the surface's first open, by `ensureDeferredStyle()` —
+	 * `src/deferred-styles.ts`. Same resolved shape a native
+	 * window's `styleUrl` / `styleInline` travels in.
+	 */
+	deferredStyles?: Record< string, { url: string; inline?: string[] } >;
+	/**
 	 * Authenticated admin-AJAX URL returning the cached OpenStation journal
 	 * RSS payload. Requested only when the About tab first becomes visible.
 	 */

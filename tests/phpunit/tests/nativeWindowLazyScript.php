@@ -395,6 +395,56 @@ class Tests_OpenStation_NativeWindowLazyScript extends WP_UnitTestCase {
 	}
 
 	// --------------------------------------------------------------
+	// Shared bundles — configs group by script handle
+	// --------------------------------------------------------------
+
+	/**
+	 * Windows sharing one bundle each carry the WHOLE handle's config
+	 * set, own window first. The shell fetches a URL once, so a
+	 * config that only travelled with its own entry was dropped for
+	 * every sibling after the first — the Pages window opened to
+	 * "[desktop-mode-pages] config blob is missing" whenever Posts
+	 * had loaded the shared bundle first, and the Users window's
+	 * embedded Profile form could never see the user-edit config at
+	 * all.
+	 *
+	 * @covers ::openstation_build_native_windows_payload
+	 */
+	public function test_windows_sharing_a_bundle_carry_each_others_config() {
+		$this->register_demo_script( 'demo-shared', 'https://example.test/shared.js' );
+		$this->register_demo_window(
+			'demo-shared-posts',
+			array(
+				'script' => 'demo-shared',
+				'config' => array( 'who' => 'posts' ),
+			)
+		);
+		$this->register_demo_window(
+			'demo-shared-pages',
+			array(
+				'script' => 'demo-shared',
+				'config' => array( 'who' => 'pages' ),
+			)
+		);
+
+		$posts = $this->payload_entry( 'demo-shared-posts' );
+		$pages = $this->payload_entry( 'demo-shared-pages' );
+		$this->assertNotNull( $posts );
+		$this->assertNotNull( $pages );
+
+		foreach ( array( 'posts' => $posts, 'pages' => $pages ) as $label => $entry ) {
+			$l10n = implode( "\n", $entry['scriptL10n'] );
+			$this->assertStringContainsString( '"demo-shared-posts"', $l10n, "The $label entry must carry the posts config." );
+			$this->assertStringContainsString( '"demo-shared-pages"', $l10n, "The $label entry must carry the pages config." );
+		}
+
+		// Own window's assignment leads, so a bundle that reads its
+		// config synchronously at load sees its host first.
+		$this->assertStringContainsString( '"demo-shared-posts"', $posts['scriptL10n'][0] );
+		$this->assertStringContainsString( '"demo-shared-pages"', $pages['scriptL10n'][0] );
+	}
+
+	// --------------------------------------------------------------
 	// styles (companion stylesheets)
 	// --------------------------------------------------------------
 

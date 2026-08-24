@@ -25,7 +25,7 @@
 
 import { activity } from './activity';
 import { HOOKS, addAction, doAction, removeAction } from './hooks';
-import { loadVendorScript } from './wallpapers/vendor-loader';
+import { injectInlineScript, loadVendorScript } from './wallpapers/vendor-loader';
 import { registerSyntheticIframe } from './connection';
 import { setPanelTabs } from './window/tab-strip';
 import {
@@ -1157,6 +1157,54 @@ export function createNativeWindowSync(
 	 * otherwise get two `<script>` tags for the same URL, because
 	 * `loadedScripts` isn't written until the await resolves.
 	 */
+	/**
+	 * Per-entry inline data already replayed, keyed `id|url`.
+	 *
+	 * The script TAG dedupes by URL, but the harvested data does not
+	 * belong to the URL — it belongs to the entry. Four windows share
+	 * `os-posts-window[.min].js` (Posts, Pages, Users, Profile), and
+	 * each entry's `scriptL10n` carries its OWN synthesized
+	 * `openStationWindowConfig[ id ]` assignment. Skipping a
+	 * sibling's data because the bundle was already fetched is how
+	 * the Pages window opened to "[desktop-mode-pages] config blob is
+	 * missing" whenever Posts had opened first.
+	 */
+	const injectedScriptData = new Set< string >();
+
+	/**
+	 * Replay one entry's harvested inline data — translations, l10n,
+	 * before/after blobs — without fetching its script. Only for an
+	 * entry whose shared bundle another entry already brought into
+	 * the tab: the bundle has executed, so ordering relative to the
+	 * body no longer matters, and the render callback that needs the
+	 * data runs strictly after this (`ensureScript` is awaited).
+	 */
+	const injectScriptDataOnce = (
+		key: string,
+		script: {
+			scriptTranslations?: string;
+			scriptL10n?: string[];
+			scriptBefore?: string[];
+			scriptAfter?: string[];
+		},
+	): void => {
+		if ( injectedScriptData.has( key ) ) {
+			return;
+		}
+		injectedScriptData.add( key );
+		const blobs = [
+			script.scriptTranslations ?? '',
+			...( script.scriptL10n ?? [] ),
+			...( script.scriptBefore ?? [] ),
+			...( script.scriptAfter ?? [] ),
+		];
+		for ( const code of blobs ) {
+			if ( typeof code === 'string' && code !== '' ) {
+				injectInlineScript( code );
+			}
+		}
+	};
+
 	const loadOnce = (
 		id: string,
 		script: {
@@ -1168,13 +1216,22 @@ export function createNativeWindowSync(
 		},
 	): Promise< void > => {
 		const url = script.scriptUrl;
+		const dataKey = `${ id }|${ url }`;
 		if ( loadedScripts.has( url ) ) {
+			// The bundle is in the tab, but this entry's own data may
+			// not be — see `injectedScriptData`.
+			injectScriptDataOnce( dataKey, script );
 			return Promise.resolve();
 		}
 		const pending = inflightScripts.get( url );
 		if ( pending ) {
-			return pending;
+			// A sibling entry started the fetch with ITS extras; hand
+			// this entry's in once the bundle has executed.
+			return pending.then( () => injectScriptDataOnce( dataKey, script ) );
 		}
+		// This entry's extras travel with the script tag itself —
+		// mark them replayed so a repeat open doesn't double-inject.
+		injectedScriptData.add( dataKey );
 		const load = loadVendorScript( url, {
 			translations: script.scriptTranslations,
 			l10n: script.scriptL10n,

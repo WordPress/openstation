@@ -303,6 +303,83 @@ describe( 'native-windows — deferred bundle loading', () => {
 	} );
 
 	// ----------------------------------------------------------
+	// Shared bundles — per-entry data must survive the URL dedupe
+	// ----------------------------------------------------------
+
+	test( 'a window sharing an already-loaded bundle still gets its own inline data', async () => {
+		const inject = vi
+			.spyOn( vendorLoader, 'injectInlineScript' )
+			.mockImplementation( () => {} );
+
+		const h = setupHarness();
+		const posts = entry( 'posts', {
+			scriptUrl: 'https://example.test/shared.js',
+			scriptL10n: [ 'window.openStationWindowConfig={posts:1};' ],
+		} );
+		const pages = entry( 'pages', {
+			scriptUrl: 'https://example.test/shared.js',
+			scriptL10n: [ 'window.openStationWindowConfig={pages:1};' ],
+		} );
+		installTemplate( posts );
+		installTemplate( pages );
+		const { sync, openById } = createNativeWindowSync( depsFromHarness( h ) );
+		await sync( [ posts, pages ] );
+
+		openById( 'posts' );
+		await runRender( h.managerOpen, 0 );
+		// The first open carried its own extras through the (mocked)
+		// loadVendorScript — the late injector stays untouched.
+		expect( loaded ).toEqual( [ 'https://example.test/shared.js' ] );
+		expect( inject ).not.toHaveBeenCalled();
+
+		openById( 'pages' );
+		await runRender( h.managerOpen, 1 );
+		// No second fetch — but the sibling's config assignment lands.
+		expect( loaded ).toEqual( [ 'https://example.test/shared.js' ] );
+		expect( inject ).toHaveBeenCalledWith(
+			'window.openStationWindowConfig={pages:1};',
+		);
+
+		// A repeat open must not double-inject.
+		const calls = inject.mock.calls.length;
+		openById( 'pages' );
+		await runRender( h.managerOpen, 2 );
+		expect( inject.mock.calls.length ).toBe( calls );
+	} );
+
+	test( 'concurrent opens of two windows sharing a bundle both get their data', async () => {
+		const inject = vi
+			.spyOn( vendorLoader, 'injectInlineScript' )
+			.mockImplementation( () => {} );
+
+		const h = setupHarness();
+		const posts = entry( 'posts', {
+			scriptUrl: 'https://example.test/shared.js',
+			scriptL10n: [ 'window.openStationWindowConfig={posts:1};' ],
+		} );
+		const pages = entry( 'pages', {
+			scriptUrl: 'https://example.test/shared.js',
+			scriptL10n: [ 'window.openStationWindowConfig={pages:1};' ],
+		} );
+		installTemplate( posts );
+		installTemplate( pages );
+		const { sync, openById } = createNativeWindowSync( depsFromHarness( h ) );
+		await sync( [ posts, pages ] );
+
+		openById( 'posts' );
+		openById( 'pages' );
+		await Promise.all( [
+			runRender( h.managerOpen, 0 ),
+			runRender( h.managerOpen, 1 ),
+		] );
+
+		expect( loaded ).toEqual( [ 'https://example.test/shared.js' ] );
+		expect( inject ).toHaveBeenCalledWith(
+			'window.openStationWindowConfig={pages:1};',
+		);
+	} );
+
+	// ----------------------------------------------------------
 	// Companion styles (`styles` arg → payload `companionStyles`)
 	// ----------------------------------------------------------
 

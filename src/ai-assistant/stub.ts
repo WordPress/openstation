@@ -21,6 +21,7 @@
  */
 
 import type { AskFn } from '../ai/ask';
+import { ensureDeferredStyle } from '../deferred-styles';
 import type {
 	AiAssistantApi,
 	AiAssistantConfig,
@@ -118,6 +119,10 @@ export class AiAssistantStub implements AiAssistantApi {
 		if ( this._loadPromise ) {
 			return this._loadPromise;
 		}
+		// The assistant's stylesheet is a `deferredStyles` entry, not
+		// a boot enqueue — inject it here so the `<link>` fetches in
+		// parallel with the impl bundle below.
+		ensureDeferredStyle( 'desktop-mode-ai-assistant' );
 		this._loadPromise = loadImpl( this._scriptUrl ).then( ( factory ) => {
 			const real = factory( this._config ) as LoadedAi;
 			if ( this._pendingAsk ) {

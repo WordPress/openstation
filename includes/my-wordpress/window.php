@@ -260,7 +260,13 @@ function openstation_my_wordpress_register_window() {
 		'icon'       => $icon_uri,
 		'template'   => 'openstation_my_wordpress_render_template',
 		'script'     => 'desktop-mode-my-wordpress',
-		'style'      => 'desktop-mode-my-wordpress',
+		// `styles` (companion), not `style`: loads on first open
+		// rather than at every shell boot. Declared FIRST so the
+		// WooCommerce integration's sheet — appended to this array by
+		// `openstation_my_wordpress_woo_window_args()` — lands after
+		// it in the head and keeps winning their equal-specificity
+		// overrides by source order.
+		'styles'     => array( 'desktop-mode-my-wordpress' ),
 		'width'      => 960,
 		'height'     => 640,
 		'min_width'  => 640,
@@ -351,16 +357,3 @@ function openstation_my_wordpress_refresh_window_config( $config, $window_id ) {
 	return $config;
 }
 add_filter( 'openstation_native_window_config', 'openstation_my_wordpress_refresh_window_config', 10, 2 );
-
-/**
- * Enqueue the bundle's CSS in admin context. The script is lazy-
- * loaded by the native-window sync and so does not need an
- * `admin_enqueue_scripts` call.
- */
-function openstation_my_wordpress_enqueue_styles() {
-	if ( ! openstation_my_wordpress_user_can_use() ) {
-		return;
-	}
-	wp_enqueue_style( 'desktop-mode-my-wordpress' );
-}
-add_action( 'admin_enqueue_scripts', 'openstation_my_wordpress_enqueue_styles', 30 );

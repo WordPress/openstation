@@ -78,18 +78,20 @@ function openstation_enqueue_assets() {
 		return;
 	}
 
-	// CSS.
+	// CSS. Only the sheets that paint surfaces present at boot — the
+	// shell chrome, the dock, desktop tiles and pinned notes. Sheets
+	// for on-demand surfaces (Preferences panel, AI assistant, bug
+	// report) ship as `deferredStyles` in the config blob below and
+	// inject on first open; a native window's sheet rides its
+	// registration's `styles` companion list the same way.
 	wp_enqueue_style( 'openstation' );
 	wp_enqueue_style( 'os-windows' );
 	wp_enqueue_style( 'os-window-overview' );
-	wp_enqueue_style( 'os-settings' );
 	wp_enqueue_style( 'os-dock' );
 	wp_enqueue_style( 'os-dock-peek' );
 	wp_enqueue_style( 'os-notch' );
 	wp_enqueue_style( 'os-shortcuts' );
 	wp_enqueue_style( 'os-openstation-layout' );
-	wp_enqueue_style( 'desktop-mode-ai-assistant' );
-	wp_enqueue_style( 'desktop-mode-bug-report' );
 	wp_enqueue_style( 'os-files' );
 	wp_enqueue_style( 'os-notes' );
 
@@ -669,6 +671,23 @@ function openstation_enqueue_assets() {
 				// `src/pwa/sw-register.ts`). Default `false` preserves
 				// the polite behaviour where we yield to existing PWAs.
 				'forceReplaceSw' => openstation_pwa_force_replace_sw(),
+			),
+			// Stylesheets for shell surfaces that render on demand —
+			// the Preferences panel, the AI assistant, the bug-report
+			// window. None of them is a server-registered native
+			// window (they are built client-side by the shell
+			// bundle), so the `styles` companion mechanism can't
+			// carry their CSS; instead the shell injects each sheet
+			// the first time its surface opens, via
+			// `ensureDeferredStyle()` in `src/deferred-styles.ts`.
+			// Same resolved shape a native window's `styleUrl` /
+			// `styleInline` travels in.
+			'deferredStyles'                => openstation_build_deferred_styles(
+				array(
+					'os-settings',
+					'desktop-mode-ai-assistant',
+					'desktop-mode-bug-report',
+				)
 			),
 		)
 	);
