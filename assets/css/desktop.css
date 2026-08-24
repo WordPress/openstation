@@ -1090,6 +1090,16 @@ body.os-has-fullscreen-window .os-shell {
 	margin: 0;
 }
 
+/*
+ * A liberated card is reparented to the desktop area, so the column's
+ * overview fade above no longer reaches it. Direct children only: a
+ * card inside a window body belongs to that window's thumbnail.
+ */
+.os-area--overview > .os-widgets__card--floating {
+	opacity: 0;
+	pointer-events: none;
+}
+
 .os-widgets__card--dragging,
 .os-widgets__card--resizing {
 	transition: none;

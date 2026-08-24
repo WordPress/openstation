@@ -47,6 +47,7 @@ import {
 	getActiveDesktop,
 	getActiveDesktopId,
 	getDesktops,
+	renameDesktop,
 	seedDesktops,
 	switchDesktop,
 	type SwitchDesktopOptions,
@@ -62,6 +63,7 @@ import {
 	commitSnapIfPending,
 	updateSnapZoneForDrag,
 } from './snap-zones';
+import { destroyDesktopNameHud } from './desktop-name-hud';
 import { cancelOverviewTimers, enterOverview, exitOverview } from './overview';
 import { loadNativeWindowGeometry } from './native-window-geometry';
 import { clampWindowPosition } from '../window/pointer';
@@ -1823,6 +1825,9 @@ export class WindowManager {
 	public closeDesktop( id: string ): void {
 		closeDesktop( this, id );
 	}
+	public renameDesktop( id: string, label: string ): boolean {
+		return renameDesktop( this, id, label );
+	}
 
 	/**
 	 * Returns the "primary" desktop id — the one new sessions land on
@@ -2081,6 +2086,7 @@ export class WindowManager {
 			exitOverview( this );
 		}
 		cancelOverviewTimers( this );
+		destroyDesktopNameHud();
 	}
 
 	/**

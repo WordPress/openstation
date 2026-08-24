@@ -384,8 +384,15 @@
 }
 
 .os-overview-top-bar__tile:hover {
-	border-color: rgba( 255, 255, 255, 0.4 );
 	background: rgba( 255, 255, 255, 0.08 );
+}
+
+/*
+ * Excluded because `:hover` (0,2,0) outranks `--active` (0,1,0) — an
+ * unguarded hover border replaces the active tile's accent ring.
+ */
+.os-overview-top-bar__tile:hover:not( .os-overview-top-bar__tile--active ) {
+	border-color: rgba( 255, 255, 255, 0.4 );
 }
 
 .os-overview-top-bar__tile:focus-visible {
@@ -435,10 +442,12 @@
 	display: inline-block;
 }
 
-.os-overview-top-bar__tile-close {
+/* Tile corner buttons: rename on the leading edge, close on the
+ * trailing one, otherwise identical. */
+.os-overview-top-bar__tile-close,
+.os-overview-top-bar__tile-rename {
 	position: absolute;
 	top: 4px;
-	inset-inline-end: 4px;
 	width: 18px;
 	height: 18px;
 	display: flex;
@@ -457,11 +466,21 @@
 	padding: 0;
 }
 
-.os-overview-top-bar__tile-wrapper:hover
-	.os-overview-top-bar__tile-close,
-.os-overview-top-bar__tile-wrapper:focus-within
-	.os-overview-top-bar__tile-close,
-.os-overview-top-bar__tile-close:focus-visible {
+.os-overview-top-bar__tile-rename {
+	inset-inline-start: 4px;
+}
+
+.os-overview-top-bar__tile-close {
+	inset-inline-end: 4px;
+}
+
+.os-overview-top-bar__tile-wrapper:is( :hover, :focus-within )
+	:is(
+		.os-overview-top-bar__tile-close,
+		.os-overview-top-bar__tile-rename
+	),
+.os-overview-top-bar__tile-close:focus-visible,
+.os-overview-top-bar__tile-rename:focus-visible {
 	opacity: 1;
 }
 
@@ -469,6 +488,27 @@
 	background: var( --os-ui-danger, #d63638 );
 	color: var( --os-ui-fg-on-accent, #fff );
 }
+
+.os-overview-top-bar__tile-rename:hover {
+	background: var( --os-ui-accent, #f252fc );
+	color: var( --os-ui-fg-on-accent, #fff );
+}
+
+/*
+ * The label while it is being edited. Neutral hairline, not the
+ * accent: the active tile already wears an accent ring, and a second
+ * one reads as a rendering fault. `outline: none` is safe — the
+ * element is only editable while focused, so its treatment IS the
+ * focus indicator.
+ */
+.os-overview-top-bar__tile-label[contenteditable] {
+	outline: none;
+	cursor: text;
+	background: rgba( 0, 0, 0, 0.55 );
+	border-radius: 6px;
+	box-shadow: inset 0 0 0 1px rgba( 255, 255, 255, 0.28 );
+}
+
 
 /*
  * Hide the close X when there's only one tile left — the tile

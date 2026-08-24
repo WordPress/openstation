@@ -1220,6 +1220,8 @@ export const HOOKS = {
 	DESKTOP_CLOSED: 'os.os.closed',
 	/** Action, fires when the active desktop changes. Payload `{ from, to }`. */
 	DESKTOP_SWITCHED: 'os.os.switched',
+	/** Action, fires when a desktop is renamed. Payload `{ desktopId, label, previousLabel }`. */
+	DESKTOP_RENAMED: 'os.os.renamed',
 	/**
 	 * Filter. Returns the id of the "primary" desktop — the one the
 	 * shell treats as canonical for batch operations. Receives the

@@ -29,6 +29,7 @@ export function wireSessionEvents( save: () => void ): void {
 	addAction( HOOKS.DESKTOP_CREATED, 'desktop-mode/session-save', save );
 	addAction( HOOKS.DESKTOP_CLOSED, 'desktop-mode/session-save', save );
 	addAction( HOOKS.DESKTOP_SWITCHED, 'desktop-mode/session-save', save );
+	addAction( HOOKS.DESKTOP_RENAMED, 'desktop-mode/session-save', save );
 }
 
 /**

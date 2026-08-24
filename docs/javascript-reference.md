@@ -1641,9 +1641,14 @@ manager.getPrimaryDesktopId(): string;     // see below
 manager.createDesktop(): Desktop;          // append a new one + return it
 manager.switchDesktop( id ): void;         // make `id` the active desktop
 manager.closeDesktop( id ): void;          // delete `id`; its windows migrate to the active desktop
+manager.renameDesktop( id, label ): boolean;  // relabel `id`; see below
 ```
 
-Lifecycle hooks fire on each operation: `HOOKS.DESKTOP_CREATED`, `HOOKS.DESKTOP_CLOSED { desktopId, migratedTo }`, `HOOKS.DESKTOP_SWITCHED { from, to }`.
+Lifecycle hooks fire on each operation: `HOOKS.DESKTOP_CREATED`, `HOOKS.DESKTOP_CLOSED { desktopId, migratedTo }`, `HOOKS.DESKTOP_SWITCHED { from, to }`, `HOOKS.DESKTOP_RENAMED { desktopId, label, previousLabel }`.
+
+`renameDesktop()` trims the label and caps it at **64 characters**, matching the session sanitizer, and returns `false` without firing the hook when the id is unknown or the name is blank or unchanged. It persists through the normal session save. Users reach it from the overview top bar: hovering a tile reveals a rename pencil beside the close ×, and clicking it edits in place (Enter commits, Escape reverts, blur commits).
+
+Switching desktops shows the new desktop's name over the desk for a beat (`.os-desktop-name-hud`), except when the switch is made from overview — the top bar there already labels every desktop.
 
 ##### Primary desktop — `getPrimaryDesktopId()`
 
@@ -4600,9 +4605,10 @@ Each user can have multiple desktops, each owning its own set of windows. Switch
 
 | Hook | Kind | Status | Payload |
 |---|---|---|---|
-| `os.desktop.created` | action | Stable | `{ desktopId }` — fires after a new desktop joins the registry |
-| `os.desktop.closed` | action | Stable | `{ desktopId, migratedTo }` — `migratedTo` is the desktop that received any orphaned windows |
-| `os.desktop.switched` | action | Stable | `{ from, to }` — the active desktop changed |
+| `os.os.created` | action | Stable | `{ desktopId }` — fires after a new desktop joins the registry |
+| `os.os.closed` | action | Stable | `{ desktopId, migratedTo }` — `migratedTo` is the desktop that received any orphaned windows |
+| `os.os.switched` | action | Stable | `{ from, to }` — the active desktop changed |
+| `os.os.renamed` | action | Stable | `{ desktopId, label, previousLabel }` — the user renamed a desktop |
 
 Closing the last remaining desktop is rejected silently (the shell needs at least one). Closing a desktop that has windows migrates them to the surviving desktop on its left (falling back to the right when the leftmost is closed) — no work is silently destroyed.
 
