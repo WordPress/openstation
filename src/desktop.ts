@@ -92,7 +92,6 @@ import { createWindowActionRegistrySync } from './window-actions/server-sync';
 import { type UnfocusEffectDef } from './effects/types';
 import { type WindowRevealDef } from './reveals/types';
 import { startWindowLinksEngine } from './window-links/engine';
-import { startWindowLinkRenderHost } from './window-links/render-host';
 import { bootRelatedEntities } from './related-entities';
 import { bootEditorPreview } from './editor-preview';
 import type {
@@ -104,7 +103,7 @@ import { createWindowLinkRendererRegistrySync } from './window-links/server-sync
 import { startUnfocusEngine } from './effects/unfocus-engine';
 import { startWindowRevealEngine } from './reveals/engine';
 import { createDockRailRendererSync } from './dock-rail/server-sync';
-import { mountDockConstellation } from './dock-constellation';
+import { loadVendorScript } from './wallpapers/vendor-loader';
 import {
 	type WindowThemeDef,
 } from './window-chrome/themes/registry';
@@ -213,7 +212,7 @@ import {
 	installShortcutsSync,
 	syncDesktopShortcuts,
 } from './nav/desktop-sync';
-import { bootNotes } from './notes';
+import { installNotesSentinel } from './notes/sentinel';
 
 // `INITIAL_ORIGIN` lives in `src/boot/origin.ts` so every
 // boot-time consumer reaches the same captured value — see the import
@@ -285,7 +284,8 @@ import {
 	type SortMode as RootSortMode,
 } from './desktop-files/wallpaper-menu';
 import { openCreateFolderDialog } from './desktop-files/create-folder-dialog';
-import { openUrlDialog } from './desktop-files/url-dialog';
+import { openUrlDialog } from './desktop-files/overlays-loader';
+import { installFileDropSentinel } from './os-file-drop/sentinel';
 import type {
 	DesktopConfig,
 	DesktopWallpaperServerEntry,
@@ -2741,18 +2741,57 @@ function init(): void {
 			config.desktopIcons,
 			initialPlacement,
 		);
-		// Constellation — the hover-submenu flyout. Mounted once and
-		// left mounted: it is a single delegated listener serving every
-		// menu tile on every rail, and it reads the direction to fan in
-		// off the rail the tile is on, so a user flipping between
-		// layouts or dock placements never needs it re-wired.
-		mountDockConstellation( {
-			windowManager: manager,
-			adminUrl: config.adminUrl,
-			getMenuItems: () => layoutDispatcher?.getMenuItems() ?? [],
-			getSystemItem: ( id ) =>
-				layoutDispatcher?.getSystemTile( id ) ?? null,
-		} );
+		// Constellation — the hover-submenu flyout. Once mounted it is
+		// a single delegated listener serving every menu tile on every
+		// rail, reading fan-in direction off the rail the tile is on,
+		// so layout/placement flips never need it re-wired. The MOUNT
+		// is deferred though: the bundle (~11 KB min) loads on the
+		// first pointer entering a dock rail — hover UI has no
+		// boot-time job, and the flyout's own hover-intent delay
+		// covers the one-time fetch.
+		{
+			const constellationDeps = {
+				windowManager: manager,
+				adminUrl: config.adminUrl,
+				getMenuItems: () => layoutDispatcher?.getMenuItems() ?? [],
+				getSystemItem: ( id: string ) =>
+					layoutDispatcher?.getSystemTile( id ) ?? null,
+			};
+			const onFirstDockHover = ( ev: Event ): void => {
+				const target = ev.target;
+				if (
+					! ( target instanceof Element ) ||
+					! target.closest( '.os-dock' )
+				) {
+					return;
+				}
+				document.removeEventListener(
+					'pointerover',
+					onFirstDockHover,
+					true,
+				);
+				void loadVendorScript(
+					config.dockConstellationBundleUrl ?? '',
+				)
+					.then( () => {
+						window.openStationDockConstellation?.mount(
+							constellationDeps,
+						);
+					} )
+					.catch( () => {
+						// A dock without a flyout still works — every
+						// submenu is reachable through the window's
+						// own tab strip.
+					} );
+			};
+			if ( config.dockConstellationBundleUrl ) {
+				document.addEventListener(
+					'pointerover',
+					onFirstDockHover,
+					true,
+				);
+			}
+		}
 
 		// The notch — the site assistant's front door, and the shell's
 		// place to speak from. Deliberately not a dock tile: the rail
@@ -3525,7 +3564,33 @@ function init(): void {
 	// (built-in `svg-splines` by default) into a lazy overlay layer
 	// whenever a relation group is renderable, and applies the
 	// `windowLinkVisibility` policy + related-window chrome highlight.
-	startWindowLinkRenderHost( { manager, osSettings } );
+	// The VISUALS bundle (~14 KB min: host + geometry + svg-splines)
+	// loads on the first groups-changed the engine fires — that hook
+	// only fires when relations actually exist, so a session whose
+	// windows never relate skips the renderer entirely.
+	{
+		let visualsRequested = false;
+		addAction(
+			HOOKS.WINDOW_LINK_GROUPS_CHANGED,
+			'desktop-mode/window-link-visuals-sentinel',
+			() => {
+				if ( visualsRequested || ! config.windowLinkVisualsBundleUrl ) {
+					return;
+				}
+				visualsRequested = true;
+				void loadVendorScript( config.windowLinkVisualsBundleUrl )
+					.then( () => {
+						window.openStationWindowLinkVisuals?.start( {
+							manager,
+							osSettings,
+						} );
+					} )
+					.catch( () => {
+						visualsRequested = false;
+					} );
+			},
+		);
+	}
 
 	// Related-entities title-bar button — "Related" dropdown on any
 	// window whose content identity carries navigation targets
@@ -4094,7 +4159,16 @@ function init(): void {
 	// drop routes (wallpaper create/reposition via the canvas payload
 	// seam, recycle-bin trash via the bin payload seam), and the
 	// wallpaper context-menu entry.
-	bootNotes( {
+	// Pinned notes — presence-gated: the sentinel loads the `notes`
+	// bundle when this desktop HAS notes (config.hasNotes), and on
+	// the gestures that would create the first one. A note-less user
+	// never downloads the layer.
+	installNotesSentinel( {
+		bundleUrl: config.notesBundleUrl ?? '',
+		// Loose truthiness on purpose: the top-level config scalars
+		// pass through a sanitization that stringifies booleans
+		// ("1" / ""), same as `currentUserIsAdmin`.
+		hasNotes: Boolean( config.hasNotes ),
 		host: desktopArea,
 		config,
 		onError: ( message ) => {
@@ -4776,19 +4850,24 @@ function init(): void {
 	// `config.portalUrl` stays in the shell config so plugins that want
 	// to build "home" links can still point at the portal.
 
-	// OS-file drop manager — catches files dragged from the user's
-	// host OS (Finder / Explorer / Nautilus) anywhere on the shell
-	// and routes them through a confirmation dialog before uploading
-	// to the Media Library. Idempotent; no-op when the user lacks
-	// `upload_files`.
-	void import( './os-file-drop' ).then( ( mod ) => {
-		mod.bootOsFileDrop( {
+	// OS-file drop — catches files dragged from the user's host OS
+	// (Finder / Explorer / Nautilus) anywhere on the shell and routes
+	// them through a confirmation dialog before uploading. Only the
+	// SENTINEL boots here: the machinery (~28 KB min) rides the
+	// `file-drop` bundle and loads on the first dragenter carrying
+	// files. (This used to be a `void import( './os-file-drop' )` —
+	// good intent the IIFE build flattened straight back into the
+	// shell bundle; rollup inlines dynamic imports in single-chunk
+	// output, so lazy here has to mean a separate build target.)
+	installFileDropSentinel( {
+		bundleUrl: config.fileDropBundleUrl ?? '',
+		boot: {
 			config: config.dropConfig,
 			mediaUrl: config.mediaUrl,
 			restNonce: config.restNonce,
 			filesUrl: config.filesUrl,
 			storage: config.desktopStorage,
-		} );
+		},
 	} );
 
 	document.dispatchEvent(

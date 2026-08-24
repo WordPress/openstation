@@ -2364,6 +2364,26 @@ export interface DesktopConfig {
 	 */
 	shellOverlaysBundleUrl?: string;
 	/**
+	 * The shell-bundle diet: gesture- and presence-gated features
+	 * riding their own bundles instead of `desktop[.min].js`. Each
+	 * sentinel loads its bundle at the moment it matters — file drop
+	 * on the first dragenter carrying files, the files overlays
+	 * (share modals + URL dialog) on first open, notes when the
+	 * desktop has (or is about to get) one, the dock flyout on the
+	 * first rail hover, the window-link visuals on the first
+	 * relation group.
+	 */
+	fileDropBundleUrl?: string;
+	filesOverlaysBundleUrl?: string;
+	notesBundleUrl?: string;
+	dockConstellationBundleUrl?: string;
+	windowLinkVisualsBundleUrl?: string;
+	/**
+	 * Presence hint for the notes sentinel — whether this desktop
+	 * would show any pinned notes at boot.
+	 */
+	hasNotes?: boolean;
+	/**
 	 * Fully-qualified URL of the full `<os-*>` component kit —
 	 * every tag in `OS_COMPONENT_TAGS`. The shell never loads it;
 	 * `wp.os.loadComponents()` does, on behalf of plugin code that

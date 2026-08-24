@@ -603,3 +603,42 @@ function openstation_notes_rest_convert( $request ) {
 		)
 	);
 }
+
+/**
+ * Whether the current user's desktop would show any pinned notes.
+ *
+ * The presence hint the boot config ships as `hasNotes`: the notes
+ * bundle is presence-gated client-side (`src/notes/sentinel.ts`), so
+ * a user with no notes never downloads it — and never fires the
+ * boot-time list request the layer used to make unconditionally.
+ * Two existence probes at most, `fields => ids`, one row each:
+ * anyone's public note first, the user's own private ones second —
+ * mirroring the visibility rule the list route enforces.
+ *
+ * @return bool
+ */
+function openstation_notes_user_has_any() {
+	$public = new WP_Query(
+		array(
+			'post_type'      => OPENSTATION_NOTES_POST_TYPE,
+			'post_status'    => 'publish',
+			'posts_per_page' => 1,
+			'fields'         => 'ids',
+			'no_found_rows'  => true,
+		)
+	);
+	if ( $public->posts ) {
+		return true;
+	}
+	$own = new WP_Query(
+		array(
+			'post_type'      => OPENSTATION_NOTES_POST_TYPE,
+			'post_status'    => 'private',
+			'author'         => get_current_user_id(),
+			'posts_per_page' => 1,
+			'fields'         => 'ids',
+			'no_found_rows'  => true,
+		)
+	);
+	return (bool) $own->posts;
+}

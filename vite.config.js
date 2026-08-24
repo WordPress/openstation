@@ -516,6 +516,47 @@ const TARGETS = {
 		fileBase: 'shell-overlays',
 		iifeName: 'openStationShellOverlays',
 	},
+	// OS-file drop machinery — dialog, progress HUD, upload pipeline.
+	// Loaded by the sentinel in `src/os-file-drop/sentinel.ts` on the
+	// first dragenter that carries files; a drop can land before the
+	// load resolves, so the sentinel captures and the bundle replays.
+	'file-drop': {
+		entry:    'src/os-file-drop/entry.ts',
+		fileBase: 'file-drop',
+		iifeName: 'openStationFileDrop',
+	},
+	// Click-opened desktop-files surfaces: the file preview overlay,
+	// the share-settings modal, and the URL-file dialog. Loaded on
+	// first use by `src/desktop-files/overlays-loader.ts`.
+	'files-overlays': {
+		entry:    'src/desktop-files/overlays-entry.ts',
+		fileBase: 'files-overlays',
+		iifeName: 'openStationFilesOverlays',
+	},
+	// Pinned desktop notes. Presence-gated: the sentinel
+	// (`src/notes/sentinel.ts`) loads it when the user HAS notes, and
+	// on the actions that would create the first one.
+	'notes': {
+		entry:    'src/notes/entry.ts',
+		fileBase: 'notes',
+		iifeName: 'openStationNotes',
+	},
+	// Dock hover-submenu flyout. Loaded on the first pointer entering
+	// a dock rail — see `src/dock-constellation/sentinel.ts`.
+	'dock-constellation': {
+		entry:    'src/dock-constellation/entry.ts',
+		fileBase: 'dock-constellation',
+		iifeName: 'openStationDockConstellation',
+	},
+	// Window-link visuals: the render host + the built-in svg-splines
+	// renderer. The relations ENGINE stays in the shell (it tracks
+	// identities continuously); the visuals load on the first
+	// `os.window-links.groups-changed` that has something to draw.
+	'window-link-visuals': {
+		entry:    'src/window-links/visuals-entry.ts',
+		fileBase: 'window-link-visuals',
+		iifeName: 'openStationWindowLinkVisuals',
+	},
 	// Full `<os-*>` kit — every tag in `OS_COMPONENT_TAGS`, for
 	// `wp.os.loadComponents()`. The shell never loads this itself:
 	// its own bundles import the components they render, and this

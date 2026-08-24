@@ -593,6 +593,22 @@ function openstation_enqueue_assets() {
 			// overlays (toast, confirm dialog, context menus) feel
 			// instant the first time they fire.
 			'shellOverlaysBundleUrl'        => $lazy_bundle_url( 'shell-overlays' ),
+			// The shell-bundle diet: features whose right moment is a
+			// user gesture (or a presence signal) ride their own
+			// bundles instead of the boot-critical `desktop[.min].js`.
+			// Each sentinel in the shell loads its bundle at that
+			// moment — see the entry file each bundle names.
+			'fileDropBundleUrl'             => $lazy_bundle_url( 'file-drop' ),
+			'filesOverlaysBundleUrl'        => $lazy_bundle_url( 'files-overlays' ),
+			'notesBundleUrl'                => $lazy_bundle_url( 'notes' ),
+			'dockConstellationBundleUrl'    => $lazy_bundle_url( 'dock-constellation' ),
+			'windowLinkVisualsBundleUrl'    => $lazy_bundle_url( 'window-link-visuals' ),
+			// Presence hint for the notes sentinel: a desktop with no
+			// notes skips the notes bundle AND the boot-time list
+			// request. Two id-only existence probes at most.
+			'hasNotes'                      => function_exists( 'openstation_notes_user_has_any' )
+				? openstation_notes_user_has_any()
+				: false,
 			// URL of the full `<os-*>` component kit. The shell
 			// never loads this — its own bundles import the
 			// components they render. It exists for

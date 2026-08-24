@@ -7,7 +7,7 @@
  * pending list without re-prompting until next heartbeat tick.
  */
 
-import { openPendingFileInviteModal, openPendingInviteModal } from './share-settings-modal';
+import { openPendingFileInviteModal, openPendingInviteModal } from './overlays-loader';
 import { dropPending, sharesStore, type PendingInvite, type SharesState } from './shares-store';
 
 const prompted = new Set< number >();
