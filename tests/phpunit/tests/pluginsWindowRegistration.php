@@ -719,8 +719,9 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 		set_site_transient(
 			'update_plugins',
 			(object) array(
-				'response'  => array(),
-				'no_update' => array(
+				'last_checked' => time(),
+				'response'     => array(),
+				'no_update'    => array(
 					$plugin_file => (object) array(
 						'slug'  => '' !== $slug ? $slug : dirname( $plugin_file ),
 						'icons' => $icons,
