@@ -688,16 +688,36 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 	}
 
 	/**
-	 * The geopattern is not art the plugin chose, so an entry carrying
-	 * only `default` falls through to the guess.
+	 * The geopattern is not art the plugin chose, and an entry carrying
+	 * only `default` is wp.org saying so — the field returns null for
+	 * the placeholder rather than guessing seven URLs that all 404.
 	 *
+	 * @covers ::openstation_plugins_window_field_icon_url
 	 * @covers ::openstation_plugins_window_directory_icon_url
 	 */
-	public function test_icon_url_ignores_the_wporg_default_geopattern() {
+	public function test_icon_url_is_null_when_wporg_reports_no_art() {
 		$this->prime_update_transient(
 			'plain/plain.php',
 			array( 'default' => 'https://s.w.org/plugins/geopattern-icon/plain.svg' )
 		);
+
+		$this->assertNull(
+			openstation_plugins_window_field_icon_url(
+				array( 'plugin' => 'plain/plain.php' )
+			)
+		);
+	}
+
+	/**
+	 * An entry that says nothing about icons is not the same answer as
+	 * one that says "none" — a premium plugin served by its own update
+	 * server looks like this — so the guess is still the best
+	 * available.
+	 *
+	 * @covers ::openstation_plugins_window_field_icon_url
+	 */
+	public function test_icon_url_still_guesses_when_wporg_says_nothing() {
+		$this->prime_update_transient( 'plain/plain.php', array() );
 
 		$this->assertSame(
 			'https://ps.w.org/plain/assets/icon.svg',

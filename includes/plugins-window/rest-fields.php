@@ -495,6 +495,10 @@ function openstation_plugins_window_field_wporg_slug( $row ) {
  *      format (Gutenberg and UpdraftPlus ship JPEG only) and the slug
  *      (`hello.php` is listed as `hello-dolly`).
  *
+ * Skipped entirely when step 2 established the plugin uploaded no art:
+ * `null` paints the placeholder without a request, where guessing would
+ * spend seven 404s arriving at the same picture.
+ *
  * @param array $row Core REST plugin row.
  * @return string|null
  */
@@ -519,10 +523,12 @@ function openstation_plugins_window_field_icon_url( $row ) {
 	}
 
 	$default = openstation_plugins_window_local_icon_url( $plugin_file );
+	$no_art  = false;
 	if ( null === $default && null !== $entry ) {
 		$default = openstation_plugins_window_directory_icon_url( $entry );
+		$no_art = ( null === $default && ! empty( $entry['icons'] ) );
 	}
-	if ( null === $default ) {
+	if ( null === $default && ! $no_art ) {
 		/*
 		 * Plugin Check's offloading rule is right in general and does
 		 * not fit here, so the suppression is one line wide and says
@@ -655,10 +661,18 @@ function openstation_plugins_window_local_icon_url( $plugin_file ) {
 		array(
 			'assets/icon.svg',
 			'assets/icon-256x256.png',
+			'assets/icon-256x256.jpg',
+			'assets/icon-256x256.jpeg',
 			'assets/icon-128x128.png',
+			'assets/icon-128x128.jpg',
+			'assets/icon-128x128.jpeg',
 			'icon.svg',
 			'icon-256x256.png',
+			'icon-256x256.jpg',
+			'icon-256x256.jpeg',
 			'icon-128x128.png',
+			'icon-128x128.jpg',
+			'icon-128x128.jpeg',
 		),
 		$folder
 	);
