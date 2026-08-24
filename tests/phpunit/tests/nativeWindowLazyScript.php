@@ -393,4 +393,64 @@ class Tests_OpenStation_NativeWindowLazyScript extends WP_UnitTestCase {
 			wp_list_pluck( $entry['companionScripts'], 'scriptHandle' )
 		);
 	}
+
+	// --------------------------------------------------------------
+	// The menu-refresh probe's payload
+	// --------------------------------------------------------------
+
+	/**
+	 * The refresh probe emits the same payload shape as the boot
+	 * harvest, and the shell overwrites its native-window index with
+	 * whichever payload arrived last — so the probe's copy must carry
+	 * the handle-attached data too. The probe runs on `admin_init`,
+	 * before Core fires `admin_enqueue_scripts`, which is where every
+	 * module attaches that data (priority ≤ 5, the contract
+	 * `Tests_OpenStation_LazyWindowConfigPriority` pins). Without the
+	 * replay inside `openstation_menu_refresh_probe_payload()`, one
+	 * `wp.os.refreshMenu()` cycle downgraded every lazy window the
+	 * boot payload had delivered complete: WP Explorer's WooCommerce
+	 * companion lost `openStationWooConfig`, and the store's order
+	 * bands and preview panels went dark until a full reload.
+	 *
+	 * @covers ::openstation_menu_refresh_probe_payload
+	 */
+	public function test_probe_payload_carries_data_attached_on_admin_enqueue_scripts() {
+		$this->register_demo_script( 'demo-main', 'https://example.test/main.js' );
+		$this->register_demo_script( 'demo-extra', 'https://example.test/extra.js' );
+		$this->register_demo_window(
+			'demo-probe-window',
+			array(
+				'script'  => 'demo-main',
+				'scripts' => array( 'demo-extra' ),
+			)
+		);
+
+		// Attach config the way the in-tree modules do — on
+		// `admin_enqueue_scripts` at priority 5, which a bare
+		// `admin_init`-time payload build never fires.
+		add_action(
+			'admin_enqueue_scripts',
+			static function () {
+				wp_add_inline_script( 'demo-extra', 'window.demoProbeConfig={b:2};', 'before' );
+			},
+			5
+		);
+
+		$this->assertSame( 0, did_action( 'admin_enqueue_scripts' ) );
+
+		$payload = openstation_menu_refresh_probe_payload();
+
+		$entry = null;
+		foreach ( $payload['nativeWindows'] as $row ) {
+			if ( 'demo-probe-window' === $row['id'] ) {
+				$entry = $row;
+			}
+		}
+		$this->assertNotNull( $entry );
+		$this->assertCount( 1, $entry['companionScripts'] );
+		$this->assertSame(
+			array( 'window.demoProbeConfig={b:2};' ),
+			$entry['companionScripts'][0]['scriptBefore']
+		);
+	}
 }

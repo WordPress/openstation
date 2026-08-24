@@ -246,7 +246,7 @@ function openstation_emit_menu_refresh_probe() {
 		return;
 	}
 
-	$payload = openstation_build_menu_payload();
+	$payload = openstation_menu_refresh_probe_payload();
 	$encoded = wp_json_encode( $payload );
 	if ( false === $encoded ) {
 		return;
@@ -267,6 +267,55 @@ function openstation_emit_menu_refresh_probe() {
 	exit;
 }
 add_action( 'admin_init', 'openstation_emit_menu_refresh_probe', 99 );
+
+/**
+ * Build the menu payload the refresh probe emits, with the script
+ * data the harvest depends on attached first.
+ *
+ * `openstation_build_menu_payload()` harvests every lazy native
+ * window's handle-attached data — `wp_localize_script` blobs and
+ * `wp_add_inline_script` snippets — via
+ * `openstation_resolve_script_payload()`. Modules attach that data on
+ * `admin_enqueue_scripts` at priority ≤ 5 (the contract
+ * `Tests_OpenStation_LazyWindowConfigPriority` pins), which holds on
+ * every payload producer except this one: the probe short-circuits
+ * `admin.php` on `admin_init`, long before Core would fire the
+ * enqueue hook, so nothing was ever attached and the harvested
+ * entries shipped with empty `scriptBefore` / `scriptL10n` arrays.
+ *
+ * The shell refreshes its native-window index from every payload it
+ * receives, so one probe response silently downgraded windows the
+ * boot payload had delivered complete — the first lazy open of WP
+ * Explorer after a menu refresh found the WooCommerce companion with
+ * no `openStationWooConfig`, and the store's order bands and preview
+ * panels went dark with nothing in the console to say why.
+ *
+ * Replaying the hook here makes the probe's request faithful to the
+ * real admin page it stands in for. The output buffer guards the
+ * short-circuit response: an enqueue callback that echoes must not
+ * beat our `header()` calls. Enqueued handles are never printed —
+ * the probe exits before any print pipeline runs.
+ *
+ * @return array Menu payload, same shape as `openstation_build_menu_payload()`.
+ */
+function openstation_menu_refresh_probe_payload() {
+	if ( ! did_action( 'admin_enqueue_scripts' ) ) {
+		// `admin.php` calls `set_current_screen()` AFTER `admin_init`,
+		// so at probe time there is no screen yet — and Core's own
+		// enqueue callbacks (the block-editor script loader among
+		// them) read `get_current_screen()->id` unguarded. Build the
+		// screen the real flow would have had before the hook fires.
+		if ( function_exists( 'set_current_screen' ) && function_exists( 'get_current_screen' ) && ! get_current_screen() ) {
+			set_current_screen( 'admin' );
+		}
+		ob_start();
+		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- deliberate replay of Core's own hook so handle-attached script data exists before the harvest below.
+		do_action( 'admin_enqueue_scripts', 'admin.php' );
+		ob_end_clean();
+	}
+
+	return openstation_build_menu_payload();
+}
 
 /**
  * Outputs the chromeless screen-meta bridge script.

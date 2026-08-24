@@ -1900,23 +1900,32 @@ add_action( 'rest_api_init', 'openstation_my_wordpress_woo_register_routes' );
 /**
  * Register the integration bundle.
  *
+ * Cache-busted by `filemtime`, like the window bundle it rides along
+ * with (see `openstation_my_wordpress_register_assets()`). The bundle
+ * is fetched lazily by URL, so a `ver` that only moves on release
+ * would let a browser's cached copy outlive builds within one — a
+ * stale companion against a fresh WP Explorer bundle is a contract
+ * drift no error message points at.
+ *
  * @return void
  */
 function openstation_my_wordpress_woo_register_assets() {
+	$js_path = OPENSTATION_DIR . 'assets/js/my-wordpress-woocommerce' . openstation_asset_suffix() . '.js';
 	wp_register_script(
 		'os-my-wordpress-woocommerce',
-		OPENSTATION_URL . 'assets/js/my-wordpress-woocommerce' . ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '' : '.min' ) . '.js',
+		OPENSTATION_URL . 'assets/js/my-wordpress-woocommerce' . openstation_asset_suffix() . '.js',
 		array( 'wp-hooks' ),
-		OPENSTATION_VERSION,
+		file_exists( $js_path ) ? (string) filemtime( $js_path ) : OPENSTATION_VERSION,
 		true
 	);
 	wp_set_script_translations( 'os-my-wordpress-woocommerce', 'desktop-mode' );
 
+	$css_path = OPENSTATION_DIR . 'assets/css/my-wordpress-woocommerce.css';
 	wp_register_style(
 		'os-my-wordpress-woocommerce',
 		OPENSTATION_URL . 'assets/css/my-wordpress-woocommerce.css',
 		array( 'desktop-mode-my-wordpress' ),
-		OPENSTATION_VERSION
+		file_exists( $css_path ) ? (string) filemtime( $css_path ) : OPENSTATION_VERSION
 	);
 }
 add_action( 'init', 'openstation_my_wordpress_woo_register_assets', 5 );
