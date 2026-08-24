@@ -11,7 +11,14 @@ import {
 	DESKTOP_LABEL_MAX_LENGTH,
 	renameDesktop,
 } from '../../src/window-manager/desktops';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
+
+const tokens = readFileSync(
+	resolve( __dirname, '../..', 'assets/css/variables.css' ),
+	'utf8',
+);
 
 describe( 'virtual desktops — overview tiles', () => {
 	let desktopArea: HTMLElement;
@@ -147,6 +154,18 @@ describe( 'virtual desktops — overview tiles', () => {
 
 		manager.switchDesktop( second.id );
 		expect( hud()?.textContent ).toBe( 'Writing' );
+
+		// Windows run from `--os-z-base` (100) upward, so the caption
+		// has to clear them or a maximized Dashboard hides it.
+		const layer = ( name: string ): number =>
+			Number( new RegExp( `--${ name }:\\s*(\\d+)` ).exec( tokens )![ 1 ] );
+		expect( layer( 'os-z-desktop-name' ) ).toBeGreaterThan(
+			layer( 'os-z-base' ),
+		);
+		// …and stays under the dock, so it never covers navigation.
+		expect( layer( 'os-z-desktop-name' ) ).toBeLessThan(
+			layer( 'os-z-dock' ),
+		);
 
 		hud()!.remove();
 		manager.enterOverview();

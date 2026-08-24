@@ -330,7 +330,7 @@
 	top: 50%;
 	left: 50%;
 	transform: translate( -50%, -50% );
-	z-index: 3;
+	z-index: var( --os-z-desktop-name, 195 );
 	max-width: min( 70%, 520px );
 	padding: 14px 28px;
 	border-radius: 16px;

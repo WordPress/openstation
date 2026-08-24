@@ -1589,6 +1589,13 @@ body.os-active {
 	 */
 	--os-z-mio: 190;
 	/*
+	 * The desktop-name caption. Same reasoning as Mio, one step up:
+	 * above every window so a maximized Dashboard cannot hide it, and
+	 * above the companion, since a momentary message should not be
+	 * the thing that gets perched on. Still under the dock (200).
+	 */
+	--os-z-desktop-name: 195;
+	/*
 	 * The notch — on the desk, under the windows (100 + stack index),
 	 * above the window-link wires (50) so a tie never draws across the
 	 * pill. It hangs over the strip a window's title bar occupies, and
