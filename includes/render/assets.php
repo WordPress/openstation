@@ -318,7 +318,7 @@ function openstation_enqueue_assets() {
 	// `bootAlreadyApplied()` detects), and an inactive theme's CSS
 	// only matters at the moment the user picks it in the Preferences
 	// picker — which fetches the full entries from
-	// `GET desktop-mode/v1/desktop-themes` (`ensureFullDesktopTheme()`
+	// `GET desktop-mode/v1/desktop-themes` (`ensureFullDesktopThemes()`
 	// client-side). `cssDeferred` marks the gap so the shell can tell
 	// a slimmed entry from a theme that genuinely ships no CSS.
 	// Bridge and probe payloads keep full entries.

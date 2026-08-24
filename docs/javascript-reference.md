@@ -7019,6 +7019,10 @@ surface only.
 wp.os.desktopThemes.list(): DesktopThemeEntry[];
 wp.os.desktopThemes.getActive(): string | null;
 wp.os.desktopThemes.setActive( themeId: string ): void;
+// Hydrate boot-slimmed entries (cssDeferred) with their full
+// cssText / tokens — no activation side effect. Single-flight;
+// resolves once the library holds the full entries.
+wp.os.desktopThemes.ensureFull(): Promise< void >;
 wp.os.desktopThemes.subscribe(
     cb: ( state: { themes; activeId; activeIcons } ) => void,
 ): () => void;
@@ -7040,7 +7044,7 @@ wp.os.desktopThemes.applyRecommendedOsSettings(
 | `cssUrl` | `string` | Compiled stylesheet URL (uploaded themes). |
 | `cssText` | `string` | Compiled stylesheet text (code-registered themes). Empty on a boot-slimmed entry — see `cssDeferred`. |
 | `tokens` | `Record<string,string>` | Informational — the CSS is authoritative. `{}` on a boot-slimmed entry — see `cssDeferred`. |
-| `cssDeferred` | `boolean` | `true` on entries the **boot payload** shipped without `cssText` / `tokens` (the active theme's stylesheet is server-delivered at boot; an inactive theme's CSS matters only when picked). `ensureFullDesktopThemes()` fetches the full entries from `GET desktop-mode/v1/desktop-themes` and upserts them, clearing the flag — the apply path does this automatically the first time a deferred entry's stylesheet is needed. A consumer that needs `cssText` / `tokens` for its own purposes should await that call before reading them. |
+| `cssDeferred` | `boolean` | `true` on entries the **boot payload** shipped without `cssText` / `tokens` (the active theme's stylesheet is server-delivered at boot; an inactive theme's CSS matters only when picked). The full entries are fetched from `GET desktop-mode/v1/desktop-themes` and upserted, clearing the flag — `setActive()` does this automatically the first time a deferred entry's stylesheet is needed. A consumer that needs `cssText` / `tokens` for its own purposes should `await wp.os.desktopThemes.ensureFull()` before reading them. |
 | `fonts` | `string[]` | Bundled font families, de-duplicated across weights, in declaration order. Informational; the compiled stylesheet carries the `@font-face` rules. Empty when the theme ships none. |
 | `icons` | `Record<string,string>` | Slot => dashicon class or absolute image URL. |
 | `iconColors` | `Record<string,string>` | Slot => fill colour, for the slots the theme tints. A slot present here is painted as a tinted CSS mask (images) or with that `color` (dashicons); `currentColor` defers to the surface. Absent = default rendering. |

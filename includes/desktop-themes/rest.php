@@ -91,7 +91,7 @@ add_action( 'rest_api_init', 'openstation_register_desktop_themes_rest_routes' )
  *
  * The on-demand counterpart of the slimmed boot payload: same
  * builder, same filter, full `cssText` / `tokens`. The shell calls
- * it from `ensureFullDesktopTheme()` the first time a deferred
+ * it from `ensureFullDesktopThemes()` the first time a deferred
  * entry's stylesheet is actually needed (the user picks a theme in
  * Preferences → Themes).
  *

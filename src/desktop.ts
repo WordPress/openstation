@@ -1405,6 +1405,13 @@ export interface OpenStationPublicApi {
 		 * for that.
 		 */
 		setActive: ( themeId: string ) => void;
+		/**
+		 * Hydrate boot-slimmed entries (`cssDeferred: true`) with
+		 * their full `cssText` / `tokens`, without activating
+		 * anything. Resolves once the library holds the full
+		 * entries; safe to call repeatedly (single-flight).
+		 */
+		ensureFull: () => Promise< void >;
 		/** Subscribe to library / active-theme changes. */
 		subscribe: (
 			cb: ( state: Readonly< DesktopThemeState > ) => void,

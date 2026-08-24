@@ -174,6 +174,7 @@ import {
 	resolveThemedIconColor,
 } from '../desktop-themes/icons';
 import {
+	ensureFullDesktopThemes,
 	getActiveDesktopThemeId,
 	listDesktopThemes,
 	subscribeDesktopThemes,
@@ -693,6 +694,12 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 			list: listDesktopThemes,
 			getActive: getActiveDesktopThemeId,
 			setActive: applyDesktopTheme,
+			// Hydrate boot-slimmed entries (`cssDeferred: true`) with
+			// their full `cssText` / `tokens` WITHOUT activating
+			// anything — the awaitable the `cssDeferred` docs point
+			// consumers at. `setActive()` triggers the same fetch
+			// itself, but activation must not be the only door.
+			ensureFull: ensureFullDesktopThemes,
 			subscribe: subscribeDesktopThemes,
 			resolveIcon: resolveThemedIcon,
 			resolveIconColor: resolveThemedIconColor,

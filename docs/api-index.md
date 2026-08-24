@@ -140,6 +140,7 @@ The full surface is documented in [`javascript-reference.md`](./javascript-refer
 | `desktopThemes.list` | `() => DesktopThemeEntry[]` | Experimental |
 | `desktopThemes.getActive` | `() => string \| null` | Experimental |
 | `desktopThemes.setActive` | `( themeId: string ) => void` | Experimental |
+| `desktopThemes.ensureFull` | `() => Promise<void>` | Experimental |
 | `desktopThemes.subscribe` | `( cb ) => () => void` | Experimental |
 | `desktopThemes.resolveIcon` | `( slot: string ) => string \| null` | Experimental |
 | `desktopThemes.applyRecommendedOsSettings` | `( themeId?: string ) => RecommendedOsSettings` | Experimental |
