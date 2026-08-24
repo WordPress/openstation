@@ -223,6 +223,22 @@ function openstation_enqueue_assets() {
 	$native_windows                    = isset( $menu_payload['nativeWindows'] )
 		? $menu_payload['nativeWindows']
 		: array();
+
+	// The BOOT page prints every registry window's template as a real
+	// `<template>` tag (`openstation_render_native_window_templates()`,
+	// admin_footer @ 20 — before footer scripts, so the tags are in
+	// the DOM before the shell boots and `ensureTemplate()` adopts
+	// them by id). The payload's `templateHtml` copy exists for the
+	// MID-SESSION path — a bridge or probe payload delivering a
+	// window whose plugin activated after the page rendered — so on
+	// the boot config it is ~27 KB of the same markup twice. Strip it
+	// here, and only here: the bridge and probe payloads keep theirs.
+	foreach ( $native_windows as &$native_window_row ) {
+		if ( is_array( $native_window_row ) ) {
+			$native_window_row['templateHtml'] = '';
+		}
+	}
+	unset( $native_window_row );
 	$native_window_script_data         = isset( $menu_payload['nativeWindowScriptData'] )
 		? $menu_payload['nativeWindowScriptData']
 		: array();
@@ -294,6 +310,26 @@ function openstation_enqueue_assets() {
 	$server_desktop_themes = isset( $menu_payload['serverDesktopThemes'] )
 		? $menu_payload['serverDesktopThemes']
 		: array();
+
+	// Slim the theme library for BOOT: `cssText` and `tokens` are
+	// each ~20 KB per theme, and neither is read at boot — the ACTIVE
+	// theme's stylesheet is server-delivered (see
+	// `openstation_enqueue_desktop_theme_style()`, whose stamp
+	// `bootAlreadyApplied()` detects), and an inactive theme's CSS
+	// only matters at the moment the user picks it in the Preferences
+	// picker — which fetches the full entries from
+	// `GET desktop-mode/v1/desktop-themes` (`ensureFullDesktopTheme()`
+	// client-side). `cssDeferred` marks the gap so the shell can tell
+	// a slimmed entry from a theme that genuinely ships no CSS.
+	// Bridge and probe payloads keep full entries.
+	foreach ( $server_desktop_themes as &$desktop_theme_row ) {
+		if ( is_array( $desktop_theme_row ) ) {
+			$desktop_theme_row['cssText']     = '';
+			$desktop_theme_row['tokens']      = new stdClass();
+			$desktop_theme_row['cssDeferred'] = true;
+		}
+	}
+	unset( $desktop_theme_row );
 	$desktop_icons         = isset( $menu_payload['desktopIcons'] )
 		? $menu_payload['desktopIcons']
 		: array();

@@ -21,7 +21,12 @@
  */
 
 import { doAction, HOOKS } from '../hooks';
-import { getDesktopTheme, getStore } from './registry';
+import {
+	ensureFullDesktopThemes,
+	getDesktopTheme,
+	getStore,
+} from './registry';
+import type { DesktopThemeEntry } from './types';
 
 /** `id` WordPress gives the `<link>` for the theme style handle. */
 const LINK_ID = 'os-desktop-theme-css';
@@ -90,6 +95,28 @@ function bootAlreadyApplied( slug: string ): boolean {
 	return styleElements().length > 0;
 }
 
+/**
+ * Put one theme's stylesheet into `<head>` — a `<link>` for uploaded
+ * themes (compiled file on disk), an inline `<style>` for
+ * code-registered ones. Shared by the immediate apply path and the
+ * deferred one (slim boot entry → fetch → inject).
+ */
+function injectThemeStylesheet( theme: DesktopThemeEntry ): void {
+	if ( theme.cssUrl !== '' ) {
+		const link = document.createElement( 'link' );
+		link.id = LINK_ID;
+		link.rel = 'stylesheet';
+		link.href = theme.cssUrl;
+		link.setAttribute( OWNED_ATTR, theme.slug );
+		document.head.appendChild( link );
+	} else if ( theme.cssText !== '' ) {
+		const style = document.createElement( 'style' );
+		style.setAttribute( OWNED_ATTR, theme.slug );
+		style.textContent = theme.cssText;
+		document.head.appendChild( style );
+	}
+}
+
 function applyBodyClass( slug: string | null ): void {
 	const body = document.body;
 	if ( ! body ) {
@@ -153,18 +180,29 @@ export function applyDesktopTheme( themeId: string | null | undefined ): void {
 	} else {
 		if ( ! bootAlreadyApplied( theme.slug ) ) {
 			removeStyleElements();
-			if ( theme.cssUrl !== '' ) {
-				const link = document.createElement( 'link' );
-				link.id = LINK_ID;
-				link.rel = 'stylesheet';
-				link.href = theme.cssUrl;
-				link.setAttribute( OWNED_ATTR, theme.slug );
-				document.head.appendChild( link );
-			} else if ( theme.cssText !== '' ) {
-				const style = document.createElement( 'style' );
-				style.setAttribute( OWNED_ATTR, theme.slug );
-				style.textContent = theme.cssText;
-				document.head.appendChild( style );
+			if (
+				theme.cssDeferred &&
+				theme.cssUrl === '' &&
+				theme.cssText === ''
+			) {
+				// A slimmed boot entry picked mid-session: the
+				// attributes, body class and store flip NOW (below)
+				// so the pick feels instant, while the stylesheet
+				// arrives from `GET /desktop-themes`. Re-check the
+				// active id when it lands — the user may have picked
+				// something else while the request was in flight.
+				const slug = theme.slug;
+				void ensureFullDesktopThemes().then( () => {
+					if ( getStore().state.activeId !== slug ) {
+						return;
+					}
+					const full = getDesktopTheme( slug );
+					if ( full && ! full.cssDeferred ) {
+						injectThemeStylesheet( full );
+					}
+				} );
+			} else {
+				injectThemeStylesheet( theme );
 			}
 		}
 		shell?.setAttribute( 'data-os-desktop-theme', theme.slug );

@@ -1799,6 +1799,21 @@ stylesheet as text and PHP prints it via `wp_add_inline_style()`.
 Uploaded themes win on a slug collision — a site admin who installed a
 theme by hand outranks a plugin that later claims the same slug.
 
+**How the library reaches the shell.** The boot payload
+(`serverDesktopThemes`) ships every entry **slimmed**: no `cssText`,
+no `tokens`, `cssDeferred: true`. Nothing reads either at boot — the
+active theme's stylesheet is server-delivered (link for uploads,
+inline `<style>` for code themes), and an inactive theme's CSS
+matters only at the moment the user picks it. That moment fetches the
+full entries from `GET desktop-mode/v1/desktop-themes` — the same
+builder and the same `openstation_desktop_themes` filter as the
+payload, so it is not a second source of truth — via
+`ensureFullDesktopThemes()`, and the apply path does this
+automatically. The read gate is the shell's own (a desktop-enabled
+user), not the manage capability: the route exposes exactly what the
+boot payload used to. Bridge and probe payloads (live plugin
+activation) keep full entries.
+
 See [`examples/register-desktop-theme.md`](./examples/register-desktop-theme.md)
 for a complete plugin.
 

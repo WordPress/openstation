@@ -115,6 +115,39 @@ class Tests_OpenStation_CommandPaletteAssets extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The serialized menu-command list ships ONCE. Core's captured
+	 * init inline embeds ~20 KB of `menu_commands` that the boot page
+	 * already carries as `window.__openStationMenuCommands` — the
+	 * manifest strips the embedded copy and synthesizes the same call
+	 * against the global instead.
+	 *
+	 * @covers ::openstation_build_command_palette_assets_payload
+	 */
+	public function test_the_menu_command_list_is_not_embedded_twice() {
+		$payload = openstation_build_command_palette_assets_payload();
+		$this->assertNotNull( $payload );
+
+		$entry = null;
+		foreach ( $payload['scripts'] as $script ) {
+			if ( 'wp-core-commands' === $script['handle'] ) {
+				$entry = $script;
+			}
+		}
+		$this->assertNotNull( $entry );
+		$inline = implode( "\n", array_merge( (array) $entry['before'], (array) $entry['after'] ) );
+		$this->assertStringContainsString(
+			'window.__openStationMenuCommands',
+			$inline,
+			'The synthesized init must read the list off the global the boot page already ships.'
+		);
+		$this->assertStringNotContainsString(
+			'"menu_commands":[',
+			$inline,
+			'Core\'s embedded copy of the menu-command list must be stripped — it duplicates __openStationMenuCommands.'
+		);
+	}
+
+	/**
 	 * The palette stylesheet chain rides too — an unstyled Core
 	 * palette flashing over the desktop would read as broken.
 	 *

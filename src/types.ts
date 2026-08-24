@@ -1846,7 +1846,9 @@ export interface DesktopConfig {
 	 */
 	canManageDesktopThemes?: boolean;
 	/**
-	 * REST base for the desktop-theme upload / delete routes.
+	 * REST base for the desktop-theme routes: GET (full library —
+	 * `ensureFullDesktopThemes()` fetches the entries the boot
+	 * payload ships slimmed, `cssDeferred: true`), upload, delete.
 	 */
 	desktopThemesUrl?: string;
 	/**

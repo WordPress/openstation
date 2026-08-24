@@ -2029,6 +2029,34 @@ function openstation_build_command_palette_assets_payload() {
 				continue;
 			}
 		}
+		// Core's `initializeCommandPalette( {…} )` inline embeds the
+		// serialized admin-menu command list — ~20 KB that the boot
+		// page ALREADY carries as `window.__openStationMenuCommands`
+		// (the shell harvester's lookup, attached as a `before`
+		// inline on the main bundle, and the richer of the two: its
+		// URL derivation routes legacy file-path slugs through
+		// `menu_page_url()` where Core's regex takes them literally).
+		// Ship the list once: strip Core's embedded copy and
+		// synthesize the same call against the global, which is
+		// guaranteed present long before the manifest replays — it
+		// prints at boot, the replay waits for the first ⌘K.
+		if ( 'wp-core-commands' === $handle ) {
+			foreach ( array( 'before', 'after' ) as $position ) {
+				$payload[ $position ] = array_values(
+					array_filter(
+						$payload[ $position ],
+						static function ( $snippet ) {
+							return false === strpos( (string) $snippet, 'initializeCommandPalette(' );
+						}
+					)
+				);
+			}
+			$payload['after'][] = sprintf(
+				'wp.coreCommands.initializeCommandPalette({"is_network_admin":%s,"menu_commands":window.__openStationMenuCommands||[]});',
+				is_network_admin() ? 'true' : 'false'
+			);
+		}
+
 		$out['scripts'][] = array(
 			'handle'       => (string) $handle,
 			'url'          => $payload['url'],

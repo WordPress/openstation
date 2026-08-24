@@ -8,13 +8,14 @@
  * touching the hook bus, because it sits in front of every icon the
  * shell paints.
  */
-import { afterEach, beforeEach, describe, expect, test } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { _resetAllSharedStoresForTests } from '../../src/shared-store';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 import type { FakeWpHooks } from './helpers/hooks-stub';
 import { HOOKS } from '../../src/hooks';
 
 import {
+	__resetFullDesktopThemesFetchForTests,
 	getActiveDesktopThemeId,
 	getDesktopTheme,
 	getStore,
@@ -76,6 +77,7 @@ beforeEach( () => {
 	document.body.className = '';
 	document.head.innerHTML = '';
 	_resetAllSharedStoresForTests();
+	__resetFullDesktopThemesFetchForTests();
 } );
 
 afterEach( () => {
@@ -267,6 +269,142 @@ describe( 'resolveThemedIcon', () => {
 // ---------------------------------------------------------------
 // Apply.
 // ---------------------------------------------------------------
+
+// ---------------------------------------------------------------
+// The boot-payload diet: slim entries hydrate on first use.
+// ---------------------------------------------------------------
+
+describe( 'cssDeferred hydration', () => {
+	test( 'normalizeEntry carries the deferral marker (default false)', () => {
+		expect( normalizeEntry( rawTheme() )?.cssDeferred ).toBe( false );
+		expect(
+			normalizeEntry( rawTheme( { cssDeferred: true } ) )?.cssDeferred,
+		).toBe( true );
+	} );
+
+	test( 'applying a slim entry flips the chrome now and injects CSS when the fetch lands', async () => {
+		mountShell();
+		( window as unknown as { openStationConfig?: unknown } ).openStationConfig =
+			{ desktopThemesUrl: 'https://x.test/wp-json/desktop-mode/v1/desktop-themes' };
+		let resolveFetch!: ( value: unknown ) => void;
+		const fetchModule = await import( '../../src/tracked-fetch' );
+		const spy = vi
+			.spyOn( fetchModule, 'trackedFetch' )
+			.mockReturnValue(
+				new Promise( ( resolve ) => {
+					resolveFetch = resolve;
+				} ) as Promise< Response >,
+			);
+
+		setDesktopThemes( [
+			rawTheme( {
+				id: 'acme/deferred',
+				slug: 'acme-deferred',
+				name: 'Deferred',
+				cssUrl: '',
+				cssText: '',
+				cssDeferred: true,
+				source: 'code',
+			} ),
+		] );
+
+		applyDesktopTheme( 'acme-deferred' );
+
+		// Instant half: attribute + body class + store, no stylesheet.
+		expect( getActiveDesktopThemeId() ).toBe( 'acme-deferred' );
+		expect(
+			document.body.classList.contains( 'os-desktop-theme-acme-deferred' ),
+		).toBe( true );
+		expect(
+			document.head.querySelector( '[data-os-desktop-theme-style]' ) ??
+				document.head.querySelector( 'style' ),
+		).toBeNull();
+		expect( spy ).toHaveBeenCalledTimes( 1 );
+
+		// The fetch lands with the full entry → stylesheet injected.
+		resolveFetch( {
+			ok: true,
+			json: () =>
+				Promise.resolve( {
+					themes: [
+						rawTheme( {
+							id: 'acme/deferred',
+							slug: 'acme-deferred',
+							name: 'Deferred',
+							cssUrl: '',
+							cssText: '.os-shell{--x:1}',
+							source: 'code',
+						} ),
+					],
+				} ),
+		} );
+		await new Promise( ( r ) => setTimeout( r, 0 ) );
+
+		const style = document.head.querySelector( 'style' );
+		expect( style?.textContent ).toBe( '.os-shell{--x:1}' );
+		expect( getDesktopTheme( 'acme-deferred' )?.cssDeferred ).toBe( false );
+
+		spy.mockRestore();
+		delete ( window as unknown as { openStationConfig?: unknown } )
+			.openStationConfig;
+	} );
+
+	test( 'a stale pick does not inject the late-arriving stylesheet', async () => {
+		mountShell();
+		( window as unknown as { openStationConfig?: unknown } ).openStationConfig =
+			{ desktopThemesUrl: 'https://x.test/wp-json/desktop-mode/v1/desktop-themes' };
+		let resolveFetch!: ( value: unknown ) => void;
+		const fetchModule = await import( '../../src/tracked-fetch' );
+		const spy = vi
+			.spyOn( fetchModule, 'trackedFetch' )
+			.mockReturnValue(
+				new Promise( ( resolve ) => {
+					resolveFetch = resolve;
+				} ) as Promise< Response >,
+			);
+
+		setDesktopThemes( [
+			rawTheme( {
+				id: 'acme/deferred',
+				slug: 'acme-deferred',
+				name: 'Deferred',
+				cssUrl: '',
+				cssText: '',
+				cssDeferred: true,
+				source: 'code',
+			} ),
+		] );
+
+		applyDesktopTheme( 'acme-deferred' );
+		// The user changes their mind before the CSS arrives.
+		applyDesktopTheme( '' );
+
+		resolveFetch( {
+			ok: true,
+			json: () =>
+				Promise.resolve( {
+					themes: [
+						rawTheme( {
+							id: 'acme/deferred',
+							slug: 'acme-deferred',
+							name: 'Deferred',
+							cssUrl: '',
+							cssText: '.os-shell{--x:1}',
+							source: 'code',
+						} ),
+					],
+				} ),
+		} );
+		await new Promise( ( r ) => setTimeout( r, 0 ) );
+
+		expect( document.head.querySelector( 'style' ) ).toBeNull();
+		expect( getActiveDesktopThemeId() ).toBeNull();
+
+		spy.mockRestore();
+		delete ( window as unknown as { openStationConfig?: unknown } )
+			.openStationConfig;
+	} );
+} );
 
 describe( 'applyDesktopTheme', () => {
 	test( 'activating sets the attribute, body class, link, and state', () => {
