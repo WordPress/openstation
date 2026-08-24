@@ -690,7 +690,7 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 	/**
 	 * The geopattern is not art the plugin chose, and an entry carrying
 	 * only `default` is wp.org saying so — the field returns null for
-	 * the placeholder rather than guessing seven URLs that all 404.
+	 * the placeholder rather than guessing a URL per format, all 404.
 	 *
 	 * @covers ::openstation_plugins_window_field_icon_url
 	 * @covers ::openstation_plugins_window_directory_icon_url

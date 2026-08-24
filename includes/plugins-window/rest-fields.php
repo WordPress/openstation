@@ -497,7 +497,7 @@ function openstation_plugins_window_field_wporg_slug( $row ) {
  *
  * Skipped entirely when step 2 established the plugin uploaded no art:
  * `null` paints the placeholder without a request, where guessing would
- * spend seven 404s arriving at the same picture.
+ * spend a 404 per candidate arriving at the same picture.
  *
  * @param array $row Core REST plugin row.
  * @return string|null

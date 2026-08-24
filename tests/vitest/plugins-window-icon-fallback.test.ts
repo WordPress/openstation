@@ -46,7 +46,7 @@ describe( 'attachIconFallback', () => {
 		img.src = firstSrc;
 
 		// Fire 6 errors → should advance through 6 fallback variants.
-		for ( let i = 0; i < 6; i++ ) {
+		for ( let i = 0; i < 8; i++ ) {
 			fireError( img );
 			seen.push( img.src );
 		}
@@ -55,9 +55,11 @@ describe( 'attachIconFallback', () => {
 			base + 'icon.svg',
 			base + 'icon-256x256.png',
 			base + 'icon-256x256.jpg',
+			base + 'icon-256x256.jpeg',
 			base + 'icon-256x256.gif',
 			base + 'icon-128x128.png',
 			base + 'icon-128x128.jpg',
+			base + 'icon-128x128.jpeg',
 			base + 'icon-128x128.gif',
 		] );
 	} );
@@ -76,8 +78,8 @@ describe( 'attachIconFallback', () => {
 		);
 		img.src = firstSrc;
 
-		// 7 candidates total → the 7th error is the one that exhausts.
-		for ( let i = 0; i < 7; i++ ) {
+		// 9 candidates total → the 9th error is the one that exhausts.
+		for ( let i = 0; i < 9; i++ ) {
 			fireError( img );
 		}
 
