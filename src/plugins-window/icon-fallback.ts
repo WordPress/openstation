@@ -41,9 +41,11 @@ function buildCandidates( initialUrl: string ): string[] {
 		initialUrl,
 		base + 'icon-256x256.png',
 		base + 'icon-256x256.jpg',
+		base + 'icon-256x256.jpeg',
 		base + 'icon-256x256.gif',
 		base + 'icon-128x128.png',
 		base + 'icon-128x128.jpg',
+		base + 'icon-128x128.jpeg',
 		base + 'icon-128x128.gif',
 	];
 }
