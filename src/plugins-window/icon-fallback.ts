@@ -35,10 +35,8 @@ function buildCandidates( initialUrl: string ): string[] {
 	}
 	const base = match[ 1 ];
 	// 256-px variants before the 128 set, and within each size the
-	// likeliest format first — PNG (also the fastest to decode for a
-	// 32-px cell), then JPEG, then GIF. The last two only matter when
-	// that is all the plugin shipped: Gutenberg and UpdraftPlus are
-	// JPEG-only, Elementor GIF-only.
+	// likeliest format first — PNG also being the fastest to decode
+	// for a 32-px cell.
 	return [
 		initialUrl,
 		base + 'icon-256x256.png',

@@ -635,12 +635,8 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 
 	/**
 	 * The directory's own `icons` map beats the guessed SVN URL, read
-	 * `svg` → `2x` → `1x` as core's Add Plugins cards read it.
-	 *
-	 * `icon.svg` is only right for plugins that uploaded an SVG.
-	 * Gutenberg and UpdraftPlus ship JPEG only, so every candidate the
-	 * card walks 404s and the row reads as iconless — while the same
-	 * icon paints fine on Add Plugins, which reads this map.
+	 * `svg` → `2x` → `1x`. Gutenberg ships JPEG only, so the guess
+	 * 404s through every variant and the row reads as iconless.
 	 *
 	 * @covers ::openstation_plugins_window_field_icon_url
 	 * @covers ::openstation_plugins_window_directory_icon_url
@@ -670,10 +666,9 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 	}
 
 	/**
-	 * A plugin whose folder is not its directory slug resolves anyway:
 	 * `hello.php` sits in the plugins root and is listed as
-	 * `hello-dolly`, so no folder- or textdomain-derived guess finds
-	 * its art.
+	 * `hello-dolly`, so no guess derived from the folder or the
+	 * textdomain finds its art.
 	 *
 	 * @covers ::openstation_plugins_window_field_icon_url
 	 */
@@ -693,9 +688,8 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 	}
 
 	/**
-	 * wp.org's generated geopattern is not art the plugin chose, so an
-	 * entry carrying only `default` falls through to the guess and,
-	 * from there, to the window's own placeholder.
+	 * The geopattern is not art the plugin chose, so an entry carrying
+	 * only `default` falls through to the guess.
 	 *
 	 * @covers ::openstation_plugins_window_directory_icon_url
 	 */
@@ -714,10 +708,8 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Seed `update_plugins` with one entry, the way
-	 * `wp_update_plugins()` would. `no_update` rather than `response`:
-	 * most plugins on most installs are up to date, and both halves
-	 * carry the same directory metadata.
+	 * Seed `update_plugins` with one entry. `no_update` rather than
+	 * `response`: most plugins on most installs are up to date.
 	 *
 	 * @param string $plugin_file Plugin file the entry describes.
 	 * @param array  $icons       The entry's `icons` map.
