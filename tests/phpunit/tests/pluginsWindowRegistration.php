@@ -634,6 +634,124 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The directory's own `icons` map beats the guessed SVN URL, read
+	 * `svg` → `2x` → `1x`. Gutenberg ships JPEG only, so the guess
+	 * 404s through every variant and the row reads as iconless.
+	 *
+	 * @covers ::openstation_plugins_window_field_icon_url
+	 * @covers ::openstation_plugins_window_directory_icon_url
+	 */
+	public function test_icon_url_prefers_directory_icons_over_guess() {
+		$icons = array(
+			'1x' => 'https://ps.w.org/gutenberg/assets/icon-128x128.jpg',
+			'2x' => 'https://ps.w.org/gutenberg/assets/icon-256x256.jpg?rev=1776042',
+		);
+
+		$this->prime_update_transient( 'gutenberg/gutenberg.php', $icons );
+		$this->assertSame(
+			$icons['2x'],
+			openstation_plugins_window_field_icon_url(
+				array( 'plugin' => 'gutenberg/gutenberg.php' )
+			)
+		);
+
+		$icons['svg'] = 'https://ps.w.org/gutenberg/assets/icon.svg';
+		$this->prime_update_transient( 'gutenberg/gutenberg.php', $icons );
+		$this->assertSame(
+			$icons['svg'],
+			openstation_plugins_window_field_icon_url(
+				array( 'plugin' => 'gutenberg/gutenberg.php' )
+			)
+		);
+	}
+
+	/**
+	 * `hello.php` sits in the plugins root and is listed as
+	 * `hello-dolly`, so no guess derived from the folder or the
+	 * textdomain finds its art.
+	 *
+	 * @covers ::openstation_plugins_window_field_icon_url
+	 */
+	public function test_icon_url_survives_a_slug_that_is_not_the_folder() {
+		$this->prime_update_transient(
+			'hello.php',
+			array( '2x' => 'https://ps.w.org/hello-dolly/assets/icon-256x256.jpg' ),
+			'hello-dolly'
+		);
+
+		$this->assertSame(
+			'https://ps.w.org/hello-dolly/assets/icon-256x256.jpg',
+			openstation_plugins_window_field_icon_url(
+				array( 'plugin' => 'hello.php' )
+			)
+		);
+	}
+
+	/**
+	 * The geopattern is not art the plugin chose, and an entry carrying
+	 * only `default` is wp.org saying so — the field returns null for
+	 * the placeholder rather than guessing a URL per format, all 404.
+	 *
+	 * @covers ::openstation_plugins_window_field_icon_url
+	 * @covers ::openstation_plugins_window_directory_icon_url
+	 */
+	public function test_icon_url_is_null_when_wporg_reports_no_art() {
+		$this->prime_update_transient(
+			'plain/plain.php',
+			array( 'default' => 'https://s.w.org/plugins/geopattern-icon/plain.svg' )
+		);
+
+		$this->assertNull(
+			openstation_plugins_window_field_icon_url(
+				array( 'plugin' => 'plain/plain.php' )
+			)
+		);
+	}
+
+	/**
+	 * An entry that says nothing about icons is not the same answer as
+	 * one that says "none" — a premium plugin served by its own update
+	 * server looks like this — so the guess is still the best
+	 * available.
+	 *
+	 * @covers ::openstation_plugins_window_field_icon_url
+	 */
+	public function test_icon_url_still_guesses_when_wporg_says_nothing() {
+		$this->prime_update_transient( 'plain/plain.php', array() );
+
+		$this->assertSame(
+			'https://ps.w.org/plain/assets/icon.svg',
+			openstation_plugins_window_field_icon_url(
+				array( 'plugin' => 'plain/plain.php' )
+			)
+		);
+	}
+
+	/**
+	 * Seed `update_plugins` with one entry. `no_update` rather than
+	 * `response`: most plugins on most installs are up to date.
+	 *
+	 * @param string $plugin_file Plugin file the entry describes.
+	 * @param array  $icons       The entry's `icons` map.
+	 * @param string $slug        Directory slug; defaults to the folder.
+	 */
+	private function prime_update_transient( $plugin_file, $icons, $slug = '' ) {
+		set_site_transient(
+			'update_plugins',
+			(object) array(
+				'last_checked' => time(),
+				'response'     => array(),
+				'no_update'    => array(
+					$plugin_file => (object) array(
+						'slug'  => '' !== $slug ? $slug : dirname( $plugin_file ),
+						'icons' => $icons,
+					),
+				),
+			)
+		);
+	}
+
+	/**
 	 * @covers ::openstation_plugins_window_field_icon_url
 	 */
 	public function test_icon_url_filter_can_override() {
