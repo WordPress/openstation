@@ -1758,6 +1758,40 @@ apply_filters( 'openstation_chromeless_admin_bar_top_values', string[] $values )
 
 ---
 
+### `openstation_chromeless_trimmed_scripts` — Experimental
+
+Script handles dequeued inside chromeless windows, where the admin bar is suppressed and its assets would load, parse and execute against markup that never reaches the DOM. Defaults cover the whole admin-bar family: core's `admin-bar`, OpenStation's own `os-admin-bar` toggle bundle, and the WordPress.com / Jetpack masterbar handles (`wpcom-admin-bar`, `wpcom-notes-common`, `wpcom-notes-admin-bar`, `a8c-faux-inline-help`). Measured on a live install, that family cost **48.8 KB and three cross-origin round trips per window**.
+
+The whole family ships in the defaults deliberately — leaving one queued drags core's `admin-bar` back in as its dependency and undoes the trim. Handles are **dequeued, never deregistered**, so a script that genuinely declares one as a dependency still resolves it and keeps working.
+
+```php
+// Reclaim another chrome-only bundle per window.
+add_filter( 'openstation_chromeless_trimmed_scripts', static function ( array $handles ) {
+    $handles[] = 'my-plugin-admin-bar-widget';
+    return $handles;
+} );
+```
+
+### `openstation_chromeless_trimmed_styles` — Experimental
+
+The stylesheet counterpart. Defaults: `admin-bar`, `wpcom-notes-admin-bar`. Dropping core's `admin-bar` stylesheet also removes the source of the 32px `html.wp-toolbar` padding — the `!important` override in `chromeless.css` stays as the belt-and-braces half of that pair and must not be removed.
+
+```php
+apply_filters( 'openstation_chromeless_trimmed_styles', string[] $handles );
+```
+
+### `openstation_chromeless_trimmed_assets` — Experimental (action)
+
+Fires after the trim runs inside a window — the point to dequeue anything else that only decorates chrome a window does not draw.
+
+```php
+add_action( 'openstation_chromeless_trimmed_assets', static function () {
+    wp_dequeue_script( 'my-plugin-toolbar-extras' );
+} );
+```
+
+---
+
 ### `openstation_native_window_allowed_html` — Experimental
 
 The `wp_kses`-shaped allowlist used when escaping native-window `<template>` payloads. The default extends `wp_kses_allowed_html( 'post' )` with form controls, `<os-*>` web components, dashicon spans, and permissive `data-*` / `aria-*` attributes. Plugins registering their own native windows can extend the list with custom tags or attributes if their templates need markup not covered by the default.
