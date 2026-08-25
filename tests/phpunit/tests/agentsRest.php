@@ -167,7 +167,7 @@ class Tests_OpenStation_AgentsRest extends WP_UnitTestCase {
 	/**
 	 * Triggers are part of the create, not a follow-up patch.
 	 *
-	 * The wizard's optional Extras step configures them before the
+	 * The wizard's Powers step configures them before the
 	 * agent exists; without this the agent would be briefly live and
 	 * unreachable, and a failed second request would strand it there.
 	 *

@@ -608,6 +608,16 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 			caption.textContent = __( 'Shared with the agent', 'desktop-mode' );
 			row.appendChild( caption );
 		} else {
+			// The in-flight row is an instrument line, spinner first:
+			// the inline preset is the one arc that stays legible at
+			// text size (the WordPress mark's rings collapse into a
+			// static disc below 40px, which is what the bubble used to
+			// show), and it tints from the text it sits beside.
+			if ( message.pending ) {
+				const spinner = document.createElement( 'os-spinner' );
+				spinner.setAttribute( 'preset', 'inline' );
+				row.appendChild( spinner );
+			}
 			const text = document.createElement( 'div' );
 			text.className = 'dm-agent-chat__msg-text';
 			if ( message.role === 'agent' && ! message.pending ) {
@@ -619,10 +629,6 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 				text.textContent = message.text;
 			}
 			row.appendChild( text );
-		}
-		if ( message.pending ) {
-			const spinner = document.createElement( 'os-spinner' );
-			row.appendChild( spinner );
 		}
 		if ( message.toolCalls && message.toolCalls.length > 0 ) {
 			const tools = document.createElement( 'details' );

@@ -313,6 +313,20 @@ export async function invokeAgentIntoTranscript(
 			| { message?: string }
 			| null;
 		if ( ! res.ok ) {
+			// A 504 never comes from WordPress: it is the gateway in
+			// front of PHP giving up on a run that is still going (a
+			// long task can take ninety seconds against nginx's default
+			// sixty). The run finishes on the server regardless, so the
+			// message says what happened in the user's terms and warns
+			// against the retry that would run it all again.
+			if ( 504 === res.status ) {
+				throw new Error(
+					__(
+						'The agent took too long to reply, so the answer never arrived. It may still be finishing the work: give it a moment before asking again.',
+						'desktop-mode',
+					),
+				);
+			}
 			const detail =
 				body &&
 				typeof body === 'object' &&

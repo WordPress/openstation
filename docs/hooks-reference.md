@@ -4705,7 +4705,7 @@ rows. Default 100.
 The trigger-kind catalogue (`chat`, `send-to`, `drag`, `hook`,
 `endpoint`, `agent`). Each entry declares `slug`, `label`,
 `description`, `icon`, and a JSON-Schema `config_schema` for its
-`trigger.config` shape. `chat` and `drag` are wired; the other kinds
+`trigger.config` shape. `chat`, `send-to` and `drag` are wired; the other kinds
 are declared so configuration can be stored ahead of their intakes.
 The `drag` config's `entityKinds` gates which entity drops the agent
 accepts (empty = every kind; no drag trigger = drops rejected), and

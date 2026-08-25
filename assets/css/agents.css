@@ -377,17 +377,76 @@
 	min-width: min( 176px, 100% );
 }
 
+/* Spinner and label on one line, centred. The bubble is a flex column
+   everywhere else; the working row is the one place it reads as an
+   instrument line, arc first, then the word. */
 .dm-agent-chat__line--pending .dm-agent-chat__msg {
 	flex: 1;
-	/* Center the label + spinner inside the wide bubble. The bubble
-	   is a flex column, so the spinner needs align-items (text-align
-	   alone only centers the label's inline text). */
+	flex-direction: row;
 	align-items: center;
-	text-align: center;
+	justify-content: center;
+	gap: 8px;
 }
 
 .dm-agent-chat__msg--pending os-spinner {
-	--os-ui-spinner-size: 24px;
+	flex: none;
+	--os-ui-spinner-size: 16px;
+}
+
+/* Three motions say "working", each quiet on its own: the arc turns
+   (the component's), a sheen sweeps the label, and the agent's face
+   bobs beside the bubble. The sheen is the skeleton shimmer clipped
+   to text, so the label stays a real, selectable word rather than a
+   drawn one. Every one of them stops under reduced motion; the label
+   falls back to its plain colour, not to invisible text. */
+.dm-agent-chat__msg--pending .dm-agent-chat__msg-text {
+	background: linear-gradient(
+		90deg,
+		currentColor 0%,
+		currentColor 35%,
+		var( --os-ui-accent, #f252fc ) 50%,
+		currentColor 65%,
+		currentColor 100%
+	);
+	background-size: 250% 100%;
+	-webkit-background-clip: text;
+	background-clip: text;
+	-webkit-text-fill-color: transparent;
+	animation: dm-agent-chat-sheen 1.8s ease-in-out infinite;
+}
+
+.dm-agent-chat__line--pending .dm-agent-chat__msg-avatar {
+	animation: dm-agent-chat-bob 1.4s ease-in-out infinite;
+}
+
+@keyframes dm-agent-chat-sheen {
+	from {
+		background-position: 125% 0;
+	}
+	to {
+		background-position: -125% 0;
+	}
+}
+
+@keyframes dm-agent-chat-bob {
+	0%,
+	100% {
+		transform: translateY( 0 );
+	}
+	50% {
+		transform: translateY( -3px );
+	}
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.dm-agent-chat__msg--pending .dm-agent-chat__msg-text {
+		animation: none;
+		background: none;
+		-webkit-text-fill-color: currentColor;
+	}
+	.dm-agent-chat__line--pending .dm-agent-chat__msg-avatar {
+		animation: none;
+	}
 }
 
 /* Markdown content inside agent bubbles. */

@@ -511,6 +511,79 @@ describe( 'agents entity kind', () => {
 		expect( notice!.textContent ).toContain( 'AI Client' );
 	} );
 
+	test( 'the Connectors link opens a desktop window, not a new tab', async () => {
+		// A `target="_blank"` link to a same-origin admin URL is inside
+		// an installed PWA's scope, so clicking it relaunched the app.
+		// The shell's window manager is where the settings screen goes.
+		installConfig( {
+			aiAvailable: true,
+			aiStatusUrl: 'https://example.test/wp-json/desktop-mode/v1/ai/status',
+		} );
+		const fetchMock = vi.fn( async ( input: RequestInfo ) => {
+			const url = String( input );
+			const body = url.includes( '/ai/status' )
+				? { available: true, providerConfigured: false }
+				: [];
+			return { ok: true, status: 200, json: async () => body } as unknown as Response;
+		} );
+		( globalThis as unknown as { fetch: typeof fetchMock } ).fetch = fetchMock;
+		const open = vi.fn();
+		const wp = ( window as unknown as { wp: Record< string, unknown > } ).wp;
+		wp.os = {
+			deriveWindowId: ( url: string ) =>
+				`derived:${ new URL( url ).pathname.split( '/' ).pop() }`,
+			windowManager: { open },
+		};
+		try {
+			const host = makeHost();
+			getEntityRenderer( 'agent' )!( host, ENTITY );
+			await flush();
+			await flush();
+
+			const link = host.body.querySelector( 'os-notice a' ) as HTMLAnchorElement | null;
+			expect( link ).not.toBeNull();
+			expect( link!.textContent ).toContain( 'Open Connectors settings' );
+			expect( link!.hasAttribute( 'target' ) ).toBe( false );
+			// The href stays real for middle-click and "copy link".
+			expect( link!.getAttribute( 'href' ) ).toBe(
+				'https://example.test/wp-admin/options-connectors.php',
+			);
+
+			const click = new MouseEvent( 'click', { bubbles: true, cancelable: true, button: 0 } );
+			link!.dispatchEvent( click );
+			expect( click.defaultPrevented ).toBe( true );
+			expect( open ).toHaveBeenCalledTimes( 1 );
+			expect( open.mock.calls[ 0 ][ 0 ] ).toMatchObject( {
+				id: 'derived:options-connectors.php',
+				url: 'https://example.test/wp-admin/options-connectors.php',
+				title: 'Connectors',
+			} );
+
+			// A modified click is the browser's: the shell stays out of it.
+			// Read the verdict at the document, after the link's own
+			// handler ran, then cancel it so jsdom does not try to
+			// navigate a page it cannot.
+			let leftToBrowser = false;
+			const atDocument = ( e: Event ) => {
+				leftToBrowser = ! e.defaultPrevented;
+				e.preventDefault();
+			};
+			document.addEventListener( 'click', atDocument, { once: true } );
+			link!.dispatchEvent(
+				new MouseEvent( 'click', {
+					bubbles: true,
+					cancelable: true,
+					button: 0,
+					metaKey: true,
+				} ),
+			);
+			expect( leftToBrowser ).toBe( true );
+			expect( open ).toHaveBeenCalledTimes( 1 );
+		} finally {
+			delete wp.os;
+		}
+	} );
+
 	test( 'agent rows register drop targets gated by the drag trigger', async () => {
 		interface StubTarget {
 			id: string;

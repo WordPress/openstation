@@ -1,10 +1,10 @@
 /**
  * WP Explorer — Agents entity-kind renderer.
  *
- * Master-detail over `/desktop-mode/v1/agents`: agent list on the
- * left; Define / Tools / Triggers panes on the right; create flow;
- * chat opener that seeds the cross-bundle chat store and opens the
- * Agent chat window.
+ * Over `/desktop-mode/v1/agents`: the cast grid as the landing view;
+ * a detail view with Define / Tools / Triggers panes; a four-step
+ * create flow; and a chat opener that seeds the cross-bundle chat
+ * store and opens the Agent chat window.
  *
  * All state is local to the mount — the host owns routing, this
  * renderer only paints inside `host.body` for the
@@ -125,23 +125,23 @@ interface AgentsState {
 }
 
 /**
- * Where the create flow is.
+ * Where the create flow is: Describe, Meet, Powers, Launch.
  *
- * Extras sits at 3, between the decisions everyone makes and the
- * review: it is the only optional step, and putting it last before
- * Launch means skipping it is a straight line rather than a detour.
+ * Every decision with a working default sits on Powers, so the walk
+ * is four screens and the trail never has a step that exists only to
+ * be skipped.
  */
-type WizardStep = 0 | 1 | 2 | 3 | 4;
+type WizardStep = 0 | 1 | 2 | 3;
 
-/** The step someone lands on when they skip Extras. */
-const STEP_LAUNCH: WizardStep = 4;
+/** The review step, where Powers continues to. */
+const STEP_LAUNCH: WizardStep = 3;
 
 /**
  * The agent taking shape in the wizard.
  *
  * One draft, because there is now one way in. It carries its own face
  * so the picker has something to page through, and its own triggers so
- * Extras can wire the agent up before it exists rather than sending
+ * Powers can wire the agent up before it exists rather than sending
  * people back into the detail view afterwards.
  */
 interface CastDraft {
@@ -362,6 +362,7 @@ interface OpenStationSurface {
 			params?: Record< string, string | number | boolean >;
 		},
 	) => boolean;
+	deriveWindowId?: ( url: string ) => string;
 	windowManager?: {
 		open: ( opts: {
 			id: string;
@@ -427,6 +428,40 @@ function openAgentProfile( agent: Agent ): void {
 			icon: 'dashicons-admin-users',
 		} );
 	}
+}
+
+/**
+ * Open the Connectors settings screen as a desktop window.
+ *
+ * The notice used to carry a plain `target="_blank"` link, which is
+ * wrong twice over. In a browser tab it threw the settings screen out
+ * of the shell; and once OpenStation is installed as a PWA, a `_blank`
+ * navigation to a same-origin admin URL is in the app's scope, so the
+ * click LAUNCHED THE INSTALLED APP. The WooCommerce integration hit the
+ * same thing and routes its admin links the same way.
+ *
+ * `wp.os.deriveWindowId` is the shell's own slug derivation, the one
+ * the dock uses, so the screen lands on the window the dock would open
+ * rather than a private duplicate. The `window.open` fallback is a
+ * genuine last resort: with the shell missing there is nowhere else to
+ * put a window.
+ */
+function openConnectorsWindow( url: string ): void {
+	const desktop = openStation();
+	if ( ! desktop?.windowManager?.open ) {
+		window.open( url, '_blank', 'noopener,noreferrer' );
+		return;
+	}
+	const id =
+		typeof desktop.deriveWindowId === 'function'
+			? desktop.deriveWindowId( url )
+			: 'options-connectors';
+	desktop.windowManager.open( {
+		id,
+		url,
+		title: __( 'Connectors', 'desktop-mode' ),
+		icon: 'dashicons-admin-settings',
+	} );
 }
 
 /**
@@ -958,8 +993,27 @@ export function renderAgents( host: EntityRenderHost ): void {
 			'This WordPress does not ship the AI Client (WordPress 7.0+). Agents can be defined but not run.',
 			'desktop-mode',
 		);
+		// The href stays real so middle-click, cmd-click and "copy link"
+		// still behave; only the plain click is claimed for the shell.
 		const connectorsLink = html`
-			<a href=${ cfg.connectorsUrl } target="_blank" rel="noreferrer">
+			<a
+				href=${ cfg.connectorsUrl }
+				rel="noreferrer"
+				@click=${ ( event: MouseEvent ) => {
+					if (
+						event.defaultPrevented ||
+						event.button !== 0 ||
+						event.metaKey ||
+						event.ctrlKey ||
+						event.shiftKey ||
+						event.altKey
+					) {
+						return;
+					}
+					event.preventDefault();
+					openConnectorsWindow( cfg.connectorsUrl );
+				} }
+			>
 				${ __( 'Open Connectors settings', 'desktop-mode' ) }
 			</a>
 		`;
@@ -1604,9 +1658,9 @@ export function renderAgents( host: EntityRenderHost ): void {
 	/**
 	 * The trigger list, editable.
 	 *
-	 * Shared by the detail pane and the wizard's Extras step. Agnostic
+	 * Shared by the detail pane and the wizard's Powers step. Agnostic
 	 * about where the rows live: the detail pane hands it an agent's
-	 * stored triggers and a commit that saves, Extras hands it the
+	 * stored triggers and a commit that saves, Powers hands it the
 	 * draft's and a commit that only writes into the draft.
 	 */
 	const triggersList = (
@@ -1710,7 +1764,7 @@ export function renderAgents( host: EntityRenderHost ): void {
 	// -----------------------------------------------------------------
 	// The wizard
 	//
-	// Five steps, and a door before them. The door is the part that
+	// Four steps, and a door before them. The door is the part that
 	// matters most: five complete, well-written agents already ship
 	// with the plugin, and until now the create flow showed them to
 	// nobody. Starting from someone is the cheapest good idea here.
@@ -1724,10 +1778,14 @@ export function renderAgents( host: EntityRenderHost ): void {
 	// its name promised: triggers were only ever reachable after
 	// creation, so "expert" meant fewer fields, not more.
 	//
-	// So the fields it had that the flow lacked moved into Extras, an
-	// optional step, and the door closed. What was the expert form's
-	// only real advantage, not being walked through four screens, is
-	// answered by Extras being skippable and every step being
+	// So the door closed, and what it had went where it belonged. Its
+	// instructions field is gone rather than moved: the brief typed
+	// into Describe already is the system prompt, and the label says
+	// so. Its triggers, which it never had, sit on Powers under "How
+	// it starts", next to the role and the abilities, because how an
+	// agent is reached is part of what it is allowed to do. What was
+	// the expert form's only real advantage, not being walked through
+	// several screens, is answered by every earlier step being
 	// reachable by clicking its number in the trail.
 	// -----------------------------------------------------------------
 
@@ -1735,7 +1793,6 @@ export function renderAgents( host: EntityRenderHost ): void {
 		__( 'Describe', 'desktop-mode' ),
 		__( 'Meet', 'desktop-mode' ),
 		__( 'Powers', 'desktop-mode' ),
-		__( 'Extras', 'desktop-mode' ),
 		__( 'Launch', 'desktop-mode' ),
 	];
 
@@ -1988,7 +2045,7 @@ export function renderAgents( host: EntityRenderHost ): void {
 			: html`` }
 		<os-textarea
 			class="dm-agents__brief"
-			label=${ __( 'What should this agent do?', 'desktop-mode' ) }
+			label=${ __( 'What should this agent do? (system prompt)', 'desktop-mode' ) }
 			value=${ state.cast.brief }
 			rows="5"
 			placeholder=${ __(
@@ -2001,7 +2058,7 @@ export function renderAgents( host: EntityRenderHost ): void {
 		></os-textarea>
 		<p class="dm-agents__hint">
 			${ __(
-				'Plain words are fine: what it should watch, what it should write, where it may act.',
+				'Plain words are fine: what it should watch, what it should write, where it may act. This is what the agent reads before every run; drafting rewrites it into proper instructions, filling it in yourself keeps it as written.',
 				'desktop-mode',
 			) }
 		</p>
@@ -2154,12 +2211,18 @@ export function renderAgents( host: EntityRenderHost ): void {
 	};
 
 	/**
-	 * Step 2 — powers.
+	 * Step 2, powers.
 	 *
 	 * Named for what is actually being decided. "Refine" describes what
 	 * you do to a form; what this step decides is what the agent is
 	 * allowed to touch, which is the one thing in the flow worth
-	 * slowing down for.
+	 * slowing down for. How the agent is reached lives here too, last,
+	 * because it has a working default (chat) where role and abilities
+	 * do not: it is the optional tail of the one step about reach.
+	 *
+	 * The headings carry both names, the plain one and the one the
+	 * docs and the detail panes use in parentheses, so someone who
+	 * knows what a trigger is finds it as fast as someone who does not.
 	 */
 	const powersStep = () => html`
 		<os-select
@@ -2183,16 +2246,23 @@ export function renderAgents( host: EntityRenderHost ): void {
 				'desktop-mode',
 			) }
 		</p>
+		<h4 class="dm-agents__wiz-heading">
+			${ __( 'What it may call (abilities)', 'desktop-mode' ) }
+		</h4>
 		${ abilityPicker() }
+		<h4 class="dm-agents__wiz-heading">
+			${ __( 'How it starts (triggers)', 'desktop-mode' ) }
+		</h4>
+		${ triggersList( state.cast.triggers, ( next ) => {
+			state.cast.triggers = next;
+			paint();
+		} ) }
 		<div class="dm-agents__actions">
 			<os-button variant="ghost" @click=${ () => goStep( 1 ) }>
 				${ __( 'Back', 'desktop-mode' ) }
 			</os-button>
 			<span class="dm-agents__spacer"></span>
-			<os-button variant="secondary" @click=${ () => goStep( STEP_LAUNCH ) }>
-				${ __( 'Skip to review', 'desktop-mode' ) }
-			</os-button>
-			<os-button variant="primary" @click=${ () => goStep( 3 ) }>
+			<os-button variant="primary" @click=${ () => goStep( STEP_LAUNCH ) }>
 				${ __( 'Continue', 'desktop-mode' ) }
 			</os-button>
 			${ cancelButton() }
@@ -2233,66 +2303,23 @@ export function renderAgents( host: EntityRenderHost ): void {
 		`;
 	};
 
-	/**
-	 * Step 3, extras. Optional, and says so.
-	 *
-	 * Everything here has a working default, which is what makes it
-	 * skippable: no instructions means the agent improvises from its
-	 * description, and no triggers means it answers in chat like every
-	 * agent did before triggers existed. It exists because the flow
-	 * that replaced the expert form has to be able to reach the two
-	 * things that form could reach, the system prompt, and the one it
-	 * never could: triggers, which until now were only editable after
-	 * the agent already existed.
-	 */
-	const extrasStep = () => html`
-		<p class="dm-agents__hint">
-			${ __(
-				'All optional. Skip it and the agent still works: it will answer in chat, and improvise from what you have already told it.',
-				'desktop-mode',
-			) }
-		</p>
-		<h4 class="dm-agents__wiz-heading">
-			${ __( 'Instructions', 'desktop-mode' ) }
-		</h4>
-		<os-textarea
-			label=${ __( 'Instructions (system prompt)', 'desktop-mode' ) }
-			value=${ state.cast.instructions }
-			rows="8"
-			@os-input-change=${ ( e: CustomEvent< { value: string } > ) => {
-				state.cast.instructions = e.detail?.value ?? '';
-			} }
-		></os-textarea>
-		<p class="dm-agents__hint">
-			${ __(
-				'The standing brief the agent reads before every run. Vibes is appended to it, so this is the job and that is the voice.',
-				'desktop-mode',
-			) }
-		</p>
-		<h4 class="dm-agents__wiz-heading">
-			${ __( 'Triggers', 'desktop-mode' ) }
-		</h4>
-		${ triggersList( state.cast.triggers, ( next ) => {
-			state.cast.triggers = next;
-			paint();
-		} ) }
-		<div class="dm-agents__actions">
-			<os-button variant="ghost" @click=${ () => goStep( 2 ) }>
-				${ __( 'Back', 'desktop-mode' ) }
-			</os-button>
-			<span class="dm-agents__spacer"></span>
-			<os-button variant="primary" @click=${ () => goStep( STEP_LAUNCH ) }>
-				${ __( 'Continue', 'desktop-mode' ) }
-			</os-button>
-			${ cancelButton() }
-		</div>
-	`;
-
-	/** Step 4, launch. */
+	/** Step 3, launch. */
 	const launchStep = () => {
 		const canChat = cfg.canInvoke && state.aiReady === true;
 		const abilityLabel = ( slug: string ): string =>
 			state.abilities?.find( ( a ) => a.slug === slug )?.label ?? slug;
+		const triggerLabel = ( kind: string ): string =>
+			state.triggerKinds?.find( ( k ) => k.slug === kind )?.label ?? kind;
+		const triggerLine =
+			state.cast.triggers.length === 0
+				? __( 'No triggers configured: reachable in chat.', 'desktop-mode' )
+				: sprintf(
+					/* translators: %s: comma-separated list of trigger kind labels. */
+					__( 'Starts from: %s.', 'desktop-mode' ),
+					state.cast.triggers
+						.map( ( t ) => triggerLabel( t.kind ) )
+						.join( ', ' ),
+				);
 		return html`
 			<os-card class="dm-agents__summary">
 				<img
@@ -2338,10 +2365,11 @@ export function renderAgents( host: EntityRenderHost ): void {
 								) }
 						  </p>`
 						: html`` }
+					<p class="dm-agents__hint">${ triggerLine }</p>
 				</div>
 			</os-card>
 			<div class="dm-agents__actions">
-				<os-button variant="ghost" @click=${ () => goStep( 3 ) }>
+				<os-button variant="ghost" @click=${ () => goStep( 2 ) }>
 					${ __( 'Back', 'desktop-mode' ) }
 				</os-button>
 				<span class="dm-agents__spacer"></span>
@@ -2432,14 +2460,7 @@ export function renderAgents( host: EntityRenderHost ): void {
 		}
 	};
 
-	/**
-	 * The expert door: the flat form, exactly as it was.
-	 *
-	 * Kept because someone who already knows what they want should not
-	 * have to be introduced to anybody. It asks for the same four
-	 * fields it always did; the identity half is the guided flow's job,
-	 * and an agent made here simply gets a face rolled from its seed.
-	 */
+	/** The wizard frame: heading, trail, and the current step. */
 	const wizardPane = () => html`
 		<div class="dm-agents__wizard">
 			<div class="dm-agents__wiz-head">
@@ -2449,8 +2470,7 @@ export function renderAgents( host: EntityRenderHost ): void {
 			${ state.step === 0 ? describeStep() : html`` }
 			${ state.step === 1 ? meetStep() : html`` }
 			${ state.step === 2 ? powersStep() : html`` }
-			${ state.step === 3 ? extrasStep() : html`` }
-			${ state.step === 4 ? launchStep() : html`` }
+			${ state.step === 3 ? launchStep() : html`` }
 		</div>
 	`;
 

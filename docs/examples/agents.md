@@ -22,9 +22,8 @@ what makes a roster of them readable rather than a list of settings:
 | `faceSeed` | The seed the face was rolled from. Provenance, not the face itself. |
 
 Both travel through `createAgent` / `updateAgent` like any other field.
-**Abilities go in the create call** — there is no need for a second
-request to attach them. `triggers` is the one field that does need a
-follow-up patch.
+**Abilities and triggers both go in the create call.** There is no need
+for a second request to attach either.
 
 ## Give agents a new tool
 

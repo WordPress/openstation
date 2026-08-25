@@ -1,14 +1,14 @@
 /**
  * The create flow.
  *
- * Five steps and a door: start from an agent that already exists, or
+ * Four steps and a door: start from an agent that already exists, or
  * describe a new one. The door is the part worth protecting: five
  * complete agents ship with the plugin and the old create form showed
  * them to nobody, so "copies the work, rolls its own face" is the
  * behaviour these tests are here to keep.
  *
- * The fifth step, Extras, is optional and holds what the retired
- * expert form held plus the triggers it never could.
+ * Powers holds the privilege decisions and, under "How it starts", the
+ * triggers the retired expert form never could reach.
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { installHooksStub } from './helpers/hooks-stub';
@@ -327,8 +327,7 @@ describe( 'the guided create flow', () => {
 			} ),
 		);
 		await flush();
-		// Powers offers the shortcut past the optional step.
-		press( host, 'Skip to review' );
+		press( host, 'Continue' );
 		await flush();
 		press( host, 'Create agent' );
 		await flush();
@@ -372,41 +371,35 @@ describe( 'the guided create flow', () => {
 		const titles = [ ...host.body.querySelectorAll( 'os-step' ) ].map( ( s ) =>
 			s.getAttribute( 'title' ),
 		);
-		expect( titles ).toEqual( [
-			'Describe',
-			'Meet',
-			'Powers',
-			'Extras',
-			'Launch',
-		] );
+		expect( titles ).toEqual( [ 'Describe', 'Meet', 'Powers', 'Launch' ] );
 	} );
 
-	test( 'Extras carries what the expert form used to, plus triggers', async () => {
+	test( 'Powers carries the triggers, and there is no second instructions field', async () => {
+		// The brief typed into Describe is the system prompt, and its
+		// label says so. A second textarea for the same text lived on
+		// an Extras step for a while; it duplicated the brief, and the
+		// step existed for little else, so both went.
 		const { host } = await openWizard();
 		press( host, 'Continue' );
 		await flush();
 		setField( host, 'Name', 'Deep Cut' );
 		press( host, 'Continue' );
 		await flush();
-		press( host, 'Continue' );
-		await flush();
 
+		// Triggers were only ever editable after the agent existed.
+		expect( host.body.textContent ).toContain( 'How it starts (triggers)' );
+		expect( host.body.textContent ).toContain( 'No triggers configured yet.' );
 		const labels = [ ...host.body.querySelectorAll( 'os-textarea' ) ].map(
 			( f ) => f.getAttribute( 'label' ),
 		);
-		expect( labels ).toContain( 'Instructions (system prompt)' );
-		// Triggers were only ever editable after the agent existed.
-		expect( host.body.textContent ).toContain( 'Triggers' );
-		expect( host.body.textContent ).toContain( 'No triggers configured yet.' );
+		expect( labels ).not.toContain( 'Instructions (system prompt)' );
 	} );
 
-	test( 'a trigger picked in Extras rides along on the create', async () => {
+	test( 'a trigger picked on Powers rides along on the create', async () => {
 		const { host, created } = await openWizard();
 		press( host, 'Continue' );
 		await flush();
 		setField( host, 'Name', 'Hooked Up' );
-		press( host, 'Continue' );
-		await flush();
 		press( host, 'Continue' );
 		await flush();
 
@@ -422,6 +415,8 @@ describe( 'the guided create flow', () => {
 		await flush();
 		press( host, 'Continue' );
 		await flush();
+		// Launch names what was picked, so the review is a review.
+		expect( host.body.textContent ).toContain( 'Starts from: Chat.' );
 		press( host, 'Create agent' );
 		await flush();
 
@@ -432,7 +427,11 @@ describe( 'the guided create flow', () => {
 
 	test( 'without an AI provider the brief still seeds the instructions', async () => {
 		const { host } = await openWizard();
-		setField( host, 'What should this agent do?', 'Watch my drafts.' );
+		setField(
+			host,
+			'What should this agent do? (system prompt)',
+			'Watch my drafts.',
+		);
 		press( host, 'Continue' );
 		await flush();
 
@@ -450,7 +449,7 @@ describe( 'the guided create flow', () => {
 		setField( host, 'Name', 'Draft Watcher' );
 		press( host, 'Continue' );
 		await flush();
-		press( host, 'Skip to review' );
+		press( host, 'Continue' );
 		await flush();
 
 		const instr = host.body.querySelector( '.dm-agents__summary-instr' );
