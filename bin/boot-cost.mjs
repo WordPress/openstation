@@ -58,18 +58,48 @@ function ownerOf( url ) {
  * POST, and the auth cookies from the POST to survive the redirect chain.
  * ---------------------------------------------------------------------- */
 
+/**
+ * The jar is bound to ONE origin: the site being measured. Cookies are
+ * only sent to, and only accepted from, that origin, and a `Secure`
+ * cookie only travels over https. Assets frequently live on another host
+ * (a CDN, a different hostname for the same site), and the WordPress
+ * auth cookies must never go there. A static asset needs no cookie anyway.
+ *
+ * Map of name -> { value, secure }.
+ */
 const jar = new Map();
+let jarOrigin = null;
 
-function jarHeader() {
-	return [ ...jar ].map( ( [ k, v ] ) => `${ k }=${ v }` ).join( '; ' );
+function jarBind( base ) {
+	jarOrigin = new URL( base ).origin;
+	jar.clear();
 }
 
-function jarStore( response ) {
+function jarHeader( url ) {
+	const target = new URL( url );
+	if ( target.origin !== jarOrigin ) {
+		return '';
+	}
+	return [ ...jar ]
+		.filter( ( [ , c ] ) => ! c.secure || target.protocol === 'https:' )
+		.map( ( [ name, c ] ) => `${ name }=${ c.value }` )
+		.join( '; ' );
+}
+
+function jarStore( url, response ) {
+	if ( new URL( url ).origin !== jarOrigin ) {
+		return;
+	}
 	for ( const cookie of response.headers.getSetCookie() ) {
-		const pair = cookie.split( ';' )[ 0 ];
+		const [ pair, ...attrs ] = cookie.split( ';' );
 		const eq = pair.indexOf( '=' );
 		if ( eq > 0 ) {
-			jar.set( pair.slice( 0, eq ).trim(), pair.slice( eq + 1 ).trim() );
+			jar.set( pair.slice( 0, eq ).trim(), {
+				value: pair.slice( eq + 1 ).trim(),
+				secure: attrs.some(
+					( a ) => a.trim().toLowerCase() === 'secure',
+				),
+			} );
 		}
 	}
 }
@@ -87,15 +117,16 @@ async function hop( url, init = {}, maxHops = 10 ) {
 	let current = url;
 	for ( let i = 0; i <= maxHops; i++ ) {
 		const headers = { ...( init.headers || {} ) };
-		if ( jar.size ) {
-			headers.cookie = jarHeader();
+		const cookie = jarHeader( current );
+		if ( cookie ) {
+			headers.cookie = cookie;
 		}
 		const response = await fetch( current, {
 			...init,
 			headers,
 			redirect: 'manual',
 		} );
-		jarStore( response );
+		jarStore( current, response );
 
 		const location = response.headers.get( 'location' );
 		if ( ! location || response.status < 300 || response.status >= 400 ) {
@@ -110,6 +141,8 @@ async function hop( url, init = {}, maxHops = 10 ) {
 }
 
 async function login( base, user, password ) {
+	jarBind( base );
+
 	// Priming GET: this is what sets the test cookie the POST is checked
 	// against. Skipping it makes the login silently fail.
 	await hop( `${ base }/wp-login.php` );
@@ -364,8 +397,16 @@ function diff( beforeFile, afterFile ) {
 
 /* ---------------------------------------------------------------------- */
 
-function parseArgs( argv ) {
-	const opts = { ...DEFAULTS, out: null, diff: null };
+function parseArgs( argv, env = process.env ) {
+	// Credentials: flag beats environment beats the wp-env default. The
+	// environment route keeps a password out of shell history and `ps`.
+	const opts = {
+		...DEFAULTS,
+		user: env.BOOT_COST_USER ?? DEFAULTS.user,
+		password: env.BOOT_COST_PASSWORD ?? DEFAULTS.password,
+		out: null,
+		diff: null,
+	};
 	for ( let i = 0; i < argv.length; i++ ) {
 		const arg = argv[ i ];
 		const value = () => {
@@ -425,6 +466,13 @@ Options
   --user / --password  Credentials (default ${ DEFAULTS.user } / ${ DEFAULTS.password })
   --concurrency N    Parallel asset fetches (default ${ DEFAULTS.concurrency })
   --diff A B         Compare two --out files and list what moved
+
+Environment
+  BOOT_COST_USER, BOOT_COST_PASSWORD
+                     Credentials without putting them on the command line.
+
+Cookies are only ever sent to the --base origin. Assets on another host
+are fetched anonymously, which is all a static asset needs.
 `;
 
 async function main() {
