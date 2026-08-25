@@ -18,6 +18,7 @@ import { showToast } from '../toast';
 import { pageIdentityKey, urlMatchKey } from '../utils';
 import { EXTERNAL_IFRAME_READY_TIMEOUT_MS } from './constants';
 import { syncTabStripSemantics, withChromelessParam } from './dom';
+import { syncLoadingOverlayToTab } from './loading';
 import {
 	activatePanelTab,
 	positionTabPlate,
@@ -374,6 +375,12 @@ export function switchToTab( win: Window, tabId: 'primary' | string ): void {
 		return;
 	}
 	win._activeTabId = tabId;
+
+	// The loading overlay tracks the primary iframe, but lives on the
+	// body every tab shares. Reconcile it with what is actually on
+	// screen, or a navigation in the primary paints a spinner over a
+	// kept-alive external tab that finished loading long ago.
+	syncLoadingOverlayToTab( win.element, tabId === 'primary' );
 
 	// Primary iframe visibility.
 	if ( win.iframe ) {

@@ -39,6 +39,7 @@ import {
 	LOADING_HANDOFF_BODY_CLASS,
 	LOADING_STARTED_ATTR,
 	removeLoadingOverlay,
+	scheduleLoadingOverlayShow,
 	stampLoadingStart,
 } from './dom';
 
@@ -266,6 +267,61 @@ function _installSubscriptions(): void {
  *
  * @public
  */
+/**
+ * Show or suppress a window's loading overlay for the tab on screen.
+ *
+ * **The overlay belongs to the primary iframe alone.** It is a single
+ * element on the window body, armed when that iframe starts a
+ * navigation and cleared when it settles — but the body hosts every
+ * tab's iframe, and switching tabs only toggles their `display`.
+ * Nothing reconciled the overlay with the tab you were actually
+ * looking at, so a navigation in the primary painted a spinner over a
+ * kept-alive external tab whose content had been ready for minutes.
+ * Observed live: body `--loading` already cleared, overlay still
+ * visible, sitting on top of a finished page until the fade timer
+ * happened to end.
+ *
+ * External tabs never drive this overlay — they load in their own
+ * iframe, hidden, and their readiness is their own business — so the
+ * rule is simply: show it only while the primary tab is the one on
+ * screen, and restore it on the way back if that iframe is still
+ * loading.
+ *
+ * @param windowEl The window's outer element.
+ * @param visible  Whether the primary tab is the active one.
+ */
+export function syncLoadingOverlayToTab(
+	windowEl: HTMLElement,
+	visible: boolean,
+): void {
+	const body = windowEl.querySelector< HTMLElement >(
+		':scope .os-window__body',
+	);
+	if ( ! body ) {
+		return;
+	}
+	const overlay = body.querySelector< HTMLElement >(
+		`:scope .${ LOADING_OVERLAY_CLASS }`,
+	);
+	if ( ! overlay ) {
+		return;
+	}
+	if ( ! visible ) {
+		// Leave the body's loading class alone — it is the primary
+		// iframe's own state, and the handler that clears it needs to
+		// find it. Only the painted spinner is hidden.
+		overlay.classList.remove( LOADING_OVERLAY_VISIBLE_CLASS );
+		return;
+	}
+	// Back on the primary tab: re-arm only if it is genuinely still
+	// loading. `scheduleLoadingOverlayShow` re-reads the elapsed time,
+	// so a navigation that started long enough ago paints immediately
+	// and a fresh one still gets its grace period.
+	if ( body.classList.contains( LOADING_BODY_CLASS ) ) {
+		scheduleLoadingOverlayShow( body, overlay );
+	}
+}
+
 export function repaintLoadingOverlays(): void {
 	const bodies = document.querySelectorAll< HTMLElement >(
 		'.os-window__body--loading',
