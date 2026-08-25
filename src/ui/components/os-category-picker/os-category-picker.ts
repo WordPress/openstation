@@ -35,6 +35,7 @@
  */
 
 import { Component, defineComponent, html } from '../../core';
+import { osIcon } from '../../icons';
 
 import { styles } from './os-category-picker.styles';
 import '../os-chip/os-chip';
@@ -1233,71 +1234,17 @@ export class OsCategoryPicker extends Component {
 defineComponent( 'os-category-picker', OsCategoryPicker );
 
 function _iconCaretRight() {
-	return html`
-		<svg
-			viewBox="0 0 12 12"
-			width="8"
-			height="8"
-			aria-hidden="true"
-			focusable="false"
-			fill="none"
-			stroke="currentColor"
-			stroke-width="2"
-			stroke-linecap="round"
-			stroke-linejoin="round"
-		>
-			<path d="M5 3 L8 6 L5 9" />
-		</svg>
-	`;
+	return osIcon( 'chevron-right', { size: 14 } );
 }
 
 function _iconPlusSmall() {
-	return html`
-		<svg
-			viewBox="0 0 12 12"
-			width="11"
-			height="11"
-			aria-hidden="true"
-			focusable="false"
-			fill="none"
-			stroke="currentColor"
-			stroke-width="2"
-			stroke-linecap="round"
-		>
-			<path d="M6 3 L6 9 M3 6 L9 6" />
-		</svg>
-	`;
+	return osIcon( 'plus', { size: 16 } );
 }
 
 function _iconCheck() {
-	return html`
-		<svg
-			viewBox="0 0 12 12"
-			aria-hidden="true"
-			focusable="false"
-			fill="none"
-			stroke="currentColor"
-			stroke-width="2"
-			stroke-linecap="round"
-			stroke-linejoin="round"
-		>
-			<path d="M2.5 6 L5 8.5 L9.5 4" />
-		</svg>
-	`;
+	return osIcon( 'check', { size: null } );
 }
 
 function _iconCrossSmall() {
-	return html`
-		<svg
-			viewBox="0 0 12 12"
-			aria-hidden="true"
-			focusable="false"
-			fill="none"
-			stroke="currentColor"
-			stroke-width="2"
-			stroke-linecap="round"
-		>
-			<path d="M3 3 L9 9 M9 3 L3 9" />
-		</svg>
-	`;
+	return osIcon( 'close', { size: null } );
 }

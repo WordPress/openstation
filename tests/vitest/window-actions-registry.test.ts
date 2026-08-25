@@ -10,6 +10,7 @@
  */
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import {
+	isActionChecked,
 	isActionVisible,
 	listWindowActions,
 	registerWindowAction,
@@ -127,6 +128,29 @@ describe( 'validation', () => {
 			registerWindowAction( def( { label: () => 'Computed' } ) ),
 		).not.toThrow();
 	} );
+
+	test( 'rejects checkable without a checked reader', () => {
+		// A checkbox nobody can ask renders permanently unticked, which
+		// reads as broken persistence in the plugin rather than a
+		// missing field here.
+		expect( () =>
+			registerWindowAction( def( { checkable: true } ) ),
+		).toThrow();
+	} );
+
+	test( 'rejects a non-function checked', () => {
+		expect( () =>
+			registerWindowAction( def( { checked: true as never } ) ),
+		).toThrow();
+	} );
+
+	test( 'accepts a complete checkbox row', () => {
+		expect( () =>
+			registerWindowAction(
+				def( { checkable: true, checked: () => true } ),
+			),
+		).not.toThrow();
+	} );
 } );
 
 describe( 'resolvers', () => {
@@ -185,6 +209,41 @@ describe( 'visibility', () => {
 			throw new Error( 'boom' );
 		};
 		expect( isActionVisible( def( { isVisible } ), WIN ) ).toBe( false );
+	} );
+} );
+
+describe( 'check state', () => {
+	test( 'a verb row is never checked', () => {
+		expect( isActionChecked( def( { checked: () => true } ), WIN ) ).toBe(
+			false,
+		);
+	} );
+
+	test( 'the reader decides, and receives the window', () => {
+		const checked = vi.fn( ( w: DesktopWindow ) => w.id === 'edit-php' );
+		expect(
+			isActionChecked( def( { checkable: true, checked } ), WIN ),
+		).toBe( true );
+		expect( checked ).toHaveBeenCalledWith( WIN );
+	} );
+
+	test( 'a throwing reader paints unchecked rather than dropping the row', () => {
+		// Losing the indicator is recoverable on the next open; losing
+		// the row is not.
+		const checked = () => {
+			throw new Error( 'boom' );
+		};
+		expect(
+			isActionChecked( def( { checkable: true, checked } ), WIN ),
+		).toBe( false );
+	} );
+
+	test( 'the reader is re-read, never cached', () => {
+		let on = false;
+		const entry = def( { checkable: true, checked: () => on } );
+		expect( isActionChecked( entry, WIN ) ).toBe( false );
+		on = true;
+		expect( isActionChecked( entry, WIN ) ).toBe( true );
 	} );
 } );
 

@@ -192,6 +192,43 @@ class Tests_OpenStation_MyWordpress extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The collector must pass descriptor fields through verbatim —
+	 * `editAction` (string or false) is consumed by the bundle, and a
+	 * future server-side "sanitizer" that dropped unknown keys would
+	 * silently re-enable the classic editor on sections that turned
+	 * it off.
+	 *
+	 * @covers ::openstation_my_wordpress_entities
+	 */
+	public function test_entities_filter_passes_edit_action_through() {
+		add_filter( 'openstation_my_wordpress_entities', static function ( $entities ) {
+			$entities[] = array(
+				'id'         => 'atf-forms',
+				'label'      => 'Forms',
+				'icon'       => 'dashicons-feedback',
+				'restPath'   => 'wp/v2/atf-form',
+				'post_type'  => 'atf-form',
+				'editAction' => 'atf/open-builder',
+			);
+			$entities[] = array(
+				'id'         => 'atf-entries',
+				'label'      => 'Entries',
+				'icon'       => 'dashicons-email',
+				'restPath'   => 'desktop-mode/v1/post-type/atf-entry',
+				'editAction' => false,
+			);
+			return $entities;
+		} );
+
+		$by_id = array();
+		foreach ( openstation_my_wordpress_entities() as $entity ) {
+			$by_id[ $entity['id'] ] = $entity;
+		}
+		$this->assertSame( 'atf/open-builder', $by_id['atf-forms']['editAction'] );
+		$this->assertFalse( $by_id['atf-entries']['editAction'] );
+	}
+
+	/**
 	 * @covers ::openstation_my_wordpress_user_can_use
 	 */
 	public function test_subscriber_cannot_use_by_default() {

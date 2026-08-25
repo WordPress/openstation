@@ -561,8 +561,14 @@ export function entityBulkActions(
 	const { entity, onChanged } = ctx;
 	const one = [ item ];
 
-	const actions: SelectionAction< EntityListItem >[] = [
-		{
+	const actions: SelectionAction< EntityListItem >[] = [];
+
+	// The bulk-edit modal is a REST PATCH surface (status / author /
+	// terms), not the classic editor, so a section that ROUTES
+	// editing elsewhere (`editAction: '<action-id>'`) keeps it. Only
+	// `editAction: false` — editing is off — suppresses it.
+	if ( entity.editAction !== false ) {
+		actions.push( {
 			id: 'bulk-edit',
 			label: __( 'Edit…', 'desktop-mode' ),
 			icon: 'dashicons-edit-large',
@@ -578,8 +584,8 @@ export function entityBulkActions(
 				onChanged( await bulkEditEntities( entity, items ) ),
 			onClick: async () =>
 				onChanged( await bulkEditEntities( entity, one ) ),
-		},
-	];
+		} );
+	}
 
 	// Publish / Switch to Draft mirror core's row actions, and each
 	// hides itself when it would be a no-op for the entry it's built

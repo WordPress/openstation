@@ -429,6 +429,16 @@ export class OsSaveStatus extends Component {
 }
 defineComponent( 'os-save-status', OsSaveStatus );
 
+/*
+ * The two glyphs below are deliberately NOT from `src/ui/icons`.
+ *
+ * They render inside the indicator dot at `--os-ui-save-status-size *
+ * 0.66`, about 8px at the default. Core's icons carry 1.5-unit strokes
+ * on a 24 grid, so at 8px those are half a pixel wide and the check
+ * disappears into a grey smudge. Below about 14px an icon stops being
+ * an icon and becomes part of the drawing it sits in, the same reason
+ * the spinner's arc and the Mio mark are drawn where they are used.
+ */
 function _iconCheck() {
 	return html`
 		<svg

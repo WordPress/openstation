@@ -109,6 +109,38 @@ function notify(): void {
 	}
 }
 
+/**
+ * Announce a palette's visibility change to the rest of the shell by
+ * dispatching `os-palette-opened` / `os-palette-closed` (detail:
+ * `{ id }`) on `document`.
+ *
+ * The shell uses these events to run work that is only worth paying
+ * for while a palette is visible — the iframe command harvester being
+ * the canonical case: it keeps a React tree re-rendering on every
+ * `wp.data` store tick inside the focused window, so it must not run
+ * while no palette can display the result.
+ *
+ * The registry calls this around the `open()` / `close()` calls it
+ * makes itself (the Cmd+K cycle, {@link openPaletteOnly}). A palette
+ * with its own extra entry points — an Escape handler, a close
+ * button, a programmatic `open()` — should call it (or dispatch the
+ * equivalent CustomEvent) from those paths too; the built-in AI
+ * Assistant does. Consumers must treat the events as idempotent
+ * signals, since a transition can be announced from more than one
+ * site.
+ */
+export function notifyPaletteVisibility( id: string, open: boolean ): void {
+	try {
+		document.dispatchEvent(
+			new CustomEvent( open ? 'os-palette-opened' : 'os-palette-closed', {
+				detail: { id },
+			} ),
+		);
+	} catch {
+		/* no DOM (tests without jsdom) — nothing to announce */
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Cycle
 // ---------------------------------------------------------------------------
@@ -136,6 +168,7 @@ export function cyclePalettes(): void {
 	if ( cur === -1 ) {
 		try {
 			palettes[ 0 ].open();
+			notifyPaletteVisibility( palettes[ 0 ].id, true );
 		} catch {
 			/* swallow — one bad palette shouldn't break the shortcut */
 		}
@@ -144,6 +177,7 @@ export function cyclePalettes(): void {
 
 	try {
 		palettes[ cur ].close();
+		notifyPaletteVisibility( palettes[ cur ].id, false );
 	} catch {
 		/* swallow */
 	}
@@ -152,6 +186,7 @@ export function cyclePalettes(): void {
 	if ( next < palettes.length ) {
 		try {
 			palettes[ next ].open();
+			notifyPaletteVisibility( palettes[ next ].id, true );
 		} catch {
 			/* swallow */
 		}
@@ -174,6 +209,7 @@ export function openPaletteOnly( id: string ): void {
 			try {
 				if ( p.isOpen() ) {
 					p.close();
+					notifyPaletteVisibility( p.id, false );
 				}
 			} catch {
 				/* swallow */
@@ -182,6 +218,7 @@ export function openPaletteOnly( id: string ): void {
 	}
 	try {
 		target.open();
+		notifyPaletteVisibility( target.id, true );
 	} catch {
 		/* swallow */
 	}

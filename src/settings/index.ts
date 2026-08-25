@@ -57,6 +57,7 @@ import {
 } from './state';
 import { setActiveDockRailRenderer } from '../dock-rail';
 import { applyDesktopTheme } from '../desktop-themes/apply';
+import { ensureDeferredStyle } from '../deferred-styles';
 import type {
 	OsSettingsConfig,
 	OsSettingsState,
@@ -218,11 +219,12 @@ export class OsSettings implements SettingsCtx {
 			nativeUsersEnabled: this.state.nativeUsersEnabled,
 			nativePluginsEnabled: this.state.nativePluginsEnabled,
 			nativeCommentsEnabled: this.state.nativeCommentsEnabled,
+			stationHomeEnabled: this.state.stationHomeEnabled,
 			developerModeEnabled: this.state.developerModeEnabled,
 			foldersSharingEnabled: this.state.foldersSharingEnabled,
 			showPostStatusRibbons: this.state.showPostStatusRibbons,
-			itemVisibility: { ...this.state.itemVisibility },
-			dockOrder: this.state.dockOrder.slice(),
+			navPlacement: { ...this.state.navPlacement },
+			navOrder: this.state.navOrder.slice(),
 			dockPromotedPositions: Object.fromEntries(
 				Object.entries( this.state.dockPromotedPositions ).map(
 					( [ k, v ] ) => [ k, { ...v } ],
@@ -537,7 +539,7 @@ export class OsSettings implements SettingsCtx {
 	 * without a full re-render. Deep-linking entry points
 	 * (`openOsSettings({ tabId })`) call this after opening the window.
 	 *
-	 * @param tabId Settings tab id, e.g. `'ai'`, `'apps-icons'`.
+	 * @param tabId Settings tab id, e.g. `'ai'`, `'navigation'`.
 	 */
 	public focusTab( tabId: string ): void {
 		this.activeTabId = tabId;
@@ -554,6 +556,11 @@ export class OsSettings implements SettingsCtx {
 	}
 
 	public renderPanel( body: HTMLElement ): void {
+		// The panel's stylesheet is a `deferredStyles` entry, not a
+		// boot enqueue — inject it here so the `<link>` fetches in
+		// parallel with the panel bundle below.
+		ensureDeferredStyle( 'os-settings' );
+
 		// Track the body so the save-failure rollback handler can
 		// re-render after restoring the last-confirmed state.
 		this._lastRenderedBody = body;

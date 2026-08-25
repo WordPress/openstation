@@ -1,0 +1,528 @@
+/**
+ * OpenStation — Code Blue window styles.
+ *
+ * Scoped to `.openstation-code-blue`. Reads `os-variables` tokens
+ * so the chrome adapts to the active theme; every fallback literal
+ * is the pre-brand WordPress-admin value, per the palette rules.
+ *
+ * The four severity hues resolve through the status tokens
+ * (`--os-ui-danger`, `--os-ui-warning`, `--os-ui-info-fg`) plus the
+ * muted text token for deprecated — status colors, deliberately not
+ * categorical series hues. Identity never rides color alone: every
+ * swatch sits beside its label, chart segments carry 2px surface
+ * gaps, and the tooltip and issue rows repeat the counts as text.
+ */
+
+.openstation-code-blue {
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	height: 100%;
+	overflow: hidden;
+	background: var( --os-ui-surface, #f0f0f1 );
+	color: var( --os-ui-fg, #1d2327 );
+	font-family: var(
+		--os-ui-font,
+		-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+		'Helvetica Neue', Arial, sans-serif
+	);
+	container-type: inline-size;
+}
+
+.os-code-blue__loading {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex: 1;
+}
+
+.os-cb {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	height: 100%;
+	padding: 12px 14px;
+	/*
+	 * The window never page-scrolls: every region is fixed-height
+	 * (flex: none) and the issues LIST scrolls internally. Without
+	 * this, a long issue list flex-shrinks its siblings and the
+	 * chart card collapses to a sliver.
+	 */
+	overflow: hidden;
+	box-sizing: border-box;
+}
+
+.os-cb__toolbar,
+.os-cb__notice,
+.os-cb__stats,
+.os-cb__env,
+.os-cb__chart-card,
+.os-cb__footer {
+	flex: none;
+}
+
+/* ---------- Severity swatches --------------------------------------- */
+
+.os-cb-swatch {
+	display: inline-block;
+	width: 10px;
+	height: 10px;
+	border-radius: 3px;
+	flex: none;
+}
+
+.os-cb-swatch--error,
+.os-cb-seg--error {
+	background: var( --os-ui-danger, #d63638 );
+	fill: var( --os-ui-danger, #d63638 );
+}
+
+.os-cb-swatch--warning,
+.os-cb-seg--warning {
+	background: var( --os-ui-warning, #dba617 );
+	fill: var( --os-ui-warning, #dba617 );
+}
+
+.os-cb-swatch--deprecated,
+.os-cb-seg--deprecated {
+	background: var( --os-ui-fg-muted, #646970 );
+	fill: var( --os-ui-fg-muted, #646970 );
+}
+
+.os-cb-swatch--info,
+.os-cb-seg--info {
+	background: var( --os-ui-info-fg, #72aee6 );
+	fill: var( --os-ui-info-fg, #72aee6 );
+}
+
+/* ---------- Toolbar ------------------------------------------------- */
+
+.os-cb__toolbar {
+	display: flex;
+	align-items: end;
+	gap: 10px;
+	flex-wrap: wrap;
+}
+
+.os-cb__toolbar-spacer {
+	flex: 1;
+}
+
+/*
+ * The toolbar aligns everything to its bottom edge (labelled fields
+ * are taller than buttons). The switch's track is shorter than the
+ * buttons beside it, so nudge it up to sit on their visual center.
+ */
+.os-cb__auto {
+	margin-block-end: 6px;
+}
+
+.os-cb__source {
+	min-inline-size: 200px;
+}
+
+.os-cb__search {
+	min-inline-size: 200px;
+}
+
+/* The error banner is an <os-notice tone="error"> — it carries its
+   own surface, tone, and a11y styling; nothing to restyle here. */
+
+/* ---------- Stat tiles + environment -------------------------------- */
+
+.os-cb__stats {
+	display: grid;
+	grid-template-columns: repeat( 5, minmax( 0, 1fr ) );
+	gap: 10px;
+}
+
+@container ( max-width: 760px ) {
+	.os-cb__stats {
+		grid-template-columns: repeat( 3, minmax( 0, 1fr ) );
+	}
+}
+
+.os-cb-tile {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding: 10px 12px;
+	border-radius: 8px;
+	border: 1px solid var( --os-ui-border, #dcdcde );
+	background: var( --os-ui-surface-elevated, #fff );
+}
+
+.os-cb-tile__label {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 12px;
+	color: var( --os-ui-fg-muted, #646970 );
+}
+
+.os-cb-tile__value {
+	font-size: 22px;
+	font-weight: 600;
+	line-height: 1.1;
+	color: var( --os-ui-fg, #1d2327 );
+}
+
+.os-cb__env {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex-wrap: wrap;
+}
+
+/* ---------- Cards --------------------------------------------------- */
+
+.os-cb__card {
+	border: 1px solid var( --os-ui-border, #dcdcde );
+	border-radius: 8px;
+	background: var( --os-ui-surface-elevated, #fff );
+	overflow: hidden;
+}
+
+.os-cb__card-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+	flex-wrap: wrap;
+	padding: 10px 14px;
+	border-block-end: 1px solid var( --os-ui-border, #dcdcde );
+}
+
+.os-cb__card-title {
+	margin: 0;
+	font-size: 13px;
+	font-weight: 600;
+	color: var( --os-ui-fg, #1d2327 );
+}
+
+/* ---------- Chart --------------------------------------------------- */
+
+.os-cb__legend {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex-wrap: wrap;
+}
+
+.os-cb__legend-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 3px 9px;
+	border: 1px solid var( --os-ui-border, #dcdcde );
+	border-radius: 999px;
+	background: transparent;
+	color: var( --os-ui-fg-muted, #646970 );
+	font: inherit;
+	font-size: 12px;
+	cursor: pointer;
+	transition: opacity 0.12s ease, border-color 0.12s ease;
+}
+
+.os-cb__legend-chip[aria-pressed='false'] {
+	opacity: 0.45;
+}
+
+.os-cb__legend-chip:hover {
+	border-color: var( --os-ui-border-strong, #8c8f94 );
+	color: var( --os-ui-fg, #1d2327 );
+}
+
+.os-cb__legend-count {
+	font-variant-numeric: tabular-nums;
+	color: var( --os-ui-fg, #1d2327 );
+}
+
+.os-cb__chart-host {
+	position: relative;
+	padding: 8px 6px 4px;
+}
+
+.os-cb__chart-empty {
+	padding: 40px 0;
+	text-align: center;
+	font-size: 13px;
+	color: var( --os-ui-fg-muted, #646970 );
+}
+
+.os-cb-chart__svg {
+	display: block;
+	inline-size: 100%;
+}
+
+.os-cb-chart__grid {
+	stroke: var( --os-ui-border, #dcdcde );
+	stroke-width: 1;
+}
+
+.os-cb-chart__tick {
+	fill: var( --os-ui-fg-muted, #646970 );
+	font-size: 10px;
+	font-variant-numeric: tabular-nums;
+}
+
+.os-cb-chart__hit {
+	fill: transparent;
+	cursor: crosshair;
+}
+
+.os-cb-chart__hover {
+	fill: var( --os-ui-surface-raised, rgba( 0, 0, 0, 0.04 ) );
+	pointer-events: none;
+}
+
+.os-cb-chart__tooltip {
+	position: absolute;
+	inset-block-start: 4px;
+	transform: translateX( -50% );
+	min-inline-size: 150px;
+	padding: 8px 10px;
+	border-radius: 6px;
+	border: 1px solid var( --os-ui-border, #dcdcde );
+	background: var( --os-ui-surface-elevated, #fff );
+	box-shadow: var( --os-ui-shadow, 0 2px 8px rgba( 0, 0, 0, 0.15 ) );
+	font-size: 12px;
+	pointer-events: none;
+	z-index: 2;
+}
+
+.os-cb-chart__tooltip-head {
+	margin-block-end: 6px;
+	color: var( --os-ui-fg-muted, #646970 );
+	font-size: 11px;
+}
+
+.os-cb-chart__tooltip-row {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	line-height: 1.6;
+}
+
+.os-cb-chart__tooltip-label {
+	flex: 1;
+	color: var( --os-ui-fg, #1d2327 );
+}
+
+.os-cb-chart__tooltip-value {
+	font-variant-numeric: tabular-nums;
+	font-weight: 600;
+}
+
+/* ---------- Issues list --------------------------------------------- */
+
+.os-cb__issues {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	min-block-size: 120px;
+}
+
+.os-cb__list {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	flex: 1;
+	min-block-size: 0;
+	overflow-y: auto;
+}
+
+.os-cb__list-empty {
+	padding: 20px;
+	list-style: none;
+}
+
+.os-cb-issue {
+	border-block-end: 1px solid var( --os-ui-border, #dcdcde );
+	border-inline-start: 3px solid transparent;
+}
+
+.os-cb-issue:last-child {
+	border-block-end: none;
+}
+
+.os-cb-issue--error {
+	border-inline-start-color: var( --os-ui-danger, #d63638 );
+}
+
+.os-cb-issue--warning {
+	border-inline-start-color: var( --os-ui-warning, #dba617 );
+}
+
+.os-cb-issue--deprecated {
+	border-inline-start-color: var( --os-ui-fg-muted, #646970 );
+}
+
+.os-cb-issue--info {
+	border-inline-start-color: var( --os-ui-info-fg, #72aee6 );
+}
+
+.os-cb-issue__row {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	inline-size: 100%;
+	padding: 8px 12px;
+	border: none;
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	text-align: start;
+	cursor: pointer;
+}
+
+.os-cb-issue__row:hover {
+	background: var( --os-ui-surface-subtle, rgba( 0, 0, 0, 0.03 ) );
+}
+
+.os-cb-issue__level {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	flex: none;
+	inline-size: 150px;
+	overflow: hidden;
+}
+
+.os-cb-issue__label {
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+	color: var( --os-ui-fg-muted, #646970 );
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.os-cb-issue__message {
+	flex: 1;
+	min-inline-size: 0;
+	font-family: var( --os-ui-font-mono, ui-monospace, Menlo, Consolas, monospace );
+	font-size: 12px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.os-cb-issue__meta {
+	display: inline-flex;
+	align-items: center;
+	gap: 10px;
+	flex: none;
+	color: var( --os-ui-fg-muted, #646970 );
+	font-size: 12px;
+}
+
+.os-cb-issue__file {
+	font-family: var( --os-ui-font-mono, ui-monospace, Menlo, Consolas, monospace );
+	font-size: 11px;
+	max-inline-size: 200px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	direction: rtl; /* Ellipsize the start of long basenames, keep the :line end visible. */
+	text-align: end;
+}
+
+.os-cb-issue__count {
+	padding: 1px 7px;
+	border-radius: 999px;
+	background: var( --os-ui-surface, #f0f0f1 );
+	border: 1px solid var( --os-ui-border, #dcdcde );
+	font-variant-numeric: tabular-nums;
+	font-size: 11px;
+	color: var( --os-ui-fg, #1d2327 );
+}
+
+.os-cb-issue__when {
+	min-inline-size: 48px;
+	text-align: end;
+}
+
+@container ( max-width: 640px ) {
+	.os-cb-issue__level {
+		inline-size: auto;
+	}
+
+	.os-cb-issue__label,
+	.os-cb-issue__file {
+		display: none;
+	}
+}
+
+/* ---------- Issue detail -------------------------------------------- */
+
+.os-cb-issue__detail {
+	padding: 4px 14px 14px 22px;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.os-cb-issue__facts {
+	display: grid;
+	grid-template-columns: auto 1fr;
+	gap: 2px 14px;
+	margin: 0;
+	font-size: 12px;
+}
+
+.os-cb-issue__facts dt {
+	color: var( --os-ui-fg-muted, #646970 );
+}
+
+.os-cb-issue__facts dd {
+	margin: 0;
+	font-family: var( --os-ui-font-mono, ui-monospace, Menlo, Consolas, monospace );
+	overflow-wrap: anywhere;
+}
+
+.os-cb-issue__times {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	flex-wrap: wrap;
+	font-size: 11px;
+}
+
+.os-cb-issue__times-label {
+	color: var( --os-ui-fg-muted, #646970 );
+}
+
+.os-cb-issue__time {
+	padding: 1px 6px;
+	border-radius: 4px;
+	background: var( --os-ui-surface, #f0f0f1 );
+	font-variant-numeric: tabular-nums;
+}
+
+.os-cb-issue__trace {
+	margin: 0;
+	padding: 10px 12px;
+	border-radius: 6px;
+	background: var( --os-ui-surface-sunken, #f6f7f7 );
+	border: 1px solid var( --os-ui-border, #dcdcde );
+	font-family: var( --os-ui-font-mono, ui-monospace, Menlo, Consolas, monospace );
+	font-size: 11px;
+	line-height: 1.5;
+	overflow-x: auto;
+	white-space: pre;
+	color: var( --os-ui-fg, #1d2327 );
+}
+
+/* ---------- Footer -------------------------------------------------- */
+
+.os-cb__footer {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+	flex-wrap: wrap;
+	font-size: 12px;
+	color: var( --os-ui-fg-muted, #646970 );
+}

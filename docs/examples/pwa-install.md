@@ -14,7 +14,7 @@ window), use the public PWA surface.
 ```js
 wp.os.ready( () => {
     wp.os.registerSettingsTab( {
-        id: 'my-plugin/app',
+        id: 'my-plugin-app',
         label: 'App',
         order: 50,
         render( host ) {

@@ -229,7 +229,15 @@ describe( 'dock decoration hooks', () => {
 		const { dock } = mount( [ makeItem() ] );
 		dock.appendSystemItem( noopSystem );
 
-		expect( seen.map( ( s ) => s.id ) ).toEqual( [ 'edit.php', 'jorvy' ] );
+		// Every render announces every tile it painted, so appending
+		// re-announces the menu tile alongside the new one. Decorations
+		// have always had to be idempotent — `replaceItems` re-fired
+		// this on every live menu refresh long before zones.
+		expect( seen.map( ( s ) => s.id ) ).toEqual( [
+			'edit.php',
+			'edit.php',
+			'jorvy',
+		] );
 		expect( seen.every( ( s ) => s.inDom ) ).toBe( true );
 		expect(
 			seen.find( ( s ) => s.id === 'jorvy' )?.isSystem,

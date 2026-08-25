@@ -419,8 +419,6 @@ export const styles = css`
 	}
 	.os-cat__create-submit svg {
 		display: block;
-		width: 11px;
-		height: 11px;
 	}
 	.os-cat__create-spinner {
 		display: inline-block;
@@ -453,8 +451,8 @@ export const styles = css`
 	}
 	.os-cat__check svg {
 		display: block;
-		width: 10px;
-		height: 10px;
+		width: 14px;
+		height: 14px;
 	}
 
 	.os-cat__label {
@@ -499,8 +497,8 @@ export const styles = css`
 	}
 	.os-cat__delete svg {
 		display: block;
-		width: 10px;
-		height: 10px;
+		width: 14px;
+		height: 14px;
 	}
 
 	/* Search-match highlight inside labels. A wash rather than a fill,

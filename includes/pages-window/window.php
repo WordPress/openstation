@@ -132,7 +132,7 @@ function openstation_pages_window_register_window() {
 		// the same module. Loading `os-posts-window` for the
 		// Pages window reuses the already-cached script + style.
 		'script'     => 'os-posts-window',
-		'style'      => 'os-posts-window',
+		'styles'     => array( 'os-posts-window' ),
 		'width'      => 1100,
 		'height'     => 720,
 		'min_width'  => 720,

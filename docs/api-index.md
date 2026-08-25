@@ -25,14 +25,14 @@ The full surface is documented in [`javascript-reference.md`](./javascript-refer
 | `HOOKS` | `typeof HOOKS` *(typed hook-name constants)* | Stable |
 | `hooks` | `wp.hooks` bridge | Stable |
 | `saveSession` | `() => void` | Stable |
-| `registerWindowAction` / `unregisterWindowAction` / `listWindowActions` | `( def: WindowActionDef ) => void` *(rows in every window's ⋯ menu; `label`/`icon`/`isVisible` may be per-window functions)* | Experimental |
+| `registerWindowAction` / `unregisterWindowAction` / `listWindowActions` | `( def: WindowActionDef ) => void` *(rows in every window's ⋯ menu, as verbs or checkboxes; `label`/`icon`/`isVisible`/`checked` may be per-window functions)* | Experimental |
 | [`electron`](./desktop-host.md) | `ElectronAdapterApi` *(set a window free into a real OS window; published by the Electron Adapter extension, absent in a browser)* | Experimental |
 
 ### HTTP & UI primitives — must-know
 
 | Member | Signature | Status |
 |---|---|---|
-| [`fetch`](./javascript-reference.md#wpdesktopfetch-input-init-opts---stable) | `( input, init?, opts? ) => Promise<Response>` *(routed fetch — pulses title-bar dot)* | **Stable** |
+| [`fetch`](./javascript-reference.md#wposfetch-input-init-opts---stable) | `( input, init?, opts? ) => Promise<Response>` *(routed fetch — pulses title-bar dot)* | **Stable** |
 | `confirm` | `( opts: OsConfirmOptions ) => Promise<boolean>` *(replaces `window.confirm`)* | Stable |
 | `notify` | `( opts: NotifyOptions ) => () => void` *(local notification w/ fallback; returns a dismiss function)* | Stable |
 | [`loadComponents`](./javascript-reference.md#wposloadcomponents-tags---stable) | `( tags?: readonly string[] ) => Promise<void>` *(make `<os-*>` tags upgrade; the runtime route to the kit for plugins that can't import it)* | **Stable** |
@@ -67,7 +67,16 @@ The full surface is documented in [`javascript-reference.md`](./javascript-refer
 | `Dock.removeSystemItem` | `( id: string ) => void` | Stable |
 | `icons` | `IconsApi` *(see `icons.setBadge`)* | Stable |
 | `icons.setBadge` | `( iconId: string, count: number ) => void` | Stable |
+| `iconSet` | `OsIconSetApi` *(the thirty-icon set; unrelated to `icons`)* | Stable |
+| `iconSet.svg` | `( name: string, options?: OsIconOptions ) => string` | Stable |
+| `iconSet.node` | `( name: string, options?: OsIconOptions ) => SVGSVGElement` | Stable |
+| `iconSet.dataUri` | `( name: string, options?: OsIconOptions ) => string` | Stable |
 | `registerSystemTile` | `( item: SystemDockItem ) => void` | Stable |
+| `listSystemTiles` | `() => Array<{ id, title, icon, navKind, placeable, locked }>` | Stable |
+| `getSystemTile` | `( id: string ) => SystemDockItem \| null` | Stable |
+| `getMenuItems` | `() => DockItem[]` | Stable |
+| `getNavItems` | `() => NavItem[]` *(every menu, app and control, with its `kind`)* | Stable |
+| `getNav` | `() => NavResult \| null` *(the computed dock zones, sidebar, wallpaper, and running-only ids)* | Stable |
 | `widgetLayer` | `WidgetLayer \| null` | Stable |
 | `registerWidget` | `( def: WidgetDef ) => void` | Stable |
 | `registerWallpaper` | `( def: WallpaperDef ) => void` | Stable |
@@ -131,6 +140,7 @@ The full surface is documented in [`javascript-reference.md`](./javascript-refer
 | `desktopThemes.list` | `() => DesktopThemeEntry[]` | Experimental |
 | `desktopThemes.getActive` | `() => string \| null` | Experimental |
 | `desktopThemes.setActive` | `( themeId: string ) => void` | Experimental |
+| `desktopThemes.ensureFull` | `() => Promise<void>` | Experimental |
 | `desktopThemes.subscribe` | `( cb ) => () => void` | Experimental |
 | `desktopThemes.resolveIcon` | `( slot: string ) => string \| null` | Experimental |
 | `desktopThemes.applyRecommendedOsSettings` | `( themeId?: string ) => RecommendedOsSettings` | Experimental |
@@ -211,6 +221,18 @@ native window, all hanging off WP Explorer. Index:
 | `desktop-mode/v1/woocommerce/{orders, store, summary/<type>/<id>, customers, customers/<id>}` | `includes/my-wordpress/integrations/` | Experimental |
 | `openstation_woo_customer` REST field on the core `user` resource | [`hooks-reference.md`](./hooks-reference.md#customers) | Experimental |
 | `desktop-mode-woo-customer` native window *(retargetable singleton, `customerId` param)* | [`hooks-reference.md`](./hooks-reference.md#the-customer-window) | Experimental |
+
+### Station Home plugin cards *(Experimental)*
+
+| Surface | Signature | Status |
+|---|---|---|
+| `openstation_register_station_home_card` | `( string $id, array $args ) => true|WP_Error` | Experimental |
+| `openstation_unregister_station_home_card` | `( string $id ) => bool` | Experimental |
+| `openstation_station_home_cards` | `( array $cards, int $user_id ) => array` | Experimental |
+| `openstation_station_home_card_data` | `( array $data, string $id, array $entry, int $user_id ) => array` | Experimental |
+| card lifecycle actions | registered, preference-updated, callback-error | Experimental |
+
+See [`station-home.md`](./station-home.md#plugin-cards) and the [complete plugin recipe](./examples/station-home-card.md).
 
 ## CustomEvents on `document`
 

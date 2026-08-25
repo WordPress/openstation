@@ -105,6 +105,7 @@ function makeHost(): EntityRenderHost & { teardowns: Array< () => void > } {
 		route: { kind: 'list', entityId: 'agents' },
 		navigate: () => void 0,
 		addTeardown: ( fn: () => void ) => teardowns.push( fn ),
+		previewActionRow: () => null,
 		teardowns,
 	};
 }

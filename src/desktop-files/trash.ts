@@ -18,6 +18,7 @@
  * Extracted from `layer.ts` (drag-and-drop rework).
  */
 
+import { announceContentChange } from '../broadcast';
 import { rest, store as filesStoreApi } from './layer-deps';
 import type { RestPlacementShape } from './rest';
 
@@ -37,16 +38,7 @@ function broadcastFilesChange(
 	action: 'trashed' | 'untrashed' | 'deleted',
 	ids: number[],
 ): void {
-	const api = (
-		window as {
-			wp?: { os?: { broadcast?: ( topic: string, payload: unknown ) => void } };
-		}
-	).wp?.os;
-	api?.broadcast?.( `os.${ kind }.changed`, {
-		source: 'desktop-files',
-		action,
-		ids,
-	} );
+	announceContentChange( kind, action, ids, 'desktop-files' );
 }
 
 /**

@@ -9,6 +9,10 @@
  * `openstation_register_icon()` and rendered by
  * `src/desktop-icons.ts`.
  *
+ * Not to be confused with `includes/wp-icon-registry.php`, which hands our
+ * eleven pieces of artwork to WordPress's own icon registry for use with
+ * `wp_get_icon()`. This file is about a surface of the desktop.
+ *
  * Extracted from the 2,101-LOC `components.php` during the
  * architecture-0.8.1 PHP slicing (phase 6). Behaviour is
  * unchanged: every function name, every WP filter, every error

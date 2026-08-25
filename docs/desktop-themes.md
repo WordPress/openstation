@@ -82,7 +82,7 @@ this feature can be open to site admins at all.
 
 ## The Legacy theme — start here
 
-OpenStation ships one theme of its own, called **OpenStation
+OpenStation ships one theme of its own, called **Desktop Mode
 (Legacy)**, and it is both the way back to the old look and the
 fastest way to write your first theme.
 
@@ -90,7 +90,7 @@ Legacy is the shell's pre-brand defaults *written down*: every design
 token the chrome and the `<os-*>` component kit read, at the value it
 resolved to before [the OpenStation
 palette](https://nuriapenya.github.io/open-station-brand/) landed in
-`assets/css/variables.css`. Roughly 380 declarations, in one file,
+`assets/css/variables.css`. 465 declarations, in one file,
 sorted — the WordPress-admin greys and blues, complete.
 
 Two audiences, one file. If you liked the old look, pick it and you
@@ -511,6 +511,7 @@ brand's Holomesh, transcribed into CSS in `--os-mesh-holo`.
 |---|---|
 | `--os-ui-holo-fill` | What an on / selected / filled surface paints. |
 | `--os-ui-holo-ink` | Glyphs and text on that fill. |
+| `--os-ui-hero-mesh` | What a large decorative FIELD paints — a panel wash, an identity rail — as opposed to a control. An aurora by default, and built differently from the five meshes: its alpha is in the colour stops rather than applied to the layer, so the desk shows through and the hues keep their chroma at any strength. A mesh knocked back with `opacity` over a large area goes grey. Keep the two separate: a value chosen so a 40px chip reads as *on* is often within a unit or two of the surface behind it, which is invisible once it is stretched across a rail. Legacy answers this one with a flat WordPress-admin blue wash while leaving its control fill alone. |
 | `--os-ui-holo-sheen` | The hover film over a surface that is *not* lit. |
 | `--os-ui-holo-edge`, `--os-ui-holo-edge-quiet` | The iridescent hairline, lit and at rest. |
 | `--os-ui-holo-glow`, `--os-ui-holo-glow-strong` | The bloom around a lit surface. |
@@ -585,6 +586,17 @@ brand's would have gone. `--os-mesh-mio` belongs to the mascot; retint
 it and Mio changes with the rest of the station, which may or may not
 be what you meant.
 
+> **Consuming rules must read `--os-ui-holo-fill`, not a mesh token.**
+> Setting a mesh to `none` is how a theme opts out of iridescence —
+> Legacy sets all five — and a rule that reads `--os-mesh-holo`
+> directly resolves to `none` there. The `var()` literal does not
+> rescue it: a fallback fires only when a property is *undefined*, and
+> a mesh set to `none` is very much defined. The surface paints
+> nothing at all rather than a quieter version of itself. Route
+> through `--os-ui-holo-fill` — or `--os-ui-hero-mesh` if the surface
+> is a field rather than a control — and the opt-out becomes a
+> substitution.
+
 ### Shell tokens
 
 `--os-*` names must match `^--os-[a-z0-9-]+$`.
@@ -594,9 +606,10 @@ Read `assets/css/variables.css` for the full set.
 > flat colour painted on the shell behind every other layer, including
 > the wallpaper. Nothing is normally seen through it — it exists so
 > that a frame in which some layer fails to paint shows the desk's own
-> colour rather than the white admin page the shell sits over. It
-> defaults to the dark `#1d2327`, which would read as a dark blink on a
-> light theme.
+> colour rather than the white admin page the shell sits over. The
+> palette paints it Void `#0c0b0f` (`#1d2327` is only the pre-brand
+> fallback literal in the consuming rules), so left unthemed it would
+> read as a dark blink on a light theme.
 
 > **The icon grid is a token set, and it is one grid.**
 > `--os-tile-w` / `--os-tile-h`, `--os-grid-gap-x` / `--os-grid-gap-y`
@@ -644,7 +657,7 @@ finishes loading (OpenStation Preferences → Effects → "Window reveal"):
 
 | Token | Role |
 |---|---|
-| `--os-window-reveal-surface` | Fill of the receding reveal surface. White by default |
+| `--os-window-reveal-surface` | Fill of the receding reveal surface. Obsidian `#1a1721` by default; non-native windows override it to white |
 | `--os-window-reveal-edge` | Fill of the band trailing the reveal's clip boundary. `transparent` by default |
 | `--os-window-reveal-edge-thickness` | How wide that band is. Undeclared by default |
 | `--os-window-reveal-duration` | How long a reveal runs. Undeclared by default |
@@ -658,7 +671,9 @@ finishes loading (OpenStation Preferences → Effects → "Window reveal"):
 }
 ```
 
-**Surface** is **white** by default. It has to be opaque or there is
+**Surface** defaults to the palette's Obsidian `#1a1721`, except on
+iframe windows — the ones showing a real admin page — which override it
+to **white** to match the page they uncover. It has to be opaque or there is
 nothing to reveal *from* — the content would simply be visible the
 whole time and the clip animation would paint nothing. Set it to
 `var( --os-window-bg )` to follow your window colour, or to a
@@ -727,8 +742,9 @@ white text on a white chip. Neither was fixable from the palette alone,
 because fixing it would have broken the modal backdrop or the text on
 accent-filled buttons.
 
-Both tokens are **undeclared by default**, so a theme that ignores
-them keeps the tooltip look the shell has always had.
+Both tokens are **declared by the palette** (`#33303a` over `#fffbff`),
+so a theme that ignores them keeps the OpenStation tooltip; the
+borrowed-colour fallbacks above are only the floor beneath the palette.
 
 A chip is deliberately the same lozenge under every theme — one line of
 text pinned to a control. The WP Explorer hover card is a different
@@ -797,12 +813,12 @@ sits *on* it:
 }
 ```
 
-**Set them whenever your dock is pale.** The four literals behind
-these tokens are all white — a glyph at 70%, brightening to full on
-hover, over a 15% white wash, with a 70% white focus ring, which also
+**Set them whenever your dock is pale.** The palette paints the glyph
+at 72% Starlight, brightening to full Starlight on hover, over an 18%
+Pulse wash; the focus ring follows the user's accent, and it also
 paints the status marks on the tile: the solid dot under the running
 or focused tile and the hollow ring under one whose windows are all
-minimized. That reads against the default translucent-black strip and
+minimized. That reads against the default translucent-dark strip and
 disappears the moment you give the dock a light background.
 Recolouring the strip alone is the most common way a first theme ends
 up with an invisible dock.
@@ -826,8 +842,9 @@ force-to-white filter, so they land on your glyph colour like
 everything else. A URL the mask can't take — one carrying literal
 quotes, spaces or parens — still falls back to the white filter.
 
-All four are **undeclared by default**, so a theme that ignores them
-keeps the dock the shell has always had.
+All four are **declared by the palette**, so a theme that ignores them
+keeps the OpenStation dock; the pre-brand white literals survive only
+as the `var()` fallbacks in the consuming rules.
 
 ### A note on WordPress core's CSS
 
@@ -858,10 +875,14 @@ changes without a theme.
 
 ### Typography tokens
 
-Four tokens carry the shell's typefaces. Like the palette they are
-**undeclared by default** — every rule reads
-`font-family: var( --token, <the literal that was always there> )` —
-so an unthemed shell renders exactly as it always did.
+Four tokens carry the shell's typefaces, and the palette declares all
+four — Geist for the chrome, title bars and window bodies, Geist Mono
+for code — so an unthemed active shell renders the brand faces. Every
+consuming rule still reads
+`font-family: var( --token, <the literal that was always there> )`, so
+the pre-brand WordPress-admin stacks remain the floor if the
+stylesheet fails to load — and they are what the Legacy theme puts
+back.
 
 | Token | Applies to |
 |---|---|
@@ -894,9 +915,13 @@ need one that isn't there.
 
 ### What stays fixed
 
+The About journal is ordinary shell UI: its overview, cards and status
+states follow the surface and text tokens, and its featured dispatch
+paints `--os-ui-hero-mesh` over `--os-ui-surface-sunken`.
+
 Colour that encodes meaning or is composed artwork is deliberately
-**not** themable: pinned-note paper, game palettes, the content-graph
-node hues, the About scene. Retinting those would destroy the signal
+**not** themable: pinned-note paper, game palettes, and the content-graph
+node hues. Retinting those would destroy the signal
 they carry. The same applies to their typography — the note's
 handwriting face and the Inkfall serif are part of the artwork.
 
@@ -1108,7 +1133,7 @@ still apply.
 | `dockRailRenderer` | A registered dock rail renderer id. Core ships `default`; plugins register their own. |
 | `windowReveal` | A registered window-reveal id — the transition that uncovers a window's content once it loads. Core ships twelve (`sweep`, `rise`, `diagonal`, `iris`, `diamond`, `curtain`, `shutter`, `blinds`, `slats`, `mosaic`, `radar`, `obturator`); `none` is always valid and means no transition. |
 | `windowRevealDuration` | How long reveals run, in whole ms. Clamped to 80–4000. Omit it to leave the user's speed alone — recommending `0` is not a way to say "default". |
-| `accent` | A registered accent-swatch id (OpenStation Preferences → Appearance). Core ships `pulse`, `nebula`, `wp-blue`, `indigo`, `teal`, `emerald`, `amber`, `rose`; sites extend the list through `openstation_accent_colors`. |
+| `accent` | A registered accent-swatch id (OpenStation Preferences → Appearance). Core ships `pulse`, `nebula`, `sirius`, `lagoon`, `wp-blue`, `indigo`, `teal`, `emerald`, `amber`, `rose`; sites extend the list through `openstation_accent_colors`. |
 
 **`accent` is the one recommendation a theme cannot express any other
 way, and most themes want it.** The accent is a user setting written as
@@ -1418,9 +1443,10 @@ every time the window resizes and the grid appears to crawl. A
 horizontal strip usually wants `left center` so its tiling origin is
 the surface's leading edge rather than its midpoint.
 
-The bundled Neon Glass theme ships both cases — a seamless 256×72
-circuit-trace title bar that tiles, and a 24px grid pinned to
-`top left` in the window body.
+The Neon Glass example theme
+([`docs/examples/register-desktop-theme.md`](./examples/register-desktop-theme.md))
+shows both cases — a seamless 256×72 circuit-trace title bar that
+tiles, and a 24px grid pinned to `top left` in the window body.
 
 The four corner slots share one size token: whichever corner declares a
 `size` first (in `NE, NW, SE, SW` order) sets it for all four.
@@ -1451,7 +1477,7 @@ saturated bracket up there lands straight through the close glyph.
 the same mistake: it washes out whatever `TITLEBAR` texture you spent
 the effort making seamless, precisely in the strip where the controls
 live. Aim to be under ~3% alpha within 10px of the corner.
-The bundled example theme uses arcs and a bright node on the bottom
+The Neon Glass example theme uses arcs and a bright node on the bottom
 corners, and bloom only on the top.
 
 If you want artwork that OVERHANGS the frame, use `WINDOW_FRAME`
@@ -1696,7 +1722,7 @@ palette is `assets/css/variables.css`, not a manifest), but the picker
 treats it as a peer of everything beside it: it carries the same
 "Apply …'s recommended layout and effects" button, and what it
 recommends is the accent its palette was drawn against (Pulse) and the
-layout it was drawn for (`classic`).
+layout it was drawn for (`unified`, dock on the bottom edge).
 
 The switch is live: no reload. The stylesheet swaps, the shell
 attribute and body class flip, and every themed icon repaints. On a
@@ -1783,6 +1809,21 @@ stylesheet as text and PHP prints it via `wp_add_inline_style()`.
 Uploaded themes win on a slug collision — a site admin who installed a
 theme by hand outranks a plugin that later claims the same slug.
 
+**How the library reaches the shell.** The boot payload
+(`serverDesktopThemes`) ships every entry **slimmed**: no `cssText`,
+no `tokens`, `cssDeferred: true`. Nothing reads either at boot — the
+active theme's stylesheet is server-delivered (link for uploads,
+inline `<style>` for code themes), and an inactive theme's CSS
+matters only at the moment the user picks it. That moment fetches the
+full entries from `GET desktop-mode/v1/desktop-themes` — the same
+builder and the same `openstation_desktop_themes` filter as the
+payload, so it is not a second source of truth — via
+`ensureFullDesktopThemes()`, and the apply path does this
+automatically. The read gate is the shell's own (a desktop-enabled
+user), not the manage capability: the route exposes exactly what the
+boot payload used to. Bridge and probe payloads (live plugin
+activation) keep full entries.
+
 See [`examples/register-desktop-theme.md`](./examples/register-desktop-theme.md)
 for a complete plugin.
 
@@ -1795,8 +1836,8 @@ for a complete plugin.
 - **Letter badges.** The generated initial-letter tiles for items with
   no icon stay generated; retint them with the
   `--os-tile-*` tokens instead.
-- **Art-direction colour and type.** Note paper, game palettes, graph
-  node hues, the About scene — see "What stays fixed" above.
+- **Art-direction colour and type.** Note paper, game palettes, and graph
+  node hues — see "What stays fixed" above.
 - **Layout.** A theme changes how things look, not where they are. No
   spacing scale, no dock geometry, no window metrics beyond the radius
   and title-bar height the tokens already expose.

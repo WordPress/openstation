@@ -104,6 +104,29 @@ add_action( 'openstation_native_window_registered', function ( $id, $entry ) {
 
 ---
 
+### `openstation_native_window_config` — Experimental (filter)
+
+```php
+apply_filters( 'openstation_native_window_config', array $config, string $window_id ): array
+```
+
+A native window's `config` blob, at emit time. The registry snapshots `config` when `openstation_register_window()` runs (usually `init`); this filter runs when the blob is serialized for the browser — at enqueue time for preloaded bundles, at payload-build time for lazy ones — so values that depend on hooks registered later in the bootstrap can be refreshed without moving the whole registration. Runs per request after the current user is determined, so capability-gated values are safe to compute here. Return value must be an array; anything else ships nothing.
+
+The WP Explorer uses it to re-collect its `previewActions` (see [`openstation_my_wordpress_preview_actions`](#openstation_my_wordpress_preview_actions--experimental-filter)) so action descriptors registered after `init` 99 still reach the bundle.
+
+```php
+add_filter( 'openstation_native_window_config', function ( $config, $window_id ) {
+    if ( 'my-plugin-window' === $window_id ) {
+        $config['launchCount'] = (int) get_user_option( 'my_plugin_launches' );
+    }
+    return $config;
+}, 10, 2 );
+```
+
+Mid-session caveat: the blob is delivered alongside the window's script, and an already-loaded bundle keeps the copy it booted with until the next full page load.
+
+---
+
 ### `openstation_widget_registered` — Stable
 
 Fires after `openstation_register_widget()` successfully stores a widget. Same contract as the native-window action.
@@ -111,6 +134,47 @@ Fires after `openstation_register_widget()` successfully stores a widget. Same c
 ```php
 do_action( 'openstation_widget_registered', string $id, array $entry );
 ```
+
+---
+
+### `openstation_register_station_home_card( $id, $args )` — Experimental (PHP function)
+
+Registers a structured card in Station Home's **From your plugins** area. The registration metadata always powers the current user's picker; the callback runs only when the effective per-user state is enabled. This is a data contract, not an HTML injection hook.
+
+```php
+openstation_register_station_home_card( 'my-plugin-orders', array(
+    'label'           => __( 'Orders', 'my-plugin' ),
+    'description'     => __( 'Orders waiting to be fulfilled.', 'my-plugin' ),
+    'provider'        => __( 'My Plugin', 'my-plugin' ),
+    'icon'            => 'dashicons-cart',
+    'default_enabled' => false,
+    'order'           => 20,
+    'capabilities'    => array( 'manage_options' ),
+    'callback'        => function ( $user_id, $entry ) {
+        return array(
+            'value'        => '4',
+            'detail'       => __( 'Ready to fulfil', 'my-plugin' ),
+            'url'          => admin_url( 'admin.php?page=my-plugin-orders' ),
+            'action_label' => __( 'Open orders', 'my-plugin' ),
+            'tone'         => 'warning',
+        );
+    },
+) );
+```
+
+`label` and a callable `callback` are required. IDs must already be `sanitize_key()`-clean. `default_enabled` defaults to `false`, making first use an explicit opt-in; a plugin may set it to `true`, after which the user can opt out. Supported callback fields are `value`, `detail`, `url`, `action_label`, `external`, and `tone` (`neutral|info|success|warning|danger`). Returning `WP_Error` or a non-array omits the card for that snapshot. `openstation_unregister_station_home_card( $id )` removes a registration.
+
+Returns `true` or `WP_Error` (`openstation_invalid_station_home_card_id`, `openstation_missing_label`, `openstation_invalid_callback`, or `openstation_capability_denied`). Full recipe: [`examples/station-home-card.md`](./examples/station-home-card.md).
+
+### Station Home card actions — Experimental
+
+```php
+do_action( 'openstation_station_home_card_registered', string $id, array $entry );
+do_action( 'openstation_station_home_card_preference_updated', int $user_id, string $id, bool $enabled );
+do_action( 'openstation_station_home_card_error', Throwable $error, string $id, array $entry );
+```
+
+The first fires only after a successful registration. The second fires after an explicit per-user opt-in/opt-out is stored. The error action reports a thrown callback without allowing one plugin to take down Station Home.
 
 ---
 
@@ -301,8 +365,8 @@ apply_filters( 'openstation_files_sharing_enabled_for', bool $enabled, int $user
 apply_filters( 'openstation_files_user_can_see_folder', bool $can, array $folder, int $user_id, string[] $roles ); // per-folder visibility decision (owner / share_mode / shares table)
 apply_filters( 'openstation_files_sharing_tables_for_purge', string[] $tables ); // tables dropped by "Delete folder sharing data"; default shares + decisions
 
-// Polymorphic shape (future-proof). v1 ships with target_type='folder' only.
-apply_filters( 'openstation_files_shareable_types',     string[] $types ); // default [ 'folder' ]
+// Polymorphic shape (future-proof).
+apply_filters( 'openstation_files_shareable_types',     string[] $types ); // default [ 'folder', 'file' ]
 apply_filters( 'openstation_files_share_target_owner',  int $owner_id, string $target_type, string $target_id );
 ```
 
@@ -396,7 +460,7 @@ Return: `true` on success, `WP_Error` otherwise. Error codes: `openstation_missi
 
 ### `openstation_register_file_type( $type, $args )` — Experimental (PHP function)
 
-Registers a `OpenStation_File` subclass against the desktop file-type registry. The ten built-in types (`post`, `attachment`, `user`, `term`, `comment`, `folder`, `bookmark`, `shortcut`, `link`, `embed`) register through this same surface.
+Registers a `OpenStation_File` subclass against the desktop file-type registry. The eleven built-in types (`post`, `attachment`, `user`, `term`, `comment`, `folder`, `bookmark`, `shortcut`, `link`, `embed`, `upload`) register through this same surface.
 
 ```php
 openstation_register_file_type( 'jorvy-quote', array(
@@ -456,7 +520,7 @@ For live *unregistration* on deactivation, the plugin's JS should set `owner: 'h
 
 ### `openstation_register_command( $args )` — Stable (PHP function)
 
-Optional companion that also declares command metadata server-side. Advisory today — reserved for future pre-registration shims (showing a greyed-out command before the plugin's JS loads). Implicitly registers `$args['script']` in the command-script registry when `script` is provided (without firing `openstation_command_script_registered`).
+Optional companion that also declares command metadata server-side. Advisory today — reserved for future pre-registration shims (showing a greyed-out command before the plugin's JS loads). Implicitly registers `$args['script']` in the command-script registry when `script` is provided (routing through `openstation_register_command_script()`, so `openstation_command_script_registered` fires on this path too).
 
 ```php
 openstation_register_command( array(
@@ -758,7 +822,7 @@ Tabs using neither mechanism stay until the next page reload.
 
 ### `openstation_register_settings_tab( $args )` — Stable *(PHP function)*
 
-Optional companion that declares a settings tab server-side. Primary benefit: enables live-unregistration on plugin deactivation without every `registerSettingsTab()` call having to set `owner`. Implicitly registers `$args['script']` in the settings-tab script registry when `script` is provided (without firing `openstation_settings_tab_script_registered`).
+Optional companion that declares a settings tab server-side. Primary benefit: enables live-unregistration on plugin deactivation without every `registerSettingsTab()` call having to set `owner`. Implicitly registers `$args['script']` in the settings-tab script registry when `script` is provided (routing through `openstation_register_settings_tab_script()`, so `openstation_settings_tab_script_registered` fires on this path too).
 
 ```php
 openstation_register_settings_tab( array(
@@ -772,11 +836,12 @@ openstation_register_settings_tab( array(
 
 **Built-in tab orders** (for reference when picking `order`):
 - `appearance` = 10
-- `ai` = 20
-- `apps-icons` = 22
-- `features` = 25
-- `effects` = 27
+- `themes` = 12
+- `windows` = 18
+- `navigation` = 22
+- `features` = 30
 - `help` = 40
+- `about` = pinned last
 - Third-party default = 100 (appended after built-ins)
 
 **Capability gating today**: the shell collapses `capability` to a simple admin-vs-everyone distinction. `'manage_options'` means admin-only; any other value (including empty) means visible to everyone. Widening to arbitrary capabilities is a future expansion.
@@ -881,6 +946,17 @@ do_action( 'openstation_prepare_window', string $page, array $args );
 ---
 
 ## Filters
+
+### Station Home card filters — Experimental
+
+```php
+apply_filters( 'openstation_station_home_cards', array $cards, int $user_id ): array;
+apply_filters( 'openstation_station_home_card_data', array $data, string $id, array $entry, int $user_id ): array;
+```
+
+`openstation_station_home_cards` filters the registration map before capability-safe metadata becomes the user's picker. Add, remove, reorder, or replace entries using the same shape accepted by `openstation_register_station_home_card()`. `openstation_station_home_card_data` filters an enabled card's callback result immediately before its values are sanitized for the REST snapshot.
+
+---
 
 ### `openstation_site_title` — Experimental
 
@@ -1086,6 +1162,7 @@ array(
     'sessionUrl'       => string,   // REST session URL
     'restUrl'          => string,   // REST API root from rest_url(); compose with joinRestUrl() for pretty/plain permalink safety
     'restNonce'        => string,   // X-WP-Nonce
+    'aboutFeedUrl'     => string,   // nonced admin-AJAX URL for the lazy About journal feed
     'dockItems'        => array[],  // see openstation_dock_items
     'session'          => array,    // prior session snapshot or empty
     'fromPortal'       => bool,     // request was forwarded by the /openstation/ portal
@@ -1139,6 +1216,12 @@ array(
 Items built from the admin menu also carry `selfLabel`, `multi`, `placement`, `isCore`, `pluginFile`, and `pluginName` keys — see the `openstation_dock_item_multi` and `openstation_dock_placement` filters below.
 
 **`submenu` excludes the menu's own page.** WordPress auto-prepends a self-link to every parent menu (`All Posts` → `edit.php`, the same URL as the parent), and the builder strips it so `count( $submenu )` reliably means "how many distinct child pages" — the in-window tab strip would otherwise grow a duplicate first tab, and the right-click popover keys its suppression off an empty list. The stripped entry's label survives on **`selfLabel`** (`''` when the menu had none), so a surface that *lists* a menu's pages can put the main page back where wp-admin has it. The constellation flyout does exactly that, pointing the row at the item's `url`.
+
+**Off-site menu entries never reach the dock.** Nothing on another host can load in a window, so a menu whose URL points off-site is dropped rather than turned into a tile that can only escape to a browser tab. The one exception is a child of a menu a regular plugin registered (`pluginFile` is non-null) whose own URL stays on-site: those keep their row and carry `'offSite' => true`, which the constellation marks as leaving the site and the in-window tab strip skips. The classifier is [`openstation_menu_item_is_external`](#openstation_menu_item_is_external--stable).
+
+**A rescued menu takes on the identity of the slug it adopted.** When a menu's own slug points off-site and a surviving child stands in for it, `multi`, `placement`, `isCore`, `pluginFile` and the `$menu_slug` passed to `openstation_dock_item` are all derived from that child's slug, not from the off-site one. Otherwise a rescued Plugins tile reports as a plugin menu owned by whoever registered the replacement.
+
+**Rows a host hid stay hidden, unless dropping them would lose the page.** A `$menu` / `$submenu` row carrying the `hide-if-js` class is out of the classic sidebar and out of the dock too. WordPress.com is why the rule has an exception: rather than repoint a Core entry at wordpress.com, Jetpack marks the wp-admin original `hide-if-js` and appends a Calypso duplicate beside it. When the duplicate is dropped as off-site, the original takes its place in the list — so Appearance → Themes, Plugins → Add Plugin and Users → All Users open the wp-admin screens Core registered.
 
 **Example — add a virtual dock item:**
 
@@ -1248,6 +1331,31 @@ The live menu-refresh path (chromeless `plugins.php` iframe postMessage, plus th
 
 ---
 
+### `openstation_menu_item_is_external` — Stable
+
+Whether a resolved admin-menu URL counts as off-site. Off-site entries are dropped from the dock payload (see [`openstation_dock_items`](#openstation_dock_items--stable) for the exception plugin menus get), because nothing on another host can load in a window.
+
+```php
+apply_filters( 'openstation_menu_item_is_external', bool $external, string $url );
+```
+
+By default a URL is off-site when its host matches neither `admin_url()`'s nor `home_url()`'s. Both count, so a site running its admin on a separate domain from its front end isn't misread.
+
+**Example — keep a trusted sibling domain in the dock:**
+
+```php
+add_filter( 'openstation_menu_item_is_external', function ( $external, $url ) {
+    if ( str_contains( $url, 'admin.internal.example.com' ) ) {
+        return false;
+    }
+    return $external;
+}, 10, 2 );
+```
+
+An entry you allow back in still has to survive the browser: a host that sends `X-Frame-Options` or a `frame-ancestors` policy refuses the iframe whatever this filter says.
+
+---
+
 ### `openstation_arrange_menu_items` — Stable
 
 The list of plugin-contributed items appended to the admin bar's **Arrange** submenu — the dropdown that sits next to the "Switch to…" toggle when OpenStation is active. Built-ins (Cascade, Overview, Snap to grid, Tile all windows) are always present; this filter adds to them. Only invoked when the user is viewing the desktop shell.
@@ -1328,7 +1436,7 @@ apply_filters( 'openstation_admin_redirect_to_portal', bool $redirect, int $user
 
 ### `openstation_accent_colors` — Stable
 
-Extends or restricts the accent-color swatches shown in OpenStation Preferences. Applied to `--wp-admin-theme-color` on the shell's `<html>`. Each entry is `{ id: string, label: string, value: string }` — `id` is a stable slug persisted to `localStorage`, `label` is the picker tooltip, `value` is a hex color validated server-side via `sanitize_hex_color()`. Invalid entries are dropped; a filter that leaves the list empty falls back to the built-in six swatches.
+Extends or restricts the accent-color swatches shown in OpenStation Preferences. Applied to `--wp-admin-theme-color` on the shell's `<html>`. Each entry is `{ id: string, label: string, value: string }` — `id` is a stable slug persisted to `localStorage`, `label` is the picker tooltip, `value` is a hex color validated server-side via `sanitize_hex_color()`. Invalid entries are dropped; a filter that leaves the list empty falls back to the ten built-in swatches.
 
 ```php
 apply_filters( 'openstation_accent_colors', array $colors );
@@ -1744,11 +1852,11 @@ The AI assistant (Cmd+K palette) runs an agentic loop server-side, analyses enti
 
 Credentials and model routing are owned by **WordPress 7.0 Core**: configure a provider in **Settings → Connectors** and the Copilot generates through the Core AI Client (`wp_ai_client_prompt()`), which injects the key automatically. The assistant is available only when the Connectors + Abilities APIs and `wp_supports_ai()` are present.
 
-> **Removed.** The self-managed provider registry and credential surface were replaced by Core Connectors. These no longer exist: the functions `openstation_register_ai_provider()` / `openstation_unregister_ai_provider()`, the actions `openstation_ai_register_providers` / `openstation_ai_provider_registered`, and the filters `openstation_ai_active_provider` / `openstation_ai_model`. The three-callable provider contract (`make_turn_input` / `agentic_call` / `structured_request`) and the `$api_key` argument are gone. Register providers with the Core AI Client / Connectors instead. See [`migration-ai-connectors.md`](migration-ai-connectors.md). The `/ai/search` extensibility hooks below are unaffected.
+> **Removed.** The self-managed provider registry and credential surface were replaced by Core Connectors. These no longer exist: the functions `openstation_register_ai_provider()` / `openstation_unregister_ai_provider()`, the actions `openstation_ai_register_providers` / `openstation_ai_provider_registered`, and the filters `openstation_ai_active_provider` / `openstation_ai_model`. The three-callable provider contract (`make_turn_input` / `agentic_call` / `structured_request`) and the `$api_key` argument are gone. Register providers with the Core AI Client / Connectors instead. The `/ai/search` extensibility hooks below are unaffected.
 
 > The built-in Copilot tools are [WordPress Abilities](https://developer.wordpress.org/apis/abilities-api/), listed at `GET /wp-abilities/v1/abilities`. Register a read-only ability and the assistant picks it up automatically — see "Extending the Copilot's tools" below.
 
-> **Removed.** Automatic AI analysis of posts, pages, and taxonomy terms was removed — the copilot now only analyzes comments (for the spam score), and the AI assistant finds content with WordPress's native keyword search. The following filters/actions no longer fire and have been removed: `openstation_ai_supported_post_types`, `openstation_ai_supported_taxonomies`, `openstation_ai_supported_types`, `openstation_ai_schema_content`, `openstation_ai_post_prompt`, `openstation_ai_term_prompt`, `openstation_ai_post_analyzed`, `openstation_ai_term_analyzed`. See [`migration-ai-comment-only.md`](migration-ai-comment-only.md).
+> **Removed.** Automatic AI analysis of posts, pages, and taxonomy terms was removed — the copilot now only analyzes comments (for the spam score), and the AI assistant finds content with WordPress's native keyword search. The following filters/actions no longer fire and have been removed: `openstation_ai_supported_post_types`, `openstation_ai_supported_taxonomies`, `openstation_ai_supported_types`, `openstation_ai_schema_content`, `openstation_ai_post_prompt`, `openstation_ai_term_prompt`, `openstation_ai_post_analyzed`, `openstation_ai_term_analyzed`.
 
 ### `openstation_ai_schema_comment` — Experimental
 
@@ -2156,7 +2264,9 @@ if ( is_wp_error( $result ) ) {
 >
 > **`scripts`** *(optional, `string[]`)* — companion handles loaded in order immediately **before** `script`. For a bundle that extends the window from outside it — subscribing to actions the window's own bundle fires, contributing a section — and therefore has to be listening before that bundle is parsed. Declaring it here is what keeps it off the boot critical path: it travels with the window it extends. Handles that were never registered are dropped silently, the same way `style` is.
 >
-> **`preload_script`** *(optional, `bool`, default `false`)* — load `script` (and `scripts`) at shell boot instead. Opt in **only** when the bundle has a job to do whether or not the window is ever opened: a dock-badge poller, an API it installs on `wp.os`. Prefer splitting that job into an always-loaded bundle over paying the whole window's weight on every admin page. For a one-off call into an API a window's bundle publishes, [`wp.os.loadWindowScript( id )`](./javascript-reference.md#wposloadwindowscript-id---stable) fetches it on demand without this flag.
+> **`styles`** *(optional, `string[]`)* — companion stylesheet handles injected on the window's **first open**, after the window's own `style`, in declared order. The styles-side mirror of `scripts`, with deliberately different timing from `style`: the window's own stylesheet lands when the window registers (so a mid-session activation paints), but a companion sheet exists to be deferred — one that only paints surfaces inside the window is dead weight on every document that never shows it, chromeless iframes included. Injected-after means a companion's equal-specificity overrides win by source order, the same guarantee a `wp_register_style()` dependency gives on the print path — but declare real dependencies on the handle anyway, so the eager `preload_script` path resolves them. Unregistered handles drop silently.
+>
+> **`preload_script`** *(optional, `bool`, default `false`)* — load `script` (and `scripts`, and enqueue `styles`) at shell boot instead. Opt in **only** when the bundle has a job to do whether or not the window is ever opened: a dock-badge poller, an API it installs on `wp.os`. Prefer splitting that job into an always-loaded bundle over paying the whole window's weight on every admin page. For a one-off call into an API a window's bundle publishes, [`wp.os.loadWindowScript( id )`](./javascript-reference.md#wposloadwindowscript-id---stable) fetches it on demand without this flag.
 
 > **Wallpaper and widget `script` handles defer too**, with no flag to think about. `openstation_register_wallpaper()`'s bundle loads when the wallpaper is applied or the picker opens (the shell paints the swatch from your `preview` / `label` / `description` meanwhile); `openstation_register_widget()`'s loads when the widget mounts (the picker row comes entirely from your metadata). Both contracts — `window.openStationWallpapers[ id ]` and `window.openStationWidgets[ id ]` — are unchanged. See [`migration-lazy-window-scripts.md`](./migration-lazy-window-scripts.md).
 
@@ -2489,7 +2599,7 @@ apply_filters( 'openstation_recycle_bin_count', int $total, int $post_count, int
 
 Tweak the args passed to `openstation_register_window()` for the bin — useful to change dimensions, swap the icon, or drop the dock tile entirely (`'placement' => 'none'`). The bin ships its own silhouette; `openstation_recycle_bin_icon_svg()` returns the raw markup and `openstation_recycle_bin_icon_uris()` returns both states as data URIs, so a plugin substituting its own art has the same pair to replace.
 
-The bin registers **no desktop icon**, so it lands on the dock and nowhere else. That is the default, not the whole story: the window is registered `placeable`, so its row in OpenStation Preferences → Apps & Plugins offers the wallpaper, both rails, or hidden, like any other item.
+The bin registers **no desktop icon**, so it lands on the dock and nowhere else. That is the default, not the whole story: the window is registered `placeable`, so its row in OpenStation Preferences → Navigation offers the wallpaper, both, or hidden, like any other item.
 
 ### `openstation_recycle_bin_template_html` — Experimental (filter)
 
@@ -2910,8 +3020,9 @@ apply_filters( 'openstation_plugins_window_icon_url', string|null $url, string $
 
 The default URL is resolved in priority:
 
-1. **Local file** — if the plugin's own folder ships an icon at `assets/icon.svg`, `assets/icon-256x256.png`, `assets/icon-128x128.png`, or the same names at the folder root, the `plugins_url()` for that file is used. This is what makes premium / internal / native-bundled plugins (not on the .org repo) display their own art without any plugin-side wiring.
-2. **wp.org SVN asset** — `https://ps.w.org/<slug>/assets/icon.svg`, keyed off the plugin's folder name (the .org repo slug). The JS card walks a candidate chain (SVG → 256 PNG → 256 GIF → 128 PNG → 128 GIF) on `<img>` error for wp.org URLs, then drops to the placeholder. Local URLs and custom URLs (anything not under `ps.w.org/<slug>/assets/`) are one-shot, then placeholder.
+1. **Local file** — if the plugin's own folder ships an icon at `assets/icon.svg`, `assets/icon-256x256.png`, `assets/icon-128x128.png`, or the same names at the folder root, and also with the file extension includes jpg and jpeg, the `plugins_url()` for that file is used. This is what makes premium / internal / native-bundled plugins (not on the .org repo) display their own art without any plugin-side wiring.
+2. **The directory's own `icons` map** — whatever wp.org returned for this plugin, cached in the `update_plugins` transient, read `svg` → `2x` → `1x` exactly as core's "Add Plugins" cards read it. Used verbatim, `?rev=` cache-buster included. `default` (wp.org's generated geopattern for plugins that uploaded no art) is skipped — and because that map is wp.org stating the plugin has no art, the field returns `null` rather than falling through to step 3, so the placeholder paints without a wasted request.
+3. **Guessed wp.org SVN asset** — `https://ps.w.org/<slug>/assets/icon.svg`, for when that metadata isn't cached. `<slug>` is the directory slug when known, else the folder name, else the textdomain. Guessing is last because both halves are unknowable: the format (Gutenberg and UpdraftPlus ship JPEG only) and the slug (`hello.php` is listed as `hello-dolly`). The JS card walks a candidate chain (SVG → 256 PNG/JPG/JPEG/GIF → 128 PNG/JPG/JPEG/GIF) on `<img>` error for URLs of exactly this shape, then drops to the placeholder. Local, `icons`-map and custom URLs are one-shot, then placeholder.
 
 ### `openstation_plugins_window_local_icon_candidates` — Experimental *(filter)*
 
@@ -2960,7 +3071,7 @@ Server-injected enrichment fields. The JS reads them on every list paint:
 | `openstation_update_available` | `{ available: bool, new_version: string\|null, package: string, slug: string }` | Pending wp.org update for this row, derived from `get_site_transient( 'update_plugins' )`. The transient is lazily refreshed at REST-time (subject to Core's 12h throttle, and the `openstation_plugins_window_refresh_updates` filter) so the window stays in sync with the dock update badge. The in-window Refresh button can bypass the 12h throttle by adding `?openstation_force_refresh=1` to the REST request — Core's `wp_clean_plugins_cache( true )` then deletes the transient and fans out to api.wordpress.org, mirroring what classic `plugins.php` does on load. `package` carries the download URL (empty for plugins without a wp.org zip — the JS surfaces the same "Auto-update unavailable" fallback Core renders); `slug` is what `wp_ajax_update_plugin` echoes back in its event payload. |
 | `openstation_can_manage` | `{ activate, deactivate, delete: bool }` | Per-row capability flags so the JS doesn't re-derive caps. Server still re-validates every mutation. |
 | `openstation_wporg_slug` | `string\|null` | The plugin's slug on the WordPress.org directory or `null` if hosted elsewhere. |
-| `openstation_icon_url` | `string\|null` | Best-effort card icon URL. Prefers a local file under the plugin's folder (`assets/icon.svg` and a handful of variants — see [`openstation_plugins_window_local_icon_candidates`](#openstation_plugins_window_local_icon_candidates--experimental-filter)) and falls back to `https://ps.w.org/<slug>/assets/icon.svg`. That fallback is a guess keyed on the folder name: it 404s to a placeholder for plugins that aren't on the directory, so it is not a "listed on wp.org" signal — `openstation_wporg_slug` is. Filterable via `openstation_plugins_window_icon_url`. |
+| `openstation_icon_url` | `string\|null` | Best-effort card icon URL. Prefers a local file under the plugin's folder (`assets/icon.svg` and a handful of variants — see [`openstation_plugins_window_local_icon_candidates`](#openstation_plugins_window_local_icon_candidates--experimental-filter)), then the `icons` map wp.org returned for the plugin (cached in the `update_plugins` transient, read `svg` → `2x` → `1x` exactly as core's Add Plugins cards do), and only then guesses `https://ps.w.org/<slug>/assets/icon.svg`. A non-null value is not a "listed on wp.org" signal — the last step is a guess that 404s to a placeholder for plugins that aren't on the directory; `openstation_wporg_slug` is that signal. Filterable via `openstation_plugins_window_icon_url`. |
 | `openstation_size_kb` | `int\|null` | Disk footprint of the plugin folder in kilobytes. Cached 6h. |
 | `openstation_auto_update` | `{ enabled: bool, forced: bool\|null, supported: bool }` | Per-row auto-update state, mirroring Core's "Automatic Updates" column on `plugins.php`. `enabled` reflects the `auto_update_plugins` site option (overridden by `forced` when a filter pins it). `forced` is `null` for user-toggleable rows, `true`/`false` when the `auto_update_plugin` filter has pinned the state. `supported` is true when the `update_plugins` transient has an entry for the plugin (either `response` or `no_update`); when false the JS hides the toggle — premium / private plugins that never check in with wp.org. The toggle itself routes through Core's `wp_ajax_toggle_auto_updates` handler (action `toggle-auto-updates`, `'updates'` nonce). |
 
@@ -3171,7 +3282,7 @@ A native profile-editing window (`desktop-mode-user-edit`) that opens when a row
 apply_filters( 'openstation_user_edit_window_user_can_register', bool $can, int $user_id ): bool
 ```
 
-Fires inside the `openstation_user_edit_window_user_can_register()` helper. Default: `true` for any logged-in user. Note the framework's own registration path currently registers the window for every logged-in user without consulting this helper — hook it for plugin code that mirrors the gate, not to unregister the window.
+Fires inside the `openstation_user_edit_window_user_can_register()` helper. Default: `true` for any logged-in user. The framework's own registration path consults this helper — returning `false` from the filter skips registering the window entirely.
 
 ### `openstation_user_edit_window_args` — Experimental *(filter)*
 
@@ -3232,8 +3343,9 @@ The list of entity types rendered as folder tiles in the window's root view. Eac
 - `post_type` *(optional)* — WP post-type slug used to build the cross-window broadcast topic `os.<slug>.changed`. Omit for entities without trash/restore support (e.g. Users). CPT entities registered via this filter should set `post_type` so list views refresh reactively on trash/restore.
 - `kind` *(optional)* — `'post'` (default for back-compat), `'user'`, or `'media'`. Drives the in-window render path: `'post'`-shaped entities use the title/excerpt/featured-image tile + rendered-HTML preview; `'user'`-shaped entities use the avatar-tile, the dossier preview, and the activity-footprint surface; `'media'`-shaped entities use the media-grid tile and the media drill-in preview ("used in" view). Omit the field to inherit the post path — works for any REST collection that ships `title.rendered` + `content.rendered`. Plugins can register further kinds on the JS side via `wp.os.myWordpress.registerEntityKind()`.
 - `listQuery` *(optional)* — extra query parameters sent with this section's list requests, as `key => value`. Lets a server-side query filter scope itself to the site window instead of rewriting every REST caller's query — `rest_product_query` fires for the Product Collection block too, so the WooCommerce sections mark their own requests rather than reordering everyone's.
-- `listFields` *(optional)* — extra REST field names to request for this section's list rows. The window sends an explicit `_fields` list, so a custom key your endpoint returns is stripped before the bundle sees it unless it's named here. Used by the WooCommerce sections to carry the order status and product stock their tiles are banded and badged by.
+- `listFields` *(optional)* — extra REST field names to request for this section's rows, on list **and** detail requests. The window sends an explicit `_fields` list, so a custom key your endpoint returns is stripped before the bundle sees it unless it's named here. Used by the WooCommerce sections to carry the order status and product stock their tiles are banded and badged by.
 - `thumbnails` *(optional)* — `false` keeps the section icon on every tile. Defaults to on: a `'post'`-kind entry that has a featured image renders it in place of the icon (the list request already asks for `_embed=wp:featuredmedia`, so this costs no extra round trip). Entries without one fall back to `icon`.
+- `editAction` *(optional)* — who edits this section's rows. A preview-action **id** (declared via [`openstation_my_wordpress_preview_actions`](#openstation_my_wordpress_preview_actions--experimental-filter), so it stays capability-gated and its script auto-enqueues) replaces "Open in editor" at every edit surface: the pane's primary button, the context menu's open entry (and its bulk fan-out — the action's `onSelect( ctx )` runs once per selected item), and tile double-click. The named action stops rendering in the generic action row/menu. If it didn't ship for this user or no JS wired its `onSelect`, the edit affordances hide rather than fall back — for a type without an editor screen, the classic URL is known-broken. **`false`** removes every edit affordance; double-click falls back to the detail dossier and the bulk "Edit…" modal is suppressed (a *string* keeps that modal: it PATCHes over REST and doesn't involve the classic editor). Omit for the classic editor, where a row-supplied `editUrl` field still wins when present.
 - `group` *(optional)* — id of the root-level folder this section nests under. Sections sharing a group id collapse into one folder tile at the root that drills into its members. Omit or pass `null` to render the section loose at the root next to Posts and Pages.
 - `groupLabel` / `groupIcon` / `groupOrder` *(optional)* — folder label, icon, and sort weight. Every member of a group should carry the same values; the first entry seen wins.
 
@@ -3626,7 +3738,7 @@ Lifetime (seconds) of the per-attachment media-usage transient. Lower it on site
 apply_filters( 'openstation_my_wordpress_preview_actions', array[] $actions ): array[]
 ```
 
-Server-declared descriptors for the right-pane action button row that appears in every WP Explorer section (posts, pages, users, media, plugin-defined kinds). Each entry:
+Server-declared descriptors for plugin actions on a selected Explorer entry. Each descriptor renders twice, from the one declaration: as a button in the right-pane action row and as an entry in the tile context menu — in every WP Explorer section (posts, pages, users, media, plugin-defined kinds). Each entry:
 
 ```php
 array(
@@ -3640,7 +3752,11 @@ array(
 )
 ```
 
-`capability` is enforced server-side before the descriptor ships to the bundle, so an action the current user can't run never appears in their UI. `script`, if registered, is auto-enqueued. Wire the click handler on the JS side via `wp.hooks.addFilter('os.my-wordpress.preview-actions', …)` — see [`examples/my-wordpress-media-action.md`](./examples/my-wordpress-media-action.md).
+`capability` is enforced server-side before the descriptor ships to the bundle, so an action the current user can't run never appears in their UI. `script`, if registered, is auto-enqueued. Wire the click handler on the JS side via `wp.hooks.addFilter('os.my-wordpress.preview-actions', …)` — the handler receives a context object carrying the selected entity; see [`examples/my-wordpress-media-action.md`](./examples/my-wordpress-media-action.md) and the [JS reference](./javascript-reference.md#filter--osmy-wordpresspreview-actions).
+
+**`sections` matching.** An entry in `sections` matches a section's **id**, its declared **post type slug**, or `'*'` (every section). Note the id shapes: the built-ins are `'posts'`, `'pages'`, `'users'`, `'media'`, while a custom post type the Explorer auto-registers gets the id `cpt-<post_type>` (e.g. post type `atf-form` → section `cpt-atf-form`); hand-registered sections choose their own ids. When in doubt, scope by post type slug — it matches wherever that type's section came from. A `mime` pattern additionally fails closed outside media contexts: a MIME-scoped action never appears on a post/user pane.
+
+**Timing.** Descriptors are re-collected when the window config is serialized for the browser (the same late pass that enqueues declared `script` handles), so registering this filter any time during a normal bootstrap — `init`, `admin_init`, plugin bootstrap order regardless — works. One caveat: on a mid-session plugin activation the already-loaded Explorer bundle keeps its config until the next full page load (F5).
 
 ---
 
@@ -3649,6 +3765,8 @@ array(
 An interactive PixiJS map of post links — every public post type participates as a node; internal links, terms, authors, and comments form the edges. Registers a native window (`desktop-mode-content-graph`) plus a desktop icon on `init` priority 20. The filterable surface mirrors WP Explorer’s module shape.
 
 The window and icon are titled **Corkboard** — a thing you can have on a desk, rather than the name of the data structure behind it. The module directory, window id, REST routes, and every hook below keep the `content_graph` slug.
+
+Nodes are drawn as **discs coloured by post type**, using the same palette the relationship satellites use so a focused post and the bubbles fanned around it read as one system. The original **pin** look — the post type's Dashicon glyph as the node body — is one row away in the window's ⋯ menu ("Show pins"), and the choice persists in `localStorage` under `desktop-mode/corkboard-node-style`. Either way the focused node reveals its glyph, so focus never costs the user the type information. The row is an ordinary checkbox registered through the public [`registerWindowAction`](./javascript-reference.md#wposregisterwindowaction--experimental) surface — see [`examples/window-action.md`](./examples/window-action.md) to add your own.
 
 ### `openstation_content_graph_user_can_use` — Experimental (filter)
 
@@ -3682,6 +3800,86 @@ apply_filters( 'openstation_content_graph_icon_args',   array $icon_args ): arra
 ```
 
 Tweak the args passed to `openstation_register_window()` / `openstation_register_icon()` for the Corkboard — dimensions, dashicon, icon position, or the `config` blob (REST endpoints, edit-URL bases, `siteName`, post-type descriptors).
+
+---
+
+## Code Blue
+
+An error-log reader: tails the logs the install can produce (WP debug log, PHP error log, anything a plugin registers), parses them into structured entries, and renders a severity histogram plus a grouped issue list. Registers a native window (`openstation-code-blue`) plus a desktop icon on `init` priority 20. Server module: `includes/code-blue/`. The REST routes live under the plugin's frozen `desktop-mode/v1` namespace like every other route.
+
+The whole surface — icon, window, nav entry, and REST routes — sits behind one gate with two conditions, both required: **Developer mode** (`developerModeEnabled` in OpenStation Preferences, off by default — Code Blue is a developer-facing surface and registers nothing until the user flips it) and a capability — `manage_options`, raised to `manage_network_options` on multisite, since log content leaks server paths and SQL and the debug/PHP error logs are network-wide files. Flipping the Preferences toggle takes effect live: once the settings save persists, the panel spends one [`wp.os.refreshMenu()`](./javascript-reference.md) probe and the icon/window appear (or disappear) without a reload.
+
+### REST — `desktop-mode/v1/code-blue/*` — Experimental
+
+- `GET /sources` — log sources plus the environment card (`WP_DEBUG*` constants, versions, environment type).
+- `GET /entries?source=<id>` — parsed entries from one source's trailing window: `{ source, entries, truncated, scanned_bytes, dropped_entries, generated_at }`. Each entry: `{ timestamp, level, label, message, file, line, trace, signature }` where `level` is one of `fatal | error | warning | deprecated | notice | info` and `signature` is the server-computed grouping key.
+- `DELETE /entries?source=<id>` — truncates the log file to zero bytes.
+
+### `openstation_code_blue_user_can_use` — Experimental (filter)
+
+```php
+apply_filters( 'openstation_code_blue_user_can_use', bool $can ): bool
+```
+
+Permission gate for the icon, the window, and every REST route. Default: Developer mode enabled in OpenStation Preferences AND `current_user_can( 'manage_options' )` (`manage_network_options` on multisite).
+
+### `openstation_code_blue_log_sources` — Experimental (filter)
+
+```php
+apply_filters( 'openstation_code_blue_log_sources', array[] $sources ): array[]
+```
+
+The log files the window offers. Each entry declares `id` (slug), `label`, and `path` (absolute file path); file metadata (`exists`, `readable`, `writable`, `size`, `mtime`) is derived after filtering. Defaults: the WP debug log (`WP_DEBUG_LOG`, string form respected) and the `error_log` PHP directive. See [`examples/code-blue-log-source.md`](./examples/code-blue-log-source.md).
+
+### `openstation_code_blue_entries` — Experimental (filter)
+
+```php
+apply_filters( 'openstation_code_blue_entries', array[] $entries, array $source, string $raw ): array[]
+```
+
+The parsed entries for one source, before the entry cap is applied. The escape hatch for logs the built-in parser doesn't understand (Monolog, ISO-timestamped formats): re-parse `$raw` yourself for your own `$source` and return your own entry array. Each entry: `timestamp` (int|null), `level`, `label`, `message`, `file`, `line`, `trace`, `signature` — build them with `openstation_code_blue_make_entry()` to get the location extraction and grouping signature for free.
+
+### `openstation_code_blue_environment` — Experimental (filter)
+
+```php
+apply_filters( 'openstation_code_blue_environment', array[] $rows ): array[]
+```
+
+The environment rows shown as chips in the window. Each: `key`, `label`, `value` (string), `on` (bool renders an on/off tone, null renders neutral).
+
+### `openstation_code_blue_max_bytes` / `openstation_code_blue_max_entries` — Experimental (filter)
+
+```php
+apply_filters( 'openstation_code_blue_max_bytes',   int $max_bytes ):   int // default 1 MiB, floor 4 KiB
+apply_filters( 'openstation_code_blue_max_entries', int $max_entries ): int // default 3000, floor 100
+```
+
+Caps on the trailing window read from a log file per request, and on how many parsed entries a response may carry (the oldest are dropped first).
+
+### `openstation_code_blue_template_html` — Experimental (filter)
+
+```php
+apply_filters( 'openstation_code_blue_template_html', string $html ): string
+```
+
+The window's static template body before it's `wp_kses`'d. The bundle mounts into `[data-os-code-blue-root]` — keep that hook intact.
+
+### `openstation_code_blue_window_args` / `openstation_code_blue_icon_args` — Experimental (filter)
+
+```php
+apply_filters( 'openstation_code_blue_window_args', array $window_args ): array
+apply_filters( 'openstation_code_blue_icon_args',   array $icon_args ):   array
+```
+
+Tweak the args passed to `openstation_register_window()` / `openstation_register_icon()` for Code Blue — dimensions, icon, icon position, or the `config` blob (`apiBase`, `restNonce`).
+
+### `openstation_code_blue_log_cleared` — Experimental (action)
+
+```php
+do_action( 'openstation_code_blue_log_cleared', string $id, string $path )
+```
+
+Fires after the `DELETE /entries` route truncates a log file.
 
 ---
 
@@ -4169,7 +4367,7 @@ All Experimental.
 
 | Hook | Signature | Purpose |
 |---|---|---|
-| `openstation_stored_files_base_dir` | `( string $base ) => string` | Storage base directory (default `uploads/os-files`). Sites that can write outside the webroot point this there. |
+| `openstation_stored_files_base_dir` | `( string $base ) => string` | Storage base directory (default `uploads/desktop-mode-files` — the pre-rebrand segment is a frozen identifier). Sites that can write outside the webroot point this there. |
 | `openstation_stored_files_upload_capability` | `( string $cap ) => string` | Capability required to upload. Default `'upload_files'`. |
 | `openstation_stored_files_max_upload_bytes` | `( int $max, int $user_id ) => int` | Per-file cap. Default `wp_max_upload_size()`; can only effectively lower it. |
 | `openstation_stored_files_user_quota_bytes` | `( int $quota, int $user_id ) => int` | Per-user total quota. `0` (default) = unlimited. |
@@ -4240,8 +4438,8 @@ Filters the list of stylesheet **handles** loaded via the
 `media="print"` + `onload` deferral pattern (so they don't block first
 paint). Default: `os-dock-peek`, `desktop-mode-ai-assistant`,
 `desktop-mode-bug-report`, `os-window-overview`,
-`os-settings`. Add a handle to defer it, or remove one to
-keep it on the critical path.
+`os-settings`, `os-openstation-layout`. Add a handle to defer it, or
+remove one to keep it on the critical path.
 
 ```php
 add_filter( 'openstation_deferred_styles', function ( $handles ) {
@@ -4249,6 +4447,44 @@ add_filter( 'openstation_deferred_styles', function ( $handles ) {
     return $handles;
 } );
 ```
+
+### `openstation_guarded_styles` / `openstation_guarded_scripts` — Stable *(filters)*
+
+Filter the asset handles the **asset guard** re-asserts at print time.
+
+Some plugins force-dequeue every style and script that isn't on their
+own allowlist when one of their admin screens renders (MailPoet's
+`ConflictResolver` is the canonical example). Inside a chromeless
+iframe that would strip `os-chromeless` and put the raw admin chrome
+back inside the window; on a shell page it would strip the desktop
+itself. The guard snapshots every enqueued handle served from the
+OpenStation plugin URL and re-adds any that went missing via Core's
+`print_styles_array` / `print_scripts_array` filters — which run inside
+the print pass itself, after every dequeue at every priority has
+already happened.
+
+The snapshot only covers OpenStation's own handles. If your plugin
+enqueues chromeless overrides (via `openstation_chromeless_styles`) or
+iframe-side scripts and an asset-cleanup plugin strips them, add your
+handles here:
+
+```php
+apply_filters( 'openstation_guarded_styles', string[] $handles );
+apply_filters( 'openstation_guarded_scripts', string[] $handles );
+```
+
+```php
+add_filter( 'openstation_guarded_styles', function ( $handles ) {
+    $handles[] = 'my-plugin-chromeless-overrides';
+    return $handles;
+} );
+```
+
+- **Param** `string[] $handles` — default: every handle the current
+  page enqueued from the OpenStation plugin directory.
+- **Return** `string[]` — handles must be registered; unregistered
+  entries are skipped. Dependencies are re-added automatically.
+  Scripts are only re-asserted during the admin footer print pass.
 
 ---
 
@@ -4391,7 +4627,7 @@ See [Texturing your own surface](./desktop-themes.md#texturing-your-own-surface)
 
 > **Icon tinting** is a manifest field (`iconColor`, and `color` per
 > icon), not a PHP filter. Its JS-side filter is
-> `os.desktop-theme.icon-color` — see the
+> `os.os-theme.icon-color` — see the
 > [JavaScript reference](./javascript-reference.md#desktop-themes-experimental).
 
 ### `openstation_desktop_theme_wallpaper_label` — Experimental *(filter)*
@@ -4931,6 +5167,20 @@ The desktop-host contract — handshake, liveness heartbeat, and the
 `openstation_electron_*` filters and actions — lives in the **Electron
 Adapter extension**, not in core. See
 [Native Desktop Host → Adapter hooks](./desktop-host.md#adapter-hooks).
+
+### Other bundled-extension hooks
+
+The extensions under `extensions/` fire their own prefixed hooks, which
+this reference does not enumerate: `openstation_code_editor_*`
+(capability gate, workspace root, extension allowlist, save
+pipeline, PHP indexing, REST limits, template/window/icon args —
+`extensions/desktop-mode-code-editor/includes/`),
+`openstation_cron_manager_*` (capability gate, template/window/icon
+args — `extensions/desktop-mode-cron-manager/includes/`), and
+`openstation_phpmyadmin_user_can_use`
+(`extensions/desktop-mode-phpmyadmin/includes/window.php`). Each hook
+carries a docblock at its call site; the extension source is the
+reference until these graduate into a doc of their own.
 
 ---
 

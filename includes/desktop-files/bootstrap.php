@@ -32,6 +32,7 @@ require_once OPENSTATION_DIR . 'includes/desktop-files/types/class-openstation-u
 require_once OPENSTATION_DIR . 'includes/desktop-files/built-in-types.php';
 require_once OPENSTATION_DIR . 'includes/desktop-files/openers.php';
 require_once OPENSTATION_DIR . 'includes/desktop-files/built-in-openers.php';
+require_once OPENSTATION_DIR . 'includes/desktop-files/grid.php';
 require_once OPENSTATION_DIR . 'includes/desktop-files/schema.php';
 require_once OPENSTATION_DIR . 'includes/desktop-files/store.php';
 require_once OPENSTATION_DIR . 'includes/desktop-files/folders-store.php';

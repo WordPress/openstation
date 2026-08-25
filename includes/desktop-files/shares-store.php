@@ -1569,10 +1569,13 @@ function openstation_files_share_inject_shell_config( $config ) {
 add_filter( 'openstation_shell_config', 'openstation_files_share_inject_shell_config', 20 );
 
 /**
- * Place an icon at the next free row-major slot in a user's view
- * of `$parent_id`. Internal helper used by share-accept and
- * fan-out. Mirrors the grid math in `src/desktop-files/grid.ts`
- * (padding 16 + col 96 + row 110).
+ * Place an icon at the next free slot in a user's view of
+ * `$parent_id`. Internal helper used by share-accept and fan-out.
+ *
+ * "Next free" follows the destination's own reading order — columns
+ * on the desktop, rows in a folder — so a shared thing arriving
+ * unannounced lands where the next tile the user created would have.
+ * Grid math lives in `includes/desktop-files/grid.php`.
  *
  * @param int    $user_id   Viewer.
  * @param int    $parent_id Folder id (0 = desktop root).
@@ -1597,33 +1600,18 @@ function openstation_files_place_at_next_free_slot( $user_id, $parent_id, $type,
 		),
 		ARRAY_A
 	);
-	$occupied = array();
-	foreach ( (array) $existing as $row ) {
-		$col                   = max( 0, (int) round( ( (int) $row['x'] - 16 ) / 96 ) );
-		$r                     = max( 0, (int) round( ( (int) $row['y'] - 16 ) / 110 ) );
-		$occupied[ "$col,$r" ] = true;
-	}
+	$occupied = openstation_files_grid_occupied( $existing );
 
-	$pick_col = 0;
-	$pick_row = 0;
-	for ( $r = 0; $r < 999; $r++ ) {
-		for ( $col = 0; $col < 999; $col++ ) {
-			if ( ! isset( $occupied[ "$col,$r" ] ) ) {
-				$pick_col = $col;
-				$pick_row = $r;
-				break 2;
-			}
-		}
-	}
+	list( $pick_col, $pick_row ) = openstation_files_grid_next_free(
+		$occupied,
+		openstation_files_grid_order( $parent_id )
+	);
 
 	return openstation_files_place(
 		$user_id,
 		$parent_id,
 		$type,
 		$ref,
-		array(
-			'x' => 16 + $pick_col * 96,
-			'y' => 16 + $pick_row * 110,
-		)
+		openstation_files_grid_cell_to_point( $pick_col, $pick_row )
 	);
 }

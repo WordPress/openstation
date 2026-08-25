@@ -300,18 +300,19 @@ describe( 'Dock — minimized window indicator', () => {
 		).toBe( true );
 	} );
 
-	test( 'dock: prefixed items resolve target window baseId from desktop icon config', () => {
-		( window as unknown as { openStationConfig?: { desktopIcons?: Array<{ id: string; window?: string }> } } ).openStationConfig = {
-			desktopIcons: [ { id: 'os-settings', window: 'os-settings' } ],
-		};
-
+	test( 'a tile whose target is a window lights up from windowId, not from its url', () => {
+		// An app launcher the user put on the rail. It has no admin
+		// URL, so without `windowId` the lookup would derive an id from
+		// the empty string and the dot would stay dark while the window
+		// is plainly open.
 		const win = makeWin( 'os-settings', 'os-settings', 'normal' );
 		const manager = makeManager( [ win ] );
 		const item: DockItem = {
-			id: 'dock:os-settings',
+			id: 'os-settings',
 			title: 'OS Settings',
 			icon: 'dashicons-admin-generic',
 			url: '',
+			windowId: 'os-settings',
 			badge: 0,
 			submenu: [],
 			multi: false,
@@ -319,7 +320,7 @@ describe( 'Dock — minimized window indicator', () => {
 		const { container } = mount( manager, [ item ] );
 		document.dispatchEvent( new CustomEvent( 'os-window-opened' ) );
 
-		const tile = tileFor( container, 'dock:os-settings' );
+		const tile = tileFor( container, 'os-settings' );
 		expect( tile.classList.contains( 'os-dock__item--active' ) ).toBe( true );
 	} );
 } );

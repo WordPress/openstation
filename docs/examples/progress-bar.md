@@ -5,7 +5,7 @@
 percent header. Used by the OS-file-drop upload HUD and available
 to any feature that needs a value-driven bar.
 
-> Status: **Experimental**.
+> Status: **Stable**.
 
 ## Drop-in
 
@@ -28,15 +28,16 @@ to any feature that needs a value-driven bar.
 | Mode | When to use | How |
 |---|---|---|
 | Determinate | You have a running `loaded / total`. | Set `value` (and optionally `max`, default `100`). The fill width animates between updates. |
-| Indeterminate | You don't know the total, or the work is open-ended. | Set the boolean `indeterminate` attribute. A 33%-wide bar sweeps across the track on a 1.1s linear loop. |
+| Indeterminate | You don't know the total, or the work is open-ended. | Set the boolean `indeterminate` attribute. The default bar fills the whole track and runs the holo shimmer through it on a 2.4s loop — alive without pretending to advance. A `tone`d bar has a flat fill with no mesh to travel, so it falls back to a 33%-wide block sweeping the track on a 1.1s linear loop. |
 
 Switch modes live by toggling the `indeterminate` attribute — the
 component repaints on every attribute change.
 
 ## Tones
 
-Tints the fill via the shared `--os-status-*` palette so
-the bar reads the same as toasts, ribbons, and notices.
+Tints the fill via the shell's status tokens — `--os-ui-success-fg`,
+`--os-ui-warning-fg`, `--os-ui-danger` — so the bar reads the same
+as toasts, ribbons, and notices.
 
 ```html
 <os-progress-bar value="80" tone="success"></os-progress-bar>
@@ -78,7 +79,7 @@ Every surface is overridable via CSS variables on the host:
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `--os-ui-progress-track-bg` | `var(--os-control-bg, rgba(0,0,0,0.08))` | Track background. |
+| `--os-ui-progress-track-bg` | `var(--os-ui-surface-sunken, rgba(0,0,0,0.08))` | Track background. |
 | `--os-ui-progress-fill` | `var(--wp-admin-theme-color, #2271b1)` | Fill color (overridden by the `tone` attribute). |
 | `--os-ui-progress-height` | `6px` | Track height. |
 | `--os-ui-progress-radius` | `999px` | Track + fill border-radius. |

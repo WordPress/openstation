@@ -121,6 +121,44 @@ hook bus until the next full page load.
 
 ---
 
+## Zones
+
+A rail paints three zones, with a divider between each adjacent pair
+of non-empty ones:
+
+| Zone | Holds |
+|---|---|
+| `core` | WordPress's own admin menus. Empty on the dock while the split layout is on — they are in the sidebar. |
+| `apps` | Plugin admin menus, app launchers, and any running window with no home of its own. |
+| `controls` | OpenStation's own affordances: Mio, Overview, System, the Trash, the way out. |
+
+Zone membership is derived from what each item IS, never stored, which
+is what makes "a tile cannot be dragged into another zone" structural
+rather than a rule to enforce. The shell hands a rail its whole
+contents through one controller call:
+
+```js
+setZones( {
+    core:     [ { type: 'menu', item }, … ],
+    apps:     [ { type: 'menu', item }, { type: 'system', item }, … ],
+    controls: [ { type: 'system', item }, … ],
+} );
+```
+
+The `DockEntry` union is there because a zone mixes cohorts: a plugin's
+admin menu and a plugin's app launcher sit side by side in `apps`.
+
+`setZones` is **optional**. A renderer that doesn't implement it is
+driven through `replaceItems` + `appendSystemItem` / `removeSystemItem`
+exactly as before. It loses the zone boundaries, which it had no way to
+paint, and reordering of system tiles, since that path only adds and
+removes them. Either way `mount()` now receives an empty `items` array: the
+shell fills the rail through the controller on the same turn, so a
+rail's contents come from exactly one place. Read `fullMenu` for the
+whole admin menu.
+
+---
+
 ## Live registration on plugin activation
 
 Both layers support live registration without an F5. Same pattern
@@ -191,21 +229,23 @@ to a specific layer reaches for these instead of DOM scraping. All
 
 | API | Returns | Use it for |
 |---|---|---|
-| `wp.os.openOsSettings( opts? )` | `void` | Portable opener for the shell's OpenStation Preferences window — same window the dock tile opens. Avoids the Classic-layout gotcha where the OpenStation Preferences tile lives on a different rail than your custom renderer. Pass `{ tabId }` (e.g. `'ai'`, `'features'`) to deep-link to a specific tab. |
-| `wp.os.listSystemTiles()` | `Array<{ id, title, icon, affinity, placeable }>` | Enumerate every JS-registered system tile (OpenStation Preferences, Mio toggle, plugin native-window launchers). Compose your own launcher palette without scraping the DOM. |
+| `wp.os.openOsSettings( opts? )` | `void` | Portable opener for the shell's OpenStation Preferences window — same window the dock tile opens. Avoids the Classic-layout gotcha where the OpenStation Preferences tile lives on a different rail than your custom renderer. Pass `{ tabId }` (e.g. `'features'`, `'themes'`) to deep-link to a specific tab. |
+| `wp.os.listSystemTiles()` | `Array<{ id, title, icon, navKind, placeable, locked }>` | Enumerate every JS-registered system tile (Mio toggle, the Trash, plugin native-window launchers). Compose your own launcher palette without scraping the DOM. |
 | `wp.os.getSystemTile( id )` | `SystemDockItem \| null` | Fetch a specific tile to invoke its `onOpen()` callback. |
 | `wp.os.getMenuItems()` | `DockItem[]` | The complete admin-menu list, regardless of how the active layout would partition it. Renderer-agnostic alternative to `mount-deps.fullMenu`. |
+| `wp.os.getNavItems()` | `NavItem[]` | Every navigable thing — admin menus, app launchers, registered icons, OpenStation's controls — as one list, each carrying the `kind` that decides its default placement and its zone. |
+| `wp.os.getNav()` | `NavResult \| null` | The computed navigation: the dock's three zones, the sidebar, the wallpaper, and the ids present only because their window is open. Read this rather than re-deriving placement. |
 | `wp.os.deriveWindowId( url )` | `string` | The same id the default renderer uses to open a tile. Custom renderers that build their own window configs use this so switching renderer mid-session preserves open windows. |
 
 ```js
 // Open a known system tile from anywhere — no DOM scraping.
-wp.os.getSystemTile( 'os-settings' )?.onOpen();
+wp.os.getSystemTile( 'os-system' )?.onOpen();
 
 // Or the dedicated entry point for OpenStation Preferences:
 wp.os.openOsSettings();
 
 // Deep-link straight to a specific settings tab:
-wp.os.openOsSettings( { tabId: 'ai' } );
+wp.os.openOsSettings( { tabId: 'features' } );
 
 // Iterate all system tiles for a custom launcher.
 for ( const tile of wp.os.listSystemTiles() ) {

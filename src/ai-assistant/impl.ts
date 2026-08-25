@@ -22,6 +22,7 @@ import { osConfirm } from '../os-confirm';
 import { trackedFetch } from '../tracked-fetch';
 import { decodeHTML } from '../utils';
 import { OS_SITE_LOGO_SVG } from '../ui/site-logo-icon';
+import { osIconSvg } from '../ui/icons';
 import {
 	filterCommands,
 	findCommand,
@@ -39,15 +40,24 @@ import {
 // SVG icons
 // ---------------------------------------------------------------------------
 
-const ICON_SPARKLE = `<svg viewBox="0 0 20 20" width="15" height="15" aria-hidden="true" focusable="false" fill="currentColor">
-	<path d="M10 2 L11.8 7.8 L17.5 9.5 L11.8 11.2 L10 17 L8.2 11.2 L2.5 9.5 L8.2 7.8 Z"/>
-</svg>`;
+// The Copilot sparkle is OpenStation's own: two four-point stars, the
+// brand mark, and the one glyph on this surface that has to be ours
+// rather than WordPress's.
+const ICON_SPARKLE = osIconSvg( 'copilot', { size: 16 } );
 
-const ICON_CLOSE = `<svg viewBox="0 0 14 14" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false">
-	<line x1="2" y1="2" x2="12" y2="12"/>
-	<line x1="12" y1="2" x2="2" y2="12"/>
-</svg>`;
+const ICON_CLOSE = osIconSvg( 'close', { size: 16 } );
 
+const ICON_ARROW = osIconSvg( 'chevron-right', { size: 16 } );
+
+// Magnifier shown in Commands mode where the sparkle would read as "AI".
+const ICON_SEARCH = osIconSvg( 'search', { size: 16 } );
+
+/*
+ * The two below stay hand-drawn: neither the return key nor a spinning
+ * arc has a member in the thirty. The Return glyph is a keycap hint
+ * rather than an icon, and a spinner is motion, so both are part of
+ * the surface that draws them.
+ */
 const ICON_RETURN = `<svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
 	<polyline points="14,4 14,10 3,10"/>
 	<polyline points="6,7 3,10 6,13"/>
@@ -56,16 +66,6 @@ const ICON_RETURN = `<svg viewBox="0 0 16 16" width="13" height="13" aria-hidden
 const ICON_SPINNER = `<svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="os-ai__spinner-icon">
 	<circle cx="10" cy="10" r="7" stroke-opacity="0.25"/>
 	<path d="M10 3 A7 7 0 0 1 17 10" stroke-opacity="1"/>
-</svg>`;
-
-const ICON_ARROW = `<svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-	<polyline points="6,3 11,8 6,13"/>
-</svg>`;
-
-// Magnifier shown in Commands mode where the sparkle would read as "AI".
-const ICON_SEARCH = `<svg viewBox="0 0 20 20" width="15" height="15" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-	<circle cx="9" cy="9" r="6"/>
-	<line x1="13.5" y1="13.5" x2="18" y2="18"/>
 </svg>`;
 
 // `siteLogo` from @wordpress/icons — the modal's title glyph, and the
@@ -300,6 +300,17 @@ export class AiAssistant implements AiAssistantApi {
 		this._el.classList.add( 'is-open' );
 		this._el.setAttribute( 'aria-hidden', 'false' );
 
+		// Announce visibility so palette-gated work (the iframe command
+		// harvester) starts. Dispatched inline rather than via the
+		// palette registry's notifyPaletteVisibility — this bundle
+		// deliberately doesn't import the registry module, and the
+		// consumers treat the event as an idempotent signal anyway.
+		document.dispatchEvent(
+			new CustomEvent( 'os-palette-opened', {
+				detail: { id: 'desktop-mode-ai-assistant' },
+			} ),
+		);
+
 		requestAnimationFrame( () => this._input.focus() );
 	}
 
@@ -314,6 +325,16 @@ export class AiAssistant implements AiAssistantApi {
 		this._isSearching = false;
 		this._submitBtn.disabled = false;
 		this._input.disabled = false;
+
+		// Mirror of the `os-palette-opened` dispatch in `open()` —
+		// lets palette-gated work (the iframe command harvester) shut
+		// down. Consumers grace-delay teardown, so dispatching before
+		// a picked command's `run()` executes is safe.
+		document.dispatchEvent(
+			new CustomEvent( 'os-palette-closed', {
+				detail: { id: 'desktop-mode-ai-assistant' },
+			} ),
+		);
 
 		const onEnd = ( e: TransitionEvent ) => {
 			if ( e.target !== this._el || e.propertyName !== 'opacity' ) {

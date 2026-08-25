@@ -34,7 +34,7 @@ import {
 } from '../dock-helpers';
 import { renderIcon } from '../icon';
 import { deriveWindowId } from '../utils';
-import { broadcast, subscribe } from '../broadcast';
+import { announceContentChange, broadcast, subscribe } from '../broadcast';
 import { devtools } from '../devtools';
 import { showToast } from '../toast';
 import { activity } from '../activity';
@@ -157,6 +157,7 @@ import type { Dock, SystemDockItem } from '../dock';
 import type { LayoutDispatcher } from '../desktop-layout';
 import type { OsSettings } from '../settings';
 import type { IconsApi } from '../desktop-icons';
+import { osIconSetApi } from '../ui/icons';
 import type { FilesApi } from '../desktop-files';
 import type { WidgetLayer } from '../widgets/layer';
 import type { AiAssistantApi } from '../ai-assistant';
@@ -173,6 +174,7 @@ import {
 	resolveThemedIconColor,
 } from '../desktop-themes/icons';
 import {
+	ensureFullDesktopThemes,
 	getActiveDesktopThemeId,
 	listDesktopThemes,
 	subscribeDesktopThemes,
@@ -195,7 +197,7 @@ import type { NativeWindowDef, DesktopConfig } from '../types';
  */
 export const RESERVED_NAMESPACE_KEYS: ReadonlySet< string > = new Set( [
 	'windowManager', 'dock', 'sideDock', 'taskbar', 'desktopLayout',
-	'dockPlacement', 'icons',
+	'dockPlacement', 'icons', 'iconSet',
 	'files', 'confirm', 'saveSession', 'hooks', 'HOOKS',
 	'isActive', 'registerWallpaper', 'registerWidget', 'widgetLayer', 'widgets',
 	'registerSystemTile', 'registerWindow', 'openWindow', 'openNewWindow',
@@ -214,6 +216,7 @@ export const RESERVED_NAMESPACE_KEYS: ReadonlySet< string > = new Set( [
 	'openOsSettings', 'getOsSettings', 'subscribeOsSettings', 'updateOsSettings',
 	'deriveWindowId',
 	'listSystemTiles', 'getSystemTile', 'getMenuItems',
+	'getNavItems', 'getNav',
 	'renderIcon',
 	'applyTileClasses', 'applyTileElement', 'applyTileTooltip',
 	'dispatchTileRendered',
@@ -237,7 +240,8 @@ export const RESERVED_NAMESPACE_KEYS: ReadonlySet< string > = new Set( [
 	'registerWindowChrome', 'unregisterWindowChrome', 'listWindowChromes',
 	'applyWindowChrome',
 	'connect', 'getConnection',
-	'broadcast', 'subscribe', 'registerPalette', 'unregisterPalette',
+	'broadcast', 'subscribe', 'announceContentChange',
+	'registerPalette', 'unregisterPalette',
 	'listPalettes', 'openPalette', 'devtools', 'createSharedStore',
 	'presence', 'selection', 'activity', 'heartbeat', 'showToast',
 	'renderKeyedList',
@@ -337,6 +341,7 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 			layoutDispatcher?.getDockPlacement() ??
 			osSettings.getOsSettingsSnapshot().dockPlacement,
 		icons: iconsApi,
+		iconSet: osIconSetApi,
 		files: filesApi,
 		confirm: osConfirm,
 		saveSession,
@@ -512,6 +517,9 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 			if ( typeof patch.nativeCommentsEnabled === 'boolean' ) {
 				osSettings.state.nativeCommentsEnabled = patch.nativeCommentsEnabled;
 			}
+			if ( typeof patch.stationHomeEnabled === 'boolean' ) {
+				osSettings.state.stationHomeEnabled = patch.stationHomeEnabled;
+			}
 			if ( typeof patch.foldersSharingEnabled === 'boolean' ) {
 				osSettings.state.foldersSharingEnabled = patch.foldersSharingEnabled;
 			}
@@ -531,16 +539,16 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 						.slice( 0, 32 );
 			}
 			if (
-				patch.itemVisibility &&
-				typeof patch.itemVisibility === 'object'
+				patch.navPlacement &&
+				typeof patch.navPlacement === 'object'
 			) {
-				const allowed = [ 'both', 'dock', 'desktop', 'hidden' ];
+				const allowed = [ 'both', 'rail', 'desktop', 'hidden' ];
 				const next: Record<
 					string,
-					'both' | 'dock' | 'desktop' | 'hidden'
+					'both' | 'rail' | 'desktop' | 'hidden'
 				> = {};
 				for ( const [ k, v ] of Object.entries(
-					patch.itemVisibility as Record< string, unknown >,
+					patch.navPlacement as Record< string, unknown >,
 				) ) {
 					if ( typeof k !== 'string' || k === '' ) {
 						continue;
@@ -550,14 +558,14 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 					}
 					next[ k ] = v as
 						| 'both'
-						| 'dock'
+						| 'rail'
 						| 'desktop'
 						| 'hidden';
 				}
-				osSettings.state.itemVisibility = next;
+				osSettings.state.navPlacement = next;
 			}
-			if ( Array.isArray( patch.dockOrder ) ) {
-				osSettings.state.dockOrder = patch.dockOrder
+			if ( Array.isArray( patch.navOrder ) ) {
+				osSettings.state.navOrder = patch.navOrder
 					.filter(
 						( v ): v is string =>
 							typeof v === 'string' && v !== '',
@@ -642,9 +650,9 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 			// listeners since `save()` iterates a single Set). Re-
 			// invoking refresh() directly here makes the dock + icon
 			// grid pick up the new placement synchronously with the
-			// write — no F5 required for "Hide from dock" / "Also show
-			// on desktop" picks from the right-click menu.
-			if ( patch.itemVisibility || patch.dockOrder ) {
+			// write — no F5 required for "Hide from dock" / "Show on
+			// desktop" picks from the right-click menu.
+			if ( patch.navPlacement || patch.navOrder ) {
 				layoutDispatcher?.refresh();
 			}
 		},
@@ -654,6 +662,8 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 		getSystemTile: ( id: string ) =>
 			layoutDispatcher?.getSystemTile( id ) ?? null,
 		getMenuItems: () => layoutDispatcher?.getMenuItems() ?? [],
+		getNavItems: () => layoutDispatcher?.getNavItems() ?? [],
+		getNav: () => layoutDispatcher?.getNav() ?? null,
 		renderIcon,
 		applyTileClasses,
 		applyTileElement,
@@ -684,6 +694,12 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 			list: listDesktopThemes,
 			getActive: getActiveDesktopThemeId,
 			setActive: applyDesktopTheme,
+			// Hydrate boot-slimmed entries (`cssDeferred: true`) with
+			// their full `cssText` / `tokens` WITHOUT activating
+			// anything — the awaitable the `cssDeferred` docs point
+			// consumers at. `setActive()` triggers the same fetch
+			// itself, but activation must not be the only door.
+			ensureFull: ensureFullDesktopThemes,
 			subscribe: subscribeDesktopThemes,
 			resolveIcon: resolveThemedIcon,
 			resolveIconColor: resolveThemedIconColor,
@@ -754,6 +770,7 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 		getConnection,
 		broadcast,
 		subscribe,
+		announceContentChange,
 		registerPalette,
 		unregisterPalette,
 		listPalettes,
@@ -848,7 +865,15 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 				if ( ! entry ) {
 					return null;
 				}
-				const url = entry.scriptUrl || '';
+				// Wire entries reference their bundle by handle; the
+				// resolved URL lives in the handle-keyed script-data
+				// map. Old inline entries still carry it directly.
+				const url =
+					entry.scriptUrl ||
+					( entry.scriptHandle
+						? config.nativeWindowScriptData?.[ entry.scriptHandle ]
+							?.url ?? ''
+						: '' );
 				let loadPath: 'eager' | 'lazy' | 'unknown' = 'unknown';
 				let tagInDom = false;
 				if ( url ) {

@@ -60,7 +60,17 @@ add_filter( 'openstation_my_wordpress_window_args', function ( $args ) {
 
 (That filter is WP Explorer's; every window that ships one exposes the same shape. A window you own takes `'scripts' => array( … )` directly.)
 
-The in-tree example is `my-wordpress-woocommerce`, which hooks WP Explorer's `preview-extras` / `group-extras` actions. It used to be enqueued on every admin page of every WooCommerce store; it now rides the window it extends.
+A stylesheet that only paints surfaces inside the window travels the same way, through `'styles'` — injected on the window's first open, after the window's own `style`, so its equal-specificity overrides win by source order. Without it, the sheet has to be enqueued eagerly, which stamps it into every admin document (chromeless iframes included) where it can style nothing:
+
+```php
+add_filter( 'openstation_my_wordpress_window_args', function ( $args ) {
+    $args['scripts'][] = 'my-plugin-explorer-extras';
+    $args['styles'][]  = 'my-plugin-explorer-extras';
+    return $args;
+} );
+```
+
+The in-tree example is `my-wordpress-woocommerce`, which hooks WP Explorer's `preview-extras` / `group-extras` actions. It used to be enqueued on every admin page of every WooCommerce store; the bundle and its stylesheet now ride the window they extend.
 
 ### If you call an API another window's bundle publishes
 
@@ -80,5 +90,5 @@ await wp.os.myWordpress.trashEntity( 'posts', 42 );
 ## Related
 
 - [`architecture.md`](./architecture.md#when-a-windows-bundle-loads--and-what-gets-injected) — the full delivery model.
-- [`hooks-reference.md`](./hooks-reference.md#registration-functions) — `script`, `scripts`, `preload_script`.
+- [`hooks-reference.md`](./hooks-reference.md#registration-functions) — `script`, `scripts`, `styles`, `preload_script`.
 - [`javascript-reference.md`](./javascript-reference.md#wposloadwindowscript-id---stable) — `wp.os.loadWindowScript`.

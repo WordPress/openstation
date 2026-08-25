@@ -28,6 +28,51 @@ import type { SettingsCtx } from '../types';
 import { osConfirm } from '../../ui/components/os-confirm-dialog/os-confirm-dialog';
 import { showToast } from '../../toast';
 
+/**
+ * Developer mode gates SERVER-side registrations (Code Blue's native
+ * window + desktop icon), which the shell only learns about from a
+ * fresh menu payload. Wait for the debounced settings sync to
+ * actually persist (`saved` lifecycle phase — the refresh probe
+ * rebuilds the payload from saved user meta, so firing earlier would
+ * harvest the old state), then spend one `wp.os.refreshMenu()` so
+ * the gated surfaces appear/disappear without an F5. On `failed` the
+ * panel's rollback handler already reverts the toggle; nothing to
+ * refresh.
+ *
+ * One permanent listener + a pending flag (the same shape as the
+ * title-bar-buttons registry's lifecycle subscriber) rather than a
+ * self-removing listener per toggle: the sync debounce collapses
+ * rapid flips into ONE `saved` event, and the flag collapses them
+ * into ONE refresh probe with it.
+ */
+let pendingRegistrationRefresh = false;
+
+function refreshRegistrationsAfterSave(): void {
+	pendingRegistrationRefresh = true;
+}
+
+document.addEventListener( 'os-settings-save-lifecycle', ( event ) => {
+	if ( ! pendingRegistrationRefresh ) {
+		return;
+	}
+	const phase = ( event as CustomEvent< { phase?: string } > ).detail?.phase;
+	if ( phase !== 'saved' && phase !== 'failed' ) {
+		return;
+	}
+	pendingRegistrationRefresh = false;
+	if ( phase !== 'saved' ) {
+		return;
+	}
+	const refreshMenu = (
+		window.wp as
+			| { os?: { refreshMenu?: () => Promise< void > } }
+			| undefined
+	)?.os?.refreshMenu;
+	if ( typeof refreshMenu === 'function' ) {
+		void refreshMenu();
+	}
+} );
+
 // Show the platform-native shortcut: ⌘K on Apple, Ctrl+K elsewhere.
 const SHORTCUT_KEY =
 	typeof navigator !== 'undefined' &&
@@ -131,6 +176,13 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 		paint();
 	};
 
+	const onStationHomeToggle = ( e: Event ): void => {
+		const checked = ( e as CustomEvent ).detail?.checked === true;
+		ctx.state.stationHomeEnabled = checked;
+		ctx.save();
+		paint();
+	};
+
 	const onShowDesktopOnClickToggle = ( e: Event ): void => {
 		const checked = ( e as CustomEvent ).detail?.checked === true;
 		ctx.state.showDesktopOnWallpaperClick = checked;
@@ -174,6 +226,7 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 		ctx.state.developerModeEnabled = checked;
 		ctx.save();
 		paint();
+		refreshRegistrationsAfterSave();
 	};
 
 	const onFolderSharingToggle = ( e: Event ): void => {
@@ -702,6 +755,18 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 						'Experimental redesigns of core admin screens, off by default. Each toggle affects only your account and takes effect immediately.',
 					) }
 				>
+					<div class="os-features__item">
+						<os-checkbox-label
+							label=${ __( 'Use Station Home as your Dashboard' ) }
+							?checked=${ ctx.state.stationHomeEnabled }
+							@os-checkbox-change=${ onStationHomeToggle }
+						></os-checkbox-label>
+						<p class="os-features__hint">
+							${ __(
+								'Opens Station Home instead of the classic WordPress Dashboard: recent work, site pulse, and quick actions in one native window. Leave off to keep the classic Dashboard, including any customizations plugins have made to it.',
+							) }
+						</p>
+					</div>
 					<div class="os-features__item">
 						<os-checkbox-label
 							label=${ __( 'Use the native Posts window' ) }

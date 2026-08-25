@@ -125,6 +125,16 @@ Both bridges install the forwarder behind the shared `__openStationPointerForwar
 
 Parent side: the consumer resolves the sending frame by matching `MessageEvent.source` against each `<iframe>`'s `contentWindow` (cached in a `WeakMap`), then adds that element's `left` / `top`. A message from a frame it can't resolve is dropped rather than guessed at.
 
+### Background heartbeat throttle — `os-window-active`
+
+Every chromeless iframe is a complete wp-admin page running Core's Heartbeat — 15 s in the post editor. Core only slows Heartbeat when the browser **tab** is hidden; a background desktop window is still a visible iframe, so that backoff never engages, and a desktop with several windows open fires several admin-ajax heartbeats a minute from windows the user isn't looking at.
+
+| Type | Direction | Carries | Purpose |
+|---|---|---|---|
+| `os-window-active` | parent → iframe | `{ active: boolean }` | Whether this iframe's window is the focused one. Sent on window focus/blur (`src/window-activity-notifier.ts`) and re-seeded on every `os-bridge-ready`, so a background window that navigates doesn't come back on the fast cadence. |
+
+On `active: false` the chromeless bridge stretches `wp.heartbeat.interval()` to its 120 s maximum; on `active: true` it restores the saved cadence. Post locks stay safe — Core's lock window is 150 s, above the slowed interval. Two guards keep the throttle conservative: an interval below 15 s is never touched (a 5 s cadence means something urgent, like an auth-check retry, is in flight), and the restore only fires if the interval is still the 120 s the throttle set — page code that re-tuned Heartbeat while backgrounded wins.
+
 ### Pre-close unsaved-changes query — `os-bridge-beforeunload-*`
 
 Before tearing down an iframe-backed (non-native) window, `Window.close()` gives the page inside a chance to veto — the same protection a real browser tab close gets from the page's `beforeunload` handler, which a same-origin admin iframe never triggers on its own (there's no real navigation happening).
@@ -413,6 +423,16 @@ Drop-receiver iframes have two ways to consume the payload:
    Receivers listen on `window.message`, check `event.origin === window.location.origin`, and switch on `data.payload.kind`. The built-in Gutenberg receiver (`src/gutenberg-drop-receiver.ts`) is the canonical example.
 
 2. **Pull** — any iframe can postMessage `{ type: 'os-drag-payload-request' }` and the parent replies (directly to `event.source`) with `{ type: 'os-drag-payload', payload }`. Useful for iframes that bind their own native `drop` handler and need the rich payload after the browser has stripped the custom MIME from DataTransfer.
+
+### Drops the bridge declines
+
+While an iframe-sourced session is live, the intercept in `src/drag/iframe-drop-targets.ts` listens for `drop` on `document` in the **capture** phase — it has to, because the gesture is native HTML5 and has to be re-routed by hand into whichever iframe the cursor ended over.
+
+That reach stops at the iframe boundary. When there is no iframe window under the cursor — the drop landed on the wallpaper, a folder window's canvas, the dock — the intercept **declines**: it cancels the browser default and tears the session down, but leaves propagation alone so shell-side handlers get their turn. The files canvas uses exactly that opening to file an attachment dragged out of the Media Library as a desktop shortcut (see [`files-on-desktop.md`](files-on-desktop.md#drops-arriving-from-inside-a-window)).
+
+Cancelling the default is not optional even when the shell has nothing to do with the drop: a media drag carries `text/uri-list`, and the default action for that on a plain document is to navigate — a photo dropped on the desktop would otherwise replace the whole shell with the image.
+
+If you register your own drop handling on a shell surface, expect the event in the bubble phase and claim it with `preventDefault()` + `stopPropagation()`.
 
 ### Payload union
 

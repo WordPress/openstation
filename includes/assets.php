@@ -337,12 +337,15 @@ function openstation_register_assets() {
 
 	// Pinned-notes layer styles (paper, pushpin, pastel tokens, pin
 	// animations). Same `filemtime` cache-bust posture as the other
-	// fast-iterating feature stylesheets above.
+	// fast-iterating feature stylesheets above. Depends on `os-files`
+	// because a pinned note dresses the canonical `.os-file-tile`
+	// chrome — anything that restyles a tile has to print after the
+	// file that declares one.
 	$notes_css = OPENSTATION_DIR . 'assets/css/notes.css';
 	wp_register_style(
 		'os-notes',
 		OPENSTATION_URL . 'assets/css/notes.css',
-		array( 'os-variables', 'dashicons' ),
+		array( 'os-variables', 'dashicons', 'os-files' ),
 		file_exists( $notes_css ) ? (string) filemtime( $notes_css ) : $version
 	);
 

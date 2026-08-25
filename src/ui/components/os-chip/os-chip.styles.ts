@@ -124,10 +124,14 @@ export const styles = css`
 		opacity: 0.35;
 		cursor: not-allowed;
 	}
+	/* 14, not the button's own 16. Core's cross carries about 63% of
+	   its 24 grid in ink, so a box-filling glyph in a 16px button lands
+	   heavier than the 14px label beside it. Two pixels back and the
+	   cross reads as the label's peer rather than as its loudest part. */
 	.os-chip__dismiss svg {
 		display: block;
-		width: 10px;
-		height: 10px;
+		width: 14px;
+		height: 14px;
 	}
 
 	:host( [ disabled ] ) .os-chip {

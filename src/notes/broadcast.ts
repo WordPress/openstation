@@ -10,26 +10,15 @@
  * `src/desktop-files/trash.ts`, so one subscriber handles both.
  */
 
+import { announceContentChange } from '../broadcast';
 import { NOTES_POST_TYPE } from './types';
 
 type NotesChangeAction = 'trashed' | 'untrashed' | 'deleted';
 
-/** No-ops before `wp.os` exists (boot ordering, tests). */
+/** Thin wrapper: one place owns the note type and the source tag. */
 export function broadcastNotesChange(
 	action: NotesChangeAction,
 	ids: number[],
 ): void {
-	if ( ids.length === 0 ) {
-		return;
-	}
-	const api = (
-		window as {
-			wp?: { os?: { broadcast?: ( topic: string, payload: unknown ) => void } };
-		}
-	).wp?.os;
-	api?.broadcast?.( `os.${ NOTES_POST_TYPE }.changed`, {
-		source: 'desktop-mode/notes',
-		action,
-		ids,
-	} );
+	announceContentChange( NOTES_POST_TYPE, action, ids, 'desktop-mode/notes' );
 }

@@ -18,6 +18,7 @@
  */
 
 import { __, sprintf } from '../i18n';
+import { osIconSvg } from '../ui/icons';
 import type { WidgetDef, WidgetGeometry } from './types';
 
 const FLOATING_CLASS = 'os-widgets__card--floating';
@@ -34,6 +35,16 @@ const DEFAULT_HEIGHT = 180;
 
 /** Keep 20 px between the card and the viewport edges during drag. */
 const VIEWPORT_MARGIN = 20;
+
+/**
+ * Grid a floating widget's position snaps to while being dragged.
+ * Two widgets dropped at roughly the same height land on the same
+ * multiple, which is the whole point — freehand placement never
+ * lines up. Deliberately equal to {@link VIEWPORT_MARGIN} so the
+ * clamped edge positions are themselves on-grid, and a widget parked
+ * against the margin stays aligned with everything else.
+ */
+const SNAP_GRID = 20;
 
 /**
  * Drag threshold (squared) — pointer must move this far from the
@@ -295,8 +306,9 @@ function buildRedockButton(
 		sprintf( __( 'Dock %s back to widget column' ), def.label ),
 	);
 	// Right-arrow + edge glyph: a rail-ish affordance pointing to
-	// where the widget is going back to. Inline SVG so the icon
-	// picks up `currentColor` like the close button above.
+	// where the widget is going back to. Drawn here rather than taken
+	// from `src/ui/icons` because the set has no member for it: our
+	// `dock` icon is the rail itself, not the act of returning to it.
 	btn.innerHTML =
 		'<svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true">' +
 		'<path d="M2 6h6M5.5 3.5L8 6l-2.5 2.5M10 2.5v7" ' +
@@ -329,10 +341,7 @@ function buildCloseButton(
 	close.className = 'os-widgets__card-close';
 	// translators: %s is the widget label (e.g., "Clock")
 	close.setAttribute( 'aria-label', sprintf( __( 'Remove %s' ), def.label ) );
-	close.innerHTML =
-		'<svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true">' +
-		'<path d="M2.5 2.5l7 7M9.5 2.5l-7 7" stroke="currentColor" ' +
-		'stroke-width="1.6" stroke-linecap="round"/></svg>';
+	close.innerHTML = osIconSvg( 'close', { size: 16 } );
 	close.addEventListener( 'click', ( e ) => {
 		e.preventDefault();
 		e.stopPropagation();
@@ -457,15 +466,21 @@ function attachDrag(
 			commitDrag();
 		}
 
+		// Snap on the way in, then again on the way out. Only the
+		// near bounds of the clamp are on-grid (they're
+		// `VIEWPORT_MARGIN`); the far ones are whatever the parent's
+		// size minus the card's leaves over, so a widget shoved
+		// against the right or bottom edge would land off-grid and
+		// persist there.
 		const clamped = clampToParent(
-			initialLeft + dx,
-			initialTop + dy,
+			snapToGrid( initialLeft + dx ),
+			snapToGrid( initialTop + dy ),
 			card.offsetWidth,
 			card.offsetHeight,
 			ctx.floatingParent,
 		);
-		card.style.left = `${ clamped.x }px`;
-		card.style.top = `${ clamped.y }px`;
+		card.style.left = `${ snapWithin( clamped.x ) }px`;
+		card.style.top = `${ snapWithin( clamped.y ) }px`;
 	};
 
 	const onUp = ( e: PointerEvent ): void => {
@@ -687,6 +702,23 @@ function clampGeometryToParent(
 	return { ...geometry, x: clamped.x, y: clamped.y };
 }
 
+/** Round a coordinate onto the {@link SNAP_GRID}. */
+function snapToGrid( value: number ): number {
+	return Math.round( value / SNAP_GRID ) * SNAP_GRID;
+}
+
+/**
+ * Grid line at or below `value` — the post-clamp pass. Rounding to
+ * the *nearest* line here could push the card back out of the bounds
+ * the clamp just put it inside, so this one only ever moves inward.
+ * A card too big for its parent has no grid line to sit on and keeps
+ * the clamped value.
+ */
+function snapWithin( value: number ): number {
+	const snapped = Math.floor( value / SNAP_GRID ) * SNAP_GRID;
+	return snapped >= VIEWPORT_MARGIN ? snapped : Math.min( value, VIEWPORT_MARGIN );
+}
+
 function clampToParent(
 	x: number,
 	y: number,
@@ -736,24 +768,75 @@ export function computeResize(
 	let height = startH;
 
 	if ( dir === 'e' || dir === 'ne' || dir === 'se' ) {
-		width = clamp( startW + dx, minW, Math.min( maxW, parentWidth - startLeft ) );
+		if ( floating ) {
+			// Same rule as the west handle, just the other edge: snap
+			// what the pointer is dragging. With the origin already
+			// on-grid the width comes out a whole number of cells, so
+			// two widgets can line up their right edges as well as
+			// their left.
+			const right = snapIntoRange(
+				snapToGrid( startLeft + startW + dx ),
+				startLeft + minW,
+				Math.min( startLeft + maxW, parentWidth ),
+			);
+			width = right - startLeft;
+		} else {
+			width = clamp( startW + dx, minW, Math.min( maxW, parentWidth - startLeft ) );
+		}
 	}
 	if ( dir === 'w' || dir === 'nw' || dir === 'sw' ) {
-		const nextWidth = clamp( startW - dx, minW, Math.min( maxW, startLeft + startW ) );
-		x = startLeft + ( startW - nextWidth );
-		width = nextWidth;
+		const right = startLeft + startW;
+		if ( floating ) {
+			// Snap the edge under the pointer, then take the width
+			// from it. Doing it the other way round (snap the width,
+			// derive x) would move the right edge, which the user is
+			// not dragging.
+			x = snapIntoRange(
+				snapToGrid( startLeft + dx ),
+				Math.max( 0, right - Math.min( maxW, right ) ),
+				right - minW,
+			);
+			width = right - x;
+		} else {
+			const nextWidth = clamp( startW - dx, minW, Math.min( maxW, right ) );
+			x = startLeft + ( startW - nextWidth );
+			width = nextWidth;
+		}
 	}
 	if ( dir === 's' || dir === 'se' || dir === 'sw' ) {
-		height = clamp(
-			startH + dy,
-			minH,
-			Math.min( maxH, parentHeight - startTop ),
-		);
+		if ( floating ) {
+			const bottom = snapIntoRange(
+				snapToGrid( startTop + startH + dy ),
+				startTop + minH,
+				Math.min( startTop + maxH, parentHeight ),
+			);
+			height = bottom - startTop;
+		} else {
+			// The column's own resize stays freehand. A docked card's
+			// top is pinned by the stack above it, so there's nothing
+			// to align it to, and stepping the height in whole cells
+			// would just make the drag feel coarse.
+			height = clamp(
+				startH + dy,
+				minH,
+				Math.min( maxH, parentHeight - startTop ),
+			);
+		}
 	}
 	if ( dir === 'n' || dir === 'ne' || dir === 'nw' ) {
-		const nextHeight = clamp( startH - dy, minH, Math.min( maxH, startTop + startH ) );
-		y = startTop + ( startH - nextHeight );
-		height = nextHeight;
+		const bottom = startTop + startH;
+		if ( floating ) {
+			y = snapIntoRange(
+				snapToGrid( startTop + dy ),
+				Math.max( 0, bottom - Math.min( maxH, bottom ) ),
+				bottom - minH,
+			);
+			height = bottom - y;
+		} else {
+			const nextHeight = clamp( startH - dy, minH, Math.min( maxH, bottom ) );
+			y = startTop + ( startH - nextHeight );
+			height = nextHeight;
+		}
 	}
 
 	// Non-floating (column-docked) widgets ignore any width change —
@@ -766,6 +849,25 @@ export function computeResize(
 	}
 
 	return { x, y, width, height };
+}
+
+/**
+ * Grid line inside `[min, max]`, preferring the one at or below
+ * `value`. Used for the edge under the pointer during a resize, where
+ * the legal range is set by the widget's min/max size rather than by
+ * the desktop edges, so neither end is guaranteed to be on-grid. A
+ * range too narrow to hold a grid line at all (a widget whose min and
+ * max sizes are within 20 px of each other) keeps the plain clamped
+ * value — an off-grid edge beats refusing to resize.
+ */
+function snapIntoRange( value: number, min: number, max: number ): number {
+	const clamped = clamp( value, min, max );
+	const down = Math.floor( clamped / SNAP_GRID ) * SNAP_GRID;
+	if ( down >= min ) {
+		return down;
+	}
+	const up = down + SNAP_GRID;
+	return up <= max ? up : clamped;
 }
 
 function clamp( value: number, min: number, max: number ): number {

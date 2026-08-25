@@ -34,7 +34,7 @@ import { openCreateFolderDialog } from './create-folder-dialog';
 import { rest, store as filesStoreApi } from './layer-deps';
 import { openFile } from './open';
 import { resolve as resolveFileType } from './registry';
-import { hidePromotedDockItems, readSynthSource } from './synthetic';
+import { hideFromDesktop, readSynthSource } from './synthetic';
 import type { TileMenuItem } from './tile-menu';
 import {
 	trashFolderWithUndo,
@@ -246,22 +246,22 @@ export function buildPlacementActions(
 	} else {
 		// Two cases get "Hide from desktop" instead of "Move to Trash":
 		//
-		//   1. Synthetic shortcuts the user promoted from a dock item
-		//      via OpenStation Preferences → Apps & Plugins. They aren't real
-		//      placements — they're derived from the visibility map and
-		//      live only in the in-memory store, so trashing them would
-		//      404 on the REST endpoint.
+		//   1. Synthetic shortcuts — an admin menu or a launcher the
+		//      user put on the wallpaper. They aren't real placements;
+		//      they're derived from the navigation and live only in the
+		//      in-memory store, so trashing them would 404 on the REST
+		//      endpoint.
 		//
 		//   2. Plugin-registered icons (file type `'shortcut'`) — Content
 		//      Graph, Recycle Bin, My WordPress, and any icon registered
 		//      via `openstation_register_icon()`. These are framework /
 		//      plugin shortcuts, not user data, and shouldn't be
 		//      deletable from the wallpaper. The user can hide them here
-		//      and restore via OpenStation Preferences → Apps & Plugins.
+		//      and restore via OpenStation Preferences → Navigation.
 		//
-		// Both write `itemVisibility[ id ] = 'dock'` — the layout
-		// dispatcher's settings subscription drops the desktop tile on
-		// the next tick.
+		// Both drop the desktop region from the item's placement — the
+		// layout dispatcher's settings subscription takes the tile off
+		// the wallpaper on the next tick.
 		const synthFromDockItem = readSynthSource( placement );
 		const isRegisteredIcon = placement.file.type === 'shortcut';
 		if ( synthFromDockItem || isRegisteredIcon ) {
@@ -274,7 +274,7 @@ export function buildPlacementActions(
 				multi: true,
 				bulkLabel: ( n ) => `Hide ${ n } items from desktop`,
 				bulk: ( placements ) => {
-					hidePromotedDockItems(
+					hideFromDesktop(
 						placements
 							.map(
 								( p ) => readSynthSource( p ) ?? p.file.ref,
@@ -282,7 +282,7 @@ export function buildPlacementActions(
 							.filter( ( id ): id is string => !! id ),
 					);
 				},
-				onClick: () => hidePromotedDockItems( [ hideId ] ),
+				onClick: () => hideFromDesktop( [ hideId ] ),
 			} );
 		} else if ( placement.canTrash !== false ) {
 			// Only surface "Move to Trash" when the server says the

@@ -22,6 +22,7 @@ describe( 'my-wordpress kind-registry', () => {
 				route: { kind: 'list', entityId: 'foo' },
 				navigate: () => {},
 				addTeardown: () => {},
+				previewActionRow: () => null,
 			},
 			{ id: 'foo', label: 'Foo', icon: 'dashicons-star-filled', restPath: 'wp/v2/foo', kind: 'test-kind' },
 		);

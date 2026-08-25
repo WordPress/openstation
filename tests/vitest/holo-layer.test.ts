@@ -1,7 +1,7 @@
 /**
  * The holographic layer, pinned.
  *
- * Three things here would break quietly, and each has cost time
+ * Four things here would break quietly, and each has cost time
  * somewhere in this repo before:
  *
  *   1. **The meshes are transcriptions, not inventions.** Every stop
@@ -17,11 +17,18 @@
  *      own error ring. The `:where()` wrapper is what keeps it at
  *      (0,1,1), and losing it turns an invalid field's red focus ring
  *      Pulse — a change no test that renders a valid form would see.
+ *   4. **A rule that reads `--os-mesh-*` directly paints nothing
+ *      under a theme that suppresses the meshes.** Legacy declares
+ *      all five as `none`, and a declared property means the `var()`
+ *      literal never fires. The surface does not fall back to a
+ *      quieter self; it disappears. `--os-ui-holo-fill` is the name
+ *      that survives, because a theme re-points it rather than
+ *      erasing it.
  *
  * Brand reference: https://nuriapenya.github.io/open-station-brand/
  */
 import { describe, expect, test } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
 	holoTokens,
@@ -396,5 +403,63 @@ describe( 'the barrel', () => {
 			const probe = fragment.cssText.trim().slice( 0, 60 );
 			expect( holo.cssText ).toContain( probe );
 		}
+	} );
+} );
+
+describe( 'a mesh is reached through the kit’s name, never directly', () => {
+	// `--os-mesh-*` is the brand's transcription; `--os-ui-holo-fill`
+	// is what a surface asks for when it wants to be holographic. A
+	// theme that suppresses the meshes sets every `--os-mesh-*` to
+	// `none` and re-points `--os-ui-holo-fill` instead — Legacy does
+	// exactly that. So a rule reading the mesh token directly is not
+	// merely off-contract, it resolves to `none` under such a theme,
+	// and its `var()` literal does NOT rescue it: the property IS
+	// declared, so the fallback never fires and the surface paints
+	// nothing at all. Station Home's rail blob shipped that way and
+	// read as an unexplained hole.
+	const sheets = readdirSync( resolve( ROOT, 'assets/css' ) ).filter(
+		( name ) => name.endsWith( '.css' ) && 'variables.css' !== name
+	);
+
+	test.each( sheets )( '%s reads no --os-mesh-* directly', ( name ) => {
+		const text = readFileSync(
+			resolve( ROOT, 'assets/css', name ),
+			'utf8'
+		);
+		expect( text ).not.toMatch( /var\(\s*--os-mesh-/ );
+	} );
+
+	test( 'Legacy suppresses the meshes but still answers the fill', () => {
+		// The two halves of the contract. If Legacy ever declared a
+		// real mesh, the theme would have quietly stopped being the
+		// pre-brand look; if it stopped declaring the fill, every
+		// holographic surface in the kit would go blank under it.
+		const legacy = JSON.parse(
+			readFileSync(
+				resolve( ROOT, 'assets/desktop-themes/legacy/theme.json' ),
+				'utf8'
+			)
+		) as { tokens: Record< string, string > };
+
+		for ( const token of Object.keys( legacy.tokens ) ) {
+			if ( token.startsWith( '--os-mesh-' ) ) {
+				expect( legacy.tokens[ token ] ).toBe( 'none' );
+			}
+		}
+		expect( legacy.tokens[ '--os-ui-holo-fill' ] ).toMatch(
+			/^linear-gradient\(/
+		);
+		// The field is a SEPARATE answer, and it has to be a real one.
+		// `none` here would be an erasure again, and inheriting the
+		// palette's value would hand Legacy the brand mesh — the
+		// `--os-tabs-bg-unfocused` mistake that `desktopThemesLegacy`
+		// exists to catch.
+		expect( legacy.tokens[ '--os-ui-hero-mesh' ] ).toMatch(
+			/^linear-gradient\(/
+		);
+		expect( legacy.tokens[ '--os-ui-hero-mesh' ] ).not.toBe(
+			legacy.tokens[ '--os-ui-holo-fill' ]
+		);
+		expect( CSS ).toContain( '--os-ui-hero-mesh:' );
 	} );
 } );

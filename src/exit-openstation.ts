@@ -45,6 +45,11 @@ export function getExitOpenStationTileDef(): SystemDockItem {
 	return {
 		id: EXIT_OPENSTATION_TILE_ID,
 		title: __( 'Exit OpenStation' ),
+		navKind: 'control',
+		// The one tile that cannot be moved or hidden: it is the way
+		// out of the shell, and a user who hid it would have to know
+		// about the admin bar's toggle to get back.
+		locked: true,
 		// After the shell cluster, before Trash. Without an explicit
 		// key it defaults to 0 and interleaves with plugin launchers,
 		// whose order is also 0.

@@ -25,7 +25,7 @@
 
 import { activity } from './activity';
 import { HOOKS, addAction, doAction, removeAction } from './hooks';
-import { loadVendorScript } from './wallpapers/vendor-loader';
+import { injectInlineScript, loadVendorScript } from './wallpapers/vendor-loader';
 import { registerSyntheticIframe } from './connection';
 import { setPanelTabs } from './window/tab-strip';
 import {
@@ -37,9 +37,13 @@ import {
 import type { SystemDockItem } from './dock';
 import type {
 	NativeRenderContext,
+	NativeWindowCompanionScript,
 	NativeWindowDef,
 	NativeWindowIframeContent,
+	NativeWindowScriptData,
 	NativeWindowServerEntry,
+	NativeWindowTabEntry,
+	NativeWindowWireEntry,
 } from './types';
 import type { WindowManager } from './window-manager';
 import type { Window as DesktopWindow } from './window';
@@ -1005,6 +1009,84 @@ function declareServerTabs(
 	);
 }
 
+/**
+ * Join wire-format native-window entries with the handle-keyed
+ * script-data map into the full entries the sync consumes.
+ *
+ * The payload ships script data ONCE per handle
+ * (`nativeWindowScriptData`) because several windows share one
+ * bundle — Posts, Pages, Users and Profile all ride
+ * `os-posts-window`, and inlining each entry's resolved copy
+ * serialized the same blobs four times over. Entries reference
+ * handles; this join puts the resolved url / inline data back on
+ * each entry, companions and tabs included.
+ *
+ * Tolerant of the OLD inline format on purpose: a live session that
+ * predates the split can receive a bridge payload from a newer
+ * server (or vice versa during a deploy), so an entry that still
+ * carries its own resolved fields — or companion OBJECTS rather
+ * than handle strings — passes through untouched.
+ */
+export function hydrateServerEntries(
+	entries: NativeWindowWireEntry[],
+	scriptData?: NativeWindowScriptData,
+): NativeWindowServerEntry[] {
+	const data = scriptData ?? {};
+	return entries.map( ( entry ) => {
+		const own = entry.scriptHandle ? data[ entry.scriptHandle ] : undefined;
+
+		const companions: NativeWindowCompanionScript[] = [];
+		for ( const companion of entry.companionScripts ?? [] ) {
+			if ( typeof companion !== 'string' ) {
+				companions.push( companion );
+				continue;
+			}
+			const resolved = data[ companion ];
+			if ( ! resolved?.url ) {
+				continue;
+			}
+			companions.push( {
+				scriptUrl: resolved.url,
+				scriptHandle: companion,
+				scriptBefore: resolved.before,
+				scriptAfter: resolved.after,
+				scriptL10n: resolved.l10n,
+				scriptTranslations: resolved.translations,
+			} );
+		}
+
+		const tabs: NativeWindowTabEntry[] = ( entry.tabs ?? [] ).map(
+			( tab ) => {
+				if ( typeof tab.scriptUrl === 'string' ) {
+					return tab as NativeWindowTabEntry;
+				}
+				const resolved = tab.scriptHandle
+					? data[ tab.scriptHandle ]
+					: undefined;
+				return {
+					...tab,
+					scriptUrl: resolved?.url ?? '',
+					scriptBefore: resolved?.before,
+					scriptAfter: resolved?.after,
+					scriptL10n: resolved?.l10n,
+					scriptTranslations: resolved?.translations,
+				};
+			},
+		);
+
+		return {
+			...entry,
+			scriptUrl: entry.scriptUrl ?? own?.url ?? '',
+			scriptBefore: entry.scriptBefore ?? own?.before,
+			scriptAfter: entry.scriptAfter ?? own?.after,
+			scriptL10n: entry.scriptL10n ?? own?.l10n,
+			scriptTranslations: entry.scriptTranslations ?? own?.translations,
+			companionScripts: companions,
+			tabs,
+		};
+	} );
+}
+
 export function createNativeWindowSync(
 	deps: NativeWindowRegistryDeps,
 ): NativeWindowSync {
@@ -1068,21 +1150,29 @@ export function createNativeWindowSync(
 		injectedTemplates.add( entry.templateId );
 	};
 
-	const ensureStyle = ( entry: NativeWindowServerEntry ): void => {
-		const url = entry.styleUrl;
+	/**
+	 * Inject one stylesheet (link + inline blobs), once per URL.
+	 *
+	 * `wp_print_styles` already ran when the parent shell page was
+	 * rendered, but a plugin activated mid-session never got its
+	 * `admin_enqueue_scripts` callback hit on this page. Inject the
+	 * `<link>` ourselves so the window's CSS lands before the
+	 * render callback queries the body for mount points.
+	 *
+	 * Idempotent on every dimension we care about: tracked by URL
+	 * in `loadedStyles`, AND a defensive `head` lookup so a
+	 * server-rendered `<link>` (plugin active at boot) is detected
+	 * and skipped — same shape as `ensureTemplate`'s guard.
+	 */
+	const injectStylesheet = ( style: {
+		styleUrl?: string;
+		styleHandle?: string;
+		styleInline?: string[];
+	} ): void => {
+		const url = style.styleUrl;
 		if ( ! url || loadedStyles.has( url ) ) {
 			return;
 		}
-		// `wp_print_styles` already ran when the parent shell page was
-		// rendered, but a plugin activated mid-session never got its
-		// `admin_enqueue_scripts` callback hit on this page. Inject the
-		// `<link>` ourselves so the window's CSS lands before the
-		// render callback queries the body for mount points.
-		//
-		// Idempotent on every dimension we care about: tracked by URL
-		// in `loadedStyles`, AND a defensive `head` lookup so a
-		// server-rendered `<link>` (plugin active at boot) is detected
-		// and skipped — same shape as `ensureTemplate`'s guard.
 		// Defensive lookup against `<link>`s the server printed at boot
 		// (plugin active at page load) so we don't duplicate. Escape `\`
 		// and `"` for the attribute selector — the URL is resolved by
@@ -1095,8 +1185,8 @@ export function createNativeWindowSync(
 			const link = document.createElement( 'link' );
 			link.rel = 'stylesheet';
 			link.href = url;
-			if ( entry.styleHandle ) {
-				link.dataset.osStyleHandle = entry.styleHandle;
+			if ( style.styleHandle ) {
+				link.dataset.osStyleHandle = style.styleHandle;
 			}
 			document.head.appendChild( link );
 		}
@@ -1104,20 +1194,42 @@ export function createNativeWindowSync(
 		// the link so the cascade matches what the print pipeline would
 		// have written. One blob per inline string keeps stack traces
 		// useful in DevTools when a rule misbehaves.
-		if ( Array.isArray( entry.styleInline ) ) {
-			for ( const css of entry.styleInline ) {
+		if ( Array.isArray( style.styleInline ) ) {
+			for ( const css of style.styleInline ) {
 				if ( typeof css !== 'string' || css === '' ) {
 					continue;
 				}
-				const style = document.createElement( 'style' );
-				if ( entry.styleHandle ) {
-					style.dataset.osStyleHandle = entry.styleHandle;
+				const el = document.createElement( 'style' );
+				if ( style.styleHandle ) {
+					el.dataset.osStyleHandle = style.styleHandle;
 				}
-				style.textContent = css;
-				document.head.appendChild( style );
+				el.textContent = css;
+				document.head.appendChild( el );
 			}
 		}
 		loadedStyles.add( url );
+	};
+
+	const ensureStyle = ( entry: NativeWindowServerEntry ): void => {
+		injectStylesheet( entry );
+	};
+
+	/**
+	 * Inject the window's companion stylesheets (`styles` arg), in
+	 * declared order. Runs on the first-open path, NOT at sync: a
+	 * companion sheet only paints surfaces inside this window, so it
+	 * is deliberately deferred until the window is actually shown.
+	 *
+	 * Appended to `<head>` after everything the server printed and
+	 * after the window's own style (which `ensureStyle` handled at
+	 * registration), so at equal specificity a companion's overrides
+	 * win by source order — the same contract a `wp_register_style`
+	 * dependency gives on the print path.
+	 */
+	const ensureCompanionStyles = ( entry: NativeWindowServerEntry ): void => {
+		for ( const companion of entry.companionStyles ?? [] ) {
+			injectStylesheet( companion );
+		}
 	};
 
 	/**
@@ -1127,6 +1239,58 @@ export function createNativeWindowSync(
 	 * otherwise get two `<script>` tags for the same URL, because
 	 * `loadedScripts` isn't written until the await resolves.
 	 */
+	/**
+	 * Per-entry inline data already replayed, keyed `id|url`.
+	 *
+	 * The script TAG dedupes by URL, but the harvested data an entry
+	 * carries is not guaranteed to have ridden the tag that loaded
+	 * the URL. Four windows share `os-posts-window[.min].js` (Posts,
+	 * Pages, Users, Profile); with the handle-keyed script-data map,
+	 * every sibling hydrates from the SAME blobs — including the
+	 * whole handle's `openStationWindowConfig[ id ]` set — so this
+	 * replay is normally a harmless idempotent repeat. It stays
+	 * because it is also the safety net for old-format payloads
+	 * (entries carrying genuinely per-entry data), where skipping a
+	 * sibling's data because the bundle was already fetched is
+	 * exactly how the Pages window opened to "[desktop-mode-pages]
+	 * config blob is missing" whenever Posts had opened first.
+	 */
+	const injectedScriptData = new Set< string >();
+
+	/**
+	 * Replay one entry's harvested inline data — translations, l10n,
+	 * before/after blobs — without fetching its script. Only for an
+	 * entry whose shared bundle another entry already brought into
+	 * the tab: the bundle has executed, so ordering relative to the
+	 * body no longer matters, and the render callback that needs the
+	 * data runs strictly after this (`ensureScript` is awaited).
+	 */
+	const injectScriptDataOnce = (
+		key: string,
+		script: {
+			scriptTranslations?: string;
+			scriptL10n?: string[];
+			scriptBefore?: string[];
+			scriptAfter?: string[];
+		},
+	): void => {
+		if ( injectedScriptData.has( key ) ) {
+			return;
+		}
+		injectedScriptData.add( key );
+		const blobs = [
+			script.scriptTranslations ?? '',
+			...( script.scriptL10n ?? [] ),
+			...( script.scriptBefore ?? [] ),
+			...( script.scriptAfter ?? [] ),
+		];
+		for ( const code of blobs ) {
+			if ( typeof code === 'string' && code !== '' ) {
+				injectInlineScript( code );
+			}
+		}
+	};
+
 	const loadOnce = (
 		id: string,
 		script: {
@@ -1138,13 +1302,22 @@ export function createNativeWindowSync(
 		},
 	): Promise< void > => {
 		const url = script.scriptUrl;
+		const dataKey = `${ id }|${ url }`;
 		if ( loadedScripts.has( url ) ) {
+			// The bundle is in the tab, but this entry's own data may
+			// not be — see `injectedScriptData`.
+			injectScriptDataOnce( dataKey, script );
 			return Promise.resolve();
 		}
 		const pending = inflightScripts.get( url );
 		if ( pending ) {
-			return pending;
+			// A sibling entry started the fetch with ITS extras; hand
+			// this entry's in once the bundle has executed.
+			return pending.then( () => injectScriptDataOnce( dataKey, script ) );
 		}
+		// This entry's extras travel with the script tag itself —
+		// mark them replayed so a repeat open doesn't double-inject.
+		injectedScriptData.add( dataKey );
 		const load = loadVendorScript( url, {
 			translations: script.scriptTranslations,
 			l10n: script.scriptL10n,
@@ -1180,6 +1353,10 @@ export function createNativeWindowSync(
 	const ensureScript = async (
 		entry: NativeWindowServerEntry,
 	): Promise< void > => {
+		// Companion styles first — the `<link>` fetches in parallel
+		// with the bundles below, so by the time the render callback
+		// paints, the CSS has had the whole script load to arrive.
+		ensureCompanionStyles( entry );
 		for ( const companion of entry.companionScripts ?? [] ) {
 			if ( ! companion.scriptUrl ) {
 				continue;
@@ -1359,6 +1536,13 @@ export function createNativeWindowSync(
 			id: entry.id,
 			title: entry.title,
 			icon: entry.icon,
+			windowId: entry.id,
+			navKind: 'control' === entry.navKind ? 'control' : 'app',
+			// The window asked for a launcher, so the launcher's
+			// resting place is a rail rather than the wallpaper an app
+			// would otherwise default to. A proposal, not an
+			// instruction: the user's Navigation pick still wins.
+			defaultPlacement: 'rail',
 			order: entry.dockOrder,
 			placeable: true === entry.placeable,
 			isOpen: () => !! manager.getById( entry.id ),

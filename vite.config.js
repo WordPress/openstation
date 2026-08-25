@@ -297,6 +297,14 @@ const TARGETS = {
 		fileBase: 'recycle-bin',
 		iifeName: 'openStationRecycleBin',
 	},
+	// Station Home — always-on native replacement for `index.php`.
+	// Publishes the dashboard render callback and ships only when the
+	// Dashboard entry point is opened.
+	'station-home': {
+		entry:    'src/station-home/index.ts',
+		fileBase: 'station-home',
+		iifeName: 'openStationStationHome',
+	},
 	// Native Posts window — `<os-table>`-driven replacement for the
 	// chromeless `edit.php` iframe, opt-in per user via OS Settings →
 	// Features. Same shape as recycle-bin: registers a render
@@ -334,6 +342,16 @@ const TARGETS = {
 		entry:    'src/content-graph/index.ts',
 		fileBase: 'content-graph',
 		iifeName: 'openStationContentGraph',
+	},
+	// Code Blue — error-log reader. Tails the WP debug log / PHP
+	// error log via the Code Blue REST routes and renders a severity
+	// histogram + grouped issue list. Registers a render callback on
+	// `window.openStationNativeWindows['openstation-code-blue']` and
+	// re-registers the `<os-*>` tags it instantiates (idempotent).
+	'code-blue': {
+		entry:    'src/code-blue/index.ts',
+		fileBase: 'code-blue',
+		iifeName: 'openStationCodeBlue',
 	},
 	// Games hub — launcher grid + scoreboard + challenges client.
 	// Registers a render callback on
@@ -442,16 +460,6 @@ const TARGETS = {
 		fileBase: 'snow-wallpaper',
 		iifeName: 'openStationSnowWallpaper',
 	},
-	// About-scene — the PixiJS particle scene rendered inside OS
-	// Settings → About. ~25 kB of code that only ever runs after the
-	// user explicitly opens that tab. Loaded by the main-bundle
-	// `about-scene-loader.ts` on first mount; publishes
-	// `window.openStationMountAboutScene`.
-	'about-scene': {
-		entry:    'src/settings/sections/about-scene-entry.ts',
-		fileBase: 'about-scene',
-		iifeName: 'openStationAboutScene',
-	},
 	// OS Settings panel — the big lazy bundle (Stage 8). Hosts every
 	// section renderer + the `<os-*>` components only the panel
 	// uses (color/range field, swatch, swatch-grid, section,
@@ -507,6 +515,49 @@ const TARGETS = {
 		entry:    'src/shell-overlays/entry.ts',
 		fileBase: 'shell-overlays',
 		iifeName: 'openStationShellOverlays',
+	},
+	// OS-file drop machinery — dialog, progress HUD, upload pipeline.
+	// Loaded by the sentinel in `src/os-file-drop/sentinel.ts` on the
+	// first dragenter that carries files; a drop can land before the
+	// load resolves, so the sentinel captures and the bundle replays.
+	'file-drop': {
+		entry:    'src/os-file-drop/entry.ts',
+		fileBase: 'file-drop',
+		iifeName: 'openStationFileDrop',
+	},
+	// Click-opened desktop-files surfaces: the share-settings /
+	// share-invite modals and the URL-file dialog. Loaded on first
+	// use by `src/desktop-files/overlays-loader.ts`. (The file
+	// PREVIEW pane deliberately stays in the shell for now — see the
+	// folder-window renderer note in `built-in-openers.ts`.)
+	'files-overlays': {
+		entry:    'src/desktop-files/overlays-entry.ts',
+		fileBase: 'files-overlays',
+		iifeName: 'openStationFilesOverlays',
+	},
+	// Pinned desktop notes. Presence-gated: the sentinel
+	// (`src/notes/sentinel.ts`) loads it when the user HAS notes, and
+	// on the actions that would create the first one.
+	'notes': {
+		entry:    'src/notes/entry.ts',
+		fileBase: 'notes',
+		iifeName: 'openStationNotes',
+	},
+	// Dock hover-submenu flyout. Loaded on the first pointer entering
+	// a dock rail — see `src/dock-constellation/sentinel.ts`.
+	'dock-constellation': {
+		entry:    'src/dock-constellation/entry.ts',
+		fileBase: 'dock-constellation',
+		iifeName: 'openStationDockConstellation',
+	},
+	// Window-link visuals: the render host + the built-in svg-splines
+	// renderer. The relations ENGINE stays in the shell (it tracks
+	// identities continuously); the visuals load on the first
+	// `os.window-links.groups-changed` that has something to draw.
+	'window-link-visuals': {
+		entry:    'src/window-links/visuals-entry.ts',
+		fileBase: 'window-link-visuals',
+		iifeName: 'openStationWindowLinkVisuals',
 	},
 	// Full `<os-*>` kit — every tag in `OS_COMPONENT_TAGS`, for
 	// `wp.os.loadComponents()`. The shell never loads this itself:

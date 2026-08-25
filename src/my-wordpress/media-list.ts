@@ -37,6 +37,7 @@ import type { MediaListItem, MyWordPressEntity, MediaPreviewAction } from './typ
 import { deleteMediaItem, fetchMediaItem, fetchMediaPage } from './media-rest';
 import { getConfig } from './rest';
 import { dashiconForMime, renderMediaPreview } from './media-preview';
+import { previewActionsToMenuOptions } from './preview-actions';
 import { stripTags } from './dom-utils';
 
 /**
@@ -320,6 +321,15 @@ function buildMediaActions(
 			icon: 'dashicons-external',
 			sort: 20,
 		},
+		// Server-declared preview actions ride the same menu the
+		// filter below extends, so `tile-context-menu` callbacks see
+		// (and may reorder / remove) them like any built-in. Ahead of
+		// the destructive entry: array order IS the single-item menu.
+		...previewActionsToMenuOptions(
+			ctx.entity,
+			media as unknown as Record< string, unknown >,
+			{ mime: media.mime_type },
+		),
 		{
 			id: 'delete',
 			label: __( 'Delete permanently', 'desktop-mode' ),
@@ -630,6 +640,7 @@ function previewSelectedMedia(
 	renderMediaPreview( ctx.preview, media, {
 		entityId: ctx.entity.id,
 		previewActions: ctx.previewActions,
+		postType: ctx.entity.post_type,
 		onOpenDetail: () => {
 			ctx.host.navigate( {
 				kind: 'media-detail',

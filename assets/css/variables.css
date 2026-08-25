@@ -597,6 +597,45 @@ body.os-active {
 	/* The fill itself. Holomesh, so the mesh is the default look. */
 	--os-ui-holo-fill: var(--os-mesh-holo);
 	/*
+	 * A hero FIELD, as distinct from a hero control.
+	 *
+	 * `--os-ui-holo-fill` is sized for a surface a control wears — a
+	 * button, a chip, a progress bar. Stretch that same value across
+	 * a few hundred square pixels of panel and a theme's answer stops
+	 * working: Legacy's `#f0f6fc -> #f6f7f7` reads as "on" on a 40px
+	 * chip and as nothing at all on a rail, where it lands within a
+	 * few units of the surface behind it.
+	 *
+	 * So a large decorative field reads THIS instead, and a theme
+	 * gets to answer the two cases separately — how a control looks
+	 * when it is on, and how much of itself the station shows in the
+	 * background. Legacy sets a flat pre-brand wash here while
+	 * leaving its control fill alone.
+	 *
+	 * The default is an aurora, and it is built differently from the
+	 * five meshes on purpose. Those are OPAQUE light surfaces — the
+	 * darkest stop in Holomesh still sits above 60% luminance — which
+	 * is right for a control that has to read as lit against whatever
+	 * is behind it. Spread one across a rail and the only way to calm
+	 * it down is `opacity`, which drags every hue toward the surface
+	 * underneath: on Void that is grey, and the mesh dies as a
+	 * grey-mauve smear.
+	 *
+	 * So the alpha lives in the COLOUR STOPS here, over transparent.
+	 * The desk shows through instead of being covered, the hues keep
+	 * their chroma at any strength, and the field stays dark the way
+	 * an aurora is dark — light added to a night sky, not a pale
+	 * sheet laid over one. Hues are the brand's: violet and Nebula
+	 * through the upper curtains, Sirius cyan and Holomesh's mint
+	 * below, one wide Pulse bloom tying them together.
+	 */
+	--os-ui-hero-mesh:
+		radial-gradient(ellipse 62% 38% at 34% 20%, rgba(170, 103, 255, 0.58) 0%, rgba(170, 103, 255, 0) 74%),
+		radial-gradient(ellipse 54% 33% at 58% 36%, rgba(236, 155, 255, 0.45) 0%, rgba(236, 155, 255, 0) 76%),
+		radial-gradient(ellipse 68% 30% at 26% 50%, rgba(125, 239, 245, 0.32) 0%, rgba(125, 239, 245, 0) 74%),
+		radial-gradient(ellipse 58% 28% at 46% 66%, rgba(147, 240, 198, 0.26) 0%, rgba(147, 240, 198, 0) 76%),
+		radial-gradient(ellipse 96% 62% at 40% 42%, rgba(242, 82, 252, 0.18) 0%, rgba(242, 82, 252, 0) 82%);
+	/*
 	 * Glyphs and text ON that fill. Void, not Starlight — every mesh
 	 * in the brand is a LIGHT surface (its darkest stop, Holomesh's
 	 * #afa2e8, still sits at 62% luminance), so Starlight on it is a
@@ -1549,6 +1588,13 @@ body.os-active {
 	 * the dock (200) so it never covers navigation.
 	 */
 	--os-z-mio: 190;
+	/*
+	 * The desktop-name caption. Same reasoning as Mio, one step up:
+	 * above every window so a maximized Dashboard cannot hide it, and
+	 * above the companion, since a momentary message should not be
+	 * the thing that gets perched on. Still under the dock (200).
+	 */
+	--os-z-desktop-name: 195;
 	/*
 	 * The notch — on the desk, under the windows (100 + stack index),
 	 * above the window-link wires (50) so a tie never draws across the

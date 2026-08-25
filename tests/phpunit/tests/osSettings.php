@@ -229,6 +229,32 @@ class Tests_OpenStation_OsSettings extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Station Home defaults OFF — the classic Dashboard (and any custom
+	 * dashboard a plugin builds there) stays until the user opts in.
+	 *
+	 * @covers ::openstation_default_os_settings
+	 */
+	public function test_default_station_home_is_opt_in() {
+		$defaults = openstation_default_os_settings();
+		$this->assertFalse( $defaults['stationHomeEnabled'] );
+	}
+
+	/**
+	 * @covers ::openstation_sanitize_os_settings
+	 */
+	public function test_sanitize_keeps_station_home_opt_in() {
+		$clean = openstation_sanitize_os_settings(
+			array( 'stationHomeEnabled' => true )
+		);
+		$this->assertTrue( $clean['stationHomeEnabled'] );
+
+		$clean = openstation_sanitize_os_settings(
+			array( 'stationHomeEnabled' => '' )
+		);
+		$this->assertFalse( $clean['stationHomeEnabled'] );
+	}
+
+	/**
 	 * @covers ::openstation_sanitize_os_settings
 	 */
 	public function test_sanitize_drops_legacy_ai_credential_and_preference_fields() {
@@ -368,48 +394,197 @@ class Tests_OpenStation_OsSettings extends WP_UnitTestCase {
 	}
 
 	/**
-	 * dockOrder entries may carry a rail-synthesis prefix
-	 * (`desktop:<id>` / `dock:<id>`) for cross-rail tiles the user
-	 * promoted. `sanitize_key()` would strip the colon and silently
-	 * break the JS order match (and risk an id collision) on reload, so
-	 * the sanitizer must preserve it.
+	 * navOrder ids are sanitize_key()-clean. The rail-synthesis
+	 * prefixes (`dock:` / `desktop:`) an id could carry before the
+	 * navigation model are stripped, because nothing synthesizes
+	 * copies any more — an item is one item wherever it is painted, and
+	 * a prefixed key would name something nothing registers.
 	 *
 	 * @covers ::openstation_sanitize_os_settings
 	 */
-	public function test_sanitize_preserves_rail_prefix_colon_in_dock_order() {
+	public function test_sanitize_strips_rail_prefixes_from_nav_order() {
 		$clean = openstation_sanitize_os_settings(
 			array(
-				'dockOrder' => array( 'desktop:my-icon', 'edit-php', 'dock:woocommerce' ),
+				'navOrder' => array( 'desktop:my-icon', 'edit-php', 'dock:woocommerce' ),
 			)
 		);
 		$this->assertSame(
-			array( 'desktop:my-icon', 'edit-php', 'dock:woocommerce' ),
-			$clean['dockOrder']
+			array( 'my-icon', 'edit-php', 'woocommerce' ),
+			$clean['navOrder']
 		);
 	}
 
 	/**
-	 * The dockOrder sanitizer still rejects characters outside the JS
-	 * id charset — spaces collapse, case folds, and punctuation/markup
-	 * is stripped — so an evil blob can't smuggle anything unexpected
-	 * into the persisted order.
+	 * The navOrder sanitizer rejects characters outside the id charset
+	 * — spaces collapse, case folds, and punctuation/markup is stripped
+	 * — so an evil blob can't smuggle anything unexpected into the
+	 * persisted order.
 	 *
 	 * @covers ::openstation_sanitize_os_settings
 	 */
-	public function test_sanitize_normalizes_dock_order_ids() {
+	public function test_sanitize_normalizes_nav_order_ids() {
 		$clean = openstation_sanitize_os_settings(
 			array(
-				'dockOrder' => array( 'Edit Php', '<script>x', 'desktop:My-Icon' ),
+				'navOrder' => array( 'Edit Php', '<script>x', 'desktop:My-Icon' ),
 			)
 		);
 		$this->assertSame(
-			array( 'editphp', 'scriptx', 'desktop:my-icon' ),
-			$clean['dockOrder']
+			array( 'editphp', 'scriptx', 'my-icon' ),
+			$clean['navOrder']
+		);
+	}
+
+	// ────────────────────────────────────────────────────────────────
+	// navPlacement — where each registered thing shows up, and the
+	// one-way carry-over from the pre-navigation `itemVisibility` map.
+	// ────────────────────────────────────────────────────────────────
+
+	/**
+	 * @covers ::openstation_default_os_settings
+	 */
+	public function test_default_nav_placement_is_empty() {
+		$defaults = openstation_default_os_settings();
+		$this->assertSame( array(), $defaults['navPlacement'] );
+		$this->assertSame( array(), $defaults['navOrder'] );
+	}
+
+	/**
+	 * @covers ::openstation_sanitize_os_settings
+	 */
+	public function test_sanitize_keeps_valid_nav_placements() {
+		$clean = openstation_sanitize_os_settings(
+			array(
+				'navPlacement' => array(
+					'edit-php'     => 'rail',
+					'games'        => 'desktop',
+					'woocommerce'  => 'both',
+					'os-mio'       => 'hidden',
+				),
+			)
+		);
+		$this->assertSame(
+			array(
+				'edit-php'    => 'rail',
+				'games'       => 'desktop',
+				'woocommerce' => 'both',
+				'os-mio'      => 'hidden',
+			),
+			$clean['navPlacement']
+		);
+	}
+
+	/**
+	 * `'dock'` is the pre-navigation spelling and is no longer a
+	 * placement: the stored name is the REGION now, so a Core admin
+	 * menu follows the layout into the sidebar without a second
+	 * migration.
+	 *
+	 * @covers ::openstation_sanitize_os_settings
+	 */
+	public function test_sanitize_drops_unknown_nav_placements() {
+		$clean = openstation_sanitize_os_settings(
+			array(
+				'navPlacement' => array(
+					'edit-php' => 'dock',
+					'games'    => 'nowhere',
+					'ok'       => 'rail',
+				),
+			)
+		);
+		$this->assertSame( array( 'ok' => 'rail' ), $clean['navPlacement'] );
+	}
+
+	/**
+	 * A user who arranged their shell before the navigation model
+	 * keeps that arrangement: their `itemVisibility` map is read once
+	 * on load and written back as `navPlacement` on the next save.
+	 *
+	 * @covers ::openstation_sanitize_os_settings
+	 * @covers ::openstation_migrate_item_visibility
+	 */
+	public function test_sanitize_carries_over_item_visibility() {
+		$clean = openstation_sanitize_os_settings(
+			array(
+				'itemVisibility' => array(
+					'edit-php'    => 'dock',
+					'games'       => 'desktop',
+					'woocommerce' => 'both',
+					'os-mio'      => 'hidden',
+				),
+			)
+		);
+		$this->assertSame(
+			array(
+				'edit-php'    => 'rail',
+				'games'       => 'desktop',
+				'woocommerce' => 'both',
+				'os-mio'      => 'hidden',
+			),
+			$clean['navPlacement']
+		);
+	}
+
+	/**
+	 * The carry-over strips the rail-synthesis prefixes, and the
+	 * unprefixed key wins a collision — it is the item's own
+	 * preference rather than a synthesized copy's.
+	 *
+	 * @covers ::openstation_migrate_item_visibility
+	 */
+	public function test_item_visibility_carry_over_canonicalizes_ids() {
+		$out = openstation_migrate_item_visibility(
+			array(
+				'desktop:my-icon' => 'dock',
+				'dock:woocommerce' => 'desktop',
+				'games'           => 'hidden',
+				'my-icon'         => 'both',
+			)
+		);
+		$this->assertSame(
+			array(
+				'my-icon'     => 'both',
+				'woocommerce' => 'desktop',
+				'games'       => 'hidden',
+			),
+			$out
+		);
+	}
+
+	/**
+	 * An existing `navPlacement` wins: once the user has saved under
+	 * the new model, a stale `itemVisibility` left in the same row must
+	 * not overwrite it.
+	 *
+	 * @covers ::openstation_sanitize_os_settings
+	 */
+	public function test_nav_placement_wins_over_legacy_item_visibility() {
+		$clean = openstation_sanitize_os_settings(
+			array(
+				'navPlacement'   => array( 'games' => 'rail' ),
+				'itemVisibility' => array( 'games' => 'hidden' ),
+			)
+		);
+		$this->assertSame( array( 'games' => 'rail' ), $clean['navPlacement'] );
+	}
+
+	/**
+	 * Same for the order.
+	 *
+	 * @covers ::openstation_sanitize_os_settings
+	 */
+	public function test_sanitize_carries_over_dock_order() {
+		$clean = openstation_sanitize_os_settings(
+			array( 'dockOrder' => array( 'dock:woocommerce', 'edit-php' ) )
+		);
+		$this->assertSame(
+			array( 'woocommerce', 'edit-php' ),
+			$clean['navOrder']
 		);
 	}
 
 	// ────────────────────────────────────────────────────────────────
 	// developerModeEnabled — per-user gate for developer-facing
+
 	// surfaces (Starter Widget in the add-widget picker, Components
 	// tab missing-import-warner demo). Off by default.
 	// ────────────────────────────────────────────────────────────────

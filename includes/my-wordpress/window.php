@@ -183,6 +183,13 @@ function openstation_my_wordpress_entities() {
 	 *   - `post_type`  — WP post-type slug for cross-window broadcast topic `os.<slug>.changed`.
 	 *   - `thumbnails` — set false to keep the section icon on every tile
 	 *                    instead of the entity's featured image.
+	 *   - `editAction` — who edits this section's rows. A preview-action id
+	 *                    (see `openstation_my_wordpress_preview_actions`)
+	 *                    replaces "Open in editor" everywhere — pane button,
+	 *                    context-menu open entry, tile double-click. `false`
+	 *                    removes every edit affordance (double-click falls
+	 *                    back to the detail dossier; the bulk "Edit…" modal
+	 *                    is suppressed). Omit for the classic editor.
 	 *   - `group`      — folder id this section nests under at the root
 	 *                    (null / omitted renders it loose at the root).
 	 *   - `groupLabel` — folder label. `groupIcon`, `groupOrder` follow.
@@ -232,7 +239,10 @@ function openstation_my_wordpress_render_template() {
  * enough that every plugin's `register_post_type()` call has already
  * run. The entity list is frozen into the window config here and only
  * emitted later on `admin_enqueue_scripts`, so a CPT registered after
- * this point would never reach the bundle.
+ * this point would never reach the bundle. `previewActions` is the
+ * exception: it is re-collected at emit time via
+ * `openstation_my_wordpress_refresh_window_config()` below, so the
+ * value snapshotted here is only the fallback.
  */
 function openstation_my_wordpress_register_window() {
 	if ( ! openstation_my_wordpress_user_can_use() ) {
@@ -250,7 +260,13 @@ function openstation_my_wordpress_register_window() {
 		'icon'       => $icon_uri,
 		'template'   => 'openstation_my_wordpress_render_template',
 		'script'     => 'desktop-mode-my-wordpress',
-		'style'      => 'desktop-mode-my-wordpress',
+		// `styles` (companion), not `style`: loads on first open
+		// rather than at every shell boot. Declared FIRST so the
+		// WooCommerce integration's sheet — appended to this array by
+		// `openstation_my_wordpress_woo_window_args()` — lands after
+		// it in the head and keeps winning their equal-specificity
+		// overrides by source order.
+		'styles'     => array( 'desktop-mode-my-wordpress' ),
 		'width'      => 960,
 		'height'     => 640,
 		'min_width'  => 640,
@@ -312,14 +328,32 @@ function openstation_my_wordpress_register_window() {
 add_action( 'init', 'openstation_my_wordpress_register_window', 99 );
 
 /**
- * Enqueue the bundle's CSS in admin context. The script is lazy-
- * loaded by the native-window sync and so does not need an
- * `admin_enqueue_scripts` call.
+ * Re-collect the preview-action descriptors when the window config is
+ * serialized for the browser, replacing the `init` 99 snapshot taken
+ * at registration time.
+ *
+ * The action SCRIPTS were always collected late (`admin_enqueue_scripts`
+ * 40, `openstation_my_wordpress_enqueue_preview_action_scripts()`), so
+ * a plugin registering its `openstation_my_wordpress_preview_actions`
+ * callback after `init` 99 used to get its JS delivered with no
+ * descriptor to attach to — the button simply never rendered. Emitting
+ * both legs from the same late collection closes that trap: any
+ * registration during a normal bootstrap now ships both.
+ *
+ * The entity list deliberately stays frozen at `init` 99 — see the
+ * registration docblock above.
+ *
+ * @param array  $config    Window config blob about to be emitted.
+ * @param string $window_id Native window id.
+ * @return array Config with fresh `previewActions` for our window.
  */
-function openstation_my_wordpress_enqueue_styles() {
-	if ( ! openstation_my_wordpress_user_can_use() ) {
-		return;
+function openstation_my_wordpress_refresh_window_config( $config, $window_id ) {
+	if ( 'desktop-mode-my-wordpress' !== $window_id || ! is_array( $config ) ) {
+		return $config;
 	}
-	wp_enqueue_style( 'desktop-mode-my-wordpress' );
+	if ( function_exists( 'openstation_my_wordpress_collect_preview_actions' ) ) {
+		$config['previewActions'] = openstation_my_wordpress_collect_preview_actions();
+	}
+	return $config;
 }
-add_action( 'admin_enqueue_scripts', 'openstation_my_wordpress_enqueue_styles', 30 );
+add_filter( 'openstation_native_window_config', 'openstation_my_wordpress_refresh_window_config', 10, 2 );

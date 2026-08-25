@@ -11,6 +11,7 @@ import { doAction, HOOKS } from '../hooks';
 import { __, sprintf } from '../i18n';
 import type { Desktop } from '../types';
 import type { Window } from '../window';
+import { showDesktopNameHud } from './desktop-name-hud';
 import { computeOverviewLayout } from './geometry';
 import {
 	createOverviewLabel,
@@ -88,6 +89,37 @@ export function createDesktop( mgr: WindowManager ): Desktop {
 	return desktop;
 }
 
+/** Mirrors the cap `includes/session.php` enforces on save. */
+export const DESKTOP_LABEL_MAX_LENGTH = 64;
+
+/**
+ * Rename a desktop. Trims and caps; ignores a blank or unchanged
+ * name. Returns whether the label actually changed, so callers can
+ * skip a repaint.
+ */
+export function renameDesktop(
+	mgr: WindowManager,
+	id: string,
+	label: string,
+): boolean {
+	const desktop = mgr._desktops.find( ( d ) => d.id === id );
+	if ( ! desktop ) {
+		return false;
+	}
+	const next = label.trim().slice( 0, DESKTOP_LABEL_MAX_LENGTH );
+	if ( ! next || next === desktop.label ) {
+		return false;
+	}
+	const previousLabel = desktop.label;
+	desktop.label = next;
+	doAction( HOOKS.DESKTOP_RENAMED, {
+		desktopId: id,
+		label: next,
+		previousLabel,
+	} );
+	return true;
+}
+
 /**
  * Switch the active desktop. No-op if `id` is already active or
  * doesn't exist. Fires `os.os.switched` with both the
@@ -163,6 +195,11 @@ export function switchDesktop(
 			);
 		if ( topOnNew ) {
 			mgr.focus( topOnNew );
+		}
+
+		const landed = mgr._desktops.find( ( d ) => d.id === id );
+		if ( landed ) {
+			showDesktopNameHud( mgr._desktop, landed.label );
 		}
 	}
 

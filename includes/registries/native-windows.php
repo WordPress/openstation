@@ -100,6 +100,25 @@ defined( 'ABSPATH' ) || exit;
  *                                  keeps it off the boot critical
  *                                  path: it travels with the window
  *                                  it extends. Default empty.
+ *     @type string[] $styles       Companion style handles injected on
+ *                                  the window's first open, after the
+ *                                  window's own `$style`, in the order
+ *                                  given — so at equal specificity a
+ *                                  companion's overrides win, the same
+ *                                  source-order contract an enqueue
+ *                                  dependency gives. The styles-side
+ *                                  mirror of `$scripts`: a stylesheet
+ *                                  that only paints surfaces inside
+ *                                  this window is dead weight on every
+ *                                  document that never shows it —
+ *                                  declared here it costs nothing at
+ *                                  boot and never reaches chromeless
+ *                                  iframes at all. Unlike `$style`
+ *                                  (injected when the window registers,
+ *                                  so mid-session activations paint),
+ *                                  companions wait for the first open;
+ *                                  the deferral is the point. Default
+ *                                  empty.
  *     @type bool     $preload_script Load `$script` (and `$scripts`) at
  *                                  shell boot instead of on first
  *                                  open. Default false — a window's
@@ -126,6 +145,18 @@ defined( 'ABSPATH' ) || exit;
  *     @type string   $placement    'dock' | 'none'. Default 'dock'.
  *                                  'none' skips the tile (plugin
  *                                  opens the window programmatically).
+ *                                  A PROPOSED default only: the user's
+ *                                  OpenStation Preferences → Navigation
+ *                                  pick wins, and so does a right-click
+ *                                  "Keep in dock".
+ *     @type string   $nav_kind     'app' | 'control'. Default 'app'.
+ *                                  What the window IS, which decides
+ *                                  where its launcher defaults to (apps
+ *                                  to the desktop, controls to the
+ *                                  dock) and which dock zone it sits
+ *                                  in. Plugins want 'app'; 'control'
+ *                                  is for OpenStation's own
+ *                                  affordances.
  *     @type int      $dock_order   Sort key among system tiles,
  *                                  ascending; ties keep registration
  *                                  order. Default 0, which places the
@@ -203,6 +234,7 @@ function openstation_register_window( $id, $args = array() ) {
 		'template'         => null,
 		'script'           => '',
 		'scripts'          => array(),
+		'styles'           => array(),
 		'preload_script'   => false,
 		// Optional WP style handle (registered with `wp_register_style()`).
 		// Resolved at payload-build time so the shell can lazy-inject a
@@ -216,6 +248,7 @@ function openstation_register_window( $id, $args = array() ) {
 		'min_width'        => 280,
 		'min_height'       => 220,
 		'placement'        => 'dock',
+		'nav_kind'         => 'app',
 		'dock_order'       => 0,
 		'placeable'        => false,
 		'capabilities'     => array(),
@@ -264,6 +297,15 @@ function openstation_register_window( $id, $args = array() ) {
 		? $args['placement']
 		: 'dock';
 
+	// What the window IS, which is what decides where its launcher
+	// goes by default and which dock zone it sits in. `'app'` for an
+	// installed app (the default, and what every plugin wants);
+	// `'control'` for an OpenStation affordance — the Trash is the
+	// only shipped one.
+	$nav_kind = in_array( $args['nav_kind'], array( 'app', 'control' ), true )
+		? $args['nav_kind']
+		: 'app';
+
 	$entry = array(
 		'id'               => $id,
 		'title'            => (string) $args['title'],
@@ -282,6 +324,17 @@ function openstation_register_window( $id, $args = array() ) {
 				)
 			)
 		),
+		// Companion style handles, same dedupe/strip as `scripts`.
+		'styles'           => array_values(
+			array_unique(
+				array_filter(
+					array_map( 'strval', (array) $args['styles'] ),
+					static function ( $handle ) {
+						return '' !== $handle;
+					}
+				)
+			)
+		),
 		'preload_script'   => (bool) $args['preload_script'],
 		'style'            => (string) $args['style'],
 		'width'            => (int) $args['width'],
@@ -289,6 +342,7 @@ function openstation_register_window( $id, $args = array() ) {
 		'min_width'        => (int) $args['min_width'],
 		'min_height'       => (int) $args['min_height'],
 		'placement'        => $placement,
+		'nav_kind'         => $nav_kind,
 		// Sort key among system tiles, ascending. `0` (the default)
 		// puts a plugin's tile ahead of the shell's own trailing
 		// cluster — Mio 10, Overview 20, System 30 — which is where a
@@ -363,7 +417,7 @@ function openstation_native_window_registry( $id = '', $entry = null ) {
  * tag — but Plugin Check still requires escape-on-output. The list
  * extends `wp_kses_allowed_html( 'post' )` with form controls,
  * `<os-*>` web components, and dashicon spans, plus permissive
- * `data-*`, `aria-*`, and component-specific attributes. Plugins
+ * `data-*`, common ARIA, and component-specific attributes. Plugins
  * registering their own native windows can extend the list via the
  * `openstation_native_window_allowed_html` filter below.
  *
@@ -387,7 +441,13 @@ function openstation_native_window_allowed_html() {
 		'draggable'       => true,
 		'contenteditable' => true,
 		'data-*'          => true,
-		'aria-*'          => true,
+		// `wp_kses` only treats the `data-*` wildcard specially. ARIA
+		// attributes must be admitted by their exact names or they are
+		// silently stripped from native-window templates.
+		'aria-label'      => true,
+		'aria-labelledby' => true,
+		'aria-current'    => true,
+		'aria-hidden'     => true,
 		// `full-width` is a layout-level flag honoured by
 		// `<os-form>` (and any future os-* container that opts in
 		// to row-spanning slotted children). Lives in the global
@@ -653,7 +713,7 @@ function openstation_native_window_allowed_html() {
 	$allowed = array_merge( $base, $extra );
 
 	// Promote the framework's global attrs (`slot`, `part`,
-	// `full-width`, `data-*`, `aria-*`, …) to EVERY allowed tag —
+	// `full-width`, `data-*`, common ARIA, …) to EVERY allowed tag —
 	// otherwise plain wrappers like `<div slot="header">` lose
 	// their `slot` attribute on the way through kses and get
 	// projected into the default slot instead of the named one.
@@ -835,6 +895,51 @@ function openstation_build_native_window_template_html( $entry ) {
 }
 
 /**
+ * Run a native window's registered `config` through the
+ * `openstation_native_window_config` filter, normalized to an array.
+ *
+ * Called at BOTH serialization points — the eager inline-script
+ * attach in `openstation_enqueue_native_window_scripts()` and the
+ * lazy `scriptL10n` synthesis in
+ * `openstation_build_native_windows_payload()` — so the filter sees
+ * every copy of the blob that can reach a browser.
+ *
+ * @param array $entry Registry entry (needs `id`; `config` optional).
+ * @return array Filtered config. Empty array when nothing to ship.
+ */
+function openstation_filter_native_window_config( $entry ) {
+	$config = isset( $entry['config'] ) && is_array( $entry['config'] )
+		? $entry['config']
+		: array();
+
+	/**
+	 * Filter a native window's config blob at emit time.
+	 *
+	 * The registry snapshots `config` when `openstation_register_window()`
+	 * runs — usually `init`. This filter runs when the blob is
+	 * serialized for the browser (enqueue time on the eager path,
+	 * payload-build time on the lazy path), so values that depend on
+	 * hooks registered later in the bootstrap can be refreshed without
+	 * moving the whole registration. The WP Explorer uses it to
+	 * re-collect `previewActions` so plugins may add
+	 * `openstation_my_wordpress_preview_actions` callbacks any time
+	 * during a normal bootstrap, not just before `init` 99.
+	 *
+	 * Runs per request, after the current user is determined —
+	 * capability-gated values are safe to compute here.
+	 *
+	 * **Status: Experimental**
+	 *
+	 * @param array  $config    Config blob as registered (empty array
+	 *                          when the window registered none).
+	 * @param string $window_id Native window id.
+	 */
+	$config = apply_filters( 'openstation_native_window_config', $config, (string) $entry['id'] );
+
+	return is_array( $config ) ? $config : array();
+}
+
+/**
  * Attach every registered native window's script data, and enqueue
  * the handful of bundles that asked to load at boot.
  *
@@ -888,6 +993,14 @@ function openstation_enqueue_native_window_scripts() {
 			foreach ( (array) $entry['scripts'] as $companion ) {
 				wp_enqueue_script( $companion );
 			}
+			// Preload means "everything at boot" — companion styles
+			// ride along so the window paints styled on a preloaded
+			// first open, same as its scripts are already parsed.
+			if ( ! empty( $entry['styles'] ) ) {
+				foreach ( (array) $entry['styles'] as $companion_style ) {
+					wp_enqueue_style( $companion_style );
+				}
+			}
 		}
 		// Localize the config the JS side reads to register itself.
 		wp_localize_script(
@@ -927,13 +1040,14 @@ function openstation_enqueue_native_window_scripts() {
 		// twice: once as `before`, once as `l10n`. The bundle reads it
 		// via `wp.os.getWindowConfig( id )` or directly at
 		// `window.openStationWindowConfig[ id ]`.
-		if ( $preload && ! empty( $entry['config'] ) && is_array( $entry['config'] ) ) {
+		$config = openstation_filter_native_window_config( $entry );
+		if ( $preload && ! empty( $config ) ) {
 			wp_add_inline_script(
 				$entry['script'],
 				sprintf(
 					'window.openStationWindowConfig=window.openStationWindowConfig||{};window.openStationWindowConfig[%s]=%s;',
 					wp_json_encode( $entry['id'] ),
-					wp_json_encode( $entry['config'] )
+					wp_json_encode( $config )
 				),
 				'before'
 			);

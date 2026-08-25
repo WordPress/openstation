@@ -23,6 +23,20 @@
  *
  * The CELL is derived, never declared. A gap you can see is the
  * thing worth tuning; the pitch is just tile + gap.
+ *
+ * **The other half of "one grid" is the reading order.** A canvas
+ * reads in columns or in rows ({@link GridOrder}), it picks once, and
+ * every path that allocates a cell on it — a drop, a sort, a rescue
+ * of tiles that drifted out of view — goes through
+ * {@link nextFreeCell} with that order. The desktop turning itself
+ * into rows on some page loads and not others was three code paths
+ * disagreeing about this: the server packed columns without a bound,
+ * the client packed columns with one, and the rescue pass packed
+ * rows. Whichever ran last won.
+ *
+ * `includes/desktop-files/grid.php` is the PHP mirror — same pitch,
+ * same fallbacks, same order semantics — and
+ * `Tests_OpenStation_DesktopFilesGrid` parses this file to prove it.
  */
 
 /** Gutter from the top / inline-start edge of an icon canvas. */
@@ -106,81 +120,153 @@ export function cellToPos( col: number, row: number ): GridPos {
 }
 
 /**
- * Snap `(x, y)` to the nearest empty grid cell. If the nearest
- * cell is occupied, scans column-major (down each column then
- * across) for the first empty one — same convention macOS
- * Finder uses for "Clean Up".
+ * Which way a canvas reads.
  *
- * `occupied` is the set of `"<col>,<row>"` strings already in
- * use; the caller is responsible for building it from the
- * current placement list.
+ * `'column'` fills the first column top-to-bottom then starts the
+ * next one — the desktop's convention, and macOS Finder's. `'row'`
+ * fills the top row left-to-right then drops to the next — the right
+ * order for a folder window, which is wide and short.
  *
- * `host` is optional — when provided, the scan respects the
- * host's height so tiles wrap to a new column when the bottom
- * is hit. Without it, columns extend infinitely (which is
- * fine for desktop windows that don't have a definite height).
+ * **An auto-pack must never change a canvas's order.** Repacking is
+ * a rescue (a tile drifted out of view, the user asked for a sort);
+ * the user reads it as the desktop rearranging itself. One order per
+ * canvas, chosen at mount and passed to every allocator call.
+ *
+ * @public
  */
-export function snapToEmptyCell(
-	x: number,
-	y: number,
-	occupied: Set< string >,
-	host?: HTMLElement | null,
-): GridPos {
-	const target = pointToCell( x, y );
-	if ( ! occupied.has( cellKey( target.col, target.row ) ) ) {
-		return target;
-	}
+export type GridOrder = 'column' | 'row';
 
-	const maxRows = host
-		? Math.max( 1, Math.floor( ( host.clientHeight - GRID_PADDING ) / GRID_CELL_H ) )
-		: 999;
+/**
+ * How far a scan runs along the axis it wraps on when the canvas
+ * can't be measured — no host, a host that isn't laid out yet, or a
+ * caller with no DOM at all (PHP's auto-placer picks slots for a
+ * viewport it will never see; `includes/desktop-files/grid.php`
+ * mirrors both numbers).
+ *
+ * The two failure modes are not symmetric, which is why these are
+ * deliberately small. Wrapping one cell early costs a column the
+ * canvas had room for — the user sees a slightly wider spread and
+ * nothing else. Wrapping one cell late puts a tile past the edge of a
+ * layer that has no scrollbar, so it isn't below the fold, it is
+ * gone. `GRID_FALLBACK_ROWS` fits a 616px canvas — a small laptop
+ * with the devtools open — and the measured path takes over the
+ * moment there is something to measure.
+ */
+export const GRID_FALLBACK_ROWS = 5;
+export const GRID_FALLBACK_COLS = 4;
 
-	// Column-major scan starting at column 0 — guarantees
-	// deterministic packing regardless of where the user
-	// dropped the new tile.
-	for ( let col = 0; col < 999; col++ ) {
-		for ( let row = 0; row < maxRows; row++ ) {
-			if ( ! occupied.has( cellKey( col, row ) ) ) {
-				return cellToPos( col, row );
-			}
-		}
+/** Rows that fit in `host`, or {@link GRID_FALLBACK_ROWS}. */
+export function gridRows( host?: HTMLElement | null ): number {
+	const h = host?.clientHeight ?? 0;
+	if ( h <= 0 ) {
+		// An unmeasurable host is not a one-row host. Reading `0` off
+		// a canvas that hasn't been laid out yet and believing it is
+		// how a column of icons turns into a row.
+		return GRID_FALLBACK_ROWS;
 	}
-	// Fallback: target cell anyway. Should be unreachable
-	// unless the desktop has 999 × 999 placements.
-	return target;
+	return Math.max( 1, Math.floor( ( h - GRID_PADDING ) / GRID_CELL_H ) );
+}
+
+/** Columns that fit in `host`, or {@link GRID_FALLBACK_COLS}. */
+export function gridCols( host?: HTMLElement | null ): number {
+	const w = host?.clientWidth ?? 0;
+	if ( w <= 0 ) {
+		return GRID_FALLBACK_COLS;
+	}
+	return Math.max( 1, Math.floor( ( w - GRID_PADDING ) / GRID_CELL_W ) );
 }
 
 /**
- * Find the first empty grid cell in row-major order — fills row 0
- * across all columns first, then row 1, etc. This is the right pack
- * order for "drop a new shortcut into a folder" because new tiles
- * land at the TOP of the visible canvas instead of piling down
- * column 0 (where they may fall below a short folder window's
- * fold). `cols` defaults to 4 when no host is supplied.
- *
- * Different from {@link snapToEmptyCell}, which is column-major and
- * is the right order for "clean up" / sort. Both share the
- * `cellKey()` occupancy convention.
+ * Upper bound on a scan's unbounded axis. Packing 999 columns of
+ * icons is not a layout, it's a runaway loop.
  */
-export function nextRowMajorCell(
+const SCAN_LIMIT = 999;
+
+/**
+ * First empty cell in `order`, wrapping at the canvas's edge.
+ *
+ * `occupied` is the set of `"<col>,<row>"` keys already in use — the
+ * caller builds it from the current placement list, and is free to
+ * add each returned cell to keep allocating.
+ *
+ * The wrap axis is bounded by the canvas ({@link gridRows} for
+ * `'column'`, {@link gridCols} for `'row'`) so a tile can never be
+ * allocated past the edge of a layer that doesn't scroll. The other
+ * axis runs to {@link SCAN_LIMIT}.
+ */
+export function nextFreeCell(
 	occupied: Set< string >,
+	order: GridOrder = 'column',
 	host?: HTMLElement | null,
 ): GridPos {
-	const cols = host
-		? Math.max(
-			1,
-			Math.floor( ( host.clientWidth - GRID_PADDING ) / GRID_CELL_W ),
-		)
-		: 4;
-	const maxCols = Math.max( 1, cols );
-	for ( let row = 0; row < 999; row++ ) {
-		for ( let col = 0; col < maxCols; col++ ) {
+	if ( 'row' === order ) {
+		const cols = gridCols( host );
+		for ( let row = 0; row < SCAN_LIMIT; row++ ) {
+			for ( let col = 0; col < cols; col++ ) {
+				if ( ! occupied.has( cellKey( col, row ) ) ) {
+					return cellToPos( col, row );
+				}
+			}
+		}
+		return cellToPos( 0, 0 );
+	}
+	const rows = gridRows( host );
+	for ( let col = 0; col < SCAN_LIMIT; col++ ) {
+		for ( let row = 0; row < rows; row++ ) {
 			if ( ! occupied.has( cellKey( col, row ) ) ) {
 				return cellToPos( col, row );
 			}
 		}
 	}
 	return cellToPos( 0, 0 );
+}
+
+/**
+ * Consecutive cells for `count` tiles, in `order`, skipping anything
+ * `occupied` already holds.
+ *
+ * The engine behind both bulk layout passes — "sort by name" and the
+ * rescue of tiles that drifted off the canvas. They used to carry a
+ * copy each of the same allocator loop, which is how one of them
+ * ended up row-major on a surface that reads in columns.
+ *
+ * `occupied` is not mutated; the reserved cells (pinned tiles) stay
+ * the caller's to describe.
+ */
+export function packCells(
+	count: number,
+	occupied: Set< string >,
+	order: GridOrder = 'column',
+	host?: HTMLElement | null,
+): GridPos[] {
+	const taken = new Set( occupied );
+	const out: GridPos[] = [];
+	for ( let i = 0; i < count; i++ ) {
+		const cell = nextFreeCell( taken, order, host );
+		taken.add( cellKey( cell.col, cell.row ) );
+		out.push( cell );
+	}
+	return out;
+}
+
+/**
+ * Snap `(x, y)` to the nearest empty grid cell. When the nearest cell
+ * is taken, falls through to {@link nextFreeCell} in the canvas's own
+ * `order` — a tile displaced by a collision lands where the next tile
+ * would have, not somewhere the canvas doesn't otherwise pack.
+ */
+export function snapToEmptyCell(
+	x: number,
+	y: number,
+	occupied: Set< string >,
+	host?: HTMLElement | null,
+	order: GridOrder = 'column',
+): GridPos {
+	const target = pointToCell( x, y );
+	if ( ! occupied.has( cellKey( target.col, target.row ) ) ) {
+		return target;
+	}
+	return nextFreeCell( occupied, order, host );
 }
 
 /**

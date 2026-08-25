@@ -51,10 +51,12 @@ const READINESS_FLAG = 'openStationShellOverlays';
  * scrutiny as any other boot-path addition. Removing one is free.
  */
 const ALLOWED_IN_MAIN: Readonly< Record< string, string > > = {
-	'os-toast': 'share-settings-modal renders toasts inline',
-	'os-button': 'share-settings-modal + the wallpaper settings section',
-	'os-window-button': 'the notes layer paints its own window chrome',
-	'os-save-status': 'the notes layer paints its own save indicator',
+	// os-toast, os-window-button and os-save-status left this list
+	// when the share modal moved to the `files-overlays` bundle and
+	// the notes layer to the `notes` bundle — the shell-bundle diet
+	// (see `shell-bundle-boundary.test.ts`) took their importers with
+	// it.
+	'os-button': 'the wallpaper settings section',
 };
 
 /**

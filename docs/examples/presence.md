@@ -5,7 +5,7 @@
 The framework keeps a running map of who's currently in the
 OpenStation WP-Admin. Three states — `online`, `inactive`,
 `offline` — derived from the WordPress Heartbeat plus a
-mousedown / keydown listener. Storage is server-side
+pointerdown / keydown listener. Storage is server-side
 (`_desktop_mode_presence` option) so every tab in every browser
 sees the same map.
 

@@ -34,6 +34,7 @@
  */
 
 import { Component, defineComponent, html } from '../../core';
+import { osIcon } from '../../icons';
 import { styles } from './os-crumb-chain.styles';
 
 /**
@@ -401,17 +402,5 @@ function pickForegroundColor( bg: string ): string {
 }
 
 function _iconCross() {
-	return html`
-		<svg
-			viewBox="0 0 12 12"
-			aria-hidden="true"
-			focusable="false"
-			fill="none"
-			stroke="currentColor"
-			stroke-width="2"
-			stroke-linecap="round"
-		>
-			<path d="M3 3 L9 9 M9 3 L3 9" />
-		</svg>
-	`;
+	return osIcon( 'close', { size: null } );
 }

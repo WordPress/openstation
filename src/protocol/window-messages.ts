@@ -112,6 +112,10 @@ export type BridgeEventFromIframe =
 /** Bridge events sent from the parent shell to a chromeless iframe. */
 export type BridgeEventToIframe =
 	| { type: 'os-focus' }
+	// Whether this iframe's window is the focused one. Sent on window
+	// focus/blur and re-seeded on every `os-bridge-ready`. The
+	// chromeless bridge slows Core Heartbeat to 120 s while inactive.
+	| { type: 'os-window-active'; active: boolean }
 	| { type: 'os-color-scheme'; scheme: string }
 	| { type: 'os-toggle-panel'; panel: 'screen-options' | 'help' }
 	| { type: 'os-commands-subscribe' }
@@ -195,6 +199,7 @@ export const BRIDGE_EVENT_TYPES: ReadonlySet< BridgeEventType > = new Set( [
 	'os-pointer-move',
 	// To iframe.
 	'os-focus',
+	'os-window-active',
 	'os-color-scheme',
 	'os-toggle-panel',
 	'os-commands-subscribe',

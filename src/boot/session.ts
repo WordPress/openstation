@@ -14,7 +14,11 @@
 
 import { tryNativeUrlRemap } from '../native-url-remap';
 import { deriveWindowId } from '../utils';
-import { clampGeometryToViewport, findDockEntryForUrl } from './geometry';
+import {
+	clampGeometryToViewport,
+	findDockEntryForUrl,
+	findDockEntryForWindowId,
+} from './geometry';
 import type { WindowManager } from '../window-manager';
 import type { Window } from '../window';
 import type { DesktopConfig, Session, WindowConfig } from '../types';
@@ -199,7 +203,17 @@ export async function restoreSession(
 		}
 
 		const clamped = clampGeometryToViewport( win, rect );
-		const dockEntry = findDockEntryForUrl( win.url, config );
+		// Resolve the owning dock entry from the CURRENT URL first —
+		// a window navigated onto another menu's page belongs to that
+		// menu now. When the URL matches nothing (an off-menu
+		// onboarding redirect like MailPoet's landing page), fall
+		// back to the window's open-time identity: `baseId` was
+		// derived from the URL the window was opened with, so it
+		// still names the dock entry — and its submenu tab strip —
+		// the window came from.
+		const dockEntry =
+			findDockEntryForUrl( win.url, config ) ??
+			findDockEntryForWindowId( win.baseId || win.id, config );
 
 		// `openNew`, not `open`. Restore means "recreate exactly this
 		// set of windows", and `open()` is the wrong verb for that: it

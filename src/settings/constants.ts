@@ -281,6 +281,11 @@ export const DEFAULTS: OsSettingsState = {
 	// Native Comments window — replaces `edit-comments.php`. Same
 	// opt-in Beta posture; cap-gated on `edit_posts` server-side.
 	nativeCommentsEnabled: false,
+	// Station Home — the native Dashboard window that claims the
+	// ordinary `index.php` URL. Same opt-in Beta posture: default off
+	// so a custom dashboard keeps rendering in the chromeless iframe
+	// until the user deliberately switches.
+	stationHomeEnabled: false,
 	showDesktopOnWallpaperClick: false,
 	mioEnabled: false,
 	// No opinions: the user has not been to "Make it yours" yet, so
@@ -289,8 +294,8 @@ export const DEFAULTS: OsSettingsState = {
 	showPostStatusRibbons: true,
 	developerModeEnabled: false,
 	foldersSharingEnabled: true,
-	itemVisibility: {},
-	dockOrder: [],
+	navPlacement: {},
+	navOrder: [],
 	dockPromotedPositions: {},
 };
 

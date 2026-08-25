@@ -131,8 +131,11 @@ export interface WindowConfig {
 	 * Submenu items that render as a tab strip below the title bar.
 	 * Each tab navigates the iframe within the same window — no new window opens.
 	 * Pass an empty array (or omit) to hide the strip.
+	 *
+	 * Rows flagged `offSite` are carried through but never become
+	 * tabs: the iframe can't load an off-site URL.
 	 */
-	submenu?: { title: string; url: string }[];
+	submenu?: { title: string; url: string; offSite?: boolean }[];
 	/**
 	 * Optional initial state. When present, the window is constructed
 	 * into this state directly — used by session restore so a minimized
@@ -815,6 +818,60 @@ export interface NativeWindowCompanionScript {
 	scriptTranslations?: string;
 }
 
+/**
+ * Handle-keyed script data the native-window payload entries
+ * reference — one resolved copy per bundle, however many windows,
+ * companions and tabs name it. Built by
+ * `openstation_collect_native_windows_payload()`; joined back onto
+ * the entries by `hydrateServerEntries()` before the sync consumes
+ * them. Field names mirror `openstation_resolve_script_payload()`.
+ */
+export type NativeWindowScriptData = Record<
+	string,
+	{
+		url: string;
+		before?: string[];
+		after?: string[];
+		l10n?: string[];
+		translations?: string;
+	}
+>;
+
+/**
+ * A native-window entry as it travels on the wire: script data is
+ * referenced by HANDLE (companions are handle strings, the entry and
+ * its tabs carry no resolved url/inline fields) and lives once per
+ * handle in {@link NativeWindowScriptData}. `hydrateServerEntries()`
+ * joins the two into full {@link NativeWindowServerEntry} objects.
+ * The resolved fields stay optional here because an old-format
+ * payload (a bridge emission from a not-yet-reloaded page) may still
+ * inline them — the hydrator passes those through untouched.
+ */
+export type NativeWindowWireEntry = Omit<
+	NativeWindowServerEntry,
+	'scriptUrl' | 'companionScripts' | 'tabs'
+> & {
+	scriptUrl?: string;
+	companionScripts?: Array< string | NativeWindowCompanionScript >;
+	tabs?: Array<
+		Omit< NativeWindowTabEntry, 'scriptUrl' > & { scriptUrl?: string }
+	>;
+};
+
+/**
+ * One companion stylesheet attached to a native window through the
+ * `styles` registration arg. Same resolved shape the window's own
+ * `style` travels in, but injected on the window's FIRST OPEN rather
+ * than when the window registers — a stylesheet that only paints
+ * surfaces inside the window is deliberately deferred until the
+ * window is shown.
+ */
+export interface NativeWindowCompanionStyle {
+	styleUrl: string;
+	styleHandle?: string;
+	styleInline?: string[];
+}
+
 export interface NativeWindowServerEntry {
 	/** Window id + dock-tile id. */
 	id: string;
@@ -822,8 +879,23 @@ export interface NativeWindowServerEntry {
 	title: string;
 	/** Dashicons class or URL. */
 	icon: string;
-	/** `'dock'` = render a system tile on the unified dock, `'none'` = register the window but render no tile (plugin opens programmatically). */
+	/**
+	 * `'dock'` = the window's launcher proposes the rail as its
+	 * default, which is what keeps it on the dock even though apps
+	 * otherwise default to the wallpaper. `'none'` = register the
+	 * window but propose no launcher (the plugin opens it
+	 * programmatically). A PROPOSAL, not a render instruction — the
+	 * user's Navigation preference wins, and a running window gets a
+	 * tile either way.
+	 */
 	placement: 'dock' | 'none';
+	/**
+	 * What the window IS: `'app'` (an installed app — the default, and
+	 * what every plugin wants) or `'control'` (an OpenStation
+	 * affordance; the Trash is the only shipped one). Decides the
+	 * launcher's default placement and which dock zone it sits in.
+	 */
+	navKind?: 'app' | 'control';
 	/**
 	 * Sort key for the tile among system tiles, ascending. Absent
 	 * means `0`, which puts the tile ahead of the shell's own trailing
@@ -832,9 +904,9 @@ export interface NativeWindowServerEntry {
 	 */
 	dockOrder?: number;
 	/**
-	 * Whether the dock tile gets a row in OpenStation Preferences →
-	 * Apps & Plugins so the user can hide it. Absent/false for the
-	 * load-bearing majority.
+	 * Whether the launcher gets a row in OpenStation Preferences →
+	 * Navigation so the user can move or hide it. Absent/false for
+	 * the load-bearing majority.
 	 */
 	placeable?: boolean;
 	/** Initial window dimensions in px. */
@@ -902,6 +974,17 @@ export interface NativeWindowServerEntry {
 	 * `WP_Styles::print_inline_style()` would have written.
 	 */
 	styleInline?: string[];
+	/**
+	 * Companion stylesheets (`styles` arg) injected on the window's
+	 * first open, after the window's own style, in declared order —
+	 * so a companion's equal-specificity overrides win by source
+	 * order, the same contract a `wp_register_style` dependency gives
+	 * on the print path. The styles-side mirror of
+	 * `companionScripts`, deferred because a sheet that only paints
+	 * this window's surfaces is dead weight on every document that
+	 * never shows it.
+	 */
+	companionStyles?: NativeWindowCompanionStyle[];
 	/**
 	 * Attribution of the registering plugin. Mirrors `scriptHandle` for
 	 * windows registered via `openstation_register_window()`. Devtools
@@ -1582,7 +1665,7 @@ export interface DockItemConfig {
 	/** Badge count (updates, comments, etc.). */
 	badge: number;
 	/** Submenu items. */
-	submenu: { title: string; url: string }[];
+	submenu: { title: string; url: string; offSite?: boolean }[];
 	/**
 	 * WordPress's own label for this menu's landing page ("Themes",
 	 * "All Posts"), stripped out of `submenu` as the self-link. Names
@@ -1716,9 +1799,16 @@ export interface DesktopConfig {
 	 * Server-declared native windows (from `openstation_register_window()`).
 	 * Shell auto-registers system tiles at boot + syncs them on every
 	 * live menu refresh so plugin activate / deactivate maps to tile
-	 * add / remove with no browser reload.
+	 * add / remove with no browser reload. Wire-format entries — join
+	 * them with {@link DesktopConfig.nativeWindowScriptData} through
+	 * `hydrateServerEntries()` before handing them to the sync.
 	 */
-	nativeWindows: NativeWindowServerEntry[];
+	nativeWindows: NativeWindowWireEntry[];
+	/**
+	 * Handle-keyed script data the `nativeWindows` entries reference —
+	 * one resolved copy per bundle, however many windows share it.
+	 */
+	nativeWindowScriptData?: NativeWindowScriptData;
 	/**
 	 * Server-declared widgets (from `openstation_register_widget()`).
 	 * Same lifecycle story as native windows — shell syncs the
@@ -1756,7 +1846,9 @@ export interface DesktopConfig {
 	 */
 	canManageDesktopThemes?: boolean;
 	/**
-	 * REST base for the desktop-theme upload / delete routes.
+	 * REST base for the desktop-theme routes: GET (full library —
+	 * `ensureFullDesktopThemes()` fetches the entries the boot
+	 * payload ships slimmed, `cssDeferred: true`), upload, delete.
 	 */
 	desktopThemesUrl?: string;
 	/**
@@ -2215,13 +2307,44 @@ export interface DesktopConfig {
 	 */
 	aiAssistantBundleUrl?: string;
 	/**
-	 * Fully-qualified URL of the lazy-loaded About-scene bundle —
-	 * the script `<script>`-injected by the main-bundle loader the
-	 * first time the user opens OS Settings → About. Hosts a single
-	 * 25 kB PixiJS particle scene; never reached unless the user
-	 * navigates to that tab.
+	 * Stylesheets for shell surfaces that render on demand and are
+	 * NOT native windows (the Preferences panel, the AI assistant,
+	 * the bug-report window), keyed by style handle. Injected once,
+	 * on the surface's first open, by `ensureDeferredStyle()` —
+	 * `src/deferred-styles.ts`. Same resolved shape a native
+	 * window's `styleUrl` / `styleInline` travels in.
 	 */
-	aboutSceneBundleUrl?: string;
+	deferredStyles?: Record< string, { url: string; inline?: string[] } >;
+	/**
+	 * Ordered manifest of the Core command-palette asset chain —
+	 * `wp-commands` + `wp-core-commands` and their full dependency
+	 * closure (the Gutenberg runtime), resolved server-side in print
+	 * order with each handle's inline data harvested alongside.
+	 * Replayed by `ensureCommandPaletteAssets()`
+	 * (`src/commands/palette-assets.ts`) on the first palette
+	 * invocation instead of being enqueued on every boot.
+	 * `null` / absent on pre-6.9 sites.
+	 */
+	commandPalette?: {
+		scripts: Array< {
+			handle: string;
+			url: string;
+			before?: string[];
+			after?: string[];
+			l10n?: string[];
+			translations?: string;
+		} >;
+		styles: Array< {
+			handle: string;
+			url: string;
+			inline?: string[];
+		} >;
+	} | null;
+	/**
+	 * Authenticated admin-AJAX URL returning the cached OpenStation journal
+	 * RSS payload. Requested only when the About tab first becomes visible.
+	 */
+	aboutFeedUrl?: string;
 	/**
 	 * Fully-qualified URL of the lazy-loaded OS Settings panel
 	 * bundle. The main bundle ships a thin `OsSettings.renderPanel`
@@ -2240,6 +2363,26 @@ export interface DesktopConfig {
 	 * first user trigger feels instant.
 	 */
 	shellOverlaysBundleUrl?: string;
+	/**
+	 * The shell-bundle diet: gesture- and presence-gated features
+	 * riding their own bundles instead of `desktop[.min].js`. Each
+	 * sentinel loads its bundle at the moment it matters — file drop
+	 * on the first dragenter carrying files, the files overlays
+	 * (share modals + URL dialog) on first open, notes when the
+	 * desktop has (or is about to get) one, the dock flyout on the
+	 * first rail hover, the window-link visuals on the first
+	 * relation group.
+	 */
+	fileDropBundleUrl?: string;
+	filesOverlaysBundleUrl?: string;
+	notesBundleUrl?: string;
+	dockConstellationBundleUrl?: string;
+	windowLinkVisualsBundleUrl?: string;
+	/**
+	 * Presence hint for the notes sentinel — whether this desktop
+	 * would show any pinned notes at boot.
+	 */
+	hasNotes?: boolean;
 	/**
 	 * Fully-qualified URL of the full `<os-*>` component kit —
 	 * every tag in `OS_COMPONENT_TAGS`. The shell never loads it;

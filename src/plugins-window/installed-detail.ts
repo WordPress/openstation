@@ -14,6 +14,7 @@
  */
 
 import { __, sprintf } from '../i18n';
+import { osIconSvg } from '../ui/icons';
 import { buildStarCluster } from './card';
 import { fetchPluginInfo, fetchPluginReviews } from './rest';
 import { attachIconFallback } from './icon-fallback';
@@ -720,11 +721,12 @@ function renderFaq( info: WpOrgPluginInfo | null ): HTMLElement {
 		const chevron = document.createElement( 'span' );
 		chevron.className = 'os-plugins__detail-faq-chevron';
 		chevron.setAttribute( 'aria-hidden', 'true' );
-		// SVG so the rotation animates smoothly via CSS.
-		chevron.innerHTML =
-			'<svg viewBox="0 0 12 12" width="12" height="12" fill="none" ' +
-			'stroke="currentColor" stroke-width="1.8" stroke-linecap="round" ' +
-			'stroke-linejoin="round"><path d="M3 4.5 L6 7.5 L9 4.5"/></svg>';
+		// SVG so the rotation animates smoothly via CSS. Core ships one
+		// chevron, pointing right; a quarter turn is what points it down.
+		chevron.innerHTML = osIconSvg( 'chevron-right', {
+			size: 16,
+			rotate: 90,
+		} );
 		summary.append( qText, chevron );
 
 		const body = document.createElement( 'div' );

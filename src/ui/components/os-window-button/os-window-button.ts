@@ -66,6 +66,21 @@ import { styles } from './os-window-button.styles';
  * rendered at 14×14 for crispness. Sourced directly from the old
  * `createControlButton()` helper in `window.ts` so visuals are
  * identical.
+ *
+ * These glyphs are NOT from `src/ui/icons`, and the reason is worth
+ * writing down because it looks like an oversight.
+ *
+ * The thirty-icon set covers `close`, and it does not cover `detach`,
+ * `fullscreen-exit` or `reload`: those are window-chrome vocabulary
+ * that neither Core nor the eleven have a member for. Swapping only
+ * `close` to Core's filled cross would leave one filled glyph beside
+ * a monoline one inside a cluster two buttons wide, which is exactly
+ * the inconsistency the icon sweep set out to remove. So chrome stays
+ * whole and stays here, at its own 12-grid, 1.25-stroke weight.
+ *
+ * The way out is to draw the missing chrome glyphs as OpenStation
+ * icons (a window you can detach from the shell is a desktop idea,
+ * not a wp-admin one) and then convert the whole cluster at once.
  */
 const ICONS: Record<string, string> = {
 	minimize:

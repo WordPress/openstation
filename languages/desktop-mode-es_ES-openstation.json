@@ -278,6 +278,9 @@
             "%s (already added)": [
                 "%s (ya añadido)"
             ],
+            "%s (empty)": [
+                ""
+            ],
             "%s MB": [
                 ""
             ],
@@ -291,6 +294,9 @@
                 ""
             ],
             "%s deleted.": [
+                ""
+            ],
+            "%s entry": [
                 ""
             ],
             "%s is already installed. Open it from your apps menu or home screen.": [
@@ -356,6 +362,18 @@
             "1 item": [
                 ""
             ],
+            "1h": [
+                ""
+            ],
+            "24h": [
+                ""
+            ],
+            "30d": [
+                ""
+            ],
+            "7d": [
+                ""
+            ],
             "90 seconds on the clock — every word buys you more.": [
                 ""
             ],
@@ -364,6 +382,9 @@
             ],
             "A comment cannot be empty.": [
                 ""
+            ],
+            "A desktop for WordPress.": [
+                "Azul WordPress"
             ],
             "A desktop theme repaints every token at once. A coarser version of what Appearance does one control at a time.": [
                 ""
@@ -384,6 +405,9 @@
                 ""
             ],
             "A plugin with the same folder name is already installed. Replacing it overwrites the installed files. Any local edits to the plugin will be lost. The plugin will keep its activation state.": [
+                ""
+            ],
+            "A public dev diary — building a desktop OS for wp-admin.": [
                 ""
             ],
             "A short summary": [
@@ -409,6 +433,9 @@
             ],
             "About": [
                 ""
+            ],
+            "About OpenStation": [
+                "Cambiar a modo escritorio"
             ],
             "Accent color": [
                 "Color de acento"
@@ -506,6 +533,9 @@
             "All": [
                 ""
             ],
+            "All clear": [
+                ""
+            ],
             "All orders": [
                 ""
             ],
@@ -524,11 +554,11 @@
             "Alphabet Soup could not start.": [
                 ""
             ],
-            "Also show on desktop": [
+            "Also show on %s": [
                 "Añadir nuevo escritorio"
             ],
-            "Also show on dock": [
-                ""
+            "Also show on desktop": [
+                "Añadir nuevo escritorio"
             ],
             "Alt text": [
                 ""
@@ -540,6 +570,9 @@
                 "Ámbar"
             ],
             "An administrator has not created any agents on this site yet.": [
+                ""
+            ],
+            "An experiment by Automattic": [
                 ""
             ],
             "Angle": [
@@ -567,12 +600,6 @@
                 ""
             ],
             "Approved": [
-                ""
-            ],
-            "Apps & Plugins": [
-                "Subir nueva"
-            ],
-            "Apps & Plugins settings…": [
                 ""
             ],
             "Ask AI": [
@@ -612,6 +639,9 @@
                 ""
             ],
             "Authors": [
+                ""
+            ],
+            "Auto": [
                 ""
             ],
             "Auto-update unavailable": [
@@ -684,6 +714,9 @@
                 ""
             ],
             "Bookmark": [
+                ""
+            ],
+            "Both <os-*> tags in the next piece of code are intentionally bogus, one per answer the warner has. Open the browser console: within ~2 seconds you should see two console.error entries from the framework, each pointing the developer at the fix — a name nothing in the registry comes close to, and a typo the warner can suggest a fix for (\"did you mean\"). Live copies of the same two tags are rendered off-screen, so the demo fires without affecting layout. Remove this section in your fork if you want a quieter Components tab.": [
                 ""
             ],
             "Bottom": [
@@ -806,13 +839,25 @@
             "Check your connection and try another tab.": [
                 ""
             ],
-            "Choose where each app shortcut shows up — on the dock, on the desktop wallpaper, both, or hidden entirely. Changes apply instantly to the running shell.": [
+            "Choose where each menu shows up: on the dock, on the desktop wallpaper, both, or hidden entirely. Changes apply instantly.": [
+                ""
+            ],
+            "Choose where each menu shows up: on the dock/sidebar, on the desktop wallpaper, both, or hidden entirely. Changes apply instantly.": [
                 ""
             ],
             "Choose your pace": [
                 ""
             ],
             "Circle": [
+                ""
+            ],
+            "Classic Dashboard": [
+                ""
+            ],
+            "Clear log": [
+                ""
+            ],
+            "Clear this log?": [
                 ""
             ],
             "Clicking a window also surfaces its parent and children.": [
@@ -843,6 +888,9 @@
                 ""
             ],
             "Co-occurring": [
+                ""
+            ],
+            "Code Blue container missing.": [
                 ""
             ],
             "Colour": [
@@ -962,6 +1010,9 @@
             "Could not apply the suggestion.": [
                 "No se pudieron cargar tus medios: %s"
             ],
+            "Could not clear the log: %s": [
+                "No se pudieron cargar tus medios: %s"
+            ],
             "Could not convert the note to a post.": [
                 "No se pudieron cargar tus medios: %s"
             ],
@@ -998,6 +1049,9 @@
             "Could not load footprint.": [
                 "No se pudieron cargar tus medios."
             ],
+            "Could not load log sources: %s": [
+                "No se pudieron cargar tus medios."
+            ],
             "Could not load plugin details.": [
                 "No se pudieron cargar tus medios."
             ],
@@ -1021,6 +1075,9 @@
             ],
             "Could not reach the clipboard — copying needs a secure (https) connection.": [
                 ""
+            ],
+            "Could not read the log: %s": [
+                "No se pudieron cargar tus medios: %s"
             ],
             "Could not read the selected entries.": [
                 "No se pudieron cargar tus medios: %s"
@@ -1056,9 +1113,6 @@
                 ""
             ],
             "Coupons": [
-                ""
-            ],
-            "Crafted with curiosity": [
                 ""
             ],
             "Create": [
@@ -1136,6 +1190,9 @@
             "Define": [
                 ""
             ],
+            "Define WP_DEBUG and WP_DEBUG_LOG in wp-config.php (or point the error_log PHP directive at a file) and errors will start collecting here.": [
+                ""
+            ],
             "Delete": [
                 ""
             ],
@@ -1195,6 +1252,9 @@
             ],
             "Deleting…": [
                 "Subiendo…"
+            ],
+            "Deprecated": [
+                ""
             ],
             "Describe the issue or the feature you have in mind.": [
                 ""
@@ -1418,16 +1478,22 @@
             "Environment included with the report": [
                 ""
             ],
+            "Errors": [
+                ""
+            ],
             "Events": [
+                ""
+            ],
+            "Events over time": [
                 ""
             ],
             "Every <os-*> web component shipped by this plugin, with its props, slots, and a live example.": [
                 ""
             ],
-            "Every menu in a single dock.": [
+            "Every entry in %s will be deleted from disk. This cannot be undone.": [
                 ""
             ],
-            "Everything installed on the station in one place: which apps appear where, and which plugins are extending the desktop.": [
+            "Every menu in a single dock.": [
                 ""
             ],
             "Everything is already set up. You don't need to install any new plugins, so you can keep using the same features as before.": [
@@ -1514,6 +1580,9 @@
             "Fewer than 10 active": [
                 ""
             ],
+            "File": [
+                ""
+            ],
             "File size": [
                 ""
             ],
@@ -1521,6 +1590,9 @@
                 ""
             ],
             "Files REST endpoint is not available.": [
+                ""
+            ],
+            "Filter messages…": [
                 ""
             ],
             "Find %s words": [
@@ -1539,6 +1611,9 @@
                 ""
             ],
             "First published": [
+                ""
+            ],
+            "First seen": [
                 ""
             ],
             "Fit": [
@@ -1568,6 +1643,9 @@
             "Found a bug or have a feature idea? Fill this in and we will open a pre-filled GitHub issue for you to review and submit.": [
                 ""
             ],
+            "Frequent": [
+                ""
+            ],
             "Friday": [
                 ""
             ],
@@ -1593,6 +1671,15 @@
                 ""
             ],
             "Glow": [
+                ""
+            ],
+            "Good afternoon, %s": [
+                ""
+            ],
+            "Good evening, %s": [
+                ""
+            ],
+            "Good morning, %s": [
                 ""
             ],
             "Got it": [
@@ -1646,11 +1733,11 @@
             "Hide everywhere": [
                 ""
             ],
-            "Hide from desktop": [
+            "Hide from %s": [
                 "Añadir nuevo escritorio"
             ],
-            "Hide from dock": [
-                ""
+            "Hide from desktop": [
+                "Añadir nuevo escritorio"
             ],
             "Highlight related windows": [
                 ""
@@ -1700,6 +1787,9 @@
             "In response to": [
                 ""
             ],
+            "In the sidebar": [
+                ""
+            ],
             "Inactive": [
                 ""
             ],
@@ -1710,6 +1800,9 @@
                 "Índigo"
             ],
             "Individual use only": [
+                ""
+            ],
+            "Info": [
                 ""
             ],
             "Inkfall": [
@@ -1757,11 +1850,23 @@
             "Iris": [
                 ""
             ],
+            "Issues": [
+                ""
+            ],
+            "Issues (%s)": [
+                ""
+            ],
+            "It is a playful, open-source experiment by Automattic exploring what WordPress can feel like when the dashboard becomes a place of its own.": [
+                ""
+            ],
             "Items (%d)": [
                 ""
             ],
             "JPEG, PNG, or WebP · goes straight to your Media Library": [
                 "JPEG, PNG o WebP · va directo a tu biblioteca de medios"
+            ],
+            "Keep in %s": [
+                "Abrir nueva ventana de %s"
             ],
             "Lapsed": [
                 ""
@@ -1781,7 +1886,22 @@
             "Last published %s": [
                 ""
             ],
+            "Last seen": [
+                ""
+            ],
             "Latest": [
+                ""
+            ],
+            "Latest dispatch": [
+                ""
+            ],
+            "Latest from the station": [
+                ""
+            ],
+            "Latest journal posts": [
+                ""
+            ],
+            "Latest occurrences": [
                 ""
             ],
             "Latest post": [
@@ -1850,6 +1970,9 @@
             "Location": [
                 "Navegación del administrador"
             ],
+            "Log source": [
+                ""
+            ],
             "Longest streak": [
                 ""
             ],
@@ -1863,6 +1986,9 @@
                 ""
             ],
             "Make it yours": [
+                ""
+            ],
+            "Make this space yours": [
                 ""
             ],
             "Makes every item in the WordPress Media Library draggable. Drop a media item into text fields, rich-text editors, Gutenberg blocks, or any target that accepts images or files. No replacement of the library — just a drag-and-drop layer on top of the one you already know.": [
@@ -1902,6 +2028,9 @@
                 ""
             ],
             "Member since %s": [
+                ""
+            ],
+            "Menus from installed plugins and apps.": [
                 ""
             ],
             "Message the agent": [
@@ -1976,9 +2105,6 @@
             "Move to trash?": [
                 ""
             ],
-            "Move your cursor through the swarm · click for a spark": [
-                ""
-            ],
             "Moving note. Arrow keys to move, Enter to place, Escape to cancel, Delete to move to the Trash.": [
                 ""
             ],
@@ -1998,6 +2124,12 @@
                 ""
             ],
             "Navigate into": [
+                ""
+            ],
+            "Navigation": [
+                "Acciones de ventana"
+            ],
+            "Navigation settings…": [
                 ""
             ],
             "Network error — check your connection.": [
@@ -2028,6 +2160,9 @@
                 "Añadir nuevo escritorio"
             ],
             "Newest first": [
+                ""
+            ],
+            "News and field notes, delivered over RSS.": [
                 ""
             ],
             "Next": [
@@ -2064,9 +2199,6 @@
                 ""
             ],
             "No agents yet": [
-                ""
-            ],
-            "No apps registered yet": [
                 ""
             ],
             "No assignable roles are available on this site.": [
@@ -2117,7 +2249,16 @@
             "No description yet.": [
                 "Subiendo…"
             ],
+            "No dispatches yet.": [
+                "Subiendo…"
+            ],
             "No drafts — all caught up.": [
+                ""
+            ],
+            "No entries were recorded in this time range.": [
+                ""
+            ],
+            "No events in this range.": [
                 ""
             ],
             "No featured plugins yet.": [
@@ -2157,6 +2298,9 @@
                 ""
             ],
             "No ratings yet.": [
+                ""
+            ],
+            "No readable log files found": [
                 ""
             ],
             "No revisions yet.": [
@@ -2243,7 +2387,16 @@
             "Nothing could be updated.": [
                 "%d actualización"
             ],
+            "Nothing matches the filters": [
+                ""
+            ],
+            "Nothing needs your attention right now.": [
+                ""
+            ],
             "Nothing on this post here": [
+                ""
+            ],
+            "Nothing registered yet": [
                 ""
             ],
             "Nothing to copy — no links found.": [
@@ -2253,6 +2406,9 @@
                 ""
             ],
             "Nothing to show.": [
+                ""
+            ],
+            "Occurrences": [
                 ""
             ],
             "Off": [
@@ -2390,6 +2546,12 @@
             "Open windows": [
                 "Abrir en una nueva pestaña del navegador"
             ],
+            "OpenStation": [
+                ""
+            ],
+            "OpenStation Journal": [
+                ""
+            ],
             "OpenStation deactivated. Reloading…": [
                 ""
             ],
@@ -2399,8 +2561,17 @@
             "OpenStation is no longer active. Returning to the WordPress dashboard…": [
                 ""
             ],
+            "OpenStation reshapes wp-admin into a personal workspace, with movable windows, a dock, themes, and focused tools that keep your site close at hand.": [
+                ""
+            ],
             "Opened \"%s\" in a new browser tab — this site doesn't allow embedding.": [
                 "Se ha abierto «%s» en una nueva pestaña del navegador — este sitio no permite incrustarse."
+            ],
+            "Opening the journal…": [
+                ""
+            ],
+            "Opens Station Home instead of the classic WordPress Dashboard: recent work, site pulse, and quick actions in one native window. Leave off to keep the classic Dashboard, including any customizations plugins have made to it.": [
+                ""
             ],
             "Order": [
                 ""
@@ -2466,6 +2637,12 @@
                 ""
             ],
             "Pick one from the list to read and reply.": [
+                ""
+            ],
+            "Pick up where you left off on %s.": [
+                ""
+            ],
+            "Pick up where you left off.": [
                 ""
             ],
             "Pin here": [
@@ -2538,6 +2715,9 @@
                 ""
             ],
             "Plugin website": [
+                ""
+            ],
+            "Plugins & Apps": [
                 ""
             ],
             "Plugins and the admin menu will appear here once they’re registered.": [
@@ -2627,6 +2807,9 @@
             "Question": [
                 ""
             ],
+            "RSS feed": [
+                ""
+            ],
             "Radar": [
                 ""
             ],
@@ -2645,11 +2828,20 @@
             "Read full review ↗": [
                 ""
             ],
+            "Read more": [
+                "Cargar más"
+            ],
             "Read on WordPress.org ↗": [
                 ""
             ],
             "Read reviews on WordPress.org ↗": [
                 ""
+            ],
+            "Read the dispatch": [
+                ""
+            ],
+            "Recent": [
+                "Cambiar a modo escritorio"
             ],
             "Recent activity": [
                 ""
@@ -2689,6 +2881,9 @@
             ],
             "Removes every share and its access list. Cannot be undone.": [
                 ""
+            ],
+            "Rename %s": [
+                "Eliminar %s"
             ],
             "Replace": [
                 "Error al subir."
@@ -2857,6 +3052,9 @@
             ],
             "Saving…": [
                 "Subiendo…"
+            ],
+            "Scanned %1$s of %2$s": [
+                "Error al subir."
             ],
             "Scope": [
                 ""
@@ -3029,10 +3227,10 @@
             "Show desktop when clicking the wallpaper": [
                 ""
             ],
-            "Show in": [
+            "Show links": [
                 "Mostrando %d"
             ],
-            "Show links": [
+            "Show pins": [
                 "Mostrando %d"
             ],
             "Show post/page status ribbon": [
@@ -3049,6 +3247,9 @@
             ],
             "Showing %d": [
                 "Mostrando %d"
+            ],
+            "Showing the last saved copy while the journal reconnects.": [
+                ""
             ],
             "Shutter": [
                 ""
@@ -3104,6 +3305,9 @@
             "Sort by": [
                 ""
             ],
+            "Sort issues": [
+                ""
+            ],
             "Soup finished!": [
                 ""
             ],
@@ -3128,7 +3332,19 @@
             "Start focus": [
                 ""
             ],
+            "Start something new and it will be waiting here when you return.": [
+                ""
+            ],
             "Static": [
+                ""
+            ],
+            "Station Home could not load. Try refreshing the window.": [
+                ""
+            ],
+            "Station Home could not refresh. Your last snapshot is still here.": [
+                ""
+            ],
+            "Station Home could not save that card preference. Try again.": [
                 ""
             ],
             "Status": [
@@ -3236,6 +3452,9 @@
             "That theme could not be installed.": [
                 ""
             ],
+            "The OpenStation’s own controls.": [
+                ""
+            ],
             "The Posts table experience for Pages, with a Parent column, hierarchical sort, and edit-lock indicators.": [
                 ""
             ],
@@ -3246,6 +3465,9 @@
                 ""
             ],
             "The admin bar slides out of the way and comes back when you move the pointer to the top edge of the screen.": [
+                ""
+            ],
+            "The admin menus WordPress itself registers.": [
                 ""
             ],
             "The agent acts with this role's capabilities — pick the least privilege that still lets it do its job.": [
@@ -3275,6 +3497,18 @@
             "The desktop files API is not available in this context.": [
                 ""
             ],
+            "The journal could not be reached.": [
+                ""
+            ],
+            "The journal is open and waiting for its next post.": [
+                ""
+            ],
+            "The latest posts are arriving over RSS.": [
+                ""
+            ],
+            "The log is clean": [
+                ""
+            ],
             "The look OpenStation ships with": [
                 "Cambiar a modo escritorio"
             ],
@@ -3291,9 +3525,6 @@
                 ""
             ],
             "The preview opens once the post has been saved.": [
-                ""
-            ],
-            "The three <os-*> tags below are intentionally bogus. Open the browser console: within ~2 seconds you should see three console.error entries from the framework, each pointing the developer at the fix (typo with \"did you mean\", and unknown tags). The tags are kept off-screen so they do not affect layout. Remove this section in your fork if you want a quieter Components tab.": [
                 ""
             ],
             "The underlying entity is no longer available.": [
@@ -3380,6 +3611,9 @@
             "Time Attack": [
                 ""
             ],
+            "Time range": [
+                ""
+            ],
             "Time’s up!": [
                 ""
             ],
@@ -3399,6 +3633,9 @@
                 "Hasta"
             ],
             "Today": [
+                ""
+            ],
+            "Toggle severities": [
                 ""
             ],
             "Tool calls": [
@@ -3441,6 +3678,9 @@
                 ""
             ],
             "Try asking": [
+                ""
+            ],
+            "Try widening the time range or clearing the search.": [
                 ""
             ],
             "Tuesday": [
@@ -3545,6 +3785,9 @@
             "Update to %s": [
                 "Añadir %s"
             ],
+            "Updated": [
+                "Añadir %s"
+            ],
             "Updated %s": [
                 "Añadir %s"
             ],
@@ -3592,6 +3835,12 @@
             ],
             "Uploading…": [
                 "Subiendo…"
+            ],
+            "Use Customize to opt in to information from your plugins.": [
+                ""
+            ],
+            "Use Station Home as your Dashboard": [
+                ""
             ],
             "Use the native Comments window": [
                 ""
@@ -3683,8 +3932,14 @@
             "View post": [
                 "Acciones de ventana"
             ],
+            "View the project": [
+                "Acciones de ventana"
+            ],
             "View their orders": [
                 "Acciones de ventana"
+            ],
+            "Visit the journal": [
+                ""
             ],
             "W": [
                 ""
@@ -3702,6 +3957,9 @@
                 "Fondo de pantalla"
             ],
             "Warming up the soup…": [
+                ""
+            ],
+            "Warnings": [
                 ""
             ],
             "Watch the dot in the OpenStation Preferences title bar to see when a change has been saved.": [
@@ -3791,6 +4049,9 @@
             "WordPress Blue": [
                 "Azul WordPress"
             ],
+            "WordPress Core": [
+                "Azul WordPress"
+            ],
             "WordPress Heartbeat rate": [
                 "Azul WordPress"
             ],
@@ -3839,6 +4100,9 @@
             "You can restore it from the Trash later.": [
                 "Lo sentimos, no tienes permiso para acceder al escritorio de WordPress."
             ],
+            "You can still read every post on openstation.blog.": [
+                ""
+            ],
             "You declined %1$s’s %2$s challenge.": [
                 ""
             ],
@@ -3857,13 +4121,13 @@
             "Your assistant to quickly navigate and manage your entire site.": [
                 ""
             ],
+            "Your desk is clear": [
+                ""
+            ],
             "Your score could not be saved.": [
                 ""
             ],
             "activated": [
-                ""
-            ],
-            "an experiment by Automattic": [
                 ""
             ],
             "by": [
@@ -3887,6 +4151,9 @@
             "deleted": [
                 ""
             ],
+            "dock": [
+                ""
+            ],
             "fallback name for the post a comment was left on\u0004post": [
                 "Acciones de ventana"
             ],
@@ -3902,6 +4169,9 @@
             "no reason given": [
                 ""
             ],
+            "older entries not shown": [
+                ""
+            ],
             "one contributor": [
                 ""
             ],
@@ -3909,6 +4179,9 @@
                 ""
             ],
             "read-only": [
+                ""
+            ],
+            "sidebar": [
                 ""
             ],
             "since %s": [

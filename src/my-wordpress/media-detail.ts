@@ -384,6 +384,8 @@ export async function renderMediaDetail(
 	renderMediaPreview( previewHost, mediaItem, {
 		entityId,
 		previewActions: getConfig().previewActions ?? [],
+		postType: getConfig().entities.find( ( e ) => e.id === entityId )
+			?.post_type,
 	} );
 	right.appendChild( previewHost );
 

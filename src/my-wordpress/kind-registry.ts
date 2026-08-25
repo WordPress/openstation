@@ -16,7 +16,11 @@
  * @public
  */
 
-import type { MyWordPressEntity, Route } from './types';
+import type {
+	MyWordPressEntity,
+	PreviewActionSurface,
+	Route,
+} from './types';
 
 /**
  * Surface passed to every renderer. The renderer paints into
@@ -41,6 +45,22 @@ export interface EntityRenderHost {
 	 * subscription / observer / timer they create.
 	 */
 	addTeardown: ( fn: () => void ) => void;
+	/**
+	 * Resolve the section's server-declared preview actions
+	 * (`openstation_my_wordpress_preview_actions`) against one item
+	 * and return the same ready-made action row the built-in panes
+	 * render — or null when none apply. Runs the
+	 * `os.my-wordpress.preview-actions` JS filter, so a custom-kind
+	 * renderer gets the whole pipeline from one call.
+	 */
+	previewActionRow: ( args: {
+		/** The selected item, as the server sent it. */
+		item: Record< string, unknown >;
+		/** MIME type, when the item is a media file. */
+		mime?: string;
+		/** Invocation surface. Default `'pane'`. */
+		surface?: PreviewActionSurface;
+	} ) => HTMLElement | null;
 }
 
 /**

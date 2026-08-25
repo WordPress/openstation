@@ -580,27 +580,34 @@ describe( 'Dock.appendSystemItem placement', () => {
 		const dock = new Dock( dockEl, manager, [], 'http://x/wp-admin/', 'left' );
 		const taskbar = new Dock( taskbarEl, manager, [], 'http://x/wp-admin/', 'bottom' );
 
-		dock.appendSystemItem( {
-			id: 'os-settings',
-			title: 'OS Settings',
-			icon: 'dashicons-admin-generic',
-			onOpen: () => undefined,
-		} );
-		taskbar.appendSystemItem( {
-			id: 'jorvy',
-			title: 'Jorvy',
-			icon: 'dashicons-star-filled',
-			onOpen: () => undefined,
-		} );
+		// A launcher lands in the apps zone; a control lands in the
+		// pinned cluster behind a divider. Both rails do both.
+		for ( const rail of [ dock, taskbar ] ) {
+			rail.appendSystemItem( {
+				id: 'jorvy',
+				title: 'Jorvy',
+				icon: 'dashicons-star-filled',
+				onOpen: () => undefined,
+			} );
+			rail.appendSystemItem( {
+				id: 'os-system',
+				title: 'System',
+				icon: 'dashicons-admin-generic',
+				navKind: 'control',
+				onOpen: () => undefined,
+			} );
+		}
 
-		const dockSys = dockEl.querySelector( '[data-system-id="os-settings"]' );
-		const taskSys = taskbarEl.querySelector( '[data-system-id="jorvy"]' );
-		expect( dockSys ).not.toBeNull();
-		expect( taskSys ).not.toBeNull();
-
-		// Separator renders on BOTH rails when a system item arrives.
-		expect( dockEl.querySelector( '.os-dock__separator' ) ).not.toBeNull();
-		expect( taskbarEl.querySelector( '.os-dock__separator' ) ).not.toBeNull();
+		for ( const el of [ dockEl, taskbarEl ] ) {
+			expect(
+				el.querySelector( '[data-system-id="jorvy"]' ),
+			).not.toBeNull();
+			expect(
+				el.querySelector( '[data-system-id="os-system"]' ),
+			).not.toBeNull();
+			// Divider between the apps zone and the controls zone.
+			expect( el.querySelector( '.os-dock__separator' ) ).not.toBeNull();
+		}
 	} );
 } );
 

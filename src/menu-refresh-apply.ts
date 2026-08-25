@@ -31,8 +31,11 @@ import type {
 	DesktopWidgetServerEntry,
 	DesktopWindowNoticeServerEntry,
 	DesktopThemeServerEntry,
+	NativeWindowScriptData,
 	NativeWindowServerEntry,
+	NativeWindowWireEntry,
 } from './types';
+import { hydrateServerEntries } from './native-windows';
 import { applyServerWindowNotices } from './window-notices-server-sync';
 import { applyAdminBarUpdates } from './admin-bar-updates';
 
@@ -40,6 +43,7 @@ import { applyAdminBarUpdates } from './admin-bar-updates';
 export interface MenuRefreshPayload {
 	dockItems?: unknown;
 	nativeWindows?: unknown;
+	nativeWindowScriptData?: unknown;
 	serverWidgets?: unknown;
 	serverWallpapers?: unknown;
 	serverCommandScripts?: unknown;
@@ -110,6 +114,29 @@ export interface MenuRefreshDeps {
 	 */
 	syncServerDesktopThemes?: ( list: DesktopThemeServerEntry[] ) => void;
 	renderIcons: ( icons: DesktopIconServerEntry[] | undefined ) => void;
+	/**
+	 * Replace the layout dispatcher's server-registered desktop-icons
+	 * list (`layoutDispatcher.applyDesktopIcons`). `renderIcons` alone
+	 * only repaints the legacy `.os-icons` rail — which is
+	 * `display: none` whenever a files layer is mounted — so without
+	 * this the nav model (and the files-layer shortcut grid that reads
+	 * it via `syncShortcuts`) kept serving the boot-time icon list and
+	 * a live refresh never surfaced new wallpaper icons. Optional so
+	 * callers/tests that predate it keep working unchanged.
+	 */
+	applyDesktopIcons?: ( icons: DesktopIconServerEntry[] | undefined ) => void;
+	/**
+	 * Refetch the desktop root's file placements (folder 0) from
+	 * REST and write them into the files store. Server-registered
+	 * icons surface on files-layer desktops as REAL placement rows
+	 * that the server mints/hides at read time (`auto_place_orphans`
+	 * + the registry-backed `exists` flag), so a changed icon list
+	 * is only fully visible after a round-trip — the nav/shortcut
+	 * sync alone deliberately never mints synthetics for icon-backed
+	 * items. Called only when the payload's icon id-set actually
+	 * differs from the previous one. Optional, like its siblings.
+	 */
+	refreshRootPlacements?: () => void;
 	/**
 	 * Re-run the files-layer shortcut reconciliation
 	 * (`syncShortcutsWithVisibility`) against the freshly-applied dock
@@ -217,8 +244,19 @@ export function createApplyPayload(
 		syncServerGames,
 		syncServerDesktopThemes,
 		renderIcons,
+		applyDesktopIcons,
+		refreshRootPlacements,
 		syncShortcuts,
 	} = deps;
+
+	/** Order-insensitive fingerprint of an icon list's ids. */
+	const iconIdSet = (
+		list: ReadonlyArray< { id?: unknown } > | undefined,
+	): string =>
+		( list ?? [] )
+			.map( ( icon ) => String( icon?.id ?? '' ) )
+			.sort()
+			.join( '\n' );
 
 	return function applyPayload( payload: MenuRefreshPayload ): void {
 		const dockItems = payload.dockItems;
@@ -271,11 +309,31 @@ export function createApplyPayload(
 		// deactivated disappear. All without a shell reload.
 		if ( Array.isArray( nativeWindows ) ) {
 			const prevNativeWindows = config.nativeWindows;
+			// Wire-format entries + handle-keyed script data — join
+			// them the same way the boot path does. A payload from an
+			// older server carries no map; the hydrator passes its
+			// inline entries through untouched.
 			void syncNativeWindows(
-				nativeWindows as NativeWindowServerEntry[],
+				hydrateServerEntries(
+					nativeWindows as NativeWindowWireEntry[],
+					payload.nativeWindowScriptData as
+						| NativeWindowScriptData
+						| undefined,
+				),
 			);
 			config.nativeWindows =
 				nativeWindows as DesktopConfig[ 'nativeWindows' ];
+			// Persist the map beside the entries it decodes —
+			// `wp.os.debug.window()` resolves URLs through
+			// `config.nativeWindowScriptData` directly, so leaving the
+			// boot-time copy in place would report an empty URL for
+			// any window whose plugin activated (or whose bundle
+			// changed) after boot. An old-format payload carries no
+			// map; keep the previous one rather than wiping it.
+			if ( payload.nativeWindowScriptData ) {
+				config.nativeWindowScriptData =
+					payload.nativeWindowScriptData as DesktopConfig[ 'nativeWindowScriptData' ];
+			}
 			emitRegistryChanged(
 				'native-windows',
 				prevNativeWindows as ReadonlyArray< { id?: unknown } > | undefined,
@@ -443,10 +501,27 @@ export function createApplyPayload(
 		// on every live menu refresh so a plugin activation adds
 		// tiles (and deactivation removes them) without an F5.
 		// `renderIcons` clears the prior container before re-rendering,
-		// so an empty list legitimately wipes the grid.
+		// so an empty list legitimately wipes the grid. On files-layer
+		// desktops that rail is hidden and the tiles come from the nav
+		// model instead, so the dispatcher gets the new list too and
+		// the shortcut reconciliation re-reads its answer.
 		if ( Array.isArray( desktopIcons ) ) {
 			const prevDesktopIcons = config.desktopIcons;
 			renderIcons( desktopIcons as DesktopIconServerEntry[] );
+			applyDesktopIcons?.( desktopIcons as DesktopIconServerEntry[] );
+			syncShortcuts?.();
+			// Files-layer desktops paint registered icons from REAL
+			// placement rows, which only the server can mint or
+			// hide — one root refetch per actual icon-set change
+			// brings the wallpaper in line without an F5.
+			if (
+				iconIdSet(
+					prevDesktopIcons as ReadonlyArray< { id?: unknown } >,
+				) !==
+				iconIdSet( desktopIcons as ReadonlyArray< { id?: unknown } > )
+			) {
+				refreshRootPlacements?.();
+			}
 			config.desktopIcons =
 				desktopIcons as DesktopConfig[ 'desktopIcons' ];
 			emitRegistryChanged(

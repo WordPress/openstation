@@ -1,6 +1,6 @@
 # `<os-flyout>` — window-scoped sliding card
 
-For the recurring "auxiliary card that slides in inside a window" pattern. Account panels, filter sidebars, navigation drawers, settings overlays — each one had ~120 LOC of bespoke wiring before. The component bakes the spec the os-tumblr 0.1.x prototype validated by hand: containment, margins from every edge, focus capture-and-restore (with `preventScroll`), focus trap, click-outside-via-pointerdown scoped to the window, no backdrop by default. *Experimental.*
+For the recurring "auxiliary card that slides in inside a window" pattern. Account panels, filter sidebars, navigation drawers, settings overlays — each one had ~120 LOC of bespoke wiring before. The component bakes the spec the os-tumblr prototype validated by hand: containment, margins from every edge, focus capture-and-restore (with `preventScroll`), focus trap, click-outside-via-pointerdown scoped to the window, no backdrop by default. *Stable.*
 
 ## Containment is the headline
 

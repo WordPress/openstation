@@ -55,7 +55,7 @@ export const MIO_LAYER_ID = 'os-mio';
 /**
  * Id of the dock tile that toggles Mio.
  *
- * Doubles as the key OS Settings → Apps & Plugins writes its visibility
+ * Doubles as the key Preferences → Navigation writes its placement
  * override under, so it has to be stable.
  */
 export const MIO_TILE_ID = 'os-mio-toggle';

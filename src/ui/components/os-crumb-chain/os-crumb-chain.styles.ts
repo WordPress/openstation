@@ -183,10 +183,13 @@ export const styles = css`
 		outline: none;
 		transform: scale( 1.1 );
 	}
+	/* Box-filling: Core's icons carry their own optical padding inside
+	   the 24 grid, so the cross lands at the right size without a
+	   second measurement here. */
 	.os-crumb__remove svg {
 		display: block;
-		width: 8px;
-		height: 8px;
+		width: 100%;
+		height: 100%;
 	}
 
 	/* Hover lift — a subtle bump so the chain feels interactive

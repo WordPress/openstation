@@ -2,7 +2,7 @@
  * OpenStation — OS Settings panel renderer (lazy bundle).
  *
  * Holds the entire OS Settings UI: tab strip, section builders for
- * every built-in tab (Appearance / Themes / Windows / Apps & Plugins /
+ * every built-in tab (Appearance / Themes / Windows / Navigation /
  * Features / Components / About), wallpaper picker + editor host, and
  * the Reset button. None of this is needed before the user clicks the
  * Settings dock icon, so it ships in its own Vite target
@@ -34,6 +34,7 @@
 
 import { __ } from '../i18n';
 import { html, render } from '../ui/core';
+import { osIcon } from '../ui/icons';
 // Side-effect imports — register every `<os-*>` component the
 // panel constructs in this bundle (not in main). `defineComponent`
 // is idempotent so other bundles can register the same tag without
@@ -62,7 +63,7 @@ import { buildAboutSection } from './sections/about';
 import { buildAccentSection } from './sections/accent';
 import { buildAdminBarSection } from './sections/admin-bar';
 import { buildThemesSection } from './sections/themes';
-import { buildAppsIconsSection } from './sections/apps-icons';
+import { buildNavigationSection } from './sections/navigation';
 import { buildDesktopLayoutSection } from './sections/desktop-layout';
 import { buildWindowRadiusSection } from './sections/window-radius';
 import { buildDockRailRendererSection } from './sections/dock-rail-renderer';
@@ -148,11 +149,15 @@ const TEXT_ATTRIBUTES = [
  * pages cannot drift apart, and so a section stays a section: reusable
  * on any page, with no opinion about being first on one.
  */
-function pageHeader( title: string, description: string ) {
+function pageHeader( title: string, description = '' ) {
 	return html`
 		<header class="os-settings__page-header">
 			<h2 class="os-settings__page-title">${ title }</h2>
-			<p class="os-settings__page-description">${ description }</p>
+			${ description
+				? html`<p class="os-settings__page-description">
+						${ description }
+					</p>`
+				: html`` }
 		</header>
 	`;
 }
@@ -268,7 +273,7 @@ export function renderOsSettingsPanel(
 		 * keys on the raw registry id (see the File Associations
 		 * entry in nav-icons.ts).
 		 */
-		icon?: ReturnType< typeof html >;
+		icon?: SVGSVGElement;
 		/** For external tabs — invoked after render to mount content. */
 		mount?: ( host: HTMLElement ) => void;
 	}
@@ -358,18 +363,20 @@ export function renderOsSettingsPanel(
 			</os-tabpanel>`,
 		},
 		{
-			id: 'apps-icons',
+			id: 'navigation',
 			order: 22,
-			label: __( 'Apps & Plugins' ),
-			panel: html`<os-tabpanel for="apps-icons">
+			label: __( 'Navigation' ),
+			panel: html`<os-tabpanel for="navigation">
 				<os-panel>
-					${ pageHeader(
-						__( 'Apps & Plugins' ),
-						__(
-							'Everything installed on the station in one place: which apps appear where, and which plugins are extending the desktop.',
-						),
-					) }
-					${ buildAppsIconsSection( ctx ) }
+					<!--
+						No description here. The page's opening
+						sentence names the rails the user is
+						actually looking at, which the split layout
+						changes, so the section owns it — that is
+						the node that repaints on a settings change.
+					-->
+					${ pageHeader( __( 'Navigation' ) ) }
+					${ buildNavigationSection( ctx ) }
 				</os-panel>
 			</os-tabpanel>`,
 		},
@@ -394,15 +401,14 @@ export function renderOsSettingsPanel(
 		} );
 	}
 
-	// About — credits + the interactive Pixi particle scene. Pinned
+	// About — the public OpenStation journal, loaded from RSS when the
+	// tab first becomes visible. Pinned
 	// to the very end of the tab strip with a sentinel order
 	// (`Number.MAX_SAFE_INTEGER`) so it stays last regardless of
 	// any third-party tabs registered through the settings-tab
-	// registry (which default to `order: 100`). The visual moment
-	// belongs at the end of the settings tour. Visible to every
-	// user, not just admins; `padding="0"` so the dark stage
-	// extends to the tabpanel edge without the os-panel's
-	// default 16px frame.
+	// registry (which default to `order: 100`). Visible to every user,
+	// not just admins; `padding="0"` lets the editorial surface own its
+	// spacing without inheriting the generic settings-panel frame.
 	rows.push( {
 		id: 'about',
 		order: Number.MAX_SAFE_INTEGER,
@@ -424,7 +430,7 @@ export function renderOsSettingsPanel(
 			// its OWN registry-delivered tabs by raw id. Looked up
 			// here rather than in the template, because the row id
 			// carries the ext- prefix and would never match.
-			icon: NAV_ICONS[ tab.id ],
+			icon: NAV_ICONS[ tab.id ]?.(),
 			panel: html`<os-tabpanel for=${ tabId }>
 				<os-panel><div data-host=${ hostAttr }></div></os-panel>
 			</os-tabpanel>`,
@@ -571,11 +577,7 @@ export function renderOsSettingsPanel(
 		html`
 			<div class="os-settings__search">
 				<label class="os-settings__search-field">
-					<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-						<path
-							d="M13 5c-3.3 0-6 2.7-6 6 0 1.4.5 2.7 1.3 3.7l-3.8 3.8 1.1 1.1 3.8-3.8c1 .8 2.3 1.3 3.7 1.3 3.3 0 6-2.7 6-6S16.3 5 13 5zm0 10.5c-2.5 0-4.5-2-4.5-4.5s2-4.5 4.5-4.5 4.5 2 4.5 4.5-2 4.5-4.5 4.5z"
-						/>
-					</svg>
+					${ osIcon( 'search', { size: null } ) }
 					<input
 						type="search"
 						class="os-settings__search-input"
@@ -606,7 +608,7 @@ export function renderOsSettingsPanel(
 					return html`<os-tab
 						value=${ r.id }
 						data-group-start=${ startsGroup ? 'true' : null }
-						>${ NAV_ICONS[ r.id ] ??
+						>${ NAV_ICONS[ r.id ]?.() ??
 						r.icon ??
 						// Third-party tabs have no glyph to render: the
 						// registry has no icon field. The spacer keeps

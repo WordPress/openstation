@@ -147,17 +147,43 @@ const onBridgeDrop = ( e: DragEvent ): void => {
 	if ( ! _bridgeInterceptPayload ) {
 		return;
 	}
+	const iframe = findIframeAtCursor( e.clientX, e.clientY );
+	if ( ! iframe ) {
+		/*
+		 * Nothing to deliver into: the cursor is over the shell's own
+		 * chrome — the wallpaper, a folder window's canvas, the dock.
+		 *
+		 * Leave the event completely alone. This handler runs in the
+		 * CAPTURE phase on `document`, so the `stopImmediatePropagation`
+		 * below reaches every shell handler before any of them see the
+		 * drop; claiming a gesture we then have nowhere to send made
+		 * every cross-frame drop outside a window vanish silently. That
+		 * is precisely what stopped an image dragged out of the Media
+		 * Library from landing on the desktop as a shortcut — the files
+		 * canvas's own drop handler was never reached.
+		 *
+		 * Tearing the intercept down here (rather than waiting for the
+		 * source frame's `os-drag-end`) also restores iframe
+		 * pointer-events before the next gesture starts.
+		 *
+		 * `preventDefault()` still fires, and only that: a media drag
+		 * also carries `text/uri-list`, whose default action on a
+		 * plain document is to navigate. Cancelling the default keeps
+		 * a drop the shell declines from replacing the whole shell
+		 * with the dragged image; propagation is untouched, so
+		 * handlers further along still get their turn.
+		 */
+		e.preventDefault();
+		stopBridgeIntercept();
+		return;
+	}
 	e.preventDefault();
 	e.stopPropagation();
 	if ( typeof e.stopImmediatePropagation === 'function' ) {
 		e.stopImmediatePropagation();
 	}
-	const iframe = findIframeAtCursor( e.clientX, e.clientY );
 	const payload = _bridgeInterceptPayload;
 	stopBridgeIntercept();
-	if ( ! iframe ) {
-		return;
-	}
 	const rect = iframe.getBoundingClientRect();
 	postIntoIframe( iframe, {
 		type: 'os-drop',
@@ -301,6 +327,50 @@ function deriveWindowIdFromIframe( iframe: HTMLIFrameElement ): string {
 	return `unknown-${ Math.random().toString( 36 ).slice( 2, 10 ) }`;
 }
 
+/**
+ * Verbose drag-start trace — silent unless
+ * `localStorage.openStationDragDebug` is set.
+ *
+ * `onDragStart` runs on EVERY DragManager session, and repositioning
+ * a desktop icon is by far the most common drag in the shell — so an
+ * unconditional line here means the console fills up during ordinary
+ * use, with the whole drag payload dumped alongside it. Same shape as
+ * the recycle-bin badge's trace: type
+ * `localStorage.openStationDragDebug = '1'` in DevTools, reload, and
+ * the wiring narrates itself again.
+ *
+ * For a one-off look at the current state rather than a running
+ * commentary, `window.__openStationIframeDropDebug()` reports the same
+ * facts on demand and needs no flag.
+ *
+ * @param iframeCount  Iframe windows about to have pointer-events suppressed.
+ * @param isBridgeable Whether the payload carries a cross-frame `bridgePayload`.
+ * @param payload      The DragManager payload, logged verbatim.
+ */
+function debugLog(
+	iframeCount: number,
+	isBridgeable: boolean,
+	payload: unknown,
+): void {
+	try {
+		if ( ! window.localStorage?.getItem( 'openStationDragDebug' ) ) {
+			return;
+		}
+	} catch {
+		// localStorage blocked (private mode, strict cookie policy) —
+		// treat as "not debugging" rather than throwing mid-drag.
+		return;
+	}
+	// `console.info` is in the lint allowlist; `console.log` would
+	// need an inline disable.
+	console.info(
+		'[openstation] drag-start: suppressing %d iframe(s); bridgeable=%s',
+		iframeCount,
+		isBridgeable,
+		payload,
+	);
+}
+
 function onDragStart( payload: unknown ): void {
 	const dragManager = _dragManager;
 	if ( ! dragManager ) {
@@ -315,16 +385,7 @@ function onDragStart( payload: unknown ): void {
 	// payload kind via the registered DropTarget's `accept()`.
 	const iframes = document.querySelectorAll< HTMLIFrameElement >( IFRAME_SELECTOR );
 	const isBridgeable = !! extractBridgePayload( payload );
-	// Diagnostic — visible in DevTools console at every drag start.
-	// Helps narrow down which side of the wiring is breaking when a
-	// regression bubbles up. `console.info` is in the lint
-	// allowlist; `console.log` would need an inline disable.
-	console.info(
-		'[openstation] drag-start: suppressing %d iframe(s); bridgeable=%s',
-		iframes.length,
-		isBridgeable,
-		payload,
-	);
+	debugLog( iframes.length, isBridgeable, payload );
 	iframes.forEach( ( iframe ) => {
 		// Suppress pointer-events idempotently. If the bridge
 		// intercept already suppressed this iframe (shell-side

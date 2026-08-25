@@ -126,11 +126,25 @@ function openstation_games_register_window() {
 		'icon'       => $icon_uri,
 		'template'   => 'openstation_games_render_template',
 		'script'     => 'desktop-mode-games',
+		// Companion styles load with the games bundle on first open.
+		// Every game window (`os-game-<id>`) is opened by
+		// `launchGame()`, which lives in that bundle — so a sheet
+		// riding it here is guaranteed in the tab before any game
+		// paints. Built-in games append their own via the
+		// `openstation_games_window_args` filter below.
+		'styles'     => array( 'desktop-mode-games' ),
 		'width'      => 900,
 		'height'     => 600,
 		'min_width'  => 560,
 		'min_height' => 400,
-		'placement'  => 'dock',
+		// No dock tile from the window registration: the desktop icon
+		// below is this app's one launcher. Registering both used to
+		// mint two entries for one app, each with its own default, and
+		// the dock painted a tile while Preferences said "On the
+		// desktop". The navigation model collapses them either way —
+		// this keeps Games matching how My WordPress and Corkboard
+		// already register.
+		'placement'  => 'none',
 	);
 
 	/**
@@ -186,7 +200,8 @@ function openstation_games_localize_config() {
 			'usersSearchUrl' => esc_url_raw( rest_url( 'desktop-mode/v1/games/users/search' ) ),
 		)
 	);
-
-	wp_enqueue_style( 'desktop-mode-games' );
 }
-add_action( 'admin_enqueue_scripts', 'openstation_games_localize_config', 30 );
+// Priority 5 for the same reason as the recycle bin: the lazy-load payload is
+// built at priority 10, and localize data attached after that never reaches a
+// bundle that loads on window open.
+add_action( 'admin_enqueue_scripts', 'openstation_games_localize_config', 5 );

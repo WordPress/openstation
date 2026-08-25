@@ -23,7 +23,10 @@
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { Dock } from '../../src/dock';
-import { createNativeWindowSync } from '../../src/native-windows';
+import {
+	createNativeWindowSync,
+	hydrateServerEntries,
+} from '../../src/native-windows';
 import * as vendorLoader from '../../src/wallpapers/vendor-loader';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 import { __resetNativeWindowGeometryForTests } from '../../src/window-manager/native-window-geometry';
@@ -300,5 +303,313 @@ describe( 'native-windows — deferred bundle loading', () => {
 
 		expect( loaded ).toEqual( [] );
 		expect( body.querySelector( '[data-id="declarative"]' ) ).not.toBeNull();
+	} );
+
+	// ----------------------------------------------------------
+	// Wire-format hydration — entries reference handles, the
+	// script data lives once per handle in a sibling map
+	// ----------------------------------------------------------
+
+	test( 'hydration joins entry, companions and tabs with the handle map', async () => {
+		const wire = {
+			...entry( 'explorer' ),
+			scriptUrl: undefined,
+			scriptHandle: 'os-explorer',
+			companionScripts: [ 'os-woo', 'never-resolved' ],
+			tabs: [
+				{
+					value: 'scoreboard',
+					label: 'Scores',
+					isMain: false,
+					scriptHandle: 'os-scores',
+				},
+			],
+		} as unknown as Parameters< typeof hydrateServerEntries >[ 0 ][ 0 ];
+
+		const [ hydrated ] = hydrateServerEntries( [ wire ], {
+			'os-explorer': {
+				url: 'https://example.test/explorer.js',
+				l10n: [ 'window.openStationWindowConfig={};' ],
+			},
+			'os-woo': {
+				url: 'https://example.test/woo.js',
+				before: [ 'window.openStationWooConfig={};' ],
+			},
+			'os-scores': { url: 'https://example.test/scores.js' },
+		} );
+
+		expect( hydrated.scriptUrl ).toBe( 'https://example.test/explorer.js' );
+		expect( hydrated.scriptL10n ).toEqual( [
+			'window.openStationWindowConfig={};',
+		] );
+		expect( hydrated.companionScripts ).toEqual( [
+			{
+				scriptUrl: 'https://example.test/woo.js',
+				scriptHandle: 'os-woo',
+				scriptBefore: [ 'window.openStationWooConfig={};' ],
+				scriptAfter: undefined,
+				scriptL10n: undefined,
+				scriptTranslations: undefined,
+			},
+		] );
+		expect( hydrated.tabs?.[ 0 ].scriptUrl ).toBe(
+			'https://example.test/scores.js',
+		);
+	} );
+
+	test( 'hydration passes old-format inline entries through untouched', async () => {
+		const inline = entry( 'legacy', {
+			scriptL10n: [ 'window.legacy=1;' ],
+			companionScripts: [
+				{ scriptUrl: 'https://example.test/companion.js', scriptHandle: 'c' },
+			],
+		} );
+
+		const [ hydrated ] = hydrateServerEntries( [ inline ], undefined );
+
+		expect( hydrated.scriptUrl ).toBe( 'https://example.test/legacy.js' );
+		expect( hydrated.scriptL10n ).toEqual( [ 'window.legacy=1;' ] );
+		expect( hydrated.companionScripts ).toEqual(
+			inline.companionScripts,
+		);
+	} );
+
+	test( 'a hydrated shared handle delivers every sibling config on one load', async () => {
+		const h = setupHarness();
+		const shared = {
+			url: 'https://example.test/shared.js',
+			l10n: [
+				'window.openStationWindowConfig={posts:1};',
+				'window.openStationWindowConfig={pages:1};',
+			],
+		};
+		const [ posts, pages ] = hydrateServerEntries(
+			[
+				{ ...entry( 'posts' ), scriptUrl: undefined, scriptHandle: 'demo-shared' },
+				{ ...entry( 'pages' ), scriptUrl: undefined, scriptHandle: 'demo-shared' },
+			] as unknown as Parameters< typeof hydrateServerEntries >[ 0 ],
+			{ 'demo-shared': shared },
+		);
+		installTemplate( posts );
+		installTemplate( pages );
+		const { sync, openById } = createNativeWindowSync( depsFromHarness( h ) );
+		await sync( [ posts, pages ] );
+
+		let extras: unknown;
+		vi.mocked( vendorLoader.loadVendorScript ).mockImplementation(
+			async ( url: string, e?: unknown ) => {
+				loaded.push( url );
+				extras = e;
+			},
+		);
+
+		openById( 'pages' );
+		await runRender( h.managerOpen );
+
+		expect( loaded ).toEqual( [ 'https://example.test/shared.js' ] );
+		// Whichever window loads the bundle carries the whole
+		// handle's config set — the sibling never needs a second copy.
+		expect(
+			( extras as { l10n?: string[] } ).l10n,
+		).toEqual( shared.l10n );
+	} );
+
+	// ----------------------------------------------------------
+	// Shared bundles — per-entry data must survive the URL dedupe
+	// ----------------------------------------------------------
+
+	test( 'a window sharing an already-loaded bundle still gets its own inline data', async () => {
+		const inject = vi
+			.spyOn( vendorLoader, 'injectInlineScript' )
+			.mockImplementation( () => {} );
+
+		const h = setupHarness();
+		const posts = entry( 'posts', {
+			scriptUrl: 'https://example.test/shared.js',
+			scriptL10n: [ 'window.openStationWindowConfig={posts:1};' ],
+		} );
+		const pages = entry( 'pages', {
+			scriptUrl: 'https://example.test/shared.js',
+			scriptL10n: [ 'window.openStationWindowConfig={pages:1};' ],
+		} );
+		installTemplate( posts );
+		installTemplate( pages );
+		const { sync, openById } = createNativeWindowSync( depsFromHarness( h ) );
+		await sync( [ posts, pages ] );
+
+		openById( 'posts' );
+		await runRender( h.managerOpen, 0 );
+		// The first open carried its own extras through the (mocked)
+		// loadVendorScript — the late injector stays untouched.
+		expect( loaded ).toEqual( [ 'https://example.test/shared.js' ] );
+		expect( inject ).not.toHaveBeenCalled();
+
+		openById( 'pages' );
+		await runRender( h.managerOpen, 1 );
+		// No second fetch — but the sibling's config assignment lands.
+		expect( loaded ).toEqual( [ 'https://example.test/shared.js' ] );
+		expect( inject ).toHaveBeenCalledWith(
+			'window.openStationWindowConfig={pages:1};',
+		);
+
+		// A repeat open must not double-inject.
+		const calls = inject.mock.calls.length;
+		openById( 'pages' );
+		await runRender( h.managerOpen, 2 );
+		expect( inject.mock.calls.length ).toBe( calls );
+	} );
+
+	test( 'concurrent opens of two windows sharing a bundle both get their data', async () => {
+		const inject = vi
+			.spyOn( vendorLoader, 'injectInlineScript' )
+			.mockImplementation( () => {} );
+
+		const h = setupHarness();
+		const posts = entry( 'posts', {
+			scriptUrl: 'https://example.test/shared.js',
+			scriptL10n: [ 'window.openStationWindowConfig={posts:1};' ],
+		} );
+		const pages = entry( 'pages', {
+			scriptUrl: 'https://example.test/shared.js',
+			scriptL10n: [ 'window.openStationWindowConfig={pages:1};' ],
+		} );
+		installTemplate( posts );
+		installTemplate( pages );
+		const { sync, openById } = createNativeWindowSync( depsFromHarness( h ) );
+		await sync( [ posts, pages ] );
+
+		openById( 'posts' );
+		openById( 'pages' );
+		await Promise.all( [
+			runRender( h.managerOpen, 0 ),
+			runRender( h.managerOpen, 1 ),
+		] );
+
+		expect( loaded ).toEqual( [ 'https://example.test/shared.js' ] );
+		expect( inject ).toHaveBeenCalledWith(
+			'window.openStationWindowConfig={pages:1};',
+		);
+	} );
+
+	// ----------------------------------------------------------
+	// Companion styles (`styles` arg → payload `companionStyles`)
+	// ----------------------------------------------------------
+
+	// `document.head` survives the afterEach body reset, so every
+	// test uses its own stylesheet URL — a link left by one test must
+	// not satisfy (or break) the next test's assertions.
+	const cssLinks = ( url: string ) =>
+		document.head.querySelectorAll( `link[rel="stylesheet"][href="${ url }"]` );
+
+	test( 'sync does NOT inject a companion stylesheet', async () => {
+		const url = 'https://example.test/companion-lazy.css';
+		const h = setupHarness();
+		const e = entry( 'explorer', {
+			companionStyles: [ { styleUrl: url, styleHandle: 'woo-css' } ],
+		} );
+		const { sync } = createNativeWindowSync( depsFromHarness( h ) );
+
+		await sync( [ e ] );
+
+		expect( cssLinks( url ) ).toHaveLength( 0 );
+	} );
+
+	test( 'the first open injects companion styles, after the window\'s own', async () => {
+		const url = 'https://example.test/companion-order.css';
+		const h = setupHarness();
+		const e = entry( 'explorer', {
+			styleUrl: 'https://example.test/explorer-own.css',
+			styleHandle: 'explorer-css',
+			companionStyles: [
+				{
+					styleUrl: url,
+					styleHandle: 'woo-css',
+					styleInline: [ '.os-woo{color:red}' ],
+				},
+			],
+		} );
+		installTemplate( e );
+		const { sync, openById } = createNativeWindowSync( depsFromHarness( h ) );
+		await sync( [ e ] );
+
+		openById( 'explorer' );
+		await runRender( h.managerOpen );
+
+		const links = Array.from(
+			document.head.querySelectorAll< HTMLLinkElement >(
+				'link[rel="stylesheet"]',
+			),
+		).map( ( l ) => l.href );
+		// The window's own style landed at sync, the companion at
+		// open — appended later, so its equal-specificity overrides
+		// win by source order.
+		expect(
+			links.indexOf( 'https://example.test/explorer-own.css' ),
+		).toBeGreaterThanOrEqual( 0 );
+		expect(
+			links.indexOf( 'https://example.test/explorer-own.css' ),
+		).toBeLessThan( links.indexOf( url ) );
+		// Inline blobs replay as a <style> carrying the handle.
+		const inline = document.head.querySelector< HTMLStyleElement >(
+			'style[data-os-style-handle="woo-css"]',
+		);
+		expect( inline?.textContent ).toBe( '.os-woo{color:red}' );
+	} );
+
+	test( 'two windows sharing a companion stylesheet inject it once', async () => {
+		const url = 'https://example.test/companion-shared.css';
+		const h = setupHarness();
+		const explorer = entry( 'explorer', {
+			companionStyles: [ { styleUrl: url, styleHandle: 'woo-css' } ],
+		} );
+		const customer = entry( 'customer', {
+			companionStyles: [ { styleUrl: url, styleHandle: 'woo-css' } ],
+		} );
+		installTemplate( explorer );
+		installTemplate( customer );
+		const { sync, openById } = createNativeWindowSync( depsFromHarness( h ) );
+		await sync( [ explorer, customer ] );
+
+		openById( 'explorer' );
+		await runRender( h.managerOpen, 0 );
+		openById( 'customer' );
+		await runRender( h.managerOpen, 1 );
+
+		expect( cssLinks( url ) ).toHaveLength( 1 );
+	} );
+
+	test( 'preloadScript brings companion styles in at sync too', async () => {
+		const url = 'https://example.test/companion-preload.css';
+		const h = setupHarness();
+		const e = entry( 'badge-poller', {
+			preloadScript: true,
+			companionStyles: [ { styleUrl: url, styleHandle: 'woo-css' } ],
+		} );
+		const { sync } = createNativeWindowSync( depsFromHarness( h ) );
+
+		await sync( [ e ] );
+
+		expect( cssLinks( url ) ).toHaveLength( 1 );
+	} );
+
+	test( 'a server-printed companion link is detected, not duplicated', async () => {
+		const url = 'https://example.test/companion-printed.css';
+		const h = setupHarness();
+		const printed = document.createElement( 'link' );
+		printed.rel = 'stylesheet';
+		printed.href = url;
+		document.head.appendChild( printed );
+
+		const e = entry( 'explorer', {
+			companionStyles: [ { styleUrl: url, styleHandle: 'woo-css' } ],
+		} );
+		installTemplate( e );
+		const { sync, openById } = createNativeWindowSync( depsFromHarness( h ) );
+		await sync( [ e ] );
+
+		openById( 'explorer' );
+		await runRender( h.managerOpen );
+
+		expect( cssLinks( url ) ).toHaveLength( 1 );
 	} );
 } );

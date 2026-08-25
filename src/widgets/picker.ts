@@ -24,6 +24,11 @@ interface OpenPickerOptions {
 	enabledIds: () => string[];
 	/** Click handler — layer persists + mounts on call. */
 	onAdd: ( id: string ) => void;
+	/**
+	 * Fired once when the picker closes. The layer uses it to drop
+	 * the "keep the + pill visible" flag it sets on open.
+	 */
+	onClose?: () => void;
 }
 
 /**
@@ -128,7 +133,9 @@ export function closeWidgetPicker(): void {
 	);
 	document.removeEventListener( 'keydown', active.onKeyDown );
 	active.panel.remove();
+	const { onClose } = active.options;
 	active = null;
+	onClose?.();
 }
 
 // ------------------------------------------------------------------
@@ -207,12 +214,10 @@ function paintList(
 			entry.addEventListener( 'click', ( e ) => {
 				e.preventDefault();
 				e.stopPropagation();
+				// Whether a pick closes the picker is the layer's
+				// call, not this component's — it owns the anchor
+				// and knows what happens to it afterwards.
 				options.onAdd( def.id );
-				// Picker stays OPEN so the user can add several
-				// widgets in a row without re-clicking `+`. Close
-				// is driven by Esc, outside click, or explicit UI
-				// (none today — one-at-a-time add-then-close is
-				// the v1 flow if they prefer).
 			} );
 		}
 

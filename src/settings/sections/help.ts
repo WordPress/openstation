@@ -149,6 +149,30 @@ function runExampleInit(
 }
 
 /**
+ * The demo markup, as text, for the snippet the section shows.
+ *
+ * Deliberately a separate string from the live copies rendered below
+ * it: the live ones have to be real elements for the warner to fire,
+ * and real elements are exactly what cannot be read. A section whose
+ * whole subject is its tags used to show none of them — the body box
+ * sat empty and the sentence pointed "below" at nothing.
+ *
+ * Two cases, because the warner only has two answers: a name it can
+ * suggest a fix for, and one it cannot. A third unregistered tag
+ * demonstrated the same branch as the first with a different spelling.
+ *
+ * Not translated. It is source, not prose, comments included.
+ */
+const WARNER_DEMO_SNIPPET = [
+	'<!-- 1 — invented name, nothing close in the registry. -->',
+	'<os-example-console-fail-due-to-unregistered-component>',
+	'</os-example-console-fail-due-to-unregistered-component>',
+	'',
+	'<!-- 2 — typo within edit distance of a real tag. -->',
+	'<os-buton></os-buton>',
+].join( '\n' );
+
+/**
  * Module-level guard so the "intentional demo" console banner is
  * logged exactly once per page lifetime, no matter how many times
  * the Components tab is opened or repainted.
@@ -177,12 +201,11 @@ function logDemoBanner(): void {
 	// eslint-disable-next-line no-console
 	console.log(
 		'%c⚠ wp.os — INTENTIONAL DEMO%c\n' +
-			'The next three console.error entries are fired ON PURPOSE by the\n' +
+			'The next two console.error entries are fired ON PURPOSE by the\n' +
 			'OpenStation Preferences → Components tab to demonstrate the <os-*> missing-\n' +
 			'import warner. They are not real bugs.\n\n' +
 			'  1. <os-example-console-fail-due-to-unregistered-component>\n' +
-			'  2. <os-buton>   (typo of <os-button>)\n' +
-			'  3. <os-totally-made-up-thing>\n\n' +
+			'  2. <os-buton>   (typo of <os-button>)\n\n' +
 			'Source: src/settings/sections/help.ts — the "Missing-import\n' +
 			'warner — live demo" section. Remove that section in your fork\n' +
 			'if you want a quieter Components tab.',
@@ -236,34 +259,49 @@ export function buildHelpSection( ctx: SettingsCtx ): HTMLElement {
 				-->
 				${ ctx.state.developerModeEnabled
 					? html`
+						<!--
+							The sentence lives in the body rather than on the
+							description attribute because it has to sit BESIDE
+							the snippet on a wide window, and the description
+							renders in the os-section shadow tree — nothing in
+							the slot can share a row with it.
+						-->
 						<os-section
 							heading=${ __( 'Missing-import warner — live demo' ) }
-							description=${ __(
-								'The three <os-*> tags below are intentionally bogus. Open the browser console: within ~2 seconds you should see three console.error entries from the framework, each pointing the developer at the fix (typo with "did you mean", and unknown tags). The tags are kept off-screen so they do not affect layout. Remove this section in your fork if you want a quieter Components tab.',
-							) }
 						>
+							<div class="os-settings__help-warner">
+								<p class="os-settings__help-warner-text">
+									${ __(
+										'Both <os-*> tags in the next piece of code are intentionally bogus, one per answer the warner has. Open the browser console: within ~2 seconds you should see two console.error entries from the framework, each pointing the developer at the fix — a name nothing in the registry comes close to, and a typo the warner can suggest a fix for ("did you mean"). Live copies of the same two tags are rendered off-screen, so the demo fires without affecting layout. Remove this section in your fork if you want a quieter Components tab.',
+									) }
+								</p>
+								<pre
+									class="os-settings__help-warner-code"
+								><code>${ WARNER_DEMO_SNIPPET }</code></pre>
+							</div>
+
+							<!--
+								The live copies. Real elements, because the
+								warner watches the document for tags nothing
+								registered — a snippet of text cannot trigger
+								it. Clipped rather than display:none so the
+								upgrade path runs exactly as it would on a
+								visible element.
+
+								Case 1 — invented name, nothing close in the
+								registry: the "no component by that name
+								exists" branch.
+								Case 2 — typo within Levenshtein distance of a
+								real tag: the "Did you mean <os-button>?"
+								branch.
+							-->
 							<div
 								class="os-settings__help-warner-demo"
 								aria-hidden="true"
 								style="position:absolute;width:0;height:0;overflow:hidden;clip:rect(0 0 0 0);"
 							>
-								<!--
-									Case 1 — invented name, nothing close in the registry.
-									Triggers the "no component by that name exists" branch.
-								-->
 								<os-example-console-fail-due-to-unregistered-component></os-example-console-fail-due-to-unregistered-component>
-
-								<!--
-									Case 2 — typo within Levenshtein distance of a real tag.
-									Triggers the "Did you mean <os-button>?" branch.
-								-->
 								<os-buton></os-buton>
-
-								<!--
-									Case 3 — looks plausible but is not in the registry.
-									Triggers the unknown-tag branch with no suggestion.
-								-->
-								<os-totally-made-up-thing></os-totally-made-up-thing>
 							</div>
 						</os-section>
 					`
@@ -351,7 +389,7 @@ export function buildHelpSection( ctx: SettingsCtx ): HTMLElement {
 	// this section once per window open, so without this the demo
 	// section would stay stale until the window is closed and
 	// reopened. Self-unsubscribes once the panel is torn down,
-	// mirroring the Apps & Plugins section's `subscribeOsSettings`
+	// mirroring the Navigation section's `subscribeOsSettings`
 	// pattern.
 	const openStation = ( window as unknown as {
 		wp?: {

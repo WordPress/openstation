@@ -2,12 +2,19 @@
 /**
  * OpenStation — Desktop-theme REST routes.
  *
+ *   GET    /desktop-mode/v1/desktop-themes         full entries
  *   POST   /desktop-mode/v1/desktop-themes         multipart `file`
  *   DELETE /desktop-mode/v1/desktop-themes/<slug>
  *
- * There is deliberately no GET: the library rides the shell payload
- * (`serverDesktopThemes`), so a separate read route would be a
- * second source of truth to keep in sync for no gain.
+ * The GET exists for the boot-payload diet, and it is NOT a second
+ * source of truth: it returns exactly
+ * `openstation_build_desktop_themes_payload()` — the same builder,
+ * the same `openstation_desktop_themes` filter — with the FULL
+ * entries. The boot payload ships the library slimmed (no `cssText`,
+ * no `tokens`; `cssDeferred: true` marks the gap) because the active
+ * theme's stylesheet is server-delivered at boot and an inactive
+ * theme's ~20 KB of compiled CSS is only needed at the moment the
+ * user picks it — which is when the shell calls this route.
  *
  * @package OpenStation
  */
@@ -43,10 +50,21 @@ function openstation_register_desktop_themes_rest_routes() {
 		'desktop-mode/v1',
 		'/desktop-themes',
 		array(
-			// POST only — PHP populates `$_FILES` for real POSTs only.
-			'methods'             => WP_REST_Server::CREATABLE,
-			'permission_callback' => 'openstation_desktop_themes_rest_permission',
-			'callback'            => 'openstation_rest_upload_desktop_theme',
+			array(
+				// Read gate is the shell's own, NOT the manage
+				// capability: the same full entries used to ride the
+				// boot payload to every desktop user, so the route
+				// exposes nothing the payload didn't.
+				'methods'             => WP_REST_Server::READABLE,
+				'permission_callback' => 'openstation_rest_require_enabled',
+				'callback'            => 'openstation_rest_list_desktop_themes',
+			),
+			array(
+				// POST only — PHP populates `$_FILES` for real POSTs only.
+				'methods'             => WP_REST_Server::CREATABLE,
+				'permission_callback' => 'openstation_desktop_themes_rest_permission',
+				'callback'            => 'openstation_rest_upload_desktop_theme',
+			),
 		)
 	);
 
@@ -67,6 +85,25 @@ function openstation_register_desktop_themes_rest_routes() {
 	);
 }
 add_action( 'rest_api_init', 'openstation_register_desktop_themes_rest_routes' );
+
+/**
+ * GET /desktop-themes — the full theme library.
+ *
+ * The on-demand counterpart of the slimmed boot payload: same
+ * builder, same filter, full `cssText` / `tokens`. The shell calls
+ * it from `ensureFullDesktopThemes()` the first time a deferred
+ * entry's stylesheet is actually needed (the user picks a theme in
+ * Preferences → Themes).
+ *
+ * @return WP_REST_Response
+ */
+function openstation_rest_list_desktop_themes() {
+	return rest_ensure_response(
+		array(
+			'themes' => openstation_build_desktop_themes_payload(),
+		)
+	);
+}
 
 /**
  * POST /desktop-mode/v1/desktop-themes

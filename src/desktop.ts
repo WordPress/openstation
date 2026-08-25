@@ -31,6 +31,7 @@ import {
 	tryNativeUrlRemap,
 } from './native-url-remap';
 import type { NativeUrlRemap } from './native-url-remap';
+import { matchesStationHomeUrl } from './station-home/model';
 import { bindAdminLinkDispatch } from './window/iframe-bridge';
 import type { DestructiveAdminActionEntry } from './destructive-admin-actions';
 // Tile-decoration helpers and the dock-selector registry live in
@@ -91,7 +92,6 @@ import { createWindowActionRegistrySync } from './window-actions/server-sync';
 import { type UnfocusEffectDef } from './effects/types';
 import { type WindowRevealDef } from './reveals/types';
 import { startWindowLinksEngine } from './window-links/engine';
-import { startWindowLinkRenderHost } from './window-links/render-host';
 import { bootRelatedEntities } from './related-entities';
 import { bootEditorPreview } from './editor-preview';
 import type {
@@ -103,7 +103,8 @@ import { createWindowLinkRendererRegistrySync } from './window-links/server-sync
 import { startUnfocusEngine } from './effects/unfocus-engine';
 import { startWindowRevealEngine } from './reveals/engine';
 import { createDockRailRendererSync } from './dock-rail/server-sync';
-import { mountDockConstellation } from './dock-constellation';
+import { loadVendorScript } from './wallpapers/vendor-loader';
+import { installDockConstellationSentinel } from './dock-constellation/sentinel';
 import {
 	type WindowThemeDef,
 } from './window-chrome/themes/registry';
@@ -128,7 +129,9 @@ import {
 	type ConnectOptions,
 } from './connection';
 import { IframeCommandBridge } from './commands/iframe-bridge';
+import { installWindowActivityNotifier } from './window-activity-notifier';
 import { ShellCommandHarvester } from './commands/shell-harvester';
+import { PALETTE_ASSETS_READY_EVENT } from './commands/palette-assets';
 import { type ScriptExtras } from './wallpapers/vendor-loader';
 import {
 	type WallpaperSurface,
@@ -137,9 +140,11 @@ import { WidgetLayer } from './widgets/layer';
 import {
 	createNativeWindowSync,
 	createRegisterWindow,
+	hydrateServerEntries,
 	type WindowLifecycleHandlers,
 } from './native-windows';
 import { iconsApi, renderDesktopIcons, type IconsApi } from './desktop-icons';
+import type { OsIconSetApi } from './ui/icons';
 import {
 	createLayoutDispatcher,
 	type LayoutDispatcher,
@@ -157,6 +162,7 @@ import {
 	BUG_REPORT_WINDOW_ID,
 	renderBugReport,
 } from './bug-report';
+import { ensureDeferredStyle } from './deferred-styles';
 import { showToast, type ToastOptions } from './toast';
 import {
 	bootstrapPwa,
@@ -205,9 +211,9 @@ import { buildPublicApi, installPublicApi } from './api/facade';
 import { setCurrentLayout } from './layout';
 import {
 	installShortcutsSync,
-	syncShortcutsWithVisibility,
-} from './settings/desktop-shortcuts-sync';
-import { bootNotes } from './notes';
+	syncDesktopShortcuts,
+} from './nav/desktop-sync';
+import { installNotesSentinel } from './notes/sentinel';
 
 // `INITIAL_ORIGIN` lives in `src/boot/origin.ts` so every
 // boot-time consumer reaches the same captured value — see the import
@@ -267,6 +273,8 @@ import { installRecycleBinDropTargets } from './desktop-files/recycle-bin-target
 import { installAgentTileDropHandlers } from './desktop-files/agent-drop-targets';
 import { startFilesHeartbeat } from './desktop-files/heartbeat';
 import { startFilesRestoreSync } from './desktop-files/restore-sync';
+import { listPlacements } from './desktop-files/rest';
+import { setFolderPlacements } from './desktop-files/store';
 import { buildOccupiedSet, snapToEmptyCell } from './desktop-files/grid';
 import {
 	buildMenuItems as buildWallpaperMenuItems,
@@ -277,7 +285,8 @@ import {
 	type SortMode as RootSortMode,
 } from './desktop-files/wallpaper-menu';
 import { openCreateFolderDialog } from './desktop-files/create-folder-dialog';
-import { openUrlDialog } from './desktop-files/url-dialog';
+import { openUrlDialog } from './desktop-files/overlays-loader';
+import { installFileDropSentinel } from './os-file-drop/sentinel';
 import type {
 	DesktopConfig,
 	DesktopWallpaperServerEntry,
@@ -505,6 +514,30 @@ export interface OpenStationPublicApi {
 	 * ```
 	 */
 	icons: IconsApi;
+	/**
+	 * The thirty icons the shell draws, so a plugin can use the same
+	 * ones instead of drawing its own:
+	 *
+	 * ```ts
+	 * el.innerHTML = wp.os.iconSet.svg( 'trash', { size: 20 } );
+	 * wp.os.registerDockItem?.( { icon: wp.os.iconSet.dataUri( 'spaces' ) } );
+	 * ```
+	 *
+	 * Nineteen are WordPress's own, from `@wordpress/icons`, so a
+	 * verb like save or search looks the way it does in every other
+	 * admin screen. Eleven are OpenStation's, and are the vocabulary
+	 * that only exists because this is a desktop: `wp.os.iconSet.ours`
+	 * lists them. Everything paints in `currentColor`, which is also
+	 * what lets a glyph go through the dock and title-bar mask
+	 * painters unchanged.
+	 *
+	 * Not to be confused with {@link OpenStationPublicApi.icons}
+	 * above, which is the wallpaper icon rail's badge and art API.
+	 * The two are unrelated.
+	 *
+	 * See `docs/icons.md` for the full set and the sizing floor.
+	 */
+	iconSet: OsIconSetApi;
 	/**
 	 * Files-on-the-desktop registry. Plugin authors register custom
 	 * file types via `wp.os.files.registerType`, resolve a
@@ -1022,7 +1055,7 @@ export interface OpenStationPublicApi {
 	 * ```
 	 *
 	 * Built-in tab orders for reference: appearance=10, themes=12,
-	 * apps-icons=22, features=25, effects=27, help=40
+	 * navigation=22, features=25, effects=27, help=40
 	 * (About is pinned last with a sentinel order).
 	 */
 	registerSettingsTab: ( tab: DesktopSettingsTab ) => void;
@@ -1122,14 +1155,35 @@ export interface OpenStationPublicApi {
 		id: string;
 		title: string;
 		icon: string;
-		affinity: 'core' | 'plugin';
 		/**
-		 * Whether the tile opts into OS Settings → Apps & Plugins, so
-		 * the user can hide it. Opt-in: most system tiles are
-		 * load-bearing.
+		 * What the tile IS: `'app'` for a launcher, `'control'` for
+		 * one of OpenStation's own affordances. Decides its default
+		 * placement and its dock zone.
+		 */
+		navKind: 'app' | 'control';
+		/**
+		 * Whether the tile opts into OpenStation Preferences →
+		 * Navigation, so the user can move or hide it. Opt-in: most
+		 * system tiles are load-bearing.
 		 */
 		placeable: boolean;
+		/** Cannot be moved or hidden. Exit OpenStation only. */
+		locked: boolean;
 	} >;
+	/**
+	 * Every navigable thing the shell knows about — admin menus, app
+	 * launchers, registered desktop icons, OpenStation's own controls
+	 * — as one flat list, whatever surface each is currently on.
+	 * What OpenStation Preferences → Navigation lists.
+	 */
+	getNavItems: () => import( './nav' ).NavItem[];
+	/**
+	 * The current computed navigation: which dock zone holds what,
+	 * what the sidebar holds, what is on the wallpaper, and which
+	 * tiles are present only because their window is open. `null`
+	 * before the layout dispatcher has booted.
+	 */
+	getNav: () => import( './nav' ).NavResult | null;
 	/**
 	 * Look up a system tile by id. Returns the underlying
 	 * `SystemDockItem` so callers can read its `title` / `icon` /
@@ -1352,6 +1406,13 @@ export interface OpenStationPublicApi {
 		 * for that.
 		 */
 		setActive: ( themeId: string ) => void;
+		/**
+		 * Hydrate boot-slimmed entries (`cssDeferred: true`) with
+		 * their full `cssText` / `tokens`, without activating
+		 * anything. Resolves once the library holds the full
+		 * entries; safe to call repeatedly (single-flight).
+		 */
+		ensureFull: () => Promise< void >;
 		/** Subscribe to library / active-theme changes. */
 		subscribe: (
 			cb: ( state: Readonly< DesktopThemeState > ) => void,
@@ -1544,6 +1605,22 @@ export interface OpenStationPublicApi {
 	 * are supported by `subscribe()` but expensive — use sparingly.
 	 */
 	broadcast: < T = unknown >( topic: string, payload: T ) => void;
+	/**
+	 * Announce that content of one type was created, updated,
+	 * trashed, untrashed or deleted — the typed wrapper over
+	 * `broadcast( 'os.<type>.changed', { source, action, ids } )`
+	 * that the Recycle Bin, its dock icon and the shell's
+	 * iframe-reload subscriber all listen for. A window that
+	 * mutates content through its own REST endpoints must call
+	 * this, or its changes only reach other windows on the
+	 * Heartbeat cadence (15–60 s).
+	 */
+	announceContentChange: (
+		type: string,
+		action: 'created' | 'updated' | 'trashed' | 'untrashed' | 'deleted',
+		ids: number | number[],
+		source?: string,
+	) => void;
 	/**
 	 * Subscribe to broadcast topics. Returns an unsubscribe handle.
 	 * Use `'*'` to receive every payload.
@@ -2276,6 +2353,13 @@ function init(): void {
 			adminUrl: config.adminUrl,
 		} ).install();
 
+		// Tell each iframe window when it gains / loses focus so the
+		// chromeless bridge can slow Core Heartbeat while the window
+		// is backgrounded — each iframe is a full wp-admin page whose
+		// editor heartbeat otherwise fires every 15 s from windows the
+		// user isn't looking at.
+		installWindowActivityNotifier( manager );
+
 		// Shell-side baseline harvester — pulls the WordPress-wide command
 		// set (Add new post, Manage plugins, Switch theme, Browse patterns,
 		// …) from `core/commands` running in the shell's own runtime and
@@ -2284,10 +2368,23 @@ function init(): void {
 		// (Posts, Files, Plugins, Comments) contribute none, so the user
 		// would never see the WP baseline while one of those is focused.
 		// Re-harvests automatically on `os-plugins-changed`.
-		new ShellCommandHarvester( {
+		//
+		// The Core palette runtime is no longer on the boot page — it
+		// loads on the first palette invocation (`palette-assets.ts`).
+		// This idle `install()` is therefore usually a graceful no-op
+		// (it only bites when another plugin shipped `wp.data` at
+		// boot); the listener below finishes the job the moment the
+		// lazy chain lands.
+		const shellHarvester = new ShellCommandHarvester( {
 			manager,
 			adminUrl: config.adminUrl,
-		} ).install();
+		} );
+		shellHarvester.install();
+		document.addEventListener(
+			PALETTE_ASSETS_READY_EVENT,
+			() => shellHarvester.install(),
+			{ once: true },
+		);
 	} );
 
 	// Programmatic `os-open-ai` dispatches route through
@@ -2443,6 +2540,18 @@ function init(): void {
 			void manager.open( windowConfig );
 		},
 		findDockEntry: findDockEntryForUrl,
+	} );
+
+	// Station Home claims the ordinary WordPress Dashboard URL when
+	// the user opts in via OS Settings → Features (default off, so
+	// custom dashboards keep rendering in the chromeless iframe). The
+	// explicit classic escape carries the `desktop_mode_classic` flag
+	// and is excluded by the shared matcher.
+	registerNativeUrlRemap( {
+		id: 'desktop-mode-dashboard',
+		nativeWindowId: 'desktop-mode-dashboard',
+		matches: ( _url, parsed ) => matchesStationHomeUrl( parsed ),
+		enabled: ( snapshot ) => snapshot.stationHomeEnabled === true,
 	} );
 
 	// Native Posts window (replaces `edit.php` when the user opts in
@@ -2623,8 +2732,8 @@ function init(): void {
 				getSettings: () => {
 					const snap = osSettings.getOsSettingsSnapshot();
 					return {
-						itemVisibility: snap.itemVisibility,
-						dockOrder: snap.dockOrder,
+						navPlacement: snap.navPlacement,
+						navOrder: snap.navOrder,
 					};
 				},
 			},
@@ -2633,17 +2742,23 @@ function init(): void {
 			config.desktopIcons,
 			initialPlacement,
 		);
-		// Constellation — the hover-submenu flyout. Mounted once and
-		// left mounted: it is a single delegated listener serving every
-		// menu tile on every rail, and it reads the direction to fan in
-		// off the rail the tile is on, so a user flipping between
-		// layouts or dock placements never needs it re-wired.
-		mountDockConstellation( {
-			windowManager: manager,
-			adminUrl: config.adminUrl,
-			getMenuItems: () => layoutDispatcher?.getMenuItems() ?? [],
-			getSystemItem: ( id ) =>
-				layoutDispatcher?.getSystemTile( id ) ?? null,
+		// Constellation — the hover-submenu flyout. Once mounted it is
+		// a single delegated listener serving every menu tile on every
+		// rail, reading fan-in direction off the rail the tile is on,
+		// so layout/placement flips never need it re-wired. The MOUNT
+		// is deferred though: the bundle (~11 KB min) loads on the
+		// first pointer entering a dock rail — hover UI has no
+		// boot-time job, and the flyout's own hover-intent delay
+		// covers the one-time fetch.
+		installDockConstellationSentinel( {
+			bundleUrl: config.dockConstellationBundleUrl ?? '',
+			deps: {
+				windowManager: manager,
+				adminUrl: config.adminUrl,
+				getMenuItems: () => layoutDispatcher?.getMenuItems() ?? [],
+				getSystemItem: ( id: string ) =>
+					layoutDispatcher?.getSystemTile( id ) ?? null,
+			},
 		} );
 
 		// The notch — the site assistant's front door, and the shell's
@@ -2685,6 +2800,12 @@ function init(): void {
 			id: SYSTEM_TILE_ID,
 			title: 'System',
 			icon: OS_SYSTEM_ICON,
+			navKind: 'control',
+			// Movable and hideable like every other control. It is the
+			// most convenient route to Preferences, not the only one:
+			// the right-click menu on any tile or icon carries a
+			// "Navigation settings…" row, and ⌘K reaches it too.
+			placeable: true,
 			order: SYSTEM_TILE_ORDER.system,
 			// The tile's own click opens Preferences: the flyout is
 			// a hover gesture, and keyboards and touch never fan it
@@ -2760,7 +2881,7 @@ function init(): void {
 			// the "open windows" section can never disagree.
 			isOpen: () => anyRowOpen( systemTile.submenu ?? [] ),
 		};
-		layoutDispatcher.appendSystemTile( systemTile, 'core' );
+		layoutDispatcher.appendSystemTile( systemTile );
 
 		// Async post-boot: if the PWA is already installed in the
 		// current browser profile (Chrome's `Open in app` indicator in
@@ -2797,7 +2918,7 @@ function init(): void {
 	 * Settings inside their own UI.
 	 *
 	 * Pass `{ tabId }` to land directly on a specific settings tab
-	 * (e.g. `'ai'`, `'apps-icons'`). The tab is set before the window
+	 * (e.g. `'ai'`, `'navigation'`). The tab is set before the window
 	 * opens so a fresh render mounts on it; if the window is already
 	 * open, `focusTab` switches the live tab strip in place.
 	 */
@@ -2844,6 +2965,9 @@ function init(): void {
 	 * and any future widget all reach the same window instance.
 	 */
 	function openBugReport(): void {
+		// The window's stylesheet is a `deferredStyles` entry, not a
+		// boot enqueue — inject on first open.
+		ensureDeferredStyle( 'desktop-mode-bug-report' );
 		void manager.open( {
 			id: BUG_REPORT_WINDOW_ID,
 			baseId: BUG_REPORT_WINDOW_ID,
@@ -2876,20 +3000,16 @@ function init(): void {
 		// "Switch to Classic Admin" toggle. Reuses the existing
 		// save-openstation AJAX endpoint via the
 		// `window.openStationAdminBar` global; no new PHP surface.
-		layoutDispatcher.appendSystemTile(
-			getExitOpenStationTileDef(),
-			'core',
-		);
+		layoutDispatcher.appendSystemTile( getExitOpenStationTileDef() );
 
-		// Mio tile — `'plugin'` affinity, classifying it as an optional
-		// app rather than a shell affordance. Clicking toggles the
-		// companion; the active dot tracks whether it is on screen.
+		// Mio tile — one of OpenStation's controls, so it rides the
+		// dock's trailing cluster rather than sitting among the apps.
+		// Clicking toggles the companion; the active dot tracks
+		// whether it is on screen.
 		//
-		// `placeable` is what puts a row in OS Settings → Apps & Plugins,
+		// `placeable` is what puts a row in Preferences → Navigation,
 		// so a user who doesn't want a desk companion can hide the
-		// toggle itself. It is opt-in precisely because most system
-		// tiles must not be hideable — OS Settings is how you reach the
-		// screen that would hide it.
+		// toggle itself.
 		//
 		// **This tile is Mio's entire always-on cost.** Nothing
 		// here reaches the simulation: `MioController` is a couple of
@@ -2897,50 +3017,52 @@ function init(): void {
 		// soft body and the ~25 kB Mio bundle are script-injected on
 		// the first toggle. A shell whose user never switches the
 		// Mio on downloads none of it.
-		layoutDispatcher.appendSystemTile(
-			{
-				id: MIO_TILE_ID,
-				title: 'Mio',
-				icon: MIO_TILE_ICON,
-				placeable: true,
-				order: SYSTEM_TILE_ORDER.mio,
-				isOpen: () => mioApi.isEnabled(),
-				onOpen: () => {
-					void mioApi.toggle();
-				},
+		layoutDispatcher.appendSystemTile( {
+			id: MIO_TILE_ID,
+			title: 'Mio',
+			icon: MIO_TILE_ICON,
+			navKind: 'control',
+			placeable: true,
+			order: SYSTEM_TILE_ORDER.mio,
+			isOpen: () => mioApi.isEnabled(),
+			onOpen: () => {
+				void mioApi.toggle();
 			},
-			'plugin',
-		);
+		} );
 
 		// Overview tile — the same surface ArrowUp toggles. A tile for
 		// it because the gesture is undiscoverable: a shortcut nobody
 		// pressed is a feature nobody has.
-		layoutDispatcher.appendSystemTile(
-			{
-				id: OVERVIEW_TILE_ID,
-				title: 'Overview',
-				icon: OS_OVERVIEW_ICON,
-				order: SYSTEM_TILE_ORDER.overview,
-				isOpen: () => manager._overviewActive,
-				onOpen: () => {
-					if ( manager._overviewActive ) {
-						manager.exitOverview();
-					} else {
-						manager.enterOverview();
-					}
-				},
+		layoutDispatcher.appendSystemTile( {
+			id: OVERVIEW_TILE_ID,
+			title: 'Overview',
+			icon: OS_OVERVIEW_ICON,
+			navKind: 'control',
+			placeable: true,
+			order: SYSTEM_TILE_ORDER.overview,
+			isOpen: () => manager._overviewActive,
+			onOpen: () => {
+				if ( manager._overviewActive ) {
+					manager.exitOverview();
+				} else {
+					manager.enterOverview();
+				}
 			},
-			'plugin',
-		);
+		} );
 	}
 	const dock: Dock | null = layoutDispatcher?.getPrimary() ?? null;
 
 	// Initial native-window registry sync — runs AFTER the dispatcher
 	// is wired so plugin-owned tiles route through the dispatcher's
 	// `appendSystemTile` callback rather than hitting the no-op
-	// fallback while the dispatcher is still null.
+	// fallback while the dispatcher is still null. Entries arrive in
+	// wire format (script data keyed by handle in a sibling map, one
+	// copy per bundle) — join them before the sync consumes them.
 	void syncNativeWindows(
-		Array.isArray( config.nativeWindows ) ? config.nativeWindows : [],
+		hydrateServerEntries(
+			Array.isArray( config.nativeWindows ) ? config.nativeWindows : [],
+			config.nativeWindowScriptData,
+		),
 	);
 
 	// Bootstrap: restore session (if any), then decide whether to also
@@ -3012,6 +3134,17 @@ function init(): void {
 	 * treat that as "nothing to open", not as an error.
 	 */
 	function openNativeWindowById( nativeId: string ): boolean {
+		// Station Home is opt-in (OS Settings → Features). Refusing the
+		// id here — not just in the URL remap above — is what keeps a
+		// saved session from resurrecting the window for a user who
+		// never opted in: every 1.1.2 session has it open, and restore
+		// reopens native windows by id without consulting the remap.
+		if (
+			nativeId === 'desktop-mode-dashboard' &&
+			osSettings.getOsSettingsSnapshot().stationHomeEnabled !== true
+		) {
+			return false;
+		}
 		if ( nativeId === OS_SETTINGS_WINDOW_ID ) {
 			openOsSettings();
 			return true;
@@ -3399,7 +3532,33 @@ function init(): void {
 	// (built-in `svg-splines` by default) into a lazy overlay layer
 	// whenever a relation group is renderable, and applies the
 	// `windowLinkVisibility` policy + related-window chrome highlight.
-	startWindowLinkRenderHost( { manager, osSettings } );
+	// The VISUALS bundle (~14 KB min: host + geometry + svg-splines)
+	// loads on the first groups-changed the engine fires — that hook
+	// only fires when relations actually exist, so a session whose
+	// windows never relate skips the renderer entirely.
+	{
+		let visualsRequested = false;
+		addAction(
+			HOOKS.WINDOW_LINK_GROUPS_CHANGED,
+			'desktop-mode/window-link-visuals-sentinel',
+			() => {
+				if ( visualsRequested || ! config.windowLinkVisualsBundleUrl ) {
+					return;
+				}
+				visualsRequested = true;
+				void loadVendorScript( config.windowLinkVisualsBundleUrl )
+					.then( () => {
+						window.openStationWindowLinkVisuals?.start( {
+							manager,
+							osSettings,
+						} );
+					} )
+					.catch( () => {
+						visualsRequested = false;
+					} );
+			},
+		);
+	}
 
 	// Related-entities title-bar button — "Related" dropdown on any
 	// window whose content identity carries navigation targets
@@ -3702,6 +3861,25 @@ function init(): void {
 		} );
 	};
 
+	/**
+	 * Make the files layer match the navigation.
+	 *
+	 * Reads the dispatcher's computed result rather than re-deriving
+	 * placements: the wallpaper and the rails have to agree about what
+	 * is on the wallpaper, and the only way to guarantee that is for
+	 * both to read the same answer.
+	 */
+	const syncShortcutsNow = (): void => {
+		if ( ! layoutDispatcher ) {
+			return;
+		}
+		syncDesktopShortcuts(
+			layoutDispatcher.getNav().desktop,
+			layoutDispatcher.getNavItems(),
+			osSettings.getOsSettingsSnapshot().dockPromotedPositions,
+		);
+	};
+
 	// Live menu refresh — rebuild the dock when a plugin activation
 	// or deactivation lands in any windowed `plugins.php`. Without
 	// this the dock reflects the server-side `$menu` at shell boot
@@ -3729,13 +3907,21 @@ function init(): void {
 		syncServerGames,
 		syncServerDesktopThemes,
 		renderIcons,
-		syncShortcuts: () => {
-			const snapshot = osSettings.getOsSettingsSnapshot();
-			syncShortcutsWithVisibility(
-				snapshot.itemVisibility,
-				snapshot.dockPromotedPositions,
-			);
+		// Registered icons surface on files-layer desktops as REAL
+		// placement rows the server mints/hides at read time — one
+		// root refetch per icon-set change is what makes a payload's
+		// new/removed icons visible there without an F5.
+		refreshRootPlacements: () => {
+			void listPlacements( 0 )
+				.then( ( res ) => {
+					setFolderPlacements( 0, res.placements );
+				} )
+				.catch( () => {
+					// Non-fatal — the wallpaper reconciles on the
+					// next boot's placement hydration.
+				} );
 		},
+		syncShortcuts: syncShortcutsNow,
 	} );
 
 	// Live desktop-theme repaint.
@@ -3818,13 +4004,10 @@ function init(): void {
 		) {
 			layoutDispatcher.refresh();
 		}
-		// Bring the files-layer placements in line with the new
-		// visibility map — promotes dock items onto the wallpaper
-		// and removes hidden server icons from the grid.
-		syncShortcutsWithVisibility(
-			snapshot.itemVisibility,
-			snapshot.dockPromotedPositions,
-		);
+		// Bring the files-layer placements in line with the navigation
+		// the dispatcher just recomputed — mints a placement for
+		// anything newly on the wallpaper, drops what left it.
+		syncShortcutsNow();
 		// Cross-bundle SSOT publish — feature bundles + third-party
 		// plugins that imported `@layout` see the change without
 		// having to thread the OsSettings snapshot through.
@@ -3833,12 +4016,9 @@ function init(): void {
 
 	// Install the files-layer reconciler. Runs an initial sync on a
 	// microtask AND on every files-store change so the server's
-	// page-load hydration of registered icons gets filtered through
-	// the visibility map immediately.
-	installShortcutsSync(
-		() => osSettings.getOsSettingsSnapshot().itemVisibility,
-		() => osSettings.getOsSettingsSnapshot().dockPromotedPositions,
-	);
+	// page-load hydration of registered icons is filtered through the
+	// navigation immediately.
+	installShortcutsSync( syncShortcutsNow );
 
 	// Initial publish so any consumer that reads `getCurrentLayout()`
 	// before the first OS Settings change sees the right value.
@@ -3947,7 +4127,16 @@ function init(): void {
 	// drop routes (wallpaper create/reposition via the canvas payload
 	// seam, recycle-bin trash via the bin payload seam), and the
 	// wallpaper context-menu entry.
-	bootNotes( {
+	// Pinned notes — presence-gated: the sentinel loads the `notes`
+	// bundle when this desktop HAS notes (config.hasNotes), and on
+	// the gestures that would create the first one. A note-less user
+	// never downloads the layer.
+	installNotesSentinel( {
+		bundleUrl: config.notesBundleUrl ?? '',
+		// Loose truthiness on purpose: the top-level config scalars
+		// pass through a sanitization that stringifies booleans
+		// ("1" / ""), same as `currentUserIsAdmin`.
+		hasNotes: Boolean( config.hasNotes ),
 		host: desktopArea,
 		config,
 		onError: ( message ) => {
@@ -4281,7 +4470,7 @@ function init(): void {
 				sortOrder: i,
 			} );
 			// Synthetic placements (dock-item promotions) live JS-only —
-			// `settings/desktop-shortcuts-sync.ts`
+			// `nav/desktop-sync.ts`
 			// mints them with a negative id and never persists them via
 			// the files REST layer. PATCHing one 404s (`rest_no_route`,
 			// the route regex only matches positive ids). See
@@ -4578,6 +4767,7 @@ function init(): void {
 						'New URL',
 						'Opens the URL in a new browser tab.',
 					),
+				addWidget: () => widgetLayer?.openPicker(),
 				toggleShowDesktop: () => manager.toggleShowDesktop(),
 				openOsSettings: () => openOsSettings(),
 				sortIcons: ( mode ) => {
@@ -4598,6 +4788,7 @@ function init(): void {
 					sortDateAsc: 'Date (oldest first)',
 					sortDateDesc: 'Date (newest first)',
 					newUrl: 'New URL',
+					addWidget: 'Add widget',
 				},
 				serverItems: ( config.serverWallpaperMenuItems as
 				| ServerWallpaperMenuItem[]
@@ -4627,19 +4818,24 @@ function init(): void {
 	// `config.portalUrl` stays in the shell config so plugins that want
 	// to build "home" links can still point at the portal.
 
-	// OS-file drop manager — catches files dragged from the user's
-	// host OS (Finder / Explorer / Nautilus) anywhere on the shell
-	// and routes them through a confirmation dialog before uploading
-	// to the Media Library. Idempotent; no-op when the user lacks
-	// `upload_files`.
-	void import( './os-file-drop' ).then( ( mod ) => {
-		mod.bootOsFileDrop( {
+	// OS-file drop — catches files dragged from the user's host OS
+	// (Finder / Explorer / Nautilus) anywhere on the shell and routes
+	// them through a confirmation dialog before uploading. Only the
+	// SENTINEL boots here: the machinery (~28 KB min) rides the
+	// `file-drop` bundle and loads on the first dragenter carrying
+	// files. (This used to be a `void import( './os-file-drop' )` —
+	// good intent the IIFE build flattened straight back into the
+	// shell bundle; rollup inlines dynamic imports in single-chunk
+	// output, so lazy here has to mean a separate build target.)
+	installFileDropSentinel( {
+		bundleUrl: config.fileDropBundleUrl ?? '',
+		boot: {
 			config: config.dropConfig,
 			mediaUrl: config.mediaUrl,
 			restNonce: config.restNonce,
 			filesUrl: config.filesUrl,
 			storage: config.desktopStorage,
-		} );
+		},
 	} );
 
 	document.dispatchEvent(

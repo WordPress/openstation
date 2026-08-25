@@ -44,6 +44,7 @@ import {
 	ensureAutoId,
 	html,
 } from '../../core';
+import { osIcon } from '../../icons';
 import { optionStyles, selectStyles } from './os-select.styles';
 
 /**
@@ -144,6 +145,12 @@ export class OsSelect extends Component {
 				name: 'disabled',
 				type: 'boolean attribute',
 				description: 'Disables the trigger and dims the chrome.',
+			},
+			{
+				name: 'plain',
+				type: 'boolean attribute',
+				description:
+					'Drops the field chrome and shrinks to the value, for a picker that is a list row’s trailing control rather than a field of its own. The container already draws the box; use with no `label`.',
 			},
 			{
 				name: 'name',
@@ -317,10 +324,9 @@ export class OsSelect extends Component {
 		// the group name when focus reaches the shell.
 		if ( label ) {
 			this.setAttribute( 'aria-label', label );
-		} else {
-			this.removeAttribute( 'aria-label' );
 		}
-		const triggerAriaLabel = label || placeholder;
+		const hostAriaLabel = this.getAttribute( 'aria-label' ) || '';
+		const triggerAriaLabel = label || hostAriaLabel || placeholder;
 
 		const options = this._readOptions();
 		const currentOption = options.find( ( o ) => o.value === current );
@@ -363,23 +369,11 @@ export class OsSelect extends Component {
 						: ' os-select__value--placeholder' }"
 					>${ triggerText }</span
 				>
-				<svg
-					class="os-select__chevron"
-					viewBox="0 0 12 12"
-					width="12"
-					height="12"
-					aria-hidden="true"
-					focusable="false"
-				>
-					<path
-						d="M3 5l3 3 3-3"
-						stroke="currentColor"
-						stroke-width="1.4"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						fill="none"
-					></path>
-				</svg>
+				${ osIcon( 'chevron-right', {
+					size: 16,
+					rotate: 90,
+					className: 'os-select__chevron',
+				} ) }
 			</button>
 			<div
 				class="os-select__popup"
@@ -405,23 +399,10 @@ export class OsSelect extends Component {
 							@click=${ () => this._onOptionClick( o ) }
 							@pointermove=${ () => this._setActive( i ) }
 						>
-							<svg
-								class="os-select__check"
-								viewBox="0 0 12 12"
-								width="12"
-								height="12"
-								aria-hidden="true"
-								focusable="false"
-							>
-								<path
-									d="M2.5 6.5l2.5 2.5 4.5-5"
-									stroke="currentColor"
-									stroke-width="1.6"
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									fill="none"
-								></path>
-							</svg>
+							${ osIcon( 'check', {
+								size: 16,
+								className: 'os-select__check',
+							} ) }
 							<span class="os-select__option-label"
 								>${ o.label }</span
 							>

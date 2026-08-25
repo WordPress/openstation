@@ -470,7 +470,12 @@ function mountNoOp(): MountedManager {
  * filter and inspect the file themselves; the `surface` label is
  * advisory.
  */
-export function classifyDropTarget( ev: DragEvent ): DropContext {
+export function classifyDropTarget(
+	// Structural subset of DragEvent — the sentinel's captured-drop
+	// replay (`replayCapturedDrop` in `./index.ts`) classifies from a
+	// stashed point + target after the real event is long gone.
+	ev: Pick< DragEvent, 'clientX' | 'clientY' | 'target' >,
+): DropContext {
 	const x = ev.clientX;
 	const y = ev.clientY;
 	let node: Element | null = ev.target as Element | null;

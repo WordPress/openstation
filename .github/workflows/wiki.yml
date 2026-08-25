@@ -1,0 +1,70 @@
+name: Sync docs to wiki
+
+# Mirror docs/ into the repository's GitHub wiki. A wiki is itself a git
+# repository (<repo>.wiki.git) with a flat page namespace; bin/build-wiki.mjs
+# flattens docs/ into that shape (page renames, link rewriting, generated
+# sidebar) and this workflow pushes the result. The wiki is therefore
+# generated output: edits made in the wiki UI are overwritten on the next
+# sync, and doc changes belong in docs/ via pull request.
+#
+# One-time prerequisite: the wiki repository does not exist until the first
+# page is saved through the GitHub UI. Enable the wiki, create any page
+# (its content will be replaced), then run this workflow via
+# workflow_dispatch.
+
+on:
+  push:
+    branches: [ trunk ]
+    paths:
+      - 'docs/**'
+      - 'bin/build-wiki.mjs'
+      - '.github/workflows/wiki.yml'
+  workflow_dispatch:
+
+# contents: write lets the GITHUB_TOKEN push to the wiki repository, which
+# shares the parent repository's permission model.
+permissions:
+  contents: write
+
+# Syncs are last-writer-wins over the same wiki; never run two at once, and
+# a queued older sync is useless once a newer docs state exists.
+concurrency:
+  group: wiki-sync
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    name: Build pages · push to wiki
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build wiki pages
+        run: node bin/build-wiki.mjs "$RUNNER_TEMP/wiki-pages"
+
+      - name: Clone the wiki repository
+        run: |
+          git clone --depth 1 \
+            "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.wiki.git" \
+            "$RUNNER_TEMP/wiki-repo" || {
+            echo "::error::Could not clone ${GITHUB_REPOSITORY}.wiki.git. The wiki repository only exists once a first page has been created through the GitHub UI — enable the wiki, save any page, then re-run this workflow."
+            exit 1
+          }
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Sync and push
+        run: |
+          rsync -a --delete --exclude=.git "$RUNNER_TEMP/wiki-pages/" "$RUNNER_TEMP/wiki-repo/"
+          cd "$RUNNER_TEMP/wiki-repo"
+          git add --all
+          if git diff --cached --quiet; then
+            echo "Wiki already matches docs/ — nothing to push."
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit --message "Sync docs from ${GITHUB_REPOSITORY}@${GITHUB_SHA}"
+          git push

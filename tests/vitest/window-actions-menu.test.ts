@@ -217,6 +217,131 @@ describe( 'paintWindowActions', () => {
 		spy.mockRestore();
 	} );
 
+	test( 'a checkable row paints as a checkbox, glyphless, from its reader', () => {
+		const { win, panel } = harness();
+		registerWindowAction( {
+			id: 'my/pins',
+			label: 'Show pins',
+			icon: 'dashicons-sticky',
+			checkable: true,
+			checked: () => true,
+			onSelect: () => {},
+		} );
+
+		paintWindowActions( win, panel );
+
+		const row = rows( panel )[ 0 ];
+		expect( row.getAttribute( 'role' ) ).toBe( 'menuitemcheckbox' );
+		expect( row.hasAttribute( 'checked' ) ).toBe( true );
+		// The tick owns the leading edge of the row; a glyph there
+		// would compete with it.
+		expect( row.hasAttribute( 'icon' ) ).toBe( false );
+	} );
+
+	test( 'a repaint follows a preference the plugin changed elsewhere', () => {
+		// The whole point of `checked` being a reader: the plugin
+		// persists and repaints nothing.
+		const { win, panel } = harness();
+		let on = false;
+		registerWindowAction( {
+			id: 'my/pins',
+			label: 'Show pins',
+			checkable: true,
+			checked: () => on,
+			onSelect: () => {},
+		} );
+
+		paintWindowActions( win, panel );
+		expect( rows( panel )[ 0 ].hasAttribute( 'checked' ) ).toBe( false );
+
+		on = true;
+		paintWindowActions( win, panel );
+
+		expect( rows( panel )[ 0 ].hasAttribute( 'checked' ) ).toBe( true );
+	} );
+
+	test( 'clicking a checkbox flips it optimistically and keeps the menu open', () => {
+		const { win, panel } = harness();
+		let on = false;
+		registerWindowAction( {
+			id: 'my/pins',
+			label: 'Show pins',
+			checkable: true,
+			checked: () => on,
+			onSelect: () => {
+				on = ! on;
+			},
+		} );
+
+		panel.hidden = false;
+		paintWindowActions( win, panel );
+		rows( panel )[ 0 ].dispatchEvent(
+			new CustomEvent( 'os-menu-item-click', { bubbles: true } ),
+		);
+
+		expect( rows( panel )[ 0 ].hasAttribute( 'checked' ) ).toBe( true );
+		expect( on ).toBe( true );
+		// Staying open is what lets the user watch the tick land — and
+		// flip it back without reopening.
+		expect( panel.hidden ).toBe( false );
+	} );
+
+	test( 'a verb closes the menu, and `closeOnSelect` overrides either default', () => {
+		const { win, panel } = harness();
+		registerWindowAction( {
+			id: 'my/verb',
+			label: 'Do it',
+			onSelect: () => {},
+		} );
+		registerWindowAction( {
+			id: 'my/sticky-verb',
+			label: 'Stay',
+			order: 200,
+			closeOnSelect: false,
+			onSelect: () => {},
+		} );
+
+		panel.hidden = false;
+		paintWindowActions( win, panel );
+		rows( panel )[ 0 ].dispatchEvent(
+			new CustomEvent( 'os-menu-item-click', { bubbles: true } ),
+		);
+		expect( panel.hidden ).toBe( true );
+
+		panel.hidden = false;
+		paintWindowActions( win, panel );
+		rows( panel )[ 1 ].dispatchEvent(
+			new CustomEvent( 'os-menu-item-click', { bubbles: true } ),
+		);
+		expect( panel.hidden ).toBe( false );
+	} );
+
+	test( 'a checkbox whose handler throws keeps the optimistic flip', () => {
+		// Same bargain "Open on startup" makes against a failed REST
+		// call: the tick stays where the user put it until the next
+		// open re-reads `checked()`.
+		const { win, panel } = harness();
+		registerWindowAction( {
+			id: 'my/bad-check',
+			label: 'Show pins',
+			checkable: true,
+			checked: () => false,
+			onSelect: () => {
+				throw new Error( 'boom' );
+			},
+		} );
+		const spy = vi.spyOn( console, 'error' ).mockImplementation( () => {} );
+
+		paintWindowActions( win, panel );
+		rows( panel )[ 0 ].dispatchEvent(
+			new CustomEvent( 'os-menu-item-click', { bubbles: true } ),
+		);
+
+		expect( rows( panel )[ 0 ].hasAttribute( 'checked' ) ).toBe( true );
+		expect( spy ).toHaveBeenCalled();
+		spy.mockRestore();
+	} );
+
 	test( 'a row unregistered between opens disappears', () => {
 		const { win, panel } = harness();
 		registerWindowAction( { id: 'my/act', label: 'Do it', onSelect: () => {} } );

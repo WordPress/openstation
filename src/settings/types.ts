@@ -6,6 +6,7 @@
  * implementation (which would create a circular-import trap).
  */
 
+import type { NavPlacement } from '../nav/types';
 import type { MioLook } from '../mio/types';
 import type { WallpaperLayer } from '../wallpapers/layer';
 import type { WallpaperTeardown } from '../wallpapers/types';
@@ -284,6 +285,14 @@ export interface OsSettingsState {
 	 */
 	nativeCommentsEnabled: boolean;
 	/**
+	 * Per-user opt-in for Station Home, the native Dashboard window.
+	 * When true, the Dashboard dock tile / `index.php` links open
+	 * Station Home instead of the chromeless Dashboard iframe. Default
+	 * off so custom dashboards (welcome panels, admin-page redirects,
+	 * dashboard-replacement plugins) keep working untouched on upgrade.
+	 */
+	stationHomeEnabled: boolean;
+	/**
 	 * When true, left-clicking the empty wallpaper triggers the
 	 * "Show desktop" toggle (macOS-style) and the matching entry is
 	 * hidden from the wallpaper context menu. When false (default),
@@ -344,49 +353,32 @@ export interface OsSettingsState {
 	 */
 	foldersSharingEnabled: boolean;
 	/**
-	 * Per-item placement preference. Maps an item id (dock-item slug or
-	 * registered desktop-icon id) to one of:
-	 *   - `'both'`    — show on both dock and desktop.
-	 *   - `'dock'`    — show only on the dock.
-	 *   - `'desktop'` — show only on the wallpaper.
-	 *   - `'hidden'`  — hide from every shell surface.
+	 * Per-item navigation placement. Maps a {@link NavItem} id to one
+	 * of `'rail' | 'desktop' | 'both' | 'hidden'`.
 	 *
-	 * Missing keys mean "no override" — items use whichever rail they
-	 * natively live on. All four values — including `'both'` — are
-	 * persisted verbatim: PHP's sanitizer
-	 * (`includes/os-settings.php`, `$allowed_placements`) whitelists
-	 * `'both'`, and the right-click menu stores it explicitly, so a
-	 * "show on both rails" choice survives a reload.
-	 */
-	itemVisibility: Record< string, ItemVisibility >;
-	/**
-	 * User-defined dock ordering. Ordered list of item ids. Ids not in
-	 * the list keep their server-supplied position and render appended
-	 * after the listed ones. Unknown ids (deactivated plugin) survive
-	 * the round-trip in case the plugin comes back.
-	 */
-	dockOrder: string[];
-	/**
-	 * Persisted desktop position (in CSS px) for every dock item the
-	 * user has promoted onto the wallpaper via
-	 * `itemVisibility[ id ] = 'desktop' | 'both'`. The synthesizer in
-	 * `settings/desktop-shortcuts-sync.ts` reads this when building
-	 * a synthetic placement so the icon lands where the user last
-	 * dragged it instead of resetting to (0, 0).
+	 * `'rail'` rather than `'dock'` on purpose: for a Core admin menu
+	 * in the split layout the rail IS the sidebar, so storing a rail
+	 * name would need a migration on every layout switch. See
+	 * `src/nav/defaults.ts`.
 	 *
-	 * Missing keys mean "no override" — the synth placement falls back
-	 * to the default top-left grid slot. Unknown ids (a plugin whose
-	 * dock item is no longer registered) survive the round-trip in
-	 * case the plugin reactivates. Capped at 256 entries.
+	 * Missing keys mean "no override" — the item takes the default for
+	 * its kind. Written sparsely: a newly-activated plugin's menu gets
+	 * the right default with no write and no reconciliation pass.
 	 */
+	navPlacement: Record< string, NavPlacement >;
+	/**
+	 * User-defined ordering, flat across every zone. Each zone renders
+	 * its own members in this order; ids not listed keep their
+	 * registration order and render after the listed ones. Unknown ids
+	 * (a deactivated plugin) survive the round-trip in case it comes
+	 * back.
+	 *
+	 * Flat rather than per-zone so a Core menu keeps its position when
+	 * the layout moves it between the dock and the sidebar.
+	 */
+	navOrder: string[];
 	dockPromotedPositions: Record< string, { x: number; y: number } >;
 }
-
-/**
- * Allowed values for {@link OsSettingsState.itemVisibility}. See the
- * field docblock for semantics.
- */
-export type ItemVisibility = 'both' | 'dock' | 'desktop' | 'hidden';
 
 /**
  * Subset of the REST media item we actually use. `_fields` on the

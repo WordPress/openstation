@@ -202,13 +202,13 @@ instance.
 **`wp.os.connect()` works identically for both.** The
 peer-to-peer connection bridge — used when one window wants to
 talk to another — routes through the same channel bus when the
-target is native. Pre-0.5.5 it silently no-op'd on native
+target is native. It used to silently no-op on native
 targets; now `conn.send` / `conn.subscribe` reach the render
 context's `windowApi` listeners. Same `onOpen` / `isOpen` /
 `disconnect` semantics for both kinds.
 
-**What this replaces.** `Window.iframeSend` is gone (0.5.5
-removed it — the unified `Window.send` does the same job, with
+**What this replaces.** `Window.iframeSend` is gone (the
+unified `Window.send` does the same job, with
 the same pre-load FIFO buffering, while also working for
 pure-native windows). `wp.os.iframe.publish/subscribe`
 stays for the multi-listener handshake-aware `wp.os.connect()`
@@ -279,6 +279,17 @@ but publish your events under your plugin's slug:
 | `os/game-score-recorded` | No | After a game's `submitScore()` write resolves (free play and challenge completion both). Games play in their own window, so this is how a leaderboard in another window learns it went stale. Payload carries `challengeId` on the completion path. |
 | `os/upload-hud-complete` | No | After a file dropped on the shell finishes uploading — `{ filename, attachmentId }`. Published by the progress HUD, not the uploader: the upload runs on XHR (the only transport that reports determinate progress) and so never routes through `wp.os.fetch`, which makes this the bus's only view of a completed drop. |
 
+**Content-change announcements.** The `os.<type>.changed` topic
+family is the bus's highest-traffic convention, and
+`wp.os.announceContentChange( type, action, ids, source? )` is its
+typed producer. The rule of thumb: **a window that mutates content
+through its own REST endpoints must announce** — the shell cannot
+see third-party REST traffic, so without the announcement the
+Recycle Bin, its dock badge and every other list window only learn
+of the change from the Heartbeat catch-all, 15–60 seconds later.
+See [javascript-reference.md → `announceContentChange`](./javascript-reference.md)
+for the envelope.
+
 **Activity ↔ broadcast mirror.** `wp.os.broadcast(topic, payload)`
 publishes both onto the broadcast bus (cross-iframe, cross-tab)
 AND onto the activity bus (in-tab) under the same topic name.
@@ -299,7 +310,7 @@ topic after a built-in channel.
 ### Layer 3+ — the heartbeat bus
 
 A specialised pub/sub for things that ride the WordPress
-Heartbeat (`heartbeat-send` / `heartbeat-tick`). Pre-0.5.5 every
+Heartbeat (`heartbeat-send` / `heartbeat-tick`). Previously every
 feature that wanted a per-tick payload bound the jQuery events
 itself; with the bus, multiple plugins compose without any
 boilerplate.

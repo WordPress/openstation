@@ -19,7 +19,7 @@ import { __ } from '../i18n';
 import { registerOpener } from './openers';
 import type { DesktopFile } from './file';
 import { openAgentChatWindow } from '../agents-dispatch';
-import { mountFilesLayer } from './layer';
+import { mountFilesLayer, orderForFolder } from './layer';
 import { mountFolderStatusBar } from './folder-status-bar';
 import { attachIconCanvasMenu } from '../icon-canvas/menu';
 import {
@@ -449,6 +449,9 @@ export function registerBuiltInFileOpeners(): void {
 														GRID_PADDING,
 														occupied,
 														layerHost,
+														orderForFolder(
+															route.folderId,
+														),
 													);
 													const placement =
 														await filesRest.createPlacement( {
