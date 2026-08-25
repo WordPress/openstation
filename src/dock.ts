@@ -1439,6 +1439,8 @@ export class Dock {
 		} );
 		this.peekTeardowns.set( item.id, teardown );
 
+		this.bindHoverPrewarm( tile, item );
+
 		return applyFilters< HTMLElement >(
 			HOOKS.DOCK_TILE_ELEMENT,
 			tile,
@@ -2249,6 +2251,97 @@ export class Dock {
 	 * itself is untouched: same icon, same tooltip, same position —
 	 * only the destination changes.
 	 */
+	/**
+	 * Hover-intent window prewarming (opt-in via the "Prewarm windows
+	 * on hover" Beta toggle). A sustained mouse hover on a dock tile is
+	 * a strong predictor of the next click, and the document TTFB of an
+	 * admin page is the dominant cost of a window open — so start the
+	 * hidden speculative window while the user is still deciding, and
+	 * let `windowManager.open()` adopt it on the actual click.
+	 *
+	 * Deliberately narrow: mouse pointers only (touch has no hover),
+	 * iframe pages only (native windows render instantly anyway),
+	 * same-origin only (cross-origin URLs can't be iframed), and never
+	 * for URLs a native-window remap would capture. The dwell delay
+	 * matches the dock-peek's hover-intent timing so the two
+	 * affordances read as one gesture.
+	 */
+	private bindHoverPrewarm( tile: HTMLElement, item: DockItem ): void {
+		// No URL means there is no iframe document to warm: either a
+		// native-window tile (`windowId` with no `url`, which
+		// `openPage` routes to the registry) or a tile with nothing to
+		// open at all. Both are handled by the same check — a native
+		// tile is exactly the `! item.url` case.
+		if ( ! item.url ) {
+			return;
+		}
+		const DWELL_MS = 180;
+		let dwellTimer: number | undefined;
+		const cancel = () => {
+			if ( dwellTimer !== undefined ) {
+				window.clearTimeout( dwellTimer );
+				dwellTimer = undefined;
+			}
+		};
+		tile.addEventListener( 'pointerenter', ( e: PointerEvent ) => {
+			if ( e.pointerType !== 'mouse' ) {
+				return;
+			}
+			const os = (
+				window as unknown as {
+					wp?: {
+						os?: {
+							getOsSettings?: () => {
+								windowPrewarmEnabled?: boolean;
+							};
+						};
+					};
+				}
+			).wp?.os;
+			if ( ! os?.getOsSettings?.().windowPrewarmEnabled ) {
+				return;
+			}
+			// Cross-origin URLs open in a browser tab, and remapped
+			// URLs open as native windows — neither wants an iframe
+			// warmed for it.
+			try {
+				const parsed = new URL( item.url, window.location.href );
+				if ( parsed.origin !== window.location.origin ) {
+					return;
+				}
+			} catch {
+				return;
+			}
+			if ( resolveNativeUrlRemap( item.url ) ) {
+				return;
+			}
+			cancel();
+			dwellTimer = window.setTimeout( () => {
+				dwellTimer = undefined;
+				const baseId = this.deriveWindowId( item.url );
+				// Same config `openPage` will pass, so the adoption
+				// check in `open()` sees an exact match.
+				void this.windowManager.prewarm( {
+					id: baseId,
+					baseId,
+					url: item.url,
+					parentUrl: item.url,
+					title: item.title,
+					icon: item.icon.startsWith( 'dashicons-' )
+						? item.icon
+						: 'dashicons-admin-generic',
+					submenu: item.submenu,
+					selfLabel: item.selfLabel,
+					multi: !! item.multi,
+				} );
+			}, DWELL_MS );
+		} );
+		tile.addEventListener( 'pointerleave', cancel );
+		// The click path takes over from here — cancel a pending dwell
+		// so a fast click never races its own prewarm.
+		tile.addEventListener( 'pointerdown', cancel );
+	}
+
 	private openPage( item: DockItem ): void {
 		// A tile whose target is a native window rather than an admin
 		// URL — an app launcher the user put on the rail, or a window

@@ -411,6 +411,21 @@ function openstation_register_assets() {
 		true
 	);
 
+	// `os-chromeless-bridge` — the iframe side of every window,
+	// enqueued on `admin_footer` by
+	// `openstation_chromeless_bridge_script()` with its per-request
+	// data attached as a `before` inline block. Registered here (not
+	// there) so the handle exists before the enqueue and so the asset
+	// guard's OPENSTATION_URL snapshot protects it like every other
+	// bundle of ours.
+	wp_register_script(
+		'os-chromeless-bridge',
+		OPENSTATION_URL . 'assets/js/chromeless-bridge' . $suffix . '.js',
+		array(),
+		$built_version( 'assets/js/chromeless-bridge' . $suffix . '.js' ),
+		true
+	);
+
 	// `os-gutenberg-drop-receiver` — iframe-side bundle
 	// enqueued only on the Block Editor screens (`post.php` /
 	// `post-new.php`) for openstation users. Listens for

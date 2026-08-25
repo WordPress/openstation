@@ -286,6 +286,12 @@ export const DEFAULTS: OsSettingsState = {
 	// so a custom dashboard keeps rendering in the chromeless iframe
 	// until the user deliberately switches.
 	stationHomeEnabled: false,
+	// Shared admin-asset cache (Experimental) — off until the user
+	// opts in; the SW picks the change up on the next reload.
+	adminAssetCacheEnabled: false,
+	// Hover-intent window prewarming (Experimental) — off until the
+	// user opts in; read live by the dock at hover time.
+	windowPrewarmEnabled: false,
 	showDesktopOnWallpaperClick: false,
 	mioEnabled: false,
 	// No opinions: the user has not been to "Make it yours" yet, so

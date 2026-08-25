@@ -277,6 +277,18 @@ const TARGETS = {
 		fileBase: 'iframe-bridge',
 		iifeName: 'openStationIframeBridge',
 	},
+	// Chromeless bridge — the iframe side of every window. Plain JS
+	// rather than TypeScript because it is a verbatim lift of the
+	// nowdoc that `includes/render/chromeless-bridge.php` used to
+	// inline into every window's HTML (~125 KB, unminified, in the one
+	// document no cache can help with). Building it means it is
+	// fetched once and then served from cache for every later window.
+	// Per-request values arrive on `window.__osChromelessData`.
+	'chromeless-bridge': {
+		entry:    'src/chromeless-bridge.js',
+		fileBase: 'chromeless-bridge',
+		iifeName: 'openStationChromelessBridge',
+	},
 	// Gutenberg drop-receiver — tiny iframe-side bundle enqueued only
 	// on post.php / post-new.php. Listens for `os-drop`
 	// messages from the shell and inserts the corresponding block via

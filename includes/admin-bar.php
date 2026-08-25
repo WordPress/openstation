@@ -290,6 +290,20 @@ function openstation_enqueue_toggle_assets() {
 		return;
 	}
 
+	// Inside a chromeless window the admin bar is suppressed outright
+	// (`show_admin_bar` + the `wp_admin_bar_render` removal in
+	// helpers.php), so `#wpadminbar` never reaches the DOM. Every byte
+	// below — the toggle bundle, its inline config, the node styling —
+	// would load and run against markup that does not exist. Measured
+	// on a live install: the toggle bundle alone was 17.7 KB, the
+	// largest single asset in the admin-bar family a window loaded for
+	// nothing. See `includes/render/chromeless-trim.php`, which drops
+	// the rest of that family (core's `admin-bar`, host masterbar
+	// extras) for the same reason.
+	if ( openstation_is_chromeless_request() ) {
+		return;
+	}
+
 	$css = '
 		#wpadminbar #wp-admin-bar-os-toggle > .ab-item,
 		#wpadminbar #wp-admin-bar-desktop-layout-menu > .ab-item,

@@ -293,7 +293,7 @@ function openstation_agent_conversation_prepare( WP_Post $post, $with_messages =
 		'agentId'          => $agent_id,
 		'agentName'        => $agent ? $agent->display_name : __( 'Deleted agent', 'desktop-mode' ),
 		'agentDescription' => $agent ? (string) get_user_meta( $agent_id, '_desktop_mode_agent_description', true ) : '',
-		'agentAvatarUrl'   => function_exists( 'openstation_agent_avatar_url' ) ? openstation_agent_avatar_url() : '',
+		'agentAvatarUrl'   => function_exists( 'openstation_agent_avatar_url' ) ? openstation_agent_avatar_url( $agent_id ) : '',
 		'title'            => (string) $post->post_title,
 		// Second sidebar line + who spoke last, so the list can say
 		// where each conversation got to instead of repeating its opener.

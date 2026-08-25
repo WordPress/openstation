@@ -144,6 +144,43 @@ function markReloadedForSwUpdate(): void {
 }
 
 /**
+ * Script-URL path suffixes of OpenStation's own PREVIOUS service-worker
+ * endpoints. A browser that installed the PWA before an endpoint move
+ * still holds a registration pointing at the old URL — which now 404s
+ * (or serves an HTML page), so that worker can never self-update.
+ * Without this list the foreign-SW guard would compare full script
+ * URLs, mistake our own stale worker for another plugin's, refuse to
+ * register, and strand the user on a dead SW forever. Matching by
+ * suffix keeps subdirectory installs (`/site/desktop-mode/sw.js`)
+ * covered. Append here whenever the SW endpoint moves again.
+ */
+const OWN_LEGACY_SW_PATH_SUFFIXES = [ '/desktop-mode/sw.js' ] as const;
+
+/**
+ * Whether an existing registration's script URL is one of OUR OWN —
+ * current pretty URL, current extensionless fallback, or a legacy
+ * endpoint from before a portal-path move. Own registrations are never
+ * "foreign": registering the current URL at the same scope simply
+ * replaces them, which is exactly the recovery a stale worker needs.
+ */
+function isOwnSwScriptUrl(
+	url: string,
+	config: Pick< PwaConfig, 'swUrl' | 'swFallbackUrl' >,
+): boolean {
+	if ( url === config.swUrl || url === config.swFallbackUrl ) {
+		return true;
+	}
+	try {
+		const pathname = new URL( url ).pathname;
+		return OWN_LEGACY_SW_PATH_SUFFIXES.some( ( suffix ) =>
+			pathname.endsWith( suffix ),
+		);
+	} catch {
+		return false;
+	}
+}
+
+/**
  * Register the service worker. No-op outside browsers, on insecure
  * origins, or when the SW URL isn't configured.
  *
@@ -183,7 +220,7 @@ export async function registerServiceWorker(
 			.catch( () => [] as ServiceWorkerRegistration[] );
 		const foreign = existing.find( ( reg ) => {
 			const url = reg.active?.scriptURL ?? reg.installing?.scriptURL ?? '';
-			return url !== '' && url !== config.swUrl;
+			return url !== '' && ! isOwnSwScriptUrl( url, config );
 		} );
 		if ( foreign ) {
 			_status = 'foreign-sw';
@@ -198,11 +235,29 @@ export async function registerServiceWorker(
 		}
 	}
 
-	try {
-		_registration = await navigator.serviceWorker.register( config.swUrl, {
+	const attempt = async (
+		url: string,
+	): Promise< ServiceWorkerRegistration > =>
+		navigator.serviceWorker.register( url, {
 			scope: '/',
 			updateViaCache: 'none',
 		} );
+
+	try {
+		try {
+			_registration = await attempt( config.swUrl );
+		} catch ( err ) {
+			// Some hosts' web servers (WordPress.com) 404 the pretty
+			// `/openstation/sw.js` route before WordPress can serve it
+			// — virtual paths with a static-file extension never reach
+			// PHP there. Retry once with the extensionless fallback
+			// (`/?openstation_sw=1`), which always routes to WordPress
+			// and whose `/` path grants root scope natively.
+			if ( ! config.swFallbackUrl || config.swFallbackUrl === config.swUrl ) {
+				throw err;
+			}
+			_registration = await attempt( config.swFallbackUrl );
+		}
 		_status = 'registered';
 		// Auto-reload when the new SW takes control. Bound only after a
 		// successful registration so we never reload a page that has no

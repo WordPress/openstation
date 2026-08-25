@@ -1758,6 +1758,51 @@ apply_filters( 'openstation_chromeless_admin_bar_top_values', string[] $values )
 
 ---
 
+### `openstation_chromeless_trimmed_scripts` — Experimental
+
+Script handles dequeued inside chromeless windows, where the admin bar is suppressed and its assets would load, parse and execute against markup that never reaches the DOM. Defaults cover the whole admin-bar family: core's `admin-bar`, OpenStation's own `os-admin-bar` toggle bundle, and the WordPress.com / Jetpack masterbar handles (`wpcom-admin-bar`, `wpcom-notes-common`, `wpcom-notes-admin-bar`, `a8c-faux-inline-help`). Measured on a live install, that family cost **48.8 KB and three cross-origin round trips per window**.
+
+The whole family ships in the defaults deliberately — leaving one queued drags core's `admin-bar` back in as its dependency and undoes the trim. Handles are **dequeued, never deregistered**, so a script that genuinely declares one as a dependency still resolves it and keeps working.
+
+```php
+// Reclaim another chrome-only bundle per window.
+add_filter( 'openstation_chromeless_trimmed_scripts', static function ( array $handles ) {
+    $handles[] = 'my-plugin-admin-bar-widget';
+    return $handles;
+} );
+```
+
+### `openstation_chromeless_trimmed_styles` — Experimental
+
+The stylesheet counterpart. Defaults: `admin-bar`, `wpcom-notes-admin-bar`. Dropping core's `admin-bar` stylesheet also removes the source of the 32px `html.wp-toolbar` padding — the `!important` override in `chromeless.css` stays as the belt-and-braces half of that pair and must not be removed.
+
+```php
+apply_filters( 'openstation_chromeless_trimmed_styles', string[] $handles );
+```
+
+### `openstation_chromeless_trim_emoji` — Experimental
+
+Whether WordPress's emoji polyfill is dropped inside chromeless windows. Default `true`.
+
+Worth being precise about what this is: the inline detection script tests the browser against the newest Unicode emoji set and, when anything is missing, pulls in `wp-emoji-release.min.js` (Twemoji, 22 KB) to swap those characters for images. It is a real polyfill, not dead code — measured loading on current Chrome inside a window. Dropping it means a very new emoji in admin content renders with the operating system's own glyph instead of a Twemoji image. Core sets the precedent: `wp-admin/edit-form-blocks.php` removes the same action on the block-editor screen.
+
+```php
+// Keep Twemoji's image replacement inside windows.
+add_filter( 'openstation_chromeless_trim_emoji', '__return_false' );
+```
+
+### `openstation_chromeless_trimmed_assets` — Experimental (action)
+
+Fires after the trim runs inside a window — the point to dequeue anything else that only decorates chrome a window does not draw.
+
+```php
+add_action( 'openstation_chromeless_trimmed_assets', static function () {
+    wp_dequeue_script( 'my-plugin-toolbar-extras' );
+} );
+```
+
+---
+
 ### `openstation_native_window_allowed_html` — Experimental
 
 The `wp_kses`-shaped allowlist used when escaping native-window `<template>` payloads. The default extends `wp_kses_allowed_html( 'post' )` with form controls, `<os-*>` web components, dashicon spans, and permissive `data-*` / `aria-*` attributes. Plugins registering their own native windows can extend the list with custom tags or attributes if their templates need markup not covered by the default.
@@ -4167,12 +4212,44 @@ Use this to unblock the "Install \<site\> as an app" affordance on sites
 where another PWA plugin's SW is shadowing OpenStation and Chromium
 therefore won't fire `beforeinstallprompt`.
 
+### `openstation_pwa_admin_asset_cache` — Experimental (filter)
+
+Opt in to the service worker's **shared admin-asset cache**. When
+enabled, versioned admin static assets — Core CSS/JS, the
+`load-scripts.php` / `load-styles.php` concat responses, and
+plugin/theme assets carrying a `?ver=` query — are served from one
+origin-wide Cache Storage bucket shared by the shell and every window's
+chromeless iframe. An asset fetched by one window is answered locally
+for every later window, revalidation round-trips included.
+
+The filter's default is the requesting user's OpenStation preference
+(**OpenStation Preferences → Features → Beta features → "Shared asset
+cache (experimental)"**, `adminAssetCacheEnabled`, default `false`) —
+the toggle is the intended opt-in path. Hook the filter to force the
+cache site-wide or to veto every per-user opt-in:
+
+```php
+add_filter( 'openstation_pwa_admin_asset_cache', '__return_true' );  // force on
+add_filter( 'openstation_pwa_admin_asset_cache', '__return_false' ); // kill switch
+```
+
+The value reaches the SW inside the served script bytes, so flipping
+the filter triggers a normal SW update on the next page load — no
+re-registration needed. Core-path assets are cached exact-URL
+cache-first (their `ver` embeds the WordPress version); plugin/theme
+assets use stale-while-revalidate so an author editing files without a
+version bump self-heals on the next load. Uploads, unversioned URLs,
+HTML, REST, and AJAX are never cached. See
+[`docs/pwa.md`](./pwa.md#caching-policy) for the full policy table.
+
 ### PHP helpers — Stable
 
 ```php
 openstation_pwa_manifest_url();
 openstation_pwa_sw_url();
+openstation_pwa_sw_fallback_url();
 openstation_pwa_force_replace_sw();
+openstation_pwa_admin_asset_cache_enabled();
 openstation_pwa_get_user_state( $user_id = 0 );
 openstation_pwa_update_user_state( array $patch, $user_id = 0 );
 ```
@@ -4766,6 +4843,29 @@ Public URL of the same directory. Must resolve to the same bytes as
 - **Param** `string $url`
 - **Return** `string`
 
+### `openstation_agent_faces_base_dir` — Experimental *(filter)*
+
+Absolute path of the agent-face storage directory (no trailing slash).
+Default `uploads/desktop-mode-agent-faces`. Each agent's portrait is
+written here as an SVG named `<agentId>-<hash>.svg`, and served as its
+avatar wherever `get_avatar()` runs.
+
+Whatever this points at **must be web-servable**. The directory is
+hardened exec-off rather than deny-all for exactly that reason: a
+portrait that cannot be fetched is a broken avatar on every screen the
+agent appears on.
+
+- **Param** `string $base`
+- **Return** `string`
+
+### `openstation_agent_faces_base_url` — Experimental *(filter)*
+
+Public URL of the same directory. Must resolve to the same bytes as
+`openstation_agent_faces_base_dir`.
+
+- **Param** `string $url`
+- **Return** `string`
+
 ### `openstation_desktop_themes_payload_cap` — Experimental *(filter)*
 
 How many themes are announced to the shell. Default 24.
@@ -4904,6 +5004,24 @@ bounds the prompt (and the bill) per invocation. Default 50.
 
 - **Param** `int $turn_cap`
 
+### `openstation_agent_draft` — Experimental *(filter)*
+
+Pre-filter for `POST /agents/draft`, the "Draft it for me" step of
+the create flow. Return a non-null array shaped like the route's
+response (`{ name, description, vibes, instructions, role, abilities }`,
+or a `WP_Error`) to short-circuit the Core AI Client, the seam PHPUnit
+and alternative runtimes plug into. Whatever comes back is still
+filtered against the site's catalogues: a role outside
+`openstation_agent_allowed_roles()` becomes `''`, unknown ability
+slugs are dropped, `vibes` is cut at 120 characters. Nothing is
+created; the wizard shows the draft for review.
+
+- **Param** `array|WP_Error|null $draft` — null to proceed with the AI Client.
+- **Param** `string $brief` — the brief, trimmed.
+- **Param** `string[] $roles` — role slugs the site allows for agents.
+- **Param** `array $catalogue` — the abilities catalogue rows (`{ slug, label, description, category, readonly }`).
+- **Param** `int $user_id` — requesting user id.
+
 ### `openstation_agent_conversation_cap` — Experimental *(filter)*
 
 How many persisted chat conversations are kept per user (the
@@ -4918,8 +5036,12 @@ rows. Default 100.
 The trigger-kind catalogue (`chat`, `send-to`, `drag`, `hook`,
 `endpoint`, `agent`). Each entry declares `slug`, `label`,
 `description`, `icon`, and a JSON-Schema `config_schema` for its
-`trigger.config` shape. `chat` and `drag` are wired; the other kinds
-are declared so configuration can be stored ahead of their intakes.
+`trigger.config` shape. `chat`, `send-to` and `drag` are wired; the other kinds
+are declared so configuration can be stored ahead of their intakes. The
+UI draws one fixed card per wired kind (chat always on; a kind whose
+`config_schema` has `entityKinds` gets the entity-kind checkboxes, any
+other wired kind an On switch), and preserves stored rows of kinds it
+does not draw.
 The `drag` config's `entityKinds` gates which entity drops the agent
 accepts (empty = every kind; no drag trigger = drops rejected), and
 ships inline on the agent's desktop user-file payload as

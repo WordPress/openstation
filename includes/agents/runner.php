@@ -178,6 +178,7 @@ function openstation_agent_invoke( $agent_user_id, $message, $context = array() 
 	}
 
 	$instructions = openstation_agent_get_instructions( $user->ID );
+	$instructions = openstation_agent_apply_vibes( $instructions, (int) $user->ID );
 	$abilities    = openstation_agent_get_abilities( $user->ID );
 
 	list( $tool_defs, $slug_by_name ) = openstation_agent_runner_build_tools( $abilities );
@@ -973,6 +974,33 @@ function openstation_agent_runner_generate( $agent_user_id, array $history, arra
 			);
 		}
 	);
+}
+
+/**
+ * Append an agent's voice line to its instructions.
+ *
+ * **After the instructions, never before.** The two can disagree — a
+ * voice that says "blunt" against a workflow that says "always explain
+ * your reasoning" — and when they do, the workflow should win. Later
+ * text is the one the model weights more heavily, so position is the
+ * whole mechanism here.
+ *
+ * The line is stored through `openstation_agent_sanitize_vibes()`,
+ * which strips line breaks. That matters more than it looks: the
+ * composed prompt marks operator turns, and a multi-line voice line
+ * could otherwise fake a turn boundary. `agentsSecurity.php` pins it.
+ *
+ * @param string $instructions The agent's system prompt.
+ * @param int    $user_id      Agent user id.
+ * @return string
+ */
+function openstation_agent_apply_vibes( $instructions, $user_id ) {
+	$vibes = openstation_agent_get_vibes( $user_id );
+	if ( '' === $vibes ) {
+		return $instructions;
+	}
+	$line = 'Voice: ' . $vibes;
+	return '' === $instructions ? $line : $instructions . "\n\n" . $line;
 }
 
 /**

@@ -56,7 +56,18 @@ class Tests_OpenStation_ChromelessActivity extends WP_UnitTestCase {
 	private function bridge_markup() {
 		ob_start();
 		openstation_chromeless_bridge_script();
-		return (string) ob_get_clean();
+		$printed = (string) ob_get_clean();
+
+		// The bridge code ships as a built bundle now; PHP enqueues it
+		// and attaches per-request data instead of printing the script
+		// inline. Behaviour assertions read the bundle's source.
+		if ( ! openstation_is_chromeless_request() ) {
+			return $printed;
+		}
+
+		return $printed . (string) file_get_contents(
+			OPENSTATION_DIR . 'src/chromeless-bridge.js'
+		);
 	}
 
 	/**

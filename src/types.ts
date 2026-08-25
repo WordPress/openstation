@@ -2455,6 +2455,14 @@ export interface PwaConfig {
 	manifestUrl: string;
 	/** Absolute URL of the service worker. */
 	swUrl: string;
+	/**
+	 * Extensionless fallback URL for the same SW script
+	 * (`/?openstation_sw=1`). Registration retries with this URL when
+	 * registering {@link swUrl} fails — some hosts' web servers
+	 * (WordPress.com) 404 virtual `.js` paths before WordPress can
+	 * serve them. Optional: absent on payloads from older servers.
+	 */
+	swFallbackUrl?: string;
 	/** REST URL for `GET` / `POST` of {@link PwaUserState}. */
 	stateUrl: string;
 	/** Initial per-user state. */

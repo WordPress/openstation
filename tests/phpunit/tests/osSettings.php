@@ -255,6 +255,58 @@ class Tests_OpenStation_OsSettings extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The shared admin-asset cache defaults OFF — cache-first has a
+	 * silent staleness failure mode, so users opt in deliberately.
+	 *
+	 * @covers ::openstation_default_os_settings
+	 */
+	public function test_default_admin_asset_cache_is_opt_in() {
+		$defaults = openstation_default_os_settings();
+		$this->assertFalse( $defaults['adminAssetCacheEnabled'] );
+	}
+
+	/**
+	 * @covers ::openstation_sanitize_os_settings
+	 */
+	public function test_sanitize_keeps_admin_asset_cache_opt_in() {
+		$clean = openstation_sanitize_os_settings(
+			array( 'adminAssetCacheEnabled' => true )
+		);
+		$this->assertTrue( $clean['adminAssetCacheEnabled'] );
+
+		$clean = openstation_sanitize_os_settings(
+			array( 'adminAssetCacheEnabled' => '' )
+		);
+		$this->assertFalse( $clean['adminAssetCacheEnabled'] );
+	}
+
+	/**
+	 * Hover-intent window prewarming defaults OFF — a speculative
+	 * hidden window costs real memory, so users opt in deliberately.
+	 *
+	 * @covers ::openstation_default_os_settings
+	 */
+	public function test_default_window_prewarm_is_opt_in() {
+		$defaults = openstation_default_os_settings();
+		$this->assertFalse( $defaults['windowPrewarmEnabled'] );
+	}
+
+	/**
+	 * @covers ::openstation_sanitize_os_settings
+	 */
+	public function test_sanitize_keeps_window_prewarm_opt_in() {
+		$clean = openstation_sanitize_os_settings(
+			array( 'windowPrewarmEnabled' => true )
+		);
+		$this->assertTrue( $clean['windowPrewarmEnabled'] );
+
+		$clean = openstation_sanitize_os_settings(
+			array( 'windowPrewarmEnabled' => '' )
+		);
+		$this->assertFalse( $clean['windowPrewarmEnabled'] );
+	}
+
+	/**
 	 * @covers ::openstation_sanitize_os_settings
 	 */
 	public function test_sanitize_drops_legacy_ai_credential_and_preference_fields() {

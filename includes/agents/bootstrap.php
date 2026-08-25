@@ -55,9 +55,23 @@ require_once OPENSTATION_DIR . 'includes/agents/guard.php';
  * `wp_allowed_protocols()` — the data URI silently becomes an empty
  * string and the avatar renders broken.
  *
+ * With an agent id, this is that agent's own Mio portrait when one has
+ * been written. Without one, or before the face file exists, it is the
+ * shipped robot glyph, which is what every agent wore before faces.
+ *
+ * @param int $user_id Agent user id, or 0 for the generic glyph.
  * @return string
  */
-function openstation_agent_avatar_url() {
+function openstation_agent_avatar_url( $user_id = 0 ) {
+	// Called with no argument for the generic case: the WP Explorer
+	// section icon, and the fallback for an agent that has no face yet.
+	// A section icon wearing one agent's face would be wrong.
+	if ( $user_id > 0 && function_exists( 'openstation_agent_face_url' ) ) {
+		$face = openstation_agent_face_url( (int) $user_id );
+		if ( '' !== $face ) {
+			return $face;
+		}
+	}
 	return OPENSTATION_URL . 'assets/images/agent-avatar.svg';
 }
 
@@ -155,8 +169,10 @@ function openstation_agents_load() {
 	require_once OPENSTATION_DIR . 'includes/agents/store.php';
 	require_once OPENSTATION_DIR . 'includes/agents/defaults.php';
 	require_once OPENSTATION_DIR . 'includes/agents/identity.php';
+	require_once OPENSTATION_DIR . 'includes/agents/face.php';
 	require_once OPENSTATION_DIR . 'includes/agents/abilities.php';
 	require_once OPENSTATION_DIR . 'includes/agents/runner.php';
+	require_once OPENSTATION_DIR . 'includes/agents/draft.php';
 	require_once OPENSTATION_DIR . 'includes/agents/rest.php';
 	require_once OPENSTATION_DIR . 'includes/agents/conversations.php';
 	require_once OPENSTATION_DIR . 'includes/agents/privacy.php';

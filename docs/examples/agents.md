@@ -12,6 +12,19 @@ An agent is a login-blocked `wp_users` row whose definition
 override, rate limit) lives as user meta on that row. Full contract:
 [Hooks Reference — AI Agents](../hooks-reference.md#ai-agents).
 
+Alongside the definition an agent carries two identity fields, which is
+what makes a roster of them readable rather than a list of settings:
+
+| Field | What it is |
+|---|---|
+| `vibes` | One short line of voice, capped at 120 characters. Appended to the instructions before a run, and after them so a workflow beats a personality. |
+| `face` | A partial Mio look. Rendered to an SVG on disk and served as the agent's avatar everywhere `get_avatar()` runs, including the wp-admin Users list and comment attribution. See [Mio is a species](../mio.md#mio-is-a-species). |
+| `faceSeed` | The seed the face was rolled from. Provenance, not the face itself. |
+
+Both travel through `createAgent` / `updateAgent` like any other field.
+**Abilities and triggers both go in the create call.** There is no need
+for a second request to attach either.
+
 ## Give agents a new tool
 
 Agents pick their tools from the WordPress Abilities API — register an
@@ -96,9 +109,12 @@ the set.
 
 ## Declare a custom trigger kind
 
-Trigger configuration is stored per-agent now; intakes beyond chat
-arrive in later phases. Declaring a kind makes it configurable in the
-Triggers pane today:
+Trigger configuration is stored per-agent now; intakes beyond chat,
+Send to and Drag & drop arrive in later phases. Declaring a kind gives
+it a card in the Triggers pane and the create flow's Summon step: an
+On switch, or the entity-kind checkboxes when its `config_schema` has
+an `entityKinds` property. Set `'wired' => false` to keep it out of the
+UI until your intake exists; stored rows survive either way.
 
 ```php
 add_filter( 'openstation_agent_trigger_kinds', function ( $kinds ) {

@@ -12,10 +12,12 @@
 import { trackedFetch } from '../tracked-fetch';
 import { getConfig } from './rest';
 import type {
+	AgentDraft,
 	Ability,
 	Agent,
 	AgentInvokeResult,
 	HookSuggestion,
+	MioLook,
 	RoleChoice,
 	Trigger,
 	TriggerKindDescriptor,
@@ -71,13 +73,37 @@ export interface CreateAgentPayload {
 	role: string;
 	description?: string;
 	instructions?: string;
+	/**
+	 * The whole definition goes in the CREATE call, abilities and
+	 * triggers included. No follow-up patch: the route's arg list
+	 * accepts every one of these and `openstation_agent_create()`
+	 * writes them, so an agent is never briefly on the site in a
+	 * half-configured state.
+	 */
 	abilities?: string[];
+	triggers?: Trigger[];
+	vibes?: string;
+	face?: MioLook;
+	faceSeed?: number;
 }
 
 export function createAgent( payload: CreateAgentPayload ): Promise< Agent > {
 	return request< Agent >( agentsUrl(), {
 		method: 'POST',
 		body: JSON.stringify( payload ),
+	} );
+}
+
+/**
+ * `POST /agents/draft`: a definition drafted from a brief.
+ *
+ * One AI generate call with a strict answer schema, filtered against
+ * the site's catalogues on the server. Creates nothing.
+ */
+export function draftAgent( brief: string ): Promise< AgentDraft > {
+	return request< AgentDraft >( agentsUrl( '/draft' ), {
+		method: 'POST',
+		body: JSON.stringify( { brief } ),
 	} );
 }
 
@@ -90,6 +116,9 @@ export interface UpdateAgentPayload {
 	triggers?: Trigger[];
 	model?: string;
 	rateLimit?: number;
+	vibes?: string;
+	face?: MioLook;
+	faceSeed?: number;
 }
 
 export function updateAgent(

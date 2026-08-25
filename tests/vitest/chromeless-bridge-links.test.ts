@@ -1,16 +1,15 @@
 /**
  * The chromeless bridge's link interceptor, run against a real DOM.
  *
- * The interceptor is JavaScript emitted from a PHP heredoc, so the
- * PHP suite can only assert that source strings appear in the right
+ * The interceptor runs in a document PHPUnit never loads, so the PHP
+ * suite can only assert that source strings appear in the right
  * order. That pins the text and not the behaviour, which is how two
  * separate regressions of the same shape both shipped: the
  * capture-phase handler beating the script that owns a link, and the
  * `_wp_http_referer` stamp going missing once we started yielding.
  *
- * So: pull the emitted script straight out of the PHP, run it in
- * jsdom, click real anchors, and assert what the parent shell
- * actually receives.
+ * So: load the bridge source, run it in jsdom, click real anchors,
+ * and assert what the parent shell actually receives.
  *
  * Three outcomes are possible for a click, and every anchor below
  * pins one of them:
@@ -34,26 +33,22 @@ const ROOT = resolve( __dirname, '../..' );
 let posted: Array< Record< string, unknown > > = [];
 
 /**
- * The bridge script exactly as `openstation_chromeless_bridge_script()`
- * prints it, with the four server-substituted placeholders resolved to
- * the values PHP uses when a page carries no payload.
+ * The bridge source, read from the file that builds into the bundle
+ * every window loads.
+ *
+ * This used to slice the script out of a nowdoc in
+ * `chromeless-bridge.php` and resolve four `str_replace` placeholders
+ * by hand. The bridge now lives in `src/chromeless-bridge.js` and
+ * takes its per-request values off `window.__osChromelessData`, so the
+ * test seeds that global instead — the same shape PHP emits as an
+ * inline `before` block, with the values a page carrying no payload
+ * gets.
  */
 function emittedBridgeScript(): string {
-	const php = readFileSync(
-		resolve( ROOT, 'includes/render/chromeless-bridge.php' ),
+	return readFileSync(
+		resolve( ROOT, 'src/chromeless-bridge.js' ),
 		'utf8'
 	);
-	const match = /\$js = <<<'JS'\n([\s\S]*?)\nJS;/.exec( php );
-	if ( ! match ) {
-		throw new Error(
-			'Could not find the bridge heredoc in chromeless-bridge.php.'
-		);
-	}
-	return match[ 1 ]
-		.replace( '/*__OPENSTATION_MENU_PAYLOAD__*/', 'null' )
-		.replace( '/*__OPENSTATION_MENU_SIG__*/', 'null' )
-		.replace( '/*__OPENSTATION_CONTENT_IDENTITY__*/', 'null' )
-		.replace( '/*__OPENSTATION_SOFT_RELOAD_EXTRAS__*/', '[]' );
 }
 
 beforeAll( () => {
@@ -69,6 +64,17 @@ beforeAll( () => {
 		},
 		configurable: true,
 	} );
+
+	// The per-request block PHP prints ahead of the bundle. Values are
+	// what a page with no menu payload gets.
+	(
+		window as unknown as { __osChromelessData: Record< string, unknown > }
+	).__osChromelessData = {
+		_menuPayload: null,
+		_menuSig: null,
+		_identity: null,
+		_softReload: [],
+	};
 
 	// eslint-disable-next-line no-eval -- the point is to exercise the
 	// emitted source rather than a re-implementation of it.
