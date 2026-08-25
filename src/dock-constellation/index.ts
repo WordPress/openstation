@@ -610,6 +610,22 @@ export function mountDockConstellation(
 	const onInvalidate = (): void => close( false, true );
 
 	/**
+	 * Only a scroll OUTSIDE the panel invalidates the anchor. Inside
+	 * it is the user reading a long menu, and closing on that makes
+	 * the rows past the fold unreachable by pointer.
+	 */
+	const onScroll = ( e: Event ): void => {
+		if (
+			panel &&
+			e.target instanceof Node &&
+			panel.contains( e.target )
+		) {
+			return;
+		}
+		onInvalidate();
+	};
+
+	/**
 	 * A click on a dock tile dismisses the flyout.
 	 *
 	 * The panel is built once, on hover, and never repaints — so
@@ -653,7 +669,7 @@ export function mountDockConstellation(
 	// Capture: a scroll inside the dock's own overflow container never
 	// bubbles to `window`, and that is exactly the scroll that moves
 	// the tile out from under the panel.
-	document.addEventListener( 'scroll', onInvalidate, true );
+	document.addEventListener( 'scroll', onScroll, true );
 
 	return (): void => {
 		close( false, true );
@@ -674,7 +690,7 @@ export function mountDockConstellation(
 		window.removeEventListener( 'resize', onInvalidate );
 		window.removeEventListener( 'blur', onInvalidate );
 		document.removeEventListener( 'os-layout-changed', onInvalidate );
-		document.removeEventListener( 'scroll', onInvalidate, true );
+		document.removeEventListener( 'scroll', onScroll, true );
 	};
 }
 
