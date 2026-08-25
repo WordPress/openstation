@@ -28,7 +28,7 @@ Future native windows (Pages, Media, Users) register themselves with one line �
 
 ## Register your own URL → native-window remap
 
-> Status: **Planned** — `wp.os.registerNativeUrlRemap` is not yet exposed on the public `wp.os` surface (it remains internal). The snippet below shows the intended shape.
+> Status: **Stable** — see [`wp.os.registerNativeUrlRemap( entry )`](../javascript-reference.md#wposregisternativeurlremap-entry---stable) for the full entry shape.
 
 ```js
 const unsub = wp.os.registerNativeUrlRemap( {
@@ -43,7 +43,7 @@ const unsub = wp.os.registerNativeUrlRemap( {
 
 Returning `false` from `enabled` (or returning `false` from `matches`) lets the click fall through to the iframe path. Returning a `nativeWindowId` that isn't registered for the current user (cap-gated, opt-in-gated) also falls through — `openById()` reports `false` and the registry walks on.
 
-> Today this same primitive is consumed internally by the bundled Posts window (`src/native-url-remap.ts`); the public `wp.os.registerNativeUrlRemap` facade has not shipped yet.
+> The bundled Posts window consumes this same primitive internally (`src/native-url-remap.ts`); `wp.os.registerNativeUrlRemap` hands the same registry out to plugins.
 
 ## Filter the column descriptors
 

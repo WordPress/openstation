@@ -169,8 +169,9 @@ src/
 ├── plugins/                 # Built-in plugins that use the public API —
 │                            #   animated-logo-wallpaper is the reference
 │                            #   example for third-party authors.
-├── dock.ts                  # The left-edge dock (icons, tooltips,
-│                            #   submenu popover, instance rail).
+├── dock.ts                  # The dock rail (icons, tooltips, submenu
+│                            #   popover, instance rail; bottom by
+│                            #   default, left/right per layout).
 ├── toast.ts                 # Toast queue (wraps <os-toast-container>).
 ├── utils.ts                 # urlMatchKey, deriveWindowId, sanitize*.
 └── i18n.ts                  # Thin wrapper around window.wp.i18n.
@@ -312,8 +313,39 @@ Pass `--skip-i18n` for hotfixes where you do not want translation-
 file churn in the release commit:
 
 ```bash
-./bin/release.sh 0.9.1 --skip-i18n
+./bin/release.sh 1.1.4 --skip-i18n
 ```
+
+## Docs → GitHub wiki
+
+The repository's GitHub wiki is a **generated mirror of `docs/`** — never
+edit it through the wiki UI; the next sync overwrites it. Doc changes go
+through pull requests against `docs/` like any other change.
+
+The pipeline is two pieces:
+
+- `bin/build-wiki.mjs` flattens `docs/` into the wiki's flat page
+  namespace: `docs/README.md` becomes `Home`, `docs/examples/README.md`
+  becomes `Examples`, every example page gets an `example-` prefix (which
+  is also what prevents basename collisions such as `desktop-host.md`
+  existing in both directories), `docs/plans/` is excluded, and
+  `docs/assets/` is copied verbatim. Relative `.md` links are rewritten to
+  wiki page names (anchors preserved); links escaping `docs/` into the
+  source tree become absolute GitHub `blob/trunk` URLs. It also generates
+  the `_Sidebar.md` navigation and a `_Footer.md` provenance note.
+  Unresolved relative links are printed as warnings — run
+  `node bin/build-wiki.mjs /tmp/wiki-out` locally to preview a sync or
+  check links.
+- `.github/workflows/wiki.yml` runs the script on every push to `trunk`
+  that touches `docs/**` (plus `workflow_dispatch` for manual runs) and
+  pushes the output to `<repo>.wiki.git` — a wiki is itself a git
+  repository — using the workflow's `GITHUB_TOKEN`. Deletes and renames
+  propagate; the sync is authoritative.
+
+One-time prerequisite: GitHub only creates the wiki repository when a
+first page is saved through the UI. If the sync job fails with "Could not
+clone", enable the wiki, save any page (its content will be replaced), and
+re-run the workflow.
 
 ## Where things are tested
 

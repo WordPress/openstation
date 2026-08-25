@@ -104,5 +104,5 @@ A user without the cap who tries to start the flow gets a `openstation_oauth_cap
 
 ## See also
 
-- [`docs/hooks-reference.md#oauth`](../hooks-reference.md) — the public PHP hooks above.
+- [`docs/hooks-reference.md`](../hooks-reference.md#openstation_oauth_relay_registered--stable) — the public PHP hooks above, each under its own heading.
 - [`api-index.md`](../api-index.md) — `wp.os.startOAuth` in the JS API table.

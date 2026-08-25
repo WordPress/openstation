@@ -32,7 +32,7 @@ The full surface is documented in [`javascript-reference.md`](./javascript-refer
 
 | Member | Signature | Status |
 |---|---|---|
-| [`fetch`](./javascript-reference.md#wpdesktopfetch-input-init-opts---stable) | `( input, init?, opts? ) => Promise<Response>` *(routed fetch — pulses title-bar dot)* | **Stable** |
+| [`fetch`](./javascript-reference.md#wposfetch-input-init-opts---stable) | `( input, init?, opts? ) => Promise<Response>` *(routed fetch — pulses title-bar dot)* | **Stable** |
 | `confirm` | `( opts: OsConfirmOptions ) => Promise<boolean>` *(replaces `window.confirm`)* | Stable |
 | `notify` | `( opts: NotifyOptions ) => () => void` *(local notification w/ fallback; returns a dismiss function)* | Stable |
 | [`loadComponents`](./javascript-reference.md#wposloadcomponents-tags---stable) | `( tags?: readonly string[] ) => Promise<void>` *(make `<os-*>` tags upgrade; the runtime route to the kit for plugins that can't import it)* | **Stable** |

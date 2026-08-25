@@ -29,7 +29,6 @@ wp.os.registerWindow( {
     id: 'my-plugin/quick-note',
     title: 'Quick Note',
     icon: 'dashicons-edit',
-    native: true,
     render: ( body ) => {
         body.innerHTML = `<os-text-field label="Note"></os-text-field>`;
     },
@@ -47,7 +46,6 @@ wp.os.registerWindow( {
     id: 'my-plugin/inbox',
     title: 'Inbox',
     icon: 'dashicons-email',
-    native: true,
     render: async ( body ) => {
         const messages = await fetch( '/wp-json/myapi/v1/messages' )
             .then( ( r ) => r.json() );
@@ -72,7 +70,6 @@ wp.os.registerWindow( {
     id: 'my-plugin/dashboard',
     title: 'Dashboard',
     icon: 'dashicons-chart-bar',
-    native: true,
     render: async ( body, ctx ) => {
         const refresh = async () => {
             ctx.window.markLoading();          // re-show spinner
@@ -138,7 +135,6 @@ wp.os.registerWindow( {
             host.appendChild( status );
         },
     },
-    native: true,
     render: async ( body ) => {
         const messages = await fetchInbox();
         body.innerHTML = renderInbox( messages );

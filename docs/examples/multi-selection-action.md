@@ -132,11 +132,12 @@ window.wp.hooks.addFilter(
 
 ## Accepting a dropped selection
 
-A drop target sees the same set the menu does. The two helpers give
-you one code path for "one" and "many":
+A drop target sees the same set the menu does. `data.placements` is
+absent for a single-item drag, so fall back to the grabbed tile —
+one code path for "one" and "many":
 
 ```js
-import { dragPlacements } from 'openstation/desktop-files';
+const placementsOf = ( data ) => data.placements ?? [ data.placement ];
 
 wp.os.dragManager.registerDropTarget( {
     id: 'my-plugin/zone',
@@ -145,9 +146,9 @@ wp.os.dragManager.registerDropTarget( {
     // part of it tells the user the whole drop worked.
     accept: ( payload ) =>
         payload.type === 'desktop-file' &&
-        dragPlacements( payload.data ).every( ( p ) => p.file.type === 'post' ),
+        placementsOf( payload.data ).every( ( p ) => p.file.type === 'post' ),
     onDrop: ( session ) => {
-        const placements = dragPlacements( session.payload.data );
+        const placements = placementsOf( session.payload.data );
         // One request for the set, not one per item.
         void archiveAll( placements );
     },

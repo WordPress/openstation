@@ -89,7 +89,7 @@ The user's render-returned teardown runs AFTER the closing animation. So async p
 ## Backwards compatibility
 
 - Existing unary `( body ) => …` callbacks: continue to work. JS ignores the extra arg.
-- Existing callers using `ctx.window.markLoading()` (the 0.6.0 surface): still work — that surface is unchanged.
+- Existing callers using `ctx.window.markLoading()` (the original surface): still work — that surface is unchanged.
 - `WindowConfig.onResize` (registration-time field): still fires alongside `ctx.onResize`. Use whichever fits your code shape — the registration-time field is an inline bag for plugins that prefer not to subscribe inside the render body.
 
 ## See also

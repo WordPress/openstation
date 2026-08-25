@@ -2,8 +2,8 @@
 
 Two ways to add tabs to a native window:
 
-1. **[PHP-only (zero template boilerplate)](#option-a-php-only-registration)** — register the window, then register extra tabs with `openstation_register_window_tab()`. The shell emits the `<os-tabs>` + `<os-tabpanel>` markup for you. Matches the legacy iframe-window DX where submenus auto-become tabs.
-2. **[Hand-rolled markup (still supported)](#option-b-hand-rolled-os-tabpanel)** — write the `<os-tabs>` + `<os-tabpanel>` elements directly in your template callback. Auto-swap via `<os-tabpanel>` (from `0.5.0`) still handles pane visibility — you just author the tab strip yourself.
+1. **[PHP-only (zero template boilerplate)](#option-a-php-only-registration)** — register the window, then register extra tabs with `openstation_register_window_tab()`. The shell builds the tab strip in the window chrome and emits the `<os-tabpanel>` markup for you. Matches the legacy iframe-window DX where submenus auto-become tabs.
+2. **[Hand-rolled markup (still supported)](#option-b-hand-rolled-os-tabpanel)** — write the `<os-tabs>` + `<os-tabpanel>` elements directly in your template callback. Auto-swap via `<os-tabpanel>` still handles pane visibility — you just author the tab strip yourself.
 
 Pick option A for the common case (static tab list, one plugin owns the window). Pick option B when you need dynamic tabs, conditional panes, or custom layouts the auto-wrap can't express.
 
@@ -48,15 +48,11 @@ openstation_register_window_tab( 'jorvy', array(
 ) );
 ```
 
-That's the entire tab-strip wiring. The shell produces this rendered template automatically:
+That's the entire tab-strip wiring. The shell produces this rendered template for the window body automatically:
 
 ```html
 <template id="os-native-window-jorvy">
     <os-stack gap="12" padding="16">
-        <os-tabs value="main">
-            <os-tab value="main">Quotes</os-tab>
-            <os-tab value="about">About</os-tab>
-        </os-tabs>
         <os-tabpanel for="main">
             <p class="jorvy__quote"></p>
             <cite class="jorvy__attr"></cite>
@@ -68,7 +64,7 @@ That's the entire tab-strip wiring. The shell produces this rendered template au
 </template>
 ```
 
-`<os-tabpanel>` auto-swap handles visibility — non-active panels arrive with `hidden` pre-stamped so first paint is correct regardless of upgrade order. `role="tablist"` / `role="tab"` / `role="tabpanel"` wired by the components. The wrap's `padding="16"` is configurable via the `main_tab_padding` registration arg or the `openstation_native_window_tab_wrap_padding` filter.
+The tab strip itself is deliberately absent from this markup: the shell builds it in the window chrome, directly under the title bar (the `.os-window__tab` buttons), from the same tab metadata — the same strip an admin-page window wears for its sub-pages, with the roving `tabindex`, arrow keys, and `role="tablist"` / `role="tab"` wiring for free. Tab changes surface as the `os-window-tab-change` CustomEvent on the window element (see [`docs/migration-window-tabs.md`](../migration-window-tabs.md)). Non-active panels arrive with `hidden` pre-stamped so first paint is correct regardless of upgrade order. The wrap's `padding="16"` is configurable via the `main_tab_padding` registration arg or the `openstation_native_window_tab_wrap_padding` filter.
 
 ### Companion-plugin extension
 
@@ -142,7 +138,7 @@ The stats script can then wire its own pane in isolation (it only looks inside `
 
 Useful when Option A is too prescriptive — e.g. you want panels wrapped in a custom card, or dynamic tabs that change based on server state the shell doesn't know about.
 
-Earlier versions of the kit shipped `<os-tabs>` + `<os-tab>` but left pane management as homework — every multi-tab native window ended up copying the same `os-tab-change` listener and `panel.hidden = …` ladder. The `<os-tabpanel>` auto-swap (from `0.5.0`) removes that half.
+Earlier versions of the kit shipped `<os-tabs>` + `<os-tab>` but left pane management as homework — every multi-tab native window ended up copying the same `os-tab-change` listener and `panel.hidden = …` ladder. The `<os-tabpanel>` auto-swap removes that half.
 
 ## The pattern
 

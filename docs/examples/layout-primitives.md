@@ -252,7 +252,7 @@ Input components (`<os-text-field>`, `<os-number-field>`, `<os-select>`) auto-ge
 os-<window>-<tab-path>-<label-slug>
 ```
 
-Example: a `<os-select label="From unit">` inside `<os-tabpanel for="convert">` inside `<div id="wp-window-calculator">` gets `id="os-calculator-tab-convert-from-unit"` automatically. The inner `<select>` gets the same id with a `__input` suffix, and the component's `<label>` uses `for=` to pair them — clicking the label focuses the control.
+Example: a `<os-select label="From unit">` inside `<os-tabpanel for="convert">` inside `<div id="wp-window-calculator">` gets `id="os-calculator-tab-convert-from-unit"` automatically. The inner control gets the same id with a suffix — `__input` for `<os-text-field>` / `<os-number-field>`, `__trigger` for `<os-select>`'s combobox button — and the component's `<label>` uses `for=` to pair them — clicking the label focuses the control.
 
 **Same ancestry + same label always produces the same id.** Plugin authors can `document.getElementById( 'os-calculator-tab-convert-from-unit' )` and know they're reaching the same element across rebuilds.
 
@@ -267,7 +267,7 @@ Pass a custom `id` attribute and the auto-id machinery steps aside:
 </os-select>
 ```
 
-The host keeps `id="my-brand-picker"`, the inner `<select>` gets `id="my-brand-picker__input"`, and `<label for="my-brand-picker__input">` pairs correctly. Auto-id only fires when the caller didn't set one.
+The host keeps `id="my-brand-picker"`, the inner combobox button gets `id="my-brand-picker__trigger"`, and `<label for="my-brand-picker__trigger">` pairs correctly. Auto-id only fires when the caller didn't set one.
 
 ## Accessibility notes
 
@@ -275,7 +275,7 @@ The host keeps `id="my-brand-picker"`, the inner `<select>` gets `id="my-brand-p
 - `<os-row>` uses CSS grid under the hood — standard browser behaviour for keyboard navigation and screen readers applies to its children.
 - Auto-id guarantees that input controls have a stable `id` and a real `<label for>` pairing inside the shadow root — both silence Chrome's "form field needs an id or name" warning and give screen readers a proper accessible name.
 
-## `<os-ribbon>` — corner ribbon decoration *(experimental)*
+## `<os-ribbon>` — corner ribbon decoration
 
 A 45° banner that wraps a corner of its parent — the classic "FEATURED / NEW / BETA / SALE" stamp on a card. The component owns its own clipping geometry; consumers only need to make the parent a positioned containing block.
 

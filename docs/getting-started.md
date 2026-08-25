@@ -83,7 +83,7 @@ await trackedFetch( '/wp-json/myplugin/v1/save', init, {
 
 > **Lint enforces this.** Raw `fetch()` and `window.fetch()` calls fail lint. The handful of legitimate exceptions (the wrapper itself, the PWA service worker, genuinely-silent background pollers) are documented inline with `eslint-disable-next-line` comments.
 
-See [`javascript-reference.md`](./javascript-reference.md#wpdesktopfetch-input-init-opts---stable) for the full signature.
+See [`javascript-reference.md`](./javascript-reference.md#wposfetch-input-init-opts---stable) for the full signature.
 
 ## 5. React to window events (JavaScript)
 

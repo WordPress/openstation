@@ -151,7 +151,10 @@ the crown is allowed to fill (an ellipse / egg sitting on a trunk gap), plus:
 - `heightMax` (`Hmax`) — overall tree height.
 - `crownRadius` — half-width of the canopy.
 - `trunkBaseGirth` — base thickness of the trunk.
-- `maxDepth` — maximum branching levels, from the age table:
+- `maxDepth` — maximum branching levels. The envelope always carries the
+  ancient tier's cap of **12** (the canonical skeleton is built to full
+  depth); the age table below is applied at *reveal* time by
+  `maxDepthForAge( age01 )`:
 
 | Age | Levels |
 |---|---|
@@ -160,7 +163,7 @@ the crown is allowed to fill (an ellipse / egg sitting on a trunk gap), plus:
 | 6–24 months | 6 |
 | 2–5 years | 8 |
 | 5–10 years | 10 |
-| 10+ years | effectively unlimited (finer bifurcations / texture, **not** more height) |
+| 10+ years | 12 — the hard cap (finer bifurcations / texture, **not** more height) |
 
 **The canonical-skeleton principle (the crux):** the envelope — and
 therefore the attractor cloud and the fully-grown skeleton — is a function
@@ -209,7 +212,8 @@ Space Colonization Algorithm"*).
    - an **upward tropism** term (this is what makes growth go bottom→top),
    - a slight gravity **droop** at the tips.
 3. Attractors within the **kill radius** `dk` of any node are removed.
-4. Termination: attractors exhausted **or** the age-derived node cap reached.
+4. Termination: attractors exhausted **or** the envelope-derived node cap
+   reached (`maxNodes = max( 6, round( attractorBudget × 2 ) )`).
 
 **Why bottom→top emerges:** root at the base + attractors above + upward
 tropism. No coordinate is dictated; the direction is an emergent average.
@@ -240,11 +244,16 @@ geometry — **no branch sprites**, so no two branches are ever identical:
 
 For each parent→child chain:
 
-1. Build a **centerline** through the node positions (Catmull-Rom).
-2. Subdivide it.
-3. Displace each sample with **Perlin / simplex noise** (organic undulation).
-4. Emit a **tapered ribbon** (triangle strip) — or a thick PIXI stroke — with
-   width = interpolated `girth` along the chain.
+1. Build the **centerline** straight through the node positions — one
+   sample per node, no smoothing or subdivision. (The organic wobble is
+   already in the node positions themselves, from the growth jitter; an
+   optional per-node displacement hook is how the wind bends the chain.)
+2. Derive per-point radii from the accumulated girth, with a root flare
+   on the ground run and a pinched first vertex on child runs so forks
+   don't web into melted wedges.
+3. Offset the edges along per-point normals and emit a watertight
+   **tapered ribbon** (triangle strip) with width = `girth` along the
+   chain.
 
 Per-vertex **`compliance`** is stored (0 at the root → 1 at the tips) and
 drives the wind: tips sway, the trunk stays still.
@@ -256,7 +265,7 @@ drives the wind: tips sway, the trunk stays still.
 `LeafGenerator.populate( nodes, hormones, palette )`:
 
 - **Never "one leaf per post."** A hard cap `maxLeaves = f( foliage01 )`
-  (e.g. 400–1600). `postsPerLeaf = ceil( totalPosts / maxLeaves )`. Because
+  (LOD bounds 6–3200: a sprout wears a handful, an oak up to 3200). `postsPerLeaf = ceil( totalPosts / maxLeaves )`. Because
   there is no zoom, this is a **fixed LOD cap** — no split-on-zoom.
 - Leaves seek **terminal nodes** (highest `compliance` / most "light");
   distributed along branch length with jitter.
@@ -316,7 +325,7 @@ its target and applies the wind displacement (× per-leaf compliance).
   by `wind01`, applied per vertex / per leaf multiplied by `compliance` (tips
   sway, trunk still). Non-interactive. **Reduced-motion → `wind01 = 0`,
   static frame.** `setStrength( w01 )` retunes live.
-- **`FireflyLayer`** — `spark` particles in a `ParticleContainer` with
+- **`FireflyLayer`** — spark `Sprite`s in an ordinary `Container` with
   additive glow, drifting through the canopy; the count follows live
   presence. `setCount( n )` then `update( dt )`.
 - **`FallingLeaves`** — every few seconds one leaf detaches from a real
@@ -363,7 +372,7 @@ hormones re-point and the decoration re-eases; the skeleton only re-grows if
 ## A.11 Render layers (PIXI containers, back → front)
 
 ```
-ground · wildflowers · branches (ribbon mesh) · leaves (ParticleContainer) · blossom · butterflies · fireflies (additive)
+ground · wildflowers · branches (ribbon mesh) · leaves (Container of Sprites) · blossom · butterflies · fireflies (additive)
 ```
 
 No camera zoom / pan. Fixed fit to the desktop. A `ResizeObserver` re-fits the
@@ -383,8 +392,11 @@ individual rows.
 
 Permission defaults to `current_user_can( 'read' )`, filterable via
 `openstation_living_tree_user_can_use`. The response is cached in a transient
-(`openstation_living_tree_*`, TTL 6h, keyed by a content signature;
-invalidated on `save_post` / `deleted_post` / `comment_post`).
+under one fixed key, `desktop_mode_living_tree_snapshot` (TTL 6h) —
+the value keeps its pre-rebrand spelling deliberately, so live caches
+stay addressable. Freshness comes from `delete_transient()` on
+`save_post` / `deleted_post` / `comment_post`, not from a
+content-signature key.
 
 ---
 
