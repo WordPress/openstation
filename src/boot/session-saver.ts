@@ -14,6 +14,8 @@
 
 import { HOOKS, doAction } from '../hooks';
 import { trackedFetch } from './tracked-fetch';
+import { rememberRestoreTargets } from '../pwa/speculate';
+import { withChromelessParam } from '../window/dom';
 import type { WindowManager } from '../window-manager';
 import type { DesktopConfig } from '../types';
 
@@ -72,6 +74,24 @@ export function createSessionSaver(
 		// so the payload reflects the state at send time, not at the
 		// moment the save was queued.
 		const payload = manager.snapshot();
+
+		// Hand the worker the list of screens this session will
+		// restore. It cannot use them now — it uses them on the NEXT
+		// boot, where it is woken by the shell's own navigation and can
+		// start fetching these documents in parallel with the server
+		// building the shell, instead of ~3.9s later once the shell's
+		// JavaScript exists to ask. See `rememberRestoreTargets()`.
+		try {
+			rememberRestoreTargets(
+				payload.windows
+					.filter( ( w ) => ! w.native && w.url )
+					.map( ( w ) => withChromelessParam( w.url ) || '' )
+					.filter( Boolean ),
+			);
+		} catch {
+			// Never let a speculation hint break a session save.
+		}
+
 		try {
 			// Session save is a debounced background ping — silent
 			// so the user doesn't see a spinner every time they

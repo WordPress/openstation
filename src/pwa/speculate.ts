@@ -75,3 +75,62 @@ export function speculateDocument( url: string ): void {
 export function _resetSpeculation(): void {
 	asked.clear();
 }
+
+/** The worker persists this list and replays it on the next boot. */
+const REMEMBER_MESSAGE = 'os-remember-session';
+
+/**
+ * Tell the worker which screens this session will restore, so it can
+ * start fetching them on the *next* boot without waiting to be asked.
+ *
+ * This is the boot's serial problem, measured on a live install:
+ *
+ *     0ms ─── shell document requested
+ *   3172ms ─── shell HTML arrives (the server spent 3.2s building it)
+ *   3876ms ─── only now does a window document get requested
+ *   6491ms ─── everything ready
+ *
+ * The window's document does not depend on a single byte of the
+ * shell's, yet it cannot even be *asked for* until the shell's HTML has
+ * arrived and its JavaScript has run and built an iframe. Two
+ * independent server renders, run strictly one after the other.
+ *
+ * The shell cannot fix this from inside itself — by the time its code
+ * is running, the 3.2 seconds are already spent. The worker can:
+ * it is woken by the shell's own navigation, before any of that, and
+ * it can start the window fetches right then. But it only knows what
+ * to fetch if it was told last time, which is what this does.
+ *
+ * Sent on every session save, so the list tracks whatever the user
+ * actually has open.
+ *
+ * @param urls Chromeless URLs of the windows to restore.
+ */
+export function rememberRestoreTargets( urls: string[] ): void {
+	if (
+		typeof navigator === 'undefined' ||
+		! ( 'serviceWorker' in navigator ) ||
+		! navigator.serviceWorker.controller
+	) {
+		return;
+	}
+	const absolute: string[] = [];
+	for ( const url of urls ) {
+		try {
+			const parsed = new URL( url, window.location.href );
+			if ( parsed.origin === window.location.origin ) {
+				absolute.push( parsed.toString() );
+			}
+		} catch {
+			// Skip anything unparseable.
+		}
+	}
+	try {
+		navigator.serviceWorker.controller.postMessage( {
+			type: REMEMBER_MESSAGE,
+			urls: absolute,
+		} );
+	} catch {
+		// Best-effort, exactly like the speculation itself.
+	}
+}

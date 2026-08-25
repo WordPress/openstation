@@ -81,6 +81,7 @@ interface SWPushEvent {
 interface SWFetchEvent {
 	request: Request;
 	respondWith: ( r: Response | Promise< Response > ) => void;
+	waitUntil: ( p: Promise< unknown > ) => void;
 }
 interface SWExtendableEvent {
 	waitUntil: ( p: Promise< unknown > ) => void;
@@ -300,6 +301,11 @@ sw.addEventListener( 'fetch', ( event: SWFetchEvent ) => {
 	}
 
 	if ( req.mode === 'navigate' && req.destination === 'document' ) {
+		// The shell is being loaded. Start its windows' documents now,
+		// in parallel with the server building this one, instead of
+		// after it — see `replayRestoreTargets()`. Fire-and-forget:
+		// the navigation below must not wait on speculation.
+		event.waitUntil( replayRestoreTargets() );
 		// Only intercept TOP-LEVEL navigations. Iframe navigations
 		// (`req.destination === 'iframe'`) pass through directly to
 		// the browser. If the SW called `fetch( req )` for an iframe
@@ -420,8 +426,92 @@ function takeSpeculative(
 	return entry.res;
 }
 
+/**
+ * Where the restore list lives between visits.
+ *
+ * A Cache entry rather than IndexedDB because the worker already owns
+ * caches, and this is one small JSON blob read once per boot. The key
+ * is a synthetic same-origin URL that nothing ever navigates to.
+ */
+const SESSION_CACHE = `os-session-${ VERSION }`;
+const SESSION_KEY = '/__openstation_restore_targets__';
+
+/** Guard so one boot fires the replay once, not per intercepted request. */
+let replayedThisBoot = false;
+
+/**
+ * Start fetching the windows this session will restore, without
+ * waiting to be asked.
+ *
+ * Called the moment the shell's own top-level navigation reaches the
+ * worker — which is *before* the server has finished building the
+ * shell document, and long before the shell's JavaScript exists to ask
+ * for anything. That is the entire point: the two server renders are
+ * independent, and this is the only place in the system that can see
+ * the second one coming early enough to overlap them.
+ */
+async function replayRestoreTargets(): Promise< void > {
+	if ( replayedThisBoot || ! CONFIG.windowPrewarm ) {
+		return;
+	}
+	replayedThisBoot = true;
+	try {
+		const cache = await caches.open( SESSION_CACHE );
+		const stored = await cache.match( SESSION_KEY );
+		if ( ! stored ) {
+			return;
+		}
+		const urls = ( await stored.json() ) as unknown;
+		if ( ! Array.isArray( urls ) ) {
+			return;
+		}
+		for ( const raw of urls.slice( 0, SPECULATIVE_MAX ) ) {
+			if ( typeof raw !== 'string' ) {
+				continue;
+			}
+			try {
+				const url = new URL( raw );
+				if (
+					url.origin === sw.location.origin &&
+					isSpeculatableDocument( url )
+				) {
+					beginSpeculation( url.toString() );
+				}
+			} catch {
+				// Skip anything unparseable.
+			}
+		}
+	} catch {
+		// Best-effort: a boot must never fail because speculation did.
+	}
+}
+
 sw.addEventListener( 'message', ( event: SWMessageEvent ) => {
-	const data = event.data as { type?: string; url?: string } | undefined;
+	const data = event.data as
+		| { type?: string; url?: string; urls?: unknown }
+		| undefined;
+
+	// The restore list for the NEXT boot.
+	if ( data && data.type === 'os-remember-session' ) {
+		const urls = Array.isArray( data.urls ) ? data.urls : [];
+		event.waitUntil(
+			( async () => {
+				try {
+					const cache = await caches.open( SESSION_CACHE );
+					await cache.put(
+						SESSION_KEY,
+						new Response( JSON.stringify( urls.slice( 0, SPECULATIVE_MAX ) ), {
+							headers: { 'Content-Type': 'application/json' },
+						} ),
+					);
+				} catch {
+					// Best-effort.
+				}
+			} )(),
+		);
+		return;
+	}
+
 	if ( ! data || data.type !== 'os-speculate-doc' || ! data.url ) {
 		return;
 	}
@@ -439,14 +529,26 @@ sw.addEventListener( 'message', ( event: SWMessageEvent ) => {
 	if ( url.origin !== sw.location.origin || ! isSpeculatableDocument( url ) ) {
 		return;
 	}
-	const href = url.toString();
-	if ( speculative.has( href ) ) {
-		return;
+	const started = beginSpeculation( url.toString() );
+	if ( started ) {
+		event.waitUntil( started );
 	}
+} );
 
-	// Registered before the fetch resolves, so a click that lands
-	// mid-flight finds the promise and waits on it rather than
-	// starting a duplicate request.
+/**
+ * Fetch a document now and hold it for the navigation that follows.
+ *
+ * Returns the in-flight promise, or `null` when this URL is already
+ * being held — the caller only needs it to keep the worker alive.
+ *
+ * The entry is registered *before* the fetch resolves, so a navigation
+ * that lands mid-flight finds the promise and waits on it rather than
+ * starting a duplicate request for the same screen.
+ */
+function beginSpeculation( href: string ): Promise< Response | null > | null {
+	if ( speculative.has( href ) ) {
+		return null;
+	}
 	const inFlight = ( async () => {
 		try {
 			// eslint-disable-next-line no-restricted-syntax -- service-worker context, no `wp.os` global available; raw fetch is the API.
@@ -470,8 +572,8 @@ sw.addEventListener( 'message', ( event: SWMessageEvent ) => {
 
 	speculative.set( href, { at: Date.now(), res: inFlight } );
 	pruneSpeculative();
-	event.waitUntil( inFlight );
-} );
+	return inFlight;
+}
 
 /**
  * Whether a URL is a plain admin screen we may fetch early.
