@@ -241,6 +241,49 @@ describe( 'rememberRestoreTargets', () => {
 			.serviceWorker;
 	} );
 
+	test( 'sends nothing at all when the opt-in is off', async () => {
+		// "Off by default" has to mean a user who never touched the
+		// setting does not pay so much as a postMessage. The gate lives
+		// in the session saver, so exercise it the way the saver does.
+		const { createSessionSaver } = await import(
+			'../../src/boot/session-saver'
+		);
+		const { installHooksStub, clearHooksStub } = await import(
+			'./helpers/hooks-stub'
+		);
+		installHooksStub();
+		const wp = ( window as unknown as { wp?: Record< string, unknown > } )
+			.wp as Record< string, unknown >;
+		// Merge rather than replace — the saver's error path needs the
+		// hooks stub installed above to still be reachable.
+		wp.os = {
+			getOsSettings: () => ( { windowPrewarmEnabled: false } ),
+			// The saver persists through `wp.os.fetch`; stub it so this
+			// test exercises the gate, not the network.
+			fetch: async () => new Response( '{}' ),
+		};
+		const manager = {
+			snapshot: () => ( {
+				windows: [ { id: 'a', url: '/wp-admin/index.php', native: false } ],
+				desktops: [],
+				activeDesktop: '',
+				focused: '',
+				updated: 0,
+			} ),
+		};
+		const save = createSessionSaver(
+			manager as never,
+			{ sessionUrl: '/x', restNonce: 'n' } as never,
+		);
+		save();
+		await new Promise( ( r ) => setTimeout( r, 800 ) );
+
+		expect( posted.filter( ( m ) => m.type === 'os-remember-session' ) )
+			.toHaveLength( 0 );
+		clearHooksStub();
+		delete ( wp as { os?: unknown } ).os;
+	} );
+
 	test( 'sends the restore list absolute, dropping foreign origins', () => {
 		rememberRestoreTargets( [
 			'/wp-admin/index.php' + CHROMELESS,

@@ -149,7 +149,7 @@ Two triggers, one mechanism:
 | Trigger | What happens |
 |---|---|
 | **Hovering a submenu tab** | The shell posts `os-speculate-doc`; the worker fetches that screen and holds it. |
-| **Booting the shell** | The worker replays the previous session's restore list the moment the shell's own navigation arrives — *before* the server has finished building the shell document, so the two renders overlap instead of running back to back. The list is persisted from `os-remember-session`, which the session saver posts on every save. |
+| **Booting the shell** | The worker replays the previous session's restore list the moment the shell's own navigation arrives — *before* the server has finished building the shell document, so the two renders overlap instead of running back to back. The list is persisted from `os-remember-session`, which the session saver posts from **both** of its paths: the debounced save and the `pagehide` beacon. The unload path matters most — it carries the state at the moment the tab closed, which is exactly the "close it and come straight back" case this is for. |
 
 Measured on production hosting: window-document TTFB **1,353 ms → ~1 ms**, whole shell boot **6,492 ms → ~4,700 ms**, a hovered tab click **~3,600 ms → ~1,000 ms**.
 
@@ -160,7 +160,7 @@ Measured on production hosting: window-document TTFB **1,353 ms → ~1 ms**, who
 - **The store holds the in-flight promise, not the settled response**, so a navigation landing mid-fetch joins the request already running instead of starting a second one for the same screen.
 - **Answering an iframe navigation is safe only because the response is never re-fetched.** The worker otherwise refuses iframe navigations: re-fetching one makes Chrome send `Sec-Fetch-Dest: empty`, the server's chromeless detection falls through, and the whole desktop renders inside a window. A speculative document is fetched once, ahead of time, from a URL carrying the chromeless flag — which the server reads *before* it consults Sec-Fetch.
 - The speculative fetch is a plain same-origin GET and does not forward `Referer` or `Accept-Language` from the navigation it stands in for. Admin screens do not branch on either (locale comes from the user's profile, server-side).
-- Gated on the **hover-prewarm** opt-in (`windowPrewarmEnabled`), delivered to the worker as `windowPrewarm` in the `self.__OS_SW_CONFIG` preamble. Off by default.
+- Gated on the **hover-prewarm** opt-in (`windowPrewarmEnabled`), delivered to the worker as `windowPrewarm` in the `self.__OS_SW_CONFIG` preamble. Off by default, and checked on both sides: the shell skips the `postMessage` entirely, and the worker ignores either message if the flag is off. A user who never touches the setting does not pay so much as a message.
 
 ### Worker message surface
 

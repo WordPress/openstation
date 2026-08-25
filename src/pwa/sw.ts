@@ -457,8 +457,14 @@ sw.addEventListener( 'message', ( event: SWMessageEvent ) => {
 		| { type?: string; url?: string; urls?: unknown }
 		| undefined;
 
-	// The restore list for the NEXT boot.
+	// The restore list for the NEXT boot. Gated like everything else
+	// here: the shell already checks the opt-in before posting, and
+	// checking again means a stray message can never make an
+	// opted-out browser start writing caches.
 	if ( data && data.type === 'os-remember-session' ) {
+		if ( ! CONFIG.windowPrewarm ) {
+			return;
+		}
 		const urls = Array.isArray( data.urls ) ? data.urls : [];
 		event.waitUntil(
 			( async () => {
