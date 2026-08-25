@@ -22,6 +22,10 @@ class Tests_OpenStation_ChromelessTrim extends WP_UnitTestCase {
 		unset( $_GET['openstation_chromeless'] );
 		remove_all_filters( 'openstation_chromeless_trimmed_scripts' );
 		remove_all_filters( 'openstation_chromeless_trimmed_styles' );
+		remove_all_filters( 'openstation_chromeless_trim_emoji' );
+		// Restore Core's emoji hooks for any test that follows.
+		add_action( 'admin_print_scripts', 'print_emoji_detection_script' );
+		add_action( 'admin_enqueue_scripts', 'wp_enqueue_emoji_styles' );
 		parent::tear_down();
 	}
 
@@ -188,6 +192,54 @@ class Tests_OpenStation_ChromelessTrim extends WP_UnitTestCase {
 
 		// `os-admin-bar` is a script handle; the style list leaves it.
 		$this->assertSame( array( 'os-admin-bar', 'colors' ), $out );
+	}
+
+	/**
+	 * The emoji polyfill goes the way Core itself drops it on the
+	 * block-editor screen.
+	 *
+	 * @covers ::openstation_chromeless_suppress_emoji
+	 */
+	public function test_emoji_polyfill_dropped_in_a_window() {
+		$this->enter_chromeless();
+
+		openstation_chromeless_suppress_emoji();
+
+		$this->assertFalse(
+			has_action( 'admin_print_scripts', 'print_emoji_detection_script' )
+		);
+		$this->assertFalse(
+			has_action( 'admin_enqueue_scripts', 'wp_enqueue_emoji_styles' )
+		);
+	}
+
+	/**
+	 * @covers ::openstation_chromeless_suppress_emoji
+	 */
+	public function test_emoji_polyfill_kept_in_the_shell() {
+		wp_set_current_user( self::$admin_id );
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		// No chromeless flag.
+
+		openstation_chromeless_suppress_emoji();
+
+		$this->assertNotFalse(
+			has_action( 'admin_print_scripts', 'print_emoji_detection_script' )
+		);
+	}
+
+	/**
+	 * @covers ::openstation_chromeless_suppress_emoji
+	 */
+	public function test_emoji_trim_can_be_filtered_off() {
+		$this->enter_chromeless();
+		add_filter( 'openstation_chromeless_trim_emoji', '__return_false' );
+
+		openstation_chromeless_suppress_emoji();
+
+		$this->assertNotFalse(
+			has_action( 'admin_print_scripts', 'print_emoji_detection_script' )
+		);
 	}
 
 	/**

@@ -1780,6 +1780,17 @@ The stylesheet counterpart. Defaults: `admin-bar`, `wpcom-notes-admin-bar`. Drop
 apply_filters( 'openstation_chromeless_trimmed_styles', string[] $handles );
 ```
 
+### `openstation_chromeless_trim_emoji` — Experimental
+
+Whether WordPress's emoji polyfill is dropped inside chromeless windows. Default `true`.
+
+Worth being precise about what this is: the inline detection script tests the browser against the newest Unicode emoji set and, when anything is missing, pulls in `wp-emoji-release.min.js` (Twemoji, 22 KB) to swap those characters for images. It is a real polyfill, not dead code — measured loading on current Chrome inside a window. Dropping it means a very new emoji in admin content renders with the operating system's own glyph instead of a Twemoji image. Core sets the precedent: `wp-admin/edit-form-blocks.php` removes the same action on the block-editor screen.
+
+```php
+// Keep Twemoji's image replacement inside windows.
+add_filter( 'openstation_chromeless_trim_emoji', '__return_false' );
+```
+
 ### `openstation_chromeless_trimmed_assets` — Experimental (action)
 
 Fires after the trim runs inside a window — the point to dequeue anything else that only decorates chrome a window does not draw.

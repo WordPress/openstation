@@ -129,6 +129,60 @@ function openstation_chromeless_trim_assets() {
 add_action( 'admin_enqueue_scripts', 'openstation_chromeless_trim_assets', PHP_INT_MAX );
 
 /**
+ * Drops WordPress's emoji polyfill inside chromeless windows.
+ *
+ * **What this actually is**, because it is easy to overstate: the
+ * inline detection script tests the browser against the newest Unicode
+ * emoji set, and when anything is missing it pulls in
+ * `wp-emoji-release.min.js` (Twemoji, 22 KB) to swap those characters
+ * for images. It is a compatibility polyfill, not dead code — a live
+ * measurement on current Chrome showed the 22 KB file genuinely
+ * loading inside a window, because browsers routinely lag the newest
+ * emoji.
+ *
+ * **Why dropping it in a window is still right.** Core sets the
+ * precedent itself: `wp-admin/edit-form-blocks.php` removes this exact
+ * action on the block-editor screen. The only thing lost inside a
+ * window is that a very new emoji in admin content — a post title, a
+ * comment — renders with the operating system's own glyph (or its
+ * fallback) instead of a Twemoji image. And the shell that hosts these
+ * windows already requires service workers, custom elements, ES2020
+ * and `:has()`; a browser that clears that bar is not one that needs
+ * help drawing emoji at all.
+ *
+ * Removal happens on `admin_init` because `wp_enqueue_emoji_styles`
+ * rides `admin_enqueue_scripts` at the default priority — by the time
+ * the handle trim above runs at `PHP_INT_MAX`, it has already fired.
+ * This is the same hook and the same reasoning as the admin-bar
+ * suppression in `includes/helpers.php`.
+ */
+function openstation_chromeless_suppress_emoji() {
+	if ( ! openstation_is_chromeless_request() ) {
+		return;
+	}
+
+	/**
+	 * Filters whether the emoji polyfill is dropped inside windows.
+	 *
+	 * Return `false` to keep Twemoji's image replacement for admin
+	 * content shown in a window.
+	 *
+	 * @param bool $trim Defaults to `true`.
+	 */
+	if ( ! apply_filters( 'openstation_chromeless_trim_emoji', true ) ) {
+		return;
+	}
+
+	remove_action( 'admin_print_scripts', 'print_emoji_detection_script' );
+	remove_action( 'admin_enqueue_scripts', 'wp_enqueue_emoji_styles' );
+	// Retained by Core for back-compat and normally unhooked by
+	// `wp_enqueue_emoji_styles()`; removed here because we just took
+	// that away, and it would otherwise print the styles instead.
+	remove_action( 'admin_print_styles', 'print_emoji_styles' );
+}
+add_action( 'admin_init', 'openstation_chromeless_suppress_emoji' );
+
+/**
  * Second pass: strip trimmed handles from the actual print list.
  *
  * The dequeue above cannot be the whole story, and a live install
