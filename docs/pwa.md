@@ -49,7 +49,13 @@ the foreign-SW guard.
 
 If any other service worker (any scope) is already registered on the
 origin, the registration **bails** with a console warning rather than
-usurping it. The "Install \<site\> as an app" tile then surfaces a
+usurping it. OpenStation's **own** registrations are never treated as
+foreign — that includes the current pretty URL, the extensionless
+fallback, and legacy endpoints from before a portal-path move (e.g.
+`/desktop-mode/sw.js`). A browser stuck on such a stale worker (its
+old endpoint no longer serves JavaScript, so it can never self-update)
+is recovered automatically: registering the current URL at the same
+scope replaces it on the next shell load. The "Install \<site\> as an app" tile then surfaces a
 focused toast pointing at the opt-in filter (rather than the generic
 "not available" fallback), so users on affected sites see the
 actionable message instead of silently broken behaviour.

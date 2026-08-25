@@ -128,6 +128,66 @@ describe( 'registerServiceWorker extensionless fallback', () => {
 		expect( register ).toHaveBeenCalledTimes( 1 );
 	} );
 
+	test( 'a stale legacy own SW (old portal path) is replaced, not treated as foreign', async () => {
+		// The pre-portal-move endpoint. It now 404s server-side, so
+		// this worker can never self-update — the registration below
+		// must recognize it as our own and replace it by registering
+		// the current URL at the same scope.
+		const legacy: RegistrationLike = {
+			scope: '/',
+			active: {
+				scriptURL: 'https://example.test/desktop-mode/sw.js',
+				state: 'activated',
+			} as unknown as ServiceWorker,
+			installing: null,
+		};
+		const { register } = installSwStub( {
+			failUrls: [],
+			registrations: [ legacy ],
+		} );
+		const reg = await registerServiceWorker( makeConfig() );
+
+		expect( reg ).not.toBeNull();
+		expect( getSwRegistrationStatus() ).toBe( 'registered' );
+		expect( register ).toHaveBeenCalledWith( SW_URL, expect.anything() );
+	} );
+
+	test( 'a subdirectory-install legacy own SW is also recognized', async () => {
+		const legacy: RegistrationLike = {
+			scope: '/',
+			active: {
+				scriptURL: 'https://example.test/site2/desktop-mode/sw.js',
+				state: 'activated',
+			} as unknown as ServiceWorker,
+			installing: null,
+		};
+		installSwStub( { failUrls: [], registrations: [ legacy ] } );
+		const reg = await registerServiceWorker( makeConfig() );
+
+		expect( reg ).not.toBeNull();
+		expect( getSwRegistrationStatus() ).toBe( 'registered' );
+	} );
+
+	test( 'a genuinely foreign SW still blocks registration', async () => {
+		const other: RegistrationLike = {
+			scope: '/',
+			active: {
+				scriptURL: 'https://example.test/superpwa-sw.js',
+				state: 'activated',
+			} as unknown as ServiceWorker,
+			installing: null,
+		};
+		installSwStub( { failUrls: [], registrations: [ other ] } );
+		const warn = vi
+			.spyOn( console, 'warn' )
+			.mockImplementation( () => undefined );
+		const reg = await registerServiceWorker( makeConfig() );
+
+		expect( reg ).toBeNull();
+		expect( getSwRegistrationStatus() ).toBe( 'foreign-sw' );
+		expect( warn ).toHaveBeenCalled();
+	} );
+
 	test( 'a fallback-registered SW is ours, not foreign, on the next boot', async () => {
 		const existing: RegistrationLike = {
 			scope: '/',
