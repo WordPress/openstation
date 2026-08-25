@@ -279,7 +279,22 @@ sw.addEventListener( 'fetch', ( event: SWFetchEvent ) => {
 	if ( req.mode === 'navigate' && speculative.size > 0 ) {
 		const held = takeSpeculative( url.toString() );
 		if ( held ) {
-			event.respondWith( held );
+			event.respondWith(
+				held.then( ( res ) => {
+					if ( res ) {
+						return res;
+					}
+					// The speculative fetch failed or came back
+					// unusable. Re-fetching is safe for exactly these
+					// URLs — every one carries
+					// `openstation_chromeless=1`, which the server
+					// reads before it ever consults Sec-Fetch, so the
+					// hazard the navigate branch below guards against
+					// cannot bite here.
+					// eslint-disable-next-line no-restricted-syntax -- service-worker context, no `wp.os` global available; raw fetch is the API.
+					return fetch( req );
+				} ),
+			);
 			return;
 		}
 	}
@@ -351,7 +366,22 @@ const SPECULATIVE_TTL_MS = 30_000;
 /** Cap on held documents — the shell only ever asks for a handful. */
 const SPECULATIVE_MAX = 6;
 
-const speculative = new Map< string, { at: number; res: Response } >();
+/**
+ * Held documents, keyed by exact URL.
+ *
+ * The entry holds the **promise**, not the settled response, and that
+ * is the difference between the feature helping sometimes and helping
+ * always. A user who hovers and clicks half a second later would
+ * otherwise arrive while the fetch is still in flight, find nothing
+ * waiting, and start a *second* request for the same screen — paying
+ * full price and costing the server double. Awaiting the in-flight
+ * promise instead means the click inherits whatever head start the
+ * hover bought, from a few hundred milliseconds up to the whole load.
+ */
+const speculative = new Map<
+	string,
+	{ at: number; res: Promise< Response | null > }
+>();
 
 function pruneSpeculative(): void {
 	const now = Date.now();
@@ -376,7 +406,9 @@ function pruneSpeculative(): void {
  * Exact-match only: a speculative document is the answer to one
  * question, and a near-miss is a different screen.
  */
-function takeSpeculative( url: string ): Response | null {
+function takeSpeculative(
+	url: string,
+): Promise< Response | null > | null {
 	const entry = speculative.get( url );
 	if ( ! entry ) {
 		return null;
@@ -412,28 +444,33 @@ sw.addEventListener( 'message', ( event: SWMessageEvent ) => {
 		return;
 	}
 
-	event.waitUntil(
-		( async () => {
-			try {
-				// eslint-disable-next-line no-restricted-syntax -- service-worker context, no `wp.os` global available; raw fetch is the API.
-				const res = await fetch( href, {
-					credentials: 'same-origin',
-					redirect: 'follow',
-				} );
-				// Only a clean, non-redirected 200 is worth holding: a
-				// redirect means the server wanted to send the user
-				// somewhere else, and replaying the destination under
-				// the original URL would hide that.
-				if ( res.status !== 200 || res.redirected ) {
-					return;
-				}
-				speculative.set( href, { at: Date.now(), res } );
-				pruneSpeculative();
-			} catch {
-				// Speculation is best-effort by definition.
+	// Registered before the fetch resolves, so a click that lands
+	// mid-flight finds the promise and waits on it rather than
+	// starting a duplicate request.
+	const inFlight = ( async () => {
+		try {
+			// eslint-disable-next-line no-restricted-syntax -- service-worker context, no `wp.os` global available; raw fetch is the API.
+			const res = await fetch( href, {
+				credentials: 'same-origin',
+				redirect: 'follow',
+			} );
+			// Only a clean, non-redirected 200 is worth holding: a
+			// redirect means the server wanted to send the user
+			// somewhere else, and replaying the destination under the
+			// original URL would hide that.
+			if ( res.status !== 200 || res.redirected ) {
+				return null;
 			}
-		} )(),
-	);
+			return res;
+		} catch {
+			// Speculation is best-effort by definition.
+			return null;
+		}
+	} )();
+
+	speculative.set( href, { at: Date.now(), res: inFlight } );
+	pruneSpeculative();
+	event.waitUntil( inFlight );
 } );
 
 /**
