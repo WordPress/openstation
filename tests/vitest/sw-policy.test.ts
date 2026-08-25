@@ -164,6 +164,7 @@ describe( 'readSwConfig', () => {
 	it( 'defaults to off + fallback URL on a missing preamble', () => {
 		expect( readSwConfig( undefined, FALLBACK ) ).toEqual( {
 			adminAssetCache: false,
+			windowPrewarm: false,
 			pluginUrl: FALLBACK,
 		} );
 		expect( readSwConfig( 'garbage', FALLBACK ).adminAssetCache ).toBe(
@@ -177,6 +178,18 @@ describe( 'readSwConfig', () => {
 		).toBe( true );
 		expect(
 			readSwConfig( { adminAssetCache: '1' }, FALLBACK ).adminAssetCache,
+		).toBe( false );
+	} );
+
+	it( 'reads the hover-prewarm flag independently of the cache flag', () => {
+		const cfg = readSwConfig(
+			{ adminAssetCache: false, windowPrewarm: true },
+			FALLBACK,
+		);
+		expect( cfg.windowPrewarm ).toBe( true );
+		expect( cfg.adminAssetCache ).toBe( false );
+		expect(
+			readSwConfig( { windowPrewarm: 1 }, FALLBACK ).windowPrewarm,
 		).toBe( false );
 	} );
 

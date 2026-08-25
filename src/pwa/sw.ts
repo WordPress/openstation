@@ -85,12 +85,17 @@ interface SWFetchEvent {
 interface SWExtendableEvent {
 	waitUntil: ( p: Promise< unknown > ) => void;
 }
+interface SWMessageEvent {
+	data?: unknown;
+	waitUntil: ( p: Promise< unknown > ) => void;
+}
 interface SWEventMap {
 	install: SWExtendableEvent;
 	activate: SWExtendableEvent;
 	fetch: SWFetchEvent;
 	push: SWPushEvent;
 	notificationclick: SWNotificationEvent;
+	message: SWMessageEvent;
 }
 interface SWGlobal {
 	addEventListener< K extends keyof SWEventMap >(
@@ -266,6 +271,19 @@ sw.addEventListener( 'fetch', ( event: SWFetchEvent ) => {
 		return;
 	}
 
+	// A window navigating to a document the shell asked us to fetch
+	// early. Answered from the held response — never re-fetched, which
+	// is what keeps the Sec-Fetch hazard described below out of play.
+	// Exact-URL, single-use; anything not waiting falls through to the
+	// normal pass-through for iframes.
+	if ( req.mode === 'navigate' && speculative.size > 0 ) {
+		const held = takeSpeculative( url.toString() );
+		if ( held ) {
+			event.respondWith( held );
+			return;
+		}
+	}
+
 	if ( req.mode === 'navigate' && req.destination === 'document' ) {
 		// Only intercept TOP-LEVEL navigations. Iframe navigations
 		// (`req.destination === 'iframe'`) pass through directly to
@@ -288,6 +306,158 @@ sw.addEventListener( 'fetch', ( event: SWFetchEvent ) => {
 	// don't want to cache REST / AJAX (they carry nonces, per-request
 	// screen state) and HTML in admin pages is never safe to cache.
 } );
+
+/* -------------------------------------------------------------------------
+ * Speculative documents.
+ *
+ * The asset cache took the network out of a window's *assets*. What it
+ * cannot touch is the document: admin HTML carries nonces and
+ * per-request screen state, so it is never cacheable, and on this
+ * install it is the majority of a window open — measured at ~2.1 s of
+ * a ~3.8 s tab click, against ~1.7 s for everything the browser then
+ * does with it.
+ *
+ * That cost does not have to be paid *after* the click. The shell
+ * knows every URL a window can reach (dock items and submenu tabs come
+ * straight from the menu payload) and already reads hover intent. What
+ * was missing is the hand-off: the shell asks for a document ahead of
+ * time, the worker fetches it once and holds it, and the iframe's own
+ * navigation is answered from that held response.
+ *
+ * This is deliberately NOT keeping the tab alive. Nothing rendered is
+ * retained — no DOM, no live iframe, no memory beyond a Response body
+ * that expires in seconds. The page is still built fresh; it is simply
+ * built while the user is still deciding.
+ *
+ * **Why answering an iframe navigation is safe here, when the fetch
+ * handler otherwise refuses to.** The hazard it avoids (see the
+ * navigate branch above, and issue #171) is the worker *re-fetching*
+ * an iframe request: Chrome then sends `Sec-Fetch-Dest: empty`, the
+ * server's chromeless detection falls through, and the whole desktop
+ * renders inside a window. A speculative document is never re-fetched.
+ * It is fetched once, ahead of time, from a URL the shell built with
+ * `openstation_chromeless=1` present — and the server checks that
+ * query flag first, treating Sec-Fetch only as a fallback. So the
+ * bytes held here are already correctly chromeless, and serving them
+ * involves no second request at all.
+ *
+ * Single-use and short-lived on purpose: a document carries nonces and
+ * a moment-in-time view of the screen, so it is served at most once
+ * and only within {@link SPECULATIVE_TTL_MS}.
+ * ---------------------------------------------------------------------- */
+
+const SPECULATIVE_TTL_MS = 30_000;
+
+/** Cap on held documents — the shell only ever asks for a handful. */
+const SPECULATIVE_MAX = 6;
+
+const speculative = new Map< string, { at: number; res: Response } >();
+
+function pruneSpeculative(): void {
+	const now = Date.now();
+	for ( const [ url, entry ] of speculative ) {
+		if ( now - entry.at > SPECULATIVE_TTL_MS ) {
+			speculative.delete( url );
+		}
+	}
+	// Oldest-first eviction if the shell over-asks.
+	while ( speculative.size > SPECULATIVE_MAX ) {
+		const oldest = speculative.keys().next().value;
+		if ( oldest === undefined ) {
+			break;
+		}
+		speculative.delete( oldest );
+	}
+}
+
+/**
+ * Take a held document if one is waiting for this exact URL.
+ *
+ * Exact-match only: a speculative document is the answer to one
+ * question, and a near-miss is a different screen.
+ */
+function takeSpeculative( url: string ): Response | null {
+	const entry = speculative.get( url );
+	if ( ! entry ) {
+		return null;
+	}
+	speculative.delete( url );
+	if ( Date.now() - entry.at > SPECULATIVE_TTL_MS ) {
+		return null;
+	}
+	return entry.res;
+}
+
+sw.addEventListener( 'message', ( event: SWMessageEvent ) => {
+	const data = event.data as { type?: string; url?: string } | undefined;
+	if ( ! data || data.type !== 'os-speculate-doc' || ! data.url ) {
+		return;
+	}
+	if ( ! CONFIG.windowPrewarm ) {
+		// Same opt-in the dock's hover prewarming uses — this is that
+		// feature, applied to the document instead of a whole window.
+		return;
+	}
+	let url: URL;
+	try {
+		url = new URL( data.url );
+	} catch {
+		return;
+	}
+	if ( url.origin !== sw.location.origin || ! isSpeculatableDocument( url ) ) {
+		return;
+	}
+	const href = url.toString();
+	if ( speculative.has( href ) ) {
+		return;
+	}
+
+	event.waitUntil(
+		( async () => {
+			try {
+				// eslint-disable-next-line no-restricted-syntax -- service-worker context, no `wp.os` global available; raw fetch is the API.
+				const res = await fetch( href, {
+					credentials: 'same-origin',
+					redirect: 'follow',
+				} );
+				// Only a clean, non-redirected 200 is worth holding: a
+				// redirect means the server wanted to send the user
+				// somewhere else, and replaying the destination under
+				// the original URL would hide that.
+				if ( res.status !== 200 || res.redirected ) {
+					return;
+				}
+				speculative.set( href, { at: Date.now(), res } );
+				pruneSpeculative();
+			} catch {
+				// Speculation is best-effort by definition.
+			}
+		} )(),
+	);
+} );
+
+/**
+ * Whether a URL is a plain admin screen we may fetch early.
+ *
+ * Speculation must never *do* anything. Anything carrying an action or
+ * a nonce is a request to change something — activating a plugin,
+ * emptying the trash, applying an update — and fetching it ahead of a
+ * click the user has not made yet would perform it. Screens only.
+ */
+function isSpeculatableDocument( url: URL ): boolean {
+	if ( ! url.pathname.includes( '/wp-admin/' ) ) {
+		return false;
+	}
+	if ( ! url.searchParams.has( 'openstation_chromeless' ) ) {
+		return false;
+	}
+	for ( const key of [ 'action', 'action2', '_wpnonce', 'nonce', 'delete_all' ] ) {
+		if ( url.searchParams.has( key ) ) {
+			return false;
+		}
+	}
+	return true;
+}
 
 sw.addEventListener( 'push', ( event: SWPushEvent ) => {
 	// v1: no-op. Phase 4 will populate this from the push payload.

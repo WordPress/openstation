@@ -199,8 +199,13 @@ function openstation_pwa_admin_asset_cache_enabled() {
  * @return string One line of JavaScript, newline-terminated.
  */
 function openstation_pwa_sw_config_preamble() {
-	$config = array(
+	$settings = openstation_get_os_settings( get_current_user_id() );
+	$config   = array(
 		'adminAssetCache' => openstation_pwa_admin_asset_cache_enabled(),
+		// Hover prewarming, the same toggle the dock reads. The worker
+		// needs it because the speculative-document hand-off lives on
+		// its side: the shell asks, the worker fetches and holds.
+		'windowPrewarm'   => ! empty( $settings['windowPrewarmEnabled'] ),
 		'pluginUrl'       => OPENSTATION_URL,
 	);
 	return sprintf( "self.__OS_SW_CONFIG = %s;\n", wp_json_encode( $config ) );

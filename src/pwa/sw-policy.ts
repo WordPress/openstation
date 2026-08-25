@@ -26,6 +26,13 @@ export interface SwConfig {
 	 */
 	adminAssetCache: boolean;
 	/**
+	 * Whether hover prewarming is on for this user. Gates the
+	 * speculative-document hand-off: the shell asks for a screen on
+	 * hover, the worker fetches and holds it, and the iframe's
+	 * navigation is answered from those bytes.
+	 */
+	windowPrewarm: boolean;
+	/**
 	 * Absolute URL of the plugin directory (trailing slash). Lets the
 	 * SW resolve its own asset paths on hosts with a non-default
 	 * `wp-content` layout (Bedrock, moved `WP_CONTENT_DIR`, …).
@@ -81,6 +88,7 @@ export function readSwConfig(
 ): SwConfig {
 	const cfg: SwConfig = {
 		adminAssetCache: false,
+		windowPrewarm: false,
 		pluginUrl: fallbackPluginUrl,
 	};
 	if ( ! raw || typeof raw !== 'object' ) {
@@ -88,6 +96,7 @@ export function readSwConfig(
 	}
 	const obj = raw as Record< string, unknown >;
 	cfg.adminAssetCache = obj.adminAssetCache === true;
+	cfg.windowPrewarm = obj.windowPrewarm === true;
 	if (
 		typeof obj.pluginUrl === 'string' &&
 		obj.pluginUrl.startsWith( 'http' )
