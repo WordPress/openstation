@@ -2445,13 +2445,10 @@ summary.dm-agents__category:focus-visible {
 	gap: 8px;
 }
 
-.dm-agents__trigger-summary {
-	flex: 1;
+.dm-agents__trigger-desc {
+	margin: 0;
 	font-size: 12px;
-	opacity: 0.65;
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
+	opacity: 0.75;
 }
 
 .dm-agents__trigger-config {

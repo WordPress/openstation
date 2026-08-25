@@ -67,6 +67,7 @@ class Tests_OpenStation_AgentsRest extends WP_UnitTestCase {
 		$this->assertArrayHasKey( '/desktop-mode/v1/agents/(?P<id>\d+)', $routes );
 		$this->assertArrayHasKey( '/desktop-mode/v1/agents/(?P<id>\d+)/invoke', $routes );
 		$this->assertArrayHasKey( '/desktop-mode/v1/agents/abilities', $routes );
+		$this->assertArrayHasKey( '/desktop-mode/v1/agents/draft', $routes );
 		$this->assertArrayHasKey( '/desktop-mode/v1/agents/trigger-kinds', $routes );
 		$this->assertArrayHasKey( '/desktop-mode/v1/agents/hooks-catalogue', $routes );
 		$this->assertArrayHasKey( '/desktop-mode/v1/agents/roles', $routes );

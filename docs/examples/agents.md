@@ -109,9 +109,12 @@ the set.
 
 ## Declare a custom trigger kind
 
-Trigger configuration is stored per-agent now; intakes beyond chat
-arrive in later phases. Declaring a kind makes it configurable in the
-Triggers pane today:
+Trigger configuration is stored per-agent now; intakes beyond chat,
+Send to and Drag & drop arrive in later phases. Declaring a kind gives
+it a card in the Triggers pane and the create flow's Summon step: an
+On switch, or the entity-kind checkboxes when its `config_schema` has
+an `entityKinds` property. Set `'wired' => false` to keep it out of the
+UI until your intake exists; stored rows survive either way.
 
 ```php
 add_filter( 'openstation_agent_trigger_kinds', function ( $kinds ) {

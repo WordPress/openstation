@@ -4691,6 +4691,24 @@ bounds the prompt (and the bill) per invocation. Default 50.
 
 - **Param** `int $turn_cap`
 
+### `openstation_agent_draft` — Experimental *(filter)*
+
+Pre-filter for `POST /agents/draft`, the "Draft it for me" step of
+the create flow. Return a non-null array shaped like the route's
+response (`{ name, description, vibes, instructions, role, abilities }`,
+or a `WP_Error`) to short-circuit the Core AI Client, the seam PHPUnit
+and alternative runtimes plug into. Whatever comes back is still
+filtered against the site's catalogues: a role outside
+`openstation_agent_allowed_roles()` becomes `''`, unknown ability
+slugs are dropped, `vibes` is cut at 120 characters. Nothing is
+created; the wizard shows the draft for review.
+
+- **Param** `array|WP_Error|null $draft` — null to proceed with the AI Client.
+- **Param** `string $brief` — the brief, trimmed.
+- **Param** `string[] $roles` — role slugs the site allows for agents.
+- **Param** `array $catalogue` — the abilities catalogue rows (`{ slug, label, description, category, readonly }`).
+- **Param** `int $user_id` — requesting user id.
+
 ### `openstation_agent_conversation_cap` — Experimental *(filter)*
 
 How many persisted chat conversations are kept per user (the
@@ -4706,7 +4724,11 @@ The trigger-kind catalogue (`chat`, `send-to`, `drag`, `hook`,
 `endpoint`, `agent`). Each entry declares `slug`, `label`,
 `description`, `icon`, and a JSON-Schema `config_schema` for its
 `trigger.config` shape. `chat`, `send-to` and `drag` are wired; the other kinds
-are declared so configuration can be stored ahead of their intakes.
+are declared so configuration can be stored ahead of their intakes. The
+UI draws one fixed card per wired kind (chat always on; a kind whose
+`config_schema` has `entityKinds` gets the entity-kind checkboxes, any
+other wired kind an On switch), and preserves stored rows of kinds it
+does not draw.
 The `drag` config's `entityKinds` gates which entity drops the agent
 accepts (empty = every kind; no drag trigger = drops rejected), and
 ships inline on the agent's desktop user-file payload as

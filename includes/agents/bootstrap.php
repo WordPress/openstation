@@ -172,6 +172,7 @@ function openstation_agents_load() {
 	require_once OPENSTATION_DIR . 'includes/agents/face.php';
 	require_once OPENSTATION_DIR . 'includes/agents/abilities.php';
 	require_once OPENSTATION_DIR . 'includes/agents/runner.php';
+	require_once OPENSTATION_DIR . 'includes/agents/draft.php';
 	require_once OPENSTATION_DIR . 'includes/agents/rest.php';
 	require_once OPENSTATION_DIR . 'includes/agents/conversations.php';
 	require_once OPENSTATION_DIR . 'includes/agents/privacy.php';

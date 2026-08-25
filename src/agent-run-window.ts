@@ -144,6 +144,15 @@ function formatConversationTime( iso: string ): string {
  * mystery-person silhouette (a raw Gravatar URL answers 200 with the
  * silhouette, so the component's own error fallback never fires).
  */
+/**
+ * The send glyph: an arrow, inline so it renders with no icon font
+ * and takes the button's own colour.
+ */
+const SEND_ICON =
+	'<svg class="dm-agent-chat__send-icon" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">' +
+	'<path d="M8 13.5V2.5M8 2.5 3.5 7M8 2.5 12.5 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>' +
+	'</svg>';
+
 function buildAvatar(
 	className: string,
 	size: number,
@@ -506,6 +515,10 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 		}
 		main.appendChild( scroll );
 
+		// The composer is one field: the textarea and the send button
+		// share a border, the way a chat input reads everywhere else.
+		// The textarea is still the kit's, styled through its exported
+		// part so the wrapper owns the chrome and it owns the text.
 		const composer = document.createElement( 'div' );
 		composer.className = 'dm-agent-chat__composer';
 		const input = document.createElement( 'os-textarea' ) as HTMLElement & {
@@ -519,18 +532,35 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 			'placeholder',
 			__( 'Ask the agent to do something…', 'desktop-mode' ),
 		);
-		input.setAttribute( 'rows', '2' );
+		input.setAttribute( 'rows', '1' );
+		input.setAttribute( 'auto-grow', '' );
+		input.setAttribute( 'max-rows', '6' );
 		input.setAttribute( 'submit-on-enter', '' );
 		if ( busy ) {
 			input.setAttribute( 'disabled', '' );
 		}
-		const send = document.createElement( 'os-button' ) as HTMLElement & {
-			disabled?: boolean;
+		const send = document.createElement( 'os-button' );
+		send.className = 'dm-agent-chat__send';
+		send.setAttribute( 'variant', 'primary' );
+		send.setAttribute( 'title', __( 'Send', 'desktop-mode' ) );
+		// The glyph is decoration; the visually hidden label is the
+		// name, for readers and for anyone finding the button by text.
+		send.innerHTML = `${ SEND_ICON }<span class="dm-agent-chat__send-label">${ __(
+			'Send',
+			'desktop-mode',
+		) }</span>`;
+
+		// Nothing to send, nothing to press: the button follows the
+		// text, and the run in flight, without a repaint.
+		const syncSend = (): void => {
+			const empty = ( input.value ?? '' ).trim() === '';
+			if ( busy || empty ) {
+				send.setAttribute( 'disabled', '' );
+			} else {
+				send.removeAttribute( 'disabled' );
+			}
 		};
-		send.textContent = __( 'Send', 'desktop-mode' );
-		if ( busy ) {
-			send.setAttribute( 'disabled', '' );
-		}
+		syncSend();
 
 		const submit = (): void => {
 			const text = ( input.value ?? '' ).trim();
@@ -539,6 +569,7 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 			}
 			void sendMessage( agent, text );
 		};
+		input.addEventListener( 'os-input-change', syncSend );
 		input.addEventListener( 'os-submit', submit );
 		send.addEventListener( 'click', submit );
 		composer.append( input, send );

@@ -12,6 +12,7 @@
 import { trackedFetch } from '../tracked-fetch';
 import { getConfig } from './rest';
 import type {
+	AgentDraft,
 	Ability,
 	Agent,
 	AgentInvokeResult,
@@ -90,6 +91,19 @@ export function createAgent( payload: CreateAgentPayload ): Promise< Agent > {
 	return request< Agent >( agentsUrl(), {
 		method: 'POST',
 		body: JSON.stringify( payload ),
+	} );
+}
+
+/**
+ * `POST /agents/draft`: a definition drafted from a brief.
+ *
+ * One AI generate call with a strict answer schema, filtered against
+ * the site's catalogues on the server. Creates nothing.
+ */
+export function draftAgent( brief: string ): Promise< AgentDraft > {
+	return request< AgentDraft >( agentsUrl( '/draft' ), {
+		method: 'POST',
+		body: JSON.stringify( { brief } ),
 	} );
 }
 

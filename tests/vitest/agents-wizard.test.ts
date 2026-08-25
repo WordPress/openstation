@@ -1,14 +1,14 @@
 /**
  * The create flow.
  *
- * Four steps and a door: start from an agent that already exists, or
+ * Five steps and a door: start from an agent that already exists, or
  * describe a new one. The door is the part worth protecting: five
  * complete agents ship with the plugin and the old create form showed
  * them to nobody, so "copies the work, rolls its own face" is the
  * behaviour these tests are here to keep.
  *
- * Powers holds the privilege decisions and, under "How it starts", the
- * triggers the retired expert form never could reach.
+ * Powers holds the privilege decisions; Summon holds the doors (the
+ * triggers the retired expert form never could reach), as fixed cards.
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { installHooksStub } from './helpers/hooks-stub';
@@ -78,6 +78,15 @@ function installConfig( overrides: Record< string, unknown > = {} ): void {
  */
 let abilityCatalogue: Array< Record< string, unknown > > | null = null;
 
+/** Whether the mocked provider probe reports a configured provider. */
+let aiReady = false;
+
+/**
+ * What `POST /agents/draft` answers: a draft, or an Error the route
+ * would have turned into a 502.
+ */
+let draftResponse: Record< string, unknown > | Error | null = null;
+
 /** A catalogue of `count` abilities spread over three categories. */
 function bigCatalogue( count: number ): Array< Record< string, unknown > > {
 	const categories = [ 'Content', 'Media', 'Allterrain-fields' ];
@@ -128,6 +137,12 @@ function mockRoutes( agents: Agent[], onCreate?: ( body: unknown ) => void ) {
 			] );
 		}
 		if ( url.includes( '/agents/trigger-kinds' ) ) {
+			const entityKinds = {
+				type: 'object',
+				properties: {
+					entityKinds: { type: 'array', items: { type: 'string' } },
+				},
+			};
 			return json( [
 				{
 					slug: 'chat',
@@ -135,6 +150,31 @@ function mockRoutes( agents: Agent[], onCreate?: ( body: unknown ) => void ) {
 					description: 'Answers in a chat window.',
 					icon: '',
 					wired: true,
+					config_schema: { type: 'object', properties: {} },
+				},
+				{
+					slug: 'send-to',
+					label: 'Send to (right-click menu)',
+					description: 'Appears in the right-click menu.',
+					icon: '',
+					wired: true,
+					config_schema: entityKinds,
+				},
+				{
+					slug: 'drag',
+					label: 'Drag & drop',
+					description: 'Drop a tile onto the agent.',
+					icon: '',
+					wired: true,
+					config_schema: entityKinds,
+				},
+				{
+					slug: 'hook',
+					label: 'WordPress hook',
+					description: 'Not wired yet.',
+					icon: '',
+					wired: false,
+					config_schema: { type: 'object', properties: { hook: { type: 'string' } } },
 				},
 			] );
 		}
@@ -142,7 +182,16 @@ function mockRoutes( agents: Agent[], onCreate?: ( body: unknown ) => void ) {
 			return json( [] );
 		}
 		if ( url.includes( '/ai/status' ) ) {
-			return json( { available: false, providerConfigured: false } );
+			return json( { available: true, providerConfigured: aiReady } );
+		}
+		if ( url.includes( '/agents/draft' ) ) {
+			if ( draftResponse instanceof Error ) {
+				return new Response( JSON.stringify( { message: draftResponse.message } ), {
+					status: 502,
+					headers: { 'Content-Type': 'application/json' },
+				} );
+			}
+			return json( draftResponse ?? {} );
 		}
 		if ( url.match( /\/agents\/?$/ ) && init?.method === 'POST' ) {
 			const body = JSON.parse( String( init.body ) );
@@ -208,6 +257,8 @@ describe( 'the guided create flow', () => {
 		document.body.innerHTML = '';
 		delete ( window as unknown as Record< string, unknown > ).openStationWindowConfig;
 		abilityCatalogue = null;
+		aiReady = false;
+		draftResponse = null;
 		vi.restoreAllMocks();
 	} );
 
@@ -329,6 +380,8 @@ describe( 'the guided create flow', () => {
 		await flush();
 		press( host, 'Continue' );
 		await flush();
+		press( host, 'Continue' );
+		await flush();
 		press( host, 'Create agent' );
 		await flush();
 
@@ -371,58 +424,255 @@ describe( 'the guided create flow', () => {
 		const titles = [ ...host.body.querySelectorAll( 'os-step' ) ].map( ( s ) =>
 			s.getAttribute( 'title' ),
 		);
-		expect( titles ).toEqual( [ 'Describe', 'Meet', 'Powers', 'Launch' ] );
+		expect( titles ).toEqual( [ 'Describe', 'Meet', 'Powers', 'Summon', 'Launch' ] );
 	} );
 
-	test( 'Powers carries the triggers, and there is no second instructions field', async () => {
-		// The brief typed into Describe is the system prompt, and its
-		// label says so. A second textarea for the same text lived on
-		// an Extras step for a while; it duplicated the brief, and the
-		// step existed for little else, so both went.
+	test( 'Summon draws the doors as fixed cards, chat always on', async () => {
+		// There used to be an "Add trigger" select over added rows. With
+		// three wired kinds and chat always available there was nothing
+		// to add, only doors to open, so each wired kind is a card and
+		// the unwired ones stay out of sight.
 		const { host } = await openWizard();
 		press( host, 'Continue' );
 		await flush();
 		setField( host, 'Name', 'Deep Cut' );
 		press( host, 'Continue' );
 		await flush();
+		press( host, 'Continue' );
+		await flush();
 
-		// Triggers were only ever editable after the agent existed.
-		expect( host.body.textContent ).toContain( 'How it starts (triggers)' );
-		expect( host.body.textContent ).toContain( 'No triggers configured yet.' );
+		const cards = [ ...host.body.querySelectorAll( '.dm-agents__trigger' ) ].map(
+			( c ) => c.querySelector( 'strong' )?.textContent?.trim(),
+		);
+		expect( cards ).toEqual( [ 'Chat', 'Send to (right-click menu)', 'Drag & drop' ] );
+		expect( host.body.textContent ).toContain( 'Always on' );
+		expect( host.body.textContent ).not.toContain( 'WordPress hook' );
+		expect(
+			[ ...host.body.querySelectorAll( 'os-select' ) ].find(
+				( f ) => f.getAttribute( 'label' ) === 'Add trigger',
+			),
+		).toBeUndefined();
+		// The brief is the system prompt; there is no second field for it.
 		const labels = [ ...host.body.querySelectorAll( 'os-textarea' ) ].map(
 			( f ) => f.getAttribute( 'label' ),
 		);
 		expect( labels ).not.toContain( 'Instructions (system prompt)' );
 	} );
 
-	test( 'a trigger picked on Powers rides along on the create', async () => {
+	test( 'a door opened on Summon rides along on the create', async () => {
 		const { host, created } = await openWizard();
 		press( host, 'Continue' );
 		await flush();
 		setField( host, 'Name', 'Hooked Up' );
 		press( host, 'Continue' );
 		await flush();
+		press( host, 'Continue' );
+		await flush();
 
-		const add = [ ...host.body.querySelectorAll( 'os-select' ) ].find(
-			( f ) => f.getAttribute( 'label' ) === 'Add trigger',
+		const drag = [ ...host.body.querySelectorAll( '.dm-agents__trigger' ) ].find(
+			( c ) => c.querySelector( 'strong' )?.textContent?.trim() === 'Drag & drop',
 		);
-		add!.dispatchEvent(
-			new CustomEvent( 'os-pick', {
-				detail: { value: 'chat' },
+		const post = [ ...drag!.querySelectorAll( 'os-checkbox-label' ) ].find(
+			( c ) => c.getAttribute( 'label' ) === 'post',
+		);
+		post!.dispatchEvent(
+			new CustomEvent( 'os-checkbox-change', {
+				detail: { checked: true },
 				bubbles: true,
 			} ),
 		);
 		await flush();
 		press( host, 'Continue' );
 		await flush();
-		// Launch names what was picked, so the review is a review.
-		expect( host.body.textContent ).toContain( 'Starts from: Chat.' );
+		// Launch names what was opened, so the review is a review.
+		expect( host.body.textContent ).toContain( 'Starts from: Chat, Drag & drop.' );
 		press( host, 'Create agent' );
 		await flush();
 
 		expect( created ).toHaveLength( 1 );
 		const body = created[ 0 ] as Record< string, unknown >;
+		expect( body.triggers ).toEqual( [
+			{ kind: 'chat', config: {} },
+			{ kind: 'drag', config: { entityKinds: [ 'post' ] } },
+		] );
+	} );
+
+	test( 'unticking the last kind closes the door again', async () => {
+		const { host, created } = await openWizard();
+		press( host, 'Continue' );
+		await flush();
+		setField( host, 'Name', 'Door Test' );
+		press( host, 'Continue' );
+		await flush();
+		press( host, 'Continue' );
+		await flush();
+
+		const tick = ( kind: string, checked: boolean ) => {
+			const card = [ ...host.body.querySelectorAll( '.dm-agents__trigger' ) ].find(
+				( c ) => c.querySelector( 'strong' )?.textContent?.trim() === 'Send to (right-click menu)',
+			);
+			const box = [ ...card!.querySelectorAll( 'os-checkbox-label' ) ].find(
+				( c ) => c.getAttribute( 'label' ) === kind,
+			);
+			box!.dispatchEvent(
+				new CustomEvent( 'os-checkbox-change', { detail: { checked }, bubbles: true } ),
+			);
+		};
+		tick( 'post', true );
+		await flush();
+		tick( 'page', true );
+		await flush();
+		tick( 'post', false );
+		await flush();
+		tick( 'page', false );
+		await flush();
+		press( host, 'Continue' );
+		await flush();
+		press( host, 'Create agent' );
+		await flush();
+
+		const body = created[ 0 ] as Record< string, unknown >;
 		expect( body.triggers ).toEqual( [ { kind: 'chat', config: {} } ] );
+	} );
+
+	test( 'Draft it for me fills the cast from the draft route', async () => {
+		// Drafting used to ride the Copilot search route, whose own
+		// answer schema wrapped the draft in a chat message. Now it is
+		// one call to /agents/draft and the answer lands on the cast.
+		aiReady = true;
+		installConfig( {
+			aiAvailable: true,
+			aiStatusUrl: 'https://example.test/wp-json/desktop-mode/v1/ai/status',
+		} );
+		draftResponse = {
+			name: 'Categorizer',
+			description: 'Files posts under the right categories.',
+			vibes: 'tidy, decisive',
+			instructions: 'Read each post. Pick the categories that fit.',
+			role: 'editor',
+			abilities: [ 'desktop-mode/get-post' ],
+		};
+		const { host, fetchMock } = await openWizard();
+		setField( host, 'What should this agent do? (system prompt)', 'Categorizer' );
+		press( host, 'Draft it for me' );
+		await flush();
+
+		const draftCall = fetchMock.mock.calls.find( ( c ) =>
+			String( c[ 0 ] ).includes( '/agents/draft' ),
+		) as [ string, RequestInit ];
+		expect( JSON.parse( String( draftCall[ 1 ].body ) ) ).toEqual( { brief: 'Categorizer' } );
+
+		// Meet, filled in.
+		const name = [ ...host.body.querySelectorAll( 'os-text-field' ) ].find(
+			( f ) => f.getAttribute( 'label' ) === 'Name',
+		);
+		expect( name!.getAttribute( 'value' ) ).toBe( 'Categorizer' );
+		const vibes = [ ...host.body.querySelectorAll( 'os-text-field' ) ].find(
+			( f ) => f.getAttribute( 'label' ) === 'Vibes',
+		);
+		expect( vibes!.getAttribute( 'value' ) ).toBe( 'tidy, decisive' );
+
+		press( host, 'Continue' );
+		await flush();
+		// Powers, with the role and the ability the draft picked.
+		const role = host.body.querySelector( '.dm-agents__role-select' );
+		expect( role!.getAttribute( 'value' ) ).toBe( 'editor' );
+		const ticked = [ ...host.body.querySelectorAll( 'os-checkbox-label' ) ].filter(
+			( c ) => c.hasAttribute( 'checked' ),
+		);
+		expect( ticked.map( ( c ) => c.getAttribute( 'label' ) ) ).toEqual( [ 'Get post by id' ] );
+
+		press( host, 'Continue' );
+		await flush();
+		press( host, 'Continue' );
+		await flush();
+		const instr = host.body.querySelector( '.dm-agents__summary-instr' );
+		expect( instr!.textContent ).toContain( 'Read each post.' );
+	} );
+
+	test( 'an empty brief gets its error under the field, not in the banner', async () => {
+		aiReady = true;
+		installConfig( {
+			aiAvailable: true,
+			aiStatusUrl: 'https://example.test/wp-json/desktop-mode/v1/ai/status',
+		} );
+		const { host } = await openWizard();
+		press( host, 'Draft it for me' );
+		await flush();
+
+		expect( host.body.querySelector( 'os-notice' ) ).toBeNull();
+		const row = host.body.querySelector( '.dm-agents__brief-row' );
+		expect( row!.getAttribute( 'error' ) ).toBe(
+			'Describe the agent first. A sentence is enough.',
+		);
+		expect( host.body.querySelector( '.dm-agents__brief' )!.hasAttribute( 'invalid' ) ).toBe(
+			true,
+		);
+
+		// Typing is the fix, and the error goes as soon as it starts.
+		setField( host, 'What should this agent do? (system prompt)', 'W' );
+		await flush();
+		expect( host.body.querySelector( '.dm-agents__brief-row' )!.getAttribute( 'error' ) ).toBeFalsy();
+		expect( host.body.querySelector( '.dm-agents__brief' )!.hasAttribute( 'invalid' ) ).toBe(
+			false,
+		);
+	} );
+
+	test( 'a failed draft keeps Describe, with the reason under the brief', async () => {
+		aiReady = true;
+		installConfig( {
+			aiAvailable: true,
+			aiStatusUrl: 'https://example.test/wp-json/desktop-mode/v1/ai/status',
+		} );
+		draftResponse = new Error(
+			'The draft came back in a shape that could not be read. Try again, or fill the fields in yourself.',
+		);
+		const { host } = await openWizard();
+		setField( host, 'What should this agent do? (system prompt)', 'Categorizer' );
+		press( host, 'Draft it for me' );
+		await flush();
+
+		// Still on Describe: the brief is there, Meet's Name is not.
+		expect( host.body.querySelector( '.dm-agents__brief' ) ).not.toBeNull();
+		expect(
+			[ ...host.body.querySelectorAll( 'os-text-field' ) ].find(
+				( f ) => f.getAttribute( 'label' ) === 'Name',
+			),
+		).toBeUndefined();
+		expect( host.body.querySelector( 'os-notice' ) ).toBeNull();
+		expect( host.body.querySelector( '.dm-agents__brief-row' )!.getAttribute( 'error' ) ).toContain(
+			'could not be read',
+		);
+	} );
+
+	test( 'creating with no name marks the Name field, not the banner', async () => {
+		const { host, created } = await openWizard();
+		press( host, 'Continue' );
+		await flush();
+		// Continue is disabled on Meet; go around it through the trail
+		// is not possible forwards, so drive the create directly by
+		// filling, walking to Launch, and clearing the name on the way.
+		setField( host, 'Name', 'Temp' );
+		press( host, 'Continue' );
+		await flush();
+		press( host, 'Continue' );
+		await flush();
+		press( host, 'Continue' );
+		await flush();
+		// Back to Meet through the trail, blank the name, and forward.
+		const meet = [ ...host.body.querySelectorAll( 'os-step' ) ].find(
+			( s ) => s.getAttribute( 'title' ) === 'Meet',
+		);
+		meet!.dispatchEvent( new CustomEvent( 'os-step-click', { bubbles: true } ) );
+		await flush();
+		setField( host, 'Name', '' );
+		await flush();
+		expect(
+			[ ...host.body.querySelectorAll( 'os-button' ) ]
+				.find( ( b ) => ( b.textContent ?? '' ).trim() === 'Continue' )!
+				.hasAttribute( 'disabled' ),
+		).toBe( true );
+		expect( created ).toHaveLength( 0 );
 	} );
 
 	test( 'without an AI provider the brief still seeds the instructions', async () => {
@@ -447,6 +697,8 @@ describe( 'the guided create flow', () => {
 		).toBeUndefined();
 
 		setField( host, 'Name', 'Draft Watcher' );
+		press( host, 'Continue' );
+		await flush();
 		press( host, 'Continue' );
 		await flush();
 		press( host, 'Continue' );

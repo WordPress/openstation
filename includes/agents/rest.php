@@ -118,6 +118,24 @@ function openstation_agents_register_rest_routes() {
 
 	register_rest_route(
 		$namespace,
+		'/agents/draft',
+		array(
+			'methods'             => WP_REST_Server::CREATABLE,
+			'permission_callback' => 'openstation_agents_rest_write_permission',
+			'callback'            => 'openstation_agents_rest_draft',
+			'args'                => array(
+				'brief' => array(
+					'type'              => 'string',
+					'required'          => true,
+					'sanitize_callback' => 'sanitize_textarea_field',
+					'validate_callback' => 'openstation_agents_rest_validate_brief',
+				),
+			),
+		)
+	);
+
+	register_rest_route(
+		$namespace,
 		'/agents/trigger-kinds',
 		array(
 			'methods'             => WP_REST_Server::READABLE,
@@ -490,6 +508,35 @@ function openstation_agents_rest_invoke( WP_REST_Request $request ) {
  */
 function openstation_agents_rest_abilities_catalogue() {
 	return rest_ensure_response( openstation_agents_abilities_catalogue() );
+}
+
+/**
+ * `brief` must carry words and fit the drafting cap.
+ *
+ * @param mixed $value Raw param.
+ * @return bool
+ */
+function openstation_agents_rest_validate_brief( $value ) {
+	return is_string( $value )
+		&& '' !== trim( $value )
+		&& mb_strlen( $value ) <= OPENSTATION_AGENT_DRAFT_BRIEF_MAX;
+}
+
+/**
+ * POST /agents/draft — draft a definition from a brief.
+ *
+ * Nothing is created: the wizard shows the draft for review and the
+ * create route is still the only way an agent comes to exist.
+ *
+ * @param WP_REST_Request $request Request.
+ * @return WP_REST_Response|WP_Error
+ */
+function openstation_agents_rest_draft( WP_REST_Request $request ) {
+	$draft = openstation_agent_draft( (string) $request['brief'], get_current_user_id() );
+	if ( is_wp_error( $draft ) ) {
+		return $draft;
+	}
+	return rest_ensure_response( $draft );
 }
 
 /**

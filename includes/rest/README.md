@@ -63,6 +63,7 @@ All in-tree routes register under `desktop-mode/v1`. Extensions are expected to 
 | `/agents/{id}` | GET / POST / DELETE | `includes/agents/rest.php` | GET `edit_posts`, POST/DELETE `edit_users` (filterable) |
 | `/agents/{id}/invoke` | POST | `includes/agents/rest.php` | `edit_posts` (filterable via `openstation_agents_user_can_invoke`), then the per-agent gate `openstation_agent_user_can_invoke_agent()` (honours the trigger's `capability`) + per-invoker and per-agent rate limits. The run itself is ceilinged at the caller's own capabilities — see [`docs/agents-security.md`](../../docs/agents-security.md) |
 | `/agents/abilities` | GET | `includes/agents/rest.php` | `edit_posts` (filterable) |
+| `/agents/draft` | POST | `includes/agents/rest.php` | `edit_users` (filterable). One AI generate call with a strict answer schema; creates nothing. `503` without the AI Client, `502` when the provider fails or answers unreadably |
 | `/agents/trigger-kinds` | GET | `includes/agents/rest.php` | `edit_posts` (filterable) |
 | `/agents/hooks-catalogue` | GET | `includes/agents/rest.php` | `edit_posts` (filterable) |
 | `/agents/roles` | GET | `includes/agents/rest.php` | `edit_users` (filterable) |

@@ -69,6 +69,20 @@ export interface Ability {
 	readonly: boolean;
 }
 
+/**
+ * What `POST /agents/draft` hands back: a definition to review, not
+ * an agent. Already filtered against the site's catalogues; `role` is
+ * '' when the model's pick was not one the site allows.
+ */
+export interface AgentDraft {
+	name: string;
+	description: string;
+	vibes: string;
+	instructions: string;
+	role: string;
+	abilities: string[];
+}
+
 /** One row of the trigger-kinds catalogue (`GET /agents/trigger-kinds`). */
 export interface TriggerKindDescriptor {
 	slug: string;

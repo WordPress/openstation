@@ -36,6 +36,7 @@ import type { MyWordPressConfig } from './types';
 import {
 	createAgent,
 	deleteAgent,
+	draftAgent,
 	fetchAbilitiesCatalogue,
 	fetchAiStatus,
 	fetchHooksCatalogue,
@@ -47,6 +48,7 @@ import {
 import type {
 	Ability,
 	Agent,
+	AgentDraft,
 	AgentsSectionConfig,
 	HookSuggestion,
 	MioLook,
@@ -96,6 +98,13 @@ interface AgentsState {
 	creating: boolean;
 	saving: boolean;
 	notice: string;
+	/**
+	 * Inline errors, each shown under the field it is about rather
+	 * than in the notice at the top, which is for things no field
+	 * owns.
+	 */
+	briefError: string;
+	nameError: string;
 	/** Free-text filter over the ability catalogue. */
 	abilityQuery: string;
 	/**
@@ -125,23 +134,23 @@ interface AgentsState {
 }
 
 /**
- * Where the create flow is: Describe, Meet, Powers, Launch.
+ * Where the create flow is: Describe, Meet, Powers, Summon, Launch.
  *
- * Every decision with a working default sits on Powers, so the walk
- * is four screens and the trail never has a step that exists only to
- * be skipped.
+ * Summon is how the site calls the agent. It is its own station
+ * because that is a different question from what the agent may touch,
+ * and Powers was carrying both.
  */
-type WizardStep = 0 | 1 | 2 | 3;
+type WizardStep = 0 | 1 | 2 | 3 | 4;
 
-/** The review step, where Powers continues to. */
-const STEP_LAUNCH: WizardStep = 3;
+/** The review step, where Summon continues to. */
+const STEP_LAUNCH: WizardStep = 4;
 
 /**
  * The agent taking shape in the wizard.
  *
  * One draft, because there is now one way in. It carries its own face
  * so the picker has something to page through, and its own triggers so
- * Powers can wire the agent up before it exists rather than sending
+ * Summon can wire the agent up before it exists rather than sending
  * people back into the detail view afterwards.
  */
 interface CastDraft {
@@ -174,7 +183,8 @@ function emptyCast( role: string, seed: number ): CastDraft {
 		instructions: '',
 		role,
 		abilities: [],
-		triggers: [],
+		// Chat is always on; the row says so from the first paint.
+		triggers: [ { kind: 'chat', config: {} } ],
 		copiedFrom: '',
 		faceSeed: seed,
 		face: faceFromSeed( seed ),
@@ -204,54 +214,6 @@ const ABILITY_COLLAPSE_THRESHOLD = 12;
  * when a wizard opens and then carried, so paging the strip and coming
  * back lands on the same faces rather than a fresh throw each time.
  */
-/**
- * `wp.os.ai.ask()`, resolved off the global at call time.
- *
- * The shell bundle owns the AI client and this bundle must not import
- * it, so it is looked up rather than bound. Narrowed to the two knobs
- * the wizard uses.
- */
-type AskLike = (
-	query: string,
-	opts?: {
-		systemPrompt?: string | { mode: 'append' | 'replace'; text: string };
-	},
-) => Promise< { message?: string } >;
-
-function resolveAsk(): AskLike | null {
-	const ask = (
-		window as unknown as {
-			wp?: { os?: { ai?: { ask?: AskLike } } };
-		}
-	).wp?.os?.ai?.ask;
-	return typeof ask === 'function' ? ask : null;
-}
-
-/**
- * Pull the JSON object out of a model reply.
- *
- * The prompt asks for bare JSON; models decorate anyway, with a
- * sentence before or a code fence around. Scanning for the outermost
- * braces is more forgiving than trusting the whole string, and no less
- * safe: whatever comes out is filtered against the site's catalogues
- * before any of it is used.
- */
-function parseDraft( text: string ): Record< string, unknown > | null {
-	const start = text.indexOf( '{' );
-	const end = text.lastIndexOf( '}' );
-	if ( start === -1 || end <= start ) {
-		return null;
-	}
-	try {
-		const raw: unknown = JSON.parse( text.slice( start, end + 1 ) );
-		return raw && typeof raw === 'object'
-			? ( raw as Record< string, unknown > )
-			: null;
-	} catch {
-		return null;
-	}
-}
-
 function newSeed(): number {
 	return Math.floor( Math.random() * 0xffffff ) + 1;
 }
@@ -565,6 +527,8 @@ export function renderAgents( host: EntityRenderHost ): void {
 		creating: false,
 		saving: false,
 		notice: '',
+		briefError: '',
+		nameError: '',
 		abilityQuery: '',
 		abilityOpen: new Map(),
 		abilities: null,
@@ -1565,24 +1529,48 @@ export function renderAgents( host: EntityRenderHost ): void {
 		`;
 	};
 
-	const triggerSummary = ( trigger: Trigger ): string => {
-		const kinds = ( trigger.config.entityKinds as string[] | undefined ) ?? [];
-		if ( trigger.kind === 'hook' ) {
-			return String( trigger.config.hook ?? '' );
-		}
-		if ( kinds.length > 0 ) {
-			return kinds.join( ', ' );
-		}
-		return '';
+	/** Where a kind's row sits in the list, or -1. */
+	const rowIndex = ( triggers: Trigger[], slug: string ): number =>
+		triggers.findIndex( ( t ) => t.kind === slug );
+
+	/**
+	 * Whether a kind is one of the entity-kind doors.
+	 *
+	 * Send to and Drag & drop configure the same thing, which entity
+	 * kinds the door accepts, and the catalogue says so through the
+	 * schema rather than the slug, so a plugin kind shaped the same way
+	 * gets the same card.
+	 */
+	const takesEntityKinds = ( kind: TriggerKindDescriptor ): boolean => {
+		const schema = kind.config_schema as
+			| { properties?: Record< string, unknown > }
+			| undefined;
+		return !! schema?.properties && 'entityKinds' in schema.properties;
 	};
 
 	/**
-	 * One trigger's configuration fields.
+	 * Commit with the one invariant the cards promise: chat is always
+	 * on. Rows for kinds the cards do not draw (unwired kinds, or a
+	 * plugin's own) ride through untouched; a card only ever writes
+	 * its own row.
+	 */
+	const commitTriggers = (
+		commit: ( next: Trigger[] ) => void,
+		next: Trigger[],
+	): void => {
+		commit(
+			rowIndex( next, 'chat' ) === -1
+				? [ { kind: 'chat', config: {} }, ...next ]
+				: next,
+		);
+	};
+
+	/**
+	 * Extra configuration for a door that is open.
 	 *
-	 * Takes the list and a way to commit a new one rather than an
-	 * `Agent`, because the wizard edits triggers on an agent that does
-	 * not exist yet. The detail pane passes a commit that PATCHes; the
-	 * wizard passes one that writes into the draft.
+	 * Only kinds with something beyond "on" reach here: hook wants a
+	 * hook name, endpoint a capability. Both are unwired today, so this
+	 * renders for a plugin that wires one through the filter.
 	 */
 	const triggerEditor = (
 		triggers: Trigger[],
@@ -1590,37 +1578,18 @@ export function renderAgents( host: EntityRenderHost ): void {
 		commit: ( next: Trigger[] ) => void,
 	) => {
 		const trigger = triggers[ index ];
-		const patchConfig = ( config: Record< string, unknown > ): void => {
-			commit(
+		const patchConfig = ( patch: Record< string, unknown > ): void => {
+			commitTriggers(
+				commit,
 				triggers.map( ( t, i ) =>
-					i === index ? { ...t, config: { ...t.config, ...config } } : t,
+					i === index
+						? { kind: t.kind, config: { ...t.config, ...patch } }
+						: t,
 				),
 			);
 		};
-		if ( trigger.kind === 'send-to' || trigger.kind === 'drag' ) {
-			const active = ( trigger.config.entityKinds as string[] | undefined ) ?? [];
-			return html`
-				<div class="dm-agents__trigger-config">
-					${ ENTITY_KIND_CHOICES.map(
-						( kind ) => html`
-							<os-checkbox-label
-								label=${ kind }
-								?checked=${ active.includes( kind ) }
-								?disabled=${ ! cfg.canManage || state.saving }
-								@os-checkbox-change=${ ( e: CustomEvent< { checked: boolean } > ) => {
-									const on = e.detail?.checked === true;
-									const next = on
-										? Array.from( new Set( [ ...active, kind ] ) )
-										: active.filter( ( k ) => k !== kind );
-									patchConfig( { entityKinds: next } );
-								} }
-							></os-checkbox-label>
-						`,
-					) }
-				</div>
-			`;
-		}
 		if ( trigger.kind === 'hook' ) {
+			const names = ( state.hooks ?? [] ).map( ( h ) => h.hook );
 			return html`
 				<div class="dm-agents__trigger-config">
 					<os-text-field
@@ -1630,10 +1599,13 @@ export function renderAgents( host: EntityRenderHost ): void {
 						@os-input-commit=${ ( e: CustomEvent< { value: string } > ) =>
 							patchConfig( { hook: e.detail.value } ) }
 					></os-text-field>
-					${ state.hooks && state.hooks.length > 0
+					${ names.length > 0
 						? html`<p class="dm-agents__hint">
-								${ __( 'Suggestions', 'desktop-mode' ) }:
-								${ state.hooks.map( ( h ) => h.hook ).join( ', ' ) }
+								${ sprintf(
+									/* translators: %s: comma-separated list of WordPress hook names. */
+									__( 'Suggestions: %s', 'desktop-mode' ),
+									names.join( ', ' ),
+								) }
 						  </p>`
 						: html`` }
 				</div>
@@ -1656,12 +1628,105 @@ export function renderAgents( host: EntityRenderHost ): void {
 	};
 
 	/**
-	 * The trigger list, editable.
+	 * One door, as a fixed card.
 	 *
-	 * Shared by the detail pane and the wizard's Powers step. Agnostic
-	 * about where the rows live: the detail pane hands it an agent's
-	 * stored triggers and a commit that saves, Powers hands it the
-	 * draft's and a commit that only writes into the draft.
+	 * Chat is always on and says so. An entity-kind door is the row of
+	 * kinds to tick, and nothing ticked is the door closed, which is
+	 * what "no trigger row" always meant on the server. Any other
+	 * wired kind gets an On switch and, once on, its editor.
+	 */
+	const triggerCard = (
+		kind: TriggerKindDescriptor,
+		triggers: Trigger[],
+		commit: ( next: Trigger[] ) => void,
+	) => {
+		const index = rowIndex( triggers, kind.slug );
+		const row = index === -1 ? null : triggers[ index ];
+		const locked = ! cfg.canManage || state.saving;
+		const without = () => triggers.filter( ( t ) => t.kind !== kind.slug );
+		let body = html``;
+		if ( kind.slug === 'chat' ) {
+			body = html``;
+		} else if ( takesEntityKinds( kind ) ) {
+			const raw = row?.config.entityKinds;
+			const picked = Array.isArray( raw )
+				? raw.filter( ( k ): k is string => typeof k === 'string' )
+				: [];
+			const toggle = ( entity: string, on: boolean ): void => {
+				const kinds = on
+					? [ ...new Set( [ ...picked, entity ] ) ]
+					: picked.filter( ( k ) => k !== entity );
+				const rest = without();
+				if ( kinds.length > 0 ) {
+					rest.push( {
+						kind: kind.slug,
+						config: { ...( row?.config ?? {} ), entityKinds: kinds },
+					} );
+				}
+				commitTriggers( commit, rest );
+			};
+			body = html`
+				<div class="dm-agents__trigger-config">
+					${ ENTITY_KIND_CHOICES.map(
+						( entity ) => html`
+							<os-checkbox-label
+								label=${ entity }
+								?checked=${ picked.includes( entity ) }
+								?disabled=${ locked }
+								@os-checkbox-change=${ ( e: CustomEvent< { checked: boolean } > ) =>
+									toggle( entity, e.detail?.checked === true ) }
+							></os-checkbox-label>
+						`,
+					) }
+				</div>
+			`;
+		} else {
+			body = html`
+				<div class="dm-agents__trigger-config">
+					<os-checkbox-label
+						label=${ __( 'On', 'desktop-mode' ) }
+						?checked=${ row !== null }
+						?disabled=${ locked }
+						@os-checkbox-change=${ ( e: CustomEvent< { checked: boolean } > ) =>
+							commitTriggers(
+								commit,
+								e.detail?.checked === true
+									? [ ...without(), { kind: kind.slug, config: {} } ]
+									: without(),
+							) }
+					></os-checkbox-label>
+				</div>
+				${ row ? triggerEditor( triggers, index, commit ) : html`` }
+			`;
+		}
+		return html`
+			<div class="dm-agents__trigger">
+				<div class="dm-agents__trigger-head">
+					<strong>${ kind.label }</strong>
+					${ kind.slug === 'chat'
+						? html`<os-badge tone="neutral">
+								${ __( 'Always on', 'desktop-mode' ) }
+						  </os-badge>`
+						: html`` }
+				</div>
+				${ kind.description
+					? html`<p class="dm-agents__trigger-desc">${ kind.description }</p>`
+					: html`` }
+				${ body }
+			</div>
+		`;
+	};
+
+	/**
+	 * The doors, as fixed cards, one per wired kind.
+	 *
+	 * Shared by the detail pane's Triggers tab and the wizard's Summon
+	 * step. Agnostic about where the rows live: the detail pane hands
+	 * it an agent's stored triggers and a commit that saves, Summon
+	 * hands it the draft's and a commit that only writes into the
+	 * draft. It used to be a list of added rows behind an "Add
+	 * trigger" select; with three wired kinds and chat always on there
+	 * was nothing left to add, only doors to open.
 	 */
 	const triggersList = (
 		triggers: Trigger[],
@@ -1672,91 +1737,16 @@ export function renderAgents( host: EntityRenderHost ): void {
 				<os-spinner></os-spinner>
 			</div>`;
 		}
-		const kindLabel = ( slug: string ): string =>
-			state.triggerKinds?.find( ( k ) => k.slug === slug )?.label ?? slug;
-		const unusedKinds = state.triggerKinds.filter(
-			( kind ) => ! triggers.some( ( t ) => t.kind === kind.slug ),
-		);
+		const kinds = state.triggerKinds.filter( ( k ) => k.wired !== false );
 		return html`
 			<div class="dm-agents__pane">
 				<p class="dm-agents__hint">
 					${ __(
-						'Triggers describe how this site reaches the agent. Chat, drag & drop, and Send to work today; kinds marked "coming soon" can be configured but are not wired yet.',
+						'Chat is always on. Tick where else this site should reach the agent; a door with nothing ticked stays closed.',
 						'desktop-mode',
 					) }
 				</p>
-				${ triggers.length === 0
-					? html`<p class="dm-agents__hint">
-							${ __( 'No triggers configured yet.', 'desktop-mode' ) }
-					  </p>`
-					: html`` }
-				${ triggers.map(
-					( trigger, index ) => html`
-						<div class="dm-agents__trigger">
-							<div class="dm-agents__trigger-head">
-								<strong>${ kindLabel( trigger.kind ) }</strong>
-								<span class="dm-agents__trigger-summary">
-									${ triggerSummary( trigger ) }
-								</span>
-								${ cfg.canManage
-									? html`
-											<os-button
-												?disabled=${ state.saving }
-												@click=${ () =>
-													commit(
-														triggers.filter( ( _, i ) => i !== index ),
-													) }
-											>
-												${ __( 'Remove', 'desktop-mode' ) }
-											</os-button>
-									  `
-									: html`` }
-							</div>
-							${ triggerEditor( triggers, index, commit ) }
-						</div>
-					`,
-				) }
-				${ cfg.canManage && unusedKinds.length > 0
-					? html`
-							<os-select
-								label=${ __( 'Add trigger', 'desktop-mode' ) }
-								value=""
-								@os-pick=${ ( e: CustomEvent< { value: string } > ) => {
-									const slug = e.detail?.value;
-									const kind = state.triggerKinds?.find(
-										( k ) => k.slug === slug,
-									);
-									// Unwired kinds are disabled in the list;
-									// the guard covers keyboard/native paths.
-									if ( ! slug || kind?.wired === false ) {
-										return;
-									}
-									commit( [
-										...triggers,
-										{ kind: slug, config: {} },
-									] );
-								} }
-							>
-								<os-option value="">
-									${ __( 'Pick a trigger kind…', 'desktop-mode' ) }
-								</os-option>
-								${ unusedKinds.map( ( kind ) =>
-									kind.wired === false
-										? html`
-												<os-option value=${ kind.slug } disabled>
-													${ kind.label }
-													${ __( '(coming soon)', 'desktop-mode' ) }
-												</os-option>
-										  `
-										: html`
-												<os-option value=${ kind.slug }>
-													${ kind.label }
-												</os-option>
-										  `,
-								) }
-							</os-select>
-					  `
-					: html`` }
+				${ kinds.map( ( kind ) => triggerCard( kind, triggers, commit ) ) }
 			</div>
 		`;
 	};
@@ -1764,7 +1754,7 @@ export function renderAgents( host: EntityRenderHost ): void {
 	// -----------------------------------------------------------------
 	// The wizard
 	//
-	// Four steps, and a door before them. The door is the part that
+	// Five steps, and a door before them. The door is the part that
 	// matters most: five complete, well-written agents already ship
 	// with the plugin, and until now the create flow showed them to
 	// nobody. Starting from someone is the cheapest good idea here.
@@ -1781,9 +1771,9 @@ export function renderAgents( host: EntityRenderHost ): void {
 	// So the door closed, and what it had went where it belonged. Its
 	// instructions field is gone rather than moved: the brief typed
 	// into Describe already is the system prompt, and the label says
-	// so. Its triggers, which it never had, sit on Powers under "How
-	// it starts", next to the role and the abilities, because how an
-	// agent is reached is part of what it is allowed to do. What was
+	// so. Its triggers, which it never had, get a station of their own,
+	// Summon, because how the site calls an agent is a different
+	// question from what the agent may touch. What was
 	// the expert form's only real advantage, not being walked through
 	// several screens, is answered by every earlier step being
 	// reachable by clicking its number in the trail.
@@ -1793,6 +1783,7 @@ export function renderAgents( host: EntityRenderHost ): void {
 		__( 'Describe', 'desktop-mode' ),
 		__( 'Meet', 'desktop-mode' ),
 		__( 'Powers', 'desktop-mode' ),
+		__( 'Summon', 'desktop-mode' ),
 		__( 'Launch', 'desktop-mode' ),
 	];
 
@@ -1867,40 +1858,14 @@ export function renderAgents( host: EntityRenderHost ): void {
 	};
 
 	/**
-	 * The drafting instruction appended to the Copilot system prompt.
+	 * Fold a draft into the cast.
 	 *
-	 * Built at call time so it carries the site's live role and ability
-	 * catalogues: the model may only pick from what this site actually
-	 * has, and anything it invents is dropped on the way back in.
-	 *
-	 * Not translated. It is a model instruction, and the JSON keys it
-	 * fixes are read back by code.
+	 * The server already filtered it against the catalogues; this side
+	 * checks again because the wizard's own copies of them are what the
+	 * chips and the checklist read, and an empty answer for a field
+	 * keeps whatever was there.
 	 */
-	const draftPrompt = (): string => {
-		const roles = ( state.roles ?? [] ).map( ( r ) => r.slug ).join( ', ' );
-		const abilities = ( state.abilities ?? [] )
-			.map(
-				( a ) =>
-					`- ${ a.slug }: ${ a.label }${
-						a.readonly ? '' : ' (can modify the site)'
-					}`,
-			)
-			.join( '\n' );
-		return [
-			'The user is an administrator defining a new site agent.',
-			'Treat their message as the agent brief. Reply with ONLY a JSON object, no prose and no code fence, shaped exactly as:',
-			'{ "name": string, "description": string, "vibes": string, "instructions": string, "role": string, "abilities": string[] }',
-			'name: a short working name for the agent, four words at most.',
-			'description: one sentence saying when to reach for this agent.',
-			'vibes: the agent\'s voice in a few words, lowercase, no full stop. Examples: "blunt, precise, no sugarcoating" or "warm, reads the room".',
-			'instructions: the agent system prompt. Concrete, scoped to the brief, written to the agent.',
-			`role: the least-privileged fit among: ${ roles }.`,
-			'abilities: only slugs the brief genuinely needs, from this catalogue:',
-			abilities || '(no abilities are registered on this site)',
-		].join( '\n' );
-	};
-
-	const applyDraft = ( parsed: Record< string, unknown > ): void => {
+	const applyDraft = ( parsed: AgentDraft ): void => {
 		const str = ( v: unknown ): string | undefined =>
 			typeof v === 'string' && v.trim() !== '' ? v.trim() : undefined;
 		const c = state.cast;
@@ -1923,50 +1888,40 @@ export function renderAgents( host: EntityRenderHost ): void {
 		}
 	};
 
+	/**
+	 * Draft the agent from the brief.
+	 *
+	 * One call to the draft route, which runs a single generate with a
+	 * strict answer schema. It used to ride the Copilot's search route,
+	 * whose own answer schema and search-shaped prompt left the draft
+	 * wrapped in a chat message when it arrived at all. A draft that
+	 * fails keeps the user on Describe with the reason under the brief:
+	 * the way forward is still open, since the brief seeds the
+	 * instructions on its own.
+	 */
 	const draftWithAi = async (): Promise< void > => {
 		if ( state.cast.brief.trim() === '' ) {
-			state.notice = __(
+			state.briefError = __(
 				'Describe the agent first. A sentence is enough.',
 				'desktop-mode',
 			);
 			paint();
 			return;
 		}
-		const ask = resolveAsk();
-		if ( ! ask ) {
-			// No Copilot in this context. The flow still works; it just
-			// starts from the brief instead of from a draft.
-			seedFromBrief();
-			goStep( 1 );
-			return;
-		}
 		state.cast.drafting = true;
+		state.briefError = '';
 		state.notice = '';
 		paint();
-		// The prompt quotes both catalogues, so settle them first.
+		// The draft is filtered against both catalogues, so settle them.
 		await Promise.all( [ ensureCatalogues(), ensureRoles() ] );
 		try {
-			const res = await ask( state.cast.brief.trim(), {
-				systemPrompt: { mode: 'append', text: draftPrompt() },
-			} );
-			const parsed = parseDraft( res?.message ?? '' );
-			if ( parsed ) {
-				applyDraft( parsed );
-			} else {
-				state.notice = __(
-					'The draft came back in a shape that could not be read. The fields below are yours to fill.',
-					'desktop-mode',
-				);
-				seedFromBrief();
-			}
+			applyDraft( await draftAgent( state.cast.brief.trim() ) );
+			// Filled in, Meet is a review.
+			state.step = 1;
 		} catch ( err ) {
-			state.notice = err instanceof Error ? err.message : String( err );
-			seedFromBrief();
+			state.briefError = err instanceof Error ? err.message : String( err );
 		}
 		state.cast.drafting = false;
-		// However the draft went, Meet is where it lands: filled it is
-		// a review, empty it is the form.
-		state.step = 1;
 		if ( ! disposed ) {
 			paint();
 		}
@@ -2043,25 +1998,36 @@ export function renderAgents( host: EntityRenderHost ): void {
 					</h4>
 			  `
 			: html`` }
-		<os-textarea
-			class="dm-agents__brief"
-			label=${ __( 'What should this agent do? (system prompt)', 'desktop-mode' ) }
-			value=${ state.cast.brief }
-			rows="5"
-			placeholder=${ __(
-				'Go through my drafts once a week and tell me which ones are closest to finished.',
-				'desktop-mode',
-			) }
-			@os-input-change=${ ( e: CustomEvent< { value: string } > ) => {
-				state.cast.brief = e.detail?.value ?? '';
-			} }
-		></os-textarea>
-		<p class="dm-agents__hint">
-			${ __(
+		<os-field-row
+			class="dm-agents__brief-row"
+			hint=${ __(
 				'Plain words are fine: what it should watch, what it should write, where it may act. This is what the agent reads before every run; drafting rewrites it into proper instructions, filling it in yourself keeps it as written.',
 				'desktop-mode',
 			) }
-		</p>
+			error=${ state.briefError }
+		>
+			<os-textarea
+				os-field-control
+				class="dm-agents__brief"
+				label=${ __( 'What should this agent do? (system prompt)', 'desktop-mode' ) }
+				value=${ state.cast.brief }
+				rows="5"
+				placeholder=${ __(
+					'Go through my drafts once a week and tell me which ones are closest to finished.',
+					'desktop-mode',
+				) }
+				?invalid=${ state.briefError !== '' }
+				@os-input-change=${ ( e: CustomEvent< { value: string } > ) => {
+					state.cast.brief = e.detail?.value ?? '';
+					if ( state.briefError !== '' ) {
+						// Typing is the fix; the error goes as soon as
+						// it starts rather than after the next click.
+						state.briefError = '';
+						paint();
+					}
+				} }
+			></os-textarea>
+		</os-field-row>
 		<div class="dm-agents__actions">
 			${ state.aiReady
 				? html`
@@ -2159,13 +2125,20 @@ export function renderAgents( host: EntityRenderHost ): void {
 								) }
 						  </os-notice>`
 						: html`` }
-					<os-text-field
-						label=${ __( 'Name', 'desktop-mode' ) }
-						value=${ state.cast.name }
-						@os-input-change=${ editGate( meetReady, ( value ) => {
-							state.cast.name = value;
-						} ) }
-					></os-text-field>
+					<os-field-row error=${ state.nameError }>
+						<os-text-field
+							os-field-control
+							label=${ __( 'Name', 'desktop-mode' ) }
+							value=${ state.cast.name }
+							?invalid=${ state.nameError !== '' }
+							@os-input-change=${ editGate( meetReady, ( value ) => {
+								state.cast.name = value;
+								// The gate flips on the first letter, and
+								// that repaint is what clears the error.
+								state.nameError = '';
+							} ) }
+						></os-text-field>
+					</os-field-row>
 					<os-text-field
 						label=${ __( 'Vibes', 'desktop-mode' ) }
 						value=${ state.cast.vibes }
@@ -2216,13 +2189,11 @@ export function renderAgents( host: EntityRenderHost ): void {
 	 * Named for what is actually being decided. "Refine" describes what
 	 * you do to a form; what this step decides is what the agent is
 	 * allowed to touch, which is the one thing in the flow worth
-	 * slowing down for. How the agent is reached lives here too, last,
-	 * because it has a working default (chat) where role and abilities
-	 * do not: it is the optional tail of the one step about reach.
+	 * slowing down for.
 	 *
-	 * The headings carry both names, the plain one and the one the
+	 * The heading carries both names, the plain one and the one the
 	 * docs and the detail panes use in parentheses, so someone who
-	 * knows what a trigger is finds it as fast as someone who does not.
+	 * knows what an ability is finds it as fast as someone who does not.
 	 */
 	const powersStep = () => html`
 		<os-select
@@ -2250,19 +2221,12 @@ export function renderAgents( host: EntityRenderHost ): void {
 			${ __( 'What it may call (abilities)', 'desktop-mode' ) }
 		</h4>
 		${ abilityPicker() }
-		<h4 class="dm-agents__wiz-heading">
-			${ __( 'How it starts (triggers)', 'desktop-mode' ) }
-		</h4>
-		${ triggersList( state.cast.triggers, ( next ) => {
-			state.cast.triggers = next;
-			paint();
-		} ) }
 		<div class="dm-agents__actions">
 			<os-button variant="ghost" @click=${ () => goStep( 1 ) }>
 				${ __( 'Back', 'desktop-mode' ) }
 			</os-button>
 			<span class="dm-agents__spacer"></span>
-			<os-button variant="primary" @click=${ () => goStep( STEP_LAUNCH ) }>
+			<os-button variant="primary" @click=${ () => goStep( 3 ) }>
 				${ __( 'Continue', 'desktop-mode' ) }
 			</os-button>
 			${ cancelButton() }
@@ -2303,7 +2267,32 @@ export function renderAgents( host: EntityRenderHost ): void {
 		`;
 	};
 
-	/** Step 3, launch. */
+	/**
+	 * Step 3, summon: how the site calls the agent.
+	 *
+	 * Named for the act rather than the mechanism. "Trigger" is what
+	 * the store and the docs call it, and the detail pane keeps that
+	 * name in its tab; here the question is put the way the person
+	 * casting the agent would put it.
+	 */
+	const summonStep = () => html`
+		${ triggersList( state.cast.triggers, ( next ) => {
+			state.cast.triggers = next;
+			paint();
+		} ) }
+		<div class="dm-agents__actions">
+			<os-button variant="ghost" @click=${ () => goStep( 2 ) }>
+				${ __( 'Back', 'desktop-mode' ) }
+			</os-button>
+			<span class="dm-agents__spacer"></span>
+			<os-button variant="primary" @click=${ () => goStep( STEP_LAUNCH ) }>
+				${ __( 'Continue', 'desktop-mode' ) }
+			</os-button>
+			${ cancelButton() }
+		</div>
+	`;
+
+	/** Step 4, launch. */
 	const launchStep = () => {
 		const canChat = cfg.canInvoke && state.aiReady === true;
 		const abilityLabel = ( slug: string ): string =>
@@ -2369,7 +2358,7 @@ export function renderAgents( host: EntityRenderHost ): void {
 				</div>
 			</os-card>
 			<div class="dm-agents__actions">
-				<os-button variant="ghost" @click=${ () => goStep( 2 ) }>
+				<os-button variant="ghost" @click=${ () => goStep( 3 ) }>
 					${ __( 'Back', 'desktop-mode' ) }
 				</os-button>
 				<span class="dm-agents__spacer"></span>
@@ -2420,7 +2409,7 @@ export function renderAgents( host: EntityRenderHost ): void {
 	const castCreate = async ( thenChat: boolean ): Promise< void > => {
 		const c = state.cast;
 		if ( c.name.trim() === '' ) {
-			state.notice = __( 'Agent name is required.', 'desktop-mode' );
+			state.nameError = __( 'Agent name is required.', 'desktop-mode' );
 			state.step = 1;
 			paint();
 			return;
@@ -2470,7 +2459,8 @@ export function renderAgents( host: EntityRenderHost ): void {
 			${ state.step === 0 ? describeStep() : html`` }
 			${ state.step === 1 ? meetStep() : html`` }
 			${ state.step === 2 ? powersStep() : html`` }
-			${ state.step === 3 ? launchStep() : html`` }
+			${ state.step === 3 ? summonStep() : html`` }
+			${ state.step === 4 ? launchStep() : html`` }
 		</div>
 	`;
 

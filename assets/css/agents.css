@@ -254,16 +254,77 @@
 	margin-top: 2px;
 }
 
+/* The composer is one field. The textarea is still the kit's, but the
+   wrapper carries the chrome (field surface, border, focus bloom) and
+   the textarea's own box is flattened through its exported part, so
+   the send button sits inside the same border rather than beside it. */
 .dm-agent-chat__composer {
 	display: flex;
 	align-items: flex-end;
-	gap: 8px;
-	padding: 10px 12px;
-	border-top: 1px solid var( --os-border, rgba( 0, 0, 0, 0.08 ) );
+	gap: 6px;
+	margin: 10px 12px 12px;
+	padding: 4px 4px 4px 10px;
+	border: 1px solid var( --os-ui-field-border, var( --os-ui-border, #dcdcde ) );
+	border-radius: 12px;
+	background: var( --os-ui-field-bg, var( --os-window-bg, #fff ) );
+	transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.dm-agent-chat__composer:focus-within {
+	border-color: var( --os-ui-accent, #f252fc );
+	box-shadow: 0 0 0 3px
+		color-mix( in srgb, var( --os-ui-accent-dim, #f252fc ) 28%, transparent );
 }
 
 .dm-agent-chat__composer os-textarea {
 	flex: 1;
+	min-width: 0;
+}
+
+.dm-agent-chat__composer os-textarea::part( textarea ),
+.dm-agent-chat__composer os-textarea::part( textarea ):hover,
+.dm-agent-chat__composer os-textarea::part( textarea ):focus,
+.dm-agent-chat__composer os-textarea::part( textarea ):focus-visible {
+	border: 0;
+	border-radius: 0;
+	background: transparent;
+	box-shadow: none;
+	outline: none;
+	padding: 8px 0;
+}
+
+/* Round, icon-only, and the same height as one line of the textarea,
+   so an empty composer reads as a single row. */
+.dm-agent-chat__send {
+	flex: none;
+	--os-ui-button-padding: 0;
+	--os-ui-button-min-height: 32px;
+	--os-ui-button-border-radius: 999px;
+	width: 32px;
+	margin-block-end: 3px;
+}
+
+.dm-agent-chat__send-icon {
+	display: block;
+}
+
+/* The accessible name, off-screen. */
+.dm-agent-chat__send-label {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect( 0, 0, 0, 0 );
+	white-space: nowrap;
+	border: 0;
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.dm-agent-chat__composer {
+		transition: none;
+	}
 }
 
 
