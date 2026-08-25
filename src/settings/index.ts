@@ -221,6 +221,7 @@ export class OsSettings implements SettingsCtx {
 			nativeCommentsEnabled: this.state.nativeCommentsEnabled,
 			stationHomeEnabled: this.state.stationHomeEnabled,
 			adminAssetCacheEnabled: this.state.adminAssetCacheEnabled,
+			windowPrewarmEnabled: this.state.windowPrewarmEnabled,
 			developerModeEnabled: this.state.developerModeEnabled,
 			foldersSharingEnabled: this.state.foldersSharingEnabled,
 			showPostStatusRibbons: this.state.showPostStatusRibbons,

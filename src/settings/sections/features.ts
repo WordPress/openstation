@@ -183,6 +183,13 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 		paint();
 	};
 
+	const onWindowPrewarmToggle = ( e: Event ): void => {
+		const checked = ( e as CustomEvent ).detail?.checked === true;
+		ctx.state.windowPrewarmEnabled = checked;
+		ctx.save();
+		paint();
+	};
+
 	const onAdminAssetCacheToggle = ( e: Event ): void => {
 		const checked = ( e as CustomEvent ).detail?.checked === true;
 		ctx.state.adminAssetCacheEnabled = checked;
@@ -837,6 +844,18 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 						<p class="os-features__hint">
 							${ __(
 								'A native two-pane Comments window: a list of conversations beside the full reply thread.',
+							) }
+						</p>
+					</div>
+					<div class="os-features__item">
+						<os-checkbox-label
+							label=${ __( 'Prewarm windows on hover (experimental)' ) }
+							?checked=${ ctx.state.windowPrewarmEnabled }
+							@os-checkbox-change=${ onWindowPrewarmToggle }
+						></os-checkbox-label>
+						<p class="os-features__hint">
+							${ __(
+								'Starts loading a page in a hidden window while you hover its dock icon, so the window appears already rendered when you click. Uses extra memory for one speculative window at a time.',
 							) }
 						</p>
 					</div>

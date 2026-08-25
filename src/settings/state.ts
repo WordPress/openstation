@@ -290,6 +290,10 @@ function _parseRaw( parsed: Partial<OsSettingsState> ): OsSettingsState {
 			typeof parsed.adminAssetCacheEnabled === 'boolean'
 				? parsed.adminAssetCacheEnabled
 				: DEFAULTS.adminAssetCacheEnabled,
+		windowPrewarmEnabled:
+			typeof parsed.windowPrewarmEnabled === 'boolean'
+				? parsed.windowPrewarmEnabled
+				: DEFAULTS.windowPrewarmEnabled,
 		showDesktopOnWallpaperClick:
 			typeof parsed.showDesktopOnWallpaperClick === 'boolean'
 				? parsed.showDesktopOnWallpaperClick

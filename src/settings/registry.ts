@@ -177,6 +177,13 @@ export interface OsSettingsSnapshot {
 	 */
 	adminAssetCacheEnabled: boolean;
 	/**
+	 * Per-user opt-in for hover-intent window prewarming
+	 * (Experimental). The dock reads this live at hover time; the
+	 * window manager's `prewarm()`/adoption machinery is always
+	 * present but idle without it. Default off.
+	 */
+	windowPrewarmEnabled: boolean;
+	/**
 	 * Per-user kill switch for the folder-sharing feature.
 	 * Defaults to `true`. When `false`, every share-related
 	 * surface is suppressed for this user (UI hidden, REST routes

@@ -216,6 +216,12 @@ function openstation_default_os_settings() {
 		// SW inside the served `sw.js` bytes, so a change applies via a
 		// normal SW update on the user's next reload.
 		'adminAssetCacheEnabled'      => false,
+		// Per-user opt-IN for hover-intent window prewarming
+		// (Experimental). Defaults OFF. When on, a sustained mouse
+		// hover on a dock tile speculatively builds that page's window
+		// hidden so it appears already rendered on click. Read live by
+		// the dock JS; no server-side behavior attaches to it.
+		'windowPrewarmEnabled'        => false,
 		// When true, left-clicking the empty wallpaper triggers the
 		// "Show desktop" toggle (macOS-style) and the matching entry is
 		// hidden from the wallpaper context menu. When false (default),
@@ -757,6 +763,10 @@ function openstation_sanitize_os_settings( $raw ) {
 		? (bool) $raw['adminAssetCacheEnabled']
 		: $defaults['adminAssetCacheEnabled'];
 
+	$window_prewarm_enabled = isset( $raw['windowPrewarmEnabled'] )
+		? (bool) $raw['windowPrewarmEnabled']
+		: $defaults['windowPrewarmEnabled'];
+
 	$show_desktop_on_wallpaper_click = isset( $raw['showDesktopOnWallpaperClick'] )
 		? (bool) $raw['showDesktopOnWallpaperClick']
 		: $defaults['showDesktopOnWallpaperClick'];
@@ -927,6 +937,7 @@ function openstation_sanitize_os_settings( $raw ) {
 		'nativeCommentsEnabled'       => $native_comments_enabled,
 		'stationHomeEnabled'          => $station_home_enabled,
 		'adminAssetCacheEnabled'      => $admin_asset_cache_enabled,
+		'windowPrewarmEnabled'        => $window_prewarm_enabled,
 		'showDesktopOnWallpaperClick' => $show_desktop_on_wallpaper_click,
 		'mioEnabled'                  => $mio_enabled,
 		'mioStyle'                    => $mio_style,

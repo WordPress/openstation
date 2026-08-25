@@ -302,6 +302,14 @@ export interface OsSettingsState {
 	 */
 	adminAssetCacheEnabled: boolean;
 	/**
+	 * Per-user opt-in for hover-intent window prewarming
+	 * (Experimental). When true, a sustained mouse hover on a dock
+	 * tile speculatively builds that page's window hidden, so the
+	 * document is already loading — or loaded — when the user clicks.
+	 * Default off.
+	 */
+	windowPrewarmEnabled: boolean;
+	/**
 	 * When true, left-clicking the empty wallpaper triggers the
 	 * "Show desktop" toggle (macOS-style) and the matching entry is
 	 * hidden from the wallpaper context menu. When false (default),
