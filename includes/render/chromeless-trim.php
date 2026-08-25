@@ -127,3 +127,53 @@ function openstation_chromeless_trim_assets() {
 	do_action( 'openstation_chromeless_trimmed_assets' );
 }
 add_action( 'admin_enqueue_scripts', 'openstation_chromeless_trim_assets', PHP_INT_MAX );
+
+/**
+ * Second pass: strip trimmed handles from the actual print list.
+ *
+ * The dequeue above cannot be the whole story, and a live install
+ * showed exactly why. Two things survive it:
+ *
+ *   1. **Late enqueues.** A host mu-plugin that queues its masterbar
+ *      assets after `admin_enqueue_scripts` has already run is simply
+ *      not in the queue yet when we dequeue. WordPress.com's
+ *      `wpcom-notes-*` handles behave this way.
+ *   2. **Dependency pull-back.** `WP_Dependencies::all_deps()` pulls a
+ *      dequeued-but-registered handle back in when something still
+ *      queued declares it as a dependency. Core's `admin-bar`
+ *      stylesheet rode back in on the notes stylesheet exactly so.
+ *
+ * `print_scripts_array` / `print_styles_array` run inside `do_items()`
+ * after every enqueue, dequeue and dependency walk has finished, so
+ * they are the last word. Scope stays the same list — a handle nobody
+ * asked us to trim is never touched — and because the list covers the
+ * whole family, removing one member never strands another member that
+ * depended on it.
+ *
+ * @param string[] $handles Handles WordPress is about to print.
+ * @param string   $kind    'scripts' or 'styles'.
+ * @return string[] Filtered handles.
+ */
+function openstation_chromeless_filter_print_list( $handles, $kind ) {
+	if ( ! is_array( $handles ) || ! openstation_is_chromeless_request() ) {
+		return $handles;
+	}
+	$trim = 'scripts' === $kind
+		? openstation_chromeless_trimmed_scripts()
+		: openstation_chromeless_trimmed_styles();
+
+	return array_values( array_diff( $handles, $trim ) );
+}
+
+add_filter(
+	'print_scripts_array',
+	static function ( $handles ) {
+		return openstation_chromeless_filter_print_list( $handles, 'scripts' );
+	}
+);
+add_filter(
+	'print_styles_array',
+	static function ( $handles ) {
+		return openstation_chromeless_filter_print_list( $handles, 'styles' );
+	}
+);

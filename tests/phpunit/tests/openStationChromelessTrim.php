@@ -144,6 +144,53 @@ class Tests_OpenStation_ChromelessTrim extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Late enqueues and dependency pull-back both survive the dequeue
+	 * pass, so the print-list filter is the last word.
+	 *
+	 * @covers ::openstation_chromeless_filter_print_list
+	 */
+	public function test_print_list_filter_strips_trimmed_handles() {
+		$this->enter_chromeless();
+
+		$handles = array( 'jquery-core', 'admin-bar', 'wpcom-notes-admin-bar', 'common' );
+		$out     = openstation_chromeless_filter_print_list( $handles, 'scripts' );
+
+		$this->assertSame( array( 'jquery-core', 'common' ), $out );
+	}
+
+	/**
+	 * @covers ::openstation_chromeless_filter_print_list
+	 */
+	public function test_print_list_filter_is_a_noop_outside_windows() {
+		wp_set_current_user( self::$admin_id );
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+
+		$handles = array( 'jquery-core', 'admin-bar' );
+		$this->assertSame(
+			$handles,
+			openstation_chromeless_filter_print_list( $handles, 'scripts' )
+		);
+	}
+
+	/**
+	 * Styles use their own list — a script-only handle must not be
+	 * stripped from the stylesheet print list.
+	 *
+	 * @covers ::openstation_chromeless_filter_print_list
+	 */
+	public function test_print_list_filter_uses_the_matching_list() {
+		$this->enter_chromeless();
+
+		$out = openstation_chromeless_filter_print_list(
+			array( 'admin-bar', 'os-admin-bar', 'colors' ),
+			'styles'
+		);
+
+		// `os-admin-bar` is a script handle; the style list leaves it.
+		$this->assertSame( array( 'os-admin-bar', 'colors' ), $out );
+	}
+
+	/**
 	 * Our own toggle bundle is the largest asset in the family, and it
 	 * must not even be enqueued inside a window.
 	 *
