@@ -32,8 +32,7 @@ function openstation_plugins_window_render_template() {
 		<os-tabs value="installed" class="os-plugins__tabs" data-os-plugins-tabs>
 			<os-tab value="installed"><?php esc_html_e( 'Installed', 'desktop-mode' ); ?></os-tab>
 			<?php if ( ! empty( $caps['install'] ) ) : ?>
-				<os-tab value="browse"><?php esc_html_e( 'Add Plugin', 'desktop-mode' ); ?></os-tab>
-				<os-tab value="featured"><?php esc_html_e( 'OpenStation plugins', 'desktop-mode' ); ?></os-tab>
+				<os-tab value="browse"><?php esc_html_e( 'Discover', 'desktop-mode' ); ?></os-tab>
 			<?php endif; ?>
 		</os-tabs>
 
@@ -54,18 +53,9 @@ function openstation_plugins_window_render_template() {
 				<div class="os-plugins__browse" data-os-plugins-browse-host>
 					<?php
 					/*
-					 * JS bundle paints the search + segmented filter
-					 * + Upload button + <os-grid> of cards here.
-					 */
-					?>
-				</div>
-			</os-tabpanel>
-			<os-tabpanel for="featured" class="os-plugins__panel">
-				<div class="os-plugins__featured" data-os-plugins-featured-host>
-					<?php
-					/*
-					 * JS bundle paints an intro blurb + gallery of
-					 * plugins that integrate with OpenStation here.
+					 * JS bundle paints the Discover store: search,
+					 * curated collections, filters, Upload button,
+					 * and the WordPress.org card gallery.
 					 */
 					?>
 				</div>
@@ -162,6 +152,8 @@ function openstation_plugins_window_register_window() {
 			// each individual row is enabled / forced / supported.
 			'autoUpdatesEnabled' => openstation_plugins_window_auto_updates_enabled(),
 			'currentUserId'      => (int) get_current_user_id(),
+			'wpVersion'          => (string) get_bloginfo( 'version' ),
+			'phpVersion'         => PHP_VERSION,
 			// The plugin file path WordPress uses to identify the
 			// OpenStation plugin itself in REST mutations
 			// (`/wp/v2/plugins/{plugin}`). The JS uses this to detect

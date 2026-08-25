@@ -24,6 +24,7 @@ import { leaveForClassicAdmin } from '../exit-openstation';
 import type {
 	BrowseFilter,
 	InstalledPlugin,
+	PluginSearchScope,
 	PluginReviewsResponse,
 	WpOrgBrowsePlugin,
 	WpOrgPluginInfo,
@@ -70,6 +71,9 @@ export interface PluginsWindowConfig {
 	 */
 	autoUpdatesEnabled: boolean;
 	currentUserId: number;
+	/** WordPress and PHP versions used for per-card requirement signals. */
+	wpVersion: string;
+	phpVersion: string;
 	/**
 	 * OpenStation's own plugin file path (e.g.
 	 * `"desktop-mode/desktop-mode.php"`) — the same value WordPress
@@ -490,6 +494,7 @@ export async function toggleAutoUpdate(
 export async function browsePlugins( args: {
 	browse?: BrowseFilter;
 	search?: string;
+	searchScope?: PluginSearchScope;
 	tag?: string;
 	page?: number;
 	perPage?: number;
@@ -500,6 +505,7 @@ export async function browsePlugins( args: {
 	return ajaxRequest( 'openstation_plugins_browse', {
 		browse: args.browse,
 		search: args.search,
+		search_scope: args.searchScope,
 		tag: args.tag,
 		page: args.page,
 		per_page: args.perPage,
@@ -512,7 +518,8 @@ export async function fetchPluginInfo( slug: string ): Promise< WpOrgPluginInfo 
 }
 
 /**
- * Card payload for the Featured tab. Same shape as a Browse card plus
+ * Card payload for the OpenStation Picks shelf. Same shape as a
+ * directory card plus
  * a `featured` boolean — true when the row came from the curated seed
  * list, false when auto-discovered from wp.org's `requires_plugins`.
  */

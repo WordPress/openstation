@@ -91,6 +91,7 @@ function openstation_plugins_window_ajax_error( WP_Error $error ) {
  * Body params:
  *   - browse    string (featured|popular|recommended|favorites|new|beta), default "featured"
  *   - search    string, optional
+ *   - search_scope string (all|author|tag), default "all"
  *   - tag       string, optional
  *   - page      int,    default 1
  *   - per_page  int,    default 24, capped at 60
@@ -121,8 +122,12 @@ function openstation_plugins_window_ajax_browse() {
 		$browse_raw = 'featured';
 	}
 
-	$search   = isset( $_POST['search'] ) ? sanitize_text_field( wp_unslash( (string) $_POST['search'] ) ) : '';
-	$tag      = isset( $_POST['tag'] ) ? sanitize_key( wp_unslash( (string) $_POST['tag'] ) ) : '';
+	$search       = isset( $_POST['search'] ) ? sanitize_text_field( wp_unslash( (string) $_POST['search'] ) ) : '';
+	$search_scope = isset( $_POST['search_scope'] ) ? sanitize_key( wp_unslash( (string) $_POST['search_scope'] ) ) : 'all';
+	if ( ! in_array( $search_scope, array( 'all', 'author', 'tag' ), true ) ) {
+		$search_scope = 'all';
+	}
+	$tag      = isset( $_POST['tag'] ) ? sanitize_title( wp_unslash( (string) $_POST['tag'] ) ) : '';
 	$page     = isset( $_POST['page'] ) ? max( 1, (int) $_POST['page'] ) : 1;
 	$per_page = isset( $_POST['per_page'] ) ? max( 1, min( 60, (int) $_POST['per_page'] ) ) : 24;
 	// phpcs:enable WordPress.Security.NonceVerification.Missing
@@ -156,7 +161,13 @@ function openstation_plugins_window_ajax_browse() {
 	);
 
 	if ( '' !== $search ) {
-		$api_args['search'] = $search;
+		if ( 'author' === $search_scope ) {
+			$api_args['author'] = sanitize_user( $search );
+		} elseif ( 'tag' === $search_scope ) {
+			$api_args['tag'] = sanitize_title( $search );
+		} else {
+			$api_args['search'] = $search;
+		}
 	} elseif ( '' !== $tag ) {
 		$api_args['tag'] = $tag;
 	} else {
@@ -173,11 +184,12 @@ function openstation_plugins_window_ajax_browse() {
 		'openstation_plugins_window_browse_args',
 		$api_args,
 		array(
-			'browse'   => $browse_raw,
-			'search'   => $search,
-			'tag'      => $tag,
-			'page'     => $page,
-			'per_page' => $per_page,
+			'browse'       => $browse_raw,
+			'search'       => $search,
+			'search_scope' => $search_scope,
+			'tag'          => $tag,
+			'page'         => $page,
+			'per_page'     => $per_page,
 		)
 	);
 
@@ -790,7 +802,7 @@ function openstation_plugins_window_ajax_upload() {
 add_action( 'wp_ajax_openstation_plugins_upload', 'openstation_plugins_window_ajax_upload' );
 
 /**
- * Curated list of slugs that lead the Featured tab.
+ * Curated list of slugs that lead the OpenStation Picks shelf.
  *
  * Hand-picked because wp.org's `plugins_api` does not surface a real
  * "filter by `requires_plugins`" query — passing `requires_plugins` to
@@ -839,7 +851,7 @@ function openstation_plugins_window_featured_slugs() {
 }
 
 /**
- * `wp_ajax_openstation_plugins_featured` — return the Featured tab's
+ * `wp_ajax_openstation_plugins_featured` — return the Discover store's
  * curated + auto-discovered list of plugins that integrate with Desktop
  * Mode.
  *
@@ -976,7 +988,7 @@ function openstation_plugins_window_ajax_featured() {
 	);
 
 	/**
-	 * Filter the Featured tab payload before it's cached + sent.
+	 * Filter the OpenStation Picks payload before it's cached + sent.
 	 *
 	 * Use this to inject server-side curated rows (e.g. premium /
 	 * private plugins not on wp.org), or to enforce a hard cap on the

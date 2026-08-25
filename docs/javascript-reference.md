@@ -6177,11 +6177,13 @@ placements you recognize; see
 
 ## Native Plugins window
 
-The `desktop-mode-plugins` native window replaces the chromeless `plugins.php` and `plugin-install.php` iframes. Two tabs (Installed + Browse), a `<os-flyout>` detail panel, .zip upload (button + drop-on-window), and drag-card-to-dock pinning via the framework drag bridge.
+The `desktop-mode-plugins` native window replaces the chromeless `plugins.php` and `plugin-install.php` iframes. Two tabs (Installed + Discover), a `<os-flyout>` detail panel, .zip upload (button + drop-on-window), and drag-card-to-dock pinning via the framework drag bridge.
+
+Discover combines live WordPress.org feeds with an OpenStation Picks shelf, task-oriented tag collections, search scopes for everything / author / tag, and factual card signals for WordPress/PHP requirements, directory-tested version, and update recency. These signals describe directory metadata; they are not security endorsements.
 
 ### URL routing
 
-Both `plugins.php` and `plugin-install.php` are claimed by `registerNativeUrlRemap`. The latter stashes a `tab: 'browse'` hint in the shared store `'desktop-mode/plugins-window/tab-target'` so the bundle's first paint activates the Browse tab. When `nativePluginsEnabled` is `false`, the click falls through to the classic iframe path.
+Both `plugins.php` and `plugin-install.php` are claimed by `registerNativeUrlRemap`. The latter stashes a `tab: 'browse'` hint in the shared store `'desktop-mode/plugins-window/tab-target'` so the bundle's first paint activates Discover. When `nativePluginsEnabled` is `false`, the click falls through to the classic iframe path. The former top-level `featured` tab value remains an inbound alias for `browse`, landing on the OpenStation Picks shelf inside Discover.
 
 **Threading state into the window a remap opens.** A remap entry may declare a `params( url, parsed )` hook returning open-time [`params`](#wposopenwindow-id-opts---stable) for its native window. **Prefer it over a shared store**: params are persisted with the session and staged back on restore, so the window reopens on the same subject after a reload — a shared store does not survive the reload and the window comes back on its default. A throwing hook is logged and the window still opens, the same tolerance `onMatch` has. Remaps that declare no hook call the opener with one argument exactly as before.
 
@@ -6189,7 +6191,7 @@ Both `plugins.php` and `plugin-install.php` are claimed by `registerNativeUrlRem
 
 ### Drag bridge integration
 
-Cards in the Browse gallery call `wp.os.dragManager.start({ … })` on pointer-down. The payload is:
+Cards in the Discover gallery call `wp.os.dragManager.start({ … })` on pointer-down. The payload is:
 
 ```ts
 {

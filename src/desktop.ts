@@ -2681,7 +2681,7 @@ function init(): void {
 	// Native Plugins window — claims `plugins.php` (Installed list)
 	// AND `plugin-install.php` (Browse the .org repo). The latter
 	// stashes a `tab: 'browse'` hint so the bundle's first paint
-	// activates the Browse tab. `plugin-editor.php` is intentionally
+	// activates Discover. `plugin-editor.php` is intentionally
 	// NOT claimed — it's a code-editor surface that belongs to the
 	// separate code-editor bundle.
 	registerNativeUrlRemap( {

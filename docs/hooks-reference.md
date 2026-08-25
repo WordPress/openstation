@@ -2946,7 +2946,9 @@ The `{ slug: label }` map for the active theme's registered page templates, used
 
 ## Native Plugins window
 
-A two-tab native window that replaces the chromeless `plugins.php` (Installed list) and `plugin-install.php` (Browse the .org repo) iframes. **Opt-in Beta** — fresh installs land on the classic iframe; users turn it on via **OpenStation Preferences → Features → Beta features → Use the native Plugins window** (persisted as `OsSettingsState.nativePluginsEnabled`, default `false`). `plugin-editor.php` is intentionally NOT claimed; that surface stays on the existing iframe.
+A two-tab native window that replaces the chromeless `plugins.php` (Installed list) and `plugin-install.php` (Discover) iframes. **Opt-in Beta** — fresh installs land on the classic iframe; users turn it on via **OpenStation Preferences → Features → Beta features → Use the native Plugins window** (persisted as `OsSettingsState.nativePluginsEnabled`, default `false`). `plugin-editor.php` is intentionally NOT claimed; that surface stays on the existing iframe.
+
+Discover is a curated store over the WordPress.org directory rather than a second package source. The directory remains authoritative for plugin metadata and packages; OpenStation adds an OpenStation Picks shelf, task-oriented tag collections, field-scoped search (everything / author / tag), site requirement signals, and maintenance recency. Install-by-slug still delegates to Core.
 
 Architecture summary: read paths use Core REST (`/wp/v2/plugins`); admin-only paths (browse / info / reviews / .zip upload) live on `admin-ajax.php` (`wp_ajax_openstation_plugins_*`) so we never need to `require_once ABSPATH . 'wp-admin/…'`. Install-by-slug delegates to Core's existing `wp_ajax_install_plugin` handler. Mutations are followed by `wp.os.refreshMenu()` so the dock repaints live.
 
@@ -2972,7 +2974,7 @@ Last-mile mutation of the args passed to `openstation_register_window( 'desktop-
 
 ### `openstation_plugins_window_template_html` — Experimental *(filter)*
 
-Filters the rendered template HTML before `wp_kses` runs. Keep `data-os-plugins-{root,tabs,installed-host,browse-host,featured-host,flyout}` intact or rename them and update the matching constants in `src/plugins-window/index.ts`.
+Filters the rendered template HTML before `wp_kses` runs. Keep `data-os-plugins-{root,tabs,installed-host,browse-host,flyout}` intact or rename them and update the matching constants in `src/plugins-window/index.ts`.
 
 ### `openstation_plugins_window_browse_args` — Stable *(filter)*
 
@@ -2982,7 +2984,7 @@ Mutates the args passed to `plugins_api( 'query_plugins', … )` from the `wp_aj
 apply_filters( 'openstation_plugins_window_browse_args', array $api_args, array $raw_params ): array
 ```
 
-`$raw_params` carries the sanitized request: `browse`, `search`, `tag`, `page`, `per_page`. Use this to pin a corporate plugin allow-list, force a specific `tag`, or extend the `fields` payload.
+`$raw_params` carries the sanitized request: `browse`, `search`, `search_scope`, `tag`, `page`, `per_page`. `search_scope` is `all`, `author`, or `tag`; the handler maps those to the matching first-class `plugins_api()` argument before this filter runs. Use the filter to pin a corporate plugin allow-list, force a specific `tag`, or extend the `fields` payload.
 
 ### `openstation_plugins_window_browse_response` — Stable *(filter)*
 
@@ -3085,7 +3087,7 @@ Fires after the upload-AJAX handler installs a plugin from an uploaded .zip. `$p
 
 ### `openstation_plugins_featured_slugs` — Experimental *(filter)*
 
-The Plugins window's third tab — "OpenStation plugins" — leads with a hand-curated list because wp.org's `plugins_api` does not yet expose a usable `requires_plugins` filter. The handler hydrates each curated slug through `plugins_api( 'plugin_information' )` so card metadata stays fresh; it then scans the wp.org popular feed for rows whose `requires_plugins` array contains `openstation` and appends them after the curated entries.
+The OpenStation Picks shelf at the top of Discover leads with a hand-curated list because wp.org's `plugins_api` does not expose a usable `requires_plugins` filter. The handler hydrates each curated slug through `plugins_api( 'plugin_information' )` so card metadata stays fresh; it then scans the wp.org popular feed for rows whose `requires_plugins` array contains `desktop-mode` and appends them after the curated entries.
 
 Use this filter to append your own companion plugins (or remove the default seed). Order is preserved — the first slug renders first in the gallery. Output is run through `sanitize_key()` and deduplicated.
 
@@ -3100,11 +3102,11 @@ add_filter( 'openstation_plugins_featured_slugs', static function ( $slugs ) {
 } );
 ```
 
-**Cache scope caveat.** The Featured tab response is cached in a single site-wide transient (`dm_pwfeatured_v1`, 1h TTL) — the cache key does not vary by user or role. If your filter returns role-specific or capability-specific slugs (e.g. surfacing a premium plugin only to administrators), the first viewer's payload will be served to every viewer for the cache window. Either keep the curated list cap-agnostic, or use `openstation_plugins_featured_response` to drop disallowed rows for the current viewer *after* the shared payload is composed (you'd lose the cache hit benefit per user, but no leak).
+**Cache scope caveat.** The Picks response is cached in a single site-wide transient (`dm_pwfeatured_v1`, 1h TTL) — the cache key does not vary by user or role. If your filter returns role-specific or capability-specific slugs (e.g. surfacing a premium plugin only to administrators), the first viewer's payload will be served to every viewer for the cache window. Either keep the curated list cap-agnostic, or use `openstation_plugins_featured_response` to drop disallowed rows for the current viewer *after* the shared payload is composed (you'd lose the cache hit benefit per user, but no leak).
 
 ### `openstation_plugins_featured_response` — Experimental *(filter)*
 
-Last hop before the Featured tab payload is cached (1h transient) and sent to the client. Inject premium / private rows that aren't on wp.org, or enforce a hard cap on the response.
+Last hop before the OpenStation Picks payload is cached (1h transient) and sent to the client. Inject premium / private rows that aren't on wp.org, or enforce a hard cap on the response.
 
 ```php
 apply_filters( 'openstation_plugins_featured_response', array $payload, array $curated ): array
