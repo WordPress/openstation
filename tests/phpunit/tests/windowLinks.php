@@ -246,7 +246,13 @@ class Tests_OpenStation_WindowLinks extends WP_UnitTestCase {
 
 		ob_start();
 		openstation_chromeless_bridge_script();
-		$output = ob_get_clean();
+		// The bridge ships as a built bundle now: PHP attaches the
+		// per-request data as an inline block and the behaviour lives
+		// in the source that builds into the bundle.
+		$inline = wp_scripts()->get_data( 'os-chromeless-bridge', 'before' );
+		$output = (string) ob_get_clean()
+			. ( is_array( $inline ) ? implode( "\n", $inline ) : (string) $inline )
+			. (string) file_get_contents( OPENSTATION_DIR . 'src/chromeless-bridge.js' );
 
 		unset( $_GET['openstation_chromeless'] );
 		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );

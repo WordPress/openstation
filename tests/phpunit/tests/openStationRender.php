@@ -31,6 +31,40 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Everything the bridge contributes to a chromeless page.
+	 *
+	 * The bridge code ships as a built bundle now, so the footer hook
+	 * enqueues a handle and attaches its per-request data rather than
+	 * printing ~125 KB of inline JavaScript into every window. Tests
+	 * that assert on bridge BEHAVIOUR therefore read the source that
+	 * builds into that bundle, alongside whatever PHP still prints.
+	 *
+	 * Returns only the printed output when the bridge didn't run, so
+	 * "emits nothing off a chromeless request" assertions keep meaning
+	 * what they say.
+	 *
+	 * @return string
+	 */
+	private function bridge_output() {
+		ob_start();
+		openstation_chromeless_bridge_script();
+		$printed = (string) ob_get_clean();
+
+		if ( ! openstation_is_chromeless_request() ) {
+			return $printed;
+		}
+
+		$data = wp_scripts()->get_data( 'os-chromeless-bridge', 'before' );
+		if ( is_array( $data ) ) {
+			$data = implode( "\n", $data );
+		}
+
+		return $printed . (string) $data . (string) file_get_contents(
+			OPENSTATION_DIR . 'src/chromeless-bridge.js'
+		);
+	}
+
+	/**
 	 * The admin-bar mode has to ride along on the body class rather
 	 * than wait for the shell's JS apply pass — the bar has already
 	 * painted by then, so a user who picked `hidden` would see it
@@ -351,9 +385,7 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 	public function test_bridge_script_emits_nothing_outside_chromeless() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 
-		ob_start();
-		openstation_chromeless_bridge_script();
-		$output = ob_get_clean();
+		$output = $this->bridge_output();
 
 		$this->assertSame( '', $output );
 	}
@@ -365,9 +397,7 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$_GET['openstation_chromeless'] = '1';
 
-		ob_start();
-		openstation_chromeless_bridge_script();
-		$output = ob_get_clean();
+		$output = $this->bridge_output();
 
 		$this->assertStringContainsString( 'os-screen-meta', $output );
 		$this->assertStringContainsString( 'postMessage', $output );
@@ -386,9 +416,7 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$_GET['openstation_chromeless'] = '1';
 
-		ob_start();
-		openstation_chromeless_bridge_script();
-		$output = ob_get_clean();
+		$output = $this->bridge_output();
 
 		// The matcher.
 		$this->assertStringContainsString( '/^os\.(.+)\.changed$/', $output );
@@ -411,9 +439,7 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$_GET['openstation_chromeless'] = '1';
 
-		ob_start();
-		openstation_chromeless_bridge_script();
-		$output = ob_get_clean();
+		$output = $this->bridge_output();
 
 		// The container node survives; only its children are swapped.
 		$this->assertStringContainsString( 'live.replaceChildren.apply', $output );
@@ -454,9 +480,7 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$_GET['openstation_chromeless'] = '1';
 
-		ob_start();
-		openstation_chromeless_bridge_script();
-		$output = ob_get_clean();
+		$output = $this->bridge_output();
 
 		$this->assertStringContainsString( 'rewriteAdminUrl', $output );
 		$this->assertStringContainsString( "addEventListener( 'click'", $output );
@@ -478,9 +502,7 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$_GET['openstation_chromeless'] = '1';
 
-		ob_start();
-		openstation_chromeless_bridge_script();
-		$output = ob_get_clean();
+		$output = $this->bridge_output();
 
 		// Pin the admin-branch shape: the prevent-default must sit
 		// inside the `kind === 'admin'` block, paired with the
@@ -509,9 +531,7 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$_GET['openstation_chromeless'] = '1';
 
-		ob_start();
-		openstation_chromeless_bridge_script();
-		$output = ob_get_clean();
+		$output = $this->bridge_output();
 
 		$this->assertStringContainsString( 'os-focus-request', $output );
 		$this->assertStringContainsString( 'hookNestedFrames', $output );
@@ -535,9 +555,7 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$_GET['openstation_chromeless'] = '1';
 
-		ob_start();
-		openstation_chromeless_bridge_script();
-		$output = ob_get_clean();
+		$output = $this->bridge_output();
 
 		// The observer callback iterates addedNodes and hands each
 		// one to the scoped sweep.
@@ -568,9 +586,7 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$_GET['openstation_chromeless'] = '1';
 
-		ob_start();
-		openstation_chromeless_bridge_script();
-		$output = ob_get_clean();
+		$output = $this->bridge_output();
 
 		// Each class WP core's wp-admin/js/updates.js binds an AJAX
 		// click handler to. The bridge must early-return on these so
@@ -619,9 +635,7 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$_GET['openstation_chromeless'] = '1';
 
-		ob_start();
-		openstation_chromeless_bridge_script();
-		$output = ob_get_clean();
+		$output = $this->bridge_output();
 
 		$this->assertStringContainsString(
 			"link.classList.contains( 'aria-button-if-js' )",
