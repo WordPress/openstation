@@ -286,6 +286,10 @@ function _parseRaw( parsed: Partial<OsSettingsState> ): OsSettingsState {
 			typeof parsed.stationHomeEnabled === 'boolean'
 				? parsed.stationHomeEnabled
 				: DEFAULTS.stationHomeEnabled,
+		adminAssetCacheEnabled:
+			typeof parsed.adminAssetCacheEnabled === 'boolean'
+				? parsed.adminAssetCacheEnabled
+				: DEFAULTS.adminAssetCacheEnabled,
 		showDesktopOnWallpaperClick:
 			typeof parsed.showDesktopOnWallpaperClick === 'boolean'
 				? parsed.showDesktopOnWallpaperClick

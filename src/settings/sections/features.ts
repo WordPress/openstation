@@ -183,6 +183,19 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 		paint();
 	};
 
+	const onAdminAssetCacheToggle = ( e: Event ): void => {
+		const checked = ( e as CustomEvent ).detail?.checked === true;
+		ctx.state.adminAssetCacheEnabled = checked;
+		ctx.save();
+		paint();
+		// The value reaches the service worker inside the served sw.js
+		// bytes, so the change lands as a normal SW update. We don't
+		// force `registration.update()` + the auto-reload here — a
+		// surprise shell reload could discard unsaved work in an open
+		// window. The hint text tells the user it applies on the next
+		// reload; the browser's own update checks pick it up from there.
+	};
+
 	const onShowDesktopOnClickToggle = ( e: Event ): void => {
 		const checked = ( e as CustomEvent ).detail?.checked === true;
 		ctx.state.showDesktopOnWallpaperClick = checked;
@@ -824,6 +837,18 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 						<p class="os-features__hint">
 							${ __(
 								'A native two-pane Comments window: a list of conversations beside the full reply thread.',
+							) }
+						</p>
+					</div>
+					<div class="os-features__item">
+						<os-checkbox-label
+							label=${ __( 'Shared asset cache (experimental)' ) }
+							?checked=${ ctx.state.adminAssetCacheEnabled }
+							@os-checkbox-change=${ onAdminAssetCacheToggle }
+						></os-checkbox-label>
+						<p class="os-features__hint">
+							${ __(
+								'Serves the admin’s stylesheets and scripts from one cache shared by every window, so opening a window skips the network for files any window has already loaded. Unlike the other toggles here, this one takes effect after your next reload.',
 							) }
 						</p>
 					</div>

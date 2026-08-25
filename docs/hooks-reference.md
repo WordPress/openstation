@@ -4167,12 +4167,43 @@ Use this to unblock the "Install \<site\> as an app" affordance on sites
 where another PWA plugin's SW is shadowing OpenStation and Chromium
 therefore won't fire `beforeinstallprompt`.
 
+### `openstation_pwa_admin_asset_cache` — Experimental (filter)
+
+Opt in to the service worker's **shared admin-asset cache**. When
+enabled, versioned admin static assets — Core CSS/JS, the
+`load-scripts.php` / `load-styles.php` concat responses, and
+plugin/theme assets carrying a `?ver=` query — are served from one
+origin-wide Cache Storage bucket shared by the shell and every window's
+chromeless iframe. An asset fetched by one window is answered locally
+for every later window, revalidation round-trips included.
+
+The filter's default is the requesting user's OpenStation preference
+(**OpenStation Preferences → Features → Beta features → "Shared asset
+cache (experimental)"**, `adminAssetCacheEnabled`, default `false`) —
+the toggle is the intended opt-in path. Hook the filter to force the
+cache site-wide or to veto every per-user opt-in:
+
+```php
+add_filter( 'openstation_pwa_admin_asset_cache', '__return_true' );  // force on
+add_filter( 'openstation_pwa_admin_asset_cache', '__return_false' ); // kill switch
+```
+
+The value reaches the SW inside the served script bytes, so flipping
+the filter triggers a normal SW update on the next page load — no
+re-registration needed. Core-path assets are cached exact-URL
+cache-first (their `ver` embeds the WordPress version); plugin/theme
+assets use stale-while-revalidate so an author editing files without a
+version bump self-heals on the next load. Uploads, unversioned URLs,
+HTML, REST, and AJAX are never cached. See
+[`docs/pwa.md`](./pwa.md#caching-policy) for the full policy table.
+
 ### PHP helpers — Stable
 
 ```php
 openstation_pwa_manifest_url();
 openstation_pwa_sw_url();
 openstation_pwa_force_replace_sw();
+openstation_pwa_admin_asset_cache_enabled();
 openstation_pwa_get_user_state( $user_id = 0 );
 openstation_pwa_update_user_state( array $patch, $user_id = 0 );
 ```

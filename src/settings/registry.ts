@@ -170,6 +170,13 @@ export interface OsSettingsSnapshot {
 	 */
 	stationHomeEnabled: boolean;
 	/**
+	 * Per-user opt-in for the service worker's shared admin-asset
+	 * cache (Experimental). Informational for plugins — the cache
+	 * itself is enforced inside the SW, not by shell code. Default
+	 * off; changes apply via a SW update on the next reload.
+	 */
+	adminAssetCacheEnabled: boolean;
+	/**
 	 * Per-user kill switch for the folder-sharing feature.
 	 * Defaults to `true`. When `false`, every share-related
 	 * surface is suppressed for this user (UI hidden, REST routes
