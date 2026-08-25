@@ -237,11 +237,23 @@ function openstation_pwa_endpoint_kind() {
 		return 'sw';
 	}
 	// Extensionless fallback (`/?openstation_sw=1`) for hosts whose web
-	// server 404s virtual `.js` paths before WordPress runs. Read from
-	// the query string of the same unparsed URI the path checks use.
+	// server 404s virtual `.js` paths before WordPress runs.
+	//
+	// Pinned to the site root — the one URL
+	// {@see openstation_pwa_sw_fallback_url()} builds and the only one
+	// the registration ever requests. Matching the query alone would
+	// have turned *any* path into a service-worker endpoint, which is
+	// harmless in practice (the handler streams a static file from
+	// disk and reflects nothing from the request) but wider than the
+	// contract this function documents, and a service worker's scope
+	// is decided by the path it is served from — so the path is not an
+	// incidental detail here.
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- public read-only endpoint selector, same trust level as the path match above.
 	if ( isset( $_GET[ OPENSTATION_PWA_SW_QUERY ] ) && '1' === $_GET[ OPENSTATION_PWA_SW_QUERY ] ) {
-		return 'sw';
+		$home_root = '' === $home_path ? '/' : $home_path . '/';
+		if ( $path === $home_root || $path === $home_path ) {
+			return 'sw';
+		}
 	}
 	return '';
 }

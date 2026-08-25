@@ -78,7 +78,7 @@
 		"build:agent-run-window": "OPENSTATION_TARGET=agent-run-window vite build --mode development && OPENSTATION_TARGET=agent-run-window vite build --mode production",
 		"dev": "vite build --mode development --watch",
 		"vendor:pixi": "node -e \"require('fs').cpSync('node_modules/pixi.js/dist/pixi.min.js', 'assets/vendor/pixi.min.js')\"",
-		"lint": "eslint 'src/**/*.ts'",
+		"lint": "eslint 'src/**/*.ts' src/chromeless-bridge.js",
 		"lint:fix": "eslint 'src/**/*.ts' --fix",
 		"lint:php": "wp-env run --config=.wp-env.tests.json cli --env-cwd=wp-content/plugins/desktop-mode vendor/bin/phpcs -n",
 		"lint:php:all": "wp-env run --config=.wp-env.tests.json cli --env-cwd=wp-content/plugins/desktop-mode vendor/bin/phpcs",

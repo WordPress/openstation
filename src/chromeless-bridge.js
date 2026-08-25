@@ -20,6 +20,16 @@
  * rules — arrive on `window.__osChromelessData`, emitted as a small
  * inline `before` script by the same PHP file. Keep that contract in
  * step: a key added here needs a key added there.
+ *
+ * **Still to do: convert this to TypeScript.** It is the only
+ * first-class bundle in the repo whose source is plain JS, so ESLint
+ * covers it (see the override in `.eslintrc.cjs`) but `tsc` does not —
+ * the "silent class of bug" AGENTS.md warns about. The nowdoc it
+ * replaced had the same blind spot and worse (PHPCS cannot see inside
+ * a JS-in-PHP string), so this is not a regression, but it is a gap.
+ * The conversion is deliberately its own change: rewriting 3,500
+ * lines and moving them between files at the same time would make
+ * both impossible to review.
  */
 ( function() {
 	/**
@@ -1428,19 +1438,24 @@
 			 * parent an absolute URL it doesn't have to re-resolve.
 			 */
 			e.preventDefault();
-			var absolute;
+			// Named apart from the `absolute` in the admin-link branch
+			// above: `var` is function-scoped, so both branches shared
+			// one binding. They are mutually exclusive and each assigns
+			// before reading, so nothing was ever wrong — but one name
+			// per value is what a reader expects.
+			var externalAbsolute;
 			try {
-				absolute = new URL( href, window.location.href ).toString();
+				externalAbsolute = new URL( href, window.location.href ).toString();
 			} catch ( err ) {
 				return;
 			}
 			var label = visibleLinkText( link ) ||
 				link.getAttribute( 'title' ) ||
-				absolute;
+				externalAbsolute;
 			window.parent.postMessage(
 				{
 					type: 'os-external-link',
-					url: absolute,
+					url: externalAbsolute,
 					label: label.slice( 0, 80 )
 				},
 				window.location.origin
@@ -2950,22 +2965,22 @@
 			var prevent = false;
 			var msg = '';
 
-			function shimReturnValue( ev ) {
-				Object.defineProperty( ev, 'returnValue', {
+			function shimReturnValue( beforeUnloadEv ) {
+				Object.defineProperty( beforeUnloadEv, 'returnValue', {
 					get: function() { return this._returnValue || ''; },
 					set: function( v ) { this._returnValue = v; }
 				} );
 			}
 
-			function checkPrevent( ev, result ) {
+			function checkPrevent( beforeUnloadEv, result ) {
 				var hasRes = typeof result === 'string' && result !== '';
-				var hasRetVal = typeof ev.returnValue === 'string' && ev.returnValue !== '';
-				if ( ev.defaultPrevented || hasRes || hasRetVal ) {
+				var hasRetVal = typeof beforeUnloadEv.returnValue === 'string' && beforeUnloadEv.returnValue !== '';
+				if ( beforeUnloadEv.defaultPrevented || hasRes || hasRetVal ) {
 					prevent = true;
 					if ( hasRes ) {
 						msg = result;
 					} else if ( hasRetVal ) {
-						msg = ev.returnValue;
+						msg = beforeUnloadEv.returnValue;
 					}
 				}
 			}
@@ -3096,7 +3111,6 @@
 					} catch ( _err ) { /* swallow */ }
 				}
 			}
-			return;
 		}
 	} );
 
@@ -3158,9 +3172,9 @@
 				} catch ( _err ) { /* swallow */ }
 			}
 			return function () {
-				var i = _wpdConnectionListeners.indexOf( cb );
-				if ( i >= 0 ) {
-					_wpdConnectionListeners.splice( i, 1 );
+				var idx = _wpdConnectionListeners.indexOf( cb );
+				if ( idx >= 0 ) {
+					_wpdConnectionListeners.splice( idx, 1 );
 				}
 			};
 		},

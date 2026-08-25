@@ -56,6 +56,21 @@ class Tests_OpenStation_PwaSwFallbackEndpoint extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The fallback is the site root and nothing else. Matching the
+	 * query on any path would make every URL a service-worker
+	 * endpoint — harmless in effect, but wider than the contract, and
+	 * a worker's scope comes from the path it is served from.
+	 *
+	 * @covers ::openstation_pwa_endpoint_kind
+	 */
+	public function test_query_var_off_the_root_does_not_match() {
+		$_SERVER['REQUEST_URI'] = '/some/other/page/?openstation_sw=1';
+		$_GET['openstation_sw'] = '1';
+
+		$this->assertSame( '', openstation_pwa_endpoint_kind() );
+	}
+
+	/**
 	 * @covers ::openstation_pwa_endpoint_kind
 	 */
 	public function test_other_query_values_do_not_match() {

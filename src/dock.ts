@@ -2267,7 +2267,12 @@ export class Dock {
 	 * affordances read as one gesture.
 	 */
 	private bindHoverPrewarm( tile: HTMLElement, item: DockItem ): void {
-		if ( ! item.url || ( item.windowId && ! item.url ) ) {
+		// No URL means there is no iframe document to warm: either a
+		// native-window tile (`windowId` with no `url`, which
+		// `openPage` routes to the registry) or a tile with nothing to
+		// open at all. Both are handled by the same check — a native
+		// tile is exactly the `! item.url` case.
+		if ( ! item.url ) {
 			return;
 		}
 		const DWELL_MS = 180;

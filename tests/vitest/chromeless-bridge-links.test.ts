@@ -1,16 +1,15 @@
 /**
  * The chromeless bridge's link interceptor, run against a real DOM.
  *
- * The interceptor is JavaScript emitted from a PHP heredoc, so the
- * PHP suite can only assert that source strings appear in the right
+ * The interceptor runs in a document PHPUnit never loads, so the PHP
+ * suite can only assert that source strings appear in the right
  * order. That pins the text and not the behaviour, which is how two
  * separate regressions of the same shape both shipped: the
  * capture-phase handler beating the script that owns a link, and the
  * `_wp_http_referer` stamp going missing once we started yielding.
  *
- * So: pull the emitted script straight out of the PHP, run it in
- * jsdom, click real anchors, and assert what the parent shell
- * actually receives.
+ * So: load the bridge source, run it in jsdom, click real anchors,
+ * and assert what the parent shell actually receives.
  *
  * Three outcomes are possible for a click, and every anchor below
  * pins one of them:
