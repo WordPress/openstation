@@ -436,8 +436,21 @@ function takeSpeculative(
 const SESSION_CACHE = `os-session-${ VERSION }`;
 const SESSION_KEY = '/__openstation_restore_targets__';
 
-/** Guard so one boot fires the replay once, not per intercepted request. */
-let replayedThisBoot = false;
+/**
+ * When the restore list was last replayed.
+ *
+ * Deliberately a timestamp rather than a "done" flag. A worker outlives
+ * any single page load — it stays resident across navigations and can
+ * be reused for hours — so a boolean would fire on the first shell load
+ * this worker ever saw and never again, leaving every later boot
+ * unaccelerated. That is exactly what the first live measurement
+ * showed: one window's TTFB halved, the other untouched.
+ *
+ * The throttle only exists to stop a burst of navigations stacking
+ * duplicate work; `beginSpeculation()` already de-duplicates by URL.
+ */
+let lastReplayAt = 0;
+const REPLAY_THROTTLE_MS = 3_000;
 
 /**
  * Start fetching the windows this session will restore, without
@@ -451,10 +464,11 @@ let replayedThisBoot = false;
  * the second one coming early enough to overlap them.
  */
 async function replayRestoreTargets(): Promise< void > {
-	if ( replayedThisBoot || ! CONFIG.windowPrewarm ) {
+	const now = Date.now();
+	if ( ! CONFIG.windowPrewarm || now - lastReplayAt < REPLAY_THROTTLE_MS ) {
 		return;
 	}
-	replayedThisBoot = true;
+	lastReplayAt = now;
 	try {
 		const cache = await caches.open( SESSION_CACHE );
 		const stored = await cache.match( SESSION_KEY );
