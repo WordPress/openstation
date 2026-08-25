@@ -46,8 +46,10 @@
 import {
 	classifyAdminAssetRequest,
 	isCacheableResponse,
+	isSpeculatableDocument,
 	readSwConfig,
 } from './sw-policy';
+import { SPECULATIVE_MAX, SpeculativeStore } from './speculative-store';
 
 // Minimal local typings for the service-worker global scope. We
 // intentionally don't pull in `lib.webworker.d.ts` — it re-declares
@@ -278,7 +280,7 @@ sw.addEventListener( 'fetch', ( event: SWFetchEvent ) => {
 	// Exact-URL, single-use; anything not waiting falls through to the
 	// normal pass-through for iframes.
 	if ( req.mode === 'navigate' && speculative.size > 0 ) {
-		const held = takeSpeculative( url.toString() );
+		const held = speculative.take( url.toString() );
 		if ( held ) {
 			event.respondWith(
 				held.then( ( res ) => {
@@ -367,64 +369,14 @@ sw.addEventListener( 'fetch', ( event: SWFetchEvent ) => {
  * and only within {@link SPECULATIVE_TTL_MS}.
  * ---------------------------------------------------------------------- */
 
-const SPECULATIVE_TTL_MS = 30_000;
-
-/** Cap on held documents — the shell only ever asks for a handful. */
-const SPECULATIVE_MAX = 6;
-
 /**
  * Held documents, keyed by exact URL.
  *
- * The entry holds the **promise**, not the settled response, and that
- * is the difference between the feature helping sometimes and helping
- * always. A user who hovers and clicks half a second later would
- * otherwise arrive while the fetch is still in flight, find nothing
- * waiting, and start a *second* request for the same screen — paying
- * full price and costing the server double. Awaiting the in-flight
- * promise instead means the click inherits whatever head start the
- * hover bought, from a few hundred milliseconds up to the whole load.
+ * The store itself lives in `speculative-store.ts` so its rules — hold
+ * the promise rather than the settled response, take once, expire —
+ * can be tested without a service-worker global scope.
  */
-const speculative = new Map<
-	string,
-	{ at: number; res: Promise< Response | null > }
->();
-
-function pruneSpeculative(): void {
-	const now = Date.now();
-	for ( const [ url, entry ] of speculative ) {
-		if ( now - entry.at > SPECULATIVE_TTL_MS ) {
-			speculative.delete( url );
-		}
-	}
-	// Oldest-first eviction if the shell over-asks.
-	while ( speculative.size > SPECULATIVE_MAX ) {
-		const oldest = speculative.keys().next().value;
-		if ( oldest === undefined ) {
-			break;
-		}
-		speculative.delete( oldest );
-	}
-}
-
-/**
- * Take a held document if one is waiting for this exact URL.
- *
- * Exact-match only: a speculative document is the answer to one
- * question, and a near-miss is a different screen.
- */
-function takeSpeculative(
-	url: string,
-): Promise< Response | null > | null {
-	const entry = speculative.get( url );
-	if ( ! entry ) {
-		return null;
-	}
-	speculative.delete( url );
-	if ( Date.now() - entry.at > SPECULATIVE_TTL_MS ) {
-		return null;
-	}
-	return entry.res;
-}
+const speculative = new SpeculativeStore();
 
 /**
  * Where the restore list lives between visits.
@@ -565,6 +517,15 @@ function beginSpeculation( href: string ): Promise< Response | null > | null {
 	}
 	const inFlight = ( async () => {
 		try {
+			// A plain same-origin GET: no `Referer`, no `Accept-Language`
+			// carried over from the navigation this stands in for.
+			// Deliberate — an admin screen's HTML does not branch on
+			// either (locale comes from the user's profile, server
+			// side), and forwarding request headers we did not receive
+			// would be guessing. If a screen ever did vary by them, the
+			// symptom would be a speculative copy differing from the
+			// real navigation, which is a reason to exclude that screen
+			// rather than to fabricate headers here.
 			// eslint-disable-next-line no-restricted-syntax -- service-worker context, no `wp.os` global available; raw fetch is the API.
 			const res = await fetch( href, {
 				credentials: 'same-origin',
@@ -584,32 +545,8 @@ function beginSpeculation( href: string ): Promise< Response | null > | null {
 		}
 	} )();
 
-	speculative.set( href, { at: Date.now(), res: inFlight } );
-	pruneSpeculative();
+	speculative.put( href, inFlight );
 	return inFlight;
-}
-
-/**
- * Whether a URL is a plain admin screen we may fetch early.
- *
- * Speculation must never *do* anything. Anything carrying an action or
- * a nonce is a request to change something — activating a plugin,
- * emptying the trash, applying an update — and fetching it ahead of a
- * click the user has not made yet would perform it. Screens only.
- */
-function isSpeculatableDocument( url: URL ): boolean {
-	if ( ! url.pathname.includes( '/wp-admin/' ) ) {
-		return false;
-	}
-	if ( ! url.searchParams.has( 'openstation_chromeless' ) ) {
-		return false;
-	}
-	for ( const key of [ 'action', 'action2', '_wpnonce', 'nonce', 'delete_all' ] ) {
-		if ( url.searchParams.has( key ) ) {
-			return false;
-		}
-	}
-	return true;
 }
 
 sw.addEventListener( 'push', ( event: SWPushEvent ) => {

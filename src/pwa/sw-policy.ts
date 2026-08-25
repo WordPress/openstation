@@ -169,6 +169,53 @@ export function classifyAdminAssetRequest(
 }
 
 /**
+ * Query keys that mean a URL *does something*.
+ *
+ * Speculation must never act. Anything carrying an action or a nonce
+ * is a request to change state — activating a plugin, emptying a
+ * trash, applying an update — and fetching it ahead of a click the
+ * user has not made yet would perform it.
+ */
+const ACTING_QUERY_KEYS = [
+	'action',
+	'action2',
+	'_wpnonce',
+	'nonce',
+	'delete_all',
+] as const;
+
+/**
+ * Whether a URL is a plain admin screen safe to fetch early.
+ *
+ * Three conditions, all required: it is an admin page, it is the
+ * chromeless variant a window actually loads, and it does nothing.
+ *
+ * The chromeless flag is not incidental. It is what makes serving the
+ * result to an iframe navigation safe at all — the server reads that
+ * query flag before it consults `Sec-Fetch-Dest`, so a document
+ * fetched this way is already correctly chromeless, and the hazard
+ * that stops the worker answering iframe navigations generally (a
+ * re-fetch arriving as `Sec-Fetch-Dest: empty`, collapsing the whole
+ * desktop into a window) cannot apply.
+ *
+ * @param url Parsed, same-origin URL.
+ */
+export function isSpeculatableDocument( url: URL ): boolean {
+	if ( ! url.pathname.includes( '/wp-admin/' ) ) {
+		return false;
+	}
+	if ( ! url.searchParams.has( 'openstation_chromeless' ) ) {
+		return false;
+	}
+	for ( const key of ACTING_QUERY_KEYS ) {
+		if ( url.searchParams.has( key ) ) {
+			return false;
+		}
+	}
+	return true;
+}
+
+/**
  * Whether a fetched response is safe to put in the admin-asset cache.
  *
  * Rejects partial content (`cache.put` throws on 206, but we don't

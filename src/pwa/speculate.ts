@@ -23,11 +23,30 @@
 const SPECULATE_MESSAGE = 'os-speculate-doc';
 
 /**
- * URLs asked for in this page's lifetime, so repeated hovers over the
- * same tab cost one request rather than one per pointer entry. The
- * worker de-duplicates too; this saves the postMessage.
+ * When each URL was last asked about, so a pointer crossing a tab's
+ * icon and label does not post a message per child node.
+ *
+ * **Deliberately a throttle, not a "seen" set.** A permanent set looks
+ * like the obvious de-duplication and silently disables the feature:
+ * the worker's held document is single-use and expires, so the moment
+ * a hover is consumed by a click — or simply times out — every later
+ * hover over that same tab would fall through to a plain navigation
+ * with no speculation at all. Users bounce between the same handful of
+ * screens constantly (Writing → Permalinks → back to Writing), so the
+ * repeat visits are exactly the ones worth accelerating, and they are
+ * exactly the ones a permanent set would abandon.
+ *
+ * The worker remains the real de-duplicator: `beginSpeculation()`
+ * ignores a URL it is already holding. This map only damps the burst.
  */
-const asked = new Set< string >();
+const lastAskedAt = new Map< string, number >();
+
+/**
+ * How long to sit on repeat asks for the same URL. Long enough to
+ * absorb a pointer crossing one tab, far shorter than the worker's
+ * 30-second hold, so a genuine second visit always gets through.
+ */
+const ASK_THROTTLE_MS = 1_000;
 
 /**
  * Ask the service worker to fetch `url` ahead of a likely navigation.
@@ -56,10 +75,12 @@ export function speculateDocument( url: string ): void {
 	} catch {
 		return;
 	}
-	if ( asked.has( absolute ) ) {
+	const now = Date.now();
+	const previous = lastAskedAt.get( absolute );
+	if ( previous !== undefined && now - previous < ASK_THROTTLE_MS ) {
 		return;
 	}
-	asked.add( absolute );
+	lastAskedAt.set( absolute, now );
 	try {
 		navigator.serviceWorker.controller.postMessage( {
 			type: SPECULATE_MESSAGE,
@@ -71,9 +92,9 @@ export function speculateDocument( url: string ): void {
 	}
 }
 
-/** Test seam — clears the per-page de-duplication set. */
+/** Test seam — clears the per-page throttle. */
 export function _resetSpeculation(): void {
-	asked.clear();
+	lastAskedAt.clear();
 }
 
 /** The worker persists this list and replays it on the next boot. */

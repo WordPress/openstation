@@ -1293,6 +1293,14 @@ export class Window {
 			 *
 			 * Delegated like the handlers above, and pointer-only:
 			 * touch has no hover, so there is no intent to read.
+			 *
+			 * `pointerover` rather than `pointerenter` is deliberate:
+			 * `pointerenter` does not bubble, so it cannot be used from
+			 * a delegated listener, and the tabs come and go too often
+			 * to bind per tab. The cost is that this fires again as the
+			 * pointer crosses a tab's icon and label; both the shell's
+			 * ask-throttle and the worker's own de-duplication absorb
+			 * that, so the extra events are noise rather than work.
 			 */
 			tabs.addEventListener( 'pointerover', ( e: Event ) => {
 				const ev = e as PointerEvent;

@@ -79,6 +79,7 @@ OpenStation and you want OpenStation to take over the install path.
 | `/wp-content/plugins/desktop-mode/assets/**.js` | Network-first with `cache: 'reload'` + cache fallback | JS bundles change per deploy — a fresh deploy reaches online users on the next load, with no stale-revalidate window where a freshly-pushed fix is invisible. The cache still serves offline users. |
 | **Opt-in** — versioned Core statics (`/wp-admin/**`, `/wp-includes/**` with `?ver=`) and `load-scripts.php` / `load-styles.php` | Exact-URL cache-first (`os-admin` bucket) | The `ver` query embeds the WordPress version, so bytes behind a URL only change when the URL changes — the same contract Core expresses by serving the loader endpoints with a one-year `Cache-Control`. A warm window-open costs zero HTTP requests for these. Requires the `openstation_pwa_admin_asset_cache` filter (default off). |
 | **Opt-in** — versioned plugin/theme statics (`/wp-content/plugins|themes/**` with `?ver=`) | Stale-while-revalidate (`os-admin` bucket) | Same `ver` contract in principle, but authors edit files without bumping versions often enough that cache-first would pin stale bytes; SWR serves instantly and self-heals on the next load. Uploads are excluded (quota, thumbnail regeneration keeps the URL). |
+| **Opt-in** — an iframe navigation to a document the shell asked for early | Served from the held response (never re-fetched) | The document is the one thing that can never be cached — admin HTML carries nonces — and it is the majority of a window open. Speculation does not make it cacheable; it moves the wait to before the click. See [Speculative documents](#speculative-documents-opt-in). |
 | Navigation requests under our scope | Network-first with offline fallback | wp-admin HTML carries nonces and per-request screen state; caching it would desynchronise the user. The fallback is a tiny inline placeholder so an offline user sees something coherent. |
 | REST / AJAX / non-asset GETs / unversioned asset URLs | Pass-through (no SW handling) | Same reason as navigation — auth-bound dynamic content must hit the network; an asset URL without a `ver` cache-buster carries no immutability contract. |
 | `install`-time precache | A handful of CSS files, the three critical-path JS bundles (`desktop.min.js`, `window-system.min.js`, `shell-overlays.min.js`), and the plugin logo | Just enough to render the offline shell skeleton. Anything else is picked up at runtime by the caching paths above. |
@@ -134,6 +135,46 @@ The cache is keyed by version (`os-static-<v>`,
 `os-runtime-<v>`). The `activate` step deletes any cache whose
 key doesn't carry the current version, so a deploy doesn't accumulate
 stale buckets.
+
+## Speculative documents (opt-in)
+
+The shared asset cache removes the network from a window's **assets**. It can never touch the **document**: admin HTML carries nonces and per-request screen state, so it is uncacheable by construction — and it is the majority of a window open (measured at ~2.1 s of a ~3.8 s tab click on production hosting).
+
+That wait does not have to happen *after* the click. The shell knows every URL a window can reach; the worker sees every iframe navigation. Connecting them lets a document be fetched **while the user is still deciding**, and the navigation that follows is answered from those bytes.
+
+This is not "keep the window alive": nothing rendered is retained. No DOM, no live iframe, no memory beyond a response body dropped after 30 seconds. The page is still built fresh — just early.
+
+Two triggers, one mechanism:
+
+| Trigger | What happens |
+|---|---|
+| **Hovering a submenu tab** | The shell posts `os-speculate-doc`; the worker fetches that screen and holds it. |
+| **Booting the shell** | The worker replays the previous session's restore list the moment the shell's own navigation arrives — *before* the server has finished building the shell document, so the two renders overlap instead of running back to back. The list is persisted from `os-remember-session`, which the session saver posts on every save. |
+
+Measured on production hosting: window-document TTFB **1,353 ms → ~1 ms**, whole shell boot **6,492 ms → ~4,700 ms**, a hovered tab click **~3,600 ms → ~1,000 ms**.
+
+### Rules
+
+- **Speculation never acts.** A URL carrying `action`, `action2`, `_wpnonce`, `nonce` or `delete_all` is refused, so a hover can never activate a plugin or empty a trash. Same-origin, `/wp-admin/` only, and the `openstation_chromeless` flag must be present.
+- **Held documents are single-use and expire after 30 s**, capped at 6 with oldest-first eviction. A document is a moment-in-time view carrying nonces; replaying one twice would show a superseded page.
+- **The store holds the in-flight promise, not the settled response**, so a navigation landing mid-fetch joins the request already running instead of starting a second one for the same screen.
+- **Answering an iframe navigation is safe only because the response is never re-fetched.** The worker otherwise refuses iframe navigations: re-fetching one makes Chrome send `Sec-Fetch-Dest: empty`, the server's chromeless detection falls through, and the whole desktop renders inside a window. A speculative document is fetched once, ahead of time, from a URL carrying the chromeless flag — which the server reads *before* it consults Sec-Fetch.
+- The speculative fetch is a plain same-origin GET and does not forward `Referer` or `Accept-Language` from the navigation it stands in for. Admin screens do not branch on either (locale comes from the user's profile, server-side).
+- Gated on the **hover-prewarm** opt-in (`windowPrewarmEnabled`), delivered to the worker as `windowPrewarm` in the `self.__OS_SW_CONFIG` preamble. Off by default.
+
+### Worker message surface
+
+Both messages are posted to `navigator.serviceWorker.controller` and are ignored unless the opt-in is on.
+
+```js
+// Fetch this screen now; hold it for the navigation that follows.
+{ type: 'os-speculate-doc', url: '<absolute same-origin chromeless URL>' }
+
+// Remember these screens for the NEXT boot's replay.
+{ type: 'os-remember-session', urls: [ '<absolute>', … ] }
+```
+
+The shell-side helpers are `speculateDocument( url )` and `rememberRestoreTargets( urls )` in `src/pwa/speculate.ts`. Policy lives in `src/pwa/sw-policy.ts` (`isSpeculatableDocument`) and the store in `src/pwa/speculative-store.ts`; both are pure and unit-tested.
 
 ## PHP surface
 
