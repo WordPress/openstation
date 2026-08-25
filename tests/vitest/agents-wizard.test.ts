@@ -605,6 +605,14 @@ describe( 'the guided create flow', () => {
 		expect( row!.getAttribute( 'error' ) ).toBe(
 			'Describe the agent first. A sentence is enough.',
 		);
+		// The row must be a defined element here, not a bare tag: an
+		// unregistered <os-field-row> renders its children and nothing
+		// else, which is exactly how the message went missing once.
+		expect( customElements.get( 'os-field-row' ) ).toBeDefined();
+		await flush();
+		expect( row!.shadowRoot?.textContent ).toContain(
+			'Describe the agent first. A sentence is enough.',
+		);
 		expect( host.body.querySelector( '.dm-agents__brief' )!.hasAttribute( 'invalid' ) ).toBe(
 			true,
 		);

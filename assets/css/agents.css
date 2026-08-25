@@ -263,7 +263,7 @@
 	align-items: flex-end;
 	gap: 6px;
 	margin: 10px 12px 12px;
-	padding: 4px 4px 4px 10px;
+	padding: 4px 8px 4px 10px;
 	border: 1px solid var( --os-ui-field-border, var( --os-ui-border, #dcdcde ) );
 	border-radius: 12px;
 	background: var( --os-ui-field-bg, var( --os-window-bg, #fff ) );
@@ -281,6 +281,10 @@
 	min-width: 0;
 }
 
+/* One line of 13px text at 1.45 is 18.85px; 6.5px above and below
+   makes the single-line textarea 31.85px, the send button's height,
+   so with the row bottom-aligned the two centres coincide on one line
+   and the button stays anchored at the bottom as the text grows. */
 .dm-agent-chat__composer os-textarea::part( textarea ),
 .dm-agent-chat__composer os-textarea::part( textarea ):hover,
 .dm-agent-chat__composer os-textarea::part( textarea ):focus,
@@ -290,22 +294,36 @@
 	background: transparent;
 	box-shadow: none;
 	outline: none;
-	padding: 8px 0;
+	padding: 6.5px 0;
 }
 
-/* Round, icon-only, and the same height as one line of the textarea,
-   so an empty composer reads as a single row. */
+/* Round and icon-only, a size down from a toolbar button so it reads
+   as part of the field rather than a control beside it. Sized through
+   the exported part: the host's width does not reach the inner button,
+   and a zero padding token on its own shrank it to the glyph. The
+   bottom margin is half the difference to the single-line textarea
+   (31.85px), so the two centres meet on one line and the button stays
+   anchored to the last line as the text grows. */
 .dm-agent-chat__send {
 	flex: none;
-	--os-ui-button-padding: 0;
-	--os-ui-button-min-height: 32px;
-	--os-ui-button-border-radius: 999px;
-	width: 32px;
-	margin-block-end: 3px;
+	margin-block-end: 4px;
+}
+
+.dm-agent-chat__send::part( button ) {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 24px;
+	height: 24px;
+	min-height: 0;
+	padding: 0;
+	border-radius: 999px;
 }
 
 .dm-agent-chat__send-icon {
 	display: block;
+	width: 14px;
+	height: 14px;
 }
 
 /* The accessible name, off-screen. */
