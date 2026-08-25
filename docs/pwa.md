@@ -34,6 +34,19 @@ So the SW registers at root scope, but the fetch handler returns early
 `/wp-admin/`, or the plugin's own assets directory. Behaviorally this is
 "narrow scope" without inheriting the technical limitation.
 
+### Hosts that 404 virtual `.js` paths (WordPress.com)
+
+Some hosts' web servers short-circuit any path with a static-file
+extension straight to the filesystem: `/openstation/sw.js` 404s at
+nginx and never reaches WordPress, while the extensionless manifest
+route works fine. For those hosts the same SW bytes are also served at
+the extensionless fallback **`/?openstation_sw=1`** — registration
+tries the pretty URL first and retries once with
+`PwaConfig.swFallbackUrl` on failure. The fallback URL's path is `/`,
+so root scope needs no `Service-Worker-Allowed` header at all, and a
+SW registered through it is still recognized as OpenStation's own by
+the foreign-SW guard.
+
 If any other service worker (any scope) is already registered on the
 origin, the registration **bails** with a console warning rather than
 usurping it. The "Install \<site\> as an app" tile then surfaces a
@@ -122,6 +135,7 @@ stale buckets.
 |---|---|
 | `openstation_pwa_manifest_url()` | Absolute URL of the manifest endpoint. |
 | `openstation_pwa_sw_url()` | Absolute URL of the service worker. |
+| `openstation_pwa_sw_fallback_url()` | Extensionless fallback URL for the same SW script (`/?openstation_sw=1`) — for hosts whose web server 404s virtual `.js` paths. |
 | `openstation_pwa_get_user_state( $user_id = 0 )` | Read the per-user PWA UI state. |
 | `openstation_pwa_update_user_state( array $patch, $user_id = 0 )` | Merge a partial update into the state. |
 | `openstation_pwa_admin_asset_cache_enabled()` | Whether the shared admin-asset cache is on (resolves the filter below). |

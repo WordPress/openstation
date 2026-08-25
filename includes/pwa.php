@@ -46,6 +46,22 @@ const OPENSTATION_PWA_MANIFEST_FRAGMENT = 'manifest.webmanifest';
 const OPENSTATION_PWA_SW_FRAGMENT = 'sw.js';
 
 /**
+ * Query var for the extensionless service-worker fallback endpoint.
+ *
+ * Some hosts' nginx (WordPress.com among them) short-circuits paths
+ * with a static-file extension straight to the filesystem: a virtual
+ * route like `/openstation/sw.js` 404s at the web server and never
+ * reaches WordPress, so the pretty SW endpoint is unservable there —
+ * while the extensionless manifest route works fine. The fallback
+ * serves the same bytes at `/?openstation_sw=1`: no extension, so the
+ * request always reaches WordPress, and the script URL's *path* is
+ * `/`, which grants root scope without the `Service-Worker-Allowed`
+ * header even mattering. `src/pwa/sw-register.ts` retries with this
+ * URL when registering the pretty URL fails.
+ */
+const OPENSTATION_PWA_SW_QUERY = 'openstation_sw';
+
+/**
  * User-meta key — JSON blob persisting per-user PWA UI state.
  *
  * Today: `installHintDismissed` (bool), `notificationsEnabled` (bool).
@@ -75,6 +91,19 @@ function openstation_pwa_manifest_url() {
  */
 function openstation_pwa_sw_url() {
 	return openstation_portal_url() . OPENSTATION_PWA_SW_FRAGMENT;
+}
+
+/**
+ * Builds the extensionless service-worker fallback URL.
+ *
+ * See {@see OPENSTATION_PWA_SW_QUERY} for why this exists. Kept as a
+ * root-path URL on purpose: the SW script URL's path determines the
+ * default maximum scope, and `/` is exactly the scope we register.
+ *
+ * @return string
+ */
+function openstation_pwa_sw_fallback_url() {
+	return add_query_arg( OPENSTATION_PWA_SW_QUERY, '1', home_url( '/' ) );
 }
 
 /**
@@ -205,6 +234,13 @@ function openstation_pwa_endpoint_kind() {
 		return 'manifest';
 	}
 	if ( $path === $portal . OPENSTATION_PWA_SW_FRAGMENT ) {
+		return 'sw';
+	}
+	// Extensionless fallback (`/?openstation_sw=1`) for hosts whose web
+	// server 404s virtual `.js` paths before WordPress runs. Read from
+	// the query string of the same unparsed URI the path checks use.
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- public read-only endpoint selector, same trust level as the path match above.
+	if ( isset( $_GET[ OPENSTATION_PWA_SW_QUERY ] ) && '1' === $_GET[ OPENSTATION_PWA_SW_QUERY ] ) {
 		return 'sw';
 	}
 	return '';

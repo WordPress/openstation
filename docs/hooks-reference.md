@@ -4202,6 +4202,7 @@ HTML, REST, and AJAX are never cached. See
 ```php
 openstation_pwa_manifest_url();
 openstation_pwa_sw_url();
+openstation_pwa_sw_fallback_url();
 openstation_pwa_force_replace_sw();
 openstation_pwa_admin_asset_cache_enabled();
 openstation_pwa_get_user_state( $user_id = 0 );

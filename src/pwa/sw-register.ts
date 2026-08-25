@@ -183,7 +183,14 @@ export async function registerServiceWorker(
 			.catch( () => [] as ServiceWorkerRegistration[] );
 		const foreign = existing.find( ( reg ) => {
 			const url = reg.active?.scriptURL ?? reg.installing?.scriptURL ?? '';
-			return url !== '' && url !== config.swUrl;
+			// Both of our own script URLs count as "ours" — a SW
+			// registered through the extensionless fallback must not
+			// be mistaken for a foreign worker on the next boot.
+			return (
+				url !== '' &&
+				url !== config.swUrl &&
+				url !== config.swFallbackUrl
+			);
 		} );
 		if ( foreign ) {
 			_status = 'foreign-sw';
@@ -198,11 +205,29 @@ export async function registerServiceWorker(
 		}
 	}
 
-	try {
-		_registration = await navigator.serviceWorker.register( config.swUrl, {
+	const attempt = async (
+		url: string,
+	): Promise< ServiceWorkerRegistration > =>
+		navigator.serviceWorker.register( url, {
 			scope: '/',
 			updateViaCache: 'none',
 		} );
+
+	try {
+		try {
+			_registration = await attempt( config.swUrl );
+		} catch ( err ) {
+			// Some hosts' web servers (WordPress.com) 404 the pretty
+			// `/openstation/sw.js` route before WordPress can serve it
+			// — virtual paths with a static-file extension never reach
+			// PHP there. Retry once with the extensionless fallback
+			// (`/?openstation_sw=1`), which always routes to WordPress
+			// and whose `/` path grants root scope natively.
+			if ( ! config.swFallbackUrl || config.swFallbackUrl === config.swUrl ) {
+				throw err;
+			}
+			_registration = await attempt( config.swFallbackUrl );
+		}
 		_status = 'registered';
 		// Auto-reload when the new SW takes control. Bound only after a
 		// successful registration so we never reload a page that has no

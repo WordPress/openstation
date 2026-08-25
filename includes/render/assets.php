@@ -714,6 +714,9 @@ function openstation_enqueue_assets() {
 			'pwa'                           => array(
 				'manifestUrl'    => esc_url_raw( openstation_pwa_manifest_url() ),
 				'swUrl'          => esc_url_raw( openstation_pwa_sw_url() ),
+				// Extensionless retry target for hosts whose nginx 404s
+				// virtual .js paths before WordPress runs (WordPress.com).
+				'swFallbackUrl'  => esc_url_raw( openstation_pwa_sw_fallback_url() ),
 				'stateUrl'       => esc_url_raw( rest_url( 'desktop-mode/v1/pwa-state' ) ),
 				'state'          => openstation_pwa_get_user_state( get_current_user_id() ),
 				// Mirrors the manifest's `name` field — used by the
