@@ -131,7 +131,7 @@ abstract class OpenStation_File {
 		$shape = array(
 			'type'       => static::type(),
 			'ref'        => $this->ref,
-			'title'      => $this->title(),
+			'title'      => openstation_plain_text_title( $this->title() ),
 			'icon'       => $this->icon(),
 			'previewUrl' => $this->preview_url(),
 			'exists'     => $this->exists(),

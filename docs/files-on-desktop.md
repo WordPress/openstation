@@ -65,7 +65,7 @@ add_action( 'init', static function () {
 }, 6 ); // priority 6 so we land after the built-ins (5).
 ```
 
-`Jorvy_Quote_File` extends `OpenStation_File` and overrides the methods that don't fit the defaults. The base shape is intentionally minimal:
+`Jorvy_Quote_File` extends `OpenStation_File` and overrides the methods that don't fit the defaults. Return whatever your entity gives you from `title()` — `serialize()` decodes HTML entities and strips tags before the shape crosses the wire, because the shell paints `title` into text nodes and `title=` attributes where an encoded `&#038;` would read as itself. The base shape is intentionally minimal:
 
 ```php
 class Jorvy_Quote_File extends OpenStation_File {

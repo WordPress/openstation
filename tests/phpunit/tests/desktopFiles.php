@@ -127,6 +127,38 @@ class Tests_OpenStation_Files extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The tile writes this string with `textContent`, so an entity
+	 * left encoded is read by the user as itself.
+	 *
+	 * @covers OpenStation_File::serialize
+	 * @covers ::openstation_plain_text_title
+	 */
+	public function test_serialized_title_is_plain_text_not_entities() {
+		$post_id = self::factory()->post->create(
+			array( 'post_title' => "Alder & Oak's \"Best\" Insulation" )
+		);
+		$shape = openstation_resolve_file( 'post', $post_id )->serialize();
+
+		$this->assertStringNotContainsString( '&#', $shape['title'] );
+		$this->assertStringContainsString( 'Alder & Oak', $shape['title'] );
+	}
+
+	/**
+	 * Decoding runs before the tag strip, so an encoded tag cannot be
+	 * decoded back into live markup on the way out.
+	 *
+	 * @covers ::openstation_plain_text_title
+	 */
+	public function test_plain_text_title_cannot_resurrect_markup() {
+		$this->assertStringNotContainsString(
+			'<',
+			openstation_plain_text_title( '&lt;script&gt;alert(1)&lt;/script&gt;' )
+		);
+		$this->assertSame( 'Bold', openstation_plain_text_title( '<b>Bold</b>' ) );
+		$this->assertSame( 'Ben & Jerry', openstation_plain_text_title( 'Ben &#038; Jerry' ) );
+	}
+
+	/**
 	 * @covers OpenStation_User_File
 	 */
 	public function test_user_file_serializes_known_user() {
