@@ -132,6 +132,36 @@ import {
 	toggleActionsMenu,
 } from './menus';
 import { handleDragStart, handleResizeStart } from './pointer';
+import { speculateDocument } from '../pwa/speculate';
+
+/**
+ * Ask the service worker to fetch a submenu tab's screen ahead of the
+ * click, when the user has opted into hover prewarming.
+ *
+ * The URL has to be the one the iframe will actually request — the
+ * worker matches exactly, and a tab's raw `data-url` is missing the
+ * chromeless flag `withChromelessParam()` adds on navigation.
+ *
+ * @param rawUrl The tab's declared admin URL.
+ */
+function speculateTabDocument( rawUrl: string ): void {
+	const os = (
+		window as unknown as {
+			wp?: {
+				os?: {
+					getOsSettings?: () => { windowPrewarmEnabled?: boolean };
+				};
+			};
+		}
+	).wp?.os;
+	if ( ! os?.getOsSettings?.().windowPrewarmEnabled ) {
+		return;
+	}
+	const target = withChromelessParam( rawUrl );
+	if ( target ) {
+		speculateDocument( target );
+	}
+}
 
 /** Animation mode accepted by `Window.requestAttention()`. */
 export type WindowAttentionMode = 'pulse' | 'shake' | 'bounce' | null;
@@ -1252,6 +1282,31 @@ export class Window {
 			tabs.addEventListener( 'keydown', ( e: Event ) =>
 				handleTabStripKeydown( tabs, e ),
 			);
+			/*
+			 * Hover intent → ask the service worker to fetch that
+			 * screen's document now. A submenu tab is a real page load
+			 * (the window navigates in place), and on a live install
+			 * the server rendering that page is the majority of the
+			 * wait — the part no cache can remove, because admin HTML
+			 * carries nonces. Fetching it while the pointer is still
+			 * on the tab moves that wait off the click.
+			 *
+			 * Delegated like the handlers above, and pointer-only:
+			 * touch has no hover, so there is no intent to read.
+			 */
+			tabs.addEventListener( 'pointerover', ( e: Event ) => {
+				const ev = e as PointerEvent;
+				if ( ev.pointerType !== 'mouse' ) {
+					return;
+				}
+				const tab = ( ev.target as HTMLElement | null )?.closest?.(
+					'.os-window__tab[data-url]',
+				) as HTMLElement | null;
+				const href = tab?.dataset.url;
+				if ( href ) {
+					speculateTabDocument( href );
+				}
+			} );
 			// Paint the edge fades only where scrolling would
 			// actually reveal another tab.
 			this._tabOverflowTeardown = observeTabOverflow( tabs );
