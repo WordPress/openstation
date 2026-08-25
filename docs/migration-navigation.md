@@ -1,4 +1,4 @@
-# Migration — the navigation model (1.2.0)
+# Migration — the navigation model
 
 The dock, the sidebar and the desktop no longer decide for themselves where a thing belongs. One model in `src/nav/` answers that question once and every surface renders the answer.
 

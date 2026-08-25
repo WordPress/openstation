@@ -145,7 +145,7 @@ wp.os.registerWindowLinkRenderer( {
                    endpoint markers per edge.kind / edge.bidirectional… */
             }
         } );
-        return () => app.destroy( true );
+        return () => app.destroy( { removeView: true } );
     },
 } );
 ```

@@ -202,13 +202,13 @@ instance.
 **`wp.os.connect()` works identically for both.** The
 peer-to-peer connection bridge — used when one window wants to
 talk to another — routes through the same channel bus when the
-target is native. Pre-0.5.5 it silently no-op'd on native
+target is native. It used to silently no-op on native
 targets; now `conn.send` / `conn.subscribe` reach the render
 context's `windowApi` listeners. Same `onOpen` / `isOpen` /
 `disconnect` semantics for both kinds.
 
-**What this replaces.** `Window.iframeSend` is gone (0.5.5
-removed it — the unified `Window.send` does the same job, with
+**What this replaces.** `Window.iframeSend` is gone (the
+unified `Window.send` does the same job, with
 the same pre-load FIFO buffering, while also working for
 pure-native windows). `wp.os.iframe.publish/subscribe`
 stays for the multi-listener handshake-aware `wp.os.connect()`
@@ -310,7 +310,7 @@ topic after a built-in channel.
 ### Layer 3+ — the heartbeat bus
 
 A specialised pub/sub for things that ride the WordPress
-Heartbeat (`heartbeat-send` / `heartbeat-tick`). Pre-0.5.5 every
+Heartbeat (`heartbeat-send` / `heartbeat-tick`). Previously every
 feature that wanted a per-tick payload bound the jQuery events
 itself; with the bus, multiple plugins compose without any
 boilerplate.

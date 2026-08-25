@@ -69,7 +69,7 @@ Two colors, both CSS-variable-driven:
 | Variable | Default | Drives |
 |---|---|---|
 | `--os-ui-spinner-color` | `var(--wp-admin-theme-color, #21759b)` | Disc + ring + dot color |
-| `--os-ui-spinner-accent` | `#fff` | The W mark inside the disc |
+| `--os-ui-spinner-accent` | `var(--os-ui-fg-on-accent, #fff)` — the shell palette resolves this to `#fffbff` | The W mark inside the disc |
 | `--os-ui-spinner-size` | `48px` | Host width/height |
 
 Set them via attribute shortcuts (HTML-friendly) or via CSS directly (themeable):
@@ -153,11 +153,14 @@ spinner.setAttribute( 'preset', isError ? 'pulse' : 'classic' );
 
 ## Programmatic preset registry
 
-Need the preset config in JS (e.g. to render a "preset picker" UI)? The exported `OS_SPINNER_PRESETS` is a frozen record of every config:
+Need the preset config in JS (e.g. to render a "preset picker" UI)? A frozen record of every config, `OS_SPINNER_PRESETS`, is exported by the component module — but only through the internal components barrel (`src/ui/components/index.ts`), not from the `openstation` package entry, so it is importable by code built inside this repo only:
 
 ```ts
-import { OS_SPINNER_PRESETS, type OsSpinnerPreset } from 'openstation/ui';
+// In-tree code only — the `openstation` package does not (yet) re-export it.
+import { OS_SPINNER_PRESETS, type OsSpinnerPreset } from '../ui/components';
 
 const names: OsSpinnerPreset[] = Object.keys( OS_SPINNER_PRESETS ) as OsSpinnerPreset[];
 console.log( OS_SPINNER_PRESETS.comet.dots ); // 5
 ```
+
+External plugins should treat the preset names in the table above as the contract and set them via the `preset` attribute.

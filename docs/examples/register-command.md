@@ -273,7 +273,7 @@ The difference is **scope**: `exceptIds` applies only to one call site; the filt
 ## Behaviour & UX
 
 - Thrown errors in `run` are caught automatically and rendered as an error bubble — your command can't crash the panel.
-- Slugs must match `/^[a-z0-9_-]+$/` — invalid registrations log a console warning and are silently dropped.
+- Slugs must match `/^[a-z0-9_/-]+$/` (slashes allowed for `vendor/sub-id` namespacing) — invalid registrations log a console warning and are silently dropped.
 - Re-registering the same slug replaces the previous definition (matches WordPress's `register_*` semantics).
 - The palette list re-renders live when your plugin registers commands asynchronously (e.g. after a REST fetch).
 

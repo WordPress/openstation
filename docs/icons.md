@@ -98,7 +98,7 @@ becomes `role="img"` with an accessible name.
 
 The default is 24, Core's native size and what WordPress renders these at.
 Core's glyphs carry 1.5-unit strokes on a 24 grid, so at 10px those are 0.6px
-wide and the shape goes faint. **Below about 14px an icon stops being an icon**
+wide and the shape goes faint. **Below about 16px an icon stops being an icon**
 and becomes part of the drawing it sits in: that is why the spinner's arc, the
 save-status check inside its 8px dot, and the Mio mark are drawn where they are
 used rather than taken from here.

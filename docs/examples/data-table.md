@@ -2,7 +2,7 @@
 
 `<os-table>` is the data-grid primitive: assign a `columns` descriptor and a `data` array and you get a styled table with optional per-column filters, click-to-sort, multi-row selection, sticky columns, sticky header, custom cell renderers, a loading skeleton, and a slottable empty state.
 
-> Status: **Experimental**. The component shape is stable; the named events / filter kinds may grow.
+> Status: **Stable**. The named events / filter kinds may still grow.
 
 ## Minimum viable table
 
@@ -227,7 +227,7 @@ While `loading` is set, the body paints shimmering skeleton rows. Headers, filte
 
 ```js
 table.toggleAttribute( 'loading', true );
-const data = await fetch( '/api/users' ).then( ( r ) => r.json() );
+const data = await wp.os.fetch( '/api/users', undefined, { source: 'my-plugin/users-table' } ).then( ( r ) => r.json() );
 table.data = data;
 table.toggleAttribute( 'loading', false );
 ```
@@ -365,7 +365,7 @@ If editing is the primary use case, request a first-class `column.editor` API â€
 | `--os-ui-table-border` | `var( --os-ui-border, rgba(0,0,0,0.08) )` |
 | `--os-ui-table-header-bg` | `var( --os-ui-surface-elevated, #f6f7f7 )` |
 | `--os-ui-table-row-hover` | `rgba(0,0,0,0.04)` |
-| `--os-ui-table-stripe` | `rgba(0,0,0,0.02)` |
+| `--os-ui-table-stripe` | `var( --os-ui-surface-subtle, rgba( 0, 0, 0, 0.03 ) )` |
 | `--os-ui-table-cell-padding` | `8px 12px` |
 | `--os-ui-table-font-size` | `13px` |
 | `--os-ui-table-max-height` | `none` |

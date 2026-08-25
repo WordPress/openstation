@@ -2,7 +2,7 @@
 
 **Surface:** [`wp.os.loadComponents( tags? )`](../javascript-reference.md#wposloadcomponents-tags---stable) · **Status:** Stable
 
-The component kit registers per bundle, at import time. After boot the page has 26 of the 64 tags — whichever ones `desktop.min.js`, `shell-overlays` and `window-system` happened to import for their own UI. `<os-switch>`, `<os-number-field>`, `<os-table>` and 35 others are not among them.
+The component kit registers per bundle, at import time. After boot the page has 26 of the 67 tags — whichever ones `desktop.min.js`, `shell-overlays` and `window-system` happened to import for their own UI. `<os-switch>`, `<os-number-field>`, `<os-table>` and 38 others are not among them.
 
 If your plugin is built beside this repo you can [import them](../use-from-a-plugin.md). If it installs from a zip onto a site that already has OpenStation, there is no path to import from at build time — and that is what this API is for.
 
@@ -16,7 +16,7 @@ One `await`, and the tags upgrade.
 
 ```javascript
 ( function () {
-    const TAGS = [ 'os-panel', 'os-row', 'os-switch', 'os-number-field', 'os-button' ];
+    const TAGS = [ 'os-panel', 'os-section', 'os-row', 'os-switch', 'os-number-field', 'os-button' ];
 
     async function renderSettings( host ) {
         // Cheap on every call: with the tags already registered this
@@ -24,23 +24,27 @@ One `await`, and the tags upgrade.
         await wp.os.loadComponents( TAGS );
 
         host.innerHTML = `
-            <os-panel heading="Delivery">
-                <os-row>
-                    <os-switch id="live" label="Send immediately"></os-switch>
-                </os-row>
-                <os-row>
-                    <os-number-field id="retries" label="Retries" min="0" max="9" value="3">
-                    </os-number-field>
-                </os-row>
-                <os-row>
-                    <os-button id="save" variant="primary">Save</os-button>
-                </os-row>
+            <os-panel>
+                <os-section heading="Delivery">
+                    <os-row>
+                        <os-switch id="live" label="Send immediately"></os-switch>
+                    </os-row>
+                    <os-row>
+                        <os-number-field id="retries" label="Retries" min="0" max="9" value="3">
+                        </os-number-field>
+                    </os-row>
+                    <os-row>
+                        <os-button id="save" variant="primary">Save</os-button>
+                    </os-row>
+                </os-section>
             </os-panel>
         `;
 
         host.querySelector( '#save' ).addEventListener( 'click', () => {
             save( {
-                live: host.querySelector( '#live' ).checked,
+                // Props reflect attributes: checked reads '' when on,
+                // null when off — compare against null.
+                live: host.querySelector( '#live' ).checked !== null,
                 retries: Number( host.querySelector( '#retries' ).value ),
             } );
         } );
@@ -66,7 +70,7 @@ wp_enqueue_script(
 
 ## What it costs
 
-`os-components[.min].js` is **309 KB raw / 77 KB gzip** — the whole kit, including the components the page already had. A lazy bundle cannot import from `desktop.min.js`, so that overlap can't be avoided; what it can be is unpaid, and it is, by every page that never calls this.
+`os-components[.min].js` is **332 KB raw / 84 KB gzip** — the whole kit, including the components the page already had. A lazy bundle cannot import from `desktop.min.js`, so that overlap can't be avoided; what it can be is unpaid, and it is, by every page that never calls this.
 
 Rules of thumb:
 

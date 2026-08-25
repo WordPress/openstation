@@ -202,7 +202,7 @@ wp.hooks.addAction(
 The upload dialog carries a destination selector when real desktop
 storage is available (`config.desktopStorage.canUpload`): **Desktop**
 (bytes land in the user's private storage and a tile appears) or
-**Media Library** (the pre-0.9.6 behavior, always one click away).
+**Media Library** (the classic behavior, always one click away).
 The default follows the drop's intent:
 
 - Drops aimed at a **folder** (an open folder window or a closed

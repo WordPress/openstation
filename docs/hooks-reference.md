@@ -365,8 +365,8 @@ apply_filters( 'openstation_files_sharing_enabled_for', bool $enabled, int $user
 apply_filters( 'openstation_files_user_can_see_folder', bool $can, array $folder, int $user_id, string[] $roles ); // per-folder visibility decision (owner / share_mode / shares table)
 apply_filters( 'openstation_files_sharing_tables_for_purge', string[] $tables ); // tables dropped by "Delete folder sharing data"; default shares + decisions
 
-// Polymorphic shape (future-proof). v1 ships with target_type='folder' only.
-apply_filters( 'openstation_files_shareable_types',     string[] $types ); // default [ 'folder' ]
+// Polymorphic shape (future-proof).
+apply_filters( 'openstation_files_shareable_types',     string[] $types ); // default [ 'folder', 'file' ]
 apply_filters( 'openstation_files_share_target_owner',  int $owner_id, string $target_type, string $target_id );
 ```
 
@@ -460,7 +460,7 @@ Return: `true` on success, `WP_Error` otherwise. Error codes: `openstation_missi
 
 ### `openstation_register_file_type( $type, $args )` — Experimental (PHP function)
 
-Registers a `OpenStation_File` subclass against the desktop file-type registry. The ten built-in types (`post`, `attachment`, `user`, `term`, `comment`, `folder`, `bookmark`, `shortcut`, `link`, `embed`) register through this same surface.
+Registers a `OpenStation_File` subclass against the desktop file-type registry. The eleven built-in types (`post`, `attachment`, `user`, `term`, `comment`, `folder`, `bookmark`, `shortcut`, `link`, `embed`, `upload`) register through this same surface.
 
 ```php
 openstation_register_file_type( 'jorvy-quote', array(
@@ -520,7 +520,7 @@ For live *unregistration* on deactivation, the plugin's JS should set `owner: 'h
 
 ### `openstation_register_command( $args )` — Stable (PHP function)
 
-Optional companion that also declares command metadata server-side. Advisory today — reserved for future pre-registration shims (showing a greyed-out command before the plugin's JS loads). Implicitly registers `$args['script']` in the command-script registry when `script` is provided (without firing `openstation_command_script_registered`).
+Optional companion that also declares command metadata server-side. Advisory today — reserved for future pre-registration shims (showing a greyed-out command before the plugin's JS loads). Implicitly registers `$args['script']` in the command-script registry when `script` is provided (routing through `openstation_register_command_script()`, so `openstation_command_script_registered` fires on this path too).
 
 ```php
 openstation_register_command( array(
@@ -822,7 +822,7 @@ Tabs using neither mechanism stay until the next page reload.
 
 ### `openstation_register_settings_tab( $args )` — Stable *(PHP function)*
 
-Optional companion that declares a settings tab server-side. Primary benefit: enables live-unregistration on plugin deactivation without every `registerSettingsTab()` call having to set `owner`. Implicitly registers `$args['script']` in the settings-tab script registry when `script` is provided (without firing `openstation_settings_tab_script_registered`).
+Optional companion that declares a settings tab server-side. Primary benefit: enables live-unregistration on plugin deactivation without every `registerSettingsTab()` call having to set `owner`. Implicitly registers `$args['script']` in the settings-tab script registry when `script` is provided (routing through `openstation_register_settings_tab_script()`, so `openstation_settings_tab_script_registered` fires on this path too).
 
 ```php
 openstation_register_settings_tab( array(
@@ -836,11 +836,12 @@ openstation_register_settings_tab( array(
 
 **Built-in tab orders** (for reference when picking `order`):
 - `appearance` = 10
-- `ai` = 20
+- `themes` = 12
+- `windows` = 18
 - `navigation` = 22
-- `features` = 25
-- `effects` = 27
+- `features` = 30
 - `help` = 40
+- `about` = pinned last
 - Third-party default = 100 (appended after built-ins)
 
 **Capability gating today**: the shell collapses `capability` to a simple admin-vs-everyone distinction. `'manage_options'` means admin-only; any other value (including empty) means visible to everyone. Widening to arbitrary capabilities is a future expansion.
@@ -1435,7 +1436,7 @@ apply_filters( 'openstation_admin_redirect_to_portal', bool $redirect, int $user
 
 ### `openstation_accent_colors` — Stable
 
-Extends or restricts the accent-color swatches shown in OpenStation Preferences. Applied to `--wp-admin-theme-color` on the shell's `<html>`. Each entry is `{ id: string, label: string, value: string }` — `id` is a stable slug persisted to `localStorage`, `label` is the picker tooltip, `value` is a hex color validated server-side via `sanitize_hex_color()`. Invalid entries are dropped; a filter that leaves the list empty falls back to the built-in six swatches.
+Extends or restricts the accent-color swatches shown in OpenStation Preferences. Applied to `--wp-admin-theme-color` on the shell's `<html>`. Each entry is `{ id: string, label: string, value: string }` — `id` is a stable slug persisted to `localStorage`, `label` is the picker tooltip, `value` is a hex color validated server-side via `sanitize_hex_color()`. Invalid entries are dropped; a filter that leaves the list empty falls back to the ten built-in swatches.
 
 ```php
 apply_filters( 'openstation_accent_colors', array $colors );
@@ -1851,11 +1852,11 @@ The AI assistant (Cmd+K palette) runs an agentic loop server-side, analyses enti
 
 Credentials and model routing are owned by **WordPress 7.0 Core**: configure a provider in **Settings → Connectors** and the Copilot generates through the Core AI Client (`wp_ai_client_prompt()`), which injects the key automatically. The assistant is available only when the Connectors + Abilities APIs and `wp_supports_ai()` are present.
 
-> **Removed.** The self-managed provider registry and credential surface were replaced by Core Connectors. These no longer exist: the functions `openstation_register_ai_provider()` / `openstation_unregister_ai_provider()`, the actions `openstation_ai_register_providers` / `openstation_ai_provider_registered`, and the filters `openstation_ai_active_provider` / `openstation_ai_model`. The three-callable provider contract (`make_turn_input` / `agentic_call` / `structured_request`) and the `$api_key` argument are gone. Register providers with the Core AI Client / Connectors instead. See [`migration-ai-connectors.md`](migration-ai-connectors.md). The `/ai/search` extensibility hooks below are unaffected.
+> **Removed.** The self-managed provider registry and credential surface were replaced by Core Connectors. These no longer exist: the functions `openstation_register_ai_provider()` / `openstation_unregister_ai_provider()`, the actions `openstation_ai_register_providers` / `openstation_ai_provider_registered`, and the filters `openstation_ai_active_provider` / `openstation_ai_model`. The three-callable provider contract (`make_turn_input` / `agentic_call` / `structured_request`) and the `$api_key` argument are gone. Register providers with the Core AI Client / Connectors instead. The `/ai/search` extensibility hooks below are unaffected.
 
 > The built-in Copilot tools are [WordPress Abilities](https://developer.wordpress.org/apis/abilities-api/), listed at `GET /wp-abilities/v1/abilities`. Register a read-only ability and the assistant picks it up automatically — see "Extending the Copilot's tools" below.
 
-> **Removed.** Automatic AI analysis of posts, pages, and taxonomy terms was removed — the copilot now only analyzes comments (for the spam score), and the AI assistant finds content with WordPress's native keyword search. The following filters/actions no longer fire and have been removed: `openstation_ai_supported_post_types`, `openstation_ai_supported_taxonomies`, `openstation_ai_supported_types`, `openstation_ai_schema_content`, `openstation_ai_post_prompt`, `openstation_ai_term_prompt`, `openstation_ai_post_analyzed`, `openstation_ai_term_analyzed`. See [`migration-ai-comment-only.md`](migration-ai-comment-only.md).
+> **Removed.** Automatic AI analysis of posts, pages, and taxonomy terms was removed — the copilot now only analyzes comments (for the spam score), and the AI assistant finds content with WordPress's native keyword search. The following filters/actions no longer fire and have been removed: `openstation_ai_supported_post_types`, `openstation_ai_supported_taxonomies`, `openstation_ai_supported_types`, `openstation_ai_schema_content`, `openstation_ai_post_prompt`, `openstation_ai_term_prompt`, `openstation_ai_post_analyzed`, `openstation_ai_term_analyzed`.
 
 ### `openstation_ai_schema_comment` — Experimental
 
@@ -3281,7 +3282,7 @@ A native profile-editing window (`desktop-mode-user-edit`) that opens when a row
 apply_filters( 'openstation_user_edit_window_user_can_register', bool $can, int $user_id ): bool
 ```
 
-Fires inside the `openstation_user_edit_window_user_can_register()` helper. Default: `true` for any logged-in user. Note the framework's own registration path currently registers the window for every logged-in user without consulting this helper — hook it for plugin code that mirrors the gate, not to unregister the window.
+Fires inside the `openstation_user_edit_window_user_can_register()` helper. Default: `true` for any logged-in user. The framework's own registration path consults this helper — returning `false` from the filter skips registering the window entirely.
 
 ### `openstation_user_edit_window_args` — Experimental *(filter)*
 
@@ -4366,7 +4367,7 @@ All Experimental.
 
 | Hook | Signature | Purpose |
 |---|---|---|
-| `openstation_stored_files_base_dir` | `( string $base ) => string` | Storage base directory (default `uploads/os-files`). Sites that can write outside the webroot point this there. |
+| `openstation_stored_files_base_dir` | `( string $base ) => string` | Storage base directory (default `uploads/desktop-mode-files` — the pre-rebrand segment is a frozen identifier). Sites that can write outside the webroot point this there. |
 | `openstation_stored_files_upload_capability` | `( string $cap ) => string` | Capability required to upload. Default `'upload_files'`. |
 | `openstation_stored_files_max_upload_bytes` | `( int $max, int $user_id ) => int` | Per-file cap. Default `wp_max_upload_size()`; can only effectively lower it. |
 | `openstation_stored_files_user_quota_bytes` | `( int $quota, int $user_id ) => int` | Per-user total quota. `0` (default) = unlimited. |
@@ -4437,8 +4438,8 @@ Filters the list of stylesheet **handles** loaded via the
 `media="print"` + `onload` deferral pattern (so they don't block first
 paint). Default: `os-dock-peek`, `desktop-mode-ai-assistant`,
 `desktop-mode-bug-report`, `os-window-overview`,
-`os-settings`. Add a handle to defer it, or remove one to
-keep it on the critical path.
+`os-settings`, `os-openstation-layout`. Add a handle to defer it, or
+remove one to keep it on the critical path.
 
 ```php
 add_filter( 'openstation_deferred_styles', function ( $handles ) {
@@ -4626,7 +4627,7 @@ See [Texturing your own surface](./desktop-themes.md#texturing-your-own-surface)
 
 > **Icon tinting** is a manifest field (`iconColor`, and `color` per
 > icon), not a PHP filter. Its JS-side filter is
-> `os.desktop-theme.icon-color` — see the
+> `os.os-theme.icon-color` — see the
 > [JavaScript reference](./javascript-reference.md#desktop-themes-experimental).
 
 ### `openstation_desktop_theme_wallpaper_label` — Experimental *(filter)*
@@ -5121,6 +5122,20 @@ The desktop-host contract — handshake, liveness heartbeat, and the
 `openstation_electron_*` filters and actions — lives in the **Electron
 Adapter extension**, not in core. See
 [Native Desktop Host → Adapter hooks](./desktop-host.md#adapter-hooks).
+
+### Other bundled-extension hooks
+
+The extensions under `extensions/` fire their own prefixed hooks, which
+this reference does not enumerate: `openstation_code_editor_*`
+(capability gate, workspace root, extension allowlist, save
+pipeline, PHP indexing, REST limits, template/window/icon args —
+`extensions/desktop-mode-code-editor/includes/`),
+`openstation_cron_manager_*` (capability gate, template/window/icon
+args — `extensions/desktop-mode-cron-manager/includes/`), and
+`openstation_phpmyadmin_user_can_use`
+(`extensions/desktop-mode-phpmyadmin/includes/window.php`). Each hook
+carries a docblock at its call site; the extension source is the
+reference until these graduate into a doc of their own.
 
 ---
 

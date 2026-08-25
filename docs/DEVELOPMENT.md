@@ -169,8 +169,9 @@ src/
 ├── plugins/                 # Built-in plugins that use the public API —
 │                            #   animated-logo-wallpaper is the reference
 │                            #   example for third-party authors.
-├── dock.ts                  # The left-edge dock (icons, tooltips,
-│                            #   submenu popover, instance rail).
+├── dock.ts                  # The dock rail (icons, tooltips, submenu
+│                            #   popover, instance rail; bottom by
+│                            #   default, left/right per layout).
 ├── toast.ts                 # Toast queue (wraps <os-toast-container>).
 ├── utils.ts                 # urlMatchKey, deriveWindowId, sanitize*.
 └── i18n.ts                  # Thin wrapper around window.wp.i18n.
@@ -312,7 +313,7 @@ Pass `--skip-i18n` for hotfixes where you do not want translation-
 file churn in the release commit:
 
 ```bash
-./bin/release.sh 0.9.1 --skip-i18n
+./bin/release.sh 1.1.4 --skip-i18n
 ```
 
 ## Docs → GitHub wiki

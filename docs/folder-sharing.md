@@ -187,7 +187,7 @@ Resolution rule, expressed as `openstation_files_share_user_state()`:
 - `principal_type='role'` → state from the decisions row for
   `(share_id, user_id)`, defaulting to `'pending'` when absent.
 
-Pre-0.8.5 sites kept share lists in `wp_desktop_mode_folders.share_meta`
+Legacy sites kept share lists in `wp_desktop_mode_folders.share_meta`
 as JSON. Those lists are NOT migrated; the column is retained for
 diagnostics only and is never consulted for visibility. Owners
 must re-invite recipients through the shares API.
@@ -210,7 +210,8 @@ add_filter( 'openstation_files_share_target_owner', function ( $owner, $type, $r
 }, 10, 3 );
 ```
 
-v1 ships with `'folder'` only. The REST routes live under
+The default shareable types are `'folder'` and `'file'` (stored
+uploads), filterable via `openstation_files_shareable_types`. The REST routes live under
 `/folders/{id}/shares`; a future generic surface (e.g.
 `/share-targets/{type}/{id}/shares`) can hit the same store
 functions.
