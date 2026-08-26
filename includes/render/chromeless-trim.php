@@ -183,6 +183,282 @@ function openstation_chromeless_suppress_emoji() {
 add_action( 'admin_init', 'openstation_chromeless_suppress_emoji' );
 
 /**
+ * The Core command-palette root handles.
+ *
+ * `wp-commands` is the `core/commands` store package; `wp-core-commands`
+ * registers WordPress's baseline command set on top of it. Everything
+ * else in the family reaches the palette *through* one of these two, so
+ * they are both the things to drop and the marker that identifies a
+ * dependent as a palette contributor.
+ *
+ * @return string[]
+ */
+function openstation_command_palette_root_handles() {
+	/**
+	 * Filters the handles treated as command-palette roots.
+	 *
+	 * A queued script whose dependency closure reaches one of these is
+	 * considered a palette contributor and is trimmed inside windows.
+	 *
+	 * @param string[] $handles Root handles.
+	 */
+	return (array) apply_filters(
+		'openstation_command_palette_root_handles',
+		array( 'wp-commands', 'wp-core-commands' )
+	);
+}
+
+/**
+ * Whether `$handle`'s dependency closure reaches any of `$roots`.
+ *
+ * `$seen` is passed by reference so a diamond-shaped dependency graph
+ * is walked once per node rather than once per path — the Gutenberg
+ * chain is full of diamonds, and a by-value guard turns this into an
+ * exponential walk.
+ *
+ * @param WP_Dependencies $dependencies The scripts registry.
+ * @param string          $handle       Handle to test.
+ * @param string[]        $roots        Root handles to look for.
+ * @param array           $seen         Visited handles, by reference.
+ * @return bool
+ */
+function openstation_handle_depends_on( $dependencies, $handle, $roots, &$seen ) {
+	if ( isset( $seen[ $handle ] ) || ! isset( $dependencies->registered[ $handle ] ) ) {
+		return false;
+	}
+	$seen[ $handle ] = true;
+
+	foreach ( $dependencies->registered[ $handle ]->deps as $dep ) {
+		if ( in_array( $dep, $roots, true ) ) {
+			return true;
+		}
+		if ( openstation_handle_depends_on( $dependencies, $dep, $roots, $seen ) ) {
+			return true;
+		}
+	}
+	return false;
+}
+
+/**
+ * The command-palette family present in a given handle list.
+ *
+ * Returns the roots plus every handle in `$handles` that reaches one
+ * of them — Astra's `astra-command-palette`, WooCommerce's
+ * `wc-admin-command-palette`, and anything else a plugin registers
+ * against the palette.
+ *
+ * @param WP_Dependencies $dependencies The scripts registry.
+ * @param string[]        $handles      Handles to scan.
+ * @return string[] Handles to drop.
+ */
+function openstation_command_palette_family( $dependencies, $handles ) {
+	$roots  = openstation_command_palette_root_handles();
+	$family = $roots;
+
+	foreach ( $handles as $handle ) {
+		if ( in_array( $handle, $family, true ) ) {
+			continue;
+		}
+		$seen = array();
+		if ( openstation_handle_depends_on( $dependencies, $handle, $roots, $seen ) ) {
+			$family[] = $handle;
+		}
+	}
+
+	/**
+	 * Filters the command-palette handles dropped inside windows.
+	 *
+	 * Remove a handle here to keep it inside windows — the escape hatch
+	 * for a script that registers commands *and* renders part of its own
+	 * admin screen, which the dependency walk cannot tell apart.
+	 *
+	 * @param string[] $family  Handles about to be dropped.
+	 * @param string[] $handles The handles that were scanned.
+	 */
+	return (array) apply_filters( 'openstation_command_palette_family', $family, $handles );
+}
+
+/**
+ * Whether this request should drop the Core command-palette runtime.
+ *
+ * **Why a window never needs it.** ⌘K inside a window belongs to the
+ * shell: the desktop owns the palette, the keystroke is handled in the
+ * parent frame, and the parent only asks a window for its commands when
+ * the palette is actually opened (`os-commands-subscribe`, sent from
+ * `onPaletteOpened()` in `src/commands/iframe-bridge.ts`). The runtime
+ * that answers that request was nevertheless loaded eagerly in every
+ * window, on the chance the user might one day press ⌘K while that
+ * window happened to hold focus.
+ *
+ * What that cost, measured on a live install opening Settings in a
+ * window: 43 files, 10.66 MB raw / 1.94 MB gzipped — react, react-dom,
+ * `components.js` (3.7 MB), `block-editor.js` (3.7 MB), `core-data`,
+ * `blocks`, `sync` — **73.6% of everything the window downloaded**, then
+ * parsed and executed again in each window's own JavaScript realm,
+ * where an HTTP cache hit buys nothing.
+ *
+ * **Block-editor screens are exempt.** `post.php`, `post-new.php`, the
+ * site editor and the widgets screen load that same chain for their own
+ * reasons, so the palette rides along for the cost of `commands.js` +
+ * `core-commands.js` (~150 KB) — and those are exactly the screens whose
+ * stores hold commands worth harvesting ("Duplicate block", pattern
+ * commands). Trimming there would cost real functionality and save
+ * nothing. Everywhere else the store only ever holds the WordPress
+ * baseline, which the shell already publishes itself from its own
+ * lazily-loaded runtime (`src/commands/shell-harvester.ts`).
+ *
+ * @return bool
+ */
+function openstation_chromeless_should_trim_command_palette() {
+	if ( ! openstation_is_chromeless_request() ) {
+		return false;
+	}
+
+	$trim = ! openstation_chromeless_screen_uses_block_editor();
+
+	/**
+	 * Filters whether the Core command-palette runtime is dropped in a
+	 * window.
+	 *
+	 * Return `false` to keep Core's palette — and its Gutenberg
+	 * dependency chain — inside windows on this screen.
+	 *
+	 * @param bool $trim Whether to trim. Defaults to true off block-editor screens.
+	 */
+	return (bool) apply_filters( 'openstation_chromeless_trim_command_palette', $trim );
+}
+
+/**
+ * Whether the current admin screen renders the block editor.
+ *
+ * `WP_Screen::is_block_editor()` covers `post.php` / `post-new.php`.
+ * The site editor and the block-based widgets screen load the same
+ * runtime without setting that flag, so they are named explicitly.
+ *
+ * @return bool
+ */
+function openstation_chromeless_screen_uses_block_editor() {
+	global $pagenow;
+
+	if ( in_array( $pagenow, array( 'site-editor.php', 'widgets.php', 'customize.php' ), true ) ) {
+		return true;
+	}
+	if ( ! function_exists( 'get_current_screen' ) ) {
+		return false;
+	}
+	$screen = get_current_screen();
+
+	return ( $screen instanceof WP_Screen && $screen->is_block_editor() );
+}
+
+/**
+ * Keeps Core's boot-time palette enqueue off window pages.
+ *
+ * Removing the callback rather than dequeuing its handles afterwards
+ * also skips the work it does *before* enqueuing anything: a walk of
+ * `$menu` and `$submenu` running `current_user_can()` and
+ * `menu_page_url()` per entry, serialized into a 19.6 KB inline
+ * `wp.coreCommands.initializeCommandPalette( … )` blob — per window.
+ *
+ * Priority 0, ahead of Core's default 10. The shell's own deferral
+ * lives in {@see openstation_defer_core_command_palette()}; this is
+ * the window half of the same idea.
+ */
+function openstation_chromeless_defer_command_palette() {
+	if ( ! openstation_chromeless_should_trim_command_palette() ) {
+		return;
+	}
+	remove_action( 'admin_enqueue_scripts', 'wp_enqueue_command_palette_assets' );
+}
+add_action( 'admin_enqueue_scripts', 'openstation_chromeless_defer_command_palette', 0 );
+
+/**
+ * Drops the command-palette family inside windows.
+ *
+ * Unhooking Core's enqueue above is necessary but nowhere near
+ * sufficient, and a live measurement showed exactly why: with Core's
+ * palette deferred, a Settings window still pulled 14.28 MB of the
+ * original 14.49 MB, because Astra's `command-palette.js` and
+ * WooCommerce's `command-palette.js` / `command-palette-analytics.js`
+ * each declare `wp-commands` as a dependency and were still queued.
+ * `WP_Dependencies::all_deps()` then pulls the entire chain back in on
+ * their behalf. Dropping the roots alone saves nothing while a single
+ * dependent survives — which is the same lesson the admin-bar trim
+ * above records, and the reason both are family trims.
+ *
+ * Runs at `PHP_INT_MAX` so it sees the queue after every plugin has
+ * had its say. Dequeue, never deregister: a handle that stays
+ * registered can still be resolved as a dependency by something that
+ * genuinely needs it.
+ */
+function openstation_chromeless_trim_command_palette() {
+	if ( ! openstation_chromeless_should_trim_command_palette() ) {
+		return;
+	}
+
+	$scripts = wp_scripts();
+	if ( ! $scripts ) {
+		return;
+	}
+
+	foreach ( openstation_command_palette_family( $scripts, $scripts->queue ) as $handle ) {
+		wp_dequeue_script( $handle );
+	}
+	foreach ( openstation_command_palette_root_handles() as $handle ) {
+		wp_dequeue_style( $handle );
+	}
+
+	/**
+	 * Fires after OpenStation drops the command-palette family in a window.
+	 */
+	do_action( 'openstation_chromeless_trimmed_command_palette' );
+}
+add_action( 'admin_enqueue_scripts', 'openstation_chromeless_trim_command_palette', PHP_INT_MAX );
+
+/**
+ * Second pass: strip the palette family from the actual print list.
+ *
+ * Same two survivors as the named trim below — late enqueues and
+ * dependency pull-back — but the family has to be recomputed here
+ * rather than reused, because a handle enqueued after
+ * `admin_enqueue_scripts` was never in the queue the dequeue pass
+ * scanned. The walk runs against the to-print list, which is the last
+ * word before output.
+ *
+ * @param string[] $handles Script handles about to print.
+ * @return string[]
+ */
+function openstation_chromeless_filter_palette_print_list( $handles ) {
+	if ( ! is_array( $handles ) || ! openstation_chromeless_should_trim_command_palette() ) {
+		return $handles;
+	}
+	$scripts = wp_scripts();
+	if ( ! $scripts ) {
+		return $handles;
+	}
+	$family = openstation_command_palette_family( $scripts, $handles );
+
+	return array_values( array_diff( $handles, $family ) );
+}
+add_filter( 'print_scripts_array', 'openstation_chromeless_filter_palette_print_list' );
+
+/**
+ * Second pass: strip the palette style roots from the print list.
+ *
+ * @param string[] $handles Style handles about to print.
+ * @return string[]
+ */
+function openstation_chromeless_filter_palette_style_print_list( $handles ) {
+	if ( ! is_array( $handles ) || ! openstation_chromeless_should_trim_command_palette() ) {
+		return $handles;
+	}
+	return array_values(
+		array_diff( $handles, openstation_command_palette_root_handles() )
+	);
+}
+add_filter( 'print_styles_array', 'openstation_chromeless_filter_palette_style_print_list' );
+
+/**
  * Second pass: strip trimmed handles from the actual print list.
  *
  * The dequeue above cannot be the whole story, and a live install

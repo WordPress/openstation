@@ -1803,6 +1803,56 @@ add_action( 'openstation_chromeless_trimmed_assets', static function () {
 
 ---
 
+### `openstation_chromeless_trim_command_palette` — Experimental
+
+Whether Core's command-palette runtime is dropped inside a window. Default `true` on every screen except block-editor screens.
+
+The shell owns ⌘K: the keystroke is handled in the parent frame, and the parent only asks a window for its commands when the palette is actually opened (`os-commands-subscribe`). The runtime that answers is nevertheless enqueued by Core on every admin page, so each window paid for it eagerly on the chance the user might one day press ⌘K while that window held focus. Measured on a live install opening **Settings** in a window, that was 43 files, **10.66 MB raw / 1.94 MB gzipped — 73.6% of everything the window downloaded** — parsed and executed again in each window's own JavaScript realm, where an HTTP cache hit buys nothing.
+
+`post.php`, `post-new.php`, the site editor and the widgets screen are exempt: they load the same Gutenberg chain for their own reasons, so the palette rides along for the cost of `commands.js` + `core-commands.js`, and those are exactly the screens whose stores hold commands worth harvesting ("Duplicate block", pattern commands). Everywhere else the store holds only the WordPress baseline, which the shell already publishes from its own lazily-loaded runtime.
+
+```php
+// Keep Core's palette (and its Gutenberg chain) inside windows.
+add_filter( 'openstation_chromeless_trim_command_palette', '__return_false' );
+```
+
+### `openstation_command_palette_root_handles` — Experimental
+
+The handles treated as command-palette roots. Defaults: `wp-commands` (the `core/commands` store package) and `wp-core-commands` (WordPress's baseline command set). A queued script whose dependency closure reaches one of these is considered a palette contributor.
+
+```php
+apply_filters( 'openstation_command_palette_root_handles', string[] $handles );
+```
+
+### `openstation_command_palette_family` — Experimental
+
+The full set of handles dropped by the palette trim: the roots plus every scanned handle that reaches one of them, directly or transitively.
+
+This is a family trim for the same reason the admin-bar trim above is: dropping the roots alone saves nothing while a single dependent survives, because `WP_Dependencies::all_deps()` pulls the whole chain back in on that dependent's behalf. Measured with only Core's enqueue deferred, a Settings window still pulled 14.28 MB of the original 14.49 MB — Astra's `command-palette.js` and WooCommerce's `command-palette.js` / `command-palette-analytics.js` each declare `wp-commands` and were still queued.
+
+Note that handles pulled in only *as dependencies of* a palette contributor need no special handling: they stop being requested once their last dependent leaves, and stay if anything else still needs them. WooCommerce's `wc-settings` (a 96 KB inline blob) disappears from a Settings window for exactly that reason, and remains on a WooCommerce screen that uses it.
+
+Use this filter as the escape hatch for a script that registers commands *and* renders part of its own admin screen — a distinction the dependency walk cannot make.
+
+```php
+// Keep a bundle that registers commands but also draws its own screen.
+add_filter( 'openstation_command_palette_family', static function ( array $family ) {
+    return array_values( array_diff( $family, array( 'my-plugin-admin-app' ) ) );
+} );
+```
+
+### `openstation_chromeless_trimmed_command_palette` — Experimental (action)
+
+Fires after the palette family is dropped in a window.
+
+```php
+add_action( 'openstation_chromeless_trimmed_command_palette', static function () {
+    wp_dequeue_script( 'my-plugin-palette-extras' );
+} );
+```
+
+---
+
 ### `openstation_native_window_allowed_html` — Experimental
 
 The `wp_kses`-shaped allowlist used when escaping native-window `<template>` payloads. The default extends `wp_kses_allowed_html( 'post' )` with form controls, `<os-*>` web components, dashicon spans, and permissive `data-*` / `aria-*` attributes. Plugins registering their own native windows can extend the list with custom tags or attributes if their templates need markup not covered by the default.

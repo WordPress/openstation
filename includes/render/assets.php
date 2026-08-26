@@ -780,10 +780,17 @@ add_action( 'admin_enqueue_scripts', 'openstation_enqueue_assets' );
  * capture the chain instead, and the shell loads it on the first
  * palette invocation.
  *
- * Deliberately scoped: chromeless iframes and classic-mode requests
- * keep Core's default — inside an iframe the runtime powers the
- * command harvest the bridge streams to the parent, and a classic
- * page is Core's own UI where Core's palette is the right one.
+ * Deliberately scoped: classic-mode requests keep Core's default,
+ * because a classic page is Core's own UI where Core's palette is the
+ * right one.
+ *
+ * Windows are handled separately by
+ * {@see openstation_chromeless_should_trim_command_palette()} in
+ * `includes/render/chromeless-trim.php` — same idea, but it has to
+ * drop the whole palette *family* rather than just unhook Core's
+ * callback, and it exempts block-editor screens. Unhooking alone is
+ * not enough there: a third-party palette extension that declares
+ * `wp-commands` keeps the entire chain queued as its dependency.
  *
  * Priority 0, ahead of Core's default 10, so the removal lands
  * before the callback fires. On WP 6.9 (function exists, no default
