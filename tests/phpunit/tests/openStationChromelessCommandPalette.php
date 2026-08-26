@@ -47,7 +47,7 @@ class Tests_OpenStation_ChromelessCommandPalette extends WP_UnitTestCase {
 	 *
 	 *   os-test-direct    -> wp-commands          (a palette contributor)
 	 *   os-test-indirect  -> os-test-direct       (reaches it transitively)
-	 *   os-test-unrelated -> jquery               (must be left alone)
+	 *   os-test-unrelated -> (nothing)            (must be left alone)
 	 */
 	private function register_graph() {
 		// This WordPress may predate the Core command palette, in which
@@ -62,7 +62,10 @@ class Tests_OpenStation_ChromelessCommandPalette extends WP_UnitTestCase {
 		// what a handle is called, so the fixtures do not hint.
 		wp_register_script( 'os-test-direct', 'https://example.org/d.js', array( 'wp-commands' ), '1', true );
 		wp_register_script( 'os-test-indirect', 'https://example.org/i.js', array( 'os-test-direct' ), '1', true );
-		wp_register_script( 'os-test-unrelated', 'https://example.org/u.js', array( 'jquery' ), '1', true );
+		// No deps at all: its only job is to be a handle that does not
+		// reach the palette. Naming a real Core handle here coupled the
+		// fixture to whatever else the suite had registered by then.
+		wp_register_script( 'os-test-unrelated', 'https://example.org/u.js', array(), '1', true );
 	}
 
 	/**
@@ -210,6 +213,91 @@ class Tests_OpenStation_ChromelessCommandPalette extends WP_UnitTestCase {
 		);
 
 		$this->assertNotContains( 'os-test-connectors-prerequisites', $family );
+	}
+
+	/**
+	 * The Gutenberg plugin re-registers the whole `wp-*` family from
+	 * `/wp-content/plugins/gutenberg/build/scripts/…` through its own
+	 * `$scripts->add()`. A Core-package test that looked at the SRC
+	 * path answered false for every package on such a site, retiring
+	 * the guard exactly where it mattered and convicting the entire
+	 * editor stack.
+	 *
+	 * @covers ::openstation_is_core_package_handle
+	 */
+	public function test_core_packages_are_recognised_when_gutenberg_serves_them() {
+		wp_register_script(
+			'wp-block-editor',
+			'https://example.org/wp-content/plugins/gutenberg/build/scripts/block-editor/index.min.js',
+			array( 'wp-commands' ),
+			'1',
+			true
+		);
+
+		$this->assertTrue(
+			openstation_is_core_package_handle( wp_scripts(), 'wp-block-editor' )
+		);
+
+		$family = openstation_command_palette_family( wp_scripts(), array( 'wp-block-editor' ) );
+		$this->assertNotContains( 'wp-block-editor', $family );
+	}
+
+	/**
+	 * The Customizer regression, in its shape.
+	 *
+	 * `customize-widgets` survives the trim and depends on
+	 * `wp-block-editor`, which depends on `wp-commands`. Dropping the
+	 * palette out from under a package that still prints strands it —
+	 * the Widgets panel rendered nothing while its own script had
+	 * loaded. Whatever we believe a handle is FOR, if something still
+	 * printing needs it, it has to stay.
+	 *
+	 * @covers ::openstation_protect_survivor_dependencies
+	 * @covers ::openstation_chromeless_command_palette_drops
+	 */
+	public function test_a_surviving_handles_dependency_is_never_dropped() {
+		$this->enter_chromeless();
+		set_current_screen( 'options-general' );
+		$this->register_graph();
+		wp_register_script(
+			'wp-customize-widgets',
+			'https://example.org/wp-content/plugins/gutenberg/build/scripts/customize-widgets/index.min.js',
+			array( 'wp-commands' ),
+			'1',
+			true
+		);
+
+		$drops = openstation_chromeless_command_palette_drops(
+			wp_scripts(),
+			array( 'wp-customize-widgets', 'os-test-direct' )
+		);
+
+		$this->assertNotContains(
+			'wp-commands',
+			$drops,
+			'a survivor still depends on it'
+		);
+	}
+
+	/**
+	 * The protection must not blunt the trim: when nothing surviving
+	 * needs the palette, it still goes.
+	 *
+	 * @covers ::openstation_protect_survivor_dependencies
+	 */
+	public function test_protection_does_not_spare_a_palette_nothing_needs() {
+		$this->enter_chromeless();
+		set_current_screen( 'options-general' );
+		$this->register_graph();
+
+		$drops = openstation_chromeless_command_palette_drops(
+			wp_scripts(),
+			array( 'os-test-direct', 'os-test-unrelated' )
+		);
+
+		$this->assertContains( 'wp-commands', $drops );
+		$this->assertContains( 'os-test-direct', $drops );
+		$this->assertNotContains( 'os-test-unrelated', $drops );
 	}
 
 	/**

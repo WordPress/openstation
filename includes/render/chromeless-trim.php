@@ -242,6 +242,25 @@ function openstation_is_core_package_handle( $dependencies, $handle ) {
 	if ( ! isset( $dependencies->registered[ $handle ] ) ) {
 		return false;
 	}
+
+	// Identify a package by its NAME, not by where it is served from.
+	// The `wp-` prefix is the `@wordpress/*` package convention and is
+	// the only stable signal: the Gutenberg plugin re-registers the
+	// entire family — `wp-block-editor`, `wp-commands`, `wp-core-data`,
+	// `wp-customize-widgets` — from `/wp-content/plugins/gutenberg/
+	// build/scripts/…` via its own `$scripts->add()`. A path test for
+	// `/wp-includes/js/dist/` therefore answers false for every package
+	// on a Gutenberg site, silently retiring this guard exactly where
+	// it matters most, and the walk goes on to convict the whole editor
+	// stack. That is what emptied the Customizer's Widgets panel.
+	//
+	// A plugin that registers a handle under this prefix is treated as
+	// a package too. That direction is safe — the only consequence is
+	// that it is never trimmed.
+	if ( 0 === strpos( $handle, 'wp-' ) ) {
+		return true;
+	}
+
 	$src = $dependencies->registered[ $handle ]->src;
 
 	return ( is_string( $src ) && false !== strpos( $src, '/wp-includes/js/dist/' ) );
@@ -559,7 +578,86 @@ function openstation_chromeless_command_palette_drops( $dependencies, $handles )
 		}
 	}
 
-	return openstation_command_palette_family( $dependencies, $handles );
+	return openstation_protect_survivor_dependencies(
+		$dependencies,
+		$handles,
+		openstation_command_palette_family( $dependencies, $handles )
+	);
+}
+
+/**
+ * Removes from `$drops` anything a surviving handle still depends on.
+ *
+ * **The safety property the rest of this module rests on**, and the one
+ * that turns a guess about a handle's purpose into a fact about the
+ * page: whatever we believe a handle is *for*, if something that is
+ * still going to print needs it, dropping it strands that thing.
+ *
+ * `WP_Dependencies` walks the graph downwards — it will happily print a
+ * script whose dependency we removed from the list underneath it, and
+ * the browser then throws on the missing global rather than on the
+ * handle we actually meant to drop. That is how a trim aimed at the
+ * command palette emptied the Customizer's Widgets panel:
+ * `customize-widgets` survived, `wp-block-editor` and `wp-commands`
+ * were taken out from under it, and the panel rendered nothing.
+ *
+ * The closure is resolved on a CLONE, so the request's real `$to_do` /
+ * `$done` bookkeeping is untouched — the same technique the palette
+ * manifest builder uses.
+ *
+ * @param WP_Dependencies $dependencies The scripts or styles registry.
+ * @param string[]        $handles      The full list under consideration.
+ * @param string[]        $drops        Handles the trim wants to remove.
+ * @return string[] `$drops`, less anything a survivor depends on.
+ */
+function openstation_protect_survivor_dependencies( $dependencies, $handles, $drops ) {
+	if ( empty( $drops ) ) {
+		return $drops;
+	}
+	$survivors = array_values( array_diff( (array) $handles, (array) $drops ) );
+	if ( empty( $survivors ) ) {
+		return $drops;
+	}
+
+	/*
+	 * An explicit closure walk rather than `all_deps()`, for three
+	 * reasons, each of which bit:
+	 *
+	 * 1. `WP_Styles::all_deps()` / `WP_Scripts::all_deps()` apply
+	 * `print_styles_array` / `print_scripts_array` to their result —
+	 * the very filters this helper is called from. That is an infinite
+	 * loop, and it hangs the request.
+	 *
+	 * 2. Passing `$recursion = true` silences the filter but changes
+	 * the contract: one handle with an unregistered dependency aborts
+	 * the ENTIRE call (`return false`), so a single unrelated
+	 * registration mistake elsewhere on the page would quietly protect
+	 * nothing at all.
+	 *
+	 * 3. `all_deps()` reports missing dependencies through
+	 * `_doing_it_wrong()`. This is a read-only analysis; the real print
+	 * pass raises those anyway, and raising them twice turns someone
+	 * else's pre-existing warning into our noise.
+	 *
+	 * The walk below is O(V+E) over the graph, allocates one set, and
+	 * clones nothing.
+	 */
+	$needed = array();
+	$stack  = $survivors;
+	while ( $stack ) {
+		$handle = array_pop( $stack );
+		if ( isset( $needed[ $handle ] ) || ! isset( $dependencies->registered[ $handle ] ) ) {
+			continue;
+		}
+		$needed[ $handle ] = true;
+		foreach ( $dependencies->registered[ $handle ]->deps as $dep ) {
+			if ( ! isset( $needed[ $dep ] ) ) {
+				$stack[] = $dep;
+			}
+		}
+	}
+
+	return array_values( array_diff( $drops, array_keys( $needed ) ) );
 }
 
 /**
@@ -757,8 +855,19 @@ function openstation_chromeless_filter_palette_style_print_list( $handles ) {
 		return $handles;
 	}
 
+	// Styles have their own dependency graph, and a surviving sheet may
+	// sit on top of a palette one — `wp-commands`' stylesheet is a
+	// dependency of others on editor screens. Drop only what nothing
+	// still printing depends on.
 	return array_values(
-		array_diff( $handles, openstation_command_palette_root_handles() )
+		array_diff(
+			$handles,
+			openstation_protect_survivor_dependencies(
+				wp_styles(),
+				$handles,
+				openstation_command_palette_root_handles()
+			)
+		)
 	);
 }
 add_filter( 'print_styles_array', 'openstation_chromeless_filter_palette_style_print_list' );
