@@ -45,6 +45,18 @@ export interface CapturedDrop {
 	clientX: number;
 	clientY: number;
 	target: EventTarget | null;
+	/**
+	 * Whether a closer handler had already called `preventDefault()`
+	 * on the original drop — read before the sentinel's own
+	 * `preventDefault()`, which would otherwise mask it.
+	 *
+	 * The mounted manager refuses to double-handle a claimed drop (the
+	 * Plugins `.zip` dropzone is the live case). The replay path has to
+	 * honour the same rule, or a file that another surface already took
+	 * responsibility for gets processed a second time through the
+	 * Media Library pipeline.
+	 */
+	alreadyClaimed?: boolean;
 }
 
 /** Boot opts, kept for the replay path below. */
@@ -52,6 +64,24 @@ let bootedOpts: Parameters< typeof mountOsFileDropManager >[ 0 ] | null = null;
 
 export function replayCapturedDrop( drop: CapturedDrop ): void {
 	if ( ! bootedOpts || drop.files.length === 0 ) {
+		return;
+	}
+	// The replay reaches `handleFiles()` directly, so it has to apply
+	// the guards the mounted manager would have applied to a live drop.
+	// Skipping them meant this path was strictly more permissive than
+	// the steady state, during exactly the window — the first OS-file
+	// drag of a session, before the lazy bundle booted — where the user
+	// has no way to tell which path they are on.
+	//
+	// A drop another handler already claimed must not be handled again
+	// (`mountOsFileDropManager` returns early on `defaultPrevented`),
+	// and a user without `upload_files` gets a silent no-op rather than
+	// a dialog and a "not an allowed file type" toast (the manager
+	// mounts a no-op for them instead).
+	if ( drop.alreadyClaimed ) {
+		return;
+	}
+	if ( ! bootedOpts.config.enabled ) {
 		return;
 	}
 	const ctx = classifyDropTarget( drop );

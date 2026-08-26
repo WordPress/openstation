@@ -2294,7 +2294,19 @@ function openstation_collect_native_windows_payload() {
 		// reload.
 		$template_html = openstation_build_native_window_template_html( $entry );
 
-		$script_handle = $collect_handle( isset( $entry['script'] ) ? $entry['script'] : '' );
+		// `$collect_handle()` answers "is there a bundle to fetch?", and
+		// returns '' when the handle resolves to no URL — a src-less
+		// alias handle registered only to carry `preload_script` or
+		// inline data, for instance. That is the right answer for
+		// `scriptHandle`, which names something to load. It is the
+		// wrong answer for `ownerHandle`, which names WHO the window
+		// belongs to: attribution does not depend on whether the owner
+		// happens to ship a file. Shipping '' there broke the
+		// documented "always populated" contract and blanked
+		// `wp.os.debug.window()`.
+		$declared_script = isset( $entry['script'] ) ? (string) $entry['script'] : '';
+		$script_handle   = $collect_handle( $declared_script );
+		$owner_handle    = '' !== $script_handle ? $script_handle : $declared_script;
 
 		// Companion handles (`scripts` arg) — bundles that extend the
 		// window from outside it and must be in the tab before its
@@ -2379,7 +2391,7 @@ function openstation_collect_native_windows_payload() {
 			'templateId'       => 'os-native-window-' . $entry['id'],
 			'templateHtml'     => $template_html,
 			'scriptHandle'     => $script_handle,
-			'ownerHandle'      => $script_handle,
+			'ownerHandle'      => $owner_handle,
 			'companionScripts' => $companion_scripts,
 			// Whether the shell loads the bundle at boot rather than on
 			// first open. Off by default: a window's script is dead
