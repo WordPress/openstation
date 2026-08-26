@@ -274,11 +274,33 @@ export class OsSettings implements SettingsCtx {
 			( e: Event ) => {
 				const detail = ( e as CustomEvent< OsSettingsSaveLifecycleDetail > )
 					.detail;
-				if ( ! detail || detail.phase !== 'failed' || ! detail.rolledBackTo ) {
+				if ( ! detail ) {
+					return;
+				}
+				const openStation = ( window as unknown as {
+					wp?: {
+						os?: {
+							windowManager?: {
+								getById?: ( id: string ) => {
+									markActivity: (
+										phase: 'idle' | 'pending' | 'saving' | 'saved' | 'failed',
+										opts?: { error?: string },
+									) => void;
+								} | undefined;
+							};
+						};
+					};
+				} ).wp?.os;
+				const win = openStation?.windowManager?.getById?.( 'os-settings' );
+				if ( win ) {
+					win.markActivity( detail.phase, { error: detail.error } );
+				}
+				if ( detail.phase !== 'failed' || ! detail.rolledBackTo ) {
 					return;
 				}
 				this.state = detail.rolledBackTo;
 				this.apply();
+				this._notify();
 				if ( this._lastRenderedBody?.isConnected ) {
 					this.renderPanel( this._lastRenderedBody );
 				}
@@ -486,6 +508,10 @@ export class OsSettings implements SettingsCtx {
 
 	public save( opts: { windowId?: string } = {} ): void {
 		saveState( this.state, opts );
+		this._notify();
+	}
+
+	private _notify(): void {
 		if ( this.osSettingsListeners.size > 0 ) {
 			const snapshot = this.getOsSettingsSnapshot();
 			const listeners = Array.from( this.osSettingsListeners );
