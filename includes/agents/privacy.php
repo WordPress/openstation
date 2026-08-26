@@ -123,6 +123,14 @@ function openstation_agents_personal_data_exporter( $email_address, $page = 1 ) 
 		);
 	}
 
+	$avatar_id = openstation_agent_get_avatar_attachment_id( (int) $user->ID );
+	if ( $avatar_id > 0 ) {
+		$rows[] = array(
+			'name'  => __( 'Profile picture attachment ID', 'desktop-mode' ),
+			'value' => (string) $avatar_id,
+		);
+	}
+
 	return array(
 		'data' => array(
 			array(

@@ -55,9 +55,10 @@ require_once OPENSTATION_DIR . 'includes/agents/guard.php';
  * `wp_allowed_protocols()` — the data URI silently becomes an empty
  * string and the avatar renders broken.
  *
- * With an agent id, this is that agent's own Mio portrait when one has
- * been written. Without one, or before the face file exists, it is the
- * shipped robot glyph, which is what every agent wore before faces.
+ * With an agent id, this is that agent's profile picture (with its
+ * permanent AGENT ribbon) or Mio portrait when one has been written.
+ * Without one, or before the face file exists, it is the shipped robot
+ * glyph, which is what every agent wore before faces.
  *
  * @param int $user_id Agent user id, or 0 for the generic glyph.
  * @return string

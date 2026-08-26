@@ -136,6 +136,7 @@ function openstation_agents_my_wordpress_window_args( $window_args ) {
 		'enabled'       => $enabled,
 		'canEnable'     => current_user_can( 'manage_options' ),
 		'canManage'     => openstation_agents_user_can_manage(),
+		'canUpload'     => current_user_can( 'upload_files' ),
 		'canInvoke'     => openstation_agents_user_can_invoke(),
 		'aiAvailable'   => function_exists( 'openstation_ai_is_available' ) && openstation_ai_is_available(),
 		'aiStatusUrl'   => esc_url_raw( rest_url( 'desktop-mode/v1/ai/status' ) ),

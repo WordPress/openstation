@@ -2207,6 +2207,48 @@ os-tile[ status='future' ] .os-file-tile__icon {
 	flex: none;
 }
 
+/* Profile pictures are ordinary Media Library images, but the served
+   avatar has the AGENT ribbon baked in. This editor shows that final
+   asset beside the upload controls so the saved identity is never a
+   surprise. */
+.dm-agents__profile-picture-setting {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	padding: 12px;
+	border: 1px solid var( --os-border, rgba( 0, 0, 0, 0.08 ) );
+	border-radius: var( --os-ui-card-radius, 10px );
+	background: var( --os-ui-surface-sunken, #f6f7f7 );
+}
+
+.dm-agents__profile-picture-preview {
+	width: 112px;
+	height: 112px;
+	flex: none;
+}
+
+.dm-agents__profile-picture-copy {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	min-width: 0;
+}
+
+.dm-agents__profile-picture-copy p {
+	margin: 0;
+}
+
+.dm-agents__profile-picture-input {
+	display: none;
+}
+
+.dm-agents__profile-picture-actions {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex-wrap: wrap;
+}
+
 .dm-agents__detail-title {
 	flex: 1;
 	min-width: 0;
@@ -2810,6 +2852,36 @@ summary.dm-agents__category:focus-visible {
 	margin-top: -12px;
 }
 
+/* Unsaved custom pictures have no ribboned server asset yet. The
+   existing `<os-ribbon>` previews the exact identity mark the server
+   bakes into the final avatar. */
+.dm-agents__portrait-media {
+	position: relative;
+	width: 176px;
+	height: 176px;
+	max-width: 100%;
+	margin-top: -12px;
+	flex: none;
+}
+
+.dm-agents__portrait-media .dm-agents__portrait-face {
+	width: 100%;
+	height: 100%;
+	margin: 0;
+}
+
+.dm-agents__portrait-media.is-custom,
+.dm-agents__summary-media.is-custom {
+	overflow: hidden;
+	border-radius: 50%;
+}
+
+.dm-agents__portrait-media.is-custom img,
+.dm-agents__summary-media.is-custom img {
+	object-fit: cover;
+	border-radius: 50%;
+}
+
 /* What this face is, in two words. */
 .dm-agents__portrait-chips {
 	display: flex;
@@ -2879,6 +2951,26 @@ summary.dm-agents__category:focus-visible {
 	flex: none;
 }
 
+.dm-agents__summary-media {
+	position: relative;
+	width: 106px;
+	height: 106px;
+	flex: none;
+}
+
+.dm-agents__summary-media .dm-agents__summary-face {
+	width: 100%;
+	height: 100%;
+}
+
+.dm-agents__summary-media os-ribbon {
+	--os-ui-ribbon-size: 72px;
+	--os-ui-ribbon-banner-width: 110px;
+	--os-ui-ribbon-banner-offset: 15px;
+	--os-ui-ribbon-banner-pull: -30px;
+	--os-ui-ribbon-font: 700 8px/1.4 var( --os-font, system-ui );
+}
+
 .dm-agents__summary-text h4 {
 	margin: 0 0 2px;
 	font-size: 17px;
@@ -2943,6 +3035,17 @@ summary.dm-agents__category:focus-visible {
 	.dm-agents__portrait-face {
 		width: 128px;
 		height: 128px;
+	}
+	.dm-agents__portrait-media {
+		width: 128px;
+		height: 128px;
+	}
+	.dm-agents__profile-picture-setting {
+		align-items: flex-start;
+	}
+	.dm-agents__profile-picture-preview {
+		width: 88px;
+		height: 88px;
 	}
 }
 

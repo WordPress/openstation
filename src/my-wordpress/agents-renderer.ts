@@ -43,6 +43,7 @@ import {
 	fetchRoles,
 	fetchTriggerKinds,
 	listAgents,
+	uploadAgentProfilePicture,
 	updateAgent,
 } from './agents-rest';
 import type {
@@ -83,6 +84,7 @@ import '../ui/components/os-checkbox-label/os-checkbox-label';
 import '../ui/components/os-empty-state/os-empty-state';
 import '../ui/components/os-field-row/os-field-row';
 import '../ui/components/os-notice/os-notice';
+import '../ui/components/os-ribbon/os-ribbon';
 import '../ui/components/os-select/os-select';
 import '../ui/components/os-spinner/os-spinner';
 import '../ui/components/os-text-field/os-text-field';
@@ -170,6 +172,12 @@ interface CastDraft {
 	face: MioLook;
 	/** First seed of the strip the picker is showing. */
 	stripSeed: number;
+	/** Media Library image that overrides the generated face. */
+	avatarAttachmentId: number;
+	/** Direct upload URL used only before the agent has been created. */
+	avatarPreviewUrl: string;
+	/** True while the wizard is uploading a profile picture. */
+	avatarUploading: boolean;
 	/** True while the AI draft request is in flight. */
 	drafting: boolean;
 }
@@ -190,6 +198,9 @@ function emptyCast( role: string, seed: number ): CastDraft {
 		faceSeed: seed,
 		face: faceFromSeed( seed ),
 		stripSeed: seed,
+		avatarAttachmentId: 0,
+		avatarPreviewUrl: '',
+		avatarUploading: false,
 		drafting: false,
 	};
 }
@@ -207,6 +218,15 @@ const ENTITY_KIND_CHOICES = [ 'post', 'page', 'media', 'user', 'comment' ];
  * says when that stops being true.
  */
 const ABILITY_COLLAPSE_THRESHOLD = 12;
+
+/** Raster formats the server can safely embed behind the AGENT ribbon. */
+const PROFILE_PICTURE_MIME_TYPES = new Set( [
+	'image/jpeg',
+	'image/png',
+	'image/gif',
+	'image/webp',
+	'image/avif',
+] );
 
 /**
  * A starting point for a new face.
@@ -234,9 +254,12 @@ function newSeed(): number {
  * deterministic, so the face is the same one the write would produce.
  */
 function agentFaceSrc(
-	agent: Pick< Agent, 'face' | 'faceSeed' | 'avatarUrl' >,
+	agent: Pick< Agent, 'face' | 'faceSeed' | 'avatarUrl' | 'avatarAttachmentId' >,
 	size: number,
 ): string {
+	if ( ( agent.avatarAttachmentId ?? 0 ) > 0 && agent.avatarUrl !== '' ) {
+		return agent.avatarUrl;
+	}
 	if ( hasFace( agent.face ) && agent.avatarUrl !== '' ) {
 		return agent.avatarUrl;
 	}
@@ -258,6 +281,7 @@ function agentsConfig(): AgentsSectionConfig {
 			enabled: false,
 			canEnable: false,
 			canManage: false,
+			canUpload: false,
 			canInvoke: false,
 			aiAvailable: false,
 			aiStatusUrl: '',
@@ -886,6 +910,76 @@ export function renderAgents( host: EntityRenderHost ): void {
 		}
 	};
 
+	const profilePictureError = ( file: File ): string => {
+		if ( ! PROFILE_PICTURE_MIME_TYPES.has( file.type ) ) {
+			return __(
+				'Choose a JPEG, PNG, GIF, WebP, or AVIF image.',
+				'desktop-mode',
+			);
+		}
+		return '';
+	};
+
+	/** Upload a picture for a not-yet-created wizard draft. */
+	const uploadCastProfilePicture = async ( file: File ): Promise< void > => {
+		const invalid = profilePictureError( file );
+		if ( invalid ) {
+			state.notice = invalid;
+			paint();
+			return;
+		}
+		const cast = state.cast;
+		cast.avatarUploading = true;
+		state.notice = '';
+		paint();
+		try {
+			const uploaded = await uploadAgentProfilePicture( file );
+			if ( state.cast === cast ) {
+				cast.avatarAttachmentId = uploaded.id;
+				cast.avatarPreviewUrl = uploaded.url;
+			}
+		} catch ( err ) {
+			state.notice = err instanceof Error ? err.message : String( err );
+		}
+		cast.avatarUploading = false;
+		if ( ! disposed ) {
+			paint();
+		}
+	};
+
+	/** Upload and immediately assign a picture to an existing agent. */
+	const uploadSavedProfilePicture = async (
+		agent: Agent,
+		file: File,
+	): Promise< void > => {
+		const invalid = profilePictureError( file );
+		if ( invalid ) {
+			state.notice = invalid;
+			paint();
+			return;
+		}
+		state.saving = true;
+		state.notice = '';
+		paint();
+		try {
+			const uploaded = await uploadAgentProfilePicture( file );
+			const updated = await updateAgent( agent.id, {
+				avatarAttachmentId: uploaded.id,
+			} );
+			state.agents = state.agents.map( ( candidate ) =>
+				candidate.id === updated.id ? updated : candidate,
+			);
+			refreshSendToAgents();
+			state.notice = __( 'Profile picture saved.', 'desktop-mode' );
+		} catch ( err ) {
+			state.notice = err instanceof Error ? err.message : String( err );
+		}
+		state.saving = false;
+		if ( ! disposed ) {
+			paint();
+		}
+	};
+
 	const onDelete = async ( agent: Agent ): Promise< void > => {
 		const ok = await osConfirm( {
 			title: __( 'Delete agent?', 'desktop-mode' ),
@@ -1270,6 +1364,7 @@ export function renderAgents( host: EntityRenderHost ): void {
 
 	const definePane = ( agent: Agent ) => {
 		const readOnly = ! cfg.canManage;
+		const pictureInputId = `dm-agent-profile-picture-${ mountId }-${ agent.id }`;
 		const dirty =
 			state.draft.name !== agent.name ||
 			state.draft.description !== agent.description ||
@@ -1277,6 +1372,82 @@ export function renderAgents( host: EntityRenderHost ): void {
 			state.draft.role !== agent.role;
 		return html`
 			<div class="dm-agents__pane">
+				${ readOnly
+					? html``
+					: html`
+							<div class="dm-agents__profile-picture-setting">
+								<img
+									class="dm-agents__profile-picture-preview"
+									src=${ agentFaceSrc( agent, 112 ) }
+									alt=""
+									width="112"
+									height="112"
+								/>
+								<div class="dm-agents__profile-picture-copy">
+									<strong>${ __( 'Profile picture', 'desktop-mode' ) }</strong>
+									<p class="dm-agents__hint">
+										${ __(
+											'Use any photo or illustration. OpenStation adds an AGENT ribbon so it cannot be mistaken for a human account.',
+											'desktop-mode',
+										) }
+									</p>
+									<input
+										id=${ pictureInputId }
+										class="dm-agents__profile-picture-input"
+										type="file"
+										accept="image/jpeg,image/png,image/gif,image/webp,image/avif"
+										@change=${ ( event: Event ) => {
+											const input = event.currentTarget as HTMLInputElement;
+											const file = input.files?.[ 0 ];
+											if ( file ) {
+												void uploadSavedProfilePicture( agent, file );
+											}
+											input.value = '';
+										} }
+									/>
+									<div class="dm-agents__profile-picture-actions">
+										<os-button
+											variant="secondary"
+											?disabled=${ state.saving || ! cfg.canUpload }
+											@click=${ () =>
+												root
+													.querySelector< HTMLInputElement >(
+														`#${ pictureInputId }`,
+													)
+													?.click() }
+										>
+											${ ( agent.avatarAttachmentId ?? 0 ) > 0
+												? __( 'Choose another picture', 'desktop-mode' )
+												: __( 'Upload a picture', 'desktop-mode' ) }
+										</os-button>
+										${ ( agent.avatarAttachmentId ?? 0 ) > 0
+											? html`
+													<os-button
+														variant="ghost"
+														?disabled=${ state.saving }
+														@click=${ () =>
+															void applyPatch(
+																agent.id,
+																{ avatarAttachmentId: 0 },
+																__( 'Generated face restored.', 'desktop-mode' ),
+															) }
+													>
+														${ __( 'Use generated face', 'desktop-mode' ) }
+													</os-button>
+											  `
+											: html`` }
+									</div>
+									${ cfg.canUpload
+										? html``
+										: html`<p class="dm-agents__hint">
+												${ __(
+													'You need permission to upload files to choose a new picture.',
+													'desktop-mode',
+												) }
+										  </p>` }
+								</div>
+							</div>
+					  ` }
 				<os-text-field
 					label=${ __( 'Name', 'desktop-mode' ) }
 					value=${ state.draft.name }
@@ -2061,33 +2232,93 @@ export function renderAgents( host: EntityRenderHost ): void {
 	/** Step 1 — meet them: the face, the name, the voice. */
 	const meetStep = () => {
 		const strip = faceCandidates( state.cast.stripSeed, FACE_CANDIDATES );
+		const customPicture =
+			state.cast.avatarAttachmentId > 0 && state.cast.avatarPreviewUrl !== '';
+		const pictureInputId = `dm-agent-new-profile-picture-${ mountId }`;
 		return html`
 			<div class="dm-agents__meet">
 				<div class="dm-agents__portrait">
-					<img
-						class="dm-agents__portrait-face"
-						src=${ faceSrc( state.cast.face, 176 ) }
-						alt=""
-						width="176"
-						height="176"
+					<div class="dm-agents__portrait-media ${ customPicture ? 'is-custom' : '' }">
+						<img
+							class="dm-agents__portrait-face"
+							src=${ customPicture
+								? state.cast.avatarPreviewUrl
+								: faceSrc( state.cast.face, 176 ) }
+							alt=""
+							width="176"
+							height="176"
+						/>
+						${ customPicture ? html`<os-ribbon>Agent</os-ribbon>` : html`` }
+					</div>
+					<input
+						id=${ pictureInputId }
+						class="dm-agents__profile-picture-input"
+						type="file"
+						accept="image/jpeg,image/png,image/gif,image/webp,image/avif"
+						@change=${ ( event: Event ) => {
+							const input = event.currentTarget as HTMLInputElement;
+							const file = input.files?.[ 0 ];
+							if ( file ) {
+								void uploadCastProfilePicture( file );
+							}
+							input.value = '';
+						} }
 					/>
+					${ cfg.canUpload
+						? html`
+								<div class="dm-agents__profile-picture-actions">
+									<os-button
+										variant="secondary"
+										?busy=${ state.cast.avatarUploading }
+										@click=${ () =>
+											root
+												.querySelector< HTMLInputElement >(
+													`#${ pictureInputId }`,
+												)
+												?.click() }
+									>
+										${ customPicture
+											? __( 'Choose another picture', 'desktop-mode' )
+											: __( 'Upload a picture', 'desktop-mode' ) }
+									</os-button>
+									${ customPicture
+										? html`
+												<os-button
+													variant="ghost"
+													?disabled=${ state.cast.avatarUploading }
+													@click=${ () => {
+														state.cast.avatarAttachmentId = 0;
+														state.cast.avatarPreviewUrl = '';
+														paint();
+													} }
+												>
+													${ __( 'Use generated face', 'desktop-mode' ) }
+												</os-button>
+										  `
+										: html`` }
+								</div>
+						  `
+						: html`` }
 					<div class="dm-agents__faces" role="radiogroup"
 						aria-label=${ __( 'Face', 'desktop-mode' ) }>
 						${ strip.map(
 							( candidate ) => html`
 								<button
 									type="button"
-									class="dm-agents__face-pick ${ candidate.seed ===
+									class="dm-agents__face-pick ${ ! customPicture && candidate.seed ===
 									state.cast.faceSeed
 										? 'is-picked'
 										: '' }"
 									role="radio"
-									aria-checked=${ candidate.seed === state.cast.faceSeed
+									?disabled=${ state.cast.avatarUploading }
+									aria-checked=${ ! customPicture && candidate.seed === state.cast.faceSeed
 										? 'true'
 										: 'false' }
 									@click=${ () => {
 										state.cast.faceSeed = candidate.seed;
 										state.cast.face = candidate.look;
+										state.cast.avatarAttachmentId = 0;
+										state.cast.avatarPreviewUrl = '';
 										paint();
 									} }
 								>
@@ -2098,6 +2329,7 @@ export function renderAgents( host: EntityRenderHost ): void {
 					</div>
 					<os-button
 						variant="secondary"
+						?disabled=${ state.cast.avatarUploading }
 						@click=${ () => {
 							state.cast.stripSeed += FACE_CANDIDATES;
 							paint();
@@ -2106,14 +2338,21 @@ export function renderAgents( host: EntityRenderHost ): void {
 						${ __( 'Surprise me', 'desktop-mode' ) }
 					</os-button>
 					<div class="dm-agents__portrait-chips">
-						<os-chip
-							size="compact"
-							label=${ faceShapeName( state.cast.face ) }
-						></os-chip>
-						<os-chip
-							size="compact"
-							label=${ faceHueName( state.cast.face ) }
-						></os-chip>
+						${ customPicture
+							? html`<os-chip
+									size="compact"
+									label=${ __( 'Custom picture', 'desktop-mode' ) }
+								></os-chip>`
+							: html`
+									<os-chip
+										size="compact"
+										label=${ faceShapeName( state.cast.face ) }
+									></os-chip>
+									<os-chip
+										size="compact"
+										label=${ faceHueName( state.cast.face ) }
+									></os-chip>
+							  ` }
 					</div>
 				</div>
 				<div class="dm-agents__meet-fields">
@@ -2174,7 +2413,7 @@ export function renderAgents( host: EntityRenderHost ): void {
 				<span class="dm-agents__spacer"></span>
 				<os-button
 					variant="primary"
-					?disabled=${ ! meetReady() }
+					?disabled=${ ! meetReady() || state.cast.avatarUploading }
 					@click=${ () => goStep( 2 ) }
 				>
 					${ __( 'Continue', 'desktop-mode' ) }
@@ -2296,6 +2535,8 @@ export function renderAgents( host: EntityRenderHost ): void {
 	/** Step 4, launch. */
 	const launchStep = () => {
 		const canChat = cfg.canInvoke && state.aiReady === true;
+		const customPicture =
+			state.cast.avatarAttachmentId > 0 && state.cast.avatarPreviewUrl !== '';
 		const abilityLabel = ( slug: string ): string =>
 			state.abilities?.find( ( a ) => a.slug === slug )?.label ?? slug;
 		const triggerLabel = ( kind: string ): string =>
@@ -2312,13 +2553,18 @@ export function renderAgents( host: EntityRenderHost ): void {
 				);
 		return html`
 			<os-card class="dm-agents__summary">
-				<img
-					class="dm-agents__summary-face"
-					src=${ faceSrc( state.cast.face, 96 ) }
-					alt=""
-					width="96"
-					height="96"
-				/>
+				<div class="dm-agents__summary-media ${ customPicture ? 'is-custom' : '' }">
+					<img
+						class="dm-agents__summary-face"
+						src=${ customPicture
+							? state.cast.avatarPreviewUrl
+							: faceSrc( state.cast.face, 96 ) }
+						alt=""
+						width="96"
+						height="96"
+					/>
+					${ customPicture ? html`<os-ribbon>Agent</os-ribbon>` : html`` }
+				</div>
 				<div class="dm-agents__summary-text">
 					<h4>${ state.cast.name }</h4>
 					${ state.cast.vibes
@@ -2365,7 +2611,7 @@ export function renderAgents( host: EntityRenderHost ): void {
 				<span class="dm-agents__spacer"></span>
 				<os-button
 					variant=${ canChat ? 'secondary' : 'primary' }
-					?disabled=${ state.saving }
+					?disabled=${ state.saving || state.cast.avatarUploading }
 					@click=${ () => void castCreate( false ) }
 				>
 					${ __( 'Create agent', 'desktop-mode' ) }
@@ -2374,7 +2620,7 @@ export function renderAgents( host: EntityRenderHost ): void {
 					? html`
 							<os-button
 								variant="primary"
-								?disabled=${ state.saving }
+								?disabled=${ state.saving || state.cast.avatarUploading }
 								@click=${ () => void castCreate( true ) }
 							>
 								${ __( 'Create and chat', 'desktop-mode' ) }
@@ -2389,7 +2635,7 @@ export function renderAgents( host: EntityRenderHost ): void {
 	const cancelButton = () => html`
 		<os-button
 			variant="ghost"
-			?disabled=${ state.saving || state.cast.drafting }
+			?disabled=${ state.saving || state.cast.drafting || state.cast.avatarUploading }
 			@click=${ () => {
 				state.creating = false;
 				state.notice = '';
@@ -2429,6 +2675,7 @@ export function renderAgents( host: EntityRenderHost ): void {
 				vibes: c.vibes.trim(),
 				face: c.face,
 				faceSeed: c.faceSeed,
+				avatarAttachmentId: c.avatarAttachmentId,
 			} );
 			state.agents = [ ...state.agents, created ].sort( ( a, b ) =>
 				a.name.localeCompare( b.name ),

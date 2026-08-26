@@ -101,6 +101,11 @@ function openstation_agents_register_rest_routes() {
 						'default'           => 0,
 						'sanitize_callback' => 'absint',
 					),
+					'avatarAttachmentId' => array(
+						'type'              => 'integer',
+						'default'           => 0,
+						'sanitize_callback' => 'absint',
+					),
 				),
 			),
 		)
@@ -336,11 +341,11 @@ function openstation_agents_rest_get( WP_REST_Request $request ) {
  * @return WP_REST_Response|WP_Error
  */
 function openstation_agents_rest_create( WP_REST_Request $request ) {
-	// Every field the route declares is forwarded. `vibes`, `face` and
-	// `faceSeed` are the character half of an agent, and a create that
-	// took the name and dropped the portrait is how an agent ends up
-	// wearing the fallback glyph seconds after someone picked a face
-	// for it. `openstation_agent_create()` sanitizes each one.
+	// Every field the route declares is forwarded. The character fields
+	// must land in the same create as the definition: dropping the face
+	// or uploaded profile picture would make the newly created agent wear
+	// a fallback seconds after somebody explicitly picked its identity.
+	// `openstation_agent_create()` sanitizes each one.
 	$user = openstation_agent_create(
 		array(
 			'name'         => (string) $request['name'],
@@ -352,6 +357,7 @@ function openstation_agents_rest_create( WP_REST_Request $request ) {
 			'vibes'        => (string) $request['vibes'],
 			'face'         => $request['face'],
 			'faceSeed'     => (int) $request['faceSeed'],
+			'avatarAttachmentId' => (int) $request['avatarAttachmentId'],
 		)
 	);
 	if ( is_wp_error( $user ) ) {
@@ -404,6 +410,7 @@ function openstation_agents_rest_patch( WP_REST_Request $request ) {
 		'vibes',
 		'face',
 		'faceSeed',
+		'avatarAttachmentId',
 	);
 	foreach ( $allowed as $field ) {
 		if ( array_key_exists( $field, $body ) ) {
@@ -614,6 +621,7 @@ function openstation_agents_rest_shape_user( $user ) {
 		'vibes'        => openstation_agent_get_vibes( (int) $user->ID ),
 		'face'         => openstation_agent_get_face( (int) $user->ID ),
 		'faceSeed'     => openstation_agent_get_face_seed( (int) $user->ID ),
+		'avatarAttachmentId' => openstation_agent_get_avatar_attachment_id( (int) $user->ID ),
 		'avatarUrl'    => $avatar,
 	);
 }

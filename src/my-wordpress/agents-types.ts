@@ -45,6 +45,12 @@ export interface Agent {
 	 * without stranding anyone on an old palette.
 	 */
 	faceSeed: number;
+	/**
+	 * Media Library image used as the profile picture. Zero or absent
+	 * keeps the generated Mio face. The server bakes the AGENT ribbon
+	 * into `avatarUrl`, so every avatar consumer gets the identity mark.
+	 */
+	avatarAttachmentId?: number;
 	avatarUrl: string;
 }
 
@@ -150,6 +156,8 @@ export interface AgentsSectionConfig {
 	/** Whether this user may flip that option (`manage_options`). */
 	canEnable: boolean;
 	canManage: boolean;
+	/** Whether the current user may upload a new profile picture. */
+	canUpload?: boolean;
 	canInvoke: boolean;
 	aiAvailable: boolean;
 	aiStatusUrl: string;

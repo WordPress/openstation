@@ -12,6 +12,7 @@
 class Tests_OpenStation_AgentsIdentity2 extends WP_UnitTestCase {
 
 	protected static $admin_id;
+	private $profile_picture_ids = array();
 
 	public static function wpSetUpBeforeClass( WP_UnitTest_Factory $factory ) {
 		self::$admin_id = $factory->user->create( array( 'role' => 'administrator' ) );
@@ -23,6 +24,12 @@ class Tests_OpenStation_AgentsIdentity2 extends WP_UnitTestCase {
 	}
 
 	public function tear_down() {
+		foreach ( $this->profile_picture_ids as $attachment_id ) {
+			if ( get_post( $attachment_id ) ) {
+				wp_delete_attachment( $attachment_id, true );
+			}
+		}
+		$this->profile_picture_ids = array();
 		$dir = openstation_agent_faces_dir();
 		if ( is_dir( $dir ) ) {
 			foreach ( (array) glob( $dir . '/*.svg' ) as $file ) {
@@ -42,6 +49,26 @@ class Tests_OpenStation_AgentsIdentity2 extends WP_UnitTestCase {
 				$args
 			)
 		);
+	}
+
+	private function make_profile_picture() {
+		$png = base64_decode(
+			'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Z2s8AAAAASUVORK5CYII=',
+			true
+		);
+		$upload = wp_upload_bits( 'agent-profile-picture.png', null, $png );
+		$this->assertEmpty( $upload['error'] );
+		$attachment_id = self::factory()->attachment->create_object(
+			$upload['file'],
+			0,
+			array(
+				'post_mime_type' => 'image/png',
+				'post_title'     => 'Agent profile picture',
+			)
+		);
+		update_attached_file( $attachment_id, $upload['file'] );
+		$this->profile_picture_ids[] = $attachment_id;
+		return $attachment_id;
 	}
 
 	// -----------------------------------------------------------------
@@ -170,6 +197,73 @@ class Tests_OpenStation_AgentsIdentity2 extends WP_UnitTestCase {
 			openstation_agent_face_url( $user->ID ),
 			get_avatar_url( $user->ID )
 		);
+	}
+
+	public function test_a_custom_profile_picture_is_served_with_an_agent_ribbon() {
+		$attachment_id = $this->make_profile_picture();
+		$user          = $this->make_agent(
+			array(
+				'face'               => array( 'physics' => array( 'shapePreset' => 'ghost' ) ),
+				'avatarAttachmentId' => $attachment_id,
+			)
+		);
+
+		$this->assertSame(
+			$attachment_id,
+			openstation_agent_get_avatar_attachment_id( $user->ID )
+		);
+		$this->assertSame( openstation_agent_face_url( $user->ID ), get_avatar_url( $user->ID ) );
+		$svg = file_get_contents( // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- Reading the avatar this test just wrote.
+			openstation_agent_faces_dir() . '/' . openstation_agent_face_filename( $user->ID )
+		);
+		$this->assertStringContainsString( 'data:image/png;base64,', $svg );
+		$this->assertStringContainsString( '>AGENT</text>', $svg );
+	}
+
+	public function test_removing_a_custom_picture_restores_the_generated_face() {
+		$attachment_id = $this->make_profile_picture();
+		$user          = $this->make_agent(
+			array(
+				'face'               => array( 'physics' => array( 'shapePreset' => 'star' ) ),
+				'avatarAttachmentId' => $attachment_id,
+			)
+		);
+		$custom_url = get_avatar_url( $user->ID );
+
+		openstation_agent_update( $user->ID, array( 'avatarAttachmentId' => 0 ) );
+
+		$this->assertSame( 0, openstation_agent_get_avatar_attachment_id( $user->ID ) );
+		$this->assertNotSame( $custom_url, get_avatar_url( $user->ID ) );
+		$svg = file_get_contents( // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- Reading the avatar this test just wrote.
+			openstation_agent_faces_dir() . '/' . openstation_agent_face_filename( $user->ID )
+		);
+		$this->assertStringNotContainsString( '>AGENT</text>', $svg );
+	}
+
+	public function test_deleting_a_custom_picture_restores_the_generated_face() {
+		$attachment_id = $this->make_profile_picture();
+		$user          = $this->make_agent(
+			array(
+				'face'               => array( 'physics' => array( 'shapePreset' => 'cloud' ) ),
+				'avatarAttachmentId' => $attachment_id,
+			)
+		);
+
+		wp_delete_attachment( $attachment_id, true );
+
+		$this->assertSame( 0, openstation_agent_get_avatar_attachment_id( $user->ID ) );
+		$this->assertNotSame( '', openstation_agent_face_url( $user->ID ) );
+	}
+
+	public function test_svg_attachments_are_not_accepted_as_profile_pictures() {
+		$attachment_id = self::factory()->attachment->create_object(
+			'agent.svg',
+			0,
+			array( 'post_mime_type' => 'image/svg+xml' )
+		);
+		$user = $this->make_agent( array( 'avatarAttachmentId' => $attachment_id ) );
+
+		$this->assertSame( 0, openstation_agent_get_avatar_attachment_id( $user->ID ) );
 	}
 
 	public function test_an_agent_without_a_face_keeps_the_shipped_glyph() {

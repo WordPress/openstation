@@ -10,6 +10,7 @@ import {
 	fetchAbilitiesCatalogue,
 	invokeAgent,
 	listAgents,
+	uploadAgentProfilePicture,
 	updateAgent,
 } from '../../src/my-wordpress/agents-rest';
 
@@ -102,6 +103,36 @@ describe( 'agents REST client', () => {
 		expect( JSON.parse( String( init.body ) ) ).toEqual( {
 			instructions: 'Be nice.',
 		} );
+	} );
+
+	test( 'uploads a profile picture to the Media Library', async () => {
+		const fetchMock = mockFetch( {
+			id: 81,
+			source_url: 'https://example.test/uploads/avatar.jpg',
+		} );
+		const file = new File( [ 'image bytes' ], 'Agent Portrait.jpg', {
+			type: 'image/jpeg',
+		} );
+
+		const uploaded = await uploadAgentProfilePicture( file );
+
+		expect( uploaded ).toEqual( {
+			id: 81,
+			url: 'https://example.test/uploads/avatar.jpg',
+		} );
+		const [ url, init ] = fetchMock.mock.calls[ 0 ] as [
+			string,
+			RequestInit,
+		];
+		expect( url ).toBe( 'https://example.test/wp-json/wp/v2/media' );
+		expect( init.method ).toBe( 'POST' );
+		expect( init.body ).toBe( file );
+		expect( ( init.headers as Record< string, string > )[ 'Content-Type' ] ).toBe(
+			'image/jpeg',
+		);
+		expect(
+			( init.headers as Record< string, string > )[ 'Content-Disposition' ],
+		).toBe( 'attachment; filename="Agent-Portrait.jpg"' );
 	} );
 
 	test( 'deleteAgent uses the DELETE verb', async () => {

@@ -15,6 +15,7 @@
  *                                        exposes model selection)
  *   - `_desktop_mode_agent_rate_limit`   invocations/hour, 0 = default
  *   - `_desktop_mode_agent_created_by`   creating user id (audit aid)
+ *   - `_desktop_mode_agent_avatar_attachment` media-library profile picture
  *
  * User meta has no revisions — the audit trail for definition changes
  * is the `openstation_agent_{created,updated,deleted}` actions fired
@@ -127,6 +128,14 @@ const OPENSTATION_AGENT_FACE_META = '_desktop_mode_agent_face';
  * deliberate — it is NOT a half-finished rename.
  */
 const OPENSTATION_AGENT_FACE_SEED_META = '_desktop_mode_agent_face_seed';
+/**
+ * The VALUE keeps its pre-rebrand spelling on purpose: it is a
+ * persisted or externally-visible identifier, so renaming it would
+ * orphan data already written by live installs (or break a live
+ * URL). The mismatch between this constant's name and its value is
+ * deliberate — it is NOT a half-finished rename.
+ */
+const OPENSTATION_AGENT_AVATAR_ATTACHMENT_META = '_desktop_mode_agent_avatar_attachment';
 
 /**
  * Every meta key the store writes — the privacy eraser and any future
@@ -147,6 +156,7 @@ function openstation_agent_meta_keys() {
 		OPENSTATION_AGENT_VIBES_META,
 		OPENSTATION_AGENT_FACE_META,
 		OPENSTATION_AGENT_FACE_SEED_META,
+		OPENSTATION_AGENT_AVATAR_ATTACHMENT_META,
 	);
 }
 
@@ -272,6 +282,18 @@ function openstation_agents_register_user_meta() {
 			'auth_callback'     => $auth,
 		)
 	);
+	register_meta(
+		'user',
+		OPENSTATION_AGENT_AVATAR_ATTACHMENT_META,
+		array(
+			'type'              => 'integer',
+			'single'            => true,
+			'default'           => 0,
+			'show_in_rest'      => false,
+			'sanitize_callback' => 'openstation_agent_sanitize_avatar_attachment_id',
+			'auth_callback'     => $auth,
+		)
+	);
 }
 add_action( 'init', 'openstation_agents_register_user_meta' );
 
@@ -376,6 +398,30 @@ function openstation_agent_sanitize_face_json( $value ) {
 }
 
 /**
+ * Keep only a Media Library image as an agent profile picture.
+ *
+ * The attachment id, rather than its URL, is stored so deletion and
+ * replacement remain WordPress-owned lifecycle events. SVG is not
+ * accepted here even when another plugin enables SVG uploads: the
+ * ribboned avatar embeds the source bytes and only raster formats are
+ * safe to carry into that generated file.
+ *
+ * @param mixed $value Incoming attachment id.
+ * @return int Valid image attachment id, or 0.
+ */
+function openstation_agent_sanitize_avatar_attachment_id( $value ) {
+	$attachment_id = absint( $value );
+	if ( $attachment_id <= 0 || 'attachment' !== get_post_type( $attachment_id ) ) {
+		return 0;
+	}
+	$mime = (string) get_post_mime_type( $attachment_id );
+	if ( ! in_array( $mime, array( 'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif' ), true ) ) {
+		return 0;
+	}
+	return $attachment_id;
+}
+
+/**
  * Read an agent's voice line.
  *
  * @param int $user_id Agent user id.
@@ -421,6 +467,20 @@ function openstation_agent_get_face( $user_id ) {
  */
 function openstation_agent_get_face_seed( $user_id ) {
 	return (int) get_user_meta( (int) $user_id, OPENSTATION_AGENT_FACE_SEED_META, true );
+}
+
+/**
+ * Read the Media Library image used as an agent's profile picture.
+ *
+ * A zero id means the generated Mio face remains active.
+ *
+ * @param int $user_id Agent user id.
+ * @return int Attachment id, or 0.
+ */
+function openstation_agent_get_avatar_attachment_id( $user_id ) {
+	return openstation_agent_sanitize_avatar_attachment_id(
+		get_user_meta( (int) $user_id, OPENSTATION_AGENT_AVATAR_ATTACHMENT_META, true )
+	);
 }
 
 /**
@@ -982,7 +1042,7 @@ function openstation_agent_get_agents( $args = array() ) {
 /**
  * Create an agent: synthetic user row + definition meta.
  *
- * @param array{name:string, role:string, slug?:string, description?:string, instructions?:string, abilities?:array, triggers?:array, vibes?:string, face?:array|string, faceSeed?:int} $args Creation args.
+ * @param array{name:string, role:string, slug?:string, description?:string, instructions?:string, abilities?:array, triggers?:array, vibes?:string, face?:array|string, faceSeed?:int, avatarAttachmentId?:int} $args Creation args.
  * @return WP_User|WP_Error
  */
 function openstation_agent_create( $args ) {
@@ -1006,6 +1066,9 @@ function openstation_agent_create( $args ) {
 	$triggers     = isset( $args['triggers'] ) ? openstation_agent_sanitize_triggers( $args['triggers'] ) : array();
 	$vibes        = isset( $args['vibes'] ) ? openstation_agent_sanitize_vibes( $args['vibes'] ) : '';
 	$face         = isset( $args['face'] ) ? openstation_agent_sanitize_face_json( $args['face'] ) : '';
+	$avatar_id    = isset( $args['avatarAttachmentId'] )
+		? openstation_agent_sanitize_avatar_attachment_id( $args['avatarAttachmentId'] )
+		: 0;
 	// Every agent gets a seed even when nobody chose a face, so the
 	// backfill has something deterministic to roll from and two admins
 	// racing it land on the same portrait. `crc32` of the login is
@@ -1034,6 +1097,9 @@ function openstation_agent_create( $args ) {
 		update_user_meta( $user->ID, OPENSTATION_AGENT_FACE_META, $face );
 	}
 	update_user_meta( $user->ID, OPENSTATION_AGENT_FACE_SEED_META, $seed );
+	if ( $avatar_id > 0 ) {
+		update_user_meta( $user->ID, OPENSTATION_AGENT_AVATAR_ATTACHMENT_META, $avatar_id );
+	}
 	update_user_meta( $user->ID, OPENSTATION_AGENT_CREATED_BY_META, get_current_user_id() );
 
 	/**
@@ -1056,6 +1122,7 @@ function openstation_agent_create( $args ) {
 			'vibes'        => $vibes,
 			'face'         => $face,
 			'faceSeed'     => $seed,
+			'avatarAttachmentId' => $avatar_id,
 		),
 		get_current_user_id()
 	);
@@ -1070,7 +1137,7 @@ function openstation_agent_create( $args ) {
  *
  * Recognized fields: `name`, `role`, `description`, `instructions`,
  * `abilities`, `triggers`, `model`, `rateLimit`, `vibes`, `face`,
- * `faceSeed`.
+ * `faceSeed`, `avatarAttachmentId`.
  *
  * @param int   $user_id Agent user id.
  * @param array $fields  Field map.
@@ -1249,6 +1316,22 @@ function openstation_agent_update( $user_id, array $fields ) {
 				'to'   => $seed,
 			);
 			update_user_meta( $user->ID, OPENSTATION_AGENT_FACE_SEED_META, $seed );
+		}
+	}
+
+	if ( isset( $fields['avatarAttachmentId'] ) ) {
+		$avatar_id = openstation_agent_sanitize_avatar_attachment_id( $fields['avatarAttachmentId'] );
+		$before    = openstation_agent_get_avatar_attachment_id( $user->ID );
+		if ( $avatar_id !== $before ) {
+			$changed['avatarAttachmentId'] = array(
+				'from' => $before,
+				'to'   => $avatar_id,
+			);
+			if ( 0 === $avatar_id ) {
+				delete_user_meta( $user->ID, OPENSTATION_AGENT_AVATAR_ATTACHMENT_META );
+			} else {
+				update_user_meta( $user->ID, OPENSTATION_AGENT_AVATAR_ATTACHMENT_META, $avatar_id );
+			}
 		}
 	}
 

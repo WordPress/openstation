@@ -12,7 +12,7 @@ An agent is a login-blocked `wp_users` row whose definition
 override, rate limit) lives as user meta on that row. Full contract:
 [Hooks Reference — AI Agents](../hooks-reference.md#ai-agents).
 
-Alongside the definition an agent carries two identity fields, which is
+Alongside the definition an agent carries identity fields, which is
 what makes a roster of them readable rather than a list of settings:
 
 | Field | What it is |
@@ -20,8 +20,9 @@ what makes a roster of them readable rather than a list of settings:
 | `vibes` | One short line of voice, capped at 120 characters. Appended to the instructions before a run, and after them so a workflow beats a personality. |
 | `face` | A partial Mio look. Rendered to an SVG on disk and served as the agent's avatar everywhere `get_avatar()` runs, including the wp-admin Users list and comment attribution. See [Mio is a species](../mio.md#mio-is-a-species). |
 | `faceSeed` | The seed the face was rolled from. Provenance, not the face itself. |
+| `avatarAttachmentId` | Optional Media Library image that replaces the generated face. OpenStation crops it and bakes an **AGENT** ribbon into the served avatar, so human and agent accounts remain distinguishable everywhere `get_avatar()` is used. Set it to `0` to restore the generated face. |
 
-Both travel through `createAgent` / `updateAgent` like any other field.
+All travel through `createAgent` / `updateAgent` like any other field.
 **Abilities and triggers both go in the create call.** There is no need
 for a second request to attach either.
 

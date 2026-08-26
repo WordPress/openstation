@@ -488,11 +488,19 @@ across exactly two layers:
   application passwords), the address is a never-delivered synthetic
   email, and the wp-admin Users list labels the row "Agent".
 - **Definition — user meta on that row.** Description, instructions
-  (system prompt), ability allowlist, triggers, model override, and
-  rate limit live in the `_openstation_agent_*` key family
+  (system prompt), ability allowlist, triggers, model override, rate
+  limit, generated face, and optional profile-picture attachment live
+  in the `_openstation_agent_*` key family
   (`includes/agents/store.php` owns every key). User meta has no
   revisions, so the `openstation_agent_{created,updated,deleted}`
   actions carry before/after values and ARE the audit trail.
+
+An uploaded profile picture remains a Media Library attachment. The
+avatar writer crops it into the same static SVG path used by generated
+faces and bakes an **AGENT** corner ribbon into that file, so WP Admin,
+comments, desktop tiles, chat, and plugin `get_avatar()` consumers all
+receive the same unambiguous identity. Deleting the attachment restores
+the generated face.
 
 **Tools are the WordPress Abilities API.** The Tools picker is a view
 over `wp_get_abilities()` (with honest read-only vs mutating badges
