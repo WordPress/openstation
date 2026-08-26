@@ -84,6 +84,84 @@ class Tests_OpenStation_ChromelessCommandPalette extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The regression this whole design turns on.
+	 *
+	 * `wp-block-editor` declares `wp-commands` directly — the editor
+	 * *registers* commands, so the dependency runs opposite to a palette
+	 * extension's. A naive closure walk therefore convicts the entire
+	 * block-editor stack, and every plugin block script above it, of
+	 * being palette contributors and drops them.
+	 *
+	 * @covers ::openstation_command_palette_family
+	 * @covers ::openstation_is_core_package_handle
+	 */
+	public function test_core_packages_are_never_trimmed_as_dependents() {
+		$scripts = wp_scripts();
+		// Stand in for Core's real registration, which declares
+		// `wp-commands` among `wp-block-editor`'s deps.
+		wp_register_script(
+			'os-test-core-pkg',
+			includes_url( 'js/dist/block-editor.js' ),
+			array( 'wp-commands' ),
+			'1',
+			true
+		);
+
+		$family = openstation_command_palette_family( $scripts, array( 'os-test-core-pkg' ) );
+
+		$this->assertNotContains( 'os-test-core-pkg', $family );
+	}
+
+	/**
+	 * A plugin's block script reaches `wp-commands` only by way of
+	 * `wp-block-editor`. That says something about the editor, not about
+	 * the block script — so the walk must not route through a Core
+	 * package to convict it. Contact Form 7's block script is the real
+	 * case this was found on.
+	 *
+	 * @covers ::openstation_command_palette_family
+	 */
+	public function test_a_plugin_script_is_not_convicted_through_a_core_package() {
+		wp_register_script(
+			'os-test-core-pkg',
+			includes_url( 'js/dist/block-editor.js' ),
+			array( 'wp-commands' ),
+			'1',
+			true
+		);
+		wp_register_script(
+			'os-test-block-script',
+			'https://example.org/block.js',
+			array( 'os-test-core-pkg' ),
+			'1',
+			true
+		);
+
+		$family = openstation_command_palette_family(
+			wp_scripts(),
+			array( 'os-test-block-script' )
+		);
+
+		$this->assertNotContains( 'os-test-block-script', $family );
+	}
+
+	/**
+	 * The other half of the same rule: a genuine palette extension names
+	 * the palette in its own dependency chain, without a Core package in
+	 * between, and must still be caught. Astra and WooCommerce both do.
+	 *
+	 * @covers ::openstation_command_palette_family
+	 */
+	public function test_a_palette_extension_behind_its_own_script_is_still_caught() {
+		wp_register_script( 'os-test-base', 'https://example.org/b.js', array( 'wp-commands' ), '1', true );
+		wp_register_script( 'os-test-ext', 'https://example.org/e.js', array( 'os-test-base' ), '1', true );
+
+		$family = openstation_command_palette_family( wp_scripts(), array( 'os-test-ext' ) );
+
+		$this->assertContains( 'os-test-ext', $family );
+	}
+
+	/**
 	 * @covers ::openstation_command_palette_family
 	 */
 	public function test_family_is_filterable_to_protect_a_handle() {
@@ -214,6 +292,47 @@ class Tests_OpenStation_ChromelessCommandPalette extends WP_UnitTestCase {
 		);
 
 		$this->assertSame( array( 'os-test-unrelated' ), $filtered );
+	}
+
+	/**
+	 * The style counterpart of the print-list pass. Today it only ever
+	 * removes the roots, but the moment a root or a family member ships
+	 * a stylesheet this is the thing that has to catch it.
+	 *
+	 * @covers ::openstation_chromeless_filter_palette_style_print_list
+	 */
+	public function test_style_print_list_filter_strips_the_roots() {
+		$this->enter_chromeless();
+		set_current_screen( 'options-general' );
+
+		$filtered = openstation_chromeless_filter_palette_style_print_list(
+			array( 'wp-commands', 'common', 'wp-core-commands', 'forms' )
+		);
+
+		$this->assertSame( array( 'common', 'forms' ), $filtered );
+	}
+
+	/**
+	 * @covers ::openstation_chromeless_filter_palette_style_print_list
+	 */
+	public function test_style_print_list_filter_is_inert_outside_a_window() {
+		wp_set_current_user( self::$admin_id );
+		$handles = array( 'wp-commands', 'common' );
+
+		$this->assertSame(
+			$handles,
+			openstation_chromeless_filter_palette_style_print_list( $handles )
+		);
+	}
+
+	/**
+	 * @covers ::openstation_chromeless_filter_palette_style_print_list
+	 */
+	public function test_style_print_list_filter_survives_a_non_array() {
+		$this->enter_chromeless();
+		set_current_screen( 'options-general' );
+
+		$this->assertSame( 'nope', openstation_chromeless_filter_palette_style_print_list( 'nope' ) );
 	}
 
 	/**

@@ -209,43 +209,114 @@ function openstation_command_palette_root_handles() {
 }
 
 /**
+ * Whether a handle is one of Core's own bundled packages.
+ *
+ * **This is the line between a palette contributor and a library, and
+ * getting it wrong breaks the block editor.** `wp-block-editor` declares
+ * `wp-commands` directly:
+ *
+ *     wp-block-editor => …, wp-blocks, wp-commands, wp-components, …
+ *     wp-editor       => …, wp-block-editor, wp-commands, …
+ *
+ * It does so because the editor *registers* commands into the palette
+ * store — the dependency runs the opposite way from a palette extension,
+ * which *is* the palette. A closure walk cannot tell those apart, so
+ * without this exclusion the walk convicts the whole block-editor stack
+ * and drops it, taking every plugin's block-registration script with it.
+ * Measured on `customize.php` before this rule existed: the block-widgets
+ * panel lost `wp-block-editor`, and Contact Form 7's and MailPoet's block
+ * scripts went with it.
+ *
+ * Core packages are therefore never *dependents* to be trimmed. They are
+ * libraries, and `WP_Dependencies` already knows how to decide whether
+ * one is needed: if something still queued requires it, it resolves and
+ * stays; if the only thing that wanted it was the palette, it falls out
+ * on its own. The roots themselves are exempt from this rule — they are
+ * the palette, not a library it uses.
+ *
+ * @param WP_Dependencies $dependencies The scripts registry.
+ * @param string          $handle       Handle to test.
+ * @return bool
+ */
+function openstation_is_core_package_handle( $dependencies, $handle ) {
+	if ( ! isset( $dependencies->registered[ $handle ] ) ) {
+		return false;
+	}
+	$src = $dependencies->registered[ $handle ]->src;
+
+	return ( is_string( $src ) && false !== strpos( $src, '/wp-includes/js/dist/' ) );
+}
+
+/**
  * Whether `$handle`'s dependency closure reaches any of `$roots`.
  *
- * `$seen` is passed by reference so a diamond-shaped dependency graph
- * is walked once per node rather than once per path — the Gutenberg
- * chain is full of diamonds, and a by-value guard turns this into an
- * exponential walk.
+ * `$memo` is passed by reference and shared across every candidate in a
+ * single {@see openstation_command_palette_family()} call, so each node
+ * is decided once per call rather than once per candidate that happens
+ * to sit above it. The Gutenberg graph is dense with shared nodes, and
+ * the walk runs twice per request (dequeue, then print list), so a
+ * per-candidate guard re-walks the same subgraph repeatedly.
+ *
+ * A handle currently being walked is memoized as `null`, which reads as
+ * "not yet known" and breaks a dependency cycle the same way a visited
+ * set would.
  *
  * @param WP_Dependencies $dependencies The scripts registry.
  * @param string          $handle       Handle to test.
  * @param string[]        $roots        Root handles to look for.
- * @param array           $seen         Visited handles, by reference.
+ * @param array           $memo         Handle => verdict, by reference.
  * @return bool
  */
-function openstation_handle_depends_on( $dependencies, $handle, $roots, &$seen ) {
-	if ( isset( $seen[ $handle ] ) || ! isset( $dependencies->registered[ $handle ] ) ) {
+function openstation_handle_depends_on( $dependencies, $handle, $roots, &$memo ) {
+	if ( array_key_exists( $handle, $memo ) ) {
+		// `null` means "in progress" — a cycle, which reaches nothing new.
+		return ( true === $memo[ $handle ] );
+	}
+	if ( ! isset( $dependencies->registered[ $handle ] ) ) {
+		$memo[ $handle ] = false;
 		return false;
 	}
-	$seen[ $handle ] = true;
+
+	$memo[ $handle ] = null;
+	$result          = false;
 
 	foreach ( $dependencies->registered[ $handle ]->deps as $dep ) {
 		if ( in_array( $dep, $roots, true ) ) {
-			return true;
+			$result = true;
+			break;
 		}
-		if ( openstation_handle_depends_on( $dependencies, $dep, $roots, $seen ) ) {
-			return true;
+
+		/*
+		 * Never route through a Core package. Reaching the palette *via*
+		 * `wp-block-editor` says something about the editor, not about
+		 * this handle: Contact Form 7's block script declares
+		 * `wp-block-editor`, and traversing into it would convict the
+		 * block script of being a palette extension. A real palette
+		 * extension names the palette in its own chain — Astra's and
+		 * WooCommerce's both list `wp-commands` directly.
+		 */
+		if ( openstation_is_core_package_handle( $dependencies, $dep ) ) {
+			continue;
+		}
+		if ( openstation_handle_depends_on( $dependencies, $dep, $roots, $memo ) ) {
+			$result = true;
+			break;
 		}
 	}
-	return false;
+
+	$memo[ $handle ] = $result;
+	return $result;
 }
 
 /**
  * The command-palette family present in a given handle list.
  *
- * Returns the roots plus every handle in `$handles` that reaches one
- * of them — Astra's `astra-command-palette`, WooCommerce's
- * `wc-admin-command-palette`, and anything else a plugin registers
- * against the palette.
+ * Returns the roots plus every handle in `$handles` that reaches one of
+ * them without routing through a Core package — Astra's
+ * `astra-command-palette`, WooCommerce's `command-palette`, and anything
+ * else a plugin registers *against* the palette. See
+ * {@see openstation_is_core_package_handle()} for why that second
+ * condition is load-bearing rather than a tidiness rule.
  *
  * @param WP_Dependencies $dependencies The scripts registry.
  * @param string[]        $handles      Handles to scan.
@@ -254,13 +325,14 @@ function openstation_handle_depends_on( $dependencies, $handle, $roots, &$seen )
 function openstation_command_palette_family( $dependencies, $handles ) {
 	$roots  = openstation_command_palette_root_handles();
 	$family = $roots;
+	$memo   = array();
 
 	foreach ( $handles as $handle ) {
-		if ( in_array( $handle, $family, true ) ) {
+		if ( in_array( $handle, $family, true )
+			|| openstation_is_core_package_handle( $dependencies, $handle ) ) {
 			continue;
 		}
-		$seen = array();
-		if ( openstation_handle_depends_on( $dependencies, $handle, $roots, $seen ) ) {
+		if ( openstation_handle_depends_on( $dependencies, $handle, $roots, $memo ) ) {
 			$family[] = $handle;
 		}
 	}
@@ -335,12 +407,21 @@ function openstation_chromeless_should_trim_command_palette() {
  * The site editor and the block-based widgets screen load the same
  * runtime without setting that flag, so they are named explicitly.
  *
+ * **`customize.php` is deliberately not in this list.** It was, on the
+ * assumption that the block-widgets panel made it an editor screen.
+ * Measured, it is not one worth exempting: the Customizer keeps its own
+ * Gutenberg chain either way — that chain has real consumers there, and
+ * they hold it — so the trim removes only the palette and the palette
+ * extensions, and the exemption bought nothing. Verified on a live
+ * install that `wp-block-editor`, `wp-blocks`, `wp-components` and every
+ * plugin block script survive the trim on that screen.
+ *
  * @return bool
  */
 function openstation_chromeless_screen_uses_block_editor() {
 	global $pagenow;
 
-	if ( in_array( $pagenow, array( 'site-editor.php', 'widgets.php', 'customize.php' ), true ) ) {
+	if ( in_array( $pagenow, array( 'site-editor.php', 'widgets.php' ), true ) ) {
 		return true;
 	}
 	if ( ! function_exists( 'get_current_screen' ) ) {

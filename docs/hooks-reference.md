@@ -1809,7 +1809,9 @@ Whether Core's command-palette runtime is dropped inside a window. Default `true
 
 The shell owns ⌘K: the keystroke is handled in the parent frame, and the parent only asks a window for its commands when the palette is actually opened (`os-commands-subscribe`). The runtime that answers is nevertheless enqueued by Core on every admin page, so each window paid for it eagerly on the chance the user might one day press ⌘K while that window held focus. Measured on a live install opening **Settings** in a window, that was 43 files, **10.66 MB raw / 1.94 MB gzipped — 73.6% of everything the window downloaded** — parsed and executed again in each window's own JavaScript realm, where an HTTP cache hit buys nothing.
 
-`post.php`, `post-new.php`, the site editor and the widgets screen are exempt: they load the same Gutenberg chain for their own reasons, so the palette rides along for the cost of `commands.js` + `core-commands.js`, and those are exactly the screens whose stores hold commands worth harvesting ("Duplicate block", pattern commands). Everywhere else the store holds only the WordPress baseline, which the shell already publishes from its own lazily-loaded runtime.
+`post.php`, `post-new.php`, `site-editor.php` and `widgets.php` are exempt: they load the same Gutenberg chain for their own reasons, so the palette rides along for the cost of `commands.js` + `core-commands.js`, and those are exactly the screens whose stores hold commands worth harvesting ("Duplicate block", pattern commands). Everywhere else the store holds only the WordPress baseline, which the shell already publishes from its own lazily-loaded runtime.
+
+`customize.php` is **not** exempt. It was, on the assumption that the block-widgets panel made it an editor screen; measured, the exemption bought nothing. The Customizer's own consumers hold its Gutenberg chain either way, so the trim removes only the palette and the palette extensions there and leaves `wp-block-editor`, `wp-blocks`, `wp-components` and every plugin block script in place.
 
 ```php
 // Keep Core's palette (and its Gutenberg chain) inside windows.
@@ -1826,7 +1828,9 @@ apply_filters( 'openstation_command_palette_root_handles', string[] $handles );
 
 ### `openstation_command_palette_family` — Experimental
 
-The full set of handles dropped by the palette trim: the roots plus every scanned handle that reaches one of them, directly or transitively.
+The full set of handles dropped by the palette trim: the roots plus every scanned handle that reaches one of them **without routing through one of Core's own packages**.
+
+That second condition is load-bearing, not tidiness. `wp-block-editor` declares `wp-commands` directly — the editor *registers* commands, so the dependency runs the opposite way from a palette extension's — and `wp-editor` does the same. A plain closure walk therefore convicts the whole block-editor stack, and every plugin block script above it, of being palette contributors. Core packages are consequently never trimmed as dependents, and the walk will not travel through one to reach a root: a handle qualifies only when the palette appears in its own chain, the way Astra's and WooCommerce's palette scripts both name `wp-commands` themselves.
 
 This is a family trim for the same reason the admin-bar trim above is: dropping the roots alone saves nothing while a single dependent survives, because `WP_Dependencies::all_deps()` pulls the whole chain back in on that dependent's behalf. Measured with only Core's enqueue deferred, a Settings window still pulled 14.28 MB of the original 14.49 MB — Astra's `command-palette.js` and WooCommerce's `command-palette.js` / `command-palette-analytics.js` each declare `wp-commands` and were still queued.
 
