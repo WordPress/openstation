@@ -15,8 +15,40 @@ import * as toast from '../../src/toast';
 import { installFileDropSentinel } from '../../src/os-file-drop/sentinel';
 import { installNotesSentinel } from '../../src/notes/sentinel';
 import { installDockConstellationSentinel } from '../../src/dock-constellation/sentinel';
-import { NOTE_CREATED_EVENT } from '../../src/notes/types';
+import {
+	NOTE_CREATED_EVENT,
+	NOTES_HEARTBEAT_RESPONSE_FIELD,
+} from '../../src/notes/types';
 import { DRAG_EVENTS } from '../../src/drag/types';
+import {
+	bootHeartbeatBus,
+	_resetHeartbeatBusForTests,
+} from '../../src/heartbeat';
+
+/**
+ * Stand-in for WordPress's Heartbeat, so a tick can be delivered by
+ * hand. The bus binds through jQuery, so that is what has to exist.
+ */
+let heartbeatTick:
+	| ( ( e: unknown, response: Record< string, unknown > ) => void )
+	| undefined;
+
+function installFakeHeartbeat(): void {
+	_resetHeartbeatBusForTests();
+	heartbeatTick = undefined;
+	( window as unknown as { jQuery: unknown } ).jQuery = () => ( {
+		on( ev: string, cb: ( ...args: unknown[] ) => void ) {
+			if ( ev === 'heartbeat-tick' ) {
+				heartbeatTick = cb as typeof heartbeatTick;
+			}
+		},
+	} );
+	bootHeartbeatBus();
+}
+
+function emitHeartbeat( field: string, value: unknown ): void {
+	heartbeatTick?.( {}, { [ field ]: value } );
+}
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 import type { FakeWpHooks } from './helpers/hooks-stub';
 
@@ -163,6 +195,7 @@ describe( 'notes sentinel', () => {
 
 	beforeEach( () => {
 		hooks = installHooksStub();
+		installFakeHeartbeat();
 		loadCalls = 0;
 		boot = vi.fn( () => null );
 		vi.spyOn( vendorLoader, 'loadVendorScript' ).mockImplementation(
@@ -252,6 +285,28 @@ describe( 'notes sentinel', () => {
 		teardowns.push( installNotesSentinel( { ...ARGS, hasNotes: false } ) );
 		window.dispatchEvent( new Event( 'dragstart' ) );
 		expect( loadCalls ).toBe( 1 );
+	} );
+
+	test( 'a note-less desktop still notices the site’s first public note', () => {
+		// `hasNotes: false` skips the bundle, and the Heartbeat
+		// subscription lives inside it — so a public note pinned by
+		// someone else during the session only showed up after a
+		// reload. The sentinel watches the field itself until then.
+		teardowns.push( installNotesSentinel( { ...ARGS, hasNotes: false } ) );
+		expect( loadCalls ).toBe( 0 );
+
+		emitHeartbeat( NOTES_HEARTBEAT_RESPONSE_FIELD, { notes: [ { id: 1 } ] } );
+
+		expect( loadCalls ).toBe( 1 );
+	} );
+
+	test( 'an empty tick is not mistaken for a note', () => {
+		teardowns.push( installNotesSentinel( { ...ARGS, hasNotes: false } ) );
+
+		emitHeartbeat( NOTES_HEARTBEAT_RESPONSE_FIELD, undefined );
+		emitHeartbeat( NOTES_HEARTBEAT_RESPONSE_FIELD, null );
+
+		expect( loadCalls ).toBe( 0 );
 	} );
 
 	test( 'an in-shell drag loads it too — those never fire dragstart', () => {
