@@ -157,15 +157,19 @@ export class AiAssistantStub implements AiAssistantApi {
 		// the keystroke visibly registers, and take it down whichever
 		// way this resolves — including a failed load, where leaving a
 		// spinner up forever would be the worst outcome.
+		//
+		// The cancel callback is what makes Escape work during that
+		// window: it drops `_intendOpen`, so a panel the user has
+		// already dismissed does not open behind them when the bundle
+		// finally lands. Nothing else is listening for Escape yet —
+		// the panel's own handler is bound to an element that does not
+		// exist, and the palette cycle never listens for it.
 		if ( ! this._real ) {
-			showPalettePlaceholder();
+			showPalettePlaceholder( () => this.close() );
 		}
 		void this._ensure()
 			.then( ( r ) => {
 				hidePalettePlaceholder();
-				// The user may have hit Escape (or toggled) while the
-				// bundle was loading; honour that rather than opening
-				// a panel they already dismissed.
 				if ( this._intendOpen ) {
 					r.open();
 				}

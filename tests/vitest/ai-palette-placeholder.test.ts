@@ -63,6 +63,49 @@ describe( 'command-palette loading placeholder', () => {
 		expect( () => hidePalettePlaceholder() ).not.toThrow();
 	} );
 
+	it( 'Escape takes it down and reports the cancel', () => {
+		// Nothing else is listening for Escape during this window: the
+		// panel binds its handler to an element that does not exist
+		// yet, and the palette cycle never listens for Escape at all.
+		let cancelled = 0;
+		showPalettePlaceholder( () => {
+			cancelled += 1;
+		} );
+
+		document.dispatchEvent(
+			new KeyboardEvent( 'keydown', { key: 'Escape' } ),
+		);
+
+		expect( cancelled ).toBe( 1 );
+		expect( document.getElementById( ID ) ).toBeNull();
+	} );
+
+	it( 'ignores keys that are not Escape', () => {
+		let cancelled = 0;
+		showPalettePlaceholder( () => {
+			cancelled += 1;
+		} );
+
+		document.dispatchEvent( new KeyboardEvent( 'keydown', { key: 'a' } ) );
+
+		expect( cancelled ).toBe( 0 );
+		expect( document.getElementById( ID ) ).not.toBeNull();
+	} );
+
+	it( 'stops listening once hidden, so a later Escape is not swallowed', () => {
+		let cancelled = 0;
+		showPalettePlaceholder( () => {
+			cancelled += 1;
+		} );
+		hidePalettePlaceholder();
+
+		document.dispatchEvent(
+			new KeyboardEvent( 'keydown', { key: 'Escape' } ),
+		);
+
+		expect( cancelled ).toBe( 0 );
+	} );
+
 	it( 'sweeps up a stray copy it does not own', () => {
 		// e.g. one left behind by an earlier bundle version.
 		const stray = document.createElement( 'div' );

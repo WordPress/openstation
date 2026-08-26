@@ -517,6 +517,50 @@ class Tests_OpenStation_ChromelessCommandPalette extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The fallback the hoist documents as load-bearing.
+	 *
+	 * `WP_Dependencies::all_deps()` bails out wholesale when any single
+	 * dependency is unregistered — and every contributor depends on
+	 * `wp-commands`, which a site predating the Core palette simply does
+	 * not have. The resolved chain therefore comes back empty, and the
+	 * contributor still has to reach the manifest on its own: its Core
+	 * dependencies are already carried by the Core manifest this list is
+	 * appended to, so the contributor script is the only part that has
+	 * to come from here.
+	 *
+	 * @covers ::openstation_shell_hoist_command_palette_contributors
+	 */
+	public function test_shell_hoist_survives_an_unregistered_palette_root() {
+		// WordPress rightly complains about the dependency it cannot
+		// resolve. That complaint IS the scenario — a palette extension
+		// declares `wp-commands` unconditionally, so any site without
+		// the Core palette produces exactly this notice — and the point
+		// of the test is that the hoist still does its job around it.
+		$this->setExpectedIncorrectUsage( 'WP_Scripts::add' );
+		wp_set_current_user( self::$admin_id );
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		wp_register_script( 'openstation', 'https://example.org/desktop.js', array(), '1', true );
+		wp_enqueue_script( 'openstation' );
+		$this->register_graph();
+		wp_enqueue_script( 'os-test-direct' );
+		// Enqueue first, then take the root away: this is a pre-6.9
+		// site, where `wp-commands` was never registered at all.
+		wp_deregister_script( 'wp-commands' );
+
+		$this->assertFalse( wp_script_is( 'wp-commands', 'registered' ) );
+
+		openstation_shell_hoist_command_palette_contributors();
+
+		$inline = wp_scripts()->get_data( 'openstation', 'before' );
+		$this->assertStringContainsString(
+			'os-test-direct',
+			is_array( $inline ) ? implode( '', $inline ) : (string) $inline,
+			'the contributor must still reach the manifest'
+		);
+		$this->assertFalse( wp_script_is( 'os-test-direct', 'enqueued' ) );
+	}
+
+	/**
 	 * @covers ::openstation_shell_hoist_command_palette_contributors
 	 */
 	public function test_shell_hoist_does_not_run_inside_a_window() {

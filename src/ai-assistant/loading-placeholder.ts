@@ -20,6 +20,21 @@
  * `assets/css/ai-assistant.css`: same `clamp()` offset from the top,
  * same 600px cap, same radius. When the panel replaces it, it lands
  * where the placeholder already was.
+ *
+ * **And the spinner is hand-rolled rather than `<os-spinner>`,** which
+ * is a real exception to the "default to an `os-*` component" rule in
+ * AGENTS.md and needs its reason on the record. The objection is not
+ * the component's styles — those live in its own shadow root and would
+ * be fine. It is that the kit is a **lazy bundle**: components register
+ * at import time, `desktop.min.js` never imports `os-spinner`, and
+ * `customElements.define( 'os-spinner' )` only runs once
+ * `os-components[.min].js` has been fetched. An `<os-spinner>` here
+ * would therefore be an inert unknown element for the whole of the
+ * window this file exists to cover — invisible exactly when it is
+ * needed — and would trip the missing-import warner on the way past.
+ * Calling `loadComponents()` first would mean waiting on another
+ * bundle in order to say "please wait", which is the opposite of the
+ * point. Twelve lines of inline CSS is the cheaper correct answer.
  */
 
 import { __ } from '../i18n';
@@ -28,6 +43,7 @@ const PLACEHOLDER_ID = 'os-ai-loading';
 const KEYFRAMES_ID = 'os-ai-loading-keyframes';
 
 let active: HTMLElement | null = null;
+let escapeHandler: ( ( e: KeyboardEvent ) => void ) | null = null;
 
 /** Injects the spin keyframes once; skipped under reduced motion. */
 function ensureKeyframes(): void {
@@ -46,11 +62,34 @@ function ensureKeyframes(): void {
  *
  * Safe to call repeatedly — a second ⌘K while the first is still
  * loading reuses the element rather than stacking a second copy.
+ *
+ * **The Escape listener is document-level and belongs here**, because
+ * during this window there is nothing else to hang it on. The real
+ * panel binds Escape to its own root element (`impl.ts`), which does
+ * not exist until the impl bundle has loaded and mounted, and the
+ * palette cycle in `src/palette-registry.ts` deliberately never
+ * listens for Escape — it says so itself. So without this, Escape is
+ * dead for exactly as long as the placeholder is up, which is the one
+ * moment the user is most likely to press it.
+ *
+ * @param onCancel Invoked when the user presses Escape before the
+ *                 panel arrives. The caller uses it to drop its
+ *                 pending-open intent, so the panel does not open
+ *                 afterwards behind the user's back.
  */
-export function showPalettePlaceholder(): void {
+export function showPalettePlaceholder( onCancel?: () => void ): void {
 	if ( active && active.isConnected ) {
 		return;
 	}
+
+	escapeHandler = ( e: KeyboardEvent ) => {
+		if ( 'Escape' !== e.key ) {
+			return;
+		}
+		hidePalettePlaceholder();
+		onCancel?.();
+	};
+	document.addEventListener( 'keydown', escapeHandler );
 
 	const reduceMotion =
 		typeof window.matchMedia === 'function' &&
@@ -124,6 +163,10 @@ export function showPalettePlaceholder(): void {
 
 /** Remove the placeholder, if one is up. */
 export function hidePalettePlaceholder(): void {
+	if ( escapeHandler ) {
+		document.removeEventListener( 'keydown', escapeHandler );
+		escapeHandler = null;
+	}
 	if ( active ) {
 		active.remove();
 		active = null;
