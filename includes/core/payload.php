@@ -1772,6 +1772,63 @@ function openstation_menu_signature() {
  * @param string $handle WP script handle.
  * @return array{ url:string, before:string[], after:string[], l10n:string[], translations:string } Payload (empty `url` on miss).
  */
+/**
+ * Resolve a handle's dependency closure, in load order.
+ *
+ * **Why a lazily-delivered handle needs this at all.** WordPress
+ * normally resolves a script's dependencies when it enqueues it — the
+ * packages a bundle declares are on the page before its own body runs.
+ * A handle that is only ever delivered lazily never goes through that:
+ * `loadVendorScript()` injects one URL, and a bundle declaring
+ * `wp-api-fetch` found `wp.apiFetch` undefined at mount.
+ *
+ * That used to work by accident. Core's ⌘K palette was enqueued on
+ * every admin page and its closure is the whole Gutenberg runtime, so
+ * `wp.apiFetch`, `wp.element` and friends happened to be globals.
+ * Deferring the palette took the accident away and left the contract
+ * exposed — see `docs/migration-wp-package-globals.md`.
+ *
+ * The closure is resolved on a CLONE, so the request's real
+ * `$to_do` / `$done` bookkeeping is untouched, and the handle itself is
+ * excluded — the caller loads that separately, after these.
+ *
+ * @param string $handle Script handle.
+ * @return array<int,array<string,mixed>> Ordered dependency payloads.
+ */
+function openstation_resolve_script_dependencies( $handle ) {
+	$handle     = (string) $handle;
+	$wp_scripts = wp_scripts();
+	if ( '' === $handle || ! $wp_scripts || ! isset( $wp_scripts->registered[ $handle ] ) ) {
+		return array();
+	}
+	$deps = $wp_scripts->registered[ $handle ]->deps;
+	if ( empty( $deps ) ) {
+		return array();
+	}
+
+	$probe        = clone $wp_scripts;
+	$probe->to_do = array();
+	$probe->done  = array();
+	$probe->all_deps( $deps, true );
+
+	$out = array();
+	foreach ( $probe->to_do as $dep_handle ) {
+		if ( $dep_handle === $handle ) {
+			continue;
+		}
+		$payload = openstation_resolve_script_payload( $dep_handle );
+		if ( '' === $payload['url']
+			&& empty( $payload['before'] )
+			&& empty( $payload['after'] )
+			&& empty( $payload['l10n'] ) ) {
+			continue;
+		}
+		$payload['handle'] = (string) $dep_handle;
+		$out[]             = $payload;
+	}
+	return $out;
+}
+
 function openstation_resolve_script_payload( $handle ) {
 	$empty = array(
 		'url'          => '',

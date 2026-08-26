@@ -1065,6 +1065,27 @@ export interface DesktopWidgetServerEntry {
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
+	/**
+	 * The WordPress packages this widget declares, in load order,
+	 * replayed before the bundle.
+	 *
+	 * WordPress resolves a script's dependencies when it ENQUEUES it,
+	 * so a normally-printed bundle finds its packages already there. A
+	 * widget bundle is delivered lazily and never goes through that:
+	 * one declaring `wp-api-fetch` found `wp.apiFetch` undefined at
+	 * mount. That used to work by accident — Core's ⌘K palette put the
+	 * whole Gutenberg runtime on every admin page until it was
+	 * deferred. Anything already in the document is skipped. See
+	 * `docs/migration-wp-package-globals.md`.
+	 */
+	scriptDeps?: Array< {
+		handle?: string;
+		url: string;
+		before?: string[];
+		after?: string[];
+		l10n?: string[];
+		translations?: string;
+	} >;
 }
 
 /**

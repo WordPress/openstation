@@ -98,6 +98,23 @@ export interface ScriptExtras {
 	before?: string[];
 	/** `wp_add_inline_script( $h, $code, 'after' )` strings — injected only after the src `load` fires, mirroring `wp_print_scripts` ordering. */
 	after?: string[];
+	/**
+	 * The handle's dependency closure, in load order, executed before
+	 * the script itself.
+	 *
+	 * WordPress resolves a script's dependencies when it ENQUEUES it,
+	 * so a normally-printed bundle finds its packages already on the
+	 * page. A handle delivered only through this loader never goes
+	 * through that: one URL is injected and nothing else. A widget
+	 * declaring `wp-api-fetch` therefore found `wp.apiFetch` undefined
+	 * at mount — which used to work by accident, because Core's ⌘K
+	 * palette put the whole Gutenberg runtime on every admin page until
+	 * it was deferred.
+	 *
+	 * Anything already in the document is skipped, so this costs
+	 * nothing on a page that had the packages anyway.
+	 */
+	deps?: Array< { url: string } & ScriptExtras >;
 }
 
 /**
@@ -129,7 +146,50 @@ export function loadVendorScript(
 		return existing;
 	}
 
-	const promise = new Promise<void>( ( resolve, reject ) => {
+	// Dependencies first, strictly in order — that order IS the
+	// contract (`wp-data` before `wp-core-data`, api-fetch's nonce
+	// middleware between its own before/after snippets). Anything
+	// already in the document is skipped, so a page that had these
+	// packages anyway pays nothing, and the memo above means a shared
+	// dependency is fetched once however many bundles declare it.
+	const deps = extras?.deps;
+	if ( deps && deps.length > 0 ) {
+		const loadDep = ( dep: { url: string } & ScriptExtras ) => {
+			if ( ! dep.url || findScriptByPath( dep.url ) ) {
+				return Promise.resolve();
+			}
+			return loadVendorScript( dep.url, { ...dep, deps: undefined } );
+		};
+		const withDeps = deps
+			.reduce(
+				( prev, dep ) => prev.then( () => loadDep( dep ) ),
+				Promise.resolve< void >( undefined ),
+			)
+			// The handle itself, once its packages are in. Injected
+			// directly rather than by re-entering `loadVendorScript` —
+			// the memo below is keyed by URL and this promise is
+			// already stored under it, so recursing would await itself.
+			.then( () => injectScriptTag( url, extras ) );
+		pending.set( url, withDeps );
+		return withDeps;
+	}
+
+	const promise = injectScriptTag( url, extras );
+	pending.set( url, promise );
+	return promise;
+}
+
+/**
+ * Inject one `<script>` tag and its inline data, resolving on `load`.
+ *
+ * The memo and the dependency walk live in `loadVendorScript`; this is
+ * only the tag mechanics.
+ *
+ * @param url    Absolute URL of the script.
+ * @param extras Optional inline data harvested from the registered handle.
+ */
+function injectScriptTag( url: string, extras?: ScriptExtras ): Promise< void > {
+	return new Promise<void>( ( resolve, reject ) => {
 		// If the URL is already in the DOM (e.g. another plugin
 		// enqueued the same file), wait on its load state rather than
 		// double-adding. Note: we deliberately do NOT re-inject extras
@@ -232,9 +292,6 @@ export function loadVendorScript(
 		);
 		document.head.appendChild( script );
 	} );
-
-	pending.set( url, promise );
-	return promise;
 }
 
 /**
