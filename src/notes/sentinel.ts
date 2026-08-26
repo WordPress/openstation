@@ -17,15 +17,20 @@
  *      the note itself and announces it; the sentinel stashes the
  *      announcement, loads, and re-dispatches so the layer's own
  *      listener pins it.
- *   4. Any internal drag starting — a post tile dragged toward the
- *      wallpaper can become a post→note conversion, and the drop
- *      target must exist by the time it lands. Drags give the fetch
- *      hundreds of ms of headroom.
+ *   4. Any drag starting — a post tile dragged toward the wallpaper can
+ *      become a post→note conversion, and the drop target must exist by
+ *      the time it lands. Drags give the fetch hundreds of ms of
+ *      headroom. BOTH kinds count: native `dragstart` for a file coming
+ *      in from the OS, and `os.drag.start` for anything starting inside
+ *      the shell. The in-shell ones are pointer-driven through
+ *      `DragManager` and never create a native drag, so listening for
+ *      `dragstart` alone missed every Note Pad tear-off and every tile.
  */
 
 import { addFilter } from '../hooks';
 import { __ } from '../i18n';
 import { loadVendorScript } from '../wallpapers/vendor-loader';
+import { DRAG_EVENTS } from '../drag/types';
 import { NOTE_CREATED_EVENT } from './types';
 import type { NotesLayer } from './layer';
 import type { BootNotesOptions } from './index';
@@ -65,6 +70,7 @@ export function installNotesSentinel( args: SentinelArgs ): () => void {
 						onNoteCreated,
 					);
 					window.removeEventListener( 'dragstart', onDragStart, true );
+					document.removeEventListener( DRAG_EVENTS.START, onDragStart );
 					for ( const ev of stashedCreations.splice( 0 ) ) {
 						document.dispatchEvent( ev );
 					}
@@ -98,7 +104,17 @@ export function installNotesSentinel( args: SentinelArgs ): () => void {
 	const onDragStart = (): void => {
 		void ensure();
 	};
+	// Native `dragstart` covers a file dragged in from the OS. It does
+	// NOT cover any drag that starts inside the shell: the Note Pad
+	// tear-off and every desktop tile are pointer-driven through
+	// `DragManager`, which never creates a native drag and instead
+	// dispatches `os.drag.start` on `document`. A user with no notes
+	// yet — so the bundle has not been loaded by `os-note-created`
+	// either — could therefore tear a draft off the pad and have
+	// nothing at all happen, because the drop handlers live in the
+	// bundle this listener exists to fetch.
 	window.addEventListener( 'dragstart', onDragStart, true );
+	document.addEventListener( DRAG_EVENTS.START, onDragStart );
 
 	// Same item id the bundle's own `installNotesWallpaperMenu()`
 	// registers — it yields when the id is already present, so this
@@ -157,5 +173,6 @@ export function installNotesSentinel( args: SentinelArgs ): () => void {
 	return () => {
 		document.removeEventListener( NOTE_CREATED_EVENT, onNoteCreated );
 		window.removeEventListener( 'dragstart', onDragStart, true );
+		document.removeEventListener( DRAG_EVENTS.START, onDragStart );
 	};
 }

@@ -16,6 +16,7 @@ import { installFileDropSentinel } from '../../src/os-file-drop/sentinel';
 import { installNotesSentinel } from '../../src/notes/sentinel';
 import { installDockConstellationSentinel } from '../../src/dock-constellation/sentinel';
 import { NOTE_CREATED_EVENT } from '../../src/notes/types';
+import { DRAG_EVENTS } from '../../src/drag/types';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 import type { FakeWpHooks } from './helpers/hooks-stub';
 
@@ -247,9 +248,23 @@ describe( 'notes sentinel', () => {
 		vi.useRealTimers();
 	} );
 
-	test( 'an internal dragstart loads the bundle (post-to-note headroom)', () => {
+	test( 'a native dragstart loads the bundle (a file coming in from the OS)', () => {
 		teardowns.push( installNotesSentinel( { ...ARGS, hasNotes: false } ) );
 		window.dispatchEvent( new Event( 'dragstart' ) );
+		expect( loadCalls ).toBe( 1 );
+	} );
+
+	test( 'an in-shell drag loads it too — those never fire dragstart', () => {
+		// The Note Pad tear-off and every desktop tile are
+		// pointer-driven through `DragManager`, which creates no native
+		// drag and dispatches `os.drag.start` instead. A user with no
+		// notes yet could tear a draft off the pad and have nothing
+		// happen at all, because the drop handlers live in the bundle
+		// this listener exists to fetch.
+		teardowns.push( installNotesSentinel( { ...ARGS, hasNotes: false } ) );
+
+		document.dispatchEvent( new CustomEvent( DRAG_EVENTS.START ) );
+
 		expect( loadCalls ).toBe( 1 );
 	} );
 } );
@@ -312,6 +327,43 @@ describe( 'dock-constellation sentinel', () => {
 		await Promise.resolve();
 		await Promise.resolve();
 		expect( mount ).toHaveBeenCalledWith( deps );
+		teardown();
+	} );
+
+	test( 'a keyboard user reaching a rail loads it too', () => {
+		// The flyout's documented keyboard entry point — the open arrow
+		// on a tile — is registered inside `mountDockConstellation()`.
+		// Waiting on `pointerover` alone meant a keyboard-only user
+		// pressed it and got nothing, because the bundle carrying the
+		// handler had never been requested.
+		let loadCalls = 0;
+		vi.spyOn( vendorLoader, 'loadVendorScript' ).mockImplementation(
+			() =>
+				new Promise< void >( () => {
+					loadCalls += 1;
+				} ),
+		);
+
+		const dock = document.createElement( 'div' );
+		dock.className = 'os-dock';
+		const tile = document.createElement( 'button' );
+		dock.appendChild( tile );
+		const elsewhere = document.createElement( 'div' );
+		document.body.append( dock, elsewhere );
+
+		const teardown = installDockConstellationSentinel( {
+			bundleUrl: 'https://x.test/dock-constellation.js',
+			deps: {} as Parameters< ConstellationApi[ 'mount' ] >[ 0 ],
+		} );
+
+		// `focusin` bubbles, so tabbing into the tile reaches the
+		// document-level listener; focus landing elsewhere must not.
+		elsewhere.dispatchEvent( new Event( 'focusin', { bubbles: true } ) );
+		expect( loadCalls ).toBe( 0 );
+
+		tile.dispatchEvent( new Event( 'focusin', { bubbles: true } ) );
+		expect( loadCalls ).toBe( 1 );
+
 		teardown();
 	} );
 } );
