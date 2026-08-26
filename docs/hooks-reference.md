@@ -1842,6 +1842,30 @@ The handles treated as command-palette roots. Defaults: `wp-commands` (the `core
 apply_filters( 'openstation_command_palette_root_handles', string[] $handles );
 ```
 
+### `openstation_is_command_palette_contributor` — Experimental
+
+Whether a handle counts as command-palette **code**, as opposed to something that merely *uses* the palette. A handle must pass this before the dependency walk can convict it.
+
+This exists because "declares `wp-commands`" turned out not to be evidence of being a palette contributor, and a regression proved it. Gutenberg's **Settings → Connectors** screen registers `options-connectors-wp-admin-prerequisites` with **no `src`** and its boot module's dependency list — `react`, `wp-components`, `wp-editor`, `wp-commands`, … — then hangs the app's entire bootstrap on it as an inline `import("@wordpress/boot").then( mod => mod.initSinglePage( … ) )`. It names `wp-commands` because its UI needs the commands *store*, exactly as `wp-block-editor` does. The walk convicted it, the handle was dequeued, the inline never printed, and the page rendered blank.
+
+Two default rules, both failing toward *not optimising* rather than toward breaking a page:
+
+1. **A handle with no `src` is never a contributor.** The trim exists to stop a window downloading and executing files; a handle with no file offers nothing to reclaim, while dropping it discards its inline data and its dependency grouping.
+2. **A handle must name itself** — its handle or its filename containing `command-palette` (or `command_palette` / `commandpalette`). Palette code says so: Astra's `astra-command-palette`, WooCommerce's `command-palette.js` and `command-palette-analytics.js`. A bundle that reaches the palette without announcing itself is assumed to be a consumer and left alone.
+
+A plugin whose palette script is named something the default cannot recognise should claim it here rather than widening the match — a false positive costs a broken admin screen inside a window.
+
+```php
+add_filter(
+    'openstation_is_command_palette_contributor',
+    static function ( $is, $handle ) {
+        return 'acme-quicksilver' === $handle ? true : $is;
+    },
+    10,
+    2
+);
+```
+
 ### `openstation_command_palette_family` — Experimental
 
 The full set of handles dropped by the palette trim: the roots plus every scanned handle that reaches one of them **without routing through one of Core's own packages**.

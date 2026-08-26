@@ -28,6 +28,7 @@ class Tests_OpenStation_ChromelessCommandPalette extends WP_UnitTestCase {
 		remove_all_filters( 'openstation_command_palette_root_handles' );
 		remove_all_filters( 'openstation_command_palette_contributors' );
 		remove_all_filters( 'openstation_command_palette_contributor_owns_screen' );
+		remove_all_filters( 'openstation_is_command_palette_contributor' );
 		unset( $_GET['page'] );
 		parent::tear_down();
 	}
@@ -57,8 +58,12 @@ class Tests_OpenStation_ChromelessCommandPalette extends WP_UnitTestCase {
 		if ( ! wp_script_is( 'wp-commands', 'registered' ) ) {
 			wp_register_script( 'wp-commands', includes_url( 'js/dist/commands.js' ), array(), '1', true );
 		}
-		wp_register_script( 'os-test-direct', 'https://example.org/d.js', array( 'wp-commands' ), '1', true );
-		wp_register_script( 'os-test-indirect', 'https://example.org/i.js', array( 'os-test-direct' ), '1', true );
+		// Srcs mirror the real offenders: conviction needs the handle or
+		// its file to announce itself as palette code, so a fixture
+		// standing in for Astra's / WooCommerce's palette scripts has to
+		// be named the way they are.
+		wp_register_script( 'os-test-direct', 'https://example.org/command-palette.js', array( 'wp-commands' ), '1', true );
+		wp_register_script( 'os-test-indirect', 'https://example.org/command-palette-analytics.js', array( 'os-test-direct' ), '1', true );
 		wp_register_script( 'os-test-unrelated', 'https://example.org/u.js', array( 'jquery' ), '1', true );
 	}
 
@@ -164,12 +169,101 @@ class Tests_OpenStation_ChromelessCommandPalette extends WP_UnitTestCase {
 	 * @covers ::openstation_command_palette_family
 	 */
 	public function test_a_palette_extension_behind_its_own_script_is_still_caught() {
-		wp_register_script( 'os-test-base', 'https://example.org/b.js', array( 'wp-commands' ), '1', true );
-		wp_register_script( 'os-test-ext', 'https://example.org/e.js', array( 'os-test-base' ), '1', true );
+		wp_register_script( 'os-test-base', 'https://example.org/command-palette.js', array( 'wp-commands' ), '1', true );
+		wp_register_script( 'os-test-ext', 'https://example.org/command-palette-extras.js', array( 'os-test-base' ), '1', true );
 
 		$family = openstation_command_palette_family( wp_scripts(), array( 'os-test-ext' ) );
 
 		$this->assertContains( 'os-test-ext', $family );
+	}
+
+	/**
+	 * The Connectors regression, in its exact shape.
+	 *
+	 * Gutenberg's Settings → Connectors screen registers a src-LESS
+	 * handle carrying its boot module's dependency list — which names
+	 * `wp-commands`, because the UI needs the commands store — and hangs
+	 * the app's whole bootstrap on it as an inline script. Convicting it
+	 * dequeued the handle, the inline never printed, and the page
+	 * rendered blank.
+	 *
+	 * A handle with no `src` has no file to reclaim, so trimming it is
+	 * pure downside however its dependencies read.
+	 *
+	 * @covers ::openstation_is_command_palette_contributor
+	 * @covers ::openstation_command_palette_family
+	 */
+	public function test_a_srcless_bootstrap_handle_is_never_convicted() {
+		wp_register_script(
+			'os-test-connectors-prerequisites',
+			'',
+			array( 'react', 'wp-components', 'wp-editor', 'wp-commands', 'wp-data' ),
+			'1',
+			true
+		);
+		wp_add_inline_script(
+			'os-test-connectors-prerequisites',
+			'import("@wordpress/boot").then(m=>m.initSinglePage({}));'
+		);
+
+		$family = openstation_command_palette_family(
+			wp_scripts(),
+			array( 'os-test-connectors-prerequisites' )
+		);
+
+		$this->assertNotContains( 'os-test-connectors-prerequisites', $family );
+	}
+
+	/**
+	 * The general form of the same lesson: naming `wp-commands` means
+	 * "this UI uses the commands store", not "this IS the palette". A
+	 * page bundle that does so must survive.
+	 *
+	 * @covers ::openstation_is_command_palette_contributor
+	 */
+	public function test_a_page_bundle_that_merely_uses_the_store_is_not_convicted() {
+		wp_register_script(
+			'os-test-settings-app',
+			'https://example.org/settings-app.js',
+			array( 'wp-commands', 'wp-components' ),
+			'1',
+			true
+		);
+
+		$family = openstation_command_palette_family(
+			wp_scripts(),
+			array( 'os-test-settings-app' )
+		);
+
+		$this->assertNotContains( 'os-test-settings-app', $family );
+	}
+
+	/**
+	 * @covers ::openstation_is_command_palette_contributor
+	 */
+	public function test_a_plugin_can_claim_its_own_palette_script_by_filter() {
+		wp_register_script(
+			'os-test-quicksilver',
+			'https://example.org/quicksilver.js',
+			array( 'wp-commands' ),
+			'1',
+			true
+		);
+		add_filter(
+			'openstation_is_command_palette_contributor',
+			static function ( $is, $handle ) {
+				return 'os-test-quicksilver' === $handle ? true : $is;
+			},
+			10,
+			2
+		);
+
+		$family = openstation_command_palette_family(
+			wp_scripts(),
+			array( 'os-test-quicksilver' )
+		);
+
+		$this->assertContains( 'os-test-quicksilver', $family );
 	}
 
 	/**
@@ -407,7 +501,7 @@ class Tests_OpenStation_ChromelessCommandPalette extends WP_UnitTestCase {
 	public function test_a_plugin_owns_a_page_slug_prefixed_by_its_folder() {
 		wp_register_script(
 			'os-test-owned',
-			'https://example.org/wp-content/plugins/acme-crm/palette.js',
+			'https://example.org/wp-content/plugins/acme-crm/command-palette.js',
 			array( 'wp-commands' ),
 			'1',
 			true
@@ -426,7 +520,7 @@ class Tests_OpenStation_ChromelessCommandPalette extends WP_UnitTestCase {
 	public function test_a_plugin_does_not_own_an_unrelated_screen() {
 		wp_register_script(
 			'os-test-owned',
-			'https://example.org/wp-content/plugins/acme-crm/palette.js',
+			'https://example.org/wp-content/plugins/acme-crm/command-palette.js',
 			array( 'wp-commands' ),
 			'1',
 			true
@@ -451,7 +545,7 @@ class Tests_OpenStation_ChromelessCommandPalette extends WP_UnitTestCase {
 		set_current_screen( 'toplevel_page_acme-crm' );
 		wp_register_script(
 			'os-test-owned',
-			'https://example.org/wp-content/plugins/acme-crm/palette.js',
+			'https://example.org/wp-content/plugins/acme-crm/command-palette.js',
 			array( 'wp-commands' ),
 			'1',
 			true

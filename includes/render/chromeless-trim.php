@@ -309,6 +309,84 @@ function openstation_handle_depends_on( $dependencies, $handle, $roots, &$memo )
 }
 
 /**
+ * Whether a handle looks like palette code, rather than something that
+ * merely *uses* the palette.
+ *
+ * **This exists because "declares `wp-commands`" is not evidence of
+ * being a palette contributor**, and a real regression proved it.
+ * Gutenberg's Connectors screen registers
+ * `options-connectors-wp-admin-prerequisites` with no `src` at all and
+ * the dependency list of its boot module — `react`, `wp-components`,
+ * `wp-editor`, `wp-commands`, … — then hangs the app's entire
+ * bootstrap on it as an inline script:
+ *
+ *     import("@wordpress/boot").then( mod => mod.initSinglePage( … ) )
+ *
+ * It names `wp-commands` because its UI needs the commands *store* to
+ * exist, exactly as `wp-block-editor` does. The dependency walk
+ * convicted it, the handle was dequeued, the inline bootstrap never
+ * printed, and Settings → Connectors rendered a blank page. The
+ * Core-package guard could not help: the conviction was on a direct
+ * dependency, and the handle is not Core's.
+ *
+ * So conviction now needs a second, positive signal, and the two rules
+ * both fail toward *not optimising* rather than toward breaking a page:
+ *
+ *   1. **A handle with no `src` is never convicted.** The trim exists
+ *      to stop a window downloading and executing files; a handle with
+ *      no file offers nothing to save, while dropping it discards its
+ *      inline data and its dependency grouping. Pure downside.
+ *   2. **A handle must name itself.** Palette code says so — Astra's
+ *      `astra-command-palette`, WooCommerce's `command-palette.js` and
+ *      `command-palette-analytics.js`. A bundle that reaches the
+ *      palette without announcing itself is assumed to be a consumer,
+ *      not the palette, and is left alone. A plugin whose palette file
+ *      is named something else simply misses the optimisation, which
+ *      costs bytes; the alternative costs correctness.
+ *
+ * @param WP_Dependencies $dependencies The scripts registry.
+ * @param string          $handle       Handle to test.
+ * @return bool
+ */
+function openstation_is_command_palette_contributor( $dependencies, $handle ) {
+	if ( ! isset( $dependencies->registered[ $handle ] ) ) {
+		return false;
+	}
+	$src = $dependencies->registered[ $handle ]->src;
+
+	// Rule 1: an aggregator carries inline data, not a file. Nothing to
+	// reclaim, and its inline payload may be a page's whole bootstrap.
+	if ( ! is_string( $src ) || '' === $src ) {
+		$identifiable = false;
+	} else {
+		// Rule 2: the handle, or the file it points at, says "palette".
+		$needle       = strtolower( $handle . ' ' . wp_basename( strtok( $src, '?' ) ) );
+		$identifiable = ( false !== strpos( $needle, 'command-palette' ) )
+			|| ( false !== strpos( $needle, 'command_palette' ) )
+			|| ( false !== strpos( $needle, 'commandpalette' ) );
+	}
+
+	/**
+	 * Filters whether a handle counts as command-palette code.
+	 *
+	 * The hook for a plugin whose palette script is named something the
+	 * default match cannot recognise, and the one to reach for before
+	 * widening the match itself — a false positive here costs a broken
+	 * admin screen inside a window.
+	 *
+	 * @param bool   $identifiable Whether the handle looks like palette code.
+	 * @param string $handle       Handle being tested.
+	 * @param string $src          The handle's registered `src`.
+	 */
+	return (bool) apply_filters(
+		'openstation_is_command_palette_contributor',
+		$identifiable,
+		$handle,
+		is_string( $src ) ? $src : ''
+	);
+}
+
+/**
  * The command-palette family present in a given handle list.
  *
  * Returns the roots plus every handle in `$handles` that reaches one of
@@ -329,7 +407,8 @@ function openstation_command_palette_family( $dependencies, $handles ) {
 
 	foreach ( $handles as $handle ) {
 		if ( in_array( $handle, $family, true )
-			|| openstation_is_core_package_handle( $dependencies, $handle ) ) {
+			|| openstation_is_core_package_handle( $dependencies, $handle )
+			|| ! openstation_is_command_palette_contributor( $dependencies, $handle ) ) {
 			continue;
 		}
 		if ( openstation_handle_depends_on( $dependencies, $handle, $roots, $memo ) ) {
