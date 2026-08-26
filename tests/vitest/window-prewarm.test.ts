@@ -185,6 +185,34 @@ describe( 'WindowManager.prewarm', () => {
 		expect( openedEvents ).toEqual( [ 'edit-php' ] );
 	} );
 
+	test( 'discarding releases the connection bridge without announcing a close', async () => {
+		// A prewarmed iframe loads a real admin page, so its bridge
+		// posts `os-ready` and the parent registers the window with the
+		// connection bridge — keyed by id, and normally released on
+		// WINDOW_CLOSED. This path must not fire that event (nothing
+		// ever announced the open), so the registration was simply
+		// never released and every unadopted hover leaked one.
+		const closed: string[] = [];
+		(
+			globalThis as unknown as {
+				__openStationConnectionBridge?: unknown;
+			}
+		).__openStationConnectionBridge = {
+			onWindowClosed: ( id: string ) => closed.push( id ),
+		};
+
+		await manager.prewarm( openConfig( 'edit-php' ) );
+		manager.discardPrewarmed();
+
+		expect( closed ).toEqual( [ 'edit-php' ] );
+		expect( closedEvents, 'no close is announced' ).toEqual( [] );
+		delete (
+			globalThis as unknown as {
+				__openStationConnectionBridge?: unknown;
+			}
+		).__openStationConnectionBridge;
+	} );
+
 	test( 'an unclaimed prewarm is reaped by the TTL', async () => {
 		vi.useFakeTimers();
 		await manager.prewarm( openConfig( 'edit-php' ) );

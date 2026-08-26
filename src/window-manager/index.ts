@@ -728,14 +728,7 @@ export class WindowManager {
 			//
 			// The click won. Throw the speculation away.
 			if ( this.getByBaseId( baseId ) ) {
-				win.onClose = null;
-				try {
-					win.destroy();
-				} catch {
-					// Best-effort teardown; the removal below is the
-					// part that must happen.
-				}
-				win.element.remove();
+				this.teardownSpeculativeWindow( win );
 				return false;
 			}
 			// Unclaimed speculative windows must not outlive the intent
@@ -815,14 +808,48 @@ export class WindowManager {
 		}
 		this._prewarmed = null;
 		window.clearTimeout( slot.timer );
-		slot.win.onClose = null;
+		this.teardownSpeculativeWindow( slot.win );
+	}
+
+	/**
+	 * Tear down a speculative window that will never be adopted.
+	 *
+	 * Deliberately NOT the normal close path: a prewarm never announced
+	 * an open, so announcing a close would hand listeners a lifecycle
+	 * event for a window they never saw.
+	 *
+	 * It still has to release what the window did manage to register.
+	 * A prewarmed iframe loads a real admin page, so its chromeless
+	 * bridge posts `os-ready` and the parent fires `IFRAME_READY` —
+	 * which registers the window with the connection bridge. That
+	 * registration is keyed by window id and is normally released on
+	 * `WINDOW_CLOSED`, an event this path must not fire, so it was
+	 * simply never released: every unadopted hover left an entry
+	 * behind. Released directly here, through the same global the
+	 * iframe bridge itself uses.
+	 *
+	 * @param win The speculative window.
+	 */
+	private teardownSpeculativeWindow( win: Window ): void {
 		try {
-			slot.win.destroy();
+			(
+				globalThis as unknown as {
+					__openStationConnectionBridge?: {
+						onWindowClosed?: ( id: string ) => void;
+					};
+				}
+			).__openStationConnectionBridge?.onWindowClosed?.( win.id );
+		} catch {
+			// The bridge is optional; never let cleanup block teardown.
+		}
+		win.onClose = null;
+		try {
+			win.destroy();
 		} catch {
 			// Best-effort teardown; the element removal below is the
 			// part that must not fail silently forever.
 		}
-		slot.win.element.remove();
+		win.element.remove();
 	}
 
 	/**
