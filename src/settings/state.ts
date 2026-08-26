@@ -678,7 +678,40 @@ function _buildPayload(
 	return changed ? payload : null;
 }
 
+/**
+ * Whether a save is in flight, and the newest state waiting behind it.
+ *
+ * **Saves must not overlap.** `_buildPayload()` diffs against
+ * `_lastConfirmedState`, which only advances when a response comes
+ * back. Two changes a few hundred milliseconds apart — far enough apart
+ * to survive the debounce, close enough that the first is still in
+ * flight — therefore both diff against the same stale baseline, and the
+ * server keeps whichever response happens to land last. Measured: set
+ * `dockSize: large`, then `windowRadius: sharp` 400 ms later; the
+ * lifecycle reported pending → saving → pending → saved → saved and the
+ * local snapshot held both, while user meta ended with `dockSize:
+ * large, windowRadius: round`. The second change was reported saved and
+ * was not.
+ *
+ * Queuing one request behind the other fixes it at the root: the
+ * follow-up diffs against a baseline the first save has already
+ * confirmed, and lands after it. Only the NEWEST queued state is kept —
+ * an intermediate snapshot that was never sent has nothing to
+ * contribute, since each payload is a diff against the confirmed
+ * baseline rather than a delta on the one before it.
+ */
+let _saveInFlight = false;
+let _queuedSave: { state: OsSettingsState; windowId?: string | null } | null =
+	null;
+
 function _postToServer( state: OsSettingsState, windowId?: string | null ): void {
+	if ( _saveInFlight ) {
+		_queuedSave = { state, windowId };
+		// Still pending from the user's point of view: their change is
+		// real, in localStorage, and about to be sent.
+		_emitSaveLifecycle( 'pending' );
+		return;
+	}
 	const config = ( window as unknown as {
 		openStationConfig?: DesktopConfig;
 	} ).openStationConfig;
@@ -704,6 +737,17 @@ function _postToServer( state: OsSettingsState, windowId?: string | null ): void
 	}
 
 	_emitSaveLifecycle( 'saving' );
+	_saveInFlight = true;
+	// Snapshot what this request actually represents, now.
+	//
+	// `state` is the live settings object and callers mutate it in
+	// place (`ctx.state.accent = …; ctx.save()`), so by the time the
+	// response lands it may already carry changes this payload never
+	// included. Promoting the live object as the confirmed baseline
+	// would then mark those unsent fields as agreed with the server,
+	// and the next diff would find nothing to send — the change would
+	// be silently dropped rather than saved.
+	const sentSnapshot = _cloneState( state );
 	// Prefer `wp.os.fetch` so the originating window's title-bar
 	// activity dot blinks while the save is in flight. The
 	// originating window — passed through from the call site that
@@ -735,11 +779,12 @@ function _postToServer( state: OsSettingsState, windowId?: string | null ): void
 			// here, not back to whatever the user typed two minutes
 			// ago.
 			//
-			// The FULL state is promoted even though only the diff
-			// was sent: the fields left out are the ones this
-			// session never touched, and its record of them is
-			// exactly what must not be posted again.
-			_lastConfirmedState = _cloneState( state );
+			// The full snapshot AS SENT is promoted even though only
+			// the diff travelled: the fields left out are the ones
+			// this session never touched, and its record of them is
+			// exactly what must not be posted again. Taken at
+			// request time, not here — see `sentSnapshot`.
+			_lastConfirmedState = sentSnapshot;
 			_emitSaveLifecycle( 'saved' );
 		} )
 		.catch( ( err ) => {
@@ -759,6 +804,7 @@ function _postToServer( state: OsSettingsState, windowId?: string | null ): void
 			 * Cloning at the emit boundary makes each rollback hand
 			 * out an independent copy.
 			 */
+			_saveFailed = true;
 			if ( _lastConfirmedState ) {
 				_writeLocalStorage( _lastConfirmedState );
 				_emitSaveLifecycle(
@@ -772,8 +818,34 @@ function _postToServer( state: OsSettingsState, windowId?: string | null ): void
 					err instanceof Error ? err.message : String( err ),
 				);
 			}
+		} )
+		.finally( () => {
+			_saveInFlight = false;
+			// Release whatever queued up behind this one. It diffs
+			// against the baseline this response just confirmed, so it
+			// carries only what actually changed since — and it cannot
+			// race the request it was waiting for.
+			//
+			// After a FAILED save the queued state is dropped: the
+			// failure path has already rolled state and localStorage
+			// back to `_lastConfirmedState` and told listeners to
+			// repaint, so sending the superseded snapshot would post
+			// values the user has just been shown as reverted.
+			const queued = _queuedSave;
+			_queuedSave = null;
+			if ( queued && _saveFailed ) {
+				_saveFailed = false;
+				return;
+			}
+			_saveFailed = false;
+			if ( queued ) {
+				_postToServer( queued.state, queued.windowId );
+			}
 		} );
 }
+
+/** Set by the catch above so `finally` can tell how the save ended. */
+let _saveFailed = false;
 
 /**
  * Save lifecycle phases:
