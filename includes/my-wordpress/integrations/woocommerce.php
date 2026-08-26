@@ -1977,6 +1977,8 @@ function openstation_my_wordpress_woo_enqueue() {
 					'restRoot'      => esc_url_raw( rest_url( 'desktop-mode/v1/woocommerce/' ) ),
 					'restNonce'     => wp_create_nonce( 'wp_rest' ),
 					'canOrders'     => true === openstation_my_wordpress_woo_orders_permission(),
+					'canCreateProducts' => function_exists( 'openstation_my_wordpress_woo_product_studio_permission' )
+						&& true === openstation_my_wordpress_woo_product_studio_permission(),
 					'canCustomers'  => true === openstation_my_wordpress_woo_customers_permission(),
 					'orderBands'    => openstation_my_wordpress_woo_order_bands(),
 					'productBands'  => openstation_my_wordpress_woo_product_bands(),

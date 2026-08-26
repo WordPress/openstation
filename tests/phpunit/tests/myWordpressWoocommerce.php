@@ -127,6 +127,114 @@ class Tests_OpenStation_MyWordpressWoocommerce extends WP_UnitTestCase {
 
 		$this->assertArrayNotHasKey( '/desktop-mode/v1/woocommerce/orders', $routes );
 		$this->assertArrayNotHasKey( '/desktop-mode/v1/woocommerce/store', $routes );
+		$this->assertArrayNotHasKey( '/desktop-mode/v1/woocommerce/product-studio', $routes );
+		$this->assertArrayNotHasKey( '/desktop-mode/v1/woocommerce/products', $routes );
+	}
+
+	/**
+	 * Product Studio is a WooCommerce surface, not a generic product
+	 * editor. It must disappear completely when WooCommerce is absent.
+	 *
+	 * @covers ::openstation_my_wordpress_woo_product_studio_register_window
+	 */
+	public function test_no_product_studio_window_without_woocommerce() {
+		openstation_my_wordpress_woo_product_studio_register_window();
+
+		$this->assertArrayNotHasKey(
+			'desktop-mode-woo-product-studio',
+			(array) openstation_native_window_registry()
+		);
+		$this->assertArrayNotHasKey(
+			'desktop-mode-woo-product-studio',
+			(array) openstation_desktop_icon_registry()
+		);
+	}
+
+	/**
+	 * @covers ::openstation_my_wordpress_woo_product_studio_template
+	 */
+	public function test_product_studio_template_keeps_its_mount_point() {
+		ob_start();
+		openstation_my_wordpress_woo_product_studio_template();
+		$html = (string) ob_get_clean();
+
+		$this->assertStringContainsString( 'data-os-woo-product-studio-root', $html );
+	}
+
+	/**
+	 * Category ids cross the multipart boundary as JSON. The server
+	 * accepts existing product-category terms and rejects stale ids.
+	 *
+	 * @covers ::openstation_my_wordpress_woo_product_studio_categories
+	 */
+	public function test_product_studio_category_parser_checks_live_terms() {
+		register_taxonomy( 'product_cat', 'post' );
+		$term = self::factory()->term->create(
+			array(
+				'taxonomy' => 'product_cat',
+				'name'     => 'Lighting',
+			)
+		);
+
+		$this->assertSame(
+			array( $term ),
+			openstation_my_wordpress_woo_product_studio_categories( wp_json_encode( array( $term ) ) )
+		);
+		$this->assertWPError(
+			openstation_my_wordpress_woo_product_studio_categories( '[999999]' )
+		);
+		$this->assertWPError(
+			openstation_my_wordpress_woo_product_studio_categories( '{not-json}' )
+		);
+		$this->assertWPError(
+			openstation_my_wordpress_woo_product_studio_categories( '["not-an-id"]' )
+		);
+		$this->assertWPError(
+			openstation_my_wordpress_woo_product_studio_categories( '[0]' )
+		);
+
+		unregister_taxonomy( 'product_cat' );
+	}
+
+	/**
+	 * Retry protection depends on a client-generated UUID rather than
+	 * product fields such as SKU, which is optional.
+	 *
+	 * @covers ::openstation_my_wordpress_woo_product_studio_request_id
+	 */
+	public function test_product_studio_request_ids_are_strict_uuids() {
+		$this->assertSame(
+			'123e4567-e89b-42d3-a456-426614174000',
+			openstation_my_wordpress_woo_product_studio_request_id( '123E4567-E89B-42D3-A456-426614174000' )
+		);
+		$this->assertWPError(
+			openstation_my_wordpress_woo_product_studio_request_id( 'retry-me' )
+		);
+		$this->assertWPError(
+			openstation_my_wordpress_woo_product_studio_request_id( '' )
+		);
+	}
+
+	/**
+	 * The option-backed lock closes the race between two requests that
+	 * both look up the UUID before either product has finished saving.
+	 *
+	 * @covers ::openstation_my_wordpress_woo_product_studio_acquire_lock
+	 * @covers ::openstation_my_wordpress_woo_product_studio_release_lock
+	 */
+	public function test_product_studio_request_lock_is_atomic_and_releasable() {
+		$request_id = '123e4567-e89b-42d3-a456-426614174000';
+		$lock_name  = openstation_my_wordpress_woo_product_studio_acquire_lock( $request_id );
+
+		$this->assertIsString( $lock_name );
+		$this->assertWPError(
+			openstation_my_wordpress_woo_product_studio_acquire_lock( $request_id )
+		);
+
+		openstation_my_wordpress_woo_product_studio_release_lock( $lock_name );
+		$second_lock = openstation_my_wordpress_woo_product_studio_acquire_lock( $request_id );
+		$this->assertIsString( $second_lock );
+		openstation_my_wordpress_woo_product_studio_release_lock( $second_lock );
 	}
 
 	/**

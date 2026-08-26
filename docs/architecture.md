@@ -543,6 +543,27 @@ fighting over `orderby` is exactly how this went wrong once already:
 WooCommerce Blocks hooks `rest_product_query` at 10 and ends with
 `array_merge( $args, …, $orderby_query )`, which is why ours runs at 99.
 
+**Product creation.** The Woo folder's Product Studio launcher and the
+**Add New Product** desktop shortcut open a dedicated native window rather
+than dropping the merchant into the classic product editor. Its four-stage
+draft stays browser-side, with a same-tab
+session snapshot that recovers text, pricing, stock, and categories after an
+accidental close or reload. File objects never enter browser storage, so a
+recovered draft asks the merchant to reselect its image. Save draft or Publish
+posts one nonce-authenticated multipart request to
+`desktop-mode/v1/woocommerce/products`. The route validates the product
+capabilities and image independently, ingests the image through WordPress
+media, and persists a standard simple product through `WC_Product_Simple`.
+Each draft carries a UUID stored as private, user-scoped product metadata; a
+retry after a lost response returns the already-created product instead of
+creating a duplicate or uploading the image twice.
+The browser never receives a WooCommerce consumer key; cookie authentication
+and the REST nonce cover the in-dashboard request, while WooCommerce's CRUD
+layer remains the source of truth for prices, stock, categories, SKU
+uniqueness, and product hooks. A companion read route at
+`woocommerce/product-studio` supplies live categories, currency formatting,
+upload limits, and publish capability for the current user.
+
 **Ownership attribution.** `registered_post_type` / `registered_taxonomy`
 fire during `init`, where `get_plugins()` does not yet exist — Core
 loads `wp-admin/includes/plugin.php` at `wp-admin/admin.php:102`, after

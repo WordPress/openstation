@@ -3574,6 +3574,51 @@ types are submenu entries under the WooCommerce menu, so they carry no
 `menu_icon` of their own and would otherwise fall back to the generic
 post pin.
 
+#### Product Studio
+
+The Woo folder's **Create product** action and the **Add New Product**
+desktop shortcut open a four-stage native
+window backed by WooCommerce's product CRUD API. The window keeps an
+unsaved draft and live storefront preview in the browser. It snapshots the
+serializable fields in same-tab session storage so an accidental close or
+reload is recoverable; product images must be reselected because file objects
+are never stored. Saving sends a nonce-authenticated multipart request to `POST
+desktop-mode/v1/woocommerce/products`. Product-type capabilities gate
+creation and publishing separately; image uploads additionally require
+`upload_files`. Every draft also sends a UUID `requestId`. The server stores it
+as private, user-scoped product metadata and returns the existing product when
+the same request is retried, preventing duplicate products after a lost
+network response.
+
+```php
+apply_filters( 'openstation_my_wordpress_woo_product_studio_template_html', string $html ): string
+```
+
+The Product Studio window's static template before it is emitted. Keep
+`data-os-woo-product-studio-root` intact so the Woo integration bundle
+can mount the flow. The result passes through
+`openstation_kses_native_window_template()`.
+
+```php
+apply_filters( 'openstation_my_wordpress_woo_product_studio_window_args', array $args ): array
+```
+
+The `openstation_register_window()` args for the Product Studio window:
+title, icon, dimensions, shared Woo integration script/style handles,
+and `placement => 'none'`.
+
+```php
+apply_filters( 'openstation_my_wordpress_woo_product_studio_icon_args', array $args ): array
+```
+
+The `openstation_register_icon()` args for the **Add New Product**
+desktop shortcut: title, Dashicon, Product Studio window target, and
+desktop position. The shortcut is not pinned, so the user can place or
+hide it through the normal desktop-item controls.
+
+All three filters are active only when WooCommerce is loaded and the viewer
+can edit products.
+
 #### Customers
 
 The **Customers** section renders through the built-in `user` entity
@@ -4929,6 +4974,28 @@ row and definition meta.
 - **Param** `int $user_id` — agent user id.
 - **Param** `array $args` — sanitized creation fields `{ name, role, description, instructions, abilities }`.
 - **Param** `int $actor_id` — user who created the agent.
+
+### `openstation_pre_agents_generate_blueprint` — Experimental *(filter)*
+
+Short-circuits the model call behind `POST /agents/generate`. Return
+an agent-definition array (`{ name, description, instructions, role,
+abilities }`) or a `WP_Error`; return `null` to use the configured Core
+AI Client. A returned definition still passes through the live role
+and ability-catalogue validation before an agent is created.
+
+- **Param** `array|WP_Error|null $generated`
+- **Param** `string $brief` — the administrator's natural-language brief.
+- **Param** `array $context` — assignable `roles` and available `abilities`.
+
+### `openstation_agents_blueprint_instructions` — Experimental *(filter)*
+
+Filters the system instruction used to turn the administrator's brief
+into an agent definition. The dynamic role and ability catalogues are
+sent separately in the user prompt and the structured response is
+validated server-side.
+
+- **Param** `string $instructions`
+- **Param** `array $context` — assignable `roles` and available `abilities`.
 
 ### `openstation_agent_updated` — Experimental *(action)*
 

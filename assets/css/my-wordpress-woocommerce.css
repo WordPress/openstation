@@ -142,6 +142,177 @@
 	margin-inline-end: 4px;
 }
 
+/* ----- Product catalog workspace ----- */
+
+.os-woo-panel--product {
+	container-name: woo-product-panel;
+	container-type: inline-size;
+	padding: 16px;
+	border-radius: 14px;
+	background:
+		radial-gradient(
+			circle at 100% 0,
+			color-mix( in srgb, var( --os-ui-accent, #2271b1 ) 9%, transparent ),
+			transparent 42%
+		),
+		var( --os-ui-bg-subtle, rgba( 0, 0, 0, 0.02 ) );
+}
+
+.os-woo-panel--product .os-woo-panel__title {
+	margin-block-end: 12px;
+	font-size: 14px;
+	font-weight: 700;
+	letter-spacing: -0.01em;
+	text-transform: none;
+	color: var( --os-ui-fg, #1e1e1e );
+}
+
+.os-woo-panel__row--product-snapshot {
+	display: block;
+	grid-column: 1 / -1;
+}
+
+.os-woo-panel__product-snapshot {
+	display: grid;
+	grid-template-columns: repeat( 3, minmax( 0, 1fr ) );
+	gap: 8px;
+	margin: 0 0 7px;
+}
+
+.os-woo-panel__product-metric {
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	gap: 4px;
+	min-height: 60px;
+	padding: 9px 10px;
+	box-sizing: border-box;
+	border: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.1 ) );
+	border-radius: 9px;
+	background: var( --os-ui-surface, var( --os-window-bg, #fff ) );
+}
+
+.os-woo-panel__product-metric small {
+	color: var( --os-ui-fg-muted, #646970 );
+	font-size: 9px;
+	font-weight: 700;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+}
+
+.os-woo-panel__product-metric strong {
+	font-size: 14px;
+	font-variant-numeric: tabular-nums;
+}
+
+.os-woo-product-tile .os-file-tile__visual {
+	position: relative;
+	border-radius: 12px;
+	box-shadow: 0 10px 22px rgba( 0, 0, 0, 0.15 );
+}
+
+.os-woo-product-tile__meta {
+	position: absolute;
+	inset-inline: 7px;
+	inset-block-end: 7px;
+	display: flex;
+	align-items: flex-start;
+	flex-direction: column;
+	justify-content: flex-end;
+	gap: 3px;
+	z-index: 1;
+}
+
+.os-woo-product-tile__meta::before {
+	content: '';
+	position: absolute;
+	inset: -28px -7px -7px;
+	z-index: -1;
+	border-radius: 0 0 10px 10px;
+	background: linear-gradient( to top, rgba( 7, 8, 13, 0.88 ), transparent );
+	pointer-events: none;
+}
+
+.os-woo-product-tile__category {
+	order: -1;
+	max-width: 100%;
+	overflow: hidden;
+	color: #fff;
+	font-size: 9px;
+	font-weight: 650;
+	text-overflow: ellipsis;
+	text-shadow: 0 1px 5px rgba( 0, 0, 0, 0.9 );
+	white-space: nowrap;
+}
+
+.os-woo-product-create-action {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 14px;
+	margin-block-start: 16px;
+	padding: 13px 14px;
+	border: 1px solid
+		color-mix( in srgb, var( --os-ui-accent, #2271b1 ) 34%, transparent );
+	border-radius: 12px;
+	background: color-mix( in srgb, var( --os-ui-accent, #2271b1 ) 8%, transparent );
+}
+
+.os-woo-product-create-action strong,
+.os-woo-product-create-action small {
+	display: block;
+}
+
+.os-woo-product-create-action small {
+	margin-block-start: 2px;
+	color: var( --os-ui-fg-muted, #646970 );
+	font-size: 10px;
+}
+
+/* My WordPress opens at a compact desktop width, leaving roughly 200px
+ * for the preview pane. Reflow against the panel itself instead of the
+ * browser viewport so widening the window restores the three-up view. */
+@container woo-product-panel ( max-width: 420px ) {
+	.os-woo-panel__rows {
+		grid-template-columns: minmax( 0, 1fr );
+		gap: 3px;
+	}
+
+	.os-woo-panel__row--product-snapshot {
+		grid-column: 1;
+	}
+
+	.os-woo-panel__product-snapshot {
+		grid-template-columns: minmax( 0, 1fr );
+		gap: 6px;
+	}
+
+	.os-woo-panel__product-metric {
+		align-items: center;
+		flex-direction: row;
+		justify-content: space-between;
+		min-height: 0;
+		padding: 9px 10px;
+	}
+
+	.os-woo-panel--product .os-woo-panel__label {
+		margin-block-start: 7px;
+		font-size: 10px;
+		font-weight: 700;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+	}
+
+	.os-woo-product-create-action {
+		align-items: stretch;
+		flex-direction: column;
+	}
+
+	.os-woo-product-create-action os-button::part( button ) {
+		width: 100%;
+	}
+}
+
 /* ----- Tile badges ----- */
 
 /* Out-of-stock (and low-stock / sale) products carry a corner ribbon
@@ -508,4 +679,1136 @@ os-ribbon.os-woo-ribbon {
 	gap: 8px;
 	margin-block-start: auto;
 	padding-block-start: 4px;
+}
+
+/* ===================================================================
+ * Product Studio
+ * =================================================================== */
+
+/* ----- Woo folder launcher ----- */
+
+.os-woo-product-studio-launcher {
+	display: grid;
+	grid-template-columns: auto minmax( 0, 1fr ) auto;
+	align-items: center;
+	gap: 14px;
+	margin: 12px 16px 0;
+	padding: 14px 16px;
+	border: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.12 ) );
+	border-radius: 12px;
+	background:
+		linear-gradient(
+			120deg,
+			color-mix( in srgb, var( --os-ui-accent, #2271b1 ) 12%, transparent ),
+			transparent 52%
+		),
+		var( --os-ui-surface, var( --os-window-bg, #fff ) );
+	box-shadow: 0 10px 24px rgba( 0, 0, 0, 0.08 );
+	color: var( --os-ui-fg, #1e1e1e );
+}
+
+.os-woo-product-studio-launcher > .dashicons {
+	display: grid;
+	place-items: center;
+	width: 42px;
+	height: 42px;
+	border-radius: 12px;
+	background: var( --os-ui-accent, #2271b1 );
+	color: var( --os-ui-accent-contrast, #fff );
+	font-size: 21px;
+	line-height: 1;
+}
+
+.os-woo-product-studio-launcher__eyebrow {
+	margin-block-end: 2px;
+	font-size: 10px;
+	font-weight: 750;
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+	color: var( --os-ui-accent, #2271b1 );
+}
+
+.os-woo-product-studio-launcher h3,
+.os-woo-product-studio-launcher p {
+	margin: 0;
+}
+
+.os-woo-product-studio-launcher h3 {
+	font-size: 15px;
+	line-height: 1.3;
+}
+
+.os-woo-product-studio-launcher p {
+	margin-block-start: 3px;
+	color: var( --os-ui-fg-muted, #646970 );
+	font-size: 12px;
+	line-height: 1.45;
+}
+
+/* ----- Window shell ----- */
+
+/* Native-window geometry is restored from desktop state. Clamp this
+ * large canvas to the live viewport as a final guard when the browser
+ * is narrowed after a previous wide-screen session. The bottom inset
+ * keeps the floating dock from covering the sticky action bar. */
+#wp-window-desktop-mode-woo-product-studio {
+	max-inline-size: calc( 100vw - 24px );
+	max-block-size: calc( 100vh - 100px );
+	max-block-size: calc( 100dvh - 100px );
+}
+
+.os-woo-product-studio {
+	container-type: inline-size;
+	display: flex;
+	flex-direction: column;
+	min-height: 100%;
+	height: 100%;
+	box-sizing: border-box;
+	overflow: hidden;
+	background: var( --os-window-bg, #f6f7f7 );
+	color: var( --os-ui-fg, #1e1e1e );
+	font-size: 13px;
+	line-height: 1.5;
+}
+
+.os-woo-product-studio__loading,
+.os-woo-product-studio__load-error {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	flex: 1;
+	min-height: 320px;
+	padding: 32px;
+	box-sizing: border-box;
+	text-align: center;
+}
+
+.os-woo-product-studio__loading os-spinner {
+	--os-ui-spinner-size: 44px;
+}
+
+.os-woo-product-studio__load-error > .dashicons {
+	width: 48px;
+	height: 48px;
+	margin-block-end: 12px;
+	color: var( --os-ui-warning-fg, #996800 );
+	font-size: 48px;
+}
+
+.os-woo-product-studio__load-error h2,
+.os-woo-product-studio__load-error p {
+	margin: 0;
+}
+
+.os-woo-product-studio__load-error p {
+	max-width: 480px;
+	margin: 8px 0 18px;
+	color: var( --os-ui-fg-muted, #646970 );
+}
+
+.os-woo-product-studio__header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 20px;
+	padding: 11px 20px 10px;
+	background: var( --os-ui-surface, var( --os-window-bg, #fff ) );
+}
+
+.os-woo-product-studio__header h1 {
+	margin: 1px 0 0;
+	font-size: clamp( 17px, 1.8cqi, 21px );
+	font-weight: 650;
+	line-height: 1.18;
+	letter-spacing: -0.025em;
+}
+
+.os-woo-product-studio__eyebrow {
+	font-size: 10px;
+	font-weight: 750;
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+	color: var( --os-ui-accent, #2271b1 );
+}
+
+.os-woo-product-studio__progress {
+	--os-ui-progress-height: 3px;
+	--os-ui-progress-track-bg: var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
+	display: block;
+	padding: 0;
+	box-sizing: border-box;
+	background: var( --os-ui-bg-subtle, rgba( 0, 0, 0, 0.02 ) );
+}
+
+.os-woo-product-studio__progress::part( header ) {
+	display: none;
+}
+
+.os-woo-product-studio__progress::part( track ) {
+	border-radius: 0;
+}
+
+.os-woo-product-studio__workbench {
+	display: grid;
+	grid-template-columns: minmax( 430px, 1fr ) minmax( 320px, 390px );
+	flex: 1;
+	min-height: 0;
+	background: var( --os-ui-bg-subtle, rgba( 0, 0, 0, 0.02 ) );
+}
+
+/* ----- Step rail ----- */
+
+.os-woo-product-studio__steps {
+	display: flex;
+	gap: 8px;
+	min-width: 0;
+	padding: 8px 18px;
+	box-sizing: border-box;
+	border-block-start: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
+	border-block-end: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.1 ) );
+	background: var( --os-ui-bg-subtle, rgba( 0, 0, 0, 0.02 ) );
+}
+
+os-button.os-woo-product-studio__step-button {
+	display: block;
+	flex: 1 1 0;
+	min-width: 0;
+}
+
+os-button.os-woo-product-studio__step-button::part( button ) {
+	display: grid;
+	grid-template-columns: 28px minmax( 0, 1fr );
+	align-items: center;
+	gap: 9px;
+	width: 100%;
+	min-height: 48px;
+	padding: 8px 9px;
+	border-color: transparent;
+	border-radius: 9px;
+	text-align: start;
+}
+
+os-button.os-woo-product-studio__step-button[ aria-current='step' ]::part( button ) {
+	border-color: var( --os-ui-accent, #2271b1 );
+	background:
+		linear-gradient(
+			100deg,
+			color-mix( in srgb, var( --os-ui-accent, #2271b1 ) 14%, transparent ),
+			color-mix( in srgb, var( --os-ui-accent, #2271b1 ) 4%, transparent )
+		);
+	box-shadow: inset 0 -2px 0 var( --os-ui-accent, #2271b1 );
+}
+
+.os-woo-product-studio__step-number {
+	display: grid;
+	place-items: center;
+	width: 26px;
+	height: 26px;
+	border: 1px solid var( --os-ui-border-strong, rgba( 0, 0, 0, 0.24 ) );
+	border-radius: 50%;
+	font-size: 11px;
+	font-weight: 750;
+	font-variant-numeric: tabular-nums;
+}
+
+.os-woo-product-studio__step-button[ aria-current='step' ]
+	.os-woo-product-studio__step-number {
+	border-color: var( --os-ui-accent, #2271b1 );
+	background: var( --os-ui-accent, #2271b1 );
+	color: var( --os-ui-accent-contrast, #fff );
+}
+
+.os-woo-product-studio__step-button.is-complete
+	.os-woo-product-studio__step-number {
+	border-color: var( --os-ui-success-fg, #1a7f37 );
+	color: var( --os-ui-success-fg, #1a7f37 );
+}
+
+.os-woo-product-studio__step-button strong,
+.os-woo-product-studio__step-button small {
+	display: block;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.os-woo-product-studio__step-button strong {
+	font-size: 12px;
+	line-height: 1.25;
+}
+
+.os-woo-product-studio__step-button small {
+	margin-block-start: 2px;
+	font-size: 10px;
+	font-weight: 450;
+	color: var( --os-ui-fg-muted, #646970 );
+}
+
+/* ----- Stage ----- */
+
+.os-woo-product-studio__stage {
+	min-width: 0;
+	min-height: 0;
+	padding: clamp( 20px, 2.5cqi, 32px );
+	box-sizing: border-box;
+	overflow: auto;
+	background:
+		radial-gradient(
+			circle at 90% 0,
+			color-mix( in srgb, var( --os-ui-accent, #2271b1 ) 5%, transparent ),
+			transparent 36%
+		),
+		var( --os-ui-surface, var( --os-window-bg, #fff ) );
+	scrollbar-gutter: stable;
+}
+
+.os-woo-product-studio__stage > * + * {
+	margin-block-start: 20px;
+}
+
+.os-woo-product-studio__stage-heading {
+	max-width: 650px;
+	margin-block-end: 18px;
+}
+
+.os-woo-product-studio__stage-heading h2,
+.os-woo-product-studio__stage-heading p {
+	margin: 0;
+}
+
+.os-woo-product-studio__stage-heading h2 {
+	margin-block-start: 5px;
+	font-size: clamp( 23px, 2.4cqi, 30px );
+	font-weight: 650;
+	line-height: 1.14;
+	letter-spacing: -0.03em;
+}
+
+.os-woo-product-studio__stage-heading p {
+	max-width: 590px;
+	margin-block-start: 9px;
+	color: var( --os-ui-fg-muted, #646970 );
+	font-size: 13px;
+	line-height: 1.55;
+}
+
+.os-woo-product-studio__editor-panel {
+	padding: 18px;
+	border: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.1 ) );
+	border-radius: 14px;
+	background: color-mix(
+		in srgb,
+		var( --os-ui-bg-subtle, rgba( 0, 0, 0, 0.03 ) ) 78%,
+		transparent
+	);
+	box-shadow: 0 14px 34px rgba( 0, 0, 0, 0.06 );
+}
+
+.os-woo-product-studio__editor-panel > * + * {
+	margin-block-start: 16px;
+}
+
+.os-woo-product-studio__editor-panel-heading {
+	padding-block-end: 13px;
+	border-block-end: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
+}
+
+.os-woo-product-studio__editor-panel-heading h3,
+.os-woo-product-studio__editor-panel-heading p {
+	margin: 0;
+}
+
+.os-woo-product-studio__editor-panel-heading h3 {
+	font-size: 14px;
+	font-weight: 700;
+}
+
+.os-woo-product-studio__editor-panel-heading p {
+	margin-block-start: 2px;
+	color: var( --os-ui-fg-muted, #646970 );
+	font-size: 11px;
+}
+
+.os-woo-product-studio__readiness {
+	display: grid;
+	grid-template-columns: 38px minmax( 0, 1fr );
+	align-items: center;
+	gap: 12px;
+	min-height: 66px;
+	padding: 12px 14px;
+	box-sizing: border-box;
+	border: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.1 ) );
+	border-radius: 12px;
+	background: var( --os-ui-bg-subtle, rgba( 0, 0, 0, 0.025 ) );
+}
+
+.os-woo-product-studio__readiness > .dashicons {
+	display: grid;
+	place-items: center;
+	width: 36px;
+	height: 36px;
+	border-radius: 50%;
+	background: color-mix( in srgb, currentColor 12%, transparent );
+	color: var( --os-ui-fg-muted, #646970 );
+	font-size: 18px;
+}
+
+.os-woo-product-studio__readiness.is-ready {
+	border-color: color-mix( in srgb, var( --os-ui-success-fg, #1a7f37 ) 34%, transparent );
+	background: color-mix( in srgb, var( --os-ui-success-fg, #1a7f37 ) 7%, transparent );
+}
+
+.os-woo-product-studio__readiness.is-ready > .dashicons {
+	color: var( --os-ui-success-fg, #1a7f37 );
+}
+
+.os-woo-product-studio__readiness.is-progress > .dashicons {
+	color: var( --os-ui-info-fg, var( --os-ui-accent, #2271b1 ) );
+}
+
+.os-woo-product-studio__readiness.is-guidance > .dashicons {
+	color: var( --os-ui-warning-fg, #996800 );
+}
+
+.os-woo-product-studio__readiness strong,
+.os-woo-product-studio__readiness small {
+	display: block;
+}
+
+.os-woo-product-studio__readiness strong {
+	font-size: 12px;
+}
+
+.os-woo-product-studio__readiness small {
+	margin-block-start: 2px;
+	color: var( --os-ui-fg-muted, #646970 );
+	font-size: 10px;
+	line-height: 1.4;
+}
+
+.os-woo-product-studio__kind-grid {
+	display: grid;
+	grid-template-columns: repeat( 2, minmax( 0, 1fr ) );
+	gap: 10px;
+}
+
+.os-woo-product-studio__kind-grid os-card {
+	display: grid;
+	grid-template-columns: 34px minmax( 0, 1fr );
+	align-items: center;
+	gap: 10px;
+	--os-ui-card-padding: 13px;
+	--os-ui-card-radius: 10px;
+}
+
+.os-woo-product-studio__kind-icon {
+	display: grid;
+	place-items: center;
+	width: 34px;
+	height: 34px;
+	border-radius: 9px;
+	background: var( --os-ui-bg-subtle, rgba( 0, 0, 0, 0.05 ) );
+	color: var( --os-ui-accent, #2271b1 );
+	font-size: 17px;
+}
+
+.os-woo-product-studio__kind-grid strong,
+.os-woo-product-studio__kind-grid small {
+	display: block;
+}
+
+.os-woo-product-studio__kind-grid strong {
+	font-size: 12px;
+}
+
+.os-woo-product-studio__kind-grid small {
+	margin-block-start: 2px;
+	color: var( --os-ui-fg-muted, #646970 );
+	font-size: 10px;
+	line-height: 1.35;
+}
+
+.os-woo-product-studio__field-grid {
+	display: grid;
+	grid-template-columns: repeat( 2, minmax( 0, 1fr ) );
+	gap: 18px 14px;
+}
+
+.os-woo-product-studio__field-grid > :last-child {
+	grid-column: 1 / -1;
+}
+
+.os-woo-product-studio__field-wrap {
+	min-width: 0;
+}
+
+.os-woo-product-studio__field-hint {
+	margin: 5px 2px 0;
+	color: var( --os-ui-fg-muted, #646970 );
+	font-size: 10px;
+	line-height: 1.4;
+}
+
+.os-woo-product-studio__subsection,
+.os-woo-product-studio__categories {
+	padding-block-start: 16px;
+	border-block-start: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.1 ) );
+}
+
+.os-woo-product-studio__subsection h3,
+.os-woo-product-studio__categories h3,
+.os-woo-product-studio__categories p {
+	margin: 0;
+}
+
+.os-woo-product-studio__subsection h3,
+.os-woo-product-studio__categories h3 {
+	font-size: 13px;
+}
+
+.os-woo-product-studio__subsection os-checkbox-label {
+	display: block;
+	margin: 9px 0 14px;
+}
+
+/* ----- Image + categories ----- */
+
+.os-woo-product-studio__image-picker {
+	display: grid;
+	grid-template-columns: auto minmax( 0, 1fr ) auto;
+	align-items: center;
+	gap: 6px 13px;
+	min-height: 124px;
+	padding: 18px;
+	box-sizing: border-box;
+	border: 1px dashed var( --os-ui-border-strong, rgba( 0, 0, 0, 0.28 ) );
+	border-radius: 12px;
+	background: var( --os-ui-bg-subtle, rgba( 0, 0, 0, 0.025 ) );
+	transition:
+		border-color 160ms ease,
+		background 160ms ease,
+		transform 160ms ease;
+}
+
+.os-woo-product-studio__image-picker.is-dragging {
+	border-color: var( --os-ui-accent, #2271b1 );
+	background: color-mix( in srgb, var( --os-ui-accent, #2271b1 ) 10%, transparent );
+	transform: translateY( -1px );
+}
+
+.os-woo-product-studio__image-picker > .dashicons {
+	grid-row: 1 / span 2;
+	display: grid;
+	place-items: center;
+	width: 44px;
+	height: 44px;
+	border-radius: 12px;
+	background: var( --os-ui-surface, var( --os-window-bg, #fff ) );
+	box-shadow: 0 4px 14px rgba( 0, 0, 0, 0.08 );
+	color: var( --os-ui-accent, #2271b1 );
+	font-size: 21px;
+}
+
+.os-woo-product-studio__image-picker > strong {
+	align-self: end;
+	font-size: 13px;
+	overflow-wrap: anywhere;
+}
+
+.os-woo-product-studio__image-picker > span:not( .dashicons ) {
+	align-self: start;
+	color: var( --os-ui-fg-muted, #646970 );
+	font-size: 10px;
+}
+
+.os-woo-product-studio__image-picker os-button {
+	grid-row: 1 / span 2;
+}
+
+.os-woo-product-studio__image-picker os-button + os-button {
+	grid-column: 2;
+	grid-row: 3;
+	justify-self: start;
+}
+
+.os-woo-product-studio__file-input {
+	position: fixed;
+	width: 1px;
+	height: 1px;
+	opacity: 0;
+	pointer-events: none;
+}
+
+.os-woo-product-studio__categories > p {
+	margin-block-start: 3px;
+	color: var( --os-ui-fg-muted, #646970 );
+	font-size: 11px;
+}
+
+.os-woo-product-studio__category-list {
+	display: grid;
+	grid-template-columns: repeat( 2, minmax( 0, 1fr ) );
+	gap: 2px 8px;
+	max-height: 180px;
+	margin-block-start: 12px;
+	padding: 8px;
+	box-sizing: border-box;
+	overflow: auto;
+	border: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.1 ) );
+	border-radius: 9px;
+	background: var( --os-ui-bg-subtle, rgba( 0, 0, 0, 0.02 ) );
+}
+
+.os-woo-product-studio__category-list os-checkbox-label {
+	min-width: 0;
+	padding: 5px 7px;
+	padding-inline-start: calc( 7px + var( --os-woo-category-depth, 0 ) * 12px );
+	border-radius: 6px;
+	font-size: 11px;
+}
+
+.os-woo-product-studio__category-list os-checkbox-label:hover {
+	background: color-mix( in srgb, var( --os-ui-accent, #2271b1 ) 8%, transparent );
+}
+
+.os-woo-product-studio__category-empty {
+	padding: 12px;
+	border-radius: 8px;
+	background: var( --os-ui-bg-subtle, rgba( 0, 0, 0, 0.03 ) );
+}
+
+/* ----- Review ----- */
+
+.os-woo-product-studio__review-grid {
+	display: grid;
+	grid-template-columns: repeat( 2, minmax( 0, 1fr ) );
+	gap: 10px;
+}
+
+.os-woo-product-studio__review-row {
+	display: grid;
+	grid-template-columns: 28px minmax( 0, 1fr );
+	align-items: center;
+	gap: 10px;
+	min-height: 66px;
+	padding: 11px 12px;
+	box-sizing: border-box;
+	border: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.1 ) );
+	border-radius: 9px;
+	background: var( --os-ui-bg-subtle, rgba( 0, 0, 0, 0.02 ) );
+}
+
+.os-woo-product-studio__review-row > .dashicons {
+	display: grid;
+	place-items: center;
+	width: 28px;
+	height: 28px;
+	border-radius: 50%;
+	background: color-mix( in srgb, var( --os-ui-success-fg, #1a7f37 ) 12%, transparent );
+	color: var( --os-ui-success-fg, #1a7f37 );
+}
+
+.os-woo-product-studio__review-row > .dashicons-marker {
+	background: color-mix( in srgb, var( --os-ui-warning-fg, #996800 ) 12%, transparent );
+	color: var( --os-ui-warning-fg, #996800 );
+}
+
+.os-woo-product-studio__review-row small,
+.os-woo-product-studio__review-row strong {
+	display: block;
+}
+
+.os-woo-product-studio__review-row small {
+	font-size: 9px;
+	font-weight: 700;
+	letter-spacing: 0.07em;
+	text-transform: uppercase;
+	color: var( --os-ui-fg-muted, #646970 );
+}
+
+.os-woo-product-studio__review-row strong {
+	margin-block-start: 2px;
+	font-size: 12px;
+	overflow-wrap: anywhere;
+}
+
+.os-woo-product-studio__error {
+	margin-block-end: 16px;
+}
+
+/* ----- Live preview ----- */
+
+.os-woo-product-studio__preview {
+	min-width: 0;
+	min-height: 0;
+	padding: 18px;
+	box-sizing: border-box;
+	overflow: auto;
+	border-inline-start: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.1 ) );
+	background:
+		radial-gradient(
+			circle at 90% 0,
+			color-mix( in srgb, var( --os-ui-accent, #2271b1 ) 10%, transparent ),
+			transparent 38%
+		),
+		var( --os-ui-bg-subtle, #f0f0f1 );
+}
+
+.os-woo-product-studio__preview-header {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 10px;
+	margin-block-end: 10px;
+}
+
+.os-woo-product-studio__preview-label {
+	margin: 0;
+	font-size: 9px;
+	font-weight: 750;
+	letter-spacing: 0.09em;
+	text-transform: uppercase;
+	color: var( --os-ui-fg-muted, #646970 );
+}
+
+.os-woo-product-studio__preview-header > span {
+	color: var( --os-ui-fg-muted, #646970 );
+	font-size: 9px;
+}
+
+.os-woo-product-studio__preview-frame {
+	padding: 9px;
+	border: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.12 ) );
+	border-radius: 16px;
+	background: color-mix(
+		in srgb,
+		var( --os-ui-surface, var( --os-window-bg, #fff ) ) 84%,
+		transparent
+	);
+	box-shadow: 0 20px 46px rgba( 0, 0, 0, 0.12 );
+}
+
+.os-woo-product-studio__store-bar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+	padding: 3px 4px 10px;
+}
+
+.os-woo-product-studio__store-bar > span {
+	display: flex;
+	align-items: center;
+	gap: 7px;
+	min-width: 0;
+	font-size: 10px;
+}
+
+.os-woo-product-studio__store-bar .dashicons {
+	width: 16px;
+	height: 16px;
+	color: var( --os-ui-accent, #2271b1 );
+	font-size: 16px;
+}
+
+.os-woo-product-studio__product-card {
+	width: 100%;
+	max-width: 330px;
+	margin: 0 auto;
+	overflow: hidden;
+	border: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.1 ) );
+	border-radius: 11px;
+	background: var( --os-ui-surface, var( --os-window-bg, #fff ) );
+	box-shadow: 0 12px 30px rgba( 0, 0, 0, 0.11 );
+}
+
+.os-woo-product-studio__product-media {
+	position: relative;
+	aspect-ratio: 4 / 3;
+	overflow: hidden;
+	background: #111;
+}
+
+.os-woo-product-studio__product-media img {
+	display: block;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+.os-woo-product-studio__product-media.is-placeholder img {
+	opacity: 0.78;
+	filter: saturate( 0.82 );
+}
+
+.os-woo-product-studio__product-media.is-placeholder::after {
+	content: '';
+	position: absolute;
+	inset: 0;
+	background: linear-gradient( to top, rgba( 0, 0, 0, 0.7 ), transparent 44% );
+	pointer-events: none;
+}
+
+.os-woo-product-studio__preview-badge {
+	position: absolute;
+	inset-block-start: 12px;
+	inset-inline-start: 12px;
+	z-index: 1;
+}
+
+.os-woo-product-studio__image-prompt {
+	position: absolute;
+	inset-inline: 16px;
+	inset-block-end: 15px;
+	z-index: 1;
+	color: #fff;
+	font-size: 11px;
+	font-weight: 650;
+	text-align: center;
+	text-shadow: 0 1px 8px rgba( 0, 0, 0, 0.8 );
+}
+
+.os-woo-product-studio__product-copy {
+	padding: 17px 18px 16px;
+}
+
+.os-woo-product-studio__product-copy h3,
+.os-woo-product-studio__product-copy p {
+	margin: 0;
+}
+
+.os-woo-product-studio__product-copy h3 {
+	font-size: 18px;
+	line-height: 1.22;
+	letter-spacing: -0.018em;
+	overflow-wrap: anywhere;
+}
+
+.os-woo-product-studio__product-copy p {
+	display: -webkit-box;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 3;
+	overflow: hidden;
+	min-height: 2.9em;
+	margin-block-start: 9px;
+	color: var( --os-ui-fg-muted, #646970 );
+	font-size: 11px;
+	line-height: 1.45;
+}
+
+.os-woo-product-studio__preview-price {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	margin-block-start: 8px;
+}
+
+.os-woo-product-studio__preview-price s {
+	color: var( --os-ui-fg-muted, #646970 );
+	font-size: 11px;
+}
+
+.os-woo-product-studio__preview-price strong {
+	font-size: 17px;
+	font-variant-numeric: tabular-nums;
+}
+
+.os-woo-product-studio__preview-categories {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 5px;
+	margin-block-start: 12px;
+}
+
+.os-woo-product-studio__preview-categories span {
+	padding: 2px 7px;
+	border-radius: 999px;
+	background: var( --os-ui-bg-subtle, rgba( 0, 0, 0, 0.05 ) );
+	color: var( --os-ui-fg-muted, #646970 );
+	font-size: 9px;
+	font-weight: 650;
+}
+
+.os-woo-product-studio__preview-stock {
+	margin-block-start: 12px;
+	padding-block-start: 10px;
+	border-block-start: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
+	color: var( --os-ui-success-fg, #1a7f37 );
+	font-size: 10px;
+	font-weight: 650;
+}
+
+.os-woo-product-studio__preview-stock::before {
+	content: '';
+	display: inline-block;
+	width: 6px;
+	height: 6px;
+	margin-inline-end: 6px;
+	border-radius: 50%;
+	background: currentColor;
+	vertical-align: 1px;
+}
+
+/* ----- Footer ----- */
+
+.os-woo-product-studio__footer {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+	min-height: 66px;
+	padding: 11px 20px;
+	box-sizing: border-box;
+	border-block-start: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.1 ) );
+	background: var( --os-ui-surface, var( --os-window-bg, #fff ) );
+	box-shadow: 0 -8px 22px rgba( 0, 0, 0, 0.04 );
+}
+
+.os-woo-product-studio__footer-leading,
+.os-woo-product-studio__footer-trailing {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+/*
+ * Maximized windows fill `.os-area`'s border box while the floating
+ * bottom dock sits over its final ~80px. Pull Product Studio's actions
+ * into that reserved safe area so Save / Continue never land behind
+ * the dock. Fullscreen windows do not carry `--maximized`, and hide the
+ * dock, so they keep the tighter footer above.
+ */
+.os-window--maximized .os-woo-product-studio__footer {
+	min-height: 140px;
+	padding-block-end: 84px;
+}
+
+.os-window--maximized .os-woo-product-studio.is-complete {
+	padding-block-end: 80px;
+}
+
+/* ----- Completion ----- */
+
+.os-woo-product-studio.is-complete {
+	overflow: auto;
+}
+
+.os-woo-product-studio__success {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	flex: 1;
+	width: min( 680px, calc( 100% - 48px ) );
+	margin: 0 auto;
+	padding: 42px 24px;
+	box-sizing: border-box;
+	text-align: center;
+}
+
+.os-woo-product-studio__success > .dashicons {
+	display: grid;
+	place-items: center;
+	width: 58px;
+	height: 58px;
+	margin-block-end: 16px;
+	border-radius: 50%;
+	background: color-mix( in srgb, var( --os-ui-success-fg, #1a7f37 ) 14%, transparent );
+	color: var( --os-ui-success-fg, #1a7f37 );
+	font-size: 34px;
+}
+
+.os-woo-product-studio__success h2,
+.os-woo-product-studio__success p {
+	margin: 0;
+}
+
+.os-woo-product-studio__success h2 {
+	margin-block-start: 6px;
+	font-size: clamp( 27px, 4cqi, 40px );
+	line-height: 1.1;
+	letter-spacing: -0.035em;
+}
+
+.os-woo-product-studio__success > p {
+	max-width: 560px;
+	margin-block-start: 12px;
+	color: var( --os-ui-fg-muted, #646970 );
+	font-size: 13px;
+	line-height: 1.55;
+}
+
+.os-woo-product-studio__success-product {
+	display: grid;
+	grid-template-columns: 72px minmax( 0, 1fr );
+	align-items: center;
+	gap: 14px;
+	width: min( 420px, 100% );
+	margin-block-start: 24px;
+	padding: 10px;
+	box-sizing: border-box;
+	border: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.1 ) );
+	border-radius: 12px;
+	background: var( --os-ui-surface, var( --os-window-bg, #fff ) );
+	box-shadow: 0 12px 30px rgba( 0, 0, 0, 0.1 );
+	text-align: start;
+}
+
+.os-woo-product-studio__success-product img {
+	display: block;
+	width: 72px;
+	height: 86px;
+	border-radius: 8px;
+	object-fit: cover;
+	background: #111;
+}
+
+.os-woo-product-studio__success-product strong,
+.os-woo-product-studio__success-product span {
+	display: block;
+}
+
+.os-woo-product-studio__success-product strong {
+	font-size: 15px;
+	overflow-wrap: anywhere;
+}
+
+.os-woo-product-studio__success-product span {
+	margin-block-start: 4px;
+	color: var( --os-ui-fg-muted, #646970 );
+	font-size: 12px;
+}
+
+.os-woo-product-studio__success-actions {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-block-start: 24px;
+}
+
+/* ----- Responsive window states ----- */
+
+@container ( max-width: 940px ) {
+	.os-woo-product-studio__workbench {
+		grid-template-columns: minmax( 0, 1fr ) minmax( 280px, 320px );
+	}
+
+	.os-woo-product-studio__steps {
+		gap: 6px;
+		padding: 9px 12px;
+	}
+
+	os-button.os-woo-product-studio__step-button {
+		min-width: 0;
+	}
+
+	os-button.os-woo-product-studio__step-button::part( button ) {
+		min-height: 44px;
+		padding: 6px 8px;
+	}
+
+}
+
+@container ( max-width: 710px ) {
+	.os-woo-product-studio__header {
+		padding-inline: 18px;
+	}
+
+	.os-woo-product-studio__progress {
+		padding-inline: 0;
+	}
+
+	.os-woo-product-studio__workbench {
+		grid-template-columns: minmax( 0, 1fr );
+		grid-template-rows: auto auto;
+		overflow: auto;
+	}
+
+	.os-woo-product-studio__steps {
+		min-height: 64px;
+		overflow-x: auto;
+		overflow-y: hidden;
+	}
+
+	os-button.os-woo-product-studio__step-button {
+		flex: 0 0 150px;
+	}
+
+	.os-woo-product-studio__stage {
+		grid-column: 1;
+		grid-row: 1;
+		min-height: 460px;
+		overflow: visible;
+	}
+
+	.os-woo-product-studio__preview {
+		grid-column: 1;
+		grid-row: 2;
+		min-height: 580px;
+		overflow: visible;
+		border-inline-start: 0;
+		border-block-start: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.1 ) );
+	}
+
+	.os-woo-product-studio__product-card {
+		max-width: 360px;
+	}
+
+	.os-woo-product-studio__kind-grid,
+	.os-woo-product-studio__field-grid,
+	.os-woo-product-studio__review-grid,
+	.os-woo-product-studio__category-list {
+		grid-template-columns: minmax( 0, 1fr );
+	}
+
+	.os-woo-product-studio__field-grid > :last-child {
+		grid-column: auto;
+	}
+
+	.os-woo-product-studio__footer {
+		position: sticky;
+		inset-block-end: 0;
+	}
+}
+
+@media ( max-width: 720px ) {
+	.os-woo-product-studio-launcher {
+		grid-template-columns: auto minmax( 0, 1fr );
+	}
+
+	.os-woo-product-studio-launcher os-button {
+		grid-column: 1 / -1;
+		justify-self: stretch;
+	}
+
+	.os-woo-product-studio-launcher os-button::part( button ) {
+		width: 100%;
+		min-height: 44px;
+	}
+}
+
+@media ( max-width: 520px ) {
+	.os-woo-panel__product-snapshot {
+		grid-template-columns: minmax( 0, 1fr );
+	}
+
+	.os-woo-product-create-action {
+		align-items: stretch;
+		flex-direction: column;
+	}
+
+	.os-woo-product-create-action os-button::part( button ) {
+		width: 100%;
+	}
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.os-woo-product-studio__image-picker {
+		transition: none;
+	}
 }
