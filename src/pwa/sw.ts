@@ -214,6 +214,22 @@ sw.addEventListener( 'fetch', ( event: SWFetchEvent ) => {
 		return;
 	}
 
+	// A session boundary: drop everything held for the outgoing user.
+	//
+	// Speculative documents are fully rendered admin pages, and the
+	// restore list names the screens someone had open. Both outlived
+	// logout, so a second person signing in on the same browser inside
+	// the 30 s window could be handed the previous user's rendered page
+	// — their drafts, their comments, their settings — and their window
+	// list replayed. Reaching `wp-login.php` at all is the signal: it
+	// covers logging out, being logged out, and a different account
+	// signing in, without needing the shell to still be alive to say so.
+	if ( url.pathname.endsWith( '/wp-login.php' ) ) {
+		speculative.clear();
+		event.waitUntil( caches.delete( SESSION_CACHE ) );
+		return;
+	}
+
 	// Only intercept paths under the openstation portal or wp-admin —
 	// plus, when the shared admin-asset cache is opted in, versioned
 	// static assets anywhere WordPress serves them from (wp-includes

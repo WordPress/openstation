@@ -128,6 +128,24 @@ describe( 'SpeculativeStore', () => {
 	const res = ( tag: string ) =>
 		Promise.resolve( new Response( tag ) as Response | null );
 
+	test( 'clear() drops everything for a session boundary', async () => {
+		// Held entries are fully rendered admin pages belonging to
+		// whoever was signed in. They outlived logout, so a second user
+		// on the same browser inside the 30 s window could be handed the
+		// previous user's page — their drafts, their comments, their
+		// settings.
+		const store = new SpeculativeStore();
+		store.put( '/a', res( 'a' ) );
+		store.put( '/b', res( 'b' ) );
+		expect( store.size ).toBe( 2 );
+
+		store.clear();
+
+		expect( store.size ).toBe( 0 );
+		expect( store.take( '/a' ) ).toBeNull();
+		expect( store.take( '/b' ) ).toBeNull();
+	} );
+
 	test( 'holds the in-flight promise, not the settled response', async () => {
 		const store = new SpeculativeStore();
 		let settle: ( r: Response | null ) => void = () => undefined;
