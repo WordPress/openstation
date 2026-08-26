@@ -143,6 +143,21 @@ const CONFIG = readSwConfig( sw.__OS_SW_CONFIG, FALLBACK_PLUGIN_URL );
 const OWN_PLUGIN_PATH = new URL( CONFIG.pluginUrl ).pathname;
 
 /**
+ * Whether hover prewarming is on, kept LIVE rather than read off
+ * `CONFIG` at each use.
+ *
+ * The config preamble is baked into the worker body at install, so a
+ * `const` read of it can only change when a new worker installs. That
+ * made the toggle half-work: flipping "Prewarm windows on hover" ON
+ * enabled the shell-side half immediately (hover really did build a
+ * hidden window) while the worker kept dropping `os-speculate-doc`
+ * until some later reload happened to re-install it — and flipping it
+ * OFF left the worker still speculating. The shell now tells the
+ * running worker directly.
+ */
+let windowPrewarmEnabled = CONFIG.windowPrewarm;
+
+/**
  * Asset URLs precached on install. Kept narrow on purpose — paths
  * are unversioned, and the runtime cache lookups pass
  * `ignoreSearch: true` so a versioned request like
@@ -444,7 +459,7 @@ const REPLAY_THROTTLE_MS = 3_000;
  */
 async function replayRestoreTargets(): Promise< void > {
 	const now = Date.now();
-	if ( ! CONFIG.windowPrewarm || now - lastReplayAt < REPLAY_THROTTLE_MS ) {
+	if ( ! windowPrewarmEnabled || now - lastReplayAt < REPLAY_THROTTLE_MS ) {
 		return;
 	}
 	lastReplayAt = now;
@@ -488,8 +503,24 @@ sw.addEventListener( 'message', ( event: SWMessageEvent ) => {
 	// here: the shell already checks the opt-in before posting, and
 	// checking again means a stray message can never make an
 	// opted-out browser start writing caches.
+	// The prewarm toggle, applied to the RUNNING worker. Without this
+	// the flag only moved when a new worker installed, so the setting
+	// appeared to do nothing (on) or to keep working (off) until some
+	// later reload. Turning it off also drops anything already held —
+	// leaving rendered pages in memory after the user opted out is the
+	// one thing the toggle is expected to prevent.
+	if ( data && data.type === 'os-sw-set-prewarm' ) {
+		windowPrewarmEnabled =
+			( data as { enabled?: unknown } ).enabled === true;
+		if ( ! windowPrewarmEnabled ) {
+			speculative.clear();
+			event.waitUntil( caches.delete( SESSION_CACHE ) );
+		}
+		return;
+	}
+
 	if ( data && data.type === 'os-remember-session' ) {
-		if ( ! CONFIG.windowPrewarm ) {
+		if ( ! windowPrewarmEnabled ) {
 			return;
 		}
 		const urls = Array.isArray( data.urls ) ? data.urls : [];
@@ -514,7 +545,7 @@ sw.addEventListener( 'message', ( event: SWMessageEvent ) => {
 	if ( ! data || data.type !== 'os-speculate-doc' || ! data.url ) {
 		return;
 	}
-	if ( ! CONFIG.windowPrewarm ) {
+	if ( ! windowPrewarmEnabled ) {
 		// Same opt-in the dock's hover prewarming uses — this is that
 		// feature, applied to the document instead of a whole window.
 		return;

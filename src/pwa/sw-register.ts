@@ -280,6 +280,33 @@ export async function registerServiceWorker(
  * e.g. the install tile's click handler surfaces a foreign-SW-specific
  * toast when the value is `'foreign-sw'`.
  */
+/**
+ * Tell the RUNNING worker that hover prewarming was switched.
+ *
+ * The worker's own copy of the flag comes from the config preamble
+ * baked into its body at install, so it could not otherwise learn about
+ * a toggle until a new worker happened to install. That made the
+ * setting look broken in both directions: turning it on enabled the
+ * shell-side half immediately while the worker went on dropping
+ * `os-speculate-doc`, and turning it off left the worker speculating.
+ *
+ * Best-effort by design — with no controller there is no worker to
+ * disagree with us, and the next one installs with the correct value
+ * baked in anyway.
+ *
+ * @param enabled The new setting.
+ */
+export function notifyServiceWorkerPrewarm( enabled: boolean ): void {
+	try {
+		navigator.serviceWorker?.controller?.postMessage( {
+			type: 'os-sw-set-prewarm',
+			enabled,
+		} );
+	} catch {
+		/* No controller, or messaging unavailable — nothing to sync. */
+	}
+}
+
 export function getSwRegistrationStatus(): SwRegistrationStatus {
 	return _status;
 }
