@@ -717,6 +717,27 @@ export class WindowManager {
 				{ ...config, id: config.id, baseId },
 				{ prewarm: true },
 			);
+			// A real `open()` can land while `createWindow()` is
+			// awaiting its bundles — the user clicked instead of
+			// hovering on. It joins the stack; a prewarm never does, so
+			// the guard at the top of this method could not see it and
+			// `_prewarmed` was still empty when `open()` looked for a
+			// window to adopt. Storing this one now would leave two
+			// Window instances answering to the same id, one of them
+			// invisible and holding an admin iframe.
+			//
+			// The click won. Throw the speculation away.
+			if ( this.getByBaseId( baseId ) ) {
+				win.onClose = null;
+				try {
+					win.destroy();
+				} catch {
+					// Best-effort teardown; the removal below is the
+					// part that must happen.
+				}
+				win.element.remove();
+				return false;
+			}
 			// Unclaimed speculative windows must not outlive the intent
 			// that spawned them — an admin iframe holds real renderer
 			// memory, and its nonces age. 45s comfortably covers the

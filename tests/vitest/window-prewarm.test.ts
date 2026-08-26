@@ -163,6 +163,28 @@ describe( 'WindowManager.prewarm', () => {
 		).not.toBeNull();
 	} );
 
+	test( 'a click landing mid-prewarm does not leave two windows on one id', async () => {
+		// `prewarm()` awaits its bundles before it can record the slot,
+		// and a prewarmed window stays OUT of the stack — so an
+		// `open()` arriving during that await found nothing to adopt
+		// and built its own. Storing the speculation afterwards left
+		// two Window instances answering to the same id, one of them
+		// invisible and holding an admin iframe.
+		const warming = manager.prewarm( openConfig( 'edit-php' ) );
+		await manager.open( openConfig( 'edit-php' ) );
+		const warmed = await warming;
+
+		expect( warmed, 'the click won; the speculation is dropped' ).toBe(
+			false,
+		);
+		expect(
+			desktopArea.querySelectorAll( '#wp-window-edit-php' ),
+		).toHaveLength( 1 );
+		// Exactly one open announced — the click's. The discarded
+		// speculation must not announce anything.
+		expect( openedEvents ).toEqual( [ 'edit-php' ] );
+	} );
+
 	test( 'an unclaimed prewarm is reaped by the TTL', async () => {
 		vi.useFakeTimers();
 		await manager.prewarm( openConfig( 'edit-php' ) );

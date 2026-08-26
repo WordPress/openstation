@@ -744,6 +744,34 @@ class Tests_OpenStation_ChromelessCommandPalette extends WP_UnitTestCase {
 	}
 
 	/**
+	 * On a WordPress with no Core palette there is no manifest to hoist
+	 * into — `openStationConfig.commandPalette` is null and the replay
+	 * has nowhere to put anything. Dequeuing the contributors anyway
+	 * would lose their commands outright, which is strictly worse than
+	 * the eager loading the hoist replaces.
+	 *
+	 * @covers ::openstation_shell_hoist_command_palette_contributors
+	 */
+	public function test_shell_hoist_leaves_contributors_alone_with_no_core_palette() {
+		if ( function_exists( 'wp_enqueue_command_palette_assets' ) ) {
+			$this->markTestSkipped( 'This WordPress has the Core command palette.' );
+		}
+		wp_set_current_user( self::$admin_id );
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		wp_register_script( 'openstation', 'https://example.org/desktop.js', array(), '1', true );
+		wp_enqueue_script( 'openstation' );
+		$this->register_graph();
+		wp_enqueue_script( 'os-test-direct' );
+
+		openstation_shell_hoist_command_palette_contributors();
+
+		$this->assertTrue(
+			wp_script_is( 'os-test-direct', 'enqueued' ),
+			'the contributor must keep printing when it cannot be replayed'
+		);
+	}
+
+	/**
 	 * @covers ::openstation_shell_hoist_command_palette_contributors
 	 */
 	public function test_shell_hoist_does_not_run_inside_a_window() {

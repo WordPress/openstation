@@ -958,6 +958,20 @@ function openstation_shell_hoist_command_palette_contributors() {
 		return;
 	}
 
+	// No Core palette on this WordPress, no manifest to hoist into.
+	//
+	// `openstation_build_command_palette_assets_payload()` returns null
+	// when `wp_enqueue_command_palette_assets()` does not exist, so
+	// `openStationConfig.commandPalette` is null and the replay has
+	// nowhere to put anything. Hoisting anyway would dequeue the
+	// contributors from the boot page and then drop them on the floor —
+	// their commands would not merely be late, they would be gone, which
+	// is strictly worse than the eager loading this replaces. Leave them
+	// printing normally instead.
+	if ( ! function_exists( 'wp_enqueue_command_palette_assets' ) ) {
+		return;
+	}
+
 	$contributors = openstation_command_palette_contributors( $scripts, $scripts->queue );
 	if ( empty( $contributors ) ) {
 		return;
