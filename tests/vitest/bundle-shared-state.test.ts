@@ -47,18 +47,25 @@ function read( path: string ): string | null {
 	return existsSync( path ) ? readFileSync( path, 'utf8' ) : null;
 }
 
-describe( 'cross-bundle state', () => {
-	const shell = read( BUNDLES.shell );
-	const notes = read( BUNDLES.notes );
+const shell = read( BUNDLES.shell );
+const notes = read( BUNDLES.notes );
+const built = shell !== null && notes !== null;
 
-	it( 'has the built bundles to check', () => {
-		// A guard rather than a silent skip: if the dev bundles are
-		// missing, every assertion below would vacuously pass and the
-		// regression would sail through. Run `npm run build`.
-		expect( shell, `${ BUNDLES.shell } missing — run npm run build` ).not.toBeNull();
-		expect( notes, `${ BUNDLES.notes } missing — run npm run build` ).not.toBeNull();
-	} );
-
+/**
+ * Skipped when the bundles are not built.
+ *
+ * `assets/js/*.js` is build output and gitignored, and CI's Vitest job
+ * deliberately does not build before running tests — so in that job
+ * there is genuinely nothing to inspect, and asserting the files exist
+ * would fail for a reason that has nothing to do with the code.
+ *
+ * Skipping here is only safe because the check is ENFORCED somewhere
+ * the bundles do exist: the `plugin-check` job builds and then runs
+ * this file explicitly. Locally `npm run build && npm run test:js`
+ * covers it the same way. Without that second home this would be a
+ * vacuous pass, which is exactly how this class of bug travels.
+ */
+describe.skipIf( ! built )( 'cross-bundle state', () => {
 	for ( const key of SHARED_KEYS ) {
 		it( `"${ key }" is resolved through the shared store in both bundles`, () => {
 			expect(
