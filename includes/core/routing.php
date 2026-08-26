@@ -370,6 +370,70 @@ function openstation_chromeless_suppress_admin_bar() {
 add_action( 'admin_init', 'openstation_chromeless_suppress_admin_bar' );
 
 /**
+ * Stops a window from BUILDING the admin bar it never draws.
+ *
+ * Removing the render above stops the markup. It does not stop the
+ * work: `_wp_admin_bar_init()` is hooked on `admin_init`,
+ * `is_admin_bar_showing()` short-circuits to true for any admin
+ * request, and so every window still instantiates `WP_Admin_Bar`,
+ * calls `initialize()`, and — the expensive part — calls
+ * `add_menus()`, which fires `admin_bar_menu` and runs **every**
+ * registered callback. Core's twenty-odd nodes, WooCommerce's,
+ * Jetpack's, a host masterbar's: each one resolving links, counting
+ * things, checking capabilities. The finished object is then dropped
+ * on the floor, because nothing renders it.
+ *
+ * The shell draws a real admin bar, once. A window drawing none
+ * should pay for none — this is the same asymmetry the asset trims
+ * exploit, on the server side.
+ *
+ * **Swapping the class rather than unhooking the init** is the
+ * careful way to do it. `remove_action( 'admin_init',
+ * '_wp_admin_bar_init' )` would leave `$wp_admin_bar` null, and a
+ * plugin that touches the global outside the `admin_bar_menu` hook —
+ * bad practice, entirely real — would fatal on it. Core exposes
+ * `wp_admin_bar_class` precisely for this, so a window gets a real
+ * `WP_Admin_Bar` subclass that is fully functional in every respect
+ * except that it never solicits nodes. `add_node()` still works,
+ * `get_nodes()` still answers, the global is still an object; the
+ * hook simply never fires.
+ *
+ * `initialize()` is deliberately left alone — it sets up the object's
+ * own state and costs nothing worth reclaiming.
+ */
+function openstation_chromeless_silence_admin_bar( $class_name ) {
+	if ( ! openstation_is_chromeless_request() ) {
+		return $class_name;
+	}
+
+	/**
+	 * Filters whether a window skips building the admin bar.
+	 *
+	 * Return false to let a window construct the bar as WordPress
+	 * normally would — for a plugin that (unusually) relies on
+	 * `admin_bar_menu` firing for a side effect rather than for the
+	 * node it adds.
+	 *
+	 * @param bool $silence Defaults to true inside windows.
+	 */
+	if ( ! apply_filters( 'openstation_chromeless_silence_admin_bar', true ) ) {
+		return $class_name;
+	}
+
+	// `_wp_admin_bar_init()` requires `class-wp-admin-bar.php` before
+	// it applies this filter, so the parent is guaranteed loaded here
+	// — and only here, which is why the subclass is required lazily
+	// rather than at bootstrap.
+	if ( ! class_exists( 'WP_Admin_Bar' ) ) {
+		return $class_name;
+	}
+	require_once __DIR__ . '/class-openstation-silent-admin-bar.php';
+
+	return 'OpenStation_Silent_Admin_Bar';
+}
+add_filter( 'wp_admin_bar_class', 'openstation_chromeless_silence_admin_bar' );
+
+/**
  * Detaches core's update / maintenance nags inside chromeless iframes so
  * they don't repeat in every window — the shell surfaces the update once
  * instead.

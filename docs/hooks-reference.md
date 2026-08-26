@@ -1746,6 +1746,22 @@ Controls the `Sec-Fetch-*` fallback in chromeless detection: when a request arri
 apply_filters( 'openstation_chromeless_sec_fetch_fallback', bool $allow );
 ```
 
+### `openstation_chromeless_silence_admin_bar` — Experimental
+
+Whether a window skips **building** the admin bar it never draws. Default `true` inside windows.
+
+Suppressing the render stops the markup, not the work. `_wp_admin_bar_init()` is hooked on `admin_init`, `is_admin_bar_showing()` short-circuits to true for any admin request, and so every window still instantiated `WP_Admin_Bar` and called `add_menus()` — which fires `admin_bar_menu` and runs **every** registered callback, core's twenty-odd nodes and every plugin's, each resolving links and checking capabilities — before dropping the finished object on the floor. The shell draws a real bar once; a window drawing none should pay for none.
+
+The class is swapped rather than the init unhooked, deliberately. `remove_action( 'admin_init', '_wp_admin_bar_init' )` would leave `$wp_admin_bar` null, and a plugin that touches the global outside the hook would fatal on it. Core exposes `wp_admin_bar_class` for exactly this, so a window gets a real `WP_Admin_Bar` subclass that works in every respect — `add_node()`, `get_nodes()`, the global is still an object — except that it never solicits nodes.
+
+How much this saves is a property of the site's admin bar: roughly 1.5% of a window's server time on a stock-ish install, and materially more wherever the bar is expensive (a WordPress.com masterbar, a plugin adding counted nodes).
+
+```php
+// Let a window build the bar, for a plugin that relies on
+// `admin_bar_menu` firing for a side effect rather than a node.
+add_filter( 'openstation_chromeless_silence_admin_bar', '__return_false' );
+```
+
 ---
 
 ### `openstation_chromeless_admin_bar_top_values` — Experimental
