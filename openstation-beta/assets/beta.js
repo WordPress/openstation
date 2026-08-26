@@ -1,13 +1,13 @@
 /**
- * Desktop Mode Beta — build picker UI.
+ * OpenStation Beta — build picker UI.
  *
  * One script, two render contexts, selected by the localized
- * `desktopModeBetaConfig.context`:
+ * `openStationBetaConfig.context`:
  *
  *   - `shell` — registers an OS Settings "Beta" tab through
  *     `wp.os.registerSettingsTab()` and renders with the
  *     framework's `<wpd-*>` components.
- *   - `admin` — paints the plain Tools → Desktop Mode Beta page with
+ *   - `admin` — paints the plain Tools → OpenStation Beta page with
  *     classic wp-admin markup. No OpenStation APIs are touched here
  *     on purpose: this page must keep working when a broken branch
  *     build takes the shell down.
@@ -15,12 +15,12 @@
  * All GitHub-derived strings are inserted via `textContent` — never
  * concatenated into HTML.
  *
- * @package DesktopModeBeta
+ * @package OpenStationBeta
  */
 ( function () {
 	'use strict';
 
-	var config = window.desktopModeBetaConfig;
+	var config = window.openStationBetaConfig;
 	if ( ! config || ! config.ajaxUrl ) {
 		return;
 	}
@@ -43,7 +43,7 @@
 	 */
 	function request( action, params ) {
 		var body = new URLSearchParams();
-		body.set( 'action', 'desktop_mode_beta_' + action );
+		body.set( 'action', 'openstation_beta_' + action );
 		body.set( '_ajax_nonce', config.nonce );
 		Object.keys( params || {} ).forEach( function ( key ) {
 			body.set( key, params[ key ] );
@@ -58,7 +58,7 @@
 		var promise =
 			os && typeof os.fetch === 'function'
 				? os.fetch( config.ajaxUrl, init, {
-						source: 'desktop-mode-beta/' + action,
+						source: 'openstation-beta/' + action,
 				  } )
 				: fetch( config.ajaxUrl, init );
 
@@ -180,7 +180,7 @@
 	var adminSkin = {
 		section: function ( heading, description ) {
 			var section = el( 'div', {
-				class: 'desktop-mode-beta-section',
+				class: 'openstation-beta-section',
 			} );
 			section.append( el( 'h2', {}, heading ) );
 			if ( description ) {
@@ -193,7 +193,7 @@
 		row: function ( children ) {
 			return el(
 				'div',
-				{ class: 'desktop-mode-beta-row' },
+				{ class: 'openstation-beta-row' },
 				children
 			);
 		},
@@ -213,7 +213,7 @@
 		badge: function ( label, tone ) {
 			return el(
 				'span',
-				{ class: 'desktop-mode-beta-badge is-' + ( tone || 'neutral' ) },
+				{ class: 'openstation-beta-badge is-' + ( tone || 'neutral' ) },
 				label
 			);
 		},
@@ -670,7 +670,7 @@
 				label: __( 'Beta' ),
 				capability: 'manage_options',
 				order: 35,
-				owner: 'desktop-mode-beta-settings',
+				owner: 'openstation-beta-settings',
 				render: function ( body ) {
 					var host = el( 'div', {} );
 					body.textContent = '';
@@ -681,7 +681,7 @@
 		} );
 	} else {
 		var boot = function () {
-			var root = document.getElementById( 'desktop-mode-beta-root' );
+			var root = document.getElementById( 'openstation-beta-root' );
 			if ( root ) {
 				mount( root, adminSkin );
 			}

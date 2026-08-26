@@ -1,0 +1,42 @@
+# OpenStation Beta
+
+A small companion plugin for testing unreleased builds of [OpenStation](https://github.com/WordPress/openstation) on a live site. Pick any open pull request, the trunk branch, or the latest stable release, and the companion downloads that build's zip from the repository's GitHub releases and installs it over the `desktop-mode` plugin in place — the same overwrite WordPress performs on any plugin update.
+
+Modeled on [Jetpack Beta](https://github.com/Automattic/jetpack/tree/trunk/projects/plugins/beta), including the key structural decision: **the switcher is a separate plugin, never distributed on WordPress.org.** That keeps install-from-GitHub machinery out of the wp.org-reviewed plugin entirely, and it means a broken branch build of OpenStation can never take down the tool you need to switch back to stable.
+
+## Where the builds come from
+
+The companion invents no build pipeline — it consumes artifacts CI already publishes to the rolling `ci-artifacts` release of the repository:
+
+| Channel | Artifact | Produced by |
+|---|---|---|
+| Pull request | `pr-<number>-<head-sha>.zip` | `pr-preview-build.yml` + `pr-preview-publish.yml` (the WP Playground preview flow) |
+| Trunk | `trunk.zip` + `trunk.json` (`{ sha, version, built_at }`) | `trunk-build.yml`, on every push to trunk |
+| Stable | `openstation.zip` on the latest `v*` GitHub release (`desktop-mode.zip` on pre-rebrand releases) | `release.yml` |
+
+Discovery uses the public GitHub API for the open-PR list and the latest release (cached in transients; unauthenticated is plenty — define `OPENSTATION_BETA_GITHUB_TOKEN` only if you somehow hit the rate limit). Whether a PR's build is actually finished is checked with redirect-only HEAD probes against the public download URLs, which cost no API quota at all.
+
+## Surfaces
+
+- **Tools → OpenStation Beta** — a plain wp-admin page, deliberately free of any OpenStation dependency. This is the recovery surface: it works even when the installed build breaks the desktop shell.
+- **OS Settings → Beta** — the same picker inside the OpenStation shell, registered through the public `openstation_register_settings_tab()` API and rendered with `<wpd-*>` components. (Also a nice dogfood of the third-party settings-tab surface.)
+
+Viewing requires `update_plugins`; switching builds requires `install_plugins`.
+
+## Behavior notes
+
+- The client never sends a download URL — it sends `{ source, id }` and the server resolves the URL from GitHub data it fetched itself, so only assets of the configured repository are installable.
+- **Development checkouts are protected.** If the installed `desktop-mode` folder is a source tree (contains `.git`, `package.json`, `vite.config.js`, `src/`, or `.wp-env.json` — a wp-env instance bind-mounts the working tree exactly like this), switching is refused server-side and the UI disables the install buttons with an explanation, so a stray click can never overwrite uncommitted work. A packaged install ships none of those markers. Opt out deliberately with the `openstation_beta_allow_dev_overwrite` filter.
+- What's installed is recorded in the `openstation_beta_current` option. While a PR/trunk build is active, WordPress **auto**-updates for OpenStation are suppressed (an overnight wp.org update would silently replace the build under test) and a warning shows on the Plugins screen. Manual updates stay possible — they're a visible, deliberate act.
+- When the tracked PR gets new commits, the UI offers a one-click "Update to latest build". When the PR closes, it tells you to go back to stable.
+- "Back to stable" installs the latest GitHub release zip and clears the record; from then on the install is a normal wp.org-updatable OpenStation.
+
+## Install
+
+Grab `openstation-beta.zip` from any [release](https://github.com/WordPress/openstation/releases) (attached alongside `openstation.zip`), or build it from a checkout:
+
+```bash
+npm run package:beta
+```
+
+Then upload it via Plugins → Add New → Upload, and activate. Requires OpenStation to be installed (`Requires Plugins: desktop-mode`).

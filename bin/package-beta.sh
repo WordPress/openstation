@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
-# Build a WordPress-installable zip of the Desktop Mode Beta companion
-# plugin (desktop-mode-beta/). Unlike the main plugin there is no build
+# Build a WordPress-installable zip of the OpenStation Beta companion
+# plugin (openstation-beta/). Unlike the main plugin there is no build
 # step — everything the companion ships is tracked in git — so this is
 # a plain `git archive` of the subtree, round-tripped through tar + zip
 # for the same permission-normalisation reason documented in
@@ -10,7 +10,7 @@
 
 set -euo pipefail
 
-prefix="desktop-mode-beta"
+prefix="openstation-beta"
 out="${1:-$prefix.zip}"
 root=$(pwd)
 tmp=$(mktemp -d)

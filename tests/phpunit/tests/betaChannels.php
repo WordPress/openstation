@@ -1,13 +1,13 @@
 <?php
 /**
- * Tests for the Desktop Mode Beta companion plugin's build discovery
- * and target resolution (desktop-mode-beta/).
+ * Tests for the OpenStation Beta companion plugin's build discovery
+ * and target resolution (openstation-beta/).
  *
  * The companion is a standalone plugin that is not loaded by the test
  * bootstrap — its include files are required directly below. All
  * GitHub traffic is mocked through `pre_http_request`; the asset
  * existence probe is mocked through its dedicated
- * `desktop_mode_beta_pre_probe_assets` seam (the parallel probe path
+ * `openstation_beta_pre_probe_assets` seam (the parallel probe path
  * talks to the Requests library directly and would bypass
  * `pre_http_request`).
  *
@@ -15,9 +15,9 @@
  * @subpackage UnitTests
  *
  * @group openstation
- * @group desktop-mode-beta
+ * @group openstation-beta
  */
-class Tests_DesktopModeBeta_Channels extends WP_UnitTestCase {
+class Tests_OpenStationBeta_Channels extends WP_UnitTestCase {
 
 	protected static $admin_id;
 	protected static $subscriber_id;
@@ -32,13 +32,13 @@ class Tests_DesktopModeBeta_Channels extends WP_UnitTestCase {
 	public static function set_up_before_class() {
 		parent::set_up_before_class();
 
-		if ( ! defined( 'DESKTOP_MODE_BETA_VERSION' ) ) {
-			define( 'DESKTOP_MODE_BETA_VERSION', 'test' );
+		if ( ! defined( 'OPENSTATION_BETA_VERSION' ) ) {
+			define( 'OPENSTATION_BETA_VERSION', 'test' );
 		}
-		if ( ! defined( 'DESKTOP_MODE_BETA_TARGET_PLUGIN' ) ) {
-			define( 'DESKTOP_MODE_BETA_TARGET_PLUGIN', 'desktop-mode/desktop-mode.php' );
+		if ( ! defined( 'OPENSTATION_BETA_TARGET_PLUGIN' ) ) {
+			define( 'OPENSTATION_BETA_TARGET_PLUGIN', 'desktop-mode/desktop-mode.php' );
 		}
-		$dir = dirname( __DIR__, 3 ) . '/desktop-mode-beta/includes/';
+		$dir = dirname( __DIR__, 3 ) . '/openstation-beta/includes/';
 		require_once $dir . 'github.php';
 		require_once $dir . 'installer.php';
 		require_once $dir . 'ajax.php';
@@ -52,9 +52,9 @@ class Tests_DesktopModeBeta_Channels extends WP_UnitTestCase {
 	public function set_up() {
 		parent::set_up();
 		$this->requested_urls = array();
-		delete_option( DESKTOP_MODE_BETA_CURRENT_OPTION );
+		delete_option( OPENSTATION_BETA_CURRENT_OPTION );
 		foreach ( array( 'prs', 'stable', 'trunk', 'asset_map' ) as $key ) {
-			delete_transient( 'desktop_mode_beta_' . $key );
+			delete_transient( 'openstation_beta_' . $key );
 		}
 	}
 
@@ -165,7 +165,7 @@ class Tests_DesktopModeBeta_Channels extends WP_UnitTestCase {
 	 */
 	protected function mock_probe( $map ) {
 		add_filter(
-			'desktop_mode_beta_pre_probe_assets',
+			'openstation_beta_pre_probe_assets',
 			static function () use ( $map ) {
 				return $map;
 			}
@@ -179,7 +179,7 @@ class Tests_DesktopModeBeta_Channels extends WP_UnitTestCase {
 	public function test_fetch_open_prs_maps_fields_and_drops_malformed_entries() {
 		$this->mock_http( array( '/pulls?' => self::json_response( 200, self::pr_fixture() ) ) );
 
-		$prs = desktop_mode_beta_fetch_open_prs();
+		$prs = openstation_beta_fetch_open_prs();
 
 		$this->assertIsArray( $prs );
 		$this->assertCount( 2, $prs, 'Malformed PR entries must be dropped.' );
@@ -196,11 +196,11 @@ class Tests_DesktopModeBeta_Channels extends WP_UnitTestCase {
 	public function test_fetch_open_prs_caches_until_forced() {
 		$this->mock_http( array( '/pulls?' => self::json_response( 200, self::pr_fixture() ) ) );
 
-		desktop_mode_beta_fetch_open_prs();
-		desktop_mode_beta_fetch_open_prs();
+		openstation_beta_fetch_open_prs();
+		openstation_beta_fetch_open_prs();
 		$this->assertCount( 1, $this->requested_urls, 'Second read must come from the transient cache.' );
 
-		desktop_mode_beta_fetch_open_prs( true );
+		openstation_beta_fetch_open_prs( true );
 		$this->assertCount( 2, $this->requested_urls, 'force=true must bypass the cache.' );
 	}
 
@@ -218,33 +218,33 @@ class Tests_DesktopModeBeta_Channels extends WP_UnitTestCase {
 			)
 		);
 
-		$trunk = desktop_mode_beta_fetch_trunk();
+		$trunk = openstation_beta_fetch_trunk();
 		$this->assertSame( self::sha( 'c' ), $trunk['sha'] );
 		$this->assertSame( '0.9.8', $trunk['version'] );
 		$this->assertStringEndsWith( '/ci-artifacts/trunk.zip', $trunk['url'] );
 
-		delete_transient( 'desktop_mode_beta_trunk' );
+		delete_transient( 'openstation_beta_trunk' );
 		remove_all_filters( 'pre_http_request' );
 		$this->mock_http(
 			array(
 				'/ci-artifacts/trunk.json' => self::json_response( 200, array( 'sha' => 'not-a-sha' ) ),
 			)
 		);
-		$this->assertNull( desktop_mode_beta_fetch_trunk(), 'A manifest with an invalid SHA must resolve to null.' );
+		$this->assertNull( openstation_beta_fetch_trunk(), 'A manifest with an invalid SHA must resolve to null.' );
 	}
 
 	public function test_fetch_trunk_missing_manifest_is_null_and_cached() {
 		$this->mock_http( array() );
 
-		$this->assertNull( desktop_mode_beta_fetch_trunk() );
-		desktop_mode_beta_fetch_trunk();
+		$this->assertNull( openstation_beta_fetch_trunk() );
+		openstation_beta_fetch_trunk();
 		$this->assertCount( 1, $this->requested_urls, 'The 404 must be cached too.' );
 	}
 
 	public function test_fetch_stable_finds_zip_asset() {
 		$this->mock_http( array( '/releases/latest' => self::json_response( 200, self::release_fixture() ) ) );
 
-		$stable = desktop_mode_beta_fetch_stable();
+		$stable = openstation_beta_fetch_stable();
 		$this->assertSame( 'v0.9.7', $stable['tag'] );
 		$this->assertSame( '0.9.7', $stable['version'] );
 		$this->assertStringContainsString( '/releases/download/v0.9.7/openstation.zip', $stable['url'] );
@@ -255,17 +255,17 @@ class Tests_DesktopModeBeta_Channels extends WP_UnitTestCase {
 		$release['assets'] = array();
 		$this->mock_http( array( '/releases/latest' => self::json_response( 200, $release ) ) );
 
-		$stable = desktop_mode_beta_fetch_stable();
+		$stable = openstation_beta_fetch_stable();
 		$this->assertWPError( $stable );
-		$this->assertSame( 'desktop_mode_beta_no_stable_asset', $stable->get_error_code() );
+		$this->assertSame( 'openstation_beta_no_stable_asset', $stable->get_error_code() );
 	}
 
 	public function test_github_api_error_status_propagates() {
 		$this->mock_http( array( '/pulls?' => self::json_response( 403, array( 'message' => 'rate limited' ) ) ) );
 
-		$prs = desktop_mode_beta_fetch_open_prs();
+		$prs = openstation_beta_fetch_open_prs();
 		$this->assertWPError( $prs );
-		$this->assertSame( 'desktop_mode_beta_github_http', $prs->get_error_code() );
+		$this->assertSame( 'openstation_beta_github_http', $prs->get_error_code() );
 	}
 
 	// -----------------------------------------------------------------
@@ -281,7 +281,7 @@ class Tests_DesktopModeBeta_Channels extends WP_UnitTestCase {
 		);
 		$this->mock_probe( array( 'pr-501-' . self::sha( 'a' ) . '.zip' => true ) );
 
-		$state = desktop_mode_beta_state();
+		$state = openstation_beta_state();
 
 		$this->assertFalse( $state['current']['managed'] );
 		$this->assertNull( $state['current']['update'] );
@@ -293,7 +293,7 @@ class Tests_DesktopModeBeta_Channels extends WP_UnitTestCase {
 
 	public function test_state_flags_new_build_for_installed_pr() {
 		update_option(
-			DESKTOP_MODE_BETA_CURRENT_OPTION,
+			OPENSTATION_BETA_CURRENT_OPTION,
 			array(
 				'source'       => 'pr',
 				'id'           => '501',
@@ -313,7 +313,7 @@ class Tests_DesktopModeBeta_Channels extends WP_UnitTestCase {
 		);
 		$this->mock_probe( array() );
 
-		$state = desktop_mode_beta_state();
+		$state = openstation_beta_state();
 
 		$this->assertTrue( $state['current']['managed'] );
 		$this->assertSame( 'new-build', $state['current']['update']['kind'] );
@@ -322,7 +322,7 @@ class Tests_DesktopModeBeta_Channels extends WP_UnitTestCase {
 
 	public function test_state_flags_closed_pr() {
 		update_option(
-			DESKTOP_MODE_BETA_CURRENT_OPTION,
+			OPENSTATION_BETA_CURRENT_OPTION,
 			array(
 				'source'       => 'pr',
 				'id'           => '999',
@@ -342,13 +342,13 @@ class Tests_DesktopModeBeta_Channels extends WP_UnitTestCase {
 		);
 		$this->mock_probe( array() );
 
-		$state = desktop_mode_beta_state();
+		$state = openstation_beta_state();
 		$this->assertSame( 'pr-closed', $state['current']['update']['kind'] );
 	}
 
 	public function test_state_flags_new_trunk_build() {
 		update_option(
-			DESKTOP_MODE_BETA_CURRENT_OPTION,
+			OPENSTATION_BETA_CURRENT_OPTION,
 			array(
 				'source'       => 'trunk',
 				'id'           => '',
@@ -376,7 +376,7 @@ class Tests_DesktopModeBeta_Channels extends WP_UnitTestCase {
 		);
 		$this->mock_probe( array() );
 
-		$state = desktop_mode_beta_state();
+		$state = openstation_beta_state();
 		$this->assertSame( 'new-build', $state['current']['update']['kind'] );
 		$this->assertSame( self::sha( 'c' ), $state['current']['update']['sha'] );
 	}
@@ -389,7 +389,7 @@ class Tests_DesktopModeBeta_Channels extends WP_UnitTestCase {
 		$this->mock_http( array( '/pulls?' => self::json_response( 200, self::pr_fixture() ) ) );
 		$this->mock_probe( array( 'pr-501-' . self::sha( 'a' ) . '.zip' => true ) );
 
-		$target = desktop_mode_beta_resolve_target( 'pr', '501' );
+		$target = openstation_beta_resolve_target( 'pr', '501' );
 
 		$this->assertIsArray( $target );
 		$this->assertSame(
@@ -406,17 +406,17 @@ class Tests_DesktopModeBeta_Channels extends WP_UnitTestCase {
 		$this->mock_http( array( '/pulls?' => self::json_response( 200, self::pr_fixture() ) ) );
 		$this->mock_probe( array() );
 
-		$target = desktop_mode_beta_resolve_target( 'pr', '501' );
+		$target = openstation_beta_resolve_target( 'pr', '501' );
 		$this->assertWPError( $target );
-		$this->assertSame( 'desktop_mode_beta_build_pending', $target->get_error_code() );
+		$this->assertSame( 'openstation_beta_build_pending', $target->get_error_code() );
 	}
 
 	public function test_resolve_target_unknown_pr_is_not_found() {
 		$this->mock_http( array( '/pulls?' => self::json_response( 200, self::pr_fixture() ) ) );
 
-		$target = desktop_mode_beta_resolve_target( 'pr', '999' );
+		$target = openstation_beta_resolve_target( 'pr', '999' );
 		$this->assertWPError( $target );
-		$this->assertSame( 'desktop_mode_beta_pr_missing', $target->get_error_code() );
+		$this->assertSame( 'openstation_beta_pr_missing', $target->get_error_code() );
 	}
 
 	public function test_resolve_target_stable_rejects_foreign_asset_url() {
@@ -425,23 +425,23 @@ class Tests_DesktopModeBeta_Channels extends WP_UnitTestCase {
 		$release['assets'][0]['browser_download_url'] = 'https://evil.example.com/desktop-mode.zip';
 		$this->mock_http( array( '/releases/latest' => self::json_response( 200, $release ) ) );
 
-		$target = desktop_mode_beta_resolve_target( 'stable', '' );
+		$target = openstation_beta_resolve_target( 'stable', '' );
 		$this->assertWPError( $target );
-		$this->assertSame( 'desktop_mode_beta_unexpected_url', $target->get_error_code() );
+		$this->assertSame( 'openstation_beta_unexpected_url', $target->get_error_code() );
 	}
 
 	public function test_resolve_target_trunk_without_build_is_not_found() {
 		$this->mock_http( array() );
 
-		$target = desktop_mode_beta_resolve_target( 'trunk', '' );
+		$target = openstation_beta_resolve_target( 'trunk', '' );
 		$this->assertWPError( $target );
-		$this->assertSame( 'desktop_mode_beta_no_trunk', $target->get_error_code() );
+		$this->assertSame( 'openstation_beta_no_trunk', $target->get_error_code() );
 	}
 
 	public function test_resolve_target_unknown_source_is_error() {
-		$target = desktop_mode_beta_resolve_target( 'nightly', '' );
+		$target = openstation_beta_resolve_target( 'nightly', '' );
 		$this->assertWPError( $target );
-		$this->assertSame( 'desktop_mode_beta_bad_source', $target->get_error_code() );
+		$this->assertSame( 'openstation_beta_bad_source', $target->get_error_code() );
 	}
 
 	// -----------------------------------------------------------------
@@ -452,25 +452,25 @@ class Tests_DesktopModeBeta_Channels extends WP_UnitTestCase {
 		$dir = get_temp_dir() . 'dmb-clean-' . uniqid();
 		mkdir( $dir );
 
-		$this->assertSame( '', desktop_mode_beta_dev_checkout_marker( $dir ), 'A bare directory is not a checkout.' );
+		$this->assertSame( '', openstation_beta_dev_checkout_marker( $dir ), 'A bare directory is not a checkout.' );
 
 		// Git worktrees have a plain-file .git, not a directory — the
 		// marker check must catch both.
 		file_put_contents( $dir . '/.git', 'gitdir: /elsewhere/.git/worktrees/x' );
-		$this->assertSame( '.git', desktop_mode_beta_dev_checkout_marker( $dir ) );
+		$this->assertSame( '.git', openstation_beta_dev_checkout_marker( $dir ) );
 
 		unlink( $dir . '/.git' );
 		rmdir( $dir );
-		$this->assertSame( '', desktop_mode_beta_dev_checkout_marker( $dir ), 'A missing directory is not a checkout.' );
+		$this->assertSame( '', openstation_beta_dev_checkout_marker( $dir ), 'A missing directory is not a checkout.' );
 	}
 
 	public function test_wp_env_mount_is_detected_as_dev_checkout() {
 		// The tests instance bind-mounts this repository as the
 		// desktop-mode plugin directory — the exact hazard the guard
 		// exists for, so it must fire right here.
-		$this->assertNotSame( '', desktop_mode_beta_dev_checkout_marker() );
+		$this->assertNotSame( '', openstation_beta_dev_checkout_marker() );
 
-		$blocked = desktop_mode_beta_install_blocked();
+		$blocked = openstation_beta_install_blocked();
 		$this->assertIsArray( $blocked );
 		$this->assertSame( 'dev-checkout', $blocked['code'] );
 	}
@@ -483,25 +483,25 @@ class Tests_DesktopModeBeta_Channels extends WP_UnitTestCase {
 			}
 		);
 
-		$result = desktop_mode_beta_switch( 'stable', '' );
+		$result = openstation_beta_switch( 'stable', '' );
 		$this->assertWPError( $result );
-		$this->assertSame( 'desktop_mode_beta_dev_checkout', $result->get_error_code() );
+		$this->assertSame( 'openstation_beta_dev_checkout', $result->get_error_code() );
 		$data = $result->get_error_data();
 		$this->assertSame( 409, $data['status'] );
 	}
 
 	public function test_allow_dev_overwrite_filter_unblocks_switch() {
-		add_filter( 'desktop_mode_beta_allow_dev_overwrite', '__return_true' );
+		add_filter( 'openstation_beta_allow_dev_overwrite', '__return_true' );
 
-		$this->assertNull( desktop_mode_beta_install_blocked() );
+		$this->assertNull( openstation_beta_install_blocked() );
 
 		// With the override on, the switch proceeds past the guard into
 		// target resolution — prove it by making GitHub fail and
 		// asserting the error is the resolver's, not the guard's.
 		$this->mock_http( array( '/releases/latest' => self::json_response( 403, array() ) ) );
-		$result = desktop_mode_beta_switch( 'stable', '' );
+		$result = openstation_beta_switch( 'stable', '' );
 		$this->assertWPError( $result );
-		$this->assertSame( 'desktop_mode_beta_github_http', $result->get_error_code() );
+		$this->assertSame( 'openstation_beta_github_http', $result->get_error_code() );
 	}
 
 	public function test_state_exposes_install_blocked() {
@@ -513,7 +513,7 @@ class Tests_DesktopModeBeta_Channels extends WP_UnitTestCase {
 		);
 		$this->mock_probe( array() );
 
-		$state = desktop_mode_beta_state();
+		$state = openstation_beta_state();
 		$this->assertIsArray( $state['install_blocked'], 'Running from a checkout, the state must carry the block.' );
 		$this->assertSame( 'dev-checkout', $state['install_blocked']['code'] );
 		$this->assertNotSame( '', $state['install_blocked']['reason'] );
@@ -524,39 +524,39 @@ class Tests_DesktopModeBeta_Channels extends WP_UnitTestCase {
 	// -----------------------------------------------------------------
 
 	public function test_auto_updates_blocked_only_while_beta_build_installed() {
-		$item  = (object) array( 'plugin' => DESKTOP_MODE_BETA_TARGET_PLUGIN );
+		$item  = (object) array( 'plugin' => OPENSTATION_BETA_TARGET_PLUGIN );
 		$other = (object) array( 'plugin' => 'akismet/akismet.php' );
 
-		$this->assertTrue( desktop_mode_beta_block_auto_update( true, $item ), 'No beta build installed — auto-updates flow through.' );
+		$this->assertTrue( openstation_beta_block_auto_update( true, $item ), 'No beta build installed — auto-updates flow through.' );
 
 		update_option(
-			DESKTOP_MODE_BETA_CURRENT_OPTION,
+			OPENSTATION_BETA_CURRENT_OPTION,
 			array(
 				'source' => 'pr',
 				'id'     => '501',
 				'sha'    => self::sha( 'a' ),
 			)
 		);
-		$this->assertFalse( desktop_mode_beta_block_auto_update( true, $item ), 'Beta build installed — Desktop Mode auto-updates are blocked.' );
-		$this->assertTrue( desktop_mode_beta_block_auto_update( true, $other ), 'Other plugins are unaffected.' );
+		$this->assertFalse( openstation_beta_block_auto_update( true, $item ), 'Beta build installed — Desktop Mode auto-updates are blocked.' );
+		$this->assertTrue( openstation_beta_block_auto_update( true, $other ), 'Other plugins are unaffected.' );
 	}
 
 	public function test_ajax_guard_requires_capability_and_nonce() {
 		wp_set_current_user( self::$admin_id );
-		$_REQUEST['_ajax_nonce'] = wp_create_nonce( 'desktop-mode-beta' );
-		$this->assertTrue( desktop_mode_beta_ajax_guard( 'update_plugins' ) );
+		$_REQUEST['_ajax_nonce'] = wp_create_nonce( 'openstation-beta' );
+		$this->assertTrue( openstation_beta_ajax_guard( 'update_plugins' ) );
 
 		wp_set_current_user( self::$subscriber_id );
-		$_REQUEST['_ajax_nonce'] = wp_create_nonce( 'desktop-mode-beta' );
-		$guard = desktop_mode_beta_ajax_guard( 'update_plugins' );
+		$_REQUEST['_ajax_nonce'] = wp_create_nonce( 'openstation-beta' );
+		$guard = openstation_beta_ajax_guard( 'update_plugins' );
 		$this->assertWPError( $guard );
-		$this->assertSame( 'desktop_mode_beta_forbidden', $guard->get_error_code() );
+		$this->assertSame( 'openstation_beta_forbidden', $guard->get_error_code() );
 
 		wp_set_current_user( self::$admin_id );
 		$_REQUEST['_ajax_nonce'] = 'garbage';
-		$guard                   = desktop_mode_beta_ajax_guard( 'update_plugins' );
+		$guard                   = openstation_beta_ajax_guard( 'update_plugins' );
 		$this->assertWPError( $guard );
-		$this->assertSame( 'desktop_mode_beta_bad_nonce', $guard->get_error_code() );
+		$this->assertSame( 'openstation_beta_bad_nonce', $guard->get_error_code() );
 
 		unset( $_REQUEST['_ajax_nonce'] );
 	}

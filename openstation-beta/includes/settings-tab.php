@@ -13,7 +13,7 @@
  * broken build) this file is inert and the Tools page remains the
  * working surface.
  *
- * @package DesktopModeBeta
+ * @package OpenStationBeta
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -23,21 +23,21 @@ defined( 'ABSPATH' ) || exit;
  *
  * @since 0.1.0
  */
-function desktop_mode_beta_register_settings_tab() {
+function openstation_beta_register_settings_tab() {
 	if ( ! function_exists( 'openstation_register_settings_tab' ) ) {
 		return;
 	}
 	openstation_register_settings_tab(
 		array(
 			'id'         => 'beta',
-			'label'      => __( 'Beta', 'desktop-mode-beta' ),
+			'label'      => __( 'Beta', 'openstation-beta' ),
 			'capability' => 'manage_options',
 			'order'      => 35,
-			'script'     => 'desktop-mode-beta-settings',
+			'script'     => 'openstation-beta-settings',
 		)
 	);
 }
-add_action( 'init', 'desktop_mode_beta_register_settings_tab' );
+add_action( 'init', 'openstation_beta_register_settings_tab' );
 
 /**
  * Enqueue the UI script when the desktop shell renders for a user who
@@ -45,7 +45,7 @@ add_action( 'init', 'desktop_mode_beta_register_settings_tab' );
  *
  * @since 0.1.0
  */
-function desktop_mode_beta_shell_assets() {
+function openstation_beta_shell_assets() {
 	if ( ! function_exists( 'openstation_is_enabled' ) || ! openstation_is_enabled() ) {
 		return;
 	}
@@ -56,13 +56,13 @@ function desktop_mode_beta_shell_assets() {
 		return;
 	}
 	wp_register_script(
-		'desktop-mode-beta-settings',
-		DESKTOP_MODE_BETA_URL . 'assets/beta.js',
+		'openstation-beta-settings',
+		OPENSTATION_BETA_URL . 'assets/beta.js',
 		array( 'openstation' ),
-		DESKTOP_MODE_BETA_VERSION,
+		OPENSTATION_BETA_VERSION,
 		true
 	);
-	wp_localize_script( 'desktop-mode-beta-settings', 'desktopModeBetaConfig', desktop_mode_beta_script_config( 'shell' ) );
-	wp_enqueue_script( 'desktop-mode-beta-settings' );
+	wp_localize_script( 'openstation-beta-settings', 'openStationBetaConfig', openstation_beta_script_config( 'shell' ) );
+	wp_enqueue_script( 'openstation-beta-settings' );
 }
-add_action( 'admin_enqueue_scripts', 'desktop_mode_beta_shell_assets' );
+add_action( 'admin_enqueue_scripts', 'openstation_beta_shell_assets' );

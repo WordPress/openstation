@@ -77,7 +77,7 @@ jobs:
       - name: Package plugin zip
         run: bin/package.sh
 
-      - name: Package Desktop Mode Beta companion zip
+      - name: Package OpenStation Beta companion zip
         run: bin/package-beta.sh
 
       # Skipped on a manual dispatch: the Release already exists, and
@@ -96,7 +96,7 @@ jobs:
             --title "$TAG" \
             --generate-notes \
             "${flags[@]}" \
-            openstation.zip desktop-mode-beta.zip
+            openstation.zip openstation-beta.zip
 
       - name: Unpack zip for wp.org deploy
         if: ${{ !contains(env.TAG, '-') }}

@@ -1,15 +1,15 @@
 /**
- * Tools → Desktop Mode Beta page styles.
+ * Tools → OpenStation Beta page styles.
  *
  * Only the classic wp-admin context uses these — the OS Settings tab
  * renders with <wpd-*> components that carry their own styling.
  */
 
-.desktop-mode-beta-wrap {
+.openstation-beta-wrap {
 	max-inline-size: 900px;
 }
 
-.desktop-mode-beta-section {
+.openstation-beta-section {
 	background: #fff;
 	border: 1px solid #c3c4c7;
 	border-radius: 4px;
@@ -17,7 +17,7 @@
 	padding: 4px 16px 16px;
 }
 
-.desktop-mode-beta-row {
+.openstation-beta-row {
 	align-items: center;
 	border-block-start: 1px solid #f0f0f1;
 	display: flex;
@@ -26,11 +26,11 @@
 	padding-block: 8px;
 }
 
-.desktop-mode-beta-row:first-of-type {
+.openstation-beta-row:first-of-type {
 	border-block-start: none;
 }
 
-.desktop-mode-beta-badge {
+.openstation-beta-badge {
 	border-radius: 10px;
 	display: inline-block;
 	font-size: 11px;
@@ -40,27 +40,27 @@
 	text-transform: uppercase;
 }
 
-.desktop-mode-beta-badge.is-success {
+.openstation-beta-badge.is-success {
 	background: #edfaef;
 	color: #007017;
 }
 
-.desktop-mode-beta-badge.is-warning {
+.openstation-beta-badge.is-warning {
 	background: #fcf9e8;
 	color: #996800;
 }
 
-.desktop-mode-beta-badge.is-danger {
+.openstation-beta-badge.is-danger {
 	background: #fcf0f1;
 	color: #b32d2e;
 }
 
-.desktop-mode-beta-badge.is-info {
+.openstation-beta-badge.is-info {
 	background: #f0f6fc;
 	color: #135e96;
 }
 
-.desktop-mode-beta-badge.is-neutral {
+.openstation-beta-badge.is-neutral {
 	background: #f0f0f1;
 	color: #50575e;
 }

@@ -1,6 +1,6 @@
 <?php
 /**
- * GitHub data layer for Desktop Mode Beta.
+ * GitHub data layer for OpenStation Beta.
  *
  * Discovers what builds exist for the desktop-mode repository:
  *
@@ -19,20 +19,20 @@
  * Every remote read is cached in a transient; a explicit refresh from
  * the UI bypasses the caches. Unauthenticated GitHub API calls are
  * limited to 60/hour per IP — with the caches below a busy session
- * stays far under that. Define `DESKTOP_MODE_BETA_GITHUB_TOKEN` (or
- * filter `desktop_mode_beta_github_token`) to raise the limit; never
+ * stays far under that. Define `OPENSTATION_BETA_GITHUB_TOKEN` (or
+ * filter `openstation_beta_github_token`) to raise the limit; never
  * required for public repos.
  *
- * @package DesktopModeBeta
+ * @package OpenStationBeta
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /** Release tag holding CI build assets (see pr-preview-publish.yml). */
-const DESKTOP_MODE_BETA_CI_TAG = 'ci-artifacts';
+const OPENSTATION_BETA_CI_TAG = 'ci-artifacts';
 
 /** wp_options key recording the beta build currently installed. */
-const DESKTOP_MODE_BETA_CURRENT_OPTION = 'desktop_mode_beta_current';
+const OPENSTATION_BETA_CURRENT_OPTION = 'openstation_beta_current';
 
 /**
  * The GitHub repository builds are fetched from.
@@ -41,15 +41,15 @@ const DESKTOP_MODE_BETA_CURRENT_OPTION = 'desktop_mode_beta_current';
  *
  * @return string `owner/repo` slug.
  */
-function desktop_mode_beta_repo() {
+function openstation_beta_repo() {
 	/**
-	 * Filters the GitHub repository Desktop Mode Beta reads builds from.
+	 * Filters the GitHub repository OpenStation Beta reads builds from.
 	 *
 	 * @since 0.1.0
 	 *
 	 * @param string $repo `owner/repo` slug.
 	 */
-	return (string) apply_filters( 'desktop_mode_beta_repo', 'WordPress/openstation' );
+	return (string) apply_filters( 'openstation_beta_repo', 'WordPress/openstation' );
 }
 
 /**
@@ -59,8 +59,8 @@ function desktop_mode_beta_repo() {
  *
  * @return string Token, or empty string for unauthenticated access.
  */
-function desktop_mode_beta_github_token() {
-	$token = defined( 'DESKTOP_MODE_BETA_GITHUB_TOKEN' ) ? (string) DESKTOP_MODE_BETA_GITHUB_TOKEN : '';
+function openstation_beta_github_token() {
+	$token = defined( 'OPENSTATION_BETA_GITHUB_TOKEN' ) ? (string) OPENSTATION_BETA_GITHUB_TOKEN : '';
 
 	/**
 	 * Filters the GitHub API token used for build discovery.
@@ -69,7 +69,7 @@ function desktop_mode_beta_github_token() {
 	 *
 	 * @param string $token Token, or empty string for unauthenticated.
 	 */
-	return (string) apply_filters( 'desktop_mode_beta_github_token', $token );
+	return (string) apply_filters( 'openstation_beta_github_token', $token );
 }
 
 /**
@@ -80,25 +80,25 @@ function desktop_mode_beta_github_token() {
  * @param string $asset Asset file name (e.g. `trunk.zip`).
  * @return string
  */
-function desktop_mode_beta_ci_asset_url( $asset ) {
+function openstation_beta_ci_asset_url( $asset ) {
 	return sprintf(
 		'https://github.com/%s/releases/download/%s/%s',
-		desktop_mode_beta_repo(),
-		DESKTOP_MODE_BETA_CI_TAG,
+		openstation_beta_repo(),
+		OPENSTATION_BETA_CI_TAG,
 		$asset
 	);
 }
 
 /**
  * The recorded beta install, or null when the site runs a normal
- * (wp.org / release-managed) Desktop Mode install.
+ * (wp.org / release-managed) OpenStation install.
  *
  * @since 0.1.0
  *
  * @return array|null
  */
-function desktop_mode_beta_current() {
-	$current = get_option( DESKTOP_MODE_BETA_CURRENT_OPTION, null );
+function openstation_beta_current() {
+	$current = get_option( OPENSTATION_BETA_CURRENT_OPTION, null );
 	return is_array( $current ) ? $current : null;
 }
 
@@ -113,8 +113,8 @@ function desktop_mode_beta_current() {
  * @param bool   $force     True to bypass the cache.
  * @return array|WP_Error Decoded JSON (array) or error.
  */
-function desktop_mode_beta_api_get( $path, $cache_key, $ttl, $force = false ) {
-	$transient = 'desktop_mode_beta_' . $cache_key;
+function openstation_beta_api_get( $path, $cache_key, $ttl, $force = false ) {
+	$transient = 'openstation_beta_' . $cache_key;
 	if ( ! $force ) {
 		$cached = get_transient( $transient );
 		if ( false !== $cached && is_array( $cached ) ) {
@@ -126,7 +126,7 @@ function desktop_mode_beta_api_get( $path, $cache_key, $ttl, $force = false ) {
 		'Accept'               => 'application/vnd.github+json',
 		'X-GitHub-Api-Version' => '2022-11-28',
 	);
-	$token   = desktop_mode_beta_github_token();
+	$token   = openstation_beta_github_token();
 	if ( '' !== $token ) {
 		$headers['Authorization'] = 'Bearer ' . $token;
 	}
@@ -136,7 +136,7 @@ function desktop_mode_beta_api_get( $path, $cache_key, $ttl, $force = false ) {
 		array(
 			'timeout'    => 15,
 			'headers'    => $headers,
-			'user-agent' => 'desktop-mode-beta/' . DESKTOP_MODE_BETA_VERSION,
+			'user-agent' => 'openstation-beta/' . OPENSTATION_BETA_VERSION,
 		)
 	);
 	if ( is_wp_error( $response ) ) {
@@ -146,10 +146,10 @@ function desktop_mode_beta_api_get( $path, $cache_key, $ttl, $force = false ) {
 	$code = (int) wp_remote_retrieve_response_code( $response );
 	if ( 200 !== $code ) {
 		return new WP_Error(
-			'desktop_mode_beta_github_http',
+			'openstation_beta_github_http',
 			sprintf(
 				/* translators: 1: HTTP status code, 2: API path. */
-				__( 'GitHub API returned HTTP %1$d for %2$s.', 'desktop-mode-beta' ),
+				__( 'GitHub API returned HTTP %1$d for %2$s.', 'openstation-beta' ),
 				$code,
 				$path
 			),
@@ -160,8 +160,8 @@ function desktop_mode_beta_api_get( $path, $cache_key, $ttl, $force = false ) {
 	$data = json_decode( wp_remote_retrieve_body( $response ), true );
 	if ( ! is_array( $data ) ) {
 		return new WP_Error(
-			'desktop_mode_beta_github_json',
-			__( 'GitHub API returned an unparseable response.', 'desktop-mode-beta' ),
+			'openstation_beta_github_json',
+			__( 'GitHub API returned an unparseable response.', 'openstation-beta' ),
 			array( 'status' => 502 )
 		);
 	}
@@ -178,9 +178,9 @@ function desktop_mode_beta_api_get( $path, $cache_key, $ttl, $force = false ) {
  * @param bool $force True to bypass the cache.
  * @return array[]|WP_Error
  */
-function desktop_mode_beta_fetch_open_prs( $force = false ) {
-	$raw = desktop_mode_beta_api_get(
-		'/repos/' . desktop_mode_beta_repo() . '/pulls?state=open&per_page=100',
+function openstation_beta_fetch_open_prs( $force = false ) {
+	$raw = openstation_beta_api_get(
+		'/repos/' . openstation_beta_repo() . '/pulls?state=open&per_page=100',
 		'prs',
 		5 * MINUTE_IN_SECONDS,
 		$force
@@ -226,8 +226,8 @@ function desktop_mode_beta_fetch_open_prs( $force = false ) {
  * @param bool $force True to bypass the cache.
  * @return array|null `{ sha, version, built_at, url }`.
  */
-function desktop_mode_beta_fetch_trunk( $force = false ) {
-	$transient = 'desktop_mode_beta_trunk';
+function openstation_beta_fetch_trunk( $force = false ) {
+	$transient = 'openstation_beta_trunk';
 	if ( ! $force ) {
 		$cached = get_transient( $transient );
 		if ( is_array( $cached ) ) {
@@ -236,10 +236,10 @@ function desktop_mode_beta_fetch_trunk( $force = false ) {
 	}
 
 	$response = wp_remote_get(
-		desktop_mode_beta_ci_asset_url( 'trunk.json' ),
+		openstation_beta_ci_asset_url( 'trunk.json' ),
 		array(
 			'timeout'    => 15,
-			'user-agent' => 'desktop-mode-beta/' . DESKTOP_MODE_BETA_VERSION,
+			'user-agent' => 'openstation-beta/' . OPENSTATION_BETA_VERSION,
 		)
 	);
 
@@ -252,7 +252,7 @@ function desktop_mode_beta_fetch_trunk( $force = false ) {
 				'sha'      => $sha,
 				'version'  => sanitize_text_field( isset( $data['version'] ) ? (string) $data['version'] : '' ),
 				'built_at' => sanitize_text_field( isset( $data['built_at'] ) ? (string) $data['built_at'] : '' ),
-				'url'      => desktop_mode_beta_ci_asset_url( 'trunk.zip' ),
+				'url'      => openstation_beta_ci_asset_url( 'trunk.zip' ),
 			);
 		}
 	}
@@ -271,9 +271,9 @@ function desktop_mode_beta_fetch_trunk( $force = false ) {
  * @param bool $force True to bypass the cache.
  * @return array|WP_Error `{ tag, version, url, published_at }`.
  */
-function desktop_mode_beta_fetch_stable( $force = false ) {
-	$raw = desktop_mode_beta_api_get(
-		'/repos/' . desktop_mode_beta_repo() . '/releases/latest',
+function openstation_beta_fetch_stable( $force = false ) {
+	$raw = openstation_beta_api_get(
+		'/repos/' . openstation_beta_repo() . '/releases/latest',
 		'stable',
 		15 * MINUTE_IN_SECONDS,
 		$force
@@ -301,8 +301,8 @@ function desktop_mode_beta_fetch_stable( $force = false ) {
 	}
 	if ( '' === $url ) {
 		return new WP_Error(
-			'desktop_mode_beta_no_stable_asset',
-			__( 'The latest release has no plugin zip asset.', 'desktop-mode-beta' ),
+			'openstation_beta_no_stable_asset',
+			__( 'The latest release has no plugin zip asset.', 'openstation-beta' ),
 			array( 'status' => 502 )
 		);
 	}
@@ -332,8 +332,8 @@ function desktop_mode_beta_fetch_stable( $force = false ) {
  * @param bool     $force  True to re-check cached negatives immediately.
  * @return array<string,bool> Map asset name → exists.
  */
-function desktop_mode_beta_assets_exist( $assets, $force = false ) {
-	$transient = 'desktop_mode_beta_asset_map';
+function openstation_beta_assets_exist( $assets, $force = false ) {
+	$transient = 'openstation_beta_asset_map';
 	$map       = get_transient( $transient );
 	if ( ! is_array( $map ) ) {
 		$map = array();
@@ -357,7 +357,7 @@ function desktop_mode_beta_assets_exist( $assets, $force = false ) {
 		$pending[] = $asset;
 	}
 
-	foreach ( desktop_mode_beta_probe_assets( $pending ) as $asset => $exists ) {
+	foreach ( openstation_beta_probe_assets( $pending ) as $asset => $exists ) {
 		$out[ $asset ] = $exists;
 		$map[ $asset ] = array(
 			'exists'     => $exists,
@@ -384,7 +384,7 @@ function desktop_mode_beta_assets_exist( $assets, $force = false ) {
  * @param string[] $assets Asset file names to probe.
  * @return array<string,bool> Map asset name → exists.
  */
-function desktop_mode_beta_probe_assets( $assets ) {
+function openstation_beta_probe_assets( $assets ) {
 	if ( array() === $assets ) {
 		return array();
 	}
@@ -402,7 +402,7 @@ function desktop_mode_beta_probe_assets( $assets ) {
 	 * @param array<string,bool>|null $pre    Non-null to short-circuit.
 	 * @param string[]                $assets Asset file names being probed.
 	 */
-	$pre = apply_filters( 'desktop_mode_beta_pre_probe_assets', null, $assets );
+	$pre = apply_filters( 'openstation_beta_pre_probe_assets', null, $assets );
 	if ( is_array( $pre ) ) {
 		$out = array();
 		foreach ( $assets as $asset ) {
@@ -417,7 +417,7 @@ function desktop_mode_beta_probe_assets( $assets ) {
 		$requests = array();
 		foreach ( $assets as $asset ) {
 			$requests[ $asset ] = array(
-				'url'     => desktop_mode_beta_ci_asset_url( $asset ),
+				'url'     => openstation_beta_ci_asset_url( $asset ),
 				'type'    => \WpOrg\Requests\Requests::HEAD,
 				'options' => array(
 					'timeout'          => 10,
@@ -436,11 +436,11 @@ function desktop_mode_beta_probe_assets( $assets ) {
 
 	foreach ( $assets as $asset ) {
 		$response      = wp_remote_head(
-			desktop_mode_beta_ci_asset_url( $asset ),
+			openstation_beta_ci_asset_url( $asset ),
 			array(
 				'timeout'     => 10,
 				'redirection' => 0,
-				'user-agent'  => 'desktop-mode-beta/' . DESKTOP_MODE_BETA_VERSION,
+				'user-agent'  => 'openstation-beta/' . OPENSTATION_BETA_VERSION,
 			)
 		);
 		$code          = is_wp_error( $response ) ? 0 : (int) wp_remote_retrieve_response_code( $response );
@@ -468,9 +468,9 @@ function desktop_mode_beta_probe_assets( $assets ) {
  *                         installed desktop-mode directory.
  * @return string Marker found (e.g. `.git`), or empty string if none.
  */
-function desktop_mode_beta_dev_checkout_marker( $dir = null ) {
+function openstation_beta_dev_checkout_marker( $dir = null ) {
 	if ( null === $dir ) {
-		$dir = dirname( WP_PLUGIN_DIR . '/' . DESKTOP_MODE_BETA_TARGET_PLUGIN );
+		$dir = dirname( WP_PLUGIN_DIR . '/' . OPENSTATION_BETA_TARGET_PLUGIN );
 	}
 	if ( ! is_dir( $dir ) ) {
 		return '';
@@ -490,11 +490,11 @@ function desktop_mode_beta_dev_checkout_marker( $dir = null ) {
  *
  * @return array|null `{ code, reason }`, or null when switching is allowed.
  */
-function desktop_mode_beta_install_blocked() {
-	$marker = desktop_mode_beta_dev_checkout_marker();
+function openstation_beta_install_blocked() {
+	$marker = openstation_beta_dev_checkout_marker();
 
 	/**
-	 * Filters whether a development checkout of Desktop Mode may be
+	 * Filters whether a development checkout of OpenStation may be
 	 * overwritten by a build install.
 	 *
 	 * Default `false`: the guard refuses so a wp-env bind mount (or any
@@ -506,12 +506,12 @@ function desktop_mode_beta_install_blocked() {
 	 * @param bool   $allow  True to allow overwriting the checkout.
 	 * @param string $marker The development marker that was detected.
 	 */
-	if ( '' !== $marker && ! apply_filters( 'desktop_mode_beta_allow_dev_overwrite', false, $marker ) ) {
+	if ( '' !== $marker && ! apply_filters( 'openstation_beta_allow_dev_overwrite', false, $marker ) ) {
 		return array(
 			'code'   => 'dev-checkout',
 			'reason' => sprintf(
 				/* translators: %s: File or directory name found in the plugin folder (e.g. ".git"). */
-				__( 'The installed OpenStation plugin is a development checkout ("%s" found in its folder) — installing a build here would overwrite that working tree. Switch builds on a site running a packaged install instead.', 'desktop-mode-beta' ),
+				__( 'The installed OpenStation plugin is a development checkout ("%s" found in its folder) — installing a build here would overwrite that working tree. Switch builds on a site running a packaged install instead.', 'openstation-beta' ),
 				$marker
 			),
 		);
@@ -520,15 +520,15 @@ function desktop_mode_beta_install_blocked() {
 }
 
 /**
- * The installed Desktop Mode version, read from the plugin header so it
+ * The installed OpenStation version, read from the plugin header so it
  * stays correct even when desktop-mode is inactive or failed to load.
  *
  * @since 0.1.0
  *
  * @return string Version, or empty string when not installed.
  */
-function desktop_mode_beta_installed_version() {
-	$file = WP_PLUGIN_DIR . '/' . DESKTOP_MODE_BETA_TARGET_PLUGIN;
+function openstation_beta_installed_version() {
+	$file = WP_PLUGIN_DIR . '/' . OPENSTATION_BETA_TARGET_PLUGIN;
 	if ( ! file_exists( $file ) ) {
 		return '';
 	}
@@ -547,29 +547,29 @@ function desktop_mode_beta_installed_version() {
  * @param bool $force True to bypass every cache.
  * @return array|WP_Error
  */
-function desktop_mode_beta_state( $force = false ) {
-	$prs = desktop_mode_beta_fetch_open_prs( $force );
+function openstation_beta_state( $force = false ) {
+	$prs = openstation_beta_fetch_open_prs( $force );
 	if ( is_wp_error( $prs ) ) {
 		return $prs;
 	}
 
 	$errors = array();
 
-	$stable = desktop_mode_beta_fetch_stable( $force );
+	$stable = openstation_beta_fetch_stable( $force );
 	if ( is_wp_error( $stable ) ) {
 		$errors[] = $stable->get_error_message();
 		$stable   = null;
 	}
 
-	$trunk = desktop_mode_beta_fetch_trunk( $force );
+	$trunk = openstation_beta_fetch_trunk( $force );
 
-	$ready = desktop_mode_beta_assets_exist( wp_list_pluck( $prs, 'asset' ), $force );
+	$ready = openstation_beta_assets_exist( wp_list_pluck( $prs, 'asset' ), $force );
 	foreach ( $prs as &$pr ) {
 		$pr['build_ready'] = ! empty( $ready[ $pr['asset'] ] );
 	}
 	unset( $pr );
 
-	$current = desktop_mode_beta_current();
+	$current = openstation_beta_current();
 	$state   = array(
 		'current' => array(
 			'managed'      => null !== $current,
@@ -580,17 +580,17 @@ function desktop_mode_beta_state( $force = false ) {
 			'title'        => $current && isset( $current['title'] ) ? (string) $current['title'] : '',
 			'installed_at' => $current && isset( $current['installed_at'] ) ? (int) $current['installed_at'] : 0,
 			'installed_by' => $current && isset( $current['installed_by'] ) ? (string) $current['installed_by'] : '',
-			'version'      => desktop_mode_beta_installed_version(),
+			'version'      => openstation_beta_installed_version(),
 			'update'       => null,
 		),
 		'stable'          => $stable,
 		'trunk'           => $trunk,
 		'prs'             => $prs,
 		'errors'          => $errors,
-		'install_blocked' => desktop_mode_beta_install_blocked(),
+		'install_blocked' => openstation_beta_install_blocked(),
 	);
 
-	$state['current']['update'] = desktop_mode_beta_pending_update( $state );
+	$state['current']['update'] = openstation_beta_pending_update( $state );
 
 	return $state;
 }
@@ -600,10 +600,10 @@ function desktop_mode_beta_state( $force = false ) {
  *
  * @since 0.1.0
  *
- * @param array $state State as assembled by `desktop_mode_beta_state()`.
+ * @param array $state State as assembled by `openstation_beta_state()`.
  * @return array|null `{ kind: 'new-build'|'pr-closed'|'new-release', sha? }`.
  */
-function desktop_mode_beta_pending_update( $state ) {
+function openstation_beta_pending_update( $state ) {
 	$current = $state['current'];
 
 	if ( ! $current['managed'] ) {
@@ -638,7 +638,7 @@ function desktop_mode_beta_pending_update( $state ) {
 }
 
 /**
- * Suppress WordPress auto-updates for Desktop Mode while a beta build
+ * Suppress WordPress auto-updates for OpenStation while a beta build
  * is installed — an overnight wp.org auto-update would silently replace
  * the build under test. Manual updates from the Plugins screen remain
  * possible (and are a deliberate, visible act).
@@ -649,43 +649,43 @@ function desktop_mode_beta_pending_update( $state ) {
  * @param object    $item   Update offer.
  * @return bool|null
  */
-function desktop_mode_beta_block_auto_update( $update, $item ) {
-	if ( isset( $item->plugin ) && DESKTOP_MODE_BETA_TARGET_PLUGIN === $item->plugin && null !== desktop_mode_beta_current() ) {
+function openstation_beta_block_auto_update( $update, $item ) {
+	if ( isset( $item->plugin ) && OPENSTATION_BETA_TARGET_PLUGIN === $item->plugin && null !== openstation_beta_current() ) {
 		return false;
 	}
 	return $update;
 }
-add_filter( 'auto_update_plugin', 'desktop_mode_beta_block_auto_update', 10, 2 );
+add_filter( 'auto_update_plugin', 'openstation_beta_block_auto_update', 10, 2 );
 
 /**
  * Warn on the Plugins screen while a beta build is installed — updating
- * Desktop Mode from wp.org there would replace the build under test.
+ * OpenStation from wp.org there would replace the build under test.
  *
  * @since 0.1.0
  */
-function desktop_mode_beta_admin_notice() {
+function openstation_beta_admin_notice() {
 	$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
 	if ( ! $screen || 'plugins' !== $screen->id || ! current_user_can( 'update_plugins' ) ) {
 		return;
 	}
-	$current = desktop_mode_beta_current();
+	$current = openstation_beta_current();
 	if ( null === $current ) {
 		return;
 	}
 
 	$label = 'pr' === $current['source']
 		/* translators: %s: Pull request number. */
-		? sprintf( __( 'pull request #%s', 'desktop-mode-beta' ), $current['id'] )
-		: __( 'trunk', 'desktop-mode-beta' );
+		? sprintf( __( 'pull request #%s', 'openstation-beta' ), $current['id'] )
+		: __( 'trunk', 'openstation-beta' );
 	printf(
 		'<div class="notice notice-warning"><p>%s</p></div>',
 		esc_html(
 			sprintf(
 				/* translators: %s: Build description (e.g. "pull request #123" or "trunk"). */
-				__( 'OpenStation is running a beta build from %s. Updating it from this screen replaces the build under test — use the Desktop Mode Beta page under Tools to manage it.', 'desktop-mode-beta' ),
+				__( 'OpenStation is running a beta build from %s. Updating it from this screen replaces the build under test — use the OpenStation Beta page under Tools to manage it.', 'openstation-beta' ),
 				$label
 			)
 		)
 	);
 }
-add_action( 'admin_notices', 'desktop_mode_beta_admin_notice' );
+add_action( 'admin_notices', 'openstation_beta_admin_notice' );

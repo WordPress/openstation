@@ -347,14 +347,14 @@ first page is saved through the UI. If the sync job fails with "Could not
 clone", enable the wiki, save any page (its content will be replaced), and
 re-run the workflow.
 
-## Testing branch builds on a live site (Desktop Mode Beta)
+## Testing branch builds on a live site (OpenStation Beta)
 
 Any live site can run an unreleased build without touching FTP or wp-cli:
-the **Desktop Mode Beta** companion plugin (`desktop-mode-beta/` at the
+the **OpenStation Beta** companion plugin (`openstation-beta/` at the
 repo root, own zip attached to every GitHub release) installs the built
 zip of any open PR, the trunk build, or the latest stable release over
 the `desktop-mode` plugin in place. See
-[`desktop-mode-beta/README.md`](../desktop-mode-beta/README.md) for how
+[`openstation-beta/README.md`](../openstation-beta/README.md) for how
 it discovers builds (PR preview artifacts + `trunk-build.yml` on the
 `ci-artifacts` release) and its guard rails.
 

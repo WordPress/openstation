@@ -1,7 +1,7 @@
 name: Trunk Build
 
 # Publishes a "bleeding edge" build on every push to trunk, consumed by
-# the Desktop Mode Beta companion plugin (desktop-mode-beta/). Two
+# the OpenStation Beta companion plugin (openstation-beta/). Two
 # fixed-name assets are maintained on the same rolling `ci-artifacts`
 # release the PR preview flow uses:
 #
@@ -50,7 +50,7 @@ jobs:
         run: |
           if ! gh release view ci-artifacts --json tagName >/dev/null 2>&1; then
             gh release create ci-artifacts --prerelease --title 'CI artifacts' \
-              --notes 'Rolling release hosting CI build artifacts (PR preview + trunk builds). Not a Desktop Mode release.'
+              --notes 'Rolling release hosting CI build artifacts (PR preview + trunk builds). Not a OpenStation release.'
           fi
           cp openstation.zip trunk.zip
           version=$(node -p "require('./package.json').version")
