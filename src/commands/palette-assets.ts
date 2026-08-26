@@ -132,7 +132,25 @@ async function load(): Promise< boolean > {
 		injectStyleOnce( style );
 	}
 
-	const missing = manifest.scripts.filter(
+	// De-duplicate before anything loads. The manifest is assembled
+	// from two passes — Core's chain at boot, then the plugin
+	// contributors the shell hoists onto it — and the two overlap by
+	// construction, since every contributor depends on `wp-commands`.
+	// A duplicate would survive the DOM sniff below (that check runs
+	// once, up front, before any of these have been injected) and
+	// re-executing a handle is not harmless: running `wp-data` twice
+	// wipes every store registered against the first copy.
+	const seen = new Set< string >();
+	const ordered = manifest.scripts.filter( ( script ) => {
+		const key = script.handle || script.url;
+		if ( ! key || seen.has( key ) ) {
+			return false;
+		}
+		seen.add( key );
+		return true;
+	} );
+
+	const missing = ordered.filter(
 		( script ) => ! script.url || ! findScriptByPath( script.url ),
 	);
 	for ( const script of missing ) {

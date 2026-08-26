@@ -26,6 +26,9 @@ class Tests_OpenStation_ChromelessCommandPalette extends WP_UnitTestCase {
 		remove_all_filters( 'openstation_chromeless_trim_command_palette' );
 		remove_all_filters( 'openstation_command_palette_family' );
 		remove_all_filters( 'openstation_command_palette_root_handles' );
+		remove_all_filters( 'openstation_command_palette_contributors' );
+		remove_all_filters( 'openstation_command_palette_contributor_owns_screen' );
+		unset( $_GET['page'] );
 		parent::tear_down();
 	}
 
@@ -46,6 +49,14 @@ class Tests_OpenStation_ChromelessCommandPalette extends WP_UnitTestCase {
 	 *   os-test-unrelated -> jquery               (must be left alone)
 	 */
 	private function register_graph() {
+		// This WordPress may predate the Core command palette, in which
+		// case `wp-commands` is unregistered and enqueuing anything that
+		// depends on it trips `_doing_it_wrong`. Stub the root at its
+		// real Core path so the graph is well-formed either way — and so
+		// it is correctly seen as a Core package, not a contributor.
+		if ( ! wp_script_is( 'wp-commands', 'registered' ) ) {
+			wp_register_script( 'wp-commands', includes_url( 'js/dist/commands.js' ), array(), '1', true );
+		}
 		wp_register_script( 'os-test-direct', 'https://example.org/d.js', array( 'wp-commands' ), '1', true );
 		wp_register_script( 'os-test-indirect', 'https://example.org/i.js', array( 'os-test-direct' ), '1', true );
 		wp_register_script( 'os-test-unrelated', 'https://example.org/u.js', array( 'jquery' ), '1', true );
@@ -368,5 +379,157 @@ class Tests_OpenStation_ChromelessCommandPalette extends WP_UnitTestCase {
 		$this->assertFalse(
 			has_action( 'admin_enqueue_scripts', 'wp_enqueue_command_palette_assets' )
 		);
+	}
+
+	/**
+	 * The roots are the palette; they are not *contributors* to it.
+	 *
+	 * @covers ::openstation_command_palette_contributors
+	 */
+	public function test_contributors_never_include_the_roots() {
+		$this->register_graph();
+
+		$contributors = openstation_command_palette_contributors(
+			wp_scripts(),
+			array( 'wp-commands', 'wp-core-commands', 'os-test-direct' )
+		);
+
+		$this->assertSame( array( 'os-test-direct' ), $contributors );
+	}
+
+	/**
+	 * Rule 3's exemption: on the plugin's own route its palette script
+	 * stays, because that is where it registers screen-specific
+	 * commands rather than the site-wide ones the shell already carries.
+	 *
+	 * @covers ::openstation_command_palette_owns_screen
+	 */
+	public function test_a_plugin_owns_a_page_slug_prefixed_by_its_folder() {
+		wp_register_script(
+			'os-test-owned',
+			'https://example.org/wp-content/plugins/acme-crm/palette.js',
+			array( 'wp-commands' ),
+			'1',
+			true
+		);
+		$_GET['page'] = 'acme-crm-dashboard';
+
+		$owns = openstation_command_palette_owns_screen( wp_scripts(), 'os-test-owned' );
+
+		unset( $_GET['page'] );
+		$this->assertTrue( $owns );
+	}
+
+	/**
+	 * @covers ::openstation_command_palette_owns_screen
+	 */
+	public function test_a_plugin_does_not_own_an_unrelated_screen() {
+		wp_register_script(
+			'os-test-owned',
+			'https://example.org/wp-content/plugins/acme-crm/palette.js',
+			array( 'wp-commands' ),
+			'1',
+			true
+		);
+		$_GET['page'] = 'some-other-plugin';
+
+		$owns = openstation_command_palette_owns_screen( wp_scripts(), 'os-test-owned' );
+
+		unset( $_GET['page'] );
+		$this->assertFalse( $owns );
+	}
+
+	/**
+	 * Keeping a contributor means keeping the roots it depends on —
+	 * so the whole drop set collapses to nothing on an owned route.
+	 * That is the deliberate price of the exemption.
+	 *
+	 * @covers ::openstation_chromeless_command_palette_drops
+	 */
+	public function test_nothing_is_dropped_when_a_contributor_owns_the_screen() {
+		$this->enter_chromeless();
+		set_current_screen( 'toplevel_page_acme-crm' );
+		wp_register_script(
+			'os-test-owned',
+			'https://example.org/wp-content/plugins/acme-crm/palette.js',
+			array( 'wp-commands' ),
+			'1',
+			true
+		);
+		$_GET['page'] = 'acme-crm';
+
+		$drops = openstation_chromeless_command_palette_drops(
+			wp_scripts(),
+			array( 'os-test-owned' )
+		);
+
+		unset( $_GET['page'] );
+		$this->assertSame( array(), $drops );
+	}
+
+	/**
+	 * @covers ::openstation_command_palette_owns_screen
+	 */
+	public function test_screen_ownership_is_filterable() {
+		$this->register_graph();
+		add_filter( 'openstation_command_palette_contributor_owns_screen', '__return_true' );
+
+		$this->assertTrue(
+			openstation_command_palette_owns_screen( wp_scripts(), 'os-test-direct' )
+		);
+	}
+
+	/**
+	 * The shell hoist: contributors leave the boot document and land in
+	 * the deferred manifest, so their commands reach the palette on the
+	 * first ⌘K instead of being registered at boot against a
+	 * `core/commands` store that does not exist yet.
+	 *
+	 * @covers ::openstation_shell_hoist_command_palette_contributors
+	 */
+	public function test_shell_hoist_moves_contributors_into_the_manifest() {
+		wp_set_current_user( self::$admin_id );
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		// Shell, not a window: no chromeless flag.
+		wp_register_script( 'openstation', 'https://example.org/desktop.js', array(), '1', true );
+		wp_enqueue_script( 'openstation' );
+		$this->register_graph();
+		wp_enqueue_script( 'os-test-direct' );
+
+		$this->assertContains(
+			'os-test-direct',
+			openstation_command_palette_contributors( wp_scripts(), wp_scripts()->queue ),
+			'precondition: the contributor is detected'
+		);
+
+		openstation_shell_hoist_command_palette_contributors();
+
+		$this->assertFalse(
+			wp_script_is( 'os-test-direct', 'enqueued' ),
+			'the contributor must not print at boot'
+		);
+		$inline = wp_scripts()->get_data( 'openstation', 'before' );
+		$this->assertStringContainsString(
+			'os-test-direct',
+			is_array( $inline ) ? implode( '', $inline ) : (string) $inline,
+			'the contributor must be appended to the deferred manifest'
+		);
+	}
+
+	/**
+	 * @covers ::openstation_shell_hoist_command_palette_contributors
+	 */
+	public function test_shell_hoist_does_not_run_inside_a_window() {
+		$this->enter_chromeless();
+		wp_register_script( 'openstation', 'https://example.org/desktop.js', array(), '1', true );
+		wp_enqueue_script( 'openstation' );
+		$this->register_graph();
+		wp_enqueue_script( 'os-test-direct' );
+
+		openstation_shell_hoist_command_palette_contributors();
+
+		// The window path owns this handle; the shell hoist must keep
+		// its hands off, or the two would fight over the same queue.
+		$this->assertTrue( wp_script_is( 'os-test-direct', 'enqueued' ) );
 	}
 }

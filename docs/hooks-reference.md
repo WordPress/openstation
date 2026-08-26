@@ -1834,7 +1834,7 @@ That second condition is load-bearing, not tidiness. `wp-block-editor` declares 
 
 This is a family trim for the same reason the admin-bar trim above is: dropping the roots alone saves nothing while a single dependent survives, because `WP_Dependencies::all_deps()` pulls the whole chain back in on that dependent's behalf. Measured with only Core's enqueue deferred, a Settings window still pulled 14.28 MB of the original 14.49 MB — Astra's `command-palette.js` and WooCommerce's `command-palette.js` / `command-palette-analytics.js` each declare `wp-commands` and were still queued.
 
-Note that handles pulled in only *as dependencies of* a palette contributor need no special handling: they stop being requested once their last dependent leaves, and stay if anything else still needs them. WooCommerce's `wc-settings` (a 96 KB inline blob) disappears from a Settings window for exactly that reason, and remains on a WooCommerce screen that uses it.
+Note that handles pulled in only *as dependencies of* a palette contributor need no special handling: they stop being requested once their last dependent leaves, and stay if anything else still needs them. That cuts both ways, and it is why the size of the win is a property of the site rather than of this trim. On a stock install the palette is the only thing holding the Gutenberg chain onto an ordinary admin screen, and dropping it takes all ~10.66 MB with it. On a site where some other plugin genuinely depends on that chain and enqueues on every screen — a WooCommerce install pulls `wp-core-data` in through its abilities-api client — the chain stays, correctly, and the trim reclaims only the palette's own bundles.
 
 Use this filter as the escape hatch for a script that registers commands *and* renders part of its own admin screen — a distinction the dependency walk cannot make.
 
@@ -1842,6 +1842,50 @@ Use this filter as the escape hatch for a script that registers commands *and* r
 // Keep a bundle that registers commands but also draws its own screen.
 add_filter( 'openstation_command_palette_family', static function ( array $family ) {
     return array_values( array_diff( $family, array( 'my-plugin-admin-app' ) ) );
+} );
+```
+
+### `openstation_command_palette_contributors` — Experimental
+
+The detected palette **contributors** on their own: the family above, minus the roots. A contributor is a queued handle whose reason to exist is the command palette — Astra's `command-palette.js`, WooCommerce's `command-palette.js` / `command-palette-analytics.js`, each enqueued on every admin screen.
+
+Same conviction rule as the family, and the same escape hatch: filter a handle out here for a script that registers commands *and* renders part of its own admin screen, which the dependency walk cannot tell apart.
+
+```php
+add_filter( 'openstation_command_palette_contributors', static function ( array $contributors ) {
+    return array_values( array_diff( $contributors, array( 'my-plugin-admin-app' ) ) );
+} );
+```
+
+### `openstation_command_palette_contributor_owns_screen` — Experimental
+
+Whether a contributor's own plugin owns the current admin screen, and may therefore keep its palette script inside a window. This is the "under its own route" exemption: on its own screen a plugin registers screen-specific commands, rather than the site-wide ones the shell already carries.
+
+The default is deliberately conservative, because a false positive costs that window the entire Gutenberg chain — keeping a contributor means keeping the roots it depends on, so the drop set collapses to nothing. It matches when the request is for a file inside the plugin's own directory, or when the `page` query var is prefixed by the plugin's directory slug. A plugin whose menu slug does not resemble its folder name should claim its route through this filter.
+
+```php
+add_filter(
+    'openstation_command_palette_contributor_owns_screen',
+    static function ( $owns, $handle, $owner, $page ) {
+        if ( 'acme-palette' === $handle && 'crm-dashboard' === $page ) {
+            return true;
+        }
+        return $owns;
+    },
+    10,
+    4
+);
+```
+
+### `openstation_command_palette_contributors_hoisted` — Experimental (action)
+
+Fires on the shell after contributors are moved off the boot document and appended to the deferred palette manifest.
+
+The shell already defers Core's palette runtime and replays it on the first ⌘K; contributors defeated that, because they are enqueued normally and `all_deps()` pulled the chain back in on their behalf. Hoisting also fixes a real bug rather than only a cost: a contributor that ran at boot registered its commands against a `core/commands` store that did not exist yet, and lost them. It now executes as part of the replay, after the store exists — so a plugin's commands reach the palette **once, on the shell**, and cost no window anything.
+
+```php
+add_action( 'openstation_command_palette_contributors_hoisted', static function ( array $handles ) {
+    // $handles no longer print at boot; they replay on first ⌘K.
 } );
 ```
 

@@ -351,6 +351,128 @@ function openstation_command_palette_family( $dependencies, $handles ) {
 }
 
 /**
+ * The palette contributors among `$handles` — the family, less the
+ * roots.
+ *
+ * A contributor is a script whose reason to exist is the command
+ * palette: Astra's `command-palette.js`, WooCommerce's
+ * `command-palette.js` / `command-palette-analytics.js`. The roots are
+ * the palette itself, not contributions to it, so they are excluded.
+ *
+ * @param WP_Dependencies $dependencies The scripts registry.
+ * @param string[]        $handles      Handles to scan.
+ * @return string[] Contributor handles.
+ */
+function openstation_command_palette_contributors( $dependencies, $handles ) {
+	return array_values(
+		array_diff(
+			openstation_command_palette_family( $dependencies, $handles ),
+			openstation_command_palette_root_handles()
+		)
+	);
+}
+
+/**
+ * The plugin or theme directory a handle's `src` lives in.
+ *
+ * @param WP_Dependencies $dependencies The scripts registry.
+ * @param string          $handle       Handle to resolve.
+ * @return string Directory slug, or '' for core / unregistered handles.
+ */
+function openstation_command_palette_handle_owner( $dependencies, $handle ) {
+	if ( ! isset( $dependencies->registered[ $handle ] ) ) {
+		return '';
+	}
+	$src = $dependencies->registered[ $handle ]->src;
+	if ( ! is_string( $src ) || '' === $src ) {
+		return '';
+	}
+	if ( preg_match( '#/wp-content/(?:plugins|mu-plugins|themes)/([^/]+)/#', $src, $matches ) ) {
+		return $matches[1];
+	}
+	return '';
+}
+
+/**
+ * Whether a contributor's own plugin owns the current admin screen.
+ *
+ * The exemption that lets a plugin keep its palette script *under its
+ * own route*: on its own screen a plugin registers screen-specific
+ * commands, rather than the site-wide ones the shell already carries
+ * once for everybody.
+ *
+ * The default is deliberately conservative, because a false positive
+ * costs that window the whole chain: it matches when the request is for
+ * a file inside the plugin's own directory, or when the `page` query
+ * var is prefixed by the plugin's directory slug — the two shapes a
+ * plugin-owned admin route actually takes. A plugin whose menu slug
+ * resembles nothing in its folder name should claim its route through
+ * the filter rather than by loosening this.
+ *
+ * @param WP_Dependencies $dependencies The scripts registry.
+ * @param string          $handle       Contributor handle.
+ * @return bool
+ */
+function openstation_command_palette_owns_screen( $dependencies, $handle ) {
+	$owner = openstation_command_palette_handle_owner( $dependencies, $handle );
+
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only screen routing.
+	$page = isset( $_GET['page'] )
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only screen routing.
+		? sanitize_text_field( wp_unslash( $_GET['page'] ) )
+		: '';
+	$uri  = isset( $_SERVER['REQUEST_URI'] )
+		? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) )
+		: '';
+
+	$owns = false;
+	if ( '' !== $owner ) {
+		if ( false !== strpos( $uri, '/wp-content/plugins/' . $owner . '/' )
+			|| false !== strpos( $uri, '/wp-content/themes/' . $owner . '/' ) ) {
+			$owns = true;
+		} elseif ( '' !== $page && 0 === strpos( $page, $owner ) ) {
+			$owns = true;
+		}
+	}
+
+	/**
+	 * Filters whether a palette contributor may load in this window.
+	 *
+	 * Return true to keep the contributor — and, necessarily, the
+	 * palette runtime it depends on — inside a window on this screen.
+	 *
+	 * @param bool   $owns   Whether the contributor owns this screen.
+	 * @param string $handle Contributor handle.
+	 * @param string $owner  The handle's plugin/theme directory slug.
+	 * @param string $page   The `page` query var, if any.
+	 */
+	return (bool) apply_filters( 'openstation_command_palette_contributor_owns_screen', $owns, $handle, $owner, $page );
+}
+
+/**
+ * The palette handles to drop from a window's queue.
+ *
+ * Empty when a contributor owns the current screen: keeping that
+ * contributor means keeping the roots it depends on, so there is
+ * nothing left to drop. That is the deliberate price of the exemption
+ * — the plugin's own admin screen pays for the runtime its commands
+ * need, and no other window does.
+ *
+ * @param WP_Dependencies $dependencies The scripts registry.
+ * @param string[]        $handles      Handles to scan.
+ * @return string[] Handles to drop; empty when a contributor owns the screen.
+ */
+function openstation_chromeless_command_palette_drops( $dependencies, $handles ) {
+	foreach ( openstation_command_palette_contributors( $dependencies, $handles ) as $handle ) {
+		if ( openstation_command_palette_owns_screen( $dependencies, $handle ) ) {
+			return array();
+		}
+	}
+
+	return openstation_command_palette_family( $dependencies, $handles );
+}
+
+/**
  * Whether this request should drop the Core command-palette runtime.
  *
  * **Why a window never needs it.** ⌘K inside a window belongs to the
@@ -482,11 +604,14 @@ function openstation_chromeless_trim_command_palette() {
 		return;
 	}
 
-	foreach ( openstation_command_palette_family( $scripts, $scripts->queue ) as $handle ) {
+	$drops = openstation_chromeless_command_palette_drops( $scripts, $scripts->queue );
+	foreach ( $drops as $handle ) {
 		wp_dequeue_script( $handle );
 	}
-	foreach ( openstation_command_palette_root_handles() as $handle ) {
-		wp_dequeue_style( $handle );
+	if ( ! empty( $drops ) ) {
+		foreach ( openstation_command_palette_root_handles() as $handle ) {
+			wp_dequeue_style( $handle );
+		}
 	}
 
 	/**
@@ -517,9 +642,9 @@ function openstation_chromeless_filter_palette_print_list( $handles ) {
 	if ( ! $scripts ) {
 		return $handles;
 	}
-	$family = openstation_command_palette_family( $scripts, $handles );
+	$drops = openstation_chromeless_command_palette_drops( $scripts, $handles );
 
-	return array_values( array_diff( $handles, $family ) );
+	return array_values( array_diff( $handles, $drops ) );
 }
 add_filter( 'print_scripts_array', 'openstation_chromeless_filter_palette_print_list' );
 
@@ -533,6 +658,15 @@ function openstation_chromeless_filter_palette_style_print_list( $handles ) {
 	if ( ! is_array( $handles ) || ! openstation_chromeless_should_trim_command_palette() ) {
 		return $handles;
 	}
+	// A contributor that owns this screen keeps the runtime, and its
+	// stylesheet with it — otherwise the palette it is allowed to show
+	// would render unstyled.
+	$scripts = wp_scripts();
+	if ( $scripts
+		&& empty( openstation_chromeless_command_palette_drops( $scripts, $scripts->queue ) ) ) {
+		return $handles;
+	}
+
 	return array_values(
 		array_diff( $handles, openstation_command_palette_root_handles() )
 	);
@@ -588,3 +722,114 @@ add_filter(
 		return openstation_chromeless_filter_print_list( $handles, 'styles' );
 	}
 );
+
+/**
+ * Hoists the shell's palette contributors into the deferred manifest.
+ *
+ * The shell already defers Core's own palette runtime and replays it on
+ * the first ⌘K. Plugin contributors defeated that completely: they are
+ * enqueued normally, they declare `wp-commands`, and
+ * `WP_Dependencies::all_deps()` therefore pulled the palette chain back
+ * into the boot document on their behalf — the deferral was in place
+ * and paying for nothing.
+ *
+ * Worse, it did not even work. A contributor that ran at boot
+ * registered its commands against a `core/commands` store that does not
+ * exist yet, and lost them. Hoisting fixes the bug and the cost
+ * together: the contributor now executes as part of the replay, *after*
+ * the store exists, so a plugin's commands reach the palette **once, on
+ * the shell**, and cost no window anything.
+ *
+ * Runs at `PHP_INT_MAX` so every plugin has enqueued. Appends to
+ * `openStationConfig.commandPalette.scripts` through a `before` inline
+ * on our own bundle, which prints after the localized config object and
+ * before the bundle that reads it. `src/commands/palette-assets.ts`
+ * de-duplicates by handle, so a dependency the Core manifest already
+ * lists is never executed twice — and re-running `wp-data` would wipe
+ * every store registered against the first copy.
+ */
+function openstation_shell_hoist_command_palette_contributors() {
+	if ( ! openstation_is_enabled()
+		|| openstation_is_chromeless_request()
+		|| openstation_is_classic_request() ) {
+		return;
+	}
+	$scripts = wp_scripts();
+	if ( ! $scripts || ! wp_script_is( 'openstation', 'enqueued' ) ) {
+		return;
+	}
+
+	$contributors = openstation_command_palette_contributors( $scripts, $scripts->queue );
+	if ( empty( $contributors ) ) {
+		return;
+	}
+
+	// Resolve each contributor's ordered chain on a clone, so the
+	// request's real `$to_do` / `$done` state is untouched.
+	$probe        = clone $scripts;
+	$probe->to_do = array();
+	$probe->done  = array();
+	$probe->all_deps( $contributors );
+
+	// `all_deps()` bails out wholesale if any single dependency is
+	// unregistered — and every contributor depends on `wp-commands`,
+	// which a pre-6.9 site simply does not have. Falling back to the
+	// contributors themselves keeps the hoist working there: their Core
+	// dependencies are already carried by the Core manifest this list is
+	// appended to, so the contributor script is the only part that has
+	// to come from here.
+	$chain = $probe->to_do;
+	foreach ( $contributors as $handle ) {
+		if ( ! in_array( $handle, $chain, true ) ) {
+			$chain[] = $handle;
+		}
+	}
+
+	$entries = array();
+	foreach ( $chain as $handle ) {
+		$payload = openstation_resolve_script_payload( $handle );
+		if ( '' === $payload['url']
+			&& empty( $payload['before'] )
+			&& empty( $payload['after'] )
+			&& empty( $payload['l10n'] ) ) {
+			continue;
+		}
+		$entries[] = array(
+			'handle'       => (string) $handle,
+			'url'          => $payload['url'],
+			'before'       => $payload['before'],
+			'after'        => $payload['after'],
+			'l10n'         => $payload['l10n'],
+			'translations' => $payload['translations'],
+		);
+	}
+
+	// Unwind: none of it prints at boot any more. Dequeue, never
+	// deregister — anything that genuinely depends on one of these
+	// still resolves it.
+	foreach ( $contributors as $handle ) {
+		wp_dequeue_script( $handle );
+	}
+
+	if ( empty( $entries ) ) {
+		return;
+	}
+
+	wp_add_inline_script(
+		'openstation',
+		sprintf(
+			'(function(c){if(!c||!c.commandPalette)return;var s=c.commandPalette.scripts;if(!s)return;Array.prototype.push.apply(s,%s);})(window.openStationConfig);',
+			wp_json_encode( $entries )
+		),
+		'before'
+	);
+
+	/**
+	 * Fires after the shell hoists palette contributors into the
+	 * deferred manifest.
+	 *
+	 * @param string[] $contributors Handles moved off the boot document.
+	 */
+	do_action( 'openstation_command_palette_contributors_hoisted', $contributors );
+}
+add_action( 'admin_enqueue_scripts', 'openstation_shell_hoist_command_palette_contributors', PHP_INT_MAX );

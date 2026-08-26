@@ -23,6 +23,10 @@
 import type { AskFn } from '../ai/ask';
 import { ensureCommandPaletteAssets } from '../commands/palette-assets';
 import { ensureDeferredStyle } from '../deferred-styles';
+import {
+	hidePalettePlaceholder,
+	showPalettePlaceholder,
+} from './loading-placeholder';
 import type {
 	AiAssistantApi,
 	AiAssistantConfig,
@@ -147,11 +151,35 @@ export class AiAssistantStub implements AiAssistantApi {
 
 	open(): void {
 		this._intendOpen = true;
-		void this._ensure().then( ( r ) => r.open() );
+		// Nothing is on screen yet: the impl bundle, its stylesheet and
+		// the Core palette runtime are all still in flight on a first
+		// open. Paint the placeholder in the panel's own position so
+		// the keystroke visibly registers, and take it down whichever
+		// way this resolves — including a failed load, where leaving a
+		// spinner up forever would be the worst outcome.
+		if ( ! this._real ) {
+			showPalettePlaceholder();
+		}
+		void this._ensure()
+			.then( ( r ) => {
+				hidePalettePlaceholder();
+				// The user may have hit Escape (or toggled) while the
+				// bundle was loading; honour that rather than opening
+				// a panel they already dismissed.
+				if ( this._intendOpen ) {
+					r.open();
+				}
+			} )
+			.catch( ( err ) => {
+				hidePalettePlaceholder();
+				// eslint-disable-next-line no-console -- a failed impl load would otherwise leave ⌘K silently dead.
+				console.warn( '[openstation] command palette failed to load', err );
+			} );
 	}
 
 	close(): void {
 		this._intendOpen = false;
+		hidePalettePlaceholder();
 		if ( this._real ) {
 			this._real.close();
 		}

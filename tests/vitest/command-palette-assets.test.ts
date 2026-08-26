@@ -188,4 +188,48 @@ describe( 'ensureCommandPaletteAssets', () => {
 		await expect( ensureCommandPaletteAssets() ).resolves.toBe( false );
 		expect( loaded ).toEqual( [] );
 	} );
+
+	test( 'a handle listed twice executes once', async () => {
+		// The manifest is assembled from two passes — Core's chain,
+		// then the plugin contributors the shell hoists onto it — and
+		// they overlap by construction, since every contributor
+		// depends on `wp-commands`. Re-executing a handle is not
+		// harmless: running `wp-data` twice wipes every store
+		// registered against the first copy.
+		setManifest( {
+			scripts: [
+				{ handle: 'wp-data', url: 'https://example.test/data.js' },
+				{ handle: 'wp-commands', url: 'https://example.test/commands.js' },
+				{ handle: 'wp-data', url: 'https://example.test/data.js' },
+			],
+			styles: [],
+		} );
+
+		await ensureCommandPaletteAssets();
+
+		expect( loaded ).toEqual( [
+			'https://example.test/data.js',
+			'https://example.test/commands.js',
+		] );
+	} );
+
+	test( 'de-duplication preserves the first occurrence, so order still holds', async () => {
+		setManifest( {
+			scripts: [
+				{ handle: 'wp-a', url: 'https://example.test/a.js' },
+				{ handle: 'wp-b', url: 'https://example.test/b.js' },
+				{ handle: 'wp-a', url: 'https://example.test/a.js' },
+				{ handle: 'wp-c', url: 'https://example.test/c.js' },
+			],
+			styles: [],
+		} );
+
+		await ensureCommandPaletteAssets();
+
+		expect( loaded ).toEqual( [
+			'https://example.test/a.js',
+			'https://example.test/b.js',
+			'https://example.test/c.js',
+		] );
+	} );
 } );

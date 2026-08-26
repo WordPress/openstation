@@ -734,6 +734,8 @@ Fires after `wp.os.setDefaultWindow( url | null )` **successfully** persists the
 
 **Direction inverted:** plugins dispatch this one; the shell listens. Dispatching it on `document` opens the AI Assistant spotlight overlay — equivalent to `wp.os.ai.open()` for code that runs without a `wp.os` reference in scope (the admin-bar "Ask AI ⌘K" button is the in-tree dispatcher). No detail payload. The shell routes the open through the palette cycle, so any other open palette is dismissed first (single-palette-at-a-time invariant).
 
+The **first** open of a session has three things in flight at once — the implementation bundle, its deferred stylesheet, and the Core command-palette runtime the manifest replays — so the shell paints a "Starting the command palette…" placeholder in the panel's own position until they land, then swaps it for the real panel. It is inline-styled rather than class-based on purpose: `ai-assistant.css` is itself deferred and is still loading during exactly the window the placeholder covers. Pressing Escape while it is up cancels the open rather than opening a panel the user already dismissed, and a failed load takes the placeholder down instead of leaving a spinner up forever.
+
 ```javascript
 document.dispatchEvent( new CustomEvent( 'os-open-ai' ) );
 ```
