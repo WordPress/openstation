@@ -758,6 +758,15 @@ function openstation_enqueue_assets() {
 						'os-settings',
 						'desktop-mode-ai-assistant',
 						'desktop-mode-bug-report',
+						// WP Explorer's sheet. It rides that window as a
+						// companion style, but the desktop FOLDER window
+						// paints its preview pane with the same
+						// `os-my-wordpress__*` classes and — being a
+						// native window opened straight from JS — carries
+						// no companion styles of its own. Without this,
+						// the pane rendered unstyled until WP Explorer
+						// had been opened once in the session.
+						'desktop-mode-my-wordpress',
 					),
 					// The Games sheets. They also ride the hub window as
 					// companion styles, but a game is reachable without
