@@ -2,8 +2,6 @@
  * Resolves a release's album art + codename from its wordpress.org/news
  * announcement (titled `WordPress <X.Y> "Codename"`), cached in
  * `localStorage` per branch.
- *
- * @since 0.9.4
  */
 
 import { trackedFetch } from './tracked-fetch';
@@ -17,6 +15,11 @@ export interface ReleaseArt {
 // changes so stale hits/misses from an older algorithm are discarded.
 const CACHE_PREFIX = 'desktop-mode/release-art:v1:';
 const MISS_TTL_MS = 6 * 60 * 60 * 1000; // retry a miss after 6h
+// A new major is offered as an update hours before its announcement
+// post goes up, so a miss there means "not published yet" rather than
+// "nothing to find" — retry it soon enough that the card replaces the
+// fallback toast the same day.
+const PENDING_MISS_TTL_MS = 30 * 60 * 1000;
 
 function str( v: unknown ): string {
 	return typeof v === 'string' ? v : '';
@@ -79,7 +82,10 @@ export function parseReleaseArt(
 	return null;
 }
 
-function readCache( branch: string ): ReleaseArt | 'miss' | null {
+function readCache(
+	branch: string,
+	missTtlMs: number,
+): ReleaseArt | 'miss' | null {
 	try {
 		const raw = localStorage.getItem( CACHE_PREFIX + branch );
 		if ( ! raw ) {
@@ -92,7 +98,7 @@ function readCache( branch: string ): ReleaseArt | 'miss' | null {
 		if (
 			v.ok === false &&
 			typeof v.ts === 'number' &&
-			Date.now() - v.ts < MISS_TTL_MS
+			Date.now() - v.ts < missTtlMs
 		) {
 			return 'miss';
 		}
@@ -114,14 +120,22 @@ function writeCache( branch: string, value: object ): void {
  * Resolve `{ name, artUrl }` for a branch, from cache or the news feed.
  * Returns `null` when no announcement/art is found (the shell then falls
  * back to the plain toast).
+ *
+ * Pass `announcementPending` for a branch whose announcement is still
+ * expected (a major that just landed) to cache a miss for minutes
+ * instead of hours.
  */
 export async function resolveReleaseArt(
 	branch: string,
+	announcementPending = false,
 ): Promise< ReleaseArt | null > {
 	if ( ! branch ) {
 		return null;
 	}
-	const cached = readCache( branch );
+	const cached = readCache(
+		branch,
+		announcementPending ? PENDING_MISS_TTL_MS : MISS_TTL_MS,
+	);
 	if ( cached === 'miss' ) {
 		return null;
 	}

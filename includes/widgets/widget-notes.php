@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — Note Pad widget PHP registration.
+ * OpenStation — Note Pad widget PHP registration.
  *
  * The composer surface for pinned notes: a pad of pastel paper on the
  * widget column. The user writes on the top sheet and drags it out of
@@ -12,77 +12,74 @@
  * handles at `init@5`, announce the widget at `init@6`, eagerly
  * enqueue only the CSS on shell pages.
  *
- * @package WPDesktopMode
- * @since   0.9.6
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
  * Register the JS bundle and CSS stylesheet handles.
- *
- * @since 0.9.6
  */
-function desktop_mode_register_notes_widget_assets() {
-	$suffix  = desktop_mode_asset_suffix();
-	$version = defined( 'DESKTOP_MODE_VERSION' ) ? DESKTOP_MODE_VERSION : '0';
+function openstation_register_notes_widget_assets() {
+	$suffix  = openstation_asset_suffix();
+	$version = defined( 'OPENSTATION_VERSION' ) ? OPENSTATION_VERSION : '0';
 
-	$js_path  = DESKTOP_MODE_DIR . 'assets/js/widget-notes' . $suffix . '.js';
-	$css_path = DESKTOP_MODE_DIR . 'assets/js/widget-notes' . $suffix . '.css';
+	$js_path  = OPENSTATION_DIR . 'assets/js/widget-notes' . $suffix . '.js';
+	$css_path = OPENSTATION_DIR . 'assets/js/widget-notes' . $suffix . '.css';
 
+	// Depends on `os-files` because the pad's sheets wear the
+	// canonical `.os-file-tile` chrome while being dragged — anything
+	// that restyles a tile has to print after the file that declares
+	// one, whatever order the two handles were enqueued in.
 	wp_register_style(
-		'desktop-mode-notes-widget',
-		DESKTOP_MODE_URL . 'assets/js/widget-notes' . $suffix . '.css',
-		array(),
+		'os-notes-widget',
+		OPENSTATION_URL . 'assets/js/widget-notes' . $suffix . '.css',
+		array( 'os-files' ),
 		file_exists( $css_path ) ? (string) filemtime( $css_path ) : $version
 	);
 
 	wp_register_script(
-		'desktop-mode-notes-widget',
-		DESKTOP_MODE_URL . 'assets/js/widget-notes' . $suffix . '.js',
+		'os-notes-widget',
+		OPENSTATION_URL . 'assets/js/widget-notes' . $suffix . '.js',
 		array(),
 		file_exists( $js_path ) ? (string) filemtime( $js_path ) : $version,
 		true
 	);
 }
-add_action( 'init', 'desktop_mode_register_notes_widget_assets', 5 );
+add_action( 'init', 'openstation_register_notes_widget_assets', 5 );
 
 /**
- * Eagerly enqueue the CSS on Desktop Mode shell pages.
+ * Eagerly enqueue the CSS on OpenStation shell pages.
  *
  * The JS loads lazily (widget server-sync); the CSS must be present
  * before first mount to avoid a flash of unstyled pad.
- *
- * @since 0.9.6
  */
-function desktop_mode_enqueue_notes_widget_styles() {
-	if ( function_exists( 'desktop_mode_is_enabled' ) && ! desktop_mode_is_enabled() ) {
+function openstation_enqueue_notes_widget_styles() {
+	if ( function_exists( 'openstation_is_enabled' ) && ! openstation_is_enabled() ) {
 		return;
 	}
-	if ( function_exists( 'desktop_mode_is_chromeless_request' ) && desktop_mode_is_chromeless_request() ) {
+	if ( function_exists( 'openstation_is_chromeless_request' ) && openstation_is_chromeless_request() ) {
 		return;
 	}
-	wp_enqueue_style( 'desktop-mode-notes-widget' );
+	wp_enqueue_style( 'os-notes-widget' );
 }
-add_action( 'admin_enqueue_scripts', 'desktop_mode_enqueue_notes_widget_styles', 20 );
+add_action( 'admin_enqueue_scripts', 'openstation_enqueue_notes_widget_styles', 20 );
 
 /**
- * Announce the widget to Desktop Mode.
- *
- * @since 0.9.6
+ * Announce the widget to OpenStation.
  */
-function desktop_mode_register_notes_widget() {
-	if ( ! function_exists( 'desktop_mode_register_widget' ) ) {
+function openstation_register_notes_widget() {
+	if ( ! function_exists( 'openstation_register_widget' ) ) {
 		return;
 	}
 
-	desktop_mode_register_widget(
+	openstation_register_widget(
 		'desktop-mode/notes',
 		array(
 			'label'          => __( 'Note Pad', 'desktop-mode' ),
 			'description'    => __( 'Write a note and drag it onto the desktop to pin it.', 'desktop-mode' ),
 			'icon'           => 'dashicons-sticky',
-			'script'         => 'desktop-mode-notes-widget',
+			'script'         => 'os-notes-widget',
 			'movable'        => true,
 			'resizable'      => true,
 			'min_width'      => 240,
@@ -92,4 +89,4 @@ function desktop_mode_register_notes_widget() {
 		)
 	);
 }
-add_action( 'init', 'desktop_mode_register_notes_widget', 6 );
+add_action( 'init', 'openstation_register_notes_widget', 6 );

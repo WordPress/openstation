@@ -1,17 +1,17 @@
 /**
- * Desktop Mode — Cross-window shortcut drag protocol (legacy).
+ * OpenStation — Cross-window shortcut drag protocol (legacy).
  *
- * @deprecated since 0.8.1 — superseded by the centralized
+ * @deprecated Superseded by the centralized
  * {@link DragManagerApi}. The shell no longer wires HTML5
  * `dragstart` / `drop` for in-shell tile gestures; everything routes
- * through `wp.desktop.dragManager`. This module remains for
+ * through `wp.os.dragManager`. This module remains for
  * backwards compatibility with third-party plugins that still emit
- * HTML5 drags with the legacy MIME `application/x-desktop-mode-shortcut+json`,
+ * HTML5 drags with the legacy MIME `application/x-os-shortcut+json`,
  * but new code SHOULD use the manager directly:
  *
  * ```ts
  * tile.addEventListener( 'pointerdown', ( e ) => {
- *     window.wp.desktop.dragManager.start( {
+ *     window.wp.os.dragManager.start( {
  *         payload: {
  *             type: 'shortcut',
  *             source: tile,
@@ -36,10 +36,9 @@
  *      gives us a single mental model.
  *
  * @public
- * @since 0.8.0
  */
 
-export const DROP_MIME = 'application/x-desktop-mode-shortcut+json';
+export const DROP_MIME = 'application/x-os-shortcut+json';
 
 export interface DesktopShortcutDragPayload {
 	type: string;
@@ -52,7 +51,7 @@ export interface DesktopShortcutDragPayload {
  * Stamp a shortcut payload on a dataTransfer object during a
  * `dragstart`.
  *
- * @deprecated since 0.8.1 — use `dragManager.start()` instead.
+ * @deprecated Use `dragManager.start()` instead.
  */
 export function setShortcutDragPayload(
 	dt: DataTransfer,
@@ -70,7 +69,7 @@ export function setShortcutDragPayload(
 /**
  * Whether the drag event carries a shortcut payload.
  *
- * @deprecated since 0.8.1 — drop targets register via
+ * @deprecated Drop targets register via
  * `dragManager.registerDropTarget()` and switch on `payload.type`.
  */
 export function hasShortcutPayload( e: DragEvent ): boolean {
@@ -90,7 +89,7 @@ export function hasShortcutPayload( e: DragEvent ): boolean {
  * Read a shortcut payload from a `drop` event. Returns `null` for
  * malformed / missing data — caller should bail.
  *
- * @deprecated since 0.8.1 — drop targets receive the typed payload
+ * @deprecated Drop targets receive the typed payload
  * directly via `DragSession.payload.data`.
  */
 export function readShortcutPayload(

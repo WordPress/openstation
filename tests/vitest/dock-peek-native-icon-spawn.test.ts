@@ -49,13 +49,13 @@ describe( 'Dock — dock-peek "+" on native-window-targeted icon', () => {
 		document.body.innerHTML = '';
 	} );
 
-	test( '"+" routes through wp.desktop.openNewWindow when item has windowId + empty url', () => {
+	test( '"+" routes through wp.os.openNewWindow when item has windowId + empty url', () => {
 		const openNewWindow = vi.fn().mockReturnValue( true );
 		// `installHooksStub` populated `window.wp.hooks` — extend it
 		// with the public-API `desktop` namespace instead of replacing
 		// `window.wp` (which would clobber the hooks stub).
-		( window as unknown as { wp: { hooks: unknown; desktop?: { openNewWindow: typeof openNewWindow } } } )
-			.wp.desktop = { openNewWindow };
+		( window as unknown as { wp: { hooks: unknown; os?: { openNewWindow: typeof openNewWindow } } } )
+			.wp.os = { openNewWindow };
 
 		const manager = makeManagerStub();
 		const item = synthIconDockItem();

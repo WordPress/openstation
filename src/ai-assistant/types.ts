@@ -1,23 +1,19 @@
 /**
- * Desktop Mode — AI Assistant shared types.
+ * OpenStation — AI Assistant shared types.
  *
  * Lives in its own file so the main-bundle stub can import the
  * interface without dragging the full `impl.ts` (38 kB) along with
  * it. The impl bundle re-exports the same interface from
  * `./impl.ts` (its native declaration site) — keep the two in sync.
- *
- * @since 0.8.4
  */
 
 import type { AskFn } from '../ai/ask';
 
 /**
  * Public contract of the AI Assistant — what plugins reach through
- * `wp.desktop.ai`. Implemented by both the lazy stub (main bundle)
+ * `wp.os.ai`. Implemented by both the lazy stub (main bundle)
  * and the real `AiAssistant` class (in the lazy-loaded
  * `ai-assistant` bundle).
- *
- * @since 0.8.4
  */
 export interface AiAssistantApi {
 	open(): void;
@@ -27,8 +23,6 @@ export interface AiAssistantApi {
 	/**
 	 * Programmatic access to the AI Copilot — same endpoint the
 	 * overlay uses. Wired by `desktop.ts` via {@link AiAssistantStubMethods.attachAsk}.
-	 *
-	 * @since 0.8.4
 	 */
 	ask: AskFn;
 }
@@ -41,9 +35,13 @@ export interface AiAssistantApi {
  */
 export interface AiAssistantConfig {
 	aiSearchUrl: string;
-	aiSearchStreamUrl: string;
 	restNonce: string;
-	getTransport?: () => 'sse' | 'off';
+	/**
+	 * Base admin URL (e.g. `'http://example.com/wp-admin/'`). Used to
+	 * resolve relative admin paths into absolute URLs when opening
+	 * entity search results (posts, pages) in legacy windows.
+	 */
+	adminUrl: string;
 	/**
 	 * Whether the AI mode is usable — the AI APIs are present and a
 	 * provider is configured. When false the assistant is a pure command
@@ -63,7 +61,7 @@ export interface AiAssistantConfig {
 
 /**
  * Factory exported by the impl bundle on
- * `window.desktopModeCreateAiAssistant`. The stub awaits the script
+ * `window.openStationCreateAiAssistant`. The stub awaits the script
  * load, then calls this to materialise the real assistant.
  */
 export type AiAssistantFactory = ( config: AiAssistantConfig ) => AiAssistantApi & {

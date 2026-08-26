@@ -30,8 +30,7 @@
  * Reported to Elegant Themes. Remove this file when Divi ships
  * the fix upstream.
  *
- * @since   0.8.6
- * @package WP_Desktop_Mode\Compat
+ * @package OpenStation\Compat
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -83,11 +82,9 @@ defined( 'ABSPATH' ) || exit;
  * Reported to Elegant Themes. Remove this file when Divi ships
  * the fix upstream.
  *
- * @since 0.8.6
- *
  * @return void
  */
-function desktop_mode_compat_divi_fix_gutenberg_deps() {
+function openstation_compat_divi_fix_gutenberg_deps() {
 	global $wp_scripts;
 
 	if ( ! ( $wp_scripts instanceof WP_Scripts ) ) {
@@ -107,7 +104,7 @@ function desktop_mode_compat_divi_fix_gutenberg_deps() {
 		}
 	}
 
-	if ( desktop_mode_is_chromeless_request() ) {
+	if ( openstation_is_chromeless_request() ) {
 		wp_add_inline_script(
 			'et-builder-gutenberg',
 			'window.et_gb = window;',
@@ -115,7 +112,7 @@ function desktop_mode_compat_divi_fix_gutenberg_deps() {
 		);
 	}
 }
-add_action( 'enqueue_block_editor_assets', 'desktop_mode_compat_divi_fix_gutenberg_deps', 999 );
+add_action( 'enqueue_block_editor_assets', 'openstation_compat_divi_fix_gutenberg_deps', 999 );
 
 /**
  * Signal Divi's Visual Builder frame-helpers that the iframe context
@@ -152,7 +149,7 @@ add_action( 'enqueue_block_editor_assets', 'desktop_mode_compat_divi_fix_gutenbe
  * outside Divi (no other code in the WP stack reads `__Cypress__`)
  * and is idempotent (we OR with the existing value).
  *
- * Scope: only when the current user has desktop mode enabled AND
+ * Scope: only when the current user has OpenStation enabled AND
  * the rendered document is loaded inside an iframe (`window.top !==
  * window`). The inline script is a few-byte no-op everywhere else.
  * Front-end only — admin pages use `et_gb` (see above) and route
@@ -161,22 +158,20 @@ add_action( 'enqueue_block_editor_assets', 'desktop_mode_compat_divi_fix_gutenbe
  * Reported to Elegant Themes. Remove this hook when Divi makes
  * `top_window` iframe-aware upstream.
  *
- * @since 0.8.6
- *
  * @return void
  */
-function desktop_mode_compat_divi_vb_iframe_signal() {
+function openstation_compat_divi_vb_iframe_signal() {
 	if ( is_admin() ) {
 		return;
 	}
-	if ( ! desktop_mode_is_enabled() ) {
+	if ( ! openstation_is_enabled() ) {
 		return;
 	}
 	// Bail when Divi isn't active — the inline script below is
 	// shaped entirely around Divi's frame-helpers and VB preloader.
 	// Other handlers in this file already gate on
-	// `desktop_mode_compat_divi_is_active()`; this one was missed.
-	if ( ! desktop_mode_compat_divi_is_active() ) {
+	// `openstation_compat_divi_is_active()`; this one was missed.
+	if ( ! openstation_compat_divi_is_active() ) {
 		return;
 	}
 	// `app_window=1` flags the inner VB iframe Divi spawns inside the
@@ -187,7 +182,7 @@ function desktop_mode_compat_divi_vb_iframe_signal() {
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only flag set by Divi itself when constructing the inner iframe.
 	$is_app_frame = isset( $_GET['app_window'] ) && '1' === sanitize_text_field( wp_unslash( $_GET['app_window'] ) );
 	?>
-<script id="desktop-mode-compat-divi-vb">
+<script id="os-compat-divi-vb">
 ( function () {
 	if ( window.top === window ) { return; }
 	<?php if ( $is_app_frame ) : ?>
@@ -216,7 +211,7 @@ function desktop_mode_compat_divi_vb_iframe_signal() {
 	 * outer VB-top frame I'm rendered into." In classic admin
 	 * `window.top` IS the VB-top, so that works.
 	 *
-	 * In a Desktop Mode chromeless iframe, the nesting is one deeper
+	 * In a OpenStation chromeless iframe, the nesting is one deeper
 	 * — the inner React app's `window.top` is the desktop shell,
 	 * which has no Divi elements. Root.js cleans its own doc and
 	 * no-ops on the shell, leaving THIS document's preloader stuck
@@ -278,7 +273,7 @@ function desktop_mode_compat_divi_vb_iframe_signal() {
 </script>
 	<?php
 }
-add_action( 'wp_head', 'desktop_mode_compat_divi_vb_iframe_signal', 1 );
+add_action( 'wp_head', 'openstation_compat_divi_vb_iframe_signal', 1 );
 
 /**
  * Iframe-side: hijack clicks on Divi's "Use Divi Builder" /
@@ -289,14 +284,14 @@ add_action( 'wp_head', 'desktop_mode_compat_divi_vb_iframe_signal', 1 );
  * Why we hijack instead of letting Divi navigate:
  *
  * Divi's Visual Builder fundamentally doesn't behave well inside
- * Desktop Mode's nested iframe chain (shell -> chromeless iframe
+ * OpenStation's nested iframe chain (shell -> chromeless iframe
  * -> Divi's inner app-frame). Earlier attempts to transparently
  * eject mid-navigation hit a chain of subtle race conditions —
  * Divi captures `Location.prototype` references early, makes its
  * REST save through a path our `fetch`/`XHR` wraps don't reach,
  * and the page-leave tears down our console before any diagnostic
  * we add survives the navigation. The honest fix is to ask the
- * user, explicitly, whether they want to leave Desktop Mode for
+ * user, explicitly, whether they want to leave OpenStation for
  * this edit session.
  *
  * Detection is by visible text content on the clicked element
@@ -312,19 +307,17 @@ add_action( 'wp_head', 'desktop_mode_compat_divi_vb_iframe_signal', 1 );
  * Gutenberg editor canvas (when Gutenberg keeps it for non-Divi
  * blocks) is covered.
  *
- * @since 0.8.6
- *
  * @return void
  */
-function desktop_mode_compat_divi_eject_iframe_patch() {
-	if ( ! desktop_mode_is_chromeless_request() ) {
+function openstation_compat_divi_eject_iframe_patch() {
+	if ( ! openstation_is_chromeless_request() ) {
 		return;
 	}
-	if ( ! desktop_mode_compat_divi_is_active() ) {
+	if ( ! openstation_compat_divi_is_active() ) {
 		return;
 	}
 	?>
-<script id="desktop-mode-compat-divi-vb-handoff">
+<script id="os-compat-divi-vb-handoff">
 ( function () {
 	var BTN_TEXTS = [
 		'use divi builder',
@@ -343,7 +336,7 @@ function desktop_mode_compat_divi_eject_iframe_patch() {
 	function postHandoff( currentUrl ) {
 		try {
 			window.top.postMessage(
-				{ type: 'desktop-mode-divi-vb-handoff', url: String( currentUrl ) },
+				{ type: 'os-divi-vb-handoff', url: String( currentUrl ) },
 				window.location.origin
 			);
 		} catch ( e ) {}
@@ -367,8 +360,8 @@ function desktop_mode_compat_divi_eject_iframe_patch() {
 	}
 	function attachClickListener( doc ) {
 		try {
-			if ( doc.__desktopModeDiviHandoffAttached ) { return; }
-			doc.__desktopModeDiviHandoffAttached = true;
+			if ( doc.__openStationDiviHandoffAttached ) { return; }
+			doc.__openStationDiviHandoffAttached = true;
 			doc.addEventListener( 'click', onClick, true );
 		} catch ( e ) {}
 	}
@@ -381,8 +374,8 @@ function desktop_mode_compat_divi_eject_iframe_patch() {
 			try {
 				if ( iframe.contentDocument ) { walkAndAttach( iframe.contentDocument ); }
 			} catch ( e ) {}
-			if ( iframe.__desktopModeDiviHandoffHooked ) { return; }
-			iframe.__desktopModeDiviHandoffHooked = true;
+			if ( iframe.__openStationDiviHandoffHooked ) { return; }
+			iframe.__openStationDiviHandoffHooked = true;
 			iframe.addEventListener( 'load', function () {
 				try { if ( iframe.contentDocument ) { walkAndAttach( iframe.contentDocument ); } } catch ( e ) {}
 			} );
@@ -402,11 +395,11 @@ function desktop_mode_compat_divi_eject_iframe_patch() {
 </script>
 	<?php
 }
-add_action( 'admin_head', 'desktop_mode_compat_divi_eject_iframe_patch', 0 );
+add_action( 'admin_head', 'openstation_compat_divi_eject_iframe_patch', 0 );
 
 /**
  * Parent-shell side: receive the handoff message, ask the user
- * to confirm via `wp.desktop.confirm()`, and on accept navigate
+ * to confirm via `wp.os.confirm()`, and on accept navigate
  * `window.top.location.href` to the iframe's current URL — which
  * is the post-edit page. The user lands at top level on the same
  * post they were editing, clicks "Use Divi Builder" again with a
@@ -420,56 +413,54 @@ add_action( 'admin_head', 'desktop_mode_compat_divi_eject_iframe_patch', 0 );
  * own origin AND the URL we navigate to must parse back to the
  * same origin. Foreign frames can't trigger the handoff.
  *
- * @since 0.8.6
- *
  * @return void
  */
-function desktop_mode_compat_divi_eject_parent_listener() {
-	if ( ! desktop_mode_is_enabled() ) {
+function openstation_compat_divi_eject_parent_listener() {
+	if ( ! openstation_is_enabled() ) {
 		return;
 	}
-	if ( desktop_mode_is_chromeless_request() || desktop_mode_is_classic_request() ) {
+	if ( openstation_is_chromeless_request() || openstation_is_classic_request() ) {
 		return;
 	}
-	if ( ! desktop_mode_compat_divi_is_active() ) {
+	if ( ! openstation_compat_divi_is_active() ) {
 		return;
 	}
 	?>
-<script id="desktop-mode-compat-divi-vb-handoff-parent">
+<script id="os-compat-divi-vb-handoff-parent">
 ( function () {
 	// Reshape the iframe's URL into a top-level classic-admin URL.
-	// The iframe carries `desktop_mode_chromeless=1`, which would
+	// The iframe carries `openstation_chromeless=1`, which would
 	// keep the chromeless render alive even at top level — leaving
 	// the user on what looks like the same headless Gutenberg they
 	// already had inside the window. We want a normal wp-admin page
 	// instead, so strip that flag and add `desktop_mode_classic=1`
-	// so our own `desktop_mode_redirect_plain_admin_to_portal()` in
+	// so our own `openstation_redirect_plain_admin_to_portal()` in
 	// `includes/portal.php` skips its portal-bounce for this load.
 	function handoffUrl( raw ) {
 		try {
 			var parsed = new URL( String( raw || '' ), window.location.href );
 			if ( parsed.origin !== window.location.origin ) { return null; }
-			parsed.searchParams.delete( 'desktop_mode_chromeless' );
+			parsed.searchParams.delete( 'openstation_chromeless' );
 			parsed.searchParams.set( 'desktop_mode_classic', '1' );
 			return parsed.toString();
 		} catch ( e ) { return null; }
 	}
 	window.addEventListener( 'message', function ( ev ) {
 		if ( ev.origin !== window.location.origin ) { return; }
-		if ( ! ev.data || ev.data.type !== 'desktop-mode-divi-vb-handoff' ) { return; }
+		if ( ! ev.data || ev.data.type !== 'os-divi-vb-handoff' ) { return; }
 		var url = handoffUrl( ev.data.url );
 		if ( ! url ) { return; }
 		var promptUser;
-		if ( window.wp && window.wp.desktop && typeof window.wp.desktop.confirm === 'function' ) {
-			promptUser = window.wp.desktop.confirm( {
+		if ( window.wp && window.wp.os && typeof window.wp.os.confirm === 'function' ) {
+			promptUser = window.wp.os.confirm( {
 				title: 'Divi needs its own browser tab',
-				message: 'Divi\u2019s Visual Builder cannot run inside a Desktop Mode window \u2014 it needs the full browser tab to render and save correctly. There is no workaround on our side; Divi simply doesn\u2019t support being nested.',
+				message: 'Divi\u2019s Visual Builder cannot run inside a OpenStation window \u2014 it needs the full browser tab to render and save correctly. There is no workaround on our side; Divi simply doesn\u2019t support being nested.',
 				confirmLabel: 'Open Divi in this tab',
 				hideCancel: true,
 				dismissable: true,
 			} );
 		} else {
-			// Defense-in-depth no-op. `wp.desktop.confirm` is
+			// Defense-in-depth no-op. `wp.os.confirm` is
 			// reliably present on every shell page where this
 			// listener emits, so this branch is unreachable in
 			// practice. A `window.confirm` here would violate the
@@ -485,7 +476,7 @@ function desktop_mode_compat_divi_eject_parent_listener() {
 </script>
 	<?php
 }
-add_action( 'admin_footer', 'desktop_mode_compat_divi_eject_parent_listener', 1 );
+add_action( 'admin_footer', 'openstation_compat_divi_eject_parent_listener', 1 );
 
 
 /**
@@ -493,12 +484,10 @@ add_action( 'admin_footer', 'desktop_mode_compat_divi_eject_parent_listener', 1 
  * is active. Used to gate both the iframe-side patcher and the
  * parent-side listener — both no-ops on non-Divi sites.
  *
- * @since 0.8.6
- *
  * @return bool True when the Divi theme is active OR the Divi
  *              Builder plugin is active.
  */
-function desktop_mode_compat_divi_is_active() {
+function openstation_compat_divi_is_active() {
 	$theme = wp_get_theme();
 	if ( $theme instanceof WP_Theme ) {
 		$name     = (string) $theme->get( 'Name' );

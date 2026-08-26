@@ -4,13 +4,13 @@
  * Regression coverage for the cross-type id collision: the bin lists
  * posts and comments together, and their numeric id sequences are
  * independent (wp_posts vs wp_comments), so post #5 and comment #5
- * routinely coexist. Row identity (and therefore `<wpd-table>`
+ * routinely coexist. Row identity (and therefore `<os-table>`
  * selection keys) must be type-qualified — with bare numeric ids,
  * ticking the post's checkbox also selected the comment, and a bulk
  * "Delete forever" permanently purged BOTH.
  *
  * The suite mounts the real `renderRecycleBin()` against the real
- * `<wpd-table>` in jsdom, with the REST layer mocked at the module
+ * `<os-table>` in jsdom, with the REST layer mocked at the module
  * boundary, and drives the checkbox + bulk-purge flow end to end.
  */
 import { beforeEach, describe, expect, test, vi } from 'vitest';
@@ -23,8 +23,8 @@ const mocks = vi.hoisted( () => ( {
 } ) );
 
 vi.mock( '../../src/recycle-bin/rest', () => mocks );
-vi.mock( '../../src/recycle-bin/badge', () => ( {
-	setRecycleBinBadge: vi.fn(),
+vi.mock( '../../src/recycle-bin/icon-state', () => ( {
+	setRecycleBinCount: vi.fn(),
 } ) );
 vi.mock( '../../src/recycle-bin/realtime', () => ( {
 	start: vi.fn(),
@@ -32,7 +32,7 @@ vi.mock( '../../src/recycle-bin/realtime', () => ( {
 } ) );
 
 import { renderRecycleBin } from '../../src/recycle-bin/index';
-import type { WpdTable } from '../../src/ui/components/wpd-table/wpd-table';
+import type { OsTable } from '../../src/ui/components/os-table/os-table';
 import type { RecycleBinItem } from '../../src/recycle-bin/rest';
 
 /** Flush pending promises + the microtask paint queue a few times. */
@@ -59,17 +59,17 @@ const makeItem = (
 } );
 
 const TEMPLATE = `
-	<div data-desktop-mode-recycle-bin-root>
-		<wpd-segmented data-desktop-mode-recycle-bin-filter></wpd-segmented>
-		<wpd-text-field data-desktop-mode-recycle-bin-search></wpd-text-field>
-		<div data-desktop-mode-recycle-bin-bulk hidden>
-			<span data-desktop-mode-recycle-bin-count></span>
-			<button data-desktop-mode-recycle-bin-restore-selected></button>
-			<button data-desktop-mode-recycle-bin-pin-to-desktop></button>
-			<button data-desktop-mode-recycle-bin-purge-selected></button>
+	<div data-os-recycle-bin-root>
+		<os-segmented data-os-recycle-bin-filter></os-segmented>
+		<os-text-field data-os-recycle-bin-search></os-text-field>
+		<div data-os-recycle-bin-bulk hidden>
+			<span data-os-recycle-bin-count></span>
+			<button data-os-recycle-bin-restore-selected></button>
+			<button data-os-recycle-bin-pin-to-desktop></button>
+			<button data-os-recycle-bin-purge-selected></button>
 		</div>
-		<button data-desktop-mode-recycle-bin-refresh></button>
-		<wpd-table data-desktop-mode-recycle-bin-table selectable="multi" loading></wpd-table>
+		<button data-os-recycle-bin-refresh></button>
+		<os-table data-os-recycle-bin-table selectable="multi" loading></os-table>
 	</div>
 `;
 
@@ -77,12 +77,12 @@ const createPlacement = vi.fn();
 
 describe( 'recycle-bin selection identity', () => {
 	let body: HTMLElement;
-	let table: WpdTable< RecycleBinItem >;
+	let table: OsTable< RecycleBinItem >;
 
 	beforeEach( async () => {
 		vi.clearAllMocks();
 		( window as unknown as { wp: unknown } ).wp = {
-			desktop: {
+			os: {
 				confirm: async () => true,
 				files: { rest: { createPlacement } },
 			},
@@ -104,7 +104,7 @@ describe( 'recycle-bin selection identity', () => {
 
 		renderRecycleBin( body );
 		await settle();
-		table = body.querySelector( '[data-desktop-mode-recycle-bin-table]' ) as WpdTable< RecycleBinItem >;
+		table = body.querySelector( '[data-os-recycle-bin-table]' ) as OsTable< RecycleBinItem >;
 	} );
 
 	test( 'post #5 and comment #5 get distinct, type-qualified row ids', () => {
@@ -177,7 +177,7 @@ describe( 'recycle-bin selection identity', () => {
 			total: 1,
 		} );
 		body
-			.querySelector( '[data-desktop-mode-recycle-bin-refresh]' )!
+			.querySelector( '[data-os-recycle-bin-refresh]' )!
 			.dispatchEvent( new MouseEvent( 'click', { bubbles: true } ) );
 		await settle();
 
@@ -193,7 +193,7 @@ describe( 'recycle-bin selection identity', () => {
 		await settle();
 
 		body
-			.querySelector( '[data-desktop-mode-recycle-bin-purge-selected]' )!
+			.querySelector( '[data-os-recycle-bin-purge-selected]' )!
 			.dispatchEvent( new MouseEvent( 'click', { bubbles: true } ) );
 		await settle();
 
@@ -212,7 +212,7 @@ describe( 'recycle-bin selection identity', () => {
 		await settle();
 
 		// Programmatic filter assignment does NOT fire
-		// `wpd-table-filter-change` — this simulates a data-driven
+		// `os-table-filter-change` — this simulates a data-driven
 		// visibility change (e.g. a realtime refresh replaced the row
 		// with a title that no longer matches an already-active column
 		// filter). The selected post is now hidden but still in `data`.
@@ -220,7 +220,7 @@ describe( 'recycle-bin selection identity', () => {
 		await settle();
 
 		body
-			.querySelector( '[data-desktop-mode-recycle-bin-purge-selected]' )!
+			.querySelector( '[data-os-recycle-bin-purge-selected]' )!
 			.dispatchEvent( new MouseEvent( 'click', { bubbles: true } ) );
 		await settle();
 
@@ -253,7 +253,7 @@ describe( 'recycle-bin selection identity', () => {
 		await settle();
 
 		body
-			.querySelector( '[data-desktop-mode-recycle-bin-pin-to-desktop]' )!
+			.querySelector( '[data-os-recycle-bin-pin-to-desktop]' )!
 			.dispatchEvent( new MouseEvent( 'click', { bubbles: true } ) );
 		await settle();
 

@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — Desktop-theme manifest sanitizer.
+ * OpenStation — Desktop-theme manifest sanitizer.
  *
  * Pure functions: no filesystem writes, no option reads. The one
  * dependency on the outside world is an injected `$asset_resolver`
@@ -8,7 +8,7 @@
  *
  *   - ZIP uploads pass a resolver that validates a path INSIDE the
  *     staging directory and hands back the theme-relative path.
- *   - Code registrations (`desktop_mode_register_desktop_theme()`)
+ *   - Code registrations (`openstation_register_desktop_theme()`)
  *     pass a resolver that validates an absolute http(s) URL.
  *
  * Both resolvers take the same two arguments —
@@ -19,16 +19,15 @@
  *
  * Validation posture, in two tiers:
  *
- *   - **Fatal** (returns `WP_Error`): `manifestVersion`, `id`,
- *     `name`. Without those there is no theme to speak of.
+ *   - **Fatal** (returns `WP_Error`): `manifestVersion` (`1` or `2`),
+ *     `id`, `name`. Without those there is no theme to speak of.
  *   - **Everything else drops and continues.** A bad token, a
  *     missing icon file, an unknown slot — the offending entry is
  *     removed and the rest of the theme installs. That IS the
  *     fallback contract: whatever the manifest doesn't say, the
  *     system default keeps saying.
  *
- * @package WPDesktopMode
- * @since   0.9.7
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -71,12 +70,10 @@ defined( 'ABSPATH' ) || exit;
  *     alias a property we didn't intend them to reach.
  *   - Balanced parentheses.
  *
- * @since 0.9.7
- *
  * @param mixed $value Candidate value.
  * @return bool
  */
-function desktop_mode_desktop_theme_is_safe_css_value( $value ) {
+function openstation_desktop_theme_is_safe_css_value( $value ) {
 	if ( ! is_string( $value ) ) {
 		return false;
 	}
@@ -117,13 +114,12 @@ function desktop_mode_desktop_theme_is_safe_css_value( $value ) {
  * Sanitize the `tokens` block: a map of custom-property name =>
  * value. Unknown property names and unsafe values drop.
  *
- * @since 0.9.7
  * @internal
  *
  * @param mixed $raw Raw `tokens` value.
  * @return array<string,string>
  */
-function desktop_mode_sanitize_desktop_theme_tokens( $raw ) {
+function openstation_sanitize_desktop_theme_tokens( $raw ) {
 	if ( ! is_array( $raw ) ) {
 		return array();
 	}
@@ -139,29 +135,29 @@ function desktop_mode_sanitize_desktop_theme_tokens( $raw ) {
 		$key = strtolower( trim( $key ) );
 		// Three namespaces are themable:
 		//
-		//   --desktop-mode-*  the shell's own tokens (chrome, dock,
-		//                     desktop, window frame).
-		//   --wpd-*           the `<wpd-*>` component kit. Window
-		//                     BODIES are built from those components,
-		//                     and `--wpd-*` is the kit's documented
-		//                     theming contract (see
-		//                     `src/ui/core/tokens.ts`). Without this a
-		//                     theme could restyle the chrome around a
-		//                     window but not a single thing inside it.
-		//   --wp-admin-theme-color
-		//                     the one Core property the shell already
-		//                     writes at runtime (the admin accent).
+		// --os-*  the shell's own tokens (chrome, dock,
+		// desktop, window frame).
+		// --os-ui-*           the `<os-*>` component kit. Window
+		// BODIES are built from those components,
+		// and `--os-ui-*` is the kit's documented
+		// theming contract (see
+		// `src/ui/core/tokens.ts`). Without this a
+		// theme could restyle the chrome around a
+		// window but not a single thing inside it.
+		// --wp-admin-theme-color
+		// the one Core property the shell already
+		// writes at runtime (the admin accent).
 		//
 		// Everything else is dropped: a theme must not be able to
 		// reach properties the shell never meant to expose.
 		if (
 			'--wp-admin-theme-color' !== $key
-			&& ! preg_match( '/^--desktop-mode-[a-z0-9-]+$/', $key )
-			&& ! preg_match( '/^--wpd-[a-z0-9-]+$/', $key )
+			&& ! preg_match( '/^--os-[a-z0-9-]+$/', $key )
+			&& ! preg_match( '/^--os-ui-[a-z0-9-]+$/', $key )
 		) {
 			continue;
 		}
-		if ( ! desktop_mode_desktop_theme_is_safe_css_value( $value ) ) {
+		if ( ! openstation_desktop_theme_is_safe_css_value( $value ) ) {
 			continue;
 		}
 		$out[ $key ] = trim( (string) $value );
@@ -183,12 +179,10 @@ function desktop_mode_sanitize_desktop_theme_tokens( $raw ) {
  * silhouette iconset stays legible on a dark dock, a light title bar,
  * and a red danger-hover without the author knowing any of them.
  *
- * @since 0.9.8
- *
  * @param mixed $value Candidate.
  * @return bool
  */
-function desktop_mode_desktop_theme_is_color_value( $value ) {
+function openstation_desktop_theme_is_color_value( $value ) {
 	if ( ! is_string( $value ) ) {
 		return false;
 	}
@@ -198,7 +192,7 @@ function desktop_mode_desktop_theme_is_color_value( $value ) {
 	}
 	// The general grammar is still the floor — it is what bans `;`,
 	// `{`, `@`, quotes, comments and `var()`.
-	if ( ! desktop_mode_desktop_theme_is_safe_css_value( $value ) ) {
+	if ( ! openstation_desktop_theme_is_safe_css_value( $value ) ) {
 		return false;
 	}
 	if ( 0 === strcasecmp( 'currentcolor', $value ) ) {
@@ -236,8 +230,6 @@ function desktop_mode_desktop_theme_is_color_value( $value ) {
  * black is invisible on a dark dock as an `<img>`, and perfect as a
  * mask.
  *
- * @since 0.9.7
- * @since 0.9.8 `$default_color` + per-descriptor `color`.
  * @internal
  *
  * @param mixed    $raw            Raw `icons` value.
@@ -247,11 +239,11 @@ function desktop_mode_desktop_theme_is_color_value( $value ) {
  *                                 own. `''` for none.
  * @return array<string,array>
  */
-function desktop_mode_sanitize_desktop_theme_icons( $raw, $asset_resolver, $default_color = '' ) {
+function openstation_sanitize_desktop_theme_icons( $raw, $asset_resolver, $default_color = '' ) {
 	if ( ! is_array( $raw ) ) {
 		return array();
 	}
-	$allowed = array_flip( array_map( 'strval', desktop_mode_desktop_theme_icon_slots() ) );
+	$allowed = array_flip( array_map( 'strval', openstation_desktop_theme_icon_slots() ) );
 	$out     = array();
 	$count   = 0;
 	foreach ( $raw as $slot => $descriptor ) {
@@ -289,8 +281,8 @@ function desktop_mode_sanitize_desktop_theme_icons( $raw, $asset_resolver, $defa
 			$candidate = trim( $descriptor['color'] );
 			if ( 0 === strcasecmp( 'none', $candidate ) ) {
 				$color = 'none';
-			} elseif ( desktop_mode_desktop_theme_is_color_value( $candidate ) ) {
-				$color = desktop_mode_desktop_theme_normalize_color( $candidate );
+			} elseif ( openstation_desktop_theme_is_color_value( $candidate ) ) {
+				$color = openstation_desktop_theme_normalize_color( $candidate );
 			}
 		}
 		if ( '' === $color ) {
@@ -344,13 +336,12 @@ function desktop_mode_sanitize_desktop_theme_icons( $raw, $asset_resolver, $defa
  * the value is echoed back to theme authors through the payload and
  * the JS API, and `currentcolor` reads like a typo.
  *
- * @since 0.9.8
  * @internal
  *
  * @param string $value Validated colour.
  * @return string
  */
-function desktop_mode_desktop_theme_normalize_color( $value ) {
+function openstation_desktop_theme_normalize_color( $value ) {
 	$value = trim( preg_replace( '/\s+/', ' ', (string) $value ) );
 	return 0 === strcasecmp( 'currentcolor', $value ) ? 'currentColor' : $value;
 }
@@ -361,13 +352,12 @@ function desktop_mode_desktop_theme_normalize_color( $value ) {
  * Accepts `auto` / `cover` / `contain`, or one-to-two length
  * components (`px`, `%`, `rem`, `em`, or the `auto` keyword).
  *
- * @since 0.9.7
  * @internal
  *
  * @param string $value Candidate.
  * @return bool
  */
-function desktop_mode_desktop_theme_is_size_value( $value ) {
+function openstation_desktop_theme_is_size_value( $value ) {
 	$value = strtolower( trim( (string) $value ) );
 	if ( in_array( $value, array( 'auto', 'cover', 'contain' ), true ) ) {
 		return true;
@@ -400,13 +390,12 @@ function desktop_mode_desktop_theme_is_size_value( $value ) {
  * starts. Without it every texture is pinned to the same origin and
  * a motif can never be aligned to the surface it decorates.
  *
- * @since 0.9.8
  * @internal
  *
  * @param string $value Candidate.
  * @return bool
  */
-function desktop_mode_desktop_theme_is_position_value( $value ) {
+function openstation_desktop_theme_is_position_value( $value ) {
 	$value = strtolower( trim( (string) $value ) );
 	if ( '' === $value || strlen( $value ) > 64 ) {
 		return false;
@@ -437,18 +426,17 @@ function desktop_mode_desktop_theme_is_position_value( $value ) {
  * every presentational property is grammar-checked against a closed
  * enum or a numeric pattern, never a free string.
  *
- * @since 0.9.7
  * @internal
  *
  * @param mixed    $raw            Raw `textures` value.
  * @param callable $asset_resolver `fn( string $path ): string|false`.
  * @return array<string,array>
  */
-function desktop_mode_sanitize_desktop_theme_textures( $raw, $asset_resolver ) {
+function openstation_sanitize_desktop_theme_textures( $raw, $asset_resolver ) {
 	if ( ! is_array( $raw ) ) {
 		return array();
 	}
-	$slots  = desktop_mode_desktop_theme_texture_slots();
+	$slots  = openstation_desktop_theme_texture_slots();
 	$out    = array();
 	$repeat = array( 'repeat', 'repeat-x', 'repeat-y', 'no-repeat', 'space', 'round' );
 
@@ -526,13 +514,13 @@ function desktop_mode_sanitize_desktop_theme_textures( $raw, $asset_resolver ) {
 			}
 			if ( isset( $descriptor['size'] ) && is_string( $descriptor['size'] ) ) {
 				$value = strtolower( trim( preg_replace( '/\s+/', ' ', $descriptor['size'] ) ) );
-				if ( desktop_mode_desktop_theme_is_size_value( $value ) ) {
+				if ( openstation_desktop_theme_is_size_value( $value ) ) {
 					$entry['size'] = $value;
 				}
 			}
 			if ( isset( $descriptor['position'] ) && is_string( $descriptor['position'] ) ) {
 				$value = strtolower( trim( preg_replace( '/\s+/', ' ', $descriptor['position'] ) ) );
-				if ( desktop_mode_desktop_theme_is_position_value( $value ) ) {
+				if ( openstation_desktop_theme_is_position_value( $value ) ) {
 					$entry['position'] = $value;
 				}
 			}
@@ -551,13 +539,12 @@ function desktop_mode_sanitize_desktop_theme_textures( $raw, $asset_resolver ) {
  * string from the compiled output. Works on both a theme-relative
  * path and an absolute URL (whose query string is discarded first).
  *
- * @since 0.9.8
  * @internal
  *
  * @param string $ref Resolved reference.
  * @return string Format keyword, or `''` when unrecognised.
  */
-function desktop_mode_desktop_theme_font_format( $ref ) {
+function openstation_desktop_theme_font_format( $ref ) {
 	$ref  = (string) $ref;
 	$path = $ref;
 	if ( preg_match( '~^https?://~i', $ref ) ) {
@@ -569,7 +556,7 @@ function desktop_mode_desktop_theme_font_format( $ref ) {
 		'ttf'   => 'truetype',
 		'otf'   => 'opentype',
 	);
-	$ext = strtolower( (string) pathinfo( $path, PATHINFO_EXTENSION ) );
+	$ext     = strtolower( (string) pathinfo( $path, PATHINFO_EXTENSION ) );
 	return isset( $formats[ $ext ] ) ? $formats[ $ext ] : '';
 }
 
@@ -597,18 +584,17 @@ function desktop_mode_desktop_theme_font_format( $ref ) {
  * usable source disappears, a bad `weight` falls back to the CSS
  * initial value, and the rest of the theme installs regardless.
  *
- * @since 0.9.8
  * @internal
  *
  * @param mixed    $raw            Raw `fonts` value.
  * @param callable $asset_resolver `fn( string $path, string $kind ): string|false`.
  * @return array<int,array>
  */
-function desktop_mode_sanitize_desktop_theme_fonts( $raw, $asset_resolver ) {
+function openstation_sanitize_desktop_theme_fonts( $raw, $asset_resolver ) {
 	if ( ! is_array( $raw ) ) {
 		return array();
 	}
-	$caps = desktop_mode_desktop_theme_font_caps();
+	$caps = openstation_desktop_theme_font_caps();
 	$out  = array();
 
 	foreach ( $raw as $face ) {
@@ -653,7 +639,7 @@ function desktop_mode_sanitize_desktop_theme_fonts( $raw, $asset_resolver ) {
 			if ( ! is_string( $ref ) || '' === $ref ) {
 				continue;
 			}
-			$format = desktop_mode_desktop_theme_font_format( $ref );
+			$format = openstation_desktop_theme_font_format( $ref );
 			if ( '' === $format ) {
 				continue;
 			}
@@ -779,14 +765,13 @@ function desktop_mode_sanitize_desktop_theme_fonts( $raw, $asset_resolver ) {
  * an explicit `id`, the map key, a slug of the `label`, and finally
  * the image's own filename — never the array index.
  *
- * @since 0.9.8
  * @internal
  *
  * @param mixed    $raw            Raw `wallpaper` / `wallpapers` value.
  * @param callable $asset_resolver `fn( string $path, string $kind ): string|false`.
  * @return array[] List of sanitized descriptors.
  */
-function desktop_mode_sanitize_desktop_theme_wallpapers( $raw, $asset_resolver ) {
+function openstation_sanitize_desktop_theme_wallpapers( $raw, $asset_resolver ) {
 	if ( is_string( $raw ) ) {
 		$raw = array( array( 'path' => $raw ) );
 	} elseif ( is_array( $raw ) && isset( $raw['path'] ) ) {
@@ -800,11 +785,9 @@ function desktop_mode_sanitize_desktop_theme_wallpapers( $raw, $asset_resolver )
 	/**
 	 * Filters how many wallpapers one desktop theme may contribute.
 	 *
-	 * @since 0.9.8
-	 *
 	 * @param int $max Default 12.
 	 */
-	$max  = max( 1, (int) apply_filters( 'desktop_mode_desktop_theme_max_wallpapers', 12 ) );
+	$max  = max( 1, (int) apply_filters( 'openstation_desktop_theme_max_wallpapers', 12 ) );
 	$out  = array();
 	$seen = array();
 
@@ -863,13 +846,13 @@ function desktop_mode_sanitize_desktop_theme_wallpapers( $raw, $asset_resolver )
 		}
 		if ( isset( $entry['size'] ) && is_string( $entry['size'] ) ) {
 			$value = strtolower( trim( preg_replace( '/\s+/', ' ', $entry['size'] ) ) );
-			if ( desktop_mode_desktop_theme_is_size_value( $value ) ) {
+			if ( openstation_desktop_theme_is_size_value( $value ) ) {
 				$item['size'] = $value;
 			}
 		}
 		if ( isset( $entry['position'] ) && is_string( $entry['position'] ) ) {
 			$value = strtolower( trim( preg_replace( '/\s+/', ' ', $entry['position'] ) ) );
-			if ( desktop_mode_desktop_theme_is_position_value( $value ) ) {
+			if ( openstation_desktop_theme_is_position_value( $value ) ) {
 				$item['position'] = $value;
 			}
 		}
@@ -884,9 +867,85 @@ function desktop_mode_sanitize_desktop_theme_wallpapers( $raw, $asset_resolver )
 }
 
 /**
- * Sanitize a whole `theme.json` manifest.
+ * Sanitize the `recommendedOsSettings` block: presentation
+ * preferences the theme would LIKE the user to be wearing.
  *
- * @since 0.9.7
+ * ```json
+ * "recommendedOsSettings": {
+ *   "dockSize":         "large",
+ *   "desktopLayout":    "unified",
+ *   "dockPlacement":    "left",
+ *   "windowRadius":     "default",
+ *   "adminBarMode":     "dynamic",
+ *   "dockRailRenderer": "default"
+ * }
+ * ```
+ *
+ * These are recommendations, not settings. The shell writes them into
+ * user meta once — the first time that user activates the theme — and
+ * never again; a user who then moves the dock or squares the corners
+ * keeps their choice for good. See docs/desktop-themes.md §
+ * "Recommended OS settings" for the full contract.
+ *
+ * Every key is checked against
+ * {@see openstation_desktop_theme_recommended_os_settings_schema()},
+ * and the same drop-and-continue posture as the rest of the manifest
+ * applies: an unknown key or an out-of-enum value disappears and the
+ * remaining recommendations survive.
+ *
+ * @internal
+ *
+ * @param mixed $raw Raw `recommendedOsSettings` value.
+ * @return array<string,string|int>
+ */
+function openstation_sanitize_desktop_theme_recommended_os_settings( $raw ) {
+	if ( ! is_array( $raw ) ) {
+		return array();
+	}
+	$schema = openstation_desktop_theme_recommended_os_settings_schema();
+	$out    = array();
+	foreach ( $schema as $key => $rule ) {
+		if ( ! isset( $raw[ $key ] ) ) {
+			continue;
+		}
+		// Numeric grammar — clamped into range rather than dropped, so a
+		// theme asking for something outside what the shell will play
+		// still gets the nearest thing it will.
+		if ( isset( $rule['int'] ) ) {
+			if ( ! is_numeric( $raw[ $key ] ) ) {
+				continue;
+			}
+			$out[ $key ] = max(
+				(int) $rule['int']['min'],
+				min( (int) $rule['int']['max'], (int) round( (float) $raw[ $key ] ) )
+			);
+			continue;
+		}
+		if ( ! is_string( $raw[ $key ] ) ) {
+			continue;
+		}
+		$value = trim( $raw[ $key ] );
+		if ( '' === $value ) {
+			continue;
+		}
+		if ( isset( $rule['enum'] ) ) {
+			if ( in_array( $value, $rule['enum'], true ) ) {
+				$out[ $key ] = $value;
+			}
+			continue;
+		}
+		// Registry id — charset only. The shell resolves it against the
+		// live registry and skips the key when nothing answers to it.
+		$slug = sanitize_key( $value );
+		if ( '' !== $slug ) {
+			$out[ $key ] = $slug;
+		}
+	}
+	return $out;
+}
+
+/**
+ * Sanitize a whole `theme.json` manifest.
  *
  * @param mixed    $raw            Decoded manifest.
  * @param callable $asset_resolver `fn( string $path, string $kind ): string|false`.
@@ -900,28 +959,38 @@ function desktop_mode_sanitize_desktop_theme_wallpapers( $raw, $asset_resolver )
  * @return array|WP_Error Sanitized manifest, or `WP_Error` when a
  *                        structural field is missing/invalid.
  */
-function desktop_mode_sanitize_desktop_theme_manifest( $raw, $asset_resolver ) {
+function openstation_sanitize_desktop_theme_manifest( $raw, $asset_resolver ) {
 	if ( ! is_array( $raw ) ) {
 		return new WP_Error(
-			'desktop_mode_desktop_theme_invalid_manifest',
+			'openstation_desktop_theme_invalid_manifest',
 			__( 'The theme manifest is not a JSON object.', 'desktop-mode' ),
 			array( 'status' => 400 )
 		);
 	}
 	if ( ! is_callable( $asset_resolver ) ) {
 		return new WP_Error(
-			'desktop_mode_desktop_theme_invalid_resolver',
+			'openstation_desktop_theme_invalid_resolver',
 			__( 'No asset resolver was provided for this manifest.', 'desktop-mode' ),
 			array( 'status' => 500 )
 		);
 	}
 
 	// --- Fatal fields. ---
+	//
+	// Two versions are current. `2` says nothing about the shape of
+	// the fields below — it exists so an author can DECLARE that
+	// their manifest carries `recommendedOsSettings`, and so a future
+	// reader can tell a deliberate omission from an old file. A `1`
+	// manifest that ships the block still has it honoured: dropping a
+	// valid, individually-sanitized field over a version number would
+	// contradict the drop-and-continue contract everything else here
+	// follows.
 	$version_field = isset( $raw['manifestVersion'] ) ? $raw['manifestVersion'] : null;
-	if ( 1 !== (int) $version_field || ! is_numeric( $version_field ) ) {
+	$version       = is_numeric( $version_field ) ? (int) $version_field : 0;
+	if ( ! in_array( $version, array( 1, 2 ), true ) ) {
 		return new WP_Error(
-			'desktop_mode_desktop_theme_bad_version',
-			__( 'Unsupported theme manifest version. Expected "manifestVersion": 1.', 'desktop-mode' ),
+			'openstation_desktop_theme_bad_version',
+			__( 'Unsupported theme manifest version. Expected "manifestVersion": 1 or 2.', 'desktop-mode' ),
 			array( 'status' => 400 )
 		);
 	}
@@ -929,15 +998,15 @@ function desktop_mode_sanitize_desktop_theme_manifest( $raw, $asset_resolver ) {
 	$id = isset( $raw['id'] ) && is_string( $raw['id'] ) ? trim( $raw['id'] ) : '';
 	if ( '' === $id || strlen( $id ) > 64 || ! preg_match( '~^[a-z0-9_-]+(/[a-z0-9_-]+)?$~', $id ) ) {
 		return new WP_Error(
-			'desktop_mode_desktop_theme_bad_id',
+			'openstation_desktop_theme_bad_id',
 			__( 'The theme id must look like "neon-glass" or "vendor/neon-glass" (lowercase, max 64 characters).', 'desktop-mode' ),
 			array( 'status' => 400 )
 		);
 	}
-	$slug = desktop_mode_desktop_theme_slug_from_id( $id );
+	$slug = openstation_desktop_theme_slug_from_id( $id );
 	if ( '' === $slug ) {
 		return new WP_Error(
-			'desktop_mode_desktop_theme_bad_id',
+			'openstation_desktop_theme_bad_id',
 			__( 'The theme id does not reduce to a usable slug.', 'desktop-mode' ),
 			array( 'status' => 400 )
 		);
@@ -946,7 +1015,7 @@ function desktop_mode_sanitize_desktop_theme_manifest( $raw, $asset_resolver ) {
 	$name = isset( $raw['name'] ) && is_string( $raw['name'] ) ? sanitize_text_field( $raw['name'] ) : '';
 	if ( '' === $name ) {
 		return new WP_Error(
-			'desktop_mode_desktop_theme_missing_name',
+			'openstation_desktop_theme_missing_name',
 			__( 'The theme manifest requires a non-empty "name".', 'desktop-mode' ),
 			array( 'status' => 400 )
 		);
@@ -966,49 +1035,54 @@ function desktop_mode_sanitize_desktop_theme_manifest( $raw, $asset_resolver ) {
 	// its own `color`, so a monochrome iconset is one line rather than
 	// twenty-odd repetitions.
 	$icon_color = '';
-	if ( isset( $raw['iconColor'] ) && desktop_mode_desktop_theme_is_color_value( $raw['iconColor'] ) ) {
-		$icon_color = desktop_mode_desktop_theme_normalize_color( $raw['iconColor'] );
+	if ( isset( $raw['iconColor'] ) && openstation_desktop_theme_is_color_value( $raw['iconColor'] ) ) {
+		$icon_color = openstation_desktop_theme_normalize_color( $raw['iconColor'] );
 	}
 
 	$manifest = array(
-		'manifestVersion' => 1,
-		'id'              => $id,
-		'slug'            => $slug,
-		'name'            => mb_substr( $name, 0, 120 ),
-		'version'         => isset( $raw['version'] ) && is_string( $raw['version'] )
+		'manifestVersion'       => $version,
+		'id'                    => $id,
+		'slug'                  => $slug,
+		'name'                  => mb_substr( $name, 0, 120 ),
+		'version'               => isset( $raw['version'] ) && is_string( $raw['version'] )
 			? mb_substr( sanitize_text_field( $raw['version'] ), 0, 32 )
 			: '',
-		'author'          => isset( $raw['author'] ) && is_string( $raw['author'] )
+		'author'                => isset( $raw['author'] ) && is_string( $raw['author'] )
 			? mb_substr( sanitize_text_field( $raw['author'] ), 0, 120 )
 			: '',
-		'description'     => isset( $raw['description'] ) && is_string( $raw['description'] )
+		'description'           => isset( $raw['description'] ) && is_string( $raw['description'] )
 			? mb_substr( sanitize_textarea_field( $raw['description'] ), 0, 500 )
 			: '',
-		'preview'         => $preview,
-		'tokens'          => desktop_mode_sanitize_desktop_theme_tokens(
+		'preview'               => $preview,
+		'tokens'                => openstation_sanitize_desktop_theme_tokens(
 			isset( $raw['tokens'] ) ? $raw['tokens'] : null
 		),
-		'iconColor'       => $icon_color,
-		'icons'           => desktop_mode_sanitize_desktop_theme_icons(
+		'iconColor'             => $icon_color,
+		'icons'                 => openstation_sanitize_desktop_theme_icons(
 			isset( $raw['icons'] ) ? $raw['icons'] : null,
 			$asset_resolver,
 			$icon_color
 		),
-		'textures'        => desktop_mode_sanitize_desktop_theme_textures(
+		'textures'              => openstation_sanitize_desktop_theme_textures(
 			isset( $raw['textures'] ) ? $raw['textures'] : null,
 			$asset_resolver
 		),
-		'fonts'           => desktop_mode_sanitize_desktop_theme_fonts(
+		'fonts'                 => openstation_sanitize_desktop_theme_fonts(
 			isset( $raw['fonts'] ) ? $raw['fonts'] : null,
 			$asset_resolver
 		),
 		// `wallpaper` and `wallpapers` are both accepted — authors
 		// guess either — and merge into one list.
-		'wallpapers'      => desktop_mode_sanitize_desktop_theme_wallpapers(
+		'wallpapers'            => openstation_sanitize_desktop_theme_wallpapers(
 			isset( $raw['wallpapers'] ) ? $raw['wallpapers'] : (
 				isset( $raw['wallpaper'] ) ? $raw['wallpaper'] : null
 			),
 			$asset_resolver
+		),
+		// Presentation preferences the theme would like the user to
+		// wear. Applied once, on first activation — never on load.
+		'recommendedOsSettings' => openstation_sanitize_desktop_theme_recommended_os_settings(
+			isset( $raw['recommendedOsSettings'] ) ? $raw['recommendedOsSettings'] : null
 		),
 	);
 
@@ -1020,13 +1094,11 @@ function desktop_mode_sanitize_desktop_theme_manifest( $raw, $asset_resolver ) {
 	 * bypasses the sanitizer, so treat it as trusted-code territory —
 	 * values land in the compiled stylesheet verbatim.
 	 *
-	 * @since 0.9.7
-	 *
 	 * @param array  $manifest Sanitized manifest.
 	 * @param array  $raw      The manifest as the author wrote it.
 	 * @param string $slug     Storage slug derived from `id`.
 	 */
-	$manifest = (array) apply_filters( 'desktop_mode_desktop_theme_manifest', $manifest, $raw, $slug );
+	$manifest = (array) apply_filters( 'openstation_desktop_theme_manifest', $manifest, $raw, $slug );
 
 	return $manifest;
 }
@@ -1040,12 +1112,10 @@ function desktop_mode_sanitize_desktop_theme_manifest( $raw, $asset_resolver ) {
  * kind. Uses `realpath()` containment as the final gate so a symlink
  * planted inside the ZIP can't point outward.
  *
- * @since 0.9.7
- *
  * @param string $staging_dir Absolute path of the extracted ZIP.
  * @return callable `fn( string $path, string $kind = 'image' ): string|false`
  */
-function desktop_mode_desktop_theme_staging_asset_resolver( $staging_dir ) {
+function openstation_desktop_theme_staging_asset_resolver( $staging_dir ) {
 	$base = realpath( $staging_dir );
 	return static function ( $path, $kind = 'image' ) use ( $base ) {
 		if ( false === $base || ! is_string( $path ) ) {
@@ -1067,7 +1137,7 @@ function desktop_mode_desktop_theme_staging_asset_resolver( $staging_dir ) {
 			}
 		}
 		$ext = strtolower( (string) pathinfo( $path, PATHINFO_EXTENSION ) );
-		if ( ! in_array( $ext, desktop_mode_desktop_theme_asset_extensions( $kind ), true ) ) {
+		if ( ! in_array( $ext, openstation_desktop_theme_asset_extensions( $kind ), true ) ) {
 			return false;
 		}
 		$full = realpath( $base . '/' . $path );
@@ -1085,11 +1155,9 @@ function desktop_mode_desktop_theme_staging_asset_resolver( $staging_dir ) {
  * Build an asset resolver for code-registered themes, whose assets
  * are already-published http(s) URLs rather than files in a ZIP.
  *
- * @since 0.9.7
- *
  * @return callable `fn( string $url, string $kind = 'image' ): string|false`
  */
-function desktop_mode_desktop_theme_url_asset_resolver() {
+function openstation_desktop_theme_url_asset_resolver() {
 	return static function ( $url, $kind = 'image' ) {
 		if ( ! is_string( $url ) ) {
 			return false;
@@ -1111,7 +1179,7 @@ function desktop_mode_desktop_theme_url_asset_resolver() {
 		}
 		$path = (string) wp_parse_url( $url, PHP_URL_PATH );
 		$ext  = strtolower( (string) pathinfo( $path, PATHINFO_EXTENSION ) );
-		if ( ! in_array( $ext, desktop_mode_desktop_theme_asset_extensions( $kind ), true ) ) {
+		if ( ! in_array( $ext, openstation_desktop_theme_asset_extensions( $kind ), true ) ) {
 			return false;
 		}
 		return $url;

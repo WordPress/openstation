@@ -1,22 +1,20 @@
 /**
- * Desktop Mode — Heartbeat widget (lazy bundle).
+ * OpenStation — Heartbeat widget (lazy bundle).
  *
  * Built as its own Vite target (`widget-heartbeat`) — both JS and
  * the widget's CSS ship out of the main `desktop.min.js` bundle.
- * PHP registers the widget via `desktop_mode_register_widget()`
- * with the script handle `desktop-mode-heartbeat-widget`; the
+ * PHP registers the widget via `openstation_register_widget()`
+ * with the script handle `os-heartbeat-widget`; the
  * shell's widgets `server-sync` loads this bundle the first time
  * the picker renders or the widget mounts.
  *
  * The bundle's only side effect is publishing a mount callback on
- * `window.desktopModeWidgets[ 'desktop-mode/heartbeat' ]`.
- *
- * @since 0.8.5
+ * `window.openStationWidgets[ 'desktop-mode/heartbeat' ]`.
  */
 
 // Side-effect CSS import — Vite emits a separate
 // `widget-heartbeat[.min].css` chunk next to the JS. PHP eagerly
-// enqueues this stylesheet via `desktop_mode_enqueue_heartbeat_widget_styles`
+// enqueues this stylesheet via `openstation_enqueue_heartbeat_widget_styles`
 // so it's in the DOM before the (lazy-loaded) JS runs — avoids
 // any flash of unstyled content while the layout is still
 // computing flex constraints.
@@ -25,6 +23,7 @@ import './styles.css';
 import type { Application, Container, Graphics, Sprite, Texture } from 'pixi.js';
 import { __ } from '../../i18n';
 import { createSharedStore } from '../../shared-store';
+import { clampToViewport } from '../../ui/util/menu-position';
 import type { WidgetContext, WidgetTeardown } from '../../widgets/types';
 
 /**
@@ -33,16 +32,16 @@ import type { WidgetContext, WidgetTeardown } from '../../widgets/types';
  * `pixijs` module is registered in the main bundle's copy
  * (see `desktop.ts`), not ours. We can't import the registry
  * directly and have it work; we have to reach for the public
- * `wp.desktop.loadModules()` API that lives on the main bundle.
+ * `wp.os.loadModules()` API that lives on the main bundle.
  */
 async function loadPixi(): Promise< void > {
 	const wp = ( window as unknown as {
-		wp?: { desktop?: { loadModules?: ( ids: string[] ) => Promise< void > } };
+		wp?: { os?: { loadModules?: ( ids: string[] ) => Promise< void > } };
 	} ).wp;
-	const fn = wp?.desktop?.loadModules;
+	const fn = wp?.os?.loadModules;
 	if ( typeof fn !== 'function' ) {
 		throw new Error(
-			'wp.desktop.loadModules is not available — main shell may not have booted yet.',
+			'wp.os.loadModules is not available — main shell may not have booted yet.',
 		);
 	}
 	await fn( [ 'pixijs' ] );
@@ -160,9 +159,9 @@ const HEART_SIZE = 52;
 
 /**
  * Mount callback. The framework's widget `server-sync` reads this
- * from `window.desktopModeWidgets` after the bundle loads and
+ * from `window.openStationWidgets` after the bundle loads and
  * pairs it with the server-supplied metadata from
- * `desktop_mode_register_widget()`. Sizing constraints
+ * `openstation_register_widget()`. Sizing constraints
  * (310 × 230, non-resizable) live on the PHP side now.
  */
 const mount = async (
@@ -189,16 +188,16 @@ function logoUrl( ctx: WidgetContext ): string {
 }
 
 function renderFallback( container: HTMLElement, message: string ): void {
-	container.classList.add( 'desktop-mode-widget-heartbeat' );
-	container.classList.add( 'desktop-mode-widget-heartbeat--fallback' );
+	container.classList.add( 'os-widget-heartbeat' );
+	container.classList.add( 'os-widget-heartbeat--fallback' );
 	const wrap = document.createElement( 'div' );
-	wrap.className = 'desktop-mode-widget-heartbeat__fallback';
+	wrap.className = 'os-widget-heartbeat__fallback';
 	wrap.textContent = message || 'Could not load animation engine.';
 	container.appendChild( wrap );
 }
 
 /**
- * Heights applied to the widget frame (`.desktop-mode-widgets__card`)
+ * Heights applied to the widget frame (`.os-widgets__card`)
  * when the user toggles the heart visibility from the right-click
  * menu. Width stays locked at 310 in both modes.
  */
@@ -232,35 +231,35 @@ async function mountWithPixi(
 		return () => undefined;
 	}
 
-	container.classList.add( 'desktop-mode-widget-heartbeat' );
+	container.classList.add( 'os-widget-heartbeat' );
 
 	// User preference (per-widget instance, persisted in
 	// `localStorage` via the framework's namespaced storage).
 	let showHeart = ctx.storage.get< boolean >( 'showHeart' ) ?? true;
 	if ( ! showHeart ) {
-		container.classList.add( 'desktop-mode-widget-heartbeat--no-heart' );
+		container.classList.add( 'os-widget-heartbeat--no-heart' );
 	}
 
 	const stage = document.createElement( 'div' );
-	stage.className = 'desktop-mode-widget-heartbeat__stage';
+	stage.className = 'os-widget-heartbeat__stage';
 	container.appendChild( stage );
 
 	const meta = document.createElement( 'div' );
-	meta.className = 'desktop-mode-widget-heartbeat__meta';
+	meta.className = 'os-widget-heartbeat__meta';
 	const label = document.createElement( 'div' );
-	label.className = 'desktop-mode-widget-heartbeat__label';
+	label.className = 'os-widget-heartbeat__label';
 	label.textContent = 'Next beat in';
 	meta.appendChild( label );
 	const remaining = document.createElement( 'div' );
-	remaining.className = 'desktop-mode-widget-heartbeat__remaining';
+	remaining.className = 'os-widget-heartbeat__remaining';
 	remaining.textContent = '—';
 	meta.appendChild( remaining );
 	container.appendChild( meta );
 
 	const bar = document.createElement( 'div' );
-	bar.className = 'desktop-mode-widget-heartbeat__bar';
+	bar.className = 'os-widget-heartbeat__bar';
 	const fill = document.createElement( 'div' );
-	fill.className = 'desktop-mode-widget-heartbeat__bar-fill';
+	fill.className = 'os-widget-heartbeat__bar-fill';
 	bar.appendChild( fill );
 	container.appendChild( bar );
 
@@ -497,14 +496,14 @@ async function mountWithPixi(
 		} catch {
 			// Best-effort.
 		}
-		container.classList.remove( 'desktop-mode-widget-heartbeat' );
-		container.classList.remove( 'desktop-mode-widget-heartbeat--no-heart' );
+		container.classList.remove( 'os-widget-heartbeat' );
+		container.classList.remove( 'os-widget-heartbeat--no-heart' );
 	};
 }
 
 function applyHeartVisibility( container: HTMLElement, showHeart: boolean ): void {
-	container.classList.toggle( 'desktop-mode-widget-heartbeat--no-heart', ! showHeart );
-	const card = container.closest< HTMLElement >( '.desktop-mode-widgets__card' );
+	container.classList.toggle( 'os-widget-heartbeat--no-heart', ! showHeart );
+	const card = container.closest< HTMLElement >( '.os-widgets__card' );
 	if ( card ) {
 		// Class on the card lets a stylesheet (see desktop.css)
 		// flip the card into `display: flex; flex-direction:
@@ -513,7 +512,7 @@ function applyHeartVisibility( container: HTMLElement, showHeart: boolean ): voi
 		// stays bounded by the card's height — without this the
 		// body grew with content and the progress bar escaped
 		// the card frame on compact mode.
-		card.classList.add( 'desktop-mode-widgets__card--heartbeat' );
+		card.classList.add( 'os-widgets__card--heartbeat' );
 		const h = showHeart ? FRAME_HEIGHT_WITH_HEART : FRAME_HEIGHT_NO_HEART;
 		card.style.height = `${ h }px`;
 	}
@@ -527,18 +526,18 @@ function openHeartbeatMenu(
 	// Drop any stale menus this widget left behind on a previous
 	// open — guards against quick repeated right-clicks.
 	document
-		.querySelectorAll( '.desktop-mode-widget-heartbeat__menu' )
+		.querySelectorAll( '.os-widget-heartbeat__menu' )
 		.forEach( ( el ) => el.remove() );
 
-	const menu = document.createElement( 'wpd-context-menu' );
-	menu.className = 'desktop-mode-widget-heartbeat__menu';
+	const menu = document.createElement( 'os-context-menu' );
+	menu.className = 'os-widget-heartbeat__menu';
 	menu.setAttribute( 'open', '' );
 	menu.style.position = 'fixed';
 	menu.style.left = `${ e.clientX }px`;
 	menu.style.top = `${ e.clientY }px`;
 	menu.style.zIndex = '10500';
 
-	const opt = document.createElement( 'wpd-context-menu-option' );
+	const opt = document.createElement( 'os-context-menu-option' );
 	opt.setAttribute( 'value', 'show-heart' );
 	if ( showHeart ) {
 		opt.setAttribute( 'checked', '' );
@@ -562,20 +561,15 @@ function openHeartbeatMenu(
 		}
 	};
 
-	menu.addEventListener( 'wpd-context-menu-pick', () => {
+	menu.addEventListener( 'os-context-menu-pick', () => {
 		onToggle( ! showHeart );
 		close();
 	} );
 
 	document.body.appendChild( menu );
-	// Clamp menu to viewport.
-	const rect = menu.getBoundingClientRect();
-	if ( rect.right > window.innerWidth ) {
-		menu.style.left = `${ Math.max( 4, window.innerWidth - rect.width - 8 ) }px`;
-	}
-	if ( rect.bottom > window.innerHeight ) {
-		menu.style.top = `${ Math.max( 4, window.innerHeight - rect.height - 8 ) }px`;
-	}
+	// Clamp menu to viewport, measured a frame later once the
+	// component has rendered. See `src/ui/util/menu-position.ts`.
+	clampToViewport( menu );
 
 	document.addEventListener( 'pointerdown', onOutside, true );
 	document.addEventListener( 'keydown', onKey, true );
@@ -915,10 +909,10 @@ function clamp( v: number, lo: number, hi: number ): number {
 // Side-effect: publish on the framework's well-known global so
 // `widgets/server-sync.ts` pairs us with the PHP-side def.
 const w = window as unknown as {
-	desktopModeWidgets?: Record<
+	openStationWidgets?: Record<
 		string,
 		( container: HTMLElement, ctx: WidgetContext ) => WidgetTeardown | Promise< WidgetTeardown >
 	>;
 };
-w.desktopModeWidgets = w.desktopModeWidgets || {};
-w.desktopModeWidgets[ 'desktop-mode/heartbeat' ] = mount;
+w.openStationWidgets = w.openStationWidgets || {};
+w.openStationWidgets[ 'desktop-mode/heartbeat' ] = mount;

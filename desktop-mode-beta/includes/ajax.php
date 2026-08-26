@@ -40,7 +40,7 @@ function desktop_mode_beta_ajax_guard( $capability ) {
 	if ( ! current_user_can( $capability ) ) {
 		return new WP_Error(
 			'desktop_mode_beta_forbidden',
-			__( 'You are not allowed to manage Desktop Mode builds.', 'desktop-mode-beta' ),
+			__( 'You are not allowed to manage OpenStation builds.', 'desktop-mode-beta' ),
 			array( 'status' => 403 )
 		);
 	}

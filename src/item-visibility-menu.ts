@@ -1,53 +1,48 @@
 /**
- * Right-click context menu for hiding / moving a dock tile or
- * desktop icon. Mutates the user's `itemVisibility` map via the
- * public `wp.desktop.updateOsSettings` writer; the layout dispatcher's
- * settings subscription handles the live re-paint.
+ * Right-click menu for a dock tile, a sidebar tile, or a desktop icon.
  *
- * Two callers:
+ * Every entry is one call: add or remove one region from the item's
+ * placement. The labels come from the computed navigation rather than
+ * from the surface the user clicked, so a Core admin menu in the split
+ * layout offers "Hide from sidebar" instead of naming a rail it is not
+ * on, and an app on the dock only because its window is open offers
+ * "Keep in dock" instead of "Hide from dock" — hiding something that
+ * was never pinned would do nothing the user could see.
  *
- * - `Dock` — attaches a `contextmenu` listener per tile, passes
- *   `surface: 'dock'`. Menu options: "Hide from dock", "Show on
- *   desktop instead", "Hide everywhere".
- * - `renderDesktopIcons` — attaches per icon, passes
- *   `surface: 'desktop'`. Menu options: "Hide from desktop", "Move
- *   to dock", "Hide everywhere".
- *
- * The `id` passed in is the **rail-prefixed** id as it appears in
- * the DOM (`'dock:<x>'` / `'desktop:<x>'` for synthesized tiles).
- * The handler reduces it to the canonical id via
- * {@link canonicalItemId} before writing the override, so the
- * visibility map is always keyed by the registered item id.
- *
- * @since 0.8.2
+ * Writes go through `wp.os.updateOsSettings`; the layout dispatcher's
+ * settings subscription repaints.
  */
 
 import { __, sprintf } from './i18n';
 import { openWithShellOverlays } from './shell-overlays/loader';
+import { ITEM_MENU_OPENING_EVENT } from './item-visibility-menu-events';
 import {
-	canonicalItemId,
+	findNavItem,
+	onDesktop,
+	onRail,
+	railFor,
+	readNavConfig,
 	resolvePlacement,
-	type NativeRail,
-} from './settings/item-placement';
-import { wpdConfirm } from './ui/components/wpd-confirm-dialog/wpd-confirm-dialog';
+	setPlacement,
+	setRegion,
+	type NavItem,
+	type NavLayout,
+	type NavRail,
+} from './nav';
+import { osConfirm } from './ui/components/os-confirm-dialog/os-confirm-dialog';
+import { placeAfterRender } from './ui/util/menu-position';
 import { trackedFetch } from './tracked-fetch';
 import { showToast } from './toast';
 import { joinRestUrl } from './rest-url';
-import type { ItemVisibility } from './settings/types';
-import type { OsSettingsSnapshot } from './settings/registry';
 
-interface WpDesktopShim {
-	getOsSettings?: () => OsSettingsSnapshot;
-	updateOsSettings?: (
-		patch: Partial< OsSettingsSnapshot >,
-		opts?: { windowId?: string },
-	) => void;
+interface OpenStationShim {
+	getOsSettings?: () => { desktopLayout?: NavLayout };
 	openOsSettings?: ( opts?: { tabId?: string } ) => void;
 }
 
-function getApi(): WpDesktopShim | null {
-	const w = window as unknown as { wp?: { desktop?: WpDesktopShim } };
-	return w.wp?.desktop ?? null;
+function getApi(): OpenStationShim | null {
+	const w = window as unknown as { wp?: { os?: OpenStationShim } };
+	return w.wp?.os ?? null;
 }
 
 let activeMenu: HTMLElement | null = null;
@@ -59,72 +54,15 @@ function closeMenu(): void {
 	}
 }
 
-function writeVisibility(
-	canonicalId: string,
-	placement: ItemVisibility,
-): void {
-	const api = getApi();
-	if ( ! api?.getOsSettings || ! api?.updateOsSettings ) {
-		return;
-	}
-	const snap = api.getOsSettings();
-	const next = { ...snap.itemVisibility };
-	// Store every placement explicitly — including 'both'. We used
-	// to `delete next[ canonicalId ]` here on 'both', but the absence
-	// of an override falls back to the item's NATIVE rail
-	// (`resolvePlacement`), so deleting collapsed "Also show on
-	// desktop" / "Also show on dock" back into single-rail behavior.
-	next[ canonicalId ] = placement;
-	api.updateOsSettings( { itemVisibility: next } );
+/** The rail this item's `'rail'` placement resolves to right now. */
+function railForItem( item: NavItem ): NavRail {
+	const layout = getApi()?.getOsSettings?.().desktopLayout ?? 'unified';
+	return railFor( item.kind, layout );
 }
 
-/**
- * The item's native rail, derived from the rail-synthesis prefix on
- * the DOM id. A bare id means the tile is rendered on its native rail
- * (so the native rail equals the surface it was right-clicked on); a
- * `dock:` / `desktop:` prefix names the originating rail explicitly.
- *
- * Exported for unit testing — it is otherwise an internal helper.
- */
-export function railFromId(
-	id: string,
-	surface: 'dock' | 'desktop',
-): NativeRail {
-	if ( id.startsWith( 'dock:' ) ) {
-		return 'dock';
-	}
-	if ( id.startsWith( 'desktop:' ) ) {
-		return 'desktop';
-	}
-	return surface;
-}
-
-/**
- * Compute the placement a "Hide from <surface>" pick should write,
- * branching on the item's CURRENT placement rather than blindly
- * setting the opposite rail.
- *
- * - A 'both' item is demoted to the rail it is NOT being hidden from
- *   (it stays visible where it still belongs).
- * - A single-rail item is genuinely hidden ('hidden'). Writing the
- *   opposite rail here was the bug: "Hide from dock" on a dock-only
- *   tile wrote 'desktop' and the tile reappeared on the wallpaper
- *   instead of disappearing.
- *
- * Pure in `visibility` (the caller passes the live map) so it can be
- * unit-tested without stubbing the shell API.
- */
-export function computeHideTarget(
-	canonicalId: string,
-	nativeRail: NativeRail,
-	hideSurface: 'dock' | 'desktop',
-	visibility: Record< string, ItemVisibility >,
-): ItemVisibility {
-	const current = resolvePlacement( canonicalId, nativeRail, visibility );
-	if ( current === 'both' ) {
-		return hideSurface === 'dock' ? 'desktop' : 'dock';
-	}
-	return 'hidden';
+/** "dock" / "sidebar", for the menu labels. */
+function railName( rail: NavRail ): string {
+	return 'sidebar' === rail ? __( 'sidebar' ) : __( 'dock' );
 }
 
 export interface OpenItemVisibilityMenuOpts {
@@ -142,8 +80,6 @@ export interface OpenItemVisibilityMenuOpts {
 	 * owned by an active, deactivatable plugin. When non-null the menu
 	 * surfaces a "Deactivate <title>" action that calls
 	 * `PUT /wp/v2/plugins/<file>` with `{ status: 'inactive' }`.
-	 *
-	 * @since 0.8.6
 	 */
 	pluginFile?: string | null;
 	/**
@@ -151,8 +87,6 @@ export interface OpenItemVisibilityMenuOpts {
 	 * dock tile is a sub-page (Analytics, Marketing, …) this is the
 	 * label we show in the destructive action — the user is
 	 * deactivating the plugin, not the tile.
-	 *
-	 * @since 0.8.6
 	 */
 	pluginName?: string | null;
 }
@@ -169,17 +103,35 @@ export interface OpenItemVisibilityMenuOpts {
 let openGeneration = 0;
 
 /**
+ * Re-exported so this module stays the one obvious import site for
+ * the event. Its declaration lives in a leaf module because the
+ * hover surfaces that listen for it ship in `desktop.min.js` and
+ * must not drag this bundle along with the string — see
+ * `./item-visibility-menu-events`.
+ */
+export { ITEM_MENU_OPENING_EVENT } from './item-visibility-menu-events';
+
+/**
  * Open the visibility menu next to the user's cursor. Idempotent —
  * a second call closes the previous menu before opening a fresh one.
  *
  * Construction is deferred behind `openWithShellOverlays` so the
- * `<wpd-context-menu>` / `<wpd-context-menu-option>` classes ship
+ * `<os-context-menu>` / `<os-context-menu-option>` classes ship
  * in the lazy `shell-overlays[.min].js` bundle rather than in
  * `desktop.min.js`.
  */
 export function openItemVisibilityMenu(
 	opts: OpenItemVisibilityMenuOpts,
 ): void {
+	// Announced BEFORE the menu is built, and before the await inside
+	// `openWithShellOverlays`: a hover panel that is still on screen
+	// when the menu paints has already lost the race, and the cut needs
+	// to happen in the same frame as the click that caused it.
+	document.dispatchEvent(
+		new CustomEvent( ITEM_MENU_OPENING_EVENT, {
+			detail: { id: opts.id, surface: opts.surface },
+		} ),
+	);
 	closeMenu();
 	const myGen = ++openGeneration;
 	openWithShellOverlays(
@@ -193,17 +145,18 @@ function openItemVisibilityMenuImmediate(
 ): void {
 	closeMenu();
 
-	const canonical = canonicalItemId( opts.id );
-	const nativeRail = railFromId( opts.id, opts.surface );
-	// Current resolved placement drives which options are offered: the
-	// "Also show on <rail>" entry is hidden when the item is already on
-	// that rail (it would be a no-op), and "Hide from <surface>" reads
-	// the live state at pick time via computeHideTarget.
-	const currentPlacement = resolvePlacement(
-		canonical,
-		nativeRail,
-		getApi()?.getOsSettings?.().itemVisibility ?? {},
-	);
+	const item = findNavItem( opts.id );
+	// Nothing to offer: an id nothing registers (a tile painted by a
+	// custom renderer, a stale DOM node), the one item that cannot
+	// move, or a tile that exists only while its window is open and
+	// has no launcher to place.
+	if ( ! item || item.locked || item.transient ) {
+		return;
+	}
+
+	const placement = resolvePlacement( item, readNavConfig().placement );
+	const rail = railForItem( item );
+	const railWord = railName( rail );
 
 	type MenuOption =
 		| {
@@ -219,27 +172,32 @@ function openItemVisibilityMenuImmediate(
 	const options: MenuOption[] = [];
 
 	if ( opts.surface === 'dock' ) {
-		options.push( {
-			id: 'hide-from-dock',
-			label: __( 'Hide from dock' ),
-			icon: 'dashicons-hidden',
-			onPick: () =>
-				writeVisibility(
-					canonical,
-					computeHideTarget(
-						canonical,
-						nativeRail,
-						'dock',
-						getApi()?.getOsSettings?.().itemVisibility ?? {},
-					),
-				),
-		} );
-		if ( currentPlacement !== 'both' ) {
+		if ( onRail( placement ) ) {
 			options.push( {
-				id: 'show-on-desktop-too',
+				id: 'hide-from-rail',
+				/* translators: %s: "dock" or "sidebar". */
+				label: sprintf( __( 'Hide from %s' ), railWord ),
+				icon: 'dashicons-hidden',
+				onPick: () => setRegion( item, 'rail', false ),
+			} );
+		} else {
+			// The tile is here only because its window is open. It has
+			// nothing to be hidden from yet, so the useful offer is the
+			// opposite one.
+			options.push( {
+				id: 'keep-in-rail',
+				/* translators: %s: "dock" or "sidebar". */
+				label: sprintf( __( 'Keep in %s' ), railWord ),
+				icon: 'dashicons-admin-post',
+				onPick: () => setRegion( item, 'rail', true ),
+			} );
+		}
+		if ( ! onDesktop( placement ) ) {
+			options.push( {
+				id: 'show-on-desktop',
 				label: __( 'Also show on desktop' ),
 				icon: 'dashicons-desktop',
-				onPick: () => writeVisibility( canonical, 'both' ),
+				onPick: () => setRegion( item, 'desktop', true ),
 			} );
 		}
 	} else {
@@ -247,48 +205,45 @@ function openItemVisibilityMenuImmediate(
 			id: 'hide-from-desktop',
 			label: __( 'Hide from desktop' ),
 			icon: 'dashicons-hidden',
-			onPick: () =>
-				writeVisibility(
-					canonical,
-					computeHideTarget(
-						canonical,
-						nativeRail,
-						'desktop',
-						getApi()?.getOsSettings?.().itemVisibility ?? {},
-					),
-				),
+			onPick: () => setRegion( item, 'desktop', false ),
 		} );
-		if ( currentPlacement !== 'both' ) {
+		if ( ! onRail( placement ) ) {
 			options.push( {
-				id: 'show-on-dock-too',
-				label: __( 'Also show on dock' ),
+				id: 'show-on-rail',
+				/* translators: %s: "dock" or "sidebar". */
+				label: sprintf( __( 'Also show on %s' ), railWord ),
 				icon: 'dashicons-menu',
-				onPick: () => writeVisibility( canonical, 'both' ),
+				onPick: () => setRegion( item, 'rail', true ),
 			} );
 		}
 	}
-	options.push( {
-		id: 'hide-everywhere',
-		label: __( 'Hide everywhere' ),
-		icon: 'dashicons-no',
-		danger: true,
-		onPick: () => writeVisibility( canonical, 'hidden' ),
-	} );
+	// Only offered once the item is actually somewhere: on a tile that
+	// is merely running, "hide everywhere" would be a no-op the moment
+	// the window closes.
+	if ( onRail( placement ) || onDesktop( placement ) ) {
+		options.push( {
+			id: 'hide-everywhere',
+			label: __( 'Hide everywhere' ),
+			icon: 'dashicons-no',
+			danger: true,
+			onPick: () => setPlacement( [ { item, placement: 'hidden' } ] ),
+		} );
+	}
 
 	options.push( {
 		id: 'open-settings',
-		label: __( 'Apps & Icons settings…' ),
+		label: __( 'Navigation settings…' ),
 		icon: 'dashicons-admin-generic',
 		onPick: () => {
 			const api = getApi();
-			api?.openOsSettings?.( { tabId: 'apps-icons' } );
+			api?.openOsSettings?.( { tabId: 'navigation' } );
 		},
 	} );
 
 	// When the tile is owned by an active, deactivatable plugin, surface
 	// a danger action at the bottom. `pluginFile` is `null` for core
-	// menus, mu-plugins, drop-ins, and Desktop Mode itself — see
-	// `desktop_mode_resolve_menu_plugin_file()`.
+	// menus, mu-plugins, drop-ins, and OpenStation itself — see
+	// `openstation_resolve_menu_plugin_file()`.
 	if ( opts.pluginFile ) {
 		const pluginFile = opts.pluginFile;
 		// Prefer the owning plugin's display name so a sub-page tile
@@ -309,15 +264,16 @@ function openItemVisibilityMenuImmediate(
 		} );
 	}
 
-	const menu = document.createElement( 'wpd-context-menu' );
+	const menu = document.createElement( 'os-context-menu' );
 	menu.setAttribute( 'open', '' );
-	menu.classList.add( 'desktop-mode-item-visibility-menu' );
+	menu.classList.add( 'os-item-visibility-menu' );
 	( menu as HTMLElement ).dataset.itemId = opts.id;
 	menu.style.position = 'fixed';
 	// Off-screen first so we can measure size before placement.
+	// `placeAfterRender` owns the hiding, so no `visibility` here:
+	// one invariant, one owner.
 	menu.style.left = '-9999px';
 	menu.style.top = '-9999px';
-	menu.style.visibility = 'hidden';
 	// Must sit above the dock-peek popover (z-index: 999999 in
 	// assets/css/dock-peek.css). The peek is still visible when the
 	// user right-clicks a tile, so without this the menu opens
@@ -332,15 +288,15 @@ function openItemVisibilityMenuImmediate(
 			// Pull the separator color from a CSS variable so light-mode
 			// docks and theme overrides can re-color it without touching
 			// JS. Fallback matches the dark dock chrome the rest of
-			// `<wpd-context-menu>` is built against.
+			// `<os-context-menu>` is built against.
 			hr.style.cssText =
-				'border: 0; border-top: 1px solid var( --wpd-context-menu-separator-color, rgba(255,255,255,0.12) ); margin: 4px 6px;';
+				'border: 0; border-top: 1px solid var( --os-ui-context-menu-separator-color, rgba(255,255,255,0.12) ); margin: 4px 6px;';
 			menu.appendChild( hr );
 			continue;
 		}
 		byKey.set( opt.id, opt );
-		const node = document.createElement( 'wpd-context-menu-option' );
-		// `<wpd-context-menu-option>` emits `detail.id` from
+		const node = document.createElement( 'os-context-menu-option' );
+		// `<os-context-menu-option>` emits `detail.id` from
 		// `dataset.menuItemId` (falling back to the element's `id`
 		// attribute). Set it so the pick listener can route by our
 		// opt.id; the `value` attr stays for compatibility with code
@@ -357,7 +313,7 @@ function openItemVisibilityMenuImmediate(
 		menu.appendChild( node );
 	}
 
-	menu.addEventListener( 'wpd-context-menu-pick', ( e: Event ) => {
+	menu.addEventListener( 'os-context-menu-pick', ( e: Event ) => {
 		const detail = ( e as CustomEvent< { id: string; value: string } > ).detail;
 		// Prefer `detail.id` (the option's `dataset.menuItemId`) but
 		// fall back to `detail.value` for robustness — both carry our
@@ -377,17 +333,16 @@ function openItemVisibilityMenuImmediate(
 	document.body.appendChild( menu );
 	activeMenu = menu;
 
-	// Measure on the next animation frame, AFTER the component has
-	// completed its microtask render. Calling getBoundingClientRect()
+	// `placeAfterRender` measures on the next animation frame, AFTER
+	// the component has completed its microtask render. Measuring
 	// synchronously here returns a near-zero height (shadow DOM not
 	// populated yet) — which made dock right-clicks land the
 	// "anchor-above-cursor" math at `opts.y - 0 - 8 ≈ opts.y`,
 	// pushing the bottom dock's menu off-screen below the viewport.
-	const positionMenu = (): void => {
-		if ( menu !== activeMenu ) {
-			return; // Was closed before we got here.
-		}
-		const rect = menu.getBoundingClientRect();
+	// This menu does its own placement rather than calling
+	// `clampToViewport` because the dock case anchors the menu's
+	// bottom edge at the cursor unconditionally.
+	placeAfterRender( menu, ( rect ) => {
 		const margin = 8;
 		let left = opts.x;
 		let top: number;
@@ -411,9 +366,7 @@ function openItemVisibilityMenuImmediate(
 		}
 		menu.style.left = `${ left }px`;
 		menu.style.top = `${ top }px`;
-		menu.style.visibility = '';
-	};
-	requestAnimationFrame( positionMenu );
+	} );
 
 	// Outside-click + Escape dismisser.
 	const onOutside = ( ev: MouseEvent ): void => {
@@ -439,19 +392,17 @@ function openItemVisibilityMenuImmediate(
 
 /**
  * Confirm + deactivate a plugin by file path. On success the dock
- * auto-refreshes via the existing `desktop-mode-plugins-changed`
+ * auto-refreshes via the existing `os-plugins-changed`
  * postMessage path that the chromeless bridge fires when WP repaints
  * the admin menu — but the user right-clicked from the shell, not
- * from `plugins.php`, so we additionally call `wp.desktop.refreshMenu()`
+ * from `plugins.php`, so we additionally call `wp.os.refreshMenu()`
  * (when available) to trigger the hidden-iframe probe.
- *
- * @since 0.8.6
  */
 async function confirmAndDeactivatePlugin(
 	pluginFile: string,
 	title: string,
 ): Promise< void > {
-	const confirmed = await wpdConfirm( {
+	const confirmed = await osConfirm( {
 		/* translators: %s: plugin title. */
 		title: sprintf( __( 'Deactivate %s?' ), title ),
 		message: __(
@@ -467,8 +418,8 @@ async function confirmAndDeactivatePlugin(
 
 	type ConfigShape = { restRoot?: string; restNonce?: string };
 	const cfg =
-		( window as unknown as { desktopModeConfig?: ConfigShape } )
-			.desktopModeConfig ?? {};
+		( window as unknown as { openStationConfig?: ConfigShape } )
+			.openStationConfig ?? {};
 	const restRoot =
 		typeof cfg.restRoot === 'string' && cfg.restRoot
 			? cfg.restRoot
@@ -523,7 +474,7 @@ async function confirmAndDeactivatePlugin(
 		// Surface for debugging — the activity-bus already logged the
 		// failed fetch through trackedFetch.
 		// eslint-disable-next-line no-console
-		console.error( '[desktop-mode] deactivate plugin failed', err );
+		console.error( '[openstation] deactivate plugin failed', err );
 		return;
 	}
 
@@ -551,12 +502,12 @@ async function confirmAndDeactivatePlugin(
 	showToast( { message: deactivatedMsg, duration: 3000 } );
 
 	// Ask the shell to repaint the dock from a fresh menu probe. The
-	// dock's own `desktop-mode-plugins-changed` listener will pick up
+	// dock's own `os-plugins-changed` listener will pick up
 	// the new $menu shape and remove the now-inactive plugin's tile.
 	const w = window as unknown as {
-		wp?: { desktop?: { refreshMenu?: () => void } };
+		wp?: { os?: { refreshMenu?: () => void } };
 	};
-	w.wp?.desktop?.refreshMenu?.();
+	w.wp?.os?.refreshMenu?.();
 }
 
 /**
@@ -565,7 +516,7 @@ async function confirmAndDeactivatePlugin(
  *
  * Lookup pathway:
  *
- *   1. Read the current dock items via `wp.desktop.getMenuItems()`.
+ *   1. Read the current dock items via `wp.os.getMenuItems()`.
  *      Each item carries the `pluginFile` resolved server-side.
  *   2. For each matching item, derive the window `baseId` from its
  *      url and close every instance under that base (`getAllByBaseId`)
@@ -574,8 +525,6 @@ async function confirmAndDeactivatePlugin(
  *   3. Also walk every open window once more by url substring — covers
  *      `admin.php?page=<plugin-slug>…` instances that diverged from the
  *      registered dock url (deep links, custom navigations).
- *
- * @since 0.8.6
  */
 function closeWindowsForPlugin( pluginFile: string ): string[] {
 	interface DockItemLike {
@@ -597,8 +546,8 @@ function closeWindowsForPlugin( pluginFile: string ): string[] {
 			getAll?: () => WindowLike[];
 		};
 	}
-	const api = ( window as unknown as { wp?: { desktop?: ShellShim } } )
-		.wp?.desktop;
+	const api = ( window as unknown as { wp?: { os?: ShellShim } } )
+		.wp?.os;
 	if ( ! api?.windowManager?.getAll ) {
 		return [];
 	}

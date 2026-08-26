@@ -10,8 +10,6 @@
  *
  * `skyForTime()` is pure and unit-tested; `new Date()` is only read at
  * the scene boundary via {@link currentHour} (with a debug override).
- *
- * @since 0.9.4
  */
 
 import type {
@@ -151,13 +149,13 @@ export function skyForTime( hours: number ): SkyState {
 
 /**
  * Local time of day in fractional hours. Honours a debug override global
- * (`window.desktopModeLivingTreeHourOverride`, a number) so a specific
+ * (`window.openStationLivingTreeHourOverride`, a number) so a specific
  * hour can be previewed without waiting for the clock.
  */
 export function currentHour(): number {
 	const override = ( window as unknown as {
-		desktopModeLivingTreeHourOverride?: unknown;
-	} ).desktopModeLivingTreeHourOverride;
+		openStationLivingTreeHourOverride?: unknown;
+	} ).openStationLivingTreeHourOverride;
 	if ( typeof override === 'number' && Number.isFinite( override ) ) {
 		return ( ( override % 24 ) + 24 ) % 24;
 	}

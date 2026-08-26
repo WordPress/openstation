@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Widget type definitions.
+ * OpenStation — Widget type definitions.
  *
  * Widgets live in a right-side column that paints above the wallpaper
  * but beneath every window. They're small persistent chrome for
@@ -10,8 +10,6 @@
  * Lifecycle mirrors the canvas-wallpaper contract: `mount(container)`
  * returns a teardown function the layer calls when the widget is
  * removed, the user re-orders, or the shell is torn down.
- *
- * @since 0.7.0
  */
 
 /** Teardown callback returned by `mount`. */
@@ -20,7 +18,7 @@ export type WidgetTeardown = () => void;
 /**
  * Namespaced key/value store scoped to the widget id. Available via
  * `ctx.storage` on the execution context passed to `mount`. Backed
- * by `localStorage` under the key `desktop-mode.widget.<id>.<key>` so
+ * by `localStorage` under the key `os.widget.<id>.<key>` so
  * two different widgets that both persist a "layout" setting can't
  * collide. All methods are best-effort: a disabled storage engine
  * (private mode, quota exceeded, etc.) makes `set` a silent no-op
@@ -33,7 +31,6 @@ export type WidgetTeardown = () => void;
  * on the caller side when you need those.
  *
  * @public
- * @since 0.5.0
  */
 export interface WidgetStorage {
 	/**
@@ -58,17 +55,17 @@ export interface WidgetStorage {
  * Execution context passed to `mount`. Kept intentionally minimal:
  * most widgets only need the plugin URL to locate their own asset
  * bundle plus a scratch-pad for persistent user preferences. Anything
- * requiring richer shell state goes through `window.wp.desktop` —
+ * requiring richer shell state goes through `window.wp.os` —
  * the widget context is for "I need this to render" essentials only.
  */
 export interface WidgetContext {
 	/** The widget's own id — handy for data-attribute scoping. */
 	id: string;
-	/** Absolute URL of the desktop-mode plugin (no trailing slash). */
+	/** Absolute URL of the openstation plugin (no trailing slash). */
 	pluginUrl: string;
 	/**
 	 * Per-widget key/value store. Auto-namespaced under
-	 * `desktop-mode.widget.<id>.<key>` in `localStorage` so two
+	 * `os.widget.<id>.<key>` in `localStorage` so two
 	 * different widgets can both persist a `preferences` / `layout`
 	 * value without colliding.
 	 */

@@ -1,7 +1,7 @@
 <?php
 /**
  * Tests for the window content-relations server surface —
- * `desktop_mode_build_content_identity()` and its filter.
+ * `openstation_build_content_identity()` and its filter.
  *
  * The builder runs in the chromeless iframe's admin_footer (real
  * admin context) and resolves which object the page shows, including
@@ -12,9 +12,9 @@
  * @package WordPress
  * @subpackage UnitTests
  *
- * @group desktop-mode
+ * @group openstation
  */
-class Tests_DesktopMode_WindowLinks extends WP_UnitTestCase {
+class Tests_OpenStation_WindowLinks extends WP_UnitTestCase {
 
 	protected static $admin_id;
 
@@ -25,12 +25,13 @@ class Tests_DesktopMode_WindowLinks extends WP_UnitTestCase {
 	public function set_up() {
 		parent::set_up();
 		wp_set_current_user( self::$admin_id );
-		desktop_mode_flush_script_handle_registries();
+		openstation_flush_script_handle_registries();
 	}
 
 	public function tear_down() {
-		unset( $_GET['c'], $_GET['item'], $_GET['tag_ID'], $GLOBALS['pagenow'], $GLOBALS['post'] );
-		remove_all_filters( 'desktop_mode_window_content_identity' );
+		unset( $_GET['c'], $_GET['item'], $_GET['tag_ID'], $_GET['user_id'], $GLOBALS['pagenow'], $GLOBALS['post'] );
+		remove_all_filters( 'openstation_window_content_identity' );
+		remove_all_filters( 'openstation_window_preview_url' );
 		parent::tear_down();
 	}
 
@@ -47,7 +48,7 @@ class Tests_DesktopMode_WindowLinks extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_build_content_identity
+	 * @covers ::openstation_build_content_identity
 	 */
 	public function test_post_edit_screen_yields_root_identity() {
 		$post_id = self::factory()->post->create(
@@ -57,7 +58,7 @@ class Tests_DesktopMode_WindowLinks extends WP_UnitTestCase {
 		);
 		$this->fake_post_edit_screen( get_post( $post_id ) );
 
-		$identity = desktop_mode_build_content_identity();
+		$identity = openstation_build_content_identity();
 
 		$this->assertSame( 'post', $identity['type'] );
 		$this->assertSame( $post_id, $identity['id'] );
@@ -66,20 +67,20 @@ class Tests_DesktopMode_WindowLinks extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_build_content_identity
+	 * @covers ::openstation_build_content_identity
 	 */
 	public function test_page_edit_screen_uses_the_post_type_as_type() {
 		$page_id = self::factory()->post->create( array( 'post_type' => 'page' ) );
 		$this->fake_post_edit_screen( get_post( $page_id ) );
 
-		$identity = desktop_mode_build_content_identity();
+		$identity = openstation_build_content_identity();
 
 		$this->assertSame( 'page', $identity['type'] );
 		$this->assertSame( $page_id, $identity['id'] );
 	}
 
 	/**
-	 * @covers ::desktop_mode_build_content_identity
+	 * @covers ::openstation_build_content_identity
 	 */
 	public function test_comment_edit_screen_roots_at_the_parent_post() {
 		$post_id    = self::factory()->post->create();
@@ -94,7 +95,7 @@ class Tests_DesktopMode_WindowLinks extends WP_UnitTestCase {
 		$_GET['c']          = (string) $comment_id;
 		set_current_screen( 'comment' );
 
-		$identity = desktop_mode_build_content_identity();
+		$identity = openstation_build_content_identity();
 
 		$this->assertSame( 'comment', $identity['type'] );
 		$this->assertSame( $comment_id, $identity['id'] );
@@ -110,18 +111,18 @@ class Tests_DesktopMode_WindowLinks extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_build_content_identity
+	 * @covers ::openstation_build_content_identity
 	 */
 	public function test_comment_screen_with_missing_comment_yields_null() {
 		$GLOBALS['pagenow'] = 'comment.php';
 		$_GET['c']          = '999999';
 		set_current_screen( 'comment' );
 
-		$this->assertNull( desktop_mode_build_content_identity() );
+		$this->assertNull( openstation_build_content_identity() );
 	}
 
 	/**
-	 * @covers ::desktop_mode_build_content_identity
+	 * @covers ::openstation_build_content_identity
 	 */
 	public function test_attached_media_roots_at_its_parent() {
 		$post_id       = self::factory()->post->create();
@@ -135,7 +136,7 @@ class Tests_DesktopMode_WindowLinks extends WP_UnitTestCase {
 		);
 		$this->fake_post_edit_screen( get_post( $attachment_id ) );
 
-		$identity = desktop_mode_build_content_identity();
+		$identity = openstation_build_content_identity();
 
 		$this->assertSame( 'media', $identity['type'] );
 		$this->assertSame( $attachment_id, $identity['id'] );
@@ -149,7 +150,7 @@ class Tests_DesktopMode_WindowLinks extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_build_content_identity
+	 * @covers ::openstation_build_content_identity
 	 */
 	public function test_unattached_media_is_its_own_root() {
 		$attachment_id = self::factory()->attachment->create_object(
@@ -159,14 +160,14 @@ class Tests_DesktopMode_WindowLinks extends WP_UnitTestCase {
 		);
 		$this->fake_post_edit_screen( get_post( $attachment_id ) );
 
-		$identity = desktop_mode_build_content_identity();
+		$identity = openstation_build_content_identity();
 
 		$this->assertSame( 'media', $identity['type'] );
 		$this->assertArrayNotHasKey( 'root', $identity );
 	}
 
 	/**
-	 * @covers ::desktop_mode_build_content_identity
+	 * @covers ::openstation_build_content_identity
 	 */
 	public function test_add_new_screen_yields_null() {
 		$post_id = self::factory()->post->create();
@@ -174,28 +175,28 @@ class Tests_DesktopMode_WindowLinks extends WP_UnitTestCase {
 		get_current_screen()->action = 'add';
 
 		$this->assertNull(
-			desktop_mode_build_content_identity(),
+			openstation_build_content_identity(),
 			'post-new.php has no committed identity yet — deferred until the first save.'
 		);
 	}
 
 	/**
-	 * @covers ::desktop_mode_build_content_identity
+	 * @covers ::openstation_build_content_identity
 	 */
 	public function test_unrelated_screen_yields_null() {
 		set_current_screen( 'dashboard' );
 
-		$this->assertNull( desktop_mode_build_content_identity() );
+		$this->assertNull( openstation_build_content_identity() );
 	}
 
 	/**
-	 * @covers ::desktop_mode_build_content_identity
+	 * @covers ::openstation_build_content_identity
 	 */
 	public function test_filter_can_add_an_identity_for_a_custom_screen() {
 		set_current_screen( 'dashboard' );
 
 		add_filter(
-			'desktop_mode_window_content_identity',
+			'openstation_window_content_identity',
 			function ( $identity, $screen ) {
 				$this->assertInstanceOf( 'WP_Screen', $screen );
 				return array(
@@ -211,22 +212,22 @@ class Tests_DesktopMode_WindowLinks extends WP_UnitTestCase {
 			2
 		);
 
-		$identity = desktop_mode_build_content_identity();
+		$identity = openstation_build_content_identity();
 
 		$this->assertSame( 'acme/order', $identity['type'] );
 		$this->assertSame( 77, $identity['id'] );
 	}
 
 	/**
-	 * @covers ::desktop_mode_build_content_identity
+	 * @covers ::openstation_build_content_identity
 	 */
 	public function test_filter_can_suppress_the_builtin_identity() {
 		$post_id = self::factory()->post->create();
 		$this->fake_post_edit_screen( get_post( $post_id ) );
 
-		add_filter( 'desktop_mode_window_content_identity', '__return_null' );
+		add_filter( 'openstation_window_content_identity', '__return_null' );
 
-		$this->assertNull( desktop_mode_build_content_identity() );
+		$this->assertNull( openstation_build_content_identity() );
 	}
 
 	/**
@@ -234,24 +235,30 @@ class Tests_DesktopMode_WindowLinks extends WP_UnitTestCase {
 	 * placeholder — `null` included — so a navigation away from an
 	 * identified screen clears stale state in the shell.
 	 *
-	 * @covers ::desktop_mode_chromeless_bridge_script
+	 * @covers ::openstation_chromeless_bridge_script
 	 */
 	public function test_bridge_script_substitutes_the_identity_placeholder() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
-		$_GET['desktop_mode_chromeless'] = '1';
+		$_GET['openstation_chromeless'] = '1';
 
 		$post_id = self::factory()->post->create( array( 'post_title' => 'Bridged' ) );
 		$this->fake_post_edit_screen( get_post( $post_id ) );
 
 		ob_start();
-		desktop_mode_chromeless_bridge_script();
-		$output = ob_get_clean();
+		openstation_chromeless_bridge_script();
+		// The bridge ships as a built bundle now: PHP attaches the
+		// per-request data as an inline block and the behaviour lives
+		// in the source that builds into the bundle.
+		$inline = wp_scripts()->get_data( 'os-chromeless-bridge', 'before' );
+		$output = (string) ob_get_clean()
+			. ( is_array( $inline ) ? implode( "\n", $inline ) : (string) $inline )
+			. (string) file_get_contents( OPENSTATION_DIR . 'src/chromeless-bridge.js' );
 
-		unset( $_GET['desktop_mode_chromeless'] );
+		unset( $_GET['openstation_chromeless'] );
 		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );
 
-		$this->assertStringNotContainsString( '/*__DESKTOP_MODE_CONTENT_IDENTITY__*/', $output );
-		$this->assertStringContainsString( 'desktop-mode-content-identity', $output );
+		$this->assertStringNotContainsString( '/*__OPENSTATION_CONTENT_IDENTITY__*/', $output );
+		$this->assertStringContainsString( 'os-content-identity', $output );
 		$this->assertStringContainsString( '"type":"post"', $output );
 		$this->assertStringContainsString( '"id":' . $post_id, $output );
 	}
@@ -261,8 +268,8 @@ class Tests_DesktopMode_WindowLinks extends WP_UnitTestCase {
 	 * in `links` — the source of the directed reference arrows between
 	 * open post windows.
 	 *
-	 * @covers ::desktop_mode_build_content_identity
-	 * @covers ::desktop_mode_window_links_extract_references
+	 * @covers ::openstation_build_content_identity
+	 * @covers ::openstation_window_links_extract_references
 	 */
 	public function test_post_identity_includes_internal_link_references() {
 		$target_id = self::factory()->post->create( array( 'post_title' => 'Target' ) );
@@ -273,7 +280,7 @@ class Tests_DesktopMode_WindowLinks extends WP_UnitTestCase {
 		);
 		$this->fake_post_edit_screen( get_post( $source_id ) );
 
-		$identity = desktop_mode_build_content_identity();
+		$identity = openstation_build_content_identity();
 
 		// The hyperlinked post is referenced; the default category
 		// (Uncategorized) rides along as a term ref — filter by type.
@@ -287,7 +294,7 @@ class Tests_DesktopMode_WindowLinks extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_window_links_extract_references
+	 * @covers ::openstation_window_links_extract_references
 	 */
 	public function test_reference_extraction_skips_self_links() {
 		$post_id = self::factory()->post->create();
@@ -297,7 +304,7 @@ class Tests_DesktopMode_WindowLinks extends WP_UnitTestCase {
 		$post->post_content = '<a href="' . get_permalink( $post_id ) . '">me</a>';
 
 		$post_refs = array_filter(
-			desktop_mode_window_links_extract_references( $post ),
+			openstation_window_links_extract_references( $post ),
 			static function ( $ref ) {
 				return 'post' === $ref['type'];
 			}
@@ -310,7 +317,7 @@ class Tests_DesktopMode_WindowLinks extends WP_UnitTestCase {
 	 * unattached — inserting a library image never sets post_parent, so
 	 * this is the path most in-content media relies on.
 	 *
-	 * @covers ::desktop_mode_window_links_extract_references
+	 * @covers ::openstation_window_links_extract_references
 	 */
 	public function test_reference_extraction_includes_embedded_media() {
 		$attachment_id = self::factory()->attachment->create_object(
@@ -324,7 +331,7 @@ class Tests_DesktopMode_WindowLinks extends WP_UnitTestCase {
 			)
 		);
 
-		$links = desktop_mode_window_links_extract_references( get_post( $post_id ) );
+		$links = openstation_window_links_extract_references( get_post( $post_id ) );
 
 		$this->assertContains(
 			array(
@@ -344,7 +351,7 @@ class Tests_DesktopMode_WindowLinks extends WP_UnitTestCase {
 	 * The featured image never appears in post_content — it must be
 	 * referenced via `_thumbnail_id`.
 	 *
-	 * @covers ::desktop_mode_window_links_extract_references
+	 * @covers ::openstation_window_links_extract_references
 	 */
 	public function test_reference_extraction_includes_featured_image() {
 		$attachment_id = self::factory()->attachment->create_object(
@@ -355,7 +362,7 @@ class Tests_DesktopMode_WindowLinks extends WP_UnitTestCase {
 		$post_id = self::factory()->post->create();
 		set_post_thumbnail( $post_id, $attachment_id );
 
-		$links = desktop_mode_window_links_extract_references( get_post( $post_id ) );
+		$links = openstation_window_links_extract_references( get_post( $post_id ) );
 
 		$this->assertContains(
 			array(
@@ -368,14 +375,14 @@ class Tests_DesktopMode_WindowLinks extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_window_links_extract_references
+	 * @covers ::openstation_window_links_extract_references
 	 */
 	public function test_reference_extraction_includes_assigned_terms() {
 		$term_id = self::factory()->category->create( array( 'name' => 'Consoles' ) );
 		$post_id = self::factory()->post->create();
 		wp_set_post_categories( $post_id, array( $term_id ) );
 
-		$links = desktop_mode_window_links_extract_references( get_post( $post_id ) );
+		$links = openstation_window_links_extract_references( get_post( $post_id ) );
 
 		$this->assertContains(
 			array(
@@ -390,7 +397,7 @@ class Tests_DesktopMode_WindowLinks extends WP_UnitTestCase {
 	 * The Media Library grid path — `upload.php?item=N` — announces the
 	 * media identity, rooted at its parent when attached.
 	 *
-	 * @covers ::desktop_mode_build_content_identity
+	 * @covers ::openstation_build_content_identity
 	 */
 	public function test_upload_grid_item_identity() {
 		$post_id       = self::factory()->post->create();
@@ -407,7 +414,7 @@ class Tests_DesktopMode_WindowLinks extends WP_UnitTestCase {
 		$_GET['item']       = (string) $attachment_id;
 		set_current_screen( 'upload' );
 
-		$identity = desktop_mode_build_content_identity();
+		$identity = openstation_build_content_identity();
 
 		$this->assertSame( 'media', $identity['type'] );
 		$this->assertSame( $attachment_id, $identity['id'] );
@@ -423,20 +430,20 @@ class Tests_DesktopMode_WindowLinks extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_build_content_identity
+	 * @covers ::openstation_build_content_identity
 	 */
 	public function test_upload_grid_without_item_yields_null() {
 		$GLOBALS['pagenow'] = 'upload.php';
 		set_current_screen( 'upload' );
 
-		$this->assertNull( desktop_mode_build_content_identity() );
+		$this->assertNull( openstation_build_content_identity() );
 	}
 
 	/**
 	 * The term edit screen is its own root — posts assigned to the term
 	 * reference it via their `links`.
 	 *
-	 * @covers ::desktop_mode_build_content_identity
+	 * @covers ::openstation_build_content_identity
 	 */
 	public function test_term_edit_screen_identity() {
 		$term_id = self::factory()->category->create( array( 'name' => 'Consoles' ) );
@@ -445,7 +452,7 @@ class Tests_DesktopMode_WindowLinks extends WP_UnitTestCase {
 		$_GET['tag_ID']     = (string) $term_id;
 		set_current_screen( 'edit-category' );
 
-		$identity = desktop_mode_build_content_identity();
+		$identity = openstation_build_content_identity();
 
 		$this->assertSame( 'term/category', $identity['type'] );
 		$this->assertSame( $term_id, $identity['id'] );
@@ -456,39 +463,103 @@ class Tests_DesktopMode_WindowLinks extends WP_UnitTestCase {
 	}
 
 	// ────────────────────────────────────────────────────────────────
+	// Profile screens. A person is a root identity: an order's
+	// customer, a post's author and a comment's writer all point AT
+	// them from their own `links`, so an open profile window ties to
+	// whatever else on the desktop is about that person.
+	// ────────────────────────────────────────────────────────────────
+
+	/**
+	 * @covers ::openstation_build_content_identity
+	 */
+	public function test_user_edit_screen_yields_a_user_identity() {
+		$user_id = self::factory()->user->create(
+			array(
+				'role'         => 'subscriber',
+				'display_name' => 'Ada Lovelace',
+			)
+		);
+
+		$GLOBALS['pagenow'] = 'user-edit.php';
+		$_GET['user_id']    = (string) $user_id;
+		set_current_screen( 'user-edit' );
+
+		$identity = openstation_build_content_identity();
+
+		$this->assertSame( 'user', $identity['type'] );
+		$this->assertSame( $user_id, $identity['id'] );
+		$this->assertSame( 'Ada Lovelace', $identity['label'] );
+		$this->assertArrayNotHasKey( 'root', $identity );
+	}
+
+	/**
+	 * `profile.php` carries no `user_id` — it is always your own.
+	 *
+	 * @covers ::openstation_build_content_identity
+	 */
+	public function test_profile_screen_identifies_the_current_user() {
+		$GLOBALS['pagenow'] = 'profile.php';
+		set_current_screen( 'profile' );
+
+		$identity = openstation_build_content_identity();
+
+		$this->assertSame( 'user', $identity['type'] );
+		$this->assertSame( self::$admin_id, $identity['id'] );
+	}
+
+	/**
+	 * No identity for a person the viewer may not edit — announcing
+	 * one would leak the display name of every account on the site to
+	 * anyone who can guess a URL.
+	 *
+	 * @covers ::openstation_build_content_identity
+	 */
+	public function test_user_edit_screen_respects_the_capability() {
+		$editor_id = self::factory()->user->create( array( 'role' => 'editor' ) );
+		$other_id  = self::factory()->user->create( array( 'role' => 'subscriber' ) );
+		wp_set_current_user( $editor_id );
+
+		$GLOBALS['pagenow'] = 'user-edit.php';
+		$_GET['user_id']    = (string) $other_id;
+		set_current_screen( 'user-edit' );
+
+		$this->assertNull( openstation_build_content_identity() );
+	}
+
+	// ────────────────────────────────────────────────────────────────
 	// Renderer-script registration — the PHP opt-in that puts a
 	// plugin's JS handle into the live-refresh payload. Mirrors
 	// tests/phpunit/tests/unfocusEffects.php, different registry.
 	// ────────────────────────────────────────────────────────────────
 
 	/**
-	 * @covers ::desktop_mode_register_window_link_renderer_script
+	 * @covers ::openstation_register_window_link_renderer_script
 	 */
 	public function test_renderer_script_stores_handle() {
 		$handle = 'wl-a-' . substr( md5( uniqid() ), 0, 8 );
-		$ok     = desktop_mode_register_window_link_renderer_script( $handle );
+		$ok     = openstation_register_window_link_renderer_script( $handle );
 		$this->assertTrue( $ok );
-		$this->assertTrue( desktop_mode_window_link_renderer_script_registry( $handle ) );
+		$this->assertTrue( openstation_window_link_renderer_script_registry( $handle ) );
 	}
 
 	/**
-	 * @covers ::desktop_mode_register_window_link_renderer_script
+	 * @covers ::openstation_register_window_link_renderer_script
 	 */
 	public function test_renderer_script_rejects_empty_handle() {
-		$r = desktop_mode_register_window_link_renderer_script( '' );
+		$r = openstation_register_window_link_renderer_script( '' );
 		$this->assertInstanceOf( 'WP_Error', $r );
-		$this->assertSame( 'desktop_mode_missing_handle', $r->get_error_code() );
+		$this->assertSame( 'openstation_missing_handle', $r->get_error_code() );
 	}
 
 	/**
-	 * @covers ::desktop_mode_build_window_link_renderer_scripts_payload
+	 * @covers ::openstation_build_window_link_renderer_scripts_payload
 	 */
 	public function test_renderer_script_payload_resolves_registered_handle() {
 		$handle = 'wl-b-' . substr( md5( uniqid() ), 0, 8 );
 		wp_register_script( $handle, 'https://example.test/links.js', array(), '1.0', true );
-		desktop_mode_register_window_link_renderer_script( $handle );
+		openstation_register_window_link_renderer_script( $handle );
 
-		$payload = desktop_mode_build_window_link_renderer_scripts_payload();
+		$payload = openstation_build_window_link_renderer_scripts_payload();
 		$entry   = null;
 		foreach ( $payload as $p ) {
 			if ( $p['handle'] === $handle ) {
@@ -501,29 +572,29 @@ class Tests_DesktopMode_WindowLinks extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_build_window_link_renderer_scripts_payload
+	 * @covers ::openstation_build_window_link_renderer_scripts_payload
 	 */
 	public function test_renderer_script_payload_omits_unresolvable_handles() {
-		$this->setExpectedIncorrectUsage( 'desktop_mode_register_window_link_renderer_script' );
+		$this->setExpectedIncorrectUsage( 'openstation_register_window_link_renderer_script' );
 
 		$handle = 'wl-c-' . substr( md5( uniqid() ), 0, 8 );
-		desktop_mode_register_window_link_renderer_script( $handle );
-		$payload = desktop_mode_build_window_link_renderer_scripts_payload();
+		openstation_register_window_link_renderer_script( $handle );
+		$payload = openstation_build_window_link_renderer_scripts_payload();
 		foreach ( $payload as $entry ) {
 			$this->assertNotSame( $handle, $entry['handle'] );
 		}
 	}
 
 	/**
-	 * @covers ::desktop_mode_register_window_link_renderer_script
+	 * @covers ::openstation_register_window_link_renderer_script
 	 */
 	public function test_renderer_script_registered_action_fires() {
 		$captured = array();
-		add_action( 'desktop_mode_window_link_renderer_script_registered', function ( $h ) use ( &$captured ) {
+		add_action( 'openstation_window_link_renderer_script_registered', function ( $h ) use ( &$captured ) {
 			$captured[] = $h;
 		} );
 		$h = 'wl-d-' . substr( md5( uniqid() ), 0, 8 );
-		desktop_mode_register_window_link_renderer_script( $h );
+		openstation_register_window_link_renderer_script( $h );
 		$this->assertContains( $h, $captured );
 	}
 
@@ -531,11 +602,140 @@ class Tests_DesktopMode_WindowLinks extends WP_UnitTestCase {
 	 * The menu payload advertises the script array so the shell's
 	 * live-refresh applier can lazy-load plugin renderer scripts.
 	 *
-	 * @covers ::desktop_mode_build_menu_payload
+	 * @covers ::openstation_build_menu_payload
 	 */
 	public function test_menu_payload_includes_window_link_renderer_scripts_key() {
-		$payload = desktop_mode_build_menu_payload();
+		$payload = openstation_build_menu_payload();
 		$this->assertArrayHasKey( 'serverWindowLinkRendererScripts', $payload );
 		$this->assertIsArray( $payload['serverWindowLinkRendererScripts'] );
+	}
+
+	// ────────────────────────────────────────────────────────────────
+	// Preview URL — the front-end preview link the identity carries
+	// for the shell's "Preview" (eye) title-bar button.
+	// ────────────────────────────────────────────────────────────────
+
+	/**
+	 * @covers ::openstation_build_content_identity
+	 * @covers ::openstation_window_preview_url
+	 */
+	public function test_draft_post_identity_carries_preview_url() {
+		$post_id = self::factory()->post->create( array( 'post_status' => 'draft' ) );
+		$this->fake_post_edit_screen( get_post( $post_id ) );
+
+		$identity = openstation_build_content_identity();
+
+		$this->assertArrayHasKey( 'previewUrl', $identity );
+		$this->assertStringContainsString( 'preview=true', $identity['previewUrl'] );
+		$this->assertStringContainsString( 'preview_id=' . $post_id, $identity['previewUrl'] );
+		$this->assertStringContainsString( 'preview_nonce=', $identity['previewUrl'] );
+	}
+
+	/**
+	 * Published posts preview via an autosave REVISION — the nonce'd
+	 * `preview_id` args are what let `_set_preview()` swap it in.
+	 *
+	 * @covers ::openstation_window_preview_url
+	 */
+	public function test_published_post_identity_carries_nonced_preview_url() {
+		$post_id = self::factory()->post->create( array( 'post_status' => 'publish' ) );
+		$this->fake_post_edit_screen( get_post( $post_id ) );
+
+		$identity = openstation_build_content_identity();
+
+		$this->assertArrayHasKey( 'previewUrl', $identity );
+		$this->assertStringContainsString( 'preview_id=' . $post_id, $identity['previewUrl'] );
+		$this->assertStringContainsString( 'preview_nonce=', $identity['previewUrl'] );
+		parse_str( (string) wp_parse_url( $identity['previewUrl'], PHP_URL_QUERY ), $args );
+		$this->assertArrayHasKey( 'preview_nonce', $args );
+		$this->assertNotFalse(
+			wp_verify_nonce( $args['preview_nonce'], 'post_preview_' . $post_id ),
+			'The preview_nonce must verify against the post_preview_{ID} action core checks.'
+		);
+	}
+
+	/**
+	 * Non-viewable post types have no front end to preview — no
+	 * previewUrl, no eye button.
+	 *
+	 * @covers ::openstation_window_preview_url
+	 */
+	public function test_non_viewable_post_type_gets_no_preview_url() {
+		register_post_type(
+			'dm_hidden',
+			array(
+				'public'             => false,
+				'publicly_queryable' => false,
+				'show_ui'            => true,
+			)
+		);
+		$post_id = self::factory()->post->create( array( 'post_type' => 'dm_hidden' ) );
+		$this->fake_post_edit_screen( get_post( $post_id ) );
+
+		$identity = openstation_build_content_identity();
+
+		$this->assertArrayNotHasKey( 'previewUrl', $identity );
+
+		unregister_post_type( 'dm_hidden' );
+	}
+
+	/**
+	 * @covers ::openstation_window_preview_url
+	 */
+	public function test_preview_url_filter_can_rewrite_the_url() {
+		$post_id = self::factory()->post->create();
+		$this->fake_post_edit_screen( get_post( $post_id ) );
+
+		add_filter(
+			'openstation_window_preview_url',
+			static function ( $url, $post ) {
+				return 'https://headless.example.test/preview/' . $post->ID;
+			},
+			10,
+			2
+		);
+
+		$identity = openstation_build_content_identity();
+		remove_all_filters( 'openstation_window_preview_url' );
+
+		$this->assertSame( 'https://headless.example.test/preview/' . $post_id, $identity['previewUrl'] );
+	}
+
+	/**
+	 * @covers ::openstation_window_preview_url
+	 */
+	public function test_preview_url_filter_can_suppress_the_url() {
+		$post_id = self::factory()->post->create();
+		$this->fake_post_edit_screen( get_post( $post_id ) );
+
+		add_filter( 'openstation_window_preview_url', '__return_empty_string' );
+
+		$identity = openstation_build_content_identity();
+		remove_all_filters( 'openstation_window_preview_url' );
+
+		$this->assertArrayNotHasKey( 'previewUrl', $identity );
+	}
+
+	/**
+	 * The REST recompute (the endpoint the editor save-watcher hits)
+	 * must refresh the previewUrl too — that's how a long-lived editor
+	 * window keeps a live nonce and how draft→publish permalink
+	 * changes reach the open preview.
+	 *
+	 * @covers ::openstation_rest_content_identity
+	 */
+	public function test_rest_content_identity_includes_preview_url() {
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		$post_id = self::factory()->post->create();
+
+		$request = new WP_REST_Request( 'GET', '/desktop-mode/v1/content-identity' );
+		$request->set_param( 'post', $post_id );
+		$response = rest_get_server()->dispatch( $request );
+		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );
+
+		$this->assertSame( 200, $response->get_status() );
+		$identity = $response->get_data()['identity'];
+		$this->assertArrayHasKey( 'previewUrl', $identity );
+		$this->assertStringContainsString( 'preview_nonce=', $identity['previewUrl'] );
 	}
 }

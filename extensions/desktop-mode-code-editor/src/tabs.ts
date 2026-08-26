@@ -11,8 +11,6 @@
  * existing tab; no duplicates. Closing the active tab activates
  * the right-neighbour, then the left if there's no right, then
  * goes back to the placeholder if no tabs remain.
- *
- * @since 0.7.0
  */
 
 import { showConfirm } from './dialog';
@@ -68,10 +66,10 @@ export function mountTabsStrip(
 	opts: TabsStripOptions,
 ): TabsStripHandle {
 	const { mount, onActivate, onClose } = opts;
-	mount.classList.add( 'wpdc-tabs' );
+	mount.classList.add( 'osc-tabs' );
 
 	const ul = document.createElement( 'ul' );
-	ul.className = 'wpdc-tabs__list';
+	ul.className = 'osc-tabs__list';
 	mount.replaceChildren( ul );
 
 	const tabs = new Map< string, InternalTab >();
@@ -80,7 +78,7 @@ export function mountTabsStrip(
 
 	const updateActiveClass = (): void => {
 		for ( const [ path, tab ] of tabs ) {
-			tab.li.classList.toggle( 'wpdc-tabs__tab--active', path === active );
+			tab.li.classList.toggle( 'osc-tabs__tab--active', path === active );
 		}
 	};
 
@@ -154,13 +152,13 @@ export function mountTabsStrip(
 
 	const buildTab = ( file: OpenFileMeta ): InternalTab => {
 		const li = document.createElement( 'li' );
-		li.className = 'wpdc-tabs__tab';
+		li.className = 'osc-tabs__tab';
 		li.dataset.path = file.path;
 		li.title = file.path;
 
 		const body = document.createElement( 'button' );
 		body.type = 'button';
-		body.className = 'wpdc-tabs__body';
+		body.className = 'osc-tabs__body';
 		body.addEventListener( 'click', () => {
 			if ( active !== file.path ) {
 				active = file.path;
@@ -170,11 +168,11 @@ export function mountTabsStrip(
 		} );
 
 		const icon = document.createElement( 'span' );
-		icon.className = `wpdc-tabs__icon dashicons ${ file.icon }`;
+		icon.className = `osc-tabs__icon dashicons ${ file.icon }`;
 		icon.setAttribute( 'aria-hidden', 'true' );
 
 		const label = document.createElement( 'span' );
-		label.className = 'wpdc-tabs__label';
+		label.className = 'osc-tabs__label';
 		label.textContent = file.label;
 
 		body.append( icon, label );
@@ -184,16 +182,16 @@ export function mountTabsStrip(
 		// until the user reaches for it (cleaner visual rhythm —
 		// VS Code uses the same affordance).
 		const trailing = document.createElement( 'span' );
-		trailing.className = 'wpdc-tabs__trailing';
+		trailing.className = 'osc-tabs__trailing';
 
 		const dirtyEl = document.createElement( 'span' );
-		dirtyEl.className = 'wpdc-tabs__dirty';
+		dirtyEl.className = 'osc-tabs__dirty';
 		dirtyEl.textContent = '●';
 		dirtyEl.setAttribute( 'aria-label', 'Unsaved changes' );
 
 		const closeBtn = document.createElement( 'button' );
 		closeBtn.type = 'button';
-		closeBtn.className = 'wpdc-tabs__close';
+		closeBtn.className = 'osc-tabs__close';
 		closeBtn.setAttribute( 'aria-label', 'Close tab' );
 		closeBtn.textContent = '×';
 		closeBtn.addEventListener( 'click', ( e ) => {
@@ -221,7 +219,7 @@ export function mountTabsStrip(
 			return;
 		}
 		tab.dirty = dirty;
-		tab.li.classList.toggle( 'wpdc-tabs__tab--dirty', dirty );
+		tab.li.classList.toggle( 'osc-tabs__tab--dirty', dirty );
 	};
 
 	return {

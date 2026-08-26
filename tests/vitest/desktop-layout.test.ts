@@ -1,24 +1,22 @@
 /**
- * Tests for `src/desktop-layout.ts` — the layout dispatcher that owns
- * the `Dock` instance(s) and the synthesized desktop icons across
- * Classic / Unified / Spatial.
+ * Tests for `src/desktop-layout.ts` — the dispatcher that owns the
+ * rails and paints what `computeNav` returns.
  *
  * Pins down the user-visible shape of each layout:
  *
- * - Classic: TWO docks. Left side bar (id `#desktop-mode-side-dock`,
- *   `data-desktop-mode-dock-placement="left"`) holds `isCore` items;
- *   bottom dock (existing `#desktop-mode-dock`,
- *   `data-desktop-mode-dock-placement="bottom"`) holds the rest.
- * - Unified: ONE dock at the bottom; every menu item lives there.
- * - Spatial: ONE dock at the bottom with non-core items; core items
- *   are synthesized into the desktop-icons list and pushed through
- *   `renderIcons`. Server-registered icons are PRESERVED and concatenated
- *   ahead of synthesized ones so plugin icons aren't shadowed.
+ * - Unified: ONE dock at the bottom holding all three zones —
+ *   WordPress menus, then apps, then OpenStation's controls, with a
+ *   divider between each pair of non-empty ones.
+ * - Classic (shown as "Split"): TWO rails. A sidebar (id
+ *   `#os-side-dock`, `data-os-dock-placement="left"`) holding
+ *   WordPress's admin menus and nothing else, plus the dock
+ *   (existing `#os-dock`, `data-os-dock-placement="bottom"`) holding
+ *   the other two zones.
  *
  * Also pins layout transitions: switching layouts tears down the old
- * docks (no leaked DOM, no leaked side-dock element on switch away
- * from Classic) and emits a `desktop-mode-layout-changed` event so
- * plugins that cache `wp.desktop.dock` can refresh their reference.
+ * rails (no leaked DOM, no leaked sidebar element on switch away from
+ * the split layout) and emits a `os-layout-changed` event so plugins
+ * that cache `wp.os.dock` can refresh their reference.
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { createLayoutDispatcher } from '../../src/desktop-layout';
@@ -35,6 +33,9 @@ function makeManagerStub(): WindowManager {
 	return {
 		getFocused: () => null,
 		getAllByBaseId: () => [],
+		// A desktop-only tile still rides the dock while its window is
+		// open, so the visibility question now asks the manager.
+		getAllByBaseIdOnActiveDesktop: () => [],
 		getAll: () => [],
 		getById: () => undefined,
 		getActiveDesktopId: () => 'default-1',
@@ -80,10 +81,20 @@ const woo = makeItem( {
 	isCore: false,
 } );
 
+/** A launcher. Apps default to the wallpaper. */
 const noopTile: SystemDockItem = {
 	id: 'desktop-mode-os-settings',
 	title: 'OS Settings',
 	icon: 'dashicons-desktop',
+	onOpen: () => {},
+};
+
+/** One of OpenStation's own affordances. Controls default to the dock. */
+const controlTile: SystemDockItem = {
+	id: 'os-system',
+	title: 'System',
+	icon: 'dashicons-admin-generic',
+	navKind: 'control',
 	onOpen: () => {},
 };
 
@@ -95,20 +106,20 @@ function setupShell(): {
 } {
 	document.body.innerHTML = '';
 	const shellRoot = document.createElement( 'div' );
-	shellRoot.id = 'desktop-mode-shell';
-	shellRoot.className = 'desktop-mode-shell';
+	shellRoot.id = 'os-shell';
+	shellRoot.className = 'os-shell';
 
 	const shellBody = document.createElement( 'div' );
-	shellBody.className = 'desktop-mode-shell__body';
+	shellBody.className = 'os-shell__body';
 	shellRoot.appendChild( shellBody );
 
 	const bottomDockEl = document.createElement( 'nav' );
-	bottomDockEl.id = 'desktop-mode-dock';
-	bottomDockEl.className = 'desktop-mode-dock';
+	bottomDockEl.id = 'os-dock';
+	bottomDockEl.className = 'os-dock';
 	shellBody.appendChild( bottomDockEl );
 
 	const desktopArea = document.createElement( 'div' );
-	desktopArea.id = 'desktop-mode-area';
+	desktopArea.id = 'os-area';
 	shellBody.appendChild( desktopArea );
 
 	document.body.appendChild( shellRoot );
@@ -149,11 +160,11 @@ describe( 'desktop-layout dispatcher', () => {
 		document.body.innerHTML = '';
 	} );
 
-	test( 'writes data-desktop-mode-layout to the shell root on init', () => {
+	test( 'writes data-os-layout to the shell root on init', () => {
 		const { deps, shell } = makeDeps();
 		createLayoutDispatcher( deps, 'unified', [ dashboard ], [] );
 		expect(
-			shell.shellRoot.getAttribute( 'data-desktop-mode-layout' ),
+			shell.shellRoot.getAttribute( 'data-os-layout' ),
 		).toBe( 'unified' );
 	} );
 
@@ -165,18 +176,18 @@ describe( 'desktop-layout dispatcher', () => {
 			[ dashboard, posts, yoast, woo ],
 			[],
 		);
-		const sideDock = document.getElementById( 'desktop-mode-side-dock' );
+		const sideDock = document.getElementById( 'os-side-dock' );
 		expect( sideDock ).not.toBeNull();
 		expect(
-			sideDock?.getAttribute( 'data-desktop-mode-dock-placement' ),
+			sideDock?.getAttribute( 'data-os-dock-placement' ),
 		).toBe( 'left' );
-		expect( sideDock?.classList.contains( 'desktop-mode-dock' ) ).toBe(
+		expect( sideDock?.classList.contains( 'os-dock' ) ).toBe(
 			true,
 		);
 
-		const bottomDock = document.getElementById( 'desktop-mode-dock' );
+		const bottomDock = document.getElementById( 'os-dock' );
 		expect(
-			bottomDock?.getAttribute( 'data-desktop-mode-dock-placement' ),
+			bottomDock?.getAttribute( 'data-os-dock-placement' ),
 		).toBe( 'bottom' );
 	} );
 
@@ -191,7 +202,7 @@ describe( 'desktop-layout dispatcher', () => {
 
 		const sideTiles = Array.from(
 			document
-				.getElementById( 'desktop-mode-side-dock' )!
+				.getElementById( 'os-side-dock' )!
 				.querySelectorAll( '[data-menu-slug]' ),
 		).map( ( el ) => ( el as HTMLElement ).dataset.menuSlug );
 		expect( sideTiles ).toEqual(
@@ -200,7 +211,7 @@ describe( 'desktop-layout dispatcher', () => {
 
 		const bottomTiles = Array.from(
 			document
-				.getElementById( 'desktop-mode-dock' )!
+				.getElementById( 'os-dock' )!
 				.querySelectorAll( '[data-menu-slug]' ),
 		).map( ( el ) => ( el as HTMLElement ).dataset.menuSlug );
 		expect( bottomTiles ).toEqual(
@@ -217,11 +228,11 @@ describe( 'desktop-layout dispatcher', () => {
 			[ dashboard, posts, yoast, woo ],
 			[],
 		);
-		expect( document.getElementById( 'desktop-mode-side-dock' ) ).toBeNull();
+		expect( document.getElementById( 'os-side-dock' ) ).toBeNull();
 
 		const bottomTiles = Array.from(
 			document
-				.getElementById( 'desktop-mode-dock' )!
+				.getElementById( 'os-dock' )!
 				.querySelectorAll( '[data-menu-slug]' ),
 		).map( ( el ) => ( el as HTMLElement ).dataset.menuSlug );
 		expect( bottomTiles ).toEqual(
@@ -232,123 +243,6 @@ describe( 'desktop-layout dispatcher', () => {
 				'woocommerce',
 			] ),
 		);
-	} );
-
-	test( 'spatial: bottom dock holds plugin items only, no side dock element', () => {
-		const { deps } = makeDeps();
-		createLayoutDispatcher(
-			deps,
-			'spatial',
-			[ dashboard, posts, yoast, woo ],
-			[],
-		);
-		expect( document.getElementById( 'desktop-mode-side-dock' ) ).toBeNull();
-
-		const bottomTiles = Array.from(
-			document
-				.getElementById( 'desktop-mode-dock' )!
-				.querySelectorAll( '[data-menu-slug]' ),
-		).map( ( el ) => ( el as HTMLElement ).dataset.menuSlug );
-		expect( bottomTiles ).toEqual(
-			expect.arrayContaining( [ 'wpseo_dashboard', 'woocommerce' ] ),
-		);
-		expect( bottomTiles ).not.toContain( 'index.php' );
-		expect( bottomTiles ).not.toContain( 'edit.php' );
-	} );
-
-	test( 'spatial: drops non-pinned server icons without an override', () => {
-		const { deps, renderIcons } = makeDeps();
-		const serverIcons: DesktopIconServerEntry[] = [
-			{
-				id: 'plugin:icon',
-				title: 'Plugin',
-				icon: 'dashicons-admin-plugins',
-				window: 'plugin-window',
-				url: '',
-				position: 50,
-			},
-		];
-		createLayoutDispatcher(
-			deps,
-			'spatial',
-			[ dashboard, posts, yoast, woo ],
-			serverIcons,
-		);
-
-		expect( renderIcons ).toHaveBeenCalled();
-		const lastCall = renderIcons.mock.calls.at( -1 )![ 0 ];
-		const ids = ( lastCall as DesktopIconServerEntry[] ).map(
-			( i ) => i.id,
-		);
-		// Plugin icons with no explicit placement override stay
-		// suppressed in Spatial — the wallpaper is the "core surface,"
-		// and their admin menu lives in the bottom dock. Doubling them
-		// up on the wallpaper was the original user-reported bug.
-		expect( ids ).toEqual( [
-			'dock-core:index.php',
-			'dock-core:edit.php',
-		] );
-	} );
-
-	test( 'spatial: keeps pinned server icons (e.g. My WordPress)', () => {
-		const { deps, renderIcons } = makeDeps();
-		const serverIcons: DesktopIconServerEntry[] = [
-			{
-				id: 'desktop-mode-my-wordpress',
-				title: 'My WordPress',
-				icon: 'dashicons-wordpress',
-				window: 'desktop-mode-my-wordpress',
-				url: '',
-				position: -1,
-				pinned: true,
-			},
-		];
-		createLayoutDispatcher(
-			deps,
-			'spatial',
-			[ dashboard, posts ],
-			serverIcons,
-		);
-
-		const ids = (
-			renderIcons.mock.calls.at( -1 )![ 0 ] as DesktopIconServerEntry[]
-		).map( ( i ) => i.id );
-		// Regression guard: a framework-owned pinned icon must survive
-		// the Spatial layout. Suppressing it made My WordPress vanish
-		// from the wallpaper on installs using Spatial.
-		expect( ids ).toContain( 'desktop-mode-my-wordpress' );
-	} );
-
-	test( 'spatial: keeps server icons the user explicitly promoted to the desktop', () => {
-		const { deps, renderIcons } = makeDeps( {
-			getSettings: () => ( {
-				itemVisibility: { 'plugin-icon': 'desktop' },
-				dockOrder: [],
-			} ),
-		} );
-		const serverIcons: DesktopIconServerEntry[] = [
-			{
-				id: 'plugin-icon',
-				title: 'Plugin',
-				icon: 'dashicons-admin-plugins',
-				window: 'plugin-window',
-				url: '',
-				position: 50,
-			},
-		];
-		createLayoutDispatcher(
-			deps,
-			'spatial',
-			[ dashboard, posts ],
-			serverIcons,
-		);
-
-		const ids = (
-			renderIcons.mock.calls.at( -1 )![ 0 ] as DesktopIconServerEntry[]
-		).map( ( i ) => i.id );
-		// The OS Settings → Apps & Icons "On the desktop" choice must
-		// not silently no-op in Spatial.
-		expect( ids ).toContain( 'plugin-icon' );
 	} );
 
 	test( 'classic + unified: renderIcons gets only the server list (no synthesis)', () => {
@@ -384,10 +278,10 @@ describe( 'desktop-layout dispatcher', () => {
 			[],
 		);
 		expect(
-			document.getElementById( 'desktop-mode-side-dock' ),
+			document.getElementById( 'os-side-dock' ),
 		).not.toBeNull();
 		dispatcher.setLayout( 'unified' );
-		expect( document.getElementById( 'desktop-mode-side-dock' ) ).toBeNull();
+		expect( document.getElementById( 'os-side-dock' ) ).toBeNull();
 		expect( dispatcher.getSide() ).toBeNull();
 		expect( dispatcher.getPrimary() ).not.toBeNull();
 		expect( dispatcher.getLayout() ).toBe( 'unified' );
@@ -401,10 +295,10 @@ describe( 'desktop-layout dispatcher', () => {
 			[ dashboard, yoast ],
 			[],
 		);
-		expect( document.getElementById( 'desktop-mode-side-dock' ) ).toBeNull();
+		expect( document.getElementById( 'os-side-dock' ) ).toBeNull();
 		dispatcher.setLayout( 'classic' );
 		expect(
-			document.getElementById( 'desktop-mode-side-dock' ),
+			document.getElementById( 'os-side-dock' ),
 		).not.toBeNull();
 		expect( dispatcher.getSide() ).not.toBeNull();
 	} );
@@ -418,15 +312,15 @@ describe( 'desktop-layout dispatcher', () => {
 			[],
 		);
 		const events = vi.fn();
-		document.addEventListener( 'desktop-mode-layout-changed', events );
+		document.addEventListener( 'os-layout-changed', events );
 		const sideBefore = dispatcher.getSide();
 		dispatcher.setLayout( 'classic' );
 		expect( events ).not.toHaveBeenCalled();
 		expect( dispatcher.getSide() ).toBe( sideBefore );
-		document.removeEventListener( 'desktop-mode-layout-changed', events );
+		document.removeEventListener( 'os-layout-changed', events );
 	} );
 
-	test( 'setLayout: emits desktop-mode-layout-changed with new primary/side', () => {
+	test( 'setLayout: emits os-layout-changed with new primary/side', () => {
 		const { deps } = makeDeps();
 		const dispatcher = createLayoutDispatcher(
 			deps,
@@ -436,7 +330,7 @@ describe( 'desktop-layout dispatcher', () => {
 		);
 		let detail: { layout: string; primary: unknown; side: unknown } | null = null;
 		document.addEventListener(
-			'desktop-mode-layout-changed',
+			'os-layout-changed',
 			( e ) => {
 				detail = ( e as CustomEvent ).detail;
 			},
@@ -447,6 +341,256 @@ describe( 'desktop-layout dispatcher', () => {
 		expect( detail!.layout ).toBe( 'classic' );
 		expect( detail!.primary ).toBe( dispatcher.getPrimary() );
 		expect( detail!.side ).toBe( dispatcher.getSide() );
+	} );
+
+	describe( 'one rail groups before it draws', () => {
+		/**
+		 * Read the rail in visual order: tile slugs, with the divider
+		 * that `Dock` inserts at the core-to-plugin boundary marked.
+		 */
+		const railOrder = ( dockId: string ): string[] =>
+			Array.from(
+				document
+					.getElementById( dockId )!
+					.querySelectorAll(
+						'[data-menu-slug], .os-dock__separator--group',
+					),
+			).map( ( el ) =>
+				el.classList.contains( 'os-dock__separator--group' )
+					? '|'
+					: ( el as HTMLElement ).dataset.menuSlug ?? '?',
+			);
+
+		test( 'unified: an interleaved menu is sorted, not split', () => {
+			const { deps } = makeDeps();
+			// A plugin that registers its menu high up — Yoast and
+			// Jetpack both do. In menu order the divider would be
+			// dropped right after Dashboard, stranding Posts and
+			// Settings on the plugin side of a line that then claims
+			// nothing true.
+			createLayoutDispatcher(
+				deps,
+				'unified',
+				[ dashboard, yoast, posts, woo ],
+				[],
+			);
+
+			expect( railOrder( 'os-dock' ) ).toEqual( [
+				'index.php',
+				'edit.php',
+				'|',
+				'wpseo_dashboard',
+				'woocommerce',
+			] );
+		} );
+
+		test( 'the grouping survives a live menu refresh', () => {
+			const { deps } = makeDeps();
+			const dispatcher = createLayoutDispatcher(
+				deps,
+				'unified',
+				[ dashboard, posts ],
+				[],
+			);
+			// A plugin activates mid-session and lands mid-menu.
+			dispatcher.applyDockItems( [ dashboard, woo, posts ] );
+
+			expect( railOrder( 'os-dock' ) ).toEqual( [
+				'index.php',
+				'edit.php',
+				'|',
+				'woocommerce',
+			] );
+		} );
+
+		test( 'relative order inside each cluster is preserved', () => {
+			const { deps } = makeDeps();
+			createLayoutDispatcher(
+				deps,
+				'unified',
+				[ woo, posts, yoast, dashboard ],
+				[],
+			);
+
+			// Core keeps Posts-then-Dashboard and plugins keep
+			// Woo-then-Yoast: grouping moves the clusters, never the
+			// tiles within one, so a user's drag-to-reorder still holds.
+			expect( railOrder( 'os-dock' ) ).toEqual( [
+				'edit.php',
+				'index.php',
+				'|',
+				'woocommerce',
+				'wpseo_dashboard',
+			] );
+		} );
+	} );
+
+	describe( 'dock placement', () => {
+		test( 'a one-rail layout mounts on the edge it was given', () => {
+			const { deps } = makeDeps();
+			const dispatcher = createLayoutDispatcher(
+				deps,
+				'unified',
+				[ dashboard, yoast ],
+				[],
+				'left',
+			);
+			expect( dispatcher.getDockPlacement() ).toBe( 'left' );
+			expect(
+				document
+					.getElementById( 'os-dock' )
+					?.getAttribute( 'data-os-dock-placement' ),
+			).toBe( 'left' );
+		} );
+
+		test( 'defaults to the bottom when no placement is given', () => {
+			const { deps } = makeDeps();
+			const dispatcher = createLayoutDispatcher(
+				deps,
+				'unified',
+				[ dashboard ],
+				[],
+			);
+			expect( dispatcher.getDockPlacement() ).toBe( 'bottom' );
+			expect(
+				document
+					.getElementById( 'os-dock' )
+					?.getAttribute( 'data-os-dock-placement' ),
+			).toBe( 'bottom' );
+		} );
+
+		test( 'setDockPlacement rebuilds the rail on the new edge', () => {
+			const { deps } = makeDeps();
+			const dispatcher = createLayoutDispatcher(
+				deps,
+				'unified',
+				[ dashboard, yoast ],
+				[],
+			);
+			const before = dispatcher.getPrimary();
+			dispatcher.setDockPlacement( 'right' );
+			expect(
+				document
+					.getElementById( 'os-dock' )
+					?.getAttribute( 'data-os-dock-placement' ),
+			).toBe( 'right' );
+			// A rail cannot be re-oriented in place — placement reaches
+			// a renderer through `mount()`, so the instance is new.
+			expect( dispatcher.getPrimary() ).not.toBe( before );
+			// …and the tiles came back with it.
+			expect(
+				document.getElementById( 'os-dock' )!.querySelectorAll(
+					'[data-menu-slug]',
+				).length,
+			).toBe( 2 );
+		} );
+
+		test( 'setDockPlacement: same value is a no-op', () => {
+			const { deps } = makeDeps();
+			const dispatcher = createLayoutDispatcher(
+				deps,
+				'unified',
+				[ dashboard ],
+				[],
+			);
+			const events = vi.fn();
+			document.addEventListener( 'os-layout-changed', events );
+			const before = dispatcher.getPrimary();
+			dispatcher.setDockPlacement( 'bottom' );
+			expect( events ).not.toHaveBeenCalled();
+			expect( dispatcher.getPrimary() ).toBe( before );
+			document.removeEventListener( 'os-layout-changed', events );
+		} );
+
+		test( 'classic keeps both rails and remembers the pick for later', () => {
+			const { deps } = makeDeps();
+			const dispatcher = createLayoutDispatcher(
+				deps,
+				'classic',
+				[ dashboard, yoast ],
+				[],
+			);
+			const primaryBefore = dispatcher.getPrimary();
+			dispatcher.setDockPlacement( 'left' );
+
+			// The side bar already owns the left edge; honouring the pick
+			// would stack the two rails on top of each other, so the
+			// plugin rail stays on the bottom and nothing is rebuilt.
+			expect(
+				document
+					.getElementById( 'os-dock' )
+					?.getAttribute( 'data-os-dock-placement' ),
+			).toBe( 'bottom' );
+			expect(
+				document
+					.getElementById( 'os-side-dock' )
+					?.getAttribute( 'data-os-dock-placement' ),
+			).toBe( 'left' );
+			expect( dispatcher.getPrimary() ).toBe( primaryBefore );
+
+			// Stored all the same: switching to a one-rail layout lands
+			// on the edge the user chose while wearing Classic.
+			expect( dispatcher.getDockPlacement() ).toBe( 'left' );
+			dispatcher.setLayout( 'unified' );
+			expect(
+				document
+					.getElementById( 'os-dock' )
+					?.getAttribute( 'data-os-dock-placement' ),
+			).toBe( 'left' );
+		} );
+
+		test( 'setDockPlacement emits os-layout-changed with the new edge', () => {
+			const { deps } = makeDeps();
+			const dispatcher = createLayoutDispatcher(
+				deps,
+				'unified',
+				[ dashboard ],
+				[],
+			);
+			let detail: {
+				layout: string;
+				placement: string;
+				primary: unknown;
+			} | null = null;
+			document.addEventListener(
+				'os-layout-changed',
+				( e ) => {
+					detail = ( e as CustomEvent ).detail;
+				},
+				{ once: true },
+			);
+			dispatcher.setDockPlacement( 'left' );
+			expect( detail ).not.toBeNull();
+			expect( detail!.layout ).toBe( 'unified' );
+			expect( detail!.placement ).toBe( 'left' );
+			expect( detail!.primary ).toBe( dispatcher.getPrimary() );
+		} );
+
+		test( 'system tiles re-attach after a placement change', () => {
+			const { deps } = makeDeps();
+			const dispatcher = createLayoutDispatcher(
+				deps,
+				'unified',
+				[ dashboard ],
+				[],
+			);
+			dispatcher.appendSystemTile( {
+				id: 'os-settings',
+				title: 'OpenStation Preferences',
+				icon: 'dashicons-admin-generic',
+				navKind: 'control',
+				onOpen: () => undefined,
+			} );
+			dispatcher.setDockPlacement( 'left' );
+			const dock = document.getElementById( 'os-dock' )!;
+			expect(
+				dock.querySelectorAll( '.os-dock__item--system' ).length,
+			).toBe( 1 );
+			// The WordPress-to-OpenStation divider comes with them.
+			expect(
+				dock.querySelector( '.os-dock__separator' ),
+			).not.toBeNull();
+		} );
 	} );
 
 	test( 'applyDockItems: classic re-routes a fresh list to the right rails', () => {
@@ -461,53 +605,28 @@ describe( 'desktop-layout dispatcher', () => {
 
 		const sideTiles = Array.from(
 			document
-				.getElementById( 'desktop-mode-side-dock' )!
+				.getElementById( 'os-side-dock' )!
 				.querySelectorAll( '[data-menu-slug]' ),
 		).map( ( el ) => ( el as HTMLElement ).dataset.menuSlug );
 		expect( sideTiles ).toEqual( [ 'edit.php' ] );
 
 		const bottomTiles = Array.from(
 			document
-				.getElementById( 'desktop-mode-dock' )!
+				.getElementById( 'os-dock' )!
 				.querySelectorAll( '[data-menu-slug]' ),
 		).map( ( el ) => ( el as HTMLElement ).dataset.menuSlug );
 		expect( bottomTiles ).toEqual( [ 'woocommerce' ] );
 	} );
 
-	test( 'applyDesktopIcons: spatial ignores server icons, keeps synthesized core only', () => {
-		const { deps, renderIcons } = makeDeps();
-		const dispatcher = createLayoutDispatcher(
-			deps,
-			'spatial',
-			[ dashboard, yoast ],
-			[],
-		);
-		renderIcons.mockClear();
-
-		const updatedServerIcons: DesktopIconServerEntry[] = [
-			{
-				id: 'plugin:newer',
-				title: 'Newer Plugin',
-				icon: 'dashicons-admin-plugins',
-				window: 'newer',
-				url: '',
-				position: 80,
-			},
-		];
-		dispatcher.applyDesktopIcons( updatedServerIcons );
-
-		expect( renderIcons ).toHaveBeenCalledTimes( 1 );
-		const lastCall = renderIcons.mock.calls.at( -1 )![ 0 ];
-		const ids = ( lastCall as DesktopIconServerEntry[] ).map(
-			( i ) => i.id,
-		);
-		// Updated server icons stored but suppressed in Spatial — only
-		// the synthesized core menu icon is on the wallpaper. Switching
-		// to a layout that includes server icons would surface them.
-		expect( ids ).toEqual( [ 'dock-core:index.php' ] );
-	} );
-
-	test( 'appendSystemTile: core affinity lands on the side dock in classic', () => {
+	/*
+	 * The sidebar is core ADMIN MENUS, and only those. That is the idea
+	 * the split expresses, so OpenStation's own affordances (System,
+	 * Exit, the Trash) belong on the dock with everything else the
+	 * station owns. Routing them to the sidebar would put Preferences
+	 * under a column of admin menus and make the rail mean two things
+	 * at once.
+	 */
+	test( 'a control tile lands on the dock in the split layout, never the sidebar', () => {
 		const { deps } = makeDeps();
 		const dispatcher = createLayoutDispatcher(
 			deps,
@@ -515,52 +634,43 @@ describe( 'desktop-layout dispatcher', () => {
 			[ dashboard, yoast ],
 			[],
 		);
-		dispatcher.appendSystemTile( noopTile, 'core' );
+		dispatcher.appendSystemTile( controlTile );
 		expect(
 			document
-				.getElementById( 'desktop-mode-side-dock' )!
-				.querySelector( `[data-system-id="${ noopTile.id }"]` ),
+				.getElementById( 'os-dock' )!
+				.querySelector( `[data-system-id="${ controlTile.id }"]` ),
 		).not.toBeNull();
 		expect(
 			document
-				.getElementById( 'desktop-mode-dock' )!
-				.querySelector( `[data-system-id="${ noopTile.id }"]` ),
+				.getElementById( 'os-side-dock' )!
+				.querySelector( `[data-system-id="${ controlTile.id }"]` ),
 		).toBeNull();
 	} );
 
-	test( 'appendSystemTile: core affinity falls back to primary in unified', () => {
-		const { deps } = makeDeps();
-		const dispatcher = createLayoutDispatcher(
-			deps,
-			'unified',
-			[ dashboard, yoast ],
-			[],
-		);
-		dispatcher.appendSystemTile( noopTile, 'core' );
-		expect(
-			document
-				.getElementById( 'desktop-mode-dock' )!
-				.querySelector( `[data-system-id="${ noopTile.id }"]` ),
-		).not.toBeNull();
+	test( 'a launcher the user pinned lands on the dock in either layout', () => {
+		for ( const layout of [ 'unified', 'classic' ] as const ) {
+			const { deps } = makeDeps( {
+				getSettings: () => ( {
+					navPlacement: { 'desktop-mode-os-settings': 'rail' },
+					navOrder: [],
+				} ),
+			} );
+			const dispatcher = createLayoutDispatcher(
+				deps,
+				layout,
+				[ dashboard, yoast ],
+				[],
+			);
+			dispatcher.appendSystemTile( noopTile );
+			expect(
+				document
+					.getElementById( 'os-dock' )!
+					.querySelector( `[data-system-id="${ noopTile.id }"]` ),
+			).not.toBeNull();
+		}
 	} );
 
-	test( 'appendSystemTile: core affinity falls back to primary in spatial', () => {
-		const { deps } = makeDeps();
-		const dispatcher = createLayoutDispatcher(
-			deps,
-			'spatial',
-			[ dashboard, yoast ],
-			[],
-		);
-		dispatcher.appendSystemTile( noopTile, 'core' );
-		expect(
-			document
-				.getElementById( 'desktop-mode-dock' )!
-				.querySelector( `[data-system-id="${ noopTile.id }"]` ),
-		).not.toBeNull();
-	} );
-
-	test( 'appendSystemTile: plugin affinity (default) always goes to primary', () => {
+	test( 'a control tile follows a layout switch onto the rebuilt dock', () => {
 		const { deps } = makeDeps();
 		const dispatcher = createLayoutDispatcher(
 			deps,
@@ -568,39 +678,15 @@ describe( 'desktop-layout dispatcher', () => {
 			[ dashboard, yoast ],
 			[],
 		);
-		dispatcher.appendSystemTile( noopTile );
-		expect(
-			document
-				.getElementById( 'desktop-mode-dock' )!
-				.querySelector( `[data-system-id="${ noopTile.id }"]` ),
-		).not.toBeNull();
-		expect(
-			document
-				.getElementById( 'desktop-mode-side-dock' )!
-				.querySelector( `[data-system-id="${ noopTile.id }"]` ),
-		).toBeNull();
-	} );
-
-	test( 'core-affinity tile follows the layout: classic side → unified primary', () => {
-		const { deps } = makeDeps();
-		const dispatcher = createLayoutDispatcher(
-			deps,
-			'classic',
-			[ dashboard, yoast ],
-			[],
-		);
-		dispatcher.appendSystemTile( noopTile, 'core' );
+		dispatcher.appendSystemTile( controlTile );
 		dispatcher.setLayout( 'unified' );
-		// Side dock element is gone; tile should re-attach to the
-		// rebuilt primary (bottom) dock since there's no side rail
-		// in unified.
-		expect(
-			document.getElementById( 'desktop-mode-side-dock' ),
-		).toBeNull();
+		// Sidebar element is gone; the tile re-attaches to the rebuilt
+		// dock.
+		expect( document.getElementById( 'os-side-dock' ) ).toBeNull();
 		expect(
 			document
-				.getElementById( 'desktop-mode-dock' )!
-				.querySelector( `[data-system-id="${ noopTile.id }"]` ),
+				.getElementById( 'os-dock' )!
+				.querySelector( `[data-system-id="${ controlTile.id }"]` ),
 		).not.toBeNull();
 	} );
 
@@ -612,20 +698,20 @@ describe( 'desktop-layout dispatcher', () => {
 			[ dashboard, yoast ],
 			[],
 		);
-		dispatcher.appendSystemTile( noopTile );
+		dispatcher.appendSystemTile( controlTile );
 		expect(
 			document
-				.getElementById( 'desktop-mode-dock' )!
-				.querySelector( `[data-system-id="${ noopTile.id }"]` ),
+				.getElementById( 'os-dock' )!
+				.querySelector( `[data-system-id="${ controlTile.id }"]` ),
 		).not.toBeNull();
 
-		// Switch layout — the bottom dock is rebuilt; the tracked
-		// system tile must re-attach to the new instance.
+		// Switch layout — the dock is rebuilt; the tracked tile must
+		// re-attach to the new instance.
 		dispatcher.setLayout( 'classic' );
 		expect(
 			document
-				.getElementById( 'desktop-mode-dock' )!
-				.querySelector( `[data-system-id="${ noopTile.id }"]` ),
+				.getElementById( 'os-dock' )!
+				.querySelector( `[data-system-id="${ controlTile.id }"]` ),
 		).not.toBeNull();
 	} );
 
@@ -637,42 +723,48 @@ describe( 'desktop-layout dispatcher', () => {
 			[ dashboard, yoast ],
 			[],
 		);
-		dispatcher.appendSystemTile( noopTile );
-		dispatcher.removeSystemTile( noopTile.id );
+		dispatcher.appendSystemTile( controlTile );
+		dispatcher.removeSystemTile( controlTile.id );
 		expect(
 			document
-				.getElementById( 'desktop-mode-dock' )!
-				.querySelector( `[data-system-id="${ noopTile.id }"]` ),
+				.getElementById( 'os-dock' )!
+				.querySelector( `[data-system-id="${ controlTile.id }"]` ),
 		).toBeNull();
 
 		// Layout rebuild must not resurrect the removed tile.
 		dispatcher.setLayout( 'classic' );
 		expect(
 			document
-				.getElementById( 'desktop-mode-dock' )!
-				.querySelector( `[data-system-id="${ noopTile.id }"]` ),
+				.getElementById( 'os-dock' )!
+				.querySelector( `[data-system-id="${ controlTile.id }"]` ),
 		).toBeNull();
 	} );
 
-	// Regression tests for https://github.com/WordPress/desktop-mode/issues/405 —
-	// native windows registered with `placement: 'dock'` (Games) land on
-	// the rails as system tiles, which used to bypass the Apps & Icons
-	// `itemVisibility` overrides entirely: hiding the item removed the
-	// wallpaper icon but the dock tile stayed.
-	describe( 'system tiles honor Apps & Icons visibility overrides', () => {
+	// Regression tests for https://github.com/WordPress/openstation/issues/405 —
+	// a native window registered with `placement: 'dock'` (Games) used
+	// to reach the rail through a path that never consulted the user's
+	// placement preference, so hiding the item removed the wallpaper
+	// icon while the dock tile stayed. Everything now resolves through
+	// `computeNav`, which has exactly one answer per item.
+	describe( 'system tiles honor the navigation preferences', () => {
 		const gamesTile: SystemDockItem = {
 			id: 'desktop-mode-games',
 			title: 'Games',
 			icon: 'dashicons-games',
+			// A native window's launcher names the window it opens; a
+			// tile that toggles something instead (Mio's) leaves this
+			// unset and is never "running".
+			windowId: 'desktop-mode-games',
+			navKind: 'control',
 			onOpen: () => {},
 		};
 		const tileSelector = `[data-system-id="${ gamesTile.id }"]`;
 
-		test( 'a pre-existing "hidden" override keeps the tile off the dock but tracked', () => {
+		test( 'a pre-existing "hidden" preference keeps the tile off the dock but tracked', () => {
 			const { deps } = makeDeps( {
 				getSettings: () => ( {
-					itemVisibility: { 'desktop-mode-games': 'hidden' },
-					dockOrder: [],
+					navPlacement: { 'desktop-mode-games': 'hidden' },
+					navOrder: [],
 				} ),
 			} );
 			const dispatcher = createLayoutDispatcher(
@@ -684,7 +776,7 @@ describe( 'desktop-layout dispatcher', () => {
 			dispatcher.appendSystemTile( gamesTile );
 			expect(
 				document
-					.getElementById( 'desktop-mode-dock' )!
+					.getElementById( 'os-dock' )!
 					.querySelector( tileSelector ),
 			).toBeNull();
 			// Still tracked — flipping the setting back must restore it.
@@ -693,11 +785,11 @@ describe( 'desktop-layout dispatcher', () => {
 			).toContain( gamesTile.id );
 		} );
 
-		test( 'a "desktop"-only override also keeps the tile off the dock', () => {
+		test( 'a "desktop"-only preference also keeps the tile off the dock', () => {
 			const { deps } = makeDeps( {
 				getSettings: () => ( {
-					itemVisibility: { 'desktop-mode-games': 'desktop' },
-					dockOrder: [],
+					navPlacement: { 'desktop-mode-games': 'desktop' },
+					navOrder: [],
 				} ),
 			} );
 			const dispatcher = createLayoutDispatcher(
@@ -709,16 +801,152 @@ describe( 'desktop-layout dispatcher', () => {
 			dispatcher.appendSystemTile( gamesTile );
 			expect(
 				document
-					.getElementById( 'desktop-mode-dock' )!
+					.getElementById( 'os-dock' )!
 					.querySelector( tileSelector ),
 			).toBeNull();
 		} );
 
-		test( 'refresh() detaches a live tile on hide and re-attaches it on unhide', () => {
-			const visibility: Record< string, 'both' | 'dock' | 'desktop' | 'hidden' > =
-				{};
+		/*
+		 * …unless its window is open. Sending an app to the desktop
+		 * says where its LAUNCHER lives, not that a running window
+		 * should be unreachable from the dock — unswitchable, and with
+		 * nowhere to minimize back to — while every other window has a
+		 * tile. The tile is transient: it arrives with the window and
+		 * leaves with it, which is what the lifecycle listener does.
+		 */
+		test( 'a desktop-only app joins the rail while its window is open', () => {
+			const open: Array< { id: string; config: Record< string, unknown > } > =
+				[];
+			const { deps } = makeDeps();
+			deps.windowManager.getAll = ( () =>
+				open ) as typeof deps.windowManager.getAll;
+
+			createLayoutDispatcher(
+				deps,
+				'unified',
+				[ dashboard, yoast ],
+				[
+					{
+						id: 'wp-explorer-icon',
+						title: 'WP Explorer',
+						icon: 'dashicons-admin-site',
+						window: 'my-wordpress',
+						url: '',
+					} as never,
+				],
+			);
+			const railTile = () =>
+				document
+					.getElementById( 'os-dock' )!
+					.querySelector( '[data-nav-id="wp-explorer-icon"]' );
+
+			// At rest an app lives on the wallpaper only.
+			expect( railTile() ).toBeNull();
+
+			// Running: it takes a tile in the apps zone, where its
+			// `windowId` drives the running indicator.
+			open.push( { id: 'my-wordpress', config: {} } );
+			document.dispatchEvent( new CustomEvent( 'os-window-opened' ) );
+			expect( railTile() ).not.toBeNull();
+
+			// Closed: the tile leaves again.
+			open.length = 0;
+			document.dispatchEvent( new CustomEvent( 'os-window-closed' ) );
+			expect( railTile() ).toBeNull();
+		} );
+
+		/*
+		 * The same rule, asked of a system tile rather than an icon.
+		 * The Trash has no desktop icon to be synthesized from, so
+		 * without this it is the one running app on the desktop whose
+		 * window has no tile — which is exactly the state the icon case
+		 * above exists to prevent.
+		 */
+		test( 'a desktop-only system tile joins the rail while its window is open', () => {
+			const open: Array< { id: string; config: Record< string, unknown > } > =
+				[];
 			const { deps } = makeDeps( {
-				getSettings: () => ( { itemVisibility: visibility, dockOrder: [] } ),
+				getSettings: () => ( {
+					navPlacement: { 'desktop-mode-games': 'desktop' },
+					navOrder: [],
+				} ),
+			} );
+			deps.windowManager.getAll = ( () =>
+				open ) as typeof deps.windowManager.getAll;
+
+			const dispatcher = createLayoutDispatcher(
+				deps,
+				'unified',
+				[ dashboard, yoast ],
+				[],
+			);
+			dispatcher.appendSystemTile( gamesTile );
+			const tile = () =>
+				document
+					.getElementById( 'os-dock' )!
+					.querySelector( tileSelector );
+
+			expect( tile() ).toBeNull();
+
+			// A system tile's id IS its window id.
+			open.push( { id: 'desktop-mode-games', config: {} } );
+			document.dispatchEvent( new CustomEvent( 'os-window-opened' ) );
+			expect( tile() ).not.toBeNull();
+
+			open.length = 0;
+			document.dispatchEvent( new CustomEvent( 'os-window-closed' ) );
+			expect( tile() ).toBeNull();
+		} );
+
+		/*
+		 * Hidden is a resting place, not a ban. A window the user
+		 * opened anyway — from search, from a link — still needs
+		 * somewhere to switch to and somewhere to minimize into, and
+		 * the tile leaves the moment they close it. The rule is
+		 * uniform: anything running with no home on a rail gets one.
+		 */
+		test( 'a hidden app still gets a tile while its window is open', () => {
+			const open: Array< { id: string; config: Record< string, unknown > } > =
+				[];
+			const { deps } = makeDeps( {
+				getSettings: () => ( {
+					navPlacement: { 'desktop-mode-games': 'hidden' },
+					navOrder: [],
+				} ),
+			} );
+			deps.windowManager.getAll = ( () =>
+				open ) as typeof deps.windowManager.getAll;
+
+			const dispatcher = createLayoutDispatcher(
+				deps,
+				'unified',
+				[ dashboard, yoast ],
+				[],
+			);
+			dispatcher.appendSystemTile( gamesTile );
+			const tile = () =>
+				document
+					.getElementById( 'os-dock' )!
+					.querySelector( tileSelector );
+
+			expect( tile() ).toBeNull();
+
+			open.push( { id: 'desktop-mode-games', config: {} } );
+			document.dispatchEvent( new CustomEvent( 'os-window-opened' ) );
+			expect( tile() ).not.toBeNull();
+
+			open.length = 0;
+			document.dispatchEvent( new CustomEvent( 'os-window-closed' ) );
+			expect( tile() ).toBeNull();
+		} );
+
+		test( 'refresh() detaches a live tile on hide and re-attaches it on unhide', () => {
+			const navPlacement: Record<
+				string,
+				'both' | 'rail' | 'desktop' | 'hidden'
+			> = {};
+			const { deps } = makeDeps( {
+				getSettings: () => ( { navPlacement, navOrder: [] } ),
 			} );
 			const dispatcher = createLayoutDispatcher(
 				deps,
@@ -727,17 +955,17 @@ describe( 'desktop-layout dispatcher', () => {
 				[],
 			);
 			dispatcher.appendSystemTile( gamesTile );
-			const dock = document.getElementById( 'desktop-mode-dock' )!;
+			const dock = document.getElementById( 'os-dock' )!;
 			expect( dock.querySelector( tileSelector ) ).not.toBeNull();
 
-			// User picks "Hidden" in OS Settings → Apps & Icons; the
+			// User picks "Hidden" in Preferences → Navigation; the
 			// settings subscription calls refresh().
-			visibility[ 'desktop-mode-games' ] = 'hidden';
+			navPlacement[ 'desktop-mode-games' ] = 'hidden';
 			dispatcher.refresh();
 			expect( dock.querySelector( tileSelector ) ).toBeNull();
 
 			// And back.
-			visibility[ 'desktop-mode-games' ] = 'both';
+			navPlacement[ 'desktop-mode-games' ] = 'both';
 			dispatcher.refresh();
 			expect( dock.querySelector( tileSelector ) ).not.toBeNull();
 		} );
@@ -745,8 +973,8 @@ describe( 'desktop-layout dispatcher', () => {
 		test( 'a layout rebuild does not resurrect a hidden tile', () => {
 			const { deps } = makeDeps( {
 				getSettings: () => ( {
-					itemVisibility: { 'desktop-mode-games': 'hidden' },
-					dockOrder: [],
+					navPlacement: { 'desktop-mode-games': 'hidden' },
+					navOrder: [],
 				} ),
 			} );
 			const dispatcher = createLayoutDispatcher(
@@ -759,18 +987,65 @@ describe( 'desktop-layout dispatcher', () => {
 			dispatcher.setLayout( 'classic' );
 			expect(
 				document
-					.getElementById( 'desktop-mode-dock' )!
+					.getElementById( 'os-dock' )!
 					.querySelector( tileSelector ),
 			).toBeNull();
 		} );
 
-		test( 'an override keyed by the desktop icon targeting the window hides the tile', () => {
-			// The Apps & Icons tab keys its rows by icon id, which may
-			// differ from the native-window id the tile is keyed by.
+		/*
+		 * The Games bug, in one test. An app that registers a native
+		 * window AND a desktop icon is ONE thing with ONE default;
+		 * before, each surface asked its own registration where the
+		 * item lived and they answered differently until the user
+		 * picked a value explicitly.
+		 */
+		test( 'an app registered as both a window tile and an icon has one answer', () => {
+			const { deps } = makeDeps();
+			const serverIcons: DesktopIconServerEntry[] = [
+				{
+					id: 'desktop-mode-games',
+					title: 'Games',
+					icon: 'dashicons-games',
+					window: 'desktop-mode-games',
+					url: '',
+					position: 85,
+				},
+			];
+			const dispatcher = createLayoutDispatcher(
+				deps,
+				'unified',
+				[ dashboard, yoast ],
+				serverIcons,
+			);
+			dispatcher.appendSystemTile( {
+				...gamesTile,
+				navKind: 'app',
+			} );
+
+			// One item, defaulting to the wallpaper — which is what
+			// Preferences claimed all along.
+			expect(
+				dispatcher.getNavItems().filter( ( i ) =>
+					i.id === 'desktop-mode-games',
+				),
+			).toHaveLength( 1 );
+			expect(
+				document
+					.getElementById( 'os-dock' )!
+					.querySelector( tileSelector ),
+			).toBeNull();
+			expect(
+				dispatcher.getNav().desktop.map( ( i ) => i.id ),
+			).toContain( 'desktop-mode-games' );
+		} );
+
+		test( 'a preference keyed by the icon covers the tile its window backs', () => {
+			// The icon and the native window can carry different ids.
+			// They are still one app, so one preference moves both.
 			const { deps } = makeDeps( {
 				getSettings: () => ( {
-					itemVisibility: { 'games-icon': 'hidden' },
-					dockOrder: [],
+					navPlacement: { 'desktop-mode-games': 'hidden' },
+					navOrder: [],
 				} ),
 			} );
 			const serverIcons: DesktopIconServerEntry[] = [
@@ -792,7 +1067,7 @@ describe( 'desktop-layout dispatcher', () => {
 			dispatcher.appendSystemTile( gamesTile );
 			expect(
 				document
-					.getElementById( 'desktop-mode-dock' )!
+					.getElementById( 'os-dock' )!
 					.querySelector( tileSelector ),
 			).toBeNull();
 		} );
@@ -807,10 +1082,10 @@ describe( 'desktop-layout dispatcher', () => {
 			[],
 		);
 		expect(
-			document.getElementById( 'desktop-mode-side-dock' ),
+			document.getElementById( 'os-side-dock' ),
 		).not.toBeNull();
 		dispatcher.destroy();
-		expect( document.getElementById( 'desktop-mode-side-dock' ) ).toBeNull();
+		expect( document.getElementById( 'os-side-dock' ) ).toBeNull();
 	} );
 } );
 
@@ -820,7 +1095,7 @@ describe( 'desktop-layout dispatcher — settings sanitization', () => {
 		const constants = await import( '../../src/settings/constants' );
 		// Drive `_parseRaw` via the public `loadState` path. Set the
 		// global config so the server-snapshot branch fires.
-		( window as unknown as { desktopModeConfig?: unknown } ).desktopModeConfig = {
+		( window as unknown as { openStationConfig?: unknown } ).openStationConfig = {
 			osSettings: {
 				wallpaper: 'dark',
 				accent: 'wp-blue',
@@ -830,7 +1105,7 @@ describe( 'desktop-layout dispatcher — settings sanitization', () => {
 		};
 		const state = stateModule.loadState();
 		expect( state.desktopLayout ).toBe( constants.DEFAULTS.desktopLayout );
-		( window as unknown as { desktopModeConfig?: unknown } ).desktopModeConfig =
+		( window as unknown as { openStationConfig?: unknown } ).openStationConfig =
 			undefined;
 	} );
 } );

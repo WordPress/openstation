@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — Native Comments Window: REST mutation + helper routes.
+ * OpenStation — Native Comments Window: REST mutation + helper routes.
  *
  * Four endpoints under `desktop-mode/v1`:
  *
@@ -17,8 +17,7 @@
  *   2. Per-target re-validation inside the callback —
  *      `current_user_can( 'edit_comment', $id )` per row.
  *
- * @package WPDesktopMode
- * @since   0.8.3
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -30,11 +29,9 @@ defined( 'ABSPATH' ) || exit;
  * row is skipped) and throws nothing — the bulk endpoint logs misses
  * but never aborts the batch on a single bad row.
  *
- * @since 0.8.3
- *
  * @return array<string,callable>
  */
-function desktop_mode_comments_window_bulk_action_map() {
+function openstation_comments_window_bulk_action_map() {
 	return array(
 		'approve'   => static function ( $id ) {
 			return false !== wp_set_comment_status( $id, 'approve' );
@@ -59,16 +56,14 @@ function desktop_mode_comments_window_bulk_action_map() {
 
 /**
  * Register all routes.
- *
- * @since 0.8.3
  */
-function desktop_mode_comments_window_register_rest_routes() {
+function openstation_comments_window_register_rest_routes() {
 	register_rest_route(
 		'desktop-mode/v1',
 		'/comments/bulk',
 		array(
 			'methods'             => WP_REST_Server::CREATABLE,
-			'callback'            => 'desktop_mode_comments_window_rest_bulk',
+			'callback'            => 'openstation_comments_window_rest_bulk',
 			'permission_callback' => static function () {
 				return current_user_can( 'moderate_comments' );
 			},
@@ -81,7 +76,7 @@ function desktop_mode_comments_window_register_rest_routes() {
 				'action' => array(
 					'required' => true,
 					'type'     => 'string',
-					'enum'     => array_keys( desktop_mode_comments_window_bulk_action_map() ),
+					'enum'     => array_keys( openstation_comments_window_bulk_action_map() ),
 				),
 			),
 		)
@@ -92,7 +87,7 @@ function desktop_mode_comments_window_register_rest_routes() {
 		'/comments/reply',
 		array(
 			'methods'             => WP_REST_Server::CREATABLE,
-			'callback'            => 'desktop_mode_comments_window_rest_reply',
+			'callback'            => 'openstation_comments_window_rest_reply',
 			'permission_callback' => static function () {
 				return current_user_can( 'edit_posts' );
 			},
@@ -114,7 +109,7 @@ function desktop_mode_comments_window_register_rest_routes() {
 		'/comments/insights/(?P<email>[^/]+)',
 		array(
 			'methods'             => WP_REST_Server::READABLE,
-			'callback'            => 'desktop_mode_comments_window_rest_insights',
+			'callback'            => 'openstation_comments_window_rest_insights',
 			'permission_callback' => static function () {
 				return current_user_can( 'moderate_comments' );
 			},
@@ -132,31 +127,29 @@ function desktop_mode_comments_window_register_rest_routes() {
 		'/comments/counts',
 		array(
 			'methods'             => WP_REST_Server::READABLE,
-			'callback'            => 'desktop_mode_comments_window_rest_counts',
+			'callback'            => 'openstation_comments_window_rest_counts',
 			'permission_callback' => static function () {
 				return current_user_can( 'edit_posts' );
 			},
 		)
 	);
 }
-add_action( 'rest_api_init', 'desktop_mode_comments_window_register_rest_routes' );
+add_action( 'rest_api_init', 'openstation_comments_window_register_rest_routes' );
 
 /**
  * Bulk moderation handler.
  *
- * @since 0.8.3
- *
  * @param WP_REST_Request $request Request.
  * @return WP_REST_Response|WP_Error
  */
-function desktop_mode_comments_window_rest_bulk( WP_REST_Request $request ) {
+function openstation_comments_window_rest_bulk( WP_REST_Request $request ) {
 	$ids    = array_values( array_filter( array_map( 'intval', (array) $request['ids'] ) ) );
 	$action = (string) $request['action'];
-	$map    = desktop_mode_comments_window_bulk_action_map();
+	$map    = openstation_comments_window_bulk_action_map();
 
 	if ( ! isset( $map[ $action ] ) ) {
 		return new WP_Error(
-			'desktop_mode_comments_invalid_action',
+			'openstation_comments_invalid_action',
 			__( 'Unknown bulk action.', 'desktop-mode' ),
 			array( 'status' => 400 )
 		);
@@ -181,14 +174,12 @@ function desktop_mode_comments_window_rest_bulk( WP_REST_Request $request ) {
 	/**
 	 * Fires after a Comments-window bulk action runs.
 	 *
-	 * @since 0.8.3
-	 *
 	 * @param string $action    Action slug.
 	 * @param int[]  $processed Ids successfully acted on.
 	 * @param int[]  $skipped   Ids skipped (cap fail or soft error).
 	 */
 	do_action(
-		'desktop_mode_comments_window_after_bulk',
+		'openstation_comments_window_after_bulk',
 		$action,
 		$processed,
 		$skipped
@@ -199,7 +190,7 @@ function desktop_mode_comments_window_rest_bulk( WP_REST_Request $request ) {
 			'action'    => $action,
 			'processed' => $processed,
 			'skipped'   => $skipped,
-			'counts'    => desktop_mode_comments_window_counts(),
+			'counts'    => openstation_comments_window_counts(),
 		),
 		200
 	);
@@ -209,19 +200,17 @@ function desktop_mode_comments_window_rest_bulk( WP_REST_Request $request ) {
  * Inline-reply handler. Wraps `wp_new_comment` with sane defaults so
  * the client only needs `{ parent, content }`.
  *
- * @since 0.8.3
- *
  * @param WP_REST_Request $request Request.
  * @return WP_REST_Response|WP_Error
  */
-function desktop_mode_comments_window_rest_reply( WP_REST_Request $request ) {
+function openstation_comments_window_rest_reply( WP_REST_Request $request ) {
 	$parent_id = (int) $request['parent'];
 	$content   = (string) $request['content'];
 
 	$parent = get_comment( $parent_id );
 	if ( ! $parent instanceof WP_Comment ) {
 		return new WP_Error(
-			'desktop_mode_comments_no_parent',
+			'openstation_comments_no_parent',
 			__( 'Parent comment not found.', 'desktop-mode' ),
 			array( 'status' => 404 )
 		);
@@ -232,7 +221,7 @@ function desktop_mode_comments_window_rest_reply( WP_REST_Request $request ) {
 	$post = get_post( (int) $parent->comment_post_ID );
 	if ( ! $post instanceof WP_Post || ! current_user_can( 'edit_post', $post->ID ) ) {
 		return new WP_Error(
-			'desktop_mode_comments_forbidden',
+			'openstation_comments_forbidden',
 			__( 'You are not allowed to reply to comments on this post.', 'desktop-mode' ),
 			array( 'status' => 403 )
 		);
@@ -240,7 +229,7 @@ function desktop_mode_comments_window_rest_reply( WP_REST_Request $request ) {
 
 	if ( '' === trim( wp_strip_all_tags( $content ) ) ) {
 		return new WP_Error(
-			'desktop_mode_comments_empty_reply',
+			'openstation_comments_empty_reply',
 			__( 'Reply cannot be empty.', 'desktop-mode' ),
 			array( 'status' => 400 )
 		);
@@ -249,7 +238,7 @@ function desktop_mode_comments_window_rest_reply( WP_REST_Request $request ) {
 	$user = wp_get_current_user();
 	if ( ! $user || ! $user->ID ) {
 		return new WP_Error(
-			'desktop_mode_comments_unauthenticated',
+			'openstation_comments_unauthenticated',
 			__( 'You must be logged in to reply.', 'desktop-mode' ),
 			array( 'status' => 401 )
 		);
@@ -293,16 +282,14 @@ function desktop_mode_comments_window_rest_reply( WP_REST_Request $request ) {
  * timestamps, the linked user id (if the email matches a registered
  * user), and a 0–100 reliability score.
  *
- * @since 0.8.3
- *
  * @param WP_REST_Request $request Request.
  * @return WP_REST_Response|WP_Error
  */
-function desktop_mode_comments_window_rest_insights( WP_REST_Request $request ) {
+function openstation_comments_window_rest_insights( WP_REST_Request $request ) {
 	$email = strtolower( urldecode( (string) $request['email'] ) );
 	if ( '' === $email || ! is_email( $email ) ) {
 		return new WP_Error(
-			'desktop_mode_comments_invalid_email',
+			'openstation_comments_invalid_email',
 			__( 'Invalid author email.', 'desktop-mode' ),
 			array( 'status' => 400 )
 		);
@@ -340,8 +327,8 @@ function desktop_mode_comments_window_rest_insights( WP_REST_Request $request ) 
 		)
 	);
 
-	$user           = get_user_by( 'email', $email );
-	$reliability    = 100;
+	$user        = get_user_by( 'email', $email );
+	$reliability = 100;
 	if ( $total > 0 ) {
 		$bad         = $counts_by_status['spam'] + $counts_by_status['trash'];
 		$reliability = (int) round( max( 0, min( 100, 100 - ( $bad / $total ) * 100 ) ) );
@@ -366,22 +353,18 @@ function desktop_mode_comments_window_rest_insights( WP_REST_Request $request ) 
 /**
  * Per-status counts. Used by the dock badge + the "N new" pill.
  *
- * @since 0.8.3
- *
  * @return WP_REST_Response
  */
-function desktop_mode_comments_window_rest_counts() {
-	return new WP_REST_Response( desktop_mode_comments_window_counts(), 200 );
+function openstation_comments_window_rest_counts() {
+	return new WP_REST_Response( openstation_comments_window_counts(), 200 );
 }
 
 /**
  * Internal helper — current comment counts as a flat array.
  *
- * @since 0.8.3
- *
  * @return array<string,int>
  */
-function desktop_mode_comments_window_counts() {
+function openstation_comments_window_counts() {
 	$counts = wp_count_comments();
 	return array(
 		'pending'  => (int) $counts->moderated,

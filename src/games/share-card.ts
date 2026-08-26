@@ -15,8 +15,6 @@
  *
  * Framework-level so every game renders the same recognizable
  * card; the caller provides already-translated labels.
- *
- * @since 0.9.8
  */
 
 export interface ShareCardStat {
@@ -35,7 +33,7 @@ export interface ShareCardData {
 	scoreLabel: string;
 	/** Up to five supporting stats, left to right. */
 	stats: ShareCardStat[];
-	/** Small footer branding, e.g. "WordPress Desktop Mode". */
+	/** Small footer branding, e.g. "WordPress OpenStation". */
 	footer: string;
 	/** Accent color for the score + trims. */
 	accent?: string;

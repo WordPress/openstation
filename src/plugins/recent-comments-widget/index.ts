@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Recent Comments Widget (lazy bundle).
+ * OpenStation — Recent Comments Widget (lazy bundle).
  *
  * Shows a live feed of the latest comments with status badges,
  * commenter name, parent post title, and time-ago stamps.
@@ -7,8 +7,6 @@
  *
  * Data: WP REST /wp/v2/comments (logged-in, no extra caps needed).
  * Refresh: every 60 seconds.
- *
- * @since 0.26.0
  */
 import './styles.css';
 import { trackedFetch } from '../../tracked-fetch';
@@ -115,9 +113,11 @@ function render( container: HTMLElement, comments: CommentRow[] | null, error: b
 		const row = document.createElement( 'div' );
 		row.className = 'dm-comments__row';
 
+		const decodedAuthorName = decodeHTML( c.author_name || 'Anonymous' );
+
 		const avatar = document.createElement( 'div' );
 		avatar.className = 'dm-comments__avatar';
-		avatar.textContent = ( c.author_name || '?' ).trim().charAt( 0 ).toUpperCase();
+		avatar.textContent = decodedAuthorName.trim().charAt( 0 ).toUpperCase();
 
 		const body = document.createElement( 'div' );
 		body.className = 'dm-comments__body';
@@ -127,7 +127,7 @@ function render( container: HTMLElement, comments: CommentRow[] | null, error: b
 
 		const author = document.createElement( 'span' );
 		author.className = 'dm-comments__author';
-		author.textContent = c.author_name || 'Anonymous';
+		author.textContent = decodedAuthorName;
 
 		const sm = STATUS_META[ c.status ] ?? STATUS_META.hold;
 		const statusEl = document.createElement( 'span' );
@@ -183,7 +183,7 @@ const mount = async ( container: HTMLElement, _ctx: WidgetContext ): Promise< Wi
 };
 
 const w = window as unknown as {
-	desktopModeWidgets?: Record< string, typeof mount >;
+	openStationWidgets?: Record< string, typeof mount >;
 };
-w.desktopModeWidgets = w.desktopModeWidgets ?? {};
-w.desktopModeWidgets[ WIDGET_ID ] = mount;
+w.openStationWidgets = w.openStationWidgets ?? {};
+w.openStationWidgets[ WIDGET_ID ] = mount;

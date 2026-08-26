@@ -8,7 +8,7 @@
  * row-action click is routed through the window-system bundle's
  * `handleWindowMessage`. Module-level state in one bundle is invisible
  * to another (see `AGENTS.md` § "Cross-bundle state"), so the target
- * user is threaded through `wp.desktop.createSharedStore` — the same
+ * user is threaded through `wp.os.createSharedStore` — the same
  * mechanism `src/posts-window/user-edit-target.ts` uses for the User
  * Edit window.
  *
@@ -16,7 +16,7 @@
  *   1. A caller (parent shell handler, plugin code) invokes
  *      `openUserFootprintWindow( { userId, userName } )`.
  *   2. That stashes the target here, then calls
- *      `wp.desktop.openWindow( 'desktop-mode-my-wordpress' )`, which
+ *      `wp.os.openWindow( 'desktop-mode-my-wordpress' )`, which
  *      opens the window — triggering the lazy bundle load — or focuses
  *      it when it is already open.
  *   3. The My WordPress bundle reads the target on mount (cold open)
@@ -24,13 +24,11 @@
  *      `src/my-wordpress/index.ts`.
  *
  * Cold-start safety is the whole point of routing through the shared
- * store rather than `wp.desktop.myWordpress.openDetail()`: the latter
+ * store rather than `wp.os.myWordpress.openDetail()`: the latter
  * only exists once the lazy bundle has mounted (the early stub in
  * `early-api.ts` buffers `registerEntityKind` and nothing else), so a
  * footprint click in a session that never opened My WordPress would
  * silently no-op.
- *
- * @since 0.9.1
  */
 
 /** Native My WordPress window id — the lazy bundle's `WINDOW_ID`. */
@@ -88,14 +86,14 @@ const _initial: Readonly< FootprintTarget > = Object.freeze( {
 } );
 
 function getDesktop(): DesktopFacade | undefined {
-	return ( window as unknown as { wp?: { desktop?: DesktopFacade } } ).wp
-		?.desktop;
+	return ( window as unknown as { wp?: { os?: DesktopFacade } } ).wp
+		?.os;
 }
 
 let _store: SharedStoreApi< FootprintTarget > | null = null;
 
 /**
- * Resolve the shared store, memoizing once `wp.desktop.createSharedStore`
+ * Resolve the shared store, memoizing once `wp.os.createSharedStore`
  * is available. Returns `null` until then, which routes `set`/`read`
  * to the `window._wpdFootprintTarget` stash fallback.
  *
@@ -104,7 +102,7 @@ let _store: SharedStoreApi< FootprintTarget > | null = null;
  * into the store once it initialises. A subsequent `readFootprintTarget`
  * after init reads the freshly-created store (empty) and the stash is
  * silently dropped. This only bites in the narrow window before
- * `wp.desktop.createSharedStore` is wired at boot — well before any
+ * `wp.os.createSharedStore` is wired at boot — well before any
  * users-table click can reach `openUserFootprintWindow` — so it's left
  * as-is rather than adding stash→store reconciliation. Documented here
  * so it's a deliberate choice, not a latent surprise.
@@ -142,7 +140,7 @@ export function setFootprintTarget( userId: number, userName = '' ): void {
 		return;
 	}
 	// Pre-facade fallback (tests / very early boot before
-	// `wp.desktop.createSharedStore` exists): stash on `window`.
+	// `wp.os.createSharedStore` exists): stash on `window`.
 	(
 		window as unknown as { _wpdFootprintTarget?: FootprintTarget }
 	)._wpdFootprintTarget = {
@@ -198,8 +196,6 @@ export function subscribeFootprintTarget(
  * Open (or focus) the My WordPress window scoped to a user's activity
  * footprint. Cold-start safe: stashes the shared target first, then
  * opens the window so the freshly-mounted bundle reads it back.
- *
- * @since 0.9.1
  *
  * @param args          Footprint target.
  * @param args.userId   Target user id (must be a positive integer).

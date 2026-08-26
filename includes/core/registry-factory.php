@@ -1,11 +1,11 @@
 <?php
 /**
- * Registry factory — Desktop Mode.
+ * Registry factory — OpenStation.
  *
  * **Why this exists.** Across the plugin, ~15 PHP "registry"
  * functions follow the same shape:
  *
- *     function desktop_mode_<thing>_registry( $id = '', $entry = null ) {
+ *     function openstation_<thing>_registry( $id = '', $entry = null ) {
  *         static $store = array();
  *         if ( '__flush__' === (string) $id ) { $store = array(); return array(); }
  *         if ( '' === (string) $id ) return $store;
@@ -24,8 +24,7 @@
  * `settings-tabs.php`, `window-chrome.php`, etc. can become one-line
  * forwarders calling these factories.
  *
- * @package Desktop_Mode
- * @since   0.8.1
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -45,12 +44,10 @@ defined( 'ABSPATH' ) || exit;
  * via the `use ( &$state )` clause. Every registry instance is
  * therefore isolated; different registries cannot stomp on each other.
  *
- * @since 0.8.1
- *
  * @param array $initial Optional initial entries keyed by id.
  * @return callable Registry closure.
  */
-function desktop_mode_create_registry( $initial = array() ) {
+function openstation_create_registry( $initial = array() ) {
 	$state = is_array( $initial ) ? $initial : array();
 	return static function ( $id = '', $entry = null ) use ( &$state ) {
 		// Flush — used by tests + the deactivation path that needs to
@@ -79,17 +76,15 @@ function desktop_mode_create_registry( $initial = array() ) {
  * handles that the live-refresh payload should advertise so the
  * client can lazy-load them.
  *
- * Same shape as {@see desktop_mode_create_registry()} but values are
+ * Same shape as {@see openstation_create_registry()} but values are
  * coerced to bool, and the read-one path returns `false` (not `null`)
  * when the handle is unknown — matching the existing convention used
  * across `*_script_registry()` functions.
  *
- * @since 0.8.1
- *
  * @param array $initial Optional initial flags keyed by handle.
  * @return callable Script-registry closure.
  */
-function desktop_mode_create_script_registry( $initial = array() ) {
+function openstation_create_script_registry( $initial = array() ) {
 	$state = is_array( $initial ) ? $initial : array();
 	return static function ( $handle = '', $value = null ) use ( &$state ) {
 		if ( '__flush__' === (string) $handle ) {

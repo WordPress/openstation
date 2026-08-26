@@ -17,8 +17,6 @@
  * other registered chrome calls its `render()` once, captures the
  * returned handle, and routes window-state updates through the
  * handle's `update()`.
- *
- * @since 0.6.0
  */
 
 import { applyFilters, doAction, HOOKS } from '../../hooks';
@@ -33,10 +31,10 @@ import type { Window as DesktopWindow } from '../../window';
 export const STANDARD_CHROME_ID = 'core/standard';
 
 /**
- * Class added to the outer `.desktop-mode-window` element while a
+ * Class added to the outer `.os-window` element while a
  * non-standard chrome is mounted. The companion CSS rule in
  * `assets/css/window-chrome.css` hides every direct child of the
- * titlebar that carries `data-desktop-mode-default-chrome` — which
+ * titlebar that carries `data-os-default-chrome` — which
  * is the framework-shipped icon, title, controls, slots, etc.
  *
  * This is the load-bearing guarantee that the default chrome NEVER
@@ -49,11 +47,11 @@ export const STANDARD_CHROME_ID = 'core/standard';
  *
  * @internal
  */
-export const CUSTOM_CHROME_CLASS = 'desktop-mode-window--custom-chrome';
+export const CUSTOM_CHROME_CLASS = 'os-window--custom-chrome';
 
 /**
  * Resolve the chrome id for a window, passing it through the
- * `desktop-mode.window.chrome.render` filter. Defaults to
+ * `os.window.chrome.render` filter. Defaults to
  * `'core/standard'` when no override / filter intervenes.
  *
  * @internal
@@ -78,7 +76,7 @@ export function captureChromeState( win: DesktopWindow ): ChromeRenderState {
 	return {
 		title: win.config.title,
 		icon: win.config.icon,
-		focused: win.element.classList.contains( 'desktop-mode-window--focused' ),
+		focused: win.element.classList.contains( 'os-window--focused' ),
 		state: win.state,
 	};
 }

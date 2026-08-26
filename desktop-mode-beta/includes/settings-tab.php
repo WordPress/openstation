@@ -2,14 +2,14 @@
 /**
  * OS Settings → Beta tab.
  *
- * Registers the tab through desktop-mode's public settings-tab API
- * (`desktop_mode_register_settings_tab()` + a script handle), so the
+ * Registers the tab through OpenStation's public settings-tab API
+ * (`openstation_register_settings_tab()` + a script handle), so the
  * tab appears live on plugin activation and disappears live on
  * deactivation, like any third-party tab. The same `beta.js` that
  * drives the Tools page detects the shell context and renders with
  * `<wpd-*>` components instead of classic admin markup.
  *
- * Every call is guarded — when desktop-mode is missing (deactivated,
+ * Every call is guarded — when OpenStation is missing (deactivated,
  * broken build) this file is inert and the Tools page remains the
  * working surface.
  *
@@ -24,10 +24,10 @@ defined( 'ABSPATH' ) || exit;
  * @since 0.1.0
  */
 function desktop_mode_beta_register_settings_tab() {
-	if ( ! function_exists( 'desktop_mode_register_settings_tab' ) ) {
+	if ( ! function_exists( 'openstation_register_settings_tab' ) ) {
 		return;
 	}
-	desktop_mode_register_settings_tab(
+	openstation_register_settings_tab(
 		array(
 			'id'         => 'beta',
 			'label'      => __( 'Beta', 'desktop-mode-beta' ),
@@ -46,10 +46,10 @@ add_action( 'init', 'desktop_mode_beta_register_settings_tab' );
  * @since 0.1.0
  */
 function desktop_mode_beta_shell_assets() {
-	if ( ! function_exists( 'desktop_mode_is_enabled' ) || ! desktop_mode_is_enabled() ) {
+	if ( ! function_exists( 'openstation_is_enabled' ) || ! openstation_is_enabled() ) {
 		return;
 	}
-	if ( function_exists( 'desktop_mode_is_chromeless_request' ) && desktop_mode_is_chromeless_request() ) {
+	if ( function_exists( 'openstation_is_chromeless_request' ) && openstation_is_chromeless_request() ) {
 		return;
 	}
 	if ( ! current_user_can( 'update_plugins' ) ) {
@@ -58,7 +58,7 @@ function desktop_mode_beta_shell_assets() {
 	wp_register_script(
 		'desktop-mode-beta-settings',
 		DESKTOP_MODE_BETA_URL . 'assets/beta.js',
-		array(),
+		array( 'openstation' ),
 		DESKTOP_MODE_BETA_VERSION,
 		true
 	);

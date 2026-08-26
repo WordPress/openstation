@@ -1,0 +1,451 @@
+# Native Desktop Host — *Experimental*
+
+OpenStation is a web application, and stays one. This document
+describes an **optional layer on top**: a small Electron app that loads
+the same site and adds the one thing a browser tab genuinely cannot
+provide — **real operating system windows**.
+
+## The architectural principle
+
+> Don't rebuild OpenStation as a desktop app. Build a reusable
+> OpenStation core, and use Electron as a native desktop shell around
+> it.
+
+```
+OpenStation core
+├── Window Manager          ← untouched
+├── App Registry            ← untouched
+│
+└── extensions
+      └── Electron Adapter
+            ├── IPC
+            ├── Native windows
+            ├── File system
+            └── OS integration
+```
+
+Everything Electron-specific lives in
+[`extensions/openstation-electron-adapter/`](../extensions/openstation-electron-adapter/README.md) —
+a separate WordPress plugin plus the desktop app it talks to.
+**Core mentions Electron nowhere.**
+
+Two generic capabilities were added to core to make it possible, and
+both stand on their own:
+
+| Core capability | What it is | Who else can use it |
+|---|---|---|
+| [`wp.os.registerWindowAction()`](./javascript-reference.md#wposregisterwindowaction--experimental) | A registry for rows in every window's ⋯ menu | Any plugin with a per-window verb |
+| [`?openstation_solo=<id>`](#solo-mode) | Boot the shell painting exactly one window | Embeds, kiosks, PWA shortcuts |
+
+Deactivate the adapter and OpenStation is exactly the browser
+experience it was.
+
+## Setting a window free
+
+With the desktop app running, every window's ⋯ menu grows one row:
+
+- **Send to your Mac**
+- **Send to your Windows PC**
+- **Send to your Linux desktop**
+
+Picking it takes the window out of the OpenStation desk and opens it as
+a real window on the user's actual desktop — its own entry in the dock
+or taskbar, its own Alt-Tab slot, its own place among their native
+apps. Closing that native window brings it back into OpenStation.
+
+The row toggles rather than duplicating: a window is either *here* or
+*there*, never both, so a row that says what it will do right now
+describes the situation honestly where two competing rows would imply
+it could be both.
+
+The OS name comes from the app, not from the user agent. A new platform
+only needs the app updated.
+
+### What "the same window" means
+
+Two shapes, because OpenStation has two kinds of window:
+
+| Window kind | What the native window loads |
+|---|---|
+| **Iframe windows** (any admin screen) | The exact chromeless URL the in-shell iframe was showing — same page, same session, same admin JS. |
+| **Native windows** (Files, Games, plugin canvases) | The shell in **solo mode**, `?openstation_solo=<window-id>`. |
+
+A native window has no URL: it is a render callback painting into the
+shell's DOM. So solo mode boots the *whole shell* — every registry,
+every render callback, every plugin integration — and paints exactly
+one window and nothing else. It genuinely is the same window, in the
+same framework, with the desk removed around it.
+
+The decision of which shape applies lives in the adapter
+(`extensions/openstation-electron-adapter/src/host.ts`), never in the
+desktop app. The app takes a URL.
+
+## Solo mode
+
+`?openstation_solo=<window-id>` on any admin URL, for a user who has
+OpenStation enabled. Adds the `os-solo` body class, loads
+`assets/css/solo.css`, opens exactly that window, and suppresses
+session restore.
+
+It is a **rendering mode, not an access grant**: the flag is ignored
+for a user who has not turned OpenStation on, and every capability
+check on the underlying screen applies exactly as it would anywhere
+else.
+
+The id is resolved against the native-window registry first, then —
+for `os-game-<id>` — by launching that game, because a game's window is
+minted at launch time rather than registered. An id nothing recognises
+paints nothing and logs. There is deliberately no fallback to "some
+other window": solo mode means *this* window, and quietly substituting
+another is worse than an empty surface.
+
+**A second window opened in solo mode has nowhere to go.** The surface
+paints exactly one, and a `window.open()` or a plugin calling
+`openWindow()` from inside it produces a window the user cannot see or
+reach. Under the desktop host that is handled — the adapter forwards
+the request to the app and it becomes a real OS window — but in a plain
+embed or kiosk there is no forwarder, and the failure is silent. If you
+are embedding solo mode, either keep the embedded screen to one window
+or supply your own forwarder for the second.
+
+Core's `solo.css` hides the desk — wallpaper, dock, both icon layouts
+(the legacy grid and the files layer), widgets, Mio, sticky
+notes — and fills the viewport with the one window. It
+deliberately **keeps the window's title bar**, because a generic
+embedder has no other chrome to offer: no frame, no close button, no
+way to move the thing. An embedder that supplies its own chrome layers
+a stylesheet on top and takes ours away there. That is exactly what the
+Electron adapter does, gated on a body class it sets from JavaScript —
+the server cannot know a solo request is being rendered inside the app,
+only the page can see the injected global.
+
+### PHP surface
+
+```php
+openstation_solo_window_id();   // '' unless this is a solo request
+openstation_is_solo_request();
+```
+
+| Hook | Kind | Signature |
+|---|---|---|
+| `openstation_solo_window_id` | filter | `( string $id, string $raw )` — return `''` to refuse solo mode. |
+
+Shell config gains one key: `soloWindow`, the window id or `''`.
+
+## The adapter
+
+Everything below ships in the **OpenStation — Electron Adapter**
+plugin, not in core.
+
+### Detection is one global
+
+The desktop app injects, through an Electron `contextBridge` preload:
+
+```js
+window.openStationDesktopHost   // in the shell window
+window.openStationDesktopFrame  // inside a freed window
+```
+
+**Presence of the object is the probe.** It is synchronous, needs no
+network, and cannot go stale. Every host-dependent path is behind it,
+which is what keeps the browser build unchanged.
+
+The server deliberately does **not** answer "is a host attached right
+now?" — the same user can have the site open in a browser tab at the
+same moment, so a server-rendered boolean could only ever be wrong
+somewhere.
+
+### Starting the app after the page loaded
+
+A browser tab probes for the agent at load, and the answer can change
+underneath it — you start the app, or restart it. So the probe is
+retried when the tab regains focus and when a ⋯ menu opens: both are
+user actions, so nothing polls in the background, and both are moments
+the answer plausibly just changed.
+
+Because an open menu repaints when the action registry changes
+(`HOOKS.WINDOW_MENU_OPENED`), a probe that succeeds under the pointer
+puts the row there without a second click. **Starting the app never
+requires a refresh.**
+
+The retry re-fetches the pairing from `GET /host` rather than reusing
+the one baked into the page: the agent's port is ephemeral, so a
+restarted app is listening somewhere the page has never heard of.
+
+### `window.openStationChromelessHost` — claiming a top-level chromeless page
+
+A chromeless page (`?openstation_chromeless=1`) is normally only meant
+to exist inside an OpenStation window iframe. So the chromeless bridge
+treats a **top-level** one as an accident — a stale bookmark, a bad
+redirect — and rescues the user: it strips the flag and reloads as
+classic admin, because without an admin bar there is no way to turn
+OpenStation off.
+
+A freed native window is the one legitimate exception. It is top-level
+on purpose, and closing the OS window is the way back.
+
+Any embedder that hosts a chromeless page deliberately sets:
+
+```js
+window.openStationChromelessHost = true;   // before the page's scripts run
+```
+
+The bridge then leaves the page alone (and still skips the rest of
+itself, since there is no parent shell to talk to). The desktop app
+sets it from its freed-window preload, so it survives in-window
+navigation — which a query flag could not.
+
+Get this wrong and the symptom is memorable: the freed window strips
+its own flag a few seconds after opening, bounces through the portal,
+and paints an entire second OpenStation desktop inside a window that
+was meant to hold one screen.
+
+### New windows opened inside a freed window
+
+A freed window runs the shell in solo mode: one window, no dock, no
+taskbar, no desk. That is right for the window the user set free and
+wrong for a second one — solo's CSS stretches every `.os-window` to
+fill the viewport, so a newcomer covers what the user was using with no
+way back to either.
+
+So under a desktop host, **anything that opens another window there
+opens a new native window instead**. Launching a game from a freed
+Games hub gives you the game as its own OS window; the hub keeps
+showing the hub. The same routing applies to `window.open()` from any
+page in the app, with two deliberate exceptions: off-site URLs and
+anything carrying `desktop_mode_classic=1` (the ⋯ menu's "Open in
+browser tab", which asked for the browser by name) go to the browser.
+
+Freed windows are **peers, not a tree**. Closing one says nothing about
+the others.
+
+One consequence for core: solo mode must be able to reconstitute a
+window from its id alone, and a window minted at runtime — a game — is
+not in the native-window registry. `?openstation_solo=os-game-<id>`
+therefore launches the game. If an id resolves to nothing, solo mode
+paints **nothing** and logs; substituting a different window looks
+graceful and silently hands the user the wrong thing.
+
+### `wp.os.electron`
+
+Published by the adapter when a host is present. Absent in a browser,
+so **check before use**:
+
+```js
+if ( wp.os.electron?.isAvailable() ) {
+    console.log( wp.os.electron.getSendLabel() );  // "Send to your Mac"
+    await wp.os.electron.free( 'edit-php' );
+}
+```
+
+| Method | Returns | Notes |
+|---|---|---|
+| `isAvailable()` | `boolean` | Always true when the namespace exists. |
+| `getInfo()` | `HostInfo \| null` | Platform, app version, host id, currently-freed ids. |
+| `getSendLabel()` | `string` | Translated, OS-adapted. |
+| `getDockLabel()` | `string` | "Bring back into OpenStation". |
+| `isFreedWindow()` | `boolean` | Whether *this page* is itself a freed window. |
+| `free( windowId )` | `Promise<boolean>` | Set a window free. Focuses it if already free. |
+| `dock( windowId )` | `Promise<boolean>` | Bring a freed window back. |
+| `listFreed()` | `string[]` | Ids currently out on the desktop. |
+| `isFreed( windowId )` | `boolean` | Whether one specific window is out there. |
+| `getConnection()` | `ConnectionState` | Last liveness-pulse snapshot. |
+
+### CustomEvents on `document`
+
+| Event | `detail` | Fires when |
+|---|---|---|
+| `os-desktop-host-freed` | `{ windowId }` | A window went out to the real desktop. |
+| `os-desktop-host-docked` | `{ windowId }` | A freed window came back. |
+| `os-desktop-host-connection` | `ConnectionState` | The connection changed phase. |
+
+Both transitions fire regardless of *who* initiated them — the ⋯ menu,
+a programmatic `free()`, or the user closing the native window. "Freed"
+is one fact with two writers.
+
+### The rule that makes it feel real
+
+Anything that would surface a freed window inside the shell — a dock
+click, the window switcher, a plugin calling `openWindow()` — **raises
+the native window instead**. Without that, clicking Posts in the dock
+while Posts is out on the desktop would restore a second copy inside
+the shell, and the user would have two Posts windows that know nothing
+about each other.
+
+It is enforced on the framework's own window lifecycle hooks
+(`WINDOW_FOCUSED`, `WINDOW_RESTORED`), so plugin authors get it for
+free and never need to check `isFreed()` before opening a window.
+
+## Liveness: the app tells the site it is alive
+
+The app registers itself over REST and beats a slow pulse. That record
+is what lets *other* requests — a plugin rendering an admin screen, a
+notification decision — know a desktop is attached, which one
+JavaScript page cannot answer for anyone but itself.
+
+**Every beat is a real PHP request, and OpenStation runs on cheap
+shared hosting.** Four choices keep the cost near zero:
+
+1. **The server picks the interval.** Every handshake and heartbeat
+   response carries `heartbeatInterval`. A constrained host widens it
+   with a PHP filter and the change takes effect within one beat — no
+   app update.
+2. **One user-meta row.** No custom table, no autoloaded option, no
+   post type. A beat touches a row already in the object cache.
+3. **Idle costs less.** The app skips beats while no window has been
+   focused and nothing is freed onto the desktop.
+4. **Failure backs off.** Consecutive errors widen the interval
+   geometrically, so a site that went down is not hammered by every
+   desktop that had it open.
+
+Expiry is evaluated at read time. A stale record simply reads as
+disconnected; nothing is scheduled to clean it up.
+
+### REST routes
+
+All under `openstation-electron/v1` — the adapter's own namespace, not
+core's — and all gated on logged-in **and** OpenStation enabled.
+
+| Route | Method | Purpose |
+|---|---|---|
+| `/host` | `GET` | Current record + the interval a host should use. |
+| `/host` | `DELETE` | Detach. |
+| `/host/handshake` | `POST` | Register. Body: `hostId`, `platform`, `appVersion`, `protocol`. |
+| `/host/heartbeat` | `POST` | Liveness beat. Body: `hostId`. |
+| `/host/disconnect` | `POST` | Same as `DELETE`; used by the app's quit path. |
+
+A handshake declaring a **higher** protocol than the server understands
+is refused with `400` rather than half-accepted. The app degrades to
+"no server record" and every client-side feature keeps working.
+
+### Adapter hooks
+
+| Hook | Kind | Signature |
+|---|---|---|
+| `openstation_electron_enabled` | filter | `( bool $enabled, int $user_id )` |
+| `openstation_electron_heartbeat_interval` | filter | `( int $seconds )` — default `120`, floored at `30`. |
+| `openstation_electron_ttl` | filter | `( int $seconds )` — default `600`, never below two intervals. |
+| `openstation_electron_config` | filter | `( array $config, int $user_id )` |
+| `openstation_electron_host_connected` | action | `( array $record, int $user_id )` |
+| `openstation_electron_host_heartbeat` | action | `( array $record, int $user_id )` — fires on every beat; keep listeners cheap. |
+| `openstation_electron_host_disconnected` | action | `( array $record, int $user_id )` |
+
+Restrict the native host to editors and up:
+
+```php
+add_filter(
+    'openstation_electron_enabled',
+    function ( $enabled, $user_id ) {
+        return user_can( $user_id, 'edit_others_posts' );
+    },
+    10,
+    2
+);
+```
+
+Halve the request cost on constrained hosting:
+
+```php
+add_filter( 'openstation_electron_heartbeat_interval', fn() => 300 );
+```
+
+### Adapter PHP helpers
+
+```php
+openstation_electron_get_host( $user_id );   // `connected` already accounts for expiry
+openstation_electron_set_host( $user_id, $args );
+openstation_electron_clear_host( $user_id );
+openstation_electron_enabled( $user_id );
+openstation_electron_interval();             // seconds
+openstation_electron_ttl();                  // seconds
+```
+
+## Running it
+
+The adapter lives inside the OpenStation plugin directory, and
+WordPress does not look for plugins in nested folders — so it needs a
+symlink into `wp-content/plugins/`, exactly like every other extension
+in this repo:
+
+```bash
+cd /path/to/wp-content/plugins
+ln -sfn desktop-mode/extensions/openstation-electron-adapter openstation-electron-adapter
+wp plugin activate openstation-electron-adapter
+```
+
+Skip that and everything still *works* — the app connects, the desktop
+loads — but no ⋯ menu row appears, because the shell adapter that
+registers it was never enqueued. It is the first thing to check when
+"Send to your Mac" is missing.
+
+Then:
+
+```bash
+cd extensions/openstation-electron-adapter
+npm install
+npm start
+```
+
+First run asks for a site address; after that it opens straight into
+the desktop. See the
+[adapter's README](../extensions/openstation-electron-adapter/README.md)
+for the IPC contract, the build layout, and packaging.
+
+## What the app refuses to do
+
+A desktop host is a browser with a preload in it, and a preload is a
+capability that the *page* holds. Everything below follows from taking
+that seriously.
+
+**A window we own stays on the connected site.** Both the shell window
+and every freed window hold `will-navigate` and `will-redirect` to the
+same rule popups already followed: on the site it stays, another
+http(s) address opens in the user's browser, anything else is refused.
+Checking only `window.open()` would not have been enough — a preload
+survives navigation, so an un-`target`ed link off the site would leave
+the new document holding `window.openStationDesktopHost`.
+
+The one exception is the shell window's **first** navigation chain,
+which runs unchecked so a site answering `example.com` with a redirect
+to `www.example.com` still connects. What it settles on is not taken on
+trust either: adoption is limited to the same registrable name (the
+host, or a subdomain of it, in either direction — scheme and port may
+move, because an HTTPS upgrade is the most ordinary redirect there is).
+A chain that walked somewhere else entirely leaves the configured site
+standing, because whatever settles here becomes the agent's single
+allowed origin as well as the navigation allowlist.
+
+**A site that signs in through an external identity provider will not
+complete that flow in the app.** Jetpack SSO, WordPress.com login and
+off-site 2FA steps all navigate away from the site after settling, so
+the guard sends that hop to the user's browser and the app is left on
+the login screen. Sign in there, or use **Use my browser** and let the
+app serve the browser tab as its agent — the whole feature works that
+way too. Bringing these flows into the app needs a narrow allowance for
+the provider's origin, which is a change to make deliberately rather
+than by widening the guard.
+
+**The REST root is not the page's to choose.** The handshake body
+carries the local agent's URL and bearer token, so the `restUrl` the
+shell hands over is checked against the paired site before anything is
+sent. A mismatch is refused outright and leaves the connection idle —
+it does not fall back to a previously good root.
+
+**The local agent has four gates.** Loopback binding, a
+per-installation bearer token compared in constant time (requiring an
+`Authorization` header also forces a CORS preflight, so a hostile page
+cannot fire a blind request), exactly one allowed origin — the paired
+site — and a re-check of every URL against that site before a window
+opens.
+
+**A bad certificate is a question, not a refusal, only for the site the
+user typed** — self-signed certificates are ordinary in local
+development. The comparison is host-to-host rather than a string
+prefix, so a lookalike domain does not inherit the prompt.
+
+## Status
+
+**Experimental.** The `wp.os.electron` shape, the REST routes, and the
+solo-mode flag may still move. The capability-probe model — a global
+whose absence means "browser, behave normally" — will not, and neither
+will the rule that core stays free of Electron.

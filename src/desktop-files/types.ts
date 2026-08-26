@@ -1,7 +1,7 @@
 /**
- * Desktop Mode — Files-on-the-desktop typed contracts.
+ * OpenStation — Files-on-the-desktop typed contracts.
  *
- * The serialized shape produced by `Desktop_Mode_File::serialize()`
+ * The serialized shape produced by `OpenStation_File::serialize()`
  * on the PHP side. JS subclasses receive an instance of this shape
  * in their constructor and adapt it to whatever the UI needs.
  *
@@ -9,8 +9,6 @@
  * extends {@link DesktopFile}; the PHP-side `serialize()` filter
  * lets them attach extra fields, and the TS class consumes those
  * fields via `shape as MyShape` casts in the subclass methods.
- *
- * @since 0.9.0
  */
 
 export interface DesktopFileShape {

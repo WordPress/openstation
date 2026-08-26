@@ -25,6 +25,31 @@ export interface FakeWpHooks {
 	hasFilter: ( name: string, ns?: string ) => boolean | number;
 }
 
+/**
+ * The same validation the real `@wordpress/hooks` applies before
+ * registering a handler. `addAction`/`addFilter` silently bail on an
+ * invalid name while `doAction`/`applyFilters` still run against an
+ * empty handler list, so a stub that skips this reports a working
+ * bus where a browser would register nothing. Throwing (rather than
+ * WordPress's console.error) turns that into a red test.
+ */
+function assertValidHookName( name: string ): void {
+	if ( ! /^[a-zA-Z][a-zA-Z0-9_.-]*$/.test( name ) || /^__/.test( name ) ) {
+		throw new Error(
+			`Invalid hook name "${ name }": @wordpress/hooks allows only ` +
+				'letters, numbers, dashes, periods and underscores, ' +
+				'and would reject this registration at runtime.',
+		);
+	}
+}
+
+/** Namespaces use a looser charset than hook names. */
+function assertValidNamespace( ns: string ): void {
+	if ( ! /^[a-zA-Z][a-zA-Z0-9_.\-/]*$/.test( ns ) ) {
+		throw new Error( `Invalid hook namespace "${ ns }".` );
+	}
+}
+
 export function createHooksStub(): FakeWpHooks {
 	const filters = new Map<
 		string,
@@ -41,11 +66,15 @@ export function createHooksStub(): FakeWpHooks {
 
 	return {
 		addFilter( name, ns, cb, priority = 10 ) {
+			assertValidHookName( name );
+			assertValidNamespace( ns );
 			const list = filters.get( name ) ?? [];
 			list.push( { ns, cb, priority } );
 			filters.set( name, list );
 		},
 		addAction( name, ns, cb, priority = 10 ) {
+			assertValidHookName( name );
+			assertValidNamespace( ns );
 			const list = actions.get( name ) ?? [];
 			list.push( { ns, cb, priority } );
 			actions.set( name, list );

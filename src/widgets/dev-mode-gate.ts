@@ -1,12 +1,12 @@
 /**
- * Desktop Mode — Starter Widget developer-mode gate.
+ * OpenStation — Starter Widget developer-mode gate.
  *
  * The Starter Widget (`desktop-mode/starter`) is a heavily-commented
  * skeleton for plugin authors, not a feature end users need in their
  * add-widget picker. This module hides it behind the "Enable
  * developer mode" toggle in OS Settings → Features:
  *
- *   - A `desktop-mode.widgets` filter drops the starter def from
+ *   - A `os.widgets` filter drops the starter def from
  *     every {@link registry.all} read (and therefore from `get()`,
  *     the picker, `hydrate()`, `add()`, and `ensureMounted()`) while
  *     developer mode is off. The def stays in the registry seed —
@@ -17,8 +17,6 @@
  *     same `layer.unmount` / `layer.mountIfEnabled` path the
  *     plugin-deactivation sync uses — the user's "enabled" choice is
  *     preserved, only the on-screen presence changes.
- *
- * @since 0.9.4
  */
 
 import { addFilter, HOOKS } from '../hooks';

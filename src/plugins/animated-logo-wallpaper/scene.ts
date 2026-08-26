@@ -13,8 +13,6 @@
  * by the time this module runs). Designed to hold a steady 60fps
  * with ~2.5k particles on mid-range hardware — the hot loop is a
  * plain array scan with no per-particle allocations.
- *
- * @since 0.6.0
  */
 
 /**
@@ -441,7 +439,7 @@ export async function mountScene(
 			}
 			// Put the container's inline background back however we
 			// found it — next wallpaper's apply() takes over from
-			// there via `--desktop-mode-bg`.
+			// there via `--os-bg`.
 			container.style.background = priorBackground;
 		},
 		setAnimating( playing: boolean ): void {

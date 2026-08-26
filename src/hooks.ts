@@ -1,8 +1,8 @@
 /**
- * Desktop Mode — WordPress-style hooks bridge.
+ * OpenStation — WordPress-style hooks bridge.
  *
  * The shell exposes extension points as `@wordpress/hooks` filters and
- * actions under the `desktop-mode.*` namespace. This file is a thin,
+ * actions under the `os.*` namespace. This file is a thin,
  * typed wrapper around `window.wp.hooks` — we depend on the standard
  * WordPress `wp-hooks` script handle via {@see includes/assets.php}
  * rather than bundling our own primitive, so third-party plugin
@@ -10,10 +10,8 @@
  *
  * The module throws a readable error if `wp.hooks` is missing: in the
  * WordPress admin the script handle is registered core-side and listed
- * as a dependency of `desktop-mode`, so the failure mode is limited to
+ * as a dependency of `openstation`, so the failure mode is limited to
  * broken manual enqueues or unusual embeds.
- *
- * @since 0.6.0
  */
 
 /**
@@ -71,7 +69,7 @@ function getWpHooks(): WpHooks {
 	const hooks = window.wp?.hooks;
 	if ( ! hooks ) {
 		throw new Error(
-			'[desktop-mode] `window.wp.hooks` is not available. The ' +
+			'[openstation] `window.wp.hooks` is not available. The ' +
 				'plugin declares `wp-hooks` as a script dependency; if ' +
 				'you are seeing this error, verify the enqueue order.',
 		);
@@ -149,7 +147,7 @@ export function didAction( hookName: string ): number {
 	return getWpHooks().didAction( hookName );
 }
 
-/** Direct access to the underlying API — exposed on `wp.desktop.hooks`. */
+/** Direct access to the underlying API — exposed on `wp.os.hooks`. */
 export function rawHooks(): WpHooks {
 	return getWpHooks();
 }
@@ -163,57 +161,57 @@ export function rawHooks(): WpHooks {
  */
 export const HOOKS = {
 	/** Action, fires once after shell boot; plugins register here. */
-	INIT: 'desktop-mode.init',
+	INIT: 'os.init',
 
 	/** Filter, receives the wallpaper registry array. */
-	WALLPAPERS: 'desktop-mode.wallpapers',
+	WALLPAPERS: 'os.wallpapers',
 	/**
 	 * Filter, receives the games registry array (`GameRegistryEntry[]`)
-	 * on every read. Mirrors the PHP-side `desktop_mode_games` filter.
-	 *
-	 * @since 0.9.6
+	 * on every read. Mirrors the PHP-side `openstation_games` filter.
 	 */
-	GAMES: 'desktop-mode.games',
+	GAMES: 'os.games',
 	/** Filter, receives the unfocused-window effect registry array. */
-	UNFOCUS_EFFECTS: 'desktop-mode.unfocus-effects',
+	UNFOCUS_EFFECTS: 'os.unfocus-effects',
+	/**
+	 * Filter, receives the window-reveal registry array — the
+	 * `clip-path` transitions that uncover a window's content once it
+	 * has finished loading.
+	 */
+	WINDOW_REVEALS: 'os.window-reveals',
 	/** Action before a canvas wallpaper mounts. */
-	WALLPAPER_MOUNTING: 'desktop-mode.wallpaper.mounting',
+	WALLPAPER_MOUNTING: 'os.wallpaper.mounting',
 	/** Action after a canvas wallpaper mounts successfully. */
-	WALLPAPER_MOUNTED: 'desktop-mode.wallpaper.mounted',
+	WALLPAPER_MOUNTED: 'os.wallpaper.mounted',
 	/** Action before a canvas wallpaper tears down. */
-	WALLPAPER_UNMOUNTING: 'desktop-mode.wallpaper.unmounting',
+	WALLPAPER_UNMOUNTING: 'os.wallpaper.unmounting',
 	/** Action when a canvas wallpaper's mount throws / rejects. */
-	WALLPAPER_MOUNT_FAILED: 'desktop-mode.wallpaper.mount-failed',
+	WALLPAPER_MOUNT_FAILED: 'os.wallpaper.mount-failed',
 	/** Action mirroring document.visibilitychange for active canvas wallpapers. */
-	WALLPAPER_VISIBILITY: 'desktop-mode.wallpaper.visibility',
+	WALLPAPER_VISIBILITY: 'os.wallpaper.visibility',
 	/**
 	 * Action, fires when the wallpaper enters or leaves the suspended
-	 * state (`wp.desktop.wallpaper.suspend()/resume()` — e.g. while a
+	 * state (`wp.os.wallpaper.suspend()/resume()` — e.g. while a
 	 * game is running). Payload: `{ id, suspended, reasons }` — the
 	 * active canvas wallpaper id (or null), whether the layer is now
 	 * suspended, and the currently-held reason strings. Suspension also
 	 * re-emits `WALLPAPER_VISIBILITY` with the effective state, so
 	 * wallpapers that only wire the visibility action pause for free.
-	 *
-	 * @since 0.9.6
 	 */
-	WALLPAPER_SUSPEND: 'desktop-mode.wallpaper.suspend',
+	WALLPAPER_SUSPEND: 'os.wallpaper.suspend',
 	/**
 	 * Filter, receives a wallpaper's preview params (seeded from the
 	 * def's `previewParams`) before its `renderPreview` runs in the OS
 	 * Settings picker. Args: `( params, wallpaperId )`.
 	 */
-	WALLPAPER_PREVIEW_PARAMS: 'desktop-mode.wallpaper.preview-params',
+	WALLPAPER_PREVIEW_PARAMS: 'os.wallpaper.preview-params',
 	/**
 	 * Action, fires after a wallpaper's persisted settings change (the
 	 * user edited them through the wallpaper's config dialog in OS
 	 * Settings). Payload: `{ id, settings }` — the wallpaper id and the
 	 * full post-merge settings object. A mounted wallpaper subscribes to
 	 * live-apply changes without a remount.
-	 *
-	 * @since 0.9.5
 	 */
-	WALLPAPER_SETTINGS_CHANGED: 'desktop-mode.wallpaper.settings-changed',
+	WALLPAPER_SETTINGS_CHANGED: 'os.wallpaper.settings-changed',
 
 	// ------------------------------------------------------------------
 	// Observability — iframe errors, iframe network, shell-side errors,
@@ -231,10 +229,8 @@ export const HOOKS = {
 	 * event fires before our bridge attaches, so messages sent on
 	 * `load` can be dropped on the floor. Use this instead when
 	 * timing matters (first-focus dispatch, auto-fill handshakes).
-	 *
-	 * @since 0.5.0
 	 */
-	IFRAME_READY: 'desktop-mode.iframe.ready',
+	IFRAME_READY: 'os.iframe.ready',
 	/**
 	 * Action, fires when a chromeless iframe's `error` or
 	 * `unhandledrejection` handler catches an exception. Payload: `{
@@ -243,7 +239,7 @@ export const HOOKS = {
 	 * number | null, stack: string | null }`. Origin-filtered at the
 	 * parent shell; cross-origin iframe errors never reach here.
 	 */
-	IFRAME_ERROR: 'desktop-mode.iframe.error',
+	IFRAME_ERROR: 'os.iframe.error',
 	/**
 	 * Action, fires when a `fetch` or `XMLHttpRequest` inside a
 	 * chromeless iframe completes (success OR failure). Payload: `{
@@ -253,7 +249,7 @@ export const HOOKS = {
 	 * iframe boundary. `status === 0` indicates a network failure with
 	 * no response received.
 	 */
-	IFRAME_NETWORK_COMPLETED: 'desktop-mode.iframe.network-completed',
+	IFRAME_NETWORK_COMPLETED: 'os.iframe.network-completed',
 	/**
 	 * Action, fires when one of the shell's own try/catch barriers
 	 * catches an exception. Payload: `{ scope:
@@ -263,14 +259,14 @@ export const HOOKS = {
 	 * `console.error` calls — a monitor widget can surface these as
 	 * first-class entries.
 	 */
-	SHELL_ERROR: 'desktop-mode.shell.error',
+	SHELL_ERROR: 'os.shell.error',
 	/**
-	 * Action, fires once per `wp.desktop.broadcast()` call with the
+	 * Action, fires once per `wp.os.broadcast()` call with the
 	 * fully-resolved `{ topic, payload }` detail. Lets plugins log,
 	 * mirror, or augment broadcast traffic without subscribing for
 	 * every individual topic.
 	 */
-	BROADCAST: 'desktop-mode.broadcast',
+	BROADCAST: 'os.broadcast',
 	/**
 	 * Filter, applies to a `MonitorEntry` before a monitor widget
 	 * renders it. Plugins can mutate the entry (rewrite the message,
@@ -278,7 +274,7 @@ export const HOOKS = {
 	 * monitor widgets to converge every plugin on the same shape —
 	 * see `MonitorEntry` in `src/types.ts`.
 	 */
-	MONITOR_ENTRY: 'desktop-mode.monitor.entry',
+	MONITOR_ENTRY: 'os.monitor.entry',
 	/**
 	 * Filter, applies to the list of "solid" surfaces wallpapers
 	 * should consider for collision / accumulation effects (snow
@@ -294,9 +290,9 @@ export const HOOKS = {
 	 * Each entry is a `WallpaperSurface` — see
 	 * `src/wallpapers/surfaces.ts` for the shape. Rects are in
 	 * viewport coordinates (clientX / clientY), matching what a
-	 * canvas mounted inside `#desktop-mode-wallpaper` reads.
+	 * canvas mounted inside `#os-wallpaper` reads.
 	 */
-	WALLPAPER_SURFACES: 'desktop-mode.wallpaper.surfaces',
+	WALLPAPER_SURFACES: 'os.wallpaper.surfaces',
 
 	// ------------------------------------------------------------------
 	// Desktop themes (whole-OS reskins — see docs/desktop-themes.md).
@@ -315,11 +311,9 @@ export const HOOKS = {
 	 *
 	 * `null` means the system default. A CustomEvent with the same
 	 * detail is dispatched on `document` as
-	 * `desktop-mode-desktop-theme-changed`.
-	 *
-	 * @since 0.9.7
+	 * `os-desktop-theme-changed`.
 	 */
-	DESKTOP_THEME_CHANGED: 'desktop-mode.desktop-theme.changed',
+	DESKTOP_THEME_CHANGED: 'os.os-theme.changed',
 	/**
 	 * Filter, applied to every themed icon the active desktop theme
 	 * resolves — a `dashicons-*` class or an absolute image URL.
@@ -331,10 +325,8 @@ export const HOOKS = {
 	 * Signature:
 	 *
 	 *     ( icon: string, ctx: { slot: string; themeId: string } ) => string
-	 *
-	 * @since 0.9.7
 	 */
-	DESKTOP_THEME_ICON: 'desktop-mode.desktop-theme.icon',
+	DESKTOP_THEME_ICON: 'os.os-theme.icon',
 
 	/**
 	 * Filters the fill colour an active desktop theme wants a slot's
@@ -351,10 +343,8 @@ export const HOOKS = {
 	 * Signature:
 	 *
 	 *     ( color: string, ctx: { slot: string; themeId: string } ) => string
-	 *
-	 * @since 0.9.8
 	 */
-	DESKTOP_THEME_ICON_COLOR: 'desktop-mode.desktop-theme.icon-color',
+	DESKTOP_THEME_ICON_COLOR: 'os.os-theme.icon-color',
 
 	/**
 	 * Fires when a server-side change hands the shell a fresh
@@ -370,15 +360,37 @@ export const HOOKS = {
 	 * Signature:
 	 *
 	 *     ( payload: { wallpapers: DesktopWallpaperServerEntry[] } ) => void
-	 *
-	 * @since 0.9.8
 	 */
-	WALLPAPERS_SERVER_CHANGED: 'desktop-mode.wallpapers.server-changed',
+	WALLPAPERS_SERVER_CHANGED: 'os.wallpapers.server-changed',
+
+	/**
+	 * An Extended Option was saved.
+	 *
+	 * Same shape of problem as `WALLPAPERS_SERVER_CHANGED`: the panel
+	 * that writes the option and the surfaces that obey it are
+	 * different bundles, and the option is only read out of the page
+	 * config the server printed at load. Without an announcement, a
+	 * feature switched off in Preferences stays switched on in every
+	 * window already open. Worse, a window whose REST routes were
+	 * unregistered by the same save starts answering "No route was
+	 * found matching the URL" instead.
+	 *
+	 * So the panel announces and each surface reconciles: re-read the
+	 * option, re-render, and be whatever the option now says. Fires
+	 * once per successful save, carrying the whole saved set rather
+	 * than the one that moved: the endpoint returns the set, and a
+	 * listener that wants one key can read one key.
+	 *
+	 * Signature:
+	 *
+	 *     ( payload: { options: Record< string, boolean > } ) => void
+	 */
+	EXTENDED_OPTIONS_CHANGED: 'os.extended-options.changed',
 
 	// ------------------------------------------------------------------
 	// Window lifecycle actions. All payloads share a `windowId: string`
 	// field; additional fields are documented per-hook in the JS
-	// reference. These mirror the existing `desktop-mode-window-*`
+	// reference. These mirror the existing `os-window-*`
 	// CustomEvents but ship under the hook bus so plugins can use one
 	// idiomatic API for everything the shell emits.
 	// ------------------------------------------------------------------
@@ -420,38 +432,34 @@ export const HOOKS = {
 	 * deliberate stylistic reasons); the filter is responsible for
 	 * its own viewport math when it cares.
 	 *
-	 * Companion of `desktop_mode_register_window` server-side
+	 * Companion of `openstation_register_window` server-side
 	 * defaults — runs every time a window opens, not just at
 	 * registration.
-	 *
-	 * @since 0.8.6
 	 */
-	WINDOW_GEOMETRY: 'desktop-mode.window.geometry',
+	WINDOW_GEOMETRY: 'os.window.geometry',
 	/** Action, fires when a window is added to the stack. */
-	WINDOW_OPENED: 'desktop-mode.window.opened',
+	WINDOW_OPENED: 'os.window.opened',
 	/**
 	 * Action, fires when a window's body enters the loading state — at
 	 * construction (every window starts loading) and whenever a plugin
 	 * calls {@link NativeRenderContext.window.markLoading} or
 	 * `Window.markContentLoading()` mid-life. Payload: `{ windowId }`.
 	 *
-	 * The shell shows a `<wpd-spinner>` overlay while the window is in
+	 * The shell shows a `<os-spinner>` overlay while the window is in
 	 * the loading state and fades content in on the loaded transition.
 	 * Subscribe to this hook (or to {@link WINDOW_CONTENT_LOADED}) when
 	 * you need to react to either edge — analytics, instrumentation,
 	 * decorating the spinner with a per-window message.
 	 *
 	 * Edge-triggered: idempotent calls don't re-fire. The matching
-	 * `desktop-mode-window-content-loading` CustomEvent dispatches on
+	 * `os-window-content-loading` CustomEvent dispatches on
 	 * `document` with the same payload.
-	 *
-	 * @since 0.6.0
 	 */
-	WINDOW_CONTENT_LOADING: 'desktop-mode.window.content-loading',
+	WINDOW_CONTENT_LOADING: 'os.window.content-loading',
 	/**
 	 * Action, fires when a window's body content becomes ready — for
 	 * iframe windows the moment the chromeless bridge announces
-	 * `desktop-mode-ready`, for native windows after the user's
+	 * `os-ready`, for native windows after the user's
 	 * `render( body )` callback (or its returned promise) resolves, and
 	 * whenever a plugin calls {@link NativeRenderContext.window.markReady}
 	 * or `Window.markContentLoaded()` mid-life. Payload: `{ windowId }`.
@@ -464,20 +472,18 @@ export const HOOKS = {
 	 * transition.
 	 *
 	 * Edge-triggered: only fires on a loading → ready transition.
-	 * The matching `desktop-mode-window-content-loaded` CustomEvent
+	 * The matching `os-window-content-loaded` CustomEvent
 	 * dispatches on `document` with the same payload.
-	 *
-	 * @since 0.6.0
 	 */
-	WINDOW_CONTENT_LOADED: 'desktop-mode.window.content-loaded',
+	WINDOW_CONTENT_LOADED: 'os.window.content-loaded',
 	/**
 	 * Filter, applied to the loading-overlay HTMLElement just after
-	 * the shell paints its default `<wpd-spinner>` and after any
+	 * the shell paints its default `<os-spinner>` and after any
 	 * per-window inline customization (`config.loading.render`)
 	 * runs. Receives the overlay element; context: `{ windowId,
 	 * config }`. Plugins may mutate the element (e.g.
 	 * `host.replaceChildren( myBrandedLoader )` to swap out the
-	 * default entirely, or `host.querySelector('wpd-spinner')!.
+	 * default entirely, or `host.querySelector('os-spinner')!.
 	 * setAttribute('preset', 'comet')` to retune the spinner) or
 	 * return a different element to replace the overlay wholesale.
 	 *
@@ -487,14 +493,12 @@ export const HOOKS = {
 	 * that swaps the loader during an experiment.
 	 *
 	 * Resolution order for the loading overlay:
-	 *   1. Default content (`<wpd-spinner>`) is painted.
+	 *   1. Default content (`<os-spinner>`) is painted.
 	 *   2. Per-window `config.loading.render( host, ctx )` runs.
 	 *   3. This filter runs.
 	 *   4. The result is appended to the window body.
-	 *
-	 * @since 0.6.0
 	 */
-	WINDOW_LOADING_OVERLAY: 'desktop-mode.window.loading-overlay',
+	WINDOW_LOADING_OVERLAY: 'os.window.loading-overlay',
 	/**
 	 * Action, fires when `manager.open(...)` is called for a baseId
 	 * whose window already exists on the active desktop. This is the
@@ -511,7 +515,24 @@ export const HOOKS = {
 	 * BEFORE invoking `openWindow` is already in place when this
 	 * fires.
 	 */
-	WINDOW_REOPENED: 'desktop-mode.window.reopened',
+	WINDOW_REOPENED: 'os.window.reopened',
+	/**
+	 * Action, fires when a window's ⋯ actions menu opens, after its
+	 * rows have been painted. Payload:
+	 * `{ windowId: string, element: HTMLElement }` — `element` is the
+	 * `<os-menu>` panel.
+	 *
+	 * The moment to do work a menu's contents depend on but that is
+	 * too expensive, or too perishable, to do up front: probing for
+	 * something on the network, re-reading a permission, checking
+	 * whether a companion app has started since the page loaded.
+	 *
+	 * Registering a window action from here is safe and repaints the
+	 * open menu — the row appears under the pointer rather than on the
+	 * next open. That is the whole reason this fires *after* painting
+	 * rather than before.
+	 */
+	WINDOW_MENU_OPENED: 'os.window.menu-opened',
 	/**
 	 * Action, fires BEFORE the window's element is detached from the
 	 * DOM but AFTER the manager has already removed it from the stack.
@@ -524,11 +545,11 @@ export const HOOKS = {
 	 * subscribers would otherwise have to re-query the DOM — by then
 	 * the element is gone, so they can't match at all.
 	 */
-	WINDOW_CLOSING: 'desktop-mode.window.closing',
+	WINDOW_CLOSING: 'os.window.closing',
 	/** Action, fires when a window is removed from the stack. */
-	WINDOW_CLOSED: 'desktop-mode.window.closed',
+	WINDOW_CLOSED: 'os.window.closed',
 	/** Action, fires when focus changes to a different window. */
-	WINDOW_FOCUSED: 'desktop-mode.window.focused',
+	WINDOW_FOCUSED: 'os.window.focused',
 	/**
 	 * Action, fires for the window that LOST focus when another
 	 * window takes over. Symmetric counterpart to
@@ -541,10 +562,8 @@ export const HOOKS = {
 	 * boot, all-windows-closed). Manager fires this BEFORE
 	 * `WINDOW_FOCUSED` so subscribers see "blur old, focus new"
 	 * in deterministic order.
-	 *
-	 * @since 0.5.5
 	 */
-	WINDOW_BLURRED: 'desktop-mode.window.blurred',
+	WINDOW_BLURRED: 'os.window.blurred',
 	/**
 	 * Action, fires when a window is minimized. Payload:
 	 * `{ windowId: string, element: HTMLElement }`.
@@ -555,32 +574,45 @@ export const HOOKS = {
 	 * their teardown — minimized windows render at `opacity: 0` so
 	 * `offsetParent === null` checks miss them.
 	 */
-	WINDOW_MINIMIZED: 'desktop-mode.window.minimized',
+	WINDOW_MINIMIZED: 'os.window.minimized',
 	/**
 	 * Action, fires when a window is restored from minimized. Payload:
 	 * `{ windowId: string, element: HTMLElement }`.
 	 */
-	WINDOW_RESTORED: 'desktop-mode.window.restored',
+	WINDOW_RESTORED: 'os.window.restored',
+	/**
+	 * Action, fires when a focus request for an OWNER window was
+	 * redirected to its child instead — the user tried to raise a
+	 * window that has a child window open. Payload:
+	 * `{ windowId: string, childWindowId: string }`, where `windowId`
+	 * is the owner that stayed put.
+	 *
+	 * Subscribe to add your own "answer this first" affordance beyond
+	 * the child's shake (a toast, a pulse on the child's field).
+	 * Purely observational — the redirect has already happened by the
+	 * time this fires, and returning anything does not change it.
+	 */
+	WINDOW_CHILD_BLOCKED: 'os.window.child-blocked',
 	/**
 	 * Action, fires when a window is maximized (fills desktop area).
 	 * Payload: `{ windowId: string, element: HTMLElement }`.
 	 */
-	WINDOW_MAXIMIZED: 'desktop-mode.window.maximized',
+	WINDOW_MAXIMIZED: 'os.window.maximized',
 	/**
 	 * Action, fires when a window exits maximized state. Payload:
 	 * `{ windowId: string, element: HTMLElement }`.
 	 */
-	WINDOW_UNMAXIMIZED: 'desktop-mode.window.unmaximized',
+	WINDOW_UNMAXIMIZED: 'os.window.unmaximized',
 	/**
 	 * Action, fires when a window enters fullscreen / focus mode.
 	 * Payload: `{ windowId: string, element: HTMLElement }`.
 	 */
-	WINDOW_FULLSCREEN_ENTERED: 'desktop-mode.window.fullscreen-entered',
+	WINDOW_FULLSCREEN_ENTERED: 'os.window.fullscreen-entered',
 	/**
 	 * Action, fires when a window exits fullscreen / focus mode.
 	 * Payload: `{ windowId: string, element: HTMLElement }`.
 	 */
-	WINDOW_FULLSCREEN_EXITED: 'desktop-mode.window.fullscreen-exited',
+	WINDOW_FULLSCREEN_EXITED: 'os.window.fullscreen-exited',
 	/**
 	 * Filter, decides whether a fullscreen ("focus mode") window
 	 * should auto-exit when focus moves to a different window.
@@ -598,10 +630,8 @@ export const HOOKS = {
 	 *         windowId: string,    // the fullscreen window
 	 *         focusedTo: string,   // the window gaining focus
 	 *     } ) => boolean
-	 *
-	 * @since 0.8.6
 	 */
-	WINDOW_AUTO_EXIT_FULLSCREEN: 'desktop-mode.window.auto-exit-fullscreen',
+	WINDOW_AUTO_EXIT_FULLSCREEN: 'os.window.auto-exit-fullscreen',
 	/**
 	 * Filter, decides whether the window under the cursor is raised
 	 * (focused) after a short hover dwell during a drag — any drag,
@@ -624,10 +654,8 @@ export const HOOKS = {
 	 *                               // bridge payload `kind`,
 	 *                               // 'os-file', or 'external'
 	 *     } ) => boolean
-	 *
-	 * @since 0.9.4
 	 */
-	WINDOW_FOCUS_ON_DRAG_HOVER: 'desktop-mode.window.focus-on-drag-hover',
+	WINDOW_FOCUS_ON_DRAG_HOVER: 'os.window.focus-on-drag-hover',
 	/**
 	 * Action, fires at most once per animation frame during an
 	 * active drag or resize with the live geometry. Payload: `{
@@ -646,34 +674,41 @@ export const HOOKS = {
 	 * that only want the final position should listen to those
 	 * instead.
 	 */
-	WINDOW_BOUNDS_CHANGED: 'desktop-mode.window.bounds-changed',
+	WINDOW_BOUNDS_CHANGED: 'os.window.bounds-changed',
 	/** Action, fires at drag-end with the final `{ x, y }` position. */
-	WINDOW_MOVED: 'desktop-mode.window.moved',
+	WINDOW_MOVED: 'os.window.moved',
 	/** Action, fires at resize-end with the final `{ width, height }`. */
-	WINDOW_RESIZED: 'desktop-mode.window.resized',
+	WINDOW_RESIZED: 'os.window.resized',
 	/** Action, fires when title-bar drag begins. */
-	WINDOW_DRAG_START: 'desktop-mode.window.drag-start',
+	WINDOW_DRAG_START: 'os.window.drag-start',
 	/** Action, fires when title-bar drag ends. Payload mirrors WINDOW_MOVED. */
-	WINDOW_DRAG_END: 'desktop-mode.window.drag-end',
+	WINDOW_DRAG_END: 'os.window.drag-end',
 	/** Action, fires when the resize handle is first pressed. */
-	WINDOW_RESIZE_START: 'desktop-mode.window.resize-start',
+	WINDOW_RESIZE_START: 'os.window.resize-start',
 	/** Action, fires when resize completes. Payload mirrors WINDOW_RESIZED. */
-	WINDOW_RESIZE_END: 'desktop-mode.window.resize-end',
+	WINDOW_RESIZE_END: 'os.window.resize-end',
 	/** Action, fires when the user "detaches" a window to a classic tab. */
-	WINDOW_DETACHED: 'desktop-mode.window.detached',
+	WINDOW_DETACHED: 'os.window.detached',
 	/**
 	 * Action, fires when the user clicks the title-bar reload button
 	 * on an iframe-backed window. Payload: `{ windowId: string, url:
-	 * string }` where `url` is the URL being reloaded (the active
-	 * primary or external sub-tab). Subscribers can use this to
-	 * invalidate their own cache, force a save before navigation,
-	 * track usage as a UX signal, or sync state across companion
-	 * surfaces. Native windows do not fire this — they own their
-	 * DOM directly and the reload button doesn't apply.
+	 * string, silent?: boolean }` where `url` is the URL being
+	 * reloaded (the active primary or external sub-tab). Subscribers
+	 * can use this to invalidate their own cache, force a save before
+	 * navigation, track usage as a UX signal, or sync state across
+	 * companion surfaces. Native windows do not fire this — they own
+	 * their DOM directly and the reload button doesn't apply.
+	 *
+	 * `silent: true` marks a programmatic
+	 * `Window.swapReload()` — the double-buffered, overlay-free
+	 * refresh the editor-preview companion uses after typing pauses.
+	 * It fires on swap COMPLETION (the new content is already
+	 * visible), where the classic reload fires when the reload
+	 * starts.
 	 */
-	WINDOW_RELOADED: 'desktop-mode.window.reloaded',
+	WINDOW_RELOADED: 'os.window.reloaded',
 	/** Action, fires when iframe title updates change the window title. */
-	WINDOW_TITLE_CHANGED: 'desktop-mode.window.title-changed',
+	WINDOW_TITLE_CHANGED: 'os.window.title-changed',
 	/**
 	 * Action, fires when a window's `setHighlight()` mode changes.
 	 * Payload: `{ windowId: string, mode: 'preview' | 'persistent' | null,
@@ -681,10 +716,8 @@ export const HOOKS = {
 	 * plugins react when another module flagged one of their
 	 * windows as the focus of a multi-step interaction without
 	 * having to observe DOM mutations.
-	 *
-	 * @since 0.6.0
 	 */
-	WINDOW_HIGHLIGHT_CHANGED: 'desktop-mode.window.highlight-changed',
+	WINDOW_HIGHLIGHT_CHANGED: 'os.window.highlight-changed',
 	/**
 	 * Action, fires when a window's body element's dimensions
 	 * change — mount, user resize, viewport reflow. Payload: `{
@@ -692,7 +725,7 @@ export const HOOKS = {
 	 * dimensions exclude the title bar + tab strip, matching what a
 	 * canvas or layout engine inside the body would measure.
 	 */
-	WINDOW_BODY_RESIZED: 'desktop-mode.window.body-resized',
+	WINDOW_BODY_RESIZED: 'os.window.body-resized',
 
 	// ------------------------------------------------------------------
 	// Native-window lifecycle. These fire ONLY for windows constructed
@@ -712,13 +745,13 @@ export const HOOKS = {
 	 * background, decorative chrome) around every native window
 	 * without every plugin re-implementing the pattern.
 	 */
-	NATIVE_WINDOW_BEFORE_RENDER: 'desktop-mode.native-window.before-render',
+	NATIVE_WINDOW_BEFORE_RENDER: 'os.native-window.before-render',
 	/**
 	 * Action, fires AFTER a native window's `render( body )` callback
 	 * returns. Payload: `{ windowId, body, config }`. Observability
 	 * hook — analytics / auto-focus / post-render measurement.
 	 */
-	NATIVE_WINDOW_AFTER_RENDER: 'desktop-mode.native-window.after-render',
+	NATIVE_WINDOW_AFTER_RENDER: 'os.native-window.after-render',
 	/**
 	 * Filter, applied when a native window is about to start its
 	 * close animation. Return `false` to CANCEL the close — the
@@ -731,12 +764,12 @@ export const HOOKS = {
 	 * mid-flight. Does NOT apply to iframe windows — their close is
 	 * driven by browser navigation patterns the shell doesn't own.
 	 */
-	NATIVE_WINDOW_BEFORE_CLOSE: 'desktop-mode.native-window.before-close',
+	NATIVE_WINDOW_BEFORE_CLOSE: 'os.native-window.before-close',
 
 	// ------------------------------------------------------------------
 	// Window-chrome customization framework. Plugins drive per-window
 	// appearance (theme, controls, slots, full chrome render) through
-	// the `wp.desktop.registerWindow*` registries; these hooks expose
+	// the `wp.os.registerWindow*` registries; these hooks expose
 	// every resolution step so plugins can mutate or observe the
 	// chrome pipeline without owning a registration.
 	//
@@ -751,18 +784,18 @@ export const HOOKS = {
 	 * the per-window theme tokens — e.g. tint every Gutenberg
 	 * window's title bar to brand colour.
 	 *
-	 * Stable since 0.6.0.
+	 * Stable.
 	 */
-	WINDOW_CHROME_THEME: 'desktop-mode.window.chrome.theme',
+	WINDOW_CHROME_THEME: 'os.window.chrome.theme',
 	/**
 	 * Filter, applied to the resolved control list for a window.
 	 * Receives `WindowControlDef[]`; context: `{ windowId, config,
 	 * placement: 'left' | 'right' | 'controls' }`. Plugins return a
 	 * mutated array to reorder, hide, or inject controls per-window.
 	 *
-	 * Stable since 0.6.0.
+	 * Stable.
 	 */
-	WINDOW_CHROME_CONTROLS: 'desktop-mode.window.chrome.controls',
+	WINDOW_CHROME_CONTROLS: 'os.window.chrome.controls',
 	/**
 	 * Filter, applied per slot when the chrome paints. Receives the
 	 * slot host element; context: `{ windowId, slot, config }`.
@@ -771,57 +804,49 @@ export const HOOKS = {
 	 * The shell never reads the return value — this is an action-
 	 * shaped filter so existing `addFilter` plumbing applies.
 	 *
-	 * Stable since 0.6.0.
+	 * Stable.
 	 */
-	WINDOW_CHROME_SLOT: 'desktop-mode.window.chrome.slot',
+	WINDOW_CHROME_SLOT: 'os.window.chrome.slot',
 	/**
 	 * Filter, applied to the chrome id selected for a window.
 	 * Receives the resolved id (defaults to `'core/standard'`);
 	 * context: `{ windowId, config }`. Returning a different id
 	 * swaps the chrome registration. **Experimental** — chrome
 	 * render contract may change.
-	 *
-	 * @since 0.6.0
 	 */
-	WINDOW_CHROME_RENDER: 'desktop-mode.window.chrome.render',
+	WINDOW_CHROME_RENDER: 'os.window.chrome.render',
 	/**
 	 * Action, fires after a window chrome layer has been mounted /
 	 * remounted. Payload: `{ windowId, layer: 'chrome' | 'controls'
 	 * | 'slots', chromeId? }` — `chromeId` is present only when
 	 * `layer` is `'chrome'`. Subscribers can post-decorate the
 	 * chrome (attach observers, anchor pickers).
-	 *
-	 * @since 0.6.0
 	 */
-	WINDOW_CHROME_APPLIED: 'desktop-mode.window.chrome.applied',
+	WINDOW_CHROME_APPLIED: 'os.window.chrome.applied',
 	/**
 	 * Action, fires after a window's theme tokens are applied to its
 	 * outer element. Payload: `{ windowId, themeId, tokens }`. Lets
 	 * plugins react to theme changes without diffing CSS variables.
-	 *
-	 * @since 0.6.0
 	 */
-	WINDOW_CHROME_THEME_CHANGED: 'desktop-mode.window.chrome.theme-changed',
+	WINDOW_CHROME_THEME_CHANGED: 'os.window.chrome.theme-changed',
 
 	/**
 	 * Action, fires when a user clicks a desktop icon (a shortcut
-	 * tile registered server-side via `desktop_mode_register_icon()`
+	 * tile registered server-side via `openstation_register_icon()`
 	 * and rendered on the wallpaper). Payload: `{ id: string,
 	 * target: 'window' | 'url' }`. Fires BEFORE the default open
 	 * action — plugins cannot cancel the open from this hook, but
 	 * can use it to track click-throughs or augment behaviour (e.g.
 	 * play a sound, surface a confirmation toast).
-	 *
-	 * @since 0.5.0
 	 */
-	DESKTOP_ICON_CLICKED: 'desktop-mode.desktop-icon.clicked',
+	DESKTOP_ICON_CLICKED: 'os.os-icon.clicked',
 	/**
 	 * Action, fires after the wallpaper icon grid is rendered or
 	 * re-rendered. Payload:
 	 *
 	 *     {
 	 *         ids: string[];                          // paint order
-	 *         container: HTMLElement;                  // <div class="desktop-mode-icons">
+	 *         container: HTMLElement;                  // <div class="os-icons">
 	 *         tiles: ReadonlyMap<string, HTMLElement>; // id → tile <button>
 	 *     }
 	 *
@@ -833,8 +858,8 @@ export const HOOKS = {
 	 * `tileElements` contract — reach into them directly instead of
 	 * re-`querySelector`ing the rendered DOM.
 	 *
-	 * Notification badges have a first-class API since 0.6.0 —
-	 * use `wp.desktop.icons.setBadge( id, count )` (and subscribe
+	 * Notification badges have a first-class API —
+	 * use `wp.os.icons.setBadge( id, count )` (and subscribe
 	 * to {@link ICON_BADGE_CHANGED}) instead of decorating from
 	 * here. The framework persists badge state across rebuilds, so
 	 * a plugin that uses the API doesn't need to re-decorate on
@@ -845,49 +870,43 @@ export const HOOKS = {
 	 * skips both the rebuild and this signal). When the icon list
 	 * is empty the hook does not fire at all — the previous
 	 * container is removed and no new one is appended.
-	 *
-	 * @since 0.6.0
-	 * @since 0.8.6 — `container` + `tiles` added to the payload
-	 *                  (`ids` retained for back-compat).
 	 */
-	DESKTOP_ICONS_RENDERED: 'desktop-mode.desktop-icons.rendered',
+	DESKTOP_ICONS_RENDERED: 'os.os-icons.rendered',
 	/**
 	 * Action, fires whenever the badge count on a desktop icon
 	 * changes. Payload: `{ iconId: string, count: number,
 	 * previousCount: number }`. Symmetric to {@link DOCK_ITEM_APPENDED}
-	 * and the dock/taskbar `wpd-dock-item-badge-changed` CustomEvent
+	 * and the dock/taskbar `os-dock-item-badge-changed` CustomEvent
 	 * — the icon rail's lifecycle hook for badge transitions.
 	 *
-	 * Mirrors `desktop-mode/badge-changed` on the activity bus with
+	 * Mirrors `os/badge-changed` on the activity bus with
 	 * `rail: 'icon'`. Subscribe to whichever surface fits — the
 	 * activity channel composes across rails for global widgets,
 	 * this hook fires only for icon-rail badges with the previous
 	 * count carried alongside for delta-aware consumers.
-	 *
-	 * @since 0.6.0
 	 */
-	ICON_BADGE_CHANGED: 'desktop-mode.icon.badge-changed',
+	ICON_BADGE_CHANGED: 'os.icon.badge-changed',
 
 	// ------------------------------------------------------------------
 	// Cross-plugin composition.
 	// ------------------------------------------------------------------
 
 	/**
-	 * Action, fires ONCE after every shell-shipped `<wpd-*>` custom
+	 * Action, fires ONCE after every shell-shipped `<os-*>` custom
 	 * element has registered with `customElements`. Payload: `{
 	 * tags: string[] }` — the list of registered tag names. Plugins
 	 * that need to defer work until the component registry is
 	 * complete (e.g. hydrate user content that uses these tags)
 	 * subscribe here instead of polling `customElements.get()`.
 	 */
-	COMPONENTS_REGISTERED: 'desktop-mode.components.registered',
+	COMPONENTS_REGISTERED: 'os.components.registered',
 	/**
-	 * Action, fires after `wp.desktop.registerSystemTile()` inserts
+	 * Action, fires after `wp.os.registerSystemTile()` inserts
 	 * a tile into the unified dock. Payload: `{ id: string }`. Useful
 	 * for plugins that want to decorate tiles they didn't register
 	 * themselves — analytics, theming, per-tile badges.
 	 */
-	DOCK_ITEM_APPENDED: 'desktop-mode.dock.item-appended',
+	DOCK_ITEM_APPENDED: 'os.dock.item-appended',
 	/**
 	 * Action, fires after a system tile is removed from a rail
 	 * via `Dock.removeSystemItem()` (typically the server-driven
@@ -895,10 +914,8 @@ export const HOOKS = {
 	 * `{ id: string, placement: 'dock' | 'taskbar' }`. Symmetric
 	 * to {@link DOCK_ITEM_APPENDED}; lets analytics / decorators /
 	 * cleanup hooks see the full lifecycle without polling the DOM.
-	 *
-	 * @since 0.6.0
 	 */
-	DOCK_ITEM_REMOVED: 'desktop-mode.dock.item-removed',
+	DOCK_ITEM_REMOVED: 'os.dock.item-removed',
 
 	// ------------------------------------------------------------------
 	// Dock decoration hooks — render-pipeline filters and actions the
@@ -911,8 +928,8 @@ export const HOOKS = {
 	// Every detail object carries `{ rail, orientation, dockId,
 	// container }` so a single subscriber can disambiguate when two
 	// rails coexist (Classic layout's left side bar + bottom dock).
-	// `dockId` matches the host element's `id` (e.g. `'desktop-mode-dock'`
-	// or `'desktop-mode-side-dock'`) and is the stable
+	// `dockId` matches the host element's `id` (e.g. `'os-dock'`
+	// or `'os-side-dock'`) and is the stable
 	// disambiguator — `rail` and `orientation` are convenience
 	// projections of where the renderer is painting.
 	// ------------------------------------------------------------------
@@ -923,29 +940,38 @@ export const HOOKS = {
 	 * live menu-refresh path. Payload `DockRenderContext`. Use this
 	 * to invalidate cached per-render decoration state before the
 	 * tiles repopulate.
-	 *
-	 * @since 0.5.2
 	 */
-	DOCK_BEFORE_RENDER: 'desktop-mode.dock.before-render',
+	DOCK_BEFORE_RENDER: 'os.dock.before-render',
 	/**
 	 * Action, fires once every menu and system tile has landed in
 	 * the DOM for a paint pass. Payload `DockRenderContext` plus a
 	 * frozen `tileElements: ReadonlyMap<string, HTMLElement>` so a
 	 * plugin can decorate every tile in one sweep. Symmetric to
 	 * {@link DOCK_BEFORE_RENDER}.
-	 *
-	 * @since 0.5.2
 	 */
-	DOCK_AFTER_RENDER: 'desktop-mode.dock.after-render',
+	DOCK_AFTER_RENDER: 'os.dock.after-render',
+	/**
+	 * Action a plugin *fires* (rather than listens to) when the state
+	 * behind a tile's active dot has changed for a reason the dock
+	 * cannot observe.
+	 *
+	 * The dock repaints its indicators on window lifecycle events,
+	 * which covers every tile whose `isOpen()` is a question about
+	 * windows. A system tile answering some other question — the
+	 * Mio's is "is the companion on screen?" — has no such event,
+	 * and its dot would sit stale until the next unrelated window
+	 * change. Fire this after flipping that state.
+	 *
+	 * No payload: the dock re-queries every tile.
+	 */
+	DOCK_REFRESH_ACTIVE: 'os.dock.refresh-active',
 	/**
 	 * Filter, runs once per tile while the renderer is composing the
 	 * className list. Plugins may add, remove, or reorder classes.
 	 * Signature: `( classes: string[], detail: DockTileContext ) =>
 	 * string[]`. Order is preserved.
-	 *
-	 * @since 0.5.2
 	 */
-	DOCK_TILE_CLASS: 'desktop-mode.dock.tile-class',
+	DOCK_TILE_CLASS: 'os.dock.tile-class',
 	/**
 	 * Filter, runs once per tile after the renderer finishes building
 	 * the element but before it lands in the DOM. Return the same
@@ -957,28 +983,22 @@ export const HOOKS = {
 	 * `[data-menu-slug="<id>"]` (or `[data-system-id="<id>"]`)
 	 * descendant for active-state / badge updates to find the tile;
 	 * wrap, don't replace.
-	 *
-	 * @since 0.5.2
 	 */
-	DOCK_TILE_ELEMENT: 'desktop-mode.dock.tile-element',
+	DOCK_TILE_ELEMENT: 'os.dock.tile-element',
 	/**
 	 * Action, fires once per tile after it has been inserted into
 	 * the DOM. Payload `DockTileContext` plus the resolved `el`. Use
 	 * for post-insertion decoration where computed layout matters
 	 * (measurements, IntersectionObserver bindings, etc.).
-	 *
-	 * @since 0.5.2
 	 */
-	DOCK_TILE_RENDERED: 'desktop-mode.dock.tile-rendered',
+	DOCK_TILE_RENDERED: 'os.dock.tile-rendered',
 	/**
 	 * Filter, resolves the tooltip text for a tile. Runs once at
 	 * bind time so the dock doesn't re-filter on every pointerenter.
 	 * Signature: `( label: string, detail: DockTileContext ) =>
 	 * string`. Return an empty string to suppress the tooltip.
-	 *
-	 * @since 0.5.2
 	 */
-	DOCK_TILE_TOOLTIP: 'desktop-mode.dock.tile-tooltip',
+	DOCK_TILE_TOOLTIP: 'os.dock.tile-tooltip',
 	/**
 	 * Filter, resolves the body content of a single hover-peek card.
 	 * Runs once per card build (i.e., on every show of the peek for
@@ -990,7 +1010,7 @@ export const HOOKS = {
 	 * Signature:
 	 *   ( body: HTMLElement, detail: DockPeekCardContext ) => HTMLElement
 	 *
-	 * Where `body` is the `<span class="desktop-mode-dock-peek__card-body">`
+	 * Where `body` is the `<span class="os-dock-peek__card-body">`
 	 * element that the peek would otherwise populate with ghosted
 	 * content lines. The filter may:
 	 *   - Mutate `body` in place (e.g., append a custom child) and
@@ -1004,11 +1024,9 @@ export const HOOKS = {
 	 * item descriptor (id / title / icon / url).
 	 *
 	 * The filter is invoked under the `applyFilters` namespace
-	 * `desktop-mode.dock.peek-card-content`.
-	 *
-	 * @since 0.6.2
+	 * `os.dock.peek-card-content`.
 	 */
-	DOCK_PEEK_CARD_CONTENT: 'desktop-mode.dock.peek-card-content',
+	DOCK_PEEK_CARD_CONTENT: 'os.dock.peek-card-content',
 	/**
 	 * Filter, runs once per peek card right before it's appended to
 	 * the popover. Receives the fully-built default card (with its
@@ -1024,15 +1042,73 @@ export const HOOKS = {
 	 *
 	 * If a plugin returns a brand-new node, it is responsible for
 	 * preserving anything the peek relies on:
-	 *   - The `desktop-mode-dock-peek__card` class (used by the
+	 *   - The `os-dock-peek__card` class (used by the
 	 *     fan-out animation timing + hover styles).
 	 *   - A `click` handler if the card should still focus the
 	 *     window. The default click handler lives on the original
 	 *     node — replacing the node loses it.
-	 *
-	 * @since 0.6.2
 	 */
-	DOCK_PEEK_CARD_ELEMENT: 'desktop-mode.dock.peek-card-element',
+	DOCK_PEEK_CARD_ELEMENT: 'os.dock.peek-card-element',
+
+	// ------------------------------------------------------------------
+	// Constellation — the hover-submenu flyout that the `openstation`
+	// desktop layout fans out of a dock tile. Inert in every other
+	// layout, so a subscriber can register unconditionally and simply
+	// never hear from it while the user is on Classic.
+	// ------------------------------------------------------------------
+
+	/**
+	 * Filter, runs once per flyout right before it's appended to the
+	 * document. Receives the fully-built panel root — head, live-window
+	 * group, submenu group, footer, beam — and can return the same
+	 * node, a mutated version, or a replacement.
+	 *
+	 * Signature:
+	 *   ( panel: HTMLElement, detail: ConstellationPanelContext )
+	 *     => HTMLElement
+	 *
+	 * `detail` carries `{ item, instances, tile }`: the menu the flyout
+	 * was opened for, the live windows currently open for it, and the
+	 * dock tile it is anchored to. `item.menuItem` is the `DockItem`
+	 * behind the menu, or `null` when the tile is a system tile whose
+	 * submenu is a list of shell actions rather than admin pages. The
+	 * panel has the same sections either way; a system tile resolves
+	 * its `instances` from each row's `windowId` instead of from one
+	 * menu key, so the list is populated whenever those windows are
+	 * open.
+	 *
+	 * A plugin returning a brand-new node owns everything the flyout
+	 * relies on: the `os-constellation` class (positioning + the
+	 * open transition), `role="menu"`, and the `os-constellation__row`
+	 * class on anything that should take part in arrow-key roving.
+	 */
+	CONSTELLATION_PANEL: 'os.constellation.panel',
+	/**
+	 * Action, fires immediately after a flyout is appended. Detail:
+	 * `{ menuSlug: string, item: ConstellationMenu, instances:
+	 * Window[], handoff: boolean }`. `handoff` is `true` when this
+	 * panel replaced one that was already up — the pointer moved along
+	 * the rail — rather than arriving on an empty desk.
+	 *
+	 * `menuSlug` is the admin-menu slug for a menu tile, and the
+	 * system tile's id for a tile whose submenu is shell actions.
+	 * Filter on `item.menuItem !== null` to handle only the admin-menu
+	 * ones.
+	 */
+	CONSTELLATION_OPENED: 'os.constellation.opened',
+	/**
+	 * Action, fires when a flyout is dismissed — not when its node
+	 * leaves the document, which happens once its exit has played.
+	 *
+	 * Detail: `{ menuSlug: string, handoff: boolean }`. `menuSlug` is
+	 * the menu whose flyout closed — an admin-menu slug, or a system
+	 * tile's id for an action menu — or `''` if the anchor tile had
+	 * already been torn down. `handoff` is `true` when another tile is
+	 * already taking over, so a subscriber can tell "the menu closed"
+	 * from "the menu moved" without diffing against the next
+	 * {@link CONSTELLATION_OPENED}.
+	 */
+	CONSTELLATION_CLOSED: 'os.constellation.closed',
 
 	// ------------------------------------------------------------------
 	// Overview / Arrange lifecycle actions.
@@ -1048,9 +1124,9 @@ export const HOOKS = {
 	// ------------------------------------------------------------------
 
 	/** Action, fires before the overview enter animation starts. */
-	OVERVIEW_ENTERING: 'desktop-mode.overview.entering',
+	OVERVIEW_ENTERING: 'os.overview.entering',
 	/** Action, fires once the overview enter animation has completed. */
-	OVERVIEW_ENTERED: 'desktop-mode.overview.entered',
+	OVERVIEW_ENTERED: 'os.overview.entered',
 	/**
 	 * Action, fires at the start of the overview-exit animation.
 	 * Payload: `{ windowId?: string, reason: 'select' | 'cancel' }` —
@@ -1058,24 +1134,24 @@ export const HOOKS = {
 	 * 'select'); omitted when the user pressed Escape or clicked
 	 * the backdrop (reason 'cancel').
 	 */
-	OVERVIEW_EXITING: 'desktop-mode.overview.exiting',
+	OVERVIEW_EXITING: 'os.overview.exiting',
 	/** Action, fires once the overview-exit animation has settled. */
-	OVERVIEW_EXITED: 'desktop-mode.overview.exited',
+	OVERVIEW_EXITED: 'os.overview.exited',
 	/** Action, fires when the cursor enters a thumbnail. Payload `{ windowId }`. */
-	OVERVIEW_WINDOW_HOVER: 'desktop-mode.overview.window-hover',
+	OVERVIEW_WINDOW_HOVER: 'os.overview.window-hover',
 	/** Action, fires when the cursor leaves a thumbnail. Payload `{ windowId }`. */
-	OVERVIEW_WINDOW_UNHOVER: 'desktop-mode.overview.window-unhover',
+	OVERVIEW_WINDOW_UNHOVER: 'os.overview.window-unhover',
 	/** Action, fires the instant a thumbnail click is registered (before exit + maximize kick in). Payload `{ windowId }`. */
-	OVERVIEW_WINDOW_CLICK: 'desktop-mode.overview.window-click',
+	OVERVIEW_WINDOW_CLICK: 'os.overview.window-click',
 
 	/** Action, fires before cascade computes + applies new positions. Payload `{ windowCount }`. */
-	ARRANGE_CASCADE_STARTING: 'desktop-mode.arrange.cascade.starting',
+	ARRANGE_CASCADE_STARTING: 'os.arrange.cascade.starting',
 	/** Action, fires after cascade has positioned every window. Payload `{ windowCount }`. */
-	ARRANGE_CASCADE_APPLIED: 'desktop-mode.arrange.cascade.applied',
+	ARRANGE_CASCADE_APPLIED: 'os.arrange.cascade.applied',
 	/** Action, fires before tile computes + applies new positions. Payload `{ windowCount, cols, rows }`. */
-	ARRANGE_TILE_STARTING: 'desktop-mode.arrange.tile.starting',
+	ARRANGE_TILE_STARTING: 'os.arrange.tile.starting',
 	/** Action, fires after tile has positioned every window. Payload `{ windowCount, cols, rows }`. */
-	ARRANGE_TILE_APPLIED: 'desktop-mode.arrange.tile.applied',
+	ARRANGE_TILE_APPLIED: 'os.arrange.tile.applied',
 	/**
 	 * Filter on the tile-grid dimensions chosen by the built-in
 	 * algorithm. Receives `{ cols, rows }` plus a context arg
@@ -1085,9 +1161,9 @@ export const HOOKS = {
 	 * values are validated — non-positive integers, or a product
 	 * smaller than `windowCount`, fall back to the original.
 	 */
-	ARRANGE_TILE_DIMENSIONS: 'desktop-mode.arrange.tile.dimensions',
+	ARRANGE_TILE_DIMENSIONS: 'os.arrange.tile.dimensions',
 	/** Action, fires when snap-to-grid is toggled. Payload `{ enabled }`. */
-	ARRANGE_SNAP_CHANGED: 'desktop-mode.arrange.snap.changed',
+	ARRANGE_SNAP_CHANGED: 'os.arrange.snap.changed',
 	/**
 	 * Filter on the snap-grid cell size. Receives
 	 * `{ cellWidth, cellHeight }` plus a context arg
@@ -1096,15 +1172,15 @@ export const HOOKS = {
 	 * staff aspect, etc. Non-positive returns fall back to the
 	 * original.
 	 */
-	ARRANGE_SNAP_CELL_SIZE: 'desktop-mode.arrange.snap.cell-size',
+	ARRANGE_SNAP_CELL_SIZE: 'os.arrange.snap.cell-size',
 	/**
 	 * Action, fires when the user clicks a plugin-registered entry in
 	 * the Arrange admin-bar submenu (items added via the
-	 * `desktop_mode_arrange_menu_items` PHP filter). Payload `{ id }`
+	 * `openstation_arrange_menu_items` PHP filter). Payload `{ id }`
 	 * where `id` is the item's `id` field as registered. Plugins
 	 * subscribe here to run their custom arrangement logic.
 	 */
-	ARRANGE_CUSTOM_ACTION: 'desktop-mode.arrange.custom-action',
+	ARRANGE_CUSTOM_ACTION: 'os.arrange.custom-action',
 
 	// ------------------------------------------------------------------
 	// Snap-zones — Windows-style edge snapping with a split-overview
@@ -1115,23 +1191,23 @@ export const HOOKS = {
 	 * shell shows the target-position preview. Payload
 	 * `{ windowId, zone: 'left' | 'right' }`.
 	 */
-	SNAP_ZONE_PENDING: 'desktop-mode.snap.zone-pending',
+	SNAP_ZONE_PENDING: 'os.snap.zone-pending',
 	/**
 	 * Action, fires when the drag cursor leaves the snap zone without
 	 * releasing — the preview disappears. Payload `{ windowId }`.
 	 */
-	SNAP_ZONE_CANCELED: 'desktop-mode.snap.zone-canceled',
+	SNAP_ZONE_CANCELED: 'os.snap.zone-canceled',
 	/**
 	 * Action, fires once the window has animated into its snapped
 	 * bounds. Payload `{ windowId, zone: 'left' | 'right' }`.
 	 */
-	SNAP_ZONE_COMMITTED: 'desktop-mode.snap.zone-committed',
+	SNAP_ZONE_COMMITTED: 'os.snap.zone-committed',
 	/**
 	 * Action, fires when a user picks a thumbnail from the split
 	 * overview to fill the opposite half. Payload
 	 * `{ windowId, zone: 'left' | 'right' }`.
 	 */
-	SNAP_SPLIT_FILLED: 'desktop-mode.snap.split-filled',
+	SNAP_SPLIT_FILLED: 'os.snap.split-filled',
 
 	// ------------------------------------------------------------------
 	// Widgets — the right-side column. Widgets paint above the
@@ -1140,19 +1216,19 @@ export const HOOKS = {
 	// each paint, mount-failed fires on sync throws / async rejects.
 	// ------------------------------------------------------------------
 	/** Filter, receives the widget registry array. */
-	WIDGETS: 'desktop-mode.widgets',
+	WIDGETS: 'os.widgets',
 	/** Action before a widget mounts. Payload `{ id, container, ctx }`. */
-	WIDGET_MOUNTING: 'desktop-mode.widget.mounting',
+	WIDGET_MOUNTING: 'os.widget.mounting',
 	/** Action after a widget mounts successfully. Payload `{ id, container, ctx }`. */
-	WIDGET_MOUNTED: 'desktop-mode.widget.mounted',
+	WIDGET_MOUNTED: 'os.widget.mounted',
 	/** Action before a widget tears down. Payload `{ id }`. */
-	WIDGET_UNMOUNTING: 'desktop-mode.widget.unmounting',
+	WIDGET_UNMOUNTING: 'os.widget.unmounting',
 	/** Action when a widget's mount throws / rejects. Payload `{ id, error }`. */
-	WIDGET_MOUNT_FAILED: 'desktop-mode.widget.mount-failed',
+	WIDGET_MOUNT_FAILED: 'os.widget.mount-failed',
 	/** Action when the user adds a widget via the picker. Payload `{ id }`. */
-	WIDGET_ADDED: 'desktop-mode.widget.added',
+	WIDGET_ADDED: 'os.widget.added',
 	/** Action when the user removes a widget via the card's × button. Payload `{ id }`. */
-	WIDGET_REMOVED: 'desktop-mode.widget.removed',
+	WIDGET_REMOVED: 'os.widget.removed',
 
 	// ------------------------------------------------------------------
 	// Virtual-desktop ("Spaces") lifecycle actions.
@@ -1163,18 +1239,19 @@ export const HOOKS = {
 	// indicators, or react to the user's workspace context.
 	// ------------------------------------------------------------------
 	/** Action, fires when a new desktop is created. Payload `{ desktopId }`. */
-	DESKTOP_CREATED: 'desktop-mode.desktop.created',
+	DESKTOP_CREATED: 'os.os.created',
 	/** Action, fires when a desktop is closed. Payload `{ desktopId, migratedTo }`. */
-	DESKTOP_CLOSED: 'desktop-mode.desktop.closed',
+	DESKTOP_CLOSED: 'os.os.closed',
 	/** Action, fires when the active desktop changes. Payload `{ from, to }`. */
-	DESKTOP_SWITCHED: 'desktop-mode.desktop.switched',
+	DESKTOP_SWITCHED: 'os.os.switched',
+	/** Action, fires when a desktop is renamed. Payload `{ desktopId, label, previousLabel }`. */
+	DESKTOP_RENAMED: 'os.os.renamed',
 	/**
 	 * Filter. Returns the id of the "primary" desktop — the one the
 	 * shell treats as canonical for batch operations. Receives the
 	 * default (first desktop's id) and the full `Desktop[]` list.
-	 * @since 0.5.0
 	 */
-	PRIMARY_DESKTOP_ID: 'desktop-mode.primary-desktop-id',
+	PRIMARY_DESKTOP_ID: 'os.primary-desktop-id',
 
 	// ------------------------------------------------------------------
 	// Batch window operations.
@@ -1183,24 +1260,21 @@ export const HOOKS = {
 	 * Action, fires before {@link WindowManager.closeAll} starts
 	 * iterating. Payload `{ candidates: Window[] }` — every window the
 	 * shell is about to close (after `exceptIds` was applied).
-	 * @since 0.5.0
 	 */
-	WINDOWS_BEFORE_CLOSE_ALL: 'desktop-mode.windows.before-close-all',
+	WINDOWS_BEFORE_CLOSE_ALL: 'os.windows.before-close-all',
 	/**
 	 * Filter, runs inside {@link WindowManager.closeAll}. Receives the
 	 * candidate `Window[]` list and returns the (possibly trimmed) list
 	 * that will actually be closed. Plugins use this to PROTECT specific
 	 * windows from a bulk close — e.g. keep the active draft open.
 	 * Returning an empty array cancels the close entirely.
-	 * @since 0.5.0
 	 */
-	WINDOWS_CLOSE_ALL: 'desktop-mode.windows.close-all',
+	WINDOWS_CLOSE_ALL: 'os.windows.close-all',
 	/**
 	 * Action, fires after {@link WindowManager.closeAll} has finished.
 	 * Payload `{ closed: number, skipped: Window[] }`.
-	 * @since 0.5.0
 	 */
-	WINDOWS_AFTER_CLOSE_ALL: 'desktop-mode.windows.after-close-all',
+	WINDOWS_AFTER_CLOSE_ALL: 'os.windows.after-close-all',
 
 	// ------------------------------------------------------------------
 	// Slash-command lifecycle.
@@ -1209,21 +1283,18 @@ export const HOOKS = {
 	 * Filter. Runs immediately before a command's `run()` is invoked.
 	 * Receives `{ proceed: true, slug, args, command }` and may return
 	 * the same shape with `proceed: false` to cancel the run.
-	 * @since 0.5.0
 	 */
-	COMMAND_BEFORE_RUN: 'desktop-mode.command.before-run',
+	COMMAND_BEFORE_RUN: 'os.command.before-run',
 	/**
 	 * Action, fires after a command's `run()` resolves successfully.
 	 * Payload `{ slug, args, command, result }`.
-	 * @since 0.5.0
 	 */
-	COMMAND_AFTER_RUN: 'desktop-mode.command.after-run',
+	COMMAND_AFTER_RUN: 'os.command.after-run',
 	/**
 	 * Action, fires when a command's `run()` throws. Payload
 	 * `{ slug, args, command, error }`.
-	 * @since 0.5.0
 	 */
-	COMMAND_ERROR: 'desktop-mode.command.error',
+	COMMAND_ERROR: 'os.command.error',
 
 	// ------------------------------------------------------------------
 	// Shell-level lifecycle actions.
@@ -1234,52 +1305,44 @@ export const HOOKS = {
 	 * bounding rect — plugins that render canvas-driven UIs hook here
 	 * to adjust their render surface.
 	 */
-	SHELL_RESIZED: 'desktop-mode.shell.resized',
+	SHELL_RESIZED: 'os.shell.resized',
 	/**
 	 * Action mirroring `document.visibilitychange` for the shell as a
 	 * whole. Payload `{ state: 'visible' | 'hidden' }`. Different from
 	 * the wallpaper-specific visibility action in that it fires
 	 * regardless of which wallpaper (if any) is active.
 	 */
-	SHELL_VISIBILITY: 'desktop-mode.shell.visibility',
+	SHELL_VISIBILITY: 'os.shell.visibility',
 	/**
-	 * Action — fires when a `wp.desktop.connect()` connection
+	 * Action — fires when a `wp.os.connect()` connection
 	 * completes its iframe handshake. Payload:
 	 * `{ connectionId, targetWindowId, topics }`.
-	 *
-	 * @since 0.5.2
 	 */
-	CONNECTION_OPENED: 'desktop-mode.connection.opened',
+	CONNECTION_OPENED: 'os.connection.opened',
 	/**
 	 * Action — fires when a connection tears down. Payload:
 	 * `{ connectionId, reason: 'disconnect' | 'window-closed' | 'navigated' }`.
-	 *
-	 * @since 0.5.2
 	 */
-	CONNECTION_CLOSED: 'desktop-mode.connection.closed',
+	CONNECTION_CLOSED: 'os.connection.closed',
 	/**
 	 * Action — fires for every message routed through a connection.
 	 * Payload: `{ connectionId, topic, direction: 'in' | 'out' }`.
 	 * Used for debug consoles + traffic auditing; high-volume topics
 	 * fire this many times per second, so subscribers should be
 	 * cheap.
-	 *
-	 * @since 0.5.2
 	 */
-	CONNECTION_MESSAGE: 'desktop-mode.connection.message',
+	CONNECTION_MESSAGE: 'os.connection.message',
 	/**
 	 * Filter — fires when an iframe calls
-	 * `wp.desktop.iframe.requestConnection()`. Default value is
+	 * `wp.os.iframe.requestConnection()`. Default value is
 	 * `true` (accept). Return `false` to reject, or an object
 	 * `{ topics: string[] }` to accept while narrowing the topic
 	 * list. `$context` carries `{ windowId, requestId, topics }`.
-	 *
-	 * @since 0.5.2
 	 */
-	IFRAME_CONNECTION_REQUEST: 'desktop-mode.iframe.connection-request',
+	IFRAME_CONNECTION_REQUEST: 'os.iframe.connection-request',
 
 	// ------------------------------------------------------------------
-	// Window content relations & link renderers (since 0.9.4). A window
+	// Window content relations & link renderers. A window
 	// may carry a content identity ("I am comment 45 of post 123");
 	// windows resolving to the same root form a relation group, and a
 	// pluggable renderer draws the ties on the desktop. Engine:
@@ -1292,24 +1355,20 @@ export const HOOKS = {
 	 * or cleared. Payload: `{ windowId: string, content:
 	 * WindowContentRef | null, previous: WindowContentRef | null,
 	 * source: 'config' | 'bridge' | 'api' }`. The matching
-	 * `desktop-mode-window-content-changed` CustomEvent dispatches on
+	 * `os-window-content-changed` CustomEvent dispatches on
 	 * `document` with the same payload.
-	 *
-	 * @since 0.9.4
 	 */
-	WINDOW_CONTENT_CHANGED: 'desktop-mode.window-links.content-changed',
+	WINDOW_CONTENT_CHANGED: 'os.window-links.content-changed',
 	/**
 	 * Action — fires when relation-group MEMBERSHIP changes (a window
 	 * gained/lost an identity, or a member window opened/closed).
 	 * Payload: `{ groups: WindowLinkGroup[] }`. Deliberately NOT fired
 	 * on move/resize (renderers get live geometry through their frame
 	 * subscription) nor on focus-recency reordering. The matching
-	 * `desktop-mode-window-link-groups-changed` CustomEvent dispatches
+	 * `os-window-link-groups-changed` CustomEvent dispatches
 	 * on `document` with the same payload.
-	 *
-	 * @since 0.9.4
 	 */
-	WINDOW_LINK_GROUPS_CHANGED: 'desktop-mode.window-links.groups-changed',
+	WINDOW_LINK_GROUPS_CHANGED: 'os.window-links.groups-changed',
 	/**
 	 * Filter — applied to every content identity as it is set, before
 	 * storage. Signature: `( ref: WindowContentRef | null, ctx: {
@@ -1317,30 +1376,24 @@ export const HOOKS = {
 	 * WindowContentRef | null`. Return `null` to suppress the identity,
 	 * or a rewritten ref to remap it (e.g. point a custom object type
 	 * at your own root scheme).
-	 *
-	 * @since 0.9.4
 	 */
-	WINDOW_LINKS_CONTENT: 'desktop-mode.window-links.content',
+	WINDOW_LINKS_CONTENT: 'os.window-links.content',
 	/**
 	 * Filter — applied to the computed relation-group list on every
-	 * read (`wp.desktop.relations.groups()`). Signature:
+	 * read (`wp.os.relations.groups()`). Signature:
 	 * `( groups: WindowLinkGroup[] ) => WindowLinkGroup[]`. Merge,
 	 * split, or inject groups here.
-	 *
-	 * @since 0.9.4
 	 */
-	WINDOW_LINK_GROUPS: 'desktop-mode.window-links.groups',
+	WINDOW_LINK_GROUPS: 'os.window-links.groups',
 	/**
 	 * Filter — applied to the derived directed-edge list on every read
-	 * (`wp.desktop.relations.edges()`). Signature: `( edges:
+	 * (`wp.os.relations.edges()`). Signature: `( edges:
 	 * WindowLinkEdge[] ) => WindowLinkEdge[]` where each edge is
 	 * `{ fromWindowId, toWindowId, kind: 'child-root' | 'reference',
 	 * bidirectional }`. Add, drop, or redirect ties here — this is
 	 * what the render host feeds to the active renderer.
-	 *
-	 * @since 0.9.4
 	 */
-	WINDOW_LINK_EDGES: 'desktop-mode.window-links.edges',
+	WINDOW_LINK_EDGES: 'os.window-links.edges',
 	/**
 	 * Filter — applied to the related-entity navigation items resolved
 	 * for a window, every time the title bar's "Related" button decides
@@ -1350,62 +1403,105 @@ export const HOOKS = {
 	 * item is `{ id, group, label, url, groupLabel?, icon?, count? }`.
 	 * The unfiltered list is whatever the window's content identity
 	 * carried in `related` (built server-side; see the
-	 * `desktop_mode_window_related_entities` PHP filter). Add, drop, or
+	 * `openstation_window_related_entities` PHP filter). Add, drop, or
 	 * relabel items here — return an empty array to hide the button.
-	 *
-	 * @since 0.9.6
 	 */
-	RELATED_ENTITIES_ITEMS: 'desktop-mode.related-entities.items',
+	RELATED_ENTITIES_ITEMS: 'os.related-entities.items',
 	/**
 	 * Filter — applied to the registered window-link renderer list on
-	 * every read (`wp.desktop.listWindowLinkRenderers()`). Signature:
+	 * every read (`wp.os.listWindowLinkRenderers()`). Signature:
 	 * `( defs: WindowLinkRendererDef[] ) => WindowLinkRendererDef[]`.
-	 *
-	 * @since 0.9.4
 	 */
-	WINDOW_LINK_RENDERERS: 'desktop-mode.window-links.renderers',
+	WINDOW_LINK_RENDERERS: 'os.window-links.renderers',
 	/**
 	 * Filter — applied to the resolved ACTIVE renderer id after the OS
 	 * Settings selection is read, before the registry lookup.
 	 * Signature: `( id: string ) => string`. Return a different
 	 * registered id (or `'none'`) to force-swap the renderer without
 	 * touching the user's setting.
-	 *
-	 * @since 0.9.4
 	 */
-	WINDOW_LINK_RENDERER: 'desktop-mode.window-links.renderer',
+	WINDOW_LINK_RENDERER: 'os.window-links.renderer',
 
 	// ------------------------------------------------------------------
-	// OS-file drop manager (since 0.30.0). Catches files dragged from
+	// Editor preview. The title bar's "Preview" (eye)
+	// button on post/page/CPT editor windows — snaps the editor to
+	// the left half and opens the front-end preview as a companion
+	// window snapped to the right half, autosaving the editor in
+	// parallel (a landed save silently refreshes the companion).
+	// Module: `src/editor-preview/index.ts`.
+	// ------------------------------------------------------------------
+	/**
+	 * Filter — applied to the preview companion's `WindowConfig` right
+	 * before `manager.open()`. Signature: `( config: WindowConfig, ctx:
+	 * { editorWindowId: string, content: WindowContentRef } ) =>
+	 * WindowConfig`. Rewrite geometry, `initialState`, the title — or
+	 * the URL, though the engine already dropped any cross-origin
+	 * `previewUrl` at identity time.
+	 */
+	EDITOR_PREVIEW_WINDOW_CONFIG: 'os.editor-preview.window-config',
+	/**
+	 * Filter — the live-update behavior of an open preview pairing.
+	 * While the pairing is active the editor iframe watches its own
+	 * content and, `debounceMs` after the last edit, autosaves and
+	 * nudges the shell to reload the preview — so the preview tracks
+	 * typing, not just explicit saves. Signature: `( config: {
+	 * enabled: boolean, debounceMs: number }, ctx: { editorWindowId:
+	 * string, content: WindowContentRef } ) => config`. Defaults:
+	 * `{ enabled: true, debounceMs: 1500 }` (`debounceMs` clamps to
+	 * 500–30000 iframe-side). Return `{ enabled: false }` to fall back
+	 * to save-driven reloads only.
+	 */
+	EDITOR_PREVIEW_LIVE: 'os.editor-preview.live',
+	/**
+	 * Action — fires after the preview companion window opened and the
+	 * editor↔preview pairing is recorded. Payload: `{ editorWindowId:
+	 * string, previewWindowId: string, content: WindowContentRef }`.
+	 * The matching `os-editor-preview-opened` CustomEvent
+	 * dispatches on `document` with the same payload.
+	 */
+	EDITOR_PREVIEW_OPENED: 'os.editor-preview.opened',
+	/**
+	 * Action — fires when an editor↔preview pairing ends: the user
+	 * toggled the eye off, closed either window, or navigated the
+	 * editor window to different content. Payload: `{ editorWindowId:
+	 * string, previewWindowId: string, reason: 'toggled' |
+	 * 'editor-closed' | 'preview-closed' | 'content-changed' }`. The
+	 * matching `os-editor-preview-closed` CustomEvent
+	 * dispatches on `document` with the same payload.
+	 */
+	EDITOR_PREVIEW_CLOSED: 'os.editor-preview.closed',
+
+	// ------------------------------------------------------------------
+	// OS-file drop manager. Catches files dragged from
 	// the user's host OS (Finder / Explorer / Nautilus) onto any
-	// desktop-mode surface and routes them through a confirmation
+	// openstation surface and routes them through a confirmation
 	// dialog before uploading to the Media Library. Authoritative
 	// constants live in `src/os-file-drop/hooks.ts`; mirrored here so
 	// every hook the shell fires is reachable from a single `HOOKS`
 	// import. See `docs/examples/os-file-drop.md`.
 	// ------------------------------------------------------------------
 	/** Filter — `(files: File[], ctx) => File[]`, before mime/size check. */
-	FILE_DROP_FILES_DETECTED: 'desktop-mode.drop.files-detected',
+	FILE_DROP_FILES_DETECTED: 'os.drop.files-detected',
 	/** Action — `{ rejections, context }` for files that failed policy. */
-	FILE_DROP_FILES_REJECTED: 'desktop-mode.drop.files-rejected',
+	FILE_DROP_FILES_REJECTED: 'os.drop.files-rejected',
 	/** Filter — `(entry, ctx) => entry`, per-file dialog defaults. */
-	FILE_DROP_DIALOG_FIELDS: 'desktop-mode.drop.dialog-fields',
+	FILE_DROP_DIALOG_FIELDS: 'os.drop.dialog-fields',
 	/** Filter — `(payload, ctx) => payload | null`, last call before POST. */
-	FILE_DROP_BEFORE_UPLOAD: 'desktop-mode.drop.before-upload',
-	/** Action — `{ file, fields, context, abort }` once XHR is open and about to send. @since 0.31.0 */
-	FILE_DROP_UPLOAD_STARTED: 'desktop-mode.drop.upload-started',
-	/** Action — `{ file, fields, context, loaded, total, indeterminate }` per progress tick. @since 0.31.0 */
-	FILE_DROP_UPLOAD_PROGRESS: 'desktop-mode.drop.upload-progress',
-	/** Action — `{ file, result, fields, context }` after successful upload. `file` since 0.31.0. */
-	FILE_DROP_AFTER_UPLOAD: 'desktop-mode.drop.after-upload',
+	FILE_DROP_BEFORE_UPLOAD: 'os.drop.before-upload',
+	/** Action — `{ file, fields, context, abort }` once XHR is open and about to send. */
+	FILE_DROP_UPLOAD_STARTED: 'os.drop.upload-started',
+	/** Action — `{ file, fields, context, loaded, total, indeterminate }` per progress tick. */
+	FILE_DROP_UPLOAD_PROGRESS: 'os.drop.upload-progress',
+	/** Action — `{ file, result, fields, context }` after successful upload. */
+	FILE_DROP_AFTER_UPLOAD: 'os.drop.after-upload',
 	/** Action — `{ file, error, context }` on upload failure. */
-	FILE_DROP_UPLOAD_FAILED: 'desktop-mode.drop.upload-failed',
+	FILE_DROP_UPLOAD_FAILED: 'os.drop.upload-failed',
 
 	// ------------------------------------------------------------------
-	// Session / authentication (since 0.9.8). Fired by
+	// Session / authentication. Fired by
 	// `src/auth-recovery/index.ts` when the WordPress login session
 	// expires and when it comes back. Mirrored as document
-	// CustomEvents (`desktop-mode-auth-lost` / `-restored`) for
+	// CustomEvents (`os-auth-lost` / `-restored`) for
 	// listeners outside the hook bus.
 	// ------------------------------------------------------------------
 	/**
@@ -1413,10 +1509,8 @@ export const HOOKS = {
 	 * reported the session as expired. Fires once per outage.
 	 * Pause pollers / mutations here; requests made while the
 	 * session is down will 401.
-	 *
-	 * @since 0.9.8
 	 */
-	AUTH_LOST: 'desktop-mode.auth.lost',
+	AUTH_LOST: 'os.auth.lost',
 	/**
 	 * Action, no payload — the session is authenticated again and
 	 * the shell's cached nonces have been (or are about to be, same
@@ -1425,22 +1519,20 @@ export const HOOKS = {
 	 * without a preceding `AUTH_LOST` when re-auth was detected
 	 * from an iframe or another browser tab before the shell's own
 	 * heartbeat noticed the expiry.
-	 *
-	 * @since 0.9.8
 	 */
-	AUTH_RESTORED: 'desktop-mode.auth.restored',
+	AUTH_RESTORED: 'os.auth.restored',
 } as const;
 
 /**
  * Monotonic counter used to build a unique `addAction` namespace for
- * every `whenReady()` call. Using a fixed namespace (as a pre-0.5.0
+ * every `whenReady()` call. Using a fixed namespace (as an earlier
  * bug did) meant two plugins calling `whenReady()` silently clobbered
  * each other — `wp.hooks.addAction` treats namespace as a de-dup key.
  */
 let _whenReadySeq = 0;
 
 /**
- * Convenience: run `cb` after `desktop-mode.init` has fired, either
+ * Convenience: run `cb` after `os.init` has fired, either
  * immediately (if it already did) or on the next firing. Mirrors the
  * ergonomics of `jQuery(document).ready()` but for our own init
  * signal — a late-enqueued plugin script doesn't miss the boat.
@@ -1461,18 +1553,16 @@ export function whenReady( cb: () => void ): void {
 
 /**
  * Synchronous check: has the shell finished initialising? Returns true
- * after `desktop-mode.init` has fired, false before. Useful for plugin
+ * after `os.init` has fired, false before. Useful for plugin
  * code that wants to branch without scheduling a callback.
  *
  * ```javascript
- * if ( wp.desktop.isReady() ) {
- *     wp.desktop.registerCommand( { ... } );
+ * if ( wp.os.isReady() ) {
+ *     wp.os.registerCommand( { ... } );
  * } else {
- *     wp.desktop.whenReady( () => wp.desktop.registerCommand( { ... } ) );
+ *     wp.os.whenReady( () => wp.os.registerCommand( { ... } ) );
  * }
  * ```
- *
- * @since 0.5.0
  */
 export function isReady(): boolean {
 	return didAction( HOOKS.INIT ) > 0;

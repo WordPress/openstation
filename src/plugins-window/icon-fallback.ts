@@ -1,26 +1,23 @@
 /**
  * Plugins window — icon URL fallback chain.
  *
- * The PHP `desktop_mode_icon_url` REST field returns the wp.org SVG by
- * default (`https://ps.w.org/<slug>/assets/icon.svg`). Plugins on the
- * .org repo ship a mix of formats — SVG, PNG, and animated GIF
- * (Elementor's icons are 128/256 GIFs, for example). A one-shot
- * `<img src>` on the SVG 404s and the row looks iconless even when
- * the asset repo has art in another format. This helper attaches an
- * `error` handler that walks SVG → 256 PNG → 256 GIF → 128 PNG →
- * 128 GIF before giving up and calling `onExhausted`, at which point
- * the caller paints its placeholder.
+ * The PHP `openstation_icon_url` REST field prefers the URL wp.org
+ * itself gave us, and guesses `https://ps.w.org/<slug>/assets/icon.svg`
+ * when that metadata isn't cached yet. This chain is for the guess.
+ * Plugins on the .org repo ship a mix of formats — SVG, PNG, animated
+ * GIF (Elementor), JPEG (Gutenberg, UpdraftPlus). A one-shot
+ * `<img src>` on the SVG 404s and the row looks iconless even when the
+ * asset repo has art in another format, so this helper attaches an
+ * `error` handler that walks the variants before giving up and calling
+ * `onExhausted`, at which point the caller paints its placeholder.
  *
  * Custom URLs (not under `ps.w.org/<slug>/assets/`) bypass the chain —
  * one shot, then placeholder. That matches what the
- * `desktop_mode_plugins_window_icon_url` filter docblock promises and
+ * `openstation_plugins_window_icon_url` filter docblock promises and
  * applies to both auto-detected local-folder icons and explicit
  * filter overrides.
  *
  * @public
- * @since 0.8.5
- * @since 0.8.6 Added `.gif` variants for plugins like Elementor that
- *              ship animated GIF icons on the wp.org SVN.
  */
 
 const WP_ORG_ASSET_RE =
@@ -37,15 +34,18 @@ function buildCandidates( initialUrl: string ): string[] {
 		return [ initialUrl ];
 	}
 	const base = match[ 1 ];
-	// Prefer the larger 256-px variants over the 128 set, and PNG
-	// over GIF within each size — PNG is faster to decode + render
-	// for a 32-px card cell, GIF only matters when that's the only
-	// format the plugin shipped (Elementor, a handful of others).
+	// 256-px variants before the 128 set, and within each size the
+	// likeliest format first — PNG also being the fastest to decode
+	// for a 32-px cell.
 	return [
 		initialUrl,
 		base + 'icon-256x256.png',
+		base + 'icon-256x256.jpg',
+		base + 'icon-256x256.jpeg',
 		base + 'icon-256x256.gif',
 		base + 'icon-128x128.png',
+		base + 'icon-128x128.jpg',
+		base + 'icon-128x128.jpeg',
 		base + 'icon-128x128.gif',
 	];
 }
@@ -56,7 +56,7 @@ function buildCandidates( initialUrl: string ): string[] {
  * caller assigns to `img.src`).
  *
  * @param img         The `<img>` to monitor.
- * @param initialUrl  The URL returned by `desktop_mode_icon_url`.
+ * @param initialUrl  The URL returned by `openstation_icon_url`.
  * @param onExhausted Invoked when every candidate has 404'd — the
  *                    caller should paint its placeholder.
  * @return The URL to assign to `img.src`.

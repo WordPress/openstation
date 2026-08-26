@@ -2,12 +2,11 @@
  * Alphabet Soup — bundle entry.
  *
  * Lazy-loaded by the games framework the first time Alphabet Soup
- * launches. Publishes the game def on `window.desktopModeGames`;
+ * launches. Publishes the game def on `window.openStationGames`;
  * the framework merges the server-registered metadata with the
  * `render` callback + window sizing declared here.
  *
  * @public
- * @since 0.9.8
  */
 
 import { __ } from '../../i18n';
@@ -15,7 +14,7 @@ import type { GameDef } from '../types';
 import { mountAlphabetSoup } from './game';
 
 interface GamesGlobal {
-	desktopModeGames?: Record< string, GameDef | undefined >;
+	openStationGames?: Record< string, GameDef | undefined >;
 }
 
 const def: GameDef = {
@@ -43,5 +42,5 @@ const def: GameDef = {
 };
 
 const globals = window as unknown as GamesGlobal;
-globals.desktopModeGames = globals.desktopModeGames || {};
-globals.desktopModeGames[ def.id ] = def;
+globals.openStationGames = globals.openStationGames || {};
+globals.openStationGames[ def.id ] = def;

@@ -1,19 +1,18 @@
 /**
- * Desktop Mode — PWA install affordance.
+ * OpenStation — PWA install affordance.
  *
- * Registers a persistent system-tile on the dock so the install
- * action is always within reach of the user. Clicking it dispatches
- * the browser's install prompt when the site is currently
- * installable; otherwise it shows a contextual toast.
+ * Offers the install action as a row of the System dock tile's menu.
+ * Choosing it dispatches the browser's install prompt when the site is
+ * currently installable; otherwise it shows a contextual toast.
  *
  * UX policy:
  *
- *   - **Visible whenever installing could be useful.** desktop.ts
- *     registers the tile on boot unless the shell is already running
- *     standalone, and removes it live when the display mode flips to
- *     standalone or `getInstalledRelatedApps()` reports the app
- *     installed; on platforms without those signals (Safari,
- *     Firefox) the tile persists as a fallback. The icon is the
+ *   - **Offered whenever installing could be useful.** desktop.ts
+ *     builds the row unless the shell is already running standalone or
+ *     `getInstalledRelatedApps()` reports the app installed; on
+ *     platforms without those signals (Safari, Firefox) the row
+ *     remains as a fallback. The menu's rows are built on every
+ *     hover, so that answer is re-asked each time. The row is the
  *     *entry point*, not the *trigger*; the trigger is whatever the
  *     browser will let us do when the user clicks.
  *
@@ -26,18 +25,15 @@
  *         user keep using the page; Chrome's heuristic fires the
  *         event after a few seconds of engagement.
  *
- *   - **Survives page reloads.** Because we register from JS each
- *     boot, the tile is present whether or not a prior session ever
- *     saw `beforeinstallprompt`. Plugins reading `listSystemTiles()`
- *     will see it consistently.
+ *   - **Survives page reloads.** The row is built from JS on each
+ *     boot, so it is present whether or not a prior session ever saw
+ *     `beforeinstallprompt`.
  *
- *   - **Safari (iOS / iPadOS)** still gets the icon — clicking shows
+ *   - **Safari (iOS / iPadOS)** still gets the row — choosing it shows
  *     a "your browser doesn't support automatic install" toast;
  *     users use Share → Add to Home Screen for the actual install.
  *     The `apple-mobile-web-app-*` meta tags emitted from PHP make
  *     that work.
- *
- * @since 0.8.0
  */
 
 import { __, sprintf } from '../i18n';
@@ -45,7 +41,7 @@ import type { ToastOptions } from '../toast';
 import { getSwRegistrationStatus } from './sw-register';
 
 /** Stable id for the tile — exported so tests can assert against it. */
-export const PWA_INSTALL_TILE_ID = 'desktop-mode-pwa-install';
+export const PWA_INSTALL_TILE_ID = 'os-pwa-install';
 
 /**
  * Subset of the spec-shaped `BeforeInstallPromptEvent`. Typed locally
@@ -117,13 +113,10 @@ let _deferred: BeforeInstallPromptEvent | null = null;
  * `appinstalled` window listeners so the rest of the module can react
  * to install state changes.
  *
- * Tile registration is **separate** — see {@link getInstallTileDef}.
- * desktop.ts inserts the tile next to the OS Settings tile with the
- * `'core'` rail affinity so it lands on the side dock (Classic
- * layout) or the primary rail (Unified / Spatial), matching where
- * users expect shell-owned affordances. Putting that placement
- * decision in desktop.ts keeps `install.ts` framework-agnostic — it
- * doesn't need to know about `layoutDispatcher` or affinities.
+ * Surfacing the action is **separate** — see {@link getInstallTileDef}.
+ * desktop.ts reads its `title` and `onOpen` into a row of the System
+ * tile's menu, which keeps `install.ts` framework-agnostic: it does
+ * not need to know about `layoutDispatcher`, rails or menus.
  *
  * Idempotent — a second call de-dupes listeners.
  */
@@ -149,7 +142,7 @@ export function installPwaInstallAffordance(
 
 	function _handleBeforeInstall( ev: Event ): void {
 		// `preventDefault` suppresses Chromium's mini-info-bar — we'd
-		// rather route the install through our dock tile than have
+		// rather route the install through the System menu than have
 		// two affordances fighting for the user's attention.
 		ev.preventDefault();
 		_deferred = ev as BeforeInstallPromptEvent;
@@ -170,10 +163,9 @@ export function installPwaInstallAffordance(
 }
 
 /**
- * Build the {@link SystemDockItem} definition for the install tile.
- * desktop.ts hands this to `layoutDispatcher.appendSystemTile` with
- * the `'core'` affinity so the icon lands next to OS Settings on the
- * side dock.
+ * Build the install affordance's definition. `SystemDockItem`-shaped;
+ * desktop.ts reads its `title` and `onOpen` into a row of the System
+ * tile's menu, alongside Preferences and Report a bug.
  */
 export function getInstallTileDef(
 	siteName: string,
@@ -186,11 +178,11 @@ export function getInstallTileDef(
 } {
 	return {
 		id: PWA_INSTALL_TILE_ID,
-		title: sprintf(
-			/* translators: %s: site name */
-			__( 'Install %s as an app' ),
-			siteName,
-		),
+		// No site name: this is a row in the System menu, which is
+		// already unambiguously about this site. Interpolating the
+		// title would also grow the row unbounded, next to rows that
+		// are two or three words.
+		title: __( 'Install web app' ),
 		// Dashicons class — the dock renderer prefers Dashicons
 		// strings. `dashicons-download` is the closest match for
 		// "install" in the WordPress glyph set without shipping
@@ -226,7 +218,7 @@ async function onTileClick(
 		} catch ( err ) {
 			if ( typeof console !== 'undefined' ) {
 				console.warn(
-					'[desktop-mode] install prompt failed:',
+					'[openstation] install prompt failed:',
 					err,
 				);
 			}
@@ -255,7 +247,7 @@ async function onTileClick(
 	if ( getSwRegistrationStatus() === 'foreign-sw' ) {
 		showToast( {
 			message: __(
-				"Install isn't available — another plugin's service worker is active on this site. A site admin can opt in by setting the desktop_mode_pwa_force_replace_sw filter to true.",
+				"Install isn't available — another plugin's service worker is active on this site. A site admin can opt in by setting the openstation_pwa_force_replace_sw filter to true.",
 			),
 		} );
 		return;

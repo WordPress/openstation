@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — placement → tile adapter.
+ * OpenStation — placement → tile adapter.
  *
  * Thin layer over the generic `buildTileFromSpec()` renderer in
  * `tile-spec.ts`. Converts a `RestPlacementShape` into a `TileSpec`,
@@ -11,7 +11,7 @@
  *   - Per-placement `meta.iconUrl` / `meta.name` overrides.
  *   - A lock badge + access-gated toast when the recipient lacks
  *     read permission on the underlying entity.
- *   - Fires the internal `desktop-mode.files.tile-rendered` action
+ *   - Fires the internal `os.files.tile-rendered` action
  *     consumed by `share-menu-items.ts` for the shared-folder
  *     badge overlay.
  *
@@ -19,12 +19,11 @@
  * helper) lives in `tile-spec.ts`. Adding a feature there lights
  * it up on every surface — desktop, folders, My WordPress, plugin
  * windows — without forking the renderer.
- *
- * @since 0.9.0
  */
 
 import { resolveThemedIcon } from '../desktop-themes/icons';
 import { slotForFileType } from '../desktop-themes/slots';
+import { getIconArt } from '../desktop-icons';
 import { applyFilters, doAction } from '../hooks';
 import { resolve as resolveFileType } from './registry';
 import { openFile } from './open';
@@ -45,9 +44,7 @@ export { TILE_CLASS };
  *
  * Exported for the layer's fast-path repaints: they reuse tile DOM
  * instead of rebuilding, so they re-derive the label with this same
- * rule and patch the `<wpd-tile>` `label` attribute in place.
- *
- * @since 0.9.5
+ * rule and patch the `<os-tile>` `label` attribute in place.
  */
 export function placementLabel( placement: RestPlacementShape ): string {
 	const metaName =
@@ -83,16 +80,28 @@ function placementToSpec(
 		// Preview wins over icon (matches the previous behavior).
 		thumbnail: previewUrl || undefined,
 		// Precedence when no preview exists:
-		//   per-placement `meta.iconUrl`  (the user/plugin said so
+		//   live art override         (a rail said so about this tile
+		//                              JUST NOW — the Trash drawn full
+		//                              because it is holding something)
+		//   → per-placement `meta.iconUrl`  (the user/plugin said so
 		//                                  about THIS tile)
 		//   → desktop-theme FILE_* slot   (the theme said so about
 		//                                  this KIND of tile)
 		//   → the file type's own icon.
 		// The per-placement override outranks the theme on purpose:
 		// it is specific, deliberate, and about one object.
+		//
+		// The art override leads because it is the only one describing
+		// the object's current STATE rather than its identity, and
+		// because `setArt` is idempotent: it stores the override and
+		// paints the nodes that exist at the time. A tile built later
+		// has to come and get it, exactly as `Dock.appendSystemItem`
+		// re-applies its own overrides. Without this the wallpaper bin
+		// is drawn empty forever, however full it is.
 		icon: previewUrl
 			? undefined
-			: ( metaIconUrl ||
+			: ( getIconArt( placement.file.ref ) ||
+				metaIconUrl ||
 				resolveThemedIcon( slotForFileType( placement.file.type ) ) ||
 				file.icon() ),
 		x: placement.x,
@@ -108,7 +117,7 @@ function placementToSpec(
 	};
 }
 
-/** Build a `<wpd-tile>` for a single placement. */
+/** Build a `<os-tile>` for a single placement. */
 export function buildTile(
 	placement: RestPlacementShape,
 	folderId: number,
@@ -116,13 +125,13 @@ export function buildTile(
 	const tile = buildTileFromSpec( placementToSpec( placement, folderId ) );
 
 	// Back-compat: placement-shaped class filter. Documented in
-	// docs/files-on-desktop.md since 0.9; third-party plugins rely
+	// docs/files-on-desktop.md; third-party plugins rely
 	// on the exact filter name + the `TILE_CLASS` default input +
-	// the `RestPlacementShape` signature. The `<wpd-tile>` host
+	// the `RestPlacementShape` signature. The `<os-tile>` host
 	// re-asserts `TILE_CLASS` in `_paint()`, so any extra classes
 	// the filter returns ride alongside it.
 	const classFiltered = applyFilters< string, [ RestPlacementShape ] >(
-		'desktop-mode.files.tile-class',
+		'os.files.tile-class',
 		TILE_CLASS,
 		placement,
 	);
@@ -133,7 +142,7 @@ export function buildTile(
 	// Back-compat: placement-shaped extra-element filter. Plugins
 	// returning a non-Element get ignored (same as before).
 	const extra = applyFilters< Element | null, [ RestPlacementShape ] >(
-		'desktop-mode.files.tile-element',
+		'os.files.tile-element',
 		null,
 		placement,
 	);
@@ -173,7 +182,7 @@ export function buildTile(
 	// folder badge on every render. Kept on the placement-shaped
 	// signature so that subscriber doesn't have to re-derive the
 	// placement from the generic spec.
-	doAction( 'desktop-mode.files.tile-rendered', { tile, placement } );
+	doAction( 'os.files.tile-rendered', { tile, placement } );
 	return tile;
 }
 

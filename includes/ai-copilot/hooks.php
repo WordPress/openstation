@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — AI Copilot job-scheduling helpers.
+ * OpenStation — AI Copilot job-scheduling helpers.
  *
  * Provides the async-job scheduler and user-resolution helpers used by the
  * Comments-window moderation feature (see
@@ -14,11 +14,11 @@
  * the AI assistant finds them with native WordPress keyword search instead
  * (see search.php).
  *
- * Deduplication: a 120-second transient (`desktop_mode_ai_q_<md5 of
+ * Deduplication: a 120-second transient (`openstation_ai_q_<md5 of
  * '{type}_{id}'>`) prevents the same comment from being queued twice when
  * WordPress fires the hook multiple times in one request.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -45,14 +45,12 @@ defined( 'ABSPATH' ) || exit;
  * The deduplication transient prevents the same entity from being
  * queued and run twice within the guard window.
  *
- * @since 0.5.0
- *
  * @param string $hook      Cron hook name, e.g. 'desktop_mode_ai_analyze_comment'.
  * @param array  $args      Arguments passed to the hook callback.
  * @param string $dedup_key Unique string used to build the transient key.
  */
-function desktop_mode_ai_schedule_job( $hook, array $args, $dedup_key ) {
-	$transient = 'desktop_mode_ai_q_' . md5( $dedup_key );
+function openstation_ai_schedule_job( $hook, array $args, $dedup_key ) {
+	$transient = 'openstation_ai_q_' . md5( $dedup_key );
 
 	if ( get_transient( $transient ) ) {
 		return; // Already queued within the guard window — skip.
@@ -82,7 +80,7 @@ function desktop_mode_ai_schedule_job( $hook, array $args, $dedup_key ) {
 				fastcgi_finish_request();
 			}
 
-			// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound -- generic dispatcher; caller passes a desktop_mode_* hook name.
+			// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound -- generic dispatcher; caller passes a openstation_* hook name.
 			do_action_ref_array( $hook, $args );
 		},
 		PHP_INT_MAX
@@ -99,12 +97,10 @@ function desktop_mode_ai_schedule_job( $hook, array $args, $dedup_key ) {
  *      anonymous comments, WP-CLI imports, and REST API requests without an
  *      authenticated user context.
  *
- * @since 0.5.0
- *
  * @param int $fallback_user_id Author/owner to try when no current user.
  * @return int User ID, or 0 if none could be found.
  */
-function desktop_mode_ai_resolve_user_id( $fallback_user_id = 0 ) {
+function openstation_ai_resolve_user_id( $fallback_user_id = 0 ) {
 	$uid = get_current_user_id();
 	if ( $uid > 0 ) {
 		return $uid;
@@ -117,7 +113,7 @@ function desktop_mode_ai_resolve_user_id( $fallback_user_id = 0 ) {
 
 	// Last resort: any administrator with the assistant enabled. Scans the
 	// first 20 admins to avoid a full table scan on large sites.
-	return desktop_mode_ai_find_enabled_user();
+	return openstation_ai_find_enabled_user();
 }
 
 /**
@@ -126,11 +122,9 @@ function desktop_mode_ai_resolve_user_id( $fallback_user_id = 0 ) {
  * Used as a last-resort fallback for anonymous comments, WP-CLI imports,
  * and other contexts where no user session is available.
  *
- * @since 0.5.0
- *
  * @return int User ID, or 0 if none found.
  */
-function desktop_mode_ai_find_enabled_user() {
+function openstation_ai_find_enabled_user() {
 	$admin_ids = get_users(
 		array(
 			'role'   => 'administrator',
@@ -140,7 +134,7 @@ function desktop_mode_ai_find_enabled_user() {
 	);
 
 	foreach ( $admin_ids as $uid ) {
-		if ( desktop_mode_ai_is_enabled( (int) $uid ) ) {
+		if ( openstation_ai_is_enabled( (int) $uid ) ) {
 			return (int) $uid;
 		}
 	}

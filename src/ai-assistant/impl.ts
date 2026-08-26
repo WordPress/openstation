@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — AI Assistant spotlight overlay.
+ * OpenStation — AI Assistant spotlight overlay.
  *
  * A conversational assistant panel opened with Cmd+K. The user types any
  * natural-language request — "find my post about Málaga", "where can I
@@ -7,20 +7,22 @@
  * agent loop picks the right tools and returns one of three answer types:
  *
  *   - entity:     a matching post / page / comment; opens in a legacy
- *                 (iframe) window via wp.desktop.windowManager.open().
+ *                 (iframe) window via wp.os.windowManager.open().
  *   - navigation: 1-3 wp-admin destinations; each opens in a legacy
  *                 window on click.
  *   - chat:       a plain conversational message; just rendered as text.
  *
  * The overlay stays open until the user explicitly closes it with the ×
  * button, the Escape key, or Cmd+K again.
- *
- * @since 0.8.4
  */
 
 import { HOOKS, doAction, applyFilters } from '../hooks';
-import { wpdConfirm } from '../wpd-confirm';
+import { __, _x, sprintf } from '../i18n';
+import { osConfirm } from '../os-confirm';
 import { trackedFetch } from '../tracked-fetch';
+import { decodeHTML } from '../utils';
+import { OS_SITE_LOGO_SVG } from '../ui/site-logo-icon';
+import { osIconSvg } from '../ui/icons';
 import {
 	filterCommands,
 	findCommand,
@@ -35,145 +37,44 @@ import {
 } from '../commands';
 
 // ---------------------------------------------------------------------------
-// Minimal Markdown renderer
-// ---------------------------------------------------------------------------
-//
-// AI responses arrive with basic markdown — **bold**, *italic*, `code`,
-// bullet / ordered lists, and [link](url) tokens. WordPress has no
-// built-in JS markdown parser and pulling in a library just for this
-// would add ~40 kB, so we hand-roll a minimal subset that covers the
-// shapes the agent actually emits.
-//
-// Safety: every input passes through HTML escaping FIRST, then markdown
-// tokens are re-interpreted into safe HTML. URLs are filtered to
-// http/https only — no javascript:, data:, or vbscript: links reach
-// the DOM. Result is safe to set as innerHTML.
-//
-// Intentionally NOT supported (to keep it minimal):
-//   - fenced code blocks (```)
-//   - headings (# ## ###)
-//   - tables, blockquotes, images, nested lists
-//
-// If the agent produces any of those they'll appear as literal text —
-// harmless. The system prompt steers toward short, conversational
-// responses where these don't typically appear.
-
-/** HTML-escape text for safe interpolation into innerHTML contexts. */
-function escapeHtmlForMd( s: string ): string {
-	return s
-		.replace( /&/g, '&amp;' )
-		.replace( /</g, '&lt;' )
-		.replace( />/g, '&gt;' )
-		.replace( /"/g, '&quot;' );
-}
-
-/** Apply inline markdown tokens to an already-escaped string. */
-function renderInlineMd( s: string ): string {
-	return s
-		// Links [text](url) — must run first so URLs don't get
-		// interpreted as other tokens. Reject non-http(s) schemes.
-		.replace(
-			/\[([^\]]+)\]\(([^)]+)\)/g,
-			( _m, label: string, url: string ) => {
-				if ( ! /^https?:\/\//i.test( url.trim() ) ) {
-					return label;
-				}
-				return `<a href="${ url.trim() }" target="_blank" rel="noopener noreferrer">${ label }</a>`;
-			},
-		)
-		// Bold **text** — run before italic so ** doesn't partially match *.
-		.replace( /\*\*([^*\n]+?)\*\*/g, '<strong>$1</strong>' )
-		// Italic *text* (single asterisk, word-boundary guarded).
-		.replace( /(?<![*\w])\*([^*\n]+?)\*(?![*\w])/g, '<em>$1</em>' )
-		// Italic _text_.
-		.replace( /(?<![_\w])_([^_\n]+?)_(?![_\w])/g, '<em>$1</em>' )
-		// Inline code `snippet`.
-		.replace( /`([^`\n]+?)`/g, '<code>$1</code>' );
-}
-
-/**
- * Render a short markdown string to safe HTML.
- *
- * @param md Raw markdown-ish text (typically an AI response).
- * @return HTML string, safe to set via innerHTML.
- */
-function renderMarkdown( md: string ): string {
-	if ( ! md ) {
-		return '';
-	}
-
-	// Escape first so user / model text can't inject markup.
-	const safe = escapeHtmlForMd( md );
-
-	// Split into paragraph blocks on blank lines.
-	const blocks = safe.split( /\n\s*\n/ );
-	const out: string[] = [];
-
-	for ( const raw of blocks ) {
-		const lines = raw.split( /\n/ ).map( ( l ) => l.trim() ).filter( ( l ) => l !== '' );
-		if ( lines.length === 0 ) {
-			continue;
-		}
-
-		const isUL = lines.every( ( l ) => /^[-*]\s+/.test( l ) );
-		const isOL = lines.every( ( l ) => /^\d+\.\s+/.test( l ) );
-
-		if ( isUL ) {
-			const items = lines.map(
-				( l ) => `<li>${ renderInlineMd( l.replace( /^[-*]\s+/, '' ) ) }</li>`,
-			);
-			out.push( `<ul>${ items.join( '' ) }</ul>` );
-		} else if ( isOL ) {
-			const items = lines.map(
-				( l ) => `<li>${ renderInlineMd( l.replace( /^\d+\.\s+/, '' ) ) }</li>`,
-			);
-			out.push( `<ol>${ items.join( '' ) }</ol>` );
-		} else {
-			// Paragraph. Single \n inside a paragraph becomes <br>.
-			out.push( `<p>${ renderInlineMd( lines.join( '<br>' ) ) }</p>` );
-		}
-	}
-
-	return out.join( '' );
-}
-
-// ---------------------------------------------------------------------------
 // SVG icons
 // ---------------------------------------------------------------------------
 
-const ICON_SPARKLE = `<svg viewBox="0 0 20 20" width="15" height="15" aria-hidden="true" focusable="false" fill="currentColor">
-	<path d="M10 2 L11.8 7.8 L17.5 9.5 L11.8 11.2 L10 17 L8.2 11.2 L2.5 9.5 L8.2 7.8 Z"/>
-</svg>`;
+// The Copilot sparkle is OpenStation's own: two four-point stars, the
+// brand mark, and the one glyph on this surface that has to be ours
+// rather than WordPress's.
+const ICON_SPARKLE = osIconSvg( 'copilot', { size: 16 } );
 
-const ICON_CLOSE = `<svg viewBox="0 0 14 14" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false">
-	<line x1="2" y1="2" x2="12" y2="12"/>
-	<line x1="12" y1="2" x2="2" y2="12"/>
-</svg>`;
+const ICON_CLOSE = osIconSvg( 'close', { size: 16 } );
 
+const ICON_ARROW = osIconSvg( 'chevron-right', { size: 16 } );
+
+// Magnifier shown in Commands mode where the sparkle would read as "AI".
+const ICON_SEARCH = osIconSvg( 'search', { size: 16 } );
+
+/*
+ * The two below stay hand-drawn: neither the return key nor a spinning
+ * arc has a member in the thirty. The Return glyph is a keycap hint
+ * rather than an icon, and a spinner is motion, so both are part of
+ * the surface that draws them.
+ */
 const ICON_RETURN = `<svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
 	<polyline points="14,4 14,10 3,10"/>
 	<polyline points="6,7 3,10 6,13"/>
 </svg>`;
 
-const ICON_SPINNER = `<svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="desktop-mode-ai__spinner-icon">
+const ICON_SPINNER = `<svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="os-ai__spinner-icon">
 	<circle cx="10" cy="10" r="7" stroke-opacity="0.25"/>
 	<path d="M10 3 A7 7 0 0 1 17 10" stroke-opacity="1"/>
 </svg>`;
 
-const ICON_ARROW = `<svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-	<polyline points="6,3 11,8 6,13"/>
-</svg>`;
-
-// Magnifier shown in Commands mode where the sparkle would read as "AI".
-const ICON_SEARCH = `<svg viewBox="0 0 20 20" width="15" height="15" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-	<circle cx="9" cy="9" r="6"/>
-	<line x1="13.5" y1="13.5" x2="18" y2="18"/>
-</svg>`;
-
-// `siteLogo` from @wordpress/icons — the modal's title glyph.
-const ICON_SITE_LOGO = `<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true" focusable="false">
-	<path d="M12 4c-4.4 0-8 3.6-8 8s3.6 8 8 8 8-3.6 8-8-3.6-8-8-8Zm0 1.5c3.4 0 6.2 2.7 6.5 6l-1.2-.6-.8-.4c-.1 0-.2 0-.3-.1H16c-.1-.2-.4-.2-.7 0l-2.9 2.1L9 11.3h-.7L5.5 13v-1.1c0-3.6 2.9-6.5 6.5-6.5Zm0 13c-2.7 0-5-1.7-6-4l2.8-1.7 3.5 1.2h.4s.2 0 .4-.2l2.9-2.1.4.2c.6.3 1.4.7 2.1 1.1-.5 3.1-3.2 5.4-6.4 5.4Z"/>
-</svg>`;
+// `siteLogo` from @wordpress/icons — the modal's title glyph, and the
+// mark on the assistant's dock tile. Shared from `ui/site-logo-icon`
+// so the two cannot drift; sized here, where it sits in a header row.
+const ICON_SITE_LOGO = OS_SITE_LOGO_SVG.replace(
+	'<svg ',
+	'<svg width="18" height="18" aria-hidden="true" focusable="false" ',
+);
 
 // ---------------------------------------------------------------------------
 // Types
@@ -182,6 +83,7 @@ const ICON_SITE_LOGO = `<svg viewBox="0 0 24 24" width="18" height="18" fill="cu
 export type { AiAssistantApi, AiAssistantConfig } from './types';
 import type { AiAssistantApi, AiAssistantConfig } from './types';
 import type { AskFn } from '../ai/ask';
+import { renderMarkdown } from '../markdown';
 
 type AnswerType = 'entity' | 'navigation' | 'chat';
 
@@ -236,9 +138,9 @@ interface WindowManagerLite {
 	} ): unknown;
 }
 
-// Subset of `wp.desktop.*` we read at runtime. Both `windowManager` and
+// Subset of `wp.os.*` we read at runtime. Both `windowManager` and
 // `deriveWindowId` ship together (initialised by the shell bundle's
-// `setupDesktopMode()`), so when one is present the other is too.
+// `setupOpenStation()`), so when one is present the other is too.
 interface DesktopShellLite {
 	windowManager?: WindowManagerLite;
 	deriveWindowId?: ( url: string, adminUrl?: string ) => string;
@@ -250,12 +152,18 @@ interface DesktopShellLite {
 // Kept short so the panel stays compact.
 // ---------------------------------------------------------------------------
 
-const SUGGESTED_PROMPTS = [
-	'Find my post about…',
-	'Where can I see categories?',
-	'Do I have any spam comments?',
-	'Take me to plugin settings',
-];
+/**
+ * A function rather than a const array so the `__()` calls run at render
+ * time (and so the extract-pot pass still sees plain string literals).
+ */
+function suggestedPrompts(): string[] {
+	return [
+		__( 'Find my post about…' ),
+		__( 'Where can I see categories?' ),
+		__( 'Do I have any spam comments?' ),
+		__( 'Take me to plugin settings' ),
+	];
+}
 
 // ---------------------------------------------------------------------------
 // AiAssistant class
@@ -271,16 +179,14 @@ export class AiAssistant implements AiAssistantApi {
 	private _isSearching = false;
 	private _previousFocus: Element | null = null;
 	private _aiSearchUrl: string;
-	private _aiSearchStreamUrl: string;
 	private _restNonce: string;
-	private _currentStream: EventSource | null = null;
 	/**
-	 * Reads the user's preferred live-progress transport from OS Settings.
-	 * Defaults to `'off'` when the shell hasn't wired one in — the
-	 * conservative choice for hosts that may block SSE.
+	 * Aborts the in-flight search. Closing the panel or starting a new
+	 * query drops the previous answer rather than letting it land in a
+	 * closed overlay, steal focus, or race the newer one.
 	 */
-	private _getTransport: () => 'sse' | 'off';
-
+	private _searchAbort: AbortController | null = null;
+	private _adminUrl: string;
 	/** Live: is AI mode usable (APIs present + provider configured)? */
 	private _isAiAvailable: () => boolean;
 	/** Live: is the "Override…" toggle on (default to AI mode)? */
@@ -300,6 +206,8 @@ export class AiAssistant implements AiAssistantApi {
 	 * (switching to Commands replaces the results DOM).
 	 */
 	private _lastAiResult: { query: string; data: SearchResult } | null = null;
+	private _currentRemoteCommands: DesktopCommand[] = [];
+	private _remoteSearchToken = 0;
 
 	/** Index of the highlighted command in the filtered list (keyboard nav). */
 	private _selectedCommand = 0;
@@ -321,19 +229,18 @@ export class AiAssistant implements AiAssistantApi {
 
 	constructor( config: AiAssistantConfig ) {
 		this._aiSearchUrl = config.aiSearchUrl;
-		this._aiSearchStreamUrl = config.aiSearchStreamUrl;
 		this._restNonce = config.restNonce;
-		this._getTransport = config.getTransport ?? ( () => 'off' );
+		this._adminUrl = config.adminUrl;
 		this._isAiAvailable = config.isAiAvailable ?? ( () => false );
 		this._isOverrideEnabled = config.isOverrideEnabled ?? ( () => false );
 
 		this._el = this._buildDOM();
 		document.body.appendChild( this._el );
 
-		this._input = this._el.querySelector( '.desktop-mode-ai__input' )!;
-		this._submitBtn = this._el.querySelector( '.desktop-mode-ai__submit' )!;
-		this._closeBtn = this._el.querySelector( '.desktop-mode-ai__close' )!;
-		this._resultsEl = this._el.querySelector( '.desktop-mode-ai__results' )!;
+		this._input = this._el.querySelector( '.os-ai__input' )!;
+		this._submitBtn = this._el.querySelector( '.os-ai__submit' )!;
+		this._closeBtn = this._el.querySelector( '.os-ai__close' )!;
+		this._resultsEl = this._el.querySelector( '.os-ai__results' )!;
 
 		this._bindEvents();
 		this._renderSuggestions();
@@ -375,6 +282,8 @@ export class AiAssistant implements AiAssistantApi {
 		this._input.value = '';
 		this._modeInput = { commands: '', ai: '' };
 		this._lastAiResult = null;
+		this._currentRemoteCommands = [];
+		this._remoteSearchToken++;
 		this._selectedCommand = 0;
 		this._submitBtn.classList.remove( 'has-value' );
 		// Open in the mode the "Override…" toggle asks for: AI when it's
@@ -391,6 +300,17 @@ export class AiAssistant implements AiAssistantApi {
 		this._el.classList.add( 'is-open' );
 		this._el.setAttribute( 'aria-hidden', 'false' );
 
+		// Announce visibility so palette-gated work (the iframe command
+		// harvester) starts. Dispatched inline rather than via the
+		// palette registry's notifyPaletteVisibility — this bundle
+		// deliberately doesn't import the registry module, and the
+		// consumers treat the event as an idempotent signal anyway.
+		document.dispatchEvent(
+			new CustomEvent( 'os-palette-opened', {
+				detail: { id: 'desktop-mode-ai-assistant' },
+			} ),
+		);
+
 		requestAnimationFrame( () => this._input.focus() );
 	}
 
@@ -401,12 +321,20 @@ export class AiAssistant implements AiAssistantApi {
 		this._isOpen = false;
 		this._el.classList.remove( 'is-open' );
 		this._el.setAttribute( 'aria-hidden', 'true' );
-		// Abort any in-flight streaming request so we don't keep an open
-		// HTTP connection to the server after the user closes the panel.
-		this._closeStream();
+		this._abortSearch();
 		this._isSearching = false;
 		this._submitBtn.disabled = false;
 		this._input.disabled = false;
+
+		// Mirror of the `os-palette-opened` dispatch in `open()` —
+		// lets palette-gated work (the iframe command harvester) shut
+		// down. Consumers grace-delay teardown, so dispatching before
+		// a picked command's `run()` executes is safe.
+		document.dispatchEvent(
+			new CustomEvent( 'os-palette-closed', {
+				detail: { id: 'desktop-mode-ai-assistant' },
+			} ),
+		);
 
 		const onEnd = ( e: TransitionEvent ) => {
 			if ( e.target !== this._el || e.propertyName !== 'opacity' ) {
@@ -436,13 +364,11 @@ export class AiAssistant implements AiAssistantApi {
 	/**
 	 * Programmatic Copilot entry point. Injected by `desktop.ts` via
 	 * {@link attachAsk} after the shell config is ready so plugins
-	 * can `wp.desktop.ai.ask( '…' )` without poking the DOM.
-	 *
-	 * @since 0.8.4
+	 * can `wp.os.ai.ask( '…' )` without poking the DOM.
 	 */
 	public ask: AskFn = () => {
 		throw new Error(
-			'[desktop-mode] wp.desktop.ai.ask called before the shell finished booting.',
+			'[openstation] wp.os.ai.ask called before the shell finished booting.',
 		);
 	};
 
@@ -504,7 +430,7 @@ export class AiAssistant implements AiAssistantApi {
 	/** Reflect the active mode on the switch + input placeholder + input icon. */
 	private _updateModeUI(): void {
 		const showSwitch = this._aiModeAllowed();
-		const sw = this._el.querySelector< HTMLElement >( '.desktop-mode-ai__modes' );
+		const sw = this._el.querySelector< HTMLElement >( '.os-ai__modes' );
 		if ( sw ) {
 			sw.hidden = ! showSwitch;
 			sw.querySelectorAll< HTMLButtonElement >( '[data-mode]' ).forEach( ( b ) => {
@@ -514,11 +440,11 @@ export class AiAssistant implements AiAssistantApi {
 			} );
 		}
 		this._input.placeholder =
-			this._mode === 'ai' ? 'How can I help?' : 'Search commands…';
+			this._mode === 'ai' ? __( 'How can I help?' ) : __( 'Search commands…' );
 		// The input glyph hints the mode: sparkle for AI, magnifier for
 		// Commands (where a sparkle would read as "AI").
 		const inputIcon = this._el.querySelector< HTMLElement >(
-			'.desktop-mode-ai__input-icon',
+			'.os-ai__input-icon',
 		);
 		if ( inputIcon ) {
 			inputIcon.innerHTML = this._mode === 'ai' ? ICON_SPARKLE : ICON_SEARCH;
@@ -552,11 +478,11 @@ export class AiAssistant implements AiAssistantApi {
 			);
 		}
 		if ( this._mode === 'ai' ) {
-			// AI mode only pins the contextual commands on empty input.
 			return this._sortCommands( listEagerCommands() );
 		}
 		const q = this._input.value.trim();
-		return this._sortCommands( q === '' ? listCommands() : filterCommands( q ) );
+		const local = this._sortCommands( q === '' ? listCommands() : filterCommands( q ) );
+		return [ ...local, ...this._currentRemoteCommands ];
 	}
 
 	/** Run a picked command, or lock it in for args when it takes them. */
@@ -591,7 +517,7 @@ export class AiAssistant implements AiAssistantApi {
 			return;
 		}
 		// A shown AI answer stays put for follow-up edits.
-		if ( this._resultsEl.querySelector( '.desktop-mode-ai__bubble' ) ) {
+		if ( this._resultsEl.querySelector( '.os-ai__bubble' ) ) {
 			return;
 		}
 		if ( hasEager ) {
@@ -599,7 +525,7 @@ export class AiAssistant implements AiAssistantApi {
 		} else {
 			// No pinned commands and no answer — clear a stale suggestions hint.
 			const showingSuggestions = this._resultsEl.querySelector(
-				'.desktop-mode-ai__suggestions',
+				'.os-ai__suggestions',
 			);
 			if ( showingSuggestions ) {
 				this._resultsEl.innerHTML = '';
@@ -636,7 +562,7 @@ export class AiAssistant implements AiAssistantApi {
 			const target = e.target;
 			if (
 				! ( target instanceof Element ) ||
-				! target.closest( '.desktop-mode-ai__panel' )
+				! target.closest( '.os-ai__panel' )
 			) {
 				this.close();
 			}
@@ -666,14 +592,14 @@ export class AiAssistant implements AiAssistantApi {
 		// assistant stays independent of the registry module's import
 		// graph — the shell wires up the real close-others-first
 		// routing in desktop.ts via openPalette.
-		document.addEventListener( 'desktop-mode-open-ai', () => this.open() );
+		document.addEventListener( 'os-open-ai', () => this.open() );
 
 		// Close button.
 		this._closeBtn.addEventListener( 'click', () => this.close() );
 
 		// Mode switch (Commands ↔ AI) — replaces the `/` shortcut.
 		this._el
-			.querySelectorAll< HTMLButtonElement >( '.desktop-mode-ai__mode' )
+			.querySelectorAll< HTMLButtonElement >( '.os-ai__mode' )
 			.forEach( ( b ) => {
 				b.addEventListener( 'click', () =>
 					this._setMode(
@@ -730,7 +656,8 @@ export class AiAssistant implements AiAssistantApi {
 					e.preventDefault();
 					if ( matches.length === 0 ) {
 						if ( parsed.isCommand ) {
-							this._showError( `Unknown command: /${ parsed.slug }` );
+							/* translators: %s: command slug, without the leading slash. */
+							this._showError( sprintf( __( 'Unknown command: /%s' ), parsed.slug ) );
 						}
 						// Commands mode with no match: nothing to run.
 						return;
@@ -804,6 +731,17 @@ export class AiAssistant implements AiAssistantApi {
 			// changes — typing resets you to the top of the list.
 			this._selectedCommand = 0;
 			this._selectedSuggestion = 0;
+
+			const parsed = parseCommandInput( this._input.value );
+			const q = this._input.value.trim();
+
+			if ( ! parsed.isCommand && this._mode === 'commands' && q.length > 0 ) {
+				void this._fetchRemoteCommands( q );
+			} else {
+				this._currentRemoteCommands = [];
+				this._remoteSearchToken++;
+			}
+
 			// Commands mode filters the registry live; AI mode keeps prior
 			// results while typing a question (see `_renderForMode`).
 			this._renderForMode();
@@ -817,9 +755,9 @@ export class AiAssistant implements AiAssistantApi {
 		this._resultsEl.addEventListener( 'mousemove', () => {
 			if ( this._keyboardNav ) {
 				this._keyboardNav = false;
-				const list = this._resultsEl.querySelector( '.desktop-mode-ai__cmd-list' );
+				const list = this._resultsEl.querySelector( '.os-ai__cmd-list' );
 				if ( list ) {
-					list.classList.remove( 'desktop-mode-ai__cmd-list--kb-nav' );
+					list.classList.remove( 'os-ai__cmd-list--kb-nav' );
 				}
 			}
 		} );
@@ -855,7 +793,8 @@ export class AiAssistant implements AiAssistantApi {
 		if ( parsed.isCommand ) {
 			const cmd = findCommand( parsed.slug );
 			if ( ! cmd ) {
-				this._showError( `Unknown command: /${ parsed.slug }` );
+				/* translators: %s: command slug, without the leading slash. */
+				this._showError( sprintf( __( 'Unknown command: /%s' ), parsed.slug ) );
 				return;
 			}
 			await this._runCommand( cmd, parsed.args );
@@ -877,7 +816,7 @@ export class AiAssistant implements AiAssistantApi {
 		}
 
 		// ----- before-run filter ----------------------------------------
-		// Plugins can subscribe to desktop-mode.command.before-run and
+		// Plugins can subscribe to os.command.before-run and
 		// return `{ proceed: false, reason }` to short-circuit
 		// destructive or gated commands. Useful for capability checks
 		// the command author shouldn't have to repeat in every handler.
@@ -892,7 +831,9 @@ export class AiAssistant implements AiAssistantApi {
 		} );
 		if ( gate && gate.proceed === false ) {
 			this._showError(
-				gate.reason ?? `Command /${ cmd.slug } was cancelled.`,
+				gate.reason ??
+					/* translators: %s: command slug, without the leading slash. */
+					sprintf( __( 'Command /%s was cancelled.' ), cmd.slug ),
 			);
 			return;
 		}
@@ -900,7 +841,8 @@ export class AiAssistant implements AiAssistantApi {
 		this._isSearching = true;
 		this._submitBtn.disabled = true;
 		this._input.disabled = true;
-		this._showThinking( `Running /${ cmd.slug }…` );
+		/* translators: %s: command slug, without the leading slash. */
+		this._showThinking( sprintf( __( 'Running /%s…' ), cmd.slug ) );
 
 		const ctx: CommandContext = {
 			// Command-initiated close: skip the previousFocus restore.
@@ -933,7 +875,10 @@ export class AiAssistant implements AiAssistantApi {
 			} );
 		} catch ( err ) {
 			const msg = err instanceof Error ? err.message : String( err );
-			this._showError( `Command /${ cmd.slug } failed: ${ msg }` );
+			this._showError(
+				/* translators: 1: command slug, without the leading slash. 2: error message. */
+				sprintf( __( 'Command /%1$s failed: %2$s' ), cmd.slug, msg ),
+			);
 			doAction( HOOKS.COMMAND_ERROR, {
 				slug: cmd.slug,
 				args,
@@ -949,13 +894,13 @@ export class AiAssistant implements AiAssistantApi {
 	}
 
 	/**
-	 * Default `ctx.confirm()` — uses the framework `<wpd-confirm-dialog>`
+	 * Default `ctx.confirm()` — uses the framework `<os-confirm-dialog>`
 	 * so the prompt matches the rest of the desktop visually. Plugins
 	 * can swap in their own implementation; the Promise<boolean>
 	 * contract is stable.
 	 */
 	private _confirm( message: string, details?: string ): Promise< boolean > {
-		return wpdConfirm( {
+		return osConfirm( {
 			title: details ? message : undefined,
 			message: details ?? message,
 		} );
@@ -1017,117 +962,32 @@ export class AiAssistant implements AiAssistantApi {
 		this._isSearching = true;
 		this._submitBtn.disabled = true;
 		this._input.disabled = true;
-		this._showThinking( 'Thinking…' );
+		this._showThinking( __( 'Thinking…' ) );
 
-		// Two transports, picked by the user in OS Settings → AI Settings:
-		//   - 'sse' — real-time progress ticks via EventSource. Preferred
-		//     UX, but some hosts (locked-down shared environments,
-		//     buffering proxies) drop the stream and surface as "Lost
-		//     connection to the assistant". Power users opt in.
-		//   - 'off' (default) — single REST request. No progress ticks;
-		//     the user sees "Thinking…" until the final answer. Reliable
-		//     everywhere.
-		// We additionally fall back to fetch when EventSource is missing
-		// or PHP didn't provision a stream URL, so an SSE pick on a host
-		// that can't actually run it still degrades gracefully.
-		const useSse =
-			this._getTransport() === 'sse' &&
-			typeof EventSource !== 'undefined' &&
-			!! this._aiSearchStreamUrl;
-		if ( useSse ) {
-			this._runSearchStream( query, resumeTool, startOffset );
-		} else {
-			this._runSearchFetch( query, resumeTool, startOffset );
-		}
+		void this._runSearchRequest( query, resumeTool, startOffset );
 	}
 
 	/**
-	 * EventSource-based streaming — the preferred path. Shows real-time
-	 * progress messages as the agent picks tools and runs them.
+	 * Runs the search as a single REST request. The user sees "Thinking…"
+	 * until the answer lands.
 	 */
-	private _runSearchStream(
-		query: string,
-		resumeTool: string | null,
-		startOffset: number,
-	): void {
-		const url = new URL( this._aiSearchStreamUrl, window.location.origin );
-		url.searchParams.set( 'nonce', this._restNonce );
-		url.searchParams.set( 'query', query );
-		if ( resumeTool ) {
-			url.searchParams.set( 'resume_tool', resumeTool );
-			url.searchParams.set( 'start_offset', String( startOffset ) );
+	/** Cancel the in-flight search, if any. */
+	private _abortSearch(): void {
+		if ( this._searchAbort ) {
+			this._searchAbort.abort();
+			this._searchAbort = null;
 		}
-
-		this._closeStream();
-		const es = new EventSource( url.toString() );
-		this._currentStream = es;
-
-		const finish = () => {
-			es.close();
-			this._currentStream = null;
-			this._isSearching = false;
-			this._submitBtn.disabled = false;
-			this._input.disabled = false;
-			this._input.focus();
-		};
-
-		es.onmessage = ( ev ) => {
-			let data: {
-				event?: string;
-				message?: string;
-				code?: string;
-				result?: SearchResult;
-			};
-			try {
-				data = JSON.parse( ev.data );
-			} catch {
-				return;
-			}
-			if ( ! data || typeof data !== 'object' ) {
-				return;
-			}
-
-			switch ( data.event ) {
-				case 'open':
-					// Connection established — keep the initial "Thinking…".
-					break;
-				case 'progress':
-					if ( typeof data.message === 'string' ) {
-						this._showThinking( data.message );
-					}
-					break;
-				case 'done':
-					if ( data.result ) {
-						this._showResult( query, data.result );
-					}
-					finish();
-					break;
-				case 'error':
-					this._showError( data.message ?? 'Something went wrong.', data.code );
-					finish();
-					break;
-			}
-		};
-
-		es.onerror = () => {
-			// Connection dropped mid-stream. If we never received 'done'
-			// we need to show a user-visible error, otherwise the user
-			// would stare at a stale "Thinking…".
-			if ( this._currentStream === es ) {
-				this._showError( 'Lost connection to the assistant. Please try again.' );
-				finish();
-			}
-		};
 	}
 
-	/**
-	 * Legacy fetch path — used when EventSource is not available.
-	 */
-	private async _runSearchFetch(
+	private async _runSearchRequest(
 		query: string,
 		resumeTool: string | null,
 		startOffset: number,
 	): Promise<void> {
+		this._abortSearch();
+		const controller = new AbortController();
+		this._searchAbort = controller;
+
 		try {
 			const body: Record<string, unknown> = { query };
 			if ( resumeTool ) {
@@ -1144,34 +1004,116 @@ export class AiAssistant implements AiAssistantApi {
 						'X-WP-Nonce': this._restNonce,
 					},
 					body: JSON.stringify( body ),
+					signal: controller.signal,
 				},
 				{ source: 'desktop-mode/ai-search' },
 			);
+
+			if ( controller.signal.aborted ) {
+				return;
+			}
 
 			if ( ! res.ok ) {
 				const err = await res.json().catch( () => ( {} ) ) as {
 					message?: string;
 					code?: string;
+					data?: { settings_tab?: string };
 				};
-				this._showError( err.message ?? `Server returned ${ res.status }`, err.code );
+				this._showError(
+					err.message ??
+						/* translators: %d: HTTP status code. */
+						sprintf( __( 'Server returned %d' ), res.status ),
+					err.data?.settings_tab,
+				);
 				return;
 			}
 
 			this._showResult( query, await res.json() as SearchResult );
 		} catch {
-			this._showError( 'Network error — please check your connection and try again.' );
+			// An abort is us, not the network.
+			if ( ! controller.signal.aborted ) {
+				this._showError(
+					__( 'Network error — please check your connection and try again.' ),
+				);
+			}
 		} finally {
-			this._isSearching = false;
-			this._submitBtn.disabled = false;
-			this._input.disabled = false;
-			this._input.focus();
+			// Only the newest request owns the input state. A superseded or
+			// aborted one must not re-enable a panel that has moved on, and
+			// must not pull focus back.
+			if ( this._searchAbort === controller ) {
+				this._searchAbort = null;
+				this._isSearching = false;
+				this._submitBtn.disabled = false;
+				this._input.disabled = false;
+				this._input.focus();
+			}
 		}
 	}
 
-	private _closeStream(): void {
-		if ( this._currentStream ) {
-			this._currentStream.close();
-			this._currentStream = null;
+	/**
+	 * Fetch posts/pages via `/wp/v2/search` and store as pickable
+	 * command items. 200 ms debounce + token-based staleness guard.
+	 * Only fires in Commands mode.
+	 */
+	private async _fetchRemoteCommands( query: string ): Promise<void> {
+		const token = ++this._remoteSearchToken;
+		try {
+			// Debounce typing
+			await new Promise( ( resolve ) => setTimeout( resolve, 200 ) );
+			if ( token !== this._remoteSearchToken ) {
+				return;
+			}
+
+			const res = await trackedFetch(
+				`/wp-json/wp/v2/search?search=${ encodeURIComponent( query ) }&subtype=post,page`,
+				{
+					headers: { 'X-WP-Nonce': this._restNonce },
+				},
+				{ silent: true },
+			);
+
+			if ( ! res.ok ) {
+				return;
+			}
+
+			const items = ( await res.json().catch( () => [] ) ) as Array<{
+				id: number;
+				title: string;
+				subtype: string;
+				url: string;
+			}>;
+
+			if ( token !== this._remoteSearchToken ) {
+				return;
+			}
+
+			this._currentRemoteCommands = items.map( ( item ) => {
+				const isPage = item.subtype === 'page';
+				const editUrl = new URL( 'post.php', this._adminUrl );
+				editUrl.searchParams.set( 'post', String( item.id ) );
+				editUrl.searchParams.set( 'action', 'edit' );
+				const href = editUrl.toString();
+				const title = decodeHTML( item.title || __( '(No title)' ) );
+				const icon = isPage ? 'dashicons-admin-page' : 'dashicons-admin-post';
+
+				return {
+					slug: `post-${ item.id }`,
+					label: title,
+					description: this._entityTypeLabel( isPage ? 'page' : 'post' ),
+					icon,
+					eager: false,
+					run: ( _args, ctx ) => {
+						ctx.openInWindow( href, title, icon );
+					},
+				};
+			} );
+
+			// Re-render so new matches appear in Commands mode.
+			if ( this._isOpen ) {
+				this._renderForMode();
+			}
+		} catch ( err ) {
+			// Ignore network errors for background search
 		}
 	}
 
@@ -1182,23 +1124,23 @@ export class AiAssistant implements AiAssistantApi {
 
 	private _getDesktopShell(): DesktopShellLite | null {
 		const shell = ( window as unknown as {
-			wp?: { desktop?: DesktopShellLite };
-		} ).wp?.desktop;
+			wp?: { os?: DesktopShellLite };
+		} ).wp?.os;
 		return shell ?? null;
 	}
 
 	/**
-	 * Open OS Settings on the Features tab so the user can turn the
-	 * assistant on in one click from the "assistant is off" error state.
-	 * Closes the assistant first so the settings window isn't hidden behind
-	 * it, and drops the stored focus target so closing doesn't bounce
-	 * focus back to the launcher away from the settings window.
+	 * Open OpenStation Preferences on the tab the server named, so the user
+	 * can turn the assistant on in one click from the "assistant is off"
+	 * error state. Closes the assistant first so the settings window isn't
+	 * hidden behind it, and drops the stored focus target so closing doesn't
+	 * bounce focus back to the launcher away from the settings window.
 	 */
-	private _openAssistantSettings(): void {
+	private _openAssistantSettings( tabId: string ): void {
 		const shell = this._getDesktopShell();
 		this._previousFocus = null;
 		this.close();
-		shell?.openOsSettings?.( { tabId: 'features' } );
+		shell?.openOsSettings?.( { tabId } );
 	}
 
 	private _openInLegacyWindow( url: string, title: string, icon?: string ): void {
@@ -1209,15 +1151,14 @@ export class AiAssistant implements AiAssistantApi {
 			window.open( url, '_blank', 'noopener' );
 			return;
 		}
-		// `windowManager.open()` requires a non-empty `id`. Use the
-		// shell's own URL→id helper so the window we open coalesces
-		// with any existing window pointing at the same admin page
-		// (matches what clicking the dock would do). Fall back to a
-		// URL-derived synthetic id when the helper isn't exposed —
-		// older shells, or contrived test environments.
+		// `windowManager.open()` requires a non-empty `id`. Reuse the
+		// shell's URL→id helper so the window coalesces with any existing
+		// one for the same admin page, matching dock launches. Fall back
+		// to a URL-derived synthetic id when the helper isn't available —
+		// older shells and test doubles.
 		const id = shell.deriveWindowId
-			? shell.deriveWindowId( url )
-			: 'desktop-mode-ai-' + url.replace( /[^a-z0-9]+/gi, '-' ).slice( 0, 80 );
+			? shell.deriveWindowId( url, this._adminUrl )
+			: 'os-ai-' + url.replace( /[^a-z0-9]+/gi, '-' ).slice( 0, 80 );
 		shell.windowManager.open( {
 			id,
 			url,
@@ -1262,9 +1203,14 @@ export class AiAssistant implements AiAssistantApi {
 
 		if ( matches.length === 0 ) {
 			const q = parsed.isCommand ? `/${ parsed.slug }` : this._input.value.trim();
+			const message = sprintf(
+				/* translators: %s: the text the user typed, wrapped in <strong>. */
+				__( 'No commands matching %s.' ),
+				`<strong>${ this._esc( q ) }</strong>`,
+			);
 			this._resultsEl.innerHTML = `
-				<div class="desktop-mode-ai__state desktop-mode-ai__state--empty">
-					<span>No commands matching <strong>${ this._esc( q ) }</strong>.</span>
+				<div class="os-ai__state os-ai__state--empty">
+					<span>${ message }</span>
 				</div>
 			`;
 			return;
@@ -1284,23 +1230,24 @@ export class AiAssistant implements AiAssistantApi {
 		const items = matches
 			.map( ( c, i ) => {
 				const selected = pickable && i === this._selectedCommand ? ' is-selected' : '';
+				const isEntity = this._isEntityResultCommand( c );
 				return `
 					<button
 						type="button"
-						class="desktop-mode-ai__cmd-item${ selected }"
+						class="os-ai__cmd-item${ selected }${ isEntity ? ' is-entity-result' : '' }"
 						data-slug="${ this._esc( c.slug ) }"
 						data-index="${ i }"
 					>
 						${ c.iconSvg
-							? `<span class="desktop-mode-ai__cmd-icon desktop-mode-ai__cmd-icon--svg" aria-hidden="true">${ c.iconSvg }</span>`
-							: `<span class="desktop-mode-ai__cmd-icon dashicons ${ this._esc( c.icon ?? 'dashicons-arrow-right-alt' ) }" aria-hidden="true"></span>` }
-						<span class="desktop-mode-ai__cmd-body">
-							<span class="desktop-mode-ai__cmd-title">
+							? `<span class="os-ai__cmd-icon os-ai__cmd-icon--svg" aria-hidden="true">${ c.iconSvg }</span>`
+							: `<span class="os-ai__cmd-icon dashicons ${ this._esc( c.icon ?? 'dashicons-arrow-right-alt' ) }" aria-hidden="true"></span>` }
+						<span class="os-ai__cmd-body">
+							<span class="os-ai__cmd-title">
 								${ this._esc( c.label ) }
-								${ c.hint ? `<span class="desktop-mode-ai__cmd-hint">${ this._esc( c.hint ) }</span>` : '' }
+								${ c.hint ? `<span class="os-ai__cmd-hint">${ this._esc( c.hint ) }</span>` : '' }
 							</span>
 							${ c.description
-								? `<span class="desktop-mode-ai__cmd-desc">${ this._esc( c.description ) }</span>`
+								? `<span class="os-ai__cmd-desc">${ this._esc( c.description ) }</span>`
 								: '' }
 						</span>
 					</button>
@@ -1309,14 +1256,16 @@ export class AiAssistant implements AiAssistantApi {
 			.join( '' );
 
 		// The "Commands" heading is redundant with the "Command palette" title
-		// in Commands mode; keep it only in AI mode, where it separates the
-		// pinned contextual commands from the assistant.
+		// in Commands mode. Keep it only in AI mode — it labels the
+		// contextual (eager) commands section above the assistant input.
 		const heading =
-			this._mode === 'ai'
-				? '<p class="desktop-mode-ai__suggestions-label">Suggested commands</p>'
+			this._mode === 'ai' && listEagerCommands().length > 0
+				? `<p class="os-ai__suggestions-label">${ this._esc(
+					__( 'Suggested commands' ),
+				) }</p>`
 				: '';
 		this._resultsEl.innerHTML = `
-			<div class="desktop-mode-ai__cmd-list">
+			<div class="os-ai__cmd-list">
 				${ heading }
 				${ items }
 			</div>
@@ -1324,14 +1273,21 @@ export class AiAssistant implements AiAssistantApi {
 
 		// Click handlers — clicking a row runs the command (or locks it in
 		// for args when it takes them), like a command palette.
+		// NOTE: `findCommand()` only searches the command registry, but
+		// remote entity-search results from `_fetchRemoteCommands` live
+		// in `_currentRemoteCommands` — they're NOT registered. We use
+		// `data-index` to look up from the fresh match list instead.
 		this._resultsEl
-			.querySelectorAll< HTMLButtonElement >( '.desktop-mode-ai__cmd-item' )
+			.querySelectorAll< HTMLButtonElement >( '.os-ai__cmd-item' )
 			.forEach( ( btn ) => {
 				btn.addEventListener( 'click', () => {
-					const slug = btn.dataset.slug ?? '';
-					const cmd = findCommand( slug );
-					if ( cmd ) {
-						this._pickCommand( cmd );
+					const idx = parseInt( btn.dataset.index ?? '', 10 );
+					if ( ! Number.isNaN( idx ) ) {
+						const clickMatches = this._commandMatches();
+						const cmd = clickMatches[ idx ];
+						if ( cmd ) {
+							this._pickCommand( cmd );
+						}
 					}
 				} );
 				btn.addEventListener( 'mouseenter', () => {
@@ -1345,7 +1301,7 @@ export class AiAssistant implements AiAssistantApi {
 					if ( ! Number.isNaN( idx ) ) {
 						this._selectedCommand = idx;
 						this._resultsEl
-							.querySelectorAll( '.desktop-mode-ai__cmd-item' )
+							.querySelectorAll( '.os-ai__cmd-item' )
 							.forEach( ( el, i ) => el.classList.toggle( 'is-selected', i === idx ) );
 					}
 				} );
@@ -1399,7 +1355,7 @@ export class AiAssistant implements AiAssistantApi {
 
 			// Wire mouse interactions on the suggestion rows.
 			this._resultsEl
-				.querySelectorAll< HTMLButtonElement >( '.desktop-mode-ai__cmd-suggest-item' )
+				.querySelectorAll< HTMLButtonElement >( '.os-ai__cmd-suggest-item' )
 				.forEach( ( btn ) => {
 					btn.addEventListener( 'click', () => {
 						const idx = parseInt( btn.dataset.index ?? '0', 10 );
@@ -1437,20 +1393,24 @@ export class AiAssistant implements AiAssistantApi {
 	/** Render the command banner used at the top of args-mode. */
 	private _renderCommandHeader( cmd: DesktopCommand, standalone: boolean ): string {
 		return `
-			<div class="desktop-mode-ai__cmd-active">
-				<span class="desktop-mode-ai__cmd-icon dashicons ${ this._esc(
+			<div class="os-ai__cmd-active">
+				<span class="os-ai__cmd-icon dashicons ${ this._esc(
 					cmd.icon ?? 'dashicons-arrow-right-alt',
 				) }" aria-hidden="true"></span>
-				<div class="desktop-mode-ai__cmd-body">
-					<span class="desktop-mode-ai__cmd-title">
+				<div class="os-ai__cmd-body">
+					<span class="os-ai__cmd-title">
 						/${ this._esc( cmd.slug ) }
-						${ cmd.hint ? `<span class="desktop-mode-ai__cmd-hint">${ this._esc( cmd.hint ) }</span>` : '' }
+						${ cmd.hint ? `<span class="os-ai__cmd-hint">${ this._esc( cmd.hint ) }</span>` : '' }
 					</span>
 					${ cmd.description
-						? `<span class="desktop-mode-ai__cmd-desc">${ this._esc( cmd.description ) }</span>`
+						? `<span class="os-ai__cmd-desc">${ this._esc( cmd.description ) }</span>`
 						: '' }
 					${ standalone
-						? '<span class="desktop-mode-ai__cmd-enter-hint">Press <kbd>↵</kbd> to run</span>'
+						? `<span class="os-ai__cmd-enter-hint">${ sprintf(
+							/* translators: %s: the Enter key, rendered as a <kbd> glyph. */
+							__( 'Press %s to run' ),
+							'<kbd>↵</kbd>',
+						) }</span>`
 						: '' }
 				</div>
 			</div>
@@ -1460,9 +1420,14 @@ export class AiAssistant implements AiAssistantApi {
 	/** Render the list of suggestions under the command header. */
 	private _renderSuggestionList( suggestions: CommandSuggestion[] ): string {
 		if ( suggestions.length === 0 ) {
+			const message = sprintf(
+				/* translators: %s: the Enter key, rendered as a <kbd> glyph. */
+				__( 'No suggestions — press %s to run with the text you typed.' ),
+				'<kbd>↵</kbd>',
+			);
 			return `
-				<div class="desktop-mode-ai__state desktop-mode-ai__state--empty">
-					<span>No suggestions — press <kbd>↵</kbd> to run with the text you typed.</span>
+				<div class="os-ai__state os-ai__state--empty">
+					<span>${ message }</span>
 				</div>
 			`;
 		}
@@ -1472,23 +1437,23 @@ export class AiAssistant implements AiAssistantApi {
 				return `
 					<button
 						type="button"
-						class="desktop-mode-ai__cmd-suggest-item${ selected }"
+						class="os-ai__cmd-suggest-item${ selected }"
 						data-index="${ i }"
 					>
-						<span class="desktop-mode-ai__cmd-icon dashicons ${ this._esc(
+						<span class="os-ai__cmd-icon dashicons ${ this._esc(
 							s.icon ?? 'dashicons-arrow-right-alt',
 						) }" aria-hidden="true"></span>
-						<span class="desktop-mode-ai__cmd-body">
-							<span class="desktop-mode-ai__cmd-suggest-label">${ this._esc( s.label ) }</span>
+						<span class="os-ai__cmd-body">
+							<span class="os-ai__cmd-suggest-label">${ this._esc( s.label ) }</span>
 							${ s.description
-								? `<span class="desktop-mode-ai__cmd-desc">${ this._esc( s.description ) }</span>`
+								? `<span class="os-ai__cmd-desc">${ this._esc( s.description ) }</span>`
 								: '' }
 						</span>
 					</button>
 				`;
 			} )
 			.join( '' );
-		return `<div class="desktop-mode-ai__cmd-suggest-list">${ items }</div>`;
+		return `<div class="os-ai__cmd-suggest-list">${ items }</div>`;
 	}
 
 	/**
@@ -1507,6 +1472,11 @@ export class AiAssistant implements AiAssistantApi {
 		} );
 	}
 
+	/** Identify remote entity-search results without tying styling to slug naming. */
+	private _isEntityResultCommand( cmd: DesktopCommand ): boolean {
+		return this._currentRemoteCommands.includes( cmd );
+	}
+
 	/**
 	 * Flip the is-selected class on the command rows without re-rendering
 	 * the whole list. Re-rendering caused two bad effects: (a) fresh DOM
@@ -1516,16 +1486,16 @@ export class AiAssistant implements AiAssistantApi {
 	 * Also scrolls the newly-selected row into view for long lists.
 	 */
 	private _paintCommandSelection(): void {
-		const items = this._resultsEl.querySelectorAll< HTMLElement >( '.desktop-mode-ai__cmd-item' );
+		const items = this._resultsEl.querySelectorAll< HTMLElement >( '.os-ai__cmd-item' );
 		items.forEach( ( el, i ) => {
 			el.classList.toggle( 'is-selected', i === this._selectedCommand );
 		} );
 		// Suppress :hover on the list while keyboard nav is active —
 		// without this the row under the mouse pointer stays styled as
 		// active alongside the new keyboard-selected row.
-		const list = this._resultsEl.querySelector< HTMLElement >( '.desktop-mode-ai__cmd-list' );
+		const list = this._resultsEl.querySelector< HTMLElement >( '.os-ai__cmd-list' );
 		if ( list ) {
-			list.classList.toggle( 'desktop-mode-ai__cmd-list--kb-nav', this._keyboardNav );
+			list.classList.toggle( 'os-ai__cmd-list--kb-nav', this._keyboardNav );
 		}
 		const active = items[ this._selectedCommand ];
 		if ( active && typeof active.scrollIntoView === 'function' ) {
@@ -1536,7 +1506,7 @@ export class AiAssistant implements AiAssistantApi {
 	/** Flip the is-selected class on the suggestion rows without re-rendering the whole list. */
 	private _paintSuggestionSelection(): void {
 		this._resultsEl
-			.querySelectorAll( '.desktop-mode-ai__cmd-suggest-item' )
+			.querySelectorAll( '.os-ai__cmd-suggest-item' )
 			.forEach( ( el, i ) => {
 				el.classList.toggle( 'is-selected', i === this._selectedSuggestion );
 			} );
@@ -1545,11 +1515,11 @@ export class AiAssistant implements AiAssistantApi {
 	private _renderSuggestions(): void {
 		this._resultsEl.hidden = false;
 		this._resultsEl.innerHTML = `
-			<div class="desktop-mode-ai__suggestions">
-				<p class="desktop-mode-ai__suggestions-label">${ this._esc( 'Try asking' ) }</p>
-				<div class="desktop-mode-ai__suggestions-list">
-					${ SUGGESTED_PROMPTS.map(
-						( p ) => `<button type="button" class="desktop-mode-ai__suggestion" data-prompt="${ this._esc( p ) }">
+			<div class="os-ai__suggestions">
+				<p class="os-ai__suggestions-label">${ this._esc( __( 'Try asking' ) ) }</p>
+				<div class="os-ai__suggestions-list">
+					${ suggestedPrompts().map(
+						( p ) => `<button type="button" class="os-ai__suggestion" data-prompt="${ this._esc( p ) }">
 							${ this._esc( p ) }
 						</button>`,
 					).join( '' ) }
@@ -1559,7 +1529,7 @@ export class AiAssistant implements AiAssistantApi {
 
 		// Wire suggestion clicks — fill the input and submit.
 		this._resultsEl
-			.querySelectorAll<HTMLButtonElement>( '.desktop-mode-ai__suggestion' )
+			.querySelectorAll<HTMLButtonElement>( '.os-ai__suggestion' )
 			.forEach( ( btn ) => {
 				btn.addEventListener( 'click', () => {
 					const prompt = btn.dataset.prompt ?? '';
@@ -1570,46 +1540,47 @@ export class AiAssistant implements AiAssistantApi {
 			} );
 	}
 
-	private _showThinking( message: string = 'Thinking…' ): void {
+	private _showThinking( message: string = __( 'Thinking…' ) ): void {
 		this._resultsEl.hidden = false;
 		this._resultsEl.innerHTML = `
-			<div class="desktop-mode-ai__state desktop-mode-ai__state--thinking">
+			<div class="os-ai__state os-ai__state--thinking">
 				${ ICON_SPINNER }
 				<span>${ this._esc( message ) }</span>
 			</div>
 		`;
 	}
 
-	private _showError( message: string, code?: string ): void {
+	/**
+	 * Render an error, optionally with a one-click recovery link.
+	 *
+	 * `settingsTab` comes from the server's error data: the server names
+	 * the tab that fixes the problem, so the client never has to find it
+	 * by pattern-matching the message, which no translation would survive.
+	 */
+	private _showError( message: string, settingsTab?: string ): void {
 		this._resultsEl.hidden = false;
 
-		// The "assistant is off" case is recoverable in one click, so we
-		// turn the "OS Settings → Features" mention in the message into an
-		// inline link that opens OS Settings on the Features tab. Keyed on
-		// the server error code, not the wording, so the affordance survives
-		// copy tweaks; the regex spans whatever sits between the two anchors
-		// (arrow, spacing) and falls back to a trailing link if absent.
-		if ( code === 'desktop_mode_ai_disabled' ) {
-			const escaped = this._esc( message );
-			const linkify = ( text: string ) =>
-				`<button type="button" class="desktop-mode-ai__settings-link">${ text }</button>`;
-			const phrase = /OS Settings.*?Features/;
-			const withLink = phrase.test( escaped )
-				? escaped.replace( phrase, ( match ) => linkify( match ) )
-				: `${ escaped } ${ linkify( 'Features' ) }`;
+		if ( settingsTab ) {
+			// Terse on purpose: the message already names the tab, so a
+			// second full sentence here just repeats it.
+			const link = `<button type="button" class="os-ai__settings-link">${ this._esc(
+				__( 'Open Preferences' ),
+			) }</button>`;
 			this._resultsEl.innerHTML = `
-				<div class="desktop-mode-ai__state desktop-mode-ai__state--error">
-					<span>${ withLink }</span>
+				<div class="os-ai__state os-ai__state--error">
+					<span>${ this._esc( message ) } ${ link }</span>
 				</div>
 			`;
 			this._resultsEl
-				.querySelector< HTMLButtonElement >( '.desktop-mode-ai__settings-link' )
-				?.addEventListener( 'click', () => this._openAssistantSettings() );
+				.querySelector< HTMLButtonElement >( '.os-ai__settings-link' )
+				?.addEventListener( 'click', () =>
+					this._openAssistantSettings( settingsTab ),
+				);
 			return;
 		}
 
 		this._resultsEl.innerHTML = `
-			<div class="desktop-mode-ai__state desktop-mode-ai__state--error">
+			<div class="os-ai__state os-ai__state--error">
 				<span>${ this._esc( message ) }</span>
 			</div>
 		`;
@@ -1627,9 +1598,9 @@ export class AiAssistant implements AiAssistantApi {
 		// answer regardless of answer_type — so the UX always feels like
 		// a reply from the assistant.
 		const messageHtml = `
-			<div class="desktop-mode-ai__bubble">
-				<span class="desktop-mode-ai__bubble-icon">${ ICON_SPARKLE }</span>
-				<div class="desktop-mode-ai__bubble-text">${ renderMarkdown( data.message || '' ) }</div>
+			<div class="os-ai__bubble">
+				<span class="os-ai__bubble-icon">${ ICON_SPARKLE }</span>
+				<div class="os-ai__bubble-text">${ renderMarkdown( data.message || '' ) }</div>
 			</div>
 		`;
 
@@ -1643,7 +1614,7 @@ export class AiAssistant implements AiAssistantApi {
 		// Continue-search hint (only appears after budget exhaustion).
 		if ( data.continue ) {
 			bodyHtml += `
-				<button type="button" class="desktop-mode-ai__continue-btn"
+				<button type="button" class="os-ai__continue-btn"
 					data-tool="${ this._esc( data.continue.tool ) }"
 					data-offset="${ data.continue.offset }"
 					data-query="${ this._esc( query ) }">
@@ -1656,7 +1627,7 @@ export class AiAssistant implements AiAssistantApi {
 
 		// Wire entity "Open" button.
 		this._resultsEl.querySelectorAll<HTMLButtonElement>(
-			'.desktop-mode-ai__entity-open',
+			'.os-ai__entity-open',
 		).forEach( ( btn ) => {
 			btn.addEventListener( 'click', () => {
 				const url = btn.dataset.url ?? '';
@@ -1670,7 +1641,7 @@ export class AiAssistant implements AiAssistantApi {
 
 		// Wire admin-link clicks.
 		this._resultsEl.querySelectorAll<HTMLButtonElement>(
-			'.desktop-mode-ai__admin-link',
+			'.os-ai__admin-link',
 		).forEach( ( btn ) => {
 			btn.addEventListener( 'click', () => {
 				const url = btn.dataset.url ?? '';
@@ -1683,7 +1654,7 @@ export class AiAssistant implements AiAssistantApi {
 		} );
 
 		// Wire continue button.
-		const cont = this._resultsEl.querySelector<HTMLButtonElement>( '.desktop-mode-ai__continue-btn' );
+		const cont = this._resultsEl.querySelector<HTMLButtonElement>( '.os-ai__continue-btn' );
 		if ( cont ) {
 			cont.addEventListener( 'click', () => {
 				const tool = cont.dataset.tool ?? null;
@@ -1694,14 +1665,48 @@ export class AiAssistant implements AiAssistantApi {
 		}
 	}
 
+	/**
+	 * Display name for an entity type. A lookup rather than capitalising
+	 * the server's type slug — that trick only produces a word in English.
+	 */
+	private _entityTypeLabel( type: EntityDetail[ 'type' ] ): string {
+		switch ( type ) {
+			case 'page':
+				return __( 'Page' );
+			case 'comment':
+				return __( 'Comment' );
+			default:
+				return __( 'Post' );
+		}
+	}
+
+	/** Label for the entity card's open button, one full sentence per type. */
+	private _entityOpenLabel( type: EntityDetail[ 'type' ] ): string {
+		switch ( type ) {
+			case 'page':
+				return __( 'Open page in desktop' );
+			case 'comment':
+				return __( 'Open comment in desktop' );
+			default:
+				return __( 'Open post in desktop' );
+		}
+	}
+
 	private _renderEntityCard( e: EntityDetail ): string {
 		const isComment = e.type === 'comment';
 		const title = isComment
-			? `Comment on “${ this._esc( e.post_title ?? 'post' ) }”`
-			: this._esc( e.title ?? 'Untitled' );
+			? sprintf(
+				/* translators: %s: title of the post the comment was left on. */
+				__( 'Comment on “%s”' ),
+				this._esc(
+					e.post_title ??
+						_x( 'post', 'fallback name for the post a comment was left on' ),
+				),
+			)
+			: this._esc( e.title ?? __( 'Untitled' ) );
 		const summary = this._esc( e.ai_summary || e.excerpt || '' );
-		const typeLabel = e.type.charAt( 0 ).toUpperCase() + e.type.slice( 1 );
-		const topicChip = e.topic ? `<span class="desktop-mode-ai__entity-topic">${ this._esc( e.topic ) }</span>` : '';
+		const typeLabel = this._entityTypeLabel( e.type );
+		const topicChip = e.topic ? `<span class="os-ai__entity-topic">${ this._esc( e.topic ) }</span>` : '';
 
 		// Pick a Dashicon for the window icon based on entity type.
 		let icon: string;
@@ -1714,19 +1719,19 @@ export class AiAssistant implements AiAssistantApi {
 		}
 
 		return `
-			<div class="desktop-mode-ai__entity">
-				<div class="desktop-mode-ai__entity-header">
+			<div class="os-ai__entity">
+				<div class="os-ai__entity-header">
 					${ topicChip }
-					<span class="desktop-mode-ai__entity-type">${ this._esc( typeLabel ) }</span>
+					<span class="os-ai__entity-type">${ this._esc( typeLabel ) }</span>
 				</div>
-				<h3 class="desktop-mode-ai__entity-title">${ title }</h3>
-				<p class="desktop-mode-ai__entity-summary">${ summary }</p>
+				<h3 class="os-ai__entity-title">${ title }</h3>
+				<p class="os-ai__entity-summary">${ summary }</p>
 				<button type="button"
-					class="desktop-mode-ai__entity-open"
+					class="os-ai__entity-open"
 					data-url="${ this._esc( e.edit_url ) }"
 					data-title="${ this._esc( e.title ?? e.post_title ?? typeLabel ) }"
 					data-icon="${ icon }">
-					<span>${ this._esc( `Open ${ typeLabel.toLowerCase() } in desktop` ) }</span>
+					<span>${ this._esc( this._entityOpenLabel( e.type ) ) }</span>
 					${ ICON_ARROW }
 				</button>
 			</div>
@@ -1736,20 +1741,20 @@ export class AiAssistant implements AiAssistantApi {
 	private _renderAdminLinks( links: AdminLink[] ): string {
 		const items = links.map( ( link ) => `
 			<button type="button"
-				class="desktop-mode-ai__admin-link"
+				class="os-ai__admin-link"
 				data-url="${ this._esc( link.url ) }"
 				data-title="${ this._esc( link.title ) }"
 				data-icon="${ this._esc( link.icon ) }">
-				<span class="desktop-mode-ai__admin-link-icon dashicons ${ this._esc( link.icon ) }" aria-hidden="true"></span>
-				<span class="desktop-mode-ai__admin-link-body">
-					<span class="desktop-mode-ai__admin-link-title">${ this._esc( link.title ) }</span>
-					<span class="desktop-mode-ai__admin-link-desc">${ this._esc( link.description ) }</span>
+				<span class="os-ai__admin-link-icon dashicons ${ this._esc( link.icon ) }" aria-hidden="true"></span>
+				<span class="os-ai__admin-link-body">
+					<span class="os-ai__admin-link-title">${ this._esc( link.title ) }</span>
+					<span class="os-ai__admin-link-desc">${ this._esc( link.description ) }</span>
 				</span>
-				<span class="desktop-mode-ai__admin-link-arrow">${ ICON_ARROW }</span>
+				<span class="os-ai__admin-link-arrow">${ ICON_ARROW }</span>
 			</button>
 		` ).join( '' );
 
-		return `<div class="desktop-mode-ai__admin-links">${ items }</div>`;
+		return `<div class="os-ai__admin-links">${ items }</div>`;
 	}
 
 	/** Minimal HTML escaping for text interpolated into innerHTML. */
@@ -1768,45 +1773,55 @@ export class AiAssistant implements AiAssistantApi {
 	private _buildDOM(): HTMLElement {
 		const el = document.createElement( 'div' );
 		el.id = 'desktop-mode-ai-assistant';
-		el.className = 'desktop-mode-ai';
+		el.className = 'os-ai';
 		el.setAttribute( 'role', 'dialog' );
 		el.setAttribute( 'aria-modal', 'true' );
-		el.setAttribute( 'aria-label', 'Site Assistant' );
+		el.setAttribute( 'aria-label', __( 'Site Assistant' ) );
 		el.setAttribute( 'aria-hidden', 'true' );
 		el.setAttribute( 'hidden', '' );
 
 		el.innerHTML = `
-			<div class="desktop-mode-ai__backdrop" aria-hidden="true"></div>
-			<div class="desktop-mode-ai__panel">
-				<div class="desktop-mode-ai__header">
-					<span class="desktop-mode-ai__header-icon">${ ICON_SITE_LOGO }</span>
-					<span class="desktop-mode-ai__header-label">Site Assistant</span>
-					<div class="desktop-mode-ai__modes" role="group" aria-label="Assistant mode" hidden>
-						<button type="button" class="desktop-mode-ai__mode" data-mode="ai" aria-pressed="false">Ask AI</button>
-						<button type="button" class="desktop-mode-ai__mode" data-mode="commands" aria-pressed="false">Commands</button>
+			<div class="os-ai__backdrop" aria-hidden="true"></div>
+			<div class="os-ai__panel">
+				<div class="os-ai__header">
+					<span class="os-ai__header-icon">${ ICON_SITE_LOGO }</span>
+					<span class="os-ai__header-label">${ this._esc( __( 'Site Assistant' ) ) }</span>
+					<div class="os-ai__modes" role="group" aria-label="${ this._esc(
+						__( 'Assistant mode' ),
+					) }" hidden>
+						<button type="button" class="os-ai__mode" data-mode="ai" aria-pressed="false">${ this._esc(
+							__( 'Ask AI' ),
+						) }</button>
+						<button type="button" class="os-ai__mode" data-mode="commands" aria-pressed="false">${ this._esc(
+							__( 'Commands' ),
+						) }</button>
 					</div>
-					<button type="button" class="desktop-mode-ai__close" aria-label="Close">
+					<button type="button" class="os-ai__close" aria-label="${ this._esc( __( 'Close' ) ) }">
 						${ ICON_CLOSE }
 					</button>
 				</div>
-				<div class="desktop-mode-ai__input-wrap">
-					<span class="desktop-mode-ai__input-icon">${ ICON_SPARKLE }</span>
+				<div class="os-ai__input-wrap">
+					<span class="os-ai__input-icon">${ ICON_SPARKLE }</span>
 					<input
-						class="desktop-mode-ai__input"
+						class="os-ai__input"
 						type="text"
-						placeholder="How can I help?"
+						placeholder="${ this._esc( __( 'How can I help?' ) ) }"
 						autocomplete="off"
 						spellcheck="false"
-						aria-label="Ask the assistant"
+						aria-label="${ this._esc( __( 'Ask the assistant' ) ) }"
 					/>
-					<button type="button" class="desktop-mode-ai__submit" aria-label="Send">
+					<button type="button" class="os-ai__submit" aria-label="${ this._esc( __( 'Send' ) ) }">
 						${ ICON_RETURN }
 					</button>
 				</div>
-				<div class="desktop-mode-ai__results" hidden></div>
-				<div class="desktop-mode-ai__footer">
-					<span class="desktop-mode-ai__footer-hint">
-						Your assistant to quickly navigate and manage your entire site.
+				<div class="os-ai__results" hidden></div>
+				<div class="os-ai__footer">
+					<span class="os-ai__footer-hint">
+						${ this._esc(
+							__(
+								'Your assistant to quickly navigate and manage your entire site.',
+							),
+						) }
 					</span>
 				</div>
 			</div>

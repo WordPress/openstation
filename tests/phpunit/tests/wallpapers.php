@@ -1,28 +1,28 @@
 <?php
 /**
  * Tests for the PHP-registered built-in wallpaper presets and the
- * `desktop_mode_wallpapers` filter.
+ * `openstation_wallpapers` filter.
  *
  * @package WordPress
  * @subpackage UnitTests
  *
- * @group desktop-mode
- * @group desktop-mode-wallpapers
+ * @group openstation
+ * @group os-wallpapers
  */
-class Tests_DesktopMode_Wallpapers extends WP_UnitTestCase {
+class Tests_OpenStation_Wallpapers extends WP_UnitTestCase {
 
 	public function tear_down() {
-		remove_all_filters( 'desktop_mode_wallpapers' );
+		remove_all_filters( 'openstation_wallpapers' );
 		parent::tear_down();
 	}
 
 	/**
-	 * @covers ::desktop_mode_register_builtin_wallpapers
+	 * @covers ::openstation_register_builtin_wallpapers
 	 */
 	public function test_builtins_are_registered_after_init() {
 		// `init` has already fired by the time the first test runs,
 		// so the registry should carry all five presets.
-		$registry = desktop_mode_desktop_wallpaper_registry();
+		$registry = openstation_desktop_wallpaper_registry();
 
 		$this->assertIsArray( $registry );
 		$this->assertArrayHasKey( 'dark', $registry );
@@ -33,10 +33,10 @@ class Tests_DesktopMode_Wallpapers extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_register_builtin_wallpapers
+	 * @covers ::openstation_register_builtin_wallpapers
 	 */
 	public function test_builtins_are_css_type_with_value() {
-		$dark = desktop_mode_desktop_wallpaper_registry( 'dark' );
+		$dark = openstation_desktop_wallpaper_registry( 'dark' );
 
 		$this->assertIsArray( $dark );
 		$this->assertSame( 'css', $dark['type'] );
@@ -47,13 +47,13 @@ class Tests_DesktopMode_Wallpapers extends WP_UnitTestCase {
 
 	/**
 	 * The shell payload builder is what the client actually sees. It
-	 * applies the `desktop_mode_wallpapers` filter + shapes entries to
+	 * applies the `openstation_wallpapers` filter + shapes entries to
 	 * match the TS `DesktopWallpaperServerEntry` contract.
 	 *
-	 * @covers ::desktop_mode_build_desktop_wallpapers_payload
+	 * @covers ::openstation_build_desktop_wallpapers_payload
 	 */
 	public function test_payload_carries_value_for_css_builtins() {
-		$payload = desktop_mode_build_desktop_wallpapers_payload();
+		$payload = openstation_build_desktop_wallpapers_payload();
 
 		$this->assertIsArray( $payload );
 		$ids = wp_list_pluck( $payload, 'id' );
@@ -73,10 +73,10 @@ class Tests_DesktopMode_Wallpapers extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_build_desktop_wallpapers_payload
+	 * @covers ::openstation_build_desktop_wallpapers_payload
 	 */
 	public function test_filter_can_add_entry_to_payload() {
-		add_filter( 'desktop_mode_wallpapers', static function ( $registry ) {
+		add_filter( 'openstation_wallpapers', static function ( $registry ) {
 			$registry['brand'] = array(
 				'id'      => 'brand',
 				'label'   => 'Brand',
@@ -88,22 +88,22 @@ class Tests_DesktopMode_Wallpapers extends WP_UnitTestCase {
 			return $registry;
 		} );
 
-		$payload = desktop_mode_build_desktop_wallpapers_payload();
+		$payload = openstation_build_desktop_wallpapers_payload();
 		$ids     = wp_list_pluck( $payload, 'id' );
 
 		$this->assertContains( 'brand', $ids );
 	}
 
 	/**
-	 * @covers ::desktop_mode_build_desktop_wallpapers_payload
+	 * @covers ::openstation_build_desktop_wallpapers_payload
 	 */
 	public function test_filter_can_remove_entry_from_payload() {
-		add_filter( 'desktop_mode_wallpapers', static function ( $registry ) {
+		add_filter( 'openstation_wallpapers', static function ( $registry ) {
 			unset( $registry['sunset'] );
 			return $registry;
 		} );
 
-		$payload = desktop_mode_build_desktop_wallpapers_payload();
+		$payload = openstation_build_desktop_wallpapers_payload();
 		$ids     = wp_list_pluck( $payload, 'id' );
 
 		$this->assertNotContains( 'sunset', $ids );
@@ -111,25 +111,25 @@ class Tests_DesktopMode_Wallpapers extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_build_desktop_wallpapers_payload
+	 * @covers ::openstation_build_desktop_wallpapers_payload
 	 */
 	public function test_filter_non_array_return_yields_empty_payload() {
-		add_filter( 'desktop_mode_wallpapers', static function () {
+		add_filter( 'openstation_wallpapers', static function () {
 			return 'broken';
 		} );
 
-		$this->assertSame( array(), desktop_mode_build_desktop_wallpapers_payload() );
+		$this->assertSame( array(), openstation_build_desktop_wallpapers_payload() );
 	}
 
 	/**
-	 * `desktop_mode_register_wallpaper()` defaults `value` to `preview`
+	 * `openstation_register_wallpaper()` defaults `value` to `preview`
 	 * when callers omit it — keeps the common "same string for swatch
 	 * and surface" case a one-field call.
 	 *
-	 * @covers ::desktop_mode_register_wallpaper
+	 * @covers ::openstation_register_wallpaper
 	 */
 	public function test_value_defaults_to_preview_when_omitted() {
-		$result = desktop_mode_register_wallpaper( 'test-default', array(
+		$result = openstation_register_wallpaper( 'test-default', array(
 			'label'   => 'Test',
 			'preview' => '#abcdef',
 			'type'    => 'css',
@@ -137,40 +137,40 @@ class Tests_DesktopMode_Wallpapers extends WP_UnitTestCase {
 
 		$this->assertTrue( $result );
 
-		$entry = desktop_mode_desktop_wallpaper_registry( 'test-default' );
+		$entry = openstation_desktop_wallpaper_registry( 'test-default' );
 		$this->assertSame( '#abcdef', $entry['value'] );
 	}
 
 	/**
-	 * @covers ::desktop_mode_register_wallpaper
+	 * @covers ::openstation_register_wallpaper
 	 */
 	public function test_description_is_stored_sanitized_and_defaults_empty() {
-		desktop_mode_register_wallpaper( 'test-described', array(
+		openstation_register_wallpaper( 'test-described', array(
 			'label'       => 'Described',
 			'preview'     => '#123456',
 			'type'        => 'css',
 			'description' => "A calm <script>alert(1)</script>backdrop\nfor focused work.",
 		) );
-		$entry = desktop_mode_desktop_wallpaper_registry( 'test-described' );
+		$entry = openstation_desktop_wallpaper_registry( 'test-described' );
 		// Plain text by contract: tags stripped, no scripts survive.
 		$this->assertStringNotContainsString( '<script>', $entry['description'] );
 		$this->assertStringContainsString( 'A calm', $entry['description'] );
 		$this->assertStringContainsString( 'backdrop', $entry['description'] );
 
-		desktop_mode_register_wallpaper( 'test-undescribed', array(
+		openstation_register_wallpaper( 'test-undescribed', array(
 			'label'   => 'Silent',
 			'preview' => '#654321',
 			'type'    => 'css',
 		) );
-		$silent = desktop_mode_desktop_wallpaper_registry( 'test-undescribed' );
+		$silent = openstation_desktop_wallpaper_registry( 'test-undescribed' );
 		$this->assertSame( '', $silent['description'] );
 	}
 
 	/**
-	 * @covers ::desktop_mode_build_desktop_wallpapers_payload
+	 * @covers ::openstation_build_desktop_wallpapers_payload
 	 */
 	public function test_payload_carries_descriptions_for_builtins() {
-		$payload = desktop_mode_build_desktop_wallpapers_payload();
+		$payload = openstation_build_desktop_wallpapers_payload();
 		$by_id   = array();
 		foreach ( $payload as $entry ) {
 			$by_id[ $entry['id'] ] = $entry;
@@ -195,15 +195,15 @@ class Tests_DesktopMode_Wallpapers extends WP_UnitTestCase {
 	 * mismatch would show one sky in the picker and a different one
 	 * once selected.
 	 *
-	 * @covers ::desktop_mode_register_builtin_wallpapers
+	 * @covers ::openstation_register_builtin_wallpapers
 	 */
 	public function test_snow_builtin_is_canvas_with_script_and_backdrop_preview() {
-		$snow = desktop_mode_desktop_wallpaper_registry( 'wp-snow' );
+		$snow = openstation_desktop_wallpaper_registry( 'wp-snow' );
 
 		$this->assertIsArray( $snow );
 		$this->assertSame( 'canvas', $snow['type'] );
-		$this->assertSame( 'desktop-mode-snow-wallpaper', $snow['script'] );
-		$this->assertTrue( wp_script_is( 'desktop-mode-snow-wallpaper', 'registered' ) );
+		$this->assertSame( 'os-snow-wallpaper', $snow['script'] );
+		$this->assertTrue( wp_script_is( 'os-snow-wallpaper', 'registered' ) );
 		$this->assertSame(
 			'linear-gradient(180deg, #0c1a36 0%, #1d355e 55%, #425d8a 100%)',
 			$snow['preview']

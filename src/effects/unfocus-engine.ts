@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Unfocused-window effect engine.
+ * OpenStation — Unfocused-window effect engine.
  *
  * The framework is a transport, not a UX-policy maker: this engine
  * decides *when* the user's chosen unfocus effect is applied, and to
@@ -9,13 +9,11 @@
  * → Effects on every window that isn't focused.
  *
  * It listens to the existing window-lifecycle CustomEvents
- * (`desktop-mode-window-{opened,closed,focused,blurred,reopened}`),
+ * (`os-window-{opened,closed,focused,blurred,reopened}`),
  * the OS-settings change stream (the selected effect id), and the
  * effect-registry change stream (a plugin's effect arriving / leaving
  * live). On any of those it recomputes from scratch — cheap, since
  * there are only ever a handful of open windows.
- *
- * @since 0.9.1
  */
 
 import {
@@ -26,6 +24,7 @@ import {
 } from './registry';
 import type { UnfocusEffectDef } from './types';
 import type { OsSettings } from '../settings';
+import type { Window as DesktopWindow } from '../window';
 import type { WindowManager } from '../window-manager';
 
 /** Data attribute stamped on a window root carrying the active effect id. */
@@ -62,6 +61,28 @@ let _started = false;
  */
 function hostsCanvas( el: HTMLElement ): boolean {
 	return el.querySelector( 'canvas' ) !== null;
+}
+
+/**
+ * True when the window is a half-screen split tile (`snapped-left` /
+ * `snapped-right`). Split view is exempt from unfocus effects.
+ *
+ * Snapping a window to an edge is the gesture that says "I want to
+ * work on these side by side" — the shell even follows it with the
+ * split-overview picker for the opposite half. Darkening, frosting or
+ * draining the colour out of one half of that arrangement defeats the
+ * whole point: only one tile can hold focus, so the other would sit
+ * permanently degraded while the user reads it. The effect is for
+ * windows that are *behind* the one you're working in, not beside it.
+ *
+ * The rule is deliberately per-window and partner-blind — a tile is
+ * exempt whether or not the opposite half is filled. That matches how
+ * `window-links` treats snapped windows (a half-screen tile is "in
+ * split view", full stop), and it keeps the exemption from flickering
+ * as the partner opens, closes or un-snaps.
+ */
+function isSplitTile( win: DesktopWindow ): boolean {
+	return win.state === 'snapped-left' || win.state === 'snapped-right';
 }
 
 export interface UnfocusEngineDeps {
@@ -146,9 +167,14 @@ export function startUnfocusEngine( { manager, osSettings }: UnfocusEngineDeps )
 			if ( ! def || win.isFocused() || win.state === 'minimized' ) {
 				continue;
 			}
+			// Split view is a "work on both at once" arrangement —
+			// never degrade the half that doesn't hold focus.
+			if ( isSplitTile( win ) ) {
+				continue;
+			}
 			// Never paint an unfocus effect over a window that hosts a
 			// WebGL `<canvas>` — the native Pixi scenes (content graph,
-			// posts mind-map / tag-cloud, About scene). A CSS `filter`
+			// posts mind-map / tag-cloud). A CSS `filter`
 			// (or any property that re-rasterizes the subtree) on an
 			// element wrapping a live WebGL canvas can trigger a context
 			// loss, and the shell's Pixi apps run on their own tickers
@@ -165,14 +191,27 @@ export function startUnfocusEngine( { manager, osSettings }: UnfocusEngineDeps )
 	};
 
 	for ( const name of [
-		'desktop-mode-window-opened',
-		'desktop-mode-window-reopened',
-		'desktop-mode-window-closed',
-		'desktop-mode-window-focused',
-		'desktop-mode-window-blurred',
+		'os-window-opened',
+		'os-window-reopened',
+		'os-window-closed',
+		'os-window-focused',
+		'os-window-blurred',
 	] ) {
 		document.addEventListener( name, () => recompute() );
 	}
+
+	// Snapping into (or out of) split view changes a window's
+	// exemption without changing which window has focus — restoring a
+	// snapped tile back to `normal` while another window holds focus
+	// has to re-apply the effect, and snapping an already-unfocused
+	// window has to drop it. `os-window-changed` is chatty (it also
+	// carries every move and resize), so only the `state` reason
+	// reaches `recompute`.
+	document.addEventListener( 'os-window-changed', ( e: Event ) => {
+		if ( ( e as CustomEvent< { reason?: string } > ).detail?.reason === 'state' ) {
+			recompute();
+		}
+	} );
 
 	osSettings.subscribeOsSettings( ( snapshot ) => {
 		currentId = snapshot.unfocusEffect;

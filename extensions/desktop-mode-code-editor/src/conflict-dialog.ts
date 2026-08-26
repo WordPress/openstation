@@ -15,8 +15,6 @@
  * Phase 4 will add a real diff view here. v1 stays text-only — most
  * conflicts are "two tabs of the same editor"; offering reload /
  * overwrite covers them without the diff complexity.
- *
- * @since 0.7.0
  */
 
 export type ConflictChoice = 'reload' | 'overwrite' | 'cancel';
@@ -40,31 +38,31 @@ export function showConflictDialog(
 ): Promise< ConflictChoice > {
 	return new Promise( ( resolve ) => {
 		const overlay = document.createElement( 'div' );
-		overlay.className = 'wpdc-conflict-overlay';
+		overlay.className = 'osc-conflict-overlay';
 
 		const dialog = document.createElement( 'div' );
-		dialog.className = 'wpdc-conflict-dialog';
+		dialog.className = 'osc-conflict-dialog';
 		dialog.setAttribute( 'role', 'dialog' );
 		dialog.setAttribute( 'aria-modal', 'true' );
-		dialog.setAttribute( 'aria-labelledby', 'wpdc-conflict-title' );
+		dialog.setAttribute( 'aria-labelledby', 'osc-conflict-title' );
 
 		const title = document.createElement( 'h2' );
-		title.id = 'wpdc-conflict-title';
-		title.className = 'wpdc-conflict-dialog__title';
+		title.id = 'osc-conflict-title';
+		title.className = 'osc-conflict-dialog__title';
 		title.textContent = 'File changed on disk';
 
 		const body = document.createElement( 'p' );
-		body.className = 'wpdc-conflict-dialog__body';
+		body.className = 'osc-conflict-dialog__body';
 		body.textContent = `Someone else (or another tab) modified ${ args.path } since you opened it. Choose how to resolve:`;
 
 		const meta = document.createElement( 'p' );
-		meta.className = 'wpdc-conflict-dialog__meta';
+		meta.className = 'osc-conflict-dialog__meta';
 		meta.textContent = `Server version: ${ args.serverSize } bytes · ${ new Date(
 			args.serverMtime * 1000,
 		).toLocaleString() }`;
 
 		const actions = document.createElement( 'div' );
-		actions.className = 'wpdc-conflict-dialog__actions';
+		actions.className = 'osc-conflict-dialog__actions';
 
 		const finish = ( choice: ConflictChoice ): void => {
 			document.removeEventListener( 'keydown', onKey );
@@ -74,7 +72,7 @@ export function showConflictDialog(
 
 		const reload = document.createElement( 'button' );
 		reload.type = 'button';
-		reload.className = 'wpdc-conflict-dialog__btn';
+		reload.className = 'osc-conflict-dialog__btn';
 		reload.textContent = 'Reload from disk';
 		reload.title = 'Discard your edits and load the server version.';
 		reload.addEventListener( 'click', () => finish( 'reload' ) );
@@ -82,7 +80,7 @@ export function showConflictDialog(
 		const overwrite = document.createElement( 'button' );
 		overwrite.type = 'button';
 		overwrite.className =
-			'wpdc-conflict-dialog__btn wpdc-conflict-dialog__btn--danger';
+			'osc-conflict-dialog__btn osc-conflict-dialog__btn--danger';
 		overwrite.textContent = 'Overwrite anyway';
 		overwrite.title = 'Save your edits, replacing the server version.';
 		overwrite.addEventListener( 'click', () => finish( 'overwrite' ) );
@@ -90,7 +88,7 @@ export function showConflictDialog(
 		const cancel = document.createElement( 'button' );
 		cancel.type = 'button';
 		cancel.className =
-			'wpdc-conflict-dialog__btn wpdc-conflict-dialog__btn--quiet';
+			'osc-conflict-dialog__btn osc-conflict-dialog__btn--quiet';
 		cancel.textContent = 'Cancel';
 		cancel.addEventListener( 'click', () => finish( 'cancel' ) );
 

@@ -8,7 +8,7 @@
  * Runs in the capture phase so we beat any handler that calls
  * `stopPropagation` on the bubble phase — the admin bar's own JS,
  * for instance. Handlers that call `preventDefault()` before us
- * (like the desktop-mode toggle, which uses `href="#"`) are
+ * (like the openstation toggle, which uses `href="#"`) are
  * respected: we bail on `defaultPrevented` and on anchor links.
  *
  * Iframe content is a separate document realm — clicks inside a
@@ -18,8 +18,6 @@
  *
  * Extracted from `src/desktop.ts` during the architecture-0.8.1
  * boot decomposition (phase 5).
- *
- * @since 0.8.1
  */
 
 import { tryNativeUrlRemap } from '../native-url-remap';
@@ -29,9 +27,6 @@ import { INITIAL_ORIGIN } from './origin';
 import type { WindowManager } from '../window-manager';
 import type { DesktopConfig } from '../types';
 
-/**
- * @since 0.8.1 (extracted from desktop.ts)
- */
 export function bindTopWindowLinkInterceptor(
 	manager: WindowManager,
 	config: DesktopConfig,
@@ -84,7 +79,7 @@ export function bindTopWindowLinkInterceptor(
 				// the author can trace it.
 				if ( typeof console !== 'undefined' ) {
 					console.warn(
-						'[desktop-mode] Couldn’t parse href; letting the browser handle the click:',
+						'[openstation] Couldn’t parse href; letting the browser handle the click:',
 						rawHref,
 						err,
 					);
@@ -105,7 +100,7 @@ export function bindTopWindowLinkInterceptor(
 				// link click on the page.
 				if ( typeof console !== 'undefined' ) {
 					console.error(
-						'[desktop-mode] config.adminUrl is not a valid URL; falling back to /wp-admin/:',
+						'[openstation] config.adminUrl is not a valid URL; falling back to /wp-admin/:',
 						config.adminUrl,
 						err,
 					);
@@ -183,6 +178,7 @@ export function bindTopWindowLinkInterceptor(
 				title: dockEntry?.title || fallbackTitle,
 				icon: dockEntry?.icon || 'dashicons-admin-generic',
 				submenu: dockEntry?.submenu,
+				selfLabel: dockEntry?.selfLabel,
 			};
 
 			if ( isAdminBarNew ) {

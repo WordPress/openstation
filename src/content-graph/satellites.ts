@@ -30,11 +30,10 @@
  *     focused node as it moves with the simulation.
  *
  * @public
- * @since 0.8.2
  */
 
 import { __, sprintf } from '../i18n';
-import { resolveDashicon } from '../ui/components/wpd-icon/dashicons-map';
+import { resolveDashicon } from '../ui/components/os-icon/dashicons-map';
 import type {
 	PixiContainer,
 	PixiGraphics,
@@ -206,7 +205,7 @@ export class SatelliteLayer {
 		this.satelliteParent.addChild( this.layer );
 
 		this.hoverEl = document.createElement( 'div' );
-		this.hoverEl.className = 'desktop-mode-content-graph__tooltip';
+		this.hoverEl.className = 'os-content-graph__tooltip';
 		this.hoverEl.hidden = true;
 		this.hostEl.appendChild( this.hoverEl );
 	}

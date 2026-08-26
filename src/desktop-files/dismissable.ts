@@ -3,8 +3,6 @@
  * dismiss" lifecycle to a floating element. Both the wallpaper
  * context menu and the file-tile context menu need it; the
  * shape stays here so neither has to roll its own.
- *
- * @since 0.9.0
  */
 
 export interface DismissableOptions {

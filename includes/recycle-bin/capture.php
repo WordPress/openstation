@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — Recycle Bin: capture.
+ * OpenStation — Recycle Bin: capture.
  *
  * Stamps "who-deleted-what-when" metadata onto posts, pages, and
  * comments as they pass through `wp_trash_post()` / `trashed_comment`,
@@ -12,16 +12,15 @@
  * enable trash for media, define `MEDIA_TRASH` as `true` in
  * `wp-config.php`; the Recycle Bin window will surface trashed
  * attachments automatically because `attachment` is in the default
- * `desktop_mode_recycle_bin_capture_post_types` list.
+ * `openstation_recycle_bin_capture_post_types` list.
  *
- *   - `desktop_mode_recycle_bin_capture_post_types` controls which post
+ *   - `openstation_recycle_bin_capture_post_types` controls which post
  *     types we listen for in the first place.
- *   - The `desktop_mode_recycle_bin_item_captured` action fires after a
+ *   - The `openstation_recycle_bin_item_captured` action fires after a
  *     successful capture so plugins can mirror the event (audit log,
  *     external storage, etc.).
  *
- * @package WPDesktopMode
- * @since   0.6.0
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -35,19 +34,16 @@ defined( 'ABSPATH' ) || exit;
  * subscribe once.
  *
  * Custom post types with an admin UI (`show_ui`, non-builtin) are
- * included by default since 0.9.6 — a trashed WooCommerce product or
+ * included by default — a trashed WooCommerce product or
  * portfolio entry belongs in the site-wide bin just as much as a
  * post does. Visibility stays safe because every row is still gated
  * per-item on `edit_post` before it is listed. Headless CPTs
  * (`show_ui => false`, e.g. the pinned-notes `wpd_note`) stay out
  * unless their owning feature opts in via the filter.
  *
- * @since 0.6.0
- * @since 0.9.6 Non-builtin `show_ui` post types are included by default.
- *
  * @return string[]
  */
-function desktop_mode_recycle_bin_capture_post_types() {
+function openstation_recycle_bin_capture_post_types() {
 	$types = array( 'post', 'page', 'attachment' );
 
 	$custom = get_post_types(
@@ -68,11 +64,9 @@ function desktop_mode_recycle_bin_capture_post_types() {
 	 * Remove a custom post type here to keep its trash out of the bin,
 	 * or add a headless (`show_ui => false`) type to opt it in.
 	 *
-	 * @since 0.6.0
-	 *
 	 * @param string[] $types Post types whose deletions the recycle bin tracks.
 	 */
-	$types = apply_filters( 'desktop_mode_recycle_bin_capture_post_types', $types );
+	$types = apply_filters( 'openstation_recycle_bin_capture_post_types', $types );
 
 	return array_values( array_unique( array_filter( array_map( 'strval', (array) $types ) ) ) );
 }
@@ -85,34 +79,30 @@ function desktop_mode_recycle_bin_capture_post_types() {
  * include the user id — we stash that ourselves under a private meta
  * key so the table can show "deleted by Alice".
  *
- * @since 0.6.0
- *
  * @param int $post_id Post being trashed.
  */
-function desktop_mode_recycle_bin_on_trash_post( $post_id ) {
+function openstation_recycle_bin_on_trash_post( $post_id ) {
 	$post = get_post( $post_id );
 	if ( ! $post ) {
 		return;
 	}
-	if ( ! in_array( $post->post_type, desktop_mode_recycle_bin_capture_post_types(), true ) ) {
+	if ( ! in_array( $post->post_type, openstation_recycle_bin_capture_post_types(), true ) ) {
 		return;
 	}
-	desktop_mode_recycle_bin_record_capture( $post_id );
+	openstation_recycle_bin_record_capture( $post_id );
 }
 
 /**
  * Persist who-deleted-what-when metadata for a single item.
  *
- * Stored under `_desktop_mode_trash_*` postmeta on the trashed post itself —
+ * Stored under `_openstation_trash_*` postmeta on the trashed post itself —
  * survives un-trash naturally because we only consult it while in the
  * bin, and gets cleaned up by core when the post is permanently
  * deleted via the standard postmeta cascade.
  *
- * @since 0.6.0
- *
  * @param int $post_id Post id being captured.
  */
-function desktop_mode_recycle_bin_record_capture( $post_id ) {
+function openstation_recycle_bin_record_capture( $post_id ) {
 	$user_id = get_current_user_id();
 	$now_gmt = current_time( 'mysql', true );
 
@@ -125,30 +115,26 @@ function desktop_mode_recycle_bin_record_capture( $post_id ) {
 	 * Use this to mirror the event into an external audit log or to
 	 * extend the captured payload with custom postmeta.
 	 *
-	 * @since 0.6.0
-	 *
 	 * @param int    $post_id Post id that was captured.
 	 * @param int    $user_id User id who triggered the capture.
 	 * @param string $now_gmt MySQL-format GMT timestamp.
 	 */
-	do_action( 'desktop_mode_recycle_bin_item_captured', $post_id, $user_id, $now_gmt );
+	do_action( 'openstation_recycle_bin_item_captured', $post_id, $user_id, $now_gmt );
 }
 
-add_action( 'wp_trash_post', 'desktop_mode_recycle_bin_on_trash_post', 10, 1 );
+add_action( 'wp_trash_post', 'openstation_recycle_bin_on_trash_post', 10, 1 );
 
 /**
  * Capture deleted-by metadata for comments — symmetric to
- * `desktop_mode_recycle_bin_record_capture` but writing to `commentmeta`
+ * `openstation_recycle_bin_record_capture` but writing to `commentmeta`
  * instead of `postmeta`. Comments use `wp_set_comment_status('trash')`
  * which fires `trashed_comment`; we don't need to short-circuit
  * anything (core already routes to a real trash status), just
  * stamp the moment so the bin can show "by Alice, 5 minutes ago".
  *
- * @since 0.6.0
- *
  * @param int $comment_id Comment about to be trashed.
  */
-function desktop_mode_recycle_bin_on_trash_comment( $comment_id ) {
+function openstation_recycle_bin_on_trash_comment( $comment_id ) {
 	$comment_id = (int) $comment_id;
 	$user_id    = get_current_user_id();
 	$now_gmt    = current_time( 'mysql', true );
@@ -159,12 +145,10 @@ function desktop_mode_recycle_bin_on_trash_comment( $comment_id ) {
 	/**
 	 * Fires after the recycle bin records a comment capture.
 	 *
-	 * @since 0.6.0
-	 *
 	 * @param int    $comment_id Comment id that was captured.
 	 * @param int    $user_id    User id who triggered the capture.
 	 * @param string $now_gmt    MySQL-format GMT timestamp.
 	 */
-	do_action( 'desktop_mode_recycle_bin_comment_captured', $comment_id, $user_id, $now_gmt );
+	do_action( 'openstation_recycle_bin_comment_captured', $comment_id, $user_id, $now_gmt );
 }
-add_action( 'trashed_comment', 'desktop_mode_recycle_bin_on_trash_comment', 10, 1 );
+add_action( 'trashed_comment', 'openstation_recycle_bin_on_trash_comment', 10, 1 );

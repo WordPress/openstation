@@ -10,22 +10,20 @@
  *     when a plugin registers / unregisters a theme; the shell
  *     invokes this for every open window so live activation paints
  *     immediately.
- *   - **On runtime mutation** — `wp.desktop.applyWindowTheme()` calls
+ *   - **On runtime mutation** — `wp.os.applyWindowTheme()` calls
  *     this directly with explicit overrides bypassing the registry.
  *
  * Tokens previously written by the shell are tracked in a
  * WeakMap-keyed bookkeeping store so a re-apply removes stale
  * variables before writing the new ones — otherwise a window that
- * goes from theme-A (with `--desktop-mode-titlebar-bg`) to theme-B
+ * goes from theme-A (with `--os-titlebar-bg`) to theme-B
  * (without that token) would keep theme-A's colour, because
  * `setProperty` and `removeProperty` are independent operations.
  *
  * Every applied theme passes through the
- * `desktop-mode.window.chrome.theme` filter, letting plugins augment
+ * `os.window.chrome.theme` filter, letting plugins augment
  * or override the resolved tokens without owning a theme
  * registration.
- *
- * @since 0.6.0
  */
 
 import { applyFilters, doAction, HOOKS } from '../hooks';
@@ -45,7 +43,7 @@ const applied = new WeakMap< HTMLElement, AppliedThemeRecord >();
  * Resolve the active theme tokens for a window. Resolution order:
  *
  *   1. Explicit override (`override` argument) — used by the
- *      `setAppearanceTheme()` / `wp.desktop.applyWindowTheme()`
+ *      `setAppearanceTheme()` / `wp.os.applyWindowTheme()`
  *      runtime APIs and by `WindowConfig.appearance.theme`.
  *      Inline tokens (`override.tokens`) bypass the registry entirely;
  *      a `themeId` reference looks the theme up.
@@ -53,7 +51,7 @@ const applied = new WeakMap< HTMLElement, AppliedThemeRecord >();
  *
  * Returns `{ themeId, tokens }` even when no theme matches — `tokens`
  * is then an empty object and `themeId` is `null`. Always passed
- * through the `desktop-mode.window.chrome.theme` filter so plugins can
+ * through the `os.window.chrome.theme` filter so plugins can
  * decorate the result.
  *
  * @internal
@@ -100,7 +98,7 @@ export function resolveActiveTheme(
  * Apply a theme to a window's outer element. Removes any previously-
  * applied tokens before writing the new set so stale variables can't
  * linger across theme changes. Fires the
- * `desktop-mode.window.chrome.theme-changed` action after writing.
+ * `os.window.chrome.theme-changed` action after writing.
  *
  * @param win      Target window.
  * @param override Optional appearance override — same shape as

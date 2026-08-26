@@ -4,14 +4,12 @@
  * Maps an arbitrary input string into the hue circle (0–359) using a
  * lite djb2 hash, so a label like "Jetpack" or a user name like
  * "Daniel López" always paints the same color across reloads. Used
- * by the dock's letter-tile fallback and `<wpd-avatar>`'s initials
+ * by the dock's letter-tile fallback and `<os-avatar>`'s initials
  * fallback to give each subject a stable visual identity without
  * shipping art.
  *
  * Cheap, deterministic, not security-adjacent. Empty input falls back
  * to a neutral blue-gray so callers don't have to guard against it.
- *
- * @since 0.6.0
  */
 
 export function hashTitleToHue( input: string ): number {

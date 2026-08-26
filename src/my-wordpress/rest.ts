@@ -2,13 +2,12 @@
  * My WordPress — REST glue.
  *
  * Reads the bundle's localized config via the standard
- * `desktop_mode_register_window` config delivery channel, and wraps
+ * `openstation_register_window` config delivery channel, and wraps
  * `trackedFetch` so every request feeds the window's title-bar
  * activity indicator.
- *
- * @since 0.8.0
  */
 
+import { __ } from '../i18n';
 import { joinRestUrl } from '../rest-url';
 import { trackedFetch } from '../tracked-fetch';
 import type {
@@ -24,14 +23,14 @@ import type {
 
 declare global {
 	interface Window {
-		desktopModeWindowConfig?: Record< string, unknown >;
+		openStationWindowConfig?: Record< string, unknown >;
 	}
 }
 
 const WINDOW_ID = 'desktop-mode-my-wordpress';
 
 export function getConfig(): MyWordPressConfig {
-	const store = window.desktopModeWindowConfig;
+	const store = window.openStationWindowConfig;
 	const cfg = store
 		? ( store[ WINDOW_ID ] as MyWordPressConfig | undefined )
 		: undefined;
@@ -41,6 +40,18 @@ export function getConfig(): MyWordPressConfig {
 		);
 	}
 	return cfg;
+}
+
+/**
+ * The site's own name — this window's title and its breadcrumb root.
+ *
+ * The desktop holds objects, not a mention of the OS you're already
+ * standing in, so the folder of a site's content is named after the
+ * site. The fallback only fires for a config blob that predates the
+ * server sending `siteName`.
+ */
+export function getSiteName(): string {
+	return getConfig().siteName?.trim() || __( 'WordPress', 'desktop-mode' );
 }
 
 export function getEntity( id: string ): MyWordPressEntity | undefined {
@@ -69,16 +80,12 @@ interface ListParams {
 	 * REST endpoint via `?search=…`, which runs a LIKE against the
 	 * collection's indexed columns (`post_title` + `post_content` for
 	 * posts; see the per-fetcher comments below for the others).
-	 *
-	 * @since 0.8.7
 	 */
 	search?: string;
 	/**
 	 * Optional `AbortSignal` so callers can cancel a stale page-fetch
 	 * when the user types a new search query before the previous
 	 * round-trip lands.
-	 *
-	 * @since 0.8.7
 	 */
 	signal?: AbortSignal;
 }
@@ -91,11 +98,31 @@ export async function fetchEntityList(
 	const url = new URL( buildUrl( entity.restPath ) );
 	url.searchParams.set( 'page', String( params.page ) );
 	url.searchParams.set( 'per_page', String( params.perPage ) );
+	// Sections can widen the field list via `listFields` — anything
+	// not named here is stripped from the response by
+	// `rest_filter_response_fields()` before the bundle sees it.
 	url.searchParams.set(
 		'_fields',
-		'id,title,excerpt,date,status,featured_media,link,desktop_mode_lock,_links,_embedded',
+		[
+			'id',
+			'title',
+			'excerpt',
+			'date',
+			'status',
+			'featured_media',
+			'link',
+			'openstation_lock',
+			'_links',
+			'_embedded',
+			...( entity.listFields ?? [] ),
+		].join( ',' ),
 	);
 	url.searchParams.set( '_embed', 'wp:featuredmedia' );
+	// Section-declared markers, so a server-side query filter can tell
+	// a site-window request from any other REST caller's.
+	for ( const [ key, value ] of Object.entries( entity.listQuery ?? {} ) ) {
+		url.searchParams.set( key, value );
+	}
 	// Surface drafts/private/pending so authors see their unpublished
 	// content too. Endpoint enforces `edit_posts` for non-publish
 	// statuses, so unauthorized users still only see what they can
@@ -135,9 +162,16 @@ export async function fetchEntityDetail(
 ): Promise< EntityDetail > {
 	const cfg = getConfig();
 	const url = new URL( buildUrl( `${ entity.restPath }/${ id }` ) );
+	// `editUrl` and the section's own `listFields` ride the detail
+	// request too — the row-supplied editor URL (the HPOS escape
+	// hatch, see `EntityListItem.editUrl`) has to reach the preview
+	// pane's "Open in editor" button, not just the list tiles.
 	url.searchParams.set(
 		'_fields',
-		'id,title,content,excerpt,date,modified,status,link,author,featured_media,categories,tags,comment_status,desktop_mode_contributors,desktop_mode_attached_media,_links,_embedded',
+		[
+			'id,title,content,excerpt,date,modified,status,link,author,featured_media,categories,tags,comment_status,openstation_contributors,openstation_attached_media,editUrl,_links,_embedded',
+			...( entity.listFields ?? [] ),
+		].join( ',' ),
 	);
 	url.searchParams.set( '_embed', 'author,wp:term,wp:featuredmedia,replies' );
 
@@ -179,6 +213,269 @@ export async function trashEntity(
 	}
 }
 
+/**
+ * Fields a bulk edit needs to read before it can write.
+ *
+ * Categories and tags are ADDITIVE in WordPress's own bulk edit — the
+ * terms you pick are added to whatever each post already has, never
+ * replacing them. The REST API only takes the full array, so we have
+ * to know the current one per post. `sticky` and `comment_status`
+ * come along because the modal pre-reads nothing else about them.
+ */
+export interface EntityBulkFields {
+	id: number;
+	categories?: number[];
+	tags?: number[];
+	sticky?: boolean;
+	comment_status?: string;
+	author?: number;
+}
+
+/**
+ * Read the taxonomy + flag state for a set of entries in ONE request.
+ *
+ * A post type that has no categories or tags simply omits those keys
+ * from the response, which is how the bulk-edit modal decides whether
+ * to render those controls at all — no separate capability probe.
+ */
+export async function fetchEntityBulkFields(
+	entity: MyWordPressEntity,
+	ids: readonly number[],
+): Promise< EntityBulkFields[] > {
+	if ( ids.length === 0 ) {
+		return [];
+	}
+	const cfg = getConfig();
+	const read = async ( context: 'edit' | 'view' ): Promise< Response > => {
+		const url = new URL( buildUrl( entity.restPath ) );
+		url.searchParams.set( 'include', ids.join( ',' ) );
+		url.searchParams.set(
+			'per_page',
+			String( Math.min( ids.length, 100 ) ),
+		);
+		url.searchParams.set( 'context', context );
+		url.searchParams.set(
+			'_fields',
+			'id,categories,tags,sticky,comment_status,author',
+		);
+		url.searchParams.set(
+			'status',
+			'publish,future,draft,pending,private',
+		);
+		return shellFetch( url.toString(), {
+			method: 'GET',
+			credentials: 'same-origin',
+			headers: {
+				'X-WP-Nonce': cfg.restNonce,
+				Accept: 'application/json',
+			},
+		} );
+	};
+
+	// `context=edit` carries `sticky` and `comment_status`, but the
+	// collection endpoint refuses it outright for a viewer who may not
+	// edit the post type at all. Fall back to the view context rather
+	// than failing the whole bulk edit: the taxonomy merge only needs
+	// `categories` / `tags`, which come back either way, and any field
+	// the viewer may not write is rejected per-row at write time
+	// anyway.
+	let response = await read( 'edit' );
+	if ( response.status === 401 || response.status === 403 ) {
+		response = await read( 'view' );
+	}
+	if ( ! response.ok ) {
+		throw new Error(
+			await readErrorMessage( response, 'Failed to read entries' ),
+		);
+	}
+	return ( await response.json() ) as EntityBulkFields[];
+}
+
+/**
+ * Patch one entry. WordPress's REST API takes POST for updates (not
+ * PATCH), which is what core's own editor sends.
+ */
+export async function updateEntity(
+	entity: MyWordPressEntity,
+	id: number,
+	body: Record< string, unknown >,
+): Promise< void > {
+	const cfg = getConfig();
+	const response = await shellFetch(
+		buildUrl( `${ entity.restPath }/${ id }` ),
+		{
+			method: 'POST',
+			credentials: 'same-origin',
+			headers: {
+				'X-WP-Nonce': cfg.restNonce,
+				Accept: 'application/json',
+				'Content-Type': 'application/json',
+			},
+			body: JSON.stringify( body ),
+		},
+	);
+	if ( ! response.ok ) {
+		throw new Error(
+			await readErrorMessage( response, 'Failed to update entry' ),
+		);
+	}
+}
+
+/** One term as the bulk-edit pickers need it. */
+export interface TermOption {
+	id: number;
+	name: string;
+	parent: number;
+}
+
+/**
+ * Load a taxonomy's terms for the bulk-edit pickers. Capped at 100 —
+ * the pickers are for choosing, not for browsing a folksonomy, and
+ * the tag input has its own search-as-you-type path for the tail.
+ */
+export async function fetchTaxonomyTerms(
+	taxonomy: 'categories' | 'tags',
+	search = '',
+): Promise< TermOption[] > {
+	const cfg = getConfig();
+	const url = new URL( buildUrl( `wp/v2/${ taxonomy }` ) );
+	url.searchParams.set( 'per_page', '100' );
+	url.searchParams.set( '_fields', 'id,name,parent' );
+	url.searchParams.set( 'orderby', 'name' );
+	url.searchParams.set( 'order', 'asc' );
+	if ( search ) {
+		url.searchParams.set( 'search', search );
+	}
+	const response = await shellFetch( url.toString(), {
+		method: 'GET',
+		credentials: 'same-origin',
+		headers: {
+			'X-WP-Nonce': cfg.restNonce,
+			Accept: 'application/json',
+		},
+	} );
+	if ( ! response.ok ) {
+		return [];
+	}
+	const rows = ( await response.json() ) as Array< {
+		id: number;
+		name: string;
+		parent?: number;
+	} >;
+	return rows.map( ( r ) => ( {
+		id: r.id,
+		name: r.name,
+		parent: r.parent ?? 0,
+	} ) );
+}
+
+/** Create a tag by name, returning its id. Used by the tag input. */
+export async function createTag( name: string ): Promise< TermOption | null > {
+	const cfg = getConfig();
+	const response = await shellFetch( buildUrl( 'wp/v2/tags' ), {
+		method: 'POST',
+		credentials: 'same-origin',
+		headers: {
+			'X-WP-Nonce': cfg.restNonce,
+			Accept: 'application/json',
+			'Content-Type': 'application/json',
+		},
+		body: JSON.stringify( { name } ),
+	} );
+	if ( ! response.ok ) {
+		return null;
+	}
+	const row = ( await response.json() ) as { id: number; name: string };
+	return { id: row.id, name: row.name, parent: 0 };
+}
+
+/** Users who can be assigned as an author. */
+export async function fetchAuthors(): Promise<
+	Array< { id: number; name: string } >
+	> {
+	const cfg = getConfig();
+	const url = new URL( buildUrl( 'wp/v2/users' ) );
+	url.searchParams.set( 'per_page', '100' );
+	url.searchParams.set( '_fields', 'id,name' );
+	url.searchParams.set( 'orderby', 'name' );
+	url.searchParams.set( 'order', 'asc' );
+	// `who=authors` is deprecated in favour of a capability query;
+	// asking for the edit context keeps the list to users the viewer
+	// may actually assign.
+	url.searchParams.set( 'context', 'view' );
+	const response = await shellFetch( url.toString(), {
+		method: 'GET',
+		credentials: 'same-origin',
+		headers: {
+			'X-WP-Nonce': cfg.restNonce,
+			Accept: 'application/json',
+		},
+	} );
+	if ( ! response.ok ) {
+		return [];
+	}
+	return ( await response.json() ) as Array< { id: number; name: string } >;
+}
+
+/** Patch a user (role changes). */
+export async function updateUser(
+	id: number,
+	body: Record< string, unknown >,
+): Promise< void > {
+	const cfg = getConfig();
+	const response = await shellFetch( buildUrl( `wp/v2/users/${ id }` ), {
+		method: 'POST',
+		credentials: 'same-origin',
+		headers: {
+			'X-WP-Nonce': cfg.restNonce,
+			Accept: 'application/json',
+			'Content-Type': 'application/json',
+		},
+		body: JSON.stringify( body ),
+	} );
+	if ( ! response.ok ) {
+		throw new Error(
+			await readErrorMessage( response, 'Failed to update user' ),
+		);
+	}
+}
+
+/**
+ * Delete a user.
+ *
+ * WordPress has no trash for users, so the REST endpoint requires
+ * `force=true` — and it requires an answer to "what happens to their
+ * content": omit `reassign` and every post they wrote is deleted with
+ * them; pass a user id and it is attributed to that user instead.
+ * Core's own delete screen asks exactly this question, and so does
+ * ours.
+ */
+export async function deleteUser(
+	id: number,
+	reassign: number | null,
+): Promise< void > {
+	const cfg = getConfig();
+	const url = new URL( buildUrl( `wp/v2/users/${ id }` ) );
+	url.searchParams.set( 'force', 'true' );
+	url.searchParams.set(
+		'reassign',
+		reassign === null ? 'false' : String( reassign ),
+	);
+	const response = await shellFetch( url.toString(), {
+		method: 'DELETE',
+		credentials: 'same-origin',
+		headers: {
+			'X-WP-Nonce': cfg.restNonce,
+			Accept: 'application/json',
+		},
+	} );
+	if ( ! response.ok ) {
+		throw new Error(
+			await readErrorMessage( response, 'Failed to delete user' ),
+		);
+	}
+}
+
 async function readErrorMessage(
 	response: Response,
 	fallback: string,
@@ -210,7 +507,6 @@ async function readErrorMessage(
  *     get a non-empty total for non-admin viewers.
  *
  * @public
- * @since 0.8.0
  */
 export async function fetchEntityTotal(
 	entity: MyWordPressEntity,
@@ -260,7 +556,7 @@ export async function fetchEntityTotal(
 }
 
 /**
- * Paged fetch of `/wp/v2/users` rows with the `desktop_mode_summary`
+ * Paged fetch of `/wp/v2/users` rows with the `openstation_summary`
  * REST field pulled in. Pagination via `X-WP-Total` / `X-WP-TotalPages`
  * matches the post list shape.
  *
@@ -274,11 +570,10 @@ export async function fetchEntityTotal(
  *     other value (including `'all'`) yields a 400.
  *
  * We try `context=edit` first and fall back to `who=authors` on a
- * 403. The `desktop_mode_summary` REST field gates its own private
+ * 403. The `openstation_summary` REST field gates its own private
  * bits internally, so the fall-through doesn't leak data.
  *
  * @public
- * @since 0.8.2
  */
 export async function fetchUserList(
 	entity: MyWordPressEntity,
@@ -289,8 +584,6 @@ export async function fetchUserList(
 		 * Optional search query. Passed verbatim to `/wp/v2/users` as
 		 * `?search=…`, which matches against user_login, user_nicename,
 		 * user_email, user_url, and display_name.
-		 *
-		 * @since 0.8.7
 		 */
 		search?: string;
 		signal?: AbortSignal;
@@ -301,12 +594,31 @@ export async function fetchUserList(
 		const url = new URL( buildUrl( entity.restPath ) );
 		url.searchParams.set( 'page', String( params.page ) );
 		url.searchParams.set( 'per_page', String( params.perPage ) );
+		// Same `listFields` contract the post-shaped fetcher honours:
+		// a section serving user-shaped rows from its own route (the
+		// WooCommerce Customers list) carries extra payloads, and
+		// `rest_filter_response_fields()` strips anything not named
+		// here before the bundle ever sees it.
 		url.searchParams.set(
 			'_fields',
-			'id,name,slug,description,link,avatar_urls,desktop_mode_summary',
+			[
+				'id',
+				'name',
+				'slug',
+				'description',
+				'link',
+				'avatar_urls',
+				'openstation_summary',
+				...( entity.listFields ?? [] ),
+			].join( ',' ),
 		);
 		url.searchParams.set( 'orderby', 'name' );
 		url.searchParams.set( 'order', 'asc' );
+		// Section-declared markers, so a server-side query filter can
+		// tell a site-window request from any other REST caller's.
+		for ( const [ key, value ] of Object.entries( entity.listQuery ?? {} ) ) {
+			url.searchParams.set( key, value );
+		}
 		if ( mode === 'edit' ) {
 			url.searchParams.set( 'context', 'edit' );
 		} else {
@@ -352,7 +664,6 @@ export async function fetchUserList(
  * `/desktop-mode/v1/user-footprint/<id>`.
  *
  * @public
- * @since 0.8.2
  */
 export function fetchUserFootprint(
 	userId: number,
@@ -369,7 +680,6 @@ export function fetchUserFootprint(
  * for posts.
  *
  * @public
- * @since 0.8.2
  */
 export function buildEditUserUrl( id: number ): string {
 	const cfg = getConfig();
@@ -448,7 +758,6 @@ export interface RelatedRevision {
  * pane show the rendered HTML of just-this-revision.
  *
  * @public
- * @since 0.8.0
  */
 export interface RelatedRevisionDetail extends RelatedRevision {
 	content?: { rendered: string };
@@ -477,7 +786,6 @@ async function getJson< T >( url: string ): Promise< T > {
  * Single round-trip to `/desktop-mode/v1/user-stats/<id>`.
  *
  * @public
- * @since 0.8.0
  */
 export interface UserStats {
 	profile: {
@@ -539,10 +847,9 @@ export function fetchUserStats( id: number ): Promise< UserStats > {
 
 /**
  * Aggregated category / tag dossier — matches the shape the
- * `desktop_mode/v1/term-stats/<taxonomy>/<id>` endpoint returns.
+ * `openstation/v1/term-stats/<taxonomy>/<id>` endpoint returns.
  *
  * @public
- * @since 0.8.0
  */
 export interface TermStats {
 	profile: {
@@ -616,7 +923,6 @@ export function fetchTermStats(
  * `/desktop-mode/v1/comment-stats/<id>` endpoint shape.
  *
  * @public
- * @since 0.8.0
  */
 export interface CommentStats {
 	comment: {
@@ -727,7 +1033,6 @@ export function fetchAttachedMedia(
  * referenced from inside the post content). Single REST round-trip.
  *
  * @public
- * @since 0.8.0
  */
 export function fetchMediaByIds(
 	ids: number[],
@@ -770,7 +1075,6 @@ export function fetchRevisions(
  * The listing fetch above stays cheap (title + date only).
  *
  * @public
- * @since 0.8.0
  */
 export function fetchRevision(
 	entity: MyWordPressEntity,

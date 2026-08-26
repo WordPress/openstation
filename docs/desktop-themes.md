@@ -1,26 +1,28 @@
 # Desktop themes
 
-**Status:** Experimental · **Since:** 0.9.7
+**Status:** Experimental
 
-A **desktop theme** reskins the whole Desktop Mode shell at once —
+A **desktop theme** reskins the whole OpenStation shell at once —
 every design token, the typeface, a texture on any surface the shell
 paints, the window frame and its corners, and a complete iconset down
 to the window control glyphs. It ships as a ZIP containing a
 `theme.json` manifest plus images and fonts. Nothing else.
 
-> **Desktop themes vs window themes.** Desktop Mode also has
-> *window themes* (`desktop_mode_register_window_theme()`,
-> `wp.desktop.registerWindowTheme`), which restyle **one window's**
+> **Desktop themes vs window themes.** OpenStation also has
+> *window themes* (`openstation_register_window_theme()`,
+> `wp.os.registerWindowTheme`), which restyle **one window's**
 > chrome. Desktop themes restyle **the entire OS**. They are separate
 > features with separate registries; everything on this page uses the
 > `desktop_theme` / `desktopTheme` naming to keep them apart.
 
 - [The security model](#the-security-model)
+- [The Legacy theme — start here](#the-legacy-theme--start-here)
 - [ZIP layout](#zip-layout)
 - [`theme.json`](#themejson)
 - [Tokens](#tokens)
 - [Fonts](#fonts)
 - [Wallpapers](#wallpapers)
+- [Recommended OS settings](#recommended-os-settings)
 - [Icons](#icons)
 - [Textures](#textures)
 - [Texturing your own surface](#texturing-your-own-surface)
@@ -78,6 +80,153 @@ this feature can be open to site admins at all.
 
 ---
 
+## The Legacy theme — start here
+
+OpenStation ships one theme of its own, called **Desktop Mode
+(Legacy)**, and it is both the way back to the old look and the
+fastest way to write your first theme.
+
+Legacy is the shell's pre-brand defaults *written down*: every design
+token the chrome and the `<os-*>` component kit read, at the value it
+resolved to before [the OpenStation
+palette](https://nuriapenya.github.io/open-station-brand/) landed in
+`assets/css/variables.css`. 465 declarations, in one file,
+sorted — the WordPress-admin greys and blues, complete.
+
+Two audiences, one file. If you liked the old look, pick it and you
+have it back. If you are writing a theme, it saves you the archaeology
+of finding out that `--os-ui-fg-muted` used to be `#50575e`, that the
+dock glyph sits at 70% white, and that the unfocused close button is
+`rgba( 0, 0, 0, 0.45 )` — and it is a complete worked example of every
+token the system exposes.
+
+**To write a theme, fork it.** The manifest lives at
+`assets/desktop-themes/legacy/theme.json` inside the plugin, and
+`npm run package:legacy-theme` writes
+`dist/desktop-mode-legacy-theme.zip` — a normal, installable theme
+ZIP. Change the `id`, change the `name`, change the twenty values you
+care about, delete the rest (whatever you delete keeps its default —
+see [Fallback semantics](#fallback-semantics)), and upload.
+
+### It does not move
+
+Legacy is a **snapshot, frozen on purpose**. When OpenStation's own
+defaults change — a warmer dock, a different hairline, a new accent
+— Legacy goes on declaring exactly what it declares today. Nothing
+regenerates it: not the build, not CI, not the plugin at runtime. PHP
+reads that one committed file and registers it, and that is the whole
+mechanism.
+
+This is the promise the theme is for. Someone who picks Legacy is
+asking to keep the look they know, and a manifest that quietly
+tracked the code would take it away from them one release at a time
+— while also making the theme a no-op again for anyone forking it as
+a reference. If a later release drifts far enough to be worth
+capturing, that is a *new* snapshot theme under a new id, not a
+rewrite of this one.
+
+The practical consequence for you: fork it and you have a stable
+floor. Values you keep will still mean what they meant, and values
+the shell changes underneath you are exactly the ones your fork is
+already pinning.
+
+**Adding a name it never had is a different act, and it is allowed.**
+The freeze protects values that were *collected* — those never move.
+A token minted after the snapshot has no collected value to protect,
+and leaving it out does not preserve the old look: it hands that name
+to the palette, which after the brand means the brand. So the manifest
+grows when the token surface grows, at the value the new token's
+consuming rule falls back to, and `Tests_OpenStation_DesktopThemesLegacy`
+holds the two halves apart — a count that may rise, and per-token
+assertions that may not move.
+
+### It is always there, and it cannot be deleted
+
+Legacy is **code-registered**
+([from PHP](#registering-a-theme-from-php)) rather than uploaded, so
+it is present on every install and the delete route does not apply to
+it — there is no file to remove, and its card carries no delete
+button. A site that genuinely does not want it in the picker
+unregisters it:
+
+```php
+add_action( 'init', function () {
+    openstation_unregister_desktop_theme( 'desktop-mode/legacy' );
+}, 20 );
+```
+
+### What it deliberately leaves out
+
+Legacy declares what is *fixed* about the default look, not what is
+*conditional* about it. Three families stay out, each because naming a
+literal would make the theme differ from the unthemed shell rather
+than reproduce it:
+
+| Left out | Why |
+|---|---|
+| **Anything the palette derives from the accent** — the tab wash / bloom / edge, the focus rings, the holo glows, the dock divider, the title-bar activity dot, `--os-ui-accent-dim` itself | The accent picker writes `--os-ui-accent` and `--os-ui-accent-dim` inline at runtime, and these follow. Pin one and the pick stops reaching it: the user chooses teal and that surface stays blue. |
+| Derived sizes — the dock / icon / recycle badge families | They size themselves off the icon they decorate, so a literal freezes them against a large dock. |
+| Texture-slot properties (`*-image`, `*-border-image-*`) | Those are written by [`textures`](#textures), not by `tokens`. |
+
+If you want one of them, name it in your own theme — Legacy leaving
+it undeclared is a statement about *defaults*, not a restriction. But
+understand what you are giving up on the first row: a theme that pins
+`--os-ui-tab-wash` has opted its sidebar out of the accent picker, for
+every user who wears it.
+
+**The rule underneath that first row is the one to take away.** Look at
+how the palette declares a token before answering it:
+
+- **A literal** (`--os-tabs-bg-unfocused: #0c0b0f`) is a colour, and a
+  colour is yours to replace. Answer it.
+- **A derivation** (`--os-ui-tab-wash: linear-gradient( 90deg,
+  color-mix( in srgb, var( --os-ui-accent-dim ) 16%, … ) )`) is not a
+  colour — it is a *rule*, and it already resolves correctly under your
+  theme, because the accent it reads is the one you declared. Answering
+  it with a literal restores nothing and severs the chain.
+
+One accent to declare, and everything the palette computes from it
+follows. `Tests_OpenStation_DesktopThemesLegacy` asserts both halves —
+that Legacy answers every palette literal, and that it answers none of
+the accent-driven derivations.
+
+*Context-dependent tokens* — `--os-fg`, `--os-tooltip-bg` / `-fg` —
+**used to be on that list and are not any more.** The
+idea was that one literal could not serve a token that reads light on
+the desk and dark inside a window, so naming it would break one of the
+two. What actually happens when a theme omits a name is not "the token
+stays conditional" — it is **the palette answers instead**, and the
+palette is one value too. Omitting decided nothing; it only moved the
+decision to the brand. See [Fallback semantics](#fallback-semantics)
+for why an omitted token is not an open question.
+
+The tooltip chip is still the same dark lozenge under Legacy, which was
+always the intent — a chip is one line of text pinned to a control, not
+a surface that belongs to a window. It is now dark because Legacy says
+`rgba( 0, 0, 0, 0.45 )` rather than because nobody said anything. The
+[WP Explorer hover card](#the-wp-explorer-hover-card) used to be painted
+as one and looked wrong for exactly that reason — Obsidian, floating
+over Legacy's white window. It derives from `--os-my-wordpress-bg`,
+which Legacy also declares, so it comes back light.
+
+### Two honest caveats
+
+**It is a canonical snapshot, not a byte-for-byte one.** A handful of
+palette names were read with slightly different literals at different
+sites as the codebase grew — `--os-ui-hover` at 4% in one stylesheet and
+6% in another, `--os-ui-surface-elevated` as `#f6f7f7` here and `#fff`
+there. Legacy picks one value per name, which is what naming a palette
+*means*; wearing it unifies those few near-duplicates rather than
+reproducing each of them. Nothing moves and nothing changes contrast.
+
+**It does not take back your accent.** The accent colour is a user
+setting (OpenStation Preferences → Appearance), written as an inline style that
+outranks every stylesheet, so it is yours rather than any theme's.
+Legacy leaves it alone deliberately — pick `WordPress Blue` there if
+you want the old accent back with the old palette.
+
+---
+
 ## ZIP layout
 
 Either shape works — the manifest may sit at the archive root, or one
@@ -116,7 +265,7 @@ their next page load.
 
 ```json
 {
-  "manifestVersion": 1,
+  "manifestVersion": 2,
   "id": "acme/neon-glass",
   "name": "Neon Glass",
   "version": "1.0.0",
@@ -125,9 +274,8 @@ their next page load.
   "preview": "preview.png",
 
   "tokens": {
-    "--desktop-mode-window-radius": "14px",
-    "--desktop-mode-titlebar-bg-focused": "#1a1a2e",
-    "--desktop-mode-font": "\"Neon Grotesk\", system-ui, sans-serif"
+    "--os-titlebar-bg-focused": "#1a1a2e",
+    "--os-font": "\"Neon Grotesk\", system-ui, sans-serif"
   },
 
   "fonts": [
@@ -150,6 +298,11 @@ their next page load.
                       "slice": "24 fill", "width": "12px", "repeat": "round" },
     "DESKTOP":      { "type": "image", "path": "textures/desktop.jpg",
                       "size": "cover", "repeat": "no-repeat" }
+  },
+
+  "recommendedOsSettings": {
+    "dockSize":      "large",
+    "desktopLayout": "unified"
   }
 }
 ```
@@ -160,13 +313,23 @@ Get these wrong and the upload is rejected with a specific message:
 
 | Field | Rule |
 |---|---|
-| `manifestVersion` | Must be exactly `1`. |
+| `manifestVersion` | `1` or `2`. |
 | `id` | `^[a-z0-9_-]+(/[a-z0-9_-]+)?$`, max 64 chars. Namespacing (`vendor/name`) is encouraged. |
 | `name` | Non-empty. |
 
 The storage **slug** is the `id` with `/` flattened to `-`
 (`acme/neon-glass` → `acme-neon-glass`). It is what appears in the
 compiled selector and the body class.
+
+**On `manifestVersion`.** `2` says nothing about the shape of anything
+else on this page — it exists so you can declare that your manifest
+carries [`recommendedOsSettings`](#recommended-os-settings), and so a
+reader can tell a deliberate omission from an older file. Every v1
+manifest keeps working untouched, and a v1 manifest that ships the
+block anyway still has it honoured: dropping a valid, sanitized field
+over a version number would contradict the drop-and-continue rule the
+rest of the sanitizer follows. Write `2` when you recommend settings,
+leave `1` alone otherwise.
 
 ### Everything else
 
@@ -177,9 +340,10 @@ Optional, and **individually droppable** — see
 |---|---|
 | `version`, `author` | Plain text, ≤32 / ≤120 chars. |
 | `description` | Plain text, ≤500 chars. |
-| `preview` | Path to an image shown on the theme card in OS Settings. |
+| `preview` | Path to an image shown on the theme card in OpenStation Preferences. |
 | `iconColor` | Default fill for every icon — see [Icon colour](#icon-colour). |
 | `wallpaper` / `wallpapers` | One or more pickable wallpapers — see [Wallpapers](#wallpapers). |
+| `recommendedOsSettings` | Layout preferences to seed on first activation — see [Recommended OS settings](#recommended-os-settings). |
 | `tokens`, `fonts`, `icons`, `textures` | See below. |
 
 ---
@@ -190,95 +354,497 @@ A map of CSS custom property => value. Three namespaces are accepted;
 anything else is dropped, so a theme can never reach a property the
 shell didn't mean to expose.
 
+> **Where the defaults live.** `assets/css/variables.css` declares the
+> shell's own palette — the [OpenStation
+> brand](https://nuriapenya.github.io/open-station-brand/) — scoped to
+> `body.os-active`. A theme's compiled selector matches the
+> same element and prints after it, so **every token below is yours to
+> take** whether or not the shell already has an opinion about it.
+> Behind both, every rule in the tree still reads its token as
+> `var( --token, <literal> )`, and those literals are the pre-brand
+> WordPress-admin values — which is what
+> [Legacy](#the-legacy-theme--start-here) collects.
+>
+> That scope is also why **an admin page inside an iframe window looks
+> exactly as it does outside one**: chromeless documents carry
+> `body.os-chromeless`, match none of it, and render on the
+> literals. See [Non-goals](#non-goals).
+
 | Namespace | What it restyles |
 |---|---|
-| `--desktop-mode-*` | The **shell**: dock, desktop, window frame, title bars, corners. |
-| `--wpd-*` | Window **bodies**: the `<wpd-*>` component kit *and* every feature stylesheet. |
+| `--os-*` | The **shell**: dock, desktop, window frame, title bars, corners. |
+| `--os-ui-*` | Window **bodies**: the `<os-*>` component kit *and* every feature stylesheet. |
 | `--wp-admin-theme-color` | The WordPress admin accent. |
 
-### The `--wpd-*` UI palette
+### The `--os-ui-*` UI palette
 
 This is the one that matters most, and the one theme authors most
-often miss: **`--desktop-mode-*` alone restyles the frame around a
+often miss: **`--os-*` alone restyles the frame around a
 window and nothing inside it.** Window bodies — the Settings panel,
-the Posts table, the Recycle Bin, file tiles, every dialog — read the
-`--wpd-*` palette. A theme that sets only the shell tokens produces a
+the Posts table, the Trash, file tiles, every dialog — read the
+`--os-ui-*` palette. A theme that sets only the shell tokens produces a
 dark frame around a white page.
 
 | Token | Role |
 |---|---|
-| `--wpd-surface` | Cards, panels, table rows |
-| `--wpd-surface-elevated` | Headers, raised strips |
-| `--wpd-surface-sunken` | Wells, recessed areas |
-| `--wpd-fg` | Body text |
-| `--wpd-fg-muted` | Secondary text, metadata |
-| `--wpd-fg-faint` | Disabled text |
-| `--wpd-fg-on-accent` | Text on a filled accent / danger surface |
-| `--wpd-border` | Hairlines |
-| `--wpd-border-strong` | Emphasized dividers |
-| `--wpd-hover` | Row / tile hover wash |
-| `--wpd-scrim` | Modal + overlay backdrop |
-| `--wpd-accent` | Primary action |
-| `--wpd-accent-strong` | Its hover / active state |
-| `--wpd-danger`, `--wpd-danger-hover` | Destructive actions |
-| `--wpd-warning-fg`, `--wpd-warning-bg`, `--wpd-warning-border` | Warning notices |
-| `--wpd-info-fg`, `--wpd-info-bg` | Info notices |
-| `--wpd-success-fg` | Success text |
+| `--os-ui-surface` | Cards, panels, table rows |
+| `--os-ui-surface-elevated` | Headers, raised strips |
+| `--os-ui-surface-sunken` | Wells, recessed areas |
+| `--os-ui-field-bg`, `--os-ui-field-border`, `--os-ui-field-fg` | Inputs written in the **light DOM** — a plugin's own `<input>` / `<select>` / `<textarea>` inside a window body. The kit's own `<os-text-field>` and friends resolve their surface inside their shadow roots and don't read these. |
+| `--os-ui-fg` | Body text |
+| `--os-ui-fg-muted` | Secondary text, metadata |
+| `--os-ui-fg-faint` | Disabled text |
+| `--os-ui-fg-on-accent` | Text on a filled accent / danger surface. **Not `--os-ui-accent-text`** — that name doesn't exist, and because an undefined custom property just yields to the `var()` fallback, writing it produces no error and no visible clue. If a colour you set is being ignored, check the name against this table first. |
+| `--os-ui-border` | Hairlines |
+| `--os-ui-border-strong` | Emphasized dividers |
+| `--os-ui-hover` | Row / tile hover wash |
+| `--os-ui-scrim` | Modal + overlay backdrop |
+| `--os-ui-accent` | Primary action |
+| `--os-ui-accent-strong` | Its hover / active state |
+| `--os-ui-danger`, `--os-ui-danger-hover` | Destructive actions |
+| `--os-ui-warning-fg`, `--os-ui-warning-bg`, `--os-ui-warning-border` | Warning notices |
+| `--os-ui-info-fg`, `--os-ui-info-bg` | Info notices |
+| `--os-ui-success-fg` | Success text |
 
 Individual components expose finer-grained tokens on top of these
-(`--wpd-button-bg`, `--wpd-card-bg`, `--wpd-table-header-bg`, …) —
+(`--os-ui-button-bg`, `--os-ui-card-bg`, `--os-ui-table-header-bg`, …) —
 around 190 in all, each documented next to its component in
 `src/ui/components/<name>/<name>.styles.ts`. **Every one of them falls
 through to the palette above**, e.g.
 
 ```css
-background: var( --wpd-card-bg, var( --wpd-surface, #fff ) );
+background: var( --os-ui-card-bg, var( --os-ui-surface, #fff ) );
 ```
 
-so setting `--wpd-surface` alone restyles cards, flyouts, menus,
+so setting `--os-ui-surface` alone restyles cards, flyouts, menus,
 tables and the rest. Reach for a component-local token only when you
 want that one component to differ — it still wins when set. Any
-`--wpd-*` name is accepted by the manifest.
+`--os-ui-*` name is accepted by the manifest.
+
+#### Telling the two families apart
+
+Both resolve at runtime, which is the trap: reading
+`--os-ui-badge-warning` in devtools returns a colour, so it looks like
+a palette token, and setting it looks like it worked. It isn't one.
+It's declared inside `<os-badge>`, which means a theme that re-points
+`--os-ui-warning-fg` — the palette token it falls through to — leaves
+a plugin's badges on the old value, because the component-local
+declaration is closer to the element and wins.
+
+The test is one grep, and it is exact:
+
+```bash
+grep -n -- '--os-ui-badge-warning' assets/css/variables.css   # palette?
+```
+
+- **In `variables.css`** (declared under `body.os-active`) → palette. Theme-settable, and every component chains through it.
+- **Not in `variables.css`** → component-local, declared in
+  `src/ui/components/<name>/<name>.styles.ts`. Settable per component,
+  but re-pointing the palette token it falls back to will not move it.
+
+The tables above are the palette in full. Everything else is
+component-local; the `--os-ui-badge-*` family straddles the line
+(`--os-ui-badge-warning-bg` is palette, `--os-ui-badge-warning` is
+not), which is exactly why the grep beats the guess.
 
 **These tokens have no default value.** Every consuming site reads
-them as `var( --wpd-x, <its own literal> )`, which is why an unthemed
+them as `var( --os-ui-x, <its own literal> )`, which is why an unthemed
 shell looks exactly as it always did and why one theme value retints
 a whole family at once.
+
+That includes the ones inside a component's shadow DOM. A component
+declaring `--os-ui-table-bg` on its own `:host` would make the name
+unreachable — a declaration on the element beats anything the element
+*inherits*, and your theme declares on an ancestor — so components read
+their public tokens into private aliases instead. The one exception is
+`<os-modal>`, whose dialog surface is dark whatever the admin colour
+scheme says. It re-points the foreground tokens (`--os-ui-fg`,
+`--os-ui-fg-muted`, `--os-ui-border`, `--os-ui-border-strong`), the
+surfaces (`--os-window-bg`, `--os-ui-surface`,
+`--os-ui-surface-elevated`) and the washes over them (`--os-ui-hover`,
+`--os-ui-button-bg-hover`) inside the dialog, and gives you a
+`--os-ui-modal-*` name for each: `-text`, `-text-muted`, `-border`,
+`-border-strong`, `-field-bg`, `-surface`, `-surface-elevated`,
+`-hover`, `-button-bg-hover`.
+
+**Theme the `--os-ui-modal-*` set, not the tokens it re-points** — a
+`--os-ui-surface` your theme sets never reaches inside a dialog, by
+design. The set covers foreground *and* surface deliberately: it used
+to re-point only the text colours, which looked correct for as long as
+the palette outside the dialog was dark too, and came apart the moment
+a light theme was worn — `<os-select>` in a dialog painted a white
+trigger under near-white text.
+
+The palette is not limited to window bodies: the shell's own
+body-mounted overlays — toasts, confirm dialogs, context menus, and
+the **command palette / Site Assistant** (⌘K) — read it too, because
+they render inside the `body.os-desktop-theme-<slug>` half
+of the compiled selector. Set `--os-ui-surface` and the `--os-ui-fg`
+family and the palette panel follows without any extra work.
 
 A dark theme's minimum viable body palette:
 
 ```json
 "tokens": {
-  "--wpd-surface":          "#161634",
-  "--wpd-surface-elevated": "#1e1c44",
-  "--wpd-surface-sunken":   "#101026",
-  "--wpd-fg":               "#e9e7ff",
-  "--wpd-fg-muted":         "#a5a1cc",
-  "--wpd-fg-faint":         "#6f6b99",
-  "--wpd-border":           "#2f2a63",
-  "--wpd-border-strong":    "#453e8c",
-  "--wpd-hover":            "rgba( 124, 92, 255, 0.16 )",
-  "--wpd-scrim":            "rgba( 6, 4, 24, 0.68 )"
+  "--os-ui-surface":          "#161634",
+  "--os-ui-surface-elevated": "#1e1c44",
+  "--os-ui-surface-sunken":   "#101026",
+  "--os-ui-fg":               "#e9e7ff",
+  "--os-ui-fg-muted":         "#a5a1cc",
+  "--os-ui-fg-faint":         "#6f6b99",
+  "--os-ui-border":           "#2f2a63",
+  "--os-ui-border-strong":    "#453e8c",
+  "--os-ui-hover":            "rgba( 124, 92, 255, 0.16 )",
+  "--os-ui-scrim":            "rgba( 6, 4, 24, 0.68 )"
 }
 ```
 
-### Shell tokens
+### The holographic tokens
 
-`--desktop-mode-*` names must match `^--desktop-mode-[a-z0-9-]+$`.
-Read `assets/css/variables.css` for the full set.
+The kit has one more family, and it is the one that decides how a
+control looks at the moment it is *on*. A switch that is on, a checked
+checkbox, the selected segment, the filled part of a progress bar and
+the step-number chip all paint `--os-ui-holo-fill` — by default the
+brand's Holomesh, transcribed into CSS in `--os-mesh-holo`.
+
+| Token | Role |
+|---|---|
+| `--os-ui-holo-fill` | What an on / selected / filled surface paints. |
+| `--os-ui-holo-ink` | Glyphs and text on that fill. |
+| `--os-ui-hero-mesh` | What a large decorative FIELD paints — a panel wash, an identity rail — as opposed to a control. An aurora by default, and built differently from the five meshes: its alpha is in the colour stops rather than applied to the layer, so the desk shows through and the hues keep their chroma at any strength. A mesh knocked back with `opacity` over a large area goes grey. Keep the two separate: a value chosen so a 40px chip reads as *on* is often within a unit or two of the surface behind it, which is invisible once it is stretched across a rail. Legacy answers this one with a flat WordPress-admin blue wash while leaving its control fill alone. |
+| `--os-ui-holo-sheen` | The hover film over a surface that is *not* lit. |
+| `--os-ui-holo-edge`, `--os-ui-holo-edge-quiet` | The iridescent hairline, lit and at rest. |
+| `--os-ui-holo-glow`, `--os-ui-holo-glow-strong` | The bloom around a lit surface. |
+| `--os-ui-holo-track` | The unlit half — switch tracks, empty progress. |
+| `--os-ui-tab-edge` | The leading edge on the selected row of a vertical `<os-tabs>`. The flat accent by default. |
+| `--os-ui-tab-wash`, `--os-ui-tab-bloom` | That row's surface wash and the bloom the edge throws back across it. Both ambient, so both resolve through `--os-ui-accent-dim`. |
+| `--os-ui-accent-dim` | The accent, one step back. Every *ambient* use of it — glows, washes, focus blooms — resolves through this, so it is the single knob for how loud a theme reads. |
+| `--os-ui-focus-ring` | Focus on a *target*: buttons, switches, checkboxes, swatches. |
+| `--os-ui-focus-ring-field` | Focus on a *field*: quieter, tightens the input's own border. |
+| `--os-ui-holo-transition` | Duration for every holographic transition in the kit. |
+
+And the motion scale, which is worth setting as a group or not at all — a theme that changes one duration gets a panel where the controls disagree about how fast they are:
+
+| Token | Role |
+|---|---|
+| `--os-ui-motion-fast` | A state flip with no travel: a colour, an opacity, a tick. |
+| `--os-ui-motion-slow` | Something crossing a distance: a thumb, a drawer, a card. |
+| `--os-ui-motion-ambient` | An ambient loop — a shimmer, a drift. |
+| `--os-ui-ease-spring` | Overshoots and settles. Wrong for anything that changes *size*. |
+| `--os-ui-ease-out` | Decelerating. The default for anything arriving. |
+| `--os-ui-ease-loop` | Symmetric, for a loop that returns where it started. |
+
+Setting all three durations to `1ms` is a supported way to build a still theme; every fragment in the kit already does exactly that under `prefers-reduced-motion`.
+
+Setting `--os-ui-holo-fill` alone retints every one of those surfaces
+at once, which is the shortest route to a theme that does not look
+like OpenStation. A flat colour works:
 
 ```json
 "tokens": {
-  "--desktop-mode-window-bg": "#12122a",
-  "--desktop-mode-window-border": "#2b2b52",
-  "--desktop-mode-window-radius": "14px",
-  "--desktop-mode-titlebar-bg": "#171733",
-  "--desktop-mode-titlebar-bg-focused": "#241f4d",
-  "--desktop-mode-titlebar-color": "#a8a8c0",
-  "--desktop-mode-dock-bg": "rgba( 12, 12, 30, 0.72 )",
+  "--os-ui-holo-fill": "#7c5cff",
+  "--os-ui-holo-ink":  "#ffffff"
+}
+```
+
+**Change the ink when you change the fill.** The default ink is Void,
+because every mesh in the brand is a *light* surface — a dark fill with
+the default ink is near-black on near-black, and it looks fine in a
+screenshot of the off state.
+
+**Do not answer a fill with `none`.** Turning the iridescence off is a
+reasonable thing to want, and for the *overlay* tokens it is exactly
+right: `--os-ui-holo-sheen` and the two `--os-ui-holo-edge*` are a
+`::before` film and an `::after` stroke, so `none` removes a decoration
+and leaves the control's own background alone.
+
+`--os-ui-holo-fill` is not one of those. It is the surface — the rule
+sets `background-color: transparent` and paints the whole control
+through this image — so `none` gives you an invisible button, not a
+flat one. The same is true of any token whose row in the table above
+reads "what … paints" rather than "the film over" it:
+`--os-cn-row-fill` (the constellation's selected row, whose ink flips
+dark on top of it) and `--os-ui-tab-wash` / `-bloom` (the selected
+settings tab). Answer those with a flat colour or a plain gradient:
+
+```json
+"tokens": {
+  "--os-ui-holo-fill": "linear-gradient( 124deg, #f0f6fc 0%, #f6f7f7 100% )",
+  "--os-ui-holo-ink":  "#1d2327"
+}
+```
+
+The distinction is not visible from the token's name — check whether
+the consuming rule paints a surface or sits over one before switching
+it off. [Legacy](#the-legacy-theme--start-here) does exactly this: the
+sheen and the edges are `none`, the fills are pre-brand light surfaces.
+
+The five meshes themselves (`--os-mesh-holo`, `--os-mesh-pulse`,
+`--os-mesh-auro`, `--os-mesh-star`, `--os-mesh-mio`) are also settable,
+and are the right lever when you want your own gradient everywhere the
+brand's would have gone. `--os-mesh-mio` belongs to the mascot; retint
+it and Mio changes with the rest of the station, which may or may not
+be what you meant.
+
+> **Consuming rules must read `--os-ui-holo-fill`, not a mesh token.**
+> Setting a mesh to `none` is how a theme opts out of iridescence —
+> Legacy sets all five — and a rule that reads `--os-mesh-holo`
+> directly resolves to `none` there. The `var()` literal does not
+> rescue it: a fallback fires only when a property is *undefined*, and
+> a mesh set to `none` is very much defined. The surface paints
+> nothing at all rather than a quieter version of itself. Route
+> through `--os-ui-holo-fill` — or `--os-ui-hero-mesh` if the surface
+> is a field rather than a control — and the opt-out becomes a
+> substitution.
+
+### Shell tokens
+
+`--os-*` names must match `^--os-[a-z0-9-]+$`.
+Read `assets/css/variables.css` for the full set.
+
+> **Set `--os-backstop` if your desk is light.** It is the
+> flat colour painted on the shell behind every other layer, including
+> the wallpaper. Nothing is normally seen through it — it exists so
+> that a frame in which some layer fails to paint shows the desk's own
+> colour rather than the white admin page the shell sits over. The
+> palette paints it Void `#0c0b0f` (`#1d2327` is only the pre-brand
+> fallback literal in the consuming rules), so left unthemed it would
+> read as a dark blink on a light theme.
+
+> **The icon grid is a token set, and it is one grid.**
+> `--os-tile-w` / `--os-tile-h`, `--os-grid-gap-x` / `--os-grid-gap-y`
+> and `--os-grid-padding` describe every surface that lays out
+> placements: the wallpaper, folder windows, and each canvas in the
+> WP Explorer. Widen a gap and all of them widen together — that is
+> the point of them being one declaration.
+>
+> The **cell pitch is derived, never declared**: `cell = tile + gap`.
+> The layout maths can't read CSS, so `src/desktop-files/grid.ts`
+> mirrors these numbers and `tests/vitest/grid-metrics.test.ts` parses
+> the stylesheet to prove the mirror is faithful. A theme retuning
+> them shifts the *visual* spacing; stored icon coordinates snap to
+> the new pitch the next time a tile is dragged or the canvas is
+> sorted, so expect a one-time reshuffle rather than an instant
+> re-layout. `--os-tile-w-large` / `--os-tile-h-large` do the same job
+> for image-led sections (`tileSize: 'large'`).
+
+> **`--os-window-radius` is not one of them in practice.**
+> The Window-corners preset in OpenStation Preferences writes that property as an
+> inline style on the shell root, which outranks any stylesheet rule,
+> so a theme declaring it in `tokens` has no effect on windows. The
+> user's corner preference stays the user's. If your frame artwork
+> needs a particular radius, ask for it through
+> [`recommendedOsSettings.windowRadius`](#recommended-os-settings) —
+> that sets their preference once, on first activation, and leaves it
+> theirs to change.
+
+```json
+"tokens": {
+  "--os-window-bg": "#12122a",
+  "--os-window-border": "#2b2b52",
+  "--os-titlebar-bg": "#171733",
+  "--os-titlebar-bg-focused": "#241f4d",
+  "--os-titlebar-color": "#a8a8c0",
+  "--os-dock-bg": "rgba( 12, 12, 30, 0.72 )",
   "--wp-admin-theme-color": "#7c5cff"
 }
 ```
+
+#### Window reveal
+
+One token owns the surface a window's content is uncovered from once it
+finishes loading (OpenStation Preferences → Effects → "Window reveal"):
+
+| Token | Role |
+|---|---|
+| `--os-window-reveal-surface` | Fill of the receding reveal surface. Obsidian `#1a1721` by default; non-native windows override it to white |
+| `--os-window-reveal-edge` | Fill of the band trailing the reveal's clip boundary. `transparent` by default |
+| `--os-window-reveal-edge-thickness` | How wide that band is. Undeclared by default |
+| `--os-window-reveal-duration` | How long a reveal runs. Undeclared by default |
+
+```json
+"tokens": {
+  "--os-window-reveal-surface": "#12122a",
+  "--os-window-reveal-edge": "#7c5cff",
+  "--os-window-reveal-edge-thickness": "12%",
+  "--os-window-reveal-duration": "620ms"
+}
+```
+
+**Surface** defaults to the palette's Obsidian `#1a1721`, except on
+iframe windows — the ones showing a real admin page — which override it
+to **white** to match the page they uncover. It has to be opaque or there is
+nothing to reveal *from* — the content would simply be visible the
+whole time and the clip animation would paint nothing. Set it to
+`var( --os-window-bg )` to follow your window colour, or to a
+brand colour, a gradient, or an image; the surface is a plain element
+and the animation clips it rather than recolouring it. `transparent` is
+also a legitimate value, meaning "no covering surface" — the shell then
+skips the layer rather than animating something invisible.
+
+One reveal ignores this token: **Camera shutter** paints its own
+near-black blades, because in any other colour it stops being a camera
+shutter.
+
+**Edge** is the band that travels with the clip boundary and draws each
+reveal's shape — six lines on Blinds, an opening ring on Iris, a
+rotating spoke on Radar. It is **`transparent` by default**: the reveal
+reads as the page arriving, and a hard graphic edge on top of that is a
+deliberate look rather than the neutral one. Give it a colour and the
+band turns on for every reveal the user might pick, yours or a
+plugin's, with nothing else to configure — the band follows whatever
+shape the active reveal has. While the token computes transparent the
+shell skips the layer entirely, so leaving it alone costs nothing.
+
+Gradients and images work as well as flat colours.
+
+**Edge thickness** takes either a fraction of the reveal's *travel* —
+`12%`, or the equivalent unitless `0.12` — or an absolute time like
+`70ms`. Prefer the fraction: the band then holds its apparent width at
+any reveal speed and any window size, because its width is a share of
+how far the shape moves rather than a span of time. Undeclared by
+default, in which case each reveal's own `edgeLag` decides; declare it
+and it wins outright, since thickness is a property of your look rather
+than of any one reveal. `0%` suppresses the band while leaving the
+colour in place.
+
+**Duration** is **undeclared by default** and accepts `620ms`, `0.62s`,
+or a bare `620` (read as ms). It sets the house pace for every reveal
+the user might pick — but a user who has chosen a speed in OpenStation Preferences
+→ Effects out-ranks it, the same way the window-corner preset out-ranks
+a theme's `--os-window-radius`. Their choice stays theirs.
+
+#### Tooltips
+
+Two shell tokens own every tooltip **chip** — the dock tile tooltip
+and the content-graph satellite tooltip:
+
+| Token | Role |
+|---|---|
+| `--os-tooltip-bg` | The tooltip chip surface |
+| `--os-tooltip-fg` | Its primary text |
+
+```json
+"tokens": {
+  "--os-tooltip-bg": "#1e1c44",
+  "--os-tooltip-fg": "#e9e7ff"
+}
+```
+
+They are worth setting explicitly. Without them, tooltips fall back
+to colours borrowed from other families — `--os-ui-scrim` or
+`--os-ui-surface-elevated` for the surface, `--os-ui-fg-on-accent` for the
+text — and those pairings come apart under a custom palette. Set
+`--os-ui-scrim` to a translucent wash for your modals and the dock
+tooltip goes translucent with it; keep a light `--os-ui-surface-elevated`
+next to a white `--os-ui-fg-on-accent` and the satellite tooltip renders
+white text on a white chip. Neither was fixable from the palette alone,
+because fixing it would have broken the modal backdrop or the text on
+accent-filled buttons.
+
+Both tokens are **declared by the palette** (`#33303a` over `#fffbff`),
+so a theme that ignores them keeps the OpenStation tooltip; the
+borrowed-colour fallbacks above are only the floor beneath the palette.
+
+A chip is deliberately the same lozenge under every theme — one line of
+text pinned to a control. The WP Explorer hover card is a different
+object and has its own family, below.
+
+#### The WP Explorer hover card
+
+Hovering a tile in WP Explorer summons a card with a title, a featured
+image and an excerpt. It is window furniture rather than a chip: it
+**follows the theme that paints the window it was summoned from**, and
+you get that for free.
+
+| Token | Role | Derived from |
+|---|---|---|
+| `--os-my-wordpress-card-bg` | The card surface | `--os-my-wordpress-bg` |
+| `--os-my-wordpress-card-fg` | Its primary text | `--os-my-wordpress-fg` |
+| `--os-my-wordpress-card-fg-muted` | The excerpt and any secondary line | `--os-ui-fg-muted` |
+| `--os-my-wordpress-card-border` | The edge that lifts it off the window | `--os-ui-border` |
+| `--os-my-wordpress-card-shadow` | Its drop shadow | — (flat) |
+| `--os-my-wordpress-card-thumb-bg` | The well behind the featured image | `--os-media-tile-bg` |
+| `--os-my-wordpress-card-lock-bg` | The wash behind the "someone is editing" banner | `--os-ui-badge-danger-bg` |
+
+**Most themes should set none of these.** Every one except the shadow
+is *derived* from a token you are likely setting anyway — name
+`--os-my-wordpress-bg` and `--os-ui-border` and the card arrives
+matching your window, with a visible edge, without a line of extra
+manifest. Set a `-card-` token only when you want the card to differ
+from the window it belongs to.
+
+```json
+"tokens": {
+  "--os-my-wordpress-card-bg": "#1e1c44",
+  "--os-my-wordpress-card-border": "rgba( 233, 231, 255, 0.16 )"
+}
+```
+
+Two things worth knowing if you do:
+
+- **The card's surface is the window's surface**, so the border and the
+  shadow are the only reason it reads as a separate object. If you
+  repoint `--os-my-wordpress-card-border`, keep it distinct from
+  `--os-my-wordpress-card-bg` or the card loses its edge entirely.
+- **The shadow is flat, not derived.** A drop shadow is cast light —
+  dark under a light theme and dark under a dark one — so there is no
+  window token for it to follow. It is named so you can still reach it.
+
+#### Dock glyphs
+
+`--os-dock-bg` repaints the strip. These four repaint what
+sits *on* it:
+
+| Token | Role |
+|---|---|
+| `--os-dock-icon-color` | The glyph at rest |
+| `--os-dock-icon-color-hover` | The glyph on hover / peek |
+| `--os-dock-item-bg-hover` | The wash behind a hovered tile |
+| `--os-dock-item-outline` | The keyboard focus ring and the tile status indicator (active dot, all-minimized ring) |
+
+```json
+"tokens": {
+  "--os-dock-bg": "rgba( 244, 243, 255, 0.86 )",
+  "--os-dock-icon-color": "rgba( 26, 22, 58, 0.72 )",
+  "--os-dock-icon-color-hover": "#12102b",
+  "--os-dock-item-bg-hover": "rgba( 26, 22, 58, 0.1 )",
+  "--os-dock-item-outline": "rgba( 26, 22, 58, 0.65 )"
+}
+```
+
+**Set them whenever your dock is pale.** The palette paints the glyph
+at 72% Starlight, brightening to full Starlight on hover, over an 18%
+Pulse wash; the focus ring follows the user's accent, and it also
+paints the status marks on the tile: the solid dot under the running
+or focused tile and the hollow ring under one whose windows are all
+minimized. That reads against the default translucent-dark strip and
+disappears the moment you give the dock a light background.
+Recolouring the strip alone is the most common way a first theme ends
+up with an invisible dock.
+
+`--os-dock-icon-color` is a **colour**, not a fill, which
+matters if your iconset uses
+[`"iconColor": "currentColor"`](#icon-slots): those icons are masked
+with the glyph colour, so this single token drives dashicons, your own
+artwork, and the hover transition together.
+
+System tiles — OpenStation Preferences, the recycle bin, and their neighbours —
+read the same `--os-dock-icon-color`. Unthemed they sit one
+notch brighter than menu tiles; once you name a colour they join the
+rest rather than staying stranded white.
+
+This reaches **plugin and custom-post-type artwork too**, not just
+dashicons and your own iconset. The dock has always flattened those
+SVGs to one colour so a brand mark can't shout over its neighbours;
+they are now flattened by a `currentColor` mask rather than by a
+force-to-white filter, so they land on your glyph colour like
+everything else. A URL the mask can't take — one carrying literal
+quotes, spaces or parens — still falls back to the white filter.
+
+All four are **declared by the palette**, so a theme that ignores them
+keeps the OpenStation dock; the pre-brand white literals survive only
+as the `var()` fallbacks in the consuming rules.
 
 ### A note on WordPress core's CSS
 
@@ -290,29 +856,40 @@ core's `#1d2327` regardless of your palette.
 
 The shell now re-points those at the palette (see the specificity
 note in `assets/css/window-chrome.css`), so headings follow
-`--wpd-fg`, links follow `--wpd-accent`, and `<code>` follows
-`--wpd-surface-sunken`. Nothing is needed from a theme author — but
+`--os-ui-fg`, links follow `--os-ui-accent`, and `<code>` follows
+`--os-ui-surface-sunken`. Nothing is needed from a theme author — but
 it explains why a heading might once have looked "stuck".
 
 Raw form controls (`input`, `textarea`, `select`) are the known
 exception: core styles those with attribute selectors that carry real
-specificity, and native windows use the `<wpd-*>` components instead.
+specificity, and native windows use the `<os-*>` components instead.
 If you build a native window with raw form controls, style them
 yourself.
 
+The framework's own raw controls are already handled — window bodies
+get a tokenized override in `assets/css/window-chrome.css`, and the
+command palette's search field gets one in
+`assets/css/ai-assistant.css`. Both out-specify core's
+`input[type="…"]` rules and fall back to core's values, so nothing
+changes without a theme.
+
 ### Typography tokens
 
-Four tokens carry the shell's typefaces. Like the palette they are
-**undeclared by default** — every rule reads
-`font-family: var( --token, <the literal that was always there> )` —
-so an unthemed shell renders exactly as it always did.
+Four tokens carry the shell's typefaces, and the palette declares all
+four — Geist for the chrome, title bars and window bodies, Geist Mono
+for code — so an unthemed active shell renders the brand faces. Every
+consuming rule still reads
+`font-family: var( --token, <the literal that was always there> )`, so
+the pre-brand WordPress-admin stacks remain the floor if the
+stylesheet fails to load — and they are what the Legacy theme puts
+back.
 
 | Token | Applies to |
 |---|---|
-| `--desktop-mode-font` | Shell chrome: dock labels, desktop icon labels, widgets, the overview |
-| `--desktop-mode-titlebar-font` | Window title bars. Falls back to `--desktop-mode-font` |
-| `--wpd-font` | Window **bodies** and the whole `<wpd-*>` component kit |
-| `--wpd-font-mono` | Code, hashes, file sizes, log output |
+| `--os-font` | Shell chrome: dock labels, desktop icon labels, widgets, the overview |
+| `--os-titlebar-font` | Window title bars. Falls back to `--os-font` |
+| `--os-ui-font` | Window **bodies** and the whole `<os-*>` component kit |
+| `--os-ui-font-mono` | Code, hashes, file sizes, log output |
 
 The chrome / body split is the one real decision here, and it is the
 one real desktop environments make: a display face on the title bars
@@ -320,10 +897,10 @@ and dock, a comfortable text face inside windows.
 
 ```json
 "tokens": {
-  "--desktop-mode-font":          "\"Neon Grotesk\", system-ui, sans-serif",
-  "--desktop-mode-titlebar-font": "\"Neon Grotesk\", system-ui, sans-serif",
-  "--wpd-font":                   "\"Neon Grotesk\", system-ui, sans-serif",
-  "--wpd-font-mono":              "\"Neon Mono\", ui-monospace, monospace"
+  "--os-font":          "\"Neon Grotesk\", system-ui, sans-serif",
+  "--os-titlebar-font": "\"Neon Grotesk\", system-ui, sans-serif",
+  "--os-ui-font":                   "\"Neon Grotesk\", system-ui, sans-serif",
+  "--os-ui-font-mono":              "\"Neon Mono\", ui-monospace, monospace"
 }
 ```
 
@@ -338,10 +915,14 @@ need one that isn't there.
 
 ### What stays fixed
 
+The About journal is ordinary shell UI: its overview, cards and status
+states follow the surface and text tokens, and its featured dispatch
+paints `--os-ui-hero-mesh` over `--os-ui-surface-sunken`.
+
 Colour that encodes meaning or is composed artwork is deliberately
-**not** themable: sticky-note paper, game palettes, the content-graph
-node hues, the About scene. Retinting those would destroy the signal
-they carry. The same applies to their typography — the sticky note's
+**not** themable: pinned-note paper, game palettes, and the content-graph
+node hues. Retinting those would destroy the signal
+they carry. The same applies to their typography — the note's
 handwriting face and the Inkfall serif are part of the artwork.
 
 ---
@@ -387,11 +968,11 @@ it is ignored.
 
 16 faces per theme, 4 sources per face, 8 MB per file, 32 MB per
 archive. Both face caps are filterable
-(`desktop_mode_desktop_theme_font_caps`).
+(`openstation_desktop_theme_font_caps`).
 
 ### Practical notes
 
-- **Ship `woff2`.** Every browser Desktop Mode targets supports it,
+- **Ship `woff2`.** Every browser OpenStation targets supports it,
   and it is roughly half the size of `woff`. A `woff` second source is
   belt and braces; `ttf` / `otf` are accepted but rarely worth the
   bytes.
@@ -417,8 +998,8 @@ archive. Both face caps are filterable
 
 ## Wallpapers
 
-**Since 0.9.8.** A theme may ship wallpapers. Each one appears in
-**OS Settings → Wallpaper** as an ordinary pick, labelled
+** A theme may ship wallpapers. Each one appears in
+**OpenStation Preferences → Wallpaper** as an ordinary pick, labelled
 `<theme name> - (theme)` — or `<theme name>: <label> - (theme)` when
 the theme ships more than one.
 
@@ -471,13 +1052,13 @@ become the wallpaper ids.
 | `path` | **Required.** Image inside your ZIP (absolute URL for a code theme). |
 | `label` | Shown in the picker after the theme name. Recommended once you ship more than one. |
 | `id` | Explicit id. See the stability note below. |
-| `description` | Shown in OS Settings when this wallpaper is selected. Falls back to the theme's description. |
+| `description` | Shown in OpenStation Preferences when this wallpaper is selected. Falls back to the theme's description. |
 | `size` | `cover` (default), `contain`, `auto`, or lengths. |
 | `repeat` | `no-repeat` (default) or any `background-repeat` keyword. |
 | `position` | `center center` (default), keywords, lengths, or percentages. |
 
 Twelve per theme, filterable via
-`desktop_mode_desktop_theme_max_wallpapers`.
+`openstation_desktop_theme_max_wallpapers`.
 
 ### Ids are a stored preference — keep them stable
 
@@ -489,6 +1070,114 @@ Reordering your list is therefore safe. Renaming a file, or changing a
 `label` that was supplying the id, is not — do that and anyone using
 that wallpaper falls back to the default. Set `id` explicitly if you
 expect either to change.
+
+---
+
+## Recommended OS settings
+
+Some themes are designed against an arrangement, not just a palette: a
+wide dock because the tiles carry artwork, a unified bottom bar
+because the desktop is meant to read as one surface, square corners
+because the frame texture has its own. `recommendedOsSettings` lets
+that intent travel with the theme instead of living in a setup guide.
+
+```json
+"recommendedOsSettings": {
+  "dockSize":             "large",
+  "desktopLayout":        "unified",
+  "windowRadius":         "default",
+  "adminBarMode":         "dynamic",
+  "dockRailRenderer":     "default",
+  "windowReveal":         "iris",
+  "windowRevealDuration": 620
+}
+```
+
+### They are recommendations, and "once" is the whole contract
+
+**A theme arranges the desktop once — the first time that user
+activates it — and never again.**
+
+- Applied on **activation**, never on page load. There is no pass that
+  re-asserts a theme's preferences behind the user's back.
+- Applied **once per user, per theme**. The shell records the theme in
+  the user's `appliedThemeRecommendations` ledger; a second activation
+  of a theme they have already worn changes nothing.
+- **A later change by the user always wins.** Pick the theme, put the
+  dock back to compact, re-pick the theme — it stays compact.
+
+The way back is the user's to take: **OpenStation Preferences → Themes** shows an
+**Apply &lt;theme&gt;'s recommended layout and effects** button for the
+active theme when it recommends something, and that is the only path
+that applies a recommendation a second time. It sets the settings and
+nothing else — the dock resizing under the cursor is the feedback.
+
+This is the same posture as [wallpapers](#it-is-a-pick-not-an-act),
+for the same reason. Dock size and layout are stored user
+preferences, and a theme that could silently overwrite them on every
+load would be taking something the user chose.
+
+### Fields
+
+Every field is optional. A field you don't name is not touched, and
+one you name with a value outside its set is dropped while the rest
+still apply.
+
+| Field | Values |
+|---|---|
+| `dockSize` | `compact`, `default`, `large` |
+| `desktopLayout` | `classic`, `unified` |
+| `dockPlacement` | `bottom`, `left`, `right` — which edge the dock sits on. Read by `unified`; `classic` owns both of its edges and ignores it. |
+| `windowRadius` | `sharp`, `default`, `round` |
+| `adminBarMode` | `static`, `dynamic`, `hidden` — how the WordPress admin bar presents above the shell. `dynamic` parks it off the top edge behind a peek strip that reveals on hover or keyboard focus; `hidden` removes it, leaving the dock's **Exit OpenStation** tile as the route back to classic admin. A theme wanting an edge-to-edge desk recommends one of the two. |
+| `dockRailRenderer` | A registered dock rail renderer id. Core ships `default`; plugins register their own. |
+| `windowReveal` | A registered window-reveal id — the transition that uncovers a window's content once it loads. Core ships twelve (`sweep`, `rise`, `diagonal`, `iris`, `diamond`, `curtain`, `shutter`, `blinds`, `slats`, `mosaic`, `radar`, `obturator`); `none` is always valid and means no transition. |
+| `windowRevealDuration` | How long reveals run, in whole ms. Clamped to 80–4000. Omit it to leave the user's speed alone — recommending `0` is not a way to say "default". |
+| `accent` | A registered accent-swatch id (OpenStation Preferences → Appearance). Core ships `pulse`, `nebula`, `sirius`, `lagoon`, `wp-blue`, `indigo`, `teal`, `emerald`, `amber`, `rose`; sites extend the list through `openstation_accent_colors`. |
+
+**`accent` is the one recommendation a theme cannot express any other
+way, and most themes want it.** The accent is a user setting written as
+an inline style on the shell document, which outranks every stylesheet
+— so a manifest can restyle the entire OS through `tokens` and still
+leave WordPress blue on every focus ring, tab underline, sort arrow and
+selection wash. Declaring `--wp-admin-theme-color` in `tokens` does not
+help: it is dropped, because the accent belongs to the user rather than
+to the theme. Recommending it is how a palette says "and this hue with
+it", once, on first activation.
+
+The built-in **Desktop Mode (Legacy)** theme is the worked example —
+its whole recommendation block is `{ "accent": "wp-blue" }`, which is
+what makes the pre-brand chrome come back complete.
+
+`dockRailRenderer`, `windowReveal` and `accent` are the fields validated in
+two places: PHP checks the charset, and the shell checks — at apply
+time — that something is actually registered under that id. Recommend
+a renderer, reveal or swatch a site doesn't have and the key is
+skipped; the rest of your recommendations still apply.
+(`windowReveal: "none"` is exempt: it is the "no reveal" sentinel
+rather than a registration.)
+
+`windowRevealDuration` is the one **numeric** recommendation, and it is
+**clamped rather than dropped** — a theme asking for something slower
+than the shell will play is expressing "slow", and the nearest playable
+duration is the honest reading of that.
+
+Nothing else is reachable. The allow-list is presentation only, so a
+manifest cannot flip a feature toggle, a capability-adjacent
+preference, or another theme's activation. A site can widen the list
+through `openstation_desktop_theme_recommended_os_settings_schema`
+— `{ enum }` for a closed set, `{ slug }` for a registry id resolved
+at apply time, `{ int => { min, max } }` for a clamped number — and
+even then the shell only writes a key that already exists and whose
+current value has the same type as the one being recommended.
+
+### What a user actually sees
+
+They pick your theme and the dock and layout move into the
+arrangement you designed. That movement is the whole feedback — the
+shell does not editorialize about it — and it does not happen again
+for that theme. Anything they change afterwards in Appearance is
+theirs and stays.
 
 ---
 
@@ -509,8 +1198,8 @@ extension. `name` must match `^dashicons-[a-z0-9-]+$`.
 | Group | Slots |
 |---|---|
 | Window controls | `WINDOW_CONTROL_MINIMIZE`, `WINDOW_CONTROL_MAXIMIZE`, `WINDOW_CONTROL_FULLSCREEN`, `WINDOW_CONTROL_FULLSCREEN_EXIT`, `WINDOW_CONTROL_CLOSE`, `WINDOW_CONTROL_MENU`, `WINDOW_CONTROL_RELOAD`, `WINDOW_CONTROL_DETACH` |
-| System tiles | `OS_SETTINGS`, `RECYCLE_BIN`, `BUG_REPORT`, `EXIT_DESKTOP_MODE`, `PWA_INSTALL` |
-| Apps | `DEFAULT_APP_ICON`, plus `APP:<slug>` for any individual dock tile, desktop icon, or native window id |
+| System tiles | `OS_SETTINGS`, `RECYCLE_BIN`, `BUG_REPORT`, `EXIT_OPENSTATION`, `PWA_INSTALL` |
+| Apps | `DEFAULT_APP_ICON`, plus `APP:<slug>` for any individual dock tile, desktop icon, or native window id. These reach the dock and the desktop; the window title bar carries the status ring rather than an app icon, so it is not one of the surfaces they paint |
 | Desktop files | `FOLDER`, `FILE_SHORTCUT`, `FILE_POST`, `FILE_ATTACHMENT`, `FILE_UPLOAD`, `FILE_USER`, `FILE_TERM`, `FILE_COMMENT`, `FILE_BOOKMARK`, `FILE_LINK`, `FILE_EMBED` |
 | Recycle-bin row actions | `RECYCLE_RESTORE`, `RECYCLE_DELETE` |
 
@@ -519,7 +1208,7 @@ extension. `name` must match `^dashicons-[a-z0-9-]+$`.
 one is the browser console:
 
 ```js
-wp.desktop.getMenuItems().map( ( i ) => i.id );
+wp.os.getMenuItems().map( ( i ) => i.id );
 ```
 
 ### Icon colour
@@ -541,7 +1230,7 @@ than recolour — it changes how an image icon is *painted*:
 Which is why `currentColor` is the workhorse. Every surface in the
 shell already sets a text colour that suits it: the dock dims its
 glyphs and brightens them on hover, the title bar swaps on focus, file
-tiles follow `--desktop-mode-tile-fg`, a danger-hover goes red. A
+tiles follow `--os-tile-fg`, a danger-hover goes red. A
 masked icon filled with `currentColor` inherits all of that. One
 monochrome silhouette set, drawn in any colour you like, reads
 correctly everywhere.
@@ -557,7 +1246,7 @@ Per-slot overrides take a real colour, which is right when the colour
 "iconColor": "currentColor",
 "icons": {
   "OS_SETTINGS":       { "type": "image", "path": "icons/settings.svg" },
-  "EXIT_DESKTOP_MODE": { "type": "image", "path": "icons/exit.svg",
+  "EXIT_OPENSTATION": { "type": "image", "path": "icons/exit.svg",
                          "color": "#ff6b81" },
   "BUG_REPORT":        { "type": "image", "path": "icons/bug.svg",
                          "color": "#ffcf70" },
@@ -600,7 +1289,7 @@ and go deaf to the title bar's focused/unfocused state.
 control glyphs as solid silhouettes. Colour in them is discarded.
 
 The same applies to the two recycle-bin row-action slots. Those also
-ignore `dashicon`-type descriptors entirely — `<wpd-table>` renders
+ignore `dashicon`-type descriptors entirely — `<os-table>` renders
 into a shadow root the global Dashicons stylesheet can't reach, so a
 dashicon would come out blank and the built-in SVG is used instead.
 
@@ -641,13 +1330,13 @@ of that component anywhere in the OS.
 
 | Slot | Type | Paints on |
 |---|---|---|
-| `MENU` | `image` | `<wpd-menu>` and `<wpd-context-menu>` panels |
-| `DIALOG` | `image` | `<wpd-modal>` and `<wpd-confirm-dialog>` surfaces |
-| `SCRIM` | `image` | The backdrop behind a modal |
-| `PANEL` | `image` | `<wpd-card>`, `<wpd-panel>`, `<wpd-flyout>` |
-| `TOAST` | `image` | `<wpd-toast>` notifications |
-| `TABLE_HEADER` | `image` | `<wpd-table>` header cells, sticky included |
-| `BUTTON` | `image` | `<wpd-button>` faces (except the `link` variant) |
+| `MENU` | `image` | `<os-menu>` and `<os-context-menu>` panels |
+| `DIALOG` | `image` | `<os-modal>` and `<os-confirm-dialog>` surfaces, and the command-palette / Site Assistant panel |
+| `SCRIM` | `image` | The backdrop behind a modal, and behind the command palette |
+| `PANEL` | `image` | `<os-card>`, `<os-panel>`, `<os-flyout>` |
+| `TOAST` | `image` | `<os-toast>` notifications |
+| `TABLE_HEADER` | `image` | `<os-table>` header cells, sticky included |
+| `BUTTON` | `image` | `<os-button>` faces (except the `link` variant) |
 
 Component textures tile across small surfaces, so subtle wins: a 2–4 px
 noise or hairline pattern reads as material, a 200 px illustration
@@ -666,23 +1355,41 @@ desktop environments do it — the shape is yours to build:
 
 | Token | Controls |
 |---|---|
-| `--desktop-mode-titlebar-controls-bg` | Cluster background colour |
-| `--desktop-mode-titlebar-controls-radius` | Its corner radius |
-| `--desktop-mode-titlebar-controls-padding` | Inline padding (block padding stays 0 so the title-bar height can't shift) |
-| `--desktop-mode-titlebar-controls-gap` | Space between buttons |
-| `--desktop-mode-titlebar-meta-bg` / `-radius` / `-image` | Same for the Screen Options / Help cluster; the radius falls through to the controls radius |
-| `--wpd-btn-bg` | Resting colour of one button face |
-| `--wpd-btn-radius` | Its corner radius |
-| `--desktop-mode-titlebar-divider` | The hairline between page chrome and window chrome. Set `transparent` to let your artwork carry the separation |
-| `--desktop-mode-titlebar-divider-unfocused` | Its unfocused counterpart |
+| `--os-titlebar-controls-bg` | Cluster background colour |
+| `--os-titlebar-controls-radius` | Its corner radius |
+| `--os-titlebar-controls-padding` | Inline padding (block padding stays 0 so the title-bar height can't shift) |
+| `--os-titlebar-controls-gap` | Space between buttons |
+| `--os-titlebar-meta-bg` / `-radius` / `-image` | Same for the Screen Options / Help cluster; the radius falls through to the controls radius |
+| `--os-ui-btn-bg` | Resting colour of one button face |
+| `--os-ui-btn-radius` | Its corner radius |
+| `--os-titlebar-divider` | The hairline between page chrome and window chrome. Set `transparent` to let your artwork carry the separation |
+| `--os-titlebar-divider-unfocused` | Its unfocused counterpart |
+
+The leading mark of the title bar is the **status ring** — the window's
+activity phase, the one `wp.os.fetch` drives. It replaced the app icon
+that used to sit there, which was a copy of the same window's dock
+tile. Four states, and only success fills the ring.
+
+| Token | Controls |
+|---|---|
+| `--os-titlebar-activity-idle-color` | The resting ring — white by default, and one value whether the window is focused or not |
+| `--os-titlebar-activity-color` | The ring while a request is in flight |
+| `--os-titlebar-activity-saved-color` | The fill when the request lands |
+| `--os-titlebar-activity-failed-color` | The ring when it didn't. This one stays until the next request starts |
+| `--os-titlebar-activity-size` | Ring diameter (default `16px`) |
+
+Retint them if your title-bar artwork would swallow one, but keep the
+outcomes distinguishable by more than hue — the built-in pair differs
+in fill and glyph as well as colour, which is what makes it readable
+for a user who can't separate the two.
 
 ```json
 "tokens": {
-  "--desktop-mode-titlebar-controls-bg": "rgba( 10, 10, 26, 0.55 )",
-  "--desktop-mode-titlebar-controls-radius": "8px",
-  "--desktop-mode-titlebar-controls-padding": "4px",
-  "--wpd-btn-bg": "rgba( 255, 255, 255, 0.06 )",
-  "--wpd-btn-radius": "6px"
+  "--os-titlebar-controls-bg": "rgba( 10, 10, 26, 0.55 )",
+  "--os-titlebar-controls-radius": "8px",
+  "--os-titlebar-controls-padding": "4px",
+  "--os-ui-btn-bg": "rgba( 255, 255, 255, 0.06 )",
+  "--os-ui-btn-radius": "6px"
 }
 ```
 
@@ -736,9 +1443,10 @@ every time the window resizes and the grid appears to crawl. A
 horizontal strip usually wants `left center` so its tiling origin is
 the surface's leading edge rather than its midpoint.
 
-The bundled Neon Glass theme ships both cases — a seamless 256×72
-circuit-trace title bar that tiles, and a 24px grid pinned to
-`top left` in the window body.
+The Neon Glass example theme
+([`docs/examples/register-desktop-theme.md`](./examples/register-desktop-theme.md))
+shows both cases — a seamless 256×72 circuit-trace title bar that
+tiles, and a 24px grid pinned to `top left` in the window body.
 
 The four corner slots share one size token: whichever corner declares a
 `size` first (in `NE, NW, SE, SW` order) sets it for all four.
@@ -749,15 +1457,15 @@ rounded corners — so anything hung off a corner is clipped by both the
 window edge and the corner radius. Ornaments are therefore anchored
 just inside the corner, clear of the arc.
 
-Tune the distance with `--desktop-mode-window-corner-inset`; it
+Tune the distance with `--os-window-corner-inset`; it
 defaults to the resize handle's overhang plus a share of
-`--desktop-mode-window-radius`, which is what keeps a large radius
+`--os-window-radius`, which is what keeps a large radius
 from cutting into the artwork.
 
 **Top corners paint over the title bar.** The resize handles sit at
 `z-index: 999` and the title bar at `21`, so `WINDOW_CORNER_NE` and
 `_NW` render *above* the chrome — NE over the close button, NW over
-the window icon. They cannot be pushed underneath: the ornament is a
+the status ring. They cannot be pushed underneath: the ornament is a
 child of the z-999 handle, which is its own stacking context.
 
 That makes the top two slots a different design problem from the
@@ -769,7 +1477,7 @@ saturated bracket up there lands straight through the close glyph.
 the same mistake: it washes out whatever `TITLEBAR` texture you spent
 the effort making seamless, precisely in the strip where the controls
 live. Aim to be under ~3% alpha within 10px of the corner.
-The bundled example theme uses arcs and a bright node on the bottom
+The Neon Glass example theme uses arcs and a bright node on the bottom
 corners, and bloom only on the top.
 
 If you want artwork that OVERHANGS the frame, use `WINDOW_FRAME`
@@ -790,7 +1498,7 @@ for a frame that extends past the window box.
 
 ### Layering notes
 
-- **`DOCK`** paints *over* `--desktop-mode-dock-bg`, so a
+- **`DOCK`** paints *over* `--os-dock-bg`, so a
   semi-transparent texture still gets the translucent wash underneath.
 - **`DESKTOP`** paints *over* the user's CSS wallpaper but *under* any
   canvas wallpaper. A theme that wants the user's wallpaper to stay
@@ -810,13 +1518,13 @@ for a frame that extends past the window box.
 
 The slot table above is data, not code. The compiler
 reads it and nothing else, which means a plugin can texture a surface
-Desktop Mode has never heard of without touching the framework.
+OpenStation has never heard of without touching the framework.
 
 Two steps. Register the slot with the custom property you want it
 written to:
 
 ```php
-add_filter( 'desktop_mode_desktop_theme_texture_slots', function ( $slots ) {
+add_filter( 'openstation_desktop_theme_texture_slots', function ( $slots ) {
     $slots['ACME_SIDEBAR'] = array(
         'type' => 'image',                   // or 'border-image'
         'prop' => '--acme-sidebar-image',    // the property base name
@@ -863,7 +1571,7 @@ Slot names should be `UPPER_SNAKE` and namespaced by prefix
 (`ACME_SIDEBAR`, not `SIDEBAR`) so two plugins can't collide.
 
 The same trick works for icons via
-`desktop_mode_desktop_theme_icon_slots`, with one extra obligation:
+`openstation_desktop_theme_icon_slots`, with one extra obligation:
 the JS side resolves icons, so a new icon slot must also exist in
 `src/desktop-themes/slots.ts` or the shell will never look it up.
 Texture slots have no such twin — they are pure CSS.
@@ -910,25 +1618,111 @@ saying.** Concretely:
   meta is rewritten; the enqueue path existence-checks on every
   request.
 
+**The trap: a base colour does not cover its derived siblings.** Read
+the sentence above literally — the system default *keeps saying* what
+it says. It does not stand aside for a related token you did name.
+
+Several tokens are written in the stylesheets as a chain, so that a
+theme naming only the base still gets a coherent result:
+
+```css
+background-color: var( --os-tabs-bg-unfocused, var( --os-tabs-bg, … ) );
+```
+
+That inner fallback fires only when `--os-tabs-bg-unfocused` is
+**undeclared** — and the palette declares it. Your theme compiles onto
+`body.os-desktop-theme-<slug>`; a name you omit is not undeclared, it is
+inherited from `body.os-active`. So the fallback never runs, and your
+`--os-tabs-bg` is bypassed on exactly the state you did not name.
+
+This is not hypothetical: it is why a light theme could paint the tab
+strip `#f6f7f7` and still watch it come back near-black the moment the
+window lost focus.
+
+**So name both halves of a pair — when both halves are literals.** The
+families where this bites are the ones with a state or emphasis
+modifier that the palette states outright: `--os-tabs-bg` /
+`-bg-unfocused`, `--os-titlebar-bg` / `-bg-focused`, and the
+`--os-tabs-active-*` set.
+
+It does **not** apply to a sibling the palette *computes* — the focus
+rings, the tab wash and bloom, the holo glows. Those read the accent,
+so your `--os-ui-accent` already reaches them and naming them would
+take them away from the accent picker. See
+[What it deliberately leaves out](#what-it-deliberately-leaves-out) for
+the literal-versus-derivation rule, which is the general form of both
+halves of this.
+
+If you fork [Legacy](#the-legacy-theme--start-here) you inherit a
+correct answer either way — every literal named, every derivation left
+alone — which is the main practical reason to start there rather than
+from an empty manifest.
+
 ---
 
 ## Installing and activating
 
-**Install:** OS Settings → Themes → drop a `.zip` on the upload tile.
+**Install:** OpenStation Preferences → Themes → drop a `.zip` on the upload tile.
 Requires `manage_options` by default (filterable via
-`desktop_mode_desktop_theme_upload_capability`).
+`openstation_desktop_theme_upload_capability`).
 
-**Unfocused window controls.** These are title-bar chrome, so they
-follow the title bar's own text colour rather than the body palette.
-Set `--desktop-mode-titlebar-color` and the shell derives legible
-unfocused glyphs from it automatically. Override precisely with
-`--desktop-mode-titlebar-btn-color`, `-color-hover`, `-bg-hover`, and
+**Window controls.** These are title-bar chrome, so they follow the
+title bar's own colours rather than the body palette, and each focus
+state is addressed separately.
+
+*Unfocused* glyphs are derived for you: set
+`--os-titlebar-color` and the shell mixes legible unfocused
+controls out of it automatically. Override precisely with
+`--os-titlebar-btn-color`, `-color-hover`, `-bg-hover`, and
 `-bg-active` when you want exact control.
+
+*Focused* glyphs cannot be derived — they sit on
+`--os-titlebar-bg-focused`, which you may set to anything
+from near-black to a pastel, and CSS has no contrast-safe function of
+a background colour. So they stay white at 70% until you say
+otherwise, through the mirror-image set:
+
+| Token | Role |
+|---|---|
+| `--os-titlebar-btn-focused-color` | Glyph at rest |
+| `--os-titlebar-btn-focused-color-hover` | Glyph on hover / press |
+| `--os-titlebar-btn-focused-bg-hover` | Hover wash behind a control |
+| `--os-titlebar-btn-focused-bg-active` | Pressed / active wash |
+| `--os-titlebar-btn-focused-outline` | Keyboard focus ring |
+
+```json
+"tokens": {
+  "--os-titlebar-bg-focused": "#ded9ff",
+  "--os-titlebar-color-focused": "#12102b",
+  "--os-titlebar-btn-focused-color": "rgba( 18, 16, 43, 0.7 )",
+  "--os-titlebar-btn-focused-color-hover": "#12102b",
+  "--os-titlebar-btn-focused-bg-hover": "rgba( 18, 16, 43, 0.12 )",
+  "--os-titlebar-btn-focused-bg-active": "rgba( 18, 16, 43, 0.18 )",
+  "--os-titlebar-btn-focused-outline": "rgba( 18, 16, 43, 0.65 )"
+}
+```
+
+A pale focused title bar is exactly the case to set them for: without
+them the active window is the one window whose close button you cannot
+see. The screen-meta buttons (Screen Options, Help) and the `⋯` menu
+trigger sit in the same bar and read the same tokens, so one pass
+covers every button in the title bar.
+
+Close-button red is deliberately not in either set — it is semantic
+signal, not chrome, and both states resolve it through `--os-ui-danger`.
 
 **Activate:** every user picks their own theme on the same tab —
 including users who cannot upload. The library is site-wide;
 activation is per-user, stored as `desktopTheme` in the
 `desktop_mode_os_settings` user meta.
+
+The first card in the grid is **OpenStation** — the shell's own look,
+stored as the empty string. It is not a theme in the registry (its
+palette is `assets/css/variables.css`, not a manifest), but the picker
+treats it as a peer of everything beside it: it carries the same
+"Apply …'s recommended layout and effects" button, and what it
+recommends is the accent its palette was drawn against (Pulse) and the
+layout it was drawn for (`unified`, dock on the bottom edge).
 
 The switch is live: no reload. The stylesheet swaps, the shell
 attribute and body class flip, and every themed icon repaints. On a
@@ -936,21 +1730,31 @@ fresh page load PHP stamps the attribute, prints the body class, and
 enqueues the stylesheet before the shell script runs, so there is no
 flash of the default palette.
 
+If the theme ships
+[`recommendedOsSettings`](#recommended-os-settings), the user's first
+activation of it also seeds those preferences — once — and the tab
+grows an **Apply &lt;theme&gt;'s recommended layout** button for going
+back to them later.
+
 ### From JavaScript
 
 ```js
-wp.desktop.desktopThemes.list();        // the library
-wp.desktop.desktopThemes.getActive();   // slug, or null
-wp.desktop.desktopThemes.resolveIcon( 'WINDOW_CONTROL_CLOSE' );
+wp.os.desktopThemes.list();        // the library
+wp.os.desktopThemes.getActive();   // slug, or null
+wp.os.desktopThemes.resolveIcon( 'WINDOW_CONTROL_CLOSE' );
 
-// Presentation only — does NOT persist:
-wp.desktop.desktopThemes.setActive( 'acme-neon-glass' );
+// Presentation only — does NOT persist. For a preview you'll revert:
+wp.os.desktopThemes.setActive( 'acme-neon-glass' );
 
-// Persist the user's choice:
-wp.desktop.updateOsSettings( { desktopTheme: 'acme-neon-glass' } );
+// Change it for real — persists AND applies:
+wp.os.updateOsSettings( { desktopTheme: 'acme-neon-glass' } );
+
+// What the theme recommends, and re-applying it (persists):
+wp.os.desktopThemes.list()[ 0 ].recommendedOsSettings;
+wp.os.desktopThemes.applyRecommendedOsSettings();
 ```
 
-See [JavaScript reference](./javascript-reference.md#desktop-themes)
+See [JavaScript reference](./javascript-reference.md#desktop-themes-experimental)
 for the event and filter surface.
 
 ---
@@ -963,14 +1767,13 @@ absolute URLs you already serve instead of files in a ZIP.
 
 ```php
 add_action( 'init', function () {
-    desktop_mode_register_desktop_theme( 'acme/neon-glass', array(
+    openstation_register_desktop_theme( 'acme/neon-glass', array(
         'name'     => __( 'Neon Glass', 'acme' ),
         'version'  => '1.0.0',
         'preview'  => plugins_url( 'theme/preview.png', __FILE__ ),
         'tokens'   => array(
-            '--desktop-mode-window-radius'       => '14px',
-            '--desktop-mode-titlebar-bg-focused' => '#241f4d',
-            '--desktop-mode-font'                => '"Neon Grotesk", sans-serif',
+            '--os-titlebar-bg-focused' => '#241f4d',
+            '--os-font'                => '"Neon Grotesk", sans-serif',
         ),
         'fonts'    => array(
             array(
@@ -993,6 +1796,10 @@ add_action( 'init', function () {
                 'repeat' => 'repeat-x',
             ),
         ),
+        'recommendedOsSettings' => array(
+            'dockSize'      => 'large',
+            'desktopLayout' => 'unified',
+        ),
     ) );
 } );
 ```
@@ -1002,6 +1809,21 @@ stylesheet as text and PHP prints it via `wp_add_inline_style()`.
 Uploaded themes win on a slug collision — a site admin who installed a
 theme by hand outranks a plugin that later claims the same slug.
 
+**How the library reaches the shell.** The boot payload
+(`serverDesktopThemes`) ships every entry **slimmed**: no `cssText`,
+no `tokens`, `cssDeferred: true`. Nothing reads either at boot — the
+active theme's stylesheet is server-delivered (link for uploads,
+inline `<style>` for code themes), and an inactive theme's CSS
+matters only at the moment the user picks it. That moment fetches the
+full entries from `GET desktop-mode/v1/desktop-themes` — the same
+builder and the same `openstation_desktop_themes` filter as the
+payload, so it is not a second source of truth — via
+`ensureFullDesktopThemes()`, and the apply path does this
+automatically. The read gate is the shell's own (a desktop-enabled
+user), not the manage capability: the route exposes exactly what the
+boot payload used to. Bridge and probe payloads (live plugin
+activation) keep full entries.
+
 See [`examples/register-desktop-theme.md`](./examples/register-desktop-theme.md)
 for a complete plugin.
 
@@ -1009,22 +1831,35 @@ for a complete plugin.
 
 ## Non-goals
 
-- **`<wpd-icon>` content icons.** Icons inside window *bodies* (tables,
+- **`<os-icon>` content icons.** Icons inside window *bodies* (tables,
   toolbars, empty states) are not themable. Only chrome is.
 - **Letter badges.** The generated initial-letter tiles for items with
   no icon stay generated; retint them with the
-  `--desktop-mode-tile-*` tokens instead.
-- **Art-direction colour and type.** Note paper, game palettes, graph
-  node hues, the About scene — see "What stays fixed" above.
+  `--os-tile-*` tokens instead.
+- **Art-direction colour and type.** Note paper, game palettes, and graph
+  node hues — see "What stays fixed" above.
 - **Layout.** A theme changes how things look, not where they are. No
   spacing scale, no dock geometry, no window metrics beyond the radius
   and title-bar height the tokens already expose.
+  [`recommendedOsSettings`](#recommended-os-settings) is not an
+  exception to this: it seeds the user's own layout preferences once,
+  as a suggestion they own from that moment on, rather than giving the
+  theme any say in how the shell is arranged.
 - **Author CSS and JS.** Still never, and this is the line that makes
   everything else safe. `@font-face` is generated *for* you from a
   constrained descriptor; it is not an opening.
 - **Inside iframe windows.** A theme styles the shell and native
   windows. The `wp-admin` page inside an iframe is a separate
   document that the theme stylesheet does not reach.
+
+  This is a guarantee, not just a limitation. The shell's own palette
+  is scoped to `body.os-active` precisely so it cannot leak
+  in either: `variables.css` is a dependency of `chromeless.css` and
+  therefore loads inside every iframe, and a palette on `:root` would
+  repaint WordPress's own UI in there — `--wp-admin-theme-color` alone
+  would move Core's primary buttons, links and focus rings on every
+  admin screen. **Admin pages render in their own colours, in or out
+  of a window.**
 - **Uninstall cleanup.** The plugin has no `uninstall.php`; the
   `desktop_mode_desktop_themes` option and the uploads directory
   survive plugin deletion today.

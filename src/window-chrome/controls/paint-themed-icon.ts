@@ -12,11 +12,10 @@
  *     has to live outside it.
  *   - **URL / data URI** → the `icon-src` attribute, which the
  *     component paints as a `currentColor`-tinted CSS mask. Not an
- *     `<img>`: an image would ignore the `--wpd-btn-*` tinting the
+ *     `<img>`: an image would ignore the `--os-ui-btn-*` tinting the
  *     title bar drives, and a themed close button would stop turning
  *     white when its window gained focus.
  *
- * @since 0.9.7
  * @internal
  */
 
@@ -30,7 +29,7 @@ import { slotForWindowControl } from '../../desktop-themes/slots';
  * Paint the active desktop theme's glyph for a control, if it has
  * one.
  *
- * @param host      The `<wpd-window-button>` element.
+ * @param host      The `<os-window-button>` element.
  * @param controlId Control id (`core/close`, `acme/pin`, …).
  * @return `true` when the theme supplied a glyph and painted it;
  *         `false` when the caller should paint the default.
@@ -55,9 +54,9 @@ export function paintThemedControlIcon(
 	// names a colour here is deliberately opting OUT of that state
 	// tinting, so the glyph holds one colour throughout.
 	if ( tint !== null ) {
-		host.style.setProperty( '--wpd-btn-icon-color', tint );
+		host.style.setProperty( '--os-ui-btn-icon-color', tint );
 	} else {
-		host.style.removeProperty( '--wpd-btn-icon-color' );
+		host.style.removeProperty( '--os-ui-btn-icon-color' );
 	}
 
 	if ( themed === null ) {

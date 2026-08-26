@@ -6,8 +6,6 @@
  * Pixi types this bundle uses, mirroring `src/content-graph/pixi-types.ts`
  * so the two stay type-compatible without a hard dependency on the
  * `pixi.js` package.
- *
- * @since 0.9.4
  */
 
 export interface PixiContainer {

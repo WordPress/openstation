@@ -1,0 +1,156 @@
+{
+  "schema": "openstation-game-evidence-cohort-register-v1",
+  "gameId": "popup-siege",
+  "candidate": {
+    "gameVersion": "0.7.0",
+    "rulesVersion": 3,
+    "terminalSchemaVersion": 1,
+    "sourceSha256": "93b05b7d9ac2e73462ee20dd0385dc69cbbf1118ad12d3458ca57a087b7f0292",
+    "runtimeAsset": "games/popup-breaker/assets/popup-siege-runtime-0.7.0.js",
+    "uiSystem": "popup-siege-0.7.0",
+    "releaseBuildId": null
+  },
+  "registrar": {
+    "role": "Evidence Cohort Registrar",
+    "protocol": "/Users/nick/.codex/skills/build-openstation-games/references/evidence-cohorts-and-audits.md",
+    "authority": "metadata-only",
+    "cannot": [
+      "produce evidence",
+      "approve evidence",
+      "test or capture",
+      "implement or deploy",
+      "synthesize unsupported claims"
+    ]
+  },
+  "cohorts": [
+    {
+      "id": "popup-siege-0.7.0-automated",
+      "proofTypes": [
+        "automated",
+        "structural"
+      ],
+      "sourceSha256": "93b05b7d9ac2e73462ee20dd0385dc69cbbf1118ad12d3458ca57a087b7f0292",
+      "artifacts": [
+        {
+          "path": "wp-content/plugins/desktop-mode-game-lab/tests/popup-siege-0.7.0-core.test.js",
+          "sha256": "ee76df86f13a34e5ce378135431eba54fe3c22df28bc38e8f25855b09363112c"
+        },
+        {
+          "path": "wp-content/plugins/desktop-mode-game-lab/tests/popup-siege-0.7.0-ui.test.js",
+          "sha256": "2c32de69a619770fe578d61b1fa1872eb120f01ba9f2449fca50eb5fbe9d9ef0"
+        },
+        {
+          "path": "wp-content/plugins/desktop-mode-game-lab/tests/popup-siege-audio-0.7.0.test.js",
+          "sha256": "8253dab267935bc6162947beae977ee8805c97bf6e66423758c47d4a9fe1544a"
+        },
+        {
+          "path": "wp-content/plugins/desktop-mode-game-lab/tests/loader-smoke.php",
+          "sha256": "f112c8e03e0ba3a49108a02d014202e14efd20a036e9b7505aa016996285cae0"
+        }
+      ]
+    },
+    {
+      "id": "popup-siege-0.7.0-native-visual",
+      "proofTypes": [
+        "visual",
+        "independent-approval"
+      ],
+      "sourceSha256": "93b05b7d9ac2e73462ee20dd0385dc69cbbf1118ad12d3458ca57a087b7f0292",
+      "artifacts": [
+        {
+          "path": "evidence/showcase-previews/popup-siege-gallery-v1.json",
+          "sha256": "c7615e72cf25b75a7a457be37329363ffceb2b976caa0467ac6b5046ae2ebb6e"
+        },
+        {
+          "path": "evidence/showcase-previews/popup-siege-gallery-v1.png",
+          "sha256": "001fee50c086e98c5bde687d9841b1953e1eaabe844bd9b2eebb67c94a82a2e7"
+        },
+        {
+          "path": "wp-content/plugins/desktop-mode-game-lab/games/popup-breaker/docs/evidence/native-capture-approval-0.7.0.json",
+          "sha256": "92c7d4dff1613f13e22df322b9cdfffcc4b3f743835345cdc10f6bab510b6ca0"
+        }
+      ]
+    }
+  ],
+  "claims": [
+    {
+      "id": "rules-v3-terminal-truth",
+      "claim": "The rules-v3 terminal snapshot, objective state, scoring arithmetic, and same-tick terminal arbitration are deterministic and internally consistent.",
+      "cohortId": "popup-siege-0.7.0-automated",
+      "status": "supported",
+      "coverage": "pure rules, terminal snapshot, server payload validation"
+    },
+    {
+      "id": "deliberate-control-matters",
+      "claim": "In the automated acceptance cohort, deliberate steering materially outperforms idle or fixed-paddle play.",
+      "cohortId": "popup-siege-0.7.0-automated",
+      "status": "supported",
+      "coverage": "12 deterministic controlled runs versus 12 idle runs",
+      "notEquivalentTo": "Fresh Human Fun Proof"
+    },
+    {
+      "id": "supported-host-ui-geometry",
+      "claim": "The 520 by 480 supported host projects controls above 44 CSS pixels and preserves the right-side console.",
+      "cohortId": "popup-siege-0.7.0-automated",
+      "status": "supported",
+      "coverage": "manifest geometry and CSS policy",
+      "notProven": "real operating-system forced-colors behavior"
+    },
+    {
+      "id": "native-visual-frame",
+      "claim": "The exact 1536 by 960 captured frame has legible hierarchy, aligned controls, visible target priority, and no clipping or overlap.",
+      "cohortId": "popup-siege-0.7.0-native-visual",
+      "status": "supported",
+      "coverage": "one playing-state PNG at one viewport"
+    },
+    {
+      "id": "audio-implementation",
+      "claim": "Music and Effects ownership, game-clock scheduling, cue routing, lifecycle suspension, and teardown satisfy the automated contract.",
+      "cohortId": "popup-siege-0.7.0-automated",
+      "status": "supported",
+      "notProven": "audible mix quality, mono speaker translation, or fatigue"
+    },
+    {
+      "id": "fresh-human-fun",
+      "claim": "An unfamiliar human understands the mechanic, feels control, and voluntarily replays.",
+      "cohortId": null,
+      "status": "pending",
+      "requiredProofType": "fresh-human"
+    },
+    {
+      "id": "production-delivery",
+      "claim": "The exact candidate is installed and playable on the stable public demo route.",
+      "cohortId": null,
+      "status": "pending",
+      "requiredProofType": "delivery"
+    },
+    {
+      "id": "imagegen-production-art",
+      "claim": "New generated production art improves the proven game without obscuring play.",
+      "cohortId": null,
+      "status": "gated",
+      "blockedBy": "fresh-human-fun"
+    }
+  ],
+  "invalidations": [
+    {
+      "change": "Any file in the Popup Siege source inventory changes.",
+      "invalidates": [
+        "popup-siege-0.7.0-automated",
+        "popup-siege-0.7.0-native-visual"
+      ]
+    },
+    {
+      "change": "Capture recipe, browser, lockfile, vendor runtime, viewport, or motion preference changes.",
+      "invalidates": [
+        "popup-siege-0.7.0-native-visual"
+      ]
+    },
+    {
+      "change": "Rules, UI, content, audio, host, or input path changes after a human session.",
+      "invalidates": [
+        "fresh-human-fun"
+      ]
+    }
+  ]
+}

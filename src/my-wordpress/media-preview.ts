@@ -11,25 +11,30 @@
  * Renders a metadata grid (filename, dimensions, filesize, MIME,
  * uploaded, uploader, alt text, caption, description) and an
  * action-button row sourced from server descriptors merged with
- * the `desktop-mode.my-wordpress.preview-actions` JS filter.
+ * the `os.my-wordpress.preview-actions` JS filter.
  *
  * Plugins can inject arbitrary DOM into the three named slots
  * (`'header'`, `'meta'`, `'footer'`) via the
- * `desktop-mode.my-wordpress.preview-extras` action.
+ * `os.my-wordpress.preview-extras` action.
  *
  * @public
- * @since 0.8.6
  */
 
 import { __ } from '../i18n';
-import { applyFilters, doAction } from '../hooks';
+import { doAction } from '../hooks';
 import { stripTags } from './dom-utils';
+import { buildActionRow, resolvePreviewActions } from './preview-actions';
 import type {
 	MediaListItem,
 	MediaPreviewAction,
 	MediaPreviewActionContext,
 	MediaPreviewSlot,
 } from './types';
+
+// The scoping/filter pipeline lives in `./preview-actions` now that
+// every section kind renders the same descriptors; re-exported so
+// pre-split importers keep resolving.
+export { resolvePreviewActions } from './preview-actions';
 
 const MIME_DASHICON_FALLBACK = 'dashicons-media-default';
 
@@ -48,7 +53,6 @@ const MIME_DASHICON_MAP: Array< { test: RegExp; icon: string } > = [
  * Pick a dashicon for the given MIME type.
  *
  * @public
- * @since 0.8.6
  */
 export function dashiconForMime( mime: string ): string {
 	for ( const entry of MIME_DASHICON_MAP ) {
@@ -106,7 +110,7 @@ function formatDate( iso: string | undefined ): string {
 
 function buildMediaVisual( media: MediaListItem ): HTMLElement {
 	const wrap = document.createElement( 'div' );
-	wrap.className = 'desktop-mode-my-wordpress__media-visual';
+	wrap.className = 'os-my-wordpress__media-visual';
 	const group = mimeGroup( media.mime_type );
 
 	if ( group === 'image' ) {
@@ -120,7 +124,7 @@ function buildMediaVisual( media: MediaListItem ): HTMLElement {
 		img.alt = media.alt_text ?? stripTags( media.title.rendered );
 		img.loading = 'lazy';
 		img.decoding = 'async';
-		img.className = 'desktop-mode-my-wordpress__media-image';
+		img.className = 'os-my-wordpress__media-image';
 		wrap.appendChild( img );
 		return wrap;
 	}
@@ -136,17 +140,17 @@ function buildMediaVisual( media: MediaListItem ): HTMLElement {
 		if ( poster ) {
 			video.poster = poster;
 		}
-		video.className = 'desktop-mode-my-wordpress__media-video';
+		video.className = 'os-my-wordpress__media-video';
 		wrap.appendChild( video );
 		return wrap;
 	}
 
 	if ( group === 'audio' ) {
 		const stack = document.createElement( 'div' );
-		stack.className = 'desktop-mode-my-wordpress__media-audio-stack';
+		stack.className = 'os-my-wordpress__media-audio-stack';
 		const icon = document.createElement( 'span' );
 		icon.className =
-			'desktop-mode-my-wordpress__media-fallback-icon dashicons ' +
+			'os-my-wordpress__media-fallback-icon dashicons ' +
 			dashiconForMime( media.mime_type );
 		icon.setAttribute( 'aria-hidden', 'true' );
 		stack.appendChild( icon );
@@ -154,7 +158,7 @@ function buildMediaVisual( media: MediaListItem ): HTMLElement {
 		audio.controls = true;
 		audio.preload = 'metadata';
 		audio.src = media.source_url;
-		audio.className = 'desktop-mode-my-wordpress__media-audio';
+		audio.className = 'os-my-wordpress__media-audio';
 		stack.appendChild( audio );
 		wrap.appendChild( stack );
 		return wrap;
@@ -163,7 +167,7 @@ function buildMediaVisual( media: MediaListItem ): HTMLElement {
 	// Documents — big dashicon and a "View file" link.
 	const icon = document.createElement( 'span' );
 	icon.className =
-		'desktop-mode-my-wordpress__media-fallback-icon dashicons ' +
+		'os-my-wordpress__media-fallback-icon dashicons ' +
 		dashiconForMime( media.mime_type );
 	icon.setAttribute( 'aria-hidden', 'true' );
 	wrap.appendChild( icon );
@@ -171,7 +175,7 @@ function buildMediaVisual( media: MediaListItem ): HTMLElement {
 	link.href = media.source_url;
 	link.target = '_blank';
 	link.rel = 'noopener noreferrer';
-	link.className = 'desktop-mode-my-wordpress__media-doc-link';
+	link.className = 'os-my-wordpress__media-doc-link';
 	link.textContent = __( 'Open file', 'desktop-mode' );
 	wrap.appendChild( link );
 	return wrap;
@@ -191,10 +195,10 @@ function buildMetaRow(
 		return null;
 	}
 	const dt = document.createElement( 'dt' );
-	dt.className = 'desktop-mode-my-wordpress__media-meta-term';
+	dt.className = 'os-my-wordpress__media-meta-term';
 	dt.textContent = label;
 	const dd = document.createElement( 'dd' );
-	dd.className = 'desktop-mode-my-wordpress__media-meta-value';
+	dd.className = 'os-my-wordpress__media-meta-value';
 	if ( typeof value === 'string' ) {
 		dd.textContent = value;
 	} else {
@@ -205,7 +209,7 @@ function buildMetaRow(
 
 function buildMetadataGrid( media: MediaListItem ): HTMLElement {
 	const grid = document.createElement( 'dl' );
-	grid.className = 'desktop-mode-my-wordpress__media-meta';
+	grid.className = 'os-my-wordpress__media-meta';
 
 	const filename = media.media_details?.file
 		? media.media_details.file.split( '/' ).pop() ?? ''
@@ -241,11 +245,9 @@ function buildMetadataGrid( media: MediaListItem ): HTMLElement {
 }
 
 /**
- * Run the `desktop-mode.my-wordpress.preview-extras` action,
+ * Run the `os.my-wordpress.preview-extras` action,
  * passing each registered subscriber a host element for the named
  * slot so they can append arbitrary DOM.
- *
- * @since 0.8.6
  */
 function fireSlot(
 	host: HTMLElement,
@@ -255,7 +257,7 @@ function fireSlot(
 	item: Record< string, unknown >,
 ): void {
 	doAction(
-		'desktop-mode.my-wordpress.preview-extras',
+		'os.my-wordpress.preview-extras',
 		{
 			slot,
 			container: host,
@@ -267,92 +269,10 @@ function fireSlot(
 }
 
 /**
- * Resolve which action descriptors apply to the given context and
- * call the JS-filter so plugins can attach handlers / hide entries.
- *
- * @since 0.8.6
- */
-export function resolvePreviewActions(
-	descriptors: MediaPreviewAction[],
-	ctx: MediaPreviewActionContext,
-): MediaPreviewAction[] {
-	const scoped = descriptors.filter( ( a ) => {
-		if ( a.sections && a.sections.length > 0 ) {
-			if ( ! a.sections.includes( ctx.entityId ) && ! a.sections.includes( '*' ) ) {
-				return false;
-			}
-		}
-		if ( a.mime ) {
-			// MIME-scoped descriptor: fail closed on the
-			// non-media-context call site so a `^image/` action
-			// doesn't leak into a Posts preview pane.
-			if ( ! ctx.mime ) {
-				return false;
-			}
-			try {
-				const re = new RegExp( a.mime );
-				if ( ! re.test( ctx.mime ) ) {
-					return false;
-				}
-			} catch {
-				// Malformed regex from PHP — skip the action.
-				return false;
-			}
-		}
-		return true;
-	} );
-	const merged = applyFilters<
-		MediaPreviewAction[],
-		[ MediaPreviewActionContext ]
-	>( 'desktop-mode.my-wordpress.preview-actions', scoped, ctx );
-	return Array.isArray( merged ) ? merged : scoped;
-}
-
-function buildActionRow(
-	actions: MediaPreviewAction[],
-	ctx: MediaPreviewActionContext,
-): HTMLElement | null {
-	const visible = actions.filter( ( a ) =>
-		typeof a.isVisible === 'function' ? a.isVisible( ctx ) : true,
-	);
-	if ( visible.length === 0 ) {
-		return null;
-	}
-	const row = document.createElement( 'div' );
-	row.className = 'desktop-mode-my-wordpress__media-actions';
-	row.setAttribute( 'role', 'toolbar' );
-	for ( const action of visible ) {
-		const btn = document.createElement( 'wpd-button' );
-		btn.setAttribute( 'variant', 'secondary' );
-		btn.dataset.actionId = action.id;
-		if ( action.icon ) {
-			btn.setAttribute( 'icon', action.icon );
-		}
-		btn.textContent = action.label;
-		btn.addEventListener( 'click', () => {
-			if ( typeof action.onSelect === 'function' ) {
-				try {
-					void action.onSelect( ctx );
-				} catch {
-					// Handler is plugin code — log via console only.
-					// eslint-disable-next-line no-console
-					console.error(
-						`[my-wordpress] preview action ${ action.id } threw.`,
-					);
-				}
-			}
-		} );
-		row.appendChild( btn );
-	}
-	return row;
-}
-
-/**
  * Paint the right-pane preview for a media item. Replaces any
  * existing content under `host`.
  *
  * @public
- * @since 0.8.6
  */
 export function renderMediaPreview(
 	host: HTMLElement,
@@ -360,28 +280,35 @@ export function renderMediaPreview(
 	opts: {
 		entityId: string;
 		previewActions: MediaPreviewAction[];
+		/** The section's declared post type slug, when it has one. */
+		postType?: string;
 		onOpenDetail?: () => void;
 	},
 ): void {
 	host.replaceChildren();
 	const pane = document.createElement( 'div' );
-	pane.className = 'desktop-mode-my-wordpress__media-pane';
+	pane.className = 'os-my-wordpress__media-pane';
 
 	const header = document.createElement( 'header' );
-	header.className = 'desktop-mode-my-wordpress__media-header';
+	header.className = 'os-my-wordpress__media-header';
 	const heading = document.createElement( 'h2' );
-	heading.className = 'desktop-mode-my-wordpress__media-title';
+	heading.className = 'os-my-wordpress__media-title';
 	heading.textContent =
 		stripTags( media.title.rendered ) || __( '(no title)', 'desktop-mode' );
 	header.appendChild( heading );
 	pane.appendChild( header );
 
 	const item = media as unknown as Record< string, unknown >;
+	// `kind` stays 'media' even when the drill-in was entered from a
+	// non-media section — the rendered item IS an attachment.
 	const ctx: MediaPreviewActionContext = {
 		entityId: opts.entityId,
 		kind: 'media',
+		postType: opts.postType,
 		mime: media.mime_type,
 		item,
+		itemId: media.id,
+		surface: 'pane',
 	};
 
 	fireSlot( header, 'header', opts.entityId, 'media', item );
@@ -400,8 +327,8 @@ export function renderMediaPreview(
 
 	if ( opts.onOpenDetail ) {
 		const footer = document.createElement( 'footer' );
-		footer.className = 'desktop-mode-my-wordpress__article-footer';
-		const drillBtn = document.createElement( 'wpd-button' );
+		footer.className = 'os-my-wordpress__article-footer';
+		const drillBtn = document.createElement( 'os-button' );
 		drillBtn.setAttribute( 'variant', 'primary' );
 		drillBtn.textContent = __( 'See where this is used', 'desktop-mode' );
 		drillBtn.title = __(
@@ -414,7 +341,7 @@ export function renderMediaPreview(
 		fireSlot( footer, 'footer', opts.entityId, 'media', item );
 	} else {
 		const footer = document.createElement( 'div' );
-		footer.className = 'desktop-mode-my-wordpress__media-footer';
+		footer.className = 'os-my-wordpress__media-footer';
 		pane.appendChild( footer );
 		fireSlot( footer, 'footer', opts.entityId, 'media', item );
 	}

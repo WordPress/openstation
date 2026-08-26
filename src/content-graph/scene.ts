@@ -5,8 +5,10 @@
  * transform), and the four child layers:
  *
  *   1. `edgeLayer`      — line per `GraphEdge` (very thin, low alpha).
- *   2. `nodeLayer`      — small `Graphics` halo + dashicon glyph per
- *      `GraphNode`. The glyph IS the node, sized by degree.
+ *   2. `nodeLayer`      — per `GraphNode`: a `Graphics` halo, a
+ *      `Graphics` disc, and a dashicon glyph, sized by degree. Which
+ *      of the last two is the visible body depends on the node style
+ *      (see {@link NodeStyle}); the halo is state-only.
  *   3. `labelLayer`     — text label per node, culled when zoomed out.
  *   4. `satelliteLayer` — `SatelliteLayer` instance fanning out
  *      relationship satellites around the focused node (see
@@ -19,10 +21,13 @@
  * toward the targets each frame so zoom and recenter feel continuous
  * rather than stepped.
  *
- * Visual policy: dashicon glyph nodes (matching WP admin), dot-grid
- * background (CSS), Obsidian-style sparse mid-zoom layout. Focused
- * node + 1-hop neighbourhood pop in blue; the focused node is
- * *pinned* during focus so it doesn't drift around under the camera.
+ * Visual policy: disc nodes coloured by post type (the same palette
+ * the satellite bubbles use, so a focused post and its relationships
+ * read as one system), dot-grid background (CSS), Obsidian-style
+ * sparse mid-zoom layout. Dashicon-glyph nodes remain available via
+ * `setNodeStyle( 'icon' )`. Focused node + 1-hop neighbourhood pop;
+ * the focused node is *pinned* during focus so it doesn't drift
+ * around under the camera.
  *
  * Interactions:
  *   - **Wheel** smoothly zooms with the cursor as the focal point.
@@ -33,11 +38,11 @@
  *   - **Click background** clears focus + satellites.
  *
  * @public
- * @since 0.8.2
  */
 
 import { __ } from '../i18n';
-import { resolveDashicon } from '../ui/components/wpd-icon/dashicons-map';
+import { decodeHTML } from '../utils';
+import { resolveDashicon } from '../ui/components/os-icon/dashicons-map';
 import {
 	getPixi,
 	type DesktopApiLike,
@@ -68,6 +73,99 @@ const NODE_FILL_FOCUS = 0x2c6be5;
 const NODE_FILL_NEIGHBOUR = 0x4f8bf3;
 const EDGE_BASE = 0x9aa6b6;
 const EDGE_HOT = 0x2c6be5;
+
+/**
+ * Supersample factor applied on top of the display's device-pixel
+ * ratio. `1` renders at native density (what the scene did before);
+ * `1.5` renders 2.25× the pixels and lets the browser resolve them
+ * down on composite.
+ *
+ * MSAA alone is not enough for this scene, and the discs are why.
+ * `antialias: true` gives the renderer multisampling on the default
+ * framebuffer, which cleans up a *large* shape's silhouette nicely —
+ * but a node is 8–16 world units across and wears a keyline 1.5 units
+ * wide, and the camera routinely sits at 0.5× in the overview. At
+ * that zoom the keyline is under a device pixel: MSAA has nothing to
+ * average and the ring breaks into a dotted shimmer, which is exactly
+ * the artefact the ring exists to prevent (it is what keeps two
+ * overlapping nodes reading as two nodes). Supersampling gives the
+ * subpixel ring real samples to be resolved from.
+ */
+const RENDER_SUPERSAMPLE = 1.5;
+
+/**
+ * Backing-store density for the canvas and for every `Text` in it.
+ *
+ * Clamped at 3 because the cost is quadratic in this number and the
+ * canvas is full-window: a 1400×800 stage is 10M pixels at 3 and 18M
+ * at 4, and past 3 nobody can see the difference on the one detail
+ * that motivated it.
+ *
+ * Read once at module load rather than per node — `Text` objects pin
+ * their raster at construction, and a glyph left at a lower density
+ * than the canvas around it is *upscaled*, which would make the
+ * focus/hover glyph reveal the softest thing on a screen that just
+ * got sharper everywhere else.
+ */
+const RENDER_RESOLUTION = Math.min(
+	( ( typeof window !== 'undefined' && window.devicePixelRatio ) || 1 ) *
+		RENDER_SUPERSAMPLE,
+	3,
+);
+
+/**
+ * Node body colours, assigned to post types in the order the window
+ * config lists them (so `post` — always first — is stable at the
+ * leading blue, and a site's CPTs get consistent colours across
+ * sessions without anyone having to configure anything).
+ *
+ * Deliberately the same five hues the satellite bubbles use in
+ * `satellites.ts`, extended by two, so a focused post and the
+ * relationship bubbles fanned around it read as one palette rather
+ * than two systems sharing a canvas. Wraps by modulo past the end —
+ * a site with eight public post types repeats a colour rather than
+ * inventing an unvetted one.
+ */
+const TYPE_PALETTE = [
+	0x3a6df0, // blue
+	0x2ca97a, // green
+	0xe8893a, // orange
+	0xa05ed4, // purple
+	0x2fa5b8, // teal
+	0xd4508f, // pink
+	0x6b7785, // slate
+];
+
+/**
+ * Ring drawn around every disc node, matching the satellite discs'
+ * white keyline. It is what keeps two overlapping nodes readable as
+ * two nodes — without it a cluster at low zoom fuses into one blob.
+ */
+const DISC_RING = 0xffffff;
+
+/**
+ * How the node body is drawn.
+ *
+ *   - `'disc'`  — filled circle + keyline, coloured by post type. The
+ *     default: at overview zoom a canvas of discs reads as a
+ *     constellation, which is what the graph *is*.
+ *   - `'icon'`  — the post type's Dashicon glyph IS the node (the
+ *     original look). Kept because the glyph carries type identity at
+ *     a glance in a way colour alone can't for someone who can't
+ *     separate the hues, and because on a small graph the pushpin is
+ *     genuinely charming. Reachable from the window's ⋯ menu.
+ *
+ * The focused node reveals its glyph in either style — inside the
+ * disc for `'disc'`, at full size for `'icon'` — so focus never costs
+ * the user the type information.
+ */
+export type NodeStyle = 'disc' | 'icon';
+
+/**
+ * Focused discs scale up by this factor. Enough to read as "this
+ * one", small enough that the layout around it doesn't feel shoved.
+ */
+const FOCUS_DISC_SCALE = 1.3;
 
 /**
  * Per-dashicon visual-centre nudge applied on top of the
@@ -108,7 +206,7 @@ const ICON_NUDGE: Record< string, { x: number; y: number } > = {
  * Earlier they were Pixi `Graphics + Text`, but Pixi v8's batched
  * renderer would intermittently crash with "Cannot read properties
  * of null (reading 'clear')" when an external event (e.g. opening
- * another desktop-mode window in an iframe) perturbed the canvas's
+ * another openstation window in an iframe) perturbed the canvas's
  * GL context. DOM labels sidestep the Pixi renderer entirely.
  */
 const GROUP_LABEL_COLOR: Record< GroupFacet, string > = {
@@ -137,12 +235,25 @@ interface NodeView {
 	node: GraphNode;
 	container: PixiContainer;
 	halo: PixiGraphics;
+	disc: PixiGraphics;
 	icon: PixiText;
 	labelBox: PixiContainer;
 	labelBg: PixiGraphics;
 	label: PixiText;
 	iconCharCode: string | null;
 	iconName: string;
+	/** Post-type body colour — see {@link TYPE_PALETTE}. */
+	typeColor: number;
+	/**
+	 * Signature of the last disc paint. The per-frame loop repaints a
+	 * disc only when this changes, which in steady state means never:
+	 * a `Graphics` fill + stroke per node per frame is affordable for
+	 * a demo graph and is not for a real site's few hundred posts.
+	 * (The halo above gets away with an unconditional `clear()`
+	 * because it draws nothing at all for the ~all-but-two nodes that
+	 * are neither focused nor hovered.)
+	 */
+	discKey: string;
 }
 
 interface EdgeView {
@@ -264,22 +375,37 @@ export class GraphScene {
 	private onSatelliteClick: SatelliteOnClick;
 	private postTypeIcon: PostTypeIconLookup;
 	private postTypeBySlug: Map< string, PostTypeDescriptor >;
+	private postTypeColor = new Map< string, number >();
+	/** Active node body style. See {@link NodeStyle}. */
+	private nodeStyle: NodeStyle = 'disc';
 
 	constructor(
 		host: HTMLElement,
 		callbacks: SceneCallbacks,
 		onSatelliteClick: SatelliteOnClick,
 		postTypes: PostTypeDescriptor[],
+		nodeStyle: NodeStyle = 'disc',
 	) {
 		this.host = host;
 		this.callbacks = callbacks;
 		this.onSatelliteClick = onSatelliteClick;
+		this.nodeStyle = nodeStyle;
 		const map = new Map< string, string >();
 		this.postTypeBySlug = new Map();
 		for ( const t of postTypes ) {
 			map.set( t.slug, normalizeDashiconName( t.icon ) );
 			this.postTypeBySlug.set( t.slug, t );
 		}
+		// Colour by declaration order, wrapping past the palette's
+		// end. Assigned once here rather than at paint time so a
+		// type's colour can't shift when the filter chips change
+		// which types are on screen.
+		postTypes.forEach( ( t, i ) => {
+			this.postTypeColor.set(
+				t.slug,
+				TYPE_PALETTE[ i % TYPE_PALETTE.length ],
+			);
+		} );
 		// Always seeded so unknown CPTs without a registered menu_icon
 		// still pick up a sensible default.
 		this.postTypeIcon = ( slug ) =>
@@ -316,8 +442,12 @@ export class GraphScene {
 			backgroundAlpha: 0,
 			antialias: true,
 			autoDensity: true,
-			resolution: Math.min( window.devicePixelRatio || 1, 2 ),
-			// Dedicated ticker, NOT the shared one. Other desktop-mode
+			// Above the display's own density on purpose — see
+			// `RENDER_SUPERSAMPLE`. `autoDensity` keeps the canvas at
+			// its CSS size, so the extra pixels are resolved down on
+			// composite rather than making the stage bigger.
+			resolution: RENDER_RESOLUTION,
+			// Dedicated ticker, NOT the shared one. Other openstation
 			// bundles (posts-window, recycle-bin, …) also load Pixi via
 			// `loadModules('pixijs')` — sharing `Ticker.shared` across
 			// independent Application instances has bitten us: a render
@@ -330,7 +460,7 @@ export class GraphScene {
 		} );
 		this.app = app;
 		this.host.appendChild( app.canvas );
-		app.canvas.classList.add( 'desktop-mode-content-graph__canvas' );
+		app.canvas.classList.add( 'os-content-graph__canvas' );
 
 		this.world = new pixi.Container();
 		this.world.x = this.host.clientWidth / 2;
@@ -356,11 +486,11 @@ export class GraphScene {
 		// the canvas.
 		this.groupLabelOverlay = document.createElement( 'div' );
 		this.groupLabelOverlay.className =
-			'desktop-mode-content-graph__group-labels';
+			'os-content-graph__group-labels';
 		this.host.appendChild( this.groupLabelOverlay );
 
 		// Pixi v8's WebGL context can be lost when the browser shuffles
-		// canvases around (e.g. when another desktop-mode window opens
+		// canvases around (e.g. when another openstation window opens
 		// in an iframe and forces a reflow). Without this guard the
 		// ticker keeps trying to render against a dead GL context and
 		// floods the console with "Cannot read properties of null"
@@ -530,6 +660,12 @@ export class GraphScene {
 			const halo = new this.pixi.Graphics();
 			container.addChild( halo );
 
+			// Disc sits between the halo and the glyph: the halo is a
+			// soft wash *behind* the body, the glyph is revealed
+			// *inside* it on focus.
+			const disc = new this.pixi.Graphics();
+			container.addChild( disc );
+
 			const iconName = this.postTypeIcon( n.type );
 			const iconChar = resolveDashicon( iconName );
 			const icon = new this.pixi.Text( {
@@ -539,7 +675,7 @@ export class GraphScene {
 					fontSize: 2 * n.radius,
 					fill: NODE_FILL,
 				},
-				resolution: 2,
+				resolution: RENDER_RESOLUTION,
 				anchor: { x: 0.5, y: 0.5 },
 			} );
 			container.addChild( icon );
@@ -556,7 +692,7 @@ export class GraphScene {
 			labelBox.addChild( labelBg );
 
 			const label = new this.pixi.Text( {
-				text: this.truncate( n.title || `#${ n.id }`, 32 ),
+				text: this.truncate( decodeHTML( n.title ) || `#${ n.id }`, 32 ),
 				style: {
 					fill: 0x1f2937,
 					fontSize: 11,
@@ -564,7 +700,7 @@ export class GraphScene {
 						'-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
 					fontWeight: '500',
 				},
-				resolution: 2,
+				resolution: RENDER_RESOLUTION,
 				anchor: { x: 0.5, y: 0 },
 			} );
 			labelBox.addChild( label );
@@ -590,12 +726,17 @@ export class GraphScene {
 				node: n,
 				container,
 				halo,
+				disc,
 				icon,
 				labelBox,
 				labelBg,
 				label,
 				iconCharCode: iconChar,
 				iconName,
+				typeColor:
+					this.postTypeColor.get( n.type ) ?? TYPE_PALETTE[ 0 ],
+				// Empty so the first `draw()` always paints.
+				discKey: '',
 			} );
 		}
 	}
@@ -1075,9 +1216,9 @@ export class GraphScene {
 			// glance, e.g. "Recipe (15)" / "Untagged (3)".
 			const label = `${ this.labelForGroupKey( key ) } (${ ids.length })`;
 			const el = document.createElement( 'div' );
-			el.className = 'desktop-mode-content-graph__group-label';
+			el.className = 'os-content-graph__group-label';
 			el.textContent = label;
-			el.style.setProperty( '--wpd-cg-cluster-color', tint );
+			el.style.setProperty( '--os-ui-cg-cluster-color', tint );
 			this.groupLabelOverlay.appendChild( el );
 			this.groupViews.set( key, { key, label, el, members: ids } );
 		}
@@ -1236,8 +1377,9 @@ export class GraphScene {
 		// fully present; in between the alpha eases via smoothstep so
 		// pinch-zoom doesn't pop them in/out.
 		const zoomFade = smoothstep( 0.55, 0.95, this.world.scale.x );
+		const discs = this.nodeStyle === 'disc';
 		for ( const v of this.nodeViews.values() ) {
-			const { node, container, halo, icon, labelBox } = v;
+			const { node, container, halo, disc, icon, labelBox } = v;
 			const isFocus = node.id === focusId;
 			const isHover = node.id === hoverId;
 			const isNeighbour =
@@ -1249,23 +1391,58 @@ export class GraphScene {
 			container.y = node.y;
 			container.alpha = baseAlpha;
 
+			// In icon style the glyph itself carries the state colour
+			// (the original behaviour). In disc style the *body*
+			// carries post-type identity and only focus overrides it —
+			// a neighbour keeps its own colour and is distinguished by
+			// the un-dimmed alpha above, which is what makes a focused
+			// neighbourhood read as "these, in their own colours"
+			// rather than "these, repainted blue".
 			let fill = NODE_FILL;
 			if ( isFocus ) {
 				fill = NODE_FILL_FOCUS;
 			} else if ( isNeighbour ) {
 				fill = NODE_FILL_NEIGHBOUR;
 			}
+			const discFill = isFocus ? NODE_FILL_FOCUS : v.typeColor;
 
 			halo.clear();
 			if ( isFocus || isHover ) {
 				halo.circle( 0, 0, node.radius + 8 ).fill( {
-					color: fill,
+					color: discs ? discFill : fill,
 					alpha: 0.18,
 				} );
 			}
 
-			icon.style.fill = fill;
-			const fontSize = 2 * node.radius;
+			// Disc body — repainted only when its signature changes.
+			const discRadius = isFocus
+				? node.radius * FOCUS_DISC_SCALE
+				: node.radius;
+			const ringWidth = isFocus || isHover ? 2.5 : 1.5;
+			const discKey = discs
+				? `${ discFill }|${ discRadius }|${ ringWidth }`
+				: 'off';
+			if ( v.discKey !== discKey ) {
+				v.discKey = discKey;
+				disc.clear();
+				if ( discs ) {
+					disc.circle( 0, 0, discRadius )
+						.fill( { color: discFill, alpha: 0.95 } )
+						.stroke( {
+							color: DISC_RING,
+							width: ringWidth,
+							alpha: 1,
+						} );
+				}
+			}
+
+			// The glyph is the node in icon style; in disc style it is
+			// the reveal on the node the user is pointing at or has
+			// focused, drawn in the ring colour so it reads as cut out
+			// of the disc rather than stacked on top of it.
+			icon.visible = ! discs || isFocus || isHover;
+			icon.style.fill = discs ? DISC_RING : fill;
+			const fontSize = discs ? discRadius * 1.35 : 2 * node.radius;
 			icon.style.fontSize = fontSize;
 			// Nudge the glyph onto the visible disc centre. Without this
 			// the bbox-centred anchor leaves glyphs (notably `admin-post`
@@ -1276,7 +1453,12 @@ export class GraphScene {
 			icon.y = ( ( nudge?.y ?? ICON_NUDGE_Y_ASCENT ) ) * fontSize;
 
 			labelBox.x = node.x;
-			labelBox.y = node.y + node.radius + 4;
+			// Clear the body, whichever body that is: a focused disc
+			// has grown past `node.radius`, and in icon style the
+			// glyph's visible height is about the same as the disc's
+			// diameter, so the un-scaled radius is the right floor for
+			// both.
+			labelBox.y = node.y + ( discs ? discRadius : node.radius ) + 4;
 			labelBox.scale.set( inverseScale );
 			let baseLabelAlpha: number;
 			if ( isFocus ) {
@@ -1709,6 +1891,31 @@ export class GraphScene {
 
 	getNodes(): GraphNode[] {
 		return this.nodes;
+	}
+
+	/**
+	 * Switch how node bodies are drawn. Safe to call before `mount()`
+	 * — the style is stored and the first paint honours it.
+	 *
+	 * Invalidates every disc signature so the next frame repaints all
+	 * of them; nothing else needs to happen, since the tick loop is
+	 * already running and the glyphs' visibility is derived per frame.
+	 *
+	 * @param style Body style. See {@link NodeStyle}.
+	 */
+	setNodeStyle( style: NodeStyle ): void {
+		if ( this.nodeStyle === style ) {
+			return;
+		}
+		this.nodeStyle = style;
+		for ( const v of this.nodeViews.values() ) {
+			v.discKey = '';
+		}
+	}
+
+	/** Active node body style. */
+	getNodeStyle(): NodeStyle {
+		return this.nodeStyle;
 	}
 
 	/**

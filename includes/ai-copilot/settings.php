@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — AI Copilot settings + capability helpers.
+ * OpenStation — AI Copilot settings + capability helpers.
  *
  * The Copilot no longer stores credentials of its own. WordPress 7.0 owns
  * provider credentials (Settings → Connectors) and model routing
@@ -10,7 +10,7 @@
  * decide whether to surface the assistant at all. Provider + model selection
  * is delegated entirely to the Core AI Client — nothing is persisted here.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -22,13 +22,11 @@ defined( 'ABSPATH' ) || exit;
  * OS Settings → Features (and only enable-able once a provider is configured).
  * Provider + model selection is left entirely to the Core AI Client.
  *
- * @since 0.5.0
- *
  * @param int $user_id
  * @return array{ enabled: bool }
  */
-function desktop_mode_ai_get_settings( $user_id ) {
-	$os = desktop_mode_get_os_settings( (int) $user_id );
+function openstation_ai_get_settings( $user_id ) {
+	$os = openstation_get_os_settings( (int) $user_id );
 	$ai = isset( $os['ai'] ) && is_array( $os['ai'] ) ? $os['ai'] : array();
 	return array(
 		'enabled' => isset( $ai['enabled'] ) ? (bool) $ai['enabled'] : false,
@@ -43,11 +41,9 @@ function desktop_mode_ai_get_settings( $user_id ) {
  * any of these is missing — e.g. WordPress < 7.0, or AI disabled site-wide
  * via `wp_supports_ai()` — the shell hides the assistant entirely.
  *
- * @since 0.9.4
- *
  * @return bool
  */
-function desktop_mode_ai_is_available() {
+function openstation_ai_is_available() {
 	return function_exists( 'wp_ai_client_prompt' )
 		&& function_exists( 'wp_get_connectors' )
 		&& function_exists( 'wp_register_ability' )
@@ -63,17 +59,15 @@ function desktop_mode_ai_is_available() {
  * (which Core populates from the configured Connectors). This is what plain
  * text-generation features — e.g. comment scoring, which only needs structured
  * text output — gate on. The agentic assistant needs more; see
- * {@see desktop_mode_ai_assistant_provider_configured()}.
+ * {@see openstation_ai_assistant_provider_configured()}.
  *
  * Credentials are supplied by Core from the configured Connector; no API request
  * is made.
  *
- * @since 0.9.4
- *
  * @return bool
  */
-function desktop_mode_ai_provider_configured() {
-	if ( ! desktop_mode_ai_is_available() ) {
+function openstation_ai_provider_configured() {
+	if ( ! openstation_ai_is_available() ) {
 		return false;
 	}
 	return (bool) wp_ai_client_prompt( 'test' )->is_supported_for_text_generation();
@@ -93,18 +87,16 @@ function desktop_mode_ai_provider_configured() {
  * Falls back to the plain text-generation gate when the SDK's FunctionDeclaration
  * class isn't present (e.g. older WordPress).
  *
- * @since 0.9.4
- *
  * @return bool
  */
-function desktop_mode_ai_assistant_provider_configured() {
-	if ( ! desktop_mode_ai_is_available() ) {
+function openstation_ai_assistant_provider_configured() {
+	if ( ! openstation_ai_is_available() ) {
 		return false;
 	}
 
-	$probe = desktop_mode_ai_capability_probe_declaration();
+	$probe = openstation_ai_capability_probe_declaration();
 	if ( ! $probe ) {
-		return desktop_mode_ai_provider_configured();
+		return openstation_ai_provider_configured();
 	}
 
 	return (bool) wp_ai_client_prompt( 'test' )
@@ -120,11 +112,9 @@ function desktop_mode_ai_assistant_provider_configured() {
  * when the SDK class isn't available, letting the caller fall back to a plain
  * text-generation check.
  *
- * @since 0.9.4
- *
  * @return object|null A `FunctionDeclaration`, or null.
  */
-function desktop_mode_ai_capability_probe_declaration() {
+function openstation_ai_capability_probe_declaration() {
 	$class = '\WordPress\AiClient\Tools\DTO\FunctionDeclaration';
 	if ( ! class_exists( $class ) ) {
 		return null;
@@ -145,16 +135,14 @@ function desktop_mode_ai_capability_probe_declaration() {
  *
  * This is purely the per-user toggle (default off, opt-in). Availability of the Core
  * APIs and whether a provider key is set are separate, orthogonal checks
- * ({@see desktop_mode_ai_is_available()} / {@see desktop_mode_ai_provider_configured()})
+ * ({@see openstation_ai_is_available()} / {@see openstation_ai_provider_configured()})
  * so callers can distinguish "user turned it off" from "not set up yet".
- *
- * @since 0.5.0
  *
  * @param int $user_id
  * @return bool
  */
-function desktop_mode_ai_is_enabled( $user_id ) {
-	$ai = desktop_mode_ai_get_settings( (int) $user_id );
+function openstation_ai_is_enabled( $user_id ) {
+	$ai = openstation_ai_get_settings( (int) $user_id );
 	return ! empty( $ai['enabled'] );
 }
 
@@ -175,17 +163,15 @@ function desktop_mode_ai_is_enabled( $user_id ) {
  * Provider + model selection is delegated to the Core AI Client, so there is no
  * per-user preference to carry here.
  *
- * @since 0.9.4
- *
  * @param int|null $user_id Defaults to the current user.
  * @return array{ available: bool, providerConfigured: bool, assistantProviderConfigured: bool, enabled: bool, connectorsUrl: string }
  */
-function desktop_mode_ai_assistant_config( $user_id = null ) {
+function openstation_ai_assistant_config( $user_id = null ) {
 	$user_id = null === $user_id ? get_current_user_id() : (int) $user_id;
 
 	$connectors_url = admin_url( 'options-connectors.php' );
 
-	if ( ! desktop_mode_ai_is_available() ) {
+	if ( ! openstation_ai_is_available() ) {
 		return array(
 			'available'                   => false,
 			'providerConfigured'          => false,
@@ -195,12 +181,12 @@ function desktop_mode_ai_assistant_config( $user_id = null ) {
 		);
 	}
 
-	$ai = desktop_mode_ai_get_settings( $user_id );
+	$ai = openstation_ai_get_settings( $user_id );
 
 	return array(
 		'available'                   => true,
-		'providerConfigured'          => desktop_mode_ai_provider_configured(),
-		'assistantProviderConfigured' => desktop_mode_ai_assistant_provider_configured(),
+		'providerConfigured'          => openstation_ai_provider_configured(),
+		'assistantProviderConfigured' => openstation_ai_assistant_provider_configured(),
 		'enabled'                     => (bool) $ai['enabled'],
 		'connectorsUrl'               => $connectors_url,
 	);
@@ -209,35 +195,30 @@ function desktop_mode_ai_assistant_config( $user_id = null ) {
 /**
  * REST: GET `desktop-mode/v1/ai/status`.
  *
- * Returns the current {@see desktop_mode_ai_assistant_config()} so the shell
+ * Returns the current {@see openstation_ai_assistant_config()} so the shell
  * can re-check provider availability without a page reload — e.g. after the
  * user configures an AI provider in Settings → Connectors.
- *
- * @since 0.9.4
  */
-function desktop_mode_register_ai_status_rest_route() {
+function openstation_register_ai_status_rest_route() {
 	register_rest_route(
 		'desktop-mode/v1',
 		'/ai/status',
 		array(
 			'methods'             => WP_REST_Server::READABLE,
-			'callback'            => 'desktop_mode_rest_ai_status',
+			'callback'            => 'openstation_rest_ai_status',
 			'permission_callback' => static function () {
 				return is_user_logged_in() && current_user_can( 'read' );
 			},
 		)
 	);
 }
-add_action( 'rest_api_init', 'desktop_mode_register_ai_status_rest_route' );
+add_action( 'rest_api_init', 'openstation_register_ai_status_rest_route' );
 
 /**
  * REST handler for the AI status probe.
  *
- * @since 0.9.4
- *
  * @return WP_REST_Response
  */
-function desktop_mode_rest_ai_status() {
-	return rest_ensure_response( desktop_mode_ai_assistant_config() );
+function openstation_rest_ai_status() {
+	return rest_ensure_response( openstation_ai_assistant_config() );
 }
-

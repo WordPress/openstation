@@ -1,11 +1,9 @@
 /**
- * Desktop Mode — public `wp.desktop.games` surface.
+ * OpenStation — public `wp.os.games` surface.
  *
  * Thin facade over the shared-store registry + launcher. Assembled
  * here (rather than inline in `src/api/facade.ts`) so the games
  * bundle and any tests can import the exact same object shape.
- *
- * @since 0.9.6
  */
 
 import * as registry from './registry';
@@ -18,7 +16,7 @@ export interface GamesApi {
 	register: ( entry: GameRegistryEntry ) => void;
 	/** Remove a game by id. */
 	unregister: ( id: string ) => void;
-	/** The current game list, `desktop-mode.games` filter applied. */
+	/** The current game list, `os.games` filter applied. */
 	list: () => GameRegistryEntry[];
 	/** Look up one game by id, post-filter. */
 	get: ( id: string ) => GameRegistryEntry | undefined;

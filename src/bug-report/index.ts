@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Bug Report native window.
+ * OpenStation — Bug Report native window.
  *
  * A built-in native app that lets users file issues against the
  * plugin's GitHub repo without leaving the admin. The form gathers
@@ -11,11 +11,9 @@
  *
  * Three entry points all converge here:
  *   1. The admin-bar "Report a bug" button (PHP node, dispatches
- *      `desktop-mode-open-bug-report`).
+ *      `os-open-bug-report`).
  *   2. The dock system tile registered in `src/desktop.ts`.
  *   3. Future: a desktop widget. Same target, no special-casing.
- *
- * @since 0.6.2
  */
 
 import { __ } from '../i18n';
@@ -25,7 +23,7 @@ export const BUG_REPORT_WINDOW_ID = 'desktop-mode-bug-report';
 
 /** GitHub repo the issue is filed against. */
 const REPO_OWNER = 'WordPress';
-const REPO_NAME = 'desktop-mode';
+const REPO_NAME = 'openstation';
 
 /**
  * Conservative cap on the body length passed via `?body=…`. GitHub
@@ -53,11 +51,11 @@ export function renderBugReport( body: HTMLElement ): void {
 	body.replaceChildren();
 
 	const form = document.createElement( 'form' );
-	form.className = 'desktop-mode-bug-report__form';
+	form.className = 'os-bug-report__form';
 	form.setAttribute( 'novalidate', '' );
 
 	const intro = document.createElement( 'p' );
-	intro.className = 'desktop-mode-bug-report__intro';
+	intro.className = 'os-bug-report__intro';
 	intro.textContent = __(
 		'Found a bug or have a feature idea? Fill this in and we will open a pre-filled GitHub issue for you to review and submit.',
 	);
@@ -82,16 +80,16 @@ export function renderBugReport( body: HTMLElement ): void {
 	form.appendChild( meta );
 
 	const actions = document.createElement( 'div' );
-	actions.className = 'desktop-mode-bug-report__actions';
+	actions.className = 'os-bug-report__actions';
 
 	const submit = document.createElement( 'button' );
 	submit.type = 'submit';
-	submit.className = 'desktop-mode-bug-report__submit';
+	submit.className = 'os-bug-report__submit';
 	submit.textContent = __( 'Open issue on GitHub' );
 	actions.appendChild( submit );
 
 	const hint = document.createElement( 'span' );
-	hint.className = 'desktop-mode-bug-report__hint';
+	hint.className = 'os-bug-report__hint';
 	hint.textContent = __( 'You will review and submit on GitHub.' );
 	actions.appendChild( hint );
 
@@ -121,15 +119,15 @@ export function renderBugReport( body: HTMLElement ): void {
 
 function buildTypeField(): HTMLElement {
 	const wrap = document.createElement( 'div' );
-	wrap.className = 'desktop-mode-bug-report__field desktop-mode-bug-report__field--type';
+	wrap.className = 'os-bug-report__field os-bug-report__field--type';
 
 	const label = document.createElement( 'span' );
-	label.className = 'desktop-mode-bug-report__label';
+	label.className = 'os-bug-report__label';
 	label.textContent = __( 'Type' );
 	wrap.appendChild( label );
 
 	const group = document.createElement( 'div' );
-	group.className = 'desktop-mode-bug-report__radio-group';
+	group.className = 'os-bug-report__radio-group';
 	group.setAttribute( 'role', 'radiogroup' );
 
 	const options: { value: FormState[ 'type' ]; label: string; checked?: boolean }[] = [
@@ -139,7 +137,7 @@ function buildTypeField(): HTMLElement {
 	];
 	for ( const opt of options ) {
 		const radioLabel = document.createElement( 'label' );
-		radioLabel.className = 'desktop-mode-bug-report__radio';
+		radioLabel.className = 'os-bug-report__radio';
 		const input = document.createElement( 'input' );
 		input.type = 'radio';
 		input.name = 'type';
@@ -163,17 +161,17 @@ function buildTextField(
 	opts: { placeholder?: string; required?: boolean } = {},
 ): HTMLElement {
 	const wrap = document.createElement( 'div' );
-	wrap.className = 'desktop-mode-bug-report__field';
+	wrap.className = 'os-bug-report__field';
 
 	const label = document.createElement( 'label' );
-	label.className = 'desktop-mode-bug-report__label';
+	label.className = 'os-bug-report__label';
 	label.textContent = labelText;
 	wrap.appendChild( label );
 
 	const input = document.createElement( 'input' );
 	input.type = 'text';
 	input.name = name;
-	input.className = 'desktop-mode-bug-report__input';
+	input.className = 'os-bug-report__input';
 	if ( opts.placeholder ) {
 		input.placeholder = opts.placeholder;
 	}
@@ -191,16 +189,16 @@ function buildTextareaField(
 	opts: { placeholder?: string; rows?: number; required?: boolean } = {},
 ): HTMLElement {
 	const wrap = document.createElement( 'div' );
-	wrap.className = 'desktop-mode-bug-report__field';
+	wrap.className = 'os-bug-report__field';
 
 	const label = document.createElement( 'label' );
-	label.className = 'desktop-mode-bug-report__label';
+	label.className = 'os-bug-report__label';
 	label.textContent = labelText;
 	wrap.appendChild( label );
 
 	const textarea = document.createElement( 'textarea' );
 	textarea.name = name;
-	textarea.className = 'desktop-mode-bug-report__textarea';
+	textarea.className = 'os-bug-report__textarea';
 	textarea.rows = opts.rows ?? 4;
 	if ( opts.placeholder ) {
 		textarea.placeholder = opts.placeholder;
@@ -220,14 +218,14 @@ function buildTextareaField(
  */
 function buildMetadataPreview(): HTMLElement {
 	const details = document.createElement( 'details' );
-	details.className = 'desktop-mode-bug-report__metadata';
+	details.className = 'os-bug-report__metadata';
 
 	const summary = document.createElement( 'summary' );
 	summary.textContent = __( 'Environment included with the report' );
 	details.appendChild( summary );
 
 	const pre = document.createElement( 'pre' );
-	pre.className = 'desktop-mode-bug-report__metadata-body';
+	pre.className = 'os-bug-report__metadata-body';
 	pre.textContent = formatMetadata( collectMetadata() );
 	details.appendChild( pre );
 
@@ -235,10 +233,10 @@ function buildMetadataPreview(): HTMLElement {
 }
 
 function showInlineError( form: HTMLFormElement, msg: string ): void {
-	let banner = form.querySelector< HTMLElement >( '.desktop-mode-bug-report__error' );
+	let banner = form.querySelector< HTMLElement >( '.os-bug-report__error' );
 	if ( ! banner ) {
 		banner = document.createElement( 'div' );
-		banner.className = 'desktop-mode-bug-report__error';
+		banner.className = 'os-bug-report__error';
 		banner.setAttribute( 'role', 'alert' );
 		form.prepend( banner );
 	}
@@ -330,8 +328,8 @@ interface Metadata {
 
 function collectMetadata(): Metadata {
 	const cfg = ( window as unknown as {
-		wp?: { desktop?: { config?: { pluginVersion?: string; wordpressVersion?: string } } };
-	} ).wp?.desktop?.config;
+		wp?: { os?: { config?: { pluginVersion?: string; wordpressVersion?: string } } };
+	} ).wp?.os?.config;
 	return {
 		pluginVersion: cfg?.pluginVersion ?? 'unknown',
 		wordpressVersion: cfg?.wordpressVersion ?? 'unknown',

@@ -97,13 +97,13 @@ describe( 'desktop-files registry', () => {
 		expect( registry.getType( 'tmp' ) ).toBeNull();
 	} );
 
-	test( 'getTypes applies the desktop-mode.files.types filter', async () => {
+	test( 'getTypes applies the os.files.types filter', async () => {
 		const { registry } = await load();
 		registry.registerType( { type: 'a', label: 'A', sort: 10 } );
 		registry.registerType( { type: 'b', label: 'B', sort: 20 } );
 		const stub = ( window.wp as { hooks: { addFilter: ( ...a: unknown[] ) => void } } ).hooks;
 		stub.addFilter(
-			'desktop-mode.files.types',
+			'os.files.types',
 			'test/hide-b',
 			( list ) => ( list as Array< { type: string } > ).filter( ( e ) => e.type !== 'b' ),
 		);
@@ -152,11 +152,11 @@ describe( 'desktop-files registry', () => {
 		expect( count ).toBe( 2 );
 	} );
 
-	test( 'doAction fires desktop-mode.files.type-registered on register', async () => {
+	test( 'doAction fires os.files.type-registered on register', async () => {
 		const { registry } = await load();
 		const stub = ( window.wp as { hooks: { didAction: ( n: string ) => number } } ).hooks;
 		registry.registerType( { type: 'tracked', label: 'Tracked', sort: 1 } );
-		expect( stub.didAction( 'desktop-mode.files.type-registered' ) ).toBe( 1 );
+		expect( stub.didAction( 'os.files.type-registered' ) ).toBe( 1 );
 	} );
 
 	test( 'built-in types register on importing the index module', async () => {

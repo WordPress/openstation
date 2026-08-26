@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Challenges view (inside the Games hub window).
+ * OpenStation — Challenges view (inside the Games hub window).
  *
  * Lists every challenge involving the current user. Incoming
  * pending rows carry **Accept & Play** / **Decline** actions
@@ -8,16 +8,14 @@
  * live from the shared challenges store as Heartbeat deltas land,
  * and resyncs the full list over REST on mount (the store only
  * holds what arrived this session).
- *
- * @since 0.9.6
  */
 
-// Side-effect imports — register the `<wpd-*>` components this module
+// Side-effect imports — register the `<os-*>` components this module
 // constructs. `defineComponent` is idempotent across bundles.
-import '../ui/components/wpd-avatar/wpd-avatar';
-import '../ui/components/wpd-button/wpd-button';
-import '../ui/components/wpd-empty-state/wpd-empty-state';
-import '../ui/components/wpd-relative-time/wpd-relative-time';
+import '../ui/components/os-avatar/os-avatar';
+import '../ui/components/os-button/os-button';
+import '../ui/components/os-empty-state/os-empty-state';
+import '../ui/components/os-relative-time/os-relative-time';
 
 import { __, sprintf } from '../i18n';
 import { showToast } from '../toast';
@@ -32,9 +30,9 @@ import type { GameChallengeRow } from './types';
 
 function currentUserId(): number {
 	const wpGlobal = window.wp as
-		| { desktop?: { config?: { currentUserId?: number } } }
+		| { os?: { config?: { currentUserId?: number } } }
 		| undefined;
-	return Number( wpGlobal?.desktop?.config?.currentUserId ) || 0;
+	return Number( wpGlobal?.os?.config?.currentUserId ) || 0;
 }
 
 function describeRow( row: GameChallengeRow, viewerId: number ): string {
@@ -136,9 +134,9 @@ function describeRow( row: GameChallengeRow, viewerId: number ): string {
 function buildRow( row: GameChallengeRow, viewerId: number ): HTMLElement {
 	const incoming = row.recipientId === viewerId;
 	const item = document.createElement( 'li' );
-	item.className = `desktop-mode-games__challenge desktop-mode-games__challenge--${ row.state }`;
+	item.className = `os-games__challenge os-games__challenge--${ row.state }`;
 
-	const avatar = document.createElement( 'wpd-avatar' );
+	const avatar = document.createElement( 'os-avatar' );
 	const otherId = incoming ? row.challengerId : row.recipientId;
 	avatar.setAttribute(
 		'src',
@@ -153,20 +151,20 @@ function buildRow( row: GameChallengeRow, viewerId: number ): HTMLElement {
 	item.appendChild( avatar );
 
 	const main = document.createElement( 'div' );
-	main.className = 'desktop-mode-games__challenge-main';
+	main.className = 'os-games__challenge-main';
 	const text = document.createElement( 'p' );
 	text.textContent = describeRow( row, viewerId );
 	main.appendChild( text );
-	const when = document.createElement( 'wpd-relative-time' );
+	const when = document.createElement( 'os-relative-time' );
 	when.setAttribute( 'datetime', new Date( row.updatedAtMs ).toISOString() );
 	main.appendChild( when );
 	item.appendChild( main );
 
 	if ( incoming && 'pending' === row.state ) {
 		const actions = document.createElement( 'div' );
-		actions.className = 'desktop-mode-games__challenge-actions';
+		actions.className = 'os-games__challenge-actions';
 
-		const accept = document.createElement( 'wpd-button' );
+		const accept = document.createElement( 'os-button' );
 		accept.setAttribute( 'variant', 'primary' );
 		accept.setAttribute( 'size', 'sm' );
 		accept.textContent = __( 'Accept & Play' );
@@ -184,7 +182,7 @@ function buildRow( row: GameChallengeRow, viewerId: number ): HTMLElement {
 		} );
 		actions.appendChild( accept );
 
-		const decline = document.createElement( 'wpd-button' );
+		const decline = document.createElement( 'os-button' );
 		decline.setAttribute( 'variant', 'ghost' );
 		decline.setAttribute( 'size', 'sm' );
 		decline.textContent = __( 'Decline' );
@@ -221,7 +219,7 @@ export function renderChallengesView(
 ): () => void {
 	container.innerHTML = '';
 	const list = document.createElement( 'ul' );
-	list.className = 'desktop-mode-games__challenge-list';
+	list.className = 'os-games__challenge-list';
 	container.appendChild( list );
 
 	const viewerId = currentUserId();
@@ -232,7 +230,7 @@ export function renderChallengesView(
 			( row ) => ! gameId || row.game === gameId,
 		);
 		if ( rows.length === 0 ) {
-			const empty = document.createElement( 'wpd-empty-state' );
+			const empty = document.createElement( 'os-empty-state' );
 			empty.setAttribute( 'icon', 'awards' );
 			empty.setAttribute( 'heading', __( 'No challenges yet' ) );
 			empty.setAttribute(
@@ -259,7 +257,7 @@ export function renderChallengesView(
 		.catch( ( err ) => {
 			if ( typeof console !== 'undefined' ) {
 				console.error(
-					'[desktop-mode] challenges resync failed:',
+					'[openstation] challenges resync failed:',
 					err,
 				);
 			}

@@ -1,6 +1,6 @@
 # Render a list without losing clicks — `renderKeyedList()`
 
-**Stable** — shipped 0.6.0.
+**Stable.**
 
 If your plugin paints a list (chat rows, log entries, badges, search
 results, anything observable) into a DOM container, and the data can
@@ -33,7 +33,7 @@ or removed. Listeners attached when a node was first built survive
 every subsequent re-render.
 
 ```ts
-import { renderKeyedList } from 'desktop-mode';
+import { renderKeyedList } from 'openstation';
 
 const host = document.querySelector( '#my-list' )!;
 
@@ -115,4 +115,4 @@ function clearKeyedList( host: HTMLElement ): void;
 ## Related
 
 - [`docs/javascript-reference.md`](../javascript-reference.md) — the
-  `wp.desktop.renderKeyedList()` / `clearKeyedList()` API reference.
+  `wp.os.renderKeyedList()` / `clearKeyedList()` API reference.

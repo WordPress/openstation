@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — AI Assistant public-API barrel.
+ * OpenStation — AI Assistant public-API barrel.
  *
  * Two responsibilities:
  *   1. Re-export the type surface so consumers (api/facade.ts,
@@ -14,8 +14,6 @@
  * keeps the impl out of every bundle that just wants the API
  * surface — only the entry bundle (`entry.ts`) and the lazy script
  * load reach it.
- *
- * @since 0.8.4
  */
 
 export type {

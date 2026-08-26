@@ -6,18 +6,16 @@
  * (`core/minimize`, `core/maximize`, `core/focus-tab`, `core/close`)
  * register here at shell boot in {@link
  * registerBuiltInControls} (Phase C); plugin authors register
- * additional controls via `wp.desktop.registerWindowControl()`. The
+ * additional controls via `wp.os.registerWindowControl()`. The
  * shell renders the control cluster from this registry, so plugins
  * can reorder, hide, or replace built-ins through
  * {@link WindowControlsConfig} on a window's `appearance`.
  *
  * Generalises the title-bar-button registry pattern (`subscribe`
  * fan-out, `match` predicate, `owner`-based teardown). The
- * `registerTitleBarButton()` API (since 0.6.0) is preserved as a
+ * `registerTitleBarButton()` API is preserved as a
  * thin alias that delegates to this registry — existing plugins keep
  * working unchanged.
- *
- * @since 0.6.0
  */
 
 import { throwOnRegistrationErrors } from '../../registration-errors';
@@ -81,14 +79,14 @@ export interface WindowControlDef {
 	match: ( window: DesktopWindow ) => boolean;
 	/**
 	 * Click handler. Mutually exclusive with `render`. Wired to the
-	 * `<wpd-window-button>`'s `wpd-button-activate` CustomEvent —
+	 * `<os-window-button>`'s `os-button-activate` CustomEvent —
 	 * fires exactly once per user activation, no double-firing,
 	 * no swallowed clicks during title-bar drag.
 	 */
 	onClick?: ( window: DesktopWindow, ev: MouseEvent ) => void;
 	/**
 	 * Custom render. Receives the host element and the window. The
-	 * host already carries the icon, label, and `desktop-mode-window__btn`
+	 * host already carries the icon, label, and `os-window__btn`
 	 * class; you typically only need to attach event listeners.
 	 */
 	render?: ( host: HTMLElement, window: DesktopWindow ) => void;
@@ -111,7 +109,7 @@ export interface WindowControlDef {
  * Cross-bundle shared backing store. The lazy
  * `window-system[.min].js` bundle constructs/reads from this
  * registry while main writes to it via `registerBuiltIn*` and
- * `wp.desktop.register*` — each bundle would otherwise see its
+ * `wp.os.register*` — each bundle would otherwise see its
  * own empty copy. See `AGENTS.md` ("Cross-bundle state") and
  * the Stage-8 callout in `BUNDLE-SIZE-REPORT.md` for the
  * pattern.
@@ -255,7 +253,7 @@ export function controlsForWindow(
 			if ( typeof console !== 'undefined' ) {
 				// eslint-disable-next-line no-console
 				console.warn(
-					`[desktop-mode] window-control "${ def.id }" match() threw — skipping`,
+					`[openstation] window-control "${ def.id }" match() threw — skipping`,
 					err,
 				);
 			}
@@ -292,7 +290,7 @@ function notify(): void {
 			if ( typeof console !== 'undefined' ) {
 				// eslint-disable-next-line no-console
 				console.error(
-					'[desktop-mode] window-control registry listener threw:',
+					'[openstation] window-control registry listener threw:',
 					err,
 				);
 			}

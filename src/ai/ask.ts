@@ -1,5 +1,5 @@
 /**
- * `wp.desktop.ai.ask( query, opts? )` — programmatic access to the
+ * `wp.os.ai.ask( query, opts? )` — programmatic access to the
  * AI Copilot, the same endpoint the built-in overlay talks to.
  *
  * Three jobs:
@@ -15,12 +15,7 @@
  *      resolved shape so every caller has one place to read the
  *      outcome.
  *
- * The `ask()` contract is deliberately narrow — one call, one
- * promise, no streaming events. For live SSE progress, reach for
- * the existing `aiSearchStreamUrl` (admin-ajax) surface; `ask()` is
- * the "give me the answer" API.
- *
- * @since 0.5.1
+ * The `ask()` contract is deliberately narrow: one call, one promise.
  */
 
 import {
@@ -95,8 +90,6 @@ export interface AskOptions {
 	 * If the follow-up call fails (network, API, etc.), `ask()`
 	 * degrades gracefully — the primary `toolCall.result` is
 	 * preserved and `message` falls back to the raw `run()` return.
-	 *
-	 * @since 0.5.1
 	 */
 	followUp?: boolean;
 
@@ -107,7 +100,7 @@ export interface AskOptions {
 	 *
 	 * Server-side, `mode: 'replace'` is gated on a capability that
 	 * defaults to `manage_options` and is filterable via
-	 * `desktop_mode_ai_system_prompt_replace_capability`. Non-admin
+	 * `openstation_ai_system_prompt_replace_capability`. Non-admin
 	 * callers sending `replace` get a silent downgrade to `append`.
 	 */
 	systemPrompt?:
@@ -263,8 +256,6 @@ function serialiseOutcome(
 /**
  * Factory — binds to a config getter so the caller (desktop.ts) can
  * hand in the live shell config without this module reading globals.
- *
- * @since 0.5.1
  */
 export function createAsk( deps: AskDeps ) {
 	// ------------------------------------------------------------
@@ -281,7 +272,7 @@ export function createAsk( deps: AskDeps ) {
 		const nonce = config.restNonce ?? '';
 		if ( ! url || ! nonce ) {
 			throw new Error(
-				'[desktop-mode] wp.desktop.ai.ask: aiSearchUrl / restNonce missing from config. AI Copilot may not be enabled.',
+				'[openstation] wp.os.ai.ask: aiSearchUrl / restNonce missing from config. AI Copilot may not be enabled.',
 			);
 		}
 		try {
@@ -304,7 +295,7 @@ export function createAsk( deps: AskDeps ) {
 				throw err;
 			}
 			throw new Error(
-				`[desktop-mode] wp.desktop.ai.ask: network error — ${ String(
+				`[openstation] wp.os.ai.ask: network error — ${ String(
 					( err as Error )?.message ?? err,
 				) }`,
 			);
@@ -432,7 +423,7 @@ export function createAsk( deps: AskDeps ) {
 				opts.commandContext !== undefined;
 			if ( hasMeaningfulOpts ) {
 				throw new Error(
-					'[desktop-mode] wp.desktop.ai.ask: empty query passed with non-default options — likely a caller bug. Provide a query or call without options.',
+					'[openstation] wp.os.ai.ask: empty query passed with non-default options — likely a caller bug. Provide a query or call without options.',
 				);
 			}
 			return {
@@ -472,7 +463,7 @@ export function createAsk( deps: AskDeps ) {
 				.json()
 				.catch( () => ( { message: res.statusText } ) );
 			throw new Error(
-				`[desktop-mode] wp.desktop.ai.ask: HTTP ${ res.status } — ${
+				`[openstation] wp.os.ai.ask: HTTP ${ res.status } — ${
 					( detail as { message?: string } ).message ?? res.statusText
 				}`,
 			);

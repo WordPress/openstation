@@ -37,7 +37,7 @@ describe( 'Dock — dock-peek instance fan-out for synthesized icon tile', () =>
 		const windows = [
 			makeWindowStub( 'desktop-mode-my-wordpress', 'desktop-mode-my-wordpress' ),
 			makeWindowStub(
-				'desktop-mode-my-wordpress-2',
+				'os-my-wordpress-2',
 				'desktop-mode-my-wordpress',
 			),
 		];
@@ -50,6 +50,7 @@ describe( 'Dock — dock-peek instance fan-out for synthesized icon tile', () =>
 				windows.filter( ( w ) => w.config.baseId === baseId ),
 			getAllByBaseIdOnActiveDesktop: ( baseId: string ) =>
 				windows.filter( ( w ) => w.config.baseId === baseId ),
+			getAll: () => windows,
 			getActiveDesktopId: () => 'default-1',
 		} as unknown as WindowManager;
 
@@ -61,12 +62,11 @@ describe( 'Dock — dock-peek instance fan-out for synthesized icon tile', () =>
 				return () => undefined;
 			} );
 
-		// Synthesized tile: same shape `applyDockPlacement` produces
-		// for a wallpaper icon promoted to the dock that targets a
-		// native window. `multi` is intentionally falsy — the bug
-		// repro depends on it.
+		// An app launcher on the rail whose target is a native window
+		// rather than an admin URL. `multi` is intentionally falsy —
+		// the bug repro depends on it.
 		const item: DockItem = {
-			id: 'desktop:desktop-mode-my-wordpress',
+			id: 'desktop-mode-my-wordpress',
 			title: 'My WordPress',
 			icon: 'dashicons-wordpress',
 			url: '',
@@ -82,12 +82,11 @@ describe( 'Dock — dock-peek instance fan-out for synthesized icon tile', () =>
 		new Dock( container, manager, [ item ], 'http://localhost/wp-admin/', 'left' );
 
 		expect( spy ).toHaveBeenCalled();
-		// `peekDeps[ 0 ]` is the menu-tile peek registration for our
-		// synthesized item.
+		// `peekDeps[ 0 ]` is the peek registration for our tile.
 		const instances = peekDeps[ 0 ].getInstances();
 		expect( instances.map( ( w ) => w.id ) ).toEqual( [
 			'desktop-mode-my-wordpress',
-			'desktop-mode-my-wordpress-2',
+			'os-my-wordpress-2',
 		] );
 	} );
 } );

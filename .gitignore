@@ -1,5 +1,6 @@
 /node_modules
 /vendor
+/openstation.zip
 /desktop-mode.zip
 /dist/
 /tests/phpunit/.phpunit.result.cache

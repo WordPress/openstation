@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — Games bootstrap.
+ * OpenStation — Games bootstrap.
  *
  * Loads the game system: schema (scores + challenges tables), the
  * framework config (shared dictionary URL), the server-side
@@ -16,19 +16,18 @@
  * no Heartbeat channel, no window/icon — so the games framework costs
  * nothing beyond the option read below.
  * For third-party plugins the disabled state is indistinguishable from
- * Desktop Mode not being active: `desktop_mode_register_game()` is
+ * OpenStation not being active: `openstation_register_game()` is
  * undefined, which the documented `function_exists()` guard already
  * handles (see docs/examples/register-game.md).
  *
  * Loading is deferred to `plugins_loaded` (priority 5) so any regular
- * plugin can hook the `desktop_mode_games_enabled` filter in time to
+ * plugin can hook the `openstation_games_enabled` filter in time to
  * influence the decision.
  *
  * New `require_once` lines belong in the loader below so the rest of
  * the codebase keeps loading the feature through one entry point.
  *
- * @package WPDesktopMode
- * @since   0.9.6
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -37,14 +36,12 @@ defined( 'ABSPATH' ) || exit;
  * Whether the games framework is enabled site-wide.
  *
  * Backed by the `games` key of the extended options bundle
- * (`desktop_mode_get_extended_options()`), default off — opt-in.
- *
- * @since 0.9.8
+ * (`openstation_get_extended_options()`), default off — opt-in.
  *
  * @return bool
  */
-function desktop_mode_games_enabled() {
-	$options = desktop_mode_get_extended_options();
+function openstation_games_enabled() {
+	$options = openstation_get_extended_options();
 	$enabled = ! empty( $options['games'] );
 
 	/**
@@ -54,34 +51,30 @@ function desktop_mode_games_enabled() {
 	 * games module loads at all, and again at runtime wherever the
 	 * enabled state is consulted (payload build, shell config).
 	 *
-	 * @since 0.9.8
-	 *
 	 * @param bool $enabled Whether the games framework is enabled.
 	 */
-	return (bool) apply_filters( 'desktop_mode_games_enabled', $enabled );
+	return (bool) apply_filters( 'openstation_games_enabled', $enabled );
 }
 
 /**
  * Loads the games module when the framework is enabled.
  *
- * @since 0.9.8
- *
  * @access private
  */
-function desktop_mode_games_load() {
-	if ( ! desktop_mode_games_enabled() ) {
+function openstation_games_load() {
+	if ( ! openstation_games_enabled() ) {
 		return;
 	}
 
-	require_once DESKTOP_MODE_DIR . 'includes/games/schema.php';
-	require_once DESKTOP_MODE_DIR . 'includes/games/config.php';
-	require_once DESKTOP_MODE_DIR . 'includes/games/registry.php';
-	require_once DESKTOP_MODE_DIR . 'includes/games/store.php';
-	require_once DESKTOP_MODE_DIR . 'includes/games/playtime.php';
-	require_once DESKTOP_MODE_DIR . 'includes/games/rest.php';
-	require_once DESKTOP_MODE_DIR . 'includes/games/heartbeat.php';
-	require_once DESKTOP_MODE_DIR . 'includes/games/window.php';
-	require_once DESKTOP_MODE_DIR . 'includes/games/inkfall.php';
-	require_once DESKTOP_MODE_DIR . 'includes/games/alphabet-soup.php';
+	require_once OPENSTATION_DIR . 'includes/games/schema.php';
+	require_once OPENSTATION_DIR . 'includes/games/config.php';
+	require_once OPENSTATION_DIR . 'includes/games/registry.php';
+	require_once OPENSTATION_DIR . 'includes/games/store.php';
+	require_once OPENSTATION_DIR . 'includes/games/playtime.php';
+	require_once OPENSTATION_DIR . 'includes/games/rest.php';
+	require_once OPENSTATION_DIR . 'includes/games/heartbeat.php';
+	require_once OPENSTATION_DIR . 'includes/games/window.php';
+	require_once OPENSTATION_DIR . 'includes/games/inkfall.php';
+	require_once OPENSTATION_DIR . 'includes/games/alphabet-soup.php';
 }
-add_action( 'plugins_loaded', 'desktop_mode_games_load', 5 );
+add_action( 'plugins_loaded', 'openstation_games_load', 5 );

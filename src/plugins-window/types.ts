@@ -5,12 +5,11 @@
  * filters / extensions get the same shapes the bundle works against.
  *
  * @public
- * @since 0.9.0
  */
 
 /**
  * A row from Core's `/wp/v2/plugins` list, with our REST-field
- * decorators (`desktop_mode_*`) attached.
+ * decorators (`openstation_*`) attached.
  *
  * Fields with question marks are optional in older Core versions or
  * may be absent under a `_fields` whitelist; the JS guards every
@@ -60,7 +59,7 @@ export interface InstalledPlugin {
 	 *            informational; the `update-plugin` AJAX action derives
 	 *            the slug from `plugin` itself.
 	 */
-	desktop_mode_update_available?: {
+	openstation_update_available?: {
 		available: boolean;
 		new_version: string | null;
 		package: string;
@@ -70,15 +69,23 @@ export interface InstalledPlugin {
 	 * Per-row capability flags so the JS doesn't re-derive caps. The
 	 * server still re-validates every mutation; this is purely UX.
 	 */
-	desktop_mode_can_manage?: {
+	openstation_can_manage?: {
 		activate: boolean;
 		deactivate: boolean;
 		delete: boolean;
 	};
-	/** wp.org icon URL derived from the slug; null when the plugin isn't on the .org repo. */
-	desktop_mode_icon_url?: string | null;
+	/**
+	 * The plugin's slug on the WordPress.org directory, or `null` when
+	 * it isn't listed there.
+	 */
+	openstation_wporg_slug?: string | null;
+	/**
+	 * Icon URL: A local file from the plugin's own folder when it
+	 * ships one, otherwise the `ps.w.org` SVN URL for the folder slug.
+	 */
+	openstation_icon_url?: string | null;
 	/** Disk size of the plugin folder in kilobytes (null when unreadable). */
-	desktop_mode_size_kb?: number | null;
+	openstation_size_kb?: number | null;
 	/**
 	 * Auto-update state for this plugin, mirroring Core's
 	 * "Automatic Updates" column on `plugins.php`.
@@ -96,7 +103,7 @@ export interface InstalledPlugin {
 	 *                 wp.org land in neither bucket — Core hides the
 	 *                 toggle entirely for those rows.
 	 */
-	desktop_mode_auto_update?: {
+	openstation_auto_update?: {
 		enabled: boolean;
 		forced: boolean | null;
 		supported: boolean;
@@ -104,7 +111,7 @@ export interface InstalledPlugin {
 
 	/**
 	 * Index signature so `InstalledPlugin` satisfies the
-	 * `T extends Record<string, unknown>` constraint on `WpdTable<T>`.
+	 * `T extends Record<string, unknown>` constraint on `OsTable<T>`.
 	 * Same shape posts-window uses for `PostListItem`.
 	 */
 	[ key: string ]: unknown;
@@ -167,7 +174,7 @@ export interface PluginReview {
 	url: string;
 }
 
-/** Response shape for our `wp_ajax_desktop_mode_plugins_reviews` action. */
+/** Response shape for our `wp_ajax_openstation_plugins_reviews` action. */
 export interface PluginReviewsResponse {
 	items: PluginReview[];
 	parsed: boolean;

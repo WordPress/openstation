@@ -6,8 +6,6 @@
  * captured state and reach into the rest of the shell only via
  * the `deriveWindowId` utility, so they're safe to live in their
  * own module — and to test in isolation.
- *
- * @since 0.8.1
  */
 
 import { deriveWindowId } from '../utils';
@@ -27,14 +25,38 @@ export const VIEWPORT_CLAMP_MARGIN = 12;
  * `multi` / `submenu` flags. Used by `openCurrentPage()` to
  * decide whether the page being opened should inherit dock
  * metadata.
- *
- * @since 0.8.1 (extracted from desktop.ts)
  */
 export function findDockEntryForUrl(
 	url: string,
 	config: DesktopConfig,
 ): DesktopConfig[ 'dockItems' ][ number ] | undefined {
-	const windowId = deriveWindowId( url, config.adminUrl );
+	return findDockEntryForWindowId(
+		deriveWindowId( url, config.adminUrl ),
+		config,
+	);
+}
+
+/**
+ * Find the dock entry — top-level item or a submenu child — whose
+ * url derives `windowId`. Returns the *parent* top-level entry in
+ * either case, like {@link findDockEntryForUrl}.
+ *
+ * This is the session-restore fallback for windows whose CURRENT
+ * URL matches no menu entry: a page that redirected to an
+ * onboarding screen the menu doesn't list (MailPoet parks every
+ * page on `?page=mailpoet-landingpage` until its wizard is done).
+ * The saved window still carries its open-time identity in
+ * `baseId`, and matching THAT against the dock recovers the owning
+ * entry — so the window's submenu tab strip survives the reload
+ * instead of silently vanishing.
+ */
+export function findDockEntryForWindowId(
+	windowId: string,
+	config: DesktopConfig,
+): DesktopConfig[ 'dockItems' ][ number ] | undefined {
+	if ( ! windowId ) {
+		return undefined;
+	}
 	return ( config.dockItems || [] ).find(
 		( i ) =>
 			deriveWindowId( i.url, config.adminUrl ) === windowId ||
@@ -58,8 +80,6 @@ export function findDockEntryForUrl(
  *
  * Returns a plain geometry object — caller applies it to the
  * `WindowConfig`.
- *
- * @since 0.8.1 (extracted from desktop.ts)
  */
 export function clampGeometryToViewport(
 	win: SessionWindow,

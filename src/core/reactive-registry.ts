@@ -20,15 +20,13 @@
  * the main shell and reading it from a feature bundle just works.
  *
  * **What this does NOT do.** It does not apply WordPress filters.
- * Registries that want a `desktop-mode.<thing>` filter chain on
+ * Registries that want a `os.<thing>` filter chain on
  * read should compose: call `all()` on the registry, then run
  * `applyFilters( HOOK_ID, list )` themselves. The filter contract
  * is feature-specific (some flatten, some reorder, some swap) so
  * baking it into the primitive would either bloat it or constrain
  * callers. The wallpapers registry is the canonical example of
  * that composition shape.
- *
- * @since 0.8.1
  */
 
 import { createSharedStore } from '../shared-store';

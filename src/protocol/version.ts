@@ -1,5 +1,5 @@
 /**
- * Desktop Mode bridge protocol version.
+ * OpenStation bridge protocol version.
  *
  * Reserved version constant for the bridge protocol. Messages do
  * not yet carry it; once outgoing messages are stamped with this
@@ -14,8 +14,6 @@
  *   - **Major** — breaking: a payload shape changes or a required
  *     field is removed. Bump whenever a long-lived peer could be
  *     in the wild that still speaks the old shape.
- *
- * @since 0.8.1
  */
 
 export const PROTOCOL_VERSION = '0.8.1' as const;

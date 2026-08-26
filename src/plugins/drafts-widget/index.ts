@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Drafts Widget (lazy bundle).
+ * OpenStation — Drafts Widget (lazy bundle).
  *
  * A quick list of your unfinished posts: the most recently edited
  * drafts, each a click away from reopening in the editor. Add it from
@@ -12,10 +12,11 @@
  * without waiting for the poll. Clicking a row links to
  * post.php?action=edit; the shell's link interceptor opens it as a
  * native window.
- *
- * @since 0.26.0
  */
 import './styles.css';
+import '../../ui/components/os-button/os-button';
+import '../../ui/components/os-notice/os-notice';
+import '../../ui/components/os-spinner/os-spinner';
 import { __, sprintf } from '../../i18n';
 import { trackedFetch } from '../../tracked-fetch';
 import type { WidgetContext, WidgetTeardown } from '../../widgets/types';
@@ -33,8 +34,8 @@ interface DesktopApi {
 }
 
 function desktopApi(): DesktopApi | undefined {
-	return ( window as unknown as { wp?: { desktop?: DesktopApi } } ).wp
-		?.desktop;
+	return ( window as unknown as { wp?: { os?: DesktopApi } } ).wp
+		?.os;
 }
 
 function restRoot(): string {
@@ -50,8 +51,8 @@ function restRoot(): string {
  */
 function currentUserId(): number {
 	const desktop = ( window as unknown as {
-		wp?: { desktop?: { config?: { currentUserId?: number } } };
-	} ).wp?.desktop;
+		wp?: { os?: { config?: { currentUserId?: number } } };
+	} ).wp?.os;
 	return Number( desktop?.config?.currentUserId ) || 0;
 }
 
@@ -63,6 +64,349 @@ async function trashDraft( id: number ): Promise< boolean > {
 		{ source: 'desktop-mode/drafts' },
 	);
 	return res.ok;
+}
+
+interface DraftSuggestions {
+	titles: string[];
+	excerpt: string;
+	tags: string[];
+	categories: string[];
+	readiness: { summary: string; missing: string[] };
+}
+
+/** Class on the panel; also the "is a panel open?" probe for the poller. */
+const PANEL_CLASS = 'dm-drafts__suggest';
+
+/** True when an AI provider is configured (Settings → Connectors). */
+function aiAvailable(): boolean {
+	const win = window as unknown as {
+		openStationConfig?: {
+			aiAssistant?: { providerConfigured?: boolean };
+		};
+	};
+	return win.openStationConfig?.aiAssistant?.providerConfigured === true;
+}
+
+async function fetchSuggestions( id: number ): Promise< DraftSuggestions > {
+	const res = await trackedFetch(
+		`${ restRoot() }/desktop-mode/v1/draft-suggestions`,
+		{
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			credentials: 'same-origin',
+			body: JSON.stringify( { post_id: id } ),
+		},
+		{ source: 'desktop-mode/drafts' },
+	);
+	if ( ! res.ok ) {
+		throw new Error( `HTTP ${ res.status }` );
+	}
+	return res.json() as Promise< DraftSuggestions >;
+}
+
+interface ApplyFields {
+	title?: string;
+	excerpt?: string;
+	tags?: string[];
+	categories?: string[];
+}
+
+/** Write a chosen suggestion straight onto the draft. */
+async function applyDraftField(
+	id: number,
+	fields: ApplyFields,
+): Promise< boolean > {
+	const res = await trackedFetch(
+		`${ restRoot() }/desktop-mode/v1/draft-apply`,
+		{
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			credentials: 'same-origin',
+			body: JSON.stringify( { post_id: id, ...fields } ),
+		},
+		{ source: 'desktop-mode/drafts' },
+	);
+	return res.ok;
+}
+
+function toast( message: string, type?: 'error' ): void {
+	desktopApi()?.showToast?.( type ? { message, type } : { message } );
+}
+
+/**
+ * Toggle the 💡 suggestions panel for a row (only one open at a time).
+ *
+ * The trigger owns `aria-expanded` / `aria-controls`, so the panel is
+ * announced as the disclosure it is rather than as loose text that
+ * appears out of nowhere.
+ */
+function toggleSuggestions(
+	id: number,
+	row: HTMLElement,
+	trigger: HTMLElement,
+): void {
+	const list = row.parentElement;
+	const next = row.nextElementSibling;
+	const wasOwnOpen = !! next && next.classList.contains( PANEL_CLASS );
+
+	// Collapse whatever was open, wherever it was, and reset its trigger.
+	list?.querySelectorAll( `.${ PANEL_CLASS }` ).forEach( ( p ) => p.remove() );
+	list?.querySelectorAll( '.dm-drafts__spark' ).forEach( ( t ) =>
+		t.setAttribute( 'aria-expanded', 'false' ),
+	);
+	if ( wasOwnOpen ) {
+		return; // second click closes it
+	}
+
+	const panel = document.createElement( 'div' );
+	panel.className = PANEL_CLASS;
+	panel.id = `dm-drafts-suggest-${ id }`;
+	panel.setAttribute( 'role', 'group' );
+	panel.setAttribute( 'aria-label', __( 'Writing suggestions' ) );
+	panel.appendChild( loadingState() );
+	row.after( panel );
+
+	trigger.setAttribute( 'aria-expanded', 'true' );
+	trigger.setAttribute( 'aria-controls', panel.id );
+
+	void loadSuggestions( id, panel, row );
+}
+
+/** Spinner + label shown while the model is working. */
+function loadingState(): HTMLElement {
+	const wrap = document.createElement( 'div' );
+	wrap.className = 'dm-drafts__suggest-loading';
+	// `aria-live` so the eventual result is announced without the
+	// screen-reader user having to go looking for it.
+	wrap.setAttribute( 'aria-live', 'polite' );
+
+	// `inline` rather than the default mark-and-rings artwork: at this
+	// size the WordPress mark is an unreadable smudge. The inline arc
+	// also inherits `currentColor`, so it tints itself from the panel.
+	const spinner = document.createElement( 'os-spinner' );
+	spinner.setAttribute( 'preset', 'inline' );
+	spinner.setAttribute( 'size', '14' );
+	wrap.appendChild( spinner );
+
+	const label = document.createElement( 'span' );
+	label.textContent = __( 'Thinking…' );
+	wrap.appendChild( label );
+
+	return wrap;
+}
+
+/**
+ * A dismissal-free `<os-notice>` sized for the panel.
+ *
+ * `dm-drafts__notice` re-points the component's color surface at
+ * `currentColor` — its light-surface defaults are unreadable on a dark
+ * glass widget card. See the class in `styles.css`.
+ */
+function notice( tone: string, message?: string, icon?: string ): HTMLElement {
+	const el = document.createElement( 'os-notice' );
+	el.className = 'dm-drafts__notice';
+	el.setAttribute( 'tone', tone );
+	el.setAttribute( 'not-dismissible', '' );
+	if ( icon ) {
+		el.setAttribute( 'icon', icon );
+	}
+	if ( message !== undefined ) {
+		el.textContent = message;
+	}
+	return el;
+}
+
+async function loadSuggestions(
+	id: number,
+	panel: HTMLElement,
+	row: HTMLElement,
+): Promise< void > {
+	try {
+		const data = await fetchSuggestions( id );
+		if ( panel.isConnected ) {
+			renderSuggestions( panel, data, id, row );
+		}
+	} catch {
+		if ( panel.isConnected ) {
+			panel.replaceChildren(
+				notice( 'error', __( 'Could not get suggestions.' ) ),
+			);
+		}
+	}
+}
+
+/**
+ * Build one tap-to-apply suggestion as a `<os-button>`.
+ *
+ * `busy` while the write is in flight (the component disables itself and
+ * paints its own spinner), then `is-applied` + `aria-disabled` once it
+ * lands, so a suggestion can't be applied twice by an impatient
+ * double-click.
+ *
+ * Deliberately NOT the component's `disabled`: that dims the control to
+ * 50% opacity, which halves its contrast against a widget card that may
+ * be glass over any wallpaper. The applied state is carried by a
+ * currentColor wash, a tinted border and a ✓ instead — all of which stay
+ * legible whatever the card is sitting on.
+ */
+function applyButton(
+	id: number,
+	text: string,
+	variantClass: string,
+	fields: ApplyFields,
+	onOk?: () => void,
+): HTMLElement {
+	const btn = document.createElement( 'os-button' );
+	btn.setAttribute( 'variant', 'ghost' );
+	btn.className = variantClass;
+	btn.textContent = text;
+	btn.title = __( 'Apply to the draft' );
+	btn.addEventListener( 'click', () => {
+		if ( btn.hasAttribute( 'busy' ) || btn.classList.contains( 'is-applied' ) ) {
+			return;
+		}
+		btn.setAttribute( 'busy', '' );
+		void applyDraftField( id, fields ).then( ( ok ) => {
+			btn.removeAttribute( 'busy' );
+			if ( ok ) {
+				btn.setAttribute( 'aria-disabled', 'true' );
+				btn.classList.add( 'is-applied' );
+				const check = document.createElement( 'span' );
+				check.className = 'dm-drafts__applied-check';
+				check.setAttribute( 'aria-hidden', 'true' );
+				check.textContent = '✓';
+				btn.appendChild( check );
+				onOk?.();
+			} else {
+				toast( __( 'Could not apply the suggestion.' ), 'error' );
+			}
+		} );
+	} );
+	return btn;
+}
+
+/** Readiness verdict as a tone-coded `<os-notice>`. */
+function readinessNotice( readiness: DraftSuggestions[ 'readiness' ] ): HTMLElement {
+	const missing = readiness.missing ?? [];
+	const ready = missing.length === 0;
+	const el = notice(
+		ready ? 'success' : 'warning',
+		undefined,
+		ready ? 'dashicons-yes-alt' : 'dashicons-info-outline',
+	);
+	el.classList.add( 'dm-drafts__readiness' );
+
+	if ( readiness.summary ) {
+		const summary = document.createElement( 'div' );
+		summary.className = 'dm-drafts__readiness-summary';
+		summary.textContent = readiness.summary;
+		el.appendChild( summary );
+	}
+	if ( missing.length > 0 ) {
+		const ul = document.createElement( 'ul' );
+		ul.className = 'dm-drafts__readiness-missing';
+		for ( const m of missing ) {
+			const li = document.createElement( 'li' );
+			li.textContent = m;
+			ul.appendChild( li );
+		}
+		el.appendChild( ul );
+	}
+	return el;
+}
+
+function renderSuggestions(
+	panel: HTMLElement,
+	data: DraftSuggestions,
+	id: number,
+	row: HTMLElement,
+): void {
+	panel.replaceChildren();
+
+	// Readiness check — read-only diagnosis at the top.
+	if (
+		data.readiness &&
+		( data.readiness.summary || data.readiness.missing?.length )
+	) {
+		panel.appendChild( readinessNotice( data.readiness ) );
+	}
+
+	const hint = document.createElement( 'div' );
+	hint.className = 'dm-drafts__suggest-hint';
+	hint.textContent = __( 'Tap a suggestion to apply it to the draft.' );
+	panel.appendChild( hint );
+
+	const group = ( label: string ): HTMLElement => {
+		const g = document.createElement( 'div' );
+		g.className = 'dm-drafts__suggest-group';
+		const h = document.createElement( 'div' );
+		h.className = 'dm-drafts__suggest-label';
+		h.textContent = label;
+		g.appendChild( h );
+		panel.appendChild( g );
+		return g;
+	};
+
+	if ( data.titles && data.titles.length > 0 ) {
+		const g = group( __( 'Title ideas' ) );
+		for ( const t of data.titles ) {
+			g.appendChild(
+				applyButton( id, t, 'dm-drafts__suggest-item', { title: t }, () => {
+					const name = row.querySelector( '.dm-drafts__name' );
+					if ( name ) {
+						name.textContent = t;
+					}
+					toast( __( 'Title updated.' ) );
+				} ),
+			);
+		}
+	}
+	if ( data.excerpt ) {
+		const g = group( __( 'Excerpt' ) );
+		g.appendChild(
+			applyButton(
+				id,
+				data.excerpt,
+				'dm-drafts__suggest-item',
+				{ excerpt: data.excerpt },
+				() => toast( __( 'Excerpt updated.' ) ),
+			),
+		);
+	}
+	if ( data.tags && data.tags.length > 0 ) {
+		const g = group( __( 'Tags' ) );
+		const wrap = document.createElement( 'div' );
+		wrap.className = 'dm-drafts__suggest-tags';
+		for ( const tag of data.tags ) {
+			wrap.appendChild(
+				applyButton(
+					id,
+					tag,
+					'dm-drafts__suggest-tag',
+					{ tags: [ tag ] },
+					() => toast( __( 'Tag added.' ) ),
+				),
+			);
+		}
+		g.appendChild( wrap );
+	}
+	if ( data.categories && data.categories.length > 0 ) {
+		const g = group( __( 'Categories' ) );
+		const wrap = document.createElement( 'div' );
+		wrap.className = 'dm-drafts__suggest-tags';
+		for ( const cat of data.categories ) {
+			wrap.appendChild(
+				applyButton(
+					id,
+					cat,
+					'dm-drafts__suggest-tag',
+					{ categories: [ cat ] },
+					() => toast( __( 'Category added.' ) ),
+				),
+			);
+		}
+		g.appendChild( wrap );
+	}
 }
 
 const WIDGET_ID = 'desktop-mode/drafts';
@@ -80,8 +424,8 @@ interface DraftRow {
 /** Base admin URL, e.g. `http://site/wp-admin/` (trailing slash). */
 function adminUrl(): string {
 	const desktop = ( window as unknown as {
-		wp?: { desktop?: { config?: { adminUrl?: string } } };
-	} ).wp?.desktop;
+		wp?: { os?: { config?: { adminUrl?: string } } };
+	} ).wp?.os;
 	return desktop?.config?.adminUrl || '/wp-admin/';
 }
 
@@ -153,6 +497,31 @@ function draftTitle( row: DraftRow ): string {
 	return raw || __( '(no title)' );
 }
 
+/**
+ * One hover-revealed, icon-only action at the end of a draft row.
+ *
+ * `<os-button>` rather than a bare `<button>`: the component carries the
+ * framework's focus ring, disabled semantics and theming tokens, and keeps
+ * the two row actions visually identical. The Dashicon is slotted as a
+ * light-DOM child because the global icon font can't cross the component's
+ * shadow boundary.
+ */
+function rowAction(
+	className: string,
+	dashicon: string,
+	label: string,
+): HTMLElement {
+	const btn = document.createElement( 'os-button' );
+	btn.className = className;
+	btn.setAttribute( 'variant', 'ghost' );
+	btn.title = label;
+	btn.setAttribute( 'aria-label', label );
+	const icon = document.createElement( 'span' );
+	icon.className = `dashicons ${ dashicon }`;
+	btn.appendChild( icon );
+	return btn;
+}
+
 function render(
 	container: HTMLElement,
 	drafts: DraftRow[] | null,
@@ -214,17 +583,14 @@ function render(
 		link.appendChild( name );
 		link.appendChild( time );
 
-		// Trash button — native <button> (the widgets layer only fires
-		// native controls). The inner icon is pointer-events:none so the
-		// click always lands on the button.
-		const trash = document.createElement( 'button' );
-		trash.type = 'button';
-		trash.className = 'dm-drafts__trash';
-		trash.title = __( 'Move to Trash' );
-		trash.setAttribute( 'aria-label', __( 'Move to Trash' ) );
-		const icon = document.createElement( 'span' );
-		icon.className = 'dashicons dashicons-trash';
-		trash.appendChild( icon );
+		// Trash button. The inner Dashicon is a light-DOM child so the
+		// global icon font reaches it, and pointer-events:none so the
+		// click always lands on the control itself.
+		const trash = rowAction(
+			'dm-drafts__trash',
+			'dashicons-trash',
+			__( 'Move to Trash' ),
+		);
 		trash.addEventListener( 'click', ( e ) => {
 			e.preventDefault();
 			e.stopPropagation();
@@ -232,6 +598,21 @@ function render(
 		} );
 
 		row.appendChild( link );
+		// 💡 AI suggestions — only when an AI provider is configured.
+		if ( aiAvailable() ) {
+			const spark = rowAction(
+				'dm-drafts__spark',
+				'dashicons-lightbulb',
+				__( 'Suggest title, excerpt & tags' ),
+			);
+			spark.setAttribute( 'aria-expanded', 'false' );
+			spark.addEventListener( 'click', ( e ) => {
+				e.preventDefault();
+				e.stopPropagation();
+				toggleSuggestions( d.id, row, spark );
+			} );
+			row.appendChild( spark );
+		}
 		row.appendChild( trash );
 		list.appendChild( row );
 	}
@@ -246,7 +627,7 @@ async function onTrash(
 ): Promise< void > {
 	const api = desktopApi();
 	// No confirm dialog available means we can't get consent — refuse
-	// rather than trashing unprompted. `wp.desktop.confirm` is a stable
+	// rather than trashing unprompted. `wp.os.confirm` is a stable
 	// part of the shell API, so this only trips outside the shell.
 	if ( ! api?.confirm ) {
 		return;
@@ -291,6 +672,12 @@ const mount = async (
 		if ( destroyed ) {
 			return;
 		}
+		// Don't rebuild the list while an AI suggestions panel is open —
+		// the round-trip takes a few seconds and a poll/blur refresh would
+		// otherwise wipe the panel out from under the user.
+		if ( container.querySelector( `.${ PANEL_CLASS }` ) ) {
+			return;
+		}
 		try {
 			const drafts = await fetchDrafts();
 			if ( ! destroyed ) {
@@ -320,8 +707,8 @@ const mount = async (
 			void refresh();
 		}, 600 );
 	};
-	document.addEventListener( 'desktop-mode-window-closed', nudge );
-	document.addEventListener( 'desktop-mode-window-blurred', nudge );
+	document.addEventListener( 'os-window-closed', nudge );
+	document.addEventListener( 'os-window-blurred', nudge );
 
 	return () => {
 		destroyed = true;
@@ -329,13 +716,13 @@ const mount = async (
 		if ( nudgeTimer !== null ) {
 			clearTimeout( nudgeTimer );
 		}
-		document.removeEventListener( 'desktop-mode-window-closed', nudge );
-		document.removeEventListener( 'desktop-mode-window-blurred', nudge );
+		document.removeEventListener( 'os-window-closed', nudge );
+		document.removeEventListener( 'os-window-blurred', nudge );
 	};
 };
 
 const w = window as unknown as {
-	desktopModeWidgets?: Record< string, typeof mount >;
+	openStationWidgets?: Record< string, typeof mount >;
 };
-w.desktopModeWidgets = w.desktopModeWidgets ?? {};
-w.desktopModeWidgets[ WIDGET_ID ] = mount;
+w.openStationWidgets = w.openStationWidgets ?? {};
+w.openStationWidgets[ WIDGET_ID ] = mount;

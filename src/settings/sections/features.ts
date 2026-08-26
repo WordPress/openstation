@@ -1,5 +1,5 @@
 /**
- * Features section — per-user opt-ins for Desktop Mode behaviors.
+ * Features section — per-user opt-ins for OpenStation behaviors.
  *
  * Visible to every user (no admin gate at the tab level). Toggles here
  * mutate `OsSettingsState` via `ctx.save()` — no dedicated REST
@@ -9,26 +9,69 @@
  * The tab renders two sections: the general "Features" group first,
  * then a "Beta features" group below it holding the opt-in
  * native-window toggles (Posts, Pages, Users, Plugins, Comments — all
- * off by default as of 0.9.1). As more per-user feature flags land they
+ * off by default). As more per-user feature flags land they
  * slot into the matching section so the tab grows by one row at a
  * time, not one tab at a time. For admins the panel appends a third,
  * admin-only "Extended options" section (site-wide toggles — see
  * `./extended`) below these two.
  *
- * The save indicator (`<wpd-save-status auto>`) hooks the same
- * `desktop-mode-os-settings-save-lifecycle` CustomEvent the panel
+ * The save indicator (`<os-save-status auto>`) hooks the same
+ * `os-settings-save-lifecycle` CustomEvent the panel
  * header listens to — both update in lock-step so a user editing
  * here gets feedback at both the section and the panel scope.
- *
- * @since 0.8.0
  */
 
 import { __, sprintf } from '../../i18n';
 import { trackedFetch } from '../../tracked-fetch';
 import { html, render } from '../../ui/core';
 import type { SettingsCtx } from '../types';
-import { wpdConfirm } from '../../ui/components/wpd-confirm-dialog/wpd-confirm-dialog';
+import { osConfirm } from '../../ui/components/os-confirm-dialog/os-confirm-dialog';
 import { showToast } from '../../toast';
+
+/**
+ * Developer mode gates SERVER-side registrations (Code Blue's native
+ * window + desktop icon), which the shell only learns about from a
+ * fresh menu payload. Wait for the debounced settings sync to
+ * actually persist (`saved` lifecycle phase — the refresh probe
+ * rebuilds the payload from saved user meta, so firing earlier would
+ * harvest the old state), then spend one `wp.os.refreshMenu()` so
+ * the gated surfaces appear/disappear without an F5. On `failed` the
+ * panel's rollback handler already reverts the toggle; nothing to
+ * refresh.
+ *
+ * One permanent listener + a pending flag (the same shape as the
+ * title-bar-buttons registry's lifecycle subscriber) rather than a
+ * self-removing listener per toggle: the sync debounce collapses
+ * rapid flips into ONE `saved` event, and the flag collapses them
+ * into ONE refresh probe with it.
+ */
+let pendingRegistrationRefresh = false;
+
+function refreshRegistrationsAfterSave(): void {
+	pendingRegistrationRefresh = true;
+}
+
+document.addEventListener( 'os-settings-save-lifecycle', ( event ) => {
+	if ( ! pendingRegistrationRefresh ) {
+		return;
+	}
+	const phase = ( event as CustomEvent< { phase?: string } > ).detail?.phase;
+	if ( phase !== 'saved' && phase !== 'failed' ) {
+		return;
+	}
+	pendingRegistrationRefresh = false;
+	if ( phase !== 'saved' ) {
+		return;
+	}
+	const refreshMenu = (
+		window.wp as
+			| { os?: { refreshMenu?: () => Promise< void > } }
+			| undefined
+	)?.os?.refreshMenu;
+	if ( typeof refreshMenu === 'function' ) {
+		void refreshMenu();
+	}
+} );
 
 // Show the platform-native shortcut: ⌘K on Apple, Ctrl+K elsewhere.
 const SHORTCUT_KEY =
@@ -133,6 +176,33 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 		paint();
 	};
 
+	const onStationHomeToggle = ( e: Event ): void => {
+		const checked = ( e as CustomEvent ).detail?.checked === true;
+		ctx.state.stationHomeEnabled = checked;
+		ctx.save();
+		paint();
+	};
+
+	const onWindowPrewarmToggle = ( e: Event ): void => {
+		const checked = ( e as CustomEvent ).detail?.checked === true;
+		ctx.state.windowPrewarmEnabled = checked;
+		ctx.save();
+		paint();
+	};
+
+	const onAdminAssetCacheToggle = ( e: Event ): void => {
+		const checked = ( e as CustomEvent ).detail?.checked === true;
+		ctx.state.adminAssetCacheEnabled = checked;
+		ctx.save();
+		paint();
+		// The value reaches the service worker inside the served sw.js
+		// bytes, so the change lands as a normal SW update. We don't
+		// force `registration.update()` + the auto-reload here — a
+		// surprise shell reload could discard unsaved work in an open
+		// window. The hint text tells the user it applies on the next
+		// reload; the browser's own update checks pick it up from there.
+	};
+
 	const onShowDesktopOnClickToggle = ( e: Event ): void => {
 		const checked = ( e as CustomEvent ).detail?.checked === true;
 		ctx.state.showDesktopOnWallpaperClick = checked;
@@ -176,6 +246,7 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 		ctx.state.developerModeEnabled = checked;
 		ctx.save();
 		paint();
+		refreshRegistrationsAfterSave();
 	};
 
 	const onFolderSharingToggle = ( e: Event ): void => {
@@ -194,7 +265,7 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 		if ( purging ) {
 			return;
 		}
-		const ok = await wpdConfirm( {
+		const ok = await osConfirm( {
 			title: __( 'Delete folder sharing data?' ),
 			message: __(
 				'This drops every shares table on the site (current + legacy). All invites, accept/deny decisions, and share rows are permanently removed. Recipients lose their access until someone shares with them again. The empty tables are recreated on the next admin load so the feature keeps working — but every existing share is gone.',
@@ -249,8 +320,8 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 	// the shell snapshot so paint() reflects the new value
 	// optimistically while the round-trip finishes.
 	const shellCfg = ( window as unknown as {
-		desktopModeConfig?: ShellConfigSnapshot;
-	} ).desktopModeConfig;
+		openStationConfig?: ShellConfigSnapshot;
+	} ).openStationConfig;
 	const aiState: { enabled: boolean; providerConfigured: boolean; saving: boolean } = {
 		enabled: shellCfg?.commentsAi?.enabled ?? false,
 		providerConfigured: shellCfg?.commentsAi?.providerConfigured ?? false,
@@ -348,7 +419,7 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 			// depend on the assistant's (function-calling) provider gate.
 			if ( changed ) {
 				document.dispatchEvent(
-					new CustomEvent( 'desktop-mode-ai-status-changed' ),
+					new CustomEvent( 'os-ai-status-changed' ),
 				);
 			}
 		} catch {
@@ -356,7 +427,7 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 		}
 	};
 
-	// Re-probe provider status whenever OS Settings regains focus, so the
+	// Re-probe provider status whenever OpenStation Preferences regains focus, so the
 	// toggle gates/un-gates without a reload after the user connects OR
 	// disconnects a provider in Settings → Connectors (or any other path).
 	// Guarded by an in-flight flag and torn down when the section leaves the DOM.
@@ -375,11 +446,11 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 			statusInFlight = false;
 		} );
 	};
-	document.addEventListener( 'desktop-mode-window-focused', onOsSettingsFocus );
+	document.addEventListener( 'os-window-focused', onOsSettingsFocus );
 	const statusCleanup = new MutationObserver( () => {
 		if ( ! wrapper.isConnected ) {
 			document.removeEventListener(
-				'desktop-mode-window-focused',
+				'os-window-focused',
 				onOsSettingsFocus,
 			);
 			statusCleanup.disconnect();
@@ -395,7 +466,7 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 		const desktop = (
 			window as unknown as {
 				wp?: {
-					desktop?: {
+					os?: {
 						deriveWindowId?: ( u: string ) => string;
 						windowManager?: {
 							open?: ( c: {
@@ -408,7 +479,7 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 					};
 				};
 			}
-		).wp?.desktop;
+		).wp?.os;
 		if ( desktop?.windowManager?.open ) {
 			const id = desktop.deriveWindowId
 				? desktop.deriveWindowId( url )
@@ -430,8 +501,8 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 			return;
 		}
 		const cfg = ( window as unknown as {
-			desktopModeConfig?: ShellConfigSnapshot;
-		} ).desktopModeConfig;
+			openStationConfig?: ShellConfigSnapshot;
+		} ).openStationConfig;
 		if ( ! cfg?.seenIntrosUrl ) {
 			return;
 		}
@@ -449,25 +520,10 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 				},
 				{ source: 'os-settings/reset-intros' },
 			);
-			// Mirror the reset into every in-memory native-window
-			// config blob so the next window-open re-fires the intro
-			// without forcing a full-page reload. Without this the
-			// localized `introSeen: true` flag survives the round-trip
-			// and silently suppresses the dialog. Also broadcast a
-			// CustomEvent so already-loaded bundles that cache their
-			// own intro-state can invalidate it.
-			const store = ( window as unknown as {
-				desktopModeWindowConfig?: Record< string, { introSeen?: boolean } | undefined >;
-			} ).desktopModeWindowConfig;
-			if ( store ) {
-				Object.values( store ).forEach( ( entry ) => {
-					if ( entry && typeof entry === 'object' ) {
-						entry.introSeen = false;
-					}
-				} );
-			}
+			// Broadcast so already-loaded bundles that cache their own
+			// dismissed-dialog state can invalidate it without an F5.
 			document.dispatchEvent(
-				new CustomEvent( 'desktop-mode-intros-reset' ),
+				new CustomEvent( 'os-intros-reset' ),
 			);
 		} catch {
 			// Non-fatal — surface in console; UI just stays put.
@@ -479,33 +535,39 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 	const paint = (): void =>
 		render(
 			html`
-				<wpd-section
-					heading=${ __( 'Features' ) }
+				<!--
+					No heading. The page title above already says
+					"Features", and its description already covers the
+					per-account, takes-effect-immediately point that used
+					to open this section.
+				-->
+				<os-section
+					heading=""
 					description=${ __(
-						'Tune individual Desktop Mode behaviors. Each toggle affects only your account and takes effect immediately — no reload required. Watch the dot in the OS Settings title bar to see when a change has been saved.',
+						'Watch the dot in the OpenStation Preferences title bar to see when a change has been saved.',
 					) }
 				>
 					${ shellCfg?.aiAssistant?.available
 						? html`
-								<div class="desktop-mode-features__item">
-									<wpd-checkbox-label
+								<div class="os-features__item">
+									<os-checkbox-label
 										label=${ __( 'AI assistant' ) }
 										?checked=${ ctx.state.ai.enabled }
 										?disabled=${ ! shellCfg.aiAssistant.assistantProviderConfigured }
-										@wpd-checkbox-change=${ onAiAssistantToggle }
-									></wpd-checkbox-label>
-									<p class="desktop-mode-features__hint">
+										@os-checkbox-change=${ onAiAssistantToggle }
+									></os-checkbox-label>
+									<p class="os-features__hint">
 										${ sprintf(
 											/* translators: %s: keyboard shortcut, e.g. ⌘K or Ctrl+K */
 											__(
-												'Adds an AI mode to the %s site assistant. Ask in plain language to find content, get around wp-admin, and answer questions about your site. Off by default.',
+												'Adds an AI mode to the %s command palette: find content and ask about your site.',
 											),
 											SHORTCUT_KEY,
 										) }
 									</p>
 									${ ! shellCfg.aiAssistant.assistantProviderConfigured
 										? html`
-												<wpd-notice tone="warning" not-dismissible>
+												<os-notice tone="warning" not-dismissible>
 													${ __(
 														'This feature requires an AI provider configured in',
 													) }
@@ -521,7 +583,7 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 															'Settings → Connectors',
 														) }</a
 													>.
-												</wpd-notice>
+												</os-notice>
 											`
 										: '' }
 								</div>
@@ -529,21 +591,21 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 						: '' }
 					${ shellCfg?.commentsAi
 						? html`
-							<div class="desktop-mode-features__item">
-								<wpd-checkbox-label
+							<div class="os-features__item">
+								<os-checkbox-label
 									label=${ __( 'Score new comments with AI' ) }
 									?checked=${ aiState.enabled }
 									?disabled=${ aiState.saving || ! aiState.providerConfigured }
-									@wpd-checkbox-change=${ onCommentsAiToggle }
-								></wpd-checkbox-label>
-								<p class="desktop-mode-features__hint">
+									@os-checkbox-change=${ onCommentsAiToggle }
+								></os-checkbox-label>
+								<p class="os-features__hint">
 									${ __(
-										'Scores every new comment for spam and hostility, folding the result into the spam confidence shown in the Comments window. Site-wide, off by default.',
+										'Rates incoming comments so you can triage the queue faster.',
 									) }
 								</p>
 								${ ! aiState.providerConfigured
 									? html`
-											<wpd-notice tone="warning" not-dismissible>
+											<os-notice tone="warning" not-dismissible>
 												${ __( 'This feature requires an AI provider configured in' ) }
 												<a
 													href=${ shellCfg?.aiAssistant?.connectorsUrl ?? '' }
@@ -553,105 +615,110 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 													} }
 													>${ __( 'Settings → Connectors' ) }</a
 												>.
-											</wpd-notice>
+											</os-notice>
 										`
 								: '' }
 							</div>
 						`
 						: '' }
-					<div class="desktop-mode-features__item">
-						<wpd-checkbox-label
+					<div class="os-features__item">
+						<os-checkbox-label
 							label=${ __( 'Window links' ) }
 							?checked=${ ctx.state.windowLinksEnabled }
-							@wpd-checkbox-change=${ onWindowLinksToggle }
-						></wpd-checkbox-label>
-						<p class="desktop-mode-features__hint">
+							@os-checkbox-change=${ onWindowLinksToggle }
+						></os-checkbox-label>
+						<p class="os-features__hint">
 							${ __(
-								'Draws arrowed connector lines between windows showing related content — a post and its comments or media, or two posts that link to each other. The line style and when the lines show live in Effects → Window links. On by default.',
+								'Draws connector lines between related windows. Line style and visibility live in Windows → Window links.',
 							) }
 						</p>
-						<div class="desktop-mode-features__item">
-							<wpd-checkbox-label
+						<div class="os-features__item">
+							<os-checkbox-label
 								label=${ __( 'Bring related windows to front' ) }
 								?checked=${ ctx.state.windowLinkRaiseOnFocus }
 								?disabled=${ ! ctx.state.windowLinksEnabled }
-								@wpd-checkbox-change=${ onWindowLinkRaiseToggle }
-							></wpd-checkbox-label>
-							<p class="desktop-mode-features__hint">
+								@os-checkbox-change=${ onWindowLinkRaiseToggle }
+							></os-checkbox-label>
+							<p class="os-features__hint">
 								${ __(
-									'Clicking a window surfaces the windows directly tied to it — a parent brings up all of its children, a child brings up its parent — rising to just below the one you clicked, without stealing focus.',
+									'Clicking a window also surfaces its parent and children.',
 								) }
 							</p>
 						</div>
-						<div class="desktop-mode-features__item">
-							<wpd-checkbox-label
+						<div class="os-features__item">
+							<os-checkbox-label
 								label=${ __( 'Highlight related windows' ) }
 								?checked=${ ctx.state.windowLinkHighlight }
 								?disabled=${ ! ctx.state.windowLinksEnabled }
-								@wpd-checkbox-change=${ onWindowLinkHighlightToggle }
-							></wpd-checkbox-label>
-							<p class="desktop-mode-features__hint">
+								@os-checkbox-change=${ onWindowLinkHighlightToggle }
+							></os-checkbox-label>
+							<p class="os-features__hint">
 								${ __(
-									'While a group member is focused, its related windows get an accent outline and a soft glow so the family is recognizable at a glance.',
+									'Related windows get an accent outline while one of them is focused.',
 								) }
 							</p>
 						</div>
 					</div>
-					<div class="desktop-mode-features__item">
-						<wpd-checkbox-label
+					<div class="os-features__item">
+						<os-checkbox-label
 							label=${ __(
 								'Show desktop when clicking the wallpaper',
 							) }
 							?checked=${ ctx.state.showDesktopOnWallpaperClick }
-							@wpd-checkbox-change=${ onShowDesktopOnClickToggle }
-						></wpd-checkbox-label>
-						<p class="desktop-mode-features__hint">
+							@os-checkbox-change=${ onShowDesktopOnClickToggle }
+						></os-checkbox-label>
+						<p class="os-features__hint">
 							${ __(
-								'macOS-style gesture: a left click on the empty desktop minimizes every window, and a second click restores them. When on, the matching "Show desktop" entry is removed from the wallpaper context menu — the click gesture replaces it. Off by default.',
+								'A click on the empty desktop minimizes every window; a second click restores them.',
 							) }
 						</p>
 					</div>
-					<div class="desktop-mode-features__item">
-						<wpd-checkbox-label
+					<div class="os-features__item">
+						<os-checkbox-label
 							label=${ __(
 								'Show post/page status ribbon',
 							) }
 							?checked=${ ctx.state.showPostStatusRibbons }
-							@wpd-checkbox-change=${ onShowPostStatusRibbonsToggle }
-						></wpd-checkbox-label>
-						<p class="desktop-mode-features__hint">
+							@os-checkbox-change=${ onShowPostStatusRibbonsToggle }
+						></os-checkbox-label>
+						<p class="os-features__hint">
 							${ __(
-								'Paints a diagonal corner ribbon — Draft, Pending, Private, or Scheduled — on My WordPress tiles whose post status isn’t published. Off hides every ribbon; tiles still respect their dimmed-icon treatment so unpublished items remain visible at a glance. On by default.',
+								'Marks unpublished posts and pages with a corner ribbon on their tiles.',
 							) }
 						</p>
 					</div>
-					<div class="desktop-mode-features__item">
-						<wpd-checkbox-label
+					<div class="os-features__item">
+						<os-checkbox-label
 							label=${ __( 'Enable developer mode' ) }
 							?checked=${ ctx.state.developerModeEnabled }
-							@wpd-checkbox-change=${ onDeveloperModeToggle }
-						></wpd-checkbox-label>
-						<p class="desktop-mode-features__hint">
+							@os-checkbox-change=${ onDeveloperModeToggle }
+						></os-checkbox-label>
+						<p class="os-features__hint">
 							${ __(
-								'Unlocks developer-facing surfaces meant for plugin authors: the Starter Widget appears in the add-widget picker, and the OS Settings → Components tab runs its intentional missing-import-warner demo (a console banner plus three deliberate console.error entries). Off by default so regular users don’t see developer noise.',
+								'Unlocks developer surfaces meant for plugin authors.',
 							) }
 						</p>
 					</div>
-					<div class="desktop-mode-features__item">
-						<wpd-checkbox-label
+					<div class="os-features__item">
+						<os-checkbox-label
 							label=${ __( 'Folder sharing' ) }
 							?checked=${ ctx.state.foldersSharingEnabled }
-							@wpd-checkbox-change=${ onFolderSharingToggle }
-						></wpd-checkbox-label>
-						<p class="desktop-mode-features__hint">
+							@os-checkbox-change=${ onFolderSharingToggle }
+						></os-checkbox-label>
+						<p class="os-features__hint">
 							${ __(
-								'Lets you share desktop folders with other users or roles, with read or read+write access. When off, every share-related affordance (Share button, invites, "Leave shared folder") disappears from your shell and the heartbeat stops delivering share payloads to your session. Other users are unaffected. On by default.',
+								'Share desktop folders with other users or roles, with read or write access.',
 							) }
 						</p>
 						${ shellCfg?.currentUserIsAdmin
 							? html`
-								<div class="desktop-mode-features__danger-row">
-									<wpd-button
+								<div class="os-features__danger-row">
+									<p class="os-features__hint">
+										${ __(
+											'Removes every share and its access list. Cannot be undone.',
+										) }
+									</p>
+									<os-button
 										variant="danger"
 										?disabled=${ purging }
 										@click=${ onPurgeShareTables }
@@ -659,39 +726,39 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 										${ purging
 											? __( 'Deleting…' )
 											: __( 'Delete folder sharing data' ) }
-									</wpd-button>
-									<p class="desktop-mode-features__hint">
-										${ __(
-											'Site-wide destructive action (admin only). Drops every shares table — invites, decisions, share rows. Empty tables are recreated immediately so the feature still works for anyone who wants to start fresh. Use this on sites that never needed sharing to clear the data outright.',
-										) }
-									</p>
+									</os-button>
 								</div>
 							`
 							: '' }
 					</div>
-					<div class="desktop-mode-features__item">
-						<label class="desktop-mode-features__select-label">
-							<span class="desktop-mode-features__select-title">${ __(
+					<div class="os-features__item">
+						<label class="os-features__select-label">
+							<span class="os-features__select-title">${ __(
 								'WordPress Heartbeat rate',
 							) }</span>
-							<wpd-select
+							<os-select
 								value=${ String( ctx.state.heartbeatRate ) }
-								@wpd-pick=${ onHeartbeatRateChange }
+								@os-pick=${ onHeartbeatRateChange }
 							>
-								<wpd-option value="15">${ __( 'Fast — 15s (not recommended)' ) }</wpd-option>
-								<wpd-option value="30">${ __( 'Medium — 30s' ) }</wpd-option>
-								<wpd-option value="45">${ __( 'Slow — 45s' ) }</wpd-option>
-								<wpd-option value="60">${ __( 'Very slow — 60s (default)' ) }</wpd-option>
-							</wpd-select>
+								<os-option value="15">${ __( 'Fast (15s, not recommended)' ) }</os-option>
+								<os-option value="30">${ __( 'Medium (30s)' ) }</os-option>
+								<os-option value="45">${ __( 'Slow (45s)' ) }</os-option>
+								<os-option value="60">${ __( 'Very slow (60s, default)' ) }</os-option>
+							</os-select>
 						</label>
-						<p class="desktop-mode-features__hint">
+						<p class="os-features__hint">
 							${ __(
-								'How often the WordPress Heartbeat API runs. Faster = quicker live updates (autosaves, lock checks, the heartbeat widget) at the cost of more server traffic. 15 s triples server load vs. the 60 s default — use sparingly. 30 s and 45 s require a page reload to apply exactly; 15 s and 60 s take effect immediately.',
+								'How often the Heartbeat API runs. Faster means quicker live updates and more server traffic. The 30s and 45s rates apply exactly from the next page load.',
 							) }
 						</p>
 					</div>
-					<div class="desktop-mode-features__row">
-						<wpd-button
+					<div class="os-features__row">
+						<p class="os-features__hint">
+							${ __(
+								'Brings back the one-time announcements you have dismissed, such as the welcome dialog.',
+							) }
+						</p>
+						<os-button
 							variant="secondary"
 							?disabled=${ resetting }
 							@click=${ onResetIntros }
@@ -699,81 +766,112 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 							${ resetting
 								? __( 'Resetting…' )
 								: __( 'Reset what’s-new dialogs' ) }
-						</wpd-button>
-						<p class="desktop-mode-features__hint">
-							${ __(
-								'Re-shows the one-time introduction dialog the next time you open each redesigned native window.',
-							) }
-						</p>
+						</os-button>
 					</div>
-				</wpd-section>
-				<wpd-section
+				</os-section>
+				<os-section
 					heading=${ __( 'Beta features' ) }
 					description=${ __(
-						'Experimental redesigns of core admin screens. Off by default — opt in to try them. Each toggle affects only your account and takes effect immediately, no reload required.',
+						'Experimental redesigns of core admin screens, off by default. Each toggle affects only your account and takes effect immediately.',
 					) }
 				>
-					<div class="desktop-mode-features__item">
-						<wpd-checkbox-label
+					<div class="os-features__item">
+						<os-checkbox-label
+							label=${ __( 'Use Station Home as your Dashboard' ) }
+							?checked=${ ctx.state.stationHomeEnabled }
+							@os-checkbox-change=${ onStationHomeToggle }
+						></os-checkbox-label>
+						<p class="os-features__hint">
+							${ __(
+								'Opens Station Home instead of the classic WordPress Dashboard: recent work, site pulse, and quick actions in one native window. Leave off to keep the classic Dashboard, including any customizations plugins have made to it.',
+							) }
+						</p>
+					</div>
+					<div class="os-features__item">
+						<os-checkbox-label
 							label=${ __( 'Use the native Posts window' ) }
 							?checked=${ ctx.state.nativePostsEnabled }
-							@wpd-checkbox-change=${ onNativePostsToggle }
-						></wpd-checkbox-label>
-						<p class="desktop-mode-features__hint">
+							@os-checkbox-change=${ onNativePostsToggle }
+						></os-checkbox-label>
+						<p class="os-features__hint">
 							${ __(
-								'Beta — off by default. Turn on to replace the classic Posts list iframe with a native, table-driven window: sticky header, server-paginated rows, multi-select bulk actions, and a sub-row preview. Toggle off any time to return to the classic screen.',
+								'Replaces the classic Posts list with a native table window: sticky header, paginated rows, bulk actions, and a row preview.',
 							) }
 						</p>
 					</div>
-					<div class="desktop-mode-features__item">
-						<wpd-checkbox-label
+					<div class="os-features__item">
+						<os-checkbox-label
 							label=${ __( 'Use the native Pages window' ) }
 							?checked=${ ctx.state.nativePagesEnabled }
-							@wpd-checkbox-change=${ onNativePagesToggle }
-						></wpd-checkbox-label>
-						<p class="desktop-mode-features__hint">
+							@os-checkbox-change=${ onNativePagesToggle }
+						></os-checkbox-label>
+						<p class="os-features__hint">
 							${ __(
-								'Beta — off by default. Turn on for the same table-driven experience as the Posts window, tailored for Pages: a Parent column, hierarchical sort, and a lock indicator when another user is editing a page. Toggle off any time to return to the classic screen.',
+								'The Posts table experience for Pages, with a Parent column, hierarchical sort, and edit-lock indicators.',
 							) }
 						</p>
 					</div>
-					<div class="desktop-mode-features__item">
-						<wpd-checkbox-label
+					<div class="os-features__item">
+						<os-checkbox-label
 							label=${ __( 'Use the native Users window' ) }
 							?checked=${ ctx.state.nativeUsersEnabled }
-							@wpd-checkbox-change=${ onNativeUsersToggle }
-						></wpd-checkbox-label>
-						<p class="desktop-mode-features__hint">
+							@os-checkbox-change=${ onNativeUsersToggle }
+						></os-checkbox-label>
+						<p class="os-features__hint">
 							${ __(
-								'Beta — off by default. Turn on for a native Users list with bulk role change, last-login tracking, live online indicators, click-to-copy email, and one-click password resets. Capability-gated — readers see a read-only view, role assignment respects WordPress role permissions.',
+								'A native Users list with bulk role changes, online indicators, and one-click password resets.',
 							) }
 						</p>
 					</div>
-					<div class="desktop-mode-features__item">
-						<wpd-checkbox-label
+					<div class="os-features__item">
+						<os-checkbox-label
 							label=${ __( 'Use the native Plugins window' ) }
 							?checked=${ ctx.state.nativePluginsEnabled }
-							@wpd-checkbox-change=${ onNativePluginsToggle }
-						></wpd-checkbox-label>
-						<p class="desktop-mode-features__hint">
+							@os-checkbox-change=${ onNativePluginsToggle }
+						></os-checkbox-label>
+						<p class="os-features__hint">
 							${ __(
-								'Beta — off by default. Turn on for a native two-tab Plugins window: an Installed list with bulk activate / deactivate / delete, and a Browse gallery powered by the WordPress.org repository — rich detail flyout with screenshots, ratings histogram, and recent reviews. Drag a .zip onto the window to install, or drag a card from Browse to the dock to pin it.',
+								'A native Plugins window with an Installed list, bulk actions, and a Browse gallery from the WordPress.org directory.',
 							) }
 						</p>
 					</div>
-					<div class="desktop-mode-features__item">
-						<wpd-checkbox-label
+					<div class="os-features__item">
+						<os-checkbox-label
 							label=${ __( 'Use the native Comments window' ) }
 							?checked=${ ctx.state.nativeCommentsEnabled }
-							@wpd-checkbox-change=${ onNativeCommentsToggle }
-						></wpd-checkbox-label>
-						<p class="desktop-mode-features__hint">
+							@os-checkbox-change=${ onNativeCommentsToggle }
+						></os-checkbox-label>
+						<p class="os-features__hint">
 							${ __(
-								'Beta — off by default. Turn on for a redesigned moderation queue with Pending / All / Spam / Trash / Mine tabs, bulk approve/spam/trash plus an 8-second undo, inline reply right in the row, an author insights drawer, a per-row spam confidence score (Akismet + heuristics), and full keyboard moderation (j/k navigate, a approve, s spam, d trash, r reply, e edit, u undo).',
+								'A native two-pane Comments window: a list of conversations beside the full reply thread.',
 							) }
 						</p>
 					</div>
-				</wpd-section>
+					<div class="os-features__item">
+						<os-checkbox-label
+							label=${ __( 'Prewarm windows on hover (experimental)' ) }
+							?checked=${ ctx.state.windowPrewarmEnabled }
+							@os-checkbox-change=${ onWindowPrewarmToggle }
+						></os-checkbox-label>
+						<p class="os-features__hint">
+							${ __(
+								'Starts loading a page in a hidden window while you hover its dock icon, so the window appears already rendered when you click. Uses extra memory for one speculative window at a time.',
+							) }
+						</p>
+					</div>
+					<div class="os-features__item">
+						<os-checkbox-label
+							label=${ __( 'Shared asset cache (experimental)' ) }
+							?checked=${ ctx.state.adminAssetCacheEnabled }
+							@os-checkbox-change=${ onAdminAssetCacheToggle }
+						></os-checkbox-label>
+						<p class="os-features__hint">
+							${ __(
+								'Serves the admin’s stylesheets and scripts from one cache shared by every window, so opening a window skips the network for files any window has already loaded. Unlike the other toggles here, this one takes effect after your next reload.',
+							) }
+						</p>
+					</div>
+				</os-section>
 			`,
 			wrapper,
 		);

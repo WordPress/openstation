@@ -2,13 +2,12 @@
  * Inkfall — bundle entry.
  *
  * Lazy-loaded by the games framework the first time Inkfall
- * launches. Publishes the game def on `window.desktopModeGames`
- * (the games analogue of `window.desktopModeWallpapers`); the
+ * launches. Publishes the game def on `window.openStationGames`
+ * (the games analogue of `window.openStationWallpapers`); the
  * framework merges the server-registered metadata with the `render`
  * callback + window sizing declared here.
  *
  * @public
- * @since 0.9.6
  */
 
 import { __ } from '../../i18n';
@@ -16,7 +15,7 @@ import type { GameDef } from '../types';
 import { mountInkfall } from './game';
 
 interface GamesGlobal {
-	desktopModeGames?: Record< string, GameDef | undefined >;
+	openStationGames?: Record< string, GameDef | undefined >;
 }
 
 const def: GameDef = {
@@ -42,5 +41,5 @@ const def: GameDef = {
 };
 
 const globals = window as unknown as GamesGlobal;
-globals.desktopModeGames = globals.desktopModeGames || {};
-globals.desktopModeGames[ def.id ] = def;
+globals.openStationGames = globals.openStationGames || {};
+globals.openStationGames[ def.id ] = def;

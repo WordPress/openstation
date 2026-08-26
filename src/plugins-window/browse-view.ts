@@ -2,7 +2,7 @@
  * Native Plugins window — Browse tab.
  *
  * Search field + segmented browse filter + Upload button + a
- * `<wpd-grid>`-style gallery of cards. Infinite scroll via
+ * `<os-grid>`-style gallery of cards. Infinite scroll via
  * IntersectionObserver on a sentinel.
  *
  * The whole window body also acts as a drop zone for `.zip` files —
@@ -10,10 +10,10 @@
  * dialog with the file pre-applied.
  *
  * @public
- * @since 0.9.0
  */
 
 import { __, sprintf } from '../i18n';
+import { decodeHTML } from '../utils';
 import { broadcast, subscribe } from '../broadcast';
 import {
 	buildCard,
@@ -28,7 +28,7 @@ import {
  *
  * @internal
  */
-const PLUGINS_CHANGED_TOPIC = 'desktop-mode.plugin.changed';
+const PLUGINS_CHANGED_TOPIC = 'os.plugin.changed';
 const SOURCE = 'browse-view';
 interface PluginsChangedPayload {
 	source: string;
@@ -51,10 +51,10 @@ import type {
 	WpOrgBrowsePlugin,
 } from './types';
 import { openUploadDialog } from './upload-dialog';
-import '../ui/components/wpd-button/wpd-button';
-import '../ui/components/wpd-card/wpd-card';
-import '../ui/components/wpd-segmented/wpd-segmented';
-import '../ui/components/wpd-text-field/wpd-text-field';
+import '../ui/components/os-button/os-button';
+import '../ui/components/os-card/os-card';
+import '../ui/components/os-segmented/os-segmented';
+import '../ui/components/os-text-field/os-text-field';
 
 interface BrowseState {
 	filter: BrowseFilter;
@@ -70,7 +70,7 @@ interface BrowseState {
 
 /** Toast helper — mirrors installed-view.ts. */
 function toast( message: string, duration = 3500 ): void {
-	const api = window.wp?.desktop;
+	const api = window.wp?.os;
 	if ( api && typeof api.showToast === 'function' ) {
 		api.showToast( { message, duration } );
 		return;
@@ -82,7 +82,7 @@ function toast( message: string, duration = 3500 ): void {
 /**
  * Mount the Browse view into a host element. Returns a teardown.
  *
- * `flyoutEl` is the `<wpd-flyout data-desktop-mode-plugins-flyout>`
+ * `flyoutEl` is the `<os-flyout data-os-plugins-flyout>`
  * declared in the template — we share it across cards.
  */
 export function mountBrowseView(
@@ -106,12 +106,12 @@ export function mountBrowseView(
 
 	// ─── Toolbar ────────────────────────────────────────────────────
 	const toolbar = document.createElement( 'header' );
-	toolbar.className = 'desktop-mode-plugins__toolbar';
+	toolbar.className = 'os-plugins__toolbar';
 
 	const left = document.createElement( 'div' );
-	left.className = 'desktop-mode-plugins__toolbar-left';
+	left.className = 'os-plugins__toolbar-left';
 
-	const segmented = document.createElement( 'wpd-segmented' );
+	const segmented = document.createElement( 'os-segmented' );
 	segmented.setAttribute( 'value', 'featured' );
 	const filters: Array< { value: BrowseFilter; label: string } > = [
 		{ value: 'featured', label: __( 'Featured', 'desktop-mode' ) },
@@ -122,21 +122,21 @@ export function mountBrowseView(
 		{ value: 'beta', label: __( 'Beta', 'desktop-mode' ) },
 	];
 	for ( const opt of filters ) {
-		const seg = document.createElement( 'wpd-segment' );
+		const seg = document.createElement( 'os-segment' );
 		seg.setAttribute( 'value', opt.value );
 		seg.textContent = opt.label;
 		segmented.appendChild( seg );
 	}
-	segmented.addEventListener( 'wpd-pick', ( ev: Event ) => {
+	segmented.addEventListener( 'os-pick', ( ev: Event ) => {
 		const next = ( ev as CustomEvent< { value: string } > ).detail?.value ?? 'featured';
 		state.filter = next as BrowseFilter;
 		void resetAndLoad();
 	} );
 
-	const search = document.createElement( 'wpd-text-field' );
+	const search = document.createElement( 'os-text-field' );
 	search.setAttribute( 'placeholder', __( 'Search WordPress.org…', 'desktop-mode' ) );
 	let searchDebounce: number | undefined;
-	search.addEventListener( 'wpd-input-change', ( ev: Event ) => {
+	search.addEventListener( 'os-input-change', ( ev: Event ) => {
 		const value = ( ev as CustomEvent< { value: string } > ).detail?.value ?? '';
 		window.clearTimeout( searchDebounce );
 		searchDebounce = window.setTimeout( () => {
@@ -148,10 +148,10 @@ export function mountBrowseView(
 	left.append( segmented, search );
 
 	const right = document.createElement( 'div' );
-	right.className = 'desktop-mode-plugins__toolbar-trailing';
+	right.className = 'os-plugins__toolbar-trailing';
 	const cfg = getConfig();
 	if ( cfg.caps.upload ) {
-		const upload = document.createElement( 'wpd-button' );
+		const upload = document.createElement( 'os-button' );
 		upload.setAttribute( 'variant', 'secondary' );
 		upload.innerHTML =
 			'<span class="dashicons dashicons-upload" aria-hidden="true"></span> ' +
@@ -169,7 +169,7 @@ export function mountBrowseView(
 	// affordance on the Installed tab so the surface is symmetric;
 	// also useful when wp.org's cached response lags the user's
 	// just-uploaded plugin.
-	const refreshButton = document.createElement( 'wpd-button' );
+	const refreshButton = document.createElement( 'os-button' );
 	refreshButton.setAttribute( 'variant', 'ghost' );
 	refreshButton.setAttribute( 'title', __( 'Refresh', 'desktop-mode' ) );
 	refreshButton.innerHTML =
@@ -184,7 +184,7 @@ export function mountBrowseView(
 
 	// ─── Gallery ────────────────────────────────────────────────────
 	const gallery = document.createElement( 'div' );
-	gallery.className = 'desktop-mode-plugins__gallery';
+	gallery.className = 'os-plugins__gallery';
 
 	// The sentinel must live INSIDE the gallery scroll container —
 	// IntersectionObserver with `root: gallery` only fires when the
@@ -196,18 +196,18 @@ export function mountBrowseView(
 	// content; as the user reaches the bottom, it slides into the
 	// observer's `root` viewport and triggers the next fetch.
 	const sentinel = document.createElement( 'div' );
-	sentinel.className = 'desktop-mode-plugins__gallery-sentinel';
+	sentinel.className = 'os-plugins__gallery-sentinel';
 	sentinel.setAttribute( 'aria-hidden', 'true' );
 
 	const status = document.createElement( 'p' );
-	status.className = 'desktop-mode-plugins__gallery-status';
+	status.className = 'os-plugins__gallery-status';
 	status.hidden = true;
 
 	host.append( toolbar, gallery, status );
 
 	// ─── Window-level .zip drop overlay ────────────────────────────
 	const dropOverlay = document.createElement( 'div' );
-	dropOverlay.className = 'desktop-mode-plugins__window-drop';
+	dropOverlay.className = 'os-plugins__window-drop';
 	dropOverlay.setAttribute( 'aria-hidden', 'true' );
 	const dropMsg = document.createElement( 'p' );
 	dropMsg.textContent = __(
@@ -367,7 +367,7 @@ export function mountBrowseView(
 					sprintf(
 						/* translators: %s: plugin name */
 						__( 'Installed %s.', 'desktop-mode' ),
-						plugin.name,
+						decodeHTML( plugin.name ),
 					),
 				);
 				repaintCardCta( card, plugin, state.installed, cardCallbacks );
@@ -408,7 +408,7 @@ export function mountBrowseView(
 					sprintf(
 						/* translators: %s: plugin name */
 						__( '%s activated.', 'desktop-mode' ),
-						updated.name || updated.plugin,
+						decodeHTML( updated.name || updated.plugin ),
 					),
 				);
 				const plugin = state.plugins.find(
@@ -642,18 +642,18 @@ export function mountBrowseView(
 }
 
 function buildSkeletonCard(): HTMLElement {
-	// Non-interactive `<wpd-card>` — same chrome as a real gallery
+	// Non-interactive `<os-card>` — same chrome as a real gallery
 	// card without the hover lift, so the loading state visually
 	// pre-frames the content that's about to land.
-	const card = document.createElement( 'wpd-card' );
+	const card = document.createElement( 'os-card' );
 	card.classList.add(
-		'desktop-mode-plugins__card',
-		'desktop-mode-plugins__card--skeleton',
+		'os-plugins__card',
+		'os-plugins__card--skeleton',
 	);
 	card.setAttribute( 'aria-hidden', 'true' );
 	for ( let i = 0; i < 4; i++ ) {
 		const line = document.createElement( 'span' );
-		line.className = 'desktop-mode-plugins__skeleton-line';
+		line.className = 'os-plugins__skeleton-line';
 		line.style.width = `${ 50 + ( i * 17 ) % 50 }%`;
 		card.appendChild( line );
 	}

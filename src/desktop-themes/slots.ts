@@ -2,7 +2,7 @@
  * Desktop-theme icon slot names.
  *
  * **This list is a contract.** It must stay equal to the PHP
- * allowlist in `desktop_mode_desktop_theme_icon_slots()`
+ * allowlist in `openstation_desktop_theme_icon_slots()`
  * (`includes/desktop-themes/store.php`) — a slot that exists on one
  * side only is either silently dropped at upload time or silently
  * never consulted at render time, and both failure modes look like
@@ -11,12 +11,10 @@
  * Two things are deliberately NOT slots:
  *
  *   - **Letter badges.** They are generated text, not artwork; a
- *     theme retints them through the `--desktop-mode-tile-*` tokens.
- *   - **`<wpd-icon>` content icons.** Those live inside window
+ *     theme retints them through the `--os-tile-*` tokens.
+ *   - **`<os-icon>` content icons.** Those live inside window
  *     BODIES, not chrome. Theming them is a documented non-goal for
  *     v1 — see docs/desktop-themes.md.
- *
- * @since 0.9.7
  */
 
 /**
@@ -24,10 +22,9 @@
  * `APP:<slug>` form instead (see {@link slotForTileId}).
  *
  * @public
- * @since 0.9.7
  */
 export const DESKTOP_THEME_SLOTS = {
-	// Window controls — one per `<wpd-window-button>` built-in key.
+	// Window controls — one per `<os-window-button>` built-in key.
 	WINDOW_CONTROL_MINIMIZE: 'WINDOW_CONTROL_MINIMIZE',
 	WINDOW_CONTROL_MAXIMIZE: 'WINDOW_CONTROL_MAXIMIZE',
 	WINDOW_CONTROL_FULLSCREEN: 'WINDOW_CONTROL_FULLSCREEN',
@@ -40,7 +37,7 @@ export const DESKTOP_THEME_SLOTS = {
 	OS_SETTINGS: 'OS_SETTINGS',
 	RECYCLE_BIN: 'RECYCLE_BIN',
 	BUG_REPORT: 'BUG_REPORT',
-	EXIT_DESKTOP_MODE: 'EXIT_DESKTOP_MODE',
+	EXIT_OPENSTATION: 'EXIT_OPENSTATION',
 	PWA_INSTALL: 'PWA_INSTALL',
 	// Apps.
 	DEFAULT_APP_ICON: 'DEFAULT_APP_ICON',
@@ -74,8 +71,8 @@ const SYSTEM_TILE_SLOTS: Record< string, string > = {
 	'desktop-mode-os-settings': DESKTOP_THEME_SLOTS.OS_SETTINGS,
 	'desktop-mode-recycle-bin': DESKTOP_THEME_SLOTS.RECYCLE_BIN,
 	'desktop-mode-bug-report': DESKTOP_THEME_SLOTS.BUG_REPORT,
-	'desktop-mode-exit': DESKTOP_THEME_SLOTS.EXIT_DESKTOP_MODE,
-	'desktop-mode-pwa-install': DESKTOP_THEME_SLOTS.PWA_INSTALL,
+	'os-exit': DESKTOP_THEME_SLOTS.EXIT_OPENSTATION,
+	'os-pwa-install': DESKTOP_THEME_SLOTS.PWA_INSTALL,
 };
 
 /**
@@ -87,7 +84,6 @@ const SYSTEM_TILE_SLOTS: Record< string, string > = {
  * or plugin window by name.
  *
  * @public
- * @since 0.9.7
  *
  * @param id Tile id.
  * @return Slot name, or `''` when the id is unusable.
@@ -113,10 +109,9 @@ export function slotForTileId( id: string ): string {
  * documented slot. Vendor controls are upper-snaked from their full
  * id (`acme/pin` → `WINDOW_CONTROL_ACME_PIN`) so a theme CAN address
  * them — they just won't be on the PHP allowlist unless a plugin
- * widens it via `desktop_mode_desktop_theme_icon_slots`.
+ * widens it via `openstation_desktop_theme_icon_slots`.
  *
  * @public
- * @since 0.9.7
  *
  * @param id Control id.
  * @return Slot name, or `''` when the id is unusable.
@@ -138,7 +133,6 @@ export function slotForWindowControl( id: string ): string {
  * (`folder` → `FOLDER`, `post` → `FILE_POST`).
  *
  * @public
- * @since 0.9.7
  *
  * @param type File-type slug.
  * @return Slot name, or `''` when the type has no slot.

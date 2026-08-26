@@ -5,24 +5,23 @@
  * Two entry points, mirroring the rest of the plugin surface but tuned
  * for the command-palette use case:
  *
- *   - `desktop_mode_register_command_script( $handle )` — primary, minimum-
+ *   - `openstation_register_command_script( $handle )` — primary, minimum-
  *     ceremony opt-in. Tells the shell: "this enqueued script registers
  *     slash-commands; include it in the plugins-changed payload so it
  *     gets injected into the shell page mid-session when my plugin is
  *     installed or activated without a full reload."
  *
- *   - `desktop_mode_register_command( $args )` — optional. Plugins that
+ *   - `openstation_register_command( $args )` — optional. Plugins that
  *     want to declare command metadata server-side (for discoverability
  *     tooling, REST enumeration, future pre-registration shims) use this.
  *     The `run` function still lives JS-side; metadata is advisory today.
  *
- * Both APIs feed `desktop_mode_build_desktop_command_scripts_payload()` and
- * `desktop_mode_build_desktop_commands_payload()`, which contribute
+ * Both APIs feed `openstation_build_desktop_command_scripts_payload()` and
+ * `openstation_build_desktop_commands_payload()`, which contribute
  * `serverCommandScripts` and `serverCommands` to the shell payload in
- * `desktop_mode_build_menu_payload()`.
+ * `openstation_build_menu_payload()`.
  *
- * @since 0.5.0
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -37,53 +36,49 @@ defined( 'ABSPATH' ) || exit;
  *     wp_register_script(
  *         'home-assistant-commands',
  *         plugins_url( 'js/commands.js', __FILE__ ),
- *         array( 'desktop-mode' ),
+ *         array( 'openstation' ),
  *         '1.0.0',
  *         true
  *     );
  *     wp_enqueue_script( 'home-assistant-commands' );
  * } );
- * desktop_mode_register_command_script( 'home-assistant-commands' );
+ * openstation_register_command_script( 'home-assistant-commands' );
  * ```
  *
- * The script's JS side calls `wp.desktop.registerCommand( { … } )` as
+ * The script's JS side calls `wp.os.registerCommand( { … } )` as
  * usual. When a user installs or activates the plugin, the chromeless
- * bridge's `desktop-mode-plugins-changed` payload includes the resolved
+ * bridge's `os-plugins-changed` payload includes the resolved
  * script URL; the shell's command-sync module injects the script into
  * the shell page and the new commands appear in the palette without a
  * full reload.
  *
- * @since 0.5.0
- *
  * @param string $handle WP-registered script handle.
  * @return true|WP_Error `true` on success; `WP_Error` on validation failure.
  */
-function desktop_mode_register_command_script( $handle ) {
+function openstation_register_command_script( $handle ) {
 	$handle = (string) $handle;
 	if ( '' === $handle ) {
-		return desktop_mode_registration_error(
-			'desktop_mode_missing_handle',
+		return openstation_registration_error(
+			'openstation_missing_handle',
 			__( 'Command script registration requires a non-empty script handle.', 'desktop-mode' )
 		);
 	}
 
-	desktop_mode_desktop_command_script_registry( $handle, true );
+	openstation_desktop_command_script_registry( $handle, true );
 
 	/**
 	 * Fires after a desktop command script handle is registered.
 	 *
-	 * @since 0.5.0
-	 *
 	 * @param string $handle The registered script handle.
 	 */
-	do_action( 'desktop_mode_command_script_registered', $handle );
+	do_action( 'openstation_command_script_registered', $handle );
 
 	return true;
 }
 
 /**
  * Declare a desktop command server-side. Optional companion to
- * `desktop_mode_register_command_script()` for plugins that want metadata
+ * `openstation_register_command_script()` for plugins that want metadata
  * enumerable without JS execution (REST, future pre-registration, etc.).
  * The command's `run` function still lives JS-side; this function only
  * stores metadata.
@@ -91,7 +86,7 @@ function desktop_mode_register_command_script( $handle ) {
  * Example:
  *
  * ```php
- * desktop_mode_register_command( array(
+ * openstation_register_command( array(
  *     'slug'        => 'ha-lights',
  *     'label'       => __( 'Home Assistant: Lights', 'home-assistant' ),
  *     'description' => __( 'Toggle smart lights from the palette.', 'home-assistant' ),
@@ -102,10 +97,8 @@ function desktop_mode_register_command_script( $handle ) {
  * ```
  *
  * Implicitly registers the `script` handle via
- * `desktop_mode_register_command_script()` when provided, so plugins using
+ * `openstation_register_command_script()` when provided, so plugins using
  * this API don't need to call both functions.
- *
- * @since 0.5.0
  *
  * @param array $args {
  *     @type string $slug        Slash-command slug (without leading `/`). Required.
@@ -114,12 +107,12 @@ function desktop_mode_register_command_script( $handle ) {
  *     @type string $icon        Dashicons class. Default `dashicons-arrow-right-alt`.
  *     @type string $hint        Argument hint rendered next to the slug. Default empty.
  *     @type string $script      WP script handle providing the `run` function.
- *                               Registered via `desktop_mode_register_command_script()`
+ *                               Registered via `openstation_register_command_script()`
  *                               when present. Default empty (advisory registration only).
  * }
  * @return true|WP_Error `true` on success; `WP_Error` on validation failure.
  */
-function desktop_mode_register_command( $args = array() ) {
+function openstation_register_command( $args = array() ) {
 	$defaults = array(
 		'slug'        => '',
 		'label'       => '',
@@ -128,18 +121,18 @@ function desktop_mode_register_command( $args = array() ) {
 		'hint'        => '',
 		'script'      => '',
 	);
-	$args = wp_parse_args( $args, $defaults );
+	$args     = wp_parse_args( $args, $defaults );
 
 	$slug = (string) $args['slug'];
 	if ( '' === $slug ) {
-		return desktop_mode_registration_error(
-			'desktop_mode_missing_slug',
+		return openstation_registration_error(
+			'openstation_missing_slug',
 			__( 'Command registration requires a non-empty `slug`.', 'desktop-mode' )
 		);
 	}
 	if ( '' === (string) $args['label'] ) {
-		return desktop_mode_registration_error(
-			'desktop_mode_missing_label',
+		return openstation_registration_error(
+			'openstation_missing_label',
 			__( 'Command registration requires a non-empty `label`.', 'desktop-mode' ),
 			array( 'slug' => $slug )
 		);
@@ -153,38 +146,35 @@ function desktop_mode_register_command( $args = array() ) {
 		'hint'        => (string) $args['hint'],
 		'script'      => (string) $args['script'],
 	);
-	desktop_mode_desktop_command_registry( $slug, $entry );
+	openstation_desktop_command_registry( $slug, $entry );
 
 	if ( '' !== $entry['script'] ) {
-		desktop_mode_register_command_script( $entry['script'] );
+		openstation_register_command_script( $entry['script'] );
 	}
 
 	/**
 	 * Fires after a desktop command is successfully registered.
 	 *
-	 * @since 0.5.0
-	 *
 	 * @param string $slug  The command slug.
 	 * @param array  $entry The stored registry entry.
 	 */
-	do_action( 'desktop_mode_command_registered', $slug, $entry );
+	do_action( 'openstation_command_registered', $slug, $entry );
 
 	return true;
 }
 
 /**
  * Internal module-level registry for command script handles declared
- * via {@see desktop_mode_register_command_script()}. Accessed by both the
+ * via {@see openstation_register_command_script()}. Accessed by both the
  * registration API (write) and the payload builder (read).
  *
- * @since 0.5.0
  * @internal
  *
  * @param string    $handle Script handle to read or write.
  * @param bool|null $value  Pass `true` to register; `null` to read only.
  * @return array|bool When called with no args returns the full store.
  */
-function desktop_mode_desktop_command_script_registry( $handle = '', $value = null ) {
+function openstation_desktop_command_script_registry( $handle = '', $value = null ) {
 	static $store = array();
 
 	if ( '__flush__' === (string) $handle ) {
@@ -204,25 +194,22 @@ function desktop_mode_desktop_command_script_registry( $handle = '', $value = nu
  * Flush the command-script registry. Tests call this in `set_up` so
  * a previous test's stale handle doesn't leak into the next test's
  * payload-build assertions. No production caller.
- *
- * @since 0.5.2
  */
-function desktop_mode_flush_desktop_command_script_registry() {
-	desktop_mode_desktop_command_script_registry( '__flush__' );
+function openstation_flush_desktop_command_script_registry() {
+	openstation_desktop_command_script_registry( '__flush__' );
 }
 
 /**
  * Internal module-level registry for commands declared via
- * {@see desktop_mode_register_command()}.
+ * {@see openstation_register_command()}.
  *
- * @since 0.5.0
  * @internal
  *
  * @param string     $slug  Slug to read or write.
  * @param array|null $entry Entry to store, or `null` to read.
  * @return array|null
  */
-function desktop_mode_desktop_command_registry( $slug = '', $entry = null ) {
+function openstation_desktop_command_registry( $slug = '', $entry = null ) {
 	static $store = array();
 
 	if ( '' === (string) $slug ) {
@@ -236,19 +223,17 @@ function desktop_mode_desktop_command_registry( $slug = '', $entry = null ) {
 
 /**
  * Build the script-handle payload fed to the shell. Resolves each
- * registered handle to a full payload via {@see desktop_mode_resolve_script_payload()};
+ * registered handle to a full payload via {@see openstation_resolve_script_payload()};
  * handles that aren't currently enqueued (plugin not active this request)
  * resolve to an empty URL and are dropped. The harvested `extra` data
  * (localize / inline / translations) ships alongside the URL so the
  * shell's lazy `<script>` injection doesn't drop it the way a bare
  * `<script src="…">` append would.
  *
- * @since 0.5.0
- *
  * @return array[] List of `{ handle, scriptUrl, scriptBefore, scriptAfter, scriptL10n, scriptTranslations }` entries.
  */
-function desktop_mode_build_desktop_command_scripts_payload() {
-	$registry = desktop_mode_desktop_command_script_registry();
+function openstation_build_desktop_command_scripts_payload() {
+	$registry = openstation_desktop_command_script_registry();
 	if ( ! is_array( $registry ) || empty( $registry ) ) {
 		return array();
 	}
@@ -259,16 +244,16 @@ function desktop_mode_build_desktop_command_scripts_payload() {
 		if ( ! $active || isset( $seen[ $handle ] ) ) {
 			continue;
 		}
-		$payload = desktop_mode_resolve_script_payload( $handle );
+		$payload = openstation_resolve_script_payload( $handle );
 		if ( '' === $payload['url'] ) {
-			desktop_mode_warn_unresolvable_script_handle(
-				'desktop_mode_register_command_script',
+			openstation_warn_unresolvable_script_handle(
+				'openstation_register_command_script',
 				'Command',
 				(string) $handle
 			);
 			continue;
 		}
-		$out[]          = array(
+		$out[]           = array(
 			'handle'             => (string) $handle,
 			'scriptUrl'          => $payload['url'],
 			'scriptBefore'       => $payload['before'],
@@ -283,17 +268,15 @@ function desktop_mode_build_desktop_command_scripts_payload() {
 
 /**
  * Build the metadata payload for commands declared via
- * {@see desktop_mode_register_command()}. Each entry carries the resolved
+ * {@see openstation_register_command()}. Each entry carries the resolved
  * `scriptUrl` alongside metadata so the shell's sync knows which script
  * contributed it — enables future pre-registration shims without a round
  * trip.
  *
- * @since 0.5.0
- *
  * @return array[]
  */
-function desktop_mode_build_desktop_commands_payload() {
-	$registry = desktop_mode_desktop_command_registry();
+function openstation_build_desktop_commands_payload() {
+	$registry = openstation_desktop_command_registry();
 	if ( ! is_array( $registry ) || empty( $registry ) ) {
 		return array();
 	}
@@ -302,7 +285,7 @@ function desktop_mode_build_desktop_commands_payload() {
 	foreach ( $registry as $entry ) {
 		$handle  = (string) $entry['script'];
 		$payload = '' !== $handle
-			? desktop_mode_resolve_script_payload( $handle )
+			? openstation_resolve_script_payload( $handle )
 			: array(
 				'url'          => '',
 				'before'       => array(),
@@ -310,17 +293,17 @@ function desktop_mode_build_desktop_commands_payload() {
 				'l10n'         => array(),
 				'translations' => '',
 			);
-		$out[]  = array(
-			'slug'              => (string) $entry['slug'],
-			'label'             => (string) $entry['label'],
-			'description'       => (string) $entry['description'],
-			'icon'              => (string) $entry['icon'],
-			'hint'              => (string) $entry['hint'],
-			'scriptUrl'         => $payload['url'],
-			'scriptHandle'      => $handle,
-			'scriptBefore'      => $payload['before'],
-			'scriptAfter'       => $payload['after'],
-			'scriptL10n'        => $payload['l10n'],
+		$out[]   = array(
+			'slug'               => (string) $entry['slug'],
+			'label'              => (string) $entry['label'],
+			'description'        => (string) $entry['description'],
+			'icon'               => (string) $entry['icon'],
+			'hint'               => (string) $entry['hint'],
+			'scriptUrl'          => $payload['url'],
+			'scriptHandle'       => $handle,
+			'scriptBefore'       => $payload['before'],
+			'scriptAfter'        => $payload['after'],
+			'scriptL10n'         => $payload['l10n'],
 			'scriptTranslations' => $payload['translations'],
 		);
 	}

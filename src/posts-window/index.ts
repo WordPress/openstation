@@ -4,47 +4,44 @@
  * Lazy-loaded by the native-window sync the first time the
  * `desktop-mode-posts` window opens. Wires up the toolbar (status
  * segments, search, refresh, "Add New", bulk-trash bar), populates a
- * `<wpd-table>` from `wp/v2/posts` with server-side pagination /
+ * `<os-table>` from `wp/v2/posts` with server-side pagination /
  * sorting / filtering, mounts an excerpt + featured-image sub-row,
  * and exposes prev/next + per-page controls in the footer.
  *
  * Web-component registrations: the main `desktop.min.js` bundle ships
- * only the `<wpd-*>` tags it actually constructs itself. Anything
- * unique to this window — `<wpd-table>`, `<wpd-tag-input>`,
- * `<wpd-category-picker>`, `<wpd-avatar>`, `<wpd-multiselect>`,
- * `<wpd-relative-time>`, `<wpd-form>`, `<wpd-textarea>` — registers
+ * only the `<os-*>` tags it actually constructs itself. Anything
+ * unique to this window — `<os-table>`, `<os-tag-input>`,
+ * `<os-category-picker>`, `<os-avatar>`, `<os-multiselect>`,
+ * `<os-relative-time>`, `<os-form>`, `<os-textarea>` — registers
  * itself here via leaf side-effect imports. `defineComponent()` is
  * idempotent so the imports cost nothing in cases where main also
  * ships a tag.
  *
  * @public
- * @since 0.8.0
  */
 
 import { __, _n, sprintf } from '../i18n';
-import { trackedFetch } from '../tracked-fetch';
 import { applyAvatarSrc } from '../ui/util/avatar-resolve';
-import { showPostsIntroDialog } from './intro-dialog';
 import { decodeHTML } from '../utils';
-// Side-effect imports — register the `<wpd-*>` components this
+// Side-effect imports — register the `<os-*>` components this
 // bundle constructs that the main shell does not ship. See the
 // header docblock for the rationale.
-import '../ui/components/wpd-table/wpd-table';
-// `<wpd-tabs>` (with `<wpd-tab>` children + `<wpd-tabpanel>` siblings)
+import '../ui/components/os-table/os-table';
+// `<os-tabs>` (with `<os-tab>` children + `<os-tabpanel>` siblings)
 // is emitted by `includes/posts-window/window.php`, never built via
 // `document.createElement` here — so the lint rule that scans
-// `createElement('wpd-*')` doesn't see it. Register the compound
+// `createElement('os-*')` doesn't see it. Register the compound
 // class set explicitly so the server-rendered tabs work.
-import '../ui/components/wpd-tabs/wpd-tabs';
-import '../ui/components/wpd-tag-input/wpd-tag-input';
-import '../ui/components/wpd-category-picker/wpd-category-picker';
-import '../ui/components/wpd-avatar/wpd-avatar';
-import '../ui/components/wpd-multiselect/wpd-multiselect';
-import '../ui/components/wpd-relative-time/wpd-relative-time';
-import '../ui/components/wpd-form/wpd-form';
-import '../ui/components/wpd-textarea/wpd-textarea';
-// Posts-specific custom element — adds <wpd-user-profile>.
-import './wpd-user-profile';
+import '../ui/components/os-tabs/os-tabs';
+import '../ui/components/os-tag-input/os-tag-input';
+import '../ui/components/os-category-picker/os-category-picker';
+import '../ui/components/os-avatar/os-avatar';
+import '../ui/components/os-multiselect/os-multiselect';
+import '../ui/components/os-relative-time/os-relative-time';
+import '../ui/components/os-form/os-form';
+import '../ui/components/os-textarea/os-textarea';
+// Posts-specific custom element — adds <os-user-profile>.
+import './os-user-profile';
 import {
 	createPostsWindowClient,
 	type AuthorOption,
@@ -63,41 +60,41 @@ import type {
 	StatusSegment,
 } from './types';
 import type {
-	WpdTagInput,
-	WpdTagItem,
-} from '../ui/components/wpd-tag-input/wpd-tag-input';
+	OsTagInput,
+	OsTagItem,
+} from '../ui/components/os-tag-input/os-tag-input';
 import type {
-	WpdCategoryItem,
-	WpdCategoryPicker,
-} from '../ui/components/wpd-category-picker/wpd-category-picker';
+	OsCategoryItem,
+	OsCategoryPicker,
+} from '../ui/components/os-category-picker/os-category-picker';
 
 import type {
-	WpdTable,
-	WpdTableColumn,
-} from '../ui/components/wpd-table/wpd-table';
-import '../ui/components/wpd-button/wpd-button';
-import '../ui/components/wpd-segmented/wpd-segmented';
-import '../ui/components/wpd-menu/wpd-menu';
+	OsTable,
+	OsTableColumn,
+} from '../ui/components/os-table/os-table';
+import '../ui/components/os-button/os-button';
+import '../ui/components/os-segmented/os-segmented';
+import '../ui/components/os-menu/os-menu';
 
 export type { BulkAction, PostsWindowContext, StatusSegment } from './types';
 
 // Match the recycle-bin module's declaration shape exactly so the
-// global `Window.desktopModeNativeWindows` augmentation merges
+// global `Window.openStationNativeWindows` augmentation merges
 // instead of clashing — TS errors when two augmentations declare
 // the same field with structurally different types. Returning a
-// teardown is still wired internally via `desktop-mode-window-closed`.
+// teardown is still wired internally via `os-window-closed`.
 type RenderCallback = ( body: HTMLElement ) => void;
 
 declare global {
 	interface Window {
-		desktopModeNativeWindows?: Record< string, RenderCallback | undefined >;
+		openStationNativeWindows?: Record< string, RenderCallback | undefined >;
 	}
 }
 
 /**
- * Bridge to `wp.desktop.confirm` (the main bundle's
- * `<wpd-confirm-dialog>` wrapper). The posts-window script lists
- * `desktop-mode` as a dependency so the global is always set by
+ * Bridge to `wp.os.confirm` (the main bundle's
+ * `<os-confirm-dialog>` wrapper). The posts-window script lists
+ * `openstation` as a dependency so the global is always set by
  * the time this code runs.
  */
 interface ConfirmOptions {
@@ -107,13 +104,13 @@ interface ConfirmOptions {
 	cancelLabel?: string;
 	danger?: boolean;
 }
-function wpdConfirmGlobal( options: ConfirmOptions ): Promise< boolean > {
-	const fn = ( window.wp as { desktop?: { confirm?: ( o: ConfirmOptions ) => Promise< boolean > } } | undefined )
-		?.desktop?.confirm;
+function osConfirmGlobal( options: ConfirmOptions ): Promise< boolean > {
+	const fn = ( window.wp as { os?: { confirm?: ( o: ConfirmOptions ) => Promise< boolean > } } | undefined )
+		?.os?.confirm;
 	if ( typeof fn !== 'function' ) {
 		return Promise.reject(
 			new Error(
-				'[desktop-mode] wp.desktop.confirm is missing — the main desktop bundle must load before the posts-window script.',
+				'[openstation] wp.os.confirm is missing — the main desktop bundle must load before the posts-window script.',
 			),
 		);
 	}
@@ -121,135 +118,41 @@ function wpdConfirmGlobal( options: ConfirmOptions ): Promise< boolean > {
 }
 
 /**
- * Posts-window first-open intro. Mirrors the seen-intros surface in
- * `includes/seen-intros.php`: gated on `config.introSeen`, marks
- * itself seen on dismiss via `POST config.introUrl`. Runs once per
- * user — OS Settings → Features exposes a "Reset what's-new dialogs"
- * button that wipes the list so it appears again from scratch.
- *
- * Posts is the first ported native app, so the copy explicitly
- * points at the OS Settings escape hatch. Future ported apps drop
- * that line.
+ * Window mode, defaulting to `'posts'`. For the call sites that build
+ * things before render, when the config blob may not exist yet (the
+ * kebab column-toggle menu mounts from the table descriptor). Inside
+ * `renderPostsWindow` read `isPagesMode` instead — the config is
+ * already resolved there, so the fallback would be dead weight.
  */
-/**
- * Per-window-mode intro tracker — `'posts'` and `'pages'` each gate
- * independently so opening one window doesn't suppress the other's
- * first-open dialog.
- */
-const _introShown: Record< string, boolean > = Object.create( null );
-
-// "Reset what's-new dialogs" in OS Settings dispatches this event
-// after the DELETE round-trip completes — clear the per-mode cache
-// so the next window-open re-fires the dialog without a page reload.
-document.addEventListener( 'desktop-mode-intros-reset', () => {
-	for ( const slug of Object.keys( _introShown ) ) {
-		_introShown[ slug ] = false;
-	}
-} );
-
-function maybeShowIntro( client: PostsWindowClient ): void {
-	let cfg: PostsWindowConfig;
+function windowMode( client: PostsWindowClient ): 'posts' | 'pages' {
 	try {
-		cfg = client.getConfig();
+		return client.getConfig().mode === 'pages' ? 'pages' : 'posts';
 	} catch {
-		return;
-	}
-	const slug = cfg.introSlug || cfg.mode || 'posts';
-	if ( _introShown[ slug ] ) {
-		return;
-	}
-	if ( cfg.introSeen ) {
-		return;
-	}
-	_introShown[ slug ] = true;
-
-	const dialogPromise =
-		slug === 'pages'
-			? import( './pages-intro-dialog' ).then( ( m ) =>
-				m.showPagesIntroDialog(),
-			)
-			: showPostsIntroDialog();
-
-	void dialogPromise
-		.then( ( result ) => {
-			// Escape / backdrop click resolve `'cancel'` and explicitly
-			// MUST NOT mark the intro seen — that's the testing escape
-			// hatch so we can iterate on the dialog without resetting
-			// OS Settings between runs.
-			if ( result === 'cancel' ) {
-				_introShown[ slug ] = false;
-				return;
-			}
-			void markIntroSeen( cfg, slug, client );
-			if ( result === 'settings' ) {
-				openOsSettingsFeatures();
-			}
-		} )
-		.catch( () => {
-			// Dialog mount failed; keep gating off so a re-open can retry.
-			_introShown[ slug ] = false;
-		} );
-}
-
-async function markIntroSeen(
-	cfg: PostsWindowConfig,
-	slug: string,
-	client: PostsWindowClient,
-): Promise< void > {
-	if ( ! cfg.introUrl ) {
-		return;
-	}
-	try {
-		await trackedFetch(
-			cfg.introUrl,
-			{
-				method: 'POST',
-				credentials: 'same-origin',
-				headers: {
-					'Content-Type': 'application/json',
-					'X-WP-Nonce': cfg.restNonce,
-				},
-				body: JSON.stringify( { slug } ),
-			},
-			{
-				windowId: client.windowId,
-				source: `${ slug }-window/intro`,
-			},
-		);
-		// Mirror the server change locally so a re-open inside the
-		// same shell session doesn't re-fire the dialog.
-		( cfg as { introSeen: boolean } ).introSeen = true;
-	} catch {
-		// Swallow — the worst case is showing the intro one more time.
+		return 'posts';
 	}
 }
 
-function openOsSettingsFeatures(): void {
-	const api = ( window.wp as { desktop?: { openOsSettings?: () => void } } | undefined )?.desktop;
-	api?.openOsSettings?.();
-}
+const ROOT = '[data-os-posts-root]';
+const STATUS = '[data-os-posts-status]';
+const SEARCH = '[data-os-posts-search]';
+const REFRESH = '[data-os-posts-refresh]';
+const NEW_BTN = '[data-os-posts-new]';
+const TABLE = '[data-os-posts-table]';
+const BULK = '[data-os-posts-bulk]';
+const COUNT = '[data-os-posts-count]';
+const PAGE_INDICATOR = '[data-os-posts-page-indicator]';
+const PREV = '[data-os-posts-prev]';
+const NEXT = '[data-os-posts-next]';
+const PER_PAGE = '[data-os-posts-per-page]';
+const TOOLBAR_TRAILING_EXTRAS = '[data-os-posts-toolbar-extras]';
+const BULK_ACTIONS_HOST = '[data-os-posts-bulk-actions]';
 
-const ROOT = '[data-desktop-mode-posts-root]';
-const STATUS = '[data-desktop-mode-posts-status]';
-const SEARCH = '[data-desktop-mode-posts-search]';
-const REFRESH = '[data-desktop-mode-posts-refresh]';
-const NEW_BTN = '[data-desktop-mode-posts-new]';
-const TABLE = '[data-desktop-mode-posts-table]';
-const BULK = '[data-desktop-mode-posts-bulk]';
-const COUNT = '[data-desktop-mode-posts-count]';
-const PAGE_INDICATOR = '[data-desktop-mode-posts-page-indicator]';
-const PREV = '[data-desktop-mode-posts-prev]';
-const NEXT = '[data-desktop-mode-posts-next]';
-const PER_PAGE = '[data-desktop-mode-posts-per-page]';
-const TOOLBAR_TRAILING_EXTRAS = '[data-desktop-mode-posts-toolbar-extras]';
-const BULK_ACTIONS_HOST = '[data-desktop-mode-posts-bulk-actions]';
-
-const HOOK_FILTER_COLUMNS = 'desktop_mode.postsWindow.columns';
-const HOOK_FILTER_STATUS_SEGMENTS = 'desktop_mode.postsWindow.statusSegments';
-const HOOK_FILTER_BULK_ACTIONS = 'desktop_mode.postsWindow.bulkActions';
-const HOOK_FILTER_TOOLBAR_TRAILING = 'desktop_mode.postsWindow.toolbarTrailing';
-const HOOK_ACTION_OPENED = 'desktop_mode.postsWindow.opened';
-const HOOK_ACTION_DATA_LOADED = 'desktop_mode.postsWindow.dataLoaded';
+const HOOK_FILTER_COLUMNS = 'openstation.postsWindow.columns';
+const HOOK_FILTER_STATUS_SEGMENTS = 'openstation.postsWindow.statusSegments';
+const HOOK_FILTER_BULK_ACTIONS = 'openstation.postsWindow.bulkActions';
+const HOOK_FILTER_TOOLBAR_TRAILING = 'openstation.postsWindow.toolbarTrailing';
+const HOOK_ACTION_OPENED = 'openstation.postsWindow.opened';
+const HOOK_ACTION_DATA_LOADED = 'openstation.postsWindow.dataLoaded';
 
 const SEARCH_DEBOUNCE_MS = 250;
 
@@ -318,8 +221,8 @@ function authorOf( row: PostListItem ): {
 
 /**
  * Returns the embedded term records for the given taxonomy — needed
- * to seed the Tags column's `<wpd-tag-input>` and the Categories
- * column's `<wpd-category-picker>` with id + name.
+ * to seed the Tags column's `<os-tag-input>` and the Categories
+ * column's `<os-category-picker>` with id + name.
  */
 function termRecordsOf(
 	row: PostListItem,
@@ -353,7 +256,7 @@ function featuredMediaOf( row: PostListItem ): { url: string; alt: string } | nu
 /**
  * Per-(rowId, columnKey) cell-node cache.
  *
- * `<wpd-table>` repaints the body on every selection / expand /
+ * `<os-table>` repaints the body on every selection / expand /
  * sort-direction change — so without a cache, every cell `render`
  * callback rebuilds its DOM, and the new `<img>` avatars (term
  * chips, status badges, …) flash for a frame before the browser
@@ -395,7 +298,7 @@ function memoCell(
  * Title is the always-visible sticky column — toggling it would leave
  * users with no row identity. Every other column key is togglable, both
  * built-ins (`author`, `categories`, `tags`, `date`) and any plugin-
- * added columns picked up by the `desktop_mode.postsWindow.columns`
+ * added columns picked up by the `openstation.postsWindow.columns`
  * filter.
  */
 const REQUIRED_COLUMN_KEYS = new Set< string >( [ 'title' ] );
@@ -403,12 +306,12 @@ const REQUIRED_COLUMN_KEYS = new Set< string >( [ 'title' ] );
 /**
  * Read the user's hidden-column preference from the OS Settings public
  * API. Falls back to an empty list when the API isn't ready yet
- * (defensive: `renderPostsWindow` runs after `wp.desktop` is populated,
+ * (defensive: `renderPostsWindow` runs after `wp.os` is populated,
  * but the bundle may load before in degraded boot paths).
  */
 function getHiddenColumns(): Set< string > {
 	try {
-		const api = window.wp?.desktop;
+		const api = window.wp?.os;
 		if ( api && typeof api.getOsSettings === 'function' ) {
 			const snap = api.getOsSettings() as {
 				nativePostsHiddenColumns?: string[];
@@ -442,7 +345,7 @@ const EMPTY_FILTER_DATA: ColumnFilterData = { authors: [], tags: [] };
 
 /**
  * Build the full, unfiltered column descriptor list — passes through
- * the `desktop_mode.postsWindow.columns` filter but does NOT apply
+ * the `openstation.postsWindow.columns` filter but does NOT apply
  * the user's hidden-columns preference. Used by the kebab "Show
  * columns" menu so every column (visible AND hidden) shows up as a
  * toggle.
@@ -451,28 +354,28 @@ function buildAllColumns(
 	cache: CellCache,
 	client: PostsWindowClient,
 	filterData: ColumnFilterData = EMPTY_FILTER_DATA,
-): WpdTableColumn< PostListItem >[] {
+): OsTableColumn< PostListItem >[] {
 	const cols = _buildBaseColumns( cache, filterData, client );
 	const hooks = window.wp?.hooks;
 	return hooks && typeof hooks.applyFilters === 'function'
 		? ( hooks.applyFilters(
 			HOOK_FILTER_COLUMNS,
 			cols,
-		) as WpdTableColumn< PostListItem >[] )
+		) as OsTableColumn< PostListItem >[] )
 		: cols;
 }
 
 /**
  * Build the column descriptors. Filterable through the `wp.hooks` bus
  * — plugins can append/replace columns on
- * `desktop_mode.postsWindow.columns`. Applies the user's hidden-column
+ * `openstation.postsWindow.columns`. Applies the user's hidden-column
  * preference so the table only paints the columns they want to see.
  */
 function buildColumns(
 	cache: CellCache,
 	client: PostsWindowClient,
 	filterData: ColumnFilterData = EMPTY_FILTER_DATA,
-): WpdTableColumn< PostListItem >[] {
+): OsTableColumn< PostListItem >[] {
 	const all = buildAllColumns( cache, client, filterData );
 	const hidden = getHiddenColumns();
 	if ( hidden.size === 0 ) {
@@ -490,24 +393,14 @@ function _buildBaseColumns(
 	cache: CellCache,
 	filterData: ColumnFilterData,
 	client: PostsWindowClient,
-): WpdTableColumn< PostListItem >[] {
+): OsTableColumn< PostListItem >[] {
 	// `mode` lets us swap the taxonomy columns out for hierarchical
 	// pages without the column hook bus knowing the difference.
-	// Plugins that filter `desktop_mode.postsWindow.columns` see the
+	// Plugins that filter `openstation.postsWindow.columns` see the
 	// already-mode-appropriate base list and append/replace from there.
-	let mode: 'posts' | 'pages' = 'posts';
-	try {
-		const cfg = client.getConfig();
-		if ( cfg.mode === 'pages' ) {
-			mode = 'pages';
-		}
-	} catch {
-		// Pre-render code paths (the kebab column-toggle menu mounts
-		// from the table descriptor before render) might call this
-		// before a config is available — fall back to posts mode.
-	}
+	const mode = windowMode( client );
 
-	const titleCol: WpdTableColumn< PostListItem > = {
+	const titleCol: OsTableColumn< PostListItem > = {
 		key: 'title',
 		label: __( 'Title' ),
 		sortable: true,
@@ -515,7 +408,7 @@ function _buildBaseColumns(
 		render: ( _v, row ) =>
 			memoCell( cache, row.id, 'title', () => buildTitleCell( row, client ) ),
 	};
-	const authorCol: WpdTableColumn< PostListItem > = {
+	const authorCol: OsTableColumn< PostListItem > = {
 		key: 'author',
 		label: __( 'Author' ),
 		sortable: true,
@@ -528,7 +421,7 @@ function _buildBaseColumns(
 		render: ( _v, row ) =>
 			memoCell( cache, row.id, 'author', () => buildAuthorCell( row ) ),
 	};
-	const dateCol: WpdTableColumn< PostListItem > = {
+	const dateCol: OsTableColumn< PostListItem > = {
 		key: 'date',
 		label: __( 'Date' ),
 		sortable: true,
@@ -539,34 +432,34 @@ function _buildBaseColumns(
 	};
 
 	if ( mode === 'pages' ) {
-		const parentCol: WpdTableColumn< PostListItem > = {
+		const parentCol: OsTableColumn< PostListItem > = {
 			key: 'parent',
 			label: __( 'Parent' ),
 			width: '200px',
 			render: ( _v, row ) =>
 				memoCell( cache, row.id, 'parent', () => buildParentCell( row ) ),
 		};
-		const templateCol: WpdTableColumn< PostListItem > = {
+		const templateCol: OsTableColumn< PostListItem > = {
 			key: 'template',
 			label: __( 'Template' ),
 			width: '180px',
 			render: ( _v, row ) =>
 				memoCell( cache, row.id, 'template', () => buildTemplateCell( row, client ) ),
 		};
-		const slugCol: WpdTableColumn< PostListItem > = {
+		const slugCol: OsTableColumn< PostListItem > = {
 			key: 'slug',
 			label: __( 'Slug' ),
 			width: '200px',
 			render: ( _v, row ) =>
 				memoCell( cache, row.id, 'slug', () => buildSlugCell( row ) ),
 		};
-		const commentsCol: WpdTableColumn< PostListItem > = {
+		const commentsCol: OsTableColumn< PostListItem > = {
 			key: 'comments',
 			label: __( 'Comments' ),
 			width: '110px',
 			sortValue: ( row ) =>
-				typeof row.desktop_mode_comment_count === 'number'
-					? row.desktop_mode_comment_count
+				typeof row.openstation_comment_count === 'number'
+					? row.openstation_comment_count
 					: 0,
 			render: ( _v, row ) =>
 				memoCell( cache, row.id, 'comments', () =>
@@ -630,8 +523,6 @@ function _buildBaseColumns(
  * parents) display their numeric id with a small "Parent #42" label
  * — acceptable for v1; a small batched-include fetch can lift this
  * to full-title resolution later.
- *
- * @since 0.8.1
  */
 const _parentTitleByPageRoster: Map< number, string > = new Map();
 
@@ -640,20 +531,18 @@ const _parentTitleByPageRoster: Map< number, string > = new Map();
  * (`parent === 0`) render an em-dash — like core's classic list.
  * Otherwise we render the parent's title (if known) or a fallback
  * numeric label.
- *
- * @since 0.8.1
  */
 function buildParentCell( row: PostListItem ): HTMLElement {
 	const cell = document.createElement( 'span' );
-	cell.className = 'desktop-mode-posts__parent';
+	cell.className = 'os-posts__parent';
 	const pid = typeof row.parent === 'number' ? row.parent : 0;
 	if ( pid === 0 ) {
-		cell.classList.add( 'desktop-mode-posts__parent--top' );
+		cell.classList.add( 'os-posts__parent--top' );
 		cell.textContent = '—';
 		cell.setAttribute( 'aria-label', __( 'Top-level page' ) );
 		return cell;
 	}
-	cell.classList.add( 'desktop-mode-posts__parent--child' );
+	cell.classList.add( 'os-posts__parent--child' );
 	const titleFromRoster = _parentTitleByPageRoster.get( pid );
 	if ( titleFromRoster ) {
 		cell.textContent = `↳ ${ titleFromRoster }`;
@@ -667,11 +556,9 @@ function buildParentCell( row: PostListItem ): HTMLElement {
 /**
  * Refresh the in-page parent-title roster from the current page's
  * row list. Called by the render flow after every fetch — the
- * `<wpd-table>` repaints cells from cache, and the parent cell's
+ * `<os-table>` repaints cells from cache, and the parent cell's
  * `textContent` reflects the freshly-known titles on the next
  * memoized rebuild (cell cache is wiped per refresh).
- *
- * @since 0.8.1
  */
 function refreshParentTitleRoster( rows: PostListItem[] ): void {
 	_parentTitleByPageRoster.clear();
@@ -686,12 +573,10 @@ function refreshParentTitleRoster( rows: PostListItem[] ): void {
  * Falls back to the raw slug when the active theme registers a
  * template the config blob doesn't carry a label for, so users see
  * SOMETHING rather than a blank cell.
- *
- * @since 0.8.1
  */
 function buildTemplateCell( row: PostListItem, client: PostsWindowClient ): HTMLElement {
 	const cell = document.createElement( 'span' );
-	cell.className = 'desktop-mode-posts__template';
+	cell.className = 'os-posts__template';
 	const slug = typeof row.template === 'string' ? row.template : '';
 	let label = slug;
 	try {
@@ -713,13 +598,11 @@ function buildTemplateCell( row: PostListItem, client: PostsWindowClient ): HTML
  * affordance. Common pain in the classic Pages list when configuring
  * redirects or sharing canonical URLs; one click puts the slug on
  * the clipboard.
- *
- * @since 0.8.1
  */
 function buildSlugCell( row: PostListItem ): HTMLElement {
 	const cell = document.createElement( 'button' );
 	cell.type = 'button';
-	cell.className = 'desktop-mode-posts__slug';
+	cell.className = 'os-posts__slug';
 	const slug = typeof row.slug === 'string' ? row.slug : '';
 	cell.textContent = slug || '—';
 	cell.disabled = slug === '';
@@ -765,16 +648,14 @@ function buildSlugCell( row: PostListItem ): HTMLElement {
 }
 
 /**
- * Build the Comments cell — surfaces `desktop_mode_comment_count`
+ * Build the Comments cell — surfaces `openstation_comment_count`
  * from the REST field with a small icon. Top-asked parity feature
  * with the classic Pages list. Renders "—" when the field is
  * absent (e.g. a plugin-restricted query).
- *
- * @since 0.8.1
  */
 function buildCommentsCell( row: PostListItem ): HTMLElement {
 	const cell = document.createElement( 'span' );
-	cell.className = 'desktop-mode-posts__comments';
+	cell.className = 'os-posts__comments';
 	Object.assign( cell.style, {
 		display: 'inline-flex',
 		alignItems: 'center',
@@ -783,13 +664,13 @@ function buildCommentsCell( row: PostListItem ): HTMLElement {
 	} as Partial< CSSStyleDeclaration > );
 
 	const count =
-		typeof row.desktop_mode_comment_count === 'number'
-			? row.desktop_mode_comment_count
+		typeof row.openstation_comment_count === 'number'
+			? row.openstation_comment_count
 			: null;
 
 	if ( count === null ) {
 		cell.textContent = '—';
-		cell.style.color = 'var(--wp-admin-theme-fg-muted, #8c8f94)';
+		cell.style.color = 'var(--os-ui-fg-muted, #8c8f94)';
 		return cell;
 	}
 
@@ -803,13 +684,13 @@ function buildCommentsCell( row: PostListItem ): HTMLElement {
 		color:
 			count > 0
 				? 'var(--wp-admin-theme-color, #2271b1)'
-				: 'var(--wp-admin-theme-fg-muted, #8c8f94)',
+				: 'var(--os-ui-fg-muted, #8c8f94)',
 	} as Partial< CSSStyleDeclaration > );
 
 	const label = document.createElement( 'span' );
 	label.textContent = String( count );
 	if ( count === 0 ) {
-		label.style.color = 'var(--wp-admin-theme-fg-muted, #8c8f94)';
+		label.style.color = 'var(--os-ui-fg-muted, #8c8f94)';
 	}
 
 	cell.appendChild( icon );
@@ -833,9 +714,9 @@ interface FilterTagOption {
 }
 
 /**
- * Mount or refresh a `<wpd-multiselect>` inside a column's filter
+ * Mount or refresh a `<os-multiselect>` inside a column's filter
  * cell. The component owns the trigger button + popover; we just
- * keep its `<wpd-option>` children + `value` in sync with the
+ * keep its `<os-option>` children + `value` in sync with the
  * fetched list and the column's current filter value.
  *
  * Idempotent — first call mounts the picker + binds the change
@@ -845,14 +726,14 @@ interface FilterTagOption {
  * @param host            The `<th>` cell the column owns.
  * @param ctx             Filter context.
  * @param ctx.value       Current comma-joined ids.
- * @param ctx.setValue    Setter that re-emits `wpd-table-filter-change`.
+ * @param ctx.setValue    Setter that re-emits `os-table-filter-change`.
  * @param all             Full option list (server-fetched at mount).
  * @param opts            Display + behaviour options.
  * @param opts.label      Placeholder shown when no option is selected.
  * @param opts.ariaLabel  Accessible label for the trigger.
  * @param opts.dataKey    Optional data-key attribute for DOM lookups.
  * @param opts.hasMore    Initial value for the multiselect's hasMore.
- * @param opts.onLoadMore Callback fired on `wpd-multiselect-load-more`.
+ * @param opts.onLoadMore Callback fired on `os-multiselect-load-more`.
  */
 function renderMultiSelectFilter(
 	host: HTMLTableCellElement,
@@ -878,7 +759,7 @@ function renderMultiSelectFilter(
 			more: ReadonlyArray< { value: string; label: string } >,
 		) => void;
 	};
-	const HOST_KEY = 'wpdPostsFilterMounted';
+	const HOST_KEY = 'osPostsFilterMounted';
 	type MountedState = {
 		picker: MultiselectEl;
 		listSig: string;
@@ -909,7 +790,7 @@ function renderMultiSelectFilter(
 		return;
 	}
 
-	const picker = document.createElement( 'wpd-multiselect' ) as MultiselectEl;
+	const picker = document.createElement( 'os-multiselect' ) as MultiselectEl;
 	picker.setAttribute( 'placeholder', opts.label );
 	picker.setAttribute( 'aria-label', opts.ariaLabel );
 	picker.setAttribute( 'data-noclick', '' );
@@ -921,7 +802,7 @@ function renderMultiSelectFilter(
 	picker.items = optionsForPicker;
 	picker.hasMore = !! opts.hasMore;
 
-	picker.addEventListener( 'wpd-pick', ( e: Event ) => {
+	picker.addEventListener( 'os-pick', ( e: Event ) => {
 		const detail = ( e as CustomEvent< { value: string } > ).detail;
 		const next = detail?.value ?? '';
 		ctx.value = next;
@@ -930,7 +811,7 @@ function renderMultiSelectFilter(
 
 	if ( opts.onLoadMore ) {
 		const onLoadMore = opts.onLoadMore;
-		picker.addEventListener( 'wpd-multiselect-load-more', () => {
+		picker.addEventListener( 'os-multiselect-load-more', () => {
 			picker.loadingMore = true;
 			onLoadMore();
 		} );
@@ -961,16 +842,16 @@ function mountKebabColumnToggles(
 	repaintColumns: () => void,
 	client: PostsWindowClient,
 ): { refresh: () => void; dispose: () => void } | null {
-	const winEl = body.closest( '.desktop-mode-window' ) as HTMLElement | null;
+	const winEl = body.closest( '.os-window' ) as HTMLElement | null;
 	const panel = winEl?.querySelector(
-		'.desktop-mode-window__menu-panel',
+		'.os-window__menu-panel',
 	) as HTMLElement | null;
 	if ( ! panel ) {
 		return null;
 	}
 
-	const SECTION_CLASS = 'desktop-mode-posts-window__menu-columns';
-	const ITEM_CLASS = 'desktop-mode-posts-window__menu-column-item';
+	const SECTION_CLASS = 'os-posts-window__menu-columns';
+	const ITEM_CLASS = 'os-posts-window__menu-column-item';
 	const VALUE_PREFIX = 'desktop-mode-posts-column:';
 
 	// Idempotent — if the user closes and re-opens the window without
@@ -995,10 +876,10 @@ function mountKebabColumnToggles(
 
 	const itemEls = new Map< string, HTMLElement >();
 	for ( const col of togglable ) {
-		const item = document.createElement( 'wpd-menu-item' );
+		const item = document.createElement( 'os-menu-item' );
 		item.setAttribute( 'role', 'menuitemcheckbox' );
 		item.setAttribute( 'value', VALUE_PREFIX + col.key );
-		item.classList.add( 'desktop-mode-window__menu-item' );
+		item.classList.add( 'os-window__menu-item' );
 		item.classList.add( ITEM_CLASS );
 		item.textContent = col.label || col.key;
 		panel.appendChild( item );
@@ -1036,7 +917,7 @@ function mountKebabColumnToggles(
 			hidden.add( key );
 		}
 		const next = Array.from( hidden ).sort();
-		const api = window.wp?.desktop;
+		const api = window.wp?.os;
 		if ( api && typeof api.updateOsSettings === 'function' ) {
 			// Attribute the in-flight save to the Posts window so the
 			// title-bar activity dot blinks on this window, not on the
@@ -1049,12 +930,12 @@ function mountKebabColumnToggles(
 		paintChecked();
 		repaintColumns();
 	};
-	panel.addEventListener( 'wpd-menu-item-click', onClick );
+	panel.addEventListener( 'os-menu-item-click', onClick );
 
 	return {
 		refresh: paintChecked,
 		dispose: () => {
-			panel.removeEventListener( 'wpd-menu-item-click', onClick );
+			panel.removeEventListener( 'os-menu-item-click', onClick );
 			sectionLabel.remove();
 			for ( const el of itemEls.values() ) {
 				el.remove();
@@ -1066,7 +947,7 @@ function mountKebabColumnToggles(
 
 /**
  * Default status segments — the segmented control above the table.
- * Plugins customize via `desktop_mode.postsWindow.statusSegments`.
+ * Plugins customize via `openstation.postsWindow.statusSegments`.
  */
 function defaultStatusSegments(): StatusSegment[] {
 	return [
@@ -1082,19 +963,40 @@ function defaultStatusSegments(): StatusSegment[] {
 /**
  * Default bulk actions — the buttons rendered in the bulk bar when
  * one or more rows are selected. Plugins extend via
- * `desktop_mode.postsWindow.bulkActions`. The shipped action is
+ * `openstation.postsWindow.bulkActions`. The shipped action is
  * "Move to trash"; remove it (return an empty array, or filter it
  * out by id) for read-only views.
  */
 function defaultBulkActions( client: PostsWindowClient ): BulkAction[] {
+	const isPages = windowMode( client ) === 'pages';
 	return [
 		{
 			id: 'trash',
 			label: __( 'Move to trash' ),
 			icon: 'dashicons-trash',
 			variant: 'danger',
-			/* translators: %d: row count. */
-			confirm: __( 'Move %d post(s) to the trash?' ),
+			confirm: ( count: number ) => {
+				if ( isPages ) {
+					return sprintf(
+						/* translators: %d: row count. */
+						_n(
+							'Move %d page to the trash?',
+							'Move %d pages to the trash?',
+							count,
+						),
+						count,
+					);
+				}
+				return sprintf(
+					/* translators: %d: row count. */
+					_n(
+						'Move %d post to the trash?',
+						'Move %d posts to the trash?',
+						count,
+					),
+					count,
+				);
+			},
 			run: async ( ids, ctx ) => {
 				// Don't try to trash rows already in trash — a `DELETE`
 				// without `force` would hard-delete them.
@@ -1115,9 +1017,9 @@ function defaultBulkActions( client: PostsWindowClient ): BulkAction[] {
 					console.error( '[posts-window] some trashes failed', errors );
 				}
 				const okIds = results.filter( ( r ) => r.ok ).map( ( r ) => r.id );
-				const api = window.wp?.desktop;
+				const api = window.wp?.os;
 				if ( api && typeof api.broadcast === 'function' ) {
-					api.broadcast( 'desktop-mode.post.changed', {
+					api.broadcast( 'os.post.changed', {
 						source: 'posts-window',
 						action: 'trashed',
 						ids: okIds,
@@ -1228,11 +1130,11 @@ function buildTitleCell( row: PostListItem, client: PostsWindowClient ): HTMLEle
 	titleRow.appendChild( link );
 
 	// Lock badge — another user is editing this row right now. Read
-	// the `desktop_mode_lock` REST field surfaced by My WordPress'
+	// the `openstation_lock` REST field surfaced by My WordPress'
 	// `lock.php`. Same affordance the My WordPress folder window
 	// uses, scoped to the table-row context (smaller, alongside the
 	// status badge instead of overlaying the icon).
-	const lock = row.desktop_mode_lock ?? null;
+	const lock = row.openstation_lock ?? null;
 	if ( lock ) {
 		const lockBadge = document.createElement( 'span' );
 		lockBadge.style.cssText = [
@@ -1250,7 +1152,7 @@ function buildTitleCell( row: PostListItem, client: PostsWindowClient ): HTMLEle
 		].join( ';' );
 		const lockIcon = document.createElement( 'span' );
 		lockIcon.setAttribute( 'aria-hidden', 'true' );
-		// `<wpd-table>` cells live inside shadow DOM. Document-level
+		// `<os-table>` cells live inside shadow DOM. Document-level
 		// CSS rules — `.dashicons { font-family: dashicons }` and
 		// `.dashicons-lock:before { content: "\f160" }` — DO NOT pierce
 		// that boundary, so the standard `class="dashicons dashicons-lock"`
@@ -1379,8 +1281,6 @@ function buildTitleCell( row: PostListItem, client: PostsWindowClient ): HTMLEle
 
 /**
  * Render a small inline assignment badge (Front page / Posts page).
- *
- * @since 0.8.1
  */
 function buildAssignmentBadge(
 	label: string,
@@ -1420,13 +1320,13 @@ function buildAuthorCell( row: PostListItem ): HTMLElement {
 	wrap.style.cssText =
 		'display:inline-flex;align-items:center;gap:8px;min-width:0;';
 
-	// `<wpd-avatar>` — the framework component: initials fallback,
+	// `<os-avatar>` — the framework component: initials fallback,
 	// hue-by-name, the cursor-tracking 3D hover effect. We probe the
 	// Gravatar URL via the shared helper so emails with no registered
 	// avatar drop straight to initials instead of the mystery-person
 	// silhouette — and the console stays clean (the helper uses a
 	// canvas-alpha trick instead of provoking 404s).
-	const avatar = document.createElement( 'wpd-avatar' );
+	const avatar = document.createElement( 'os-avatar' );
 	avatar.setAttribute( 'size', '24' );
 	if ( a.name ) {
 		avatar.setAttribute( 'name', a.name );
@@ -1448,7 +1348,7 @@ function buildAuthorCell( row: PostListItem ): HTMLElement {
 }
 
 /**
- * Build the Tags column cell — a `<wpd-tag-input>` per row with
+ * Build the Tags column cell — a `<os-tag-input>` per row with
  * autocomplete suggestions, free-form creation, and optimistic
  * persistence to `/wp/v2/posts/{id}` (`tags` field).
  *
@@ -1465,7 +1365,7 @@ function buildAuthorCell( row: PostListItem ): HTMLElement {
  *     fine — each gets its own term id.
  *   - The current `tags`/`_embedded` on the row stays the source of
  *     truth between paints; the cell cache (memoCell) keeps the
- *     same `<wpd-tag-input>` instance across selection-only
+ *     same `<os-tag-input>` instance across selection-only
  *     repaints, so its open state and pending chips don't reset.
  */
 function buildTagsCell( row: PostListItem, client: PostsWindowClient ): HTMLElement {
@@ -1473,7 +1373,7 @@ function buildTagsCell( row: PostListItem, client: PostsWindowClient ): HTMLElem
 	wrap.style.cssText =
 		'display:inline-flex;align-items:center;width:100%;min-width:0;';
 
-	const picker = document.createElement( 'wpd-tag-input' ) as WpdTagInput;
+	const picker = document.createElement( 'os-tag-input' ) as OsTagInput;
 	picker.setAttribute( 'creatable', '' );
 	picker.setAttribute( 'removable', '' );
 	picker.setAttribute( 'min-query', '0' );
@@ -1483,7 +1383,7 @@ function buildTagsCell( row: PostListItem, client: PostsWindowClient ): HTMLElem
 
 	// Seed from the row's embedded terms. `_embedded['wp:term'][1]`
 	// is the post_tag group; `termRecordsOf` does the lookup.
-	const seed: WpdTagItem[] = termRecordsOf( row, 'post_tag' ).map( ( t ) => ( {
+	const seed: OsTagItem[] = termRecordsOf( row, 'post_tag' ).map( ( t ) => ( {
 		id: t.id,
 		label: t.name,
 	} ) );
@@ -1503,12 +1403,12 @@ function buildTagsCell( row: PostListItem, client: PostsWindowClient ): HTMLElem
 		lastQuery: '',
 	};
 
-	const setValue = ( next: WpdTagItem[] ): void => {
+	const setValue = ( next: OsTagItem[] ): void => {
 		cellState.tags = next.slice();
 		picker.value = next;
 	};
 
-	picker.addEventListener( 'wpd-tag-suggest', ( e: Event ) => {
+	picker.addEventListener( 'os-tag-suggest', ( e: Event ) => {
 		const detail = ( e as CustomEvent< { query: string } > ).detail;
 		const query = detail?.query ?? '';
 		cellState.lastQuery = query;
@@ -1552,13 +1452,13 @@ function buildTagsCell( row: PostListItem, client: PostsWindowClient ): HTMLElem
 		}, 200 ) as unknown as number;
 	} );
 
-	picker.addEventListener( 'wpd-tag-add', async ( e: Event ) => {
-		const detail = ( e as CustomEvent< { tag: WpdTagItem; isNew: boolean } > )
+	picker.addEventListener( 'os-tag-add', async ( e: Event ) => {
+		const detail = ( e as CustomEvent< { tag: OsTagItem; isNew: boolean } > )
 			.detail;
 		if ( ! detail?.tag ) {
 			return;
 		}
-		const optimistic: WpdTagItem = {
+		const optimistic: OsTagItem = {
 			id: detail.tag.id,
 			label: detail.tag.label,
 			pending: true,
@@ -1605,9 +1505,9 @@ function buildTagsCell( row: PostListItem, client: PostsWindowClient ): HTMLElem
 
 			// Cross-window broadcast so other listeners (e.g. a Tags
 			// admin window) can resync.
-			const api = window.wp?.desktop;
+			const api = window.wp?.os;
 			if ( api && typeof api.broadcast === 'function' ) {
-				api.broadcast( 'desktop-mode.post.changed', {
+				api.broadcast( 'os.post.changed', {
 					source: 'posts-window',
 					action: 'tagged',
 					ids: [ row.id ],
@@ -1633,8 +1533,8 @@ function buildTagsCell( row: PostListItem, client: PostsWindowClient ): HTMLElem
 		}
 	} );
 
-	picker.addEventListener( 'wpd-tag-remove', async ( e: Event ) => {
-		const detail = ( e as CustomEvent< { tag: WpdTagItem } > ).detail;
+	picker.addEventListener( 'os-tag-remove', async ( e: Event ) => {
+		const detail = ( e as CustomEvent< { tag: OsTagItem } > ).detail;
 		if ( ! detail?.tag ) {
 			return;
 		}
@@ -1656,9 +1556,9 @@ function buildTagsCell( row: PostListItem, client: PostsWindowClient ): HTMLElem
 				previous.filter( ( t ) => t.label !== removed.label ),
 			);
 
-			const api = window.wp?.desktop;
+			const api = window.wp?.os;
 			if ( api && typeof api.broadcast === 'function' ) {
-				api.broadcast( 'desktop-mode.post.changed', {
+				api.broadcast( 'os.post.changed', {
 					source: 'posts-window',
 					action: 'untagged',
 					ids: [ row.id ],
@@ -1684,11 +1584,11 @@ function buildTagsCell( row: PostListItem, client: PostsWindowClient ): HTMLElem
 
 /**
  * Surface a tag-mutation error. Prefers the shell's toast surface
- * (`wp.desktop.showToast`) when available, falls back to console.
+ * (`wp.os.showToast`) when available, falls back to console.
  */
 function showTagError( title: string, err: unknown ): void {
 	const reason = err instanceof Error ? err.message : String( err );
-	const api = window.wp?.desktop;
+	const api = window.wp?.os;
 	if ( api && typeof api.showToast === 'function' ) {
 		api.showToast( {
 			message: `${ title } ${ reason }`.trim(),
@@ -1701,7 +1601,7 @@ function showTagError( title: string, err: unknown ): void {
 }
 
 /**
- * Categories cell — a `<wpd-category-picker>` per row, hooked to the
+ * Categories cell — a `<os-category-picker>` per row, hooked to the
  * shared category tree cache (one fetch per window-open across every
  * row's picker) with optimistic UX + REST roll-back on failure.
  *
@@ -1717,13 +1617,13 @@ function showTagError( title: string, err: unknown ): void {
  */
 function buildCategoriesCell( row: PostListItem, client: PostsWindowClient ): HTMLElement {
 	const wrap = document.createElement( 'span' );
-	wrap.className = 'wpd-cat-cell-dropzone';
+	wrap.className = 'os-cat-cell-dropzone';
 	wrap.style.cssText =
 		'display:inline-flex;align-items:center;width:100%;min-width:0;border-radius:6px;transition:background-color 0.12s ease, box-shadow 0.12s ease;';
 
 	const picker = document.createElement(
-		'wpd-category-picker',
-	) as WpdCategoryPicker;
+		'os-category-picker',
+	) as OsCategoryPicker;
 	picker.setAttribute( 'placeholder', __( 'Search categories…' ) );
 	picker.setAttribute( 'add-label', __( 'Categorize' ) );
 	picker.setAttribute( 'data-noclick', '' );
@@ -1739,7 +1639,7 @@ function buildCategoriesCell( row: PostListItem, client: PostsWindowClient ): HT
 	// terms so the first-paint shows the chips with proper names
 	// even before the global tree fetch resolves. The first
 	// `openPicker()` will replace `items` with the full tree.
-	const seedItems: WpdCategoryItem[] = termRecordsOf( row, 'category' ).map(
+	const seedItems: OsCategoryItem[] = termRecordsOf( row, 'category' ).map(
 		( t ) => ( { id: t.id, name: t.name, parent: 0 } ),
 	);
 	picker.items = seedItems;
@@ -1773,7 +1673,7 @@ function buildCategoriesCell( row: PostListItem, client: PostsWindowClient ): HT
 			console.warn( '[posts-window] category tree fetch failed', err );
 		} );
 
-	picker.addEventListener( 'wpd-categories-open', () => {
+	picker.addEventListener( 'os-categories-open', () => {
 		// The tree is already on its way (or arrived) thanks to
 		// the eager prefetch above. If it landed before the
 		// picker opened, no-op; otherwise prime via the cached
@@ -1783,7 +1683,7 @@ function buildCategoriesCell( row: PostListItem, client: PostsWindowClient ): HT
 	} );
 
 	picker.addEventListener(
-		'wpd-categories-create',
+		'os-categories-create',
 		async ( e: Event ) => {
 			const detail = ( e as CustomEvent< { name: string; parent: number } > )
 				.detail;
@@ -1802,7 +1702,7 @@ function buildCategoriesCell( row: PostListItem, client: PostsWindowClient ): HT
 				// Splice the new term into this picker's items so
 				// the user sees it immediately under the parent
 				// they typed it into.
-				const nextItems: WpdCategoryItem[] = [
+				const nextItems: OsCategoryItem[] = [
 					...picker.items,
 					{
 						id: created.id,
@@ -1812,7 +1712,7 @@ function buildCategoriesCell( row: PostListItem, client: PostsWindowClient ): HT
 				];
 				picker.items = nextItems;
 				// Auto-select the newly-created term so the chain
-				// updates instantly. The `wpd-categories-change`
+				// updates instantly. The `os-categories-change`
 				// handler below picks up the persistence + REST
 				// round-trip.
 				const nextValue = [ ...cellState.categoryIds, created.id ];
@@ -1821,9 +1721,9 @@ function buildCategoriesCell( row: PostListItem, client: PostsWindowClient ): HT
 				// Persist the post's new category set.
 				try {
 					await client.updatePostCategories( row.id, nextValue );
-					const api = window.wp?.desktop;
+					const api = window.wp?.os;
 					if ( api && typeof api.broadcast === 'function' ) {
-						api.broadcast( 'desktop-mode.post.changed', {
+						api.broadcast( 'os.post.changed', {
 							source: 'posts-window',
 							action: 'categorized',
 							ids: [ row.id ],
@@ -1843,7 +1743,7 @@ function buildCategoriesCell( row: PostListItem, client: PostsWindowClient ): HT
 		},
 	);
 
-	picker.addEventListener( 'wpd-categories-change', async ( e: Event ) => {
+	picker.addEventListener( 'os-categories-change', async ( e: Event ) => {
 		const detail = ( e as CustomEvent< { value: number[] } > ).detail;
 		if ( ! detail || ! Array.isArray( detail.value ) ) {
 			return;
@@ -1855,9 +1755,9 @@ function buildCategoriesCell( row: PostListItem, client: PostsWindowClient ): HT
 		try {
 			await client.updatePostCategories( row.id, next );
 
-			const api = window.wp?.desktop;
+			const api = window.wp?.os;
 			if ( api && typeof api.broadcast === 'function' ) {
-				api.broadcast( 'desktop-mode.post.changed', {
+				api.broadcast( 'os.post.changed', {
 					source: 'posts-window',
 					action: 'categorized',
 					ids: [ row.id ],
@@ -1877,17 +1777,17 @@ function buildCategoriesCell( row: PostListItem, client: PostsWindowClient ): HT
 	// Frontend], NOT Tech). The drop target merges those ids into
 	// the receiving row's category set.
 
-	picker.addEventListener( 'wpd-categories-delete', async ( e: Event ) => {
+	picker.addEventListener( 'os-categories-delete', async ( e: Event ) => {
 		const detail = ( e as CustomEvent< { id: number; name: string } > )
 			.detail;
 		if ( ! detail || typeof detail.id !== 'number' ) {
 			return;
 		}
-		// Confirm via the framework's `<wpd-confirm-dialog>`
-		// (proxied through `wp.desktop.confirm`). WP cascades
+		// Confirm via the framework's `<os-confirm-dialog>`
+		// (proxied through `wp.os.confirm`). WP cascades
 		// posts that previously belonged to the deleted term
 		// back to Uncategorized automatically.
-		const ok = await wpdConfirmGlobal( {
+		const ok = await osConfirmGlobal( {
 			title: __( 'Delete category?' ),
 			message: sprintf(
 				/* translators: %s: category name. */
@@ -1904,7 +1804,7 @@ function buildCategoriesCell( row: PostListItem, client: PostsWindowClient ): HT
 		}
 		try {
 			await client.deleteTerm( 'categories', detail.id );
-			// `deleteTerm` already broadcasts desktop-mode.term.changed,
+			// `deleteTerm` already broadcasts os.term.changed,
 			// which clears the cache and pushes the fresh tree to
 			// every live picker. We just need to drop the deleted
 			// id from THIS row's value if it was assigned.
@@ -1930,7 +1830,7 @@ function buildCategoriesCell( row: PostListItem, client: PostsWindowClient ): HT
 		}
 	} );
 
-	picker.addEventListener( 'wpd-chain-segment-dragstart', ( e: Event ) => {
+	picker.addEventListener( 'os-chain-segment-dragstart', ( e: Event ) => {
 		const detail = ( e as CustomEvent< {
 			segments: Array< { id?: number | string } >;
 			dragEvent: DragEvent;
@@ -1949,7 +1849,7 @@ function buildCategoriesCell( row: PostListItem, client: PostsWindowClient ): HT
 		}
 		const dt = detail.dragEvent.dataTransfer;
 		dt.setData(
-			'application/x-desktop-mode-categories',
+			'application/x-os-categories',
 			JSON.stringify( {
 				ids,
 				source: 'posts-window',
@@ -1968,7 +1868,7 @@ function buildCategoriesCell( row: PostListItem, client: PostsWindowClient ): HT
 	// pointer is genuinely outside the cell.
 	let dropEnterCount = 0;
 	const setDropTargetActive = ( on: boolean ): void => {
-		// Inlined because the cell renders inside <wpd-table>'s shadow
+		// Inlined because the cell renders inside <os-table>'s shadow
 		// DOM, which document stylesheets can't reach. Tinted in the
 		// admin theme color via `--wp-admin-theme-color` with a fallback.
 		if ( on ) {
@@ -1989,7 +1889,7 @@ function buildCategoriesCell( row: PostListItem, client: PostsWindowClient ): HT
 		// `types` is a DOMStringList in some engines; spread + includes
 		// works against both DOMStringList and string[].
 		return Array.from( types ).includes(
-			'application/x-desktop-mode-categories',
+			'application/x-os-categories',
 		);
 	};
 	wrap.addEventListener( 'dragenter', ( e: DragEvent ) => {
@@ -2025,7 +1925,7 @@ function buildCategoriesCell( row: PostListItem, client: PostsWindowClient ): HT
 		}
 		e.preventDefault();
 		const json = e.dataTransfer?.getData(
-			'application/x-desktop-mode-categories',
+			'application/x-os-categories',
 		);
 		if ( ! json ) {
 			return;
@@ -2069,9 +1969,9 @@ function buildCategoriesCell( row: PostListItem, client: PostsWindowClient ): HT
 		setValue( merged );
 		try {
 			await client.updatePostCategories( row.id, merged );
-			const api = window.wp?.desktop;
+			const api = window.wp?.os;
 			if ( api && typeof api.broadcast === 'function' ) {
-				api.broadcast( 'desktop-mode.post.changed', {
+				api.broadcast( 'os.post.changed', {
 					source: 'posts-window',
 					action: 'categorized',
 					ids: [ row.id ],
@@ -2094,9 +1994,9 @@ function buildCategoriesCell( row: PostListItem, client: PostsWindowClient ): HT
  * and is intentionally re-populated on the next open so a category
  * created elsewhere shows up without an F5).
  */
-let _categoryTreePromise: Promise< WpdCategoryItem[] > | null = null;
+let _categoryTreePromise: Promise< OsCategoryItem[] > | null = null;
 
-function getCategoriesTree( client: PostsWindowClient ): Promise< WpdCategoryItem[] > {
+function getCategoriesTree( client: PostsWindowClient ): Promise< OsCategoryItem[] > {
 	if ( ! _categoryTreePromise ) {
 		_categoryTreePromise = client.fetchAllCategories().then(
 			( terms: CategoryTerm[] ) =>
@@ -2125,11 +2025,11 @@ function clearCategoryTreeCache(): void {
  * iteration via `isConnected`. We don't need a WeakSet because
  * we explicitly drop dead entries when we walk the set.
  */
-const _activePickers = new Set< WpdCategoryPicker >();
+const _activePickers = new Set< OsCategoryPicker >();
 
 /**
  * Re-fetch the category tree from scratch and push it onto every
- * live picker. Called from the `desktop-mode.term.changed`
+ * live picker. Called from the `os.term.changed`
  * subscriber after `clearCategoryTreeCache()`. Without this, a
  * category created elsewhere (mindmap, terms tab, another tab)
  * isn't visible in any row's picker — neither in the popover tree
@@ -2161,7 +2061,7 @@ function broadcastFreshCategoryTreeToPickers( client: PostsWindowClient ): void 
  * sync the tree onto it without spinning. Used when a sibling
  * picker primed the cache before this one opened.
  */
-async function primePickerFromCache( picker: WpdCategoryPicker ): Promise< void > {
+async function primePickerFromCache( picker: OsCategoryPicker ): Promise< void > {
 	if ( ! _categoryTreePromise ) {
 		return;
 	}
@@ -2176,8 +2076,13 @@ function buildDateCell( row: PostListItem ): HTMLElement {
 	const wrap = document.createElement( 'span' );
 	wrap.style.cssText =
 		'display:flex;flex-direction:column;line-height:1.2;';
-	const time = document.createElement( 'wpd-relative-time' );
-	time.setAttribute( 'datetime', row.date );
+	const time = document.createElement( 'os-relative-time' );
+	// `date_gmt`, not `date`. The two arrive in the same shape and
+	// neither carries a timezone designator, but `date` is in the
+	// site's timezone — and `<os-relative-time>` reads an undesignated
+	// value as UTC, so a site-local one lands off by the site offset.
+	// The sort comparator on this column already uses `date_gmt`.
+	time.setAttribute( 'datetime', row.date_gmt || row.date );
 	wrap.appendChild( time );
 	if ( row.modified_gmt && row.modified_gmt !== row.date_gmt ) {
 		const meta = document.createElement( 'span' );
@@ -2222,7 +2127,7 @@ function buildSubRow( row: PostListItem ): Node {
 		// then strip tags — we want plain text in the sub-row, not
 		// arbitrary nested elements.
 		const stripped = raw.replace( /<[^>]+>/g, '' ).trim();
-		excerpt.textContent = stripped || __( '(no excerpt)' );
+		excerpt.textContent = decodeHTML( stripped ) || __( '(no excerpt)' );
 	} else {
 		excerpt.textContent = __( '(no excerpt)' );
 		excerpt.style.color = '#a7aaad';
@@ -2243,10 +2148,10 @@ function buildSubRow( row: PostListItem ): Node {
  * the WordPress logo loader disappears before the table has rows,
  * yielding the brief flash of empty body the user reported.
  *
- * Cleanup is handled via the `desktop-mode-window-closed` document
+ * Cleanup is handled via the `os-window-closed` document
  * event so the shell doesn't need a teardown return — matches the
  * recycle-bin pattern and lets us merge the shared
- * `Window.desktopModeNativeWindows` global type cleanly across both
+ * `Window.openStationNativeWindows` global type cleanly across both
  * modules.
  */
 export async function renderPostsWindow(
@@ -2254,27 +2159,25 @@ export async function renderPostsWindow(
 	client: PostsWindowClient,
 ): Promise< void > {
 	const root = body.querySelector< HTMLElement >( ROOT );
-	const table = body.querySelector< WpdTable< PostListItem > >( TABLE );
+	const table = body.querySelector< OsTable< PostListItem > >( TABLE );
 	if ( ! root || ! table ) {
 		return;
 	}
-
-	maybeShowIntro( client );
 
 	// Term-management tabs (Categories + Tags) — lazy-mounted on first
 	// activation so cold-load of the Posts window never pays for them
 	// when the user just wants to scan the post list.
 	const catsHost = body.querySelector< HTMLElement >(
-		'[data-desktop-mode-posts-cats-host]',
+		'[data-os-posts-cats-host]',
 	);
 	const tagsHost = body.querySelector< HTMLElement >(
-		'[data-desktop-mode-posts-tags-host]',
+		'[data-os-posts-tags-host]',
 	);
 	let catsTeardown: ( () => void ) | null = null;
 	let tagsTeardown: ( () => void ) | null = null;
-	const tabsEl = body.querySelector( '.desktop-mode-posts__tabs' );
+	const tabsEl = body.querySelector( '.os-posts__tabs' );
 	if ( tabsEl ) {
-		tabsEl.addEventListener( 'wpd-tab-change', ( e: Event ) => {
+		tabsEl.addEventListener( 'os-tab-change', ( e: Event ) => {
 			const detail = ( e as CustomEvent< { value: string } > ).detail;
 			const value = detail?.value;
 			// Categories = Pixi mindmap. The mind-map IS the view; no
@@ -2302,6 +2205,9 @@ export async function renderPostsWindow(
 	}
 
 	const cfg = client.getConfig();
+	// Every mode-dependent string below reads this. `windowMode()` is
+	// for the call sites that have no resolved config to read.
+	const isPagesMode = cfg.mode === 'pages';
 	const view: ViewState = {
 		page: 1,
 		perPage: Math.max( 1, cfg.defaultPerPage || 20 ),
@@ -2316,13 +2222,13 @@ export async function renderPostsWindow(
 
 	// Per-window cell-node cache. Cleared on every `refresh()`; lets
 	// repaints triggered by selection / expand / sort-state cycles
-	// reuse the same `<img>` / `<wpd-relative-time>` / chip nodes
+	// reuse the same `<img>` / `<os-relative-time>` / chip nodes
 	// instead of rebuilding them — the original "avatar blink on
 	// row select" bug.
 	const cellCache: CellCache = new Map();
 
 	// Author + tag filter options live on the column descriptors and
-	// drive the `<wpd-table>` filter row's dropdowns. We seed them
+	// drive the `<os-table>` filter row's dropdowns. We seed them
 	// empty so the first paint doesn't block on REST, then re-paint
 	// the columns once the lists arrive — same shape as the category-
 	// tree priming pattern below.
@@ -2364,25 +2270,29 @@ export async function renderPostsWindow(
 	if ( statusHost ) {
 		statusHost.replaceChildren();
 		for ( const seg of statusSegments ) {
-			const el = document.createElement( 'wpd-segment' );
+			const el = document.createElement( 'os-segment' );
 			el.setAttribute( 'value', seg.value );
 			el.textContent = seg.label;
 			statusHost.appendChild( el );
 		}
 		// Mirror the initial view value so the right segment paints
 		// as selected on first frame (parent's `value` attribute is
-		// what `<wpd-segmented>` reads — see its source).
+		// what `<os-segmented>` reads — see its source).
 		statusHost.setAttribute( 'value', view.status );
 	}
 
 	const updatePager = (): void => {
 		if ( indicator ) {
 			if ( totalRows === 0 ) {
-				indicator.textContent = __( 'No posts' );
+				indicator.textContent = isPagesMode
+					? __( 'No pages' )
+					: __( 'No posts' );
 			} else {
+				const fmt = isPagesMode
+					? /* translators: 1: current page, 2: total pages, 3: total pages found. */ __( 'Page %1$d of %2$d · %3$d pages' )
+					: /* translators: 1: current page, 2: total pages, 3: total posts. */ __( 'Page %1$d of %2$d · %3$d posts' );
 				indicator.textContent = sprintf(
-					/* translators: 1: current page, 2: total pages, 3: total posts. */
-					__( 'Page %1$d of %2$d · %3$d posts' ),
+					fmt,
 					view.page,
 					Math.max( totalPages, 1 ),
 					totalRows,
@@ -2415,7 +2325,7 @@ export async function renderPostsWindow(
 	};
 
 	// A query change (page, search, status, sort, column filters)
-	// replaces the result set, but `<wpd-table>` keeps selected ids
+	// replaces the result set, but `<os-table>` keeps selected ids
 	// across `data` reassignment — and bulk actions consume the raw
 	// selection (`ctx.getSelectedIds()`), not the visible rows. Left
 	// alone, off-page ids ride silently into the next bulk action.
@@ -2503,7 +2413,7 @@ export async function renderPostsWindow(
 				} );
 			}
 			document.dispatchEvent(
-				new CustomEvent( 'desktop-mode-posts-window-data-loaded', {
+				new CustomEvent( 'os-posts-window-data-loaded', {
 					detail: {
 						items: result.items,
 						total: result.total,
@@ -2538,7 +2448,7 @@ export async function renderPostsWindow(
 
 	// --- Toolbar wiring ---------------------------------------------------
 
-	root.querySelector( STATUS )?.addEventListener( 'wpd-pick', ( e: Event ) => {
+	root.querySelector( STATUS )?.addEventListener( 'os-pick', ( e: Event ) => {
 		const value = ( e as CustomEvent< { value: string } > ).detail?.value ?? '';
 		view.status = value;
 		goToFirstPage();
@@ -2547,7 +2457,7 @@ export async function renderPostsWindow(
 	} );
 
 	root.querySelector( SEARCH )?.addEventListener(
-		'wpd-input-change',
+		'os-input-change',
 		( e: Event ) => {
 			const value =
 				( e as CustomEvent< { value: string } > ).detail?.value ?? '';
@@ -2573,10 +2483,11 @@ export async function renderPostsWindow(
 			return;
 		}
 		if ( target.closest( NEW_BTN ) ) {
-			const isPages = cfg.mode === 'pages';
 			openAdminUrl( cfg.newPostUrl, {
-				title: isPages ? __( 'Add New Page' ) : __( 'Add New Post' ),
-				icon: isPages ? 'dashicons-admin-page' : 'dashicons-admin-post',
+				title: isPagesMode ? __( 'Add New Page' ) : __( 'Add New Post' ),
+				icon: isPagesMode
+					? 'dashicons-admin-page'
+					: 'dashicons-admin-post',
 			} );
 			return;
 		}
@@ -2629,11 +2540,11 @@ export async function renderPostsWindow(
 
 	// --- Table wiring -----------------------------------------------------
 
-	table.addEventListener( 'wpd-table-selection-change', () => {
+	table.addEventListener( 'os-table-selection-change', () => {
 		updateBulkBar();
 	} );
 
-	table.addEventListener( 'wpd-table-sort-change', ( e: Event ) => {
+	table.addEventListener( 'os-table-sort-change', ( e: Event ) => {
 		const detail = ( e as CustomEvent< { sort: { key: string; direction: 'asc' | 'desc' } | null } > ).detail;
 		if ( ! detail || ! detail.sort ) {
 			view.orderby = 'date';
@@ -2647,8 +2558,8 @@ export async function renderPostsWindow(
 	} );
 
 	// Column filter dropdowns (Author, Tag). The table emits
-	// `wpd-table-filter-change` with the full filter map. The custom
-	// `<wpd-tag-input>` filters serialize selection as comma-joined
+	// `os-table-filter-change` with the full filter map. The custom
+	// `<os-tag-input>` filters serialize selection as comma-joined
 	// ids — we parse them back into number[] for the view + REST
 	// query. A filter change always resets to page 1 so the user
 	// lands on a fresh result set.
@@ -2659,7 +2570,7 @@ export async function renderPostsWindow(
 			.filter( ( n ) => Number.isFinite( n ) && n > 0 );
 	const sameIds = ( a: number[], b: number[] ): boolean =>
 		a.length === b.length && a.every( ( v, i ) => v === b[ i ] );
-	table.addEventListener( 'wpd-table-filter-change', ( e: Event ) => {
+	table.addEventListener( 'os-table-filter-change', ( e: Event ) => {
 		const detail = ( e as CustomEvent< { filters: Record< string, string > } > )
 			.detail;
 		const filters = detail?.filters ?? {};
@@ -2691,13 +2602,21 @@ export async function renderPostsWindow(
 		if ( ids.length === 0 ) {
 			return;
 		}
-		if ( action.confirm ) {
-			const ok = await wpdConfirmGlobal( {
-				message: sprintf(
-					/* translators: %d: row count. */
-					action.confirm,
-					ids.length,
-				),
+		const { confirm } = action;
+		if ( confirm ) {
+			// A function builds the message from the count, which is the
+			// only form `_n()` can be used in. A plain string keeps the
+			// original `%d` interpolation.
+			const message =
+				typeof confirm === 'function'
+					? confirm( ids.length )
+					: sprintf(
+						/* translators: %d: row count. */
+						confirm,
+						ids.length,
+					);
+			const ok = await osConfirmGlobal( {
+				message,
 				danger: true,
 			} );
 			if ( ! ok ) {
@@ -2723,7 +2642,7 @@ export async function renderPostsWindow(
 	// --- Cross-window broadcast ------------------------------------------
 
 	const broadcastUnsubs: Array< () => void > = [];
-	if ( window.wp?.desktop && typeof window.wp.desktop.subscribe === 'function' ) {
+	if ( window.wp?.os && typeof window.wp.os.subscribe === 'function' ) {
 		const onChange = ( payload: unknown ): void => {
 			const detail = payload as { source?: string } | null;
 			// Skip our own emissions — `handleBulkTrash` already
@@ -2734,7 +2653,7 @@ export async function renderPostsWindow(
 			void refresh();
 		};
 		broadcastUnsubs.push(
-			window.wp.desktop.subscribe( 'desktop-mode.post.changed', onChange ),
+			window.wp.os.subscribe( 'os.post.changed', onChange ),
 		);
 		// Term-change subscription. The category picker caches the
 		// full tree per window-open (`_categoryTreePromise`); without
@@ -2757,8 +2676,8 @@ export async function renderPostsWindow(
 			}
 		};
 		broadcastUnsubs.push(
-			window.wp.desktop.subscribe(
-				'desktop-mode.term.changed',
+			window.wp.os.subscribe(
+				'os.term.changed',
 				onTermChange,
 			),
 		);
@@ -2784,7 +2703,7 @@ export async function renderPostsWindow(
 	} );
 
 	// Tags load page-by-page. Most sites fit comfortably in the first
-	// page; the multiselect's `wpd-multiselect-load-more` event
+	// page; the multiselect's `os-multiselect-load-more` event
 	// drives subsequent pages when the user scrolls deep in the
 	// dropdown. We track the last-fetched page + the total so the
 	// load-more handler can short-circuit once we're caught up.
@@ -2834,13 +2753,13 @@ export async function renderPostsWindow(
 	// subscriber fires after every persist).
 	let unsubOsSettings: ( () => void ) | null = null;
 	if (
-		window.wp?.desktop &&
-		typeof window.wp.desktop.subscribeOsSettings === 'function'
+		window.wp?.os &&
+		typeof window.wp.os.subscribeOsSettings === 'function'
 	) {
 		let lastHidden = JSON.stringify(
 			Array.from( getHiddenColumns() ).sort(),
 		);
-		unsubOsSettings = window.wp.desktop.subscribeOsSettings( () => {
+		unsubOsSettings = window.wp.os.subscribeOsSettings( () => {
 			const next = JSON.stringify(
 				Array.from( getHiddenColumns() ).sort(),
 			);
@@ -2865,7 +2784,7 @@ export async function renderPostsWindow(
 		if ( detail?.windowId !== 'desktop-mode-posts' ) {
 			return;
 		}
-		document.removeEventListener( 'desktop-mode-window-closed', onWindowClosed );
+		document.removeEventListener( 'os-window-closed', onWindowClosed );
 		for ( const unsub of broadcastUnsubs ) {
 			try {
 				unsub();
@@ -2888,7 +2807,7 @@ export async function renderPostsWindow(
 		// (categories created / renamed elsewhere show up without an F5).
 		clearCategoryTreeCache();
 	};
-	document.addEventListener( 'desktop-mode-window-closed', onWindowClosed );
+	document.addEventListener( 'os-window-closed', onWindowClosed );
 
 	// Await the first fetch so the shell's loading overlay stays up
 	// until rows are painted. Subsequent refreshes (search, sort,
@@ -2905,14 +2824,14 @@ export async function renderPostsWindow(
 		hooks.doAction( HOOK_ACTION_OPENED, ctx );
 	}
 	document.dispatchEvent(
-		new CustomEvent( 'desktop-mode-posts-window-opened', {
+		new CustomEvent( 'os-posts-window-opened', {
 			detail: ctx,
 		} ),
 	);
 }
 
 /**
- * Build a `<wpd-button>` for a registered bulk action. Wires the
+ * Build a `<os-button>` for a registered bulk action. Wires the
  * confirm prompt + `run()` invocation behind the click handler so
  * the click-handling logic doesn't leak into `renderPostsWindow`
  * (otherwise every plugin-defined action would need a dedicated
@@ -2922,9 +2841,9 @@ function buildBulkActionButton(
 	action: BulkAction,
 	ctx: PostsWindowContext,
 ): HTMLElement {
-	const btn = document.createElement( 'wpd-button' );
+	const btn = document.createElement( 'os-button' );
 	btn.setAttribute( 'variant', action.variant ?? 'secondary' );
-	btn.setAttribute( 'data-desktop-mode-posts-bulk-action', action.id );
+	btn.setAttribute( 'data-os-posts-bulk-action', action.id );
 
 	if ( action.icon ) {
 		const icon = document.createElement( 'span' );
@@ -2959,7 +2878,7 @@ async function runBulkActionFor(
 /**
  * Open an arbitrary admin URL as a chromeless iframe window. Mirrors
  * the path the global link interceptor takes for `<a>` clicks at the
- * shell level — but the table cell anchors live inside the wpd-table
+ * shell level — but the table cell anchors live inside the os-table
  * shadow DOM, where retargeting hides them from `closest('a[href]')`,
  * so we hand the URL to the window manager directly.
  */
@@ -2967,7 +2886,7 @@ function openAdminUrl(
 	url: string,
 	opts: { title?: string; icon?: string } = {},
 ): void {
-	const api = window.wp?.desktop;
+	const api = window.wp?.os;
 	if ( ! api || ! api.windowManager || ! api.deriveWindowId ) {
 		// As a last resort: navigate the whole tab. This should
 		// virtually never happen — the shell exposes both APIs at
@@ -3008,8 +2927,8 @@ function mapColumnToOrderby( key: string ): string {
 	}
 }
 
-const registry = ( window.desktopModeNativeWindows ??
-	( window.desktopModeNativeWindows = {} ) ) as Record<
+const registry = ( window.openStationNativeWindows ??
+	( window.openStationNativeWindows = {} ) ) as Record<
 	string,
 	RenderCallback | undefined
 >;
@@ -3059,14 +2978,17 @@ registry[ 'desktop-mode-users' ] = ( body: HTMLElement ) => {
 // User Edit window — singleton native window opened by row
 // clicks in the Users table (or the URL remap for `user-edit.php
 // ?user_id=N` / `profile.php`). The template is just a
-// `<wpd-user-profile>` element; this render shell resolves the
+// `<os-user-profile>` element; this render shell resolves the
 // target user id from the shared store (with a fallback to the
 // viewer's own id) and sets the `user-id` attribute on the
 // component. Subsequent target changes flip the same attribute,
 // triggering an in-place re-mount.
-registry[ 'desktop-mode-user-edit' ] = ( body: HTMLElement ) => {
+registry[ 'desktop-mode-user-edit' ] = (
+	body: HTMLElement,
+	ctx?: { params?: Record< string, string | number | boolean > },
+) => {
 	const profile = body.querySelector(
-		'wpd-user-profile[data-wpd-user-profile-host]',
+		'os-user-profile[data-os-user-profile-host]',
 	) as HTMLElement | null;
 	if ( ! profile ) {
 		return;
@@ -3074,15 +2996,26 @@ registry[ 'desktop-mode-user-edit' ] = ( body: HTMLElement ) => {
 	void import( './user-edit-target' ).then( ( target ) => {
 		const pending = target.readUserEditTarget();
 		let userId = pending.userId && pending.userId > 0 ? pending.userId : 0;
+		// The window's open-time params, which survive a reload — the
+		// shared store does not. Without this a session restored after
+		// F5 fell straight through to the `currentUserId` fallback and
+		// the window came back showing whoever was logged in rather
+		// than the person the user had open.
+		if ( userId <= 0 ) {
+			const fromParams = Number( ctx?.params?.userId ?? 0 );
+			if ( Number.isFinite( fromParams ) && fromParams > 0 ) {
+				userId = fromParams;
+			}
+		}
 		if ( userId <= 0 ) {
 			try {
 				userId =
 					( window as unknown as {
-						desktopModeWindowConfig?: Record<
+						openStationWindowConfig?: Record<
 							string,
 							{ currentUserId?: number }
 						>;
-					} ).desktopModeWindowConfig?.[ 'desktop-mode-user-edit' ]
+					} ).openStationWindowConfig?.[ 'desktop-mode-user-edit' ]
 						?.currentUserId ?? 0;
 			} catch {
 				userId = 0;

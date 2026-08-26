@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Games hub window styles (Steam-library layout).
+ * OpenStation — Games hub window styles (Steam-library layout).
  *
  * Scoped to `.desktop-mode-games` so the rules can't leak into
  * other windows. Layout: a compact game grid across the top; the
@@ -12,11 +12,11 @@
 	flex-direction: column;
 	height: 100%;
 	width: 100%;
-	background: var( --wpd-surface, #fff );
-	color: var( --wpd-fg, #1d2327 );
+	background: var( --os-ui-surface, #fff );
+	color: var( --os-ui-fg, #1d2327 );
 }
 
-.desktop-mode-games__library {
+.os-games__library {
 	display: flex;
 	flex-direction: column;
 	flex: 1;
@@ -30,7 +30,7 @@
  * Game grid (compact tiles, selection = which detail shows below)
  * ---------------------------------------------------------------- */
 
-.desktop-mode-games__grid {
+.os-games__grid {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 10px;
@@ -40,37 +40,37 @@
 
 /* Empty state (no games registered): centered in the window body
    instead of hugging the grid's top-left corner. */
-.desktop-mode-games__grid:has( wpd-empty-state ) {
+.os-games__grid:has( os-empty-state ) {
 	flex: 1;
 	align-content: center;
 	justify-content: center;
 }
 
-.desktop-mode-games__tile {
+.os-games__tile {
 	display: flex;
 	align-items: center;
 	gap: 10px;
 	padding: 8px 14px 8px 10px;
-	border: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.08 ) );
+	border: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
 	border-radius: 10px;
-	background: var( --wpd-surface, #fff );
+	background: var( --os-ui-surface, #fff );
 	color: inherit;
 	cursor: pointer;
 	text-align: start;
 	transition: box-shadow 0.12s ease, border-color 0.12s ease;
 }
 
-.desktop-mode-games__tile:hover,
-.desktop-mode-games__tile:focus-visible {
+.os-games__tile:hover,
+.os-games__tile:focus-visible {
 	box-shadow: 0 4px 14px rgba( 0, 0, 0, 0.12 );
 }
 
-.desktop-mode-games__tile--selected {
-	border-color: var( --wpd-accent, #2271b1 );
-	box-shadow: inset 0 0 0 1px var( --wpd-accent, #2271b1 );
+.os-games__tile--selected {
+	border-color: var( --os-ui-accent, #2271b1 );
+	box-shadow: inset 0 0 0 1px var( --os-ui-accent, #2271b1 );
 }
 
-.desktop-mode-games__tile-visual {
+.os-games__tile-visual {
 	display: grid;
 	place-items: center;
 	width: 36px;
@@ -78,18 +78,18 @@
 	flex-shrink: 0;
 }
 
-.desktop-mode-games__tile-visual .desktop-mode-games__icon-img {
+.os-games__tile-visual .os-games__icon-img {
 	max-width: 36px;
 	max-height: 36px;
 }
 
-.desktop-mode-games__tile-visual .desktop-mode-games__icon-dashicon {
+.os-games__tile-visual .os-games__icon-dashicon {
 	font-size: 28px;
 	width: 28px;
 	height: 28px;
 }
 
-.desktop-mode-games__tile-title {
+.os-games__tile-title {
 	font-weight: 600;
 	font-size: 13px;
 }
@@ -98,29 +98,29 @@
  * Detail panel — hero row + sections
  * ---------------------------------------------------------------- */
 
-.desktop-mode-games__detail {
+.os-games__detail {
 	display: flex;
 	flex-direction: column;
 	gap: 18px;
-	border-top: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.08 ) );
+	border-top: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
 	padding-block-start: 14px;
 }
 
-.desktop-mode-games__detail[hidden] {
+.os-games__detail[hidden] {
 	display: none;
 }
 
-.desktop-mode-games__hero {
+.os-games__hero {
 	display: flex;
 	align-items: center;
 	gap: 16px;
 	padding: 16px;
-	border: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.08 ) );
+	border: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
 	border-radius: 12px;
-	background: var( --wpd-surface-elevated, #f6f7f7 );
+	background: var( --os-ui-surface-elevated, #f6f7f7 );
 }
 
-.desktop-mode-games__hero-visual {
+.os-games__hero-visual {
 	display: grid;
 	place-items: center;
 	width: 72px;
@@ -128,117 +128,117 @@
 	flex-shrink: 0;
 }
 
-.desktop-mode-games__hero-visual .desktop-mode-games__icon-img {
+.os-games__hero-visual .os-games__icon-img {
 	max-width: 72px;
 	max-height: 72px;
 }
 
-.desktop-mode-games__hero-visual .desktop-mode-games__icon-dashicon {
+.os-games__hero-visual .os-games__icon-dashicon {
 	font-size: 56px;
 	width: 56px;
 	height: 56px;
 }
 
-.desktop-mode-games__hero-info {
+.os-games__hero-info {
 	flex: 1;
 	min-width: 0;
 }
 
-.desktop-mode-games__hero-title {
+.os-games__hero-title {
 	margin: 0 0 4px;
 	font-size: 20px;
 	line-height: 1.2;
 }
 
-.desktop-mode-games__hero-desc {
+.os-games__hero-desc {
 	margin: 0;
-	color: var( --wpd-fg-muted, #646970 );
+	color: var( --os-ui-fg-muted, #646970 );
 	font-size: 13px;
 	max-width: 60ch;
 }
 
-.desktop-mode-games__hero-playtime {
+.os-games__hero-playtime {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 4px 24px;
 	margin-block-start: 10px;
 }
 
-.desktop-mode-games__playtime-stat {
+.os-games__playtime-stat {
 	display: flex;
 	flex-direction: column;
 	gap: 1px;
 }
 
-.desktop-mode-games__playtime-label {
-	color: var( --wpd-fg-muted, #646970 );
+.os-games__playtime-label {
+	color: var( --os-ui-fg-muted, #646970 );
 	font-size: 11px;
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
 }
 
-.desktop-mode-games__playtime-value {
+.os-games__playtime-value {
 	font-size: 14px;
 	font-weight: 600;
 	font-variant-numeric: tabular-nums;
 }
 
-.desktop-mode-games__hero-actions {
+.os-games__hero-actions {
 	display: flex;
 	align-items: center;
 	gap: 10px;
 	flex-shrink: 0;
 }
 
-.desktop-mode-games__section {
+.os-games__section {
 	display: flex;
 	flex-direction: column;
 	gap: 8px;
 }
 
-.desktop-mode-games__section-heading {
+.os-games__section-heading {
 	margin: 0;
 	font-size: 13px;
 	font-weight: 600;
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
-	color: var( --wpd-fg-muted, #646970 );
+	color: var( --os-ui-fg-muted, #646970 );
 }
 
 /* ------------------------------------------------------------------
  * Scoreboard
  * ---------------------------------------------------------------- */
 
-.desktop-mode-games__scoreboard-table {
+.os-games__scoreboard-table {
 	max-height: 340px;
 	overflow: auto;
-	border: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.08 ) );
+	border: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
 	border-radius: 10px;
 }
 
-.desktop-mode-games__scoreboard-empty {
+.os-games__scoreboard-empty {
 	padding: 24px;
 	text-align: center;
-	color: var( --wpd-fg-muted, #646970 );
+	color: var( --os-ui-fg-muted, #646970 );
 }
 
-.desktop-mode-games__pager {
+.os-games__pager {
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	gap: 10px;
 }
 
-.desktop-mode-games__pager-label {
+.os-games__pager-label {
 	font-variant-numeric: tabular-nums;
-	color: var( --wpd-fg-muted, #646970 );
+	color: var( --os-ui-fg-muted, #646970 );
 }
 
 /* ------------------------------------------------------------------
  * Challenges
  * ---------------------------------------------------------------- */
 
-.desktop-mode-games__challenge-list {
+.os-games__challenge-list {
 	list-style: none;
 	margin: 0;
 	padding: 0;
@@ -247,34 +247,34 @@
 	gap: 10px;
 }
 
-.desktop-mode-games__challenge {
+.os-games__challenge {
 	display: flex;
 	align-items: center;
 	gap: 12px;
 	padding: 12px 14px;
-	border: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.08 ) );
+	border: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
 	border-radius: 10px;
 }
 
-.desktop-mode-games__challenge--pending {
-	border-inline-start: 3px solid var( --wpd-accent, #2271b1 );
+.os-games__challenge--pending {
+	border-inline-start: 3px solid var( --os-ui-accent, #2271b1 );
 }
 
-.desktop-mode-games__challenge-main {
+.os-games__challenge-main {
 	flex: 1;
 	min-width: 0;
 }
 
-.desktop-mode-games__challenge-main p {
+.os-games__challenge-main p {
 	margin: 0 0 2px;
 }
 
-.desktop-mode-games__challenge-main wpd-relative-time {
+.os-games__challenge-main os-relative-time {
 	font-size: 12px;
-	color: var( --wpd-fg-muted, #646970 );
+	color: var( --os-ui-fg-muted, #646970 );
 }
 
-.desktop-mode-games__challenge-actions {
+.os-games__challenge-actions {
 	display: flex;
 	align-items: center;
 	gap: 8px;
@@ -284,27 +284,27 @@
  * Send-challenge dialog
  * ---------------------------------------------------------------- */
 
-.desktop-mode-games__challenge-dialog {
+.os-games__challenge-dialog {
 	display: flex;
 	flex-direction: column;
 	gap: 12px;
 	min-width: 280px;
 }
 
-.desktop-mode-games__challenge-summary {
+.os-games__challenge-summary {
 	margin: 0;
 }
 
-.desktop-mode-games__challenge-picked {
+.os-games__challenge-picked {
 	display: flex;
 	align-items: center;
 	gap: 10px;
 	padding: 8px 10px;
-	border: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.08 ) );
+	border: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
 	border-radius: 8px;
 }
 
-.desktop-mode-games__challenge-footer {
+.os-games__challenge-footer {
 	display: flex;
 	align-items: center;
 	justify-content: flex-end;

@@ -13,13 +13,14 @@
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { attachDockPeek } from '../../src/dock-peek';
+import { CONSTELLATION_FLAG } from '../../src/dock-constellation/active';
 import { installHooksStub, clearHooksStub } from './helpers/hooks-stub';
 
 function makeTile( multi: boolean ): HTMLElement {
 	const tile = document.createElement( 'div' );
-	tile.className = 'desktop-mode-dock__item';
+	tile.className = 'os-dock__item';
 	if ( multi ) {
-		tile.classList.add( 'desktop-mode-dock__item--multi' );
+		tile.classList.add( 'os-dock__item--multi' );
 	}
 	tile.dataset.menuSlug = 'edit.php';
 	tile.dataset.dockTooltip = 'Posts';
@@ -46,16 +47,28 @@ function makeWindowStub(
 	baseId: string,
 	state: 'normal' | 'minimized' = 'normal',
 ) {
-	return {
+	const win: {
+		id: string;
+		state: string;
+		restore: ReturnType< typeof vi.fn >;
+		minimize: ReturnType< typeof vi.fn >;
+		config: { title: string; icon: string; baseId: string };
+	} = {
 		id: baseId,
 		state,
-		restore: vi.fn(),
+		restore: vi.fn( () => {
+			win.state = 'normal';
+		} ),
+		minimize: vi.fn( () => {
+			win.state = 'minimized';
+		} ),
 		config: {
 			title,
 			icon: 'dashicons-admin-post',
 			baseId,
 		},
 	};
+	return win;
 }
 
 function pointerEnter( el: HTMLElement, opts: { type?: string } = {} ): void {
@@ -106,6 +119,7 @@ describe( 'dock-peek', () => {
 	afterEach( () => {
 		vi.useRealTimers();
 		document.body.innerHTML = '';
+		document.body.removeAttribute( CONSTELLATION_FLAG );
 		clearHooksStub();
 	} );
 
@@ -114,7 +128,7 @@ describe( 'dock-peek', () => {
 		attachDockPeek( makeDeps( { tile, getInstances: () => [] } ) );
 		pointerEnter( tile );
 		vi.advanceTimersByTime( 500 );
-		expect( document.querySelector( '.desktop-mode-dock-peek' ) ).toBeNull();
+		expect( document.querySelector( '.os-dock-peek' ) ).toBeNull();
 	} );
 
 	test( 'native-window (system) tile peek shows a thumbnail card without a Ghost Card', () => {
@@ -139,14 +153,14 @@ describe( 'dock-peek', () => {
 		);
 		pointerEnter( tile );
 		vi.advanceTimersByTime( 500 );
-		const peek = document.querySelector( '.desktop-mode-dock-peek' );
+		const peek = document.querySelector( '.os-dock-peek' );
 		expect( peek ).not.toBeNull();
 		expect(
-			peek!.querySelectorAll( '.desktop-mode-dock-peek__card--instance' )
+			peek!.querySelectorAll( '.os-dock-peek__card--instance' )
 				.length,
 		).toBe( 1 );
 		expect(
-			peek!.querySelectorAll( '.desktop-mode-dock-peek__card--ghost' )
+			peek!.querySelectorAll( '.os-dock-peek__card--ghost' )
 				.length,
 		).toBe( 0 );
 	} );
@@ -161,7 +175,7 @@ describe( 'dock-peek', () => {
 		);
 		pointerEnter( tile, { type: 'touch' } );
 		vi.advanceTimersByTime( 500 );
-		expect( document.querySelector( '.desktop-mode-dock-peek' ) ).toBeNull();
+		expect( document.querySelector( '.os-dock-peek' ) ).toBeNull();
 	} );
 
 	test( 'fans out one card per instance + a trailing Ghost Card', () => {
@@ -176,17 +190,17 @@ describe( 'dock-peek', () => {
 		pointerEnter( tile );
 		vi.advanceTimersByTime( 500 );
 
-		const peek = document.querySelector( '.desktop-mode-dock-peek' )!;
+		const peek = document.querySelector( '.os-dock-peek' )!;
 		expect( peek ).not.toBeNull();
 		expect(
-			peek.querySelectorAll( '.desktop-mode-dock-peek__card--instance' )
+			peek.querySelectorAll( '.os-dock-peek__card--instance' )
 				.length,
 		).toBe( 2 );
 		const ghosts = peek.querySelectorAll(
-			'.desktop-mode-dock-peek__card--ghost',
+			'.os-dock-peek__card--ghost',
 		);
 		expect( ghosts.length ).toBe( 1 );
-		const allCards = peek.querySelectorAll( '.desktop-mode-dock-peek__card' );
+		const allCards = peek.querySelectorAll( '.os-dock-peek__card' );
 		expect( allCards[ allCards.length - 1 ] ).toBe( ghosts[ 0 ] );
 	} );
 
@@ -207,7 +221,7 @@ describe( 'dock-peek', () => {
 		).wp.hooks;
 
 		wpHooks.addFilter(
-			'desktop-mode.dock.peek-card-content',
+			'os.dock.peek-card-content',
 			'test/dock-peek-filter',
 			( body, ctx ) => {
 				const replacement = document.createElement( 'div' );
@@ -230,18 +244,18 @@ describe( 'dock-peek', () => {
 		vi.advanceTimersByTime( 500 );
 
 		const card = document.querySelector< HTMLElement >(
-			'.desktop-mode-dock-peek__card--instance',
+			'.os-dock-peek__card--instance',
 		)!;
 		expect( card.querySelector( '.plugin-owned-thumb' ) ).not.toBeNull();
 		expect( card.querySelector( '.plugin-owned-thumb' )?.getAttribute( 'data-window-id' ) ).toBe( 'edit-php' );
-		expect( card.querySelectorAll( '.desktop-mode-dock-peek__card-line' ).length ).toBe( 0 );
+		expect( card.querySelectorAll( '.os-dock-peek__card-line' ).length ).toBe( 0 );
 		const customBody = card.querySelector(
-			'.desktop-mode-dock-peek__card-body--custom',
+			'.os-dock-peek__card-body--custom',
 		);
 		expect( customBody ).not.toBeNull();
 
 		wpHooks.removeFilter(
-			'desktop-mode.dock.peek-card-content',
+			'os.dock.peek-card-content',
 			'test/dock-peek-filter',
 		);
 	} );
@@ -258,24 +272,24 @@ describe( 'dock-peek', () => {
 		vi.advanceTimersByTime( 500 );
 
 		const card = document.querySelector< HTMLElement >(
-			'.desktop-mode-dock-peek__card--instance',
+			'.os-dock-peek__card--instance',
 		)!;
 		expect(
-			card.querySelectorAll( '.desktop-mode-dock-peek__card-dots i' ).length,
+			card.querySelectorAll( '.os-dock-peek__card-dots i' ).length,
 		).toBe( 3 );
 		expect(
-			card.querySelector( '.desktop-mode-dock-peek__card-label' )
+			card.querySelector( '.os-dock-peek__card-label' )
 				?.textContent,
 		).toBe( 'All Posts' );
 		expect(
-			card.querySelectorAll( '.desktop-mode-dock-peek__card-line' ).length,
+			card.querySelectorAll( '.os-dock-peek__card-line' ).length,
 		).toBe( 3 );
 		expect( card.style.getPropertyValue( '--peek-card-hue' ) ).toMatch(
 			/^\d+$/,
 		);
 	} );
 
-	test( 'hovering an instance card raises that window to front', () => {
+	test( 'hovering an instance card raises that window to front (preview mode)', () => {
 		const tile = makeTile( true );
 		const winA = makeWindowStub( 'All Posts', 'edit-php' );
 		const winB = makeWindowStub( 'Editing post 42', 'edit-php' );
@@ -294,11 +308,54 @@ describe( 'dock-peek', () => {
 		vi.advanceTimersByTime( 500 );
 
 		const cards = document.querySelectorAll< HTMLElement >(
-			'.desktop-mode-dock-peek__card--instance',
+			'.os-dock-peek__card--instance',
 		);
 		pointerEnter( cards[ 1 ] );
 		expect( focus ).toHaveBeenCalledTimes( 1 );
 		expect( focus ).toHaveBeenCalledWith( winB );
+		expect( cards[ 1 ].dataset.preview ).toBe( '' );
+	} );
+
+	// Preview snap-back: after hovering an instance card, leaving
+	// returns focus to the previously-focused window.
+	test( 'hovering a non-minimized instance card then leaving returns focus to the previous window', () => {
+		const tile = makeTile( true );
+		const winA = makeWindowStub( 'All Posts', 'edit-php' );
+		const winB = makeWindowStub( 'Editing post 42', 'edit-php' );
+		const focus = vi.fn();
+		const getById = vi.fn(
+			( id: string ) => ( id === winA.id ? winA : undefined ),
+		);
+		attachDockPeek(
+			makeDeps( {
+				tile,
+				getInstances: () => [ winA, winB ],
+				windowManager: {
+					getFocused: () => winA,
+					focus,
+					getById,
+				} as unknown as Deps[ 'windowManager' ],
+			} ),
+		);
+		pointerEnter( tile );
+		vi.advanceTimersByTime( 500 );
+
+		const cards = document.querySelectorAll< HTMLElement >(
+			'.os-dock-peek__card--instance',
+		);
+
+		// Hover winB → preview.
+		pointerEnter( cards[ 1 ] );
+		expect( focus ).toHaveBeenCalledTimes( 1 );
+		expect( focus ).toHaveBeenCalledWith( winB );
+		expect( cards[ 1 ].dataset.preview ).toBe( '' );
+
+		// Leave → focus returns to winA.
+		focus.mockClear();
+		pointerLeave( cards[ 1 ] );
+		expect( getById ).toHaveBeenCalledWith( winA.id );
+		expect( focus ).toHaveBeenCalledWith( winA );
+		expect( cards[ 1 ].dataset.preview ).toBeUndefined();
 	} );
 
 	// Hovering a minimized card restores it so the user can see it.
@@ -320,10 +377,114 @@ describe( 'dock-peek', () => {
 		vi.advanceTimersByTime( 500 );
 
 		const card = document.querySelector< HTMLElement >(
-			'.desktop-mode-dock-peek__card--instance',
+			'.os-dock-peek__card--instance',
 		)!;
 		pointerEnter( card );
 		expect( win.restore ).toHaveBeenCalledTimes( 1 );
+		expect( focus ).not.toHaveBeenCalled();
+		expect( card.dataset.preview ).toBe( '' );
+		expect( card.dataset.state ).toBeUndefined();
+	} );
+
+	// Preview snap-back: a minimized window that was preview-restored
+	// snaps back to minimized when the pointer leaves the card.
+	test( 'hovering a minimized instance card then leaving snaps it back', () => {
+		const tile = makeTile( true );
+		const win = makeWindowStub( 'All Posts', 'edit-php', 'minimized' );
+		const focus = vi.fn();
+		attachDockPeek(
+			makeDeps( {
+				tile,
+				getInstances: () => [ win ],
+				windowManager: {
+					getFocused: () => undefined,
+					focus,
+				} as unknown as Deps[ 'windowManager' ],
+			} ),
+		);
+		pointerEnter( tile );
+		vi.advanceTimersByTime( 500 );
+
+		const card = document.querySelector< HTMLElement >(
+			'.os-dock-peek__card--instance',
+		)!;
+
+		// Hover → preview restores.
+		pointerEnter( card );
+		expect( win.restore ).toHaveBeenCalledTimes( 1 );
+		expect( card.dataset.preview ).toBe( '' );
+		expect( card.dataset.state ).toBeUndefined();
+
+		// Leave → snap back to minimized.
+		pointerLeave( card );
+		expect( win.minimize ).toHaveBeenCalledTimes( 1 );
+		expect( card.dataset.preview ).toBeUndefined();
+		expect( card.dataset.state ).toBe( 'minimized' );
+	} );
+
+	test( 'clicking a previewed card commits the preview permanently (no snap-back)', () => {
+		const tile = makeTile( true );
+		const win = makeWindowStub( 'All Posts', 'edit-php', 'minimized' );
+		const focus = vi.fn();
+		attachDockPeek(
+			makeDeps( {
+				tile,
+				getInstances: () => [ win ],
+				windowManager: {
+					getFocused: () => undefined,
+					focus,
+				} as unknown as Deps[ 'windowManager' ],
+			} ),
+		);
+		pointerEnter( tile );
+		vi.advanceTimersByTime( 500 );
+
+		const card = document.querySelector< HTMLElement >(
+			'.os-dock-peek__card--instance',
+		)!;
+
+		// Hover → preview active.
+		pointerEnter( card );
+		expect( card.dataset.preview ).toBe( '' );
+
+		// Click → commit the preview (focus + restore), no snap-back.
+		card.click();
+		// restore was called once from the pointerenter preview;
+		// the second call from spawnFocusViewTransition is a no-op
+		// because the window is no longer minimized at that point.
+		expect( win.restore ).toHaveBeenCalledTimes( 1 );
+		expect( focus ).toHaveBeenCalledTimes( 1 );
+		expect( focus ).toHaveBeenCalledWith( win );
+	} );
+
+	test( 'hovering an already-focused card does not enter preview mode', () => {
+		const tile = makeTile( true );
+		const win = makeWindowStub( 'All Posts', 'edit-php' );
+		const focus = vi.fn();
+		attachDockPeek(
+			makeDeps( {
+				tile,
+				getInstances: () => [ win ],
+				windowManager: {
+					getFocused: () => win,
+					focus,
+				} as unknown as Deps[ 'windowManager' ],
+			} ),
+		);
+		pointerEnter( tile );
+		vi.advanceTimersByTime( 500 );
+
+		const card = document.querySelector< HTMLElement >(
+			'.os-dock-peek__card--instance',
+		)!;
+
+		// Hover the already-focused card → no preview.
+		pointerEnter( card );
+		expect( focus ).not.toHaveBeenCalled();
+		expect( card.dataset.preview ).toBeUndefined();
+
+		// Leave should also be a no-op.
+		pointerLeave( card );
 		expect( focus ).not.toHaveBeenCalled();
 	} );
 
@@ -345,7 +506,7 @@ describe( 'dock-peek', () => {
 		vi.advanceTimersByTime( 500 );
 
 		const card = document.querySelector< HTMLElement >(
-			'.desktop-mode-dock-peek__card--instance',
+			'.os-dock-peek__card--instance',
 		)!;
 		expect( card.dataset.state ).toBe( 'minimized' );
 	} );
@@ -367,12 +528,12 @@ describe( 'dock-peek', () => {
 		).wp.hooks;
 
 		wpHooks.addFilter(
-			'desktop-mode.dock.peek-card-element',
+			'os.dock.peek-card-element',
 			'test/whole-card',
 			() => {
 				const replacement = document.createElement( 'div' );
 				replacement.className =
-					'desktop-mode-dock-peek__card plugin-replaced-card';
+					'os-dock-peek__card plugin-replaced-card';
 				return replacement;
 			},
 		);
@@ -391,11 +552,11 @@ describe( 'dock-peek', () => {
 			document.querySelector( '.plugin-replaced-card' ),
 		).not.toBeNull();
 		expect(
-			document.querySelector( '.desktop-mode-dock-peek__card-titlebar' ),
+			document.querySelector( '.os-dock-peek__card-titlebar' ),
 		).toBeNull();
 
 		wpHooks.removeFilter(
-			'desktop-mode.dock.peek-card-element',
+			'os.dock.peek-card-element',
 			'test/whole-card',
 		);
 	} );
@@ -418,7 +579,7 @@ describe( 'dock-peek', () => {
 		vi.advanceTimersByTime( 500 );
 
 		const instanceCard = document.querySelector< HTMLElement >(
-			'.desktop-mode-dock-peek__card--instance',
+			'.os-dock-peek__card--instance',
 		)!;
 		instanceCard.click();
 		expect( focus ).toHaveBeenCalledTimes( 1 );
@@ -443,7 +604,7 @@ describe( 'dock-peek', () => {
 		vi.advanceTimersByTime( 500 );
 
 		const instanceCard = document.querySelector< HTMLElement >(
-			'.desktop-mode-dock-peek__card--instance',
+			'.os-dock-peek__card--instance',
 		)!;
 		instanceCard.click();
 		expect( focus ).toHaveBeenCalledTimes( 1 );
@@ -465,7 +626,7 @@ describe( 'dock-peek', () => {
 		vi.advanceTimersByTime( 500 );
 
 		const ghost = document.querySelector< HTMLElement >(
-			'.desktop-mode-dock-peek__card--ghost',
+			'.os-dock-peek__card--ghost',
 		)!;
 		ghost.click();
 		expect( openNew ).toHaveBeenCalledTimes( 1 );
@@ -481,11 +642,11 @@ describe( 'dock-peek', () => {
 		);
 		pointerEnter( tile );
 		vi.advanceTimersByTime( 500 );
-		expect( document.querySelector( '.desktop-mode-dock-peek' ) ).not.toBeNull();
+		expect( document.querySelector( '.os-dock-peek' ) ).not.toBeNull();
 
 		pointerLeave( tile );
 		vi.advanceTimersByTime( 500 );
-		expect( document.querySelector( '.desktop-mode-dock-peek' ) ).toBeNull();
+		expect( document.querySelector( '.os-dock-peek' ) ).toBeNull();
 	} );
 
 	test( 'teardown function detaches listeners + removes popover', () => {
@@ -498,13 +659,32 @@ describe( 'dock-peek', () => {
 		);
 		pointerEnter( tile );
 		vi.advanceTimersByTime( 500 );
-		expect( document.querySelector( '.desktop-mode-dock-peek' ) ).not.toBeNull();
+		expect( document.querySelector( '.os-dock-peek' ) ).not.toBeNull();
 
 		detach();
-		expect( document.querySelector( '.desktop-mode-dock-peek' ) ).toBeNull();
+		expect( document.querySelector( '.os-dock-peek' ) ).toBeNull();
 
 		pointerEnter( tile );
 		vi.advanceTimersByTime( 500 );
-		expect( document.querySelector( '.desktop-mode-dock-peek' ) ).toBeNull();
+		expect( document.querySelector( '.os-dock-peek' ) ).toBeNull();
+	} );
+
+	test( 'a menu tile stands down while a constellation is mounted', () => {
+		// The flyout carries the open instances this peek would have
+		// shown, plus the submenu the peek has no way to reach. Two
+		// popovers on one tile is a flicker, not a feature. Every
+		// other test in this file runs with no flyout mounted, which
+		// is the case where the peek keeps menu tiles.
+		document.body.setAttribute( CONSTELLATION_FLAG, '' );
+		const tile = makeTile( true );
+		attachDockPeek(
+			makeDeps( {
+				tile,
+				getInstances: () => [ makeWindowStub( 'All Posts', 'edit-php' ) ],
+			} ),
+		);
+		pointerEnter( tile );
+		vi.advanceTimersByTime( 500 );
+		expect( document.querySelector( '.os-dock-peek' ) ).toBeNull();
 	} );
 } );

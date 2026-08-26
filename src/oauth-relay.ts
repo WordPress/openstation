@@ -1,6 +1,6 @@
 /**
- * `wp.desktop.startOAuth( service )` — client-side companion to the
- * PHP `desktop_mode_register_oauth_relay()` API.
+ * `wp.os.startOAuth( service )` — client-side companion to the
+ * PHP `openstation_register_oauth_relay()` API.
  *
  * Coordinates the popup + state-nonce + postMessage dance so plugin
  * authors don't write that code per integration. Returns a Promise
@@ -11,12 +11,12 @@
  *      the assembled authorize URL (server-side `state` already baked
  *      in).
  *   2. Open the authorize URL in a named popup
- *      (`desktop-mode-oauth-<service>`) via `window.open()` with
+ *      (`os-oauth-<service>`) via `window.open()` with
  *      explicit size/position features. The opener relationship is
  *      kept intentionally — the popup needs it for the postMessage
  *      handshake.
  *   3. Listen for `'message'` events of `type:
- *      'desktop-mode-oauth-callback'` from the popup, validate origin.
+ *      'os-oauth-callback'` from the popup, validate origin.
  *   4. If `payload.ok`, resolve with the payload. Otherwise reject
  *      with a tagged Error whose `cause` is the payload.
  *
@@ -26,8 +26,6 @@
  * origin + message type only (it does not compare `payload.service`
  * or the source popup), so the first callback to arrive settles every
  * in-flight promise. Run one flow at a time.
- *
- * @since 0.8.2
  */
 
 import { joinRestUrl } from './rest-url';
@@ -66,7 +64,6 @@ const POPUP_CLOSE_POLL_MS = 500;
  * on any failure path.
  *
  * @public
- * @since 0.8.2
  */
 export function startOAuth(
 	service: string,
@@ -74,7 +71,7 @@ export function startOAuth(
 ): Promise< OAuthCallbackPayload > {
 	if ( typeof service !== 'string' || service === '' ) {
 		return Promise.reject(
-			new Error( '[desktop-mode] startOAuth requires a non-empty service slug.' ),
+			new Error( '[openstation] startOAuth requires a non-empty service slug.' ),
 		);
 	}
 
@@ -97,7 +94,7 @@ export function startOAuth(
 			if ( ! res.ok ) {
 				const text = await res.text().catch( () => '' );
 				throw new Error(
-					`[desktop-mode] OAuth start failed (${ res.status }): ${ text }`,
+					`[openstation] OAuth start failed (${ res.status }): ${ text }`,
 				);
 			}
 			return ( await res.json() ) as StartResponse;
@@ -131,13 +128,13 @@ function openPopupAndWait(
 
 		const popup = window.open(
 			body.authorize_url,
-			`desktop-mode-oauth-${ service }`,
+			`os-oauth-${ service }`,
 			features,
 		);
 		if ( ! popup ) {
 			reject(
 				new Error(
-					'[desktop-mode] OAuth popup blocked. Tell users to allow popups for this site.',
+					'[openstation] OAuth popup blocked. Tell users to allow popups for this site.',
 				),
 			);
 			return;
@@ -169,7 +166,7 @@ function openPopupAndWait(
 					payload?: OAuthCallbackPayload;
 				}
 				| undefined;
-			if ( ! data || data.type !== 'desktop-mode-oauth-callback' ) {
+			if ( ! data || data.type !== 'os-oauth-callback' ) {
 				return;
 			}
 			const payload = data.payload;
@@ -180,7 +177,7 @@ function openPopupAndWait(
 				const reason = payload?.reason ?? 'unknown';
 				const message = payload?.message ?? 'OAuth flow failed';
 				const err = new Error(
-					`[desktop-mode] startOAuth(${ service }) failed: ${ reason } — ${ message }`,
+					`[openstation] startOAuth(${ service }) failed: ${ reason } — ${ message }`,
 				);
 				( err as Error & { cause?: unknown } ).cause = payload;
 				reject( err );
@@ -197,7 +194,7 @@ function openPopupAndWait(
 				cleanup();
 				reject(
 					new Error(
-						`[desktop-mode] startOAuth(${ service }) cancelled — popup closed before completing.`,
+						`[openstation] startOAuth(${ service }) cancelled — popup closed before completing.`,
 					),
 				);
 			}
@@ -212,8 +209,8 @@ interface ConfigShape {
 
 function readDesktopConfig(): ConfigShape {
 	return (
-		( window as unknown as { desktopModeConfig?: ConfigShape } )
-			.desktopModeConfig ?? {}
+		( window as unknown as { openStationConfig?: ConfigShape } )
+			.openStationConfig ?? {}
 	);
 }
 

@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Sharing entry points + visual cues.
+ * OpenStation — Sharing entry points + visual cues.
  *
  * Three wire-ups, all reusing the framework hook surface so a
  * future plugin can override them:
@@ -12,23 +12,55 @@
  *      folder's `shareSummary.shared` flag is true.
  *
  * Activated once on boot from `src/desktop-files/index.ts`.
- *
- * @since 0.8.5
  */
 
 import { addFilter, addAction } from '../hooks';
 import { registerTitleBarButton } from '../title-bar-buttons/registry';
 import type { Window as DesktopWindow } from '../window';
-import { openShareSettingsModal } from './share-settings-modal';
+import { openShareSettingsModal } from './overlays-loader';
 import { getFilesState, removePlacement, setFolderPlacements } from './store';
 import { leaveShare, listPlacements } from './rest';
 import { showToast } from '../toast';
-import { wpdConfirm } from '../ui/components/wpd-confirm-dialog/wpd-confirm-dialog';
+// `../os-confirm`, not the component module: this file ships in
+// `desktop.min.js`, and the wrapper there awaits the lazy
+// shell-overlays bundle instead of dragging the dialog class (and
+// its tag registration) into the main bundle.
+import { osConfirm } from '../os-confirm';
 import type { RestPlacementShape } from './rest';
 import type { TileMenuItem } from './tile-menu';
 
 function viewerId(): number {
-	return Number( window.desktopModeConfig?.currentUserId ?? 0 );
+	return Number( window.openStationConfig?.currentUserId ?? 0 );
+}
+
+/**
+ * Close an open window by id, via the public `wp.os` namespace.
+ *
+ * Reached structurally rather than by importing the manager: this
+ * file ships in `desktop.min.js` and the window system is a lazily
+ * loaded bundle.
+ *
+ * Closing lives on the Window, not on the manager. An earlier version
+ * of this call read `window.openStation.windowManager.close( id )` —
+ * a global the shell never defines, and a method that does not exist
+ * on the manager either. Optional chaining meant it threw nothing and
+ * did nothing, so leaving a shared folder quietly left its window
+ * open.
+ *
+ * @param id Window id to close. Unknown ids are a no-op.
+ */
+function closeWindowById( id: string ): void {
+	const manager = (
+		window.wp as
+			| { os?: { windowManager?: WindowManagerSlice } }
+			| undefined
+	)?.os?.windowManager;
+	manager?.getById?.( id )?.close?.();
+}
+
+/** The slice of the public window manager {@link closeWindowById} needs. */
+interface WindowManagerSlice {
+	getById?: ( id: string ) => { close?: () => void } | undefined;
 }
 
 /**
@@ -43,8 +75,8 @@ function viewerId(): number {
  */
 function sharingEnabled(): boolean {
 	const settings = ( window as unknown as {
-		wp?: { desktop?: { getOsSettings?: () => { foldersSharingEnabled?: boolean } } };
-	} ).wp?.desktop?.getOsSettings?.();
+		wp?: { os?: { getOsSettings?: () => { foldersSharingEnabled?: boolean } } };
+	} ).wp?.os?.getOsSettings?.();
 	if ( ! settings ) {
 		return true;
 	}
@@ -60,7 +92,7 @@ function folderIdFromBaseId( baseId: string | undefined | null ): number | null 
 	if ( typeof baseId !== 'string' ) {
 		return null;
 	}
-	const m = /^desktop-mode-folder-(\d+)$/.exec( baseId );
+	const m = /^os-folder-(\d+)$/.exec( baseId );
 	return m ? Number( m[ 1 ] ) : null;
 }
 
@@ -84,7 +116,7 @@ function placementOwnerId( placement: RestPlacementShape ): number {
  */
 export function installShareMenuItems(): void {
 	addFilter(
-		'desktop-mode.files.tile-menu',
+		'os.files.tile-menu',
 		'desktop-mode/folder-share',
 		(
 			items: TileMenuItem[],
@@ -99,7 +131,7 @@ export function installShareMenuItems(): void {
 			}
 			// Resolve ownership through the canonical folder row
 			// in the shared store (the placement.file shape doesn't
-			// always carry ownerId — depends on Desktop_Mode_Folder_File
+			// always carry ownerId — depends on OpenStation_Folder_File
 			// serialize()). Falls back to placement-side hint.
 			const ownerId =
 				folderOwnerId( folderId ) || placementOwnerId( placement );
@@ -130,7 +162,7 @@ export function installShareMenuItems(): void {
 					sort: 80,
 					danger: true,
 					onClick: async () => {
-						const ok = await wpdConfirm( {
+						const ok = await osConfirm( {
 							title: 'Leave this folder?',
 							message:
 								'The folder will be removed from your desktop. The original and its contents are not deleted; the owner keeps them.',
@@ -160,17 +192,15 @@ export function installShareMenuItems(): void {
 							// Also close any open folder window for
 							// this folder — the user just left it,
 							// no point keeping it open.
-							const winId = `desktop-mode-folder-${ folderId }`;
-							const mgr = (
-								window as unknown as {
-									desktopMode?: {
-										windowManager?: {
-											close?: ( id: string ) => void;
-										};
-									};
-								}
-							).desktopMode?.windowManager;
-							mgr?.close?.( winId );
+							// Reached through `wp.os` — the public
+							// namespace. This read used to go via
+							// `window.openStation.windowManager.close`,
+							// neither of which exists (the global is
+							// never defined, and closing is a method on
+							// the Window, not the manager), so the
+							// window was silently left open.
+							const winId = `os-folder-${ folderId }`;
+							closeWindowById( winId );
 							showToast( { message: 'You left the shared folder.' } );
 						} catch ( err ) {
 							showToast( {
@@ -211,6 +241,9 @@ export function installShareMenuItems(): void {
 			return folderOwnerId( folderId ) === viewerId();
 		},
 		onClick: ( w: DesktopWindow ): void => {
+			if ( ! sharingEnabled() ) {
+				return;
+			}
 			const base = ( w.config as { baseId?: string } ).baseId ?? w.id;
 			const folderId = folderIdFromBaseId( base );
 			if ( folderId === null ) {
@@ -226,7 +259,7 @@ export function installShareMenuItems(): void {
 	// Overlay badge on shared folder tiles. The action fires for
 	// every tile render; we early-out when not a shared folder.
 	addAction(
-		'desktop-mode.files.tile-rendered',
+		'os.files.tile-rendered',
 		'desktop-mode/folder-share',
 		( payload: unknown ) => {
 			const { tile, placement } = payload as {
@@ -241,11 +274,11 @@ export function installShareMenuItems(): void {
 			if ( ! summary?.shared ) {
 				return;
 			}
-			if ( tile.querySelector( '.desktop-mode-file-tile__share-badge' ) ) {
+			if ( tile.querySelector( '.os-file-tile__share-badge' ) ) {
 				return;
 			}
 			const badge = document.createElement( 'span' );
-			badge.className = 'desktop-mode-file-tile__share-badge dashicons dashicons-share';
+			badge.className = 'os-file-tile__share-badge dashicons dashicons-share';
 			badge.setAttribute( 'aria-label', 'Shared folder' );
 			badge.title = 'Shared folder';
 			badge.style.cssText = [

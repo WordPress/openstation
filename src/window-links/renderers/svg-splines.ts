@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Built-in `svg-splines` window-link renderer.
+ * OpenStation — Built-in `svg-splines` window-link renderer.
  *
  * Draws one cubic-Bézier spline per derived edge of the relation
  * graph, terminated by circular endpoint dots. Circles are
@@ -20,13 +20,11 @@
  * edge-structure changes.
  *
  * Registered through the very same public API a plugin's renderer
- * uses (`wp.desktop.registerWindowLinkRenderer`), so the shipped
+ * uses (`wp.os.registerWindowLinkRenderer`), so the shipped
  * default dogfoods the extensibility surface. Styling lives in
  * `assets/css/window-links.css` on the custom properties
- * `--desktop-mode-window-link-*` — themes and plugins restyle the
+ * `--os-window-link-*` — themes and plugins restyle the
  * splines without touching this module.
- *
- * @since 0.9.4
  */
 
 import { __ } from '../../i18n';
@@ -133,7 +131,7 @@ function buildMarkers(
 		defs.appendChild( marker );
 		return id;
 	};
-	const endpoint = 'desktop-mode-window-link__endpoint';
+	const endpoint = 'os-window-link__endpoint';
 	const active = `${ endpoint }--active`;
 	const markers: EndpointMarkers = {
 		dot: {
@@ -167,13 +165,13 @@ registerWindowLinkRenderer( {
 			suffix: string,
 		): { svg: SVGSVGElement; markers: EndpointMarkers } => {
 			const svg = document.createElementNS( SVG_NS, 'svg' );
-			svg.classList.add( 'desktop-mode-window-links__svg' );
+			svg.classList.add( 'os-window-links__svg' );
 			container.appendChild( svg );
 			return {
 				svg,
 				markers: buildMarkers(
 					svg,
-					`desktop-mode-window-link-${ seq }${ suffix }`,
+					`os-window-link-${ seq }${ suffix }`,
 				),
 			};
 		};
@@ -220,9 +218,9 @@ registerWindowLinkRenderer( {
 				}
 				if ( ! el ) {
 					const group = document.createElementNS( SVG_NS, 'g' );
-					group.classList.add( 'desktop-mode-window-link' );
+					group.classList.add( 'os-window-link' );
 					const path = document.createElementNS( SVG_NS, 'path' );
-					path.classList.add( 'desktop-mode-window-link__path' );
+					path.classList.add( 'os-window-link__path' );
 					group.appendChild( path );
 					surfaces[ surfaceName ].svg.appendChild( group );
 					el = { group, path, surface: surfaceName };
@@ -317,7 +315,7 @@ registerWindowLinkRenderer( {
 					})`,
 				);
 				el.group.classList.toggle(
-					'desktop-mode-window-link--active',
+					'os-window-link--active',
 					edge.focused,
 				);
 			}

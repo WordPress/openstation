@@ -6,7 +6,7 @@
  *     audible RegistrationError throws
  *   - replace-on-reregister semantics
  *   - owner-based bulk unregistration (server-sync deactivation path)
- *   - the `desktop-mode.window-links.renderers` list filter
+ *   - the `os.window-links.renderers` list filter
  *   - subscriber notifications
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';

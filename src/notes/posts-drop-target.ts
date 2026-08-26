@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — "Convert note to post" drop target.
+ * OpenStation — "Convert note to post" drop target.
  *
  * Registers the Posts surfaces as drop zones that accept a pinned-note
  * pin drag (`'note'` payload) and convert the note into a draft post —
@@ -13,13 +13,13 @@
  *      anyway). The dock is rebuilt on `HOOKS.DOCK_AFTER_RENDER`; we
  *      re-discover + re-register on that signal plus a `MutationObserver`
  *      fallback.
- *   2. The native Posts window body (`[data-desktop-mode-posts-root]`,
+ *   2. The native Posts window body (`[data-os-posts-root]`,
  *      the opt-in `desktop-mode-posts` window). Registered on
  *      `WINDOW_OPENED`, deregistered on `WINDOW_CLOSED`.
  *
- *   3. The Posts shortcut TILE in the Spatial layout. On files-layer
- *      shells, core menu icons render as shortcut file-tiles rather than
- *      dock tiles, and every non-folder tile is already claimed by the
+ *   3. A Posts shortcut TILE on the desktop. On files-layer shells a
+ *      promoted menu icon renders as a shortcut file-tile rather than a
+ *      dock tile, and every non-folder tile is already claimed by the
  *      files layer's reject target (one target per element). So for this
  *      surface we can't register our own `DropTarget` — we hook the
  *      files-layer tile-payload seam (`registerTilePayloadHandler`) and
@@ -32,8 +32,6 @@
  * The whole module is a no-op when the viewer can't author posts
  * (`layer.canCreatePosts` is false) — no drop targets, matching the
  * hidden inline button.
- *
- * @since 0.9.6
  */
 
 import { __ } from '../i18n';
@@ -46,22 +44,22 @@ import {
 import { NOTE_PAYLOAD_TYPE, type NoteDragData } from './types';
 import type { NotesLayer } from './layer';
 
-const DROP_ACTIVE_ATTR = 'data-desktop-mode-posts-drop-active';
+const DROP_ACTIVE_ATTR = 'data-os-posts-drop-active';
 const POSTS_WINDOW_ID = 'desktop-mode-posts';
 // The core Posts tile carries `menu-posts`; `editphp` is the fallback
 // when a site's menu row has no id (`$item[5]`) so the dock falls back
 // to `sanitize_key( $item[2] )` = `sanitize_key( 'edit.php' )`.
 const POSTS_DOCK_SELECTOR =
-	'.desktop-mode-dock__item[data-menu-slug="menu-posts"],' +
-	'.desktop-mode-dock__item[data-menu-slug="editphp"]';
-const POSTS_WINDOW_SELECTOR = '[data-desktop-mode-posts-root]';
+	'.os-dock__item[data-menu-slug="menu-posts"],' +
+	'.os-dock__item[data-menu-slug="editphp"]';
+const POSTS_WINDOW_SELECTOR = '[data-os-posts-root]';
 
 function getDragManager(): DragManagerApi | null {
 	return (
 		window as unknown as {
-			wp?: { desktop?: { dragManager?: DragManagerApi } };
+			wp?: { os?: { dragManager?: DragManagerApi } };
 		}
-	).wp?.desktop?.dragManager ?? null;
+	).wp?.os?.dragManager ?? null;
 }
 
 function isNotePayload( payload: DragPayload ): boolean {
@@ -186,7 +184,7 @@ export function installNotesPostsDropTarget( layer: NotesLayer ): void {
 	}
 	_installed = true;
 
-	// Surface 3: the Spatial-layout Posts shortcut tile. The files layer
+	// Surface 3: a Posts shortcut tile on the desktop. The files layer
 	// owns the tile's DropTarget; we opt the `'note'` payload in via the
 	// tile-payload seam, scoped to tiles whose shortcut points at Posts.
 	_tileDeregister = registerTilePayloadHandler( NOTE_PAYLOAD_TYPE, {

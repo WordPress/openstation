@@ -5,7 +5,7 @@
  * per window id:
  *
  *   - **Parent-side subscribers** — fire when the window's content
- *     publishes via `wp.desktop.send( channel, payload )` (iframe)
+ *     publishes via `wp.os.send( channel, payload )` (iframe)
  *     or `windowApi.send( channel, payload )` (native render). The
  *     parent shell observes these via `Window.on( channel, cb )`.
  *
@@ -22,8 +22,6 @@
  * `Window.send`, the iframe-bridge handler, the native render's
  * `windowApi`) is the only thing that picks the right path. Plugin
  * authors stay in API-land — they never see this module.
- *
- * @since 0.5.5
  */
 
 import { HOOKS, doAction } from './hooks';
@@ -82,7 +80,7 @@ function dispatch(
 			} catch ( err ) {
 				if ( typeof console !== 'undefined' ) {
 					console.error(
-						`[desktop-mode] window-channel subscriber for "${ channel }" threw:`,
+						`[openstation] window-channel subscriber for "${ channel }" threw:`,
 						err,
 					);
 				}
@@ -97,7 +95,7 @@ function dispatch(
 			} catch ( err ) {
 				if ( typeof console !== 'undefined' ) {
 					console.error(
-						`[desktop-mode] window-channel wildcard subscriber for "${ windowId }" threw:`,
+						`[openstation] window-channel wildcard subscriber for "${ windowId }" threw:`,
 						err,
 					);
 				}
@@ -187,7 +185,7 @@ export function dispatchToNative(
  *  Pre-load send queue — let `Window.send()` be safe to call before
  *  an iframe-backed window finishes loading. The Window class
  *  enqueues here when the target isn't ready; the appropriate ready
- *  signal (`desktop-mode-ready` for real iframes, `iframe.load` for
+ *  signal (`os-ready` for real iframes, `iframe.load` for
  *  synthetic ones) calls `markWindowContentReady()` to flush. Pure
  *  native windows always count as ready — there's no async
  *  boundary between `Window.send()` and the render's listeners.
@@ -247,7 +245,7 @@ export function markWindowContentLoading( windowId: string ): void {
 	doAction( HOOKS.WINDOW_CONTENT_LOADING, { windowId } );
 	if ( typeof document !== 'undefined' ) {
 		document.dispatchEvent(
-			new CustomEvent( 'desktop-mode-window-content-loading', {
+			new CustomEvent( 'os-window-content-loading', {
 				detail: { windowId },
 			} ),
 		);
@@ -262,11 +260,10 @@ export function markWindowContentLoading( windowId: string ): void {
  *
  *   1. Transport readiness — one-shot. The first call adds the
  *      window to `_readyWindows` and flushes any queued sends. Later
- *      calls skip the flush (idempotent, matching the pre-0.6.0
- *      contract).
+ *      calls skip the flush (idempotent).
  *   2. Visual loading state — edge-triggered. Fires
  *      `WINDOW_CONTENT_LOADED` + the
- *      `desktop-mode-window-content-loaded` CustomEvent only on a
+ *      `os-window-content-loaded` CustomEvent only on a
  *      loading → ready transition. A plugin re-arming the spinner
  *      with `markContentLoading` and then calling
  *      `markContentLoaded` again will see a fresh hook fire.
@@ -285,7 +282,7 @@ export function markWindowContentReady( windowId: string ): void {
 				} catch ( err ) {
 					if ( typeof console !== 'undefined' ) {
 						console.error(
-							`[desktop-mode] flushing queued window-send for "${ m.channel }" threw:`,
+							`[openstation] flushing queued window-send for "${ m.channel }" threw:`,
 							err,
 						);
 					}
@@ -302,7 +299,7 @@ export function markWindowContentReady( windowId: string ): void {
 		doAction( HOOKS.WINDOW_CONTENT_LOADED, { windowId } );
 		if ( typeof document !== 'undefined' ) {
 			document.dispatchEvent(
-				new CustomEvent( 'desktop-mode-window-content-loaded', {
+				new CustomEvent( 'os-window-content-loaded', {
 					detail: { windowId },
 				} ),
 			);

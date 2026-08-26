@@ -14,7 +14,7 @@
  * @package WordPress
  * @subpackage UnitTests
  *
- * @group desktop-mode
+ * @group openstation
  * @group desktop-mode-beta
  */
 class Tests_DesktopModeBeta_Channels extends WP_UnitTestCase {
@@ -86,7 +86,7 @@ class Tests_DesktopModeBeta_Channels extends WP_UnitTestCase {
 				'title'      => 'Add widget gallery',
 				'draft'      => false,
 				'updated_at' => '2026-07-26T10:00:00Z',
-				'html_url'   => 'https://github.com/WordPress/desktop-mode/pull/501',
+				'html_url'   => 'https://github.com/WordPress/openstation/pull/501',
 				'user'       => array( 'login' => 'alice' ),
 				'head'       => array(
 					'ref' => 'add/widget-gallery',
@@ -98,7 +98,7 @@ class Tests_DesktopModeBeta_Channels extends WP_UnitTestCase {
 				'title'      => 'Fix dock overflow',
 				'draft'      => true,
 				'updated_at' => '2026-07-25T09:00:00Z',
-				'html_url'   => 'https://github.com/WordPress/desktop-mode/pull/502',
+				'html_url'   => 'https://github.com/WordPress/openstation/pull/502',
 				'user'       => array( 'login' => 'bob' ),
 				'head'       => array(
 					'ref' => 'fix/dock-overflow',
@@ -129,8 +129,8 @@ class Tests_DesktopModeBeta_Channels extends WP_UnitTestCase {
 			'published_at' => '2026-07-27T08:00:00Z',
 			'assets'       => array(
 				array(
-					'name'                 => 'desktop-mode.zip',
-					'browser_download_url' => 'https://github.com/WordPress/desktop-mode/releases/download/v0.9.7/desktop-mode.zip',
+					'name'                 => 'openstation.zip',
+					'browser_download_url' => 'https://github.com/WordPress/openstation/releases/download/v0.9.7/openstation.zip',
 				),
 			),
 		);
@@ -247,7 +247,7 @@ class Tests_DesktopModeBeta_Channels extends WP_UnitTestCase {
 		$stable = desktop_mode_beta_fetch_stable();
 		$this->assertSame( 'v0.9.7', $stable['tag'] );
 		$this->assertSame( '0.9.7', $stable['version'] );
-		$this->assertStringContainsString( '/releases/download/v0.9.7/desktop-mode.zip', $stable['url'] );
+		$this->assertStringContainsString( '/releases/download/v0.9.7/openstation.zip', $stable['url'] );
 	}
 
 	public function test_fetch_stable_without_zip_asset_is_error() {
@@ -393,7 +393,7 @@ class Tests_DesktopModeBeta_Channels extends WP_UnitTestCase {
 
 		$this->assertIsArray( $target );
 		$this->assertSame(
-			'https://github.com/WordPress/desktop-mode/releases/download/ci-artifacts/pr-501-' . self::sha( 'a' ) . '.zip',
+			'https://github.com/WordPress/openstation/releases/download/ci-artifacts/pr-501-' . self::sha( 'a' ) . '.zip',
 			$target['url']
 		);
 		$this->assertSame( 'pr', $target['record']['source'] );

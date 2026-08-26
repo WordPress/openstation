@@ -1,24 +1,24 @@
 # Real file storage — react to uploads, gate policy, share from PHP
 
 Recipes for the `upload` file type (real per-user desktop storage,
-Experimental since 0.9.6). Contract:
-[files-on-desktop.md → Real file storage](../files-on-desktop.md#real-file-storage-upload--experimental-since-096).
+Experimental). Contract:
+[files-on-desktop.md → Real file storage](../files-on-desktop.md#real-file-storage-upload--experimental).
 
-## Grant desktop uploads to every desktop-mode user
+## Grant desktop uploads to every OpenStation user
 
 The default gate is WordPress's own `upload_files` capability
 (Authors and up). A trusted intranet can open storage to everyone:
 
 ```php
-add_filter( 'desktop_mode_stored_files_upload_capability', static function () {
-	return 'read'; // every logged-in desktop-mode user
+add_filter( 'openstation_stored_files_upload_capability', static function () {
+	return 'read'; // every logged-in openstation user
 } );
 ```
 
 ## Enforce a per-user quota
 
 ```php
-add_filter( 'desktop_mode_stored_files_user_quota_bytes', static function ( $quota, $user_id ) {
+add_filter( 'openstation_stored_files_user_quota_bytes', static function ( $quota, $user_id ) {
 	if ( user_can( $user_id, 'manage_options' ) ) {
 		return 0; // admins: unlimited
 	}
@@ -26,7 +26,7 @@ add_filter( 'desktop_mode_stored_files_user_quota_bytes', static function ( $quo
 }, 10, 2 );
 ```
 
-Over-quota uploads fail with `desktop_mode_stored_files_quota_exceeded`.
+Over-quota uploads fail with `openstation_stored_files_quota_exceeded`.
 
 ## Allow a file type WordPress rejects by default
 
@@ -36,7 +36,7 @@ scoped `upload_mimes` hook (a plain `mimes` override could only
 narrow):
 
 ```php
-add_filter( 'desktop_mode_stored_files_allowed_mimes', static function ( $mimes ) {
+add_filter( 'openstation_stored_files_allowed_mimes', static function ( $mimes ) {
 	$mimes['stl'] = 'model/stl';
 	$mimes['md']  = 'text/markdown';
 	return $mimes;
@@ -49,13 +49,13 @@ applies on top and should stay that way.
 ## React to uploads and downloads
 
 ```php
-add_action( 'desktop_mode_stored_file_uploaded', static function ( $file_id, $placement_id, $user_id ) {
-	$file = desktop_mode_stored_files_get( $file_id );
+add_action( 'openstation_stored_file_uploaded', static function ( $file_id, $placement_id, $user_id ) {
+	$file = openstation_stored_files_get( $file_id );
 	error_log( sprintf( 'user %d uploaded %s (%d bytes)', $user_id, $file['display_name'], $file['size_bytes'] ) );
 }, 10, 3 );
 
 // Download audit trail.
-add_action( 'desktop_mode_stored_file_downloaded', static function ( $file_id, $user_id ) {
+add_action( 'openstation_stored_file_downloaded', static function ( $file_id, $user_id ) {
 	do_action( 'my_audit_log', 'file-download', compact( 'file_id', 'user_id' ) );
 }, 10, 2 );
 ```
@@ -66,7 +66,7 @@ Single-file shares are read + download only, user principals only —
 the invite/accept flow mirrors folder sharing:
 
 ```php
-$share_id = desktop_mode_stored_file_share_invite( $file_id, $owner_id, $recipient_user_id );
+$share_id = openstation_stored_file_share_invite( $file_id, $owner_id, $recipient_user_id );
 // Recipient's next heartbeat carries the invite; on accept the
 // framework plants the tile at their desktop root.
 ```
@@ -75,7 +75,7 @@ Listen to the same actions folder shares fire — the row carries
 `target_type => 'file'`:
 
 ```php
-add_action( 'desktop_mode_files_share_accepted', static function ( $share_id, $row ) {
+add_action( 'openstation_files_share_accepted', static function ( $share_id, $row ) {
 	if ( 'file' === ( $row['target_type'] ?? 'folder' ) ) {
 		// A stored file share was accepted.
 	}
@@ -84,12 +84,12 @@ add_action( 'desktop_mode_files_share_accepted', static function ( $share_id, $r
 
 ## Client-side: observe desktop-sink uploads
 
-The desktop sink fires the same `desktop-mode.drop.*` chain the
+The desktop sink fires the same `os.drop.*` chain the
 Media Library sink does:
 
 ```js
-wp.desktop.hooks.addAction(
-	'desktop-mode.drop.after-upload',
+wp.os.hooks.addAction(
+	'os.drop.after-upload',
 	'my-plugin/uploads',
 	( { result } ) => {
 		if ( result && typeof result.storedFileId === 'number' ) {
@@ -104,13 +104,13 @@ wp.desktop.hooks.addAction(
 The folder-window preview pane renders images, video, and audio
 uploads inline out of the box; other types show a no-preview note
 plus a Download action. To preview a type the framework doesn't
-handle, hook the (pre-existing) `desktop-mode.files.preview` filter
+handle, hook the (pre-existing) `os.files.preview` filter
 and return your own element — it fully replaces the built-in for
 that placement:
 
 ```js
-wp.desktop.hooks.addFilter(
-	'desktop-mode.files.preview',
+wp.os.hooks.addFilter(
+	'os.files.preview',
 	'my-plugin/pdf-preview',
 	( node, placement ) => {
 		if (
@@ -121,7 +121,7 @@ wp.desktop.hooks.addFilter(
 			// Note: downloads are served with
 			// `Content-Disposition: attachment`, so an <iframe> will
 			// download rather than display. Fetch the bytes with
-			// wp.desktop.fetch and hand them to a renderer such as
+			// wp.os.fetch and hand them to a renderer such as
 			// PDF.js instead.
 			myPlugin.mountPdfViewer( host, placement.file.ref );
 			return host;
@@ -140,10 +140,10 @@ The serialized `upload` shape carries `mime`, `kind`
 `.htaccess` protects the storage dir on Apache only. On nginx add:
 
 ```nginx
-location ^~ /wp-content/uploads/desktop-mode-files/ { deny all; }
+location ^~ /wp-content/uploads/os-files/ { deny all; }
 ```
 
 The extensionless UUID disk names and the authenticated PHP-served
 downloads are the effective floor either way. Back up the database
-and `uploads/desktop-mode-files/` together — the table maps names to
+and `uploads/os-files/` together — the table maps names to
 bytes.

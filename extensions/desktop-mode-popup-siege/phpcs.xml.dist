@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<ruleset name="OpenStation — Popup Siege">
+	<description>Coding standards for the Popup Siege companion plugin.</description>
+
+	<file>desktop-mode-popup-siege.php</file>
+	<file>includes</file>
+	<file>games/popup-breaker/game.php</file>
+
+	<rule ref="WordPress"/>
+
+	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">
+		<properties>
+			<property name="prefixes" type="array">
+				<element value="popup_siege"/>
+				<element value="POPUP_SIEGE"/>
+			</property>
+		</properties>
+	</rule>
+
+	<rule ref="WordPress.WP.I18n">
+		<properties>
+			<property name="text_domain" type="array">
+				<element value="desktop-mode-popup-siege"/>
+			</property>
+		</properties>
+	</rule>
+
+	<config name="testVersion" value="7.4-"/>
+	<config name="minimum_supported_wp_version" value="6.5"/>
+</ruleset>

@@ -11,8 +11,6 @@
  * shell. We can't use native `<dialog>`'s modal mode — the desktop
  * intercepts focus on its own windows and the native overlay
  * conflicts with that.
- *
- * @since 0.7.0
  */
 
 export interface ConfirmDialogArgs {
@@ -38,25 +36,25 @@ export interface ConfirmDialogArgs {
 export function showConfirm( args: ConfirmDialogArgs ): Promise< boolean > {
 	return new Promise( ( resolve ) => {
 		const overlay = document.createElement( 'div' );
-		overlay.className = 'wpdc-conflict-overlay';
+		overlay.className = 'osc-conflict-overlay';
 
 		const dialog = document.createElement( 'div' );
-		dialog.className = 'wpdc-conflict-dialog';
+		dialog.className = 'osc-conflict-dialog';
 		dialog.setAttribute( 'role', 'dialog' );
 		dialog.setAttribute( 'aria-modal', 'true' );
-		dialog.setAttribute( 'aria-labelledby', 'wpdc-confirm-title' );
+		dialog.setAttribute( 'aria-labelledby', 'osc-confirm-title' );
 
 		const title = document.createElement( 'h2' );
-		title.id = 'wpdc-confirm-title';
-		title.className = 'wpdc-conflict-dialog__title';
+		title.id = 'osc-confirm-title';
+		title.className = 'osc-conflict-dialog__title';
 		title.textContent = args.title;
 
 		const body = document.createElement( 'p' );
-		body.className = 'wpdc-conflict-dialog__body';
+		body.className = 'osc-conflict-dialog__body';
 		body.textContent = args.body;
 
 		const actions = document.createElement( 'div' );
-		actions.className = 'wpdc-conflict-dialog__actions';
+		actions.className = 'osc-conflict-dialog__actions';
 
 		const finish = ( ok: boolean ): void => {
 			document.removeEventListener( 'keydown', onKey );
@@ -67,15 +65,15 @@ export function showConfirm( args: ConfirmDialogArgs ): Promise< boolean > {
 		const cancel = document.createElement( 'button' );
 		cancel.type = 'button';
 		cancel.className =
-			'wpdc-conflict-dialog__btn wpdc-conflict-dialog__btn--quiet';
+			'osc-conflict-dialog__btn osc-conflict-dialog__btn--quiet';
 		cancel.textContent = args.cancelLabel ?? 'Cancel';
 		cancel.addEventListener( 'click', () => finish( false ) );
 
 		const confirm = document.createElement( 'button' );
 		confirm.type = 'button';
-		confirm.className = 'wpdc-conflict-dialog__btn';
+		confirm.className = 'osc-conflict-dialog__btn';
 		if ( args.danger ) {
-			confirm.classList.add( 'wpdc-conflict-dialog__btn--danger' );
+			confirm.classList.add( 'osc-conflict-dialog__btn--danger' );
 		}
 		confirm.textContent = args.confirmLabel ?? 'Confirm';
 		confirm.addEventListener( 'click', () => finish( true ) );

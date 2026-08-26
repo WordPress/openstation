@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Note Pad widget.
+ * OpenStation — Note Pad widget.
  *
  * The composer for pinned notes: a physical pad of pastel paper on
  * the widget card. The top sheet is the live draft; two peek sheets
@@ -16,18 +16,16 @@
  *     POST + the pin-insertion thunk.
  *   - Or press the "Pin to desktop" button / Ctrl+Enter in the
  *     textarea — this bundle POSTs directly and hands the note to
- *     the layer via the `desktop-mode-note-created` CustomEvent.
+ *     the layer via the `os-note-created` CustomEvent.
  *
  * Cross-bundle rules honored here: only plain data crosses to the
  * main bundle (payload / CustomEvent detail); the REST client copy
  * compiled into THIS bundle gets its own deps installed from
- * `window.desktopModeConfig`.
- *
- * @since 0.9.6
+ * `window.openStationConfig`.
  */
 import './styles.css';
-import '../../ui/components/wpd-checkbox-label/wpd-checkbox-label';
-import '../../ui/components/wpd-textarea/wpd-textarea';
+import '../../ui/components/os-checkbox-label/os-checkbox-label';
+import '../../ui/components/os-textarea/os-textarea';
 import { __ } from '../../i18n';
 import type { DragManagerApi } from '../../drag';
 import { NOTE_COLORS, nextNoteColor, normalizeNoteColor } from '../../notes/colors';
@@ -43,7 +41,7 @@ import type { WidgetContext, WidgetTeardown } from '../../widgets/types';
 
 const WIDGET_ID = 'desktop-mode/notes';
 
-type WpdTextareaElement = HTMLElement & { focusInput?: () => void };
+type OsTextareaElement = HTMLElement & { focusInput?: () => void };
 
 interface ShellConfig {
 	notesUrl?: string;
@@ -52,8 +50,8 @@ interface ShellConfig {
 
 function readShellConfig(): ShellConfig {
 	return (
-		( window as unknown as { desktopModeConfig?: ShellConfig } )
-			.desktopModeConfig ?? {}
+		( window as unknown as { openStationConfig?: ShellConfig } )
+			.openStationConfig ?? {}
 	);
 }
 
@@ -61,9 +59,9 @@ function getDragManager(): DragManagerApi | null {
 	return (
 		(
 			window as unknown as {
-				wp?: { desktop?: { dragManager?: DragManagerApi } };
+				wp?: { os?: { dragManager?: DragManagerApi } };
 			}
-		).wp?.desktop?.dragManager ?? null
+		).wp?.os?.dragManager ?? null
 	);
 }
 
@@ -114,7 +112,7 @@ const mount = (
 	peelHint.textContent = __( 'Drag to pin', 'desktop-mode' );
 	peel.appendChild( peelHint );
 
-	const editor = document.createElement( 'wpd-textarea' ) as WpdTextareaElement;
+	const editor = document.createElement( 'os-textarea' ) as OsTextareaElement;
 	editor.className = 'dm-notes-pad__editor';
 	editor.setAttribute( 'aria-label', __( 'New note', 'desktop-mode' ) );
 	editor.setAttribute( 'placeholder', __( 'Write a note…', 'desktop-mode' ) );
@@ -149,7 +147,7 @@ const mount = (
 		swatches.appendChild( dot );
 	}
 
-	const publicToggle = document.createElement( 'wpd-checkbox-label' );
+	const publicToggle = document.createElement( 'os-checkbox-label' );
 	publicToggle.className = 'dm-notes-pad__public';
 	publicToggle.setAttribute(
 		'label',
@@ -158,7 +156,7 @@ const mount = (
 	if ( isPublic ) {
 		publicToggle.setAttribute( 'checked', '' );
 	}
-	publicToggle.addEventListener( 'wpd-checkbox-change', ( ev ) => {
+	publicToggle.addEventListener( 'os-checkbox-change', ( ev ) => {
 		isPublic =
 			( ev as CustomEvent< { checked: boolean } > ).detail.checked;
 		ctx.storage.set( 'public', isPublic );
@@ -219,7 +217,7 @@ const mount = (
 	const onInput = ( ev: Event ): void => {
 		text = ( ev as CustomEvent< { value: string } > ).detail.value;
 	};
-	editor.addEventListener( 'wpd-input-change', onInput );
+	editor.addEventListener( 'os-input-change', onInput );
 
 	// Shell shortcuts must not fire while writing on the pad — and
 	// Ctrl/Cmd+Enter is the keyboard pin path.
@@ -271,7 +269,7 @@ const mount = (
 
 	/**
 	 * Ghost: a real-looking pinned note held by its pin — reuses the
-	 * `.desktop-mode-pinned-note-ghost` classes styled by the shell's
+	 * `.os-pinned-note-ghost` classes styled by the shell's
 	 * notes.css (the ghost mounts on the shell body, not the widget).
 	 */
 	const buildDraftGhost = (): {
@@ -281,12 +279,12 @@ const mount = (
 	} => {
 		const width = 208;
 		const ghostRoot = document.createElement( 'div' );
-		ghostRoot.className = 'desktop-mode-pinned-note-ghost';
+		ghostRoot.className = 'os-pinned-note-ghost';
 		ghostRoot.dataset.noteColor = color;
 		ghostRoot.style.width = `${ width }px`;
 
 		const swing = document.createElement( 'div' );
-		swing.className = 'desktop-mode-pinned-note-ghost__swing';
+		swing.className = 'os-pinned-note-ghost__swing';
 		swing.dataset.noteColor = color;
 		// Needle tip: top-center of the paper (no jitter on a draft).
 		const tipX = width / 2;
@@ -294,16 +292,16 @@ const mount = (
 		swing.style.transformOrigin = `${ tipX }px ${ tipY }px`;
 
 		const pin = document.createElement( 'span' );
-		pin.className = 'desktop-mode-pinned-note__pin';
+		pin.className = 'os-pinned-note__pin';
 		pin.style.setProperty( '--dm-pin-dx', '0px' );
 		pin.style.setProperty( '--dm-pin-rot', '0deg' );
 		pin.appendChild( buildPinImage( ctx.pluginUrl ) );
 
 		const paper = document.createElement( 'div' );
 		paper.className =
-			'desktop-mode-pinned-note__paper desktop-mode-pinned-note-ghost__paper';
+			'os-pinned-note__paper os-pinned-note-ghost__paper';
 		const body = document.createElement( 'div' );
-		body.className = 'desktop-mode-pinned-note__body';
+		body.className = 'os-pinned-note__body';
 		body.textContent = text;
 		paper.appendChild( body );
 
@@ -319,7 +317,7 @@ const mount = (
 		const target = ev.target as Element | null;
 		// The textarea keeps normal text editing; the corner keeps its
 		// click. Everything else on the sheet is a tear-off handle.
-		if ( target?.closest( 'wpd-textarea, .dm-notes-pad__corner' ) ) {
+		if ( target?.closest( 'os-textarea, .dm-notes-pad__corner' ) ) {
 			return;
 		}
 		if ( ! text.trim() ) {
@@ -431,14 +429,14 @@ const mount = (
 			);
 		} catch ( err ) {
 			// eslint-disable-next-line no-console
-			console.error( '[desktop-mode] note pad: create failed:', err );
+			console.error( '[openstation] note pad: create failed:', err );
 			// Same user-visible feedback the drag path gets — a silent
 			// failure reads as "the feature is broken".
 			shakeSheet();
 			const toast = (
 				window as unknown as {
 					wp?: {
-						desktop?: {
+						os?: {
 							showToast?: ( opts: {
 								message: string;
 								duration?: number;
@@ -446,7 +444,7 @@ const mount = (
 						};
 					};
 				}
-			).wp?.desktop?.showToast;
+			).wp?.os?.showToast;
 			toast?.( {
 				message: __(
 					'Could not pin the note. Please try again.',
@@ -478,7 +476,7 @@ const mount = (
 };
 
 const w = window as unknown as {
-	desktopModeWidgets?: Record< string, typeof mount >;
+	openStationWidgets?: Record< string, typeof mount >;
 };
-w.desktopModeWidgets = w.desktopModeWidgets ?? {};
-w.desktopModeWidgets[ WIDGET_ID ] = mount;
+w.openStationWidgets = w.openStationWidgets ?? {};
+w.openStationWidgets[ WIDGET_ID ] = mount;

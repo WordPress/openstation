@@ -7,15 +7,15 @@ Two recipes: server-side (invite from PHP) and client-side
 
 ```php
 add_action( 'init', function () {
-    // Imagine we just created a folder via desktop_mode_files_create_folder
+    // Imagine we just created a folder via openstation_files_create_folder
     // and want to grant the team Editor role read access programmatically.
-    if ( ! function_exists( 'desktop_mode_folder_share_invite' ) ) {
+    if ( ! function_exists( 'openstation_folder_share_invite' ) ) {
         return;
     }
     $folder_id = (int) get_option( 'my_plugin_shared_folder_id' );
     $owner_id  = (int) get_post_field( 'post_author', $folder_id ); // or wherever you stash it
 
-    $share_id = desktop_mode_folder_share_invite(
+    $share_id = openstation_folder_share_invite(
         $folder_id,
         $owner_id,
         'role',          // principal_type: 'user' | 'role'
@@ -35,7 +35,7 @@ shell. They accept or deny via the modal.
 ## React to share lifecycle events
 
 ```php
-add_action( 'desktop_mode_files_share_accepted', function ( $share_id, $row, $user_id ) {
+add_action( 'openstation_files_share_accepted', function ( $share_id, $row, $user_id ) {
     // Send a welcome notification when someone accepts an invite.
     wp_mail(
         get_userdata( $user_id )->user_email,
@@ -44,7 +44,7 @@ add_action( 'desktop_mode_files_share_accepted', function ( $share_id, $row, $us
     );
 }, 10, 3 );
 
-add_action( 'desktop_mode_files_share_revoked', function ( $share_id, $row, $actor_id ) {
+add_action( 'openstation_files_share_revoked', function ( $share_id, $row, $actor_id ) {
     // Audit log every revoke.
     error_log( "Share #{$share_id} revoked by user {$actor_id}" );
 }, 10, 3 );
@@ -56,7 +56,7 @@ The default is owner-only. Plugins that ship a "team admin"
 concept can extend it:
 
 ```php
-add_filter( 'desktop_mode_files_share_can_manage', function ( $can, $folder_id, $user_id, $folder ) {
+add_filter( 'openstation_files_share_can_manage', function ( $can, $folder_id, $user_id, $folder ) {
     if ( $can ) {
         return $can;
     }
@@ -70,7 +70,7 @@ Default eligibility is "any role that carries `edit_posts`".
 Restrict (or broaden) to your site's reality:
 
 ```php
-add_filter( 'desktop_mode_files_share_eligible_roles', function ( $roles ) {
+add_filter( 'openstation_files_share_eligible_roles', function ( $roles ) {
     // Only allow sharing with the Editor and a custom "team_lead" role.
     return array_filter( $roles, function ( $r ) {
         return in_array( $r['slug'], array( 'editor', 'team_lead' ), true );
@@ -84,7 +84,7 @@ that should appear in the picker, give it `edit_posts` or add a
 custom permission callback via:
 
 ```php
-add_filter( 'desktop_mode_files_share_user_query_args', function ( $args, $req_params ) {
+add_filter( 'openstation_files_share_user_query_args', function ( $args, $req_params ) {
     // E.g. only return users in the same multisite blog as the actor.
     $args[ 'blog_id' ] = get_current_blog_id();
     return $args;
@@ -150,21 +150,21 @@ semantics.
 
 ## Veto a folder delete (confirmation prompts, audit guards)
 
-`desktop_mode_files_can_delete_folder` runs after the ownership
+`openstation_files_can_delete_folder` runs after the ownership
 check and before the cascade. Return a `WP_Error` or anything
 other than `true` to block — the cascade proceeds only when the
 filter resolves to exactly `true` (the default).
 
 ```php
 add_filter(
-    'desktop_mode_files_can_delete_folder',
+    'openstation_files_can_delete_folder',
     function ( $can, $folder_id, $user_id, $folder ) {
         // Block delete when the folder has >5 active recipients
         // until the owner explicitly revokes the shares first.
-        if ( ! function_exists( 'desktop_mode_files_get_folder_shares' ) ) {
+        if ( ! function_exists( 'openstation_files_get_folder_shares' ) ) {
             return $can;
         }
-        $shares = (array) desktop_mode_files_get_folder_shares( $folder_id );
+        $shares = (array) openstation_files_get_folder_shares( $folder_id );
         $active = array_filter( $shares, fn( $s ) => 'denied' !== $s['state'] );
         if ( count( $active ) > 5 ) {
             return new WP_Error(
@@ -182,14 +182,14 @@ add_filter(
 
 ## React to the cascade summary
 
-`desktop_mode_files_after_delete_folder_cascade` fires once per
+`openstation_files_after_delete_folder_cascade` fires once per
 folder delete with a structured summary of everything that was
 torn down — useful for audit logs, cross-tenant cleanup, or
 sending notifications to affected recipients.
 
 ```php
 add_action(
-    'desktop_mode_files_after_delete_folder_cascade',
+    'openstation_files_after_delete_folder_cascade',
     function ( $root_folder_id, $user_id, $summary ) {
         error_log( sprintf(
             'User %d deleted folder %d → cascade removed %d folder(s), %d share(s), %d pointing placement(s), %d inside placement(s).',
@@ -206,7 +206,7 @@ add_action(
 );
 ```
 
-Per-share `desktop_mode_files_share_revoked` actions fire during
+Per-share `openstation_files_share_revoked` actions fire during
 the cascade for each share that gets torn down, so plugins
 already listening to that signal don't need to subscribe to the
 summary too — both fire.
@@ -215,7 +215,7 @@ summary too — both fire.
 
 ```php
 add_action(
-    'desktop_mode_folder_renamed',
+    'openstation_folder_renamed',
     function ( $folder_id, $new_name, $old_name, $user_id ) {
         // Mirror the rename into a sidecar plugin table.
         my_plugin_update_folder_label( $folder_id, $new_name );
@@ -232,4 +232,4 @@ next heartbeat tick — no extra work needed for live UI sync.
 ## See also
 
 - [folder-sharing.md](../folder-sharing.md) — full architecture.
-- [hooks-reference.md](../hooks-reference.md#folder-sharing-since-085-experimental).
+- [hooks-reference.md](../hooks-reference.md#folder-sharing-experimental).

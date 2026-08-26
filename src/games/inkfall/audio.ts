@@ -14,8 +14,6 @@
  * (always inside a keystroke gesture, so autoplay policies are
  * satisfied) and closed on dispose. The on/off preference persists
  * to localStorage.
- *
- * @since 0.9.6
  */
 
 /** localStorage key for the sound on/off preference. */

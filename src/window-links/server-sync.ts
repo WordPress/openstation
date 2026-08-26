@@ -2,7 +2,7 @@
  * Server-driven window-link renderer sync.
  *
  * Mirrors `src/effects/server-sync.ts`. Plugins opt in server-side
- * with `desktop_mode_register_window_link_renderer_script()`; this
+ * with `openstation_register_window_link_renderer_script()`; this
  * module loads each opted-in script on activation, and on
  * deactivation unregisters every renderer whose `owner` matches the
  * departing handle.
@@ -12,8 +12,6 @@
  * additionally falls back to the built-in `svg-splines` should the
  * ACTIVE renderer disappear). The OS Settings selector and the render
  * host react live via the registry's subscribe fan-out.
- *
- * @since 0.9.4
  */
 
 import { doAction, HOOKS } from '../hooks';

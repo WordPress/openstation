@@ -1,0 +1,95 @@
+{
+  "id": "popup-siege-ui-system-0.6.0",
+  "shell": {
+    "asset": "images/popup-siege-side-console-0.5.1.png",
+    "sourceWidth": 771,
+    "sourceHeight": 2041
+  },
+  "appliance": {
+    "width": 704,
+    "height": 629,
+    "stageShare": 0.681818,
+    "consoleShare": 0.318182,
+    "barShare": 0.05724,
+    "railShare": 0.05405
+  },
+  "regions": {
+    "brand": {
+      "x": 0.255,
+      "y": 0.094,
+      "width": 0.54,
+      "height": 0.09
+    },
+    "hud": {
+      "x": 0.252,
+      "y": 0.2265,
+      "width": 0.542,
+      "height": 0.327
+    },
+    "controls": {
+      "x": 0.243,
+      "y": 0.6122,
+      "width": 0.559,
+      "height": 0.2653,
+      "columnGap": 0.01,
+      "rowGap": 0.031,
+      "iconTrack": 0.72,
+      "labelTrack": 0.28,
+      "labelBaseline": 0.83
+    }
+  },
+  "registration": {
+    "maxCssPixels": 2,
+    "maxKeyFraction": 0.015,
+    "minimumLiveTargetCssPixels": 44,
+    "minimumCurrentShellApplianceWidth": 500
+  },
+  "progression": {
+    "source": "popupCloses",
+    "levels": [
+      {
+        "number": 1,
+        "id": "download-trap",
+        "minimumPopupCloses": 0
+      },
+      {
+        "number": 2,
+        "id": "toolbar-swarm",
+        "minimumPopupCloses": 1
+      },
+      {
+        "number": 3,
+        "id": "malware-boss",
+        "minimumPopupCloses": 3
+      },
+      {
+        "number": 4,
+        "id": "archive-sweep",
+        "minimumPopupCloses": 4
+      }
+    ],
+    "transitionPresentation": "non-modal",
+    "replayFlow": "one-click"
+  },
+  "typeTargetsAtCanonicalConsole": {
+    "wordmarkCssPixels": [32, 40],
+    "hudValueCssPixels": [17, 21],
+    "controlIconCssPixels": [27, 31],
+    "smallLabelCssPixels": [9, 10]
+  },
+  "states": {
+    "shellKey": [
+      "default",
+      "hover",
+      "pressed",
+      "on",
+      "off",
+      "inactive",
+      "focus",
+      "danger"
+    ],
+    "pauseModes": ["pause", "resume"],
+    "runLevels": [1, 2, 3, 4],
+    "resultActions": ["replay", "close"]
+  }
+}

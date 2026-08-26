@@ -10,7 +10,6 @@
  *   3. **Action buttons** — fit-to-view + reheat the simulation.
  *
  * @public
- * @since 0.8.2
  */
 
 import { __ } from '../i18n';
@@ -24,7 +23,7 @@ export interface ToolbarCallbacks {
 	getNodes: () => GraphNode[];
 }
 
-// Sentinel for the "no clustering" option. `<wpd-select>` works
+// Sentinel for the "no clustering" option. `<os-select>` works
 // best with non-empty values; the toolbar maps it to `null` before
 // handing it to the orchestrator.
 const GROUP_NONE = 'none';
@@ -44,18 +43,18 @@ export function renderToolbar(
 	const active = new Set( postTypes.map( ( t ) => t.slug ) );
 
 	const chipsRow = document.createElement( 'div' );
-	chipsRow.className = 'desktop-mode-content-graph__filters';
+	chipsRow.className = 'os-content-graph__filters';
 	host.appendChild( chipsRow );
 
 	for ( const type of postTypes ) {
 		const chip = document.createElement( 'button' );
 		chip.type = 'button';
-		chip.className = 'desktop-mode-content-graph__chip is-active';
+		chip.className = 'os-content-graph__chip is-active';
 		chip.dataset.slug = type.slug;
 		chip.innerHTML =
 			`<span class="dashicons ${ escapeAttr( type.icon ) }" aria-hidden="true"></span>` +
-			`<span class="desktop-mode-content-graph__chip-label">${ escapeHtml( type.label ) }</span>` +
-			`<span class="desktop-mode-content-graph__chip-count">${ type.count }</span>`;
+			`<span class="os-content-graph__chip-label">${ escapeHtml( type.label ) }</span>` +
+			`<span class="os-content-graph__chip-count">${ type.count }</span>`;
 		chip.addEventListener( 'click', () => {
 			if ( active.has( type.slug ) ) {
 				active.delete( type.slug );
@@ -70,10 +69,10 @@ export function renderToolbar(
 	}
 
 	const searchWrap = document.createElement( 'div' );
-	searchWrap.className = 'desktop-mode-content-graph__search';
+	searchWrap.className = 'os-content-graph__search';
 	const searchInput = document.createElement( 'input' );
 	searchInput.type = 'search';
-	searchInput.className = 'desktop-mode-content-graph__search-input';
+	searchInput.className = 'os-content-graph__search-input';
 	searchInput.placeholder = __( 'Search nodes…' );
 	searchInput.setAttribute(
 		'aria-label',
@@ -82,7 +81,7 @@ export function renderToolbar(
 	searchWrap.appendChild( searchInput );
 
 	const dropdown = document.createElement( 'ul' );
-	dropdown.className = 'desktop-mode-content-graph__search-results';
+	dropdown.className = 'os-content-graph__search-results';
 	dropdown.hidden = true;
 	searchWrap.appendChild( dropdown );
 
@@ -104,10 +103,10 @@ export function renderToolbar(
 			const li = document.createElement( 'li' );
 			const btn = document.createElement( 'button' );
 			btn.type = 'button';
-			btn.className = 'desktop-mode-content-graph__search-result';
+			btn.className = 'os-content-graph__search-result';
 			btn.innerHTML =
-				`<span class="desktop-mode-content-graph__search-title">${ escapeHtml( m.title || '#' + m.id ) }</span>` +
-				`<span class="desktop-mode-content-graph__search-type">${ escapeHtml( m.type ) }</span>`;
+				`<span class="os-content-graph__search-title">${ escapeHtml( m.title || '#' + m.id ) }</span>` +
+				`<span class="os-content-graph__search-type">${ escapeHtml( m.type ) }</span>`;
 			btn.addEventListener( 'click', () => {
 				searchInput.value = '';
 				dropdown.hidden = true;
@@ -134,14 +133,14 @@ export function renderToolbar(
 	// auto` and would shove the select to the right edge, away from
 	// the chips it groups.
 	//
-	// Deliberately no `label` attribute: `<wpd-select>` renders its
+	// Deliberately no `label` attribute: `<os-select>` renders its
 	// label stacked above the dropdown, which makes the control
 	// taller than the chips and breaks horizontal alignment on the
 	// toolbar row. Instead, the first option's text ("No grouping")
 	// telegraphs the purpose, with `aria-label` + `title` carrying
 	// the "Group by" semantics for screen readers and hover.
-	const groupBy = document.createElement( 'wpd-select' );
-	groupBy.className = 'desktop-mode-content-graph__group-by';
+	const groupBy = document.createElement( 'os-select' );
+	groupBy.className = 'os-content-graph__group-by';
 	groupBy.setAttribute( 'value', GROUP_NONE );
 	groupBy.setAttribute( 'aria-label', __( 'Group by' ) );
 	groupBy.title = __( 'Group posts by a shared facet' );
@@ -153,12 +152,12 @@ export function renderToolbar(
 		[ 'year', __( 'Group by year' ) ],
 		[ 'year_month', __( 'Group by year-month' ) ],
 	] as const ) {
-		const opt = document.createElement( 'wpd-option' );
+		const opt = document.createElement( 'os-option' );
 		opt.setAttribute( 'value', value );
 		opt.textContent = label;
 		groupBy.appendChild( opt );
 	}
-	groupBy.addEventListener( 'wpd-pick', ( ev: Event ) => {
+	groupBy.addEventListener( 'os-pick', ( ev: Event ) => {
 		const detail = ( ev as CustomEvent< { value: string } > ).detail;
 		const raw = detail?.value ?? GROUP_NONE;
 		const facet: GroupFacet | null =
@@ -170,11 +169,11 @@ export function renderToolbar(
 	host.insertBefore( groupBy, searchWrap );
 
 	const actions = document.createElement( 'div' );
-	actions.className = 'desktop-mode-content-graph__actions';
+	actions.className = 'os-content-graph__actions';
 
 	const fit = document.createElement( 'button' );
 	fit.type = 'button';
-	fit.className = 'desktop-mode-content-graph__btn';
+	fit.className = 'os-content-graph__btn';
 	fit.innerHTML =
 		'<span class="dashicons dashicons-editor-expand" aria-hidden="true"></span>' +
 		`<span>${ escapeHtml( __( 'Fit' ) ) }</span>`;
@@ -183,7 +182,7 @@ export function renderToolbar(
 	actions.appendChild( fit );
 
 	const status = document.createElement( 'span' );
-	status.className = 'desktop-mode-content-graph__toolbar-status';
+	status.className = 'os-content-graph__toolbar-status';
 	actions.appendChild( status );
 
 	host.appendChild( actions );

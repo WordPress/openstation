@@ -2,15 +2,15 @@
 
 Every infinite-scroll plugin in the wild reinvents the same five primitives — `IntersectionObserver` on a sentinel below the last row, an `AbortController` to cancel in-flight pages on filter change, dedup-by-id so refetches don't render the same row twice, cursor pagination, and a "loading more" indicator separate from the window-level spinner.
 
-`wp.desktop.createInfiniteList()` ships every piece of that. *Stable since 0.8.2.*
+`wp.os.createInfiniteList()` ships every piece of that. *Stable.*
 
 ## Minimal recipe
 
 ```js
-const list = wp.desktop.createInfiniteList( {
+const list = wp.os.createInfiniteList( {
     root: document.getElementById( 'feed-root' ),
     fetchPage: async ( cursor, signal ) => {
-        const res = await wp.desktop.fetch(
+        const res = await wp.os.fetch(
             '/wp-json/myplugin/v1/feed?cursor=' + encodeURIComponent( cursor ?? '' ),
             { signal },
         );
@@ -77,9 +77,9 @@ If the slow old request resolves AFTER the new one has started, the helper drops
 Native windows: pair the call with the new render-`ctx.signal` so destroy fires on close.
 
 ```js
-window.desktopModeNativeWindows[ 'my-feed-inbox' ] = ( body, { signal } ) => {
+window.openStationNativeWindows[ 'my-feed-inbox' ] = ( body, { signal } ) => {
     const root = body.querySelector( '.feed' );
-    const list = wp.desktop.createInfiniteList( {
+    const list = wp.os.createInfiniteList( {
         root,
         fetchPage: ( cursor, fetchSignal ) =>
             // The fetch's own signal is what aborts on filter
@@ -100,7 +100,7 @@ The shell's window-level spinner is reserved for the **first paint**. For the "l
 
 ```js
 const moreSpinner = root.querySelector( '.feed-more-spinner' );
-wp.desktop.createInfiniteList( {
+wp.os.createInfiniteList( {
     root,
     fetchPage,
     getId, renderItem,
@@ -110,7 +110,7 @@ wp.desktop.createInfiniteList( {
 } );
 ```
 
-That keeps the title-bar dot and the loading overlay free to mean what they always mean (`wp.desktop.fetch` activity + first-paint readiness) — and the user gets a "loading more" indicator that doesn't conflict with either.
+That keeps the title-bar dot and the loading overlay free to mean what they always mean (`wp.os.fetch` activity + first-paint readiness) — and the user gets a "loading more" indicator that doesn't conflict with either.
 
 ## Custom sentinel
 
@@ -122,7 +122,7 @@ moreBar.type = 'button';
 moreBar.textContent = 'Load more';
 root.appendChild( moreBar );
 
-const list = wp.desktop.createInfiniteList( {
+const list = wp.os.createInfiniteList( {
     root,
     sentinel: moreBar,
     fetchPage, getId, renderItem,
@@ -136,5 +136,5 @@ The `IntersectionObserver` still wires up — your bar auto-loads on scroll AND 
 ## See also
 
 - [`render-ctx.md`](./render-ctx.md) — `signal` from the render ctx aborts on close, perfect for `list.destroy()` on the way out.
-- [`window-activity.md`](./window-activity.md) — `wp.desktop.fetch` so the title-bar dot pulses while pages load.
+- [`window-activity.md`](./window-activity.md) — `wp.os.fetch` so the title-bar dot pulses while pages load.
 - [`keyed-list.md`](./keyed-list.md) — when the list is small + bounded and you need stable keys for the rows you DO render, not "render more on scroll".

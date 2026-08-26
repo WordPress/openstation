@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — stored-upload entry points (DESKMOD-45).
+ * OpenStation — stored-upload entry points (DESKMOD-45).
  *
  * Wires the real-file-storage feature into the existing menu
  * surfaces, all through the public hook bus:
@@ -13,13 +13,13 @@
  *      `src/os-file-drop/`).
  *
  * Activated once on boot from `src/desktop-files/index.ts`.
- *
- * @since 0.9.6
  */
 
 import { addFilter } from '../hooks';
 import { showToast } from '../toast';
 import { navigateToDownload } from './download-nav';
+import { openFileShareModal } from './overlays-loader';
+import { loadVendorScript } from '../wallpapers/vendor-loader';
 import {
 	getFolderZipUrl,
 	getUploadDownloadUrl,
@@ -28,11 +28,13 @@ import {
 	type RestPlacementShape,
 } from './rest';
 import { removePlacement, setFolderPlacements } from './store';
-import { wpdConfirm } from '../ui/components/wpd-confirm-dialog/wpd-confirm-dialog';
+// `../os-confirm`, not the component module — see the note in
+// `share-menu-items.ts`.
+import { osConfirm } from '../os-confirm';
 import type { TileMenuItem } from './tile-menu';
 
 function viewerId(): number {
-	return Number( window.desktopModeConfig?.currentUserId ?? 0 );
+	return Number( window.openStationConfig?.currentUserId ?? 0 );
 }
 
 interface StorageConfigShape {
@@ -42,7 +44,7 @@ interface StorageConfigShape {
 
 function storageConfig(): StorageConfigShape {
 	return (
-		( window.desktopModeConfig as { desktopStorage?: StorageConfigShape } | undefined )
+		( window.openStationConfig as { desktopStorage?: StorageConfigShape } | undefined )
 			?.desktopStorage ?? {}
 	);
 }
@@ -50,8 +52,8 @@ function storageConfig(): StorageConfigShape {
 /** Mirrors the folder-share kill-switch read in share-menu-items. */
 function sharingEnabled(): boolean {
 	const settings = ( window as unknown as {
-		wp?: { desktop?: { getOsSettings?: () => { foldersSharingEnabled?: boolean } } };
-	} ).wp?.desktop?.getOsSettings?.();
+		wp?: { os?: { getOsSettings?: () => { foldersSharingEnabled?: boolean } } };
+	} ).wp?.os?.getOsSettings?.();
 	if ( ! settings ) {
 		return true;
 	}
@@ -71,7 +73,7 @@ function uploadFileId( placement: RestPlacementShape ): number | null {
  */
 export function installUploadMenuItems(): void {
 	addFilter(
-		'desktop-mode.files.tile-menu',
+		'os.files.tile-menu',
 		'desktop-mode/uploads',
 		(
 			items: TileMenuItem[],
@@ -121,12 +123,13 @@ export function installUploadMenuItems(): void {
 					icon: 'dashicons-share',
 					sort: 30,
 					onClick: () => {
-						void import( './share-settings-modal' ).then( ( mod ) => {
-							void mod.openFileShareModal( {
-								fileId,
-								fileName:
-									placement.file.title || `File ${ fileId }`,
-							} );
+						// Via the lazy loader — the old dynamic
+						// import was flattened into the shell bundle
+						// by the IIFE build.
+						void openFileShareModal( {
+							fileId,
+							fileName:
+								placement.file.title || `File ${ fileId }`,
 						} );
 					},
 				} );
@@ -139,7 +142,7 @@ export function installUploadMenuItems(): void {
 					sort: 80,
 					danger: true,
 					onClick: async () => {
-						const ok = await wpdConfirm( {
+						const ok = await osConfirm( {
 							title: 'Leave this shared file?',
 							message:
 								'The file will be removed from your desktop. The owner keeps the original.',
@@ -174,7 +177,7 @@ export function installUploadMenuItems(): void {
 	// Wallpaper context menu — explicit pickers next to the
 	// drag-and-drop path.
 	addFilter(
-		'desktop-mode.wallpaper-context-menu',
+		'os.wallpaper-context-menu',
 		'desktop-mode/uploads',
 		( items: Array< Record< string, unknown > > ) => {
 			if ( ! storageConfig().canUpload ) {
@@ -227,49 +230,24 @@ function openFilePicker( directory: boolean ): void {
 }
 
 async function routePickedFiles( files: File[], directory: boolean ): Promise< void > {
-	const config = window.desktopModeConfig;
-	const dropConfig = config?.dropConfig ?? {
-		enabled: false,
-		allowedMimes: [],
-		maxSize: 0,
-	};
-	const manager = await import( '../os-file-drop/manager' );
-	const { accepted, rejected } = manager.partitionByPolicy( files, dropConfig );
-	if ( rejected.length > 0 ) {
-		showToast( {
-			message:
-				rejected.length === 1
-					? rejected[ 0 ].message
-					: `${ rejected.length } files can't be uploaded.`,
-		} );
-	}
-	if ( accepted.length === 0 ) {
+	// The policy check + upload dialog live in the lazy `file-drop`
+	// bundle now (the old `await import( '../os-file-drop/… )` calls
+	// were flattened straight into the shell bundle by the IIFE
+	// build). A picker flow is a click-then-choose gesture — the
+	// bundle fetch hides entirely inside the file-picker dialog time.
+	const url = (
+		window as unknown as {
+			openStationConfig?: { fileDropBundleUrl?: string };
+		}
+	).openStationConfig?.fileDropBundleUrl;
+	if ( ! url ) {
 		return;
 	}
-	const entries = accepted.map( ( { file, mime } ) => ( {
-		file,
-		mime,
-		fields: manager.defaultFields( file, mime ),
-		// `webkitRelativePath` is populated by directory picks (and
-		// ONLY by them — drag-drops leave it empty).
-		relativePath: directory
-			? ( file as { webkitRelativePath?: string } ).webkitRelativePath ?? ''
-			: '',
-	} ) );
-	const dialog = await import( '../os-file-drop/dialog' );
-	await dialog.openUploadDialog( {
-		entries,
-		// Root-targeted picker: desktop destination default, server
-		// picks free grid slots (no coords on non-wallpaper surfaces).
-		context: { surface: 'folder', folderId: 0, x: 0, y: 0 },
-		mediaUrl: config?.mediaUrl ?? '',
-		restNonce: config?.restNonce ?? '',
-		filesUrl: config?.filesUrl,
-		storage: config?.desktopStorage,
-		forceDesktop: directory,
-		// These pickers live in the desktop's own menu — their whole
-		// point is desktop storage, media-kind files included.
-		preferDesktop: true,
-		mediaMaxBytes: dropConfig.maxSize,
-	} );
+	try {
+		await loadVendorScript( url );
+	} catch {
+		showToast( { message: 'Upload machinery failed to load — try again.' } );
+		return;
+	}
+	await window.openStationFileDrop?.routePickedFiles( files, directory );
 }

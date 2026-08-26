@@ -14,27 +14,27 @@ The default `Dock` renderer fires a small set of filters and actions while it
 paints. Plugins compose decoration — animations, classNames, wrappers,
 custom tooltips — through these instead of replacing the whole rail.
 
-**Status:** Stable since 0.6.0.
+**Status:** Stable.
 
 ## The hook surface
 
 | Hook | Kind | Signature |
 |---|---|---|
-| `desktop-mode.dock.before-render` | Action | `( ctx: DockRenderContext ) => void` |
-| `desktop-mode.dock.tile-class` | Filter | `( classes: string[], ctx: DockTileContext ) => string[]` |
-| `desktop-mode.dock.tile-element` | Filter | `( el: HTMLElement, ctx: DockTileContext ) => HTMLElement` |
-| `desktop-mode.dock.tile-tooltip` | Filter | `( label: string, ctx: DockTileContext ) => string` |
-| `desktop-mode.dock.tile-rendered` | Action | `( ctx: DockTileContext & { el: HTMLElement } ) => void` |
-| `desktop-mode.dock.after-render` | Action | `( ctx: DockRenderContext ) => void` |
+| `os.dock.before-render` | Action | `( ctx: DockRenderContext ) => void` |
+| `os.dock.tile-class` | Filter | `( classes: string[], ctx: DockTileContext ) => string[]` |
+| `os.dock.tile-element` | Filter | `( el: HTMLElement, ctx: DockTileContext ) => HTMLElement` |
+| `os.dock.tile-tooltip` | Filter | `( label: string, ctx: DockTileContext ) => string` |
+| `os.dock.tile-rendered` | Action | `( ctx: DockTileContext & { el: HTMLElement } ) => void` |
+| `os.dock.after-render` | Action | `( ctx: DockRenderContext ) => void` |
 
 Both context shapes carry `{ rail, orientation, dockId, container }` so a
 single subscriber can disambiguate when two rails coexist (Classic
 layout's left side bar + bottom dock). `dockId` matches the host
-element id — `'desktop-mode-dock'` for the bottom rail,
-`'desktop-mode-side-dock'` for the Classic side rail.
+element id — `'os-dock'` for the bottom rail,
+`'os-side-dock'` for the Classic side rail.
 
 `DockTileContext` adds `{ item, isSystem }`. When `isSystem` is true the
-item is a `SystemDockItem` (OS Settings, plugin-owned native-window
+item is a `SystemDockItem` (OpenStation Preferences, plugin-owned native-window
 launchers); otherwise it's a `DockItem` from the admin menu.
 
 ## Add a className per tile
@@ -43,8 +43,8 @@ Useful for theming a specific plugin's tiles or for marking tiles you
 own without modifying the menu data.
 
 ```js
-wp.desktop.hooks.addFilter(
-    'desktop-mode.dock.tile-class',
+wp.os.hooks.addFilter(
+    'os.dock.tile-class',
     'my-plugin/decorate',
     ( classes, ctx ) => {
         if ( ! ctx.isSystem && ctx.item.id === 'edit.php' ) {
@@ -58,21 +58,21 @@ wp.desktop.hooks.addFilter(
 CSS:
 
 ```css
-.my-plugin-glow .desktop-mode-dock__item-primary {
+.my-plugin-glow .os-dock__item-primary {
     box-shadow: 0 0 12px rgba( 255, 255, 100, 0.6 );
 }
 ```
 
 ## Wrap a tile in a custom container
 
-Returning a different element from `desktop-mode.dock.tile-element`
+Returning a different element from `os.dock.tile-element`
 replaces the tile in the DOM. The shell still finds the original
 `[data-menu-slug]` / `[data-system-id]` descendant for active-state
 and badge updates, so **wrap the tile, don't replace it**.
 
 ```js
-wp.desktop.hooks.addFilter(
-    'desktop-mode.dock.tile-element',
+wp.os.hooks.addFilter(
+    'os.dock.tile-element',
     'my-plugin/wrap',
     ( el, ctx ) => {
         if ( ctx.isSystem ) {
@@ -93,8 +93,8 @@ pointerenter. Returning an empty string suppresses the tooltip
 entirely.
 
 ```js
-wp.desktop.hooks.addFilter(
-    'desktop-mode.dock.tile-tooltip',
+wp.os.hooks.addFilter(
+    'os.dock.tile-tooltip',
     'my-plugin/tooltip',
     ( label, ctx ) => {
         if ( ! ctx.isSystem && ctx.item.badge > 0 ) {
@@ -107,12 +107,12 @@ wp.desktop.hooks.addFilter(
 
 ## Animate a tile after it lands in the DOM
 
-`desktop-mode.dock.tile-rendered` fires once per tile after insertion,
+`os.dock.tile-rendered` fires once per tile after insertion,
 so computed layout (offsetWidth, getBoundingClientRect) is ready.
 
 ```js
-wp.desktop.hooks.addAction(
-    'desktop-mode.dock.tile-rendered',
+wp.os.hooks.addAction(
+    'os.dock.tile-rendered',
     'my-plugin/animate',
     ( { el, item, isSystem } ) => {
         if ( isSystem || ! item.multi ) {
@@ -131,14 +131,14 @@ wp.desktop.hooks.addAction(
 
 ## Bulk decoration after every paint
 
-`desktop-mode.dock.after-render` fires once per pass with the full
+`os.dock.after-render` fires once per pass with the full
 tile element map. Use it when a decoration touches multiple tiles or
 needs the post-paint geometry (e.g. measuring the rail's bounding
 rect for a custom indicator).
 
 ```js
-wp.desktop.hooks.addAction(
-    'desktop-mode.dock.after-render',
+wp.os.hooks.addAction(
+    'os.dock.after-render',
     'my-plugin/connector',
     ( { tileElements, container } ) => {
         // …draw a connector between two tiles, attach an
@@ -160,8 +160,8 @@ which CSS can't interpolate — the transition snaps. Two paths:
   on the element interpolates the value the way CSS expects.
 
 ```js
-wp.desktop.hooks.addAction(
-    'desktop-mode.dock.tile-rendered',
+wp.os.hooks.addAction(
+    'os.dock.tile-rendered',
     'my-plugin/lift',
     ( { el } ) => {
         el.style.transition = 'transform 180ms ease';

@@ -1,14 +1,15 @@
 /**
- * Desktop Mode — Pinned notes types.
+ * OpenStation — Pinned notes types.
  *
- * The wire shape mirrors `desktop_mode_notes_prepare()` in
+ * The wire shape mirrors `openstation_notes_prepare()` in
  * `includes/notes/rest.php`; the drag payload data shapes are the
  * cross-bundle contract between the Note Pad widget (its own IIFE
  * bundle) and the notes layer (main bundle). Only PLAIN DATA crosses
  * that boundary — the widget imports nothing but types from here.
- *
- * @since 0.9.6
  */
+
+/** Mirrors `OPENSTATION_NOTES_POST_TYPE` in `includes/notes/cpt.php`. */
+export const NOTES_POST_TYPE = 'wpd_note';
 
 /** Wire shape of one note. */
 export interface Note {
@@ -48,7 +49,7 @@ export const NOTE_PAYLOAD_TYPE = 'note';
  * from its own bundle and hands the note over via this event.
  * `detail: { note: Note }`.
  */
-export const NOTE_CREATED_EVENT = 'desktop-mode-note-created';
+export const NOTE_CREATED_EVENT = 'os-note-created';
 
 /** `payload.data` for a `'note-draft'` drag (widget → wallpaper). */
 export interface NoteDraftDragData {
@@ -66,13 +67,13 @@ export interface NoteDragData {
 	[ key: string ]: unknown;
 }
 
-/** Heartbeat subscribe payload (`desktop_mode_notes_subscribe`). */
+/** Heartbeat subscribe payload (`openstation_notes_subscribe`). */
 export interface NotesHeartbeatSubscribe {
 	knownIds: number[];
 	sinceMs: number;
 }
 
-/** Heartbeat response payload (`desktop_mode_notes`). */
+/** Heartbeat response payload (`openstation_notes`). */
 export interface NotesHeartbeatPayload {
 	notes?: Note[];
 	removed?: number[];

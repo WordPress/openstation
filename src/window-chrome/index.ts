@@ -1,7 +1,7 @@
 /**
  * Window-chrome customization framework — public re-exports.
  *
- * Plugin authors typically reach this surface through `wp.desktop.*`
+ * Plugin authors typically reach this surface through `wp.os.*`
  * (the desktop bundle's runtime) rather than importing the modules
  * directly. This barrel keeps the framework's TS API discoverable
  * for in-tree consumers (the desktop bundle, the iframe bridge,
@@ -17,8 +17,6 @@
  *     replace. Stable.
  *   - **Chrome** (Layer 4) — full title-bar render replacement.
  *     Experimental — signature may change.
- *
- * @since 0.6.0
  */
 
 export {

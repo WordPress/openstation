@@ -13,10 +13,9 @@
  * where `get_current_screen()` and the content globals are live — so
  * relations the URL alone can't answer (which post a comment belongs
  * to) resolve server-side and reach the shell via the chromeless
- * bridge's `desktop-mode-content-identity` postMessage.
+ * bridge's `os-content-identity` postMessage.
  *
- * @since 0.9.4
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -42,12 +41,13 @@ defined( 'ABSPATH' ) || exit;
  *  - `comment.php` (comment edit / moderation) — `comment`, rooted at
  *    the parent post. The URL alone can't answer this one; only real
  *    admin context can.
- *
- * @since 0.9.4
+ *  - `user-edit.php` / `profile.php` — `user`, a root identity. What
+ *    points at a person (a post's author, an order's customer) does so
+ *    from its own `links`.
  *
  * @return array|null Identity array, or `null` when none applies.
  */
-function desktop_mode_build_content_identity() {
+function openstation_build_content_identity() {
 	$identity = null;
 	$screen   = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
 	$pagenow  = isset( $GLOBALS['pagenow'] ) ? (string) $GLOBALS['pagenow'] : '';
@@ -102,9 +102,14 @@ function desktop_mode_build_content_identity() {
 				// referenced object is open, the shell draws a directed
 				// tie toward it (mutual links collapse into one
 				// bidirectional arrow).
-				$links = desktop_mode_window_links_extract_references( $post );
+				$links = openstation_window_links_extract_references( $post );
 				if ( ! empty( $links ) ) {
 					$identity['links'] = $links;
+				}
+
+				$preview_url = openstation_window_preview_url( $post );
+				if ( '' !== $preview_url ) {
+					$identity['previewUrl'] = $preview_url;
 				}
 
 				// Source for the built-in related-entity items attached
@@ -176,6 +181,22 @@ function desktop_mode_build_content_identity() {
 				'label' => $term->name,
 			);
 		}
+	} elseif ( 'user-edit.php' === $pagenow || 'profile.php' === $pagenow ) {
+		// Profile editor — `user-edit.php?user_id=N`, or `profile.php`
+		// for your own. A person is its own root: everything that
+		// points AT them (an order's customer, a post's author) does
+		// so through its identity's `links`, so an open profile window
+		// ties to whatever else on the desktop is about them.
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only identity harvest; the host admin page enforces capability + nonce.
+		$user_id = isset( $_GET['user_id'] ) ? absint( $_GET['user_id'] ) : get_current_user_id();
+		$user    = $user_id ? get_userdata( $user_id ) : null;
+		if ( $user instanceof WP_User && current_user_can( 'edit_user', $user->ID ) ) {
+			$identity = array(
+				'type'  => 'user',
+				'id'    => (int) $user->ID,
+				'label' => $user->display_name ? $user->display_name : $user->user_login,
+			);
+		}
 	}
 
 	/**
@@ -187,23 +208,80 @@ function desktop_mode_build_content_identity() {
 	 * `WindowContentRef`: `type` (lowercase slug), `id` (int|string),
 	 * optional `label`, optional `root => array( 'type', 'id' )`.
 	 *
-	 * @since 0.9.4
-	 *
 	 * @param array|null     $identity Identity array, or `null` for none.
 	 * @param WP_Screen|null $screen   The current screen, when available.
 	 */
-	$identity = apply_filters( 'desktop_mode_window_content_identity', $identity, $screen );
+	$identity = apply_filters( 'openstation_window_content_identity', $identity, $screen );
 
 	// Related-entity navigation targets — what the title bar's
 	// "Related" button lists. Runs AFTER the identity filter so
 	// plugin-injected identities for custom screens get the related
 	// filter too, and only for a resolved identity: no identity, no
 	// related menu.
-	return desktop_mode_window_related_attach(
+	return openstation_window_related_attach(
 		$identity,
 		isset( $related_source_post ) && $related_source_post instanceof WP_Post ? $related_source_post : null,
 		$screen
 	);
+}
+
+/**
+ * Build the front-end preview URL for a post — the target of the
+ * shell's "Preview" (eye) title-bar button.
+ *
+ * Wraps `get_preview_post_link()` with the same query args core's own
+ * `post_preview()` passes (`preview_id` + a `post_preview_{ID}` nonce),
+ * so `_set_preview()` swaps in the newest autosave revision on the
+ * front end. Required for published/scheduled/private posts, whose
+ * autosaves land in a revision; harmless for drafts, where autosave
+ * writes the post itself and `_set_preview()` no-ops.
+ *
+ * Nonce freshness is bounded by save cadence: the content identity is
+ * rebuilt on every chromeless page render AND on the editor
+ * save-watcher's REST recompute, so a long-lived editor window always
+ * holds a recent nonce.
+ *
+ * @param WP_Post $post The post being edited.
+ * @return string Preview URL, or `''` when the post has no front-end
+ *                preview (non-viewable type, attachment, insufficient
+ *                capability) or a filter suppressed it.
+ */
+function openstation_window_preview_url( $post ) {
+	$preview_url = '';
+
+	if (
+		$post instanceof WP_Post &&
+		$post->ID > 0 &&
+		'attachment' !== $post->post_type &&
+		is_post_type_viewable( get_post_type_object( $post->post_type ) ) &&
+		current_user_can( 'edit_post', $post->ID )
+	) {
+		$link = get_preview_post_link(
+			$post,
+			array(
+				'preview_id'    => $post->ID,
+				'preview_nonce' => wp_create_nonce( 'post_preview_' . $post->ID ),
+			)
+		);
+		if ( is_string( $link ) ) {
+			$preview_url = $link;
+		}
+	}
+
+	/**
+	 * Filters the front-end preview URL attached to a post-editor
+	 * content identity (the target of the shell's "Preview" eye
+	 * title-bar button).
+	 *
+	 * Return `''` to suppress the preview button for this post, or
+	 * rewrite the URL to point somewhere else (a headless front end,
+	 * a staging domain). Note the shell only accepts same-origin URLs;
+	 * a cross-origin rewrite hides the button.
+	 *
+	 * @param string  $preview_url Preview URL, `''` when none applies.
+	 * @param WP_Post $post        The post being edited.
+	 */
+	return (string) apply_filters( 'openstation_window_preview_url', $preview_url, $post );
 }
 
 /**
@@ -212,7 +290,6 @@ function desktop_mode_build_content_identity() {
  * builder above and the REST recompute endpoint the editor
  * save-watcher hits (where `$screen` is `null`).
  *
- * @since 0.9.6
  * @internal
  *
  * @param array|null     $identity Filtered identity, or `null`.
@@ -222,7 +299,7 @@ function desktop_mode_build_content_identity() {
  * @return array|null The identity with `related` attached (or the
  *                    input untouched when it was `null`).
  */
-function desktop_mode_window_related_attach( $identity, $post, $screen ) {
+function openstation_window_related_attach( $identity, $post, $screen ) {
 	if ( ! is_array( $identity ) ) {
 		return $identity;
 	}
@@ -240,7 +317,7 @@ function desktop_mode_window_related_attach( $identity, $post, $screen ) {
 		sanitize_key( $post->post_type ) === $identity['type'] &&
 		(int) $post->ID === (int) $identity['id']
 	) {
-		$related = desktop_mode_window_related_entities_for_post( $post );
+		$related = openstation_window_related_entities_for_post( $post );
 	}
 	if ( isset( $identity['related'] ) && is_array( $identity['related'] ) ) {
 		// An identity filter may ship related items with its own
@@ -279,14 +356,12 @@ function desktop_mode_window_related_attach( $identity, $post, $screen ) {
 	 * `desktop-mode/v1/content-identity` REST recompute the editor
 	 * save-watcher triggers — in the REST context `$screen` is `null`.
 	 *
-	 * @since 0.9.6
-	 *
 	 * @param array[]        $related  Related-entity items.
 	 * @param array          $identity The resolved content identity.
 	 * @param WP_Screen|null $screen   The current screen, when available.
 	 */
-	$related = apply_filters( 'desktop_mode_window_related_entities', $related, $identity, $screen );
-	$related = desktop_mode_window_related_entities_sanitize( $related );
+	$related = apply_filters( 'openstation_window_related_entities', $related, $identity, $screen );
+	$related = openstation_window_related_entities_sanitize( $related );
 	// The related pass is the single authority over the key — an
 	// identity filter smuggling its own `related` would bypass the
 	// sanitizer above.
@@ -318,12 +393,10 @@ function desktop_mode_window_related_attach( $identity, $post, $screen ) {
  * Deduped by type:id and capped so a link-farm post can't flood the
  * shell.
  *
- * @since 0.9.4
- *
  * @param WP_Post $post Source post.
  * @return array[] Reference entries, possibly empty.
  */
-function desktop_mode_window_links_extract_references( $post ) {
+function openstation_window_links_extract_references( $post ) {
 	$links = array();
 	$seen  = array();
 	$push  = static function ( $type, $id, $rel = '' ) use ( &$links, &$seen ) {
@@ -347,8 +420,8 @@ function desktop_mode_window_links_extract_references( $post ) {
 
 	// 1. Internal hyperlinks → posts. Guarded: the content-graph
 	// extractor lives in a separate include.
-	if ( function_exists( 'desktop_mode_content_graph_extract_internal_links' ) ) {
-		$ids = desktop_mode_content_graph_extract_internal_links( (string) $post->post_content );
+	if ( function_exists( 'openstation_content_graph_extract_internal_links' ) ) {
+		$ids = openstation_content_graph_extract_internal_links( (string) $post->post_content );
 		foreach ( array_slice( $ids, 0, 32 ) as $target_id ) {
 			$target_id = (int) $target_id;
 			if ( $target_id === (int) $post->ID ) {
@@ -423,14 +496,12 @@ function desktop_mode_window_links_extract_references( $post ) {
  *
  * Built-ins deliberately cover `post` and `page` only; other post
  * types (and non-post screens) join via the
- * `desktop_mode_window_related_entities` filter.
- *
- * @since 0.9.6
+ * `openstation_window_related_entities` filter.
  *
  * @param WP_Post $post Source post.
  * @return array[] Related-entity items, possibly empty.
  */
-function desktop_mode_window_related_entities_for_post( $post ) {
+function openstation_window_related_entities_for_post( $post ) {
 	if ( ! $post instanceof WP_Post || ! in_array( $post->post_type, array( 'post', 'page' ), true ) ) {
 		return array();
 	}
@@ -540,8 +611,8 @@ function desktop_mode_window_related_entities_for_post( $post ) {
 	// on this site. Guarded: the extractor lives in the content-graph
 	// include. Capped tighter than the reference extractor (10) to
 	// stay inside the overall 64-item engine budget.
-	if ( function_exists( 'desktop_mode_content_graph_extract_internal_links' ) ) {
-		$link_ids = desktop_mode_content_graph_extract_internal_links( (string) $post->post_content );
+	if ( function_exists( 'openstation_content_graph_extract_internal_links' ) ) {
+		$link_ids = openstation_content_graph_extract_internal_links( (string) $post->post_content );
 		$count    = 0;
 		foreach ( $link_ids as $target_id ) {
 			if ( $count >= 10 ) {
@@ -578,18 +649,17 @@ function desktop_mode_window_related_entities_for_post( $post ) {
 /**
  * Drop malformed related-entity items and whitelist their fields.
  *
- * Runs on the `desktop_mode_window_related_entities` filter output
+ * Runs on the `openstation_window_related_entities` filter output
  * before the payload is announced: a plugin returning one bad entry
  * must not invalidate the whole identity client-side (the JS engine
  * validates the ref as a unit and would discard everything).
  *
- * @since 0.9.6
  * @internal
  *
  * @param mixed $related Filter output.
  * @return array[] Well-formed items, reindexed.
  */
-function desktop_mode_window_related_entities_sanitize( $related ) {
+function openstation_window_related_entities_sanitize( $related ) {
 	if ( ! is_array( $related ) ) {
 		return array();
 	}
@@ -641,21 +711,19 @@ function desktop_mode_window_related_entities_sanitize( $related ) {
  * stale the moment the user adds a category or an image) and
  * re-announces the fresh identity to the parent shell.
  *
- * Both public filters (`desktop_mode_window_content_identity`,
- * `desktop_mode_window_related_entities`) run here exactly as they
+ * Both public filters (`openstation_window_content_identity`,
+ * `openstation_window_related_entities`) run here exactly as they
  * do at page render, with `$screen = null` — there is no WP_Screen
  * in REST context.
- *
- * @since 0.9.6
  */
-function desktop_mode_register_content_identity_route() {
+function openstation_register_content_identity_route() {
 	register_rest_route(
 		'desktop-mode/v1',
 		'/content-identity',
 		array(
 			'methods'             => 'GET',
-			'callback'            => 'desktop_mode_rest_content_identity',
-			'permission_callback' => 'desktop_mode_rest_content_identity_permission',
+			'callback'            => 'openstation_rest_content_identity',
+			'permission_callback' => 'openstation_rest_content_identity_permission',
 			'args'                => array(
 				'post' => array(
 					'description' => __( 'Post ID to recompute the content identity for.', 'desktop-mode' ),
@@ -667,20 +735,18 @@ function desktop_mode_register_content_identity_route() {
 		)
 	);
 }
-add_action( 'rest_api_init', 'desktop_mode_register_content_identity_route' );
+add_action( 'rest_api_init', 'openstation_register_content_identity_route' );
 
 /**
- * Permission: desktop mode enabled AND the caller can edit the post —
+ * Permission: OpenStation enabled AND the caller can edit the post —
  * the identity carries the post title, term names, and media labels,
  * which is exactly what the edit screen itself exposes.
- *
- * @since 0.9.6
  *
  * @param WP_REST_Request $request REST request.
  * @return true|WP_Error
  */
-function desktop_mode_rest_content_identity_permission( $request ) {
-	$enabled = desktop_mode_rest_require_enabled();
+function openstation_rest_content_identity_permission( $request ) {
+	$enabled = openstation_rest_require_enabled();
 	if ( true !== $enabled ) {
 		return $enabled;
 	}
@@ -698,16 +764,14 @@ function desktop_mode_rest_content_identity_permission( $request ) {
  * REST handler — rebuild the post-editor identity the same way the
  * page-render builder's `post.php` branch does, filters included.
  *
- * @since 0.9.6
- *
  * @param WP_REST_Request $request REST request.
  * @return WP_REST_Response|WP_Error
  */
-function desktop_mode_rest_content_identity( $request ) {
+function openstation_rest_content_identity( $request ) {
 	$post = get_post( (int) $request['post'] );
 	if ( ! $post instanceof WP_Post || 'attachment' === $post->post_type ) {
 		return new WP_Error(
-			'desktop_mode_no_identity',
+			'openstation_no_identity',
 			__( 'No content identity for this object.', 'desktop-mode' ),
 			array( 'status' => 404 )
 		);
@@ -718,14 +782,19 @@ function desktop_mode_rest_content_identity( $request ) {
 		'id'    => (int) $post->ID,
 		'label' => get_the_title( $post ),
 	);
-	$links    = desktop_mode_window_links_extract_references( $post );
+	$links    = openstation_window_links_extract_references( $post );
 	if ( ! empty( $links ) ) {
 		$identity['links'] = $links;
 	}
 
+	$preview_url = openstation_window_preview_url( $post );
+	if ( '' !== $preview_url ) {
+		$identity['previewUrl'] = $preview_url;
+	}
+
 	/** This filter is documented in includes/window-links.php */
-	$identity = apply_filters( 'desktop_mode_window_content_identity', $identity, null );
-	$identity = desktop_mode_window_related_attach( $identity, $post, null );
+	$identity = apply_filters( 'openstation_window_content_identity', $identity, null );
+	$identity = openstation_window_related_attach( $identity, $post, null );
 
 	return rest_ensure_response( array( 'identity' => $identity ) );
 }
@@ -742,7 +811,7 @@ function desktop_mode_rest_content_identity( $request ) {
  * immediately, no F5 needed.
  *
  * Renderers themselves are declared JS-side via
- * `wp.desktop.registerWindowLinkRenderer( … )` — the mount callback
+ * `wp.os.registerWindowLinkRenderer( … )` — the mount callback
  * and label live in the plugin's JavaScript. The built-in
  * `svg-splines` is registered through the very same JS hook (see
  * `src/window-links/renderers/svg-splines.ts`).
@@ -754,13 +823,13 @@ function desktop_mode_rest_content_identity( $request ) {
  *     wp_register_script(
  *         'my-plugin-link-renderer',
  *         plugins_url( 'js/link-renderer.js', __FILE__ ),
- *         array( 'desktop-mode' ),
+ *         array( 'openstation' ),
  *         '1.0.0',
  *         true
  *     );
  *     wp_enqueue_script( 'my-plugin-link-renderer' );
  * } );
- * desktop_mode_register_window_link_renderer_script( 'my-plugin-link-renderer' );
+ * openstation_register_window_link_renderer_script( 'my-plugin-link-renderer' );
  * ```
  *
  * For live unregistration on deactivation, the plugin's JS should set
@@ -768,30 +837,26 @@ function desktop_mode_rest_content_identity( $request ) {
  * `registerWindowLinkRenderer` call. Otherwise the renderer stays
  * until the next page reload — graceful backwards-compat.
  *
- * @since 0.9.4
- *
  * @param string $handle WP-registered script handle.
  * @return true|WP_Error `true` on success; `WP_Error` on validation failure.
  */
-function desktop_mode_register_window_link_renderer_script( $handle ) {
+function openstation_register_window_link_renderer_script( $handle ) {
 	$handle = (string) $handle;
 	if ( '' === $handle ) {
-		return desktop_mode_registration_error(
-			'desktop_mode_missing_handle',
+		return openstation_registration_error(
+			'openstation_missing_handle',
 			__( 'Window-link renderer script registration requires a non-empty script handle.', 'desktop-mode' )
 		);
 	}
 
-	desktop_mode_window_link_renderer_script_registry( $handle, true );
+	openstation_window_link_renderer_script_registry( $handle, true );
 
 	/**
 	 * Fires after a window-link renderer script handle is registered.
 	 *
-	 * @since 0.9.4
-	 *
 	 * @param string $handle The registered script handle.
 	 */
-	do_action( 'desktop_mode_window_link_renderer_script_registered', $handle );
+	do_action( 'openstation_window_link_renderer_script_registered', $handle );
 
 	return true;
 }
@@ -799,14 +864,13 @@ function desktop_mode_register_window_link_renderer_script( $handle ) {
 /**
  * Internal module-level registry for window-link renderer script handles.
  *
- * @since 0.9.4
  * @internal
  *
  * @param string    $handle Script handle to read or write.
  * @param bool|null $value  Pass `true` to register; `null` to read only.
  * @return array|bool When called with no args returns the full store.
  */
-function desktop_mode_window_link_renderer_script_registry( $handle = '', $value = null ) {
+function openstation_window_link_renderer_script_registry( $handle = '', $value = null ) {
 	static $store = array();
 
 	if ( '__flush__' === (string) $handle ) {
@@ -824,24 +888,20 @@ function desktop_mode_window_link_renderer_script_registry( $handle = '', $value
 
 /**
  * Test-only: clear the registry between PHPUnit cases. See
- * {@see desktop_mode_flush_script_handle_registries()}.
- *
- * @since 0.9.4
+ * {@see openstation_flush_script_handle_registries()}.
  */
-function desktop_mode_flush_window_link_renderer_script_registry() {
-	desktop_mode_window_link_renderer_script_registry( '__flush__' );
+function openstation_flush_window_link_renderer_script_registry() {
+	openstation_window_link_renderer_script_registry( '__flush__' );
 }
 
 /**
  * Build the script-handle payload fed to the shell. Handles that
  * aren't currently enqueued resolve to an empty URL and are dropped.
  *
- * @since 0.9.4
- *
  * @return array[] List of `{ handle, scriptUrl, … }` entries.
  */
-function desktop_mode_build_window_link_renderer_scripts_payload() {
-	$registry = desktop_mode_window_link_renderer_script_registry();
+function openstation_build_window_link_renderer_scripts_payload() {
+	$registry = openstation_window_link_renderer_script_registry();
 	if ( ! is_array( $registry ) || empty( $registry ) ) {
 		return array();
 	}
@@ -852,13 +912,13 @@ function desktop_mode_build_window_link_renderer_scripts_payload() {
 		if ( ! $active || isset( $seen[ $handle ] ) ) {
 			continue;
 		}
-		$payload = desktop_mode_resolve_script_payload( $handle );
+		$payload = openstation_resolve_script_payload( $handle );
 		if ( '' === $payload['url'] ) {
 			// Loud diagnostic — visible under WP_DEBUG. Deduped by
-			// `desktop_mode_warn_unresolvable_script_handle` so the
+			// `openstation_warn_unresolvable_script_handle` so the
 			// notice fires once per handle per request.
-			desktop_mode_warn_unresolvable_script_handle(
-				'desktop_mode_register_window_link_renderer_script',
+			openstation_warn_unresolvable_script_handle(
+				'openstation_register_window_link_renderer_script',
 				'Window-link renderer',
 				(string) $handle
 			);

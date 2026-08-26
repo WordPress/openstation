@@ -16,8 +16,6 @@
  * Ambient motion, not DNA — like the fireflies, spawn timing uses
  * `Math.random()`; the skeleton's determinism is untouched. Under
  * reduced motion the ticker never runs, so nothing ever falls.
- *
- * @since 0.9.4
  */
 
 import { buildLeafTexture } from './leaves';

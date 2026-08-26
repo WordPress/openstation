@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Virtual-desktop arrow-key shortcuts.
+ * OpenStation — Virtual-desktop arrow-key shortcuts.
  *
  * Bare arrow keys drive the four most common desktop-shell actions
  * when focus is outside a text-entry surface:
@@ -24,8 +24,6 @@
  * `preventDefault` only fires when we actually acted on the key —
  * otherwise plain ArrowDown on an empty desktop area would still
  * preventDefault a page-scroll the user expected.
- *
- * @since 0.8.6
  */
 
 import { isTextEntryFocus } from './switcher';

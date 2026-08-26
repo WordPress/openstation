@@ -1,0 +1,722 @@
+{
+    "translation-revision-date": "2026-04-19 20:42+0200",
+    "generator": "desktop-mode/build-i18n.sh",
+    "domain": "messages",
+    "locale_data": {
+        "messages": {
+            "": {
+                "domain": "messages",
+                "lang": "es_ES",
+                "plural-forms": "nplurals=2; plural=(n != 1);"
+            },
+            "\"%1$s\" last used %2$s": [
+                ""
+            ],
+            "%1$s — %2$d posts": [
+                ""
+            ],
+            "%d comment": [
+                ""
+            ],
+            "%d d ago": [
+                ""
+            ],
+            "%d day": [
+                ""
+            ],
+            "%d h ago": [
+                ""
+            ],
+            "%d min ago": [
+                "Navegación del administrador"
+            ],
+            "%d mo ago": [
+                ""
+            ],
+            "%d post": [
+                ""
+            ],
+            "%d post in this category.": [
+                ""
+            ],
+            "%d post tagged with this.": [
+                ""
+            ],
+            "%d received": [
+                ""
+            ],
+            "%d selected": [
+                ""
+            ],
+            "%d total": [
+                ""
+            ],
+            "%d y ago": [
+                ""
+            ],
+            "%d 💬": [
+                ""
+            ],
+            "%s is currently editing": [
+                ""
+            ],
+            "(empty comment)": [
+                ""
+            ],
+            "(no excerpt)": [
+                ""
+            ],
+            "(no title)": [
+                ""
+            ],
+            "+ %d page": [
+                "Subpáginas de %s",
+                "Subpáginas de %s"
+            ],
+            "+ Child": [
+                ""
+            ],
+            "A valid email address is required.": [
+                ""
+            ],
+            "Account management": [
+                ""
+            ],
+            "Actions": [
+                ""
+            ],
+            "Active 30d": [
+                ""
+            ],
+            "Active sessions": [
+                ""
+            ],
+            "Active sessions & app access": [
+                ""
+            ],
+            "Add New Page": [
+                "Añadir nuevo escritorio"
+            ],
+            "Add New Post": [
+                "Añadir nuevo escritorio"
+            ],
+            "Add root category": [
+                ""
+            ],
+            "Add tag": [
+                "Añadir %s"
+            ],
+            "Add tag…": [
+                ""
+            ],
+            "Admin colour scheme": [
+                ""
+            ],
+            "All": [
+                ""
+            ],
+            "All authors": [
+                ""
+            ],
+            "All tags": [
+                ""
+            ],
+            "Application password name is required.": [
+                ""
+            ],
+            "Application password revoked.": [
+                ""
+            ],
+            "Application passwords": [
+                ""
+            ],
+            "Apply": [
+                ""
+            ],
+            "Author": [
+                ""
+            ],
+            "Biographical info": [
+                ""
+            ],
+            "Cancel": [
+                ""
+            ],
+            "Categories": [
+                ""
+            ],
+            "Categorize": [
+                ""
+            ],
+            "Change role for selected users?": [
+                ""
+            ],
+            "Click a node on the mindmap to edit its name, description, and posts.": [
+                ""
+            ],
+            "Click a node to focus + edit · drag onto another to reparent · wheel to zoom": [
+                ""
+            ],
+            "Click a tag on the cloud to edit it, or click + Add tag to create a new one.": [
+                ""
+            ],
+            "Click a tag to focus + edit · drag to reposition · wheel to zoom": [
+                ""
+            ],
+            "Click again to delete": [
+                ""
+            ],
+            "Click to copy email": [
+                ""
+            ],
+            "Click to copy slug": [
+                ""
+            ],
+            "Comments": [
+                ""
+            ],
+            "Confirm new password": [
+                ""
+            ],
+            "Content": [
+                ""
+            ],
+            "Copied!": [
+                ""
+            ],
+            "Could not create the user.": [
+                "No se pudieron cargar tus medios: %s"
+            ],
+            "Could not destroy sessions (%s).": [
+                ""
+            ],
+            "Could not load insights (%s).": [
+                "No se pudieron cargar tus medios."
+            ],
+            "Could not load profile (%s).": [
+                "No se pudieron cargar tus medios."
+            ],
+            "Could not load users. Try Refresh.": [
+                ""
+            ],
+            "Could not open profile window — desktop shell unavailable.": [
+                ""
+            ],
+            "Could not resend welcome (%s).": [
+                ""
+            ],
+            "Could not send reset email (%s).": [
+                ""
+            ],
+            "Couldn’t add category.": [
+                "No se pudieron cargar tus medios."
+            ],
+            "Couldn’t add tag \"%s\".": [
+                "No se pudieron cargar tus medios: %s"
+            ],
+            "Couldn’t assign new category.": [
+                ""
+            ],
+            "Couldn’t create category.": [
+                ""
+            ],
+            "Couldn’t create:": [
+                "No se pudieron cargar tus medios: %s"
+            ],
+            "Couldn’t delete category.": [
+                ""
+            ],
+            "Couldn’t delete:": [
+                ""
+            ],
+            "Couldn’t load categories:": [
+                "No se pudieron cargar tus medios."
+            ],
+            "Couldn’t load posts:": [
+                "No se pudieron cargar tus medios."
+            ],
+            "Couldn’t load tags:": [
+                "No se pudieron cargar tus medios."
+            ],
+            "Couldn’t remove tag \"%s\".": [
+                "No se pudieron cargar tus medios: %s"
+            ],
+            "Couldn’t reparent:": [
+                "No se pudieron cargar tus medios: %s"
+            ],
+            "Couldn’t save:": [
+                "No se pudieron cargar tus medios: %s"
+            ],
+            "Couldn’t update categories.": [
+                "No se pudieron cargar tus medios."
+            ],
+            "Couldn’t update post categories after delete.": [
+                ""
+            ],
+            "Create": [
+                ""
+            ],
+            "Created. Copy the password now: %s": [
+                ""
+            ],
+            "Date": [
+                ""
+            ],
+            "Default template": [
+                "Predeterminada"
+            ],
+            "Delete": [
+                ""
+            ],
+            "Delete category?": [
+                ""
+            ],
+            "Delete the category \"%s\"? Posts assigned only to it will fall back to Uncategorized.": [
+                ""
+            ],
+            "Description": [
+                ""
+            ],
+            "Description (optional)": [
+                ""
+            ],
+            "Disable syntax highlighting when editing code": [
+                ""
+            ],
+            "Disable the visual editor when writing": [
+                ""
+            ],
+            "Display name publicly as": [
+                ""
+            ],
+            "Draft": [
+                ""
+            ],
+            "Drafts": [
+                ""
+            ],
+            "Email": [
+                ""
+            ],
+            "Email (required)": [
+                ""
+            ],
+            "Email address is not valid.": [
+                ""
+            ],
+            "Enable keyboard shortcuts for comment moderation": [
+                ""
+            ],
+            "Excerpt": [
+                ""
+            ],
+            "Filter by author": [
+                ""
+            ],
+            "Filter by tag": [
+                ""
+            ],
+            "First name": [
+                ""
+            ],
+            "Front page": [
+                ""
+            ],
+            "Generate strong": [
+                ""
+            ],
+            "Generated password copied to clipboard.": [
+                ""
+            ],
+            "Grant super admin privileges for the network": [
+                ""
+            ],
+            "Includes the current device.": [
+                ""
+            ],
+            "Language": [
+                ""
+            ],
+            "Last login": [
+                ""
+            ],
+            "Last name": [
+                ""
+            ],
+            "Leave blank to keep the current password.": [
+                ""
+            ],
+            "Loading insights…": [
+                ""
+            ],
+            "Loading profile…": [
+                "Subiendo…"
+            ],
+            "Log out everywhere else": [
+                ""
+            ],
+            "Log this user out everywhere": [
+                ""
+            ],
+            "Logged in across multiple devices.": [
+                ""
+            ],
+            "Make root": [
+                ""
+            ],
+            "Member": [
+                "Ámbar"
+            ],
+            "Mindmap unavailable.": [
+                ""
+            ],
+            "Mindmap unavailable: shell modules API missing.": [
+                ""
+            ],
+            "Move %d page to the trash?": [
+                "No se pudieron cargar tus medios: %s",
+                "No se pudieron cargar tus medios: %s"
+            ],
+            "Move %d post to the trash?": [
+                "No se pudieron cargar tus medios: %s",
+                "No se pudieron cargar tus medios: %s"
+            ],
+            "Move to trash": [
+                ""
+            ],
+            "Name": [
+                ""
+            ],
+            "Never": [
+                ""
+            ],
+            "Never logged in": [
+                ""
+            ],
+            "New application password name": [
+                ""
+            ],
+            "New child of %s": [
+                ""
+            ],
+            "New password": [
+                ""
+            ],
+            "New root category": [
+                ""
+            ],
+            "New tag": [
+                ""
+            ],
+            "Nickname": [
+                ""
+            ],
+            "No activity in the last 12 months.": [
+                ""
+            ],
+            "No app passwords issued yet.": [
+                ""
+            ],
+            "No application passwords issued yet.": [
+                ""
+            ],
+            "No category selected": [
+                ""
+            ],
+            "No custom categories yet. Click \"Add root category\" to start branching.": [
+                ""
+            ],
+            "No pages": [
+                "Buscar medios"
+            ],
+            "No posts": [
+                ""
+            ],
+            "No recent comments.": [
+                ""
+            ],
+            "No recent posts.": [
+                ""
+            ],
+            "No recent use.": [
+                ""
+            ],
+            "No role": [
+                ""
+            ],
+            "No tag selected": [
+                ""
+            ],
+            "No tags yet. Click \"Add tag\" to start building the cloud.": [
+                ""
+            ],
+            "No users updated.": [
+                ""
+            ],
+            "Online": [
+                ""
+            ],
+            "Page %1$d of %2$d · %3$d pages": [
+                ""
+            ],
+            "Page %1$d of %2$d · %3$d posts": [
+                ""
+            ],
+            "Page %1$d of %2$d · %3$d users": [
+                ""
+            ],
+            "Pages": [
+                ""
+            ],
+            "Parent": [
+                ""
+            ],
+            "Password generated and copied to clipboard.": [
+                ""
+            ],
+            "Pending": [
+                ""
+            ],
+            "Personal options": [
+                ""
+            ],
+            "Posts": [
+                ""
+            ],
+            "Posts page": [
+                ""
+            ],
+            "Posts published — last 12 months": [
+                ""
+            ],
+            "Private": [
+                ""
+            ],
+            "Profile completeness": [
+                ""
+            ],
+            "Profile saved.": [
+                ""
+            ],
+            "Profile window not registered — see console.": [
+                ""
+            ],
+            "Promote this category to a top-level root (no parent).": [
+                ""
+            ],
+            "Published": [
+                ""
+            ],
+            "Recent activity": [
+                ""
+            ],
+            "Recent comments": [
+                ""
+            ],
+            "Recent posts": [
+                ""
+            ],
+            "Recenter": [
+                ""
+            ],
+            "Recompute the chip layout from scratch — discards manual repositioning.": [
+                ""
+            ],
+            "Reflow": [
+                ""
+            ],
+            "Registered": [
+                ""
+            ],
+            "Reparent failed:": [
+                "Error al subir."
+            ],
+            "Resend": [
+                ""
+            ],
+            "Resend welcome email": [
+                ""
+            ],
+            "Resend welcome email?": [
+                ""
+            ],
+            "Reset email sent to %s.": [
+                ""
+            ],
+            "Revert": [
+                ""
+            ],
+            "Revoke": [
+                ""
+            ],
+            "Role": [
+                ""
+            ],
+            "Role updated for %1$d user(s) (%2$d skipped).": [
+                ""
+            ],
+            "Save": [
+                ""
+            ],
+            "Save changes": [
+                ""
+            ],
+            "Save failed.": [
+                "Error al subir."
+            ],
+            "Scheduled": [
+                ""
+            ],
+            "Search categories in the mindmap": [
+                ""
+            ],
+            "Search categories…": [
+                ""
+            ],
+            "Search tags in the cloud": [
+                ""
+            ],
+            "Search tags…": [
+                "Buscar medios"
+            ],
+            "Send password reset": [
+                ""
+            ],
+            "Send password reset email?": [
+                ""
+            ],
+            "Send reset email": [
+                ""
+            ],
+            "Sessions destroyed.": [
+                ""
+            ],
+            "Set %1$d user(s)' role to %2$s?": [
+                ""
+            ],
+            "Set role": [
+                ""
+            ],
+            "Set role to…": [
+                ""
+            ],
+            "Share a little about yourself — visible on author archives.": [
+                ""
+            ],
+            "Show columns": [
+                ""
+            ],
+            "Show toolbar when viewing site": [
+                ""
+            ],
+            "Site default": [
+                "Predeterminada"
+            ],
+            "Slug": [
+                ""
+            ],
+            "Tag": [
+                ""
+            ],
+            "Tag cloud unavailable.": [
+                ""
+            ],
+            "Tag cloud unavailable: shell modules API missing.": [
+                ""
+            ],
+            "Tag created but description failed:": [
+                ""
+            ],
+            "Tags": [
+                ""
+            ],
+            "Template": [
+                ""
+            ],
+            "That email is already in use.": [
+                ""
+            ],
+            "That username is already in use.": [
+                ""
+            ],
+            "The two password fields do not match.": [
+                ""
+            ],
+            "Title": [
+                ""
+            ],
+            "Top-level page": [
+                ""
+            ],
+            "Trash": [
+                ""
+            ],
+            "Type the new password again.": [
+                ""
+            ],
+            "Unknown": [
+                ""
+            ],
+            "User created — welcome email sent to %s.": [
+                ""
+            ],
+            "Username": [
+                ""
+            ],
+            "Username is not valid.": [
+                ""
+            ],
+            "View": [
+                ""
+            ],
+            "Website": [
+                ""
+            ],
+            "Welcome email resent to %s.": [
+                ""
+            ],
+            "WordPress will email %s a password-reset link.": [
+                ""
+            ],
+            "WordPress will resend the original welcome email to %s.": [
+                ""
+            ],
+            "You are not allowed to assign that role.": [
+                "Lo sentimos, no tienes permiso para acceder al escritorio de WordPress."
+            ],
+            "auto-from-name": [
+                ""
+            ],
+            "e.g. Recipes": [
+                ""
+            ],
+            "e.g. featured": [
+                ""
+            ],
+            "e.g. iPhone, WP-CLI, Backup tool": [
+                ""
+            ],
+            "just now": [
+                ""
+            ],
+            "last used %s": [
+                ""
+            ],
+            "modified": [
+                ""
+            ],
+            "never used": [
+                ""
+            ],
+            "on": [
+                "Monocromo"
+            ],
+            "pending": [
+                ""
+            ],
+            "↳ #%d": [
+                ""
+            ]
+        }
+    }
+}

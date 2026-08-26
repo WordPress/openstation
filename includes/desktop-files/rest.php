@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — Files REST routes.
+ * OpenStation — Files REST routes.
  *
  * Routes under `/desktop-mode/v1/files`:
  *
@@ -41,47 +41,45 @@
  * mode enabled. Per-row gating happens inside the store. On top of
  * that base, the share/accept/deny/leave routes also gate on the
  * viewer's folder-sharing OS Setting via
- * `desktop_mode_files_rest_share_permission`, `/users/search`
+ * `openstation_files_rest_share_permission`, `/users/search`
  * additionally requires `edit_posts`, and the sharing-tables purge
  * requires `manage_options`.
  *
- * @package WPDesktopMode
- * @since   0.9.0
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * @since 0.9.0
+ * Base permission check shared by the desktop-files REST routes:
+ * requires a logged-in user with OpenStation enabled.
  */
-function desktop_mode_files_rest_permission() {
+function openstation_files_rest_permission() {
 	if ( ! is_user_logged_in() ) {
-		return new WP_Error( 'desktop_mode_files_unauthenticated', __( 'You must be logged in.', 'desktop-mode' ), array( 'status' => 401 ) );
+		return new WP_Error( 'openstation_files_unauthenticated', __( 'You must be logged in.', 'desktop-mode' ), array( 'status' => 401 ) );
 	}
-	if ( function_exists( 'desktop_mode_is_enabled' ) && ! desktop_mode_is_enabled( get_current_user_id() ) ) {
-		return new WP_Error( 'desktop_mode_files_disabled', __( 'Desktop mode is not enabled for this user.', 'desktop-mode' ), array( 'status' => 403 ) );
+	if ( function_exists( 'openstation_is_enabled' ) && ! openstation_is_enabled( get_current_user_id() ) ) {
+		return new WP_Error( 'openstation_files_disabled', __( 'OpenStation is not enabled for this user.', 'desktop-mode' ), array( 'status' => 403 ) );
 	}
 	return true;
 }
 
 /**
  * Permission callback layered ON TOP of
- * `desktop_mode_files_rest_permission` for every share-related
+ * `openstation_files_rest_permission` for every share-related
  * route. Returns a 404 (looks the same as a route that doesn't
  * exist) when the viewer has the folder-sharing feature toggled
  * off in OS Settings — no information leak about whether the
  * feature is even installed.
- *
- * @since 0.8.5
  */
-function desktop_mode_files_rest_share_permission() {
-	$base = desktop_mode_files_rest_permission();
+function openstation_files_rest_share_permission() {
+	$base = openstation_files_rest_permission();
 	if ( is_wp_error( $base ) ) {
 		return $base;
 	}
 	if (
-		function_exists( 'desktop_mode_files_sharing_enabled_for' )
-		&& ! desktop_mode_files_sharing_enabled_for( get_current_user_id() )
+		function_exists( 'openstation_files_sharing_enabled_for' )
+		&& ! openstation_files_sharing_enabled_for( get_current_user_id() )
 	) {
 		return new WP_Error(
 			'rest_no_route',
@@ -97,13 +95,11 @@ function desktop_mode_files_rest_share_permission() {
  * (currently: drop the folder-sharing tables). Requires
  * `manage_options` — site-wide schema mutation should never be
  * exposed below that capability.
- *
- * @since 0.8.5
  */
-function desktop_mode_files_rest_admin_permission() {
+function openstation_files_rest_admin_permission() {
 	if ( ! current_user_can( 'manage_options' ) ) {
 		return new WP_Error(
-			'desktop_mode_files_forbidden',
+			'openstation_files_forbidden',
 			__( 'You do not have permission to perform this action.', 'desktop-mode' ),
 			array( 'status' => 403 )
 		);
@@ -113,180 +109,272 @@ function desktop_mode_files_rest_admin_permission() {
 
 /**
  * Register the routes.
- *
- * @since 0.9.0
  */
-function desktop_mode_files_register_rest_routes() {
+function openstation_files_register_rest_routes() {
 	$ns = 'desktop-mode/v1';
 
-	register_rest_route( $ns, '/files/placements', array(
+	register_rest_route(
+		$ns,
+		'/files/placements',
 		array(
-			'methods'             => WP_REST_Server::READABLE,
-			'permission_callback' => 'desktop_mode_files_rest_permission',
-			'callback'            => 'desktop_mode_files_rest_list_placements',
-			'args'                => array(
-				'folder' => array( 'type' => 'integer', 'default' => 0, 'sanitize_callback' => 'absint' ),
+			array(
+				'methods'             => WP_REST_Server::READABLE,
+				'permission_callback' => 'openstation_files_rest_permission',
+				'callback'            => 'openstation_files_rest_list_placements',
+				'args'                => array(
+					'folder' => array(
+						'type'              => 'integer',
+						'default'           => 0,
+						'sanitize_callback' => 'absint',
+					),
+				),
 			),
-		),
-		array(
-			'methods'             => WP_REST_Server::CREATABLE,
-			'permission_callback' => 'desktop_mode_files_rest_permission',
-			'callback'            => 'desktop_mode_files_rest_create_placement',
-			'args'                => array(
-				'parentId'  => array( 'type' => 'integer', 'default' => 0 ),
-				'type'      => array( 'type' => 'string', 'required' => true ),
-				'ref'       => array( 'type' => 'string', 'required' => true ),
-				'x'         => array( 'type' => 'integer', 'default' => 0 ),
-				'y'         => array( 'type' => 'integer', 'default' => 0 ),
-				'sortOrder' => array( 'type' => 'integer', 'default' => 0 ),
-				'meta'      => array( 'type' => 'object', 'required' => false ),
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'permission_callback' => 'openstation_files_rest_permission',
+				'callback'            => 'openstation_files_rest_create_placement',
+				'args'                => array(
+					'parentId'  => array(
+						'type'    => 'integer',
+						'default' => 0,
+					),
+					'type'      => array(
+						'type'     => 'string',
+						'required' => true,
+					),
+					'ref'       => array(
+						'type'     => 'string',
+						'required' => true,
+					),
+					'x'         => array(
+						'type'    => 'integer',
+						'default' => 0,
+					),
+					'y'         => array(
+						'type'    => 'integer',
+						'default' => 0,
+					),
+					'sortOrder' => array(
+						'type'    => 'integer',
+						'default' => 0,
+					),
+					'meta'      => array(
+						'type'     => 'object',
+						'required' => false,
+					),
+				),
 			),
-		),
-	) );
+		)
+	);
 
-	register_rest_route( $ns, '/files/placements/(?P<id>\d+)', array(
+	register_rest_route(
+		$ns,
+		'/files/placements/(?P<id>\d+)',
 		array(
-			'methods'             => WP_REST_Server::EDITABLE,
-			'permission_callback' => 'desktop_mode_files_rest_permission',
-			'callback'            => 'desktop_mode_files_rest_update_placement',
-		),
-		array(
-			'methods'             => WP_REST_Server::DELETABLE,
-			'permission_callback' => 'desktop_mode_files_rest_permission',
-			'callback'            => 'desktop_mode_files_rest_delete_placement',
-		),
-	) );
-
-	register_rest_route( $ns, '/files/folders', array(
-		array(
-			'methods'             => WP_REST_Server::READABLE,
-			'permission_callback' => 'desktop_mode_files_rest_permission',
-			'callback'            => 'desktop_mode_files_rest_list_folders',
-		),
-		array(
-			'methods'             => WP_REST_Server::CREATABLE,
-			'permission_callback' => 'desktop_mode_files_rest_permission',
-			'callback'            => 'desktop_mode_files_rest_create_folder',
-			'args'                => array(
-				'name'       => array( 'type' => 'string', 'required' => true ),
-				'shareMode'  => array( 'type' => 'string', 'default' => 'private' ),
-				'shareMeta'  => array( 'type' => 'object', 'required' => false ),
+			array(
+				'methods'             => WP_REST_Server::EDITABLE,
+				'permission_callback' => 'openstation_files_rest_permission',
+				'callback'            => 'openstation_files_rest_update_placement',
 			),
-		),
-	) );
+			array(
+				'methods'             => WP_REST_Server::DELETABLE,
+				'permission_callback' => 'openstation_files_rest_permission',
+				'callback'            => 'openstation_files_rest_delete_placement',
+			),
+		)
+	);
 
-	register_rest_route( $ns, '/files/folders/(?P<id>\d+)', array(
+	register_rest_route(
+		$ns,
+		'/files/folders',
 		array(
-			'methods'             => WP_REST_Server::EDITABLE,
-			'permission_callback' => 'desktop_mode_files_rest_permission',
-			'callback'            => 'desktop_mode_files_rest_update_folder',
-		),
-		array(
-			'methods'             => WP_REST_Server::DELETABLE,
-			'permission_callback' => 'desktop_mode_files_rest_permission',
-			'callback'            => 'desktop_mode_files_rest_delete_folder',
-		),
-	) );
+			array(
+				'methods'             => WP_REST_Server::READABLE,
+				'permission_callback' => 'openstation_files_rest_permission',
+				'callback'            => 'openstation_files_rest_list_folders',
+			),
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'permission_callback' => 'openstation_files_rest_permission',
+				'callback'            => 'openstation_files_rest_create_folder',
+				'args'                => array(
+					'name'      => array(
+						'type'     => 'string',
+						'required' => true,
+					),
+					'shareMode' => array(
+						'type'    => 'string',
+						'default' => 'private',
+					),
+					'shareMeta' => array(
+						'type'     => 'object',
+						'required' => false,
+					),
+				),
+			),
+		)
+	);
 
-	register_rest_route( $ns, '/files/associations', array(
-		'methods'             => 'PUT',
-		'permission_callback' => 'desktop_mode_files_rest_permission',
-		'callback'            => 'desktop_mode_files_rest_save_associations',
-		'args'                => array(
-			'associations' => array( 'type' => 'object', 'required' => true ),
-		),
-	) );
+	register_rest_route(
+		$ns,
+		'/files/folders/(?P<id>\d+)',
+		array(
+			array(
+				'methods'             => WP_REST_Server::EDITABLE,
+				'permission_callback' => 'openstation_files_rest_permission',
+				'callback'            => 'openstation_files_rest_update_folder',
+			),
+			array(
+				'methods'             => WP_REST_Server::DELETABLE,
+				'permission_callback' => 'openstation_files_rest_permission',
+				'callback'            => 'openstation_files_rest_delete_folder',
+			),
+		)
+	);
+
+	register_rest_route(
+		$ns,
+		'/files/associations',
+		array(
+			'methods'             => 'PUT',
+			'permission_callback' => 'openstation_files_rest_permission',
+			'callback'            => 'openstation_files_rest_save_associations',
+			'args'                => array(
+				'associations' => array(
+					'type'     => 'object',
+					'required' => true,
+				),
+			),
+		)
+	);
 
 	// Every share-related route gates on the user's
 	// `foldersSharingEnabled` OS Setting via
-	// `desktop_mode_files_rest_share_permission` — when a user has
+	// `openstation_files_rest_share_permission` — when a user has
 	// flipped sharing off, these routes return 404 (looks the same
 	// as a feature that isn't installed; no info leak about the
 	// kill switch's existence).
-	register_rest_route( $ns, '/files/folders/(?P<id>\d+)/shares', array(
+	register_rest_route(
+		$ns,
+		'/files/folders/(?P<id>\d+)/shares',
 		array(
-			'methods'             => WP_REST_Server::READABLE,
-			'permission_callback' => 'desktop_mode_files_rest_share_permission',
-			'callback'            => 'desktop_mode_files_rest_list_shares',
-		),
+			array(
+				'methods'             => WP_REST_Server::READABLE,
+				'permission_callback' => 'openstation_files_rest_share_permission',
+				'callback'            => 'openstation_files_rest_list_shares',
+			),
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'permission_callback' => 'openstation_files_rest_share_permission',
+				'callback'            => 'openstation_files_rest_create_share',
+				'args'                => array(
+					'principalType' => array(
+						'type'     => 'string',
+						'enum'     => array( 'user', 'role' ),
+						'required' => true,
+					),
+					'principalRef'  => array(
+						'type'     => 'string',
+						'required' => true,
+					),
+					'capability'    => array(
+						'type'    => 'string',
+						'enum'    => array( 'read', 'write' ),
+						'default' => 'read',
+					),
+				),
+			),
+		)
+	);
+
+	register_rest_route(
+		$ns,
+		'/files/folders/(?P<id>\d+)/shares/(?P<shareId>\d+)',
+		array(
+			array(
+				'methods'             => WP_REST_Server::EDITABLE,
+				'permission_callback' => 'openstation_files_rest_share_permission',
+				'callback'            => 'openstation_files_rest_update_share',
+				'args'                => array(
+					'capability' => array(
+						'type'     => 'string',
+						'enum'     => array( 'read', 'write' ),
+						'required' => true,
+					),
+				),
+			),
+			array(
+				'methods'             => WP_REST_Server::DELETABLE,
+				'permission_callback' => 'openstation_files_rest_share_permission',
+				'callback'            => 'openstation_files_rest_delete_share',
+			),
+		)
+	);
+
+	register_rest_route(
+		$ns,
+		'/files/folders/(?P<id>\d+)/shares/(?P<shareId>\d+)/accept',
 		array(
 			'methods'             => WP_REST_Server::CREATABLE,
-			'permission_callback' => 'desktop_mode_files_rest_share_permission',
-			'callback'            => 'desktop_mode_files_rest_create_share',
+			'permission_callback' => 'openstation_files_rest_share_permission',
+			'callback'            => 'openstation_files_rest_accept_share',
+		)
+	);
+
+	register_rest_route(
+		$ns,
+		'/files/folders/(?P<id>\d+)/shares/(?P<shareId>\d+)/deny',
+		array(
+			'methods'             => WP_REST_Server::CREATABLE,
+			'permission_callback' => 'openstation_files_rest_share_permission',
+			'callback'            => 'openstation_files_rest_deny_share',
+		)
+	);
+
+	register_rest_route(
+		$ns,
+		'/files/folders/(?P<id>\d+)/leave',
+		array(
+			'methods'             => WP_REST_Server::CREATABLE,
+			'permission_callback' => 'openstation_files_rest_share_permission',
+			'callback'            => 'openstation_files_rest_leave_folder',
+		)
+	);
+
+	register_rest_route(
+		$ns,
+		'/files/users/search',
+		array(
+			'methods'             => WP_REST_Server::READABLE,
+			'permission_callback' => 'openstation_files_rest_search_users_permission',
+			'callback'            => 'openstation_files_rest_search_users',
 			'args'                => array(
-				'principalType' => array(
-					'type'     => 'string',
-					'enum'     => array( 'user', 'role' ),
-					'required' => true,
-				),
-				'principalRef'  => array( 'type' => 'string', 'required' => true ),
-				'capability'    => array(
+				'q'       => array(
 					'type'    => 'string',
-					'enum'    => array( 'read', 'write' ),
-					'default' => 'read',
+					'default' => '',
+				),
+				'exclude' => array(
+					'type'    => 'string',
+					'default' => '',
 				),
 			),
-		),
-	) );
-
-	register_rest_route( $ns, '/files/folders/(?P<id>\d+)/shares/(?P<shareId>\d+)', array(
-		array(
-			'methods'             => WP_REST_Server::EDITABLE,
-			'permission_callback' => 'desktop_mode_files_rest_share_permission',
-			'callback'            => 'desktop_mode_files_rest_update_share',
-			'args'                => array(
-				'capability' => array(
-					'type'     => 'string',
-					'enum'     => array( 'read', 'write' ),
-					'required' => true,
-				),
-			),
-		),
-		array(
-			'methods'             => WP_REST_Server::DELETABLE,
-			'permission_callback' => 'desktop_mode_files_rest_share_permission',
-			'callback'            => 'desktop_mode_files_rest_delete_share',
-		),
-	) );
-
-	register_rest_route( $ns, '/files/folders/(?P<id>\d+)/shares/(?P<shareId>\d+)/accept', array(
-		'methods'             => WP_REST_Server::CREATABLE,
-		'permission_callback' => 'desktop_mode_files_rest_share_permission',
-		'callback'            => 'desktop_mode_files_rest_accept_share',
-	) );
-
-	register_rest_route( $ns, '/files/folders/(?P<id>\d+)/shares/(?P<shareId>\d+)/deny', array(
-		'methods'             => WP_REST_Server::CREATABLE,
-		'permission_callback' => 'desktop_mode_files_rest_share_permission',
-		'callback'            => 'desktop_mode_files_rest_deny_share',
-	) );
-
-	register_rest_route( $ns, '/files/folders/(?P<id>\d+)/leave', array(
-		'methods'             => WP_REST_Server::CREATABLE,
-		'permission_callback' => 'desktop_mode_files_rest_share_permission',
-		'callback'            => 'desktop_mode_files_rest_leave_folder',
-	) );
-
-	register_rest_route( $ns, '/files/users/search', array(
-		'methods'             => WP_REST_Server::READABLE,
-		'permission_callback' => 'desktop_mode_files_rest_search_users_permission',
-		'callback'            => 'desktop_mode_files_rest_search_users',
-		'args'                => array(
-			'q'       => array( 'type' => 'string', 'default' => '' ),
-			'exclude' => array( 'type' => 'string', 'default' => '' ),
-		),
-	) );
+		)
+	);
 
 	// Site-admin only: destructive cleanup that drops the folder-
 	// sharing tables outright (legacy + current). Surfaced from
 	// the OS Settings → Features → Advanced panel.
-	register_rest_route( $ns, '/files/folder-sharing-tables/purge', array(
-		'methods'             => WP_REST_Server::CREATABLE,
-		'permission_callback' => 'desktop_mode_files_rest_admin_permission',
-		'callback'            => 'desktop_mode_files_rest_purge_sharing_tables',
-	) );
+	register_rest_route(
+		$ns,
+		'/files/folder-sharing-tables/purge',
+		array(
+			'methods'             => WP_REST_Server::CREATABLE,
+			'permission_callback' => 'openstation_files_rest_admin_permission',
+			'callback'            => 'openstation_files_rest_purge_sharing_tables',
+		)
+	);
 }
-add_action( 'rest_api_init', 'desktop_mode_files_register_rest_routes' );
+add_action( 'rest_api_init', 'openstation_files_register_rest_routes' );
 
 /**
  * Inline the root folder's placements into the boot-time shell
@@ -298,59 +386,95 @@ add_action( 'rest_api_init', 'desktop_mode_files_register_rest_routes' );
  * (`src/desktop-files/layer.ts`) consumes the key one-shot, so any
  * later re-hydration still goes through REST for fresh state.
  *
- * The `desktop_mode_shell_config` filter only runs while rendering
+ * The `openstation_shell_config` filter only runs while rendering
  * the shell for an enabled, logged-in user — the same gate the REST
  * permission callback enforces.
- *
- * @since 0.9.7
  *
  * @param array $config Shell config.
  * @return array
  */
-function desktop_mode_files_inject_boot_placements( $config ) {
+function openstation_files_inject_boot_placements( $config ) {
 	$user_id = get_current_user_id();
 	if ( $user_id <= 0 ) {
 		return $config;
 	}
-	desktop_mode_files_auto_place_orphans( $user_id );
-	$rows = desktop_mode_files_get_for_user_folder( $user_id, 0 );
+	openstation_files_auto_place_orphans( $user_id );
+	$rows = openstation_files_get_for_user_folder( $user_id, 0 );
 	$out  = array();
 	foreach ( $rows as $row ) {
-		$out[] = desktop_mode_files_shape_placement( $row );
+		$out[] = openstation_files_shape_placement( $row );
 	}
 	$config['filesBootPlacements'] = $out;
 	return $config;
 }
-add_filter( 'desktop_mode_shell_config', 'desktop_mode_files_inject_boot_placements', 20 );
+add_filter( 'openstation_shell_config', 'openstation_files_inject_boot_placements', 20 );
+
+/**
+ * Inline the viewer's visible folder rows into the boot-time shell
+ * config, the same way the root placements are.
+ *
+ * The client keeps a folders map alongside its placements, and
+ * anything that needs to know a folder's OWNER reads it there —
+ * notably the "Share folder" title-bar button, which is owner-only
+ * and has nothing but a window id to work from. Nothing on the
+ * normal boot path filled that map: placement hydration populates
+ * placements, and `listFolders()` only ran after a create, a rename
+ * or an untrash. So a plain reload left every folder ownerless, and
+ * the owner of a folder lost the one control that manages its
+ * sharing until something happened to repopulate the map.
+ *
+ * Mirrors GET /folders exactly (same visibility resolution — owned
+ * folders plus accepted shares plus `share_mode='all'` — same
+ * shape), and the client consumes it one-shot, so any later
+ * re-hydration still goes through REST for fresh state.
+ *
+ * @param array $config Shell config.
+ * @return array
+ */
+function openstation_files_inject_boot_folders( $config ) {
+	$user_id = get_current_user_id();
+	if ( $user_id <= 0 ) {
+		return $config;
+	}
+	$out = array();
+	foreach ( openstation_files_get_visible_folders( $user_id ) as $row ) {
+		$out[] = openstation_files_shape_folder( $row );
+	}
+	$config['filesBootFolders'] = $out;
+	return $config;
+}
+add_filter( 'openstation_shell_config', 'openstation_files_inject_boot_folders', 20 );
 
 /**
  * GET /placements
  */
-function desktop_mode_files_rest_list_placements( WP_REST_Request $req ) {
+function openstation_files_rest_list_placements( WP_REST_Request $req ) {
 	$user_id   = get_current_user_id();
 	$parent_id = (int) $req->get_param( 'folder' );
 	// Self-healing backfill — see
-	// `desktop_mode_files_auto_place_orphan_folders` for the why.
+	// `openstation_files_auto_place_orphan_folders` for the why.
 	// Only runs at the root because that's the only context where
 	// auto-placing an orphan folder as a tile is unambiguous.
 	if ( 0 === $parent_id ) {
-		desktop_mode_files_auto_place_orphans( $user_id );
+		openstation_files_auto_place_orphans( $user_id );
 	}
-	$rows      = desktop_mode_files_get_for_user_folder( $user_id, $parent_id );
-	$out       = array();
+	$rows = openstation_files_get_for_user_folder( $user_id, $parent_id );
+	$out  = array();
 	foreach ( $rows as $row ) {
-		$out[] = desktop_mode_files_shape_placement( $row );
+		$out[] = openstation_files_shape_placement( $row );
 	}
-	return rest_ensure_response( array(
-		'placements' => $out,
-		'folderId'   => $parent_id,
-	) );
+	return rest_ensure_response(
+		array(
+			'placements' => $out,
+			'folderId'   => $parent_id,
+		)
+	);
 }
 
 /**
  * POST /placements
  */
-function desktop_mode_files_rest_create_placement( WP_REST_Request $req ) {
+function openstation_files_rest_create_placement( WP_REST_Request $req ) {
 	$type = (string) $req->get_param( 'type' );
 	$ref  = (string) $req->get_param( 'ref' );
 	$meta = $req->get_param( 'meta' );
@@ -360,15 +484,15 @@ function desktop_mode_files_rest_create_placement( WP_REST_Request $req ) {
 	// browser making a third-party request on every render. Other
 	// types skip the resolver entirely (no extra fetch latency).
 	if ( 'link' === $type && '' !== $ref ) {
-		$icon_data_uri = desktop_mode_resolve_favicon( $ref );
+		$icon_data_uri = openstation_resolve_favicon( $ref );
 		if ( is_string( $icon_data_uri ) && '' !== $icon_data_uri ) {
-			$meta_arr             = is_array( $meta ) ? $meta : array();
-			$meta_arr['iconUrl']  = $icon_data_uri;
-			$meta                 = $meta_arr;
+			$meta_arr            = is_array( $meta ) ? $meta : array();
+			$meta_arr['iconUrl'] = $icon_data_uri;
+			$meta                = $meta_arr;
 		}
 	}
 
-	$id = desktop_mode_files_place(
+	$id = openstation_files_place(
 		get_current_user_id(),
 		(int) $req->get_param( 'parentId' ),
 		$type,
@@ -383,41 +507,48 @@ function desktop_mode_files_rest_create_placement( WP_REST_Request $req ) {
 	if ( is_wp_error( $id ) ) {
 		return $id;
 	}
-	$row = desktop_mode_files_get_placement( $id );
-	return rest_ensure_response( desktop_mode_files_shape_placement( $row ) );
+	$row = openstation_files_get_placement( $id );
+	return rest_ensure_response( openstation_files_shape_placement( $row ) );
 }
 
 /**
  * PATCH /placements/<id>
  */
-function desktop_mode_files_rest_update_placement( WP_REST_Request $req ) {
+function openstation_files_rest_update_placement( WP_REST_Request $req ) {
 	$id      = (int) $req['id'];
-	$body    = $req->get_json_params() ?: $req->get_params();
-	$current = desktop_mode_files_get_placement( $id );
+	$json    = $req->get_json_params();
+	$body    = $json ? $json : $req->get_params();
+	$current = openstation_files_get_placement( $id );
 	if ( ! $current ) {
-		return new WP_Error( 'desktop_mode_files_not_found', __( 'Placement not found.', 'desktop-mode' ), array( 'status' => 404 ) );
+		return new WP_Error( 'openstation_files_not_found', __( 'Placement not found.', 'desktop-mode' ), array( 'status' => 404 ) );
 	}
-	$conflict = desktop_mode_files_check_if_match( (int) $current['updated_at_ms'], $req, $current );
+	$conflict = openstation_files_check_if_match( (int) $current['updated_at_ms'], $req, $current );
 	if ( is_wp_error( $conflict ) ) {
 		return $conflict;
 	}
 	$changes = array();
-	foreach ( array( 'parentId' => 'parent_id', 'x' => 'x', 'y' => 'y', 'sortOrder' => 'sort_order', 'meta' => 'meta' ) as $in => $col ) {
+	foreach ( array(
+		'parentId'  => 'parent_id',
+		'x'         => 'x',
+		'y'         => 'y',
+		'sortOrder' => 'sort_order',
+		'meta'      => 'meta',
+	) as $in => $col ) {
 		if ( array_key_exists( $in, $body ) ) {
 			$changes[ $col ] = $body[ $in ];
 		}
 	}
-	$ok = desktop_mode_files_move( $id, get_current_user_id(), $changes );
+	$ok = openstation_files_move( $id, get_current_user_id(), $changes );
 	if ( is_wp_error( $ok ) ) {
 		return $ok;
 	}
-	return rest_ensure_response( desktop_mode_files_shape_placement( desktop_mode_files_get_placement( $id ) ) );
+	return rest_ensure_response( openstation_files_shape_placement( openstation_files_get_placement( $id ) ) );
 }
 
 /**
  * DELETE /placements/<id>
  */
-function desktop_mode_files_rest_delete_placement( WP_REST_Request $req ) {
+function openstation_files_rest_delete_placement( WP_REST_Request $req ) {
 	$id      = (int) $req['id'];
 	$user_id = get_current_user_id();
 	// `force=1` query param permanently deletes (purges the row).
@@ -427,8 +558,8 @@ function desktop_mode_files_rest_delete_placement( WP_REST_Request $req ) {
 	$force = '1' === (string) $req->get_param( 'force' )
 		|| true === $req->get_param( 'force' );
 	$ok    = $force
-		? desktop_mode_files_purge_placement( $user_id, $id )
-		: desktop_mode_files_trash_placement( $user_id, $id );
+		? openstation_files_purge_placement( $user_id, $id )
+		: openstation_files_trash_placement( $user_id, $id );
 	if ( is_wp_error( $ok ) ) {
 		return $ok;
 	}
@@ -443,11 +574,11 @@ function desktop_mode_files_rest_delete_placement( WP_REST_Request $req ) {
 /**
  * GET /folders
  */
-function desktop_mode_files_rest_list_folders() {
-	$rows = desktop_mode_files_get_visible_folders( get_current_user_id() );
+function openstation_files_rest_list_folders() {
+	$rows = openstation_files_get_visible_folders( get_current_user_id() );
 	$out  = array();
 	foreach ( $rows as $row ) {
-		$out[] = desktop_mode_files_shape_folder( $row );
+		$out[] = openstation_files_shape_folder( $row );
 	}
 	return rest_ensure_response( array( 'folders' => $out ) );
 }
@@ -455,8 +586,8 @@ function desktop_mode_files_rest_list_folders() {
 /**
  * POST /folders
  */
-function desktop_mode_files_rest_create_folder( WP_REST_Request $req ) {
-	$id = desktop_mode_files_create_folder(
+function openstation_files_rest_create_folder( WP_REST_Request $req ) {
+	$id = openstation_files_create_folder(
 		get_current_user_id(),
 		array(
 			'name'       => (string) $req->get_param( 'name' ),
@@ -467,51 +598,56 @@ function desktop_mode_files_rest_create_folder( WP_REST_Request $req ) {
 	if ( is_wp_error( $id ) ) {
 		return $id;
 	}
-	return rest_ensure_response( desktop_mode_files_shape_folder( desktop_mode_files_get_folder( $id ) ) );
+	return rest_ensure_response( openstation_files_shape_folder( openstation_files_get_folder( $id ) ) );
 }
 
 /**
  * PATCH /folders/<id>
  */
-function desktop_mode_files_rest_update_folder( WP_REST_Request $req ) {
+function openstation_files_rest_update_folder( WP_REST_Request $req ) {
 	$id      = (int) $req['id'];
-	$body    = $req->get_json_params() ?: $req->get_params();
-	$current = desktop_mode_files_get_folder( $id );
+	$json    = $req->get_json_params();
+	$body    = $json ? $json : $req->get_params();
+	$current = openstation_files_get_folder( $id );
 	if ( ! $current ) {
-		return new WP_Error( 'desktop_mode_files_not_found', __( 'Folder not found.', 'desktop-mode' ), array( 'status' => 404 ) );
+		return new WP_Error( 'openstation_files_not_found', __( 'Folder not found.', 'desktop-mode' ), array( 'status' => 404 ) );
 	}
-	$conflict = desktop_mode_files_check_if_match( (int) $current['updated_at_ms'], $req, $current );
+	$conflict = openstation_files_check_if_match( (int) $current['updated_at_ms'], $req, $current );
 	if ( is_wp_error( $conflict ) ) {
 		return $conflict;
 	}
 	$changes = array();
-	foreach ( array( 'name' => 'name', 'shareMode' => 'share_mode', 'shareMeta' => 'share_meta' ) as $in => $col ) {
+	foreach ( array(
+		'name'      => 'name',
+		'shareMode' => 'share_mode',
+		'shareMeta' => 'share_meta',
+	) as $in => $col ) {
 		if ( array_key_exists( $in, $body ) ) {
 			$changes[ $col ] = $body[ $in ];
 		}
 	}
-	$ok = desktop_mode_files_update_folder( $id, get_current_user_id(), $changes );
+	$ok = openstation_files_update_folder( $id, get_current_user_id(), $changes );
 	if ( is_wp_error( $ok ) ) {
 		return $ok;
 	}
-	return rest_ensure_response( desktop_mode_files_shape_folder( desktop_mode_files_get_folder( $id ) ) );
+	return rest_ensure_response( openstation_files_shape_folder( openstation_files_get_folder( $id ) ) );
 }
 
 /**
  * DELETE /folders/<id>
  */
-function desktop_mode_files_rest_delete_folder( WP_REST_Request $req ) {
+function openstation_files_rest_delete_folder( WP_REST_Request $req ) {
 	$id      = (int) $req['id'];
 	$user_id = get_current_user_id();
 	$force   = '1' === (string) $req->get_param( 'force' )
 		|| true === $req->get_param( 'force' );
 	// Default DELETE soft-trashes the folder + cascades to child
-	// placements (see `desktop_mode_files_trash_folder`). `force=1`
+	// placements (see `openstation_files_trash_folder`). `force=1`
 	// permanently deletes both the folder row AND every child
 	// placement that was trashed via the cascade.
 	$ok = $force
-		? desktop_mode_files_purge_folder( $user_id, $id )
-		: desktop_mode_files_trash_folder( $user_id, $id );
+		? openstation_files_purge_folder( $user_id, $id )
+		: openstation_files_trash_folder( $user_id, $id );
 	if ( is_wp_error( $ok ) ) {
 		return $ok;
 	}
@@ -526,7 +662,7 @@ function desktop_mode_files_rest_delete_folder( WP_REST_Request $req ) {
 /**
  * PUT /associations — replaces the entire user-association map.
  */
-function desktop_mode_files_rest_save_associations( WP_REST_Request $req ) {
+function openstation_files_rest_save_associations( WP_REST_Request $req ) {
 	$assoc = (array) $req->get_param( 'associations' );
 	$clean = array();
 	foreach ( $assoc as $type => $opener_id ) {
@@ -537,23 +673,23 @@ function desktop_mode_files_rest_save_associations( WP_REST_Request $req ) {
 		}
 		$clean[ $type ] = $opener_id;
 	}
-	update_user_meta( get_current_user_id(), DESKTOP_MODE_FILE_ASSOCIATIONS_META, $clean );
-	return rest_ensure_response( array(
-		'associations' => desktop_mode_get_user_file_associations( get_current_user_id() ),
-	) );
+	update_user_meta( get_current_user_id(), OPENSTATION_FILE_ASSOCIATIONS_META, $clean );
+	return rest_ensure_response(
+		array(
+			'associations' => openstation_get_user_file_associations( get_current_user_id() ),
+		)
+	);
 }
 
 /**
  * Shape a placement row for the wire — converts snake_case to
- * camelCase and merges in the resolved `Desktop_Mode_File`
+ * camelCase and merges in the resolved `OpenStation_File`
  * shape so the JS side can render without a second fetch.
- *
- * @since 0.9.0
  *
  * @param array|null $row Normalized placement row.
  * @return array
  */
-function desktop_mode_files_shape_placement( $row ) {
+function openstation_files_shape_placement( $row ) {
 	if ( ! is_array( $row ) ) {
 		return array();
 	}
@@ -574,7 +710,7 @@ function desktop_mode_files_shape_placement( $row ) {
 			'exists'     => true,
 		);
 	} else {
-		$file  = desktop_mode_resolve_file( $row['file_type'], $row['file_ref'] );
+		$file  = openstation_resolve_file( $row['file_type'], $row['file_ref'] );
 		$shape = $file ? $file->serialize() : array(
 			'type'       => $row['file_type'],
 			'ref'        => $row['file_ref'],
@@ -594,68 +730,51 @@ function desktop_mode_files_shape_placement( $row ) {
 	// `false` when the helper isn't loaded (defensive — early-boot
 	// REST calls before trash.php is required can't grant permission
 	// they don't know about).
-	$viewer_id  = (int) get_current_user_id();
-	$can_trash  = false;
-	if ( $viewer_id > 0 && function_exists( 'desktop_mode_files_user_can_trash_placement' ) ) {
-		$can_trash = desktop_mode_files_user_can_trash_placement( $viewer_id, $row );
+	$viewer_id = (int) get_current_user_id();
+	$can_trash = false;
+	if ( $viewer_id > 0 && function_exists( 'openstation_files_user_can_trash_placement' ) ) {
+		$can_trash = openstation_files_user_can_trash_placement( $viewer_id, $row );
 	}
 
 	return array(
-		'id'           => (int) $row['id'],
-		'parentId'     => (int) $row['parent_id'],
-		'x'            => (int) $row['x'],
-		'y'            => (int) $row['y'],
-		'sortOrder'    => (int) $row['sort_order'],
-		'updatedAtMs'  => (int) $row['updated_at_ms'],
-		'meta'         => isset( $row['meta'] ) ? $row['meta'] : null,
-		'file'         => $shape,
+		'id'          => (int) $row['id'],
+		'parentId'    => (int) $row['parent_id'],
+		'x'           => (int) $row['x'],
+		'y'           => (int) $row['y'],
+		'sortOrder'   => (int) $row['sort_order'],
+		'updatedAtMs' => (int) $row['updated_at_ms'],
+		'meta'        => isset( $row['meta'] ) ? $row['meta'] : null,
+		'file'        => $shape,
 		// `accessGated` is true when the viewer can't read the
 		// underlying entity but the placement is shown anyway (the
 		// shared-folder-view UX). Tile renderer surfaces it as a
 		// lock overlay + tooltip; the `file` shape above is redacted.
-		'accessGated'  => $access_gated,
-		'canTrash'     => $can_trash,
+		'accessGated' => $access_gated,
+		'canTrash'    => $can_trash,
 	);
 }
 
 /**
- * @since 0.9.0
- *
  * @param array|null $row Folder row.
  * @return array
  */
-function desktop_mode_files_shape_folder( $row ) {
+function openstation_files_shape_folder( $row ) {
 	if ( ! is_array( $row ) ) {
 		return array();
 	}
 	$shape = array(
-		'id'           => (int) $row['id'],
-		'ownerId'      => (int) $row['owner_id'],
-		'name'         => (string) $row['name'],
-		'shareMode'    => (string) $row['share_mode'],
-		'shareMeta'    => isset( $row['share_meta'] ) ? $row['share_meta'] : null,
-		'updatedAtMs'  => (int) $row['updated_at_ms'],
+		'id'          => (int) $row['id'],
+		'ownerId'     => (int) $row['owner_id'],
+		'name'        => (string) $row['name'],
+		'shareMode'   => (string) $row['share_mode'],
+		'shareMeta'   => isset( $row['share_meta'] ) ? $row['share_meta'] : null,
+		'updatedAtMs' => (int) $row['updated_at_ms'],
 	);
-	if ( function_exists( 'desktop_mode_files_get_folder_shares' ) ) {
-		$shares = desktop_mode_files_get_folder_shares( (int) $row['id'] );
-		$accepted_count = 0;
-		$has_all        = 'all' === (string) $row['share_mode'];
-		foreach ( $shares as $s ) {
-			if ( 'accepted' === $s['state'] ) {
-				$accepted_count++;
-			}
-		}
-		// `shared` is viewer-agnostic — recipients need it for the
-		// shared-folder badge. The recipient COUNT is owner-internal
-		// (the dedicated shares endpoint gates the full roster on
-		// `share_can_manage`), so only managers get the real number;
-		// every other viewer sees `0`, keeping the wire shape stable.
-		$can_manage = function_exists( 'desktop_mode_files_share_can_manage' )
-			&& desktop_mode_files_share_can_manage( (int) $row['id'], get_current_user_id() );
-		$shape['shareSummary'] = array(
-			'shared'         => $has_all || $accepted_count > 0,
-			'recipientCount' => $can_manage ? $accepted_count + ( $has_all ? 1 : 0 ) : 0,
-		);
+	// Same summary `OpenStation_Folder_File::serialize()` puts on a
+	// folder PLACEMENT, so a tile paints identically whichever
+	// response it came from.
+	if ( function_exists( 'openstation_files_folder_share_summary' ) ) {
+		$shape['shareSummary'] = openstation_files_folder_share_summary( $row );
 	}
 	return $shape;
 }
@@ -671,14 +790,12 @@ function desktop_mode_files_shape_folder( $row ) {
  * surfaces as a toast: `{ reason, actor: { id,name,avatar },
  * current: { parentId, parentName, updatedAtMs } }`.
  *
- * @since 0.8.5
- *
  * @param int             $current_ms Current `updated_at_ms` on the row.
  * @param WP_REST_Request $req        Inbound request.
  * @param array           $row        Normalized row (placement or folder).
  * @return WP_Error|null
  */
-function desktop_mode_files_check_if_match( $current_ms, WP_REST_Request $req, $row ) {
+function openstation_files_check_if_match( $current_ms, WP_REST_Request $req, $row ) {
 	$header = $req->get_header( 'if_match' );
 	if ( null === $header || '' === $header ) {
 		return null;
@@ -695,7 +812,7 @@ function desktop_mode_files_check_if_match( $current_ms, WP_REST_Request $req, $
 	// right person; in shared-write the toast may be slightly
 	// misleading for the lifetime of pre-v10 rows. New mutations
 	// stamp the column accurately. See
-	// `desktop_mode_files_ensure_updated_by_column`.
+	// `openstation_files_ensure_updated_by_column`.
 	$actor_id = 0;
 	if ( isset( $row['updated_by'] ) && (int) $row['updated_by'] > 0 ) {
 		$actor_id = (int) $row['updated_by'];
@@ -707,7 +824,7 @@ function desktop_mode_files_check_if_match( $current_ms, WP_REST_Request $req, $
 	$parent_id   = isset( $row['parent_id'] ) ? (int) $row['parent_id'] : 0;
 	$parent_name = '';
 	if ( $parent_id > 0 ) {
-		$parent_folder = desktop_mode_files_get_folder( $parent_id );
+		$parent_folder = openstation_files_get_folder( $parent_id );
 		$parent_name   = $parent_folder ? (string) $parent_folder['name'] : '';
 	}
 
@@ -727,14 +844,14 @@ function desktop_mode_files_check_if_match( $current_ms, WP_REST_Request $req, $
 	// to enumerate other users' display names or folder names
 	// (this check runs BEFORE the store's ownership gate, so the
 	// 409 body must not leak what the later 403 would protect).
-	$viewer_id        = (int) get_current_user_id();
-	$viewer_owns_row  = isset( $row['owner_id'] ) && (int) $row['owner_id'] === $viewer_id;
-	$viewer_can_see   = $viewer_owns_row;
+	$viewer_id       = (int) get_current_user_id();
+	$viewer_owns_row = isset( $row['owner_id'] ) && (int) $row['owner_id'] === $viewer_id;
+	$viewer_can_see  = $viewer_owns_row;
 	if ( ! $viewer_can_see && $parent_id > 0 && isset( $parent_folder ) && $parent_folder ) {
 		if ( (int) $parent_folder['owner_id'] === $viewer_id ) {
 			$viewer_can_see = true;
-		} elseif ( function_exists( 'desktop_mode_folder_share_user_capability' ) ) {
-			$viewer_can_see = 'none' !== desktop_mode_folder_share_user_capability( $parent_id, $viewer_id );
+		} elseif ( function_exists( 'openstation_folder_share_user_capability' ) ) {
+			$viewer_can_see = 'none' !== openstation_folder_share_user_capability( $parent_id, $viewer_id );
 		}
 	}
 	$actor_payload = array(
@@ -744,7 +861,7 @@ function desktop_mode_files_check_if_match( $current_ms, WP_REST_Request $req, $
 	);
 
 	return new WP_Error(
-		'desktop_mode_files_conflict',
+		'openstation_files_conflict',
 		__( 'This row was changed by another session.', 'desktop-mode' ),
 		array(
 			'status' => 409,
@@ -764,12 +881,10 @@ function desktop_mode_files_check_if_match( $current_ms, WP_REST_Request $req, $
 /**
  * Shape a share row for the wire.
  *
- * @since 0.8.5
- *
  * @param array|null $row Normalized share row.
  * @return array
  */
-function desktop_mode_files_shape_share( $row ) {
+function openstation_files_shape_share( $row ) {
 	if ( ! is_array( $row ) ) {
 		return array();
 	}
@@ -785,13 +900,13 @@ function desktop_mode_files_shape_share( $row ) {
 		'decidedAtMs'   => isset( $row['decided_at_ms'] ) ? $row['decided_at_ms'] : null,
 	);
 	if ( 'user' === $row['principal_type'] ) {
-		$uid  = (int) $row['principal_ref'];
-		$user = $uid > 0 ? get_userdata( $uid ) : null;
+		$uid                  = (int) $row['principal_ref'];
+		$user                 = $uid > 0 ? get_userdata( $uid ) : null;
 		$shape['displayName'] = $user ? $user->display_name : '';
 		$shape['avatarUrl']   = $user ? get_avatar_url( $uid, array( 'size' => 48 ) ) : '';
 	} else {
-		$roles = wp_roles();
-		$info  = $roles && isset( $roles->roles[ $row['principal_ref'] ] ) ? $roles->roles[ $row['principal_ref'] ] : null;
+		$roles                = wp_roles();
+		$info                 = $roles && isset( $roles->roles[ $row['principal_ref'] ] ) ? $roles->roles[ $row['principal_ref'] ] : null;
 		$shape['displayName'] = $info ? translate_user_role( (string) $info['name'] ) : (string) $row['principal_ref'];
 		$shape['avatarUrl']   = '';
 	}
@@ -801,20 +916,20 @@ function desktop_mode_files_shape_share( $row ) {
 /**
  * GET /folders/<id>/shares — owner only.
  */
-function desktop_mode_files_rest_list_shares( WP_REST_Request $req ) {
+function openstation_files_rest_list_shares( WP_REST_Request $req ) {
 	$folder_id = (int) $req['id'];
 	$user_id   = get_current_user_id();
-	if ( ! desktop_mode_files_share_can_manage( $folder_id, $user_id ) ) {
-		return new WP_Error( 'desktop_mode_files_forbidden', __( 'You cannot view shares for this folder.', 'desktop-mode' ), array( 'status' => 403 ) );
+	if ( ! openstation_files_share_can_manage( $folder_id, $user_id ) ) {
+		return new WP_Error( 'openstation_files_forbidden', __( 'You cannot view shares for this folder.', 'desktop-mode' ), array( 'status' => 403 ) );
 	}
-	$folder = desktop_mode_files_get_folder( $folder_id );
+	$folder = openstation_files_get_folder( $folder_id );
 	if ( ! $folder ) {
-		return new WP_Error( 'desktop_mode_files_not_found', __( 'Folder not found.', 'desktop-mode' ), array( 'status' => 404 ) );
+		return new WP_Error( 'openstation_files_not_found', __( 'Folder not found.', 'desktop-mode' ), array( 'status' => 404 ) );
 	}
-	$rows  = desktop_mode_files_get_folder_shares( $folder_id );
-	$out   = array();
+	$rows = openstation_files_get_folder_shares( $folder_id );
+	$out  = array();
 	foreach ( $rows as $row ) {
-		$out[] = desktop_mode_files_shape_share( $row );
+		$out[] = openstation_files_shape_share( $row );
 	}
 	return rest_ensure_response(
 		array(
@@ -828,10 +943,10 @@ function desktop_mode_files_rest_list_shares( WP_REST_Request $req ) {
 /**
  * POST /folders/<id>/shares — owner only.
  */
-function desktop_mode_files_rest_create_share( WP_REST_Request $req ) {
+function openstation_files_rest_create_share( WP_REST_Request $req ) {
 	$folder_id = (int) $req['id'];
 	$actor_id  = get_current_user_id();
-	$id = desktop_mode_folder_share_invite(
+	$id        = openstation_folder_share_invite(
 		$folder_id,
 		$actor_id,
 		(string) $req->get_param( 'principalType' ),
@@ -841,7 +956,7 @@ function desktop_mode_files_rest_create_share( WP_REST_Request $req ) {
 	if ( is_wp_error( $id ) ) {
 		return $id;
 	}
-	return rest_ensure_response( desktop_mode_files_shape_share( desktop_mode_files_get_share( $id ) ) );
+	return rest_ensure_response( openstation_files_shape_share( openstation_files_get_share( $id ) ) );
 }
 
 /**
@@ -853,25 +968,23 @@ function desktop_mode_files_rest_create_share( WP_REST_Request $req ) {
  * hierarchical (`/folders/{id}/shares/{shareId}/…`), so honoring
  * both path segments is the contract callers expect.
  *
- * @since 0.8.5
- *
  * @param WP_REST_Request $req Request.
  * @return array|WP_Error
  */
-function desktop_mode_files_rest_resolve_share_in_folder( WP_REST_Request $req ) {
+function openstation_files_rest_resolve_share_in_folder( WP_REST_Request $req ) {
 	$folder_id = (int) $req['id'];
 	$share_id  = (int) $req['shareId'];
-	$share     = desktop_mode_files_get_share( $share_id );
+	$share     = openstation_files_get_share( $share_id );
 	if ( ! $share ) {
 		return new WP_Error(
-			'desktop_mode_files_not_found',
+			'openstation_files_not_found',
 			__( 'Share not found.', 'desktop-mode' ),
 			array( 'status' => 404 )
 		);
 	}
 	if ( (int) $share['folder_id'] !== $folder_id ) {
 		return new WP_Error(
-			'desktop_mode_files_not_found',
+			'openstation_files_not_found',
 			__( 'Share not found in this folder.', 'desktop-mode' ),
 			array( 'status' => 404 )
 		);
@@ -882,28 +995,28 @@ function desktop_mode_files_rest_resolve_share_in_folder( WP_REST_Request $req )
 /**
  * PATCH /folders/<id>/shares/<shareId> — owner only.
  */
-function desktop_mode_files_rest_update_share( WP_REST_Request $req ) {
-	$share = desktop_mode_files_rest_resolve_share_in_folder( $req );
+function openstation_files_rest_update_share( WP_REST_Request $req ) {
+	$share = openstation_files_rest_resolve_share_in_folder( $req );
 	if ( is_wp_error( $share ) ) {
 		return $share;
 	}
 	$share_id = (int) $share['id'];
-	$ok = desktop_mode_folder_share_update_capability( $share_id, get_current_user_id(), (string) $req->get_param( 'capability' ) );
+	$ok       = openstation_folder_share_update_capability( $share_id, get_current_user_id(), (string) $req->get_param( 'capability' ) );
 	if ( is_wp_error( $ok ) ) {
 		return $ok;
 	}
-	return rest_ensure_response( desktop_mode_files_shape_share( desktop_mode_files_get_share( $share_id ) ) );
+	return rest_ensure_response( openstation_files_shape_share( openstation_files_get_share( $share_id ) ) );
 }
 
 /**
  * DELETE /folders/<id>/shares/<shareId> — owner only.
  */
-function desktop_mode_files_rest_delete_share( WP_REST_Request $req ) {
-	$share = desktop_mode_files_rest_resolve_share_in_folder( $req );
+function openstation_files_rest_delete_share( WP_REST_Request $req ) {
+	$share = openstation_files_rest_resolve_share_in_folder( $req );
 	if ( is_wp_error( $share ) ) {
 		return $share;
 	}
-	$ok = desktop_mode_folder_share_revoke( (int) $share['id'], get_current_user_id() );
+	$ok = openstation_folder_share_revoke( (int) $share['id'], get_current_user_id() );
 	if ( is_wp_error( $ok ) ) {
 		return $ok;
 	}
@@ -913,31 +1026,31 @@ function desktop_mode_files_rest_delete_share( WP_REST_Request $req ) {
 /**
  * POST /folders/<id>/shares/<shareId>/accept — recipient only.
  */
-function desktop_mode_files_rest_accept_share( WP_REST_Request $req ) {
-	$share = desktop_mode_files_rest_resolve_share_in_folder( $req );
+function openstation_files_rest_accept_share( WP_REST_Request $req ) {
+	$share = openstation_files_rest_resolve_share_in_folder( $req );
 	if ( is_wp_error( $share ) ) {
 		return $share;
 	}
-	$row = desktop_mode_folder_share_accept( (int) $share['id'], get_current_user_id() );
+	$row = openstation_folder_share_accept( (int) $share['id'], get_current_user_id() );
 	if ( is_wp_error( $row ) ) {
 		return $row;
 	}
-	return rest_ensure_response( desktop_mode_files_shape_share( $row ) );
+	return rest_ensure_response( openstation_files_shape_share( $row ) );
 }
 
 /**
  * POST /folders/<id>/shares/<shareId>/deny — recipient only.
  */
-function desktop_mode_files_rest_deny_share( WP_REST_Request $req ) {
-	$share = desktop_mode_files_rest_resolve_share_in_folder( $req );
+function openstation_files_rest_deny_share( WP_REST_Request $req ) {
+	$share = openstation_files_rest_resolve_share_in_folder( $req );
 	if ( is_wp_error( $share ) ) {
 		return $share;
 	}
-	$row = desktop_mode_folder_share_deny( (int) $share['id'], get_current_user_id() );
+	$row = openstation_folder_share_deny( (int) $share['id'], get_current_user_id() );
 	if ( is_wp_error( $row ) ) {
 		return $row;
 	}
-	return rest_ensure_response( desktop_mode_files_shape_share( $row ) );
+	return rest_ensure_response( openstation_files_shape_share( $row ) );
 }
 
 /**
@@ -949,9 +1062,9 @@ function desktop_mode_files_rest_deny_share( WP_REST_Request $req ) {
  * their access — for role shares without affecting other role
  * members, via the per-user decisions table.
  */
-function desktop_mode_files_rest_leave_folder( WP_REST_Request $req ) {
+function openstation_files_rest_leave_folder( WP_REST_Request $req ) {
 	$folder_id = (int) $req['id'];
-	$ok = desktop_mode_folder_share_leave( $folder_id, get_current_user_id() );
+	$ok        = openstation_folder_share_leave( $folder_id, get_current_user_id() );
 	if ( is_wp_error( $ok ) ) {
 		return $ok;
 	}
@@ -963,30 +1076,26 @@ function desktop_mode_files_rest_leave_folder( WP_REST_Request $req ) {
  * that drops every table the folder-sharing feature ever created
  * (current `folder_shares` + `share_user_decisions`, plus any
  * future variants enumerated via the
- * `desktop_mode_files_sharing_tables_for_purge` filter).
+ * `openstation_files_sharing_tables_for_purge` filter).
  *
  * Restricted to `manage_options` by the permission callback. The
  * schema-version option is cleared so the next admin-init runs
  * `install_schema` and recreates the empty tables — keeps the
  * code path that ASSUMES the tables exist (e.g. heartbeat
  * delivery queries) working even after a purge.
- *
- * @since 0.8.5
  */
-function desktop_mode_files_rest_purge_sharing_tables() {
+function openstation_files_rest_purge_sharing_tables() {
 	global $wpdb;
-	$tables = desktop_mode_files_table_names();
+	$tables = openstation_files_table_names();
 
 	$to_drop = array( $tables['shares'], $tables['decisions'] );
 	/**
 	 * Filter the list of table names dropped by the
 	 * "Delete folder sharing data" admin action.
 	 *
-	 * @since 0.8.5
-	 *
 	 * @param string[] $tables Default = shares + decisions.
 	 */
-	$to_drop = (array) apply_filters( 'desktop_mode_files_sharing_tables_for_purge', $to_drop );
+	$to_drop = (array) apply_filters( 'openstation_files_sharing_tables_for_purge', $to_drop );
 
 	$dropped = array();
 	$skipped = array();
@@ -1000,12 +1109,12 @@ function desktop_mode_files_rest_purge_sharing_tables() {
 		// string into `$to_drop` and we're about to interpolate
 		// the value directly into a `DROP TABLE` statement (wpdb
 		// has no placeholder for identifiers). Two gates:
-		//   1. Must match the `[A-Za-z0-9_]+` identifier pattern —
-		//      keeps quotes/backticks/spaces out of the SQL even
-		//      if a filter author smuggled them in.
-		//   2. Must start with the wpdb prefix — keeps a malicious
-		//      filter from dropping system tables (`wp_users`,
-		//      `wp_options`, …) on a multi-prefix install.
+		// 1. Must match the `[A-Za-z0-9_]+` identifier pattern —
+		// keeps quotes/backticks/spaces out of the SQL even
+		// if a filter author smuggled them in.
+		// 2. Must start with the wpdb prefix — keeps a malicious
+		// filter from dropping system tables (`wp_users`,
+		// `wp_options`, …) on a multi-prefix install.
 		if (
 			! preg_match( '/^[A-Za-z0-9_]+$/', $tbl ) ||
 			0 !== strpos( $tbl, $prefix )
@@ -1025,40 +1134,38 @@ function desktop_mode_files_rest_purge_sharing_tables() {
 	// paths that JOIN against them (heartbeat, sharing.php
 	// visibility) keep working without a per-request existence
 	// check.
-	delete_option( DESKTOP_MODE_FILES_SCHEMA_OPTION );
+	delete_option( OPENSTATION_FILES_SCHEMA_OPTION );
 
 	/**
 	 * Fires after the folder-sharing tables are purged. Plugins
 	 * that mirror share state into their own storage can react
 	 * here.
 	 *
-	 * @since 0.8.5
-	 *
 	 * @param string[] $dropped Table names that were dropped.
 	 */
-	do_action( 'desktop_mode_files_sharing_tables_purged', $dropped );
+	do_action( 'openstation_files_sharing_tables_purged', $dropped );
 
-	return rest_ensure_response( array(
-		'dropped' => $dropped,
-		'skipped' => $skipped,
-	) );
+	return rest_ensure_response(
+		array(
+			'dropped' => $dropped,
+			'skipped' => $skipped,
+		)
+	);
 }
 
 /**
  * Permission gate for /users/search. Requires `edit_posts` —
- * `desktop_mode_files_rest_permission` would let any logged-in
- * desktop-mode user pull the directory, which is too broad for an
+ * `openstation_files_rest_permission` would let any logged-in
+ * openstation user pull the directory, which is too broad for an
  * autocomplete that exposes display names + emails.
- *
- * @since 0.8.5
  */
-function desktop_mode_files_rest_search_users_permission() {
-	$base = desktop_mode_files_rest_permission();
+function openstation_files_rest_search_users_permission() {
+	$base = openstation_files_rest_permission();
 	if ( is_wp_error( $base ) ) {
 		return $base;
 	}
 	if ( ! current_user_can( 'edit_posts' ) ) {
-		return new WP_Error( 'desktop_mode_files_forbidden', __( 'You cannot search users.', 'desktop-mode' ), array( 'status' => 403 ) );
+		return new WP_Error( 'openstation_files_forbidden', __( 'You cannot search users.', 'desktop-mode' ), array( 'status' => 403 ) );
 	}
 	return true;
 }
@@ -1066,10 +1173,8 @@ function desktop_mode_files_rest_search_users_permission() {
 /**
  * GET /files/users/search?q=<>&exclude=<csv> — autocomplete for the
  * folder share picker.
- *
- * @since 0.8.5
  */
-function desktop_mode_files_rest_search_users( WP_REST_Request $req ) {
+function openstation_files_rest_search_users( WP_REST_Request $req ) {
 	$q       = trim( (string) $req->get_param( 'q' ) );
 	$exclude = array_filter( array_map( 'intval', explode( ',', (string) $req->get_param( 'exclude' ) ) ) );
 
@@ -1098,12 +1203,10 @@ function desktop_mode_files_rest_search_users( WP_REST_Request $req ) {
 	/**
 	 * Filter the WP_User_Query args used by the share picker.
 	 *
-	 * @since 0.8.5
-	 *
 	 * @param array $args Default args.
 	 * @param array $req  Request params (`q`, `exclude`).
 	 */
-	$args = (array) apply_filters( 'desktop_mode_files_share_user_query_args', $args, $req->get_params() );
+	$args = (array) apply_filters( 'openstation_files_share_user_query_args', $args, $req->get_params() );
 
 	$query = new WP_User_Query( $args );
 	$users = $query->get_results();

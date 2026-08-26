@@ -1,0 +1,13 @@
+{
+	"name": "mio-js",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"description": "Mio, the OpenStation desk companion, as a standalone drop-in <script>.",
+	"license": "GPL-2.0-or-later",
+	"scripts": {
+		"build": "vite build --config vite.config.js --mode development && vite build --config vite.config.js --mode production",
+		"typecheck": "tsc --noEmit -p tsconfig.json",
+		"demo": "node ./scripts/serve-demo.mjs"
+	}
+}

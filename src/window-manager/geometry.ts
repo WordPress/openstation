@@ -1,18 +1,16 @@
 /**
- * Desktop Mode — Window-manager geometry helpers.
+ * OpenStation — Window-manager geometry helpers.
  *
  * Pure math for the `tile()` grid picker, the snap cell-size validator,
  * and the Overview thumbnail layout. No DOM side effects, no class
  * references — everything takes numbers + returns numbers.
- *
- * @since 0.8.1
  */
 
 import type { Window } from '../window';
 
 /**
  * Validate a plugin-supplied grid choice from the
- * `desktop-mode.arrange.tile.dimensions` filter. Rejects non-finite
+ * `os.arrange.tile.dimensions` filter. Rejects non-finite
  * numbers, non-positive dimensions, and grids smaller than the window
  * count (which would silently drop windows).
  */
@@ -39,7 +37,7 @@ export function isValidGrid(
 
 /**
  * Validate a plugin-supplied snap cell size from the
- * `desktop-mode.arrange.snap.cell-size` filter. Both dimensions must be
+ * `os.arrange.snap.cell-size` filter. Both dimensions must be
  * positive finite numbers; anything else falls back to the algorithmic
  * default to avoid divide-by-zero downstream.
  */

@@ -1,6 +1,6 @@
 /**
  * Drop-target registry behavior — deepest-match wins, the
- * `.desktop-mode-window` claim boundary, idempotent re-registration.
+ * `.os-window` claim boundary, idempotent re-registration.
  */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { installHooksStub, clearHooksStub } from './helpers/hooks-stub';
@@ -47,10 +47,10 @@ describe( 'DropTargetRegistry', () => {
 		expect( reg.hitTest( isolated ) ).toBeNull();
 	} );
 
-	test( '.desktop-mode-window stops the walk and returns null', () => {
+	test( '.os-window stops the walk and returns null', () => {
 		// Layout:
 		//   <div id="wallpaper">
-		//     <div class="desktop-mode-window">
+		//     <div class="os-window">
 		//       <iframe />
 		//     </div>
 		//   </div>
@@ -61,7 +61,7 @@ describe( 'DropTargetRegistry', () => {
 		const wallpaper = document.createElement( 'div' );
 		wallpaper.id = 'wallpaper';
 		const win = document.createElement( 'div' );
-		win.classList.add( 'desktop-mode-window' );
+		win.classList.add( 'os-window' );
 		const iframe = document.createElement( 'div' );
 		win.appendChild( iframe );
 		wallpaper.appendChild( win );
@@ -71,7 +71,7 @@ describe( 'DropTargetRegistry', () => {
 			id: 'wallpaper', element: wallpaper, accept: () => true, onDrop: () => undefined,
 		} );
 
-		// Cursor over iframe → hit-test walks up → hits .desktop-mode-window
+		// Cursor over iframe → hit-test walks up → hits .os-window
 		// before reaching wallpaper → returns null.
 		expect( reg.hitTest( iframe ) ).toBeNull();
 		// But hitting the wallpaper itself directly still works.
@@ -86,7 +86,7 @@ describe( 'DropTargetRegistry', () => {
 		const reg = new DropTargetRegistry();
 		const wallpaper = document.createElement( 'div' );
 		const win = document.createElement( 'div' );
-		win.classList.add( 'desktop-mode-window' );
+		win.classList.add( 'os-window' );
 		const binBody = document.createElement( 'div' );
 		const innerChild = document.createElement( 'span' );
 		binBody.appendChild( innerChild );

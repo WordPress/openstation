@@ -1,14 +1,14 @@
 # Register a desktop theme from a plugin
 
-**Status:** Experimental · **Since:** 0.9.7
+**Status:** Experimental
 
 A [desktop theme](../desktop-themes.md) reskins the whole shell. Site
-admins normally install one by uploading a ZIP in OS Settings →
+admins normally install one by uploading a ZIP in OpenStation Preferences →
 Themes, but a plugin can ship one directly — same sanitizer, same
 compiler, same constraints. The only difference is that your assets
 are absolute URLs you already serve instead of files inside an archive.
 
-> Not the same as `desktop_mode_register_window_theme()`, which
+> Not the same as `openstation_register_window_theme()`, which
 > restyles **one window's** chrome. This restyles the entire OS.
 
 ---
@@ -19,14 +19,14 @@ are absolute URLs you already serve instead of files inside an archive.
 <?php
 /**
  * Plugin Name: Acme Neon Glass
- * Description: A desktop theme for Desktop Mode.
+ * Description: A desktop theme for OpenStation.
  * Requires Plugins: desktop-mode
  */
 
 defined( 'ABSPATH' ) || exit;
 
 add_action( 'init', function () {
-    if ( ! function_exists( 'desktop_mode_register_desktop_theme' ) ) {
+    if ( ! function_exists( 'openstation_register_desktop_theme' ) ) {
         return;
     }
 
@@ -34,31 +34,30 @@ add_action( 'init', function () {
         return plugins_url( 'theme/' . $file, __FILE__ );
     };
 
-    $result = desktop_mode_register_desktop_theme( 'acme/neon-glass', array(
+    $result = openstation_register_desktop_theme( 'acme/neon-glass', array(
         'name'        => __( 'Neon Glass', 'acme-neon-glass' ),
         'version'     => '1.0.0',
         'author'      => 'Acme Design',
         'description' => __( 'Deep indigo glass with a neon rim.', 'acme-neon-glass' ),
         'preview'     => $asset( 'preview.png' ),
 
-        // Every `--desktop-mode-*` custom property the shell defines
+        // Every `--os-*` custom property the shell defines
         // is fair game. See assets/css/variables.css for the full set.
         'tokens'      => array(
-            '--desktop-mode-window-bg'           => '#12122a',
-            '--desktop-mode-window-border'       => '#2b2b52',
-            '--desktop-mode-window-radius'       => '14px',
-            '--desktop-mode-titlebar-bg'         => '#171733',
-            '--desktop-mode-titlebar-bg-focused' => '#241f4d',
-            '--desktop-mode-titlebar-color'      => '#a8a8c0',
-            '--desktop-mode-dock-bg'             => 'rgba( 12, 12, 30, 0.72 )',
+            '--os-window-bg'           => '#12122a',
+            '--os-window-border'       => '#2b2b52',
+            '--os-titlebar-bg'         => '#171733',
+            '--os-titlebar-bg-focused' => '#241f4d',
+            '--os-titlebar-color'      => '#a8a8c0',
+            '--os-dock-bg'             => 'rgba( 12, 12, 30, 0.72 )',
             '--wp-admin-theme-color'             => '#7c5cff',
 
-            // Typography. `--desktop-mode-font` styles the chrome,
-            // `--wpd-font` the window bodies — the classic desktop
+            // Typography. `--os-font` styles the chrome,
+            // `--os-ui-font` the window bodies — the classic desktop
             // split. Always end the stack with a generic family.
-            '--desktop-mode-font'                => '"Neon Grotesk", system-ui, sans-serif',
-            '--wpd-font'                         => '"Neon Grotesk", system-ui, sans-serif',
-            '--wpd-font-mono'                    => '"Neon Mono", ui-monospace, monospace',
+            '--os-font'                => '"Neon Grotesk", system-ui, sans-serif',
+            '--os-ui-font'                         => '"Neon Grotesk", system-ui, sans-serif',
+            '--os-ui-font-mono'                    => '"Neon Mono", ui-monospace, monospace',
         ),
 
         // One entry per @font-face. PHP generates the at-rule; you
@@ -83,7 +82,7 @@ add_action( 'init', function () {
             ),
         ),
 
-        // Wallpapers a user can pick in OS Settings → Wallpaper.
+        // Wallpapers a user can pick in OpenStation Preferences → Wallpaper.
         // Activating the theme does NOT switch to them — see the
         // "It is a pick, not an act" note in the theme docs.
         'wallpapers'  => array(
@@ -140,6 +139,15 @@ add_action( 'init', function () {
                 'size' => '100% 100%',
             ),
         ),
+
+        // The arrangement this theme was designed against. Seeded into
+        // a user's own preferences the FIRST time they activate the
+        // theme, and never again — anything they change afterwards is
+        // theirs. See "Recommended OS settings" in the theme docs.
+        'recommendedOsSettings' => array(
+            'dockSize'      => 'large',
+            'desktopLayout' => 'unified',
+        ),
     ) );
 
     if ( is_wp_error( $result ) ) {
@@ -152,7 +160,7 @@ add_action( 'init', function () {
 ```
 
 Drop your images under `theme/` next to the plugin file and you're
-done. The theme appears in OS Settings → Themes for every user on the
+done. The theme appears in OpenStation Preferences → Themes for every user on the
 site the moment the plugin activates — no reload, because the
 `serverDesktopThemes` payload rides the existing live-refresh channel.
 
@@ -180,14 +188,14 @@ Plugins that paint their own chrome can follow along:
 
 ```js
 // Repaint when the user switches themes. Fires only on a real change.
-document.addEventListener( 'desktop-mode-desktop-theme-changed', ( e ) => {
+document.addEventListener( 'os-desktop-theme-changed', ( e ) => {
     const { themeId, previous } = e.detail;
     myToolbar.repaint();
 } );
 
 // Ask the active theme for an icon. `null` means "no theme, or this
 // slot isn't overridden" — paint your default.
-const closeIcon = wp.desktop.desktopThemes.resolveIcon(
+const closeIcon = wp.os.desktopThemes.resolveIcon(
     'WINDOW_CONTROL_CLOSE',
 );
 ```
@@ -196,7 +204,7 @@ And themes can be extended by other plugins through the icon filter:
 
 ```js
 wp.hooks.addFilter(
-    'desktop-mode.desktop-theme.icon',
+    'os.os-theme.icon',
     'my-plugin',
     ( icon, { slot, themeId } ) =>
         slot === 'APP:my-plugin' ? myBrandedIconUrl : icon,
@@ -221,6 +229,12 @@ wp.hooks.addFilter(
 - **A declared font is not a used font.** `fonts` defines faces; the
   typography tokens are what reference them. Declare both or nothing
   changes.
+- **Recommendations fire once per user.** `recommendedOsSettings` is
+  seeded on a user's first activation of your theme and never
+  re-asserted. If you're testing it and nothing happens, you have
+  already been seeded — use the **Apply &lt;theme&gt;'s recommended
+  layout** button in OpenStation Preferences → Themes, or
+  `wp.os.desktopThemes.applyRecommendedOsSettings()`.
 - **Licensing is yours.** A bundled font is redistributed to every
   visitor of every site that installs the theme. Ship one whose licence
   permits that.
@@ -231,5 +245,5 @@ wp.hooks.addFilter(
 
 - [Desktop themes](../desktop-themes.md) — manifest format, slot tables, value grammar
 - [Hooks reference](../hooks-reference.md#desktop-themes) — the PHP filters and actions
-- [JavaScript reference](../javascript-reference.md#desktop-themes) — `wp.desktop.desktopThemes`
+- [JavaScript reference](../javascript-reference.md#desktop-themes-experimental) — `wp.os.desktopThemes`
 - [Window themes](./window-theme.md) — the per-window sibling feature

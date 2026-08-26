@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Snap zones.
+ * OpenStation — Snap zones.
  *
  * Windows-style edge snapping. While a window is being dragged, the
  * shell watches the cursor for proximity to the left or right edge
@@ -19,8 +19,6 @@
  * the `_` prefixed internal fields. That way pointer.ts (in the
  * Window folder) can call into this module without reaching through
  * two class boundaries.
- *
- * @since 0.8.3
  */
 
 import { doAction, HOOKS } from '../hooks';
@@ -111,14 +109,14 @@ export function showSnapPreview( mgr: WindowManager, zone: SnapZone ): void {
 	mgr._snapPendingZone = zone;
 	if ( ! mgr._snapPreviewEl ) {
 		const el = document.createElement( 'div' );
-		el.className = 'desktop-mode-snap-preview';
+		el.className = 'os-snap-preview';
 		el.setAttribute( 'aria-hidden', 'true' );
 		mgr._desktop.appendChild( el );
 		mgr._snapPreviewEl = el;
 		// Kick the fade-in: class applied in a microtask so the
 		// opacity transition has a frame to latch onto.
 		Promise.resolve().then( () => {
-			el.classList.add( 'desktop-mode-snap-preview--visible' );
+			el.classList.add( 'os-snap-preview--visible' );
 		} );
 	}
 	const b = snapZoneBounds( mgr, zone );
@@ -142,7 +140,7 @@ export function hideSnapPreview( mgr: WindowManager ): void {
 	const el = mgr._snapPreviewEl;
 	mgr._snapPreviewEl = null;
 	mgr._snapPendingZone = null;
-	el.classList.remove( 'desktop-mode-snap-preview--visible' );
+	el.classList.remove( 'os-snap-preview--visible' );
 	// Remove after the fade-out transition. Kept separate from
 	// `hidden = true` so a re-enter during the fade can re-use the
 	// element, but simpler to just remove + rebuild on re-arm.

@@ -1,0 +1,116 @@
+/**
+ * OpenStation — Solo window rendering mode.
+ *
+ * One window, no desk. Loaded only on a `?openstation_solo=` request
+ * (see `includes/solo-window.php`); a normal shell never downloads it.
+ *
+ * ## What this sheet does NOT do
+ *
+ * It does not build a second, simpler window. Every rule here hides a
+ * surface or removes a decoration — the window itself is the same
+ * `.os-window` the desktop paints, wearing the same theme, running the
+ * same render callback, carrying the same title-bar buttons its plugin
+ * registered. That is the whole point of solo mode: what the user gets
+ * is the window they already had, not a lookalike of it.
+ *
+ * ## What this sheet leaves alone
+ *
+ * The title bar. Solo mode is generic — an embed or a kiosk keeps its
+ * title bar, because nothing else on the page offers a way to move,
+ * close or identify the window. An embedder that supplies its own
+ * chrome (the native desktop host does; the OS frame is real chrome
+ * with real traffic lights) layers its own sheet on top and takes ours
+ * away there. Doing that here would leave the generic case chromeless
+ * and stranded.
+ */
+
+/*
+ * Kill the desk. Wallpaper, dock, icon rail, widgets, Mio, sticky
+ * notes: all of them are the *desktop*, and in solo mode there isn't
+ * one. `display: none` rather than `visibility` so nothing keeps a
+ * layout box, an animation frame, or a pointer target.
+ */
+body.os-solo .os-wallpaper,
+body.os-solo .os-dock,
+body.os-solo .os-icons,
+/*
+ * Both icon layouts, not just one. `.os-icons` is the Classic grid;
+ * the Spatial layout paints its `<os-tile>` placements into
+ * `.os-files-layer` instead, and Spatial is what a stock install
+ * actually shows. Missing it left the rail painted under every solo
+ * window — invisible while a window covered it, a flash on every boot
+ * before one landed, and fully on show when the requested window did
+ * not exist. It also kept exactly the three things the `display: none`
+ * above is chosen to deny: a layout box, animation frames, and live
+ * drop targets.
+ */
+body.os-solo .os-files-layer,
+body.os-solo .os-widgets,
+body.os-solo .os-mio,
+body.os-solo .os-mio-panel,
+body.os-solo .os-notes,
+body.os-solo .os-dock-peek {
+	display: none !important;
+}
+
+/*
+ * The admin bar goes too. It is the desk's chrome, not the window's:
+ * in a surface asked to hold exactly one thing, a strip of site-wide
+ * navigation across the top is the desk sneaking back in — and its
+ * "Switch to Classic Admin" link would navigate the embedder's window
+ * clean out of the window it was given.
+ *
+ * `html.wp-toolbar` carries a `padding-top` for a bar that is no
+ * longer painted, and plugins position UI against
+ * `--wp-admin--admin-bar--height`; both are rebound to zero so the
+ * window's own chrome math resolves against what is actually there.
+ * Same treatment `chromeless.css` gives an iframe, for the same reason.
+ */
+body.os-solo #wpadminbar {
+	display: none !important;
+}
+
+html.wp-toolbar:has( body.os-solo ) {
+	padding-top: 0 !important;
+	--wp-admin--admin-bar--height: 0px;
+	--wp-admin--admin-bar--position-offset: 0px;
+}
+
+/*
+ * The shell fills its viewport. With the bar gone the usual 32px inset
+ * would leave a dark band along the top.
+ */
+body.os-solo .os-shell {
+	inset-block-start: 0;
+	background: var( --os-ui-bg, #1d2327 );
+}
+
+/* No dock at the bottom means no room reserved for one. */
+body.os-solo .os-area {
+	padding-bottom: 0;
+}
+
+/*
+ * One more rule lives next to these and is NOT in this file: the one
+ * that hides every window except the one this surface was booted to
+ * paint. Its selector needs that window's id, which is only known per
+ * request, so `includes/render/assets.php` emits it inline. Without it
+ * a second window — a game launched from a freed Games hub — lands on
+ * top of the first, because of the rule directly below.
+ */
+
+/*
+ * The single window fills the desk. Positioned rather than laid out,
+ * so the window manager's own geometry writes — which still run, this
+ * is the real window class — are overridden rather than fought with.
+ */
+body.os-solo .os-window {
+	inset-block-start: 0 !important;
+	inset-inline-start: 0 !important;
+	width: 100% !important;
+	height: 100% !important;
+	border: 0;
+	border-radius: 0;
+	box-shadow: none;
+	transform: none !important;
+}

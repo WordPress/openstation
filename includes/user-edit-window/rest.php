@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — Native User Edit Window: insights endpoint.
+ * OpenStation — Native User Edit Window: insights endpoint.
  *
  * `GET /desktop-mode/v1/users/<id>/insights` — returns a single
  * payload with everything the Insights tab needs:
@@ -26,27 +26,24 @@
  * are eventually-consistent — cheaper than re-running 6 SQL
  * aggregates on every form interaction.
  *
- * @package WPDesktopMode
- * @since   0.8.1
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
  * Register the route.
- *
- * @since 0.8.1
  */
-function desktop_mode_user_edit_window_register_rest_routes() {
+function openstation_user_edit_window_register_rest_routes() {
 	register_rest_route(
 		'desktop-mode/v1',
 		'/users/(?P<id>\d+)/insights',
 		array(
 			'methods'             => WP_REST_Server::READABLE,
-			'callback'            => 'desktop_mode_user_edit_window_rest_insights',
+			'callback'            => 'openstation_user_edit_window_rest_insights',
 			'permission_callback' => static function ( $req ) {
 				$id = (int) $req->get_param( 'id' );
-				return desktop_mode_user_edit_window_can_edit(
+				return openstation_user_edit_window_can_edit(
 					(int) get_current_user_id(),
 					$id
 				);
@@ -63,7 +60,7 @@ function desktop_mode_user_edit_window_register_rest_routes() {
 		)
 	);
 }
-add_action( 'rest_api_init', 'desktop_mode_user_edit_window_register_rest_routes' );
+add_action( 'rest_api_init', 'openstation_user_edit_window_register_rest_routes' );
 
 /**
  * Register the personal-options user-meta keys with `show_in_rest`
@@ -73,15 +70,13 @@ add_action( 'rest_api_init', 'desktop_mode_user_edit_window_register_rest_routes
  * Without this, the meta keys exist (core uses them on the
  * classic profile.php save) but the REST controller ignores
  * `meta.rich_editing` etc. on update.
- *
- * @since 0.8.1
  */
-function desktop_mode_user_edit_window_register_meta() {
+function openstation_user_edit_window_register_meta() {
 	$keys = array(
-		'rich_editing'        => 'string',
-		'syntax_highlighting' => 'string',
-		'admin_color'         => 'string',
-		'comment_shortcuts'   => 'string',
+		'rich_editing'         => 'string',
+		'syntax_highlighting'  => 'string',
+		'admin_color'          => 'string',
+		'comment_shortcuts'    => 'string',
 		'show_admin_bar_front' => 'string',
 	);
 	foreach ( $keys as $meta_key => $type ) {
@@ -106,50 +101,64 @@ function desktop_mode_user_edit_window_register_meta() {
 		);
 	}
 }
-add_action( 'init', 'desktop_mode_user_edit_window_register_meta' );
+add_action( 'init', 'openstation_user_edit_window_register_meta' );
 
 /**
  * `POST /users/<id>/destroy-other-sessions` — log out everywhere
  * else (current device kept). Mirrors the WP-core
  * `destroy-sessions` AJAX action.
- *
- * @since 0.8.1
  */
-function desktop_mode_user_edit_window_destroy_sessions_route() {
+function openstation_user_edit_window_destroy_sessions_route() {
 	register_rest_route(
 		'desktop-mode/v1',
 		'/users/(?P<id>\d+)/destroy-sessions',
 		array(
 			'methods'             => WP_REST_Server::CREATABLE,
-			'callback'            => 'desktop_mode_user_edit_window_rest_destroy_sessions',
+			'callback'            => 'openstation_user_edit_window_rest_destroy_sessions',
 			'permission_callback' => static function ( $req ) {
 				$id = (int) $req->get_param( 'id' );
-				return desktop_mode_user_edit_window_can_edit(
+				return openstation_user_edit_window_can_edit(
 					(int) get_current_user_id(),
 					$id
 				);
 			},
 			'args'                => array(
-				'id'    => array( 'required' => true, 'type' => 'integer' ),
-				'scope' => array( 'type' => 'string', 'default' => 'others' ),
+				'id'    => array(
+					'required' => true,
+					'type'     => 'integer',
+				),
+				'scope' => array(
+					'type'    => 'string',
+					'default' => 'others',
+				),
 			),
 		)
 	);
 }
-add_action( 'rest_api_init', 'desktop_mode_user_edit_window_destroy_sessions_route' );
+add_action( 'rest_api_init', 'openstation_user_edit_window_destroy_sessions_route' );
 
-function desktop_mode_user_edit_window_rest_destroy_sessions( $req ) {
-	$id   = (int) $req->get_param( 'id' );
+/**
+ * REST handler: destroy some or all sessions for a user.
+ *
+ * When editing another user or when `scope=all`, every session is
+ * destroyed. When editing self with the default scope, all sessions
+ * except the current one are destroyed.
+ *
+ * @param WP_REST_Request $req Request with `id` and optional `scope`.
+ * @return WP_REST_Response|WP_Error
+ */
+function openstation_user_edit_window_rest_destroy_sessions( $req ) {
+	$id    = (int) $req->get_param( 'id' );
 	$scope = (string) $req->get_param( 'scope' );
 	if ( ! class_exists( 'WP_Session_Tokens' ) ) {
 		return new WP_Error(
-			'desktop_mode_users_no_sessions',
+			'openstation_users_no_sessions',
 			__( 'Session manager unavailable.', 'desktop-mode' ),
 			array( 'status' => 500 )
 		);
 	}
 	$manager = WP_Session_Tokens::get_instance( $id );
-	if ( $scope === 'all' || $id !== (int) get_current_user_id() ) {
+	if ( 'all' === $scope || (int) get_current_user_id() !== $id ) {
 		// Editing another user — destroy ALL of their sessions.
 		// Editing self with scope='all' — destroy all (including
 		// the current). Note the latter logs the requester out.
@@ -169,19 +178,17 @@ function desktop_mode_user_edit_window_rest_destroy_sessions( $req ) {
  *
  * Thin wrappers over `WP_Application_Passwords` so the form has a
  * single REST surface to talk to.
- *
- * @since 0.8.1
  */
-function desktop_mode_user_edit_window_app_passwords_routes() {
+function openstation_user_edit_window_app_passwords_routes() {
 	register_rest_route(
 		'desktop-mode/v1',
 		'/users/(?P<id>\d+)/application-passwords',
 		array(
 			array(
 				'methods'             => WP_REST_Server::READABLE,
-				'callback'            => 'desktop_mode_user_edit_window_rest_app_pw_list',
+				'callback'            => 'openstation_user_edit_window_rest_app_pw_list',
 				'permission_callback' => static function ( $req ) {
-					return desktop_mode_user_edit_window_can_edit(
+					return openstation_user_edit_window_can_edit(
 						(int) get_current_user_id(),
 						(int) $req->get_param( 'id' )
 					);
@@ -189,15 +196,18 @@ function desktop_mode_user_edit_window_app_passwords_routes() {
 			),
 			array(
 				'methods'             => WP_REST_Server::CREATABLE,
-				'callback'            => 'desktop_mode_user_edit_window_rest_app_pw_create',
+				'callback'            => 'openstation_user_edit_window_rest_app_pw_create',
 				'permission_callback' => static function ( $req ) {
-					return desktop_mode_user_edit_window_can_edit(
+					return openstation_user_edit_window_can_edit(
 						(int) get_current_user_id(),
 						(int) $req->get_param( 'id' )
 					);
 				},
-				'args' => array(
-					'name' => array( 'required' => true, 'type' => 'string' ),
+				'args'                => array(
+					'name' => array(
+						'required' => true,
+						'type'     => 'string',
+					),
 				),
 			),
 		)
@@ -207,9 +217,9 @@ function desktop_mode_user_edit_window_app_passwords_routes() {
 		'/users/(?P<id>\d+)/application-passwords/(?P<uuid>[a-f0-9-]+)',
 		array(
 			'methods'             => WP_REST_Server::DELETABLE,
-			'callback'            => 'desktop_mode_user_edit_window_rest_app_pw_revoke',
+			'callback'            => 'openstation_user_edit_window_rest_app_pw_revoke',
 			'permission_callback' => static function ( $req ) {
-				return desktop_mode_user_edit_window_can_edit(
+				return openstation_user_edit_window_can_edit(
 					(int) get_current_user_id(),
 					(int) $req->get_param( 'id' )
 				);
@@ -217,7 +227,7 @@ function desktop_mode_user_edit_window_app_passwords_routes() {
 		)
 	);
 }
-add_action( 'rest_api_init', 'desktop_mode_user_edit_window_app_passwords_routes' );
+add_action( 'rest_api_init', 'openstation_user_edit_window_app_passwords_routes' );
 
 /**
  * Enforce core's application-password availability policy for a
@@ -231,14 +241,14 @@ add_action( 'rest_api_init', 'desktop_mode_user_edit_window_app_passwords_routes
  * @param int $user_id Target user id.
  * @return WP_Error|null Error when unavailable, null when allowed.
  */
-function desktop_mode_user_edit_window_app_pw_unavailable( $user_id ) {
+function openstation_user_edit_window_app_pw_unavailable( $user_id ) {
 	if (
 		! function_exists( 'wp_is_application_passwords_available' )
 		|| ! wp_is_application_passwords_available()
 		|| ! wp_is_application_passwords_available_for_user( (int) $user_id )
 	) {
 		return new WP_Error(
-			'desktop_mode_users_app_pw_unavailable',
+			'openstation_users_app_pw_unavailable',
 			__( 'Application passwords are not available for this user.', 'desktop-mode' ),
 			array( 'status' => 501 )
 		);
@@ -246,12 +256,18 @@ function desktop_mode_user_edit_window_app_pw_unavailable( $user_id ) {
 	return null;
 }
 
-function desktop_mode_user_edit_window_rest_app_pw_list( $req ) {
+/**
+ * REST handler: list application passwords for a user.
+ *
+ * @param WP_REST_Request $req Request with `id`.
+ * @return WP_REST_Response|WP_Error
+ */
+function openstation_user_edit_window_rest_app_pw_list( $req ) {
 	if ( ! class_exists( 'WP_Application_Passwords' ) ) {
 		return rest_ensure_response( array( 'items' => array() ) );
 	}
-	$id = (int) $req->get_param( 'id' );
-	$unavailable = desktop_mode_user_edit_window_app_pw_unavailable( $id );
+	$id          = (int) $req->get_param( 'id' );
+	$unavailable = openstation_user_edit_window_app_pw_unavailable( $id );
 	if ( is_wp_error( $unavailable ) ) {
 		return $unavailable;
 	}
@@ -259,23 +275,29 @@ function desktop_mode_user_edit_window_rest_app_pw_list( $req ) {
 	return rest_ensure_response( array( 'items' => $apps ) );
 }
 
-function desktop_mode_user_edit_window_rest_app_pw_create( $req ) {
+/**
+ * REST handler: create a new application password for a user.
+ *
+ * @param WP_REST_Request $req Request with `id` and `name`.
+ * @return WP_REST_Response|WP_Error
+ */
+function openstation_user_edit_window_rest_app_pw_create( $req ) {
 	if ( ! class_exists( 'WP_Application_Passwords' ) ) {
 		return new WP_Error(
-			'desktop_mode_users_app_pw_unavailable',
+			'openstation_users_app_pw_unavailable',
 			__( 'Application passwords are not available on this site.', 'desktop-mode' ),
 			array( 'status' => 501 )
 		);
 	}
-	$id   = (int) $req->get_param( 'id' );
-	$unavailable = desktop_mode_user_edit_window_app_pw_unavailable( $id );
+	$id          = (int) $req->get_param( 'id' );
+	$unavailable = openstation_user_edit_window_app_pw_unavailable( $id );
 	if ( is_wp_error( $unavailable ) ) {
 		return $unavailable;
 	}
 	$name = sanitize_text_field( (string) $req->get_param( 'name' ) );
 	if ( '' === $name ) {
 		return new WP_Error(
-			'desktop_mode_users_app_pw_name_required',
+			'openstation_users_app_pw_name_required',
 			__( 'Application password name is required.', 'desktop-mode' ),
 			array( 'status' => 400 )
 		);
@@ -295,21 +317,27 @@ function desktop_mode_user_edit_window_rest_app_pw_create( $req ) {
 	);
 }
 
-function desktop_mode_user_edit_window_rest_app_pw_revoke( $req ) {
+/**
+ * REST handler: revoke a single application password by UUID.
+ *
+ * @param WP_REST_Request $req Request with `id` and `uuid`.
+ * @return WP_REST_Response|WP_Error
+ */
+function openstation_user_edit_window_rest_app_pw_revoke( $req ) {
 	if ( ! class_exists( 'WP_Application_Passwords' ) ) {
 		return new WP_Error(
-			'desktop_mode_users_app_pw_unavailable',
+			'openstation_users_app_pw_unavailable',
 			__( 'Application passwords are not available on this site.', 'desktop-mode' ),
 			array( 'status' => 501 )
 		);
 	}
-	$id   = (int) $req->get_param( 'id' );
-	$unavailable = desktop_mode_user_edit_window_app_pw_unavailable( $id );
+	$id          = (int) $req->get_param( 'id' );
+	$unavailable = openstation_user_edit_window_app_pw_unavailable( $id );
 	if ( is_wp_error( $unavailable ) ) {
 		return $unavailable;
 	}
 	$uuid = (string) $req->get_param( 'uuid' );
-	$ok = WP_Application_Passwords::delete_application_password( $id, $uuid );
+	$ok   = WP_Application_Passwords::delete_application_password( $id, $uuid );
 	if ( is_wp_error( $ok ) ) {
 		return $ok;
 	}
@@ -320,25 +348,23 @@ function desktop_mode_user_edit_window_rest_app_pw_revoke( $req ) {
 /**
  * `GET /users/<id>/insights` callback.
  *
- * @since 0.8.1
- *
  * @param WP_REST_Request $req
  * @return WP_REST_Response|WP_Error
  */
-function desktop_mode_user_edit_window_rest_insights( $req ) {
+function openstation_user_edit_window_rest_insights( $req ) {
 	$id   = (int) $req->get_param( 'id' );
 	$user = $id > 0 ? get_userdata( $id ) : null;
 	if ( ! $user instanceof WP_User ) {
 		return new WP_Error(
-			'desktop_mode_users_not_found',
+			'openstation_users_not_found',
 			__( 'User not found.', 'desktop-mode' ),
 			array( 'status' => 404 )
 		);
 	}
 
-	$fresh = (bool) $req->get_param( 'fresh' );
+	$fresh     = (bool) $req->get_param( 'fresh' );
 	$cache_key = 'dm_user_insights_' . $id;
-	$payload = null;
+	$payload   = null;
 	if ( ! $fresh ) {
 		$cached = get_transient( $cache_key );
 		if ( is_array( $cached ) ) {
@@ -346,7 +372,7 @@ function desktop_mode_user_edit_window_rest_insights( $req ) {
 		}
 	}
 	if ( null === $payload ) {
-		$payload = desktop_mode_user_edit_window_compute_insights( $user );
+		$payload = openstation_user_edit_window_compute_insights( $user );
 	}
 
 	// Self-view override — the viewer is by definition logged in
@@ -361,19 +387,19 @@ function desktop_mode_user_edit_window_rest_insights( $req ) {
 	// fresh computes.
 	$viewer_id = (int) get_current_user_id();
 	if ( $id === $viewer_id ) {
-		$now = time();
+		$now    = time();
 		$stored = (int) get_user_meta(
 			$id,
-			defined( 'DESKTOP_MODE_LAST_LOGIN_META_KEY' )
-				? DESKTOP_MODE_LAST_LOGIN_META_KEY
+			defined( 'OPENSTATION_LAST_LOGIN_META_KEY' )
+				? OPENSTATION_LAST_LOGIN_META_KEY
 				: '_desktop_mode_last_login_at',
 			true
 		);
 		if ( $stored <= 0 ) {
 			update_user_meta(
 				$id,
-				defined( 'DESKTOP_MODE_LAST_LOGIN_META_KEY' )
-					? DESKTOP_MODE_LAST_LOGIN_META_KEY
+				defined( 'OPENSTATION_LAST_LOGIN_META_KEY' )
+					? OPENSTATION_LAST_LOGIN_META_KEY
 					: '_desktop_mode_last_login_at',
 				$now
 			);
@@ -386,7 +412,7 @@ function desktop_mode_user_edit_window_rest_insights( $req ) {
 			$payload['stats'] = array();
 		}
 		if ( empty( $payload['stats']['lastLoginAt'] ) ) {
-			$payload['stats']['lastLoginAt'] = $stored;
+			$payload['stats']['lastLoginAt']        = $stored;
 			$payload['stats']['daysSinceLastLogin'] = max(
 				0,
 				(int) floor( ( $now - $stored ) / DAY_IN_SECONDS )
@@ -403,12 +429,10 @@ function desktop_mode_user_edit_window_rest_insights( $req ) {
 	 * tolerates unknown keys — they're surfaced as plugin tiles
 	 * when they match the expected shape.
 	 *
-	 * @since 0.8.1
-	 *
 	 * @param array   $payload Insights payload.
 	 * @param WP_User $user    Target user.
 	 */
-	$payload = (array) apply_filters( 'desktop_mode_user_edit_window_insights', $payload, $user );
+	$payload = (array) apply_filters( 'openstation_user_edit_window_insights', $payload, $user );
 
 	set_transient( $cache_key, $payload, MINUTE_IN_SECONDS );
 
@@ -420,12 +444,10 @@ function desktop_mode_user_edit_window_rest_insights( $req ) {
  * can call it directly from a custom REST route or admin notice
  * without going through the HTTP cycle.
  *
- * @since 0.8.1
- *
  * @param WP_User $user
  * @return array
  */
-function desktop_mode_user_edit_window_compute_insights( WP_User $user ) {
+function openstation_user_edit_window_compute_insights( WP_User $user ) {
 	$id = (int) $user->ID;
 
 	// ── Profile completeness — count which core fields are non-empty.
@@ -437,18 +459,18 @@ function desktop_mode_user_edit_window_compute_insights( WP_User $user ) {
 		'user_url'    => (string) $user->user_url,
 		'user_email'  => (string) $user->user_email,
 	);
-	$filled = 0;
+	$filled              = 0;
 	foreach ( $completeness_fields as $value ) {
 		if ( '' !== trim( $value ) ) {
-			$filled++;
+			++$filled;
 		}
 	}
-	$total  = count( $completeness_fields );
+	$total   = count( $completeness_fields );
 	$percent = $total > 0 ? (int) round( ( $filled / $total ) * 100 ) : 0;
 
 	// ── Per-CPT post counts. `count_user_posts` does the cheap thing.
-	$post_count    = (int) count_user_posts( $id, 'post', true );
-	$page_count    = post_type_exists( 'page' )
+	$post_count       = (int) count_user_posts( $id, 'post', true );
+	$page_count       = post_type_exists( 'page' )
 		? (int) count_user_posts( $id, 'page', true )
 		: 0;
 	$attachment_count = (int) count_user_posts( $id, 'attachment', true );
@@ -480,10 +502,10 @@ function desktop_mode_user_edit_window_compute_insights( WP_User $user ) {
 	// ── Months for the activity sparkline. Bucket published posts
 	// by year-month for the last 12 months. SQL bucket → align in PHP.
 	$month_buckets = array();
-	$now = time();
+	$now           = time();
 	for ( $i = 11; $i >= 0; $i-- ) {
-		$ts  = strtotime( "-{$i} months", $now );
-		$key = gmdate( 'Y-m', $ts );
+		$ts                    = strtotime( "-{$i} months", $now );
+		$key                   = gmdate( 'Y-m', $ts );
 		$month_buckets[ $key ] = 0;
 	}
 	$rows = (array) $wpdb->get_results(
@@ -517,7 +539,7 @@ function desktop_mode_user_edit_window_compute_insights( WP_User $user ) {
 
 	// ── Recent posts (any status). Limit 5.
 	$recent_posts = array();
-	$recent = get_posts(
+	$recent       = get_posts(
 		array(
 			'author'         => $id,
 			'post_type'      => 'any',
@@ -545,22 +567,22 @@ function desktop_mode_user_edit_window_compute_insights( WP_User $user ) {
 			$gmt = (string) get_gmt_from_date( (string) $post->post_date );
 		}
 		$recent_posts[] = array(
-			'id'             => (int) $post->ID,
-			'title'          => $post->post_title !== ''
+			'id'           => (int) $post->ID,
+			'title'        => '' !== $post->post_title
 				? $post->post_title
 				: __( '(no title)', 'desktop-mode' ),
-			'status'         => (string) $post->post_status,
-			'type'           => (string) $post->post_type,
-			'dateGmt'        => $gmt,
-			'commentCount'   => (int) $post->comment_count,
-			'permalink'      => (string) get_permalink( $post ),
-			'editUrl'        => (string) get_edit_post_link( $post->ID, 'raw' ),
+			'status'       => (string) $post->post_status,
+			'type'         => (string) $post->post_type,
+			'dateGmt'      => $gmt,
+			'commentCount' => (int) $post->comment_count,
+			'permalink'    => (string) get_permalink( $post ),
+			'editUrl'      => (string) get_edit_post_link( $post->ID, 'raw' ),
 		);
 	}
 
 	// ── Recent comments authored by this user. Limit 5.
 	$recent_comments = array();
-	$comments = get_comments(
+	$comments        = get_comments(
 		array(
 			'user_id' => $id,
 			'number'  => 5,
@@ -573,7 +595,7 @@ function desktop_mode_user_edit_window_compute_insights( WP_User $user ) {
 		if ( $comment->comment_post_ID ) {
 			$post = get_post( (int) $comment->comment_post_ID );
 			if ( $post instanceof WP_Post ) {
-				$post_title = $post->post_title !== ''
+				$post_title = '' !== $post->post_title
 					? $post->post_title
 					: __( '(no title)', 'desktop-mode' );
 			}
@@ -603,7 +625,7 @@ function desktop_mode_user_edit_window_compute_insights( WP_User $user ) {
 	// surface a per-session row plus a current-session flag.
 	$sessions = array();
 	if ( class_exists( 'WP_Session_Tokens' ) ) {
-		$manager = WP_Session_Tokens::get_instance( $id );
+		$manager       = WP_Session_Tokens::get_instance( $id );
 		$current_token = wp_get_session_token();
 		// The meta blob's keys are *verifiers* — hashes of the raw
 		// cookie token (`WP_Session_Tokens::hash_token()`), so hash
@@ -643,16 +665,16 @@ function desktop_mode_user_edit_window_compute_insights( WP_User $user ) {
 
 	// ── Application passwords (WordPress 5.6+). Stored as user meta.
 	$app_passwords_summary = array(
-		'total'         => 0,
-		'lastUsedAt'    => null,
-		'lastUsedName'  => null,
+		'total'        => 0,
+		'lastUsedAt'   => null,
+		'lastUsedName' => null,
 	);
 	if ( class_exists( 'WP_Application_Passwords' ) ) {
-		$apps = WP_Application_Passwords::get_user_application_passwords( $id );
-		$apps = is_array( $apps ) ? $apps : array();
+		$apps                           = WP_Application_Passwords::get_user_application_passwords( $id );
+		$apps                           = is_array( $apps ) ? $apps : array();
 		$app_passwords_summary['total'] = count( $apps );
-		$best_used_ts   = 0;
-		$best_used_name = null;
+		$best_used_ts                   = 0;
+		$best_used_name                 = null;
 		foreach ( $apps as $app ) {
 			$used = isset( $app['last_used'] ) ? (int) $app['last_used'] : 0;
 			if ( $used > $best_used_ts ) {
@@ -667,57 +689,60 @@ function desktop_mode_user_edit_window_compute_insights( WP_User $user ) {
 	}
 
 	// ── Misc / temporal stats.
-	$registered_ts = strtotime( (string) $user->user_registered . ' UTC' );
+	$registered_ts           = strtotime( (string) $user->user_registered . ' UTC' );
 	$days_since_registration = $registered_ts
 		? max( 0, (int) floor( ( time() - $registered_ts ) / DAY_IN_SECONDS ) )
 		: null;
-	$last_login_ts = (int) get_user_meta(
+	$last_login_ts           = (int) get_user_meta(
 		$id,
-		defined( 'DESKTOP_MODE_LAST_LOGIN_META_KEY' )
-			? DESKTOP_MODE_LAST_LOGIN_META_KEY
+		defined( 'OPENSTATION_LAST_LOGIN_META_KEY' )
+			? OPENSTATION_LAST_LOGIN_META_KEY
 			: '_desktop_mode_last_login_at',
 		true
 	);
-	$last_login_ts = $last_login_ts > 0 ? $last_login_ts : null;
-	$days_since_last_login = $last_login_ts
+	$last_login_ts           = $last_login_ts > 0 ? $last_login_ts : null;
+	$days_since_last_login   = $last_login_ts
 		? max( 0, (int) floor( ( time() - $last_login_ts ) / DAY_IN_SECONDS ) )
 		: null;
 
 	// ── Roles + capabilities count for the profile chip strip.
-	$roles = array_values( (array) $user->roles );
+	$roles      = array_values( (array) $user->roles );
 	$caps_count = is_array( $user->allcaps ) ? count(
-		array_filter( $user->allcaps, static function ( $v ) {
-			return (bool) $v;
-		} )
+		array_filter(
+			$user->allcaps,
+			static function ( $v ) {
+				return (bool) $v;
+			}
+		)
 	) : 0;
 
 	return array(
-		'userId'              => $id,
-		'displayName'         => (string) $user->display_name,
-		'avatarUrl'           => (string) get_avatar_url( $id, array( 'size' => 96 ) ),
-		'profileUrl'          => (string) get_author_posts_url( $id ),
-		'roles'               => $roles,
-		'capabilitiesCount'   => $caps_count,
-		'profileCompleteness' => array(
+		'userId'               => $id,
+		'displayName'          => (string) $user->display_name,
+		'avatarUrl'            => (string) get_avatar_url( $id, array( 'size' => 96 ) ),
+		'profileUrl'           => (string) get_author_posts_url( $id ),
+		'roles'                => $roles,
+		'capabilitiesCount'    => $caps_count,
+		'profileCompleteness'  => array(
 			'filled'  => $filled,
 			'total'   => $total,
 			'percent' => $percent,
 		),
-		'stats'               => array(
-			'posts'                  => $post_count,
-			'pages'                  => $page_count,
-			'attachments'            => $attachment_count,
-			'commentsAuthored'       => $comment_count,
-			'commentsReceived'       => $received_comments,
-			'daysSinceRegistration'  => $days_since_registration,
-			'lastLoginAt'            => $last_login_ts,
-			'daysSinceLastLogin'     => $days_since_last_login,
-			'registeredAt'           => $registered_ts ?: null,
+		'stats'                => array(
+			'posts'                 => $post_count,
+			'pages'                 => $page_count,
+			'attachments'           => $attachment_count,
+			'commentsAuthored'      => $comment_count,
+			'commentsReceived'      => $received_comments,
+			'daysSinceRegistration' => $days_since_registration,
+			'lastLoginAt'           => $last_login_ts,
+			'daysSinceLastLogin'    => $days_since_last_login,
+			'registeredAt'          => $registered_ts ? $registered_ts : null,
 		),
-		'contentByMonth'      => $content_by_month,
-		'recentPosts'         => $recent_posts,
-		'recentComments'      => $recent_comments,
-		'sessions'            => $sessions,
+		'contentByMonth'       => $content_by_month,
+		'recentPosts'          => $recent_posts,
+		'recentComments'       => $recent_comments,
+		'sessions'             => $sessions,
 		'applicationPasswords' => $app_passwords_summary,
 	);
 }

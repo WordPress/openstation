@@ -3,7 +3,7 @@
 	justify-content: space-between;
 	align-items: center;
 	padding-bottom: 6px;
-	border-bottom: 1px solid var(--wpd-color-border, #e5e7eb);
+	border-bottom: 1px solid var(--os-ui-color-border, #e5e7eb);
 	margin-bottom: 8px;
 	flex-shrink: 0;
 	gap: 8px;
@@ -14,7 +14,7 @@
 	font-size: 11px;
 	text-transform: uppercase;
 	letter-spacing: 0.06em;
-	color: var(--wpd-color-text-subtle, #6b7280);
+	color: var(--os-ui-color-text-subtle, #6b7280);
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -22,7 +22,7 @@
 }
 .dm-poststats__total {
 	font-size: 10px;
-	color: var(--wpd-color-text-subtle, #9ca3af);
+	color: var(--os-ui-color-text-subtle, #9ca3af);
 	white-space: nowrap;
 	flex-shrink: 0;
 }
@@ -49,7 +49,7 @@
 	align-items: center;
 	gap: 4px;
 	font-size: 10px;
-	color: var(--wpd-color-text-subtle, #6b7280);
+	color: var(--os-ui-color-text-subtle, #6b7280);
 	white-space: nowrap;
 }
 .dm-poststats__legend-swatch {
@@ -62,7 +62,7 @@
 .dm-poststats__error {
 	padding: 12px 0;
 	font-size: 11px;
-	color: var(--wpd-color-text-subtle, #9ca3af);
+	color: var(--os-ui-color-text-subtle, #9ca3af);
 	text-align: center;
 }
 .dm-poststats__error { color: #ef4444; }

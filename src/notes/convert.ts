@@ -1,18 +1,17 @@
 /**
- * Desktop Mode — Pinned notes "convert to post" flow.
+ * OpenStation — Pinned notes "convert to post" flow.
  *
  * Spawn a draft post from a note (`POST /notes/:id/convert` server-side),
  * with optimistic eviction, auto-opening the draft in the block editor,
  * and an Undo toast that reverses BOTH sides — restoring the note and
  * discarding the draft (the server's restore route consumes the note→
- * draft link, see `desktop_mode_notes_rest_restore`). Mirrors the trash
+ * draft link, see `openstation_notes_rest_restore`). Mirrors the trash
  * flow (`src/notes/trash.ts`); the layer injects eviction/restore
  * callbacks so this module stays DOM-free.
- *
- * @since 0.9.6
  */
 
 import { __ } from '../i18n';
+import { broadcastNotesChange } from './broadcast';
 import { convertNote, restoreNote } from './rest';
 import type { Note } from './types';
 
@@ -36,7 +35,7 @@ interface DesktopApi {
 }
 
 function getDesktopApi(): DesktopApi | null {
-	return ( window as { wp?: { desktop?: DesktopApi } } ).wp?.desktop ?? null;
+	return ( window as { wp?: { os?: DesktopApi } } ).wp?.os ?? null;
 }
 
 /**
@@ -81,6 +80,8 @@ export async function convertNoteToPost(
 	callbacks.onEvict( note.id );
 	try {
 		const result = await convertNote( note.id );
+		// Convert trashes the source note, so the bin gained an item.
+		broadcastNotesChange( 'trashed', [ note.id ] );
 		const editorWindowId = openDraftEditor( result.editUrl );
 		getDesktopApi()?.showToast?.( {
 			message: __( 'Note converted to a draft post', 'desktop-mode' ),
@@ -97,11 +98,14 @@ export async function convertNoteToPost(
 							?.close?.();
 					}
 					void restoreNote( note.id )
-						.then( ( restored ) => callbacks.onRestore( restored ) )
+						.then( ( restored ) => {
+							broadcastNotesChange( 'untrashed', [ note.id ] );
+							callbacks.onRestore( restored );
+						} )
 						.catch( ( err: unknown ) => {
 							// eslint-disable-next-line no-console
 							console.error(
-								'[desktop-mode] notes: convert undo failed:',
+								'[openstation] notes: convert undo failed:',
 								err,
 							);
 						} );
@@ -110,7 +114,7 @@ export async function convertNoteToPost(
 		} );
 	} catch ( err ) {
 		// eslint-disable-next-line no-console
-		console.error( '[desktop-mode] notes: convert failed:', err );
+		console.error( '[openstation] notes: convert failed:', err );
 		callbacks.onRestore( note );
 		getDesktopApi()?.showToast?.( {
 			message: __( 'Could not convert the note to a post.', 'desktop-mode' ),

@@ -18,7 +18,6 @@
  * placeholder.
  *
  * @public
- * @since 0.7.0
  */
 
 import { showConflictDialog } from './conflict-dialog';
@@ -46,15 +45,15 @@ type RenderCallback = ( body: HTMLElement ) => void;
 
 declare global {
 	interface Window {
-		desktopModeNativeWindows?: Record< string, RenderCallback | undefined >;
+		openStationNativeWindows?: Record< string, RenderCallback | undefined >;
 	}
 }
 
-/** Mount selectors — kept in lockstep with `desktop_mode_code_editor_render_template()`. */
-export const ROOT_SELECTOR = '[data-wpdc-editor-root]';
-export const MONACO_MOUNT_SELECTOR = '[data-wpdc-editor-monaco]';
-export const LOADING_CLASS = 'wpdc-editor--loading';
-export const ERROR_CLASS = 'wpdc-editor--error';
+/** Mount selectors — kept in lockstep with `openstation_code_editor_render_template()`. */
+export const ROOT_SELECTOR = '[data-osc-editor-root]';
+export const MONACO_MOUNT_SELECTOR = '[data-osc-editor-monaco]';
+export const LOADING_CLASS = 'osc-editor--loading';
+export const ERROR_CLASS = 'osc-editor--error';
 
 /** Per-open-file save state. Keyed by relative path. */
 interface OpenFile {
@@ -74,32 +73,32 @@ function buildShell( root: HTMLElement, monacoSlot: HTMLElement ): {
 	statusLeft: HTMLElement;
 	statusRight: HTMLElement;
 } {
-	root.classList.add( 'wpdc-editor--phase3' );
+	root.classList.add( 'osc-editor--phase3' );
 
 	const split = document.createElement( 'div' );
-	split.className = 'wpdc-editor__split';
+	split.className = 'osc-editor__split';
 
 	const treeMount = document.createElement( 'div' );
-	treeMount.className = 'wpdc-editor__tree';
+	treeMount.className = 'osc-editor__tree';
 
 	const right = document.createElement( 'div' );
-	right.className = 'wpdc-editor__right';
+	right.className = 'osc-editor__right';
 
 	const tabsMount = document.createElement( 'div' );
-	tabsMount.className = 'wpdc-editor__tabs-host';
+	tabsMount.className = 'osc-editor__tabs-host';
 
 	const editorMount = document.createElement( 'div' );
-	editorMount.className = 'wpdc-editor__monaco-host';
+	editorMount.className = 'osc-editor__monaco-host';
 
 	const statusBar = document.createElement( 'div' );
-	statusBar.className = 'wpdc-editor__statusbar';
+	statusBar.className = 'osc-editor__statusbar';
 
 	const statusLeft = document.createElement( 'span' );
-	statusLeft.className = 'wpdc-editor__statusbar-left';
+	statusLeft.className = 'osc-editor__statusbar-left';
 	statusLeft.textContent = 'Select a file from the tree.';
 
 	const statusRight = document.createElement( 'span' );
-	statusRight.className = 'wpdc-editor__statusbar-right';
+	statusRight.className = 'osc-editor__statusbar-right';
 
 	statusBar.append( statusLeft, statusRight );
 
@@ -138,7 +137,7 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 	if ( ! root || ! monacoSlot ) {
 		// eslint-disable-next-line no-console
 		console.error(
-			'[wp-desktop-code-editor] Template mount nodes missing; ensure desktop_mode_code_editor_render_template ran.',
+			'[os-code-editor] Template mount nodes missing; ensure openstation_code_editor_render_template ran.',
 		);
 		return;
 	}
@@ -222,14 +221,14 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 
 	// Resolve the desktop Window once — used to update the window's
 	// chrome title with the active file's name + dirty marker. Lookup
-	// is by id (matches the `desktop_mode_register_window( 'wpdc-editor' )`
+	// is by id (matches the `openstation_register_window( 'wpdc-editor' )`
 	// registration). Falls back to a no-op if the global API isn't
 	// available (e.g. tests that mount the editor in isolation).
 	const setWindowTitle = ( title: string ): void => {
 		const win = (
 			window as unknown as {
 				wp?: {
-					desktop?: {
+					os?: {
 						windowManager?: {
 							getById: (
 								id: string,
@@ -238,7 +237,7 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 					};
 				};
 			}
-		).wp?.desktop?.windowManager?.getById( 'wpdc-editor' );
+		).wp?.os?.windowManager?.getById( 'wpdc-editor' );
 		win?.setTitle?.( title );
 	};
 
@@ -267,11 +266,11 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 	): void => {
 		statusLeft.textContent = text;
 		statusBar.classList.toggle(
-			'wpdc-editor__statusbar--error',
+			'osc-editor__statusbar--error',
 			kind === 'error',
 		);
 		statusBar.classList.toggle(
-			'wpdc-editor__statusbar--success',
+			'osc-editor__statusbar--success',
 			kind === 'success',
 		);
 	};
@@ -502,7 +501,7 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 			}
 			if (
 				err instanceof RestError &&
-				err.code === 'desktop_mode_code_editor_conflict'
+				err.code === 'openstation_code_editor_conflict'
 			) {
 				const data = ( err.data ?? null ) as ConflictData | null;
 				if ( ! data ) {
@@ -566,7 +565,7 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 		},
 	);
 	editor.addAction( {
-		id: 'wpdc.saveFile',
+		id: 'osc.saveFile',
 		label: 'Save File',
 		// eslint-disable-next-line no-bitwise
 		keybindings: [ monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS ],
@@ -592,7 +591,7 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 	// the file in a tab and scrolls to its declaration line.
 	setPhpProviderHost( { openFileAtLine } );
 
-	// In-editor `wp-desktop-code-open` handler. The page-level
+	// In-editor `os-code-open` handler. The page-level
 	// listener in `global-listeners.ts` opens the editor window and
 	// re-broadcasts the message; this handler catches the broadcast
 	// once the render callback has mounted. Same listener also
@@ -607,7 +606,7 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 			| null;
 		if (
 			! data ||
-			data.type !== 'wp-desktop-code-open' ||
+			data.type !== 'os-code-open' ||
 			typeof data.path !== 'string'
 		) {
 			return;
@@ -633,8 +632,8 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 installEditorGlobalListeners();
 
 const registry =
-	( window.desktopModeNativeWindows ??
-		( window.desktopModeNativeWindows = {} ) ) as Record<
+	( window.openStationNativeWindows ??
+		( window.openStationNativeWindows = {} ) ) as Record<
 		string,
 		RenderCallback | undefined
 	>;

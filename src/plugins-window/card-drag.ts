@@ -2,12 +2,12 @@
  * Native Plugins window — drag plugin cards to the dock to pin.
  *
  * Wires every card element as a drag source for the framework's
- * `wp.desktop.dragManager`. Payload type is `'wporg-plugin'` so any
+ * `wp.os.dragManager`. Payload type is `'wporg-plugin'` so any
  * plugin author can register their own drop targets that accept it.
  *
  * Drop targets we install:
  *
- *   - `dock` — calls `wp.desktop.registerSystemTile()` to create a
+ *   - `dock` — calls `wp.os.registerSystemTile()` to create a
  *     transient dock entry that opens a window to the plugin's
  *     wp.org page. Lives for the session; not persisted.
  *
@@ -16,7 +16,6 @@
  * exist for client-only icons.
  *
  * @public
- * @since 0.9.0
  */
 
 import { __, sprintf } from '../i18n';
@@ -58,7 +57,7 @@ interface DesktopApi {
 }
 
 function api(): DesktopApi | null {
-	return ( window.wp?.desktop ?? null ) as DesktopApi | null;
+	return ( window.wp?.os ?? null ) as DesktopApi | null;
 }
 
 /**
@@ -127,7 +126,7 @@ export function installPluginDropTargets(): () => void {
 	const dock = findDockElement();
 	if ( dock ) {
 		const off = manager.registerDropTarget( {
-			id: 'desktop-mode-plugins-window/dock',
+			id: 'os-plugins-window/dock',
 			element: dock,
 			accept: ( p ) => p.type === 'wporg-plugin',
 			onEnter: () => {
@@ -189,11 +188,11 @@ export function installPluginDropTargets(): () => void {
 function findDockElement(): HTMLElement | null {
 	// Match the canonical dock root selectors used by `dock-rail-renderer`
 	// and `bottomDock` paint. Order matters — bottom dock first because
-	// it's on top in the spatial layout.
+	// it paints on top.
 	return (
-		document.querySelector< HTMLElement >( '.desktop-mode-bottom-dock' ) ??
-		document.querySelector< HTMLElement >( '.desktop-mode-dock' ) ??
-		document.querySelector< HTMLElement >( '[data-desktop-mode-dock]' )
+		document.querySelector< HTMLElement >( '.os-bottom-dock' ) ??
+		document.querySelector< HTMLElement >( '.os-dock' ) ??
+		document.querySelector< HTMLElement >( '[data-os-dock]' )
 	);
 }
 
@@ -207,7 +206,7 @@ function buildGhost(
 	const offsetY = origin.clientY - rect.top;
 
 	const ghost = document.createElement( 'div' );
-	ghost.className = 'desktop-mode-plugins__drag-ghost';
+	ghost.className = 'os-plugins__drag-ghost';
 	const iconUrl = pickIcon( plugin.icons );
 	if ( iconUrl ) {
 		const img = document.createElement( 'img' );
@@ -217,7 +216,7 @@ function buildGhost(
 	} else {
 		const fallback = document.createElement( 'span' );
 		fallback.className =
-			'dashicons dashicons-admin-plugins desktop-mode-plugins__drag-ghost-fallback';
+			'dashicons dashicons-admin-plugins os-plugins__drag-ghost-fallback';
 		ghost.appendChild( fallback );
 	}
 	const label = document.createElement( 'span' );

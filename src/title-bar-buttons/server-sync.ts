@@ -4,7 +4,7 @@
  * Mirrors `src/commands/server-sync.ts` and
  * `src/settings/server-sync.ts` for the title-bar registry. Plugins
  * opt in server-side with
- * `desktop_mode_register_titlebar_button_script()`; this module
+ * `openstation_register_titlebar_button_script()`; this module
  * loads each opted-in script on activation, and on deactivation
  * unregisters every button whose `owner` matches the departing
  * handle.
@@ -13,8 +13,6 @@
  * the next page reload — graceful backwards-compat. Open windows
  * repaint live via the registry's subscribe fan-out (see
  * `Window.renderCustomTitleBarButtons`).
- *
- * @since 0.5.2
  */
 
 import { doAction, HOOKS } from './../hooks';

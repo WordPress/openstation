@@ -1,18 +1,18 @@
 /**
- * Desktop Mode — Pinned notes boot.
+ * OpenStation — Pinned notes boot.
  *
  * Composes the feature: REST deps, the layer, the drop-handler
- * routes, and the cross-bundle "note created elsewhere" listener
- * (the Note Pad widget POSTs directly when the user pins via the
- * keyboard path and announces the new note with a CustomEvent).
- *
- * @since 0.9.6
+ * routes, the wallpaper context-menu entry, and the cross-bundle
+ * "note created elsewhere" listener (the Note Pad widget POSTs
+ * directly when the user pins via the keyboard path and announces the
+ * new note with a CustomEvent).
  */
 
 import type { DesktopConfig } from '../types';
 import { NotesLayer } from './layer';
 import { installNoteDropHandlers } from './drop-handlers';
 import { installNotesPostsDropTarget } from './posts-drop-target';
+import { installNotesWallpaperMenu } from './wallpaper-menu';
 import { installNotesRestDeps } from './rest';
 import { NOTE_CREATED_EVENT, type Note } from './types';
 
@@ -44,6 +44,7 @@ export function bootNotes( options: BootNotesOptions ): NotesLayer | null {
 	} );
 	installNoteDropHandlers( layer );
 	installNotesPostsDropTarget( layer );
+	installNotesWallpaperMenu( layer );
 	document.addEventListener( NOTE_CREATED_EVENT, ( ev ) => {
 		const note = ( ev as CustomEvent< { note?: Note } > ).detail?.note;
 		if ( note && typeof note.id === 'number' ) {

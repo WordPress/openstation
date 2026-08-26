@@ -11,8 +11,6 @@
  * `easy` is the original tuning; `medium` starts brisk and ramps
  * harder; `hard` opens close to easy's mid-game and ends past
  * easy's ceiling.
- *
- * @since 0.9.6
  */
 
 /** The hard ceiling — past this, every parameter holds at max. */

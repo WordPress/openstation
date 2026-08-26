@@ -3,14 +3,14 @@
  *
  * Mirrors `src/widgets/server-sync.ts` and `src/wallpapers/server-sync.ts`
  * for the command registry. Plugins opt in server-side with
- * `desktop_mode_register_command_script()` (and optionally
- * `desktop_mode_register_command()`); this module receives the list of
+ * `openstation_register_command_script()` (and optionally
+ * `openstation_register_command()`); this module receives the list of
  * registered script URLs on every live refresh (plugins.php bridge or
  * boot-time from `config`) and:
  *
  *   - Injects each new `scriptUrl` into the shell page via
  *     `loadVendorScript`. The plugin's JS runs and calls
- *     `wp.desktop.registerCommand()` as normal. The command registry's
+ *     `wp.os.registerCommand()` as normal. The command registry's
  *     existing `subscribeCommands` fan-out repaints any open palette —
  *     no palette-specific wiring needed here.
  *
@@ -21,7 +21,7 @@
  *          `registerCommand({ …, owner: 'my-script-handle' })`.
  *       2. The slug↔handle mapping captured from the *previous*
  *          `serverCommands` payload. Plugins that declare their
- *          metadata via `desktop_mode_register_command()` with a
+ *          metadata via `openstation_register_command()` with a
  *          `script` arg get this for free — no JS change required.
  *
  *     Plugins using neither mechanism keep their commands until the
@@ -32,8 +32,6 @@
  * the cleanup is a best-effort scope to the registry rather than the
  * runtime. Re-activating the plugin re-registers commands on the next
  * full page load through the usual enqueue path.
- *
- * @since 0.5.0
  */
 
 import { doAction, HOOKS } from './../hooks';

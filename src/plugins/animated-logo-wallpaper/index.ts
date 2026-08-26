@@ -1,21 +1,19 @@
 /**
  * Animated WP Logo — wallpaper plugin entry.
  *
- * The first built-in canvas wallpaper. As of 0.8.4 this plugin ships
+ * The first built-in canvas wallpaper. This plugin ships
  * as its own Vite-built bundle (`assets/js/animated-logo-wallpaper[.min].js`)
- * that is only loaded when the matching `desktop_mode_register_wallpaper`
+ * that is only loaded when the matching `openstation_register_wallpaper`
  * server registration tells the shell to inject the script handle —
  * i.e. only for users who have selected this wallpaper, or who open
  * OS Settings → Wallpaper and the picker pulls the def in.
  *
  * Publishing pattern: the shell's wallpaper `server-sync` reads
- * `window.desktopModeWallpapers[<id>]` after the script loads, so the
+ * `window.openStationWallpapers[<id>]` after the script loads, so the
  * bundle's only side effect is writing that global. No reliance on
- * `wp.desktop.registerWallpaper` from inside the bundle — the def is
- * registered via the WordPress `desktop_mode_register_wallpaper()`
+ * `wp.os.registerWallpaper` from inside the bundle — the def is
+ * registered via the WordPress `openstation_register_wallpaper()`
  * server API in `includes/wallpapers.php`.
- *
- * @since 0.6.0
  */
 
 import type {
@@ -77,11 +75,11 @@ const def: WallpaperDef = {
 
 		// Listen to the wallpaper-visibility hook to pause/resume the
 		// PIXI ticker when the wallpaper is hidden (e.g. window covers
-		// the whole desktop). Reaching `wp.desktop.hooks` is the public
+		// the whole desktop). Reaching `wp.os.hooks` is the public
 		// surface — works whether this bundle is in-shell or lazy-loaded.
 		const NAMESPACE = 'desktop-mode/animated-logo';
-		const HOOK = 'desktop-mode.wallpaper.visibility';
-		const api = window.wp?.desktop;
+		const HOOK = 'os.wallpaper.visibility';
+		const api = window.wp?.os;
 		const visibilityHandler = ( ...args: unknown[] ): void => {
 			const detail = args[ 0 ] as
 				| { id?: string; state?: 'visible' | 'hidden' }
@@ -106,9 +104,9 @@ const def: WallpaperDef = {
 
 declare global {
 	interface Window {
-		desktopModeWallpapers?: Record< string, WallpaperDef >;
+		openStationWallpapers?: Record< string, WallpaperDef >;
 	}
 }
 
-window.desktopModeWallpapers = window.desktopModeWallpapers || {};
-window.desktopModeWallpapers[ WALLPAPER_ID ] = def;
+window.openStationWallpapers = window.openStationWallpapers || {};
+window.openStationWallpapers[ WALLPAPER_ID ] = def;

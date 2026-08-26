@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Widget persistence.
+ * OpenStation — Widget persistence.
  *
  * Three separate localStorage records:
  *
@@ -22,8 +22,6 @@
  *
  * Each record writes-through independently so a quota failure in one
  * doesn't corrupt the other.
- *
- * @since 0.8.0
  */
 
 import type { WidgetGeometry } from './types';

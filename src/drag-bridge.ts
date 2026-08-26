@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — cross-window drag bridge.
+ * OpenStation — cross-window drag bridge.
  *
  * Native HTML5 drag-and-drop mostly works across same-origin iframes
  * (browsers preserve `text/plain`, `text/uri-list`, `text/html` in the
@@ -9,35 +9,33 @@
  * payload: source iframes postMessage us when a drag starts, the shell
  * can also push a payload in-process when a DragManager session begins
  * over a shell-rendered tile (My WordPress, desktop shortcut), and any
- * receiver iframe can read it back via `desktop-mode-drag-over` /
- * `desktop-mode-drop` messages routed by the shell, or pull it on
- * demand via `desktop-mode-drag-payload-request`.
+ * receiver iframe can read it back via `os-drag-over` /
+ * `os-drop` messages routed by the shell, or pull it on
+ * demand via `os-drag-payload-request`.
  *
  * Architecture:
  *
  *   Shell-rendered drag source (My WordPress tile)
- *     │  dragManager fires `desktop-mode.drag.start`
+ *     │  dragManager fires `os.drag.start`
  *     │  desktop.ts bridges that into `bridge.start(payload)`
  *     ▼
  *   Parent shell (this module)
  *     │  stores `currentPayload`
- *     │  dispatches `desktop-mode-cross-frame-drag-start` /
+ *     │  dispatches `os-cross-frame-drag-start` /
  *     │  `-end` CustomEvents on document so other shell modules
  *     │  can react (highlight drop zones, dim non-target windows).
  *     │  When the pointer enters an iframe drop target, the shell
- *     │  postMessages `desktop-mode-drag-over` into that iframe.
- *     │  On pointerup over an iframe, postMessages `desktop-mode-drop`.
+ *     │  postMessages `os-drag-over` into that iframe.
+ *     │  On pointerup over an iframe, postMessages `os-drop`.
  *     ▲
  *     │  source iframe (Media Library) can ALSO drive the bridge
- *     │  via `window.parent.postMessage(desktop-mode-drag-start, ...)`.
+ *     │  via `window.parent.postMessage(os-drag-start, ...)`.
  *     ▼
  *   Receiver iframe (Gutenberg post editor)
- *     listens for `desktop-mode-drop`, inserts the appropriate block.
+ *     listens for `os-drop`, inserts the appropriate block.
  *
  * Payload type is a discriminated union keyed on `kind`. The receiver
  * switches on `kind` to decide what block to create.
- *
- * @since 0.5.0
  */
 
 /**
@@ -89,7 +87,7 @@ export type DragBridgePayload =
 	| PostDragPayload
 	| UserDragPayload;
 
-/** Public surface — mounted on `wp.desktop.dragBridge`. */
+/** Public surface — mounted on `wp.os.dragBridge`. */
 export interface DragBridgeApi {
 	/** Current payload while a cross-frame drag is in flight, or null. */
 	getPayload(): DragBridgePayload | null;
@@ -112,8 +110,8 @@ export interface DragBridgeApi {
 
 /** Event names we dispatch on `document`. */
 export const DRAG_BRIDGE_EVENTS = {
-	START: 'desktop-mode-cross-frame-drag-start',
-	END: 'desktop-mode-cross-frame-drag-end',
+	START: 'os-cross-frame-drag-start',
+	END: 'os-cross-frame-drag-end',
 } as const;
 
 // -----------------------------------------------------------------------
@@ -121,31 +119,31 @@ export const DRAG_BRIDGE_EVENTS = {
 // -----------------------------------------------------------------------
 
 interface StartMsg {
-	type: 'desktop-mode-drag-start';
+	type: 'os-drag-start';
 	payload: DragBridgePayload;
 }
 interface EndMsg {
-	type: 'desktop-mode-drag-end';
+	type: 'os-drag-end';
 }
 interface PayloadRequestMsg {
-	type: 'desktop-mode-drag-payload-request';
+	type: 'os-drag-payload-request';
 }
 
 type InboundMsg = StartMsg | EndMsg | PayloadRequestMsg;
 
 function isStart( m: unknown ): m is StartMsg {
 	return !! m && typeof m === 'object' &&
-		( m as { type?: unknown } ).type === 'desktop-mode-drag-start' &&
+		( m as { type?: unknown } ).type === 'os-drag-start' &&
 		!! ( m as { payload?: unknown } ).payload &&
 		typeof ( m as { payload?: unknown } ).payload === 'object';
 }
 function isEnd( m: unknown ): m is EndMsg {
 	return !! m && typeof m === 'object' &&
-		( m as { type?: unknown } ).type === 'desktop-mode-drag-end';
+		( m as { type?: unknown } ).type === 'os-drag-end';
 }
 function isPayloadRequest( m: unknown ): m is PayloadRequestMsg {
 	return !! m && typeof m === 'object' &&
-		( m as { type?: unknown } ).type === 'desktop-mode-drag-payload-request';
+		( m as { type?: unknown } ).type === 'os-drag-payload-request';
 }
 
 /**
@@ -253,7 +251,7 @@ export class DragBridge implements DragBridgeApi {
 			// reply back to that frame only.
 			try {
 				( e.source as Window ).postMessage(
-					{ type: 'desktop-mode-drag-payload', payload: this._payload },
+					{ type: 'os-drag-payload', payload: this._payload },
 					this._origin,
 				);
 			} catch {
@@ -263,8 +261,8 @@ export class DragBridge implements DragBridgeApi {
 	};
 
 	private _startDrag( payload: DragBridgePayload ): void {
-		// Legacy Media Library patch (`assets/js/media-library-enhanced.js`,
-		// since 0.5.0) emits payloads without a `kind` field — just
+		// Legacy Media Library patch (`assets/js/media-library-enhanced.js`)
+		// emits payloads without a `kind` field — just
 		// `{ id, url, title, alt, mime, sizes, thumbnailUrl }`. Normalize
 		// to the tagged union here so every downstream consumer
 		// (Gutenberg drop-receiver, future plugin receivers) only

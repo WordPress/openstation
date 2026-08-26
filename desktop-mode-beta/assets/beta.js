@@ -5,10 +5,10 @@
  * `desktopModeBetaConfig.context`:
  *
  *   - `shell` — registers an OS Settings "Beta" tab through
- *     `wp.desktop.registerSettingsTab()` and renders with the
+ *     `wp.os.registerSettingsTab()` and renders with the
  *     framework's `<wpd-*>` components.
  *   - `admin` — paints the plain Tools → Desktop Mode Beta page with
- *     classic wp-admin markup. No Desktop Mode APIs are touched here
+ *     classic wp-admin markup. No OpenStation APIs are touched here
  *     on purpose: this page must keep working when a broken branch
  *     build takes the shell down.
  *
@@ -33,7 +33,7 @@
 			  };
 
 	/**
-	 * POST an admin-ajax action. Routes through `wp.desktop.fetch` when
+	 * POST an admin-ajax action. Routes through `wp.os.fetch` when
 	 * the shell is present so the request feeds the activity bus; falls
 	 * back to plain fetch on the standalone admin page.
 	 *
@@ -49,15 +49,15 @@
 			body.set( key, params[ key ] );
 		} );
 
-		var desktop = window.wp && window.wp.desktop;
+		var os = window.wp && window.wp.os;
 		var init = {
 			method: 'POST',
 			credentials: 'same-origin',
 			body: body,
 		};
 		var promise =
-			desktop && typeof desktop.fetch === 'function'
-				? desktop.fetch( config.ajaxUrl, init, {
+			os && typeof os.fetch === 'function'
+				? os.fetch( config.ajaxUrl, init, {
 						source: 'desktop-mode-beta/' + action,
 				  } )
 				: fetch( config.ajaxUrl, init );
@@ -253,10 +253,10 @@
 	 * @return {Promise<boolean>}
 	 */
 	function confirmSwitch( message, button ) {
-		var desktop = window.wp && window.wp.desktop;
-		if ( desktop && typeof desktop.confirm === 'function' ) {
-			return desktop.confirm( {
-				title: __( 'Switch Desktop Mode build?' ),
+		var os = window.wp && window.wp.os;
+		if ( os && typeof os.confirm === 'function' ) {
+			return os.confirm( {
+				title: __( 'Switch OpenStation build?' ),
 				message: message,
 				confirmLabel: __( 'Install' ),
 				danger: true,
@@ -400,7 +400,7 @@
 			// --- Current build ------------------------------------
 			var currentSection = skin.section(
 				__( 'Current build' ),
-				__( 'The Desktop Mode version this site is running.' )
+				__( 'The OpenStation version this site is running.' )
 			);
 			var currentRow = [
 				skin.badge(
@@ -464,7 +464,7 @@
 										current.source,
 										current.id,
 										__(
-											'Install the newest build for the current channel? This replaces the installed Desktop Mode plugin.'
+											'Install the newest build for the current channel? This replaces the installed OpenStation plugin.'
 										),
 										button
 									);
@@ -566,7 +566,7 @@
 									'trunk',
 									'',
 									__(
-										'Install the latest trunk build? This replaces the installed Desktop Mode plugin.'
+										'Install the latest trunk build? This replaces the installed OpenStation plugin.'
 									),
 									button
 								);
@@ -637,7 +637,7 @@
 									pr.branch +
 									')? ' +
 									__(
-										'This replaces the installed Desktop Mode plugin.'
+										'This replaces the installed OpenStation plugin.'
 									),
 								button
 							);
@@ -660,12 +660,12 @@
 	// -----------------------------------------------------------------
 
 	if ( 'shell' === config.context ) {
-		var desktop = window.wp && window.wp.desktop;
-		if ( ! desktop || 'function' !== typeof desktop.ready ) {
+		var os = window.wp && window.wp.os;
+		if ( ! os || 'function' !== typeof os.ready ) {
 			return;
 		}
-		desktop.ready( function () {
-			window.wp.desktop.registerSettingsTab( {
+		os.ready( function () {
+			window.wp.os.registerSettingsTab( {
 				id: 'beta',
 				label: __( 'Beta' ),
 				capability: 'manage_options',

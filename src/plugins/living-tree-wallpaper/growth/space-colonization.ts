@@ -14,8 +14,6 @@
  * never changes the final skeleton, only how fast it appears. This is
  * what lets `growthRate` derive from vigour while the topology invariant
  * (same age + seed → same skeleton) holds.
- *
- * @since 0.9.4
  */
 
 import { sampleAttractors } from './envelope';

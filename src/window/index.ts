@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Window.
+ * OpenStation — Window.
  *
  * A single desktop window: title bar, iframe content, drag, resize,
  * state management. The class orchestrates — pointer math, tab
@@ -11,15 +11,13 @@
  * folder may touch them, but nothing outside `src/window/` should.
  * Kept `public` at the TypeScript level only because `private`
  * prevents the sibling modules from seeing them.
- *
- * @since 0.5.0
  */
 
 import type { WindowConfig, WindowState } from './../types';
 import { activity } from './../activity';
 import { getSyntheticIframe } from './../connection';
 import { HOOKS, applyFilters, doAction } from './../hooks';
-import { __ } from './../i18n';
+import { __, sprintf } from './../i18n';
 import {
 	addParentSubscriber,
 	clearWindowChannels,
@@ -30,9 +28,9 @@ import {
 	markWindowContentReady,
 	type WindowChannelCb,
 } from './../window-channels';
-// Window-chrome component classes (`<wpd-window-button>`,
-// `<wpd-menu>` + `<wpd-menu-item>`, `<wpd-tab-chip>`) are no
-// longer leaf-imported here as of 0.8.4: the shell pre-loads them
+// Window-chrome component classes (`<os-window-button>`,
+// `<os-menu>` + `<os-menu-item>`, `<os-tab-chip>`) are not
+// leaf-imported here: the shell pre-loads them
 // via the `shell-overlays[.min].js` bundle right after first paint
 // (see `src/shell-overlays/loader.ts`). By the time the user opens
 // any window and the constructor runs, the custom-element classes
@@ -45,7 +43,12 @@ import {
 	updateFullscreenBodyClass,
 	withChromelessParam,
 } from './dom';
-import { handleWindowMessage } from './iframe-bridge';
+import {
+	adoptPageTitle,
+	handleFinishedScreenHandoff,
+	handleWindowMessage,
+} from './iframe-bridge';
+import { noteFrameLoaded } from '../plugin-presence';
 import {
 	buttonsForWindow,
 	subscribeTitleBarButtons,
@@ -80,25 +83,85 @@ import {
  * Origin snapshot taken at module load. Same-origin guards in this
  * module compare against this value so a plugin script that mutates
  * `window.location` after boot can't relax the check.
- *
- * @since 0.5.0
  */
 const INITIAL_ORIGIN = window.location.origin;
+
+/**
+ * The `@keyframes` name behind `.os-window--opening` in
+ * `window-states.css`. `animationend` BUBBLES, so the listener that
+ * clears the class has to check this — a spinner, skeleton shimmer
+ * or holo drift finishing anywhere inside the window body would
+ * otherwise consume the once-only listener and cut the open
+ * animation short.
+ */
+const OPENING_ANIMATION_NAME = 'os-window-open';
+
+/**
+ * Deadline for clearing `.os-window--opening` regardless of what the
+ * compositor did — the CSS animation is 0.2s, this leaves margin.
+ *
+ * Why a timer at all: CSS animations do not advance while the
+ * document is hidden, so `animationend` never fires for a window
+ * opened in a backgrounded tab (session restore the user tabs away
+ * from, an `os-open-requested` from another surface, automation).
+ * The class is what applies `opacity: 0` / `scale(0.92)` via the
+ * animation's `from` frame, so a stuck class means a window that is
+ * in the DOM, focused, and invisible. Background tabs also throttle
+ * timers to >=1s, so this fires late there rather than on time —
+ * late still unsticks it, which is the whole point.
+ */
+const OPENING_FALLBACK_MS = 300;
+
 import {
+	activatePanelTab,
 	addExternalTab,
 	externalTabCount,
 	externalTabsSnapshot,
 	handleTabStripClick,
+	handleTabStripKeydown,
+	observeTabOverflow,
+	setPanelTabs,
 	syncActiveTab,
 } from './tabs';
+import type { PanelTabEntry } from './tabs';
 import {
 	closeActionsMenu,
-	flipStartupCheckOptimistically,
+	flipMenuItemCheckOptimistically,
 	openActionsMenu,
 	refreshStartupCheckState,
 	toggleActionsMenu,
 } from './menus';
 import { handleDragStart, handleResizeStart } from './pointer';
+import { speculateDocument } from '../pwa/speculate';
+
+/**
+ * Ask the service worker to fetch a submenu tab's screen ahead of the
+ * click, when the user has opted into hover prewarming.
+ *
+ * The URL has to be the one the iframe will actually request — the
+ * worker matches exactly, and a tab's raw `data-url` is missing the
+ * chromeless flag `withChromelessParam()` adds on navigation.
+ *
+ * @param rawUrl The tab's declared admin URL.
+ */
+function speculateTabDocument( rawUrl: string ): void {
+	const os = (
+		window as unknown as {
+			wp?: {
+				os?: {
+					getOsSettings?: () => { windowPrewarmEnabled?: boolean };
+				};
+			};
+		}
+	).wp?.os;
+	if ( ! os?.getOsSettings?.().windowPrewarmEnabled ) {
+		return;
+	}
+	const target = withChromelessParam( rawUrl );
+	if ( target ) {
+		speculateDocument( target );
+	}
+}
 
 /** Animation mode accepted by `Window.requestAttention()`. */
 export type WindowAttentionMode = 'pulse' | 'shake' | 'bounce' | null;
@@ -124,8 +187,13 @@ export class Window {
 	/**
 	 * Iframe for iframe-backed windows. Null for native windows, which
 	 * render into the body directly via {@link WindowConfig.render}.
+	 *
+	 * Reassigned ONLY by {@link swapReload}, which replaces the frame
+	 * element wholesale during a double-buffered refresh — treat it as
+	 * read-only everywhere else, and don't cache the element across
+	 * awaits when a swap may be in flight.
 	 */
-	public readonly iframe: HTMLIFrameElement | null;
+	public iframe: HTMLIFrameElement | null;
 	public state: WindowState = 'normal';
 
 	/** @internal */
@@ -135,18 +203,19 @@ export class Window {
 
 	/**
 	 * In-flight async operation count. `markActivityStart()` /
-	 * `markActivitySettled()` increment / decrement; the title-bar
-	 * indicator paints `pending` while > 0. Counter (not boolean) so
-	 * concurrent fetches don't fight: two-in-flight + one-settled
-	 * still reads "saving".
+	 * `markActivitySettled()` increment / decrement; the phase reads
+	 * `pending` while > 0. Counter (not boolean) so concurrent fetches
+	 * don't fight: two-in-flight + one-settled still reads "saving".
 	 *
 	 * @internal
 	 */
 	public _activityCount = 0;
 
 	/**
-	 * Phase of the title-bar activity indicator. Driven by
-	 * `markActivity()` / `trackActivity()` / `wp.desktop.fetch()`.
+	 * This window's activity phase. Driven by `markActivity()` /
+	 * `trackActivity()` / `wp.os.fetch()`. Nothing renders it unless
+	 * an indicator has been mounted — see
+	 * {@link _paintActivityIndicator}.
 	 *
 	 * @internal
 	 */
@@ -279,7 +348,6 @@ export class Window {
 	 * close so the closed window stops re-applying theme tokens
 	 * when other plugins register / unregister themes.
 	 * @internal
-	 * @since 0.6.0
 	 */
 	public _windowThemesUnsubscribe: ( () => void ) | null = null;
 
@@ -287,7 +355,6 @@ export class Window {
 	 * Unsubscribe handle for the window-control registry. Cleared on
 	 * close.
 	 * @internal
-	 * @since 0.6.0
 	 */
 	public _windowControlsUnsubscribe: ( () => void ) | null = null;
 
@@ -297,7 +364,6 @@ export class Window {
 	 * invokes the last one to drop event listeners on plugin-supplied
 	 * `render` callbacks.
 	 * @internal
-	 * @since 0.6.0
 	 */
 	public _windowControlsTeardown: ( () => void ) | null = null;
 
@@ -305,7 +371,6 @@ export class Window {
 	 * Unsubscribe handle for the window-slot registry. Cleared on
 	 * close.
 	 * @internal
-	 * @since 0.6.0
 	 */
 	public _windowSlotsUnsubscribe: ( () => void ) | null = null;
 
@@ -313,7 +378,6 @@ export class Window {
 	 * Teardown handle returned by the most recent
 	 * {@link paintWindowSlots} call.
 	 * @internal
-	 * @since 0.6.0
 	 */
 	public _windowSlotsTeardown: ( () => void ) | null = null;
 
@@ -324,7 +388,7 @@ export class Window {
 	 * state updates can flow into `handle.update()` and `close()`
 	 * can call `handle.destroy()`.
 	 *
-	 * **Experimental** since 0.6.0.
+	 * **Experimental**.
 	 *
 	 * @internal
 	 */
@@ -334,7 +398,6 @@ export class Window {
 	 * Id of the chrome currently mounted (or `'core/standard'`).
 	 *
 	 * @internal
-	 * @since 0.6.0
 	 */
 	public _chromeId: string = STANDARD_CHROME_ID;
 
@@ -342,7 +405,6 @@ export class Window {
 	 * Unsubscribe handle for the chrome registry. Cleared on close.
 	 *
 	 * @internal
-	 * @since 0.6.0
 	 */
 	public _windowChromesUnsubscribe: ( () => void ) | null = null;
 
@@ -359,11 +421,10 @@ export class Window {
 	 * Disposer for the framework-built `NativeRenderContext` —
 	 * unwires the per-window hook subscriptions (`onResize`,
 	 * `onHide`, `onShow`) AND aborts the `signal` so in-flight
-	 * `wp.desktop.fetch( …, { signal } )` calls cancel. Runs at
+	 * `wp.os.fetch( …, { signal } )` calls cancel. Runs at
 	 * close BEFORE the user-returned teardown, so async paths see
 	 * the abort first. Set in `hydrateNative()` for native windows.
 	 *
-	 * @since 0.8.2
 	 * @internal
 	 */
 	public _nativeRenderCtxDispose: ( () => void ) | null = null;
@@ -375,10 +436,22 @@ export class Window {
 	 * `_finalizeClose()` can cancel it on the normal path AND so
 	 * `destroy()` can cancel + run finalize synchronously.
 	 *
-	 * @since 0.8.2
 	 * @internal
 	 */
 	public _closeSafetyNetTimer: ReturnType< typeof setTimeout > | null = null;
+
+	/**
+	 * Teardown for `_armOpeningClassRemoval()` — cancels its fallback
+	 * timer and detaches its two animation listeners. Captured on the
+	 * instance so `_finalizeClose()` can run it: a window destroyed
+	 * inside the fallback deadline used to leave a live timer behind,
+	 * pointed at a document that was already going away.
+	 *
+	 * `null` once it has run (or before the window ever opened).
+	 *
+	 * @internal
+	 */
+	private _clearOpeningClassRemoval: ( () => void ) | null = null;
 
 	/**
 	 * Bound `transitionend` listener installed by `close()` so the
@@ -386,7 +459,6 @@ export class Window {
 	 * `_finalizeClose()` can detach it (the previous closure-only
 	 * shape couldn't be removed if `destroy()` short-circuited).
 	 *
-	 * @since 0.8.2
 	 * @internal
 	 */
 	public _onCloseTransitionEnd: ( ( e: TransitionEvent ) => void ) | null = null;
@@ -396,7 +468,6 @@ export class Window {
 	 * the safety-net timer + the `transitionend` listener + an
 	 * explicit `destroy()` call all converge to a single finalise.
 	 *
-	 * @since 0.8.2
 	 * @internal
 	 */
 	public _isFinalized: boolean = false;
@@ -437,6 +508,12 @@ export class Window {
 	public onClose: ( ( win: Window ) => void ) | null = null;
 	public onMinimize: ( ( win: Window ) => void ) | null = null;
 	/**
+	 * Invoked after this window comes back from minimized. The manager
+	 * wires it to bring any child windows back with their owner — the
+	 * counterpart to the cascade in `onMinimize`.
+	 */
+	public onRestore: ( ( win: Window ) => void ) | null = null;
+	/**
 	 * Invoked when the title-bar menu's "Open another" item is clicked.
 	 * The window manager wires this to `openNew()`.
 	 */
@@ -453,7 +530,7 @@ export class Window {
 	/**
 	 * Invoked when the title-bar menu's "Open on startup" item is
 	 * toggled. The shell wires this to the public
-	 * `wp.desktop.setDefaultWindow()` call, which writes the user's
+	 * `wp.os.setDefaultWindow()` call, which writes the user's
 	 * preference and fires the `default-window-changed` event.
 	 */
 	public onToggleStartup: ( ( win: Window ) => void ) | null = null;
@@ -491,6 +568,13 @@ export class Window {
 	public _boundOnDocumentPointerDown: ( ( e: PointerEvent ) => void ) | null = null;
 
 	/**
+	 * Live subscription that repaints the ⋯ menu while it is open, so
+	 * an action registered a moment after opening still appears. Held
+	 * only for the lifetime of one open menu. @internal
+	 */
+	public _unsubscribeWindowActions: ( () => void ) | null = null;
+
+	/**
 	 * ResizeObserver watching the body element. Fires the inline
 	 * `config.onResize` callback AND the `WINDOW_BODY_RESIZED` hook
 	 * on every size change. Null when the environment lacks
@@ -499,18 +583,29 @@ export class Window {
 	 */
 	public _bodyResizeObserver: ResizeObserver | null = null;
 
+	/**
+	 * Teardown for the tab strip's overflow watcher — the thing that
+	 * decides whether either edge fade is painted. Null on native
+	 * windows (no strip) and once the window has closed.
+	 * @internal
+	 */
+	public _tabOverflowTeardown: ( () => void ) | null = null;
+
 	constructor( config: WindowConfig ) {
 		this.id = config.id;
 		this.config = config;
 		this.element = createWindowElement( config );
 		this.iframe = config.native
 			? null
-			: ( this.element.querySelector( '.desktop-mode-window__iframe' ) as HTMLIFrameElement );
-		this._titleBar = this.element.querySelector( '.desktop-mode-window__titlebar' ) as HTMLElement;
-		this._titleEl = this.element.querySelector( '.desktop-mode-window__title' ) as HTMLElement;
+			: ( this.element.querySelector( '.os-window__iframe' ) as HTMLIFrameElement );
+		this._titleBar = this.element.querySelector( '.os-window__titlebar' ) as HTMLElement;
+		this._titleEl = this.element.querySelector( '.os-window__title' ) as HTMLElement;
 		this._boundOnMessage = ( e: MessageEvent ) => handleWindowMessage( this, e );
 
 		this.bindEvents();
+		if ( this.iframe ) {
+			this._wireContentFocusForwarder( this.iframe );
+		}
 
 		// Render any plugin-registered title-bar buttons that match
 		// this window. Subscribe so registrations made AFTER this
@@ -580,14 +675,14 @@ export class Window {
 		// element to the desktop, so the plugin's render callback
 		// receives a body that's already connected to the document.
 		// Custom elements upgrade on connection (HTML spec), so any
-		// `<wpd-*>` the plugin creates or populates via declarative
+		// `<os-*>` the plugin creates or populates via declarative
 		// setters (`.items = […]`, `.value = …`) hits a real class
 		// setter rather than stashing an own data property that
 		// would later shadow the prototype setter.
 
 		// Body-resize observer — fires inline `onResize( w, h )` +
 		// the `WINDOW_BODY_RESIZED` hook whenever the
-		// `.desktop-mode-window__body` element's dimensions change.
+		// `.os-window__body` element's dimensions change.
 		// Measured on the BODY (not the outer window) so subscribers
 		// get the paintable area with title-bar + tab-strip already
 		// subtracted, matching what a canvas inside the body reads.
@@ -605,7 +700,7 @@ export class Window {
 		// has.
 		if ( config.initialState === 'minimized' ) {
 			this.state = 'minimized';
-			this.element.classList.add( 'desktop-mode-window--minimized' );
+			this.element.classList.add( 'os-window--minimized' );
 			if ( this.iframe ) {
 				this.iframe.style.visibility = 'hidden';
 			}
@@ -629,16 +724,21 @@ export class Window {
 			config.initialState === 'snapped-right'
 		) {
 			this.element.classList.add(
-				`desktop-mode-window--${ config.initialState }`,
+				`os-window--${ config.initialState }`,
 			);
 		}
 
 		// Fresh open (or restored to a visible state). Play the opening
 		// animation, then remove the class.
-		this.element.classList.add( 'desktop-mode-window--opening' );
-		this.element.addEventListener( 'animationend', () => {
-			this.element.classList.remove( 'desktop-mode-window--opening' );
-		}, { once: true } );
+		//
+		// Nothing to animate for a document nobody is looking at, and
+		// a hidden document never advances the animation — so skip the
+		// class entirely rather than open invisible and wait for the
+		// fallback timer to rescue it.
+		if ( ! document.hidden ) {
+			this.element.classList.add( 'os-window--opening' );
+			this._armOpeningClassRemoval();
+		}
 
 		// Maximized/fullscreen restores go through the class-driven path
 		// after the geometry renders, so the state transition animates.
@@ -647,6 +747,70 @@ export class Window {
 		if ( config.initialState && config.initialState !== 'normal' ) {
 			requestAnimationFrame( () => this.applyInitialState( config.initialState! ) );
 		}
+	}
+
+	/**
+	 * Clear `.os-window--opening` once the open animation is done —
+	 * belt and braces, because the class is not cosmetic. Its
+	 * animation's `from` frame is what makes the window transparent
+	 * and undersized, so a class that never comes off is a window
+	 * that never becomes visible.
+	 *
+	 * Three ways out, because the animation alone is not a guarantee:
+	 *   - `animationend`, filtered on `animationName` + `target` so a
+	 *     bubbling animation from the window's own content can't
+	 *     claim it (see `OPENING_ANIMATION_NAME`).
+	 *   - `animationcancel`, for a class or stylesheet swap that
+	 *     tears the animation down mid-flight.
+	 *   - a `setTimeout` deadline, for the case where no animation
+	 *     event is ever coming (see `OPENING_FALLBACK_MS`).
+	 *
+	 * Whichever fires first wins and detaches the other two — and
+	 * `_finalizeClose()` runs the same teardown if the window is torn
+	 * down before any of them, so the deadline never outlives the
+	 * window it was arming.
+	 */
+	private _armOpeningClassRemoval(): void {
+		const el = this.element;
+		let timer: number | null = null;
+		let cleared = false;
+
+		const clear = (): void => {
+			if ( cleared ) {
+				return;
+			}
+			cleared = true;
+			this._clearOpeningClassRemoval = null;
+			// `null` when the deadline itself is the caller: it has
+			// already fired, so there is nothing to cancel — and
+			// reaching for `window` from a timer that outlived its
+			// document is precisely the failure this avoids.
+			if ( timer !== null ) {
+				window.clearTimeout( timer );
+				timer = null;
+			}
+			el.removeEventListener( 'animationend', onAnimationDone );
+			el.removeEventListener( 'animationcancel', onAnimationDone );
+			el.classList.remove( 'os-window--opening' );
+		};
+
+		const onAnimationDone = ( event: AnimationEvent ): void => {
+			if (
+				event.target !== el ||
+				event.animationName !== OPENING_ANIMATION_NAME
+			) {
+				return;
+			}
+			clear();
+		};
+
+		el.addEventListener( 'animationend', onAnimationDone );
+		el.addEventListener( 'animationcancel', onAnimationDone );
+		timer = window.setTimeout( () => {
+			timer = null;
+			clear();
+		}, OPENING_FALLBACK_MS );
+		this._clearOpeningClassRemoval = clear;
 	}
 
 	/**
@@ -662,14 +826,13 @@ export class Window {
 	 *
 	 * No-op for iframe windows.
 	 *
-	 * Per-event contract preserved from 0.5.0:
+	 * Per-event contract:
 	 *   - `NATIVE_WINDOW_BEFORE_RENDER` filter fires, same args.
 	 *   - `NATIVE_WINDOW_AFTER_RENDER` action fires, same args.
 	 *   - `config.autofocus` is honoured with a `requestAnimationFrame`
 	 *     defer so layout side-effects of `render()` settle before
 	 *     `.focus()` resolves.
 	 *
-	 * @since 0.5.0
 	 * @internal
 	 */
 	public hydrateNative(): void {
@@ -677,13 +840,13 @@ export class Window {
 			return;
 		}
 		const rawBody = this.element.querySelector(
-			'.desktop-mode-window__body',
+			'.os-window__body',
 		) as HTMLElement | null;
 		if ( ! rawBody ) {
 			return;
 		}
 		// `before-render` filter — lets subscribers inject a wrapper
-		// around the body (a surrounding `<wpd-panel>`, a theming
+		// around the body (a surrounding `<os-panel>`, a theming
 		// shim, a dev-time debug outline) before the plugin's own
 		// render runs. Typed as returning `HTMLElement` so a filter
 		// that returns garbage coerces back to the original body.
@@ -696,13 +859,16 @@ export class Window {
 
 		// Build the per-render `NativeRenderContext` — channel API
 		// (`window.send/on`), `markLoading`/`markReady` (also at the
-		// top level since 0.8.2), `signal` that aborts on close, and
+		// top level), `signal` that aborts on close, and
 		// `onResize`/`onHide`/`onShow` subscribers wired to the
 		// per-window hooks. The disposer tears every subscription
 		// down + aborts the controller; we capture it on the
 		// instance so `close()` can fire it before the user-returned
 		// teardown runs.
-		const { ctx, dispose } = _buildNativeRenderContext( this.id );
+		const { ctx, dispose } = _buildNativeRenderContext(
+			this.id,
+			this.config.params ?? {},
+		);
 		this._nativeRenderCtxDispose = dispose;
 
 		// Capture the optional teardown returned by the render callback
@@ -738,7 +904,7 @@ export class Window {
 				( err ) => {
 					if ( typeof console !== 'undefined' ) {
 						console.error(
-							`[desktop-mode] native render rejected for "${ this.id }":`,
+							`[openstation] native render rejected for "${ this.id }":`,
 							err,
 						);
 					}
@@ -827,7 +993,7 @@ export class Window {
 	}
 
 	/**
-	 * Dispatch a `desktop-mode-window-changed` event so the session-save
+	 * Dispatch a `os-window-changed` event so the session-save
 	 * path can schedule a debounced write.
 	 *
 	 * Called after any state change that should end up persisted: drag
@@ -839,7 +1005,7 @@ export class Window {
 	 */
 	public _emitChange( reason: 'moved' | 'resized' | 'state' ): void {
 		document.dispatchEvent(
-			new CustomEvent( 'desktop-mode-window-changed', {
+			new CustomEvent( 'os-window-changed', {
 				detail: { windowId: this.id, reason, state: this.state },
 			} ),
 		);
@@ -917,7 +1083,7 @@ export class Window {
 		// intend to commit (they might release on a different
 		// thumbnail or the backdrop).
 		this.element.addEventListener( 'pointerdown', () => {
-			if ( this.element.classList.contains( 'desktop-mode-window--overview' ) ) {
+			if ( this.element.classList.contains( 'os-window--overview' ) ) {
 				return;
 			}
 			this.onFocusRequest?.( this );
@@ -930,7 +1096,7 @@ export class Window {
 		// those are handled by the shell-level window.blur listener
 		// that inspects document.activeElement.
 		this.element.addEventListener( 'focusin', () => {
-			if ( this.element.classList.contains( 'desktop-mode-window--overview' ) ) {
+			if ( this.element.classList.contains( 'os-window--overview' ) ) {
 				return;
 			}
 			this.onFocusRequest?.( this );
@@ -946,7 +1112,7 @@ export class Window {
 		// handler reads `data-dir` off the target to know which axes
 		// to move during the drag.
 		const resizeHandles = this.element.querySelectorAll<HTMLElement>(
-			'.desktop-mode-window__resize-handle',
+			'.os-window__resize-handle',
 		);
 		resizeHandles.forEach( ( handle ) => {
 			handle.addEventListener( 'pointerdown', ( e: PointerEvent ) =>
@@ -964,10 +1130,10 @@ export class Window {
 
 		// Title-bar actions menu (all windows; some items are iframe-only).
 		const menuBtn = this.element.querySelector<HTMLElement>(
-			'.desktop-mode-window__menu-btn',
+			'.os-window__menu-btn',
 		);
 		const menuPanel = this.element.querySelector<HTMLElement>(
-			'.desktop-mode-window__menu-panel',
+			'.os-window__menu-panel',
 		);
 		if ( menuBtn && menuPanel ) {
 			menuBtn.addEventListener( 'click', ( e: Event ) => {
@@ -975,49 +1141,49 @@ export class Window {
 				toggleActionsMenu( this );
 			} );
 			const openAnother = menuPanel.querySelector(
-				'.desktop-mode-window__menu-item--open-another',
+				'.os-window__menu-item--open-another',
 			);
 			if ( openAnother ) {
-				// `<wpd-menu-item>` emits `wpd-menu-item-click` on
+				// `<os-menu-item>` emits `os-menu-item-click` on
 				// selection — listen for that rather than raw click
 				// so other click-based inner DOM (focus rings, etc.)
 				// don't double-fire.
-				openAnother.addEventListener( 'wpd-menu-item-click', ( e: Event ) => {
+				openAnother.addEventListener( 'os-menu-item-click', ( e: Event ) => {
 					e.stopPropagation();
 					closeActionsMenu( this );
 					this.onOpenAnother?.( this );
 				} );
 			}
 			const openInNew = menuPanel.querySelector(
-				'.desktop-mode-window__menu-item--open-in-new-window',
+				'.os-window__menu-item--open-in-new-window',
 			);
 			if ( openInNew ) {
-				openInNew.addEventListener( 'wpd-menu-item-click', ( e: Event ) => {
+				openInNew.addEventListener( 'os-menu-item-click', ( e: Event ) => {
 					e.stopPropagation();
 					closeActionsMenu( this );
 					this.onOpenInNewWindow?.( this );
 				} );
 			}
 			// "Reload" + "Open in browser tab" moved here from the
-			// title-bar controls cluster in 0.6.2. Both call straight
+			// title-bar controls cluster. Both call straight
 			// into the existing `Window` API — no new manager wiring
 			// needed. Click closes the menu first so the iframe
 			// reload doesn't compete with a still-painted popover.
 			const reload = menuPanel.querySelector(
-				'.desktop-mode-window__menu-item--reload',
+				'.os-window__menu-item--reload',
 			);
 			if ( reload ) {
-				reload.addEventListener( 'wpd-menu-item-click', ( e: Event ) => {
+				reload.addEventListener( 'os-menu-item-click', ( e: Event ) => {
 					e.stopPropagation();
 					closeActionsMenu( this );
 					this.reload();
 				} );
 			}
 			const openExternal = menuPanel.querySelector(
-				'.desktop-mode-window__menu-item--open-external',
+				'.os-window__menu-item--open-external',
 			);
 			if ( openExternal ) {
-				openExternal.addEventListener( 'wpd-menu-item-click', ( e: Event ) => {
+				openExternal.addEventListener( 'os-menu-item-click', ( e: Event ) => {
 					e.stopPropagation();
 					closeActionsMenu( this );
 					this.detach();
@@ -1027,17 +1193,17 @@ export class Window {
 			// checked state from the shared public API, and wire the
 			// click handler to toggle via `setDefaultWindow`. The
 			// callback is injected by the window manager so we don't
-			// couple the Window class to wp.desktop directly.
+			// couple the Window class to wp.os directly.
 			const startup = menuPanel.querySelector<HTMLElement>(
-				'.desktop-mode-window__menu-item--startup',
+				'.os-window__menu-item--startup',
 			);
 			if ( startup ) {
 				refreshStartupCheckState( this, startup );
-				// `<wpd-menu-item>` emits `wpd-menu-item-click` on its
+				// `<os-menu-item>` emits `os-menu-item-click` on its
 				// button click; listen there (not on the plain `click`)
 				// so we catch the check toggle without racing the item's
 				// own internal state update.
-				startup.addEventListener( 'wpd-menu-item-click', ( e: Event ) => {
+				startup.addEventListener( 'os-menu-item-click', ( e: Event ) => {
 					// Keep the menu open — a checkbox item is a toggle,
 					// not a one-shot action. Users commonly want to
 					// verify the new state without reopening the menu,
@@ -1045,7 +1211,7 @@ export class Window {
 					// optimistic flip + the server-confirmation refresh
 					// feels instant.
 					e.stopPropagation();
-					flipStartupCheckOptimistically( startup );
+					flipMenuItemCheckOptimistically( startup );
 					this.onToggleStartup?.( this );
 				} );
 				// Refresh the check state whenever the public
@@ -1056,7 +1222,7 @@ export class Window {
 				// menu open, where the canonical state from config
 				// takes over.
 				document.addEventListener(
-					'desktop-mode-default-window-changed',
+					'os-default-window-changed',
 					() => {
 						refreshStartupCheckState( this, startup );
 					},
@@ -1084,7 +1250,7 @@ export class Window {
 			const target = e.target as Element | null;
 			if (
 				target?.closest(
-					'button, [role="button"], [role="menuitem"], [role="menuitemcheckbox"], wpd-window-button, wpd-menu, wpd-menu-item, .desktop-mode-window__menu-panel, .desktop-mode-window__custom-buttons, input, select, textarea, a',
+					'button, [role="button"], [role="menuitem"], [role="menuitemcheckbox"], os-window-button, os-menu, os-menu-item, .os-window__menu-panel, .os-window__custom-buttons, input, select, textarea, a',
 				)
 			) {
 				return;
@@ -1092,33 +1258,77 @@ export class Window {
 			this.toggleMaximize();
 		} );
 
-		// Iframe-only wiring: tab strip, load listener, and
-		// postMessage bridge all presuppose an iframe. Native windows
-		// have none of those affordances, so skip this whole block.
+		/*
+		 * Tab-strip wiring, for BOTH window kinds. It used to sit
+		 * inside the iframe-only block below, which is why native
+		 * windows could not have a strip at all. Nothing in here
+		 * presupposes an iframe: the click handler dispatches on the
+		 * tab's own `data-kind`, and the keyboard and overflow
+		 * observers are pure geometry.
+		 */
+		const tabs = this.element.querySelector< HTMLElement >(
+			'.os-window__tabs',
+		);
+		if ( tabs ) {
+			tabs.addEventListener( 'click', ( e: Event ) =>
+				handleTabStripClick( this, e ),
+			);
+			/*
+			 * One delegated listener rather than one per tab: tabs come
+			 * and go (external tabs open and close, `setTabs()`
+			 * re-declares a native window's), and a per-tab listener
+			 * would have to be re-attached on every one of those.
+			 */
+			tabs.addEventListener( 'keydown', ( e: Event ) =>
+				handleTabStripKeydown( tabs, e ),
+			);
+			/*
+			 * Hover intent → ask the service worker to fetch that
+			 * screen's document now. A submenu tab is a real page load
+			 * (the window navigates in place), and on a live install
+			 * the server rendering that page is the majority of the
+			 * wait — the part no cache can remove, because admin HTML
+			 * carries nonces. Fetching it while the pointer is still
+			 * on the tab moves that wait off the click.
+			 *
+			 * Delegated like the handlers above, and pointer-only:
+			 * touch has no hover, so there is no intent to read.
+			 *
+			 * `pointerover` rather than `pointerenter` is deliberate:
+			 * `pointerenter` does not bubble, so it cannot be used from
+			 * a delegated listener, and the tabs come and go too often
+			 * to bind per tab. The cost is that this fires again as the
+			 * pointer crosses a tab's icon and label; both the shell's
+			 * ask-throttle and the worker's own de-duplication absorb
+			 * that, so the extra events are noise rather than work.
+			 */
+			tabs.addEventListener( 'pointerover', ( e: Event ) => {
+				const ev = e as PointerEvent;
+				if ( ev.pointerType !== 'mouse' ) {
+					return;
+				}
+				const tab = ( ev.target as HTMLElement | null )?.closest?.(
+					'.os-window__tab[data-url]',
+				) as HTMLElement | null;
+				const href = tab?.dataset.url;
+				if ( href ) {
+					speculateTabDocument( href );
+				}
+			} );
+			// Paint the edge fades only where scrolling would
+			// actually reveal another tab.
+			this._tabOverflowTeardown = observeTabOverflow( tabs );
+		}
+
+		// Iframe-only wiring: the load listener and the postMessage
+		// bridge both presuppose an iframe. Native windows have
+		// neither, so skip this whole block.
 		if ( this.iframe ) {
 			const iframe = this.iframe;
 
-			const tabs = this.element.querySelector( '.desktop-mode-window__tabs' );
-			if ( tabs ) {
-				tabs.addEventListener( 'click', ( e: Event ) =>
-					handleTabStripClick( this, e ),
-				);
-			}
-
 			// Sync the active tab whenever the iframe finishes a
-			// navigation. Reading iframe.contentWindow.location is safe
-			// because we only allow same-origin URLs; cross-origin
-			// would have thrown earlier.
-			iframe.addEventListener( 'load', () => {
-				try {
-					const href = iframe.contentWindow?.location.href;
-					if ( href ) {
-						syncActiveTab( this, href );
-					}
-				} catch {
-					/* Cross-origin or detached frame — ignore. */
-				}
-			} );
+			// navigation.
+			this._wireTabNavSync( iframe );
 
 			// Listen for postMessage from iframe.
 			window.addEventListener( 'message', this._boundOnMessage );
@@ -1130,6 +1340,42 @@ export class Window {
 		addExternalTab( this, url, label );
 	}
 
+	/**
+	 * Declare this native window's tabs in the window chrome.
+	 *
+	 * Each entry's `value` matches the `for` attribute of an
+	 * `<os-tabpanel>` in the window body; the shell shows one pane and
+	 * hides the rest. Panes are toggled, never re-rendered, so a pane
+	 * that owns a canvas or a live preview keeps it across tab
+	 * changes.
+	 *
+	 * ```js
+	 * win.setTabs( [
+	 *   { value: 'calc',    label: 'Calc' },
+	 *   { value: 'convert', label: 'Convert' },
+	 * ] );
+	 * ```
+	 *
+	 * Safe to call again whenever the list changes: it reconciles by
+	 * `value` rather than rebuilding, so the user stays on the tab
+	 * they were on and the keyboard keeps its place. Pass
+	 * `activeValue` only to override that deliberately.
+	 *
+	 * Listen for `os-window-tab-change` on the window element (it
+	 * bubbles) to react to the user's choice.
+	 */
+	public setTabs(
+		entries: readonly PanelTabEntry[],
+		activeValue?: string,
+	): void {
+		setPanelTabs( this.element, entries, activeValue );
+	}
+
+	/** Show one of this window's panel tabs programmatically. */
+	public activateTab( value: string ): void {
+		activatePanelTab( this.element, value );
+	}
+
 	/** Set the z-index of this window. */
 	public setZIndex( z: number ): void {
 		this.element.style.zIndex = String( z );
@@ -1137,13 +1383,19 @@ export class Window {
 
 	/** Mark this window as focused or unfocused. */
 	public setFocused( focused: boolean ): void {
-		this.element.classList.toggle( 'desktop-mode-window--focused', focused );
+		this.element.classList.toggle( 'os-window--focused', focused );
 		this._notifyChromeStateChanged();
 	}
 
 	/** Update the window title. */
 	public setTitle( title: string ): void {
-		this._titleEl.textContent = title;
+		const titleEl = this.element.querySelector< HTMLElement >(
+			'.os-window__title',
+		);
+		if ( titleEl ) {
+			this._titleEl = titleEl;
+			titleEl.textContent = title;
+		}
 		this.config.title = title;
 		doAction( HOOKS.WINDOW_TITLE_CHANGED, { windowId: this.id, title } );
 		this._notifyChromeStateChanged();
@@ -1156,11 +1408,10 @@ export class Window {
 	 * cleaned up before the new ones mount.
 	 *
 	 * @internal
-	 * @since 0.6.0
 	 */
 	public repaintWindowControls(): void {
 		const controlsHost = this.element.querySelector< HTMLElement >(
-			'.desktop-mode-window__controls',
+			'.os-window__controls',
 		);
 		if ( ! controlsHost ) {
 			return;
@@ -1186,24 +1437,23 @@ export class Window {
 	 * control-registry painter, so a live theme switch would leave
 	 * them showing the previous theme's artwork until the window was
 	 * reopened. Called from the shell's
-	 * `desktop-mode-desktop-theme-changed` listener.
+	 * `os-desktop-theme-changed` listener.
 	 *
 	 * @internal
-	 * @since 0.9.7
 	 */
 	public repaintThemedChrome(): void {
 		const iconHost = this.element.querySelector< HTMLElement >(
-			'.desktop-mode-window__slot--icon',
+			'.os-window__slot--icon',
 		);
 		if ( iconHost ) {
 			const existing = iconHost.querySelector(
-				'.desktop-mode-window__icon',
+				'.os-window__icon',
 			);
 			if ( existing ) {
 				existing.replaceWith(
 					renderIcon( this.config.icon, {
 						title: this.config.title,
-						className: 'desktop-mode-window__icon',
+						className: 'os-window__icon',
 						slot: slotForTileId( this.config.id ),
 					} ),
 				);
@@ -1211,7 +1461,7 @@ export class Window {
 		}
 
 		const menuBtn = this.element.querySelector< HTMLElement >(
-			'.desktop-mode-window__menu-btn',
+			'.os-window__menu-btn',
 		);
 		if ( menuBtn ) {
 			// Drop whatever the previous theme (or the default) left
@@ -1231,8 +1481,6 @@ export class Window {
 	 * Mutates `this.config.appearance.controls` and re-paints. Pass
 	 * `null` or `undefined` to clear the override and fall back to
 	 * the registry-only resolution.
-	 *
-	 * @since 0.6.0
 	 */
 	public setAppearanceControls(
 		override: import( '../types' ).WindowControlsConfig | null | undefined,
@@ -1251,7 +1499,6 @@ export class Window {
 	 * paint.
 	 *
 	 * @internal
-	 * @since 0.6.0
 	 */
 	public repaintWindowSlots(): void {
 		if ( this._windowSlotsTeardown ) {
@@ -1271,7 +1518,6 @@ export class Window {
 	 * `'core/standard'`. Idempotent.
 	 *
 	 * @internal
-	 * @since 0.6.0
 	 */
 	public remountWindowChrome(): void {
 		if ( this._chromeHandle ) {
@@ -1300,7 +1546,7 @@ export class Window {
 	 * Set the chrome id at runtime. Pass `null` / `undefined` to
 	 * fall back to the standard chrome.
 	 *
-	 * **Experimental** since 0.6.0 — the chrome render contract may
+	 * **Experimental** — the chrome render contract may
 	 * change in future minor versions.
 	 */
 	public setAppearanceChrome( chromeId: string | null | undefined ): void {
@@ -1319,7 +1565,6 @@ export class Window {
 	 * keep their visual in sync.
 	 *
 	 * @internal
-	 * @since 0.6.0
 	 */
 	public _notifyChromeStateChanged(): void {
 		// Belt-and-braces: a window mid-close (or fully torn down)
@@ -1346,8 +1591,6 @@ export class Window {
 	 * Apply (or clear) per-window slot overrides at runtime.
 	 * `slot === null` removes the named override; `slots === null`
 	 * clears all per-window slot overrides at once.
-	 *
-	 * @since 0.6.0
 	 */
 	public setAppearanceSlot(
 		slot: import( '../types' ).WindowSlotName,
@@ -1380,8 +1623,6 @@ export class Window {
 	 * Calls through to {@link applyWindowTheme}. The override is
 	 * also written to `this.config.appearance.theme` so the next
 	 * registry-driven re-apply preserves the runtime choice.
-	 *
-	 * @since 0.6.0
 	 */
 	public setAppearanceTheme(
 		override:
@@ -1453,12 +1694,12 @@ export class Window {
 		const halfW = Math.floor( parent.clientWidth / 2 );
 		const height = parent.clientHeight;
 		this.element.classList.remove(
-			'desktop-mode-window--maximized',
-			'desktop-mode-window--fullscreen',
-			'desktop-mode-window--snapped-left',
-			'desktop-mode-window--snapped-right',
+			'os-window--maximized',
+			'os-window--fullscreen',
+			'os-window--snapped-left',
+			'os-window--snapped-right',
 		);
-		this.element.classList.add( `desktop-mode-window--snapped-${ zone }` );
+		this.element.classList.add( `os-window--snapped-${ zone }` );
 		this.element.style.left = zone === 'left' ? '0px' : `${ halfW }px`;
 		this.element.style.top = '0px';
 		this.element.style.width = `${ halfW }px`;
@@ -1476,18 +1717,17 @@ export class Window {
 	 * 'snapped-left' | 'snapped-right'`.
 	 *
 	 * @public
-	 * @since 0.5.2
 	 */
 	public isMinimized(): boolean {
 		return this.state === 'minimized';
 	}
 
-	/** Predicate: is this window currently maximized? @since 0.5.2 */
+	/** Predicate: is this window currently maximized? */
 	public isMaximized(): boolean {
 		return this.state === 'maximized';
 	}
 
-	/** Predicate: is this window in fullscreen mode? @since 0.5.2 */
+	/** Predicate: is this window in fullscreen mode? */
 	public isFullscreen(): boolean {
 		return this.state === 'fullscreen';
 	}
@@ -1496,8 +1736,6 @@ export class Window {
 	 * Predicate: is this window currently snapped to a screen edge?
 	 * Returns `true` for both half-screen positions; pass an explicit
 	 * side string if you need to distinguish.
-	 *
-	 * @since 0.5.2
 	 */
 	public isSnapped( side?: 'left' | 'right' ): boolean {
 		if ( side === 'left' ) {
@@ -1513,13 +1751,11 @@ export class Window {
 
 	/**
 	 * Predicate: is this window currently the focused (top of stack)
-	 * window? Reads the `desktop-mode-window--focused` class the manager
+	 * window? Reads the `os-window--focused` class the manager
 	 * toggles in `focus()` so the result matches what's visible.
-	 *
-	 * @since 0.5.2
 	 */
 	public isFocused(): boolean {
-		return this.element.classList.contains( 'desktop-mode-window--focused' );
+		return this.element.classList.contains( 'os-window--focused' );
 	}
 
 	public minimize(): void {
@@ -1531,7 +1767,7 @@ export class Window {
 		}
 		this._stateBeforeMinimize = this.state;
 		this.state = 'minimized';
-		this.element.classList.add( 'desktop-mode-window--minimized' );
+		this.element.classList.add( 'os-window--minimized' );
 
 		// After the transition completes, stop the hidden window doing
 		// rendering work. `opacity: 0` alone leaves the subtree in the
@@ -1545,7 +1781,11 @@ export class Window {
 		// unloading the page.) Browsers without content-visibility
 		// ignore the property and keep today's behavior.
 		this.element.addEventListener( 'transitionend', ( e: TransitionEvent ) => {
-			if ( e.propertyName === 'opacity' && this.state === 'minimized' ) {
+			if (
+				e.propertyName === 'opacity' &&
+				this.state === 'minimized' &&
+				! this.element.classList.contains( 'os-window--overview' )
+			) {
 				if ( this.iframe ) {
 					this.iframe.style.visibility = 'hidden';
 				}
@@ -1582,7 +1822,7 @@ export class Window {
 		}
 
 		const wasMinimized = this.state === 'minimized';
-		this.element.classList.remove( 'desktop-mode-window--minimized' );
+		this.element.classList.remove( 'os-window--minimized' );
 		if ( wasMinimized ) {
 			// `null` fallback covers windows whose state was already
 			// minimized at construction time (session restore) — no
@@ -1607,9 +1847,22 @@ export class Window {
 				this.updateFocusButtonState();
 			}
 		}
+		if ( wasMinimized ) {
+			// Bring owned child windows back BEFORE requesting focus.
+			// Ordering is load-bearing: while the children are still
+			// minimized none of them blocks, so a focus request here
+			// would land on this window and then have to be corrected
+			// once they reappear — two focus changes for one user
+			// action. Restore first and the single request below
+			// resolves straight to the child that should hold focus.
+			this.onRestore?.( this );
+		}
 		this.onFocusRequest?.( this );
 		this._emitChange( 'state' );
 		if ( wasMinimized ) {
+			// After `onRestore`, so a subscriber that inspects the
+			// desktop sees this window's children already back rather
+			// than a half-restored ownership group.
 			doAction( HOOKS.WINDOW_RESTORED, {
 				windowId: this.id,
 				element: this.element,
@@ -1688,11 +1941,11 @@ export class Window {
 		// keep its `!important` 100vw/100vh in force and silently
 		// nullify the maximize visuals).
 		this.element.classList.remove(
-			'desktop-mode-window--fullscreen',
-			'desktop-mode-window--snapped-left',
-			'desktop-mode-window--snapped-right',
+			'os-window--fullscreen',
+			'os-window--snapped-left',
+			'os-window--snapped-right',
 		);
-		this.element.classList.add( 'desktop-mode-window--maximized' );
+		this.element.classList.add( 'os-window--maximized' );
 		this.element.style.left = '0px';
 		this.element.style.top = '0px';
 		this.element.style.width = `${ parent.clientWidth }px`;
@@ -1711,7 +1964,7 @@ export class Window {
 			// Restore to saved geometry. The maximized class is removed
 			// *after* the next frame so the class-driven border-radius
 			// animates in sync.
-			this.element.classList.remove( 'desktop-mode-window--maximized' );
+			this.element.classList.remove( 'os-window--maximized' );
 			if ( this._savedGeometry ) {
 				const restored = this.snapGeometry( this._savedGeometry );
 				this.element.style.left = `${ restored.x }px`;
@@ -1796,7 +2049,7 @@ export class Window {
 			// producing a double state-change event AND, in the
 			// exit-to-maximized case, clobbering the real floating
 			// geometry with the maximized 0,0,parentW,parentH.
-			this.element.classList.remove( 'desktop-mode-window--fullscreen' );
+			this.element.classList.remove( 'os-window--fullscreen' );
 			const s = this._savedFullscreenState;
 			this._savedFullscreenState = null;
 			let landedOnMaximize = false;
@@ -1868,11 +2121,11 @@ export class Window {
 		// maximized window would carry two state classes and the
 		// fullscreen-exit restore would land in an inconsistent visual.
 		this.element.classList.remove(
-			'desktop-mode-window--maximized',
-			'desktop-mode-window--snapped-left',
-			'desktop-mode-window--snapped-right',
+			'os-window--maximized',
+			'os-window--snapped-left',
+			'os-window--snapped-right',
 		);
-		this.element.classList.add( 'desktop-mode-window--fullscreen' );
+		this.element.classList.add( 'os-window--fullscreen' );
 		this.state = 'fullscreen';
 		updateFullscreenBodyClass();
 		this.updateFocusButtonState();
@@ -1889,13 +2142,13 @@ export class Window {
 	 */
 	private updateFocusButtonState(): void {
 		const btn = this.element.querySelector<HTMLButtonElement>(
-			'.desktop-mode-window__btn--focus',
+			'.os-window__btn--focus',
 		);
 		if ( ! btn ) {
 			return;
 		}
 		const isFullscreen = this.state === 'fullscreen';
-		btn.classList.toggle( 'desktop-mode-window__btn--active', isFullscreen );
+		btn.classList.toggle( 'os-window__btn--active', isFullscreen );
 		btn.setAttribute( 'aria-pressed', isFullscreen ? 'true' : 'false' );
 		btn.setAttribute(
 			'aria-label',
@@ -1907,10 +2160,10 @@ export class Window {
 	 * Open the window's current URL in a new browser tab as classic
 	 * wp-admin.
 	 *
-	 * Strips the chromeless `desktop_mode_chromeless` flag and the transient
+	 * Strips the chromeless `openstation_chromeless` flag and the transient
 	 * `desktop_mode_portal` flag, and tags the URL with
 	 * `desktop_mode_classic=1` so the server-side admin_init redirect
-	 * (which otherwise forwards plain admin URLs to `/desktop-mode/`)
+	 * (which otherwise forwards plain admin URLs to `/openstation/`)
 	 * lets the request through. The tag only has to survive the first
 	 * request; once the browser renders the page, the user's in-tab
 	 * navigation returns to normal admin flow.
@@ -1929,7 +2182,7 @@ export class Window {
 		if ( url.origin !== INITIAL_ORIGIN ) {
 			return;
 		}
-		url.searchParams.delete( 'desktop_mode_chromeless' );
+		url.searchParams.delete( 'openstation_chromeless' );
 		url.searchParams.delete( 'desktop_mode_portal' );
 		url.searchParams.set( 'desktop_mode_classic', '1' );
 
@@ -1947,24 +2200,26 @@ export class Window {
 	 * reload that preserves scroll position semantics; cross-origin
 	 * external tabs fall back to re-assigning `iframe.src`.
 	 *
-	 * No-op for native windows — they own their DOM directly and the
-	 * title-bar menu's Reload item is only built for iframe windows
-	 * (`dom.ts` skips it when `config.native`), but this guard keeps
-	 * the contract honest if the method is called by other code paths
-	 * in the future.
+	 * Native windows reload too — see {@link _reloadNative}. They have
+	 * no frame to refresh, so the equivalent is tearing the previous
+	 * render down and running the render callback again.
 	 */
 	public reload(): void {
-		if ( this.config.native ) {
-			return;
-		}
 		// Guard against double-clicks during an in-flight reload — a
 		// second `location.reload()` while the first is still hydrating
-		// can desync the chromeless bridge's `desktop-mode-ready`
+		// can desync the chromeless bridge's `os-ready`
 		// handshake. The body's `--loading` class is the upstream
 		// signal set by `markContentLoading()` and cleared on the
-		// next `desktop-mode-ready` postMessage.
-		const body = this.element.querySelector( '.desktop-mode-window__body' );
-		if ( body?.classList.contains( 'desktop-mode-window__body--loading' ) ) {
+		// next `os-ready` postMessage. Native windows are held to the
+		// same rule: a promise-returning render is still in flight
+		// while the class is on, and re-entering would leave its
+		// resolution writing into a body a newer render owns.
+		const body = this.element.querySelector( '.os-window__body' );
+		if ( body?.classList.contains( 'os-window__body--loading' ) ) {
+			return;
+		}
+		if ( this.config.native ) {
+			this._reloadNative();
 			return;
 		}
 		// Resolve the target surface and its URL up-front, before any
@@ -2005,7 +2260,7 @@ export class Window {
 			};
 		}
 		// Click feedback first (independent of network latency), then
-		// arm the loading overlay (will be cleared by `desktop-mode-ready`),
+		// arm the loading overlay (will be cleared by `os-ready`),
 		// then fire the actual reload, then notify subscribers.
 		this._spinReloadButton();
 		this.markContentLoading();
@@ -2013,6 +2268,84 @@ export class Window {
 		doAction( HOOKS.WINDOW_RELOADED, {
 			windowId: this.id,
 			url: reloadedUrl,
+		} );
+	}
+
+	/**
+	 * Reload a native window by re-running its render callback.
+	 *
+	 * A native window has no frame to refresh, so "reload" means the
+	 * closest honest equivalent: dispose the render context, run the
+	 * teardown the previous render returned, empty the body, and call
+	 * {@link hydrateNative} again. What the plugin author gets is the
+	 * same lifecycle a fresh open runs — `NATIVE_WINDOW_BEFORE_RENDER`,
+	 * `render( body, ctx )` with a **new** `ctx` (new `signal`, new
+	 * channel subscriptions), `NATIVE_WINDOW_AFTER_RENDER` — against
+	 * the same live `Window`. The window itself does not close and
+	 * reopen: id, geometry, focus, z-order, params and session entry
+	 * all survive, and no `WINDOW_CLOSED` / `WINDOW_OPENED` pair fires
+	 * for something the user experienced as a refresh.
+	 *
+	 * Teardown runs before the body is emptied, not after, so a
+	 * teardown that reads its own DOM (detaching a listener, reading a
+	 * final scroll offset) still finds it. Both callbacks are
+	 * contained: a throwing teardown reports through `SHELL_ERROR` and
+	 * the reload proceeds, because a plugin's cleanup bug must not
+	 * cost the user the reload they asked for.
+	 *
+	 * The loading overlay is armed here and cleared by the readiness
+	 * signal `hydrateNative()` already emits — immediately on the next
+	 * frame for a synchronous render, on settle for a promise-returning
+	 * one. So a render that refetches shows a spinner for exactly as
+	 * long as the refetch takes, with no extra plumbing.
+	 */
+	private _reloadNative(): void {
+		if ( ! this.config.render ) {
+			return;
+		}
+		const body = this.element.querySelector(
+			'.os-window__body',
+		) as HTMLElement | null;
+		if ( ! body ) {
+			return;
+		}
+
+		if ( this._nativeRenderCtxDispose ) {
+			try {
+				this._nativeRenderCtxDispose();
+			} catch ( err ) {
+				doAction( HOOKS.SHELL_ERROR, {
+					scope: 'native-window-ctx-dispose',
+					id: this.id,
+					error: err,
+				} );
+			}
+			this._nativeRenderCtxDispose = null;
+		}
+		if ( this._nativeRenderTeardown ) {
+			try {
+				this._nativeRenderTeardown();
+			} catch ( err ) {
+				doAction( HOOKS.SHELL_ERROR, {
+					scope: 'native-window-teardown',
+					id: this.id,
+					error: err,
+				} );
+			}
+			this._nativeRenderTeardown = null;
+		}
+
+		body.replaceChildren();
+
+		// Click feedback first (independent of how long the render
+		// takes), then arm the overlay, then render, then notify —
+		// the same order the iframe path uses.
+		this._spinReloadButton();
+		this.markContentLoading();
+		this.hydrateNative();
+		doAction( HOOKS.WINDOW_RELOADED, {
+			windowId: this.id,
+			url: this.config.url ?? '',
 		} );
 	}
 
@@ -2032,8 +2365,6 @@ export class Window {
 	 *
 	 * Returns `true` when a navigation was started, `false` for
 	 * native windows, missing iframes, or cross-origin URLs.
-	 *
-	 * @since 0.9.4
 	 */
 	public navigateTo( url: string ): boolean {
 		if ( this.config.native || ! this.iframe ) {
@@ -2045,7 +2376,7 @@ export class Window {
 		}
 		// Arm the loading overlay before re-pointing the iframe — the
 		// same affordance the submenu tab strip shows for in-place
-		// navigation. Cleared by `desktop-mode-ready` / the iframe
+		// navigation. Cleared by `os-ready` / the iframe
 		// `load` event, exactly like a fresh open.
 		this.markContentLoading();
 		const inner = this.iframe.contentWindow;
@@ -2063,6 +2394,305 @@ export class Window {
 	}
 
 	/**
+	 * Forward pointerdowns inside a same-origin, BRIDGE-LESS iframe
+	 * document to the shell's focus path.
+	 *
+	 * Clicks inside an iframe never bubble to the parent document.
+	 * Chromeless admin pages escalate them through the bridge's own
+	 * pointerdown → `os-focus-request` postMessage, and the
+	 * manager's window-blur fallback catches the parent → iframe
+	 * transition — but a click moving focus from one IFRAME to
+	 * another (editor ↔ preview) fires neither: the parent is already
+	 * blurred and a front-end document carries no bridge. This
+	 * forwarder closes that gap for same-origin non-admin content
+	 * (the editor-preview companion, the home-page default window) by
+	 * listening directly inside the frame's document — re-attached on
+	 * every `load`, since each navigation creates a fresh document.
+	 *
+	 * Admin documents are skipped: the bridge already escalates
+	 * there, and a second forwarder would double-fire the focus
+	 * hooks. Cross-origin documents are unreachable and silently
+	 * skipped (they keep the blur-fallback behavior).
+	 *
+	 * @internal
+	 */
+	private _wireContentFocusForwarder( iframe: HTMLIFrameElement ): void {
+		const attach = (): void => {
+			let doc: Document | null = null;
+			try {
+				doc = iframe.contentDocument;
+			} catch {
+				return; // Cross-origin.
+			}
+			if ( ! doc ) {
+				return;
+			}
+			if ( doc.location && doc.location.pathname.indexOf( '/wp-admin/' ) !== -1 ) {
+				return; // Bridge territory.
+			}
+			doc.addEventListener(
+				'pointerdown',
+				() => {
+					if (
+						this.element.classList.contains(
+							'os-window--overview',
+						)
+					) {
+						return;
+					}
+					this.onFocusRequest?.( this );
+				},
+				{ capture: true, passive: true },
+			);
+		};
+		iframe.addEventListener( 'load', attach );
+		// Attach to the CURRENT document too — the swap-promotion
+		// call site runs after the twin's load already fired.
+		attach();
+	}
+
+	/**
+	 * Per-navigation upkeep for the frame: hand off if this window's
+	 * screen has finished, otherwise adopt the new page's title (when
+	 * ours was only a guess) and keep the submenu tab strip lit.
+	 *
+	 * Reading `contentWindow.location` is safe because only
+	 * same-origin URLs are allowed; cross-origin would have thrown
+	 * earlier. Wired to the primary iframe at construction and
+	 * re-wired to the twin {@link swapReload} promotes — listeners
+	 * don't travel between elements.
+	 *
+	 * @internal
+	 */
+	private _wireTabNavSync( iframe: HTMLIFrameElement ): void {
+		iframe.addEventListener( 'load', () => {
+			try {
+				const href = iframe.contentWindow?.location.href;
+				if ( ! href ) {
+					return;
+				}
+				// A handoff closes this window, so nothing below it
+				// has anything left to act on.
+				if ( handleFinishedScreenHandoff( this, href ) ) {
+					return;
+				}
+				adoptPageTitle( this );
+				syncActiveTab( this, href );
+			} catch {
+				/* Cross-origin or detached frame — ignore. */
+			}
+		} );
+	}
+
+	/**
+	 * In-flight double-buffer frame for {@link swapReload}, plus its
+	 * abandon timer. One buffer at most — a newer swap request
+	 * discards the previous buffer and starts over.
+	 *
+	 * @internal
+	 */
+	private _swapBuffer: HTMLIFrameElement | null = null;
+
+	/** @internal */
+	private _swapBufferTimer: number | null = null;
+
+	/**
+	 * Discard the in-flight swap buffer (if any): cancel the abandon
+	 * timer, remove the buffered frame, and restore the visible
+	 * frame's swap elevation. Safe to call at any time.
+	 *
+	 * @internal
+	 */
+	private _discardSwapBuffer(): void {
+		if ( this._swapBufferTimer !== null ) {
+			window.clearTimeout( this._swapBufferTimer );
+			this._swapBufferTimer = null;
+		}
+		if ( this._swapBuffer ) {
+			this._swapBuffer.remove();
+			this._swapBuffer = null;
+			this.iframe?.classList.remove(
+				'os-window__iframe--swap-front',
+			);
+		}
+	}
+
+	/**
+	 * Silent, double-buffered reload of the primary iframe — refresh
+	 * the content with NO loading overlay, NO blank frame, and NO
+	 * scroll jump.
+	 *
+	 * {@link reload} is the right affordance for a user-initiated
+	 * reload: it arms the loading overlay and repaints from scratch.
+	 * For high-frequency programmatic refreshes (the editor-preview
+	 * companion re-rendering after every typing pause) that treatment
+	 * strobes. This method instead loads the target URL into a twin
+	 * iframe stacked UNDERNEATH the visible one at full opacity — a
+	 * normal, fully-rasterized paint target, covered by the opaque
+	 * old frame while it loads (never `opacity: 0`-on-top or
+	 * `visibility: hidden`: browsers defer rasterizing invisible
+	 * iframes and revealing one flashes its blank background first).
+	 * When the twin finishes loading, the scroll position is carried
+	 * across and the old frame is removed in the same tick — an
+	 * instant, animation-free cut to the ready-painted new content.
+	 * There is no moment where unpainted content is the only thing
+	 * on screen.
+	 *
+	 * Semantics and guards:
+	 *  - Primary tab only. On an active external sub-tab this
+	 *    delegates to {@link reload} (sub-tabs are transient surfaces;
+	 *    buffering them isn't worth the bookkeeping).
+	 *  - One buffer at most: a newer call discards an in-flight
+	 *    buffer and restarts with the newest URL. The visible frame
+	 *    is never touched until a buffered load actually lands.
+	 *  - A buffer that never fires `load` is abandoned after 20 s —
+	 *    the visible frame simply stays as it was.
+	 *  - When `url` is given it passes through the same
+	 *    `withChromelessParam()` same-origin gate as
+	 *    {@link navigateTo}; cross-origin URLs are ignored.
+	 *  - Scroll restoration is same-origin only (a cross-origin
+	 *    preview frame silently starts at the top).
+	 *  - Fires `HOOKS.WINDOW_RELOADED` with `silent: true` on swap
+	 *    completion.
+	 *
+	 * @param url Optional same-origin URL to load; omit to refresh
+	 *            the current URL in place.
+	 */
+	public swapReload( url?: string ): void {
+		if ( this.config.native || ! this.iframe || this._isDestroyed ) {
+			return;
+		}
+		if ( this._activeTabId !== 'primary' ) {
+			this.reload();
+			return;
+		}
+		const target = url ? withChromelessParam( url ) : this.getCurrentUrl();
+		if ( ! target ) {
+			return;
+		}
+
+		// A newer request supersedes any in-flight buffer.
+		this._discardSwapBuffer();
+
+		const current = this.iframe;
+		// Elevate the visible frame above the buffer for the swap's
+		// duration — positioned elements otherwise paint above the
+		// static primary regardless of DOM order.
+		current.classList.add( 'os-window__iframe--swap-front' );
+		const buffer = document.createElement( 'iframe' );
+		buffer.className =
+			'os-window__iframe os-window__iframe--buffer';
+		buffer.setAttribute( 'aria-hidden', 'true' );
+		buffer.setAttribute( 'name', `os-frame-${ this.id }-buffer` );
+
+		this._swapBuffer = buffer;
+		this._swapBufferTimer = window.setTimeout( () => {
+			// Hung or endless load — abandon quietly; the visible
+			// frame was never touched.
+			if ( this._swapBuffer === buffer ) {
+				this._discardSwapBuffer();
+			}
+		}, 20000 );
+
+		buffer.addEventListener(
+			'load',
+			() => {
+				if ( this._swapBuffer !== buffer || this._isDestroyed ) {
+					// Superseded by a newer swap (or the window died)
+					// while loading — this buffer is already detached
+					// or about to be.
+					return;
+				}
+				this._swapBuffer = null;
+				if ( this._swapBufferTimer !== null ) {
+					window.clearTimeout( this._swapBufferTimer );
+					this._swapBufferTimer = null;
+				}
+
+				// Carry the scroll position across BEFORE the swap so
+				// the new frame never paints at the top. Same-origin
+				// only — cross-origin reads throw and we skip.
+				let scrollX = 0;
+				let scrollY = 0;
+				try {
+					scrollX = current.contentWindow?.scrollX ?? 0;
+					scrollY = current.contentWindow?.scrollY ?? 0;
+				} catch {
+					/* cross-origin */
+				}
+				if ( scrollX || scrollY ) {
+					try {
+						buffer.contentWindow?.scrollTo( scrollX, scrollY );
+					} catch {
+						/* cross-origin */
+					}
+				}
+
+				// Instant cut: dropping the old frame exposes the
+				// ready-painted twin beneath in the same compositor
+				// frame (see the CSS comment on `--buffer` for why
+				// under, not over). No animation by design.
+				buffer.classList.remove(
+					'os-window__iframe--buffer',
+				);
+				buffer.removeAttribute( 'aria-hidden' );
+				buffer.setAttribute(
+					'name',
+					`os-frame-${ this.id }`,
+				);
+				current.remove();
+				this.iframe = buffer;
+
+				// The swap may have replaced a frame whose FIRST load
+				// never finished (a companion refreshed right after
+				// opening) — its pending load event died with it, and
+				// the boot overlay it armed would never clear. The
+				// buffer's load HAS completed, so the window provably
+				// has ready content: mark it so. A no-op in the common
+				// case where the overlay already cleared.
+				markWindowContentReady( this.id );
+				noteFrameLoaded( buffer );
+
+				// Keep the overlay contract alive for FUTURE classic
+				// reloads: the original frame got this wiring in
+				// `dom.ts` at build time; the twin needs it too or a
+				// later `reload()` would arm an overlay nothing
+				// clears.
+				buffer.addEventListener( 'load', () => {
+					markWindowContentReady( this.id );
+					noteFrameLoaded( buffer );
+				} );
+
+				// Same for the focus forwarder — the click-to-focus
+				// listener lived inside the OLD frame's document; the
+				// twin's document needs its own (attaches to the
+				// current document immediately, this load already
+				// fired).
+				this._wireContentFocusForwarder( buffer );
+
+				// And the tab-strip sync: the submenu-highlight
+				// listener from construction also lived on the old
+				// frame. Sync once for THIS navigation (its load
+				// already fired), then re-wire for future ones.
+				this._wireTabNavSync( buffer );
+				syncActiveTab( this, target );
+
+				doAction( HOOKS.WINDOW_RELOADED, {
+					windowId: this.id,
+					url: target,
+					silent: true,
+				} );
+			},
+			{ once: true },
+		);
+
+		// Insert BEFORE assigning src — a detached iframe doesn't
+		// start loading.
+		current.insertAdjacentElement( 'afterend', buffer );
+		buffer.src = target;
+	}
+
+	/**
 	 * Trigger the one-shot 360° rotation on the title-bar reload
 	 * button. Force-restart the animation by removing the class,
 	 * flushing a reflow, then re-adding it; otherwise a click during
@@ -2077,18 +2707,18 @@ export class Window {
 	 */
 	private _spinReloadButton(): void {
 		const btn = this.element.querySelector(
-			'.desktop-mode-window__btn--reload',
+			'.os-window__btn--reload',
 		);
 		if ( ! ( btn instanceof HTMLElement ) ) {
 			return;
 		}
-		btn.classList.remove( 'desktop-mode-window__btn--spinning' );
+		btn.classList.remove( 'os-window__btn--spinning' );
 		void btn.offsetWidth;
-		btn.classList.add( 'desktop-mode-window__btn--spinning' );
+		btn.classList.add( 'os-window__btn--spinning' );
 		btn.addEventListener(
 			'animationend',
 			() => {
-				btn.classList.remove( 'desktop-mode-window__btn--spinning' );
+				btn.classList.remove( 'os-window__btn--spinning' );
 			},
 			{ once: true },
 		);
@@ -2105,10 +2735,10 @@ export class Window {
 	 */
 	public renderCustomTitleBarButtons(): void {
 		const leftSlot = this.element.querySelector< HTMLElement >(
-			'.desktop-mode-window__custom-buttons--left',
+			'.os-window__custom-buttons--left',
 		);
 		const rightSlot = this.element.querySelector< HTMLElement >(
-			'.desktop-mode-window__custom-buttons--right',
+			'.os-window__custom-buttons--right',
 		);
 		if ( ! leftSlot || ! rightSlot ) {
 			return;
@@ -2119,12 +2749,12 @@ export class Window {
 		const { left, right } = buttonsForWindow( this );
 		const fill = ( slot: HTMLElement, defs: TitleBarButtonDef[] ): void => {
 			for ( const def of defs ) {
-				const host = document.createElement( 'wpd-window-button' );
+				const host = document.createElement( 'os-window-button' );
 				paintTitleBarButtonIcon( host, def.icon );
 				host.setAttribute( 'aria-label', def.label );
 				host.setAttribute( 'title', def.label );
-				host.classList.add( 'desktop-mode-window__btn' );
-				host.classList.add( 'desktop-mode-window__btn--custom' );
+				host.classList.add( 'os-window__btn' );
+				host.classList.add( 'os-window__btn--custom' );
 				host.dataset.buttonId = def.id;
 				slot.appendChild( host );
 
@@ -2134,14 +2764,14 @@ export class Window {
 					} catch ( err ) {
 						if ( typeof console !== 'undefined' ) {
 							console.error(
-								'[desktop-mode] title-bar-button render threw:',
+								'[openstation] title-bar-button render threw:',
 								def.id,
 								err,
 							);
 						}
 					}
 				} else if ( typeof def.onClick === 'function' ) {
-					// Listen for `wpd-button-activate` — the once-per-
+					// Listen for `os-button-activate` — the once-per-
 					// gesture CustomEvent the component fires. Using
 					// the named event (not raw `click`) means the
 					// contract is "fires exactly once per user
@@ -2150,13 +2780,13 @@ export class Window {
 					// `src/window/pointer.ts` makes raw `click`
 					// reliable too, but plugin authors should reach
 					// for the named event for clarity.
-					host.addEventListener( 'wpd-button-activate', ( ev ) => {
+					host.addEventListener( 'os-button-activate', ( ev ) => {
 						try {
 							def.onClick!( this, ev as unknown as MouseEvent );
 						} catch ( err ) {
 							if ( typeof console !== 'undefined' ) {
 								console.error(
-									'[desktop-mode] title-bar-button onClick threw:',
+									'[openstation] title-bar-button onClick threw:',
 									def.id,
 									err,
 								);
@@ -2177,10 +2807,10 @@ export class Window {
 	 * same call regardless of how the window is rendered.
 	 *
 	 * **Iframe windows** (real iframes OR `iframeContent` natives):
-	 * the payload is delivered as `desktop-mode-window-send` via
+	 * the payload is delivered as `os-window-send` via
 	 * `postMessage` and surfaces inside the iframe via
-	 * `wp.desktop.on( channel, cb )` (the iframe-bridge installs
-	 * the API on `wp.desktop`). Calls made before the iframe has
+	 * `wp.os.on( channel, cb )` (the iframe-bridge installs
+	 * the API on `wp.os`). Calls made before the iframe has
 	 * announced itself ready are queued in FIFO order and flushed
 	 * once the bridge connects — `Window.send` is safe the moment
 	 * the window object exists.
@@ -2192,8 +2822,6 @@ export class Window {
 	 *
 	 * Plugin authors never branch on window type — same call, same
 	 * channel, same payload.
-	 *
-	 * @since 0.5.5
 	 *
 	 * @param channel Slash- or dot-separated identifier (e.g.
 	 *                `'reload'`, `'editor/insert-block'`).
@@ -2216,7 +2844,7 @@ export class Window {
 			try {
 				target.contentWindow?.postMessage(
 					{
-						type: 'desktop-mode-window-send',
+						type: 'os-window-send',
 						channel,
 						payload,
 					},
@@ -2225,14 +2853,14 @@ export class Window {
 			} catch ( err ) {
 				if ( typeof console !== 'undefined' ) {
 					console.error(
-						'[desktop-mode] Window.send: postMessage failed',
+						'[openstation] Window.send: postMessage failed',
 						err,
 					);
 				}
 			}
 		};
 		// Buffer until the iframe announces it's ready. For real
-		// iframes that's `desktop-mode-ready` from the chromeless
+		// iframes that's `os-ready` from the chromeless
 		// bridge; for synthetic iframes it's the iframe's `load`
 		// event. Both paths call `markWindowContentReady()` which
 		// flushes the queue in FIFO order.
@@ -2247,15 +2875,13 @@ export class Window {
 	 * Subscribe to a named channel published BY this window's
 	 * content. Mirror of {@link send} for the inbound direction.
 	 *
-	 * Iframe content publishes via `wp.desktop.send( channel,
+	 * Iframe content publishes via `wp.os.send( channel,
 	 * payload )` (installed by the iframe bridge); native render
 	 * code publishes via `windowApi.send( channel, payload )`. Both
 	 * land here.
 	 *
 	 * Use the literal `'*'` to wildcard-subscribe to every channel
 	 * this window publishes.
-	 *
-	 * @since 0.5.5
 	 *
 	 * @return Unsubscribe handle. Idempotent.
 	 */
@@ -2282,31 +2908,32 @@ export class Window {
 	 * resolves.
 	 *
 	 * The shell:
-	 *   - Adds the `desktop-mode-window__body--loading` modifier to
-	 *     the body (CSS fades the content out, fades the overlay
-	 *     in).
+	 *   - Adds the `os-window__body--loading` modifier to
+	 *     the body (CSS fades the content out).
 	 *   - Re-attaches the overlay element if it was already torn
-	 *     down by a prior `markContentLoaded` call.
+	 *     down by a prior `markContentLoaded` call. The spinner
+	 *     only fades in past the show delay, so a quick refetch
+	 *     never paints one.
 	 *   - Fires the {@link HOOKS.WINDOW_CONTENT_LOADING} action +
-	 *     dispatches `desktop-mode-window-content-loading` on
+	 *     dispatches `os-window-content-loading` on
 	 *     `document` (idempotent — no re-fire when already
 	 *     loading).
 	 *
 	 * Idempotent. Cheap to call repeatedly.
-	 *
-	 * @since 0.6.0
 	 */
 	public markContentLoading(): void {
 		markWindowContentLoading( this.id );
 	}
 
 	/**
-	 * Tell the shell this window's body content is ready — fades
-	 * the spinner overlay out, fades the content in, removes the
-	 * overlay element after the transition lands.
+	 * Tell the shell this window's body content is ready — fades the
+	 * spinner out, then fades the content in, and removes the overlay
+	 * once the transition lands. The two run back to back, never
+	 * together. A spinner that never painted is dropped in the same
+	 * tick, so the content appears with no wait.
 	 *
 	 * Iframe windows mark themselves ready automatically on the
-	 * `desktop-mode-ready` postMessage from the chromeless bridge.
+	 * `os-ready` postMessage from the chromeless bridge.
 	 * Native windows mark themselves ready automatically after
 	 * their `render( body )` callback (or its returned `Promise`)
 	 * resolves. Plugins only call this directly when:
@@ -2318,8 +2945,6 @@ export class Window {
 	 *
 	 * Idempotent. Fires the {@link HOOKS.WINDOW_CONTENT_LOADED}
 	 * action only on a loading → ready transition.
-	 *
-	 * @since 0.6.0
 	 */
 	public markContentLoaded(): void {
 		markWindowContentReady( this.id );
@@ -2339,12 +2964,11 @@ export class Window {
 	 * boot.
 	 *
 	 * Resolves regardless of whether the content path was an iframe
-	 * `load`, the chromeless `desktop-mode-ready` postMessage, or a
+	 * `load`, the chromeless `os-ready` postMessage, or a
 	 * native render's synchronous `markContentLoaded()` — all three
 	 * end up calling {@link markWindowContentReady}.
 	 *
 	 * @public
-	 * @since 0.6.0
 	 */
 	public whenContentReady(): Promise< void > {
 		if ( isWindowContentReady( this.id ) ) {
@@ -2359,13 +2983,13 @@ export class Window {
 					return;
 				}
 				document.removeEventListener(
-					'desktop-mode-window-content-loaded',
+					'os-window-content-loaded',
 					onLoaded,
 				);
 				resolve();
 			};
 			document.addEventListener(
-				'desktop-mode-window-content-loaded',
+				'os-window-content-loaded',
 				onLoaded,
 			);
 		} );
@@ -2373,7 +2997,7 @@ export class Window {
 
 	/**
 	 * Set the activity indicator's phase explicitly. Most callers
-	 * should prefer {@link trackActivity} (or `wp.desktop.fetch()`
+	 * should prefer {@link trackActivity} (or `wp.os.fetch()`
 	 * which calls it internally) — this is the escape hatch for code
 	 * paths that aren't a single Promise (event-listener-driven
 	 * loaders, Heartbeat polls, manual save buttons that want to
@@ -2389,8 +3013,6 @@ export class Window {
 	 *
 	 * Idempotent: setting the same phase twice is a no-op except for
 	 * resetting the auto-clear timer.
-	 *
-	 * @since 0.8.0
 	 */
 	public markActivity(
 		phase: 'idle' | 'pending' | 'saving' | 'saved' | 'failed',
@@ -2398,6 +3020,35 @@ export class Window {
 	): void {
 		this._activityPhase = phase;
 		this._activityError = opts.error ?? null;
+		this._paintActivityIndicator();
+	}
+
+	/**
+	 * Drop everything in flight and return the indicator to `idle`.
+	 *
+	 * For the one case the reference count cannot survive: the
+	 * document that started the requests is gone. An iframe that
+	 * navigates mid-request takes its pending `end` messages with it,
+	 * and a counter that can only go down when someone reports back
+	 * would leave the ring lit for the rest of the window's life.
+	 *
+	 * Deliberately NOT called on a failure — a failed phase is meant
+	 * to persist until the next request starts.
+	 *
+	 * @internal
+	 */
+	public _resetActivity(): void {
+		if ( this._activitySettleTimer !== null ) {
+			window.clearTimeout( this._activitySettleTimer );
+			this._activitySettleTimer = null;
+		}
+		if ( this._activityClearTimer !== null ) {
+			window.clearTimeout( this._activityClearTimer );
+			this._activityClearTimer = null;
+		}
+		this._activityCount = 0;
+		this._activityPhase = 'idle';
+		this._activityError = null;
 		this._paintActivityIndicator();
 	}
 
@@ -2414,11 +3065,9 @@ export class Window {
 	 * burst of 5 successful fetches followed by 1 error reads
 	 * "failed", which is the right signal — surface the bad news.
 	 *
-	 * Use `wp.desktop.fetch()` for HTTP requests; reach for this
+	 * Use `wp.os.fetch()` for HTTP requests; reach for this
 	 * directly when you have a Promise from a different source
 	 * (postMessage handshake, IndexedDB transaction, …).
-	 *
-	 * @since 0.8.0
 	 */
 	public trackActivity< T >( promise: Promise< T > ): Promise< T > {
 		this._markActivityStart();
@@ -2554,7 +3203,24 @@ export class Window {
 	}
 
 	/**
-	 * Push the current activity state onto the title-bar dot.
+	 * Push the current activity state onto the title bar.
+	 *
+	 * Three consumers, in order of how most windows use them:
+	 *
+	 *   1. Every `[data-os-activity-indicator]` element in the title
+	 *      bar. The framework's own status ring is one of these — it
+	 *      claims no private channel, so a plugin mounting an
+	 *      `<os-save-status>` in a title-bar slot is driven by exactly
+	 *      the same code path.
+	 *   2. A visually-hidden `role="status"` region — a ring announces
+	 *      nothing, and "did my change save?" is exactly the question a
+	 *      screen-reader user cannot answer by looking. Failures go out
+	 *      assertively and carry the error text; everything else is
+	 *      polite.
+	 *   3. `data-os-activity` on the title-bar element, mirroring the
+	 *      phase for CSS. Absent while idle, so a desktop theme can
+	 *      react to window state without reaching into the component's
+	 *      shadow root, and an idle window matches nothing.
 	 *
 	 * @internal
 	 */
@@ -2562,17 +3228,66 @@ export class Window {
 		if ( this._isDestroyed ) {
 			return;
 		}
-		const indicator = this._titleBar.querySelector< HTMLElement >(
-			'[data-desktop-mode-activity-indicator]',
-		);
-		if ( ! indicator ) {
-			return;
-		}
-		indicator.setAttribute( 'phase', this._activityPhase );
-		if ( this._activityError ) {
-			indicator.setAttribute( 'error', this._activityError );
+		const phase = this._activityPhase;
+
+		if ( 'idle' === phase ) {
+			this._titleBar.removeAttribute( 'data-os-activity' );
 		} else {
-			indicator.removeAttribute( 'error' );
+			this._titleBar.setAttribute( 'data-os-activity', phase );
+		}
+
+		const live = this._titleBar.querySelector< HTMLElement >(
+			'.os-window__activity-status',
+		);
+		if ( live ) {
+			const failed = 'failed' === phase;
+			live.setAttribute( 'role', failed ? 'alert' : 'status' );
+			live.setAttribute( 'aria-live', failed ? 'assertive' : 'polite' );
+			live.textContent = this._activityStatusText();
+		}
+
+		// All of them, not the first — the framework's ring and a
+		// plugin's own indicator have to agree, and a window that
+		// showed two different phases at once would be worse than one
+		// that showed none.
+		const indicators = this._titleBar.querySelectorAll< HTMLElement >(
+			'[data-os-activity-indicator]',
+		);
+		indicators.forEach( ( indicator ) => {
+			indicator.setAttribute( 'phase', phase );
+			if ( this._activityError ) {
+				indicator.setAttribute( 'error', this._activityError );
+			} else {
+				indicator.removeAttribute( 'error' );
+			}
+		} );
+	}
+
+	/**
+	 * Announcement text for the current phase. Empty while idle —
+	 * a live region that keeps saying "nothing is happening" is worse
+	 * than one that stays quiet.
+	 *
+	 * `saving` is deliberately NOT announced on its own: the phase is
+	 * held for at least {@link MIN_SAVING_DISPLAY_MS} and every save
+	 * would interrupt whatever the user was reading to tell them
+	 * something they already know they started. The outcome is the
+	 * part they can't see.
+	 *
+	 * @internal
+	 */
+	private _activityStatusText(): string {
+		switch ( this._activityPhase ) {
+			case 'saved':
+				return __( 'Saved' );
+			case 'failed':
+				if ( ! this._activityError ) {
+					return __( 'Not saved.' );
+				}
+				/* translators: %s: error message explaining why the change could not be saved. */
+				return sprintf( __( 'Not saved. %s' ), this._activityError );
+			default:
+				return '';
 		}
 	}
 
@@ -2584,35 +3299,33 @@ export class Window {
 	 *
 	 * Resolution order:
 	 *   1. If a tile exists for this window's id on either rail
-	 *      (`wp.desktop.dock` or `wp.desktop.taskbar`), call
+	 *      (`wp.os.dock` or `wp.os.taskbar`), call
 	 *      `Dock.setAttention( id, mode, opts )`.
 	 *   2. Otherwise (e.g. `placement: 'none'`) fall back to
 	 *      `setHighlight('persistent')` on the window itself, auto-
 	 *      cleared after `opts.durationMs`. No-op if the window has
 	 *      no rendered chrome.
 	 *
-	 * The mode + opts pass through the `desktop-mode.window.attention`
+	 * The mode + opts pass through the `os.window.attention`
 	 * filter first so plugins (or a Do-Not-Disturb preference) can
 	 * mute (`return null`) or modify the request.
 	 *
 	 * Animations are gated on `prefers-reduced-motion`; reduced-motion
 	 * users see a static accent ring for the same duration so the
 	 * affordance still works.
-	 *
-	 * @since 0.6.0
 	 */
 	public requestAttention(
 		mode: 'pulse' | 'shake' | 'bounce' | null,
 		opts: WindowAttentionOptions = {},
 	): void {
-		// Primary policy hook (since 0.5.5): plugins filter
-		// `desktop-mode/window-attention-requested` to cancel
+		// Primary policy hook: plugins filter
+		// `os/window-attention-requested` to cancel
 		// (`cancel: true`) for DND modes / reduced-motion, scale
 		// `durationMs`/`intensity`, or audit. The pre-0.5.5
-		// `desktop-mode.window.attention` filter still runs below
+		// `os.window.attention` filter still runs below
 		// for back-compat.
 		const intent = activity.filter(
-			'desktop-mode/window-attention-requested',
+			'os/window-attention-requested',
 			{
 				windowId: this.id,
 				mode,
@@ -2641,7 +3354,7 @@ export class Window {
 			WindowAttentionMode,
 			[ { windowId: string; opts: WindowAttentionOptions } ]
 		>(
-			'desktop-mode.window.attention',
+			'os.window.attention',
 			intentMode,
 			{ windowId: this.id, opts: intentOpts },
 		);
@@ -2650,18 +3363,18 @@ export class Window {
 		// implementation that swaps Dock instances at runtime still
 		// gets the latest reference.
 		const wp = ( window as unknown as {
-			wp?: { desktop?: { dock?: unknown; taskbar?: unknown } };
+			wp?: { os?: { dock?: unknown; taskbar?: unknown } };
 		} ).wp;
 		type SetAttentionFn = (
 			id: string,
 			m: WindowAttentionMode,
 			o: WindowAttentionOptions,
 		) => void;
-		const dockApi = wp?.desktop?.dock as
+		const dockApi = wp?.os?.dock as
 			| { setAttention?: SetAttentionFn }
 			| null
 			| undefined;
-		const taskbarApi = wp?.desktop?.taskbar as
+		const taskbarApi = wp?.os?.taskbar as
 			| { setAttention?: SetAttentionFn }
 			| null
 			| undefined;
@@ -2706,13 +3419,11 @@ export class Window {
 	 *
 	 * Reduced-motion fallback: a static accent ring for the same
 	 * duration. Authors who want a different visual can listen on
-	 * the JS filter `desktop-mode.window.shake` and return falsy to mute.
-	 *
-	 * @since 0.6.0
+	 * the JS filter `os.window.shake` and return falsy to mute.
 	 */
 	public shake(): void {
 		const filtered = applyFilters< boolean, [ { windowId: string } ] >(
-			'desktop-mode.window.shake',
+			'os.window.shake',
 			true,
 			{ windowId: this.id },
 		);
@@ -2720,13 +3431,13 @@ export class Window {
 			return;
 		}
 		const el = this.element;
-		el.classList.remove( 'desktop-mode-window--shaking' );
+		el.classList.remove( 'os-window--shaking' );
 		// Force reflow so removing then re-adding the class re-triggers
 		// the animation. Reading `offsetWidth` is the canonical hack.
 		void el.offsetWidth;
-		el.classList.add( 'desktop-mode-window--shaking' );
+		el.classList.add( 'os-window--shaking' );
 		const onEnd = (): void => {
-			el.classList.remove( 'desktop-mode-window--shaking' );
+			el.classList.remove( 'os-window--shaking' );
 			el.removeEventListener( 'animationend', onEnd );
 		};
 		el.addEventListener( 'animationend', onEnd );
@@ -2747,8 +3458,6 @@ export class Window {
 	 *
 	 * Override the colour per-call via `opts.color`, or globally
 	 * via the `--wp-window-highlight-color` custom property.
-	 *
-	 * @since 0.5.2
 	 */
 	public setHighlight(
 		mode: 'preview' | 'persistent' | null,
@@ -2821,7 +3530,7 @@ export class Window {
 			this._closePending = true;
 			try {
 				this.iframe.contentWindow?.postMessage(
-					{ type: 'desktop-mode-bridge-beforeunload-query' },
+					{ type: 'os-bridge-beforeunload-query' },
 					location.origin,
 				);
 
@@ -2840,6 +3549,10 @@ export class Window {
 		}
 
 		this._isDestroyed = true;
+
+		// Drop any in-flight swap buffer — its load handler would be a
+		// no-op post-destroy, but the abandon timer shouldn't linger.
+		this._discardSwapBuffer();
 
 		// Cancel any pending activity timers so a still-pending
 		// settle / clear doesn't fire after the window has gone away.
@@ -2897,7 +3610,7 @@ export class Window {
 
 		// Abort the framework-built ctx pre-animation so
 		// `ctx.signal` flips to aborted IMMEDIATELY (in-flight
-		// `wp.desktop.fetch( …, { signal } )` requests cancel right
+		// `wp.os.fetch( …, { signal } )` requests cancel right
 		// away rather than after the fade-out) and the
 		// `onResize`/`onHide`/`onShow` listeners detach before we
 		// stop firing. The user's render-returned teardown still
@@ -2922,6 +3635,12 @@ export class Window {
 		this._bodyResizeObserver?.disconnect();
 		this._bodyResizeObserver = null;
 
+		// Same rationale for the tab strip's overflow watcher: its
+		// observers would otherwise keep measuring a strip that is
+		// animating out of the document.
+		this._tabOverflowTeardown?.();
+		this._tabOverflowTeardown = null;
+
 		// Drop every channel-bus subscriber bound to this window so
 		// stale callbacks don't fire if the same id is reopened.
 		clearWindowChannels( this.id );
@@ -2943,7 +3662,7 @@ export class Window {
 		// its stack.
 		this.onClose?.( this );
 
-		this.element.classList.add( 'desktop-mode-window--closing' );
+		this.element.classList.add( 'os-window--closing' );
 
 		// Wire the normal "animation finished" path. Captured on the
 		// instance so `_finalizeClose()` can detach the listener
@@ -2981,7 +3700,6 @@ export class Window {
 	 * finalise immediately.
 	 *
 	 * @public
-	 * @since 0.8.2
 	 */
 	public destroy(): void {
 		if ( this._isFinalized ) {
@@ -3011,7 +3729,6 @@ export class Window {
 	 * (test cleanup, plugin deactivation) explicitly opts out.
 	 *
 	 * @internal
-	 * @since 0.8.2
 	 */
 	private _suppressCloseFilter: boolean = false;
 
@@ -3022,7 +3739,6 @@ export class Window {
 	 * `transitionend` listener it might have been racing.
 	 *
 	 * @internal
-	 * @since 0.8.2
 	 */
 	private _finalizeClose(): void {
 		if ( this._isFinalized ) {
@@ -3033,6 +3749,21 @@ export class Window {
 		if ( this._closeSafetyNetTimer !== null ) {
 			clearTimeout( this._closeSafetyNetTimer );
 			this._closeSafetyNetTimer = null;
+		}
+		// The pre-close bridge query's safety net. Its callback is a
+		// no-op post-destroy (`_isDestroyed` guard), but an armed timer
+		// still outlives the window — and a window closed within its
+		// 500ms is the common case, not the rare one.
+		if ( this._iframeCloseTimeout !== null ) {
+			clearTimeout( this._iframeCloseTimeout );
+			this._iframeCloseTimeout = null;
+		}
+		// Cancel the open animation's fallback deadline. Windows that
+		// open and close inside 300ms (test harnesses, plugin
+		// deactivation flows) would otherwise leave it running against
+		// a torn-down document.
+		if ( this._clearOpeningClassRemoval ) {
+			this._clearOpeningClassRemoval();
 		}
 		if ( this._onCloseTransitionEnd ) {
 			this.element.removeEventListener(
@@ -3099,6 +3830,14 @@ export class Window {
 				true,
 			);
 		}
+		// The ⋯ menu's repaint subscription is normally dropped by
+		// `closeActionsMenu()`, and a click-driven close always gets
+		// there first because the pointerdown capture above closes the
+		// menu. A programmatic `close()` with the menu open does not —
+		// leaving a live registry listener holding this window and the
+		// detached panel it would try to repaint.
+		this._unsubscribeWindowActions?.();
+		this._unsubscribeWindowActions = null;
 		this.element.remove();
 		// If this was the last fullscreen window, drop the body
 		// class so the admin bar and shell top-offset come back
@@ -3116,7 +3855,7 @@ export class Window {
 	 */
 	private installBodyResizeObserver(): ResizeObserver | null {
 		const body = this.element.querySelector(
-			'.desktop-mode-window__body',
+			'.os-window__body',
 		) as HTMLElement | null;
 		if ( ! body ) {
 			return null;
@@ -3221,4 +3960,3 @@ export class Window {
 		openActionsMenu( this );
 	}
 }
-

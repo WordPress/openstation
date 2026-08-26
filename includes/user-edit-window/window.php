@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — Native User Edit (single user) window.
+ * OpenStation — Native User Edit (single user) window.
  *
  * Singleton native window that opens when an admin clicks an
  * OTHER user's row in the Users table (or when the URL remap for
@@ -17,30 +17,30 @@
  * target, falling back to the viewer's own id — which is how
  * `profile.php` opens).
  *
- * @package WPDesktopMode
- * @since   0.8.1
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
  * Echoes the User Edit window's template body.
- *
- * @since 0.8.1
  */
-function desktop_mode_user_edit_window_render_template() {
+function openstation_user_edit_window_render_template() {
 	ob_start();
 	?>
-	<div class="desktop-mode-user-edit-window" data-desktop-mode-user-edit-window-root>
-		<?php /*
-		 * The `<wpd-user-profile>` component reads its target
+	<div class="os-user-edit-window" data-os-user-edit-window-root>
+		<?php
+		/*
+		 * The `<os-user-profile>` component reads its target
 		 * user id from the `user-id` attribute and mounts the
 		 * full profile surface (sidebar + form + activity) on
 		 * its own. The render callback in `index.ts` sets the
 		 * attribute after reading the shared store; absent that,
 		 * the attribute is empty and the component idles until
-		 * set. */ ?>
-		<wpd-user-profile data-wpd-user-profile-host></wpd-user-profile>
+		 * set.
+		 */
+		?>
+		<os-user-profile data-os-user-profile-host></os-user-profile>
 	</div>
 	<?php
 	$html = (string) ob_get_clean();
@@ -48,14 +48,12 @@ function desktop_mode_user_edit_window_render_template() {
 	/**
 	 * Filter the User Edit window's template HTML.
 	 *
-	 * @since 0.8.1
-	 *
 	 * @param string $html Default template HTML.
 	 */
-	$filtered = (string) apply_filters( 'desktop_mode_user_edit_window_template_html', $html );
+	$filtered = (string) apply_filters( 'openstation_user_edit_window_template_html', $html );
 
-	if ( function_exists( 'desktop_mode_kses_native_window_template' ) ) {
-		echo desktop_mode_kses_native_window_template( $filtered ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- helper kses-escapes.
+	if ( function_exists( 'openstation_kses_native_window_template' ) ) {
+		echo openstation_kses_native_window_template( $filtered ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- helper kses-escapes.
 	} else {
 		echo wp_kses( $filtered, wp_kses_allowed_html( 'post' ) );
 	}
@@ -68,11 +66,9 @@ function desktop_mode_user_edit_window_render_template() {
  * scheme `name` and a `colors` tuple (typically 3-4 hex strings)
  * used to render mini-swatch previews — not just a slug list.
  *
- * @since 0.8.1
- *
  * @return array<string,array{name:string,colors:array<int,string>,icon_colors?:array<string,string>}>
  */
-function desktop_mode_user_edit_window_color_schemes() {
+function openstation_user_edit_window_color_schemes() {
 	$out = array();
 	// Always pull in `wp-admin/includes/admin.php` if needed so the
 	// admin colour scheme registry is available — the user-edit
@@ -125,11 +121,9 @@ function desktop_mode_user_edit_window_color_schemes() {
 
 /**
  * Register the User Edit native window on `init`.
- *
- * @since 0.8.1
  */
-function desktop_mode_user_edit_window_register_window() {
-	if ( ! desktop_mode_user_edit_window_user_can_register() ) {
+function openstation_user_edit_window_register_window() {
+	if ( ! openstation_user_edit_window_user_can_register() ) {
 		return;
 	}
 	$viewer_id = (int) get_current_user_id();
@@ -137,30 +131,30 @@ function desktop_mode_user_edit_window_register_window() {
 	$window_args = array(
 		'title'      => __( 'Edit user', 'desktop-mode' ),
 		'icon'       => 'dashicons-admin-users',
-		'template'   => 'desktop_mode_user_edit_window_render_template',
+		'template'   => 'openstation_user_edit_window_render_template',
 		// Reuses the Posts bundle. The render callback for
 		// `desktop-mode-user-edit` lives in `index.ts` and dispatches
 		// to `user-edit-render`'s mount points — same code the Users
 		// window's Profile tab uses.
-		'script'     => 'desktop-mode-posts-window',
-		'style'      => 'desktop-mode-posts-window',
+		'script'     => 'os-posts-window',
+		'styles'     => array( 'os-posts-window' ),
 		'width'      => 1100,
 		'height'     => 760,
 		'min_width'  => 720,
 		'min_height' => 520,
 		'placement'  => 'none',
 		'config'     => array(
-			'mode'             => 'user-edit',
-			'restRoot'         => esc_url_raw( rest_url() ),
-			'restNonce'        => wp_create_nonce( 'wp_rest' ),
-			'usersUrl'         => esc_url_raw( rest_url( 'wp/v2/users' ) ),
-			'currentUserId'    => $viewer_id,
-			'insightsUrlBase'  => esc_url_raw( rest_url( 'desktop-mode/v1/users/' ) ),
-			'editPostUrlBase'  => esc_url_raw( admin_url( 'post.php' ) ),
+			'mode'            => 'user-edit',
+			'restRoot'        => esc_url_raw( rest_url() ),
+			'restNonce'       => wp_create_nonce( 'wp_rest' ),
+			'usersUrl'        => esc_url_raw( rest_url( 'wp/v2/users' ) ),
+			'currentUserId'   => $viewer_id,
+			'insightsUrlBase' => esc_url_raw( rest_url( 'desktop-mode/v1/users/' ) ),
+			'editPostUrlBase' => esc_url_raw( admin_url( 'post.php' ) ),
 			// Capability flag so the JS can hide the role select for
 			// viewers without `promote_users`. Server-side `update_item`
 			// re-checks regardless; this is UX polish.
-			'canPromote'       => current_user_can( 'promote_users' ),
+			'canPromote'      => current_user_can( 'promote_users' ),
 			// Roles the viewer is allowed to assign — the role select
 			// reads this first and falls back to {@see allRoles} for
 			// older configs. Surfacing only assignable roles in the
@@ -168,26 +162,27 @@ function desktop_mode_user_edit_window_register_window() {
 			// loop for viewers with `promote_users` but a narrowed
 			// `editable_roles` filter (e.g. site managers who can't
 			// promote anyone to administrator).
-			'assignableRoles'  => function_exists( 'desktop_mode_users_window_role_label_map' )
-				? desktop_mode_users_window_role_label_map( $viewer_id )
+			'assignableRoles' => function_exists( 'openstation_users_window_role_label_map' )
+				? openstation_users_window_role_label_map( $viewer_id )
 				: array(),
-			'allRoles'         => function_exists( 'desktop_mode_users_window_all_roles_map' )
-				? desktop_mode_users_window_all_roles_map()
+			'allRoles'        => function_exists( 'openstation_users_window_all_roles_map' )
+				? openstation_users_window_all_roles_map()
 				: array(),
-			'locales'          => function_exists( 'desktop_mode_users_window_locales_map' )
-				? desktop_mode_users_window_locales_map()
+			'locales'         => function_exists( 'openstation_users_window_locales_map' )
+				? openstation_users_window_locales_map()
 				: array( '' => __( 'Site default', 'desktop-mode' ) ),
-			'contactMethods'   => (array) apply_filters( 'user_contactmethods', array(), null ),
-			'colorSchemes'     => desktop_mode_user_edit_window_color_schemes(),
+			/** This filter is documented in wp-includes/user.php */
+			'contactMethods'  => (array) apply_filters( 'user_contactmethods', array(), null ), // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Core's filter; the window must offer the same contact fields profile.php does.
+			'colorSchemes'    => openstation_user_edit_window_color_schemes(),
 		),
 	);
 
-	$window_args = (array) apply_filters( 'desktop_mode_user_edit_window_args', $window_args );
+	$window_args = (array) apply_filters( 'openstation_user_edit_window_args', $window_args );
 
-	$registered = desktop_mode_register_window( 'desktop-mode-user-edit', $window_args );
+	$registered = openstation_register_window( 'desktop-mode-user-edit', $window_args );
 	if ( is_wp_error( $registered ) ) {
 		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-		error_log( '[desktop-mode] User Edit window registration failed: ' . $registered->get_error_message() );
+		error_log( '[openstation] User Edit window registration failed: ' . $registered->get_error_message() );
 	}
 }
-add_action( 'init', 'desktop_mode_user_edit_window_register_window', 25 );
+add_action( 'init', 'openstation_user_edit_window_register_window', 25 );

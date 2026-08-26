@@ -1,19 +1,19 @@
 /**
  * Code Editor — page-level listeners.
  *
- * Two global handlers that run on every desktop-mode page load
+ * Two global handlers that run on every openstation page load
  * (the editor's bundle is enqueued eagerly by
- * `desktop_mode_enqueue_native_window_scripts`), regardless of whether
+ * `openstation_enqueue_native_window_scripts`), regardless of whether
  * the editor window is currently open:
  *
  *   - **Cmd/Ctrl + Shift + E** keyboard shortcut → open / focus
  *     the editor window.
- *   - **`wp-desktop-code-open` postMessage** → from any frame on
+ *   - **`os-code-open` postMessage** → from any frame on
  *     the page, request the editor open at a specific path + line.
  *     Documented for plugin authors so a "View source" link in a
  *     plugin's iframe can deep-link into the editor.
  *
- * Both handlers go through `wp.desktop.openWindow( 'wpdc-editor' )`
+ * Both handlers go through `wp.os.openWindow( 'wpdc-editor' )`
  * → the canonical native-window opener that pre-clones the
  * editor's template into the body. Same code path as the dock
  * click; no surprises on first paint.
@@ -22,7 +22,6 @@
  * a guard flag so a second import doesn't double-attach.
  *
  * @public
- * @since 0.7.0
  */
 
 const FLAG = '__wpdcEditorListenersInstalled';
@@ -39,8 +38,8 @@ interface DesktopApi {
 }
 
 function getDesktop(): DesktopApi | null {
-	const w = window as unknown as { wp?: { desktop?: unknown } };
-	return ( w.wp?.desktop ?? null ) as DesktopApi | null;
+	const w = window as unknown as { wp?: { os?: unknown } };
+	return ( w.wp?.os ?? null ) as DesktopApi | null;
 }
 
 /**
@@ -64,7 +63,7 @@ export function openEditorWindow(): boolean {
 /**
  * Open the editor window AND drive it to a specific file/line via
  * a follow-up postMessage to itself. The editor's
- * `wp-desktop-code-open` listener (below) handles the file fetch +
+ * `os-code-open` listener (below) handles the file fetch +
  * scroll. Two-step so callers from outside the editor's bundle
  * don't have to know about the editor's internal openFileAtLine.
  */
@@ -74,7 +73,7 @@ function openEditorAtPath( path: string, line: number = 1 ): void {
 	// once the render callback has mounted the editor.
 	const fire = (): void =>
 		window.postMessage(
-			{ type: 'wp-desktop-code-open', path, line },
+			{ type: 'os-code-open', path, line },
 			window.location.origin,
 		);
 	// rAF defers until the next paint — the editor's render callback
@@ -83,7 +82,7 @@ function openEditorAtPath( path: string, line: number = 1 ): void {
 }
 
 interface OpenEditorMessage {
-	type: 'wp-desktop-code-open';
+	type: 'os-code-open';
 	path: string;
 	line?: number;
 }
@@ -94,7 +93,7 @@ function isOpenEditorMessage( data: unknown ): data is OpenEditorMessage {
 	}
 	const msg = data as Record< string, unknown >;
 	return (
-		msg.type === 'wp-desktop-code-open' &&
+		msg.type === 'os-code-open' &&
 		typeof msg.path === 'string' &&
 		( msg.line === undefined || typeof msg.line === 'number' )
 	);
@@ -105,7 +104,7 @@ function isOpenEditorMessage( data: unknown ): data is OpenEditorMessage {
  * Plugin authors post:
  *
  *     window.parent.postMessage(
- *         { type: 'wp-desktop-code-open', path: 'plugins/foo/foo.php', line: 42 },
+ *         { type: 'os-code-open', path: 'plugins/foo/foo.php', line: 42 },
  *         window.location.origin
  *     );
  *
@@ -116,7 +115,7 @@ function isOpenEditorMessage( data: unknown ): data is OpenEditorMessage {
  */
 function installPostMessageListener(): void {
 	window.addEventListener( 'message', ( event: MessageEvent ) => {
-		// Same-origin only — desktop mode runs on a single origin
+		// Same-origin only — OpenStation runs on a single origin
 		// and we have no need to accept cross-origin opens.
 		if ( event.origin !== window.location.origin ) {
 			return;
@@ -155,7 +154,7 @@ function installKeyboardShortcut(): void {
 				const target = e.target as HTMLElement | null;
 				if (
 					target?.isContentEditable &&
-					! target.closest( '[data-wpdc-editor-root]' )
+					! target.closest( '[data-osc-editor-root]' )
 				) {
 					return;
 				}

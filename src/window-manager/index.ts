@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Window Manager.
+ * OpenStation — Window Manager.
  *
  * Manages the lifecycle, z-order, and focus of all desktop windows,
  * plus the virtual-desktop registry ("Spaces"). Most heavy logic lives
@@ -18,8 +18,6 @@
  * folder may touch them, but nothing outside `src/window-manager/`
  * should. Kept `public` at the TypeScript level only because `private`
  * prevents sibling modules from seeing them.
- *
- * @since 0.5.0
  */
 
 import { HOOKS, doAction, applyFilters } from '../hooks';
@@ -49,6 +47,7 @@ import {
 	getActiveDesktop,
 	getActiveDesktopId,
 	getDesktops,
+	renameDesktop,
 	seedDesktops,
 	switchDesktop,
 	type SwitchDesktopOptions,
@@ -64,6 +63,7 @@ import {
 	commitSnapIfPending,
 	updateSnapZoneForDrag,
 } from './snap-zones';
+import { destroyDesktopNameHud } from './desktop-name-hud';
 import { cancelOverviewTimers, enterOverview, exitOverview } from './overview';
 import { loadNativeWindowGeometry } from './native-window-geometry';
 import { clampWindowPosition } from '../window/pointer';
@@ -81,7 +81,6 @@ const CASCADE_OFFSET = 30;
  * being baked into the `WindowConfig`.
  *
  * @public
- * @since 0.8.6
  */
 export interface ResolvedWindowGeometry {
 	x: number;
@@ -114,7 +113,7 @@ export interface ResolvedWindowGeometry {
  *     "leave the user's layout alone" should bail when this is true.
  *   - `callerPinned`: the caller of `manager.open()` passed at least
  *     one of `{ x, y, width, height, initialState }` explicitly. For
- *     native windows registered via `desktop_mode_register_window()`
+ *     native windows registered via `openstation_register_window()`
  *     this is usually `true` (the framework's native-window opener
  *     passes the registry's declared dimensions); for admin-page
  *     iframe windows opened from the dock this is usually `false`.
@@ -122,7 +121,6 @@ export interface ResolvedWindowGeometry {
  *     `callerPinned: true` does not mean "leave it alone."
  *
  * @public
- * @since 0.8.6
  */
 export interface WindowGeometryContext {
 	windowId: string;
@@ -148,6 +146,36 @@ export class WindowManager {
 	public _stack: Window[] = [];
 
 	/**
+	 * Child windows that a `cascadeMinimize` put away, so restoring
+	 * the owner brings back exactly those and leaves alone the ones
+	 * the user had minimized themselves.
+	 *
+	 * A `WeakSet` because membership must not keep a closed window
+	 * alive — a child that closes while minimized is never restored,
+	 * so nothing would ever remove it from a strong collection.
+	 */
+	private _cascadeMinimized: WeakSet< Window > = new WeakSet();
+
+	/**
+	 * Re-entrancy depth of an ownership cascade (minimize / restore /
+	 * close of a window that owns children).
+	 *
+	 * A cascade is one user action, and it should emit one focus
+	 * change. Without this, each child's own `minimize()` re-enters
+	 * `onMinimize` and settles focus on an intermediate window before
+	 * the cascade finishes, so minimizing an owner with three children
+	 * fired four `WINDOW_FOCUSED` / `WINDOW_BLURRED` pairs. The end
+	 * state was right, but anything building an activity feed or
+	 * analytics off those actions saw transitions the user never made.
+	 *
+	 * Non-zero means "an outer cascade is still running and will settle
+	 * focus when it is done" — intermediate focus work is skipped.
+	 * Incremented and decremented in `finally` so a throwing child
+	 * cannot wedge the desktop in a state where clicks stop focusing.
+	 */
+	private _cascadeDepth = 0;
+
+	/**
 	 * The desktop area element where windows are rendered.
 	 * @internal
 	 */
@@ -155,6 +183,34 @@ export class WindowManager {
 
 	/** Counter for cascade positioning. */
 	private cascadeIndex = 0;
+
+	/**
+	 * Config staged by {@link seedWindowRestoreState}, keyed by window
+	 * id and consumed by the first `createWindow` that claims each id.
+	 * Empty outside of session restore.
+	 */
+	private _pendingRestoreState = new Map< string, Partial< WindowConfig > >();
+
+	/**
+	 * The one prewarmed (hidden, speculative) window, if any — built by
+	 * {@link prewarm} ahead of an anticipated open so the iframe's
+	 * document TTFB and parse are already paid when the user clicks.
+	 *
+	 * Deliberately NOT in {@link _stack}: session snapshots, the
+	 * taskbar, dock peek, Alt-Tab and every other consumer walk the
+	 * stack, so a window that was never announced as opened stays
+	 * invisible to all of them for free. Adoption (in {@link open})
+	 * pushes it into the stack and fires `os-window-opened`, at which
+	 * point every event-driven consumer catches up exactly as for a
+	 * regular open. Single slot on purpose — each speculative iframe
+	 * is a full admin page (tens of MB of renderer memory), so the
+	 * newest prediction always evicts the previous one.
+	 */
+	private _prewarmed: { baseId: string; win: Window; timer: number } | null =
+		null;
+
+	/** Re-entrancy guard for {@link prewarm} (async construction). */
+	private _prewarmInFlight = false;
 
 	/**
 	 * Virtual desktops ("Spaces"). Always at least one entry — the
@@ -183,7 +239,7 @@ export class WindowManager {
 	/**
 	 * Injected by the shell on init — called when a user clicks
 	 * "Open on startup" in a window's ⋯ menu. The manager stays
-	 * decoupled from the public `wp.desktop.setDefaultWindow()` API
+	 * decoupled from the public `wp.os.setDefaultWindow()` API
 	 * by taking the handler as a callback.
 	 */
 	public onToggleStartupRequested: ( ( win: Window ) => void ) | null = null;
@@ -272,6 +328,17 @@ export class WindowManager {
 	 * @internal
 	 */
 	public _overviewExitTimeoutId: number | null = null;
+	/**
+	 * Cleanup for the exit animation scheduled by `exitOverview()`,
+	 * held so it can be run AHEAD of its timer rather than only by it.
+	 * Re-entering overview inside the 280 ms exit window has to settle
+	 * the outgoing session first — otherwise the stale timer fires
+	 * mid-session and undoes the new one's setup (stripping
+	 * `os-window--overview`, re-applying a suspended fullscreen class,
+	 * removing the freshly-built top bar).
+	 * @internal
+	 */
+	public _overviewExitFinalizer: ( () => void ) | null = null;
 
 	// ---- Snap-zone state (edge-snap + split overview) ----
 
@@ -284,7 +351,7 @@ export class WindowManager {
 
 	/**
 	 * The translucent preview rectangle shown while a snap is armed.
-	 * Lives inside `.desktop-mode-area`.
+	 * Lives inside `.os-area`.
 	 * @internal
 	 */
 	public _snapPreviewEl: HTMLElement | null = null;
@@ -334,7 +401,7 @@ export class WindowManager {
 	 *
 	 * We use that signal: listen for `window.blur` on the parent,
 	 * check `document.activeElement` — if it's an iframe, walk up to
-	 * its owning `.desktop-mode-window`, find the matching Window in
+	 * its owning `.os-window`, find the matching Window in
 	 * our stack, and focus it. Covers clicks on the primary iframe
 	 * AND any external-tab sub-iframes mounted as descendants of the
 	 * window element.
@@ -351,7 +418,7 @@ export class WindowManager {
 					return;
 				}
 				const winEl = active.closest<HTMLElement>(
-					'.desktop-mode-window',
+					'.os-window',
 				);
 				if ( ! winEl ) {
 					return;
@@ -393,7 +460,7 @@ export class WindowManager {
 	 * INCOMING shape change (the shell reshaped us), not an outgoing
 	 * user action worth persisting.
 	 *
-	 * Also toggles `desktop-mode-window--reflowing` so the base
+	 * Also toggles `os-window--reflowing` so the base
 	 * left/top/width/height transition doesn't interpolate between
 	 * every ResizeObserver tick — without that, the windows would
 	 * always lag ~250 ms behind a browser edge-drag.
@@ -413,14 +480,14 @@ export class WindowManager {
 				continue;
 			}
 			if ( w.state === 'maximized' ) {
-				w.element.classList.add( 'desktop-mode-window--reflowing' );
+				w.element.classList.add( 'os-window--reflowing' );
 				w.element.style.width = `${ parent.clientWidth }px`;
 				w.element.style.height = `${ parent.clientHeight }px`;
 			} else if (
 				w.state === 'snapped-left' ||
 				w.state === 'snapped-right'
 			) {
-				w.element.classList.add( 'desktop-mode-window--reflowing' );
+				w.element.classList.add( 'os-window--reflowing' );
 				const halfW = Math.floor( parent.clientWidth / 2 );
 				const height = parent.clientHeight;
 				const left = w.state === 'snapped-left' ? 0 : halfW;
@@ -436,7 +503,7 @@ export class WindowManager {
 				const safe = clampWindowPosition( currentX, currentY, width, parent.clientWidth, parent.clientHeight );
 
 				if ( currentX !== safe.x || currentY !== safe.y ) {
-					w.element.classList.add( 'desktop-mode-window--reflowing' );
+					w.element.classList.add( 'os-window--reflowing' );
 					w.element.style.left = `${ safe.x }px`;
 					w.element.style.top = `${ safe.y }px`;
 				}
@@ -453,7 +520,7 @@ export class WindowManager {
 		this._reflowRestoreTimer = window.setTimeout( () => {
 			this._reflowRestoreTimer = null;
 			for ( const w of this._stack ) {
-				w.element.classList.remove( 'desktop-mode-window--reflowing' );
+				w.element.classList.remove( 'os-window--reflowing' );
 			}
 		}, 140 ) as unknown as number;
 	}
@@ -475,7 +542,7 @@ export class WindowManager {
 	 * place — an action URL like
 	 * `plugins.php?action=activate&…&_wpnonce=…` actually runs
 	 * instead of being dropped by a bare focus. The
-	 * `desktop-mode-window-reopened` event reports which path was
+	 * `os-window-reopened` event reports which path was
 	 * taken via its `navigated` flag.
 	 *
 	 * To force a brand-new instance alongside an existing one, use
@@ -555,40 +622,186 @@ export class WindowManager {
 				}
 			}
 			// Plugins (messages, code-editor, …) routinely call
-			// `wp.desktop.openWindow(id)` to "switch the window to
+			// `wp.os.openWindow(id)` to "switch the window to
 			// this state" — selecting a conversation, opening a file,
 			// jumping to a tab. For NEW windows the render callback
 			// runs and the seeded state lands on first paint; for
 			// EXISTING windows there was no signal at all that an
 			// open was requested. Plugins were forced to subscribe to
-			// `desktop-mode-window-focused` and infer "open" from
+			// `os-window-focused` and infer "open" from
 			// "focus", which double-fires on every alt-tab and never
 			// fires when the window is already focused. The reopen
 			// event is the unambiguous "open requested while already
 			// open" signal — fires exactly once per `open()` call on
 			// an existing instance.
+			// Retarget: a native singleton reopened with new params is
+			// being asked to show something else. Write them onto the
+			// live config BEFORE the reopen event so a subscriber can
+			// read `params` and repaint, and so the next session save
+			// records what the window is showing NOW rather than what
+			// it opened on. An argument-less reopen leaves the params
+			// alone — a dock click on an already-open profile window
+			// must not wipe whose profile it is.
+			if ( config.params ) {
+				existing.config.params = { ...config.params };
+			}
+
 			const reopenedDetail = {
 				windowId: existing.id,
 				baseId,
 				wasMinimized,
 				navigated,
+				params: existing.config.params ?? {},
 			};
 			document.dispatchEvent(
-				new CustomEvent( 'desktop-mode-window-reopened', { detail: reopenedDetail } ),
+				new CustomEvent( 'os-window-reopened', { detail: reopenedDetail } ),
 			);
 			doAction( HOOKS.WINDOW_REOPENED, reopenedDetail );
 			return existing;
 		}
 
-		// No instance on the current desktop. If any instance is open
-		// on another desktop, the bare `baseId` is taken — pick the
-		// next free suffix so DOM ids stay unique. Otherwise use the
-		// caller-supplied id as-is (plain `plugins-php`, `edit-php`,
-		// etc.).
+		// No instance on the current desktop — but a prewarmed hidden
+		// window might already be loading this exact page. Adopt it
+		// (reveal + focus + announce) instead of building a new one.
+		const adopted = this.adoptPrewarmed( baseId, config );
+		if ( adopted ) {
+			return adopted;
+		}
+
+		// If any instance is open on another desktop, the bare `baseId`
+		// is taken — pick the next free suffix so DOM ids stay unique.
+		// Otherwise use the caller-supplied id as-is (plain
+		// `plugins-php`, `edit-php`, etc.).
 		const id = this.getByBaseId( baseId )
 			? this.nextInstanceId( baseId )
 			: config.id;
 		return this.createWindow( { ...config, id, baseId } );
+	}
+
+	/**
+	 * Speculatively build a hidden iframe window for a page the user is
+	 * likely to open next (dock hover intent), so the document's server
+	 * render, transfer and parse are already underway — or done — when
+	 * the real `open()` arrives and adopts it.
+	 *
+	 * The window mounts `display: none` + `aria-hidden` and lives in a
+	 * single-slot cache OUTSIDE the stack (see {@link _prewarmed}), so
+	 * it is invisible to sessions, the taskbar, peek cards and Alt-Tab
+	 * until adoption. No `os-window-*` event fires for it. Unclaimed
+	 * prewarms self-destruct after a TTL. Returns `true` when a
+	 * prewarm was started, `false` when skipped (native target,
+	 * instance already open, same prewarm already present, or one in
+	 * flight).
+	 */
+	public async prewarm(
+		config: Partial< WindowConfig > & {
+			id: string;
+			url: string;
+			title: string;
+		},
+	): Promise< boolean > {
+		const baseId = config.baseId || config.id;
+		if (
+			config.native ||
+			this._prewarmInFlight ||
+			this._prewarmed?.baseId === baseId ||
+			this.getByBaseId( baseId )
+		) {
+			return false;
+		}
+		this._prewarmInFlight = true;
+		try {
+			// Newest prediction wins the single slot.
+			this.discardPrewarmed();
+			const win = await this.createWindow(
+				{ ...config, id: config.id, baseId },
+				{ prewarm: true },
+			);
+			// Unclaimed speculative windows must not outlive the intent
+			// that spawned them — an admin iframe holds real renderer
+			// memory, and its nonces age. 45s comfortably covers the
+			// hover → decide → click window.
+			const timer = window.setTimeout(
+				() => this.discardPrewarmed(),
+				45_000,
+			);
+			this._prewarmed = { baseId, win, timer };
+			return true;
+		} finally {
+			this._prewarmInFlight = false;
+		}
+	}
+
+	/**
+	 * Hand a prewarmed window over to a real `open()` call: reveal it,
+	 * join the stack, focus, and fire `os-window-opened` so sessions,
+	 * the taskbar and the dock catch up exactly as for a normal open.
+	 * Returns `null` (after discarding, where appropriate) when the
+	 * slot doesn't match the request — wrong page, different URL than
+	 * was prewarmed, or an id that got taken in the meantime.
+	 */
+	private adoptPrewarmed(
+		baseId: string,
+		config: Partial< WindowConfig > & { url: string },
+	): Window | null {
+		const slot = this._prewarmed;
+		if ( ! slot || slot.baseId !== baseId ) {
+			return null;
+		}
+		const win = slot.win;
+		// The prewarm is only valid for the URL it actually loaded — a
+		// submenu link under the same tile is a different destination.
+		// And its id may have been claimed by an openNew() on another
+		// desktop while it sat hidden. Either way: discard, fall
+		// through to the normal create path.
+		if (
+			urlReuseKey( config.url ) !== urlReuseKey( win.config.url || '' ) ||
+			this.getById( win.id )
+		) {
+			this.discardPrewarmed();
+			return null;
+		}
+		window.clearTimeout( slot.timer );
+		this._prewarmed = null;
+		win.config.desktopId = this._activeDesktopId;
+		win.element.style.display = '';
+		win.element.removeAttribute( 'aria-hidden' );
+		this._stack.push( win );
+		applyDesktopVisibility( this, win );
+		this.focus( win );
+		const openedDetail = {
+			windowId: win.id,
+			page: win.config.url ?? config.url,
+			title: win.config.title,
+			url: win.config.url ?? config.url,
+		};
+		document.dispatchEvent(
+			new CustomEvent( 'os-window-opened', { detail: openedDetail } ),
+		);
+		doAction( HOOKS.WINDOW_OPENED, openedDetail );
+		return win;
+	}
+
+	/**
+	 * Destroy the current prewarmed window, if any. Detaches the close
+	 * callback first — the shell never announced this window as opened,
+	 * so its teardown must not announce a close either.
+	 */
+	public discardPrewarmed(): void {
+		const slot = this._prewarmed;
+		if ( ! slot ) {
+			return;
+		}
+		this._prewarmed = null;
+		window.clearTimeout( slot.timer );
+		slot.win.onClose = null;
+		try {
+			slot.win.destroy();
+		} catch {
+			// Best-effort teardown; the element removal below is the
+			// part that must not fail silently forever.
+		}
+		slot.win.element.remove();
 	}
 
 	/**
@@ -602,12 +815,26 @@ export class WindowManager {
 	 * would hide the primary; landing a twin on top of the primary's
 	 * remembered position would hide it too. Callers can override
 	 * either default by passing `initialState` / `x` / `y` explicitly.
+	 *
+	 * A caller-supplied `id` that differs from `baseId` and isn't
+	 * taken yet is honoured VERBATIM rather than being reassigned to
+	 * the next free slot. Session restore depends on this: it replays
+	 * saved instance ids (`edit-php-2`) and anything keyed by window
+	 * id — the focused-window pointer in the same session payload,
+	 * per-window plugin state, `wp.os.onWindow( id )`
+	 * subscriptions — only lines up if the restored window comes back
+	 * under the id it was saved with. Slot allocation still applies
+	 * to every other caller (a plain duplicate request passes
+	 * `id === baseId`).
 	 */
 	public async openNew(
 		config: Partial<WindowConfig> & { id: string; url: string; title: string },
 	): Promise< Window > {
 		const baseId = config.baseId || config.id;
-		const nextId = this.nextInstanceId( baseId );
+		const nextId =
+			config.id !== baseId && ! this.getById( config.id )
+				? config.id
+				: this.nextInstanceId( baseId );
 		const cascadeX = 40 + ( this.cascadeIndex % 8 ) * CASCADE_OFFSET;
 		const cascadeY = 40 + ( this.cascadeIndex % 8 ) * CASCADE_OFFSET;
 		return this.createWindow( {
@@ -626,7 +853,19 @@ export class WindowManager {
 	 */
 	private async createWindow(
 		config: Partial<WindowConfig> & { id: string; url: string; title: string; baseId?: string },
+		createOpts: { prewarm?: boolean } = {},
 	): Promise< Window > {
+		// Apply (and consume) anything session restore staged for this
+		// id — see {@link seedWindowRestoreState}. Merged before the
+		// geometry resolution below so the seeded x / y / size / state
+		// register as caller-pinned and win over the localStorage
+		// fallback, exactly as if the opener had passed them.
+		const staged = this._pendingRestoreState.get( config.id );
+		if ( staged ) {
+			this._pendingRestoreState.delete( config.id );
+			config = { ...config, ...staged };
+		}
+
 		const desktopRect = this._desktop.getBoundingClientRect();
 		const defaultWidth = Math.min( Math.round( desktopRect.width * 0.8 ), 1200 );
 		const defaultHeight = Math.min( Math.round( desktopRect.height * 0.8 ), 800 );
@@ -746,7 +985,7 @@ export class WindowManager {
 			} );
 			if ( typeof console !== 'undefined' ) {
 				console.error(
-					`[desktop-mode] WINDOW_GEOMETRY filter threw for "${ config.id }":`,
+					`[openstation] WINDOW_GEOMETRY filter threw for "${ config.id }":`,
 					err,
 				);
 			}
@@ -808,10 +1047,10 @@ export class WindowManager {
 		//   1. `window-system[.min].js` — the `Window` class
 		//      itself + its DOM / pointer / tab helpers.
 		//   2. `shell-overlays[.min].js` — the window-chrome
-		//      component classes (`<wpd-window-button>`,
-		//      `<wpd-menu>`, `<wpd-tab-chip>`, `<wpd-save-status>`,
-		//      `<wpd-spinner>`). Without these the constructor's
-		//      `createElement( 'wpd-window-button' )` calls
+		//      component classes (`<os-window-button>`,
+		//      `<os-menu>`, `<os-tab-chip>`, `<os-save-status>`,
+		//      `<os-spinner>`). Without these the constructor's
+		//      `createElement( 'os-window-button' )` calls
 		//      return un-upgraded elements with empty shadow DOMs
 		//      — the title bar's minimize / maximize / close
 		//      icons would be invisible until the overlays
@@ -829,12 +1068,46 @@ export class WindowManager {
 		] );
 		const win = system.createWindow( fullConfig );
 
-		win.onFocusRequest = ( w: Window ) => this.focus( w );
+		win.onFocusRequest = ( w: Window ) => {
+			// Mid-cascade, the window asking for focus is one the
+			// cascade is moving, not one the user picked. Let the
+			// cascade settle focus once at the end.
+			if ( this._cascadeDepth > 0 ) {
+				return;
+			}
+			this.focus( w );
+		};
 		win.onClose = ( w: Window ) => this.remove( w );
-		win.onMinimize = () => {
-			const visible = this._stack.filter( ( w ) => w.state !== 'minimized' );
+		win.onMinimize = ( w: Window ) => {
+			// Children go away with their owner — a child left floating
+			// over the gap where its owner used to be reads as a
+			// detached dialog, and it would go on blocking a window the
+			// user can no longer see.
+			this._cascadeDepth++;
+			try {
+				this.cascadeMinimize( w );
+			} finally {
+				this._cascadeDepth--;
+			}
+			if ( this._cascadeDepth > 0 ) {
+				return;
+			}
+			const visible = this._stack.filter( ( x ) => x.state !== 'minimized' );
 			if ( visible.length > 0 ) {
 				this.focus( visible[ visible.length - 1 ] );
+			}
+		};
+		win.onRestore = ( w: Window ) => {
+			// No focus call here on purpose. `Window.restore()` fires
+			// this BEFORE its own `onFocusRequest`, so once the children
+			// are back the request that follows resolves through the
+			// normal redirect and the whole group costs one focus
+			// change.
+			this._cascadeDepth++;
+			try {
+				this.cascadeRestore( w );
+			} finally {
+				this._cascadeDepth--;
 			}
 		};
 		win.onOpenAnother = ( w: Window ) => {
@@ -848,14 +1121,14 @@ export class WindowManager {
 			if ( w.config.native ) {
 				const api = ( window as unknown as {
 					wp?: {
-						desktop?: {
+						os?: {
 							openNewWindow?: (
 								id: string,
 								opts?: { source?: string },
 							) => boolean;
 						};
 					};
-				} ).wp?.desktop;
+				} ).wp?.os;
 				if ( api?.openNewWindow?.( baseId, { source: 'open-another' } ) ) {
 					return;
 				}
@@ -883,14 +1156,14 @@ export class WindowManager {
 			if ( w.config.native ) {
 				const api = ( window as unknown as {
 					wp?: {
-						desktop?: {
+						os?: {
 							openNewWindow?: (
 								id: string,
 								opts?: { source?: string },
 							) => boolean;
 						};
 					};
-				} ).wp?.desktop;
+				} ).wp?.os;
 				if ( api?.openNewWindow?.( baseId, { source: 'open-in-new-window' } ) ) {
 					return;
 				}
@@ -910,7 +1183,7 @@ export class WindowManager {
 		// preference to point at this window's current URL — or
 		// disables it entirely when the window is already the default.
 		// The actual REST write is owned by the shell's public API
-		// (`wp.desktop.setDefaultWindow`), injected via
+		// (`wp.os.setDefaultWindow`), injected via
 		// `this.onToggleStartupRequested`.
 		win.onToggleStartup = ( w: Window ) => {
 			this.onToggleStartupRequested?.( w );
@@ -931,19 +1204,32 @@ export class WindowManager {
 			return false;
 		};
 
+		if ( createOpts.prewarm ) {
+			// Speculative build (see {@link prewarm}): mount hidden so
+			// the iframe starts loading (a detached iframe never
+			// fetches; a display:none one does), skip the stack, skip
+			// focus, fire nothing. The loading-overlay and reveal
+			// machinery finds the element by id and runs to completion
+			// invisibly — by adoption time the content is simply ready.
+			win.element.style.display = 'none';
+			win.element.setAttribute( 'aria-hidden', 'true' );
+			this._desktop.appendChild( win.element );
+			return win;
+		}
+
 		this._stack.push( win );
 		this._desktop.appendChild( win.element );
 		applyDesktopVisibility( this, win );
 
 		// Hydrate native windows AFTER mount. The plugin's render
 		// callback receives a body that's already connected to the
-		// document, so any `<wpd-*>` custom element the plugin
+		// document, so any `<os-*>` custom element the plugin
 		// creates or populates via declarative setters upgrades
 		// synchronously (HTML spec: elements upgrade on connection).
 		// Calling before mount would leave the body detached,
 		// which made `element.items = […]` stash an own data
 		// property on the pre-upgrade instance that shadowed the
-		// class setter after upgrade — empty `<wpd-select>`s in
+		// class setter after upgrade — empty `<os-select>`s in
 		// practice. No-op for iframe windows.
 		win.hydrateNative();
 
@@ -956,7 +1242,7 @@ export class WindowManager {
 			url: config.url,
 		};
 		document.dispatchEvent(
-			new CustomEvent( 'desktop-mode-window-opened', { detail: openedDetail } ),
+			new CustomEvent( 'os-window-opened', { detail: openedDetail } ),
 		);
 		// Fan out to the hook bus so plugins using wp.hooks.addAction()
 		// stay in their idiomatic API rather than juggling
@@ -984,8 +1270,71 @@ export class WindowManager {
 		return `${ baseId }-${ n }`;
 	}
 
-	/** Focus a window: bring it to top of z-stack. */
-	public focus( win: Window ): void {
+	/**
+	 * Focus a window: bring it to top of z-stack.
+	 *
+	 * Accepts either a `Window` or its id — `focus( 'jorvy' )` is the
+	 * form the docs and `built-in-commands` already show, and the
+	 * natural one for a plugin author holding only an id.
+	 *
+	 * The runtime guard is load-bearing, not decoration. `focus()`
+	 * pushes its argument onto `_stack` and then calls `setZIndex()`
+	 * on every member, so an unresolvable argument used to leave a
+	 * non-Window wedged in the stack and every LATER focus() —
+	 * click-to-focus, dock activation, open-reuse — threw on it. One
+	 * bad call bricked the desktop until a reload. Resolve ids and
+	 * reject anything that isn't a Window BEFORE touching the stack.
+	 *
+	 * Unknown ids are a silent no-op (matching `raise()`): a window
+	 * closing between an id being captured and focus being requested
+	 * is a routine race, not a programming error. A non-Window,
+	 * non-string argument IS a programming error, so it warns.
+	 *
+	 * A window that OWNS an open child cannot be focused — focus goes
+	 * to the child instead (see {@link blockingChildOf}). That is the
+	 * whole of child-window modality, and it lives here rather than at
+	 * the call sites so every focus path is covered by construction:
+	 * click-to-focus, dock activation, taskbar, alt-tab, open-reuse.
+	 *
+	 * @param winOrId Window to focus, or its id.
+	 */
+	public focus( winOrId: Window | string ): void {
+		const requested =
+			typeof winOrId === 'string' ? this.getById( winOrId ) : winOrId;
+		if ( ! requested || typeof requested.setZIndex !== 'function' ) {
+			if ( winOrId && typeof winOrId !== 'string' ) {
+				// eslint-disable-next-line no-console -- Surfacing a call that would otherwise corrupt the z-stack silently.
+				console.warn(
+					'[openstation] windowManager.focus() expects a Window or a window id; received',
+					winOrId,
+				);
+			}
+			return;
+		}
+
+		// Child-window modality. Redirect to the DEEPEST open
+		// descendant so a chain (owner → child → grandchild) hands
+		// focus to the one actually on top rather than to a middle
+		// link that is itself blocked.
+		const win = this.blockingChildOf( requested ) ?? requested;
+		if ( win !== requested ) {
+			// Nudge the child so the click reads as "answer this
+			// first" instead of as a dead click on the owner.
+			win.shake?.();
+			doAction( HOOKS.WINDOW_CHILD_BLOCKED, {
+				windowId: requested.id,
+				childWindowId: win.id,
+			} );
+			document.dispatchEvent(
+				new CustomEvent( 'os-window-child-blocked', {
+					detail: { windowId: requested.id, childWindowId: win.id },
+				} ),
+			);
+			// Fall through: the child is focused exactly as if it had
+			// been the argument, so it lands on top and fires the
+			// normal blur/focus pair.
+		}
+
 		// Capture the previously-focused window BEFORE the splice/push
 		// changes the stack — needed so we can fire `WINDOW_BLURRED`
 		// for it. No-op when this `focus()` is hitting the already-
@@ -995,7 +1344,7 @@ export class WindowManager {
 			this._stack.length > 0 ? this._stack[ this._stack.length - 1 ] : null;
 
 		// A fullscreen window pins itself above all other windows via
-		// `z-index: var(--desktop-mode-z-fullscreen)`, so any newly-
+		// `z-index: var(--os-z-fullscreen)`, so any newly-
 		// focused window would render behind it. Default: exit
 		// fullscreen on focus change. Plugins whose fullscreen surface
 		// is meant to persist (slideshow, video, game) can opt out via
@@ -1031,6 +1380,13 @@ export class WindowManager {
 		}
 		this._stack.push( win );
 
+		// Lift every open child back above its owner. Focusing an
+		// owner is already redirected, but plenty of other paths move
+		// the stack — restore-from-minimize, desktop switch, session
+		// restore — and each could otherwise bury a child under the
+		// window it is supposed to be blocking.
+		this.enforceOwnershipOrder();
+
 		// Update z-indices and focused state.
 		this._stack.forEach( ( w, i ) => {
 			w.setZIndex( BASE_Z_INDEX + i );
@@ -1050,7 +1406,7 @@ export class WindowManager {
 				focusedTo: win.id,
 			};
 			document.dispatchEvent(
-				new CustomEvent( 'desktop-mode-window-blurred', { detail: blurredDetail } ),
+				new CustomEvent( 'os-window-blurred', { detail: blurredDetail } ),
 			);
 			doAction( HOOKS.WINDOW_BLURRED, blurredDetail );
 		}
@@ -1058,7 +1414,7 @@ export class WindowManager {
 		// Dispatch custom event + action for the newly-focused window.
 		const focusedDetail = { windowId: win.id };
 		document.dispatchEvent(
-			new CustomEvent( 'desktop-mode-window-focused', { detail: focusedDetail } ),
+			new CustomEvent( 'os-window-focused', { detail: focusedDetail } ),
 		);
 		doAction( HOOKS.WINDOW_FOCUSED, focusedDetail );
 	}
@@ -1074,8 +1430,6 @@ export class WindowManager {
 	 * forward when one of its members is focused; available to
 	 * plugins for any "surface my companion window" affordance.
 	 *
-	 * @since 0.9.4
-	 *
 	 * @param windowId Window to raise. Unknown ids and the focused
 	 *                 window itself are no-ops.
 	 */
@@ -1090,9 +1444,287 @@ export class WindowManager {
 		}
 		this._stack.splice( idx, 1 );
 		this._stack.splice( this._stack.length - 1, 0, win );
+		this.enforceOwnershipOrder();
 		this._stack.forEach( ( w, i ) => {
 			w.setZIndex( BASE_Z_INDEX + i );
 		} );
+	}
+
+	/**
+	 * Open a **child window** owned by `parentWindowId`.
+	 *
+	 * A child is a real window — its own chrome, drag, resize,
+	 * minimize, taskbar entry — with one rule layered on top: its
+	 * owner can never sit above it. Clicking the owner shakes the
+	 * child and leaves focus there. Use it for the "finish this before
+	 * going back" shapes a modal dialog is normally reached for, when
+	 * what you actually want is a window: a full editor for one row of
+	 * a list, a wizard beside the page it configures, a diff over the
+	 * revision it belongs to.
+	 *
+	 * The owner keeps working throughout — scrollable, readable,
+	 * draggable, resizable. Only its z-order is constrained.
+	 *
+	 * Centers over the owner by default, which is what makes the
+	 * relationship legible at a glance; pass `x`/`y` to override.
+	 * Every other `open()` option (`native`, `render`, `width`,
+	 * `params`, …) behaves exactly as it does there.
+	 *
+	 * ```js
+	 * await wp.os.windowManager.openChild( 'edit-post-42', {
+	 *     id: 'my-plugin-seo-audit-42',
+	 *     url: '#seo-audit-42',
+	 *     title: 'SEO audit',
+	 *     icon: 'dashicons-chart-line',
+	 *     native: true,
+	 *     render: ( body ) => { … },
+	 * } );
+	 * ```
+	 *
+	 * @param parentWindowId Owner window's id. Must be open — a child
+	 *                       of nothing has nothing to block, so an
+	 *                       unknown id rejects rather than quietly
+	 *                       opening a normal window.
+	 * @param config         Window config, exactly as for `open()`.
+	 *                       Any `parentWindowId` in here is ignored in
+	 *                       favour of the argument.
+	 * @return The opened child window.
+	 */
+	public async openChild(
+		parentWindowId: string,
+		config: Partial< WindowConfig > & {
+			id: string;
+			url: string;
+			title: string;
+		},
+	): Promise< Window > {
+		const parent = this.getById( parentWindowId );
+		if ( ! parent ) {
+			throw new Error(
+				`windowManager.openChild(): no open window with id "${ parentWindowId }". Open the owner first, or use open() for a standalone window.`,
+			);
+		}
+
+		// Does this child already have a place the user chose? `open()`
+		// falls back to per-baseId localStorage geometry when the caller
+		// pins nothing, and that memory has to win over centering — a
+		// child the user dragged aside and resized should come back
+		// where they left it, exactly like any other window.
+		const savedGeometry = loadNativeWindowGeometry(
+			config.baseId || config.id,
+		);
+		const hasSavedPlacement =
+			!! savedGeometry &&
+			typeof savedGeometry.x === 'number' &&
+			typeof savedGeometry.y === 'number';
+
+		// Center over the owner when nothing else has an opinion. Read
+		// the owner's live rect rather than its config: it has very
+		// likely been dragged or resized since it opened, and a child
+		// centered on where the owner *started* can land off-screen.
+		//
+		// Size and position are pinned TOGETHER or not at all. Sending
+		// x/y derived from an assumed size while letting `open()` resolve
+		// the real size from its own desktop-based defaults produces a
+		// child centered for dimensions it does not have — which is to
+		// say, not centered.
+		let placement: Partial< WindowConfig > = {};
+		if (
+			config.x === undefined &&
+			config.y === undefined &&
+			! hasSavedPlacement
+		) {
+			const owner = parent.getSnapshot();
+			const width = config.width ?? Math.round( owner.width * 0.8 );
+			const height = config.height ?? Math.round( owner.height * 0.8 );
+			// Keep the child inside the desktop area even when its owner
+			// is hanging off an edge. `open()` clamps saved geometry but
+			// trusts caller-pinned coordinates, and this counts as
+			// caller-pinned.
+			const desktopRect = this._desktop.getBoundingClientRect();
+			const maxX = Math.max( 0, desktopRect.width - width );
+			const maxY = Math.max( 0, desktopRect.height - height );
+			placement = {
+				width,
+				height,
+				x: Math.min(
+					maxX,
+					Math.max( 0, Math.round( owner.x + ( owner.width - width ) / 2 ) ),
+				),
+				y: Math.min(
+					maxY,
+					Math.max( 0, Math.round( owner.y + ( owner.height - height ) / 2 ) ),
+				),
+			};
+		}
+
+		return this.open( {
+			...config,
+			...placement,
+			// Children live on their owner's desktop — a child stranded
+			// on another virtual desktop would block a window nobody
+			// can see next to it.
+			desktopId: parent.config.desktopId,
+			parentWindowId,
+		} );
+	}
+
+	/**
+	 * The window that owns `win`, or undefined when it is not a child
+	 * (or its owner has since closed — an orphan is a normal window).
+	 *
+	 * @param win Window to look up the owner of.
+	 */
+	public ownerOf( win: Window ): Window | undefined {
+		const parentId = win.config.parentWindowId;
+		return parentId ? this.getById( parentId ) : undefined;
+	}
+
+	/**
+	 * Every open child of `winOrId`, in z-order (lowest first).
+	 *
+	 * Direct children only — walk the result to reach grandchildren.
+	 * Includes minimized children: they do not block focus, but a
+	 * caller counting "what does closing this take with it" needs
+	 * them.
+	 *
+	 * @param winOrId Owner window, or its id.
+	 */
+	public childrenOf( winOrId: Window | string ): Window[] {
+		const id = typeof winOrId === 'string' ? winOrId : winOrId.id;
+		return this._stack.filter( ( w ) => w.config.parentWindowId === id );
+	}
+
+	/**
+	 * The child that stands between `win` and the front, or undefined
+	 * when `win` is free to take focus.
+	 *
+	 * Walks to the DEEPEST open descendant, because a child can own a
+	 * child of its own and only the last link is actually on top.
+	 *
+	 * Minimized children are skipped deliberately: the user put that
+	 * child away, and a window that cannot be seen has no business
+	 * withholding focus from the one that can. Bringing the child back
+	 * restores the block.
+	 *
+	 * @param win Window a focus request came in for.
+	 */
+	public blockingChildOf( win: Window ): Window | undefined {
+		let current = win;
+		let blocker: Window | undefined;
+		// `seen` guards against a cycle in plugin-declared ownership
+		// (A owns B, B owns A). Without it a bad pair would spin here
+		// forever on the first click.
+		const seen = new Set< Window >( [ win ] );
+		for ( ;; ) {
+			const open = this.childrenOf( current ).filter(
+				( w ) => w.state !== 'minimized' && ! seen.has( w ),
+			);
+			if ( open.length === 0 ) {
+				return blocker;
+			}
+			// Topmost of several siblings — `childrenOf` returns
+			// z-order, so the last one is the one in front.
+			current = open[ open.length - 1 ];
+			seen.add( current );
+			blocker = current;
+		}
+	}
+
+	/**
+	 * Reorder `_stack` so no open child sits below its owner, then
+	 * leave the z-index rewrite to the caller.
+	 *
+	 * A stable topological pass: walk the stack bottom-up and emit
+	 * each window only after its owner, preserving existing order
+	 * everywhere ownership says nothing. Stability matters — this runs
+	 * on every focus, and an unstable sort would shuffle unrelated
+	 * windows behind each other on every click.
+	 *
+	 * Minimized windows are exempt from the constraint. Not cosmetic:
+	 * without the exemption, focusing an owner whose only child is
+	 * minimized would hoist that invisible child to the top of the
+	 * stack, and `setFocused( i === length - 1 )` would hand focus to
+	 * a window the user cannot see.
+	 */
+	private enforceOwnershipOrder(): void {
+		// Nothing declares ownership on most desktops — skip the whole
+		// pass rather than rebuild the array on every single focus.
+		if ( ! this._stack.some( ( w ) => w.config.parentWindowId ) ) {
+			return;
+		}
+
+		const ordered: Window[] = [];
+		const placed = new Set< Window >();
+
+		const place = ( win: Window, chain: Set< Window > ): void => {
+			if ( placed.has( win ) || chain.has( win ) ) {
+				return;
+			}
+			chain.add( win );
+			if ( win.state !== 'minimized' ) {
+				const owner = this.ownerOf( win );
+				if ( owner && owner !== win ) {
+					place( owner, chain );
+				}
+			}
+			if ( ! placed.has( win ) ) {
+				placed.add( win );
+				ordered.push( win );
+			}
+		};
+
+		for ( const win of this._stack ) {
+			place( win, new Set() );
+		}
+
+		// Mutate in place — `_stack` is public and long-lived, so
+		// reassigning it would strand any reference taken elsewhere.
+		this._stack.length = 0;
+		this._stack.push( ...ordered );
+	}
+
+	/**
+	 * Minimize every open child of `win`, remembering which ones this
+	 * cascade put away so {@link cascadeRestore} can tell them from
+	 * children the user had already minimized themselves.
+	 *
+	 * @param win Owner being minimized.
+	 */
+	private cascadeMinimize( win: Window ): void {
+		for ( const child of this.childrenOf( win ) ) {
+			if ( child.state === 'minimized' ) {
+				continue;
+			}
+			this._cascadeMinimized.add( child );
+			// `minimize()` fires the child's own `onMinimize`, which
+			// re-enters here for a grandchild — so a whole ownership
+			// chain folds away without an explicit recursive walk.
+			child.minimize();
+		}
+	}
+
+	/**
+	 * Bring back the children that went away with `win`, and only
+	 * those.
+	 *
+	 * A child the user minimized on their own before minimizing the
+	 * owner stays minimized: they put it away deliberately, and
+	 * un-minimizing it here would also silently re-block the owner
+	 * they just came back to.
+	 *
+	 * @param win Owner being restored.
+	 */
+	private cascadeRestore( win: Window ): void {
+		for ( const child of this.childrenOf( win ) ) {
+			if ( ! this._cascadeMinimized.has( child ) ) {
+				continue;
+			}
+			this._cascadeMinimized.delete( child );
+			// Mirrors `cascadeMinimize`: the child's own `onRestore`
+			// carries the cascade down to its grandchildren.
+			child.restore();
+		}
 	}
 
 	/** Remove a window from the stack and DOM. */
@@ -1100,6 +1732,33 @@ export class WindowManager {
 		const idx = this._stack.indexOf( win );
 		if ( idx > -1 ) {
 			this._stack.splice( idx, 1 );
+		}
+
+		// An owned window has no life of its own — close the children
+		// with their owner. Snapshot first: each `close()` re-enters
+		// `remove()` and mutates `_stack` underneath us.
+		//
+		// `close()` rather than `destroy()` so a child with unsaved
+		// changes still gets to ask. A child that vetoes outlives its
+		// owner and becomes an ordinary window (`ownerOf` returns
+		// undefined once the owner is gone), which is a better outcome
+		// than discarding the user's work.
+		//
+		// Depth-guarded like the minimize cascade: each `close()`
+		// re-enters `remove()`, which would otherwise run the
+		// focus-next-window pass below once per child and emit a focus
+		// change for every intermediate window on the way down.
+		const children = this.childrenOf( win ).slice();
+		if ( children.length > 0 ) {
+			this._cascadeDepth++;
+			try {
+				for ( const child of children ) {
+					this._cascadeMinimized.delete( child );
+					child.close();
+				}
+			} finally {
+				this._cascadeDepth--;
+			}
 		}
 
 		// Focus the next topmost FOCUSABLE window — walk the stack
@@ -1112,7 +1771,12 @@ export class WindowManager {
 		// the active-desktop filter used by `getByBaseIdOnActiveDesktop`.
 		// If nothing qualifies (only minimized / off-desktop windows
 		// remain), we focus nothing rather than force-restore one.
-		for ( let i = this._stack.length - 1; i >= 0; i-- ) {
+		//
+		// Skipped while an ownership cascade is unwinding — the owner's
+		// own `remove()` runs this pass once the whole group is gone,
+		// and doing it per child would hand focus through every
+		// intermediate window first.
+		for ( let i = this._stack.length - 1; this._cascadeDepth === 0 && i >= 0; i-- ) {
 			const candidate = this._stack[ i ];
 			if ( candidate.state === 'minimized' ) {
 				continue;
@@ -1135,7 +1799,7 @@ export class WindowManager {
 		// fade-out starts, which is an unnecessary footgun.
 		const closingDetail = { windowId: win.id, element: win.element };
 		document.dispatchEvent(
-			new CustomEvent( 'desktop-mode-window-closing', { detail: closingDetail } ),
+			new CustomEvent( 'os-window-closing', { detail: closingDetail } ),
 		);
 		doAction( HOOKS.WINDOW_CLOSING, closingDetail );
 
@@ -1146,7 +1810,7 @@ export class WindowManager {
 		// element now have `closing` above.
 		const closedDetail = { windowId: win.id };
 		document.dispatchEvent(
-			new CustomEvent( 'desktop-mode-window-closed', { detail: closedDetail } ),
+			new CustomEvent( 'os-window-closed', { detail: closedDetail } ),
 		);
 		doAction( HOOKS.WINDOW_CLOSED, closedDetail );
 	}
@@ -1271,8 +1935,6 @@ export class WindowManager {
 	 * `getById(id) && state !== 'minimized' && focused` can
 	 * collapse to this.
 	 *
-	 * @since 0.5.5
-	 *
 	 * @param id Window id to query.
 	 * @return True when the user is actively looking at this window.
 	 */
@@ -1331,6 +1993,9 @@ export class WindowManager {
 	public closeDesktop( id: string ): void {
 		closeDesktop( this, id );
 	}
+	public renameDesktop( id: string, label: string ): boolean {
+		return renameDesktop( this, id, label );
+	}
 
 	/**
 	 * Returns the "primary" desktop id — the one new sessions land on
@@ -1338,11 +2003,9 @@ export class WindowManager {
 	 * survivor when an `onlyOnPrimary` mode is requested.
 	 *
 	 * Default: the first desktop in `getDesktops()`. Filterable via
-	 * `desktop-mode.primary-desktop-id` so downstream code that wants a
+	 * `os.primary-desktop-id` so downstream code that wants a
 	 * different convention (e.g. a pinned "Inbox" desktop) can override
 	 * without having to fork the manager.
-	 *
-	 * @since 0.5.0
 	 */
 	public getPrimaryDesktopId(): string {
 		const all = this.getDesktops();
@@ -1367,11 +2030,11 @@ export class WindowManager {
 	 *
 	 * Hook chain:
 	 *
-	 *   1. `desktop-mode.windows.before-close-all` — action. Subscribers
+	 *   1. `os.windows.before-close-all` — action. Subscribers
 	 *      can prepare for the wipe (cancel pending saves, dismiss
 	 *      menus, etc.). Detail: `{ candidates: Window[] }`.
 	 *
-	 *   2. `desktop-mode.windows.close-all` — filter. Receives the
+	 *   2. `os.windows.close-all` — filter. Receives the
 	 *      candidate Window list and returns the (possibly smaller) list
 	 *      that will actually be closed. Plugins use this to PROTECT
 	 *      specific windows — e.g. keep a draft post window open during
@@ -1380,10 +2043,8 @@ export class WindowManager {
 	 *
 	 *   3. Each surviving window's `close()` is called.
 	 *
-	 *   4. `desktop-mode.windows.after-close-all` — action. Detail:
+	 *   4. `os.windows.after-close-all` — action. Detail:
 	 *      `{ closed: number, skipped: Window[] }`.
-	 *
-	 * @since 0.5.0
 	 *
 	 * @param options           Close options.
 	 * @param options.exceptIds Window ids to skip even before the filter runs.
@@ -1418,7 +2079,7 @@ export class WindowManager {
 			} catch ( err ) {
 				if ( typeof console !== 'undefined' ) {
 					console.error(
-						'[desktop-mode] closeAll: window.close() threw for',
+						'[openstation] closeAll: window.close() threw for',
 						win.id,
 						err,
 					);
@@ -1445,7 +2106,6 @@ export class WindowManager {
 	 * rolling the loop themselves.
 	 *
 	 * @public
-	 * @since 0.6.0
 	 */
 	public minimizeAll(): Window[] {
 		const minimized: Window[] = [];
@@ -1463,7 +2123,7 @@ export class WindowManager {
 			} catch ( err ) {
 				if ( typeof console !== 'undefined' ) {
 					console.error(
-						'[desktop-mode] minimizeAll: window.minimize() threw for',
+						'[openstation] minimizeAll: window.minimize() threw for',
 						win.id,
 						err,
 					);
@@ -1484,7 +2144,6 @@ export class WindowManager {
 	 * selectively.
 	 *
 	 * @public
-	 * @since 0.6.0
 	 */
 	public restoreFrom( windows: Window[] ): void {
 		if ( ! Array.isArray( windows ) ) {
@@ -1507,7 +2166,7 @@ export class WindowManager {
 			} catch ( err ) {
 				if ( typeof console !== 'undefined' ) {
 					console.error(
-						'[desktop-mode] restoreFrom: window.restore() threw for',
+						'[openstation] restoreFrom: window.restore() threw for',
 						win.id,
 						err,
 					);
@@ -1526,7 +2185,6 @@ export class WindowManager {
 	 * Mirrors the wallpaper-click gesture exactly, in one call.
 	 *
 	 * @public
-	 * @since 0.6.0
 	 */
 	public toggleShowDesktop(): boolean {
 		const all = this._stack.filter(
@@ -1595,7 +2253,9 @@ export class WindowManager {
 		if ( this._overviewActive ) {
 			exitOverview( this );
 		}
+		this.discardPrewarmed();
 		cancelOverviewTimers( this );
+		destroyDesktopNameHud();
 	}
 
 	/**
@@ -1609,7 +2269,7 @@ export class WindowManager {
 	 * `element` is the window's outer DOM node.
 	 *
 	 * Intended for wallpaper / overlay plugins that used to scrape
-	 * `document.querySelectorAll('.desktop-mode-window')` + read the
+	 * `document.querySelectorAll('.os-window')` + read the
 	 * `--minimized` / `--maximized` modifier classes by name. The
 	 * accessor decouples plugin code from the shell's CSS class
 	 * naming, so a future refactor of modifier prefixes is not an
@@ -1643,6 +2303,33 @@ export class WindowManager {
 	}
 
 	/**
+	 * Keep only what survives a round-trip through the session store.
+	 *
+	 * The snapshot is `JSON.stringify`d and POSTed, so a param holding
+	 * a DOM node, a function or a cyclic object would take the whole
+	 * save down with it — losing every window's geometry to one
+	 * plugin's careless value. Drop the offender, keep the session.
+	 *
+	 * @param params Raw params off the window config.
+	 * @return Serializable subset; `undefined` when nothing survives.
+	 */
+	private sanitizeParams(
+		params: Record< string, unknown >,
+	): Record< string, string | number | boolean > | undefined {
+		const out: Record< string, string | number | boolean > = {};
+		for ( const [ key, value ] of Object.entries( params ) ) {
+			if (
+				typeof value === 'string' ||
+				typeof value === 'boolean' ||
+				( typeof value === 'number' && Number.isFinite( value ) )
+			) {
+				out[ key ] = value;
+			}
+		}
+		return Object.keys( out ).length > 0 ? out : undefined;
+	}
+
+	/**
 	 * Serialize the current window stack for session persistence.
 	 *
 	 * Order in the returned `windows` array mirrors z-order (earliest
@@ -1651,20 +2338,57 @@ export class WindowManager {
 	 */
 	public snapshot(): Session {
 		const focused = this.getFocused();
-		// Native windows aren't persistable — their `render` callback
-		// is a JS closure, not something we can serialize and
-		// rehydrate server-side. Skip them from both the window list
-		// and the focused id so a freshly booted shell doesn't try
-		// (and fail) to restore a window it can't reconstruct.
-		const persistable = this._stack.filter( ( w ) => ! w.config.native );
+		// A native window's `render` callback is a JS closure and can't
+		// be serialized — but it doesn't need to be. Every native
+		// window that can be reopened is addressable by id through the
+		// native-window registry (or the shell's own dispatcher for
+		// built-ins like OS Settings), so the session persists the id
+		// and the restore path reconstructs from there. Windows whose
+		// id is no longer registered at restore time — a deactivated
+		// plugin — are skipped by the opener.
+		//
+		// Ephemeral windows are the real opt-out: their URL doesn't
+		// survive a session (editor-preview nonces), so they're skipped
+		// from both the window list and the focused id.
+		//
+		// Child windows are skipped for a different reason: restoring
+		// one is only safe if its owner comes back too, and owners can
+		// fail to restore for reasons this side knows nothing about (a
+		// deactivated plugin's native window, a URL that 404s now). A
+		// restored child whose owner never arrived would sit there
+		// blocking a window that does not exist. Losing a child across
+		// a reload is the cheaper failure.
+		const persistable = this._stack.filter(
+			( w ) => ! w.config.ephemeral && ! w.config.parentWindowId,
+		);
 		const windows: SessionWindow[] = persistable.map( ( w ) => {
 			const snap = w.getSnapshot();
 			const externalTabs = w.getExternalTabsSnapshot();
+			const native = !! w.config.native;
+			// Read once into a local rather than narrowing
+			// `w.config.params` and re-reading it inside a nested
+			// closure: property narrowing that has to survive a
+			// function boundary is a compile that works by accident.
+			const openParams = w.config.params;
+			const params =
+				native && openParams
+					? this.sanitizeParams( openParams )
+					: null;
 			return {
 				id: w.id,
 				baseId: w.config.baseId || w.id,
 				desktopId: w.config.desktopId || this._activeDesktopId,
-				url: w.getCurrentUrl(),
+				...( native ? { native: true } : {} ),
+				// Open-time arguments — what a native window is showing
+				// this time. Without these a singleton native window
+				// restores by id alone and comes back showing its default
+				// (the profile editor on whoever is logged in), which
+				// reads as the window silently changing subject.
+				...( params ? { params } : {} ),
+				// Native windows have no navigable URL — `config.url` is
+				// the `#slug` marker they were opened with, and
+				// `getCurrentUrl()` reads an iframe they don't have.
+				url: native ? w.config.url || `#${ w.id }` : w.getCurrentUrl(),
 				title: w.config.title,
 				icon: w.config.icon,
 				state: snap.state,
@@ -1675,15 +2399,61 @@ export class WindowManager {
 				...( externalTabs.length > 0 ? { externalTabs } : {} ),
 			};
 		} );
-		const focusedId = focused && ! focused.config.native ? focused.id : '';
+		// Same two exclusions as `persistable` — a focused id pointing
+		// at a window that was never written to the snapshot restores
+		// as "focus nothing", so it has to be filtered here too.
+		const focusedId =
+			focused &&
+			! focused.config.ephemeral &&
+			! focused.config.parentWindowId
+				? focused.id
+				: '';
 
 		return {
 			windows,
 			desktops: this.getDesktops(),
 			activeDesktop: this._activeDesktopId,
 			focused: focusedId,
-			updated: Math.floor( Date.now() / 1000 ),
+			// Epoch MILLISECONDS, not seconds. This is the ordering key
+			// the server's stale-write guard compares, and at second
+			// resolution the two writes that race hardest — a
+			// `keepalive` fetch still on the wire and the `pagehide`
+			// beacon that supersedes it — almost always tie. A tie is
+			// accepted, so the loser is whichever the server happens to
+			// process last, and a stale payload can reinstate a window
+			// the user just closed. Milliseconds separate them.
+			updated: Date.now(),
 		};
+	}
+
+	/**
+	 * Stage per-window config to merge into the NEXT window opened
+	 * under each id, then forget it.
+	 *
+	 * Session restore needs this for native windows. A native window
+	 * is reopened by asking its owner to open it —
+	 * `nativeWindows.openById( id )`, or the shell's own
+	 * `openOsSettings()` — and those callers build their own
+	 * `manager.open()` config from the registry. There is no argument
+	 * to thread saved geometry, desktop assignment, or minimized state
+	 * through, and no reason for every opener to grow one: the
+	 * restore-time values belong to the restore, not to the window's
+	 * definition.
+	 *
+	 * Seeding them here inverts that — restore states what it wants
+	 * before triggering the opens, and `createWindow` applies it to
+	 * whichever window claims each id. Entries are consumed on first
+	 * use, so a later user-initiated open of the same window is
+	 * unaffected. Ids that never open (a plugin deactivated since the
+	 * session was saved) simply leave a stale entry behind, which the
+	 * next `seedWindowRestoreState` call clears.
+	 *
+	 * Call BEFORE the opens it should apply to.
+	 */
+	public seedWindowRestoreState(
+		entries: Record< string, Partial< WindowConfig > >,
+	): void {
+		this._pendingRestoreState = new Map( Object.entries( entries ) );
 	}
 
 	public seedDesktops( desktops: Desktop[], activeDesktopId: string ): void {

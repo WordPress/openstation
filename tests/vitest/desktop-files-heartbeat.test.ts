@@ -61,13 +61,13 @@ function captureBusHandlers( bus: { heartbeat: { contribute: ( ...a: unknown[] )
 	const origContribute = bus.heartbeat.contribute;
 	const origSubscribe = bus.heartbeat.subscribe;
 	bus.heartbeat.contribute = ( field: string, supplier: () => unknown ) => {
-		if ( field === 'desktop_mode_files_subscribe' ) {
+		if ( field === 'openstation_files_subscribe' ) {
 			handlers.contribute = supplier;
 		}
 		return origContribute.call( bus.heartbeat, field, supplier );
 	};
 	bus.heartbeat.subscribe = ( field: string, cb: ( payload: unknown ) => void ) => {
-		if ( field === 'desktop_mode_files' ) {
+		if ( field === 'openstation_files' ) {
 			handlers.subscribe = cb;
 		}
 		return origSubscribe.call( bus.heartbeat, field, cb );

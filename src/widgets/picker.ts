@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Widget picker popover.
+ * OpenStation — Widget picker popover.
  *
  * A tiny singleton popover the user opens via the `+` tile at the
  * bottom of the widget column. Lists every registered widget; each
@@ -10,8 +10,6 @@
  * self-contained floating panel with Esc + outside-click dismiss
  * matches the overview top-bar's tile-add vocabulary the user
  * already recognises.
- *
- * @since 0.7.0
  */
 
 import { __, sprintf } from '../i18n';
@@ -26,6 +24,11 @@ interface OpenPickerOptions {
 	enabledIds: () => string[];
 	/** Click handler — layer persists + mounts on call. */
 	onAdd: ( id: string ) => void;
+	/**
+	 * Fired once when the picker closes. The layer uses it to drop
+	 * the "keep the + pill visible" flag it sets on open.
+	 */
+	onClose?: () => void;
 }
 
 /**
@@ -47,17 +50,17 @@ export function openWidgetPicker( options: OpenPickerOptions ): void {
 	}
 
 	const panel = document.createElement( 'div' );
-	panel.className = 'desktop-mode-widget-picker';
+	panel.className = 'os-widget-picker';
 	panel.setAttribute( 'role', 'menu' );
 	panel.setAttribute( 'aria-label', __( 'Add widget' ) );
 
 	const title = document.createElement( 'div' );
-	title.className = 'desktop-mode-widget-picker__title';
+	title.className = 'os-widget-picker__title';
 	title.textContent = __( 'Add widget' );
 	panel.appendChild( title );
 
 	const list = document.createElement( 'div' );
-	list.className = 'desktop-mode-widget-picker__list';
+	list.className = 'os-widget-picker__list';
 	panel.appendChild( list );
 
 	paintList( list, options );
@@ -111,7 +114,7 @@ export function refreshWidgetPicker(): void {
 		return;
 	}
 	const list = active.panel.querySelector<HTMLElement>(
-		'.desktop-mode-widget-picker__list',
+		'.os-widget-picker__list',
 	);
 	if ( list ) {
 		paintList( list, active.options );
@@ -130,7 +133,9 @@ export function closeWidgetPicker(): void {
 	);
 	document.removeEventListener( 'keydown', active.onKeyDown );
 	active.panel.remove();
+	const { onClose } = active.options;
 	active = null;
+	onClose?.();
 }
 
 // ------------------------------------------------------------------
@@ -147,7 +152,7 @@ function paintList(
 
 	if ( defs.length === 0 ) {
 		const empty = document.createElement( 'div' );
-		empty.className = 'desktop-mode-widget-picker__empty';
+		empty.className = 'os-widget-picker__empty';
 		empty.textContent = __(
 			'No widgets available. Activate a plugin that registers one, or see the docs for the registerWidget API.',
 		);
@@ -158,11 +163,11 @@ function paintList(
 	for ( const def of defs ) {
 		const entry = document.createElement( 'button' );
 		entry.type = 'button';
-		entry.className = 'desktop-mode-widget-picker__entry';
+		entry.className = 'os-widget-picker__entry';
 		const isAdded = enabled.has( def.id );
 		if ( isAdded ) {
 			entry.classList.add(
-				'desktop-mode-widget-picker__entry--added',
+				'os-widget-picker__entry--added',
 			);
 			entry.disabled = true;
 			entry.setAttribute( 'aria-disabled', 'true' );
@@ -179,20 +184,20 @@ function paintList(
 		entry.setAttribute( 'aria-label', ariaLabel );
 
 		const icon = document.createElement( 'span' );
-		icon.className = `desktop-mode-widget-picker__entry-icon dashicons ${ def.icon }`;
+		icon.className = `os-widget-picker__entry-icon dashicons ${ def.icon }`;
 		icon.setAttribute( 'aria-hidden', 'true' );
 		entry.appendChild( icon );
 
 		const textWrap = document.createElement( 'span' );
-		textWrap.className = 'desktop-mode-widget-picker__entry-text';
+		textWrap.className = 'os-widget-picker__entry-text';
 		const label = document.createElement( 'span' );
-		label.className = 'desktop-mode-widget-picker__entry-label';
+		label.className = 'os-widget-picker__entry-label';
 		label.textContent = def.label;
 		textWrap.appendChild( label );
 		if ( def.description ) {
 			const desc = document.createElement( 'span' );
 			desc.className =
-				'desktop-mode-widget-picker__entry-description';
+				'os-widget-picker__entry-description';
 			desc.textContent = def.description;
 			textWrap.appendChild( desc );
 		}
@@ -200,7 +205,7 @@ function paintList(
 
 		if ( isAdded ) {
 			const status = document.createElement( 'span' );
-			status.className = 'desktop-mode-widget-picker__entry-status';
+			status.className = 'os-widget-picker__entry-status';
 			status.textContent = __( 'Added' );
 			entry.appendChild( status );
 		}
@@ -209,12 +214,10 @@ function paintList(
 			entry.addEventListener( 'click', ( e ) => {
 				e.preventDefault();
 				e.stopPropagation();
+				// Whether a pick closes the picker is the layer's
+				// call, not this component's — it owns the anchor
+				// and knows what happens to it afterwards.
 				options.onAdd( def.id );
-				// Picker stays OPEN so the user can add several
-				// widgets in a row without re-clicking `+`. Close
-				// is driven by Esc, outside click, or explicit UI
-				// (none today — one-at-a-time add-then-close is
-				// the v1 flow if they prefer).
 			} );
 		}
 

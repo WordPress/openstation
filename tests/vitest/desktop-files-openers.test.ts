@@ -138,7 +138,7 @@ describe( 'desktop-files openers registry', async () => {
 		expect( openers.resolveOpener( 'post' ) ).toBeNull();
 	} );
 
-	test( 'desktop-mode.files.resolve-opener filter can override the choice', async () => {
+	test( 'os.files.resolve-opener filter can override the choice', async () => {
 		const { openers } = await load();
 		openers.registerOpener( {
 			id: 'a',
@@ -155,7 +155,7 @@ describe( 'desktop-files openers registry', async () => {
 		} );
 		const stub = ( window.wp as { hooks: { addFilter: ( ...a: unknown[] ) => void } } ).hooks;
 		stub.addFilter(
-			'desktop-mode.files.resolve-opener',
+			'os.files.resolve-opener',
 			'test/force-b',
 			() => openers.getOpener( 'b' ),
 		);
@@ -294,6 +294,125 @@ describe( 'desktop-files openers registry', async () => {
 				'browser-navigate',
 			] ),
 		);
+	} );
+
+	test( 'appliesTo gates resolution per file and hides the opener from type-level listings', async () => {
+		const { openers, file } = await load();
+		openers.registerOpener( {
+			id: 'special-open',
+			label: 'Special',
+			types: [ 'user' ],
+			isDefault: true,
+			sort: 5,
+			appliesTo: ( f ) =>
+				( f.shape as { special?: boolean } ).special === true,
+			handler: { kind: 'js', open: () => void 0 },
+		} );
+		openers.registerOpener( {
+			id: 'plain-open',
+			label: 'Plain',
+			types: [ 'user' ],
+			isDefault: true,
+			sort: 10,
+			handler: { kind: 'js', open: () => void 0 },
+		} );
+
+		const plain = fakeFile( 'user', '7', file );
+		const special = new file.DefaultDesktopFile(
+			{
+				type: 'user',
+				ref: '9',
+				title: 'Agent',
+				icon: '',
+				previewUrl: '',
+				exists: true,
+				special: true,
+			} as never,
+			'user',
+		);
+
+		expect( openers.resolveOpener( 'user', plain )?.id ).toBe(
+			'plain-open',
+		);
+		expect( openers.resolveOpener( 'user', special )?.id ).toBe(
+			'special-open',
+		);
+		// Type-level listing (no file to test) excludes predicate defs.
+		expect(
+			openers.getOpenersForType( 'user' ).map( ( o ) => o.id ),
+		).toEqual( [ 'plain-open' ] );
+	} );
+
+	test( 'agent user tiles resolve to the agent-chat opener and open the chat window', async () => {
+		vi.resetModules();
+		const reg = await import( '../../src/desktop-files/openers' );
+		await import( '../../src/desktop-files/index' );
+		const { DefaultDesktopFile } = await import(
+			'../../src/desktop-files/file'
+		);
+		const { agentsChatStore } = await import(
+			'../../src/agents-chat-store'
+		);
+		agentsChatStore.state.activeAgent = null;
+
+		// Augment — replacing `window.wp` wholesale would clobber the
+		// hooks stub the registry depends on.
+		const openWindow = vi.fn( () => true );
+		( window.wp as unknown as Record< string, unknown > ).os = {
+			openWindow,
+		};
+		try {
+			const agentFile = new DefaultDesktopFile(
+				{
+					type: 'user',
+					ref: '15',
+					title: 'TLDR Editor',
+					icon: '',
+					previewUrl: 'https://example.test/agent-avatar.svg',
+					exists: true,
+					isAgent: true,
+					agentDescription: 'Summarizes posts.',
+				} as never,
+				'user',
+			);
+
+			// A human user still resolves to the profile opener.
+			const humanFile = new DefaultDesktopFile(
+				{
+					type: 'user',
+					ref: '2',
+					title: 'Human',
+					icon: '',
+					previewUrl: '',
+					exists: true,
+				} as never,
+				'user',
+			);
+			expect( reg.resolveOpener( 'user', humanFile )?.id ).toBe(
+				'wp-user-profile',
+			);
+
+			const opener = reg.resolveOpener( 'user', agentFile );
+			expect( opener?.id ).toBe( 'agent-chat' );
+			expect( opener?.handler.kind ).toBe( 'js' );
+			if ( opener?.handler.kind === 'js' ) {
+				opener.handler.open( agentFile );
+			}
+
+			expect( openWindow ).toHaveBeenCalledWith(
+				'desktop-mode-agent-run',
+				expect.objectContaining( { source: 'agents-open' } ),
+			);
+			expect( agentsChatStore.state.activeAgent ).toEqual( {
+				id: 15,
+				name: 'TLDR Editor',
+				description: 'Summarizes posts.',
+				avatarUrl: 'https://example.test/agent-avatar.svg',
+			} );
+		} finally {
+			delete ( window.wp as unknown as Record< string, unknown > )
+				.os;
+		}
 	} );
 
 	test( 'openUrl routes through tryNativeUrlRemap so user shortcuts open the native window', async () => {

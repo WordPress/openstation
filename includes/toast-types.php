@@ -1,16 +1,15 @@
 <?php
 /**
- * Desktop Mode — Toast notification type registry.
+ * OpenStation — Toast notification type registry.
  *
  * The shell surfaces user-visible toast notifications (save succeeded,
  * upload failed, a plugin crashed, …). Each toast carries a `type`
  * slug that the shell maps to a color + icon. The defaults cover
  * `success`, `warning`, `error`, and `shell-error`; plugins and themes
- * extend the list via the {@see 'desktop_mode_toast_types'} filter to
+ * extend the list via the {@see 'openstation_toast_types'} filter to
  * register their own slugs (e.g. `update-available`).
  *
- * @package WPDesktopMode
- * @since   0.5.0
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -20,17 +19,15 @@ defined( 'ABSPATH' ) || exit;
  *
  * Each entry is an array shaped `{ id, label, icon, tone }`:
  *
- *   - `id` is a stable slug plugins call with `wp.desktop.toast( id, … )`.
+ *   - `id` is a stable slug plugins call with `wp.os.toast( id, … )`.
  *   - `label` is the default aria-label used when a toast omits one.
  *   - `icon` is a Dashicons class rendered alongside the message.
  *   - `tone` is one of `positive | warning | critical | neutral` — the
  *     shell maps this to its color palette.
  *
- * @since 0.5.0
- *
  * @return array<int, array{id: string, label: string, icon: string, tone: string}>
  */
-function desktop_mode_get_toast_types() {
+function openstation_get_toast_types() {
 	$defaults = array(
 		array(
 			'id'    => 'success',
@@ -64,7 +61,7 @@ function desktop_mode_get_toast_types() {
 	 * Filters the toast-notification type map.
 	 *
 	 * ```php
-	 * add_filter( 'desktop_mode_toast_types', function ( $types ) {
+	 * add_filter( 'openstation_toast_types', function ( $types ) {
 	 *     $types[] = array(
 	 *         'id'    => 'update-available',
 	 *         'label' => __( 'Update available', 'my-plugin' ),
@@ -81,11 +78,9 @@ function desktop_mode_get_toast_types() {
 	 * `sanitize_html_class()` falls back to `dashicons-info`; a missing
 	 * `label` falls back to the ucfirst'd `id`.
 	 *
-	 * @since 0.5.0
-	 *
 	 * @param array $defaults Built-in toast types.
 	 */
-	$filtered = apply_filters( 'desktop_mode_toast_types', $defaults );
+	$filtered = apply_filters( 'openstation_toast_types', $defaults );
 	if ( ! is_array( $filtered ) ) {
 		return $defaults;
 	}

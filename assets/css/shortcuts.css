@@ -1,0 +1,133 @@
+/*
+ * Keyboard-shortcuts window.
+ *
+ * Styles the window `src/shortcuts.ts` paints. Reads the palette's
+ * tokens rather than the admin bar's, which is what lets a desktop
+ * theme reach it.
+ *
+ * Every colour resolves through `var( --os-ui-*, <literal> )`, and
+ * each literal is the pre-brand WordPress-admin value. That is the
+ * floor if the stylesheet fails to load, and it is what the Legacy
+ * snapshot collected.
+ */
+
+.os-shortcuts {
+	padding: 20px 22px;
+	color: var( --os-ui-fg, #1d2327 );
+	font-size: 13px;
+	line-height: 1.5;
+}
+
+.os-shortcuts__section + .os-shortcuts__section {
+	margin-top: 22px;
+}
+
+.os-shortcuts__heading {
+	margin: 0 0 10px;
+	color: var( --os-ui-fg-muted, #50575e );
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+}
+
+/*
+ * The table is the one piece of content here that can outgrow a narrow
+ * window: four columns of prose. It scrolls inside its own box so the
+ * window body never scrolls sideways as a whole.
+ */
+.os-shortcuts__scroller {
+	overflow-x: auto;
+}
+
+.os-shortcuts__table {
+	width: 100%;
+	border-collapse: collapse;
+	text-align: start;
+}
+
+.os-shortcuts__table th,
+.os-shortcuts__table td {
+	padding: 7px 10px;
+	border-bottom: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
+	vertical-align: top;
+}
+
+.os-shortcuts__table th {
+	color: var( --os-ui-fg-muted, #50575e );
+	font-size: 11px;
+	font-weight: 600;
+	white-space: nowrap;
+}
+
+.os-shortcuts__table tbody tr:last-child td {
+	border-bottom: 0;
+}
+
+.os-shortcuts__key-cell {
+	white-space: nowrap;
+}
+
+.os-shortcuts__note {
+	display: block;
+	margin-top: 3px;
+	color: var( --os-ui-fg-muted, #50575e );
+	font-size: 11px;
+}
+
+.os-shortcuts__list {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.os-shortcuts__item {
+	display: flex;
+	gap: 12px;
+	align-items: baseline;
+	padding: 7px 0;
+	border-bottom: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
+}
+
+.os-shortcuts__item:last-child {
+	border-bottom: 0;
+}
+
+.os-shortcuts__chord {
+	display: inline-flex;
+	align-items: center;
+	gap: 3px;
+	flex-shrink: 0;
+}
+
+.os-shortcuts__plus {
+	color: var( --os-ui-fg-muted, #50575e );
+	font-size: 10px;
+}
+
+.os-shortcuts__kbd {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 22px;
+	height: 20px;
+	padding: 0 5px;
+	border: 1px solid var( --os-ui-border-strong, rgba( 0, 0, 0, 0.18 ) );
+	/* Thicker bottom edge — the one cue that makes a box read as a key. */
+	border-bottom-width: 2px;
+	border-radius: 4px;
+	background: var( --os-ui-surface-elevated, #fff );
+	color: var( --os-ui-fg, #1d2327 );
+	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+	font-size: 11px;
+	font-weight: 600;
+}
+
+.os-shortcuts__description {
+	color: var( --os-ui-fg, #1d2327 );
+}
+
+.os-shortcuts__empty {
+	margin: 0;
+	color: var( --os-ui-fg-muted, #50575e );
+}

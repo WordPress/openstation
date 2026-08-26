@@ -7,7 +7,6 @@
  * the per-window-client shape of `./rest.ts`.
  *
  * @public
- * @since 0.8.1
  */
 
 import { joinRestUrl } from '../rest-url';
@@ -32,13 +31,13 @@ export interface UserListItem {
 	roles: string[];
 	registered_date?: string;
 	avatar_urls?: Record< string, string >;
-	desktop_mode_user_stats?: UserStats;
+	openstation_user_stats?: UserStats;
 	/** UTC unix timestamp; null when never recorded. */
-	desktop_mode_last_login?: number | null;
-	desktop_mode_presence?: UserPresence;
-	desktop_mode_can_edit?: boolean;
+	openstation_last_login?: number | null;
+	openstation_presence?: UserPresence;
+	openstation_can_edit?: boolean;
 	/** Role slugs the viewer can assign to this row. */
-	desktop_mode_assignable_roles?: string[];
+	openstation_assignable_roles?: string[];
 	[ key: string ]: unknown;
 }
 
@@ -103,8 +102,6 @@ export interface BulkDeleteResponse {
  * Per-window Users REST client. Returned by {@link createUsersWindowClient}
  * and threaded through render code instead of imported as free
  * functions.
- *
- * @since 0.8.3
  */
 export interface UsersWindowClient {
 	readonly windowId: string;
@@ -114,7 +111,7 @@ export interface UsersWindowClient {
 	 * Fetch a single user row using the same `_fields` whitelist as
 	 * {@link fetchUsers}. Returns `null` when the row is gone (e.g.
 	 * the user was deleted between events). Used by the
-	 * `desktop-mode.user.changed` live-refresh path to patch one row
+	 * `os.user.changed` live-refresh path to patch one row
 	 * in place instead of re-fetching the whole page.
 	 */
 	fetchOneUser( id: number ): Promise< UserListItem | null >;
@@ -135,8 +132,6 @@ export interface UsersWindowClient {
  * thread an explicit id working unchanged. Pass a different id for
  * any sibling window registered by a plugin that wants the same
  * Users surface (e.g. a per-blog users window on multisite).
- *
- * @since 0.8.3
  */
 export function createUsersWindowClient(
 	windowId: string = 'desktop-mode-users',
@@ -144,9 +139,9 @@ export function createUsersWindowClient(
 	const getConfig = (): PostsWindowConfig => {
 		const store = (
 			window as unknown as {
-				desktopModeWindowConfig?: Record< string, PostsWindowConfig >;
+				openStationWindowConfig?: Record< string, PostsWindowConfig >;
 			}
-		).desktopModeWindowConfig;
+		).openStationWindowConfig;
 		const cfg = store?.[ windowId ];
 		if ( ! cfg ) {
 			throw new Error(

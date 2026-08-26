@@ -27,8 +27,6 @@
  * page is reloaded — the plugin's JS isn't injected into the live shell.
  * The per-window iframe harvester (`iframe-bridge.ts`) covers that gap
  * for any screen the user navigates into.
- *
- * @since 0.8.4
  */
 
 import {
@@ -82,7 +80,7 @@ function lookupMenuCommand(
 	name: string,
 ): { label: string; url: string } | null {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const list = ( window as any ).__desktopModeMenuCommands;
+	const list = ( window as any ).__openStationMenuCommands;
 	if ( ! Array.isArray( list ) ) {
 		return null;
 	}
@@ -411,7 +409,7 @@ export class ShellCommandHarvester {
 		for ( const c of classified ) {
 			// `skip` commands navigate dynamically and we couldn't
 			// recover the URL — registering them would let a /search
-			// pick navigate the shell out of desktop mode. Drop.
+			// pick navigate the shell out of OpenStation. Drop.
 			if ( c.kind === 'skip' ) {
 				continue;
 			}
@@ -442,7 +440,7 @@ export class ShellCommandHarvester {
 			} catch ( err ) {
 				// eslint-disable-next-line no-console
 				console.error(
-					'[desktop-mode] shell-harvester: dropping bad command',
+					'[openstation] shell-harvester: dropping bad command',
 					def,
 					err,
 				);
@@ -485,7 +483,7 @@ export class ShellCommandHarvester {
 		// real handler that does `document.location = menuCommand.url`.
 		// Source-regex classification therefore can never identify
 		// these commands. Instead, check the PHP-built menu map
-		// (`window.__desktopModeMenuCommands`, injected by
+		// (`window.__openStationMenuCommands`, injected by
 		// `includes/render/assets.php` from the live `$menu`/
 		// `$submenu` globals). If the command name matches an entry,
 		// we know the URL and can safely route it through the window

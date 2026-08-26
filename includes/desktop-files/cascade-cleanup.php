@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — Cascade cleanup of placements on entity trash.
+ * OpenStation — Cascade cleanup of placements on entity trash.
  *
  * When a WordPress entity that a desktop shortcut points at is
  * trashed or deleted, the matching placement rows are soft-trashed
@@ -32,8 +32,7 @@
  * user can restore it from there (independent of the source entity's
  * trash status — restoring a post does NOT auto-restore its shortcut).
  *
- * @package WPDesktopMode
- * @since   0.8.9
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -44,7 +43,7 @@ defined( 'ABSPATH' ) || exit;
  * Iterates `wp_desktop_mode_file_placements` for rows with the
  * matching `file_type` + `file_ref` whose `trashed_at_ms` is
  * unset, and stamps the trash columns. Each affected placement
- * fires `desktop_mode_files_after_cascade_trash_placement` so
+ * fires `openstation_files_after_cascade_trash_placement` so
  * plugins (and the live UI refresh path) can react.
  *
  * Idempotent: re-running with an already-trashed entity is a
@@ -56,23 +55,21 @@ defined( 'ABSPATH' ) || exit;
  * is unbounded by the API but bounded in practice by the number
  * of users who shortcutted the same entity.
  *
- * @since 0.8.9
- *
  * @param string     $file_type File-type slug — `'post'`,
  *                              `'attachment'`, `'user'`, plugin-
  *                              defined. Must match
- *                              {@see Desktop_Mode_File::type()}.
+ *                              {@see OpenStation_File::type()}.
  * @param string|int $file_ref  Entity ref (post id, user id, …).
  * @return int Number of placements soft-trashed.
  */
-function desktop_mode_files_cascade_trash_placements_for_entity( $file_type, $file_ref ) {
+function openstation_files_cascade_trash_placements_for_entity( $file_type, $file_ref ) {
 	global $wpdb;
 	$file_type = (string) $file_type;
 	$file_ref  = (string) $file_ref;
 	if ( '' === $file_type || '' === $file_ref ) {
 		return 0;
 	}
-	$tables = desktop_mode_files_table_names();
+	$tables = openstation_files_table_names();
 
 	// SELECT the affected rows up front so we can fire a per-row
 	// action without a second roundtrip. Restrict to live (not yet
@@ -95,12 +92,12 @@ function desktop_mode_files_cascade_trash_placements_for_entity( $file_type, $fi
 		return 0;
 	}
 
-	$now     = desktop_mode_files_now_ms();
+	$now     = openstation_files_now_ms();
 	$trashed = 0;
 	foreach ( $rows as $row ) {
 		$placement_id = (int) $row['id'];
 		$owner_id     = (int) $row['owner_id'];
-		$ancestry     = desktop_mode_files_capture_ancestry( (int) $row['parent_id'] );
+		$ancestry     = openstation_files_capture_ancestry( (int) $row['parent_id'] );
 		// `trashed_meta` carries the ancestry (so a restore knows
 		// where to put the tile back) plus a cascade marker so the
 		// recycle-bin UI can distinguish entity-cascade rows from
@@ -116,7 +113,7 @@ function desktop_mode_files_cascade_trash_placements_for_entity( $file_type, $fi
 				),
 			)
 		);
-		$ok = $wpdb->update(
+		$ok   = $wpdb->update(
 			$tables['placements'],
 			array(
 				'trashed_at_ms' => $now,
@@ -137,15 +134,13 @@ function desktop_mode_files_cascade_trash_placements_for_entity( $file_type, $fi
 		 * Fires after a placement has been cascade-trashed because
 		 * its source entity was trashed.
 		 *
-		 * @since 0.8.9
-		 *
 		 * @param int        $placement_id Placement id.
 		 * @param int        $owner_id     Placement owner.
 		 * @param string     $file_type    Source entity file type.
 		 * @param string|int $file_ref     Source entity ref.
 		 */
 		do_action(
-			'desktop_mode_files_after_cascade_trash_placement',
+			'openstation_files_after_cascade_trash_placement',
 			$placement_id,
 			$owner_id,
 			$file_type,
@@ -166,11 +161,9 @@ function desktop_mode_files_cascade_trash_placements_for_entity( $file_type, $fi
  * (not `'post'`), so this wrapper would miss them. The separate
  * `delete_attachment` hook below covers attachments.
  *
- * @since 0.8.9
- *
  * @param int $post_id Post id.
  */
-function desktop_mode_files_cascade_on_post_trash( $post_id ) {
+function openstation_files_cascade_on_post_trash( $post_id ) {
 	$post_id = (int) $post_id;
 	if ( $post_id <= 0 ) {
 		return;
@@ -186,39 +179,37 @@ function desktop_mode_files_cascade_on_post_trash( $post_id ) {
 	// is non-zero) also fires `wp_trash_post` — we cover it by
 	// dispatching to the attachment cascade below.
 	if ( 'attachment' === $post->post_type ) {
-		desktop_mode_files_cascade_trash_placements_for_entity(
+		openstation_files_cascade_trash_placements_for_entity(
 			'attachment',
 			(string) $post_id
 		);
 		return;
 	}
-	desktop_mode_files_cascade_trash_placements_for_entity( 'post', (string) $post_id );
+	openstation_files_cascade_trash_placements_for_entity( 'post', (string) $post_id );
 }
 
-add_action( 'wp_trash_post', 'desktop_mode_files_cascade_on_post_trash', 10, 1 );
-add_action( 'before_delete_post', 'desktop_mode_files_cascade_on_post_trash', 10, 1 );
+add_action( 'wp_trash_post', 'openstation_files_cascade_on_post_trash', 10, 1 );
+add_action( 'before_delete_post', 'openstation_files_cascade_on_post_trash', 10, 1 );
 
 /**
  * Force-delete path for attachments — Core's `wp_delete_attachment()`
  * fires this BEFORE the attachment row is gone, so `get_post()` is
  * still resolvable for any plugin that needs the metadata.
  *
- * @since 0.8.9
- *
  * @param int $attachment_id Attachment id.
  */
-function desktop_mode_files_cascade_on_attachment_delete( $attachment_id ) {
+function openstation_files_cascade_on_attachment_delete( $attachment_id ) {
 	$attachment_id = (int) $attachment_id;
 	if ( $attachment_id <= 0 ) {
 		return;
 	}
-	desktop_mode_files_cascade_trash_placements_for_entity(
+	openstation_files_cascade_trash_placements_for_entity(
 		'attachment',
 		(string) $attachment_id
 	);
 }
 
-add_action( 'delete_attachment', 'desktop_mode_files_cascade_on_attachment_delete', 10, 1 );
+add_action( 'delete_attachment', 'openstation_files_cascade_on_attachment_delete', 10, 1 );
 
 /**
  * User account removed — cascade-trash every shortcut whose
@@ -227,19 +218,17 @@ add_action( 'delete_attachment', 'desktop_mode_files_cascade_on_attachment_delet
  * Core involves reassigning content; we don't need the live user
  * row, only its id.
  *
- * @since 0.8.9
- *
  * @param int $user_id Deleted user id.
  */
-function desktop_mode_files_cascade_on_user_delete( $user_id ) {
+function openstation_files_cascade_on_user_delete( $user_id ) {
 	$user_id = (int) $user_id;
 	if ( $user_id <= 0 ) {
 		return;
 	}
-	desktop_mode_files_cascade_trash_placements_for_entity(
+	openstation_files_cascade_trash_placements_for_entity(
 		'user',
 		(string) $user_id
 	);
 }
 
-add_action( 'deleted_user', 'desktop_mode_files_cascade_on_user_delete', 10, 1 );
+add_action( 'deleted_user', 'openstation_files_cascade_on_user_delete', 10, 1 );

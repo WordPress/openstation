@@ -75,35 +75,76 @@
 	text-decoration: none;
 }
 
-/* Trash — hidden until the row is hovered/focused. */
-.dm-drafts__trash {
+/*
+ * Row actions (Trash, Suggest) are `<os-button variant="ghost">` hosts —
+ * the component owns the focus ring, disabled semantics and theming; these
+ * rules only tune it into a 26px icon square via the documented
+ * `--os-ui-button-*` surface and the `button` shadow part. Both stay hidden
+ * until the row is hovered or the control takes focus.
+ */
+.dm-drafts__trash,
+.dm-drafts__spark {
 	flex: 0 0 auto;
+	opacity: 0;
+	transition: opacity 120ms ease-out;
+	--os-ui-button-padding: 0;
+	--os-ui-button-border: none;
+	--os-ui-button-border-radius: 6px;
+	--os-ui-button-bg: transparent;
+	/* Inherit the card's text color instead of the component's own
+	   light-theme default — widget cards can be dark glass. */
+	--os-ui-button-fg: currentColor;
+}
+
+.dm-drafts__trash {
+	margin-right: 4px;
+}
+
+.dm-drafts__trash::part( button ),
+.dm-drafts__spark::part( button ) {
 	width: 26px;
 	height: 26px;
-	margin-right: 4px;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	border: none;
-	border-radius: 6px;
-	background: transparent;
-	color: inherit;
-	opacity: 0;
-	transition: opacity 120ms ease-out, background 120ms ease-out;
 }
 
 .dm-drafts__row:hover .dm-drafts__trash,
-.dm-drafts__trash:focus-visible {
+.dm-drafts__row:hover .dm-drafts__spark,
+.dm-drafts__trash:focus-within,
+.dm-drafts__spark:focus-within {
 	opacity: 0.65;
 }
 
 .dm-drafts__trash:hover {
 	opacity: 1;
-	background: color-mix( in srgb, var( --wpd-danger, #d63638 ) 22%, transparent );
-	color: var( --wpd-danger, #d63638 );
+	--os-ui-button-bg-hover: color-mix(
+		in srgb,
+		var( --os-ui-danger, #d63638 ) 22%,
+		transparent
+	);
+	--os-ui-button-fg: var( --dm-drafts-danger, #d63638 );
 }
 
-.dm-drafts__trash .dashicons {
+.dm-drafts__spark:hover {
+	opacity: 1;
+	--os-ui-button-bg-hover: color-mix(
+		in srgb,
+		var( --os-ui-accent, #2271b1 ) 22%,
+		transparent
+	);
+	--os-ui-button-fg: var( --dm-drafts-accent, #2271b1 );
+}
+
+.dm-drafts__spark[aria-expanded='true'] {
+	opacity: 1;
+	--os-ui-button-bg: color-mix(
+		in srgb,
+		var( --os-ui-accent, #2271b1 ) 18%,
+		transparent
+	);
+	--os-ui-button-fg: var( --dm-drafts-accent, #2271b1 );
+}
+
+.dm-drafts__trash .dashicons,
+.dm-drafts__spark .dashicons {
 	pointer-events: none;
 	font-size: 16px;
 	width: 16px;
@@ -111,10 +152,220 @@
 	line-height: 16px;
 }
 
-/* The shell forces `cursor: default !important`; out-specify it. */
-body.desktop-mode-active .dm-drafts__link,
-body.desktop-mode-active .dm-drafts__trash {
+/* The shell forces `cursor: default !important`; out-specify it. The
+   `<os-button>` controls set their own cursor inside the shadow root,
+   which that rule can't reach. */
+body.os-active .dm-drafts__link {
 	cursor: pointer !important;
+}
+
+/*
+ * Adaptive accent for text + glyphs. `--os-ui-accent` neat is a mid blue
+ * that sinks into a dark glass card; mixing it toward `currentColor`
+ * keeps it legible whichever way the card leans. Backgrounds still use
+ * the neat token — a low-alpha wash doesn't have a contrast problem.
+ */
+.dm-drafts__row,
+.dm-drafts__suggest {
+	--dm-drafts-accent: color-mix(
+		in srgb,
+		var( --os-ui-accent, #2271b1 ) 55%,
+		currentColor
+	);
+	--dm-drafts-danger: color-mix(
+		in srgb,
+		var( --os-ui-danger, #d63638 ) 65%,
+		currentColor
+	);
+}
+
+/* --- 💡 suggestions panel ------------------------------------------ */
+
+.dm-drafts__suggest {
+	margin: 2px 0 8px;
+	padding: 8px;
+	border-radius: 8px;
+	background: color-mix( in srgb, currentColor 7%, transparent );
+	font-size: 12px;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.dm-drafts__suggest-loading {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	opacity: 0.75;
+}
+
+.dm-drafts__suggest-hint {
+	font-size: 11px;
+	opacity: 0.7;
+	font-style: italic;
+}
+
+/*
+ * Notices inside the panel (readiness, load failure).
+ *
+ * `<os-notice>`'s built-in palette is tuned for a light window surface —
+ * its text defaults to `--os-ui-fg` (#1d2327) over an 8%-alpha tone wash.
+ * A widget card is glass over the wallpaper and can be arbitrarily dark,
+ * so that pairing collapses to unreadable. Drive the component's
+ * documented color surface from `currentColor` instead: the text tracks
+ * whatever the card already proved legible, and the tone survives in the
+ * accent stripe + icon, each mixed toward `currentColor` so it stays
+ * visible on a dark and a light card alike.
+ */
+.dm-drafts__notice {
+	--os-ui-notice-color: currentColor;
+	--os-ui-notice-bg: color-mix( in srgb, currentColor 8%, transparent );
+	--os-ui-notice-border: transparent;
+	--os-ui-notice-font: inherit;
+	--os-ui-notice-success: color-mix(
+		in srgb,
+		var( --os-ui-success-fg, #46b450 ) 65%,
+		currentColor
+	);
+	--os-ui-notice-warning: color-mix(
+		in srgb,
+		var( --os-ui-warning-fg, #dba617 ) 65%,
+		currentColor
+	);
+	--os-ui-notice-error: color-mix(
+		in srgb,
+		var( --os-ui-danger, #d63638 ) 65%,
+		currentColor
+	);
+	/* Out-specifies the component's own `:host` padding — 10px/14px is
+	   window-banner scale and reads as a slab inside an 8px panel. */
+	padding: 8px 10px;
+	border-radius: 6px;
+}
+
+/* Readiness — read-only diagnosis at the top of the panel, tone-coded
+   success when nothing is missing, warning otherwise. */
+.dm-drafts__readiness-summary {
+	font-size: 12px;
+	line-height: 1.35;
+}
+
+/* Block + disc, not flex-column: a flex container suppresses the list
+   markers, which is what made these read as four orphaned grey lines. */
+.dm-drafts__readiness-missing {
+	margin: 4px 0 0;
+	padding-inline-start: 16px;
+	font-size: 11.5px;
+	line-height: 1.4;
+	opacity: 0.9;
+	display: block;
+	list-style: disc;
+}
+
+.dm-drafts__suggest-group {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+}
+
+.dm-drafts__suggest-label {
+	font-size: 10px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	opacity: 0.72;
+}
+
+/* Suggestion buttons — `<os-button variant="ghost">` tuned to read as
+   list rows (title / excerpt) or pills (tags / categories). */
+.dm-drafts__suggest-item,
+.dm-drafts__suggest-tag {
+	--os-ui-button-border: none;
+	--os-ui-button-bg: transparent;
+	--os-ui-button-fg: currentColor;
+}
+
+.dm-drafts__suggest-item {
+	display: flex;
+	--os-ui-button-padding: 4px 6px;
+	--os-ui-button-border-radius: 6px;
+	--os-ui-button-bg-hover: color-mix( in srgb, currentColor 12%, transparent );
+}
+
+.dm-drafts__suggest-item::part( button ) {
+	width: 100%;
+	justify-content: flex-start;
+	text-align: start;
+	font-size: 12px;
+	font-weight: 400;
+	line-height: 1.35;
+}
+
+.dm-drafts__suggest-tags {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+}
+
+.dm-drafts__suggest-tag {
+	--os-ui-button-padding: 2px 8px;
+	--os-ui-button-border-radius: 999px;
+	--os-ui-button-border: 1px solid
+		color-mix( in srgb, currentColor 30%, transparent );
+	--os-ui-button-bg-hover: color-mix(
+		in srgb,
+		var( --os-ui-accent, #2271b1 ) 16%,
+		transparent
+	);
+}
+
+.dm-drafts__suggest-tag::part( button ) {
+	font-size: 11px;
+	font-weight: 400;
+}
+
+.dm-drafts__suggest-tag:hover {
+	--os-ui-button-fg: var( --dm-drafts-accent, #2271b1 );
+	--os-ui-button-border: 1px solid
+		color-mix( in srgb, var( --dm-drafts-accent, #2271b1 ) 55%, transparent );
+}
+
+/*
+ * Applied — the suggestions the user accepted.
+ *
+ * A widget card is glass over an arbitrary wallpaper, so this state can't
+ * ride on a hue: the LABEL stays at the card's own text color, which is
+ * the one color the card already guarantees is readable. What marks it as
+ * applied is a currentColor-derived wash, a tinted border and a ✓ —
+ * shape and fill, both of which survive any background.
+ *
+ * Note also that this is not the component's `disabled` state: that dims
+ * to 50% opacity, halving contrast exactly where we can least afford it.
+ */
+.dm-drafts__suggest-item.is-applied,
+.dm-drafts__suggest-tag.is-applied {
+	--dm-drafts-applied: color-mix(
+		in srgb,
+		var( --os-ui-success-fg, #46b450 ) 55%,
+		currentColor
+	);
+	--os-ui-button-fg: currentColor;
+	--os-ui-button-bg: color-mix( in srgb, currentColor 15%, transparent );
+	/* Same as the resting fill — an applied suggestion is inert, so it
+	   must not light up under the pointer as if it were still actionable. */
+	--os-ui-button-bg-hover: color-mix( in srgb, currentColor 15%, transparent );
+	--os-ui-button-border: 1px solid
+		color-mix( in srgb, var( --dm-drafts-applied ) 60%, transparent );
+	opacity: 1;
+	cursor: default;
+}
+
+/* Slotted, not a `::after` on the host — a shadow host's own
+   pseudo-elements have no slot to render into. */
+.dm-drafts__applied-check {
+	margin-inline-start: 4px;
+	font-weight: 700;
+	color: var( --dm-drafts-applied, currentColor );
 }
 
 .dm-drafts__name {

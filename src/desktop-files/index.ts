@@ -1,17 +1,15 @@
 /**
- * Desktop Mode — Files-on-the-desktop entry point.
+ * OpenStation — Files-on-the-desktop entry point.
  *
  * Importing this module side-effect registers the ten built-in
  * file types and the ten built-in openers with their respective
- * registries, then exposes the public API on `wp.desktop.files`.
+ * registries, then exposes the public API on `wp.os.files`.
  *
  * Higher phases extend this module with the REST/store layer
  * (Phase 2), the `FilesLayer` renderer (Phase 3), the wallpaper
  * context menu (Phase 4), the file-associations settings tab
  * (Phase 5), folder sharing + Heartbeat sync (Phase 6), and the
  * Recycle-Bin drop integration (Phase 7).
- *
- * @since 0.9.0
  */
 
 import { DefaultDesktopFile, DesktopFile } from './file';
@@ -42,10 +40,12 @@ import { registerBuiltInFileTypes } from './built-in-types';
 import { registerBuiltInFileOpeners } from './built-in-openers';
 import { installEmbedPersistence } from './embed-window';
 import { registerFileAssociationsTab } from './settings-tab';
+import { seedBootFolders } from './boot-folders';
 import { installShareMenuItems } from './share-menu-items';
 import { installShareInviteBanner } from './share-invite-banner';
 import { installUploadMenuItems } from './upload-menu-items';
 import { ingestPendingInvites, type PendingInvite } from './shares-store';
+import { registerTilePayloadHandler } from './tile-payloads';
 import * as filesRest from './rest';
 import {
 	getFilesState,
@@ -65,6 +65,9 @@ registerBuiltInFileTypes();
 registerBuiltInFileOpeners();
 installEmbedPersistence();
 registerFileAssociationsTab();
+// Fill the folders map before anything reads folder ownership from
+// it — the "Share folder" title-bar button gates on exactly that.
+seedBootFolders();
 installShareMenuItems();
 installUploadMenuItems();
 // Hydrate the shares store from the shell config snapshot BEFORE the
@@ -73,8 +76,8 @@ installUploadMenuItems();
 // server-side, no heartbeat tick yet) needs the store populated up
 // front for the banner's initial walk to see them.
 const seededPending = ( window as unknown as {
-	desktopModeConfig?: { serverPendingShares?: PendingInvite[] };
-} ).desktopModeConfig?.serverPendingShares;
+	openStationConfig?: { serverPendingShares?: PendingInvite[] };
+} ).openStationConfig?.serverPendingShares;
 if ( Array.isArray( seededPending ) && seededPending.length > 0 ) {
 	ingestPendingInvites( seededPending );
 }
@@ -82,7 +85,7 @@ installShareInviteBanner();
 
 /**
  * Public API surface for the files registry. Mirrored on
- * `wp.desktop.files` by `desktop.ts` so plugin authors get a
+ * `wp.os.files` by `desktop.ts` so plugin authors get a
  * stable, namespaced entry point.
  */
 export const filesApi = {
@@ -102,6 +105,18 @@ export const filesApi = {
 	subscribeOpeners,
 	getUserAssociations,
 	open: openFile,
+	/**
+	 * Accept drops on a desktop icon your plugin registered.
+	 *
+	 * Every non-folder tile carries a claimant that hard-rejects
+	 * foreign payloads, so a drop doesn't fall through to the
+	 * wallpaper. Fighting that claimant for the element doesn't work —
+	 * the drop-target registry allows one target per element and the
+	 * claimant is installed last. This is the cooperative seam: the
+	 * layer keeps owning the target and consults registered handlers
+	 * for the accept predicate, the hover chip, and the drop.
+	 */
+	registerTilePayloadHandler,
 	rest: filesRest,
 	store: {
 		get: getFilesStore,
@@ -117,6 +132,11 @@ export const filesApi = {
 };
 
 export type FilesApi = typeof filesApi;
+
+export type {
+	TilePayloadContext,
+	TilePayloadHandler,
+} from './tile-payloads';
 
 export {
 	DefaultDesktopFile,

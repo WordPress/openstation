@@ -1,6 +1,6 @@
-var wpDesktopCronManager = function(exports) {
+var openStationCronManager = function(exports) {
   "use strict";
-  const TEXT_DOMAIN = "desktop-mode";
+  const TEXT_DOMAIN = "openstation";
   function i18n() {
     return window.wp?.i18n;
   }
@@ -16,10 +16,10 @@ var wpDesktopCronManager = function(exports) {
     return format.replace(/%[sd]/g, () => String(args[i++] ?? ""));
   }
   function config() {
-    const cfg = window.wpDesktopCronManagerConfig;
+    const cfg = window.openStationCronManagerConfig;
     if (!cfg) {
       throw new Error(
-        "wpDesktopCronManagerConfig is missing - the cron-manager bundle was loaded outside of desktop mode."
+        "openStationCronManagerConfig is missing - the cron-manager bundle was loaded outside of OpenStation."
       );
     }
     return cfg;
@@ -79,21 +79,21 @@ var wpDesktopCronManager = function(exports) {
       body: JSON.stringify({ identity })
     });
   }
-  const ROOT = "[data-wpdm-cron-manager-root]";
-  const SEARCH = "[data-wpdm-cron-manager-search]";
-  const FILTER = "[data-wpdm-cron-manager-schedule-filter]";
-  const FEEDBACK = "[data-wpdm-cron-manager-feedback]";
-  const REFRESH = "[data-wpdm-cron-manager-refresh]";
-  const CREATE = "[data-wpdm-cron-manager-create]";
-  const TABLE = "[data-wpdm-cron-manager-table]";
-  const EDITOR = "[data-wpdm-cron-manager-editor]";
-  const EDITOR_TITLE = "[data-wpdm-cron-manager-editor-title]";
-  const CLOSE_EDITOR = "[data-wpdm-cron-manager-close-editor]";
-  const CUSTOM_SCHEDULE = "[data-wpdm-cron-manager-custom-schedule]";
-  const NOTICE = "[data-wpdm-cron-manager-notice]";
-  const SAVE = "[data-wpdm-cron-manager-save]";
-  const CANCEL = "[data-wpdm-cron-manager-cancel]";
-  const DELETE = "[data-wpdm-cron-manager-delete]";
+  const ROOT = "[data-osm-cron-manager-root]";
+  const SEARCH = "[data-osm-cron-manager-search]";
+  const FILTER = "[data-osm-cron-manager-schedule-filter]";
+  const FEEDBACK = "[data-osm-cron-manager-feedback]";
+  const REFRESH = "[data-osm-cron-manager-refresh]";
+  const CREATE = "[data-osm-cron-manager-create]";
+  const TABLE = "[data-osm-cron-manager-table]";
+  const EDITOR = "[data-osm-cron-manager-editor]";
+  const EDITOR_TITLE = "[data-osm-cron-manager-editor-title]";
+  const CLOSE_EDITOR = "[data-osm-cron-manager-close-editor]";
+  const CUSTOM_SCHEDULE = "[data-osm-cron-manager-custom-schedule]";
+  const NOTICE = "[data-osm-cron-manager-notice]";
+  const SAVE = "[data-osm-cron-manager-save]";
+  const CANCEL = "[data-osm-cron-manager-cancel]";
+  const DELETE = "[data-osm-cron-manager-delete]";
   const CUSTOM_VALUE = "__custom";
   const SINGLE_FILTER = "__single";
   const feedbackTimers = /* @__PURE__ */ new WeakMap();
@@ -180,7 +180,7 @@ var wpDesktopCronManager = function(exports) {
     wrap.style.cssText = "display:flex;flex-direction:column;gap:3px;white-space:nowrap;";
     const local = document.createElement("span");
     local.textContent = row.nextRunLocal;
-    const rel = document.createElement("wpd-relative-time");
+    const rel = document.createElement("os-relative-time");
     rel.setAttribute("datetime", row.nextRunGmt);
     rel.style.cssText = "font-size:12px;color:#646970;";
     wrap.append(local, rel);
@@ -278,15 +278,15 @@ var wpDesktopCronManager = function(exports) {
     const render = () => {
       table.data = filterEvents(state);
     };
-    root.querySelector(SEARCH)?.addEventListener("wpd-input-change", (e) => {
+    root.querySelector(SEARCH)?.addEventListener("os-input-change", (e) => {
       state.search = e.detail?.value ?? "";
       render();
     });
-    root.querySelector(FILTER)?.addEventListener("wpd-pick", (e) => {
+    root.querySelector(FILTER)?.addEventListener("os-pick", (e) => {
       state.filter = e.detail?.value ?? "";
       render();
     });
-    fields.schedule?.addEventListener("wpd-pick", (e) => {
+    fields.schedule?.addEventListener("os-pick", (e) => {
       const value = e.detail?.value ?? "";
       toggleCustomSchedule(editor, value === CUSTOM_VALUE);
     });
@@ -315,7 +315,7 @@ var wpDesktopCronManager = function(exports) {
         void handleDelete(table, state, state.editing);
       }
     });
-    table.addEventListener("wpd-table-row-click", (e) => {
+    table.addEventListener("os-table-row-click", (e) => {
       const row = e.detail?.row;
       if (row) {
         openEditor(root, editor, fields, state, row);
@@ -380,33 +380,33 @@ var wpDesktopCronManager = function(exports) {
     if (!select) {
       return;
     }
-    select.innerHTML = `<wpd-option value="">${escapeHtml(__("All schedules"))}</wpd-option><wpd-option value="${SINGLE_FILTER}">${escapeHtml(__("One time"))}</wpd-option>` + state.schedules.map(
-      (s) => `<wpd-option value="${escapeAttr(s.slug)}">${escapeHtml(
+    select.innerHTML = `<os-option value="">${escapeHtml(__("All schedules"))}</os-option><os-option value="${SINGLE_FILTER}">${escapeHtml(__("One time"))}</os-option>` + state.schedules.map(
+      (s) => `<os-option value="${escapeAttr(s.slug)}">${escapeHtml(
         s.display
-      )}</wpd-option>`
+      )}</os-option>`
     ).join("");
     setControlValue(select, state.filter);
   }
   function populateScheduleSelect(editor, state, value) {
     const select = editor.querySelector(
-      '[data-wpdm-cron-manager-field="schedule"]'
+      '[data-osm-cron-manager-field="schedule"]'
     );
     if (!select) {
       return;
     }
-    select.innerHTML = `<wpd-option value="">${escapeHtml(__("One time"))}</wpd-option>` + state.schedules.map(
-      (s) => `<wpd-option value="${escapeAttr(s.slug)}">${escapeHtml(
+    select.innerHTML = `<os-option value="">${escapeHtml(__("One time"))}</os-option>` + state.schedules.map(
+      (s) => `<os-option value="${escapeAttr(s.slug)}">${escapeHtml(
         s.display
-      )} (${s.interval}s)</wpd-option>`
-    ).join("") + `<wpd-option value="${CUSTOM_VALUE}">${escapeHtml(
+      )} (${s.interval}s)</os-option>`
+    ).join("") + `<os-option value="${CUSTOM_VALUE}">${escapeHtml(
       __("Custom interval")
-    )}</wpd-option>`;
+    )}</os-option>`;
     setControlValue(select, value);
     toggleCustomSchedule(editor, value === CUSTOM_VALUE);
   }
   function openEditor(root, editor, fields, state, event) {
     state.editing = event;
-    root.classList.add("wpdm-cron-manager--editing");
+    root.classList.add("osm-cron-manager--editing");
     editor.hidden = false;
     setEditorNotice(editor, "");
     const title = editor.querySelector(EDITOR_TITLE);
@@ -442,7 +442,7 @@ var wpDesktopCronManager = function(exports) {
   function closeEditor(root, editor, state) {
     state.editing = null;
     editor.hidden = true;
-    root.classList.remove("wpdm-cron-manager--editing");
+    root.classList.remove("osm-cron-manager--editing");
     setEditorNotice(editor, "");
   }
   async function handleSave(table, state, root, editor, fields) {
@@ -570,7 +570,7 @@ var wpDesktopCronManager = function(exports) {
   }
   function getFields(editor) {
     const field = (name) => editor.querySelector(
-      `[data-wpdm-cron-manager-field="${name}"]`
+      `[data-osm-cron-manager-field="${name}"]`
     );
     return {
       hook: field("hook"),
@@ -671,7 +671,7 @@ var wpDesktopCronManager = function(exports) {
   function escapeAttr(value) {
     return escapeHtml(value);
   }
-  const registry = window.wpDesktopNativeWindows ?? (window.wpDesktopNativeWindows = {});
+  const registry = window.openStationNativeWindows ?? (window.openStationNativeWindows = {});
   registry["wpdm-cron-manager"] = (body) => {
     renderCronManager(body);
   };

@@ -1,7 +1,7 @@
 /**
- * Desktop Mode — generic tile spec + renderer.
+ * OpenStation — generic tile spec + renderer.
  *
- * One canonical `<button class="desktop-mode-file-tile">` everywhere
+ * One canonical `<button class="os-file-tile">` everywhere
  * a tile shows up — desktop wallpaper, folder windows, the My
  * WordPress sections (Posts, Pages, Users, Media, drill-in usage),
  * and any plugin surface that wants the same visual chrome.
@@ -17,13 +17,11 @@
  * The legacy `buildTile(placement, folderId)` in `file-tile.ts`
  * keeps its placement-specific contract and now sits on top of
  * this generic renderer via a `placementToSpec()` adapter so the
- * `desktop-mode.files.tile-*` hook surface is unchanged for plugin
+ * `os.files.tile-*` hook surface is unchanged for plugin
  * authors.
- *
- * @since 0.8.6
  */
 
-import { TILE_CLASS, getDragManager } from '../ui/components/wpd-tile/wpd-tile';
+import { TILE_CLASS, getDragManager } from '../ui/components/os-tile/os-tile';
 import { applyFilters } from '../hooks';
 import type { ShortcutDragData } from './drag-payloads';
 
@@ -38,7 +36,6 @@ export { TILE_CLASS };
  * four light up a ribbon (everything else is treated as "no ribbon").
  *
  * @public
- * @since 0.8.6
  */
 export type TileStatus = 'draft' | 'pending' | 'private' | 'future' | string;
 
@@ -48,7 +45,6 @@ export type TileStatus = 'draft' | 'pending' | 'private' | 'future' | string;
  * canonical visual chrome.
  *
  * @public
- * @since 0.8.6
  */
 export interface TileSpec {
 	/** File-type slug — `'post'`, `'user'`, `'attachment'`, … */
@@ -108,33 +104,32 @@ export interface TileSpec {
 	ariaLabel?: string;
 	/**
 	 * Visual signal that the underlying entity has been removed —
-	 * mirrors the `desktop-mode-file-tile--missing` modifier the
+	 * mirrors the `os-file-tile--missing` modifier the
 	 * desktop-files renderer uses.
 	 */
 	missing?: boolean;
 	/**
 	 * Visual signal that the viewer doesn't have permission to
 	 * open the underlying entity — mirrors the
-	 * `desktop-mode-file-tile--access-gated` modifier.
+	 * `os-file-tile--access-gated` modifier.
 	 */
 	accessGated?: boolean;
 }
 
 /**
- * Build a tile from a spec by instantiating a `<wpd-tile>` element
+ * Build a tile from a spec by instantiating a `<os-tile>` element
  * and reflecting the spec fields onto it as attributes. The
  * component owns the DOM rendering (icon vs thumbnail decision,
  * status ribbon, lock badge, drag-out wiring).
  *
- * Returns the `<wpd-tile>` host so callers can attach event
+ * Returns the `<os-tile>` host so callers can attach event
  * listeners (`click`, `dblclick`, `contextmenu`) directly — those
  * events bubble up from the inner button.
  *
  * @public
- * @since 0.8.6
  */
 export function buildTileFromSpec( spec: TileSpec ): HTMLElement {
-	const tile = document.createElement( 'wpd-tile' );
+	const tile = document.createElement( 'os-tile' );
 
 	tile.setAttribute( 'type', spec.type );
 	tile.setAttribute( 'ref', spec.ref );
@@ -184,7 +179,7 @@ export function buildTileFromSpec( spec: TileSpec ): HTMLElement {
 	// component paints. `applyFilters` is sync, so the result lands
 	// before the first render pass.
 	const classFiltered = applyFilters< string, [ TileSpec ] >(
-		'desktop-mode.tile.class',
+		'os.tile.class',
 		tile.className,
 		spec,
 	);
@@ -202,13 +197,51 @@ export function buildTileFromSpec( spec: TileSpec ): HTMLElement {
 }
 
 /**
+ * Ghost for a multi-item drag: the grabbed tile, with the rest of the
+ * set implied by a stack behind it and stated by a count badge.
+ *
+ * A ghost showing only the grabbed tile would say "you are moving one
+ * thing" while five move — and the count is the part users check
+ * before releasing over the Trash.
+ *
+ * @public
+ */
+export function buildDragStackGhost(
+	tile: HTMLElement,
+	count: number,
+): HTMLElement {
+	const wrap = document.createElement( 'div' );
+	wrap.className = 'os-drag-stack';
+	const rect = tile.getBoundingClientRect();
+	wrap.style.width = `${ rect.width }px`;
+	wrap.style.height = `${ rect.height }px`;
+
+	const clone = tile.cloneNode( true ) as HTMLElement;
+	clone.removeAttribute( 'id' );
+	// The clone is decoration — strip the state that would make it
+	// read as selected or interactive inside the ghost.
+	clone.removeAttribute( 'selected' );
+	clone.removeAttribute( 'aria-selected' );
+	clone.classList.remove( `${ TILE_CLASS }--selected` );
+	clone.style.left = '0px';
+	clone.style.top = '0px';
+	clone.style.position = 'relative';
+	wrap.appendChild( clone );
+
+	const badge = document.createElement( 'span' );
+	badge.className = 'os-drag-stack__count';
+	badge.textContent = String( count );
+	wrap.appendChild( badge );
+	return wrap;
+}
+
+/**
  * Drag-out payload — what the drag manager carries when the user
  * lifts a tile and drops it on a desktop-files surface (wallpaper,
  * folder window). The receiving drop target creates a placement
  * with `{ kind, ref }` resolved against the file-type registry.
  *
  * @public
- * @since 0.8.6
  */
 export interface TileDragOutPayload {
 	/** File-type slug — `'post'`, `'user'`, `'attachment'`, … */
@@ -225,18 +258,14 @@ export interface TileDragOutPayload {
 	 * .entityId` so drop targets that need to act on the source
 	 * entity (notably the recycle bin's drag-to-trash) can resolve
 	 * which REST endpoint the `ref` belongs to.
-	 *
-	 * @since 0.8.7
 	 */
 	entityId?: string;
 	/**
 	 * Optional cross-frame bridge payload. When set the shell fans
-	 * this into `wp.desktop.dragBridge` while the gesture is live so
+	 * this into `wp.os.dragBridge` while the gesture is live so
 	 * iframe receivers (Gutenberg drop-receiver, future Media Library
-	 * receiver) can insert a block on `desktop-mode-drop`. See
+	 * receiver) can insert a block on `os-drop`. See
 	 * `ShortcutDragData.bridgePayload`.
-	 *
-	 * @since 0.8.7
 	 */
 	bridgePayload?: import( '../drag-bridge' ).DragBridgePayload;
 }
@@ -247,21 +276,32 @@ export interface TileDragOutPayload {
  * truth — no builder duplicates this pointerdown dance any more.
  *
  * @public
- * @since 0.8.6
  *
- * @param tile    Tile element from `buildTileFromSpec`.
- * @param payload What the drop target receives.
- * @param onClick Optional hook fired on a sub-threshold gesture
- *                (pointerdown without a drag). Most My WordPress
- *                builders use it to hide the hover tooltip.
+ * @param tile            Tile element from `buildTileFromSpec`.
+ * @param payload         What the drop target receives.
+ * @param onClick         Optional hook fired on a sub-threshold gesture
+ *                        (pointerdown without a drag). Most My WordPress
+ *                        builders use it to hide the hover tooltip.
+ * @param opts            Multi-drag options.
+ * @param opts.resolveSet Asked, at lift time, for every entity the
+ *                        gesture should carry — the surface's current
+ *                        selection when this tile is part of it. Return an
+ *                        empty array (or omit it) for a single-item drag.
  */
 export function attachTileDragOut(
 	tile: HTMLElement,
 	payload: TileDragOutPayload,
 	onClick?: () => void,
+	opts: { resolveSet?: () => TileDragOutPayload[] } = {},
 ): void {
 	tile.addEventListener( 'pointerdown', ( e: PointerEvent ) => {
 		if ( e.button !== 0 ) {
+			return;
+		}
+		// A modifier means the user is composing a selection, not
+		// picking the tile up — see the same guard in the desktop
+		// layer's `attachTileDrag`.
+		if ( e.shiftKey || e.ctrlKey || e.metaKey ) {
 			return;
 		}
 		const dragManager = getDragManager();
@@ -269,6 +309,10 @@ export function attachTileDragOut(
 			return;
 		}
 		const rect = tile.getBoundingClientRect();
+		// The surface answers "is this tile part of a selection, and
+		// if so what's in it?" — the tile itself has no idea.
+		const set = opts.resolveSet?.() ?? [];
+		const many = set.length > 1 ? set : [];
 		dragManager.start( {
 			payload: {
 				type: 'shortcut',
@@ -280,10 +324,26 @@ export function attachTileDragOut(
 					icon: payload.icon,
 					entityId: payload.entityId,
 					bridgePayload: payload.bridgePayload,
+					// Only present for a real multi-drag, so single-item
+					// payloads stay byte-identical to what every
+					// existing drop target was written against.
+					...( many.length > 0 ? { items: many } : {} ),
 				} satisfies ShortcutDragData,
 				ghost: {
 					offsetX: e.clientX - rect.left,
 					offsetY: e.clientY - rect.top,
+					element:
+						many.length > 0
+							? buildDragStackGhost( tile, many.length )
+							: undefined,
+					hint:
+						many.length > 0
+							? {
+								accept: `Add ${ many.length } items here`,
+								reject: `Can’t drop ${ many.length } items here`,
+								neutral: `Dragging ${ many.length } items`,
+							}
+							: undefined,
 				},
 			},
 			origin: e,

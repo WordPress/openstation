@@ -1,40 +1,35 @@
 /**
  * Desktop-layout dispatcher.
  *
- * Owns the dock(s) and any synthesized desktop icons across the three
- * top-level layouts the user can pick in OS Settings → Appearance:
+ * Owns the rails across the two layouts the user can pick in
+ * OpenStation Preferences → Appearance:
  *
- * - **Classic** — two `Dock` instances. The bottom dock holds plugin
- *   menus (`!isCore`). A side dock on the left edge holds core admin
- *   menus (`isCore`). Default for new installs.
- * - **Unified** — a single bottom `Dock` instance with every menu
- *   sharing one rail. (Pre-0.6.0 default; one-click away.)
- * - **Spatial** — a single bottom `Dock` instance with plugin menus
- *   only. Core menus are synthesized into desktop-icon entries and
- *   handed to `renderDesktopIcons` so they appear on the wallpaper.
+ * - **Unified** — one dock on the edge `dockPlacement` names, holding
+ *   all three zones: WordPress's own admin menus, then apps, then
+ *   OpenStation's controls.
+ * - **Split** (stored as `classic`) — a sidebar on the left holding
+ *   WordPress's admin menus and nothing else, plus the dock holding
+ *   the other two zones.
  *
- * Two surfaces drive this module:
+ * The dispatcher does not decide any of that. It collects the four
+ * registration paths into a flat {@link NavItem} list, hands them to
+ * {@link computeNav} along with the user's preferences and the set of
+ * open windows, and paints the answer. Every rule about where a thing
+ * shows up lives in `src/nav/`, which is why the sidebar and the dock
+ * can no longer disagree about one.
  *
- * 1. `setLayout( layout )` — full rebuild. Tears down current docks,
- *    creates new ones for the new layout, re-attaches the OS Settings
- *    system tile to the bottom rail, repaints desktop icons.
- * 2. `applyDockItems( items )` / `applyDesktopIcons( serverIcons )` —
- *    update paths used by the live menu-refresh pipeline. Same item
- *    list comes in; the dispatcher partitions it by `isCore` and pushes
- *    the right slice to each rail (and re-synthesizes core icons on
- *    the wallpaper for Spatial).
- *
- * Lives separate from `desktop.ts` so the partitioning logic is
- * testable without booting the whole shell.
- *
- * @since 0.6.0
+ * Lives separate from `desktop.ts` so it is testable without booting
+ * the whole shell.
  */
 
-import type {
-	DesktopIconServerEntry,
-	DockItemConfig,
-} from './types';
-import { Dock, type DockItem, type SystemDockItem } from './dock';
+import type { DesktopIconServerEntry, DockItemConfig } from './types';
+import {
+	Dock,
+	type DockEntry,
+	type DockItem,
+	type DockZones,
+	type SystemDockItem,
+} from './dock';
 import {
 	defaultDockRailRenderer,
 	resolveActiveDockRailRenderer,
@@ -45,224 +40,444 @@ import {
 } from './dock-rail';
 import type { WindowManager } from './window-manager';
 import { deriveWindowId } from './utils';
-import type { DesktopLayoutId, OsSettingsState } from './settings/types';
+import { resolveNativeUrlRemap } from './native-url-remap';
+import { tryOpenExternalUrl } from './external-url';
+import type {
+	DesktopLayoutId,
+	DockPlacementId,
+	OsSettingsState,
+} from './settings/types';
 import {
-	applyDesktopPlacement,
-	applyDockPlacement,
-} from './settings/item-placement';
+	buildNavItems,
+	computeNav,
+	NAV_ZONES,
+	type NavItem,
+	type NavResult,
+	type NavSystemTile,
+	type OpenWindow,
+} from './nav';
 import { doAction, HOOKS } from './hooks';
-
-/**
- * Where a system tile prefers to live. `'core'` follows the rail
- * that holds core admin menus (side bar in Classic, primary rail
- * elsewhere); `'plugin'` always lands on the primary rail with
- * plugin menus. Defaults to `'plugin'` so plugin-registered native-
- * window tiles continue to sit alongside other plugin entries.
- */
-export type SystemTileAffinity = 'core' | 'plugin';
 
 /** External wiring the dispatcher needs from the shell boot path. */
 export interface LayoutDispatcherDeps {
-	/** Outermost shell root — receives `data-desktop-mode-layout`. */
+	/** Outermost shell root — receives `data-os-layout`. */
 	shellRoot: HTMLElement;
 	/**
-	 * `.desktop-mode-shell__body` flex row that hosts the side dock and
-	 * the desktop area. The side dock (Classic) is inserted as the
-	 * first child here so its CSS `order: -1` paints it on the left.
+	 * `.os-shell__body` flex row that hosts the sidebar and the
+	 * desktop area. The sidebar is inserted as the first child here so
+	 * its CSS `order: -1` paints it on the leading edge.
 	 */
 	shellBody: HTMLElement;
-	/** Existing `#desktop-mode-dock` element from the PHP shell template. */
+	/**
+	 * Existing `#os-dock` element from the PHP shell template. Hosts
+	 * the dock on whichever edge is in play — the name is historical,
+	 * `bottom` is only its default placement.
+	 */
 	bottomDockEl: HTMLElement;
 	desktopArea: HTMLElement;
 	windowManager: WindowManager;
 	adminUrl: string;
-	/**
-	 * Repaint the desktop-icons grid with a (possibly augmented) list.
-	 * The dispatcher hands the union of server-registered icons +
-	 * synthesized core menu icons (Spatial only).
-	 */
+	/** Repaint the desktop-icons grid. */
 	renderIcons: ( icons: DesktopIconServerEntry[] | undefined ) => void;
 	/**
-	 * Read the current OS-settings snapshot. The dispatcher consults
-	 * this on every partition / repaint so the user's
-	 * `itemVisibility` + `dockOrder` overrides take effect without
-	 * the call site having to thread settings through.
+	 * Read the user's navigation preferences. Consulted on every
+	 * repaint so a settings change lands without the call site having
+	 * to thread the snapshot through.
 	 */
-	getSettings?: () => Pick<
-		OsSettingsState,
-		'itemVisibility' | 'dockOrder'
-	>;
+	getSettings?: () => Pick< OsSettingsState, 'navPlacement' | 'navOrder' >;
 }
 
 /**
  * Public surface mirrored on the shell so the menu-refresh pipeline
- * and other shell modules don't have to reach for the underlying
- * `Dock` references directly.
+ * and other shell modules don't reach for the underlying `Dock`
+ * references directly.
  */
 export interface LayoutDispatcher {
 	/** Currently-active layout. Mirrors `state.desktopLayout`. */
 	getLayout(): DesktopLayoutId;
-	/** Bottom dock instance. Always present once `setLayout` has run. */
+	/** Dock instance. Always present once `setLayout` has run. */
 	getPrimary(): Dock | null;
-	/** Side (left) dock instance. Non-null only in Classic. */
+	/** Sidebar instance. Non-null only in the split layout. */
 	getSide(): Dock | null;
 	/**
-	 * Switch to a new layout. Tears down existing docks (and any
-	 * synthesized side-dock element), creates fresh ones, re-attaches
-	 * the OS Settings tile, repaints the wallpaper-icon grid.
+	 * Switch layouts. Tears down existing rails (and any synthesized
+	 * sidebar element), creates fresh ones, repaints the wallpaper.
 	 *
-	 * Idempotent: passing the current layout is a no-op. Plugins that
-	 * cache `wp.desktop.dock` should listen for `desktop-mode-layout-
-	 * changed` on `document` and refresh their reference.
+	 * Idempotent. Plugins that cache `wp.os.dock` should listen for
+	 * `os-layout-changed` on `document` and refresh their reference.
 	 */
 	setLayout( layout: DesktopLayoutId ): void;
 	/**
-	 * Replace the dock-items list across whichever rails are live.
-	 * Items with `isCore === true` route to the side dock in Classic
-	 * and to the wallpaper-icon grid in Spatial; all other layouts
-	 * push every item to the single bottom rail.
+	 * The edge the dock sits on. Mirrors `state.dockPlacement`
+	 * whatever the layout is — the split layout keeps the user's pick
+	 * stored without acting on it, so switching back lands on the edge
+	 * they chose rather than resetting to the bottom.
 	 */
-	applyDockItems( items: DockItem[] ): void;
+	getDockPlacement(): DockPlacementId;
 	/**
-	 * Replace the server-registered desktop-icons list. Stored so the
-	 * dispatcher can re-emit a merged list (server icons + synthesized
-	 * core icons) on every Spatial repaint.
+	 * Move the dock to another edge. Same full rebuild as
+	 * `setLayout` — the placement is passed to the renderer at
+	 * `mount()` time, so a rail cannot be re-oriented without one.
+	 *
+	 * A no-op in the split layout beyond storing the value: its
+	 * sidebar already owns the left edge, and honouring the pick would
+	 * stack both rails on top of each other.
 	 */
+	setDockPlacement( placement: DockPlacementId ): void;
+	/** Replace the admin-menu list. */
+	applyDockItems( items: DockItem[] ): void;
+	/** Replace the server-registered desktop-icons list. */
 	applyDesktopIcons( serverIcons: DesktopIconServerEntry[] | undefined ): void;
 	/**
-	 * Append a JS-owned "system" tile. The tile is tracked so it
-	 * survives layout changes — every rebuild re-attaches the
-	 * tracked set in registration order. Calling twice with the same
-	 * id replaces the previous tile (idempotent).
+	 * Append a JS-owned system tile — a native window's launcher, or
+	 * one of the shell's own affordances. The tile is tracked so it
+	 * survives layout changes.
 	 *
-	 * `affinity` controls which rail the tile lives on:
-	 *
-	 * - `'plugin'` *(default)* — always lands on the primary (bottom)
-	 *   dock alongside plugin admin menus. Used by plugin-registered
-	 *   native-window tiles.
-	 * - `'core'` — lands on the side dock when one exists (Classic
-	 *   layout, alongside core admin menus); falls back to the primary
-	 *   dock in Unified and Spatial where there is no side rail. Used
-	 *   by shell-owned affordances like OS Settings.
+	 * Where it lands is not this call's decision: the tile's
+	 * {@link SystemDockItem.navKind} says what it IS, and the
+	 * navigation model takes it from there. Calling twice with the
+	 * same id replaces the previous tile.
 	 */
-	appendSystemTile(
-		item: SystemDockItem,
-		affinity?: SystemTileAffinity,
-	): void;
+	appendSystemTile( item: SystemDockItem ): void;
 	/** Remove a previously-appended system tile by id. */
 	removeSystemTile( id: string ): void;
 	/**
-	 * Snapshot of every system tile registered across both rails.
-	 * Read-only entry view ({ id, title, icon, affinity }) — use
-	 * {@link getSystemTile} to fetch the underlying `SystemDockItem`
-	 * with its `onOpen` / `isOpen` callbacks.
-	 *
-	 * @since 0.6.0
+	 * Snapshot of every registered system tile. Read-only entry view —
+	 * use {@link getSystemTile} to fetch the underlying
+	 * `SystemDockItem` with its `onOpen` / `isOpen` callbacks.
 	 */
 	listSystemTiles(): Array< {
 		id: string;
 		title: string;
 		icon: string;
-		affinity: SystemTileAffinity;
+		navKind: 'app' | 'control';
+		/** Whether the tile opts into the Navigation preferences list. */
+		placeable: boolean;
+		locked: boolean;
 	} >;
 	/**
 	 * Look up a system tile by id. Returns the underlying
 	 * `SystemDockItem` so callers can invoke `onOpen()` directly.
 	 * Returns `null` for unknown ids.
-	 *
-	 * @since 0.6.0
 	 */
 	getSystemTile( id: string ): SystemDockItem | null;
 	/**
-	 * Snapshot of the complete admin-menu list — the same data the
-	 * dispatcher partitions across rails based on layout. Use this
-	 * when a custom rail renderer needs the full picture (Classic
-	 * layout's primary rail only sees `!isCore` items via
-	 * mount-deps; this returns every item).
-	 *
-	 * @since 0.6.0
+	 * Snapshot of the complete admin-menu list — every item, whatever
+	 * rail it is painted on. Custom rail renderers that want to ignore
+	 * the layout's partitioning read this.
 	 */
 	getMenuItems(): DockItem[];
 	/**
-	 * Re-apply the current OS-settings placement preferences to every
-	 * rail. Called when `itemVisibility` or `dockOrder` changes — both
-	 * the dock contents and the desktop-icons grid may shift.
-	 *
-	 * @since 0.8.2
+	 * Every navigable thing the shell knows about, whatever surface it
+	 * is currently on. What OpenStation Preferences → Navigation lists.
 	 */
+	getNavItems(): NavItem[];
+	/**
+	 * The current computed navigation — which zone holds what, which
+	 * rail an item is on, and which tiles are present only because
+	 * their window is open. What the right-click menu reads to label
+	 * itself.
+	 */
+	getNav(): NavResult;
+	/** Repaint every rail and the wallpaper from current state. */
 	refresh(): void;
-	/** Tear down all docks. Called on shell unload (or in tests). */
+	/** Tear down all rails. Called on shell unload (or in tests). */
 	destroy(): void;
 }
 
-const SIDE_DOCK_ID = 'desktop-mode-side-dock';
-
-/**
- * Convert a core menu item into the icon-entry shape `renderDesktopIcons`
- * expects. Spatial mode renders these on the wallpaper in place of the
- * left side bar that Classic gives core menus.
- */
-function coreItemToIconEntry(
-	item: DockItem,
-	index: number,
-): DesktopIconServerEntry {
-	return {
-		id: `dock-core:${ item.id }`,
-		title: item.title,
-		icon: item.icon,
-		window: '',
-		url: item.url,
-		// Synthesized icons render after server-registered ones; the
-		// large offset leaves headroom for plugin authors who set
-		// explicit `position` values.
-		position: 1000 + index,
-	};
-}
+const SIDE_DOCK_ID = 'os-side-dock';
 
 export function createLayoutDispatcher(
 	deps: LayoutDispatcherDeps,
 	initialLayout: DesktopLayoutId,
 	initialDockItems: DockItem[],
 	initialServerIcons: DesktopIconServerEntry[] | undefined,
+	initialPlacement: DockPlacementId = 'bottom',
 ): LayoutDispatcher {
 	let layout: DesktopLayoutId = initialLayout;
-	let items: DockItem[] = initialDockItems;
+	// Named for the setting rather than shortened to `placement`: this
+	// file also calls an item's rail-vs-desktop visibility a placement,
+	// and the two are unrelated.
+	let dockPlacement: DockPlacementId = initialPlacement;
+	let menuItems: DockItem[] = initialDockItems;
 	let serverIcons: DesktopIconServerEntry[] = initialServerIcons ?? [];
 	// Two-tier storage: controllers drive every live update (built
 	// from `renderer.mount()`), and the unwrapped Dock instances are
 	// kept alongside ONLY when the active renderer is the built-in
-	// `'default'`. The Dock references back the public `wp.desktop.dock`
-	// / `wp.desktop.sideDock` API surface unchanged; custom-renderer
-	// controllers expose null there. Plugin authors who want renderer-
-	// agnostic access reach for the controller via the dispatcher.
+	// `'default'`. The Dock references back the public `wp.os.dock`
+	// / `wp.os.sideDock` API surface unchanged; custom-renderer
+	// controllers expose null there.
 	let primary: DockRailController | null = null;
 	let side: DockRailController | null = null;
 	let primaryDock: Dock | null = null;
 	let sideDock: Dock | null = null;
 	let sideDockEl: HTMLElement | null = null;
-	// System tiles tracked here so they survive layout rebuilds. The
-	// shell adds the OS Settings tile right after construction; native-
-	// window registration adds plugin-owned tiles. Iteration is in
-	// insertion order so re-attach matches the original visual order.
-	// Each entry remembers its affinity so a `'core'` tile can route
-	// to the side dock in Classic and to primary in Unified/Spatial.
-	const systemTiles = new Map<
-		string,
-		{ item: SystemDockItem; affinity: SystemTileAffinity }
-	>();
-	// Ids of tracked system tiles currently attached to a live rail.
-	// A tile the user hid via OS Settings → Apps & Icons stays tracked
-	// (so flipping the setting back restores it) but detached.
-	const attachedSystemTiles = new Set< string >();
+	// System tiles tracked here so they survive layout rebuilds, in
+	// insertion order.
+	const systemTiles = new Map< string, SystemDockItem >();
 
-	const railFor = (
-		affinity: SystemTileAffinity,
-	): DockRailController | null => {
-		if ( affinity === 'core' && side ) {
-			return side;
+	let navItems: NavItem[] = [];
+	let nav: NavResult = computeNav( {
+		items: [],
+		config: { placement: {}, order: [] },
+		layout,
+		openWindows: [],
+	} );
+
+	const readSettings = (): Pick<
+		OsSettingsState,
+		'navPlacement' | 'navOrder'
+	> => deps.getSettings?.() ?? { navPlacement: {}, navOrder: [] };
+
+	/**
+	 * Windows open on the active desktop, one entry per app rather
+	 * than per instance. Read fresh rather than cached: the answer
+	 * changes on every open and close.
+	 */
+	const openWindows = (): OpenWindow[] => {
+		const active = deps.windowManager.getActiveDesktopId();
+		const out: OpenWindow[] = [];
+		const seen = new Set< string >();
+		for ( const win of deps.windowManager.getAll() ) {
+			if ( ( win.config.desktopId || active ) !== active ) {
+				continue;
+			}
+			const id = win.config.baseId || win.id;
+			if ( seen.has( id ) ) {
+				continue;
+			}
+			seen.add( id );
+			out.push( {
+				id,
+				title: win.config.title || id,
+				icon: win.config.icon || 'dashicons-admin-generic',
+				// A native window renders into the body; only an iframe
+				// window is an admin page. `url` is not the signal —
+				// the shell defaults an absent native url to `#<id>`,
+				// so every window has one.
+				fromAdminUrl: true !== win.config.native,
+			} );
 		}
-		return primary;
+		return out;
 	};
+
+	/**
+	 * The window-manager key an admin menu opens under.
+	 *
+	 * Menus whose URL a native window has claimed (the Posts window
+	 * under `nativePostsEnabled`, and its siblings) open under the
+	 * native id rather than the derived one, so the running indicator
+	 * has to ask the same question the tile's click does. Resolved
+	 * here rather than inside `src/nav/`, which has no business
+	 * knowing about the remap layer.
+	 */
+	const resolveMenuWindowId = ( item: DockItem ): string => {
+		if ( item.windowId ) {
+			return item.windowId;
+		}
+		return (
+			resolveNativeUrlRemap( item.url ) ??
+			deriveWindowId( item.url, deps.adminUrl )
+		);
+	};
+
+	/** Recompute the navigation from current state. */
+	const recompute = (): void => {
+		const tiles: NavSystemTile[] = [];
+		for ( const item of systemTiles.values() ) {
+			tiles.push( {
+				item,
+				kind: 'control' === item.navKind ? 'control' : 'app',
+				locked: item.locked,
+			} );
+		}
+		navItems = buildNavItems( {
+			menuItems,
+			systemTiles: tiles,
+			icons: serverIcons,
+			resolveMenuWindowId,
+		} );
+		const settings = readSettings();
+		nav = computeNav( {
+			items: navItems,
+			config: {
+				placement: settings.navPlacement,
+				order: settings.navOrder,
+			},
+			layout,
+			openWindows: openWindows(),
+		} );
+	};
+
+	/**
+	 * A rail entry for one nav item.
+	 *
+	 * An item backed by a system tile paints as one, because the tile
+	 * carries the `onOpen` / `isOpen` callbacks the rail needs. An item
+	 * backed only by a registered desktop icon has no tile, so one is
+	 * built from the icon — carrying `windowId` forward, without which
+	 * the active dot and hover-peek would look up `deriveWindowId('')`
+	 * and match nothing.
+	 */
+	const toDockEntry = ( item: NavItem ): DockEntry => {
+		if ( item.tile ) {
+			return { type: 'system', item: item.tile };
+		}
+		if ( item.menu ) {
+			return {
+				type: 'menu',
+				item: item.windowId
+					? { ...item.menu, windowId: item.windowId }
+					: item.menu,
+			};
+		}
+		return {
+			type: 'menu',
+			item: {
+				id: item.id,
+				title: item.title,
+				icon: item.icon,
+				url: item.entry?.url || '',
+				windowId: item.windowId,
+				badge: 0,
+				submenu: [],
+				isCore: false,
+			},
+		};
+	};
+
+	/**
+	 * A wallpaper icon for one nav item. Items registered as icons
+	 * keep their own entry — position, `pinned`, and all — and only a
+	 * menu or a tile the user promoted needs one synthesized.
+	 */
+	/**
+	 * Whether the wallpaper-icon grid can open this item.
+	 *
+	 * That grid opens a window id or a url and knows nothing else, so
+	 * a tile whose only opener is its own `onOpen` (Mio's toggles the
+	 * companion rather than opening anything) would paint an icon that
+	 * does nothing. The files layer is the surface that can run it,
+	 * through `shortcutSystemTile`, and it is the surface the user
+	 * actually sees; the grid is the fallback for shells with no files
+	 * layer mounted, and a fallback is better one icon short than one
+	 * dead icon long.
+	 */
+	const openableFromIconGrid = ( item: NavItem ): boolean =>
+		!! item.entry || !! item.windowId || !! item.menu?.url;
+
+	const toIconEntry = (
+		item: NavItem,
+		index: number,
+	): DesktopIconServerEntry => {
+		if ( item.entry ) {
+			return item.entry;
+		}
+		return {
+			id: item.id,
+			title: item.title,
+			icon: item.icon,
+			window: item.windowId ?? '',
+			url: item.menu?.url || '',
+			// After every server-registered icon, in nav order.
+			position: 2000 + index,
+		};
+	};
+
+	const toZones = ( zones: Record< string, NavItem[] > ): DockZones => ( {
+		core: ( zones.core ?? [] ).map( toDockEntry ),
+		apps: ( zones.apps ?? [] ).map( toDockEntry ),
+		controls: ( zones.controls ?? [] ).map( toDockEntry ),
+	} );
+
+	/**
+	 * Push a rail's contents to its controller.
+	 *
+	 * `setZones` is the one write path for renderers that speak zones
+	 * — the built-in one, and any renderer written against the current
+	 * contract. Older renderers get the legacy shape: a flat menu list
+	 * plus system tiles appended and removed one at a time. They lose
+	 * nothing except a plugin menu and an app launcher being able to
+	 * share a zone, which their layout had no way to express anyway.
+	 */
+	const applyToRail = (
+		controller: DockRailController | null,
+		zones: DockZones,
+		attached: Set< string >,
+	): void => {
+		if ( ! controller ) {
+			return;
+		}
+		if ( controller.setZones ) {
+			controller.setZones( zones );
+			attached.clear();
+			for ( const zone of NAV_ZONES ) {
+				for ( const entry of zones[ zone ] ) {
+					if ( 'system' === entry.type ) {
+						attached.add( entry.item.id );
+					}
+				}
+			}
+			return;
+		}
+		const menu: DockItem[] = [];
+		const wanted = new Set< string >();
+		for ( const zone of NAV_ZONES ) {
+			for ( const entry of zones[ zone ] ) {
+				if ( 'menu' === entry.type ) {
+					menu.push( entry.item );
+				} else {
+					wanted.add( entry.item.id );
+				}
+			}
+		}
+		controller.replaceItems( menu );
+		for ( const id of Array.from( attached ) ) {
+			if ( ! wanted.has( id ) ) {
+				controller.removeSystemItem( id );
+				attached.delete( id );
+			}
+		}
+		for ( const zone of NAV_ZONES ) {
+			for ( const entry of zones[ zone ] ) {
+				if ( 'system' === entry.type && ! attached.has( entry.item.id ) ) {
+					controller.appendSystemItem( entry.item );
+					attached.add( entry.item.id );
+				}
+			}
+		}
+	};
+
+	const attachedOnPrimary = new Set< string >();
+	const attachedOnSide = new Set< string >();
+
+	/** Recompute and repaint every surface. */
+	const paint = (): void => {
+		recompute();
+		applyToRail( primary, toZones( nav.dock ), attachedOnPrimary );
+		applyToRail(
+			side,
+			{ core: nav.sidebar.map( toDockEntry ), apps: [], controls: [] },
+			attachedOnSide,
+		);
+		deps.renderIcons(
+			nav.desktop.filter( openableFromIconGrid ).map( toIconEntry ),
+		);
+	};
+
+	/**
+	 * Whether a window opening or closing changed which tiles the rail
+	 * shows — not merely which dots are lit, which the rails handle
+	 * themselves.
+	 *
+	 * Opening a window is the single most common thing that happens in
+	 * the shell, and rebuilding the rail each time would discard hover
+	 * state and cancel an in-flight drag. So the listener compares the
+	 * ephemeral set and repaints only for the handful of opens and
+	 * closes that involve an app with no home on a rail.
+	 */
+	const ephemeralSignature = (): string =>
+		Array.from( nav.ephemeral ).sort().join( ',' );
 
 	const ensureSideDockEl = (): HTMLElement => {
 		const existing = document.getElementById(
@@ -273,12 +488,12 @@ export function createLayoutDispatcher(
 		}
 		const el = document.createElement( 'nav' );
 		el.id = SIDE_DOCK_ID;
-		el.className = 'desktop-mode-dock';
+		el.className = 'os-dock';
 		el.setAttribute( 'role', 'toolbar' );
 		el.setAttribute( 'aria-label', 'Core admin navigation' );
-		// Insert as the first child of `.desktop-mode-shell__body` so
-		// the existing `order: -1` left-placement CSS paints it on
-		// the leading edge regardless of source order in the markup.
+		// Insert as the first child of `.os-shell__body` so the
+		// existing `order: -1` left-placement CSS paints it on the
+		// leading edge regardless of source order in the markup.
 		deps.shellBody.insertBefore( el, deps.shellBody.firstChild );
 		return el;
 	};
@@ -288,168 +503,6 @@ export function createLayoutDispatcher(
 			sideDockEl.parentNode.removeChild( sideDockEl );
 		}
 		sideDockEl = null;
-	};
-
-	/**
-	 * Effective dock-item list after applying the user's visibility +
-	 * ordering preferences. Reads server icons so desktop-only items
-	 * the user has promoted to the dock get synthesized into tiles.
-	 */
-	const readSettings = (): Pick<
-		OsSettingsState,
-		'itemVisibility' | 'dockOrder'
-	> => deps.getSettings?.() ?? { itemVisibility: {}, dockOrder: [] };
-
-	/**
-	 * Whether a system tile is allowed on the dock under the user's
-	 * current Apps & Icons overrides. Native windows registered with
-	 * `placement: 'dock'` land on the rails as system tiles rather
-	 * than menu items, so `applyDockPlacement` never filters them —
-	 * resolve the override here instead.
-	 *
-	 * The override is read from the desktop icon targeting the tile's
-	 * window when one exists (the Apps & Icons tab keys its rows by
-	 * icon id), falling back to the tile's own id. No override means
-	 * the tile stays on its native dock rail.
-	 */
-	const isSystemTileDockVisible = ( tileId: string ): boolean => {
-		const visibility = readSettings().itemVisibility;
-		let override = visibility[ tileId ];
-		for ( const icon of serverIcons ) {
-			if ( icon.window === tileId && visibility[ icon.id ] ) {
-				override = visibility[ icon.id ];
-				break;
-			}
-		}
-		if ( ! override ) {
-			return true;
-		}
-		return override === 'dock' || override === 'both';
-	};
-
-	/**
-	 * Bring rail attachment in line with the visibility map for every
-	 * tracked system tile: attach tiles the user unhid, detach tiles
-	 * the user hid. Idempotent — called from `refresh()` on every
-	 * settings save and from `applyDesktopIcons()` when the icon →
-	 * window mapping the overrides key off changes.
-	 */
-	const reconcileSystemTiles = (): void => {
-		for ( const [ id, entry ] of systemTiles ) {
-			const shouldShow = isSystemTileDockVisible( id );
-			const isAttached = attachedSystemTiles.has( id );
-			if ( shouldShow && ! isAttached ) {
-				railFor( entry.affinity )?.appendSystemItem( entry.item );
-				attachedSystemTiles.add( id );
-			} else if ( ! shouldShow && isAttached ) {
-				railFor( entry.affinity )?.removeSystemItem( id );
-				attachedSystemTiles.delete( id );
-			}
-		}
-	};
-
-	const effectiveDockItems = (): DockItem[] => {
-		// System tile ids match the native-window ids the framework
-		// has already mounted on the dock (Recycle Bin's
-		// `placement: 'taskbar'` registration is the canonical
-		// example). Pass them through so applyDockPlacement skips
-		// synthesizing a duplicate when the user picks "Both" for
-		// an icon whose native window is already on the dock.
-		const dockedNativeWindows = new Set< string >();
-		for ( const entry of systemTiles.values() ) {
-			dockedNativeWindows.add( entry.item.id );
-		}
-		return applyDockPlacement(
-			items,
-			serverIcons,
-			readSettings(),
-			dockedNativeWindows,
-		);
-	};
-
-	const partition = (): { core: DockItem[]; plugin: DockItem[] } => {
-		const effective = effectiveDockItems();
-		const core: DockItem[] = [];
-		const plugin: DockItem[] = [];
-		for ( const item of effective ) {
-			if ( item.isCore ) {
-				core.push( item );
-			} else {
-				plugin.push( item );
-			}
-		}
-		return { core, plugin };
-	};
-
-	const repaintIcons = (): void => {
-		const settings = readSettings();
-		if ( layout !== 'spatial' ) {
-			// Apply visibility to the wallpaper grid — items the user
-			// promoted to the desktop get synthesized; native desktop
-			// icons hidden / dock-only are filtered out.
-			deps.renderIcons(
-				applyDesktopPlacement( serverIcons, items, settings.itemVisibility ),
-			);
-			return;
-		}
-		// Spatial owns the wallpaper as the "core surface": synthesized
-		// core menu icons render here. Server-registered PLUGIN desktop
-		// icons with no override are deliberately suppressed — their
-		// admin menu lives in the bottom dock, and duplicating them on
-		// the wallpaper would create two paths to the same screen.
-		//
-		// NOTE: on shells where the files layer is mounted (0.9.0+),
-		// `.desktop-mode-icons` — the container `deps.renderIcons()`
-		// paints into — is hidden by CSS (see `desktop-files.css`'s
-		// `:has(...)` rule), since the files layer is the actual
-		// visible wallpaper surface. The synthesis below still runs
-		// (and matters for shells without a files layer), but the
-		// user-visible equivalent for Spatial's core icons is produced
-		// separately by `syncShortcutsWithVisibility()` in
-		// `settings/desktop-shortcuts-sync.ts`, which pushes the same
-		// core items into the files store as shortcut placements.
-		//
-		// Two classes of server icon MUST survive the Spatial layout,
-		// or the layout choice silently eats them:
-		//   1. Framework-owned `pinned` icons (e.g. My WordPress). These
-		//      are not plugin menus and have no dock equivalent;
-		//      suppressing them made the icon vanish from the wallpaper
-		//      with the ONLY recovery being "move it to the dock" via
-		//      OS Settings.
-		//   2. Icons the user EXPLICITLY moved to the desktop / both in
-		//      OS Settings → Apps & Icons. Without this the picker's
-		//      "On the desktop" choice silently no-ops in Spatial.
-		// Dock-native items the user promoted are appended separately
-		// below (they have no serverIcons entry).
-		const { core } = partition();
-		const synthesized = core.map( coreItemToIconEntry );
-		const keptServerIcons = serverIcons.filter( ( icon ) => {
-			const override = settings.itemVisibility[ icon.id ];
-			if ( override ) {
-				return override === 'desktop' || override === 'both';
-			}
-			return Boolean( icon.pinned );
-		} );
-		const explicitlyPromoted: DesktopIconServerEntry[] = [];
-		let synthIndex = 0;
-		for ( const item of items ) {
-			const placement = settings.itemVisibility[ item.id ];
-			if ( placement === 'desktop' || placement === 'both' ) {
-				explicitlyPromoted.push( {
-					id: `dock:${ item.id }`,
-					title: item.title,
-					icon: item.icon,
-					window: '',
-					url: item.url || '',
-					position: 2000 + synthIndex++,
-				} );
-			}
-		}
-		deps.renderIcons( [
-			...synthesized,
-			...keptServerIcons,
-			...explicitlyPromoted,
-		] );
 	};
 
 	const tearDownDocks = (): void => {
@@ -477,6 +530,8 @@ export function createLayoutDispatcher(
 			side = null;
 			sideDock = null;
 		}
+		attachedOnPrimary.clear();
+		attachedOnSide.clear();
 	};
 
 	/**
@@ -522,27 +577,29 @@ export function createLayoutDispatcher(
 	/** Build mount-deps for one rail. */
 	const buildMountDeps = (
 		container: HTMLElement,
-		railItems: DockItem[],
 		orientation: 'left' | 'right' | 'bottom',
 	): DockRailMountDeps => ( {
 		container,
-		items: railItems,
+		// Rails mount empty: `paint()` fills them through the one write
+		// path the moment the mount returns, so there is no second
+		// place that decides what a rail holds.
+		items: [],
 		// `fullMenu` is the complete admin-menu list. Renderers that
 		// want to ignore the layout's partitioning (e.g., paint
-		// every menu item in one ring regardless of `isCore`) read
+		// every menu item in one ring regardless of zone) read
 		// this instead of `items`. Snapshot per-mount so a renderer
 		// holding the array sees a stable list; live updates flow
-		// through `replaceItems`.
-		fullMenu: items.slice(),
-		// Same idea for system tiles — OS Settings, plugin-owned
-		// native-window launchers, etc. Lets a renderer apply
-		// uniform treatment across menu + system cohorts in one
-		// pass. Live updates flow through `appendSystemItem` /
-		// `removeSystemItem`. Tiles hidden via Apps & Icons are
-		// excluded, matching what the dispatcher attaches below.
-		fullSystemTiles: Array.from( systemTiles.values() )
-			.filter( ( entry ) => isSystemTileDockVisible( entry.item.id ) )
-			.map( ( entry ) => entry.item ),
+		// through `replaceItems` / `setZones`.
+		fullMenu: menuItems.slice(),
+		// Same idea for system tiles — plugin-owned native-window
+		// launchers, the shell's own controls. Lets a renderer apply
+		// uniform treatment across both cohorts in one pass. Tiles the
+		// user hid via Navigation preferences are excluded, matching
+		// what the dispatcher paints.
+		fullSystemTiles: navItems
+			.filter( ( item ) => !! item.tile )
+			.filter( ( item ) => railHasItem( item.id ) )
+			.map( ( item ) => item.tile as SystemDockItem ),
 		orientation,
 		windowManager: deps.windowManager,
 		adminUrl: deps.adminUrl,
@@ -566,10 +623,16 @@ export function createLayoutDispatcher(
 					? item.icon
 					: 'dashicons-admin-generic',
 				submenu: item.submenu,
+				selfLabel: item.selfLabel,
 				multi: !! item.multi,
 			} );
 		},
 		openSubmenuPick: ( item, sub ) => {
+			// A plugin's off-site child can't be iframed — hand it to
+			// the browser, the same way the constellation row does.
+			if ( tryOpenExternalUrl( sub.url ) ) {
+				return;
+			}
 			deps.windowManager.open( {
 				id: deriveWindowId( sub.url, deps.adminUrl ),
 				baseId: deriveWindowId( item.url, deps.adminUrl ),
@@ -585,54 +648,66 @@ export function createLayoutDispatcher(
 					? item.icon
 					: 'dashicons-admin-generic',
 				submenu: item.submenu,
+				selfLabel: item.selfLabel,
 				multi: !! item.multi,
 			} );
 		},
 		openSystemItem: ( item ) => item.onOpen(),
 	} );
 
+	/** Whether the current navigation paints `id` on any rail. */
+	const railHasItem = ( id: string ): boolean => {
+		for ( const zone of NAV_ZONES ) {
+			if ( nav.dock[ zone ].some( ( item ) => item.id === id ) ) {
+				return true;
+			}
+		}
+		return nav.sidebar.some( ( item ) => item.id === id );
+	};
+
+	/**
+	 * Which edge the dock mounts on.
+	 *
+	 * Unified follows the user's `dockPlacement`. The split layout is
+	 * pinned to `'bottom'`: its sidebar already owns the left edge, so
+	 * letting the dock move there would stack the two on top of each
+	 * other. The pick is remembered either way.
+	 */
+	const primaryOrientation = (): DockPlacementId =>
+		layout === 'classic' ? 'bottom' : dockPlacement;
+
 	const buildDocksForCurrentLayout = (): void => {
 		tearDownDocks();
-		const { core, plugin } = partition();
+		recompute();
 
 		if ( layout === 'classic' ) {
 			sideDockEl = ensureSideDockEl();
-			side = mountRail(
-				buildMountDeps( sideDockEl, core, 'left' ),
-			);
+			side = mountRail( buildMountDeps( sideDockEl, 'left' ) );
 			sideDock = unwrapDefaultDock( side );
-			primary = mountRail(
-				buildMountDeps( deps.bottomDockEl, plugin, 'bottom' ),
-			);
-			primaryDock = unwrapDefaultDock( primary );
-		} else if ( layout === 'unified' ) {
-			removeSideDockEl();
-			primary = mountRail(
-				buildMountDeps( deps.bottomDockEl, effectiveDockItems(), 'bottom' ),
-			);
-			primaryDock = unwrapDefaultDock( primary );
 		} else {
-			// Spatial — bottom dock holds plugins; core items are
-			// emitted as wallpaper icons by `repaintIcons()` below.
 			removeSideDockEl();
-			primary = mountRail(
-				buildMountDeps( deps.bottomDockEl, plugin, 'bottom' ),
-			);
-			primaryDock = unwrapDefaultDock( primary );
 		}
+		primary = mountRail(
+			buildMountDeps( deps.bottomDockEl, primaryOrientation() ),
+		);
+		primaryDock = unwrapDefaultDock( primary );
 
-		// Re-attach every tracked system tile to the rebuilt rails
-		// according to its registered affinity, in registration order
-		// so the visual order survives the rebuild. Tiles hidden via
-		// Apps & Icons stay tracked but detached.
-		attachedSystemTiles.clear();
-		for ( const [ id, entry ] of systemTiles ) {
-			if ( ! isSystemTileDockVisible( id ) ) {
-				continue;
-			}
-			railFor( entry.affinity )?.appendSystemItem( entry.item );
-			attachedSystemTiles.add( id );
-		}
+		// Rails mount empty and are filled by the one write path below,
+		// so a renderer only ever learns its contents from one place.
+		paint();
+	};
+
+	const emitLayoutChanged = (): void => {
+		document.dispatchEvent(
+			new CustomEvent( 'os-layout-changed', {
+				detail: {
+					layout,
+					placement: primaryOrientation(),
+					primary: primaryDock,
+					side: sideDock,
+				},
+			} ),
+		);
 	};
 
 	const dispatcher: LayoutDispatcher = {
@@ -644,106 +719,94 @@ export function createLayoutDispatcher(
 				return;
 			}
 			layout = next;
-			deps.shellRoot.setAttribute( 'data-desktop-mode-layout', next );
+			deps.shellRoot.setAttribute( 'data-os-layout', next );
 			buildDocksForCurrentLayout();
-			repaintIcons();
-			document.dispatchEvent(
-				new CustomEvent( 'desktop-mode-layout-changed', {
-					detail: {
-						layout: next,
-						primary: primaryDock,
-						side: sideDock,
-					},
-				} ),
-			);
+			emitLayoutChanged();
 		},
-		applyDockItems: ( nextItems: DockItem[] ): void => {
-			items = nextItems;
-			const { core, plugin } = partition();
-			if ( layout === 'classic' ) {
-				side?.replaceItems( core );
-				primary?.replaceItems( plugin );
-			} else if ( layout === 'unified' ) {
-				primary?.replaceItems( effectiveDockItems() );
-			} else {
-				primary?.replaceItems( plugin );
+		getDockPlacement: () => dockPlacement,
+		setDockPlacement: ( next: DockPlacementId ): void => {
+			if ( next === dockPlacement ) {
+				return;
 			}
-			repaintIcons();
+			const wasHonoured = primaryOrientation();
+			dockPlacement = next;
+			// The split layout stores the pick and stops here — see
+			// `primaryOrientation()`. Comparing the ORIENTATION rather
+			// than the layout id keeps that in one place: when the edge
+			// the rail actually mounts on hasn't moved, neither has
+			// anything worth tearing down.
+			if ( primaryOrientation() === wasHonoured ) {
+				return;
+			}
+			buildDocksForCurrentLayout();
+			// Same event as a layout change, and for the same reason:
+			// the rails were destroyed and rebuilt, so every cached
+			// `wp.os.dock` reference now points at a dead instance.
+			emitLayoutChanged();
+		},
+		applyDockItems: ( next: DockItem[] ): void => {
+			menuItems = next;
+			paint();
 		},
 		applyDesktopIcons: (
 			next: DesktopIconServerEntry[] | undefined,
 		): void => {
 			serverIcons = next ?? [];
-			// The icon → window mapping that Apps & Icons overrides
-			// key off may have changed — re-check every system tile.
-			reconcileSystemTiles();
-			repaintIcons();
+			paint();
 		},
-		appendSystemTile: (
-			item: SystemDockItem,
-			affinity: SystemTileAffinity = 'plugin',
-		): void => {
-			systemTiles.set( item.id, { item, affinity } );
-			// Respect a pre-existing Apps & Icons override — a native
-			// window the user hid must not resurface on the dock when
-			// its plugin re-registers the tile (boot, plugins-changed
-			// sync). The tile stays tracked so unhiding restores it.
-			if ( ! isSystemTileDockVisible( item.id ) ) {
-				return;
-			}
-			railFor( affinity )?.appendSystemItem( item );
-			attachedSystemTiles.add( item.id );
+		appendSystemTile: ( item: SystemDockItem ): void => {
+			systemTiles.set( item.id, item );
+			paint();
 		},
 		removeSystemTile: ( id: string ): void => {
-			const entry = systemTiles.get( id );
-			if ( ! entry ) {
+			if ( ! systemTiles.delete( id ) ) {
 				return;
 			}
-			systemTiles.delete( id );
-			attachedSystemTiles.delete( id );
-			// Remove from whichever rail currently hosts it. Idempotent
-			// `removeSystemItem` lets us call both without side effects
-			// when the tile lives on only one of them.
-			railFor( entry.affinity )?.removeSystemItem( id );
+			paint();
 		},
 		listSystemTiles: () =>
-			Array.from( systemTiles.values() ).map( ( entry ) => ( {
-				id: entry.item.id,
-				title: entry.item.title,
-				icon: entry.item.icon,
-				affinity: entry.affinity,
+			Array.from( systemTiles.values() ).map( ( item ) => ( {
+				id: item.id,
+				title: item.title,
+				icon: item.icon,
+				navKind: ( 'control' === item.navKind
+					? 'control'
+					: 'app' ) as 'app' | 'control',
+				placeable: item.placeable === true,
+				locked: item.locked === true,
 			} ) ),
 		getSystemTile: ( id: string ): SystemDockItem | null =>
-			systemTiles.get( id )?.item ?? null,
-		getMenuItems: () => items.slice(),
-		refresh: (): void => {
-			const { core, plugin } = partition();
-			if ( layout === 'classic' ) {
-				side?.replaceItems( core );
-				primary?.replaceItems( plugin );
-			} else if ( layout === 'unified' ) {
-				primary?.replaceItems( effectiveDockItems() );
-			} else {
-				primary?.replaceItems( plugin );
-			}
-			// Apply the (possibly changed) visibility overrides to the
-			// system-tile cohort too — a native window's dock tile
-			// hidden / restored via Apps & Icons lands live here.
-			reconcileSystemTiles();
-			repaintIcons();
-		},
+			systemTiles.get( id ) ?? null,
+		getMenuItems: () => menuItems.slice(),
+		getNavItems: () => navItems.slice(),
+		getNav: () => nav,
+		refresh: paint,
 		destroy: (): void => {
 			tearDownDocks();
 			removeSideDockEl();
 		},
 	};
 
-	// Initial paint — set the shell attribute, build the docks, and
+	// Document events rather than the hook bus: these fire for every
+	// window regardless of who opened it, which is the point. Never
+	// torn down, because the dispatcher outlives every layout rebuild
+	// and there is exactly one of it.
+	for ( const event of [ 'os-window-opened', 'os-window-closed' ] ) {
+		document.addEventListener( event, () => {
+			const before = ephemeralSignature();
+			recompute();
+			if ( ephemeralSignature() === before ) {
+				return;
+			}
+			paint();
+		} );
+	}
+
+	// Initial paint — set the shell attribute, build the rails, and
 	// emit the icon list now so the user lands on a fully-rendered
 	// shell before the first frame.
-	deps.shellRoot.setAttribute( 'data-desktop-mode-layout', layout );
+	deps.shellRoot.setAttribute( 'data-os-layout', layout );
 	buildDocksForCurrentLayout();
-	repaintIcons();
 
 	// Rebuild the rails when the active rail-renderer flips. The
 	// registry notifies on every change (register / unregister /
@@ -758,26 +821,11 @@ export function createLayoutDispatcher(
 		}
 		lastResolvedId = nextId;
 		buildDocksForCurrentLayout();
-		repaintIcons();
-		document.dispatchEvent(
-			new CustomEvent( 'desktop-mode-layout-changed', {
-				detail: {
-					layout,
-					primary: primaryDock,
-					side: sideDock,
-				},
-			} ),
-		);
+		emitLayoutChanged();
 	} );
 
 	return dispatcher;
 }
-
-/** Internal export for unit tests that need to inspect the synthesizer. */
-export const _testing = {
-	coreItemToIconEntry,
-	SIDE_DOCK_ID,
-};
 
 // `DockItemConfig` is re-exported only because TypeScript needs the
 // import resolution for downstream `.d.ts` callers.

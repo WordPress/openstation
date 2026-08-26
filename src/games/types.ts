@@ -1,14 +1,12 @@
 /**
- * Desktop Mode — Game system types.
+ * OpenStation — Game system types.
  *
  * The contracts between the games framework (registry, launcher,
  * scoreboard, challenges) and individual games. A game ships as its
  * own lazily-loaded bundle that publishes a {@link GameDef} on
- * `window.desktopModeGames[ id ]`; the framework opens a native
- * window `desktop-mode-game-<id>` and calls `render( ctx )` inside
+ * `window.openStationGames[ id ]`; the framework opens a native
+ * window `os-game-<id>` and calls `render( ctx )` inside
  * it.
- *
- * @since 0.9.6
  */
 
 /**
@@ -64,11 +62,11 @@ export interface GameChallengeContext {
  * @public
  */
 export interface GameLaunchContext {
-	/** The hosting native window's id (`desktop-mode-game-<id>`). */
+	/** The hosting native window's id (`os-game-<id>`). */
 	windowId: string;
 	/** The window body — the game owns this subtree until teardown. */
 	container: HTMLElement;
-	/** The server-declared config blob (`desktop_mode_register_game()`'s `config`). */
+	/** The server-declared config blob (`openstation_register_game()`'s `config`). */
 	config: Record< string, unknown >;
 	/** Set when the run is an accepted challenge; absent for free play. */
 	challenge?: GameChallengeContext;
@@ -85,8 +83,8 @@ export interface GameLaunchContext {
 
 /**
  * A registered game. Published by the game's bundle on
- * `window.desktopModeGames[ id ]` and/or registered directly via
- * `wp.desktop.games.register()`.
+ * `window.openStationGames[ id ]` and/or registered directly via
+ * `wp.os.games.register()`.
  *
  * @public
  */
@@ -150,7 +148,7 @@ export interface GameRegistryEntry {
  * @public
  */
 export interface GameScoreRow {
-	/** Index signature so the row satisfies `<wpd-table>`'s generic constraint. */
+	/** Index signature so the row satisfies `<os-table>`'s generic constraint. */
 	[ key: string ]: unknown;
 	id: number;
 	game: string;
@@ -164,7 +162,7 @@ export interface GameScoreRow {
 
 /**
  * A shaped challenge row as returned by the challenges REST routes
- * and the `desktop_mode_games` Heartbeat channel.
+ * and the `openstation_games` Heartbeat channel.
  *
  * @public
  */
@@ -189,8 +187,8 @@ export interface GameChallengeRow {
 
 /**
  * The global game bundles publish their defs on. Mirrors
- * `window.desktopModeWallpapers` for wallpapers.
+ * `window.openStationWallpapers` for wallpapers.
  */
 export interface GamesGlobals {
-	desktopModeGames?: Record< string, GameDef | undefined >;
+	openStationGames?: Record< string, GameDef | undefined >;
 }

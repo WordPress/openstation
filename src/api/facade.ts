@@ -1,10 +1,10 @@
 /**
- * Public API facade — `wp.desktop.*` assembly.
+ * Public API facade — `wp.os.*` assembly.
  *
  * **Why this exists.** The runtime side of the public API used to
  * be assembled inline inside `init()` as a single ~280-LOC object
  * literal. Plugin authors who wanted to know "what's available on
- * `wp.desktop`?" had to scroll through `desktop.ts` looking for
+ * `wp.os`?" had to scroll through `desktop.ts` looking for
  * the literal. Phase 5 of the architecture-0.8.1 boot
  * decomposition pulls the literal out: `init()` builds a
  * dependency bag and calls `buildPublicApi(deps)`; this module
@@ -12,11 +12,9 @@
  * merge-onto-shim assignment.
  *
  * **Backwards compatibility.** Everything attached to
- * `window.wp.desktop` before the extraction is still attached
+ * `window.wp.os` before the extraction is still attached
  * after — same names, same shapes, same semantics. Tests
- * exercising `wp.desktop.*` continue to pass unchanged.
- *
- * @since 0.8.1
+ * exercising `wp.os.*` continue to pass unchanged.
  */
 
 import {
@@ -36,14 +34,15 @@ import {
 } from '../dock-helpers';
 import { renderIcon } from '../icon';
 import { deriveWindowId } from '../utils';
-import { broadcast, subscribe } from '../broadcast';
+import { announceContentChange, broadcast, subscribe } from '../broadcast';
 import { devtools } from '../devtools';
 import { showToast } from '../toast';
 import { activity } from '../activity';
 import { heartbeat } from '../heartbeat';
 import { presenceApi } from '../presence';
+import { selectionApi } from '../selection';
 import { createSharedStore } from '../shared-store';
-import { wpdConfirm } from '../wpd-confirm';
+import { osConfirm } from '../os-confirm';
 import { loadVendorScript } from '../wallpapers/vendor-loader';
 import { collectWallpaperSurfaces } from '../wallpapers/surfaces';
 import { renderKeyedList, clearKeyedList } from '../ui/util/keyed-list';
@@ -84,10 +83,20 @@ import {
 	unregisterTitleBarButton,
 } from '../title-bar-buttons/registry';
 import {
+	listWindowActions,
+	registerWindowAction,
+	unregisterWindowAction,
+} from '../window-actions/registry';
+import {
 	listUnfocusEffects,
 	registerUnfocusEffect,
 	unregisterUnfocusEffect,
 } from '../effects/registry';
+import {
+	listWindowReveals,
+	registerWindowReveal,
+	unregisterWindowReveal,
+} from '../reveals/registry';
 import { relationsApi } from '../window-links/engine';
 import {
 	listWindowLinkRenderers,
@@ -140,7 +149,7 @@ import { trackedFetch } from '../boot/tracked-fetch';
 
 import type {
 	DesktopDebugWindow,
-	WpDesktopPublicApi,
+	OpenStationPublicApi,
 } from '../desktop';
 import type { WindowManager } from '../window-manager';
 import type { Window as DesktopWindow } from '../window';
@@ -148,6 +157,7 @@ import type { Dock, SystemDockItem } from '../dock';
 import type { LayoutDispatcher } from '../desktop-layout';
 import type { OsSettings } from '../settings';
 import type { IconsApi } from '../desktop-icons';
+import { osIconSetApi } from '../ui/icons';
 import type { FilesApi } from '../desktop-files';
 import type { WidgetLayer } from '../widgets/layer';
 import type { AiAssistantApi } from '../ai-assistant';
@@ -156,6 +166,7 @@ import type { DragManagerApi } from '../drag';
 import type { WindowConnection, ConnectOptions } from '../connection';
 import type { WallpaperDef } from '../wallpapers/types';
 import type { WallpaperSuspendApi } from '../wallpapers/layer';
+import type { MioApi } from '../mio/controller';
 import { gamesApi } from '../games/api';
 import { applyDesktopTheme } from '../desktop-themes/apply';
 import {
@@ -163,27 +174,30 @@ import {
 	resolveThemedIconColor,
 } from '../desktop-themes/icons';
 import {
+	ensureFullDesktopThemes,
 	getActiveDesktopThemeId,
 	listDesktopThemes,
 	subscribeDesktopThemes,
 } from '../desktop-themes/registry';
+import { applyThemeRecommendations } from '../settings/theme-recommendations';
+import { loadComponents } from '../ui/components/loader';
+import { registerNativeUrlRemap } from '../native-url-remap';
 import type { NativeWindowDef, DesktopConfig } from '../types';
 
 /**
- * Built-in keys on `wp.desktop` that `registerNamespace()` refuses
+ * Built-in keys on `wp.os` that `registerNamespace()` refuses
  * to overwrite. The runtime check inside `registerNamespace`
  * consults this allowlist; keep it in sync with
- * {@link WpDesktopPublicApi}.
+ * {@link OpenStationPublicApi}.
  *
  * Lives here (not in `desktop.ts`) because the facade is the one
- * place that owns the assembly of `wp.desktop.*`. A new public
+ * place that owns the assembly of `wp.os.*`. A new public
  * key SHOULD be added here in the same change that adds the
  * field to the interface.
- *
- * @since 0.8.1
  */
 export const RESERVED_NAMESPACE_KEYS: ReadonlySet< string > = new Set( [
-	'windowManager', 'dock', 'sideDock', 'taskbar', 'desktopLayout', 'icons',
+	'windowManager', 'dock', 'sideDock', 'taskbar', 'desktopLayout',
+	'dockPlacement', 'icons', 'iconSet',
 	'files', 'confirm', 'saveSession', 'hooks', 'HOOKS',
 	'isActive', 'registerWallpaper', 'registerWidget', 'widgetLayer', 'widgets',
 	'registerSystemTile', 'registerWindow', 'openWindow', 'openNewWindow',
@@ -202,13 +216,16 @@ export const RESERVED_NAMESPACE_KEYS: ReadonlySet< string > = new Set( [
 	'openOsSettings', 'getOsSettings', 'subscribeOsSettings', 'updateOsSettings',
 	'deriveWindowId',
 	'listSystemTiles', 'getSystemTile', 'getMenuItems',
+	'getNavItems', 'getNav',
 	'renderIcon',
 	'applyTileClasses', 'applyTileElement', 'applyTileTooltip',
 	'dispatchTileRendered',
 	'isDockElement', 'registerDockSelector',
 	'registerTitleBarButton',
 	'unregisterTitleBarButton', 'listTitleBarButtons',
+	'registerWindowAction', 'unregisterWindowAction', 'listWindowActions',
 	'registerUnfocusEffect', 'unregisterUnfocusEffect', 'listUnfocusEffects',
+	'registerWindowReveal', 'unregisterWindowReveal', 'listWindowReveals',
 	'relations',
 	'registerWindowLinkRenderer', 'unregisterWindowLinkRenderer',
 	'listWindowLinkRenderers',
@@ -223,12 +240,15 @@ export const RESERVED_NAMESPACE_KEYS: ReadonlySet< string > = new Set( [
 	'registerWindowChrome', 'unregisterWindowChrome', 'listWindowChromes',
 	'applyWindowChrome',
 	'connect', 'getConnection',
-	'broadcast', 'subscribe', 'registerPalette', 'unregisterPalette',
+	'broadcast', 'subscribe', 'announceContentChange',
+	'registerPalette', 'unregisterPalette',
 	'listPalettes', 'openPalette', 'devtools', 'createSharedStore',
-	'presence', 'activity', 'heartbeat', 'showToast', 'renderKeyedList',
+	'presence', 'selection', 'activity', 'heartbeat', 'showToast',
+	'renderKeyedList',
 	'clearKeyedList', 'registerNamespace',
 	'notify', 'pwa',
-	'getWindowConfig', 'debug',
+	'getWindowConfig', 'getWindowParams', 'debug',
+	'registerNativeUrlRemap',
 	'fetch',
 ] );
 
@@ -247,8 +267,21 @@ export interface BuildPublicApiDeps {
 	saveSession: () => void;
 	widgetLayer: WidgetLayer | null;
 	registerWindow: ( def: NativeWindowDef ) => Promise< DesktopWindow >;
-	openWindowById: ( id: string, opts?: { source?: string } ) => boolean;
-	openNewWindowById: ( id: string, opts?: { source?: string } ) => boolean;
+	openWindowById: (
+		id: string,
+		opts?: {
+			source?: string;
+			params?: Record< string, string | number | boolean >;
+		},
+	) => boolean;
+	openNewWindowById: (
+		id: string,
+		opts?: {
+			source?: string;
+			params?: Record< string, string | number | boolean >;
+		},
+	) => boolean;
+	loadWindowScriptById: ( id: string ) => Promise< boolean >;
 	placeSystemTile: ( item: SystemDockItem ) => void;
 	setDefaultWindow: ( url: string | null ) => Promise< void >;
 	refreshMenu: () => Promise< void >;
@@ -259,20 +292,19 @@ export interface BuildPublicApiDeps {
 	connect: ( targetWindowId: string, opts?: ConnectOptions ) => WindowConnection;
 	getConnection: ( connectionId: string ) => WindowConnection | null;
 	wallpaperSuspend: WallpaperSuspendApi;
+	mio: MioApi;
 	config: DesktopConfig;
 }
 
 /**
- * Build the `wp.desktop.*` public API object.
+ * Build the `wp.os.*` public API object.
  *
- * Pure: no side effects, no mutation of `window.wp.desktop`. The
+ * Pure: no side effects, no mutation of `window.wp.os`. The
  * caller (init in `desktop.ts`) is responsible for merging the
  * returned object onto the early-shim slot — see
  * {@link installPublicApi}.
- *
- * @since 0.8.1
  */
-export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
+export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi {
 	const {
 		manager,
 		dock,
@@ -285,6 +317,7 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 		registerWindow,
 		openWindowById,
 		openNewWindowById,
+		loadWindowScriptById,
 		placeSystemTile,
 		setDefaultWindow,
 		refreshMenu,
@@ -295,21 +328,26 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 		connect,
 		getConnection,
 		wallpaperSuspend,
+		mio,
 		config,
 	} = deps;
 
-	const desktopApi: WpDesktopPublicApi = {
+	const desktopApi: OpenStationPublicApi = {
 		windowManager: manager,
 		dock,
 		sideDock: layoutDispatcher?.getSide() ?? null,
 		desktopLayout: osSettings.getOsSettingsSnapshot().desktopLayout,
+		dockPlacement:
+			layoutDispatcher?.getDockPlacement() ??
+			osSettings.getOsSettingsSnapshot().dockPlacement,
 		icons: iconsApi,
+		iconSet: osIconSetApi,
 		files: filesApi,
-		confirm: wpdConfirm,
+		confirm: osConfirm,
 		saveSession,
 		hooks: rawHooks(),
 		HOOKS,
-		isActive: () => !! document.getElementById( 'desktop-mode-shell' ),
+		isActive: () => !! document.getElementById( 'os-shell' ),
 		registerWallpaper: ( def: WallpaperDef ) => {
 			wallpaperRegistry.register( def );
 			// Re-apply so a plugin that registers its own wallpaper
@@ -324,7 +362,7 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 			// user explicitly enabled, so adding a new def just
 			// makes it available in the next picker open. Plugins
 			// wanting to force a widget on can call
-			// `wp.desktop.widgetLayer.add(id)` /
+			// `wp.os.widgetLayer.add(id)` /
 			// `ensureMounted(id)` — exposed below.
 		},
 		widgetLayer,
@@ -336,10 +374,16 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 		loadVendorScript,
 		getWallpaperSurfaces: () => collectWallpaperSurfaces( manager ),
 		wallpaper: wallpaperSuspend,
+		mio,
 		games: gamesApi,
 		registerWindow,
 		openWindow: openWindowById,
 		openNewWindow: openNewWindowById,
+		loadWindowScript: loadWindowScriptById,
+		// No dep injection — the loader reads its URL off the boot
+		// config and owns its own single-flight state, so the facade
+		// hands the function through untouched.
+		loadComponents,
 		fetch: ( input, requestInit, opts ) =>
 			trackedFetch( manager, input, requestInit, opts ),
 		repaintLoadingOverlays,
@@ -398,9 +442,37 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 				osSettings.state.dockSize =
 					patch.dockSize as typeof osSettings.state.dockSize;
 			}
+			if ( typeof patch.windowRadius === 'string' ) {
+				osSettings.state.windowRadius =
+					patch.windowRadius as typeof osSettings.state.windowRadius;
+			}
+			if ( typeof patch.adminBarMode === 'string' ) {
+				osSettings.state.adminBarMode =
+					patch.adminBarMode as typeof osSettings.state.adminBarMode;
+			}
 			if ( typeof patch.desktopLayout === 'string' ) {
 				osSettings.state.desktopLayout =
 					patch.desktopLayout as typeof osSettings.state.desktopLayout;
+			}
+			if ( typeof patch.dockPlacement === 'string' ) {
+				osSettings.state.dockPlacement =
+					patch.dockPlacement as typeof osSettings.state.dockPlacement;
+			}
+			// `desktopTheme` accepts `''` — that is the system default,
+			// a real value rather than a missing one, so this is the
+			// one id field here with no non-empty guard.
+			if ( typeof patch.desktopTheme === 'string' ) {
+				osSettings.state.desktopTheme = patch.desktopTheme;
+			}
+			if ( typeof patch.unfocusEffect === 'string' ) {
+				osSettings.state.unfocusEffect = patch.unfocusEffect;
+			}
+			if ( typeof patch.windowReveal === 'string' ) {
+				osSettings.state.windowReveal = patch.windowReveal;
+			}
+			if ( typeof patch.windowRevealDuration === 'number' ) {
+				osSettings.state.windowRevealDuration =
+					patch.windowRevealDuration;
 			}
 			if ( typeof patch.dockRailRenderer === 'string' ) {
 				osSettings.state.dockRailRenderer = patch.dockRailRenderer;
@@ -445,8 +517,14 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 			if ( typeof patch.nativeCommentsEnabled === 'boolean' ) {
 				osSettings.state.nativeCommentsEnabled = patch.nativeCommentsEnabled;
 			}
+			if ( typeof patch.stationHomeEnabled === 'boolean' ) {
+				osSettings.state.stationHomeEnabled = patch.stationHomeEnabled;
+			}
 			if ( typeof patch.foldersSharingEnabled === 'boolean' ) {
 				osSettings.state.foldersSharingEnabled = patch.foldersSharingEnabled;
+			}
+			if ( typeof patch.showPostStatusRibbons === 'boolean' ) {
+				osSettings.state.showPostStatusRibbons = patch.showPostStatusRibbons;
 			}
 			if ( typeof patch.developerModeEnabled === 'boolean' ) {
 				osSettings.state.developerModeEnabled = patch.developerModeEnabled;
@@ -461,16 +539,16 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 						.slice( 0, 32 );
 			}
 			if (
-				patch.itemVisibility &&
-				typeof patch.itemVisibility === 'object'
+				patch.navPlacement &&
+				typeof patch.navPlacement === 'object'
 			) {
-				const allowed = [ 'both', 'dock', 'desktop', 'hidden' ];
+				const allowed = [ 'both', 'rail', 'desktop', 'hidden' ];
 				const next: Record<
 					string,
-					'both' | 'dock' | 'desktop' | 'hidden'
+					'both' | 'rail' | 'desktop' | 'hidden'
 				> = {};
 				for ( const [ k, v ] of Object.entries(
-					patch.itemVisibility as Record< string, unknown >,
+					patch.navPlacement as Record< string, unknown >,
 				) ) {
 					if ( typeof k !== 'string' || k === '' ) {
 						continue;
@@ -480,14 +558,14 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 					}
 					next[ k ] = v as
 						| 'both'
-						| 'dock'
+						| 'rail'
 						| 'desktop'
 						| 'hidden';
 				}
-				osSettings.state.itemVisibility = next;
+				osSettings.state.navPlacement = next;
 			}
-			if ( Array.isArray( patch.dockOrder ) ) {
-				osSettings.state.dockOrder = patch.dockOrder
+			if ( Array.isArray( patch.navOrder ) ) {
+				osSettings.state.navOrder = patch.navOrder
 					.filter(
 						( v ): v is string =>
 							typeof v === 'string' && v !== '',
@@ -528,6 +606,41 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 				osSettings.state.dockPromotedPositions = next;
 			}
 			osSettings.save( opts );
+			// Presentation keys have to be applied, not just saved.
+			// `save()` only persists; without this a caller that sets
+			// a theme, an accent or a layout through the public API
+			// sees nothing change until the next page load, which is
+			// not what "update" reads as — and is why the documented
+			// `updateOsSettings( { desktopTheme } )` recipe needed a
+			// companion `desktopThemes.setActive()` call to do the
+			// visible half.
+			//
+			// `apply()` is documented as safe to call repeatedly: the
+			// wallpaper layer dedupes on a generation counter,
+			// `applyDesktopTheme` dedupes on the active id, and the
+			// rest are idempotent custom-property writes. A patch that
+			// touches none of these keys skips it anyway.
+			//
+			// `unfocusEffect` is deliberately absent from this list —
+			// `apply()` knows nothing about it. The unfocus engine
+			// listens on `subscribeOsSettings`, which `save()` above
+			// already fired, so that key repaints on its own.
+			// `windowReveal` is absent for the same reason: the reveal
+			// engine reads it off the same subscription, and it only
+			// takes effect on the NEXT window load either way.
+			if (
+				typeof patch.wallpaper === 'string' ||
+				typeof patch.accent === 'string' ||
+				typeof patch.dockSize === 'string' ||
+				typeof patch.windowRadius === 'string' ||
+				typeof patch.adminBarMode === 'string' ||
+				typeof patch.desktopLayout === 'string' ||
+				typeof patch.dockPlacement === 'string' ||
+				typeof patch.dockRailRenderer === 'string' ||
+				typeof patch.desktopTheme === 'string'
+			) {
+				osSettings.apply();
+			}
 			// Belt-and-suspenders live repaint for visibility / order
 			// changes. The `subscribeOsSettings` listener installed in
 			// `desktop.ts` already calls `layoutDispatcher.refresh()`,
@@ -537,9 +650,9 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 			// listeners since `save()` iterates a single Set). Re-
 			// invoking refresh() directly here makes the dock + icon
 			// grid pick up the new placement synchronously with the
-			// write — no F5 required for "Hide from dock" / "Also show
-			// on desktop" picks from the right-click menu.
-			if ( patch.itemVisibility || patch.dockOrder ) {
+			// write — no F5 required for "Hide from dock" / "Show on
+			// desktop" picks from the right-click menu.
+			if ( patch.navPlacement || patch.navOrder ) {
 				layoutDispatcher?.refresh();
 			}
 		},
@@ -549,6 +662,8 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 		getSystemTile: ( id: string ) =>
 			layoutDispatcher?.getSystemTile( id ) ?? null,
 		getMenuItems: () => layoutDispatcher?.getMenuItems() ?? [],
+		getNavItems: () => layoutDispatcher?.getNavItems() ?? [],
+		getNav: () => layoutDispatcher?.getNav() ?? null,
 		renderIcon,
 		applyTileClasses,
 		applyTileElement,
@@ -559,9 +674,15 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 		registerTitleBarButton,
 		unregisterTitleBarButton,
 		listTitleBarButtons,
+		registerWindowAction,
+		unregisterWindowAction,
+		listWindowActions,
 		registerUnfocusEffect,
 		unregisterUnfocusEffect,
 		listUnfocusEffects,
+		registerWindowReveal,
+		unregisterWindowReveal,
+		listWindowReveals,
 		relations: relationsApi,
 		registerWindowLinkRenderer,
 		unregisterWindowLinkRenderer,
@@ -573,9 +694,35 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 			list: listDesktopThemes,
 			getActive: getActiveDesktopThemeId,
 			setActive: applyDesktopTheme,
+			// Hydrate boot-slimmed entries (`cssDeferred: true`) with
+			// their full `cssText` / `tokens` WITHOUT activating
+			// anything — the awaitable the `cssDeferred` docs point
+			// consumers at. `setActive()` triggers the same fetch
+			// itself, but activation must not be the only door.
+			ensureFull: ensureFullDesktopThemes,
 			subscribe: subscribeDesktopThemes,
 			resolveIcon: resolveThemedIcon,
 			resolveIconColor: resolveThemedIconColor,
+			applyRecommendedOsSettings: ( themeId ) => {
+				const target = themeId ?? getActiveDesktopThemeId() ?? '';
+				if ( target === '' ) {
+					return {};
+				}
+				// `force` because this entry point IS the deliberate
+				// re-apply. First-activation seeding happens in the
+				// Themes tab; a caller reaching for the API is asking
+				// for the author's arrangement back.
+				const applied = applyThemeRecommendations(
+					osSettings.state,
+					target,
+					{ force: true },
+				);
+				if ( Object.keys( applied ).length > 0 ) {
+					osSettings.save();
+					osSettings.apply();
+				}
+				return applied;
+			},
 		},
 		applyWindowTheme: ( windowId, override ) => {
 			const win = manager.getById( windowId );
@@ -623,6 +770,7 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 		getConnection,
 		broadcast,
 		subscribe,
+		announceContentChange,
 		registerPalette,
 		unregisterPalette,
 		listPalettes,
@@ -630,6 +778,7 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 		devtools,
 		createSharedStore,
 		presence: presenceApi,
+		selection: selectionApi,
 		activity,
 		heartbeat,
 		showToast,
@@ -648,21 +797,21 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 			if ( typeof name !== 'string' || name === '' ) {
 				// eslint-disable-next-line no-console
 				console.warn(
-					'[desktop-mode] registerNamespace: name must be a non-empty string',
+					'[openstation] registerNamespace: name must be a non-empty string',
 				);
 				return;
 			}
 			if ( ! api || typeof api !== 'object' ) {
 				// eslint-disable-next-line no-console
 				console.warn(
-					`[desktop-mode] registerNamespace("${ name }"): api must be an object`,
+					`[openstation] registerNamespace("${ name }"): api must be an object`,
 				);
 				return;
 			}
 			if ( RESERVED_NAMESPACE_KEYS.has( name ) ) {
 				// eslint-disable-next-line no-console
 				console.warn(
-					`[desktop-mode] registerNamespace("${ name }"): name is reserved by the shell — pick a plugin-specific key`,
+					`[openstation] registerNamespace("${ name }"): name is reserved by the shell — pick a plugin-specific key`,
 				);
 				return;
 			}
@@ -671,13 +820,43 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 		getWindowConfig: < T = Record< string, unknown > >(
 			id: string,
 		): T | undefined => {
-			const store = window.desktopModeWindowConfig;
+			const store = window.openStationWindowConfig;
 			if ( ! store || typeof store !== 'object' ) {
 				return undefined;
 			}
 			const value = ( store as Record< string, unknown > )[ id ];
 			return value === undefined ? undefined : ( value as T );
 		},
+		/**
+		 * What an OPEN window is showing right now.
+		 *
+		 * The render callback receives the same object as
+		 * `ctx.params`, and that is the right place to read it when
+		 * you have one. This is for the code that doesn't: a
+		 * declarative window whose body is a PHP template, a module
+		 * that mounts after the render callback ran, anything
+		 * reacting to a retarget from outside a
+		 * `HOOKS.WINDOW_REOPENED` subscriber. The manager keeps the
+		 * live copy — a reopen with new params writes it before the
+		 * reopen event fires — so this and `ctx.params` never
+		 * disagree.
+		 */
+		getWindowParams: (
+			id: string,
+		): Record< string, string | number | boolean > | undefined => {
+			const win = manager.getById( id );
+			if ( ! win ) {
+				return undefined;
+			}
+			// Copy: the caller must not be able to retarget a window
+			// by mutating what it was handed.
+			return { ...( win.config.params ?? {} ) };
+		},
+		// Re-exported straight from the registry module. The
+		// singleton lives in a shared store, so main and the lazy
+		// window-system bundle write to and read from one list —
+		// which is exactly why this can be handed out as-is.
+		registerNativeUrlRemap,
 		debug: {
 			window: ( id: string ): DesktopDebugWindow | null => {
 				const entry = ( config.nativeWindows ?? [] ).find(
@@ -686,12 +865,20 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 				if ( ! entry ) {
 					return null;
 				}
-				const url = entry.scriptUrl || '';
+				// Wire entries reference their bundle by handle; the
+				// resolved URL lives in the handle-keyed script-data
+				// map. Old inline entries still carry it directly.
+				const url =
+					entry.scriptUrl ||
+					( entry.scriptHandle
+						? config.nativeWindowScriptData?.[ entry.scriptHandle ]
+							?.url ?? ''
+						: '' );
 				let loadPath: 'eager' | 'lazy' | 'unknown' = 'unknown';
 				let tagInDom = false;
 				if ( url ) {
 					const lazyTag = document.querySelector(
-						`script[data-desktop-mode-vendor="${ url.replace( /"/g, '\\"' ) }"]`,
+						`script[data-os-vendor="${ url.replace( /"/g, '\\"' ) }"]`,
 					);
 					if ( lazyTag ) {
 						loadPath = 'lazy';
@@ -711,7 +898,7 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 						}
 					}
 				}
-				const cfgStore = window.desktopModeWindowConfig;
+				const cfgStore = window.openStationWindowConfig;
 				const configPresent = !! (
 					cfgStore &&
 					typeof cfgStore === 'object' &&
@@ -740,7 +927,7 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 
 /**
  * Merge a built API onto the early-shim object on
- * `window.wp.desktop` (or set it directly if the shim is
+ * `window.wp.os` (or set it directly if the shim is
  * missing — degraded path that should never trigger in
  * production because the IIFE at the top of `desktop.ts`
  * installs the shim before `init()` runs).
@@ -751,19 +938,17 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
  * `whenReady` callbacks queued before the API attached would
  * never fire. `Object.assign` overwrites `whenReady` / `ready` /
  * `isReady` with the canonical versions from `src/hooks.ts`.
- *
- * @since 0.8.1
  */
-export function installPublicApi( api: WpDesktopPublicApi ): void {
+export function installPublicApi( api: OpenStationPublicApi ): void {
 	if ( ! window.wp ) {
 		window.wp = {};
 	}
-	if ( ! window.wp.desktop ) {
-		window.wp.desktop = api;
+	if ( ! window.wp.os ) {
+		window.wp.os = api;
 		return;
 	}
 	Object.assign(
-		window.wp.desktop as unknown as Record< string, unknown >,
+		window.wp.os as unknown as Record< string, unknown >,
 		api as unknown as Record< string, unknown >,
 	);
 }

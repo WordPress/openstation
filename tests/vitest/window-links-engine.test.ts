@@ -8,7 +8,7 @@
  *     multi-root focus-recency ordering, orphan (root-less) groups
  *   - lifecycle wiring: seed from `WindowConfig.content` on open,
  *     clear on close
- *   - the `desktop-mode.window-links.content` / `.groups` filters
+ *   - the `os.window-links.content` / `.groups` filters
  *   - change events: content-changed on every mutation, groups-changed
  *     only on MEMBERSHIP change
  */
@@ -118,6 +118,71 @@ describe( 'setWindowContent / getWindowContent', () => {
 		setWindowContent( 'w1', { type: 'post', id: 5 } );
 
 		expect( log ).toHaveLength( 1 );
+	} );
+
+	test( 'a same-origin previewUrl survives normalization', async () => {
+		const { setWindowContent, getWindowContent } = await load();
+
+		setWindowContent( 'w1', {
+			type: 'post',
+			id: 5,
+			previewUrl: '/?p=5&preview=true',
+		} );
+
+		expect( getWindowContent( 'w1' )?.previewUrl ).toBe(
+			'/?p=5&preview=true',
+		);
+	} );
+
+	test( 'a cross-origin or malformed previewUrl is dropped', async () => {
+		const { setWindowContent, getWindowContent } = await load();
+
+		setWindowContent( 'w1', {
+			type: 'post',
+			id: 5,
+			previewUrl: 'https://evil.example/?p=5',
+		} );
+		expect( getWindowContent( 'w1' )?.previewUrl ).toBeUndefined();
+
+		setWindowContent( 'w2', {
+			type: 'post',
+			id: 6,
+			previewUrl: 'http://[bad',
+		} );
+		expect( getWindowContent( 'w2' )?.previewUrl ).toBeUndefined();
+
+		setWindowContent( 'w3', {
+			type: 'post',
+			id: 7,
+			previewUrl: '',
+		} );
+		expect( getWindowContent( 'w3' )?.previewUrl ).toBeUndefined();
+	} );
+
+	test( 'a previewUrl-only change fires content-changed but not groups-changed', async () => {
+		const { setWindowContent } = await load();
+		const contentLog = recordActions( hooks, [
+			HOOKS.WINDOW_CONTENT_CHANGED,
+		] );
+		const groupsLog = recordActions( hooks, [
+			HOOKS.WINDOW_LINK_GROUPS_CHANGED,
+		] );
+
+		setWindowContent( 'w1', {
+			type: 'post',
+			id: 5,
+			previewUrl: '/?p=5&preview=true&preview_nonce=aaa',
+		} );
+		const groupsAfterFirst = groupsLog.length;
+
+		setWindowContent( 'w1', {
+			type: 'post',
+			id: 5,
+			previewUrl: '/?p=5&preview=true&preview_nonce=bbb',
+		} );
+
+		expect( contentLog ).toHaveLength( 2 );
+		expect( groupsLog ).toHaveLength( groupsAfterFirst );
 	} );
 } );
 
@@ -508,7 +573,7 @@ describe( 'engine lifecycle wiring', () => {
 		expect( listWindowLinkGroups() ).toHaveLength( 0 );
 	} );
 
-	test( 'stores identity from a desktop-mode-content-identity message', async () => {
+	test( 'stores identity from a os-content-identity message', async () => {
 		const { startWindowLinksEngine, getWindowContent } = await load();
 		const manager = {
 			...fakeManager(),
@@ -520,7 +585,7 @@ describe( 'engine lifecycle wiring', () => {
 			new MessageEvent( 'message', {
 				origin: window.location.origin,
 				data: {
-					type: 'desktop-mode-content-identity',
+					type: 'os-content-identity',
 					identity: {
 						type: 'comment',
 						id: 500,
@@ -541,7 +606,7 @@ describe( 'engine lifecycle wiring', () => {
 		window.dispatchEvent(
 			new MessageEvent( 'message', {
 				origin: window.location.origin,
-				data: { type: 'desktop-mode-content-identity', identity: null },
+				data: { type: 'os-content-identity', identity: null },
 			} ),
 		);
 		expect( getWindowContent( 'iframe-win' ) ).toBeUndefined();
@@ -559,7 +624,7 @@ describe( 'engine lifecycle wiring', () => {
 			new MessageEvent( 'message', {
 				origin: 'https://evil.example',
 				data: {
-					type: 'desktop-mode-content-identity',
+					type: 'os-content-identity',
 					identity: { type: 'post', id: 1 },
 				},
 			} ),
@@ -676,22 +741,22 @@ describe( 'change events', () => {
 		const onContent = () => seen.push( 'content' );
 		const onGroups = () => seen.push( 'groups' );
 		document.addEventListener(
-			'desktop-mode-window-content-changed',
+			'os-window-content-changed',
 			onContent,
 		);
 		document.addEventListener(
-			'desktop-mode-window-link-groups-changed',
+			'os-window-link-groups-changed',
 			onGroups,
 		);
 
 		setWindowContent( 'w1', { type: 'post', id: 1 } );
 
 		document.removeEventListener(
-			'desktop-mode-window-content-changed',
+			'os-window-content-changed',
 			onContent,
 		);
 		document.removeEventListener(
-			'desktop-mode-window-link-groups-changed',
+			'os-window-link-groups-changed',
 			onGroups,
 		);
 		expect( seen ).toEqual( [ 'content', 'groups' ] );

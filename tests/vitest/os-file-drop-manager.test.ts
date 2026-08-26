@@ -10,11 +10,9 @@
  *   - The default field generator (`defaultFields`) — title, alt-text,
  *     and filename are pre-filled, alt-text is non-empty only for
  *     images, filename is sanitized.
- *   - The hook pipeline — `desktop-mode.drop.files-detected` and
- *     `desktop-mode.drop.dialog-fields` mutate the entries before the
+ *   - The hook pipeline — `os.drop.files-detected` and
+ *     `os.drop.dialog-fields` mutate the entries before the
  *     dialog opens.
- *
- * @since 0.30.0
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
@@ -60,9 +58,9 @@ describe( 'os-file-drop/manager', () => {
 		// window-level sentinel + listeners don't leak across
 		// tests.
 		const host = window as unknown as {
-			__desktopModeOsFileDropMounted?: { dispose: () => void };
+			__openStationOsFileDropMounted?: { dispose: () => void };
 		};
-		host.__desktopModeOsFileDropMounted?.dispose();
+		host.__openStationOsFileDropMounted?.dispose();
 	} );
 
 	describe( 'partitionByPolicy', () => {

@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — Native Users Window: capability gates.
+ * OpenStation — Native Users Window: capability gates.
  *
  * Multi-tier gating, parallel to WordPress core's `users.php` flow:
  *
@@ -9,7 +9,7 @@
  *   - `edit_users`     → mutation quick-actions (Send password reset,
  *                        Resend welcome).
  *   - `promote_users`  → bulk role-change action; per-target gated
- *                        through {@see desktop_mode_users_window_assignable_roles()}.
+ *                        through {@see openstation_users_window_assignable_roles()}.
  *   - `create_users`   → "Add new user" toolbar button.
  *   - `delete_users`   → bulk-delete (single-site).
  *   - `remove_users`   → bulk-remove (multisite — removes from current site,
@@ -19,8 +19,7 @@
  * re-validate every cap and every per-target permission before
  * mutating anything.
  *
- * @package WPDesktopMode
- * @since   0.8.1
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -28,12 +27,10 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Whether the user is eligible to have the Users window registered.
  *
- * @since 0.8.1
- *
  * @param int|null $user_id Optional. Defaults to `get_current_user_id()`.
  * @return bool
  */
-function desktop_mode_users_window_user_can_register( $user_id = null ) {
+function openstation_users_window_user_can_register( $user_id = null ) {
 	$user_id = null === $user_id ? get_current_user_id() : (int) $user_id;
 	$can     = $user_id > 0 && user_can( $user_id, 'list_users' );
 
@@ -43,13 +40,11 @@ function desktop_mode_users_window_user_can_register( $user_id = null ) {
 	 * dock click use the native window?" is the JS-side
 	 * `nativeUsersEnabled` flag.
 	 *
-	 * @since 0.8.1
-	 *
 	 * @param bool $can     Default: `list_users` capability.
 	 * @param int  $user_id User being checked.
 	 */
 	return (bool) apply_filters(
-		'desktop_mode_users_window_user_can_register',
+		'openstation_users_window_user_can_register',
 		$can,
 		$user_id
 	);
@@ -59,19 +54,17 @@ function desktop_mode_users_window_user_can_register( $user_id = null ) {
  * Combined cap-and-opt-in check. Used by callers that want the
  * combined answer (e.g. analytics, an arrange-menu entry).
  *
- * @since 0.8.1
- *
  * @param int|null $user_id Optional.
  * @return bool
  */
-function desktop_mode_users_window_user_can_use( $user_id = null ) {
+function openstation_users_window_user_can_use( $user_id = null ) {
 	$user_id = null === $user_id ? get_current_user_id() : (int) $user_id;
 
-	$cap_ok = desktop_mode_users_window_user_can_register( $user_id );
+	$cap_ok = openstation_users_window_user_can_register( $user_id );
 
 	$opt_in = false;
-	if ( $cap_ok && function_exists( 'desktop_mode_get_os_settings' ) ) {
-		$settings = desktop_mode_get_os_settings( $user_id );
+	if ( $cap_ok && function_exists( 'openstation_get_os_settings' ) ) {
+		$settings = openstation_get_os_settings( $user_id );
 		$opt_in   = ! empty( $settings['nativeUsersEnabled'] );
 	}
 
@@ -81,12 +74,10 @@ function desktop_mode_users_window_user_can_use( $user_id = null ) {
 	 * Filter whether the current user has opted into the native Users
 	 * experience.
 	 *
-	 * @since 0.8.1
-	 *
 	 * @param bool $can     Default gate result.
 	 * @param int  $user_id User being checked.
 	 */
-	return (bool) apply_filters( 'desktop_mode_users_window_user_can_use', $can, $user_id );
+	return (bool) apply_filters( 'openstation_users_window_user_can_use', $can, $user_id );
 }
 
 /**
@@ -97,18 +88,16 @@ function desktop_mode_users_window_user_can_use( $user_id = null ) {
  * EVERY registered role (administrator included) to any user with
  * `promote_users` — there is no built-in capability-subset hierarchy
  * in core. Sites wanting stricter rules must filter `editable_roles`
- * or `desktop_mode_users_window_assignable_roles` below. We compute
+ * or `openstation_users_window_assignable_roles` below. We compute
  * the list server-side and surface it on the row so the UI can hide
  * options the viewer can't apply; the REST mutation routes call this
  * same filtered helper and reject anything outside it.
- *
- * @since 0.8.1
  *
  * @param int $viewer_id Requesting user.
  * @param int $target_id Target user (optional — used by filters).
  * @return string[] Role slugs the viewer can assign to the target.
  */
-function desktop_mode_users_window_assignable_roles( $viewer_id, $target_id = 0 ) {
+function openstation_users_window_assignable_roles( $viewer_id, $target_id = 0 ) {
 	$viewer_id = (int) $viewer_id;
 	if ( $viewer_id <= 0 || ! user_can( $viewer_id, 'promote_users' ) ) {
 		return array();
@@ -157,14 +146,12 @@ function desktop_mode_users_window_assignable_roles( $viewer_id, $target_id = 0 
 	 * role against this same filtered list (see `rest.php`), so only
 	 * add roles you genuinely intend to make assignable.
 	 *
-	 * @since 0.8.1
-	 *
 	 * @param string[] $slugs    Default role slug list.
 	 * @param int      $viewer_id
 	 * @param int      $target_id
 	 */
 	return (array) apply_filters(
-		'desktop_mode_users_window_assignable_roles',
+		'openstation_users_window_assignable_roles',
 		$slugs,
 		$viewer_id,
 		$target_id

@@ -1,8 +1,8 @@
 # Progressive Web App (PWA)
 
-Stable since 0.8.0.
+Stable.
 
-Desktop Mode ships a **web app manifest**, a **service worker**, and a
+OpenStation ships a **web app manifest**, a **service worker**, and a
 **local notifications API** so users can install their WordPress site as
 a real OS app and plugins can surface alerts the same way native apps
 do.
@@ -16,41 +16,60 @@ copy-paste recipes see
 
 | Surface | Behaviour |
 |---|---|
-| **Web app manifest** | Served at `/desktop-mode/manifest.webmanifest`. Site name + short name, theme color, icons (Site Icon when set, plugin logo otherwise), `start_url=/wp-admin/index.php?desktop_mode_portal=1`, `scope=/wp-admin/` (narrowed from `/` so front-end links escape the PWA window; the manifest `id` stays at `/desktop-mode/` so existing installs aren't reset). Filterable via `desktop_mode_pwa_manifest`. |
-| **Service worker** | Served at `/desktop-mode/sw.js` with `Service-Worker-Allowed: /`. Registered at root scope with a deliberately narrow fetch handler — it only intercepts paths under `/desktop-mode/` and `/wp-admin/`, plus the plugin's own static assets. wp-admin HTML is **always** network-first (nonces would otherwise drift). |
-| **Install hint** | A system tile on the dock (`id: 'desktop-mode-pwa-install'`) registered on shell boot — except when the shell is already running standalone. It is removed live when display-mode flips to standalone or when `getInstalledRelatedApps()` reports the app installed (Chromium); on Safari / Firefox it persists as a fallback. Clicking it dispatches the browser install prompt when the site is currently installable, otherwise shows a contextual toast ("already installed", "not yet"). |
-| **Local notifications** | `wp.desktop.notify({ title, body, icon, tag, onClick })` — uses the browser `Notification` API, falls back to a toast when permission is denied or the browser doesn't support it. |
-| **Push notifications** | **Not in v1.** The SW registers a no-op `push` handler (claimed so future v2 push payloads aren't silently dropped); the `notificationclick` handler is live — it closes the notification, focuses an existing `/desktop-mode/` window client, or opens `notification.data.url` (default `/desktop-mode/`) when none exists. The same `wp.desktop.notify` shape will route through the SW's `showNotification` once push is wired. |
+| **Web app manifest** | Served at `/openstation/manifest.webmanifest`. Site name + short name, theme color, icons (Site Icon when set, plugin logo otherwise), `start_url=/wp-admin/index.php?desktop_mode_portal=1`, `scope=/wp-admin/` (narrowed from `/` so front-end links escape the PWA window; the manifest `id` stays at `/openstation/` so existing installs aren't reset). Filterable via `openstation_pwa_manifest`. |
+| **Service worker** | Served at `/openstation/sw.js` with `Service-Worker-Allowed: /`. Registered at root scope with a deliberately narrow fetch handler — it only intercepts paths under `/openstation/` and `/wp-admin/`, plus the plugin's own static assets. wp-admin HTML is **always** network-first (nonces would otherwise drift). |
+| **Install hint** | A system tile on the dock (`id: 'os-pwa-install'`) registered on shell boot — except when the shell is already running standalone. It is removed live when display-mode flips to standalone or when `getInstalledRelatedApps()` reports the app installed (Chromium); on Safari / Firefox it persists as a fallback. Clicking it dispatches the browser install prompt when the site is currently installable, otherwise shows a contextual toast ("already installed", "not yet"). |
+| **Local notifications** | `wp.os.notify({ title, body, icon, tag, onClick })` — uses the browser `Notification` API, falls back to a toast when permission is denied or the browser doesn't support it. |
+| **Push notifications** | **Not in v1.** The SW registers a no-op `push` handler (claimed so future v2 push payloads aren't silently dropped); the `notificationclick` handler is live — it closes the notification, focuses an existing `/openstation/` window client, or opens `notification.data.url` (default `/openstation/`) when none exists. The same `wp.os.notify` shape will route through the SW's `showNotification` once push is wired. |
 
 ## Why root scope (with a narrow fetch handler)
 
 A service worker has exactly one scope path. The only common ancestor of
-`/desktop-mode/` and `/wp-admin/` is `/`. Registering at `/desktop-mode/`
+`/openstation/` and `/wp-admin/` is `/`. Registering at `/openstation/`
 would cut the SW off from admin-page navigations — defeating the purpose
 for the typical install target (a dashboard URL inside wp-admin).
 
 So the SW registers at root scope, but the fetch handler returns early
-(no `event.respondWith` call) for any URL outside `/desktop-mode/`,
+(no `event.respondWith` call) for any URL outside `/openstation/`,
 `/wp-admin/`, or the plugin's own assets directory. Behaviorally this is
 "narrow scope" without inheriting the technical limitation.
 
+### Hosts that 404 virtual `.js` paths (WordPress.com)
+
+Some hosts' web servers short-circuit any path with a static-file
+extension straight to the filesystem: `/openstation/sw.js` 404s at
+nginx and never reaches WordPress, while the extensionless manifest
+route works fine. For those hosts the same SW bytes are also served at
+the extensionless fallback **`/?openstation_sw=1`** — registration
+tries the pretty URL first and retries once with
+`PwaConfig.swFallbackUrl` on failure. The fallback URL's path is `/`,
+so root scope needs no `Service-Worker-Allowed` header at all, and a
+SW registered through it is still recognized as OpenStation's own by
+the foreign-SW guard.
+
 If any other service worker (any scope) is already registered on the
 origin, the registration **bails** with a console warning rather than
-usurping it. The "Install \<site\> as an app" tile then surfaces a
+usurping it. OpenStation's **own** registrations are never treated as
+foreign — that includes the current pretty URL, the extensionless
+fallback, and legacy endpoints from before a portal-path move (e.g.
+`/desktop-mode/sw.js`). A browser stuck on such a stale worker (its
+old endpoint no longer serves JavaScript, so it can never self-update)
+is recovered automatically: registering the current URL at the same
+scope replaces it on the next shell load. The "Install \<site\> as an app" tile then surfaces a
 focused toast pointing at the opt-in filter (rather than the generic
 "not available" fallback), so users on affected sites see the
 actionable message instead of silently broken behaviour.
 
 To opt this install in, return `true` from the
-`desktop_mode_pwa_force_replace_sw` filter:
+`openstation_pwa_force_replace_sw` filter:
 
 ```php
-add_filter( 'desktop_mode_pwa_force_replace_sw', '__return_true' );
+add_filter( 'openstation_pwa_force_replace_sw', '__return_true' );
 ```
 
 The filter resolves at shell-config build time; effective on the next
 page load. Use this when another PWA plugin's SW is shadowing
-desktop-mode and you want desktop-mode to take over the install path.
+OpenStation and you want OpenStation to take over the install path.
 
 ## Caching policy
 
@@ -58,41 +77,133 @@ desktop-mode and you want desktop-mode to take over the install path.
 |---|---|---|
 | `/wp-content/plugins/desktop-mode/assets/**.{css,png,jpg,svg,…}` | Stale-while-revalidate (runtime cache) | Returning users open the shell instantly; the SW updates the cache in the background. |
 | `/wp-content/plugins/desktop-mode/assets/**.js` | Network-first with `cache: 'reload'` + cache fallback | JS bundles change per deploy — a fresh deploy reaches online users on the next load, with no stale-revalidate window where a freshly-pushed fix is invisible. The cache still serves offline users. |
+| **Opt-in** — versioned Core statics (`/wp-admin/**`, `/wp-includes/**` with `?ver=`) and `load-scripts.php` / `load-styles.php` | Exact-URL cache-first (`os-admin` bucket) | The `ver` query embeds the WordPress version, so bytes behind a URL only change when the URL changes — the same contract Core expresses by serving the loader endpoints with a one-year `Cache-Control`. A warm window-open costs zero HTTP requests for these. Requires the `openstation_pwa_admin_asset_cache` filter (default off). |
+| **Opt-in** — versioned plugin/theme statics (`/wp-content/plugins|themes/**` with `?ver=`) | Stale-while-revalidate (`os-admin` bucket) | Same `ver` contract in principle, but authors edit files without bumping versions often enough that cache-first would pin stale bytes; SWR serves instantly and self-heals on the next load. Uploads are excluded (quota, thumbnail regeneration keeps the URL). |
+| **Opt-in** — an iframe navigation to a document the shell asked for early | Served from the held response (never re-fetched) | The document is the one thing that can never be cached — admin HTML carries nonces — and it is the majority of a window open. Speculation does not make it cacheable; it moves the wait to before the click. See [Speculative documents](#speculative-documents-opt-in). |
 | Navigation requests under our scope | Network-first with offline fallback | wp-admin HTML carries nonces and per-request screen state; caching it would desynchronise the user. The fallback is a tiny inline placeholder so an offline user sees something coherent. |
-| REST / AJAX / non-asset GETs | Pass-through (no SW handling) | Same reason as navigation — auth-bound dynamic content must hit the network. |
+| REST / AJAX / non-asset GETs / unversioned asset URLs | Pass-through (no SW handling) | Same reason as navigation — auth-bound dynamic content must hit the network; an asset URL without a `ver` cache-buster carries no immutability contract. |
 | `install`-time precache | A handful of CSS files, the three critical-path JS bundles (`desktop.min.js`, `window-system.min.js`, `shell-overlays.min.js`), and the plugin logo | Just enough to render the offline shell skeleton. Anything else is picked up at runtime by the caching paths above. |
 
-The cache is keyed by version (`desktop-mode-static-<v>`,
-`desktop-mode-runtime-<v>`). The `activate` step deletes any cache whose
+### The shared admin-asset cache (opt-in)
+
+The two opt-in rows above are the **shared admin-asset cache**: because
+the SW is root-scoped, it sees asset requests from the shell *and from
+every window's chromeless iframe*, and Cache Storage is origin-wide —
+so a stylesheet fetched by one window is served locally to every later
+window, revalidation round-trips included.
+
+Users enable it per account in **OpenStation Preferences → Features →
+Beta features → "Shared asset cache (experimental)"**
+(`adminAssetCacheEnabled`, default off; applies after the next reload).
+That preference is the default of the `openstation_pwa_admin_asset_cache`
+filter, which operators can use to force it site-wide or veto every
+per-user opt-in:
+
+```php
+add_filter( 'openstation_pwa_admin_asset_cache', '__return_true' );  // force on
+add_filter( 'openstation_pwa_admin_asset_cache', '__return_false' ); // kill switch
+```
+
+Per-user works because the SW script is fetched with credentials — the
+served bytes reflect whoever is logged in on that browser profile,
+which is also who the SW will be serving.
+
+Mechanics and caveats:
+
+- The flag (plus the plugin URL) reaches the SW as a
+  `self.__OS_SW_CONFIG = {…};` preamble injected by the PHP endpoint
+  that serves `sw.js`. Flipping the filter changes the served bytes,
+  which is exactly what the browser's SW update check watches — the
+  change takes effect via a normal SW update on the next load, with no
+  re-registration.
+- Classification logic lives in `src/pwa/sw-policy.ts` (pure,
+  unit-tested). Only `200`, non-redirected, same-origin responses
+  without `no-store` / `private` are cached; `Range` requests bypass
+  the cache entirely.
+- Because `/wp-includes/` assets are also referenced by front-end
+  pages, a versioned wp-includes asset requested by the front end is
+  cached and served under the same policy — same URL contract, shared
+  benefit.
+- The bucket is capped (~500 entries, FIFO pruning) and dropped
+  wholesale on every SW version bump, so it cannot grow without bound.
+- Known trade-off: a **core-path** asset edited in place without a
+  `ver` change (rare outside development) stays pinned until the URL
+  or the SW version changes. Development setups should keep the filter
+  off or run with `SCRIPT_DEBUG`.
+
+The cache is keyed by version (`os-static-<v>`,
+`os-runtime-<v>`). The `activate` step deletes any cache whose
 key doesn't carry the current version, so a deploy doesn't accumulate
 stale buckets.
+
+## Speculative documents (opt-in)
+
+The shared asset cache removes the network from a window's **assets**. It can never touch the **document**: admin HTML carries nonces and per-request screen state, so it is uncacheable by construction — and it is the majority of a window open (measured at ~2.1 s of a ~3.8 s tab click on production hosting).
+
+That wait does not have to happen *after* the click. The shell knows every URL a window can reach; the worker sees every iframe navigation. Connecting them lets a document be fetched **while the user is still deciding**, and the navigation that follows is answered from those bytes.
+
+This is not "keep the window alive": nothing rendered is retained. No DOM, no live iframe, no memory beyond a response body dropped after 30 seconds. The page is still built fresh — just early.
+
+Two triggers, one mechanism:
+
+| Trigger | What happens |
+|---|---|
+| **Hovering a submenu tab** | The shell posts `os-speculate-doc`; the worker fetches that screen and holds it. |
+| **Booting the shell** | The worker replays the previous session's restore list the moment the shell's own navigation arrives — *before* the server has finished building the shell document, so the two renders overlap instead of running back to back. The list is persisted from `os-remember-session`, which the session saver posts from **both** of its paths: the debounced save and the `pagehide` beacon. The unload path matters most — it carries the state at the moment the tab closed, which is exactly the "close it and come straight back" case this is for. |
+
+Measured on production hosting: window-document TTFB **1,353 ms → ~1 ms**, whole shell boot **6,492 ms → ~4,700 ms**, a hovered tab click **~3,600 ms → ~1,000 ms**.
+
+### Rules
+
+- **Speculation never acts.** A URL carrying `action`, `action2`, `_wpnonce`, `nonce` or `delete_all` is refused, so a hover can never activate a plugin or empty a trash. Same-origin, `/wp-admin/` only, and the `openstation_chromeless` flag must be present.
+- **Held documents are single-use and expire after 30 s**, capped at 6 with oldest-first eviction. A document is a moment-in-time view carrying nonces; replaying one twice would show a superseded page.
+- **The store holds the in-flight promise, not the settled response**, so a navigation landing mid-fetch joins the request already running instead of starting a second one for the same screen.
+- **Answering an iframe navigation is safe only because the response is never re-fetched.** The worker otherwise refuses iframe navigations: re-fetching one makes Chrome send `Sec-Fetch-Dest: empty`, the server's chromeless detection falls through, and the whole desktop renders inside a window. A speculative document is fetched once, ahead of time, from a URL carrying the chromeless flag — which the server reads *before* it consults Sec-Fetch.
+- The speculative fetch is a plain same-origin GET and does not forward `Referer` or `Accept-Language` from the navigation it stands in for. Admin screens do not branch on either (locale comes from the user's profile, server-side).
+- Gated on the **hover-prewarm** opt-in (`windowPrewarmEnabled`), delivered to the worker as `windowPrewarm` in the `self.__OS_SW_CONFIG` preamble. Off by default, and checked on both sides: the shell skips the `postMessage` entirely, and the worker ignores either message if the flag is off. A user who never touches the setting does not pay so much as a message.
+
+### Worker message surface
+
+Both messages are posted to `navigator.serviceWorker.controller` and are ignored unless the opt-in is on.
+
+```js
+// Fetch this screen now; hold it for the navigation that follows.
+{ type: 'os-speculate-doc', url: '<absolute same-origin chromeless URL>' }
+
+// Remember these screens for the NEXT boot's replay.
+{ type: 'os-remember-session', urls: [ '<absolute>', … ] }
+```
+
+The shell-side helpers are `speculateDocument( url )` and `rememberRestoreTargets( urls )` in `src/pwa/speculate.ts`. Policy lives in `src/pwa/sw-policy.ts` (`isSpeculatableDocument`) and the store in `src/pwa/speculative-store.ts`; both are pure and unit-tested.
 
 ## PHP surface
 
 | Symbol | Role |
 |---|---|
-| `desktop_mode_pwa_manifest_url()` | Absolute URL of the manifest endpoint. |
-| `desktop_mode_pwa_sw_url()` | Absolute URL of the service worker. |
-| `desktop_mode_pwa_get_user_state( $user_id = 0 )` | Read the per-user PWA UI state. |
-| `desktop_mode_pwa_update_user_state( array $patch, $user_id = 0 )` | Merge a partial update into the state. |
-| `desktop_mode_pwa_manifest` (filter) | Mutate manifest fields before encoding. |
+| `openstation_pwa_manifest_url()` | Absolute URL of the manifest endpoint. |
+| `openstation_pwa_sw_url()` | Absolute URL of the service worker. |
+| `openstation_pwa_sw_fallback_url()` | Extensionless fallback URL for the same SW script (`/?openstation_sw=1`) — for hosts whose web server 404s virtual `.js` paths. |
+| `openstation_pwa_get_user_state( $user_id = 0 )` | Read the per-user PWA UI state. |
+| `openstation_pwa_update_user_state( array $patch, $user_id = 0 )` | Merge a partial update into the state. |
+| `openstation_pwa_admin_asset_cache_enabled()` | Whether the shared admin-asset cache is on (resolves the filter below). |
+| `openstation_pwa_manifest` (filter) | Mutate manifest fields before encoding. |
+| `openstation_pwa_admin_asset_cache` (filter) | Force or veto the shared admin-asset cache site-wide. Default: the requesting user's `adminAssetCacheEnabled` preference (off until they opt in). |
 
 REST routes:
 
 - `GET /wp-json/desktop-mode/v1/pwa-state` → `{ installHintDismissed, notificationsEnabled }`
 - `POST /wp-json/desktop-mode/v1/pwa-state` → merge partial state. Body: `{ installHintDismissed?: bool, notificationsEnabled?: bool }`.
 
-Both routes require a logged-in user with desktop mode enabled for
-their account (`desktop_mode_rest_require_enabled()` — 401 when logged
-out, 403 when desktop mode is off; hardened from plain `read` in
-0.9.0) and a valid `X-WP-Nonce`.
+Both routes require a logged-in user with OpenStation enabled for
+their account (`openstation_rest_require_enabled()` — 401 when logged
+out, 403 when OpenStation is off) and a valid `X-WP-Nonce`.
 
 ## JS surface
 
 ```ts
-// All exposed on `window.wp.desktop`:
+// All exposed on `window.wp.os`:
 
-wp.desktop.notify( {
+wp.os.notify( {
     title: 'Build complete',
     body: '12 files updated.',
     icon: '/favicon.png',
@@ -100,16 +211,16 @@ wp.desktop.notify( {
     onClick: ( n ) => { window.focus(); n.close(); },
 } );
 
-const choice = await wp.desktop.pwa.promptInstall();
+const choice = await wp.os.pwa.promptInstall();
 //   'accepted' | 'dismissed' | 'unavailable'
 
-await wp.desktop.pwa.requestNotificationPermission();
+await wp.os.pwa.requestNotificationPermission();
 //   'granted' | 'denied' | 'default' | 'unsupported'
 
-const state = wp.desktop.pwa.getState();
+const state = wp.os.pwa.getState();
 //   { installHintDismissed: boolean, notificationsEnabled: boolean }
 
-const off = wp.desktop.pwa.subscribe( ( s ) => {
+const off = wp.os.pwa.subscribe( ( s ) => {
     console.log( 'PWA state changed:', s );
 } );
 off();
@@ -117,9 +228,9 @@ off();
 
 Activity-bus channels for plugins that want to mute / amplify / audit:
 
-- `desktop-mode/notification-requested` — filterable; set
+- `os/notification-requested` — filterable; set
   `cancel: true` to suppress the underlying notification.
-- `desktop-mode/notification-shown` — fire-and-forget; carries
+- `os/notification-shown` — fire-and-forget; carries
   `fallback: 'toast' | null` so analytics can distinguish the
   permission-denied path from the real-notification path.
 
@@ -142,10 +253,10 @@ app via the "Share → Add to Home Screen" gesture, which picks up our
 ## What's coming next
 
 - **Phase 4 — Web Push.** VAPID keypair, REST routes for subscribe /
-  unsubscribe, server-side `desktop_mode_push( $user_id, $payload )` PHP
+  unsubscribe, server-side `openstation_push( $user_id, $payload )` PHP
   helper, SW `push` payload renderer wired to the existing `notify()`
-  intent shape. The v1 `wp.desktop.notify` API is the same call site —
+  intent shape. The v1 `wp.os.notify` API is the same call site —
   only the transport changes.
-- **Per-site icon override hint.** A small OS Settings tab entry that
+- **Per-site icon override hint.** A small OpenStation Preferences tab entry that
   lets administrators upload a custom PWA icon without writing a
   filter.

@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Centralized drag-and-drop types.
+ * OpenStation — Centralized drag-and-drop types.
  *
  * The DragManager unifies every in-shell drag gesture (file tiles on
  * the wallpaper, entity tiles inside My WordPress, future plugin
@@ -31,8 +31,6 @@
  * separate channel. That bridge is a payload carrier, not a gesture
  * driver — its lifecycle is owned by the source/destination iframes,
  * not the parent shell.
- *
- * @since 0.8.1
  */
 
 /**
@@ -65,8 +63,6 @@ export interface GhostConfig {
 	 * the cursor + colored-outline cues. Defaults to sensible
 	 * messages for the framework payload types (`'shortcut'` /
 	 * `'desktop-file'`); pass `hidden: true` to opt out.
-	 *
-	 * @since 0.8.2
 	 */
 	hint?: GhostHintConfig;
 }
@@ -139,13 +135,11 @@ export interface DropTarget {
 	 * to move") when omitted. Use it when the target's semantic
 	 * differs from a generic placement — e.g. the recycle bin shows
 	 * "Move to Trash" instead of "create shortcut".
-	 *
-	 * @since 0.8.9
 	 */
 	acceptLabel?: string;
 }
 
-/** Public manager API. Mounted on `wp.desktop.dragManager`. */
+/** Public manager API. Mounted on `wp.os.dragManager`. */
 export interface DragManagerApi {
 	/**
 	 * Begin a drag. Returns a session, or `null` when:
@@ -209,12 +203,12 @@ export const DRAG_THRESHOLD_PX = 4;
 
 /** CustomEvent names dispatched on `document`. */
 export const DRAG_EVENTS = {
-	START: 'desktop-mode.drag.start',
-	MOVE: 'desktop-mode.drag.move',
-	ENTER: 'desktop-mode.drag.enter',
-	LEAVE: 'desktop-mode.drag.leave',
-	REJECTED: 'desktop-mode.drag.rejected',
-	COMMIT: 'desktop-mode.drag.commit',
-	CANCEL: 'desktop-mode.drag.cancel',
-	END: 'desktop-mode.drag.end',
+	START: 'os.drag.start',
+	MOVE: 'os.drag.move',
+	ENTER: 'os.drag.enter',
+	LEAVE: 'os.drag.leave',
+	REJECTED: 'os.drag.rejected',
+	COMMIT: 'os.drag.commit',
+	CANCEL: 'os.drag.cancel',
+	END: 'os.drag.end',
 } as const;

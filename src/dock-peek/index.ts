@@ -1,11 +1,17 @@
 /**
- * Desktop Mode — Dock Peek.
+ * OpenStation — Dock Peek.
  *
  * On pointerenter of a multi-capable dock tile that has at least one
  * open window, fan out a stack of "peek cards" anchored to the tile:
  *   - One card per open instance (click → focus that window).
  *   - A trailing "Ghost Card" with a dashed outline + breathing pulse
  *     (click → spawn a fresh instance via `windowManager.openNew()`).
+ *
+ * Cards include a lightweight "preview" mode (Aero Peek–style):
+ *   - Hover → the window appears so you can see its content.
+ *   - Move away → the window returns to its previous state (minimized
+ *     snap back, or the previously-focused window comes back).
+ *   - Click → the action is committed permanently.
  *
  * The peek replaces the legacy "+" chip on multi-instance dock items.
  * Visible affordance, no keyboard required — the Ghost Card visually
@@ -14,8 +20,6 @@
  * Pointer-only: touch devices skip the peek and fall back to plain
  * tap-to-focus / tap-to-open. Hover popovers don't translate to touch
  * cleanly, and Phase 5–6 is where the mobile shell takes over.
- *
- * @since 0.6.2
  */
 
 import { __, sprintf } from '../i18n';
@@ -24,6 +28,11 @@ import type { Window as WPWindow } from '../window';
 import type { DockOrientation } from '../dock';
 import { sanitizeClassName } from '../utils';
 import { hashTitleToHue } from '../ui/util/hash-hue';
+import { isConstellationMounted } from '../dock-constellation/active';
+// Leaf module, not `../item-visibility-menu` — that entry is a lazy
+// bundle and importing the string from it drags the whole menu into
+// `desktop.min.js`.
+import { ITEM_MENU_OPENING_EVENT } from '../item-visibility-menu-events';
 import { applyFilters, HOOKS } from '../hooks';
 
 /**
@@ -87,6 +96,21 @@ const HIDE_DELAY_MS = 220;
 const STAGGER_MS = 32;
 
 /**
+ * Tracks a peek card's temporary "preview" state — what the window
+ * looked like before the user hovered the card, so we can snap it
+ * back when the pointer leaves without a click.
+ */
+interface PreviewEntry {
+	/** The window was minimized before the hover. */
+	wasMinimized: boolean;
+	/**
+	 * The window that was focused before the hover (null if none or
+	 * if the previewed window was already focused).
+	 */
+	previouslyFocusedId: string | null;
+}
+
+/**
  * Attach hover-peek behavior to a dock tile. Returns a teardown
  * function that detaches every listener and removes the popover.
  */
@@ -97,6 +121,9 @@ export function attachDockPeek( deps: DockPeekDeps ): () => void {
 	let showTimer: number | null = null;
 	let hideTimer: number | null = null;
 	let inside = false;
+
+	/** Preview state keyed by window id, scoped to this popover's lifetime. */
+	let previewByWindowId: Map< string, PreviewEntry > | null = null;
 
 	const cancelShow = (): void => {
 		if ( showTimer !== null ) {
@@ -119,12 +146,32 @@ export function attachDockPeek( deps: DockPeekDeps ): () => void {
 			popover.remove();
 			popover = null;
 		}
+		previewByWindowId?.clear();
+		previewByWindowId = null;
 		deps.suppressTooltip( false );
 	};
 
 	const onPointerEnterTile = ( e: PointerEvent ): void => {
 		// Touch / pen → no peek. Mobile shell owns these gestures.
 		if ( e.pointerType !== 'mouse' ) {
+			return;
+		}
+		// A tile with a flyout hands the hover gesture to the
+		// constellation, which already surfaces the open instances the
+		// peek would have shown — plus the submenu the peek has no way
+		// to reach. Two popovers on one tile is a flicker, not a
+		// feature. That is every menu tile, and the system tiles that
+		// declared a submenu of their own; every other system tile
+		// keeps the peek.
+		//
+		// Conditional on the flyout actually being mounted: a rail
+		// rendered without one (a plugin embedding the dock on its
+		// own) must keep the peek here rather than leave the tile with
+		// no hover surface at all.
+		if (
+			isConstellationMounted() &&
+			( tile.dataset.menuSlug || tile.dataset.constellationId )
+		) {
 			return;
 		}
 		// Re-evaluate on every enter — open windows might have changed
@@ -170,12 +217,13 @@ export function attachDockPeek( deps: DockPeekDeps ): () => void {
 	const showPeek = (): void => {
 		deps.suppressTooltip( true );
 		tile.setAttribute( 'data-peek-active', '' );
-		popover = buildPopover( deps, () => tearDown() );
+		previewByWindowId = new Map();
+		popover = buildPopover( deps, () => tearDown(), previewByWindowId );
 		document.body.appendChild( popover );
 		// Inherit the user's WP color-scheme variables. The popover is
-		// body-attached (outside `.desktop-mode-shell`), so the scheme
+		// body-attached (outside `.os-shell`), so the scheme
 		// overrides scoped to the shell — e.g. midnight's
-		// `--desktop-mode-titlebar-bg-focused: #1e1e1e` — never cascade
+		// `--os-titlebar-bg-focused: #1e1e1e` — never cascade
 		// here. Copy the resolved values onto the popover root so the
 		// card titlebars match the live windows.
 		inheritShellSchemeVars( popover );
@@ -185,7 +233,7 @@ export function attachDockPeek( deps: DockPeekDeps ): () => void {
 		// initial frame's `transform` from CSS is the start of the
 		// transition (not the end of it).
 		requestAnimationFrame( () => {
-			popover?.classList.add( 'desktop-mode-dock-peek--open' );
+			popover?.classList.add( 'os-dock-peek--open' );
 		} );
 
 		popover.addEventListener( 'pointerenter', () => {
@@ -201,12 +249,23 @@ export function attachDockPeek( deps: DockPeekDeps ): () => void {
 		} );
 	};
 
+	// A right-click (or any other route into the tile's menu) means the
+	// user has asked for a different surface on this same tile. The
+	// peek card is anchored to the tile too, so it has to go — see
+	// `ITEM_MENU_OPENING_EVENT`.
+	const onMenuOpening = (): void => tearDown();
+
 	tile.addEventListener( 'pointerenter', onPointerEnterTile );
 	tile.addEventListener( 'pointerleave', onPointerLeaveTile );
+	document.addEventListener( ITEM_MENU_OPENING_EVENT, onMenuOpening );
 
 	return (): void => {
 		tile.removeEventListener( 'pointerenter', onPointerEnterTile );
 		tile.removeEventListener( 'pointerleave', onPointerLeaveTile );
+		document.removeEventListener(
+			ITEM_MENU_OPENING_EVENT,
+			onMenuOpening,
+		);
 		tearDown();
 	};
 }
@@ -223,9 +282,13 @@ function shouldShowPeek( deps: DockPeekDeps ): boolean {
 }
 
 /** Build the popover surface + cards. */
-function buildPopover( deps: DockPeekDeps, dismiss: () => void ): HTMLElement {
+function buildPopover(
+	deps: DockPeekDeps,
+	dismiss: () => void,
+	previewByWindowId: Map< string, PreviewEntry >,
+): HTMLElement {
 	const root = document.createElement( 'div' );
-	root.className = 'desktop-mode-dock-peek';
+	root.className = 'os-dock-peek';
 	root.setAttribute( 'role', 'menu' );
 	root.setAttribute( 'aria-label', sprintf(
 		// translators: %s is the dock item's admin-page title (e.g., "Posts")
@@ -234,13 +297,13 @@ function buildPopover( deps: DockPeekDeps, dismiss: () => void ): HTMLElement {
 	) );
 
 	const cards = document.createElement( 'div' );
-	cards.className = 'desktop-mode-dock-peek__cards';
+	cards.className = 'os-dock-peek__cards';
 	root.appendChild( cards );
 
 	const instances = deps.getInstances();
 	let cardIndex = 0;
 	for ( const win of instances ) {
-		const card = buildInstanceCard( win, deps, cardIndex++, dismiss );
+		const card = buildInstanceCard( win, deps, cardIndex++, dismiss, previewByWindowId );
 		cards.appendChild( card );
 	}
 
@@ -277,18 +340,24 @@ function restoreIfMinimized( win: WPWindow, card?: HTMLElement ): void {
  * gives each card a distinct visual identity (color + title + icon),
  * which is what users actually use to recognize an open window at a
  * glance.
+ *
+ * Cards now include a lightweight "preview" mode (Aero Peek–style):
+ *   - Hover → the window appears so you can see its content.
+ *   - Move away → the window returns to its previous state.
+ *   - Click → the action is committed permanently.
  */
 function buildInstanceCard(
 	win: WPWindow,
 	deps: DockPeekDeps,
 	index: number,
 	dismiss: () => void,
+	previewByWindowId: Map< string, PreviewEntry >,
 ): HTMLElement {
 	const card = document.createElement( 'button' );
 	card.type = 'button';
 	card.setAttribute( 'role', 'menuitem' );
 	card.className =
-		'desktop-mode-dock-peek__card desktop-mode-dock-peek__card--instance';
+		'os-dock-peek__card os-dock-peek__card--instance';
 	card.style.setProperty( '--peek-card-index', String( index ) );
 	card.style.setProperty(
 		'--peek-card-delay',
@@ -306,14 +375,14 @@ function buildInstanceCard(
 	// after the click so a subsequent peek doesn't dangle a stale name.
 	card.style.setProperty(
 		'--peek-card-vt-name',
-		`desktop-mode-peek-card-${ win.id }`,
+		`os-peek-card-${ win.id }`,
 	);
 
 	const titlebar = document.createElement( 'span' );
-	titlebar.className = 'desktop-mode-dock-peek__card-titlebar';
+	titlebar.className = 'os-dock-peek__card-titlebar';
 
 	const dots = document.createElement( 'span' );
-	dots.className = 'desktop-mode-dock-peek__card-dots';
+	dots.className = 'os-dock-peek__card-dots';
 	dots.setAttribute( 'aria-hidden', 'true' );
 	for ( let i = 0; i < 3; i++ ) {
 		dots.appendChild( document.createElement( 'i' ) );
@@ -321,7 +390,7 @@ function buildInstanceCard(
 	titlebar.appendChild( dots );
 
 	const iconHost = document.createElement( 'span' );
-	iconHost.className = 'desktop-mode-dock-peek__card-icon';
+	iconHost.className = 'os-dock-peek__card-icon';
 	iconHost.setAttribute( 'aria-hidden', 'true' );
 	const iconCls = win.config.icon || deps.item.icon;
 	if ( iconCls.startsWith( 'dashicons-' ) ) {
@@ -332,7 +401,7 @@ function buildInstanceCard(
 	titlebar.appendChild( iconHost );
 
 	const label = document.createElement( 'span' );
-	label.className = 'desktop-mode-dock-peek__card-label';
+	label.className = 'os-dock-peek__card-label';
 	label.textContent = title;
 	titlebar.appendChild( label );
 
@@ -341,14 +410,14 @@ function buildInstanceCard(
 	// Body — tinted "page" surface with three ghost content lines.
 	// Pure decoration by default; readers can't infer page state.
 	// Plugins can swap the body wholesale (or mutate it) by hooking
-	// `desktop-mode.dock.peek-card-content` — that's how a window can
+	// `os.dock.peek-card-content` — that's how a window can
 	// render a real thumbnail, a status panel, a chart, etc.
 	const defaultBody = document.createElement( 'span' );
-	defaultBody.className = 'desktop-mode-dock-peek__card-body';
+	defaultBody.className = 'os-dock-peek__card-body';
 	defaultBody.setAttribute( 'aria-hidden', 'true' );
 	for ( let i = 0; i < 3; i++ ) {
 		const line = document.createElement( 'span' );
-		line.className = 'desktop-mode-dock-peek__card-line';
+		line.className = 'os-dock-peek__card-line';
 		defaultBody.appendChild( line );
 	}
 	const ctx: DockPeekCardContext = { window: win, item: deps.item };
@@ -360,7 +429,7 @@ function buildInstanceCard(
 	// Mark plugin-customized bodies so CSS can opt out of the default
 	// padding / gradient when a plugin wants pixel control.
 	if ( body !== defaultBody ) {
-		body.classList.add( 'desktop-mode-dock-peek__card-body--custom' );
+		body.classList.add( 'os-dock-peek__card-body--custom' );
 	}
 	card.appendChild( body );
 
@@ -369,17 +438,76 @@ function buildInstanceCard(
 		card.dataset.state = 'minimized';
 	}
 
+	/**
+	 * Commit (clear) any active preview for this window so the
+	 * pointerleave snap-back is suppressed — used on click so the
+	 * permanent focus action isn't reverted.
+	 */
+	const commitPreview = (): void => {
+		previewByWindowId.delete( win.id );
+		delete card.dataset.preview;
+	};
+
+	/**
+	 * Revert a preview: return the window to the state it was in
+	 * before the hover that triggered the preview.
+	 */
+	const revertPreview = ( entry: PreviewEntry ): void => {
+		commitPreview();
+		if ( entry.wasMinimized ) {
+			win.minimize();
+			card.dataset.state = 'minimized';
+		} else if ( entry.previouslyFocusedId ) {
+			const prevWin = deps.windowManager.getById( entry.previouslyFocusedId );
+			if ( prevWin ) {
+				deps.windowManager.focus( prevWin );
+			}
+		}
+	};
+
 	card.addEventListener( 'click', () => {
+		// Commit the preview before dismiss so the pointerleave
+		// triggered by popover removal is a no-op.
+		commitPreview();
 		spawnFocusViewTransition( deps, win, card, dismiss );
 	} );
 
-	// Restore minimized windows on hover so peek cards actually show
-	// the window. Non-minimized windows use the existing scrub-to-focus.
+	// Hover → preview mode: temporarily show the window with a
+	// snap-back when the pointer leaves.
 	card.addEventListener( 'pointerenter', () => {
-		if ( win.state === 'minimized' ) {
+		// Already in preview — nothing to do.
+		if ( previewByWindowId.has( win.id ) ) {
+			return;
+		}
+
+		const wasMinimized = win.state === 'minimized';
+		const previouslyFocused = deps.windowManager.getFocused();
+		const previouslyFocusedId: string | null =
+			previouslyFocused && previouslyFocused !== win
+				? previouslyFocused.id
+				: null;
+
+		// Only track preview if we're actually changing window state.
+		if ( wasMinimized || previouslyFocusedId !== null ) {
+			previewByWindowId.set( win.id, {
+				wasMinimized,
+				previouslyFocusedId,
+			} );
+			card.dataset.preview = '';
+		}
+
+		if ( wasMinimized ) {
 			restoreIfMinimized( win, card );
-		} else if ( deps.windowManager.getFocused() !== win ) {
+		} else if ( previouslyFocused && previouslyFocused !== win ) {
 			deps.windowManager.focus( win );
+		}
+	} );
+
+	// Leave → snap back to the pre-hover state.
+	card.addEventListener( 'pointerleave', () => {
+		const entry = previewByWindowId.get( win.id );
+		if ( entry ) {
+			revertPreview( entry );
 		}
 	} );
 
@@ -414,7 +542,7 @@ function spawnFocusViewTransition(
 	const doc = document as Document & {
 		startViewTransition?: ( cb: () => void ) => unknown;
 	};
-	const vtName = `desktop-mode-peek-card-${ win.id }`;
+	const vtName = `os-peek-card-${ win.id }`;
 	const focus = (): void => {
 		dismiss();
 		restoreIfMinimized( win, card );
@@ -455,7 +583,7 @@ function buildGhostCard(
 	card.type = 'button';
 	card.setAttribute( 'role', 'menuitem' );
 	card.className =
-		'desktop-mode-dock-peek__card desktop-mode-dock-peek__card--ghost';
+		'os-dock-peek__card os-dock-peek__card--ghost';
 	card.style.setProperty( '--peek-card-index', String( index ) );
 	card.style.setProperty(
 		'--peek-card-delay',
@@ -465,13 +593,13 @@ function buildGhostCard(
 	// Ghost label uses a phrase, not a glyph. The "+" sits beside it
 	// at quarter opacity — decoration, not the affordance itself.
 	const plus = document.createElement( 'span' );
-	plus.className = 'desktop-mode-dock-peek__card-plus';
+	plus.className = 'os-dock-peek__card-plus';
 	plus.setAttribute( 'aria-hidden', 'true' );
 	plus.textContent = '+';
 	card.appendChild( plus );
 
 	const label = document.createElement( 'span' );
-	label.className = 'desktop-mode-dock-peek__card-label';
+	label.className = 'os-dock-peek__card-label';
 	label.textContent = sprintf(
 		// translators: %s is the admin-page title (e.g., "Posts")
 		__( 'New %s' ),
@@ -515,10 +643,10 @@ const VIEWPORT_MARGIN_PX = 12;
 
 /**
  * CSS custom properties whose resolved value must be copied from the
- * `.desktop-mode-shell` element onto the body-attached peek popover.
+ * `.os-shell` element onto the body-attached peek popover.
  *
  * The desktop shell scopes per-color-scheme overrides to itself
- * (`.desktop-mode-shell[data-desktop-mode-scheme=…] { --x: … }`) — so a
+ * (`.os-shell[data-os-scheme=…] { --x: … }`) — so a
  * popover appended to `document.body` gets the `:root` defaults
  * instead of the user's selected scheme. Inheriting these by hand
  * keeps the card chrome a faithful shrink of the real window
@@ -526,14 +654,14 @@ const VIEWPORT_MARGIN_PX = 12;
  */
 const SHELL_SCHEME_VARS = [
 	'--wp-admin-theme-color',
-	'--desktop-mode-titlebar-bg',
-	'--desktop-mode-titlebar-bg-focused',
-	'--desktop-mode-titlebar-color',
-	'--desktop-mode-titlebar-color-focused',
+	'--os-titlebar-bg',
+	'--os-titlebar-bg-focused',
+	'--os-titlebar-color',
+	'--os-titlebar-color-focused',
 ] as const;
 
 function inheritShellSchemeVars( popover: HTMLElement ): void {
-	const shell = document.querySelector< HTMLElement >( '.desktop-mode-shell' );
+	const shell = document.querySelector< HTMLElement >( '.os-shell' );
 	if ( ! shell ) {
 		return;
 	}
@@ -565,11 +693,11 @@ function positionPopover(
 		popover.style.left = `${ rect.left + rect.width / 2 }px`;
 		popover.style.top = `${ rect.top - 12 }px`;
 	} else if ( orientation === 'right' ) {
-		popover.style.top = `${ rect.top + rect.height / 2 }px`;
+		popover.style.top = `${ rect.top }px`;
 		popover.style.left = `${ rect.left - 12 }px`;
 	} else {
 		// Left dock (default).
-		popover.style.top = `${ rect.top + rect.height / 2 }px`;
+		popover.style.top = `${ rect.top }px`;
 		popover.style.left = `${ rect.right + 12 }px`;
 	}
 
@@ -619,7 +747,7 @@ function clampToViewport(
 	// custom property the CSS reads inside `translate(...)`.
 	popover.style.setProperty( '--peek-clamp-x', `${ dx }px` );
 	popover.style.setProperty( '--peek-clamp-y', `${ dy }px` );
-	popover.classList.add( 'desktop-mode-dock-peek--clamped' );
+	popover.classList.add( 'os-dock-peek--clamped' );
 	// Suppress orientation/clamp variables for `bottom`'s horizontal
 	// case on left/right docks — handled in CSS via the data attribute.
 	void orientation;

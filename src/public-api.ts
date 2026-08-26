@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Public API barrel.
+ * OpenStation — Public API barrel.
  *
  * The single canonical entry point for third-party plugin authors
  * writing TypeScript against the shell. Everything re-exported from
@@ -19,20 +19,18 @@
  *     WidgetDef,
  *     WallpaperDef,
  *     WindowConfig,
- *   } from 'desktop-mode';
- *   import { HOOKS } from 'desktop-mode';
+ *   } from 'openstation';
+ *   import { HOOKS } from 'openstation';
  *
- *   wp.desktop.hooks.addAction( HOOKS.WINDOW_OPENED, 'myplugin/track', ( e ) => {
+ *   wp.os.hooks.addAction( HOOKS.WINDOW_OPENED, 'myplugin/track', ( e ) => {
  *     console.log( 'Window opened:', e.windowId );
  *   } );
  *   ```
  *
- * (The `desktop-mode` package name above is aspirational — today
+ * (The `openstation` package name above is aspirational — today
  * plugins are bundled alongside the shell and import relatively. When
  * we publish this as an npm-distributable d.ts bundle, this file is
  * what the `main` field points at.)
- *
- * @since 0.8.2
  */
 
 // ----- Types: windows, desktops, dock, session, config -----
@@ -93,8 +91,8 @@ export type { ModuleDef } from './modules/registry';
  * typecheck instead of silently going dead.
  *
  * ```ts
- * wp.desktop.hooks.addAction(
- *     wp.desktop.HOOKS.ARRANGE_CASCADE_APPLIED,
+ * wp.os.hooks.addAction(
+ *     wp.os.HOOKS.ARRANGE_CASCADE_APPLIED,
  *     'myplugin/toast',
  *     ({ windowCount }) => toast(`Arranged ${windowCount} windows`)
  * );
@@ -132,6 +130,15 @@ export type {
 	TitleBarButtonDef,
 	TitleBarButtonRenderCtx,
 } from './title-bar-buttons/registry';
+
+// ----- Window actions (rows in every window's ⋯ menu) -----
+
+/**
+ * A row in the title-bar ⋯ menu. `label`, `icon` and `isVisible` may
+ * each be a function of the window, re-read on every menu open — the
+ * shape a state-dependent toggle needs.
+ */
+export type { WindowActionDef } from './window-actions/registry';
 
 // ----- Cross-window connection bridge -----
 
@@ -191,27 +198,46 @@ export type {
 } from './devtools';
 
 // ----- Public class types (for plugins that need to type-cast an
-// instance returned by `wp.desktop.windowManager` / `.dock`) -----
+// instance returned by `wp.os.windowManager` / `.dock`) -----
 
 export type { Window } from './window';
 export type { WindowManager } from './window-manager';
 export type { Dock, DockOrientation, SystemDockItem } from './dock';
 export type { IconsApi } from './desktop-icons';
+/**
+ * The thirty-icon set. `OsIconSetApi` is the shape behind
+ * `wp.os.iconSet`; the helpers are for TypeScript plugins that would
+ * rather import than reach through the global.
+ */
+export {
+	osIcon,
+	osIconSvg,
+	osIconDataUri,
+	OS_ICON_NAMES,
+	OS_CORE_ICON_NAMES,
+	OS_OWN_ICON_NAMES,
+} from './ui/icons';
+export type {
+	OsIconName,
+	OsIconOptions,
+	OsIconRotation,
+	OsIconSetApi,
+} from './ui/icons';
 export type { WidgetLayer } from './widgets/layer';
 
 // ----- The whole shell-public-API interface itself -----
 //
-// Plugins that want to type-cast `window.wp.desktop` directly (e.g.
+// Plugins that want to type-cast `window.wp.os` directly (e.g.
 // to satisfy a strict TS rule that flags `unknown as ...`) can import
 // the interface and use it as the cast target. The ambient
-// `src/global.d.ts` already augments `window.wp.desktop` to this type
+// `src/global.d.ts` already augments `window.wp.os` to this type
 // — the export here is for cases where the consumer needs the
 // nominal name (function signatures, generics, etc.).
 
-export type { WpDesktopPublicApi } from './desktop';
+export type { OpenStationPublicApi } from './desktop';
 
 // ----- Toast options + keyed-list options for plugins that wrap
-// `wp.desktop.showToast` / `wp.desktop.renderKeyedList` -----
+// `wp.os.showToast` / `wp.os.renderKeyedList` -----
 
 export type { ToastOptions, ToastIntent } from './toast';
 
@@ -228,8 +254,6 @@ export type { PwaConfig, PwaUserState } from './types';
  * the keys match across renders so event listeners survive data
  * updates — the only reliable way to keep clicks working on rows
  * that may re-render mid-press.
- *
- * @since 0.6.0
  */
 export {
 	renderKeyedList,
@@ -243,7 +267,7 @@ export type { KeyedListOptions } from './ui/util/keyed-list';
  * Native-window convenience wrappers. `registerWindow` is a compact
  * alias for the boilerplate-heavy `windowManager.open({ native: true, … })`
  * pattern. `cloneTemplate` is exported for advanced cases (re-cloning,
- * custom hydration) — `desktop_mode_register_window()` plugins don't
+ * custom hydration) — `openstation_register_window()` plugins don't
  * need it because the shell pre-clones the template into the window
  * body before the render callback fires.
  */
@@ -274,41 +298,41 @@ export type { WallpaperSurface } from './wallpapers/surfaces';
 // major release without a deprecation notice first.
 
 export {
-	WpdAvatar,
-	WpdBadge,
-	WpdButton,
-	WpdCheckboxLabel,
-	WpdCluster,
-	WpdCode,
-	WpdColorField,
-	WpdDisplay,
-	WpdEmptyState,
-	WpdGrid,
-	WpdIcon,
-	WpdKey,
-	WpdLog,
-	WpdMenu,
-	WpdMenuItem,
-	WpdPanel,
-	WpdRangeField,
-	WpdSection,
-	WpdSegment,
-	WpdSegmented,
-	WpdStack,
-	WpdStep,
-	WpdSteps,
-	WpdSwatch,
-	WpdSwatchGrid,
-	WpdTab,
-	WpdTabChip,
-	WpdTabs,
-	WpdTextarea,
-	WpdToast,
-	WpdToastContainer,
-	WpdWindowButton,
+	OsAvatar,
+	OsBadge,
+	OsButton,
+	OsCheckboxLabel,
+	OsCluster,
+	OsCode,
+	OsColorField,
+	OsDisplay,
+	OsEmptyState,
+	OsGrid,
+	OsIcon,
+	OsKey,
+	OsLog,
+	OsMenu,
+	OsMenuItem,
+	OsPanel,
+	OsRangeField,
+	OsSection,
+	OsSegment,
+	OsSegmented,
+	OsStack,
+	OsStep,
+	OsSteps,
+	OsSwatch,
+	OsSwatchGrid,
+	OsTab,
+	OsTabChip,
+	OsTabs,
+	OsTextarea,
+	OsToast,
+	OsToastContainer,
+	OsWindowButton,
 } from './ui/components';
-export type { WpdAvatarPresence, WpdBadgeTone, WpdLogRowRenderer } from './ui/components';
+export type { OsAvatarPresence, OsBadgeTone, OsLogRowRenderer } from './ui/components';
 
-// Stable variant enum for <wpd-button> — plugins can narrow props
+// Stable variant enum for <os-button> — plugins can narrow props
 // against the recognised set rather than hard-coding strings.
-export type { WpdButtonVariant } from './ui/components/wpd-button/wpd-button';
+export type { OsButtonVariant } from './ui/components/os-button/os-button';

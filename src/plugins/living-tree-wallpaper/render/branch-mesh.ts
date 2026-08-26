@@ -14,8 +14,6 @@
  * Per-vertex wind displacement (already compliance-scaled by the caller)
  * bends the ribbons; the whole pass is redrawn only while the skeleton
  * changes or wind is non-zero.
- *
- * @since 0.9.4
  */
 
 import type { PixiGraphics, PixiNamespace } from '../pixi-types';

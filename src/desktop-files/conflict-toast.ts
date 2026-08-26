@@ -1,29 +1,17 @@
 /**
- * Desktop Mode — File conflict toast helper.
+ * OpenStation — File conflict toast helper.
  *
  * When a PATCH /placements or PATCH /folders returns 409, the REST
  * client throws `FilesConflictError` carrying the actor and the
  * row's current state. This helper surfaces that as a toast with
  * a "View folder" action that hops the breadcrumb stack to the
  * row's new parent.
- *
- * @since 0.8.5
  */
 
 import { showToast } from '../toast';
 import { FilesConflictError } from './rest';
-import type { Window as DesktopWindow } from '../window';
-
-declare global {
-	interface Window {
-		desktopMode?: {
-			windowManager?: {
-				focus?: ( id: string ) => DesktopWindow | null;
-				open?: ( id: string ) => Promise< DesktopWindow | null >;
-			};
-		};
-	}
-}
+import { folderFileById } from './folder-ref';
+import { openFile } from './open';
 
 export function isConflict( err: unknown ): err is FilesConflictError {
 	return err instanceof FilesConflictError;
@@ -53,21 +41,29 @@ export function showConflictToast( err: FilesConflictError ): void {
 	const reason = buildReason( err );
 	const targetParentId = err.detail.current.parentId;
 	let action: { label: string; onClick: () => void } | undefined;
+	// Folder 0 is the desktop root — already on screen, nothing to
+	// open, so no button. Every real folder gets one.
 	if ( targetParentId > 0 ) {
 		action = {
 			label: 'View folder',
+			// Dispatched through the ordinary opener registry, so the
+			// folder window this builds is the same one a double-click
+			// on the folder's tile builds — breadcrumb stack, split
+			// preview pane, "· Shared" title cue and all. Reusing the
+			// registered opener is also what makes an already-open
+			// folder window focus rather than reopen: `openFile()` ends
+			// at `windowManager.open()`, which reuses by id.
+			//
+			// `folderFileById` is the bridge from what a conflict knows
+			// (an id and a name) to what an opener wants (a
+			// DesktopFile).
 			onClick: () => {
-				const winId = `desktop-mode-folder-${ targetParentId }`;
-				const mgr = window.desktopMode?.windowManager;
-				if ( mgr?.focus ) {
-					const w = mgr.focus( winId );
-					if ( w ) {
-						return;
-					}
-				}
-				if ( mgr?.open ) {
-					void mgr.open( winId );
-				}
+				void openFile(
+					folderFileById(
+						targetParentId,
+						err.detail.current.parentName,
+					),
+				);
 			},
 		};
 	}

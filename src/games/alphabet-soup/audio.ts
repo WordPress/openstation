@@ -9,8 +9,6 @@
  * rolls a little arpeggio, a wrong selection is a soft pot-lid
  * thud, a cleared wave gets a four-note fanfare, and the Time
  * Attack clock ticks when it runs low.
- *
- * @since 0.9.8
  */
 
 /** localStorage key for the sound on/off preference. */

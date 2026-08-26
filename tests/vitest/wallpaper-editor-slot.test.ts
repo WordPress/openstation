@@ -25,10 +25,10 @@ function ctxStub(): SettingsCtx {
 
 function slotElement(): HTMLElement {
 	const slot = document.createElement( 'div' );
-	slot.className = 'desktop-mode-os-settings__editor-slot';
+	slot.className = 'os-settings__editor-slot';
 	slot.dataset.expanded = 'false';
 	const inner = document.createElement( 'div' );
-	inner.className = 'desktop-mode-os-settings__editor-slot-inner';
+	inner.className = 'os-settings__editor-slot-inner';
 	slot.appendChild( inner );
 	document.body.appendChild( slot );
 	return slot;

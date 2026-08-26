@@ -4,7 +4,7 @@
  * The user-reported bug: "Posts & Pages tiles inside My WordPress are
  * forbidden — I can lift the tile but no drop target accepts it."
  *
- * Root cause was in `attachTileDrag` (deleted in 0.18.0) which called
+ * Root cause was in `attachTileDrag` (since deleted) which called
  * `setPointerCapture` on a tile that was also `draggable=true`. Pointer
  * capture redirected pointer events to the tile, which prevented the
  * browser from firing `dragstart` — so the HTML5 drag never started,
@@ -108,15 +108,15 @@ describe( 'My WordPress entity-tile drag (regression)', () => {
 
 		// Tile sits inside the (faked) My WordPress window.
 		const myWordpressWindow = document.createElement( 'div' );
-		myWordpressWindow.classList.add( 'desktop-mode-window' );
+		myWordpressWindow.classList.add( 'os-window' );
 		const tile = document.createElement( 'div' );
-		tile.className = 'desktop-mode-my-wordpress__tile';
+		tile.className = 'os-my-wordpress__tile';
 		myWordpressWindow.appendChild( tile );
 		document.body.appendChild( myWordpressWindow );
 
 		// Wallpaper canvas is registered as a drop target.
 		const wallpaper = document.createElement( 'div' );
-		wallpaper.id = 'desktop-mode-area';
+		wallpaper.id = 'os-area';
 		document.body.appendChild( wallpaper );
 
 		const onDrop = vi.fn();
@@ -188,13 +188,13 @@ describe( 'My WordPress entity-tile drag (regression)', () => {
 		// default reject label.
 		const manager = new DragManager();
 
-		// Faked My WordPress window: outer `.desktop-mode-window`
-		// wraps a `.desktop-mode-window__body` (the element our render
+		// Faked My WordPress window: outer `.os-window`
+		// wraps a `.os-window__body` (the element our render
 		// callback receives). The claimant registers on the body.
 		const myWordpressWindow = document.createElement( 'div' );
-		myWordpressWindow.classList.add( 'desktop-mode-window' );
+		myWordpressWindow.classList.add( 'os-window' );
 		const bodyEl = document.createElement( 'div' );
-		bodyEl.classList.add( 'desktop-mode-window__body' );
+		bodyEl.classList.add( 'os-window__body' );
 		myWordpressWindow.appendChild( bodyEl );
 		document.body.appendChild( myWordpressWindow );
 
@@ -202,7 +202,7 @@ describe( 'My WordPress entity-tile drag (regression)', () => {
 		// `src/my-wordpress/index.ts` — the only thing that matters
 		// for the chip text contract.
 		manager.registerDropTarget( {
-			id: 'desktop-mode-my-wordpress-reject',
+			id: 'os-my-wordpress-reject',
 			element: bodyEl,
 			accept: () => false,
 			onDrop: () => {},
@@ -237,9 +237,9 @@ describe( 'My WordPress entity-tile drag (regression)', () => {
 		// runs against the claimant and should flip the ghost.
 		document.dispatchEvent( pointerEvent( 'pointermove', 200, 200 ) );
 
-		const hint = document.querySelector( '.desktop-mode-drag-hint' );
+		const hint = document.querySelector( '.os-drag-hint' );
 		expect( hint ).not.toBeNull();
-		expect( hint!.classList.contains( 'desktop-mode-drag-hint--reject' ) ).toBe( true );
+		expect( hint!.classList.contains( 'os-drag-hint--reject' ) ).toBe( true );
 		expect( hint!.textContent ).toBe( "Can’t drop here" );
 
 		document.dispatchEvent( pointerEvent( 'pointerup', 200, 200 ) );

@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Files-on-the-Desktop shared store.
+ * OpenStation — Files-on-the-Desktop shared store.
  *
  * Cross-bundle state holder for placements + folders, keyed by
  * the canonical `'desktop-mode/files'` slot. Phase 3's renderer
@@ -12,15 +12,13 @@
  *   - Mutations route through helpers (`upsertPlacement`,
  *     `removePlacement`, `upsertFolder`, `removeFolder`); each
  *     calls `store.notify()` exactly once and emits a global
- *     `desktop-mode-files-changed` CustomEvent so non-store
+ *     `os-files-changed` CustomEvent so non-store
  *     consumers (toasts, devtools) hear about it without
  *     reading the store.
  *
  * The store is intentionally framework-agnostic — Phase 3 wires
  * a tiny render loop on top, but plugin authors who want to
  * read the placements list synchronously can do so directly.
- *
- * @since 0.9.0
  */
 
 import { createSharedStore, type SharedStore } from '../shared-store';
@@ -47,7 +45,7 @@ function fireChanged( detail: { kind: string; folderId?: number; placementId?: n
 		return;
 	}
 	document.dispatchEvent(
-		new CustomEvent( 'desktop-mode-files-changed', {
+		new CustomEvent( 'os-files-changed', {
 			detail: { source: 'local', ...detail },
 		} ),
 	);
@@ -78,7 +76,7 @@ export function upsertPlacement( placement: RestPlacementShape, source: 'local' 
 	if ( ! placement || typeof placement.id !== 'number' ) {
 		// eslint-disable-next-line no-console
 		console.warn(
-			'[desktop-mode] upsertPlacement called with a non-placement value; ignoring.',
+			'[openstation] upsertPlacement called with a non-placement value; ignoring.',
 			placement,
 		);
 		return;
@@ -199,8 +197,6 @@ export function getFilesState(): FilesState {
  * old title after an in-place rename, old coords after a drag.
  * Handlers should route through this at event time instead of
  * trusting the closure.
- *
- * @since 0.9.5
  */
 export function currentPlacement( snapshot: RestPlacementShape ): RestPlacementShape {
 	const state = getFilesState();

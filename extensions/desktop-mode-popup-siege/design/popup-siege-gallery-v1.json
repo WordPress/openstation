@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 3,
+  "gameId": "popup-siege",
+  "sourceSha256": "93b05b7d9ac2e73462ee20dd0385dc69cbbf1118ad12d3458ca57a087b7f0292",
+  "sourceFiles": [
+    "wp-content/plugins/desktop-mode-game-lab/sdk/openstation-game-kit-0.1.0.js",
+    "wp-content/plugins/desktop-mode-game-lab/sdk/openstation-game-kit-0.1.1.js",
+    "wp-content/plugins/desktop-mode-game-lab/sdk/openstation-audio-kit-0.1.0.js",
+    "wp-content/plugins/desktop-mode-game-lab/games/popup-breaker/game.php",
+    "wp-content/plugins/desktop-mode-game-lab/games/popup-breaker/assets/openstation-adapter.js",
+    "wp-content/plugins/desktop-mode-game-lab/games/popup-breaker/assets/popup-breaker-0.2.0.js",
+    "wp-content/plugins/desktop-mode-game-lab/games/popup-breaker/assets/popup-breaker-0.2.1.js",
+    "wp-content/plugins/desktop-mode-game-lab/games/popup-breaker/assets/popup-breaker-0.3.0.js",
+    "wp-content/plugins/desktop-mode-game-lab/games/popup-breaker/assets/popup-breaker-0.4.0.js",
+    "wp-content/plugins/desktop-mode-game-lab/games/popup-breaker/assets/popup-breaker-0.4.1.js",
+    "wp-content/plugins/desktop-mode-game-lab/games/popup-breaker/assets/popup-breaker-0.4.2.js",
+    "wp-content/plugins/desktop-mode-game-lab/games/popup-breaker/assets/popup-breaker-0.4.3.js",
+    "wp-content/plugins/desktop-mode-game-lab/games/popup-breaker/assets/popup-breaker-0.4.4.js",
+    "wp-content/plugins/desktop-mode-game-lab/games/popup-breaker/assets/popup-breaker-0.4.5.js",
+    "wp-content/plugins/desktop-mode-game-lab/games/popup-breaker/assets/popup-breaker-0.4.6.js",
+    "wp-content/plugins/desktop-mode-game-lab/games/popup-breaker/assets/popup-breaker-0.4.7.js",
+    "wp-content/plugins/desktop-mode-game-lab/games/popup-breaker/assets/popup-breaker-0.4.8.js",
+    "wp-content/plugins/desktop-mode-game-lab/games/popup-breaker/assets/popup-breaker-0.5.0.js",
+    "wp-content/plugins/desktop-mode-game-lab/games/popup-breaker/assets/popup-breaker-0.5.1.js",
+    "wp-content/plugins/desktop-mode-game-lab/games/popup-breaker/assets/popup-breaker-0.6.0.js",
+    "wp-content/plugins/desktop-mode-game-lab/games/popup-breaker/assets/popup-breaker-0.6.1.js",
+    "wp-content/plugins/desktop-mode-game-lab/games/popup-breaker/assets/popup-breaker-0.7.0.js",
+    "wp-content/plugins/desktop-mode-game-lab/games/popup-breaker/assets/images/popup-siege-header-shell-0.4.4.png",
+    "wp-content/plugins/desktop-mode-game-lab/games/popup-breaker/assets/images/popup-siege-side-console-0.4.5.png",
+    "wp-content/plugins/desktop-mode-game-lab/games/popup-breaker/assets/images/popup-siege-side-console-0.5.1.png",
+    "wp-content/plugins/desktop-mode-game-lab/games/popup-breaker/assets/popup-siege-ui-system-0.6.0.json",
+    "wp-content/plugins/desktop-mode-game-lab/games/popup-breaker/assets/popup-siege-ui-system-0.6.1.json",
+    "wp-content/plugins/desktop-mode-game-lab/games/popup-breaker/assets/popup-siege-ui-system-0.7.0.json",
+    "wp-content/plugins/desktop-mode-game-lab/games/popup-breaker/assets/popup-siege-audio-0.7.0.js",
+    "wp-content/plugins/desktop-mode-game-lab/games/popup-breaker/assets/popup-siege-runtime-0.7.0.js",
+    "wp-content/plugins/desktop-mode-game-lab/standalone/popup-breaker.css",
+    "wp-content/plugins/desktop-mode-game-lab/standalone/popup-breaker-0.2.0.css",
+    "wp-content/plugins/desktop-mode-game-lab/standalone/popup-breaker-0.6.0.css",
+    "wp-content/plugins/desktop-mode-game-lab/standalone/popup-breaker-0.6.1.css",
+    "wp-content/plugins/desktop-mode-game-lab/standalone/popup-breaker-0.7.0.css"
+  ],
+  "capturedAt": "2026-07-28T23:44:26.192Z",
+  "capture": {
+    "route": "isolated-local-harness",
+    "viewport": {
+      "width": 1536,
+      "height": 960
+    },
+    "deviceScaleFactor": 1,
+    "colorScheme": "light",
+    "reducedMotion": "reduce",
+    "assetVersion": "0.7.0",
+    "rulesVersion": 3,
+    "activeSeconds": 12.75,
+    "actionPlan": [
+      "mount:audio-disabled:auto-start-disabled",
+      "start",
+      "advance-fixed-simulation:12.75s",
+      "wait:fonts-and-signature-x",
+      "capture:viewport"
+    ],
+    "observed": {
+      "buildVersion": "0.7.0",
+      "uiSystem": "popup-siege-0.7.0",
+      "consolePlacement": "side",
+      "phase": "playing",
+      "restorationState": "recovering",
+      "activeThreatId": "toolbar",
+      "targetCount": 2,
+      "signatureTargetVisible": true,
+      "controlCount": 0,
+      "canvasCount": 1
+    }
+  },
+  "environment": {
+    "recipe": {
+      "path": "tools/capture-game-gallery.mjs",
+      "sha256": "e622130a6a994357a1c1a207a439383e197af9d7578d53b45f616c3c445fd500"
+    },
+    "vendor": {
+      "path": "vendor/os-0.9.7.zip",
+      "sha256": "691391174af4692ee882113693d4f5ac4d32ad350be9902efbf2ab809597dc1e"
+    },
+    "lockfile": {
+      "path": "package-lock.json",
+      "sha256": "f7b62d49b0b15f6d3830d2c6e16618193ef61ab3e44f9beb256db722fed07a28"
+    },
+    "playwrightVersion": "1.62.0",
+    "chromiumVersion": "151.0.7922.34",
+    "nodeVersion": "v26.0.0",
+    "platform": "darwin",
+    "architecture": "arm64"
+  },
+  "files": {
+    "gallery": {
+      "path": "evidence/showcase-previews/popup-siege-gallery-v1.png",
+      "sha256": "001fee50c086e98c5bde687d9841b1953e1eaabe844bd9b2eebb67c94a82a2e7"
+    },
+    "preview": {
+      "path": "wp-content/plugins/desktop-mode-game-lab/artifacts/popup-siege-preview.png",
+      "sha256": "2efcad58bcf3590713dc752bf512e9a2374a9b392ae53021c2fac46c5ceff5d1"
+    }
+  }
+}

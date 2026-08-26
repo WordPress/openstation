@@ -5,7 +5,7 @@
  * `src/native-windows.ts`, `src/widgets/server-sync.ts` for the
  * symmetric versions on their own registries). Plugins declare
  * their wallpaper server-side via
- * `desktop_mode_register_wallpaper()`; this module diffs the shell's
+ * `openstation_register_wallpaper()`; this module diffs the shell's
  * current wallpaper registry against the fresh payload on every
  * live refresh and bridges the plugin-side JS into the shell's
  * registry.
@@ -13,28 +13,28 @@
  * The split: PHP owns METADATA (id, label, preview, type, script
  * URL). JS owns the CALLBACK surface (mount, resolveValue,
  * renderEditor) because functions don't serialize. Plugins publish
- * a full `WallpaperDef` on `window.desktopModeWallpapers[ id ]`; the
+ * a full `WallpaperDef` on `window.openStationWallpapers[ id ]`; the
  * shell loads the script (if not already in the tab), reads that
  * global, and forwards the def to the standard registry.
+ *
+ * That script load is deferred. The metadata alone is enough to
+ * register a stub and paint a picker tile, so a canvas wallpaper's
+ * bundle waits until it is the wallpaper actually being applied or
+ * the user opens the picker — see `./lazy.ts`, which owns the
+ * deferral and the hydrate-on-demand path.
  *
  * On deactivation we unregister the def AND call
  * `osSettings.apply()` — if the user's current selection was the
  * wallpaper leaving, the apply path falls back to a built-in
  * default rather than leaving a dead id in place.
- *
- * @since 0.5.0
  */
 
 import { doAction, HOOKS } from './../hooks';
-import { loadVendorScript } from './vendor-loader';
 import * as registry from './registry';
+import { buildStub, clearPending, hydrate, setPending } from './lazy';
 import type { OsSettings } from '../settings';
 import type { DesktopWallpaperServerEntry } from '../types';
 import type { WallpaperDef } from './types';
-
-interface WallpaperGlobals {
-	desktopModeWallpapers?: Record< string, WallpaperDef | undefined >;
-}
 
 export interface WallpaperRegistrySyncDeps {
 	osSettings: OsSettings;
@@ -46,39 +46,6 @@ export function createWallpaperRegistrySync(
 	const { osSettings } = deps;
 
 	const registered = new Set< string >();
-	const loadedScripts = new Set< string >();
-
-	const ensureScript = async (
-		entry: DesktopWallpaperServerEntry,
-	): Promise< void > => {
-		if ( ! entry.scriptUrl || loadedScripts.has( entry.scriptUrl ) ) {
-			return;
-		}
-		try {
-			await loadVendorScript( entry.scriptUrl, {
-				translations: entry.scriptTranslations,
-				l10n: entry.scriptL10n,
-				before: entry.scriptBefore,
-				after: entry.scriptAfter,
-			} );
-		} catch ( err ) {
-			doAction( HOOKS.SHELL_ERROR, {
-				scope: 'wallpaper-script-load',
-				id: entry.id,
-				error: err,
-			} );
-			// Don't mark the URL as loaded — a transient load failure
-			// should be re-fetched on the next sync.
-			return;
-		}
-		loadedScripts.add( entry.scriptUrl );
-	};
-
-	const readDef = ( id: string ): WallpaperDef | null => {
-		const globals =
-			( window as unknown as WallpaperGlobals ).desktopModeWallpapers || {};
-		return globals[ id ] ?? null;
-	};
 
 	/**
 	 * Synthesize a `WallpaperDef` from a server entry without
@@ -123,40 +90,59 @@ export function createWallpaperRegistrySync(
 			return;
 		}
 
-		await ensureScript( entry );
-		let def = readDef( entry.id );
-		// PHP owns metadata: overlay the server-declared description when
-		// the JS def didn't carry one (typical — descriptions are
-		// registered translatably on the PHP side).
-		if ( def && ! def.description && entry.description ) {
-			def = { ...def, description: entry.description };
-		}
-		if ( ! def ) {
-			doAction( HOOKS.SHELL_ERROR, {
-				scope: 'wallpaper-missing-def',
-				id: entry.id,
-				error: new Error(
-					`[desktop-mode] No wallpaper def on window.desktopModeWallpapers["${ entry.id }"]. Script loaded but didn't publish a def — check the plugin's enqueue + global assignment.`,
-				),
-			} );
-			// Don't mark registered; next sync retries in case the
-			// script was late to settle.
+		// Everything else needs the plugin's bundle to produce a def.
+		// Register a stub from the metadata now and leave the download
+		// for the moment something actually needs the callbacks —
+		// see `./lazy.ts`.
+		if ( ! entry.scriptUrl ) {
+			// Neither a usable CSS value nor a script to publish a def.
+			// Nothing to register; a later sync retries in case the
+			// plugin fixes its registration.
 			return;
 		}
-		// Server-sync hydrates many defs in a row; one malformed def
-		// shouldn't kill the loop. Catch the throw and surface via
-		// SHELL_ERROR so the sync can continue with the rest.
-		try {
-			registry.register( def );
-		} catch ( err ) {
-			doAction( HOOKS.SHELL_ERROR, {
-				scope: 'wallpaper-register',
-				id: entry.id,
-				error: err,
-			} );
-			return;
+		setPending( entry );
+
+		// A stub is only worth registering if it can stand in for the
+		// real def in the picker, and the swatch is the one thing PHP
+		// isn't required to declare. Without it there is nothing to
+		// paint a tile from, so fall back to loading the bundle now
+		// and letting the JS def — which does carry a preview —
+		// register itself.
+		const previewable = entry.preview !== '' || entry.value !== '';
+		if ( previewable ) {
+			try {
+				registry.register( buildStub( entry ) );
+			} catch ( err ) {
+				doAction( HOOKS.SHELL_ERROR, {
+					scope: 'wallpaper-register',
+					id: entry.id,
+					error: err,
+				} );
+				clearPending( entry.id );
+				return;
+			}
+			registered.add( entry.id );
 		}
-		registered.add( entry.id );
+
+		// Two reasons to load right now: the wallpaper the desktop is
+		// about to paint, and the one we couldn't build a stub for.
+		// Everything else waits for the picker. For the active
+		// wallpaper the `apply()` below then mounts the real def
+		// rather than the stub's delegating mount — one fewer
+		// indirection on the wallpaper the user actually sees.
+		if ( ! previewable || osSettings.state.wallpaper === entry.id ) {
+			const def = await hydrate( entry.id );
+			if ( ! previewable ) {
+				if ( ! def ) {
+					// No stub registered and no def arrived — leave the
+					// id unregistered so the next sync retries.
+					clearPending( entry.id );
+					return;
+				}
+				registered.add( entry.id );
+			}
+		}
+
 		// Re-apply the current wallpaper selection so a plugin that
 		// activates with its saved wallpaper selection picks up
 		// the new def immediately.
@@ -168,6 +154,7 @@ export function createWallpaperRegistrySync(
 			return;
 		}
 		registry.unregister( id );
+		clearPending( id );
 		registered.delete( id );
 		// Re-apply so the settings panel + active wallpaper layer
 		// refresh their selection. If the user was actively using

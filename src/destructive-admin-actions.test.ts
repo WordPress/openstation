@@ -197,9 +197,9 @@ describe( 'destructive-admin-actions: cross-bundle store', () => {
 		} );
 		const slot = (
 			window as unknown as {
-				__desktopModeSharedStores?: Map< string, unknown >;
+				__openStationSharedStores?: Map< string, unknown >;
 			}
-		).__desktopModeSharedStores;
+		).__openStationSharedStores;
 		expect( slot ).toBeDefined();
 		expect( slot?.has( 'desktop-mode/destructive-admin-actions' ) ).toBe(
 			true,

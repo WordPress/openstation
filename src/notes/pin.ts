@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Pushpin element factory.
+ * OpenStation — Pushpin element factory.
  *
  * One seam for every surface that renders the pushpin (the pinned
  * note, the Note Pad widget's ghost-pin empty state, the drag ghost)
@@ -12,8 +12,6 @@
  * pull-out / insertion. Shipped as `<img>` (never inlined): the SVG
  * uses bare gradient/filter ids that would collide document-wide when
  * repeated once per note.
- *
- * @since 0.9.6
  */
 
 /**
@@ -28,7 +26,7 @@ export const PIN_TIP_Y = 0.525;
 /**
  * Rendered pin size in CSS px (viewBox is 131.64 × 123.82). Keep in
  * sync with the pixel constants in `assets/css/notes.css`
- * (`.desktop-mode-pinned-note__pin` / `__pin-img`).
+ * (`.os-pinned-note__pin` / `__pin-img`).
  */
 export const PIN_WIDTH = 56;
 export const PIN_HEIGHT = 52;
@@ -49,6 +47,6 @@ export function buildPinImage( pluginUrl: string ): HTMLImageElement {
 	img.width = PIN_WIDTH;
 	img.height = PIN_HEIGHT;
 	img.draggable = false;
-	img.className = 'desktop-mode-pinned-note__pin-img';
+	img.className = 'os-pinned-note__pin-img';
 	return img;
 }

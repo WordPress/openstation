@@ -1,15 +1,13 @@
 /**
- * Desktop Mode — Wallpaper registration types.
+ * OpenStation — Wallpaper registration types.
  *
  * A wallpaper is something that fills the desktop backdrop. Two
  * shapes ship today: `css` (a static CSS background value — gradient,
  * solid, or image URL) and `canvas` (a plugin-managed DOM subtree,
  * typically a WebGL/2D canvas driven by PixiJS, Three, or raw APIs).
  *
- * Third-party plugins register wallpapers via `wp.desktop.registerWallpaper`
- * (a convenience on top of the `desktop-mode.wallpapers` filter).
- *
- * @since 0.6.0
+ * Third-party plugins register wallpapers via `wp.os.registerWallpaper`
+ * (a convenience on top of the `os.wallpapers` filter).
  */
 
 /**
@@ -29,7 +27,7 @@ export interface WallpaperContext {
 	/**
 	 * Current document visibility. Canvas wallpapers typically pause
 	 * their tickers when `hidden`; the shell also fires
-	 * `desktop-mode.wallpaper.visibility` on every change.
+	 * `os.wallpaper.visibility` on every change.
 	 */
 	visible: boolean;
 	/**
@@ -46,9 +44,7 @@ export interface WallpaperContext {
 	 *
 	 * This is a snapshot taken when the context was created. To follow
 	 * changes while mounted, subscribe to the
-	 * `desktop-mode.wallpaper.settings-changed` action.
-	 *
-	 * @since 0.9.5
+	 * `os.wallpaper.settings-changed` action.
 	 */
 	settings: Record< string, unknown >;
 }
@@ -77,14 +73,12 @@ export type WallpaperEditor = ( container: HTMLElement, ctx: WallpaperContext ) 
  * everything {@link WallpaperContext} carries, plus the preview
  * parameters and the tile's pixel size so the wallpaper can pick a
  * cheap resolution.
- *
- * @since 0.9.5
  */
 export interface WallpaperPreviewContext extends WallpaperContext {
 	/**
 	 * Free-form preview parameters. Seeded from the def's
 	 * `previewParams`, then run through the
-	 * `desktop-mode.wallpaper.preview-params` filter so plugins and
+	 * `os.wallpaper.preview-params` filter so plugins and
 	 * site owners can override what the preview depicts (e.g. force a
 	 * mature Living Tree on a day-old site). The wallpaper owns the
 	 * keys' meaning; unknown keys must be ignored.
@@ -109,8 +103,6 @@ export interface WallpaperPreviewContext extends WallpaperContext {
  * page's limited WebGL context budget, so the shell caps how many run
  * concurrently and falls back to the CSS `preview` beyond the cap.
  * Honor `ctx.prefersReducedMotion` by rendering a static frame.
- *
- * @since 0.9.5
  */
 export type WallpaperPreview = (
 	container: HTMLElement,
@@ -121,15 +113,13 @@ export type WallpaperPreview = (
  * Context object passed to {@link WallpaperConfig} callbacks —
  * everything {@link WallpaperContext} carries, plus the write half of
  * the settings surface.
- *
- * @since 0.9.5
  */
 export interface WallpaperConfigContext extends WallpaperContext {
 	/**
 	 * Merge a partial settings object into the wallpaper's persisted
 	 * settings. The shell persists the result through the OS Settings
 	 * save pipeline (localStorage + debounced user-meta sync) and fires
-	 * the `desktop-mode.wallpaper.settings-changed` action with the
+	 * the `os.wallpaper.settings-changed` action with the
 	 * post-merge object, so a mounted instance of the wallpaper can
 	 * live-apply without a remount.
 	 *
@@ -143,7 +133,7 @@ export interface WallpaperConfigContext extends WallpaperContext {
  * Optional settings dialog for the wallpaper, opened from the
  * "Wallpaper settings" button in OS Settings (the button only renders
  * for the selected wallpaper and only when its def carries this
- * callback). The shell owns the dialog chrome (`<wpd-modal>`, focus
+ * callback). The shell owns the dialog chrome (`<os-modal>`, focus
  * trap, close/done affordances); the callback renders the form
  * controls into the dialog body it receives.
  *
@@ -156,8 +146,6 @@ export interface WallpaperConfigContext extends WallpaperContext {
  * or two controls the user plays with constantly, like the custom
  * gradient's colors); `renderConfig` is a modal for a fuller settings
  * form that would crowd the panel.
- *
- * @since 0.9.5
  */
 export type WallpaperConfig = (
 	container: HTMLElement,
@@ -193,10 +181,8 @@ interface WallpaperDefBase {
 	 * card under the picker grid.
 	 *
 	 * Server-registered wallpapers can pass `description` to
-	 * `desktop_mode_register_wallpaper()` instead — the shell overlays
+	 * `openstation_register_wallpaper()` instead — the shell overlays
 	 * it onto the def if the JS side didn't set one.
-	 *
-	 * @since 0.9.4
 	 */
 	description?: string;
 	/**
@@ -209,33 +195,27 @@ interface WallpaperDefBase {
 	 * Settings. The CSS `preview` string still paints first (and stays
 	 * as the fallback when the preview fails, is over the concurrency
 	 * cap, or the browser lacks IntersectionObserver).
-	 *
-	 * @since 0.9.5
 	 */
 	renderPreview?: WallpaperPreview;
 	/**
 	 * Optional settings dialog, opened from the "Wallpaper settings"
 	 * button OS Settings shows for the selected wallpaper. Wallpapers
 	 * without this callback show no button. See {@link WallpaperConfig}.
-	 *
-	 * @since 0.9.5
 	 */
 	renderConfig?: WallpaperConfig;
 	/**
 	 * Author-declared default parameters for `renderPreview`, exposed
-	 * to `ctx.params` after the `desktop-mode.wallpaper.preview-params`
+	 * to `ctx.params` after the `os.wallpaper.preview-params`
 	 * filter runs. Use them for anything the preview should idealize —
 	 * e.g. the Living Tree previews a grown tree regardless of the real
 	 * site's age.
-	 *
-	 * @since 0.9.5
 	 */
 	previewParams?: Record< string, unknown >;
 }
 
 /**
  * CSS-background wallpaper. The `value` is written to the
- * `--desktop-mode-bg` custom property when this wallpaper is active.
+ * `--os-bg` custom property when this wallpaper is active.
  */
 export interface CssWallpaperDef extends WallpaperDefBase {
 	type: 'css';
@@ -266,7 +246,7 @@ export interface CanvasWallpaperDef extends WallpaperDefBase {
 	 * Declared module dependencies. The shell resolves each id through
 	 * the module registry and ensures every declared module is loaded
 	 * before `mount` fires. Unknown ids fail loudly via the
-	 * `desktop-mode.wallpaper.mount-failed` action so authors don't
+	 * `os.wallpaper.mount-failed` action so authors don't
 	 * chase silent non-activations.
 	 *
 	 * Example: `needs: ['pixijs']` — PixiJS is pre-registered by the
@@ -286,7 +266,7 @@ export interface CanvasWallpaperDef extends WallpaperDefBase {
 export type WallpaperDef = CssWallpaperDef | CanvasWallpaperDef;
 
 /**
- * Filter signature: the `desktop-mode.wallpapers` hook receives a
+ * Filter signature: the `os.wallpapers` hook receives a
  * readonly array of registered defs and returns (possibly the same,
  * possibly modified) list. Useful for plugins that need to reorder,
  * filter, or replace built-in entries rather than only adding.

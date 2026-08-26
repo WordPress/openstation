@@ -4,7 +4,7 @@
  * class implementation.
  *
  * The lazy bundle's entry (`./entry.ts`) publishes
- * `window.desktopModeWindowSystem` with this shape. The main-bundle
+ * `window.openStationWindowSystem` with this shape. The main-bundle
  * loader (`./loader.ts`) awaits the `<script>` load and reads the
  * factory; `WindowManager.open()` / `openNew()` then call
  * `createWindow( … )` to construct a real `Window` instance.
@@ -13,8 +13,6 @@
  * widens the contract between main and the lazy bundle, and every
  * field becomes a cross-bundle call point that has to be kept in
  * sync.
- *
- * @since 0.8.4
  */
 
 import type { Window as DesktopWindow } from '../window';
@@ -23,7 +21,7 @@ import type { WindowConfig } from '../types';
 export interface WindowSystemApi {
 	/**
 	 * Construct a fresh `Window` instance. Same shape as the
-	 * pre-0.8.4 inlined `new Window( cfg )` call in
+	 * `new Window( cfg )` call previously inlined in
 	 * `WindowManager.createWindow()` — just sourced from the lazy
 	 * bundle.
 	 */
@@ -34,6 +32,6 @@ declare global {
 	// Augment the DOM `Window` (the browser global, not our class).
 	// eslint-disable-next-line @typescript-eslint/no-shadow
 	interface Window {
-		desktopModeWindowSystem?: WindowSystemApi;
+		openStationWindowSystem?: WindowSystemApi;
 	}
 }

@@ -1,15 +1,15 @@
 /**
- * desktop-mode — iframe-side bridge (standalone, enqueueable).
+ * openstation — iframe-side bridge (standalone, enqueueable).
  *
- * Entry point for the `desktop-mode-iframe-bridge` script handle. Any
+ * Entry point for the `os-iframe-bridge` script handle. Any
  * same-origin iframe that enqueues this script gets
- * `wp.desktop.iframe.{ publish, subscribe, onConnection,
+ * `wp.os.iframe.{ publish, subscribe, onConnection,
  * requestConnection }`.
  *
  * Two ways to load:
  *
  *   1. Enqueue the public handle —
- *      `wp_enqueue_script( 'desktop-mode-iframe-bridge' )`.
+ *      `wp_enqueue_script( 'os-iframe-bridge' )`.
  *
  *   2. Set `iframeContent: { bridge: true }` on a native window;
  *      the parent shell auto-injects this bundle via `<script src>`
@@ -18,7 +18,7 @@
  * The chromeless bridge embedded in `includes/render/chromeless-bridge.php`
  * ships its own copy of the same logic inline so chromeless wp-admin
  * pages don't need a separate enqueue. Keep the two in sync — any
- * change here must be mirrored there (search for `desktop-mode-bridge-`
+ * change here must be mirrored there (search for `os-bridge-`
  * in `chromeless-bridge.php`).
  *
  * Built by Vite to:
@@ -26,8 +26,6 @@
  *   - `assets/js/iframe-bridge.min.js` (production)
  *
  * **Do not hand-edit the built JS — only this TS source.**
- *
- * @since 0.5.2
  */
 
 interface ConnectionRecord {
@@ -50,7 +48,7 @@ interface RequestConnectionOptions {
 
 /**
  * Iframe-side window-chrome helpers — symmetric with the parent
- * shell's `wp.desktop.applyWindowTheme` / `applyWindowControls` /
+ * shell's `wp.os.applyWindowTheme` / `applyWindowControls` /
  * `applyWindowSlot`. The iframe content can re-theme its own
  * window, reorder controls, or replace a slot without owning a
  * registry entry on the parent side. Each helper just posts to
@@ -62,8 +60,6 @@ interface RequestConnectionOptions {
  * `registerWindowSlot()` registration. That asymmetry is by
  * design: a malicious or buggy iframe can't smuggle script into
  * the parent shell DOM.
- *
- * @since 0.6.0
  */
 interface IframeChromeApi {
 	setTheme( tokens: Record< string, string > | null ): void;
@@ -87,17 +83,13 @@ interface IframeApi {
 	 *
 	 * Replaces the brittle `iframe.contentWindow ===` walk plugins
 	 * had to do parent-side; iframe code can now self-identify
-	 * (e.g. `wp.desktop.iframe.publish('focus-changed', {windowId:
-	 * wp.desktop.iframe.windowId})`).
-	 *
-	 * @since 0.8.8
+	 * (e.g. `wp.os.iframe.publish('focus-changed', {windowId:
+	 * wp.os.iframe.windowId})`).
 	 */
 	readonly windowId: string | null;
 	/**
 	 * Resolve once `windowId` is populated by the first handshake.
 	 * Resolves immediately if already known.
-	 *
-	 * @since 0.8.8
 	 */
 	whenWindowId(): Promise< string >;
 	/**
@@ -109,7 +101,7 @@ interface IframeApi {
 	 * debugging vanishing messages:
 	 *
 	 * ```js
-	 * if ( ! wp.desktop.iframe.isParentReachable() ) {
+	 * if ( ! wp.os.iframe.isParentReachable() ) {
 	 *     // Cross-origin parent — bridge can't operate. Fall back
 	 *     // to in-iframe UI or skip the feature entirely.
 	 *     return;
@@ -125,9 +117,7 @@ interface IframeApi {
 	 *   - Parent is cross-origin (accessing `window.parent.location`
 	 *     throws). Includes most Gutenberg `srcdoc` canvases that
 	 *     inherited a different origin, sandboxed iframes, PWA
-	 *     wrappers loading desktop-mode in a foreign frame.
-	 *
-	 * @since 0.8.8
+	 *     wrappers loading openstation in a foreign frame.
 	 */
 	isParentReachable(): boolean;
 }
@@ -138,11 +128,753 @@ type WindowChannelCb = (
 ) => void;
 
 interface IframeWp {
-	desktop?: {
+	os?: {
 		iframe?: IframeApi;
 		send?: ( channel: string, payload?: unknown ) => void;
 		on?: ( channel: string, cb: WindowChannelCb ) => () => void;
 	};
+}
+
+/**
+ * Editor-autosave query handler — answers the parent shell's
+ * `os-editor-autosave-request` (sent by the editor-preview
+ * module before opening the front-end preview) with a
+ * `os-editor-autosave-response`.
+ *
+ * Installed OUTSIDE the double-install guard below: on chromeless
+ * wp-admin pages the inline chromeless bridge installs
+ * `wp.os.iframe` first and this bundle's main listener bails,
+ * but the autosave handler only lives here (not in the inline
+ * bridge), so it must register regardless. Its own dedupe flag
+ * protects against a double enqueue.
+ *
+ * Editor detection, in order:
+ *  - Gutenberg — prefer `__unstableSaveForPreview()` (what core's own
+ *    Preview button calls: autosaves when needed, resolves to the
+ *    freshest preview link). Fallback: `isEditedPostAutosaveable()`
+ *    → `not-dirty`, else `autosave()` watched via `wp.data.subscribe`.
+ *  - Classic editor — `wp.autosave.server.triggerSave()` +
+ *    `after-autosave` jQuery event, 5 s best-effort fallback.
+ *  - Neither — `no-editor`, immediately, so the parent never waits on
+ *    a list table or settings page that has nothing to save.
+ *
+ * The same listener also serves the LIVE-preview watch
+ * (`os-editor-live-watch` / `-unwatch`): while a preview
+ * companion is open, the shell asks this page to watch its own editor
+ * for content changes — block-list / title reference changes in
+ * Gutenberg; `input` on the title/content/excerpt fields plus TinyMCE
+ * edit events in classic — and, debounced after the typing pause,
+ * autosave and announce `os-editor-live-saved` so the shell
+ * reloads the preview. Typing detection has to live iframe-side:
+ * keystrokes never cross the frame boundary.
+ *
+ * Exported for tests (entry exports land on the
+ * `openStationIframeBridge` IIFE global — no runtime consumers).
+ */
+export function installEditorAutosaveHandler(): void {
+	const flagged = window as unknown as {
+		__openStationEditorAutosaveInstalled?: boolean;
+	};
+	if ( flagged.__openStationEditorAutosaveInstalled ) {
+		return;
+	}
+	flagged.__openStationEditorAutosaveInstalled = true;
+
+	const origin = window.location.origin;
+
+	interface EditorSelect {
+		isEditedPostAutosaveable?: () => boolean;
+		isEditedPostDirty?: () => boolean;
+		isAutosavingPost?: () => boolean;
+		isSavingPost?: () => boolean;
+		getEditedPostAttribute?: ( attr: string ) => unknown;
+	}
+	interface BlockEditorSelect {
+		getBlocks?: () => unknown;
+	}
+	interface EditorDispatch {
+		__unstableSaveForPreview?: () => Promise< unknown > | unknown;
+		autosave?: () => unknown;
+	}
+	interface EditorWp {
+		data?: {
+			select?: (
+				store: string,
+			) => ( EditorSelect & BlockEditorSelect ) | undefined;
+			dispatch?: ( store: string ) => EditorDispatch | undefined;
+			subscribe?: ( cb: () => void ) => () => void;
+		};
+		autosave?: {
+			server?: { triggerSave?: () => void };
+		};
+	}
+
+	const getEditorWp = (): EditorWp | undefined =>
+		( window as unknown as { wp?: EditorWp } ).wp;
+
+	// Same-origin gate for editor-supplied links — the parent
+	// re-validates, but a clean contract beats relying on it.
+	const sameOriginLink = ( link: unknown ): string | undefined => {
+		if ( typeof link !== 'string' || link === '' ) {
+			return undefined;
+		}
+		try {
+			return new URL( link, origin ).origin === origin
+				? link
+				: undefined;
+		} catch {
+			return undefined;
+		}
+	};
+
+	const postToParent = ( message: Record< string, unknown > ): void => {
+		try {
+			window.parent.postMessage( message, origin );
+		} catch {
+			/* parent gone */
+		}
+	};
+
+	/** Active live-preview watches, keyed by the parent's watchId. */
+	const liveWatches: Map< string, () => void > = new Map();
+
+	/**
+	 * Start watching the editor for content changes; on each debounced
+	 * settle, autosave and announce `os-editor-live-saved`.
+	 * Returns a teardown, or `null` when no watchable editor exists.
+	 */
+	const startLiveWatch = (
+		watchId: string,
+		debounceMs: number,
+	): ( () => void ) | null => {
+		const editorWp = getEditorWp();
+		const select = editorWp?.data?.select?.( 'core/editor' );
+
+		if ( select && typeof editorWp?.data?.subscribe === 'function' ) {
+			const blockSelect = editorWp.data.select?.( 'core/block-editor' );
+			const dispatch = editorWp.data.dispatch?.( 'core/editor' );
+			let timer: number | null = null;
+			let stopped = false;
+			// Change detection by REFERENCE, not content serialization:
+			// Gutenberg replaces the block list (and the edited title
+			// string) on every USER edit. But a completing save also
+			// churns these references (the save response normalizes
+			// the entity and resyncs the block list) — treating that
+			// as an edit produced a save → churn → save feedback loop
+			// (drafts autosave in place, so Gutenberg considers them
+			// forever autosaveable). Three guards below break it:
+			//
+			//  1. While a save/autosave is in flight (and on its
+			//     settle tick), churn is ABSORBED into the baseline
+			//     without scheduling.
+			//  2. A ref change only schedules when the post is DIRTY
+			//     — user edits set dirty synchronously; a draft's
+			//     completed in-place autosave clears it.
+			//  3. `save()` bails when Gutenberg reports nothing to
+			//     autosave (`isEditedPostAutosaveable()` false) —
+			//     covers published posts, which stay dirty relative
+			//     to published content after an autosave revision.
+			let lastBlocks = blockSelect?.getBlocks?.();
+			let lastTitle = select.getEditedPostAttribute?.( 'title' );
+			let absorbSettleTick = false;
+
+			const save = (): void => {
+				timer = null;
+				if ( stopped ) {
+					return;
+				}
+				// A save is already on the wire (the user hit Update,
+				// or a previous live autosave hasn't landed) — retry
+				// shortly instead of stacking parallel requests.
+				if (
+					( select.isSavingPost?.() ?? false ) ||
+					( select.isAutosavingPost?.() ?? false )
+				) {
+					timer = window.setTimeout( save, 1000 );
+					return;
+				}
+				// Guard 3: nothing new since the last autosave — a
+				// save would write nothing and the preview already
+				// shows this content. No save, no refresh nudge.
+				if (
+					typeof select.isEditedPostAutosaveable === 'function' &&
+					! select.isEditedPostAutosaveable()
+				) {
+					return;
+				}
+				if ( typeof dispatch?.__unstableSaveForPreview === 'function' ) {
+					Promise.resolve( dispatch.__unstableSaveForPreview() )
+						.then( ( link ) => {
+							if ( ! stopped ) {
+								postToParent( {
+									type: 'os-editor-live-saved',
+									watchId,
+									...( sameOriginLink( link )
+										? { previewUrl: sameOriginLink( link ) }
+										: {} ),
+								} );
+							}
+						} )
+						.catch( () => {
+							/* Transient — the next edit retries. */
+						} );
+					return;
+				}
+				if ( typeof dispatch?.autosave === 'function' ) {
+					void dispatch.autosave();
+					postToParent( {
+						type: 'os-editor-live-saved',
+						watchId,
+					} );
+				}
+			};
+
+			const unsubscribe = editorWp.data.subscribe( () => {
+				const blocks = blockSelect?.getBlocks?.();
+				const title = select.getEditedPostAttribute?.( 'title' );
+
+				// Guard 1: save-driven churn. Adopt whatever the save
+				// resynced as the new baseline — it isn't an edit.
+				const saving =
+					( select.isSavingPost?.() ?? false ) ||
+					( select.isAutosavingPost?.() ?? false );
+				if ( saving ) {
+					lastBlocks = blocks;
+					lastTitle = title;
+					absorbSettleTick = true;
+					return;
+				}
+				if ( absorbSettleTick ) {
+					// The first tick AFTER a save completes carries
+					// the entity-update churn — absorb it too.
+					absorbSettleTick = false;
+					lastBlocks = blocks;
+					lastTitle = title;
+					return;
+				}
+
+				if ( blocks === lastBlocks && title === lastTitle ) {
+					return;
+				}
+				lastBlocks = blocks;
+				lastTitle = title;
+
+				// Guard 2: reference churn without a dirty post is
+				// normalization noise, not typing.
+				if (
+					typeof select.isEditedPostDirty === 'function' &&
+					! select.isEditedPostDirty()
+				) {
+					return;
+				}
+
+				if ( timer !== null ) {
+					window.clearTimeout( timer );
+				}
+				timer = window.setTimeout( save, debounceMs );
+			} );
+
+			return () => {
+				stopped = true;
+				unsubscribe();
+				if ( timer !== null ) {
+					window.clearTimeout( timer );
+					timer = null;
+				}
+			};
+		}
+
+		// Classic editor: no reactive store to watch. Typing is
+		// detected on the raw fields instead — the title input, the
+		// text-mode content textarea, the excerpt (the three fields
+		// classic autosave snapshots) and every TinyMCE editor — and
+		// each debounced settle forces the server autosave core would
+		// otherwise only run on its ~60 s heartbeat. `triggerSave()`
+		// resets the interval and connects immediately.
+		//
+		// Both the settle and the announcement are gated on a content
+		// FINGERPRINT (core's own title/content/excerpt compare
+		// string), not on the events alone: the bound events fire for
+		// plenty of things that are not user edits, and core keeps
+		// autosaving a post it considers dirty even when the content
+		// hasn't moved. See `contentFingerprint()` below.
+		// `after-autosave` announces every completed round-trip whose
+		// content the preview has NOT already been shown — ours and
+		// core's own alike — as `os-editor-live-saved`.
+		if ( editorWp?.autosave?.server ) {
+			const jqWindow = window as unknown as {
+				jQuery?: ( el: Document ) => {
+					on: ( evt: string, cb: () => void ) => void;
+					off: ( evt: string ) => void;
+				};
+			};
+			const jq = jqWindow.jQuery;
+			if ( ! jq ) {
+				return null;
+			}
+
+			let timer: number | null = null;
+			let stopped = false;
+			// Core drops a `triggerSave()` silently while an autosave
+			// round-trip is on the wire (`_blockSave`) — track
+			// in-flight state via the before/after events and retry a
+			// settle that landed mid-save instead of losing it.
+			let inFlight = false;
+
+			// Declared up here because the content fingerprint reads
+			// the live editors, and it runs before the edit-event
+			// bindings further down.
+			interface TinyEditor {
+				on?: ( events: string, cb: () => void ) => void;
+				off?: ( events: string, cb: () => void ) => void;
+				getContent?: () => string;
+				isHidden?: () => boolean;
+			}
+			interface Tiny {
+				editors?: TinyEditor[];
+				get?: ( id: string ) => TinyEditor | null | undefined;
+				on?: (
+					name: string,
+					cb: ( e: { editor?: TinyEditor } ) => void,
+				) => void;
+				off?: (
+					name: string,
+					cb: ( e: { editor?: TinyEditor } ) => void,
+				) => void;
+			}
+			const tiny = ( window as unknown as { tinymce?: Tiny } )
+				.tinymce;
+
+			/**
+			 * What the preview currently reflects: the title, the body
+			 * and the excerpt, read STRAIGHT OFF the editors. `null`
+			 * means "no watchable field on this screen" — the gates
+			 * below then fail open and every round-trip announces,
+			 * which is the pre-fingerprint behaviour.
+			 *
+			 * This exists because neither the events we bind nor core's
+			 * own bookkeeping answer "did the user change something".
+			 *
+			 * The events don't: TinyMCE adds an undo level on BLUR and
+			 * emits `change`, and emits `SetContent` on any programmatic
+			 * write (init, a visual↔text switch, a plugin normalizing
+			 * markup). Clicking from the editor into the preview window
+			 * was enough to schedule a settle.
+			 *
+			 * Core's compare string doesn't either, and THAT is the
+			 * subtle one. `wp.autosave.getPostData()` calls
+			 * `editor.save()` as a side effect, which re-serializes the
+			 * TinyMCE DOM into `#content`. On content core didn't write
+			 * (shortcodes, WooCommerce product markup, anything wpautop
+			 * round-trips differently) the re-serialized string differs
+			 * from the stored one, so core's `compareString !==
+			 * lastCompareString` gate passes, the autosave goes out and
+			 * `after-autosave` fires — for a post the user never
+			 * touched. Fingerprinting through `getPostData()` inherits
+			 * exactly that side effect and can never catch it.
+			 *
+			 * `editor.getContent()` is the stable read: it serializes
+			 * the same DOM every time, so an idle blur/focus cycle
+			 * produces an identical string and only a real edit moves
+			 * it. Text mode (or no TinyMCE at all) falls back to the
+			 * raw textarea, which is authoritative there.
+			 *
+			 * NB: read-only by contract — this must never call
+			 * `getPostData()` or `editor.save()`. A fingerprint with a
+			 * side effect is the bug it exists to prevent.
+			 */
+			const fieldValue = ( id: string ): string | null => {
+				const el = document.getElementById( id );
+				if ( ! el || ! ( 'value' in el ) ) {
+					return null;
+				}
+				return String(
+					( el as HTMLInputElement | HTMLTextAreaElement ).value,
+				);
+			};
+
+			const contentFingerprint = (): string | null => {
+				const parts: string[] = [];
+				let found = false;
+				const title = fieldValue( 'title' );
+				if ( title !== null ) {
+					found = true;
+				}
+				parts.push( title ?? '' );
+				for ( const field of [ 'content', 'excerpt' ] ) {
+					let text: string | null = null;
+					try {
+						const ed = tiny?.get?.( field );
+						if ( ed && ! ed.isHidden?.() ) {
+							text = ed.getContent?.() ?? null;
+						}
+					} catch {
+						/* Editor mid-teardown — fall back below. */
+					}
+					if ( text === null ) {
+						text = fieldValue( field );
+					}
+					if ( text !== null ) {
+						found = true;
+					}
+					parts.push( text ?? '' );
+				}
+				// Length-prefixed rather than separator-joined: no
+				// delimiter can occur in post content, so a body
+				// ending where the excerpt begins cannot forge an
+				// unchanged fingerprint.
+				return found
+					? parts.map( ( p ) => `${ p.length }:${ p }` ).join( '' )
+					: null;
+			};
+
+			let announced = contentFingerprint();
+			/** Fingerprint of the save currently on the wire. */
+			let pending: string | null = null;
+			/**
+			 * Whether a real edit event has landed since the last
+			 * announcement.
+			 *
+			 * The fingerprint alone is not enough, because the baseline
+			 * seeded here is taken BEFORE core has ever run
+			 * `getPostData()` on this page — and that call's
+			 * `editor.save()` fires TinyMCE's `SaveContent` /
+			 * `PostProcess`, which WordPress's own `wpview` / wpautop
+			 * handlers use to rewrite the editor DOM. So the first
+			 * autosave of a session serializes differently from the
+			 * seed through no user action at all, announces once, and
+			 * then matches forever after — exactly the "it reloads the
+			 * first time I click back into the editor" symptom.
+			 *
+			 * Requiring an observed edit closes that window, and every
+			 * completed round-trip re-baselines `announced` whether or
+			 * not it announced, so the drift is absorbed once and never
+			 * looked at again.
+			 */
+			let sawEdit = false;
+
+			const save = (): void => {
+				timer = null;
+				if ( stopped ) {
+					return;
+				}
+				if ( inFlight ) {
+					timer = window.setTimeout( save, 1000 );
+					return;
+				}
+				// Settle with nothing new since the last announcement —
+				// a blur, an editor re-init, a paste of identical
+				// markup. Core would answer this `triggerSave()` with
+				// an autosave that writes the same content back, so
+				// skip the request AND the heartbeat interval reset it
+				// would cause.
+				const current = contentFingerprint();
+				if ( current !== null && current === announced ) {
+					return;
+				}
+				try {
+					editorWp.autosave?.server?.triggerSave?.();
+				} catch {
+					/* Autosave unavailable — the next edit retries. */
+				}
+			};
+
+			const schedule = (): void => {
+				if ( stopped ) {
+					return;
+				}
+				sawEdit = true;
+				if ( timer !== null ) {
+					window.clearTimeout( timer );
+				}
+				timer = window.setTimeout( save, debounceMs );
+			};
+
+			const ns = `.os-live-${ watchId }`;
+			jq( document ).on( `before-autosave${ ns }`, () => {
+				inFlight = true;
+				// Snapshot at SEND time, not on arrival: a keystroke
+				// landing during the round-trip must still count as
+				// unannounced, or the settle it schedules would find
+				// `announced` already equal to it and go silent.
+				pending = contentFingerprint();
+			} );
+			jq( document ).on( `after-autosave${ ns }`, () => {
+				inFlight = false;
+				const saved = pending;
+				pending = null;
+				const unchanged = saved !== null && saved === announced;
+				// Re-baseline on EVERY completed round-trip, announced
+				// or not: whatever core just wrote is what the preview
+				// will be showing, and adopting it here is what absorbs
+				// the one-time serialization drift described above.
+				if ( saved !== null ) {
+					announced = saved;
+				}
+				// Core's own heartbeat pass over a post it still
+				// considers dirty, writing content the preview already
+				// shows — or the first pass of the session, whose
+				// fingerprint moved only because `editor.save()`
+				// rewrote the DOM. Announcing either would reload the
+				// companion for nothing.
+				if ( unchanged || ! sawEdit ) {
+					return;
+				}
+				sawEdit = false;
+				postToParent( {
+					type: 'os-editor-live-saved',
+					watchId,
+				} );
+			} );
+
+			const fields: HTMLElement[] = [];
+			for ( const fieldId of [ 'title', 'content', 'excerpt' ] ) {
+				const el = document.getElementById( fieldId );
+				if ( el ) {
+					el.addEventListener( 'input', schedule );
+					fields.push( el );
+				}
+			}
+
+			// Visual mode: typing happens inside TinyMCE's own iframe
+			// and never reaches the #content textarea until a save —
+			// bind every current editor, and late arrivals too (a
+			// text↔visual mode switch re-initializes the editor).
+			// `change` is TinyMCE's canonical "content changed" event
+			// and stays bound. Scheduling on it is harmless: the settle
+			// re-reads the content fingerprint and does nothing when it
+			// has not moved, so a `change` fired for bookkeeping rather
+			// than for an edit costs one no-op timer.
+			//
+			// `ExecCommand` is here for toolbar formatting and
+			// paste-as-plain-text, which mutate content without a
+			// keystroke.
+			const tinyEvents =
+				'keyup input change undo redo SetContent ExecCommand';
+			const bound: TinyEditor[] = [];
+			const bindEditor = ( ed: TinyEditor | undefined ): void => {
+				if ( ed?.on ) {
+					ed.on( tinyEvents, schedule );
+					bound.push( ed );
+				}
+			};
+			( tiny?.editors ?? [] ).forEach( bindEditor );
+			const onAddEditor = ( e: { editor?: TinyEditor } ): void =>
+				bindEditor( e?.editor );
+			tiny?.on?.( 'AddEditor', onAddEditor );
+
+			return () => {
+				stopped = true;
+				if ( timer !== null ) {
+					window.clearTimeout( timer );
+					timer = null;
+				}
+				jq( document ).off( `before-autosave${ ns }` );
+				jq( document ).off( `after-autosave${ ns }` );
+				for ( const el of fields ) {
+					el.removeEventListener( 'input', schedule );
+				}
+				for ( const ed of bound ) {
+					try {
+						ed.off?.( tinyEvents, schedule );
+					} catch {
+						/* Editor already destroyed. */
+					}
+				}
+				tiny?.off?.( 'AddEditor', onAddEditor );
+			};
+		}
+
+		return null;
+	};
+
+	window.addEventListener( 'message', ( ev: MessageEvent ) => {
+		if ( ev.origin !== origin ) {
+			return;
+		}
+		const data = ev?.data as {
+			type?: unknown;
+			requestId?: unknown;
+			watchId?: unknown;
+			debounceMs?: unknown;
+		} | null;
+		if ( ! data || typeof data !== 'object' ) {
+			return;
+		}
+
+		if (
+			data.type === 'os-editor-live-watch' &&
+			typeof data.watchId === 'string'
+		) {
+			// Replace an existing watch with the same id (an unwatch
+			// that got lost) instead of stacking two.
+			liveWatches.get( data.watchId )?.();
+			liveWatches.delete( data.watchId );
+			const debounceMs = Math.min(
+				30000,
+				Math.max(
+					500,
+					typeof data.debounceMs === 'number' ? data.debounceMs : 1500,
+				),
+			);
+			try {
+				const teardown = startLiveWatch( data.watchId, debounceMs );
+				if ( teardown ) {
+					liveWatches.set( data.watchId, teardown );
+				}
+			} catch {
+				/* Editor stores shaped differently — live mode off. */
+			}
+			return;
+		}
+
+		if (
+			data.type === 'os-editor-live-unwatch' &&
+			typeof data.watchId === 'string'
+		) {
+			try {
+				liveWatches.get( data.watchId )?.();
+			} catch {
+				/* already torn down */
+			}
+			liveWatches.delete( data.watchId );
+			return;
+		}
+
+		if (
+			data.type !== 'os-editor-autosave-request' ||
+			typeof data.requestId !== 'string'
+		) {
+			return;
+		}
+		const requestId = data.requestId;
+
+		let responded = false;
+		const respond = (
+			status: 'saved' | 'no-editor' | 'not-dirty' | 'error',
+			previewUrl?: string,
+		): void => {
+			if ( responded ) {
+				return;
+			}
+			responded = true;
+			try {
+				window.parent.postMessage(
+					{
+						type: 'os-editor-autosave-response',
+						requestId,
+						status,
+						...( previewUrl ? { previewUrl } : {} ),
+					},
+					origin,
+				);
+			} catch {
+				/* parent gone */
+			}
+		};
+
+		try {
+			const editorWp = getEditorWp();
+			const select = editorWp?.data?.select?.( 'core/editor' );
+
+			if ( select ) {
+				const dispatch = editorWp?.data?.dispatch?.( 'core/editor' );
+
+				if ( typeof dispatch?.__unstableSaveForPreview === 'function' ) {
+					Promise.resolve( dispatch.__unstableSaveForPreview() )
+						.then( ( link ) => {
+							respond( 'saved', sameOriginLink( link ) );
+						} )
+						.catch( () => respond( 'error' ) );
+					return;
+				}
+
+				if (
+					typeof select.isEditedPostAutosaveable === 'function' &&
+					! select.isEditedPostAutosaveable()
+				) {
+					respond( 'not-dirty' );
+					return;
+				}
+
+				if (
+					typeof dispatch?.autosave === 'function' &&
+					typeof editorWp?.data?.subscribe === 'function'
+				) {
+					let sawAutosaving = false;
+					const unsubscribe = editorWp.data.subscribe( () => {
+						const saving = select.isAutosavingPost?.() ?? false;
+						if ( saving ) {
+							sawAutosaving = true;
+							return;
+						}
+						if ( sawAutosaving ) {
+							unsubscribe();
+							respond( 'saved' );
+						}
+					} );
+					// Best-effort backstop — if the autosave never
+					// round-trips, answer anyway; the preview then
+					// shows the last saved revision.
+					window.setTimeout( () => {
+						unsubscribe();
+						respond( 'saved' );
+					}, 8000 );
+					void dispatch.autosave();
+					return;
+				}
+
+				respond( 'no-editor' );
+				return;
+			}
+
+			// Classic editor.
+			const triggerSave = editorWp?.autosave?.server?.triggerSave;
+			if ( typeof triggerSave === 'function' ) {
+				const jqWindow = window as unknown as {
+					jQuery?: (
+						el: Document,
+					) => { one: ( evt: string, cb: () => void ) => void };
+				};
+				const jq = jqWindow.jQuery;
+				if ( jq ) {
+					jq( document ).one( 'after-autosave.os-editor-preview', () =>
+						respond( 'saved' ),
+					);
+					// Core DECLINES to autosave when nothing changed
+					// (`save()` returns early on
+					// `compareString === lastCompareString`): no request
+					// goes out and `after-autosave` never fires. This
+					// backstop used to answer 'saved' anyway, and the
+					// shell dutifully refreshed the companion ~5.4 s
+					// after the eye click — long enough to look like it
+					// was caused by whatever the user clicked next,
+					// which is exactly how it was reported.
+					//
+					// 'not-dirty' is the honest answer: nothing was
+					// written, so the companion's first load is already
+					// current. A save that really is still in flight at
+					// 5 s is not lost either — the live watch's own
+					// `after-autosave` handler announces it when it
+					// lands.
+					window.setTimeout( () => respond( 'not-dirty' ), 5000 );
+				} else {
+					// No jQuery: the round-trip is unobservable from
+					// here, so assume the usual window elapsed and that
+					// something was written. (Classic wp-admin always
+					// ships jQuery — `autosave.js` depends on it — so
+					// this branch is a formality.)
+					window.setTimeout( () => respond( 'saved' ), 5000 );
+				}
+				triggerSave.call( editorWp?.autosave?.server );
+				return;
+			}
+
+			respond( 'no-editor' );
+		} catch {
+			respond( 'error' );
+		}
+	} );
 }
 
 ( function() {
@@ -151,8 +883,10 @@ interface IframeWp {
 		return;
 	}
 
+	installEditorAutosaveHandler();
+
 	const w = window as unknown as { wp?: IframeWp };
-	if ( w.wp?.desktop?.iframe ) {
+	if ( w.wp?.os?.iframe ) {
 		// Already installed (chromeless inline bridge ran first, or
 		// a previous load of this script). Don't double-install.
 		return;
@@ -165,7 +899,7 @@ interface IframeWp {
 
 	/**
 	 * The host window's id, learned from the first
-	 * `desktop-mode-bridge-handshake` the parent sends. `null` until
+	 * `os-bridge-handshake` the parent sends. `null` until
 	 * the parent connects; resolves through
 	 * {@link IframeApi.whenWindowId} for callers that need a wait.
 	 */
@@ -188,9 +922,9 @@ interface IframeWp {
 
 	/**
 	 * Per-channel subscribers for the unified window-channel API
-	 * (`wp.desktop.send` / `wp.desktop.on`). Distinct from the
+	 * (`wp.os.send` / `wp.os.on`). Distinct from the
 	 * connection-bridge `subs` map above — this one fires from
-	 * `desktop-mode-window-send` messages the parent posts on
+	 * `os-window-send` messages the parent posts on
 	 * `Window.send( channel, payload )`.
 	 */
 	const channelSubs: Record< string, WindowChannelCb[] > = {};
@@ -203,7 +937,7 @@ interface IframeWp {
 		try {
 			window.parent.postMessage(
 				{
-					type: 'desktop-mode-bridge-publish',
+					type: 'os-bridge-publish',
 					connectionId,
 					topic,
 					payload,
@@ -233,11 +967,11 @@ interface IframeWp {
 		}
 
 		if (
-			data.type === 'desktop-mode-bridge-handshake' &&
+			data.type === 'os-bridge-handshake' &&
 			typeof data.connectionId === 'string'
 		) {
 			// The parent's handshake carries the host window id since
-			// 0.8.8. Stash it so `wp.desktop.iframe.windowId` and
+			// 0.8.8. Stash it so `wp.os.iframe.windowId` and
 			// `whenWindowId()` can serve callers that need to know
 			// which native window opened this iframe.
 			const tw = ( data as { targetWindowId?: unknown } ).targetWindowId;
@@ -248,7 +982,7 @@ interface IframeWp {
 				try {
 					window.parent.postMessage(
 						{
-							type: 'desktop-mode-bridge-handshake-ack',
+							type: 'os-bridge-handshake-ack',
 							connectionId: data.connectionId,
 						},
 						parentOrigin,
@@ -266,7 +1000,7 @@ interface IframeWp {
 			try {
 				window.parent.postMessage(
 					{
-						type: 'desktop-mode-bridge-handshake-ack',
+						type: 'os-bridge-handshake-ack',
 						connectionId: conn.id,
 					},
 					parentOrigin,
@@ -284,7 +1018,7 @@ interface IframeWp {
 			return;
 		}
 
-		if ( data.type === 'desktop-mode-bridge-beforeunload-query' ) {
+		if ( data.type === 'os-bridge-beforeunload-query' ) {
 			let prevent = false;
 			let msg = '';
 
@@ -329,7 +1063,7 @@ interface IframeWp {
 			try {
 				window.parent.postMessage(
 					{
-						type: 'desktop-mode-bridge-beforeunload-response',
+						type: 'os-bridge-beforeunload-response',
 						prevent,
 						message: msg,
 					},
@@ -342,7 +1076,7 @@ interface IframeWp {
 		}
 
 		if (
-			data.type === 'desktop-mode-bridge-publish' &&
+			data.type === 'os-bridge-publish' &&
 			typeof data.topic === 'string'
 		) {
 			const meta = {
@@ -373,17 +1107,17 @@ interface IframeWp {
 		}
 
 		if (
-			data.type === 'desktop-mode-bridge-disconnect' &&
+			data.type === 'os-bridge-disconnect' &&
 			typeof data.connectionId === 'string'
 		) {
 			delete connections[ data.connectionId ];
 		}
 
 		// Unified window-channel delivery from the parent. Fires
-		// every `wp.desktop.on( channel, cb )` subscriber for the
+		// every `wp.os.on( channel, cb )` subscriber for the
 		// matching channel.
 		if (
-			data.type === 'desktop-mode-window-send' &&
+			data.type === 'os-window-send' &&
 			typeof ( data as { channel?: unknown } ).channel === 'string'
 		) {
 			const d = data as { channel: string; payload?: unknown };
@@ -425,7 +1159,7 @@ interface IframeWp {
 				// least discoverable in DevTools.
 				// eslint-disable-next-line no-console
 				console.warn(
-					'[desktop-mode] wp.desktop.iframe.publish dropped: no open connection for topic "%s". The parent shell must call `wp.desktop.connect(windowId)` first.',
+					'[openstation] wp.os.iframe.publish dropped: no open connection for topic "%s". The parent shell must call `wp.os.connect(windowId)` first.',
 					topic,
 				);
 				return;
@@ -487,14 +1221,14 @@ interface IframeWp {
 		 *
 		 * Parent-side handler: see `src/connection/index.ts`
 		 * `handleConnectionRequest` + the
-		 * `desktop-mode.iframe.connection-request` filter.
+		 * `os.iframe.connection-request` filter.
 		 */
 		chrome: {
 			setTheme( tokens ) {
 				try {
 					window.parent.postMessage(
 						{
-							type: 'desktop-mode-chrome-theme',
+							type: 'os-chrome-theme',
 							tokens: tokens ?? {},
 						},
 						parentOrigin,
@@ -507,7 +1241,7 @@ interface IframeWp {
 				try {
 					window.parent.postMessage(
 						{
-							type: 'desktop-mode-chrome-controls',
+							type: 'os-chrome-controls',
 							config: config ?? null,
 						},
 						parentOrigin,
@@ -523,7 +1257,7 @@ interface IframeWp {
 				try {
 					window.parent.postMessage(
 						{
-							type: 'desktop-mode-chrome-slot',
+							type: 'os-chrome-slot',
 							slot: name,
 							html: typeof html === 'string' ? html : '',
 						},
@@ -578,7 +1312,7 @@ interface IframeWp {
 					if (
 						! d ||
 						typeof d !== 'object' ||
-						d.type !== 'desktop-mode-bridge-connection-ack' ||
+						d.type !== 'os-bridge-connection-ack' ||
 						d.requestId !== requestId
 					) {
 						return;
@@ -612,7 +1346,7 @@ interface IframeWp {
 				try {
 					window.parent.postMessage(
 						{
-							type: 'desktop-mode-bridge-connection-request',
+							type: 'os-bridge-connection-request',
 							requestId,
 							topics,
 						},
@@ -654,33 +1388,31 @@ interface IframeWp {
 	if ( ! w.wp ) {
 		w.wp = {};
 	}
-	if ( ! w.wp.desktop ) {
-		w.wp.desktop = {};
+	if ( ! w.wp.os ) {
+		w.wp.os = {};
 	}
-	w.wp.desktop.iframe = iframeApi;
+	w.wp.os.iframe = iframeApi;
 
 	/**
 	 * Unified window-channel API. The parent posts on this window
 	 * via `Window.send( channel, payload )`; iframe-side handlers
-	 * register via `wp.desktop.on( channel, cb )`. Symmetric with
+	 * register via `wp.os.on( channel, cb )`. Symmetric with
 	 * the native render's `windowApi.on()` — plugin authors write
 	 * the same code regardless of which side they're on.
 	 *
-	 * Sending the OTHER way (`wp.desktop.send( channel, payload )`)
-	 * posts a `desktop-mode-window-publish` message up to the parent,
+	 * Sending the OTHER way (`wp.os.send( channel, payload )`)
+	 * posts a `os-window-publish` message up to the parent,
 	 * where every `Window.on( channel, cb )` subscriber fires.
-	 *
-	 * @since 0.5.5
 	 */
-	if ( typeof w.wp.desktop.send !== 'function' ) {
-		w.wp.desktop.send = ( channel: string, payload?: unknown ): void => {
+	if ( typeof w.wp.os.send !== 'function' ) {
+		w.wp.os.send = ( channel: string, payload?: unknown ): void => {
 			if ( typeof channel !== 'string' || channel === '' ) {
 				return;
 			}
 			try {
 				window.parent.postMessage(
 					{
-						type: 'desktop-mode-window-publish',
+						type: 'os-window-publish',
 						channel,
 						payload,
 					},
@@ -691,8 +1423,8 @@ interface IframeWp {
 			}
 		};
 	}
-	if ( typeof w.wp.desktop.on !== 'function' ) {
-		w.wp.desktop.on = (
+	if ( typeof w.wp.os.on !== 'function' ) {
+		w.wp.os.on = (
 			channel: string,
 			cb: WindowChannelCb,
 		): () => void => {
@@ -725,24 +1457,25 @@ interface IframeWp {
 	// `#screen-meta-links` block with the Help and Screen Options
 	// buttons. When those exist inside an iframe-windowed admin page,
 	// we want them surfaced in the parent window's title bar — the
-	// shell renders them via the `desktop-mode-screen-meta` postMessage
+	// shell renders them via the `os-screen-meta` postMessage
 	// protocol.
 	//
 	// Used to live ONLY in the chromeless inline bridge (gated on
-	// `desktop_mode_is_chromeless_request()`), so any internal navigation
-	// that dropped the `?desktop_mode_chromeless=1` flag silently lost the title-
+	// `openstation_is_chromeless_request()`), so any internal navigation
+	// that dropped the `?openstation_chromeless=1` flag silently lost the title-
 	// bar icons. This standalone bridge is auto-enqueued on every
 	// admin page, so detection runs regardless. A sentinel global
-	// (`__desktopModeScreenMetaInstalled`) prevents double-emission
+	// (`__openStationScreenMetaInstalled`) prevents double-emission
 	// when the inline bridge also runs on the same response.
 	// -----------------------------------------------------------------
 	const sentinelHost = window as unknown as {
-		__desktopModeScreenMetaInstalled?: boolean;
-		__desktopModeOsFileDropForwarderInstalled?: boolean;
-		__desktopModeDragHoverForwarderInstalled?: boolean;
+		__openStationScreenMetaInstalled?: boolean;
+		__openStationOsFileDropForwarderInstalled?: boolean;
+		__openStationDragHoverForwarderInstalled?: boolean;
+		__openStationPointerForwarderInstalled?: boolean;
 	};
-	if ( ! sentinelHost.__desktopModeScreenMetaInstalled ) {
-		sentinelHost.__desktopModeScreenMetaInstalled = true;
+	if ( ! sentinelHost.__openStationScreenMetaInstalled ) {
+		sentinelHost.__openStationScreenMetaInstalled = true;
 		installScreenMetaHoist( parentOrigin );
 	}
 
@@ -758,8 +1491,8 @@ interface IframeWp {
 	 * parent shell's OS-file drop manager receives real `File`
 	 * objects with no base64 round-trip.
 	 */
-	if ( ! sentinelHost.__desktopModeOsFileDropForwarderInstalled ) {
-		sentinelHost.__desktopModeOsFileDropForwarderInstalled = true;
+	if ( ! sentinelHost.__openStationOsFileDropForwarderInstalled ) {
+		sentinelHost.__openStationOsFileDropForwarderInstalled = true;
 		const hasFiles = ( ev: DragEvent ): boolean => {
 			const types = ev.dataTransfer?.types;
 			if ( ! types ) {
@@ -867,7 +1600,7 @@ interface IframeWp {
 				try {
 					window.parent.postMessage(
 						{
-							type: 'desktop-mode-os-file-drop',
+							type: 'os-file-drop',
 							files,
 							x: ev.clientX,
 							y: ev.clientY,
@@ -896,8 +1629,8 @@ interface IframeWp {
 	 * The parent identifies the hovered window from the message
 	 * source, so no coordinates travel.
 	 */
-	if ( ! sentinelHost.__desktopModeDragHoverForwarderInstalled ) {
-		sentinelHost.__desktopModeDragHoverForwarderInstalled = true;
+	if ( ! sentinelHost.__openStationDragHoverForwarderInstalled ) {
+		sentinelHost.__openStationDragHoverForwarderInstalled = true;
 		const hoverHasFiles = ( ev: DragEvent ): boolean => {
 			const types = ev.dataTransfer?.types;
 			if ( ! types ) {
@@ -924,7 +1657,7 @@ interface IframeWp {
 				try {
 					window.parent.postMessage(
 						{
-							type: 'desktop-mode-drag-hover',
+							type: 'os-drag-hover',
 							payloadType: hoverHasFiles( ev ) ? 'os-file' : 'external',
 						},
 						parentOrigin,
@@ -934,6 +1667,67 @@ interface IframeWp {
 				}
 			},
 			true,
+		);
+	}
+
+	/*
+	 * Pointer forwarder — OPT-IN, off by default. Mirrors the inline
+	 * equivalent in `includes/render/chromeless-bridge.php`.
+	 *
+	 * Pointer events don't cross iframe boundaries, so the parent
+	 * shell goes blind to the cursor the moment it enters a window.
+	 * Anything in the shell that needs the real cursor position while
+	 * it's over window content — today, Mio's gaze
+	 * (`src/mio/pointer.ts`) — gets a throttled stream of this
+	 * frame's client coordinates and rebases them through the iframe
+	 * element's own rect.
+	 *
+	 * Coordinates only, and only while a parent-side consumer has
+	 * armed it with `os-pointer-track { enabled: true }`.
+	 * See `docs/bridge-protocol.md`.
+	 */
+	if ( ! sentinelHost.__openStationPointerForwarderInstalled ) {
+		sentinelHost.__openStationPointerForwarderInstalled = true;
+		let pointerTrackOn = false;
+		let pointerLastSent = 0;
+		window.addEventListener( 'message', ( e: MessageEvent ) => {
+			if ( e.origin !== window.location.origin ) {
+				return;
+			}
+			const data = e.data as { type?: string; enabled?: unknown } | null;
+			if ( ! data || data.type !== 'os-pointer-track' ) {
+				return;
+			}
+			pointerTrackOn = data.enabled === true;
+		} );
+		document.addEventListener(
+			'pointermove',
+			( ev: PointerEvent ) => {
+				if ( ! pointerTrackOn ) {
+					return;
+				}
+				const now = Date.now();
+				// ~25 Hz. The consumer interpolates; a faster stream
+				// buys nothing visible and costs a postMessage per
+				// mouse move.
+				if ( now - pointerLastSent < 40 ) {
+					return;
+				}
+				pointerLastSent = now;
+				try {
+					window.parent.postMessage(
+						{
+							type: 'os-pointer-move',
+							x: ev.clientX,
+							y: ev.clientY,
+						},
+						parentOrigin,
+					);
+				} catch {
+					/* cross-origin parent; swallow */
+				}
+			},
+			{ capture: true, passive: true },
 		);
 	}
 
@@ -951,7 +1745,7 @@ interface IframeWp {
 	try {
 		if ( window.parent && window.parent !== window ) {
 			window.parent.postMessage(
-				{ type: 'desktop-mode-ready' },
+				{ type: 'os-ready' },
 				parentOrigin,
 			);
 		}
@@ -1021,7 +1815,7 @@ interface IframeWp {
 			// `[]` is the correct "remove everything" signal.
 			try {
 				window.parent.postMessage(
-					{ type: 'desktop-mode-screen-meta', panels },
+					{ type: 'os-screen-meta', panels },
 					origin,
 				);
 			} catch {
@@ -1051,7 +1845,7 @@ interface IframeWp {
 				try {
 					window.parent.postMessage(
 						{
-							type: 'desktop-mode-screen-meta-state',
+							type: 'os-screen-meta-state',
 							open: getOpenPanel(),
 						},
 						origin,
@@ -1119,7 +1913,7 @@ interface IframeWp {
 					return;
 				}
 				const d = e.data as { type?: string; panel?: string } | null;
-				if ( ! d || d.type !== 'desktop-mode-toggle-panel' ) {
+				if ( ! d || d.type !== 'os-toggle-panel' ) {
 					return;
 				}
 				let target: HTMLElement | null = null;

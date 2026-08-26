@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — Appearance window tab adaptations.
+ * OpenStation — Appearance window tab adaptations.
  *
  * The Appearance dock item opens an iframe of `themes.php` and uses
  * the in-window submenu strip (built from the WP `$submenu` global)
@@ -12,13 +12,12 @@
  * iframe's visible area on first paint, leaving no entry point to
  * the install flow — see assets/css/chromeless.css). This file
  * compensates by injecting an "Add Theme" tab at the front of the
- * Appearance window's submenu strip via the `desktop_mode_dock_item`
+ * Appearance window's submenu strip via the `openstation_dock_item`
  * filter.
  *
  * Resulting tab order: Appearance | Add Theme | Editor | Fonts | …
  *
- * @package Desktop_Mode
- * @since   0.8.2
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -26,19 +25,17 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Prepends an "Add Theme" entry to the Appearance dock item's submenu.
  *
- * Called once per dock item via {@see desktop_mode_build_dock_items()}.
+ * Called once per dock item via {@see openstation_build_dock_items()}.
  * Skipped for every menu other than `themes.php` and for users who
  * lack the `install_themes` capability — matching what classic
  * admin's "Add Theme" page-title-action enforces.
- *
- * @since 0.8.2
  *
  * @param array  $dock_item The dock item data (id, title, icon, url,
  *                          badge, submenu, multi, placement, isCore).
  * @param string $menu_slug The menu slug — e.g. `themes.php`.
  * @return array Filtered dock item.
  */
-function desktop_mode_inject_appearance_tabs( $dock_item, $menu_slug ) {
+function openstation_inject_appearance_tabs( $dock_item, $menu_slug ) {
 	if ( 'themes.php' !== $menu_slug ) {
 		return $dock_item;
 	}
@@ -75,7 +72,84 @@ function desktop_mode_inject_appearance_tabs( $dock_item, $menu_slug ) {
 
 	return $dock_item;
 }
-add_filter( 'desktop_mode_dock_item', 'desktop_mode_inject_appearance_tabs', 10, 2 );
+add_filter( 'openstation_dock_item', 'openstation_inject_appearance_tabs', 10, 2 );
+
+/**
+ * Renders the orientation header for the chromeless Themes workspace.
+ *
+ * Core's page heading is intentionally hidden inside OpenStation because the
+ * window chrome already names the screen. The Themes page still needs a little
+ * more context than a generic list screen, though: a theme changes the public
+ * face of the site, and Core's single-theme state otherwise opens directly on
+ * an unexplained details panel.
+ *
+ * The markup is emitted through `admin_notices`, which places it immediately
+ * before the page's `.wrap`. Core continues to own the theme cards, details
+ * overlay, actions, AJAX updates, and keyboard behavior.
+ *
+ * The screen is identified by `get_current_screen()`, not `$pagenow`. Every
+ * page registered with `add_theme_page()` also reports `themes.php` as its
+ * `$pagenow`, but its body class comes from the hook suffix
+ * (`appearance_page_<slug>`) and so matches none of the workspace CSS, which
+ * is scoped to `.themes-php`. Gating on `$pagenow` would emit this header
+ * unstyled on top of unrelated Appearance screens. The screen ID also keeps
+ * network admin (`themes-network`, a different list table entirely) out.
+ */
+function openstation_render_themes_workspace_intro() {
+	if ( ! openstation_is_chromeless_request() ) {
+		return;
+	}
+
+	$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+	if ( ! $screen || 'themes' !== $screen->id ) {
+		return;
+	}
+
+	/*
+	 * Mirrors how `wp_prepare_themes_for_js()` builds its own list, without
+	 * paying for the preparation itself. Core already called that function
+	 * on this request before `admin-header.php` ran, and calling it again
+	 * would re-resolve every screenshot, tag and author URL and fire
+	 * `pre_prepare_themes_for_js` / `wp_prepare_themes_for_js` a second
+	 * time — so any third-party callback hanging off them would run twice
+	 * per page load. `wp_get_themes()` is cached, so this is a lookup.
+	 */
+	if ( current_user_can( 'switch_themes' ) ) {
+		$themes     = wp_get_themes( array( 'allowed' => true ) );
+		$stylesheet = get_stylesheet();
+		if ( ! isset( $themes[ $stylesheet ] ) ) {
+			$themes[ $stylesheet ] = wp_get_theme();
+		}
+		$theme_count = count( $themes );
+	} else {
+		$theme_count = 1;
+	}
+	?>
+	<section class="openstation-themes-intro" aria-labelledby="openstation-themes-intro-title">
+		<div class="openstation-themes-intro__copy">
+			<p class="openstation-themes-intro__eyebrow"><?php esc_html_e( 'Site appearance', 'desktop-mode' ); ?></p>
+			<h1 id="openstation-themes-intro-title"><?php esc_html_e( 'Choose how your site greets the world.', 'desktop-mode' ); ?></h1>
+			<p><?php esc_html_e( 'Themes shape your site’s look. Switching keeps your posts and pages in place.', 'desktop-mode' ); ?></p>
+		</div>
+		<?php
+		/*
+		 * Left readable rather than labelled: `aria-label` is ignored on a
+		 * `<p>` (the paragraph role prohibits an author-supplied name), so
+		 * pairing it with `aria-hidden` children hid the count from
+		 * assistive tech entirely — and Core's own `.title-count` inside
+		 * the page `<h1>` is display:none in chromeless mode, making this
+		 * the only count on the screen. Read in DOM order the two spans
+		 * announce as "3 Themes installed" on their own.
+		 */
+		?>
+		<p class="openstation-themes-intro__count">
+			<strong><?php echo esc_html( number_format_i18n( $theme_count ) ); ?></strong>
+			<span><?php echo esc_html( _n( 'Theme installed', 'Themes installed', $theme_count, 'desktop-mode' ) ); ?></span>
+		</p>
+	</section>
+	<?php
+}
+add_action( 'admin_notices', 'openstation_render_themes_workspace_intro', 0 );
 
 /**
  * Fixes the visible "active tab" state inside chromeless
@@ -84,8 +158,8 @@ add_filter( 'desktop_mode_dock_item', 'desktop_mode_inject_appearance_tabs', 10,
  * Background: WP's installer JS uses a Backbone router whose pattern
  * `theme-install.php?browse=:sort` greedy-captures everything past
  * `browse=` ([^/?]+ matches `&` too). Inside chromeless the URL also
- * carries `desktop_mode_chromeless=1`, so `:sort` ends up as
- * `popular&desktop_mode_chromeless=1`. WP's `view.sort()` then runs
+ * carries `openstation_chromeless=1`, so `:sort` ends up as
+ * `popular&openstation_chromeless=1`. WP's `view.sort()` then runs
  * with that polluted value and the `[data-sort]` selector finds
  * nothing — leaving every tab in the unselected state even though
  * the popular themes ARE the rendered listing.
@@ -97,16 +171,14 @@ add_filter( 'desktop_mode_dock_item', 'desktop_mode_inject_appearance_tabs', 10,
  * chrome on next paint).
  *
  * The minimum-viable shim: inline JS that reads the real `browse`
- * value via URLSearchParams, finds the matching `[data-sort]` tab,
- * and sets `current` + `aria-current` on it. A MutationObserver on
- * `.filter-links` keeps the tab synced if WP's router fires again
- * (e.g. the user picks Latest, then comes back to Popular via the
- * route's pushState).
- *
- * @since 0.8.2
+ * value dynamically via URLSearchParams on every check, finds the
+ * matching `[data-sort]` tab, and sets `current` + `aria-current` on it.
+ * A MutationObserver on `.filter-links` keeps the tab synced when WP's
+ * router fires or state changes (e.g. switching tabs to Latest or
+ * returning via pushState).
  */
-function desktop_mode_theme_install_active_tab_script() {
-	if ( ! desktop_mode_is_chromeless_request() ) {
+function openstation_theme_install_active_tab_script() {
+	if ( ! openstation_is_chromeless_request() ) {
 		return;
 	}
 	if ( ! isset( $GLOBALS['pagenow'] ) || 'theme-install.php' !== $GLOBALS['pagenow'] ) {
@@ -115,11 +187,17 @@ function desktop_mode_theme_install_active_tab_script() {
 
 	$js = <<<'JS'
 ( function () {
-    var browseParam = new URLSearchParams( window.location.search ).get( 'browse' );
-    if ( ! browseParam ) {
+    function getBrowseParam() {
+        return new URLSearchParams( window.location.search ).get( 'browse' );
+    }
+    if ( ! getBrowseParam() ) {
         return;
     }
     function applyActiveTab() {
+        var browseParam = getBrowseParam();
+        if ( ! browseParam ) {
+            return true;
+        }
         var match = document.querySelector(
             '.filter-links li > a[data-sort="' + browseParam + '"]'
         );
@@ -179,4 +257,4 @@ JS;
 
 	wp_print_inline_script_tag( $js );
 }
-add_action( 'admin_footer', 'desktop_mode_theme_install_active_tab_script', 100 );
+add_action( 'admin_footer', 'openstation_theme_install_active_tab_script', 100 );

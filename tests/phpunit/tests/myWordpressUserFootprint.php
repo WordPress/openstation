@@ -13,10 +13,10 @@
  * @package WordPress
  * @subpackage UnitTests
  *
- * @group desktop-mode
+ * @group openstation
  * @group desktop-mode-my-wordpress
  */
-class Tests_DesktopMode_MyWordpressUserFootprint extends WP_UnitTestCase {
+class Tests_OpenStation_MyWordpressUserFootprint extends WP_UnitTestCase {
 
 	protected static $admin_id;
 	protected static $author_id;
@@ -74,7 +74,7 @@ class Tests_DesktopMode_MyWordpressUserFootprint extends WP_UnitTestCase {
 	 * A subscriber viewing another user's footprint only sees rows
 	 * for published posts — drafts and private posts are dropped.
 	 *
-	 * @covers ::desktop_mode_my_wordpress_user_footprint_callback
+	 * @covers ::openstation_my_wordpress_user_footprint_callback
 	 */
 	public function test_subscriber_does_not_see_unpublished_titles_in_timeline() {
 		wp_set_current_user( self::$subscriber_id );
@@ -92,7 +92,7 @@ class Tests_DesktopMode_MyWordpressUserFootprint extends WP_UnitTestCase {
 	 * Privileged viewers keep the full timeline: an admin (and the
 	 * subject user themselves) can read the drafts, so the rows stay.
 	 *
-	 * @covers ::desktop_mode_my_wordpress_user_footprint_callback
+	 * @covers ::openstation_my_wordpress_user_footprint_callback
 	 */
 	public function test_privileged_viewers_keep_unpublished_rows() {
 		wp_set_current_user( self::$admin_id );
@@ -111,7 +111,7 @@ class Tests_DesktopMode_MyWordpressUserFootprint extends WP_UnitTestCase {
 	 * comment left on someone else's draft must not leak that draft's
 	 * existence to viewers who can't read it.
 	 *
-	 * @covers ::desktop_mode_my_wordpress_user_footprint_callback
+	 * @covers ::openstation_my_wordpress_user_footprint_callback
 	 */
 	public function test_comment_on_unreadable_draft_is_dropped_from_timeline() {
 		$admins_draft = self::factory()->post->create(
@@ -144,7 +144,7 @@ class Tests_DesktopMode_MyWordpressUserFootprint extends WP_UnitTestCase {
 	 * title too — updates the subject made to an unpublished post
 	 * must not leak it to viewers who can't read the parent.
 	 *
-	 * @covers ::desktop_mode_my_wordpress_user_footprint_callback
+	 * @covers ::openstation_my_wordpress_user_footprint_callback
 	 */
 	public function test_update_rows_on_unreadable_drafts_are_dropped() {
 		// Backdate the parent so the revision saved below counts as
@@ -181,7 +181,7 @@ class Tests_DesktopMode_MyWordpressUserFootprint extends WP_UnitTestCase {
 	/**
 	 * Logged-out requests are rejected by the permission callback.
 	 *
-	 * @covers ::desktop_mode_my_wordpress_register_user_footprint_route
+	 * @covers ::openstation_my_wordpress_register_user_footprint_route
 	 */
 	public function test_logged_out_request_is_rejected() {
 		wp_set_current_user( 0 );

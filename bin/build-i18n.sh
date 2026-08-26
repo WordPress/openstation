@@ -48,8 +48,8 @@ fi
 # specific paths first.
 declare -a HANDLE_MAP=(
 	"src/recycle-bin/=desktop-mode-recycle-bin"
-	"src/posts-window/=desktop-mode-posts-window"
-	"src/=desktop-mode"
+	"src/posts-window/=os-posts-window"
+	"src/=openstation"
 )
 
 tmp_dir="$(mktemp -d)"

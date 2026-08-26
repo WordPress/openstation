@@ -1,9 +1,9 @@
 <?php
 /**
- * Desktop Mode — request routing helpers.
+ * OpenStation — request routing helpers.
  *
  * Chromeless / classic admin-bar suppression and the
- * `wp_redirect` filter pair that re-stamps the desktop-mode
+ * `wp_redirect` filter pair that re-stamps the openstation
  * flags onto server-built redirects. Extracted from the
  * 1,609-LOC `helpers.php` during the architecture-0.8.1 PHP
  * slicing (phase 6).
@@ -15,19 +15,18 @@
  * always present by the time WordPress wants them.
  *
  * Functions in this file:
- *   - {@see desktop_mode_url_is_same_admin()}      — same-origin admin URL predicate
- *   - {@see desktop_mode_resolve_admin_target()}   — admin filename → URL resolver
- *   - {@see desktop_mode_admin_target_allowlist()} — wp-admin filename allowlist
- *   - {@see desktop_mode_is_chromeless_request()}  — chromeless request detection
- *   - {@see desktop_mode_is_classic_request()}     — classic-override request detection
- *   - {@see desktop_mode_chromeless_hide_admin_bar()} — `show_admin_bar` filter
- *   - {@see desktop_mode_chromeless_suppress_admin_bar()} — `admin_init` action
- *   - {@see desktop_mode_chromeless_preserve_redirect()} — `wp_redirect` filter
- *   - {@see desktop_mode_classic_preserve_redirect()}    — `wp_redirect` filter
- *   - {@see desktop_mode_is_admin_redirect_target()}     — internal predicate
+ *   - {@see openstation_url_is_same_admin()}      — same-origin admin URL predicate
+ *   - {@see openstation_resolve_admin_target()}   — admin filename → URL resolver
+ *   - {@see openstation_admin_target_allowlist()} — wp-admin filename allowlist
+ *   - {@see openstation_is_chromeless_request()}  — chromeless request detection
+ *   - {@see openstation_is_classic_request()}     — classic-override request detection
+ *   - {@see openstation_chromeless_hide_admin_bar()} — `show_admin_bar` filter
+ *   - {@see openstation_chromeless_suppress_admin_bar()} — `admin_init` action
+ *   - {@see openstation_chromeless_preserve_redirect()} — `wp_redirect` filter
+ *   - {@see openstation_classic_preserve_redirect()}    — `wp_redirect` filter
+ *   - {@see openstation_is_admin_redirect_target()}     — internal predicate
  *
- * @package Desktop_Mode
- * @since   0.8.1
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -43,12 +42,10 @@ defined( 'ABSPATH' ) || exit;
  * An empty string returns false — a missing URL is never
  * "same-origin admin" for the purposes of any caller.
  *
- * @since 0.8.1
- *
  * @param string $url URL to test.
  * @return bool
  */
-function desktop_mode_url_is_same_admin( $url ) {
+function openstation_url_is_same_admin( $url ) {
 	if ( ! is_string( $url ) || '' === $url ) {
 		return false;
 	}
@@ -88,23 +85,21 @@ function desktop_mode_url_is_same_admin( $url ) {
  * `custom_admin_page.php` if a plugin named something that way;
  * the explicit allowlist closes that.
  *
- * @since 0.8.1
- *
  * @param string $file Bare admin filename (no path, no query string).
  * @return string|WP_Error Absolute admin URL on success, `WP_Error` otherwise.
  */
-function desktop_mode_resolve_admin_target( $file ) {
+function openstation_resolve_admin_target( $file ) {
 	$file = is_string( $file ) ? trim( $file ) : '';
 	if ( '' === $file ) {
 		return new WP_Error(
-			'desktop_mode_empty_target',
+			'openstation_empty_target',
 			__( 'Admin target cannot be empty.', 'desktop-mode' )
 		);
 	}
 
 	if ( false !== strpos( $file, '..' ) || false !== strpos( $file, '/' ) || false !== strpos( $file, '\\' ) ) {
 		return new WP_Error(
-			'desktop_mode_invalid_target',
+			'openstation_invalid_target',
 			__( 'Admin target contains invalid path characters.', 'desktop-mode' )
 		);
 	}
@@ -115,14 +110,14 @@ function desktop_mode_resolve_admin_target( $file ) {
 	// clearly bad inputs cheaply.
 	if ( ! preg_match( '/^[a-z0-9_-]+\.php$/i', $file ) ) {
 		return new WP_Error(
-			'desktop_mode_invalid_target',
+			'openstation_invalid_target',
 			__( 'Admin target must be a plain .php filename.', 'desktop-mode' )
 		);
 	}
 
-	if ( ! in_array( strtolower( $file ), desktop_mode_admin_target_allowlist(), true ) ) {
+	if ( ! in_array( strtolower( $file ), openstation_admin_target_allowlist(), true ) ) {
 		return new WP_Error(
-			'desktop_mode_unknown_target',
+			'openstation_unknown_target',
 			__( 'Admin target does not exist.', 'desktop-mode' )
 		);
 	}
@@ -132,7 +127,7 @@ function desktop_mode_resolve_admin_target( $file ) {
 
 /**
  * Returns the allowlist of canonical wp-admin top-level
- * filenames that {@see desktop_mode_resolve_admin_target()}
+ * filenames that {@see openstation_resolve_admin_target()}
  * accepts.
  *
  * Hardcoded rather than read from disk so the plugin doesn't
@@ -141,11 +136,9 @@ function desktop_mode_resolve_admin_target( $file ) {
  * their own top-level admin pages (rare) can extend the list
  * via the filter.
  *
- * @since 0.6.2
- *
  * @return string[] Lowercased filenames including extension.
  */
-function desktop_mode_admin_target_allowlist() {
+function openstation_admin_target_allowlist() {
 	$files = array(
 		'about.php',
 		'admin-ajax.php',
@@ -240,11 +233,9 @@ function desktop_mode_admin_target_allowlist() {
 	 * Filters the wp-admin filename allowlist used when resolving
 	 * portal `target=` query args.
 	 *
-	 * @since 0.6.2
-	 *
 	 * @param string[] $files Default allowlist.
 	 */
-	$files = (array) apply_filters( 'desktop_mode_admin_target_allowlist', $files );
+	$files = (array) apply_filters( 'openstation_admin_target_allowlist', $files );
 
 	return array_values( array_unique( array_map( 'strtolower', array_filter( $files, 'is_string' ) ) ) );
 }
@@ -252,19 +243,17 @@ function desktop_mode_admin_target_allowlist() {
 /**
  * Checks whether the current request is a chromeless request.
  *
- * Chromeless requests are admin pages loaded inside desktop-mode
+ * Chromeless requests are admin pages loaded inside openstation
  * windows (iframes). They render only the page content without
  * the admin shell (sidebar, admin bar, footer).
  *
- * @since 0.1.0
- *
  * @return bool True if this is a chromeless (iframe) request.
  */
-function desktop_mode_is_chromeless_request() {
-	if ( ! desktop_mode_is_enabled() ) {
+function openstation_is_chromeless_request() {
+	if ( ! openstation_is_enabled() ) {
 		// Only allow chromeless mode if the user actually has
-		// desktop mode enabled. Prevents stripping admin chrome via
-		// a bare `?desktop_mode_chromeless=1` parameter from a
+		// OpenStation enabled. Prevents stripping admin chrome via
+		// a bare `?openstation_chromeless=1` parameter from a
 		// logged-out URL.
 		return false;
 	}
@@ -272,7 +261,7 @@ function desktop_mode_is_chromeless_request() {
 	// Primary signal — the explicit query flag the parent shell
 	// adds when opening windows.
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only request flag, no state change.
-	if ( ! empty( $_GET['desktop_mode_chromeless'] ) && '1' === sanitize_text_field( wp_unslash( $_GET['desktop_mode_chromeless'] ) ) ) {
+	if ( ! empty( $_GET['openstation_chromeless'] ) && '1' === sanitize_text_field( wp_unslash( $_GET['openstation_chromeless'] ) ) ) {
 		return true;
 	}
 
@@ -282,10 +271,10 @@ function desktop_mode_is_chromeless_request() {
 	// JavaScript spoofing (the browser sets them itself).
 	//
 	// This catches the failure mode where an internal admin
-	// navigation drops the `?desktop_mode_chromeless=1` query flag —
+	// navigation drops the `?openstation_chromeless=1` query flag —
 	// Gutenberg's `window.location` assignments, meta-refresh
 	// redirects, or any link the inline rewriter missed. The user
-	// is in an iframe on the same origin, has desktop mode enabled,
+	// is in an iframe on the same origin, has OpenStation enabled,
 	// so render as chromeless.
 	//
 	// `Sec-Fetch-Site: same-origin` is the cross-origin guard so a
@@ -301,16 +290,13 @@ function desktop_mode_is_chromeless_request() {
 	if ( 'iframe' === $fetch_dest && 'same-origin' === $fetch_site ) {
 		/**
 		 * Filter the Sec-Fetch fallback. Return false to require an
-		 * explicit `?desktop_mode_chromeless=1` flag (matches
-		 * pre-0.18 behaviour); useful for environments where a
+		 * explicit `?openstation_chromeless=1` flag; useful for environments where a
 		 * reverse proxy strips the `Sec-Fetch-*` headers and they
 		 * can't be trusted.
 		 *
-		 * @since 0.8.1
-		 *
 		 * @param bool $allow Default true.
 		 */
-		return (bool) apply_filters( 'desktop_mode_chromeless_sec_fetch_fallback', true );
+		return (bool) apply_filters( 'openstation_chromeless_sec_fetch_fallback', true );
 	}
 
 	return false;
@@ -323,28 +309,26 @@ function desktop_mode_is_chromeless_request() {
  * The window-chrome "Detach" action opens an admin page in a new
  * browser tab with `?desktop_mode_classic=1` so the user can view
  * that one page outside the desktop shell without disabling
- * desktop mode account-wide. The flag is a per-request override:
- * `desktop_mode_is_enabled()` still returns true (the user's
+ * OpenStation account-wide. The flag is a per-request override:
+ * `openstation_is_enabled()` still returns true (the user's
  * preference hasn't changed), but the shell, shell assets, and
  * body class are skipped for this request so the classic admin
  * renders normally.
  *
- * Keep this separate from `desktop_mode_is_enabled()` so the
+ * Keep this separate from `openstation_is_enabled()` so the
  * admin-bar toggle in the detached tab correctly reflects the
- * account state — letting the user disable desktop mode entirely
+ * account state — letting the user disable OpenStation entirely
  * from the tab if they want to.
- *
- * @since 0.4.0
  *
  * @return bool True if the request carries `?desktop_mode_classic=1`.
  */
-function desktop_mode_is_classic_request() {
+function openstation_is_classic_request() {
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only request flag.
-	if ( empty( $_GET[ DESKTOP_MODE_CLASSIC_FLAG ] ) ) {
+	if ( empty( $_GET[ OPENSTATION_CLASSIC_FLAG ] ) ) {
 		return false;
 	}
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only request flag.
-	return '1' === sanitize_text_field( wp_unslash( $_GET[ DESKTOP_MODE_CLASSIC_FLAG ] ) );
+	return '1' === sanitize_text_field( wp_unslash( $_GET[ OPENSTATION_CLASSIC_FLAG ] ) );
 }
 
 /**
@@ -354,21 +338,19 @@ function desktop_mode_is_classic_request() {
  * also sees a false return. In admin, `is_admin_bar_showing()`
  * short-circuits to true for any `is_admin()` request regardless
  * of this filter, so the actual render is stopped by
- * {@see desktop_mode_chromeless_suppress_admin_bar()} below; this
+ * {@see openstation_chromeless_suppress_admin_bar()} below; this
  * filter is kept for completeness + tests.
- *
- * @since 0.1.0
  *
  * @param bool $show Whether the admin bar should be shown.
  * @return bool
  */
-function desktop_mode_chromeless_hide_admin_bar( $show ) {
-	if ( desktop_mode_is_chromeless_request() ) {
+function openstation_chromeless_hide_admin_bar( $show ) {
+	if ( openstation_is_chromeless_request() ) {
 		return false;
 	}
 	return $show;
 }
-add_filter( 'show_admin_bar', 'desktop_mode_chromeless_hide_admin_bar' );
+add_filter( 'show_admin_bar', 'openstation_chromeless_hide_admin_bar' );
 
 /**
  * Suppresses the admin bar render inside chromeless iframes.
@@ -378,26 +360,90 @@ add_filter( 'show_admin_bar', 'desktop_mode_chromeless_hide_admin_bar' );
  * `wp_admin_bar_render()` from firing on `in_admin_header`. We
  * detach the render action instead and let chromeless.css hide
  * the `wp-toolbar` padding on `<html>`.
- *
- * @since 0.1.0
  */
-function desktop_mode_chromeless_suppress_admin_bar() {
-	if ( desktop_mode_is_chromeless_request() ) {
+function openstation_chromeless_suppress_admin_bar() {
+	if ( openstation_is_chromeless_request() ) {
 		remove_action( 'in_admin_header', 'wp_admin_bar_render', 0 );
 		remove_action( 'wp_body_open', 'wp_admin_bar_render', 0 );
 	}
 }
-add_action( 'admin_init', 'desktop_mode_chromeless_suppress_admin_bar' );
+add_action( 'admin_init', 'openstation_chromeless_suppress_admin_bar' );
+
+/**
+ * Stops a window from BUILDING the admin bar it never draws.
+ *
+ * Removing the render above stops the markup. It does not stop the
+ * work: `_wp_admin_bar_init()` is hooked on `admin_init`,
+ * `is_admin_bar_showing()` short-circuits to true for any admin
+ * request, and so every window still instantiates `WP_Admin_Bar`,
+ * calls `initialize()`, and — the expensive part — calls
+ * `add_menus()`, which fires `admin_bar_menu` and runs **every**
+ * registered callback. Core's twenty-odd nodes, WooCommerce's,
+ * Jetpack's, a host masterbar's: each one resolving links, counting
+ * things, checking capabilities. The finished object is then dropped
+ * on the floor, because nothing renders it.
+ *
+ * The shell draws a real admin bar, once. A window drawing none
+ * should pay for none — this is the same asymmetry the asset trims
+ * exploit, on the server side.
+ *
+ * **Swapping the class rather than unhooking the init** is the
+ * careful way to do it. `remove_action( 'admin_init',
+ * '_wp_admin_bar_init' )` would leave `$wp_admin_bar` null, and a
+ * plugin that touches the global outside the `admin_bar_menu` hook —
+ * bad practice, entirely real — would fatal on it. Core exposes
+ * `wp_admin_bar_class` precisely for this, so a window gets a real
+ * `WP_Admin_Bar` subclass that is fully functional in every respect
+ * except that it never solicits nodes. `add_node()` still works,
+ * `get_nodes()` still answers, the global is still an object; the
+ * hook simply never fires.
+ *
+ * `initialize()` is deliberately left alone — it sets up the object's
+ * own state and costs nothing worth reclaiming.
+ *
+ * @param string $class_name Admin bar class WordPress intends to instantiate.
+ * @return string The silent subclass inside a window; `$class_name` untouched
+ *                everywhere else, and whenever the parent class is unavailable.
+ */
+function openstation_chromeless_silence_admin_bar( $class_name ) {
+	if ( ! openstation_is_chromeless_request() ) {
+		return $class_name;
+	}
+
+	/**
+	 * Filters whether a window skips building the admin bar.
+	 *
+	 * Return false to let a window construct the bar as WordPress
+	 * normally would — for a plugin that (unusually) relies on
+	 * `admin_bar_menu` firing for a side effect rather than for the
+	 * node it adds.
+	 *
+	 * @param bool $silence Defaults to true inside windows.
+	 */
+	if ( ! apply_filters( 'openstation_chromeless_silence_admin_bar', true ) ) {
+		return $class_name;
+	}
+
+	// `_wp_admin_bar_init()` requires `class-wp-admin-bar.php` before
+	// it applies this filter, so the parent is guaranteed loaded here
+	// — and only here, which is why the subclass is required lazily
+	// rather than at bootstrap.
+	if ( ! class_exists( 'WP_Admin_Bar' ) ) {
+		return $class_name;
+	}
+	require_once __DIR__ . '/class-openstation-silent-admin-bar.php';
+
+	return 'OpenStation_Silent_Admin_Bar';
+}
+add_filter( 'wp_admin_bar_class', 'openstation_chromeless_silence_admin_bar' );
 
 /**
  * Detaches core's update / maintenance nags inside chromeless iframes so
  * they don't repeat in every window — the shell surfaces the update once
  * instead.
- *
- * @since 0.9.4
  */
-function desktop_mode_chromeless_suppress_update_nags() {
-	if ( ! desktop_mode_is_chromeless_request() ) {
+function openstation_chromeless_suppress_update_nags() {
+	if ( ! openstation_is_chromeless_request() ) {
 		return;
 	}
 	remove_action( 'admin_notices', 'update_nag', 3 );
@@ -405,18 +451,16 @@ function desktop_mode_chromeless_suppress_update_nags() {
 	remove_action( 'admin_notices', 'maintenance_nag', 10 );
 	remove_action( 'network_admin_notices', 'maintenance_nag', 10 );
 }
-add_action( 'admin_init', 'desktop_mode_chromeless_suppress_update_nags' );
+add_action( 'admin_init', 'openstation_chromeless_suppress_update_nags' );
 
 /**
  * Detaches the remaining global core admin notices inside chromeless iframes
  * so they don't repeat in every window — the shell re-derives and surfaces
- * each once (see `desktop_mode_get_core_notices()`). The update / maintenance
- * nags are handled by `desktop_mode_chromeless_suppress_update_nags()`.
- *
- * @since 0.9.6
+ * each once (see `openstation_get_core_notices()`). The update / maintenance
+ * nags are handled by `openstation_chromeless_suppress_update_nags()`.
  */
-function desktop_mode_chromeless_suppress_core_notices() {
-	if ( ! desktop_mode_is_chromeless_request() ) {
+function openstation_chromeless_suppress_core_notices() {
+	if ( ! openstation_is_chromeless_request() ) {
 		return;
 	}
 	remove_action( 'admin_notices', 'wp_recovery_mode_nag', 1 );
@@ -425,7 +469,7 @@ function desktop_mode_chromeless_suppress_core_notices() {
 	remove_action( 'admin_notices', 'paused_plugins_notice', 5 );
 	remove_action( 'admin_notices', 'paused_themes_notice', 5 );
 }
-add_action( 'admin_init', 'desktop_mode_chromeless_suppress_core_notices' );
+add_action( 'admin_init', 'openstation_chromeless_suppress_core_notices' );
 
 /**
  * Keeps core's session-expired login modal (`wp-auth-check`) out of
@@ -446,21 +490,19 @@ add_action( 'admin_init', 'desktop_mode_chromeless_suppress_core_notices' );
  * stale-nonce recovery in `chromeless-bridge.php` still sees the
  * logged-out → logged-in flip without the modal JS.
  *
- * @since 0.9.8
- *
  * @param bool $show Whether to load the authentication check.
  * @return bool
  */
-function desktop_mode_chromeless_suppress_auth_check( $show ) {
-	if ( desktop_mode_is_chromeless_request() ) {
+function openstation_chromeless_suppress_auth_check( $show ) {
+	if ( openstation_is_chromeless_request() ) {
 		return false;
 	}
 	return $show;
 }
-add_filter( 'wp_auth_check_load', 'desktop_mode_chromeless_suppress_auth_check' );
+add_filter( 'wp_auth_check_load', 'openstation_chromeless_suppress_auth_check' );
 
 /**
- * Preserves the `desktop_mode_chromeless` flag through admin
+ * Preserves the `openstation_chromeless` flag through admin
  * redirects.
  *
  * A chromeless iframe can be navigated away from chromeless mode
@@ -476,28 +518,26 @@ add_filter( 'wp_auth_check_load', 'desktop_mode_chromeless_suppress_auth_check' 
  * touched, and only when the current request is itself
  * chromeless. Anything else passes through unchanged.
  *
- * @since 0.1.0
- *
  * @param string $location The redirect URL.
- * @return string The redirect URL, with `desktop_mode_chromeless=1` appended when applicable.
+ * @return string The redirect URL, with `openstation_chromeless=1` appended when applicable.
  */
-function desktop_mode_chromeless_preserve_redirect( $location ) {
-	if ( empty( $location ) || ! desktop_mode_is_chromeless_request() ) {
+function openstation_chromeless_preserve_redirect( $location ) {
+	if ( empty( $location ) || ! openstation_is_chromeless_request() ) {
 		return $location;
 	}
 
-	if ( ! desktop_mode_is_admin_redirect_target( $location ) ) {
+	if ( ! openstation_is_admin_redirect_target( $location ) ) {
 		return $location;
 	}
 
 	// Don't double-append if the URL already carries the flag.
-	if ( false !== strpos( $location, 'desktop_mode_chromeless=' ) ) {
+	if ( false !== strpos( $location, 'openstation_chromeless=' ) ) {
 		return $location;
 	}
 
-	return add_query_arg( 'desktop_mode_chromeless', '1', $location );
+	return add_query_arg( 'openstation_chromeless', '1', $location );
 }
-add_filter( 'wp_redirect', 'desktop_mode_chromeless_preserve_redirect', 999 );
+add_filter( 'wp_redirect', 'openstation_chromeless_preserve_redirect', 999 );
 
 /**
  * Preserves the `desktop_mode_classic` flag through admin
@@ -515,27 +555,25 @@ add_filter( 'wp_redirect', 'desktop_mode_chromeless_preserve_redirect', 999 );
  * classic-override request, and the flag is never appended
  * twice.
  *
- * @since 0.4.0
- *
  * @param string $location The redirect URL.
  * @return string The redirect URL, with `desktop_mode_classic=1` appended when applicable.
  */
-function desktop_mode_classic_preserve_redirect( $location ) {
-	if ( empty( $location ) || ! desktop_mode_is_classic_request() ) {
+function openstation_classic_preserve_redirect( $location ) {
+	if ( empty( $location ) || ! openstation_is_classic_request() ) {
 		return $location;
 	}
 
-	if ( ! desktop_mode_is_admin_redirect_target( $location ) ) {
+	if ( ! openstation_is_admin_redirect_target( $location ) ) {
 		return $location;
 	}
 
-	if ( false !== strpos( $location, DESKTOP_MODE_CLASSIC_FLAG . '=' ) ) {
+	if ( false !== strpos( $location, OPENSTATION_CLASSIC_FLAG . '=' ) ) {
 		return $location;
 	}
 
-	return add_query_arg( DESKTOP_MODE_CLASSIC_FLAG, '1', $location );
+	return add_query_arg( OPENSTATION_CLASSIC_FLAG, '1', $location );
 }
-add_filter( 'wp_redirect', 'desktop_mode_classic_preserve_redirect', 999 );
+add_filter( 'wp_redirect', 'openstation_classic_preserve_redirect', 999 );
 
 /**
  * Whether `$location` is a redirect target that lands inside
@@ -553,14 +591,12 @@ add_filter( 'wp_redirect', 'desktop_mode_classic_preserve_redirect', 999 );
  * redirects (`/`, `/?p=42`) return false so we never paint our
  * query flag on URLs that don't run our admin code.
  *
- * @since 0.8.0
- *
  * @internal
  *
  * @param string $location Raw redirect URL handed to `wp_redirect`.
  * @return bool
  */
-function desktop_mode_is_admin_redirect_target( $location ) {
+function openstation_is_admin_redirect_target( $location ) {
 	$location = (string) $location;
 	if ( '' === $location ) {
 		return false;
@@ -589,7 +625,7 @@ function desktop_mode_is_admin_redirect_target( $location ) {
 		}
 		// Absolute path NOT into wp-admin (e.g. `/`, `/wp-login.php`,
 		// `/wp-json/...`). Frontend or login flow — leave alone.
-		if ( '/' === $path[ 0 ] ) {
+		if ( '/' === $path[0] ) {
 			return false;
 		}
 	}

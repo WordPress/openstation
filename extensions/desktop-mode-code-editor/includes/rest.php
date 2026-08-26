@@ -11,12 +11,11 @@
  *   - POST /php-symbols/rescan         → flush + rebuild workspace index.
  *   - GET  /php-symbols/<name>         → single symbol detail.
  *
- * Every route bottlenecks through {@see desktop_mode_code_editor_resolve_path()}
+ * Every route bottlenecks through {@see openstation_code_editor_resolve_path()}
  * for path safety and the same `permission_callback` (logged-in admin
  * holding `edit_plugins`, with `DISALLOW_FILE_EDIT` honoured).
  *
- * @package DesktopModeCodeEditor
- * @since   0.7.0
+ * @package OpenStationCodeEditor
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -24,22 +23,20 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Permission gate for every editor REST route.
  *
- * @since 0.7.0
- *
  * @return true|WP_Error
  */
-function desktop_mode_code_editor_rest_permission() {
+function openstation_code_editor_rest_permission() {
 	if ( ! is_user_logged_in() ) {
 		return new WP_Error(
-			'desktop_mode_code_editor_unauthenticated',
+			'openstation_code_editor_unauthenticated',
 			__( 'You must be logged in to use the code editor.', 'desktop-mode-code-editor' ),
 			array( 'status' => 401 )
 		);
 	}
 
-	if ( ! desktop_mode_code_editor_file_edit_allowed() ) {
+	if ( ! openstation_code_editor_file_edit_allowed() ) {
 		return new WP_Error(
-			'desktop_mode_code_editor_file_edit_disabled',
+			'openstation_code_editor_file_edit_disabled',
 			__( 'In-admin file editing is disabled on this site (DISALLOW_FILE_EDIT).', 'desktop-mode-code-editor' ),
 			array( 'status' => 403 )
 		);
@@ -48,14 +45,12 @@ function desktop_mode_code_editor_rest_permission() {
 	/**
 	 * Filter the capability required to use the code editor.
 	 *
-	 * @since 0.7.0
-	 *
 	 * @param string $capability Default `edit_plugins`.
 	 */
-	$cap = (string) apply_filters( 'desktop_mode_code_editor_required_capability', 'edit_plugins' );
+	$cap = (string) apply_filters( 'openstation_code_editor_required_capability', 'edit_plugins' );
 	if ( ! current_user_can( $cap ) ) {
 		return new WP_Error(
-			'desktop_mode_code_editor_forbidden',
+			'openstation_code_editor_forbidden',
 			__( 'You do not have permission to use the code editor.', 'desktop-mode-code-editor' ),
 			array( 'status' => 403 )
 		);
@@ -68,12 +63,10 @@ function desktop_mode_code_editor_rest_permission() {
  * Wrap a REST handler so PHP notices / warnings printed under
  * WP_DEBUG don't leak into the response body.
  *
- * @since 0.7.0
- *
  * @param callable $handler `function( WP_REST_Request ): array|WP_REST_Response|WP_Error`.
  * @return callable
  */
-function desktop_mode_code_editor_rest_handler( $handler ) {
+function openstation_code_editor_rest_handler( $handler ) {
 	return static function ( WP_REST_Request $request ) use ( $handler ) {
 		ob_start();
 		try {
@@ -91,17 +84,15 @@ function desktop_mode_code_editor_rest_handler( $handler ) {
 
 /**
  * Register the editor's REST routes.
- *
- * @since 0.7.0
  */
-function desktop_mode_code_editor_register_rest_routes() {
+function openstation_code_editor_register_rest_routes() {
 	register_rest_route(
-		DESKTOP_MODE_CODE_EDITOR_REST_NAMESPACE,
+		OPENSTATION_CODE_EDITOR_REST_NAMESPACE,
 		'/tree',
 		array(
 			'methods'             => WP_REST_Server::READABLE,
-			'callback'            => desktop_mode_code_editor_rest_handler( 'desktop_mode_code_editor_rest_tree' ),
-			'permission_callback' => 'desktop_mode_code_editor_rest_permission',
+			'callback'            => openstation_code_editor_rest_handler( 'openstation_code_editor_rest_tree' ),
+			'permission_callback' => 'openstation_code_editor_rest_permission',
 			'args'                => array(
 				'path' => array(
 					'required' => false,
@@ -113,12 +104,12 @@ function desktop_mode_code_editor_register_rest_routes() {
 	);
 
 	register_rest_route(
-		DESKTOP_MODE_CODE_EDITOR_REST_NAMESPACE,
+		OPENSTATION_CODE_EDITOR_REST_NAMESPACE,
 		'/php-symbols',
 		array(
 			'methods'             => WP_REST_Server::READABLE,
-			'callback'            => desktop_mode_code_editor_rest_handler( 'desktop_mode_code_editor_rest_php_symbols' ),
-			'permission_callback' => 'desktop_mode_code_editor_rest_permission',
+			'callback'            => openstation_code_editor_rest_handler( 'openstation_code_editor_rest_php_symbols' ),
+			'permission_callback' => 'openstation_code_editor_rest_permission',
 			'args'                => array(
 				'prefix' => array(
 					'required' => false,
@@ -141,17 +132,17 @@ function desktop_mode_code_editor_register_rest_routes() {
 	);
 
 	register_rest_route(
-		DESKTOP_MODE_CODE_EDITOR_REST_NAMESPACE,
+		OPENSTATION_CODE_EDITOR_REST_NAMESPACE,
 		'/php-symbols/rescan',
 		array(
 			'methods'             => WP_REST_Server::CREATABLE,
-			'callback'            => desktop_mode_code_editor_rest_handler( 'desktop_mode_code_editor_rest_php_symbols_rescan' ),
-			'permission_callback' => 'desktop_mode_code_editor_rest_permission',
+			'callback'            => openstation_code_editor_rest_handler( 'openstation_code_editor_rest_php_symbols_rescan' ),
+			'permission_callback' => 'openstation_code_editor_rest_permission',
 		)
 	);
 
 	register_rest_route(
-		DESKTOP_MODE_CODE_EDITOR_REST_NAMESPACE,
+		OPENSTATION_CODE_EDITOR_REST_NAMESPACE,
 		// `[A-Za-z0-9_\\/.-]` — alphanum, underscore, namespace
 		// separator (`\`), slash, period, hyphen. PHP single-quoted
 		// strings preserve `\\` as two chars; the regex sees `\\`,
@@ -159,8 +150,8 @@ function desktop_mode_code_editor_register_rest_routes() {
 		'/php-symbols/(?P<name>[A-Za-z0-9_\\\\/.-]+)',
 		array(
 			'methods'             => WP_REST_Server::READABLE,
-			'callback'            => desktop_mode_code_editor_rest_handler( 'desktop_mode_code_editor_rest_php_symbol_detail' ),
-			'permission_callback' => 'desktop_mode_code_editor_rest_permission',
+			'callback'            => openstation_code_editor_rest_handler( 'openstation_code_editor_rest_php_symbol_detail' ),
+			'permission_callback' => 'openstation_code_editor_rest_permission',
 			'args'                => array(
 				'name' => array(
 					'required' => true,
@@ -171,13 +162,13 @@ function desktop_mode_code_editor_register_rest_routes() {
 	);
 
 	register_rest_route(
-		DESKTOP_MODE_CODE_EDITOR_REST_NAMESPACE,
+		OPENSTATION_CODE_EDITOR_REST_NAMESPACE,
 		'/file',
 		array(
 			array(
 				'methods'             => WP_REST_Server::READABLE,
-				'callback'            => desktop_mode_code_editor_rest_handler( 'desktop_mode_code_editor_rest_read_file' ),
-				'permission_callback' => 'desktop_mode_code_editor_rest_permission',
+				'callback'            => openstation_code_editor_rest_handler( 'openstation_code_editor_rest_read_file' ),
+				'permission_callback' => 'openstation_code_editor_rest_permission',
 				'args'                => array(
 					'path' => array(
 						'required' => true,
@@ -191,8 +182,8 @@ function desktop_mode_code_editor_register_rest_routes() {
 				// containing `<?php` strings outright. Accepting POST
 				// as well lets the client fall through.
 				'methods'             => 'PUT, POST',
-				'callback'            => desktop_mode_code_editor_rest_handler( 'desktop_mode_code_editor_rest_write_file' ),
-				'permission_callback' => 'desktop_mode_code_editor_rest_permission',
+				'callback'            => openstation_code_editor_rest_handler( 'openstation_code_editor_rest_write_file' ),
+				'permission_callback' => 'openstation_code_editor_rest_permission',
 				'args'                => array(
 					'path'        => array(
 						'required' => true,
@@ -213,7 +204,7 @@ function desktop_mode_code_editor_register_rest_routes() {
 		)
 	);
 }
-add_action( 'rest_api_init', 'desktop_mode_code_editor_register_rest_routes' );
+add_action( 'rest_api_init', 'openstation_code_editor_register_rest_routes' );
 
 // ---------------------------------------------------------------------------
 // Handlers
@@ -222,20 +213,18 @@ add_action( 'rest_api_init', 'desktop_mode_code_editor_register_rest_routes' );
 /**
  * GET /tree?path=<rel>
  *
- * @since 0.7.0
- *
  * @param WP_REST_Request $request
  * @return array|WP_Error
  */
-function desktop_mode_code_editor_rest_tree( WP_REST_Request $request ) {
+function openstation_code_editor_rest_tree( WP_REST_Request $request ) {
 	$rel = (string) $request->get_param( 'path' );
-	$abs = desktop_mode_code_editor_resolve_path( $rel );
+	$abs = openstation_code_editor_resolve_path( $rel );
 	if ( is_wp_error( $abs ) ) {
 		return $abs;
 	}
 	if ( ! is_dir( $abs ) ) {
 		return new WP_Error(
-			'desktop_mode_code_editor_not_a_directory',
+			'openstation_code_editor_not_a_directory',
 			__( 'Path is not a directory.', 'desktop-mode-code-editor' ),
 			array( 'status' => 400 )
 		);
@@ -246,22 +235,20 @@ function desktop_mode_code_editor_rest_tree( WP_REST_Request $request ) {
 	$dh = @opendir( $abs );
 	if ( false === $dh ) {
 		return new WP_Error(
-			'desktop_mode_code_editor_directory_unreadable',
+			'openstation_code_editor_directory_unreadable',
 			__( 'Directory is not readable.', 'desktop-mode-code-editor' ),
 			array( 'status' => 500 )
 		);
 	}
 
-	$exts = desktop_mode_code_editor_extension_allowlist();
+	$exts = openstation_code_editor_extension_allowlist();
 
 	/**
 	 * Filter whether dotfiles appear in the tree.
 	 *
-	 * @since 0.7.0
-	 *
 	 * @param bool $include_dotfiles
 	 */
-	$include_dotfiles = (bool) apply_filters( 'desktop_mode_code_editor_tree_include_dotfiles', false );
+	$include_dotfiles = (bool) apply_filters( 'openstation_code_editor_tree_include_dotfiles', false );
 
 	while ( false !== ( $name = readdir( $dh ) ) ) {
 		if ( '.' === $name || '..' === $name ) {
@@ -277,7 +264,7 @@ function desktop_mode_code_editor_rest_tree( WP_REST_Request $request ) {
 
 		if ( $is_link ) {
 			$resolved = realpath( $child_abs );
-			$root     = desktop_mode_code_editor_workspace_root();
+			$root     = openstation_code_editor_workspace_root();
 			if (
 				false === $resolved ||
 				(
@@ -297,7 +284,7 @@ function desktop_mode_code_editor_rest_tree( WP_REST_Request $request ) {
 
 		$entry = array(
 			'name'    => (string) $name,
-			'path'    => desktop_mode_code_editor_path_to_relative( $child_abs ),
+			'path'    => openstation_code_editor_path_to_relative( $child_abs ),
 			'type'    => $is_dir ? 'dir' : 'file',
 			// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
 			'size'    => $is_dir ? 0 : (int) @filesize( $child_abs ),
@@ -323,16 +310,14 @@ function desktop_mode_code_editor_rest_tree( WP_REST_Request $request ) {
 	/**
 	 * Filter the directory entries before returning them.
 	 *
-	 * @since 0.7.0
-	 *
 	 * @param array  $entries List of entry arrays.
 	 * @param string $rel     Relative directory path being listed.
 	 * @param string $abs     Absolute directory path.
 	 */
-	$entries = (array) apply_filters( 'desktop_mode_code_editor_tree_entries', $entries, $rel, $abs );
+	$entries = (array) apply_filters( 'openstation_code_editor_tree_entries', $entries, $rel, $abs );
 
 	return array(
-		'path'    => desktop_mode_code_editor_path_to_relative( $abs ),
+		'path'    => openstation_code_editor_path_to_relative( $abs ),
 		'entries' => $entries,
 	);
 }
@@ -340,20 +325,18 @@ function desktop_mode_code_editor_rest_tree( WP_REST_Request $request ) {
 /**
  * GET /file?path=<rel>
  *
- * @since 0.7.0
- *
  * @param WP_REST_Request $request
  * @return array|WP_Error
  */
-function desktop_mode_code_editor_rest_read_file( WP_REST_Request $request ) {
+function openstation_code_editor_rest_read_file( WP_REST_Request $request ) {
 	$rel = (string) $request->get_param( 'path' );
-	$abs = desktop_mode_code_editor_resolve_path( $rel );
+	$abs = openstation_code_editor_resolve_path( $rel );
 	if ( is_wp_error( $abs ) ) {
 		return $abs;
 	}
 	if ( ! is_file( $abs ) ) {
 		return new WP_Error(
-			'desktop_mode_code_editor_not_a_file',
+			'openstation_code_editor_not_a_file',
 			__( 'Path is not a file.', 'desktop-mode-code-editor' ),
 			array( 'status' => 400 )
 		);
@@ -362,15 +345,13 @@ function desktop_mode_code_editor_rest_read_file( WP_REST_Request $request ) {
 	/**
 	 * Maximum file size (bytes) the editor will read. Default 5 MB.
 	 *
-	 * @since 0.7.0
-	 *
 	 * @param int $bytes
 	 */
-	$max_bytes = (int) apply_filters( 'desktop_mode_code_editor_max_file_bytes', 5 * 1024 * 1024 );
+	$max_bytes = (int) apply_filters( 'openstation_code_editor_max_file_bytes', 5 * 1024 * 1024 );
 	$size      = (int) filesize( $abs );
 	if ( $size > $max_bytes ) {
 		return new WP_Error(
-			'desktop_mode_code_editor_file_too_large',
+			'openstation_code_editor_file_too_large',
 			sprintf(
 				/* translators: 1: file size, 2: limit. */
 				__( 'File is too large to open in the editor (%1$s bytes; limit %2$s).', 'desktop-mode-code-editor' ),
@@ -389,7 +370,7 @@ function desktop_mode_code_editor_rest_read_file( WP_REST_Request $request ) {
 	$content = file_get_contents( $abs );
 	if ( false === $content ) {
 		return new WP_Error(
-			'desktop_mode_code_editor_file_unreadable',
+			'openstation_code_editor_file_unreadable',
 			__( 'File is not readable.', 'desktop-mode-code-editor' ),
 			array( 'status' => 500 )
 		);
@@ -397,14 +378,14 @@ function desktop_mode_code_editor_rest_read_file( WP_REST_Request $request ) {
 
 	if ( ! mb_check_encoding( $content, 'UTF-8' ) ) {
 		return new WP_Error(
-			'desktop_mode_code_editor_binary_file',
+			'openstation_code_editor_binary_file',
 			__( 'File contents are not valid UTF-8 — the editor only opens text files.', 'desktop-mode-code-editor' ),
 			array( 'status' => 415 )
 		);
 	}
 
 	return array(
-		'path'     => desktop_mode_code_editor_path_to_relative( $abs ),
+		'path'     => openstation_code_editor_path_to_relative( $abs ),
 		'content'  => $content,
 		'mtime'    => (int) filemtime( $abs ),
 		'size'     => $size,
@@ -415,14 +396,12 @@ function desktop_mode_code_editor_rest_read_file( WP_REST_Request $request ) {
 /**
  * POST/PUT /file
  *
- * @since 0.7.0
- *
  * @param WP_REST_Request $request
  * @return array|WP_Error
  */
-function desktop_mode_code_editor_rest_write_file( WP_REST_Request $request ) {
+function openstation_code_editor_rest_write_file( WP_REST_Request $request ) {
 	$rel = (string) $request->get_param( 'path' );
-	$abs = desktop_mode_code_editor_resolve_path( $rel );
+	$abs = openstation_code_editor_resolve_path( $rel );
 	if ( is_wp_error( $abs ) ) {
 		return $abs;
 	}
@@ -430,7 +409,7 @@ function desktop_mode_code_editor_rest_write_file( WP_REST_Request $request ) {
 	$content_b64 = (string) $request->get_param( 'content_b64' );
 	if ( '' === $content_b64 ) {
 		return new WP_Error(
-			'desktop_mode_code_editor_invalid_payload',
+			'openstation_code_editor_invalid_payload',
 			__( 'Missing content_b64 in request body.', 'desktop-mode-code-editor' ),
 			array( 'status' => 400 )
 		);
@@ -439,7 +418,7 @@ function desktop_mode_code_editor_rest_write_file( WP_REST_Request $request ) {
 	$content = base64_decode( $content_b64, true );
 	if ( false === $content ) {
 		return new WP_Error(
-			'desktop_mode_code_editor_invalid_payload',
+			'openstation_code_editor_invalid_payload',
 			__( 'content_b64 is not valid base64.', 'desktop-mode-code-editor' ),
 			array( 'status' => 400 )
 		);
@@ -447,7 +426,7 @@ function desktop_mode_code_editor_rest_write_file( WP_REST_Request $request ) {
 
 	if ( ! mb_check_encoding( $content, 'UTF-8' ) ) {
 		return new WP_Error(
-			'desktop_mode_code_editor_invalid_payload',
+			'openstation_code_editor_invalid_payload',
 			__( 'Decoded content is not valid UTF-8 — only text files can be saved.', 'desktop-mode-code-editor' ),
 			array( 'status' => 400 )
 		);
@@ -456,14 +435,12 @@ function desktop_mode_code_editor_rest_write_file( WP_REST_Request $request ) {
 	/**
 	 * Cap on the bytes a single save can write. Default 5 MB.
 	 *
-	 * @since 0.7.0
-	 *
 	 * @param int $bytes
 	 */
-	$max_bytes = (int) apply_filters( 'desktop_mode_code_editor_max_save_bytes', 5 * 1024 * 1024 );
+	$max_bytes = (int) apply_filters( 'openstation_code_editor_max_save_bytes', 5 * 1024 * 1024 );
 	if ( strlen( $content ) > $max_bytes ) {
 		return new WP_Error(
-			'desktop_mode_code_editor_payload_too_large',
+			'openstation_code_editor_payload_too_large',
 			sprintf(
 				/* translators: 1: payload size, 2: limit. */
 				__( 'Save payload too large (%1$s bytes; limit %2$s).', 'desktop-mode-code-editor' ),
@@ -476,18 +453,16 @@ function desktop_mode_code_editor_rest_write_file( WP_REST_Request $request ) {
 
 	$expected_mtime = (int) $request->get_param( 'mtime' );
 
-	return desktop_mode_code_editor_write_file( $abs, $content, $expected_mtime );
+	return openstation_code_editor_write_file( $abs, $content, $expected_mtime );
 }
 
 /**
  * GET /php-symbols?prefix=&kinds=&limit=
  *
- * @since 0.7.0
- *
  * @param WP_REST_Request $request
  * @return array
  */
-function desktop_mode_code_editor_rest_php_symbols( WP_REST_Request $request ) {
+function openstation_code_editor_rest_php_symbols( WP_REST_Request $request ) {
 	$prefix    = (string) $request->get_param( 'prefix' );
 	$kinds_raw = (string) $request->get_param( 'kinds' );
 	$limit     = (int) $request->get_param( 'limit' );
@@ -505,13 +480,11 @@ function desktop_mode_code_editor_rest_php_symbols( WP_REST_Request $request ) {
 	/**
 	 * Filterable max result count.
 	 *
-	 * @since 0.7.0
-	 *
 	 * @param int $limit
 	 */
-	$limit = (int) apply_filters( 'desktop_mode_code_editor_php_completion_max_results', $limit > 0 ? $limit : 50 );
+	$limit = (int) apply_filters( 'openstation_code_editor_php_completion_max_results', $limit > 0 ? $limit : 50 );
 
-	$matches = desktop_mode_code_editor_query_php_symbols( $prefix, $kinds, $limit );
+	$matches = openstation_code_editor_query_php_symbols( $prefix, $kinds, $limit );
 
 	$out = array();
 	foreach ( $matches as $entry ) {
@@ -537,13 +510,11 @@ function desktop_mode_code_editor_rest_php_symbols( WP_REST_Request $request ) {
  *
  * Drop the workspace index and rebuild from scratch.
  *
- * @since 0.7.0
- *
  * @return array
  */
-function desktop_mode_code_editor_rest_php_symbols_rescan() {
-	desktop_mode_code_editor_flush_workspace_index();
-	$index = desktop_mode_code_editor_refresh_workspace_index( 5000 );
+function openstation_code_editor_rest_php_symbols_rescan() {
+	openstation_code_editor_flush_workspace_index();
+	$index = openstation_code_editor_refresh_workspace_index( 5000 );
 	return array(
 		'files'   => count( $index['files'] ),
 		'rebuilt' => true,
@@ -553,25 +524,23 @@ function desktop_mode_code_editor_rest_php_symbols_rescan() {
 /**
  * GET /php-symbols/<name>
  *
- * @since 0.7.0
- *
  * @param WP_REST_Request $request
  * @return array|WP_Error
  */
-function desktop_mode_code_editor_rest_php_symbol_detail( WP_REST_Request $request ) {
+function openstation_code_editor_rest_php_symbol_detail( WP_REST_Request $request ) {
 	$name = (string) $request->get_param( 'name' );
 
-	if ( function_exists( 'desktop_mode_code_editor_get_workspace_symbol' ) ) {
-		$ws = desktop_mode_code_editor_get_workspace_symbol( $name );
+	if ( function_exists( 'openstation_code_editor_get_workspace_symbol' ) ) {
+		$ws = openstation_code_editor_get_workspace_symbol( $name );
 		if ( null !== $ws ) {
 			return $ws;
 		}
 	}
 
-	$entry = desktop_mode_code_editor_get_php_symbol( $name );
+	$entry = openstation_code_editor_get_php_symbol( $name );
 	if ( null === $entry ) {
 		return new WP_Error(
-			'desktop_mode_code_editor_symbol_not_found',
+			'openstation_code_editor_symbol_not_found',
 			sprintf(
 				/* translators: %s: symbol name. */
 				__( 'No PHP symbol matches "%s".', 'desktop-mode-code-editor' ),

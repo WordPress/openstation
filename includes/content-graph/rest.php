@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — Content Graph: REST routes.
+ * OpenStation — Content Graph: REST routes.
  *
  * Three endpoints under `desktop-mode/v1/content-graph`:
  *
@@ -17,8 +17,7 @@
  *       { post: {...}, author, contributors, comments, categories,
  *         attached_media, revisions }.
  *
- * @package WPDesktopMode
- * @since   0.8.2
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -26,27 +25,23 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Capability check shared across every endpoint.
  *
- * @since 0.8.2
- *
  * @return bool
  */
-function desktop_mode_content_graph_rest_permission() {
-	return desktop_mode_content_graph_user_can_use();
+function openstation_content_graph_rest_permission() {
+	return openstation_content_graph_user_can_use();
 }
 
 /**
  * Register the routes.
- *
- * @since 0.8.2
  */
-function desktop_mode_content_graph_register_routes() {
+function openstation_content_graph_register_routes() {
 	register_rest_route(
 		'desktop-mode/v1',
 		'/content-graph/post-types',
 		array(
 			'methods'             => WP_REST_Server::READABLE,
-			'callback'            => 'desktop_mode_content_graph_rest_post_types',
-			'permission_callback' => 'desktop_mode_content_graph_rest_permission',
+			'callback'            => 'openstation_content_graph_rest_post_types',
+			'permission_callback' => 'openstation_content_graph_rest_permission',
 		)
 	);
 	register_rest_route(
@@ -54,8 +49,8 @@ function desktop_mode_content_graph_register_routes() {
 		'/content-graph/nodes',
 		array(
 			'methods'             => WP_REST_Server::READABLE,
-			'callback'            => 'desktop_mode_content_graph_rest_nodes',
-			'permission_callback' => 'desktop_mode_content_graph_rest_permission',
+			'callback'            => 'openstation_content_graph_rest_nodes',
+			'permission_callback' => 'openstation_content_graph_rest_permission',
 			'args'                => array(
 				'types' => array(
 					'description' => 'Comma-separated list of post type slugs to include.',
@@ -70,8 +65,8 @@ function desktop_mode_content_graph_register_routes() {
 		'/content-graph/post/(?P<id>\d+)',
 		array(
 			'methods'             => WP_REST_Server::READABLE,
-			'callback'            => 'desktop_mode_content_graph_rest_post_detail',
-			'permission_callback' => 'desktop_mode_content_graph_rest_permission',
+			'callback'            => 'openstation_content_graph_rest_post_detail',
+			'permission_callback' => 'openstation_content_graph_rest_permission',
 			'args'                => array(
 				'id' => array(
 					'type'     => 'integer',
@@ -81,17 +76,15 @@ function desktop_mode_content_graph_register_routes() {
 		)
 	);
 }
-add_action( 'rest_api_init', 'desktop_mode_content_graph_register_routes' );
+add_action( 'rest_api_init', 'openstation_content_graph_register_routes' );
 
 /**
  * GET /post-types
  *
- * @since 0.8.2
- *
  * @return WP_REST_Response
  */
-function desktop_mode_content_graph_rest_post_types() {
-	$types = desktop_mode_content_graph_post_types();
+function openstation_content_graph_rest_post_types() {
+	$types = openstation_content_graph_post_types();
 	$out   = array();
 	foreach ( $types as $entry ) {
 		$slug = isset( $entry['slug'] ) ? (string) $entry['slug'] : '';
@@ -121,18 +114,16 @@ function desktop_mode_content_graph_rest_post_types() {
 /**
  * GET /nodes
  *
- * @since 0.8.2
- *
  * @param WP_REST_Request $request
  * @return WP_REST_Response
  */
-function desktop_mode_content_graph_rest_nodes( WP_REST_Request $request ) {
-	$raw   = (string) $request->get_param( 'types' );
-	$types = '' === $raw
-		? wp_list_pluck( desktop_mode_content_graph_post_types(), 'slug' )
+function openstation_content_graph_rest_nodes( WP_REST_Request $request ) {
+	$raw     = (string) $request->get_param( 'types' );
+	$types   = '' === $raw
+		? wp_list_pluck( openstation_content_graph_post_types(), 'slug' )
 		: array_map( 'trim', explode( ',', $raw ) );
-	$payload = desktop_mode_content_graph_build( (array) $types );
-	return rest_ensure_response( desktop_mode_content_graph_filter_payload_for_user( $payload ) );
+	$payload = openstation_content_graph_build( (array) $types );
+	return rest_ensure_response( openstation_content_graph_filter_payload_for_user( $payload ) );
 }
 
 /**
@@ -147,12 +138,10 @@ function desktop_mode_content_graph_rest_nodes( WP_REST_Request $request ) {
  * This runs at response time, not build time, because the cached
  * payload is shared across users of the same privilege tier.
  *
- * @since 0.9.2
- *
- * @param array $payload Payload from `desktop_mode_content_graph_build()`.
+ * @param array $payload Payload from `openstation_content_graph_build()`.
  * @return array
  */
-function desktop_mode_content_graph_filter_payload_for_user( array $payload ) {
+function openstation_content_graph_filter_payload_for_user( array $payload ) {
 	if ( empty( $payload['nodes'] ) || ! is_array( $payload['nodes'] ) ) {
 		return $payload;
 	}
@@ -200,24 +189,22 @@ function desktop_mode_content_graph_filter_payload_for_user( array $payload ) {
 /**
  * GET /post/<id>
  *
- * @since 0.8.2
- *
  * @param WP_REST_Request $request
  * @return WP_REST_Response|WP_Error
  */
-function desktop_mode_content_graph_rest_post_detail( WP_REST_Request $request ) {
+function openstation_content_graph_rest_post_detail( WP_REST_Request $request ) {
 	$id   = (int) $request['id'];
 	$post = $id > 0 ? get_post( $id ) : null;
 	if ( ! $post ) {
 		return new WP_Error(
-			'desktop_mode_content_graph_post_not_found',
+			'openstation_content_graph_post_not_found',
 			__( 'Post not found.', 'desktop-mode' ),
 			array( 'status' => 404 )
 		);
 	}
 	if ( ! current_user_can( 'read_post', $id ) ) {
 		return new WP_Error(
-			'desktop_mode_content_graph_forbidden',
+			'openstation_content_graph_forbidden',
 			__( 'Insufficient permissions.', 'desktop-mode' ),
 			array( 'status' => 403 )
 		);
@@ -228,12 +215,12 @@ function desktop_mode_content_graph_rest_post_detail( WP_REST_Request $request )
 	// edit_post. Mirror that: readers get comment-author contributors
 	// only, no revision list.
 	$can_edit     = current_user_can( 'edit_post', $post->ID );
-	$author       = desktop_mode_content_graph_format_user( (int) $post->post_author );
-	$contributors = desktop_mode_content_graph_collect_contributors( $post, $can_edit );
-	$comments     = desktop_mode_content_graph_collect_comments( $post );
-	$categories   = desktop_mode_content_graph_collect_terms( $post );
-	$attached     = desktop_mode_content_graph_collect_attached_media( $post );
-	$revisions    = $can_edit ? desktop_mode_content_graph_collect_revisions( $post ) : array();
+	$author       = openstation_content_graph_format_user( (int) $post->post_author );
+	$contributors = openstation_content_graph_collect_contributors( $post, $can_edit );
+	$comments     = openstation_content_graph_collect_comments( $post );
+	$categories   = openstation_content_graph_collect_terms( $post );
+	$attached     = openstation_content_graph_collect_attached_media( $post );
+	$revisions    = $can_edit ? openstation_content_graph_collect_revisions( $post ) : array();
 
 	return rest_ensure_response(
 		array(
@@ -261,12 +248,10 @@ function desktop_mode_content_graph_rest_post_detail( WP_REST_Request $request )
 /**
  * Format a user record for the side panel.
  *
- * @since 0.8.2
- *
  * @param int $user_id
  * @return array|null
  */
-function desktop_mode_content_graph_format_user( $user_id ) {
+function openstation_content_graph_format_user( $user_id ) {
 	$user_id = (int) $user_id;
 	if ( $user_id <= 0 ) {
 		return null;
@@ -289,8 +274,6 @@ function desktop_mode_content_graph_format_user( $user_id ) {
  * current author) plus distinct comment authors who have a
  * registered user account.
  *
- * @since 0.8.2
- *
  * @param WP_Post $post
  * @param bool    $include_revision_authors Whether to include revision
  *                authors. Pass false for users who cannot `edit_post`
@@ -298,7 +281,7 @@ function desktop_mode_content_graph_format_user( $user_id ) {
  *                approved comment authors are public either way.
  * @return array[]
  */
-function desktop_mode_content_graph_collect_contributors( WP_Post $post, $include_revision_authors = true ) {
+function openstation_content_graph_collect_contributors( WP_Post $post, $include_revision_authors = true ) {
 	$author_id = (int) $post->post_author;
 	$ids       = array();
 	if ( $include_revision_authors ) {
@@ -331,7 +314,7 @@ function desktop_mode_content_graph_collect_contributors( WP_Post $post, $includ
 	}
 	$out = array();
 	foreach ( array_keys( $ids ) as $uid ) {
-		$entry = desktop_mode_content_graph_format_user( $uid );
+		$entry = openstation_content_graph_format_user( $uid );
 		if ( $entry ) {
 			$out[] = $entry;
 		}
@@ -342,12 +325,10 @@ function desktop_mode_content_graph_collect_contributors( WP_Post $post, $includ
 /**
  * Collect approved comments (most recent first, capped at 50).
  *
- * @since 0.8.2
- *
  * @param WP_Post $post
  * @return array[]
  */
-function desktop_mode_content_graph_collect_comments( WP_Post $post ) {
+function openstation_content_graph_collect_comments( WP_Post $post ) {
 	$comments = get_comments(
 		array(
 			'post_id' => $post->ID,
@@ -357,7 +338,7 @@ function desktop_mode_content_graph_collect_comments( WP_Post $post ) {
 			'order'   => 'DESC',
 		)
 	);
-	$out = array();
+	$out      = array();
 	foreach ( $comments as $comment ) {
 		$out[] = array(
 			'id'       => (int) $comment->comment_ID,
@@ -375,12 +356,10 @@ function desktop_mode_content_graph_collect_comments( WP_Post $post ) {
  * Collect every taxonomy term attached to the post (categories, tags,
  * and any custom taxonomy registered for the post type).
  *
- * @since 0.8.2
- *
  * @param WP_Post $post
  * @return array[]
  */
-function desktop_mode_content_graph_collect_terms( WP_Post $post ) {
+function openstation_content_graph_collect_terms( WP_Post $post ) {
 	$taxes = get_object_taxonomies( $post->post_type, 'objects' );
 	$out   = array();
 	foreach ( $taxes as $tax ) {
@@ -410,12 +389,10 @@ function desktop_mode_content_graph_collect_terms( WP_Post $post ) {
  * Collect attached media (anything with this post as its `post_parent`)
  * plus any media referenced from a `wp:image` block. Returns up to 50.
  *
- * @since 0.8.2
- *
  * @param WP_Post $post
  * @return array[]
  */
-function desktop_mode_content_graph_collect_attached_media( WP_Post $post ) {
+function openstation_content_graph_collect_attached_media( WP_Post $post ) {
 	$attachments = get_attached_media( '', $post );
 	$out         = array();
 	foreach ( $attachments as $att ) {
@@ -436,12 +413,10 @@ function desktop_mode_content_graph_collect_attached_media( WP_Post $post ) {
 /**
  * Collect post revisions (most recent first, capped at 30).
  *
- * @since 0.8.2
- *
  * @param WP_Post $post
  * @return array[]
  */
-function desktop_mode_content_graph_collect_revisions( WP_Post $post ) {
+function openstation_content_graph_collect_revisions( WP_Post $post ) {
 	$revs = wp_get_post_revisions(
 		$post->ID,
 		array(
@@ -453,7 +428,7 @@ function desktop_mode_content_graph_collect_revisions( WP_Post $post ) {
 		$out[] = array(
 			'id'       => (int) $rev->ID,
 			'date'     => mysql2date( 'c', $rev->post_date_gmt, false ),
-			'author'   => desktop_mode_content_graph_format_user( (int) $rev->post_author ),
+			'author'   => openstation_content_graph_format_user( (int) $rev->post_author ),
 			'edit_url' => (string) admin_url( 'revision.php?revision=' . (int) $rev->ID ),
 		);
 	}

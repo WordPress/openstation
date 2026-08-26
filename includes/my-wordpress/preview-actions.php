@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — My WordPress: server-side preview-action descriptors.
+ * OpenStation — My WordPress: server-side preview-action descriptors.
  *
  * Plugins register action buttons that appear in the right-pane of
  * any My WordPress section (posts, pages, users, media, plugin-
@@ -27,8 +27,18 @@
  *     'script'     => 'my-plugin-actions',         // optional handle
  *   ]
  *
- * @package WPDesktopMode
- * @since   0.8.6
+ * `sections` entries match a section's **id** (`'media'`,
+ * `'cpt-atf-forms'` — auto-registered CPT sections are prefixed
+ * `cpt-`), a section's declared **post type slug** (`'atf-forms'`),
+ * or `'*'` for every section. Matching happens client-side.
+ *
+ * Timing: descriptors are re-collected when the window config is
+ * serialized for the browser (see
+ * `openstation_my_wordpress_refresh_window_config()`), the same late
+ * pass that enqueues declared `script` handles — registering the
+ * filter any time during a normal bootstrap is fine.
+ *
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -37,11 +47,9 @@ defined( 'ABSPATH' ) || exit;
  * Collect plugin-registered descriptors, drop ones the current user
  * can't run, and return the array ready for the window config blob.
  *
- * @since 0.8.6
- *
  * @return array[]
  */
-function desktop_mode_my_wordpress_collect_preview_actions() {
+function openstation_my_wordpress_collect_preview_actions() {
 	/**
 	 * Filter the list of preview-action descriptors that appear in
 	 * the right-pane of any My WordPress section.
@@ -50,11 +58,9 @@ function desktop_mode_my_wordpress_collect_preview_actions() {
 	 * fields. Existing fields (`id`, `label`, `icon`, `capability`,
 	 * `mime`, `sections`, `script`) will continue to work.
 	 *
-	 * @since 0.8.6
-	 *
 	 * @param array[] $actions Default: empty array.
 	 */
-	$actions = (array) apply_filters( 'desktop_mode_my_wordpress_preview_actions', array() );
+	$actions = (array) apply_filters( 'openstation_my_wordpress_preview_actions', array() );
 
 	$out = array();
 	foreach ( $actions as $action ) {
@@ -92,18 +98,16 @@ function desktop_mode_my_wordpress_collect_preview_actions() {
  * Enqueue the JS handles declared by visible preview-action
  * descriptors. Called from the bundle's `admin_enqueue_scripts`
  * hook so the handlers are wired before the bundle paints.
- *
- * @since 0.8.6
  */
-function desktop_mode_my_wordpress_enqueue_preview_action_scripts() {
-	if ( ! function_exists( 'desktop_mode_my_wordpress_user_can_use' ) || ! desktop_mode_my_wordpress_user_can_use() ) {
+function openstation_my_wordpress_enqueue_preview_action_scripts() {
+	if ( ! function_exists( 'openstation_my_wordpress_user_can_use' ) || ! openstation_my_wordpress_user_can_use() ) {
 		return;
 	}
-	$actions = desktop_mode_my_wordpress_collect_preview_actions();
+	$actions = openstation_my_wordpress_collect_preview_actions();
 	foreach ( $actions as $action ) {
 		if ( ! empty( $action['script'] ) && wp_script_is( (string) $action['script'], 'registered' ) ) {
 			wp_enqueue_script( (string) $action['script'] );
 		}
 	}
 }
-add_action( 'admin_enqueue_scripts', 'desktop_mode_my_wordpress_enqueue_preview_action_scripts', 40 );
+add_action( 'admin_enqueue_scripts', 'openstation_my_wordpress_enqueue_preview_action_scripts', 40 );

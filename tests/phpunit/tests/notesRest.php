@@ -7,10 +7,10 @@
  * @package WordPress
  * @subpackage UnitTests
  *
- * @group desktop-mode
- * @group desktop-mode-notes
+ * @group openstation
+ * @group os-notes
  */
-class Tests_DesktopMode_NotesRest extends WP_UnitTestCase {
+class Tests_OpenStation_NotesRest extends WP_UnitTestCase {
 
 	protected static $owner_id;
 	protected static $other_id;
@@ -55,7 +55,7 @@ class Tests_DesktopMode_NotesRest extends WP_UnitTestCase {
 	}
 
 	private function create_note( array $params = array() ) {
-		$response = desktop_mode_notes_rest_create( $this->create_request( $params ) );
+		$response = openstation_notes_rest_create( $this->create_request( $params ) );
 		return $response->get_data();
 	}
 
@@ -69,29 +69,29 @@ class Tests_DesktopMode_NotesRest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_notes_rest_permission
+	 * @covers ::openstation_notes_rest_permission
 	 */
 	public function test_permission_requires_login() {
 		wp_set_current_user( 0 );
-		$result = desktop_mode_notes_rest_permission();
+		$result = openstation_notes_rest_permission();
 		$this->assertWPError( $result );
 		$this->assertSame( 401, $result->get_error_data()['status'] );
 	}
 
 	/**
-	 * @covers ::desktop_mode_notes_rest_permission
+	 * @covers ::openstation_notes_rest_permission
 	 */
-	public function test_permission_requires_desktop_mode() {
+	public function test_permission_requires_openstation() {
 		$muggle = self::factory()->user->create( array( 'role' => 'editor' ) );
 		wp_set_current_user( $muggle );
-		$result = desktop_mode_notes_rest_permission();
+		$result = openstation_notes_rest_permission();
 		$this->assertWPError( $result );
 		$this->assertSame( 403, $result->get_error_data()['status'] );
 	}
 
 	/**
-	 * @covers ::desktop_mode_notes_rest_create
-	 * @covers ::desktop_mode_notes_prepare
+	 * @covers ::openstation_notes_rest_create
+	 * @covers ::openstation_notes_prepare
 	 */
 	public function test_create_defaults_to_private_and_forces_author() {
 		$note = $this->create_note();
@@ -110,8 +110,8 @@ class Tests_DesktopMode_NotesRest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_notes_rest_create
-	 * @covers ::desktop_mode_notes_rest_update
+	 * @covers ::openstation_notes_rest_create
+	 * @covers ::openstation_notes_rest_update
 	 */
 	public function test_seed_is_stamped_at_creation_and_never_updated() {
 		// Client-provided seed is persisted verbatim.
@@ -123,7 +123,7 @@ class Tests_DesktopMode_NotesRest extends WP_UnitTestCase {
 		$this->assertGreaterThan( 0, $derived['seed'] );
 
 		// PATCH — even one that rewrites the text — leaves the seed alone.
-		$resp = desktop_mode_notes_rest_update(
+		$resp = openstation_notes_rest_update(
 			$this->update_request(
 				$note['id'],
 				array(
@@ -137,18 +137,18 @@ class Tests_DesktopMode_NotesRest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_notes_rest_create
+	 * @covers ::openstation_notes_rest_create
 	 */
 	public function test_create_gates_on_the_user_can_create_filter() {
-		add_filter( 'desktop_mode_notes_user_can_create', '__return_false' );
-		$resp = desktop_mode_notes_rest_create( $this->create_request() );
-		remove_filter( 'desktop_mode_notes_user_can_create', '__return_false' );
+		add_filter( 'openstation_notes_user_can_create', '__return_false' );
+		$resp = openstation_notes_rest_create( $this->create_request() );
+		remove_filter( 'openstation_notes_user_can_create', '__return_false' );
 		$this->assertWPError( $resp );
 		$this->assertSame( 403, $resp->get_error_data()['status'] );
 	}
 
 	/**
-	 * @covers ::desktop_mode_notes_rest_create
+	 * @covers ::openstation_notes_rest_create
 	 */
 	public function test_create_public_note_is_publish_status() {
 		$note = $this->create_note( array( 'public' => true ) );
@@ -157,7 +157,7 @@ class Tests_DesktopMode_NotesRest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_notes_rest_create
+	 * @covers ::openstation_notes_rest_create
 	 */
 	public function test_create_whitelists_color_and_clamps_position() {
 		$note = $this->create_note(
@@ -173,7 +173,7 @@ class Tests_DesktopMode_NotesRest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_notes_rest_list
+	 * @covers ::openstation_notes_rest_list
 	 */
 	public function test_list_returns_own_notes_and_only_public_notes_of_others() {
 		$own_private = $this->create_note( array( 'text' => 'mine private' ) );
@@ -184,7 +184,7 @@ class Tests_DesktopMode_NotesRest extends WP_UnitTestCase {
 		$their_public  = $this->create_note( array( 'text' => 'theirs public', 'public' => true ) );
 
 		wp_set_current_user( self::$owner_id );
-		$data = desktop_mode_notes_rest_list()->get_data();
+		$data = openstation_notes_rest_list()->get_data();
 		$ids  = wp_list_pluck( $data['notes'], 'id' );
 
 		$this->assertContains( $own_private['id'], $ids );
@@ -204,11 +204,11 @@ class Tests_DesktopMode_NotesRest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_notes_rest_update
+	 * @covers ::openstation_notes_rest_update
 	 */
 	public function test_update_persists_partial_fields() {
 		$note = $this->create_note();
-		$resp = desktop_mode_notes_rest_update(
+		$resp = openstation_notes_rest_update(
 			$this->update_request(
 				$note['id'],
 				array(
@@ -231,21 +231,21 @@ class Tests_DesktopMode_NotesRest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_notes_rest_update
-	 * @covers ::desktop_mode_notes_require_owner
+	 * @covers ::openstation_notes_rest_update
+	 * @covers ::openstation_notes_require_owner
 	 */
 	public function test_non_owner_cannot_update_even_as_admin() {
 		$note = $this->create_note( array( 'public' => true ) );
 
 		wp_set_current_user( self::$other_id );
-		$resp = desktop_mode_notes_rest_update(
+		$resp = openstation_notes_rest_update(
 			$this->update_request( $note['id'], array( 'text' => 'hijacked' ) )
 		);
 		$this->assertWPError( $resp );
 		$this->assertSame( 403, $resp->get_error_data()['status'] );
 
 		wp_set_current_user( self::$admin_id );
-		$resp = desktop_mode_notes_rest_update(
+		$resp = openstation_notes_rest_update(
 			$this->update_request( $note['id'], array( 'text' => 'admin override' ) )
 		);
 		$this->assertWPError( $resp, 'Ownership is personal: admins do not bypass it.' );
@@ -256,11 +256,11 @@ class Tests_DesktopMode_NotesRest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_notes_rest_update
+	 * @covers ::openstation_notes_rest_update
 	 */
 	public function test_stale_token_conflicts_with_server_copy_attached() {
 		$note = $this->create_note();
-		$resp = desktop_mode_notes_rest_update(
+		$resp = openstation_notes_rest_update(
 			$this->update_request(
 				$note['id'],
 				array(
@@ -270,7 +270,7 @@ class Tests_DesktopMode_NotesRest extends WP_UnitTestCase {
 			)
 		);
 		$this->assertWPError( $resp );
-		$this->assertSame( 'desktop_mode_notes_conflict', $resp->get_error_code() );
+		$this->assertSame( 'openstation_notes_conflict', $resp->get_error_code() );
 		$data = $resp->get_error_data();
 		$this->assertSame( 409, $data['status'] );
 		$this->assertSame( $note['id'], $data['current']['id'] );
@@ -278,58 +278,58 @@ class Tests_DesktopMode_NotesRest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_notes_rest_delete
-	 * @covers ::desktop_mode_notes_rest_restore
+	 * @covers ::openstation_notes_rest_delete
+	 * @covers ::openstation_notes_rest_restore
 	 */
 	public function test_delete_trashes_and_restore_untrashes_to_prior_status() {
 		$note = $this->create_note( array( 'public' => true ) );
 
 		$request = new WP_REST_Request( 'DELETE', '/desktop-mode/v1/notes/' . $note['id'] );
 		$request->set_param( 'id', $note['id'] );
-		$resp = desktop_mode_notes_rest_delete( $request );
+		$resp = openstation_notes_rest_delete( $request );
 		$this->assertNotWPError( $resp );
 		$this->assertSame( 'trash', get_post_status( $note['id'] ) );
 
 		// Trashed notes vanish from the list.
-		$ids = wp_list_pluck( desktop_mode_notes_rest_list()->get_data()['notes'], 'id' );
+		$ids = wp_list_pluck( openstation_notes_rest_list()->get_data()['notes'], 'id' );
 		$this->assertNotContains( $note['id'], $ids );
 
 		$restore = new WP_REST_Request( 'POST', '/desktop-mode/v1/notes/' . $note['id'] . '/restore' );
 		$restore->set_param( 'id', $note['id'] );
-		$resp = desktop_mode_notes_rest_restore( $restore );
+		$resp = openstation_notes_rest_restore( $restore );
 		$this->assertNotWPError( $resp );
 		$this->assertSame( 'publish', get_post_status( $note['id'] ) );
 		$this->assertTrue( $resp->get_data()['public'] );
 	}
 
 	/**
-	 * @covers ::desktop_mode_notes_rest_delete
+	 * @covers ::openstation_notes_rest_delete
 	 */
 	public function test_non_owner_cannot_delete() {
 		$note = $this->create_note( array( 'public' => true ) );
 		wp_set_current_user( self::$admin_id );
 		$request = new WP_REST_Request( 'DELETE', '/desktop-mode/v1/notes/' . $note['id'] );
 		$request->set_param( 'id', $note['id'] );
-		$resp = desktop_mode_notes_rest_delete( $request );
+		$resp = openstation_notes_rest_delete( $request );
 		$this->assertWPError( $resp );
 		$this->assertSame( 403, $resp->get_error_data()['status'] );
 		$this->assertSame( 'publish', get_post_status( $note['id'] ) );
 	}
 
 	/**
-	 * @covers ::desktop_mode_notes_get_note
+	 * @covers ::openstation_notes_get_note
 	 */
 	public function test_unknown_or_foreign_post_types_are_404() {
 		$request = new WP_REST_Request( 'PATCH', '/desktop-mode/v1/notes/999999' );
 		$request->set_param( 'id', 999999 );
-		$resp = desktop_mode_notes_rest_update( $request );
+		$resp = openstation_notes_rest_update( $request );
 		$this->assertWPError( $resp );
 		$this->assertSame( 404, $resp->get_error_data()['status'] );
 
 		$post_id = self::factory()->post->create();
 		$request = new WP_REST_Request( 'PATCH', '/desktop-mode/v1/notes/' . $post_id );
 		$request->set_param( 'id', $post_id );
-		$resp = desktop_mode_notes_rest_update( $request );
+		$resp = openstation_notes_rest_update( $request );
 		$this->assertWPError( $resp );
 		$this->assertSame( 404, $resp->get_error_data()['status'] );
 	}
@@ -341,13 +341,13 @@ class Tests_DesktopMode_NotesRest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_notes_rest_convert
-	 * @covers ::desktop_mode_notes_text_to_blocks
+	 * @covers ::openstation_notes_rest_convert
+	 * @covers ::openstation_notes_text_to_blocks
 	 */
 	public function test_convert_spawns_draft_and_trashes_note() {
 		$note = $this->create_note( array( 'text' => "First para\nsame para\n\nSecond para" ) );
 
-		$resp = desktop_mode_notes_rest_convert( $this->convert_request( $note['id'] ) );
+		$resp = openstation_notes_rest_convert( $this->convert_request( $note['id'] ) );
 		$this->assertNotWPError( $resp );
 		$data = $resp->get_data();
 
@@ -377,12 +377,12 @@ class Tests_DesktopMode_NotesRest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_notes_rest_convert
+	 * @covers ::openstation_notes_rest_convert
 	 */
 	public function test_convert_requires_edit_posts_capability() {
 		$note = $this->create_note();
 
-		// A subscriber has desktop mode on but cannot author posts.
+		// A subscriber has OpenStation on but cannot author posts.
 		$subscriber = self::factory()->user->create( array( 'role' => 'subscriber' ) );
 		update_user_meta( $subscriber, 'desktop_mode_mode', '1' );
 
@@ -392,34 +392,34 @@ class Tests_DesktopMode_NotesRest extends WP_UnitTestCase {
 		wp_update_post( array( 'ID' => $note['id'], 'post_author' => $subscriber ) );
 		wp_set_current_user( $subscriber );
 
-		$resp = desktop_mode_notes_rest_convert( $this->convert_request( $note['id'] ) );
+		$resp = openstation_notes_rest_convert( $this->convert_request( $note['id'] ) );
 		$this->assertWPError( $resp );
 		$this->assertSame( 403, $resp->get_error_data()['status'] );
 		$this->assertSame( 'private', get_post_status( $note['id'] ), 'A rejected convert leaves the note untouched.' );
 	}
 
 	/**
-	 * @covers ::desktop_mode_notes_rest_convert
-	 * @covers ::desktop_mode_notes_require_owner
+	 * @covers ::openstation_notes_rest_convert
+	 * @covers ::openstation_notes_require_owner
 	 */
 	public function test_non_owner_cannot_convert_even_as_admin() {
 		$note = $this->create_note( array( 'public' => true ) );
 
 		wp_set_current_user( self::$admin_id );
-		$resp = desktop_mode_notes_rest_convert( $this->convert_request( $note['id'] ) );
+		$resp = openstation_notes_rest_convert( $this->convert_request( $note['id'] ) );
 		$this->assertWPError( $resp );
 		$this->assertSame( 403, $resp->get_error_data()['status'] );
 		$this->assertSame( 'publish', get_post_status( $note['id'] ) );
 	}
 
 	/**
-	 * @covers ::desktop_mode_notes_rest_convert
-	 * @covers ::desktop_mode_notes_rest_restore
+	 * @covers ::openstation_notes_rest_convert
+	 * @covers ::openstation_notes_rest_restore
 	 */
 	public function test_restore_after_convert_undoes_both_sides() {
 		$note = $this->create_note( array( 'public' => true, 'text' => 'draft me' ) );
 
-		$convert = desktop_mode_notes_rest_convert( $this->convert_request( $note['id'] ) )->get_data();
+		$convert = openstation_notes_rest_convert( $this->convert_request( $note['id'] ) )->get_data();
 		$post_id = $convert['postId'];
 		$this->assertSame( 'draft', get_post_status( $post_id ) );
 
@@ -427,7 +427,7 @@ class Tests_DesktopMode_NotesRest extends WP_UnitTestCase {
 		// link meta cleared.
 		$restore = new WP_REST_Request( 'POST', '/desktop-mode/v1/notes/' . $note['id'] . '/restore' );
 		$restore->set_param( 'id', $note['id'] );
-		$resp = desktop_mode_notes_rest_restore( $restore );
+		$resp = openstation_notes_rest_restore( $restore );
 		$this->assertNotWPError( $resp );
 
 		$this->assertSame( 'publish', get_post_status( $note['id'] ), 'The note is back at its prior status.' );
@@ -436,7 +436,7 @@ class Tests_DesktopMode_NotesRest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_notes_rest_convert
+	 * @covers ::openstation_notes_rest_convert
 	 */
 	public function test_convert_post_args_filter_can_override_type_and_status() {
 		$note = $this->create_note( array( 'text' => 'make me a page' ) );
@@ -446,9 +446,9 @@ class Tests_DesktopMode_NotesRest extends WP_UnitTestCase {
 			$args['post_status'] = 'pending';
 			return $args;
 		};
-		add_filter( 'desktop_mode_notes_convert_post_args', $filter );
-		$resp = desktop_mode_notes_rest_convert( $this->convert_request( $note['id'] ) );
-		remove_filter( 'desktop_mode_notes_convert_post_args', $filter );
+		add_filter( 'openstation_notes_convert_post_args', $filter );
+		$resp = openstation_notes_rest_convert( $this->convert_request( $note['id'] ) );
+		remove_filter( 'openstation_notes_convert_post_args', $filter );
 
 		$this->assertNotWPError( $resp );
 		$draft = get_post( $resp->get_data()['postId'] );
@@ -457,8 +457,8 @@ class Tests_DesktopMode_NotesRest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_notes_compute_heartbeat_delta
-	 * @covers ::desktop_mode_notes_query_visible_ids
+	 * @covers ::openstation_notes_compute_heartbeat_delta
+	 * @covers ::openstation_notes_query_visible_ids
 	 */
 	public function test_heartbeat_delta_visibility_matches_the_list() {
 		$own_private = $this->create_note( array( 'text' => 'mine' ) );
@@ -468,7 +468,7 @@ class Tests_DesktopMode_NotesRest extends WP_UnitTestCase {
 		$their_public  = $this->create_note( array( 'text' => 'theirs public', 'public' => true ) );
 
 		wp_set_current_user( self::$owner_id );
-		$delta = desktop_mode_notes_compute_heartbeat_delta( array(), 0, 100 );
+		$delta = openstation_notes_compute_heartbeat_delta( array(), 0, 100 );
 		$ids   = wp_list_pluck( $delta['notes'], 'id' );
 
 		$this->assertContains( $own_private['id'], $ids );
@@ -479,8 +479,8 @@ class Tests_DesktopMode_NotesRest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_notes_compute_heartbeat_delta
-	 * @covers ::desktop_mode_notes_alive_known_ids
+	 * @covers ::openstation_notes_compute_heartbeat_delta
+	 * @covers ::openstation_notes_alive_known_ids
 	 */
 	public function test_heartbeat_reports_trashed_and_privatized_notes_as_removed() {
 		$mine = $this->create_note( array( 'text' => 'to be trashed' ) );
@@ -494,17 +494,55 @@ class Tests_DesktopMode_NotesRest extends WP_UnitTestCase {
 		// The other user flips their public note private → it must
 		// disappear from this viewer's wall.
 		wp_set_current_user( self::$other_id );
-		desktop_mode_notes_rest_update(
+		openstation_notes_rest_update(
 			$this->update_request( $flipped['id'], array( 'public' => false ) )
 		);
 
 		wp_set_current_user( self::$owner_id );
-		$delta = desktop_mode_notes_compute_heartbeat_delta(
+		$delta = openstation_notes_compute_heartbeat_delta(
 			array( $mine['id'], $flipped['id'] ),
 			0,
 			100
 		);
 		$this->assertContains( $mine['id'], $delta['removed'] );
 		$this->assertContains( $flipped['id'], $delta['removed'] );
+	}
+
+	/**
+	 * The `hasNotes` presence hint: correct, and CACHED — the boot
+	 * path must not re-run the probes between note changes, and any
+	 * note transition must invalidate every user's cached answer
+	 * (a public note changes it for everyone).
+	 *
+	 * @covers ::openstation_notes_user_has_any
+	 * @covers ::openstation_notes_bump_rev
+	 */
+	public function test_has_notes_hint_is_cached_and_invalidated_by_note_changes() {
+		$user_id = self::factory()->user->create( array( 'role' => 'editor' ) );
+		wp_set_current_user( $user_id );
+
+		$this->assertFalse( openstation_notes_user_has_any() );
+		// The answer is now stamped into user meta against the
+		// current revision.
+		$this->assertStringEndsWith(
+			':0',
+			(string) get_user_meta( $user_id, '_desktop_mode_has_notes', true )
+		);
+
+		// Another user publishes a public note → the revision bumps
+		// and the stale cached "no" is recomputed to "yes".
+		$author = self::factory()->user->create( array( 'role' => 'editor' ) );
+		self::factory()->post->create(
+			array(
+				'post_type'   => OPENSTATION_NOTES_POST_TYPE,
+				'post_status' => 'publish',
+				'post_author' => $author,
+			)
+		);
+		$this->assertTrue( openstation_notes_user_has_any() );
+		$this->assertStringEndsWith(
+			':1',
+			(string) get_user_meta( $user_id, '_desktop_mode_has_notes', true )
+		);
 	}
 }

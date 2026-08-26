@@ -10,9 +10,11 @@
 import { __ } from '../i18n';
 import type {
 	AccentId,
+	AdminBarModeId,
 	DesktopLayoutId,
 	DockPlacementId,
 	DockSizeId,
+	WindowRadiusId,
 } from './types';
 
 export function translateAccentLabel( id: AccentId, fallback: string ): string {
@@ -47,6 +49,38 @@ export function translateDockSizeLabel( id: DockSizeId, fallback: string ): stri
 	}
 }
 
+export function translateWindowRadiusLabel(
+	id: WindowRadiusId,
+	fallback: string,
+): string {
+	switch ( id ) {
+		case 'sharp':
+			return __( 'Sharp' );
+		case 'default':
+			return __( 'Default' );
+		case 'round':
+			return __( 'Round' );
+		default:
+			return fallback;
+	}
+}
+
+export function translateAdminBarModeLabel(
+	id: AdminBarModeId,
+	fallback: string,
+): string {
+	switch ( id ) {
+		case 'static':
+			return __( 'Static' );
+		case 'dynamic':
+			return __( 'Dynamic' );
+		case 'hidden':
+			return __( 'Hidden' );
+		default:
+			return fallback;
+	}
+}
+
 export function translateDockPlacementLabel(
 	id: DockPlacementId,
 	fallback: string,
@@ -69,11 +103,9 @@ export function translateDesktopLayoutLabel(
 ): string {
 	switch ( id ) {
 		case 'classic':
-			return __( 'Classic' );
+			return __( 'Split' );
 		case 'unified':
 			return __( 'Unified' );
-		case 'spatial':
-			return __( 'Spatial' );
 		default:
 			return fallback;
 	}
@@ -85,16 +117,10 @@ export function translateDesktopLayoutDescription(
 	switch ( id ) {
 		case 'classic':
 			return __(
-				'Side bar with the core admin menus, plus a bottom dock for plugin apps.',
+				'Core admin menus are placed in a sidebar; plugins, apps, and OpenStation controls in a dock along the bottom edge.',
 			);
 		case 'unified':
-			return __(
-				'Single bottom dock holding every menu — core and plugin apps share one rail.',
-			);
-		case 'spatial':
-			return __(
-				'Bottom dock for plugin apps; core admin menus appear as icons on the wallpaper.',
-			);
+			return __( 'Every menu in a single dock.' );
 		default:
 			return '';
 	}

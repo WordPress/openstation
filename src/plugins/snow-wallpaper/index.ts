@@ -9,16 +9,14 @@
  *
  * Publishing pattern (same as animated-logo / living-tree): the
  * bundle's only side effect is writing
- * `window.desktopModeWallpapers['wp-snow']`; the shell's wallpaper
+ * `window.openStationWallpapers['wp-snow']`; the shell's wallpaper
  * `server-sync` reads that global after the script loads. Server
  * registration lives in `includes/wallpapers.php`.
  *
  * First built-in consumer of the per-wallpaper settings surface: the
  * "Wallpaper settings" dialog edits wind, particle count, flake size,
  * and backdrop colour; a mounted instance live-applies them through
- * the `desktop-mode.wallpaper.settings-changed` action.
- *
- * @since 0.9.5
+ * the `os.wallpaper.settings-changed` action.
  */
 
 import { __ } from '../../i18n';
@@ -26,9 +24,9 @@ import { addAction, removeAction, HOOKS } from '../../hooks';
 // Register the tags the config dialog creates — `defineComponent` is
 // idempotent, so double-registration with the OS Settings panel
 // bundle (which ships the same components) is safe.
-import '../../ui/components/wpd-range-field/wpd-range-field';
-import '../../ui/components/wpd-color-field/wpd-color-field';
-import '../../ui/components/wpd-button/wpd-button';
+import '../../ui/components/os-range-field/os-range-field';
+import '../../ui/components/os-color-field/os-color-field';
+import '../../ui/components/os-button/os-button';
 import type { WallpaperSurface } from '../../wallpapers/surfaces';
 import type {
 	WallpaperConfigContext,
@@ -66,13 +64,13 @@ const PREVIEW = backdropCss( SNOW_DEFAULTS.background );
  * blizzard at swatch scale — a few dozen flakes over the same
  * backdrop communicates the wallpaper honestly and keeps the tile's
  * frame cost negligible. Overridable through `previewParams` /
- * the `desktop-mode.wallpaper.preview-params` filter.
+ * the `os.wallpaper.preview-params` filter.
  */
 const PREVIEW_PARTICLES = 140;
 
-/** Read `wp.desktop.getWallpaperSurfaces` off the public API. */
+/** Read `wp.os.getWallpaperSurfaces` off the public API. */
 function surfacesSupplier(): ( () => WallpaperSurface[] ) | null {
-	const api = window.wp?.desktop as
+	const api = window.wp?.os as
 		| { getWallpaperSurfaces?: () => WallpaperSurface[] }
 		| undefined;
 	if ( ! api || typeof api.getWallpaperSurfaces !== 'function' ) {
@@ -279,7 +277,7 @@ function wireSceneHooks( scene: SnowScene ): () => void {
 }
 
 /**
- * Build one labelled `<wpd-range-field>` wired to a settings key.
+ * Build one labelled `<os-range-field>` wired to a settings key.
  * Imperative DOM (no templating import) — the dialog is four fields
  * and a reset button; pulling `ui/core` into this bundle for that
  * would be pure weight.
@@ -291,13 +289,13 @@ function rangeField(
 	value: number,
 	onChange: ( next: number ) => void,
 ): HTMLElement {
-	const field = document.createElement( 'wpd-range-field' );
+	const field = document.createElement( 'os-range-field' );
 	field.setAttribute( 'label', label );
 	field.setAttribute( 'min', String( limits.min ) );
 	field.setAttribute( 'max', String( limits.max ) );
 	field.setAttribute( 'step', String( step ) );
 	field.setAttribute( 'value', String( value ) );
-	field.addEventListener( 'wpd-range-change', ( e: Event ) => {
+	field.addEventListener( 'os-range-change', ( e: Event ) => {
 		onChange( ( e as CustomEvent< { value: number } > ).detail.value );
 	} );
 	return field;
@@ -344,15 +342,15 @@ function renderSnowConfig(
 		( value ) => set( { flakeSize: value } ),
 	);
 
-	const colorField = document.createElement( 'wpd-color-field' );
+	const colorField = document.createElement( 'os-color-field' );
 	colorField.setAttribute( 'label', __( 'Background color' ) );
 	colorField.setAttribute( 'value', current.background );
-	colorField.addEventListener( 'wpd-color-change', ( e: Event ) => {
+	colorField.addEventListener( 'os-color-change', ( e: Event ) => {
 		const value = ( e as CustomEvent< { value: string } > ).detail.value;
 		set( { background: sanitizeSnowSettings( { background: value } ).background } );
 	} );
 
-	const reset = document.createElement( 'wpd-button' );
+	const reset = document.createElement( 'os-button' );
 	reset.setAttribute( 'variant', 'ghost' );
 	// The dialog body is a stretch-aligned flex column — left-align
 	// the button and add a hair of separation so it reads as a footer
@@ -454,9 +452,9 @@ const def: WallpaperDef = {
 
 declare global {
 	interface Window {
-		desktopModeWallpapers?: Record< string, WallpaperDef >;
+		openStationWallpapers?: Record< string, WallpaperDef >;
 	}
 }
 
-window.desktopModeWallpapers = window.desktopModeWallpapers || {};
-window.desktopModeWallpapers[ WALLPAPER_ID ] = def;
+window.openStationWallpapers = window.openStationWallpapers || {};
+window.openStationWallpapers[ WALLPAPER_ID ] = def;

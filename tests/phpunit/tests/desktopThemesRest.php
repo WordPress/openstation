@@ -5,10 +5,10 @@
  * @package WordPress
  * @subpackage UnitTests
  *
- * @group desktop-mode
- * @group desktop-mode-themes
+ * @group openstation
+ * @group os-themes
  */
-class Tests_DesktopMode_DesktopThemesRest extends WP_UnitTestCase {
+class Tests_OpenStation_DesktopThemesRest extends WP_UnitTestCase {
 
 	protected static $admin_id;
 	protected static $editor_id;
@@ -34,12 +34,12 @@ class Tests_DesktopMode_DesktopThemesRest extends WP_UnitTestCase {
 		$this->server   = $wp_rest_server;
 		do_action( 'rest_api_init' );
 
-		// Both routes sit behind `desktop_mode_rest_require_enabled()`
+		// Both routes sit behind `openstation_rest_require_enabled()`
 		// on top of the capability check.
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		update_user_meta( self::$editor_id, 'desktop_mode_mode', '1' );
 		wp_set_current_user( self::$admin_id );
-		delete_option( DESKTOP_MODE_DESKTOP_THEMES_OPTION );
+		delete_option( OPENSTATION_DESKTOP_THEMES_OPTION );
 	}
 
 	public function tear_down() {
@@ -49,15 +49,15 @@ class Tests_DesktopMode_DesktopThemesRest extends WP_UnitTestCase {
 			}
 		}
 		$this->temp_files = array();
-		$base = desktop_mode_desktop_themes_dir();
+		$base = openstation_desktop_themes_dir();
 		if ( is_dir( $base ) ) {
 			$this->rrmdir( $base );
 		}
-		delete_option( DESKTOP_MODE_DESKTOP_THEMES_OPTION );
+		delete_option( OPENSTATION_DESKTOP_THEMES_OPTION );
 		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );
 		delete_user_meta( self::$editor_id, 'desktop_mode_mode' );
 		unset( $_SERVER['CONTENT_LENGTH'] );
-		remove_all_filters( 'desktop_mode_desktop_theme_upload_capability' );
+		remove_all_filters( 'openstation_desktop_theme_upload_capability' );
 		global $wp_rest_server;
 		$wp_rest_server = null;
 		parent::tear_down();
@@ -119,7 +119,7 @@ class Tests_DesktopMode_DesktopThemesRest extends WP_UnitTestCase {
 	// ------------------------------------------------------------------
 
 	/**
-	 * @covers ::desktop_mode_desktop_themes_rest_permission
+	 * @covers ::openstation_desktop_themes_rest_permission
 	 */
 	public function test_non_admin_cannot_upload() {
 		wp_set_current_user( self::$editor_id );
@@ -128,7 +128,7 @@ class Tests_DesktopMode_DesktopThemesRest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_desktop_themes_rest_permission
+	 * @covers ::openstation_desktop_themes_rest_permission
 	 */
 	public function test_logged_out_is_401() {
 		wp_set_current_user( 0 );
@@ -138,21 +138,21 @@ class Tests_DesktopMode_DesktopThemesRest extends WP_UnitTestCase {
 
 	/**
 	 * The `read` capability alone is insufficient by design — the
-	 * gate also requires desktop mode to be enabled for the user.
+	 * gate also requires OpenStation to be enabled for the user.
 	 *
-	 * @covers ::desktop_mode_desktop_themes_rest_permission
+	 * @covers ::openstation_desktop_themes_rest_permission
 	 */
-	public function test_admin_without_desktop_mode_is_403() {
+	public function test_admin_without_openstation_is_403() {
 		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );
 		$response = $this->server->dispatch( $this->upload_request( $this->make_zip() ) );
 		$this->assertSame( 403, $response->get_status() );
 	}
 
 	/**
-	 * @covers ::desktop_mode_desktop_theme_upload_capability
+	 * @covers ::openstation_desktop_theme_upload_capability
 	 */
 	public function test_upload_capability_is_filterable() {
-		add_filter( 'desktop_mode_desktop_theme_upload_capability', static function () {
+		add_filter( 'openstation_desktop_theme_upload_capability', static function () {
 			return 'edit_posts';
 		} );
 		wp_set_current_user( self::$editor_id );
@@ -165,7 +165,7 @@ class Tests_DesktopMode_DesktopThemesRest extends WP_UnitTestCase {
 	// ------------------------------------------------------------------
 
 	/**
-	 * @covers ::desktop_mode_rest_upload_desktop_theme
+	 * @covers ::openstation_rest_upload_desktop_theme
 	 */
 	public function test_upload_returns_the_payload_shaped_entry() {
 		$response = $this->server->dispatch( $this->upload_request( $this->make_zip() ) );
@@ -185,7 +185,7 @@ class Tests_DesktopMode_DesktopThemesRest extends WP_UnitTestCase {
 	 * An oversize body reaches PHP with $_FILES empty but
 	 * CONTENT_LENGTH set. Answer 413, not a "missing parameter" 400.
 	 *
-	 * @covers ::desktop_mode_rest_upload_desktop_theme
+	 * @covers ::openstation_rest_upload_desktop_theme
 	 */
 	public function test_empty_files_with_content_length_is_413() {
 		$_SERVER['CONTENT_LENGTH'] = '999999999';
@@ -195,7 +195,7 @@ class Tests_DesktopMode_DesktopThemesRest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_rest_upload_desktop_theme
+	 * @covers ::openstation_rest_upload_desktop_theme
 	 */
 	public function test_no_file_at_all_is_400() {
 		unset( $_SERVER['CONTENT_LENGTH'] );
@@ -205,7 +205,7 @@ class Tests_DesktopMode_DesktopThemesRest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_rest_upload_desktop_theme
+	 * @covers ::openstation_rest_upload_desktop_theme
 	 */
 	public function test_non_zip_filename_is_rejected() {
 		$response = $this->server->dispatch(
@@ -213,7 +213,7 @@ class Tests_DesktopMode_DesktopThemesRest extends WP_UnitTestCase {
 		);
 		$this->assertSame( 400, $response->get_status() );
 		$this->assertSame(
-			'desktop_mode_desktop_theme_not_zip',
+			'openstation_desktop_theme_not_zip',
 			$response->get_data()['code']
 		);
 	}
@@ -222,7 +222,7 @@ class Tests_DesktopMode_DesktopThemesRest extends WP_UnitTestCase {
 	 * OWASP double-extension: the final extension is fine but an
 	 * inner segment is executable.
 	 *
-	 * @covers ::desktop_mode_rest_upload_desktop_theme
+	 * @covers ::openstation_rest_upload_desktop_theme
 	 */
 	public function test_double_extension_filename_is_rejected() {
 		$response = $this->server->dispatch(
@@ -236,7 +236,7 @@ class Tests_DesktopMode_DesktopThemesRest extends WP_UnitTestCase {
 	// ------------------------------------------------------------------
 
 	/**
-	 * @covers ::desktop_mode_rest_delete_desktop_theme
+	 * @covers ::openstation_rest_delete_desktop_theme
 	 */
 	public function test_delete_success() {
 		$this->server->dispatch( $this->upload_request( $this->make_zip() ) );
@@ -246,11 +246,11 @@ class Tests_DesktopMode_DesktopThemesRest extends WP_UnitTestCase {
 
 		$this->assertSame( 200, $response->get_status() );
 		$this->assertTrue( $response->get_data()['deleted'] );
-		$this->assertSame( array(), desktop_mode_desktop_themes_index() );
+		$this->assertSame( array(), openstation_desktop_themes_index() );
 	}
 
 	/**
-	 * @covers ::desktop_mode_rest_delete_desktop_theme
+	 * @covers ::openstation_rest_delete_desktop_theme
 	 */
 	public function test_delete_unknown_slug_is_404() {
 		$request  = new WP_REST_Request( 'DELETE', '/desktop-mode/v1/desktop-themes/nope' );
@@ -259,7 +259,7 @@ class Tests_DesktopMode_DesktopThemesRest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_desktop_themes_rest_permission
+	 * @covers ::openstation_desktop_themes_rest_permission
 	 */
 	public function test_non_admin_cannot_delete() {
 		$this->server->dispatch( $this->upload_request( $this->make_zip() ) );
@@ -269,18 +269,23 @@ class Tests_DesktopMode_DesktopThemesRest extends WP_UnitTestCase {
 		$response = $this->server->dispatch( $request );
 
 		$this->assertSame( 403, $response->get_status() );
-		$this->assertArrayHasKey( 'acme-neon', desktop_mode_desktop_themes_index() );
+		$this->assertArrayHasKey( 'acme-neon', openstation_desktop_themes_index() );
 	}
 
 	/**
-	 * The library rides the payload; a GET route would be a second
-	 * source of truth to keep in sync for no gain.
+	 * The GET route exists for the boot-payload diet and is NOT a
+	 * second source of truth: it serves the same builder + filter as
+	 * the payload, with the full entries the boot copy is slimmed of.
+	 * Full coverage (entries, gating) lives in
+	 * `Tests_OpenStation_BootPayloadDiet`; this pins that it stays
+	 * registered.
 	 *
-	 * @covers ::desktop_mode_register_desktop_themes_rest_routes
+	 * @covers ::openstation_register_desktop_themes_rest_routes
 	 */
-	public function test_there_is_no_get_route() {
+	public function test_the_get_route_serves_the_library() {
 		$request  = new WP_REST_Request( 'GET', '/desktop-mode/v1/desktop-themes' );
 		$response = $this->server->dispatch( $request );
-		$this->assertSame( 404, $response->get_status() );
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertArrayHasKey( 'themes', $response->get_data() );
 	}
 }

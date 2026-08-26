@@ -1,9 +1,9 @@
 /**
- * Desktop Mode — Games hub bundle entry.
+ * OpenStation — Games hub bundle entry.
  *
  * Lazy-loaded by the native-window sync the first time the
  * `desktop-mode-games` window opens. Publishes the hub's render
- * callback and leaf-imports the `<wpd-*>` components this bundle
+ * callback and leaf-imports the `<os-*>` components this bundle
  * constructs that the main shell bundle doesn't ship.
  *
  * The games registry + challenges store live in `createSharedStore`
@@ -11,10 +11,9 @@
  * main bundle's server-sync and Heartbeat client maintain.
  *
  * @public
- * @since 0.9.6
  */
 
-// The `<wpd-*>` components are side-effect-imported by the leaf
+// The `<os-*>` components are side-effect-imported by the leaf
 // modules that construct them (hub, scoreboard, challenges view,
 // challenge dialog) — nothing to register at the entry level.
 import { renderGamesHub } from './hub';
@@ -25,9 +24,9 @@ type RenderCallback = ( body: HTMLElement ) => void;
 
 declare global {
 	interface Window {
-		desktopModeNativeWindows?: Record< string, RenderCallback | undefined >;
+		openStationNativeWindows?: Record< string, RenderCallback | undefined >;
 	}
 }
 
-const registry = ( window.desktopModeNativeWindows ??= {} );
+const registry = ( window.openStationNativeWindows ??= {} );
 registry[ 'desktop-mode-games' ] = renderGamesHub as RenderCallback;

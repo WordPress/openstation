@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name:       Desktop Mode Beta
- * Plugin URI:        https://github.com/WordPress/desktop-mode
- * Description:       Test unreleased builds of Desktop Mode. Switch the installed Desktop Mode plugin to a pull-request branch build, the trunk build, or back to the latest stable release.
+ * Plugin URI:        https://github.com/WordPress/openstation
+ * Description:       Test unreleased builds of OpenStation. Switch the installed OpenStation plugin to a pull-request branch build, the trunk build, or back to the latest stable release.
  * Version:           0.1.0
  * Requires at least: 6.0
  * Requires PHP:      7.4

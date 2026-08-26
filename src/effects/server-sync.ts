@@ -2,7 +2,7 @@
  * Server-driven unfocus-effect sync.
  *
  * Mirrors `src/title-bar-buttons/server-sync.ts`. Plugins opt in
- * server-side with `desktop_mode_register_unfocus_effect_script()`;
+ * server-side with `openstation_register_unfocus_effect_script()`;
  * this module loads each opted-in script on activation, and on
  * deactivation unregisters every effect whose `owner` matches the
  * departing handle.
@@ -11,8 +11,6 @@
  * next page reload — graceful backwards-compat. The OS Settings
  * selector and the engine react live via the registry's subscribe
  * fan-out.
- *
- * @since 0.9.1
  */
 
 import { doAction, HOOKS } from '../hooks';

@@ -2,13 +2,12 @@
  * Content Graph — minimal Pixi type surface.
  *
  * PixiJS is loaded as a vendor script (`window.PIXI`) via
- * `wp.desktop.loadModules(['pixijs'])`, NOT imported. We declare the
+ * `wp.os.loadModules(['pixijs'])`, NOT imported. We declare the
  * narrow set of Pixi types this bundle uses, mirroring the shape used
  * by `posts-window/categories-mindmap.ts` so the two stay
  * type-compatible without a hard dependency on the `pixi.js` package.
  *
  * @public
- * @since 0.8.2
  */
 
 export interface PixiPoint {

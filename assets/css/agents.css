@@ -1,0 +1,577 @@
+/**
+ * Agents — "Agent chat" window styles.
+ *
+ * Conversation surface painted by the `agent-run-window` bundle
+ * (src/agent-run-window.ts). Same conventions as the other window
+ * stylesheets: `os-*` / `dm-*` prefixes, theming via the
+ * os-variables custom properties.
+ *
+ */
+
+.desktop-mode-agent-run {
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	height: 100%;
+	min-height: 0;
+	font-family: var(
+		--os-font,
+		-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif
+	);
+	color: var( --os-ui-fg, #1d2327 );
+	background: var( --os-window-bg, #fff );
+	box-sizing: border-box;
+}
+
+.os-agent-run__loading {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	height: 100%;
+}
+
+.dm-agent-chat {
+	display: flex;
+	flex-direction: row;
+	height: 100%;
+	min-height: 0;
+}
+
+/* Past-conversations sidebar. */
+.dm-agent-chat__sidebar {
+	width: 190px;
+	flex: none;
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+	border-right: 1px solid rgba( 0, 0, 0, 0.08 );
+	background: rgba( 0, 0, 0, 0.02 );
+}
+
+.dm-agent-chat__new {
+	margin: 10px 10px 6px;
+}
+
+.dm-agent-chat__convs {
+	flex: 1;
+	overflow-y: auto;
+	padding: 0 6px 10px;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.dm-agent-chat__convs-empty {
+	color: #757575;
+	font-size: 12px;
+	padding: 8px;
+}
+
+.dm-agent-chat__conv {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 7px 8px;
+	border-radius: 8px;
+	cursor: pointer;
+}
+
+.dm-agent-chat__conv:hover {
+	background: rgba( 0, 0, 0, 0.05 );
+}
+
+.dm-agent-chat__conv--active {
+	background: rgba( 0, 0, 0, 0.08 );
+}
+
+.dm-agent-chat__conv-avatar {
+	flex: none;
+}
+
+/* Two-line row: agent + time on top, the tail of the last message
+   below. Both lines clamp to one line — the sidebar is 190px wide and
+   a wrapping row would push the next conversation out of reach. */
+.dm-agent-chat__conv-text {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
+}
+
+.dm-agent-chat__conv-top {
+	display: flex;
+	align-items: baseline;
+	gap: 6px;
+	min-width: 0;
+}
+
+.dm-agent-chat__conv-name {
+	flex: 1;
+	min-width: 0;
+	font-size: 12px;
+	font-weight: 600;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.dm-agent-chat__conv-time {
+	flex: none;
+	font-size: 11px;
+	opacity: 0.55;
+	font-variant-numeric: tabular-nums;
+}
+
+.dm-agent-chat__conv-preview {
+	min-width: 0;
+	font-size: 11.5px;
+	opacity: 0.65;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.dm-agent-chat__conv-delete {
+	flex: none;
+	opacity: 0;
+	border: 0;
+	background: none;
+	cursor: pointer;
+	color: #757575;
+	font-size: 14px;
+	padding: 0 2px;
+	line-height: 1;
+}
+
+.dm-agent-chat__conv:hover .dm-agent-chat__conv-delete,
+.dm-agent-chat__conv-delete:focus-visible {
+	opacity: 1;
+}
+
+/* Conversation column. */
+.dm-agent-chat__main {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	min-height: 0;
+}
+
+.dm-agent-chat__head {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 12px;
+	border-bottom: 1px solid var( --os-border, rgba( 0, 0, 0, 0.08 ) );
+}
+
+.dm-agent-chat__avatar {
+	flex: none;
+}
+
+.dm-agent-chat__title {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+}
+
+.dm-agent-chat__desc {
+	font-size: 12px;
+	opacity: 0.65;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.dm-agent-chat__scroll {
+	flex: 1;
+	min-height: 0;
+	overflow-y: auto;
+	padding: 12px;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.dm-agent-chat__msg {
+	max-width: 85%;
+	border-radius: 12px;
+	padding: 8px 12px;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	font-size: 13px;
+	line-height: 1.5;
+}
+
+.dm-agent-chat__msg--user {
+	align-self: flex-end;
+	background: var( --os-accent, #2271b1 );
+	color: #fff;
+}
+
+.dm-agent-chat__msg--agent {
+	align-self: flex-start;
+	background: var( --os-hover, rgba( 0, 0, 0, 0.06 ) );
+}
+
+.dm-agent-chat__msg--error {
+	align-self: flex-start;
+	/* Tokenized so the wash and its ink move together: a dark-red
+	   literal on a translucent red wash reads fine over a white bubble
+	   list and vanishes over a dark one. Literals unchanged. */
+	background: var( --os-ui-notice-error-bg, rgba( 214, 54, 56, 0.12 ) );
+	color: var( --os-ui-danger, #8a1f21 );
+}
+
+.dm-agent-chat__msg-text {
+	white-space: pre-wrap;
+	word-break: break-word;
+}
+
+.dm-agent-chat__tools {
+	font-size: 12px;
+	opacity: 0.8;
+}
+
+.dm-agent-chat__tools summary {
+	cursor: pointer;
+}
+
+.dm-agent-chat__tool {
+	font-family: monospace;
+	font-size: 11px;
+	padding: 2px 0;
+	word-break: break-all;
+}
+
+/* Call-to-action buttons under an agent answer. */
+.dm-agent-chat__ctas {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-top: 2px;
+}
+
+/* The composer is one field. The textarea is still the kit's, but the
+   wrapper carries the chrome (field surface, border, focus bloom) and
+   the textarea's own box is flattened through its exported part, so
+   the send button sits inside the same border rather than beside it. */
+.dm-agent-chat__composer {
+	display: flex;
+	align-items: flex-end;
+	gap: 6px;
+	margin: 10px 12px 12px;
+	padding: 4px 8px 4px 10px;
+	border: 1px solid var( --os-ui-field-border, var( --os-ui-border, #dcdcde ) );
+	border-radius: 12px;
+	background: var( --os-ui-field-bg, var( --os-window-bg, #fff ) );
+	transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.dm-agent-chat__composer:focus-within {
+	border-color: var( --os-ui-accent, #f252fc );
+	box-shadow: 0 0 0 3px
+		color-mix( in srgb, var( --os-ui-accent-dim, #f252fc ) 28%, transparent );
+}
+
+.dm-agent-chat__composer os-textarea {
+	flex: 1;
+	min-width: 0;
+}
+
+/* One line of 13px text at 1.45 is 18.85px; 6.5px above and below
+   makes the single-line textarea 31.85px, the send button's height,
+   so with the row bottom-aligned the two centres coincide on one line
+   and the button stays anchored at the bottom as the text grows. */
+.dm-agent-chat__composer os-textarea::part( textarea ),
+.dm-agent-chat__composer os-textarea::part( textarea ):hover,
+.dm-agent-chat__composer os-textarea::part( textarea ):focus,
+.dm-agent-chat__composer os-textarea::part( textarea ):focus-visible {
+	border: 0;
+	border-radius: 0;
+	background: transparent;
+	box-shadow: none;
+	outline: none;
+	padding: 6.5px 0;
+}
+
+/* Round and icon-only, a size down from a toolbar button so it reads
+   as part of the field rather than a control beside it. Sized through
+   the exported part: the host's width does not reach the inner button,
+   and a zero padding token on its own shrank it to the glyph. The
+   bottom margin is half the difference to the single-line textarea
+   (31.85px), so the two centres meet on one line and the button stays
+   anchored to the last line as the text grows. */
+.dm-agent-chat__send {
+	flex: none;
+	margin-block-end: 4px;
+}
+
+.dm-agent-chat__send::part( button ) {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 24px;
+	height: 24px;
+	min-height: 0;
+	padding: 0;
+	border-radius: 999px;
+}
+
+.dm-agent-chat__send-icon {
+	display: block;
+	width: 14px;
+	height: 14px;
+}
+
+/* The accessible name, off-screen. */
+.dm-agent-chat__send-label {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect( 0, 0, 0, 0 );
+	white-space: nowrap;
+	border: 0;
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.dm-agent-chat__composer {
+		transition: none;
+	}
+}
+
+
+.dm-agent-chat__line {
+	display: flex;
+	align-items: flex-end;
+	gap: 8px;
+	max-width: 88%;
+}
+
+.dm-agent-chat__line--agent,
+.dm-agent-chat__line--error {
+	align-self: flex-start;
+}
+
+.dm-agent-chat__line--user {
+	align-self: flex-end;
+	flex-direction: row-reverse;
+}
+
+.dm-agent-chat__line .dm-agent-chat__msg {
+	align-self: auto;
+	max-width: none;
+	min-width: 0;
+}
+
+.dm-agent-chat__msg-avatar {
+	flex: none;
+}
+
+/* The object a drop / "Send to" handed the agent. Rendered instead of
+   the runner-facing sentence, and clickable — it opens the entity's
+   admin screen in its own window. */
+.dm-agent-chat__attachment {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	inline-size: 100%;
+	min-inline-size: 0;
+	padding: 8px 10px;
+	border: 1px solid rgba( 255, 255, 255, 0.35 );
+	border-radius: 10px;
+	background: rgba( 255, 255, 255, 0.16 );
+	color: inherit;
+	font: inherit;
+	text-align: start;
+	cursor: pointer;
+}
+
+.dm-agent-chat__attachment:hover,
+.dm-agent-chat__attachment:focus-visible {
+	background: rgba( 255, 255, 255, 0.28 );
+}
+
+.dm-agent-chat__msg--agent .dm-agent-chat__attachment,
+.dm-agent-chat__msg--error .dm-agent-chat__attachment {
+	border-color: var( --os-border, rgba( 0, 0, 0, 0.12 ) );
+	background: rgba( 0, 0, 0, 0.04 );
+}
+
+.dm-agent-chat__msg--agent .dm-agent-chat__attachment:hover,
+.dm-agent-chat__msg--error .dm-agent-chat__attachment:hover {
+	background: rgba( 0, 0, 0, 0.08 );
+}
+
+.dm-agent-chat__attachment-icon {
+	flex: none;
+	font-size: 20px;
+	inline-size: 20px;
+	block-size: 20px;
+}
+
+.dm-agent-chat__attachment-text {
+	flex: 1;
+	min-inline-size: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
+}
+
+.dm-agent-chat__attachment-title {
+	font-weight: 600;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.dm-agent-chat__attachment-meta {
+	font-size: 11px;
+	opacity: 0.75;
+}
+
+.dm-agent-chat__attachment-open {
+	flex: none;
+	font-size: 15px;
+	inline-size: 15px;
+	block-size: 15px;
+	opacity: 0.7;
+}
+
+.dm-agent-chat__msg-caption {
+	font-size: 11px;
+	opacity: 0.75;
+}
+
+/* The in-flight bubble: wide enough to read as a live surface, not a
+   chip. The width lives on the LINE (its percentage resolves against
+   the message column; the bubble's own would resolve against the
+   shrink-to-fit line and collapse), and the bubble fills the line. */
+.dm-agent-chat__line--pending {
+	min-width: min( 176px, 100% );
+}
+
+/* Spinner and label on one line, centred. The bubble is a flex column
+   everywhere else; the working row is the one place it reads as an
+   instrument line, arc first, then the word. */
+.dm-agent-chat__line--pending .dm-agent-chat__msg {
+	flex: 1;
+	flex-direction: row;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+}
+
+.dm-agent-chat__msg--pending os-spinner {
+	flex: none;
+	--os-ui-spinner-size: 16px;
+}
+
+/* Three motions say "working", each quiet on its own: the arc turns
+   (the component's), a sheen sweeps the label, and the agent's face
+   bobs beside the bubble. The sheen is the skeleton shimmer clipped
+   to text, so the label stays a real, selectable word rather than a
+   drawn one. Every one of them stops under reduced motion; the label
+   falls back to its plain colour, not to invisible text. */
+.dm-agent-chat__msg--pending .dm-agent-chat__msg-text {
+	background: linear-gradient(
+		90deg,
+		currentColor 0%,
+		currentColor 35%,
+		var( --os-ui-accent, #f252fc ) 50%,
+		currentColor 65%,
+		currentColor 100%
+	);
+	background-size: 250% 100%;
+	-webkit-background-clip: text;
+	background-clip: text;
+	-webkit-text-fill-color: transparent;
+	animation: dm-agent-chat-sheen 1.8s ease-in-out infinite;
+}
+
+.dm-agent-chat__line--pending .dm-agent-chat__msg-avatar {
+	animation: dm-agent-chat-bob 1.4s ease-in-out infinite;
+}
+
+@keyframes dm-agent-chat-sheen {
+	from {
+		background-position: 125% 0;
+	}
+	to {
+		background-position: -125% 0;
+	}
+}
+
+@keyframes dm-agent-chat-bob {
+	0%,
+	100% {
+		transform: translateY( 0 );
+	}
+	50% {
+		transform: translateY( -3px );
+	}
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.dm-agent-chat__msg--pending .dm-agent-chat__msg-text {
+		animation: none;
+		background: none;
+		-webkit-text-fill-color: currentColor;
+	}
+	.dm-agent-chat__line--pending .dm-agent-chat__msg-avatar {
+		animation: none;
+	}
+}
+
+/* Markdown content inside agent bubbles. */
+.dm-agent-chat__msg-text p {
+	margin: 0 0 0.5em;
+}
+
+.dm-agent-chat__msg-text p:last-child {
+	margin-bottom: 0;
+}
+
+.dm-agent-chat__msg-text ul,
+.dm-agent-chat__msg-text ol {
+	margin: 0 0 0.5em;
+	padding-left: 1.4em;
+}
+
+.dm-agent-chat__msg-text h3,
+.dm-agent-chat__msg-text h4,
+.dm-agent-chat__msg-text h5,
+.dm-agent-chat__msg-text h6 {
+	margin: 0.6em 0 0.3em;
+	font-size: 1em;
+	line-height: 1.3;
+}
+
+.dm-agent-chat__msg-text h3:first-child,
+.dm-agent-chat__msg-text h4:first-child,
+.dm-agent-chat__msg-text h5:first-child,
+.dm-agent-chat__msg-text h6:first-child {
+	margin-top: 0;
+}
+
+.dm-agent-chat__msg-text hr {
+	border: 0;
+	border-top: 1px solid rgba( 0, 0, 0, 0.12 );
+	margin: 0.6em 0;
+}
+
+.dm-agent-chat__msg-text code {
+	background: rgba( 0, 0, 0, 0.07 );
+	padding: 0.1em 0.35em;
+	border-radius: 4px;
+	font-size: 0.92em;
+}
+
+.dm-agent-chat__msg--user .dm-agent-chat__msg-text code {
+	background: rgba( 255, 255, 255, 0.2 );
+}

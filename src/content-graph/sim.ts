@@ -23,7 +23,6 @@
  * until the user shakes it (drag, filter change, focus).
  *
  * @public
- * @since 0.8.2
  */
 
 import type { GraphEdge, GraphNode } from './types';

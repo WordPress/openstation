@@ -1,23 +1,23 @@
 <?php
 /**
- * Desktop Mode — Native Plugins Window module bootstrap.
+ * OpenStation — Native Plugins Window module bootstrap.
  *
  * Replaces the chromeless `plugins.php` + `plugin-install.php` iframes
  * with a single native window containing two tabs: an Installed list
  * (manage activations + updates + delete) and a Browse gallery
- * (explore wp.org, view rich detail in a `<wpd-flyout>`, install by
+ * (explore wp.org, view rich detail in a `<os-flyout>`, install by
  * slug, upload .zip, drag-drop a .zip onto the window).
  *
  * Public PHP surface (all filterable):
  *
- *   - desktop_mode_plugins_window_user_can_register
- *   - desktop_mode_plugins_window_user_can_use
- *   - desktop_mode_plugins_window_args
- *   - desktop_mode_plugins_window_template_html
- *   - desktop_mode_plugins_window_browse_args
- *   - desktop_mode_plugins_window_browse_response
- *   - desktop_mode_plugins_window_info_response
- *   - desktop_mode_plugins_window_review_parser
+ *   - openstation_plugins_window_user_can_register
+ *   - openstation_plugins_window_user_can_use
+ *   - openstation_plugins_window_args
+ *   - openstation_plugins_window_template_html
+ *   - openstation_plugins_window_browse_args
+ *   - openstation_plugins_window_browse_response
+ *   - openstation_plugins_window_info_response
+ *   - openstation_plugins_window_review_parser
  *
  * The dock-side swap (Plugins tile → native window when opt-in is on)
  * is implemented JS-side in `src/desktop.ts` via
@@ -31,8 +31,7 @@
  * loaded. Pure data enrichment lives on REST field decorators
  * (`includes/plugins-window/rest-fields.php`).
  *
- * @package WPDesktopMode
- * @since   0.9.0
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;

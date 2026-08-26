@@ -10,8 +10,6 @@
  *
  * All animation is time-based via `update( dt )` — the board never
  * owns a ticker; the game orchestrator drives it.
- *
- * @since 0.9.8
  */
 
 import type {

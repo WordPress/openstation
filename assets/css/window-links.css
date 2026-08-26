@@ -1,7 +1,7 @@
 /**
  * Window links — visual ties between related windows.
  *
- * The link layer sits inside `#desktop-mode-area`, absolutely
+ * The link layer sits inside `#os-area`, absolutely
  * positioned over the whole desktop. At rest it stacks BETWEEN the
  * widget layer (z 1) and the windows (z 100+) — wires on the desk,
  * visible in the gaps. While a relation-group member is focused, the
@@ -11,7 +11,7 @@
  * click from the desktop or a window.
  *
  * Tuning knobs live in `variables.css` as
- * `--desktop-mode-window-link-*`; the SVG structure comes from the
+ * `--os-window-link-*`; the SVG structure comes from the
  * built-in `svg-splines` renderer (`src/window-links/renderers/`).
  * Third-party renderers mount their own children into the same layer
  * and are free to ignore all of this.
@@ -19,10 +19,10 @@
  * @since 0.9.4
  */
 
-.desktop-mode-window-links {
+.os-window-links {
 	position: absolute;
 	inset: 0;
-	z-index: var(--desktop-mode-z-window-links, 50);
+	z-index: var(--os-z-window-links, 50);
 	pointer-events: none;
 	opacity: 0;
 	transition: opacity 0.25s ease;
@@ -33,23 +33,23 @@
  * setting: always on under `always`, tracking group focus under
  * `focus`. The fade lives here so every renderer inherits it.
  */
-.desktop-mode-window-links--visible {
+.os-window-links--visible {
 	opacity: 1;
 }
 
 @media (prefers-reduced-motion: reduce) {
-	.desktop-mode-window-links {
+	.os-window-links {
 		transition: none;
 	}
 }
 
-.desktop-mode-window-links__svg {
+.os-window-links__svg {
 	display: block;
 	width: 100%;
 	height: 100%;
 }
 
-.desktop-mode-window-link__path {
+.os-window-link__path {
 	fill: none;
 	/* Solid scheme color + opacity for the resting dimming. No
 	   color-mix() anywhere in this chain: when a custom property's
@@ -57,9 +57,9 @@
 	   computed-value time and an SVG stroke resets to `none` —
 	   invisible lines under floating black endpoint markers. The var()
 	   fallback covers a missing token outright. */
-	stroke: var(--desktop-mode-window-link-color, #2271b1);
+	stroke: var(--os-window-link-color, #2271b1);
 	stroke-opacity: 0.55;
-	stroke-width: var(--desktop-mode-window-link-width, 1.5px);
+	stroke-width: var(--os-window-link-width, 1.5px);
 	stroke-linecap: round;
 }
 
@@ -72,21 +72,21 @@
  * size: the larger dot sits on the root/referenced window;
  * bidirectional reference edges get large dots on both ends.
  */
-.desktop-mode-window-link__endpoint {
-	fill: var(--desktop-mode-window-link-color, #2271b1);
+.os-window-link__endpoint {
+	fill: var(--os-window-link-color, #2271b1);
 	fill-opacity: 0.55;
 }
 
-.desktop-mode-window-link__endpoint--active {
-	fill: var(--desktop-mode-window-link-color-active, #2271b1);
+.os-window-link__endpoint--active {
+	fill: var(--os-window-link-color-active, #2271b1);
 	fill-opacity: 1;
 }
 
 /* Edges touching the focused window get the emphasized stroke. */
-.desktop-mode-window-link--active .desktop-mode-window-link__path {
-	stroke: var(--desktop-mode-window-link-color-active, #2271b1);
+.os-window-link--active .os-window-link__path {
+	stroke: var(--os-window-link-color-active, #2271b1);
 	stroke-opacity: 1;
-	stroke-width: calc(var(--desktop-mode-window-link-width, 1.5px) + 0.5px);
+	stroke-width: calc(var(--os-window-link-width, 1.5px) + 0.5px);
 }
 
 /*
@@ -104,10 +104,10 @@
  * The base window chrome already transitions box-shadow, so the halo
  * fades in and out with focus changes for free.
  */
-.desktop-mode-window--linked {
-	outline: 2px solid var(--desktop-mode-window-link-accent, var(--wp-admin-theme-color, #2271b1));
+.os-window--linked {
+	outline: 2px solid var(--os-window-link-accent, var(--wp-admin-theme-color, #2271b1));
 	outline-offset: 1px;
 	box-shadow:
-		0 0 18px 4px var(--desktop-mode-window-link-glow, rgba(34, 113, 177, 0.45)),
-		var(--desktop-mode-window-shadow);
+		0 0 18px 4px var(--os-window-link-glow, rgba(34, 113, 177, 0.45)),
+		var(--os-window-shadow);
 }

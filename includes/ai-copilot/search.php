@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — AI Copilot content search via the provider tool use.
+ * OpenStation — AI Copilot content search via the provider tool use.
  *
  * Agentic search loop: the user describes something in natural language and
  * the agent calls focused tools, choosing the right one based on query
@@ -25,23 +25,23 @@
  *   - Ambiguous queries → agent tries in priority order (posts → pages →
  *     comments) following the system-prompt guidance.
  *
- * Budget: max DESKTOP_MODE_AI_SEARCH_MAX_ITERATIONS (10) tool-call rounds per
- * request × DESKTOP_MODE_AI_SEARCH_BATCH_SIZE (10) items = up to 100 entities.
+ * Budget: max OPENSTATION_AI_SEARCH_MAX_ITERATIONS (10) tool-call rounds per
+ * request × OPENSTATION_AI_SEARCH_BATCH_SIZE (10) items = up to 100 entities.
  * When the budget is exhausted the response includes a `continue` object
  * the client uses to resume from the exact offset that was last searched.
  *
  * REST endpoint: POST /desktop-mode/v1/ai/search
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /** Maximum agentic tool-call iterations per search request. */
-const DESKTOP_MODE_AI_SEARCH_MAX_ITERATIONS = 10;
+const OPENSTATION_AI_SEARCH_MAX_ITERATIONS = 10;
 
 /** Entities fetched per tool-call round. */
-const DESKTOP_MODE_AI_SEARCH_BATCH_SIZE = 10;
+const OPENSTATION_AI_SEARCH_BATCH_SIZE = 10;
 
 /**
  * Returns the catalog of common WordPress admin destinations.
@@ -51,56 +51,202 @@ const DESKTOP_MODE_AI_SEARCH_BATCH_SIZE = 10;
  * real admin path), a short description, and a Dashicons icon class the
  * UI can use when opening the URL in a legacy iframe window.
  *
- * Filterable via `desktop_mode_ai_admin_page_catalog` so third-party
+ * Filterable via `openstation_ai_admin_page_catalog` so third-party
  * plugins can contribute their own admin destinations (e.g. a plugin
  * adding a top-level menu can surface its settings page here).
  *
- * @since 0.5.0
- *
  * @return array[]
  */
-function desktop_mode_ai_get_admin_page_catalog() {
+function openstation_ai_get_admin_page_catalog() {
 	$catalog = array(
-		array( 'title' => 'Dashboard',          'url' => admin_url( 'index.php' ),                             'icon' => 'dashicons-dashboard',        'description' => 'The main admin dashboard — activity, drafts, site overview.' ),
-		array( 'title' => 'All Posts',          'url' => admin_url( 'edit.php' ),                              'icon' => 'dashicons-admin-post',       'description' => 'List, edit, bulk-manage blog posts.' ),
-		array( 'title' => 'Add New Post',       'url' => admin_url( 'post-new.php' ),                          'icon' => 'dashicons-plus',             'description' => 'Create a new blog post.' ),
-		array( 'title' => 'Categories',         'url' => admin_url( 'edit-tags.php?taxonomy=category' ),       'icon' => 'dashicons-category',         'description' => 'Manage post categories — add, rename, merge.' ),
-		array( 'title' => 'Tags',               'url' => admin_url( 'edit-tags.php?taxonomy=post_tag' ),       'icon' => 'dashicons-tag',              'description' => 'Manage post tags.' ),
-		array( 'title' => 'All Pages',          'url' => admin_url( 'edit.php?post_type=page' ),               'icon' => 'dashicons-admin-page',       'description' => 'List and edit static pages (About, Contact, etc.).' ),
-		array( 'title' => 'Add New Page',       'url' => admin_url( 'post-new.php?post_type=page' ),           'icon' => 'dashicons-plus',             'description' => 'Create a new page.' ),
-		array( 'title' => 'Media Library',      'url' => admin_url( 'upload.php' ),                            'icon' => 'dashicons-admin-media',      'description' => 'Browse, upload, and manage images, files, videos.' ),
-		array( 'title' => 'Comments',           'url' => admin_url( 'edit-comments.php' ),                     'icon' => 'dashicons-admin-comments',   'description' => 'Moderate and reply to comments on posts and pages.' ),
-		array( 'title' => 'Themes',             'url' => admin_url( 'themes.php' ),                            'icon' => 'dashicons-admin-appearance', 'description' => 'Change, install, or customize the active theme.' ),
-		array( 'title' => 'Customize',          'url' => admin_url( 'customize.php' ),                         'icon' => 'dashicons-admin-customizer', 'description' => 'Live-preview theme customisation — colors, fonts, layout.' ),
-		array( 'title' => 'Widgets',            'url' => admin_url( 'widgets.php' ),                           'icon' => 'dashicons-screenoptions',    'description' => 'Manage sidebar and footer widgets.' ),
-		array( 'title' => 'Menus',              'url' => admin_url( 'nav-menus.php' ),                         'icon' => 'dashicons-menu',             'description' => 'Create and edit navigation menus.' ),
-		array( 'title' => 'Plugins',            'url' => admin_url( 'plugins.php' ),                           'icon' => 'dashicons-admin-plugins',    'description' => 'Activate, deactivate, update or delete plugins.' ),
-		array( 'title' => 'Add New Plugin',     'url' => admin_url( 'plugin-install.php' ),                    'icon' => 'dashicons-plus',             'description' => 'Search and install new plugins from the directory.' ),
-		array( 'title' => 'Users',              'url' => admin_url( 'users.php' ),                             'icon' => 'dashicons-admin-users',      'description' => 'Manage user accounts and roles.' ),
-		array( 'title' => 'Add New User',       'url' => admin_url( 'user-new.php' ),                          'icon' => 'dashicons-plus',             'description' => 'Create a new user account.' ),
-		array( 'title' => 'Your Profile',       'url' => admin_url( 'profile.php' ),                           'icon' => 'dashicons-id',               'description' => 'Edit your own profile, password, admin colour scheme.' ),
-		array( 'title' => 'General Settings',   'url' => admin_url( 'options-general.php' ),                   'icon' => 'dashicons-admin-settings',   'description' => 'Site title, tagline, URL, timezone, language.' ),
-		array( 'title' => 'Writing Settings',   'url' => admin_url( 'options-writing.php' ),                   'icon' => 'dashicons-edit',             'description' => 'Default post category, post format, remote publishing.' ),
-		array( 'title' => 'Reading Settings',   'url' => admin_url( 'options-reading.php' ),                   'icon' => 'dashicons-book',             'description' => 'Homepage, blog posts per page, search-engine visibility.' ),
-		array( 'title' => 'Discussion Settings','url' => admin_url( 'options-discussion.php' ),                'icon' => 'dashicons-format-chat',      'description' => 'Comment moderation, avatars, email notifications.' ),
-		array( 'title' => 'Media Settings',     'url' => admin_url( 'options-media.php' ),                     'icon' => 'dashicons-format-image',     'description' => 'Image size settings for thumbnail / medium / large.' ),
-		array( 'title' => 'Permalinks',         'url' => admin_url( 'options-permalink.php' ),                 'icon' => 'dashicons-admin-links',      'description' => 'URL structure for posts, pages, categories, tags.' ),
-		array( 'title' => 'Privacy',            'url' => admin_url( 'options-privacy.php' ),                   'icon' => 'dashicons-privacy',          'description' => 'Privacy policy page selection and preview.' ),
-		array( 'title' => 'Tools',              'url' => admin_url( 'tools.php' ),                             'icon' => 'dashicons-admin-tools',      'description' => 'Built-in site tools.' ),
-		array( 'title' => 'Import',             'url' => admin_url( 'import.php' ),                            'icon' => 'dashicons-download',         'description' => 'Import content from other platforms (WP, Tumblr, RSS, etc.).' ),
-		array( 'title' => 'Export',             'url' => admin_url( 'export.php' ),                            'icon' => 'dashicons-upload',           'description' => 'Export all site content as XML.' ),
-		array( 'title' => 'Site Health',        'url' => admin_url( 'site-health.php' ),                       'icon' => 'dashicons-heart',            'description' => 'Performance and security recommendations for the site.' ),
-		array( 'title' => 'Updates',            'url' => admin_url( 'update-core.php' ),                       'icon' => 'dashicons-update',           'description' => 'WordPress, theme, and plugin updates.' ),
+		array(
+			'title'       => __( 'Dashboard', 'desktop-mode' ),
+			'url'         => admin_url( 'index.php' ),
+			'icon'        => 'dashicons-dashboard',
+			'description' => __( 'The main admin dashboard: activity, drafts, site overview.', 'desktop-mode' ),
+		),
+		array(
+			'title'       => __( 'All Posts', 'desktop-mode' ),
+			'url'         => admin_url( 'edit.php' ),
+			'icon'        => 'dashicons-admin-post',
+			'description' => __( 'List, edit, bulk-manage blog posts.', 'desktop-mode' ),
+		),
+		array(
+			'title'       => __( 'Add New Post', 'desktop-mode' ),
+			'url'         => admin_url( 'post-new.php' ),
+			'icon'        => 'dashicons-plus',
+			'description' => __( 'Create a new blog post.', 'desktop-mode' ),
+		),
+		array(
+			'title'       => __( 'Categories', 'desktop-mode' ),
+			'url'         => admin_url( 'edit-tags.php?taxonomy=category' ),
+			'icon'        => 'dashicons-category',
+			'description' => __( 'Manage post categories: add, rename, merge.', 'desktop-mode' ),
+		),
+		array(
+			'title'       => __( 'Tags', 'desktop-mode' ),
+			'url'         => admin_url( 'edit-tags.php?taxonomy=post_tag' ),
+			'icon'        => 'dashicons-tag',
+			'description' => __( 'Manage post tags.', 'desktop-mode' ),
+		),
+		array(
+			'title'       => __( 'All Pages', 'desktop-mode' ),
+			'url'         => admin_url( 'edit.php?post_type=page' ),
+			'icon'        => 'dashicons-admin-page',
+			'description' => __( 'List and edit static pages (About, Contact, etc.).', 'desktop-mode' ),
+		),
+		array(
+			'title'       => __( 'Add New Page', 'desktop-mode' ),
+			'url'         => admin_url( 'post-new.php?post_type=page' ),
+			'icon'        => 'dashicons-plus',
+			'description' => __( 'Create a new page.', 'desktop-mode' ),
+		),
+		array(
+			'title'       => __( 'Media Library', 'desktop-mode' ),
+			'url'         => admin_url( 'upload.php' ),
+			'icon'        => 'dashicons-admin-media',
+			'description' => __( 'Browse, upload, and manage images, files, videos.', 'desktop-mode' ),
+		),
+		array(
+			'title'       => __( 'Comments', 'desktop-mode' ),
+			'url'         => admin_url( 'edit-comments.php' ),
+			'icon'        => 'dashicons-admin-comments',
+			'description' => __( 'Moderate and reply to comments on posts and pages.', 'desktop-mode' ),
+		),
+		array(
+			'title'       => __( 'Themes', 'desktop-mode' ),
+			'url'         => admin_url( 'themes.php' ),
+			'icon'        => 'dashicons-admin-appearance',
+			'description' => __( 'Change, install, or customize the active theme.', 'desktop-mode' ),
+		),
+		array(
+			'title'       => __( 'Customize', 'desktop-mode' ),
+			'url'         => admin_url( 'customize.php' ),
+			'icon'        => 'dashicons-admin-customizer',
+			'description' => __( 'Live-preview theme customisation: colors, fonts, layout.', 'desktop-mode' ),
+		),
+		array(
+			'title'       => __( 'Widgets', 'desktop-mode' ),
+			'url'         => admin_url( 'widgets.php' ),
+			'icon'        => 'dashicons-screenoptions',
+			'description' => __( 'Manage sidebar and footer widgets.', 'desktop-mode' ),
+		),
+		array(
+			'title'       => __( 'Menus', 'desktop-mode' ),
+			'url'         => admin_url( 'nav-menus.php' ),
+			'icon'        => 'dashicons-menu',
+			'description' => __( 'Create and edit navigation menus.', 'desktop-mode' ),
+		),
+		array(
+			'title'       => __( 'Plugins', 'desktop-mode' ),
+			'url'         => admin_url( 'plugins.php' ),
+			'icon'        => 'dashicons-admin-plugins',
+			'description' => __( 'Activate, deactivate, update or delete plugins.', 'desktop-mode' ),
+		),
+		array(
+			'title'       => __( 'Add New Plugin', 'desktop-mode' ),
+			'url'         => admin_url( 'plugin-install.php' ),
+			'icon'        => 'dashicons-plus',
+			'description' => __( 'Search and install new plugins from the directory.', 'desktop-mode' ),
+		),
+		array(
+			'title'       => __( 'Users', 'desktop-mode' ),
+			'url'         => admin_url( 'users.php' ),
+			'icon'        => 'dashicons-admin-users',
+			'description' => __( 'Manage user accounts and roles.', 'desktop-mode' ),
+		),
+		array(
+			'title'       => __( 'Add New User', 'desktop-mode' ),
+			'url'         => admin_url( 'user-new.php' ),
+			'icon'        => 'dashicons-plus',
+			'description' => __( 'Create a new user account.', 'desktop-mode' ),
+		),
+		array(
+			'title'       => __( 'Your Profile', 'desktop-mode' ),
+			'url'         => admin_url( 'profile.php' ),
+			'icon'        => 'dashicons-id',
+			'description' => __( 'Edit your own profile, password, admin colour scheme.', 'desktop-mode' ),
+		),
+		array(
+			'title'       => __( 'General Settings', 'desktop-mode' ),
+			'url'         => admin_url( 'options-general.php' ),
+			'icon'        => 'dashicons-admin-settings',
+			'description' => __( 'Site title, tagline, URL, timezone, language.', 'desktop-mode' ),
+		),
+		array(
+			'title'       => __( 'Writing Settings', 'desktop-mode' ),
+			'url'         => admin_url( 'options-writing.php' ),
+			'icon'        => 'dashicons-edit',
+			'description' => __( 'Default post category, post format, remote publishing.', 'desktop-mode' ),
+		),
+		array(
+			'title'       => __( 'Reading Settings', 'desktop-mode' ),
+			'url'         => admin_url( 'options-reading.php' ),
+			'icon'        => 'dashicons-book',
+			'description' => __( 'Homepage, blog posts per page, search-engine visibility.', 'desktop-mode' ),
+		),
+		array(
+			'title'       => __( 'Discussion Settings', 'desktop-mode' ),
+			'url'         => admin_url( 'options-discussion.php' ),
+			'icon'        => 'dashicons-format-chat',
+			'description' => __( 'Comment moderation, avatars, email notifications.', 'desktop-mode' ),
+		),
+		array(
+			'title'       => __( 'Media Settings', 'desktop-mode' ),
+			'url'         => admin_url( 'options-media.php' ),
+			'icon'        => 'dashicons-format-image',
+			'description' => __( 'Image size settings for thumbnail / medium / large.', 'desktop-mode' ),
+		),
+		array(
+			'title'       => __( 'Permalinks', 'desktop-mode' ),
+			'url'         => admin_url( 'options-permalink.php' ),
+			'icon'        => 'dashicons-admin-links',
+			'description' => __( 'URL structure for posts, pages, categories, tags.', 'desktop-mode' ),
+		),
+		array(
+			'title'       => __( 'Privacy', 'desktop-mode' ),
+			'url'         => admin_url( 'options-privacy.php' ),
+			'icon'        => 'dashicons-privacy',
+			'description' => __( 'Privacy policy page selection and preview.', 'desktop-mode' ),
+		),
+		array(
+			'title'       => __( 'Tools', 'desktop-mode' ),
+			'url'         => admin_url( 'tools.php' ),
+			'icon'        => 'dashicons-admin-tools',
+			'description' => __( 'Built-in site tools.', 'desktop-mode' ),
+		),
+		array(
+			'title'       => __( 'Import', 'desktop-mode' ),
+			'url'         => admin_url( 'import.php' ),
+			'icon'        => 'dashicons-download',
+			'description' => __( 'Import content from other platforms (WP, Tumblr, RSS, etc.).', 'desktop-mode' ),
+		),
+		array(
+			'title'       => __( 'Export', 'desktop-mode' ),
+			'url'         => admin_url( 'export.php' ),
+			'icon'        => 'dashicons-upload',
+			'description' => __( 'Export all site content as XML.', 'desktop-mode' ),
+		),
+		array(
+			'title'       => __( 'Site Health', 'desktop-mode' ),
+			'url'         => admin_url( 'site-health.php' ),
+			'icon'        => 'dashicons-heart',
+			'description' => __( 'Performance and security recommendations for the site.', 'desktop-mode' ),
+		),
+		array(
+			'title'       => __( 'Updates', 'desktop-mode' ),
+			'url'         => admin_url( 'update-core.php' ),
+			'icon'        => 'dashicons-update',
+			'description' => __( 'WordPress, theme, and plugin updates.', 'desktop-mode' ),
+		),
 	);
 
 	/**
 	 * Filters the wp-admin page catalog surfaced by the AI assistant.
 	 *
-	 * @since 0.5.0
-	 *
 	 * @param array[] $catalog Array of entries, each with title/url/icon/description.
 	 */
-	return (array) apply_filters( 'desktop_mode_ai_admin_page_catalog', $catalog );
+	return (array) apply_filters( 'openstation_ai_admin_page_catalog', $catalog );
 }
 
 // ---------------------------------------------------------------------------
@@ -110,11 +256,9 @@ function desktop_mode_ai_get_admin_page_catalog() {
 /**
  * JSON Schema for the agent's final structured answer.
  *
- * @since 0.5.0
- *
  * @return array
  */
-function desktop_mode_ai_search_answer_schema() {
+function openstation_ai_search_answer_schema() {
 	return array(
 		'type'                 => 'object',
 		'additionalProperties' => false,
@@ -138,7 +282,10 @@ function desktop_mode_ai_search_answer_schema() {
 			),
 			'entity_type' => array(
 				'anyOf'       => array(
-					array( 'type' => 'string', 'enum' => array( 'post', 'page', 'comment' ) ),
+					array(
+						'type' => 'string',
+						'enum' => array( 'post', 'page', 'comment' ),
+					),
 					array( 'type' => 'null' ),
 				),
 				'description' => 'Type of the matching entity. Required when answer_type is "entity"; set to null otherwise.',
@@ -180,34 +327,32 @@ function desktop_mode_ai_search_answer_schema() {
  * needs an additional `post_id`. The caller passes the full decoded
  * arguments array so this function can extract whatever it needs.
  *
- * @since 0.5.0
- *
  * @param string $tool_name Tool function name.
  * @param array  $args      Decoded arguments from the model's tool call.
  * @return array Tool result payload.
  */
-function desktop_mode_ai_search_dispatch_tool( $tool_name, array $args ) {
+function openstation_ai_search_dispatch_tool( $tool_name, array $args ) {
 	$offset = max( 0, (int) ( $args['offset'] ?? 0 ) );
 	$query  = isset( $args['query'] ) ? sanitize_text_field( (string) $args['query'] ) : '';
 
 	switch ( $tool_name ) {
 		case 'search_posts':
-			return desktop_mode_ai_search_fetch_posts( 'post', $query, $offset );
+			return openstation_ai_search_fetch_posts( 'post', $query, $offset );
 		case 'search_pages':
-			return desktop_mode_ai_search_fetch_posts( 'page', $query, $offset );
+			return openstation_ai_search_fetch_posts( 'page', $query, $offset );
 		case 'search_comments':
-			return desktop_mode_ai_search_fetch_comments( $query, $offset );
+			return openstation_ai_search_fetch_comments( $query, $offset );
 		case 'search_comments_by_post':
 			$post_id = max( 0, (int) ( $args['post_id'] ?? 0 ) );
-			return desktop_mode_ai_search_fetch_comments_by_post( $post_id, $query, $offset );
+			return openstation_ai_search_fetch_comments_by_post( $post_id, $query, $offset );
 		case 'list_admin_pages':
 			return array(
 				'tool'  => 'list_admin_pages',
-				'pages' => desktop_mode_ai_get_admin_page_catalog(),
+				'pages' => openstation_ai_get_admin_page_catalog(),
 			);
 		case 'search_wporg_plugins':
 			$q = isset( $args['query'] ) ? sanitize_text_field( (string) $args['query'] ) : '';
-			return desktop_mode_ai_fetch_wporg_plugins( $q );
+			return openstation_ai_fetch_wporg_plugins( $q );
 		case 'get_php_error_log':
 			if ( ! current_user_can( 'manage_options' ) ) {
 				return array(
@@ -218,7 +363,7 @@ function desktop_mode_ai_search_dispatch_tool( $tool_name, array $args ) {
 				);
 			}
 			$lines = isset( $args['lines'] ) ? max( 1, min( 500, (int) $args['lines'] ) ) : 50;
-			return desktop_mode_ai_fetch_error_log( $lines );
+			return openstation_ai_fetch_error_log( $lines );
 	}
 
 	return array(
@@ -239,20 +384,18 @@ function desktop_mode_ai_search_dispatch_tool( $tool_name, array $args ) {
  *
  * No AI analysis is required — every published post/page is searchable.
  *
- * @since 0.5.0
- *
  * @param string $post_type 'post' | 'page'.
  * @param string $query     Keyword search terms (may be empty to list newest).
  * @param int    $offset
  * @return array
  */
-function desktop_mode_ai_search_fetch_posts( $post_type, $query, $offset ) {
+function openstation_ai_search_fetch_posts( $post_type, $query, $offset ) {
 	$wp_query = new WP_Query(
 		array(
 			'post_type'              => $post_type,
 			'post_status'            => 'publish',
 			's'                      => (string) $query,
-			'posts_per_page'         => DESKTOP_MODE_AI_SEARCH_BATCH_SIZE,
+			'posts_per_page'         => OPENSTATION_AI_SEARCH_BATCH_SIZE,
 			'offset'                 => $offset,
 			'no_found_rows'          => false,
 			'update_post_term_cache' => false,
@@ -268,7 +411,7 @@ function desktop_mode_ai_search_fetch_posts( $post_type, $query, $offset ) {
 			'type'     => $post->post_type,
 			// Comparison data for the model — real title + content excerpt.
 			'title'    => wp_strip_all_tags( $post->post_title ),
-			'excerpt'  => desktop_mode_ai_search_excerpt( $post->post_content ),
+			'excerpt'  => openstation_ai_search_excerpt( $post->post_content ),
 			'date'     => $post->post_date ? substr( $post->post_date, 0, 10 ) : '',
 			// Links — passed through so the UI can link to the entity
 			// once the agent identifies a match.
@@ -286,20 +429,18 @@ function desktop_mode_ai_search_fetch_posts( $post_type, $query, $offset ) {
 		'items'       => $items,
 		'count'       => count( $items ),
 		'total'       => $total,
-		'has_more'    => ( $offset + DESKTOP_MODE_AI_SEARCH_BATCH_SIZE ) < $total,
-		'next_offset' => $offset + DESKTOP_MODE_AI_SEARCH_BATCH_SIZE,
+		'has_more'    => ( $offset + OPENSTATION_AI_SEARCH_BATCH_SIZE ) < $total,
+		'next_offset' => $offset + OPENSTATION_AI_SEARCH_BATCH_SIZE,
 	);
 }
 
 /**
  * Trims raw post/comment content into a plain-text excerpt for the model.
  *
- * @since 0.9.1
- *
  * @param string $content Raw post/comment content.
  * @return string
  */
-function desktop_mode_ai_search_excerpt( $content ) {
+function openstation_ai_search_excerpt( $content ) {
 	$text = wp_strip_all_tags( (string) $content );
 	$text = preg_replace( '/\s+/', ' ', trim( $text ) );
 	return (string) mb_substr( $text, 0, 300 );
@@ -311,35 +452,40 @@ function desktop_mode_ai_search_excerpt( $content ) {
  *
  * No AI analysis is required — every approved comment is searchable.
  *
- * @since 0.5.0
- *
  * @param string $query Keyword search terms (may be empty to list newest).
  * @param int    $offset
  * @return array
  */
-function desktop_mode_ai_search_fetch_comments( $query, $offset ) {
+function openstation_ai_search_fetch_comments( $query, $offset ) {
 	$base_args = array(
 		'status' => 'approve',
 		'type'   => 'comment',
 		'search' => (string) $query,
 	);
 
-	$comments = get_comments( array_merge( $base_args, array(
-		'number' => DESKTOP_MODE_AI_SEARCH_BATCH_SIZE,
-		'offset' => $offset,
-		'count'  => false,
-	) ) );
+	$comments = get_comments(
+		array_merge(
+			$base_args,
+			array(
+				'number' => OPENSTATION_AI_SEARCH_BATCH_SIZE,
+				'offset' => $offset,
+				'count'  => false,
+			)
+		)
+	);
 
 	$total = (int) get_comments( array_merge( $base_args, array( 'count' => true ) ) );
 
 	// Prime the parent posts in a single query so the per-comment
 	// get_post() calls below are cache hits, not N+1 round-trips.
-	$parent_ids = array_unique( array_map(
-		static function ( $c ) {
-			return (int) $c->comment_post_ID;
-		},
-		$comments
-	) );
+	$parent_ids = array_unique(
+		array_map(
+			static function ( $c ) {
+				return (int) $c->comment_post_ID;
+			},
+			$comments
+		)
+	);
 	if ( $parent_ids ) {
 		_prime_post_caches( $parent_ids, false, false );
 	}
@@ -354,7 +500,7 @@ function desktop_mode_ai_search_fetch_comments( $query, $offset ) {
 			'type'       => 'comment',
 			// Comparison data — real comment text + parent post title.
 			'post_title' => $parent_title,
-			'excerpt'    => desktop_mode_ai_search_excerpt( $comment->comment_content ),
+			'excerpt'    => openstation_ai_search_excerpt( $comment->comment_content ),
 			// Links.
 			'url'        => (string) get_comment_link( $comment ),
 			'edit_url'   => admin_url( 'comment.php?action=editcomment&c=' . (int) $comment->comment_ID ),
@@ -370,8 +516,8 @@ function desktop_mode_ai_search_fetch_comments( $query, $offset ) {
 		'items'       => $items,
 		'count'       => count( $items ),
 		'total'       => $total,
-		'has_more'    => ( $offset + DESKTOP_MODE_AI_SEARCH_BATCH_SIZE ) < $total,
-		'next_offset' => $offset + DESKTOP_MODE_AI_SEARCH_BATCH_SIZE,
+		'has_more'    => ( $offset + OPENSTATION_AI_SEARCH_BATCH_SIZE ) < $total,
+		'next_offset' => $offset + OPENSTATION_AI_SEARCH_BATCH_SIZE,
 	);
 }
 
@@ -387,14 +533,12 @@ function desktop_mode_ai_search_fetch_comments( $query, $offset ) {
  * comments to compare against the user's description. An empty `$query`
  * lists the post's comments without keyword filtering.
  *
- * @since 0.5.0
- *
  * @param int    $post_id The WordPress post ID.
  * @param string $query   Keyword search terms (may be empty).
  * @param int    $offset
  * @return array Tool result payload.
  */
-function desktop_mode_ai_search_fetch_comments_by_post( $post_id, $query, $offset ) {
+function openstation_ai_search_fetch_comments_by_post( $post_id, $query, $offset ) {
 	$post_id = (int) $post_id;
 
 	if ( $post_id <= 0 ) {
@@ -417,11 +561,16 @@ function desktop_mode_ai_search_fetch_comments_by_post( $post_id, $query, $offse
 		'search'  => (string) $query,
 	);
 
-	$comments = get_comments( array_merge( $base_args, array(
-		'number' => DESKTOP_MODE_AI_SEARCH_BATCH_SIZE,
-		'offset' => $offset,
-		'count'  => false,
-	) ) );
+	$comments = get_comments(
+		array_merge(
+			$base_args,
+			array(
+				'number' => OPENSTATION_AI_SEARCH_BATCH_SIZE,
+				'offset' => $offset,
+				'count'  => false,
+			)
+		)
+	);
 
 	$total = (int) get_comments( array_merge( $base_args, array( 'count' => true ) ) );
 
@@ -435,7 +584,7 @@ function desktop_mode_ai_search_fetch_comments_by_post( $post_id, $query, $offse
 			'type'       => 'comment',
 			'post_id'    => $post_id,
 			'post_title' => $parent_title,
-			'excerpt'    => desktop_mode_ai_search_excerpt( $comment->comment_content ),
+			'excerpt'    => openstation_ai_search_excerpt( $comment->comment_content ),
 			'url'        => (string) get_comment_link( $comment ),
 			'edit_url'   => admin_url( 'comment.php?action=editcomment&c=' . (int) $comment->comment_ID ),
 		);
@@ -450,8 +599,8 @@ function desktop_mode_ai_search_fetch_comments_by_post( $post_id, $query, $offse
 		'items'       => $items,
 		'count'       => count( $items ),
 		'total'       => $total,
-		'has_more'    => ( $offset + DESKTOP_MODE_AI_SEARCH_BATCH_SIZE ) < $total,
-		'next_offset' => $offset + DESKTOP_MODE_AI_SEARCH_BATCH_SIZE,
+		'has_more'    => ( $offset + OPENSTATION_AI_SEARCH_BATCH_SIZE ) < $total,
+		'next_offset' => $offset + OPENSTATION_AI_SEARCH_BATCH_SIZE,
 	);
 }
 
@@ -468,13 +617,11 @@ function desktop_mode_ai_search_fetch_comments_by_post( $post_id, $query, $offse
  * verdict when the comment-moderation analysis happens to have run, but
  * its absence never blocks the entity from being returned.
  *
- * @since 0.5.0
- *
  * @param string $entity_type 'post' | 'page' | 'comment'.
  * @param int    $entity_id
  * @return array|null
  */
-function desktop_mode_ai_search_build_entity( $entity_type, $entity_id ) {
+function openstation_ai_search_build_entity( $entity_type, $entity_id ) {
 	$entity_id = (int) $entity_id;
 
 	if ( in_array( $entity_type, array( 'post', 'page' ), true ) ) {
@@ -490,7 +637,7 @@ function desktop_mode_ai_search_build_entity( $entity_type, $entity_id ) {
 			'date'     => $post->post_date ? substr( $post->post_date, 0, 10 ) : '',
 			'url'      => (string) get_permalink( $post ),
 			'edit_url' => (string) get_edit_post_link( $entity_id, 'raw' ),
-			'excerpt'  => desktop_mode_ai_search_excerpt( $post->post_content ),
+			'excerpt'  => openstation_ai_search_excerpt( $post->post_content ),
 		);
 	}
 
@@ -499,12 +646,12 @@ function desktop_mode_ai_search_build_entity( $entity_type, $entity_id ) {
 		if ( ! $comment instanceof WP_Comment ) {
 			return null;
 		}
-		$meta        = desktop_mode_ai_get_meta( 'comment', $entity_id );
+		$meta        = openstation_ai_get_meta( 'comment', $entity_id );
 		$parent_post = get_post( $comment->comment_post_ID );
 		return array(
 			'id'         => $entity_id,
 			'type'       => 'comment',
-			'excerpt'    => desktop_mode_ai_search_excerpt( $comment->comment_content ),
+			'excerpt'    => openstation_ai_search_excerpt( $comment->comment_content ),
 			'post_id'    => (int) $comment->comment_post_ID,
 			'post_title' => $parent_post ? wp_strip_all_tags( $parent_post->post_title ) : '',
 			'post_url'   => $parent_post ? (string) get_permalink( $parent_post ) : '',
@@ -523,43 +670,42 @@ function desktop_mode_ai_search_build_entity( $entity_type, $entity_id ) {
 // ---------------------------------------------------------------------------
 
 /**
- * Returns a friendly progress message for a tool name — surfaced to the
- * client via SSE so the user sees "Looking through your posts…" rather
- * than the raw tool call.
+ * Returns the label for the "keep looking" button on an exhausted search.
  *
- * @since 0.5.0
+ * One full sentence per resumable tool: a noun interpolated into a shared
+ * template cannot be translated.
  *
- * @param string $tool_name
+ * @param string $resume_tool Tool the client would resume from.
+ * @param int    $from_item   1-based index of the next item to search.
  * @return string
  */
-function desktop_mode_ai_progress_message( $tool_name ) {
-	switch ( $tool_name ) {
-		case 'search_posts':            return 'Looking through your posts…';
-		case 'search_pages':            return 'Checking your pages…';
-		case 'search_comments':         return 'Reading through comments…';
-		case 'search_comments_by_post': return 'Scanning comments on that post…';
-		case 'list_admin_pages':        return 'Finding the right admin page…';
-		case 'search_wporg_plugins':    return 'Searching the WordPress.org plugin directory…';
-		case 'get_php_error_log':       return 'Tailing the PHP error log…';
+function openstation_ai_continue_label( $resume_tool, $from_item ) {
+	switch ( $resume_tool ) {
+		case 'search_pages':
+			/* translators: %d: 1-based index of the next page to search. */
+			return sprintf( __( 'Continue searching in pages (from item %d)', 'desktop-mode' ), $from_item );
+		case 'search_comments':
+			/* translators: %d: 1-based index of the next comment to search. */
+			return sprintf( __( 'Continue searching in comments (from item %d)', 'desktop-mode' ), $from_item );
+		default:
+			/* translators: %d: 1-based index of the next post to search. */
+			return sprintf( __( 'Continue searching in posts (from item %d)', 'desktop-mode' ), $from_item );
 	}
-	return 'Thinking…';
 }
 
 /**
  * Returns the tools a client may resume an exhausted search from.
  *
- * Single source of truth for every `resume_tool` allowlist — the REST
- * arg sanitizer, the SSE handler, and the `$initial_tool` validation
- * inside `desktop_mode_ai_run_search()`. `search_comments_by_post` is
+ * Single source of truth for every `resume_tool` allowlist: the REST
+ * arg sanitizer and the `$initial_tool` validation inside
+ * `openstation_ai_run_search()`. `search_comments_by_post` is
  * deliberately absent: the `continue` payload carries no `post_id`, so
  * it cannot truly resume — exhausted runs map it to `search_comments`
  * when building the `continue` object.
  *
- * @since 0.5.0
- *
  * @return string[] Tool names.
  */
-function desktop_mode_ai_search_resumable_tools() {
+function openstation_ai_search_resumable_tools() {
 	return array( 'search_posts', 'search_pages', 'search_comments' );
 }
 
@@ -588,18 +734,21 @@ function desktop_mode_ai_search_resumable_tools() {
  * the TOP level is constrained; a combinator nested inside a property is a real
  * constraint the provider accepts, so it is left intact.
  *
- * @since 0.9.6
- *
  * @param mixed $schema A tool parameters schema (array), or empty/non-array.
  * @return array A provider-safe object schema for a tool `parameters` block.
  */
-function desktop_mode_ai_normalize_tool_schema( $schema ) {
+function openstation_ai_normalize_tool_schema( $schema ) {
 	if ( ! is_array( $schema ) || empty( $schema ) ) {
 		return array(
 			'type'       => 'object',
 			'properties' => (object) array(),
 		);
 	}
+
+	// Recursively drop the WordPress-only arg-schema keys
+	// (`sanitize_callback` / `validate_callback` / `arg_options`) —
+	// see the helper's docblock for why this must run at every depth.
+	$schema = openstation_ai_strip_wp_schema_keys( $schema );
 
 	// Top-level tool parameters must be the literal "object", never a union.
 	$schema['type'] = 'object';
@@ -619,6 +768,73 @@ function desktop_mode_ai_normalize_tool_schema( $schema ) {
 }
 
 /**
+ * Recursively removes the WordPress-only arg-schema keys from a tool schema.
+ *
+ * WordPress arg schemas legally extend JSON Schema with PHP-callable keys —
+ * `sanitize_callback`, `validate_callback`, and (on meta args) `arg_options`.
+ * Abilities registered from REST arg definitions carry them at every property
+ * level, and providers that validate tool schemas strictly reject any unknown
+ * field ("Invalid JSON payload received. Unknown name \"sanitize_callback\""),
+ * 400-ing the whole request over one property.
+ *
+ * The walk is structure-aware, not a blind key sweep: maps under `properties` /
+ * `patternProperties` are keyed by PROPERTY NAME, so a property that happens to
+ * be called `sanitize_callback` is preserved — only its schema value is
+ * cleaned. Recursion covers every position a subschema can occupy: property
+ * values, `items` (single schema or tuple list), array-shaped
+ * `additionalProperties`, and nested `oneOf` / `allOf` / `anyOf` branches
+ * (which are kept — only the TOP level of the tool schema strips combinators).
+ *
+ * @param array $schema A tool parameters (sub)schema.
+ * @return array The schema without WP-only keys, at any depth.
+ */
+function openstation_ai_strip_wp_schema_keys( array $schema ) {
+	unset( $schema['sanitize_callback'], $schema['validate_callback'], $schema['arg_options'] );
+
+	foreach ( array( 'properties', 'patternProperties' ) as $map_key ) {
+		if ( isset( $schema[ $map_key ] ) && is_array( $schema[ $map_key ] ) ) {
+			foreach ( $schema[ $map_key ] as $name => $sub ) {
+				if ( is_array( $sub ) ) {
+					$schema[ $map_key ][ $name ] = openstation_ai_strip_wp_schema_keys( $sub );
+				}
+			}
+		}
+	}
+
+	if ( isset( $schema['items'] ) && is_array( $schema['items'] ) ) {
+		$items   = $schema['items'];
+		$is_list = array_keys( $items ) === range( 0, count( $items ) - 1 );
+		if ( $is_list && array() !== $items ) {
+			// Tuple form — a list of schemas.
+			foreach ( $items as $i => $sub ) {
+				if ( is_array( $sub ) ) {
+					$items[ $i ] = openstation_ai_strip_wp_schema_keys( $sub );
+				}
+			}
+			$schema['items'] = $items;
+		} else {
+			$schema['items'] = openstation_ai_strip_wp_schema_keys( $items );
+		}
+	}
+
+	if ( isset( $schema['additionalProperties'] ) && is_array( $schema['additionalProperties'] ) ) {
+		$schema['additionalProperties'] = openstation_ai_strip_wp_schema_keys( $schema['additionalProperties'] );
+	}
+
+	foreach ( array( 'oneOf', 'allOf', 'anyOf' ) as $combinator ) {
+		if ( isset( $schema[ $combinator ] ) && is_array( $schema[ $combinator ] ) ) {
+			foreach ( $schema[ $combinator ] as $i => $sub ) {
+				if ( is_array( $sub ) ) {
+					$schema[ $combinator ][ $i ] = openstation_ai_strip_wp_schema_keys( $sub );
+				}
+			}
+		}
+	}
+
+	return $schema;
+}
+
+/**
  * Runs the agentic content-search loop.
  *
  * The model receives focused tools — search_posts, search_pages,
@@ -632,26 +848,13 @@ function desktop_mode_ai_normalize_tool_schema( $schema ) {
  * message primes the agent to resume from the last searched position with
  * the same keywords.
  *
- * @since 0.5.0
- *
  * @param string      $query        User's natural-language search.
  * @param string|null $initial_tool Tool name to resume from, or null for fresh search.
  * @param int         $start_offset Offset to resume from (0 for fresh).
- * @param callable|null $on_progress Optional progress emitter for SSE ticks.
  * @param array       $extra        Extensibility context (command tools, prompt overrides, …).
  * @return array|WP_Error
  */
-function desktop_mode_ai_run_search( $query, $initial_tool = null, $start_offset = 0, $on_progress = null, array $extra = array() ) {
-	/**
-	 * Progress emitter — sends a tick to the caller if they provided a
-	 * callable; no-op otherwise. Callers use this to render real-time
-	 * status to the user via SSE.
-	 */
-	$emit = static function ( array $event ) use ( $on_progress ) {
-		if ( is_callable( $on_progress ) ) {
-			$on_progress( $event );
-		}
-	};
+function openstation_ai_run_search( $query, $initial_tool = null, $start_offset = 0, array $extra = array() ) {
 	$start_offset = max( 0, (int) $start_offset );
 	$search_tools = array( 'search_posts', 'search_pages', 'search_comments', 'search_comments_by_post' );
 	$valid_tools  = array_merge(
@@ -665,9 +868,9 @@ function desktop_mode_ai_run_search( $query, $initial_tool = null, $start_offset
 	// per-call request_id for observability fanout.
 	// -----------------------------------------------------------------------
 	$user_id            = isset( $extra['user_id'] ) ? (int) $extra['user_id'] : get_current_user_id();
-	$request_id         = isset( $extra['request_id'] ) && is_string( $extra['request_id'] ) && $extra['request_id'] !== ''
+	$request_id         = isset( $extra['request_id'] ) && is_string( $extra['request_id'] ) && '' !== $extra['request_id']
 		? (string) $extra['request_id']
-		: ( function_exists( 'wp_generate_uuid4' ) ? wp_generate_uuid4() : uniqid( 'desktop_mode_ai_', true ) );
+		: ( function_exists( 'wp_generate_uuid4' ) ? wp_generate_uuid4() : uniqid( 'openstation_ai_', true ) );
 	$command_tools_raw  = isset( $extra['command_tools'] ) && is_array( $extra['command_tools'] ) ? $extra['command_tools'] : array();
 	$system_prompt_text = isset( $extra['system_prompt_text'] ) && is_string( $extra['system_prompt_text'] ) ? $extra['system_prompt_text'] : '';
 	$system_prompt_mode = isset( $extra['system_prompt_mode'] ) && in_array( $extra['system_prompt_mode'], array( 'append', 'replace' ), true )
@@ -677,10 +880,8 @@ function desktop_mode_ai_run_search( $query, $initial_tool = null, $start_offset
 	/**
 	 * Fires once per `/ai/search` invocation, after validation and
 	 * before any the provider call. First anchor in the observability trio
-	 * (`desktop_mode_ai_search_started` / `desktop_mode_ai_tool_called`
-	 * / `desktop_mode_ai_search_completed`).
-	 *
-	 * @since 0.5.1
+	 * (`openstation_ai_search_started` / `openstation_ai_tool_called`
+	 * / `openstation_ai_search_completed`).
 	 *
 	 * @param array $context {
 	 *     @type string $query      User query.
@@ -689,7 +890,7 @@ function desktop_mode_ai_run_search( $query, $initial_tool = null, $start_offset
 	 * }
 	 */
 	do_action(
-		'desktop_mode_ai_search_started',
+		'openstation_ai_search_started',
 		array(
 			'query'      => $query,
 			'user_id'    => $user_id,
@@ -697,7 +898,7 @@ function desktop_mode_ai_run_search( $query, $initial_tool = null, $start_offset
 		)
 	);
 
-	if ( $initial_tool !== null && ! in_array( $initial_tool, desktop_mode_ai_search_resumable_tools(), true ) ) {
+	if ( null !== $initial_tool && ! in_array( $initial_tool, openstation_ai_search_resumable_tools(), true ) ) {
 		$initial_tool = null;
 	}
 
@@ -705,7 +906,7 @@ function desktop_mode_ai_run_search( $query, $initial_tool = null, $start_offset
 	// starting position so it doesn't waste iterations on already-searched
 	// content.
 	$continuation_note = '';
-	if ( $initial_tool !== null && ( $start_offset > 0 || $initial_tool !== 'search_posts' ) ) {
+	if ( null !== $initial_tool && ( $start_offset > 0 || 'search_posts' !== $initial_tool ) ) {
 		$continuation_note = sprintf(
 			"\n\nNote: This is a continuation of a previous search. Begin with %s using the same search keywords at offset=%d and work forward.",
 			$initial_tool,
@@ -754,7 +955,7 @@ The message field is always a friendly sentence or two shown directly to the use
 	// -----------------------------------------------------------------------
 	// System-prompt extensibility. All three layers — appendix filter,
 	// client override (append/replace with capability gate), and final
-	// transform — live in `desktop_mode_ai_compose_instructions()` so the
+	// transform — live in `openstation_ai_compose_instructions()` so the
 	// primary run and the follow-up leg stay in lockstep. See the
 	// helper for the order of application; the filter docblocks at its
 	// `apply_filters()` call sites carry the public contract on each
@@ -766,10 +967,13 @@ The message field is always a friendly sentence or two shown directly to the use
 		'request_id' => $request_id,
 	);
 
-	$instructions = desktop_mode_ai_compose_instructions(
+	$instructions = openstation_ai_compose_instructions(
 		$instructions,
 		$prompt_context,
-		array( 'text' => $system_prompt_text, 'mode' => $system_prompt_mode )
+		array(
+			'text' => $system_prompt_text,
+			'mode' => $system_prompt_mode,
+		)
 	);
 
 	// -----------------------------------------------------------------------
@@ -785,13 +989,13 @@ The message field is always a friendly sentence or two shown directly to the use
 	$ability_by_tool = array();
 	$builtin_tools   = array();
 
-	foreach ( desktop_mode_ai_search_ability_names() as $ability_name ) {
+	foreach ( openstation_ai_search_ability_names() as $ability_name ) {
 		$ability = function_exists( 'wp_get_ability' ) ? wp_get_ability( $ability_name ) : null;
 		if ( ! $ability instanceof WP_Ability ) {
 			continue;
 		}
 
-		$tool_name                     = desktop_mode_ai_ability_tool_name( $ability_name );
+		$tool_name                     = openstation_ai_ability_tool_name( $ability_name );
 		$ability_by_tool[ $tool_name ] = $ability_name;
 		$valid_tools[]                 = $tool_name;
 
@@ -802,7 +1006,10 @@ The message field is always a friendly sentence or two shown directly to the use
 			'description' => (string) $ability->get_description(),
 			'parameters'  => ! empty( $input_schema )
 				? $input_schema
-				: array( 'type' => 'object', 'properties' => (object) array() ),
+				: array(
+					'type'       => 'object',
+					'properties' => (object) array(),
+				),
 		);
 	}
 
@@ -818,7 +1025,7 @@ The message field is always a friendly sentence or two shown directly to the use
 			continue;
 		}
 		$slug = isset( $cmd['slug'] ) ? (string) $cmd['slug'] : '';
-		if ( $slug === '' || ! preg_match( '/^[a-z0-9_\-]+$/', $slug ) ) {
+		if ( '' === $slug || ! preg_match( '/^[a-z0-9_\-]+$/', $slug ) ) {
 			continue;
 		}
 		/**
@@ -826,18 +1033,19 @@ The message field is always a friendly sentence or two shown directly to the use
 		 * `false` to drop a command entirely before it reaches the
 		 * model — the right hook for per-role / per-command gating.
 		 *
-		 * @since 0.5.1
-		 *
 		 * @param bool|array $allowed Either the (possibly mutated) command
 		 *                            tool entry, or `false` to drop it.
 		 * @param string     $slug    Command slug.
 		 * @param array      $context { user_id, request_id }.
 		 */
 		$allowed = apply_filters(
-			'desktop_mode_ai_command_allowed',
+			'openstation_ai_command_allowed',
 			$cmd,
 			$slug,
-			array( 'user_id' => $user_id, 'request_id' => $request_id )
+			array(
+				'user_id'    => $user_id,
+				'request_id' => $request_id,
+			)
 		);
 		if ( false === $allowed || ! is_array( $allowed ) ) {
 			continue;
@@ -853,11 +1061,11 @@ The message field is always a friendly sentence or two shown directly to the use
 			'name'        => $tool_name,
 			'description' => trim( $label . ( '' !== $description ? ' — ' . $description : '' ) ),
 			'parameters'  => array(
-				'type'       => 'object',
-				'properties' => array(
+				'type'                 => 'object',
+				'properties'           => array(
 					'args' => array(
 						'type'        => 'string',
-						'description' => $hint !== ''
+						'description' => '' !== $hint
 							? sprintf( 'Arguments for this command. Hint: %s', $hint )
 							: 'Arguments for this command. Leave empty when the command takes none.',
 					),
@@ -873,15 +1081,16 @@ The message field is always a friendly sentence or two shown directly to the use
 	 * built-in + registered tools. Useful for bulk gating, renaming,
 	 * or injecting synthetic command tools.
 	 *
-	 * @since 0.5.1
-	 *
 	 * @param array $command_defs Command tool definitions.
 	 * @param array $context      { user_id, request_id }.
 	 */
 	$command_defs = (array) apply_filters(
-		'desktop_mode_ai_command_tools',
+		'openstation_ai_command_tools',
 		$command_defs,
-		array( 'user_id' => $user_id, 'request_id' => $request_id )
+		array(
+			'user_id'    => $user_id,
+			'request_id' => $request_id,
+		)
 	);
 
 	$tools = array_merge( $builtin_tools, $command_defs );
@@ -891,15 +1100,17 @@ The message field is always a friendly sentence or two shown directly to the use
 	 * before it goes to the provider. Fires once per run — changes apply to
 	 * every iteration in the agent loop.
 	 *
-	 * @since 0.5.1
-	 *
 	 * @param array $tools   Full the provider tool definitions array.
 	 * @param array $context { user_id, request_id, query }.
 	 */
 	$tools = (array) apply_filters(
-		'desktop_mode_ai_tools',
+		'openstation_ai_tools',
 		$tools,
-		array( 'user_id' => $user_id, 'request_id' => $request_id, 'query' => $query )
+		array(
+			'user_id'    => $user_id,
+			'request_id' => $request_id,
+			'query'      => $query,
+		)
 	);
 
 	// Normalize every tool's schema onto the provider-supported subset, AFTER the
@@ -911,7 +1122,7 @@ The message field is always a friendly sentence or two shown directly to the use
 	// that already normalizes on the filter above is unaffected.
 	foreach ( $tools as $ti => $tool ) {
 		if ( is_array( $tool ) && isset( $tool['parameters'] ) ) {
-			$tools[ $ti ]['parameters'] = desktop_mode_ai_normalize_tool_schema( $tool['parameters'] );
+			$tools[ $ti ]['parameters'] = openstation_ai_normalize_tool_schema( $tool['parameters'] );
 		}
 	}
 
@@ -924,9 +1135,7 @@ The message field is always a friendly sentence or two shown directly to the use
 		}
 	}
 
-	$answer_schema = desktop_mode_ai_search_answer_schema();
-
-	$emit( array( 'phase' => 'start', 'message' => 'Thinking about your question…' ) );
+	$answer_schema = openstation_ai_search_answer_schema();
 
 	// -----------------------------------------------------------------------
 	// First call — user query as the sole message, instructions as system
@@ -934,9 +1143,14 @@ The message field is always a friendly sentence or two shown directly to the use
 	// are advertised as function declarations and dispatched by this loop.
 	// The full ordered conversation is rebuilt and re-sent each turn.
 	// -----------------------------------------------------------------------
-	$messages = array( desktop_mode_ai_user_text_message( $query ) );
+	$messages = array( openstation_ai_user_text_message( $query ) );
 
-	$turn = desktop_mode_ai_client_generate( $user_id, $messages, $tools, $answer_schema, $instructions );
+	$generation_context = array(
+		'source'     => 'ai-copilot/search',
+		'request_id' => $request_id,
+	);
+
+	$turn = openstation_ai_client_generate( $user_id, $messages, $tools, $answer_schema, $instructions, $generation_context );
 
 	if ( is_wp_error( $turn ) ) {
 		return $turn;
@@ -948,8 +1162,12 @@ The message field is always a friendly sentence or two shown directly to the use
 	$iterations    = 0;
 
 	// Accumulate token usage across every turn and remember the last model the
-	// AI Client resolved, for the `desktop_mode_ai_search_completed` payload.
-	$total_usage  = array( 'prompt' => 0, 'completion' => 0, 'total' => 0 );
+	// AI Client resolved, for the `openstation_ai_search_completed` payload.
+	$total_usage  = array(
+		'prompt'     => 0,
+		'completion' => 0,
+		'total'      => 0,
+	);
 	$last_model   = null;
 	$accrue_usage = static function ( $turn ) use ( &$total_usage, &$last_model ) {
 		if ( ! is_array( $turn ) ) {
@@ -971,25 +1189,20 @@ The message field is always a friendly sentence or two shown directly to the use
 	// the final answer. The full ordered conversation (user query, assistant
 	// turns, tool results) is accumulated in $messages and re-sent each turn.
 	// -----------------------------------------------------------------------
-	for ( $i = 0; $i < DESKTOP_MODE_AI_SEARCH_MAX_ITERATIONS; $i++ ) {
+	for ( $i = 0; $i < OPENSTATION_AI_SEARCH_MAX_ITERATIONS; $i++ ) {
 		$function_calls = is_array( $turn['function_calls'] ?? null ) ? $turn['function_calls'] : array();
 
 		// No tool calls in this response → final answer.
 		if ( empty( $function_calls ) ) {
-			$emit( array( 'phase' => 'composing', 'message' => 'Putting together your answer…' ) );
-			$text = $turn['text'] ?? null;
-			if ( ! is_string( $text ) ) {
-				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-				error_log( '[WP Desktop Mode AI] AI Client returned no text in the final turn.' );
-				return new WP_Error(
-					'desktop_mode_ai_empty',
-					'The AI provider returned no text in the final turn.'
-				);
-			}
+			// A toolless turn with no extractable text never reaches here:
+			// openstation_ai_client_generate() returns
+			// `openstation_ai_empty_answer` for that case, handled with the
+			// other generation errors above.
+			$text = (string) ( $turn['text'] ?? '' );
 
 			$answer = json_decode( $text, true );
 			if ( ! is_array( $answer ) ) {
-				return new WP_Error( 'desktop_mode_ai_result_parse', 'Could not parse structured search answer.' );
+				return new WP_Error( 'openstation_ai_result_parse', __( 'Could not parse structured search answer.', 'desktop-mode' ) );
 			}
 
 			$answer_type = isset( $answer['answer_type'] ) && in_array( $answer['answer_type'], array( 'entity', 'navigation', 'chat' ), true )
@@ -1005,7 +1218,7 @@ The message field is always a friendly sentence or two shown directly to the use
 
 			$entity = null;
 			if ( 'entity' === $answer_type && $entity_id && $entity_type ) {
-				$entity = desktop_mode_ai_search_build_entity( $entity_type, $entity_id );
+				$entity = openstation_ai_search_build_entity( $entity_type, $entity_id );
 			}
 
 			$final = array(
@@ -1024,19 +1237,21 @@ The message field is always a friendly sentence or two shown directly to the use
 			 * response is returned. Plugins can rewrite `message`,
 			 * inject `admin_links`, coerce `answer_type`, etc.
 			 *
-			 * @since 0.5.1
-			 *
 			 * @param array $answer  Final answer payload.
 			 * @param array $context { query, user_id, request_id }.
 			 */
 			$final = (array) apply_filters(
-				'desktop_mode_ai_answer',
+				'openstation_ai_answer',
 				$final,
-				array( 'query' => $query, 'user_id' => $user_id, 'request_id' => $request_id )
+				array(
+					'query'      => $query,
+					'user_id'    => $user_id,
+					'request_id' => $request_id,
+				)
 			);
 
 			do_action(
-				'desktop_mode_ai_search_completed',
+				'openstation_ai_search_completed',
 				array(
 					'query'       => $query,
 					'user_id'     => $user_id,
@@ -1064,8 +1279,8 @@ The message field is always a friendly sentence or two shown directly to the use
 		foreach ( $function_calls as $fc ) {
 			$name = (string) ( $fc['name'] ?? '' );
 			if ( isset( $command_tools_by_name[ $name ] ) ) {
-				$raw     = json_decode( $fc['arguments'] ?? '{}', true );
-				$decoded = is_array( $raw ) ? $raw : array();
+				$raw               = json_decode( $fc['arguments'] ?? '{}', true );
+				$decoded           = is_array( $raw ) ? $raw : array();
 				$command_tool_call = array(
 					'slug' => $command_tools_by_name[ $name ]['slug'],
 					'args' => isset( $decoded['args'] ) ? (string) $decoded['args'] : '',
@@ -1073,9 +1288,9 @@ The message field is always a friendly sentence or two shown directly to the use
 				break;
 			}
 		}
-		if ( $command_tool_call !== null ) {
+		if ( null !== $command_tool_call ) {
 			do_action(
-				'desktop_mode_ai_tool_called',
+				'openstation_ai_tool_called',
 				array(
 					'tool_name'  => 'command_' . $command_tool_call['slug'],
 					'args'       => array( 'args' => $command_tool_call['args'] ),
@@ -1097,13 +1312,17 @@ The message field is always a friendly sentence or two shown directly to the use
 			);
 
 			$final = (array) apply_filters(
-				'desktop_mode_ai_answer',
+				'openstation_ai_answer',
 				$final,
-				array( 'query' => $query, 'user_id' => $user_id, 'request_id' => $request_id )
+				array(
+					'query'      => $query,
+					'user_id'    => $user_id,
+					'request_id' => $request_id,
+				)
 			);
 
 			do_action(
-				'desktop_mode_ai_search_completed',
+				'openstation_ai_search_completed',
 				array(
 					'query'       => $query,
 					'user_id'     => $user_id,
@@ -1120,7 +1339,7 @@ The message field is always a friendly sentence or two shown directly to the use
 
 		// Execute each tool call and collect results as
 		// `{ call_id, name, response }` — turned into FunctionResponse parts
-		// for the next turn by desktop_mode_ai_tool_result_message().
+		// for the next turn by openstation_ai_tool_result_message().
 		$tool_outputs = array();
 		foreach ( $function_calls as $fc ) {
 			$tool_name = $fc['name'] ?? '';
@@ -1139,14 +1358,8 @@ The message field is always a friendly sentence or two shown directly to the use
 			$args   = is_array( $raw ) ? $raw : array();
 			$offset = max( 0, (int) ( $args['offset'] ?? 0 ) );
 
-			$emit( array(
-				'phase'   => 'tool_call',
-				'tool'    => $tool_name,
-				'message' => desktop_mode_ai_progress_message( $tool_name ),
-			) );
-
 			do_action(
-				'desktop_mode_ai_tool_called',
+				'openstation_ai_tool_called',
 				array(
 					'tool_name'  => $tool_name,
 					'args'       => $args,
@@ -1167,12 +1380,12 @@ The message field is always a friendly sentence or two shown directly to the use
 				$input  = empty( $ability->get_input_schema() ) ? null : $args;
 				$result = $ability->execute( $input );
 			} else {
-				$result = new WP_Error( 'desktop_mode_ai_unknown_ability', sprintf( 'Ability for tool "%s" is unavailable.', $tool_name ) );
+				$result = new WP_Error( 'openstation_ai_unknown_ability', sprintf( 'Ability for tool "%s" is unavailable.', $tool_name ) );
 			}
 
 			if ( is_wp_error( $result ) ) {
 				do_action(
-					'desktop_mode_ai_search_error',
+					'openstation_ai_search_error',
 					array(
 						'stage'      => 'tool_execute',
 						'tool_name'  => $tool_name,
@@ -1199,19 +1412,20 @@ The message field is always a friendly sentence or two shown directly to the use
 			 * Fires for every ability-dispatched tool (including error
 			 * envelopes from a failed execute()).
 			 *
-			 * @since 0.5.1
-			 *
 			 * @param array  $batch     Tool result payload.
 			 * @param string $tool_name Tool function name.
 			 * @param array  $args      Decoded args from the call.
 			 * @param array  $context   { user_id, request_id }.
 			 */
 			$batch = (array) apply_filters(
-				'desktop_mode_ai_tool_result',
+				'openstation_ai_tool_result',
 				$batch,
 				$tool_name,
 				$args,
-				array( 'user_id' => $user_id, 'request_id' => $request_id )
+				array(
+					'user_id'    => $user_id,
+					'request_id' => $request_id,
+				)
 			);
 
 			$tool_outputs[] = array(
@@ -1221,14 +1435,14 @@ The message field is always a friendly sentence or two shown directly to the use
 			);
 		}
 
-		$iterations++;
+		++$iterations;
 
 		// Next turn — append the assistant's tool-call turn and our tool
 		// results to the conversation, then regenerate with the full history.
 		$messages[] = $turn['message'];
-		$messages[] = desktop_mode_ai_tool_result_message( $tool_outputs );
+		$messages[] = openstation_ai_tool_result_message( $tool_outputs );
 
-		$turn = desktop_mode_ai_client_generate( $user_id, $messages, $tools, $answer_schema, $instructions );
+		$turn = openstation_ai_client_generate( $user_id, $messages, $tools, $answer_schema, $instructions, $generation_context );
 
 		if ( is_wp_error( $turn ) ) {
 			return $turn;
@@ -1241,45 +1455,48 @@ The message field is always a friendly sentence or two shown directly to the use
 	// -----------------------------------------------------------------------
 	$continue = null;
 	if ( $last_has_more ) {
-		$next_offset = $last_offset + DESKTOP_MODE_AI_SEARCH_BATCH_SIZE;
+		$next_offset = $last_offset + OPENSTATION_AI_SEARCH_BATCH_SIZE;
 		// `search_comments_by_post` cannot resume — the continue payload
 		// carries no post_id — so fall back to plain comment search,
-		// keeping `tool` inside desktop_mode_ai_search_resumable_tools().
+		// keeping `tool` inside openstation_ai_search_resumable_tools().
 		$resume_tool = 'search_comments_by_post' === $last_tool ? 'search_comments' : $last_tool;
-		$type_label  = str_replace( 'search_', '', $resume_tool ) . 's';
 		$continue    = array(
 			'tool'        => $resume_tool,
 			'entity_type' => rtrim( str_replace( 'search_', '', $resume_tool ), 's' ),
 			'offset'      => $next_offset,
-			'label'       => sprintf( 'Continue searching in %s (from item %d)', $type_label, $next_offset + 1 ),
+			'label'       => openstation_ai_continue_label( $resume_tool, $next_offset + 1 ),
 		);
 	}
 
 	$final = array(
 		'answer_type' => 'chat',
-		'message'     => 'I searched 100 items without finding a clear match. Want me to keep looking further?',
+		'message'     => __( 'I searched 100 items without finding a clear match. Want me to keep looking further?', 'desktop-mode' ),
 		'entity'      => null,
 		'admin_links' => null,
-		'iterations'  => DESKTOP_MODE_AI_SEARCH_MAX_ITERATIONS,
+		'iterations'  => OPENSTATION_AI_SEARCH_MAX_ITERATIONS,
 		'exhausted'   => ! $last_has_more,
 		'continue'    => $continue,
 		'request_id'  => $request_id,
 	);
 
 	$final = (array) apply_filters(
-		'desktop_mode_ai_answer',
+		'openstation_ai_answer',
 		$final,
-		array( 'query' => $query, 'user_id' => $user_id, 'request_id' => $request_id )
+		array(
+			'query'      => $query,
+			'user_id'    => $user_id,
+			'request_id' => $request_id,
+		)
 	);
 
 	do_action(
-		'desktop_mode_ai_search_completed',
+		'openstation_ai_search_completed',
 		array(
 			'query'       => $query,
 			'user_id'     => $user_id,
 			'request_id'  => $request_id,
 			'answer_type' => 'chat',
-			'iterations'  => DESKTOP_MODE_AI_SEARCH_MAX_ITERATIONS,
+			'iterations'  => OPENSTATION_AI_SEARCH_MAX_ITERATIONS,
 			'usage'       => $total_usage,
 			'model'       => $last_model,
 		)
@@ -1296,16 +1513,15 @@ The message field is always a friendly sentence or two shown directly to the use
  * bug where the two paths's prompt-assembly drifts apart.
  *
  * Applies three layers in order:
- *   1. `desktop_mode_ai_system_prompt_appendix` — stacking filter;
+ *   1. `openstation_ai_system_prompt_appendix` — stacking filter;
  *      every plugin's return is concatenated.
  *   2. Client override — `system_prompt_text` + `system_prompt_mode`.
  *      `append` always allowed; `replace` gated on
- *      `desktop_mode_ai_system_prompt_replace_capability`. Non-permitted
+ *      `openstation_ai_system_prompt_replace_capability`. Non-permitted
  *      `replace` downgrades to `append` so the caller's text is
  *      preserved rather than dropped.
- *   3. `desktop_mode_ai_system_prompt` — final transform pass.
+ *   3. `openstation_ai_system_prompt` — final transform pass.
  *
- * @since 0.5.1
  * @internal
  *
  * @param string $core    Built-in instructions for this phase
@@ -1315,7 +1531,7 @@ The message field is always a friendly sentence or two shown directly to the use
  *                        empty means no override.
  * @return string Composed system prompt.
  */
-function desktop_mode_ai_compose_instructions( $core, array $context, array $client = array() ) {
+function openstation_ai_compose_instructions( $core, array $context, array $client = array() ) {
 	$instructions = (string) $core;
 	$user_id      = isset( $context['user_id'] ) ? (int) $context['user_id'] : 0;
 
@@ -1324,7 +1540,7 @@ function desktop_mode_ai_compose_instructions( $core, array $context, array $cli
 		? (string) $client['mode']
 		: 'append';
 
-	$ctx_for_filter = $context;
+	$ctx_for_filter                    = $context;
 	$ctx_for_filter['client_override'] = '' !== $client_text ? $client_mode : null;
 
 	/**
@@ -1334,12 +1550,10 @@ function desktop_mode_ai_compose_instructions( $core, array $context, array $cli
 	 * restructuring the core rules. Fires for both the primary
 	 * `/ai/search` run and the follow-up composed-reply leg.
 	 *
-	 * @since 0.5.1
-	 *
 	 * @param string $appendix Accumulated appendix. Default empty.
 	 * @param array  $context  { query, user_id, request_id, client_override, phase? }.
 	 */
-	$server_appendix = (string) apply_filters( 'desktop_mode_ai_system_prompt_appendix', '', $ctx_for_filter );
+	$server_appendix = (string) apply_filters( 'openstation_ai_system_prompt_appendix', '', $ctx_for_filter );
 	if ( '' !== $server_appendix ) {
 		$instructions .= "\n\n" . $server_appendix;
 	}
@@ -1352,13 +1566,11 @@ function desktop_mode_ai_compose_instructions( $core, array $context, array $cli
 			 * — replacing the whole prompt can effectively hijack the
 			 * assistant, so it's admin-only out of the box.
 			 *
-			 * @since 0.5.1
-			 *
 			 * @param string $capability Default `manage_options`.
 			 * @param array  $context
 			 */
 			$required_cap = (string) apply_filters(
-				'desktop_mode_ai_system_prompt_replace_capability',
+				'openstation_ai_system_prompt_replace_capability',
 				'manage_options',
 				$ctx_for_filter
 			);
@@ -1378,12 +1590,10 @@ function desktop_mode_ai_compose_instructions( $core, array $context, array $cli
 	 * Final transform pass. Fires after the built-in instructions,
 	 * server appendix, and client override have all been composed.
 	 *
-	 * @since 0.5.1
-	 *
 	 * @param string $instructions Composed system prompt.
 	 * @param array  $context
 	 */
-	return (string) apply_filters( 'desktop_mode_ai_system_prompt', $instructions, $ctx_for_filter );
+	return (string) apply_filters( 'openstation_ai_system_prompt', $instructions, $ctx_for_filter );
 }
 
 /**
@@ -1392,35 +1602,33 @@ function desktop_mode_ai_compose_instructions( $core, array $context, array $cli
  *
  * Called by the REST endpoint when the client sends `follow_up` —
  * the second leg of the opt-in agentic flow triggered by
- * `wp.desktop.ai.ask( q, { tools: 'aiCallable', followUp: true } )`.
+ * `wp.os.ai.ask( q, { tools: 'aiCallable', followUp: true } )`.
  *
  * Single-turn, no tools, no structured-output schema — the model
  * sees the original query + a summary of what happened and writes a
  * one/two-sentence reply in the voice of the system prompt. We reuse
  * the same system-prompt pipeline as the main search so plugins
- * appending instructions via `desktop_mode_ai_system_prompt_appendix`
+ * appending instructions via `openstation_ai_system_prompt_appendix`
  * see consistent voice across the two legs.
- *
- * @since 0.5.1
  *
  * @param string $query     Original user query.
  * @param array  $tool      { slug, args } — what ran.
  * @param array  $outcome   Tool result payload. Opaque — JSON-encoded
  *                          into the model's context so it can reason
  *                          about whatever shape the plugin returned.
- * @param array  $extra     Same shape as `desktop_mode_ai_run_search`'s
+ * @param array  $extra     Same shape as `openstation_ai_run_search`'s
  *                          `$extra` — carries user_id, request_id,
  *                          system-prompt overrides.
  * @return array|WP_Error   `{ answer_type: 'chat', message, … }` or error.
  */
-function desktop_mode_ai_run_followup( $query, array $tool, array $outcome, array $extra = array() ) {
+function openstation_ai_run_followup( $query, array $tool, array $outcome, array $extra = array() ) {
 	$user_id    = isset( $extra['user_id'] ) ? (int) $extra['user_id'] : get_current_user_id();
-	$request_id = isset( $extra['request_id'] ) && is_string( $extra['request_id'] ) && $extra['request_id'] !== ''
+	$request_id = isset( $extra['request_id'] ) && is_string( $extra['request_id'] ) && '' !== $extra['request_id']
 		? (string) $extra['request_id']
-		: ( function_exists( 'wp_generate_uuid4' ) ? wp_generate_uuid4() : uniqid( 'desktop_mode_ai_', true ) );
+		: ( function_exists( 'wp_generate_uuid4' ) ? wp_generate_uuid4() : uniqid( 'openstation_ai_', true ) );
 
 	do_action(
-		'desktop_mode_ai_search_started',
+		'openstation_ai_search_started',
 		array(
 			'query'      => $query,
 			'user_id'    => $user_id,
@@ -1432,24 +1640,24 @@ function desktop_mode_ai_run_followup( $query, array $tool, array $outcome, arra
 	// Mirror the main search's system-prompt layering so voice stays
 	// consistent between the two legs. We build a simpler core-
 	// instructions block — no tool guidance, since this run has none.
-	$instructions = "
+	$instructions = '
 You are the same friendly WordPress assistant that just dispatched a command on behalf of the user. You now have the result of that command.
 
 Write a SHORT reply (one or two sentences, first person, warm and conversational) describing what happened. Match the voice the site owner set in their system prompt — do not restart small talk, just confirm what you did.
 
 Rules:
-- If the outcome looks successful, confirm plainly. Example: \"Done — your office light is on now.\"
+- If the outcome looks successful, confirm plainly. Example: "Done — your office light is on now."
 - If the outcome looks like an error (has an `error` field, a failure message, or obviously negative content), apologise briefly and paraphrase what went wrong. Do not invent details the outcome did not include.
 - Do NOT recommend the user try something else unless the outcome explicitly suggests it.
-- Do NOT describe the tool mechanism (\"I called command_turn_light\") — the user only cares about the real-world effect.
-";
+- Do NOT describe the tool mechanism ("I called command_turn_light") — the user only cares about the real-world effect.
+';
 
 	$system_prompt_text = isset( $extra['system_prompt_text'] ) && is_string( $extra['system_prompt_text'] ) ? $extra['system_prompt_text'] : '';
 	$system_prompt_mode = isset( $extra['system_prompt_mode'] ) && in_array( $extra['system_prompt_mode'], array( 'append', 'replace' ), true )
 		? (string) $extra['system_prompt_mode']
 		: 'append';
 
-	$instructions = desktop_mode_ai_compose_instructions(
+	$instructions = openstation_ai_compose_instructions(
 		$instructions,
 		array(
 			'query'      => $query,
@@ -1457,7 +1665,10 @@ Rules:
 			'request_id' => $request_id,
 			'phase'      => 'follow_up',
 		),
-		array( 'text' => $system_prompt_text, 'mode' => $system_prompt_mode )
+		array(
+			'text' => $system_prompt_text,
+			'mode' => $system_prompt_mode,
+		)
 	);
 
 	$slug         = isset( $tool['slug'] ) ? (string) $tool['slug'] : '';
@@ -1478,14 +1689,14 @@ Rules:
 	// that the provider would reject. Falls back to byte-level substr when
 	// mbstring is unavailable (rare but possible on minimal PHP
 	// builds).
-	$max_outcome_len = (int) apply_filters( 'desktop_mode_ai_followup_outcome_max_chars', 4000 );
+	$max_outcome_len = (int) apply_filters( 'openstation_ai_followup_outcome_max_chars', 4000 );
 	if ( $max_outcome_len > 0 ) {
 		$has_mbstring = function_exists( 'mb_strlen' ) && function_exists( 'mb_substr' );
 		$current_len  = $has_mbstring
 			? mb_strlen( $outcome_json, 'UTF-8' )
 			: strlen( $outcome_json );
 		if ( $current_len > $max_outcome_len ) {
-			$outcome_json = $has_mbstring
+			$outcome_json  = $has_mbstring
 				? mb_substr( $outcome_json, 0, $max_outcome_len, 'UTF-8' )
 				: substr( $outcome_json, 0, $max_outcome_len );
 			$outcome_json .= '…[truncated]';
@@ -1501,26 +1712,39 @@ Rules:
 	);
 
 	do_action(
-		'desktop_mode_ai_tool_called',
+		'openstation_ai_tool_called',
 		array(
 			'tool_name'  => 'followup_summarise',
-			'args'       => array( 'slug' => $slug, 'tool_args' => $tool_args ),
+			'args'       => array(
+				'slug'      => $slug,
+				'tool_args' => $tool_args,
+			),
 			'user_id'    => $user_id,
 			'request_id' => $request_id,
 		)
 	);
 
-	$turn = desktop_mode_ai_client_generate(
+	$turn = openstation_ai_client_generate(
 		$user_id,
-		array( desktop_mode_ai_user_text_message( $user_message ) ),
+		array( openstation_ai_user_text_message( $user_message ) ),
 		array(), // no tools — we want a plain reply
 		null,    // no JSON schema — free-form text
-		$instructions
+		$instructions,
+		array(
+			'source'     => 'ai-copilot/followup',
+			'request_id' => $request_id,
+		)
 	);
 
-	if ( is_wp_error( $turn ) ) {
+	// `openstation_ai_empty_answer` is the one generation error this path
+	// deliberately absorbs: the command DID run, so a text-less summary turn
+	// degrades to the generic confirmation below instead of surfacing as a
+	// failure of the command itself.
+	$empty_answer = is_wp_error( $turn ) && 'openstation_ai_empty_answer' === $turn->get_error_code();
+
+	if ( is_wp_error( $turn ) && ! $empty_answer ) {
 		do_action(
-			'desktop_mode_ai_search_error',
+			'openstation_ai_search_error',
 			array(
 				'code'       => $turn->get_error_code(),
 				'message'    => $turn->get_error_message(),
@@ -1533,7 +1757,7 @@ Rules:
 		return $turn;
 	}
 
-	$text     = $turn['text'] ?? null;
+	$text     = $empty_answer ? null : ( $turn['text'] ?? null );
 	$fallback = false;
 	if ( ! is_string( $text ) || '' === trim( $text ) ) {
 		// Graceful degrade — if the provider returned nothing usable, fall
@@ -1555,12 +1779,15 @@ Rules:
 		'exhausted'   => false,
 		'continue'    => null,
 		'request_id'  => $request_id,
-		'tool'        => array( 'slug' => $slug, 'args' => $tool_args ),
+		'tool'        => array(
+			'slug' => $slug,
+			'args' => $tool_args,
+		),
 		'fallback'    => $fallback,
 	);
 
 	$final = (array) apply_filters(
-		'desktop_mode_ai_answer',
+		'openstation_ai_answer',
 		$final,
 		array(
 			'query'      => $query,
@@ -1571,7 +1798,7 @@ Rules:
 	);
 
 	do_action(
-		'desktop_mode_ai_search_completed',
+		'openstation_ai_search_completed',
 		array(
 			'query'       => $query,
 			'user_id'     => $user_id,
@@ -1592,19 +1819,17 @@ Rules:
 
 /**
  * Registers the AI search REST route.
- *
- * @since 0.5.0
  */
-function desktop_mode_register_ai_search_rest_route() {
+function openstation_register_ai_search_rest_route() {
 	register_rest_route(
 		'desktop-mode/v1',
 		'/ai/search',
 		array(
 			'methods'             => WP_REST_Server::CREATABLE,
-			'callback'            => 'desktop_mode_rest_ai_search',
-			'permission_callback' => 'desktop_mode_rest_ai_search_permission',
+			'callback'            => 'openstation_rest_ai_search',
+			'permission_callback' => 'openstation_rest_ai_search_permission',
 			'args'                => array(
-				'query'        => array(
+				'query'              => array(
 					'required'          => true,
 					'type'              => 'string',
 					'sanitize_callback' => 'sanitize_text_field',
@@ -1616,16 +1841,16 @@ function desktop_mode_register_ai_search_rest_route() {
 				// client is continuing a previous search from the `continue`
 				// object returned by an exhausted run. Fresh searches leave
 				// both unset — the agent picks tools from query semantics.
-				'resume_tool'  => array(
+				'resume_tool'        => array(
 					'required'          => false,
 					'type'              => array( 'string', 'null' ),
 					'default'           => null,
 					'sanitize_callback' => static function ( $v ) {
-						return in_array( $v, desktop_mode_ai_search_resumable_tools(), true )
+						return in_array( $v, openstation_ai_search_resumable_tools(), true )
 							? $v : null;
-				},
+					},
 				),
-				'start_offset' => array(
+				'start_offset'       => array(
 					'required'          => false,
 					'type'              => 'integer',
 					'default'           => 0,
@@ -1636,7 +1861,7 @@ function desktop_mode_register_ai_search_rest_route() {
 				// The slug is namespaced server-side as `command_<slug>`
 				// and any tool_call the model emits with that name short-
 				// circuits back to the client for local dispatch.
-				'command_tools' => array(
+				'command_tools'      => array(
 					'required' => false,
 					'type'     => 'array',
 					'default'  => array(),
@@ -1651,10 +1876,10 @@ function desktop_mode_register_ai_search_rest_route() {
 					),
 				),
 				// Free-form system-prompt override.
-				//   mode: 'append' → concatenated onto the built-in prompt (safe for everyone)
-				//   mode: 'replace' → replaces the built-in prompt entirely, gated on
-				//                     `desktop_mode_ai_system_prompt_replace_capability`
-				//                     (default `manage_options`).
+				// mode: 'append' → concatenated onto the built-in prompt (safe for everyone)
+				// mode: 'replace' → replaces the built-in prompt entirely, gated on
+				// `openstation_ai_system_prompt_replace_capability`
+				// (default `manage_options`).
 				'system_prompt_text' => array(
 					'required' => false,
 					'type'     => 'string',
@@ -1673,7 +1898,7 @@ function desktop_mode_register_ai_search_rest_route() {
 				// and runs a single-turn "summarise this outcome" call
 				// through the provider instead. The client sends this on the
 				// second leg of `ask( q, { tools: 'aiCallable', followUp: true } )`.
-				'follow_up' => array(
+				'follow_up'          => array(
 					'required' => false,
 					'type'     => array( 'object', 'null' ),
 					'default'  => null,
@@ -1682,35 +1907,42 @@ function desktop_mode_register_ai_search_rest_route() {
 		)
 	);
 }
-add_action( 'rest_api_init', 'desktop_mode_register_ai_search_rest_route' );
+add_action( 'rest_api_init', 'openstation_register_ai_search_rest_route' );
 
 /**
  * Permission callback.
  *
- * @since 0.5.0
- *
  * @return bool|WP_Error
  */
-function desktop_mode_rest_ai_search_permission() {
+function openstation_rest_ai_search_permission() {
 	if ( ! is_user_logged_in() || ! current_user_can( 'read' ) ) {
 		return new WP_Error(
-			'desktop_mode_ai_forbidden',
-			'You must be logged in to use the AI assistant.',
+			'openstation_ai_forbidden',
+			__( 'You must be logged in to use the AI assistant.', 'desktop-mode' ),
 			array( 'status' => 403 )
 		);
 	}
-	if ( ! desktop_mode_ai_is_available() ) {
+	if ( ! openstation_ai_is_available() ) {
 		return new WP_Error(
-			'desktop_mode_ai_unavailable',
-			'The AI assistant is unavailable on this site.',
+			'openstation_ai_unavailable',
+			__( 'The AI assistant is unavailable on this site.', 'desktop-mode' ),
 			array( 'status' => 503 )
 		);
 	}
-	if ( ! desktop_mode_ai_is_enabled( get_current_user_id() ) ) {
+	if ( ! openstation_ai_is_enabled( get_current_user_id() ) ) {
+		// The message names the tab for consumers that only get text (a REST
+		// client, `wp.os.ai.ask()`). `settings_tab` names it again as data,
+		// so the overlay can offer a one-click link without parsing prose.
 		return new WP_Error(
-			'desktop_mode_ai_disabled',
-			'The AI assistant is turned off. Enable it in OS Settings → Features.',
-			array( 'status' => 403 )
+			'openstation_ai_disabled',
+			__(
+				'The AI assistant is turned off. Enable it in OpenStation Preferences → Features.',
+				'desktop-mode'
+			),
+			array(
+				'status'       => 403,
+				'settings_tab' => 'features',
+			)
 		);
 	}
 	return true;
@@ -1719,12 +1951,16 @@ function desktop_mode_rest_ai_search_permission() {
 /**
  * POST /desktop-mode/v1/ai/search
  *
- * @since 0.5.0
- *
  * @param WP_REST_Request $request
  * @return WP_REST_Response|WP_Error
  */
-function desktop_mode_rest_ai_search( WP_REST_Request $request ) {
+function openstation_rest_ai_search( WP_REST_Request $request ) {
+	// The agent loop runs up to OPENSTATION_AI_SEARCH_MAX_ITERATIONS model
+	// round-trips, each with a tool call, which overruns a default 30s
+	// max_execution_time. The streaming endpoint used to raise this; it is
+	// the only path now, so it carries the limit.
+	@set_time_limit( 120 ); // phpcs:ignore
+
 	$user_id      = get_current_user_id();
 	$query        = $request->get_param( 'query' );
 	$resume_tool  = $request->get_param( 'resume_tool' );
@@ -1737,7 +1973,7 @@ function desktop_mode_rest_ai_search( WP_REST_Request $request ) {
 
 	$extra = array(
 		'user_id'            => $user_id,
-		'request_id'         => function_exists( 'wp_generate_uuid4' ) ? wp_generate_uuid4() : uniqid( 'desktop_mode_ai_', true ),
+		'request_id'         => function_exists( 'wp_generate_uuid4' ) ? wp_generate_uuid4() : uniqid( 'openstation_ai_', true ),
 		'command_tools'      => $command_tools,
 		'system_prompt_text' => (string) $request->get_param( 'system_prompt_text' ),
 		'system_prompt_mode' => (string) $request->get_param( 'system_prompt_mode' ),
@@ -1748,13 +1984,11 @@ function desktop_mode_rest_ai_search( WP_REST_Request $request ) {
 	 * Plugins get one hook to rewrite query, swap tools, or inject
 	 * metadata before the agent loop starts.
 	 *
-	 * @since 0.5.1
-	 *
 	 * @param array $extra Extended context (mutable).
 	 * @param array $core  Core request params { query, resume_tool, start_offset }.
 	 */
 	$extra = (array) apply_filters(
-		'desktop_mode_ai_request',
+		'openstation_ai_request',
 		$extra,
 		array(
 			'query'        => $query,
@@ -1770,15 +2004,15 @@ function desktop_mode_rest_ai_search( WP_REST_Request $request ) {
 		$outcome = isset( $follow_up['result'] )
 			? ( is_array( $follow_up['result'] ) ? $follow_up['result'] : array( 'value' => $follow_up['result'] ) )
 			: array();
-		$result = desktop_mode_ai_run_followup( $query, $tool, $outcome, $extra );
+		$result  = openstation_ai_run_followup( $query, $tool, $outcome, $extra );
 	} else {
-		$result = desktop_mode_ai_run_search( $query, $resume_tool, $start_offset, null, $extra );
+		$result = openstation_ai_run_search( $query, $resume_tool, $start_offset, $extra );
 	}
 
 	if ( is_wp_error( $result ) ) {
 		$request_id = isset( $extra['request_id'] ) ? (string) $extra['request_id'] : '';
 		do_action(
-			'desktop_mode_ai_search_error',
+			'openstation_ai_search_error',
 			array(
 				'code'       => $result->get_error_code(),
 				'message'    => $result->get_error_message(),
@@ -1802,14 +2036,12 @@ function desktop_mode_rest_ai_search( WP_REST_Request $request ) {
 /**
  * Search the WordPress.org plugin directory.
  *
- * @since 0.5.0
- *
  * @param string $query Search terms.
  * @return array Tool result payload ready for the model.
  */
-function desktop_mode_ai_fetch_wporg_plugins( $query ) {
+function openstation_ai_fetch_wporg_plugins( $query ) {
 	$query = trim( (string) $query );
-	if ( $query === '' ) {
+	if ( '' === $query ) {
 		return array(
 			'tool'    => 'search_wporg_plugins',
 			'query'   => '',
@@ -1821,7 +2053,7 @@ function desktop_mode_ai_fetch_wporg_plugins( $query ) {
 
 	// Transient cache to protect the w.org API from repeated queries
 	// within the same conversation.
-	$cache_key = 'desktop_mode_ai_plugins_' . md5( strtolower( $query ) );
+	$cache_key = 'openstation_ai_plugins_' . md5( strtolower( $query ) );
 	$cached    = get_transient( $cache_key );
 	if ( is_array( $cached ) ) {
 		return $cached;
@@ -1880,7 +2112,7 @@ function desktop_mode_ai_fetch_wporg_plugins( $query ) {
 		$p = (array) $p;
 
 		$slug = isset( $p['slug'] ) ? (string) $p['slug'] : '';
-		if ( $slug === '' ) {
+		if ( '' === $slug ) {
 			continue;
 		}
 
@@ -1948,18 +2180,16 @@ function desktop_mode_ai_fetch_wporg_plugins( $query ) {
  * a readable file the tool reports log_available=false rather than
  * throwing.
  *
- * @since 0.5.0
- *
  * @param int $lines Number of lines to return (clamped 1-500 by caller).
  * @return array
  */
-function desktop_mode_ai_fetch_error_log( $lines = 50 ) {
+function openstation_ai_fetch_error_log( $lines = 50 ) {
 	$candidates = array();
 	if ( defined( 'WP_CONTENT_DIR' ) ) {
 		$candidates[] = WP_CONTENT_DIR . '/debug.log';
 	}
 	$ini_log = (string) ini_get( 'error_log' );
-	if ( $ini_log !== '' && 'syslog' !== $ini_log ) {
+	if ( '' !== $ini_log && 'syslog' !== $ini_log ) {
 		$candidates[] = $ini_log;
 	}
 
@@ -1967,11 +2197,9 @@ function desktop_mode_ai_fetch_error_log( $lines = 50 ) {
 	 * Filter the list of log-file paths to probe in order. Plugins that
 	 * redirect errors somewhere non-standard can add their path here.
 	 *
-	 * @since 0.5.0
-	 *
 	 * @param string[] $candidates File paths, in probe order.
 	 */
-	$candidates = (array) apply_filters( 'desktop_mode_ai_error_log_candidates', $candidates );
+	$candidates = (array) apply_filters( 'openstation_ai_error_log_candidates', $candidates );
 
 	$log_path = '';
 	foreach ( $candidates as $path ) {
@@ -1981,7 +2209,7 @@ function desktop_mode_ai_fetch_error_log( $lines = 50 ) {
 		}
 	}
 
-	if ( $log_path === '' ) {
+	if ( '' === $log_path ) {
 		return array(
 			'tool'          => 'get_php_error_log',
 			'log_available' => false,
@@ -1992,15 +2220,15 @@ function desktop_mode_ai_fetch_error_log( $lines = 50 ) {
 		);
 	}
 
-	$tail = desktop_mode_ai_tail_file( $log_path, $lines );
+	$tail = openstation_ai_tail_file( $log_path, $lines );
 
 	$entries = array();
 	foreach ( $tail as $line ) {
 		$line = trim( $line );
-		if ( $line === '' ) {
+		if ( '' === $line ) {
 			continue;
 		}
-		$entries[] = desktop_mode_ai_parse_log_line( $line );
+		$entries[] = openstation_ai_parse_log_line( $line );
 	}
 
 	return array(
@@ -2019,12 +2247,10 @@ function desktop_mode_ai_fetch_error_log( $lines = 50 ) {
  * prefix is usually "PHP Fatal error", "PHP Warning", etc. Falls back
  * to a raw line when the format doesn't match.
  *
- * @since 0.5.0
- *
  * @param string $line
  * @return array
  */
-function desktop_mode_ai_parse_log_line( $line ) {
+function openstation_ai_parse_log_line( $line ) {
 	// Cap individual messages so a runaway stack trace doesn't balloon
 	// the payload sent to the provider.
 	$line = mb_substr( $line, 0, 600 );
@@ -2056,13 +2282,11 @@ function desktop_mode_ai_parse_log_line( $line ) {
  * in the kilobyte range when admins look at them; if a site routinely
  * lets logs grow into tens of MB, that's the symptom, not this read.
  *
- * @since 0.5.0
- *
  * @param string $path Absolute path to the file.
  * @param int    $lines
  * @return string[] Lines in original order (oldest first).
  */
-function desktop_mode_ai_tail_file( $path, $lines ) {
+function openstation_ai_tail_file( $path, $lines ) {
 	if ( ! function_exists( 'WP_Filesystem' ) ) {
 		require_once ABSPATH . 'wp-admin/includes/file.php';
 	}
@@ -2084,117 +2308,3 @@ function desktop_mode_ai_tail_file( $path, $lines ) {
 
 	return array_slice( $all, -1 * ( $lines + 1 ) );
 }
-
-// ---------------------------------------------------------------------------
-// Streaming endpoint (Server-Sent Events)
-//
-// EventSource can't send POST or custom headers, so we ride admin-ajax.php
-// which handles cookie-based auth natively. The nonce goes in the URL.
-// Output buffering is forcibly disabled and every emit is flushed so the
-// browser receives progress ticks in real time.
-// ---------------------------------------------------------------------------
-
-/**
- * admin-ajax handler for the streaming search endpoint.
- *
- * URL: /wp-admin/admin-ajax.php?action=desktop_mode_ai_search_stream
- *   &nonce=<rest_nonce>
- *   &query=<user question>
- *   &resume_tool=<search_posts|…>   (optional)
- *   &start_offset=<int>             (optional)
- *
- * Emits SSE events:
- *   data: { "event": "progress", "phase": "tool_call", "message": "…" }
- *   data: { "event": "done",     "result": { … } }
- *   data: { "event": "error",    "message": "…" }
- *
- * @since 0.5.0
- */
-function desktop_mode_ai_ajax_search_stream() {
-	$nonce = isset( $_GET['nonce'] ) ? sanitize_text_field( wp_unslash( $_GET['nonce'] ) ) : '';
-	if ( ! wp_verify_nonce( $nonce, 'wp_rest' ) ) {
-		status_header( 403 );
-		exit;
-	}
-	if ( ! is_user_logged_in() || ! current_user_can( 'read' ) ) {
-		status_header( 403 );
-		exit;
-	}
-	$user_id = get_current_user_id();
-	if ( ! desktop_mode_ai_is_available() ) {
-		status_header( 503 );
-		exit;
-	}
-	if ( ! desktop_mode_ai_is_enabled( $user_id ) ) {
-		status_header( 403 );
-		exit;
-	}
-
-	$query = isset( $_GET['query'] ) ? sanitize_text_field( wp_unslash( $_GET['query'] ) ) : ''; // phpcs:ignore WordPress.Security
-	if ( trim( $query ) === '' ) {
-		status_header( 400 );
-		exit;
-	}
-
-	$resume_tool  = isset( $_GET['resume_tool'] ) ? sanitize_key( wp_unslash( $_GET['resume_tool'] ) ) : null; // phpcs:ignore WordPress.Security
-	$start_offset = isset( $_GET['start_offset'] ) ? absint( $_GET['start_offset'] ) : 0; // phpcs:ignore WordPress.Security
-	if ( $resume_tool !== null && ! in_array( $resume_tool, desktop_mode_ai_search_resumable_tools(), true ) ) {
-		$resume_tool = null;
-	}
-
-	// SSE headers — tell nginx to stop buffering, tell the browser this is
-	// a persistent event stream.
-	header( 'Content-Type: text/event-stream; charset=utf-8' );
-	header( 'Cache-Control: no-cache, no-store, must-revalidate' );
-	header( 'X-Accel-Buffering: no' );
-	header( 'Connection: keep-alive' );
-
-	// Let other requests from this user proceed (release session lock).
-	if ( session_status() === PHP_SESSION_ACTIVE ) {
-		session_write_close();
-	}
-
-	// Kill any output buffers PHP set up, otherwise nothing flushes until
-	// the request ends — which defeats the whole point of streaming.
-	while ( ob_get_level() > 0 ) {
-		@ob_end_flush(); // phpcs:ignore
-	}
-	@ini_set( 'output_buffering', 'off' ); // phpcs:ignore
-	@ini_set( 'zlib.output_compression', 'off' ); // phpcs:ignore
-	@set_time_limit( 120 ); // phpcs:ignore
-
-	$emit = static function ( array $payload ) {
-		echo 'data: ' . wp_json_encode( $payload ) . "\n\n";
-		@ob_flush(); // phpcs:ignore
-		flush();
-	};
-
-	// Initial tick so the EventSource opens immediately and the JS can
-	// start showing "Thinking…" without waiting for the first model call.
-	$emit( array( 'event' => 'open' ) );
-
-	$result = desktop_mode_ai_run_search(
-		$query,
-		$resume_tool,
-		$start_offset,
-		function ( $progress ) use ( $emit ) {
-			$emit( array_merge( array( 'event' => 'progress' ), $progress ) );
-		}
-	);
-
-	if ( is_wp_error( $result ) ) {
-		$emit( array(
-			'event'   => 'error',
-			'message' => $result->get_error_message(),
-			'code'    => $result->get_error_code(),
-		) );
-	} else {
-		$emit( array(
-			'event'  => 'done',
-			'result' => $result,
-		) );
-	}
-
-	exit;
-}
-add_action( 'wp_ajax_desktop_mode_ai_search_stream', 'desktop_mode_ai_ajax_search_stream' );

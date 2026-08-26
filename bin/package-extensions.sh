@@ -2,7 +2,8 @@
 #
 # Build WordPress-installable plugin zips for every extension under
 # extensions/. One zip per extension, written to dist/ by default
-# (or to a directory passed as $1).
+# (or to a directory passed as $1). Pass a slug as $2 to package only
+# that extension.
 #
 # Why not `git archive --format=zip` directly? Git's zip output stores
 # Unix mode 0600 for files / 0700 for dirs — after extraction by the
@@ -27,16 +28,30 @@ cd "$(dirname "$0")/.."
 root=$(pwd)
 
 out_dir="${1:-$root/dist}"
+only_slug="${2:-}"
 mkdir -p "$out_dir"
+out_dir=$(cd "$out_dir" && pwd)
 
 if [[ ! -d "extensions" ]]; then
 	echo "error: no extensions/ directory at $root" >&2
 	exit 1
 fi
 
-shopt -s nullglob
-extensions=( extensions/*/ )
-shopt -u nullglob
+if [[ -n "$only_slug" ]]; then
+	if [[ ! "$only_slug" =~ ^[a-z0-9][a-z0-9-]*$ ]]; then
+		echo "error: invalid extension slug: $only_slug" >&2
+		exit 1
+	fi
+	if [[ ! -d "extensions/$only_slug" ]]; then
+		echo "error: extension not found: $only_slug" >&2
+		exit 1
+	fi
+	extensions=( "extensions/$only_slug/" )
+else
+	shopt -s nullglob
+	extensions=( extensions/*/ )
+	shopt -u nullglob
+fi
 
 if [[ ${#extensions[@]} -eq 0 ]]; then
 	echo "No extensions found under extensions/. Nothing to package."
@@ -62,10 +77,8 @@ for ext_dir in "${extensions[@]}"; do
 	# Run any fetcher scripts the extension ships with. Convention:
 	# `bin/fetch-*.sh` populates a gitignored vendor dir and is
 	# idempotent — bails early when its target is already present.
-	shopt -s nullglob
-	fetchers=( "$ext_dir"bin/fetch-*.sh )
-	shopt -u nullglob
-	for fetcher in "${fetchers[@]}"; do
+	for fetcher in "$ext_dir"bin/fetch-*.sh; do
+		[[ -f "$fetcher" ]] || continue
 		echo "  running $(basename "$fetcher")"
 		"$fetcher"
 	done
@@ -77,10 +90,15 @@ for ext_dir in "${extensions[@]}"; do
 	# not-gitignored files — exactly the source of truth for "what's part
 	# of this plugin." This works whether the extension has been committed
 	# or is still in the working tree. The vendor dir, being gitignored,
-	# is correctly excluded; we splice it back in below.
+	# is correctly excluded; we splice it back in below. An extension may
+	# use .distignore to remove repository-only files from its release zip.
 	(
 		cd "extensions/$slug"
-		git ls-files -co --exclude-standard | tar -cf - -T -
+		tar_args=( -cf - )
+		if [[ -f ".distignore" ]]; then
+			tar_args+=( --exclude-from=.distignore )
+		fi
+		git ls-files -co --exclude-standard | tar "${tar_args[@]}" -T -
 	) | tar -x -C "$stage/$slug"
 
 	# Splice in any vendored content from the working tree. Anything under
@@ -89,11 +107,8 @@ for ext_dir in "${extensions[@]}"; do
 	# new extension that bundles its own vendor only needs the gitignore
 	# entry — no changes to this script.
 	if [[ -d "$ext_dir/assets/vendor" ]]; then
-		shopt -s nullglob
-		vendor_subdirs=( "$ext_dir"assets/vendor/*/ )
-		shopt -u nullglob
-
-		for sub in "${vendor_subdirs[@]}"; do
+		for sub in "$ext_dir"assets/vendor/*/; do
+			[[ -d "$sub" ]] || continue
 			sub_name=$(basename "$sub")
 			dest="$stage/$slug/assets/vendor/$sub_name"
 			if [[ -d "$dest" ]]; then

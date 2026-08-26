@@ -4,7 +4,7 @@
  * `src/desktop-themes/` can be perfectly correct and the feature can
  * still do nothing visible, because the value only lands where a
  * render path actually consults a slot. These tests pin the seams:
- * `renderIcon`, `<wpd-window-button icon-src>`, the OS-settings state
+ * `renderIcon`, `<os-window-button icon-src>`, the OS-settings state
  * parser, and the live-refresh payload forwarding.
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
@@ -17,7 +17,7 @@ import { applyDesktopTheme } from '../../src/desktop-themes/apply';
 import { createApplyPayload } from '../../src/menu-refresh-apply';
 import type { MenuRefreshDeps } from '../../src/menu-refresh-apply';
 import type { DesktopConfig } from '../../src/types';
-import '../../src/ui/components/wpd-window-button/wpd-window-button';
+import '../../src/ui/components/os-window-button/os-window-button';
 
 function rawTheme( icons: Record< string, string > ) {
 	return {
@@ -39,7 +39,7 @@ function rawTheme( icons: Record< string, string > ) {
 
 function activate( icons: Record< string, string > ) {
 	const shell = document.createElement( 'div' );
-	shell.id = 'desktop-mode-shell';
+	shell.id = 'os-shell';
 	document.body.appendChild( shell );
 	setDesktopThemes( [ rawTheme( icons ) ] );
 	applyDesktopTheme( 'acme-neon' );
@@ -110,10 +110,10 @@ describe( 'renderIcon — slot substitution', () => {
 } );
 
 // ---------------------------------------------------------------
-// <wpd-window-button icon-src>.
+// <os-window-button icon-src>.
 // ---------------------------------------------------------------
 
-describe( '<wpd-window-button icon-src>', () => {
+describe( '<os-window-button icon-src>', () => {
 	/** The component paints on a microtask; flush it. */
 	async function flush() {
 		await Promise.resolve();
@@ -121,7 +121,7 @@ describe( '<wpd-window-button icon-src>', () => {
 	}
 
 	test( 'renders a currentColor-tinted mask span', async () => {
-		const btn = document.createElement( 'wpd-window-button' );
+		const btn = document.createElement( 'os-window-button' );
 		btn.setAttribute( 'icon-src', 'https://x.test/close.svg' );
 		document.body.appendChild( btn );
 		await flush();
@@ -129,13 +129,13 @@ describe( '<wpd-window-button icon-src>', () => {
 		const span = btn.shadowRoot?.querySelector( '.themed-icon' ) as HTMLElement;
 		expect( span ).toBeTruthy();
 		// The `mask` shorthand is what makes the glyph inherit
-		// `--wpd-btn-color`; an <img> would ignore it entirely.
+		// `--os-ui-btn-color`; an <img> would ignore it entirely.
 		expect( span.getAttribute( 'style' ) ).toContain( 'https://x.test/close.svg' );
 		expect( btn.shadowRoot?.querySelector( 'svg' ) ).toBeNull();
 	} );
 
 	test( 'icon-src takes precedence over icon', async () => {
-		const btn = document.createElement( 'wpd-window-button' );
+		const btn = document.createElement( 'os-window-button' );
 		btn.setAttribute( 'icon', 'close' );
 		btn.setAttribute( 'icon-src', 'https://x.test/close.svg' );
 		document.body.appendChild( btn );
@@ -146,7 +146,7 @@ describe( '<wpd-window-button icon-src>', () => {
 	} );
 
 	test( 'falls back to the built-in icon when icon-src is absent', async () => {
-		const btn = document.createElement( 'wpd-window-button' );
+		const btn = document.createElement( 'os-window-button' );
 		btn.setAttribute( 'icon', 'close' );
 		document.body.appendChild( btn );
 		await flush();
@@ -163,7 +163,7 @@ describe( '<wpd-window-button icon-src>', () => {
 		[ 'whitespace', 'https://x.test/a b.svg' ],
 		[ 'non-image data uri', 'data:text/html,<script>x</script>' ],
 	] )( 'rejects %s', async ( _label, src ) => {
-		const btn = document.createElement( 'wpd-window-button' );
+		const btn = document.createElement( 'os-window-button' );
 		btn.setAttribute( 'icon', 'close' );
 		btn.setAttribute( 'icon-src', src );
 		document.body.appendChild( btn );
@@ -176,7 +176,7 @@ describe( '<wpd-window-button icon-src>', () => {
 	} );
 
 	test( 'accepts an image data URI', async () => {
-		const btn = document.createElement( 'wpd-window-button' );
+		const btn = document.createElement( 'os-window-button' );
 		btn.setAttribute( 'icon-src', 'data:image/svg+xml;base64,AAAA' );
 		document.body.appendChild( btn );
 		await flush();

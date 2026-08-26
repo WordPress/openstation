@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Extra canvas drop-payload handlers.
+ * OpenStation — Extra canvas drop-payload handlers.
  *
  * The DragManager registry keys drop targets by ELEMENT — one target
  * per element (`drop-target-registry.ts`). The FilesLayer already
@@ -12,9 +12,7 @@
  *
  * Internal for now (module-level map — the notes layer and the files
  * layer compile into the same main bundle). Promote via
- * `wp.desktop.files` + docs if third-party bundles ever need it.
- *
- * @since 0.9.6
+ * `wp.os.files` + docs if third-party bundles ever need it.
  */
 
 import type { DragPayload, DragSession } from '../drag';

@@ -5,7 +5,7 @@
 # Monaco's AMD distributable (~14 MB) is gitignored — too large to
 # commit, and reproducible from the npm package pinned in
 # package.json. This script copies it into place so the plugin can
-# load it at runtime via `wpdc_monaco_vendor_url()`.
+# load it at runtime via `osc_monaco_vendor_url()`.
 #
 # Idempotent: bails early if assets/vendor/monaco-editor/min/vs/loader.js
 # is already present. Pass --force to refetch (the npm install + copy

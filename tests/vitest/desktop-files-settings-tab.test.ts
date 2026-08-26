@@ -38,7 +38,7 @@ describe( 'File Associations OS Settings tab', () => {
 		const { tab, settings } = await loadAll();
 		tab.registerFileAssociationsTab();
 		const ids = settings.listSettingsTabs().map( ( t ) => t.id );
-		expect( ids ).toContain( 'desktop-mode-file-associations' );
+		expect( ids ).toContain( 'os-file-associations' );
 	} );
 
 	test( 'render produces one row per registered file type', async () => {
@@ -63,11 +63,11 @@ describe( 'File Associations OS Settings tab', () => {
 
 		const def = settings
 			.listSettingsTabs()
-			.find( ( t ) => t.id === 'desktop-mode-file-associations' )!;
+			.find( ( t ) => t.id === 'os-file-associations' )!;
 		const body = document.createElement( 'div' );
 		def.render( body, { isAdmin: true, getOsSettings: () => ( {} as never ), subscribeOsSettings: () => () => undefined } );
 
-		const rows = body.querySelectorAll( '.desktop-mode-file-associations__row' );
+		const rows = body.querySelectorAll( '.os-file-associations__row' );
 		expect( rows.length ).toBe( 2 );
 	} );
 
@@ -99,13 +99,13 @@ describe( 'File Associations OS Settings tab', () => {
 		tab.registerFileAssociationsTab();
 		const def = settings
 			.listSettingsTabs()
-			.find( ( t ) => t.id === 'desktop-mode-file-associations' )!;
+			.find( ( t ) => t.id === 'os-file-associations' )!;
 		const body = document.createElement( 'div' );
 		def.render( body, { isAdmin: true, getOsSettings: () => ( {} as never ), subscribeOsSettings: () => () => undefined } );
 
-		const select = body.querySelector< HTMLElement >( 'wpd-select' )!;
+		const select = body.querySelector< HTMLElement >( 'os-select' )!;
 		select.dispatchEvent(
-			new CustomEvent( 'wpd-pick', {
+			new CustomEvent( 'os-pick', {
 				detail: { value: 'classic' },
 				bubbles: true,
 			} ),
@@ -127,9 +127,9 @@ describe( 'File Associations OS Settings tab', () => {
 		tab.registerFileAssociationsTab();
 		const def = settings
 			.listSettingsTabs()
-			.find( ( t ) => t.id === 'desktop-mode-file-associations' )!;
+			.find( ( t ) => t.id === 'os-file-associations' )!;
 		const body = document.createElement( 'div' );
 		def.render( body, { isAdmin: true, getOsSettings: () => ( {} as never ), subscribeOsSettings: () => () => undefined } );
-		expect( body.querySelector( '.desktop-mode-file-associations__none' ) ).not.toBeNull();
+		expect( body.querySelector( '.os-file-associations__none' ) ).not.toBeNull();
 	} );
 } );

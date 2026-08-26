@@ -9,7 +9,7 @@
  *
  * Plugin authors use this to colour, soften, or restyle individual
  * windows without having to know anything about the shell's chrome
- * structure. Designers hand off a `tokens` map of `--desktop-mode-*`
+ * structure. Designers hand off a `tokens` map of `--os-*`
  * variables and call it a day. Power users still get the slot and
  * control registries for shape changes (Layers 2-3) and the full
  * chrome render escape hatch (Layer 4).
@@ -17,11 +17,9 @@
  * Mirrors the title-bar-button registry pattern (`subscribe` fan-out,
  * `match` predicate, `owner`-based teardown). Plain module-level state
  * is fine here: every plugin reaches the registry through
- * `wp.desktop.registerWindowTheme()` on the public API, so all callers
+ * `wp.os.registerWindowTheme()` on the public API, so all callers
  * land in the same singleton — same ergonomics as `registerCommand`,
  * `registerTitleBarButton`, etc.
- *
- * @since 0.6.0
  */
 
 import { throwOnRegistrationErrors } from '../../registration-errors';
@@ -54,9 +52,9 @@ export interface WindowThemeDef {
 	 *
 	 * ```ts
 	 * tokens: {
-	 *   '--desktop-mode-window-radius': '14px',
-	 *   '--desktop-mode-titlebar-bg': '#1a1a2e',
-	 *   '--desktop-mode-titlebar-color-focused': '#fafafa',
+	 *   '--os-window-radius': '14px',
+	 *   '--os-titlebar-bg': '#1a1a2e',
+	 *   '--os-titlebar-color-focused': '#fafafa',
 	 * }
 	 * ```
 	 */
@@ -96,7 +94,7 @@ export interface WindowThemeDef {
  * Cross-bundle shared backing store. The lazy
  * `window-system[.min].js` bundle constructs/reads from this
  * registry while main writes to it via `registerBuiltIn*` and
- * `wp.desktop.register*` — each bundle would otherwise see its
+ * `wp.os.register*` — each bundle would otherwise see its
  * own empty copy. See `AGENTS.md` ("Cross-bundle state") and
  * the Stage-8 callout in `BUNDLE-SIZE-REPORT.md` for the
  * pattern.
@@ -232,7 +230,7 @@ export function resolveWindowTheme(
 			if ( typeof console !== 'undefined' ) {
 				// eslint-disable-next-line no-console
 				console.warn(
-					`[desktop-mode] window-theme "${ def.id }" match() threw — skipping`,
+					`[openstation] window-theme "${ def.id }" match() threw — skipping`,
 					err,
 				);
 			}
@@ -264,7 +262,7 @@ function notify(): void {
 			if ( typeof console !== 'undefined' ) {
 				// eslint-disable-next-line no-console
 				console.error(
-					'[desktop-mode] window-theme registry listener threw:',
+					'[openstation] window-theme registry listener threw:',
 					err,
 				);
 			}

@@ -11,13 +11,12 @@
  * install drop targets here; that's `card-drag.ts`'s job.
  *
  * @public
- * @since 0.9.0
  */
 
 import { __, sprintf } from '../i18n';
 import type { InstalledPlugin, WpOrgBrowsePlugin } from './types';
-import '../ui/components/wpd-button/wpd-button';
-import '../ui/components/wpd-card/wpd-card';
+import '../ui/components/os-button/os-button';
+import '../ui/components/os-card/os-card';
 
 /**
  * What the card knows about an installed counterpart, so the CTA can
@@ -38,14 +37,14 @@ export function buildCard(
 	installed: InstalledIndex,
 	callbacks: CardCallbacks,
 ): HTMLElement {
-	// `<wpd-card interactive>` gives us the focusable + click-emitting
+	// `<os-card interactive>` gives us the focusable + click-emitting
 	// behaviour the gallery needs without any handcoded ARIA / role /
 	// tabindex / hover-lift CSS. The component dispatches
-	// `wpd-card-click` skipping `[data-noclick]` descendants — the CTA
+	// `os-card-click` skipping `[data-noclick]` descendants — the CTA
 	// button below opts out via that attribute, so we don't need a
 	// per-event `event.target.closest()` guard.
-	const card = document.createElement( 'wpd-card' );
-	card.classList.add( 'desktop-mode-plugins__card' );
+	const card = document.createElement( 'os-card' );
+	card.classList.add( 'os-plugins__card' );
 	card.setAttribute( 'interactive', '' );
 	card.dataset.slug = plugin.slug;
 	card.setAttribute(
@@ -58,13 +57,13 @@ export function buildCard(
 	);
 
 	// ─── Header (icon + title + author) ─────────────────────────────
-	// Plain `<header>` slot — `<wpd-card>` styles the slotted element
+	// Plain `<header>` slot — `<os-card>` styles the slotted element
 	// as a flex row with a 12px gap automatically.
 	const header = document.createElement( 'header' );
-	header.className = 'desktop-mode-plugins__card-header';
+	header.className = 'os-plugins__card-header';
 
 	const iconWrap = document.createElement( 'div' );
-	iconWrap.className = 'desktop-mode-plugins__card-icon';
+	iconWrap.className = 'os-plugins__card-icon';
 	const iconUrl = pickIcon( plugin.icons );
 	if ( iconUrl ) {
 		const img = document.createElement( 'img' );
@@ -85,12 +84,12 @@ export function buildCard(
 	}
 
 	const titleBlock = document.createElement( 'div' );
-	titleBlock.className = 'desktop-mode-plugins__card-titleblock';
+	titleBlock.className = 'os-plugins__card-titleblock';
 	const title = document.createElement( 'h3' );
-	title.className = 'desktop-mode-plugins__card-title';
+	title.className = 'os-plugins__card-title';
 	title.textContent = decodeEntities( plugin.name );
 	const byline = document.createElement( 'p' );
-	byline.className = 'desktop-mode-plugins__card-byline';
+	byline.className = 'os-plugins__card-byline';
 	byline.innerHTML = sprintf(
 		/* translators: %s: plugin author name (HTML-stripped) */
 		__( 'by %s', 'desktop-mode' ),
@@ -103,19 +102,19 @@ export function buildCard(
 
 	// ─── Description ─────────────────────────────────────────────────
 	const desc = document.createElement( 'p' );
-	desc.className = 'desktop-mode-plugins__card-desc';
+	desc.className = 'os-plugins__card-desc';
 	desc.textContent = decodeEntities( plugin.short_description ?? '' );
 
 	// ─── Footer (rating + installs + CTA) ───────────────────────────
 	const footer = document.createElement( 'footer' );
-	footer.className = 'desktop-mode-plugins__card-footer';
+	footer.className = 'os-plugins__card-footer';
 	footer.setAttribute( 'slot', 'footer' );
 
 	const meta = document.createElement( 'div' );
-	meta.className = 'desktop-mode-plugins__card-meta';
+	meta.className = 'os-plugins__card-meta';
 	meta.appendChild( buildStarCluster( plugin.rating ?? 0, plugin.num_ratings ?? 0 ) );
 	const installs = document.createElement( 'span' );
-	installs.className = 'desktop-mode-plugins__card-installs';
+	installs.className = 'os-plugins__card-installs';
 	installs.textContent = formatInstalls( plugin.active_installs ?? 0 );
 	meta.appendChild( installs );
 
@@ -125,10 +124,10 @@ export function buildCard(
 
 	card.append( header, desc, footer );
 
-	// `<wpd-card interactive>` already handles role / tabindex /
+	// `<os-card interactive>` already handles role / tabindex /
 	// click + keyboard activation and skips `[data-noclick]`
-	// descendants. We just listen for its `wpd-card-click` event.
-	card.addEventListener( 'wpd-card-click', () => {
+	// descendants. We just listen for its `os-card-click` event.
+	card.addEventListener( 'os-card-click', () => {
 		callbacks.onOpen( plugin.slug, plugin );
 	} );
 
@@ -143,7 +142,7 @@ export function repaintCardCta(
 	callbacks: CardCallbacks,
 ): void {
 	const footer = card.querySelector< HTMLElement >(
-		'.desktop-mode-plugins__card-footer',
+		'.os-plugins__card-footer',
 	);
 	if ( ! footer ) {
 		return;
@@ -164,7 +163,7 @@ function buildCta(
 	card: HTMLElement,
 ): HTMLElement {
 	const installedRow = installed.get( plugin.slug );
-	const button = document.createElement( 'wpd-button' );
+	const button = document.createElement( 'os-button' );
 	button.setAttribute( 'data-plugin-card-cta', '' );
 	button.setAttribute( 'data-noclick', '' );
 	if ( installedRow ) {
@@ -195,7 +194,7 @@ function buildCta(
 }
 
 /**
- * Render a 5-star cluster using `<wpd-icon>` glyphs. Half-star
+ * Render a 5-star cluster using `<os-icon>` glyphs. Half-star
  * support: ratings come back as 0–100 from wp.org.
  */
 export function buildStarCluster(
@@ -203,7 +202,7 @@ export function buildStarCluster(
 	totalRatings: number,
 ): HTMLElement {
 	const wrap = document.createElement( 'span' );
-	wrap.className = 'desktop-mode-plugins__stars';
+	wrap.className = 'os-plugins__stars';
 	wrap.setAttribute( 'aria-label', formatStarsAriaLabel( rating0to100 ) );
 
 	const stars5 = Math.max( 0, Math.min( 5, ( rating0to100 / 100 ) * 5 ) );
@@ -222,7 +221,7 @@ export function buildStarCluster(
 
 	if ( totalRatings > 0 ) {
 		const count = document.createElement( 'span' );
-		count.className = 'desktop-mode-plugins__stars-count';
+		count.className = 'os-plugins__stars-count';
 		count.textContent = `(${ formatThousands( totalRatings ) })`;
 		wrap.appendChild( count );
 	}
@@ -231,7 +230,7 @@ export function buildStarCluster(
 
 function buildStar( kind: 'filled' | 'half' | 'empty' ): HTMLElement {
 	const span = document.createElement( 'span' );
-	span.className = 'desktop-mode-plugins__star';
+	span.className = 'os-plugins__star';
 	span.setAttribute( 'aria-hidden', 'true' );
 	const icon = document.createElement( 'span' );
 	if ( kind === 'filled' ) {
@@ -248,12 +247,12 @@ function buildStar( kind: 'filled' | 'half' | 'empty' ): HTMLElement {
 function buildFallbackGlyph(): HTMLElement {
 	const fallback = document.createElement( 'span' );
 	fallback.className =
-		'dashicons dashicons-admin-plugins desktop-mode-plugins__card-icon-fallback';
+		'dashicons dashicons-admin-plugins os-plugins__card-icon-fallback';
 	fallback.setAttribute( 'aria-hidden', 'true' );
 	return fallback;
 }
 
-/** Pick the best available icon URL (svg > 256 > 128 > 1x). */
+/** Pick the best available icon URL (svg > 256 > 128 > 1x > default). */
 export function pickIcon(
 	icons: Record< string, string > | undefined,
 ): string | null {
@@ -264,11 +263,11 @@ export function pickIcon(
 		icons.svg ??
 		icons[ '256' ] ??
 		icons[ '256x256' ] ??
-		icons.default ??
 		icons[ '128' ] ??
 		icons[ '128x128' ] ??
 		icons[ '2x' ] ??
 		icons[ '1x' ] ??
+		icons.default ??
 		Object.values( icons )[ 0 ] ??
 		null
 	);

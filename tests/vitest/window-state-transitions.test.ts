@@ -92,11 +92,11 @@ function mountWindow(
 /** Read the active state class from the element (there should be exactly one or none). */
 function activeStateClasses( el: HTMLElement ): string[] {
 	const all = [
-		'desktop-mode-window--maximized',
-		'desktop-mode-window--fullscreen',
-		'desktop-mode-window--snapped-left',
-		'desktop-mode-window--snapped-right',
-		'desktop-mode-window--minimized',
+		'os-window--maximized',
+		'os-window--fullscreen',
+		'os-window--snapped-left',
+		'os-window--snapped-right',
+		'os-window--minimized',
 	];
 	return all.filter( ( c ) => el.classList.contains( c ) );
 }
@@ -119,7 +119,7 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 		handle.win.toggleFullscreen();
 		expect( handle.win.state ).toBe( 'fullscreen' );
 		expect( activeStateClasses( handle.win.element ) ).toEqual( [
-			'desktop-mode-window--fullscreen',
+			'os-window--fullscreen',
 		] );
 
 		handle.win.toggleMaximize();
@@ -130,7 +130,7 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 		// maximize while in fullscreen produced no visible change
 		// because `--fullscreen` (with !important) was still active.
 		expect( activeStateClasses( handle.win.element ) ).toEqual( [
-			'desktop-mode-window--maximized',
+			'os-window--maximized',
 		] );
 	} );
 
@@ -141,7 +141,7 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 
 		expect( handle.win.state ).toBe( 'fullscreen' );
 		expect( activeStateClasses( handle.win.element ) ).toEqual( [
-			'desktop-mode-window--fullscreen',
+			'os-window--fullscreen',
 		] );
 	} );
 
@@ -154,7 +154,7 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 
 		expect( handle.win.state ).toBe( 'maximized' );
 		expect( activeStateClasses( handle.win.element ) ).toEqual( [
-			'desktop-mode-window--maximized',
+			'os-window--maximized',
 		] );
 	} );
 
@@ -184,13 +184,13 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 		expect( handle.win.state ).toBe( 'fullscreen' );
 		// Snap class must not leak alongside fullscreen.
 		expect( activeStateClasses( handle.win.element ) ).toEqual( [
-			'desktop-mode-window--fullscreen',
+			'os-window--fullscreen',
 		] );
 
 		handle.win.toggleFullscreen();
 		expect( handle.win.state ).toBe( 'snapped-left' );
 		expect( activeStateClasses( handle.win.element ) ).toEqual( [
-			'desktop-mode-window--snapped-left',
+			'os-window--snapped-left',
 		] );
 	} );
 
@@ -201,7 +201,7 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 
 		expect( handle.win.state ).toBe( 'maximized' );
 		expect( activeStateClasses( handle.win.element ) ).toEqual( [
-			'desktop-mode-window--maximized',
+			'os-window--maximized',
 		] );
 	} );
 
@@ -217,7 +217,7 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 		// is preserved across the minimize/restore round trip.
 		expect( handle.win.state ).toBe( 'maximized' );
 		expect( activeStateClasses( handle.win.element ) ).toEqual( [
-			'desktop-mode-window--maximized',
+			'os-window--maximized',
 		] );
 	} );
 
@@ -233,7 +233,7 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 		// round-trip (minimize composed `--minimized` on top); restore
 		// strips `--minimized` and leaves the underlying state class.
 		expect( activeStateClasses( handle.win.element ) ).toEqual( [
-			'desktop-mode-window--fullscreen',
+			'os-window--fullscreen',
 		] );
 	} );
 
@@ -242,43 +242,43 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 		// fullscreen state used to leave UI side-effects stale. The
 		// body class controls admin-bar hiding (see
 		// `assets/css/desktop.css` rule on
-		// `body.desktop-mode-has-fullscreen-window`) — if it falls out
+		// `body.os-has-fullscreen-window`) — if it falls out
 		// of sync after restore, the admin bar reappears on top of a
 		// supposedly-fullscreen window.
 		handle.win.toggleFullscreen();
 		expect(
-			document.body.classList.contains( 'desktop-mode-has-fullscreen-window' ),
+			document.body.classList.contains( 'os-has-fullscreen-window' ),
 		).toBe( true );
 		handle.win.minimize();
 		// Simulate something else clearing the body class while the
 		// window was hidden (a re-render race, a sibling window's
 		// close path, etc.). Restore must rebuild it.
-		document.body.classList.remove( 'desktop-mode-has-fullscreen-window' );
+		document.body.classList.remove( 'os-has-fullscreen-window' );
 
 		handle.win.restore();
 
 		expect(
-			document.body.classList.contains( 'desktop-mode-has-fullscreen-window' ),
+			document.body.classList.contains( 'os-has-fullscreen-window' ),
 		).toBe( true );
 	} );
 
 	test( 'fullscreen → minimize: clears fullscreen body class while minimized', () => {
 		// Regression guard for the admin-bar bug: minimizing a
 		// fullscreen window used to leave
-		// `body.desktop-mode-has-fullscreen-window` in place, keeping
+		// `body.os-has-fullscreen-window` in place, keeping
 		// the admin bar hidden even though no fullscreen window was
 		// visible. `updateFullscreenBodyClass()` now ignores windows
 		// that are fullscreen *and* minimized, and `minimize()` re-runs
 		// it for the fullscreen path.
 		handle.win.toggleFullscreen();
 		expect(
-			document.body.classList.contains( 'desktop-mode-has-fullscreen-window' ),
+			document.body.classList.contains( 'os-has-fullscreen-window' ),
 		).toBe( true );
 
 		handle.win.minimize();
 
 		expect(
-			document.body.classList.contains( 'desktop-mode-has-fullscreen-window' ),
+			document.body.classList.contains( 'os-has-fullscreen-window' ),
 		).toBe( false );
 	} );
 
@@ -296,13 +296,13 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 			handle.win.minimize();
 
 			expect(
-				document.body.classList.contains( 'desktop-mode-has-fullscreen-window' ),
+				document.body.classList.contains( 'os-has-fullscreen-window' ),
 			).toBe( true );
 
 			other.win.minimize();
 
 			expect(
-				document.body.classList.contains( 'desktop-mode-has-fullscreen-window' ),
+				document.body.classList.contains( 'os-has-fullscreen-window' ),
 			).toBe( false );
 		} finally {
 			other.cleanup();
@@ -316,7 +316,7 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 		// selector `updateFocusButtonState` queries, then verify the
 		// attributes after the round-trip.
 		const btn = document.createElement( 'button' );
-		btn.className = 'desktop-mode-window__btn desktop-mode-window__btn--focus';
+		btn.className = 'os-window__btn os-window__btn--focus';
 		handle.win.element.appendChild( btn );
 
 		handle.win.toggleFullscreen();
@@ -325,13 +325,13 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 		// Simulate a re-render that reset the button to its default
 		// "not pressed" state during the minimized period.
 		btn.setAttribute( 'aria-pressed', 'false' );
-		btn.classList.remove( 'desktop-mode-window__btn--active' );
+		btn.classList.remove( 'os-window__btn--active' );
 
 		handle.win.restore();
 
 		expect( btn.getAttribute( 'aria-pressed' ) ).toBe( 'true' );
 		expect(
-			btn.classList.contains( 'desktop-mode-window__btn--active' ),
+			btn.classList.contains( 'os-window__btn--active' ),
 		).toBe( true );
 	} );
 
@@ -344,14 +344,14 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 		// it to detect "entered maximize for the first time."
 		const fired: string[] = [];
 		hooks.addAction(
-			'desktop-mode.window.restored',
+			'os.window.restored',
 			'test',
 			() => {
 				fired.push( 'restored' );
 			},
 		);
 		hooks.addAction(
-			'desktop-mode.window.maximized',
+			'os.window.maximized',
 			'test',
 			() => {
 				fired.push( 'maximized' );
@@ -370,14 +370,14 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 		// Same semantic for the fullscreen path.
 		const fired: string[] = [];
 		hooks.addAction(
-			'desktop-mode.window.restored',
+			'os.window.restored',
 			'test',
 			() => {
 				fired.push( 'restored' );
 			},
 		);
 		hooks.addAction(
-			'desktop-mode.window.fullscreen-entered',
+			'os.window.fullscreen-entered',
 			'test',
 			() => {
 				fired.push( 'fullscreen-entered' );
@@ -478,9 +478,9 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 		const listener = ( e: Event ): void => {
 			events.push( e );
 		};
-		document.addEventListener( 'desktop-mode-window-changed', listener );
+		document.addEventListener( 'os-window-changed', listener );
 		handle.win.toggleFullscreen(); // exit fullscreen → restore to maximized
-		document.removeEventListener( 'desktop-mode-window-changed', listener );
+		document.removeEventListener( 'os-window-changed', listener );
 
 		expect( events ).toHaveLength( 1 );
 	} );
@@ -492,14 +492,14 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 		// regardless of which button the user clicked.
 		const fired: string[] = [];
 		hooks.addAction(
-			'desktop-mode.window.fullscreen-exited',
+			'os.window.fullscreen-exited',
 			'test',
 			() => {
 				fired.push( 'fullscreen-exited' );
 			},
 		);
 		hooks.addAction(
-			'desktop-mode.window.maximized',
+			'os.window.maximized',
 			'test',
 			() => {
 				fired.push( 'maximized' );
@@ -519,14 +519,14 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 		// order as toggleMaximize-from-fullscreen.
 		const fired: string[] = [];
 		hooks.addAction(
-			'desktop-mode.window.fullscreen-exited',
+			'os.window.fullscreen-exited',
 			'test',
 			() => {
 				fired.push( 'fullscreen-exited' );
 			},
 		);
 		hooks.addAction(
-			'desktop-mode.window.maximized',
+			'os.window.maximized',
 			'test',
 			() => {
 				fired.push( 'maximized' );
@@ -549,7 +549,7 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 		// triggered the exit.
 		const observed: string[] = [];
 		hooks.addAction(
-			'desktop-mode.window.fullscreen-exited',
+			'os.window.fullscreen-exited',
 			'test',
 			() => {
 				observed.push( handle.win.state );

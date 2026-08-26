@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Extra recycle-bin drop-payload handlers.
+ * OpenStation — Extra recycle-bin drop-payload handlers.
  *
  * Same seam shape as `canvas-payloads.ts`, for the recycle-bin drop
  * surfaces: `recycle-bin-targets.ts` owns the drop targets on the
@@ -7,8 +7,6 @@
  * registry allows only one target per element), and consults this
  * registry for payload types it doesn't know (`'note'` today — the
  * pinned-notes trash path).
- *
- * @since 0.9.6
  */
 
 import type { DragPayload, DragSession } from '../drag';

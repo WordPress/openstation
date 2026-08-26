@@ -16,10 +16,8 @@
  * doesn't yet have an in-place refresh affordance.
  *
  * Plugins that want to suppress this behavior can set
- * `data-desktop-mode-suppress-media-library-refresh` on `<body>`
+ * `data-os-suppress-media-library-refresh` on `<body>`
  * before the shell boots.
- *
- * @since 0.31.0
  */
 
 import { addAction } from '../hooks';
@@ -39,7 +37,7 @@ interface AfterUploadPayload {
 export function mountMediaLibraryRefresher(): void {
 	if (
 		document.body.hasAttribute(
-			'data-desktop-mode-suppress-media-library-refresh',
+			'data-os-suppress-media-library-refresh',
 		)
 	) {
 		return;

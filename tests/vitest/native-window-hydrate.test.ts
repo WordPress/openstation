@@ -1,6 +1,6 @@
 /**
- * Integration guard for the "native render runs AFTER mount" contract
- * introduced in 0.12. Before the fix, `config.render( body )` was
+ * Integration guard for the "native render runs AFTER mount" contract.
+ * Before the fix, `config.render( body )` was
  * called from inside the `Window` constructor — at which point the
  * window element was still a detached subtree. Custom elements in
  * that subtree hadn't been upgraded, so declarative setter writes
@@ -18,7 +18,7 @@
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { WindowManager } from '../../src/window-manager';
 import { installHooksStub, clearHooksStub } from './helpers/hooks-stub';
-import '../../src/ui/components/wpd-select/wpd-select';
+import '../../src/ui/components/os-select/os-select';
 
 const tick = (): Promise<void> => Promise.resolve();
 
@@ -78,7 +78,7 @@ describe( 'WindowManager — native-window hydration order', async () => {
 		expect( isDesktopAncestorAtRenderTime ).toBe( true );
 	} );
 
-	test( 'declarative .items on a wpd-select inside render populates the native <select>', async () => {
+	test( 'declarative .items on a os-select inside render populates the listbox', async () => {
 		let selInsideBody: ( HTMLElement & {
 			items: ReadonlyArray<{ value: string; label: string }>;
 		} ) | null = null;
@@ -89,13 +89,13 @@ describe( 'WindowManager — native-window hydration order', async () => {
 			title: 'Picker',
 			native: true,
 			render: ( body ) => {
-				body.innerHTML = `<wpd-select></wpd-select>`;
+				body.innerHTML = `<os-select></os-select>`;
 				// Same-tick write of a declarative setter — pre-0.12
 				// this would silently create an own data property on
 				// a pre-upgrade element. Post-0.12 it hits the real
-				// WpdSelect setter because the body is connected and
+				// OsSelect setter because the body is connected and
 				// the element has already upgraded.
-				const sel = body.querySelector( 'wpd-select' ) as HTMLElement & {
+				const sel = body.querySelector( 'os-select' ) as HTMLElement & {
 					items: ReadonlyArray<{ value: string; label: string }>;
 				};
 				sel.items = [
@@ -107,16 +107,16 @@ describe( 'WindowManager — native-window hydration order', async () => {
 		} );
 
 		// Wait for the Component's render microtask to drain so the
-		// shadow `<select>` has picked up the options the setter
+		// shadow listbox has picked up the options the setter
 		// queued.
 		await tick();
 		await tick();
 
 		expect( selInsideBody ).not.toBeNull();
-		const native = selInsideBody!.shadowRoot!.querySelector(
-			'select',
-		) as HTMLSelectElement;
-		expect( native.options.length ).toBe( 2 );
+		expect(
+			selInsideBody!.shadowRoot!.querySelectorAll( '[role="option"]' )
+				.length,
+		).toBe( 2 );
 	} );
 
 	test( 'iframe windows still open normally (hydrateNative is a no-op for them)', async () => {

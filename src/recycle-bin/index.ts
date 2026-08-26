@@ -1,40 +1,40 @@
 /**
- * Desktop Mode — Recycle Bin window.
+ * OpenStation — Recycle Bin window.
  *
  * Lazy-loaded by the native-window sync the first time the
  * `desktop-mode-recycle-bin` window opens. Wires up the toolbar (filter,
- * search, refresh, bulk actions, empty), populates the `<wpd-table>`
+ * search, refresh, bulk actions, empty), populates the `<os-table>`
  * from the REST list endpoint, and persists nothing locally — every
  * action is a roundtrip + reload so the table never lies about
  * server state.
  *
  * Web-component registrations: the main `desktop.min.js` ships only
- * the `<wpd-*>` tags it constructs itself. This bundle leaf-imports
- * the additional ones it needs (`<wpd-table>`, `<wpd-relative-time>`).
+ * the `<os-*>` tags it constructs itself. This bundle leaf-imports
+ * the additional ones it needs (`<os-table>`, `<os-relative-time>`).
  * `defineComponent()` is idempotent.
  *
  * @public
- * @since 0.6.0
  */
 
 import { __, sprintf } from '../i18n';
-// Side-effect imports — register the `<wpd-*>` components this
+import { decodeHTML } from '../utils';
+// Side-effect imports — register the `<os-*>` components this
 // bundle constructs that the main shell does not ship.
-import '../ui/components/wpd-table/wpd-table';
-import '../ui/components/wpd-relative-time/wpd-relative-time';
-// `<wpd-segmented>` (with `<wpd-segment>` children) is the type-filter
+import '../ui/components/os-table/os-table';
+import '../ui/components/os-relative-time/os-relative-time';
+// `<os-segmented>` (with `<os-segment>` children) is the type-filter
 // toolbar emitted by `includes/recycle-bin/window.php`, never built
 // via `document.createElement` here — so the lint rule that scans
-// `createElement('wpd-*')` doesn't see it. Register the compound
+// `createElement('os-*')` doesn't see it. Register the compound
 // class set explicitly so the server-rendered toolbar works.
-import '../ui/components/wpd-segmented/wpd-segmented';
+import '../ui/components/os-segmented/os-segmented';
 import { DESKTOP_THEME_CHANGED_EVENT } from '../desktop-themes/apply';
 import {
 	resolveThemedIcon,
 	resolveThemedIconColor,
 } from '../desktop-themes/icons';
 import { DESKTOP_THEME_SLOTS } from '../desktop-themes/slots';
-import { setRecycleBinBadge } from './badge';
+import { setRecycleBinCount } from './icon-state';
 import { runEmptyLoop } from './empty-loop';
 import * as realtime from './realtime';
 import {
@@ -47,15 +47,15 @@ import {
 } from './rest';
 
 import type {
-	WpdTable,
-	WpdTableColumn,
-} from '../ui/components/wpd-table/wpd-table';
+	OsTable,
+	OsTableColumn,
+} from '../ui/components/os-table/os-table';
 
 type RenderCallback = ( body: HTMLElement ) => void;
 
 declare global {
 	interface Window {
-		desktopModeNativeWindows?: Record< string, RenderCallback | undefined >;
+		openStationNativeWindows?: Record< string, RenderCallback | undefined >;
 	}
 }
 
@@ -65,9 +65,9 @@ declare global {
  * "Pin to desktop" toolbar action.
  */
 /**
- * Bridge to `wp.desktop.confirm` (the main bundle's
- * `<wpd-confirm-dialog>` wrapper). The recycle-bin script lists
- * `desktop-mode` as a dependency, so the global is always set by
+ * Bridge to `wp.os.confirm` (the main bundle's
+ * `<os-confirm-dialog>` wrapper). The recycle-bin script lists
+ * `openstation` as a dependency, so the global is always set by
  * the time this code runs.
  */
 interface ConfirmOptions {
@@ -77,13 +77,13 @@ interface ConfirmOptions {
 	cancelLabel?: string;
 	danger?: boolean;
 }
-function wpdConfirmGlobal( options: ConfirmOptions ): Promise< boolean > {
-	const fn = ( window.wp as { desktop?: { confirm?: ( o: ConfirmOptions ) => Promise< boolean > } } | undefined )
-		?.desktop?.confirm;
+function osConfirmGlobal( options: ConfirmOptions ): Promise< boolean > {
+	const fn = ( window.wp as { os?: { confirm?: ( o: ConfirmOptions ) => Promise< boolean > } } | undefined )
+		?.os?.confirm;
 	if ( typeof fn !== 'function' ) {
 		return Promise.reject(
 			new Error(
-				'[desktop-mode] wp.desktop.confirm is missing — the main desktop bundle must load before the recycle-bin script.',
+				'[openstation] wp.os.confirm is missing — the main desktop bundle must load before the recycle-bin script.',
 			),
 		);
 	}
@@ -105,7 +105,7 @@ export function mapRecycleTypeToFileType( recycleType: string ): string {
 
 /**
  * Inline-styled background tints for the type badge. Lives in JS
- * because `<wpd-table>` renders its body into a shadow DOM that
+ * because `<os-table>` renders its body into a shadow DOM that
  * blocks document stylesheets — every visual property has to come
  * from inline `style.*` assignments. The palette is intentionally
  * desaturated so badges read as metadata, not as primary content.
@@ -121,8 +121,8 @@ const TYPE_BADGE_COLORS: Record< string, { bg: string; fg: string } > = {
 	// neutral fallback follows the palette, because a grey-on-grey
 	// chip carries no signal to preserve.
 	_default: {
-		bg: 'var( --wpd-surface-sunken, #e5e7eb )',
-		fg: 'var( --wpd-fg-muted, #374151 )',
+		bg: 'var( --os-ui-surface-sunken, #e5e7eb )',
+		fg: 'var( --os-ui-fg-muted, #374151 )',
 	},
 };
 
@@ -143,7 +143,7 @@ function makeTypeBadge( row: RecycleBinItem ): HTMLElement {
 	const colors =
 		TYPE_BADGE_COLORS[ row.type ] ?? TYPE_BADGE_COLORS._default;
 	const badge = document.createElement( 'span' );
-	badge.setAttribute( 'data-desktop-mode-recycle-bin-type-badge', row.type );
+	badge.setAttribute( 'data-os-recycle-bin-type-badge', row.type );
 	badge.textContent = label;
 	badge.style.cssText = [
 		'display: inline-flex',
@@ -163,17 +163,17 @@ function makeTypeBadge( row: RecycleBinItem ): HTMLElement {
 	return badge;
 }
 
-const ROOT = '[data-desktop-mode-recycle-bin-root]';
-const FILTER = '[data-desktop-mode-recycle-bin-filter]';
-const SEARCH = '[data-desktop-mode-recycle-bin-search]';
-const REFRESH = '[data-desktop-mode-recycle-bin-refresh]';
-const TABLE = '[data-desktop-mode-recycle-bin-table]';
-const BULK = '[data-desktop-mode-recycle-bin-bulk]';
-const COUNT = '[data-desktop-mode-recycle-bin-count]';
-const RESTORE_SEL = '[data-desktop-mode-recycle-bin-restore-selected]';
-const PIN_TO_DESKTOP = '[data-desktop-mode-recycle-bin-pin-to-desktop]';
-const PURGE_SEL = '[data-desktop-mode-recycle-bin-purge-selected]';
-const EMPTY_BTN = '[data-desktop-mode-recycle-bin-empty]';
+const ROOT = '[data-os-recycle-bin-root]';
+const FILTER = '[data-os-recycle-bin-filter]';
+const SEARCH = '[data-os-recycle-bin-search]';
+const REFRESH = '[data-os-recycle-bin-refresh]';
+const TABLE = '[data-os-recycle-bin-table]';
+const BULK = '[data-os-recycle-bin-bulk]';
+const COUNT = '[data-os-recycle-bin-count]';
+const RESTORE_SEL = '[data-os-recycle-bin-restore-selected]';
+const PIN_TO_DESKTOP = '[data-os-recycle-bin-pin-to-desktop]';
+const PURGE_SEL = '[data-os-recycle-bin-purge-selected]';
+const EMPTY_BTN = '[data-os-recycle-bin-empty]';
 
 /**
  * Module-scoped row-action delegates. The column descriptors are
@@ -213,7 +213,7 @@ let cachedItems: RecycleBinItem[] | null = null;
  * (a row appears, disappears, or its `deleted_at` shifts because
  * an item was re-trashed) flips the key; identical state across
  * two fetches yields the same key, so we can skip the
- * `table.data = …` assignment and the wpd-table body repaint
+ * `table.data = …` assignment and the os-table body repaint
  * that comes with it.
  */
 function itemsFingerprint( items: RecycleBinItem[] ): string {
@@ -239,8 +239,8 @@ interface BinState {
 }
 
 /** Build the columns descriptor. Filterable via the public hook. */
-function buildColumns(): WpdTableColumn< RecycleBinItem >[] {
-	const cols: WpdTableColumn< RecycleBinItem >[] = [
+function buildColumns(): OsTableColumn< RecycleBinItem >[] {
+	const cols: OsTableColumn< RecycleBinItem >[] = [
 		{
 			key: 'title',
 			label: __( 'Title' ),
@@ -283,16 +283,18 @@ function buildColumns(): WpdTableColumn< RecycleBinItem >[] {
 				const title = document.createElement( 'span' );
 				title.style.cssText =
 					'font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:320px;';
-				title.textContent = row.title;
-				title.title = row.title;
+				const decodedTitle = decodeHTML( row.title );
+				title.textContent = decodedTitle;
+				title.title = decodedTitle;
 				titleRow.appendChild( title );
 				stack.appendChild( titleRow );
 				if ( row.subtitle ) {
 					const sub = document.createElement( 'span' );
 					sub.style.cssText =
-						'font-size:12px;color:var( --wpd-fg-muted, #50575e );white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:320px;';
-					sub.textContent = row.subtitle;
-					sub.title = row.subtitle;
+						'font-size:12px;color:var( --os-ui-fg-muted, #50575e );white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:320px;';
+					const decodedSubtitle = decodeHTML( row.subtitle );
+					sub.textContent = decodedSubtitle;
+					sub.title = decodedSubtitle;
 					stack.appendChild( sub );
 				}
 				wrap.appendChild( stack );
@@ -310,10 +312,10 @@ function buildColumns(): WpdTableColumn< RecycleBinItem >[] {
 			width: '180px',
 			sortValue: ( row ) => Date.parse( row.deleted_at + 'Z' ) || 0,
 			render: ( _v, row ) => {
-				// `<wpd-relative-time>` self-ticks every 30s on a
+				// `<os-relative-time>` self-ticks every 30s on a
 				// shared interval — no row-level repaint required to
 				// roll "just now" → "1 minute ago" → "5 minutes ago".
-				const el = document.createElement( 'wpd-relative-time' );
+				const el = document.createElement( 'os-relative-time' );
 				el.setAttribute( 'datetime', row.deleted_at );
 				return el;
 			},
@@ -332,7 +334,7 @@ function buildColumns(): WpdTableColumn< RecycleBinItem >[] {
 			width: '96px',
 			align: 'end',
 			render: ( _v, row ) => {
-				// All wrapper styles inline — wpd-table renders
+				// All wrapper styles inline — os-table renders
 				// into its own shadow DOM, so my recycle-bin.css
 				// can't reach this node. Direct click binding
 				// instead of body delegation (delegation lost
@@ -364,13 +366,13 @@ function buildColumns(): WpdTableColumn< RecycleBinItem >[] {
 
 	const hooks = window.wp?.hooks;
 	if ( hooks && typeof hooks.applyFilters === 'function' ) {
-		// Mirror the PHP `desktop_mode_recycle_bin_columns` extension
+		// Mirror the PHP `openstation_recycle_bin_columns` extension
 		// point on the JS side so plugins can append/replace columns
 		// without forking the bundle.
 		return hooks.applyFilters(
-			'desktop_mode.recycleBin.columns',
+			'openstation.recycleBin.columns',
 			cols,
-		) as WpdTableColumn< RecycleBinItem >[];
+		) as OsTableColumn< RecycleBinItem >[];
 	}
 	return cols;
 }
@@ -388,14 +390,14 @@ interface RowButtonOptions {
  * impossible, and binds the click handler in place — no body-
  * level delegation, no `data-` attribute coupling.
  *
- * `data-noclick` opts the button out of `wpd-table-row-click`,
+ * `data-noclick` opts the button out of `os-table-row-click`,
  * and `e.stopPropagation()` keeps the click from bubbling up to
  * any other listener that might be watching the row container.
  */
 /**
  * Inline SVG paths for the row-action icons.
  *
- * Why inline SVG instead of Dashicons spans: `<wpd-table>` renders
+ * Why inline SVG instead of Dashicons spans: `<os-table>` renders
  * its body into its OWN shadow DOM (`shadow = true`), so any node
  * we return from a `column.render` callback ends up inside that
  * shadow boundary. Document-level stylesheets do not cross the
@@ -421,7 +423,7 @@ const ICON_SVG: Record< string, string > = {
 
 function makeRowButton( opts: RowButtonOptions ): HTMLElement {
 	// Inline SVG + inline styles. We can't depend on outer CSS
-	// reaching this button — wpd-table's shadow DOM blocks both
+	// reaching this button — os-table's shadow DOM blocks both
 	// the Dashicons stylesheet and our `recycle-bin.css`. So the
 	// button carries every visual property on its `style` attribute,
 	// and the icon is an inline SVG sized via attributes.
@@ -437,7 +439,7 @@ function makeRowButton( opts: RowButtonOptions ): HTMLElement {
 	// the original literal as its fallback.
 	//
 	// These buttons are built by hand with INLINE styles rather than
-	// as `<wpd-button>`s because `<wpd-table>` renders its body into a
+	// as `<os-button>`s because `<os-table>` renders its body into a
 	// shadow root that document stylesheets cannot reach. That is a
 	// legitimate constraint — but it also meant the colours here were
 	// unreachable by any theme, so the row actions stayed white-on-
@@ -447,12 +449,12 @@ function makeRowButton( opts: RowButtonOptions ): HTMLElement {
 	// inherit through a shadow boundary: the token resolves against
 	// the host even though the rule does not.
 	const restColor = isDanger
-		? 'var( --wpd-danger, #d63638 )'
-		: 'var( --wpd-fg-muted, #50575e )';
+		? 'var( --os-ui-danger, #d63638 )'
+		: 'var( --os-ui-fg-muted, #50575e )';
 	const restBorder = isDanger
-		? 'var( --wpd-danger, #d63638 )'
-		: 'var( --wpd-border, #c3c4c7 )';
-	const restBg = 'var( --wpd-surface, #fff )';
+		? 'var( --os-ui-danger, #d63638 )'
+		: 'var( --os-ui-border, #c3c4c7 )';
+	const restBg = 'var( --os-ui-surface, #fff )';
 
 	// Single source of truth for visual state. Hover/leave swap
 	// the relevant inline properties — cheap, predictable, no
@@ -464,13 +466,13 @@ function makeRowButton( opts: RowButtonOptions ): HTMLElement {
 	};
 	const applyHover = (): void => {
 		if ( isDanger ) {
-			btn.style.background = 'var( --wpd-danger, #d63638 )';
-			btn.style.color = 'var( --wpd-fg-on-accent, #fff )';
-			btn.style.borderColor = 'var( --wpd-danger, #d63638 )';
+			btn.style.background = 'var( --os-ui-danger, #d63638 )';
+			btn.style.color = 'var( --os-ui-fg-on-accent, #fff )';
+			btn.style.borderColor = 'var( --os-ui-danger, #d63638 )';
 		} else {
-			btn.style.background = 'var( --wpd-hover, #f0f0f1 )';
-			btn.style.color = 'var( --wpd-fg, #1d2327 )';
-			btn.style.borderColor = 'var( --wpd-border-strong, #8c8f94 )';
+			btn.style.background = 'var( --os-ui-hover, #f0f0f1 )';
+			btn.style.color = 'var( --os-ui-fg, #1d2327 )';
+			btn.style.borderColor = 'var( --os-ui-border-strong, #8c8f94 )';
 		}
 	};
 
@@ -504,11 +506,11 @@ function makeRowButton( opts: RowButtonOptions ): HTMLElement {
 	// Rendered as an 18x18 CSS MASK tinted with `currentColor`, not
 	// as an `<img>`. These buttons swap their colour on hover / focus
 	// and the danger variant goes red; an image would be blind to all
-	// of that. Same trade-off as `<wpd-window-button icon-src>`: the
+	// of that. Same trade-off as `<os-window-button icon-src>`: the
 	// glyph is a monochrome silhouette.
 	//
 	// A theme that maps the slot to a DASHICON is ignored here on
-	// purpose — `<wpd-table>` renders into its own shadow root, which
+	// purpose — `<os-table>` renders into its own shadow root, which
 	// the global Dashicons stylesheet cannot reach, so the span would
 	// come out blank. The built-in SVG below is a better answer than
 	// an empty button.
@@ -524,7 +526,7 @@ function makeRowButton( opts: RowButtonOptions ): HTMLElement {
 	// The value is interpolated into a `url("…")` inside an inline
 	// `style`, so it must not be able to close that string or the
 	// attribute. Same reasoning (and same character set) as
-	// `sanitizeIconSrc` in `<wpd-window-button>`; a rejected value
+	// `sanitizeIconSrc` in `<os-window-button>`; a rejected value
 	// falls through to the built-in SVG below.
 	const maskSafe =
 		themed !== null &&
@@ -574,7 +576,7 @@ function makeRowButton( opts: RowButtonOptions ): HTMLElement {
  */
 export function renderRecycleBin( body: HTMLElement ): void {
 	const root = body.querySelector< HTMLElement >( ROOT );
-	const table = body.querySelector< WpdTable< RecycleBinItem > >( TABLE );
+	const table = body.querySelector< OsTable< RecycleBinItem > >( TABLE );
 	if ( ! root || ! table ) {
 		return;
 	}
@@ -605,7 +607,7 @@ export function renderRecycleBin( body: HTMLElement ): void {
 	// No `fileTypeForRow` here on purpose: trashed items are
 	// for restoring, not for pinning to the desktop. The Pin to
 	// Desktop toolbar action still covers the rare "I want both
-	// at once" path. `<wpd-table>`'s drag-handle surface is
+	// at once" path. `<os-table>`'s drag-handle surface is
 	// reserved for tables where dragging IS the primary
 	// affordance (e.g. plugin-authored picker UIs).
 
@@ -694,7 +696,7 @@ export function renderRecycleBin( body: HTMLElement ): void {
 			// the user is currently viewing. This is the cheapest
 			// way to keep the badge truthful: we already paid for
 			// the round-trip, so we may as well consume the count.
-			setRecycleBinBadge( total );
+			setRecycleBinCount( total );
 		} catch ( err ) {
 			if ( mySeq !== refreshSeq ) {
 				return;
@@ -807,8 +809,8 @@ export function renderRecycleBin( body: HTMLElement ): void {
 		const types = Array.from( new Set( refs.map( ( r ) => r.type ) ) );
 		const okIds: number[] = [];
 		const allErrors: Array< { id: number; code: string; message: string } > = [];
-		const filesApi = ( window.wp as { desktop?: { files?: { rest?: { createPlacement: ( payload: unknown ) => Promise< unknown > } } } } | undefined )
-			?.desktop?.files?.rest;
+		const filesApi = ( window.wp as { os?: { files?: { rest?: { createPlacement: ( payload: unknown ) => Promise< unknown > } } } } | undefined )
+			?.os?.files?.rest;
 		let placed = 0;
 		for ( const ref of refs ) {
 			let restored;
@@ -855,7 +857,7 @@ export function renderRecycleBin( body: HTMLElement ): void {
 		if ( refs.length === 0 ) {
 			return;
 		}
-		const ok = await wpdConfirmGlobal( {
+		const ok = await osConfirmGlobal( {
 			title: __( 'Delete forever?' ),
 			message: sprintf(
 				/* translators: %d: row count. */
@@ -883,7 +885,7 @@ export function renderRecycleBin( body: HTMLElement ): void {
 
 	// Wrap the existing trailing text node in a span so we can swap
 	// the label during the empty loop without wiping the leading icon.
-	// The PHP template emits `<wpd-button><span dashicon/> Empty bin</wpd-button>`;
+	// The PHP template emits `<os-button><span dashicon/> Empty Trash</os-button>`;
 	// the trailing text node is the last child after the icon span.
 	let emptyButtonLabelEl: HTMLSpanElement | null = null;
 	let emptyButtonOriginalLabel = '';
@@ -896,7 +898,7 @@ export function renderRecycleBin( body: HTMLElement ): void {
 		emptyButtonOriginalLabel = ( trailingText?.textContent ?? '' ).trim();
 		emptyButtonLabelEl = document.createElement( 'span' );
 		emptyButtonLabelEl.setAttribute(
-			'data-desktop-mode-recycle-bin-empty-label',
+			'data-os-recycle-bin-empty-label',
 			'',
 		);
 		emptyButtonLabelEl.textContent = emptyButtonOriginalLabel;
@@ -908,9 +910,9 @@ export function renderRecycleBin( body: HTMLElement ): void {
 	}
 
 	/**
-	 * Update the Empty bin button to reflect in-progress emptying.
+	 * Update the Empty Trash button to reflect in-progress emptying.
 	 *
-	 * `<wpd-button>` slots its children; we only swap the label span
+	 * `<os-button>` slots its children; we only swap the label span
 	 * (created above) so the leading dashicon and any other slotted
 	 * markup survive intact.
 	 */
@@ -941,17 +943,17 @@ export function renderRecycleBin( body: HTMLElement ): void {
 	};
 
 	const handleEmpty = async (): Promise< void > => {
-		// The server's empty endpoint purges the ENTIRE bin — it takes
-		// no type/search scope (see desktop_mode_recycle_bin_empty()).
+		// The server's empty endpoint purges the ENTIRE Trash — it takes
+		// no type/search scope (see openstation_recycle_bin_empty()).
 		// The confirm copy must say so; claiming "the current view"
 		// while a filter is active would purge items the user filtered
 		// out of sight.
-		const ok = await wpdConfirmGlobal( {
-			title: __( 'Empty bin?' ),
+		const ok = await osConfirmGlobal( {
+			title: __( 'Empty Trash?' ),
 			message: __(
-				'Permanently delete ALL items in the recycle bin? This includes every type and any items hidden by the current filter or search. This cannot be undone.',
+				'Permanently delete ALL items in the Trash? This includes every type and any items hidden by the current filter or search. This cannot be undone.',
 			),
-			confirmLabel: __( 'Empty bin' ),
+			confirmLabel: __( 'Empty Trash' ),
 			danger: true,
 		} );
 		if ( ! ok ) {
@@ -981,7 +983,7 @@ export function renderRecycleBin( body: HTMLElement ): void {
 				loop.skipped > 0
 					? [ {
 						id: 0,
-						code: 'desktop_mode_recycle_bin_skipped',
+						code: 'openstation_recycle_bin_skipped',
 						message: sprintf(
 							/* translators: %d: skipped count. */
 							__( '%d item(s) skipped (insufficient permissions).' ),
@@ -998,7 +1000,7 @@ export function renderRecycleBin( body: HTMLElement ): void {
 			// shows the pre-empty count for ~hundreds of ms after the
 			// bin is empty. refresh() below sets the authoritative value.
 			if ( loop.stoppedBecause === 'empty' ) {
-				setRecycleBinBadge( 0 );
+				setRecycleBinCount( 0 );
 			}
 		} catch ( err ) {
 			console.error( '[recycle-bin] empty failed', err );
@@ -1010,10 +1012,10 @@ export function renderRecycleBin( body: HTMLElement ): void {
 
 	// --- Toolbar wiring -----------------------------------------------
 
-	root.querySelector( FILTER )?.addEventListener( 'wpd-pick', ( e: Event ) => {
+	root.querySelector( FILTER )?.addEventListener( 'os-pick', ( e: Event ) => {
 		const detail = ( e as CustomEvent< { value: string } > ).detail;
 		state.filter = ( detail?.value ?? '' ) as BinState[ 'filter' ];
-		// The result set is about to change wholesale. `<wpd-table>`
+		// The result set is about to change wholesale. `<os-table>`
 		// keeps selected ids across `data` reassignment, so ids picked
 		// under the previous filter would linger invisibly and resurface
 		// checked when the user switches back. Start the new view clean.
@@ -1022,7 +1024,7 @@ export function renderRecycleBin( body: HTMLElement ): void {
 	} );
 
 	const search = root.querySelector< HTMLElement >( SEARCH );
-	search?.addEventListener( 'wpd-input-change', ( e: Event ) => {
+	search?.addEventListener( 'os-input-change', ( e: Event ) => {
 		const value = ( e as CustomEvent< { value: string } > ).detail?.value ?? '';
 		state.search = value;
 		if ( state.searchDebounce !== null ) {
@@ -1036,11 +1038,11 @@ export function renderRecycleBin( body: HTMLElement ): void {
 	} );
 
 	// Body-level click delegation for every toolbar action. Direct
-	// element-bound listeners on `<wpd-button>` were proving
+	// element-bound listeners on `<os-button>` were proving
 	// flaky — the click event was reaching the host but my handler
 	// wasn't firing reliably for the bulk Restore button. Body
 	// delegation walks `closest()` from the click target, so we
-	// catch the click no matter how deeply the wpd-button shadow
+	// catch the click no matter how deeply the os-button shadow
 	// re-targets the event. One listener, four selectors, zero
 	// custom-element-quirk surface area.
 	body.addEventListener( 'click', ( e: Event ) => {
@@ -1071,7 +1073,7 @@ export function renderRecycleBin( body: HTMLElement ): void {
 
 	// --- Table wiring -------------------------------------------------
 
-	table.addEventListener( 'wpd-table-selection-change', () => {
+	table.addEventListener( 'os-table-selection-change', () => {
 		refreshBulkBar();
 	} );
 
@@ -1081,7 +1083,7 @@ export function renderRecycleBin( body: HTMLElement ): void {
 	// `collectSelectedItems()` would sweep it into a bulk purge the
 	// user can't see coming. Same hygiene as the toolbar filter /
 	// search: any visibility change starts with a clean selection.
-	table.addEventListener( 'wpd-table-filter-change', () => {
+	table.addEventListener( 'os-table-filter-change', () => {
 		table.clearSelection();
 	} );
 
@@ -1090,7 +1092,7 @@ export function renderRecycleBin( body: HTMLElement ): void {
 
 	// Real-time updates while the window is open. Both the
 	// chromeless-iframe fast path and the heartbeat catch-all path
-	// dispatch `desktop-mode-recycle-bin-changed` on document — we
+	// dispatch `os-recycle-bin-changed` on document — we
 	// debounce to coalesce burst events (bulk-trash a folder of 50
 	// images = one repaint).
 	realtime.start();
@@ -1111,7 +1113,7 @@ export function renderRecycleBin( body: HTMLElement ): void {
 			void refresh();
 		}, 200 ) as unknown as number;
 	};
-	document.addEventListener( 'desktop-mode-recycle-bin-changed', onExternalChange );
+	document.addEventListener( 'os-recycle-bin-changed', onExternalChange );
 
 	// Subscribe to the per-domain broadcast topics — when a post,
 	// page, or attachment is mutated anywhere in the shell (list-
@@ -1119,7 +1121,7 @@ export function renderRecycleBin( body: HTMLElement ): void {
 	// notified through the broadcast bus and refresh. This is the
 	// instant complement to the heartbeat catch-all.
 	const broadcastUnsubs: Array< () => void > = [];
-	const api = window.wp?.desktop;
+	const api = window.wp?.os;
 	if ( api && typeof api.subscribe === 'function' ) {
 		const onDomainChanged = ( payload: unknown ): void => {
 			const detail = payload as { source?: string } | null;
@@ -1137,15 +1139,16 @@ export function renderRecycleBin( body: HTMLElement ): void {
 				void refresh();
 			}, 200 ) as unknown as number;
 		};
-		broadcastUnsubs.push(
-			api.subscribe( 'desktop-mode.post.changed', onDomainChanged ),
-			api.subscribe( 'desktop-mode.page.changed', onDomainChanged ),
-			api.subscribe( 'desktop-mode.attachment.changed', onDomainChanged ),
-			api.subscribe( 'desktop-mode.comment.changed', onDomainChanged ),
-			api.subscribe( 'desktop-mode.placement.changed', onDomainChanged ),
-			api.subscribe( 'desktop-mode.shortcut.changed', onDomainChanged ),
-			api.subscribe( 'desktop-mode.folder.changed', onDomainChanged ),
-		);
+		const postTypes =
+			window.openStationRecycleBinConfig?.postTypes ??
+			( window as { openStationConfig?: { recycleBinPostTypes?: string[] } } ).openStationConfig
+				?.recycleBinPostTypes ??
+			[ 'post', 'page', 'attachment' ];
+		// Fixed non-post-type entities the Recycle Bin always captures.
+		const fixedExtras = [ 'comment', 'placement', 'shortcut', 'folder' ];
+		for ( const slug of [ ...postTypes, ...fixedExtras ] ) {
+			broadcastUnsubs.push( api.subscribe( `os.${ slug }.changed`, onDomainChanged ) );
+		}
 	}
 
 	// Focus is intentionally NOT a refresh trigger. Once the
@@ -1169,7 +1172,7 @@ export function renderRecycleBin( body: HTMLElement ): void {
 		}
 		realtime.stop();
 		document.removeEventListener(
-			'desktop-mode-recycle-bin-changed',
+			'os-recycle-bin-changed',
 			onExternalChange,
 		);
 		for ( const unsub of broadcastUnsubs ) {
@@ -1190,13 +1193,13 @@ export function renderRecycleBin( body: HTMLElement ): void {
 		// closed-window state.
 		currentRowActionRestore = () => {};
 		currentRowActionPurge = () => {};
-		document.removeEventListener( 'desktop-mode-window-closed', onWindowClosed );
+		document.removeEventListener( 'os-window-closed', onWindowClosed );
 		document.removeEventListener(
 			DESKTOP_THEME_CHANGED_EVENT,
 			onDesktopThemeChanged,
 		);
 	};
-	document.addEventListener( 'desktop-mode-window-closed', onWindowClosed );
+	document.addEventListener( 'os-window-closed', onWindowClosed );
 
 	// The bin lives in its own bundle and paints its row-action
 	// glyphs itself, so the shell's theme-change repaint (which walks
@@ -1233,23 +1236,23 @@ function emitDoneEvent(
 ): void {
 	const detail = { kind, ok: ok.length, errors, source: 'local' as const };
 	document.dispatchEvent(
-		new CustomEvent( 'desktop-mode-recycle-bin-changed', { detail } ),
+		new CustomEvent( 'os-recycle-bin-changed', { detail } ),
 	);
 
 	const hooks = window.wp?.hooks;
 	if ( hooks && typeof hooks.doAction === 'function' ) {
-		hooks.doAction( 'desktop_mode.recycleBin.changed', detail );
+		hooks.doAction( 'openstation.recycleBin.changed', detail );
 	}
 
 	// Cross-window broadcast — one topic per affected post type so
 	// subscribers only hear about what they care about. A Posts
-	// list iframe doesn't listen for `desktop-mode.attachment.changed`,
-	// the Media Library doesn't listen for `desktop-mode.post.changed`.
+	// list iframe doesn't listen for `os.attachment.changed`,
+	// the Media Library doesn't listen for `os.post.changed`.
 	// The shell's built-in subscribers reload iframes whose URL
 	// matches a known admin page for that post type; plugins can
 	// register additional URL patterns or subscribe directly for
 	// smarter repaints (e.g. patching `wp.data` instead of reloading).
-	const api = window.wp?.desktop;
+	const api = window.wp?.os;
 	if ( api && typeof api.broadcast === 'function' && affectedTypes.length > 0 ) {
 		const action: 'untrashed' | 'deleted' = kind === 'restore' ? 'untrashed' : 'deleted';
 		for ( const type of affectedTypes ) {
@@ -1259,7 +1262,7 @@ function emitDoneEvent(
 			// We carry the full id list rather than splitting
 			// by type — id matching at the subscriber side is
 			// a best-effort filter, not a correctness gate.
-			api.broadcast( `desktop-mode.${ type }.changed`, {
+			api.broadcast( `os.${ type }.changed`, {
 				source: 'recycle-bin',
 				action,
 				ids: affectedIds,
@@ -1269,8 +1272,8 @@ function emitDoneEvent(
 }
 
 const registry =
-	( window.desktopModeNativeWindows ??
-		( window.desktopModeNativeWindows = {} ) ) as Record<
+	( window.openStationNativeWindows ??
+		( window.openStationNativeWindows = {} ) ) as Record<
 		string,
 		RenderCallback | undefined
 	>;

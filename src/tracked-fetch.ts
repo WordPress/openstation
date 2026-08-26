@@ -3,7 +3,7 @@
  *
  * The canonical implementation lives in `src/desktop.ts`
  * (`trackedFetch( manager, … )`) and is exposed as
- * `wp.desktop.fetch`. This module is the tiny lookup wrapper
+ * `wp.os.fetch`. This module is the tiny lookup wrapper
  * that finds the public function at runtime, so any module —
  * the main bundle, separate Vite targets, plugin-side scripts —
  * can route through the framework helper with the same import.
@@ -15,8 +15,6 @@
  * Falls back to the native `fetch` only when the desktop
  * bundle hasn't booted yet (rare; tests, headless paths). All
  * in-shell callers should hit the framework helper.
- *
- * @since 0.9.0
  */
 
 import { injectRestNonce } from './inject-rest-nonce';
@@ -28,10 +26,8 @@ export interface TrackedFetchOpts {
 	 * Track but suppress the activity-bus pulse. Use for genuinely
 	 * background pings the user did not initiate (session save,
 	 * badge polls). The runtime accepts this field on
-	 * `wp.desktop.fetch`; declared here so the typed wrapper can
+	 * `wp.os.fetch`; declared here so the typed wrapper can
 	 * forward it without needing per-feature widening.
-	 *
-	 * @since 0.8.1
 	 */
 	silent?: boolean;
 }
@@ -42,17 +38,17 @@ export function trackedFetch(
 	opts: TrackedFetchOpts = {},
 ): Promise< Response > {
 	const fn = ( window.wp as
-		| { desktop?: { fetch?: ( i: RequestInfo, ri?: RequestInit, o?: TrackedFetchOpts ) => Promise< Response > } }
-		| undefined )?.desktop?.fetch;
+		| { os?: { fetch?: ( i: RequestInfo, ri?: RequestInit, o?: TrackedFetchOpts ) => Promise< Response > } }
+		| undefined )?.os?.fetch;
 	if ( typeof fn === 'function' ) {
 		return fn( input, init, opts );
 	}
-	// Boot fallback: `wp.desktop` hasn't been wired up yet (tests,
+	// Boot fallback: `wp.os` hasn't been wired up yet (tests,
 	// very-early-bundle calls, headless paths). Inject the REST
 	// nonce here so behavior stays consistent with the in-shell
 	// path — otherwise an early caller silently loses authentication
 	// on REST endpoints.
 	const finalInit = injectRestNonce( input, init );
-	// eslint-disable-next-line no-restricted-syntax -- this IS the framework-fetch wrapper; the boot fallback before `wp.desktop` exists is the one legitimate use of raw fetch in the codebase.
+	// eslint-disable-next-line no-restricted-syntax -- this IS the framework-fetch wrapper; the boot fallback before `wp.os` exists is the one legitimate use of raw fetch in the codebase.
 	return fetch( input, finalInit );
 }

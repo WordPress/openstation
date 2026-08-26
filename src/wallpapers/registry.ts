@@ -1,10 +1,10 @@
 /**
- * Desktop Mode — Wallpaper registry.
+ * OpenStation — Wallpaper registry.
  *
  * Owns the in-memory list of available wallpapers and applies the
- * `desktop-mode.wallpapers` filter each time callers read it. That
+ * `os.wallpapers` filter each time callers read it. That
  * means plugins can both register entries via
- * `wp.desktop.registerWallpaper()` (which internally adds a filter)
+ * `wp.os.registerWallpaper()` (which internally adds a filter)
  * and reach the raw filter API for more exotic operations — reorder,
  * remove, conditionally swap.
  *
@@ -13,8 +13,6 @@
  * shallow (a handful of built-ins plus any plugin additions) and we
  * call `all()` at most on each OS Settings render, not on every
  * window paint.
- *
- * @since 0.6.0
  */
 
 import { applyFilters, HOOKS } from '../hooks';
@@ -35,8 +33,8 @@ type RegistryListener = () => void;
 /**
  * Shared store backing the wallpaper registry.
  *
- * The seed list AND the subscriber set live here. This is critical
- * since 0.8.4: the OS Settings panel ships in its own Vite IIFE
+ * The seed list AND the subscriber set live here. This is critical:
+ * the OS Settings panel ships in its own Vite IIFE
  * bundle (`os-settings-panel[.min].js`), so a plain
  * `const seed: WallpaperDef[] = []` at module scope would give the
  * main bundle and the panel bundle each their own copy — main's
@@ -45,7 +43,7 @@ type RegistryListener = () => void;
  * wallpaper picker would iterate the panel's empty seed and render
  * only whatever the panel itself registered (`custom-gradient`).
  * Routing through `createSharedStore` makes both bundles share a
- * single record on `window.__desktopModeSharedStores`.
+ * single record on `window.__openStationSharedStores`.
  *
  * Both fields are captured into module-local `seed` / `listeners`
  * references below. Because `createSharedStore` returns the same
@@ -71,7 +69,7 @@ const listeners = store.state.listeners;
  * Append a wallpaper to the seed list.
  *
  * Used by the built-in presets (`built-in.ts`) and by the convenience
- * `wp.desktop.registerWallpaper()` wrapper. Third parties can also
+ * `wp.os.registerWallpaper()` wrapper. Third parties can also
  * call this directly, but the recommended entry point is the hook
  * API so plugin identity can be tracked.
  */
@@ -118,8 +116,6 @@ export function unregister( id: string ): void {
  * is torn down (or can be left to self-clean via `isConnected`
  * checks inside the callback).
  *
- * @since 0.5.0
- *
  * @param cb Listener to invoke on change.
  * @return Unsubscribe function.
  */
@@ -142,7 +138,7 @@ function notify(): void {
 		} catch ( err ) {
 			if ( typeof console !== 'undefined' ) {
 				console.error(
-					'[desktop-mode] wallpaper registry listener threw:',
+					'[openstation] wallpaper registry listener threw:',
 					err,
 				);
 			}
@@ -151,7 +147,7 @@ function notify(): void {
 }
 
 /**
- * Produce the current wallpaper list with the `desktop-mode.wallpapers`
+ * Produce the current wallpaper list with the `os.wallpapers`
  * filter applied. Plugins that hooked into the filter after load
  * participate automatically; the seed array is copied so filter
  * callbacks can safely mutate their input without corrupting state.
@@ -165,7 +161,7 @@ export function all(): WallpaperDef[] {
 	if ( ! Array.isArray( filtered ) ) {
 		if ( typeof console !== 'undefined' ) {
 			console.warn(
-				'[desktop-mode] `desktop-mode.wallpapers` filter ' +
+				'[openstation] `os.wallpapers` filter ' +
 					'returned a non-array; falling back to seed list.',
 			);
 		}

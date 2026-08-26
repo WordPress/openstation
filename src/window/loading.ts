@@ -4,9 +4,16 @@
  * lives in {@link markWindowContentLoading} /
  * {@link markWindowContentReady} (`src/window-channels.ts`); this
  * module is only the visual side: toggle the
- * `desktop-mode-window__body--loading` modifier, attach / detach
+ * `os-window__body--loading` modifier, attach / detach
  * the spinner overlay, and swallow strays from windows that have
  * already torn down.
+ *
+ * ## The spinner and the content never share the screen
+ *
+ *   - Spinner never became visible: drop it in the same tick, there is
+ *     nothing to fade.
+ *   - Spinner did paint: hold the content transparent through its
+ *     fade-out, then fade the content in.
  *
  * A single global `addAction` per edge (loading + loaded) reads
  * the window id from the payload and looks up the element via
@@ -15,24 +22,34 @@
  * payload-id pattern matches the rest of the shell (see the
  * connection-cleanup / iframe-ready subscriptions in
  * `src/desktop.ts`).
- *
- * @since 0.6.0
  */
 
 import { HOOKS, addAction } from './../hooks';
-import { ensureLoadingOverlay, removeLoadingOverlay } from './dom';
+import { armWindowReveal, playWindowReveal } from '../reveals/surface';
+import {
+	LOADING_CONTENT_FADE_IN_MS,
+	LOADING_OVERLAY_CLASS,
+	LOADING_OVERLAY_FADE_OUT_MS,
+	LOADING_OVERLAY_VISIBLE_CLASS,
+} from './constants';
+import {
+	ensureLoadingOverlay,
+	loadingCycle,
+	LOADING_BODY_CLASS,
+	LOADING_HANDOFF_BODY_CLASS,
+	LOADING_STARTED_ATTR,
+	removeLoadingOverlay,
+	stampLoadingStart,
+} from './dom';
 
 /**
- * Duration of the body-content fade-out before the overlay
- * element is removed from the DOM. Must match the
- * `transition: opacity` duration in
- * `assets/css/window-chrome.css` for `.desktop-mode-window__loading`
- * — overshooting wastes a frame, undershooting yanks the spinner
- * mid-fade.
+ * Duration of the body-content fade-out before the overlay element is
+ * removed from the DOM. Shared with the reveal surface, which waits the
+ * same span before it starts receding.
  *
  * @internal
  */
-const FADE_OUT_MS = 250;
+const FADE_OUT_MS = LOADING_OVERLAY_FADE_OUT_MS;
 
 let _installed = false;
 
@@ -59,7 +76,6 @@ function findWindowElement( windowId: string ): HTMLElement | null {
  * surface the error.
  *
  * @public
- * @since 0.6.0
  */
 export function installWindowLoadingTransitions(): void {
 	if ( _installed ) {
@@ -92,13 +108,29 @@ function _installSubscriptions(): void {
 				return;
 			}
 			const body = el.querySelector< HTMLElement >(
-				':scope .desktop-mode-window__body',
+				':scope .os-window__body',
 			);
 			if ( ! body ) {
 				return;
 			}
-			body.classList.add( 'desktop-mode-window__body--loading' );
+			// Tell assistive tech the dialog's content is in flux, so a
+			// screen reader doesn't read a half-built (or empty) window
+			// as if it were finished.
+			el.setAttribute( 'aria-busy', 'true' );
+			// Cancel any hand-off still running: the content is about
+			// to be covered again, so fading it in is stale.
+			body.classList.remove( LOADING_HANDOFF_BODY_CLASS );
+			body.classList.add( LOADING_BODY_CLASS );
+			// Stamp first: `ensureLoadingOverlay` reads the clock.
+			stampLoadingStart( body );
 			ensureLoadingOverlay( el );
+			// Re-arm the reveal surface. The FIRST arm happens in
+			// `createWindowElement`, because the construction-time
+			// `markWindowContentLoading()` fires before the window is in
+			// the document and `findWindowElement` above cannot see it
+			// yet. This edge covers every subsequent load — reload,
+			// in-window navigation, tab switch.
+			armWindowReveal( el );
 		},
 	);
 
@@ -111,24 +143,73 @@ function _installSubscriptions(): void {
 				return;
 			}
 			const body = el.querySelector< HTMLElement >(
-				':scope .desktop-mode-window__body',
+				':scope .os-window__body',
 			);
 			if ( ! body ) {
 				return;
 			}
-			body.classList.remove( 'desktop-mode-window__body--loading' );
+			// Content is settled — clear the busy state on the same edge
+			// the loading modifier drops, not on the fade timers below
+			// (those are cosmetic; the content is already there).
+			el.removeAttribute( 'aria-busy' );
+
+			// Only a spinner that actually painted has a fade to
+			// sequence the content behind.
+			const spinnerWasVisible = !! body
+				.querySelector( `:scope .${ LOADING_OVERLAY_CLASS }` )
+				?.classList.contains( LOADING_OVERLAY_VISIBLE_CLASS );
+
+			body.classList.remove( LOADING_BODY_CLASS );
+			body.removeAttribute( LOADING_STARTED_ATTR );
+
+			if ( ! spinnerWasVisible ) {
+				// Nothing painted, nothing to sequence.
+				removeLoadingOverlay( el );
+				// Same-tick reveal, for the reason noted below.
+				playWindowReveal( el );
+				return;
+			}
+
+			// Hold the content transparent through the overlay's
+			// fade-out, then fade it in. The CSS rule owns both.
+			body.classList.add( LOADING_HANDOFF_BODY_CLASS );
+			// Both timers below belong to THIS cycle. A load that
+			// starts before they fire opens a new one, and a stale
+			// timer that stripped the new cycle's hold would put the
+			// content back on screen mid fade-out.
+			const cycle = loadingCycle( body );
+			// Start the reveal in the SAME tick the loading modifier is
+			// dropped. `playWindowReveal` adds the `--revealing` class,
+			// whose rule pins the content to full opacity with no
+			// transition — deferring it by even a frame would let the
+			// body's normal 250 ms content fade start first and show a
+			// half-transparent strip along the reveal's leading edge.
+			playWindowReveal( el );
 			// Defer the overlay removal until the CSS fade-out has
 			// settled. Without this, the overlay disappears on the
 			// same frame the modifier flips off and the spinner
 			// pops out of view instead of fading.
 			window.setTimeout( () => {
+				if ( loadingCycle( body ) !== cycle ) {
+					return;
+				}
 				// Re-check the DOM — the user might have triggered
 				// `markContentLoading()` again in the interim, in
 				// which case the overlay should stay.
-				if ( ! body.classList.contains( 'desktop-mode-window__body--loading' ) ) {
+				if ( ! body.classList.contains( LOADING_BODY_CLASS ) ) {
 					removeLoadingOverlay( el );
 				}
 			}, FADE_OUT_MS );
+			// Drop the modifier once the content's fade has landed, so
+			// its delayed transition does not linger.
+			window.setTimeout( () => {
+				if ( loadingCycle( body ) !== cycle ) {
+					return;
+				}
+				if ( ! body.classList.contains( LOADING_BODY_CLASS ) ) {
+					body.classList.remove( LOADING_HANDOFF_BODY_CLASS );
+				}
+			}, FADE_OUT_MS + LOADING_CONTENT_FADE_IN_MS );
 		},
 	);
 
@@ -137,7 +218,7 @@ function _installSubscriptions(): void {
 	// `whenReady()` callbacks have drained. A plugin that registers
 	// the `WINDOW_LOADING_OVERLAY` filter inside `whenReady( … )` is
 	// thus too late to influence the first paint of those restored
-	// windows; their overlays show the default `<wpd-spinner>` even
+	// windows; their overlays show the default `<os-spinner>` even
 	// though every subsequent open works correctly.
 	//
 	// Fix: subscribe to `HOOKS.INIT` and, deferred one microtask so
@@ -157,7 +238,7 @@ function _installSubscriptions(): void {
 			// boot land here). For whenReady callbacks scheduled via
 			// `Promise.resolve().then` (rare — only when the plugin
 			// loads after init) the sweep won't catch them; those
-			// callers can call `wp.desktop.repaintLoadingOverlays()`
+			// callers can call `wp.os.repaintLoadingOverlays()`
 			// directly after they register their filter.
 			queueMicrotask( () => repaintLoadingOverlays() );
 		},
@@ -171,27 +252,30 @@ function _installSubscriptions(): void {
  * import, a plugin loaded post-init, a feature flag flip), so the
  * filter applies to windows that are *still* loading.
  *
- * Idempotent + cheap. Iterates every `.desktop-mode-window__body--loading`
+ * Idempotent + cheap. Iterates every `.os-window__body--loading`
  * in the DOM and re-runs `ensureLoadingOverlay`. Windows whose
  * overlays were already torn down by a `markContentLoaded()` call
  * in the meantime are not affected.
+ *
+ * The replacement overlay resumes the body's show-delay clock rather
+ * than restarting it, so a repaint of a spinner that is already on
+ * screen does not blink it off for another 120 ms.
  *
  * Called automatically by the post-`INIT` sweep above — most
  * plugins never need to invoke this directly.
  *
  * @public
- * @since 0.6.0
  */
 export function repaintLoadingOverlays(): void {
 	const bodies = document.querySelectorAll< HTMLElement >(
-		'.desktop-mode-window__body--loading',
+		'.os-window__body--loading',
 	);
 	bodies.forEach( ( body ) => {
-		const windowEl = body.closest< HTMLElement >( '.desktop-mode-window' );
+		const windowEl = body.closest< HTMLElement >( '.os-window' );
 		if ( ! windowEl ) {
 			return;
 		}
-		body.querySelector( ':scope .desktop-mode-window__loading' )?.remove();
+		body.querySelector( ':scope .os-window__loading' )?.remove();
 		ensureLoadingOverlay( windowEl );
 	} );
 }

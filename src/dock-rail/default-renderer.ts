@@ -14,8 +14,6 @@
  * `Dock` class wires the equivalent behaviour itself — the
  * callbacks are there for custom renderers that don't want to
  * re-implement window-manager plumbing.
- *
- * @since 0.6.0
  */
 
 import { Dock } from '../dock';
@@ -28,8 +26,8 @@ import type {
 /**
  * Internal escape hatch: the default renderer's controller exposes
  * the underlying `Dock` instance via this non-enumerable property
- * so the layout dispatcher can keep `wp.desktop.dock` /
- * `wp.desktop.sideDock` typed as `Dock | null` (backwards compat
+ * so the layout dispatcher can keep `wp.os.dock` /
+ * `wp.os.sideDock` typed as `Dock | null` (backwards compat
  * with the documented public API). Custom renderers MUST NOT set
  * this property — the dispatcher checks for it before using it,
  * and a plugin pretending to be the default renderer with a fake
@@ -63,6 +61,7 @@ export const defaultDockRailRenderer: DockRailRenderer = {
 		const controller: DefaultRendererController = {
 			[ DEFAULT_RENDERER_DOCK ]: dock,
 			replaceItems: ( items ) => dock.replaceItems( items ),
+			setZones: ( zones ) => dock.setZones( zones ),
 			appendSystemItem: ( item ) => dock.appendSystemItem( item ),
 			removeSystemItem: ( id ) => dock.removeSystemItem( id ),
 			setBadge: ( itemId, count ) => dock.setBadge( itemId, count ),
@@ -80,7 +79,7 @@ export const defaultDockRailRenderer: DockRailRenderer = {
  * Recover the underlying `Dock` instance from a controller produced
  * by the default renderer. Returns `null` for any other renderer's
  * controller. Used by the layout dispatcher to keep
- * `wp.desktop.dock` typed as `Dock | null`.
+ * `wp.os.dock` typed as `Dock | null`.
  *
  * @internal
  */

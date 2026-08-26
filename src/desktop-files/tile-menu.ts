@@ -1,48 +1,45 @@
 /**
- * Desktop Mode — File-tile right-click context menu.
+ * OpenStation — File-tile right-click context menu.
  *
- * Sister of the wallpaper context menu, scoped to a single
- * placement. Built-in items: Open, Delete (or "Delete folder"
- * when the placement is a folder). Plugin authors extend the
- * list via the `desktop-mode.files.tile-menu` filter.
+ * Sister of the wallpaper context menu, scoped to a placement — or,
+ * since multi-selection, to the placements the user currently holds.
+ * The built-in item set lives in `tile-actions.ts`; plugin authors
+ * extend it via the `os.files.tile-menu` filter, unchanged.
  *
- * Reuses the wallpaper-menu's CSS (`.desktop-mode-wallpaper-menu*`)
- * so the two menus look identical.
- *
- * @since 0.9.0
+ * The DOM is built by the shared `openActionMenu` (deferred behind
+ * the shell-overlays loader, dismissable, viewport-clamped). This
+ * module keeps the placement-shaped entry points and the long-
+ * standing `os.files.tile-menu.opened` / `.closed` actions, which
+ * plugins subscribe to.
  */
 
 import { applyFilters, doAction } from '../hooks';
-import { openWithShellOverlays } from '../shell-overlays/loader';
-import { attachDismissable } from './dismissable';
+import {
+	closeActionMenu,
+	isActionMenuOpen,
+	openActionMenu,
+} from '../selection/menu';
+import type { SelectionAction } from '../selection/actions';
 import type { RestPlacementShape } from './rest';
 
-export interface TileMenuItem {
-	id: string;
-	label: string;
-	icon?: string;
-	sort?: number;
-	disabled?: boolean;
-	danger?: boolean;
-	onClick: ( e: MouseEvent ) => void | Promise< void >;
-}
-
-const MENU_CLASS = 'desktop-mode-wallpaper-menu';
-
-let activeMenu: HTMLElement | null = null;
+/**
+ * One entry in a file-tile menu.
+ *
+ * The multi-selection fields (`multi`, `multiId`, `bulkLabel`,
+ * `bulk`) are optional and default to single-item-only: an entry
+ * added by a plugin keeps behaving exactly as it did, and appears
+ * only when one tile is selected, until it opts in.
+ *
+ * @public
+ */
+export type TileMenuItem = SelectionAction< RestPlacementShape >;
 
 export function isTileMenuOpen(): boolean {
-	return activeMenu !== null;
+	return isActionMenuOpen();
 }
 
 export function closeTileMenu(): void {
-	if ( ! activeMenu ) {
-		return;
-	}
-	activeMenu.dispatchEvent( new CustomEvent( 'tile-menu-closed' ) );
-	activeMenu.remove();
-	activeMenu = null;
-	doAction( 'desktop-mode.files.tile-menu.closed', {} );
+	closeActionMenu();
 }
 
 export interface OpenTileMenuOptions {
@@ -50,109 +47,78 @@ export interface OpenTileMenuOptions {
 	items: TileMenuItem[];
 }
 
-let openGeneration = 0;
-
 /**
- * Open the tile context menu at viewport coordinates.
+ * Open the tile context menu for ONE placement, applying the
+ * `os.files.tile-menu` filter to `items` first.
  *
- * Construction is deferred behind the shell-overlays loader so the
- * `<wpd-context-menu>` / `<wpd-context-menu-option>` classes ship
- * in the lazy bundle rather than `desktop.min.js`.
+ * The layer no longer routes through here — it resolves the actions
+ * for the whole selection (which applies the filter per item) and
+ * calls {@link openPlacementActionMenu}. This entry point stays for
+ * plugins and tests that build a menu for a single placement.
  */
 export function openTileMenu(
-	pos: { x: number; y: number },
-	opts: OpenTileMenuOptions,
-): void {
-	closeTileMenu();
-	const myGen = ++openGeneration;
-	openWithShellOverlays(
-		() => myGen === openGeneration,
-		() => openTileMenuImmediate( pos, opts ),
-	);
-}
-
-function openTileMenuImmediate(
 	pos: { x: number; y: number },
 	{ placement, items }: OpenTileMenuOptions,
 ): void {
 	const list = applyFilters< TileMenuItem[], [ RestPlacementShape ] >(
-		'desktop-mode.files.tile-menu',
+		'os.files.tile-menu',
 		items.slice(),
 		placement,
 	);
-	const sorted = ( Array.isArray( list ) ? list : items )
-		.slice()
-		.sort( ( a, b ) => {
-			const sa = typeof a.sort === 'number' ? a.sort : 100;
-			const sb = typeof b.sort === 'number' ? b.sort : 100;
-			if ( sa !== sb ) {
-				return sa - sb;
-			}
-			return a.label.localeCompare( b.label );
-		} );
+	const resolved = Array.isArray( list ) ? list : items;
+	openPlacementActionMenu( pos, resolved, {
+		placementIds: [ placement.id ],
+	} );
+}
 
+export interface PlacementActionMenuContext {
+	/** Placements the menu acts on. Drives the `opened` action payload. */
+	placementIds: number[];
+}
+
+/**
+ * Open a menu for an already-resolved action list.
+ *
+ * "Already resolved" means the `os.files.tile-menu` filter has run
+ * (per item) and, for a multi-selection, `resolveCommonActions` has
+ * intersected the results. Applying the filter again here would
+ * double every entry a plugin pushes.
+ */
+export function openPlacementActionMenu(
+	pos: { x: number; y: number },
+	actions: TileMenuItem[],
+	ctx: PlacementActionMenuContext,
+): void {
+	const sorted = actions.slice().sort( ( a, b ) => {
+		const sa = typeof a.sort === 'number' ? a.sort : 100;
+		const sb = typeof b.sort === 'number' ? b.sort : 100;
+		if ( sa !== sb ) {
+			return sa - sb;
+		}
+		return a.label.localeCompare( b.label );
+	} );
 	if ( sorted.length === 0 ) {
 		return;
 	}
 
-	const menu = document.createElement( 'wpd-context-menu' );
-	menu.setAttribute( 'open', '' );
-	menu.classList.add( MENU_CLASS );
-	( menu as HTMLElement ).dataset.placementId = String( placement.id );
-	menu.style.left = `${ pos.x }px`;
-	menu.style.top = `${ pos.y }px`;
-
-	const itemById = new Map< string, TileMenuItem >();
-	for ( const item of sorted ) {
-		itemById.set( item.id, item );
-		const opt = document.createElement( 'wpd-context-menu-option' );
-		opt.dataset.menuItemId = item.id;
-		opt.setAttribute( 'value', item.id );
-		if ( item.danger ) {
-			opt.setAttribute( 'danger', '' );
-		}
-		if ( item.disabled ) {
-			opt.setAttribute( 'disabled', '' );
-		}
-		if ( item.icon ) {
-			opt.setAttribute( 'icon', sanitizeClass( item.icon ) );
-		}
-		opt.textContent = item.label;
-		menu.appendChild( opt );
-	}
-
-	menu.addEventListener( 'wpd-context-menu-pick', ( e: Event ) => {
-		const detail = ( e as CustomEvent< { id: string; value: string } > ).detail;
-		const item = itemById.get( detail.id );
-		if ( ! item ) {
-			return;
-		}
-		closeTileMenu();
-		void item.onClick( new MouseEvent( 'click' ) );
+	openActionMenu( pos, {
+		actions: sorted,
+		scope: 'files.tile',
+		dataset: {
+			// Single-selection menus keep the exact attribute the old
+			// implementation set — tests and plugin CSS select on it.
+			placementId: String( ctx.placementIds[ 0 ] ?? '' ),
+			placementIds: ctx.placementIds.join( ',' ),
+		},
+		onOpened: ( ids ) => {
+			doAction( 'os.files.tile-menu.opened', {
+				placementId: ctx.placementIds[ 0 ],
+				placementIds: ctx.placementIds.slice(),
+				items: ids,
+			} );
+		},
+		onClosed: () => {
+			doAction( 'os.files.tile-menu.closed', {} );
+		},
 	} );
-
-	document.body.appendChild( menu );
-	activeMenu = menu;
-
-	const rect = menu.getBoundingClientRect();
-	if ( rect.right > window.innerWidth ) {
-		menu.style.left = `${ Math.max( 0, window.innerWidth - rect.width - 8 ) }px`;
-	}
-	if ( rect.bottom > window.innerHeight ) {
-		menu.style.top = `${ Math.max( 0, window.innerHeight - rect.height - 8 ) }px`;
-	}
-
-	const detach = attachDismissable( menu, {
-		close: () => closeTileMenu(),
-	} );
-	menu.addEventListener( 'tile-menu-closed', detach );
-
-	doAction( 'desktop-mode.files.tile-menu.opened', {
-		placementId: placement.id,
-		items: sorted.map( ( i ) => i.id ),
-	} );
-}
-
-function sanitizeClass( raw: string ): string {
-	return raw.replace( /[^a-zA-Z0-9_-]/g, '' );
 }

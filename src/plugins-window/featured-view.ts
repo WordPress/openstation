@@ -1,10 +1,10 @@
 /**
- * Native Plugins window — "Desktop Mode plugins" tab.
+ * Native Plugins window — "OpenStation plugins" tab.
  *
  * A curated + auto-discovered gallery of plugins that integrate with
- * Desktop Mode. Curated entries (hand-picked because wp.org has no
+ * OpenStation. Curated entries (hand-picked because wp.org has no
  * real `requires_plugins` filter) lead the list; rows whose wp.org
- * `requires_plugins` array contains the `desktop-mode` slug are
+ * `requires_plugins` array contains the `openstation` slug are
  * appended after.
  *
  * Single server fetch per mount — the AJAX endpoint owns the curated
@@ -12,10 +12,10 @@
  * search, no filter: the surface is small by design.
  *
  * @public
- * @since 0.8.6
  */
 
 import { __, sprintf } from '../i18n';
+import { decodeHTML } from '../utils';
 import { broadcast, subscribe } from '../broadcast';
 import {
 	buildCard,
@@ -34,9 +34,9 @@ import {
 	type FeaturedPlugin,
 } from './rest';
 import type { InstalledPlugin } from './types';
-import '../ui/components/wpd-button/wpd-button';
-import '../ui/components/wpd-card/wpd-card';
-import '../ui/components/wpd-ribbon/wpd-ribbon';
+import '../ui/components/os-button/os-button';
+import '../ui/components/os-card/os-card';
+import '../ui/components/os-ribbon/os-ribbon';
 
 /**
  * Cross-view sync topic. Mirrors the contract in `browse-view.ts` /
@@ -45,7 +45,7 @@ import '../ui/components/wpd-ribbon/wpd-ribbon';
  *
  * @internal
  */
-const PLUGINS_CHANGED_TOPIC = 'desktop-mode.plugin.changed';
+const PLUGINS_CHANGED_TOPIC = 'os.plugin.changed';
 const SOURCE = 'featured-view';
 interface PluginsChangedPayload {
 	source: string;
@@ -62,7 +62,7 @@ interface FeaturedState {
 
 /** Toast helper — mirrors the other views. */
 function toast( message: string, duration = 3500 ): void {
-	const api = window.wp?.desktop;
+	const api = window.wp?.os;
 	if ( api && typeof api.showToast === 'function' ) {
 		api.showToast( { message, duration } );
 		return;
@@ -90,24 +90,24 @@ export function mountFeaturedView(
 
 	// ─── Intro blurb ───────────────────────────────────────────────────
 	const intro = document.createElement( 'header' );
-	intro.className = 'desktop-mode-plugins__featured-intro';
+	intro.className = 'os-plugins__featured-intro';
 	const heading = document.createElement( 'h2' );
-	heading.className = 'desktop-mode-plugins__featured-heading';
-	heading.textContent = __( 'Made for Desktop Mode', 'desktop-mode' );
+	heading.className = 'os-plugins__featured-heading';
+	heading.textContent = __( 'Made for OpenStation', 'desktop-mode' );
 	const description = document.createElement( 'p' );
-	description.className = 'desktop-mode-plugins__featured-blurb';
+	description.className = 'os-plugins__featured-blurb';
 	description.textContent = __(
-		'Plugins that extend Desktop Mode — desktop decorations, native windows, widgets, and other companions.',
+		'Plugins that extend OpenStation — desktop decorations, native windows, widgets, and other companions.',
 		'desktop-mode',
 	);
 	intro.append( heading, description );
 
 	// ─── Gallery ───────────────────────────────────────────────────────
 	const gallery = document.createElement( 'div' );
-	gallery.className = 'desktop-mode-plugins__gallery';
+	gallery.className = 'os-plugins__gallery';
 
 	const status = document.createElement( 'p' );
-	status.className = 'desktop-mode-plugins__gallery-status';
+	status.className = 'os-plugins__gallery-status';
 	status.hidden = true;
 
 	host.append( intro, gallery, status );
@@ -173,7 +173,7 @@ export function mountFeaturedView(
 					sprintf(
 						/* translators: %s: plugin name */
 						__( 'Installed %s.', 'desktop-mode' ),
-						plugin.name,
+						decodeHTML( plugin.name ),
 					),
 				);
 				repaintCardCta( card, plugin, state.installed, cardCallbacks );
@@ -214,7 +214,7 @@ export function mountFeaturedView(
 					sprintf(
 						/* translators: %s: plugin name */
 						__( '%s activated.', 'desktop-mode' ),
-						updated.name || updated.plugin,
+						decodeHTML( updated.name || updated.plugin ),
 					),
 				);
 				const plugin = state.plugins.find(
@@ -303,7 +303,7 @@ export function mountFeaturedView(
 			}
 			const card = buildCard( plugin, state.installed, cardCallbacks );
 			if ( plugin.featured ) {
-				// `<wpd-ribbon>` self-positions absolutely on its parent's
+				// `<os-ribbon>` self-positions absolutely on its parent's
 				// top-end corner (its host has `position: absolute`). The
 				// `__card--featured` class below carries the matching
 				// `position: relative` on the card host — these two lines
@@ -312,8 +312,8 @@ export function mountFeaturedView(
 				// positioned ancestor the gallery happens to inherit
 				// (usually the window body), so it would float over the
 				// wrong thing entirely.
-				card.classList.add( 'desktop-mode-plugins__card--featured' );
-				const ribbon = document.createElement( 'wpd-ribbon' );
+				card.classList.add( 'os-plugins__card--featured' );
+				const ribbon = document.createElement( 'os-ribbon' );
 				ribbon.textContent = __( 'Featured', 'desktop-mode' );
 				card.prepend( ribbon );
 			}
@@ -379,15 +379,15 @@ export function mountFeaturedView(
 }
 
 function buildSkeletonCard(): HTMLElement {
-	const card = document.createElement( 'wpd-card' );
+	const card = document.createElement( 'os-card' );
 	card.classList.add(
-		'desktop-mode-plugins__card',
-		'desktop-mode-plugins__card--skeleton',
+		'os-plugins__card',
+		'os-plugins__card--skeleton',
 	);
 	card.setAttribute( 'aria-hidden', 'true' );
 	for ( let i = 0; i < 4; i++ ) {
 		const line = document.createElement( 'span' );
-		line.className = 'desktop-mode-plugins__skeleton-line';
+		line.className = 'os-plugins__skeleton-line';
 		line.style.width = `${ 50 + ( i * 17 ) % 50 }%`;
 		card.appendChild( line );
 	}

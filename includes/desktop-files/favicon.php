@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — Favicon resolver.
+ * OpenStation — Favicon resolver.
  *
  * Resolves the favicon for an arbitrary http(s) URL, downloads the
  * bytes server-side, and returns a base64 `data:` URI suitable for
@@ -32,12 +32,11 @@
  * Failure at any step returns `null` — the caller treats this as
  * "no favicon, render the dashicons fallback". Never throws.
  *
- * Filter the final return value through `desktop_mode_resolve_favicon`
+ * Filter the final return value through `openstation_resolve_favicon`
  * so plugins can short-circuit (return `null` to force-skip, return
  * a synthetic data URI to override).
  *
- * @package WPDesktopMode
- * @since   0.8.2
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -48,7 +47,7 @@ defined( 'ABSPATH' ) || exit;
  * sane and to avoid base64-encoding a multi-megabyte payload that
  * a malicious or sloppy host might serve at `/favicon.ico`.
  */
-const DESKTOP_MODE_FAVICON_MAX_BYTES = 256 * 1024;
+const OPENSTATION_FAVICON_MAX_BYTES = 256 * 1024;
 
 /**
  * Maximum page-HTML download size, in bytes, for the step-1 page
@@ -56,7 +55,7 @@ const DESKTOP_MODE_FAVICON_MAX_BYTES = 256 * 1024;
  * is plenty; the cap stops a malicious or sloppy host from
  * streaming an unbounded body into memory before the parser runs.
  */
-const DESKTOP_MODE_FAVICON_MAX_PAGE_BYTES = 1024 * 1024;
+const OPENSTATION_FAVICON_MAX_PAGE_BYTES = 1024 * 1024;
 
 /**
  * Per-request HTTP timeout, in seconds. Two fetches happen worst-
@@ -64,31 +63,27 @@ const DESKTOP_MODE_FAVICON_MAX_PAGE_BYTES = 1024 * 1024;
  * value. Tune downward if QA finds the dialog "Create" button
  * sitting too long.
  */
-const DESKTOP_MODE_FAVICON_TIMEOUT = 4;
+const OPENSTATION_FAVICON_TIMEOUT = 4;
 
 /**
  * Resolve a page URL to a base64 data URI of its favicon.
  *
- * @since 0.8.2
- *
  * @param string $page_url HTTP(S) URL of the target page.
  * @return string|null Data URI on success; `null` on any failure.
  */
-function desktop_mode_resolve_favicon( $page_url ) {
-	$result = desktop_mode_resolve_favicon_internal( (string) $page_url );
+function openstation_resolve_favicon( $page_url ) {
+	$result = openstation_resolve_favicon_internal( (string) $page_url );
 
 	/**
 	 * Filters the favicon data URI before it is returned to the
 	 * caller. Plugins can override (return a synthetic data URI),
 	 * suppress (return `null`), or pass through.
 	 *
-	 * @since 0.8.2
-	 *
 	 * @param string|null $result   Base64 data URI, or `null` if
 	 *                              the resolver could not produce one.
 	 * @param string      $page_url The page URL that was resolved.
 	 */
-	$filtered = apply_filters( 'desktop_mode_resolve_favicon', $result, (string) $page_url );
+	$filtered = apply_filters( 'openstation_resolve_favicon', $result, (string) $page_url );
 
 	if ( null === $filtered ) {
 		return null;
@@ -97,19 +92,18 @@ function desktop_mode_resolve_favicon( $page_url ) {
 }
 
 /**
- * Internal resolver — see {@see desktop_mode_resolve_favicon}.
+ * Internal resolver — see {@see openstation_resolve_favicon}.
  *
  * Kept separate so the public function is the only place the
- * `desktop_mode_resolve_favicon` filter runs (a plugin can't sneak
+ * `openstation_resolve_favicon` filter runs (a plugin can't sneak
  * its filter past the validation by hooking the internal helper).
  *
- * @since 0.8.2
  * @internal
  *
  * @param string $page_url Page URL.
  * @return string|null
  */
-function desktop_mode_resolve_favicon_internal( $page_url ) {
+function openstation_resolve_favicon_internal( $page_url ) {
 	$parts = wp_parse_url( $page_url );
 	if ( ! is_array( $parts ) || empty( $parts['host'] ) ) {
 		return null;
@@ -119,20 +113,20 @@ function desktop_mode_resolve_favicon_internal( $page_url ) {
 		return null;
 	}
 
-	$page_response = wp_safe_remote_get( $page_url, desktop_mode_favicon_request_args( DESKTOP_MODE_FAVICON_MAX_PAGE_BYTES ) );
+	$page_response = wp_safe_remote_get( $page_url, openstation_favicon_request_args( OPENSTATION_FAVICON_MAX_PAGE_BYTES ) );
 	$page_body     = '';
 	if ( ! is_wp_error( $page_response ) && 200 === (int) wp_remote_retrieve_response_code( $page_response ) ) {
 		$page_body = (string) wp_remote_retrieve_body( $page_response );
 	}
 
 	$candidate_url = '' !== $page_body
-		? desktop_mode_favicon_extract_link_href( $page_body, $page_url )
+		? openstation_favicon_extract_link_href( $page_body, $page_url )
 		: '';
 	if ( '' === $candidate_url ) {
 		$candidate_url = $scheme . '://' . $parts['host'] . ( isset( $parts['port'] ) ? ':' . $parts['port'] : '' ) . '/favicon.ico';
 	}
 
-	return desktop_mode_favicon_fetch_as_data_uri( $candidate_url );
+	return openstation_favicon_fetch_as_data_uri( $candidate_url );
 }
 
 /**
@@ -143,22 +137,21 @@ function desktop_mode_resolve_favicon_internal( $page_url ) {
  * the download instead of being buffered whole into memory before
  * the size check runs.
  *
- * @since 0.8.2
  * @internal
  *
  * @param int $limit_response_size Maximum response body size, in
  *                                 bytes, enforced by WP_Http while
  *                                 downloading. Default one byte over
- *                                 `DESKTOP_MODE_FAVICON_MAX_BYTES`,
+ *                                 `OPENSTATION_FAVICON_MAX_BYTES`,
  *                                 so the post-fetch size check still
  *                                 rejects truncated over-cap bodies.
  * @return array
  */
-function desktop_mode_favicon_request_args( $limit_response_size = DESKTOP_MODE_FAVICON_MAX_BYTES + 1 ) {
+function openstation_favicon_request_args( $limit_response_size = OPENSTATION_FAVICON_MAX_BYTES + 1 ) {
 	return array(
-		'timeout'             => DESKTOP_MODE_FAVICON_TIMEOUT,
+		'timeout'             => OPENSTATION_FAVICON_TIMEOUT,
 		'redirection'         => 3,
-		'user-agent'          => 'WP Desktop Mode favicon resolver/1.0',
+		'user-agent'          => 'WP OpenStation favicon resolver/1.0',
 		'limit_response_size' => (int) $limit_response_size,
 		'headers'             => array(
 			'Accept' => 'text/html,application/xhtml+xml,image/*;q=0.9,*/*;q=0.5',
@@ -172,14 +165,13 @@ function desktop_mode_favicon_request_args( $limit_response_size = DESKTOP_MODE_
  * `$base_url`. Returns the absolute icon URL, or `''` if none
  * found.
  *
- * @since 0.8.2
  * @internal
  *
  * @param string $html     Page body.
  * @param string $base_url URL of the page that produced `$html`.
  * @return string
  */
-function desktop_mode_favicon_extract_link_href( $html, $base_url ) {
+function openstation_favicon_extract_link_href( $html, $base_url ) {
 	$dom         = new DOMDocument();
 	$prev_errors = libxml_use_internal_errors( true );
 	// `LIBXML_NOWARNING | LIBXML_NOERROR` suppresses libxml's stderr
@@ -200,9 +192,9 @@ function desktop_mode_favicon_extract_link_href( $html, $base_url ) {
 	// usually larger than the 256 KB cap so we only fall back to
 	// them when nothing else exists.
 	$buckets = array(
-		'icon'              => '',
-		'shortcut icon'     => '',
-		'apple-touch-icon'  => '',
+		'icon'             => '',
+		'shortcut icon'    => '',
+		'apple-touch-icon' => '',
 	);
 
 	foreach ( $links as $link ) {
@@ -231,7 +223,7 @@ function desktop_mode_favicon_extract_link_href( $html, $base_url ) {
 		if ( '' === $href ) {
 			continue;
 		}
-		$absolute = desktop_mode_favicon_absolutize_url( $href, $base_url );
+		$absolute = openstation_favicon_absolutize_url( $href, $base_url );
 		if ( '' !== $absolute ) {
 			return $absolute;
 		}
@@ -243,14 +235,13 @@ function desktop_mode_favicon_extract_link_href( $html, $base_url ) {
  * Resolve a possibly-relative `href` against `$base_url`. Returns
  * `''` if the result isn't an http(s) URL.
  *
- * @since 0.8.2
  * @internal
  *
  * @param string $href     Link href (absolute, scheme-relative, or path).
  * @param string $base_url Page URL.
  * @return string
  */
-function desktop_mode_favicon_absolutize_url( $href, $base_url ) {
+function openstation_favicon_absolutize_url( $href, $base_url ) {
 	$href = trim( $href );
 	if ( '' === $href ) {
 		return '';
@@ -288,17 +279,16 @@ function desktop_mode_favicon_absolutize_url( $href, $base_url ) {
 /**
  * Fetch the candidate icon URL and encode it as a data URI.
  *
- * @since 0.8.2
  * @internal
  *
  * @param string $icon_url Absolute http(s) URL of the icon.
  * @return string|null
  */
-function desktop_mode_favicon_fetch_as_data_uri( $icon_url ) {
+function openstation_favicon_fetch_as_data_uri( $icon_url ) {
 	if ( '' === $icon_url || ! preg_match( '#^https?://#i', $icon_url ) ) {
 		return null;
 	}
-	$response = wp_safe_remote_get( $icon_url, desktop_mode_favicon_request_args() );
+	$response = wp_safe_remote_get( $icon_url, openstation_favicon_request_args() );
 	if ( is_wp_error( $response ) ) {
 		return null;
 	}
@@ -312,10 +302,10 @@ function desktop_mode_favicon_fetch_as_data_uri( $icon_url ) {
 		return null;
 	}
 	$body = (string) wp_remote_retrieve_body( $response );
-	if ( '' === $body || strlen( $body ) > DESKTOP_MODE_FAVICON_MAX_BYTES ) {
+	if ( '' === $body || strlen( $body ) > OPENSTATION_FAVICON_MAX_BYTES ) {
 		return null;
 	}
-	$subtype = desktop_mode_favicon_subtype_from_content_type( $content_type );
+	$subtype = openstation_favicon_subtype_from_content_type( $content_type );
 	if ( null === $subtype ) {
 		return null;
 	}
@@ -337,24 +327,23 @@ function desktop_mode_favicon_fetch_as_data_uri( $icon_url ) {
  * Map a `Content-Type` header to a known image subtype, or `null`
  * if the type isn't on the allowlist.
  *
- * @since 0.8.2
  * @internal
  *
  * @param string $content_type Lowercased `Content-Type` value
  *                             (no parameters).
  * @return string|null
  */
-function desktop_mode_favicon_subtype_from_content_type( $content_type ) {
+function openstation_favicon_subtype_from_content_type( $content_type ) {
 	$map = array(
-		'image/png'                  => 'png',
-		'image/jpeg'                 => 'jpeg',
-		'image/jpg'                  => 'jpeg',
-		'image/gif'                  => 'gif',
-		'image/webp'                 => 'webp',
-		'image/x-icon'               => 'x-icon',
-		'image/vnd.microsoft.icon'   => 'x-icon',
-		'image/ico'                  => 'x-icon',
-		'image/svg+xml'              => 'svg+xml',
+		'image/png'                => 'png',
+		'image/jpeg'               => 'jpeg',
+		'image/jpg'                => 'jpeg',
+		'image/gif'                => 'gif',
+		'image/webp'               => 'webp',
+		'image/x-icon'             => 'x-icon',
+		'image/vnd.microsoft.icon' => 'x-icon',
+		'image/ico'                => 'x-icon',
+		'image/svg+xml'            => 'svg+xml',
 	);
 	return isset( $map[ $content_type ] ) ? $map[ $content_type ] : null;
 }

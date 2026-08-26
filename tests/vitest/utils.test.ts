@@ -38,10 +38,10 @@ describe( 'utils/deriveWindowId', () => {
 		).toBe( 'edit-php-post_type-product' );
 	} );
 
-	test( 'strips transient query args (desktop_mode_chromeless, _wpnonce, paged, message)', () => {
+	test( 'strips transient query args (openstation_chromeless, _wpnonce, paged, message)', () => {
 		const clean = deriveWindowId( `${ ADMIN }edit.php`, ADMIN );
 		const noisy = deriveWindowId(
-			`${ ADMIN }edit.php?desktop_mode_chromeless=1&_wpnonce=abc&paged=3&message=1`,
+			`${ ADMIN }edit.php?openstation_chromeless=1&_wpnonce=abc&paged=3&message=1`,
 			ADMIN,
 		);
 		expect( noisy ).toBe( clean );
@@ -143,6 +143,19 @@ describe( 'utils/deriveWindowId', () => {
 		expect( one ).not.toBe( two );
 	} );
 
+	test( 'separates site-editor entities by the `p` route', () => {
+		// The counterpart to `pageIdentityKey` dropping `p`.
+		const home = deriveWindowId(
+			`${ ADMIN }site-editor.php?p=/wp_template/twentytwentyfive//home`,
+			ADMIN,
+		);
+		const footer = deriveWindowId(
+			`${ ADMIN }site-editor.php?p=/wp_template_part/twentytwentyfive//footer`,
+			ADMIN,
+		);
+		expect( home ).not.toBe( footer );
+	} );
+
 	test( 'falls back to slugify for non-URL input', () => {
 		expect( deriveWindowId( 'index.php', ADMIN ) ).toBe( 'index-php' );
 	} );
@@ -169,10 +182,10 @@ describe( 'utils/sanitizeClassName', () => {
 } );
 
 describe( 'utils/urlMatchKey', () => {
-	test( 'equates admin URLs that differ only in the desktop_mode_chromeless flag', () => {
+	test( 'equates admin URLs that differ only in the openstation_chromeless flag', () => {
 		const plain = urlMatchKey( `${ ADMIN }edit.php?post_type=post` );
 		const chromeless = urlMatchKey(
-			`${ ADMIN }edit.php?post_type=post&desktop_mode_chromeless=1`,
+			`${ ADMIN }edit.php?post_type=post&openstation_chromeless=1`,
 		);
 		expect( plain ).toBe( chromeless );
 	} );

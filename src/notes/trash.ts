@@ -1,15 +1,14 @@
 /**
- * Desktop Mode — Pinned notes trash flow.
+ * OpenStation — Pinned notes trash flow.
  *
  * Soft-trash a note (`wp_trash_post` server-side) with optimistic
  * eviction + an Undo toast, mirroring the desktop-files trash UX
  * (`src/desktop-files/trash.ts`). The layer injects eviction/restore
  * callbacks so this module stays DOM-free.
- *
- * @since 0.9.6
  */
 
 import { __ } from '../i18n';
+import { broadcastNotesChange } from './broadcast';
 import { deleteNote, restoreNote } from './rest';
 import type { Note } from './types';
 
@@ -23,8 +22,8 @@ interface ToastApi {
 
 function getToastApi(): ToastApi | null {
 	const api = (
-		window as { wp?: { desktop?: ToastApi } }
-	).wp?.desktop;
+		window as { wp?: { os?: ToastApi } }
+	).wp?.os;
 	return api && typeof api.showToast === 'function' ? api : null;
 }
 
@@ -46,6 +45,8 @@ export async function trashNoteWithUndo(
 	callbacks.onEvict( note.id );
 	try {
 		await deleteNote( note.id );
+		// The bin gained an item — tell its icon.
+		broadcastNotesChange( 'trashed', [ note.id ] );
 		getToastApi()?.showToast?.( {
 			message: __( 'Note moved to Trash', 'desktop-mode' ),
 			duration: 6000,
@@ -53,11 +54,14 @@ export async function trashNoteWithUndo(
 				label: __( 'Undo', 'desktop-mode' ),
 				onClick: () => {
 					void restoreNote( note.id )
-						.then( ( restored ) => callbacks.onRestore( restored ) )
+						.then( ( restored ) => {
+							broadcastNotesChange( 'untrashed', [ note.id ] );
+							callbacks.onRestore( restored );
+						} )
 						.catch( ( err: unknown ) => {
 							// eslint-disable-next-line no-console
 							console.error(
-								'[desktop-mode] notes: restore failed:',
+								'[openstation] notes: restore failed:',
 								err,
 							);
 						} );
@@ -66,7 +70,7 @@ export async function trashNoteWithUndo(
 		} );
 	} catch ( err ) {
 		// eslint-disable-next-line no-console
-		console.error( '[desktop-mode] notes: trash failed:', err );
+		console.error( '[openstation] notes: trash failed:', err );
 		callbacks.onRestore( note );
 		getToastApi()?.showToast?.( {
 			message: __( 'Could not move the note to the Trash.', 'desktop-mode' ),

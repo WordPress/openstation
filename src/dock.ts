@@ -1,12 +1,10 @@
 /**
- * Desktop Mode — Dock.
+ * OpenStation — Dock.
  *
  * Renders the icon-only dock on the left edge of the desktop.
- * Icons come from the admin menu data passed via desktopModeConfig.dockItems.
+ * Icons come from the admin menu data passed via openStationConfig.dockItems.
  * The dock always starts with a WordPress logo "Show Desktop" button
  * that minimizes all open windows.
- *
- * @since 0.5.0
  */
 
 import { activity } from './activity';
@@ -28,6 +26,12 @@ import {
 	resolveNativeUrlRemap,
 	tryNativeUrlRemap,
 } from './native-url-remap';
+import { persistZoneOrder as persistNavZoneOrder } from './nav/config';
+import type { NavPlacement } from './nav/types';
+// The zones in paint order. One list, shared with the model that
+// decides what goes in them — two copies of an ordered enum is two
+// places to forget when a zone is added.
+import { NAV_ZONES as DOCK_ZONE_ORDER } from './nav/compute';
 
 /**
  * A JS-registered dock tile appended below the admin-menu items.
@@ -61,8 +65,6 @@ export interface SystemDockItem {
 	 * another") next to any open instance — matching the menu-tile
 	 * peek's affordance so the dock reads consistently regardless of
 	 * which rail a tile lives on.
-	 *
-	 * @since 0.8.0
 	 */
 	multi?: boolean;
 	/**
@@ -70,10 +72,118 @@ export interface SystemDockItem {
 	 * set. Defaults to {@link onOpen}; native-window tiles whose
 	 * `onOpen` would just focus an already-open singleton supply this
 	 * callback to spawn a fresh instance.
-	 *
-	 * @since 0.8.0
 	 */
 	onOpenNew?: () => void;
+	/**
+	 * Whether the tile appears in OpenStation Preferences → Navigation,
+	 * so the user can move or hide it.
+	 *
+	 * Opt-in rather than the default, because most system tiles are
+	 * load-bearing: OS Settings is how you reach the very screen that
+	 * would hide it. Set this on tiles that are genuinely optional
+	 * decoration — Mio's toggle is the canonical case.
+	 *
+	 * The visibility override is honoured whether or not this is set;
+	 * all it controls is whether a row is offered.
+	 */
+	placeable?: boolean;
+	/**
+	 * Rows to fan out of this tile on hover, through the same
+	 * constellation flyout the admin menus use.
+	 *
+	 * The panel is the same three sections an admin menu's gets: a head
+	 * naming the tile, the live windows the rows have open (resolved
+	 * from each row's {@link SubmenuItem.windowId}), and the rows.
+	 *
+	 * **The head runs `submenu[0]` on click**, standing in for the
+	 * landing page the tile does not have — so put nothing destructive
+	 * first. `onOpen` runs on a click on the TILE, which is also the
+	 * only thing keyboards and touch get, since neither fans the flyout
+	 * open. Give every submenu-bearing tile an `onOpen` that does
+	 * something defensible on its own.
+	 */
+	submenu?: SubmenuItem[];
+	/**
+	 * Sort key among system tiles, ascending. Defaults to 0, and ties
+	 * keep registration order.
+	 *
+	 * Registration order alone cannot express the intended rail:
+	 * native-window tiles (Trash, and every plugin's) register on the
+	 * lazy-script path and land whenever their bundle resolves, so a
+	 * tile registered last in `desktop.ts` is not last on the dock.
+	 */
+	order?: number;
+	/**
+	 * The native-window id this tile opens, when it opens one.
+	 *
+	 * Set by the native-window sync; a shell tile that toggles
+	 * something rather than opening a window (Mio's) leaves it unset.
+	 * Drives the running indicator and the transient tile a running
+	 * window gets when its item lives nowhere on a rail.
+	 */
+	windowId?: string;
+	/**
+	 * What the tile IS — which decides its default placement and the
+	 * dock zone it sits in. `'app'` (the default) for a launcher,
+	 * `'control'` for an OpenStation affordance: Mio, Overview,
+	 * System, Trash, Exit.
+	 *
+	 * See `src/nav/defaults.ts`. A plugin's launcher wants `'app'`
+	 * and gets it by saying nothing.
+	 */
+	navKind?: 'app' | 'control';
+	/**
+	 * Cannot be moved, hidden, or reordered. Exit OpenStation is the
+	 * only one: it is the way out of the shell.
+	 */
+	locked?: boolean;
+	/**
+	 * Where this tile should sit when the user has said nothing,
+	 * overriding the default for its {@link SystemDockItem.navKind}.
+	 *
+	 * A native window registered with `'placement' => 'dock'` sets
+	 * `'rail'` here, which is what keeps a plugin's launcher on the
+	 * dock where it has always been: apps otherwise default to the
+	 * wallpaper. The user's own pick still wins over it.
+	 */
+	defaultPlacement?: NavPlacement;
+}
+
+/**
+ * One thing painted on a rail, whatever produced it. The dock's zones
+ * mix the two cohorts — the apps zone holds plugin admin menus and
+ * app launchers side by side — so they travel as a union rather than
+ * in two parallel lists.
+ */
+export type DockEntry =
+	| { type: 'menu'; item: DockItem }
+	| { type: 'system'; item: SystemDockItem };
+
+/**
+ * A rail's contents, in paint order, with a divider drawn between
+ * each pair of non-empty zones.
+ *
+ * Zone membership comes from `computeNav` and is derived from what
+ * each item IS. A tile therefore cannot be dragged into another zone,
+ * because there is no value a drag could write that would move it.
+ */
+export interface DockZones {
+	/** WordPress's own admin menus. Empty on the dock in the split layout. */
+	core: DockEntry[];
+	/** Plugin admin menus, app launchers, and running windows with no home. */
+	apps: DockEntry[];
+	/** OpenStation's own affordances. */
+	controls: DockEntry[];
+}
+
+/**
+ * Which zone a system tile belongs to. Derived from what the tile IS,
+ * never from where it happened to be appended.
+ */
+export function zoneForSystemTile(
+	item: SystemDockItem,
+): keyof DockZones {
+	return 'control' === item.navKind ? 'controls' : 'apps';
 }
 
 /**
@@ -86,11 +196,46 @@ export interface SystemDockItem {
  * mount-deps callback.
  *
  * @public
- * @since 0.6.0
  */
 export interface SubmenuItem {
 	title: string;
 	url: string;
+	/**
+	 * Run this instead of navigating to `url`.
+	 *
+	 * Client-side only, and deliberately so: the server builds submenu
+	 * entries as JSON (`openstation_build_dock_items()`), and a function
+	 * cannot survive that trip. Set it from JS on the submenus of
+	 * {@link SystemDockItem}, whose rows are shell actions — "Log out",
+	 * "Fullscreen" — rather than admin pages. `url` stays the fallback
+	 * for anything that can express itself as one.
+	 */
+	onSelect?: () => void;
+	/**
+	 * The window this row opens, when it opens one.
+	 *
+	 * Only needed alongside {@link onSelect}: a row with a real `url`
+	 * already yields its window id through `deriveWindowId()`, but a
+	 * callback is opaque. Declaring it is what lets the constellation
+	 * list a system tile's live windows the way it lists an admin
+	 * menu's. Rows that open no window (Log out, Fullscreen) leave it
+	 * unset.
+	 */
+	windowId?: string;
+	/**
+	 * This row leaves the site.
+	 *
+	 * Set server-side on a plugin menu's off-site children, a docs or
+	 * account link under the plugin's own menu. Nothing off-site can
+	 * load in a window, so surfaces that route a URL into one skip
+	 * these rows, and the ones that can hand a link to the browser mark
+	 * them as leaving.
+	 *
+	 * Named `offSite`, not `external`, because the window's tab strip
+	 * already spends that word on something else: `data-kind="external"`
+	 * is a plugin-opened sub-iframe tab, which is very much on-site.
+	 */
+	offSite?: boolean;
 }
 
 export interface DockItem {
@@ -105,20 +250,31 @@ export interface DockItem {
 	/**
 	 * Native-window id this tile targets, when known up front.
 	 * Populated for synthesized tiles built from a
-	 * `desktop_mode_register_icon()` entry whose `window` field points
+	 * `openstation_register_icon()` entry whose `window` field points
 	 * at a registered native window (no `url`). The dock prefers this
 	 * over deriving an id from `url` for indicator + hover-peek
 	 * lookups — without it those synth tiles fall back to
 	 * `deriveWindowId('')` and never match the open window, so the
 	 * active/focused dot stays dark.
-	 *
-	 * @since 0.8.6
 	 */
 	windowId?: string;
+	/**
+	 * Label of the self-link stripped out of `submenu` — "All Posts"
+	 * for the Posts menu, "All Pages" for Pages. Empty when the menu
+	 * had none.
+	 *
+	 * `submenu` deliberately excludes the entry itself, because two
+	 * consumers need it to mean "distinct child links only" (the tab
+	 * strip, which would grow a duplicate first tab; the right-click
+	 * popover, suppressed on an empty list). Surfaces that LIST a
+	 * menu's pages want it back — the constellation flyout puts it
+	 * first, pointing at `url`.
+	 */
+	selfLabel?: string;
 	/** Number badge (update count, comment count, etc.). 0 = no badge. */
 	badge: number;
 	/** Submenu items. */
-	submenu: { title: string; url: string }[];
+	submenu: { title: string; url: string; offSite?: boolean }[];
 	/** Whether this admin page supports multiple open windows. */
 	multi?: boolean;
 	/**
@@ -126,15 +282,15 @@ export interface DockItem {
 	 * (Dashboard, Posts, Media, Plugins, Users, Settings, CPTs,
 	 * taxonomies). Used by the dock to render a visual separator
 	 * between core and plugin tiles. Server-side classifier lives
-	 * in `desktop_mode_is_core_menu_slug`.
+	 * in `openstation_is_core_menu_slug`.
 	 */
 	isCore?: boolean;
 	/**
 	 * Plugin file (e.g. `woocommerce/woocommerce.php`) that owns this
 	 * menu, when resolvable. Set server-side by
-	 * `desktop_mode_resolve_menu_plugin_file()`. Used by the dock
+	 * `openstation_resolve_menu_plugin_file()`. Used by the dock
 	 * right-click menu to surface a "Deactivate plugin" action. Always
-	 * `null` for core menus, mu-plugins, drop-ins, and Desktop Mode
+	 * `null` for core menus, mu-plugins, drop-ins, and OpenStation
 	 * itself — none of those are deactivatable via `wp/v2/plugins`.
 	 */
 	pluginFile?: string | null;
@@ -158,13 +314,12 @@ export type DockOrientation = 'left' | 'right' | 'bottom';
  * (Classic layout's left side bar + bottom dock) without reaching
  * into the DOM.
  *
- * `dockId` is the host element's `id` attribute — `'desktop-mode-dock'`
- * for the bottom rail, `'desktop-mode-side-dock'` for the Classic side
+ * `dockId` is the host element's `id` attribute — `'os-dock'`
+ * for the bottom rail, `'os-side-dock'` for the Classic side
  * rail. `rail` mirrors `Dock.rail` (`'dock'` or `'taskbar'`) and
  * `orientation` carries the placement.
  *
  * @public
- * @since 0.6.0
  */
 export interface DockHookContextBase {
 	rail: 'dock' | 'taskbar';
@@ -179,7 +334,6 @@ export interface DockHookContextBase {
  * when `false`, a {@link DockItem} from the admin menu.
  *
  * @public
- * @since 0.6.0
  */
 export interface DockTileContext extends DockHookContextBase {
 	item: DockItem | SystemDockItem;
@@ -193,7 +347,6 @@ export interface DockTileContext extends DockHookContextBase {
  * desyncs the rail.
  *
  * @public
- * @since 0.6.0
  */
 export interface DockRenderContext extends DockHookContextBase {
 	items: DockItem[];
@@ -220,7 +373,7 @@ export interface DockAttentionOptions {
  * Manages a single dock element, its icons, tooltips, and interaction
  * with the window manager. A dock can render along any of three edges
  * (left, right, or bottom); placement is reflected on the dock
- * element's own `data-desktop-mode-dock-placement` attribute, which CSS
+ * element's own `data-os-dock-placement` attribute, which CSS
  * keys off for layout, tooltip anchor, and indicator position. This
  * lets two `Dock` instances coexist in the same shell (used by the
  * Classic desktop layout: a left side bar with core menus + a bottom
@@ -230,7 +383,7 @@ export class Dock {
 	private container: HTMLElement;
 	/**
 	 * Where menu tiles + the inline group separator live. For vertical
-	 * placements this is the inner `.desktop-mode-dock__scroll` wrapper
+	 * placements this is the inner `.os-dock__scroll` wrapper
 	 * (a scrollable flex column) so a long admin menu doesn't push the
 	 * system tiles off-screen; the wrapper takes the scroll while the
 	 * outer dock stays the height of the shell body. For the bottom
@@ -240,7 +393,7 @@ export class Dock {
 	private itemHost: HTMLElement;
 	/**
 	 * Where system tiles + their hairline separator live. For vertical
-	 * placements this is the `.desktop-mode-dock__pinned` wrapper sat
+	 * placements this is the `.os-dock__pinned` wrapper sat
 	 * below `itemHost`, so OS Settings / Recycle Bin / etc. stay visible
 	 * at the bottom regardless of scroll position. For the bottom
 	 * placement it's the dock itself.
@@ -255,14 +408,20 @@ export class Dock {
 	/**
 	 * Routing discriminator stamped onto every event this rail
 	 * publishes. `'left'` orientation carries `'dock'`; `'bottom'`
-	 * carries `'taskbar'`. Lets a single `desktop-mode/badge-changed`
+	 * carries `'taskbar'`. Lets a single `os/badge-changed`
 	 * subscriber tell the two visually-distinct rails apart
 	 * without inferring from id space.
 	 */
 	private rail: 'dock' | 'taskbar';
 	private systemItems: SystemDockItem[] = [];
 	private systemItemElements: Map<string, HTMLElement> = new Map();
-	private systemSeparator: HTMLElement | null = null;
+	/**
+	 * The rail's contents by zone — the single description everything
+	 * else is derived from. `items` and `systemItems` are views onto
+	 * it, kept for the hook payloads and the public API that predate
+	 * zones.
+	 */
+	private zones: DockZones = { core: [], apps: [], controls: [] };
 	/**
 	 * Client-side badge overrides keyed by item id. Lets
 	 * `replaceItems()` re-paint a tile that a JS caller had already
@@ -271,6 +430,15 @@ export class Dock {
 	 * server-declared `item.badge` value.
 	 */
 	private badgeOverrides: Map<string, number> = new Map();
+
+	/**
+	 * Client-set artwork, keyed by item id. Same job as
+	 * {@link badgeOverrides}: a tile whose art was swapped via
+	 * `setArt()` has to keep it across a live menu refresh, or the
+	 * next plugin activation would silently put the server-declared
+	 * icon back.
+	 */
+	private artOverrides: Map<string, string> = new Map();
 
 	/**
 	 * Active attention timers, keyed by item id. Used to cancel a
@@ -341,10 +509,31 @@ export class Dock {
 		// (Classic layout's left side bar + bottom dock) can coexist
 		// without their CSS scopes colliding. dock.css reads this
 		// attribute for layout, tooltip anchor, and indicator anchor.
+		//
+		// Committed with transitions off, because the container is
+		// REUSED across a rebuild. Moving the dock from the bottom edge
+		// to a side is a teardown and a fresh Dock on the same element,
+		// which arrives still carrying the old placement's padding —
+		// and `.os-dock` transitions padding, width and transform (see
+		// `window-overview.css`, where they exist to animate the
+		// overview collapse). Without this the new dock tweens out of
+		// the old one's geometry: it lands a size too big and settles,
+		// which reads as a bounce. A rebuild is not a state change and
+		// nothing about it should tween.
+		//
+		// Reading `offsetWidth` between the two lines is what makes it
+		// work: it forces the new placement to be resolved while
+		// transitions are still off, so it becomes the before-change
+		// style rather than a target to animate towards. rAF would be
+		// the usual way to wait a frame, and it is the wrong tool —
+		// this has to happen before the browser can paint, not after.
+		this.container.classList.add( 'os-dock--no-transition' );
 		this.container.setAttribute(
-			'data-desktop-mode-dock-placement',
+			'data-os-dock-placement',
 			orientation,
 		);
+		void this.container.offsetWidth;
+		this.container.classList.remove( 'os-dock--no-transition' );
 
 		// Every dock gets two inner wrappers so menu tiles can scroll
 		// independently of the system tiles. Vertical placements scroll
@@ -354,9 +543,9 @@ export class Dock {
 		// placement attribute + orientation chrome; the wrappers carry
 		// the actual flow.
 		const scroll = document.createElement( 'div' );
-		scroll.className = 'desktop-mode-dock__scroll';
+		scroll.className = 'os-dock__scroll';
 		const pinned = document.createElement( 'div' );
-		pinned.className = 'desktop-mode-dock__pinned';
+		pinned.className = 'os-dock__pinned';
 		container.appendChild( scroll );
 		container.appendChild( pinned );
 		this.itemHost = scroll;
@@ -366,7 +555,7 @@ export class Dock {
 		// orientation so the tooltip sits outside the dock regardless
 		// of which edge it hugs.
 		this.tooltip = document.createElement( 'div' );
-		this.tooltip.className = 'desktop-mode-dock__tooltip';
+		this.tooltip.className = 'os-dock__tooltip';
 		this.tooltip.setAttribute( 'role', 'tooltip' );
 		// Anchor modifier — applied directly to the tooltip element
 		// (not via a descendant selector on the dock) because the
@@ -374,14 +563,15 @@ export class Dock {
 		// reasons. CSS keys off this class for the slide-in animation
 		// direction; `positionTooltip()` writes the absolute coords.
 		if ( orientation === 'bottom' ) {
-			this.tooltip.classList.add( 'desktop-mode-dock__tooltip--above' );
+			this.tooltip.classList.add( 'os-dock__tooltip--above' );
 		} else if ( orientation === 'right' ) {
-			this.tooltip.classList.add( 'desktop-mode-dock__tooltip--before' );
+			this.tooltip.classList.add( 'os-dock__tooltip--before' );
 		} else {
-			this.tooltip.classList.add( 'desktop-mode-dock__tooltip--after' );
+			this.tooltip.classList.add( 'os-dock__tooltip--after' );
 		}
 		document.body.appendChild( this.tooltip );
 
+		this.zones = this.zonesFromMenu( items, [] );
 		this.render();
 		this.bindWindowEvents();
 	}
@@ -406,7 +596,7 @@ export class Dock {
 	 */
 	/**
 	 * Update the dock's orientation. Writes the new value to the
-	 * dock element's `data-desktop-mode-dock-placement` attribute (CSS
+	 * dock element's `data-os-dock-placement` attribute (CSS
 	 * keys off it for layout) and keeps the tooltip anchor in sync.
 	 *
 	 * In practice, the layout dispatcher in `desktop.ts` rebuilds the
@@ -420,108 +610,87 @@ export class Dock {
 		}
 		this.orientation = orientation;
 		this.container.setAttribute(
-			'data-desktop-mode-dock-placement',
+			'data-os-dock-placement',
 			orientation,
 		);
 		this.tooltip.classList.remove(
-			'desktop-mode-dock__tooltip--above',
-			'desktop-mode-dock__tooltip--before',
-			'desktop-mode-dock__tooltip--after',
+			'os-dock__tooltip--above',
+			'os-dock__tooltip--before',
+			'os-dock__tooltip--after',
 		);
 		if ( orientation === 'bottom' ) {
-			this.tooltip.classList.add( 'desktop-mode-dock__tooltip--above' );
+			this.tooltip.classList.add( 'os-dock__tooltip--above' );
 		} else if ( orientation === 'right' ) {
-			this.tooltip.classList.add( 'desktop-mode-dock__tooltip--before' );
+			this.tooltip.classList.add( 'os-dock__tooltip--before' );
 		} else {
-			this.tooltip.classList.add( 'desktop-mode-dock__tooltip--after' );
+			this.tooltip.classList.add( 'os-dock__tooltip--after' );
 		}
 	}
 
 	public replaceItems( items: DockItem[] ): void {
-		// Tear down peek attachments for the OLD menu tiles before
-		// removing them. Without this, `attachDockPeek` listeners stay
-		// armed on detached tiles and (worse) any popover already
-		// appended to `document.body` is orphaned — its `tearDown`
-		// closure becomes unreachable from the dock. A subsequent
-		// peek opening on the freshly-rebuilt tile then renders a
-		// SECOND popover with the same per-window `view-transition-name`
-		// as the leaked one, which Chrome reports as
-		// "Unexpected duplicate view-transition-name". System tile
-		// peeks live in the same map under `system:` keys and aren't
-		// being replaced here, so leave those entries alone.
-		for ( const itemId of this.itemElements.keys() ) {
-			const teardown = this.peekTeardowns.get( itemId );
-			if ( teardown ) {
-				teardown();
-				this.peekTeardowns.delete( itemId );
-			}
-		}
+		// System entries keep the zone they were appended to; only the
+		// menu-derived half is replaced.
+		this.zones = this.zonesFromMenu( items, this.systemEntries() );
+		this.render();
+	}
 
-		for ( const el of this.itemElements.values() ) {
-			el.remove();
-		}
-		// Also remove any stale group separator from a previous render.
-		this.itemHost
-			.querySelectorAll(
-				'.desktop-mode-dock__separator--group',
-			)
-			.forEach( ( el ) => el.remove() );
-		this.itemElements.clear();
+	/**
+	 * Replace the rail's entire contents, zone by zone.
+	 *
+	 * The layout dispatcher's one write path: it recomputes the whole
+	 * navigation from `computeNav` and hands the answer over. Prefer
+	 * this to `replaceItems` + `appendSystemItem`, which cannot express
+	 * a plugin menu and an app launcher sharing a zone.
+	 */
+	public setZones( zones: DockZones ): void {
+		this.zones = {
+			core: zones.core.slice(),
+			apps: zones.apps.slice(),
+			controls: zones.controls.slice(),
+		};
+		this.render();
+	}
 
-		this.items = items;
-
-		const base = this.buildHookContextBase();
-		doAction( HOOKS.DOCK_BEFORE_RENDER, {
-			...base,
-			items,
-			tileElements: this.itemElements as ReadonlyMap<string, HTMLElement>,
-		} );
-
-		let insertedGroupSeparator = false;
-		let tilesInsertedThisPass = 0;
-		for ( const item of items ) {
-			if ( ! insertedGroupSeparator && item.isCore === false ) {
-				if ( tilesInsertedThisPass > 0 ) {
-					const sep = document.createElement( 'div' );
-					sep.className =
-						'desktop-mode-dock__separator desktop-mode-dock__separator--group';
-					sep.setAttribute( 'aria-hidden', 'true' );
-					this.itemHost.appendChild( sep );
+	/** Every system entry across every zone, in paint order. */
+	private systemEntries(): DockEntry[] {
+		const out: DockEntry[] = [];
+		for ( const zone of DOCK_ZONE_ORDER ) {
+			for ( const entry of this.zones[ zone ] ) {
+				if ( 'system' === entry.type ) {
+					out.push( entry );
 				}
-				insertedGroupSeparator = true;
 			}
-			const btn = this.createItemButton( item );
-			this.itemElements.set( item.id, btn );
-			this.itemHost.appendChild( btn );
-			tilesInsertedThisPass++;
-			// Re-apply any client-side badge override that was set
-			// before the refresh. Without this, the live menu
-			// refresh path would drop every JS-set badge back to
-			// the server-declared `item.badge` and plugins would
-			// have to re-decorate after every plugin activation —
-			// exactly the anti-pattern this PR is closing.
-			const override = this.badgeOverrides.get( item.id );
-			if ( override !== undefined ) {
-				const primary = btn.querySelector< HTMLElement >(
-					'.desktop-mode-dock__item-primary',
-				);
-				_applyBadgeNode( primary ?? btn, override );
-			}
-			doAction( HOOKS.DOCK_TILE_RENDERED, {
-				...base,
+		}
+		return out;
+	}
+
+	/**
+	 * Zone the menu list by `isCore`, then put the system entries back
+	 * where their kind says they belong.
+	 *
+	 * The legacy shape of the rail — one flat menu list plus a trailing
+	 * system cluster — collapses onto zones exactly, which is why
+	 * `replaceItems` and `appendSystemItem` keep working for custom
+	 * rail renderers that never learned about zones.
+	 */
+	private zonesFromMenu(
+		items: DockItem[],
+		systemEntries: DockEntry[],
+	): DockZones {
+		const zones: DockZones = { core: [], apps: [], controls: [] };
+		for ( const item of items ) {
+			zones[ item.isCore ? 'core' : 'apps' ].push( {
+				type: 'menu',
 				item,
-				isSystem: false,
-				el: btn,
 			} );
 		}
-
-		this.updateActiveStates();
-
-		doAction( HOOKS.DOCK_AFTER_RENDER, {
-			...base,
-			items,
-			tileElements: this.itemElements as ReadonlyMap<string, HTMLElement>,
-		} );
+		for ( const entry of systemEntries ) {
+			if ( 'system' !== entry.type ) {
+				continue;
+			}
+			zones[ zoneForSystemTile( entry.item ) ].push( entry );
+		}
+		return zones;
 	}
 
 	/**
@@ -549,22 +718,26 @@ export class Dock {
 	 * separator so the rail doesn't dangle a divider under nothing.
 	 */
 	public removeSystemItem( id: string ): void {
-		const tile = this.systemItemElements.get( id );
-		if ( ! tile ) {
+		let found = false;
+		for ( const zone of DOCK_ZONE_ORDER ) {
+			const next = this.zones[ zone ].filter(
+				( entry ) =>
+					'system' !== entry.type || entry.item.id !== id,
+			);
+			if ( next.length !== this.zones[ zone ].length ) {
+				found = true;
+			}
+			this.zones[ zone ] = next;
+		}
+		if ( ! found ) {
 			return;
 		}
-		tile.remove();
-		this.systemItemElements.delete( id );
-		this.systemItems = this.systemItems.filter( ( s ) => s.id !== id );
 		// Drop any client-side badge override the caller had set —
 		// the tile is gone, the override would otherwise re-apply
 		// on a future re-registration of the same id.
 		this.badgeOverrides.delete( id );
-
-		if ( this.systemItemElements.size === 0 && this.systemSeparator ) {
-			this.systemSeparator.remove();
-			this.systemSeparator = null;
-		}
+		this.artOverrides.delete( id );
+		this.render();
 
 		doAction( HOOKS.DOCK_ITEM_REMOVED, { id, placement: this.rail } );
 	}
@@ -580,8 +753,6 @@ export class Dock {
 	 * happens to live on.
 	 *
 	 * Idempotent: applying the same count is a no-op (no DOM mutation).
-	 *
-	 * @since 0.6.0
 	 *
 	 * @param itemId Tile id (menu slug for admin pages, system id
 	 *               for `appendSystemItem` / `registerSystemTile`).
@@ -611,14 +782,14 @@ export class Dock {
 		}
 
 		const primary = tile.querySelector< HTMLElement >(
-			'.desktop-mode-dock__item-primary',
+			'.os-dock__item-primary',
 		);
 		_applyBadgeNode( primary ?? tile, safe );
 
 		// Single emission point — activity bus. `rail` is the
 		// routing discriminator so a single subscriber can
 		// compose dock + taskbar + icons under one shape.
-		activity.publish( 'desktop-mode/badge-changed', {
+		activity.publish( 'os/badge-changed', {
 			itemId,
 			count: safe,
 			rail: this.rail,
@@ -627,11 +798,135 @@ export class Dock {
 
 	/**
 	 * Clear the badge on a tile. Equivalent to `setBadge( id, 0 )`.
-	 *
-	 * @since 0.6.0
 	 */
 	public clearBadge( itemId: string ): void {
 		this.setBadge( itemId, 0 );
+	}
+
+	/**
+	 * Swap a tile's artwork.
+	 *
+	 * The counterpart to {@link setBadge} for apps whose tile means
+	 * something different depending on state, rather than counting
+	 * something. The Recycle Bin is the in-tree example: an empty bin
+	 * and a bin holding something are two drawings of one object, and
+	 * a tile that changes shape says it without spending a corner on
+	 * a number.
+	 *
+	 * Same fan-out contract as `setBadge`: an id this rail doesn't own
+	 * is a silent no-op, so a caller can fan one change to
+	 * `dock.setArt`, `taskbar.setArt` and `icons.setArt` and let the
+	 * rail that owns the tile be the one that paints.
+	 *
+	 * `svg` takes the same shapes {@link renderIcon} accepts, so a
+	 * data URI, an http(s) URL, or a dashicon class. Art naming
+	 * `currentColor` is painted as a mask and follows the tile's own
+	 * glyph colour; fixed-colour art keeps its own.
+	 *
+	 * Survives a live menu refresh — see {@link artOverrides}. Pass an
+	 * empty string to drop the override and hand the tile back to the
+	 * server-declared icon.
+	 *
+	 * @public
+	 *
+	 * @param itemId Tile id.
+	 * @param svg    Icon string, or `''` to restore the original.
+	 */
+	public setArt( itemId: string, svg: string ): void {
+		// Clearing restores the declared icon immediately, the way
+		// `setBadge( id, 0 )` removes the pill immediately rather than
+		// waiting for the next rebuild.
+		if ( ! svg ) {
+			if ( ! this.artOverrides.delete( itemId ) ) {
+				return; // Nothing was overridden — nothing changed.
+			}
+			const tile = this._resolveTileElement( itemId );
+			const declared = this._declaredIcon( itemId );
+			if ( tile && declared ) {
+				this._paintArt( tile, itemId, declared );
+			}
+			activity.publish( 'os/art-changed', {
+				itemId,
+				icon: '',
+				rail: this.rail,
+			} );
+			return;
+		}
+
+		// Record BEFORE painting. A caller that sets art during boot
+		// usually beats the rail to the DOM (the bin does exactly
+		// this), and the tile builders re-apply from this map, so an
+		// early call lands the moment the tile exists rather than
+		// being dropped on the floor.
+		this.artOverrides.set( itemId, svg );
+		const tile = this._resolveTileElement( itemId );
+		if ( ! tile ) {
+			return;
+		}
+		this._paintArt( tile, itemId, svg );
+		activity.publish( 'os/art-changed', {
+			itemId,
+			icon: svg,
+			rail: this.rail,
+		} );
+	}
+
+	/**
+	 * The icon a tile was registered with, menu item or system item.
+	 * Used to put things back when an art override is cleared.
+	 */
+	private _declaredIcon( itemId: string ): string {
+		const menu = this.items.find( ( i ) => i.id === itemId );
+		if ( menu ) {
+			return menu.icon;
+		}
+		const system = this.systemItems.find( ( i ) => i.id === itemId );
+		return system ? system.icon : '';
+	}
+
+	/**
+	 * Repaint a tile's icon node in place.
+	 *
+	 * Replaces whatever the icon currently is — dashicon span, `<img>`,
+	 * mask span — with a mask span carrying the new art, so a tile can
+	 * cross between icon shapes without the caller knowing which one it
+	 * started as. Falls back to leaving the node alone when the art
+	 * isn't maskable, which is the same "don't make it worse" rule
+	 * `resolveIcon` follows.
+	 */
+	private _paintArt( tile: HTMLElement, itemId: string, svg: string ): void {
+		const primary =
+			tile.querySelector< HTMLElement >( '.os-dock__item-primary' ) ??
+			tile;
+		// Route through the rail's own resolver rather than masking by
+		// hand, so `setArt` accepts everything a registered icon does —
+		// dashicon class, data URI, http(s) URL — and still honours a
+		// desktop theme's slot override. Hand-rolling the mask here
+		// would have quietly rejected dashicons.
+		const next = this.resolveIcon(
+			svg,
+			this._declaredTitle( itemId ),
+			undefined,
+			slotForTileId( itemId ),
+		);
+		const current = primary.querySelector< HTMLElement >(
+			'.os-dock__item-mask, .os-dock__item-svg, .dashicons, img',
+		);
+		if ( current ) {
+			current.replaceWith( next );
+		} else {
+			primary.prepend( next );
+		}
+	}
+
+	/** Registered title for a tile, for the letter-badge fallback. */
+	private _declaredTitle( itemId: string ): string {
+		const menu = this.items.find( ( i ) => i.id === itemId );
+		if ( menu ) {
+			return menu.title;
+		}
+		const system = this.systemItems.find( ( i ) => i.id === itemId );
+		return system ? system.title : '';
 	}
 
 	/**
@@ -646,8 +941,6 @@ export class Dock {
 	 * the reduced-motion fallback shows a static accent ring for the
 	 * same duration so the affordance still works. `durationMs` of
 	 * `0` keeps the attention until the next call clears it.
-	 *
-	 * @since 0.6.0
 	 *
 	 * @param itemId Tile id.
 	 * @param mode   Animation mode or `null` to clear.
@@ -672,21 +965,21 @@ export class Dock {
 
 		// Strip every prior attention class before applying the new one.
 		tile.classList.remove(
-			'desktop-mode-dock__item--attention-pulse',
-			'desktop-mode-dock__item--attention-shake',
-			'desktop-mode-dock__item--attention-bounce',
-			'desktop-mode-dock__item--intensity-subtle',
-			'desktop-mode-dock__item--intensity-normal',
-			'desktop-mode-dock__item--intensity-strong',
+			'os-dock__item--attention-pulse',
+			'os-dock__item--attention-shake',
+			'os-dock__item--attention-bounce',
+			'os-dock__item--intensity-subtle',
+			'os-dock__item--intensity-normal',
+			'os-dock__item--intensity-strong',
 		);
 
 		if ( mode === null ) {
 			return;
 		}
 
-		tile.classList.add( `desktop-mode-dock__item--attention-${ mode }` );
+		tile.classList.add( `os-dock__item--attention-${ mode }` );
 		const intensity = opts.intensity ?? 'normal';
-		tile.classList.add( `desktop-mode-dock__item--intensity-${ intensity }` );
+		tile.classList.add( `os-dock__item--intensity-${ intensity }` );
 
 		const duration = opts.durationMs ?? 4000;
 		if ( duration > 0 ) {
@@ -713,47 +1006,54 @@ export class Dock {
 	}
 
 	/**
-	 * Append a JS-registered system item to the dock.
+	 * Append a JS-registered system item to the rail.
 	 *
-	 * System items render after the menu-derived items, separated by a
-	 * hairline divider. Use for shell affordances that don't live in
-	 * the admin menu: OS Settings today, Jorvy and desktop widgets
-	 * later. Callers supply their own `onOpen` — the dock doesn't
-	 * assume the item opens a window at all.
+	 * The tile lands in the zone its {@link SystemDockItem.navKind}
+	 * names — the apps zone for a launcher, the controls zone for one
+	 * of OpenStation's own affordances — and sorts among the other
+	 * system tiles there by {@link SystemDockItem.order}. Call order
+	 * cannot decide it: native-window tiles arrive whenever their lazy
+	 * script resolves.
+	 *
+	 * Idempotent on id: re-appending replaces the previous tile.
 	 */
 	public appendSystemItem( item: SystemDockItem ): void {
-		this.systemItems.push( item );
-
-		if ( ! this.systemSeparator ) {
-			this.systemSeparator = document.createElement( 'div' );
-			this.systemSeparator.className = 'desktop-mode-dock__separator';
-			this.systemSeparator.setAttribute( 'aria-hidden', 'true' );
-			this.systemHost.appendChild( this.systemSeparator );
+		const zone = zoneForSystemTile( item );
+		const entry: DockEntry = { type: 'system', item };
+		// Drop any previous registration of this id from every zone,
+		// so a re-register after a navKind change doesn't leave a
+		// stale tile behind.
+		for ( const z of DOCK_ZONE_ORDER ) {
+			this.zones[ z ] = this.zones[ z ].filter(
+				( e ) => 'system' !== e.type || e.item.id !== item.id,
+			);
 		}
-
-		const tile = this.createSystemItemButton( item );
-		this.systemItemElements.set( item.id, tile );
-		this.systemHost.appendChild( tile );
-		this.updateActiveStates();
-
-		doAction( HOOKS.DOCK_TILE_RENDERED, {
-			...this.buildHookContextBase(),
-			item,
-			isSystem: true,
-			el: tile,
-		} );
+		const list = this.zones[ zone ];
+		const order = item.order ?? 0;
+		// First system entry with a strictly greater order wins, so
+		// equal orders keep registration order and menu entries (which
+		// carry no order) always lead.
+		const at = list.findIndex(
+			( e ) => 'system' === e.type && ( e.item.order ?? 0 ) > order,
+		);
+		if ( at === -1 ) {
+			list.push( entry );
+		} else {
+			list.splice( at, 0, entry );
+		}
+		this.render();
 	}
 
 	/**
-	 * Render the dock contents.
+	 * Paint the rail from {@link zones}.
 	 *
-	 * Items are ordered server-side with core WordPress menus first and
-	 * plugin-contributed menus after. We insert a `--group` separator
-	 * at the first core→plugin transition so the two clusters read as
-	 * distinct groups of tiles — "default apps" and "installed apps"
-	 * in macOS-dock parlance. The separator is skipped when the menu
-	 * contains only one kind (no plugin menus, or a theme's filter
-	 * reordered everything into one class).
+	 * Three zones, two hosts: `core` and `apps` share the scrollable
+	 * host so a long admin menu can scroll without taking the controls
+	 * with it, and `controls` sits in the pinned host at the trailing
+	 * edge. A divider is drawn between each pair of ADJACENT NON-EMPTY
+	 * zones, so a split-layout dock (whose core zone is empty, its
+	 * menus being in the sidebar) opens with apps rather than with a
+	 * lonely separator.
 	 */
 	private render(): void {
 		// Cancel any in-flight drag — the dragged tile is about to be
@@ -773,12 +1073,22 @@ export class Dock {
 		}
 		this.peekTeardowns.clear();
 
-		// Clear menu host only — system tiles live in their own host
-		// and survive a re-render. For the bottom dock both hosts are
-		// the same element; in that case the system tiles haven't been
-		// appended yet at constructor time so clearing here is still
-		// safe (`render()` only runs from the constructor).
 		this.itemHost.innerHTML = '';
+		this.systemHost.innerHTML = '';
+		this.itemElements.clear();
+		this.systemItemElements.clear();
+
+		this.items = [];
+		this.systemItems = [];
+		for ( const zone of DOCK_ZONE_ORDER ) {
+			for ( const entry of this.zones[ zone ] ) {
+				if ( 'menu' === entry.type ) {
+					this.items.push( entry.item );
+				} else {
+					this.systemItems.push( entry.item );
+				}
+			}
+		}
 
 		const base = this.buildHookContextBase();
 		doAction( HOOKS.DOCK_BEFORE_RENDER, {
@@ -787,31 +1097,33 @@ export class Dock {
 			tileElements: this.itemElements as ReadonlyMap<string, HTMLElement>,
 		} );
 
-		let insertedGroupSeparator = false;
-		for ( const item of this.items ) {
-			if ( ! insertedGroupSeparator && item.isCore === false ) {
-				// Only insert if there's at least one core tile before
-				// us — otherwise a plugin-only dock would lead with a
-				// lonely separator.
-				if ( this.itemHost.childElementCount > 0 ) {
-					const sep = document.createElement( 'div' );
-					sep.className =
-						'desktop-mode-dock__separator desktop-mode-dock__separator--group';
-					sep.setAttribute( 'aria-hidden', 'true' );
-					this.itemHost.appendChild( sep );
-				}
-				insertedGroupSeparator = true;
+		let painted = false;
+		for ( const zone of DOCK_ZONE_ORDER ) {
+			const entries = this.zones[ zone ];
+			if ( 0 === entries.length ) {
+				continue;
 			}
-			const btn = this.createItemButton( item );
-			this.itemElements.set( item.id, btn );
-			this.itemHost.appendChild( btn );
-			doAction( HOOKS.DOCK_TILE_RENDERED, {
-				...base,
-				item,
-				isSystem: false,
-				el: btn,
-			} );
+			const host =
+				'controls' === zone ? this.systemHost : this.itemHost;
+			if ( painted ) {
+				const sep = document.createElement( 'div' );
+				// The controls divider keeps the plain modifier it has
+				// always had: it separates two HOSTS, and the pinned
+				// host styles its own leading edge from it.
+				sep.className =
+					'controls' === zone
+						? 'os-dock__separator'
+						: 'os-dock__separator os-dock__separator--group';
+				sep.setAttribute( 'aria-hidden', 'true' );
+				host.appendChild( sep );
+			}
+			for ( const entry of entries ) {
+				this.paintEntry( entry, zone, host, base );
+			}
+			painted = true;
 		}
+
+		this.updateActiveStates();
 
 		doAction( HOOKS.DOCK_AFTER_RENDER, {
 			...base,
@@ -820,11 +1132,91 @@ export class Dock {
 		} );
 	}
 
+	/** Build one tile, stamp its zone, and hang it in `host`. */
+	private paintEntry(
+		entry: DockEntry,
+		zone: keyof DockZones,
+		host: HTMLElement,
+		base: DockHookContextBase,
+	): void {
+		const id = entry.item.id;
+		const tile =
+			'menu' === entry.type
+				? this.createItemButton( entry.item )
+				: this.createSystemItemButton( entry.item );
+		// The zone is what scopes a drag: a gesture only reorders tiles
+		// carrying the same value, so there is no cross-zone drop to
+		// reject.
+		tile.dataset.zone = zone;
+		tile.dataset.navId = id;
+		const locked =
+			'system' === entry.type && true === entry.item.locked;
+		if ( locked ) {
+			// `'true'`, not `''`: a dataset value of the empty string
+			// is falsy, so a `! el.dataset.navLocked` guard would read
+			// a locked tile as unlocked. Presence is what is meant, so
+			// the drag tests for presence too.
+			tile.dataset.navLocked = 'true';
+		} else {
+			this.attachDragReorder( tile, id, zone );
+			// Right-click → the placement menu. Mounted on the tile
+			// (not the primary button) so a contextmenu inside the
+			// badge or the submenu chevron still triggers it, and on
+			// both cohorts because a launcher is as movable as a menu.
+			tile.addEventListener( 'contextmenu', ( ev: MouseEvent ) => {
+				ev.preventDefault();
+				openItemVisibilityMenu( {
+					x: ev.clientX,
+					y: ev.clientY,
+					id,
+					title: entry.item.title,
+					surface: 'dock',
+					pluginFile:
+						'menu' === entry.type
+							? entry.item.pluginFile ?? null
+							: null,
+					pluginName:
+						'menu' === entry.type
+							? entry.item.pluginName ?? null
+							: null,
+				} );
+			} );
+		}
+		if ( 'menu' === entry.type ) {
+			this.itemElements.set( id, tile );
+		} else {
+			this.systemItemElements.set( id, tile );
+		}
+		host.appendChild( tile );
+
+		// Re-apply any client-side badge / art override set before this
+		// render. Without this a live menu refresh would drop every
+		// JS-set decoration back to the server-declared value.
+		const badge = this.badgeOverrides.get( id );
+		if ( badge !== undefined ) {
+			const primary = tile.querySelector< HTMLElement >(
+				'.os-dock__item-primary',
+			);
+			_applyBadgeNode( primary ?? tile, badge );
+		}
+		const art = this.artOverrides.get( id );
+		if ( art ) {
+			this._paintArt( tile, id, art );
+		}
+
+		doAction( HOOKS.DOCK_TILE_RENDERED, {
+			...base,
+			item: entry.item,
+			isSystem: 'system' === entry.type,
+			el: tile,
+		} );
+	}
+
 	/**
-	 * Create a tile for a JS-registered system item. Structurally simpler
-	 * than a menu tile — no submenu, no multi-instance rail, no badge —
-	 * but uses the same base classes so the hover / focus / active
-	 * styling is shared.
+	 * Create a tile for a JS-registered system item. Structurally
+	 * simpler than a menu tile — no submenu rail, no multi-instance
+	 * chips, no badge — but built on the same base classes so hover,
+	 * focus and active styling are shared.
 	 */
 	private createSystemItemButton( item: SystemDockItem ): HTMLElement {
 		const ctx: DockTileContext = {
@@ -835,8 +1227,8 @@ export class Dock {
 
 		const tile = document.createElement( 'div' );
 		const baseClasses = [
-			'desktop-mode-dock__item',
-			'desktop-mode-dock__item--system',
+			'os-dock__item',
+			'os-dock__item--system',
 		];
 		const filteredClasses = applyFilters< string[] >(
 			HOOKS.DOCK_TILE_CLASS,
@@ -845,9 +1237,16 @@ export class Dock {
 		);
 		tile.className = filteredClasses.join( ' ' );
 		tile.dataset.systemId = item.id;
+		// The constellation resolves a flyout from this attribute the
+		// way it resolves a menu one from `data-menu-slug`, and
+		// `dock-peek` stands down on it for the same reason it stands
+		// down on that one: two popovers on one tile is a flicker.
+		if ( item.submenu && item.submenu.length > 0 ) {
+			tile.dataset.constellationId = item.id;
+		}
 
 		const primary = document.createElement( 'button' );
-		primary.className = 'desktop-mode-dock__item-primary';
+		primary.className = 'os-dock__item-primary';
 		primary.setAttribute( 'type', 'button' );
 		primary.setAttribute( 'aria-label', item.title );
 
@@ -898,7 +1297,7 @@ export class Dock {
 			suppressTooltip: ( on: boolean ) => {
 				if ( on ) {
 					this.tooltip.classList.remove(
-						'desktop-mode-dock__tooltip--visible',
+						'os-dock__tooltip--visible',
 					);
 				}
 			},
@@ -929,9 +1328,9 @@ export class Dock {
 		};
 
 		const tile = document.createElement( 'div' );
-		const baseClasses = [ 'desktop-mode-dock__item' ];
+		const baseClasses = [ 'os-dock__item' ];
 		if ( item.multi ) {
-			baseClasses.push( 'desktop-mode-dock__item--multi' );
+			baseClasses.push( 'os-dock__item--multi' );
 		}
 		const filteredClasses = applyFilters< string[] >(
 			HOOKS.DOCK_TILE_CLASS,
@@ -943,7 +1342,7 @@ export class Dock {
 
 		// Primary button — the icon body. Focuses existing or opens first.
 		const primary = document.createElement( 'button' );
-		primary.className = 'desktop-mode-dock__item-primary';
+		primary.className = 'os-dock__item-primary';
 		primary.setAttribute( 'type', 'button' );
 		primary.setAttribute( 'aria-label', item.title );
 
@@ -961,7 +1360,7 @@ export class Dock {
 			// stretching to three or four digits.
 			const displayCount = item.badge > 99 ? '99+' : String( item.badge );
 			const badge = document.createElement( 'span' );
-			badge.className = 'desktop-mode-dock__badge';
+			badge.className = 'os-dock__badge';
 			badge.textContent = displayCount;
 			badge.setAttribute(
 				'aria-label',
@@ -976,22 +1375,6 @@ export class Dock {
 
 		primary.addEventListener( 'click', () => {
 			this.openPage( item );
-		} );
-
-		// Right-click → visibility menu. Mounted on the tile (not the
-		// primary button) so a contextmenu inside the badge or the
-		// future submenu chevron still triggers it.
-		tile.addEventListener( 'contextmenu', ( ev: MouseEvent ) => {
-			ev.preventDefault();
-			openItemVisibilityMenu( {
-				x: ev.clientX,
-				y: ev.clientY,
-				id: item.id,
-				title: item.title,
-				surface: 'dock',
-				pluginFile: item.pluginFile ?? null,
-				pluginName: item.pluginName ?? null,
-			} );
 		} );
 
 		tile.appendChild( primary );
@@ -1049,14 +1432,14 @@ export class Dock {
 			suppressTooltip: ( on: boolean ) => {
 				if ( on ) {
 					this.tooltip.classList.remove(
-						'desktop-mode-dock__tooltip--visible',
+						'os-dock__tooltip--visible',
 					);
 				}
 			},
 		} );
 		this.peekTeardowns.set( item.id, teardown );
 
-		this.attachDragReorder( tile, item.id );
+		this.bindHoverPrewarm( tile, item );
 
 		return applyFilters< HTMLElement >(
 			HOOKS.DOCK_TILE_ELEMENT,
@@ -1078,13 +1461,15 @@ export class Dock {
 	 *    tile, we splice the dragged tile in front of it (so adjacent
 	 *    tiles slide into the vacated slot).
 	 * 3. On `pointerup` we read the resulting DOM order, persist the
-	 *    new id list to `dockOrder` via the public settings writer,
+	 *    new id list to `navOrder` via the public settings writer,
 	 *    and the layout-dispatcher subscriber re-applies. Cancellation
 	 *    (Escape, pointercancel) reverts to the original order.
-	 *
-	 * @since 0.8.2
 	 */
-	private attachDragReorder( tile: HTMLElement, itemId: string ): void {
+	private attachDragReorder(
+		tile: HTMLElement,
+		itemId: string,
+		zone: keyof DockZones,
+	): void {
 		const THRESHOLD = 5; // px the pointer must move before claiming.
 		const FLIP_MS = 200;
 		let active = false;
@@ -1104,7 +1489,7 @@ export class Dock {
 		// a gesture is already running.
 		const hardReset = (): void => {
 			active = false;
-			tile.classList.remove( 'desktop-mode-dock__item--dragging' );
+			tile.classList.remove( 'os-dock__item--dragging' );
 			tile.style.transform = '';
 			tile.style.transition = '';
 			document.removeEventListener( 'pointermove', onMove );
@@ -1117,29 +1502,55 @@ export class Dock {
 			originRect = null;
 		};
 
-		const isMenuTile = ( el: Element | null ): el is HTMLElement => {
+		// The drag's host is the one the zone paints into: the two
+		// scrolling zones share an element, the controls zone has its
+		// own.
+		const host: HTMLElement =
+			'controls' === zone ? this.systemHost : this.itemHost;
+
+		/**
+		 * A tile this gesture may reorder against.
+		 *
+		 * Same zone, and nothing else. Zones are the whole boundary:
+		 * a tile cannot be dragged into another one because a drop
+		 * outside its own zone simply never matches, so there is no
+		 * cross-zone move to detect and undo.
+		 *
+		 * A locked tile is excluded as a TARGET, not just as a thing
+		 * to pick up. Exit OpenStation carries no drag handler, but a
+		 * neighbour's gesture still hit-tests against it, and matching
+		 * here would let the drag reorder across it and write its id
+		 * into the persisted order — after which every load paints it
+		 * wherever it was dragged through.
+		 */
+		const isSameZoneTile = ( el: Element | null ): el is HTMLElement => {
 			return (
 				!! el &&
 				el instanceof HTMLElement &&
-				el.classList.contains( 'desktop-mode-dock__item' ) &&
-				! el.classList.contains( 'desktop-mode-dock__item--system' ) &&
-				!! el.dataset.menuSlug
+				el.classList.contains( 'os-dock__item' ) &&
+				el.dataset.zone === zone &&
+				!! el.dataset.navId &&
+				undefined === el.dataset.navLocked
 			);
 		};
 
 		const eachSiblingTile = ( fn: ( el: HTMLElement ) => void ): void => {
-			for ( const child of Array.from( this.itemHost.children ) ) {
-				if ( child instanceof HTMLElement && child !== tile && isMenuTile( child ) ) {
+			for ( const child of Array.from( host.children ) ) {
+				if (
+					child instanceof HTMLElement &&
+					child !== tile &&
+					isSameZoneTile( child )
+				) {
 					fn( child );
 				}
 			}
 		};
 
-		const snapshotMenuOrder = (): string[] => {
+		const snapshotZoneOrder = (): string[] => {
 			const ids: string[] = [];
-			for ( const child of Array.from( this.itemHost.children ) ) {
-				if ( isMenuTile( child ) ) {
-					ids.push( child.dataset.menuSlug as string );
+			for ( const child of Array.from( host.children ) ) {
+				if ( isSameZoneTile( child ) ) {
+					ids.push( child.dataset.navId as string );
 				}
 			}
 			return ids;
@@ -1195,13 +1606,13 @@ export class Dock {
 				}
 				// Claim the gesture.
 				active = true;
-				originalOrder = snapshotMenuOrder();
+				originalOrder = snapshotZoneOrder();
 				originalNext = tile.nextSibling;
 				originRect = tile.getBoundingClientRect();
-				tile.classList.add( 'desktop-mode-dock__item--dragging' );
+				tile.classList.add( 'os-dock__item--dragging' );
 				// Suppress the hover tooltip & peek for the duration.
 				this.tooltip.classList.remove(
-					'desktop-mode-dock__tooltip--visible',
+					'os-dock__tooltip--visible',
 				);
 			}
 
@@ -1220,12 +1631,12 @@ export class Dock {
 			// itself — the deepest non-dragged element wins.
 			const under = document.elementFromPoint( ev.clientX, ev.clientY );
 			const targetTile = under?.closest(
-				'.desktop-mode-dock__item',
+				'.os-dock__item',
 			) as HTMLElement | null;
 			if ( ! targetTile || targetTile === tile ) {
 				return;
 			}
-			if ( ! isMenuTile( targetTile ) ) {
+			if ( ! isSameZoneTile( targetTile ) ) {
 				return;
 			}
 
@@ -1250,11 +1661,11 @@ export class Dock {
 			let reordered = false;
 			if ( insertBefore ) {
 				if ( targetTile !== tile.nextSibling ) {
-					this.itemHost.insertBefore( tile, targetTile );
+					host.insertBefore( tile, targetTile );
 					reordered = true;
 				}
 			} else if ( targetTile.nextSibling !== tile ) {
-				this.itemHost.insertBefore( tile, targetTile.nextSibling );
+				host.insertBefore( tile, targetTile.nextSibling );
 				reordered = true;
 			}
 
@@ -1277,7 +1688,7 @@ export class Dock {
 		};
 
 		const cleanup = (): void => {
-			tile.classList.remove( 'desktop-mode-dock__item--dragging' );
+			tile.classList.remove( 'os-dock__item--dragging' );
 			tile.style.transform = '';
 			tile.style.transition = '';
 			document.removeEventListener( 'pointermove', onMove );
@@ -1307,43 +1718,9 @@ export class Dock {
 			tile.addEventListener( 'transitionend', onEnd );
 		};
 
-		const persistDockOrder = ( finalOrder: string[] ): void => {
+		const persistZoneOrder = ( finalOrder: string[] ): void => {
 			void itemId;
-			const api = (
-				window as unknown as {
-					wp?: {
-						desktop?: {
-							getOsSettings?: () => {
-								dockOrder: string[];
-							};
-							updateOsSettings?: ( patch: {
-								dockOrder?: string[];
-							} ) => void;
-						};
-					};
-				}
-			).wp?.desktop;
-			if ( ! api?.getOsSettings || ! api?.updateOsSettings ) {
-				return;
-			}
-			const existing = api.getOsSettings().dockOrder;
-			const finalSet = new Set( finalOrder );
-			const merged: string[] = [];
-			let injected = false;
-			for ( const id of existing ) {
-				if ( finalSet.has( id ) ) {
-					if ( ! injected ) {
-						merged.push( ...finalOrder );
-						injected = true;
-					}
-					continue;
-				}
-				merged.push( id );
-			}
-			if ( ! injected ) {
-				merged.push( ...finalOrder );
-			}
-			api.updateOsSettings( { dockOrder: merged } );
+			persistNavZoneOrder( finalOrder );
 		};
 
 		const onUp = ( ev: PointerEvent ): void => {
@@ -1355,7 +1732,7 @@ export class Dock {
 				return;
 			}
 			justDragged = true;
-			const finalOrder = snapshotMenuOrder();
+			const finalOrder = snapshotZoneOrder();
 			animateHome();
 			cleanup();
 
@@ -1363,7 +1740,7 @@ export class Dock {
 				finalOrder.length === originalOrder.length &&
 				finalOrder.every( ( id, i ) => id === originalOrder[ i ] );
 			if ( ! same ) {
-				persistDockOrder( finalOrder );
+				persistZoneOrder( finalOrder );
 			}
 			setTimeout( () => {
 				justDragged = false;
@@ -1379,7 +1756,7 @@ export class Dock {
 				eachSiblingTile( ( sib ) => {
 					prevRects.set( sib, sib.getBoundingClientRect() );
 				} );
-				this.itemHost.insertBefore( tile, originalNext );
+				host.insertBefore( tile, originalNext );
 				flipSiblings( prevRects );
 			}
 			animateHome();
@@ -1506,27 +1883,14 @@ export class Dock {
 		//     Ahead of every image branch below because it supersedes
 		//     all of them; dashicons fall through to branch 1, where a
 		//     tint is just `color`.
-		//     Deliberately NOT `desktop-mode-dock__item-svg`: that class
+		//     Deliberately NOT `os-dock__item-svg`: that class
 		//     carries `filter: brightness(0) invert(1)`, which exists to
 		//     force plugin SVGs with hardcoded `fill` attributes to
 		//     white. It would flatten the theme's chosen tint to white
 		//     too. The mask class below is the same size and opacity
 		//     behaviour without the filter.
 		if ( tint !== null && ! icon.startsWith( 'dashicons-' ) ) {
-			const masked = document.createElement( 'span' );
-			masked.className = 'desktop-mode-dock__item-mask';
-			masked.setAttribute( 'aria-hidden', 'true' );
-			// Geometry inline as well as in the stylesheet. A masked
-			// span has no intrinsic size — unlike the `<img>` it
-			// replaces — so if its CSS rule is missing for ANY reason
-			// (a stale cached stylesheet, a host that strips our CSS,
-			// a plugin resetting spans) the icon collapses to nothing
-			// and simply disappears. The element that needs the size
-			// should carry it.
-			masked.style.width = 'var( --desktop-mode-dock-icon-size, 20px )';
-			masked.style.height = 'var( --desktop-mode-dock-icon-size, 20px )';
-			masked.style.display = 'block';
-			masked.style.flexShrink = '0';
+			const masked = this._makeMaskSpan();
 			if ( applyIconMask( masked, icon, tint ) ) {
 				return masked;
 			}
@@ -1575,7 +1939,7 @@ export class Dock {
 		// 3. http(s) URL — direct image.
 		if ( icon.startsWith( 'http://' ) || icon.startsWith( 'https://' ) ) {
 			const img = document.createElement( 'img' );
-			img.className = 'desktop-mode-dock__item-img';
+			img.className = 'os-dock__item-img';
 			img.src = icon;
 			img.alt = '';
 			img.setAttribute( 'aria-hidden', 'true' );
@@ -1608,12 +1972,69 @@ export class Dock {
 	}
 
 	/**
-	 * Build an SVG-background icon tile. Shared between the data-URI
-	 * branch of {@link resolveIcon} and the native-menu extractor.
+	 * A span shaped like a dock glyph, ready to be painted as a mask.
+	 *
+	 * Geometry inline as well as in the stylesheet. A masked span has
+	 * no intrinsic size — unlike the `<img>` it replaces — so if its
+	 * CSS rule is missing for ANY reason (a stale cached stylesheet, a
+	 * host that strips our CSS, a plugin resetting spans) the icon
+	 * collapses to nothing and simply disappears. The element that
+	 * needs the size should carry it.
+	 */
+	private _makeMaskSpan(): HTMLElement {
+		const el = document.createElement( 'span' );
+		el.className = 'os-dock__item-mask';
+		el.setAttribute( 'aria-hidden', 'true' );
+		el.style.width = 'var( --os-dock-icon-size, 20px )';
+		el.style.height = 'var( --os-dock-icon-size, 20px )';
+		el.style.display = 'block';
+		el.style.flexShrink = '0';
+		return el;
+	}
+
+	/**
+	 * Build an SVG icon tile. Shared between the data-URI branch of
+	 * {@link resolveIcon} and the native-menu extractor.
+	 *
+	 * **Monochrome by mask, not by filter.** The dock has always
+	 * flattened plugin artwork to one colour — `filter: brightness(0)
+	 * invert(1)` on the fallback span below, so an SVG shipping a
+	 * hardcoded `fill` still matches its dashicon neighbours.
+	 * Flattening is the right call and stays. WHAT it flattens to is
+	 * the part nothing could reach: a filter has no colour to name, so
+	 * these icons stayed white on a dock a theme had repainted pale.
+	 *
+	 * A mask filled with `currentColor` flattens identically — both
+	 * paths keep only the source's alpha — and lands on the tile's own
+	 * glyph colour, so plugin art now follows
+	 * `--os-dock-icon-color` like every other glyph. Unthemed
+	 * that colour is `rgba( 255, 255, 255, 0.7 )` at rest and `#fff` on
+	 * hover: the same two values the filter and its opacity pair
+	 * produced before, which is why nothing moves by default.
+	 *
+	 * `src/icon.ts` reaches the same place from the other direction —
+	 * it masks silhouette art and leaves fixed-colour art alone. The
+	 * dock masks both, because the dock had already decided every
+	 * plugin icon is monochrome.
+	 *
+	 * The background-image span stays as the fallback for anything the
+	 * mask can't take — a URL carrying quotes, spaces or parens — so no
+	 * icon can disappear on account of this.
 	 */
 	private _makeSvgIcon( bgValue: string ): HTMLElement {
+		// The native-menu harvest hands us a computed
+		// `background-image` verbatim, so unwrap before validating:
+		// `isMaskableIcon()` rejects the quotes and parens of the
+		// `url( … )` wrapper, not the URL inside it.
+		const unwrapped = /^url\(\s*(['"]?)(.+?)\1\s*\)$/.exec( bgValue );
+		const bare = unwrapped ? unwrapped[ 2 ] : bgValue;
+		const masked = this._makeMaskSpan();
+		if ( applyIconMask( masked, bare, 'currentColor' ) ) {
+			return masked;
+		}
+
 		const el = document.createElement( 'span' );
-		el.className = 'desktop-mode-dock__item-svg';
+		el.className = 'os-dock__item-svg';
 		el.style.backgroundImage = bgValue.startsWith( 'url(' )
 			? bgValue
 			: `url("${ bgValue }")`;
@@ -1680,7 +2101,7 @@ export class Dock {
 		const img = imgWrap.querySelector( 'img' );
 		if ( img && img.src ) {
 			const el = document.createElement( 'img' );
-			el.className = 'desktop-mode-dock__item-img';
+			el.className = 'os-dock__item-img';
 			el.src = img.src;
 			el.alt = '';
 			el.setAttribute( 'aria-hidden', 'true' );
@@ -1726,7 +2147,7 @@ export class Dock {
 	 */
 	private createLetterBadge( title: string ): HTMLElement {
 		const el = document.createElement( 'span' );
-		el.className = 'desktop-mode-dock__item-letter';
+		el.className = 'os-dock__item-letter';
 		el.setAttribute( 'aria-hidden', 'true' );
 
 		const trimmed = title.trim();
@@ -1780,10 +2201,10 @@ export class Dock {
 		}
 		tile.addEventListener( 'pointerenter', () => {
 			this.positionTooltip( tile, filtered );
-			this.tooltip.classList.add( 'desktop-mode-dock__tooltip--visible' );
+			this.tooltip.classList.add( 'os-dock__tooltip--visible' );
 		} );
 		tile.addEventListener( 'pointerleave', () => {
-			this.tooltip.classList.remove( 'desktop-mode-dock__tooltip--visible' );
+			this.tooltip.classList.remove( 'os-dock__tooltip--visible' );
 		} );
 	}
 
@@ -1812,7 +2233,7 @@ export class Dock {
 			// 8px gap so it clears the rail's outer border. Vertical
 			// centering computed inline; CSS `--after` modifier
 			// handles only the slide-in animation. (Body-attached
-			// tooltips can't rely on `.desktop-mode-dock[…] .tooltip`
+			// tooltips can't rely on `.os-dock[…] .tooltip`
 			// descendant selectors; the position lives in JS.)
 			this.tooltip.style.top = `${ rect.top + rect.height / 2 - 14 }px`;
 			this.tooltip.style.left = `${ rect.right + 8 }px`;
@@ -1830,52 +2251,119 @@ export class Dock {
 	 * itself is untouched: same icon, same tooltip, same position —
 	 * only the destination changes.
 	 */
-	private openPage( item: DockItem ): void {
-		// Synthesized dock tiles (created from desktop icons promoted
-		// to the dock via the user's `itemVisibility` settings)
-		// carry id prefix `dock:<icon-id>`. Their native opener
-		// lives on the original `desktop_mode_register_icon` entry —
-		// `window` for a native-window target, `url` otherwise.
-		// Without this branch the click would derive a window id
-		// from an empty URL and silently no-op.
-		if ( item.id.startsWith( 'dock:' ) ) {
-			const iconId = item.id.slice( 5 );
-			const cfg = ( window as unknown as {
-				desktopModeConfig?: { desktopIcons?: Array< {
-					id: string;
-					window?: string;
-					url?: string;
-					title: string;
-					icon: string;
-				} > };
-			} ).desktopModeConfig;
-			const icon = cfg?.desktopIcons?.find( ( i ) => i.id === iconId );
-			if ( icon?.window ) {
-				const wp = ( window as unknown as {
-					wp?: { desktop?: { openWindow?: ( id: string ) => unknown } };
-				} ).wp?.desktop;
-				wp?.openWindow?.( icon.window );
+	/**
+	 * Hover-intent window prewarming (opt-in via the "Prewarm windows
+	 * on hover" Beta toggle). A sustained mouse hover on a dock tile is
+	 * a strong predictor of the next click, and the document TTFB of an
+	 * admin page is the dominant cost of a window open — so start the
+	 * hidden speculative window while the user is still deciding, and
+	 * let `windowManager.open()` adopt it on the actual click.
+	 *
+	 * Deliberately narrow: mouse pointers only (touch has no hover),
+	 * iframe pages only (native windows render instantly anyway),
+	 * same-origin only (cross-origin URLs can't be iframed), and never
+	 * for URLs a native-window remap would capture. The dwell delay
+	 * matches the dock-peek's hover-intent timing so the two
+	 * affordances read as one gesture.
+	 */
+	private bindHoverPrewarm( tile: HTMLElement, item: DockItem ): void {
+		// No URL means there is no iframe document to warm: either a
+		// native-window tile (`windowId` with no `url`, which
+		// `openPage` routes to the registry) or a tile with nothing to
+		// open at all. Both are handled by the same check — a native
+		// tile is exactly the `! item.url` case.
+		if ( ! item.url ) {
+			return;
+		}
+		const DWELL_MS = 180;
+		let dwellTimer: number | undefined;
+		const cancel = () => {
+			if ( dwellTimer !== undefined ) {
+				window.clearTimeout( dwellTimer );
+				dwellTimer = undefined;
+			}
+		};
+		tile.addEventListener( 'pointerenter', ( e: PointerEvent ) => {
+			if ( e.pointerType !== 'mouse' ) {
 				return;
 			}
-			if ( icon?.url ) {
-				if ( tryOpenExternalUrl( icon.url ) ) {
+			const os = (
+				window as unknown as {
+					wp?: {
+						os?: {
+							getOsSettings?: () => {
+								windowPrewarmEnabled?: boolean;
+							};
+						};
+					};
+				}
+			).wp?.os;
+			if ( ! os?.getOsSettings?.().windowPrewarmEnabled ) {
+				return;
+			}
+			// Cross-origin URLs open in a browser tab, and remapped
+			// URLs open as native windows — neither wants an iframe
+			// warmed for it.
+			try {
+				const parsed = new URL( item.url, window.location.href );
+				if ( parsed.origin !== window.location.origin ) {
 					return;
 				}
-				const baseId = this.deriveWindowId( icon.url );
-				this.windowManager.open( {
-					id: baseId,
-					baseId,
-					url: icon.url,
-					parentUrl: icon.url,
-					title: icon.title,
-					icon: icon.icon.startsWith( 'dashicons-' )
-						? icon.icon
-						: 'dashicons-admin-generic',
-					submenu: [],
-					multi: false,
-				} );
+			} catch {
 				return;
 			}
+			if ( resolveNativeUrlRemap( item.url ) ) {
+				return;
+			}
+			cancel();
+			dwellTimer = window.setTimeout( () => {
+				dwellTimer = undefined;
+				const baseId = this.deriveWindowId( item.url );
+				// Same config `openPage` will pass, so the adoption
+				// check in `open()` sees an exact match.
+				void this.windowManager.prewarm( {
+					id: baseId,
+					baseId,
+					url: item.url,
+					parentUrl: item.url,
+					title: item.title,
+					icon: item.icon.startsWith( 'dashicons-' )
+						? item.icon
+						: 'dashicons-admin-generic',
+					submenu: item.submenu,
+					selfLabel: item.selfLabel,
+					multi: !! item.multi,
+				} );
+			}, DWELL_MS );
+		} );
+		tile.addEventListener( 'pointerleave', cancel );
+		// The click path takes over from here — cancel a pending dwell
+		// so a fast click never races its own prewarm.
+		tile.addEventListener( 'pointerdown', cancel );
+	}
+
+	private openPage( item: DockItem ): void {
+		// A tile whose target is a native window rather than an admin
+		// URL — an app launcher the user put on the rail, or a window
+		// with no launcher at all that is on the rail because it is
+		// open. Deriving an id from its empty `url` would find nothing
+		// and the click would silently no-op.
+		//
+		// Focus first, open second. The registry can only open windows
+		// it registered, and a window that arrived some other way (the
+		// Preferences panel, a plugin's `windowManager.open()`) is
+		// exactly the kind whose tile exists only because it is
+		// already open.
+		if ( item.windowId && ! item.url ) {
+			const existing = this.windowManager.getById( item.windowId );
+			if ( existing ) {
+				this.windowManager.focus( existing );
+				return;
+			}
+			const wp = ( window as unknown as {
+				wp?: { os?: { openWindow?: ( id: string ) => unknown } };
+			} ).wp?.os;
+			wp?.openWindow?.( item.windowId );
 			return;
 		}
 
@@ -1903,6 +2391,7 @@ export class Dock {
 			title: item.title,
 			icon: item.icon.startsWith( 'dashicons-' ) ? item.icon : 'dashicons-admin-generic',
 			submenu: item.submenu,
+			selfLabel: item.selfLabel,
 			multi: !! item.multi,
 		} );
 	}
@@ -1927,11 +2416,11 @@ export class Dock {
 		}
 
 		// Resolved through the public-API global typed in `global.d.ts`
-		// (WpDesktopPublicApi), so a future signature change to
+		// (OpenStationPublicApi), so a future signature change to
 		// `openNewWindow` shows up at THIS call site instead of being
 		// hidden behind an inline `as unknown as { wp?: … }` cast that
 		// pinned a stale local shape.
-		const openNewWindow = window.wp?.desktop?.openNewWindow;
+		const openNewWindow = window.wp?.os?.openNewWindow;
 
 		// Dock-promoted desktop icons whose target is a native window
 		// (My WordPress, Jorvy, plugin-registered launchers) carry the
@@ -1972,6 +2461,7 @@ export class Dock {
 			title: item.title,
 			icon: item.icon.startsWith( 'dashicons-' ) ? item.icon : 'dashicons-admin-generic',
 			submenu: item.submenu,
+			selfLabel: item.selfLabel,
 			multi: true,
 		} );
 	}
@@ -1986,8 +2476,7 @@ export class Dock {
 	/**
 	 * Resolve the window-manager key for a dock tile, in this order:
 	 *
-	 * 1. `item.windowId` — set by `applyDockPlacement` when the tile
-	 *    is synthesized from a `desktop_mode_register_icon()` entry
+	 * 1. `item.windowId` — carried by the navigation for any tile
 	 *    whose target is a native window. Native-window ids never
 	 *    pass through the URL → native-window remap layer, so we
 	 *    short-circuit before touching it.
@@ -2004,24 +2493,6 @@ export class Dock {
 	private resolveItemBaseId( item: DockItem ): string {
 		if ( item.windowId ) {
 			return item.windowId;
-		}
-		if ( item.id.startsWith( 'dock:' ) ) {
-			const iconId = item.id.slice( 5 );
-			const cfg = ( window as unknown as {
-				desktopModeConfig?: { desktopIcons?: Array< {
-					id: string;
-					window?: string;
-					url?: string;
-				} > };
-			} ).desktopModeConfig;
-			const icon = cfg?.desktopIcons?.find( ( i ) => i.id === iconId );
-			if ( icon?.window ) {
-				return icon.window;
-			}
-			if ( icon?.url ) {
-				const remapped = resolveNativeUrlRemap( icon.url );
-				return remapped ?? this.deriveWindowId( icon.url );
-			}
 		}
 		const remapped = resolveNativeUrlRemap( item.url );
 		return remapped ?? this.deriveWindowId( item.url );
@@ -2044,20 +2515,20 @@ export class Dock {
 	private bindWindowEvents(): void {
 		const refresh = (): void => this.updateActiveStates();
 		this.boundRefresh = refresh;
-		document.addEventListener( 'desktop-mode-window-opened', refresh );
-		document.addEventListener( 'desktop-mode-window-closed', refresh );
-		document.addEventListener( 'desktop-mode-window-focused', refresh );
+		document.addEventListener( 'os-window-opened', refresh );
+		document.addEventListener( 'os-window-closed', refresh );
+		document.addEventListener( 'os-window-focused', refresh );
 		// Desktop switches change which windows count as "open on
 		// the active desktop" even though the stack is unchanged.
 		// Listen via the hook bus so a plugin that manually calls
 		// switchDesktop() also triggers a repaint.
 		window.wp?.hooks?.addAction?.(
-			'desktop-mode.desktop.switched',
+			'os.os.switched',
 			this.hooksNamespace,
 			refresh,
 		);
 		window.wp?.hooks?.addAction?.(
-			'desktop-mode.desktop.closed',
+			'os.os.closed',
 			this.hooksNamespace,
 			refresh,
 		);
@@ -2068,6 +2539,14 @@ export class Dock {
 		);
 		window.wp?.hooks?.addAction?.(
 			HOOKS.WINDOW_RESTORED,
+			this.hooksNamespace,
+			refresh,
+		);
+		// The escape hatch for tiles whose active dot answers a
+		// question about something other than windows — see the hook's
+		// own docblock.
+		window.wp?.hooks?.addAction?.(
+			HOOKS.DOCK_REFRESH_ACTIVE,
 			this.hooksNamespace,
 			refresh,
 		);
@@ -2085,27 +2564,31 @@ export class Dock {
 	 */
 	public destroy(): void {
 		document.removeEventListener(
-			'desktop-mode-window-opened',
+			'os-window-opened',
 			this.boundRefresh,
 		);
 		document.removeEventListener(
-			'desktop-mode-window-closed',
+			'os-window-closed',
 			this.boundRefresh,
 		);
 		document.removeEventListener(
-			'desktop-mode-window-focused',
+			'os-window-focused',
 			this.boundRefresh,
 		);
 		window.wp?.hooks?.removeAction?.(
-			'desktop-mode.desktop.switched',
+			'os.os.switched',
 			this.hooksNamespace,
 		);
 		window.wp?.hooks?.removeAction?.(
-			'desktop-mode.desktop.closed',
+			'os.os.closed',
 			this.hooksNamespace,
 		);
 		window.wp?.hooks?.removeAction?.(
 			HOOKS.WINDOW_MINIMIZED,
+			this.hooksNamespace,
+		);
+		window.wp?.hooks?.removeAction?.(
+			HOOKS.DOCK_REFRESH_ACTIVE,
 			this.hooksNamespace,
 		);
 		window.wp?.hooks?.removeAction?.(
@@ -2127,8 +2610,8 @@ export class Dock {
 		this.itemElements.clear();
 		this.systemItemElements.clear();
 		this.systemItems = [];
-		this.systemSeparator = null;
-		this.container.removeAttribute( 'data-desktop-mode-dock-placement' );
+		this.zones = { core: [], apps: [], controls: [] };
+		this.container.removeAttribute( 'data-os-dock-placement' );
 	}
 
 	/**
@@ -2179,6 +2662,20 @@ export class Dock {
 						if ( wBase === baseId || wBase === derivedId || wBase === item.id ) {
 							return true;
 						}
+						// A window opened from this menu's submenu — the
+						// post editor behind "Posts → Add New", or the
+						// same page reached from the Create tile. It is
+						// keyed on the CHILD page, so no id here will
+						// ever match it; `parentUrl` is the only thing
+						// that says which menu it came from, and without
+						// consulting it the parent tile stays dark while
+						// one of its pages is plainly open.
+						if (
+							w.config.parentUrl &&
+							this.deriveWindowId( w.config.parentUrl ) === derivedId
+						) {
+							return true;
+						}
 						if ( w.config.url ) {
 							const wDerived = this.deriveWindowId( w.config.url );
 							return wDerived === baseId || wDerived === derivedId;
@@ -2195,14 +2692,14 @@ export class Dock {
 				! isMinimized( focused ) &&
 				instances.some( ( w ) => w.id === focused.id || ( focused.config.baseId || focused.id ) === baseId );
 
-			tile.classList.toggle( 'desktop-mode-dock__item--active', isOpen );
-			tile.classList.toggle( 'desktop-mode-dock__item--focused', isFocused );
+			tile.classList.toggle( 'os-dock__item--active', isOpen );
+			tile.classList.toggle( 'os-dock__item--focused', isFocused );
 			tile.classList.toggle(
-				'desktop-mode-dock__item--all-minimized',
+				'os-dock__item--all-minimized',
 				allMinimized,
 			);
 			tile.classList.toggle(
-				'desktop-mode-dock__item--stacked',
+				'os-dock__item--stacked',
 				isOpen && instances.length > 1,
 			);
 		}
@@ -2220,10 +2717,10 @@ export class Dock {
 			const allMinimized = !! sysWin && isMinimized( sysWin );
 			const isFocused =
 				!! focused && focused.id === sys.id && ! isMinimized( focused );
-			tile.classList.toggle( 'desktop-mode-dock__item--active', isOpen );
-			tile.classList.toggle( 'desktop-mode-dock__item--focused', isFocused );
+			tile.classList.toggle( 'os-dock__item--active', isOpen );
+			tile.classList.toggle( 'os-dock__item--focused', isFocused );
 			tile.classList.toggle(
-				'desktop-mode-dock__item--all-minimized',
+				'os-dock__item--all-minimized',
 				allMinimized,
 			);
 		}
@@ -2238,7 +2735,7 @@ export class Dock {
 	}
 
 	/**
-	 * Toggle `body.desktop-mode-show-desktop-active` based on whether
+	 * Toggle `body.os-show-desktop-active` based on whether
 	 * every live window on the active desktop is minimized. Mirrors
 	 * the heuristic inside {@link WindowManager.toggleShowDesktop} so
 	 * the visual cue tracks the actual state — set by Show Desktop
@@ -2258,7 +2755,7 @@ export class Dock {
 		const showDesktop =
 			live.length > 0 && live.every( ( w ) => w.state === 'minimized' );
 		document.body.classList.toggle(
-			'desktop-mode-show-desktop-active',
+			'os-show-desktop-active',
 			showDesktop,
 		);
 	}
@@ -2276,7 +2773,7 @@ export class Dock {
  */
 function _applyBadgeNode( host: HTMLElement, count: number ): void {
 	const existing = host.querySelector< HTMLElement >(
-		':scope > .desktop-mode-dock__badge',
+		':scope > .os-dock__badge',
 	);
 	if ( count <= 0 ) {
 		existing?.remove();
@@ -2298,7 +2795,7 @@ function _applyBadgeNode( host: HTMLElement, count: number ): void {
 		return;
 	}
 	const badge = document.createElement( 'span' );
-	badge.className = 'desktop-mode-dock__badge';
+	badge.className = 'os-dock__badge';
 	badge.textContent = display;
 	badge.setAttribute(
 		'aria-label',

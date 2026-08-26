@@ -1,8 +1,8 @@
 # Window loading state — spinner overlay & ready signal
 
-Every desktop window starts in a **loading** state. The shell paints a `<wpd-spinner>` overlay over the body and fades the content in when the window reports ready. The affordance is automatic for the common cases — your only job is to tell the framework when an *async* native render is done, or to re-arm the spinner before a refetch.
+Every desktop window starts in a **loading** state. The shell paints a `<os-spinner>` overlay over the body and fades the content in when the window reports ready. The affordance is automatic for the common cases — your only job is to tell the framework when an *async* native render is done, or to re-arm the spinner before a refetch.
 
-> Status: **Stable** since 0.6.0.
+> Status: **Stable**.
 
 ## Why this exists
 
@@ -12,10 +12,10 @@ The overlay is sized responsively (`clamp(96px, 14vw, 192px)`) so it scales with
 
 ## Iframe windows — automatic
 
-Iframe windows mark themselves ready when the chromeless bridge posts `desktop-mode-ready`. **You don't write any code.** Just open the window:
+Iframe windows mark themselves ready when the chromeless bridge posts `os-ready`. **You don't write any code.** Just open the window:
 
 ```js
-wp.desktop.openWindow( 'edit-post' );
+wp.os.openWindow( 'edit-post' );
 ```
 
 The spinner shows during iframe boot; once the bridge announces ready, the spinner fades out and the iframe content fades in.
@@ -25,13 +25,12 @@ The spinner shows during iframe boot; once the bridge announces ready, the spinn
 Synchronous renders mark themselves ready on the next animation frame. Again, no code:
 
 ```js
-wp.desktop.registerWindow( {
+wp.os.registerWindow( {
     id: 'my-plugin/quick-note',
     title: 'Quick Note',
     icon: 'dashicons-edit',
-    native: true,
     render: ( body ) => {
-        body.innerHTML = `<wpd-text-field label="Note"></wpd-text-field>`;
+        body.innerHTML = `<os-text-field label="Note"></os-text-field>`;
     },
 } );
 ```
@@ -43,11 +42,10 @@ The spinner barely flashes for a synchronous render — the CSS transition has a
 Return a `Promise` from `render` and the framework holds the spinner until it resolves:
 
 ```js
-wp.desktop.registerWindow( {
+wp.os.registerWindow( {
     id: 'my-plugin/inbox',
     title: 'Inbox',
     icon: 'dashicons-email',
-    native: true,
     render: async ( body ) => {
         const messages = await fetch( '/wp-json/myapi/v1/messages' )
             .then( ( r ) => r.json() );
@@ -68,11 +66,10 @@ The spinner stays up while `fetch` is in flight. When the Promise resolves, the 
 Use `ctx.window.markLoading()` to re-show the spinner before an in-window refetch, and `ctx.window.markReady()` after the new data renders:
 
 ```js
-wp.desktop.registerWindow( {
+wp.os.registerWindow( {
     id: 'my-plugin/dashboard',
     title: 'Dashboard',
     icon: 'dashicons-chart-bar',
-    native: true,
     render: async ( body, ctx ) => {
         const refresh = async () => {
             ctx.window.markLoading();          // re-show spinner
@@ -89,7 +86,7 @@ wp.desktop.registerWindow( {
 } );
 ```
 
-The same shape works from outside the render — `wp.desktop.windowManager.getById( id ).markContentLoading()` / `.markContentLoaded()` give you the equivalent escape hatch.
+The same shape works from outside the render — `wp.os.windowManager.getById( id ).markContentLoading()` / `.markContentLoaded()` give you the equivalent escape hatch.
 
 ## React to the loading lifecycle from another plugin
 
@@ -97,14 +94,14 @@ Both edges fire **CustomEvents** on `document` and **`wp.hooks` actions**. Subsc
 
 ```js
 // CustomEvent — short-and-sweet for one-off subscribers.
-document.addEventListener( 'desktop-mode-window-content-loaded', ( e ) => {
+document.addEventListener( 'os-window-content-loaded', ( e ) => {
     if ( e.detail.windowId !== 'my-plugin/inbox' ) return;
     analytics.complete( 'inbox-load' );
 } );
 
 // wp.hooks action — supports priorities + namespaced unsubscribe.
-wp.desktop.hooks.addAction(
-    'desktop-mode.window.content-loaded',
+wp.os.hooks.addAction(
+    'os.window.content-loaded',
     'my-plugin/track-load',
     ( { windowId } ) => {
         if ( windowId === 'my-plugin/inbox' ) {
@@ -114,7 +111,7 @@ wp.desktop.hooks.addAction(
 );
 ```
 
-Both `desktop-mode-window-content-loading` and `desktop-mode-window-content-loaded` are **edge-triggered**: idempotent calls don't re-fire. A loading → ready → loading → ready cycle fires `loaded` exactly twice.
+Both `os-window-content-loading` and `os-window-content-loaded` are **edge-triggered**: idempotent calls don't re-fire. A loading → ready → loading → ready cycle fires `loaded` exactly twice.
 
 ## Customizing the overlay — ship your own loader
 
@@ -122,10 +119,10 @@ Two extension points, one for per-window overrides, one for shell-wide skinning.
 
 ### Per-window — `config.loading.render`
 
-Best for a single plugin window that wants its own affordance. Mutates the default overlay (the `<wpd-spinner>` is already inside `host`) — append, replace, retune, whatever.
+Best for a single plugin window that wants its own affordance. Mutates the default overlay (the `<os-spinner>` is already inside `host`) — append, replace, retune, whatever.
 
 ```js
-wp.desktop.registerWindow( {
+wp.os.registerWindow( {
     id: 'my-plugin/inbox',
     title: 'Inbox',
     icon: 'dashicons-email',
@@ -138,7 +135,6 @@ wp.desktop.registerWindow( {
             host.appendChild( status );
         },
     },
-    native: true,
     render: async ( body ) => {
         const messages = await fetchInbox();
         body.innerHTML = renderInbox( messages );
@@ -160,20 +156,20 @@ loading: {
 },
 ```
 
-`host` is the `.desktop-mode-window__loading` div — already absolutely positioned + centered in the body. Just put your content inside.
+`host` is the `.os-window__loading` div — already absolutely positioned + centered in the body. Just put your content inside.
 
 ### Shell-wide — `WINDOW_LOADING_OVERLAY` filter
 
 Best for a theme/skin plugin that wants to override every window's loader at once. Filter receives the overlay (post-per-window-render) and can mutate it or return a replacement.
 
 ```js
-wp.desktop.whenReady( () => {
-    wp.desktop.hooks.addFilter(
-        'desktop-mode.window.loading-overlay',
+wp.os.whenReady( () => {
+    wp.os.hooks.addFilter(
+        'os.window.loading-overlay',
         'my-skin/branded-loader',
         ( host, ctx ) => {
             // Retune the default spinner to a different preset/color.
-            const spinner = host.querySelector( 'wpd-spinner' );
+            const spinner = host.querySelector( 'os-spinner' );
             if ( spinner ) {
                 spinner.setAttribute( 'preset', 'comet' );
                 spinner.setAttribute( 'color', '#6f42c1' );
@@ -185,16 +181,16 @@ wp.desktop.whenReady( () => {
 } );
 ```
 
-Filters can also **fully replace** the overlay element. The shell defensively re-adds the `.desktop-mode-window__loading` class so positioning + transition rules still apply:
+Filters can also **fully replace** the overlay element. The shell defensively re-adds the `.os-window__loading` class so positioning + transition rules still apply:
 
 ```js
-wp.desktop.hooks.addFilter(
-    'desktop-mode.window.loading-overlay',
+wp.os.hooks.addFilter(
+    'os.window.loading-overlay',
     'my-skin/wholesale-replacement',
     ( host, ctx ) => {
         const replacement = document.createElement( 'div' );
         replacement.appendChild( buildBrandedLoader() );
-        // The shell re-adds `desktop-mode-window__loading` for you.
+        // The shell re-adds `os-window__loading` for you.
         return replacement;
     },
 );
@@ -204,7 +200,7 @@ wp.desktop.hooks.addFilter(
 
 For each overlay paint (first paint AND every re-arm via `markContentLoading()`):
 
-1. **Default** — the shell paints `<wpd-spinner preset="classic" size="clamp(96px, 14vw, 192px)">` inside a positioned div.
+1. **Default** — the shell paints `<os-spinner preset="classic" size="clamp(96px, 14vw, 192px)">` inside a positioned div.
 2. **Per-window inline** — `config.loading.render( host, ctx )` runs if defined.
 3. **Global filter** — `WINDOW_LOADING_OVERLAY` filter runs.
 4. **Painted** — final element is appended to the window body.
@@ -215,14 +211,14 @@ Plugin failures in either step are caught and logged so a buggy customizer can't
 
 ### Boot order (F5 / session restore)
 
-On page reload the shell rebuilds every restored window during startup — **before** plugin scripts' `whenReady( … )` callbacks have run. Naively, that would leave the first paint of restored windows showing the default `<wpd-spinner>` even when a plugin had registered a `WINDOW_LOADING_OVERLAY` filter inside `whenReady`.
+On page reload the shell rebuilds every restored window during startup — **before** plugin scripts' `whenReady( … )` callbacks have run. Naively, that would leave the first paint of restored windows showing the default `<os-spinner>` even when a plugin had registered a `WINDOW_LOADING_OVERLAY` filter inside `whenReady`.
 
 **The shell handles this for you.** After `HOOKS.INIT` fires (and one microtask later, so all `whenReady` callbacks have drained), the shell sweeps every currently-loading window and re-paints its overlay through the customization pipeline. So the canonical plugin shape:
 
 ```js
-wp.desktop.whenReady( () => {
-    wp.desktop.hooks.addFilter(
-        'desktop-mode.window.loading-overlay',
+wp.os.whenReady( () => {
+    wp.os.hooks.addFilter(
+        'os.window.loading-overlay',
         'my-skin/branded',
         ( host ) => { /* … */ },
     );
@@ -233,19 +229,19 @@ Just works on F5, on first visit, on plugin activation mid-session — without a
 
 ### Late filter registrations
 
-If you need to register the `WINDOW_LOADING_OVERLAY` filter **after** init (a deferred async import, a runtime feature flag flip, a settings change), call `wp.desktop.repaintLoadingOverlays()` after registering — it sweeps every still-loading window and re-paints them through the pipeline:
+If you need to register the `WINDOW_LOADING_OVERLAY` filter **after** init (a deferred async import, a runtime feature flag flip, a settings change), call `wp.os.repaintLoadingOverlays()` after registering — it sweeps every still-loading window and re-paints them through the pipeline:
 
 ```js
 async function activateBrandSkin() {
     const { brandRenderer } = await import( './brand-renderer.js' );
-    wp.desktop.hooks.addFilter(
-        'desktop-mode.window.loading-overlay',
+    wp.os.hooks.addFilter(
+        'os.window.loading-overlay',
         'my-skin/lazy-branded',
         brandRenderer,
     );
     // Catch any windows still loading right now — those that
     // opened before `addFilter` ran.
-    wp.desktop.repaintLoadingOverlays();
+    wp.os.repaintLoadingOverlays();
 }
 ```
 
@@ -259,9 +255,9 @@ If you only want to retune the spinner colors / size, the CSS variables work fin
 /* Window element ids are `wp-window-` + your window id verbatim, so a
    slashed id like `my-plugin/inbox` needs an attribute selector (or an
    escaped `#wp-window-my-plugin\/inbox`). */
-[id='wp-window-my-plugin/inbox'] .desktop-mode-window__loading wpd-spinner {
-    --wpd-spinner-color: #6f42c1;
-    --wpd-spinner-accent: #fff8e7;
+[id='wp-window-my-plugin/inbox'] .os-window__loading os-spinner {
+    --os-ui-spinner-color: #6f42c1;
+    --os-ui-spinner-accent: #fff8e7;
 }
 ```
 
@@ -269,7 +265,7 @@ The overlay has `pointer-events: none` so it never blocks clicks even if it ling
 
 ## See also
 
-- [`desktop-mode-window-content-loading` / `desktop-mode-window-content-loaded` CustomEvents](../javascript-reference.md#desktop-mode-window-content-loading--stable-since-060)
-- [`Window.markContentLoading()` / `Window.markContentLoaded()`](../javascript-reference.md#windowmarkcontentloading--windowmarkcontentloaded--stable-since-060)
-- [`<wpd-spinner>` component](./spinner.md)
-- [`HOOKS.WINDOW_CONTENT_LOADING` / `WINDOW_CONTENT_LOADED`](../javascript-reference.md#4-hooks--desktop-mode)
+- [`os-window-content-loading` / `os-window-content-loaded` CustomEvents](../javascript-reference.md#os-window-content-loading--stable)
+- [`Window.markContentLoading()` / `Window.markContentLoaded()`](../javascript-reference.md#windowmarkcontentloading--windowmarkcontentloaded--stable)
+- [`<os-spinner>` component](./spinner.md)
+- [`HOOKS.WINDOW_CONTENT_LOADING` / `WINDOW_CONTENT_LOADED`](../javascript-reference.md#4-hooks--openstation)

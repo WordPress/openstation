@@ -5,10 +5,8 @@
  * entry through the payload (id, message, tone, dismissibility,
  * match), and this module mirrors the list onto the live registry by
  * calling {@link registerWindowNotice} for each. Re-runs on every
- * `desktop-mode-plugins-changed` payload so plugin activation /
+ * `os-plugins-changed` payload so plugin activation /
  * deactivation reflects without an F5.
- *
- * @since 0.8.6
  */
 
 import {
@@ -97,7 +95,7 @@ export function applyServerWindowNotices(
 	// Drop entries the server no longer ships (plugin deactivated
 	// mid-session). Only sweep entries we recognise as
 	// server-shipped via the owner tag — JS-registered notices
-	// (`wp.desktop.registerWindowNotice` from a non-server caller)
+	// (`wp.os.registerWindowNotice` from a non-server caller)
 	// keep their lifecycle.
 	for ( const existing of listWindowNotices() ) {
 		if ( existing.owner !== '__server__' ) {

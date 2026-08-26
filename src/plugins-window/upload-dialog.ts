@@ -1,16 +1,15 @@
 /**
  * Native Plugins window — .zip upload dialog.
  *
- * Opens a `<wpd-confirm-dialog>` styled with a custom slot
+ * Opens a `<os-confirm-dialog>` styled with a custom slot
  * containing a file picker + drop zone. Submits to our
- * `wp_ajax_desktop_mode_plugins_upload` action via `uploadPluginZip`.
+ * `wp_ajax_openstation_plugins_upload` action via `uploadPluginZip`.
  *
  * Public surface: `openUploadDialog( hostBody, prefilledFile? )`. The
  * window-level drop-zone overlay (in `browse-view.ts`) calls this with
  * the dropped file pre-applied so the user just confirms.
  *
  * @public
- * @since 0.9.0
  */
 
 import { __, sprintf } from '../i18n';
@@ -20,22 +19,22 @@ import {
 	uploadPluginZip,
 	type UploadPluginResult,
 } from './rest';
-// `wpdConfirm` and `showToast` here MUST come from the main-bundle-safe
-// shims (`../wpd-confirm`, `../toast`) — they construct the elements via
+// `osConfirm` and `showToast` here MUST come from the main-bundle-safe
+// shims (`../os-confirm`, `../toast`) — they construct the elements via
 // `document.createElement()` after lazy-loading the shell-overlays
 // bundle. Importing the component module directly
-// (`../ui/components/wpd-confirm-dialog/wpd-confirm-dialog`) would
-// inline `wpd-confirm-dialog`'s `defineComponent()` into the main
+// (`../ui/components/os-confirm-dialog/os-confirm-dialog`) would
+// inline `os-confirm-dialog`'s `defineComponent()` into the main
 // bundle. That's the canary tag the shell-overlays loader uses to
 // detect whether the bundle is loaded — registering it from the main
 // bundle short-circuits the loader, and the OTHER components in
-// shell-overlays (notably `wpd-window-button`, which renders the
+// shell-overlays (notably `os-window-button`, which renders the
 // titlebar Minimize / Maximize / Close icons) never get defined. The
 // result is visually intact-looking window controls with zero icons.
-import { wpdConfirm } from '../wpd-confirm';
+import { osConfirm } from '../os-confirm';
 import { showToast } from '../toast';
 import { broadcast } from '../broadcast';
-import '../ui/components/wpd-button/wpd-button';
+import '../ui/components/os-button/os-button';
 
 /**
  * Cross-view sync topic for the Plugins window. The Installed +
@@ -45,7 +44,7 @@ import '../ui/components/wpd-button/wpd-button';
  * fresh install / activate from the dialog is reflected on both
  * tabs without the user needing to hit Refresh.
  */
-const PLUGINS_CHANGED_TOPIC = 'desktop-mode.plugin.changed';
+const PLUGINS_CHANGED_TOPIC = 'os.plugin.changed';
 const PLUGINS_CHANGED_SOURCE = 'upload-dialog';
 interface PluginsChangedPayload {
 	source: string;
@@ -69,10 +68,10 @@ export function openUploadDialog(
 ): Promise< UploadPluginResult | null > {
 	return new Promise( ( resolve ) => {
 		const overlay = document.createElement( 'div' );
-		overlay.className = 'desktop-mode-plugins__upload-overlay';
+		overlay.className = 'os-plugins__upload-overlay';
 
 		const card = document.createElement( 'div' );
-		card.className = 'desktop-mode-plugins__upload-card';
+		card.className = 'os-plugins__upload-card';
 		card.setAttribute( 'role', 'dialog' );
 		card.setAttribute( 'aria-modal', 'true' );
 		card.setAttribute(
@@ -81,17 +80,17 @@ export function openUploadDialog(
 		);
 
 		const heading = document.createElement( 'h2' );
-		heading.className = 'desktop-mode-plugins__upload-heading';
+		heading.className = 'os-plugins__upload-heading';
 		heading.textContent = __( 'Upload a plugin', 'desktop-mode' );
 		const lede = document.createElement( 'p' );
-		lede.className = 'desktop-mode-plugins__upload-lede';
+		lede.className = 'os-plugins__upload-lede';
 		lede.textContent = __(
 			'Pick a .zip file from your computer, or drop one onto the area below.',
 			'desktop-mode',
 		);
 
 		const dropZone = document.createElement( 'div' );
-		dropZone.className = 'desktop-mode-plugins__upload-dropzone';
+		dropZone.className = 'os-plugins__upload-dropzone';
 		dropZone.tabIndex = 0;
 		dropZone.setAttribute( 'role', 'button' );
 		dropZone.setAttribute(
@@ -104,16 +103,16 @@ export function openUploadDialog(
 
 		const dropIcon = document.createElement( 'span' );
 		dropIcon.className =
-			'dashicons dashicons-upload desktop-mode-plugins__upload-icon';
+			'dashicons dashicons-upload os-plugins__upload-icon';
 		dropIcon.setAttribute( 'aria-hidden', 'true' );
 		const dropHint = document.createElement( 'p' );
-		dropHint.className = 'desktop-mode-plugins__upload-hint';
+		dropHint.className = 'os-plugins__upload-hint';
 		dropHint.textContent = __(
 			'Drop your .zip here or click to browse',
 			'desktop-mode',
 		);
 		const fileLabel = document.createElement( 'p' );
-		fileLabel.className = 'desktop-mode-plugins__upload-filename';
+		fileLabel.className = 'os-plugins__upload-filename';
 		fileLabel.hidden = true;
 
 		dropZone.append( dropIcon, dropHint, fileLabel );
@@ -125,15 +124,15 @@ export function openUploadDialog(
 		dropZone.appendChild( input );
 
 		const status = document.createElement( 'p' );
-		status.className = 'desktop-mode-plugins__upload-status';
+		status.className = 'os-plugins__upload-status';
 		status.hidden = true;
 
 		const actions = document.createElement( 'div' );
-		actions.className = 'desktop-mode-plugins__upload-actions';
-		const cancelBtn = document.createElement( 'wpd-button' );
+		actions.className = 'os-plugins__upload-actions';
+		const cancelBtn = document.createElement( 'os-button' );
 		cancelBtn.setAttribute( 'variant', 'ghost' );
 		cancelBtn.textContent = __( 'Cancel', 'desktop-mode' );
-		const submitBtn = document.createElement( 'wpd-button' );
+		const submitBtn = document.createElement( 'os-button' );
 		submitBtn.setAttribute( 'variant', 'primary' );
 		submitBtn.textContent = __( 'Install', 'desktop-mode' );
 		submitBtn.setAttribute( 'disabled', '' );
@@ -320,7 +319,7 @@ export function openUploadDialog(
 						),
 						'info',
 					);
-					const ok = await wpdConfirm( {
+					const ok = await osConfirm( {
 						title: __( 'Replace existing plugin?', 'desktop-mode' ),
 						message: __(
 							'A plugin with the same folder name is already installed. Replacing it overwrites the installed files. Any local edits to the plugin will be lost. The plugin will keep its activation state.',
@@ -373,14 +372,14 @@ export function openUploadDialog(
 			status.hidden = true;
 
 			const successHeading = document.createElement( 'h3' );
-			successHeading.className = 'desktop-mode-plugins__upload-success-heading';
+			successHeading.className = 'os-plugins__upload-success-heading';
 			successHeading.textContent = __(
 				'Plugin installed successfully.',
 				'desktop-mode',
 			);
 
 			const detail = document.createElement( 'p' );
-			detail.className = 'desktop-mode-plugins__upload-success-detail';
+			detail.className = 'os-plugins__upload-success-detail';
 			const name = result.plugin_name || result.plugin_file;
 			detail.textContent = result.plugin_version
 				? sprintf(
@@ -392,11 +391,11 @@ export function openUploadDialog(
 				: name;
 
 			const successActions = document.createElement( 'div' );
-			successActions.className = 'desktop-mode-plugins__upload-actions';
-			const closeBtn = document.createElement( 'wpd-button' );
+			successActions.className = 'os-plugins__upload-actions';
+			const closeBtn = document.createElement( 'os-button' );
 			closeBtn.setAttribute( 'variant', 'ghost' );
 			closeBtn.textContent = __( 'Close', 'desktop-mode' );
-			const activateBtn = document.createElement( 'wpd-button' );
+			const activateBtn = document.createElement( 'os-button' );
 			activateBtn.setAttribute( 'variant', 'primary' );
 			activateBtn.textContent = __( 'Activate Plugin', 'desktop-mode' );
 			successActions.append( closeBtn, activateBtn );

@@ -15,6 +15,7 @@ vi.mock( '../../src/notes/rest', () => ( {
 } ) );
 
 // Imported after the mock is registered.
+import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 import { convertNoteToPost } from '../../src/notes/convert';
 
 const NOTE: Note = {
@@ -40,14 +41,19 @@ describe( 'convertNoteToPost', () => {
 	let getById: ReturnType< typeof vi.fn >;
 
 	beforeEach( () => {
+		installHooksStub();
 		convertNoteMock.mockReset();
 		restoreNoteMock.mockReset();
 		showToast = vi.fn();
 		openWindow = vi.fn();
 		closeWindow = vi.fn();
 		getById = vi.fn( () => ( { close: closeWindow } ) );
-		( window as unknown as { wp: unknown } ).wp = {
-			desktop: {
+		// Merge, never assign: `installHooksStub()` above parked
+		// `wp.hooks` on the same global, and the real bus reads it.
+		const w = window as unknown as { wp?: Record< string, unknown > };
+		w.wp = {
+			...( w.wp ?? {} ),
+			os: {
 				showToast,
 				deriveWindowId: ( url: string ) => `win:${ url }`,
 				windowManager: { open: openWindow, getById },
@@ -56,6 +62,7 @@ describe( 'convertNoteToPost', () => {
 	} );
 
 	afterEach( () => {
+		clearHooksStub();
 		delete ( window as unknown as { wp?: unknown } ).wp;
 	} );
 

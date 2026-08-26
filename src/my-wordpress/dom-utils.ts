@@ -6,24 +6,22 @@
  * `getDragManager` / `stripTags` definitions.
  *
  * @public
- * @since 0.8.6
  */
 
 import type { DragManagerApi } from '../drag';
 
 /**
- * Read the runtime DragManager off the `wp.desktop` global. Boot
+ * Read the runtime DragManager off the `wp.os` global. Boot
  * order guarantees this is present by the time any tile builder
  * runs (the My WordPress window only mounts after
  * `installPublicApi(desktopApi)` has wired the manager).
  *
  * @public
- * @since 0.8.6
  */
 export function getDragManager(): DragManagerApi | null {
 	const api = (
-		window as { wp?: { desktop?: { dragManager?: DragManagerApi } } }
-	).wp?.desktop?.dragManager;
+		window as { wp?: { os?: { dragManager?: DragManagerApi } } }
+	).wp?.os?.dragManager;
 	return api ?? null;
 }
 
@@ -34,7 +32,6 @@ export function getDragManager(): DragManagerApi | null {
  * HTML would; callers that need full fidelity should keep the HTML.
  *
  * @public
- * @since 0.8.6
  */
 export function stripTags( html: string ): string {
 	const div = document.createElement( 'div' );

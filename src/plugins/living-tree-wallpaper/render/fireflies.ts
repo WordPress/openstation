@@ -5,8 +5,6 @@
  * the count follows live presence. Each firefly wanders toward a slowly
  * re-rolled target inside the crown box and twinkles on its own phase.
  * See `docs/living-tree-algorithm.md` §A.8.
- *
- * @since 0.9.4
  */
 
 import type { PixiContainer, PixiNamespace, PixiSprite, PixiTexture } from '../pixi-types';

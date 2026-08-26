@@ -4,12 +4,12 @@ The browser-side contract. Four layers:
 
 1. **WordPress-style hooks** via `window.wp.hooks` — the primary extension surface.
 2. **CustomEvents** dispatched on `document` in the parent shell — for shell-side plugins.
-3. **`window.wp.desktop`** — the in-tree JS API for the WindowManager, Dock, and hook helpers.
+3. **`window.wp.os`** — the in-tree JS API for the WindowManager, Dock, and hook helpers.
 4. **`postMessage`** bridge — typed messages between the parent shell and iframe windows.
 
 Status labels match the [Hooks Reference](./hooks-reference.md): **Stable / Experimental / Planned**.
 
-> **Looking for the full inventory?** [`api-index.md`](./api-index.md) lists every `wp.desktop.*` method, CustomEvent, and `postMessage` type with its current status — one table, one place to grep.
+> **Looking for the full inventory?** [`api-index.md`](./api-index.md) lists every `wp.os.*` method, CustomEvent, and `postMessage` type with its current status — one table, one place to grep.
 
 ## Must-know APIs
 
@@ -17,10 +17,14 @@ These four cover ~90% of plugin code. Reach for them before anything else:
 
 | API | Use it for | Status |
 |---|---|---|
-| [`wp.desktop.fetch( input, init?, opts? )`](#wpdesktopfetch-input-init-opts---stable-since-080) | **Every HTTP call from a plugin.** Routes through the framework so the active window's title-bar pulse + activity bus light up automatically. ESLint forbids raw `fetch()` in-tree. | **Stable** *(since 0.8.0)* |
-| [`wp.desktop.confirm( opts )`](#wpdesktopconfirm--stable-since-090) / [`wpdConfirm()`](#wpdesktopconfirm--stable-since-090) | Modal Yes/No replacement for `window.confirm()`. ESLint forbids `confirm`/`alert`/`prompt` — use this. | **Stable** *(since 0.9.0)* |
-| [`wp.desktop.ready( cb )`](#whenready--ready--isready) | Run a callback once the shell has booted (or immediately if already booted). Idiomatic boot pattern for any script enqueued with the `desktop-mode` dep. | **Stable** *(since 0.5.1)* |
-| [`wp.desktop.openWindow( id, opts? )`](#wpdesktopopenwindow-id-opts---stable-since-060) | Open or focus a registered native window by id. Symmetric with `desktop_mode_register_window( $id, … )` PHP-side. | **Stable** *(since 0.6.0)* |
+| [`wp.os.fetch( input, init?, opts? )`](#wposfetch-input-init-opts---stable) | **Every HTTP call from a plugin.** Routes through the framework so the active window's activity phase + the activity bus pick the request up automatically. ESLint forbids raw `fetch()` in-tree. | **Stable** |
+| `wp.os.confirm( opts )` / `osConfirm()` | Modal Yes/No replacement for `window.confirm()`. Traps focus, restores it to the opener on close, and routes Enter to the focused button. ESLint forbids `confirm`/`alert`/`prompt` — use this. | **Stable** |
+| [`wp.os.ready( cb )`](#whenready--ready--isready) | Run a callback once the shell has booted (or immediately if already booted). Idiomatic boot pattern for any script enqueued with the `openstation` dep. | **Stable** |
+| [`wp.os.openWindow( id, opts? )`](#wposopenwindow-id-opts---stable) | Open or focus a registered native window by id. Symmetric with `openstation_register_window( $id, … )` PHP-side. | **Stable** |
+| [`wp.os.loadWindowScript( id )`](#wposloadwindowscript-id---stable) | Load a native window's bundle without opening it — for reaching an API the bundle publishes on `wp.os`. Window bundles load on first open. | **Stable** |
+| [`wp.os.loadComponents( tags? )`](#wposloadcomponents-tags---stable) | Make `<os-*>` tags upgrade on demand. The runtime route to the component kit for plugin code that can't import the modules at build time. | **Stable** |
+| [`wp.os.getWindowParams( id )`](#wposgetwindowparams-id---stable) | What an open window is showing right now — for code with no render callback to read `ctx.params` from. | **Stable** |
+| [`wp.os.registerNativeUrlRemap( entry )`](#wposregisternativeurlremap-entry---stable) | Claim an admin URL for a native window, so every open path in the shell routes to it instead of an iframe. | **Stable** |
 
 ---
 
@@ -28,11 +32,13 @@ These four cover ~90% of plugin code. Reach for them before anything else:
 
 All events bubble from `document`. The shell dispatches them; plugins listen.
 
-### `desktop-mode-init` — Stable
+> **Feature-scoped events** live with their feature docs rather than here: `os-files-changed` in [`files-on-desktop.md`](./files-on-desktop.md), `os-recycle-bin-changed` in [`hooks-reference.md`](./hooks-reference.md). A few window-bundle events (`os-ai-status-changed`, `os-command-palette-ready`, `os-posts-window-opened`, `os-posts-window-data-loaded`) are dispatched but currently documented only by their source docblocks — treat them as Experimental.
+
+### `os-init` — Stable
 Fires once, after the shell has initialized and before any session restoration completes. `detail.restored` is `true` if a saved session was restored; `false` for a fresh session.
 
 ```javascript
-document.addEventListener( 'desktop-mode-init', ( e ) => {
+document.addEventListener( 'os-init', ( e ) => {
     const { config, restored } = e.detail;
     console.log( 'Desktop up; restored?', restored );
 } );
@@ -44,15 +50,15 @@ document.addEventListener( 'desktop-mode-init', ( e ) => {
 { config: DesktopConfig, restored: boolean }
 ```
 
-> **Use `wp.desktop.ready( cb )` for bootstrap, not this event.** `ready()` (and its alias `whenReady()`) handles both the already-fired and not-yet-fired cases — a script loaded after `desktop-mode-init` (server-sync-injected widgets, settings tabs, command scripts) still gets its callback invoked via microtask. A raw `addEventListener( 'desktop-mode-init', cb )` listener registered after the event has dispatched silently never fires. The CustomEvent stays around for non-bootstrap analytics / instrumentation; bootstrap goes through `ready`. See ["Bootstrap" under Hooks](#bootstrap) for the full story.
+> **Use `wp.os.ready( cb )` for bootstrap, not this event.** `ready()` (and its alias `whenReady()`) handles both the already-fired and not-yet-fired cases — a script loaded after `os-init` (server-sync-injected widgets, settings tabs, command scripts) still gets its callback invoked via microtask. A raw `addEventListener( 'os-init', cb )` listener registered after the event has dispatched silently never fires. The CustomEvent stays around for non-bootstrap analytics / instrumentation; bootstrap goes through `ready`. See ["Bootstrap" under Hooks](#bootstrap) for the full story.
 
 ---
 
-### `desktop-mode-window-opened` — Stable
+### `os-window-opened` — Stable
 Fires every time a window is added to the stack — both fresh opens and session-restored windows.
 
 ```javascript
-document.addEventListener( 'desktop-mode-window-opened', ( e ) => {
+document.addEventListener( 'os-window-opened', ( e ) => {
     const { windowId, page, title } = e.detail;
 } );
 ```
@@ -67,15 +73,15 @@ document.addEventListener( 'desktop-mode-window-opened', ( e ) => {
 
 ---
 
-### `desktop-mode-window-reopened` — Stable
-Fires when `wp.desktop.openWindow(id)` (or `windowManager.open(...)`) is called for a `baseId` whose window already exists on the active desktop. The framework focuses + restores the existing window — the render callback does NOT re-run, and `desktop-mode-window-opened` does NOT fire again. This event is the unambiguous "user requested an open while already open" signal — exactly once per `open()` call on an existing instance.
+### `os-window-reopened` — Stable
+Fires when `wp.os.openWindow(id)` (or `windowManager.open(...)`) is called for a `baseId` whose window already exists on the active desktop. The framework focuses + restores the existing window — the render callback does NOT re-run, and `os-window-opened` does NOT fire again. This event is the unambiguous "user requested an open while already open" signal — exactly once per `open()` call on an existing instance.
 
-Since 0.9.4 the reuse is **URL-aware**: when the `open()` call carries a URL the window is not already showing — and it isn't the window's home / dock landing URL — the framework also navigates the existing iframe to that URL in place (so e.g. `plugins.php?action=activate&plugin=…&_wpnonce=…` actually runs instead of being dropped by a bare focus). The `navigated` flag in the detail reports which path was taken.
+The reuse is **URL-aware**: when the `open()` call carries a URL the window is not already showing — and it isn't the window's home / dock landing URL — the framework also navigates the existing iframe to that URL in place (so e.g. `plugins.php?action=activate&plugin=…&_wpnonce=…` actually runs instead of being dropped by a bare focus). The `navigated` flag in the detail reports which path was taken.
 
 Plugins that hold per-window state (e.g. the code editor's active file) should listen here to re-orient the existing window's content to whatever the caller wants to show. The open call is synchronous, so any state the caller sets BEFORE invoking `openWindow` is already in place when this fires.
 
 ```javascript
-document.addEventListener( 'desktop-mode-window-reopened', ( e ) => {
+document.addEventListener( 'os-window-reopened', ( e ) => {
     if ( e.detail.windowId !== 'my-plugin/inbox' ) return;
     // Re-orient the window's main pane to whatever the caller
     // wanted to show.
@@ -86,25 +92,38 @@ document.addEventListener( 'desktop-mode-window-reopened', ( e ) => {
 **`detail` shape:**
 
 ```typescript
-{ windowId: string, baseId: string, wasMinimized: boolean, navigated: boolean }
+{
+    windowId: string,
+    baseId: string,
+    wasMinimized: boolean,
+    navigated: boolean,
+    // The window's open-time params AFTER the reopen — the framework
+    // applies any the caller passed before firing this. `{}` when the
+    // window takes none. See `opts.params` on `wp.os.openWindow`.
+    params: Record< string, string | number | boolean >,
+}
 ```
 
 `wasMinimized` reflects the state at the moment of the call, BEFORE the framework's automatic restore-from-minimized happens. Useful for animating "popped from the dock".
 
-`navigated` *(since 0.9.4)* is `true` when the open request carried a URL the window wasn't already showing and the framework navigated the existing iframe to it in place. Always `false` for native windows and for re-opens that resolve to a plain focus.
+`navigated` is `true` when the open request carried a URL the window wasn't already showing and the framework navigated the existing iframe to it in place. Always `false` for native windows and for re-opens that resolve to a plain focus.
 
 ---
 
-### `desktop-mode-window-content-loading` — Stable *(since 0.6.0)*
+### `os-window-content-loading` — Stable
 
 Fires every time a window enters the **loading** state — at construction (every window starts loading) and whenever a plugin calls `Window.markContentLoading()` or the native render context's `ctx.window.markLoading()` mid-life (e.g. before refetching data).
 
-The shell paints a `<wpd-spinner>` overlay over the body while the window is loading and fades the body content out. The overlay's spinner is sized responsively (`clamp(96px, 14vw, 192px)`) so it scales with the window's width.
+The shell paints a `<os-spinner>` overlay over the body while the window is loading and fades the body content out. The overlay's spinner is sized responsively (`clamp(96px, 14vw, 192px)`) so it scales with the window's width.
+
+The overlay element is attached immediately (so `config.loading.render` and the `WINDOW_LOADING_OVERLAY` filter always have a host) but stays **invisible for the first 120 ms**. A load that finishes inside that window never paints a spinner at all.
+
+**Assistive tech.** The window element carries `aria-busy="true"` for the duration of the loading state (stamped at construction, cleared on the ready edge), and the overlay is a `role="status"` / `aria-live="polite"` region whose spinner supplies the announced text. A custom overlay supplied via `config.loading.render` or the `WINDOW_LOADING_OVERLAY` filter inherits the region — keep some text or a labelled indicator inside it, and don't set `aria-hidden` on the host.
 
 **Edge-triggered.** Idempotent calls don't re-fire — a plugin that calls `markLoading()` twice in a row sees the event exactly once.
 
 ```javascript
-document.addEventListener( 'desktop-mode-window-content-loading', ( e ) => {
+document.addEventListener( 'os-window-content-loading', ( e ) => {
     if ( e.detail.windowId === 'my-plugin/inbox' ) {
         analytics.start( 'inbox-load' );
     }
@@ -113,20 +132,22 @@ document.addEventListener( 'desktop-mode-window-content-loading', ( e ) => {
 
 **`detail` shape:** `{ windowId: string }`
 
-Companion `wp.hooks` action: `HOOKS.WINDOW_CONTENT_LOADING` (`desktop-mode.window.content-loading`).
+Companion `wp.hooks` action: `HOOKS.WINDOW_CONTENT_LOADING` (`os.window.content-loading`).
 
 ---
 
-### `desktop-mode-window-content-loaded` — Stable *(since 0.6.0)*
+### `os-window-content-loaded` — Stable
 
-Fires when a window's body content becomes ready — for iframe windows the moment the chromeless bridge announces `desktop-mode-ready`, for native windows after the user's `render( body )` callback (or its returned Promise) resolves, and whenever a plugin calls `Window.markContentLoaded()` or `ctx.window.markReady()` mid-life. The shell removes the loading overlay and fades the body content in on this transition.
+Fires when a window's body content becomes ready — for iframe windows the moment the chromeless bridge announces `os-ready`, for native windows after the user's `render( body )` callback (or its returned Promise) resolves, and whenever a plugin calls `Window.markContentLoaded()` or `ctx.window.markReady()` mid-life. The shell removes the loading overlay and fades the body content in on this transition.
 
-**Use this instead of branching on iframe vs. native.** The unified signal across both render strategies. Iframe-only consumers can still subscribe to `desktop-mode.iframe.ready`, which fires alongside this event for iframe windows.
+**The overlay and the content are never on screen together.** If the spinner never painted (the load finished inside the 120 ms show delay), the overlay is removed in the same tick, so nothing is held back. A native body appears immediately; an iframe still fades in over 250 ms via its own base rule. If it did paint, it gets its 250 ms fade-out to itself and the content fades in after that, not underneath it.
+
+**Use this instead of branching on iframe vs. native.** The unified signal across both render strategies. Iframe-only consumers can still subscribe to `os.iframe.ready`, which fires alongside this event for iframe windows.
 
 **Edge-triggered.** Only fires on a loading → ready transition. A plugin that arms loading via `markContentLoading()` and then calls `markContentLoaded()` again will see a fresh event each cycle.
 
 ```javascript
-document.addEventListener( 'desktop-mode-window-content-loaded', ( e ) => {
+document.addEventListener( 'os-window-content-loaded', ( e ) => {
     if ( e.detail.windowId === 'my-plugin/inbox' ) {
         analytics.complete( 'inbox-load' );
     }
@@ -135,14 +156,14 @@ document.addEventListener( 'desktop-mode-window-content-loaded', ( e ) => {
 
 **`detail` shape:** `{ windowId: string }`
 
-Companion `wp.hooks` action: `HOOKS.WINDOW_CONTENT_LOADED` (`desktop-mode.window.content-loaded`).
+Companion `wp.hooks` action: `HOOKS.WINDOW_CONTENT_LOADED` (`os.window.content-loaded`).
 
-#### Programmatic equivalent — `Window.whenContentReady()` *(since 0.8.8)*
+#### Programmatic equivalent — `Window.whenContentReady()`
 
 For code paths that don't want to wire a CustomEvent listener (e.g. a plugin coordinating with an `iframeContent: { bridge: true }` native window before its first `send`), the `Window` facade exposes a Promise-returning version:
 
 ```javascript
-wp.desktop.openWindow( 'my-plugin/inbox' ); // returns boolean, not the Window
+wp.os.openWindow( 'my-plugin/inbox' ); // returns boolean, not the Window
 
 // The Window instance is registered asynchronously — grab it via the
 // `opened` lifecycle, or directly when it was already open.
@@ -152,25 +173,25 @@ const init = async ( win ) => {
     win.send( 'init', { … } );
 };
 
-const existing = wp.desktop.windowManager.getById( 'my-plugin/inbox' );
+const existing = wp.os.windowManager.getById( 'my-plugin/inbox' );
 if ( existing ) {
     init( existing );
 } else {
-    wp.desktop.onWindow( 'my-plugin/inbox', {
-        opened: () => init( wp.desktop.windowManager.getById( 'my-plugin/inbox' ) ),
+    wp.os.onWindow( 'my-plugin/inbox', {
+        opened: () => init( wp.os.windowManager.getById( 'my-plugin/inbox' ) ),
     } );
 }
 ```
 
-Resolves immediately for windows that are already ready, otherwise on the next matching `desktop-mode-window-content-loaded` for this window's id. Mirrors `HOOKS.WINDOW_CONTENT_LOADED` semantics — works for both iframe and native windows.
+Resolves immediately for windows that are already ready, otherwise on the next matching `os-window-content-loaded` for this window's id. Mirrors `HOOKS.WINDOW_CONTENT_LOADED` semantics — works for both iframe and native windows.
 
 ---
 
-### `desktop-mode-window-focused` — Stable
+### `os-window-focused` — Stable
 Fires when a window is focused (promoted to topmost z-index).
 
 ```javascript
-document.addEventListener( 'desktop-mode-window-focused', ( e ) => {
+document.addEventListener( 'os-window-focused', ( e ) => {
     console.log( 'Focused', e.detail.windowId );
 } );
 ```
@@ -179,12 +200,12 @@ document.addEventListener( 'desktop-mode-window-focused', ( e ) => {
 
 ---
 
-### `desktop-mode-window-blurred` — Stable *(since 0.5.5)*
+### `os-window-blurred` — Stable
 
-Fires on the window that **lost** focus when another window is promoted to topmost. Pairs with `desktop-mode-window-focused` for the symmetric "I am no longer the active window" signal — without this event, apps had to track focus transitions themselves to derive blur. Useful for badge policies, attention timers, and any "render differently when not active" UI.
+Fires on the window that **lost** focus when another window is promoted to topmost. Pairs with `os-window-focused` for the symmetric "I am no longer the active window" signal — without this event, apps had to track focus transitions themselves to derive blur. Useful for badge policies, attention timers, and any "render differently when not active" UI.
 
 ```javascript
-document.addEventListener( 'desktop-mode-window-blurred', ( e ) => {
+document.addEventListener( 'os-window-blurred', ( e ) => {
     const { windowId, focusedTo } = e.detail;
     if ( windowId === 'my-app' ) {
         repaintBadge();
@@ -201,25 +222,62 @@ document.addEventListener( 'desktop-mode-window-blurred', ( e ) => {
 }
 ```
 
-Companion `wp.hooks` action: `HOOKS.WINDOW_BLURRED` (`desktop-mode.window.blurred`).
+Companion `wp.hooks` action: `HOOKS.WINDOW_BLURRED` (`os.window.blurred`).
 
 ---
 
-### `desktop-mode-window-closing` — Stable
-Fires when the user closes a window, BEFORE the outer element is detached from the DOM. Subscribers needing an element reference (wallpaper overlays anchored to specific windows, snow that has piled on the window top, measurement caches) should listen here rather than to `desktop-mode-window-closed` — by the time the `closed` handler runs the element may be mid-fade-out.
+### `os-window-child-blocked` — Stable
+
+Fires when a focus request for a window that owns an open [child window](#child-windows--stable) was redirected to that child — the user tried to bring an owner to the front and could not.
+
+Observational only: the redirect has already happened, and the child has already been shaken. Subscribe to add your own "answer this first" affordance — a toast, a pulse on the field that still needs filling in.
+
+```javascript
+document.addEventListener( 'os-window-child-blocked', ( e ) => {
+    const { windowId, childWindowId } = e.detail;
+    if ( childWindowId === 'my-plugin-wizard' ) {
+        wp.os.showToast( { message: 'Finish the wizard to get back to the post.' } );
+    }
+} );
+```
+
+**`detail` shape:**
+
+```typescript
+{
+    windowId:      string,   // the owner that stayed put
+    childWindowId: string,   // the child that kept focus
+}
+```
+
+Companion `wp.hooks` action: `HOOKS.WINDOW_CHILD_BLOCKED` (`os.window.child-blocked`).
+
+---
+
+### `os-window-closing` — Stable
+Fires when the user closes a window, BEFORE the outer element is detached from the DOM. Subscribers needing an element reference (wallpaper overlays anchored to specific windows, snow that has piled on the window top, measurement caches) should listen here rather than to `os-window-closed` — by the time the `closed` handler runs the element may be mid-fade-out.
 
 **`detail` shape:** `{ windowId: string, element: HTMLElement }`
 
 ---
 
-### `desktop-mode-window-closed` — Stable
-Fires after the window is removed from the stack and begins its closing animation. Payload intentionally minimal; use `desktop-mode-window-closing` above when you need the element reference.
+### `os-window-closed` — Stable
+Fires after the window is removed from the stack and begins its closing animation. Payload intentionally minimal; use `os-window-closing` above when you need the element reference.
 
 **`detail` shape:** `{ windowId: string }`
 
 ---
 
-### `desktop-mode-window-changed` — Experimental
+### `os-window-tab-change` — Stable
+Fires when a native window's tab changes, whether the user clicked it, chose it with the keyboard, or code called `Window.activateTab()`. Dispatched on the window element and bubbles, so a listener on the element or on `document` both work.
+
+Only panel tabs fire this. A submenu tab on an iframe window navigates instead, and `os-window-content-loading` / `os-window-content-loaded` are the events for that.
+
+**`detail` shape:** `{ value: string }`
+
+---
+
+### `os-window-changed` — Experimental
 Internal event used by the session saver. Fires for geometry changes (drag-end, resize-end) and state transitions (minimize, maximize, fullscreen, restore). Signature may change — prefer the per-operation events above for external use.
 
 **`detail` shape:**
@@ -232,7 +290,7 @@ Batch-arrange dispatches (`reason: 'cascade'` / `'tile'`) omit `windowId` and `s
 
 ---
 
-### `desktop-mode-presence-changed` — Stable *(since 0.5.5)*
+### `os-presence-changed` — Stable
 
 Fires when a tracked user's presence transitions between `online`,
 `inactive`, and `offline`. Does NOT fire on stable ticks where the
@@ -240,12 +298,12 @@ status didn't change — listeners only see real transitions, so
 "user came online" / "user went away" UIs hook here without
 debouncing themselves.
 
-The viewer-side filter (`desktop_mode_presence_visible_users`) gates
+The viewer-side filter (`openstation_presence_visible_users`) gates
 which users surface in any one viewer's tab — a transition for a
 user the viewer can't see produces no event.
 
 ```javascript
-document.addEventListener( 'desktop-mode-presence-changed', ( e ) => {
+document.addEventListener( 'os-presence-changed', ( e ) => {
     const { userId, oldStatus, newStatus, lastSeenMs } = e.detail;
     if ( oldStatus !== 'online' && newStatus === 'online' ) {
         toast( `${ userId } is online` );
@@ -267,13 +325,16 @@ document.addEventListener( 'desktop-mode-presence-changed', ( e ) => {
 
 ---
 
-### `desktop-mode-layout-changed` — Stable *(since 0.6.0)*
-Fires when the user picks a new top-level desktop layout in OS Settings → Appearance. The shell tears down and rebuilds the dock(s) before the event fires; plugins that cached `wp.desktop.dock` should re-fetch from the event detail (or read `wp.desktop.dock` again — it's mutated in place). The shell root reflects the new value in `data-desktop-mode-layout` attribute by the time this fires, so CSS selectors keyed on it will already match.
+### `os-selection-changed` — Experimental
+
+Fires whenever the selection changes on any tile canvas in the shell — the wallpaper, a folder window, or a list inside My WordPress. Every surface routes through the same controller, so one listener covers all of them.
 
 ```javascript
-document.addEventListener( 'desktop-mode-layout-changed', ( e ) => {
-    const { layout, primary, side } = e.detail;
-    console.log( 'Desktop layout is now', layout );
+document.addEventListener( 'os-selection-changed', ( e ) => {
+    const { surface, scope, keys, count } = e.detail;
+    if ( surface === 'files' && count > 1 ) {
+        showBulkHint( count );
+    }
 } );
 ```
 
@@ -281,60 +342,150 @@ document.addEventListener( 'desktop-mode-layout-changed', ( e ) => {
 
 ```typescript
 {
-    layout: 'classic' | 'unified' | 'spatial',
-    primary: Dock | null,   // bottom dock — always present
-    side:    Dock | null,   // left side bar — non-null only in classic
+    surface: string,   // 'files' | 'my-wordpress' | a plugin's own slug
+    scope:   string,   // folder id, entity id — narrows the surface
+    keys:    string[], // the surface's item keys, in visual order
+    count:   number,
 }
 ```
 
+An empty selection fires too, with `keys: []` and `count: 0`. See [`wp.os.selection`](#selection--experimental) for the synchronous reader and the action-resolution rules.
+
 ---
 
-### Drag-and-drop CustomEvents — Stable *(since 0.8.1)*
+### `os-layout-changed` — Stable
+Fires when the user picks a new top-level desktop layout **or moves the dock to another edge** in OpenStation Preferences → Appearance. Both tear down and rebuild the dock(s) before the event fires, so plugins that cached `wp.os.dock` should re-fetch from the event detail (or read `wp.os.dock` again — it's mutated in place). The shell root reflects the layout in its `data-os-layout` attribute and each rail its edge in `data-os-dock-placement` by the time this fires, so CSS selectors keyed on either will already match.
 
-Fired on `document` by `wp.desktop.dragManager` for every in-shell
+```javascript
+document.addEventListener( 'os-layout-changed', ( e ) => {
+    const { layout, placement, primary, side } = e.detail;
+    console.log( 'Desktop layout is now', layout, 'on the', placement, 'edge' );
+} );
+```
+
+**`detail` shape:**
+
+```typescript
+{
+    layout:    'classic' | 'unified',
+    placement: 'bottom' | 'left' | 'right',   // edge the primary rail mounted on
+    primary:   Dock | null,   // primary dock — always present
+    side:      Dock | null,   // left side bar — non-null only in classic
+}
+```
+
+`placement` is the edge the primary rail **actually mounted on**, not the raw preference: `classic` owns both of its edges, so it reports `bottom` however `dockPlacement` is set.
+
+---
+
+### `os-item-menu-opening` — Stable
+Fires on `document` the moment a tile's own menu is asked for, before anything is painted. The detail carries the item id and the surface it was opened from.
+
+It exists because a tile can carry two surfaces at once: the menu, and whichever hover affordance the tile has (the constellation flyout on menu tiles, the peek card on system ones). Both anchor to the same tile, so opening one over the other leaves two panels fighting for the same corner of the screen. The shipped hover surfaces listen for this and dismiss themselves; a plugin that paints its own hover affordance on a dock tile should do the same.
+
+```javascript
+document.addEventListener( 'os-item-menu-opening', ( e ) => {
+    const { id, surface } = e.detail;
+    myHoverCard?.close();
+} );
+```
+
+**`detail` shape:**
+
+```typescript
+{
+    id:      string,   // dock item slug, system-tile id, or desktop-icon id
+    surface: 'dock' | 'desktop',
+}
+```
+
+Named for the intent rather than the input: a menu opened from the keyboard has the same collision, and so does one opened programmatically.
+
+---
+
+### `os-palette-opened` / `os-palette-closed` — Experimental
+
+Fire on `document` when a Cmd+K palette becomes visible / stops being visible. The detail carries the palette's registry id. The shell uses the pair to gate work that is only worth paying for while a palette can display the result — the iframe command harvester is the canonical consumer: it keeps a React tree re-rendering on every `wp.data` store tick inside the focused window (every keystroke in the block editor), so it must not run while no palette is open.
+
+```javascript
+document.addEventListener( 'os-palette-opened', ( e ) => {
+    const { id } = e.detail; // e.g. 'desktop-mode-ai-assistant'
+} );
+```
+
+The palette registry announces the transitions it drives itself (the Cmd+K cycle, `wp.os.openPalette()`), and the built-in AI Assistant announces its own extra entry points (Escape, the × button, programmatic `open()`/`close()`). **A plugin palette with its own entry points should dispatch these events from those paths too** — otherwise palette-gated features simply stay dormant while it is open. Treat the events as idempotent signals: a transition can be announced from more than one site, so consumers must tolerate duplicates.
+
+---
+
+### Drag-and-drop CustomEvents — Stable
+
+Fired on `document` by `wp.os.dragManager` for every in-shell
 drag gesture (file tile, entity tile, plugin-defined sources). All
 share `event.detail.payload` carrying the originating
 `{ type, source, data, ghost? }`.
 
 ```javascript
-document.addEventListener( 'desktop-mode.drag.start', ( e ) => {
+document.addEventListener( 'os.drag.start', ( e ) => {
     // The drag has crossed the threshold; ghost is mounted.
     // e.detail.payload — see `DragPayload`.
 } );
-document.addEventListener( 'desktop-mode.drag.move', ( e ) => {
+document.addEventListener( 'os.drag.move', ( e ) => {
     // Each pointermove past lift. e.detail.{ payload, clientX, clientY }
 } );
-document.addEventListener( 'desktop-mode.drag.enter', ( e ) => {
+document.addEventListener( 'os.drag.enter', ( e ) => {
     // Cursor entered an accepting target. e.detail.{ payload, targetId }
 } );
-document.addEventListener( 'desktop-mode.drag.leave', ( e ) => {
+document.addEventListener( 'os.drag.leave', ( e ) => {
     // Cursor left an accepting target. e.detail.{ payload, targetId }
 } );
-document.addEventListener( 'desktop-mode.drag.rejected', ( e ) => {
+document.addEventListener( 'os.drag.rejected', ( e ) => {
     // Cursor over a registered target whose accept() returned false.
     // e.detail.{ payload, targetId }
 } );
-document.addEventListener( 'desktop-mode.drag.commit', ( e ) => {
+document.addEventListener( 'os.drag.commit', ( e ) => {
     // Drop landed; target.onDrop has fired.
     // e.detail.{ payload, targetId }
 } );
-document.addEventListener( 'desktop-mode.drag.cancel', ( e ) => {
+document.addEventListener( 'os.drag.cancel', ( e ) => {
     // Drag aborted (Escape, blur, no-target, rejected, …).
     // e.detail.{ payload, reason }
 } );
-document.addEventListener( 'desktop-mode.drag.end', ( e ) => {
+document.addEventListener( 'os.drag.end', ( e ) => {
     // Always fires last — pair with .start for symmetric bookkeeping.
     // e.detail.{ payload, reason }
 } );
 ```
 
-The cross-iframe `desktop-mode-drag-*` / `desktop-mode-drop`
-postMessages and the `desktop-mode-cross-frame-drag-start` /
-`-end` CustomEvents from `wp.desktop.dragBridge` (Media Library
-payload channel) are a separate, lower-level surface and remain
-Stable since 0.5.0.
+**Multi-item drags** — *Experimental.* A drag that starts on a tile
+belonging to the current selection carries the whole selection. Two
+optional payload fields express it, and a target that ignores them
+still behaves correctly:
 
-**Focus follows the drag** *(since 0.9.4)*: while a drag is in
+| Payload type | Grabbed item | The whole set |
+|---|---|---|
+| `'desktop-file'` | `data.placement` | `data.placements?` |
+| `'shortcut'` | `data.{ kind, ref, … }` | `data.items?` |
+
+Both are **absent for a single-item drag**, so payloads for the
+ordinary gesture are unchanged. Read them through
+`dragPlacements( data )` / `dragShortcutItems( data )`, which fall
+back to the grabbed item — one code path for "one" and "many". A
+target that keeps reading `data.placement` acts on the tile the user
+pointed at, which is a defensible outcome rather than a broken one.
+
+If your target supports sets, apply its accept-gates to every member
+and refuse the whole drop when any one fails: accepting a set and
+handling part of it reports success for an operation that
+half-happened. See [files on the desktop](./files-on-desktop.md#dragging-a-selection)
+for the full contract.
+
+The cross-iframe `os-drag-*` / `os-drop`
+postMessages and the `os-cross-frame-drag-start` /
+`-end` CustomEvents from `wp.os.dragBridge` (Media Library
+payload channel) are a separate, lower-level surface and remain
+Stable.
+
+**Focus follows the drag**: while a drag is in
 flight — any drag, whatever its source or payload: a DragManager
 session, a cross-iframe bridge drag (Media Library), an OS file, an
 image or text selection lifted from anywhere — the window under the
@@ -342,12 +493,12 @@ cursor is raised (focused) after a ~250 ms hover dwell, macOS
 spring-loading style, so the drop target comes forward. Sweeping
 across a window without resting on it does not raise it. Drags
 hovering an iframe window from outside a bridge session are detected
-via the `desktop-mode-drag-hover` heartbeat the chromeless bridge
+via the `os-drag-hover` heartbeat the chromeless bridge
 forwards (see `bridge-protocol.md`). Plugins can veto per activation
-via the `desktop-mode.window.focus-on-drag-hover` filter (see the
+via the `os.window.focus-on-drag-hover` filter (see the
 [window lifecycle hooks table](#window-lifecycle)).
 
-### Pinned-note drag payloads — Experimental *(since 0.9.6)*
+### Pinned-note drag payloads — Experimental
 
 The pinned-notes feature (the Note Pad widget + the wallpaper notes
 layer) rides the DragManager with two payload `type` slugs:
@@ -365,15 +516,15 @@ drop targets can filter on these slugs like any other payload type.
 A `'note'` drag is also accepted by the **Posts** drop targets, which
 convert the note to a draft post — the drag counterpart of the inline
 "Convert to post" button (`src/notes/posts-drop-target.ts`). Three
-surfaces, registered only when `desktopModeConfig.canCreatePosts` is
+surfaces, registered only when `openStationConfig.canCreatePosts` is
 true (the current user has `edit_posts`):
 
 1. The Posts **dock tile** (`[data-menu-slug="menu-posts"]`) and
-2. the open **native Posts window** body (`[data-desktop-mode-posts-root]`)
+2. the open **native Posts window** body (`[data-os-posts-root]`)
    — both get a real `DropTarget` and set
-   `data-desktop-mode-posts-drop-active` while a note hovers.
-3. The Posts **shortcut tile in the Spatial layout**. There the core
-   menu icons are files-layer shortcut tiles already claimed by the
+   `data-os-posts-drop-active` while a note hovers.
+3. A Posts **shortcut tile on the desktop**. A promoted menu icon is a
+   files-layer shortcut tile already claimed by the
    files layer's per-tile reject target, so notes can't register their
    own target. Instead the files layer exposes a **tile-payload seam**
    (`registerTilePayloadHandler( type, { appliesTo, accept, acceptLabel,
@@ -390,28 +541,28 @@ One companion CustomEvent (document-level):
 // A note was created outside the layer (the widget's keyboard
 // "Pin to desktop" path POSTs from its own bundle) — the layer
 // listens and pins it with the insertion animation.
-document.addEventListener( 'desktop-mode-note-created', ( e ) => {
+document.addEventListener( 'os-note-created', ( e ) => {
     // e.detail.note — the REST `Note` shape from /desktop-mode/v1/notes.
 } );
 ```
 
-The REST base is surfaced to the shell as `desktopModeConfig.notesUrl`
+The REST base is surfaced to the shell as `openStationConfig.notesUrl`
 (`/desktop-mode/v1/notes`); the notes layer only boots when it is
 present. The controller's routes are `GET`/`POST /notes`, `PATCH`/
-`DELETE /notes/:id`, `POST /notes/:id/restore`, and — since 0.9.6 —
+`DELETE /notes/:id`, `POST /notes/:id/restore`, and
 `POST /notes/:id/convert`, which spawns a draft post from the note,
 trashes the note, and returns `{ noteId, postId, editUrl }`. The
 convert route is owner-only and requires the `edit_posts` capability;
 the shell exposes whether the current user qualifies as
-`desktopModeConfig.canCreatePosts` (since 0.9.6) so the "Convert to
+`openStationConfig.canCreatePosts` so the "Convert to
 post" affordances only render for eligible users. Restoring a
 convert-trashed note (the Undo path) also discards the draft it
 spawned.
 
-### `wp.desktop.dragBridge` — cross-iframe drag — Stable *(since 0.6.0)*
+### `wp.os.dragBridge` — cross-iframe drag — Stable
 
 The bridge is the postMessage channel that lets shell-side drags
-(My WordPress media tiles, post tiles, user tiles) land inside iframe
+(WP Explorer media tiles, post tiles, user tiles) land inside iframe
 windows (the Gutenberg editor, the site editor). When a DragManager
 session begins on a shell tile carrying a `bridgePayload`, the shell
 fans the payload into `dragBridge.start(payload)`. While the gesture
@@ -421,12 +572,12 @@ messages into the iframe under the cursor:
 
 | postMessage type | Direction | When | Payload shape |
 | --- | --- | --- | --- |
-| `desktop-mode-drag-over` | parent → iframe | cursor entered the iframe | `{ type, payload: DragBridgePayload }` |
-| `desktop-mode-drag-leave` | parent → iframe | cursor left the iframe | `{ type }` |
-| `desktop-mode-drop` | parent → iframe | pointerup over the iframe | `{ type, payload: DragBridgePayload, position: { x, y } }` |
-| `desktop-mode-drag-start` | iframe → parent | iframe initiated its own drag | `{ type, payload: DragBridgePayload }` |
-| `desktop-mode-drag-end` | iframe → parent | iframe-initiated drag ended | `{ type }` |
-| `desktop-mode-drag-payload-request` | iframe → parent | iframe wants the current payload | reply: `{ type: 'desktop-mode-drag-payload', payload }` |
+| `os-drag-over` | parent → iframe | cursor entered the iframe | `{ type, payload: DragBridgePayload }` |
+| `os-drag-leave` | parent → iframe | cursor left the iframe | `{ type }` |
+| `os-drop` | parent → iframe | pointerup over the iframe | `{ type, payload: DragBridgePayload, position: { x, y } }` |
+| `os-drag-start` | iframe → parent | iframe initiated its own drag | `{ type, payload: DragBridgePayload }` |
+| `os-drag-end` | iframe → parent | iframe-initiated drag ended | `{ type }` |
+| `os-drag-payload-request` | iframe → parent | iframe wants the current payload | reply: `{ type: 'os-drag-payload', payload }` |
 
 `DragBridgePayload` is a discriminated union keyed on `kind`:
 
@@ -463,7 +614,7 @@ The built-in Gutenberg drop receiver (`assets/js/gutenberg-drop-receiver.min.js`
 enqueued on `post.php` / `post-new.php`; `site-editor.php` is
 currently excluded because the FSE block-editor store isn't
 available until a template is open in the canvas)
-listens for `desktop-mode-drop` and inserts a block:
+listens for `os-drop` and inserts a block:
 
 - `attachment` `image/*` → `core/image`
 - `attachment` `video/*` → `core/video`
@@ -471,10 +622,10 @@ listens for `desktop-mode-drop` and inserts a block:
 - `attachment` other → `core/file`
 - `post` / `user` → `core/paragraph` with `<a href="URL">title</a>`
 
-### OS-file drop hooks — Experimental *(since 0.8.6)*
+### OS-file drop hooks — Experimental
 
 When the user drags a file in from the host operating system
-(Finder, Explorer, Nautilus) onto any surface in Desktop Mode
+(Finder, Explorer, Nautilus) onto any surface in OpenStation
 — the wallpaper, a folder, a native window, or a chromeless
 admin iframe — the shell catches it and routes it through a
 confirmation dialog. The full pipeline is hookable via
@@ -482,15 +633,15 @@ confirmation dialog. The full pipeline is hookable via
 
 | Hook | Kind | Notes |
 | --- | --- | --- |
-| `desktop-mode.drop.files-detected` | filter | `(files: File[], ctx) => File[]` — before mime / size filter. Return `[]` to abort. |
-| `desktop-mode.drop.files-rejected` | action | `{ rejections, context }` — files that failed the allow-list. |
-| `desktop-mode.drop.dialog-fields` | filter | `(entry, ctx) => entry` — mutate per-file defaults. |
-| `desktop-mode.drop.before-upload` | filter | `(payload, ctx) => payload \| null` — last call before `wp/v2/media`; `null` cancels. |
-| `desktop-mode.drop.after-upload` | action | `{ result, fields, context }` |
-| `desktop-mode.drop.upload-failed` | action | `{ file, error, context }` |
+| `os.drop.files-detected` | filter | `(files: File[], ctx) => File[]` — before mime / size filter. Return `[]` to abort. |
+| `os.drop.files-rejected` | action | `{ rejections, context }` — files that failed the allow-list. |
+| `os.drop.dialog-fields` | filter | `(entry, ctx) => entry` — mutate per-file defaults. |
+| `os.drop.before-upload` | filter | `(payload, ctx) => payload \| null` — last call before `wp/v2/media`; `null` cancels. |
+| `os.drop.after-upload` | action | `{ result, fields, context }` |
+| `os.drop.upload-failed` | action | `{ file, error, context }` |
 
 Iframes forward OS drops to the parent shell via
-`postMessage` of type `desktop-mode-os-file-drop` with a
+`postMessage` of type `os-file-drop` with a
 `{ files: File[], x, y }` payload — same-origin only.
 
 See [`docs/examples/os-file-drop.md`](examples/os-file-drop.md)
@@ -499,14 +650,14 @@ every upload, hand-off to a CSV importer).
 
 ---
 
-### `desktop-mode-registry-changed` — Stable *(since 0.7.0)*
+### `os-registry-changed` — Stable
 
-Fires when a server-side registry (dock items, native windows, desktop icons) is mutated by the live-refresh applier — i.e. when the chromeless `plugins.php` iframe `postMessage`s `desktop-mode-plugins-changed` after a peer plugin is activated or deactivated. The shell diffs the new payload against its prior snapshot by `id` and dispatches one event per registry that actually changed. No event fires when the diff is empty.
+Fires when a server-side registry (dock items, native windows, desktop icons) is mutated by the live-refresh applier — i.e. when the chromeless `plugins.php` iframe `postMessage`s `os-plugins-changed` after a peer plugin is activated or deactivated. The shell diffs the new payload against its prior snapshot by `id` and dispatches one event per registry that actually changed. No event fires when the diff is empty.
 
-> **Naming.** This event uses the `desktop-mode-` prefix — not a `wp-` prefix, which is reserved for WordPress Core per plugin reviewer guidelines.
+> **Naming.** This event uses the `os-` prefix — not a `wp-` prefix, which is reserved for WordPress Core per plugin reviewer guidelines.
 
 ```javascript
-document.addEventListener( 'desktop-mode-registry-changed', ( e ) => {
+document.addEventListener( 'os-registry-changed', ( e ) => {
     const { registry, added, removed } = e.detail;
     if ( registry === 'native-windows' && added.includes( 'jorvy' ) ) {
         // A peer plugin's native window just appeared mid-session.
@@ -533,15 +684,15 @@ document.addEventListener( 'desktop-mode-registry-changed', ( e ) => {
 
 **When it does NOT fire (known gap):**
 
-- Activation outside the open shell (another browser tab, `wp-cli plugin activate`, REST). The broadcast is bound to the chromeless `plugins.php` iframe's load — there is no cross-tab or out-of-band push today. Plugins that need to handle that case can call `wp.desktop.refreshMenu()` themselves on a signal of their own choosing.
+- Activation outside the open shell (another browser tab, `wp-cli plugin activate`, REST). The broadcast is bound to the chromeless `plugins.php` iframe's load — there is no cross-tab or out-of-band push today. Plugins that need to handle that case can call `wp.os.refreshMenu()` themselves on a signal of their own choosing.
 
 The `server*` registries (commands, settings tabs, widgets, wallpapers, …) already publish their own per-registry subscribe APIs — those are the right surface for plugin authors hooking into those layers, not this event.
 
 ---
 
-### `desktop-mode-os-settings-save-lifecycle` — Stable *(since 0.7.2)*
+### `os-settings-save-lifecycle` — Stable
 
-Fires on every phase transition of an OS Settings save — both the built-in panel's edits and programmatic patches via [`wp.desktop.updateOsSettings()`](#updateossettings-patch-opts---stable-since-072).
+Fires on every phase transition of an OpenStation Preferences save — both the built-in panel's edits and programmatic patches via [`wp.os.updateOsSettings()`](#updateossettings-patch-opts---stable).
 
 **`detail` shape:**
 
@@ -560,13 +711,13 @@ The phases:
 - `saved` — the REST request returned OK.
 - `failed` — the REST request errored. `error` carries the message; `rolledBackTo` carries the last server-confirmed snapshot listeners should restore to (it may be absent when no save has ever succeeded yet — a rare first-load failure). The framework has already reverted `localStorage` and the in-memory state to that snapshot; listeners that own UI keyed off the settings state should repaint from it so the controls visually revert to the last-confirmed values.
 
-`<wpd-save-status auto>` subscribes to exactly this event by default — drop the component into a settings surface and the saving / saved / failed indicator wires itself.
+`<os-save-status auto>` subscribes to exactly this event by default — drop the component into a settings surface and the saving / saved / failed indicator wires itself.
 
 ---
 
-### `desktop-mode-default-window-changed` — Stable *(since 0.7.0)*
+### `os-default-window-changed` — Stable
 
-Fires after `wp.desktop.setDefaultWindow( url | null )` **successfully** persists the user's "open on startup" preference through the REST endpoint. No event fires when the save errors. The same payload is assigned to `wp.desktop.config.defaultWindow` in place; the ⋯-menu listens here to repaint its checkmarks live.
+Fires after `wp.os.setDefaultWindow( url | null )` **successfully** persists the user's "open on startup" preference through the REST endpoint. No event fires when the save errors. The same payload is assigned to `wp.os.config.defaultWindow` in place; the ⋯-menu listens here to repaint its checkmarks live.
 
 **`detail` shape:**
 
@@ -579,28 +730,32 @@ Fires after `wp.desktop.setDefaultWindow( url | null )` **successfully** persist
 
 ---
 
-### `desktop-mode-open-ai` — Experimental *(since 0.7.0)*
+### `os-open-ai` — Experimental
 
-**Direction inverted:** plugins dispatch this one; the shell listens. Dispatching it on `document` opens the AI Assistant spotlight overlay — equivalent to `wp.desktop.ai.open()` for code that runs without a `wp.desktop` reference in scope (the admin-bar "Ask AI ⌘K" button is the in-tree dispatcher). No detail payload. The shell routes the open through the palette cycle, so any other open palette is dismissed first (single-palette-at-a-time invariant).
+**Direction inverted:** plugins dispatch this one; the shell listens. Dispatching it on `document` opens the AI Assistant spotlight overlay — equivalent to `wp.os.ai.open()` for code that runs without a `wp.os` reference in scope (the admin-bar "Ask AI ⌘K" button is the in-tree dispatcher). No detail payload. The shell routes the open through the palette cycle, so any other open palette is dismissed first (single-palette-at-a-time invariant).
+
+The **first** open of a session has three things in flight at once — the implementation bundle, its deferred stylesheet, and the Core command-palette runtime the manifest replays — so the shell paints a "Starting the command palette…" placeholder in the panel's own position until they land, then swaps it for the real panel. It is inline-styled rather than class-based on purpose: `ai-assistant.css` is itself deferred and is still loading during exactly the window the placeholder covers.
+
+Two ways out while it is up. **Escape** cancels the pending open, so the panel does not appear behind the user once the bundle lands — that listener is document-level and owned by the placeholder itself, because the panel's own Escape handler is bound to an element that does not exist yet and the palette cycle deliberately never listens for Escape. **⌘K again** goes through the palette cycle and closes it the same way any open palette is closed. A failed load also takes the placeholder down, rather than leaving a spinner up forever.
 
 ```javascript
-document.dispatchEvent( new CustomEvent( 'desktop-mode-open-ai' ) );
+document.dispatchEvent( new CustomEvent( 'os-open-ai' ) );
 ```
 
 ---
 
-### `desktop-mode-intros-reset` — Experimental *(since 0.8.3)*
+### `os-intros-reset` — Experimental
 
-Fires after the user resets the first-run intro flags in **OS Settings → Features** and the REST delete succeeds. The shell has already mirrored the reset into every in-memory `window.desktopModeWindowConfig` blob (`introSeen: false`), so the next window-open re-fires its intro; already-loaded bundles that cache their own intro-state should listen here and invalidate it so their intro replays without an F5. No detail payload.
+Fires after the user resets the one-time announcement flags in **OpenStation Preferences → Features** and the REST delete succeeds. The shell itself does nothing in response — it is dispatched purely so bundles that cache their own dismissed-dialog state can invalidate it and let the dialog appear again without an F5. No detail payload.
 
 ---
 
-## 2. `window.wp.desktop` API
+## 2. `window.wp.os` API
 
-Populated after `desktop-mode-init`. Do not access before that event fires.
+Populated after `os-init`. Do not access before that event fires.
 
 ```typescript
-window.wp.desktop = {
+window.wp.os = {
     // Window management
     windowManager:     WindowManager,
     openWindow:        ( id, opts? ) => boolean,
@@ -608,24 +763,26 @@ window.wp.desktop = {
 
     // Surfaces
     dock:              Dock | null,                            // primary (bottom)
-    sideDock:          Dock | null,                            // since 0.6.0 — left, classic only
-    desktopLayout:     'classic' | 'unified' | 'spatial',       // since 0.6.0
-    icons:             IconsApi,                                // since 0.6.0
+    sideDock:          Dock | null,                            // left, classic only
+    desktopLayout:     'classic' | 'unified',
+    dockPlacement:     'bottom' | 'left' | 'right',           // edge the primary dock sits on
+    icons:             IconsApi,
     saveSession:       () => void,
 
-    // Cross-bundle / cross-window primitives                  // since 0.5.5
+    // Cross-bundle / cross-window primitives
     createSharedStore: < T >( key, init ) => SharedStore< T >,
     activity:          ActivityApi,                            // typed pub/sub
     heartbeat:         HeartbeatBus,                           // wp Heartbeat bus
     broadcast:         < T >( topic, payload ) => void,        // cross-window
     subscribe:         ( topic, cb ) => () => void,            // cross-window
+    announceContentChange: ( type, action, ids, source? ) => void, // os.<type>.changed producer
 
     // Framework features
-    presence:          PresenceApi,                            // since 0.5.5
+    presence:          PresenceApi,
     ai:                AiApi,
     devtools:          DevtoolsApi,
 
-    // Native-window glue                                      // since 0.6.0
+    // Native-window glue
     getWindowConfig:   < T >( id ) => T | undefined,
     debug:             { window: ( id ) => DesktopDebugWindow | null },
 
@@ -648,39 +805,62 @@ Exposed instance of the `WindowManager` class.
 // Open / focus
 manager.open( config ): Promise< Window >;
 manager.openNew( config ): Promise< Window >;
-manager.focus( win: Window ): void;
-manager.raise( windowId: string ): void;                                 // since 0.9.4 — restack to just below the top WITHOUT focusing; no focus/blur events
+
+// Speculative prewarming — Experimental
+manager.prewarm( config ): Promise< boolean >;                           // build the window HIDDEN (single slot, outside the stack, no events); a later open() with the same id + URL adopts and reveals it, firing os-window-opened at that moment. Returns false when skipped (native target, already open, slot busy). Unclaimed prewarms self-destruct after ~45s.
+manager.discardPrewarmed(): void;                                        // drop the current speculative window, announcing nothing
+manager.focus( winOrId: Window | string ): void;                         // id or instance; unknown ids are a no-op
+manager.raise( windowId: string ): void;                                 // restack to just below the top WITHOUT focusing; no focus/blur events
+
+// Child windows (ownership)
+manager.openChild( parentWindowId: string, config ): Promise< Window >;   // a real window its owner can never sit above
+manager.ownerOf( win: Window ): Window | undefined;
+manager.childrenOf( winOrId: Window | string ): Window[];                // direct children, z-order, minimized included
+manager.blockingChildOf( win: Window ): Window | undefined;              // deepest open descendant withholding focus
 
 // Lookup
 manager.getById( id: string ): Window | undefined;
 manager.getByBaseId( baseId: string ): Window | undefined;
 manager.getAllByBaseId( baseId: string ): Window[];                      // every instance sharing baseId, any desktop
-manager.getAllByBaseIdOnActiveDesktop( baseId: string ): Window[];       // since 0.9.4 — same, filtered to the active desktop
+manager.getAllByBaseIdOnActiveDesktop( baseId: string ): Window[];       // same, filtered to the active desktop
+manager.getByBaseIdOnActiveDesktop( baseId: string ): Window | undefined; // first instance on the active desktop
+manager.findByIframeSource( source: MessageEventSource | null ): Window | undefined; // which window owns a postMessage source
 manager.getAll(): Window[];
 manager.getFocused(): Window | undefined;
 manager.isActive( id: string ): boolean;                                 // exists, not minimized, focused, on the active desktop
-manager.isActiveByBaseId( baseId: string ): boolean;                     // since 0.9.4 — isActive() for any instance sharing baseId
+manager.isActiveByBaseId( baseId: string ): boolean;                     // isActive() for any instance sharing baseId
 
 // Snapshot / surface
 manager.snapshot(): Session;
 manager.getVisibleRects(): VisibleWindowRect[];
+manager.seedWindowRestoreState(                                          // stage config for the NEXT open of each id
+    entries: Record< string, Partial< WindowConfig > >,
+): void;
+manager.seedDesktops( desktops: Desktop[], activeDesktopId: string ): void; // stage virtual desktops before restore
+
+// Snap & overview
+manager.isSnapEnabled(): boolean;
+manager.setSnapEnabled( enabled: boolean ): void;
+manager.getSnapConfig(): { enabled: boolean; cellWidth: number; cellHeight: number };
+manager.enterOverview(): void;
+manager.exitOverview( selected?: Window, maximize?: boolean ): void;
 
 // Batch operations
-manager.closeAll( options?: { exceptIds?: string[] } ): number;          // since 0.5.0
-manager.minimizeAll(): Window[];                                         // since 0.6.0
-manager.restoreFrom( windows: Window[] ): void;                          // since 0.6.0
-manager.toggleShowDesktop(): boolean;                                    // since 0.6.0
+manager.closeAll( options?: { exceptIds?: string[] } ): number;
+manager.minimizeAll(): Window[];
+manager.restoreFrom( windows: Window[] ): void;
+manager.toggleShowDesktop(): boolean;
 manager.cascade(): void;
 manager.tile(): void;
 
 // Virtual desktops ("Spaces")
-manager.getDesktops(): Desktop[];                                        // since 0.6
-manager.getActiveDesktop(): Desktop;                                     // since 0.6
-manager.getActiveDesktopId(): string;                                    // since 0.6
-manager.getPrimaryDesktopId(): string;                                   // since 0.5.0
-manager.createDesktop(): Desktop;                                        // since 0.6
-manager.switchDesktop( id: string ): void;                               // since 0.6
-manager.closeDesktop( id: string ): void;                                // since 0.6
+manager.getDesktops(): Desktop[];
+manager.getActiveDesktop(): Desktop;
+manager.getActiveDesktopId(): string;
+manager.getPrimaryDesktopId(): string;
+manager.createDesktop(): Desktop;
+manager.switchDesktop( id: string ): void;
+manager.closeDesktop( id: string ): void;
 ```
 
 **`config` shape passed to `open()` / `openNew()`:**
@@ -698,29 +878,93 @@ manager.closeDesktop( id: string ): void;                                // sinc
     width?:        number;
     height?:       number;
     initialState?: 'normal' | 'minimized' | 'maximized' | 'fullscreen';
-    submenu?:      { title: string; url: string }[];
+    submenu?:      { title: string; url: string; offSite?: boolean }[];
 }
 ```
 
-> **`open()` requires a config object.** Passing a URL string used to silently produce a window stuck on a loading spinner with no error in the console. Since 0.6.0 the manager throws `TypeError` at the call site if `config` isn't an object, or if `id` / `url` / `title` are missing or wrong-typed. Build the config; don't shorthand it.
+> **`open()` requires a config object.** Passing a URL string used to silently produce a window stuck on a loading spinner with no error in the console. The manager throws `TypeError` at the call site if `config` isn't an object, or if `id` / `url` / `title` are missing or wrong-typed. Build the config; don't shorthand it.
 
-**`config.submenu`** — when present, the shell renders the array as an in-window tab strip below the title bar so the user can navigate child pages without leaving the window. Pass `item.submenu` whenever you open a window from a dock context — `openItem` and `openSubmenuPick` (in custom rail renderers) propagate it for you. Skip it for native windows that don't have admin sub-pages. The shell strips WordPress's auto-prepended self-link entry server-side, so `submenu.length > 0` reliably means "has real children" (no defensive filtering needed in your code). Since 0.6.x the shell prepends a synthetic "back to parent" tab (label = `config.title`, URL = `config.url`) as the first tab so the user can return to the parent listing without closing the window. If a caller-supplied submenu entry already points at `config.url` the synthetic tab is suppressed to avoid two tabs claiming the same URL.
+**`focus()` takes a window or an id.** `focus( 'jorvy' )` and `focus( someWindow )` are equivalent. An id with no open window is a silent no-op — a window closing between the moment you captured its id and the moment you ask for focus is a routine race, not an error. Anything that is neither a window nor a string is refused with a `console.warn` and changes nothing.
 
-**`minimizeAll()` / `restoreFrom( windows )` / `toggleShowDesktop()`** — the "Show Desktop" gesture decomposed into reusable primitives. `minimizeAll()` returns the windows it actually minimized (skipping windows already in the `'minimized'` state), so you can pair it with a later `restoreFrom( minimizedSet )` that touches only what you minimized. `toggleShowDesktop()` is the higher-level call mirroring the wallpaper-click behaviour exactly — minimize when anything is visible, restore when everything's hidden. Returns `true` when the new state is "showing the desktop." Since 0.9.4, all three are scoped to the **active virtual desktop only** — a window parked on a Space the user isn't currently viewing is left alone, unlike `closeAll()` below, which still acts across every desktop.
+#### Child windows — Stable
+
+A **child window** is a real window — own chrome, drag, resize, minimize, taskbar entry — with one rule layered on top: **its owner can never sit above it.** Clicking the owner hands focus to the child and shakes it rather than raising the owner.
+
+Reach for it where you would otherwise reach for a modal dialog but what you actually want is a window: a full editor for one row of a list, a wizard beside the page it configures, a diff over the revision it belongs to.
+
+```javascript
+await wp.os.windowManager.openChild( 'edit-post-42', {
+    id: 'my-plugin-seo-audit-42',
+    url: '#seo-audit-42',
+    title: 'SEO audit',
+    icon: 'dashicons-chart-line',
+    native: true,
+    render: ( body ) => { /* … */ },
+} );
+```
+
+The owner stays **fully usable** — scrollable, readable, draggable, resizable, minimizable. Only its z-order is constrained. This is deliberately not an inert, dimmed parent: the reason to use a window instead of a dialog is usually that you need to keep reading the thing behind it.
+
+`openChild()` puts the child on the owner's virtual desktop, and places it by this order of precedence:
+
+1. **Anything you pass.** `x` / `y` / `width` / `height` are used as given.
+2. **The child's remembered geometry.** A child is a real window, so it gets the same per-`baseId` geometry memory as any other — resize it or drag it aside and it comes back that way, not re-centered.
+3. **Centered over the owner**, at 80% of the owner's current size. Measured from the owner's **live** rect, not its opening config (owners get dragged), and clamped to the desktop area so a child of an owner hanging off an edge still opens on screen.
+
+Size and position are resolved **together** on that third path. Handing `open()` a position computed for one size while letting it pick a different one produces a child centered for dimensions it doesn't have.
+
+Every other `open()` option behaves identically. An owner id that isn't open **throws** rather than quietly opening a standalone window.
+
+The rules that follow from ownership:
+
+| | |
+|---|---|
+| **Focus** | Any focus request for the owner is redirected to the deepest open descendant. Covers click-to-focus, dock, taskbar, alt-tab and open-reuse — the redirect lives in `focus()`, so no call site can miss it. |
+| **Z-order** | Every open child is kept above its owner on every restack, including `raise()`. Unrelated windows are unaffected and can be focused over both. |
+| **Chains** | A child can own a child. Focus goes to the last link; the middle ones are blocked in turn. |
+| **Close** | Closing an owner closes its children (and their children). A child with unsaved changes still gets to ask — one that vetoes outlives its owner and becomes an ordinary window. |
+| **Minimize** | Minimizing an owner minimizes its children; restoring brings back exactly the ones the cascade put away. A child the user had already minimized themselves stays minimized. |
+| **Minimized children** | A minimized child **stops blocking** — the user put it away, so the owner is theirs again until they bring it back. |
+| **Session** | Children are left out of session snapshots. A restored child whose owner failed to come back (deactivated plugin, dead URL) would block a window that does not exist. |
+| **Event cadence** | A cascade is one user action and emits **one** focus change, not one per window moved. Minimizing an owner with three children fires a single `os-window-focused` / `WINDOW_FOCUSED` pair, so an activity feed built on those doesn't see transitions the user never made. `WINDOW_MINIMIZED` / `WINDOW_RESTORED` still fire per window — those describe the windows, not the focus. |
+
+Ownership is about z-order and focus. For a *visual* relationship between peer windows — a post and its comments, drawn with ties on the desktop — you want [content relations](#window-content-relations) instead.
+
+To react to a blocked focus attempt, subscribe to [`os-window-child-blocked`](#os-window-child-blocked) or the `os.window.child-blocked` action.
+
+**`config.submenu`** — when present, the shell renders the array as an in-window tab strip below the title bar so the user can navigate child pages without leaving the window. Entries flagged `offSite` are skipped: a tab loads its URL into this window's iframe, which an off-site origin refuses. Pass `item.submenu` whenever you open a window from a dock context — `openItem` and `openSubmenuPick` (in custom rail renderers) propagate it for you. Skip it for native windows that don't have admin sub-pages. The shell strips WordPress's auto-prepended self-link entry server-side, so `submenu.length > 0` reliably means "has real children" (no defensive filtering needed in your code). The shell prepends a synthetic "back to parent" tab (label = `config.title`, URL = `config.url`) as the first tab so the user can return to the parent listing without closing the window. If a caller-supplied submenu entry already points at `config.url` the synthetic tab is suppressed to avoid two tabs claiming the same URL.
+
+Every iframe window gets the strip element, whether or not it has a submenu, because external sub-tabs can be added to it later. Its navigation semantics follow its contents: `role="tablist"` plus an `aria-label` of `"<title> sub-pages"` while it holds tabs, `role="presentation"` while it is empty — so a window with no sub-pages never advertises an empty tab list to assistive tech.
+
+The active tab is re-matched against the iframe's URL after every navigation. An exact URL match wins; otherwise the shell lights the tab whose *page* the current URL belongs to, so a screen's own sub-views keep their tab highlighted (`nav-menus.php?action=locations` stays on Menus, `edit.php?post_type=post&paged=2` stays on All Posts). A tab owns a URL when the page-identity params agree (`post_type`, `taxonomy`, `page`, `path`, …) **and** every param the tab's own URL declares is present with the same value — so `admin.php?page=x&tab=test` never claims `admin.php?page=x&tab=logs`, which falls back to the `admin.php?page=x` entry. When two entries both qualify, the more specific one (more params declared) wins. Exactly one tab is ever active.
+
+**`seedWindowRestoreState( entries )`** — stage config to merge into the *next* window opened under each id, then forget it. For openers that build their own `manager.open()` config and have no argument to thread extra values through: you can't hand geometry to `wp.os.openWindow( id )` or to a native window's own opener, but you can state it up front and let the manager apply it when the window materialises.
+
+Session restore is the built-in consumer — it stages each saved native window's geometry, desktop, and state before asking the registry to reopen them. Entries are consumed on first use, so a later user-initiated open of the same window is unaffected, and each call replaces whatever the previous one left staged.
+
+```js
+const manager = wp.os.windowManager;
+manager.seedWindowRestoreState( {
+    'my-plugin-panel': { x: 240, y: 150, width: 640, height: 520 },
+} );
+wp.os.openWindow( 'my-plugin-panel' ); // opens at that geometry
+```
+
+**`minimizeAll()` / `restoreFrom( windows )` / `toggleShowDesktop()`** — the "Show Desktop" gesture decomposed into reusable primitives. `minimizeAll()` returns the windows it actually minimized (skipping windows already in the `'minimized'` state), so you can pair it with a later `restoreFrom( minimizedSet )` that touches only what you minimized. `toggleShowDesktop()` is the higher-level call mirroring the wallpaper-click behaviour exactly — minimize when anything is visible, restore when everything's hidden. Returns `true` when the new state is "showing the desktop." All three are scoped to the **active virtual desktop only** — a window parked on a Space the user isn't currently viewing is left alone, unlike `closeAll()` below, which still acts across every desktop.
 
 ```js
 // Plugin building an expand/collapse UI.
 let parked = [];
 function expand() {
-    parked = wp.desktop.windowManager.minimizeAll();
+    parked = wp.os.windowManager.minimizeAll();
 }
 function collapse() {
-    wp.desktop.windowManager.restoreFrom( parked );
+    wp.os.windowManager.restoreFrom( parked );
     parked = [];
 }
 ```
 
-**`getVisibleRects()`** — snapshot every open window's current geometry + state. One entry per window in the stack (regardless of virtual desktop), carrying a live element reference. Intended for wallpaper / overlay plugins that previously scraped `document.querySelectorAll( '.desktop-mode-window' )` and sniffed modifier class names to derive state. Callers filter on `state` themselves — minimized windows are included so the consumer can decide.
+**`getVisibleRects()`** — snapshot every open window's current geometry + state. One entry per window in the stack (regardless of virtual desktop), carrying a live element reference. Intended for wallpaper / overlay plugins that previously scraped `document.querySelectorAll( '.os-window' )` and sniffed modifier class names to derive state. Callers filter on `state` themselves — minimized windows are included so the consumer can decide.
 
 ```typescript
 interface VisibleWindowRect {
@@ -734,8 +978,8 @@ interface VisibleWindowRect {
 **Example — open a window from your own code:**
 
 ```javascript
-document.addEventListener( 'desktop-mode-init', () => {
-    window.wp.desktop.windowManager.open( {
+document.addEventListener( 'os-init', () => {
+    window.wp.os.windowManager.open( {
         id:    'my-ext-window',
         url:   '/wp-admin/admin.php?page=my-analytics',
         title: 'Analytics',
@@ -746,19 +990,36 @@ document.addEventListener( 'desktop-mode-init', () => {
 
 Calling `open()` with an id (or `baseId`) that's already on screen focuses the existing window and restores it if minimized.
 
-**URL-aware reuse** *(since 0.9.4)*: focusing is the whole story only when the requested URL is one the window is already showing — its live iframe URL, the URL it was opened with, or its home / dock landing URL (`parentUrl`); the comparison ignores the chromeless / portal flags, `_wp_http_referer`, and param order. Any *other* URL is treated as a real navigation request: the existing iframe navigates to it in place (via `location.assign()`, so in-frame Back still works) instead of the URL being silently dropped. This is what makes action links routed through `open()` — e.g. the post-install **Activate** link `plugins.php?action=activate&plugin=…&_wpnonce=…` while a Plugins window is already open — actually execute. Dock clicks keep their old behavior: clicking a tile whose window has sub-navigated only focuses it (the tile's URL is the window's home URL), never yanks it back to the landing page. The `desktop-mode-window-reopened` detail reports the outcome via `navigated`.
+**URL-aware reuse**: focusing is the whole story only when the requested URL is one the window is already showing — its live iframe URL, the URL it was opened with, or its home / dock landing URL (`parentUrl`); the comparison ignores the chromeless / portal flags, `_wp_http_referer`, and param order. Any *other* URL is treated as a real navigation request: the existing iframe navigates to it in place (via `location.assign()`, so in-frame Back still works) instead of the URL being silently dropped. This is what makes action links routed through `open()` — e.g. the post-install **Activate** link `plugins.php?action=activate&plugin=…&_wpnonce=…` while a Plugins window is already open — actually execute. Dock clicks keep their old behavior: clicking a tile whose window has sub-navigated only focuses it (the tile's URL is the window's home URL), never yanks it back to the landing page. The `os-window-reopened` detail reports the outcome via `navigated`.
 
-**Title-bar actions menu (iframe windows).** Every iframe-backed window renders a three-dots actions menu on the leading edge of its title bar. Built-in items:
+**Title-bar actions menu.** Every window — iframe *and* native — renders a three-dots actions menu on the leading edge of its title bar. Built-in items:
 
-- **"Open on startup"** — checkable; toggles this window as the user's default-window preference.
+- **"Open on startup"** — checkable; toggles this window as the user's default-window preference. Both window types.
 - **"Open another <Page>"** — only when the window was opened with `multi: true`. Calls `openNew()` with the window's *original* landing URL.
-- **"Open in new window"** — opens a fresh sibling window seeded with the *current* iframe URL (post in-window navigation). Useful when the user has drilled into a sub-page (e.g. editing a specific post) and wants to peel a copy off without losing their place. The new window cascades and uses the same multi-instance id suffixing as `openNew()`.
+- **"Open in new window"** — iframe windows only. Opens a fresh sibling window seeded with the *current* iframe URL (post in-window navigation). Useful when the user has drilled into a sub-page (e.g. editing a specific post) and wants to peel a copy off without losing their place. The new window cascades and uses the same multi-instance id suffixing as `openNew()`.
+- **"Reload"** — both window types; see below.
+- **"Open in browser tab"** — iframe windows only. Strips the chromeless flags and hands the page to a classic admin tab. A native window has no URL to hand off.
+
+**Reload is common to both window types.** "Put this back the way it loaded" is the same intent whether the content came from an admin page or from a plugin's render callback, so `Window.reload()` and its ⋯ row work on native windows too.
+
+- **Iframe windows** reload the active frame (the foregrounded external sub-tab, if there is one) and clear the loading overlay on the bridge's `os-ready`.
+- **Native windows** re-run the render callback in place. The framework disposes the render context, runs the teardown the previous render returned (**before** emptying the body, so a teardown that reads its own DOM still finds it), empties the body, and calls `render( body, ctx )` again with a **fresh** context — new `signal`, new channel subscriptions — surrounded by the same `NATIVE_WINDOW_BEFORE_RENDER` / `NATIVE_WINDOW_AFTER_RENDER` pair a first open fires.
+
+  The window does **not** close and reopen: the id, geometry, focus, z-order, `params` and session entry all survive, and no `os.window.closed` / `os.window.opened` pair fires for something the user experienced as a refresh. A render returning a `Promise` keeps the loading overlay up until it settles, so a callback that refetches gets spinner-while-loading for free. A throwing teardown is contained — it reports through `os.shell.error` and the reload proceeds anyway.
+
+  The one native window with no Reload row is one registered with no `render` callback at all, where the action would do nothing.
+
+`os.window.reloaded` fires for both paths, with `url` carrying the reloaded iframe URL or — for native windows — the window's configured `url`.
+
+A reload requested while the window's content is still loading is ignored (for native windows, that means a promise-returning render that hasn't settled), so a double-click can't leave a resolving render writing into a body a newer one owns.
 
 **Multi-instance windows.** When `multi: true` is passed, the window gets the "Open another" item described above. `openNew()` always creates a fresh window — even when one with the same `baseId` is already open — assigning a suffixed id (`${baseId}-2`, `${baseId}-3`, …) so every instance can be tracked independently while the dock still groups them under the same icon.
 
+One exception to the suffixing: if you pass an `id` that differs from `baseId` and isn't currently taken, `openNew()` honours it verbatim instead of allocating the next free slot. This is how a caller re-materialises a *specific* instance — session restore replays saved ids (`edit-php-2`) so that anything keyed by window id (the saved focused-window pointer, per-window plugin state, `wp.os.onWindow( id )` subscriptions) still lines up after the reload. Pass `id === baseId` (or omit `baseId`) for the ordinary "just give me another one" case and you get slot allocation as described above.
+
 **Dock hover-peek.** Multi-capable dock tiles render a hover-reveal *peek* popover instead of the legacy "+" chip. Hovering a multi tile that has at least one open instance fans out a stack of cards next to the tile (works on left, right, and bottom dock orientations):
 
-- **Instance cards** — one per currently open window of this dock item **on the active virtual desktop** (since 0.9.4 — an instance parked on another Space doesn't clutter the peek for a desktop it isn't on), styled as miniature windows: faux titlebar with traffic-light dots, the page icon, the live window title (titlebar background uses `--desktop-mode-titlebar-bg-focused` so the mini-window matches the real window's chrome), plus a hash-tinted body. **Hovering an instance card raises that window to front** ("scrub through windows" — Mission Control / Aero Peek). **Clicking** focuses the window through `document.startViewTransition()` so the card morphs into the window position.
+- **Instance cards** — one per currently open window of this dock item **on the active virtual desktop** (an instance parked on another Space doesn't clutter the peek for a desktop it isn't on), styled as miniature windows: faux titlebar with traffic-light dots, the page icon, the live window title (titlebar background uses `--os-titlebar-bg-focused` so the mini-window matches the real window's chrome), plus a hash-tinted body. **Hovering an instance card raises that window to front** ("scrub through windows" — Mission Control / Aero Peek). **Clicking** focuses the window through `document.startViewTransition()` so the card morphs into the window position.
 - **Ghost Card** — the trailing card with a dashed outline and a slow breathing pulse. Clicking it calls `windowManager.openNew()` for this tile, also animated through `startViewTransition()` (graceful fade fallback otherwise).
 
 The popover caps at `min(80vh, 480px)` and **scrolls internally** when more cards exist than fit. After mount, JS measures and clamps the popover position so it never overflows the viewport edges (top/bottom/sides).
@@ -767,12 +1028,12 @@ The peek is mouse-only — touch and pen pointers fall back to plain tap-to-focu
 
 **Customizing peek cards.** Two filters let plugins reshape what each card looks like:
 
-- `desktop-mode.dock.peek-card-content` — receives the default body element (`<span class="desktop-mode-dock-peek__card-body">`) and a `{ window, item }` context. Return a different element to replace just the body — perfect for rendering a real thumbnail, a status block, a chart, or anything else inside the card while keeping the default mini-window chrome (titlebar with dots + icon + title). When a plugin returns a non-default body, the peek adds a `--custom` modifier class so the default tinted background and ghost-line padding drop out, giving the plugin a clean canvas.
-- `desktop-mode.dock.peek-card-element` — receives the fully-built default card and the same `{ window, item }` context. Return a different element to replace the **whole card** (chrome included). Plugins that take this path are responsible for preserving the `desktop-mode-dock-peek__card` class (the fan-out animation keys off it) and for re-wiring the click handler if focus-on-click should still work. Use `peek-card-content` when you only need to swap the body; reach for `peek-card-element` when you need to control titlebar + body together.
+- `os.dock.peek-card-content` — receives the default body element (`<span class="os-dock-peek__card-body">`) and a `{ window, item }` context. Return a different element to replace just the body — perfect for rendering a real thumbnail, a status block, a chart, or anything else inside the card while keeping the default mini-window chrome (titlebar with dots + icon + title). When a plugin returns a non-default body, the peek adds a `--custom` modifier class so the default tinted background and ghost-line padding drop out, giving the plugin a clean canvas.
+- `os.dock.peek-card-element` — receives the fully-built default card and the same `{ window, item }` context. Return a different element to replace the **whole card** (chrome included). Plugins that take this path are responsible for preserving the `os-dock-peek__card` class (the fan-out animation keys off it) and for re-wiring the click handler if focus-on-click should still work. Use `peek-card-content` when you only need to swap the body; reach for `peek-card-element` when you need to control titlebar + body together.
 
 ```javascript
 window.wp.hooks.addFilter(
-    'desktop-mode.dock.peek-card-content',
+    'os.dock.peek-card-content',
     'my-plugin/thumbnail',
     ( body, { window: win } ) => {
         const img = document.createElement( 'img' );
@@ -783,9 +1044,83 @@ window.wp.hooks.addFilter(
 );
 ```
 
+#### The notch
+
+A small pill fixed to the **top centre** of the shell, `#os-notch`. It is the site assistant's front door — click it, or press `⌘/Ctrl + K` — and it is where the shell says short things: `say( text )` expands it with a message and collapses it again after a couple of seconds.
+
+**It never reserves work area, and that is the contract.** A full-width bar that permanently stole height is what OpenStation removed; an element that reserved space would be the same mistake in a nicer shape, and it would make the notch a second hardcoded claimant on a work-area rectangle that already has several disagreeing answers. So it is positioned against the shell rather than the viewport, which places it correctly whichever admin-bar mode is on, and it stacks *under* the window layer rather than pushing windows down: a window that reaches the top edge covers the pill, because the strip the notch hangs over is also where a title bar lives and the shell has no business talking over the thing you are working in. Top-*centre* is chosen rather than incidental: the desktop icon grid fills the leading column top-down, so the centre is the one part of the top edge it never claims.
+
+The message region is always in the DOM with `aria-live="polite"` — a live region created at the moment it gains text is announced unreliably — and `say()` replaces rather than queues, because two things happening at once is one situation, not two messages.
+
+Hidden entirely in solo mode.
+
+#### The constellation
+
+**Menu tiles** hand the hover gesture to the **constellation**, a flyout that fans a menu's *submenu* out of its tile, in place of the hover-peek. Without it the submenu is dropped at the dock — the tile opens the landing page and the child pages are only reachable from inside the window, through its tab strip. The tab strip is unchanged; this is the shortcut in front of it.
+
+It is on every rail, in every layout. The panel fans **away from the edge its rail is parked on** — up from a bottom dock, right from a left-hand one, left from a right-hand one — which it reads off that rail's own `data-os-dock-placement` rather than off the layout, because Split puts one rail down the left and another along the bottom at the same time. The panel carries the direction as `data-os-cn-side` (`top` / `left` / `right`), naming where the panel is relative to its tile; a plugin replacing the panel through the filter below inherits the attribute and the positioning that goes with it.
+
+A **system tile** joins in only if it declared a `submenu` of its own (System is the shipped one); every other system tile keeps the peek. Its menu is a list of *actions* rather than admin pages, but it wears the same panel as an admin menu does: same head, same live-windows section, same "Open" heading. See [System tiles](#system-tiles) for how to declare one.
+
+One panel, up to three sections, top to bottom — the same three whichever kind of tile it belongs to. The two kinds differ in what fills the sections, never in which sections exist:
+
+| Section | Class | What it does |
+|---|---|---|
+| Head | `.os-constellation__head` | The tile's icon and title, nothing else. Click opens the menu's own page; on a system tile, which has none, it runs the first row. |
+| Open windows | `.os-constellation__row--live` | One row per live instance **on the active virtual desktop**. Click focuses (restoring a minimized window first). An admin menu resolves these from its own window key; a system tile's action menu resolves them from its rows' `windowId`. |
+| Open | `.os-constellation__row--sub` | One row per submenu entry, each with a hue derived from its own title. |
+
+Rows route through the same window ids a dock click would address, so the flyout and the tile share one window between them rather than opening two. A submenu row pins `parentUrl` to the **menu's** landing page, not to the child — that is what keeps a way back to the parent screen in the window's tab strip.
+
+Mouse and keyboard, not touch. `ArrowUp` on a focused tile fans the panel open and lands focus on the first row; `ArrowUp`/`ArrowDown` rove, `Home`/`End` jump, `Enter` activates, `Escape` collapses and hands focus back to the tile. Submenu-less system tiles (Recycle Bin, Mio, plugin-registered native windows) keep the ordinary hover-peek in every layout.
+
+**The flyout is one tab stop, not one per row** — the conventional ARIA menu pattern. Every `.os-constellation__row` is given `tabindex="-1"` (including rows a plugin appended through the filter below, which are normalised after it runs), arrow keys do the moving, and `Tab` collapses the panel and returns focus to the tile *without* preventing the default, so the browser then continues from the rail's own place in the document order. Without that a fifteen-child submenu would put fifteen stops between the dock and whatever follows it.
+
+**Vertical sizing.** The panel hangs off the top of the dock and is never nudged downward to fit — that would push it over the rail and under the pointer. Instead the JS writes `--os-cn-max-h` on every placement (the distance from the panel's bottom edge to the top of the viewport, floored at 160px) and the surface reads it as a `max-height`; a menu too tall for the space shrinks and its submenu group takes the scroll, leaving the head and the new-window row pinned. Horizontally it *is* nudged, with `--os-cn-beam-x` keeping the beam pointed at the tile.
+
+Three hooks:
+
+- `os.constellation.panel` — **filter**, runs once per flyout right before it's appended. Receives the fully-built panel root and `{ item, instances, tile }`. Return a mutated node or a replacement. A replacement owns the `os-constellation` class (positioning + the transitions), `role="menu"`, and the `os-constellation__row` class on anything that should take part in arrow-key roving.
+- `os.constellation.opened` — **action**, `{ menuSlug, item, instances, handoff }`. `handoff` is `true` when this panel replaced one that was already up (the pointer moved along the rail) rather than arriving on an empty desk — the same flag the matching `closed` carries.
+- `os.constellation.closed` — **action**, `{ menuSlug, handoff }`. Fires when the panel is dismissed, **not** when its node leaves the DOM: the panel stays in the document under `.os-constellation--closing` (inert, `pointer-events: none`) until it has finished leaving. Query `.os-constellation:not( .os-constellation--closing )` if you need "is a flyout actually open". `handoff` is `true` when another tile is already taking over, so you can tell "the menu closed" from "the menu moved" without diffing against the next `opened`.
+
+`item` is a `ConstellationMenu`: `{ id, title, icon, submenu, menuItem }`. `menuItem` is the `DockItem` the flyout was built from, or **`null`** for a system tile's action menu — filter on it if your subscriber only means to handle admin menus. `menuSlug` follows the same split: the admin-menu slug for a menu tile, the system tile's id otherwise.
+
+**More than one panel can be on screen.** `wp.os` never exposes a "the flyout" singleton for exactly this reason: a dismissed panel keeps its own anchor and finishes its own exit while the next one is already rising over a different tile. Moving along the rail is **two** panels, each animating where it belongs — the one you left playing its dismissal, the one you arrived at playing its entrance — not one panel sliding across and swapping contents. Each panel is a menu bound to a specific tile; morphing one into another would claim they are the same object and would drag a beam across the rail pointing at a tile its panel has nothing to do with. The retiring panel is painted one z-index step below the live one so it can never fade out on top of the menu being read.
+
+**Two ways to leave:**
+
+| | When | What happens |
+|---|---|---|
+| **Exit** | Any dismissal — pointer left, Escape, a row activated, or another tile taking over | Falls back into the rail: shrinks toward `bottom center` (where the beam meets its own tile) on an ease-**in** curve, beam cutting first. Rows are pinned so the panel leaves as one object. |
+| **Cut** | The anchor rect was invalidated (scroll, resize, layout switch), or `prefers-reduced-motion: reduce` | The node is removed outright. A panel gliding away from a tile that has already moved points at nothing. |
+
+```javascript
+// Add a "recently edited" row to the Posts flyout.
+window.wp.hooks.addFilter(
+    'os.constellation.panel',
+    'my-plugin/recent',
+    ( panel, { item } ) => {
+        if ( item.id !== 'edit.php' ) {
+            return panel;
+        }
+        const row = document.createElement( 'button' );
+        row.type = 'button';
+        row.className = 'os-constellation__row';
+        row.setAttribute( 'role', 'menuitem' );
+        row.textContent = 'Recently edited';
+        row.addEventListener( 'click', () => openRecent() );
+        panel.querySelector( '.os-constellation__surface' ).append( row );
+        return panel;
+    }
+);
+```
+
+**Theming.** The panel reads `--os-cn-*` (surface, border, shadow, text, legend, divider, row fill + ink, beam, radius, stacking order) plus the seam tokens `--os-cn-seam` / `--os-cn-seam-node` for the rail's core→plugin divider. All are declared in `variables.css` and re-pointable by a desktop theme like any other token. The mesh is spent deliberately in exactly two places — the row under the pointer, and the head's icon — because those are the moments the panel is answering the user; the surface itself stays Obsidian.
+
 ```javascript
 // Open a second Posts list alongside the first.
-window.wp.desktop.windowManager.openNew( {
+window.wp.os.windowManager.openNew( {
     id:      'edit-php',
     baseId:  'edit-php',
     url:     '/wp-admin/edit.php',
@@ -795,7 +1130,7 @@ window.wp.desktop.windowManager.openNew( {
 } );
 ```
 
-The server-side `desktop_mode_dock_item_multi` filter controls which admin pages ship with `multi: true` by default — see the [Hooks reference](./hooks-reference.md#desktop_mode_dock_item_multi--stable).
+The server-side `openstation_dock_item_multi` filter controls which admin pages ship with `multi: true` by default — see the [Hooks reference](./hooks-reference.md#openstation_dock_item_multi--stable).
 
 ---
 
@@ -807,16 +1142,16 @@ The server-side `desktop_mode_dock_item_multi` filter controls which admin pages
 interface Window {
     readonly id:      string;     // stable identifier
     readonly config:  WindowConfig;
-    readonly element: HTMLElement; // outer .desktop-mode-window node
+    readonly element: HTMLElement; // outer .os-window node
     state: 'normal' | 'minimized' | 'maximized' | 'fullscreen' | 'snapped-left' | 'snapped-right';
 
-    // State predicates — added 0.6.0; equivalent to `state === '…'`
+    // State predicates — equivalent to `state === '…'`
     // but easier to discover and harder to misspell at the call site.
     isMinimized():  boolean;
     isMaximized():  boolean;
     isFullscreen(): boolean;
     isSnapped( side?: 'left' | 'right' ): boolean;
-    isFocused():    boolean;        // mirrors the desktop-mode-window--focused class
+    isFocused():    boolean;        // mirrors the os-window--focused class
 
     // Lifecycle
     close(): void;
@@ -834,37 +1169,37 @@ interface Window {
 }
 ```
 
-The `state` property is read-only-ish — mutate via the methods (`minimize()`, `restore()`, `maximize()`) so the manager fires the right lifecycle hooks (`desktop-mode.window.minimized`, etc.). Reading it is fine and cheap; the `is…()` predicates are equivalent and added in 0.6.0 so you don't have to remember the canonical state-string values.
+The `state` property is read-only-ish — mutate via the methods (`minimize()`, `restore()`, `maximize()`) so the manager fires the right lifecycle hooks (`os.window.minimized`, etc.). Reading it is fine and cheap; the `is…()` predicates are equivalent, so you don't have to remember the canonical state-string values.
 
 ```javascript
-const win = wp.desktop.windowManager.getById( 'edit-php' );
+const win = wp.os.windowManager.getById( 'edit-php' );
 // Both work; the predicate is harder to misuse than `! win.isMinimized?.()`
 // (which used to silently coerce undefined → true on every plugin author's
 // first attempt before the predicates landed).
 if ( win && ! win.isMinimized() ) win.minimize();
 ```
 
-#### `Window.send( channel, payload? )` — Stable *(since 0.5.5)*
+#### `Window.send( channel, payload? )` — Stable
 
 Publish a payload into this window's content. **The unified abstraction over iframe `postMessage` and native render-callback dispatch — plugin authors write the same call regardless of how the window is rendered.**
 
-For iframe windows (real iframes OR `iframeContent`-shorthand natives) the payload is delivered as `desktop-mode-window-send` via `postMessage` and surfaces inside the iframe via `wp.desktop.on( channel, cb )` (the iframe-bridge installs the API on `wp.desktop`). For pure-native windows the payload is dispatched in-process to subscribers the render callback registered through its `windowApi.on( channel, cb )`.
+For iframe windows (real iframes OR `iframeContent`-shorthand natives) the payload is delivered as `os-window-send` via `postMessage` and surfaces inside the iframe via `wp.os.on( channel, cb )` (the iframe-bridge installs the API on `wp.os`). For pure-native windows the payload is dispatched in-process to subscribers the render callback registered through its `windowApi.on( channel, cb )`.
 
 ```javascript
-const win = wp.desktop.windowManager.getById( 'wpdc-editor' );
+const win = wp.os.windowManager.getById( 'wpdc-editor' );
 win.send( 'editor:open-file', { path: 'plugins/foo/bar.php', line: 42 } );
 ```
 
 Plugin authors **never** branch on window type, **never** reach for `postMessage`, **never** read `win.iframe` to decide a code path. Same call, same channel, same payload — the framework picks the right delivery mechanism.
 
-#### `Window.on( channel, cb )` — Stable *(since 0.5.5)*
+#### `Window.on( channel, cb )` — Stable
 
-Subscribe to a channel published BY this window's content. Mirror of `send()` for the inbound direction. Iframe content publishes via `wp.desktop.send( channel, payload )` (installed by the iframe-bridge); native render code publishes via the `windowApi.send` it received in the render context. Both land here.
+Subscribe to a channel published BY this window's content. Mirror of `send()` for the inbound direction. Iframe content publishes via `wp.os.send( channel, payload )` (installed by the iframe-bridge); native render code publishes via the `windowApi.send` it received in the render context. Both land here.
 
 Use `'*'` for a wildcard subscription that fires on every channel from this window.
 
 ```javascript
-const win = wp.desktop.windowManager.getById( 'wpdc-editor' );
+const win = wp.os.windowManager.getById( 'wpdc-editor' );
 const off = win.on( 'editor:saved', ( { path } ) => {
     toast( `${ path } saved.` );
 } );
@@ -872,12 +1207,12 @@ const off = win.on( 'editor:saved', ( { path } ) => {
 
 Returns an unsubscribe handle. Subscribers are dropped automatically when the window closes — no leak even if the caller forgets to detach.
 
-#### Cross-window peer connections — `wp.desktop.connect()` works for both types *(since 0.5.5)*
+#### Cross-window peer connections — `wp.os.connect()` works for both types
 
-`wp.desktop.connect( windowId )` opens a typed pub/sub channel with a peer window. As of 0.5.5, **the connection works identically whether the target is iframe or native**: for iframe targets the bridge negotiates a handshake then crosses the iframe boundary via `postMessage`; for native targets it routes synchronously through the same in-process channel bus that powers `Window.send/on`. The caller writes the same `conn.send(topic, payload)` / `conn.subscribe(topic, cb)` regardless.
+`wp.os.connect( windowId )` opens a typed pub/sub channel with a peer window. **The connection works identically whether the target is iframe or native**: for iframe targets the bridge negotiates a handshake then crosses the iframe boundary via `postMessage`; for native targets it routes synchronously through the same in-process channel bus that powers `Window.send/on`. The caller writes the same `conn.send(topic, payload)` / `conn.subscribe(topic, cb)` regardless.
 
 ```javascript
-const conn = wp.desktop.connect( 'jorvy', {
+const conn = wp.os.connect( 'jorvy', {
     topics: [ 'jorvy:quote-changed' ],
     onOpen: () => conn.send( 'jorvy:next-quote', {} ),
 } );
@@ -886,18 +1221,58 @@ conn.subscribe( 'jorvy:quote-changed', ( payload ) => {
 } );
 ```
 
-Native targets fire `onOpen` on the next microtask (no handshake to wait for); iframe targets fire it after the iframe acks the handshake. `isOpen()`, `disconnect()`, and the `desktop-mode.connection.*` hook lifecycle behave identically for both kinds.
+Native targets fire `onOpen` on the next microtask (no handshake to wait for); iframe targets fire it after the iframe acks the handshake. `isOpen()`, `disconnect()`, and the `os.connection.*` hook lifecycle behave identically for both kinds.
 
 ---
 
-### `wp.desktop.openWindow( id, opts? )` — Stable (since 0.6.0)
+### `Window.setTabs( entries, activeValue? )` — Stable
 
-Open (or focus) a server-registered native window by id. Symmetric with `desktop_mode_register_window( $id, ... )` — pass the same string.
+Declare a native window's tabs in the window chrome. They render in the same strip an admin-page window wears under its title bar, with the same keyboard and the same look — one tab system, whatever is behind the window.
+
+Each entry's `value` matches the `for` attribute of an `<os-tabpanel>` in the window body. The shell shows one pane and hides the rest by toggling `hidden`, never re-rendering, so a pane that owns a canvas or a live preview keeps it across tab changes.
+
+```js
+wp.os.registerWindow( {
+    id: 'jorvy',
+    title: 'Jorvy',
+    render: ( body ) => {
+        body.innerHTML = `
+            <os-tabpanel for="calc">…</os-tabpanel>
+            <os-tabpanel for="convert">…</os-tabpanel>
+        `;
+        const win = body.closest( '.os-window' );
+        wp.os.windowManager.getById( 'jorvy' ).setTabs( [
+            { value: 'calc',    label: 'Calc' },
+            { value: 'convert', label: 'Convert' },
+        ] );
+        win.addEventListener( 'os-window-tab-change', ( e ) => {
+            console.log( 'now on', e.detail.value );
+        } );
+    },
+} );
+```
+
+Call it again whenever the list changes. It reconciles by `value` rather than rebuilding, so adding a tab mid-session leaves the user on the tab they were on and does not drop keyboard focus out of the strip. Pass `activeValue` only when you mean to move them deliberately; omit it and the current tab is kept.
+
+`Window.activateTab( value )` switches tabs programmatically and fires the same event.
+
+**Accessibility.** The strip is a `role="tablist"`, each tab a `role="tab"` wired to its pane with `aria-controls` / `aria-labelledby`. Tab enters the strip once and leaves it once (roving `tabindex`); arrow keys move within it, Home and End reach the ends, and Enter or Space activates. Activation is deliberate rather than follow-focus, because arrowing past a tab must not mount its pane.
+
+**A tab group inside content** — a switcher within one pane, say — is not this. Use `<os-tabs>` for that; see [`components-reference.md`](components-reference.md).
+
+---
+
+### `wp.os.openWindow( id, opts? )` — Stable
+
+Open (or focus) a server-registered native window by id. Symmetric with `openstation_register_window( $id, ... )` — pass the same string.
 
 ```typescript
-wp.desktop.openWindow(
+wp.os.openWindow(
     id:    string,
-    opts?: { source?: string },
+    opts?: {
+        source?: string;
+        params?: Record< string, string | number | boolean >;
+    },
 ): boolean;
 ```
 
@@ -905,42 +1280,68 @@ Returns `true` if a window with that id is registered and was opened (or already
 
 Goes through the same canonical opener as the dock click + the wallpaper-icon click — so the body comes pre-populated with the cloned `<template>` declared at registration time. Plugin authors can rely on the same render-callback contract no matter which entry point opens the window.
 
-> **Render-callback registry — `window.desktopModeNativeWindows`.** A PHP-registered native window pairs its `<template>` with an optional JS render callback the plugin's `script` registers at `window.desktopModeNativeWindows[ <id> ]`; the shell looks it up by id and invokes it with the window body. `window.wpDesktopNativeWindows` is a **deprecated compat alias** for bundles built before the rename — the shell merges both bags at read time when opening a native window, with the canonical `desktopModeNativeWindows` winning on id collisions. New code must register on `desktopModeNativeWindows`.
+> **Render-callback registry — `window.openStationNativeWindows`.** A PHP-registered native window pairs its `<template>` with an optional JS render callback the plugin's `script` registers at `window.openStationNativeWindows[ <id> ]`; the shell looks it up by id and invokes it with the window body. `window.wpDesktopNativeWindows` is a **deprecated compat alias** for bundles built before the rename — the shell merges both bags at read time when opening a native window, with the canonical `openStationNativeWindows` winning on id collisions. New code must register on `openStationNativeWindows`.
 
-**`opts.source`** *(since 0.5.5)* — optional string identifying who triggered the open. The framework publishes `desktop-mode/open-requested` on the activity bus *before* the open is processed, so analytics, do-not-disturb modes, and audit subscribers can observe the user's intent independently of the outcome:
+**`opts.source`** — optional string identifying who triggered the open. The framework publishes `os/open-requested` on the activity bus *before* the open is processed, so analytics, do-not-disturb modes, and audit subscribers can observe the user's intent independently of the outcome:
 
 ```javascript
-wp.desktop.openWindow( 'my-plugin/inbox', { source: 'global-search' } );
+wp.os.openWindow( 'my-plugin/inbox', { source: 'global-search' } );
 
-wp.desktop.activity.subscribe( 'desktop-mode/open-requested', ( { windowId, source } ) => {
+wp.os.activity.subscribe( 'os/open-requested', ( { windowId, source } ) => {
     track( 'window.open.requested', { windowId, source } );
 } );
 ```
 
 Conventional `source` values: `'dock'`, `'taskbar'`, `'icon'`, `'shortcut'`, `'palette'`, `'api'` (default when omitted). Custom strings are fine — pick one that matches the surface the user clicked.
 
+**`opts.params`** — open-time arguments: *what* the window is showing this time, as opposed to *what it is*.
+
+A native window is addressed by id, and its id is its identity: `desktop-mode-user-edit` is "the profile editor", not "the profile editor for user 12". Anything that varies per open has nowhere else to live — and a module-level variable or a shared store **does not survive a page reload**, so a restored window comes back on its default. That is exactly how the profile window used to reopen showing whoever was logged in rather than the person the user had open.
+
+```javascript
+wp.os.openWindow( 'my-plugin/contact', {
+    source: 'contacts-list',
+    params: { contactId: 42 },
+} );
+```
+
+Read them in the render callback:
+
+```javascript
+window.openStationNativeWindows[ 'my-plugin/contact' ] = ( body, { params } ) => {
+    paint( body, Number( params.contactId ) || 0 );
+};
+```
+
+Rules worth knowing:
+
+- **Params are persisted.** They are written into the session snapshot and staged back onto the window on restore, so the window reopens showing the same thing. Keep them small and serializable — ids and slugs, not objects. Values that aren't strings, finite numbers, or booleans are dropped on save rather than crashing it (one plugin's careless value must not cost every window its geometry).
+- **Reopening with params retargets a live window.** `open()` focuses an existing window rather than rebuilding it, so the render callback does not re-run. The framework updates the window's params first and puts them on the [`os-window-reopened`](#os-window-reopened--stable) detail — subscribe there to repaint.
+- **An argument-less reopen leaves them alone.** A dock click on an already-open profile window must not wipe whose profile it is.
+- **Iframe windows ignore this.** Their URL already says what they're showing, and it round-trips through the session on its own.
+
 ```javascript
 // Open the Code editor (requires the desktop-mode-code-editor extension).
-wp.desktop.openWindow( 'wpdc-editor' );
+wp.os.openWindow( 'wpdc-editor' );
 
 // Cross-plugin: surface a sister plugin's monitoring dashboard.
-if ( ! wp.desktop.openWindow( 'alcazaba-monitor' ) ) {
+if ( ! wp.os.openWindow( 'alcazaba-monitor' ) ) {
     // Sibling plugin isn't active — handle gracefully.
 }
 ```
 
-The Code editor ships as the standalone **Desktop Mode — Code Editor** extension; `wpdc-editor` only resolves when that plugin is active.
+The Code editor ships as the standalone **OpenStation — Code Editor** extension; `wpdc-editor` only resolves when that plugin is active.
 
-For programmatic deep-linking into the **Code editor** specifically (open + jump to a path/line), pair `openWindow` with the [`wp-desktop-code-open` postMessage](./examples/code-editor-open.md) protocol. The shortcut `Ctrl/Cmd+Shift+E` does the same thing the user-facing way.
+For programmatic deep-linking into the **Code editor** specifically (open + jump to a path/line), pair `openWindow` with the [`os-code-open` postMessage](./examples/code-editor-open.md) protocol. The shortcut `Ctrl/Cmd+Shift+E` does the same thing the user-facing way.
 
 ---
 
-### `wp.desktop.openNewWindow( id, opts? )` — Stable *(since 0.8.3)*
+### `wp.os.openNewWindow( id, opts? )` — Stable
 
 Spawn a **brand-new instance** of a registered native window — even when one is already open. Where `openWindow` focuses an existing instance, `openNewWindow` always mounts a duplicate.
 
 ```typescript
-wp.desktop.openNewWindow(
+wp.os.openNewWindow(
     id:    string,
     opts?: { source?: string },
 ): boolean;
@@ -948,31 +1349,181 @@ wp.desktop.openNewWindow(
 
 Returns `true` when the registry matched the id (a fresh window with id `<base>-2` / `-3` / … is now mounted), `false` when no native window is registered with that id.
 
-Powers the dock-peek "+" button for native windows so they behave like iframe windows do: every "+" yields a duplicate. `opts.source` carries the same semantics as `openWindow`'s — it tags the `desktop-mode/open-requested` activity-bus publish.
+Powers the dock-peek "+" button for native windows so they behave like iframe windows do: every "+" yields a duplicate. `opts.source` carries the same semantics as `openWindow`'s — it tags the `os/open-requested` activity-bus publish.
 
 ---
 
-### `wp.desktop.fetch( input, init?, opts? )` — Stable *(since 0.8.0)*
+### `wp.os.loadWindowScript( id )` — Stable
 
-Drop-in wrapper around the global `fetch()` that lights up the target window's title-bar **modem activity dot** while the request is in flight. Same return type and resolution semantics as native `fetch()` — callers can `.then(r => r.json())` / `await` / `catch` unchanged.
+Load a registered native window's bundle **without opening the window**.
+
+```typescript
+wp.os.loadWindowScript( id: string ): Promise< boolean >;
+```
+
+A native window's script loads the first time the window opens — the shell reads the render callback off `window.openStationNativeWindows[ <id> ]` after the load, so opening a window needs no ceremony. This is for the other case: a bundle that *also* publishes an API on `wp.os` which a different bundle calls with no window in sight.
+
+```javascript
+await wp.os.loadWindowScript( 'desktop-mode-my-wordpress' );
+await wp.os.myWordpress.trashEntity( 'posts', 42 );
+```
+
+Resolves `true` once the bundle is in the tab — immediately on a repeat call, since loads are deduplicated by URL and concurrent callers share one `<script>`. Resolves `false` when no native window is registered with that id. A network failure still resolves `true` and reports through the `os.shell.error` action, so **check for the API you came for rather than trusting the boolean**.
+
+Companion bundles declared via the window's `'scripts'` arg load first, in declaration order, exactly as they would on an open — and companion stylesheets (`'styles'`) are injected too, so a bundle whose API renders into the page arrives styled.
+
+If the API you need has an early stub in the always-loaded shell bundle (WP Explorer's does — see `wp.os.myWordpress`), call it directly instead: the stub forwards through this same path for you.
+
+---
+
+### `wp.os.loadComponents( tags? )` — Stable
+
+Make `<os-*>` tags upgrade, fetching the component kit if the page doesn't already have them.
+
+```typescript
+wp.os.loadComponents( tags?: readonly string[] ): Promise< void >;
+```
+
+```javascript
+await wp.os.loadComponents( [ 'os-switch', 'os-number-field' ] );
+panel.innerHTML = `
+    <os-switch label="Live"></os-switch>
+    <os-number-field label="Retries" min="0" max="9"></os-number-field>
+`;
+```
+
+**Why this exists.** Components are side-effect registered per bundle, at import time (see [`components-reference.md`](./components-reference.md)). The tags that work on a given page are whichever ones a loaded bundle imported — after boot that's 26 of the 64 the plugin ships, and which 26 depends on what the shell happens to render. Inside this repo the fix is an import. Outside it there wasn't one: a plugin distributed as a zip has no path to import from at build time, so its only options were to bundle a second copy of components the page already has, or hand-roll. This is the third route.
+
+**Call it before each render.** With `tags`, the fetch is skipped entirely when every tag listed is already registered — the repeat cost is a registry lookup, so there is no reason to cache the promise yourself:
+
+```javascript
+async function render( host ) {
+    await wp.os.loadComponents( [ 'os-table' ] );
+    host.replaceChildren( buildTable() );
+}
+```
+
+With no argument the whole kit loads.
+
+**Cost.** `os-components[.min].js` is 309 KB raw / 77 KB gzip — the entire kit, including the components the page already had. A lazy bundle can't import from `desktop.min.js`, so the overlap is unavoidable; it is also unmeasured by anyone who doesn't call this. If you only need one or two tags and your plugin already ships a bundle, importing the classes and paying ~3 KB gzip each is smaller. This is the right call when you want the kit, or when you want the shell's copy rather than your own.
+
+Tag names that aren't components are reported with a `console.error` naming them, and don't stop the rest of the call. Rejects only when the bundle was needed and the fetch failed — a page with no `componentsBundleUrl` configured resolves instead, leaving the [missing-import warner](./components-reference.md) to name any tag that stayed inert.
+
+The registry is page-global, so a tag another bundle already registered is simply used; nothing is loaded twice and `customElements.define()` is never called for a tag that exists.
+
+---
+
+### `wp.os.getWindowParams( id )` — Stable
+
+What an open window is showing right now.
+
+```typescript
+wp.os.getWindowParams( id: string ): Record< string, string | number | boolean > | undefined;
+```
+
+`openWindow( id, { params } )` sets them, and a render callback receives the same object as `ctx.params` — that is the right way to read them when you have a render callback. This is for when you don't:
+
+- a window whose body is a declarative PHP `<template>` with no render callback to hand them to;
+- a module that mounts after the render callback already ran;
+- code reacting to a retarget from outside a `HOOKS.WINDOW_REOPENED` subscriber.
+
+```javascript
+const { formId } = wp.os.getWindowParams( 'my-plugin-entries' ) ?? {};
+```
+
+Returns a **copy**, so mutating it retargets nothing — to change what a window is showing, reopen it with new params. `undefined` when no window with that id is open; `{}` when one is open and was never given any.
+
+The manager holds the live copy and writes it *before* the reopen event fires, so this and `ctx.params` never disagree.
+
+---
+
+### `wp.os.registerNativeUrlRemap( entry )` — Stable
+
+Claim an admin URL for a native window.
+
+```typescript
+wp.os.registerNativeUrlRemap( entry: NativeUrlRemap ): () => void;
+```
+
+When anything in the shell would open that URL — a dock tile, an in-window link, a desktop shortcut, a Related-menu item, a portal deep link — the remap registry is consulted first, and a match opens the native window instead of an iframe of the classic page. This is how Posts, Pages, Users and Media claim `edit.php`, `users.php` and `upload.php`; a plugin shipping its own native replacement joins the same registry.
+
+```javascript
+const unregister = wp.os.registerNativeUrlRemap( {
+    id: 'my-plugin/entries',
+    nativeWindowId: 'my-plugin-entries',
+    matches: ( url, parsed ) =>
+        parsed.pathname.endsWith( '/admin.php' ) &&
+        parsed.searchParams.get( 'page' ) === 'my-entries',
+    // What the window should show. Prefer this over stashing state
+    // in a module variable: params persist with the session, so the
+    // window comes back on the same subject after a reload.
+    params: ( url, parsed ) => ( {
+        formId: Number( parsed.searchParams.get( 'form' ) ) || 0,
+    } ),
+} );
+```
+
+| Field | Role |
+|---|---|
+| `id` | Stable id. Re-registering the same id replaces the previous entry. |
+| `nativeWindowId` | The window to open on a match. |
+| `matches( url, parsed )` | Claim predicate. The walker stops at the first match in registration order. |
+| `enabled( snapshot )` | Optional gate against the live OS Settings snapshot — return `false` to stand down (an opt-in toggle that's off). |
+| `params( url, parsed )` | Optional open-time params. |
+| `onMatch( url, parsed )` | Optional pre-open hook. Prefer `params`; a shared store doesn't survive a reload. |
+
+Returns an unregister function.
+
+**Without this**, a plugin whose native window duplicated one of its own admin pages had to render a pointer page, open the native window from inside the iframe, and then close the window it was itself inside — a visible flash of a window that exists only to dismiss itself, plus a retry loop, because the shell wires a window's iframe to its `Window` object after the iframe's own scripts run.
+
+---
+
+### `wp.os.fetch( input, init?, opts? )` — Stable
+
+Drop-in wrapper around the global `fetch()` that drives the target window's **activity phase** while the request is in flight, and attributes the request on the activity bus. Same return type and resolution semantics as native `fetch()` — callers can `.then(r => r.json())` / `await` / `catch` unchanged.
+
+> **The phase is painted as the status ring** — the leading mark of the title bar, in the position the app icon used to hold. That icon was a copy of the window's own dock tile a few hundred pixels below it, and a title bar has room for one mark of that size; it now carries one that changes.
+>
+> The ring is an `<os-save-status variant="ring" mode="icon">`, and only one of its four states fills:
+>
+> | Phase | Ring | Gesture |
+> |---|---|---|
+> | `idle` | white outline | — |
+> | `pending` / `saving` | accent outline | breathes, 1.6s |
+> | `saved` | accent fill, white check | overshoots and settles; the glyph fades up just behind the fill |
+> | `failed` | open red outline, red bang | two decaying swells, then stops |
+>
+> Colour alone is not a distinction every user can make, which is why the two outcomes differ in **shape** — filled versus open, check versus bang — and not only in hue. The gestures are emphasis, so `prefers-reduced-motion` drops all three and keeps every colour, fill and glyph.
+>
+> The resting ring is one value in both title-bar states rather than dimming when unfocused: the ring reports a phase, and `idle` shouldn't mean something different depending on which window you last clicked.
+>
+> Three consequences worth knowing:
+>
+> - **The framework's ring claims no private channel.** It is found by `[data-os-activity-indicator]`, the same public attribute a plugin uses to mount its own `<os-save-status>` in a title-bar slot, and **every** matching element in the title bar is driven — a window showing two different phases at once would be worse than one showing none.
+> - **The phase is announced too.** A ring says nothing to a screen reader, so the title bar carries a visually-hidden live region: successes politely (`Saved`), failures assertively and with the error text (`Not saved. Request failed (HTTP 500 Internal Server Error).`). The in-flight phase is deliberately silent — interrupting a user to tell them a save they started is still going is noise.
+> - **The phase is mirrored to CSS** as `data-os-activity` on the title-bar element, absent while idle, so a desktop theme can react to window state without reaching into the component's shadow root.
+>
+> Restyling is five themeable tokens: `--os-titlebar-activity-idle-color` (at rest), `--os-titlebar-activity-color` (in flight), `--os-titlebar-activity-saved-color`, `--os-titlebar-activity-failed-color`, and `--os-titlebar-activity-size`.
+>
+> **Iframe windows report too.** See [`os-iframe-activity`](#os-iframe-activity--experimental) — the chromeless bridge brackets every `fetch` and `XMLHttpRequest` inside the iframe, so an admin page's own jQuery calls move the ring without knowing the shell exists.
 
 ```js
 // In any window's render callback / event handler:
-const res = await wp.desktop.fetch( '/wp-json/myplugin/v1/save', {
+const res = await wp.os.fetch( '/wp-json/myplugin/v1/save', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify( payload ),
 } );
 ```
 
-That's the whole pattern. The dot blinks for the duration of the round-trip, flashes green when the request completes (any HTTP status — native `fetch` semantics, so a `404`/`500` response still flashes green) and red when the fetch rejects (network error, CORS, abort — with the `Error.message` exposed as the dot's tooltip), then settles back to the always-on idle ring. **No CSS, no per-window plumbing, no DOM.**
+That's the whole pattern. The window is `saving` for the duration of the round-trip, `saved` when the server answers with a success status, and `failed` on any other outcome — an HTTP error status (`4xx` / `5xx`, carrying `Request failed (HTTP 500 Internal Server Error).`) or a rejected fetch (network error, CORS, abort, carrying the `Error.message`) — then back to `idle`. **No CSS, no per-window plumbing, no DOM.** The ring breathes while the request is in flight, fills with a check when it lands, and stays an open red ring if it didn't.
 
-#### Auto X-WP-Nonce *(since 0.8.2)*
+#### Auto X-WP-Nonce
 
-`wp.desktop.fetch` automatically attaches `X-WP-Nonce: desktopModeConfig.restNonce` to **same-origin** requests whose URL targets a WordPress REST endpoint — either pretty-permalink (`/wp-json/...`) or plain-permalink (`?rest_route=...`). Without the header, WordPress's `rest_cookie_check_errors()` demotes the cookie session to anonymous and any capability-gated route returns `401`. You no longer need to remember to attach it by hand.
+`wp.os.fetch` automatically attaches `X-WP-Nonce: openStationConfig.restNonce` to **same-origin** requests whose URL targets a WordPress REST endpoint — either pretty-permalink (`/wp-json/...`) or plain-permalink (`?rest_route=...`). Without the header, WordPress's `rest_cookie_check_errors()` demotes the cookie session to anonymous and any capability-gated route returns `401`. You no longer need to remember to attach it by hand.
 
 When composing REST URLs inside the shell, prefer the server-provided
-`desktopModeConfig.restUrl` root over hard-coded `/wp-json/` paths so
+`openStationConfig.restUrl` root over hard-coded `/wp-json/` paths so
 plain-permalink installs route correctly too.
 
 Rules:
@@ -986,51 +1537,51 @@ Rules:
 |---|---|---|
 | `input` | `RequestInfo \| URL` | Same as native `fetch`. |
 | `init` | `RequestInit?` | Same as native `fetch`. |
-| `opts` | `{ windowId?: string; window?: Window; silent?: boolean }?` | Attribution + opt-out. |
+| `opts` | `{ windowId?: string; window?: Window; source?: string; silent?: boolean }?` | Attribution + opt-out. `source` is a free-form tag for the activity bus (`'my-plugin/foo'`). |
 
-`opts` is the only addition. Resolution order for "which window's title bar pulses":
+`opts` is the only addition. Resolution order for "which window's activity phase moves":
 
 1. **`opts.window`** — explicit `Window` reference. Use when you have the handle in scope (e.g. inside a render callback that received `ctx.window`).
-2. **`opts.windowId`** — id looked up via `wp.desktop.windowManager.getById(id)`. Use when you have the id but not the instance (it's the most common case for native-window bundles — they know their own id from `desktop_mode_register_window( '…' )`).
+2. **`opts.windowId`** — id looked up via `wp.os.windowManager.getById(id)`. Use when you have the id but not the instance (it's the most common case for native-window bundles — they know their own id from `openstation_register_window( '…' )`).
 3. **focused window** — `manager.getFocused()`. Default. So inside a click handler, the click already focused the window and the fetch attributes to it without any extra wiring.
 
-`opts.silent: true` skips the indicator entirely. Reserved for background polls (heartbeat, presence, count-bumps) that shouldn't blink the title bar every tick. The fetch is otherwise identical.
+`opts.silent: true` skips the phase entirely. Reserved for background polls (heartbeat, presence, count-bumps) that shouldn't read as user-initiated activity every tick. The fetch is otherwise identical.
 
 #### Why it works
 
-Internally, `wp.desktop.fetch` calls `Window.trackActivity( promise )` on the resolved target. The window enforces a **minimum saving-display time of 1.2s** so even a 50ms fetch shows a visible modem-blink before flashing green — fast successes don't get lost between the click and the next paint. Concurrent fetches reference-count: 5 in-flight settle as one burst when the **last** one lands, and the burst settles **failed** if **any** of them failed (the most recent error becomes the tooltip) — even when the final fetch itself succeeded — matching the user's "did everything go through?" mental model.
+Internally, `wp.os.fetch` calls `Window.trackActivity( promise )` on the resolved target. **An HTTP error status settles the phase as `failed`, not `saved`** — native `fetch` resolves for 4xx/5xx, so the tracked promise is a derived one that rejects when `response.ok` is false, carrying `Request failed (HTTP 500 Internal Server Error).` as the indicator's tooltip. The promise you receive is the untouched native one: it still *resolves* with the error response, and your own `if ( ! res.ok )` handling is unchanged. The window enforces a **minimum saving-display time of 1.2s** so even a 50ms fetch holds `saving` long enough for an indicator to be seen — fast successes don't get lost between the click and the next paint. Concurrent fetches reference-count: 5 in-flight settle as one burst when the **last** one lands, and the burst settles **failed** if **any** of them failed (the most recent error is the one carried) — even when the final fetch itself succeeded — matching the user's "did everything go through?" mental model.
 
 #### Migration tip
 
-You don't need to migrate everything. Bundles that currently call native `fetch` keep working unchanged — they just don't show a title-bar pulse. Adopt `wp.desktop.fetch` per call where the indicator is valuable: REST mutations (saves, deletes, tag-add/remove), data refreshes that take more than a frame, anything users would otherwise wonder "did that work?". Keep using native `fetch` for fire-and-forget telemetry, prefetches, anything users shouldn't notice.
+You don't need to migrate everything. Bundles that currently call native `fetch` keep working unchanged — they just don't move the window's phase or reach the activity bus. Adopt `wp.os.fetch` per call where that attribution is valuable: REST mutations (saves, deletes, tag-add/remove), data refreshes that take more than a frame, anything users would otherwise wonder "did that work?". Keep using native `fetch` for fire-and-forget telemetry, prefetches, anything users shouldn't notice.
 
 #### Source
 
-`src/desktop.ts` `trackedFetch`. The component the dot is rendered with is [`<wpd-save-status>`](#wpd-save-status--experimental-since-080) — read on for the standalone component, plus `Window.trackActivity` / `Window.markActivity` for non-fetch async work.
+`src/boot/tracked-fetch.ts` `trackedFetch`. The component built to render these phases is `<os-save-status>` — read on for the standalone component, plus `Window.trackActivity` / `Window.markActivity` for non-fetch async work.
 
 See also [`examples/window-activity.md`](./examples/window-activity.md) for end-to-end recipes.
 
 ---
 
-### `Window.trackActivity( promise )` — Experimental *(since 0.8.0)*
+### `Window.trackActivity( promise )` — Experimental
 
-The lower-level primitive `wp.desktop.fetch()` is built on. Call it directly when you have a Promise from a non-fetch source — a `postMessage` handshake, an IndexedDB transaction, a `BroadcastChannel` round-trip, a long client-side computation wrapped in `requestAnimationFrame` chains.
+The lower-level primitive `wp.os.fetch()` is built on. Call it directly when you have a Promise from a non-fetch source — a `postMessage` handshake, an IndexedDB transaction, a `BroadcastChannel` round-trip, a long client-side computation wrapped in `requestAnimationFrame` chains.
 
 ```js
-const win = wp.desktop.windowManager.getById( 'my-plugin/inbox' );
+const win = wp.os.windowManager.getById( 'my-plugin/inbox' );
 await win.trackActivity( indexedDbWrite( record ) );
 ```
 
-Returns the Promise unchanged so callers can chain. Multiple concurrent calls are reference-counted and the **minimum 1.2s saving-display floor** still applies — so even a 100ms IDB write shows a visible modem blink.
+Returns the Promise unchanged so callers can chain. Multiple concurrent calls are reference-counted and the **minimum 1.2s saving-display floor** still applies — so even a 100ms IDB write holds `saving` long enough to be seen.
 
-### `Window.markActivity( phase, opts? )` — Experimental *(since 0.8.0)*
+### `Window.markActivity( phase, opts? )` — Experimental
 
 Manual escape hatch when the activity isn't a single Promise. Phases:
 
-- `'idle'`    — clear. Indicator resets to the always-on green ring.
-- `'pending'` / `'saving'` — modem-blink with a soft glow. Stays in this phase until you transition out.
-- `'saved'`   — brief green flash. Auto-clears to `idle` after ~2.2s.
-- `'failed'`  — red dot. `opts.error` becomes the host's `title` attribute (and so the native browser tooltip on hover). Auto-clears after ~6s.
+- `'idle'`    — clear. An `<os-save-status>` mounted on this window shows nothing.
+- `'pending'` / `'saving'` — work in flight. Stays in this phase until you transition out; an indicator renders it as a modem-blink with a soft glow.
+- `'saved'`   — settled ok. Auto-clears to `idle` after ~2.2s; an indicator flashes green.
+- `'failed'`  — settled with an error. `opts.error` becomes the indicator's `error` attribute, and so its `title` tooltip. Auto-clears after ~6s.
 
 ```js
 win.markActivity( 'saving' );
@@ -1047,12 +1598,12 @@ Idempotent. Setting the same phase twice is a no-op except for resetting the aut
 
 ---
 
-### `wp.desktop.getWindowConfig( id )` — Stable *(since 0.6.0)*
+### `wp.os.getWindowConfig( id )` — Stable
 
-Read the bundle-bound config blob shipped via the `'config'` arg on `desktop_mode_register_window( $id, [ 'config' => … ] )`. Returns `undefined` when no config was registered for `id`.
+Read the bundle-bound config blob shipped via the `'config'` arg on `openstation_register_window( $id, [ 'config' => … ] )`. Returns `undefined` when no config was registered for `id`.
 
 ```js
-const cfg = wp.desktop.getWindowConfig( 'my-plugin-cron' );
+const cfg = wp.os.getWindowConfig( 'my-plugin-cron' );
 // → { restNonce: '…', eventsUrl: 'https://…', … }
 ```
 
@@ -1060,12 +1611,12 @@ The blob is delivered through the same payload path as `wp_localize_script` `ext
 
 See [`examples/window-with-config.md`](./examples/window-with-config.md) for a full recipe.
 
-### `wp.desktop.debug.window( id )` — Stable *(since 0.6.0)*
+### `wp.os.debug.window( id )` — Stable
 
 Read-only diagnostic snapshot of what the shell knows about a registered native window:
 
 ```js
-wp.desktop.debug.window( 'my-plugin-cron' );
+wp.os.debug.window( 'my-plugin-cron' );
 // → {
 //     id: 'my-plugin-cron',
 //     scriptHandle: 'my-plugin-cron',
@@ -1086,10 +1637,10 @@ Returns `null` when `id` is not in the `nativeWindows` payload (plugin not activ
 
 `loadPath`:
 - `'eager'` — a `<script>` tag printed by `wp_print_scripts` was found in the document for this URL.
-- `'lazy'` — only the shell-injected `<script data-desktop-mode-vendor>` tag is present.
+- `'lazy'` — only the shell-injected `<script data-os-vendor>` tag is present.
 - `'unknown'` — neither (script never loaded yet, or empty URL).
 
-Use this when integration debugging — particularly when a bundle's config global is missing. `loadPath: 'lazy'` plus `configPresent: false` is the historical mid-session-activation bug that 0.6.0 fixed by harvesting `extra` data into the payload; if you still see this in a current install, the integration is the place to look.
+Use this when integration debugging — particularly when a bundle's config global is missing. `loadPath: 'lazy'` plus `configPresent: false` is a historical mid-session-activation bug, since fixed by harvesting `extra` data into the payload; if you still see this in a current install, the integration is the place to look.
 
 ---
 
@@ -1106,21 +1657,26 @@ interface Desktop {
 manager.getDesktops(): Desktop[];          // every desktop, in order
 manager.getActiveDesktop(): Desktop;       // the one currently visible
 manager.getActiveDesktopId(): string;
-manager.getPrimaryDesktopId(): string;     // since 0.5.0 — see below
+manager.getPrimaryDesktopId(): string;     // see below
 manager.createDesktop(): Desktop;          // append a new one + return it
 manager.switchDesktop( id ): void;         // make `id` the active desktop
 manager.closeDesktop( id ): void;          // delete `id`; its windows migrate to the active desktop
+manager.renameDesktop( id, label ): boolean;  // relabel `id`; see below
 ```
 
-Lifecycle hooks fire on each operation: `HOOKS.DESKTOP_CREATED`, `HOOKS.DESKTOP_CLOSED { desktopId, migratedTo }`, `HOOKS.DESKTOP_SWITCHED { from, to }`.
+Lifecycle hooks fire on each operation: `HOOKS.DESKTOP_CREATED`, `HOOKS.DESKTOP_CLOSED { desktopId, migratedTo }`, `HOOKS.DESKTOP_SWITCHED { from, to }`, `HOOKS.DESKTOP_RENAMED { desktopId, label, previousLabel }`.
 
-##### Primary desktop — `getPrimaryDesktopId()` *(since 0.5.0)*
+`renameDesktop()` trims the label and caps it at **64 characters**, matching the session sanitizer, and returns `false` without firing the hook when the id is unknown or the name is blank or unchanged. It persists through the normal session save. Users reach it from the overview top bar: hovering a tile reveals a rename pencil beside the close ×, and clicking it edits in place (Enter commits, Escape reverts, blur commits).
 
-The "primary" desktop is the canonical one batch operations and migration logic treat as the survivor. Default: the first desktop returned by `getDesktops()` (typically `desktop-1`). Filterable via the `desktop-mode.primary-desktop-id` filter so plugins that pin a different convention (e.g. an "Inbox" desktop) can override:
+Switching desktops shows the new desktop's name over the desk for a beat (`.os-desktop-name-hud`), except when the switch is made from overview — the top bar there already labels every desktop.
+
+##### Primary desktop — `getPrimaryDesktopId()`
+
+The "primary" desktop is the canonical one batch operations and migration logic treat as the survivor. Default: the first desktop returned by `getDesktops()` (typically `desktop-1`). Filterable via the `os.primary-desktop-id` filter so plugins that pin a different convention (e.g. an "Inbox" desktop) can override:
 
 ```javascript
 wp.hooks.addFilter(
-    'desktop-mode.primary-desktop-id',
+    'os.primary-desktop-id',
     'my-plugin',
     ( defaultId, desktops ) => {
         const inbox = desktops.find( ( d ) => d.label === 'Inbox' );
@@ -1133,26 +1689,26 @@ Filter receives `( defaultId: string, desktops: Desktop[] )` and must return a s
 
 ---
 
-#### Batch close — `closeAll()` *(since 0.5.0)*
+#### Batch close — `closeAll()`
 
 ```typescript
 manager.closeAll( options?: { exceptIds?: string[] } ): number;
 ```
 
-Closes every open window (across all desktops) and returns the number actually closed. Optional `exceptIds` skips specific windows entirely — never even passed to the filter. Unlike `minimizeAll()` / `restoreFrom()` / `toggleShowDesktop()` (above, active-desktop-only since 0.9.4), `closeAll()` is not desktop-scoped.
+Closes every open window (across all desktops) and returns the number actually closed. Optional `exceptIds` skips specific windows entirely — never even passed to the filter. Unlike `minimizeAll()` / `restoreFrom()` / `toggleShowDesktop()` (above, active-desktop-only), `closeAll()` is not desktop-scoped.
 
 **Hook chain:**
 
 | Hook | Type | Payload | Use |
 |---|---|---|---|
-| `desktop-mode.windows.before-close-all` | action | `{ candidates: Window[] }` | Cleanup, dismiss menus, cancel pending saves |
-| `desktop-mode.windows.close-all` | filter | `Window[]` → `Window[]` | **Protect specific windows** by removing them from the list. Returning `[]` cancels the close entirely. |
-| `desktop-mode.windows.after-close-all` | action | `{ closed: number, skipped: Window[] }` | Toast, telemetry, refocus a tile |
+| `os.windows.before-close-all` | action | `{ candidates: Window[] }` | Cleanup, dismiss menus, cancel pending saves |
+| `os.windows.close-all` | filter | `Window[]` → `Window[]` | **Protect specific windows** by removing them from the list. Returning `[]` cancels the close entirely. |
+| `os.windows.after-close-all` | action | `{ closed: number, skipped: Window[] }` | Toast, telemetry, refocus a tile |
 
 ```javascript
 // Protect any window with unsaved Gutenberg edits.
 wp.hooks.addFilter(
-    'desktop-mode.windows.close-all',
+    'os.windows.close-all',
     'my-plugin/protect-drafts',
     ( windows ) => windows.filter( ( w ) => ! w.element.dataset.hasUnsaved )
 );
@@ -1160,7 +1716,7 @@ wp.hooks.addFilter(
 
 ```javascript
 // Run from a slash-command handler:
-const closed = wp.desktop.windowManager.closeAll();
+const closed = wp.os.windowManager.closeAll();
 return `Closed ${ closed } window${ closed === 1 ? '' : 's' }.`;
 ```
 
@@ -1169,53 +1725,59 @@ If a `Window.close()` throws, the loop catches and continues — one bad window 
 ---
 
 ### `dock` — Stable
-The **primary (bottom) `Dock` instance** (or `null` if the dock element wasn't in the DOM). Always present once the shell has booted. What it holds depends on the active `desktopLayout`:
+The **primary `Dock` instance** (or `null` if the dock element wasn't in the DOM). Always present once the shell has booted. It sits on the edge named by `dockPlacement` — `bottom` by default, `left` or `right` when the user moves it. What it holds depends on the active `desktopLayout`:
 
+- **Unified** *(default)* — every menu, core and plugin alike, sharing one rail, with OpenStation's own system tiles grouped behind a divider.
 - **Classic** — plugin-contributed top-level menus only (core menus go to `sideDock`).
-- **Unified** — every menu, core and plugin alike, sharing one rail.
-- **Spatial** — plugin menus only (core menus are rendered as wallpaper icons).
 
-`setBadge( id, count )` is the canonical way to surface a numeric count on a tile; calls fire `desktop-mode/badge-changed` on the activity bus with the rail discriminator — `rail: 'taskbar'` for this bottom primary rail, `rail: 'dock'` for the Classic-layout side rail (`sideDock`) *(since 0.6.0)*. `Dock.removeSystemItem( id )` fires `HOOKS.DOCK_ITEM_REMOVED` *(since 0.6.0)* — the symmetric counterpart of `HOOKS.DOCK_ITEM_APPENDED`. See [`docs/examples/dock-badge.md`](./examples/dock-badge.md).
+`setBadge( id, count )` is the canonical way to surface a numeric count on a tile; calls fire `os/badge-changed` on the activity bus with the rail discriminator. **The discriminator follows the rail's orientation, not its role:** `rail: 'taskbar'` for a horizontal rail (the primary dock on the bottom edge), `rail: 'dock'` for a vertical one — the Classic side rail (`sideDock`), and also the primary dock itself once the user moves it to the left or right. Code that reacts to badges should key off `itemId`, or accept both values; treating `'taskbar'` as "the primary rail" holds only while the dock is on the bottom. `Dock.removeSystemItem( id )` fires `HOOKS.DOCK_ITEM_REMOVED` — the symmetric counterpart of `HOOKS.DOCK_ITEM_APPENDED`. See [`docs/examples/dock-badge.md`](./examples/dock-badge.md).
 
-> **Layout switching note** — the underlying instance is replaced when the user picks a new layout in OS Settings → Appearance. `wp.desktop.dock` is mutated in place so a fresh property read returns the current dock; plugins that **cache** the reference earlier should listen for `desktop-mode-layout-changed` and refresh.
+> **Layout switching note** — the underlying instance is replaced when the user picks a new layout **or moves the dock to another edge** in OpenStation Preferences → Appearance. `wp.os.dock` is mutated in place so a fresh property read returns the current dock; plugins that **cache** the reference earlier should listen for `os-layout-changed` and refresh.
 
 ---
 
-### `sideDock` — Stable *(since 0.6.0)*
-Secondary `Dock` instance that hosts **core WordPress admin menus** (Dashboard, Posts, Pages, Media, Users, Settings, CPTs, taxonomies) along the **left edge**. Non-null only when `desktopLayout === 'classic'` — `null` in Unified and Spatial.
+### `sideDock` — Stable
+Secondary `Dock` instance that hosts **core WordPress admin menus** (Dashboard, Posts, Pages, Media, Users, Settings, CPTs, taxonomies) along the **left edge**. Non-null only when `desktopLayout === 'classic'` — `null` in Unified.
 
-Same `Dock` API as `dock`, just with `data-desktop-mode-dock-placement="left"` so its CSS selectors don't collide with the bottom rail.
+Same `Dock` API as `dock`, just with `data-os-dock-placement="left"` so its CSS selectors don't collide with the bottom rail.
 
 ```js
-wp.desktop.sideDock?.setBadge( 'edit.php', 3 );
+wp.os.sideDock?.setBadge( 'edit.php', 3 );
 ```
 
 **Icon fallback:** as with the primary dock, a menu without dashicon / SVG / URL renders a letter badge in a hue derived from the title — same plugin, same colour across reloads.
 
 ---
 
-### `desktopLayout` — Stable *(since 0.6.0)*
-Currently-active top-level layout. One of `'classic' | 'unified' | 'spatial'`. Mirrors the user's OS Settings → Appearance pick and the `data-desktop-mode-layout` attribute on the shell root.
+### `desktopLayout` — Stable
+Currently-active top-level layout, `'unified'` or `'classic'`. Mirrors the user's OpenStation Preferences → Appearance pick (shown there as **Unified** and **Split**) and the `data-os-layout` attribute on the shell root.
+
+| Layout | Rails | Where core menus live |
+|---|---|---|
+| `unified` *(default)* | bottom | the one rail, **grouped core-first**, then a divider, then plugins |
+| `classic` | side + bottom | left side bar (`sideDock`) |
 
 ```js
-if ( wp.desktop.desktopLayout === 'spatial' ) {
-    // Core menus are wallpaper icons; expect `sideDock` to be null.
+if ( wp.os.desktopLayout === 'classic' ) {
+    // Core menus live on their own rail; `sideDock` is the one holding them.
 }
 ```
 
-Listen for `desktop-mode-layout-changed` to react to a switch.
+Listen for `os-layout-changed` to react to a switch.
+
+**`unified` re-sorts the rail** so every `isCore` tile precedes every plugin tile, which is what makes the single `.os-dock__separator--group` divider land on the core→plugin boundary. Hovering a menu tile fans its submenu out — see [the constellation](#the-constellation) below.
 
 ---
 
-### `setBadge` — Stable *(since 0.6.0)*
+### `setBadge` — Stable
 
 Three rails — the primary (bottom) dock, the Classic-layout side dock, and the wallpaper icons — share the same `setBadge( id, count )` shape. **The id space is unified** (a dock item's `slug`, a system tile's id, or a desktop icon's id), so plugin authors fan a count to every rail without branching to figure out which one happens to host the tile under the user's current layout:
 
 ```js
 function setOrdersBadge( count ) {
-    wp.desktop.dock?.setBadge?.(     'my-orders', count );
-    wp.desktop.sideDock?.setBadge?.( 'my-orders', count );
-    wp.desktop.icons?.setBadge?.(    'my-orders', count );
+    wp.os.dock?.setBadge?.(     'my-orders', count );
+    wp.os.sideDock?.setBadge?.( 'my-orders', count );
+    wp.os.icons?.setBadge?.(    'my-orders', count );
 }
 setOrdersBadge( 7 );
 setOrdersBadge( 0 );  // clear
@@ -1223,7 +1785,7 @@ setOrdersBadge( 0 );  // clear
 
 Three calls; the rail that owns the id paints, the others bow out silently. Each call:
 
-- **Idempotent on the icon rail** — same count twice = no DOM mutation, no re-emit. The two Dock rails currently re-paint and re-publish `desktop-mode/badge-changed` on every call, so avoid hot-looping `setBadge` with an unchanged count.
+- **Idempotent on the icon rail** — same count twice = no DOM mutation, no re-emit. The two Dock rails currently re-paint and re-publish `os/badge-changed` on every call, so avoid hot-looping `setBadge` with an unchanged count.
 - **`0` clears** — and on the two Dock rails it also drops the client-side override so the server-declared `item.badge` resumes ownership on the next live menu refresh.
 - **`> 99` renders as `99+`**.
 - **Silent no-op when the id isn't on this rail** — keeps the fan-to-all-rails pattern from triple-emitting.
@@ -1231,12 +1793,41 @@ Three calls; the rail that owns the id paints, the others bow out silently. Each
 
 Every applied change publishes on:
 
-- `desktop-mode/badge-changed` activity channel with `{ itemId, count, rail: 'dock' | 'taskbar' | 'icon' }`.
+- `os/badge-changed` activity channel with `{ itemId, count, rail: 'dock' | 'taskbar' | 'icon' }`.
 - `HOOKS.ICON_BADGE_CHANGED` action with `{ iconId, count, previousCount }` *(icon rail only)*.
 
 The rails do NOT auto-suppress based on window state — that's per-app UX policy. The canonical "show 0 while my window is active" recipe lives in [`docs/examples/dock-badge.md`](./examples/dock-badge.md).
 
-### `icons` — Stable *(since 0.6.0)*
+### `setArt` — Stable
+
+The same three rails share `setArt( id, svg )`, for a tile whose icon means something different depending on state rather than counting something. Same unified id space and the same fan-to-all-rails pattern:
+
+```js
+function paintBinState( isFull ) {
+    const art = isFull ? FULL_BIN_URI : EMPTY_BIN_URI;
+    wp.os.dock?.setArt?.(     'my-bin', art );
+    wp.os.sideDock?.setArt?.( 'my-bin', art );
+    wp.os.icons?.setArt?.(    'my-bin', art );
+}
+paintBinState( true );
+wp.os.icons?.setArt?.( 'my-bin', '' );  // restore the registered icon
+```
+
+`svg` takes the shapes `renderIcon()` accepts: a `data:` URI, an `http(s)` URL, or a dashicon class. Art naming `currentColor` is painted as a mask and follows the tile's own glyph colour; fixed-colour art keeps its own. Each call:
+
+- **Idempotent on the icon rail** — the same art twice is a no-op.
+- **`''` clears** the override and hands the tile back to its registered icon.
+- **Silent no-op when the id isn't on this rail.**
+- **Survives a full grid rebuild**, and applies to a tile that has not rendered yet. Setting art during boot is the normal case (the rail appends system tiles asynchronously), so the value is recorded first and painted when the tile appears.
+- **Covers both desktop surfaces** — `wp.os.icons.setArt` paints the legacy `.os-icons` grid *and* the files layer's `<os-tile>` placement, since "the desktop icon for this id" means whichever one is on screen.
+
+Every applied change publishes `os/art-changed` on the activity channel with `{ itemId, icon, rail: 'dock' | 'taskbar' | 'icon' }`.
+
+`wp.os.icons.getArt( id )` reads the current override back, or `''` when the registered icon is still in charge.
+
+In-tree reference: [`src/recycle-bin/icon-state.ts`](../src/recycle-bin/icon-state.ts). The Recycle Bin uses it to draw an empty bin and a bin holding something as two states of one object. It replaced a count badge there: the badge pill is positioned onto the artwork rather than beside it, and at a 20px dock tile it covered about 30% of the icon.
+
+### `icons` — Stable
 
 The wallpaper-icon rail. Same `setBadge` shape as `dock` / `sideDock`, plus two read helpers:
 
@@ -1245,20 +1836,67 @@ interface IconsApi {
     setBadge:   ( iconId: string, count: number ) => void;
     clearBadge: ( iconId: string ) => void;
     getBadge:   ( iconId: string ) => number;
+    setArt:     ( iconId: string, svg: string ) => void;
+    getArt:     ( iconId: string ) => string;
 }
 ```
 
 ```js
-wp.desktop.icons.setBadge(   'desktop-mode-messages', 5 );
-wp.desktop.icons.clearBadge( 'desktop-mode-messages' );
-wp.desktop.icons.getBadge(   'desktop-mode-messages' ); // → 0
+wp.os.icons.setBadge(   'os-messages', 5 );
+wp.os.icons.clearBadge( 'os-messages' );
+wp.os.icons.getBadge(   'os-messages' ); // → 0
 ```
 
-See [`setBadge`](#setbadge--stable-since-060) above for the full rules across all three rails.
+See [`setBadge`](#setbadge--stable) above for the full rules across all three rails.
 
-#### `DesktopIconServerEntry.pinned` — Stable *(since 0.8.0)*
+#### `DesktopIconServerEntry.pinned` — Stable
 
-Server-declared icons (registered via `desktop_mode_register_icon( $id, [ 'pinned' => true ] )`) ship a boolean `pinned` flag in `config.desktopIcons[ n ].pinned`. Pinned icons render before any unpinned icon regardless of `position`, and the framework treats them as a stable system surface — built-in shortcuts like the **My WordPress** folder use it. Plugins that decorate icons (drag handles, custom menus) should opt out for tiles where `pinned === true`.
+Server-declared icons (registered via `openstation_register_icon( $id, [ 'pinned' => true ] )`) ship a boolean `pinned` flag in `config.desktopIcons[ n ].pinned`. Pinned icons render before any unpinned icon regardless of `position`, and the framework treats them as a stable system surface — built-in shortcuts like the pinned **WP Explorer** use it. Plugins that decorate icons (drag handles, custom menus) should opt out for tiles where `pinned === true`.
+
+---
+
+### `iconSet` — Stable
+
+The thirty icons the shell draws, so a plugin can use the same ones instead of drawing its own. Nineteen are WordPress's, from `@wordpress/icons`, so a verb like save or search looks the way it does in every other admin screen; eleven are OpenStation's, and are the vocabulary that only exists because this is a desktop.
+
+**Not the same thing as [`icons`](#icons--stable) above**, which is the wallpaper icon rail's badge API. The two are unrelated.
+
+```ts
+interface OsIconSetApi {
+    svg:     ( name: string, options?: OsIconOptions ) => string;
+    node:    ( name: string, options?: OsIconOptions ) => SVGSVGElement;
+    dataUri: ( name: string, options?: OsIconOptions ) => string;
+    names:   readonly string[];
+    ours:    readonly string[];
+    has:     ( name: string ) => boolean;
+}
+
+interface OsIconOptions {
+    size?:      number | null;   // CSS pixels, default 24; null lets CSS own the box
+    className?: string;
+    title?:     string;          // omit for the usual aria-hidden case
+    rotate?:    90 | 180 | 270;
+}
+```
+
+```js
+el.innerHTML = wp.os.iconSet.svg( 'trash', { size: 20 } );
+button.append( wp.os.iconSet.node( 'close', { size: 16 } ) );
+wp.os.registerDockItem( { icon: wp.os.iconSet.dataUri( 'spaces' ) } );
+
+wp.os.iconSet.ours            // the eleven that are OpenStation's
+wp.os.iconSet.has( 'window' ) // true
+```
+
+Three things worth knowing:
+
+- **One chevron.** `chevron-right` is the only one, the way Core ships it. A menu that opens downwards passes `rotate: 90` rather than asking for a second drawing.
+- **A sizing floor.** Core's glyphs carry 1.5-unit strokes on a 24 grid, so below about 14px they thin out to a smudge. Anything smaller than that should be part of the drawing it sits in, not an icon.
+- **An unknown name renders nothing** rather than throwing. `svg()` returns `''`, `node()` returns an empty `<svg>` you can still append.
+
+The object and its two lists are frozen: every plugin on the page reaches the same one, so a reassignment would change what everyone else draws.
+
+Full set, the rule behind it, and what deliberately stays hand-drawn: [`docs/icons.md`](./icons.md).
 
 ---
 
@@ -1266,45 +1904,47 @@ Server-declared icons (registered via `desktop_mode_register_icon( $id, [ 'pinne
 A debounced function that schedules a session write. The shell calls it automatically for window lifecycle and virtual-desktop lifecycle changes; call it after mutating session-backed state from your own code.
 
 ```javascript
-window.wp.desktop.windowManager.focus( someWindow );
-window.wp.desktop.saveSession();
+window.wp.os.windowManager.focus( someWindow );
+window.wp.os.saveSession();
 ```
+
+Calling it is cheap and safe to do liberally — it schedules, it does not send. Writes are trailing-edge debounced and then rate limited to at most one network request per interval, so a burst of changes collapses into a single POST. Nothing is dropped to achieve that: a call that arrives too soon is delayed rather than discarded, a call made while a request is in flight is re-sent after it settles, and `pagehide` flushes the current snapshot past both the debounce and the rate limit via `navigator.sendBeacon`. The last state always reaches the server.
 
 ---
 
-### `presence` — Stable *(since 0.5.5)*
+### `presence` — Stable
 
-Framework-level presence tracking — who's currently in the desktop-mode WP-Admin and what their state is. Always available, regardless of which feature plugins (chat, collaboration, …) happen to be installed. Useful for any UI that wants to surface who's around: avatar dots, "online now" lists, collaborative cursors, real-time co-editing indicators, etc.
+Framework-level presence tracking — who's currently in the OpenStation WP-Admin and what their state is. Always available, regardless of which feature plugins (chat, collaboration, …) happen to be installed. Useful for any UI that wants to surface who's around: avatar dots, "online now" lists, collaborative cursors, real-time co-editing indicators, etc.
 
-The probe boots automatically on `desktop-mode-init` and piggy-backs the WordPress Heartbeat — every tick (~15 s default in admin) the client sends `desktop_mode_presence_active: true` plus `desktop_mode_user_active: <bool>` (true when the user moused / typed within the last 5 minutes), and the server responds with the visible-users snapshot.
+The probe boots automatically on `os-init` and piggy-backs the WordPress Heartbeat — every tick (~15 s default in admin) the client sends `openstation_presence_active: true` plus `openstation_user_active: <bool>` (true when the user moused / typed within the last 5 minutes), and the server responds with the visible-users snapshot.
 
 ```javascript
 // Synchronous lookup for a single user.
-wp.desktop.presence.getStatus( userId );          // 'online' | 'inactive' | 'offline'
+wp.os.presence.getStatus( userId );          // 'online' | 'inactive' | 'offline'
 
 // Full snapshot (clone — safe to iterate).
-const map = wp.desktop.presence.getAll();          // Map<number, { status, lastSeenMs, lastActiveMs }>
+const map = wp.os.presence.getAll();          // Map<number, { status, lastSeenMs, lastActiveMs }>
 
 // Single-user record or null.
-const entry = wp.desktop.presence.getEntry( userId );
+const entry = wp.os.presence.getEntry( userId );
 
 // React to changes.
-const off = wp.desktop.presence.subscribe( ( state ) => {
+const off = wp.os.presence.subscribe( ( state ) => {
     // state.byUser is a ReadonlyMap. Fires on every tick that lands a snapshot.
     repaintBadges( state.byUser );
 } );
 
 // Force the next heartbeat tick to flag the current user as active.
-wp.desktop.presence.markActive();
+wp.os.presence.markActive();
 
 // Push a batch of presence updates into the framework store. Use this
 // when your plugin has a faster delivery channel than the heartbeat
 // (e.g. an SSE stream that emits per-conversation presence events) and
-// you want every consumer of `wp.desktop.presence.*` — including
+// you want every consumer of `wp.os.presence.*` — including
 // `getStatus()` callers in unrelated plugins — to see the freshest data.
 // `lastSeenMs` / `lastActiveMs` are optional; when omitted, the existing
 // timestamps are preserved.
-wp.desktop.presence.applyBatch( [
+wp.os.presence.applyBatch( [
     { userId: 7, status: 'online' },
     { userId: 12, status: 'inactive', lastSeenMs: Date.now() - 90_000 },
 ] );
@@ -1314,28 +1954,128 @@ wp.desktop.presence.applyBatch( [
 
 | Status     | Meaning                                                                                     |
 |------------|---------------------------------------------------------------------------------------------|
-| `online`   | Heartbeat within `desktop_mode_presence_offline_after` AND user input within `desktop_mode_presence_inactive_after`. |
-| `inactive` | Heartbeat present, but no input within `desktop_mode_presence_inactive_after` (default 5 min). |
-| `offline`  | No heartbeat in `desktop_mode_presence_offline_after` (default 2 min).                        |
+| `online`   | Heartbeat within `openstation_presence_offline_after` AND user input within `openstation_presence_inactive_after`. |
+| `inactive` | Heartbeat present, but no input within `openstation_presence_inactive_after` (default 5 min). |
+| `offline`  | No heartbeat in `openstation_presence_offline_after` (default 2 min).                        |
 
 **Visibility:**
 
-The server-side `desktop_mode_presence_visible_users` filter gates which users surface to a given viewer. By default everyone tracked is visible to everyone tracked; plugins can narrow (e.g. "subscribers only see other subscribers") without the client knowing.
+The server-side `openstation_presence_visible_users` filter gates which users surface to a given viewer. By default everyone tracked is visible to everyone tracked; plugins can narrow (e.g. "subscribers only see other subscribers") without the client knowing.
 
-**Companion CustomEvent:** [`desktop-mode-presence-changed`](#desktop-mode-presence-changed--stable-since-055) fires once per status transition per user, with a `null` oldStatus on first sighting.
+**Companion CustomEvent:** [`os-presence-changed`](#os-presence-changed--stable) fires once per status transition per user, with a `null` oldStatus on first sighting.
 
 **See also:** [`docs/examples/presence.md`](./examples/presence.md) for an end-to-end recipe.
 
 ---
 
-### `createSharedStore( key, initialState )` — Stable *(since 0.5.5)*
+### `selection` — Experimental
 
-Cross-bundle reactive state primitive. Every plugin in Desktop Mode is typically built as its own Vite IIFE bundle, and module-level state defined in one bundle is **invisible** to another bundle even when both import the same source file — each bundle ends up with its own compiled copy. `createSharedStore` solves this by attaching state to a window-level slot keyed by the string you pass; the first call with a given key creates the store, every subsequent call (in any bundle) returns the SAME store. Mutations propagate; subscribers from any bundle fire on any mutation.
+Multi-selection is framework-level. Every tile canvas in the shell — the wallpaper, folder windows, and each list inside My WordPress — runs the same selection controller, so the gestures are identical everywhere: click replaces, `Ctrl`/`Cmd`+click toggles, `Shift`+click extends from the anchor, a drag on empty space draws a marquee, `Ctrl`/`Cmd`+A selects all, `Escape` clears.
+
+```javascript
+// Snapshot of the most recent selection change anywhere in the shell.
+wp.os.selection.active();
+// → { surface: 'files', scope: '0', keys: [ '12', '19' ], count: 2 } | null
+
+// React to selection anywhere.
+document.addEventListener( 'os-selection-changed', ( e ) => {
+    console.log( e.detail.count, 'selected in', e.detail.surface );
+} );
+```
+
+`surface` is `'files'` for a FilesLayer canvas and `'my-wordpress'` for a My WordPress list; `scope` narrows it (folder id, entity id). `keys` are the surface's own item keys — placement ids on the desktop, entry ids in My WordPress — as strings.
+
+#### What a mixed selection may do
+
+The hard part of multi-selection isn't the highlight, it's deciding what a set of unlike things can be asked to do. The rule lives in one place, `wp.os.selection.resolveCommonActions( items, actionsFor )`:
+
+- **One item selected** → that item's own action list, untouched. Single-item menus are exactly what they were before multi-selection existed.
+- **Several** → intersect by action `id`, and keep an id only when **every** contributing action declares `multi: true`.
+
+So selecting a post and an image leaves *Move to Trash* (both offer it, both marked multi-safe) and drops *Navigate into* (post-only) and *Download* (image-only).
+
+`multi` is opt-in on purpose. An action written against one item — "Rename…", "Share folder…", anything that opens a modal — would misbehave run twelve times over, and its author never agreed to that. Your menu entries keep working unchanged and simply don't appear in a multi-selection until you opt in.
+
+Four fields control the multi-selection behaviour of any menu entry, on both the `os.files.tile-menu` and `os.my-wordpress.tile-context-menu` filters:
+
+| Field | Meaning |
+|---|---|
+| `multi` | `true` to allow the action into a multi-selection menu. Default `false`. |
+| `multiId` | Identity to intersect on, when the same *deed* carries different single-item labels. The folder tile's `delete-folder` and the file tile's `remove` both declare `multiId: 'trash'`, so a mixed selection can still be thrown away. Defaults to `id`. |
+| `bulkLabel( n )` | Label for a set. Falls back to `"<label> (N items)"`. |
+| `bulk( items )` | Batched runner. Called once with **the items that declared it** — see below. Without it, that item's own `onClick` runs instead. |
+
+**Every item goes to the runner its own contributor declared.** When
+actions merge under a shared `multiId` there is no rule that they
+share an implementation — the folder tile and the file tile could
+trash things differently, and a plugin can merge a third of its own.
+So the framework groups the selection by `bulk` *function identity*
+and calls each runner once with its own subset; contributors that
+ship no `bulk` fan out through `onClick`.
+
+Two things follow:
+
+- If your action merges with a built-in and you want one batched
+  call for the whole set, **share the same function reference** —
+  `bulk: theSameFn`, not a fresh `bulk: ( items ) => theSameFn( items )`
+  arrow at each site, which is a different identity and therefore a
+  second batch. The built-in Trash entries share one reference for
+  exactly this reason, so a mixed folder + file selection is one
+  toast with one Undo.
+- If your runner only understands your own items, you don't have to
+  do anything: it will only ever be handed those.
+
+```javascript
+wp.os.hooks.addFilter(
+    'os.files.tile-menu',
+    'my-plugin/archive',
+    ( items, placement ) => [
+        ...items,
+        {
+            id: 'my-plugin/archive',
+            label: 'Archive',
+            icon: 'dashicons-archive',
+            sort: 50,
+            multi: true,
+            bulkLabel: ( n ) => `Archive ${ n } items`,
+            bulk: ( placements ) => archiveAll( placements ),
+            onClick: () => archiveAll( [ placement ] ),
+        },
+    ],
+);
+```
+
+Prefer a `bulk` runner over fan-out whenever the action talks to the server or the user: it is what turns twelve REST calls, twelve toasts and twelve Undo buttons into one of each. The built-in "Move to Trash" does exactly this.
+
+#### `os.selection.actions` — JS filter
+
+Fires on the **resolved** action list for a multi-selection (never for a single item, whose menu is the surface's own). Receives the merged actions plus `{ items, count }`, so you can add an entry that only makes sense for a set.
+
+```javascript
+wp.os.hooks.addFilter(
+    'os.selection.actions',
+    'my-plugin/compare',
+    ( actions, { items, count } ) =>
+        count === 2
+            ? [ ...actions, { id: 'compare', label: 'Compare these two', onClick: () => compare( items ) } ]
+            : actions,
+);
+```
+
+#### Building your own selectable canvas
+
+`wp.os.selection.createModel( { order } )` returns the set + anchor primitive (`set` / `add` / `remove` / `toggle` / `selectRange` / `selectAll` / `clear` / `prune` / `subscribe`) if you are wiring a surface the shell doesn't own. `order()` must return the item keys in the order the user *sees* them — that is what a `Shift`+click range walks.
+
+---
+
+### `createSharedStore( key, initialState )` — Stable
+
+Cross-bundle reactive state primitive. Every plugin in OpenStation is typically built as its own Vite IIFE bundle, and module-level state defined in one bundle is **invisible** to another bundle even when both import the same source file — each bundle ends up with its own compiled copy. `createSharedStore` solves this by attaching state to a window-level slot keyed by the string you pass; the first call with a given key creates the store, every subsequent call (in any bundle) returns the SAME store. Mutations propagate; subscribers from any bundle fire on any mutation.
 
 You only need this when you split your plugin's JS across more than one bundle. A plugin that ships a single bundle can use plain module-level state and skip the primitive entirely.
 
 ```javascript
-const store = wp.desktop.createSharedStore( 'my-plugin/state', () => ( {
+const store = wp.os.createSharedStore( 'my-plugin/state', () => ( {
     selectedId: null,
     items: [],
 } ) );
@@ -1361,15 +2101,14 @@ off();
 interface SharedStore< T > {
     state: T;                                       // mutable
     getState(): Readonly< T >;                      // narrowed read view
-    setState( patch: Partial< T > ): void;          // patch + notify in one call (since 0.8.1;
-                                                    // object-shaped state only — warns and
+    setState( patch: Partial< T > ): void;          // patch + notify in one call (// object-shaped state only — warns and
                                                     // no-ops on primitive-shaped stores)
     notify(): void;                                 // wake subscribers
     subscribe( cb: ( s: Readonly< T > ) => void ): () => void;
     reset(): void;                                  // tests only
 }
 
-wp.desktop.createSharedStore< T >(
+wp.os.createSharedStore< T >(
     key:          string,                           // 'plugin/purpose'
     initialState: () => T,                          // thunk; runs once
 ): SharedStore< T >;
@@ -1388,12 +2127,12 @@ Plugin authors were rolling their own `window.__myPluginShared` slots and reinve
 
 ---
 
-### `onWindow( id, handlers, options? )` — Stable *(since 0.5.5)*
+### `onWindow( id, handlers, options? )` — Stable
 
 The typed wrapper for "subscribe to *this one* window's lifecycle." Filters every action by `windowId`, lets you bind every event in one shot, and returns a single unsubscribe handle. Use this instead of hand-rolling `addAction(HOOKS.WINDOW_*)` calls + windowId checks unless you specifically want lifetime control over each subscription.
 
 ```typescript
-wp.desktop.onWindow(
+wp.os.onWindow(
     id:       string,
     handlers: WindowLifecycleHandlers,
     options?: { persistent?: boolean },
@@ -1424,14 +2163,14 @@ Payloads match the corresponding hook payloads minus `windowId` — it is implie
 
 ```javascript
 // Per-instance — auto-unsubscribes on close.
-const off = wp.desktop.onWindow( 'my-plugin/inbox', {
+const off = wp.os.onWindow( 'my-plugin/inbox', {
     focused:   () => clearAttention(),
     blurred:   () => repaintBadge(),
     closed:    () => recordSession(),
 } );
 
 // App-lifetime — keeps firing every time the window reopens.
-wp.desktop.onWindow(
+wp.os.onWindow(
     'my-plugin/inbox',
     {
         opened:    () => repaintBadge(),
@@ -1450,12 +2189,12 @@ wp.desktop.onWindow(
 
 ---
 
-### `activity` — Stable *(since 0.5.5)*
+### `activity` — Stable
 
 Cross-plugin activity bus. The transport layer for "thing X happened in plugin A; plugin B might care." Built on top of `wp.hooks` with three benefits over raw `doAction`/`addAction`:
 
 1. **A documented naming convention** (`<plugin>/<event>`).
-2. **A predictable hook prefix** (`desktop-mode.activity.<channel>`) so devtools can list activity traffic as a discrete group.
+2. **A predictable hook prefix** (`os.activity.<channel>`) so devtools can list activity traffic as a discrete group. The channel's separator becomes a period on the hook bus: `my-plugin/thing-happened` is registered as `os.activity.my-plugin.thing-happened`. This only matters if you reach the bus through raw `wp.hooks`; `publish`/`subscribe`/`filter` take the channel slug and handle the mapping.
 3. **Type-safe payloads** via the `ActivityChannelMap` interface (extend in your own `.d.ts`).
 
 ```typescript
@@ -1476,22 +2215,26 @@ interface ActivityApi {
 }
 ```
 
-**Built-in channels** *(since 0.5.5)* — every framework primitive that publishes mirrors here:
+**Built-in channels** — every framework primitive that publishes mirrors here. The `os/` namespace is the shell's own: subscribe and filter freely, but publish your own events under your plugin's slug.
 
 | Channel | Direction | Payload | Filterable? |
 |---|---|---|---|
-| `desktop-mode/toast-requested` | Pre-show — `showToast()` calls run through this. | `{ message, action?, duration?, persistent?, source?, meta?, cancel? }` | **Yes.** Set `cancel: true` to drop the toast. Mutate `message`/`duration`/`action`/`persistent` to rewrite. |
-| `desktop-mode/toast-shown` | Fire-and-forget — fires after the toast lands in the DOM. | Same shape as above. | No (filtering is too late). |
-| `desktop-mode/window-attention-requested` | Pre-attention — `Window.requestAttention()` runs through this filter, then routes the filtered result to the rails' `setAttention()`; direct `dock.setAttention()` / `taskbar.setAttention()` calls bypass it. | `{ windowId, mode, durationMs?, intensity?, source?, cancel? }` | **Yes.** Set `cancel: true` for DND. Mutate `mode`/`durationMs`/`intensity` to scale the animation. |
-| `desktop-mode/badge-changed` | Fire-and-forget — every `setBadge()` on dock / taskbar / icons mirrors here on every change. | `{ itemId, count, rail?: 'dock' \| 'taskbar' \| 'icon' }` *(rail since 0.6.0)* | No. |
-| `desktop-mode/open-requested` | Fire-and-forget — `wp.desktop.openWindow()` publishes here BEFORE deciding `opened` vs `reopened`. | `{ windowId, source }` | No. |
-| `desktop-mode/presence-changed` | Per-transition mirror of the `desktop-mode-presence-changed` CustomEvent. | `{ userId, oldStatus, newStatus, lastSeenMs, lastActiveMs }` | No. |
-| `desktop-mode/presence-snapshot-applied` | Batch-level — fires after every presence snapshot OR `applyPresenceBatch()`. | `{ applied: number, transitions: number }` | No. |
+| `os/toast-requested` | Pre-show — `showToast()` calls run through this. | `{ message, action?, duration?, persistent?, source?, meta?, cancel? }` | **Yes.** Set `cancel: true` to drop the toast. Mutate `message`/`duration`/`action`/`persistent` to rewrite. |
+| `os/toast-shown` | Fire-and-forget — fires after the toast lands in the DOM. | Same shape as above. | No (filtering is too late). |
+| `os/window-attention-requested` | Pre-attention — `Window.requestAttention()` runs through this filter, then routes the filtered result to the rails' `setAttention()`; direct `dock.setAttention()` / `taskbar.setAttention()` calls bypass it. | `{ windowId, mode, durationMs?, intensity?, source?, cancel? }` | **Yes.** Set `cancel: true` for DND. Mutate `mode`/`durationMs`/`intensity` to scale the animation. |
+| `os/badge-changed` | Fire-and-forget — every `setBadge()` on dock / taskbar / icons mirrors here on every change. | `{ itemId, count, rail?: 'dock' \| 'taskbar' \| 'icon' }` *(rail)* | No. |
+| `os/open-requested` | Fire-and-forget — `wp.os.openWindow()` publishes here BEFORE deciding `opened` vs `reopened`. | `{ windowId, source }` | No. |
+| `os/presence-changed` | Per-transition mirror of the `os-presence-changed` CustomEvent. | `{ userId, oldStatus, newStatus, lastSeenMs, lastActiveMs }` | No. |
+| `os/presence-snapshot-applied` | Batch-level — fires after every presence snapshot OR `applyPresenceBatch()`. | `{ applied: number, transitions: number }` | No. |
+| `os/game-score-recorded` | Fire-and-forget. Fires after a game's `submitScore()` write resolves, on both the free-play and challenge-completion paths. | `{ game, score, meta, windowId, challengeId? }` | No. |
+| `os/upload-hud-complete` | Fire-and-forget. Fires when a file dropped on the shell finishes uploading. Published by the progress HUD rather than the uploader — the upload runs on XHR (the only transport reporting determinate progress) and never routes through `wp.os.fetch`. | `{ filename, attachmentId }` | No. |
 
 **Plugin channels** — pick a `<plugin>/<event>` slug and publish. Augment `ActivityChannelMap` for compile-time payload checking:
 
 ```ts
-declare module 'desktop-mode/activity' {
+import type {} from 'openstation/activity';
+
+declare module 'openstation/activity' {
     interface ActivityChannelMap {
         'my-plugin/something-happened': { id: number; reason: string };
     }
@@ -1500,16 +2243,16 @@ declare module 'desktop-mode/activity' {
 
 ```javascript
 // Publish — peers see it immediately.
-wp.desktop.activity.publish( 'inbox/unread-changed', { total: 5 } );
+wp.os.activity.publish( 'inbox/unread-changed', { total: 5 } );
 
 // Subscribe.
-const off = wp.desktop.activity.subscribe(
+const off = wp.os.activity.subscribe(
     'inbox/unread-changed',
     ( { total } ) => repaintWidget( total ),
 );
 
 // Filter — let plugins veto / shape a value before peers see it.
-const safeOutgoing = wp.desktop.activity.filter(
+const safeOutgoing = wp.os.activity.filter(
     'inbox/outgoing-payload',
     payload,
     { author: currentUserId },
@@ -1518,21 +2261,9 @@ const safeOutgoing = wp.desktop.activity.filter(
 
 **See also:** [`docs/event-driven-framework.md`](./event-driven-framework.md) for the bigger pattern.
 
-**Comments window channels (since 0.8.3)** — the native Comments window publishes on:
-
-- `desktop-mode-comments/approved` — `{ ids: number[]; counts: CommentCounts }`
-- `desktop-mode-comments/unapproved` — same payload shape
-- `desktop-mode-comments/spamd` / `desktop-mode-comments/unspamd` — same
-- `desktop-mode-comments/trashd` / `desktop-mode-comments/untrashd` — same
-- `desktop-mode-comments/replied` — `{ parentId: number; postId: number }`
-- `desktop-mode-comments/edited` — `{ id: number }`
-- `desktop-mode-comments/insights-opened` — `{ email: string }`
-
-Subscribe to drive plugin badges, audit logs, or to refresh widgets that surface pending counts.
-
 ---
 
-### `heartbeat` — Stable *(since 0.5.5)*
+### `heartbeat` — Stable
 
 Cross-feature WordPress Heartbeat bus. Wraps the global jQuery Heartbeat (`heartbeat-send` / `heartbeat-tick`) in a typed pub/sub so multiple plugins can read AND write per-tick payloads without each one re-implementing the jQuery boilerplate. The framework wires the underlying jQuery events exactly once.
 
@@ -1553,7 +2284,7 @@ interface HeartbeatBus {
 
 ```javascript
 // Tell the server "I'm at the desk" every tick.
-const off = wp.desktop.heartbeat.contribute(
+const off = wp.os.heartbeat.contribute(
     'my-plugin/active',
     () => isActive() ? true : undefined,
 );
@@ -1562,18 +2293,18 @@ const off = wp.desktop.heartbeat.contribute(
 **Incoming — `subscribe`.** React to a field on the `heartbeat-tick` response. Multiple subscribers compose; one failing subscriber doesn't strand peers (errors go to `console.error`).
 
 ```javascript
-const off = wp.desktop.heartbeat.subscribe( 'my-plugin/payload', ( v ) => {
+const off = wp.os.heartbeat.subscribe( 'my-plugin/payload', ( v ) => {
     applyServerSnapshot( v );
 } );
 ```
 
 **Why this exists.** Without a shared bus, every feature that wants to ride Heartbeat re-binds `jQuery(document).on('heartbeat-send', …)` itself. Three problems: (1) the boilerplate is identical, (2) no plugin can see what other plugins are contributing on the same tick, (3) a thrown error in any handler can strand later handlers on the same event. The bus consolidates the wiring, exposes the typed channel surface, and isolates errors per supplier/subscriber.
 
-**Built-in consumer.** `presence` contributes `desktop_mode_presence_active` + `desktop_mode_user_active` and subscribes to `desktop_mode_presence`. Read [`src/presence/index.ts`](../src/presence/index.ts) for the canonical pattern.
+**Built-in consumer.** `presence` contributes `openstation_presence_active` + `openstation_user_active` and subscribes to `openstation_presence`. Read [`src/presence/index.ts`](../src/presence/index.ts) for the canonical pattern.
 
 ---
 
-### `wp.desktop.wallpaper` — suspend / resume — Experimental *(since 0.9.6)*
+### `wp.os.wallpaper` — suspend / resume — Experimental
 
 Pause the animated wallpaper while a foreground surface (a game, a heavy canvas tool) renders its own scene, without tearing the wallpaper down.
 
@@ -1585,25 +2316,79 @@ interface WallpaperSuspendApi {
 }
 ```
 
-Refcounted per reason string: two `suspend( 'my-plugin/thing' )` calls need two `resume( 'my-plugin/thing' )` calls; distinct reasons stack independently. On the first held reason the shell freezes the current frame into a bitmap overlay (best-effort — WebGL capture can fail on some drivers, in which case the stopped canvas simply keeps its last frame) and re-emits **`desktop-mode.wallpaper.visibility`** with the *effective* state (`document.hidden || suspended`), so every wallpaper that wires the standard visibility action pauses its ticker with zero changes. A tab re-focus while suspended keeps reporting `hidden` — suspension wins. The scene is never destroyed.
+Refcounted per reason string: two `suspend( 'my-plugin/thing' )` calls need two `resume( 'my-plugin/thing' )` calls; distinct reasons stack independently. On the first held reason the shell freezes the current frame into a bitmap overlay (best-effort — WebGL capture can fail on some drivers, in which case the stopped canvas simply keeps its last frame) and re-emits **`os.wallpaper.visibility`** with the *effective* state (`document.hidden || suspended`), so every wallpaper that wires the standard visibility action pauses its ticker with zero changes. A tab re-focus while suspended keeps reporting `hidden` — suspension wins. The scene is never destroyed.
 
-The precise signal is the companion action **`desktop-mode.wallpaper.suspend`** *(Experimental, since 0.9.6)*, fired on every suspended/resumed transition with `{ id, suspended, reasons }` (`id` = active canvas wallpaper id or `null`; `reasons` = currently held reason strings). Wallpapers that want to distinguish "tab hidden" from "game running" subscribe to it via `wp.desktop.hooks`.
+The precise signal is the companion action **`os.wallpaper.suspend`** *(Experimental)*, fired on every suspended/resumed transition with `{ id, suspended, reasons }` (`id` = active canvas wallpaper id or `null`; `reasons` = currently held reason strings). Wallpapers that want to distinguish "tab hidden" from "game running" subscribe to it via `wp.os.hooks`.
 
 The games framework calls `suspend( 'game:<windowId>' )` / `resume(…)` around every game window automatically.
 
 ---
 
-### `wp.desktop.games` — Experimental *(since 0.9.6)*
+### `wp.os.mio` — Experimental
+
+Mio: a soft-body companion that floats over the wallpaper, falls onto nearby windows, watches the pointer, and can be dragged anywhere. Off by default; users toggle it from its **Mio** tile on the bottom dock, and can hide that tile from OpenStation Preferences → Navigation.
+
+Full documentation — architecture, the simulation, the configuration table, the reason the canvas is never interactive — is in [mio.md](./mio.md).
+
+```typescript
+interface MioApi {
+    isEnabled(): boolean;
+    enable(): Promise< void >;             // persists the preference
+    disable(): void;                       // persists; stops + hides, keeps the context
+    setStyle( partial ): void;             // the user's look; applies live AND saves to their account
+    getLook(): MioLook;                    // the user's own look, as stored
+    commitStyle(): void;                   // write it now — what closing the panel calls
+    resetStyle(): void;                    // forget the saved look, restore the site's Mio
+    toggle(): Promise< void >;             // what the menu entry calls
+    getPosition(): { x: number; y: number } | null;   // viewport coords, null when off
+    setPosition( x: number, y: number ): void;        // no-op when off
+    getConfig(): MioConfig;
+    setConfig( partial: PartialMioConfig ): void;  // merged, clamped, applied live
+}
+
+interface MioLook {
+    appearance: Partial< MioAppearance >;   // colour, ring, glow, hologram, body, eyes
+    physics: Partial< MioLookPhysics >;     // silhouette, shuffle, idle wobble
+}
+```
+
+`enable()` / `disable()` / `toggle()` write the per-user OS setting `mioEnabled` exactly as the dock tile does. **The user's look is per-user too** — it rides the same OpenStation Preferences blob as `mioStyle`, so a Mio built on a laptop is waiting on the phone. Only the resting position is browser-local (`localStorage`, `desktop-mode-mio-position`): where Mio sits is a fact about one screen, how it looks is a fact about the person.
+
+`setStyle()` takes a **flat bag** of appearance keys and the look-physics keys — `shapePreset`, `shapeLobes`, `shapeAmount`, `shapeAngle`, `shapeShuffle`, `idleWobble`, `idleWobbleSpeed` — and splits them itself. Anything else is dropped: `radius` is a size rather than a look, and the spring constants are the site's. Every call applies live *and* records the change; `commitStyle()` flushes it immediately (the style panel calls it on close). Reach for `setConfig()` when a plugin wants to adjust Mio programmatically without that adjustment becoming the user's saved look.
+
+```js
+// Give Mio a shape, and stop it changing on its own.
+wp.os.mio.setStyle( { shapePreset: 'star', shapeShuffle: 0 } );
+```
+
+The first `enable()` lazy-loads `assets/js/mio[.min].js` and PixiJS — nothing about the simulation ships in `desktop.min.js`, so a user who never switches Mio on never downloads it.
+
+```js
+wp.os.ready( () => {
+    // A bigger, calmer Mio for a kiosk screen.
+    wp.os.mio.setConfig( {
+        appearance: { radius: 90, glow: 14 },
+        physics: { magnetStrength: 1400, floatAmplitude: 20 },
+    } );
+    void wp.os.mio.enable();
+} );
+```
+
+Server-side defaults come from the `openstation_mio_config` PHP filter; the `os.mio.config` JS filter gets the last word before mount. Both are re-sanitized, so out-of-range values are clamped rather than rejected.
+
+---
+
+### `wp.os.games` — Experimental
 
 The desktop games surface: a shared registry (the hub's game grid + per-game detail panel repaint live), and a launcher that opens games in native windows.
 
-The framework is **off by default** — an admin opts in site-wide (OS Settings → Features → Extended options; PHP filter `desktop_mode_games_enabled`). While disabled, the shell config carries **`gamesEnabled: false`** *(since 0.9.8)*: the server registers no games, no hub window, and no REST routes, and the shell skips the challenges Heartbeat channel. `wp.desktop.games` still exists (same API object), but the registry stays empty unless your own JS registers into it — check `window.desktopModeConfig?.gamesEnabled` before wiring games UI of your own.
+The framework is **off by default** — an admin opts in site-wide (OpenStation Preferences → Features → Extended options; PHP filter `openstation_games_enabled`). While disabled, the shell config carries **`gamesEnabled: false`**: the server registers no games, no hub window, and no REST routes, and the shell skips the challenges Heartbeat channel. `wp.os.games` still exists (same API object), but the registry stays empty unless your own JS registers into it — check `window.openStationConfig?.gamesEnabled` before wiring games UI of your own.
 
 ```typescript
 interface GamesApi {
     register( entry: GameRegistryEntry ): void;
     unregister( id: string ): void;
-    list(): GameRegistryEntry[];              // `desktop-mode.games` filter applied
+    list(): GameRegistryEntry[];              // `os.games` filter applied
     get( id: string ): GameRegistryEntry | undefined;
     subscribe( cb: () => void ): () => void;  // registry-change listener
     launch( id: string, opts?: { challenge?: GameChallengeContext } ): Promise< void >;
@@ -1611,13 +2396,13 @@ interface GamesApi {
 }
 ```
 
-**Registration model.** The canonical path is PHP: `desktop_mode_register_game( $id, $args )` declares the discovery metadata (title, icon, description, `score_columns`, `config`) plus a `script` handle. The shell registers a metadata **stub** at boot — enough to paint the hub tile and the game's scoreboard — and `launch()` loads the script lazily on first play. The loaded script publishes the full def on the global:
+**Registration model.** The canonical path is PHP: `openstation_register_game( $id, $args )` declares the discovery metadata (title, icon, description, `score_columns`, `config`) plus a `script` handle. The shell registers a metadata **stub** at boot — enough to paint the hub tile and the game's scoreboard — and `launch()` loads the script lazily on first play. The loaded script publishes the full def on the global:
 
 ```javascript
-// Inside the game bundle (window.desktopModeGames is the games
-// analogue of window.desktopModeWallpapers):
-window.desktopModeGames = window.desktopModeGames || {};
-window.desktopModeGames[ 'my-plugin-puzzle' ] = {
+// Inside the game bundle (window.openStationGames is the games
+// analogue of window.openStationWallpapers):
+window.openStationGames = window.openStationGames || {};
+window.openStationGames[ 'my-plugin-puzzle' ] = {
     id:           'my-plugin-puzzle',
     title:        'Puzzle',
     icon:         'dashicons-screenoptions',
@@ -1630,32 +2415,34 @@ window.desktopModeGames[ 'my-plugin-puzzle' ] = {
 };
 ```
 
-`render` receives a `GameLaunchContext`: `container` (the window body), `config` (the PHP-registered blob), `challenge` (set when the run is an accepted score-to-beat challenge: `{ id, scoreToBeat, scoreMeta, challengerName }`), `submitScore( { score, meta } )` (routes to the leaderboard, or to the challenge-completion endpoint in challenge mode), and `close()`. The framework suspends the wallpaper for the window's lifetime and opens the window as `desktop-mode-game-<id>` (no dock tile).
+`render` receives a `GameLaunchContext`: `container` (the window body), `config` (the PHP-registered blob), `challenge` (set when the run is an accepted score-to-beat challenge: `{ id, scoreToBeat, scoreMeta, challengerName }`), `submitScore( { score, meta } )` (routes to the leaderboard, or to the challenge-completion endpoint in challenge mode), and `close()`. The framework suspends the wallpaper for the window's lifetime and opens the window as `os-game-<id>` (no dock tile).
 
-**Framework config keys** *(since 0.9.8)*. For server-registered games, the payload merges framework-level keys underneath the game's own `config` (the game's keys win): **`config.wordsUrl`** is the URL of the shared ~20k-word dictionary asset (`assets/games/words.txt`) — identical for every player, so seeded games (Alphabet Soup's date-seeded daily puzzle) generate the same grid worldwide. Parse it with the framework loader (`src/games/dictionary.ts` — `loadDictionary( url )` → `{ size, pick( minLen, maxLen, rng ) }`); the PHP-side URL + filter is `desktop_mode_games_words_url` in [hooks-reference.md](./hooks-reference.md).
+**Score announcements.** Once a `submitScore()` write resolves, the launcher publishes `os/game-score-recorded` on the activity bus with `{ game, score, meta, windowId, challengeId? }` (both paths publish; `challengeId` only on challenge completion). Games play in their own window, so this is how leaderboards elsewhere in the shell find out they went stale: the hub's scoreboard subscribes and reloads the page the viewer is on. Subscribe to it if your plugin paints anything derived from scores. A failed write publishes nothing.
 
-**Share cards** *(since 0.9.8)*. `src/games/share-card.ts` renders a finished run as a 1200×630 PNG on a plain canvas (`renderShareCard( canvas, data )`) and `shareScoreCard( canvas, filename, title )` runs the one-tap chain: native share sheet with the file attached → clipboard image → download, reporting which path ran. Deliberately image-only — no URL, no caption. Alphabet Soup's game-over panel is the reference integration.
+**Framework config keys**. For server-registered games, the payload merges framework-level keys underneath the game's own `config` (the game's keys win): **`config.wordsUrl`** is the URL of the shared ~20k-word dictionary asset (`assets/games/words.txt`) — identical for every player, so seeded games (Alphabet Soup's date-seeded daily puzzle) generate the same grid worldwide. Parse it with the framework loader (`src/games/dictionary.ts` — `loadDictionary( url )` → `{ size, pick( minLen, maxLen, rng ) }`); the PHP-side URL + filter is `openstation_games_words_url` in [hooks-reference.md](./hooks-reference.md).
+
+**Share cards**. `src/games/share-card.ts` renders a finished run as a 1200×630 PNG on a plain canvas (`renderShareCard( canvas, data )`) and `shareScoreCard( canvas, filename, title )` runs the one-tap chain: native share sheet with the file attached → clipboard image → download, reporting which path ran. Deliberately image-only — no URL, no caption. Alphabet Soup's game-over panel is the reference integration.
 
 JS-only registrations (passing `render` directly to `register()`) work for the launcher, but scores/challenges only persist for games also registered server-side — the REST routes 404 unknown ids.
 
-The registry mirrors onto the **`desktop-mode.games`** JS filter (constant `HOOKS.GAMES`), applied on every `list()` read.
+The registry mirrors onto the **`os.games`** JS filter (constant `HOOKS.GAMES`), applied on every `list()` read.
 
-**Play time** *(since 0.9.7)*. The launcher automatically tracks how long each game window is in front of the player — the clock pauses while the window is minimized — and flushes whole-second increments to `POST /desktop-mode/v1/games/{game}/playtime` (silently, roughly once a minute plus once on close). Totals are per user per game and accumulate for life across sessions and days; increments are also bucketed per site-timezone day (rolling window, default 30 days). `getPlaytime()` returns the current user's lifetime map; the full `GET /desktop-mode/v1/games/playtime` response is `{ playtime: { <game>: seconds }, daily: { <game>: { 'YYYY-MM-DD': seconds } }, today: 'YYYY-MM-DD' }`. The hub's detail panel renders a Steam-style strip from it — "Play time (last two weeks)" + "Play time (total)". Games don't need to do anything to participate. Server-side see `desktop_mode_games_get_playtime()` / `desktop_mode_games_get_playtime_daily()` and the `desktop_mode_game_playtime_recorded` action in [hooks-reference.md](./hooks-reference.md).
+**Play time**. The launcher automatically tracks how long each game window is in front of the player — the clock pauses while the window is minimized — and flushes whole-second increments to `POST /desktop-mode/v1/games/{game}/playtime` (silently, roughly once a minute plus once on close). Totals are per user per game and accumulate for life across sessions and days; increments are also bucketed per site-timezone day (rolling window, default 30 days). `getPlaytime()` returns the current user's lifetime map; the full `GET /desktop-mode/v1/games/playtime` response is `{ playtime: { <game>: seconds }, daily: { <game>: { 'YYYY-MM-DD': seconds } }, today: 'YYYY-MM-DD' }`. The hub's detail panel renders a Steam-style strip from it — "Play time (last two weeks)" + "Play time (total)". Games don't need to do anything to participate. Server-side see `openstation_games_get_playtime()` / `openstation_games_get_playtime_daily()` and the `openstation_game_playtime_recorded` action in [hooks-reference.md](./hooks-reference.md).
 
-**Heartbeat channel.** Challenges deliver live over the shared bus: the shell contributes `desktop_mode_games_subscribe: { challengesVersion: <lastSeenUpdatedAtMs> }` on every tick and the server answers with `desktop_mode_games: { challenges: GameChallengeRow[], serverTimeMs, truncated }` — version-gated (quiet ticks carry nothing) and capped via the `desktop_mode_games_heartbeat_max_rows` PHP filter. Recipients of a fresh challenge get a browser notification (toast fallback) + a persistent **Accept & Play** toast; challengers are notified when their challenge completes.
+**Heartbeat channel.** Challenges deliver live over the shared bus: the shell contributes `openstation_games_subscribe: { challengesVersion: <lastSeenUpdatedAtMs> }` on every tick and the server answers with `openstation_games: { challenges: GameChallengeRow[], serverTimeMs, truncated }` — version-gated (quiet ticks carry nothing) and capped via the `openstation_games_heartbeat_max_rows` PHP filter. Recipients of a fresh challenge get a browser notification (toast fallback) + a persistent **Accept & Play** toast; challengers are notified when their challenge completes.
 
-**Config global.** The Games hub bundle reads `window.desktopModeGamesConfig` (`restNonce`, `gamesUrlBase`, `challengesUrl`, `usersSearchUrl`), localized onto the `desktop-mode-games` handle.
+**Config global.** The Games hub bundle reads `window.openStationGamesConfig` (`restNonce`, `gamesUrlBase`, `challengesUrl`, `usersSearchUrl`), localized onto the `desktop-mode-games` handle.
 
 ---
 
-### `broadcast` / `subscribe` — Stable *(since 0.6.0)*
+### `broadcast` / `subscribe` — Stable
 
-Cross-window pub/sub. Fan-out fan-in primitive — any module can publish on a topic and every subscriber (in the parent shell, in any open iframe) receives the payload. Distinct from `wp.desktop.activity` in two ways: it crosses iframe boundaries, and it has no `<plugin>/<event>` typing — topics are free-form strings.
+Cross-window pub/sub. Fan-out fan-in primitive — any module can publish on a topic and every subscriber (in the parent shell, in any open iframe) receives the payload. Distinct from `wp.os.activity` in two ways: it crosses iframe boundaries, and it has no `<plugin>/<event>` typing — topics are free-form strings.
 
 ```typescript
-wp.desktop.broadcast< T >( topic: string, payload: T ): void;
+wp.os.broadcast< T >( topic: string, payload: T ): void;
 
-wp.desktop.subscribe< T >(
+wp.os.subscribe< T >(
     topic: string,                         // or '*' for wildcard
     cb:    ( payload: T, meta: { topic: string } ) => void,
 ): () => void;
@@ -1663,17 +2450,17 @@ wp.desktop.subscribe< T >(
 
 ```javascript
 // Notify every window that a record changed.
-wp.desktop.broadcast( 'posts/updated', { id: 42 } );
+wp.os.broadcast( 'posts/updated', { id: 42 } );
 
 // React across windows.
-wp.desktop.subscribe( 'posts/updated', ( { id } ) => {
+wp.os.subscribe( 'posts/updated', ( { id } ) => {
     refetchIfShowing( id );
 } );
 ```
 
-**Mirror onto activity** *(since 0.5.5)* — every `broadcast()` *also* publishes on the activity bus under the same topic name (so long as it matches the `<plugin>/<event>` shape), so in-tab subscribers can use the unified `activity.subscribe` surface without knowing whether the producer ran broadcast vs activity. Cross-iframe fan-out stays the broadcast bus's job.
+**Mirror onto activity** — every `broadcast()` *also* publishes on the activity bus under the same topic name (so long as it matches the `<plugin>/<event>` shape), so in-tab subscribers can use the unified `activity.subscribe` surface without knowing whether the producer ran broadcast vs activity. Cross-iframe fan-out stays the broadcast bus's job.
 
-**The `desktop-mode.<type>.changed` topic family** *(extended 0.9.7)* — the framework's own content-change traffic rides this bus. One topic per content type (`post`, `page`, `attachment`, `comment`, any CPT slug, `shop_order` for WooCommerce orders), payload:
+**The `os.<type>.changed` topic family** — the framework's own content-change traffic rides this bus. One topic per content type (`post`, `page`, `attachment`, `comment`, any CPT slug, `shop_order` for WooCommerce orders), payload:
 
 ```typescript
 {
@@ -1683,30 +2470,53 @@ wp.desktop.subscribe( 'posts/updated', ( { id } ) => {
 }
 ```
 
-Publishers: the server-side changelog relayed through the chromeless footer (`source: 'admin'`), the block-editor save-watcher (`'editor'`), the Heartbeat catch-all (`'heartbeat'` — may repeat a change delivered earlier by a faster path; treat refreshes as idempotent), and client-side emitters that identify themselves (`'recycle-bin'`, `'posts-window'`, your plugin). Subscribing to your type's topic is all a list window needs to stay live; publishing is one `desktop_mode_content_changes_record()` call server-side (see [hooks-reference.md → Content-change realtime layer](./hooks-reference.md#content-change-realtime-layer-since-097)) or a direct `wp.desktop.broadcast()` client-side — set a distinctive `source` so you can skip your own echoes.
-
-**Heartbeat fields** *(since 0.9.7)* — the shell contributes `desktop_mode_content_changes_seen_ts` (server-ms high-water mark, `0` on the handshake tick) and consumes `desktop_mode_content_changes: { ts, entries: [ { ts, type, action, ids } ] }`, re-broadcasting each fresh entry on this bus. Timestamps are server-clock; the first tick is a pure handshake so client/server skew can never drop changes.
+Publishers: the server-side changelog relayed through the chromeless footer (`source: 'admin'`), the block-editor save-watcher (`'editor'`), the Heartbeat catch-all (`'heartbeat'` — may repeat a change delivered earlier by a faster path; treat refreshes as idempotent), and client-side emitters that identify themselves (`'recycle-bin'`, `'posts-window'`, your plugin). Subscribing to your type's topic is all a list window needs to stay live; publishing is one `openstation_content_changes_record()` call server-side (see [hooks-reference.md → Content-change realtime layer](./hooks-reference.md#content-change-realtime-layer)) or `wp.os.announceContentChange()` client-side — set a distinctive `source` so you can skip your own echoes.
 
 ---
 
-### `showToast( opts )` — Stable *(since 0.6.0)*
+### `announceContentChange( type, action, ids, source? )` — Stable
+
+The typed producer for the `os.<type>.changed` family — a wrapper over `broadcast()` that emits the exact envelope above, so producers stop hand-rolling it (a drifted payload fails silently: the bin just stops updating).
+
+**When you must call it:** whenever your window mutates content through **your own REST endpoints**. The shell sees its own mutations, and the server-side changelog covers chromeless admin pages — but a native window POSTing to `your-plugin/v1/...` is invisible to every other open window until the Heartbeat catch-all delivers the change 15–60 s later. Announcing is what makes the Recycle Bin, the bin's dock badge, and any list window showing your type update the moment your call resolves.
+
+```typescript
+wp.os.announceContentChange(
+    type:   string,                                                    // post type, or bin entity kind
+    action: 'created' | 'updated' | 'trashed' | 'untrashed' | 'deleted',
+    ids:    number | number[],                                         // invalid / empty → no-op
+    source?: string,                                                   // your emitter id
+): void;
+```
+
+```javascript
+// After your delete endpoint resolves:
+await apiDelete( `/my-plugin/v1/things/${ id }` );
+wp.os.announceContentChange( 'my_thing', 'trashed', id, 'my-plugin' );
+```
+
+**Heartbeat fields** — the shell contributes `openstation_content_changes_seen_ts` (server-ms high-water mark, `0` on the handshake tick) and consumes `openstation_content_changes: { ts, entries: [ { ts, type, action, ids } ] }`, re-broadcasting each fresh entry on this bus. Timestamps are server-clock; the first tick is a pure handshake so client/server skew can never drop changes.
+
+---
+
+### `showToast( opts )` — Stable
 
 Show a top-of-shell toast. Returns a dismiss callback the caller can invoke early — useful when the state the toast was reporting changes (e.g. dismiss "X arrived" toasts the moment the related window mounts).
 
 ```typescript
-wp.desktop.showToast( {
+wp.os.showToast( {
     message: string;
     duration?: number;                                     // ms; default 4000. Ignored when persistent.
     action?: { label: string; onClick: () => void };       // optional CTA
-    persistent?: boolean;                                  // since 0.9.4 — never auto-dismiss
-    dismissible?: boolean;                                 // since 0.9.4 — show a close (×) button
-    onDismiss?: () => void;                                // since 0.9.4 — called when × is clicked
+    persistent?: boolean;                                  // never auto-dismiss
+    dismissible?: boolean;                                 // show a close (×) button
+    onDismiss?: () => void;                                // called when × is clicked
 } ): () => void;
 ```
 
 ```javascript
 // Transient (default) — auto-dismisses after `duration`.
-const dismiss = wp.desktop.showToast( {
+const dismiss = wp.os.showToast( {
     message: 'Saved',
     duration: 3000,
     action: { label: 'Undo', onClick: () => undo() },
@@ -1717,7 +2527,7 @@ const dismiss = wp.desktop.showToast( {
 // surfaces a pending WordPress core update (once, instead of the
 // per-window nag). Add `dismissible` for a close (×) button, and
 // `onDismiss` to persist the fact it was closed.
-const clear = wp.desktop.showToast( {
+const clear = wp.os.showToast( {
     message: 'WordPress 7.0.2 is available.',
     persistent: true,
     dismissible: true,
@@ -1728,20 +2538,22 @@ const clear = wp.desktop.showToast( {
 
 A `persistent` toast has no auto-dismiss timer — clear it via the action button (which dismisses on click), the close (×) button when `dismissible` is set, or the returned dismiss callback. `duration` is ignored when `persistent` is set.
 
-Routes through the `desktop-mode/toast-requested` activity filter before painting; plugins can register a filter that returns `null` (or sets `cancel: true`) to suppress, or mutates the payload to amplify / quiet the toast.
+**`duration` is a countdown, not a deadline.** It only runs while the toast is unattended: hovering the toast, or moving focus into it (Tab to the action button, a screen reader entering it), pauses the timer and resumes it on release with the time it had left, floored at 1.2s. So an `action` the user is reaching for cannot be deleted mid-reach — which also means a toast can outlive its `duration` by as long as the user keeps it under the pointer. And if a dismissal happens while the toast holds focus — clicking `Undo` removes the element the button lives in — focus is handed back to the last element outside the toast stack that had it, instead of falling to `<body>`. Both behaviours are the `<os-toast>` element's `held` state driving the timer; see the [`<os-toast>` hold contract](components-reference.md#menus--overlays) if you are building on the element directly.
+
+Routes through the `os/toast-requested` activity filter before painting; plugins can register a filter that returns `null` (or sets `cancel: true`) to suppress, or mutates the payload to amplify / quiet the toast.
 
 ---
 
-### `repaintLoadingOverlays()` — Stable *(since 0.6.0)*
+### `repaintLoadingOverlays()` — Stable
 
 Re-paint every currently-loading window's spinner overlay through the customization pipeline (per-window `config.loading.render` + `WINDOW_LOADING_OVERLAY` filter).
 
-**You almost never need this.** Filters registered inside `wp.desktop.whenReady( … )` are picked up automatically by the shell's post-`HOOKS.INIT` sweep, including for F5 / session-restored windows that were constructed before the plugin script ran. The canonical plugin shape:
+**You almost never need this.** Filters registered inside `wp.os.whenReady( … )` are picked up automatically by the shell's post-`HOOKS.INIT` sweep, including for F5 / session-restored windows that were constructed before the plugin script ran. The canonical plugin shape:
 
 ```js
-wp.desktop.whenReady( () => {
-    wp.desktop.hooks.addFilter(
-        'desktop-mode.window.loading-overlay',
+wp.os.whenReady( () => {
+    wp.os.hooks.addFilter(
+        'os.window.loading-overlay',
         'my-skin/branded',
         ( host ) => { /* … */ },
     );
@@ -1755,12 +2567,12 @@ just works on F5 with no extra plumbing.
 ```js
 async function activateBrandSkin() {
     const { brandRenderer } = await import( './brand-renderer.js' );
-    wp.desktop.hooks.addFilter(
-        'desktop-mode.window.loading-overlay',
+    wp.os.hooks.addFilter(
+        'os.window.loading-overlay',
         'my-skin/lazy-branded',
         brandRenderer,
     );
-    wp.desktop.repaintLoadingOverlays();
+    wp.os.repaintLoadingOverlays();
 }
 ```
 
@@ -1768,12 +2580,12 @@ Idempotent + cheap — windows that already finished loading are unaffected.
 
 ---
 
-### `renderKeyedList( host, items, opts )` / `clearKeyedList( host )` — Stable *(since 0.6.0)*
+### `renderKeyedList( host, items, opts )` / `clearKeyedList( host )` — Stable
 
 Keyed-list reconciler for any plugin that paints a dynamic list of items into a DOM container. Reuses element instances when keys match across renders so event listeners survive data updates — the only reliable way to keep clicks working on rows that may re-render mid-press.
 
 ```javascript
-wp.desktop.renderKeyedList( hostEl, items, {
+wp.os.renderKeyedList( hostEl, items, {
     keyOf:    ( item ) => item.id,
     buildItem ( item ) {
         const li = document.createElement( 'li' );
@@ -1788,26 +2600,26 @@ wp.desktop.renderKeyedList( hostEl, items, {
 } );
 
 // On unmount:
-wp.desktop.clearKeyedList( hostEl );
+wp.os.clearKeyedList( hostEl );
 ```
 
 **Why this matters.** Without keyed reconciliation, list re-renders typically do `host.innerHTML = ''` followed by a full rebuild. If the user is mid-press on a row when the repaint happens, `mousedown` fires on the OLD node, the rebuild destroys it, and `mouseup` lands on a new node — the browser does NOT synthesize a `click` and the user's tap silently does nothing. Use `mousedown` (not `click`) for selection-style listeners on elements that may be removed by future state changes.
 
 ---
 
-### `registerNamespace( name, api )` — Stable *(since 0.6.0)*
+### `registerNamespace( name, api )` — Stable
 
-Bless a plugin-owned subnamespace under `wp.desktop`. Plugins that ship their own public surface (`wp.desktop.<your-plugin>`) call this once at boot to publish their api object on the shell.
+Bless a plugin-owned subnamespace under `wp.os`. Plugins that ship their own public surface (`wp.os.<your-plugin>`) call this once at boot to publish their api object on the shell.
 
 ```javascript
-wp.desktop.registerNamespace( 'my-plugin', {
+wp.os.registerNamespace( 'my-plugin', {
     open:  () => { /* ... */ },
     close: () => { /* ... */ },
     state: () => readState(),
 } );
 
 // Later, in any other plugin:
-wp.desktop[ 'my-plugin' ].open();
+wp.os[ 'my-plugin' ].open();
 ```
 
 - **Re-registration is idempotent.** Calling with the same name replaces the previous registration so a plugin reload does the right thing.
@@ -1829,8 +2641,8 @@ Registrations are live — if the palette is open when you call this, the new co
 | `description` | `string` | no | One-line description under the label |
 | `hint` | `string` | no | Argument hint, e.g. `"[post id]"` |
 | `icon` | `string` | no | Dashicons class, default `dashicons-arrow-right-alt` |
-| `iconSvg` | `string` | no | *Since 0.5.1.* Raw `<svg>…</svg>` markup rendered inline; takes precedence over `icon`. Used internally by the iframe-command bridge to forward `@wordpress/icons` elements; plugins may set it when shipping a one-off glyph is easier than enqueueing a dashicon. |
-| `eager` | `boolean` | no | *Since 0.5.1.* When `true`, the command appears on the empty-input palette without the user typing `/`. When falsy (default), it only surfaces after `/`. Eager and slash-only surfaces are **disjoint** — typing `/` hides eager commands. Use `eager: true` for contextual / always-relevant actions (block editor shortcuts, site-wide toggles); leave it off for utility commands the user deliberately invokes. |
+| `iconSvg` | `string` | no | Raw `<svg>…</svg>` markup rendered inline; takes precedence over `icon`. Used internally by the iframe-command bridge to forward `@wordpress/icons` elements; plugins may set it when shipping a one-off glyph is easier than enqueueing a dashicon. |
+| `eager` | `boolean` | no | When `true`, the command appears on the empty-input palette without the user typing `/`. When falsy (default), it only surfaces after `/`. Eager and slash-only surfaces are **disjoint** — typing `/` hides eager commands. Use `eager: true` for contextual / always-relevant actions (block editor shortcuts, site-wide toggles); leave it off for utility commands the user deliberately invokes. |
 | `owner` | `string` | no | Optional tag for grouped eviction via `unregisterByOwner()`. The iframe bridge uses `iframe:<windowId>`; plugins typically pass their script handle. |
 | `suggest( args, ctx )` | `function` | no | Argument autocomplete. Returns or resolves to `CommandSuggestion[]`. When present, the palette renders a live list the user can navigate with ↑/↓ and commit with Tab / Enter. |
 | `run( args, ctx )` | `function` | yes | Handler. `args` is the raw text after `/<slug> `. May be async. |
@@ -1848,7 +2660,7 @@ Registrations are live — if the palette is open when you call this, the new co
 
 - `ctx.close()` — dismiss the AI Assistant panel.
 - `ctx.openInWindow( url, title, icon? )` — open a wp-admin URL in a legacy iframe window on the desktop.
-- `ctx.confirm( message, details? ) → Promise<boolean>` *(since 0.5.0)* — ask the user to confirm a destructive action. Default implementation renders the framework's `<wpd-confirm-dialog>` (same surface as `wp.desktop.confirm`); the `Promise<boolean>` contract is stable. Use this from any command whose `run()` does something irreversible.
+- `ctx.confirm( message, details? ) → Promise<boolean>` — ask the user to confirm a destructive action. Default implementation renders the framework's `<os-confirm-dialog>` (same surface as `wp.os.confirm`); the `Promise<boolean>` contract is stable. Use this from any command whose `run()` does something irreversible.
 
   ```javascript
   run: async ( args, ctx ) => {
@@ -1857,26 +2669,26 @@ Registrations are live — if the palette is open when you call this, the new co
           'You will lose any unsaved iframe state.'
       );
       if ( ! ok ) return 'Cancelled.';
-      const closed = wp.desktop.windowManager.closeAll();
+      const closed = wp.os.windowManager.closeAll();
       return `Closed ${ closed } window${ closed === 1 ? '' : 's' }.`;
   }
   ```
 
-**Command lifecycle hooks** *(since 0.5.0)* — fire around every `run()`. Subscribe via `wp.hooks`:
+**Command lifecycle hooks** — fire around every `run()`. Subscribe via `wp.hooks`:
 
 | Hook | Type | Payload | Use |
 |---|---|---|---|
-| `desktop-mode.command.before-run` | filter | `{ proceed: true, slug, args, command }` → return same shape with `proceed: false` (and optional `reason`) to cancel | Capability gates, audit log, "developer mode only" commands |
-| `desktop-mode.command.after-run` | action | `{ slug, args, command, result }` | Telemetry, post-run toast |
-| `desktop-mode.command.error` | action | `{ slug, args, command, error }` | Centralised error reporting |
+| `os.command.before-run` | filter | `{ proceed: true, slug, args, command }` → return same shape with `proceed: false` (and optional `reason`) to cancel | Capability gates, audit log, "developer mode only" commands |
+| `os.command.after-run` | action | `{ slug, args, command, result }` | Telemetry, post-run toast |
+| `os.command.error` | action | `{ slug, args, command, error }` | Centralised error reporting |
 
 ```javascript
 // Block /close_all_windows for non-admin users.
 wp.hooks.addFilter(
-    'desktop-mode.command.before-run',
+    'os.command.before-run',
     'my-plugin/gate',
     ( gate ) => {
-        if ( gate.slug === 'close_all_windows' && ! desktopModeConfig.currentUserIsAdmin ) {
+        if ( gate.slug === 'close_all_windows' && ! openStationConfig.currentUserIsAdmin ) {
             return { ...gate, proceed: false, reason: 'Admins only.' };
         }
         return gate;
@@ -1895,7 +2707,7 @@ When `proceed` is `false` the assistant renders the optional `reason` (or a gene
 **Minimal example — `/echo hello → hello`:**
 
 ```javascript
-window.wp.desktop.registerCommand( {
+window.wp.os.registerCommand( {
     slug: 'echo',
     label: 'Echo',
     description: 'Repeat the arguments back as a message.',
@@ -1910,7 +2722,7 @@ Type `/echo hello` → the assistant replies with `hello`. Type `/echo` with no 
 **Richer example — `/turn_on_comments` with a REST call:**
 
 ```javascript
-window.wp.desktop.registerCommand( {
+window.wp.os.registerCommand( {
     slug: 'turn_on_comments',
     label: 'Turn on comments',
     description: 'Re-enable the comments section on a given post.',
@@ -1922,7 +2734,7 @@ window.wp.desktop.registerCommand( {
 
         await fetch( `/wp-json/my-plugin/v1/enable-comments/${ id }`, {
             method:  'POST',
-            headers: { 'X-WP-Nonce': desktopModeConfig.restNonce },
+            headers: { 'X-WP-Nonce': openStationConfig.restNonce },
         } );
 
         ctx.close();
@@ -1933,10 +2745,10 @@ window.wp.desktop.registerCommand( {
 
 **Errors** thrown from `run` are caught and rendered as an error bubble — the panel doesn't crash.
 
-**Live-refresh on plugin install/activate.** If your plugin's script is declared via `desktop_mode_register_command_script()` (see the PHP docs), the shell injects it into the current shell page when the user installs or activates your plugin — your commands appear in the palette **without a reload**. For live *unregistration* on deactivation, set `owner` to the same WordPress script handle:
+**Live-refresh on plugin install/activate.** If your plugin's script is declared via `openstation_register_command_script()` (see the PHP docs), the shell injects it into the current shell page when the user installs or activates your plugin — your commands appear in the palette **without a reload**. For live *unregistration* on deactivation, set `owner` to the same WordPress script handle:
 
 ```javascript
-window.wp.desktop.registerCommand( {
+window.wp.os.registerCommand( {
     slug:  'ha-lights',
     label: 'Home Assistant: Lights',
     owner: 'home-assistant-commands', // must match the WP script handle
@@ -1952,7 +2764,7 @@ Commands without `owner` still register live on activation; they only persist pa
 Remove a previously registered command. Idempotent.
 
 ```javascript
-window.wp.desktop.unregisterCommand( 'echo' );
+window.wp.os.unregisterCommand( 'echo' );
 ```
 
 ---
@@ -1961,19 +2773,19 @@ window.wp.desktop.unregisterCommand( 'echo' );
 Returns a snapshot of every currently registered command as an array. Useful for a debug console or a "help" meta-command.
 
 ```javascript
-window.wp.desktop.listCommands().forEach( ( c ) => console.log( `/${ c.slug } — ${ c.label }` ) );
+window.wp.os.listCommands().forEach( ( c ) => console.log( `/${ c.slug } — ${ c.label }` ) );
 ```
 
 ---
 
-### `registerDestructiveAdminAction( entry )` — Stable  *(since 0.8.4)*
+### `registerDestructiveAdminAction( entry )` — Stable
 
 Mark a wp-admin URL pattern as a **destructive (redirect-back) action** so a click on that URL navigates the *source* iframe in place instead of opening a new window. The same UX vanilla wp-admin gives for Trash / Untrash / Delete row actions — the row disappears, the list refreshes with an "Undo" notice on the same screen.
 
 Built-ins are pinned with no opt-in: Core's `trash`, `untrash`, `delete` on posts plus the comment-moderation set (`spam`, `unspam`, `spamcomment`, `unspamcomment`, `trashcomment`, `untrashcomment`, `deletecomment`, `approvecomment`, `unapprovecomment`). Register a predicate for any plugin-specific equivalent.
 
 ```javascript
-const unregister = window.wp.desktop.registerDestructiveAdminAction( {
+const unregister = window.wp.os.registerDestructiveAdminAction( {
     id: 'woocommerce/trash-order',
     matches: ( _url, parsed ) =>
         parsed.pathname.endsWith( '/admin.php' ) &&
@@ -1997,38 +2809,38 @@ const unregister = window.wp.desktop.registerDestructiveAdminAction( {
 - Actions that genuinely *navigate* to a different screen (Edit, Settings deep links) should NOT be marked destructive — let them open a new window.
 - Bulk-action POSTs handled via `<form>` submission are out of scope (forms don't go through this dispatcher).
 
-**Cross-bundle:** the registry routes through `wp.desktop.createSharedStore`. A `register…` call from a plugin's own Vite IIFE is visible to the dispatcher (which runs inside the shell's `window-system` bundle). See `AGENTS.md` § "Cross-bundle state".
+**Cross-bundle:** the registry routes through `wp.os.createSharedStore`. A `register…` call from a plugin's own Vite IIFE is visible to the dispatcher (which runs inside the shell's `window-system` bundle). See `AGENTS.md` § "Cross-bundle state".
 
 ---
 
-### `unregisterDestructiveAdminAction( id )` — Stable  *(since 0.8.4)*
+### `unregisterDestructiveAdminAction( id )` — Stable
 
 Remove a previously registered predicate. Idempotent — no-op when the id is unknown.
 
 ```javascript
-window.wp.desktop.unregisterDestructiveAdminAction( 'woocommerce/trash-order' );
+window.wp.os.unregisterDestructiveAdminAction( 'woocommerce/trash-order' );
 ```
 
 ---
 
-### `listDestructiveAdminActions()` — Stable  *(since 0.8.4)*
+### `listDestructiveAdminActions()` — Stable
 
 Snapshot (defensive copy) of every plugin-registered destructive-admin-action predicate. Built-in Core whitelist entries are NOT included — they're not registry entries.
 
 ```javascript
-window.wp.desktop.listDestructiveAdminActions().forEach( ( e ) => console.log( e.id ) );
+window.wp.os.listDestructiveAdminActions().forEach( ( e ) => console.log( e.id ) );
 ```
 
 ---
 
-### `wp.desktop.ai.ask( query, opts? )` — Experimental  *(since 0.5.1)*
+### `wp.os.ai.ask( query, opts? )` — Experimental
 
 Programmatic access to the AI Copilot — same endpoint the built-in overlay talks to. Resolves to an `AskResult`; rejects on network errors, HTTP failures, or abort.
 
 The built-in content tools (`search_posts`, `search_pages`, `search_comments`, `search_comments_by_post`) run WordPress's native keyword search — the model derives a `query` from the user's request and the tools return matching titles + excerpts. (Posts, pages, and terms are no longer pre-analyzed; comment spam scoring is the only automatic AI analysis.) When you continue an exhausted search with `resumeTool` / `startOffset`, the original query is reused automatically.
 
 ```javascript
-const res = await wp.desktop.ai.ask( 'where do I manage categories?' );
+const res = await wp.os.ai.ask( 'where do I manage categories?' );
 // res = { answer_type: 'navigation', message: '…', admin_links: [ … ], request_id: '…' }
 ```
 
@@ -2067,8 +2879,8 @@ const res = await wp.desktop.ai.ask( 'where do I manage categories?' );
 Mark a command `aiCallable: true` to opt it in, then pass `tools: 'aiCallable'` (or a predicate) when calling `ask()`:
 
 ```javascript
-wp.desktop.ready( () => {
-    wp.desktop.registerCommand( {
+wp.os.ready( () => {
+    wp.os.registerCommand( {
         slug: 'turn_lights',
         label: 'Turn lights on/off',
         description: 'Toggle smart lights.',
@@ -2083,7 +2895,7 @@ wp.desktop.ready( () => {
 } );
 
 // Later — from a voice plugin, a chat widget, an automation:
-const res = await wp.desktop.ai.ask( 'hey turn on the lights', {
+const res = await wp.os.ai.ask( 'hey turn on the lights', {
     tools: 'aiCallable',
 } );
 // res.answer_type === 'tool_call'
@@ -2091,7 +2903,7 @@ const res = await wp.desktop.ai.ask( 'hey turn on the lights', {
 // res.message   === 'Lights ON.'  // string returns are lifted into message
 ```
 
-Why opt-in: AI tool-calling is a paraphrasing channel, and handing the model every registered command (including destructive ones like `/delete_all_posts`) would turn a typo into a catastrophe. `aiCallable` is the single flag each command author decides for themselves. The PHP-side filter `desktop_mode_ai_command_allowed` provides a second line of defence for per-role gating.
+Why opt-in: AI tool-calling is a paraphrasing channel, and handing the model every registered command (including destructive ones like `/delete_all_posts`) would turn a typo into a catastrophe. `aiCallable` is the single flag each command author decides for themselves. The PHP-side filter `openstation_ai_command_allowed` provides a second line of defence for per-role gating.
 
 **Security notes.**
 
@@ -2106,7 +2918,7 @@ By default, `ask()` runs in **one-shot** mode: when the AI picks a command, `res
 Opt into **agentic** mode with `followUp: true` and `ask()` fires a second `/ai/search` request after the command runs. The server summarises the outcome in the voice of the system prompt:
 
 ```javascript
-const res = await wp.desktop.ai.ask( 'hey turn on the office light', {
+const res = await wp.os.ai.ask( 'hey turn on the office light', {
     tools:     'aiCallable',
     followUp:  true,
 } );
@@ -2136,7 +2948,7 @@ const controller = new AbortController();
 setTimeout( () => controller.abort(), 5000 );
 
 try {
-    const res = await wp.desktop.ai.ask( 'find my post about málaga', {
+    const res = await wp.os.ai.ask( 'find my post about málaga', {
         signal: controller.signal,
     } );
 } catch ( err ) {
@@ -2152,9 +2964,9 @@ See also: [`docs/examples/ai-ask.md`](./examples/ai-ask.md).
 
 ---
 
-### `registerTitleBarButton( def )` — Experimental  *(since 0.5.2)*
+### `registerTitleBarButton( def )` — Experimental
 
-Add a custom button to the title bar of any matching window. The right surface for cross-window verbs ("connect to", "live preview", "broadcast"). Predicate decides which windows show the button; you can render an `<wpd-window-button>` with a click handler, or own the host entirely with a custom `render`.
+Add a custom button to the title bar of any matching window. The right surface for cross-window verbs ("connect to", "live preview", "broadcast"). Predicate decides which windows show the button; you can render an `<os-window-button>` with a click handler, or own the host entirely with a custom `render`.
 
 **Returns** nothing on success. **Throws** a `RegistrationError` on validation failure — the error message names the bad fields, so wrap the call in `try`/`catch` if you need to branch or route it through your own monitor pipeline.
 
@@ -2162,19 +2974,19 @@ Add a custom button to the title bar of any matching window. The right surface f
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | `string` | Unique. `[a-z0-9_/-]+` — same `vendor/sub-id` shape that `desktop_mode_register_window` / `desktop_mode_register_widget` accept (slashes welcome). Wider than `registerSettingsTab`'s id, which can't use slashes (that value is also used in CSS selectors). Re-registering replaces. |
+| `id` | `string` | Unique. `[a-z0-9_/-]+` — same `vendor/sub-id` shape that `openstation_register_window` / `openstation_register_widget` accept (slashes welcome). Wider than `registerSettingsTab`'s id, which can't use slashes (that value is also used in CSS selectors). Re-registering replaces. |
 | `label` | `string` | Tooltip + aria-label. |
 | `icon` | `string` | Dashicons class (`'dashicons-foo'`), inline SVG (`'<svg>…</svg>'`), or built-in key (`'minimize'` / `'menu'` / etc.). |
 | `placement` | `'left' \| 'right'` | Default `'left'` (next to title). `'right'` lands before the window controls. |
 | `order` | `number` | Default 100. Sorts within placement. |
 | `match` | `( window ) => boolean` | Predicate against the live `Window` instance. Throwing equals not-matching. |
-| `onClick` | `( window, ev ) => void` | Optional. Fires **exactly once per user activation** — wired to the button's `wpd-button-activate` CustomEvent (not raw `click`), so no doubles, no swallowed events when the title-bar drag tracker races. Skip if you use `render`. |
-| `render` | `( host, window ) => void` | Optional. Owns the `<wpd-window-button>` host entirely; bind your own click + dropdown. |
+| `onClick` | `( window, ev ) => void` | Optional. Fires **exactly once per user activation** — wired to the button's `os-button-activate` CustomEvent (not raw `click`), so no doubles, no swallowed events when the title-bar drag tracker races. Skip if you use `render`. |
+| `render` | `( host, window ) => void` | Optional. Owns the `<os-window-button>` host entirely; bind your own click + dropdown. |
 | `owner` | `string` | Optional. Set to your script handle for live-unregister-on-deactivate. |
 
 ```javascript
-wp.desktop.ready( () => {
-    wp.desktop.registerTitleBarButton( {
+wp.os.ready( () => {
+    wp.os.registerTitleBarButton( {
         id:    'live-preview/connect',
         label: 'Live preview',
         icon:  'dashicons-visibility',
@@ -2190,7 +3002,7 @@ wp.desktop.ready( () => {
 PHP companion (so plugins activated mid-session paint live):
 
 ```php
-desktop_mode_register_titlebar_button_script( 'my-plugin-titlebar' );
+openstation_register_titlebar_button_script( 'my-plugin-titlebar' );
 ```
 
 ### `unregisterTitleBarButton( id )` / `listTitleBarButtons()` — Experimental
@@ -2199,9 +3011,9 @@ Remove a title-bar button by id, or read a snapshot of every registered button d
 
 ---
 
-### `registerUnfocusEffect( def )` — Experimental  *(since 0.9.1)*
+### `registerUnfocusEffect( def )` — Experimental
 
-Register a visual treatment applied to every window that **isn't** focused — surfaced in **OS Settings → Effects → "Unfocused windows"**. The built-in effects (`darken` dims, `frost` blurs to frosted glass, `grayscale` drains colour) are registered through this same hook; plugins add their own the identical way. The framework owns *when* the effect runs (focus changes, the user's selection, minimized-window exclusion); your def owns *what* it does.
+Register a visual treatment applied to every window that **isn't** focused — surfaced in **OpenStation Preferences → Windows → "Unfocused windows"**. The built-in effects (`darken` dims, `frost` blurs to frosted glass, `grayscale` drains colour) are registered through this same hook; plugins add their own the identical way. The framework owns *when* the effect runs (focus changes, the user's selection, and the exclusions below); your def owns *what* it does. Exempt, whatever effect is selected: **minimized** windows, **split-view tiles** (`snapped-left` / `snapped-right` — the half that doesn't hold focus stays untouched so both sides of a split stay workable; the exemption is partner-blind, a tile qualifies whether or not the opposite half is filled), and windows hosting a `<canvas>` in the parent document (filtering a live WebGL surface can cost its context).
 
 **Throws** a `RegistrationError` on validation failure (bad/missing `id`, the reserved id `'none'`, or neither `className` nor `apply` provided).
 
@@ -2212,18 +3024,18 @@ Register a visual treatment applied to every window that **isn't** focused — s
 | `id` | `string` | Unique. `[a-z0-9_/-]+` (slashes welcome for `vendor/sub-id`). `'none'` is reserved (it is the selector's "no effect" sentinel). Re-registering replaces. |
 | `label` | `string` | Shown in the selector. |
 | `description` | `string` | Optional. Shown under the selector when this effect is active. |
-| `className` | `string` | Optional. CSS class toggled on the window root (`.desktop-mode-window`) while unfocused. The cheap, declarative path — ship the matching rule in your stylesheet. |
+| `className` | `string` | Optional. CSS class toggled on the window root (`.os-window`) while unfocused. The cheap, declarative path — ship the matching rule in your stylesheet. |
 | `apply` | `( el ) => void` | Optional. Imperative apply, called with the window root when it becomes unfocused under this effect. Use when a static class isn't enough. |
 | `clear` | `( el ) => void` | Optional. Teardown, called when the window regains focus or the effect is switched away. Must undo `apply`; the framework removes `className` for you. |
 | `owner` | `string` | Optional. Set to your script handle for live-unregister-on-deactivate. |
 
 At least one of `className` / `apply` is required.
 
-> **Windows hosting a WebGL `<canvas>` are exempt.** Native Pixi scenes (content graph, posts mind-map / tag-cloud, the About scene) render a live WebGL canvas in the parent DOM; a CSS `filter` over such an element can trigger a GPU context loss that crashes the canvas's render loop. The engine detects a `<canvas>` in the window root and skips the effect for that window. Canvases inside *iframe* windows live in a separate document and aren't affected.
+> **Windows hosting a WebGL `<canvas>` are exempt.** Native Pixi scenes (content graph and posts mind-map / tag-cloud) render a live WebGL canvas in the parent DOM; a CSS `filter` over such an element can trigger a GPU context loss that crashes the canvas's render loop. The engine detects a `<canvas>` in the window root and skips the effect for that window. Canvases inside *iframe* windows live in a separate document and aren't affected.
 
 ```javascript
-wp.desktop.ready( () => {
-    wp.desktop.registerUnfocusEffect( {
+wp.os.ready( () => {
+    wp.os.registerUnfocusEffect( {
         id:        'acme/blur',
         label:     'Blur',
         className: 'acme-window--blur', // ship `.acme-window--blur { filter: blur(2px); }`
@@ -2235,20 +3047,151 @@ wp.desktop.ready( () => {
 PHP companion (so plugins activated mid-session surface in the selector live):
 
 ```php
-desktop_mode_register_unfocus_effect_script( 'my-plugin-effects' );
+openstation_register_unfocus_effect_script( 'my-plugin-effects' );
 ```
 
-The raw `desktop-mode.unfocus-effects` JS filter receives the registry array on every read, mirroring `desktop-mode.wallpapers` — use it to reorder, remove, or conditionally swap effects. The user's selection persists in the `unfocusEffect` OS-settings key (effect id or `'none'`; default `'darken'`), readable via `getOsSettings().unfocusEffect`.
+The raw `os.unfocus-effects` JS filter receives the registry array on every read, mirroring `os.wallpapers` — use it to reorder, remove, or conditionally swap effects. The user's selection persists in the `unfocusEffect` OS-settings key (effect id or `'none'`; default `'darken'`), readable via `getOsSettings().unfocusEffect`.
 
-### `unregisterUnfocusEffect( id )` / `listUnfocusEffects()` — Experimental  *(since 0.9.1)*
+### `unregisterUnfocusEffect( id )` / `listUnfocusEffects()` — Experimental
 
 Remove an effect by id, or read the current list (post-filter). `listUnfocusEffects()` always includes the built-ins (`darken`, `frost`, `grayscale`) unless a filter removed them.
 
 ---
 
-### `wp.desktop.relations` — Experimental  *(since 0.9.4)*
+### `registerWindowReveal( def )` — Experimental
 
-Window content relations: which piece of content each window shows, and how windows group around a shared **root** (a post edit window is the root; its comment / media windows are children). The shell draws visual ties between group members — see [`registerWindowLinkRenderer`](#registerwindowlinkrenderer-def--experimental-since-094) for the pluggable rendering and [`docs/examples/window-links.md`](./examples/window-links.md) for recipes.
+Register a **window reveal** — the transition that uncovers a window's content once it has finished loading, surfaced in **OpenStation Preferences → Windows → "Window reveal"**. The shell paints an opaque surface over the window body for the whole load (the same span the `<os-spinner>` overlay covers), then animates that surface's `clip-path` away. The twelve built-ins (`sweep`, `rise`, `diagonal`, `iris`, `diamond`, `curtain`, `shutter`, `blinds`, `slats`, `mosaic`, `radar`, `obturator`) are registered through this same hook.
+
+The surface is a **sibling of the `<iframe>`** inside `.os-window__body`, never a wrapper and never inside the framed document. Nothing is injected into the page being revealed, the content keeps its own compositing layer and hit-testing, and native windows are treated identically to iframe windows. A reveal cannot interfere with what it reveals.
+
+**Throws** a `RegistrationError` on validation failure (bad/missing `id`, the reserved id `'none'`, a missing `from`/`to`, a `from`/`to` pair that cannot interpolate, or an `easing` the browser cannot parse).
+
+**`WindowRevealDef`:**
+
+| Field | Type | Notes |
+|---|---|---|
+| `id` | `string` | Unique. `[a-z0-9_/-]+` (slashes welcome for `vendor/sub-id`). `'none'` is reserved (the selector's "no reveal" sentinel). Re-registering replaces. |
+| `label` | `string` | Shown in the selector. |
+| `description` | `string` | Optional. Shown under the selector when this reveal is active. |
+| `from` | `string` | `clip-path` for the covering surface at the START. Must cover the whole body — anything it leaves uncovered shows the content early. Required unless you supply `layers`. |
+| `to` | `string` | `clip-path` at the END. Must be empty or fully off-box, so the content is completely uncovered when the animation lands. Required unless you supply `layers`. |
+| `layers` | `{ from, to, color? }[]` | Several independent covering layers instead of one. See **Multi-layer reveals** below. |
+| `render` | `() => { element, play }` | Build the covering DOM yourself. See **Rendering your own** below. Supply exactly one of `from`/`to`, `layers`, or `render`. |
+| `duration` | `number` | Optional, ms. Defaults to `460`. Clamped to 80–4000. Overridden by the user's OS-Settings speed and by the theme token — see **Speed** below. |
+| `easing` | `string` | Optional CSS easing. Defaults to `cubic-bezier( 0.33, 0, 0.2, 1 )`. Validated at registration: an easing `Element.animate()` cannot parse is rejected there, instead of throwing at play time with the covering surface over the window. |
+| `surfaceColor` | `string` | Optional `background` for the covering surface, overriding the theme token. Reach for it only when the paint **is** the reveal — see the note below. |
+| `edgeColor` | `string` | Optional `background` for the trailing edge, overriding the theme token. A multi-layer reveal usually wants this **darker** than its surface. |
+| `edgeLag` | `number` | Optional, ms the leading edge trails the surface. Defaults to `70`; `0` drops the edge layer. Clamped to 0–600. Overridden outright by the `--os-window-reveal-edge-thickness` theme token. |
+| `owner` | `string` | Optional. Your script handle, as a grouping tag. The live-unregister sweep on plugin deactivation is **not wired for reveals yet** — see **Registration is JS-only** below. Setting it now means your reveal is swept the moment that sweep lands, with no def change. |
+
+> **`from` and `to` are a matched pair, not two independent values.** CSS only interpolates a `clip-path` between values using the **same shape function** — and, for `polygon()`, the same **vertex count** and fill rule. A mismatched pair is not an error to the browser: it jumps between the two values at the halfway mark, which reads as a flicker on a window that just finished loading. Registration rejects a mismatched shape function outright rather than letting that ship. Vertex counts are your responsibility; build both endpoints from one function so the ring structure cannot drift.
+
+```javascript
+wp.os.ready( () => {
+    wp.os.registerWindowReveal( {
+        id:       'acme/rise',
+        label:    'Rise',
+        // Same shape function at both ends, so the pair interpolates.
+        from:     'inset( 0% 0% 0% 0% )',
+        to:       'inset( 0% 0% 100% 0% )',
+        duration: 420,
+        owner:    'my-plugin-reveals',
+    } );
+} );
+```
+
+**Multi-layer reveals.** One `clip-path` describes one region, so anything it leaves uncovered *is* uncovered. When the effect depends on pieces **overlapping** each other, that isn't enough — and `layers` is the answer: what the user sees uncovered becomes whatever *all* the layers leave uncovered, an intersection rather than a shape.
+
+**Rendering your own.** `render` is the escape hatch for effects a stack of clipped boxes cannot express. It returns `{ element, play }`: the shell appends your element as the reveal's single layer, then calls `play({ duration, easing, delay })` when the moment comes and hangs teardown off the animations you return.
+
+You still get the shell's timing for free — when the reveal plays, how long, the user's speed override, the spinner hand-off, reduced-motion, and cleanup. What you own is the DOM and the animations over it.
+
+`obturator` is the built-in that needs it, and the reason is instructive. A lens iris has a **cyclic** overlap: every leaf lies over the next, and the last tucks back under the first. That is a circular dependency, and paint order is a linear one — no stack of DOM layers can represent it. Built from layers, the last one has nothing drawn over it and keeps a visibly disproportionate share of the covered area, which reads as one flat region exactly where a seam belongs.
+
+As SVG the problem dissolves rather than being worked around: six equilateral wedges tile a hexagon over the window and each slides tangentially, under a `<mask>` built from the same paths. Nothing restacks — every frame is one `translate` per wedge plus mask compositing, so it stays deterministic and on the compositor. Each wedge's own stroke is what makes the seams render regardless of what is painted over it.
+
+```javascript
+wp.os.registerWindowReveal( {
+    id:      'acme/iris',
+    label:   'Iris',
+    edgeLag: 0,             // a rendered reveal has no trailing-edge layer
+    render:  () => {
+        const element = buildMySvg();
+        return {
+            element,
+            play: ( { duration, easing, delay } ) =>
+                bladesOf( element ).map( ( blade ) =>
+                    blade.animate(
+                        [ { transform: 'rotate(0deg)' }, { transform: 'rotate(48deg)' } ],
+                        { duration, easing, delay, fill: 'both' },
+                    ),
+                ),
+        };
+    },
+} );
+```
+
+Every layer shares the reveal's duration and easing.
+
+**Give neighbouring layers different `color`s.** This is not decoration — it is the only thing that makes an overlap visible. Layers of one colour composite into a single silhouette however they are shaped: the part on top is indistinguishable from the part beneath, so the lying-across that makes a mechanism a mechanism never renders. Different tones and every overlap draws itself, because the upper layer's tone wins and its boundary across the lower one *is* the seam. `obturator` shades its six leaves as if lit from above.
+
+The trailing edge cannot do this job. Every edge layer paints behind every surface layer, so an edge only ever shows `union( edges ) − union( surfaces )` — one band around the uncovered area, never per-part seams. Multi-layer reveals normally want `edgeLag: 0`.
+
+```javascript
+wp.os.registerWindowReveal( {
+    id:      'acme/split-doors',
+    label:   'Split doors',
+    edgeLag: 0,
+    layers:  [
+        { from: 'inset( 0% 50% 0% 0% )', to: 'inset( 0% 100% 0% 0% )', color: '#3a3a47' },
+        { from: 'inset( 0% 0% 0% 50% )', to: 'inset( 0% 0% 0% 100% )', color: '#4a4a59' },
+    ],
+} );
+```
+
+**Two layer kinds.** The **surface**, painted in `--os-window-reveal-surface` (**white** by default — it has to be opaque or there is nothing to reveal *from*), and behind it an optional **edge**, painted in `--os-window-reveal-edge` (**`transparent`** by default, i.e. off).
+
+Either layer whose paint resolves to nothing is **dropped rather than animated**. That is what makes `transparent` a working "turn this layer off" value for a theme, and what keeps the off-by-default edge from costing an animation on every window load. The edge runs the *same* `from` → `to` keyframes over a slightly longer duration, so it is permanently a little less far along and peeks out past the surface as a band hugging the clip boundary.
+
+That is why you never describe an edge shape: a time lag follows any geometry. `blinds` gets six thin lines, `iris` an opening ring, `radar` a rotating spoke — and so does a shape you invent, with no extra work.
+
+The edge colour ships as **`transparent`**, and while it computes that way the shell drops the layer instead of animating something invisible — so the default costs no element and no animation. A theme turns it on by giving the token a colour (or a gradient), with no JS and no per-reveal configuration. Two further knobs:
+
+| | |
+|---|---|
+| `--os-window-reveal-edge-thickness` | How wide the band is. `15%` / `0.15` is a fraction of the reveal's **travel** (holds its apparent width at any speed or window size); `70ms` / `0.07s` is an absolute lag. Undeclared by default, in which case the def's `edgeLag` decides. Overrides `edgeLag` outright — thickness belongs to the theme's look, not to one reveal. |
+| `edgeLag: 0` on a def | Opts a single reveal out of having an edge at all. |
+
+**Speed.** The duration a reveal actually runs at resolves highest-first:
+
+1. **The user's OS-Settings speed** (`windowRevealDuration`, ms; `0` means "per reveal"). An explicit choice, and the one thing a theme must not out-rank.
+2. **The `--os-window-reveal-duration` theme token** — a theme's house pace. Undeclared by default. Accepts `420ms`, `0.42s`, or a bare `420`.
+3. **The def's own `duration`.**
+
+Whatever wins, `edgeLag` is scaled by the same ratio, so the edge band keeps its apparent width at any speed — its width is a fraction of the travel, not a span of time.
+
+**Behaviour worth knowing:**
+
+- **The reveal always plays**, including on loads fast enough that the spinner's 120 ms entry delay meant it never painted. What varies is only when the animation starts: after the spinner's 250 ms fade-out when there was a spinner, immediately when there was not.
+- **It replays on every load edge** the spinner replays on — a reload, an in-window navigation, a tab switch — not only on first open.
+- **`prefers-reduced-motion` skips the animation** and uncovers the content directly. Same for environments without the Web Animations API.
+- **The colours are theme tokens**: `--os-window-reveal-surface` (white) and `--os-window-reveal-edge` (`transparent` — no edge). A def can override them with `surfaceColor` / `edgeColor`, or per layer with `layers[].color`, but should not unless the paint is the point. `obturator` is the only built-in that does, and only per layer: its six leaves have to differ from one another or the mechanism reads as a single shape.
+- **A desktop theme can recommend a reveal**, via `recommendedOsSettings.windowReveal` and `recommendedOsSettings.windowRevealDuration` — applied once on first activation, or on demand from the Themes tab's "Apply recommended layout and effects" button.
+- **Registration is JS-only.** Unlike unfocus effects, there is no `openstation_register_window_reveal_script()` PHP companion yet, so a reveal registered by a plugin activated mid-session appears in the selector only after a reload — and a deactivated plugin's reveal stays listed until a reload too (`owner` is recorded, but nothing sweeps by it on deactivation yet). Same known gap as palettes.
+
+The raw `os.window-reveals` JS filter receives the registry array on every read, mirroring `os.unfocus-effects` — use it to reorder, remove, or conditionally swap reveals. The user's selection persists in the `windowReveal` OS-settings key (reveal id or `'none'`, the default — reveals are opt-in), readable via `getOsSettings().windowReveal`. An unknown id (a deactivated plugin's reveal still named in user meta) resolves to no reveal rather than to a substitute, and starts working again the moment that plugin re-registers it.
+
+See [`docs/examples/window-reveal.md`](./examples/window-reveal.md) for a copy-paste recipe, including how to build an interpolable `polygon()` pair.
+
+### `unregisterWindowReveal( id )` / `listWindowReveals()` — Experimental
+
+Remove a reveal by id, or read the current list (post-filter). `listWindowReveals()` always includes the twelve built-ins unless a filter removed them. Unregistering is idempotent; a reveal unregistered while a window is mid-load leaves that window's content uncovered rather than stranded under a surface it can no longer animate.
+
+---
+
+### `wp.os.relations` — Experimental
+
+Window content relations: which piece of content each window shows, and how windows group around a shared **root** (a post edit window is the root; its comment / media windows are children). The shell draws visual ties between group members — see [`registerWindowLinkRenderer`](#registerwindowlinkrenderer-def---experimental) for the pluggable rendering and [`docs/examples/window-links.md`](./examples/window-links.md) for recipes.
 
 **`WindowContentRef`** — the per-window identity record:
 
@@ -2259,7 +3202,8 @@ Window content relations: which piece of content each window shows, and how wind
 | `root` | `{ type, id }` | Optional. The root object this window's content belongs to. Omit when this window IS the root. |
 | `links` | `Array<{ type, id, rel? }>` | Optional. Outbound references from this content to OTHER objects (the bridge fills these for post editors automatically, capped at 32). `rel: 'references'` (default) draws the tie FROM this window TO the target ("my content points at that" — hyperlinks, terms); `rel: 'child'` reverses it ("that belongs to ME" — a post's embedded/featured media) and renders as a `child-root` edge, identical to a `root` tie. Links never re-root anything. |
 | `label` | `string` | Optional human label for renderers/tooltips. |
-| `related` | `RelatedEntityItem[]` | Optional *(since 0.9.6)*. Ready-to-open navigation targets related to this content — what the title bar's **"Related" button** lists (see below). Built server-side for posts/pages and capped at 64; never affects group membership or edges. |
+| `related` | `RelatedEntityItem[]` | Optional. Ready-to-open navigation targets related to this content — what the title bar's **"Related" button** lists (see below). Built server-side for posts/pages and capped at 64; never affects group membership or edges. |
+| `previewUrl` | `string` | Optional. Front-end preview URL for this content — what the title bar's **"Preview" (eye) button** opens (see below). Built server-side for post/page/CPT editors of viewable post types (autosave-aware, carries a `preview_nonce`); the engine silently drops non-same-origin values. Never affects group membership or edges. |
 | `source` | `'config' \| 'bridge' \| 'api'` | Stamped by the engine — never set it yourself. |
 
 **API:**
@@ -2267,41 +3211,41 @@ Window content relations: which piece of content each window shows, and how wind
 | Method | Returns | Notes |
 |---|---|---|
 | `get( windowId )` | `WindowContentRef \| undefined` | Current identity of a window. |
-| `set( windowId, ref \| null )` | `void` | Set or clear an identity. Throws a `RegistrationError` on a malformed ref. The `desktop-mode.window-links.content` JS filter runs on every set. |
-| `groups()` | `WindowLinkGroup[]` | Every relation group: `{ key, root, rootWindowIds, children }`. `rootWindowIds` is focus-recency ordered and may be empty (children open, root closed). The `desktop-mode.window-links.groups` filter applies on every read. |
-| `edges()` | `WindowLinkEdge[]` | The derived directed ties between open windows — `{ fromWindowId, toWindowId, kind: 'child-root' \| 'reference', bidirectional }`. `child-root` points a child at its root ("belongs to" — the built-in renderer puts its larger endpoint dot there); `reference` points at a window showing something this content `links` to; mutual references merge into ONE edge with `bidirectional: true` (large dots at both ends). The `desktop-mode.window-links.edges` filter applies on every read. This is what the render host feeds to the active renderer. |
+| `set( windowId, ref \| null )` | `void` | Set or clear an identity. Throws a `RegistrationError` on a malformed ref. The `os.window-links.content` JS filter runs on every set. |
+| `groups()` | `WindowLinkGroup[]` | Every relation group: `{ key, root, rootWindowIds, children }`. `rootWindowIds` is focus-recency ordered and may be empty (children open, root closed). The `os.window-links.groups` filter applies on every read. |
+| `edges()` | `WindowLinkEdge[]` | The derived directed ties between open windows — `{ fromWindowId, toWindowId, kind: 'child-root' \| 'reference', bidirectional }`. `child-root` points a child at its root ("belongs to" — the built-in renderer puts its larger endpoint dot there); `reference` points at a window showing something this content `links` to; mutual references merge into ONE edge with `bidirectional: true` (large dots at both ends). The `os.window-links.edges` filter applies on every read. This is what the render host feeds to the active renderer. |
 | `groupOf( windowId )` | `WindowLinkGroup \| undefined` | The group a window belongs to. |
 | `related( windowId )` | `string[]` | The other window ids tied to this one — same-group members plus reference-edge endpoints. |
 | `subscribe( cb )` | `() => void` | Fires on identity/membership changes; returns an unsubscribe. |
 
 **How identities arrive** (any of the three):
 
-1. **Automatically** — the chromeless bridge announces the identity of every admin iframe page ([`desktop-mode-content-identity`](./bridge-protocol.md)), resolved server-side in real admin context: post/page/CPT editors are roots; comment-edit and attached-media screens arrive pre-rooted at their parent post. PHP plugins extend this via the `desktop_mode_window_content_identity` filter (see [hooks-reference](./hooks-reference.md)).
+1. **Automatically** — the chromeless bridge announces the identity of every admin iframe page ([`os-content-identity`](./bridge-protocol.md)), resolved server-side in real admin context: post/page/CPT editors are roots; comment-edit and attached-media screens arrive pre-rooted at their parent post. PHP plugins extend this via the `openstation_window_content_identity` filter (see [hooks-reference](./hooks-reference.md)).
 2. **At open time** — `WindowConfig.content?: WindowContentRef` seeds the identity the moment a window opens (native windows, session restores).
-3. **Programmatically** — `wp.desktop.relations.set( windowId, ref )`.
+3. **Programmatically** — `wp.os.relations.set( windowId, ref )`.
 
 ```javascript
-wp.desktop.relations.set( myWindowId, {
+wp.os.relations.set( myWindowId, {
     type: 'acme/order',
     id: 77,
     root: { type: 'acme/customer', id: 12 },
     label: 'Order #77',
 } );
-wp.desktop.relations.related( myWindowId ); // → sibling window ids
+wp.os.relations.related( myWindowId ); // → sibling window ids
 ```
 
 **Events** — both dispatched as document CustomEvents and on the hook bus:
 
 | CustomEvent | Hook | Detail |
 |---|---|---|
-| `desktop-mode-window-content-changed` | `desktop-mode.window-links.content-changed` | `{ windowId, content, previous, source }` |
-| `desktop-mode-window-link-groups-changed` | `desktop-mode.window-links.groups-changed` | `{ groups }` — fires on MEMBERSHIP change only, never on move/resize or focus reorder. |
+| `os-window-content-changed` | `os.window-links.content-changed` | `{ windowId, content, previous, source }` |
+| `os-window-link-groups-changed` | `os.window-links.groups-changed` | `{ groups }` — fires on MEMBERSHIP change only, never on move/resize or focus reorder. |
 
-**JS filters:** `desktop-mode.window-links.content` (`( ref, { windowId, source } ) => ref | null` — rewrite or suppress an identity as it's set), `desktop-mode.window-links.groups` (reshape the computed group list on read), `desktop-mode.window-links.edges` (reshape the derived directed-edge list on read — add, drop, or redirect ties), `desktop-mode.window-links.renderers` (the renderer registry list), `desktop-mode.window-links.renderer` (`( id ) => id` — force-swap the active renderer without touching the user's setting).
+**JS filters:** `os.window-links.content` (`( ref, { windowId, source } ) => ref | null` — rewrite or suppress an identity as it's set), `os.window-links.groups` (reshape the computed group list on read), `os.window-links.edges` (reshape the derived directed-edge list on read — add, drop, or redirect ties), `os.window-links.renderers` (the renderer registry list), `os.window-links.renderer` (`( id ) => id` — force-swap the active renderer without touching the user's setting).
 
-### The "Related" title-bar button — Experimental  *(since 0.9.6)*
+### The "Related" title-bar button — Experimental
 
-Any window whose content identity carries `related` items shows a **Related** button (network icon, right side of the title bar, registered through the public `registerTitleBarButton` surface as `desktop-mode/related-entities`). Clicking it opens a dropdown grouped by `item.group` — built-in groups render first (`comments`, then `terms/*`, then `media`, then `links`), vendor groups after in arrival order, each headed by its `groupLabel` — and picking an item opens `item.url` as its own desktop window. Native URL remaps are deliberately **not** consulted: the menu exists for filtered deep links (`edit-comments.php?p={id}`), which a native window opened by id would drop — so the classic filtered screen always opens, even when a native replacement is enabled. The button appears/disappears live as the identity changes: iframe navigation re-announces it, and inside the block editor the bridge's save-watcher refetches a server-recomputed identity after every real (non-autosave) save — adding a category, linking a post, or attaching media updates the menu without a reload. It hides whenever the resolved list is empty.
+Any window whose content identity carries `related` items shows a **Related** button (network icon, right side of the title bar, registered through the public `registerTitleBarButton` surface as `desktop-mode/related-entities`). Clicking it opens a dropdown grouped by `item.group` — built-in groups render first (`comments`, then `terms/*`, then `media`, then `links`), vendor groups after in arrival order, each headed by its `groupLabel` — and picking an item opens it as its own desktop window: `item.windowId` when it names one (with `item.params`), otherwise `item.url` — consulted against the native-URL remap registry first, so a URL a native window has claimed opens that window and the remap's own `params` / `onMatch` thread the deep link's filter through. The button appears/disappears live as the identity changes: iframe navigation re-announces it, and inside the block editor the bridge's save-watcher refetches a server-recomputed identity after every real (non-autosave) save — adding a category, linking a post, or attaching media updates the menu without a reload. It hides whenever the resolved list is empty.
 
 **`RelatedEntityItem`:**
 
@@ -2312,15 +3256,17 @@ Any window whose content identity carries `related` items shows a **Related** bu
 | `groupLabel` | `string` | Optional translated section header. |
 | `label` | `string` | Translated item label. |
 | `icon` | `string` | Optional Dashicons class (also used as the opened window's icon). |
-| `url` | `string` | Admin URL the item opens. |
+| `url` | `string` | Admin URL the item opens. **Required on every item delivered via `wp.os.relations.set()` or the bridge** — the engine drops url-less items. |
+| `windowId` | `string` | Optional native window to open instead. **Honored only for items added through the `os.related-entities.items` JS filter** — the engine's whitelist copy strips it from items delivered via `wp.os.relations.set()` or the bridge (server-built items included). Takes precedence over `url`; falls back to `url` when nothing is registered under the id, so an item carrying both still opens its page if the window's plugin is gone. |
+| `params` | `Record<string, string \| number \| boolean>` | Optional open-time params for `windowId` — what the window should be showing. Same caveat as `windowId`: only filter-added items carry it. Ignored for URL destinations, which carry their scoping in the query string. |
 | `count` | `number` | Optional count suffix — renders as `Comments (4)`. |
 
-**Where items come from:** the server builds them for posts/pages during the admin page render (comments with count, assigned terms, associated media) and any screen can contribute via the `desktop_mode_window_related_entities` PHP filter (see [hooks-reference](./hooks-reference.md)). Client-side, the resolved list runs through the **`desktop-mode.related-entities.items` JS filter** on every visibility check and menu build:
+**Where items come from:** the server builds them for posts/pages during the admin page render (comments with count, assigned terms, associated media) and any screen can contribute via the `openstation_window_related_entities` PHP filter (see [hooks-reference](./hooks-reference.md)). Client-side, the resolved list runs through the **`os.related-entities.items` JS filter** on every visibility check and menu build:
 
 ```javascript
 // ( items, { windowId, content } ) => items
 wp.hooks.addFilter(
-    'desktop-mode.related-entities.items',
+    'os.related-entities.items',
     'my-plugin/audit-trail',
     ( items, { content } ) => {
         if ( content?.type === 'post' ) {
@@ -2338,18 +3284,56 @@ wp.hooks.addFilter(
 );
 ```
 
-Malformed entries are dropped item-wise; a non-array return falls back to the identity's own list. Read a window's current items via `wp.desktop.relations.get( windowId )?.related`. Recipes: [`docs/examples/related-entities.md`](./examples/related-entities.md).
+Malformed entries are dropped item-wise; a non-array return falls back to the identity's own list. Read a window's current items via `wp.os.relations.get( windowId )?.related`. Recipes: [`docs/examples/related-entities.md`](./examples/related-entities.md).
 
-### `registerWindowLinkRenderer( def )` — Experimental  *(since 0.9.4)*
+### The "Preview" (eye) title-bar button — Experimental
 
-Register (or replace) a **window-link renderer** — how the relation ties between related windows are drawn. The built-in `svg-splines` (curved connectors terminated by circular dots on a `pointer-events: none` layer *behind* the windows: the larger dot marks a child's root, both ends large for mutual references — circles are rotation-invariant, so ties look right at any approach angle) registers through this same hook. The user picks the active renderer in **OS Settings → Effects → Window links**; only one renderer is mounted at a time.
+Any window whose content identity carries a `previewUrl` shows a **Preview** button (eye icon, right side of the title bar, just before Related; registered through the public `registerTitleBarButton` surface as `desktop-mode/editor-preview`). The URL is built server-side by `openstation_window_preview_url()` for post/page/CPT edit screens — Gutenberg **and** classic — of viewable post types, so the eye appears exactly where the front end has something to show. On `post-new.php` (unsaved auto-draft, nothing to preview yet) the eye renders **disabled** — `aria-disabled="true"`, dimmed, tooltip "Save the post to enable its preview", a click explains via toast — and enables itself the moment the first save lands (the block editor's save-watcher refetches the identity live, no reload).
+
+Clicking the eye:
+
+1. **Snaps the editor to the left half** (skipped below 768px, where windows maximize anyway) and puts the button in a busy state.
+2. **Opens the official front-end preview immediately** (`get_preview_post_link()` output) as a companion window snapped to the right half, wearing the standard window loading overlay while it boots — id `editor-preview-{type}-{id}`, singleton per post, `ephemeral: true` (never session-restored: the URL embeds a nonce scoped to an autosave revision). The click never waits on the network: a slow save used to read as a hang.
+3. **In parallel, asks the editor iframe to autosave** over the bridge (see [bridge-protocol](./bridge-protocol.md), "Editor-autosave query") — the same thing Gutenberg's own Preview button does. When the round-trip reports an actual save, the companion is silently `swapReload`ed (at the fresher preview link when one was returned), so the preview reflects what's on screen even when its first load raced the save. The eye's busy pulse clears when the save settles; `not-dirty` / no-editor settles change nothing server-side and schedule no refresh.
+
+Front-end documents carry no chromeless bridge, so the shell wires click-to-focus for them directly: a pointerdown anywhere inside a same-origin non-admin iframe document (the preview companion, the home-page default window) focuses its window, exactly like clicking inside an admin iframe does — re-wired across navigations and silent refreshes.
+
+The recorded editor↔preview **pairing** then drives the lifecycle: the companion **tracks typing live** (see below), **auto-reloads whenever the post is saved** (via the `os.{type}.changed` broadcast every save path emits — block-editor save-watcher, classic-editor footer emitter, Heartbeat catch-up — debounced, and navigating instead of reloading when the previewUrl itself changed, e.g. draft→publish), **closes when the editor closes or navigates to different content**, and **toggles off on a second eye click** (`aria-pressed` tracks the state). Closing the preview never touches the editor. After the initial placement the shell never re-snaps either window — move, resize, or unsnap freely; the pairing survives.
+
+**Live updates while typing.** While a pairing is open, the shell asks the editor iframe to watch its own content (`os-editor-live-watch` — typing detection must live iframe-side, keystrokes never cross the frame boundary). In Gutenberg the watcher observes block-list / title **reference** changes (an autosave round-trip leaves both references untouched, so its own saves can never loop) and, after a settle window (default **1500 ms** since the last edit), autosaves via `__unstableSaveForPreview()` and nudges the shell (`os-editor-live-saved`) to refresh the companion. The classic editor has no reactive store — there the watcher listens for typing on the title/content/excerpt fields and inside every TinyMCE editor, and each settle forces the server autosave core would otherwise only run on its ~60 s heartbeat. Because those events also fire for things that are not user edits (TinyMCE adds an undo level on **blur**, and emits `SetContent` on any programmatic write), and because core's own autosave can go out for a post nobody touched (`getPostData()` re-serializes TinyMCE into `#content` as a side effect, which moves core's compare string on its own), both the settle and the refresh nudge are gated on a content fingerprint read directly off the editors. A settle or a completed autosave carrying content the preview already shows is silent; see [`bridge-protocol.md`](bridge-protocol.md) for the full mechanics. The watch is re-armed automatically whenever the editor page reloads while the pairing is open — the classic editor reloads on every manual save, and the pairing keeps tracking typing across it. Tune or disable via the `os.editor-preview.live` filter below; the settle window is deliberately a pause-detector, not per-keystroke.
+
+**Refreshes are double-buffered and silent.** Live (and save-driven) refreshes go through `Window.swapReload( url? )`: the new front-end render loads into a twin iframe stacked **underneath** the visible one at full opacity — a normal, fully-rasterized paint target, covered by the opaque old frame while it loads (deliberately not `opacity: 0`-on-top or `visibility: hidden`: browsers defer rasterizing invisible iframes and revealing one flashes its blank background first). When the load lands, the old frame is removed in the same tick — an **instant, animation-free cut** to the ready-painted new content, with **no loading overlay, no blank frame, and the scroll position carried across** (same-origin only). A newer refresh supersedes an in-flight one; a hung load is abandoned after 20 s with the visible frame untouched; explicit URLs pass the same same-origin gate as `navigateTo()`. On completion the `os.window.reloaded` action fires with `silent: true` (the classic overlay reload fires it without the flag, at reload start). `swapReload` is a public method on every iframe-backed window — any plugin refreshing a window on a timer can use it instead of `reload()` to avoid strobing the overlay.
+
+**JS surface** (hook bus + matching document CustomEvents):
+
+| Hook | Kind | Payload |
+|---|---|---|
+| `os.editor-preview.window-config` | Filter | `( config: WindowConfig, { editorWindowId, content } ) => config` — reshape the companion before it opens (geometry, `initialState`, title). An invalid return is ignored with a console warning. |
+| `os.editor-preview.live` | Filter | `( { enabled: true, debounceMs: 1500 }, { editorWindowId, content } ) => config` — live-update behavior per pairing. Return `{ enabled: false }` for save-driven reloads only; `debounceMs` clamps to 500–30000 iframe-side. |
+| `os.editor-preview.opened` (CustomEvent `os-editor-preview-opened`) | Action | `{ editorWindowId, previewWindowId, content }` |
+| `os.editor-preview.closed` (CustomEvent `os-editor-preview-closed`) | Action | `{ editorWindowId, previewWindowId, reason: 'toggled' \| 'editor-closed' \| 'preview-closed' \| 'content-changed' }` |
+
+```javascript
+// Open every preview as a free-floating window instead of split view.
+wp.hooks.addFilter(
+    'os.editor-preview.window-config',
+    'my-plugin/floating-previews',
+    ( config ) => ( { ...config, initialState: 'normal', width: 480, height: 720 } ),
+);
+```
+
+The PHP-side control point is the `openstation_window_preview_url` filter (rewrite or suppress the URL per post — see [hooks-reference](./hooks-reference.md)). Related: `WindowConfig.ephemeral?: boolean` is a general flag — any window opened with it is excluded from session snapshots and never restored on boot.
+
+### `registerWindowLinkRenderer( def )` — Experimental
+
+Register (or replace) a **window-link renderer** — how the relation ties between related windows are drawn. The built-in `svg-splines` (curved connectors terminated by circular dots on a `pointer-events: none` layer *behind* the windows: the larger dot marks a child's root, both ends large for mutual references — circles are rotation-invariant, so ties look right at any approach angle) registers through this same hook. The user picks the active renderer in **OpenStation Preferences → Windows → Window links**; only one renderer is mounted at a time.
 
 **`WindowLinkRendererDef`:**
 
 | Field | Type | Notes |
 |---|---|---|
 | `id` | `string` | Unique, `/^[a-z0-9_/-]+$/`; namespace yours `vendor/sub-id`. `none` is reserved. |
-| `label` | `string` | Shown in the OS Settings selector. |
+| `label` | `string` | Shown in the OpenStation Preferences selector. |
 | `description` | `string` | Optional, shown under the selector. |
 | `mount` | `( ctx ) => teardown` | Mount into the link layer; return (or resolve to) a teardown. |
 | `owner` | `string` | Optional script handle for live unregistration on plugin deactivation. |
@@ -2358,7 +3342,7 @@ Register (or replace) a **window-link renderer** — how the relation ties betwe
 
 **`WindowLinkFrame`**: `{ groups, edges, obstacles, container: { width, height } }`. **`edges` is what renderers should iterate** — `[ { fromWindowId, toWindowId, kind, bidirectional, focused, elevated, from, to, fromZIndex, toZIndex } ]` with direction and mutual-merging already resolved (`elevated` marks edges touching the focused window — route those to `ctx.elevatedContainer`); `from`/`to` are `{ x, y, width, height }` rects relative to the layer, `null` when that endpoint is minimized / snapped into split view (`snapped-left` / `snapped-right` — a half-screen tile draws no ties; they reappear the moment the window is dragged back out) / on another virtual desktop (skip the edge). `obstacles` (`[ { windowId, rect, zIndex } ]`) lists EVERY visible window on the desk for occlusion-aware anchoring. The built-in renderer anchors each endpoint by preference: (1) the **shortest edge-to-edge connection** between the two windows (side-by-side windows connect straight across the gap at the overlap midpoint, offset windows via their facing corners) when that point is visible; (2) the classic center-ray border anchor while visible; (3) the midpoint of the closest visible border stretch when a higher window covers both — so a tie never appears to sprout from a window that is hiding its real endpoint. The pure helpers (`closestBorderAnchors`, `visibleBorderAnchor`, `isPointVisible`, `anchorOnBorder`, `controlPoint`) are exported from `src/window-links/geometry.ts` for custom renderers. `groups` (`[ { key, root, members: [ { windowId, role, content, rect, focused, state } ] } ]`) remains available for renderers that want group-level visuals (hulls, badges).
 
-The dual pull/push contract makes SVG/DOM **and** canvas/Pixi renderers first-class: DOM renderers redraw in `onFrame`; a Pixi renderer appends its canvas to `container`, runs its own ticker, and polls `getFrame()` (load Pixi via `wp.desktop.loadModules( [ 'pixijs' ] )`). See [`docs/examples/window-links.md`](./examples/window-links.md) for both shapes, plus the PHP `desktop_mode_register_window_link_renderer_script()` opt-in that live-loads your renderer on plugin activation.
+The dual pull/push contract makes SVG/DOM **and** canvas/Pixi renderers first-class: DOM renderers redraw in `onFrame`; a Pixi renderer appends its canvas to `container`, runs its own ticker, and polls `getFrame()` (load Pixi via `wp.os.loadModules( [ 'pixijs' ] )`). See [`docs/examples/window-links.md`](./examples/window-links.md) for both shapes, plus the PHP `openstation_register_window_link_renderer_script()` opt-in that live-loads your renderer on plugin activation.
 
 The user's choices persist in OS-settings keys, all readable via `getOsSettings()`:
 
@@ -2367,14 +3351,14 @@ The user's choices persist in OS-settings keys, all readable via `getOsSettings(
 | `windowLinksEnabled` | `boolean` (default `true`) — master switch; off unmounts the visuals and disables the group behaviors | Features |
 | `windowLinkRaiseOnFocus` | `boolean` (default `true`) — raise directly-tied windows when a group member is focused | Features |
 | `windowLinkHighlight` | `boolean` (default `true`) — outline + glow on related windows of the focused member | Features |
-| `windowLinkRenderer` | renderer id or `'none'` (default `'svg-splines'`; unknown ids fall back to the built-in) | Effects |
-| `windowLinkVisibility` | `'always'` (default) \| `'focus'` \| `'off'` | Effects |
+| `windowLinkRenderer` | renderer id or `'none'` (default `'svg-splines'`; unknown ids fall back to the built-in) | Windows |
+| `windowLinkVisibility` | `'always'` (default) \| `'focus'` \| `'off'` | Windows |
 
-Whatever the visibility setting, the link layers **hide while Overview runs** (fading out on `desktop-mode.overview.entering`, back in on `desktop-mode.overview.exited`): overview lays windows out as scaled CSS-transform thumbnails, which the offset-based frame geometry can't see, so ties would keep pointing at the pre-overview positions.
+Whatever the visibility setting, the link layers **hide while Overview runs** (fading out on `os.overview.entering`, back in on `os.overview.exited`): overview lays windows out as scaled CSS-transform thumbnails, which the offset-based frame geometry can't see, so ties would keep pointing at the pre-overview positions.
 
-While a group member is focused (and the switches allow it), the render host stamps `desktop-mode-window--linked` on its relative windows (an accent outline plus a soft halo, themeable via `--desktop-mode-window-link-accent` / `--desktop-mode-window-link-glow`) and **raises the windows directly tied to it** via `windowManager.raise()` (a silent restack; no focus events, minimized windows stay minimized). The raise is direction-aware, following the derived edges rather than raw group membership: focusing the **root** surfaces every child and reference peer (each carries an edge to it); focusing a **child** surfaces its parent and reference peers only — its siblings share the group (and still get the highlight) but stay where they are. And the ELEVATED link layer lifts to the group's z-ceiling so the ties **touching the focused window** draw over every other window, the group's own lower members included (a root-focused group shows its lines across the children); only the top window paints above them, and since edges anchor on window borders its endpoint dots sit right on its edge. Ties between two unfocused windows stay on the base layer, behind everything — an edge never draws over a window just because that window shares a group with the focused one. Focus a window with no ties and both layers rest behind all windows.
+While a group member is focused (and the switches allow it), the render host stamps `os-window--linked` on its relative windows (an accent outline plus a soft halo, themeable via `--os-window-link-accent` / `--os-window-link-glow`) and **raises the windows directly tied to it** via `windowManager.raise()` (a silent restack; no focus events, minimized windows stay minimized). The raise is direction-aware, following the derived edges rather than raw group membership: focusing the **root** surfaces every child and reference peer (each carries an edge to it); focusing a **child** surfaces its parent and reference peers only — its siblings share the group (and still get the highlight) but stay where they are. And the ELEVATED link layer lifts to the group's z-ceiling so the ties **touching the focused window** draw over every other window, the group's own lower members included (a root-focused group shows its lines across the children); only the top window paints above them, and since edges anchor on window borders its endpoint dots sit right on its edge. Ties between two unfocused windows stay on the base layer, behind everything — an edge never draws over a window just because that window shares a group with the focused one. Focus a window with no ties and both layers rest behind all windows.
 
-### `unregisterWindowLinkRenderer( id )` / `listWindowLinkRenderers()` — Experimental  *(since 0.9.4)*
+### `unregisterWindowLinkRenderer( id )` / `listWindowLinkRenderers()` — Experimental
 
 Remove a renderer by id, or read the current list (post-filter). `listWindowLinkRenderers()` always includes the built-in `svg-splines` unless a filter removed it.
 
@@ -2382,51 +3366,53 @@ Remove a renderer by id, or read the current list (post-filter). `listWindowLink
 
 ### `Window.setTitle( title )` — Stable
 
-Update a window's title bar from outside it. Useful for plugins that want to retitle a preview window as the user types ("Live Preview — My Post"), prefix with status, etc. Fires `desktop-mode.window.title-changed` with `{ windowId, title }` so other subscribers can react.
+Update a window's title bar from outside it. Useful for plugins that want to retitle a preview window as the user types ("Live Preview — My Post"), prefix with status, etc. Fires `os.window.title-changed` with `{ windowId, title }` so other subscribers can react.
 
 ```javascript
-const w = wp.desktop.windowManager.getById( 'my-preview' );
+const w = wp.os.windowManager.getById( 'my-preview' );
 w.setTitle( `Live Preview — ${ postTitle }` );
 ```
 
 ---
 
-### `Window.markContentLoading()` / `Window.markContentLoaded()` — Stable *(since 0.6.0)*
+### `Window.markContentLoading()` / `Window.markContentLoaded()` — Stable
 
 Drive the spinner overlay over a window's body programmatically. Mirrors the `ctx.window.markLoading` / `ctx.window.markReady` pair available inside a native `render` callback — these methods are the equivalent for code that holds a `Window` instance from outside.
 
 ```javascript
-const w = wp.desktop.windowManager.getById( 'my-app' );
+const w = wp.os.windowManager.getById( 'my-app' );
 
 // Show the spinner (e.g. before refetching the body's data).
 w.markContentLoading();
 
 await refetchData();
-w.appendBody( renderTable( data ) );
+w.element.querySelector( '.os-window__body' ).append( renderTable( data ) );
 
-// Hide the spinner, fade the content in.
+// Hide the spinner, then fade the content in.
 w.markContentLoaded();
 ```
 
 Idempotent: calling `markContentLoading()` twice in a row only fires `WINDOW_CONTENT_LOADING` once; the same edge-trigger logic applies to `markContentLoaded()`.
 
+A refetch that resolves inside the 120 ms show delay never paints a spinner, so the pair is cheap to reach for on work that is usually fast. When one does paint, the content waits for its fade-out rather than appearing under it.
+
 The framework calls `markContentLoaded()` automatically when:
-- An iframe window's chromeless bridge posts `desktop-mode-ready`.
+- An iframe window's chromeless bridge posts `os-ready`.
 - A native window's `render( body )` callback returns synchronously (next animation frame).
 - A native window's `render( body )` returns a `Promise` (when the promise resolves).
 
 Plugins only need to call these directly for **refetch** patterns or for **event-listener-driven async loads** the framework can't observe.
 
-See also: [the `desktop-mode-window-content-loaded` CustomEvent](#desktop-mode-window-content-loaded--stable-since-060) and the [`HOOKS.WINDOW_CONTENT_LOADED`](#hookswindow_content_loaded) action.
+See also: [the `os-window-content-loaded` CustomEvent](#os-window-content-loaded--stable) and the [`HOOKS.WINDOW_CONTENT_LOADED`](#hookswindow_content_loaded) action.
 
 ---
 
-### `Window.setHighlight( mode, opts? )` — Experimental  *(since 0.5.2)*
+### `Window.setHighlight( mode, opts? )` — Experimental
 
 Toggle a visual ring on a window from outside it.
 
 ```javascript
-const w = wp.desktop.windowManager.getById( 'edit-post' );
+const w = wp.os.windowManager.getById( 'edit-post' );
 w.setHighlight( 'preview' );           // temporary ring (clear yourself on mouseleave)
 w.setHighlight( 'persistent' );        // sticky ring
 w.setHighlight( null );                // clear
@@ -2435,11 +3421,11 @@ w.setHighlight( 'preview', { color: '#f59e0b' } );  // override colour
 
 `'preview'` and `'persistent'` are visually distinct; the shell does NOT auto-clear either — that's the caller's responsibility. CSS variable: `--wp-window-highlight-color` (default `--wp-admin-theme-color`).
 
-Every change fires `HOOKS.WINDOW_HIGHLIGHT_CHANGED` on the hook bus *(since 0.6.0)* with `{ windowId, mode, color? }`, so onboarding / drag-bridge / guidance plugins can react without observing DOM mutations:
+Every change fires `HOOKS.WINDOW_HIGHLIGHT_CHANGED` on the hook bus with `{ windowId, mode, color? }`, so onboarding / drag-bridge / guidance plugins can react without observing DOM mutations:
 
 ```js
-wp.desktop.hooks.addAction(
-    wp.desktop.HOOKS.WINDOW_HIGHLIGHT_CHANGED,
+wp.os.hooks.addAction(
+    wp.os.HOOKS.WINDOW_HIGHLIGHT_CHANGED,
     'my-plugin/highlight-tracker',
     ( { windowId, mode } ) => { /* … */ },
 );
@@ -2447,22 +3433,22 @@ wp.desktop.hooks.addAction(
 
 ---
 
-### `Window.shake()` — Stable *(since 0.6.0)*
+### `Window.shake()` — Stable
 
 Briefly jiggle the window element horizontally — the classic MSN-Messenger nudge affordance. Lets any plugin request "look at me" attention on its own window programmatically (e.g. a chat plugin on inbound nudge, a CI plugin on a broken build).
 
 ```javascript
-const w = wp.desktop.windowManager.getById( 'my-window' );
+const w = wp.os.windowManager.getById( 'my-window' );
 w.shake();
 ```
 
 Composes with the inline `left`/`top` the window manager writes (the shake is a CSS `transform`, not a position change). Auto-clears on `animationend`. If a second shake is requested while one is mid-flight, the class is removed and re-added so the animation restarts.
 
-**Reduced-motion fallback:** a static accent ring for the same duration. Plugins that want to mute shakes for a specific window can register a `desktop-mode.window.shake` filter that returns `false`:
+**Reduced-motion fallback:** a static accent ring for the same duration. Plugins that want to mute shakes for a specific window can register a `os.window.shake` filter that returns `false`:
 
 ```javascript
 wp.hooks.addFilter(
-    'desktop-mode.window.shake',
+    'os.window.shake',
     'my-plugin/no-shake',
     ( allow, { windowId } ) => ( windowId === 'my-window' ? false : allow ),
 );
@@ -2470,12 +3456,12 @@ wp.hooks.addFilter(
 
 ---
 
-### `wp.desktop.connect( windowId, opts? )` — Experimental  *(since 0.5.2)*
+### `wp.os.connect( windowId, opts? )` — Experimental
 
 Open a typed pub/sub channel with another window's iframe. Returns a `WindowConnection`. Ideal for plugins that need to listen to or talk to content inside an iframe — first use case: live-preview a Gutenberg editor.
 
 ```javascript
-const conn = wp.desktop.connect( 'edit-post', {
+const conn = wp.os.connect( 'edit-post', {
     topics: [ 'gutenberg:content' ],
     onOpen: () => console.log( 'iframe handshake done' ),
     onClose: ( reason ) => console.log( 'closed:', reason ),
@@ -2507,7 +3493,7 @@ Cross-origin guard: every postMessage is sent + accepted only on the shell's `wi
 
 ---
 
-### `wp.desktop.send` / `wp.desktop.on` — Stable *(since 0.5.5)*
+### `wp.os.send` / `wp.os.on` — Stable
 
 **Window-side counterpart to `Window.send/on`.** Available on every chromeless wp-admin page (the shell injects it into the page footer) AND inside every native render's render context. **The single, unified API plugin authors use to talk to / from a window's content — same shape regardless of whether the window is an iframe or a pure-native render.**
 
@@ -2515,10 +3501,10 @@ Cross-origin guard: every postMessage is sent + accepted only on the shell's `wi
 
 ```javascript
 // Tell the parent that the editor saved.
-wp.desktop.send( 'editor:saved', { path: '/wp-content/...', size: 1234 } );
+wp.os.send( 'editor:saved', { path: '/wp-content/...', size: 1234 } );
 
 // Listen for parent → window messages.
-const off = wp.desktop.on( 'editor:open-file', ( { path, line } ) => {
+const off = wp.os.on( 'editor:open-file', ( { path, line } ) => {
     openFile( path, line );
 } );
 ```
@@ -2526,7 +3512,7 @@ const off = wp.desktop.on( 'editor:open-file', ( { path, line } ) => {
 **Inside a native render callback** — the second arg of the render carries a window-scoped binding so plugin authors don't need to look up their own window:
 
 ```javascript
-wp.desktop.registerWindow( {
+wp.os.registerWindow( {
     id: 'my-tool',
     render: ( body, { window } ) => {
         body.querySelector( 'button.save' ).addEventListener( 'click', () => {
@@ -2541,27 +3527,27 @@ wp.desktop.registerWindow( {
 **On the parent side** (anywhere outside the window), use `Window.send/on` — the symmetric counterpart. The same channel name reaches the same subscribers.
 
 ```javascript
-const win = wp.desktop.windowManager.getById( 'my-tool' );
-win.send( 'tool:reset', {} );           // → wp.desktop.on( 'tool:reset' ) inside the window
-win.on( 'tool:saved', ( payload ) => {  // ← wp.desktop.send( 'tool:saved' ) inside the window
+const win = wp.os.windowManager.getById( 'my-tool' );
+win.send( 'tool:reset', {} );           // → wp.os.on( 'tool:reset' ) inside the window
+win.on( 'tool:saved', ( payload ) => {  // ← wp.os.send( 'tool:saved' ) inside the window
     log( 'saved', payload );
 } );
 ```
 
-**Why this matters.** Pre-0.5.5 the iframe-side API was namespaced as `wp.desktop.iframe.*` and pure-native windows had no equivalent — plugin authors targeting native windows had to reach into the DOM. The `send/on` pair removes the leak: same code on either side, same code regardless of render strategy.
+**Why this matters.** Previously the iframe-side API was namespaced as `wp.os.iframe.*` and pure-native windows had no equivalent — plugin authors targeting native windows had to reach into the DOM. The `send/on` pair removes the leak: same code on either side, same code regardless of render strategy.
 
 ---
 
-### `wp.desktop.iframe.publish` / `subscribe` / `onConnection` — Experimental  *(since 0.5.2)*
+### `wp.os.iframe.publish` / `subscribe` / `onConnection` — Experimental
 
-Iframe-side counterpart to `wp.desktop.connect()` — the older multi-listener / handshake-aware bridge. Most plugin code should reach for [`wp.desktop.send` / `wp.desktop.on`](#wpdesktopsend--wpdesktopon--stable-since-055) instead; this surface is only useful when (a) the iframe wants to know how many parent-side callers are listening (`onConnection`), or (b) the iframe wants to broadcast on a topic that fans out to every open `connect()` rather than to a single window-scoped channel.
+Iframe-side counterpart to `wp.os.connect()` — the older multi-listener / handshake-aware bridge. Most plugin code should reach for [`wp.os.send` / `wp.os.on`](#wpossend--wposon--stable) instead; this surface is only useful when (a) the iframe wants to know how many parent-side callers are listening (`onConnection`), or (b) the iframe wants to broadcast on a topic that fans out to every open `connect()` rather than to a single window-scoped channel.
 
 ```javascript
 // Inside an iframe — e.g. a plugin script that runs on post.php:
-wp.desktop.iframe.onConnection( () => {
+wp.os.iframe.onConnection( () => {
     const editor = wp.data.select( 'core/editor' );
     wp.data.subscribe( () => {
-        wp.desktop.iframe.publish(
+        wp.os.iframe.publish(
             'gutenberg:content',
             editor.getEditedPostContent(),
         );
@@ -2569,44 +3555,44 @@ wp.desktop.iframe.onConnection( () => {
 } );
 
 // Receive parent → iframe traffic too:
-wp.desktop.iframe.subscribe( 'preview:zoom', ( payload ) => {
+wp.os.iframe.subscribe( 'preview:zoom', ( payload ) => {
     document.body.style.zoom = String( payload.factor );
 } );
 ```
 
-`publish( topic, payload )` fans the message out to every parent-side connection currently open against this iframe. **As of 0.8.8, calls with zero open connections log a `console.warn`** — the previous silent drop was a recurring footgun for plugin authors publishing before the parent's `connect()` lands. `onConnection` callbacks are replayed for currently-open connections, so a late registration still sees who's already there.
+`publish( topic, payload )` fans the message out to every parent-side connection currently open against this iframe. **Calls with zero open connections log a `console.warn`** — the previous silent drop was a recurring footgun for plugin authors publishing before the parent's `connect()` lands. `onConnection` callbacks are replayed for currently-open connections, so a late registration still sees who's already there.
 
-#### `wp.desktop.iframe.windowId` / `whenWindowId()` — Stable *(since 0.8.8)*
+#### `wp.os.iframe.windowId` / `whenWindowId()` — Stable
 
 The id of the native window the parent shell opened to host this iframe. Populated automatically once the parent issues the first connection handshake (the handshake carries `targetWindowId`); `null` until then. Removes the cross-origin-fragile `iframe.contentWindow ===` walk that parent-side plugin code used to identify iframes.
 
 ```javascript
 // Inside the iframe:
-const id = wp.desktop.iframe.windowId; // string | null
+const id = wp.os.iframe.windowId; // string | null
 
 // Or wait for it (Promise resolves once known):
-const id = await wp.desktop.iframe.whenWindowId();
-wp.desktop.iframe.publish( 'sidebar-opened', { windowId: id } );
+const id = await wp.os.iframe.whenWindowId();
+wp.os.iframe.publish( 'sidebar-opened', { windowId: id } );
 ```
 
-The id is exactly what `wp.desktop.openWindow(...)` returns parent-side and what `Window.id` exposes — a stable cross-side handle for self-identification.
+The id is exactly what `wp.os.openWindow(...)` returns parent-side and what `Window.id` exposes — a stable cross-side handle for self-identification.
 
 **Lifecycle hooks** (parent-side, observability):
 
 ```javascript
-wp.desktop.hooks.addAction( 'desktop-mode.connection.opened', 'me', ( e ) => {
+wp.os.hooks.addAction( 'os.connection.opened', 'me', ( e ) => {
     // e = { connectionId, targetWindowId, topics, connection? }
-    // `connection` is the live WindowConnection (since 0.8.8) —
+    // `connection` is the live WindowConnection —
     // subscribe to it directly without a `getConnection` round-trip.
     // Caveat: connections to pure-native windows (no iframe) omit
     // `connection`; fall back to
-    // `wp.desktop.getConnection( e.connectionId )` for those.
+    // `wp.os.getConnection( e.connectionId )` for those.
     e.connection?.subscribe( 'live-pings', ( payload ) => { … } );
 } );
-wp.desktop.hooks.addAction( 'desktop-mode.connection.closed', 'me', ( e ) => {
+wp.os.hooks.addAction( 'os.connection.closed', 'me', ( e ) => {
     // e = { connectionId, reason }
 } );
-wp.desktop.hooks.addAction( 'desktop-mode.connection.message', 'me', ( e ) => {
+wp.os.hooks.addAction( 'os.connection.message', 'me', ( e ) => {
     // e = { connectionId, topic, direction: 'in' | 'out' }
     // High-volume — keep subscribers cheap.
 } );
@@ -2615,21 +3601,21 @@ wp.desktop.hooks.addAction( 'desktop-mode.connection.message', 'me', ( e ) => {
 For connections opened by the iframe (`requestConnection`), the parent can later look up the live connection by id:
 
 ```javascript
-const conn = wp.desktop.getConnection( connectionId );
+const conn = wp.os.getConnection( connectionId );
 if ( conn ) {
     conn.subscribe( 'topic', cb );
 }
 ```
 
-`wp.desktop.getConnection( id )` returns the same `WindowConnection` reference the `connect()` factory produces (or what `CONNECTION_OPENED` ships as `connection`). Returns `null` for unknown / destroyed ids.
+`wp.os.getConnection( id )` returns the same `WindowConnection` reference the `connect()` factory produces (or what `CONNECTION_OPENED` ships as `connection`). Returns `null` for unknown / destroyed ids.
 
 See [`docs/examples/connect-to-window.md`](./examples/connect-to-window.md) for the full live-preview recipe.
 
 ---
 
-### `registerSettingsTab( def )` — Stable *(since 0.5.2)*
+### `registerSettingsTab( def )` — Stable
 
-Register a tab in the OS Settings window. The tab is appended (or sorted-in by `order`) alongside the built-in tabs — Appearance, AI Settings, Apps & Icons, Features, Effects, Components, About — and renders its body via your `render( body, ctx )` callback.
+Register a tab in the OpenStation Preferences window. The tab is appended (or sorted-in by `order`) alongside the built-in tabs — Appearance, Themes, Windows, Navigation, Features, Components, About — and renders its body via your `render( body, ctx )` callback.
 
 **Definition shape:**
 
@@ -2638,8 +3624,8 @@ Register a tab in the OS Settings window. The tab is appended (or sorted-in by `
 | `id` | `string` | yes | Unique. `[a-z0-9_-]+`. Re-registering with the same id replaces the previous entry. |
 | `label` | `string` | yes | Tab label. |
 | `capability` | `string` | no | Gates visibility. `'manage_options'` → admin-only; any other value (including omitting) → visible to everyone. |
-| `order` | `number` | no | Default `100`. Built-ins: appearance=10, ai=20, apps-icons=22, features=25, effects=27, help=40 (Components is admin-only; About is pinned last with a sentinel order). |
-| `owner` | `string` | no | When set, plugin deactivation live-unregisters every tab with this owner. Typically matches the WordPress script handle registered with `desktop_mode_register_settings_tab_script()`. |
+| `order` | `number` | no | Default `100`. Built-ins: appearance=10, themes=12, windows=18, navigation=22, features=30, help=40 (Components is admin-only; About is pinned last with a sentinel order). |
+| `owner` | `string` | no | When set, plugin deactivation live-unregisters every tab with this owner. Typically matches the WordPress script handle registered with `openstation_register_settings_tab_script()`. |
 | `render( body, ctx )` | `function` | yes | Receives the tabpanel body element and a ctx object (see below). Must be idempotent — the panel rebuilds on state resets. |
 
 **`ctx` shape:**
@@ -2647,36 +3633,36 @@ Register a tab in the OS Settings window. The tab is appended (or sorted-in by `
 | Field | Type | Notes |
 |---|---|---|
 | `isAdmin` | `boolean` | `true` when current user has `manage_options`. |
-| `getOsSettings()` | `function` | Snapshot of the persisted OS Settings state — `{ wallpaper, accent, dockSize, unfocusEffect, ai: { enabled } }` plus `desktopLayout`, `dockRailRenderer`, the native-window opt-ins (`nativePostsEnabled`, `nativePostsHiddenColumns`, `nativePagesEnabled`, `nativeUsersEnabled`, `nativePluginsEnabled`, `nativeCommentsEnabled`), `developerModeEnabled`, `foldersSharingEnabled`, `itemVisibility`, `dockOrder`, and `dockPromotedPositions` — see `OsSettingsSnapshot` in `src/settings/registry.ts` for the authoritative shape. `unfocusEffect` is the active unfocused-window effect id (`'darken'` default, `'none'` disables). `ai.enabled` is the per-user AI assistant toggle (opt-in, default off; enable-able only once a provider is configured in Settings → Connectors). `developerModeEnabled` (default `false`) gates developer-facing surfaces — the Starter Widget in the add-widget picker and the OS Settings → Components tab's missing-import-warner demo — set from OS Settings → Features. **Changed in 0.9.4:** `ai.apiKey`, `ai.transport`, `ai.provider` and `ai.model` were removed — credentials live in WordPress Core's Settings → Connectors and provider + model selection is delegated to the Core AI Client. Read-only; returns a defensive copy. |
-| `subscribeOsSettings( cb )` | `function` | Subscribe to in-panel OS Settings changes (user toggles a feature in the Features tab, etc.). Returns an unsubscribe function. Fires on local edits only — cross-device changes arrive on the next page load. |
+| `getOsSettings()` | `function` | Snapshot of the persisted OpenStation Preferences state — `{ wallpaper, accent, dockSize, windowRadius, unfocusEffect, ai: { enabled } }` plus `adminBarMode` (`'static'` \| `'dynamic'` \| `'hidden'` — how the WordPress admin bar presents above the shell; emitted as a `os-admin-bar-<mode>` body class), `desktopLayout`, `dockPlacement` (`'bottom'` \| `'left'` \| `'right'` — which edge the dock sits on; read by the one-rail layouts, ignored by `classic`), `dockRailRenderer`, `desktopTheme`, `appliedThemeRecommendations`, the native-window opt-ins (`nativePostsEnabled`, `nativePostsHiddenColumns`, `nativePagesEnabled`, `nativeUsersEnabled`, `nativePluginsEnabled`, `nativeCommentsEnabled`, `stationHomeEnabled` — Station Home as the Dashboard, default off), `adminAssetCacheEnabled` (the service worker's shared admin-asset cache, Experimental, default off — informational: the cache is enforced inside the SW, and changes apply via a SW update on the next reload), `windowPrewarmEnabled` (hover-intent window prewarming, Experimental, default off — the dock reads it live at hover time and calls `windowManager.prewarm()`), `developerModeEnabled`, `foldersSharingEnabled`, `navPlacement`, `navOrder`, and `dockPromotedPositions` — see `OsSettingsSnapshot` in `src/settings/registry.ts` for the authoritative shape. `navPlacement` maps a nav-item id to `'rail' | 'desktop' | 'both' | 'hidden'` and `navOrder` is a flat ordering hint across every rail zone; both replaced the pre-navigation `itemVisibility` / `dockOrder` (see [migration-navigation.md](./migration-navigation.md)). `unfocusEffect` is the active unfocused-window effect id (`'darken'` default, `'none'` disables). `windowReveal` is the active window-reveal id — the clip-path transition that uncovers a window's content when it finishes loading (`'none'` by default; reveals are opt-in) — and `windowRevealDuration` is the global speed override in ms (`0`, the default, means each reveal keeps its own timing). `ai.enabled` is the per-user AI assistant toggle (opt-in, default off; enable-able only once a provider is configured in Settings → Connectors). `developerModeEnabled` (default `false`) gates developer-facing surfaces — the Starter Widget in the add-widget picker and the OpenStation Preferences → Components tab's missing-import-warner demo — set from OpenStation Preferences → Features. **Removed:** `ai.apiKey`, `ai.transport`, `ai.provider` and `ai.model` were removed — credentials live in WordPress Core's Settings → Connectors and provider + model selection is delegated to the Core AI Client. Read-only; returns a defensive copy. |
+| `subscribeOsSettings( cb )` | `function` | Subscribe to in-panel OpenStation Preferences changes (user toggles a feature in the Features tab, etc.). Returns an unsubscribe function. Fires on local edits only — cross-device changes arrive on the next page load. |
 
 ```javascript
-// Use `wp.desktop.ready()` (not `addAction( 'desktop-mode.init', … )`) —
+// Use `wp.os.ready()` (not `addAction( 'os.init', … )`) —
 // plugin settings scripts are loaded via server-sync AFTER
-// `desktop-mode.init` has already fired, so a raw addAction callback
+// `os.init` has already fired, so a raw addAction callback
 // would never run. `ready()` handles both the already-fired and
 // not-yet-fired cases. See "Bootstrap" above for the full story.
-wp.desktop.ready( () => {
-    wp.desktop.registerSettingsTab( {
+wp.os.ready( () => {
+    wp.os.registerSettingsTab( {
         id:         'my-plugin',
         label:      'My Plugin',
         capability: 'manage_options',
         order:      50,
         owner:      'my-plugin-settings',
         render( body, ctx ) {
-            // Layout: use <wpd-section stack> (or <wpd-stack> inside a
-            // vanilla <wpd-section>) so children get consistent gap.
-            // The default slot of <wpd-section> has no gap — cramped
+            // Layout: use <os-section stack> (or <os-stack> inside a
+            // vanilla <os-section>) so children get consistent gap.
+            // The default slot of <os-section> has no gap — cramped
             // is the default without opt-in.
             body.innerHTML = `
-                <wpd-section
+                <os-section
                     heading="My Plugin"
                     description="Configure the plugin."
                     stack
                 >
-                    <wpd-text-field label="Name"></wpd-text-field>
-                    <wpd-button>Save</wpd-button>
-                </wpd-section>
+                    <os-text-field label="Name"></os-text-field>
+                    <os-button>Save</os-button>
+                </os-section>
             `;
 
             // Read the current AI assistant preference (Features tab).
@@ -2702,79 +3688,79 @@ wp.desktop.ready( () => {
 } );
 ```
 
-Tabs registered after the OS Settings window is already open repaint live — the panel subscribes to the registry.
+Tabs registered after the OpenStation Preferences window is already open repaint live — the panel subscribes to the registry.
 
-**Layout tip — `<wpd-section stack>`**
+**Layout tip — `<os-section stack>`**
 
-The default slot of `<wpd-section>` has no gap between children. For third-party tabs that put raw fields directly in the slot, opt into flex-column layout with the `stack` attribute:
+The default slot of `<os-section>` has no gap between children. For third-party tabs that put raw fields directly in the slot, opt into flex-column layout with the `stack` attribute:
 
 ```html
-<wpd-section heading="Settings" stack>
-    <wpd-text-field label="Name"></wpd-text-field>
-    <wpd-checkbox-label label="Enabled"></wpd-checkbox-label>
-    <wpd-button>Save</wpd-button>
-</wpd-section>
+<os-section heading="Settings" stack>
+    <os-text-field label="Name"></os-text-field>
+    <os-checkbox-label label="Enabled"></os-checkbox-label>
+    <os-button>Save</os-button>
+</os-section>
 ```
 
-Gap is `--wpd-section-gap` (default `12px`). Alternative: wrap the content in an explicit `<wpd-stack>`. Built-in sections omit `stack` because their slotted components already carry their own `margin-block-end`.
+Gap is `--os-ui-section-gap` (default `12px`). Alternative: wrap the content in an explicit `<os-stack>`. Built-in sections omit `stack` because their slotted components already carry their own `margin-block-end`.
 
-**Inline code — `<wpd-code>`**  *(since 0.5.2)*
+**Inline code — `<os-code>`**
 
-Use `<wpd-code>` for inline URLs, flag names, slugs, or any monospace string. **Don't** use `<wpd-key>` for these: `<wpd-key>` installs a global `keydown` listener so the tile flashes on matching keystrokes — rendering `chrome://flags` inside a `<wpd-key>` would steal `c`, `h`, `r`, `o`, `m`, `e`. `<wpd-code>` has no listeners.
+Use `<os-code>` for inline URLs, flag names, slugs, or any monospace string. **Don't** use `<os-key>` for these: `<os-key>` installs a global `keydown` listener so the tile flashes on matching keystrokes — rendering `chrome://flags` inside a `<os-key>` would steal `c`, `h`, `r`, `o`, `m`, `e`. `<os-code>` has no listeners.
 
 ```html
-Open <wpd-code>chrome://flags</wpd-code> and enable
-<wpd-code>experimental-web-platform-features</wpd-code>.
+Open <os-code>chrome://flags</os-code> and enable
+<os-code>experimental-web-platform-features</os-code>.
 
-<wpd-code block>
-desktop_mode_register_settings_tab( array(
+<os-code block>
+openstation_register_settings_tab( array(
     'id'    => 'my-plugin',
     'label' => 'My Plugin',
 ) );
-</wpd-code>
+</os-code>
 ```
 
-**Ordered steps — `<wpd-steps>` + `<wpd-step>`**  *(since 0.5.2)*
+**Ordered steps — `<os-steps>` + `<os-step>`**
 
-Auto-numbered setup / onboarding flows. Numbers come from a CSS counter, so inserting or removing a `<wpd-step>` renumbers the rest automatically. Set `done` on a step to render a ✓ chip instead of the number.
+Auto-numbered setup / onboarding flows. Numbers come from a CSS counter, so inserting or removing a `<os-step>` renumbers the rest automatically. Set `done` on a step to render a ✓ chip instead of the number.
 
 ```html
-<wpd-steps>
-    <wpd-step title="Install the plugin">
+<os-steps>
+    <os-step title="Install the plugin">
         Search the plugin directory for “My Plugin” and click Install.
-    </wpd-step>
-    <wpd-step title="Open Settings">
-        Go to <wpd-code>Settings → My Plugin</wpd-code>.
-    </wpd-step>
-    <wpd-step title="Enter your API key" done>
+    </os-step>
+    <os-step title="Open Settings">
+        Go to <os-code>Settings → My Plugin</os-code>.
+    </os-step>
+    <os-step title="Enter your API key" done>
         Already done earlier in this flow.
-    </wpd-step>
-</wpd-steps>
+    </os-step>
+</os-steps>
 ```
 
-For live *unregistration on deactivation*, either set `owner` (as above) to your script handle, or declare the tab with `desktop_mode_register_settings_tab()` in PHP.
+For live *unregistration on deactivation*, either set `owner` (as above) to your script handle, or declare the tab with `openstation_register_settings_tab()` in PHP.
 
 ---
 
-### `unregisterSettingsTab( id )` — Stable *(since 0.5.2)*
+### `unregisterSettingsTab( id )` — Stable
 
 Remove a previously registered tab. Idempotent.
 
 ```javascript
-wp.desktop.unregisterSettingsTab( 'my-plugin' );
+wp.os.unregisterSettingsTab( 'my-plugin' );
 ```
 
 ---
 
-### `listSettingsTabs()` — Stable *(since 0.5.2)*
+### `listSettingsTabs()` — Stable
 
 Snapshot of every currently registered third-party settings tab, sorted by `order`. Built-in tabs are not included.
 
 ---
 
-### `registerDockRailRenderer( def )` — Stable *(since 0.6.0)*
+### `registerDockRailRenderer( def )` — Stable
 
-Register a renderer that **replaces the dock rail entirely**. The default `'default'` renderer is the shipped icon-strip backed by the `Dock` class; plugin authors can ship anything from a circular ring to a Stage-Manager-style stack to a floating cluster. The user picks among registered renderers in OS Settings → Appearance → Dock style (persisted to user meta as `dockRailRenderer`).
+Register a renderer that **replaces the dock rail entirely**. The default `'default'` renderer is the shipped icon-strip backed by the `Dock` class; plugin authors can ship anything from a circular ring to a Stage-Manager-style stack to a floating cluster. The user picks among registered renderers in OpenStation Preferences → Appearance → Dock style (persisted to user meta as `dockRailRenderer`).
 
 The active renderer is mounted into the dock container by the layout dispatcher; the controller it returns drives every subsequent live update (live menu refresh, system tile add/remove, badge updates, attention animations). A renderer that throws from `mount()` is caught — the failure is logged via `HOOKS.SHELL_ERROR` and the dispatcher falls back to the built-in `'default'` so the user never sees an empty dock.
 
@@ -2783,7 +3769,7 @@ The active renderer is mounted into the dock container by the layout dispatcher;
 | Field | Type | Required | Notes |
 |---|---|---|---|
 | `id` | `string` | yes | Unique. `[a-z0-9_-]+`. Re-registering with the same id replaces the previous entry. `'default'` is reserved for the shipped icon-strip renderer; a plugin that registers `id: 'default'` replaces the baseline. |
-| `label` | `string` | yes | Shown in the OS Settings picker. |
+| `label` | `string` | yes | Shown in the OpenStation Preferences picker. |
 | `description` | `string` | no | One-line preview text for the picker. |
 | `icon` | `string` | no | Dashicon class for the picker icon. |
 | `apiVersion` | `1` | no | Reserved for forward-compat. Omit to match the current contract. |
@@ -2795,13 +3781,13 @@ The active renderer is mounted into the dock container by the layout dispatcher;
 | Field | Type | Notes |
 |---|---|---|
 | `container` | `HTMLElement` | The rail's host element. The renderer owns everything inside it; the shell does not paint here after `mount()` returns. |
-| `items` | `DockItem[]` | Initial menu-derived tile list — the rail-scoped slice the active layout routes to this rail (Classic splits core to the side rail, plugins to the primary rail). |
+| `items` | `DockItem[]` | Always empty at mount time. The shell fills the rail through the controller — `setZones()` when the renderer implements it, `replaceItems()` otherwise — on the same turn `mount()` returns, so a rail's contents come from exactly one place. |
 | `fullMenu` | `DockItem[]` | The COMPLETE admin-menu list, including items routed to other rails or the wallpaper-icon grid. Read this when the renderer wants a unified view of the entire admin regardless of the layout's partitioning. Updates with every live menu refresh. |
-| `fullSystemTiles` | `SystemDockItem[]` | Snapshot of every JS-registered system tile across both rails at mount time (OS Settings, plugin-owned launchers, recycle bin, …). Tiles the user hid via OS Settings → Apps & Icons are excluded — the dispatcher applies the per-item visibility overrides to the system-tile cohort too, delivering hide/unhide live as `removeSystemItem` / `appendSystemItem` calls on the controller. Other live updates flow through the same pair. |
-| `orientation` | `'left' \| 'right' \| 'bottom'` | Reflected on the container's `data-desktop-mode-dock-placement` attribute. |
+| `fullSystemTiles` | `SystemDockItem[]` | Snapshot of every JS-registered system tile the user has not hidden (plugin-owned launchers, the recycle bin, OpenStation's own controls), at mount time. Live updates flow through `setZones()`, or through `appendSystemItem` / `removeSystemItem` for renderers that don't implement it. |
+| `orientation` | `'left' \| 'right' \| 'bottom'` | Reflected on the container's `data-os-dock-placement` attribute. |
 | `openItem( item )` | `function` | Primary tile click. Routes through the same `windowManager.open()` the default renderer uses (multi-instance, submenu propagation, session restore). Renderers SHOULD use this instead of calling the manager directly. |
 | `openSubmenuPick( item, sub )` | `function` | Submenu pick — opens the child URL while preserving the parent's identity for `baseId`, icon, and the in-window tab strip. Renderers that surface submenus (popovers, fan-outs) call this instead of deriving window ids themselves. |
-| `openSystemItem( item )` | `function` | System-tile click (OS Settings, plugin-owned native windows). Mirrors `openItem` for the non-menu cohort. |
+| `openSystemItem( item )` | `function` | System-tile click (OpenStation Preferences, plugin-owned native windows). Mirrors `openItem` for the non-menu cohort. |
 | `windowManager` | `WindowManager` | Full instance. Use sparingly; prefer the routing callbacks. |
 | `adminUrl` | `string` | Admin URL prefix for window-id derivation. |
 
@@ -2810,8 +3796,8 @@ The active renderer is mounted into the dock container by the layout dispatcher;
 Required: `replaceItems`, `appendSystemItem`, `removeSystemItem`, `destroy`. Optional: `setBadge`, `setAttention`, `setOrientation`. Optional methods are silently skipped when the active renderer doesn't implement them — a renderer without a badge surface still works; those signals just don't paint.
 
 ```javascript
-wp.desktop.ready( () => {
-    wp.desktop.registerDockRailRenderer( {
+wp.os.ready( () => {
+    wp.os.registerDockRailRenderer( {
         id:    'my-ring',
         label: 'Ring',
         owner: 'my-plugin',
@@ -2830,76 +3816,77 @@ wp.desktop.ready( () => {
 
 See the full walk-through in [`docs/examples/dock-rail-renderer.md`](./examples/dock-rail-renderer.md).
 
-> **`wp.desktop.dock` with a custom renderer.** When the default renderer is active, `wp.desktop.dock` / `wp.desktop.sideDock` continue to return the underlying `Dock` instance (backwards compat). With a custom renderer active, both return `null` — plugins that need renderer-agnostic access should reach for `windowManager`, `activity`, or the public hook surface instead.
+> **`wp.os.dock` with a custom renderer.** When the default renderer is active, `wp.os.dock` / `wp.os.sideDock` continue to return the underlying `Dock` instance (backwards compat). With a custom renderer active, both return `null` — plugins that need renderer-agnostic access should reach for `windowManager`, `activity`, or the public hook surface instead.
 
 ---
 
-### `unregisterDockRailRenderer( id )` — Stable *(since 0.6.0)*
+### `unregisterDockRailRenderer( id )` — Stable
 
 Remove a rail renderer by id. Idempotent — unknown ids are silent no-ops.
 
 ---
 
-### `listDockRailRenderers()` — Stable *(since 0.6.0)*
+### `listDockRailRenderers()` — Stable
 
-Snapshot of every currently registered rail renderer in registration order. Used by the OS Settings picker; plugin authors rarely need it directly.
+Snapshot of every currently registered rail renderer in registration order. Used by the OpenStation Preferences picker; plugin authors rarely need it directly.
 
 ---
 
-### `openOsSettings( opts? )` — Stable *(since 0.6.0)*
+### `openOsSettings( opts? )` — Stable
 
-Open (or focus, if already open) the shell's OS Settings window. Routes through the same `windowManager.open()` call the dock's OS Settings tile uses, so a window opened via `wp.desktop.openOsSettings()` is indistinguishable from one opened by clicking the dock tile — same id, same render callback, same dimensions, same focus / minimize behaviour.
+Open (or focus, if already open) the shell's OpenStation Preferences window. Routes through the same `windowManager.open()` call the dock's OpenStation Preferences tile uses, so a window opened via `wp.os.openOsSettings()` is indistinguishable from one opened by clicking the dock tile — same id, same render callback, same dimensions, same focus / minimize behaviour.
 
 ```js
-wp.desktop.openOsSettings();
+wp.os.openOsSettings();
 ```
 
-Pass `{ tabId }` to land directly on a specific settings tab. The built-in tab ids are `'appearance'`, `'ai'`, `'apps-icons'`, `'features'`, `'effects'`, `'help'`, and `'about'`; a tab registered via `registerSettingsTab()` is addressable by its own id. (`'extended'` is accepted as a legacy alias for `'features'` — the Extended Options tab merged into the Features tab in 0.9.5.) The tab is selected before the window opens, and if OS Settings is already open the live tab strip switches in place:
+Pass `{ tabId }` to land directly on a specific settings tab. The built-in tab ids are `'appearance'`, `'themes'`, `'windows'`, `'navigation'`, `'features'`, `'help'` (labelled Components, admin-only), and `'about'`; a tab registered via `registerSettingsTab()` is addressable by its own id. Two ids are accepted as aliases for the page that absorbed them: `'extended'` → `'features'`, and `'effects'` → `'windows'`. The tab is selected before the window opens, and if OpenStation Preferences is already open the live tab strip switches in place:
 
 ```js
-// Deep-link straight to the AI Settings tab.
-wp.desktop.openOsSettings( { tabId: 'ai' } );
+// Deep-link straight to the Features tab (home of the AI settings).
+wp.os.openOsSettings( { tabId: 'features' } );
 ```
 
 | Param | Type | Notes |
 |---|---|---|
-| `opts.tabId` | `string` (optional) | Settings tab to activate. On a fresh open, unknown ids fall back to the default tab; passing an unknown id while OS Settings is already open deselects every tab in the live strip — validate the id first. |
+| `opts.tabId` | `string` (optional) | Settings tab to activate. On a fresh open, unknown ids fall back to the default tab; passing an unknown id while OpenStation Preferences is already open deselects every tab in the live strip — validate the id first. |
 
-The motivating use case: a custom dock rail renderer in **Classic** layout doesn't see the OS Settings tile (it lives on the side rail with the core menus, not the primary rail the custom renderer owns). Opening OS Settings from inside the renderer used to require DOM-scraping `[data-system-id="desktop-mode-os-settings"]` and clicking it; this method is the documented portable path.
+The motivating use case: a custom dock rail renderer in **Classic** layout doesn't see the OpenStation Preferences tile (it lives on the side rail with the core menus, not the primary rail the custom renderer owns). Opening OpenStation Preferences from inside the renderer used to require DOM-scraping `[data-system-id="os-settings"]` and clicking it; this method is the documented portable path.
 
 ---
 
-### `updateOsSettings( patch, opts? )` — Stable *(since 0.7.2)*
+### `updateOsSettings( patch, opts? )` — Stable
 
-Patch the OS Settings state and persist it — the programmatic equivalent of the user flipping a control in the OS Settings panel.
+Patch the OpenStation Preferences state and persist it — the programmatic equivalent of the user flipping a control in the OpenStation Preferences panel.
 
 ```typescript
-wp.desktop.updateOsSettings(
+wp.os.updateOsSettings(
     patch: Partial< OsSettingsSnapshot >,
     opts?: { windowId?: string },
 ): void;
 ```
 
-- **Whitelist semantics.** Only keys present on the public `OsSettingsSnapshot` shape are honored; unknown (or wrong-typed) keys are silently ignored, so a typo'd field can't bloat the persisted state. Collection fields are sanitized on the way in (`nativePostsHiddenColumns` / `dockOrder` entries must be non-empty strings, `itemVisibility` values must be one of `'both' | 'dock' | 'desktop' | 'hidden'`, `dockPromotedPositions` values must be finite `{ x, y }` coordinates).
+- **Whitelist semantics.** Only keys present on the public `OsSettingsSnapshot` shape are honored; unknown (or wrong-typed) keys are silently ignored, so a typo'd field can't bloat the persisted state. Collection fields are sanitized on the way in (`nativePostsHiddenColumns` / `navOrder` entries must be non-empty strings, `navPlacement` values must be one of `'rail' | 'desktop' | 'both' | 'hidden'`, `dockPromotedPositions` values must be finite `{ x, y }` coordinates).
 - **Persistence.** The write runs through the same pipeline as the panel: a `localStorage` cache write plus a debounced REST sync (250 ms window).
-- **Subscribers fire.** Both the top-level `wp.desktop.subscribeOsSettings( cb )` and every settings tab's `ctx.subscribeOsSettings` see the new snapshot.
-- **Observable save lifecycle.** Each phase fires on `document` as [`desktop-mode-os-settings-save-lifecycle`](#desktop-mode-os-settings-save-lifecycle--stable-since-072) (`'pending'` → `'saving'` → `'saved'` / `'failed'`), same as a built-in tab's save. `<wpd-save-status auto>` renders it for free.
-- **`opts.windowId`** attributes the in-flight REST sync to a specific window's title-bar activity dot (defaults to the OS Settings window).
+- **Presentation keys apply live.** A patch touching `wallpaper`, `accent`, `dockSize`, `windowRadius`, `adminBarMode`, `desktopLayout`, `dockPlacement`, `dockRailRenderer` or `desktopTheme` also runs the shell's apply pass, so the change is visible immediately rather than on the next page load. `unfocusEffect` repaints too, through the subscriber above rather than the apply pass. `windowReveal` and `windowRevealDuration` reach the shell the same way, and take effect on the next window load. Every other key is state-only.
+- **Subscribers fire.** Both the top-level `wp.os.subscribeOsSettings( cb )` and every settings tab's `ctx.subscribeOsSettings` see the new snapshot.
+- **Observable save lifecycle.** Each phase fires on `document` as [`os-settings-save-lifecycle`](#os-settings-save-lifecycle--stable) (`'pending'` → `'saving'` → `'saved'` / `'failed'`), same as a built-in tab's save. `<os-save-status auto>` renders it for free.
+- **`opts.windowId`** attributes the in-flight REST sync to a specific window's activity phase (defaults to the OpenStation Preferences window).
 
-The read-side companions are also top-level members: `wp.desktop.getOsSettings()` returns a defensive copy of the current snapshot and `wp.desktop.subscribeOsSettings( cb )` returns an unsubscribe function — both mirror the settings-tab `ctx.getOsSettings` / `ctx.subscribeOsSettings` API documented under [`registerSettingsTab`](#registersettingstab-def---stable-since-052), usable from any feature plugin without registering a tab.
+The read-side companions are also top-level members: `wp.os.getOsSettings()` returns a defensive copy of the current snapshot and `wp.os.subscribeOsSettings( cb )` returns an unsubscribe function — both mirror the settings-tab `ctx.getOsSettings` / `ctx.subscribeOsSettings` API documented under [`registerSettingsTab`](#registersettingstab-def---stable), usable from any feature plugin without registering a tab.
 
 ---
 
-### `deriveWindowId( url, adminUrl? )` — Stable *(since 0.6.0)*
+### `deriveWindowId( url, adminUrl? )` — Stable
 
-Derive a stable window id from an admin URL — the same id the default rail renderer uses when it opens a tile. Matches the shell's internal slugifier; a custom renderer that calls `wp.desktop.deriveWindowId( url )` and `wp.desktop.windowManager.open( { id, … } )` addresses the same window the default renderer would. Switching renderer mid-session preserves the user's open windows because both renderers agree on ids.
+Derive a stable window id from an admin URL — the same id the default rail renderer uses when it opens a tile. Matches the shell's internal slugifier; a custom renderer that calls `wp.os.deriveWindowId( url )` and `wp.os.windowManager.open( { id, … } )` addresses the same window the default renderer would. Switching renderer mid-session preserves the user's open windows because both renderers agree on ids.
 
-`adminUrl` defaults to `wp.desktop.config.adminUrl` so callers normally pass just the URL:
+`adminUrl` defaults to `wp.os.config.adminUrl` so callers normally pass just the URL:
 
 ```js
-const id = wp.desktop.deriveWindowId( '/wp-admin/edit.php' );
+const id = wp.os.deriveWindowId( '/wp-admin/edit.php' );
 // → 'edit-php' (or whatever the shell's slugifier produces)
-wp.desktop.windowManager.open( { id, baseId: id, url: '/wp-admin/edit.php', /* … */ } );
+wp.os.windowManager.open( { id, baseId: id, url: '/wp-admin/edit.php', /* … */ } );
 ```
 
 > **For rail renderers** — prefer `openItem( item )` / `openSubmenuPick( item, sub )` from `DockRailMountDeps`. They call `deriveWindowId` internally with the right `adminUrl` and build the rest of the window config for you. Only reach for `deriveWindowId` directly when you need the id for something other than `windowManager.open()` (e.g., an indicator, a deep-link, an analytics event).
@@ -2908,35 +3895,41 @@ wp.desktop.windowManager.open( { id, baseId: id, url: '/wp-admin/edit.php', /* �
 
 ---
 
-### `listSystemTiles()` — Stable *(since 0.6.0)*
+### `listSystemTiles()` — Stable
 
-Snapshot of every JS-registered system tile across both rails. Returns `[]` when the layout dispatcher hasn't booted yet (rare; only happens before `desktop-mode.init` fires).
+Snapshot of every JS-registered system tile across both rails. Returns `[]` when the layout dispatcher hasn't booted yet (rare; only happens before `os.init` fires).
 
 Each entry is a read-only descriptor — the underlying `SystemDockItem` (with its `onOpen` / `isOpen` callbacks) lives behind `getSystemTile( id )`.
 
 ```typescript
 [
     {
-        id:       string,
-        title:    string,
-        icon:     string,
-        affinity: 'core' | 'plugin',  // 'core' tiles route to side rail in Classic
+        id:        string,
+        title:     string,
+        icon:      string,
+        navKind:   'app' | 'control',  // a launcher, or one of OpenStation's own
+        placeable: boolean,            // opted into OpenStation Preferences → Navigation
+        locked:    boolean,            // cannot be moved or hidden (Exit only)
     },
     …
 ]
 ```
 
+`navKind` describes what the tile IS, and that is what decides its default placement (apps default to the wallpaper, controls to a rail) and which dock zone it sits in. Set it on the tile (`SystemDockItem.navKind`, default `'app'`), or on a native window through `'nav_kind'`.
+
+`placeable` is opt-in (`SystemDockItem.placeable`), because most system tiles are load-bearing — OpenStation Preferences is how you reach the very screen that would hide it. Set it on tiles that are genuinely optional decoration; Mio's toggle is the shipped example. Note the placement preference is honoured whether or not the flag is set: all it controls is whether the user is offered a row.
+
 ```js
-const tiles = wp.desktop.listSystemTiles();
-const settings = tiles.find( ( t ) => t.id === 'desktop-mode-os-settings' );
-// settings → { id, title: 'OS Settings', icon: 'dashicons-desktop', affinity: 'core' }
+const tiles = wp.os.listSystemTiles();
+const trash = tiles.find( ( t ) => t.id === 'desktop-mode-recycle-bin' );
+// trash → { id, title: 'Trash', icon: 'dashicons-trash', navKind: 'control', … }
 ```
 
-A custom rail renderer that wants to compose against the same tile set the default renderer paints — e.g., a launcher palette that lists every native-window plugin tile + the OS Settings tile in one place — uses this to enumerate.
+A custom rail renderer that wants to compose against the same tile set the default renderer paints — e.g., a launcher palette that lists every native-window plugin tile + the OpenStation Preferences tile in one place — uses this to enumerate.
 
 ---
 
-### `getSystemTile( id )` — Stable *(since 0.6.0)*
+### `getSystemTile( id )` — Stable
 
 Look up a system tile by id. Returns the underlying `SystemDockItem` so callers can read its `title` / `icon` / `isOpen()` predicate, or invoke `onOpen()` to forward the action.
 
@@ -2944,39 +3937,87 @@ Returns `null` when the id isn't registered or the dispatcher hasn't booted yet.
 
 ```js
 // Open a known system tile from anywhere — no DOM scraping.
-wp.desktop.getSystemTile( 'desktop-mode-os-settings' )?.onOpen();
+wp.os.getSystemTile( 'os-settings' )?.onOpen();
 ```
 
 ---
 
-### `getMenuItems()` — Stable *(since 0.6.0)*
+### `getMenuItems()` — Stable
 
 Read the complete admin-menu list, regardless of how the active layout would partition it across rails. The default Classic layout splits the menu (core to side rail, plugin to primary rail), so a custom rail renderer's `mount-deps.items` is layout-scoped — `getMenuItems()` returns the full picture for renderers that want to paint a unified view of the entire admin.
 
 ```js
-const everything = wp.desktop.getMenuItems();   // [ DockItem, DockItem, … ]
+const everything = wp.os.getMenuItems();   // [ DockItem, DockItem, … ]
 ```
 
-Returns a defensive copy — mutating the result doesn't change shell state. Updates with every live menu refresh; call from inside [`desktop-mode-registry-changed`](#desktop-mode-registry-changed--stable-since-070) CustomEvent listeners (or the rail renderer's `replaceItems`) to get the fresh post-refresh snapshot.
+Returns a defensive copy — mutating the result doesn't change shell state. Updates with every live menu refresh; call from inside [`os-registry-changed`](#os-registry-changed--stable) CustomEvent listeners (or the rail renderer's `replaceItems`) to get the fresh post-refresh snapshot.
 
 > **For renderers using the registry path:** `DockRailMountDeps.fullMenu` and `fullSystemTiles` carry the same data and are preferable inside a `mount()` body — they're snapshots at the moment the rail mounts, so a renderer holding the arrays sees stable references.
 
 ---
 
-### `renderIcon( icon, opts )` — Stable *(since 0.6.0)*
+### `getNavItems()` — Stable
 
-Render an icon-string into a DOM element using the canonical dispatch the default dock uses. One implementation, five shapes:
+Every navigable thing the shell knows about, as one flat list, whatever surface each is currently on: WordPress's admin menus, plugin menus, registered desktop icons, native-window launchers, and OpenStation's own controls. This is what OpenStation Preferences → Navigation lists.
+
+```js
+for ( const item of wp.os.getNavItems() ) {
+    console.log( item.id, item.kind );
+    // 'edit.php' 'core'
+    // 'woocommerce' 'plugin'
+    // 'desktop-mode-games' 'app'
+    // 'os-system' 'control'
+}
+```
+
+Each entry:
+
+| Field | Type | Notes |
+|---|---|---|
+| `id` | `string` | Canonical id. Keys `navPlacement` and `navOrder`. |
+| `kind` | `'core' \| 'plugin' \| 'app' \| 'control'` | What the item IS. Decides its default placement and its dock zone. |
+| `title` / `icon` | `string` | Display label and icon string (see [`renderIcon`](#rendericon-icon-opts--stable)). |
+| `locked` | `boolean?` | Cannot be moved or hidden. Exit OpenStation only. |
+| `windowId` | `string?` | The native-window id it opens, when it opens one. |
+| `menu` / `tile` / `entry` | object? | The sources that produced it. An app registered as both a native window and a desktop icon carries a `tile` and an `entry`, and is still **one** item. |
+
+Returns a defensive copy of the array.
+
+---
+
+### `getNav()` — Stable
+
+The current computed navigation — the answer every rail and the wallpaper renders. Returns `null` before the layout dispatcher has booted.
+
+```js
+const nav = wp.os.getNav();
+nav.dock.core;      // NavItem[] — WordPress menus (empty in the split layout)
+nav.dock.apps;      // NavItem[] — plugin menus, launchers, running windows with no home
+nav.dock.controls;  // NavItem[] — OpenStation's own
+nav.sidebar;        // NavItem[] — the split layout's WordPress menus
+nav.desktop;        // NavItem[] — wallpaper icons
+nav.ephemeral;      // Set<string> — ids on the dock only because their window is open
+```
+
+Read it rather than re-deriving placement: a surface that answers "where does this live?" for itself is how the dock and OpenStation Preferences came to disagree about Games.
+
+---
+
+### `renderIcon( icon, opts )` — Stable
+
+Render an icon-string into a DOM element using the canonical dispatch the default dock uses. One implementation, six shapes:
 
 | Input | Output |
 |---|---|
 | `'dashicons-…'` | `<span class="dashicons dashicons-…">` |
-| `'data:image/svg+xml;base64,…'` | `<span>` with the SVG as a CSS background-image |
+| `'data:image/svg+xml;base64,…'` **drawn in `currentColor`** | `<span>` with the SVG as a CSS **mask**, filled with `currentColor` — see [Silhouette icons](#silhouette-icons) below |
+| `'data:image/svg+xml;base64,…'` (fixed colours) | `<span>` with the SVG as a CSS background-image |
 | `'data:image/png;base64,…'` (any raster data URI — png, jpeg, gif, webp, x-icon) | `<img src=…>` |
 | `'http(s)://…'` | `<img src=…>` |
 | Anything else (`''`, `'none'`, `'div'`, …) | Letter-badge fallback — coloured circle with the first one or two letters of `opts.title`, hue hashed from the title so the swatch is stable per plugin |
 
 ```js
-const iconEl = wp.desktop.renderIcon( item.icon, {
+const iconEl = wp.os.renderIcon( item.icon, {
     title: item.title,
     className: 'my-renderer__icon',
 } );
@@ -2985,42 +4026,65 @@ host.appendChild( iconEl );
 
 Custom rail renderers should use this so their icons look consistent with the default dock (and the letter-badge fallback colour stays stable across reloads — same hash function).
 
+#### Silhouette icons
+
+**Draw your SVG in `currentColor` and it adapts to every surface automatically.** No flag, no registration field: the art declares its own intent, and the declaration cannot drift out of sync with the drawing because it *is* the drawing.
+
+```php
+// PHP — openstation_register_icon()
+'icon_svg' => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">'
+    . '<rect x="8" y="12" width="48" height="40" rx="4" fill="none"'
+    . ' stroke="currentColor" stroke-width="4"/>'
+    . '</svg>',
+```
+
+A CSS `background-image` has no colour to inherit, so an SVG drawn in `currentColor` and painted that way comes out black — invisible on a dark dock. `renderIcon()` therefore paints such art as a CSS **mask** filled with `currentColor`: only the alpha channel survives, and the fill comes from whatever the surface is already using for text. One drawing stays legible on the dark dock, on a light title bar, on a hover state, and under a desktop theme that recolours the slot.
+
+Two rules follow:
+
+- **All of it, or none of it.** Any literal `fill="#…"` / `stroke="#…"` in otherwise-silhouette art still contributes only its alpha, so it renders as a solid region in the inherited colour — not in the colour you named. Mixed art is a bug that looks like a design choice.
+- **Fixed-colour art is unaffected.** An SVG with no `currentColor` keeps the background-image path exactly as before, so a plugin shipping a full-colour brand mark gets back exactly what it drew. The two built-in games are the in-tree examples: `openstation_inkfall_icon_svg()` and `openstation_alphabet_soup_icon_svg()` are both full-colour, and `src/games/launch.ts` hands them to `renderIcon()` through the window registration, so their dock and desktop icons resolve to a `background-image` with `mask-image: none`.
+
+An explicit desktop-theme icon colour still wins over `currentColor` — a theme that recolours a slot recolours silhouettes too.
+
+In-tree reference: `openstation_content_graph_icon_svg()` (the Corkboard).
+
 ---
 
-### `applyTileClasses( base, item, ctx )` / `applyTileElement` / `applyTileTooltip` / `dispatchTileRendered` — Stable *(since 0.6.0)*
+### `applyTileClasses( base, item, ctx )` / `applyTileElement` / `applyTileTooltip` / `dispatchTileRendered` — Stable
 
 Run the registered dock decoration hooks against a tile your custom renderer is building. **Custom rail renderers SHOULD invoke these** at the equivalent points the default `Dock` renderer does — otherwise decoration plugins (glow, animations, custom tooltips) silently fail to apply when the user picks your renderer.
 
 ```js
-const classes = wp.desktop.applyTileClasses(
+const classes = wp.os.applyTileClasses(
     [ 'my-renderer__tile' ],
     item,
     { dockId: 'my-renderer', orientation: 'bottom', isSystem: false },
 );
 tile.className = classes.join( ' ' );
 
-const tooltip = wp.desktop.applyTileTooltip( item.title, item, ctx );
+const tooltip = wp.os.applyTileTooltip( item.title, item, ctx );
 if ( tooltip ) {
     tile.title = tooltip;
 }
 
-const finalEl = wp.desktop.applyTileElement( tile, item, ctx );
+const finalEl = wp.os.applyTileElement( tile, item, ctx );
 host.appendChild( finalEl );
 
-wp.desktop.dispatchTileRendered( finalEl, item, ctx );
+wp.os.dispatchTileRendered( finalEl, item, ctx );
 ```
 
 `ctx` shape: `{ dockId: string; orientation: 'left' | 'right' | 'bottom'; isSystem: boolean; rail?: 'dock' | 'taskbar'; container?: HTMLElement }`.
 
 ---
 
-### `isDockElement( target )` / `registerDockSelector( selector )` — Stable *(since 0.6.0)*
+### `isDockElement( target )` / `registerDockSelector( selector )` — Stable
 
 `isDockElement` walks an event target's `composedPath` looking for a known dock element. Returns `true` when the click landed on the default dock, the side dock, the dock tooltip, the submenu popover, or any custom-renderer root registered via `registerDockSelector`. Use in click-outside-to-dismiss handlers so plugins compose cleanly.
 
 ```js
 document.addEventListener( 'pointerdown', ( e ) => {
-    if ( wp.desktop.isDockElement( e.target ) ) {
+    if ( wp.os.isDockElement( e.target ) ) {
         return; // click landed on the dock — keep my popover open
     }
     closeMyPopover();
@@ -3030,14 +4094,14 @@ document.addEventListener( 'pointerdown', ( e ) => {
 `registerDockSelector` adds a CSS selector to the "inside the dock" set. Custom rail renderers should call this from `mount()` so other plugins' click-outside handlers correctly classify clicks on the renderer's surface. Returns an unregister function.
 
 ```js
-const unregister = wp.desktop.registerDockSelector( '.my-renderer__root' );
+const unregister = wp.os.registerDockSelector( '.my-renderer__root' );
 // later, in destroy():
 unregister();
 ```
 
 ---
 
-### `registerPalette( def )` — Stable  *(since 0.5.0)*
+### `registerPalette( def )` — Stable
 
 Register a Cmd+K-triggered overlay ("palette"). The shell owns a single global shortcut handler that **cycles** through every registered palette — first press opens palette 0, second press closes it and opens palette 1, and so on. Pressing Cmd+K when the last palette is open closes it entirely; the next press re-opens palette 0.
 
@@ -3056,8 +4120,8 @@ This means multiple plugin palettes, plus the built-in AI Assistant, coexist wit
 Returns an **unsubscribe function**. Plugins that register at shell-load time typically don't need it, but HMR / late teardown use cases should call it.
 
 ```javascript
-wp.desktop.ready( () => {
-    const unregister = wp.desktop.registerPalette( {
+wp.os.ready( () => {
+    const unregister = wp.os.registerPalette( {
         id:     'my-plugin/launcher',
         label:  'My Quick Launcher',
         open:   () => myLauncher.show(),
@@ -3069,30 +4133,32 @@ wp.desktop.ready( () => {
 
 The built-in AI Assistant is already registered as palette 0 (`id: 'desktop-mode-ai-assistant'`) — your palette lands at position 1 and the cycle goes AI → yours → closed → AI → …
 
+**Announce your own open/close paths.** The registry dispatches [`os-palette-opened` / `os-palette-closed`](#os-palette-opened--os-palette-closed--experimental) around the transitions it drives itself (the Cmd+K cycle, `openPalette()`), but it can't see an Escape handler or close button inside your palette. Dispatch the same CustomEvents from those paths — palette-gated shell features (the focused window's contextual-command harvest, e.g. "Duplicate block" in the block editor) only run while a palette has announced itself open.
+
 ---
 
-### `unregisterPalette( id )` — Stable  *(since 0.5.0)*
+### `unregisterPalette( id )` — Stable
 
 Remove a palette from the cycle. Idempotent.
 
 ```javascript
-window.wp.desktop.unregisterPalette( 'my-plugin/launcher' );
+window.wp.os.unregisterPalette( 'my-plugin/launcher' );
 ```
 
 ---
 
-### `listPalettes()` — Stable  *(since 0.5.0)*
+### `listPalettes()` — Stable
 
 Snapshot of all palettes in registration order.
 
 ---
 
-### `openPalette( id )` — Stable  *(since 0.5.0)*
+### `openPalette( id )` — Stable
 
 Open one palette by id, closing any other palette that's currently visible. Useful for deeplinks, menu items, or programmatic triggers that should target a specific palette rather than advance the cycle.
 
 ```javascript
-window.wp.desktop.openPalette( 'my-plugin/launcher' );
+window.wp.os.openPalette( 'my-plugin/launcher' );
 ```
 
 ---
@@ -3100,11 +4166,11 @@ window.wp.desktop.openPalette( 'my-plugin/launcher' );
 ### Built-in `/open` — Stable
 The shell registers one built-in command at boot: `/open [window]`. It opens any admin menu entry (dock or taskbar) in a legacy iframe window — `/open Posts`, `/open Plugins`, `/open Media`, etc. Autocomplete starts with the first 12 openable entries; as the user types, the list filters by case-insensitive substring match against label and id (max 12 shown).
 
-Plugins extend the `/open` autocomplete via the **`desktop-mode.open-command.items`** filter:
+Plugins extend the `/open` autocomplete via the **`os.open-command.items`** filter:
 
 ```javascript
 wp.hooks.addFilter(
-    'desktop-mode.open-command.items',
+    'os.open-command.items',
     'my-plugin',
     ( items ) => [
         ...items,
@@ -3113,7 +4179,7 @@ wp.hooks.addFilter(
             label: 'Jorvy',
             description: 'Marvel quotes',
             icon: 'dashicons-star-filled',
-            open: () => wp.desktop.windowManager.focus( 'jorvy' ),
+            open: () => wp.os.windowManager.focus( 'jorvy' ),
         },
     ],
 );
@@ -3126,7 +4192,7 @@ Each entry is `{ id, label, description?, icon?, open }`. The filter runs every 
 ### Example: a command with `suggest()` autocomplete
 
 ```javascript
-window.wp.desktop.registerCommand( {
+window.wp.os.registerCommand( {
     slug:  'assign_author',
     label: 'Assign author',
     hint:  '[post id] [username]',
@@ -3140,7 +4206,7 @@ window.wp.desktop.registerCommand( {
         const q = parts[ 1 ];
         if ( q.length < 2 ) return [];
 
-        const res = await wp.desktop.fetch( `/wp-json/wp/v2/users?search=${ encodeURIComponent( q ) }` );
+        const res = await wp.os.fetch( `/wp-json/wp/v2/users?search=${ encodeURIComponent( q ) }` );
         const users = await res.json();
         return users.map( ( u ) => ( {
             value: `${ parts[ 0 ] } ${ u.slug }`,
@@ -3162,75 +4228,77 @@ window.wp.desktop.registerCommand( {
 
 For communication between the parent shell and iframe admin pages. Every message is validated for `event.origin === window.location.origin`.
 
-> **Most plugin authors should never look at this section.** The unified [`Window.send/on`](#windowsend-channel-payload---stable-since-055) and iframe-side [`wp.desktop.send/on`](#wpdesktopsend--wpdesktopon--stable-since-055) hide every postMessage type catalogued below. This section is for: (a) debugging the bridge, (b) writing low-level shell internals, (c) integrating an iframe page that doesn't enqueue the standard `desktop-mode-iframe-bridge` script. If your goal is "tell my window's content something happened," reach for `Window.send/on` first.
+> **Most plugin authors should never look at this section.** The unified [`Window.send/on`](#windowsend-channel-payload---stable) and iframe-side [`wp.os.send/on`](#wpossend--wposon--stable) hide every postMessage type catalogued below. This section is for: (a) debugging the bridge, (b) writing low-level shell internals, (c) integrating an iframe page that doesn't enqueue the standard `os-iframe-bridge` script. If your goal is "tell my window's content something happened," reach for `Window.send/on` first.
+
+> The connection-handshake and code-editor internals (`os-bridge-handshake`, `os-bridge-handshake-ack`, `os-bridge-publish`, `os-bridge-disconnect`, `os-editor-autosave-request` / `-response`, `os-editor-live-unwatch`) are catalogued in [`bridge-protocol.md`](./bridge-protocol.md), not here.
 
 ### iframe → parent
 
 All messages are dispatched via `window.parent.postMessage( { type, ... }, window.location.origin )` from inside the chromeless admin iframe.
 
-#### `desktop-mode-window-publish` — Stable *(since 0.5.5)*
+#### `os-window-publish` — Stable
 
-The unified channel-API outbound primitive. Posted internally by `wp.desktop.send( channel, payload )` inside the iframe. The parent shell forwards every match to `Window.on( channel, cb )` subscribers for this iframe's window. **Plugin authors should call `wp.desktop.send` instead of posting this manually** — the latter is documented for debugging.
-
-```typescript
-{ type: 'desktop-mode-window-publish'; channel: string; payload?: unknown }
-```
-
-#### `desktop-mode-title-change` — Stable
-Update the window's title bar.
+The unified channel-API outbound primitive. Posted internally by `wp.os.send( channel, payload )` inside the iframe. The parent shell forwards every match to `Window.on( channel, cb )` subscribers for this iframe's window. **Plugin authors should call `wp.os.send` instead of posting this manually** — the latter is documented for debugging.
 
 ```typescript
-{ type: 'desktop-mode-title-change'; title: string }
+{ type: 'os-window-publish'; channel: string; payload?: unknown }
 ```
 
-#### `desktop-mode-navigate` — Stable
+#### `os-title-change` — Stable
+Update the window's title bar. Overrides whatever the shell resolved at open time, including a title it derived from the destination page itself (see [Window titles the shell had to guess](#window-titles-the-shell-had-to-guess)).
+
+```typescript
+{ type: 'os-title-change'; title: string }
+```
+
+#### `os-navigate` — Stable
 Request a navigation from the iframe. `target: 'new'` opens a new browser tab (with `noopener,noreferrer`); `'self'` replaces the iframe's current page. The URL is validated same-origin against the shell's origin snapshot — cross-origin URLs are silently refused, so an iframe cannot use this to break out of the shell.
 
 ```typescript
-{ type: 'desktop-mode-navigate'; url: string; target: 'self' | 'new' }
+{ type: 'os-navigate'; url: string; target: 'self' | 'new' }
 ```
 
-#### `desktop-mode-notification` — Stable
+#### `os-notification` — Stable
 Raise a transient toast at the parent-shell level. The toast survives the iframe's lifecycle — a "Settings saved" message stays visible even after the user closes the window that triggered it. Title is required; body is optional (concatenated with an em-dash when present). Empty titles are dropped.
 
 ```typescript
-{ type: 'desktop-mode-notification'; title: string; body?: string }
+{ type: 'os-notification'; title: string; body?: string }
 ```
 
-#### `desktop-mode-ready` — Stable
+#### `os-ready` — Stable
 Posted once by the chromeless bridge script when its message listeners are attached. Dispatches `HOOKS.IFRAME_READY` on the parent with `{ windowId }`. Prefer subscribing to `IFRAME_READY` over the browser's native iframe `load` event when timing matters — `load` fires before our bridge wires up, so messages sent on `load` can race the listener and drop.
 
 ```typescript
-{ type: 'desktop-mode-ready' }
+{ type: 'os-ready' }
 ```
 
-#### `desktop-mode-focus-request` — Stable
+#### `os-focus-request` — Stable
 Posted by the chromeless bridge on every pointerdown inside the iframe. The parent focuses the window, unless it's currently in the overview grid (where clicks are absorbed by the grid controller).
 
 ```typescript
-{ type: 'desktop-mode-focus-request' }
+{ type: 'os-focus-request' }
 ```
 
-#### `desktop-mode-external-link` — Stable
+#### `os-external-link` — Stable
 Posted when a link inside the iframe points off-site; the parent opens an external-tab card inside the window's tab strip.
 
 ```typescript
-{ type: 'desktop-mode-external-link'; url: string; label?: string }
+{ type: 'os-external-link'; url: string; label?: string }
 ```
 
-#### `desktop-mode-open-user-footprint` — Stable *(since 0.9.1)*
-Posted when a `[data-desktop-mode-footprint]` link is clicked inside a chromeless iframe — the "View activity footprint" row action on the classic Users table. Checked *before* the admin-link classifier, so the link's fallback `href` is never followed inside the shell. The parent opens (or focuses) the My WordPress window on that user's footprint route and leaves the source window open (it's an auxiliary peek, not a navigation away — contrast `desktop-mode-iframe-admin-link`, which closes the source on a remap hit). The public entry point is [`wp.desktop.myWordpress.openUserFootprint`](#public-api--wpdesktopmywordpress); see also `bridge-protocol.md`.
+#### `os-open-user-footprint` — Stable
+Posted when a `[data-os-footprint]` link is clicked inside a chromeless iframe — the "View activity footprint" row action on the classic Users table. Checked *before* the admin-link classifier, so the link's fallback `href` is never followed inside the shell. The parent opens (or focuses) the WP Explorer window on that user's footprint route and leaves the source window open (it's an auxiliary peek, not a navigation away — contrast `os-iframe-admin-link`, which closes the source on a remap hit). The public entry point is [`wp.os.myWordpress.openUserFootprint`](#public-api--wposmywordpress); see also `bridge-protocol.md`.
 
 ```typescript
-{ type: 'desktop-mode-open-user-footprint'; userId: number; userName: string }
+{ type: 'os-open-user-footprint'; userId: number; userName: string }
 ```
 
-#### `desktop-mode-iframe-error` — Stable
+#### `os-iframe-error` — Stable
 Posted from inside the chromeless iframe's `error` / `unhandledrejection` handlers. The parent re-dispatches as `HOOKS.IFRAME_ERROR` with `{ windowId, kind, message, filename, lineno, colno, stack }` so monitor widgets can subscribe.
 
 ```typescript
 {
-    type: 'desktop-mode-iframe-error';
+    type: 'os-iframe-error';
     kind: 'error' | 'unhandledrejection';
     message: string;
     filename?: string;
@@ -3240,12 +4308,12 @@ Posted from inside the chromeless iframe's `error` / `unhandledrejection` handle
 }
 ```
 
-#### `desktop-mode-iframe-network` — Stable
+#### `os-iframe-network` — Stable
 Posted by the chromeless bridge's `fetch` and `XMLHttpRequest` wrappers whenever an HTTP call completes (success or failure). The parent re-dispatches as `HOOKS.IFRAME_NETWORK_COMPLETED` with `{ windowId, method, url, status, duration, failed }`. `status === 0` indicates a network-level failure before a response arrived.
 
 ```typescript
 {
-    type: 'desktop-mode-iframe-network';
+    type: 'os-iframe-network';
     method: string;
     url: string;
     status: number;
@@ -3254,34 +4322,52 @@ Posted by the chromeless bridge's `fetch` and `XMLHttpRequest` wrappers whenever
 }
 ```
 
-#### `desktop-mode-screen-meta` — Stable
+#### `os-iframe-activity` — Experimental
+Posted by the same `fetch` / `XMLHttpRequest` wrappers as `os-iframe-network`, but **bracketing** the request rather than only reporting its completion — an indicator that can only be told "it finished" never shows the part the user waits through. This is what makes an iframe window report activity like a native one: native windows route through `wp.os.fetch`, which the shell owns, while an admin page inside an iframe does its own jQuery / XHR / `fetch` calls the parent has no other way to see.
+
+```typescript
+{ type: 'os-iframe-activity'; phase: 'start' }
+{ type: 'os-iframe-activity'; phase: 'end'; failed: boolean; status: number }
+```
+
+The parent feeds these to the same reference-counted `Window._markActivityStart()` / `_markActivitySettled()` pair `wp.os.fetch` uses, so a page firing six requests at once settles as one burst — and settles `failed` if any of them did. `status === 0` means no response arrived (network error, CORS, abort); the failure message omits the number in that case.
+
+**Only writes report.** Three deliberate exclusions:
+
+- **Reads never reach the ring** — `GET`, `HEAD`, `OPTIONS`, and `QUERY`. The ring answers "did my change go through?", and a read has no *through*: nothing changed, so nothing can have failed to change. An admin page also fires reads constantly on its own (list-table refreshes, dashboard widgets, autosave checks, media queries) and the user never asked about any of them. `QUERY` is in the list because it carries a **body** — it is a safe, idempotent read whose parameters wouldn't fit in a URL, so any "does it have a payload?" test would classify it backwards.
+- **WordPress Heartbeat** never reports even though it POSTs. It is a poll the user did not initiate, on a timer, forever; reporting it would light every open window's ring every 15 seconds and flash a success check for a save nobody made. Same judgement `wp.os.fetch`'s `silent: true` exists for. The action name is read from the request body, since Heartbeat POSTs to `admin-ajax.php` with no action in the URL.
+- **A new document resets the count.** An iframe that navigates mid-request takes its pending `end` messages with it, so `os-ready` calls `Window._resetActivity()`; without it the ring would stay lit for the rest of the window's life.
+
+This is the automatic path, and it is conservative on purpose. `wp.os.fetch` is the deliberate one: a call site that passes a `GET` there **does** move the phase, because someone chose to report it. Pass `silent: true` to opt a single call out.
+
+#### `os-screen-meta` — Stable
 Announces the screen-meta panels (Screen Options / Help) that the iframe page exposes. The parent renders one title-bar button per announced panel, replacing any previously rendered set.
 
 ```typescript
-{ type: 'desktop-mode-screen-meta'; panels: ( 'screen-options' | 'help' )[] }
+{ type: 'os-screen-meta'; panels: ( 'screen-options' | 'help' )[] }
 ```
 
 The iframe sends this on every load — **including an empty `panels: []`** — so the parent can clear stale buttons when a page (e.g. after an in-place same-slug navigation) exposes no screen meta. A panel is announced only when its toggle link is present **and** the panel actually has content: a Screen Options panel with no form controls, or a Help tab registered with empty `content` and no callback, is omitted so the title bar never shows a button that opens an empty panel.
 
-#### `desktop-mode-screen-meta-state` — Stable
+#### `os-screen-meta-state` — Stable
 Reports which screen-meta panel (if any) is currently open inside the iframe.
 
 ```typescript
-{ type: 'desktop-mode-screen-meta-state'; open: 'screen-options' | 'help' | null }
+{ type: 'os-screen-meta-state'; open: 'screen-options' | 'help' | null }
 ```
 
-#### `desktop-mode-commands-list` — Experimental
-Reports the current `wp.data.select('core/commands')` registry of this iframe to the parent shell. Emitted after the iframe receives `desktop-mode-commands-subscribe`, and then re-emitted (de-duplicated) whenever a re-render of the in-iframe React harvester changes the merged list. The parent re-publishes each entry as a slash-command in the shell palette tagged `owner: 'iframe:<windowId>'` and `eager: true` so the command surfaces before the user types `/`.
+#### `os-commands-list` — Experimental
+Reports the current `wp.data.select('core/commands')` registry of this iframe to the parent shell. Emitted after the iframe receives `os-commands-subscribe`, and then re-emitted (de-duplicated) whenever a re-render of the in-iframe React harvester changes the merged list. The parent re-publishes each entry as a slash-command in the shell palette tagged `owner: 'iframe:<windowId>'` and `eager: true` so the command surfaces before the user types `/`.
 
 Collection spans tier-2 (context-scoped `getCommands(true)`) and tier-3 (dynamic `getCommandLoaders(true)` hooks — invoked inside a mounted React tree so the rules of hooks hold). Global tier-1 navigation commands are deliberately skipped: the user already has them via the dock.
 
-Each `HarvestedCommand` carries a `kind` field the iframe computes by **statically matching** `callback.toString()` against a string-literal navigation target (`location.href = '…'`, `.assign('…')`, `.replace('…')`). An earlier dry-run approach triggered infinite window spawning because `Location.prototype.href` is non-configurable — the shim silently failed and every nav callback actually navigated. Computed URLs fall back to `action` and proxy back into the iframe via `desktop-mode-commands-invoke`.
+Each `HarvestedCommand` carries a `kind` field the iframe computes by **statically matching** `callback.toString()` against a string-literal navigation target (`location.href = '…'`, `.assign('…')`, `.replace('…')`). An earlier dry-run approach triggered infinite window spawning because `Location.prototype.href` is non-configurable — the shim silently failed and every nav callback actually navigated. Computed URLs fall back to `action` and proxy back into the iframe via `os-commands-invoke`.
 
 `iconSvg` carries the `@wordpress/icons` React element flattened to SVG markup via `wp.element.renderToString`; the structured-clone algorithm behind `postMessage` would refuse the raw element.
 
 ```typescript
 {
-    type: 'desktop-mode-commands-list';
+    type: 'os-commands-list';
     commands: Array<{
         name: string;
         label: string;
@@ -3294,15 +4380,15 @@ Each `HarvestedCommand` carries a `kind` field the iframe computes by **statical
 }
 ```
 
-#### `desktop-mode-plugins-changed` — Stable
+#### `os-plugins-changed` — Stable
 
-Carries a full menu payload harvested from real admin context. Emitted by the chromeless bridge when the iframe lands on a page whose completion commonly mutates the admin menu (`plugins.php`, `plugin-install.php`, `update.php`, `themes.php`), and by the hidden refresh probe [`wp.desktop.refreshMenu()`](#refreshmenu) spawns. The shell diffs the payload against its prior snapshot by `id` and repaints only the registries that actually changed (dock, native windows, widgets, …) — no browser reload. The payload also carries `menuSig`, its own [menu signature](#desktop-mode-menu-signature--stable-since-094), which the shell adopts as its last-known value, and `updateCounts` (since 0.9.7), the aggregate pending-update numbers the shell mirrors onto the admin-bar circle-arrows notifier (`#wp-admin-bar-updates`) so an in-window update run resets it without a hard refresh (GH#296).
+Carries a full menu payload harvested from real admin context. Emitted by the chromeless bridge when the iframe lands on a page whose completion commonly mutates the admin menu (`plugins.php`, `plugin-install.php`, `update.php`, `themes.php`), and by the hidden refresh probe [`wp.os.refreshMenu()`](#refreshmenu) spawns. The shell diffs the payload against its prior snapshot by `id` and repaints only the registries that actually changed (dock, native windows, widgets, …) — no browser reload. The payload also carries `menuSig`, its own [menu signature](#os-menu-signature--stable), which the shell adopts as its last-known value, and `updateCounts`, the aggregate pending-update numbers the shell mirrors onto the admin-bar circle-arrows notifier (`#wp-admin-bar-updates`) so an in-window update run resets it without a hard refresh (GH#296).
 
-Since 0.9.7 the bridge posts this message (and `desktop-mode-menu-signature`) to the **top** window rather than the immediate parent. For a normal window iframe they're the same frame; the distinction matters for nested flows like the bulk updater, where `update-core.php` hosts a progress iframe of `update.php` whose post-upgrade payload must still reach the shell.
+The bridge posts this message (and `os-menu-signature`) to the **top** window rather than the immediate parent. For a normal window iframe they're the same frame; the distinction matters for nested flows like the bulk updater, where `update-core.php` hosts a progress iframe of `update.php` whose post-upgrade payload must still reach the shell.
 
 ```typescript
 {
-    type: 'desktop-mode-plugins-changed';
+    type: 'os-plugins-changed';
     payload: {
         dockItems: unknown[];
         nativeWindows: unknown[];
@@ -3313,22 +4399,36 @@ Since 0.9.7 the bridge posts this message (and `desktop-mode-menu-signature`) to
 }
 ```
 
-#### `desktop-mode-updates-changed` — Stable *(since 0.9.7)*
+#### `os-updates-changed` — Stable
 
-A payload-less nudge emitted by the chromeless bridge when Core's shiny updater (`wp-admin/js/updates.js`) finishes an AJAX plugin/theme update or delete run inside the iframe — the jQuery events `wp-plugin-update-success` / `-error`, `wp-plugin-delete-success`, and their theme counterparts. Those runs mutate the update transients server-side without any navigation, so no full payload is coming on its own; on receipt the shell debounces briefly and spends one [`wp.desktop.refreshMenu()`](#refreshmenu) probe, whose payload carries the fresh dock badge and `updateCounts` (GH#296). While updates.js is still draining a bulk queue the bridge stays quiet and lets the final job send the single nudge.
+A payload-less nudge emitted by the chromeless bridge when Core's shiny updater (`wp-admin/js/updates.js`) finishes an AJAX plugin/theme update or delete run inside the iframe — the jQuery events `wp-plugin-update-success` / `-error`, `wp-plugin-delete-success`, and their theme counterparts. Those runs mutate the update transients server-side without any navigation, so no full payload is coming on its own; on receipt the shell debounces briefly and spends one [`wp.os.refreshMenu()`](#refreshmenu) probe, whose payload carries the fresh dock badge and `updateCounts` (GH#296). While updates.js is still draining a bulk queue the bridge stays quiet and lets the final job send the single nudge.
 
 ```typescript
-{ type: 'desktop-mode-updates-changed' }
+{ type: 'os-updates-changed' }
 ```
 
-#### `desktop-mode-menu-signature` — Stable *(since 0.9.4)*
+#### `os-menu-signature` — Stable
 
-A lightweight structural fingerprint of the admin menu, emitted by the chromeless bridge on **every** chromeless admin page that does *not* already carry a full `desktop-mode-plugins-changed` payload. The shell compares `sig` against its last-known value (seeded from `desktopModeConfig.menuSig` at boot, updated on every applied payload) and — only when it differs — spends one [`wp.desktop.refreshMenu()`](#refreshmenu) probe to reconcile the dock.
+A lightweight structural fingerprint of the admin menu, emitted by the chromeless bridge on **every** chromeless admin page that does *not* already carry a full `os-plugins-changed` payload. The shell compares `sig` against its last-known value (seeded from `openStationConfig.menuSig` at boot, updated on every applied payload) and — only when it differs — spends one [`wp.os.refreshMenu()`](#refreshmenu) probe to reconcile the dock.
 
 This closes the gap where a custom post type registered through a settings tool (CPT UI, Pods, ACF, …) saves on its own `admin.php?page=…` / `options.php` screen — none of which is on the full-payload allowlist — so the new menu item never reached the live dock until a full browser reload (GH#325). An unchanged menu costs nothing beyond the tiny message; a full harvest happens only on a real change.
 
 ```typescript
-{ type: 'desktop-mode-menu-signature'; sig: string }
+{ type: 'os-menu-signature'; sig: string }
+```
+
+---
+
+#### `os-pointer-move` — Experimental
+
+The cursor's position inside this iframe, in the iframe's own client coordinates. Sent **only** while the parent has armed the frame with [`os-pointer-track`](#os-pointer-track--experimental), throttled to ~25 Hz, from a passive capture-phase listener that never calls `preventDefault()`.
+
+Pointer events don't cross iframe boundaries, so the shell goes blind to the cursor the moment it enters a window. Anything shell-side that needs the true cursor position over window content consumes this and rebases it through the iframe element's bounding rect. Today's consumer is Mio's gaze ([mio.md](./mio.md#looking-at-the-pointer-across-iframes)).
+
+Coordinates only — no target element, no event object, nothing about the page's content.
+
+```typescript
+{ type: 'os-pointer-move'; x: number; y: number }
 ```
 
 ---
@@ -3339,54 +4439,73 @@ This closes the gap where a custom post type registered through a settings tool 
 iframe.contentWindow.postMessage( { type, ... }, window.location.origin );
 ```
 
-#### `desktop-mode-window-send` — Stable *(since 0.5.5)*
+#### `os-window-send` — Stable
 
-The unified channel-API inbound primitive. Posted internally by `Window.send( channel, payload )` for iframe targets. Inside the iframe the bridge forwards each match to `wp.desktop.on( channel, cb )` subscribers. **Plugin authors should call `Window.send` instead of posting this manually** — the latter is documented for debugging.
+The unified channel-API inbound primitive. Posted internally by `Window.send( channel, payload )` for iframe targets. Inside the iframe the bridge forwards each match to `wp.os.on( channel, cb )` subscribers. **Plugin authors should call `Window.send` instead of posting this manually** — the latter is documented for debugging.
 
 ```typescript
-{ type: 'desktop-mode-window-send'; channel: string; payload?: unknown }
+{ type: 'os-window-send'; channel: string; payload?: unknown }
 ```
 
-#### `desktop-mode-focus` — Stable
+#### `os-focus` — Stable
 Instructs the iframe that its containing window has been focused.
 
 ```typescript
-{ type: 'desktop-mode-focus' }
+{ type: 'os-focus' }
 ```
 
-#### `desktop-mode-color-scheme` — Stable
+#### `os-color-scheme` — Stable
 Notifies the iframe of a parent-side color scheme change so CSS Custom Properties can be synced.
 
 ```typescript
-{ type: 'desktop-mode-color-scheme'; scheme: string }
+{ type: 'os-color-scheme'; scheme: string }
 ```
 
-#### `desktop-mode-toggle-panel` — Stable
-Asks the iframe to toggle a named screen-meta panel. The iframe is the authority — it responds by emitting a `desktop-mode-screen-meta-state` message.
+#### `os-toggle-panel` — Stable
+Asks the iframe to toggle a named screen-meta panel. The iframe is the authority — it responds by emitting a `os-screen-meta-state` message.
 
 ```typescript
-{ type: 'desktop-mode-toggle-panel'; panel: 'screen-options' | 'help' }
+{ type: 'os-toggle-panel'; panel: 'screen-options' | 'help' }
 ```
 
-#### `desktop-mode-commands-subscribe` — Experimental
-Tells the iframe to begin streaming its `wp.data.select('core/commands')` registry to the parent via `desktop-mode-commands-list`. The shell sends this to the iframe owned by the currently focused window and rescinds it (`desktop-mode-commands-unsubscribe`) when focus moves elsewhere.
+#### `os-window-active` — Experimental
+Tells the iframe whether its window is the focused one. Sent on window focus/blur and re-seeded on every `os-bridge-ready` (so a background window that navigates doesn't come back on the fast cadence). The chromeless bridge uses it to stretch Core's Heartbeat to its 120 s maximum while the window is backgrounded — see [`bridge-protocol.md` → Background heartbeat throttle](./bridge-protocol.md#background-heartbeat-throttle--os-window-active).
 
 ```typescript
-{ type: 'desktop-mode-commands-subscribe' }
+{ type: 'os-window-active'; active: boolean }
 ```
 
-#### `desktop-mode-commands-unsubscribe` — Experimental
-Tells the iframe to stop streaming its command list. The parent unregisters any shell-palette entries still tagged with this window's owner.
+#### `os-commands-subscribe` — Experimental
+Tells the iframe to begin streaming its `wp.data.select('core/commands')` registry to the parent via `os-commands-list`. The shell sends this to the focused window's iframe **while a Cmd+K palette is open** (see the `os-palette-opened` / `os-palette-closed` CustomEvents) and rescinds it (`os-commands-unsubscribe`) when the palette closes or focus moves elsewhere. Streaming is palette-gated because the iframe-side harvester keeps a React tree re-rendering on every `wp.data` store tick — in the block editor, every keystroke — so it must only run while a palette can actually display the result.
 
 ```typescript
-{ type: 'desktop-mode-commands-unsubscribe' }
+{ type: 'os-commands-subscribe' }
 ```
 
-#### `desktop-mode-commands-invoke` — Experimental
+#### `os-commands-unsubscribe` — Experimental
+Tells the iframe to stop streaming its command list and tear the harvester down. After a palette close this is sent on a short grace delay (~250 ms) so a picked command's `os-commands-invoke` — posted after the palette has already closed — still finds a live callback cache. On a focus change the parent also unregisters any shell-palette entries still tagged with the defocused window's owner; after a plain palette close the last harvested list stays registered so reopening paints instantly while a fresh harvest streams in.
+
+```typescript
+{ type: 'os-commands-unsubscribe' }
+```
+
+#### `os-commands-invoke` — Experimental
 Asks the iframe to run a previously harvested `action`-kind command. Sent when the user selects the command from the shell palette. Navigation-kind commands are handled parent-side by opening a new desktop window — the iframe never sees them.
 
 ```typescript
-{ type: 'desktop-mode-commands-invoke'; name: string }
+{ type: 'os-commands-invoke'; name: string }
+```
+
+---
+
+#### `os-pointer-track` — Experimental
+
+Arms or disarms the iframe's pointer forwarder (see [`os-pointer-move`](#os-pointer-move--experimental)). **Off by default**: a shell with no consumer never sends this and the iframe never installs the listener.
+
+The shell posts `{ enabled: true }` to every live iframe when a consumer starts, again to any frame that announces `os-bridge-ready` (which fires on every navigation, so a frame re-arms itself after a page load), and `{ enabled: false }` when the last consumer tears down.
+
+```typescript
+{ type: 'os-pointer-track'; enabled: boolean }
 ```
 
 ---
@@ -3399,80 +4518,100 @@ Asks the iframe to run a previously harvested `action`-kind command. Sent when t
 
 ---
 
-## 4. Hooks — `desktop-mode.*`
+## 4. Hooks — `os.*`
 
-Desktop Mode exposes WordPress-style filters and actions via the standard `@wordpress/hooks` package. The plugin declares `wp-hooks` as a script dependency so `window.wp.hooks` is always available before the shell boots, and all hook names live in the `desktop-mode.` namespace to avoid collisions with Core or Gutenberg.
+OpenStation exposes WordPress-style filters and actions via the standard `@wordpress/hooks` package. The plugin declares `wp-hooks` as a script dependency so `window.wp.hooks` is always available before the shell boots, and all hook names live in the `os.` namespace to avoid collisions with Core or Gutenberg.
 
 If you've used `addFilter` / `addAction` in Gutenberg, you already know how these work — there's nothing new to learn.
 
 ### Bootstrap
 
-**Recommended:** use `wp.desktop.ready( fn )` — it mirrors `jQuery( fn )` and is safe for scripts loaded at any point in the lifecycle, including scripts injected mid-session by the server-sync modules (widgets, wallpapers, commands, settings tabs).
+**Recommended:** use `wp.os.ready( fn )` — it mirrors `jQuery( fn )` and is safe for scripts loaded at any point in the lifecycle, including scripts injected mid-session by the server-sync modules (widgets, wallpapers, commands, settings tabs).
 
 ```javascript
-wp.desktop.ready( () => {
-    // wp.desktop is fully populated; register away.
-    wp.desktop.registerWallpaper( myWallpaper );
-    wp.desktop.registerSettingsTab( { ... } );
+wp.os.ready( () => {
+    // wp.os is fully populated; register away.
+    wp.os.registerWallpaper( myWallpaper );
+    wp.os.registerSettingsTab( { ... } );
 } );
 ```
 
-`ready()` runs the callback **synchronously via a microtask** if `desktop-mode.init` has already fired, or queues it via `addAction( 'desktop-mode.init', … )` otherwise. It's a shorter alias of `wp.desktop.whenReady()` (`whenReady` has been Stable since 0.5.0; the `ready` alias ships in 0.5.1).
+`ready()` runs the callback **synchronously via a microtask** if `os.init` has already fired, or queues it via `addAction( 'os.init', … )` otherwise. It's a shorter alias of `wp.os.whenReady()`.
 
-> **Why not `wp.hooks.addAction( 'desktop-mode.init', … )` directly?**
+> **Why not `wp.hooks.addAction( 'os.init', … )` directly?**
 >
-> `addAction()` queues a callback for *future* firings of the action. When a plugin script is loaded **after** `desktop-mode.init` has already fired — the normal case for anything registered by a server-sync module — the callback is never invoked. `ready()` handles both cases: already-fired (call immediately) and not-yet-fired (queue on the action). Use `ready()` as the default; reach for `addAction()` directly only if you specifically want multi-fire semantics.
+> `addAction()` queues a callback for *future* firings of the action. When a plugin script is loaded **after** `os.init` has already fired — the normal case for anything registered by a server-sync module — the callback is never invoked. `ready()` handles both cases: already-fired (call immediately) and not-yet-fired (queue on the action). Use `ready()` as the default; reach for `addAction()` directly only if you specifically want multi-fire semantics.
 
-If you need a synchronous check (e.g. to branch between "register directly" and "schedule"), use `wp.desktop.isReady()`:
+If you need a synchronous check (e.g. to branch between "register directly" and "schedule"), use `wp.os.isReady()`:
 
 ```javascript
-if ( wp.desktop.isReady() ) {
-    wp.desktop.registerCommand( myCommand );
+if ( wp.os.isReady() ) {
+    wp.os.registerCommand( myCommand );
 } else {
-    wp.desktop.ready( () => wp.desktop.registerCommand( myCommand ) );
+    wp.os.ready( () => wp.os.registerCommand( myCommand ) );
 }
 ```
 
 ### Hooks catalog
 
+> **Scope.** A handful of `HOOKS` names are internal plumbing and deliberately not catalogued here: `os.broadcast`, `os.components.registered`, `os.iframe.connection-request` (documented under `wp.os.iframe.requestConnection`), `os.monitor.entry`, `os.os-icon.clicked` / `os.os-icons.rendered`, `os.snap.zone-pending` / `zone-canceled` / `zone-committed` / `split-filled`, and `os.wallpapers.server-changed`. They exist on the `HOOKS` export, fire as described in their source docblocks, and may change without a migration note.
+
 #### Shell & wallpapers
 
 | Hook | Kind | Status | Payload |
 |---|---|---|---|
-| `desktop-mode.init` | action | Stable | `{ config: DesktopConfig }` |
-| `desktop-mode.shell.resized` | action | Stable | `{ width, height }` — debounced ~120 ms after the browser stops resizing |
-| `desktop-mode.shell.visibility` | action | Stable | `{ state: 'visible' \| 'hidden' }` — mirrors `document.visibilitychange` |
-| `desktop-mode.wallpapers` | filter | Stable | `WallpaperDef[] → WallpaperDef[]` |
-| `desktop-mode.wallpaper.mounting` | action | Stable | `{ id, container, ctx }` |
-| `desktop-mode.wallpaper.mounted` | action | Stable | `{ id, container, ctx }` |
-| `desktop-mode.wallpaper.unmounting` | action | Stable | `{ id }` |
-| `desktop-mode.wallpaper.mount-failed` | action | Stable | `{ id, error }` |
-| `desktop-mode.wallpaper.visibility` | action | Stable | `{ id, state: 'visible' \| 'hidden' }` |
-| `desktop-mode.wallpaper.preview-params` | filter | Experimental *(since 0.9.5)* | `Record<string, unknown> → Record<string, unknown>`, second arg `wallpaperId` — override a wallpaper's live-preview parameters before its `renderPreview` runs |
-| `desktop-mode.wallpaper.settings-changed` | action | Experimental *(since 0.9.5)* | `{ id, settings }` — the user edited the wallpaper's settings through its `renderConfig` dialog; `settings` is the full post-merge bag. Mounted wallpapers live-apply from here |
-| `desktop-mode.wallpaper.surfaces` | filter | Stable | `WallpaperSurface[] → WallpaperSurface[]` — see below |
+| `os.init` | action | Stable | `{ config: DesktopConfig }` |
+| `os.shell.resized` | action | Stable | `{ width, height }` — debounced ~120 ms after the browser stops resizing |
+| `os.shell.visibility` | action | Stable | `{ state: 'visible' \| 'hidden' }` — mirrors `document.visibilitychange` |
+| `os.wallpapers` | filter | Stable | `WallpaperDef[] → WallpaperDef[]` |
+| `os.wallpaper.mounting` | action | Stable | `{ id, container, ctx }` |
+| `os.wallpaper.mounted` | action | Stable | `{ id, container, ctx }` |
+| `os.wallpaper.unmounting` | action | Stable | `{ id }` |
+| `os.wallpaper.mount-failed` | action | Stable | `{ id, error }` |
+| `os.wallpaper.visibility` | action | Stable | `{ id, state: 'visible' \| 'hidden' }` |
+| `os.wallpaper.preview-params` | filter | Experimental | `Record<string, unknown> → Record<string, unknown>`, second arg `wallpaperId` — override a wallpaper's live-preview parameters before its `renderPreview` runs |
+| `os.wallpaper.settings-changed` | action | Experimental | `{ id, settings }` — the user edited the wallpaper's settings through its `renderConfig` dialog; `settings` is the full post-merge bag. Mounted wallpapers live-apply from here |
+| `os.wallpaper.surfaces` | filter | Stable | `WallpaperSurface[] → WallpaperSurface[]` — see below |
+
+#### Mio
+
+The desk companion. Full documentation in [mio.md](./mio.md).
+
+| Hook | Kind | Status | Payload |
+|---|---|---|---|
+| `os.mio.config` | filter | Experimental | `MioConfig → MioConfig` — last word on appearance + physics before mount, on top of the `openstation_mio_config` PHP filter. Re-sanitized after your filter runs, so out-of-range values are clamped rather than rejected |
+| `os.mio.enabled` | action | Experimental | `{}` — the user switched it on |
+| `os.mio.disabled` | action | Experimental | `{}` — the user switched it off |
+| `os.mio.mounted` | action | Experimental | `{ position: { x, y } }` — on screen and simulating; viewport coordinates |
+| `os.mio.unmounted` | action | Experimental | `{}` — the instance was genuinely destroyed and its WebGL context released. **Not** the signal for "the user switched Mio off": that parks the instance and fires `disabled`. In practice this only fires on page teardown |
+| `os.mio.grabbed` | action | Experimental | `{ position: { x, y } }` — the user started dragging it |
+| `os.mio.dropped` | action | Experimental | `{ position: { x, y } }` — dropped; the position is already persisted |
+| `os.mio.displaced` | action | Experimental | `{ position: { x, y } }` — a window opened, moved, or maximised on top of it, so it hopped clear of the window cluster |
+| `os.mio.shape-changed` | action | Experimental | `{ shape, from }` — the silhouette shuffle picked a new stock shape (`circle` \| `blob` \| `ghost` \| `potato`). Fires when the morph starts, not when it finishes |
 
 #### Arrange & Overview
 
 Fired by the admin-bar "Arrange" menu's layout algorithms. The overview hooks come in pairs (enter/exit, hover/unhover) so plugins can maintain accurate state counts.
 
+The pairing holds even when a user re-enters overview inside the ~280 ms exit animation (a double-tap of the trigger): the outgoing session is settled first, so `exited` arrives ahead of the next `entering` rather than landing partway into the new session. A listener can rely on the sequence never interleaving.
+
 | Hook | Kind | Status | Payload |
 |---|---|---|---|
-| `desktop-mode.overview.entering` | action | Stable | `{}` — before the enter animation starts |
-| `desktop-mode.overview.entered` | action | Stable | `{}` — fires ~300 ms later, after the grid settles |
-| `desktop-mode.overview.exiting` | action | Stable | `{ windowId?: string, reason: 'select' \| 'cancel' }` |
-| `desktop-mode.overview.exited` | action | Stable | same payload as `exiting` |
-| `desktop-mode.overview.window-hover` | action | Stable | `{ windowId }` |
-| `desktop-mode.overview.window-unhover` | action | Stable | `{ windowId }` |
-| `desktop-mode.overview.window-click` | action | Stable | `{ windowId }` — fires just before `exiting` when a thumbnail is clicked |
-| `desktop-mode.arrange.cascade.starting` | action | Stable | `{ windowCount }` |
-| `desktop-mode.arrange.cascade.applied` | action | Stable | `{ windowCount }` |
-| `desktop-mode.arrange.tile.starting` | action | Stable | `{ windowCount, cols, rows }` — before tile lays out the grid |
-| `desktop-mode.arrange.tile.applied` | action | Stable | `{ windowCount, cols, rows }` |
-| `desktop-mode.arrange.tile.dimensions` | filter | Stable | filters `{ cols, rows }`; context `{ windowCount, areaWidth, areaHeight }`. Override the auto-chosen grid (e.g., force a 3-column newsroom layout). Returns must be positive integers and `cols * rows >= windowCount`, otherwise the filter is ignored. |
-| `desktop-mode.arrange.snap.changed` | action | Stable | `{ enabled }` — fires when the user toggles "Snap to grid" |
-| `desktop-mode.arrange.snap.cell-size` | filter | Stable | filters `{ cellWidth, cellHeight }`; context `{ areaWidth, areaHeight }`. Override the auto-computed snap cell size (e.g., enforce a fixed 100×100 grid). Non-positive returns are ignored. |
-| `desktop-mode.arrange.custom-action` | action | Stable | `{ id }` — fires when the user clicks a plugin-registered Arrange-menu item (registered server-side via the `desktop_mode_arrange_menu_items` PHP filter). The `id` matches the `id` field the plugin supplied. |
+| `os.overview.entering` | action | Stable | `{}` — before the enter animation starts |
+| `os.overview.entered` | action | Stable | `{}` — fires ~300 ms later, after the grid settles |
+| `os.overview.exiting` | action | Stable | `{ windowId?: string, reason: 'select' \| 'cancel' }` |
+| `os.overview.exited` | action | Stable | same payload as `exiting` — fires ~280 ms later, once the windows have animated home |
+| `os.overview.window-hover` | action | Stable | `{ windowId }` |
+| `os.overview.window-unhover` | action | Stable | `{ windowId }` |
+| `os.overview.window-click` | action | Stable | `{ windowId }` — fires just before `exiting` when a thumbnail is clicked |
+| `os.arrange.cascade.starting` | action | Stable | `{ windowCount }` |
+| `os.arrange.cascade.applied` | action | Stable | `{ windowCount }` |
+| `os.arrange.tile.starting` | action | Stable | `{ windowCount, cols, rows }` — before tile lays out the grid |
+| `os.arrange.tile.applied` | action | Stable | `{ windowCount, cols, rows }` |
+| `os.arrange.tile.dimensions` | filter | Stable | filters `{ cols, rows }`; context `{ windowCount, areaWidth, areaHeight }`. Override the auto-chosen grid (e.g., force a 3-column newsroom layout). Returns must be positive integers and `cols * rows >= windowCount`, otherwise the filter is ignored. |
+| `os.arrange.snap.changed` | action | Stable | `{ enabled }` — fires when the user toggles "Snap to grid" |
+| `os.arrange.snap.cell-size` | filter | Stable | filters `{ cellWidth, cellHeight }`; context `{ areaWidth, areaHeight }`. Override the auto-computed snap cell size (e.g., enforce a fixed 100×100 grid). Non-positive returns are ignored. |
+| `os.arrange.custom-action` | action | Stable | `{ id }` — fires when the user clicks a plugin-registered Arrange-menu item (registered server-side via the `openstation_arrange_menu_items` PHP filter). The `id` matches the `id` field the plugin supplied. |
 
 #### Virtual desktops ("Spaces")
 
@@ -3480,9 +4619,10 @@ Each user can have multiple desktops, each owning its own set of windows. Switch
 
 | Hook | Kind | Status | Payload |
 |---|---|---|---|
-| `desktop-mode.desktop.created` | action | Stable | `{ desktopId }` — fires after a new desktop joins the registry |
-| `desktop-mode.desktop.closed` | action | Stable | `{ desktopId, migratedTo }` — `migratedTo` is the desktop that received any orphaned windows |
-| `desktop-mode.desktop.switched` | action | Stable | `{ from, to }` — the active desktop changed |
+| `os.os.created` | action | Stable | `{ desktopId }` — fires after a new desktop joins the registry |
+| `os.os.closed` | action | Stable | `{ desktopId, migratedTo }` — `migratedTo` is the desktop that received any orphaned windows |
+| `os.os.switched` | action | Stable | `{ from, to }` — the active desktop changed |
+| `os.os.renamed` | action | Stable | `{ desktopId, label, previousLabel }` — the user renamed a desktop |
 
 Closing the last remaining desktop is rejected silently (the shell needs at least one). Closing a desktop that has windows migrates them to the surviving desktop on its left (falling back to the right when the leftmost is closed) — no work is silently destroyed.
 
@@ -3493,7 +4633,7 @@ Small cards that paint in the right-side column above the wallpaper but beneath 
 Register via the public helper:
 
 ```js
-wp.desktop.registerWidget( {
+wp.os.registerWidget( {
     id: 'jorvy/quote',
     label: 'Marvel Quote',
     description: 'A random quote, refreshed every 10 seconds.',
@@ -3509,7 +4649,7 @@ wp.desktop.registerWidget( {
 } );
 ```
 
-**Optional placement / sizing fields** (all default off, fully back-compat with 0.7.x widgets):
+**Optional placement / sizing fields** (all default off, fully back-compat with existing widgets):
 
 | Field | Type | What it does |
 |---|---|---|
@@ -3520,9 +4660,9 @@ wp.desktop.registerWidget( {
 | `defaultWidth`, `defaultHeight` | `number` | Initial floating size — used the first time the widget is liberated. |
 
 ```js
-wp.desktop.registerWidget( {
+wp.os.registerWidget( {
     id: 'my/notes',
-    label: 'Sticky notes',
+    label: 'Scratchpad',
     description: 'A quick scratchpad you can drop anywhere.',
     icon: 'dashicons-welcome-write-blog',
     movable: true,
@@ -3544,30 +4684,38 @@ wp.desktop.registerWidget( {
 
 User-placed geometry (position + size of liberated widgets) persists per-user in `localStorage` under `desktop-mode-widgets-geometry`. Height resizes made while a resizable widget is docked in the column persist separately under `desktop-mode-widgets-docked-heights` (height only — column widgets have no free position, and a full geometry record would mark the widget as floating at boot). Removing a widget clears both records so a re-add starts docked at its natural height.
 
-##### `wp.desktop.widgets.redock( id )` — Stable since 0.6.0
+##### `wp.os.widgets.redock( id )` — Stable
 
 Programmatically un-float a liberated widget back into the right-side column. Idempotent — already-docked widgets and unknown ids silently no-op. Mirrors what the user gets by clicking the re-dock affordance in the floating widget's chrome header.
 
 ```js
 // "Reset widget positions" command for a power-user palette.
-for ( const id of wp.desktop.widgetLayer?.getEnabledIds() ?? [] ) {
-    wp.desktop.widgets.redock( id );
+for ( const id of wp.os.widgetLayer?.getEnabledIds() ?? [] ) {
+    wp.os.widgets.redock( id );
 }
 ```
 
-Equivalent legacy entry point: `wp.desktop.widgetLayer?.redock( id )`. New code should prefer `wp.desktop.widgets.redock`, which keeps a stable namespace as the widget surface grows.
+Equivalent legacy entry point: `wp.os.widgetLayer?.redock( id )`. New code should prefer `wp.os.widgets.redock`, which keeps a stable namespace as the widget surface grows.
+
+##### `wp.os.widgetLayer?.openPicker()` — Stable
+
+Open the widget picker. The panel anchors to the add pill in the widget column and reveals it for as long as the picker is open, so the entry point is the same wherever it's triggered from — the pill itself, or the wallpaper's right-click menu. No-op if a picker is already open.
+
+```js
+wp.os.widgetLayer?.openPicker();
+```
 
 | Hook | Kind | Status | Payload |
 |---|---|---|---|
-| `desktop-mode.widgets` | filter | Stable | the registry array |
-| `desktop-mode.widget.mounting` | action | Stable | `{ id, container, ctx }` — before paint |
-| `desktop-mode.widget.mounted` | action | Stable | `{ id, container, ctx }` — after paint |
-| `desktop-mode.widget.unmounting` | action | Stable | `{ id }` — before teardown |
-| `desktop-mode.widget.mount-failed` | action | Stable | `{ id, error }` |
-| `desktop-mode.widget.added` | action | Stable | `{ id }` — user added via the picker |
-| `desktop-mode.widget.removed` | action | Stable | `{ id }` — user removed via the card's × |
+| `os.widgets` | filter | Stable | the registry array |
+| `os.widget.mounting` | action | Stable | `{ id, container, ctx }` — before paint |
+| `os.widget.mounted` | action | Stable | `{ id, container, ctx }` — after paint |
+| `os.widget.unmounting` | action | Stable | `{ id }` — before teardown |
+| `os.widget.mount-failed` | action | Stable | `{ id, error }` |
+| `os.widget.added` | action | Stable | `{ id }` — user added via the picker |
+| `os.widget.removed` | action | Stable | `{ id }` — user removed via the card's × |
 
-The `ctx` argument exposes `{ id, pluginUrl, storage }` — `storage` is a per-widget key/value store auto-namespaced in `localStorage` (`desktop-mode.widget.<id>.<key>`), so two widgets can both persist a `layout` key without colliding. (Canvas wallpapers receive a different context: `{ id, pluginUrl, prefersReducedMotion, visible, settings }`.) Enabled widgets persist per-user in `localStorage` (`desktop-mode-widgets`).
+The `ctx` argument exposes `{ id, pluginUrl, storage }` — `storage` is a per-widget key/value store auto-namespaced in `localStorage` (`os.widget.<id>.<key>`), so two widgets can both persist a `layout` key without colliding. (Canvas wallpapers receive a different context: `{ id, pluginUrl, prefersReducedMotion, visible, settings }`.) Enabled widgets persist per-user in `localStorage` (`desktop-mode-widgets`).
 
 #### Window lifecycle
 
@@ -3575,42 +4723,42 @@ All window actions include at minimum `{ windowId: string }` — additional fiel
 
 | Hook | Kind | Status | Payload |
 |---|---|---|---|
-| `desktop-mode.window.geometry` | filter | Stable *(0.8.6)* | `( geometry, ctx ) => geometry` — last call before `WindowConfig` is baked. See [the geometry filter section below](#window-geometry-filter) for the contract and a recipe. |
-| `desktop-mode.window.opened` | action | Stable | `{ windowId, page, title, url }` |
-| `desktop-mode.window.reopened` | action | Stable | `{ windowId, baseId, wasMinimized, navigated }` — fires when `openWindow()` is called for an already-open window; `navigated` *(0.9.4)* is `true` when the request carried a URL the window wasn't showing and the framework navigated the existing iframe to it in place |
-| `desktop-mode.window.content-loading` | action | Stable *(0.6.0)* | `{ windowId }` — fires on the loading entry edge (construction + every `markContentLoading()`). Edge-triggered. |
-| `desktop-mode.window.content-loaded` | action | Stable *(0.6.0)* | `{ windowId }` — fires on the loading → ready transition (iframe `load` / `desktop-mode-ready`, native render Promise resolves, or `markContentLoaded()`). Edge-triggered. |
-| `desktop-mode.window.loading-overlay` | filter | Stable *(0.6.0)* | `(host: HTMLElement, ctx: { windowId, config }) → HTMLElement`. Receives the default overlay element (or whatever a per-window `config.loading.render` produced) and may mutate it or return a replacement. Plugins use this to brand every window's loader, swap the spinner preset, append status text. |
-| `desktop-mode.window.closing` | action | Stable | `{ windowId, element }` — fires BEFORE the element is detached (use this when you need an element reference, e.g. for anchored wallpaper overlays) |
-| `desktop-mode.window.closed` | action | Stable | `{ windowId }` |
-| `desktop-mode.window.focused` | action | Stable | `{ windowId }` — fires on focus changes |
-| `desktop-mode.window.blurred` | action | Stable *(0.5.5)* | `{ windowId, focusedTo }` — fires on the window that lost focus when another window is promoted |
-| `desktop-mode.window.title-changed` | action | Stable | `{ windowId, title }` — iframe-sourced title updates |
-| `desktop-mode.window.minimized` | action | Stable | `{ windowId, element }` — element ride-along matches `closing`'s shape so wallpaper plugins anchored to window tops (snow, leaves) can match stuck particles by identity. Minimized windows render at `opacity: 0` so `offsetParent === null` checks miss them. |
-| `desktop-mode.window.restored` | action | Stable | `{ windowId, element }` — restored from minimized |
-| `desktop-mode.window.maximized` | action | Stable | `{ windowId, element }` |
-| `desktop-mode.window.unmaximized` | action | Stable | `{ windowId, element }` |
-| `desktop-mode.window.fullscreen-entered` | action | Stable | `{ windowId, element }` |
-| `desktop-mode.window.fullscreen-exited` | action | Stable | `{ windowId, element }` |
-| `desktop-mode.window.auto-exit-fullscreen` | filter | Stable *(0.8.6)* | `( shouldExit: boolean, ctx: { windowId, focusedTo } ) => boolean` — decides whether a fullscreen window should auto-exit when focus moves elsewhere. Default `true`. Return `false` to keep persistent-fullscreen surfaces (slideshow, video, game) in fullscreen across focus changes. |
-| `desktop-mode.window.focus-on-drag-hover` | filter | Stable *(0.9.4)* | `( shouldFocus: boolean, ctx: { windowId, payloadType } ) => boolean` — decides whether the window under the cursor is raised (focused) after a ~250 ms hover dwell during any drag. `payloadType` is the DragManager payload's `type` slug (`'desktop-file'`, `'shortcut'`, plugin-defined), the bridge payload's `kind` (`'attachment'`, `'post'`, `'user'`), `'os-file'` for OS file drags, or `'external'` for any other native drag. Default `true`. Return `false` to keep HUD/palette/pinned-reference windows from stealing z-order during drags. |
-| `desktop-mode.window.drag-start` | action | Stable | `{ windowId }` |
-| `desktop-mode.window.drag-end` | action | Stable | `{ windowId, x, y }` |
-| `desktop-mode.window.moved` | action | Stable | `{ windowId, x, y }` — fires with drag-end |
-| `desktop-mode.window.resize-start` | action | Stable | `{ windowId }` |
-| `desktop-mode.window.resize-end` | action | Stable | `{ windowId, width, height }` |
-| `desktop-mode.window.resized` | action | Stable | `{ windowId, width, height }` — fires with resize-end |
-| `desktop-mode.window.bounds-changed` | action | Stable | `{ windowId, x, y, width, height, state, phase: 'drag' \| 'resize' }` — rAF-coalesced, fires at most once per animation frame during an active drag or resize. See below. |
-| `desktop-mode.window.detached` | action | Stable | `{ windowId, url }` — user opened in a classic-admin tab |
+| `os.window.geometry` | filter | Stable | `( geometry, ctx ) => geometry` — last call before `WindowConfig` is baked. See [the geometry filter section below](#window-geometry-filter) for the contract and a recipe. |
+| `os.window.opened` | action | Stable | `{ windowId, page, title, url }` |
+| `os.window.reopened` | action | Stable | `{ windowId, baseId, wasMinimized, navigated }` — fires when `openWindow()` is called for an already-open window; `navigated` is `true` when the request carried a URL the window wasn't showing and the framework navigated the existing iframe to it in place |
+| `os.window.content-loading` | action | Stable | `{ windowId }` — fires on the loading entry edge (construction + every `markContentLoading()`). Edge-triggered. |
+| `os.window.content-loaded` | action | Stable | `{ windowId }` — fires on the loading → ready transition (iframe `load` / `os-ready`, native render Promise resolves, or `markContentLoaded()`). Edge-triggered. |
+| `os.window.loading-overlay` | filter | Stable | `(host: HTMLElement, ctx: { windowId, config }) → HTMLElement`. Receives the default overlay element (or whatever a per-window `config.loading.render` produced) and may mutate it or return a replacement. Plugins use this to brand every window's loader, swap the spinner preset, append status text. |
+| `os.window.closing` | action | Stable | `{ windowId, element }` — fires BEFORE the element is detached (use this when you need an element reference, e.g. for anchored wallpaper overlays) |
+| `os.window.closed` | action | Stable | `{ windowId }` |
+| `os.window.focused` | action | Stable | `{ windowId }` — fires on focus changes |
+| `os.window.blurred` | action | Stable | `{ windowId, focusedTo }` — fires on the window that lost focus when another window is promoted |
+| `os.window.title-changed` | action | Stable | `{ windowId, title }` — iframe-sourced title updates |
+| `os.window.minimized` | action | Stable | `{ windowId, element }` — element ride-along matches `closing`'s shape so wallpaper plugins anchored to window tops (snow, leaves) can match stuck particles by identity. Minimized windows render at `opacity: 0` so `offsetParent === null` checks miss them. |
+| `os.window.restored` | action | Stable | `{ windowId, element }` — restored from minimized |
+| `os.window.maximized` | action | Stable | `{ windowId, element }` |
+| `os.window.unmaximized` | action | Stable | `{ windowId, element }` |
+| `os.window.fullscreen-entered` | action | Stable | `{ windowId, element }` |
+| `os.window.fullscreen-exited` | action | Stable | `{ windowId, element }` |
+| `os.window.auto-exit-fullscreen` | filter | Stable | `( shouldExit: boolean, ctx: { windowId, focusedTo } ) => boolean` — decides whether a fullscreen window should auto-exit when focus moves elsewhere. Default `true`. Return `false` to keep persistent-fullscreen surfaces (slideshow, video, game) in fullscreen across focus changes. |
+| `os.window.focus-on-drag-hover` | filter | Stable | `( shouldFocus: boolean, ctx: { windowId, payloadType } ) => boolean` — decides whether the window under the cursor is raised (focused) after a ~250 ms hover dwell during any drag. `payloadType` is the DragManager payload's `type` slug (`'desktop-file'`, `'shortcut'`, plugin-defined), the bridge payload's `kind` (`'attachment'`, `'post'`, `'user'`), `'os-file'` for OS file drags, or `'external'` for any other native drag. Default `true`. Return `false` to keep HUD/palette/pinned-reference windows from stealing z-order during drags. |
+| `os.window.drag-start` | action | Stable | `{ windowId }` |
+| `os.window.drag-end` | action | Stable | `{ windowId, x, y }` |
+| `os.window.moved` | action | Stable | `{ windowId, x, y }` — fires with drag-end |
+| `os.window.resize-start` | action | Stable | `{ windowId }` |
+| `os.window.resize-end` | action | Stable | `{ windowId, width, height }` |
+| `os.window.resized` | action | Stable | `{ windowId, width, height }` — fires with resize-end |
+| `os.window.bounds-changed` | action | Stable | `{ windowId, x, y, width, height, state, phase: 'drag' \| 'resize' }` — rAF-coalesced, fires at most once per animation frame during an active drag or resize. See below. |
+| `os.window.detached` | action | Stable | `{ windowId, url }` — user opened in a classic-admin tab |
 
-**About `bounds-changed`.** Intended for per-frame collision-aware effects (snow piling on window tops, rain splashes, physics-driven overlays). Coalesced via `requestAnimationFrame` so a pointermove storm collapses to one fire per paint — matches the cadence a canvas wallpaper's own ticker runs at, and replaces the "poll `getBoundingClientRect` every rAF" pattern. NOT fired at drag/resize end — use `desktop-mode.window.drag-end` / `desktop-mode.window.resize-end` for settled geometry.
+**About `bounds-changed`.** Intended for per-frame collision-aware effects (snow piling on window tops, rain splashes, physics-driven overlays). Coalesced via `requestAnimationFrame` so a pointermove storm collapses to one fire per paint — matches the cadence a canvas wallpaper's own ticker runs at, and replaces the "poll `getBoundingClientRect` every rAF" pattern. NOT fired at drag/resize end — use `os.window.drag-end` / `os.window.resize-end` for settled geometry.
 
-The window hooks fan out alongside the existing `desktop-mode-window-*` CustomEvents (see section 2) — both APIs fire for every state change. New code should prefer the hook bus.
+The window hooks fan out alongside the existing `os-window-*` CustomEvents (see section 2) — both APIs fire for every state change. New code should prefer the hook bus.
 
 All hooks can be listed via `wp.hooks.hasAction()` / `hasFilter()` for defensive checks.
 
 <a id="window-geometry-filter"></a>
-##### `desktop-mode.window.geometry` filter — Stable since 0.8.6
+##### `os.window.geometry` filter — Stable
 
 Last call before a window's resolved `x` / `y` / `width` / `height` / `initialState` are baked into the `WindowConfig` the constructor consumes. Plugins use it to:
 
@@ -3619,9 +4767,9 @@ Last call before a window's resolved `x` / `y` / `width` / `height` / `initialSt
 - **Force an initial state** (e.g. always-maximized for a fullscreen-y tool).
 
 ```js
-const { HOOKS } = wp.desktop;
+const { HOOKS } = wp.os;
 
-wp.desktop.hooks.addFilter(
+wp.os.hooks.addFilter(
     HOOKS.WINDOW_GEOMETRY,
     'my-plugin/place-shop',
     ( geometry, ctx ) => {
@@ -3681,11 +4829,11 @@ type WindowGeometryContext = {
 - The shell re-clamps `width`/`height` to the window's registered `minWidth`/`minHeight` after the filter returns — a buggy filter cannot ship a sub-minimum window.
 - `x`/`y` are NOT re-clamped to the desktop rect; plugins sometimes deliberately place windows partially off-screen. The filter is responsible for its own viewport math when it cares.
 - The filter runs *every time the window opens*, not just at registration — so a deactivation/reactivation of a plugin re-runs its filter with fresh `desktopRect` numbers.
-- Companion of `desktop_mode_register_window`'s server-side `width` / `height` defaults: the filter sees those defaults as the starting `geometry` value, and `ctx.callerPinned` is `true` for native windows because the framework's own opener passes them through as explicit `manager.open()` args. The filter is free to override anyway — `callerPinned` is signal, not veto.
+- Companion of `openstation_register_window`'s server-side `width` / `height` defaults: the filter sees those defaults as the starting `geometry` value, and `ctx.callerPinned` is `true` for native windows because the framework's own opener passes them through as explicit `manager.open()` args. The filter is free to override anyway — `callerPinned` is signal, not veto.
 
 #### `DockItem` shape
 
-The canonical menu-item type, surfaced everywhere a custom dock surface needs to read what the admin menu contains: `wp.desktop.getMenuItems()`, the rail renderer's `mount-deps.items` and `mount-deps.fullMenu`, the controller's `replaceItems( items )` parameter, every dock decoration hook context.
+The canonical menu-item type, surfaced everywhere a custom dock surface needs to read what the admin menu contains: `wp.os.getMenuItems()`, the rail renderer's `mount-deps.items` and `mount-deps.fullMenu`, the controller's `replaceItems( items )` parameter, every dock decoration hook context.
 
 ```typescript
 interface DockItem {
@@ -3694,25 +4842,25 @@ interface DockItem {
     icon:     string;        // dashicon class | `data:` URI | `http(s):` URL
     url:      string;        // admin URL the tile opens
     badge:    number;        // numeric badge; 0 = no badge
-    submenu:  { title: string; url: string }[];
+    submenu:  { title: string; url: string; offSite?: boolean }[];
     multi:    boolean;       // hover-peek + Ghost Card eligibility
     isCore:   boolean;       // true for WP-shipped menus, false for plugin-contributed
     pluginFile: string | null; // owning plugin file (e.g. `woocommerce/woocommerce.php`)
                                // when the menu was registered by an active,
                                // deactivatable plugin; null for core menus,
-                               // mu-plugins, drop-ins, and Desktop Mode itself.
+                               // mu-plugins, drop-ins, and OpenStation itself.
                                // Drives the dock right-click "Deactivate …" action.
                                // Resolved server-side by snapshotting $menu/$submenu
                                // around every admin_menu callback (registration-time
                                // attribution), with page-hook reflection + a CPT/
                                // taxonomy registration tracker as fallbacks.
-                               // Stable since 0.8.2.
+                               // Stable.
     pluginName: string | null; // owning plugin's display name (the `Name:` field
                                // from its plugin header). Used in the right-click
                                // "Deactivate <pluginName>…" label so sub-page tiles
                                // (e.g. WC's Analytics) read as the parent plugin.
                                // Always null when pluginFile is null.
-                               // Stable since 0.8.2.
+                               // Stable.
 }
 ```
 
@@ -3723,7 +4871,11 @@ interface DockItem {
 
 A custom rail renderer that decides whether to show a submenu indicator (a chevron, a hover treatment) can read `item.submenu.length > 0` without defensive `submenu.length > 1` or self-URL filtering. The framework owns the contract.
 
-**Lifecycle pairing — `replaceItems` ↔ `appendSystemItem`** — these are independent update paths. `replaceItems( items )` swaps the menu-derived tiles wholesale (the live menu refresh fires it on every plugin activation / deactivation). `appendSystemItem` / `removeSystemItem` track the JS-owned cohort (OS Settings, plugin native-window launchers).
+**`submenu[].offSite`** — the row leaves the site. Off-site admin-menu entries are dropped server-side; the survivors are children of a plugin's own menu (a docs or account link), and they carry this flag. Nothing off-site can load in an iframe, so a surface that routes a URL into a window must skip them: the in-window tab strip does, and the constellation flyout marks them with an outbound glyph and hands them to the browser instead. `tryOpenExternalUrl()` is the shared escape; a renderer calling `openSubmenuPick` gets it for free.
+
+The name is `offSite` rather than `external` because the tab strip already spends that word on a different thing: a tab with `data-kind="external"` is a plugin-opened sub-iframe, which is on-site.
+
+**Lifecycle pairing — `replaceItems` ↔ `appendSystemItem`** — these are independent update paths. `replaceItems( items )` swaps the menu-derived tiles wholesale (the live menu refresh fires it on every plugin activation / deactivation). `appendSystemItem` / `removeSystemItem` track the JS-owned cohort (OpenStation Preferences, plugin native-window launchers).
 
 A custom rail renderer's controller MUST persist its system-tile DOM across `replaceItems` calls — the shell does NOT re-emit `appendSystemItem` for previously-added tiles after a menu refresh. Practical pattern: track system tiles in a closure-scoped `Map`, re-paint them in `replaceItems()` after rebuilding the menu cohort.
 
@@ -3758,18 +4910,19 @@ The default renderer uses exactly this pattern internally — `Dock.replaceItems
 
 Render-pipeline hooks the default `Dock` renderer fires while painting tiles. Use these to add classNames, wrap tiles, customize tooltips, or animate tiles in — without forking the renderer. See [`docs/examples/dock-decoration-hooks.md`](./examples/dock-decoration-hooks.md).
 
-Custom rail renderers (registered via `wp.desktop.registerDockRailRenderer`, see below) **should** fire the same hooks at equivalent points so plugin decoration keeps working when the user picks a different renderer.
+Custom rail renderers (registered via `wp.os.registerDockRailRenderer`, see below) **should** fire the same hooks at equivalent points so plugin decoration keeps working when the user picks a different renderer.
 
 | Hook | Kind | Status | Payload |
 |---|---|---|---|
-| `desktop-mode.dock.before-render` | action | Stable *(0.6.0)* | `DockRenderContext` — fires at start of every paint pass (initial mount + every `replaceItems`) |
-| `desktop-mode.dock.tile-class` | filter | Stable *(0.6.0)* | `( classes: string[], ctx: DockTileContext ) → string[]` — order preserved |
-| `desktop-mode.dock.tile-element` | filter | Stable *(0.6.0)* | `( el: HTMLElement, ctx: DockTileContext ) → HTMLElement` — wrap, don't replace; the shell still finds `[data-menu-slug]` / `[data-system-id]` descendants for active state |
-| `desktop-mode.dock.tile-tooltip` | filter | Stable *(0.6.0)* | `( label: string, ctx: DockTileContext ) → string` — runs once at bind time; empty string suppresses the tooltip |
-| `desktop-mode.dock.tile-rendered` | action | Stable *(0.6.0)* | `DockTileContext & { el: HTMLElement }` — fires once per tile after insertion (computed layout is ready) |
-| `desktop-mode.dock.after-render` | action | Stable *(0.6.0)* | `DockRenderContext` with frozen `tileElements: ReadonlyMap<string, HTMLElement>` |
-| `desktop-mode.dock.item-appended` | action | Stable *(0.5.0)* | `{ id }` — fires when `wp.desktop.registerSystemTile()` lands a tile |
-| `desktop-mode.dock.item-removed` | action | Stable *(0.6.0)* | `{ id, placement }` — symmetric counterpart to `item-appended` |
+| `os.dock.before-render` | action | Stable | `DockRenderContext` — fires at start of every paint pass (initial mount + every `replaceItems`) |
+| `os.dock.tile-class` | filter | Stable | `( classes: string[], ctx: DockTileContext ) → string[]` — order preserved |
+| `os.dock.tile-element` | filter | Stable | `( el: HTMLElement, ctx: DockTileContext ) → HTMLElement` — wrap, don't replace; the shell still finds `[data-menu-slug]` / `[data-system-id]` descendants for active state |
+| `os.dock.tile-tooltip` | filter | Stable | `( label: string, ctx: DockTileContext ) → string` — runs once at bind time; empty string suppresses the tooltip |
+| `os.dock.tile-rendered` | action | Stable | `DockTileContext & { el: HTMLElement }` — fires once per tile after insertion (computed layout is ready) |
+| `os.dock.after-render` | action | Stable | `DockRenderContext` with frozen `tileElements: ReadonlyMap<string, HTMLElement>` |
+| `os.dock.item-appended` | action | Stable | `{ id }` — fires when `wp.os.registerSystemTile()` lands a tile |
+| `os.dock.item-removed` | action | Stable | `{ id, placement }` — symmetric counterpart to `item-appended` |
+| `os.dock.refresh-active` | action | Experimental | No payload. One you **fire**, not listen to: repaints every tile's active dot. The dock already repaints on window lifecycle events, so this is only for a system tile whose `isOpen()` asks something other than "is a window open?" — Mio's asks whether the companion is on screen, and no window event will ever fire for that |
 
 **`DockHookContextBase`** (shared by both context types):
 
@@ -3792,50 +4945,50 @@ Lifecycle + instrumentation for the chromeless iframe inside each window. Re-dis
 
 | Hook | Kind | Status | Payload |
 |---|---|---|---|
-| `desktop-mode.iframe.ready` | action | Stable | `{ windowId }` — fires once per iframe when the chromeless bridge script has attached its listeners. Use this instead of the iframe's `load` event when timing matters (the native `load` fires before our bridge attaches, so messages sent on `load` can miss the listener). |
-| `desktop-mode.iframe.error` | action | Stable | `{ windowId, kind: 'error' \| 'unhandledrejection', message, filename, lineno, colno, stack }` — bridged from the iframe's `error` / `unhandledrejection` handlers. Cross-origin iframe errors are origin-filtered at the bridge and never reach this hook. |
-| `desktop-mode.iframe.network-completed` | action | Stable | `{ windowId, method, url, status, duration, failed }` — every `fetch` + `XMLHttpRequest` call inside the iframe. `status === 0` indicates a network-level failure with no response received. |
+| `os.iframe.ready` | action | Stable | `{ windowId }` — fires once per iframe when the chromeless bridge script has attached its listeners. Use this instead of the iframe's `load` event when timing matters (the native `load` fires before our bridge attaches, so messages sent on `load` can miss the listener). |
+| `os.iframe.error` | action | Stable | `{ windowId, kind: 'error' \| 'unhandledrejection', message, filename, lineno, colno, stack }` — bridged from the iframe's `error` / `unhandledrejection` handlers. Cross-origin iframe errors are origin-filtered at the bridge and never reach this hook. |
+| `os.iframe.network-completed` | action | Stable | `{ windowId, method, url, status, duration, failed }` — every `fetch` + `XMLHttpRequest` call inside the iframe. `status === 0` indicates a network-level failure with no response received. |
 
-Use `IFRAME_READY` when you need to send a `desktop-mode-focus` (or any parent→iframe message) as early as possible without racing the bridge setup. Use `IFRAME_ERROR` / `IFRAME_NETWORK_COMPLETED` to build a monitor widget that surfaces per-window reliability data.
+Use `IFRAME_READY` when you need to send a `os-focus` (or any parent→iframe message) as early as possible without racing the bridge setup. Use `IFRAME_ERROR` / `IFRAME_NETWORK_COMPLETED` to build a monitor widget that surfaces per-window reliability data.
 
 #### Native-window lifecycle
 
-These hooks fire only for native windows (`wp.desktop.registerWindow({ native: true, render })`). They let a plugin wrap or decorate another plugin's render output — e.g. injecting a consistent panel theme around every native window, or tagging the body for test automation.
+These hooks fire only for native windows (`wp.os.registerWindow({ native: true, render })`). They let a plugin wrap or decorate another plugin's render output — e.g. injecting a consistent panel theme around every native window, or tagging the body for test automation.
 
 | Hook | Kind | Status | Payload |
 |---|---|---|---|
-| `desktop-mode.native-window.before-render` | filter | Stable | body `HTMLElement`, context `{ windowId, config }` — return the same element or a new wrapper the plugin should render into |
-| `desktop-mode.native-window.after-render` | action | Stable | `{ windowId, body, config }` — fires after the plugin's `render` callback has painted |
-| `desktop-mode.native-window.before-close` | filter | Stable | `( proceed: boolean, ctx: { windowId, config } ) → boolean` — applied when a native window is about to start its close animation; return `false` to cancel the close (any other return, including `undefined`, lets it proceed). Does not apply to iframe windows. |
+| `os.native-window.before-render` | filter | Stable | body `HTMLElement`, context `{ windowId, config }` — return the same element or a new wrapper the plugin should render into |
+| `os.native-window.after-render` | action | Stable | `{ windowId, body, config }` — fires after the plugin's `render` callback has painted |
+| `os.native-window.before-close` | filter | Stable | `( proceed: boolean, ctx: { windowId, config } ) → boolean` — applied when a native window is about to start its close animation; return `false` to cancel the close (any other return, including `undefined`, lets it proceed). Does not apply to iframe windows. |
 
-**Iframe windows have their own, separate pre-close guard** *(since 0.9.4)* — not this filter. Closing an iframe-backed window posts a `desktop-mode-bridge-beforeunload-query` into the iframe and waits (up to 500ms) for a response before destroying; if the page inside has unsaved changes (`window.onbeforeunload` or a `beforeunload` listener sets a message), the user sees a confirm dialog first. See [`bridge-protocol.md`](./bridge-protocol.md#pre-close-unsaved-changes-query--desktop-mode-bridge-beforeunload-) for the full message shape — there's no plugin-facing filter for this path, it's automatic for every iframe window.
+**Iframe windows have their own, separate pre-close guard** — not this filter. Closing an iframe-backed window posts a `os-bridge-beforeunload-query` into the iframe and waits (up to 500ms) for a response before destroying; if the page inside has unsaved changes (`window.onbeforeunload` or a `beforeunload` listener sets a message), the user sees a confirm dialog first. See [`bridge-protocol.md`](./bridge-protocol.md#pre-close-unsaved-changes-query--os-bridge-beforeunload-) for the full message shape — there's no plugin-facing filter for this path, it's automatic for every iframe window.
 
 #### Window body resize
 
 | Hook | Kind | Status | Payload |
 |---|---|---|---|
-| `desktop-mode.window.body-resized` | action | Stable | `{ windowId, width, height }` — fires when the window body element's size actually changes (mount, resize, reflow). Coalesced by the underlying `ResizeObserver`; use this instead of polling from inside a native-window render. |
+| `os.window.body-resized` | action | Stable | `{ windowId, width, height }` — fires when the window body element's size actually changes (mount, resize, reflow). Coalesced by the underlying `ResizeObserver`; use this instead of polling from inside a native-window render. |
 
-### Filter: `desktop-mode.wallpapers`
+### Filter: `os.wallpapers`
 
 Receives the registered wallpaper list. Plugins can add entries, remove entries, or reorder — callback returns the (possibly modified) array.
 
 ```javascript
 // Remove the 'aurora' preset from the picker grid.
 wp.hooks.addFilter(
-    'desktop-mode.wallpapers',
+    'os.wallpapers',
     'my-plugin/hide-aurora',
     ( list ) => list.filter( ( w ) => w.id !== 'aurora' )
 );
 ```
 
-In practice most plugins use the `wp.desktop.registerWallpaper()` convenience — internally it adds a filter callback under a namespace the shell generates for you, so the raw filter API is only needed for non-additive operations.
+In practice most plugins use the `wp.os.registerWallpaper()` convenience — internally it adds a filter callback under a namespace the shell generates for you, so the raw filter API is only needed for non-additive operations.
 
 ---
 
 ## 5. Wallpaper registration API
 
-The shell ships a registry-driven wallpaper picker: every entry in the registry becomes a swatch in the OS Settings panel, and the WallpaperLayer resolves whichever is currently selected onto the desktop. Plugins register their own via `wp.desktop.registerWallpaper()` (or the `desktop-mode.wallpapers` filter).
+The shell ships a registry-driven wallpaper picker: every entry in the registry becomes a swatch in the OpenStation Preferences panel, and the WallpaperLayer resolves whichever is currently selected onto the desktop. Plugins register their own via `wp.os.registerWallpaper()` (or the `os.wallpapers` filter).
 
 Two shapes ship today: `css` (a static CSS background value) and `canvas` (a plugin-managed DOM subtree, typically a WebGL/2D canvas).
 
@@ -3848,26 +5001,26 @@ type WallpaperDef =
           id: string;
           label: string;
           preview: string;            // CSS `background` value for the swatch
-          description?: string;       // Plain text, shown in OS Settings when selected (since 0.9.4)
-          value?: string;             // Applied to --desktop-mode-bg
+          description?: string;       // Plain text, shown in OpenStation Preferences when selected
+          value?: string;             // Applied to --os-bg
           resolveValue?: ( ctx: WallpaperContext ) => string;  // Dynamic alternative
           renderEditor?: WallpaperEditor;
-          renderPreview?: WallpaperPreview;              // Live tile preview (since 0.9.5)
-          previewParams?: Record<string, unknown>;       // Preview defaults (since 0.9.5)
-          renderConfig?: WallpaperConfig;                // Settings dialog (since 0.9.5)
+          renderPreview?: WallpaperPreview;              // Live tile preview
+          previewParams?: Record<string, unknown>;       // Preview defaults
+          renderConfig?: WallpaperConfig;                // Settings dialog
       }
     | {
           type: 'canvas';
           id: string;
           label: string;
           preview: string;            // CSS `background` for the swatch (pre-mount)
-          description?: string;       // Plain text, shown in OS Settings when selected (since 0.9.4)
+          description?: string;       // Plain text, shown in OpenStation Preferences when selected
           mount: ( container: HTMLElement, ctx: WallpaperContext ) =>
                   ( () => void ) | Promise<() => void>;
           renderEditor?: WallpaperEditor;
-          renderPreview?: WallpaperPreview;              // Live tile preview (since 0.9.5)
-          previewParams?: Record<string, unknown>;       // Preview defaults (since 0.9.5)
-          renderConfig?: WallpaperConfig;                // Settings dialog (since 0.9.5)
+          renderPreview?: WallpaperPreview;              // Live tile preview
+          previewParams?: Record<string, unknown>;       // Preview defaults
+          renderConfig?: WallpaperConfig;                // Settings dialog
       };
 
 interface WallpaperContext {
@@ -3875,10 +5028,10 @@ interface WallpaperContext {
     pluginUrl: string;                // no trailing slash
     prefersReducedMotion: boolean;
     visible: boolean;                 // current document visibility
-    settings: Record<string, unknown>; // persisted per-wallpaper settings (since 0.9.5)
+    settings: Record<string, unknown>; // persisted per-wallpaper settings
 }
 
-// Passed to renderPreview (since 0.9.5).
+// Passed to renderPreview.
 interface WallpaperPreviewContext extends WallpaperContext {
     params: Record<string, unknown>;  // previewParams after the preview-params filter
     width: number;                    // tile content size in CSS px at mount time
@@ -3888,7 +5041,7 @@ interface WallpaperPreviewContext extends WallpaperContext {
 type WallpaperPreview = ( container: HTMLElement, ctx: WallpaperPreviewContext ) =>
         ( () => void ) | Promise<() => void>;
 
-// Passed to renderConfig (since 0.9.5).
+// Passed to renderConfig.
 interface WallpaperConfigContext extends WallpaperContext {
     setSettings( partial: Record<string, string | number | boolean> ): void;
 }
@@ -3897,13 +5050,13 @@ type WallpaperConfig = ( container: HTMLElement, ctx: WallpaperConfigContext ) =
         ( () => void ) | Promise<() => void>;
 ```
 
-**`description`** — *Experimental (since 0.9.4).* A sentence or two shown in a styled card under the OS Settings picker grid whenever the wallpaper is the active selection: what it is, where its data comes from, the story behind it. Plain text only — it renders as text, never as HTML. Server-registered wallpapers can pass `description` to `desktop_mode_register_wallpaper()` instead; the shell overlays the server value onto the JS def when the def doesn't set one (handy for translatable descriptions).
+**`description`** — *Experimental.* A sentence or two shown in a styled card under the OpenStation Preferences picker grid whenever the wallpaper is the active selection: what it is, where its data comes from, the story behind it. Plain text only — it renders as text, never as HTML. Server-registered wallpapers can pass `description` to `openstation_register_wallpaper()` instead; the shell overlays the server value onto the JS def when the def doesn't set one (handy for translatable descriptions).
 
 ### Minimal CSS wallpaper
 
 ```javascript
-wp.desktop.ready( () => {
-    wp.desktop.registerWallpaper( {
+wp.os.ready( () => {
+    wp.os.registerWallpaper( {
         id: 'my-plugin/ocean',
         label: 'Ocean',
         type: 'css',
@@ -3919,8 +5072,8 @@ wp.desktop.ready( () => {
 Don't hardcode URLs to vendor libraries — declare them by module id. The shell pre-registers common modules (`pixijs` today), and plugins can register their own. When the wallpaper activates, the shell loads every listed module before `mount` fires; concurrent activations dedupe through the memoized script loader.
 
 ```javascript
-wp.desktop.ready( () => {
-    wp.desktop.registerWallpaper( {
+wp.os.ready( () => {
+    wp.os.registerWallpaper( {
         id: 'my-plugin/spinner',
         label: 'Spinner',
         type: 'canvas',
@@ -3943,18 +5096,18 @@ wp.desktop.ready( () => {
 } );
 ```
 
-Unknown module ids fail loudly via `desktop-mode.wallpaper.mount-failed` — no silent non-activations.
+Unknown module ids fail loudly via `os.wallpaper.mount-failed` — no silent non-activations.
 
-**Never call `app.destroy( true )`.** In PixiJS v8 a literal `true` as the first argument runs `releaseGlobalResources()`, which clears Pixi's *page-global* texture and object pools — corrupting every **other** live Application on the page (the OS Settings live previews, other canvas wallpapers, any plugin's Pixi window). Symptoms are crash loops in `Batcher.break()` and teardown throws in `TexturePool.returnTexture()`. Use `app.destroy( { removeView: true } )` — same canvas cleanup, no global wipe.
+**Never call `app.destroy( true )`.** In PixiJS v8 a literal `true` as the first argument runs `releaseGlobalResources()`, which clears Pixi's *page-global* texture and object pools — corrupting every **other** live Application on the page (the OpenStation Preferences live previews, other canvas wallpapers, any plugin's Pixi window). Symptoms are crash loops in `Batcher.break()` and teardown throws in `TexturePool.returnTexture()`. Use `app.destroy( { removeView: true } )` — same canvas cleanup, no global wipe.
 
 ### Registering your own module
 
 If your plugin ships a library other plugins might want to share, register it once and let them `needs:` it by id.
 
 ```javascript
-wp.desktop.registerModule( {
+wp.os.registerModule( {
     id: 'three-js',
-    url: `${ wp.desktop.config.pluginUrl }/vendor/three.min.js`,
+    url: `${ wp.os.config.pluginUrl }/vendor/three.min.js`,
     // Optional: skip re-loading if already present (e.g. Core shipped it).
     isReady: () => typeof window.THREE !== 'undefined',
 } );
@@ -3964,16 +5117,16 @@ wp.desktop.registerModule( {
 
 The shell protects against mount/unmount races with a monotonic generation counter. Rapid wallpaper switching is safe — a mount that resolves after the user has already picked something else tears itself down immediately and doesn't pollute the DOM.
 
-Canvas wallpapers receive `ctx.prefersReducedMotion` and should render a single static frame rather than starting an animation loop when it's true. The shell also fires `desktop-mode.wallpaper.visibility` on every `document.visibilitychange` so wallpapers can pause their tickers when the tab is backgrounded.
+Canvas wallpapers receive `ctx.prefersReducedMotion` and should render a single static frame rather than starting an animation loop when it's true. The shell also fires `os.wallpaper.visibility` on every `document.visibilitychange` so wallpapers can pause their tickers when the tab is backgrounded.
 
 ### `renderEditor` — in-panel controls
 
-Any wallpaper can ship a `renderEditor` callback — when that wallpaper is the selected swatch in OS Settings, a collapsible panel opens below the grid and the editor is rendered into it. Same animation as the built-in custom-gradient editor.
+Any wallpaper can ship a `renderEditor` callback — when that wallpaper is the selected swatch in OpenStation Preferences, a collapsible panel opens below the grid and the editor is rendered into it. Same animation as the built-in custom-gradient editor.
 
 Every mount receives a brand-new `container` element — the shell never recycles the previous mount's DOM, so editors built on renderers that cache state per container (lit-html and friends) work across select-away-and-back cycles without any special handling. Treat the container as yours until your returned teardown runs; don't keep references to it afterwards.
 
 ```javascript
-wp.desktop.registerWallpaper( {
+wp.os.registerWallpaper( {
     id: 'my-plugin/tunable',
     label: 'Tunable',
     type: 'css',
@@ -3993,9 +5146,9 @@ wp.desktop.registerWallpaper( {
 } );
 ```
 
-### `renderPreview` — live tile previews *(Experimental, since 0.9.5)*
+### `renderPreview` — live tile previews *(Experimental)*
 
-Without `renderPreview`, a canvas wallpaper's swatch in the OS Settings picker is just its static CSS `preview` string — a flat gradient standing in for a living scene. With it, the picker mounts a live preview directly inside the tile.
+Without `renderPreview`, a canvas wallpaper's swatch in the OpenStation Preferences picker is just its static CSS `preview` string — a flat gradient standing in for a living scene. With it, the picker mounts a live preview directly inside the tile.
 
 The shell owns the lifecycle so previews stay cheap:
 
@@ -4004,10 +5157,10 @@ The shell owns the lifecycle so previews stay cheap:
 - **Declared dependencies work** — the def's `needs: [...]` modules are loaded before `renderPreview` fires, exactly like `mount`.
 - **Reduced motion is your job** — when `ctx.prefersReducedMotion` is true, render a still frame; don't start a ticker.
 
-`ctx.params` is the parametrization hook: the def's `previewParams` seed, run through the `desktop-mode.wallpaper.preview-params` filter. Use it for anything the preview should idealize instead of mirroring the real site. The built-in Living Tree is the canonical case — its real mount grows the tree from the site's actual age and content, which on a day-old site is a bare sprout; its preview instead renders a showcase snapshot (`{ siteAgeDays: 540, totalPosts: 120, … }`) so the picker always shows what the wallpaper can become.
+`ctx.params` is the parametrization hook: the def's `previewParams` seed, run through the `os.wallpaper.preview-params` filter. Use it for anything the preview should idealize instead of mirroring the real site. The built-in Living Tree is the canonical case — its real mount grows the tree from the site's actual age and content, which on a day-old site is a bare sprout; its preview instead renders a showcase snapshot (`{ siteAgeDays: 540, totalPosts: 120, … }`) so the picker always shows what the wallpaper can become.
 
 ```javascript
-wp.desktop.registerWallpaper( {
+wp.os.registerWallpaper( {
     id: 'my-plugin/starfield',
     label: 'Starfield',
     type: 'canvas',
@@ -4034,7 +5187,7 @@ Overriding another wallpaper's preview parameters from a plugin (or a devtools c
 ```javascript
 // Preview the Living Tree as a brand-new site instead of the showcase.
 wp.hooks.addFilter(
-    'desktop-mode.wallpaper.preview-params',
+    'os.wallpaper.preview-params',
     'my-plugin/sprout-preview',
     ( params, wallpaperId ) =>
         wallpaperId === 'wp-living-tree'
@@ -4045,21 +5198,21 @@ wp.hooks.addFilter(
 
 The same fields work on `type: 'css'` defs too (rarely needed — a CSS wallpaper's `preview` string usually IS the wallpaper).
 
-### `renderConfig` — the wallpaper settings dialog *(Experimental, since 0.9.5)*
+### `renderConfig` — the wallpaper settings dialog *(Experimental)*
 
-Wallpapers with real tunables (particle counts, palettes, physics) can ship a `renderConfig` callback. When the wallpaper is the active selection in OS Settings, a **"Wallpaper settings"** button appears below the picker grid; clicking it opens a `<wpd-modal>` whose body is handed to your callback. Wallpapers without `renderConfig` show no button — the surface is invisible unless you opt in.
+Wallpapers with real tunables (particle counts, palettes, physics) can ship a `renderConfig` callback. When the wallpaper is the active selection in OpenStation Preferences, a **"Wallpaper settings"** button appears below the picker grid; clicking it opens a `<os-modal>` whose body is handed to your callback. Wallpapers without `renderConfig` show no button — the surface is invisible unless you opt in.
 
 Contrast with `renderEditor`: the editor is an always-visible inline panel below the grid (right for one or two controls the user plays with constantly, like the custom gradient's colours); `renderConfig` is a modal for a fuller settings form that would crowd the panel.
 
 The shell owns everything except the form:
 
 - **Chrome** — title (`<label> settings`), focus trap, ESC / click-outside, a Done button. Your callback renders only the controls, and returns a teardown (sync or via Promise) that runs when the dialog closes.
-- **Persistence** — `ctx.setSettings( partial )` merges into the wallpaper's settings bag and saves through the normal OS Settings pipeline (localStorage + debounced user-meta sync, so values follow the user across devices). Scalar values only (`string | number | boolean`) — anything else is dropped by the server-side sanitizer. The bag round-trips through PHP capped at 64 wallpapers × 32 keys, strings at 256 chars.
+- **Persistence** — `ctx.setSettings( partial )` merges into the wallpaper's settings bag and saves through the normal OpenStation Preferences pipeline (localStorage + debounced user-meta sync, so values follow the user across devices). Scalar values only (`string | number | boolean`) — anything else is dropped by the server-side sanitizer. The bag round-trips through PHP capped at 64 wallpapers × 32 keys, strings at 256 chars.
 - **Read-back** — every wallpaper context (`mount`, `renderPreview`, `renderEditor`, `renderConfig`) carries `ctx.settings`: the persisted bag, empty object when never configured. Treat the values as untrusted; clamp to your own defaults.
-- **Live apply** — each `setSettings` fires the `desktop-mode.wallpaper.settings-changed` action with `{ id, settings }` (the full post-merge bag). A mounted wallpaper subscribes and applies the change in place — no remount, so the dialog behaves as a live tuning panel.
+- **Live apply** — each `setSettings` fires the `os.wallpaper.settings-changed` action with `{ id, settings }` (the full post-merge bag). A mounted wallpaper subscribes and applies the change in place — no remount, so the dialog behaves as a live tuning panel.
 
 ```javascript
-window.desktopModeWallpapers[ 'my-plugin/aquarium' ] = {
+window.openStationWallpapers[ 'my-plugin/aquarium' ] = {
     id: 'my-plugin/aquarium',
     label: 'Aquarium',
     type: 'canvas',
@@ -4077,13 +5230,13 @@ window.desktopModeWallpapers[ 'my-plugin/aquarium' ] = {
             scene.setFishCount( Number( detail.settings.fishCount ) || 12 );
         };
         wp.hooks.addAction(
-            'desktop-mode.wallpaper.settings-changed',
+            'os.wallpaper.settings-changed',
             'my-plugin/aquarium-live',
             onSettings
         );
         return () => {
             wp.hooks.removeAction(
-                'desktop-mode.wallpaper.settings-changed',
+                'os.wallpaper.settings-changed',
                 'my-plugin/aquarium-live'
             );
             scene.destroy();
@@ -4091,12 +5244,12 @@ window.desktopModeWallpapers[ 'my-plugin/aquarium' ] = {
     },
 
     renderConfig: ( container, ctx ) => {
-        const field = document.createElement( 'wpd-range-field' );
+        const field = document.createElement( 'os-range-field' );
         field.setAttribute( 'label', 'Fish' );
         field.setAttribute( 'min', '1' );
         field.setAttribute( 'max', '60' );
         field.setAttribute( 'value', String( Number( ctx.settings.fishCount ) || 12 ) );
-        field.addEventListener( 'wpd-range-change', ( e ) => {
+        field.addEventListener( 'os-range-change', ( e ) => {
             ctx.setSettings( { fishCount: e.detail.value } );   // persists + fires the action
         } );
         container.appendChild( field );
@@ -4107,7 +5260,7 @@ window.desktopModeWallpapers[ 'my-plugin/aquarium' ] = {
 
 The built-in Snow wallpaper (`src/plugins/snow-wallpaper/`) is the canonical in-tree consumer — wind, snowflake count, flake size, and backdrop colour, all applied live.
 
-### `window.wp.desktop` members
+### `window.wp.os` members
 
 | Member | Status | Notes |
 |---|---|---|
@@ -4116,42 +5269,42 @@ The built-in Snow wallpaper (`src/plugins/snow-wallpaper/`) is the canonical in-
 | `saveSession()` | Stable | Force a session write |
 | `hooks` | Stable | Alias of `window.wp.hooks` |
 | `isActive()` | Stable | `true` when the desktop shell is mounted and active on this page. Cheap capability check for plugins that also run in classic admin — branch desktop-vs-classic without probing the DOM yourself. |
-| `sideDock` | Stable | Classic-layout left-edge Dock instance hosting core admin menus (null in Unified / Spatial layouts) |
+| `sideDock` | Stable | Classic-layout left-edge Dock instance hosting core admin menus (null in Unified) |
 | `registerWallpaper( def )` | Stable | Add a wallpaper to the registry + re-apply |
 | `registerWidget( def )` | Stable | Add a widget to the registry |
-| `registerSystemTile( item )` | Stable | Add a JS-owned launcher tile to the bottom dock rail, alongside plugin admin menus. Returns nothing; fires `desktop-mode.dock.item-appended`. See "System tiles" below. |
+| `registerSystemTile( item )` | Stable | Add a JS-owned launcher tile to the bottom dock rail, alongside plugin admin menus. Returns nothing; fires `os.dock.item-appended`. See "System tiles" below. |
 | `loadVendorScript( url )` | Stable | Memoized `<script>` injector. Low-level; most plugins use `needs` instead. |
 | `getWallpaperSurfaces()` | Stable | Live `WallpaperSurface[]` for collision-aware wallpapers. See "Wallpaper surfaces" below. |
 | `registerModule( def )` | Stable | Register a shared vendor library under a stable id. |
 | `loadModules( ids )` | Stable | Imperatively load registered modules. Usually unnecessary — canvas wallpapers declare `needs[]` and the shell resolves. |
-| `ready( cb )` | Stable *(since 0.5.1)* | **Recommended bootstrap entry point.** Run `cb` after `desktop-mode.init` has fired — immediately (via microtask) if it already fired, queued otherwise. Safe for scripts loaded at any point in the lifecycle, including server-sync-injected plugin scripts. Short alias of `whenReady( cb )`. |
+| `ready( cb )` | Stable | **Recommended bootstrap entry point.** Run `cb` after `os.init` has fired — immediately (via microtask) if it already fired, queued otherwise. Safe for scripts loaded at any point in the lifecycle, including server-sync-injected plugin scripts. Short alias of `whenReady( cb )`. |
 | `whenReady( cb )` | Stable | Original name for `ready( cb )` — same behaviour; keep using it if you've already adopted it. |
-| `isReady()` | Stable | Synchronous boolean — has `desktop-mode.init` fired yet. Branch between "register directly" and "schedule via `ready`" without racing. |
-| `refreshMenu()` | Stable | Force a refresh of the live admin-menu split. Auto-fired on plugin activation / deactivation, and (since 0.9.4) whenever a chromeless page reports a [`desktop-mode-menu-signature`](#desktop-mode-menu-signature--stable-since-094) that differs from the shell's last-known value — so a custom post type added via a settings tool surfaces without a browser reload (GH#325). Manual calls spawn a hidden iframe at `admin.php?desktop_mode_chromeless=1&desktop_mode_menu_refresh=1` whose server-side handler short-circuits the response with the fresh menu payload (a `<script>` that postMessages `desktop-mode-plugins-changed`) without rendering admin-header / admin-footer — resolves in milliseconds. The full chromeless bridge still emits the same payload when the iframe lands on a real admin page (`plugins.php` etc.). |
-| `setDefaultWindow( url \| null )` | Stable | Update the user's "open on startup" preference (`null` clears it). Async — persists through the REST endpoint; on success updates `config.defaultWindow` in place and dispatches the [`desktop-mode-default-window-changed`](#desktop-mode-default-window-changed--stable-since-070) CustomEvent on `document`. |
-| `openNewWindow( id, opts? )` | Stable *(since 0.8.3)* | Spawn a brand-new instance of a registered native window, even when one is already open. See [`wp.desktop.openNewWindow`](#wpdesktopopennewwindow-id-opts---stable-since-083). |
-| `cloneTemplate( templateOrId )` | Stable | Clone a `<template>` element's contents into a fresh `DocumentFragment`. Accepts the element's DOM id or the element itself; throws if the reference doesn't resolve to a template. `desktop_mode_register_window()` plugins don't need it — the shell pre-clones the declared template into the window body — it's for advanced re-cloning / custom hydration. |
-| `createInfiniteList( options )` | Stable *(since 0.8.2)* | Infinite-scroll renderer: sentinel-driven `IntersectionObserver`, abortable in-flight pages, dedup-by-id, cursor pagination. Full recipe: [`docs/examples/infinite-list.md`](./examples/infinite-list.md). |
-| `startOAuth( service, options? )` | Stable *(since 0.8.2)* | Start the OAuth relay flow for a service declared via PHP `desktop_mode_register_oauth_relay()`. Resolves with the success payload, rejects with a tagged Error on failure. Full recipe: [`docs/examples/oauth-relay.md`](./examples/oauth-relay.md). |
-| `getOsSettings()` | Stable | Defensive copy of the persisted OS Settings snapshot — same shape a settings tab's `ctx.getOsSettings()` returns. |
-| `subscribeOsSettings( cb )` | Stable | Subscribe to OS Settings changes; returns an unsubscribe function. Mirrors the settings-tab `ctx.subscribeOsSettings` API. |
-| `updateOsSettings( patch, opts? )` | Stable *(since 0.7.2)* | Patch + persist the OS Settings state (whitelisted keys only). See [`updateOsSettings`](#updateossettings-patch-opts---stable-since-072). |
-| `config` | Stable | The `DesktopConfig` that booted the shell. Notable read-only fields plugins reach for: `pluginUrl` (no trailing slash) and `pluginVersion` (the active plugin semver — surfaced in OS Settings → About; useful for version-gated features); `stickyNotes.available` (boolean, since 0.9.1 — whether Gutenberg's Guidelines experiment is registered, so the sticky-notes layer only boots when its REST routes exist); `notesUrl` (string, since 0.9.6 — REST base for the pinned-notes controller at `/desktop-mode/v1/notes`; the notes layer only boots when present); `canCreatePosts` (boolean, since 0.9.6 — whether the current user has `edit_posts`, gating the note "Convert to post" affordances). Filterable server-side via `desktop_mode_shell_config`. |
+| `isReady()` | Stable | Synchronous boolean — has `os.init` fired yet. Branch between "register directly" and "schedule via `ready`" without racing. |
+| `refreshMenu()` | Stable | Force a refresh of the live admin-menu split. Auto-fired on plugin activation / deactivation, and whenever a chromeless page reports a [`os-menu-signature`](#os-menu-signature--stable) that differs from the shell's last-known value — so a custom post type added via a settings tool surfaces without a browser reload (GH#325). Manual calls spawn a hidden iframe at `admin.php?openstation_chromeless=1&openstation_menu_refresh=1` whose server-side handler short-circuits the response with the fresh menu payload (a `<script>` that postMessages `os-plugins-changed`) without rendering admin-header / admin-footer — resolves in milliseconds. The full chromeless bridge still emits the same payload when the iframe lands on a real admin page (`plugins.php` etc.). |
+| `setDefaultWindow( url \| null )` | Stable | Update the user's "open on startup" preference (`null` clears it). Async — persists through the REST endpoint; on success updates `config.defaultWindow` in place and dispatches the [`os-default-window-changed`](#os-default-window-changed--stable) CustomEvent on `document`. |
+| `openNewWindow( id, opts? )` | Stable | Spawn a brand-new instance of a registered native window, even when one is already open. See [`wp.os.openNewWindow`](#wposopennewwindow-id-opts---stable). |
+| `cloneTemplate( templateOrId )` | Stable | Clone a `<template>` element's contents into a fresh `DocumentFragment`. Accepts the element's DOM id or the element itself; throws if the reference doesn't resolve to a template. `openstation_register_window()` plugins don't need it — the shell pre-clones the declared template into the window body — it's for advanced re-cloning / custom hydration. |
+| `createInfiniteList( options )` | Stable | Infinite-scroll renderer: sentinel-driven `IntersectionObserver`, abortable in-flight pages, dedup-by-id, cursor pagination. Full recipe: [`docs/examples/infinite-list.md`](./examples/infinite-list.md). |
+| `startOAuth( service, options? )` | Stable | Start the OAuth relay flow for a service declared via PHP `openstation_register_oauth_relay()`. Resolves with the success payload, rejects with a tagged Error on failure. Full recipe: [`docs/examples/oauth-relay.md`](./examples/oauth-relay.md). |
+| `getOsSettings()` | Stable | Defensive copy of the persisted OpenStation Preferences snapshot — same shape a settings tab's `ctx.getOsSettings()` returns. |
+| `subscribeOsSettings( cb )` | Stable | Subscribe to OpenStation Preferences changes; returns an unsubscribe function. Mirrors the settings-tab `ctx.subscribeOsSettings` API. |
+| `updateOsSettings( patch, opts? )` | Stable | Patch + persist the OpenStation Preferences state (whitelisted keys only). See [`updateOsSettings`](#updateossettings-patch-opts---stable). |
+| `config` | Stable | The `DesktopConfig` that booted the shell. Notable read-only fields plugins reach for: `pluginUrl` (no trailing slash) and `pluginVersion` (the active plugin semver — surfaced in OpenStation Preferences → About; useful for version-gated features); `aboutFeedUrl` (authenticated admin-AJAX URL used lazily by About's OpenStation Journal view); `notesUrl` (string — REST base for the pinned-notes controller at `/desktop-mode/v1/notes`; the notes layer only boots when present); `canCreatePosts` (boolean — whether the current user has `edit_posts`, gating the note "Convert to post" affordances). Filterable server-side via `openstation_shell_config`. |
 
 ### System tiles
 
 A **system tile** is a JS-owned launcher that isn't part of the admin menu — Jorvy, a plugin's native-window quick tool, a custom shortcut. The shell appends these to the **bottom dock rail** (the macOS-style pill, alongside installed-plugin admin menus) via the layout dispatcher, so the tile re-attaches automatically after a layout rebuild.
 
-Register via `wp.desktop.registerSystemTile()`:
+Register via `wp.os.registerSystemTile()`:
 
 ```javascript
-wp.desktop.whenReady( () => {
-    wp.desktop.registerSystemTile( {
+wp.os.whenReady( () => {
+    wp.os.registerSystemTile( {
         id:     'jorvy',
         title:  'Jorvy',
         icon:   'dashicons-star-filled',
         onOpen: () => {
-            wp.desktop.windowManager.open( {
+            wp.os.windowManager.open( {
                 id: 'jorvy',
                 url: '#jorvy',
                 title: 'Jorvy',
@@ -4164,20 +5317,66 @@ wp.desktop.whenReady( () => {
                 minHeight: 200,
             } );
         },
-        isOpen: () => !! wp.desktop.windowManager.getById( 'jorvy' ),
+        isOpen: () => !! wp.os.windowManager.getById( 'jorvy' ),
     } );
 } );
 ```
 
-`registerSystemTile( item )` takes the tile definition only — there is no placement parameter and no return value. Every registration fires the `desktop-mode.dock.item-appended` action with `{ id }`.
+`registerSystemTile( item )` takes the tile definition only — there is no placement parameter and no return value. Every registration fires the `os.dock.item-appended` action with `{ id }`.
 
-**Why the bottom rail:** plugin-contributed admin menus live in the bottom pill already (see `desktop_mode_dock_placement`). Putting plugin-contributed shell launchers next to them keeps "everything plugin" in one place and keeps the left rail focused on core WP.
+**Why the bottom rail:** plugin-contributed admin menus live in the bottom pill already (see `openstation_dock_placement`). Putting plugin-contributed shell launchers next to them keeps "everything plugin" in one place and keeps the left rail focused on core WP.
+
+#### Where the tile lands
+
+| Field | Type | Default | Meaning |
+|---|---|---|---|
+| `order` | `number` | `0` | Sort key within the zone, ascending; ties keep registration order. |
+
+Set `order` whenever the tile's position matters. Registration order alone cannot express it: native-window tiles (including other plugins') register when their lazy script resolves, so a tile registered last can still be overtaken by one that arrived late. The shell's own trailing cluster uses `10` (Mio), `20` (Overview) and `30` (System), so anything left at the default sorts ahead of them.
+
+#### Tiles with a menu
+
+A system tile that declares a `submenu` fans it out of the rail on hover, through the same constellation flyout the admin menus use. Rows are `SubmenuItem`s, and on a system tile they normally carry an **`onSelect` callback** rather than a URL:
+
+```javascript
+wp.os.registerSystemTile( {
+    id:    'my-plugin-tools',
+    title: 'Tools',
+    icon:  'dashicons-admin-tools',
+    // Runs on click, and on every keyboard and touch activation —
+    // the flyout is a hover gesture and never fans out for those.
+    onOpen:  () => openMyDefaultTool(),
+    submenu: [
+        {
+            title:  'Run import',
+            url:    '',
+            onSelect: () => openImportWindow(),
+            // Declares which window this row opens, so the flyout can
+            // list it under "Open windows" when it already is.
+            windowId: 'my-plugin-import',
+        },
+        // Opens nothing, so no `windowId`.
+        { title: 'Clear cache', url: '', onSelect: () => clearCache() },
+        // A row with only a `url` opens it in a new browser tab.
+        { title: 'Docs',        url: 'https://example.com/docs' },
+    ],
+} );
+```
+
+Four things follow from a system tile's menu being *actions* rather than admin pages:
+
+- The panel is the same three sections an admin menu gets. The head shows the tile's icon and title and, having no landing page to open, runs the **first row** on click.
+- Live windows are resolved from the rows. An admin menu has one window key; an action menu has none, so each row that opens a window declares it with `windowId` and the section lists the union. Rows that open nothing leave it unset.
+- `onSelect` is **client-side only**. The server builds admin-menu submenus as JSON and a function cannot survive that trip; only JS-registered tiles can set it.
+- `dock-peek` stands down for the tile, the same way it does for menu tiles. Give the tile an `onOpen` that does something defensible on its own, because a keyboard or touch user never sees the menu.
+
+Declare `submenu` as a getter if the rows depend on live state — it is read fresh each time the flyout opens.
 
 ---
 
 ### Wallpaper surfaces
 
-Collision-aware wallpapers (snow, rain, leaves, particle effects) need to know where things can "land" — window tops, the desktop floor, each dock's desktop-facing edge, widget cards. Rather than having every wallpaper hand-query the shell's DOM + hope the class names don't move, the shell emits a live surface list through `wp.desktop.getWallpaperSurfaces()`.
+Collision-aware wallpapers (snow, rain, leaves, particle effects) need to know where things can "land" — window tops, the desktop floor, each dock's desktop-facing edge, widget cards. Rather than having every wallpaper hand-query the shell's DOM + hope the class names don't move, the shell emits a live surface list through `wp.os.getWallpaperSurfaces()`.
 
 ```typescript
 interface WallpaperSurface {
@@ -4196,11 +5395,11 @@ interface WallpaperSurface {
 - `dock:edge` — a 1px strip along whichever edge of each live dock faces the desktop area (top edge for the bottom pill, inline edge for side rails); additional simultaneous docks get `dock:edge:<n>`.
 - `widget:<id>` — top edge of every mounted widget card.
 
-**Adding a custom surface.** Plugins that own floating DOM use the `desktop-mode.wallpaper.surfaces` filter:
+**Adding a custom surface.** Plugins that own floating DOM use the `os.wallpaper.surfaces` filter:
 
 ```javascript
 wp.hooks.addFilter(
-    'desktop-mode.wallpaper.surfaces',
+    'os.wallpaper.surfaces',
     'myplugin/picker',
     ( surfaces ) => {
         const picker = document.querySelector( '.myplugin-picker' );
@@ -4224,14 +5423,14 @@ wp.hooks.addFilter(
 
 ```javascript
 function onTick() {
-    const surfaces = wp.desktop.getWallpaperSurfaces();
+    const surfaces = wp.os.getWallpaperSurfaces();
     // Rebuild collision cache from `surfaces`, run physics step, draw.
 }
 ```
 
-Call it each frame (or throttled — the function is cheap but it does walk the DOM). Rects are in viewport coordinates so a canvas mounted inside `#desktop-mode-wallpaper` can translate to its own drawing space using the wallpaper element's own `getBoundingClientRect()`.
+Call it each frame (or throttled — the function is cheap but it does walk the DOM). Rects are in viewport coordinates so a canvas mounted inside `#os-wallpaper` can translate to its own drawing space using the wallpaper element's own `getBoundingClientRect()`.
 
-**Pair with `desktop-mode.window.bounds-changed`.** During a drag or resize the shell fires `bounds-changed` once per animation frame with the live `{ x, y, width, height }`. Subscribe there to invalidate your surface cache instead of polling `getBoundingClientRect()` each tick.
+**Pair with `os.window.bounds-changed`.** During a drag or resize the shell fires `bounds-changed` once per animation frame with the live `{ x, y, width, height }`. Subscribe there to invalidate your surface cache instead of polling `getBoundingClientRect()` each tick.
 
 ### Pre-registered modules
 
@@ -4241,16 +5440,16 @@ Call it each frame (or throttled — the function is cheap but it does walk the 
 
 ---
 
-## DevTools / cross-plugin instrumentation (since 0.6.0)
+## DevTools / cross-plugin instrumentation
 
-`wp.desktop.devtools` is the supported surface for third-party plugins that instrument windows registered by other plugins (SQL inspector, perf profiler, request logger). Reach for these primitives instead of wrapping `iframe.contentWindow` globals — multiple devtools can compose against the same window without fighting each other.
+`wp.os.devtools` is the supported surface for third-party plugins that instrument windows registered by other plugins (SQL inspector, perf profiler, request logger). Reach for these primitives instead of wrapping `iframe.contentWindow` globals — multiple devtools can compose against the same window without fighting each other.
 
-### `wp.desktop.devtools.addRequestHeader( windowId, name, value )` — Experimental
+### `wp.os.devtools.addRequestHeader( windowId, name, value )` — Experimental
 
 Contribute an HTTP header that the target window's iframe attaches to every fetch / XHR / sendBeacon. Returns a disposer.
 
 ```js
-const stop = wp.desktop.devtools.addRequestHeader(
+const stop = wp.os.devtools.addRequestHeader(
     'wp-window-edit-php',
     'X-WP-Debug-Session',
     sessionId,
@@ -4261,12 +5460,12 @@ stop();
 
 `value` may be a literal string or a `() => string` thunk that recomputes per-request. Multiple contributors to the same name are joined with `, ` per RFC 7230. The header is removed when the last contributor disposes.
 
-### `wp.desktop.devtools.onRequest( windowId, cb, { observe } )` — Experimental
+### `wp.os.devtools.onRequest( windowId, cb, { observe } )` — Experimental
 
 Subscribe to every completed request from the target window. Returns a disposer.
 
 ```js
-const stop = wp.desktop.devtools.onRequest(
+const stop = wp.os.devtools.onRequest(
     windowId,
     ( req ) => console.log( req.method, req.url, req.status ),
     { observe: true }, // include request + response headers
@@ -4275,13 +5474,13 @@ const stop = wp.desktop.devtools.onRequest(
 
 Default payload: `{ windowId, method, url, status, duration, failed }`. With `observe: true`: also `requestHeaders`, `responseHeaders`. The shell aggregates — as long as any active subscriber wants `observe`, the iframe runs in observation mode; otherwise it ships only the privacy-conscious summary.
 
-### `wp.desktop.devtools.reloadWithDebugSession( windowId, sessionId, opts? )` — Experimental
+### `wp.os.devtools.reloadWithDebugSession( windowId, sessionId, opts? )` — Experimental
 
 Reload a window's iframe with a debug session id baked into both the URL and the request-header contribution registry. Bundles four boilerplate steps every devtool would otherwise re-derive:
 
 ```js
-const sessionId = wp.desktop.devtools.debug.startSession();
-const handle = wp.desktop.devtools.reloadWithDebugSession( windowId, sessionId );
+const sessionId = wp.os.devtools.debug.startSession();
+const handle = wp.os.devtools.reloadWithDebugSession( windowId, sessionId );
 // later:
 handle.dispose(); // removes header + cleans up
 ```
@@ -4299,7 +5498,7 @@ Server side, read the URL flag in your capture hook:
 
 ```php
 add_action( 'init', function () {
-    $sid = desktop_mode_debug_session_for_request();
+    $sid = openstation_debug_session_for_request();
     if ( '' === $sid && isset( $_GET['wp_debug_session'] ) ) {
         $sid = sanitize_key( wp_unslash( $_GET['wp_debug_session'] ) );
     }
@@ -4309,28 +5508,28 @@ add_action( 'init', function () {
     if ( ! defined( 'SAVEQUERIES' ) ) {
         define( 'SAVEQUERIES', true );
     }
-    // … shutdown hook publishes via desktop_mode_debug_publish( $sid, … )
+    // … shutdown hook publishes via openstation_debug_publish( $sid, … )
 }, 1 );
 ```
 
-### `wp.desktop.devtools.debug` — Experimental
+### `wp.os.devtools.debug` — Experimental
 
-Generic per-session pub/sub bus. Pair with PHP `desktop_mode_debug_publish()`.
+Generic per-session pub/sub bus. Pair with PHP `openstation_debug_publish()`.
 
 ```js
-const sessionId = wp.desktop.devtools.debug.startSession();   // opaque uuid
+const sessionId = wp.os.devtools.debug.startSession();   // opaque uuid
 
 // Tag every request with this session.
-wp.desktop.devtools.addRequestHeader( windowId, 'X-WP-Debug-Session', sessionId );
+wp.os.devtools.addRequestHeader( windowId, 'X-WP-Debug-Session', sessionId );
 
 // Subscribe to a channel.
-const stop = wp.desktop.devtools.debug.subscribe(
+const stop = wp.os.devtools.debug.subscribe(
     sessionId, 'query',
     ( ev ) => console.log( ev.payload ),
 );
 
 // Optional — local-echo without a server round-trip.
-wp.desktop.devtools.debug.publish( sessionId, 'query', { sql: '…' } );
+wp.os.devtools.debug.publish( sessionId, 'query', { sql: '…' } );
 ```
 
 The shell polls `GET /desktop-mode/v1/debug?sessionId=…&since=…` every 1 s while at least one subscription is active for the session, and stops polling when the last subscription disposes.
@@ -4340,21 +5539,21 @@ The shell polls `GET /desktop-mode/v1/debug?sessionId=…&since=…` every 1 s w
 The script handle of the plugin that registered a native window. Read for attribution:
 
 ```js
-wp.desktop.registerTitleBarButton( {
+wp.os.registerTitleBarButton( {
     id: 'sql-inspector/attach',
     match: ( win ) => !! win.config.ownerHandle,
     // ...
 } );
 ```
 
-Always populated for windows registered via PHP `desktop_mode_register_window( $args )` (carries `$args['script']`); undefined for iframe windows backed by a core admin page.
+Always populated for windows registered via PHP `openstation_register_window( $args )` (carries `$args['script']`); undefined for iframe windows backed by a core admin page.
 
 ### postMessage protocol additions
 
 | Type | Direction | Payload |
 |---|---|---|
-| `desktop-mode-instrument-set` | parent → iframe | `{ headers: { name: value, … }, observe: boolean }`. Replaces the iframe's instrumentation slot wholesale on every change. |
-| `desktop-mode-iframe-network` | iframe → parent | Existing payload + optional `requestHeaders`, `responseHeaders` when the parent has set `observe: true`. |
+| `os-instrument-set` | parent → iframe | `{ headers: { name: value, … }, observe: boolean }`. Replaces the iframe's instrumentation slot wholesale on every change. |
+| `os-iframe-network` | iframe → parent | Existing payload + optional `requestHeaders`, `responseHeaders` when the parent has set `observe: true`. |
 
 See [`docs/examples/devtools-instrumentation.md`](./examples/devtools-instrumentation.md) for a complete worked example.
 
@@ -4362,7 +5561,7 @@ See [`docs/examples/devtools-instrumentation.md`](./examples/devtools-instrument
 
 ## Window attention API
 
-**Stable** — shipped 0.6.0. See
+**Stable.** See
 [`examples/window-request-attention.md`](./examples/window-request-attention.md)
 for the worked example.
 
@@ -4389,7 +5588,7 @@ class Dock {
 ```
 
 `Window.requestAttention()` fans the request out to every rail that
-exposes a `setAttention()` function (`wp.desktop.dock` in a normal
+exposes a `setAttention()` function (`wp.os.dock` in a normal
 shell) and counts the request as routed when the rail API exists —
 a rail that doesn't host a tile for this window silently no-ops.
 The `setHighlight('persistent')` fallback (auto-cleared after
@@ -4397,20 +5596,20 @@ The `setHighlight('persistent')` fallback (auto-cleared after
 windows without a rail tile (`placement: 'none'`) get no visual
 fallback while a dock is mounted.
 
-JS filter: `desktop-mode.window.attention( mode, { windowId, opts } )`
+JS filter: `os.window.attention( mode, { windowId, opts } )`
 — return `null` to mute the request (Do Not Disturb integration).
 
 All three rails (`dock`, `sideDock`, `icons`) emit on the
-activity bus channel `desktop-mode/badge-changed` with payload
+activity bus channel `os/badge-changed` with payload
 `{ itemId, count, rail }`. The icon rail also fires
 `HOOKS.ICON_BADGE_CHANGED` on the hook bus with
 `{ iconId, count, previousCount }` for callers that only care
 about the icon surface.
 
-## `wp.desktop.icons` — the wallpaper-icon rail *(since 0.6.0)*
+## `wp.os.icons` — the wallpaper-icon rail
 
-**Stable.** Third badge surface, sibling of `wp.desktop.dock`
-and `wp.desktop.sideDock`. Same `setBadge( id, count )` shape, so
+**Stable.** Third badge surface, sibling of `wp.os.dock`
+and `wp.os.sideDock`. Same `setBadge( id, count )` shape, so
 plugin authors can fan a count to every rail with one wrapper
 function.
 
@@ -4419,13 +5618,15 @@ interface IconsApi {
     setBadge:   ( iconId: string, count: number ) => void;
     clearBadge: ( iconId: string ) => void;
     getBadge:   ( iconId: string ) => number;
+    setArt:     ( iconId: string, svg: string ) => void;
+    getArt:     ( iconId: string ) => string;
 }
 ```
 
 ```js
-wp.desktop.icons.setBadge(   'desktop-mode-messages', 5 );
-wp.desktop.icons.clearBadge( 'desktop-mode-messages' );
-wp.desktop.icons.getBadge(   'desktop-mode-messages' ); // → 0 (after clear)
+wp.os.icons.setBadge(   'os-messages', 5 );
+wp.os.icons.clearBadge( 'os-messages' );
+wp.os.icons.getBadge(   'os-messages' ); // → 0 (after clear)
 ```
 
 - **Idempotent.** Same count twice = no DOM mutation, no re-emit.
@@ -4438,7 +5639,7 @@ wp.desktop.icons.getBadge(   'desktop-mode-messages' ); // → 0 (after clear)
 
 Every applied change publishes on:
 
-- `desktop-mode/badge-changed` activity channel with
+- `os/badge-changed` activity channel with
   `{ itemId, count, rail: 'icon' }`.
 - `HOOKS.ICON_BADGE_CHANGED` action with
   `{ iconId, count, previousCount }`.
@@ -4453,43 +5654,43 @@ hook and decide for yourself; see
 [`docs/examples/dock-badge.md`](./examples/dock-badge.md) for
 the canonical recipe.
 
-## `<wpd-avatar>` — Stable (0.6.0)
+## `<os-avatar>` — Stable
 
 ```html
-<wpd-avatar
+<os-avatar
     src="https://…/me.jpg"
     name="Daniel López"
     size="40"               <!-- px or 'xs' | 'sm' | 'md' | 'lg' | 'xl' -->
     presence="online"       <!-- 'online' | 'inactive' | 'offline' -->
-    user-id="42"            <!-- auto-subscribes to desktop-mode-presence-changed -->
-></wpd-avatar>
+    user-id="42"            <!-- auto-subscribes to os-presence-changed -->
+></os-avatar>
 ```
 
 Falls back to a deterministic-hue letter tile when `src` is empty
-or fails to load. Emits `wpd-avatar-click` `{ userId: number | null }`
+or fails to load. Emits `os-avatar-click` `{ userId: number | null }`
 when the `clickable` boolean attribute is set; without it the tile
 is decorative and clicks pass through to the surrounding row.
 
-## `<wpd-textarea>` — Stable (0.6.0)
+## `<os-textarea>` — Stable
 
 ```html
-<wpd-textarea
+<os-textarea
     label="Message"
     rows="2"
     auto-grow
     max-rows="8"
     submit-on-enter        <!-- Enter sends; Shift+Enter newlines -->
     maxlength="4000"
-></wpd-textarea>
+></os-textarea>
 ```
 
-Same event shape as `<wpd-text-field>`: `wpd-input-change`,
-`wpd-input-commit`, `wpd-submit`. Imperative methods:
+Same event shape as `<os-text-field>`: `os-input-change`,
+`os-input-commit`, `os-submit`. Imperative methods:
 `focusInput()`, `clear()`, `refreshAutosize()`.
 
 ---
 
-## Window-chrome customization framework (since 0.6.0)
+## Window-chrome customization framework
 
 Per-window appearance customization across four layers. Layers 1-3
 are Stable; Layer 4 is **Experimental**. Recipes live in dedicated
@@ -4508,45 +5709,45 @@ interface WindowAppearance {
 }
 ```
 
-### Public APIs on `wp.desktop.*`
+### Public APIs on `wp.os.*`
 
 ```ts
 // Layer 1 — Themes (Stable)
-wp.desktop.registerWindowTheme( def );          // throws RegistrationError on bad input
-wp.desktop.unregisterWindowTheme( id );
-wp.desktop.listWindowThemes();
-wp.desktop.applyWindowTheme( windowId, override );
+wp.os.registerWindowTheme( def );          // throws RegistrationError on bad input
+wp.os.unregisterWindowTheme( id );
+wp.os.listWindowThemes();
+wp.os.applyWindowTheme( windowId, override );
 
 // Layer 2 — Controls (Stable)
-wp.desktop.registerWindowControl( def );
-wp.desktop.unregisterWindowControl( id );       // pass 'core/close' to hide globally
-wp.desktop.listWindowControls();
-wp.desktop.applyWindowControls( windowId, override );
+wp.os.registerWindowControl( def );        // `label` becomes the button's accessible name
+wp.os.unregisterWindowControl( id );       // pass 'core/close' to hide globally
+wp.os.listWindowControls();
+wp.os.applyWindowControls( windowId, override );
 
 // Layer 3 — Slots (Stable)
-wp.desktop.registerWindowSlot( def );
-wp.desktop.unregisterWindowSlot( id );
-wp.desktop.listWindowSlots();
-wp.desktop.applyWindowSlot( windowId, slot, config );
+wp.os.registerWindowSlot( def );
+wp.os.unregisterWindowSlot( id );
+wp.os.listWindowSlots();
+wp.os.applyWindowSlot( windowId, slot, config );
 
 // Layer 4 — Custom chrome (Experimental)
-wp.desktop.registerWindowChrome( def );
-wp.desktop.unregisterWindowChrome( id );
-wp.desktop.listWindowChromes();
-wp.desktop.applyWindowChrome( windowId, chromeId );
+wp.os.registerWindowChrome( def );
+wp.os.unregisterWindowChrome( id );
+wp.os.listWindowChromes();
+wp.os.applyWindowChrome( windowId, chromeId );
 
-// Window notices — Experimental (since 0.6.0). See subsection below.
-wp.desktop.registerWindowNotice( entry );
-wp.desktop.unregisterWindowNotice( id );
-wp.desktop.listWindowNotices();
-wp.desktop.dismissWindowNotice( id );
-wp.desktop.undismissWindowNotice( id );
+// Window notices — Experimental. See subsection below.
+wp.os.registerWindowNotice( entry );
+wp.os.unregisterWindowNotice( id );
+wp.os.listWindowNotices();
+wp.os.dismissWindowNotice( id );
+wp.os.undismissWindowNotice( id );
 ```
 
-### Window notices — Experimental *(since 0.6.0)*
+### Window notices — Experimental
 
 Tone-coded banners pinned to the top of any matching window. The
-shell renders each entry as a `<wpd-notice>` web component inside
+shell renders each entry as a `<os-notice>` web component inside
 the matching window's `after-titlebar` slot host, and each user's
 dismissal of a given `id` is persisted in `localStorage` under
 `desktop-mode-notice-dismissed:<userId>` so the banner never
@@ -4567,11 +5768,11 @@ interface WindowNoticeEntry {
     owner?: string;                          // tag for bulk teardown
 }
 
-wp.desktop.registerWindowNotice( entry );   // returns an unregister fn
-wp.desktop.unregisterWindowNotice( id );
-wp.desktop.listWindowNotices();              // snapshot, sorted by (order, id)
-wp.desktop.dismissWindowNotice( id );        // imperative dismiss (writes localStorage)
-wp.desktop.undismissWindowNotice( id );      // clear a prior dismissal
+wp.os.registerWindowNotice( entry );   // returns an unregister fn
+wp.os.unregisterWindowNotice( id );
+wp.os.listWindowNotices();              // snapshot, sorted by (order, id)
+wp.os.dismissWindowNotice( id );        // imperative dismiss (writes localStorage)
+wp.os.undismissWindowNotice( id );      // clear a prior dismissal
 ```
 
 `message` is written via `innerHTML` on the client. Include only
@@ -4593,45 +5794,45 @@ Persistence key layout:
 
 | Name | Type | Status | Notes |
 |------|------|--------|-------|
-| `desktop-mode.window.chrome.theme` | filter | Stable | Mutate the resolved CSS-variable map per window. |
-| `desktop-mode.window.chrome.theme-changed` | action | Stable | Fires after each successful theme apply. |
-| `desktop-mode.window.chrome.controls` | filter | Stable | Mutate the resolved per-placement control list. |
-| `desktop-mode.window.chrome.slot` | filter | Stable | Mutate the host element of each slot after content settles. |
-| `desktop-mode.window.chrome.render` | filter | Experimental | Mutate the chrome id selected for a window. |
-| `desktop-mode.window.chrome.applied` | action | Stable | Fires per layer after a paint completes. `layer` is `'controls' \| 'slots' \| 'chrome'`. |
+| `os.window.chrome.theme` | filter | Stable | Mutate the resolved CSS-variable map per window. |
+| `os.window.chrome.theme-changed` | action | Stable | Fires after each successful theme apply. |
+| `os.window.chrome.controls` | filter | Stable | Mutate the resolved per-placement control list. |
+| `os.window.chrome.slot` | filter | Stable | Mutate the host element of each slot after content settles. |
+| `os.window.chrome.render` | filter | Experimental | Mutate the chrome id selected for a window. |
+| `os.window.chrome.applied` | action | Stable | Fires per layer after a paint completes. `layer` is `'controls' \| 'slots' \| 'chrome'`. |
 
-### Iframe-side bridge (`wp.desktop.iframe.chrome.*`) — Stable
+### Iframe-side bridge (`wp.os.iframe.chrome.*`) — Stable
 
 Inside any chromeless iframe, plugin code can drive its own window's chrome via these helpers (parent-side handlers route them to the matching `Window.setAppearance*` methods):
 
 ```ts
-wp.desktop.iframe.chrome.setTheme( tokens );    // CSS-var map
-wp.desktop.iframe.chrome.setControls( config ); // WindowControlsConfig
-wp.desktop.iframe.chrome.setSlot( name, html ); // sandboxed via textContent
+wp.os.iframe.chrome.setTheme( tokens );    // CSS-var map
+wp.os.iframe.chrome.setControls( config ); // WindowControlsConfig
+wp.os.iframe.chrome.setSlot( name, html ); // sandboxed via textContent
 ```
 
 ### postMessage protocol additions
 
 ```ts
 // iframe → parent
-{ type: 'desktop-mode-chrome-theme',    tokens: Record< string, string > }
-{ type: 'desktop-mode-chrome-controls', config: WindowControlsConfig }
-{ type: 'desktop-mode-chrome-slot',     slot: string, html: string }
+{ type: 'os-chrome-theme',    tokens: Record< string, string > }
+{ type: 'os-chrome-controls', config: WindowControlsConfig }
+{ type: 'os-chrome-slot',     slot: string, html: string }
 ```
 
 Each is origin-gated to the parent shell's origin and source-gated to the matching window's iframe `contentWindow`.
 
 ---
 
-## Progressive Web App (since 0.8.0)
+## Progressive Web App
 
-`wp.desktop.notify( opts )` is the public surface for local
+`wp.os.notify( opts )` is the public surface for local
 notifications. v1 uses the browser `Notification` API directly with a
 toast fallback when permission is denied; v2 will route the same call
 through the SW for push.
 
 ```ts
-wp.desktop.notify( {
+wp.os.notify( {
     title: 'Build complete',
     body: '12 files updated.',
     icon: '/favicon.png',
@@ -4642,28 +5843,28 @@ wp.desktop.notify( {
 ```
 
 Routes through the activity-bus filter
-`desktop-mode/notification-requested` (return `cancel: true` to
-suppress) and broadcasts on `desktop-mode/notification-shown` after
+`os/notification-requested` (return `cancel: true` to
+suppress) and broadcasts on `os/notification-shown` after
 rendering.
 
-### `wp.desktop.pwa.*` — programmatic install + permission control
+### `wp.os.pwa.*` — programmatic install + permission control
 
 ```ts
-wp.desktop.pwa.promptInstall();
+wp.os.pwa.promptInstall();
 //   Promise<'accepted' | 'dismissed' | 'unavailable'>
 
-wp.desktop.pwa.requestNotificationPermission();
+wp.os.pwa.requestNotificationPermission();
 //   Promise<'granted' | 'denied' | 'default' | 'unsupported'>
 
-wp.desktop.pwa.getNotificationPermission();
+wp.os.pwa.getNotificationPermission();
 //   'granted' | 'denied' | 'default' | 'unsupported'
 
-wp.desktop.pwa.getState();
+wp.os.pwa.getState();
 //   { installHintDismissed: boolean, notificationsEnabled: boolean }
 
-const off = wp.desktop.pwa.subscribe( ( s ) => { /* ... */ } );
+const off = wp.os.pwa.subscribe( ( s ) => { /* ... */ } );
 
-wp.desktop.pwa.undismissInstallHint();
+wp.os.pwa.undismissInstallHint();
 //   Re-surface the floating install pill after the user dismissed it.
 ```
 
@@ -4673,7 +5874,7 @@ See [`docs/pwa.md`](./pwa.md) for the full architecture and
 
 ---
 
-## `wp.desktop.files` — the Files-on-the-Desktop registry *(Experimental, since 0.9.0)*
+## `wp.os.files` — the Files-on-the-Desktop registry *(Experimental)*
 
 Mirror of the PHP file-type registry on the JS side. Plugin authors use it to register custom file types and to resolve serialized shapes into `DesktopFile` instances at render time. The full surface, motivation, and PHP side are documented in [files-on-desktop.md](./files-on-desktop.md).
 
@@ -4718,7 +5919,7 @@ interface FilesApi {
 
 The ten built-in types (`shortcut`, `folder`, `post`, `attachment`, `user`, `term`, `comment`, `bookmark`, `link`, `embed`) register themselves on bundle boot. Late registrations win — registering the same slug twice overwrites the entry. When a `DesktopFile` subclass isn't registered for a slug, `resolve()` falls back to a `DefaultDesktopFile` that just exposes the shape verbatim — so a placement for a deactivated plugin still renders something.
 
-### Placement shape — viewer-scoped extras *(since 0.8.5)*
+### Placement shape — viewer-scoped extras
 
 Every `RestPlacementShape` carries two viewer-scoped flags the server computes per request from the file-type and share state:
 
@@ -4757,7 +5958,7 @@ interface RestPlacementShape {
      *     the drag when `=== false`.
      * Falsy for read-only recipients of a shared folder, for any
      * non-owner's root-placement of a shared folder (use "Leave
-     * shared folder" instead), and anything a `desktop_mode_files_user_can_trash_placement`
+     * shared folder" instead), and anything a `openstation_files_user_can_trash_placement`
      * filter customisation has vetoed. `undefined` (legacy
      * payloads) falls through to existing REST-403 behavior.
      */
@@ -4780,22 +5981,22 @@ dragManager.registerDropTarget( {
 } );
 ```
 
-### `desktop-mode.files.types` filter
+### `os.files.types` filter
 
 ```ts
-applyFilters( 'desktop-mode.files.types', list: DesktopFileTypeDef[] ): DesktopFileTypeDef[];
+applyFilters( 'os.files.types', list: DesktopFileTypeDef[] ): DesktopFileTypeDef[];
 ```
 
 Plugins reorder, hide, or swap entries here.
 
-### `desktop-mode.files.type-registered` / `type-unregistered` actions
+### `os.files.type-registered` / `type-unregistered` actions
 
 ```ts
-doAction( 'desktop-mode.files.type-registered', type: string, def: DesktopFileTypeDef );
-doAction( 'desktop-mode.files.type-unregistered', type: string );
+doAction( 'os.files.type-registered', type: string, def: DesktopFileTypeDef );
+doAction( 'os.files.type-unregistered', type: string );
 ```
 
-### Openers — file-association layer *(since 0.9.0)*
+### Openers — file-association layer
 
 ```ts
 type OpenerHandler =
@@ -4813,7 +6014,7 @@ interface FileOpenerDef {
 }
 ```
 
-Methods on `wp.desktop.files`:
+Methods on `wp.os.files`:
 
 ```ts
 registerOpener( def: FileOpenerDef ): void;
@@ -4825,36 +6026,105 @@ resolveOpener( type: string ): FileOpenerDef | null;
 subscribeOpeners( cb: () => void ): () => void;
 getUserAssociations(): Record< string, string >;
 open( file: DesktopFile ): Promise< boolean >;
+registerTilePayloadHandler(
+    type: string,
+    handler: TilePayloadHandler,
+): () => void;
 ```
 
-Resolution chain inside `resolveOpener`: user override (read from `userFileAssociations` in the shell config) → `isDefault` opener → first match → `null`. The result passes through the `desktop-mode.files.resolve-opener` filter.
+### `registerTilePayloadHandler` — accepting drops on your own icon
+
+Every non-folder desktop tile carries a claimant that hard-rejects
+foreign payloads, so a drop can't fall through to the wallpaper
+underneath. That claimant is what shows the red "Can't drop here" chip.
+
+**Registering a competing `DropTarget` on the tile element does not
+work.** The drop-target registry allows one target per element and the
+claimant is installed last, so a target installed during
+`os.files.tile-rendered` — which fires from inside
+`buildTile`, before the claimant — is immediately displaced. This is
+the cooperative seam instead: the layer keeps owning the target and
+consults registered handlers for the accept predicate, the hover chip,
+and the drop.
+
+```ts
+interface TilePayloadContext {
+    /** The placement backing the tile under the cursor. */
+    placement: RestPlacementShape;
+}
+
+interface TilePayloadHandler {
+    /**
+     * Cheap, payload-independent check on the placement — "is this a
+     * tile I care about?". Keep it as narrow as possible.
+     */
+    appliesTo( ctx: TilePayloadContext ): boolean;
+    /** Whether a concrete payload is acceptable on this tile. */
+    accept( data: Record< string, unknown >, ctx: TilePayloadContext ): boolean;
+    /** Chip label shown while a matching payload hovers the tile. */
+    acceptLabel: string;
+    onDrop(
+        session: DragSession,
+        ev: { clientX: number; clientY: number },
+        ctx: TilePayloadContext,
+    ): void;
+}
+```
+
+```js
+const off = wp.os.files.registerTilePayloadHandler( 'shortcut', {
+    appliesTo: ( { placement } ) => placement.file.ref === 'lienzo',
+    accept: ( data ) => data.kind === 'attachment',
+    acceptLabel: 'Open in Lienzo',
+    onDrop: ( session ) => {
+        openInLienzo( session.payload.data );
+    },
+} );
+```
+
+Several handlers may share a payload type — resolution is
+**first-registered whose `appliesTo` matches**, so handlers only ever
+compete when they claim the same tile for the same type. A handler
+whose `appliesTo` returns true for every placement will shadow every
+handler registered after it, so scope the predicate to your own icon.
+
+Payload `type` is the drag payload's type, not the file type:
+`'shortcut'` covers desktop icons, post/page references, and dock-item
+promotions; `'attachment'` covers Media Library drags; `'note'` covers
+pinned notes. Read `session.payload.data` for the payload itself.
+
+Returns a deregister function.
+
+See [Examples — accept drops on your desktop icon](./examples/tile-drop-handler.md).
+
+Resolution chain inside `resolveOpener`: user override (read from `userFileAssociations` in the shell config) → `isDefault` opener → first match → `null`. The result passes through the `os.files.resolve-opener` filter.
 
 `open( file )` invokes the resolved opener's handler:
-- `kind: 'url'` → opens a chromeless iframe via `wp.desktop.windowManager.open`.
-- `kind: 'window'` → opens a registered native window via `wp.desktop.openWindow`. The optional `config( file )` callback is currently **not delivered** to the window — the shell's opener wiring drops the computed value, so `wp.desktop.getWindowConfig( windowId )` keeps returning only the PHP-registered config blob. Don't rely on per-file config until this gap is closed.
+- `kind: 'url'` → opens a chromeless iframe via `wp.os.windowManager.open`.
+- `kind: 'window'` → opens a registered native window via `wp.os.openWindow`. The optional `config( file )` callback is currently **not delivered** to the window — the shell's opener wiring drops the computed value, so `wp.os.getWindowConfig( windowId )` keeps returning only the PHP-registered config blob. Don't rely on per-file config until this gap is closed.
 - `kind: 'js'` → runs the plugin's free-form callback.
 
 Lifecycle actions fired during `open()`:
 
 ```ts
-doAction( 'desktop-mode.files.opening', { file: DesktopFile, openerId: string } );
-doAction( 'desktop-mode.files.opened',  { file, openerId, kind: 'url' | 'window' | 'js' } );
-doAction( 'desktop-mode.files.open-failed', { reason: 'no-opener' | 'handler-threw', type, ref, openerId?, error? } );
+doAction( 'os.files.opening', { file: DesktopFile, openerId: string } );
+doAction( 'os.files.opened',  { file, openerId, kind: 'url' | 'window' | 'js' } );
+doAction( 'os.files.open-failed', { reason: 'no-opener' | 'handler-threw', type, ref, openerId?, error? } );
 ```
 
 Filter for the registry list:
 
 ```ts
-applyFilters( 'desktop-mode.files.openers', FileOpenerDef[] ): FileOpenerDef[];
-applyFilters( 'desktop-mode.files.resolve-opener', FileOpenerDef | null, type: string ): FileOpenerDef | null;
+applyFilters( 'os.files.openers', FileOpenerDef[] ): FileOpenerDef[];
+applyFilters( 'os.files.resolve-opener', FileOpenerDef | null, type: string ): FileOpenerDef | null;
 ```
 
 ---
 
-## Real file storage — client surface (Experimental, since 0.9.6)
+## Real file storage — client surface (Experimental)
 
 Real per-user desktop storage (the `upload` file type). Server-side
-contract: [files-on-desktop.md → Real file storage](files-on-desktop.md#real-file-storage-upload--experimental-since-096).
+contract: [files-on-desktop.md → Real file storage](files-on-desktop.md#real-file-storage-upload--experimental).
 
 **Shell config key** — `config.desktopStorage`:
 
@@ -4868,7 +6138,7 @@ interface DesktopStorageConfig {
 ```
 
 **Drop hook chain** — desktop-storage uploads fire the exact same
-`desktop-mode.drop.*` actions and filters the Media Library sink
+`os.drop.*` actions and filters the Media Library sink
 does (`files-detected`, `dialog-fields`, `before-upload`,
 `upload-started`, `upload-progress`, `after-upload`,
 `upload-failed`) — subscribers don't branch on the destination. The
@@ -4888,7 +6158,7 @@ never stacked modals, never mixed batches).
 the base `DesktopFileShape`.
 
 **Tile menu** — the built-in entries injected through the standard
-`desktop-mode.files.tile-menu` filter: `desktop-mode/upload-download`
+`os.files.tile-menu` filter: `desktop-mode/upload-download`
 (every viewer), `desktop-mode/upload-share` (owner),
 `desktop-mode/upload-leave` (recipient's root tile), and
 `desktop-mode/folder-zip-download` on folder tiles when
@@ -4907,23 +6177,27 @@ nonces expire.
 folder-window preview (subresource loads via the authenticated
 download URL); other kinds show a no-preview note + Download.
 Plugins preview further types (PDF, …) through the pre-existing
-`desktop-mode.files.preview` filter — return an element for the
+`os.files.preview` filter — return an element for the
 placements you recognize; see
 [examples/desktop-file-storage.md](examples/desktop-file-storage.md#extend-the-preview-pane-eg-pdfs).
 
 ---
 
-## Native Plugins window (since 0.9.0)
+## Native Plugins window
 
-The `desktop-mode-plugins` native window replaces the chromeless `plugins.php` and `plugin-install.php` iframes. Two tabs (Installed + Browse), a `<wpd-flyout>` detail panel, .zip upload (button + drop-on-window), and drag-card-to-dock pinning via the framework drag bridge.
+The `desktop-mode-plugins` native window replaces the chromeless `plugins.php` and `plugin-install.php` iframes. Two tabs (Installed + Browse), a `<os-flyout>` detail panel, .zip upload (button + drop-on-window), and drag-card-to-dock pinning via the framework drag bridge.
 
 ### URL routing
 
 Both `plugins.php` and `plugin-install.php` are claimed by `registerNativeUrlRemap`. The latter stashes a `tab: 'browse'` hint in the shared store `'desktop-mode/plugins-window/tab-target'` so the bundle's first paint activates the Browse tab. When `nativePluginsEnabled` is `false`, the click falls through to the classic iframe path.
 
+**Threading state into the window a remap opens.** A remap entry may declare a `params( url, parsed )` hook returning open-time [`params`](#wposopenwindow-id-opts---stable) for its native window. **Prefer it over a shared store**: params are persisted with the session and staged back on restore, so the window reopens on the same subject after a reload — a shared store does not survive the reload and the window comes back on its default. A throwing hook is logged and the window still opens, the same tolerance `onMatch` has. Remaps that declare no hook call the opener with one argument exactly as before.
+
+**Two views of the same object.** Some URLs are the only address WordPress has for a thing, and more than one window may legitimately want them. `user-edit.php?user_id=12` is the only URL for a person, but a shop asks a different question about that person than "edit their role". The `os_person_view` query flag resolves it: the built-in profile remap stands down on any person-URL carrying it, so a specific view can claim the URL without having to win a registration-order race. The value is the claiming view's id (`wc-customer`), so a third view can join without either existing one changing. Exported as `OS_PERSON_VIEW_PARAM`; the PHP side that builds such URLs must use the same literal.
+
 ### Drag bridge integration
 
-Cards in the Browse gallery call `wp.desktop.dragManager.start({ … })` on pointer-down. The payload is:
+Cards in the Browse gallery call `wp.os.dragManager.start({ … })` on pointer-down. The payload is:
 
 ```ts
 {
@@ -4941,37 +6215,37 @@ Cards in the Browse gallery call `wp.desktop.dragManager.start({ … })` on poin
 }
 ```
 
-The bundle pre-installs a drop target on the dock element that accepts this payload type and calls `wp.desktop.registerSystemTile()` to pin a transient tile pointing at the plugin's wp.org page. **Plugin authors can register their own drop targets** (e.g. on a custom canvas) that filter on `payload.type === 'wporg-plugin'` and react to a card drop with no further coordination.
+The bundle pre-installs a drop target on the dock element that accepts this payload type and calls `wp.os.registerSystemTile()` to pin a transient tile pointing at the plugin's wp.org page. **Plugin authors can register their own drop targets** (e.g. on a custom canvas) that filter on `payload.type === 'wporg-plugin'` and react to a card drop with no further coordination.
 
 ### Live-refresh
 
-After every install / activate / deactivate / delete the bundle calls `await wp.desktop.refreshMenu()`. That spawns a hidden chromeless iframe to capture the real-admin-context menu payload (handles plugins that gate `admin_menu` on `is_admin()`) — same primitive the chromeless bridge uses. Plugin authors that mutate plugin state from elsewhere should mirror this:
+After every install / activate / deactivate / delete the bundle calls `await wp.os.refreshMenu()`. That spawns a hidden chromeless iframe to capture the real-admin-context menu payload (handles plugins that gate `admin_menu` on `is_admin()`) — same primitive the chromeless bridge uses. Plugin authors that mutate plugin state from elsewhere should mirror this:
 
 ```ts
 await myInstallFlow();
-await window.wp.desktop.refreshMenu();
+await window.wp.os.refreshMenu();
 ```
 
 ### Shared state — initial tab hint
 
 ```ts
-import { setPluginsWindowTab } from 'desktop-mode/plugins-window/tab-target';
+import { setPluginsWindowTab } from 'openstation/plugins-window/tab-target';
 
 setPluginsWindowTab( 'browse' ); // call BEFORE openById( 'desktop-mode-plugins' )
 ```
 
-Backed by `wp.desktop.createSharedStore( 'desktop-mode/plugins-window/tab-target', … )` so multiple bundles see the same value.
+Backed by `wp.os.createSharedStore( 'desktop-mode/plugins-window/tab-target', … )` so multiple bundles see the same value.
 
 ---
 
-## My WordPress — extensibility surface (Experimental, since 0.8.0)
+## WP Explorer — extensibility surface (Experimental)
 
 The native window registered under id `desktop-mode-my-wordpress`
 exposes three JS hook points and a small public API. Every section
 (Posts, Pages, Users, Media, plugin-defined kinds) uses the same
 hooks, so a single plugin descriptor can decorate any preview pane.
 
-### Public API — `wp.desktop.myWordpress`
+### Public API — `wp.os.myWordpress`
 
 ```ts
 interface MyWordpressApi {
@@ -4985,7 +6259,6 @@ interface MyWordpressApi {
      * Open the Media drill-in ("used in") view for an attachment.
      * Mirror of `openDetail`.
      *
-     * @since 0.8.6
      */
     openMedia( args: { mediaId: number; mediaTitle?: string } ): void;
 
@@ -4994,26 +6267,24 @@ interface MyWordpressApi {
      * `openDetail` / `openMedia`, for users. Idempotent and
      * cold-start safe — opens (or focuses) the window and navigates
      * it to the footprint route even from a session that never
-     * opened My WordPress.
+     * opened WP Explorer.
      *
      * This is the same window the "View activity footprint" row
      * action in the classic Users table reaches (that path routes
-     * through the `desktop-mode-open-user-footprint` bridge message;
+     * through the `os-open-user-footprint` bridge message;
      * see § 3 and `bridge-protocol.md`).
      *
-     * @since 0.9.1
      */
     openUserFootprint( args: { userId: number; userName?: string } ): void;
 
     /**
      * Register a renderer for a custom entity kind so a plugin
      * can ship its own section type without patching the bundle.
-     * Pair with a PHP entry in `desktop_mode_my_wordpress_entities`
+     * Pair with a PHP entry in `openstation_my_wordpress_entities`
      * carrying the same `kind` slug.
      *
      * Returns an unregister function.
      *
-     * @since 0.8.6
      */
     registerEntityKind(
         kind: string,
@@ -5021,10 +6292,10 @@ interface MyWordpressApi {
     ): () => void;
 
     /**
-     * Trash an entity by its My WordPress entity id (`'posts'`,
+     * Trash an entity by its WP Explorer entity id (`'posts'`,
      * `'pages'`, `'users'`, plugin-defined). Resolves when the
      * REST DELETE succeeds and broadcasts
-     * `desktop-mode-my-wordpress-entity-trashed` on `document`
+     * `os-my-wordpress-entity-trashed` on `document`
      * so every live list view drops the tile reactively.
      *
      * Does NOT show a confirm dialog — that UX layer is the
@@ -5033,7 +6304,6 @@ interface MyWordpressApi {
      * drag-to-trash calls it directly (macOS pattern: the drag
      * is the deliberate gesture, no extra confirm).
      *
-     * @since 0.8.9
      */
     trashEntity( entityId: string, id: number ): Promise< void >;
 }
@@ -5047,20 +6317,41 @@ interface EntityRenderHost {
     route: Route;
     navigate( route: Route ): void;
     addTeardown( fn: () => void ): void;
+    /**
+     * The section's server-declared preview actions, resolved
+     * against one item and returned as the same ready-made button
+     * row the built-in panes render — or null when none apply.
+     * Runs the full pipeline (section/MIME scoping + the
+     * `os.my-wordpress.preview-actions` filter) in one call.
+     */
+    previewActionRow( args: {
+        item: Record< string, unknown >;
+        mime?: string;
+        surface?: 'pane' | 'context-menu' | 'dblclick';
+    } ): HTMLElement | null;
 }
 ```
 
-### Filter — `desktop-mode.my-wordpress.preview-actions`
+### Filter — `os.my-wordpress.preview-actions`
 
-Decorate the right-pane action button row. Receives the
-server-declared descriptors (already capability-gated) merged with
-any client-only entries the filter chain has added on prior calls.
-Wire the `onSelect` handler here — server descriptors only carry
-metadata.
+Decorate the plugin action set for a selected entry. Receives the
+server-declared descriptors (already capability-gated and scoped to
+the section) merged with any client-only entries the filter chain has
+added on prior calls. Wire the `onSelect` handler here — server
+descriptors only carry metadata.
+
+The resolved set renders in two places from the one declaration: the
+right-pane action row (buttons after the built-ins) and the tile
+context menu (entries between the navigation built-ins and the
+destructive ones, visible to the `os.my-wordpress.tile-context-menu`
+filter like any built-in). It fires for **every** section kind —
+media, post, user, and custom kinds — so guard unscoped additions
+with `ctx.kind` / `ctx.entityId`, or scope the server descriptor via
+its `sections` field.
 
 ```ts
 wp.hooks.addFilter(
-    'desktop-mode.my-wordpress.preview-actions',
+    'os.my-wordpress.preview-actions',
     'my-plugin/compress',
     ( actions, ctx ) =>
         actions.map( ( a ) =>
@@ -5071,17 +6362,61 @@ wp.hooks.addFilter(
 );
 ```
 
-Context shape: `{ entityId, kind, mime?, item }`. `item` is the
-raw server record (a `MediaListItem`, post `EntityListItem`, etc.).
+Context shape (also what `onSelect` / `isVisible` receive):
 
-### Action — `desktop-mode.my-wordpress.preview-extras`
+```ts
+interface PreviewActionContext {
+    /** Section id — `'media'`, `'posts'`, `'cpt-atf-form'`, … */
+    entityId: string;
+    /** Render kind — `'post'`, `'user'`, `'media'`, or a custom one. */
+    kind: string;
+    /** The section's declared post type slug, when it has one. */
+    postType?: string;
+    /** MIME type — media contexts only. */
+    mime?: string;
+    /**
+     * The selected entity, as the server sent it: the detail record
+     * in the right pane, the list row in context menus. `item.id`
+     * is present on both — deep-link from that.
+     */
+    item: Record< string, unknown >;
+    /** Convenience — `Number( item.id )` when numeric. */
+    itemId?: number;
+    /** Where the action was invoked. */
+    surface?: 'pane' | 'context-menu' | 'dblclick';
+}
+```
+
+A multi-select run reports `'context-menu'` rather than a surface of
+its own — the selection layer fans a bulk choice out by replaying each
+row's own single-item handler, so `onSelect` runs once per item with
+that row's `item` and the menu surface it was built for.
+
+A descriptor's `sections` list matches the section **id**, the
+section's **post type slug**, or `'*'` (auto-registered CPT sections
+have ids shaped `cpt-<post_type>`). A `mime` pattern fails closed
+outside media contexts.
+
+A registered kind receives **detail routes too**: double-clicking a tile
+(or `host.navigate({ kind: 'detail', entityId, postId, postTitle })`) keeps
+the window's own breadcrumb — `Site › Section › Title` — while the body stays
+the plugin's to draw. The three in-tree kinds keep their dossier.
+
+Custom-kind renderers get the same pipeline from one call:
+`host.previewActionRow( { item } )` on the `EntityRenderHost` returns
+the ready-made button row (or `null` when no action applies).
+
+### Action — `os.my-wordpress.preview-extras`
 
 Inject DOM into named slots on the right pane (`'header' | 'meta'
-| 'footer'`). Fires once per slot per preview render.
+| 'footer'`). Fires once per slot per preview render, for media
+previews, post-kind previews (posts, pages, and every CPT section),
+and user-kind previews (the Users section and any section serving
+people) — one contract covers every section.
 
 ```ts
 wp.hooks.addAction(
-    'desktop-mode.my-wordpress.preview-extras',
+    'os.my-wordpress.preview-extras',
     'my-plugin/footer',
     ( ctx ) => {
         if ( ctx.slot === 'footer' ) {
@@ -5093,7 +6428,287 @@ wp.hooks.addAction(
 );
 ```
 
-### Filter — `desktop-mode.my-wordpress.tile-context-menu`
+Payload:
+
+```ts
+interface PreviewExtras {
+    slot: 'header' | 'meta' | 'footer';
+    /** Append your DOM here. Always present, even when empty. */
+    container: HTMLElement;
+    /** Section id — `'posts'`, `'media'`, `'cpt-product'`, … */
+    entityId: string;
+    /** Render kind — `'post'`, `'user'`, `'media'`, or a custom one. */
+    kind: string;
+    /** The row being previewed (post, attachment, or user). */
+    item: Record< string, unknown >;
+}
+```
+
+Slot order in a post-kind pane is `header` (above the featured image
+and the rendered content), `meta` (below the content, above the action
+row), then `footer`.
+
+A user-kind pane fires all three, and the useful one is `meta`:
+`header` sits above the identity header, `meta` sits directly under
+the name, face and biography, and `footer` sits below the action row.
+**A summary of a person belongs in `meta`** — money or metrics placed
+above someone's avatar read as a label on them, and a reader cannot
+tell whose figure it is until they have scrolled past it to the name.
+The WooCommerce customer panel paints into `meta` for exactly that
+reason.
+
+Subscribers that fetch data should re-check
+`container.isConnected` before painting — the pane repaints on every
+selection change, and a slow request can outlive its pane.
+
+### Filter — `os.my-wordpress.user-dossier-sections`
+
+Choose which blocks a user preview renders. The identity header (name,
+face, roles) is not in the list — a dossier without it is not a
+dossier.
+
+```ts
+wp.hooks.addFilter(
+    'os.my-wordpress.user-dossier-sections',
+    'my-plugin/customers',
+    ( sections, ctx ) =>
+        ctx.entityId === 'wc-customers'
+            ? sections.filter( ( id ) => id === 'bio' )
+            : sections,
+);
+```
+
+Sections, in render order: `'bio' | 'stats' | 'activity' |
+'milestones' | 'recent' | 'terms'`. Context:
+`{ entityId: string; kind: string; userId: number }`.
+
+The built-in dossier answers *"what has this person written"* — post
+and page counts, a publishing sparkline, recent posts, top categories.
+That is right in the Users folder and wrong in a section whose people
+have never written anything: four zeroes above the figure you came for
+read as the answer. Drop what doesn't apply.
+
+The filter does not fire for the author / contributor sub-folders
+inside a post's detail view — those have no section context and always
+render every block.
+
+### Filter — `os.my-wordpress.user-activate`
+
+Claim "the user opened this person" — the double-click on a user tile.
+
+```ts
+wp.hooks.addFilter(
+    'os.my-wordpress.user-activate',
+    'my-plugin/contacts',
+    ( handled, ctx ) => {
+        if ( handled || ctx.entityId !== 'my-contacts' ) {
+            return handled;
+        }
+        return wp.os.openWindow( 'my-plugin/contact', {
+            params: { contactId: Number( ctx.item.id ) },
+        } );
+    },
+);
+```
+
+Context: `{ entityId: string; kind: string; item: Record< string, unknown > }`.
+Return `true` to say you handled it — the built-in navigation is then skipped. Anything else falls through, so a filter that forgets to return can't leave double-click doing nothing.
+
+The built-in answer is the activity footprint, which is right in the Users folder (a person there is someone who writes) and wrong anywhere they aren't. The WooCommerce Customers section claims it for the Customer window.
+
+### Filter — `os.my-wordpress.user-preview-actions`
+
+The buttons in a user preview's action row. Built-ins are
+`'footprint'` ("View activity footprint", primary) and
+`'open-profile'` ("Show profile", secondary).
+
+```ts
+wp.hooks.addFilter(
+    'os.my-wordpress.user-preview-actions',
+    'my-plugin/orders',
+    ( actions, ctx ) => {
+        if ( ctx.entityId !== 'wc-customers' ) {
+            return actions;
+        }
+        return [
+            {
+                id: 'wc-orders',
+                label: 'View their orders',
+                variant: 'primary',
+                onSelect: () => openOrders( ctx.item.id ),
+            },
+            ...actions.filter( ( a ) => a.id !== 'footprint' ),
+        ];
+    },
+);
+```
+
+```ts
+interface UserPreviewAction {
+    id: string;
+    label: string;
+    /** Native tooltip. */
+    title?: string;
+    variant?: 'primary' | 'secondary';
+    onSelect: () => void;
+}
+```
+
+Context: `{ entityId: string; kind: string; item: Record< string, unknown > }`.
+Entries without a callable `onSelect` are dropped; returning an empty
+array removes the action row entirely rather than leaving an empty bar.
+
+This filter manages the **built-ins** of a user pane. Server-declared
+preview actions (`openstation_my_wordpress_preview_actions`) render
+after the row it builds, from the shared pipeline — remove those at
+the source (their `sections` scoping, or the
+`os.my-wordpress.preview-actions` filter), not here.
+
+### Filter — `os.my-wordpress.list-bands`
+
+Split a section's tiles into labelled bands instead of one flat
+canvas. Return `null` (the default) to leave the section ungrouped.
+
+```ts
+wp.hooks.addFilter(
+    'os.my-wordpress.list-bands',
+    'my-plugin/by-status',
+    ( banding, entity ) => {
+        if ( entity.id !== 'cpt-ticket' ) {
+            return banding;
+        }
+        return {
+            bands: [
+                { id: 'open', label: 'Open', order: 10 },
+                { id: 'done', label: 'Closed', order: 20 },
+            ],
+            assign: ( item ) => ( item.ticket_state === 'open' ? 'open' : 'done' ),
+        };
+    },
+);
+```
+
+```ts
+interface ListBanding {
+    /** Bands in render order. Lower `order` renders first. */
+    bands: Array< { id: string; label: string; order?: number } >;
+    /**
+     * Which band a row belongs to. Return null — or an id not in
+     * `bands` — to fall into the last band, so keep a catch-all last.
+     */
+    assign: ( item: EntityListItem ) => string | null;
+}
+```
+
+A band renders the moment its first row lands, in its `order`
+position, so bands that stay empty never take up space. Each band gets
+its **own tile layout**, keyed `entity:<id>:band:<bandId>`, so
+rearranging icons in one band doesn't disturb another.
+
+Rows are banded as they arrive from the paginated list, so on a
+section with more rows than one page a band fills in as the user
+scrolls. Bands order the view; they don't re-query the server.
+
+**Custom fields:** the window sends an explicit `_fields` list, so a
+key your endpoint returns is stripped before the bundle sees it unless
+the section declares it in `listFields` (see
+[`openstation_my_wordpress_entities`](./hooks-reference.md#openstation_my_wordpress_entities--experimental)).
+
+**`editUrl` — rows that don't live in `wp_posts`.** Opening a row for
+editing normally means `post.php?post=<id>`, derived from the row's
+id. A section whose records are stored somewhere else has no such URL:
+a WooCommerce order under High-Performance Order Storage is the
+in-tree case, and `post.php` on its id opens a different post or
+nothing at all.
+
+Return an `editUrl` on the row and the window uses it verbatim
+wherever it would have built one:
+
+```php
+add_filter( 'rest_prepare_my_thing', function ( $response, $thing ) {
+    $response->data['editUrl'] = admin_url( 'admin.php?page=my-thing&id=' . $thing->id );
+    return $response;
+}, 10, 2 );
+```
+
+Declare it in the section's `listFields` — otherwise `_fields` strips
+it off the list rows and only the single-row fetch carries it, which
+reads as "edit works from the preview pane but not from a tile".
+
+### Action — `os.my-wordpress.list-tile`
+
+Decorate a list tile. Fires once per tile, after the built-in chrome
+(status ribbon, lock badge) and before the tile is placed.
+
+```ts
+wp.hooks.addAction(
+    'os.my-wordpress.list-tile',
+    'my-plugin/badge',
+    ( { tile, entityId, item } ) => {
+        if ( entityId !== 'cpt-product' || item.in_stock ) {
+            return;
+        }
+        const badge = document.createElement( 'span' );
+        badge.className = 'my-plugin-badge';
+        badge.textContent = 'Out of stock';
+        tile.appendChild( badge );
+    },
+);
+```
+
+Payload: `{ tile: HTMLElement; entityId: string; kind: string; item: EntityListItem }`.
+The tile is positioned, so a badge should be absolutely positioned
+within it.
+
+Fires for post-kind and user-kind tiles alike. Check `kind` rather
+than `entityId` when your decoration is about the *thing* rather than
+about the section — a user who has spent money is a customer whether
+you are looking at the Users list or a shop's Customers list, and the
+WooCommerce integration keys its tile decoration off `kind === 'user'`
+for exactly that reason.
+
+A user tile carries a `.os-my-wordpress__user-tile-sub` sub-line
+("role · N posts" by default). Rewriting its `textContent` is the
+supported way to say something truer about the person for your
+section.
+
+### Action — `os.my-wordpress.group-extras`
+
+Inject a panel above the folder tiles when the user opens a plugin or
+theme folder. For whole-folder context worth showing before a section
+is picked — store totals on a shop folder, sync status on an
+importer's.
+
+```ts
+wp.hooks.addAction(
+    'os.my-wordpress.group-extras',
+    'my-plugin/store-totals',
+    ( ctx ) => {
+        if ( ctx.groupId !== 'plugin:my-plugin' ) {
+            return;
+        }
+        ctx.container.appendChild( buildTotalsPanel() );
+    },
+);
+```
+
+Payload:
+
+```ts
+interface GroupExtras {
+    container: HTMLElement;
+    /** e.g. `'plugin:woocommerce'`, `'theme:twentytwentyfive'`. */
+    groupId: string;
+    group: { id: string; label: string; icon: string; order: number } | null;
+    /** Section ids inside this folder. */
+    entityIds: string[];
+}
+```
+
+The container is appended empty when nothing subscribes, and
+`:empty` hides it, so an unsubscribed folder is visually unchanged.
+
+### Filter — `os.my-wordpress.tile-context-menu`
 
 Decorate the per-tile right-click menu. Same descriptor shape as
 the preview-actions row; plugin entries must carry an `onSelect`
@@ -5101,7 +6716,7 @@ handler (built-ins are dispatched by the bundle's static switch).
 
 ```ts
 wp.hooks.addFilter(
-    'desktop-mode.my-wordpress.tile-context-menu',
+    'os.my-wordpress.tile-context-menu',
     'my-plugin/duplicate',
     ( options, ctx ) => {
         options.push( {
@@ -5115,15 +6730,162 @@ wp.hooks.addFilter(
 );
 ```
 
-Context: `{ entityId, kind, item }`. Currently wired on the post /
-page tile menu (`kind` from the entity, default `'post'`) and the
-media tile menu (`kind: 'attachment'`); the user tile menu will
-subscribe to the same hook in a follow-up — write the filter as if
-the hook fires for every section.
+Context: `{ entityId, kind, item }`. Wired on the post / page tile
+menu (`kind` from the entity, default `'post'`), the media tile menu
+(`kind: 'attachment'`), and the user tile menu (`kind: 'user'`) —
+write the filter as if the hook fires for every section.
 
-### Filter — `desktop-mode.my-wordpress.status-bar` (existing)
+Server-declared preview actions
+(`openstation_my_wordpress_preview_actions`) arrive in `options`
+already resolved — between the navigation built-ins and the
+destructive entries, `sort: 50` — so this filter can reorder or
+remove them by id like any built-in.
 
-Already documented above — unchanged.
+**Multi-selection.** These lists are multi-select, and an entry you
+add here appears only while ONE tile is selected until it opts in.
+Add `multi: true` (plus optionally `sort`, `bulkLabel( n )`, and a
+`bulk( items )` runner) to let it act on a set — the fields and the
+intersection rules are the same ones the file-tile menu uses, and
+they're documented under
+[`wp.os.selection`](#selection--experimental).
+
+#### Built-in bulk actions
+
+The lists carry wp-admin's own bulk actions, as multi-safe entries
+on the same menu. Your filter sees them in `options` and can reorder
+or remove them by id.
+
+| Section | Id | Equivalent in wp-admin |
+|---|---|---|
+| Posts / Pages / CPTs | `open` | Row action → Edit |
+| | `navigate-into` | *(no equivalent — the dossier view)* |
+| | `bulk-edit` | **Bulk actions → Edit** — status, author, comments, sticky, add categories, add tags |
+| | `publish` | Row action → Publish *(hidden for already-published entries)* |
+| | `to-draft` | Row action → Switch to Draft *(hidden for entries already drafts)* |
+| | `copy-links` | *(no equivalent)* |
+| | `trash` | **Bulk actions → Move to Trash** |
+| Media | `navigate-into`, `open-source` | Row actions |
+| | `detach` | Row action → Detach *(hidden for unattached files)* |
+| | `copy-links` | *(copies `source_url`)* |
+| | `delete` | **Bulk actions → Delete permanently** |
+| Users | `footprint`, `open-profile`, `author-archive` | Row actions |
+| | `change-role` | **Bulk actions → Change role to…** |
+| | `delete-user` | **Bulk actions → Delete** — asks core's "delete their content or reassign it" question |
+
+Two behaviours of the bulk-edit modal are worth knowing because they
+are core's, not ours: every control starts on **— No change —** and a
+field left alone is absent from the request (so a bulk edit can never
+overwrite eleven entries with the twelfth's values), and **categories
+and tags are additive** — the terms you pick are added to what each
+entry already has. Controls appear only where the post type supports
+them: no `categories` key in the REST response means no category
+picker, and sticky is offered for the built-in `post` type only.
+
+The status actions are a good illustration of the intersection rule
+in the wild: `publish` is offered only for an entry that isn't
+published and `to-draft` only for one that isn't a draft, so a
+selection holding one of each has neither in common and the menu
+shows only what applies to all of them.
+
+### Filter — `os.my-wordpress.status-bar` (existing)
+
+Already documented above — unchanged, except that `ctx.view` gained a
+`'group'` member for the plugin-folder view described below.
+
+### Navigation — routes
+
+The window's internal `Route` union drives the breadcrumb and the back
+button. Renderers installed via `registerEntityKind()` receive the
+current route on their host and can navigate to any of these:
+
+```ts
+type Route =
+    | { kind: 'root' }
+    | { kind: 'group'; groupId: string }
+    | { kind: 'list'; entityId: string }
+    | { kind: 'detail'; entityId: string; postId: number; postTitle: string }
+    | { kind: 'sub-list'; entityId: string; postId: number; postTitle: string; relation: SubRelation }
+    | { kind: 'user-footprint'; entityId: string; userId: number; userName: string }
+    | { kind: 'media-detail'; entityId: string; mediaId: number; mediaTitle: string };
+```
+
+`'group'` renders the folder that collects every section sharing a
+`group` id — one per plugin or theme that registered custom post types.
+Its members are the sections whose descriptor carries that id; the
+breadcrumb reads `Site › WooCommerce › Products`, and a grouped
+section's parent route is its group rather than the root.
+
+### Section descriptors — grouping, thumbnails, editing
+
+Entity descriptors reaching the bundle (from
+`openstation_my_wordpress_entities` server-side, or appended in JS)
+carry these optional fields beyond the documented core set:
+
+```ts
+interface MyWordPressEntity {
+    // …id, label, icon, restPath, kind, post_type
+    /** false keeps the section icon on every tile. Default: on. */
+    thumbnails?: boolean;
+    /** Root folder id this section nests under. null → loose at root. */
+    group?: string | null;
+    groupLabel?: string | null;
+    groupIcon?: string | null;
+    groupOrder?: number | null;
+    /**
+     * Extra REST fields to keep on this section's rows — anything
+     * outside the built-in `_fields` set, `editUrl` included. Sent
+     * on list AND detail requests.
+     */
+    listFields?: string[];
+    /** Extra query params sent with this section's list requests. */
+    listQuery?: Record< string, string >;
+    /** `'large'` roughly doubles the icon well. Default `'regular'`. */
+    tileSize?: 'regular' | 'large';
+    /**
+     * Who edits this section's rows. A preview-action id replaces
+     * "Open in editor" everywhere (pane primary button, context-menu
+     * open entry + its bulk fan-out, tile double-click); `false`
+     * removes every edit affordance. Omit for the classic editor.
+     */
+    editAction?: string | false;
+}
+```
+
+`editAction: '<action-id>'` names a descriptor from
+`openstation_my_wordpress_preview_actions`, so the replacement editor
+stays capability-gated and its script auto-enqueues. The named action
+stops rendering in the generic action row/menu (it IS the edit
+affordance now). If the action didn't ship for this user or no JS
+wired its `onSelect`, the edit affordances hide — for a section whose
+type has no editor screen, the classic URL is known-broken. With
+`editAction: false`, double-click navigates into the detail dossier
+instead, and the bulk "Edit…" modal is suppressed; with a string it is
+**kept** — that modal PATCHes over REST (status/author/terms) and
+doesn't touch the classic editor.
+
+Groups from the server and groups derived from entity descriptors are
+**merged**, not either-or: a section appended from JS with a `group` the
+server doesn't know about still gets a folder, slotted by its
+`groupOrder` among the server's. Server-declared groups keep the order
+PHP gave them, so the
+`openstation_my_wordpress_post_type_groups` filter's ordering is
+preserved.
+
+`listQuery` exists so a server-side query filter can tell a site-window
+request from any other REST caller's. `rest_product_query` fires for
+every consumer of that collection — the Product Collection block
+included — so a filter that reorders unconditionally silently replaces
+a storefront's chosen sort.
+
+With `thumbnails` unset or `true`, a `'post'`-kind entry that has a
+featured image renders it in place of the section icon — the list
+request already asks for `_embed=wp:featuredmedia`, so no extra
+request is made. Entries without a featured image fall back to `icon`.
+
+The window config also ships the resolved folder list as
+`groups: MyWordPressGroup[]` (`{ id, label, icon, order }`). When it is
+absent the bundle derives the same list from the entity descriptors, so
+a JS-only plugin can group its sections without a server round trip.
 
 ### postMessage / CustomEvents
 
@@ -5132,10 +6894,10 @@ No new postMessage types. Media drag-out uses the existing
 
 One CustomEvent:
 
-#### `desktop-mode-my-wordpress-entity-trashed` — Experimental *(since 0.8.9)*
+#### `os-my-wordpress-entity-trashed` — Experimental
 
 Dispatched on `document` after a
-`wp.desktop.myWordpress.trashEntity()` REST DELETE succeeds —
+`wp.os.myWordpress.trashEntity()` REST DELETE succeeds —
 the recycle-bin drag-to-trash routes through it, as does any
 plugin calling the method directly. Live list views (any
 bundle) listen here to drop the trashed tile reactively.
@@ -5146,20 +6908,20 @@ bundle) listen here to drop the trashed tile reactively.
 { entityId: string, id: number }
 ```
 
-See [Examples — My WordPress media action](./examples/my-wordpress-media-action.md).
+See [Examples — WP Explorer media action](./examples/my-wordpress-media-action.md).
 
 ---
 
-## Nonce refresh — heartbeat field *(Stable, since 0.8.7)*
+## Nonce refresh — heartbeat field *(Stable)*
 
 WordPress nonces expire after `nonce_life` (24 h by default). The
 desktop shell is a long-running SPA, so cached nonces stamped
-into `window.desktopModeConfig.restNonce` (auto-injected by
+into `window.openStationConfig.restNonce` (auto-injected by
 `injectRestNonce`) and per-window config blobs like
-`window.desktopModeWindowConfig['desktop-mode-plugins']` would
+`window.openStationWindowConfig['desktop-mode-plugins']` would
 otherwise go stale after a day. The server's
 `heartbeat_received` filter (see
-[`desktop_mode_nonce_refresh_actions`](./hooks-reference.md#desktop_mode_nonce_refresh_actions--stable-filter-since-087))
+[`openstation_nonce_refresh_actions`](./hooks-reference.md#openstation_nonce_refresh_actions--stable-filter))
 ships a fresh `{ action: nonce }` map on every tick under the
 `desktop_mode_nonces` heartbeat field; the framework overwrites
 its own cached values in place. Defaults cover `wp_rest`,
@@ -5172,12 +6934,12 @@ plugin authors don't need to wire anything by hand.
 **For plugins that ship their own cached nonce** (an admin-ajax
 nonce keyed by a custom action, a private REST nonce, …): publish
 the action on PHP via
-[`desktop_mode_nonce_refresh_actions`](./hooks-reference.md#desktop_mode_nonce_refresh_actions--stable-filter-since-087),
+[`openstation_nonce_refresh_actions`](./hooks-reference.md#openstation_nonce_refresh_actions--stable-filter),
 then subscribe to the heartbeat field and read the action key off
 the returned map:
 
 ```ts
-wp.desktop.heartbeat.subscribe( 'desktop_mode_nonces', ( nonces ) => {
+wp.os.heartbeat.subscribe( 'desktop_mode_nonces', ( nonces ) => {
     const fresh = nonces[ 'my-plugin/admin-ajax' ];
     if ( typeof fresh === 'string' && fresh !== '' ) {
         window.myPluginConfig.ajaxNonce = fresh;
@@ -5185,10 +6947,10 @@ wp.desktop.heartbeat.subscribe( 'desktop_mode_nonces', ( nonces ) => {
 } );
 ```
 
-The same heartbeat surface (`wp.desktop.heartbeat.subscribe` /
+The same heartbeat surface (`wp.os.heartbeat.subscribe` /
 `.contribute`) is already used for presence, recycle-bin badges,
 files realtime, etc. — see the
-[heartbeat bus](#heartbeat--stable-since-055) section for the full
+[heartbeat bus](#heartbeat--stable) section for the full
 contract.
 
 `src/nonce-refresh.ts` ships an internal `registerNonceTarget()`
@@ -5197,19 +6959,19 @@ exposed across bundles — third-party plugins should use the
 heartbeat subscription above.
 
 The map also rides core's `wp_refresh_nonces` short-circuit
-response *(since 0.9.8)* — the tick that reports `nonces_expired`
+response — the tick that reports `nonces_expired`
 (the first one after a session re-login, or after plain 24-hour
 nonce expiry) already carries the replacements, so the shell heals
 in a single round trip.
 
 ---
 
-## Session expiry & recovery *(Stable, since 0.9.8)*
+## Session expiry & recovery *(Stable)*
 
 When the login session expires, the desktop shows **one** login
 prompt: core's `wp-auth-check` modal in the parent shell. Chromeless
 iframes have theirs suppressed server-side
-(`desktop_mode_chromeless_suppress_auth_check()`), so N open windows
+(`openstation_chromeless_suppress_auth_check()`), so N open windows
 no longer stack N identical modals.
 
 After the user re-authenticates (in the modal, or in another tab),
@@ -5221,12 +6983,12 @@ live), and announces the transition on both event surfaces:
 
 | Surface | Loss | Recovery |
 |---|---|---|
-| `document` CustomEvent | `desktop-mode-auth-lost` | `desktop-mode-auth-restored` |
-| Hook bus (`wp.desktop.hooks`) | `desktop-mode.auth.lost` | `desktop-mode.auth.restored` |
+| `document` CustomEvent | `os-auth-lost` | `os-auth-restored` |
+| Hook bus (`wp.os.hooks`) | `os.auth.lost` | `os.auth.restored` |
 
-Neither event carries a payload. `desktop-mode-auth-lost` fires once
+Neither event carries a payload. `os-auth-lost` fires once
 per outage; pause pollers and hold off on mutations — requests made
-while the session is down will 401. `desktop-mode-auth-restored`
+while the session is down will 401. `os-auth-restored`
 means cached nonces are valid again (refreshed on the same tick):
 resume pollers and re-fetch anything that may have failed during the
 outage. It can fire without a preceding `-lost` when the re-auth was
@@ -5234,7 +6996,7 @@ detected from an iframe or another tab before the shell's own
 heartbeat noticed the expiry.
 
 ```ts
-document.addEventListener( 'desktop-mode-auth-restored', () => {
+document.addEventListener( 'os-auth-restored', () => {
     // The session is back and nonces are fresh — re-sync.
     void refreshMyPluginState();
 } );
@@ -5244,7 +7006,7 @@ Recovery decisions key off authoritative Heartbeat state only: the
 `wp-auth-check` flag, or a `nonces_expired` response arriving during
 a known outage (core only ever sends that field to an authenticated
 session, so it doubles as the earliest possible re-auth signal). A
-`401`/`403` response seen by `wp.desktop.fetch` merely *accelerates*
+`401`/`403` response seen by `wp.os.fetch` merely *accelerates*
 the next tick (debounced) — a permission `403` from a live session
 (`rest_forbidden` on a route the user can't access) never triggers
 any user-visible reaction.
@@ -5257,27 +7019,34 @@ re-renders for the new account.
 
 ---
 
-## Desktop themes *(Experimental, since 0.9.7)*
+## Desktop themes *(Experimental)*
 
 Whole-OS reskins. See [Desktop themes](./desktop-themes.md) for the
 manifest format and the full slot tables; this section is the JS
 surface only.
 
 > Distinct from the per-window **window themes**
-> (`wp.desktop.registerWindowTheme`). A window theme restyles one
+> (`wp.os.registerWindowTheme`). A window theme restyles one
 > window's chrome; a desktop theme restyles everything.
 
-### `wp.desktop.desktopThemes`
+### `wp.os.desktopThemes`
 
 ```ts
-wp.desktop.desktopThemes.list(): DesktopThemeEntry[];
-wp.desktop.desktopThemes.getActive(): string | null;
-wp.desktop.desktopThemes.setActive( themeId: string ): void;
-wp.desktop.desktopThemes.subscribe(
+wp.os.desktopThemes.list(): DesktopThemeEntry[];
+wp.os.desktopThemes.getActive(): string | null;
+wp.os.desktopThemes.setActive( themeId: string ): void;
+// Hydrate boot-slimmed entries (cssDeferred) with their full
+// cssText / tokens — no activation side effect. Single-flight;
+// resolves once the library holds the full entries.
+wp.os.desktopThemes.ensureFull(): Promise< void >;
+wp.os.desktopThemes.subscribe(
     cb: ( state: { themes; activeId; activeIcons } ) => void,
 ): () => void;
-wp.desktop.desktopThemes.resolveIcon( slot: string ): string | null;
-wp.desktop.desktopThemes.resolveIconColor( slot: string ): string | null;
+wp.os.desktopThemes.resolveIcon( slot: string ): string | null;
+wp.os.desktopThemes.resolveIconColor( slot: string ): string | null;
+wp.os.desktopThemes.applyRecommendedOsSettings(
+    themeId?: string,
+): RecommendedOsSettings;
 ```
 
 `DesktopThemeEntry`:
@@ -5289,19 +7058,37 @@ wp.desktop.desktopThemes.resolveIconColor( slot: string ): string | null;
 | `name`, `version`, `author`, `description` | `string` | May be empty. |
 | `previewUrl` | `string` | Absolute URL, or `''`. |
 | `cssUrl` | `string` | Compiled stylesheet URL (uploaded themes). |
-| `cssText` | `string` | Compiled stylesheet text (code-registered themes). |
-| `tokens` | `Record<string,string>` | Informational — the CSS is authoritative. |
-| `fonts` | `string[]` | Bundled font families, de-duplicated across weights, in declaration order. Informational; the compiled stylesheet carries the `@font-face` rules. Empty when the theme ships none. *(since 0.9.8)* |
+| `cssText` | `string` | Compiled stylesheet text (code-registered themes). Empty on a boot-slimmed entry — see `cssDeferred`. |
+| `tokens` | `Record<string,string>` | Informational — the CSS is authoritative. `{}` on a boot-slimmed entry — see `cssDeferred`. |
+| `cssDeferred` | `boolean` | `true` on entries the **boot payload** shipped without `cssText` / `tokens` (the active theme's stylesheet is server-delivered at boot; an inactive theme's CSS matters only when picked). The full entries are fetched from `GET desktop-mode/v1/desktop-themes` and upserted, clearing the flag — `setActive()` does this automatically the first time a deferred entry's stylesheet is needed. A consumer that needs `cssText` / `tokens` for its own purposes should `await wp.os.desktopThemes.ensureFull()` before reading them. |
+| `fonts` | `string[]` | Bundled font families, de-duplicated across weights, in declaration order. Informational; the compiled stylesheet carries the `@font-face` rules. Empty when the theme ships none. |
 | `icons` | `Record<string,string>` | Slot => dashicon class or absolute image URL. |
-| `iconColors` | `Record<string,string>` | Slot => fill colour, for the slots the theme tints. A slot present here is painted as a tinted CSS mask (images) or with that `color` (dashicons); `currentColor` defers to the surface. Absent = default rendering. *(since 0.9.8)* |
+| `iconColors` | `Record<string,string>` | Slot => fill colour, for the slots the theme tints. A slot present here is painted as a tinted CSS mask (images) or with that `color` (dashicons); `currentColor` defers to the surface. Absent = default rendering. |
+| `recommendedOsSettings` | `RecommendedOsSettings` | Presentation preferences the theme suggests. Always an object; `{}` means it suggests nothing. |
 | `installedAt` | `number` | Unix timestamp; `0` for code themes. |
 | `source` | `'upload' \| 'code'` | |
 
+`RecommendedOsSettings` — every field optional:
+
+| Field | Type | Values |
+|---|---|---|
+| `dockSize` | `string` | `compact` \| `default` \| `large` |
+| `desktopLayout` | `string` | `classic` \| `unified` |
+| `dockPlacement` | `string` | `bottom` \| `left` \| `right` — which edge the dock sits on (Unified) |
+| `windowRadius` | `string` | `sharp` \| `default` \| `round` |
+| `adminBarMode` | `string` | `static` \| `dynamic` \| `hidden` |
+| `dockRailRenderer` | `string` | A registered dock rail renderer id. |
+
 **`setActive()` is presentation only.** It swaps the stylesheet and
-repaints, but does not persist. To save the user's choice:
+repaints, but does not persist — use it for a preview (a hover, a
+try-before-you-buy picker) you intend to revert.
+
+To change the user's theme for real, patch the setting. That both
+persists *and* applies, so there is no need to pair it with
+`setActive()`:
 
 ```js
-wp.desktop.updateOsSettings( { desktopTheme: 'acme-neon-glass' } );
+wp.os.updateOsSettings( { desktopTheme: 'acme-neon-glass' } );
 ```
 
 `resolveIcon()` returns `null` when no theme is active, when the slot
@@ -5319,12 +7106,12 @@ Two filters sit on these:
 
 ```js
 wp.hooks.addFilter(
-    'desktop-mode.desktop-theme.icon',
+    'os.os-theme.icon',
     'my-plugin',
     ( icon, { slot, themeId } ) => icon,
 );
 wp.hooks.addFilter(
-    'desktop-mode.desktop-theme.icon-color',   // since 0.9.8
+    'os.os-theme.icon-color',
     'my-plugin',
     ( color, { slot, themeId } ) => color,
 );
@@ -5334,16 +7121,63 @@ Returning a colour where the theme set none switches that icon to
 mask rendering — a way to make any iconset monochrome without
 touching the theme.
 
+### `applyRecommendedOsSettings()`
+
+Applies a theme's `recommendedOsSettings` and persists them. Defaults
+to the active theme. Returns the keys actually written — `{}` when the
+theme is unknown or recommends nothing this shell can apply (a
+`dockRailRenderer` naming a renderer no plugin registered resolves to
+nothing, and so does an `accent` naming a swatch the site does not
+offer).
+
+```js
+const applied = wp.os.desktopThemes.applyRecommendedOsSettings();
+// → { dockSize: 'large', desktopLayout: 'unified' }
+```
+
+The empty string — the **OpenStation** card, meaning "no theme" — is a
+valid argument and recommends the accent the shell's own palette was
+drawn against. It is the only recommendation set that lives in the
+shell rather than in a manifest, because the default look has no
+manifest.
+
+**The shell already does this once**, the first time a user activates a
+theme that ships recommendations; that is the entire automatic path,
+and it never runs again for the same user and theme. This method is
+the deliberate re-apply — the "restore the author's intended
+presentation" action, which is also what the button in **OpenStation Preferences →
+Themes** calls. It writes only keys that already exist on the settings
+object and already hold a string, so it can never introduce a setting
+or flip a feature toggle. See
+[Desktop themes → Recommended OS settings](./desktop-themes.md#recommended-os-settings).
+
 ### `desktopTheme` — OS settings key
 
 `string`. The active theme slug, or `''` for the system default.
-Available on the snapshot from `wp.desktop.getOsSettings()` and
+Available on the snapshot from `wp.os.getOsSettings()` and
 `subscribeOsSettings()`, and writable through
-`wp.desktop.updateOsSettings()`. Persisted in the
+`wp.os.updateOsSettings()`. Persisted in the
 `desktop_mode_os_settings` user meta; sanitized server-side as a
 `sanitize_key()`-clean string (empty is a legitimate value).
 
-### CustomEvent: `desktop-mode-desktop-theme-changed`
+### `appliedThemeRecommendations` — OS settings key
+
+`string[]`. Slugs of the desktop themes whose
+[recommended OS settings](./desktop-themes.md#recommended-os-settings)
+have already been seeded for this user. A slug in this list means "we
+have offered this user this theme's arrangement" — which is what stops
+a theme from ever re-applying over a preference the user set
+afterwards.
+
+Slugs of themes that are no longer installed are kept on purpose: a
+delete-and-reinstall must not re-seed. Capped at the most recent 64.
+
+Readable from `wp.os.getOsSettings()` and `subscribeOsSettings()`;
+the shell owns the writing. To re-apply a theme's arrangement, call
+`desktopThemes.applyRecommendedOsSettings()` rather than editing the
+ledger.
+
+### CustomEvent: `os-desktop-theme-changed`
 
 Dispatched on `document` **only when the active theme actually
 changed** — a redundant re-apply (boot, an unrelated settings save)
@@ -5351,31 +7185,31 @@ does not fire it. Treat every firing as "repaint anything that
 resolved a themed icon".
 
 ```js
-document.addEventListener( 'desktop-mode-desktop-theme-changed', ( e ) => {
+document.addEventListener( 'os-desktop-theme-changed', ( e ) => {
     const { themeId, previous } = e.detail;   // string | null
     myPanel.repaintIcons();
 } );
 ```
 
-### Hook: `desktop-mode.desktop-theme.changed` *(action)*
+### Hook: `os.os-theme.changed` *(action)*
 
 Same payload as the CustomEvent, on the hook bus.
 
 ```js
 wp.hooks.addAction(
-    'desktop-mode.desktop-theme.changed',
+    'os.os-theme.changed',
     'my-plugin',
     ( { themeId, previous } ) => { /* … */ },
 );
 ```
 
-### Hook: `desktop-mode.desktop-theme.icon` *(filter)*
+### Hook: `os.os-theme.icon` *(filter)*
 
 Applied to every themed icon the active theme resolves.
 
 ```js
 wp.hooks.addFilter(
-    'desktop-mode.desktop-theme.icon',
+    'os.os-theme.icon',
     'my-plugin',
     ( icon, { slot, themeId } ) => {
         if ( slot === 'APP:my-plugin' ) {
@@ -5390,18 +7224,331 @@ Only runs while a theme is **active** — with no theme the resolver
 short-circuits on a null check and never reaches the filter, so
 subscribers cost nothing on an unthemed shell.
 
-### `<wpd-window-button icon-src>`
+### `<os-window-button icon-src>`
 
 New observed attribute. Precedence: `icon-src` > `icon` > slotted
 content. Accepts an `http(s)` or `data:image/` URL and paints it as a
-`currentColor`-tinted CSS mask, which preserves the `--wpd-btn-*`
+`currentColor`-tinted CSS mask, which preserves the `--os-ui-btn-*`
 focused/unfocused tinting contract. **Only the alpha channel is used**
 — control glyphs are monochrome silhouettes by design.
 
 ---
 
+## AI Agents — client surface *(Experimental)*
+
+Opt-in behind the `agents` extended option; nothing below exists while
+the flag is off. The PHP contract lives in
+[Hooks Reference — AI Agents](./hooks-reference.md#ai-agents).
+
+### REST client
+
+The Agents section talks to `/desktop-mode/v1/agents` (see
+`includes/rest/README.md` for the route map). The canonical agent
+shape every route returns:
+
+```ts
+interface Agent {
+	id: number;          // wp_users.ID
+	slug: string;        // user_login minus the 'agent-' prefix
+	name: string;
+	description: string;
+	instructions: string; // system prompt
+	role: string;
+	abilities: string[]; // ability slugs (allowlist)
+	triggers: Array< { kind: string; config: Record< string, unknown > } >;
+	model: string;
+	rateLimit: number;   // invocations/hour, 0 = platform default
+	avatarUrl: string;
+}
+```
+
+`POST /agents/{id}/invoke` with `{ message, source?, history? }`
+returns `{ text, toolCalls, turns }` where each tool call is
+`{ callId, name, args, output, error }`.
+
+`history` is the prior conversation (`[ { role: 'user'|'agent', text },
+… ]`, oldest first) and is **required for multi-turn work**: each
+invocation is otherwise stateless, so a follow-up ("yes, do it")
+arrives with no idea which entity was being discussed. The server caps
+it at the 20 most recent turns, 4000 characters each. Both in-tree
+intakes (typing in the chat window, and drops) go through
+`invokeAgentIntoTranscript()` in `src/agents-dispatch.ts`, which
+snapshots the transcript before appending the new message.
+
+### WP Explorer integration
+
+The server appends an `agents` entity (`kind: 'agent'`) to the site
+folder window via the `openstation_my_wordpress_entities` filter,
+and ships an `agents` block on the window config:
+
+```ts
+interface AgentsSectionConfig {
+	canManage: boolean;   // edit_users (filterable)
+	canInvoke: boolean;   // edit_posts (filterable)
+	aiAvailable: boolean; // WP 7.0 AI Client + Abilities API present
+	aiStatusUrl: string;  // live provider probe (/ai/status)
+	connectorsUrl: string;
+	runWindowId: string;  // 'desktop-mode-agent-run'
+}
+```
+
+The `agent` entity-kind renderer is registered through the standard
+`registerEntityKind()` seam — plugins can override it like any other
+kind.
+
+### Chat window + shared store
+
+The `desktop-mode-agent-run` native window is a lazy bundle
+(`agent-run-window[.min].js`) that registers its render callback on
+`window.openStationNativeWindows['desktop-mode-agent-run']`. Openers
+seed the cross-bundle store and open the window:
+
+```ts
+// Both bundles share one live object via createSharedStore.
+const store = wp.os.createSharedStore( 'desktop-mode/agents-chat', () => ( {
+	activeAgent: null, // { id, name, description, avatarUrl } | null
+	transcripts: {},   // Record<agentId, Array<{ role, text, toolCalls?, at, pending? }>>
+} ) );
+store.state.activeAgent = { id, name, description, avatarUrl };
+store.notify();
+wp.os.openWindow( 'desktop-mode-agent-run', { source: 'my-plugin' } );
+```
+
+Transcripts are session-only; nothing persists client-side.
+
+### Drag & drop intake
+
+Agents accept entity drops (`post`, `page`, `media`, `user`,
+`comment`) on three surfaces, all dispatching through the shared
+`src/agents-dispatch.ts` engine (compose message → seed the chat
+store → open the chat window → `POST /invoke` with `source: 'drag'`):
+
+- **Agent rows** in WP Explorer's Agents section — drop targets
+  registered per row via `wp.os.dragManager`.
+- **Agent user tiles on the wallpaper** — opted in through the files
+  layer's tile-payload-handler seam. Gating is payload-driven: the
+  server inlines `isAgent: true` and `agentDragKinds` into the
+  desktop user-file payload (`agentDragKinds` mirrors the drag
+  trigger's `entityKinds`; `null` = no drag trigger, drops rejected;
+  `[]` = accepts every kind).
+- **The open Agent chat window** — accepts drops for the active agent
+  without drag-trigger gating (dropping into an open conversation is
+  explicit intent, like typing).
+
+Double-clicking an agent's user tile on the desktop opens the Agent
+chat window (the built-in `agent-chat` opener, gated by a per-file
+`appliesTo` predicate on `file.shape.isAgent`) instead of the user
+profile; human user tiles are unaffected. The user-file payload
+carries `agentDescription` so the chat header can show the agent's
+"when to use" line without a REST roundtrip.
+
+Accepted drag payload types are the in-tree entity carriers:
+`'shortcut'` (WP Explorer tiles, `os-tile` drag-out; `attachment`
+maps to `media`, pages are detected via `bridgePayload.postType`) and
+`'desktop-file'` (wallpaper tiles, via `placement.file`).
+
+---
+
+## `wp.os.registerWindowAction()` — *Experimental*
+
+Adds a row to the ⋯ actions menu in **every** window's title bar — the
+right surface for an infrequent, wordy, per-window verb that has not
+earned a permanent title-bar button. (For something the user reaches
+for constantly, use
+[`registerTitleBarButton`](#wposregistertitlebarbutton--stable)
+instead.)
+
+```js
+wp.os.registerWindowAction( {
+    id: 'my-plugin/pin',
+    label: ( win ) => ( isPinned( win.id ) ? 'Unpin' : 'Pin to top' ),
+    icon: 'dashicons-sticky',
+    order: 60,
+    isVisible: ( win ) => ! win.config.native,
+    onSelect: ( win ) => togglePin( win.id ),
+    owner: 'my-plugin-shell',
+} );
+```
+
+| Field | Type | Notes |
+|---|---|---|
+| `id` | `string` | Required. `/^[a-z0-9_/-]+$/`; `vendor/sub-id` namespacing encouraged. |
+| `label` | `string \| ( win ) => string` | Required. A function is re-read on **every menu open**. |
+| `icon` | `string \| ( win ) => string` | Dashicons class. Optional; also re-read per open. |
+| `order` | `number` | Sort order among registered rows. Default `100`. |
+| `isVisible` | `( win ) => boolean` | Optional. Re-read per open; omit to show everywhere. |
+| `checkable` | `boolean` | Paint the row as a checkbox instead of a verb. Requires `checked`. |
+| `checked` | `( win ) => boolean` | Required with `checkable`. Re-read per open. |
+| `closeOnSelect` | `boolean` | Whether selecting closes the menu. Defaults to `true` for a verb, `false` for a checkbox. |
+| `onSelect` | `( win ) => void` | Required. For a verb the menu is closed before it is called; for a checkbox the tick flips first and the menu stays open. |
+| `owner` | `string` | Script handle, for live unregistration on deactivation. See below. |
+
+Also: `wp.os.unregisterWindowAction( id )` and
+`wp.os.listWindowActions()`.
+
+**Checkbox rows.** Set `checkable` with a `checked` reader and the row
+reports a preference instead of running a verb:
+
+```js
+wp.os.registerWindowAction( {
+    id: 'my-plugin/show-pins',
+    label: 'Show pins',
+    checkable: true,
+    checked: () => localStorage.getItem( 'my-plugin/pins' ) === '1',
+    isVisible: ( win ) => win.id === 'my-plugin-board',
+    onSelect: () => {
+        const next = localStorage.getItem( 'my-plugin/pins' ) === '1' ? '0' : '1';
+        localStorage.setItem( 'my-plugin/pins', next );
+        repaint();
+    },
+} );
+```
+
+`checked` is asked on every open, never told — so persist the value
+and repaint nothing; the row cannot go stale for longer than one open,
+however the value changed (another window, a settings panel, a REST
+response landing late). The shell flips the tick optimistically on
+click and leaves the menu open, so the user sees it land and can flip
+it back without reopening. A `checked` that throws paints the row
+unchecked rather than dropping it: losing the indicator is recoverable,
+losing the row is not.
+
+Registering `checkable` without `checked` throws — a checkbox nobody
+can ask renders permanently unticked, which reads as broken
+persistence in your plugin rather than a missing field here.
+
+**Checkbox or relabelling verb?** Both express a two-state thing, and
+they are not interchangeable. Use a relabelling `label` function when
+the two states are two *places* the window can be ("Send to your Mac"
+/ "Bring back into OpenStation") — the row names the move. Use a
+checkbox when they are one setting the window either has or does not:
+a tick says "there is a thing here, and it is currently off", which a
+label reading "Show pins" alone cannot.
+
+**Making `owner` mean something.** Pair it with the PHP opt-in
+[`openstation_register_window_action_script( 'my-plugin-shell' )`](./hooks-reference.md#openstation_register_window_action_script-handle--experimental-php-function)
+and pass the same handle. That puts your script in the live-refresh
+payload, so activating your plugin loads it — the row is in the next ⋯
+menu that opens, no reload — and deactivating it sweeps every action
+tagged with that handle back out.
+
+Without the PHP call there is nothing to diff, so an `owner` tag is
+inert: the row stays until the next page reload. That is deliberate
+backwards-compat, the same bargain commands and title-bar buttons
+offer, but it does mean `owner` alone is not the whole opt-in.
+
+**Why `label` / `icon` / `isVisible` / `checked` may be functions.** They are read
+fresh every time the menu opens, not once at registration. That is what
+lets one row express a toggle whose meaning depends on state — "Send to
+your Mac" becoming "Bring back into OpenStation" for the same window —
+without the plugin re-registering itself on every transition. A window
+is in one place or the other, so one row that answers "what does this
+do right now?" is the honest shape; two competing rows would
+misdescribe it.
+
+A row whose resolver or handler throws is contained: the row hides (or
+the click is swallowed) and the rest of the menu keeps working. The ⋯
+menu is shared surface, and the user's "Reload" lives there.
+
+Registering or unregistering repaints menus on their next open;
+`registerWindowAction` throws a `RegistrationError` naming the bad
+field when validation fails.
+
+### `HOOKS.WINDOW_MENU_OPENED` — *Experimental*
+
+Fires when a window's ⋯ actions menu opens, **after** its rows have
+been painted. Payload: `{ windowId: string, element: HTMLElement }`,
+where `element` is the `<os-menu>` panel.
+
+The moment to do work a menu's contents depend on but that is too
+expensive, or too perishable, to do up front — probing the network,
+re-reading a permission, checking whether a companion app has started
+since the page loaded.
+
+**An open menu repaints itself when the registry changes.** So
+registering an action from this hook — even asynchronously — puts the
+row under the user's pointer rather than on their next click:
+
+```js
+wp.os.hooks.addAction( wp.os.HOOKS.WINDOW_MENU_OPENED, 'my-plugin/probe', () => {
+    void probeForCompanionApp().then( ( found ) => {
+        if ( found ) {
+            wp.os.registerWindowAction( { /* … */ } );
+        }
+    } );
+} );
+```
+
+That is why it fires after the paint rather than before. The
+subscription lives only while the menu is open.
+
+---
+
+## Native desktop host — `wp.os.electron` *(Experimental)*
+
+Published by the **Electron Adapter extension**, not by core, when the
+desktop is being viewed through the OpenStation Desktop app. Absent in
+a browser, so check before use:
+
+```js
+if ( wp.os.electron?.isAvailable() ) {
+    console.log( wp.os.electron.getSendLabel() ); // "Send to your Mac"
+    await wp.os.electron.free( 'edit-php' );
+}
+```
+
+Full narrative, the REST surface, and the adapter's PHP hooks:
+[Native Desktop Host](./desktop-host.md).
+
+| Method | Returns | Notes |
+|---|---|---|
+| `isAvailable()` | `boolean` | Always true when the namespace exists. |
+| `getInfo()` | `HostInfo \| null` | Platform, app version, host id, currently-freed ids. |
+| `getSendLabel()` | `string` | Translated and OS-adapted. |
+| `getDockLabel()` | `string` | "Bring back into OpenStation". |
+| `isFreedWindow()` | `boolean` | Whether *this page* is itself a freed window. |
+| `free( windowId )` | `Promise<boolean>` | Set a window free; focuses it if already free. |
+| `dock( windowId )` | `Promise<boolean>` | Bring a freed window back into the shell. |
+| `listFreed()` | `string[]` | Ids currently out on the desktop. |
+| `isFreed( windowId )` | `boolean` | Whether one specific window is out there. |
+| `getConnection()` | `ConnectionState` | Last liveness-pulse snapshot. |
+
+Anything that would surface a freed window inside the shell — a dock
+click, the switcher, a plugin calling `openWindow()` — raises the
+**native** window instead. Plugin authors get that for free.
+
+### CustomEvents
+
+| Event | `detail` | Fires when |
+|---|---|---|
+| `os-desktop-host-freed` | `{ windowId: string }` | A window went out to the real desktop. |
+| `os-desktop-host-docked` | `{ windowId: string }` | A freed window came back into the shell. |
+| `os-desktop-host-connection` | `ConnectionState` | The connection changed phase. |
+
+### Shell config key
+
+| Key | Type | Notes |
+|---|---|---|
+| `soloWindow` | `string` | Window id when the shell was asked to paint exactly one window (`?openstation_solo=<id>`); `''` otherwise. No dock, taskbar, wallpaper, desk or admin bar, and no session restore. Generic — an embed or a kiosk can use it too. |
+
+### `window.openStationChromelessHost` — *Experimental*
+
+Set this to `true` **before a page's own scripts run** to claim a
+top-level chromeless page as deliberately hosted. Without it, the
+chromeless bridge treats a top-level `?openstation_chromeless=1` page
+as an accident and rescues the user by stripping the flag and reloading
+as classic admin — correct for a stale bookmark, wrong for an embedder
+that put the page there on purpose and provides its own way out.
+
+It must be a global rather than a query flag: a flag is lost on the
+first in-page navigation. See
+[bridge-protocol.md](./bridge-protocol.md#top-frame-escape-hatch--and-how-to-opt-out).
+
+---
+
 ## See also
 
+- [Native Desktop Host](./desktop-host.md) — the Electron layer, solo mode, and the liveness pulse.
 - [Hooks Reference](./hooks-reference.md) — the PHP side of the API.
 - [Examples — React to window events](./examples/react-to-window-events.md)
 - [Examples — Add a dock badge](./examples/dock-badge.md)

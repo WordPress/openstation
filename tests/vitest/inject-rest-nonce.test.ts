@@ -1,14 +1,12 @@
 /**
  * Pins the contract for the framework's auto X-WP-Nonce injection.
  *
- * The injection is what makes `wp.desktop.fetch` "just work" against
+ * The injection is what makes `wp.os.fetch` "just work" against
  * REST endpoints from authenticated sessions — without it, plugin
  * authors hit silent 401s the moment they touch `/wp-json/...`
  * because WordPress's `rest_cookie_check_errors()` demotes a
  * cookie-only request to anonymous. The behavior is documented as
  * Stable so the cases below are load-bearing.
- *
- * @since 0.20.0
  */
 import {
 	afterEach,
@@ -28,13 +26,13 @@ function getNonceHeader( init: RequestInit | undefined ): string | null {
 
 describe( 'injectRestNonce', () => {
 	beforeEach( () => {
-		( window as unknown as { desktopModeConfig?: unknown } ).desktopModeConfig = {
+		( window as unknown as { openStationConfig?: unknown } ).openStationConfig = {
 			restNonce: 'abc123',
 		};
 	} );
 
 	afterEach( () => {
-		delete ( window as unknown as { desktopModeConfig?: unknown } ).desktopModeConfig;
+		delete ( window as unknown as { openStationConfig?: unknown } ).openStationConfig;
 	} );
 
 	test( 'adds the nonce to a pretty-permalink REST URL', () => {
@@ -88,8 +86,8 @@ describe( 'injectRestNonce', () => {
 		expect( getNonceHeader( result ) ).toBeNull();
 	} );
 
-	test( 'bails when desktopModeConfig is missing', () => {
-		delete ( window as unknown as { desktopModeConfig?: unknown } ).desktopModeConfig;
+	test( 'bails when openStationConfig is missing', () => {
+		delete ( window as unknown as { openStationConfig?: unknown } ).openStationConfig;
 		const original: RequestInit = {};
 		const result = injectRestNonce(
 			'/wp-json/wp/v2/posts',
@@ -100,7 +98,7 @@ describe( 'injectRestNonce', () => {
 	} );
 
 	test( 'bails when restNonce is an empty string', () => {
-		( window as unknown as { desktopModeConfig?: unknown } ).desktopModeConfig = {
+		( window as unknown as { openStationConfig?: unknown } ).openStationConfig = {
 			restNonce: '',
 		};
 		const result = injectRestNonce( '/wp-json/wp/v2/posts' );

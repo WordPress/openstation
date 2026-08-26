@@ -8,8 +8,6 @@
  * list `Sprite` tree the other canvas wallpapers use — mirroring
  * `src/plugins/living-tree-wallpaper/pixi-types.ts` so the two stay
  * type-compatible without a hard dependency on the `pixi.js` package.
- *
- * @since 0.9.5
  */
 
 export interface PixiTexture {

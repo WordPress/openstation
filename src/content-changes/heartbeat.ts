@@ -10,7 +10,7 @@
  * module: the server appends every recorded change to a pruned
  * changelog option, and each Heartbeat tick answers "entries newer
  * than your seen ts". Fresh entries are re-broadcast on the bus as
- * `desktop-mode.<type>.changed`, so the same consumers (iframe
+ * `os.<type>.changed`, so the same consumers (iframe
  * soft-reload, native list windows) refresh within one tick
  * (15–60 s) with zero extra plumbing.
  *
@@ -26,8 +26,6 @@
  * or editor path is re-broadcast once on the next tick (the bus has
  * no per-change identity to dedupe on). Consumers are idempotent —
  * the cost is one extra refresh fetch per change.
- *
- * @since 0.9.7
  */
 
 import { broadcast } from '../broadcast';
@@ -58,12 +56,12 @@ let seenTs: number | null = null;
  * @internal
  */
 export function bootContentChangesHeartbeat(): void {
-	heartbeat.contribute( 'desktop_mode_content_changes_seen_ts', () =>
+	heartbeat.contribute( 'openstation_content_changes_seen_ts', () =>
 		seenTs === null ? 0 : seenTs,
 	);
 
 	heartbeat.subscribe< ContentChangesBlock >(
-		'desktop_mode_content_changes',
+		'openstation_content_changes',
 		( block ) => {
 			if ( ! block || typeof block.ts !== 'number' ) {
 				return;
@@ -84,7 +82,7 @@ export function bootContentChangesHeartbeat(): void {
 					) {
 						continue;
 					}
-					broadcast( `desktop-mode.${ entry.type }.changed`, {
+					broadcast( `os.${ entry.type }.changed`, {
 						source: 'heartbeat',
 						action:
 							typeof entry.action === 'string' && entry.action !== ''

@@ -6,8 +6,6 @@
  * sampled per vertex / per leaf and multiplied by each element's
  * `compliance` so tips sway and the trunk stays still. Non-interactive.
  * Reduced-motion → strength 0. See `docs/living-tree-algorithm.md` §A.8.
- *
- * @since 0.9.4
  */
 
 import type { Vec2 } from './types';

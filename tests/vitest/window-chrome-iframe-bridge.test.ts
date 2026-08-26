@@ -2,7 +2,7 @@
  * Phase E tests — iframe → parent chrome bridge.
  *
  * The parent's `handleWindowMessage` routes three new message types
- * (`desktop-mode-chrome-theme/controls/slot`) to the matching
+ * (`os-chrome-theme/controls/slot`) to the matching
  * `Window.setAppearance*` methods. These tests stub a Window-shaped
  * receiver, post each message, and assert the right setter fired
  * with the right payload.
@@ -56,12 +56,12 @@ afterEach( () => {
 } );
 
 describe( 'iframe-bridge — chrome messages', () => {
-	test( 'desktop-mode-chrome-theme dispatches setAppearanceTheme(tokens)', () => {
+	test( 'os-chrome-theme dispatches setAppearanceTheme(tokens)', () => {
 		const { win, fakeContentWindow, spies } = buildFakeWindow();
 		const ev = postFrom( fakeContentWindow, {
-			type: 'desktop-mode-chrome-theme',
+			type: 'os-chrome-theme',
 			tokens: {
-				'--desktop-mode-titlebar-bg': '#101820',
+				'--os-titlebar-bg': '#101820',
 			},
 		} );
 		handleWindowMessage(
@@ -69,14 +69,14 @@ describe( 'iframe-bridge — chrome messages', () => {
 			ev,
 		);
 		expect( spies.setAppearanceTheme ).toHaveBeenCalledWith( {
-			'--desktop-mode-titlebar-bg': '#101820',
+			'--os-titlebar-bg': '#101820',
 		} );
 	} );
 
-	test( 'desktop-mode-chrome-controls dispatches setAppearanceControls(config)', () => {
+	test( 'os-chrome-controls dispatches setAppearanceControls(config)', () => {
 		const { win, fakeContentWindow, spies } = buildFakeWindow();
 		const ev = postFrom( fakeContentWindow, {
-			type: 'desktop-mode-chrome-controls',
+			type: 'os-chrome-controls',
 			config: { hide: [ 'core/detach' ] },
 		} );
 		handleWindowMessage(
@@ -88,10 +88,10 @@ describe( 'iframe-bridge — chrome messages', () => {
 		} );
 	} );
 
-	test( 'desktop-mode-chrome-slot dispatches setAppearanceSlot(name, { html })', () => {
+	test( 'os-chrome-slot dispatches setAppearanceSlot(name, { html })', () => {
 		const { win, fakeContentWindow, spies } = buildFakeWindow();
 		const ev = postFrom( fakeContentWindow, {
-			type: 'desktop-mode-chrome-slot',
+			type: 'os-chrome-slot',
 			slot: 'after-title',
 			html: 'BETA',
 		} );
@@ -111,7 +111,7 @@ describe( 'iframe-bridge — chrome messages', () => {
 			origin: 'https://attacker.test',
 			source: fakeContentWindow,
 			data: {
-				type: 'desktop-mode-chrome-theme',
+				type: 'os-chrome-theme',
 				tokens: { '--bad': '1' },
 			},
 		} );
@@ -126,7 +126,7 @@ describe( 'iframe-bridge — chrome messages', () => {
 		const { win, spies } = buildFakeWindow();
 		const otherSource = {} as Window;
 		const ev = postFrom( otherSource, {
-			type: 'desktop-mode-chrome-theme',
+			type: 'os-chrome-theme',
 			tokens: { '--x': '1' },
 		} );
 		handleWindowMessage(
@@ -139,7 +139,7 @@ describe( 'iframe-bridge — chrome messages', () => {
 	test( 'malformed payload (missing tokens) is rejected', () => {
 		const { win, fakeContentWindow, spies } = buildFakeWindow();
 		const ev = postFrom( fakeContentWindow, {
-			type: 'desktop-mode-chrome-theme',
+			type: 'os-chrome-theme',
 		} );
 		handleWindowMessage(
 			win as Parameters< typeof handleWindowMessage >[ 0 ],

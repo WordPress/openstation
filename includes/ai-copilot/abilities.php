@@ -1,19 +1,19 @@
 <?php
 /**
- * Desktop Mode — AI Copilot abilities.
+ * OpenStation — AI Copilot abilities.
  *
  * The Copilot's tools are WordPress Abilities API abilities: the agent loop
  * offers the model every registered read-only ability (see
- * {@see desktop_mode_ai_search_ability_names()}) and runs a chosen one through
+ * {@see openstation_ai_search_ability_names()}) and runs a chosen one through
  * `wp_get_ability()->execute()` — permission checks and input validation
  * happen inside `WP_Ability::execute()`.
  *
  * Every ability's `execute_callback` delegates to the existing query handlers
- * (via {@see desktop_mode_ai_search_dispatch_tool()} / the comment scorer) so
+ * (via {@see openstation_ai_search_dispatch_tool()} / the comment scorer) so
  * there is a single implementation of each tool. The ability is the source of
  * truth for the model-facing description + input schema.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -21,29 +21,27 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Ability category slug shared by every Copilot ability.
  */
-const DESKTOP_MODE_AI_ABILITY_CATEGORY = 'desktop-mode';
+const OPENSTATION_AI_ABILITY_CATEGORY = 'openstation';
 
 /**
- * Registers the `desktop-mode` ability category.
- *
- * @since 0.9.4
+ * Registers the `openstation` ability category.
  *
  * @return void
  */
-function desktop_mode_ai_register_ability_category() {
+function openstation_ai_register_ability_category() {
 	if ( ! function_exists( 'wp_register_ability_category' ) ) {
 		return;
 	}
 
 	wp_register_ability_category(
-		DESKTOP_MODE_AI_ABILITY_CATEGORY,
+		OPENSTATION_AI_ABILITY_CATEGORY,
 		array(
-			'label'       => __( 'Desktop Mode', 'desktop-mode' ),
-			'description' => __( 'Read-only content search and wp-admin navigation abilities powering the Desktop Mode AI assistant.', 'desktop-mode' ),
+			'label'       => __( 'OpenStation', 'desktop-mode' ),
+			'description' => __( 'Read-only content search and wp-admin navigation abilities powering the OpenStation AI assistant.', 'desktop-mode' ),
 		)
 	);
 }
-add_action( 'wp_abilities_api_categories_init', 'desktop_mode_ai_register_ability_category' );
+add_action( 'wp_abilities_api_categories_init', 'openstation_ai_register_ability_category' );
 
 /**
  * The ability names the Copilot offers the model as tools.
@@ -59,11 +57,9 @@ add_action( 'wp_abilities_api_categories_init', 'desktop_mode_ai_register_abilit
  * tool result), so the model is never handed an ability that could change the
  * site.
  *
- * @since 0.9.4
- *
  * @return string[] Fully-namespaced ability names.
  */
-function desktop_mode_ai_search_ability_names() {
+function openstation_ai_search_ability_names() {
 	if ( ! function_exists( 'wp_get_abilities' ) ) {
 		return array();
 	}
@@ -91,12 +87,10 @@ function desktop_mode_ai_search_ability_names() {
  * → `search_posts`), so progress labels, the system prompt, and the answer
  * schema keep referring to the same names across the abilities migration.
  *
- * @since 0.9.4
- *
  * @param string $ability_name Fully-namespaced ability name.
  * @return string
  */
-function desktop_mode_ai_ability_tool_name( $ability_name ) {
+function openstation_ai_ability_tool_name( $ability_name ) {
 	$slug = (string) $ability_name;
 	$pos  = strpos( $slug, '/' );
 	if ( false !== $pos ) {
@@ -116,11 +110,9 @@ function desktop_mode_ai_ability_tool_name( $ability_name ) {
  * Mirrors the read-only search/navigation tools, which were ungated beyond the
  * Copilot's own logged-in requirement.
  *
- * @since 0.9.4
- *
  * @return bool
  */
-function desktop_mode_ai_ability_can_read() {
+function openstation_ai_ability_can_read() {
 	return is_user_logged_in() && current_user_can( 'read' );
 }
 
@@ -129,12 +121,10 @@ function desktop_mode_ai_ability_can_read() {
  * so `WP_Ability::execute()`'s output validation never rejects a valid handler
  * return (the shapes carry optional/nested fields we don't want to freeze).
  *
- * @since 0.9.4
- *
  * @param array<string,array<string,mixed>> $properties Documented top-level props.
  * @return array<string,mixed>
  */
-function desktop_mode_ai_ability_output_schema( array $properties = array() ) {
+function openstation_ai_ability_output_schema( array $properties = array() ) {
 	return array(
 		'type'                 => 'object',
 		'additionalProperties' => true,
@@ -149,11 +139,9 @@ function desktop_mode_ai_ability_output_schema( array $properties = array() ) {
 /**
  * Registers every Copilot ability.
  *
- * @since 0.9.4
- *
  * @return void
  */
-function desktop_mode_ai_register_abilities() {
+function openstation_ai_register_abilities() {
 	if ( ! function_exists( 'wp_register_ability' ) ) {
 		return;
 	}
@@ -174,25 +162,46 @@ function desktop_mode_ai_register_abilities() {
 		),
 	);
 
-	$search_output = desktop_mode_ai_ability_output_schema(
+	$search_output = openstation_ai_ability_output_schema(
 		array(
-			'items'    => array( 'type' => 'array', 'description' => 'Matching entities with identity, excerpt, and URLs.' ),
-			'count'    => array( 'type' => 'integer', 'description' => 'Number of items in this batch.' ),
-			'total'    => array( 'type' => 'integer', 'description' => 'Total matches across all batches.' ),
-			'has_more' => array( 'type' => 'boolean', 'description' => 'Whether another batch is available at the next offset.' ),
+			'items'    => array(
+				'type'        => 'array',
+				'description' => 'Matching entities with identity, excerpt, and URLs.',
+			),
+			'count'    => array(
+				'type'        => 'integer',
+				'description' => 'Number of items in this batch.',
+			),
+			'total'    => array(
+				'type'        => 'integer',
+				'description' => 'Total matches across all batches.',
+			),
+			'has_more' => array(
+				'type'        => 'boolean',
+				'description' => 'Whether another batch is available at the next offset.',
+			),
 		)
 	);
 
 	$readonly_meta = array(
-		'annotations'  => array( 'readonly' => true, 'idempotent' => true ),
+		'annotations'  => array(
+			'readonly'   => true,
+			'idempotent' => true,
+		),
 		'show_in_rest' => true,
-		'mcp'          => array( 'public' => true, 'type' => 'tool' ),
+		'mcp'          => array(
+			'public' => true,
+			'type'   => 'tool',
+		),
 	);
 
 	// Admin-only abilities are still read-only, but must not be exposed to
 	// external agents over MCP.
 	$readonly_private_meta = array(
-		'annotations'  => array( 'readonly' => true, 'idempotent' => true ),
+		'annotations'  => array(
+			'readonly'   => true,
+			'idempotent' => true,
+		),
 		'show_in_rest' => true,
 	);
 
@@ -201,13 +210,13 @@ function desktop_mode_ai_register_abilities() {
 		array(
 			'label'               => __( 'Search posts', 'desktop-mode' ),
 			'description'         => 'Keyword-searches published WordPress blog posts by title and content (WordPress native search). Use this when the user is looking for content they or someone else wrote as a post or article. Pass the key search terms as `query`. Returns up to 10 matching posts with their title, a content excerpt, date, and URLs. If has_more is true, call again with the next offset.',
-			'category'            => DESKTOP_MODE_AI_ABILITY_CATEGORY,
+			'category'            => OPENSTATION_AI_ABILITY_CATEGORY,
 			'input_schema'        => $query_offset_input,
 			'output_schema'       => $search_output,
 			'execute_callback'    => static function ( $input ) {
-				return desktop_mode_ai_search_dispatch_tool( 'search_posts', (array) $input );
+				return openstation_ai_search_dispatch_tool( 'search_posts', (array) $input );
 			},
-			'permission_callback' => 'desktop_mode_ai_ability_can_read',
+			'permission_callback' => 'openstation_ai_ability_can_read',
 			'meta'                => $readonly_meta,
 		)
 	);
@@ -217,13 +226,13 @@ function desktop_mode_ai_register_abilities() {
 		array(
 			'label'               => __( 'Search pages', 'desktop-mode' ),
 			'description'         => 'Keyword-searches published WordPress pages (About, Contact, Services, Portfolio, etc.) by title and content. Use this when the user is looking for a static page, landing page, or informational page on the site. Pass the key search terms as `query`. Returns up to 10 matching pages with their title, a content excerpt, and URLs. If has_more is true, call again with the next offset.',
-			'category'            => DESKTOP_MODE_AI_ABILITY_CATEGORY,
+			'category'            => OPENSTATION_AI_ABILITY_CATEGORY,
 			'input_schema'        => $query_offset_input,
 			'output_schema'       => $search_output,
 			'execute_callback'    => static function ( $input ) {
-				return desktop_mode_ai_search_dispatch_tool( 'search_pages', (array) $input );
+				return openstation_ai_search_dispatch_tool( 'search_pages', (array) $input );
 			},
-			'permission_callback' => 'desktop_mode_ai_ability_can_read',
+			'permission_callback' => 'openstation_ai_ability_can_read',
 			'meta'                => $readonly_meta,
 		)
 	);
@@ -233,13 +242,13 @@ function desktop_mode_ai_register_abilities() {
 		array(
 			'label'               => __( 'Search comments', 'desktop-mode' ),
 			'description'         => 'Keyword-searches approved WordPress comments across ALL posts by their text (WordPress native search). Use this when the user remembers something a reader said but does not know which post it was on. Pass the distinctive words from the comment as `query`. Returns up to 10 matching comments with an excerpt, parent post title, and URLs. If has_more is true, call again with the next offset.',
-			'category'            => DESKTOP_MODE_AI_ABILITY_CATEGORY,
+			'category'            => OPENSTATION_AI_ABILITY_CATEGORY,
 			'input_schema'        => $query_offset_input,
 			'output_schema'       => $search_output,
 			'execute_callback'    => static function ( $input ) {
-				return desktop_mode_ai_search_dispatch_tool( 'search_comments', (array) $input );
+				return openstation_ai_search_dispatch_tool( 'search_comments', (array) $input );
 			},
-			'permission_callback' => 'desktop_mode_ai_ability_can_read',
+			'permission_callback' => 'openstation_ai_ability_can_read',
 			'meta'                => $readonly_meta,
 		)
 	);
@@ -249,7 +258,7 @@ function desktop_mode_ai_register_abilities() {
 		array(
 			'label'               => __( 'Search comments on a post', 'desktop-mode' ),
 			'description'         => 'Keyword-searches approved comments on a SPECIFIC post by its WordPress ID. Use this when you have already identified a post (via search-posts) and the user\'s query also mentions something a reader said on that post — e.g. "I remember a comment on my Málaga post asking about the Alcazaba at night." Call search-posts first to find the post ID, then call this tool with that ID and the distinctive words as `query`. Much more precise than search-comments when the parent post is known. If has_more is true, call again with the next offset.',
-			'category'            => DESKTOP_MODE_AI_ABILITY_CATEGORY,
+			'category'            => OPENSTATION_AI_ABILITY_CATEGORY,
 			'input_schema'        => array(
 				'type'                 => 'object',
 				'additionalProperties' => false,
@@ -271,9 +280,9 @@ function desktop_mode_ai_register_abilities() {
 			),
 			'output_schema'       => $search_output,
 			'execute_callback'    => static function ( $input ) {
-				return desktop_mode_ai_search_dispatch_tool( 'search_comments_by_post', (array) $input );
+				return openstation_ai_search_dispatch_tool( 'search_comments_by_post', (array) $input );
 			},
-			'permission_callback' => 'desktop_mode_ai_ability_can_read',
+			'permission_callback' => 'openstation_ai_ability_can_read',
 			'meta'                => $readonly_meta,
 		)
 	);
@@ -282,21 +291,32 @@ function desktop_mode_ai_register_abilities() {
 		'desktop-mode/list-admin-pages',
 		array(
 			'label'               => __( 'List admin pages', 'desktop-mode' ),
-			'description'         => 'Returns the full catalog of WordPress admin (wp-admin) destinations — pages for managing posts, categories, users, plugins, themes, settings, etc. Call this when the user asks "where can I find X?", "how do I get to Y?", "where are the settings for Z?" — any navigational question about the admin UI. Once you have the catalog, select the 1-3 most relevant entries for the user\'s query and include them in your answer under admin_links with answer_type="navigation". The catalog is small and stable so one call is enough.',
-			'category'            => DESKTOP_MODE_AI_ABILITY_CATEGORY,
+			// Describes the TOOL, not the caller's answer format: agents
+			// and the Copilot consume the same registry, and the
+			// Copilot's `admin_links` / `answer_type` contract exists in
+			// its own system prompt and answer schema. Naming those
+			// fields here would instruct an agent to emit a shape its
+			// answer schema does not have.
+			'description'         => 'Returns the full catalog of WordPress admin (wp-admin) destinations — pages for managing posts, categories, users, plugins, themes, settings, etc. Call this when the user asks "where can I find X?", "how do I get to Y?", "where are the settings for Z?" — any navigational question about the admin UI. Each entry carries a title, url, icon, and description, so pick the few most relevant to the query. The catalog is small and stable so one call is enough.',
+			'category'            => OPENSTATION_AI_ABILITY_CATEGORY,
 			'input_schema'        => array(
 				'type'                 => 'object',
 				'additionalProperties' => false,
 				'required'             => array(),
 				'properties'           => (object) array(),
 			),
-			'output_schema'       => desktop_mode_ai_ability_output_schema(
-				array( 'pages' => array( 'type' => 'array', 'description' => 'Admin destinations with title/url/icon/description.' ) )
+			'output_schema'       => openstation_ai_ability_output_schema(
+				array(
+					'pages' => array(
+						'type'        => 'array',
+						'description' => 'Admin destinations with title/url/icon/description.',
+					),
+				)
 			),
 			'execute_callback'    => static function ( $input ) {
-				return desktop_mode_ai_search_dispatch_tool( 'list_admin_pages', (array) $input );
+				return openstation_ai_search_dispatch_tool( 'list_admin_pages', (array) $input );
 			},
-			'permission_callback' => 'desktop_mode_ai_ability_can_read',
+			'permission_callback' => 'openstation_ai_ability_can_read',
 			'meta'                => $readonly_meta,
 		)
 	);
@@ -305,8 +325,8 @@ function desktop_mode_ai_register_abilities() {
 		'desktop-mode/search-wporg-plugins',
 		array(
 			'label'               => __( 'Search WordPress.org plugins', 'desktop-mode' ),
-			'description'         => 'Searches the official WordPress.org plugin directory. Use this when the user asks for a plugin recommendation — e.g. "is there a plugin for SEO?", "find me a backup plugin", "a caching plugin", "form builder". Returns up to 10 plugins with name, description, rating, active install count, and an admin URL that opens the plugin-info / install screen directly. Present the results as admin_links with answer_type="navigation", titled "Plugin Name · 5M+ installs · 4.8★".',
-			'category'            => DESKTOP_MODE_AI_ABILITY_CATEGORY,
+			'description'         => 'Searches the official WordPress.org plugin directory. Use this when the user asks for a plugin recommendation — e.g. "is there a plugin for SEO?", "find me a backup plugin", "a caching plugin", "form builder". Returns up to 10 plugins with name, description, rating, active install count, and an admin URL that opens the plugin-info / install screen directly.',
+			'category'            => OPENSTATION_AI_ABILITY_CATEGORY,
 			'input_schema'        => array(
 				'type'                 => 'object',
 				'additionalProperties' => false,
@@ -318,16 +338,19 @@ function desktop_mode_ai_register_abilities() {
 					),
 				),
 			),
-			'output_schema'       => desktop_mode_ai_ability_output_schema(
+			'output_schema'       => openstation_ai_ability_output_schema(
 				array(
-					'results' => array( 'type' => 'array', 'description' => 'Matching plugins with name, description, rating, installs, and admin URL.' ),
+					'results' => array(
+						'type'        => 'array',
+						'description' => 'Matching plugins with name, description, rating, installs, and admin URL.',
+					),
 					'count'   => array( 'type' => 'integer' ),
 				)
 			),
 			'execute_callback'    => static function ( $input ) {
-				return desktop_mode_ai_search_dispatch_tool( 'search_wporg_plugins', (array) $input );
+				return openstation_ai_search_dispatch_tool( 'search_wporg_plugins', (array) $input );
 			},
-			'permission_callback' => 'desktop_mode_ai_ability_can_read',
+			'permission_callback' => 'openstation_ai_ability_can_read',
 			'meta'                => $readonly_meta,
 		)
 	);
@@ -337,7 +360,7 @@ function desktop_mode_ai_register_abilities() {
 		array(
 			'label'               => __( 'Read PHP error log', 'desktop-mode' ),
 			'description'         => 'Reads the most recent entries from the site\'s PHP error log — typically wp-content/debug.log when WP_DEBUG_LOG is enabled, or the path set by the PHP error_log directive. Use this when the user asks "are there any errors?", "check the logs", "what went wrong?", or is troubleshooting a white screen / 500. Each entry is parsed into { timestamp, level, message } so you can summarise them. Administrators only.',
-			'category'            => DESKTOP_MODE_AI_ABILITY_CATEGORY,
+			'category'            => OPENSTATION_AI_ABILITY_CATEGORY,
 			'input_schema'        => array(
 				'type'                 => 'object',
 				'additionalProperties' => false,
@@ -349,14 +372,17 @@ function desktop_mode_ai_register_abilities() {
 					),
 				),
 			),
-			'output_schema'       => desktop_mode_ai_ability_output_schema(
+			'output_schema'       => openstation_ai_ability_output_schema(
 				array(
 					'log_available' => array( 'type' => 'boolean' ),
-					'entries'       => array( 'type' => 'array', 'description' => 'Parsed log lines: { timestamp, level, message }.' ),
+					'entries'       => array(
+						'type'        => 'array',
+						'description' => 'Parsed log lines: { timestamp, level, message }.',
+					),
 				)
 			),
 			'execute_callback'    => static function ( $input ) {
-				return desktop_mode_ai_search_dispatch_tool( 'get_php_error_log', (array) $input );
+				return openstation_ai_search_dispatch_tool( 'get_php_error_log', (array) $input );
 			},
 			// Admin-only — mirrors the previous in-dispatcher manage_options gate.
 			'permission_callback' => static function () {
@@ -366,29 +392,27 @@ function desktop_mode_ai_register_abilities() {
 		)
 	);
 
-	desktop_mode_ai_register_comment_analysis_ability();
+	openstation_ai_register_comment_analysis_ability();
 }
-add_action( 'wp_abilities_api_init', 'desktop_mode_ai_register_abilities' );
+add_action( 'wp_abilities_api_init', 'openstation_ai_register_abilities' );
 
 /**
  * Registers the comment-spam analysis ability.
  *
  * Not offered to the model during a search turn (see
- * {@see desktop_mode_ai_search_ability_names()}); the moderation pipeline
- * resolves and executes it directly ({@see desktop_mode_ai_analyze_comment_now()}
+ * {@see openstation_ai_search_ability_names()}); the moderation pipeline
+ * resolves and executes it directly ({@see openstation_ai_analyze_comment_now()}
  * runs through it). Exposed in the abilities catalog for observability + reuse.
- *
- * @since 0.9.4
  *
  * @return void
  */
-function desktop_mode_ai_register_comment_analysis_ability() {
+function openstation_ai_register_comment_analysis_ability() {
 	wp_register_ability(
 		'desktop-mode/analyze-comment',
 		array(
 			'label'               => __( 'Analyze comment for spam', 'desktop-mode' ),
 			'description'         => 'Runs the AI spam/harm analysis for a single comment and returns its structured verdict ({ topic, ai_summary, harmful, spam }). Used by comment moderation to score incoming comments.',
-			'category'            => DESKTOP_MODE_AI_ABILITY_CATEGORY,
+			'category'            => OPENSTATION_AI_ABILITY_CATEGORY,
 			'input_schema'        => array(
 				'type'                 => 'object',
 				'additionalProperties' => false,
@@ -400,7 +424,7 @@ function desktop_mode_ai_register_comment_analysis_ability() {
 					),
 				),
 			),
-			'output_schema'       => desktop_mode_ai_ability_output_schema(
+			'output_schema'       => openstation_ai_ability_output_schema(
 				array(
 					'topic'      => array( 'type' => 'string' ),
 					'ai_summary' => array( 'type' => 'string' ),
@@ -408,12 +432,15 @@ function desktop_mode_ai_register_comment_analysis_ability() {
 					'spam'       => array( 'type' => 'boolean' ),
 				)
 			),
-			'execute_callback'    => 'desktop_mode_ai_ability_analyze_comment',
+			'execute_callback'    => 'openstation_ai_ability_analyze_comment',
 			'permission_callback' => static function () {
 				return current_user_can( 'moderate_comments' );
 			},
 			'meta'                => array(
-				'annotations'  => array( 'readonly' => true, 'idempotent' => true ),
+				'annotations'  => array(
+					'readonly'   => true,
+					'idempotent' => true,
+				),
 				'show_in_rest' => true,
 			),
 		)
@@ -423,17 +450,15 @@ function desktop_mode_ai_register_comment_analysis_ability() {
 /**
  * Execute callback for the `desktop-mode/analyze-comment` ability.
  *
- * @since 0.9.4
- *
  * @param array<string,mixed> $input Validated input (`comment_id`).
  * @return array|WP_Error Structured verdict, or an error.
  */
-function desktop_mode_ai_ability_analyze_comment( $input ) {
+function openstation_ai_ability_analyze_comment( $input ) {
 	$comment_id = isset( $input['comment_id'] ) ? (int) $input['comment_id'] : 0;
 	$comment    = $comment_id > 0 ? get_comment( $comment_id ) : null;
 	if ( ! $comment instanceof WP_Comment ) {
-		return new WP_Error( 'desktop_mode_ai_comment_not_found', __( 'Comment not found.', 'desktop-mode' ) );
+		return new WP_Error( 'openstation_ai_comment_not_found', __( 'Comment not found.', 'desktop-mode' ) );
 	}
 
-	return desktop_mode_ai_analyze_comment_now( $comment, (int) $comment->user_id );
+	return openstation_ai_analyze_comment_now( $comment, (int) $comment->user_id );
 }

@@ -1,17 +1,17 @@
 /**
- * Desktop Mode — service worker registration.
+ * OpenStation — service worker registration.
  *
- * Registers the SW served at `/desktop-mode/sw.js` against root scope.
- * The script itself lives at `/desktop-mode/`, so the server response
+ * Registers the SW served at `/openstation/sw.js` against root scope.
+ * The script itself lives at `/openstation/`, so the server response
  * carries `Service-Worker-Allowed: /` to lift the scope ceiling.
  *
  * Why root scope: a service worker has exactly one scope path, and
- * the only common ancestor of `/desktop-mode/` and `/wp-admin/` is
- * `/`. Registering narrowly under `/desktop-mode/` would mean the SW
+ * the only common ancestor of `/openstation/` and `/wp-admin/` is
+ * `/`. Registering narrowly under `/openstation/` would mean the SW
  * never sees admin-page navigations — defeating the purpose for the
  * usual install target (a dashboard URL inside wp-admin). The fetch
  * handler inside the SW itself stays narrow: it only intercepts
- * desktop-mode and wp-admin URLs, passing everything else straight
+ * openstation and wp-admin URLs, passing everything else straight
  * through. Behaviorally this is "narrow scope" from the user's POV
  * without inheriting the technical limitation.
  *
@@ -20,10 +20,8 @@
  * or shadowed by our root-scope `register()`. We detect any foreign
  * registration before registering and bail with a console warning
  * unless the operator explicitly opts in via the
- * `desktop_mode_pwa_force_replace_sw` PHP filter (returning `true`
+ * `openstation_pwa_force_replace_sw` PHP filter (returning `true`
  * surfaces as `forceReplace` on the JS-side config object).
- *
- * @since 0.8.0
  */
 
 import type { PwaConfig } from '../types';
@@ -36,7 +34,7 @@ import type { PwaConfig } from '../types';
  *   - `'registered'` — our SW is the controller (or activating).
  *   - `'foreign-sw'` — another SW (at any scope) is already registered
  *     on this origin and we bailed rather than usurp it. Operators can
- *     opt in via the `desktop_mode_pwa_force_replace_sw` PHP filter.
+ *     opt in via the `openstation_pwa_force_replace_sw` PHP filter.
  *   - `'unsupported'` — `navigator.serviceWorker` not available, or the
  *     origin isn't secure.
  *   - `'failed'` — `register()` threw.
@@ -116,7 +114,7 @@ function bindControllerChangeReload(): void {
 	} );
 }
 
-const SW_RELOAD_THROTTLE_KEY = 'wpd-sw-reload-ts';
+const SW_RELOAD_THROTTLE_KEY = 'os-sw-reload-ts';
 const SW_RELOAD_THROTTLE_MS = 30_000;
 
 function wasRecentlyReloadedForSwUpdate(): boolean {
@@ -142,6 +140,43 @@ function markReloadedForSwUpdate(): void {
 		sessionStorage.setItem( SW_RELOAD_THROTTLE_KEY, String( Date.now() ) );
 	} catch {
 		// See `wasRecentlyReloadedForSwUpdate` — swallow.
+	}
+}
+
+/**
+ * Script-URL path suffixes of OpenStation's own PREVIOUS service-worker
+ * endpoints. A browser that installed the PWA before an endpoint move
+ * still holds a registration pointing at the old URL — which now 404s
+ * (or serves an HTML page), so that worker can never self-update.
+ * Without this list the foreign-SW guard would compare full script
+ * URLs, mistake our own stale worker for another plugin's, refuse to
+ * register, and strand the user on a dead SW forever. Matching by
+ * suffix keeps subdirectory installs (`/site/desktop-mode/sw.js`)
+ * covered. Append here whenever the SW endpoint moves again.
+ */
+const OWN_LEGACY_SW_PATH_SUFFIXES = [ '/desktop-mode/sw.js' ] as const;
+
+/**
+ * Whether an existing registration's script URL is one of OUR OWN —
+ * current pretty URL, current extensionless fallback, or a legacy
+ * endpoint from before a portal-path move. Own registrations are never
+ * "foreign": registering the current URL at the same scope simply
+ * replaces them, which is exactly the recovery a stale worker needs.
+ */
+function isOwnSwScriptUrl(
+	url: string,
+	config: Pick< PwaConfig, 'swUrl' | 'swFallbackUrl' >,
+): boolean {
+	if ( url === config.swUrl || url === config.swFallbackUrl ) {
+		return true;
+	}
+	try {
+		const pathname = new URL( url ).pathname;
+		return OWN_LEGACY_SW_PATH_SUFFIXES.some( ( suffix ) =>
+			pathname.endsWith( suffix ),
+		);
+	} catch {
+		return false;
 	}
 }
 
@@ -185,26 +220,44 @@ export async function registerServiceWorker(
 			.catch( () => [] as ServiceWorkerRegistration[] );
 		const foreign = existing.find( ( reg ) => {
 			const url = reg.active?.scriptURL ?? reg.installing?.scriptURL ?? '';
-			return url !== '' && url !== config.swUrl;
+			return url !== '' && ! isOwnSwScriptUrl( url, config );
 		} );
 		if ( foreign ) {
 			_status = 'foreign-sw';
 			if ( typeof console !== 'undefined' ) {
 				console.warn(
-					'[desktop-mode] another service worker is already registered (' +
+					'[openstation] another service worker is already registered (' +
 						foreign.scope +
-						'); skipping desktop-mode SW. Set desktop_mode_pwa_force_replace_sw=true to override.',
+						'); skipping openstation SW. Set openstation_pwa_force_replace_sw=true to override.',
 				);
 			}
 			return null;
 		}
 	}
 
-	try {
-		_registration = await navigator.serviceWorker.register( config.swUrl, {
+	const attempt = async (
+		url: string,
+	): Promise< ServiceWorkerRegistration > =>
+		navigator.serviceWorker.register( url, {
 			scope: '/',
 			updateViaCache: 'none',
 		} );
+
+	try {
+		try {
+			_registration = await attempt( config.swUrl );
+		} catch ( err ) {
+			// Some hosts' web servers (WordPress.com) 404 the pretty
+			// `/openstation/sw.js` route before WordPress can serve it
+			// — virtual paths with a static-file extension never reach
+			// PHP there. Retry once with the extensionless fallback
+			// (`/?openstation_sw=1`), which always routes to WordPress
+			// and whose `/` path grants root scope natively.
+			if ( ! config.swFallbackUrl || config.swFallbackUrl === config.swUrl ) {
+				throw err;
+			}
+			_registration = await attempt( config.swFallbackUrl );
+		}
 		_status = 'registered';
 		// Auto-reload when the new SW takes control. Bound only after a
 		// successful registration so we never reload a page that has no
@@ -215,7 +268,7 @@ export async function registerServiceWorker(
 		_registrationFailed = true;
 		_status = 'failed';
 		if ( typeof console !== 'undefined' ) {
-			console.warn( '[desktop-mode] SW registration failed:', err );
+			console.warn( '[openstation] SW registration failed:', err );
 		}
 		return null;
 	}

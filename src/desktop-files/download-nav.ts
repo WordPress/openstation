@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — download navigation helper.
+ * OpenStation — download navigation helper.
  *
  * Triggers a browser download of an authenticated URL via a
  * transient same-origin anchor. No `fetch`-to-blob buffering (a
@@ -7,8 +7,6 @@
  * rides the navigation and the `_wpnonce` query param satisfies
  * the REST CSRF check. `Content-Disposition: attachment` on the
  * server makes the navigation a download rather than a page load.
- *
- * @since 0.9.6
  */
 
 export function navigateToDownload( url: string ): void {

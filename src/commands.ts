@@ -1,8 +1,8 @@
 /**
- * Desktop Mode — Command Palette registry.
+ * OpenStation — Command Palette registry.
  *
  * Third-party plugins contribute slash-commands via the public
- * `wp.desktop.registerCommand()` API. The AI Assistant reads from
+ * `wp.os.registerCommand()` API. The AI Assistant reads from
  * this registry the moment the user types `/` as the first character
  * of their query, and rendering / selection / invocation happens in
  * `ai-assistant.ts`.
@@ -11,8 +11,6 @@
  * a Map<slug, def>. Future UIs (a standalone Raycast-style launcher,
  * a right-click context menu) can consume the same registry without
  * depending on the assistant module.
- *
- * @since 0.5.0
  */
 
 import { throwOnRegistrationErrors } from './registration-errors';
@@ -66,8 +64,6 @@ export interface CommandContext {
 	 * browser's native `confirm()` dialog; the shell may swap a custom
 	 * UI in later (the contract — Promise<boolean> — won't change).
 	 *
-	 * @since 0.5.0
-	 *
 	 * @param message Headline question, short and direct.
 	 * @param details Optional secondary line shown below the message.
 	 */
@@ -79,9 +75,9 @@ export interface CommandContext {
 	 * route through the shared toast layer in a follow-up release. If
 	 * you need user feedback from a command `run()` right now, return
 	 * a `string` or `{ message: string }` from `run()` and the
-	 * assistant overlay / `wp.desktop.ai.ask()` caller will surface
+	 * assistant overlay / `wp.os.ai.ask()` caller will surface
 	 * it as `res.message`. For out-of-band toasts, dispatch
-	 * `desktop-mode.shell.toast` via `wp.desktop.hooks.doAction()`.
+	 * `os.shell.toast` via `wp.os.hooks.doAction()`.
 	 *
 	 * This field stays typed so command code written today compiles
 	 * against the final API unchanged.
@@ -153,8 +149,6 @@ export interface DesktopCommand {
 	 * the iframe-command bridge forwarding `@wordpress/icons` elements
 	 * via `renderToString`; plugins may set it directly when shipping
 	 * a custom SVG is easier than enqueueing a dashicon.
-	 *
-	 * @since 0.5.1
 	 */
 	iconSvg?: string;
 	/**
@@ -169,8 +163,6 @@ export interface DesktopCommand {
 	 * commands the user must deliberately invoke (plugin-registered
 	 * tools, destructive actions) where showing them eagerly would add
 	 * noise.
-	 *
-	 * @since 0.5.1
 	 */
 	eager?: boolean;
 	/**
@@ -185,14 +177,12 @@ export interface DesktopCommand {
 	 * repaints). Only the live-unregistration-on-deactivation case needs
 	 * this field — omitting it is a graceful fallback to "commands stay
 	 * until the next page reload."
-	 *
-	 * @since 0.5.0
 	 */
 	owner?: string;
 	/**
 	 * Opt into being callable by the AI Copilot as a tool.
 	 *
-	 * When `true`, `wp.desktop.ai.ask()` harvests this command into
+	 * When `true`, `wp.os.ai.ask()` harvests this command into
 	 * the `command_tools` array sent to `/ai/search`. If the model
 	 * matches the user's query to this command, the server returns
 	 * `{ answer_type: 'tool_call', tool: { slug, args } }` and the
@@ -204,8 +194,6 @@ export interface DesktopCommand {
 	 * would turn a typo into a catastrophe. Commands that are safe
 	 * to invoke via a paraphrased user intent ("turn on the lights")
 	 * set this explicitly.
-	 *
-	 * @since 0.5.1
 	 */
 	aiCallable?: boolean;
 	/**
@@ -217,8 +205,6 @@ export interface DesktopCommand {
 	 * When a command DOESN'T define `suggest()`, the palette accepts
 	 * free-text arguments (current behaviour). When it DOES, the user
 	 * can still type anything — suggestions are hints, not constraints.
-	 *
-	 * @since 0.5.0
 	 */
 	suggest?: (
 		args: string,
@@ -246,7 +232,7 @@ export interface DesktopCommand {
 const COMMAND_SLUG = /^[a-z0-9_/-]+$/;
 
 // Cross-bundle shared state — see `docs/examples/shared-store.md`.
-// Each Desktop Mode feature ships as its own Vite IIFE bundle; without
+// Each OpenStation feature ships as its own Vite IIFE bundle; without
 // the shared store, the `desktop` bundle and the `ai-assistant` bundle
 // each get their own compiled copy of this module and therefore their
 // own `registry` Map. The shell harvester registers commands into the
@@ -284,7 +270,7 @@ const listeners = commandRegistryStore.state.listeners;
  * Called by plugins:
  *
  * ```js
- * wp.desktop.registerCommand({
+ * wp.os.registerCommand({
  *     slug: 'turn_on_comments',
  *     label: 'Turn on comments',
  *     hint: '[post id]',
@@ -295,15 +281,13 @@ const listeners = commandRegistryStore.state.listeners;
  *         if (!id) return 'Usage: /turn_on_comments [post id]';
  *         await fetch(`/wp-json/my-plugin/v1/enable-comments/${id}`, {
  *             method: 'POST',
- *             headers: { 'X-WP-Nonce': desktopModeConfig.restNonce },
+ *             headers: { 'X-WP-Nonce': openStationConfig.restNonce },
  *         });
  *         ctx.close();
  *         return `Comments enabled on post ${id}.`;
  *     },
  * });
  * ```
- *
- * @since 0.5.0
  */
 export function registerCommand( cmd: DesktopCommand ): void {
 	const errors: string[] = [];
@@ -344,8 +328,6 @@ export function unregisterCommand( slug: string ): void {
  * Remove every command whose `owner` tag matches. Used by the iframe
  * command-bridge to evict a focused window's commands when focus moves
  * elsewhere, and by the command server-sync on plugin deactivation.
- *
- * @since 0.5.1
  */
 export function unregisterByOwner( owner: string ): number {
 	if ( ! owner ) {
@@ -375,8 +357,6 @@ export function listCommands(): DesktopCommand[] {
  * metadata for the model's tool-description field — so we project
  * here rather than shipping the full `DesktopCommand` (including
  * `run`/`suggest` closures) over the wire.
- *
- * @since 0.5.1
  */
 export function listAiCallableCommands(): Array< {
 	slug: string;
@@ -408,8 +388,6 @@ export function listAiCallableCommands(): Array< {
  * Return only commands flagged `eager` — the subset the palette
  * surfaces before the user types anything. See the `eager` field on
  * {@link DesktopCommand} for the opt-in semantics.
- *
- * @since 0.5.1
  */
 export function listEagerCommands(): DesktopCommand[] {
 	return Array.from( registry.values() ).filter( ( c ) => c.eager === true );
@@ -455,7 +433,7 @@ function notify(): void {
 			cb();
 		} catch ( err ) {
 			if ( typeof console !== 'undefined' ) {
-				console.error( '[desktop-mode] command-registry listener threw:', err );
+				console.error( '[openstation] command-registry listener threw:', err );
 			}
 		}
 	}

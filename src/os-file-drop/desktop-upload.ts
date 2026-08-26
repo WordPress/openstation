@@ -6,17 +6,15 @@
  * `desktop-mode/v1/files/uploads` — real bytes into the user's
  * private desktop storage, with the placement created server-side.
  *
- * Fires the exact same `desktop-mode.drop.*` hook chain as the
+ * Fires the exact same `os.drop.*` hook chain as the
  * Media Library path so the progress HUD and third-party
  * subscribers work unchanged, and ingests the returned placement
  * into the shared files store so the tile paints without waiting
  * for a heartbeat tick.
  *
- * XHR (not `wp.desktop.fetch`) for the same reason as `upload.ts`:
+ * XHR (not `wp.os.fetch`) for the same reason as `upload.ts`:
  * upload progress events only exist on XHR. See the eslint note
  * there; the HUD provides the activity-bus visibility.
- *
- * @since 0.9.6
  */
 
 import { applyFilters, doAction } from '../hooks';

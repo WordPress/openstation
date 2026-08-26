@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — Alphabet Soup registration.
+ * OpenStation — Alphabet Soup registration.
  *
  * Alphabet Soup is the built-in daily word search: a seeded letter
  * grid with hidden words to drag out of the soup. The seed is the
@@ -13,8 +13,7 @@
  * discovery metadata + score columns. The shared dictionary asset
  * arrives via the framework-injected `wordsUrl` config key.
  *
- * @package WPDesktopMode
- * @since   0.9.8
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -22,11 +21,9 @@ defined( 'ABSPATH' ) || exit;
 /**
  * The Alphabet Soup icon: a steaming bowl with letter tiles afloat.
  *
- * @since 0.9.8
- *
  * @return string Raw `<svg>` markup.
  */
-function desktop_mode_alphabet_soup_icon_svg() {
+function openstation_alphabet_soup_icon_svg() {
 	return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">'
 		. '<path fill="#2b1d4d" d="M8 30h48a2 2 0 0 1 2 2c0 10-6 18-14 21l-1 3H21l-1-3C12 50 6 42 6 32a2 2 0 0 1 2-2z"/>'
 		. '<ellipse cx="32" cy="30" rx="24" ry="5" fill="#4c3585"/>'
@@ -44,47 +41,87 @@ function desktop_mode_alphabet_soup_icon_svg() {
  * Register Alphabet Soup with the games registry on `init`.
  *
  * Priority 20 — alongside the Games window registration.
- *
- * @since 0.9.8
  */
-function desktop_mode_alphabet_soup_register() {
-	if ( ! function_exists( 'desktop_mode_games_user_can_use' ) || ! desktop_mode_games_user_can_use() ) {
+function openstation_alphabet_soup_register() {
+	if ( ! function_exists( 'openstation_games_user_can_use' ) || ! openstation_games_user_can_use() ) {
 		return;
 	}
 
-	desktop_mode_register_game( 'alphabet-soup', array(
-		'title'         => __( 'Alphabet Soup', 'desktop-mode' ),
-		'description'   => __( 'The daily word search: a seeded letter soup that is the same for every player worldwide — the seed is today’s date. Pick a pot (8×8, 12×12, or 16×16 with more words), drag across the letters to fish them out, chain streaks, and clear waves; Time Attack stirs a different pot against the clock. Your first run of each puzzle earns the shareable score card.', 'desktop-mode' ),
-		'icon_svg'      => desktop_mode_alphabet_soup_icon_svg(),
-		'script'        => 'desktop-mode-game-alphabet-soup',
-		'score_columns' => array(
-			array( 'key' => 'score',    'label' => __( 'Score', 'desktop-mode' ),    'type' => 'number' ),
-			array( 'key' => 'mode',     'label' => __( 'Mode', 'desktop-mode' ),     'type' => 'text' ),
-			array( 'key' => 'size',     'label' => __( 'Size', 'desktop-mode' ),     'type' => 'text' ),
-			array( 'key' => 'words',    'label' => __( 'Words', 'desktop-mode' ),    'type' => 'number' ),
-			array( 'key' => 'wpm',      'label' => __( 'WPM', 'desktop-mode' ),      'type' => 'number' ),
-			array( 'key' => 'accuracy', 'label' => __( 'Accuracy', 'desktop-mode' ), 'type' => 'number' ),
-			array( 'key' => 'streak',   'label' => __( 'Streak', 'desktop-mode' ),   'type' => 'number' ),
-			array( 'key' => 'wave',     'label' => __( 'Wave', 'desktop-mode' ),     'type' => 'number' ),
-			array( 'key' => 'time',     'label' => __( 'Time', 'desktop-mode' ),     'type' => 'time' ),
-		),
+	openstation_register_game(
+		'alphabet-soup',
+		array(
+			'title'         => __( 'Alphabet Soup', 'desktop-mode' ),
+			'description'   => __( 'The daily word search: a seeded letter soup that is the same for every player worldwide — the seed is today’s date. Pick a pot (8×8, 12×12, or 16×16 with more words), drag across the letters to fish them out, chain streaks, and clear waves; Time Attack stirs a different pot against the clock. Your first run of each puzzle earns the shareable score card.', 'desktop-mode' ),
+			'icon_svg'      => openstation_alphabet_soup_icon_svg(),
+			'script'        => 'os-game-alphabet-soup',
+			'score_columns' => array(
+				array(
+					'key'   => 'score',
+					'label' => __( 'Score', 'desktop-mode' ),
+					'type'  => 'number',
+				),
+				array(
+					'key'   => 'mode',
+					'label' => __( 'Mode', 'desktop-mode' ),
+					'type'  => 'text',
+				),
+				array(
+					'key'   => 'size',
+					'label' => __( 'Size', 'desktop-mode' ),
+					'type'  => 'text',
+				),
+				array(
+					'key'   => 'words',
+					'label' => __( 'Words', 'desktop-mode' ),
+					'type'  => 'number',
+				),
+				array(
+					'key'   => 'wpm',
+					'label' => __( 'WPM', 'desktop-mode' ),
+					'type'  => 'number',
+				),
+				array(
+					'key'   => 'accuracy',
+					'label' => __( 'Accuracy', 'desktop-mode' ),
+					'type'  => 'number',
+				),
+				array(
+					'key'   => 'streak',
+					'label' => __( 'Streak', 'desktop-mode' ),
+					'type'  => 'number',
+				),
+				array(
+					'key'   => 'wave',
+					'label' => __( 'Wave', 'desktop-mode' ),
+					'type'  => 'number',
+				),
+				array(
+					'key'   => 'time',
+					'label' => __( 'Time', 'desktop-mode' ),
+					'type'  => 'time',
+				),
+			),
 		// The dictionary URL arrives via the framework-injected
 		// `wordsUrl` config key (see includes/games/config.php).
-	) );
+		)
+	);
 }
-add_action( 'init', 'desktop_mode_alphabet_soup_register', 20 );
+add_action( 'init', 'openstation_alphabet_soup_register', 20 );
 
 /**
- * Enqueue the Alphabet Soup window styles. The game's script is
- * lazily loaded by the framework on first launch, but its CSS is
- * tiny and must already be present when the window opens.
+ * Ride the Alphabet Soup window styles on the Games window as a
+ * companion — same shape as Inkfall; see
+ * `openstation_inkfall_window_styles()` for the reasoning.
  *
- * @since 0.9.8
+ * @param array $window_args Args passed to `openstation_register_window()`.
+ * @return array
  */
-function desktop_mode_alphabet_soup_enqueue_styles() {
-	if ( ! function_exists( 'desktop_mode_games_user_can_use' ) || ! desktop_mode_games_user_can_use() ) {
-		return;
+function openstation_alphabet_soup_window_styles( $window_args ) {
+	if ( ! is_array( $window_args ) ) {
+		return $window_args;
 	}
-	wp_enqueue_style( 'desktop-mode-game-alphabet-soup' );
+	$window_args['styles']   = isset( $window_args['styles'] ) ? (array) $window_args['styles'] : array();
+	$window_args['styles'][] = 'os-game-alphabet-soup';
+	return $window_args;
 }
-add_action( 'admin_enqueue_scripts', 'desktop_mode_alphabet_soup_enqueue_styles', 30 );
+add_filter( 'openstation_games_window_args', 'openstation_alphabet_soup_window_styles' );

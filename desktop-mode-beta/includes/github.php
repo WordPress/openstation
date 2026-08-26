@@ -14,7 +14,7 @@
  *   - The trunk build the `trunk-build.yml` workflow maintains as the
  *     fixed-name `trunk.zip` + `trunk.json` assets on the same release.
  *   - The latest stable release (`releases/latest`) and its
- *     `desktop-mode.zip` asset — the "back to stable" target.
+ *     `openstation.zip` asset — the "back to stable" target.
  *
  * Every remote read is cached in a transient; a explicit refresh from
  * the UI bypasses the caches. Unauthenticated GitHub API calls are
@@ -49,7 +49,7 @@ function desktop_mode_beta_repo() {
 	 *
 	 * @param string $repo `owner/repo` slug.
 	 */
-	return (string) apply_filters( 'desktop_mode_beta_repo', 'WordPress/desktop-mode' );
+	return (string) apply_filters( 'desktop_mode_beta_repo', 'WordPress/openstation' );
 }
 
 /**
@@ -282,19 +282,27 @@ function desktop_mode_beta_fetch_stable( $force = false ) {
 		return $raw;
 	}
 
-	$url = '';
+	$by_name = array();
 	if ( isset( $raw['assets'] ) && is_array( $raw['assets'] ) ) {
 		foreach ( $raw['assets'] as $asset ) {
-			if ( is_array( $asset ) && isset( $asset['name'] ) && 'desktop-mode.zip' === $asset['name'] ) {
-				$url = esc_url_raw( isset( $asset['browser_download_url'] ) ? (string) $asset['browser_download_url'] : '' );
-				break;
+			if ( is_array( $asset ) && isset( $asset['name'] ) ) {
+				$by_name[ (string) $asset['name'] ] = esc_url_raw( isset( $asset['browser_download_url'] ) ? (string) $asset['browser_download_url'] : '' );
 			}
+		}
+	}
+	// `desktop-mode.zip` is the pre-rebrand asset name; releases before
+	// the openstation rename still carry it.
+	$url = '';
+	foreach ( array( 'openstation.zip', 'desktop-mode.zip' ) as $name ) {
+		if ( ! empty( $by_name[ $name ] ) ) {
+			$url = $by_name[ $name ];
+			break;
 		}
 	}
 	if ( '' === $url ) {
 		return new WP_Error(
 			'desktop_mode_beta_no_stable_asset',
-			__( 'The latest release has no desktop-mode.zip asset.', 'desktop-mode-beta' ),
+			__( 'The latest release has no plugin zip asset.', 'desktop-mode-beta' ),
 			array( 'status' => 502 )
 		);
 	}
@@ -503,7 +511,7 @@ function desktop_mode_beta_install_blocked() {
 			'code'   => 'dev-checkout',
 			'reason' => sprintf(
 				/* translators: %s: File or directory name found in the plugin folder (e.g. ".git"). */
-				__( 'The installed Desktop Mode plugin is a development checkout ("%s" found in its folder) — installing a build here would overwrite that working tree. Switch builds on a site running a packaged install instead.', 'desktop-mode-beta' ),
+				__( 'The installed OpenStation plugin is a development checkout ("%s" found in its folder) — installing a build here would overwrite that working tree. Switch builds on a site running a packaged install instead.', 'desktop-mode-beta' ),
 				$marker
 			),
 		);
@@ -674,7 +682,7 @@ function desktop_mode_beta_admin_notice() {
 		esc_html(
 			sprintf(
 				/* translators: %s: Build description (e.g. "pull request #123" or "trunk"). */
-				__( 'Desktop Mode is running a beta build from %s. Updating it from this screen replaces the build under test — use the Desktop Mode Beta page under Tools to manage it.', 'desktop-mode-beta' ),
+				__( 'OpenStation is running a beta build from %s. Updating it from this screen replaces the build under test — use the Desktop Mode Beta page under Tools to manage it.', 'desktop-mode-beta' ),
 				$label
 			)
 		)

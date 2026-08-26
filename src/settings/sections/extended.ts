@@ -19,11 +19,13 @@
 import { __ } from '../../i18n';
 import { html, render } from '../../ui/core';
 import { trackedFetch } from '../../tracked-fetch';
+import { doAction, HOOKS } from '../../hooks';
 import type { SettingsCtx } from '../types';
 
 interface ExtendedState {
 	media_library_enhanced: boolean;
 	games: boolean;
+	agents: boolean;
 	saving: boolean;
 	error: string;
 }
@@ -34,19 +36,44 @@ export function buildExtendedSection( ctx: SettingsCtx ): HTMLElement {
 	const state: ExtendedState = {
 		media_library_enhanced: extendedOptions?.media_library_enhanced === true,
 		games: extendedOptions?.games === true,
+		agents: extendedOptions?.agents === true,
 		saving: false,
 		error: '',
 	};
 
 	const el = document.createElement( 'div' );
 
+	/**
+	 * A control moved while a request was in flight, so the values on
+	 * the server are already stale. Cleared by the trailing save that
+	 * the in-flight one kicks off when it settles.
+	 */
+	let pending = false;
+
 	const save = async (): Promise<void> => {
-		if ( ! extendedOptionsUrl || ! restNonce || state.saving ) {
+		if ( ! extendedOptionsUrl || ! restNonce ) {
+			return;
+		}
+		if ( state.saving ) {
+			// The in-flight request carries the previous values and
+			// the controls stay live, so returning here on its own
+			// would leave the panel showing one state and the server
+			// holding another. Remember the change instead; the
+			// trailing save rebuilds its body from `state`, so any
+			// number of mid-flight toggles coalesce into one request.
+			pending = true;
 			return;
 		}
 		state.saving = true;
 		state.error = '';
 		paint();
+
+		// Set on a successful save, announced once the request has
+		// settled. Deliberately not announced from inside the `try`:
+		// the catch below reads any throw as a network failure, and a
+		// listener on the bus that throws is not one. It would put
+		// "check your connection" under a save that worked.
+		let announce: Record< string, boolean > | null = null;
 
 		try {
 			const res = await trackedFetch(
@@ -61,6 +88,7 @@ export function buildExtendedSection( ctx: SettingsCtx ): HTMLElement {
 						options: {
 							media_library_enhanced: state.media_library_enhanced,
 							games: state.games,
+							agents: state.agents,
 						},
 					} ),
 				},
@@ -74,13 +102,41 @@ export function buildExtendedSection( ctx: SettingsCtx ): HTMLElement {
 				const saved = await res.json().catch( () => null );
 				if ( saved && typeof saved === 'object' ) {
 					ctx.config.extendedOptions = saved as typeof extendedOptions;
+					announce = saved as Record< string, boolean >;
 				}
 			}
 		} catch {
 			state.error = __( 'Network error — check your connection.' );
 		} finally {
 			state.saving = false;
-			paint();
+			// Windows already on screen read these options out of the
+			// config the server printed at page load, so without this
+			// they keep obeying the old value, and any that lost their
+			// REST routes in this save start answering "No route was
+			// found matching the URL" instead. Fired after the config
+			// is updated, so a listener that re-reads it sees the new
+			// set.
+			if ( announce ) {
+				try {
+					doAction( HOOKS.EXTENDED_OPTIONS_CHANGED, {
+						options: announce,
+					} );
+				} catch {
+					// A surface that fails to reconcile is its own
+					// problem. The option is saved either way, and
+					// taking the panel down over it would lose the
+					// queued change the trailing save still owes.
+				}
+			}
+			if ( pending ) {
+				// Awaited rather than fired off, so the promise this
+				// call returns only settles once the values on the
+				// server match the ones on screen.
+				pending = false;
+				await save();
+			} else {
+				paint();
+			}
 		}
 	};
 
@@ -94,46 +150,66 @@ export function buildExtendedSection( ctx: SettingsCtx ): HTMLElement {
 		save();
 	};
 
+	const onAgentsToggle = ( e: Event ): void => {
+		state.agents = ( e as CustomEvent ).detail?.checked === true;
+		save();
+	};
+
 	const paint = (): void =>
 		render(
 			html`
-				<wpd-section
+				<os-section
 					heading=${ __( 'Extended options' ) }
 					description=${ __(
 						'Site-wide enhancements that apply to every user. Toggling requires the affected page to be reloaded for the change to take effect.',
 					) }
 				>
-					<wpd-checkbox-label
-						label=${ __( 'Enable drag-and-drop in the Media Library' ) }
-						?checked=${ state.media_library_enhanced }
-						@wpd-checkbox-change=${ onMediaToggle }
-					></wpd-checkbox-label>
+					<div class="os-features__item">
+						<os-checkbox-label
+							label=${ __( 'Enable drag-and-drop in the Media Library' ) }
+							?checked=${ state.media_library_enhanced }
+							@os-checkbox-change=${ onMediaToggle }
+						></os-checkbox-label>
+						<p class="os-features__hint">
+							${ __(
+								'Makes every item in the WordPress Media Library draggable. Drop a media item into text fields, rich-text editors, Gutenberg blocks, or any target that accepts images or files. No replacement of the library — just a drag-and-drop layer on top of the one you already know.',
+							) }
+						</p>
+					</div>
 
-					<p class="desktop-mode-ext__hint">
-						${ __(
-							'Makes every item in the WordPress Media Library draggable. Drop a media item into text fields, rich-text editors, Gutenberg blocks, or any target that accepts images or files. No replacement of the library — just a drag-and-drop layer on top of the one you already know.',
-						) }
-					</p>
+					<div class="os-features__item">
+						<os-checkbox-label
+							label=${ __( 'Enable games' ) }
+							?checked=${ state.games }
+							@os-checkbox-change=${ onGamesToggle }
+						></os-checkbox-label>
+						<p class="os-features__hint">
+							${ __(
+								'Adds a Games app for every user: built-in games, scoreboards, and player-to-player challenges. Off by default — while off, nothing game-related runs anywhere, on the server or in the browser. Saved scores are kept across a disable and reappear when re-enabled.',
+							) }
+						</p>
+					</div>
 
-					<wpd-checkbox-label
-						label=${ __( 'Enable games' ) }
-						?checked=${ state.games }
-						@wpd-checkbox-change=${ onGamesToggle }
-					></wpd-checkbox-label>
-
-					<p class="desktop-mode-ext__hint">
-						${ __(
-							'Adds a Games app for every user: built-in games, scoreboards, and player-to-player challenges. Off by default — while off, nothing game-related runs anywhere, on the server or in the browser. Saved scores are kept across a disable and reappear when re-enabled.',
-						) }
-					</p>
+					<div class="os-features__item">
+						<os-checkbox-label
+							label=${ __( 'Enable AI agents' ) }
+							?checked=${ state.agents }
+							@os-checkbox-change=${ onAgentsToggle }
+						></os-checkbox-label>
+						<p class="os-features__hint">
+							${ __(
+								'Adds an Agents section to WP Explorer: durable AI workers that live on the site as login-blocked users, act through the WordPress Abilities API under their own role, and answer in a chat window. Requires a configured AI connector to run. Off by default — while off, nothing agent-related loads. Agent definitions are kept across a disable and reappear when re-enabled.',
+							) }
+						</p>
+					</div>
 
 					${ state.error
-						? html`<p class="desktop-mode-ext__error">${ state.error }</p>`
+						? html`<p class="os-ext__error">${ state.error }</p>`
 						: html`` }
 					${ state.saving
-						? html`<p class="desktop-mode-ext__saving">${ __( 'Saving…' ) }</p>`
+						? html`<p class="os-ext__saving">${ __( 'Saving…' ) }</p>`
 						: html`` }
-				</wpd-section>
+				</os-section>
 			`,
 			el,
 		);

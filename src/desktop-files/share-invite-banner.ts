@@ -1,15 +1,13 @@
 /**
- * Desktop Mode — Pending-invite prompt.
+ * OpenStation — Pending-invite prompt.
  *
  * Watches `sharesStore` for fresh pending invites. When one lands
  * we open the accept/deny modal once per invite per session. The
  * user can defer ("Decide later") to keep the invite in the
  * pending list without re-prompting until next heartbeat tick.
- *
- * @since 0.8.5
  */
 
-import { openPendingFileInviteModal, openPendingInviteModal } from './share-settings-modal';
+import { openPendingFileInviteModal, openPendingInviteModal } from './overlays-loader';
 import { dropPending, sharesStore, type PendingInvite, type SharesState } from './shares-store';
 
 const prompted = new Set< number >();
@@ -20,8 +18,8 @@ const prompted = new Set< number >();
  */
 function sharingEnabled(): boolean {
 	const settings = ( window as unknown as {
-		wp?: { desktop?: { getOsSettings?: () => { foldersSharingEnabled?: boolean } } };
-	} ).wp?.desktop?.getOsSettings?.();
+		wp?: { os?: { getOsSettings?: () => { foldersSharingEnabled?: boolean } } };
+	} ).wp?.os?.getOsSettings?.();
 	if ( ! settings ) {
 		return true;
 	}

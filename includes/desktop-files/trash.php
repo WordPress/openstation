@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — Files-on-the-Desktop trash + restore + purge.
+ * OpenStation — Files-on-the-Desktop trash + restore + purge.
  *
  * Both placements and folders soft-trash before they ever hit the
  * physical row delete. Trashed rows live in the same tables (with
@@ -20,30 +20,30 @@
  *   - Veto any trash / restore / purge (`*_user_can_*` filters).
  *   - Observe any state transition (`*_before_*` / `*_after_*`).
  *   - React to recycle-bin list / restore / purge of the new types
- *     via the existing recycle-bin hooks (`desktop_mode_recycle_bin_*`).
+ *     via the existing recycle-bin hooks (`openstation_recycle_bin_*`).
  *
- * @package WPDesktopMode
- * @since   0.8.0
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
 
-/* ================================================================== *
+/*
+================================================================== *
  *  Capability gates.
- * ================================================================== */
+ * ==================================================================
+ */
 
 /**
  * Default ownership check shared by every trash / restore / purge
  * capability gate: the acting user must be the row's `owner_id`.
  *
- * @since 0.8.0
  * @access private
  *
  * @param int   $user_id Acting user.
  * @param array $row     Placement or folder row.
  * @return bool
  */
-function desktop_mode_files_user_owns_row( $user_id, $row ) {
+function openstation_files_user_owns_row( $user_id, $row ) {
 	$user_id = (int) $user_id;
 	return ( $user_id > 0 )
 		&& isset( $row['owner_id'] )
@@ -54,25 +54,21 @@ function desktop_mode_files_user_owns_row( $user_id, $row ) {
  * Whether the given user can trash a placement they own. Defaults
  * to ownership; plugins can broaden via filter.
  *
- * @since 0.8.0
- *
  * @param int   $user_id Acting user.
  * @param array $row     Placement row (raw from DB or normalized).
  * @return bool
  */
-function desktop_mode_files_user_can_trash_placement( $user_id, $row ) {
+function openstation_files_user_can_trash_placement( $user_id, $row ) {
 	/**
 	 * Filter whether the user can trash this placement.
-	 *
-	 * @since 0.8.0
 	 *
 	 * @param bool  $can     Default: ownership match.
 	 * @param int   $user_id Acting user.
 	 * @param array $row     Placement row.
 	 */
 	return (bool) apply_filters(
-		'desktop_mode_files_user_can_trash_placement',
-		desktop_mode_files_user_owns_row( $user_id, $row ),
+		'openstation_files_user_can_trash_placement',
+		openstation_files_user_owns_row( $user_id, $row ),
 		(int) $user_id,
 		$row
 	);
@@ -81,23 +77,19 @@ function desktop_mode_files_user_can_trash_placement( $user_id, $row ) {
 /**
  * Whether the given user can restore a trashed placement.
  *
- * @since 0.8.0
- *
  * @param int   $user_id Acting user.
  * @param array $row     Placement row (already trashed).
  * @return bool
  */
-function desktop_mode_files_user_can_restore_placement( $user_id, $row ) {
+function openstation_files_user_can_restore_placement( $user_id, $row ) {
 	/**
-	 * @since 0.8.0
-	 *
 	 * @param bool  $can
 	 * @param int   $user_id
 	 * @param array $row
 	 */
 	return (bool) apply_filters(
-		'desktop_mode_files_user_can_restore_placement',
-		desktop_mode_files_user_owns_row( $user_id, $row ),
+		'openstation_files_user_can_restore_placement',
+		openstation_files_user_owns_row( $user_id, $row ),
 		(int) $user_id,
 		$row
 	);
@@ -105,20 +97,16 @@ function desktop_mode_files_user_can_restore_placement( $user_id, $row ) {
 
 /**
  * Whether the given user can permanently purge a trashed placement.
- *
- * @since 0.8.0
  */
-function desktop_mode_files_user_can_purge_placement( $user_id, $row ) {
+function openstation_files_user_can_purge_placement( $user_id, $row ) {
 	/**
-	 * @since 0.8.0
-	 *
 	 * @param bool  $can
 	 * @param int   $user_id
 	 * @param array $row
 	 */
 	return (bool) apply_filters(
-		'desktop_mode_files_user_can_purge_placement',
-		desktop_mode_files_user_owns_row( $user_id, $row ),
+		'openstation_files_user_can_purge_placement',
+		openstation_files_user_owns_row( $user_id, $row ),
 		(int) $user_id,
 		$row
 	);
@@ -126,20 +114,16 @@ function desktop_mode_files_user_can_purge_placement( $user_id, $row ) {
 
 /**
  * Whether the given user can trash a folder. Default: folder owner.
- *
- * @since 0.8.0
  */
-function desktop_mode_files_user_can_trash_folder( $user_id, $row ) {
+function openstation_files_user_can_trash_folder( $user_id, $row ) {
 	/**
-	 * @since 0.8.0
-	 *
 	 * @param bool  $can
 	 * @param int   $user_id
 	 * @param array $row
 	 */
 	return (bool) apply_filters(
-		'desktop_mode_files_user_can_trash_folder',
-		desktop_mode_files_user_owns_row( $user_id, $row ),
+		'openstation_files_user_can_trash_folder',
+		openstation_files_user_owns_row( $user_id, $row ),
 		(int) $user_id,
 		$row
 	);
@@ -147,20 +131,16 @@ function desktop_mode_files_user_can_trash_folder( $user_id, $row ) {
 
 /**
  * Whether the given user can restore a trashed folder.
- *
- * @since 0.8.0
  */
-function desktop_mode_files_user_can_restore_folder( $user_id, $row ) {
+function openstation_files_user_can_restore_folder( $user_id, $row ) {
 	/**
-	 * @since 0.8.0
-	 *
 	 * @param bool  $can
 	 * @param int   $user_id
 	 * @param array $row
 	 */
 	return (bool) apply_filters(
-		'desktop_mode_files_user_can_restore_folder',
-		desktop_mode_files_user_owns_row( $user_id, $row ),
+		'openstation_files_user_can_restore_folder',
+		openstation_files_user_owns_row( $user_id, $row ),
 		(int) $user_id,
 		$row
 	);
@@ -168,26 +148,23 @@ function desktop_mode_files_user_can_restore_folder( $user_id, $row ) {
 
 /**
  * Whether the given user can permanently purge a trashed folder.
- *
- * @since 0.8.0
  */
-function desktop_mode_files_user_can_purge_folder( $user_id, $row ) {
+function openstation_files_user_can_purge_folder( $user_id, $row ) {
 	/**
-	 * @since 0.8.0
-	 *
 	 * @param bool  $can
 	 * @param int   $user_id
 	 * @param array $row
 	 */
 	return (bool) apply_filters(
-		'desktop_mode_files_user_can_purge_folder',
-		desktop_mode_files_user_owns_row( $user_id, $row ),
+		'openstation_files_user_can_purge_folder',
+		openstation_files_user_owns_row( $user_id, $row ),
 		(int) $user_id,
 		$row
 	);
 }
 
-/* ================================================================== *
+/*
+================================================================== *
  *  Ancestry snapshot + resurrection.
  *
  *  When a placement is soft-trashed we capture every folder in
@@ -197,7 +174,8 @@ function desktop_mode_files_user_can_purge_folder( $user_id, $row ) {
  *  hard-deleted folders are recreated (with new ids; the chain is
  *  rewritten as it walks). The placement comes back at the same
  *  visual position inside the (possibly resurrected) parent.
- * ================================================================== */
+ * ==================================================================
+ */
 
 /**
  * Walk up `$parent_id` through the folders + placements tables and
@@ -218,14 +196,12 @@ function desktop_mode_files_user_can_purge_folder( $user_id, $row ) {
  *
  * Returns `[]` for a root-level placement (`$parent_id === 0`).
  *
- * @since 0.8.0
- *
  * @param int $parent_id Immediate parent folder id.
  * @return array<int, array<string, mixed>>
  */
-function desktop_mode_files_capture_ancestry( $parent_id ) {
+function openstation_files_capture_ancestry( $parent_id ) {
 	global $wpdb;
-	$tables = desktop_mode_files_table_names();
+	$tables = openstation_files_table_names();
 	$chain  = array();
 	$cursor = (int) $parent_id;
 	$guard  = 0; // depth-bound — defends against accidental cycles.
@@ -244,7 +220,7 @@ function desktop_mode_files_capture_ancestry( $parent_id ) {
 		// The folder's "where I sit on the desktop tree" lives on
 		// its placement row. Pick any active or trashed placement
 		// of this folder — we just need its parent_id + (x, y).
-		$placement = $wpdb->get_row(
+		$placement      = $wpdb->get_row(
 			$wpdb->prepare(
 				"SELECT parent_id, x, y FROM {$tables['placements']}
 				WHERE file_type = 'folder' AND file_ref = %s
@@ -255,7 +231,7 @@ function desktop_mode_files_capture_ancestry( $parent_id ) {
 		);
 		$share_meta_raw = isset( $folder['share_meta'] ) ? (string) $folder['share_meta'] : '';
 		$share_meta     = '' !== $share_meta_raw ? json_decode( $share_meta_raw, true ) : null;
-		$entry = array(
+		$entry          = array(
 			'folder_id'           => (int) $folder['id'],
 			'folder_name'         => (string) $folder['name'],
 			'folder_share_mode'   => (string) $folder['share_mode'],
@@ -279,15 +255,13 @@ function desktop_mode_files_capture_ancestry( $parent_id ) {
  * deeper folder lands inside the correct (possibly recreated)
  * parent.
  *
- * @since 0.8.0
- *
  * @param int   $user_id  Acting user (used as owner for any
  *                        recreated folder).
  * @param array $ancestry Root-first chain captured at trash time.
  * @return int Resolved leaf parent id (0 when the placement was
  *             at desktop root).
  */
-function desktop_mode_files_resurrect_ancestry( $user_id, $ancestry ) {
+function openstation_files_resurrect_ancestry( $user_id, $ancestry ) {
 	if ( empty( $ancestry ) ) {
 		return 0;
 	}
@@ -303,13 +277,13 @@ function desktop_mode_files_resurrect_ancestry( $user_id, $ancestry ) {
 			? (int) $id_map[ $orig_par ]
 			: $orig_par;
 
-		$folder = desktop_mode_files_get_folder( $orig_id, true );
+		$folder = openstation_files_get_folder( $orig_id, true );
 		if ( $folder ) {
 			// Folder still exists. If trashed, restore it (cascade
 			// brings back its own children that were trashed via
 			// folder cascade).
 			if ( ! empty( $folder['trashed_at_ms'] ) ) {
-				desktop_mode_files_restore_folder( $user_id, $orig_id );
+				openstation_files_restore_folder( $user_id, $orig_id );
 			}
 			$id_map[ $orig_id ] = $orig_id;
 			$resolved           = $orig_id;
@@ -320,21 +294,24 @@ function desktop_mode_files_resurrect_ancestry( $user_id, $ancestry ) {
 		// resolved parent. Owner falls back to the acting user
 		// when the original owner can't be inferred (shared-
 		// folder edge case Phase 6 will revisit).
-		$owner_id = (int) ( $entry['folder_owner_id'] ?: $user_id );
-		$new_id   = desktop_mode_files_create_folder( $owner_id, array(
-			'name'       => (string) $entry['folder_name'],
-			'share_mode' => (string) $entry['folder_share_mode'],
-			'share_meta' => $entry['folder_share_meta'],
-		) );
+		$owner_id = (int) ( $entry['folder_owner_id'] ? $entry['folder_owner_id'] : $user_id );
+		$new_id   = openstation_files_create_folder(
+			$owner_id,
+			array(
+				'name'       => (string) $entry['folder_name'],
+				'share_mode' => (string) $entry['folder_share_mode'],
+				'share_meta' => $entry['folder_share_meta'],
+			)
+		);
 		if ( is_wp_error( $new_id ) ) {
 			// Fall back to root — restoring at the wrong place is
 			// strictly better than failing the restore outright.
-			$resolved = $resolved_parent;
+			$resolved           = $resolved_parent;
 			$id_map[ $orig_id ] = $resolved;
 			continue;
 		}
 		// Place the recreated folder where the snapshot says.
-		desktop_mode_files_place(
+		openstation_files_place(
 			$user_id,
 			$resolved_parent,
 			'folder',
@@ -350,9 +327,11 @@ function desktop_mode_files_resurrect_ancestry( $user_id, $ancestry ) {
 	return $resolved;
 }
 
-/* ================================================================== *
+/*
+================================================================== *
  *  Placement: trash / restore / purge.
- * ================================================================== */
+ * ==================================================================
+ */
 
 /**
  * Soft-trash a placement. Sets `trashed_at_ms`, `trashed_by`. Returns
@@ -361,17 +340,15 @@ function desktop_mode_files_resurrect_ancestry( $user_id, $ancestry ) {
  * Idempotent: trashing an already-trashed placement is a no-op
  * success.
  *
- * @since 0.8.0
- *
  * @param int $user_id      Acting user.
  * @param int $placement_id Placement id.
  * @return true|WP_Error
  */
-function desktop_mode_files_trash_placement( $user_id, $placement_id ) {
+function openstation_files_trash_placement( $user_id, $placement_id ) {
 	global $wpdb;
 	$user_id      = (int) $user_id;
 	$placement_id = (int) $placement_id;
-	$tables       = desktop_mode_files_table_names();
+	$tables       = openstation_files_table_names();
 
 	$row = $wpdb->get_row(
 		$wpdb->prepare(
@@ -382,7 +359,7 @@ function desktop_mode_files_trash_placement( $user_id, $placement_id ) {
 	);
 	if ( ! $row ) {
 		return new WP_Error(
-			'desktop_mode_files_placement_not_found',
+			'openstation_files_placement_not_found',
 			__( 'Placement not found.', 'desktop-mode' ),
 			array( 'status' => 404 )
 		);
@@ -390,9 +367,9 @@ function desktop_mode_files_trash_placement( $user_id, $placement_id ) {
 	if ( null !== $row['trashed_at_ms'] && '' !== $row['trashed_at_ms'] ) {
 		return true;
 	}
-	if ( ! desktop_mode_files_user_can_trash_placement( $user_id, $row ) ) {
+	if ( ! openstation_files_user_can_trash_placement( $user_id, $row ) ) {
 		return new WP_Error(
-			'desktop_mode_files_forbidden',
+			'openstation_files_forbidden',
 			__( 'You do not have permission to trash this item.', 'desktop-mode' ),
 			array( 'status' => 403 )
 		);
@@ -401,16 +378,14 @@ function desktop_mode_files_trash_placement( $user_id, $placement_id ) {
 	/**
 	 * Fires before a placement is trashed.
 	 *
-	 * @since 0.8.0
-	 *
 	 * @param int   $placement_id Placement id.
 	 * @param int   $user_id      Acting user.
 	 * @param array $row          Placement row.
 	 */
-	do_action( 'desktop_mode_files_before_trash_placement', $placement_id, $user_id, $row );
+	do_action( 'openstation_files_before_trash_placement', $placement_id, $user_id, $row );
 
-	$now      = desktop_mode_files_now_ms();
-	$ancestry = desktop_mode_files_capture_ancestry( (int) $row['parent_id'] );
+	$now      = openstation_files_now_ms();
+	$ancestry = openstation_files_capture_ancestry( (int) $row['parent_id'] );
 	$meta     = wp_json_encode( array( 'ancestry' => $ancestry ) );
 	$result   = $wpdb->update(
 		$tables['placements'],
@@ -431,7 +406,7 @@ function desktop_mode_files_trash_placement( $user_id, $placement_id ) {
 	// actually trashed.
 	if ( false === $result ) {
 		return new WP_Error(
-			'desktop_mode_files_trash_failed',
+			'openstation_files_trash_failed',
 			isset( $wpdb->last_error ) && $wpdb->last_error
 				? (string) $wpdb->last_error
 				: __( 'Failed to write trash row.', 'desktop-mode' ),
@@ -442,12 +417,10 @@ function desktop_mode_files_trash_placement( $user_id, $placement_id ) {
 	/**
 	 * Fires after a placement is trashed.
 	 *
-	 * @since 0.8.0
-	 *
 	 * @param int $placement_id Placement id.
 	 * @param int $user_id      Acting user.
 	 */
-	do_action( 'desktop_mode_files_after_trash_placement', $placement_id, $user_id );
+	do_action( 'openstation_files_after_trash_placement', $placement_id, $user_id );
 
 	return true;
 }
@@ -455,17 +428,15 @@ function desktop_mode_files_trash_placement( $user_id, $placement_id ) {
 /**
  * Restore a trashed placement back to its original folder + (x, y).
  *
- * @since 0.8.0
- *
  * @param int $user_id      Acting user.
  * @param int $placement_id Placement id.
  * @return true|WP_Error
  */
-function desktop_mode_files_restore_placement( $user_id, $placement_id ) {
+function openstation_files_restore_placement( $user_id, $placement_id ) {
 	global $wpdb;
 	$user_id      = (int) $user_id;
 	$placement_id = (int) $placement_id;
-	$tables       = desktop_mode_files_table_names();
+	$tables       = openstation_files_table_names();
 
 	$row = $wpdb->get_row(
 		$wpdb->prepare(
@@ -476,7 +447,7 @@ function desktop_mode_files_restore_placement( $user_id, $placement_id ) {
 	);
 	if ( ! $row ) {
 		return new WP_Error(
-			'desktop_mode_files_placement_not_found',
+			'openstation_files_placement_not_found',
 			__( 'Placement not found.', 'desktop-mode' ),
 			array( 'status' => 404 )
 		);
@@ -484,31 +455,31 @@ function desktop_mode_files_restore_placement( $user_id, $placement_id ) {
 	if ( null === $row['trashed_at_ms'] || '' === $row['trashed_at_ms'] ) {
 		return true; // Already active — idempotent.
 	}
-	if ( ! desktop_mode_files_user_can_restore_placement( $user_id, $row ) ) {
+	if ( ! openstation_files_user_can_restore_placement( $user_id, $row ) ) {
 		return new WP_Error(
-			'desktop_mode_files_forbidden',
+			'openstation_files_forbidden',
 			__( 'You do not have permission to restore this item.', 'desktop-mode' ),
 			array( 'status' => 403 )
 		);
 	}
 
 	// Resolve the parent folder. Three branches:
-	//   - parent is alive  → reuse the same id
-	//   - parent is trashed → cascade-restore it (and rest of the
-	//                         chain) before placing the leaf
-	//   - parent is gone    → walk the captured ancestry and
-	//                         recreate every missing folder in
-	//                         the chain
+	// - parent is alive  → reuse the same id
+	// - parent is trashed → cascade-restore it (and rest of the
+	// chain) before placing the leaf
+	// - parent is gone    → walk the captured ancestry and
+	// recreate every missing folder in
+	// the chain
 	$original_parent_id = (int) $row['parent_id'];
 	$resolved_parent_id = $original_parent_id;
 	if ( $original_parent_id > 0 ) {
-		$parent_alive = desktop_mode_files_get_folder( $original_parent_id, true );
+		$parent_alive = openstation_files_get_folder( $original_parent_id, true );
 		if ( $parent_alive ) {
 			if ( ! empty( $parent_alive['trashed_at_ms'] ) ) {
 				// Cascade restore — reach into the snapshot the
 				// folder itself stored at trash time so any chain
 				// above it is also resurrected.
-				$folder_restore = desktop_mode_files_restore_folder( $user_id, $original_parent_id );
+				$folder_restore = openstation_files_restore_folder( $user_id, $original_parent_id );
 				if ( is_wp_error( $folder_restore ) ) {
 					return $folder_restore;
 				}
@@ -517,25 +488,23 @@ function desktop_mode_files_restore_placement( $user_id, $placement_id ) {
 		} else {
 			// Hard-deleted parent — read the ancestry snapshot we
 			// stored at trash time and resurrect the chain.
-			$meta_raw = isset( $row['trashed_meta'] ) ? (string) $row['trashed_meta'] : '';
-			$decoded  = '' !== $meta_raw ? json_decode( $meta_raw, true ) : null;
-			$ancestry = ( is_array( $decoded ) && isset( $decoded['ancestry'] ) && is_array( $decoded['ancestry'] ) )
+			$meta_raw           = isset( $row['trashed_meta'] ) ? (string) $row['trashed_meta'] : '';
+			$decoded            = '' !== $meta_raw ? json_decode( $meta_raw, true ) : null;
+			$ancestry           = ( is_array( $decoded ) && isset( $decoded['ancestry'] ) && is_array( $decoded['ancestry'] ) )
 				? $decoded['ancestry']
 				: array();
-			$resolved_parent_id = desktop_mode_files_resurrect_ancestry( $user_id, $ancestry );
+			$resolved_parent_id = openstation_files_resurrect_ancestry( $user_id, $ancestry );
 		}
 	}
 
 	/**
 	 * Fires before a placement is restored.
 	 *
-	 * @since 0.8.0
-	 *
 	 * @param int   $placement_id
 	 * @param int   $user_id
 	 * @param array $row
 	 */
-	do_action( 'desktop_mode_files_before_restore_placement', $placement_id, $user_id, $row );
+	do_action( 'openstation_files_before_restore_placement', $placement_id, $user_id, $row );
 
 	$wpdb->update(
 		$tables['placements'],
@@ -545,7 +514,7 @@ function desktop_mode_files_restore_placement( $user_id, $placement_id ) {
 			'trashed_by'         => null,
 			'trashed_via_folder' => null,
 			'trashed_meta'       => null,
-			'updated_at_ms'      => desktop_mode_files_now_ms(),
+			'updated_at_ms'      => openstation_files_now_ms(),
 		),
 		array( 'id' => $placement_id ),
 		array( '%d', null, null, null, null, '%d' ),
@@ -557,15 +526,13 @@ function desktop_mode_files_restore_placement( $user_id, $placement_id ) {
 	// tombstones from an earlier (reversible) removal. Without this,
 	// every heartbeat tick would re-deliver those tombstones to the
 	// client and the row would flicker off the desktop on each tick.
-	desktop_mode_files_clear_tombstones_for( 'placement', $placement_id );
+	openstation_files_clear_tombstones_for( 'placement', $placement_id );
 
 	/**
-	 * @since 0.8.0
-	 *
 	 * @param int $placement_id
 	 * @param int $user_id
 	 */
-	do_action( 'desktop_mode_files_after_restore_placement', $placement_id, $user_id );
+	do_action( 'openstation_files_after_restore_placement', $placement_id, $user_id );
 
 	return true;
 }
@@ -573,17 +540,15 @@ function desktop_mode_files_restore_placement( $user_id, $placement_id ) {
 /**
  * Permanently delete a trashed placement.
  *
- * @since 0.8.0
- *
  * @param int $user_id
  * @param int $placement_id
  * @return true|WP_Error
  */
-function desktop_mode_files_purge_placement( $user_id, $placement_id ) {
+function openstation_files_purge_placement( $user_id, $placement_id ) {
 	global $wpdb;
 	$user_id      = (int) $user_id;
 	$placement_id = (int) $placement_id;
-	$tables       = desktop_mode_files_table_names();
+	$tables       = openstation_files_table_names();
 
 	$row = $wpdb->get_row(
 		$wpdb->prepare(
@@ -595,50 +560,48 @@ function desktop_mode_files_purge_placement( $user_id, $placement_id ) {
 	if ( ! $row ) {
 		return true; // Already gone — idempotent.
 	}
-	if ( ! desktop_mode_files_user_can_purge_placement( $user_id, $row ) ) {
+	if ( ! openstation_files_user_can_purge_placement( $user_id, $row ) ) {
 		return new WP_Error(
-			'desktop_mode_files_forbidden',
+			'openstation_files_forbidden',
 			__( 'You do not have permission to delete this item.', 'desktop-mode' ),
 			array( 'status' => 403 )
 		);
 	}
 
 	/**
-	 * @since 0.8.0
-	 *
 	 * @param int   $placement_id
 	 * @param int   $user_id
 	 * @param array $row
 	 */
-	do_action( 'desktop_mode_files_before_purge_placement', $placement_id, $user_id, $row );
+	do_action( 'openstation_files_before_purge_placement', $placement_id, $user_id, $row );
 
 	$wpdb->delete( $tables['placements'], array( 'id' => $placement_id ), array( '%d' ) );
 
-	// Mirror `desktop_mode_files_remove()`: a purge IS a permanent
+	// Mirror `openstation_files_remove()`: a purge IS a permanent
 	// removal, so the same lifecycle action fires. Load-bearing for
 	// the `upload` type — the stored-files listener deletes the real
 	// bytes when the owner's last placement goes away; without this
-	// the recycle-bin "Delete forever" path leaked them (0.9.6).
+	// the recycle-bin "Delete forever" path leaked them.
 	do_action(
-		'desktop_mode_file_unplaced',
+		'openstation_file_unplaced',
 		$placement_id,
-		desktop_mode_files_normalize_placement_row( $row )
+		openstation_files_normalize_placement_row( $row )
 	);
 
 	/**
-	 * @since 0.8.0
-	 *
 	 * @param int $placement_id
 	 * @param int $user_id
 	 */
-	do_action( 'desktop_mode_files_after_purge_placement', $placement_id, $user_id );
+	do_action( 'openstation_files_after_purge_placement', $placement_id, $user_id );
 
 	return true;
 }
 
-/* ================================================================== *
+/*
+================================================================== *
  *  Folder: trash / restore / purge (cascades to child placements).
- * ================================================================== */
+ * ==================================================================
+ */
 
 /**
  * Soft-trash a folder. Cascades to every child placement (any
@@ -648,17 +611,15 @@ function desktop_mode_files_purge_placement( $user_id, $placement_id ) {
  *
  * Idempotent on already-trashed.
  *
- * @since 0.8.0
- *
  * @param int $user_id
  * @param int $folder_id
  * @return true|WP_Error
  */
-function desktop_mode_files_trash_folder( $user_id, $folder_id ) {
+function openstation_files_trash_folder( $user_id, $folder_id ) {
 	global $wpdb;
 	$user_id   = (int) $user_id;
 	$folder_id = (int) $folder_id;
-	$tables    = desktop_mode_files_table_names();
+	$tables    = openstation_files_table_names();
 
 	$row = $wpdb->get_row(
 		$wpdb->prepare(
@@ -669,7 +630,7 @@ function desktop_mode_files_trash_folder( $user_id, $folder_id ) {
 	);
 	if ( ! $row ) {
 		return new WP_Error(
-			'desktop_mode_files_folder_not_found',
+			'openstation_files_folder_not_found',
 			__( 'Folder not found.', 'desktop-mode' ),
 			array( 'status' => 404 )
 		);
@@ -677,24 +638,22 @@ function desktop_mode_files_trash_folder( $user_id, $folder_id ) {
 	if ( null !== $row['trashed_at_ms'] && '' !== $row['trashed_at_ms'] ) {
 		return true;
 	}
-	if ( ! desktop_mode_files_user_can_trash_folder( $user_id, $row ) ) {
+	if ( ! openstation_files_user_can_trash_folder( $user_id, $row ) ) {
 		return new WP_Error(
-			'desktop_mode_files_forbidden',
+			'openstation_files_forbidden',
 			__( 'You do not have permission to trash this folder.', 'desktop-mode' ),
 			array( 'status' => 403 )
 		);
 	}
 
 	/**
-	 * @since 0.8.0
-	 *
 	 * @param int   $folder_id
 	 * @param int   $user_id
 	 * @param array $row
 	 */
-	do_action( 'desktop_mode_files_before_trash_folder', $folder_id, $user_id, $row );
+	do_action( 'openstation_files_before_trash_folder', $folder_id, $user_id, $row );
 
-	$now = desktop_mode_files_now_ms();
+	$now = openstation_files_now_ms();
 	// Capture the folder's own placement-chain ancestry so a future
 	// restore can resurrect any parent folders that got hard-deleted
 	// while this one was sitting in trash.
@@ -707,10 +666,10 @@ function desktop_mode_files_trash_folder( $user_id, $folder_id ) {
 		),
 		ARRAY_A
 	);
-	$folder_ancestry = $folder_placement
-		? desktop_mode_files_capture_ancestry( (int) $folder_placement['parent_id'] )
+	$folder_ancestry  = $folder_placement
+		? openstation_files_capture_ancestry( (int) $folder_placement['parent_id'] )
 		: array();
-	$folder_meta = wp_json_encode( array( 'ancestry' => $folder_ancestry ) );
+	$folder_meta      = wp_json_encode( array( 'ancestry' => $folder_ancestry ) );
 
 	// Trash the folder row.
 	$folder_update = $wpdb->update(
@@ -727,7 +686,7 @@ function desktop_mode_files_trash_folder( $user_id, $folder_id ) {
 	);
 	if ( false === $folder_update ) {
 		return new WP_Error(
-			'desktop_mode_files_trash_failed',
+			'openstation_files_trash_failed',
 			isset( $wpdb->last_error ) && $wpdb->last_error
 				? (string) $wpdb->last_error
 				: __( 'Failed to trash folder.', 'desktop-mode' ),
@@ -743,7 +702,7 @@ function desktop_mode_files_trash_folder( $user_id, $folder_id ) {
 	// deleted) can still recreate the chain — same shape as a
 	// direct trash. Captured per-row because every child shares
 	// the same parent chain, so we compute once.
-	$ancestry = desktop_mode_files_capture_ancestry( $folder_id );
+	$ancestry = openstation_files_capture_ancestry( $folder_id );
 	$meta     = wp_json_encode( array( 'ancestry' => $ancestry ) );
 	$wpdb->query(
 		$wpdb->prepare(
@@ -774,16 +733,14 @@ function desktop_mode_files_trash_folder( $user_id, $folder_id ) {
 		)
 	);
 	foreach ( (array) $child_folder_ids as $child_id ) {
-		desktop_mode_files_trash_folder( $user_id, (int) $child_id );
+		openstation_files_trash_folder( $user_id, (int) $child_id );
 	}
 
 	/**
-	 * @since 0.8.0
-	 *
 	 * @param int $folder_id
 	 * @param int $user_id
 	 */
-	do_action( 'desktop_mode_files_after_trash_folder', $folder_id, $user_id );
+	do_action( 'openstation_files_after_trash_folder', $folder_id, $user_id );
 
 	return true;
 }
@@ -794,17 +751,15 @@ function desktop_mode_files_trash_folder( $user_id, $folder_id ) {
  * (i.e. `trashed_via_folder IS NULL`) stay in the recycle bin —
  * the user trashed them deliberately, separate from the folder.
  *
- * @since 0.8.0
- *
  * @param int $user_id
  * @param int $folder_id
  * @return true|WP_Error
  */
-function desktop_mode_files_restore_folder( $user_id, $folder_id ) {
+function openstation_files_restore_folder( $user_id, $folder_id ) {
 	global $wpdb;
 	$user_id   = (int) $user_id;
 	$folder_id = (int) $folder_id;
-	$tables    = desktop_mode_files_table_names();
+	$tables    = openstation_files_table_names();
 
 	$row = $wpdb->get_row(
 		$wpdb->prepare(
@@ -815,7 +770,7 @@ function desktop_mode_files_restore_folder( $user_id, $folder_id ) {
 	);
 	if ( ! $row ) {
 		return new WP_Error(
-			'desktop_mode_files_folder_not_found',
+			'openstation_files_folder_not_found',
 			__( 'Folder not found.', 'desktop-mode' ),
 			array( 'status' => 404 )
 		);
@@ -823,24 +778,22 @@ function desktop_mode_files_restore_folder( $user_id, $folder_id ) {
 	if ( null === $row['trashed_at_ms'] || '' === $row['trashed_at_ms'] ) {
 		return true;
 	}
-	if ( ! desktop_mode_files_user_can_restore_folder( $user_id, $row ) ) {
+	if ( ! openstation_files_user_can_restore_folder( $user_id, $row ) ) {
 		return new WP_Error(
-			'desktop_mode_files_forbidden',
+			'openstation_files_forbidden',
 			__( 'You do not have permission to restore this folder.', 'desktop-mode' ),
 			array( 'status' => 403 )
 		);
 	}
 
 	/**
-	 * @since 0.8.0
-	 *
 	 * @param int   $folder_id
 	 * @param int   $user_id
 	 * @param array $row
 	 */
-	do_action( 'desktop_mode_files_before_restore_folder', $folder_id, $user_id, $row );
+	do_action( 'openstation_files_before_restore_folder', $folder_id, $user_id, $row );
 
-	$now = desktop_mode_files_now_ms();
+	$now = openstation_files_now_ms();
 	// Snapshot nested folder ids BEFORE we null `trashed_via_folder`
 	// on the placements — that column is the only stable link from
 	// a child folder's placement back to the parent cascade.
@@ -889,10 +842,10 @@ function desktop_mode_files_restore_folder( $user_id, $folder_id ) {
 		if ( $folder_placement_row ) {
 			$origin_parent = (int) $folder_placement_row['parent_id'];
 			$alive         = $origin_parent > 0
-				? desktop_mode_files_get_folder( $origin_parent, true )
+				? openstation_files_get_folder( $origin_parent, true )
 				: null;
 			if ( $origin_parent > 0 && ! $alive ) {
-				$resolved = desktop_mode_files_resurrect_ancestry( $user_id, $ancestry );
+				$resolved = openstation_files_resurrect_ancestry( $user_id, $ancestry );
 				$wpdb->update(
 					$tables['placements'],
 					array(
@@ -922,7 +875,7 @@ function desktop_mode_files_restore_folder( $user_id, $folder_id ) {
 	);
 	// Recursively restore nested folders captured in the snapshot.
 	foreach ( (array) $nested_ids as $nid ) {
-		desktop_mode_files_restore_folder( $user_id, (int) $nid );
+		openstation_files_restore_folder( $user_id, (int) $nid );
 	}
 
 	// Enforce the "tombstones never refer to alive rows" invariant
@@ -932,7 +885,7 @@ function desktop_mode_files_restore_folder( $user_id, $folder_id ) {
 	// scrub the FOLDER's own tombstones plus those of every cascade-
 	// restored placement so a fresh heartbeat tick can't surface
 	// them as `removed.*` against the now-alive rows.
-	desktop_mode_files_clear_tombstones_for( 'folder', $folder_id );
+	openstation_files_clear_tombstones_for( 'folder', $folder_id );
 	$restored_placement_ids = $wpdb->get_col(
 		$wpdb->prepare(
 			"SELECT id FROM {$tables['placements']}
@@ -943,16 +896,14 @@ function desktop_mode_files_restore_folder( $user_id, $folder_id ) {
 		)
 	);
 	foreach ( (array) $restored_placement_ids as $rpid ) {
-		desktop_mode_files_clear_tombstones_for( 'placement', (int) $rpid );
+		openstation_files_clear_tombstones_for( 'placement', (int) $rpid );
 	}
 
 	/**
-	 * @since 0.8.0
-	 *
 	 * @param int $folder_id
 	 * @param int $user_id
 	 */
-	do_action( 'desktop_mode_files_after_restore_folder', $folder_id, $user_id );
+	do_action( 'openstation_files_after_restore_folder', $folder_id, $user_id );
 
 	return true;
 }
@@ -962,17 +913,15 @@ function desktop_mode_files_restore_folder( $user_id, $folder_id ) {
  * cascade child placements. Independent placements that landed in
  * the trash separately stay there.
  *
- * @since 0.8.0
- *
  * @param int $user_id
  * @param int $folder_id
  * @return true|WP_Error
  */
-function desktop_mode_files_purge_folder( $user_id, $folder_id ) {
+function openstation_files_purge_folder( $user_id, $folder_id ) {
 	global $wpdb;
 	$user_id   = (int) $user_id;
 	$folder_id = (int) $folder_id;
-	$tables    = desktop_mode_files_table_names();
+	$tables    = openstation_files_table_names();
 
 	$row = $wpdb->get_row(
 		$wpdb->prepare(
@@ -984,22 +933,20 @@ function desktop_mode_files_purge_folder( $user_id, $folder_id ) {
 	if ( ! $row ) {
 		return true;
 	}
-	if ( ! desktop_mode_files_user_can_purge_folder( $user_id, $row ) ) {
+	if ( ! openstation_files_user_can_purge_folder( $user_id, $row ) ) {
 		return new WP_Error(
-			'desktop_mode_files_forbidden',
+			'openstation_files_forbidden',
 			__( 'You do not have permission to delete this folder.', 'desktop-mode' ),
 			array( 'status' => 403 )
 		);
 	}
 
 	/**
-	 * @since 0.8.0
-	 *
 	 * @param int   $folder_id
 	 * @param int   $user_id
 	 * @param array $row
 	 */
-	do_action( 'desktop_mode_files_before_purge_folder', $folder_id, $user_id, $row );
+	do_action( 'openstation_files_before_purge_folder', $folder_id, $user_id, $row );
 
 	// Cascade-revoke every share + per-user decision for the folder
 	// BEFORE deleting the folder row. Without this, purge left
@@ -1007,7 +954,7 @@ function desktop_mode_files_purge_folder( $user_id, $folder_id ) {
 	// at a folder id that no longer exists — `compute_visible_folders`
 	// would still join them, and the row leak grew with every
 	// recycle-bin empty. Mirrors the same cleanup
-	// `desktop_mode_files_delete_folder_recursive` does for the
+	// `openstation_files_delete_folder_recursive` does for the
 	// "delete from desktop" path.
 	// `target_type` scoping is load-bearing: `folder_id` carries a
 	// STORED-FILE id on `target_type='file'` rows, and the two id
@@ -1049,7 +996,7 @@ function desktop_mode_files_purge_folder( $user_id, $folder_id ) {
 		)
 	);
 	foreach ( $pointing_ids as $pid ) {
-		desktop_mode_files_write_tombstone( 'placement', (int) $pid );
+		openstation_files_write_tombstone( 'placement', (int) $pid );
 	}
 	if ( ! empty( $pointing_ids ) ) {
 		$placeholders = implode( ',', array_fill( 0, count( $pointing_ids ), '%d' ) );
@@ -1065,7 +1012,7 @@ function desktop_mode_files_purge_folder( $user_id, $folder_id ) {
 	// Upload placements among the cascade-trashed children carry
 	// real bytes — run the stored-files deletion contract for them
 	// after the rows go. Direct guarded call (not the public
-	// `desktop_mode_file_unplaced` action) so cascade hook semantics
+	// `openstation_file_unplaced` action) so cascade hook semantics
 	// for every other type stay unchanged.
 	$cascade_upload_rows = (array) $wpdb->get_results(
 		$wpdb->prepare(
@@ -1080,48 +1027,46 @@ function desktop_mode_files_purge_folder( $user_id, $folder_id ) {
 		array( 'trashed_via_folder' => $folder_id ),
 		array( '%d' )
 	);
-	if ( function_exists( 'desktop_mode_stored_files_handle_unplaced' ) ) {
+	if ( function_exists( 'openstation_stored_files_handle_unplaced' ) ) {
 		foreach ( $cascade_upload_rows as $upload_row ) {
-			desktop_mode_stored_files_handle_unplaced(
+			openstation_stored_files_handle_unplaced(
 				(int) $upload_row['id'],
-				desktop_mode_files_normalize_placement_row( $upload_row )
+				openstation_files_normalize_placement_row( $upload_row )
 			);
 		}
 	}
 	$wpdb->delete( $tables['folders'], array( 'id' => $folder_id ), array( '%d' ) );
 
 	/**
-	 * @since 0.8.0
-	 *
 	 * @param int $folder_id
 	 * @param int $user_id
 	 */
-	do_action( 'desktop_mode_files_after_purge_folder', $folder_id, $user_id );
+	do_action( 'openstation_files_after_purge_folder', $folder_id, $user_id );
 
 	return true;
 }
 
-/* ================================================================== *
+/*
+================================================================== *
  *  Recycle-bin list builder.
- * ================================================================== */
+ * ==================================================================
+ */
 
 /**
  * Count of trashed placements + folders surfaced to the recycle bin
  * for `$user_id`. Mirrors `_list_trashed_for_recycle_bin`'s "skip
  * cascaded children" rule so the badge matches the visible list.
  *
- * @since 0.8.0
- *
  * @param int $user_id Owner.
  * @return int
  */
-function desktop_mode_files_count_trashed_for_recycle_bin( $user_id ) {
+function openstation_files_count_trashed_for_recycle_bin( $user_id ) {
 	global $wpdb;
 	$user_id = (int) $user_id;
 	if ( $user_id <= 0 ) {
 		return 0;
 	}
-	$tables = desktop_mode_files_table_names();
+	$tables = openstation_files_table_names();
 
 	$placements = (int) $wpdb->get_var(
 		$wpdb->prepare(
@@ -1132,7 +1077,7 @@ function desktop_mode_files_count_trashed_for_recycle_bin( $user_id ) {
 			$user_id
 		)
 	);
-	$folders = (int) $wpdb->get_var(
+	$folders    = (int) $wpdb->get_var(
 		$wpdb->prepare(
 			"SELECT COUNT(*) FROM {$tables['folders']}
 			WHERE owner_id = %d AND trashed_at_ms IS NOT NULL",
@@ -1147,15 +1092,13 @@ function desktop_mode_files_count_trashed_for_recycle_bin( $user_id ) {
  * recycle-bin items. Used by the recycle bin's REST list endpoint
  * to merge files-on-the-desktop trash with the WP-core trash.
  *
- * @since 0.8.0
- *
  * @param int $user_id Owner.
  * @return array[] List of recycle-bin item shapes.
  */
-function desktop_mode_files_list_trashed_for_recycle_bin( $user_id ) {
+function openstation_files_list_trashed_for_recycle_bin( $user_id ) {
 	global $wpdb;
 	$user_id = (int) $user_id;
-	$tables  = desktop_mode_files_table_names();
+	$tables  = openstation_files_table_names();
 	$out     = array();
 
 	// Trashed placements owned by this user.
@@ -1174,18 +1117,20 @@ function desktop_mode_files_list_trashed_for_recycle_bin( $user_id ) {
 		if ( ! empty( $row['trashed_via_folder'] ) ) {
 			continue;
 		}
-		$file = function_exists( 'desktop_mode_resolve_file' )
-			? desktop_mode_resolve_file( $row['file_type'], $row['file_ref'] )
+		$file  = function_exists( 'openstation_resolve_file' )
+			? openstation_resolve_file( $row['file_type'], $row['file_ref'] )
 			: null;
-		$title = $file ? (string) $file->title() : (string) $row['file_type'];
+		$title = $file
+			? openstation_plain_text_title( $file->title() )
+			: (string) $row['file_type'];
 		$icon  = $file ? (string) $file->icon() : 'dashicons-no-alt';
 		// Two recycle-bin buckets:
-		//   - `shortcut`  → plugin-registered icons (file_type='shortcut')
-		//   - `placement` → every other placement (post / page /
-		//                   attachment / user / term / comment / …)
+		// - `shortcut`  → plugin-registered icons (file_type='shortcut')
+		// - `placement` → every other placement (post / page /
+		// attachment / user / term / comment / …)
 		// Lets the bin's type-filter tabs split "Shortcuts" from
 		// "Files" without overloading either label.
-		$bucket = ( 'shortcut' === (string) $row['file_type'] )
+		$bucket   = ( 'shortcut' === (string) $row['file_type'] )
 			? 'shortcut'
 			: 'placement';
 		$subtitle = ( 'shortcut' === $bucket )
@@ -1212,8 +1157,8 @@ function desktop_mode_files_list_trashed_for_recycle_bin( $user_id ) {
 			'deleted_at'    => gmdate( 'c', (int) round( (int) $row['trashed_at_ms'] / 1000 ) ),
 			'deleted_by'    => '',
 			'deleted_by_id' => (int) $row['trashed_by'],
-			'can_restore'   => desktop_mode_files_user_can_restore_placement( $user_id, $row ),
-			'can_purge'     => desktop_mode_files_user_can_purge_placement( $user_id, $row ),
+			'can_restore'   => openstation_files_user_can_restore_placement( $user_id, $row ),
+			'can_purge'     => openstation_files_user_can_purge_placement( $user_id, $row ),
 			'edit_link'     => '',
 		);
 		if ( 'link' === (string) $row['file_type'] ) {
@@ -1240,7 +1185,7 @@ function desktop_mode_files_list_trashed_for_recycle_bin( $user_id ) {
 				(int) $row['id']
 			)
 		);
-		$out[] = array(
+		$out[]       = array(
 			'id'            => (int) $row['id'],
 			'type'          => 'folder',
 			'title'         => (string) $row['name'],
@@ -1257,8 +1202,8 @@ function desktop_mode_files_list_trashed_for_recycle_bin( $user_id ) {
 			'deleted_at'    => gmdate( 'c', (int) round( (int) $row['trashed_at_ms'] / 1000 ) ),
 			'deleted_by'    => '',
 			'deleted_by_id' => (int) $row['trashed_by'],
-			'can_restore'   => desktop_mode_files_user_can_restore_folder( $user_id, $row ),
-			'can_purge'     => desktop_mode_files_user_can_purge_folder( $user_id, $row ),
+			'can_restore'   => openstation_files_user_can_restore_folder( $user_id, $row ),
+			'can_purge'     => openstation_files_user_can_purge_folder( $user_id, $row ),
 			'edit_link'     => '',
 		);
 	}
@@ -1271,7 +1216,7 @@ function desktop_mode_files_list_trashed_for_recycle_bin( $user_id ) {
 			continue;
 		}
 		if ( ! isset( $user_cache[ $uid ] ) ) {
-			$u                 = get_userdata( $uid );
+			$u                  = get_userdata( $uid );
 			$user_cache[ $uid ] = $u ? $u->display_name : '';
 		}
 		$item['deleted_by'] = $user_cache[ $uid ];

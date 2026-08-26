@@ -9,7 +9,7 @@ Adds a new "Pending Orders" icon to the dock, with a live badge showing the curr
  */
 defined( 'ABSPATH' ) || exit;
 
-add_filter( 'desktop_mode_dock_items', function ( $items ) {
+add_filter( 'openstation_dock_items', function ( $items ) {
     $pending = (int) get_option( 'my_pending_order_count', 0 );
 
     $items[] = array(
@@ -27,8 +27,7 @@ add_filter( 'desktop_mode_dock_items', function ( $items ) {
 
 ## Updating the badge live (without a refresh)
 
-**Stable** — shipped 0.6.0; rail discriminator + icon rail
-since 0.6.0.
+**Stable.**
 
 Use the platform API instead of poking the DOM. The framework
 exposes the same `setBadge( id, count )` shape on three rails —
@@ -39,9 +38,9 @@ branching:
 
 ```js
 function setOrdersBadge( count ) {
-    wp.desktop.dock?.setBadge?.(     'my-orders', count );
-    wp.desktop.sideDock?.setBadge?.( 'my-orders', count );
-    wp.desktop.icons?.setBadge?.(    'my-orders', count );
+    wp.os.dock?.setBadge?.(     'my-orders', count );
+    wp.os.sideDock?.setBadge?.( 'my-orders', count );
+    wp.os.icons?.setBadge?.(    'my-orders', count );
 }
 setOrdersBadge( 7 );
 setOrdersBadge( 0 );  // clear
@@ -63,8 +62,8 @@ Every change publishes on the activity bus with a `rail`
 discriminator — one subscription, every rail composed:
 
 ```js
-wp.desktop.activity.subscribe(
-    'desktop-mode/badge-changed',
+wp.os.activity.subscribe(
+    'os/badge-changed',
     ( { itemId, count, rail } ) => {
         console.log( `${ rail }:${ itemId } → ${ count }` );
     },
@@ -76,8 +75,8 @@ about one surface:
 
 ```js
 // Icon rail only — also carries the previous count.
-wp.desktop.hooks.addAction(
-    wp.desktop.HOOKS.ICON_BADGE_CHANGED,
+wp.os.hooks.addAction(
+    wp.os.HOOKS.ICON_BADGE_CHANGED,
     'my-plugin/track-icon-badges',
     ( { iconId, count, previousCount } ) => { /* … */ },
 );
@@ -95,18 +94,18 @@ window-lifecycle hook and decide for yourself:
 const WINDOW_ID = 'my-orders';
 function repaintBadge() {
     const total  = myPlugin.getPendingCount();
-    const active = wp.desktop.windowManager.isActive( WINDOW_ID );
+    const active = wp.os.windowManager.isActive( WINDOW_ID );
     setOrdersBadge( active ? 0 : total );
 }
 [
-    wp.desktop.HOOKS.WINDOW_FOCUSED,
-    wp.desktop.HOOKS.WINDOW_BLURRED,
-    wp.desktop.HOOKS.WINDOW_MINIMIZED,
-    wp.desktop.HOOKS.WINDOW_RESTORED,
-    wp.desktop.HOOKS.WINDOW_CLOSED,
-    wp.desktop.HOOKS.WINDOW_OPENED,
+    wp.os.HOOKS.WINDOW_FOCUSED,
+    wp.os.HOOKS.WINDOW_BLURRED,
+    wp.os.HOOKS.WINDOW_MINIMIZED,
+    wp.os.HOOKS.WINDOW_RESTORED,
+    wp.os.HOOKS.WINDOW_CLOSED,
+    wp.os.HOOKS.WINDOW_OPENED,
 ].forEach( ( h ) =>
-    wp.desktop.hooks.addAction( h, 'my-plugin/badge', ( p ) => {
+    wp.os.hooks.addAction( h, 'my-plugin/badge', ( p ) => {
         if ( p.windowId === WINDOW_ID ) repaintBadge();
     } )
 );
@@ -121,5 +120,5 @@ tile), see
 
 - [`window-request-attention.md`](./window-request-attention.md) — pulse / shake / bounce a tile
 - [`../event-driven-framework.md`](../event-driven-framework.md) — the mental model
-- [Hooks Reference — `desktop_mode_dock_items`](../hooks-reference.md#desktop_mode_dock_items--stable)
-- [Hooks Reference — `desktop_mode_dock_item`](../hooks-reference.md#desktop_mode_dock_item--stable)
+- [Hooks Reference — `openstation_dock_items`](../hooks-reference.md#openstation_dock_items--stable)
+- [Hooks Reference — `openstation_dock_item`](../hooks-reference.md#openstation_dock_item--stable)

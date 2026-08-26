@@ -1,6 +1,6 @@
 # Folder sharing
 
-**Status:** Experimental (since 0.8.5). The hooks, schema, and
+**Status:** Experimental. The hooks, schema, and
 REST contract may change in minor releases — track this doc.
 
 ## What it is
@@ -69,13 +69,13 @@ happens to be placed. That's true in both directions:
   own folders, between their containers). Owner is untouched.
   Recipient keeps write capability if granted; the folder's
   contents stay visible because every read goes through
-  `desktop_mode_folder_share_user_capability( folder_id, viewer )`
+  `openstation_folder_share_user_capability( folder_id, viewer )`
   — never through "what's the placement path."
 - **Recipient's placement starts at desktop root.** Regardless of
   where the owner has the folder placed (root, deep inside a
   parent the recipient cannot see, …), `share_accept` plants the
   recipient's tile at `parent_id = 0`. The
-  `desktop_mode_folder_share_accept_default_parent` filter lets a
+  `openstation_folder_share_accept_default_parent` filter lets a
   future "Shared with me" tray plugin override.
 - **Cascade still works through moves.** Sub-folders inherit
   access via the canonical (owner-side) ancestor chain. Moving a
@@ -99,7 +99,7 @@ the placement rows, the heartbeat's folder upsert reaches every
 client but the placement upsert query skips them — leaving tiles
 showing the old name until F5.
 
-Plugins can react via `do_action( 'desktop_mode_folder_renamed',
+Plugins can react via `do_action( 'openstation_folder_renamed',
 $folder_id, $new_name, $old_name, $user_id )`.
 
 ## Folder delete cascade
@@ -123,17 +123,17 @@ cleaned up in one transaction:
 
 Plugins can subscribe to:
 
-- `apply_filters( 'desktop_mode_files_can_delete_folder', $can,
+- `apply_filters( 'openstation_files_can_delete_folder', $can,
   $folder_id, $user_id, $row )` — return `false` or a
   `WP_Error` to veto the cascade (e.g. for a UX confirmation
   prompt when many recipients are involved).
-- `do_action( 'desktop_mode_files_before_delete_folder',
+- `do_action( 'openstation_files_before_delete_folder',
   $folder_id, $user_id, $row )` — runs once before the walk.
-- `do_action( 'desktop_mode_files_share_revoked', $share_id, $row,
+- `do_action( 'openstation_files_share_revoked', $share_id, $row,
   $user_id )` — fires per share row torn down by the cascade
   (same signature plugin authors already use for explicit
   revokes).
-- `do_action( 'desktop_mode_files_after_delete_folder_cascade',
+- `do_action( 'openstation_files_after_delete_folder_cascade',
   $root_folder_id, $user_id, $summary )` — single summary event
   with lists keyed by `folders_deleted`, `shares_revoked`,
   `placements_pointing`, `placements_inside`.
@@ -181,13 +181,13 @@ CREATE TABLE wp_desktop_mode_share_user_decisions (
 );
 ```
 
-Resolution rule, expressed as `desktop_mode_files_share_user_state()`:
+Resolution rule, expressed as `openstation_files_share_user_state()`:
 
 - `principal_type='user'` → state from the shares row.
 - `principal_type='role'` → state from the decisions row for
   `(share_id, user_id)`, defaulting to `'pending'` when absent.
 
-Pre-0.8.5 sites kept share lists in `wp_desktop_mode_folders.share_meta`
+Legacy sites kept share lists in `wp_desktop_mode_folders.share_meta`
 as JSON. Those lists are NOT migrated; the column is retained for
 diagnostics only and is never consulted for visibility. Owners
 must re-invite recipients through the shares API.
@@ -198,11 +198,11 @@ The column ships from day one so a future plugin can register a
 NEW shareable target without a schema migration:
 
 ```php
-add_filter( 'desktop_mode_files_shareable_types', function ( $types ) {
+add_filter( 'openstation_files_shareable_types', function ( $types ) {
     $types[] = 'post';
     return $types;
 } );
-add_filter( 'desktop_mode_files_share_target_owner', function ( $owner, $type, $ref ) {
+add_filter( 'openstation_files_share_target_owner', function ( $owner, $type, $ref ) {
     if ( 'post' === $type ) {
         return (int) get_post_field( 'post_author', (int) $ref );
     }
@@ -210,14 +210,15 @@ add_filter( 'desktop_mode_files_share_target_owner', function ( $owner, $type, $
 }, 10, 3 );
 ```
 
-v1 ships with `'folder'` only. The REST routes live under
+The default shareable types are `'folder'` and `'file'` (stored
+uploads), filterable via `openstation_files_shareable_types`. The REST routes live under
 `/folders/{id}/shares`; a future generic surface (e.g.
 `/share-targets/{type}/{id}/shares`) can hit the same store
 functions.
 
 ## Visibility resolution
 
-`desktop_mode_files_compute_visible_folders( $owned, $user_id )`
+`openstation_files_compute_visible_folders( $owned, $user_id )`
 returns the union of:
 
 1. **Owned folders** (`$owned` is the seed — owner-side).
@@ -229,14 +230,14 @@ returns the union of:
 consulted for visibility (a legacy fallback was deliberately
 dropped because it re-granted access to revoked recipients).
 
-Filtered via `desktop_mode_files_visible_folders` (priority 5) and
-`desktop_mode_files_user_can_see_folder` (per-row decision).
+Filtered via `openstation_files_visible_folders` (priority 5) and
+`openstation_files_user_can_see_folder` (per-row decision).
 
 ## Write enforcement
 
-`desktop_mode_files_move()`, `_place()`, and the
-`desktop_mode_files_user_can_trash_placement` gate consult
-`desktop_mode_folder_share_user_capability( $folder_id, $user_id )`:
+`openstation_files_move()`, `_place()`, and the
+`openstation_files_user_can_trash_placement` gate consult
+`openstation_folder_share_user_capability( $folder_id, $user_id )`:
 
 - Owner always returns `'write'`.
 - `share_mode='all'` returns `'read'` by default (filterable).
@@ -248,7 +249,7 @@ A non-write recipient that tries to move an icon into or out of
 the shared folder, or trash an icon inside it, gets a 403:
 
 ```
-WP_Error( 'desktop_mode_files_no_write_in_shared_folder', ... )
+WP_Error( 'openstation_files_no_write_in_shared_folder', ... )
 ```
 
 ## Conflict detection (If-Match)
@@ -260,7 +261,7 @@ the server returns 409 with a structured body:
 
 ```json
 {
-    "code": "desktop_mode_files_conflict",
+    "code": "openstation_files_conflict",
     "message": "...",
     "data": {
         "status": 409,
@@ -286,18 +287,26 @@ display names or folder names.
 The JS client throws `FilesConflictError` and the layer surfaces a
 toast: *"Alice moved this to 'Backlog' just now. [View folder]"*.
 
+**View folder** opens the destination folder's window — the same
+window a double-click on that folder's tile opens, because the action
+dispatches through the registered `folder` opener rather than building
+a window of its own. An already-open folder window is focused instead
+of reopened. The button follows the viewer-scoping above: when
+`current.parentId` degrades to `0` there is no folder to point at, so
+the toast carries the message alone.
+
 Clients that omit the header retain last-write-wins semantics for
-back-compat. The desktop-mode shell always sends the header.
+back-compat. The OpenStation shell always sends the header.
 
 ## Opt-in flow
 
 1. Owner invites — share row written with `state='pending'`.
 2. Recipient's next heartbeat tick carries the invite in
-   `desktop_mode_files.shares.pending[]`.
+   `openstation_files.shares.pending[]`.
 3. The shell shows an Accept / Deny / Later modal on first sight.
 4. Accept → row becomes `state='accepted'`, server places the
    folder at the recipient's desktop root via
-   `desktop_mode_folder_share_accept_default_parent` filter.
+   `openstation_folder_share_accept_default_parent` filter.
 5. Deny → row becomes `state='denied'`; the shell adds the folder
    to a per-session denied set so the prompt does not re-fire.
 6. Later → row stays `pending`; the shell remembers it was
@@ -322,7 +331,7 @@ inside the folder, which belong to the shared namespace, are
 untouched).
 
 Owners cannot leave their own folder (the endpoint returns 400
-with `desktop_mode_files_owner_cannot_leave`).
+with `openstation_files_owner_cannot_leave`).
 
 ## REST routes
 
@@ -340,12 +349,12 @@ GET    /desktop-mode/v1/files/users/search?q=&exclude=
 POST   /desktop-mode/v1/files/folder-sharing-tables/purge   ← `manage_options` only
 ```
 
-All require `desktop_mode_is_enabled` + logged-in. Every share
+All require `openstation_is_enabled` + logged-in. Every share
 route (including `/leave`) additionally requires the viewer's
 folder-sharing OS Setting to be on; when it is off the routes
 answer 404 (indistinguishable from the feature not being
 installed). Share-management mutations (POST/PATCH/DELETE on
-`/shares`) are gated by `desktop_mode_files_share_can_manage`
+`/shares`) are gated by `openstation_files_share_can_manage`
 (owner-only by default). `/leave` is open to any logged-in user
 who is currently a recipient of the folder. `/users/search`
 requires `edit_posts`. The table-purge route is a destructive
@@ -354,7 +363,7 @@ site-admin cleanup (drops the folder-sharing tables) and requires
 
 ## Hooks
 
-See [hooks-reference.md](hooks-reference.md#folder-sharing-since-085-experimental).
+See [hooks-reference.md](hooks-reference.md#folder-sharing-experimental).
 
 ## JS surface
 
@@ -362,14 +371,14 @@ To react to share changes today, subscribe to the shares store —
 a `createSharedStore( 'desktop-files/shares' )` slot updated by
 the heartbeat ingest.
 
-**Planned** — `wp.desktop.activity` channels for the share
+**Planned** — `wp.os.activity` channels for the share
 lifecycle are not yet published:
 
-- `desktop-mode/folder-share-invited`
-- `desktop-mode/folder-share-accepted`
-- `desktop-mode/folder-share-denied`
-- `desktop-mode/folder-share-revoked`
-- `desktop-mode/folder-share-capability-changed`
+- `os/folder-share-invited`
+- `os/folder-share-accepted`
+- `os/folder-share-denied`
+- `os/folder-share-revoked`
+- `os/folder-share-capability-changed`
 
 Programmatic entry points (from `src/desktop-files/rest.ts`):
 
@@ -392,24 +401,63 @@ import { openShareSettingsModal } from '.../desktop-files/share-settings-modal';
 openShareSettingsModal( { folderId, folderName } );
 ```
 
+## What the desktop can see about a share
+
+Two pieces of state have to reach the client for a folder tile to
+present sharing correctly, and both ride the boot payload rather
+than a REST call:
+
+**`shareSummary` on the folder's file shape.** A folder on the
+desktop is a *placement*, and a placement's `file` is whatever
+`OpenStation_Folder_File::serialize()` returns — so that is where
+the summary lives:
+
+```php
+'shareSummary' => array( 'shared' => bool, 'recipientCount' => int )
+```
+
+`shared` is viewer-agnostic (a recipient needs the badge as much as
+the owner does); `recipientCount` is owner-internal and reads `0`
+for anyone who can't manage the folder's shares, which keeps the
+wire shape stable rather than making the key conditional.
+`openstation_files_folder_share_summary()` computes it, and the
+folder response shape (`openstation_files_shape_folder()`) calls the
+same helper — a tile paints the same badge whichever response it was
+rendered from. `share_mode = 'all'` counts as shared on its own; a
+*pending* invitation does not.
+
+**`filesBootFolders` in the shell config.** The client keeps folder
+rows in a map separate from placements, and everything that needs a
+folder's owner reads it there — the owner-only Share button most of
+all, since a window hands its match predicate nothing but an id.
+`openstation_files_inject_boot_folders()` inlines the viewer's
+visible folders (owned, plus accepted shares, plus `share_mode='all'`)
+with the same shape and visibility resolution as `GET /folders`;
+`seedBootFolders()` applies them once on boot and deletes the key, so
+a later re-hydration still fetches fresh state.
+
+Placement hydration alone never populated that map — `listFolders()`
+ran only after a create, a rename or an untrash — which is why the
+seed exists rather than being an optimization.
+
 ## Re-share prevention
 
 A recipient cannot re-share a folder they've received:
 
 - **Server** — every share mutation calls
-  `desktop_mode_files_share_can_manage`. Default decision is
+  `openstation_files_share_can_manage`. Default decision is
   owner-only. Plugins that ship a "team admin" concept can
   broaden it; non-owners always get a 403 otherwise.
 - **Client** — the title-bar Share button's `match` predicate
-  consults the folders shared store and only renders for the
-  owner. The tile context menu's "Share folder…" / "Manage
-  sharing…" entries follow the same rule; recipients see the
-  "Leave shared folder" entry instead.
+  consults the folders shared store (seeded from `filesBootFolders`,
+  above) and only renders for the owner. The tile context menu's
+  "Share folder…" / "Manage sharing…" entries follow the same rule;
+  recipients see the "Leave shared folder" entry instead.
 
-## Single-file shares (since 0.9.6)
+## Single-file shares
 
 Stored uploads (the `upload` file type — see
-[files-on-desktop.md](files-on-desktop.md#real-file-storage-upload--experimental-since-096))
+[files-on-desktop.md](files-on-desktop.md#real-file-storage-upload--experimental))
 are shareable as single files, reusing this feature's tables via the
 `target_type='file'` column (the `folder_id` column carries the
 stored-file id on those rows). Deliberate divergences from folder
@@ -422,20 +470,20 @@ shares:
 - Uploads are additionally **owner-locked** everywhere: even a
   folder write-collaborator cannot move, rename, or trash an
   `upload` placement inside a shared folder — only the stored file's
-  owner can (`desktop_mode_files_upload_owner_locked`). The
+  owner can (`openstation_files_upload_owner_locked`). The
   read/write tiers of THIS page are unchanged for every other type.
 
 Lifecycle mirrors folders: invite → heartbeat delivers the pending
 shape (`targetType: 'file'`, `fileId`, `fileName` riding the same
 `shares.pending` channel) → accept plants an `upload` placement at
-the recipient's desktop root (`desktop_mode_folder_share_accept_default_parent`
+the recipient's desktop root (`openstation_folder_share_accept_default_parent`
 filter applies) → deny / leave / revoke scrub the recipient's tile.
 Routes live under `/desktop-mode/v1/files/uploads/{id}/shares` and
 mirror the folder routes below, including the 404-when-disabled
 masking. Store functions:
-`desktop_mode_stored_file_share_{invite,accept,deny,leave,revoke}()`,
-state resolver `desktop_mode_stored_file_share_state()`, manage gate
-`desktop_mode_stored_files_share_can_manage` (owner-only default,
+`openstation_stored_file_share_{invite,accept,deny,leave,revoke}()`,
+state resolver `openstation_stored_file_share_state()`, manage gate
+`openstation_stored_files_share_can_manage` (owner-only default,
 filterable).
 
 ## Non-goals (v1)

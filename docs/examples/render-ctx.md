@@ -1,6 +1,6 @@
 # The native-window render `ctx`
 
-Native windows registered via `desktop_mode_register_window()` (or `wp.desktop.registerWindow()`) get a `render` callback. The callback has received a second `ctx` argument since 0.5.5 (the channel API; `ctx.window.markLoading`/`markReady` followed in 0.6.0). *Since 0.8.2* the ctx also carries the rest of the window-scoped helpers — a close-bound `AbortSignal`, lazy resize/hide/show subscribers, and top-level `markLoading`/`markReady` aliases for the loading-overlay controls.
+Native windows registered via `openstation_register_window()` (or `wp.os.registerWindow()`) get a `render` callback. The callback receives a second `ctx` argument carrying the channel API and the rest of the window-scoped helpers — a close-bound `AbortSignal`, lazy resize/hide/show subscribers, and top-level `markLoading`/`markReady` aliases for the loading-overlay controls.
 
 ```ts
 render: (
@@ -15,7 +15,7 @@ Legacy unary callbacks (`render: ( body ) => …`) keep working — the second a
 
 | Field | Type | Use |
 |---|---|---|
-| `signal` | `AbortSignal` | Aborts when the window starts closing. Pass to `wp.desktop.fetch( url, { signal } )` so in-flight requests cancel. |
+| `signal` | `AbortSignal` | Aborts when the window starts closing. Pass to `wp.os.fetch( url, { signal } )` so in-flight requests cancel. |
 | `onResize( cb )` | `( cb: ( w, h ) => void ) => () => void` | Subscribe to body-resize events for this window. Returns an unsubscribe; auto-detaches on close. |
 | `onHide( cb )` | `( cb: () => void ) => () => void` | Fires when the window is minimized. Pause animations/intervals here. |
 | `onShow( cb )` | `( cb: () => void ) => () => void` | Fires when the window is restored. Resume what `onHide` paused. |
@@ -24,13 +24,13 @@ Legacy unary callbacks (`render: ( body ) => …`) keep working — the second a
 | `window.send( channel, payload? )` | typed pub | Publish on this window's channel — every `Window.on(channel, cb)` subscriber sees it. |
 | `window.on( channel, cb )` | typed sub | Subscribe to messages sent FROM outside via `Window.send()`. |
 
-`markLoading` / `markReady` exist both at the top level (`ctx.markLoading()`) and under `ctx.window` (`ctx.window.markLoading()`). The top-level shape exists for `{ markLoading, markReady, signal, onResize }` destructuring; `ctx.window` is the original surface and stays — `send`/`on` since 0.5.5, `markLoading`/`markReady` since 0.6.0.
+`markLoading` / `markReady` exist both at the top level (`ctx.markLoading()`) and under `ctx.window` (`ctx.window.markLoading()`). The top-level shape exists for `{ markLoading, markReady, signal, onResize }` destructuring; `ctx.window` is the original surface and stays.
 
 ## Recipe — feed reader that cancels on close, pauses while hidden
 
 ```ts
-window.desktopModeNativeWindows = window.desktopModeNativeWindows || {};
-window.desktopModeNativeWindows[ 'my-feed-inbox' ] = async (
+window.openStationNativeWindows = window.openStationNativeWindows || {};
+window.openStationNativeWindows[ 'my-feed-inbox' ] = async (
     body,
     { signal, onResize, onHide, onShow, markLoading, markReady, window: ch },
 ) => {
@@ -41,7 +41,7 @@ window.desktopModeNativeWindows[ 'my-feed-inbox' ] = async (
     async function loadPage() {
         markLoading();
         try {
-            const res = await wp.desktop.fetch(
+            const res = await wp.os.fetch(
                 '/wp-json/my-feed/v1/items?cursor=' + ( cursor ?? '' ),
                 { signal },
             );
@@ -84,10 +84,12 @@ The framework stores the ctx's disposer on the `Window` instance and runs it pre
 
 The user's render-returned teardown runs AFTER the closing animation. So async paths inside the teardown that branch on `signal.aborted` already see the flipped value.
 
+**Close is not the only unmount.** The ⋯ menu's **Reload** row (and `wp.os.windowManager.getById( id ).reload()`) runs the same disposal on a native window and then renders again into an emptied body with a brand-new `ctx`. The ordering differs in one way that matters: on reload the render-returned teardown runs **before** the body is emptied, so a teardown that reads its own DOM still finds it. Everything the framework tracks — `signal`, `ch.on`, `onResize`/`onHide`/`onShow` — is torn down for you either way; anything you registered *outside* the body needs the teardown to return it, or you leak a copy per reload.
+
 ## Backwards compatibility
 
 - Existing unary `( body ) => …` callbacks: continue to work. JS ignores the extra arg.
-- Existing callers using `ctx.window.markLoading()` (the 0.6.0 surface): still work — that surface is unchanged.
+- Existing callers using `ctx.window.markLoading()` (the original surface): still work — that surface is unchanged.
 - `WindowConfig.onResize` (registration-time field): still fires alongside `ctx.onResize`. Use whichever fits your code shape — the registration-time field is an inline bag for plugins that prefer not to subscribe inside the render body.
 
 ## See also

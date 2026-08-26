@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — PWA bootstrap.
+ * OpenStation — PWA bootstrap.
  *
  * Single entry point called from `src/desktop.ts` after the public
  * API is mounted. Wires three concerns:
@@ -12,11 +12,9 @@
  *   3. Install affordance — listen for `beforeinstallprompt` and
  *      surface the pill when conditions hold.
  *
- * Notifications (`wp.desktop.notify`) don't need bootstrap — they
+ * Notifications (`wp.os.notify`) don't need bootstrap — they
  * lazy-request permission on first call. Exported here for the
  * public-API barrel.
- *
- * @since 0.8.0
  */
 
 import type { DesktopConfig } from '../types';

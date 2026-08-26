@@ -6,11 +6,11 @@
  * read by the lazily-loaded OS Settings panel bundle. Two bundles,
  * two compiled copies of any plain module state — the exact class of
  * bug documented in AGENTS.md → "Cross-bundle state".
- *
- * @since 0.9.7
  */
 
 import { createSharedStore } from '../shared-store';
+import { trackedFetch } from '../tracked-fetch';
+import { sanitizeRecommendedOsSettings } from './recommended';
 import type { DesktopThemeEntry, DesktopThemeState } from './types';
 
 /** Slug charset — mirrors PHP's `sanitize_key()`. */
@@ -23,7 +23,7 @@ const MAX_ICON_SLOTS = 128;
  * Whether a payload icon value is something we're willing to paint.
  *
  * PHP already validated these, but the shell must not assume the
- * payload is trustworthy: a filter (`desktop_mode_desktop_themes`)
+ * payload is trustworthy: a filter (`openstation_desktop_themes`)
  * runs after sanitization and can put anything in.
  */
 function isPaintableIcon( value: unknown ): value is string {
@@ -125,9 +125,13 @@ export function normalizeEntry( raw: unknown ): DesktopThemeEntry | null {
 		fonts,
 		icons,
 		iconColors,
+		recommendedOsSettings: sanitizeRecommendedOsSettings(
+			source.recommendedOsSettings,
+		),
 		installedAt:
 			typeof source.installedAt === 'number' ? source.installedAt : 0,
 		source: source.source === 'code' ? 'code' : 'upload',
+		cssDeferred: source.cssDeferred === true,
 	};
 }
 
@@ -138,9 +142,9 @@ export function normalizeEntry( raw: unknown ): DesktopThemeEntry | null {
  */
 function seed(): DesktopThemeState {
 	const globals = window as unknown as {
-		desktopModeConfig?: { serverDesktopThemes?: unknown };
+		openStationConfig?: { serverDesktopThemes?: unknown };
 	};
-	const raw = globals.desktopModeConfig?.serverDesktopThemes;
+	const raw = globals.openStationConfig?.serverDesktopThemes;
 
 	const themes: DesktopThemeEntry[] = [];
 	if ( Array.isArray( raw ) ) {
@@ -168,7 +172,6 @@ export function getStore() {
  * Every theme in the library, in payload order.
  *
  * @public
- * @since 0.9.7
  */
 export function listDesktopThemes(): DesktopThemeEntry[] {
 	return store.getState().themes.slice();
@@ -179,7 +182,6 @@ export function listDesktopThemes(): DesktopThemeEntry[] {
  * `vendor-neon` slug, matching what PHP stored).
  *
  * @public
- * @since 0.9.7
  */
 export function getDesktopTheme( id: string ): DesktopThemeEntry | null {
 	if ( typeof id !== 'string' || id === '' ) {
@@ -197,7 +199,6 @@ export function getDesktopTheme( id: string ): DesktopThemeEntry | null {
  * Slug of the active theme, or `null` for the system default.
  *
  * @public
- * @since 0.9.7
  */
 export function getActiveDesktopThemeId(): string | null {
 	return store.getState().activeId;
@@ -209,7 +210,6 @@ export function getActiveDesktopThemeId(): string | null {
  * the next payload refresh.
  *
  * @public
- * @since 0.9.7
  */
 export function upsertDesktopTheme( raw: unknown ): DesktopThemeEntry | null {
 	const entry = normalizeEntry( raw );
@@ -229,6 +229,70 @@ export function upsertDesktopTheme( raw: unknown ): DesktopThemeEntry | null {
 }
 
 /**
+ * In-flight fetch of the full theme library, so concurrent callers
+ * share one request. NOT in the shared store: a Promise doesn't
+ * survive structured sharing, and a second bundle re-fetching once
+ * is acceptable where a corrupted store is not.
+ */
+let fullLibraryFetch: Promise< void > | null = null;
+
+/**
+ * Fetch the FULL theme entries and upsert them over the slimmed boot
+ * copies.
+ *
+ * The boot payload ships the library without `cssText` / `tokens`
+ * (marked `cssDeferred: true`) because nothing reads them at boot —
+ * the active theme's stylesheet is server-delivered, and an inactive
+ * theme's CSS matters only at the moment the user picks it. This is
+ * that moment's data path: `GET desktop-mode/v1/desktop-themes`
+ * returns the same builder's full entries, and upserting them clears
+ * the flags. Resolves even on failure — the caller re-checks the
+ * entry it needs and decides what a still-deferred theme means.
+ *
+ * @public
+ */
+export function ensureFullDesktopThemes(): Promise< void > {
+	if ( fullLibraryFetch ) {
+		return fullLibraryFetch;
+	}
+	const url = (
+		window as unknown as {
+			openStationConfig?: { desktopThemesUrl?: string };
+		}
+	).openStationConfig?.desktopThemesUrl;
+	if ( ! url ) {
+		return Promise.resolve();
+	}
+	fullLibraryFetch = trackedFetch(
+		url,
+		{ method: 'GET', credentials: 'same-origin' },
+		{ source: 'desktop-mode/desktop-themes' },
+	)
+		.then( ( response ) => {
+			if ( ! response.ok ) {
+				throw new Error( `HTTP ${ response.status }` );
+			}
+			return response.json();
+		} )
+		.then( ( body: { themes?: unknown[] } ) => {
+			for ( const raw of body?.themes ?? [] ) {
+				upsertDesktopTheme( raw );
+			}
+		} )
+		.catch( () => {
+			// Allow a retry on the next call — a flaky connection
+			// must not permanently strand the picker on slim entries.
+			fullLibraryFetch = null;
+		} );
+	return fullLibraryFetch;
+}
+
+/** Test-only: forget the in-flight library fetch. */
+export function __resetFullDesktopThemesFetchForTests(): void {
+	fullLibraryFetch = null;
+}
+
+/**
  * Drop one library entry.
  *
  * Does NOT deactivate it — that is `applyDesktopTheme( '' )`'s job,
@@ -236,7 +300,6 @@ export function upsertDesktopTheme( raw: unknown ): DesktopThemeEntry | null {
  * using shouldn't disturb their shell).
  *
  * @public
- * @since 0.9.7
  */
 export function removeDesktopTheme( slug: string ): void {
 	const themes = store.state.themes.filter( ( theme ) => theme.slug !== slug );
@@ -265,7 +328,6 @@ export function setDesktopThemes( list: readonly unknown[] ): void {
  * Subscribe to library / active-theme changes.
  *
  * @public
- * @since 0.9.7
  *
  * @param cb Called on every mutation with the live state.
  * @return Unsubscribe function.

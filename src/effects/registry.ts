@@ -1,9 +1,9 @@
 /**
- * Desktop Mode — Unfocused-window effect registry.
+ * OpenStation — Unfocused-window effect registry.
  *
  * Owns the in-memory list of available unfocus effects and applies the
- * `desktop-mode.unfocus-effects` filter each time callers read it, so
- * plugins can register via `wp.desktop.registerUnfocusEffect()` and
+ * `os.unfocus-effects` filter each time callers read it, so
+ * plugins can register via `wp.os.registerUnfocusEffect()` and
  * also reach the raw filter for reorder / remove / conditional swap.
  *
  * The built-in `darken` is seeded here, through the very same
@@ -16,8 +16,6 @@
  * "Cross-bundle state"). Without it the panel's selector would iterate
  * its own empty copy and the engine would never hear about effects the
  * panel registered.
- *
- * @since 0.9.1
  */
 
 import { applyFilters, HOOKS } from '../hooks';
@@ -135,7 +133,7 @@ export function unregisterUnfocusEffectsByOwner( owner: string ): number {
 }
 
 /**
- * Current effect list with the `desktop-mode.unfocus-effects` filter
+ * Current effect list with the `os.unfocus-effects` filter
  * applied. The map values are copied so a filter callback can mutate
  * its input safely; a misbehaving filter that returns a non-array
  * falls back to the unfiltered list.
@@ -149,7 +147,7 @@ export function listUnfocusEffects(): UnfocusEffectDef[] {
 	if ( ! Array.isArray( filtered ) ) {
 		if ( typeof console !== 'undefined' ) {
 			console.warn(
-				'[desktop-mode] `desktop-mode.unfocus-effects` filter ' +
+				'[openstation] `os.unfocus-effects` filter ' +
 					'returned a non-array; falling back to registry list.',
 			);
 		}
@@ -182,7 +180,7 @@ function notify(): void {
 		} catch ( err ) {
 			if ( typeof console !== 'undefined' ) {
 				console.error(
-					'[desktop-mode] unfocus-effect registry listener threw:',
+					'[openstation] unfocus-effect registry listener threw:',
 					err,
 				);
 			}
@@ -201,7 +199,7 @@ registerUnfocusEffect( {
 	id: 'darken',
 	label: __( 'Darken' ),
 	description: __( 'Dim unfocused windows so the focused one stands out.' ),
-	className: 'desktop-mode-window--fx-darken',
+	className: 'os-window--fx-darken',
 } );
 
 registerUnfocusEffect( {
@@ -210,7 +208,7 @@ registerUnfocusEffect( {
 	description: __(
 		'Throw unfocused windows out of focus — a soft, frosted-glass blur, as if you were looking at them through an iced-over pane.',
 	),
-	className: 'desktop-mode-window--fx-frost',
+	className: 'os-window--fx-frost',
 } );
 
 registerUnfocusEffect( {
@@ -219,5 +217,5 @@ registerUnfocusEffect( {
 	description: __(
 		'Drain the colour from unfocused windows so the focused one is the only thing still in colour — your eye snaps right to it.',
 	),
-	className: 'desktop-mode-window--fx-grayscale',
+	className: 'os-window--fx-grayscale',
 } );

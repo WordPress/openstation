@@ -212,7 +212,7 @@ function desktop_mode_beta_switch( $source, $id ) {
 			'desktop_mode_beta_wrong_plugin',
 			sprintf(
 				/* translators: %s: Plugin file resolved from the installed zip. */
-				__( 'The downloaded zip installed "%s" instead of Desktop Mode.', 'desktop-mode-beta' ),
+				__( 'The downloaded zip installed "%s" instead of OpenStation.', 'desktop-mode-beta' ),
 				$plugin_file
 			),
 			array( 'status' => 500 )

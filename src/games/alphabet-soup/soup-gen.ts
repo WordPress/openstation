@@ -11,8 +11,6 @@
  * Everything here is pure and driven by an injected `rng`, which is
  * what makes the daily puzzle identical worldwide: same date seed +
  * same dictionary asset → same soup for every player.
- *
- * @since 0.9.8
  */
 
 import type { Dictionary } from '../dictionary';

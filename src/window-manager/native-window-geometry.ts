@@ -17,8 +17,6 @@
  * even when `state === 'maximized'` — they're the size the window
  * un-maximizes back to. The maximize state is layered on top of that
  * size, not a replacement for it.
- *
- * @since 0.8.5
  */
 
 /** Storage key for the per-baseId geometry map. */

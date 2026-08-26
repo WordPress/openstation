@@ -1,7 +1,7 @@
 /**
  * Native Plugins window — Installed tab.
  *
- * `<wpd-table>`-driven list of every plugin in `wp-content/plugins/`.
+ * `<os-table>`-driven list of every plugin in `wp-content/plugins/`.
  * Columns: icon + name, status, version (with update badge), author,
  * size, actions. Bulk actions: activate, deactivate, delete.
  *
@@ -11,7 +11,6 @@
  * underlying contract).
  *
  * @public
- * @since 0.9.0
  */
 
 import { __, sprintf } from '../i18n';
@@ -26,9 +25,9 @@ import {
 	deleteInstalledPlugin,
 	fetchInstalledPlugins,
 	getConfig,
-	isDesktopModeSelf,
+	isOpenStationSelf,
 	refreshFrameworkMenu,
-	reloadOutOfDesktopMode,
+	reloadOutOfOpenStation,
 	toggleAutoUpdate,
 } from './rest';
 
@@ -43,7 +42,7 @@ import {
  *
  * @internal
  */
-const PLUGINS_CHANGED_TOPIC = 'desktop-mode.plugin.changed';
+const PLUGINS_CHANGED_TOPIC = 'os.plugin.changed';
 const SOURCE = 'installed-view';
 interface PluginsChangedPayload {
 	source: string;
@@ -59,18 +58,18 @@ interface PluginsChangedPayload {
 }
 import type { InstalledPlugin } from './types';
 import type {
-	WpdTable,
-	WpdTableColumn,
-} from '../ui/components/wpd-table/wpd-table';
-import '../ui/components/wpd-badge/wpd-badge';
-import '../ui/components/wpd-button/wpd-button';
-import '../ui/components/wpd-segmented/wpd-segmented';
-import '../ui/components/wpd-table/wpd-table';
-import '../ui/components/wpd-text-field/wpd-text-field';
+	OsTable,
+	OsTableColumn,
+} from '../ui/components/os-table/os-table';
+import '../ui/components/os-badge/os-badge';
+import '../ui/components/os-button/os-button';
+import '../ui/components/os-segmented/os-segmented';
+import '../ui/components/os-table/os-table';
+import '../ui/components/os-text-field/os-text-field';
 
 /** Toast helper, shell-routed when available. */
 function toast( message: string, duration = 3500 ): void {
-	const api = window.wp?.desktop;
+	const api = window.wp?.os;
 	if ( api && typeof api.showToast === 'function' ) {
 		api.showToast( { message, duration } );
 		return;
@@ -87,7 +86,7 @@ async function confirm( opts: {
 	cancelLabel?: string;
 	danger?: boolean;
 } ): Promise< boolean > {
-	const api = window.wp?.desktop;
+	const api = window.wp?.os;
 	if ( api && typeof api.confirm === 'function' ) {
 		return api.confirm( opts );
 	}
@@ -139,11 +138,11 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 
 	// ─── Toolbar ────────────────────────────────────────────────────
 	const toolbar = document.createElement( 'header' );
-	toolbar.className = 'desktop-mode-plugins__toolbar';
+	toolbar.className = 'os-plugins__toolbar';
 
 	const left = document.createElement( 'div' );
-	left.className = 'desktop-mode-plugins__toolbar-left';
-	const statusFilter = document.createElement( 'wpd-segmented' );
+	left.className = 'os-plugins__toolbar-left';
+	const statusFilter = document.createElement( 'os-segmented' );
 	statusFilter.setAttribute( 'value', '' );
 	const statusOptions: Array< { value: string; label: string } > = [
 		{ value: '', label: __( 'All', 'desktop-mode' ) },
@@ -156,17 +155,17 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 	// whole segmented control (which would lose focus / selection).
 	let updateCountBadge: HTMLElement | null = null;
 	for ( const opt of statusOptions ) {
-		const seg = document.createElement( 'wpd-segment' );
+		const seg = document.createElement( 'os-segment' );
 		seg.setAttribute( 'value', opt.value );
 		if ( opt.value === 'update' ) {
-			// Compose a labeled wrapper + a `<wpd-badge>` count chip.
-			// `<wpd-segment>` slots its children into the light DOM, so
+			// Compose a labeled wrapper + a `<os-badge>` count chip.
+			// `<os-segment>` slots its children into the light DOM, so
 			// arbitrary HTML inside is fine — same posture other
 			// segmented controls in the codebase use.
 			const label = document.createElement( 'span' );
 			label.textContent = opt.label;
 			seg.appendChild( label );
-			const badge = document.createElement( 'wpd-badge' );
+			const badge = document.createElement( 'os-badge' );
 			badge.setAttribute( 'tone', 'warning' );
 			badge.setAttribute( 'no-dot', '' );
 			badge.style.cssText = 'margin-inline-start:6px;';
@@ -178,10 +177,10 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 		}
 		statusFilter.appendChild( seg );
 	}
-	statusFilter.addEventListener( 'wpd-pick', ( ev: Event ) => {
+	statusFilter.addEventListener( 'os-pick', ( ev: Event ) => {
 		const detail = ( ev as CustomEvent< { value: string } > ).detail;
 		state.statusFilter = detail?.value ?? '';
-		// `<wpd-table>` keeps selected ids across `data` reassignment,
+		// `<os-table>` keeps selected ids across `data` reassignment,
 		// so a plugin ticked under the previous filter would stay
 		// selected while hidden — and ride silently into the next bulk
 		// action (bulk Delete included). Start each view clean.
@@ -189,13 +188,13 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 		paintTable();
 	} );
 
-	const search = document.createElement( 'wpd-text-field' );
+	const search = document.createElement( 'os-text-field' );
 	search.setAttribute(
 		'placeholder',
 		__( 'Search installed plugins…', 'desktop-mode' ),
 	);
 	let searchDebounce: number | undefined;
-	search.addEventListener( 'wpd-input-change', ( ev: Event ) => {
+	search.addEventListener( 'os-input-change', ( ev: Event ) => {
 		const value = ( ev as CustomEvent< { value: string } > ).detail?.value ?? '';
 		window.clearTimeout( searchDebounce );
 		searchDebounce = window.setTimeout( () => {
@@ -209,15 +208,15 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 	left.append( statusFilter, search );
 
 	const right = document.createElement( 'div' );
-	right.className = 'desktop-mode-plugins__toolbar-right';
+	right.className = 'os-plugins__toolbar-right';
 	const bulkBar = document.createElement( 'div' );
-	bulkBar.className = 'desktop-mode-plugins__bulk';
+	bulkBar.className = 'os-plugins__bulk';
 	bulkBar.hidden = true;
 	right.appendChild( bulkBar );
 
 	const trailing = document.createElement( 'div' );
-	trailing.className = 'desktop-mode-plugins__toolbar-trailing';
-	const refreshButton = document.createElement( 'wpd-button' );
+	trailing.className = 'os-plugins__toolbar-trailing';
+	const refreshButton = document.createElement( 'os-button' );
 	refreshButton.setAttribute( 'variant', 'ghost' );
 	refreshButton.setAttribute( 'title', __( 'Refresh', 'desktop-mode' ) );
 	refreshButton.innerHTML =
@@ -240,8 +239,8 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 
 	// ─── Table ──────────────────────────────────────────────────────
 	const tableWrap = document.createElement( 'div' );
-	tableWrap.className = 'desktop-mode-plugins__body';
-	const table = document.createElement( 'wpd-table' ) as WpdTable< InstalledPlugin >;
+	tableWrap.className = 'os-plugins__body';
+	const table = document.createElement( 'os-table' ) as OsTable< InstalledPlugin >;
 	table.setAttribute( 'selectable', 'multi' );
 	table.setAttribute( 'sticky-header', '' );
 	table.setAttribute( 'sticky-columns', '1' );
@@ -254,7 +253,7 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 
 	const empty = document.createElement( 'div' );
 	empty.setAttribute( 'slot', 'empty' );
-	empty.className = 'desktop-mode-plugins__empty';
+	empty.className = 'os-plugins__empty';
 	empty.innerHTML =
 		'<span class="dashicons dashicons-admin-plugins" aria-hidden="true"></span>' +
 		'<p>' +
@@ -275,7 +274,7 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 	// Make the Plugin name cell click-to-expand. The action buttons
 	// in the trailing column carry `data-noclick` so they stay
 	// independent of this toggle.
-	table.addEventListener( 'wpd-table-row-click', ( ev: Event ) => {
+	table.addEventListener( 'os-table-row-click', ( ev: Event ) => {
 		const detail = ( ev as CustomEvent< { row: InstalledPlugin; index: number } > )
 			.detail;
 		if ( ! detail ) {
@@ -298,14 +297,14 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 		const ids = detail?.selection ?? [];
 		paintBulkBar( ids );
 	};
-	table.addEventListener( 'wpd-table-selection-change', selectionListener );
+	table.addEventListener( 'os-table-selection-change', selectionListener );
 
 	// ─── Initial fetch ──────────────────────────────────────────────
 	void reload();
 
-	function buildColumns(): WpdTableColumn< InstalledPlugin >[] {
+	function buildColumns(): OsTableColumn< InstalledPlugin >[] {
 		const cfg = getConfig();
-		const cols: WpdTableColumn< InstalledPlugin >[] = [
+		const cols: OsTableColumn< InstalledPlugin >[] = [
 			{
 				key: 'name',
 				label: __( 'Plugin', 'desktop-mode' ),
@@ -331,12 +330,12 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 				render: ( _value, row ) => renderAuthorCell( row ),
 			},
 			{
-				key: 'desktop_mode_size_kb',
+				key: 'openstation_size_kb',
 				label: __( 'Size', 'desktop-mode' ),
 				align: 'end',
 				sortable: true,
-				sortValue: ( row: InstalledPlugin ) => row.desktop_mode_size_kb ?? 0,
-				render: ( _value, row ) => formatSize( row.desktop_mode_size_kb ?? null ),
+				sortValue: ( row: InstalledPlugin ) => row.openstation_size_kb ?? 0,
+				render: ( _value, row ) => formatSize( row.openstation_size_kb ?? null ),
 			},
 		];
 		// "Automatic Updates" column — only shown when the global
@@ -349,7 +348,7 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 				label: __( 'Automatic Updates', 'desktop-mode' ),
 				sortable: true,
 				sortValue: ( row: InstalledPlugin ) =>
-					row.desktop_mode_auto_update?.enabled ? 1 : 0,
+					row.openstation_auto_update?.enabled ? 1 : 0,
 				render: ( _value, row ) => renderAutoUpdateCell( row ),
 			} );
 		}
@@ -363,7 +362,7 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 	}
 
 	// Cell renderers use INLINE styles instead of class selectors —
-	// `<wpd-table>` cells live inside its shadow DOM, so document
+	// `<os-table>` cells live inside its shadow DOM, so document
 	// CSS rules don't reach them. Same posture posts-window uses.
 
 	function renderNameCell( row: InstalledPlugin ): HTMLElement {
@@ -377,7 +376,7 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 			'border-radius:6px;overflow:hidden;display:flex;align-items:center;' +
 			'justify-content:center;background:rgba(0,0,0,0.04);box-sizing:border-box;';
 
-		const url = row.desktop_mode_icon_url;
+		const url = row.openstation_icon_url;
 		if ( url ) {
 			const img = document.createElement( 'img' );
 			img.alt = '';
@@ -457,7 +456,7 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 		const v = document.createElement( 'span' );
 		v.textContent = row.version ?? '—';
 		wrap.appendChild( v );
-		const update = row.desktop_mode_update_available;
+		const update = row.openstation_update_available;
 		if ( update?.available && update.new_version ) {
 			const badge = document.createElement( 'span' );
 			badge.style.cssText =
@@ -496,19 +495,19 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 	 */
 	function renderAutoUpdateCell( row: InstalledPlugin ): HTMLElement {
 		const wrap = document.createElement( 'div' );
-		// `data-noclick` so wpd-table doesn't fire row-click (which
+		// `data-noclick` so os-table doesn't fire row-click (which
 		// expands the detail panel) when the user clicks the toggle.
 		wrap.setAttribute( 'data-noclick', '' );
 		wrap.style.cssText =
 			'display:inline-flex;align-items:center;gap:6px;white-space:nowrap;';
 
-		const meta = row.desktop_mode_auto_update;
+		const meta = row.openstation_auto_update;
 		const forced = meta?.forced ?? null;
 
 		if ( forced !== null ) {
 			// Filter-pinned — render a read-only label, no toggle.
 			const label = document.createElement( 'span' );
-			label.style.cssText = 'color:var(--wp-desktop-text-muted,#666);';
+			label.style.cssText = 'color:var(--os-ui-fg-muted,#50575e);';
 			label.textContent = forced
 				? __( 'Auto-updates enabled', 'desktop-mode' )
 				: __( 'Auto-updates disabled', 'desktop-mode' );
@@ -522,7 +521,7 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 			// Core hides the toggle entirely. Render an em-dash so the
 			// cell isn't blank.
 			const placeholder = document.createElement( 'span' );
-			placeholder.style.cssText = 'color:var(--wp-desktop-text-muted,#9ca3af);';
+			placeholder.style.cssText = 'color:var(--os-ui-fg-faint,#787c82);';
 			placeholder.textContent = '—';
 			placeholder.title = __(
 				'This plugin does not check in with WordPress.org, so automatic updates can\'t be scheduled.',
@@ -540,7 +539,7 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 		link.setAttribute( 'data-wp-action', enabled ? 'disable' : 'enable' );
 		link.style.cssText =
 			'display:inline-flex;align-items:center;gap:6px;' +
-			'color:var( --wp-desktop-accent, var( --wpd-accent, #2271b1 ) );text-decoration:none;' +
+			'color:var( --os-ui-accent, #2271b1 );text-decoration:none;' +
 			'cursor:pointer;font-size:0.9em;';
 		if ( busy ) {
 			link.style.opacity = '0.6';
@@ -575,11 +574,11 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 		wrap.style.cssText =
 			'display:inline-flex;gap:8px;align-items:center;justify-content:flex-end;' +
 			'flex-wrap:nowrap;';
-		// Mark as `data-noclick` so wpd-table doesn't fire row-click on
+		// Mark as `data-noclick` so os-table doesn't fire row-click on
 		// these buttons.
 		wrap.setAttribute( 'data-noclick', '' );
 
-		const can = row.desktop_mode_can_manage ?? {
+		const can = row.openstation_can_manage ?? {
 			activate: row.status === 'inactive',
 			deactivate: row.status === 'active' || row.status === 'active-network',
 			delete: row.status === 'inactive',
@@ -590,7 +589,7 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 		// (Core's same check) and the presence of a `package` URL on the
 		// transient entry; when `available && ! package` we surface the
 		// disabled "Auto-update unavailable" hint Core renders.
-		const update = row.desktop_mode_update_available;
+		const update = row.openstation_update_available;
 		if ( getConfig().caps.update && update?.available ) {
 			if ( update.package ) {
 				const updating = state.updating.has( row.plugin );
@@ -614,7 +613,7 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 			} else {
 				const hint = document.createElement( 'span' );
 				hint.style.cssText =
-					'font-size:0.78em;color:var(--wp-desktop-text-muted,#666);';
+					'font-size:0.78em;color:var(--os-ui-fg-muted,#50575e);';
 				hint.textContent = __( 'Auto-update unavailable', 'desktop-mode' );
 				hint.title = __(
 					'This plugin does not ship a wp.org download package. Update it manually from its source.',
@@ -653,7 +652,7 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 	}
 
 	function button( label: string, variant: string ): HTMLElement {
-		const b = document.createElement( 'wpd-button' );
+		const b = document.createElement( 'os-button' );
 		b.setAttribute( 'variant', variant );
 		b.setAttribute( 'size', 'small' );
 		b.textContent = label;
@@ -669,7 +668,7 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 		bulkBar.hidden = false;
 
 		const count = document.createElement( 'span' );
-		count.className = 'desktop-mode-plugins__bulk-count';
+		count.className = 'os-plugins__bulk-count';
 		count.textContent = sprintf(
 			/* translators: %d: number of selected plugins */
 			__( '%d selected', 'desktop-mode' ),
@@ -683,8 +682,8 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 		if ( cfg.caps.update ) {
 			const updatable = selected.filter(
 				( r ) =>
-					!! r.desktop_mode_update_available?.available &&
-					!! r.desktop_mode_update_available.package,
+					!! r.openstation_update_available?.available &&
+					!! r.openstation_update_available.package,
 			);
 			if ( updatable.length > 0 ) {
 				const btn = button(
@@ -787,7 +786,7 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 			return;
 		}
 		const count = state.rows.filter(
-			( r ) => !! r.desktop_mode_update_available?.available,
+			( r ) => !! r.openstation_update_available?.available,
 		).length;
 		if ( count > 0 ) {
 			updateCountBadge.textContent = String( count );
@@ -811,7 +810,7 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 					return false;
 				}
 			} else if ( status === 'update' ) {
-				if ( ! row.desktop_mode_update_available?.available ) {
+				if ( ! row.openstation_update_available?.available ) {
 					return false;
 				}
 			}
@@ -866,20 +865,20 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 		try {
 			const updated = await deactivateInstalledPlugin( row );
 			mergeRow( updated );
-			// Special-case: deactivating Desktop Mode itself leaves the
+			// Special-case: deactivating OpenStation itself leaves the
 			// shell running on top of a now-defunct plugin. Skip the
 			// menu refresh (the chromeless probe lands on a dead plugin
 			// and times out) and just reload the page so the user
 			// lands on the classic admin.
-			if ( isDesktopModeSelf( row.plugin ) ) {
+			if ( isOpenStationSelf( row.plugin ) ) {
 				toast(
 					__(
-						'Desktop Mode deactivated. Reloading…',
+						'OpenStation deactivated. Reloading…',
 						'desktop-mode',
 					),
 					2000,
 				);
-				reloadOutOfDesktopMode();
+				reloadOutOfOpenStation();
 				return;
 			}
 			toast(
@@ -929,17 +928,17 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 			await deleteInstalledPlugin( row );
 			state.rows = state.rows.filter( ( r ) => r.plugin !== row.plugin );
 			paintTable();
-			// Same self-deactivate guard — deleting Desktop Mode also
+			// Same self-deactivate guard — deleting OpenStation also
 			// strands the shell on top of a missing plugin.
-			if ( isDesktopModeSelf( row.plugin ) ) {
+			if ( isOpenStationSelf( row.plugin ) ) {
 				toast(
 					__(
-						'Desktop Mode deleted. Reloading…',
+						'OpenStation deleted. Reloading…',
 						'desktop-mode',
 					),
 					2000,
 				);
-				reloadOutOfDesktopMode();
+				reloadOutOfOpenStation();
 				return;
 			}
 			toast(
@@ -987,11 +986,11 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 			mergeRow( {
 				...row,
 				version: result.newVersion,
-				desktop_mode_update_available: {
+				openstation_update_available: {
 					available: false,
 					new_version: null,
 					package: '',
-					slug: row.desktop_mode_update_available?.slug ?? '',
+					slug: row.openstation_update_available?.slug ?? '',
 				},
 			} as InstalledPlugin );
 			toast(
@@ -1044,11 +1043,11 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 			if ( isUpToDate ) {
 				mergeRow( {
 					...row,
-					desktop_mode_update_available: {
+					openstation_update_available: {
 						available: false,
 						new_version: null,
 						package: '',
-						slug: row.desktop_mode_update_available?.slug ?? '',
+						slug: row.openstation_update_available?.slug ?? '',
 					},
 				} as InstalledPlugin );
 				toast(
@@ -1105,7 +1104,7 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 		if ( state.autoUpdating.has( row.plugin ) ) {
 			return; // already in flight
 		}
-		const meta = row.desktop_mode_auto_update;
+		const meta = row.openstation_auto_update;
 		if ( ! meta || meta.forced !== null || ! meta.supported ) {
 			// Forced or unsupported rows shouldn't surface a toggle — guard
 			// in case a stale click slips through during a state transition.
@@ -1120,7 +1119,7 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 			await toggleAutoUpdate( row, nextState );
 			mergeRow( {
 				...row,
-				desktop_mode_auto_update: {
+				openstation_auto_update: {
 					...meta,
 					enabled: ! wasEnabled,
 				},
@@ -1213,11 +1212,11 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 						mergeRow( {
 							...row,
 							version: result.newVersion,
-							desktop_mode_update_available: {
+							openstation_update_available: {
 								available: false,
 								new_version: null,
 								package: '',
-								slug: row.desktop_mode_update_available?.slug ?? '',
+								slug: row.openstation_update_available?.slug ?? '',
 							},
 						} as InstalledPlugin );
 					} finally {
@@ -1226,7 +1225,7 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 				}
 				if (
 					( action === 'deactivate' || action === 'delete' ) &&
-					isDesktopModeSelf( row.plugin )
+					isOpenStationSelf( row.plugin )
 				) {
 					selfMutated = true;
 				}
@@ -1242,11 +1241,11 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 		if ( selfMutated ) {
 			toast(
 				action === 'delete'
-					? __( 'Desktop Mode deleted. Reloading…', 'desktop-mode' )
-					: __( 'Desktop Mode deactivated. Reloading…', 'desktop-mode' ),
+					? __( 'OpenStation deleted. Reloading…', 'desktop-mode' )
+					: __( 'OpenStation deactivated. Reloading…', 'desktop-mode' ),
 				2000,
 			);
-			reloadOutOfDesktopMode();
+			reloadOutOfOpenStation();
 			return;
 		}
 		if ( succeeded > 0 ) {
@@ -1319,7 +1318,7 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 
 	return () => {
 		unsubscribePluginsChanged();
-		table.removeEventListener( 'wpd-table-selection-change', selectionListener );
+		table.removeEventListener( 'os-table-selection-change', selectionListener );
 		host.replaceChildren();
 	};
 }

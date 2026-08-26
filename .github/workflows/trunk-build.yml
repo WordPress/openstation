@@ -52,7 +52,7 @@ jobs:
             gh release create ci-artifacts --prerelease --title 'CI artifacts' \
               --notes 'Rolling release hosting CI build artifacts (PR preview + trunk builds). Not a Desktop Mode release.'
           fi
-          cp desktop-mode.zip trunk.zip
+          cp openstation.zip trunk.zip
           version=$(node -p "require('./package.json').version")
           printf '{"sha":"%s","version":"%s","built_at":"%s"}\n' \
             "$GITHUB_SHA" "$version" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > trunk.json

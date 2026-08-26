@@ -5,15 +5,13 @@
  * isolation. Given the parent shell's mutable `config`, the dock
  * instance, and the per-surface sync callbacks, returns a single
  * `applyPayload( payload )` function that mirrors a fresh
- * `desktop-mode-plugins-changed` payload onto the live shell — adding
+ * `os-plugins-changed` payload onto the live shell — adding
  * dock tiles, repainting widgets, registering plugin wallpapers,
  * re-rendering wallpaper-shortcut icons, and so on, all without an F5.
  *
  * Owns the contract that lists EVERY payload key the chromeless bridge
  * may emit. Adding a new key here is a documented breaking change for
  * plugin authors who watch live-refresh behaviour.
- *
- * @since 0.5.2
  */
 import type { DockItem } from './dock';
 import type {
@@ -25,6 +23,7 @@ import type {
 	DesktopSettingsTabScriptServerEntry,
 	DesktopSettingsTabServerEntry,
 	DesktopTitleBarButtonScriptServerEntry,
+	DesktopWindowActionScriptServerEntry,
 	DesktopGameServerEntry,
 	DesktopUnfocusEffectScriptServerEntry,
 	DesktopWindowLinkRendererScriptServerEntry,
@@ -32,8 +31,11 @@ import type {
 	DesktopWidgetServerEntry,
 	DesktopWindowNoticeServerEntry,
 	DesktopThemeServerEntry,
+	NativeWindowScriptData,
 	NativeWindowServerEntry,
+	NativeWindowWireEntry,
 } from './types';
+import { hydrateServerEntries } from './native-windows';
 import { applyServerWindowNotices } from './window-notices-server-sync';
 import { applyAdminBarUpdates } from './admin-bar-updates';
 
@@ -41,6 +43,7 @@ import { applyAdminBarUpdates } from './admin-bar-updates';
 export interface MenuRefreshPayload {
 	dockItems?: unknown;
 	nativeWindows?: unknown;
+	nativeWindowScriptData?: unknown;
 	serverWidgets?: unknown;
 	serverWallpapers?: unknown;
 	serverCommandScripts?: unknown;
@@ -49,6 +52,7 @@ export interface MenuRefreshPayload {
 	serverSettingsTabs?: unknown;
 	serverDockRailRendererScripts?: unknown;
 	serverTitleBarButtonScripts?: unknown;
+	serverWindowActionScripts?: unknown;
 	serverUnfocusEffectScripts?: unknown;
 	serverWindowLinkRendererScripts?: unknown;
 	serverWindowNotices?: unknown;
@@ -64,8 +68,7 @@ export interface MenuRefreshDeps {
 	 * Push a fresh dock-items list into whichever rails are live for
 	 * the current desktop layout. Routes core/plugin partitioning
 	 * through the layout dispatcher rather than reaching for a single
-	 * `Dock` instance — necessary because Classic uses two docks and
-	 * Spatial pushes core items to the wallpaper instead.
+	 * `Dock` instance — necessary because Classic uses two docks.
 	 *
 	 * No-op when the layout dispatcher hasn't been wired (older shell
 	 * markup, head-less tests).
@@ -89,6 +92,9 @@ export interface MenuRefreshDeps {
 	syncServerTitleBarButtons: (
 		scripts: DesktopTitleBarButtonScriptServerEntry[],
 	) => Promise< void >;
+	syncServerWindowActions: (
+		scripts: DesktopWindowActionScriptServerEntry[],
+	) => Promise< void >;
 	syncServerUnfocusEffects: (
 		scripts: DesktopUnfocusEffectScriptServerEntry[],
 	) => Promise< void >;
@@ -109,10 +115,33 @@ export interface MenuRefreshDeps {
 	syncServerDesktopThemes?: ( list: DesktopThemeServerEntry[] ) => void;
 	renderIcons: ( icons: DesktopIconServerEntry[] | undefined ) => void;
 	/**
+	 * Replace the layout dispatcher's server-registered desktop-icons
+	 * list (`layoutDispatcher.applyDesktopIcons`). `renderIcons` alone
+	 * only repaints the legacy `.os-icons` rail — which is
+	 * `display: none` whenever a files layer is mounted — so without
+	 * this the nav model (and the files-layer shortcut grid that reads
+	 * it via `syncShortcuts`) kept serving the boot-time icon list and
+	 * a live refresh never surfaced new wallpaper icons. Optional so
+	 * callers/tests that predate it keep working unchanged.
+	 */
+	applyDesktopIcons?: ( icons: DesktopIconServerEntry[] | undefined ) => void;
+	/**
+	 * Refetch the desktop root's file placements (folder 0) from
+	 * REST and write them into the files store. Server-registered
+	 * icons surface on files-layer desktops as REAL placement rows
+	 * that the server mints/hides at read time (`auto_place_orphans`
+	 * + the registry-backed `exists` flag), so a changed icon list
+	 * is only fully visible after a round-trip — the nav/shortcut
+	 * sync alone deliberately never mints synthetics for icon-backed
+	 * items. Called only when the payload's icon id-set actually
+	 * differs from the previous one. Optional, like its siblings.
+	 */
+	refreshRootPlacements?: () => void;
+	/**
 	 * Re-run the files-layer shortcut reconciliation
 	 * (`syncShortcutsWithVisibility`) against the freshly-applied dock
-	 * items. Keeps Spatial's synthesized core icons (and ordinary
-	 * user-promoted shortcuts) current when a plugin activation or
+	 * items. Keeps user-promoted shortcuts current when a plugin
+	 * activation or
 	 * deactivation changes the core/plugin menu split live, instead of
 	 * only refreshing on the next OS Settings change.
 	 *
@@ -129,15 +158,13 @@ export interface MenuRefreshDeps {
  * without paying a page reload — the event detail names the registry
  * and the id-based diff against the prior snapshot.
  *
- * Naming: `desktop-mode-*`, NOT `wp-desktop-*`. The `wp-` prefix is
+ * Naming: `os-*`, NOT `os-*`. The `wp-` prefix is
  * reserved for WordPress Core per plugin reviewer guidelines; all
  * public surface uses the project-owned prefix.
- *
- * @since 0.7.0
  */
-export const REGISTRY_CHANGED_EVENT = 'desktop-mode-registry-changed';
+export const REGISTRY_CHANGED_EVENT = 'os-registry-changed';
 
-/** Shape of the `desktop-mode-registry-changed` event detail. */
+/** Shape of the `os-registry-changed` event detail. */
 export interface RegistryChangedDetail {
 	registry:
 		| 'dock-items'
@@ -210,14 +237,26 @@ export function createApplyPayload(
 		syncServerCommands,
 		syncServerSettingsTabs,
 		syncServerTitleBarButtons,
+		syncServerWindowActions,
 		syncServerUnfocusEffects,
 		syncServerWindowLinkRenderers,
 		syncServerDockRailRenderers,
 		syncServerGames,
 		syncServerDesktopThemes,
 		renderIcons,
+		applyDesktopIcons,
+		refreshRootPlacements,
 		syncShortcuts,
 	} = deps;
+
+	/** Order-insensitive fingerprint of an icon list's ids. */
+	const iconIdSet = (
+		list: ReadonlyArray< { id?: unknown } > | undefined,
+	): string =>
+		( list ?? [] )
+			.map( ( icon ) => String( icon?.id ?? '' ) )
+			.sort()
+			.join( '\n' );
 
 	return function applyPayload( payload: MenuRefreshPayload ): void {
 		const dockItems = payload.dockItems;
@@ -230,6 +269,7 @@ export function createApplyPayload(
 		const serverSettingsTabs = payload.serverSettingsTabs;
 		const serverDockRailRendererScripts = payload.serverDockRailRendererScripts;
 		const serverTitleBarButtonScripts = payload.serverTitleBarButtonScripts;
+		const serverWindowActionScripts = payload.serverWindowActionScripts;
 		const serverUnfocusEffectScripts = payload.serverUnfocusEffectScripts;
 		const serverWindowLinkRendererScripts =
 			payload.serverWindowLinkRendererScripts;
@@ -257,23 +297,43 @@ export function createApplyPayload(
 			dockItems as ReadonlyArray< { id?: unknown } >,
 		);
 		// Re-sync files-layer shortcuts against the new dock-item list —
-		// covers Spatial's synthesized core icons and ordinary promoted
-		// shortcuts when a plugin activation/deactivation changes which
+		// covers promoted shortcuts when a plugin activation or
+		// deactivation changes which
 		// items exist, without waiting for the next OS Settings change.
 		syncShortcuts?.();
 
 		// Native-window sync — server registry is the source of
 		// truth for plugin-owned native windows. Tiles added
 		// server-side (plugin activated via
-		// `desktop_mode_register_window`) appear; tiles whose plugin
+		// `openstation_register_window`) appear; tiles whose plugin
 		// deactivated disappear. All without a shell reload.
 		if ( Array.isArray( nativeWindows ) ) {
 			const prevNativeWindows = config.nativeWindows;
+			// Wire-format entries + handle-keyed script data — join
+			// them the same way the boot path does. A payload from an
+			// older server carries no map; the hydrator passes its
+			// inline entries through untouched.
 			void syncNativeWindows(
-				nativeWindows as NativeWindowServerEntry[],
+				hydrateServerEntries(
+					nativeWindows as NativeWindowWireEntry[],
+					payload.nativeWindowScriptData as
+						| NativeWindowScriptData
+						| undefined,
+				),
 			);
 			config.nativeWindows =
 				nativeWindows as DesktopConfig[ 'nativeWindows' ];
+			// Persist the map beside the entries it decodes —
+			// `wp.os.debug.window()` resolves URLs through
+			// `config.nativeWindowScriptData` directly, so leaving the
+			// boot-time copy in place would report an empty URL for
+			// any window whose plugin activated (or whose bundle
+			// changed) after boot. An old-format payload carries no
+			// map; keep the previous one rather than wiping it.
+			if ( payload.nativeWindowScriptData ) {
+				config.nativeWindowScriptData =
+					payload.nativeWindowScriptData as DesktopConfig[ 'nativeWindowScriptData' ];
+			}
 			emitRegistryChanged(
 				'native-windows',
 				prevNativeWindows as ReadonlyArray< { id?: unknown } > | undefined,
@@ -283,7 +343,7 @@ export function createApplyPayload(
 
 		// Widget-registry sync — same lifecycle story for the
 		// right-column widget layer. Plugins declared via
-		// `desktop_mode_register_widget()` show up in the picker
+		// `openstation_register_widget()` show up in the picker
 		// without a reload; deactivated plugin widgets disappear.
 		if ( Array.isArray( serverWidgets ) ) {
 			void syncServerWidgets(
@@ -377,6 +437,17 @@ export function createApplyPayload(
 				serverTitleBarButtonScripts as DesktopConfig[ 'serverTitleBarButtonScripts' ];
 		}
 
+		// Window-action sync — same shape. Loads plugin scripts on
+		// activation so their `registerWindowAction()` row is in the
+		// next ⋯ menu that opens; owner-tagged sweep on deactivation.
+		if ( Array.isArray( serverWindowActionScripts ) ) {
+			void syncServerWindowActions(
+				serverWindowActionScripts as DesktopWindowActionScriptServerEntry[],
+			);
+			config.serverWindowActionScripts =
+				serverWindowActionScripts as DesktopConfig[ 'serverWindowActionScripts' ];
+		}
+
 		// Unfocus-effect sync — same shape. Loads plugin effect scripts
 		// on activation (their `registerUnfocusEffect()` surfaces in
 		// OS Settings → Effects and re-runs the engine); owner-tagged
@@ -391,7 +462,7 @@ export function createApplyPayload(
 
 		// Window-link renderer sync — same shape. Loads plugin renderer
 		// scripts on activation (their `registerWindowLinkRenderer()`
-		// surfaces in OS Settings → Effects → Window links and the
+		// surfaces in OS Settings → Windows → Window links and the
 		// render host remounts if it affects the active pick);
 		// owner-tagged sweep on deactivation.
 		if ( Array.isArray( serverWindowLinkRendererScripts ) ) {
@@ -430,10 +501,27 @@ export function createApplyPayload(
 		// on every live menu refresh so a plugin activation adds
 		// tiles (and deactivation removes them) without an F5.
 		// `renderIcons` clears the prior container before re-rendering,
-		// so an empty list legitimately wipes the grid.
+		// so an empty list legitimately wipes the grid. On files-layer
+		// desktops that rail is hidden and the tiles come from the nav
+		// model instead, so the dispatcher gets the new list too and
+		// the shortcut reconciliation re-reads its answer.
 		if ( Array.isArray( desktopIcons ) ) {
 			const prevDesktopIcons = config.desktopIcons;
 			renderIcons( desktopIcons as DesktopIconServerEntry[] );
+			applyDesktopIcons?.( desktopIcons as DesktopIconServerEntry[] );
+			syncShortcuts?.();
+			// Files-layer desktops paint registered icons from REAL
+			// placement rows, which only the server can mint or
+			// hide — one root refetch per actual icon-set change
+			// brings the wallpaper in line without an F5.
+			if (
+				iconIdSet(
+					prevDesktopIcons as ReadonlyArray< { id?: unknown } >,
+				) !==
+				iconIdSet( desktopIcons as ReadonlyArray< { id?: unknown } > )
+			) {
+				refreshRootPlacements?.();
+			}
 			config.desktopIcons =
 				desktopIcons as DesktopConfig[ 'desktopIcons' ];
 			emitRegistryChanged(

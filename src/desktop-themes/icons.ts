@@ -7,8 +7,6 @@
  * theme is active the single most important number in this module:
  * it is one `=== null` comparison, and nothing else. No store read
  * beyond a property access, no filter dispatch, no allocation.
- *
- * @since 0.9.7
  */
 
 import { applyFilters, HOOKS } from '../hooks';
@@ -23,7 +21,6 @@ import { getStore } from './registry';
  * paint whatever you were going to paint".
  *
  * @public
- * @since 0.9.7
  *
  * @param slot Slot name (see `src/desktop-themes/slots.ts`).
  * @return A `dashicons-*` class, an absolute image URL, or `null`.
@@ -65,7 +62,6 @@ export function resolveThemedIcon( slot: string ): string | null {
  * which defers to whatever the surface is already using for text.
  *
  * @public
- * @since 0.9.8
  *
  * @param slot Slot name (see `src/desktop-themes/slots.ts`).
  * @return A CSS colour, or `null`.

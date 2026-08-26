@@ -15,7 +15,7 @@ import type { OsSettingsSnapshot } from '../../src/settings/registry';
 import type { WindowManager } from '../../src/window-manager';
 import type { Window as DesktopWindow } from '../../src/window';
 
-const DARKEN_CLASS = 'desktop-mode-window--fx-darken';
+const DARKEN_CLASS = 'os-window--fx-darken';
 
 type Engine = typeof import( '../../src/effects/unfocus-engine' );
 type Registry = typeof import( '../../src/effects/registry' );
@@ -37,7 +37,7 @@ interface FakeWin {
 
 function makeWin( id: string, focused: boolean, state = 'normal' ): FakeWin {
 	const element = document.createElement( 'div' );
-	element.className = 'desktop-mode-window';
+	element.className = 'os-window';
 	return { id, element, state, focused };
 }
 
@@ -141,6 +141,100 @@ describe( 'effects/unfocus-engine.ts', () => {
 		);
 	} );
 
+	test( 'does not apply to windows in split view', async () => {
+		const { engine } = await loadModules();
+		// Split view: two half-screen tiles, one focused. The user is
+		// working on both at once — the unfocused half must stay
+		// legible.
+		const left = makeWin( 'left', true, 'snapped-left' );
+		const right = makeWin( 'right', false, 'snapped-right' );
+		const floating = makeWin( 'floating', false );
+		const { osSettings } = makeOsSettings( 'darken' );
+
+		engine.startUnfocusEngine( {
+			manager: makeManager( [ left, right, floating ] ),
+			osSettings,
+		} );
+
+		expect( right.element.classList.contains( DARKEN_CLASS ) ).toBe(
+			false,
+		);
+		expect(
+			right.element.hasAttribute( 'data-desktop-unfocus-effect' ),
+		).toBe( false );
+		// A window that is merely behind the pair still gets the effect.
+		expect( floating.element.classList.contains( DARKEN_CLASS ) ).toBe(
+			true,
+		);
+	} );
+
+	test( 'a half-screen tile is exempt even with the opposite half empty', async () => {
+		const { engine } = await loadModules();
+		const snapped = makeWin( 'snapped', false, 'snapped-left' );
+		const { osSettings } = makeOsSettings( 'darken' );
+
+		engine.startUnfocusEngine( {
+			manager: makeManager( [ makeWin( 'a', true ), snapped ] ),
+			osSettings,
+		} );
+
+		expect( snapped.element.classList.contains( DARKEN_CLASS ) ).toBe(
+			false,
+		);
+	} );
+
+	test( 'recomputes on a state change (un-snapping restores the effect)', async () => {
+		const { engine } = await loadModules();
+		const snapped = makeWin( 'b', false, 'snapped-right' );
+		const { osSettings } = makeOsSettings( 'darken' );
+
+		engine.startUnfocusEngine( {
+			manager: makeManager( [ makeWin( 'a', true ), snapped ] ),
+			osSettings,
+		} );
+		expect( snapped.element.classList.contains( DARKEN_CLASS ) ).toBe(
+			false,
+		);
+
+		// Dragged out of split view while another window holds focus:
+		// no focus event fires, only `os-window-changed`.
+		snapped.state = 'normal';
+		document.dispatchEvent(
+			new CustomEvent( 'os-window-changed', {
+				detail: { windowId: 'b', reason: 'state', state: 'normal' },
+			} ),
+		);
+
+		expect( snapped.element.classList.contains( DARKEN_CLASS ) ).toBe(
+			true,
+		);
+	} );
+
+	test( 'ignores the chatty geometry reasons on os-window-changed', async () => {
+		const { engine } = await loadModules();
+		const b = makeWin( 'b', false );
+		const manager = makeManager( [ makeWin( 'a', true ), b ] );
+		const getAll = vi.spyOn( manager, 'getAll' );
+		const { osSettings } = makeOsSettings( 'darken' );
+
+		engine.startUnfocusEngine( { manager, osSettings } );
+		const afterBoot = getAll.mock.calls.length;
+
+		document.dispatchEvent(
+			new CustomEvent( 'os-window-changed', {
+				detail: { windowId: 'b', reason: 'moved' },
+			} ),
+		);
+		document.dispatchEvent(
+			new CustomEvent( 'os-window-changed', {
+				detail: { windowId: 'b', reason: 'resized' },
+			} ),
+		);
+
+		expect( getAll.mock.calls.length ).toBe( afterBoot );
+		getAll.mockRestore();
+	} );
+
 	test( 'clears the effect when the setting switches to "none"', async () => {
 		const { engine } = await loadModules();
 		const unfocused = makeWin( 'b', false );
@@ -178,7 +272,7 @@ describe( 'effects/unfocus-engine.ts', () => {
 		a.focused = false;
 		b.focused = true;
 		document.dispatchEvent(
-			new CustomEvent( 'desktop-mode-window-focused', {
+			new CustomEvent( 'os-window-focused', {
 				detail: { windowId: 'b' },
 			} ),
 		);

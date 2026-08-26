@@ -13,10 +13,10 @@
  * @package WordPress
  * @subpackage UnitTests
  *
- * @group desktop-mode
- * @group desktop-mode-posts-window
+ * @group openstation
+ * @group os-posts-window
  */
-class Tests_DesktopMode_PostsWindowRegistration extends WP_UnitTestCase {
+class Tests_OpenStation_PostsWindowRegistration extends WP_UnitTestCase {
 
 	private $admin_id;
 	private $editor_id;
@@ -32,8 +32,8 @@ class Tests_DesktopMode_PostsWindowRegistration extends WP_UnitTestCase {
 
 	public function tear_down() {
 		// Make sure no test leaks an opt-in state into the next.
-		remove_all_filters( 'desktop_mode_posts_window_user_can_use' );
-		remove_all_filters( 'desktop_mode_posts_window_user_can_register' );
+		remove_all_filters( 'openstation_posts_window_user_can_use' );
+		remove_all_filters( 'openstation_posts_window_user_can_register' );
 		parent::tear_down();
 	}
 
@@ -47,47 +47,47 @@ class Tests_DesktopMode_PostsWindowRegistration extends WP_UnitTestCase {
 	// ----------------------------------------------------------------
 
 	/**
-	 * @covers ::desktop_mode_posts_window_user_can_register
+	 * @covers ::openstation_posts_window_user_can_register
 	 */
 	public function test_register_gate_open_for_admin_without_opt_in() {
 		wp_set_current_user( $this->admin_id );
 		// No opt-in — registration should still be allowed so the
 		// native window is reachable the moment the user toggles
 		// the setting on (no F5).
-		$this->assertTrue( desktop_mode_posts_window_user_can_register() );
+		$this->assertTrue( openstation_posts_window_user_can_register() );
 	}
 
 	/**
-	 * @covers ::desktop_mode_posts_window_user_can_register
+	 * @covers ::openstation_posts_window_user_can_register
 	 */
 	public function test_register_gate_open_for_editor_without_opt_in() {
 		wp_set_current_user( $this->editor_id );
-		$this->assertTrue( desktop_mode_posts_window_user_can_register() );
+		$this->assertTrue( openstation_posts_window_user_can_register() );
 	}
 
 	/**
-	 * @covers ::desktop_mode_posts_window_user_can_register
+	 * @covers ::openstation_posts_window_user_can_register
 	 */
 	public function test_register_gate_closed_for_subscriber() {
 		wp_set_current_user( $this->subscriber_id );
-		$this->assertFalse( desktop_mode_posts_window_user_can_register() );
+		$this->assertFalse( openstation_posts_window_user_can_register() );
 	}
 
 	/**
-	 * @covers ::desktop_mode_posts_window_user_can_register
+	 * @covers ::openstation_posts_window_user_can_register
 	 */
 	public function test_register_gate_closed_for_logged_out_user() {
 		wp_set_current_user( 0 );
-		$this->assertFalse( desktop_mode_posts_window_user_can_register() );
+		$this->assertFalse( openstation_posts_window_user_can_register() );
 	}
 
 	/**
-	 * @covers ::desktop_mode_posts_window_user_can_register
+	 * @covers ::openstation_posts_window_user_can_register
 	 */
 	public function test_register_filter_can_block_a_capable_user() {
 		wp_set_current_user( $this->admin_id );
-		add_filter( 'desktop_mode_posts_window_user_can_register', '__return_false' );
-		$this->assertFalse( desktop_mode_posts_window_user_can_register() );
+		add_filter( 'openstation_posts_window_user_can_register', '__return_false' );
+		$this->assertFalse( openstation_posts_window_user_can_register() );
 	}
 
 	// ----------------------------------------------------------------
@@ -97,102 +97,102 @@ class Tests_DesktopMode_PostsWindowRegistration extends WP_UnitTestCase {
 	// ----------------------------------------------------------------
 
 	/**
-	 * Native Posts is opt-in Beta as of 0.10.0 — even a user with
+	 * Native Posts is opt-in Beta — even a user with
 	 * `edit_posts` gets the classic iframe until they turn the toggle
 	 * on. Opting in is what opens the gate.
 	 *
-	 * @covers ::desktop_mode_posts_window_user_can_use
+	 * @covers ::openstation_posts_window_user_can_use
 	 */
 	public function test_gate_closed_by_default_until_admin_opts_in() {
 		wp_set_current_user( $this->admin_id );
-		$this->assertFalse( desktop_mode_posts_window_user_can_use() );
+		$this->assertFalse( openstation_posts_window_user_can_use() );
 
-		desktop_mode_save_os_settings(
+		openstation_save_os_settings(
 			$this->admin_id,
 			array( 'nativePostsEnabled' => true )
 		);
-		$this->assertTrue( desktop_mode_posts_window_user_can_use() );
+		$this->assertTrue( openstation_posts_window_user_can_use() );
 	}
 
 	/**
-	 * @covers ::desktop_mode_posts_window_user_can_use
+	 * @covers ::openstation_posts_window_user_can_use
 	 */
 	public function test_gate_closes_when_admin_opts_out() {
 		wp_set_current_user( $this->admin_id );
-		desktop_mode_save_os_settings(
+		openstation_save_os_settings(
 			$this->admin_id,
 			array( 'nativePostsEnabled' => false )
 		);
-		$this->assertFalse( desktop_mode_posts_window_user_can_use() );
+		$this->assertFalse( openstation_posts_window_user_can_use() );
 	}
 
 	/**
 	 * Editors have `edit_posts` — opting in should let them through.
 	 *
-	 * @covers ::desktop_mode_posts_window_user_can_use
+	 * @covers ::openstation_posts_window_user_can_use
 	 */
 	public function test_gate_open_for_opted_in_editor() {
 		wp_set_current_user( $this->editor_id );
-		desktop_mode_save_os_settings(
+		openstation_save_os_settings(
 			$this->editor_id,
 			array( 'nativePostsEnabled' => true )
 		);
-		$this->assertTrue( desktop_mode_posts_window_user_can_use() );
+		$this->assertTrue( openstation_posts_window_user_can_use() );
 	}
 
 	/**
-	 * @covers ::desktop_mode_posts_window_user_can_use
+	 * @covers ::openstation_posts_window_user_can_use
 	 */
 	public function test_gate_closed_for_subscriber_even_when_opted_in() {
 		wp_set_current_user( $this->subscriber_id );
-		desktop_mode_save_os_settings(
+		openstation_save_os_settings(
 			$this->subscriber_id,
 			array( 'nativePostsEnabled' => true )
 		);
 		$this->assertFalse(
-			desktop_mode_posts_window_user_can_use(),
+			openstation_posts_window_user_can_use(),
 			'Subscriber lacks `edit_posts`; the opt-in toggle alone must not unlock the window.'
 		);
 	}
 
 	/**
-	 * @covers ::desktop_mode_posts_window_user_can_use
+	 * @covers ::openstation_posts_window_user_can_use
 	 */
 	public function test_gate_closed_for_logged_out_user() {
 		wp_set_current_user( 0 );
-		$this->assertFalse( desktop_mode_posts_window_user_can_use() );
+		$this->assertFalse( openstation_posts_window_user_can_use() );
 	}
 
 	/**
 	 * Filter must be respected so a managed install (or an integration
 	 * test) can override the gate one way or the other.
 	 *
-	 * @covers ::desktop_mode_posts_window_user_can_use
+	 * @covers ::openstation_posts_window_user_can_use
 	 */
 	public function test_filter_can_force_gate_open() {
 		wp_set_current_user( $this->editor_id );
-		desktop_mode_save_os_settings(
+		openstation_save_os_settings(
 			$this->editor_id,
 			array( 'nativePostsEnabled' => false )
 		);
 		// Editor opted out — default would be closed.
-		$this->assertFalse( desktop_mode_posts_window_user_can_use() );
+		$this->assertFalse( openstation_posts_window_user_can_use() );
 
-		add_filter( 'desktop_mode_posts_window_user_can_use', '__return_true' );
-		$this->assertTrue( desktop_mode_posts_window_user_can_use() );
+		add_filter( 'openstation_posts_window_user_can_use', '__return_true' );
+		$this->assertTrue( openstation_posts_window_user_can_use() );
 	}
 
 	/**
-	 * @covers ::desktop_mode_posts_window_user_can_use
+	 * @covers ::openstation_posts_window_user_can_use
 	 */
 	public function test_filter_can_force_gate_closed() {
 		wp_set_current_user( $this->admin_id );
-		desktop_mode_save_os_settings(
+		openstation_save_os_settings(
 			$this->admin_id,
 			array( 'nativePostsEnabled' => true )
 		);
-		add_filter( 'desktop_mode_posts_window_user_can_use', '__return_false' );
-		$this->assertFalse( desktop_mode_posts_window_user_can_use() );
+		add_filter( 'openstation_posts_window_user_can_use', '__return_false' );
+		$this->assertFalse( openstation_posts_window_user_can_use() );
 	}
 
 	/**
@@ -200,37 +200,37 @@ class Tests_DesktopMode_PostsWindowRegistration extends WP_UnitTestCase {
 	 * specific user (e.g. the REST permission callback running in a
 	 * sub-request context where `get_current_user_id()` is unreliable).
 	 *
-	 * @covers ::desktop_mode_posts_window_user_can_use
+	 * @covers ::openstation_posts_window_user_can_use
 	 */
 	public function test_explicit_user_id_argument_is_honoured() {
-		desktop_mode_save_os_settings(
+		openstation_save_os_settings(
 			$this->editor_id,
 			array( 'nativePostsEnabled' => true )
 		);
 		// Logged in as the subscriber; ask about the editor.
 		wp_set_current_user( $this->subscriber_id );
 		$this->assertTrue(
-			desktop_mode_posts_window_user_can_use( $this->editor_id )
+			openstation_posts_window_user_can_use( $this->editor_id )
 		);
 	}
 
 	/**
-	 * The `desktop_mode_posts_window_query_args` filter is the upgrade
+	 * The `openstation_posts_window_query_args` filter is the upgrade
 	 * path for v1.1 CPT support — a plugin overrides `post_type` here
 	 * and the bundle picks it up without further changes.
 	 *
-	 * @covers ::desktop_mode_posts_window_default_query_args
+	 * @covers ::openstation_posts_window_default_query_args
 	 */
 	public function test_query_args_filter_is_applied() {
 		add_filter(
-			'desktop_mode_posts_window_query_args',
+			'openstation_posts_window_query_args',
 			static function ( $args ) {
 				$args['post_type'] = 'product';
 				return $args;
 			}
 		);
 
-		$args = desktop_mode_posts_window_default_query_args();
+		$args = openstation_posts_window_default_query_args();
 		$this->assertSame( 'product', $args['post_type'] );
 		// Default args must still flow through.
 		$this->assertArrayHasKey( '_embed', $args );
@@ -241,10 +241,10 @@ class Tests_DesktopMode_PostsWindowRegistration extends WP_UnitTestCase {
 	 * Default query args must include `_embed` (powers author / term /
 	 * featured-media columns) and `_fields` (keeps payload tight).
 	 *
-	 * @covers ::desktop_mode_posts_window_default_query_args
+	 * @covers ::openstation_posts_window_default_query_args
 	 */
 	public function test_default_query_args_include_embed_and_fields() {
-		$args = desktop_mode_posts_window_default_query_args();
+		$args = openstation_posts_window_default_query_args();
 		$this->assertStringContainsString( 'author', $args['_embed'] );
 		$this->assertStringContainsString( 'wp:term', $args['_embed'] );
 		$this->assertStringContainsString( 'wp:featuredmedia', $args['_embed'] );

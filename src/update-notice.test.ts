@@ -14,7 +14,7 @@ import type { ReleaseCardOptions } from './release-card';
 import {
 	markNoticeDismissed,
 	isNoticeDismissed,
-} from './ui/components/wpd-notice/storage';
+} from './ui/components/os-notice/storage';
 
 vi.mock( './toast', () => ( { showToast: vi.fn() } ) );
 
@@ -74,7 +74,8 @@ describe( 'maybeShowUpdate', () => {
 			openUrl, resolveArt, loadImage, showCard,
 		} );
 		expect( toastMock ).not.toHaveBeenCalled();
-		expect( resolveArt ).toHaveBeenCalledWith( '7.0' );
+		// Crossing → the resolver may retry a missing announcement sooner.
+		expect( resolveArt ).toHaveBeenCalledWith( '7.0', true );
 		const c = lastCard();
 		// Crossing → branch version + codename in the message.
 		expect( c.message ).toBe( 'WordPress 7.0 "Armstrong" is available.' );
@@ -104,15 +105,30 @@ describe( 'maybeShowUpdate', () => {
 		expect( lastToast().dismissible ).toBe( true );
 	} );
 
-	test( 'dismissing the fallback toast persists on the exact-version key', async () => {
+	test( 'dismissing the fallback toast persists on its own key, not the card\'s', async () => {
 		resolveArt.mockResolvedValue( null );
-		await maybeShowUpdate( {
-			update: { version: '7.0.1', available: '7.0.1', branch: '7.0', url: '/u', crossing: false },
-			openUrl, resolveArt, loadImage, showCard,
-		} );
-		expect( isNoticeDismissed( 'desktop-mode/core-update:7.0.1' ) ).toBe( false );
+		const update = { version: '7.0.1', available: '7.0.1', branch: '7.0', url: '/u', crossing: false };
+		await maybeShowUpdate( { update, openUrl, resolveArt, loadImage, showCard } );
 		lastToast().onDismiss!();
-		expect( isNoticeDismissed( 'desktop-mode/core-update:7.0.1' ) ).toBe( true );
+		expect( isNoticeDismissed( 'desktop-mode/core-update:7.0.1:no-art' ) ).toBe( true );
+		expect( isNoticeDismissed( 'desktop-mode/core-update:7.0.1' ) ).toBe( false );
+
+		// Dismissed → the toast doesn't come back.
+		toastMock.mockClear();
+		await maybeShowUpdate( { update, openUrl, resolveArt, loadImage, showCard } );
+		expect( toastMock ).not.toHaveBeenCalled();
+	} );
+
+	test( 'the card still shows after the art-less toast was dismissed', async () => {
+		resolveArt.mockResolvedValue( null );
+		const update = { version: '7.1', available: '7.1', branch: '7.1', url: '/u', crossing: true };
+		await maybeShowUpdate( { update, openUrl, resolveArt, loadImage, showCard } );
+		lastToast().onDismiss!();
+
+		// The announcement post lands later, so the art now resolves.
+		resolveArt.mockResolvedValue( ART );
+		await maybeShowUpdate( { update, openUrl, resolveArt, loadImage, showCard } );
+		expect( lastCard().dismissKey ).toBe( 'desktop-mode/core-update:7.1' );
 	} );
 
 	test( 'art resolves but image fails to load → toast fallback', async () => {

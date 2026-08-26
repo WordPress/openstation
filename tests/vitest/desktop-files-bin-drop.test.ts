@@ -73,9 +73,9 @@ function pointerEvent(
 }
 
 function installManagerOnWindow( manager: DragManager ): void {
-	const wp = ( window as unknown as { wp?: { hooks?: unknown; desktop?: Record< string, unknown > } } ).wp ?? {};
-	wp.desktop = ( wp.desktop as Record< string, unknown > | undefined ) ?? {};
-	( wp.desktop as { dragManager: DragManager } ).dragManager = manager;
+	const wp = ( window as unknown as { wp?: { hooks?: unknown; os?: Record< string, unknown > } } ).wp ?? {};
+	wp.os = ( wp.os as Record< string, unknown > | undefined ) ?? {};
+	( wp.os as { dragManager: DragManager } ).dragManager = manager;
 	( window as unknown as { wp: typeof wp } ).wp = wp;
 }
 
@@ -114,12 +114,12 @@ describe( 'recycle-bin dock icon drop (user regression)', () => {
 		//    initial probe should pick it up.
 		const dockTile = document.createElement( 'div' );
 		dockTile.classList.add(
-			'desktop-mode-dock__item',
-			'desktop-mode-dock__item--system',
+			'os-dock__item',
+			'os-dock__item--system',
 		);
 		dockTile.dataset.systemId = 'desktop-mode-recycle-bin';
 		const innerBtn = document.createElement( 'button' );
-		innerBtn.classList.add( 'desktop-mode-dock__item-primary' );
+		innerBtn.classList.add( 'os-dock__item-primary' );
 		dockTile.appendChild( innerBtn );
 		document.body.appendChild( dockTile );
 
@@ -136,7 +136,7 @@ describe( 'recycle-bin dock icon drop (user regression)', () => {
 
 		// 4. Build a desktop file tile to act as the source.
 		const sourceTile = document.createElement( 'div' );
-		sourceTile.className = 'desktop-mode-file-tile';
+		sourceTile.className = 'os-file-tile';
 		document.body.appendChild( sourceTile );
 
 		// 5. Hit-test stub: returns the bin tile inner element when
@@ -169,7 +169,7 @@ describe( 'recycle-bin dock icon drop (user regression)', () => {
 		document.dispatchEvent( pointerEvent( 'pointermove', 300, 300 ) );
 		// Verify the bin highlight applied via onEnter.
 		expect(
-			dockTile.hasAttribute( 'data-desktop-mode-trash-drop-active' ),
+			dockTile.hasAttribute( 'data-os-trash-drop-active' ),
 		).toBe( true );
 		document.dispatchEvent( pointerEvent( 'pointerup', 300, 300 ) );
 
@@ -194,8 +194,149 @@ describe( 'recycle-bin dock icon drop (user regression)', () => {
 
 		// 12. The bin highlight class should be cleared.
 		expect(
-			dockTile.hasAttribute( 'data-desktop-mode-trash-drop-active' ),
+			dockTile.hasAttribute( 'data-os-trash-drop-active' ),
 		).toBe( false );
+	} );
+
+	test( 'dropping a SET on the bin trashes every item in it', async () => {
+		const { store, rest, binTargets } = await load();
+		store.__resetFilesStoreForTests();
+		rest.installRestDeps( {
+			baseUrl: 'https://example.test/files',
+			nonce: 'n',
+		} );
+
+		const fetchSpy = vi.fn(
+			async () =>
+				new Response( JSON.stringify( { deleted: true } ), {
+					status: 200,
+					headers: { 'Content-Type': 'application/json' },
+				} ),
+		);
+		vi.stubGlobal( 'fetch', fetchSpy );
+
+		const manager = new DragManager();
+		installManagerOnWindow( manager );
+
+		const dockTile = document.createElement( 'div' );
+		dockTile.classList.add( 'os-dock__item', 'os-dock__item--system' );
+		dockTile.dataset.systemId = 'desktop-mode-recycle-bin';
+		const innerBtn = document.createElement( 'button' );
+		innerBtn.classList.add( 'os-dock__item-primary' );
+		dockTile.appendChild( innerBtn );
+		document.body.appendChild( dockTile );
+		binTargets.installRecycleBinDropTargets( manager );
+
+		const a = placement( 11, 'link' );
+		const b = placement( 12, 'link' );
+		const c = placement( 13, 'link' );
+		store.setFolderPlacements( 0, [ a, b, c ] );
+
+		const sourceTile = document.createElement( 'div' );
+		sourceTile.className = 'os-file-tile';
+		document.body.appendChild( sourceTile );
+		document.elementFromPoint = ( x, y ) =>
+			x >= 280 && x < 340 && y >= 280 && y < 340 ? innerBtn : null;
+
+		manager.start( {
+			payload: {
+				type: 'desktop-file',
+				source: sourceTile,
+				data: {
+					placement: a,
+					placements: [ a, b, c ],
+					sourceFolderId: 0,
+				},
+				ghost: { offsetX: 30, offsetY: 30 },
+			},
+			origin: pointerEvent( 'pointerdown', 100, 100, sourceTile ),
+		} );
+		document.dispatchEvent( pointerEvent( 'pointermove', 110, 100 ) );
+		document.dispatchEvent( pointerEvent( 'pointermove', 300, 300 ) );
+		document.dispatchEvent( pointerEvent( 'pointerup', 300, 300 ) );
+		await new Promise( ( r ) => setTimeout( r, 20 ) );
+
+		const deleted = fetchSpy.mock.calls
+			.filter(
+				( call ) =>
+					( call[ 1 ] as RequestInit | undefined )?.method === 'DELETE',
+			)
+			.map( ( call ) => String( call[ 0 ] ) );
+		for ( const id of [ 11, 12, 13 ] ) {
+			expect(
+				deleted.some( ( u ) => u.endsWith( `/placements/${ id }` ) ),
+			).toBe( true );
+		}
+		// All three are gone locally, in one optimistic pass.
+		expect(
+			store.getFilesState().placementsByFolder.get( 0 )?.length,
+		).toBe( 0 );
+	} );
+
+	test( 'a set containing an un-trashable item is refused whole', async () => {
+		const { store, rest, binTargets } = await load();
+		store.__resetFilesStoreForTests();
+		rest.installRestDeps( {
+			baseUrl: 'https://example.test/files',
+			nonce: 'n',
+		} );
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(
+				async () =>
+					new Response( '{}', {
+						status: 200,
+						headers: { 'Content-Type': 'application/json' },
+					} ),
+			),
+		);
+
+		const manager = new DragManager();
+		installManagerOnWindow( manager );
+		const dockTile = document.createElement( 'div' );
+		dockTile.classList.add( 'os-dock__item', 'os-dock__item--system' );
+		dockTile.dataset.systemId = 'desktop-mode-recycle-bin';
+		const innerBtn = document.createElement( 'button' );
+		innerBtn.classList.add( 'os-dock__item-primary' );
+		dockTile.appendChild( innerBtn );
+		document.body.appendChild( dockTile );
+		binTargets.installRecycleBinDropTargets( manager );
+
+		const ok = placement( 21, 'link' );
+		// Server says this one may not be trashed — a shared folder's
+		// read-only item.
+		const denied = { ...placement( 22, 'link' ), canTrash: false };
+		const sourceTile = document.createElement( 'div' );
+		sourceTile.className = 'os-file-tile';
+		document.body.appendChild( sourceTile );
+		document.elementFromPoint = ( x, y ) =>
+			x >= 280 && x < 340 && y >= 280 && y < 340 ? innerBtn : null;
+
+		const onCommit = vi.fn();
+		manager.start( {
+			payload: {
+				type: 'desktop-file',
+				source: sourceTile,
+				data: {
+					placement: ok,
+					placements: [ ok, denied ],
+					sourceFolderId: 0,
+				},
+				ghost: { offsetX: 30, offsetY: 30 },
+			},
+			origin: pointerEvent( 'pointerdown', 100, 100, sourceTile ),
+			onCommit,
+		} );
+		document.dispatchEvent( pointerEvent( 'pointermove', 110, 100 ) );
+		document.dispatchEvent( pointerEvent( 'pointermove', 300, 300 ) );
+		// Refused up front: no highlight, and the release commits
+		// nothing. Trashing the half that's allowed would report
+		// success for an operation that half-happened.
+		expect( dockTile.hasAttribute( 'data-os-trash-drop-active' ) ).toBe(
+			false,
+		);
+		document.dispatchEvent( pointerEvent( 'pointerup', 300, 300 ) );
+		expect( onCommit ).not.toHaveBeenCalled();
 	} );
 
 	test( 'dragging the recycle bin onto itself is rejected — no self-trash', async () => {
@@ -222,16 +363,16 @@ describe( 'recycle-bin dock icon drop (user regression)', () => {
 		installManagerOnWindow( manager );
 
 		// Build the bin tile in the same DOM shape the files layer
-		// produces — `.desktop-mode-file-tile[data-file-ref="…"]` is
-		// the first selector `findBinTile()` checks.
+		// produces — `.os-file-tile[data-file-ref="…"]`, which
+		// registers under the `recycle-bin-tile` id.
 		const binTile = document.createElement( 'div' );
-		binTile.classList.add( 'desktop-mode-file-tile' );
+		binTile.classList.add( 'os-file-tile' );
 		binTile.dataset.fileRef = 'desktop-mode-recycle-bin';
 		document.body.appendChild( binTile );
 
 		binTargets.installRecycleBinDropTargets( manager );
 		expect(
-			manager.debug().listTargets().find( ( t ) => t.id === 'recycle-bin-dock' ),
+			manager.debug().listTargets().find( ( t ) => t.id === 'recycle-bin-tile' ),
 		).toBeDefined();
 
 		// The bin's placement: positive id (it's a real DB row) +
@@ -283,7 +424,7 @@ describe( 'recycle-bin dock icon drop (user regression)', () => {
 		// Hover highlight must NOT fire — `accept` returns false up
 		// front so the drop target never lights up.
 		expect(
-			binTile.hasAttribute( 'data-desktop-mode-trash-drop-active' ),
+			binTile.hasAttribute( 'data-os-trash-drop-active' ),
 		).toBe( false );
 
 		document.dispatchEvent( pointerEvent( 'pointerup', 300, 300 ) );
@@ -319,7 +460,7 @@ describe( 'recycle-bin dock icon drop (user regression)', () => {
 
 		// First dock render.
 		const tile1 = document.createElement( 'div' );
-		tile1.classList.add( 'desktop-mode-dock__item' );
+		tile1.classList.add( 'os-dock__item' );
 		tile1.dataset.systemId = 'desktop-mode-recycle-bin';
 		document.body.appendChild( tile1 );
 
@@ -334,7 +475,7 @@ describe( 'recycle-bin dock icon drop (user regression)', () => {
 		// Dock re-renders — old tile detached, new one attached.
 		tile1.remove();
 		const tile2 = document.createElement( 'div' );
-		tile2.classList.add( 'desktop-mode-dock__item' );
+		tile2.classList.add( 'os-dock__item' );
 		tile2.dataset.systemId = 'desktop-mode-recycle-bin';
 		document.body.appendChild( tile2 );
 
@@ -349,5 +490,41 @@ describe( 'recycle-bin dock icon drop (user regression)', () => {
 				.listTargets()
 				.find( ( t ) => t.id === 'recycle-bin-dock' )?.element,
 		).toBe( tile2 );
+	} );
+	test( 'every bin surface gets its own target, not just the first', async () => {
+		// The classic layout shows the wallpaper tile and the dock tile
+		// at once; resolving to the first match left the dock dead.
+		const { binTargets } = await load();
+		const manager = new DragManager();
+		installManagerOnWindow( manager );
+
+		const wallpaperTile = document.createElement( 'div' );
+		wallpaperTile.classList.add( 'os-file-tile' );
+		wallpaperTile.dataset.fileRef = 'desktop-mode-recycle-bin';
+		document.body.appendChild( wallpaperTile );
+
+		const legacyIcon = document.createElement( 'button' );
+		legacyIcon.dataset.iconId = 'desktop-mode-recycle-bin';
+		document.body.appendChild( legacyIcon );
+
+		const dockTile = document.createElement( 'div' );
+		dockTile.classList.add( 'os-dock__item', 'os-dock__item--system' );
+		dockTile.dataset.systemId = 'desktop-mode-recycle-bin';
+		document.body.appendChild( dockTile );
+
+		binTargets.installRecycleBinDropTargets( manager );
+
+		const byId = ( id: string ) =>
+			manager.debug().listTargets().find( ( t ) => t.id === id )?.element;
+		expect( byId( 'recycle-bin-tile' ) ).toBe( wallpaperTile );
+		expect( byId( 'recycle-bin-icon' ) ).toBe( legacyIcon );
+		expect( byId( 'recycle-bin-dock' ) ).toBe( dockTile );
+
+		// A surface that goes away drops only its own registration.
+		wallpaperTile.remove();
+		( window as unknown as { wp: { hooks: { doAction: ( h: string, ...a: unknown[] ) => void } } } )
+			.wp.hooks.doAction( HOOKS.DOCK_AFTER_RENDER, {} );
+		expect( byId( 'recycle-bin-tile' ) ).toBeUndefined();
+		expect( byId( 'recycle-bin-dock' ) ).toBe( dockTile );
 	} );
 } );

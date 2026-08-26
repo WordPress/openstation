@@ -7,11 +7,9 @@
  * `disposed` so closing the window mid-load never leaks a Pixi app.
  *
  * Pixi lifecycle follows the content-graph precedent: PixiJS from
- * `wp.desktop.loadModules(['pixijs'])`, `sharedTicker: false` (a
+ * `wp.os.loadModules(['pixijs'])`, `sharedTicker: false` (a
  * shared ticker crashes `Batcher.break()` across bundles), and the
  * options-object destroy — never `destroy( true )`.
- *
- * @since 0.9.6
  */
 
 import { __, sprintf } from '../../i18n';
@@ -603,11 +601,11 @@ export function mountInkfall( ctx: GameLaunchContext ): () => void {
 	const boot = async (): Promise< void > => {
 		const desktop = desktopGlobal();
 		if ( typeof desktop.loadModules !== 'function' ) {
-			throw new Error( '[desktop-mode] wp.desktop.loadModules missing.' );
+			throw new Error( '[openstation] wp.os.loadModules missing.' );
 		}
 		const wordsUrl = String( ctx.config.wordsUrl || '' );
 		if ( '' === wordsUrl ) {
-			throw new Error( '[desktop-mode] Inkfall config lacks wordsUrl.' );
+			throw new Error( '[openstation] Inkfall config lacks wordsUrl.' );
 		}
 		const [ , loadedDictionary ] = await Promise.all( [
 			desktop.loadModules( [ 'pixijs' ] ),
@@ -622,7 +620,7 @@ export function mountInkfall( ctx: GameLaunchContext ): () => void {
 		dictionary = loadedDictionary;
 		pixi = getPixi();
 		if ( ! pixi ) {
-			throw new Error( '[desktop-mode] PixiJS failed to load.' );
+			throw new Error( '[openstation] PixiJS failed to load.' );
 		}
 
 		const instance = new pixi.Application();
@@ -657,7 +655,7 @@ export function mountInkfall( ctx: GameLaunchContext ): () => void {
 				return;
 			}
 			// Pixi's ResizePlugin only reacts to `window` resize —
-			// resizing the desktop-mode window never fires that, so
+			// resizing the openstation window never fires that, so
 			// without this call the renderer keeps its old size while
 			// CSS stretches the canvas (words drift off-page).
 			app.resize();
@@ -708,7 +706,7 @@ export function mountInkfall( ctx: GameLaunchContext ): () => void {
 				: __( 'Inkfall could not start.' ),
 		);
 		if ( typeof console !== 'undefined' ) {
-			console.error( '[desktop-mode] Inkfall boot failed:', err );
+			console.error( '[openstation] Inkfall boot failed:', err );
 		}
 	} );
 

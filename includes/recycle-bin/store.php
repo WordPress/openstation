@@ -1,18 +1,17 @@
 <?php
 /**
- * Desktop Mode — Recycle Bin: store.
+ * OpenStation — Recycle Bin: store.
  *
  * Read/restore/purge primitives that the REST layer wraps. Backed
  * entirely by core post-table state — no custom tables, no options
  * blob. "Trashed" items are exactly the rows with
  * `post_status = 'trash'` for the post types the bin tracks.
  *
- * Every read goes through `desktop_mode_recycle_bin_query_args` so
+ * Every read goes through `openstation_recycle_bin_query_args` so
  * plugins can scope the bin (e.g. show only the current user's
  * trash, or filter by author/role for compliance use cases).
  *
- * @package WPDesktopMode
- * @since   0.6.0
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -20,8 +19,6 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Returns the list of trashed items the current user is allowed to
  * see, shaped for the table component.
- *
- * @since 0.6.0
  *
  * @param array $args {
  *     Optional. Query overrides.
@@ -36,7 +33,7 @@ defined( 'ABSPATH' ) || exit;
  *     @type int   $total Total matching rows (across pages).
  * }
  */
-function desktop_mode_recycle_bin_get_items( $args = array() ) {
+function openstation_recycle_bin_get_items( $args = array() ) {
 	$args = wp_parse_args(
 		$args,
 		array(
@@ -60,7 +57,7 @@ function desktop_mode_recycle_bin_get_items( $args = array() ) {
 	// Source gates: each `$type` filter narrows down to the
 	// owning store. `''` (All) loads every source. The files-on-
 	// desktop sources (`shortcut` / `placement` / `folder`) live in
-	// `desktop_mode_files_list_trashed_for_recycle_bin` — never run
+	// `openstation_files_list_trashed_for_recycle_bin` — never run
 	// the WP-core post / comment queries when one of those is the
 	// active filter, otherwise trashed posts leak into the
 	// "Shortcuts" / "Folders" tabs.
@@ -69,10 +66,10 @@ function desktop_mode_recycle_bin_get_items( $args = array() ) {
 	$wants_post_types = '' === $type
 		|| ( 'comment' !== $type && ! $is_files_filter );
 	$wants_comments   = ( '' === $type || 'comment' === $type )
-		&& desktop_mode_recycle_bin_comments_enabled();
+		&& openstation_recycle_bin_comments_enabled();
 
 	if ( $wants_post_types ) {
-		$post_types = desktop_mode_recycle_bin_capture_post_types();
+		$post_types = openstation_recycle_bin_capture_post_types();
 		if ( '' !== $type && in_array( $type, $post_types, true ) ) {
 			$post_types = array( $type );
 		}
@@ -91,19 +88,17 @@ function desktop_mode_recycle_bin_get_items( $args = array() ) {
 		/**
 		 * Filter the WP_Query args used to populate the recycle bin.
 		 *
-		 * @since 0.6.0
-		 *
 		 * @param array $query_args Args passed to WP_Query.
 		 * @param array $args       Caller-provided args.
 		 */
-		$query_args = apply_filters( 'desktop_mode_recycle_bin_query_args', $query_args, $args );
+		$query_args = apply_filters( 'openstation_recycle_bin_query_args', $query_args, $args );
 
 		$query = new WP_Query( $query_args );
 		foreach ( $query->posts as $post ) {
-			if ( ! desktop_mode_recycle_bin_user_can_view( $post ) ) {
+			if ( ! openstation_recycle_bin_user_can_view( $post ) ) {
 				continue;
 			}
-			$items_posts[] = desktop_mode_recycle_bin_shape_item( $post );
+			$items_posts[] = openstation_recycle_bin_shape_item( $post );
 		}
 	}
 
@@ -121,15 +116,13 @@ function desktop_mode_recycle_bin_get_items( $args = array() ) {
 		/**
 		 * Filter the `WP_Comment_Query` args used to populate the
 		 * recycle bin's comments. Mirror of
-		 * `desktop_mode_recycle_bin_query_args` for comments.
-		 *
-		 * @since 0.6.0
+		 * `openstation_recycle_bin_query_args` for comments.
 		 *
 		 * @param array $comment_args Args passed to `get_comments()`.
 		 * @param array $args         Caller-provided args.
 		 */
 		$comment_args = apply_filters(
-			'desktop_mode_recycle_bin_comment_query_args',
+			'openstation_recycle_bin_comment_query_args',
 			$comment_args,
 			$args
 		);
@@ -137,10 +130,10 @@ function desktop_mode_recycle_bin_get_items( $args = array() ) {
 		$comments = get_comments( $comment_args );
 		if ( is_array( $comments ) ) {
 			foreach ( $comments as $comment ) {
-				if ( ! desktop_mode_recycle_bin_user_can_view_comment( $comment ) ) {
+				if ( ! openstation_recycle_bin_user_can_view_comment( $comment ) ) {
 					continue;
 				}
-				$items_comments[] = desktop_mode_recycle_bin_shape_comment_item( $comment );
+				$items_comments[] = openstation_recycle_bin_shape_comment_item( $comment );
 			}
 		}
 	}
@@ -149,7 +142,7 @@ function desktop_mode_recycle_bin_get_items( $args = array() ) {
 	// (shortcuts) and folders. Returned in the same item shape so
 	// the JS layer treats them uniformly. The `placement` and
 	// `folder` types route to the desktop-files trash module on
-	// restore / purge (see `desktop_mode_recycle_bin_handle_files_*`).
+	// restore / purge (see `openstation_recycle_bin_handle_files_*`).
 	$items_files = array();
 	// Map UI filter → set of `type` values to keep from the
 	// files-on-desktop helper. The "Shortcuts" segment in the bin
@@ -175,9 +168,9 @@ function desktop_mode_recycle_bin_get_items( $args = array() ) {
 	}
 	if (
 		! empty( $wanted_files_types )
-		&& function_exists( 'desktop_mode_files_list_trashed_for_recycle_bin' )
+		&& function_exists( 'openstation_files_list_trashed_for_recycle_bin' )
 	) {
-		$file_items = desktop_mode_files_list_trashed_for_recycle_bin(
+		$file_items = openstation_files_list_trashed_for_recycle_bin(
 			get_current_user_id()
 		);
 		foreach ( (array) $file_items as $item ) {
@@ -194,9 +187,12 @@ function desktop_mode_recycle_bin_get_items( $args = array() ) {
 	// shape always carries a sortable string in `deleted_at`, so a
 	// straight string compare is enough (`Y-m-d H:i:s` is sortable
 	// lexicographically).
-	usort( $items, static function ( $a, $b ) {
-		return strcmp( (string) $b['deleted_at'], (string) $a['deleted_at'] );
-	} );
+	usort(
+		$items,
+		static function ( $a, $b ) {
+			return strcmp( (string) $b['deleted_at'], (string) $a['deleted_at'] );
+		}
+	);
 
 	// `total` reports the GLOBAL trash count (every type, every
 	// row, ignoring the current filter / search). The dock-tile
@@ -204,7 +200,7 @@ function desktop_mode_recycle_bin_get_items( $args = array() ) {
 	// only cares about "how many things are sitting in the bin
 	// right now". A future paginated UI that needs a filtered
 	// count can compute it from `count( $items )` itself.
-	$total = desktop_mode_recycle_bin_count();
+	$total = openstation_recycle_bin_count();
 
 	$offset = max( 0, ( max( 1, (int) $args['page'] ) - 1 ) * $per_page );
 	$sliced = array_slice( $items, $offset, $per_page );
@@ -212,13 +208,11 @@ function desktop_mode_recycle_bin_get_items( $args = array() ) {
 	/**
 	 * Filter the final list of items returned to the JS layer.
 	 *
-	 * @since 0.6.0
-	 *
 	 * @param array      $items Shaped list (id, title, type, deleted_at, …).
 	 * @param array|null $query Underlying post query, or null for the
-	 *                          merged post+comment shape (since 0.6.0).
+	 *                          merged post+comment shape.
 	 */
-	$sliced = apply_filters( 'desktop_mode_recycle_bin_items', $sliced, null );
+	$sliced = apply_filters( 'openstation_recycle_bin_items', $sliced, null );
 
 	return array(
 		'items' => $sliced,
@@ -230,7 +224,7 @@ function desktop_mode_recycle_bin_get_items( $args = array() ) {
  * Total number of items in the recycle bin, summed across every
  * tracked source (post types + comments).
  *
- * Cheaper than `desktop_mode_recycle_bin_get_items()` because it never
+ * Cheaper than `openstation_recycle_bin_get_items()` because it never
  * loads the row data — just the COUNT(*) under the hood. Used by
  * the badge on the dock tile + desktop icon, and by the REST
  * `/count` endpoint subscribers refresh on broadcasts.
@@ -241,12 +235,10 @@ function desktop_mode_recycle_bin_get_items( $args = array() ) {
  * own posts are counted author-scoped — so the badge never discloses
  * the global trash total to low-capability users.
  *
- * @since 0.6.0
- *
  * @return int
  */
-function desktop_mode_recycle_bin_count() {
-	$post_types = desktop_mode_recycle_bin_capture_post_types();
+function openstation_recycle_bin_count() {
+	$post_types = openstation_recycle_bin_capture_post_types();
 
 	// Bucket the tracked types by what the current user may edit:
 	// full count when they hold the type's `edit_others_posts`,
@@ -299,7 +291,7 @@ function desktop_mode_recycle_bin_count() {
 	}
 
 	$comment_count = 0;
-	if ( desktop_mode_recycle_bin_comments_enabled() ) {
+	if ( openstation_recycle_bin_comments_enabled() ) {
 		$comment_count = (int) get_comments(
 			array(
 				'status' => 'trash',
@@ -309,8 +301,8 @@ function desktop_mode_recycle_bin_count() {
 	}
 
 	$files_count = 0;
-	if ( function_exists( 'desktop_mode_files_count_trashed_for_recycle_bin' ) ) {
-		$files_count = (int) desktop_mode_files_count_trashed_for_recycle_bin( get_current_user_id() );
+	if ( function_exists( 'openstation_files_count_trashed_for_recycle_bin' ) ) {
+		$files_count = (int) openstation_files_count_trashed_for_recycle_bin( get_current_user_id() );
 	}
 
 	$total = $post_count + $comment_count + $files_count;
@@ -318,15 +310,13 @@ function desktop_mode_recycle_bin_count() {
 	/**
 	 * Filter the total count surfaced to the badge.
 	 *
-	 * @since 0.6.0
-	 *
 	 * @param int $total         Default sum (posts + comments + files visible to the user).
 	 * @param int $post_count    Items in trash from the post-type query, capability-scoped
 	 *                           to what the current user can edit.
 	 * @param int $comment_count Items in trash from the comment query.
-	 * @param int $files_count   Items in trash from the desktop-files trash (since 0.8.0).
+	 * @param int $files_count   Items in trash from the desktop-files trash.
 	 */
-	return (int) apply_filters( 'desktop_mode_recycle_bin_count', $total, $post_count, $comment_count, $files_count );
+	return (int) apply_filters( 'openstation_recycle_bin_count', $total, $post_count, $comment_count, $files_count );
 }
 
 /**
@@ -334,21 +324,17 @@ function desktop_mode_recycle_bin_count() {
  * that don't moderate comments at all (read-only blogs, headless
  * setups) can hide the segment without touching the JS.
  *
- * @since 0.6.0
- *
  * @return bool
  */
-function desktop_mode_recycle_bin_comments_enabled() {
+function openstation_recycle_bin_comments_enabled() {
 	$on = current_user_can( 'moderate_comments' );
 
 	/**
 	 * Filter whether the recycle bin tracks comments.
 	 *
-	 * @since 0.6.0
-	 *
 	 * @param bool $on Default: current user has `moderate_comments`.
 	 */
-	return (bool) apply_filters( 'desktop_mode_recycle_bin_comments_enabled', $on );
+	return (bool) apply_filters( 'openstation_recycle_bin_comments_enabled', $on );
 }
 
 /**
@@ -358,122 +344,101 @@ function desktop_mode_recycle_bin_comments_enabled() {
  * "if you can edit it, you can manage its trash" rule. Filterable for
  * stricter / looser policies.
  *
- * @since 0.6.0
- *
  * @param WP_Post $post Trashed post.
  * @return bool
  */
-function desktop_mode_recycle_bin_user_can_view( $post ) {
+function openstation_recycle_bin_user_can_view( $post ) {
 	$can = current_user_can( 'edit_post', $post->ID );
 
 	/**
 	 * Filter whether the current user can see a given trashed item.
 	 *
-	 * @since 0.6.0
-	 *
 	 * @param bool    $can  Default: edit_post capability check.
 	 * @param WP_Post $post Trashed post.
 	 */
-	return (bool) apply_filters( 'desktop_mode_recycle_bin_user_can_view', $can, $post );
+	return (bool) apply_filters( 'openstation_recycle_bin_user_can_view', $can, $post );
 }
 
 /**
  * Whether the current user can restore a given trashed item.
  *
- * @since 0.6.0
- *
  * @param WP_Post $post Trashed post.
  * @return bool
  */
-function desktop_mode_recycle_bin_user_can_restore( $post ) {
+function openstation_recycle_bin_user_can_restore( $post ) {
 	$can = current_user_can( 'delete_post', $post->ID );
 
 	/**
 	 * Filter whether the current user can restore a given trashed item.
 	 *
-	 * @since 0.6.0
-	 *
 	 * @param bool    $can  Default: delete_post capability check (the same
 	 *                      gate WP itself uses for trash/untrash).
 	 * @param WP_Post $post Trashed post.
 	 */
-	return (bool) apply_filters( 'desktop_mode_recycle_bin_user_can_restore', $can, $post );
+	return (bool) apply_filters( 'openstation_recycle_bin_user_can_restore', $can, $post );
 }
 
 /**
  * Whether the current user can permanently delete a trashed item.
  *
- * @since 0.6.0
- *
  * @param WP_Post $post Trashed post.
  * @return bool
  */
-function desktop_mode_recycle_bin_user_can_purge( $post ) {
+function openstation_recycle_bin_user_can_purge( $post ) {
 	$can = current_user_can( 'delete_post', $post->ID );
 
 	/**
 	 * Filter whether the current user can permanently delete a trashed item.
 	 *
-	 * @since 0.6.0
-	 *
 	 * @param bool    $can  Default: delete_post capability check.
 	 * @param WP_Post $post Trashed post.
 	 */
-	return (bool) apply_filters( 'desktop_mode_recycle_bin_user_can_purge', $can, $post );
+	return (bool) apply_filters( 'openstation_recycle_bin_user_can_purge', $can, $post );
 }
 
 /**
  * Capability gates for trashed comments. Mirror of the post gates,
  * with `edit_comment`/`moderate_comments` as the WP-native checks.
  *
- * @since 0.6.0
- *
  * @param WP_Comment $comment Trashed comment.
  * @return bool
  */
-function desktop_mode_recycle_bin_user_can_view_comment( $comment ) {
+function openstation_recycle_bin_user_can_view_comment( $comment ) {
 	$can = current_user_can( 'edit_comment', $comment->comment_ID );
 
 	/**
-	 * @since 0.6.0
 	 * @param bool       $can     Default: edit_comment capability check.
 	 * @param WP_Comment $comment Trashed comment.
 	 */
-	return (bool) apply_filters( 'desktop_mode_recycle_bin_user_can_view_comment', $can, $comment );
+	return (bool) apply_filters( 'openstation_recycle_bin_user_can_view_comment', $can, $comment );
 }
 
 /**
- * @since 0.6.0
- *
  * @param WP_Comment $comment Trashed comment.
  * @return bool
  */
-function desktop_mode_recycle_bin_user_can_restore_comment( $comment ) {
+function openstation_recycle_bin_user_can_restore_comment( $comment ) {
 	$can = current_user_can( 'edit_comment', $comment->comment_ID );
 
 	/**
-	 * @since 0.6.0
 	 * @param bool       $can     Default: edit_comment capability check.
 	 * @param WP_Comment $comment Trashed comment.
 	 */
-	return (bool) apply_filters( 'desktop_mode_recycle_bin_user_can_restore_comment', $can, $comment );
+	return (bool) apply_filters( 'openstation_recycle_bin_user_can_restore_comment', $can, $comment );
 }
 
 /**
- * @since 0.6.0
- *
  * @param WP_Comment $comment Trashed comment.
  * @return bool
  */
-function desktop_mode_recycle_bin_user_can_purge_comment( $comment ) {
+function openstation_recycle_bin_user_can_purge_comment( $comment ) {
 	$can = current_user_can( 'edit_comment', $comment->comment_ID );
 
 	/**
-	 * @since 0.6.0
 	 * @param bool       $can     Default: edit_comment capability check.
 	 * @param WP_Comment $comment Trashed comment.
 	 */
-	return (bool) apply_filters( 'desktop_mode_recycle_bin_user_can_purge_comment', $can, $comment );
+	return (bool) apply_filters( 'openstation_recycle_bin_user_can_purge_comment', $can, $comment );
 }
 
 /**
@@ -484,12 +449,10 @@ function desktop_mode_recycle_bin_user_can_purge_comment( $comment ) {
  * "<author> on <post title>"; the `subtitle` carries a 100-char
  * excerpt of `comment_content`.
  *
- * @since 0.6.0
- *
  * @param WP_Comment $comment Trashed comment.
  * @return array
  */
-function desktop_mode_recycle_bin_shape_comment_item( $comment ) {
+function openstation_recycle_bin_shape_comment_item( $comment ) {
 	$user_id    = (int) get_comment_meta( $comment->comment_ID, '_desktop_mode_trash_user_id', true );
 	$deleted_at = (string) get_comment_meta( $comment->comment_ID, '_desktop_mode_trash_time_gmt', true );
 
@@ -498,7 +461,7 @@ function desktop_mode_recycle_bin_shape_comment_item( $comment ) {
 	}
 
 	$parent      = $comment->comment_post_ID ? get_post( (int) $comment->comment_post_ID ) : null;
-	$parent_text = $parent ? desktop_mode_recycle_bin_plain_text( get_the_title( $parent ) ) : '';
+	$parent_text = $parent ? openstation_recycle_bin_plain_text( get_the_title( $parent ) ) : '';
 	$author      = $comment->comment_author
 		? (string) $comment->comment_author
 		: __( 'Anonymous', 'desktop-mode' );
@@ -512,7 +475,7 @@ function desktop_mode_recycle_bin_shape_comment_item( $comment ) {
 		)
 		: $author;
 
-	$subtitle = wp_trim_words( desktop_mode_recycle_bin_plain_text( (string) $comment->comment_content ), 18, '…' );
+	$subtitle = wp_trim_words( openstation_recycle_bin_plain_text( (string) $comment->comment_content ), 18, '…' );
 
 	$user      = $user_id ? get_userdata( $user_id ) : false;
 	$user_name = $user ? $user->display_name : '';
@@ -529,20 +492,18 @@ function desktop_mode_recycle_bin_shape_comment_item( $comment ) {
 		'deleted_at'    => $deleted_at,
 		'deleted_by'    => $user_name,
 		'deleted_by_id' => $user_id,
-		'can_restore'   => desktop_mode_recycle_bin_user_can_restore_comment( $comment ),
-		'can_purge'     => desktop_mode_recycle_bin_user_can_purge_comment( $comment ),
+		'can_restore'   => openstation_recycle_bin_user_can_restore_comment( $comment ),
+		'can_purge'     => openstation_recycle_bin_user_can_purge_comment( $comment ),
 		'edit_link'     => (string) get_edit_comment_link( $comment->comment_ID ),
 	);
 
 	/**
 	 * Filter the comment item shape.
 	 *
-	 * @since 0.6.0
-	 *
 	 * @param array      $item    Item shape.
 	 * @param WP_Comment $comment Source comment.
 	 */
-	return (array) apply_filters( 'desktop_mode_recycle_bin_comment_item', $item, $comment );
+	return (array) apply_filters( 'openstation_recycle_bin_comment_item', $item, $comment );
 }
 
 /**
@@ -555,12 +516,10 @@ function desktop_mode_recycle_bin_shape_comment_item( $comment ) {
  * `textContent` and would show the literal entity. Strip tags first,
  * then decode entities back to characters.
  *
- * @since 0.9.6
- *
  * @param string $text Raw filtered text.
  * @return string
  */
-function desktop_mode_recycle_bin_plain_text( $text ) {
+function openstation_recycle_bin_plain_text( $text ) {
 	return html_entity_decode(
 		wp_strip_all_tags( (string) $text ),
 		ENT_QUOTES,
@@ -571,12 +530,10 @@ function desktop_mode_recycle_bin_plain_text( $text ) {
 /**
  * Shape one WP_Post into the JSON the JS table consumes.
  *
- * @since 0.6.0
- *
  * @param WP_Post $post Trashed post.
  * @return array
  */
-function desktop_mode_recycle_bin_shape_item( $post ) {
+function openstation_recycle_bin_shape_item( $post ) {
 	$user_id    = (int) get_post_meta( $post->ID, '_desktop_mode_trash_user_id', true );
 	$deleted_at = (string) get_post_meta( $post->ID, '_desktop_mode_trash_time_gmt', true );
 
@@ -587,7 +544,7 @@ function desktop_mode_recycle_bin_shape_item( $post ) {
 	}
 
 	$type     = (string) $post->post_type;
-	$title    = desktop_mode_recycle_bin_plain_text( (string) get_the_title( $post ) );
+	$title    = openstation_recycle_bin_plain_text( (string) get_the_title( $post ) );
 	$mime     = (string) $post->post_mime_type;
 	$preview  = '';
 	$icon     = '';
@@ -601,14 +558,15 @@ function desktop_mode_recycle_bin_shape_item( $post ) {
 		if ( is_array( $thumb ) ) {
 			$preview = (string) $thumb[0];
 		}
-		$icon     = desktop_mode_recycle_bin_icon_for_mime( $mime );
+		$icon     = openstation_recycle_bin_icon_for_mime( $mime );
 		$subtitle = $mime;
 	} elseif ( 'post' === $type ) {
 		$icon     = 'dashicons-admin-post';
-		$subtitle = wp_trim_words( desktop_mode_recycle_bin_plain_text( (string) $post->post_excerpt ?: (string) $post->post_content ), 18, '…' );
+		$excerpt  = (string) $post->post_excerpt;
+		$subtitle = wp_trim_words( openstation_recycle_bin_plain_text( $excerpt ? $excerpt : (string) $post->post_content ), 18, '…' );
 	} elseif ( 'page' === $type ) {
 		$icon     = 'dashicons-admin-page';
-		$subtitle = wp_trim_words( desktop_mode_recycle_bin_plain_text( (string) $post->post_content ), 18, '…' );
+		$subtitle = wp_trim_words( openstation_recycle_bin_plain_text( (string) $post->post_content ), 18, '…' );
 	} else {
 		// Custom post types: reuse the type's own menu Dashicon when it
 		// registered one, so a trashed product row reads as a product
@@ -623,7 +581,8 @@ function desktop_mode_recycle_bin_shape_item( $post ) {
 		) {
 			$icon = $post_type_obj->menu_icon;
 		}
-		$subtitle = wp_trim_words( desktop_mode_recycle_bin_plain_text( (string) $post->post_excerpt ?: (string) $post->post_content ), 18, '…' );
+		$excerpt  = (string) $post->post_excerpt;
+		$subtitle = wp_trim_words( openstation_recycle_bin_plain_text( $excerpt ? $excerpt : (string) $post->post_content ), 18, '…' );
 	}
 
 	$user      = $user_id ? get_userdata( $user_id ) : false;
@@ -657,8 +616,8 @@ function desktop_mode_recycle_bin_shape_item( $post ) {
 		'deleted_at'    => $deleted_at,
 		'deleted_by'    => $user_name,
 		'deleted_by_id' => $user_id,
-		'can_restore'   => desktop_mode_recycle_bin_user_can_restore( $post ),
-		'can_purge'     => desktop_mode_recycle_bin_user_can_purge( $post ),
+		'can_restore'   => openstation_recycle_bin_user_can_restore( $post ),
+		'can_purge'     => openstation_recycle_bin_user_can_purge( $post ),
 		'edit_link'     => (string) get_edit_post_link( $post->ID, 'raw' ),
 	);
 
@@ -669,23 +628,19 @@ function desktop_mode_recycle_bin_shape_item( $post ) {
 	 * post type. The id/type/deleted_at trio is load-bearing — keep
 	 * them in the returned array.
 	 *
-	 * @since 0.6.0
-	 *
 	 * @param array   $item Item shape.
 	 * @param WP_Post $post Source post.
 	 */
-	return (array) apply_filters( 'desktop_mode_recycle_bin_item', $item, $post );
+	return (array) apply_filters( 'openstation_recycle_bin_item', $item, $post );
 }
 
 /**
  * Map a mime type to a Dashicon for the type cell.
  *
- * @since 0.6.0
- *
  * @param string $mime Mime type.
  * @return string Dashicon class.
  */
-function desktop_mode_recycle_bin_icon_for_mime( $mime ) {
+function openstation_recycle_bin_icon_for_mime( $mime ) {
 	if ( '' === $mime ) {
 		return 'dashicons-media-default';
 	}
@@ -730,49 +685,44 @@ function desktop_mode_recycle_bin_icon_for_mime( $mime ) {
  * call (id only) defaults to `'post'` so older clients that haven't
  * migrated to the typed API keep working.
  *
- * @since 0.6.0
- * @since 0.6.0 Added `$type` parameter.
- *
  * @param int    $id   Post id (or comment id when `$type === 'comment'`).
  * @param string $type Entity type — '', 'post', 'page', 'attachment', or 'comment'.
  * @return true|WP_Error
  */
-function desktop_mode_recycle_bin_restore( $id, $type = '' ) {
+function openstation_recycle_bin_restore( $id, $type = '' ) {
 	$id = (int) $id;
 	if ( 'comment' === $type ) {
-		return desktop_mode_recycle_bin_restore_comment( $id );
+		return openstation_recycle_bin_restore_comment( $id );
 	}
-	if ( ( 'placement' === $type || 'shortcut' === $type ) && function_exists( 'desktop_mode_files_restore_placement' ) ) {
-		return desktop_mode_files_restore_placement( get_current_user_id(), $id );
+	if ( ( 'placement' === $type || 'shortcut' === $type ) && function_exists( 'openstation_files_restore_placement' ) ) {
+		return openstation_files_restore_placement( get_current_user_id(), $id );
 	}
-	if ( 'folder' === $type && function_exists( 'desktop_mode_files_restore_folder' ) ) {
-		return desktop_mode_files_restore_folder( get_current_user_id(), $id );
+	if ( 'folder' === $type && function_exists( 'openstation_files_restore_folder' ) ) {
+		return openstation_files_restore_folder( get_current_user_id(), $id );
 	}
 
 	$post = get_post( $id );
 	if ( ! $post ) {
-		return new WP_Error( 'desktop_mode_recycle_bin_not_found', __( 'Item not found.', 'desktop-mode' ), array( 'status' => 404 ) );
+		return new WP_Error( 'openstation_recycle_bin_not_found', __( 'Item not found.', 'desktop-mode' ), array( 'status' => 404 ) );
 	}
 	if ( 'trash' !== $post->post_status ) {
-		return new WP_Error( 'desktop_mode_recycle_bin_not_trashed', __( 'Item is not in the trash.', 'desktop-mode' ), array( 'status' => 409 ) );
+		return new WP_Error( 'openstation_recycle_bin_not_trashed', __( 'Item is not in the trash.', 'desktop-mode' ), array( 'status' => 409 ) );
 	}
-	if ( ! desktop_mode_recycle_bin_user_can_restore( $post ) ) {
-		return new WP_Error( 'desktop_mode_recycle_bin_forbidden', __( 'You are not allowed to restore this item.', 'desktop-mode' ), array( 'status' => 403 ) );
+	if ( ! openstation_recycle_bin_user_can_restore( $post ) ) {
+		return new WP_Error( 'openstation_recycle_bin_forbidden', __( 'You are not allowed to restore this item.', 'desktop-mode' ), array( 'status' => 403 ) );
 	}
 
 	/**
 	 * Fires before a recycle-bin item is restored.
 	 *
-	 * @since 0.6.0
-	 *
 	 * @param int     $id   Post id about to be restored.
 	 * @param WP_Post $post Trashed post object.
 	 */
-	do_action( 'desktop_mode_recycle_bin_before_restore', $id, $post );
+	do_action( 'openstation_recycle_bin_before_restore', $id, $post );
 
 	$ok = wp_untrash_post( $id );
 	if ( ! $ok ) {
-		return new WP_Error( 'desktop_mode_recycle_bin_restore_failed', __( 'Failed to restore item.', 'desktop-mode' ), array( 'status' => 500 ) );
+		return new WP_Error( 'openstation_recycle_bin_restore_failed', __( 'Failed to restore item.', 'desktop-mode' ), array( 'status' => 500 ) );
 	}
 
 	delete_post_meta( $id, '_desktop_mode_trash_user_id' );
@@ -781,11 +731,9 @@ function desktop_mode_recycle_bin_restore( $id, $type = '' ) {
 	/**
 	 * Fires after a recycle-bin item is restored.
 	 *
-	 * @since 0.6.0
-	 *
 	 * @param int $id Post id that was restored.
 	 */
-	do_action( 'desktop_mode_recycle_bin_after_restore', $id );
+	do_action( 'openstation_recycle_bin_after_restore', $id );
 
 	return true;
 }
@@ -793,38 +741,34 @@ function desktop_mode_recycle_bin_restore( $id, $type = '' ) {
 /**
  * Restore a single trashed comment.
  *
- * @since 0.6.0
- *
  * @param int $comment_id Comment id.
  * @return true|WP_Error
  */
-function desktop_mode_recycle_bin_restore_comment( $comment_id ) {
+function openstation_recycle_bin_restore_comment( $comment_id ) {
 	$comment_id = (int) $comment_id;
 	$comment    = get_comment( $comment_id );
 
 	if ( ! $comment ) {
-		return new WP_Error( 'desktop_mode_recycle_bin_not_found', __( 'Comment not found.', 'desktop-mode' ), array( 'status' => 404 ) );
+		return new WP_Error( 'openstation_recycle_bin_not_found', __( 'Comment not found.', 'desktop-mode' ), array( 'status' => 404 ) );
 	}
 	if ( 'trash' !== $comment->comment_approved ) {
-		return new WP_Error( 'desktop_mode_recycle_bin_not_trashed', __( 'Comment is not in the trash.', 'desktop-mode' ), array( 'status' => 409 ) );
+		return new WP_Error( 'openstation_recycle_bin_not_trashed', __( 'Comment is not in the trash.', 'desktop-mode' ), array( 'status' => 409 ) );
 	}
-	if ( ! desktop_mode_recycle_bin_user_can_restore_comment( $comment ) ) {
-		return new WP_Error( 'desktop_mode_recycle_bin_forbidden', __( 'You are not allowed to restore this comment.', 'desktop-mode' ), array( 'status' => 403 ) );
+	if ( ! openstation_recycle_bin_user_can_restore_comment( $comment ) ) {
+		return new WP_Error( 'openstation_recycle_bin_forbidden', __( 'You are not allowed to restore this comment.', 'desktop-mode' ), array( 'status' => 403 ) );
 	}
 
 	/**
 	 * Fires before a comment is restored from the recycle bin.
 	 *
-	 * @since 0.6.0
-	 *
 	 * @param int        $comment_id Comment id.
 	 * @param WP_Comment $comment    Trashed comment.
 	 */
-	do_action( 'desktop_mode_recycle_bin_before_restore_comment', $comment_id, $comment );
+	do_action( 'openstation_recycle_bin_before_restore_comment', $comment_id, $comment );
 
 	$ok = wp_untrash_comment( $comment_id );
 	if ( ! $ok ) {
-		return new WP_Error( 'desktop_mode_recycle_bin_restore_failed', __( 'Failed to restore comment.', 'desktop-mode' ), array( 'status' => 500 ) );
+		return new WP_Error( 'openstation_recycle_bin_restore_failed', __( 'Failed to restore comment.', 'desktop-mode' ), array( 'status' => 500 ) );
 	}
 
 	delete_comment_meta( $comment_id, '_desktop_mode_trash_user_id' );
@@ -833,11 +777,9 @@ function desktop_mode_recycle_bin_restore_comment( $comment_id ) {
 	/**
 	 * Fires after a comment is restored from the recycle bin.
 	 *
-	 * @since 0.6.0
-	 *
 	 * @param int $comment_id Comment id.
 	 */
-	do_action( 'desktop_mode_recycle_bin_after_restore_comment', $comment_id );
+	do_action( 'openstation_recycle_bin_after_restore_comment', $comment_id );
 
 	return true;
 }
@@ -845,45 +787,40 @@ function desktop_mode_recycle_bin_restore_comment( $comment_id ) {
 /**
  * Permanently delete a single trashed item. Dispatches by `$type`.
  *
- * @since 0.6.0
- * @since 0.6.0 Added `$type` parameter.
- *
  * @param int    $id   Post id (or comment id when `$type === 'comment'`).
  * @param string $type Entity type — '', 'post', 'page', 'attachment', or 'comment'.
  * @return true|WP_Error
  */
-function desktop_mode_recycle_bin_purge( $id, $type = '' ) {
+function openstation_recycle_bin_purge( $id, $type = '' ) {
 	$id = (int) $id;
 	if ( 'comment' === $type ) {
-		return desktop_mode_recycle_bin_purge_comment( $id );
+		return openstation_recycle_bin_purge_comment( $id );
 	}
-	if ( ( 'placement' === $type || 'shortcut' === $type ) && function_exists( 'desktop_mode_files_purge_placement' ) ) {
-		return desktop_mode_files_purge_placement( get_current_user_id(), $id );
+	if ( ( 'placement' === $type || 'shortcut' === $type ) && function_exists( 'openstation_files_purge_placement' ) ) {
+		return openstation_files_purge_placement( get_current_user_id(), $id );
 	}
-	if ( 'folder' === $type && function_exists( 'desktop_mode_files_purge_folder' ) ) {
-		return desktop_mode_files_purge_folder( get_current_user_id(), $id );
+	if ( 'folder' === $type && function_exists( 'openstation_files_purge_folder' ) ) {
+		return openstation_files_purge_folder( get_current_user_id(), $id );
 	}
 
 	$post = get_post( $id );
 	if ( ! $post ) {
-		return new WP_Error( 'desktop_mode_recycle_bin_not_found', __( 'Item not found.', 'desktop-mode' ), array( 'status' => 404 ) );
+		return new WP_Error( 'openstation_recycle_bin_not_found', __( 'Item not found.', 'desktop-mode' ), array( 'status' => 404 ) );
 	}
 	if ( 'trash' !== $post->post_status ) {
-		return new WP_Error( 'desktop_mode_recycle_bin_not_trashed', __( 'Item is not in the trash.', 'desktop-mode' ), array( 'status' => 409 ) );
+		return new WP_Error( 'openstation_recycle_bin_not_trashed', __( 'Item is not in the trash.', 'desktop-mode' ), array( 'status' => 409 ) );
 	}
-	if ( ! desktop_mode_recycle_bin_user_can_purge( $post ) ) {
-		return new WP_Error( 'desktop_mode_recycle_bin_forbidden', __( 'You are not allowed to permanently delete this item.', 'desktop-mode' ), array( 'status' => 403 ) );
+	if ( ! openstation_recycle_bin_user_can_purge( $post ) ) {
+		return new WP_Error( 'openstation_recycle_bin_forbidden', __( 'You are not allowed to permanently delete this item.', 'desktop-mode' ), array( 'status' => 403 ) );
 	}
 
 	/**
 	 * Fires before a recycle-bin item is permanently deleted.
 	 *
-	 * @since 0.6.0
-	 *
 	 * @param int     $id   Post id about to be deleted.
 	 * @param WP_Post $post Trashed post object.
 	 */
-	do_action( 'desktop_mode_recycle_bin_before_purge', $id, $post );
+	do_action( 'openstation_recycle_bin_before_purge', $id, $post );
 
 	if ( 'attachment' === $post->post_type ) {
 		// Force-delete (`true`) removes the attachment and its file
@@ -896,18 +833,16 @@ function desktop_mode_recycle_bin_purge( $id, $type = '' ) {
 	}
 
 	if ( ! $result ) {
-		return new WP_Error( 'desktop_mode_recycle_bin_purge_failed', __( 'Failed to permanently delete item.', 'desktop-mode' ), array( 'status' => 500 ) );
+		return new WP_Error( 'openstation_recycle_bin_purge_failed', __( 'Failed to permanently delete item.', 'desktop-mode' ), array( 'status' => 500 ) );
 	}
 
 	/**
 	 * Fires after a recycle-bin item is permanently deleted.
 	 *
-	 * @since 0.6.0
-	 *
 	 * @param int    $id   Post id that was purged.
 	 * @param string $type Post type of the purged item.
 	 */
-	do_action( 'desktop_mode_recycle_bin_after_purge', $id, $post->post_type );
+	do_action( 'openstation_recycle_bin_after_purge', $id, $post->post_type );
 
 	return true;
 }
@@ -915,49 +850,43 @@ function desktop_mode_recycle_bin_purge( $id, $type = '' ) {
 /**
  * Permanently delete a single trashed comment.
  *
- * @since 0.6.0
- *
  * @param int $comment_id Comment id.
  * @return true|WP_Error
  */
-function desktop_mode_recycle_bin_purge_comment( $comment_id ) {
+function openstation_recycle_bin_purge_comment( $comment_id ) {
 	$comment_id = (int) $comment_id;
 	$comment    = get_comment( $comment_id );
 
 	if ( ! $comment ) {
-		return new WP_Error( 'desktop_mode_recycle_bin_not_found', __( 'Comment not found.', 'desktop-mode' ), array( 'status' => 404 ) );
+		return new WP_Error( 'openstation_recycle_bin_not_found', __( 'Comment not found.', 'desktop-mode' ), array( 'status' => 404 ) );
 	}
 	if ( 'trash' !== $comment->comment_approved ) {
-		return new WP_Error( 'desktop_mode_recycle_bin_not_trashed', __( 'Comment is not in the trash.', 'desktop-mode' ), array( 'status' => 409 ) );
+		return new WP_Error( 'openstation_recycle_bin_not_trashed', __( 'Comment is not in the trash.', 'desktop-mode' ), array( 'status' => 409 ) );
 	}
-	if ( ! desktop_mode_recycle_bin_user_can_purge_comment( $comment ) ) {
-		return new WP_Error( 'desktop_mode_recycle_bin_forbidden', __( 'You are not allowed to permanently delete this comment.', 'desktop-mode' ), array( 'status' => 403 ) );
+	if ( ! openstation_recycle_bin_user_can_purge_comment( $comment ) ) {
+		return new WP_Error( 'openstation_recycle_bin_forbidden', __( 'You are not allowed to permanently delete this comment.', 'desktop-mode' ), array( 'status' => 403 ) );
 	}
 
 	/**
 	 * Fires before a comment is permanently deleted via the bin.
 	 *
-	 * @since 0.6.0
-	 *
 	 * @param int        $comment_id Comment id.
 	 * @param WP_Comment $comment    Trashed comment.
 	 */
-	do_action( 'desktop_mode_recycle_bin_before_purge_comment', $comment_id, $comment );
+	do_action( 'openstation_recycle_bin_before_purge_comment', $comment_id, $comment );
 
 	$result = wp_delete_comment( $comment_id, true );
 
 	if ( ! $result ) {
-		return new WP_Error( 'desktop_mode_recycle_bin_purge_failed', __( 'Failed to permanently delete comment.', 'desktop-mode' ), array( 'status' => 500 ) );
+		return new WP_Error( 'openstation_recycle_bin_purge_failed', __( 'Failed to permanently delete comment.', 'desktop-mode' ), array( 'status' => 500 ) );
 	}
 
 	/**
 	 * Fires after a comment is permanently deleted via the bin.
 	 *
-	 * @since 0.6.0
-	 *
 	 * @param int $comment_id Comment id.
 	 */
-	do_action( 'desktop_mode_recycle_bin_after_purge_comment', $comment_id );
+	do_action( 'openstation_recycle_bin_after_purge_comment', $comment_id );
 
 	return true;
 }
@@ -972,10 +901,8 @@ function desktop_mode_recycle_bin_purge_comment( $comment_id ) {
  * timeouts on large bins; the client iterates while `remaining > 0`
  * (and bails when `remaining === skipped`, i.e. nothing the user can
  * purge is left). Site owners with longer execution budgets can tune
- * the chunk size via the `desktop_mode_recycle_bin_empty_chunk_size`
+ * the chunk size via the `openstation_recycle_bin_empty_chunk_size`
  * filter.
- *
- * @since 0.6.0
  *
  * @return array {
  *     @type int $purged    Items successfully purged in this call.
@@ -983,24 +910,22 @@ function desktop_mode_recycle_bin_purge_comment( $comment_id ) {
  *     @type int $remaining Items still in the bin after this call (across pages).
  * }
  */
-function desktop_mode_recycle_bin_empty() {
+function openstation_recycle_bin_empty() {
 	$purged  = 0;
 	$skipped = 0;
 
 	/**
 	 * Filter the per-call chunk size for the empty-bin loop.
 	 *
-	 * `desktop_mode_recycle_bin_empty()` only purges this many items
+	 * `openstation_recycle_bin_empty()` only purges this many items
 	 * per invocation. The client iterates while `remaining > 0`. The
 	 * default (200) is conservative for shared hosts; sites with
 	 * generous PHP execution limits can raise it to make emptying a
 	 * large bin take fewer roundtrips.
 	 *
-	 * @since 0.8.0
-	 *
 	 * @param int $chunk_size Items processed per call. Default 200.
 	 */
-	$chunk_size = (int) apply_filters( 'desktop_mode_recycle_bin_empty_chunk_size', 200 );
+	$chunk_size = (int) apply_filters( 'openstation_recycle_bin_empty_chunk_size', 200 );
 	if ( $chunk_size < 1 ) {
 		$chunk_size = 1;
 	}
@@ -1009,9 +934,14 @@ function desktop_mode_recycle_bin_empty() {
 	// hammering it on a 10k-item bin without yielding back to PHP can
 	// still time out. The client re-invokes us until `remaining` hits
 	// zero (or stalls at `skipped`).
-	$batch = desktop_mode_recycle_bin_get_items( array( 'per_page' => $chunk_size, 'page' => 1 ) );
+	$batch = openstation_recycle_bin_get_items(
+		array(
+			'per_page' => $chunk_size,
+			'page'     => 1,
+		)
+	);
 	foreach ( $batch['items'] as $item ) {
-		$result = desktop_mode_recycle_bin_purge(
+		$result = openstation_recycle_bin_purge(
 			(int) $item['id'],
 			(string) ( $item['type'] ?? '' )
 		);
@@ -1025,12 +955,10 @@ function desktop_mode_recycle_bin_empty() {
 	/**
 	 * Fires after the recycle bin is emptied.
 	 *
-	 * @since 0.6.0
-	 *
 	 * @param int $purged  Items successfully purged in this call.
 	 * @param int $skipped Items skipped (capability or error).
 	 */
-	do_action( 'desktop_mode_recycle_bin_emptied', $purged, $skipped );
+	do_action( 'openstation_recycle_bin_emptied', $purged, $skipped );
 
 	return array(
 		'purged'    => $purged,

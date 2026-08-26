@@ -6,14 +6,12 @@
  *
  *   /open [window]  — autocompletes from every dock item plus any
  *                     entry plugins contribute via the
- *                     `desktop-mode.open-command.items` filter. Picking
+ *                     `os.open-command.items` filter. Picking
  *                     a suggestion opens the matching window.
  *
  * Keeping this in a separate module from `commands.ts` (which holds the
  * registry primitives) means the registry stays dependency-free — it
  * never has to reach into the shell config or window manager.
- *
- * @since 0.5.0
  */
 
 import { applyFilters } from './hooks';
@@ -31,7 +29,7 @@ import type { DockItemConfig, DesktopConfig } from './types';
 
 /**
  * An openable window surfaced by the `/open` command. Either
- * `desktop-mode.open-command.items` subscribers contribute these, or
+ * `os.open-command.items` subscribers contribute these, or
  * the built-in collector derives them from `config.dockItems`.
  */
 export interface OpenableWindow {
@@ -70,12 +68,12 @@ interface WindowManagerLite {
  *
  * Starts with every admin-menu entry the shell already knows about
  * (dock items), then runs it through the
- * `desktop-mode.open-command.items` filter so plugins can prepend,
+ * `os.open-command.items` filter so plugins can prepend,
  * append, or replace entries. Example (plugin JS):
  *
  * ```js
  * wp.hooks.addFilter(
- *     'desktop-mode.open-command.items',
+ *     'os.open-command.items',
  *     'my-plugin',
  *     ( items ) => [
  *         ...items,
@@ -84,7 +82,7 @@ interface WindowManagerLite {
  *             label: 'Jorvy',
  *             description: 'Marvel quotes',
  *             icon: 'dashicons-star-filled',
- *             open: () => wp.desktop.windowManager.focus( 'jorvy' ),
+ *             open: () => wp.os.windowManager.focus( 'jorvy' ),
  *         },
  *     ],
  * );
@@ -97,12 +95,12 @@ interface WindowManagerLite {
 function collectOpenables(): OpenableWindow[] {
 	const desktop = ( window as unknown as {
 		wp?: {
-			desktop?: {
+			os?: {
 				config?: DesktopConfig;
 				windowManager?: WindowManagerLite;
 			};
 		};
-	} ).wp?.desktop;
+	} ).wp?.os;
 
 	if ( ! desktop ) {
 		return [];
@@ -136,7 +134,7 @@ function collectOpenables(): OpenableWindow[] {
 	}
 
 	const filtered = applyFilters< OpenableWindow[], unknown[] >(
-		'desktop-mode.open-command.items',
+		'os.open-command.items',
 		items,
 	);
 	return Array.isArray( filtered ) ? filtered : items;
@@ -214,8 +212,6 @@ const openCommand: DesktopCommand = {
 /**
  * Register every built-in command. Called once from `desktop.ts` after
  * the public API has been mounted.
- *
- * @since 0.5.0
  */
 export function registerBuiltInCommands(): void {
 	registerCommand( openCommand );

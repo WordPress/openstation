@@ -215,7 +215,7 @@ describe( 'renderIcon with a tint', () => {
 		// A letter-badge fallback value is not maskable; the tint must
 		// not swallow the icon.
 		const el = renderIcon( 'none', { title: 'My Plugin', slot: 'FOLDER' } );
-		expect( el.className ).toContain( 'desktop-mode-icon-letter' );
+		expect( el.className ).toContain( 'os-icon-letter' );
 		expect( el.textContent ).toBe( 'MP' );
 	} );
 

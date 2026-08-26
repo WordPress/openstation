@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Shortcut/reference tile drop-payload handlers.
+ * OpenStation — Shortcut/reference tile drop-payload handlers.
  *
  * Same seam shape as `recycle-bin-payloads.ts` and `canvas-payloads.ts`,
  * but for the per-tile "reject" claimants the files layer registers on
@@ -7,15 +7,13 @@
  * hard-reject every foreign payload so a drop doesn't fall through to the
  * wallpaper. This registry lets a feature opt a payload type INTO a tile
  * whose placement it recognizes — e.g. the pinned-notes "convert to post"
- * drop onto the Posts shortcut icon in the Spatial layout, where the
- * Posts menu item is a files-layer shortcut tile rather than a dock tile.
+ * drop onto a Posts shortcut icon, where the Posts menu item is a
+ * files-layer shortcut tile rather than a dock tile.
  *
  * The files layer owns the actual `DropTarget` on each tile (the registry
  * allows one target per element); it consults this registry for the
  * accept predicate, the chip label, and the drop dispatch, so a feature
  * never has to fight the claimant for the element.
- *
- * @since 0.9.6
  */
 
 import type { DragPayload, DragSession } from '../drag';
@@ -45,22 +43,76 @@ export interface TilePayloadHandler {
 	): void;
 }
 
-const handlers = new Map< string, TilePayloadHandler >();
+/**
+ * Handlers per payload type, in registration order.
+ *
+ * A list rather than one handler per type: handlers are scoped to the
+ * tiles they recognize via `appliesTo`, so several features can want
+ * the same payload type on different icons — `'shortcut'` alone is
+ * claimed by the agent drop targets in-tree, and by any plugin that
+ * wants files dropped onto its own wallpaper icon. Keying one handler
+ * per type meant the last registration silently replaced the others.
+ *
+ * Resolution is first-applies-wins, so a handler only ever competes
+ * with another that claims the *same tile* for the *same type*.
+ */
+const handlers = new Map< string, TilePayloadHandler[] >();
 
 /**
  * Register a handler for a payload `type`. Returns a deregister
- * function. Re-registering a type replaces the previous handler.
+ * function.
+ *
+ * Several handlers may share a type; the first whose `appliesTo`
+ * matches the hovered tile wins. Register the narrowest predicate you
+ * can — a handler whose `appliesTo` returns true for every placement
+ * will shadow every handler registered after it.
+ *
+ * @param type    Drag payload type, e.g. `'shortcut'`, `'note'`.
+ * @param handler The handler.
+ * @return Deregister function.
+ * @public
  */
 export function registerTilePayloadHandler(
 	type: string,
 	handler: TilePayloadHandler,
 ): () => void {
-	handlers.set( type, handler );
+	const list = handlers.get( type );
+	if ( list ) {
+		list.push( handler );
+	} else {
+		handlers.set( type, [ handler ] );
+	}
 	return () => {
-		if ( handlers.get( type ) === handler ) {
+		const current = handlers.get( type );
+		if ( ! current ) {
+			return;
+		}
+		const at = current.indexOf( handler );
+		if ( at !== -1 ) {
+			current.splice( at, 1 );
+		}
+		if ( current.length === 0 ) {
 			handlers.delete( type );
 		}
 	};
+}
+
+/**
+ * The first handler registered for `type` that claims this tile.
+ *
+ * @param type Payload type.
+ * @param ctx  Tile context.
+ * @return The handler, or undefined.
+ */
+function resolveTileHandler(
+	type: string,
+	ctx: TilePayloadContext,
+): TilePayloadHandler | undefined {
+	const list = handlers.get( type );
+	if ( ! list ) {
+		return undefined;
+	}
+	return list.find( ( handler ) => handler.appliesTo( ctx ) );
 }
 
 /**
@@ -76,8 +128,7 @@ export function tilePayloadAcceptLabel(
 	type: string,
 	ctx: TilePayloadContext,
 ): string | undefined {
-	const handler = handlers.get( type );
-	return handler && handler.appliesTo( ctx ) ? handler.acceptLabel : undefined;
+	return resolveTileHandler( type, ctx )?.acceptLabel;
 }
 
 /** Consulted by the tile target's `accept` for a concrete payload. */
@@ -85,10 +136,9 @@ export function tilePayloadAccepts(
 	payload: DragPayload,
 	ctx: TilePayloadContext,
 ): boolean {
-	const handler = handlers.get( payload.type );
+	const handler = resolveTileHandler( payload.type, ctx );
 	return handler
-		? handler.appliesTo( ctx ) &&
-				handler.accept( payload.data as Record< string, unknown >, ctx )
+		? handler.accept( payload.data as Record< string, unknown >, ctx )
 		: false;
 }
 
@@ -98,8 +148,8 @@ export function tilePayloadDrop(
 	ev: { clientX: number; clientY: number },
 	ctx: TilePayloadContext,
 ): boolean {
-	const handler = handlers.get( session.payload.type );
-	if ( ! handler || ! handler.appliesTo( ctx ) ) {
+	const handler = resolveTileHandler( session.payload.type, ctx );
+	if ( ! handler ) {
 		return false;
 	}
 	handler.onDrop( session, ev, ctx );

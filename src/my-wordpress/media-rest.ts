@@ -12,7 +12,6 @@
  * loading indicator + the activity bus.
  *
  * @public
- * @since 0.8.6
  */
 
 import { joinRestUrl } from '../rest-url';
@@ -63,7 +62,6 @@ async function readErrorMessage(
  * from a single round-trip per page.
  *
  * @public
- * @since 0.8.6
  */
 export async function fetchMediaPage(
 	entity: MyWordPressEntity,
@@ -73,8 +71,6 @@ export async function fetchMediaPage(
 		/**
 		 * Optional search query. Passed verbatim to `/wp/v2/media` as
 		 * `?search=…`, which matches attachment titles + filenames.
-		 *
-		 * @since 0.8.7
 		 */
 		search?: string;
 		signal?: AbortSignal;
@@ -84,9 +80,12 @@ export async function fetchMediaPage(
 	const url = new URL( buildUrl( entity.restPath ) );
 	url.searchParams.set( 'page', String( params.page ) );
 	url.searchParams.set( 'per_page', String( params.perPage ) );
+	// `post` is the attachment's parent. It costs nothing to ask for
+	// and it is what decides whether the Detach action applies to a
+	// file — without it here, Detach could never appear.
 	url.searchParams.set(
 		'_fields',
-		'id,title,date,mime_type,source_url,alt_text,caption,description,author,media_details,_embedded',
+		'id,title,date,mime_type,source_url,alt_text,caption,description,author,post,media_details,_embedded',
 	);
 	url.searchParams.set( '_embed', 'author' );
 	url.searchParams.set( 'orderby', 'date' );
@@ -128,7 +127,6 @@ export async function fetchMediaPage(
  * page (which would lose the user's scroll position).
  *
  * @public
- * @since 0.31.0
  */
 export async function fetchMediaItem(
 	mediaId: number,
@@ -163,7 +161,6 @@ export async function fetchMediaItem(
  * affordance in the media grid.
  *
  * @public
- * @since 0.31.0
  */
 export async function deleteMediaItem( mediaId: number ): Promise< void > {
 	const cfg = getConfig();
@@ -185,11 +182,41 @@ export async function deleteMediaItem( mediaId: number ): Promise< void > {
 }
 
 /**
+ * Patch an attachment.
+ *
+ * Used by the bulk actions for two of core's own media operations:
+ * "Detach" (`post: 0`, the same thing the media list table's Detach
+ * row action does) and re-attributing an author.
+ *
+ * @public
+ */
+export async function updateMediaItem(
+	mediaId: number,
+	body: Record< string, unknown >,
+): Promise< void > {
+	const cfg = getConfig();
+	const response = await shellFetch( buildUrl( `wp/v2/media/${ mediaId }` ), {
+		method: 'POST',
+		credentials: 'same-origin',
+		headers: {
+			'X-WP-Nonce': cfg.restNonce,
+			Accept: 'application/json',
+			'Content-Type': 'application/json',
+		},
+		body: JSON.stringify( body ),
+	} );
+	if ( ! response.ok ) {
+		throw new Error(
+			await readErrorMessage( response, 'Failed to update media item' ),
+		);
+	}
+}
+
+/**
  * Drill-in payload — every public post/page/CPT that references the
  * given attachment.
  *
  * @public
- * @since 0.8.6
  */
 export async function fetchMediaUsage( mediaId: number ): Promise< MediaUsage > {
 	const cfg = getConfig();

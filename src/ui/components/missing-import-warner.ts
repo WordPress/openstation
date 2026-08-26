@@ -1,14 +1,14 @@
 /**
- * `<wpd-*>` missing-import warner.
+ * `<os-*>` missing-import warner.
  *
- * A `<wpd-*>` tag that appears in the DOM without a corresponding
+ * A `<os-*>` tag that appears in the DOM without a corresponding
  * `customElements.define()` renders as an inert generic element —
  * no shadow root, no styles, no behavior, no error. That silent
  * failure is the single most common reason a developer's UI looks
  * "broken for no reason."
  *
  * This module watches the document (and every open shadow root) and
- * logs a loud, actionable `console.error` for any `wpd-*` tag that
+ * logs a loud, actionable `console.error` for any `os-*` tag that
  * never gets upgraded. Three distinct cases get three distinct
  * messages:
  *
@@ -17,7 +17,7 @@
  *     warning includes the exact `import '<…>'` line to paste.
  *
  *  2. **Unknown tag, close to a known one** — likely a typo. The
- *     warning shows a "Did you mean <wpd-button>?" suggestion via
+ *     warning shows a "Did you mean <os-button>?" suggestion via
  *     Levenshtein distance against the canonical tag list.
  *
  *  3. **Unknown tag, nothing close** — invented name. The warning
@@ -31,13 +31,11 @@
  * Deduping: one warning per tag for the lifetime of the page. The
  * first offending element is attached to the log so devtools can
  * jump straight to it.
- *
- * @since 0.8.4
  */
 
-import { WPD_COMPONENT_TAGS } from './tags';
+import { OS_COMPONENT_TAGS } from './tags';
 
-const KNOWN: ReadonlySet< string > = new Set( WPD_COMPONENT_TAGS );
+const KNOWN: ReadonlySet< string > = new Set( OS_COMPONENT_TAGS );
 
 /**
  * Grace period before complaining about a missing definition. Covers
@@ -55,7 +53,7 @@ let started = false;
 
 /**
  * Levenshtein distance — small inputs, no need for the rolling-row
- * trick. Used to spot typos like `<wpd-buton>` → `<wpd-button>`.
+ * trick. Used to spot typos like `<os-buton>` → `<os-button>`.
  */
 function distance( a: string, b: string ): number {
 	const m = a.length;
@@ -100,12 +98,12 @@ function suggest( tag: string ): string | null {
 }
 
 function folderFor( tag: string ): string {
-	// `wpd-context-menu-option` lives inside `wpd-context-menu/`;
-	// `wpd-segment` inside `wpd-segmented/`; etc. We can't always
+	// `os-context-menu-option` lives inside `os-context-menu/`;
+	// `os-segment` inside `os-segmented/`; etc. We can't always
 	// derive the folder from the tag, so for known compound tags we
 	// fall back to a best-effort suggestion and let the developer
 	// correct the path. The barrel import is always safe.
-	return tag.startsWith( 'wpd-' ) ? tag.slice( 4 ) : tag;
+	return tag.startsWith( 'os-' ) ? tag.slice( 4 ) : tag;
 }
 
 function warnFor( tag: string, sample: Element ): void {
@@ -119,10 +117,10 @@ function warnFor( tag: string, sample: Element ): void {
 	if ( isKnown ) {
 		const folder = folderFor( tag );
 		console.error(
-			`[wp.desktop] <${ tag }> is in the DOM but its module was never imported, so the tag will not upgrade and the component will render as inert HTML.\n\n` +
+			`[wp.os] <${ tag }> is in the DOM but its module was never imported, so the tag will not upgrade and the component will render as inert HTML.\n\n` +
 				`Fix — side-effect-import the component module from wherever you render it:\n\n` +
 				`    import '<rel>/ui/components/${ folder }/${ folder }';\n\n` +
-				`Or pull every wpd-* component in one go (heavier — only do this from an entry bundle):\n\n` +
+				`Or pull every os-* component in one go (heavier — only do this from an entry bundle):\n\n` +
 				`    import '<rel>/ui/components';\n\n` +
 				`See docs/components-reference.md for the full list.`,
 			'\nFirst offending element:',
@@ -134,7 +132,7 @@ function warnFor( tag: string, sample: Element ): void {
 	const guess = suggest( tag );
 	if ( guess ) {
 		console.error(
-			`[wp.desktop] <${ tag }> is not a registered wpd-* component. Did you mean <${ guess }>?\n\n` +
+			`[wp.os] <${ tag }> is not a registered os-* component. Did you mean <${ guess }>?\n\n` +
 				`If the typo is in your template, update it. If you meant to ship a new component, register it via 'src/ui/components/<name>/<name>.ts' and add it to 'src/ui/components/tags.ts' + 'src/ui/components/index.ts'.`,
 			'\nFirst offending element:',
 			sample,
@@ -143,7 +141,7 @@ function warnFor( tag: string, sample: Element ): void {
 	}
 
 	console.error(
-		`[wp.desktop] <${ tag }> looks like a wpd-* tag but no component by that name exists.\n\n` +
+		`[wp.os] <${ tag }> looks like a os-* tag but no component by that name exists.\n\n` +
 			`See 'src/ui/components/index.ts' (or docs/components-reference.md) for the canonical list. If you intended to register a new component, add it to 'tags.ts' and side-effect-import its module.`,
 		'\nFirst offending element:',
 		sample,
@@ -157,7 +155,7 @@ function warnFor( tag: string, sample: Element ): void {
  */
 function checkElement( el: Element ): void {
 	const tag = el.tagName.toLowerCase();
-	if ( ! tag.startsWith( 'wpd-' ) ) {
+	if ( ! tag.startsWith( 'os-' ) ) {
 		return;
 	}
 	if ( warnedTags.has( tag ) ) {
@@ -256,8 +254,6 @@ function patchAttachShadow(): void {
  * Start the warner. Idempotent — calling more than once is a no-op.
  * Safe to call at any time; if the document is still parsing, the
  * MutationObserver will pick up the rest as it arrives.
- *
- * @since 0.8.4
  */
 export function startMissingImportWarner(): void {
 	if ( started ) {

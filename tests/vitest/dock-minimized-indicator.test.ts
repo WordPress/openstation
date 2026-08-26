@@ -3,7 +3,7 @@
  *
  *   - per-tile `--all-minimized` class when every open instance of a
  *     dock item is in the `minimized` state.
- *   - global `body.desktop-mode-show-desktop-active` body class when
+ *   - global `body.os-show-desktop-active` body class when
  *     every live window on the active desktop is minimized.
  *
  * The dock previously surfaced "active" (≥1 window open) and "focused"
@@ -100,12 +100,12 @@ describe( 'Dock — minimized window indicator', () => {
 		const { container } = mount( manager );
 		// Trigger a refresh — boot doesn't auto-paint active classes,
 		// the first window-opened event does. Synthesize one.
-		document.dispatchEvent( new CustomEvent( 'desktop-mode-window-opened' ) );
+		document.dispatchEvent( new CustomEvent( 'os-window-opened' ) );
 
 		const tile = tileFor( container, 'menu-posts' );
-		expect( tile.classList.contains( 'desktop-mode-dock__item--active' ) ).toBe( true );
+		expect( tile.classList.contains( 'os-dock__item--active' ) ).toBe( true );
 		expect(
-			tile.classList.contains( 'desktop-mode-dock__item--all-minimized' ),
+			tile.classList.contains( 'os-dock__item--all-minimized' ),
 		).toBe( false );
 	} );
 
@@ -116,12 +116,12 @@ describe( 'Dock — minimized window indicator', () => {
 		];
 		const manager = makeManager( wins );
 		const { container } = mount( manager );
-		document.dispatchEvent( new CustomEvent( 'desktop-mode-window-opened' ) );
+		document.dispatchEvent( new CustomEvent( 'os-window-opened' ) );
 
 		const tile = tileFor( container, 'menu-posts' );
-		expect( tile.classList.contains( 'desktop-mode-dock__item--active' ) ).toBe( true );
+		expect( tile.classList.contains( 'os-dock__item--active' ) ).toBe( true );
 		expect(
-			tile.classList.contains( 'desktop-mode-dock__item--all-minimized' ),
+			tile.classList.contains( 'os-dock__item--all-minimized' ),
 		).toBe( true );
 	} );
 
@@ -132,12 +132,12 @@ describe( 'Dock — minimized window indicator', () => {
 		];
 		const manager = makeManager( wins );
 		const { container } = mount( manager );
-		document.dispatchEvent( new CustomEvent( 'desktop-mode-window-opened' ) );
+		document.dispatchEvent( new CustomEvent( 'os-window-opened' ) );
 
 		const tile = tileFor( container, 'menu-posts' );
-		expect( tile.classList.contains( 'desktop-mode-dock__item--active' ) ).toBe( true );
+		expect( tile.classList.contains( 'os-dock__item--active' ) ).toBe( true );
 		expect(
-			tile.classList.contains( 'desktop-mode-dock__item--all-minimized' ),
+			tile.classList.contains( 'os-dock__item--all-minimized' ),
 		).toBe( false );
 	} );
 
@@ -147,13 +147,13 @@ describe( 'Dock — minimized window indicator', () => {
 		const minimized2 = makeWin( 'edit-php-3', 'edit-php', 'minimized' );
 		const manager = makeManager( [ normal, minimized, minimized2 ], normal );
 		const { container } = mount( manager );
-		document.dispatchEvent( new CustomEvent( 'desktop-mode-window-opened' ) );
+		document.dispatchEvent( new CustomEvent( 'os-window-opened' ) );
 
 		const tile = tileFor( container, 'menu-posts' );
-		expect( tile.classList.contains( 'desktop-mode-dock__item--focused' ) ).toBe( true );
-		expect( tile.classList.contains( 'desktop-mode-dock__item--stacked' ) ).toBe( true );
+		expect( tile.classList.contains( 'os-dock__item--focused' ) ).toBe( true );
+		expect( tile.classList.contains( 'os-dock__item--stacked' ) ).toBe( true );
 		expect(
-			tile.classList.contains( 'desktop-mode-dock__item--all-minimized' ),
+			tile.classList.contains( 'os-dock__item--all-minimized' ),
 		).toBe( false );
 	} );
 
@@ -162,10 +162,10 @@ describe( 'Dock — minimized window indicator', () => {
 		const minimized = makeWin( 'edit-php-2', 'edit-php', 'minimized' );
 		const manager = makeManager( [ normal, minimized ], normal );
 		const { container } = mount( manager );
-		document.dispatchEvent( new CustomEvent( 'desktop-mode-window-opened' ) );
+		document.dispatchEvent( new CustomEvent( 'os-window-opened' ) );
 
 		const tile = tileFor( container, 'menu-posts' );
-		expect( tile.classList.contains( 'desktop-mode-dock__item--stacked' ) ).toBe( true );
+		expect( tile.classList.contains( 'os-dock__item--stacked' ) ).toBe( true );
 	} );
 
 	test( '--stacked stays after restore when multiple instances remain', () => {
@@ -173,17 +173,17 @@ describe( 'Dock — minimized window indicator', () => {
 		const win2 = makeWin( 'edit-php-2', 'edit-php', 'minimized' );
 		const manager = makeManager( [ win1, win2 ] );
 		const { container } = mount( manager );
-		document.dispatchEvent( new CustomEvent( 'desktop-mode-window-opened' ) );
+		document.dispatchEvent( new CustomEvent( 'os-window-opened' ) );
 
 		const tile = tileFor( container, 'menu-posts' );
-		expect( tile.classList.contains( 'desktop-mode-dock__item--stacked' ) ).toBe( true );
+		expect( tile.classList.contains( 'os-dock__item--stacked' ) ).toBe( true );
 
 		win1.state = 'normal';
 		win2.state = 'normal';
 		window.wp?.hooks?.doAction?.( HOOKS.WINDOW_RESTORED );
-		document.dispatchEvent( new CustomEvent( 'desktop-mode-window-restored' ) );
+		document.dispatchEvent( new CustomEvent( 'os-window-restored' ) );
 
-		expect( tile.classList.contains( 'desktop-mode-dock__item--stacked' ) ).toBe( true );
+		expect( tile.classList.contains( 'os-dock__item--stacked' ) ).toBe( true );
 	} );
 
 	test( '--stacked shows for multiple open (non-minimized) instances', () => {
@@ -191,25 +191,25 @@ describe( 'Dock — minimized window indicator', () => {
 		const win2 = makeWin( 'edit-php-2', 'edit-php', 'normal' );
 		const manager = makeManager( [ win1, win2 ] );
 		const { container } = mount( manager );
-		document.dispatchEvent( new CustomEvent( 'desktop-mode-window-opened' ) );
+		document.dispatchEvent( new CustomEvent( 'os-window-opened' ) );
 
 		const tile = tileFor( container, 'menu-posts' );
-		expect( tile.classList.contains( 'desktop-mode-dock__item--stacked' ) ).toBe( true );
+		expect( tile.classList.contains( 'os-dock__item--stacked' ) ).toBe( true );
 	} );
 
 	test( 'focused tile loses --focused when its window is minimized', () => {
 		const win = makeWin( 'edit-php', 'edit-php', 'minimized' );
 		const manager = makeManager( [ win ], win );
 		const { container } = mount( manager );
-		document.dispatchEvent( new CustomEvent( 'desktop-mode-window-opened' ) );
+		document.dispatchEvent( new CustomEvent( 'os-window-opened' ) );
 
 		const tile = tileFor( container, 'menu-posts' );
 		// `--focused` would otherwise paint a pill that says "this is
 		// the visible window" — misleading while the window is hidden.
-		expect( tile.classList.contains( 'desktop-mode-dock__item--focused' ) ).toBe( false );
+		expect( tile.classList.contains( 'os-dock__item--focused' ) ).toBe( false );
 	} );
 
-	test( 'body gets desktop-mode-show-desktop-active when every live window is minimized', () => {
+	test( 'body gets os-show-desktop-active when every live window is minimized', () => {
 		const wins = [
 			makeWin( 'edit-php', 'edit-php', 'minimized' ),
 			makeWin( 'options-general', 'options-general', 'minimized' ),
@@ -225,10 +225,10 @@ describe( 'Dock — minimized window indicator', () => {
 				multi: false,
 			} ),
 		] );
-		document.dispatchEvent( new CustomEvent( 'desktop-mode-window-opened' ) );
+		document.dispatchEvent( new CustomEvent( 'os-window-opened' ) );
 
 		expect(
-			document.body.classList.contains( 'desktop-mode-show-desktop-active' ),
+			document.body.classList.contains( 'os-show-desktop-active' ),
 		).toBe( true );
 	} );
 
@@ -248,34 +248,34 @@ describe( 'Dock — minimized window indicator', () => {
 				multi: false,
 			} ),
 		] );
-		document.dispatchEvent( new CustomEvent( 'desktop-mode-window-opened' ) );
+		document.dispatchEvent( new CustomEvent( 'os-window-opened' ) );
 		expect(
-			document.body.classList.contains( 'desktop-mode-show-desktop-active' ),
+			document.body.classList.contains( 'os-show-desktop-active' ),
 		).toBe( true );
 
 		// Simulate the user restoring one of the two minimized windows.
 		wins[ 0 ].state = 'normal';
 		window.wp?.hooks?.doAction?.( HOOKS.WINDOW_RESTORED, { windowId: 'edit-php' } );
 		expect(
-			document.body.classList.contains( 'desktop-mode-show-desktop-active' ),
+			document.body.classList.contains( 'os-show-desktop-active' ),
 		).toBe( false );
 	} );
 
 	test( 'no body class when there are zero live windows (fresh desktop)', () => {
 		const manager = makeManager( [] );
 		mount( manager );
-		document.dispatchEvent( new CustomEvent( 'desktop-mode-window-opened' ) );
+		document.dispatchEvent( new CustomEvent( 'os-window-opened' ) );
 
 		// Show Desktop is meaningless with nothing to hide — the body
 		// class would be a lie on an empty desktop.
 		expect(
-			document.body.classList.contains( 'desktop-mode-show-desktop-active' ),
+			document.body.classList.contains( 'os-show-desktop-active' ),
 		).toBe( false );
 	} );
 
 	test( 'dock listens to WINDOW_MINIMIZED via the hook bus, not just DOM events', () => {
 		// Reproduces the original bug: the dock only subscribed to
-		// `desktop-mode-window-opened/closed/focused` DOM events.
+		// `os-window-opened/closed/focused` DOM events.
 		// `WINDOW_MINIMIZED` rides the hook bus exclusively, so a
 		// minimize without an accompanying focus change left the dock
 		// stale. This assertion fails if a regression drops that hook
@@ -283,11 +283,11 @@ describe( 'Dock — minimized window indicator', () => {
 		const win = makeWin( 'edit-php', 'edit-php', 'normal' );
 		const manager = makeManager( [ win ] );
 		const { container } = mount( manager );
-		document.dispatchEvent( new CustomEvent( 'desktop-mode-window-opened' ) );
+		document.dispatchEvent( new CustomEvent( 'os-window-opened' ) );
 
 		const tile = tileFor( container, 'menu-posts' );
 		expect(
-			tile.classList.contains( 'desktop-mode-dock__item--all-minimized' ),
+			tile.classList.contains( 'os-dock__item--all-minimized' ),
 		).toBe( false );
 
 		// Minimize via the hook bus (the only channel the framework
@@ -296,30 +296,31 @@ describe( 'Dock — minimized window indicator', () => {
 		window.wp?.hooks?.doAction?.( HOOKS.WINDOW_MINIMIZED, { windowId: 'edit-php' } );
 
 		expect(
-			tile.classList.contains( 'desktop-mode-dock__item--all-minimized' ),
+			tile.classList.contains( 'os-dock__item--all-minimized' ),
 		).toBe( true );
 	} );
 
-	test( 'dock: prefixed items resolve target window baseId from desktop icon config', () => {
-		( window as unknown as { desktopModeConfig?: { desktopIcons?: Array<{ id: string; window?: string }> } } ).desktopModeConfig = {
-			desktopIcons: [ { id: 'os-settings', window: 'desktop-mode-settings' } ],
-		};
-
-		const win = makeWin( 'desktop-mode-settings', 'desktop-mode-settings', 'normal' );
+	test( 'a tile whose target is a window lights up from windowId, not from its url', () => {
+		// An app launcher the user put on the rail. It has no admin
+		// URL, so without `windowId` the lookup would derive an id from
+		// the empty string and the dot would stay dark while the window
+		// is plainly open.
+		const win = makeWin( 'os-settings', 'os-settings', 'normal' );
 		const manager = makeManager( [ win ] );
 		const item: DockItem = {
-			id: 'dock:os-settings',
+			id: 'os-settings',
 			title: 'OS Settings',
 			icon: 'dashicons-admin-generic',
 			url: '',
+			windowId: 'os-settings',
 			badge: 0,
 			submenu: [],
 			multi: false,
 		};
 		const { container } = mount( manager, [ item ] );
-		document.dispatchEvent( new CustomEvent( 'desktop-mode-window-opened' ) );
+		document.dispatchEvent( new CustomEvent( 'os-window-opened' ) );
 
-		const tile = tileFor( container, 'dock:os-settings' );
-		expect( tile.classList.contains( 'desktop-mode-dock__item--active' ) ).toBe( true );
+		const tile = tileFor( container, 'os-settings' );
+		expect( tile.classList.contains( 'os-dock__item--active' ) ).toBe( true );
 	} );
 } );

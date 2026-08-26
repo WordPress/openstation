@@ -9,8 +9,6 @@
  * different sizes land inside the same 0..1 band, they just approach the
  * ceiling at different speeds. `sat( v, k )` is the shared half-life
  * curve: 0 at 0, 0.5 at `k`, →1 as `v` → ∞.
- *
- * @since 0.9.4
  */
 
 import type { Hormones, TreeSnapshot } from './types';

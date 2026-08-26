@@ -14,8 +14,6 @@
  *   - match-predicate filtering (themes via `resolveWindowTheme`,
  *     controls/slots via `controlsForWindow` / `slotsForWindow`)
  *   - throwing match predicates are isolated (skipped, not crashed)
- *
- * @since 0.6.0
  */
 
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
@@ -98,7 +96,7 @@ describe( 'WindowTheme registry', () => {
 	test( 'register stores entry and round-trips through list', () => {
 		registerWindowTheme( {
 			id: 'plug/sunrise',
-			tokens: { '--desktop-mode-titlebar-bg': '#fa0' },
+			tokens: { '--os-titlebar-bg': '#fa0' },
 			match: () => true,
 		} );
 		expect( listWindowThemes().map( ( d ) => d.id ) ).toEqual( [
@@ -109,16 +107,16 @@ describe( 'WindowTheme registry', () => {
 	test( 'register replaces an entry with the same id', () => {
 		registerWindowTheme( {
 			id: 'plug/x',
-			tokens: { '--desktop-mode-titlebar-bg': '#000' },
+			tokens: { '--os-titlebar-bg': '#000' },
 			match: () => true,
 		} );
 		registerWindowTheme( {
 			id: 'plug/x',
-			tokens: { '--desktop-mode-titlebar-bg': '#fff' },
+			tokens: { '--os-titlebar-bg': '#fff' },
 			match: () => true,
 		} );
 		expect( listWindowThemes() ).toHaveLength( 1 );
-		expect( listWindowThemes()[ 0 ].tokens[ '--desktop-mode-titlebar-bg' ] ).toBe(
+		expect( listWindowThemes()[ 0 ].tokens[ '--os-titlebar-bg' ] ).toBe(
 			'#fff',
 		);
 	} );
@@ -137,7 +135,7 @@ describe( 'WindowTheme registry', () => {
 		expect( () =>
 			registerWindowTheme( {
 				id: 'plug/y',
-				tokens: { 'desktop-mode-titlebar-bg': '#fa0' },
+				tokens: { 'os-titlebar-bg': '#fa0' },
 				match: () => true,
 			} ),
 		).toThrow( RegistrationError );

@@ -63,7 +63,7 @@ describe( 'wallpapers/registry.ts', () => {
 		expect( all() ).toEqual( [] );
 	} );
 
-	test( 'all() applies the desktop-mode.wallpapers filter', async () => {
+	test( 'all() applies the os.wallpapers filter', async () => {
 		const { register, all } = await loadRegistry();
 		register( makeCssDef( { id: 'a' } ) );
 		register( makeCssDef( { id: 'b' } ) );
@@ -71,7 +71,7 @@ describe( 'wallpapers/registry.ts', () => {
 		// Filter that drops anything named 'b'.
 		const hooks = ( window as unknown as { wp: { hooks: { addFilter: Function } } } ).wp.hooks;
 		hooks.addFilter(
-			'desktop-mode.wallpapers',
+			'os.wallpapers',
 			'vitest/filter',
 			( list: WallpaperDef[] ) => list.filter( ( w ) => w.id !== 'b' ),
 		);
@@ -114,7 +114,7 @@ describe( 'wallpapers/registry.ts', () => {
 		register( makeCssDef() );
 		const hooks = ( window as unknown as { wp: { hooks: { addFilter: Function } } } ).wp.hooks;
 		hooks.addFilter(
-			'desktop-mode.wallpapers',
+			'os.wallpapers',
 			'vitest/bad',
 			() => 'not an array',
 		);

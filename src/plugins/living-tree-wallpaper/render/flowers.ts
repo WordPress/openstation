@@ -15,8 +15,6 @@
  * updated at the canopy's 30 Hz cadence. Layout draws from its own
  * seeded stream (`<seed>|flowers`), stable per site and isolated from
  * the skeleton's PRNG. See `docs/living-tree-algorithm.md` §A.8.
- *
- * @since 0.9.4
  */
 
 import { hash32, mulberry32 } from '../rng';

@@ -2,12 +2,12 @@
  * Cross-bundle layout single-source-of-truth.
  *
  * **Why this exists.** The layout dispatcher (`src/desktop-layout.ts`)
- * owns the dock instances and the rebuild logic for the three
- * top-level layouts (`classic`, `unified`, `spatial`). The OsSettings
+ * owns the dock instances and the rebuild logic for the top-level
+ * layouts (`classic`, `unified`). The OsSettings
  * snapshot owns the *current* selection. Until 0.8.1 there was no
  * cross-bundle helper for "what layout am I in right now?" — every
  * consumer (a feature bundle, a third-party plugin) had to thread
- * the snapshot in or read `data-desktop-mode-layout` off the shell
+ * the snapshot in or read `data-os-layout` off the shell
  * root.
  *
  * This module is a tiny shared store keyed under
@@ -19,8 +19,6 @@
  * Backed by `createSharedStore` so a registration from one bundle
  * (the main shell) is visible to every other bundle (recycle bin,
  * posts window, plugin extras).
- *
- * @since 0.8.1
  */
 
 import { createSharedStore } from '../shared-store';
@@ -38,8 +36,6 @@ const store = createSharedStore< LayoutState >( 'desktop-mode/layout', () => ( {
 
 /**
  * Read the active layout synchronously.
- *
- * @since 0.8.1
  */
 export function getCurrentLayout(): DesktopLayoutId {
 	return store.state.layout;
@@ -49,8 +45,6 @@ export function getCurrentLayout(): DesktopLayoutId {
  * Publish the active layout. The shell calls this every time the
  * dispatcher rebuilds; plugin code should NOT call this — the
  * source of truth is OS Settings.
- *
- * @since 0.8.1
  *
  * @internal
  */
@@ -67,10 +61,8 @@ export function setCurrentLayout( layout: DesktopLayoutId ): void {
  *
  * The callback fires synchronously inside `setCurrentLayout` —
  * after the value has been written. Note the shell publishes here
- * after `desktop-mode-layout-changed` has already been dispatched
+ * after `os-layout-changed` has already been dispatched
  * on `document`.
- *
- * @since 0.8.1
  */
 export function subscribeLayout(
 	cb: ( layout: DesktopLayoutId ) => void,

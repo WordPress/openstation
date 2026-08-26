@@ -16,8 +16,6 @@
  * the wandering itself uses `Math.random()` like the fireflies do —
  * flight is live behaviour, not DNA. See
  * `docs/living-tree-algorithm.md` §A.8.
- *
- * @since 0.9.4
  */
 
 import type { PixiContainer, PixiNamespace, PixiSprite, PixiTexture } from '../pixi-types';

@@ -4,20 +4,19 @@
  *
  * Mirrors the command-script / title-bar-button-script registration
  * pattern: minimum-ceremony PHP opt-in
- * (`desktop_mode_register_unfocus_effect_script`) tells the shell which
+ * (`openstation_register_unfocus_effect_script`) tells the shell which
  * enqueued scripts contribute unfocus effects. The shell injects the
  * script URL into the live-refresh payload so a plugin activated
  * mid-session surfaces its effect in OS Settings → Effects immediately,
  * no F5 needed.
  *
  * Effects themselves are declared JS-side via
- * `wp.desktop.registerUnfocusEffect( … )` — the CSS class, apply/clear
+ * `wp.os.registerUnfocusEffect( … )` — the CSS class, apply/clear
  * callbacks, and label all live in the plugin's TypeScript /
  * JavaScript. The built-in `darken` is registered through the very
  * same JS hook (see `src/effects/registry.ts`).
  *
- * @since 0.9.1
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -32,13 +31,13 @@ defined( 'ABSPATH' ) || exit;
  *     wp_register_script(
  *         'my-plugin-effects',
  *         plugins_url( 'js/effects.js', __FILE__ ),
- *         array( 'desktop-mode' ),
+ *         array( 'openstation' ),
  *         '1.0.0',
  *         true
  *     );
  *     wp_enqueue_script( 'my-plugin-effects' );
  * } );
- * desktop_mode_register_unfocus_effect_script( 'my-plugin-effects' );
+ * openstation_register_unfocus_effect_script( 'my-plugin-effects' );
  * ```
  *
  * For live unregistration on deactivation, the plugin's JS should set
@@ -46,30 +45,26 @@ defined( 'ABSPATH' ) || exit;
  * Otherwise the effect stays until the next page reload — graceful
  * backwards-compat.
  *
- * @since 0.9.1
- *
  * @param string $handle WP-registered script handle.
  * @return true|WP_Error `true` on success; `WP_Error` on validation failure.
  */
-function desktop_mode_register_unfocus_effect_script( $handle ) {
+function openstation_register_unfocus_effect_script( $handle ) {
 	$handle = (string) $handle;
 	if ( '' === $handle ) {
-		return desktop_mode_registration_error(
-			'desktop_mode_missing_handle',
+		return openstation_registration_error(
+			'openstation_missing_handle',
 			__( 'Unfocus effect script registration requires a non-empty script handle.', 'desktop-mode' )
 		);
 	}
 
-	desktop_mode_desktop_unfocus_effect_script_registry( $handle, true );
+	openstation_desktop_unfocus_effect_script_registry( $handle, true );
 
 	/**
 	 * Fires after a desktop unfocus-effect script handle is registered.
 	 *
-	 * @since 0.9.1
-	 *
 	 * @param string $handle The registered script handle.
 	 */
-	do_action( 'desktop_mode_unfocus_effect_script_registered', $handle );
+	do_action( 'openstation_unfocus_effect_script_registered', $handle );
 
 	return true;
 }
@@ -77,14 +72,13 @@ function desktop_mode_register_unfocus_effect_script( $handle ) {
 /**
  * Internal module-level registry for unfocus-effect script handles.
  *
- * @since 0.9.1
  * @internal
  *
  * @param string    $handle Script handle to read or write.
  * @param bool|null $value  Pass `true` to register; `null` to read only.
  * @return array|bool When called with no args returns the full store.
  */
-function desktop_mode_desktop_unfocus_effect_script_registry( $handle = '', $value = null ) {
+function openstation_desktop_unfocus_effect_script_registry( $handle = '', $value = null ) {
 	static $store = array();
 
 	if ( '__flush__' === (string) $handle ) {
@@ -102,24 +96,20 @@ function desktop_mode_desktop_unfocus_effect_script_registry( $handle = '', $val
 
 /**
  * Test-only: clear the registry between PHPUnit cases. See
- * {@see desktop_mode_flush_script_handle_registries()}.
- *
- * @since 0.9.1
+ * {@see openstation_flush_script_handle_registries()}.
  */
-function desktop_mode_flush_desktop_unfocus_effect_script_registry() {
-	desktop_mode_desktop_unfocus_effect_script_registry( '__flush__' );
+function openstation_flush_desktop_unfocus_effect_script_registry() {
+	openstation_desktop_unfocus_effect_script_registry( '__flush__' );
 }
 
 /**
  * Build the script-handle payload fed to the shell. Handles that
  * aren't currently enqueued resolve to an empty URL and are dropped.
  *
- * @since 0.9.1
- *
  * @return array[] List of `{ handle, scriptUrl, … }` entries.
  */
-function desktop_mode_build_desktop_unfocus_effect_scripts_payload() {
-	$registry = desktop_mode_desktop_unfocus_effect_script_registry();
+function openstation_build_desktop_unfocus_effect_scripts_payload() {
+	$registry = openstation_desktop_unfocus_effect_script_registry();
 	if ( ! is_array( $registry ) || empty( $registry ) ) {
 		return array();
 	}
@@ -130,13 +120,13 @@ function desktop_mode_build_desktop_unfocus_effect_scripts_payload() {
 		if ( ! $active || isset( $seen[ $handle ] ) ) {
 			continue;
 		}
-		$payload = desktop_mode_resolve_script_payload( $handle );
+		$payload = openstation_resolve_script_payload( $handle );
 		if ( '' === $payload['url'] ) {
 			// Loud diagnostic — visible under WP_DEBUG. Deduped by
-			// `desktop_mode_warn_unresolvable_script_handle` so the
+			// `openstation_warn_unresolvable_script_handle` so the
 			// notice fires once per handle per request.
-			desktop_mode_warn_unresolvable_script_handle(
-				'desktop_mode_register_unfocus_effect_script',
+			openstation_warn_unresolvable_script_handle(
+				'openstation_register_unfocus_effect_script',
 				'Unfocus effect',
 				(string) $handle
 			);

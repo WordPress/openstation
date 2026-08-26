@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — File-tile preview renderer.
+ * OpenStation — File-tile preview renderer.
  *
  * Given a placement, produces an HTML node describing the underlying
  * entity for the right pane of any folder window. Routes by file
@@ -9,13 +9,12 @@
  * `/desktop-mode/v1/comment-stats/<id>`) so the visual + the data
  * are consistent across surfaces.
  *
- * Plugins extend this map via the `desktop-mode.files.preview`
+ * Plugins extend this map via the `os.files.preview`
  * filter — return any HTMLElement (or `null` to defer to the
  * built-in for that type). Reusable by any window that needs an
  * entity preview pane.
  *
  * @public
- * @since 0.8.0
  */
 
 import { applyFilters } from '../hooks';
@@ -50,23 +49,23 @@ async function getJson< T >( url: string, init: FetchInit = {} ): Promise< T > {
 function readRestNonce(): string {
 	const cfg = (
 		window.wp as
-			| { desktop?: { config?: { restNonce?: string } } }
+			| { os?: { config?: { restNonce?: string } } }
 			| undefined
-	)?.desktop?.config;
+	)?.os?.config;
 	return cfg?.restNonce ?? '';
 }
 
 function readRestRoot(): string {
 	const cfg = (
 		window.wp as
-			| { desktop?: { config?: { restUrl?: string; adminUrl?: string } } }
+			| { os?: { config?: { restUrl?: string; adminUrl?: string } } }
 			| undefined
-	)?.desktop?.config;
+	)?.os?.config;
 	if ( cfg?.restUrl ) {
 		return cfg.restUrl.endsWith( '/' ) ? cfg.restUrl : cfg.restUrl + '/';
 	}
 	// Last-ditch fallback used only when the shell config never lands
-	// (e.g., the file-tile renders before `wp.desktop` boots). Assumes
+	// (e.g., the file-tile renders before `wp.os` boots). Assumes
 	// pretty permalinks; plain-permalink sites that hit this path would
 	// 404, but in practice the shell config is always present by the
 	// time a preview is requested.
@@ -93,7 +92,7 @@ export function renderPlacementPreview(
 	host: HTMLElement,
 ): void {
 	const filtered = applyFilters< HTMLElement | null, [ RestPlacementShape ] >(
-		'desktop-mode.files.preview',
+		'os.files.preview',
 		null,
 		placement,
 	);
@@ -122,29 +121,29 @@ export function renderPlacementPreview(
 
 function renderAccessGated( placement: RestPlacementShape ): HTMLElement {
 	const wrap = document.createElement( 'div' );
-	wrap.className = 'desktop-mode-files__access-gated';
+	wrap.className = 'os-files__access-gated';
 
 	const ring = document.createElement( 'div' );
-	ring.className = 'desktop-mode-files__access-gated-ring';
+	ring.className = 'os-files__access-gated-ring';
 	const glyph = document.createElement( 'span' );
-	glyph.className = 'dashicons dashicons-lock desktop-mode-files__access-gated-glyph';
+	glyph.className = 'dashicons dashicons-lock os-files__access-gated-glyph';
 	glyph.setAttribute( 'aria-hidden', 'true' );
 	ring.appendChild( glyph );
 	wrap.appendChild( ring );
 
 	const title = document.createElement( 'h2' );
-	title.className = 'desktop-mode-files__access-gated-title';
+	title.className = 'os-files__access-gated-title';
 	title.textContent = 'No permission to view';
 	wrap.appendChild( title );
 
 	const sub = document.createElement( 'p' );
-	sub.className = 'desktop-mode-files__access-gated-sub';
+	sub.className = 'os-files__access-gated-sub';
 	const target = placement.file.title || placement.file.type;
 	sub.textContent = `You don’t have access to "${ target }". The folder owner shared this folder with you, but your role doesn’t include permission to open this item.`;
 	wrap.appendChild( sub );
 
 	const hint = document.createElement( 'p' );
-	hint.className = 'desktop-mode-files__access-gated-hint';
+	hint.className = 'os-files__access-gated-hint';
 	hint.textContent = 'Ask the owner to grant access on the underlying item, or to remove it from the shared folder.';
 	wrap.appendChild( hint );
 
@@ -222,12 +221,12 @@ async function renderPostPreview(
 
 	const wrap = articleShell();
 	const h = document.createElement( 'h2' );
-	h.className = 'desktop-mode-my-wordpress__article-title';
+	h.className = 'os-my-wordpress__article-title';
 	h.textContent = stripTags( data.title.rendered ) || file.title || `#${ id }`;
 	wrap.appendChild( h );
 
 	const meta = document.createElement( 'p' );
-	meta.className = 'desktop-mode-my-wordpress__article-meta';
+	meta.className = 'os-my-wordpress__article-meta';
 	const parts: string[] = [];
 	parts.push( formatDate( data.date ) );
 	if ( data.status && data.status !== 'publish' ) {
@@ -238,13 +237,13 @@ async function renderPostPreview(
 
 	if ( data.content?.rendered ) {
 		const body = document.createElement( 'div' );
-		body.className = 'desktop-mode-my-wordpress__article-content';
+		body.className = 'os-my-wordpress__article-content';
 		body.innerHTML = data.content.rendered;
 		wrap.appendChild( body );
 	}
 
 	const footer = document.createElement( 'footer' );
-	footer.className = 'desktop-mode-my-wordpress__article-footer';
+	footer.className = 'os-my-wordpress__article-footer';
 
 	// "Explore details" — only shown when the My WordPress bundle
 	// is loaded and has registered its public API. Routes the
@@ -255,7 +254,7 @@ async function renderPostPreview(
 	const myWordpressApi = (
 		window.wp as
 			| {
-					desktop?: {
+					os?: {
 						myWordpress?: {
 							openDetail: ( a: {
 								entityId: string;
@@ -266,9 +265,9 @@ async function renderPostPreview(
 					};
 			}
 			| undefined
-	)?.desktop?.myWordpress;
+	)?.os?.myWordpress;
 	if ( myWordpressApi ) {
-		const exploreBtn = document.createElement( 'wpd-button' );
+		const exploreBtn = document.createElement( 'os-button' );
 		exploreBtn.setAttribute( 'variant', 'secondary' );
 		exploreBtn.textContent = __( 'Explore details', 'desktop-mode' );
 		exploreBtn.title = __(
@@ -289,15 +288,15 @@ async function renderPostPreview(
 		footer.appendChild( exploreBtn );
 	}
 
-	const editBtn = document.createElement( 'wpd-button' );
+	const editBtn = document.createElement( 'os-button' );
 	editBtn.setAttribute( 'variant', 'primary' );
 	editBtn.textContent = __( 'Open in editor', 'desktop-mode' );
 	editBtn.addEventListener( 'click', () => {
 		const adminUrl = (
 			window.wp as
-				| { desktop?: { config?: { adminUrl?: string } } }
+				| { os?: { config?: { adminUrl?: string } } }
 				| undefined
-		)?.desktop?.config?.adminUrl;
+		)?.os?.config?.adminUrl;
 		if ( ! adminUrl ) {
 			return;
 		}
@@ -305,14 +304,14 @@ async function renderPostPreview(
 		const wm = (
 			window.wp as
 				| {
-						desktop?: {
+						os?: {
 							windowManager?: {
 								open: ( cfg: Record< string, unknown > ) => unknown;
 							};
 						};
 				}
 				| undefined
-		)?.desktop?.windowManager;
+		)?.os?.windowManager;
 		const postType =
 			typeof file.postType === 'string'
 				? ( file.postType as string )
@@ -364,28 +363,28 @@ async function renderUserSummary(
 	} catch {
 		return renderGenericPreview( file );
 	}
-	const wrap = articleShell( 'desktop-mode-my-wordpress__user' );
+	const wrap = articleShell( 'os-my-wordpress__user' );
 	const header = document.createElement( 'header' );
-	header.className = 'desktop-mode-my-wordpress__user-header';
+	header.className = 'os-my-wordpress__user-header';
 	if ( data.profile.avatarUrl ) {
 		const img = document.createElement( 'img' );
-		img.className = 'desktop-mode-my-wordpress__user-avatar';
+		img.className = 'os-my-wordpress__user-avatar';
 		img.src = data.profile.avatarUrl;
 		img.alt = '';
 		header.appendChild( img );
 	}
 	const head = document.createElement( 'div' );
-	head.className = 'desktop-mode-my-wordpress__user-headline';
+	head.className = 'os-my-wordpress__user-headline';
 	const h = document.createElement( 'h2' );
-	h.className = 'desktop-mode-my-wordpress__article-title';
+	h.className = 'os-my-wordpress__article-title';
 	h.textContent = data.profile.name || file.title || `#${ id }`;
 	head.appendChild( h );
 	if ( data.profile.roleLabels && data.profile.roleLabels.length > 0 ) {
 		const roles = document.createElement( 'div' );
-		roles.className = 'desktop-mode-my-wordpress__user-roles';
+		roles.className = 'os-my-wordpress__user-roles';
 		for ( const r of data.profile.roleLabels ) {
 			const badge = document.createElement( 'span' );
-			badge.className = 'desktop-mode-my-wordpress__user-role';
+			badge.className = 'os-my-wordpress__user-role';
 			badge.textContent = r;
 			roles.appendChild( badge );
 		}
@@ -395,12 +394,12 @@ async function renderUserSummary(
 	wrap.appendChild( header );
 	if ( data.profile.description ) {
 		const bio = document.createElement( 'div' );
-		bio.className = 'desktop-mode-my-wordpress__user-bio';
+		bio.className = 'os-my-wordpress__user-bio';
 		bio.textContent = data.profile.description;
 		wrap.appendChild( bio );
 	}
 	const cards = document.createElement( 'div' );
-	cards.className = 'desktop-mode-my-wordpress__user-stats';
+	cards.className = 'os-my-wordpress__user-stats';
 	cards.appendChild(
 		statCard(
 			data.counts.posts.total.toLocaleString(),
@@ -461,21 +460,21 @@ async function renderTermSummary(
 	}
 	const wrap = articleShell();
 	const h = document.createElement( 'h2' );
-	h.className = 'desktop-mode-my-wordpress__article-title';
+	h.className = 'os-my-wordpress__article-title';
 	h.textContent = data.profile.name || file.title || `#${ id }`;
 	wrap.appendChild( h );
 	const meta = document.createElement( 'p' );
-	meta.className = 'desktop-mode-my-wordpress__article-meta';
+	meta.className = 'os-my-wordpress__article-meta';
 	meta.textContent = data.profile.taxonomyLabel || data.profile.taxonomy;
 	wrap.appendChild( meta );
 	if ( data.profile.description ) {
 		const desc = document.createElement( 'div' );
-		desc.className = 'desktop-mode-my-wordpress__article-content';
+		desc.className = 'os-my-wordpress__article-content';
 		desc.innerHTML = data.profile.description;
 		wrap.appendChild( desc );
 	}
 	const cards = document.createElement( 'div' );
-	cards.className = 'desktop-mode-my-wordpress__user-stats';
+	cards.className = 'os-my-wordpress__user-stats';
 	cards.appendChild(
 		statCard(
 			data.counts.posts.total.toLocaleString(),
@@ -530,35 +529,35 @@ async function renderCommentSummary(
 	}
 	const wrap = articleShell();
 	const header = document.createElement( 'header' );
-	header.className = 'desktop-mode-my-wordpress__user-header';
+	header.className = 'os-my-wordpress__user-header';
 	if ( data.author.avatarUrl ) {
 		const img = document.createElement( 'img' );
-		img.className = 'desktop-mode-my-wordpress__user-avatar';
+		img.className = 'os-my-wordpress__user-avatar';
 		img.src = data.author.avatarUrl;
 		img.alt = '';
 		header.appendChild( img );
 	}
 	const head = document.createElement( 'div' );
-	head.className = 'desktop-mode-my-wordpress__user-headline';
+	head.className = 'os-my-wordpress__user-headline';
 	const h = document.createElement( 'h2' );
-	h.className = 'desktop-mode-my-wordpress__article-title';
+	h.className = 'os-my-wordpress__article-title';
 	h.textContent = data.author.name;
 	head.appendChild( h );
 	const sub = document.createElement( 'p' );
-	sub.className = 'desktop-mode-my-wordpress__article-meta';
+	sub.className = 'os-my-wordpress__article-meta';
 	sub.textContent = `${ formatDate( data.comment.date ) } · ${ data.comment.status }`;
 	head.appendChild( sub );
 	header.appendChild( head );
 	wrap.appendChild( header );
 	const body = document.createElement( 'div' );
-	body.className = 'desktop-mode-my-wordpress__article-content';
+	body.className = 'os-my-wordpress__article-content';
 	body.innerHTML = data.comment.rendered;
 	wrap.appendChild( body );
 	if ( data.post ) {
 		const card = document.createElement( 'div' );
-		card.className = 'desktop-mode-my-wordpress__comment-post';
+		card.className = 'os-my-wordpress__comment-post';
 		const link = document.createElement( 'a' );
-		link.className = 'desktop-mode-my-wordpress__comment-post-title';
+		link.className = 'os-my-wordpress__comment-post-title';
 		link.href = data.post.link;
 		link.target = '_blank';
 		link.rel = 'noopener noreferrer';
@@ -600,16 +599,16 @@ async function renderAttachmentPreview(
 	}
 	const wrap = articleShell();
 	const h = document.createElement( 'h2' );
-	h.className = 'desktop-mode-my-wordpress__article-title';
+	h.className = 'os-my-wordpress__article-title';
 	h.textContent = stripTags( data.title.rendered ) || file.title || `#${ id }`;
 	wrap.appendChild( h );
 	const meta = document.createElement( 'p' );
-	meta.className = 'desktop-mode-my-wordpress__article-meta';
+	meta.className = 'os-my-wordpress__article-meta';
 	meta.textContent = data.mime_type;
 	wrap.appendChild( meta );
 	if ( data.mime_type.startsWith( 'image/' ) ) {
 		const img = document.createElement( 'img' );
-		img.className = 'desktop-mode-my-wordpress__article-hero';
+		img.className = 'os-my-wordpress__article-hero';
 		const sizes = data.media_details?.sizes;
 		img.src =
 			sizes?.large?.source_url ?? sizes?.medium?.source_url ?? data.source_url;
@@ -637,7 +636,7 @@ async function renderAttachmentPreview(
  * no-preview note plus a Download action.
  *
  * Plugins add previews for further types (PDF, 3D models, …)
- * through the `desktop-mode.files.preview` filter — return a
+ * through the `os.files.preview` filter — return a
  * custom element for `file.type === 'upload'` placements whose
  * `mime`/`kind` you recognize, and it fully replaces this
  * built-in.
@@ -647,7 +646,7 @@ function renderUploadPreview(
 ): HTMLElement {
 	const wrap = articleShell();
 	const h = document.createElement( 'h2' );
-	h.className = 'desktop-mode-my-wordpress__article-title';
+	h.className = 'os-my-wordpress__article-title';
 	h.textContent = file.title || __( 'Uploaded file', 'desktop-mode' );
 	wrap.appendChild( h );
 
@@ -657,7 +656,7 @@ function renderUploadPreview(
 	const kind = typeof file.kind === 'string' ? ( file.kind as string ) : 'file';
 
 	const meta = document.createElement( 'p' );
-	meta.className = 'desktop-mode-my-wordpress__article-meta';
+	meta.className = 'os-my-wordpress__article-meta';
 	meta.textContent = [ mime, sizeBytes > 0 ? formatBytes( sizeBytes ) : '' ]
 		.filter( Boolean )
 		.join( ' · ' );
@@ -666,7 +665,7 @@ function renderUploadPreview(
 	const fileId = parseInt( file.ref, 10 );
 	const noPreviewNote = (): HTMLElement => {
 		const p = document.createElement( 'p' );
-		p.className = 'desktop-mode-my-wordpress__article-meta desktop-mode-files__no-preview';
+		p.className = 'os-my-wordpress__article-meta os-files__no-preview';
 		p.textContent = __(
 			'No preview available for this file type.',
 			'desktop-mode',
@@ -676,7 +675,7 @@ function renderUploadPreview(
 
 	if ( fileId > 0 && kind === 'image' ) {
 		const img = document.createElement( 'img' );
-		img.className = 'desktop-mode-my-wordpress__article-hero';
+		img.className = 'os-my-wordpress__article-hero';
 		img.src = getUploadDownloadUrl( fileId );
 		img.alt = file.title || '';
 		// Formats the browser can't decode (HEIC on Chromium, …)
@@ -687,7 +686,7 @@ function renderUploadPreview(
 		wrap.appendChild( img );
 	} else if ( fileId > 0 && kind === 'video' ) {
 		const video = document.createElement( 'video' );
-		video.className = 'desktop-mode-my-wordpress__article-hero';
+		video.className = 'os-my-wordpress__article-hero';
 		video.controls = true;
 		video.preload = 'metadata';
 		video.src = getUploadDownloadUrl( fileId );
@@ -711,8 +710,8 @@ function renderUploadPreview(
 
 	if ( fileId > 0 ) {
 		const footer = document.createElement( 'footer' );
-		footer.className = 'desktop-mode-my-wordpress__article-footer';
-		const downloadBtn = document.createElement( 'wpd-button' );
+		footer.className = 'os-my-wordpress__article-footer';
+		const downloadBtn = document.createElement( 'os-button' );
 		downloadBtn.setAttribute( 'variant', 'primary' );
 		downloadBtn.textContent = __( 'Download', 'desktop-mode' );
 		downloadBtn.addEventListener( 'click', () => {
@@ -730,11 +729,11 @@ function renderFolderPreview(
 ): HTMLElement {
 	const wrap = articleShell();
 	const h = document.createElement( 'h2' );
-	h.className = 'desktop-mode-my-wordpress__article-title';
+	h.className = 'os-my-wordpress__article-title';
 	h.textContent = file.title || __( '(folder)', 'desktop-mode' );
 	wrap.appendChild( h );
 	const meta = document.createElement( 'p' );
-	meta.className = 'desktop-mode-my-wordpress__article-meta';
+	meta.className = 'os-my-wordpress__article-meta';
 	meta.textContent = __( 'Double-click to open.', 'desktop-mode' );
 	wrap.appendChild( meta );
 	return wrap;
@@ -745,11 +744,11 @@ function renderShortcutPreview(
 ): HTMLElement {
 	const wrap = articleShell();
 	const h = document.createElement( 'h2' );
-	h.className = 'desktop-mode-my-wordpress__article-title';
+	h.className = 'os-my-wordpress__article-title';
 	h.textContent = file.title || __( 'Shortcut', 'desktop-mode' );
 	wrap.appendChild( h );
 	const meta = document.createElement( 'p' );
-	meta.className = 'desktop-mode-my-wordpress__article-meta';
+	meta.className = 'os-my-wordpress__article-meta';
 	meta.textContent = __( 'Plugin shortcut. Double-click to open.', 'desktop-mode' );
 	wrap.appendChild( meta );
 	return wrap;
@@ -760,7 +759,7 @@ function renderBookmarkPreview(
 ): HTMLElement {
 	const wrap = articleShell();
 	const h = document.createElement( 'h2' );
-	h.className = 'desktop-mode-my-wordpress__article-title';
+	h.className = 'os-my-wordpress__article-title';
 	h.textContent = file.title || __( 'Bookmark', 'desktop-mode' );
 	wrap.appendChild( h );
 	const url = typeof file.url === 'string' ? ( file.url as string ) : '';
@@ -780,11 +779,11 @@ function renderGenericPreview(
 ): HTMLElement {
 	const wrap = articleShell();
 	const h = document.createElement( 'h2' );
-	h.className = 'desktop-mode-my-wordpress__article-title';
+	h.className = 'os-my-wordpress__article-title';
 	h.textContent = file.title || file.type;
 	wrap.appendChild( h );
 	const meta = document.createElement( 'p' );
-	meta.className = 'desktop-mode-my-wordpress__article-meta';
+	meta.className = 'os-my-wordpress__article-meta';
 	meta.textContent = sprintf(
 		// translators: %s is a file-type slug.
 		__( 'Type: %s', 'desktop-mode' ),
@@ -793,7 +792,7 @@ function renderGenericPreview(
 	wrap.appendChild( meta );
 	if ( ! file.exists ) {
 		const warn = document.createElement( 'p' );
-		warn.className = 'desktop-mode-my-wordpress__article-meta';
+		warn.className = 'os-my-wordpress__article-meta';
 		warn.textContent = __(
 			'The underlying entity is no longer available.',
 			'desktop-mode',
@@ -810,20 +809,20 @@ function renderGenericPreview(
 function articleShell( extraClass = '' ): HTMLElement {
 	const article = document.createElement( 'article' );
 	article.className =
-		'desktop-mode-my-wordpress__article' +
+		'os-my-wordpress__article' +
 		( extraClass ? ' ' + extraClass : '' );
 	return article;
 }
 
 function statCard( value: string, label: string ): HTMLElement {
 	const card = document.createElement( 'div' );
-	card.className = 'desktop-mode-my-wordpress__user-stat';
+	card.className = 'os-my-wordpress__user-stat';
 	const v = document.createElement( 'span' );
-	v.className = 'desktop-mode-my-wordpress__user-stat-value';
+	v.className = 'os-my-wordpress__user-stat-value';
 	v.textContent = value;
 	card.appendChild( v );
 	const l = document.createElement( 'span' );
-	l.className = 'desktop-mode-my-wordpress__user-stat-label';
+	l.className = 'os-my-wordpress__user-stat-label';
 	l.textContent = label;
 	card.appendChild( l );
 	return card;
@@ -831,10 +830,10 @@ function statCard( value: string, label: string ): HTMLElement {
 
 function renderLoading(): HTMLElement {
 	const wrap = document.createElement( 'div' );
-	wrap.className = 'desktop-mode-my-wordpress__preview-loading';
-	const spinner = document.createElement( 'wpd-spinner' );
+	wrap.className = 'os-my-wordpress__preview-loading';
+	const spinner = document.createElement( 'os-spinner' );
 	// Size driven by the shared
-	// `.desktop-mode-my-wordpress__preview-loading wpd-spinner` rule
+	// `.os-my-wordpress__preview-loading os-spinner` rule
 	// in `assets/css/my-wordpress.css` so the wallpaper-preview loader
 	// stays in lockstep with the My WordPress one.
 	wrap.appendChild( spinner );
@@ -843,7 +842,7 @@ function renderLoading(): HTMLElement {
 
 function renderError( err: unknown ): HTMLElement {
 	const wrap = document.createElement( 'div' );
-	wrap.className = 'desktop-mode-my-wordpress__error';
+	wrap.className = 'os-my-wordpress__error';
 	wrap.textContent =
 		err instanceof Error ? err.message : __( 'Unknown error.', 'desktop-mode' );
 	return wrap;
@@ -873,10 +872,53 @@ function formatDate( iso: string ): string {
  */
 export function renderPreviewEmpty(): HTMLElement {
 	const wrap = document.createElement( 'div' );
-	wrap.className = 'desktop-mode-my-wordpress__preview-empty';
+	wrap.className = 'os-my-wordpress__preview-empty';
 	wrap.textContent = __(
 		'Select an item to preview it here.',
 		'desktop-mode',
 	);
+	return wrap;
+}
+
+/**
+ * Summary node for a multi-selection — what the right pane shows
+ * instead of a preview when the user holds several items. Previewing
+ * one arbitrary member of the set would be worse than saying nothing:
+ * it reads as "this is the thing you selected" when it isn't.
+ *
+ * Lists the type breakdown because that is exactly what determines
+ * which actions the context menu will offer.
+ *
+ * @public
+ */
+export function renderSelectionSummary(
+	items: ReadonlyArray< { file: { type: string } } >,
+): HTMLElement {
+	const wrap = document.createElement( 'div' );
+	wrap.className = 'os-my-wordpress__preview-empty';
+
+	const heading = document.createElement( 'strong' );
+	heading.textContent = sprintf(
+		/* translators: %d: number of selected items. */
+		__( '%d items selected', 'desktop-mode' ),
+		items.length,
+	);
+	wrap.appendChild( heading );
+
+	const counts = new Map< string, number >();
+	for ( const item of items ) {
+		const type = item.file?.type || 'item';
+		counts.set( type, ( counts.get( type ) ?? 0 ) + 1 );
+	}
+	const breakdown = Array.from( counts.entries() )
+		.sort( ( a, b ) => b[ 1 ] - a[ 1 ] || a[ 0 ].localeCompare( b[ 0 ] ) )
+		.map( ( [ type, n ] ) => `${ n } × ${ type }` )
+		.join( ' · ' );
+	if ( breakdown ) {
+		const detail = document.createElement( 'div' );
+		detail.className = 'os-files-preview__selection-breakdown';
+		detail.textContent = breakdown;
+		wrap.appendChild( detail );
+	}
 	return wrap;
 }

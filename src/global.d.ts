@@ -1,34 +1,32 @@
 /**
- * Ambient type declarations for `window.wp.desktop`.
+ * Ambient type declarations for `window.wp.os`.
  *
  * **For external plugin authors:** include this package in your
  * tsconfig's `compilerOptions.types` array (or add a triple-slash
- * `/// <reference types="desktop-mode" />` to one of your entry
- * files) and `window.wp.desktop` will be typed as `WpDesktopPublicApi`
+ * `/// <reference types="openstation" />` to one of your entry
+ * files) and `window.wp.os` will be typed as `OpenStationPublicApi`
  * across your project — no per-call casts.
  *
  * ```jsonc
  * // tsconfig.json
  * {
  *   "compilerOptions": {
- *     "types": [ "desktop-mode" ]
+ *     "types": [ "openstation" ]
  *   }
  * }
  * ```
  *
  * ```ts
  * // anywhere in your plugin
- * window.wp?.desktop?.showToast( { message: 'Hello' } );
+ * window.wp?.os?.showToast( { message: 'Hello' } );
  * ```
  *
  * The declarations live in a `.d.ts` (not a `.ts`) on purpose: type-only
  * file, no runtime bundle impact. Consumers get the typings; nothing
  * from this file ends up in their compiled output.
- *
- * @since 0.6.0
  */
 
-import type { WpDesktopPublicApi } from './desktop';
+import type { OpenStationPublicApi } from './desktop';
 import type { WpHooks } from './hooks';
 
 declare global {
@@ -40,7 +38,7 @@ declare global {
 	 * `wp.<name>` slot composes cleanly.
 	 */
 	interface WpGlobal {
-		desktop?: WpDesktopPublicApi;
+		os?: OpenStationPublicApi;
 		hooks?: WpHooks;
 	}
 

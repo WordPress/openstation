@@ -3,7 +3,7 @@
  * (`src/related-entities/`):
  *
  *   - `resolveRelatedItems`: identity `related` list as the base, the
- *     `desktop-mode.related-entities.items` filter applied on every
+ *     `os.related-entities.items` filter applied on every
  *     resolve, malformed filter output dropped item-wise, non-array
  *     output falling back to the identity list
  *   - button registration through the public title-bar registry and
@@ -47,9 +47,9 @@ const ITEM: RelatedEntityItem = {
 function fakeWindow( id: string ) {
 	const element = document.createElement( 'div' );
 	const titleBar = document.createElement( 'div' );
-	titleBar.className = 'desktop-mode-window__titlebar';
+	titleBar.className = 'os-window__titlebar';
 	element.appendChild( titleBar );
-	const host = document.createElement( 'wpd-window-button' );
+	const host = document.createElement( 'os-window-button' );
 	titleBar.appendChild( host );
 	const win = { id, element } as unknown as import(
 		'../../src/window'
@@ -173,6 +173,46 @@ describe( 'resolveRelatedItems', () => {
 		expect( resolveRelatedItems( 'w1' ) ).toEqual( [ ITEM ] );
 	} );
 
+	test( 'an item may name a native window instead of a URL', async () => {
+		const { resolveRelatedItems, setWindowContent } = await load();
+		setWindowContent( 'w1', { type: 'post', id: 1, related: [] } );
+
+		// A native window has no admin URL. Before `windowId`, the
+		// only way to point here was to register a URL for the
+		// window, remap that URL back to it, and encode the scoping
+		// into a query string on the way through.
+		const native = {
+			id: 'entries',
+			group: 'forms',
+			label: 'Entries for this form',
+			windowId: 'my-plugin-entries',
+			params: { formId: 42 },
+		};
+		hooks.addFilter(
+			HOOKS.RELATED_ENTITIES_ITEMS,
+			'vitest/native',
+			( items ) => [ ...( items as RelatedEntityItem[] ), native ],
+		);
+
+		expect( resolveRelatedItems( 'w1' ) ).toEqual( [ native ] );
+	} );
+
+	test( 'an item with neither url nor windowId is dropped', async () => {
+		const { resolveRelatedItems, setWindowContent } = await load();
+		setWindowContent( 'w1', { type: 'post', id: 1, related: [ ITEM ] } );
+
+		hooks.addFilter(
+			HOOKS.RELATED_ENTITIES_ITEMS,
+			'vitest/nowhere',
+			( items ) => [
+				...( items as RelatedEntityItem[] ),
+				{ id: 'x', group: 'g', label: 'Goes nowhere' },
+			],
+		);
+
+		expect( resolveRelatedItems( 'w1' ) ).toEqual( [ ITEM ] );
+	} );
+
 	test( 'a non-array filter return falls back to the identity list', async () => {
 		const { resolveRelatedItems, setWindowContent } = await load();
 		const warn = vi.spyOn( console, 'warn' ).mockImplementation( () => {} );
@@ -266,7 +306,7 @@ describe( 'bootRelatedEntities', () => {
 
 		host.dispatchEvent( new Event( 'click', { bubbles: true } ) );
 		const panel = element.querySelector(
-			'.desktop-mode-window__related-panel',
+			'.os-window__related-panel',
 		);
 		expect( panel ).not.toBeNull();
 		// Load-bearing: `menu-panel` is what the title-bar drag tracker
@@ -274,17 +314,17 @@ describe( 'bootRelatedEntities', () => {
 		// as an absolute dropdown — without it a pointerdown on a menu
 		// item starts a window drag that swallows the click.
 		expect(
-			panel!.classList.contains( 'desktop-mode-window__menu-panel' ),
+			panel!.classList.contains( 'os-window__menu-panel' ),
 		).toBe( true );
 		expect( host.getAttribute( 'aria-expanded' ) ).toBe( 'true' );
 
 		const row = panel!.querySelector( '[value="comments"]' )!;
 		row.dispatchEvent(
-			new CustomEvent( 'wpd-menu-item-click', { bubbles: true } ),
+			new CustomEvent( 'os-menu-item-click', { bubbles: true } ),
 		);
 		expect( openUrl ).toHaveBeenCalledWith( ITEM );
 		expect(
-			element.querySelector( '.desktop-mode-window__related-panel' ),
+			element.querySelector( '.os-window__related-panel' ),
 		).toBeNull();
 		expect( host.getAttribute( 'aria-expanded' ) ).toBe( 'false' );
 	} );
@@ -306,12 +346,12 @@ describe( 'bootRelatedEntities', () => {
 		def.render!( host, win );
 		host.dispatchEvent( new Event( 'click', { bubbles: true } ) );
 		expect(
-			element.querySelector( '.desktop-mode-window__related-panel' ),
+			element.querySelector( '.os-window__related-panel' ),
 		).not.toBeNull();
 
 		host.dispatchEvent( new Event( 'click', { bubbles: true } ) );
 		expect(
-			element.querySelector( '.desktop-mode-window__related-panel' ),
+			element.querySelector( '.os-window__related-panel' ),
 		).toBeNull();
 		expect( host.getAttribute( 'aria-expanded' ) ).toBe( 'false' );
 	} );
@@ -339,7 +379,7 @@ describe( 'bootRelatedEntities', () => {
 		element
 			.querySelector( '[value="comments"]' )!
 			.dispatchEvent(
-				new CustomEvent( 'wpd-menu-item-click', { bubbles: true } ),
+				new CustomEvent( 'os-menu-item-click', { bubbles: true } ),
 			);
 
 		// The double-click's second click lands on the now-bare title
@@ -377,7 +417,7 @@ describe( 'bootRelatedEntities', () => {
 		def.render!( host, win );
 		host.dispatchEvent( new Event( 'click', { bubbles: true } ) );
 		const panel = element.querySelector< HTMLElement >(
-			'.desktop-mode-window__related-panel',
+			'.os-window__related-panel',
 		)!;
 		const rows = Array.from(
 			panel.querySelectorAll< HTMLElement >( '[role="menuitem"]' ),
@@ -398,7 +438,7 @@ describe( 'bootRelatedEntities', () => {
 		);
 		expect( openUrl ).toHaveBeenCalledWith( second );
 		expect(
-			element.querySelector( '.desktop-mode-window__related-panel' ),
+			element.querySelector( '.os-window__related-panel' ),
 		).toBeNull();
 	} );
 
@@ -419,16 +459,16 @@ describe( 'bootRelatedEntities', () => {
 		def.render!( host, win );
 		host.dispatchEvent( new Event( 'click', { bubbles: true } ) );
 		expect(
-			element.querySelector( '.desktop-mode-window__related-panel' ),
+			element.querySelector( '.os-window__related-panel' ),
 		).not.toBeNull();
 
 		// Registry-change repaint: the shell builds a NEW host and runs
 		// render() again — the stale panel must not survive it.
-		const replacement = document.createElement( 'wpd-window-button' );
+		const replacement = document.createElement( 'os-window-button' );
 		titleBar.appendChild( replacement );
 		def.render!( replacement, win );
 		expect(
-			element.querySelector( '.desktop-mode-window__related-panel' ),
+			element.querySelector( '.os-window__related-panel' ),
 		).toBeNull();
 	} );
 
@@ -449,14 +489,14 @@ describe( 'bootRelatedEntities', () => {
 		def.render!( host, win );
 		host.dispatchEvent( new Event( 'click', { bubbles: true } ) );
 		const panel = element.querySelector(
-			'.desktop-mode-window__related-panel',
+			'.os-window__related-panel',
 		)!;
 
 		panel.dispatchEvent(
 			new KeyboardEvent( 'keydown', { key: 'Escape', bubbles: true } ),
 		);
 		expect(
-			element.querySelector( '.desktop-mode-window__related-panel' ),
+			element.querySelector( '.os-window__related-panel' ),
 		).toBeNull();
 	} );
 } );
@@ -501,7 +541,7 @@ describe( 'buildRelatedMenu', () => {
 		const panel = buildRelatedMenu( { items, onPick: () => {} } );
 
 		const headers = Array.from(
-			panel.querySelectorAll( '.desktop-mode-window__related-group' ),
+			panel.querySelectorAll( '.os-window__related-group' ),
 		).map( ( el ) => el.textContent );
 		expect( headers ).toEqual( [
 			'Comments',

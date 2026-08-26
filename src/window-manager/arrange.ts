@@ -1,13 +1,11 @@
 /**
- * Desktop Mode — Window arrangement algorithms.
+ * OpenStation — Window arrangement algorithms.
  *
  * `cascade` and `tile` are the two "Arrange" commands exposed from the
  * admin-bar menu. Both touch every window on the active desktop, so
  * they sit outside the class body to keep the orchestrator file
  * readable. Snap config + grid validation live in sibling modules
  * (`snap.ts`, `geometry.ts`).
- *
- * @since 0.8.1
  */
 
 import { applyFilters, doAction, HOOKS } from '../hooks';
@@ -101,7 +99,7 @@ export function cascade( mgr: WindowManager ): void {
 
 	// Persist the new geometry — session saver listens to this.
 	document.dispatchEvent(
-		new CustomEvent( 'desktop-mode-window-changed', {
+		new CustomEvent( 'os-window-changed', {
 			detail: { reason: 'cascade' },
 		} ),
 	);
@@ -200,7 +198,7 @@ export function tile( mgr: WindowManager ): void {
 	}
 
 	document.dispatchEvent(
-		new CustomEvent( 'desktop-mode-window-changed', {
+		new CustomEvent( 'os-window-changed', {
 			detail: { reason: 'tile' },
 		} ),
 	);

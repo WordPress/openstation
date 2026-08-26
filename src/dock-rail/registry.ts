@@ -1,12 +1,10 @@
 /**
- * Desktop Mode — Dock rail renderer registry.
+ * OpenStation — Dock rail renderer registry.
  *
  * Same shared-store registry shape/DX as `src/wallpapers/registry.ts`
  * and `src/settings/registry.ts`. The active id mirrors `state.dockRailRenderer`;
  * the layout dispatcher reads {@link resolveActive} when it
  * (re)builds a rail.
- *
- * @since 0.6.0
  */
 
 import { createSharedStore } from '../shared-store';
@@ -18,7 +16,7 @@ import type { DockRailRenderer } from './types';
  * lazy OS Settings panel bundle reads dock-rail renderers via
  * `listDockRailRenderers()` to paint the picker, while main writes
  * to the registry from `dock-rail/server-sync.ts` (live plugin
- * register/unregister) and `wp.desktop.registerDockRailRenderer()`.
+ * register/unregister) and `wp.os.registerDockRailRenderer()`.
  * Without `createSharedStore` the two bundles each carry their own
  * `Map` and updates from one don't reach the other.
  *
@@ -60,22 +58,22 @@ const ID_RE = /^[a-z0-9_-]+$/;
 export function register( renderer: DockRailRenderer ): void {
 	if ( ! renderer || typeof renderer !== 'object' ) {
 		throw new TypeError(
-			'[desktop-mode] registerDockRailRenderer: renderer must be an object.',
+			'[openstation] registerDockRailRenderer: renderer must be an object.',
 		);
 	}
 	if ( typeof renderer.id !== 'string' || ! ID_RE.test( renderer.id ) ) {
 		throw new TypeError(
-			`[desktop-mode] registerDockRailRenderer: id must match /^[a-z0-9_-]+$/, got: ${ String( renderer.id ) }`,
+			`[openstation] registerDockRailRenderer: id must match /^[a-z0-9_-]+$/, got: ${ String( renderer.id ) }`,
 		);
 	}
 	if ( typeof renderer.label !== 'string' || renderer.label === '' ) {
 		throw new TypeError(
-			'[desktop-mode] registerDockRailRenderer: label must be a non-empty string.',
+			'[openstation] registerDockRailRenderer: label must be a non-empty string.',
 		);
 	}
 	if ( typeof renderer.mount !== 'function' ) {
 		throw new TypeError(
-			'[desktop-mode] registerDockRailRenderer: mount must be a function.',
+			'[openstation] registerDockRailRenderer: mount must be a function.',
 		);
 	}
 	if (
@@ -83,7 +81,7 @@ export function register( renderer: DockRailRenderer ): void {
 		renderer.apiVersion !== 1
 	) {
 		throw new TypeError(
-			`[desktop-mode] registerDockRailRenderer: unsupported apiVersion ${ renderer.apiVersion } (this shell speaks v1).`,
+			`[openstation] registerDockRailRenderer: unsupported apiVersion ${ renderer.apiVersion } (this shell speaks v1).`,
 		);
 	}
 	registry.set( renderer.id, renderer );
@@ -193,7 +191,7 @@ function notify(): void {
 		} catch ( err ) {
 			if ( typeof console !== 'undefined' ) {
 				console.error(
-					'[desktop-mode] dock-rail-renderer listener threw:',
+					'[openstation] dock-rail-renderer listener threw:',
 					err,
 				);
 			}

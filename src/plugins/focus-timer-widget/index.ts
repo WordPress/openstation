@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Focus Timer widget.
+ * OpenStation — Focus Timer widget.
  *
  * A focus countdown you add from the widget picker. Pick a duration,
  * optionally link it to one of your open windows, and start. When time
@@ -7,13 +7,11 @@
  * an alarm rings until you press Stop. The timer itself lives in a
  * page-wide runtime (`./timer`) so it keeps counting across re-renders
  * and page reloads; this file is only the view.
- *
- * @since 0.26.0
  */
 
 import './styles.css';
-import '../../ui/components/wpd-select/wpd-select';
-import '../../ui/components/wpd-checkbox-label/wpd-checkbox-label';
+import '../../ui/components/os-select/os-select';
+import '../../ui/components/os-checkbox-label/os-checkbox-label';
 import { __, sprintf } from '../../i18n';
 import type { WidgetContext, WidgetTeardown } from '../../widgets/types';
 import { listWindows, getWindow } from './desktop';
@@ -28,8 +26,8 @@ const WIDGET_ID = 'desktop-mode/focus-timer';
 const PRESETS_MIN = [ 5, 15, 25, 45 ];
 const NONE = '__none__';
 
-/** A `wpd-select` element with the small typed surface we drive. */
-interface WpdSelect extends HTMLElement {
+/** A `os-select` element with the small typed surface we drive. */
+interface OsSelect extends HTMLElement {
 	items: ReadonlyArray< { value: string; label: string } >;
 	value: string;
 }
@@ -50,7 +48,7 @@ function el< K extends keyof HTMLElementTagNameMap >(
 }
 
 // Native <button> for transport/presets — matches the Notes + Starter
-// widgets. (wpd-select / wpd-checkbox-label web components are used for
+// widgets. (os-select / os-checkbox-label web components are used for
 // the picker + toggle, as the Notes widget does.)
 function button( className: string, label: string ): HTMLButtonElement {
 	const b = document.createElement( 'button' );
@@ -82,7 +80,7 @@ const mount = (
 	let renderedPhase: Phase | null = null;
 	let timeEl: HTMLElement | null = null;
 	let subEl: HTMLElement | null = null;
-	let windowSelect: WpdSelect | null = null;
+	let windowSelect: OsSelect | null = null;
 
 	// --- Window link picker -------------------------------------------
 
@@ -166,7 +164,7 @@ const mount = (
 		}
 		container.appendChild( presets );
 
-		// Link-to-window picker (wpd-select).
+		// Link-to-window picker (os-select).
 		const linkRow = el( 'div', 'dm-focus__field' );
 		linkRow.append(
 			el(
@@ -175,10 +173,10 @@ const mount = (
 				__( 'Shake this window when done', 'desktop-mode' ),
 			),
 		);
-		windowSelect = document.createElement( 'wpd-select' ) as WpdSelect;
+		windowSelect = document.createElement( 'os-select' ) as OsSelect;
 		windowSelect.className = 'dm-focus__select';
 		refreshWindowOptions();
-		windowSelect.addEventListener( 'wpd-pick', ( ev ) => {
+		windowSelect.addEventListener( 'os-pick', ( ev ) => {
 			const value = ( ev as CustomEvent< { value: string } > ).detail
 				.value;
 			timer.setLinkedWindow( value === NONE ? null : value );
@@ -186,8 +184,8 @@ const mount = (
 		linkRow.appendChild( windowSelect );
 		container.appendChild( linkRow );
 
-		// Show-remaining toggle (wpd-checkbox-label).
-		const toggle = document.createElement( 'wpd-checkbox-label' );
+		// Show-remaining toggle (os-checkbox-label).
+		const toggle = document.createElement( 'os-checkbox-label' );
 		toggle.className = 'dm-focus__toggle';
 		toggle.setAttribute(
 			'label',
@@ -196,7 +194,7 @@ const mount = (
 		if ( s.showRemaining ) {
 			toggle.setAttribute( 'checked', '' );
 		}
-		toggle.addEventListener( 'wpd-checkbox-change', ( ev ) => {
+		toggle.addEventListener( 'os-checkbox-change', ( ev ) => {
 			timer.setShowRemaining(
 				( ev as CustomEvent< { checked: boolean } > ).detail.checked,
 			);
@@ -341,11 +339,11 @@ const mount = (
 		}
 	};
 	document.addEventListener(
-		'desktop-mode-window-opened',
+		'os-window-opened',
 		onWindowsChanged,
 	);
 	document.addEventListener(
-		'desktop-mode-window-closed',
+		'os-window-closed',
 		onWindowsChanged,
 	);
 
@@ -354,18 +352,18 @@ const mount = (
 	return () => {
 		unsubscribe();
 		document.removeEventListener(
-			'desktop-mode-window-opened',
+			'os-window-opened',
 			onWindowsChanged,
 		);
 		document.removeEventListener(
-			'desktop-mode-window-closed',
+			'os-window-closed',
 			onWindowsChanged,
 		);
 	};
 };
 
 const w = window as unknown as {
-	desktopModeWidgets?: Record< string, typeof mount >;
+	openStationWidgets?: Record< string, typeof mount >;
 };
-w.desktopModeWidgets = w.desktopModeWidgets ?? {};
-w.desktopModeWidgets[ WIDGET_ID ] = mount;
+w.openStationWidgets = w.openStationWidgets ?? {};
+w.openStationWidgets[ WIDGET_ID ] = mount;

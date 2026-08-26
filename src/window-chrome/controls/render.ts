@@ -4,17 +4,15 @@
  * Reads the Layer-2 control registry, applies the per-window
  * `WindowControlsConfig` (order / hide / custom inline buttons /
  * placement), and populates the controls cluster element with
- * `<wpd-window-button>` instances. Click handlers are attached to
+ * `<os-window-button>` instances. Click handlers are attached to
  * each button at render time; re-rendering tears down the previous
  * buttons and rebuilds, so a plugin can register / unregister
  * controls mid-session and the title bar repaints without page
  * reload.
  *
- * Goes through a `desktop-mode.window.chrome.controls` filter on every
+ * Goes through a `os.window.chrome.controls` filter on every
  * paint so plugins can mutate the resolved control list without
  * registering anything (handy for cross-cutting decorators).
- *
- * @since 0.6.0
  */
 
 import { applyFilters, doAction, HOOKS } from '../../hooks';
@@ -36,7 +34,7 @@ import type { WindowControlsConfig } from '../../types';
  *   3. Per-window `appearance.controls.custom` adds inline entries.
  *   4. Per-window `appearance.controls.order` re-sorts the controls
  *      cluster (only — left/right slots stay in registry order).
- *   5. The `desktop-mode.window.chrome.controls` filter runs once per
+ *   5. The `os.window.chrome.controls` filter runs once per
  *      placement bucket.
  *
  * @internal
@@ -159,7 +157,7 @@ function applyExplicitOrder(
 /**
  * Build a single control button. Mirrors the legacy
  * `createControlButton` factory in `src/window/dom.ts` so existing
- * CSS selectors (`.desktop-mode-window__btn--minimize`, etc.) still
+ * CSS selectors (`.os-window__btn--minimize`, etc.) still
  * match — the variant suffix is derived from the trailing segment of
  * the control id (`core/minimize` → `minimize`).
  */
@@ -167,15 +165,19 @@ function buildControlElement(
 	def: WindowControlDef,
 	win: DesktopWindow,
 ): { element: HTMLElement; teardown?: () => void } {
-	const host = document.createElement( 'wpd-window-button' );
-	host.setAttribute( 'aria-label', def.label );
-	host.classList.add( 'desktop-mode-window__btn' );
+	const host = document.createElement( 'os-window-button' );
+	// The component forwards this onto the focusable shadow `<button>`,
+	// whose only other content is an `aria-hidden` glyph. Fall back to
+	// the control id so a plugin that forgot a label still produces a
+	// named button rather than an anonymous one.
+	host.setAttribute( 'aria-label', def.label || def.id );
+	host.classList.add( 'os-window__btn' );
 
 	// Variant class — `core/close` → `close`, `plug/star` → `plug-star`.
 	// Matches existing CSS hooks for built-ins; plugin custom controls
 	// get a stable class derived from their full id.
 	const variant = legacyVariantFor( def.id );
-	host.classList.add( `desktop-mode-window__btn--${ variant }` );
+	host.classList.add( `os-window__btn--${ variant }` );
 	if ( def.id === 'core/close' ) {
 		host.setAttribute( 'danger', '' );
 	}
@@ -216,18 +218,18 @@ function buildControlElement(
 					} );
 				}
 			};
-			// `wpd-window-button` re-emits every native click as a
-			// `wpd-button-activate` CustomEvent on the host. Listen
+			// `os-window-button` re-emits every native click as a
+			// `os-button-activate` CustomEvent on the host. Listen
 			// there ONLY — the raw `click` ALSO bubbles up
 			// `composed: true` from the shadow `<button>`, so binding
 			// both fires the handler twice per gesture. That double-
 			// fire silently broke maximize / fullscreen for weeks
 			// (toggle-on then toggle-off in one user click).
-			host.addEventListener( 'wpd-button-activate', handler );
+			host.addEventListener( 'os-button-activate', handler );
 			return {
 				element: host,
 				teardown: () => {
-					host.removeEventListener( 'wpd-button-activate', handler );
+					host.removeEventListener( 'os-button-activate', handler );
 				},
 			};
 		}
@@ -237,7 +239,7 @@ function buildControlElement(
 }
 
 /**
- * Variant suffix used for the `desktop-mode-window__btn--*` class.
+ * Variant suffix used for the `os-window__btn--*` class.
  * Built-ins keep their trailing segment (`core/close` → `close`) so
  * the existing CSS keeps matching unchanged. Plugin controls use
  * their full id with `/` collapsed to `-`.
@@ -287,7 +289,7 @@ export function paintWindowControls(
 	// `placement: 'left'` — the CSS class flips the order property
 	// in the title-bar grid.
 	controlsHost.classList.toggle(
-		'desktop-mode-window__controls--left',
+		'os-window__controls--left',
 		resolved.placement === 'left',
 	);
 

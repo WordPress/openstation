@@ -50,14 +50,14 @@ describe( 'renderIcon — non-SVG image data URIs', () => {
 		const broken = 'data:image/png;base64,!!!not-valid!!!';
 		const el = renderIcon( broken, { title: 'Foo' } );
 		expect( el.tagName ).toBe( 'SPAN' );
-		expect( el.classList.contains( 'desktop-mode-icon-letter' ) ).toBe( true );
+		expect( el.classList.contains( 'os-icon-letter' ) ).toBe( true );
 	} );
 
 	test( 'unsupported data URI subtype falls through to letter-badge', () => {
 		const tiff = 'data:image/tiff;base64,QUJD';
 		const el = renderIcon( tiff, { title: 'Foo' } );
 		expect( el.tagName ).toBe( 'SPAN' );
-		expect( el.classList.contains( 'desktop-mode-icon-letter' ) ).toBe( true );
+		expect( el.classList.contains( 'os-icon-letter' ) ).toBe( true );
 	} );
 
 	test( 'SVG data URI still renders as background-image span (case 2)', () => {

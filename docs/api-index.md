@@ -9,7 +9,7 @@ One table per surface. Use this to grep for a method, see its status at a glance
 
 ---
 
-## `wp.desktop.*` — JavaScript API
+## `wp.os.*` — JavaScript API
 
 The full surface is documented in [`javascript-reference.md`](./javascript-reference.md). This table indexes the most-used members — for the exhaustive inventory, use the reference.
 
@@ -17,150 +17,172 @@ The full surface is documented in [`javascript-reference.md`](./javascript-refer
 
 | Member | Signature | Status |
 |---|---|---|
-| `whenReady` | `( cb: () => void ) => void` | Stable *(0.5.0)* |
-| `ready` | `( cb: () => void ) => void` *(alias of `whenReady`, idiomatic)* | Stable *(0.5.1)* |
-| `isReady` | `() => boolean` | Stable *(0.6.1)* |
+| `whenReady` | `( cb: () => void ) => void` | Stable |
+| `ready` | `( cb: () => void ) => void` *(alias of `whenReady`, idiomatic)* | Stable |
+| `isReady` | `() => boolean` | Stable |
 | `isActive` | `() => boolean` *(true iff the desktop shell is mounted)* | Stable |
 | `config` | `DesktopConfig` *(shell config blob)* | Stable |
 | `HOOKS` | `typeof HOOKS` *(typed hook-name constants)* | Stable |
 | `hooks` | `wp.hooks` bridge | Stable |
 | `saveSession` | `() => void` | Stable |
+| `registerWindowAction` / `unregisterWindowAction` / `listWindowActions` | `( def: WindowActionDef ) => void` *(rows in every window's ⋯ menu, as verbs or checkboxes; `label`/`icon`/`isVisible`/`checked` may be per-window functions)* | Experimental |
+| [`electron`](./desktop-host.md) | `ElectronAdapterApi` *(set a window free into a real OS window; published by the Electron Adapter extension, absent in a browser)* | Experimental |
 
 ### HTTP & UI primitives — must-know
 
 | Member | Signature | Status |
 |---|---|---|
-| [`fetch`](./javascript-reference.md#wpdesktopfetch-input-init-opts---stable-since-080) | `( input, init?, opts? ) => Promise<Response>` *(routed fetch — pulses title-bar dot)* | **Stable** *(0.8.0)* |
-| `confirm` | `( opts: WpdConfirmOptions ) => Promise<boolean>` *(replaces `window.confirm`)* | Stable *(0.9.0)* |
-| `notify` | `( opts: NotifyOptions ) => () => void` *(local notification w/ fallback; returns a dismiss function)* | Stable *(0.8.0)* |
+| [`fetch`](./javascript-reference.md#wposfetch-input-init-opts---stable) | `( input, init?, opts? ) => Promise<Response>` *(routed fetch — pulses title-bar dot)* | **Stable** |
+| `confirm` | `( opts: OsConfirmOptions ) => Promise<boolean>` *(replaces `window.confirm`)* | Stable |
+| `notify` | `( opts: NotifyOptions ) => () => void` *(local notification w/ fallback; returns a dismiss function)* | Stable |
+| [`loadComponents`](./javascript-reference.md#wposloadcomponents-tags---stable) | `( tags?: readonly string[] ) => Promise<void>` *(make `<os-*>` tags upgrade; the runtime route to the kit for plugins that can't import it)* | **Stable** |
+| [`getWindowParams`](./javascript-reference.md#wposgetwindowparams-id---stable) | `( id: string ) => Record<string, string \| number \| boolean> \| undefined` *(what an open window is showing now)* | **Stable** |
+| [`registerNativeUrlRemap`](./javascript-reference.md#wposregisternativeurlremap-entry---stable) | `( entry: NativeUrlRemap ) => () => void` *(claim an admin URL for a native window)* | **Stable** |
 
 ### Window management
 
 | Member | Signature | Status |
 |---|---|---|
 | `windowManager` | `WindowManager` instance | Stable |
-| `openWindow` | `( id: string, opts?: { source?: string } ) => boolean` | Stable *(0.6.0)* |
-| `openNewWindow` | `( id: string, opts?: { source?: string } ) => boolean` *(always spawns a new instance)* | Stable *(0.8.3)* |
-| `registerWindow` | `( def: NativeWindowDef ) => Promise<Window>` | Stable *(returns a `Promise` since 0.8.4)* |
+| `openWindow` | `( id: string, opts?: { source?: string } ) => boolean` | Stable |
+| `openNewWindow` | `( id: string, opts?: { source?: string } ) => boolean` *(always spawns a new instance)* | Stable |
+| `registerWindow` | `( def: NativeWindowDef ) => Promise<Window>` | Stable *(returns a `Promise`)* |
 | `cloneTemplate` | `( templateOrId: string \| HTMLTemplateElement ) => DocumentFragment` | Stable |
-| `onWindow` | `( id, handlers, opts? ) => () => void` | Stable *(0.6.0)* |
-| `connect` | `( windowId, opts? ) => ConnectionHandle` | Stable *(0.5.5)* |
-| `getWindowConfig` | `<T>( id: string ) => T \| undefined` | Stable *(0.6.0)* |
+| `onWindow` | `( id, handlers, opts? ) => () => void` | Stable |
+| `connect` | `( windowId, opts? ) => ConnectionHandle` | Stable |
+| `getWindowConfig` | `<T>( id: string ) => T \| undefined` | Stable |
 | `setDefaultWindow` | `( url: string \| null ) => Promise<void>` | Stable |
-| `deriveWindowId` | `( url: string, adminUrl?: string ) => string` | Stable *(0.6.0)* |
-| `debug.window` | `( id: string ) => DesktopDebugWindow \| null` | Stable *(0.6.0)* |
+| `deriveWindowId` | `( url: string, adminUrl?: string ) => string` | Stable |
+| `debug.window` | `( id: string ) => DesktopDebugWindow \| null` | Stable |
 
 ### Surfaces — dock, taskbar, icons, layout
 
 | Member | Signature | Status |
 |---|---|---|
 | `dock` | `Dock \| null` *(primary / bottom rail)* | Stable |
-| `sideDock` | `Dock \| null` *(left rail; classic only)* | Stable *(0.6.0)* |
-| `desktopLayout` | `'classic' \| 'unified' \| 'spatial'` | Stable *(0.6.0)* |
-| `Dock.setBadge` | `( id: string, count: number ) => void` | Stable *(0.6.0)* |
+| `sideDock` | `Dock \| null` *(left rail; classic only)* | Stable |
+| `desktopLayout` | `'classic' \| 'unified'` | Stable |
+| `dockPlacement` | `'bottom' \| 'left' \| 'right'` *(Unified)* | Stable |
+| `Dock.setBadge` | `( id: string, count: number ) => void` | Stable |
 | `Dock.removeSystemItem` | `( id: string ) => void` | Stable |
-| `icons` | `IconsApi` *(see `icons.setBadge`)* | Stable *(0.6.0)* |
-| `icons.setBadge` | `( iconId: string, count: number ) => void` | Stable *(0.6.0)* |
+| `icons` | `IconsApi` *(see `icons.setBadge`)* | Stable |
+| `icons.setBadge` | `( iconId: string, count: number ) => void` | Stable |
+| `iconSet` | `OsIconSetApi` *(the thirty-icon set; unrelated to `icons`)* | Stable |
+| `iconSet.svg` | `( name: string, options?: OsIconOptions ) => string` | Stable |
+| `iconSet.node` | `( name: string, options?: OsIconOptions ) => SVGSVGElement` | Stable |
+| `iconSet.dataUri` | `( name: string, options?: OsIconOptions ) => string` | Stable |
 | `registerSystemTile` | `( item: SystemDockItem ) => void` | Stable |
+| `listSystemTiles` | `() => Array<{ id, title, icon, navKind, placeable, locked }>` | Stable |
+| `getSystemTile` | `( id: string ) => SystemDockItem \| null` | Stable |
+| `getMenuItems` | `() => DockItem[]` | Stable |
+| `getNavItems` | `() => NavItem[]` *(every menu, app and control, with its `kind`)* | Stable |
+| `getNav` | `() => NavResult \| null` *(the computed dock zones, sidebar, wallpaper, and running-only ids)* | Stable |
 | `widgetLayer` | `WidgetLayer \| null` | Stable |
 | `registerWidget` | `( def: WidgetDef ) => void` | Stable |
 | `registerWallpaper` | `( def: WallpaperDef ) => void` | Stable |
-| `wallpaper` | `WallpaperSuspendApi` *(`suspend( reason )` / `resume( reason )` / `isSuspended()` — refcounted wallpaper pause)* | Experimental *(0.9.6)* |
-| `games` | `GamesApi` *(`register` / `unregister` / `list` / `get` / `subscribe` / `launch` / `getPlaytime` — desktop games + unified scoreboard)* | Experimental *(0.9.6)* |
+| `wallpaper` | `WallpaperSuspendApi` *(`suspend( reason )` / `resume( reason )` / `isSuspended()` — refcounted wallpaper pause)* | Experimental |
+| `games` | `GamesApi` *(`register` / `unregister` / `list` / `get` / `subscribe` / `launch` / `getPlaytime` — desktop games + unified scoreboard)* | Experimental |
+| `mio` | `MioApi` *(`isEnabled` / `enable` / `disable` / `toggle` / `getPosition` / `setPosition` / `getConfig` / `setConfig` / `setStyle` / `getLook` / `commitStyle` / `resetStyle` — the soft-body desk companion; see [`mio.md`](./mio.md))* | Experimental |
 
 ### Cross-bundle / cross-window state
 
 | Member | Signature | Status |
 |---|---|---|
-| `createSharedStore` | `<T>( key: string, init: () => T ) => SharedStore<T>` | Stable *(0.5.5)* |
-| `activity` | `ActivityApi` *(typed pub/sub bus)* | Stable *(0.5.5)* |
-| `heartbeat` | `HeartbeatBus` *(WordPress Heartbeat bridge)* | Stable *(0.5.5)* |
-| `broadcast` | `<T>( topic: string, payload: T ) => void` *(cross-window)* | Stable *(0.5.5)* |
-| `subscribe` | `( topic: string, cb ) => () => void` *(cross-window)* | Stable *(0.5.5)* |
-| — topic family | `desktop-mode.<type>.changed` *(content-change realtime; `{ source, action, ids }`)* | Stable *(0.9.7)* |
-| `presence` | `PresenceApi` | Stable *(0.5.5)* |
+| `createSharedStore` | `<T>( key: string, init: () => T ) => SharedStore<T>` | Stable |
+| `activity` | `ActivityApi` *(typed pub/sub bus)* | Stable |
+| `heartbeat` | `HeartbeatBus` *(WordPress Heartbeat bridge)* | Stable |
+| `broadcast` | `<T>( topic: string, payload: T ) => void` *(cross-window)* | Stable |
+| `subscribe` | `( topic: string, cb ) => () => void` *(cross-window)* | Stable |
+| — topic family | `os.<type>.changed` *(content-change realtime; `{ source, action, ids }`)* | Stable |
+| `presence` | `PresenceApi` | Stable |
+| `selection` | `SelectionApi` *(`active()`, `resolveCommonActions()`, `createModel()`)* | Experimental |
 
 ### Commands, palettes, AI, settings
 
 | Member | Signature | Status |
 |---|---|---|
-| `registerCommand` | `( def: CommandDef ) => void` | Stable *(0.5.0)* |
-| `unregisterCommand` | `( id: string ) => void` | Stable *(0.5.0)* |
-| `listCommands` | `() => CommandDef[]` | Stable *(0.5.0)* |
-| `registerPalette` | `( def: PaletteDef ) => void` | Experimental *(0.5.0)* |
-| `ai.ask` | `( prompt: string, opts? ) => Promise<AiAnswer>` | Experimental *(0.5.1)* |
-| `registerSettingsTab` | `( def: SettingsTabDef ) => void` | Stable *(0.5.2)* |
-| `subscribeOsSettings` | `( cb ) => () => void` | Stable *(0.8.0)* |
-| `updateOsSettings` | `( patch, opts? ) => void` | Stable *(0.7.2)* |
+| `registerCommand` | `( def: CommandDef ) => void` | Stable |
+| `unregisterCommand` | `( id: string ) => void` | Stable |
+| `listCommands` | `() => CommandDef[]` | Stable |
+| `registerPalette` | `( def: PaletteDef ) => void` | Experimental |
+| `ai.ask` | `( prompt: string, opts? ) => Promise<AiAnswer>` | Experimental |
+| `registerSettingsTab` | `( def: SettingsTabDef ) => void` | Stable |
+| `subscribeOsSettings` | `( cb ) => () => void` | Stable |
+| `updateOsSettings` | `( patch, opts? ) => void` | Stable |
 
 ### Title-bar buttons, themes, controls, slots, chrome
 
 | Member | Signature | Status |
 |---|---|---|
-| `registerTitleBarButton` | `( def: TitleBarButtonDef ) => void` | Stable *(0.5.2)* |
-| `unregisterTitleBarButton` | `( id: string ) => void` | Stable *(0.5.2)* |
+| `registerTitleBarButton` | `( def: TitleBarButtonDef ) => void` | Stable |
+| `unregisterTitleBarButton` | `( id: string ) => void` | Stable |
 | `listTitleBarButtons` | `() => TitleBarButtonDef[]` | Experimental |
-| `registerUnfocusEffect` | `( def: UnfocusEffectDef ) => void` | Experimental *(0.9.1)* |
-| `unregisterUnfocusEffect` | `( id: string ) => void` | Experimental *(0.9.1)* |
-| `listUnfocusEffects` | `() => UnfocusEffectDef[]` | Experimental *(0.9.1)* |
-| `registerWindowLinkRenderer` | `( def: WindowLinkRendererDef ) => void` | Experimental *(0.9.4)* |
-| `unregisterWindowLinkRenderer` | `( id: string ) => void` | Experimental *(0.9.4)* |
-| `listWindowLinkRenderers` | `() => WindowLinkRendererDef[]` | Experimental *(0.9.4)* |
-| `relations.get` | `( windowId: string ) => WindowContentRef \| undefined` | Experimental *(0.9.4)* |
-| `relations.set` | `( windowId: string, ref: WindowContentRef \| null ) => void` | Experimental *(0.9.4)* |
-| `relations.groups` | `() => WindowLinkGroup[]` | Experimental *(0.9.4)* |
-| `relations.edges` | `() => WindowLinkEdge[]` | Experimental *(0.9.4)* |
-| `relations.groupOf` | `( windowId: string ) => WindowLinkGroup \| undefined` | Experimental *(0.9.4)* |
-| `relations.related` | `( windowId: string ) => string[]` | Experimental *(0.9.4)* |
-| `relations.subscribe` | `( cb: () => void ) => () => void` | Experimental *(0.9.4)* |
-| `registerWindowTheme` | `( def: WindowThemeDef ) => void` | Stable *(0.6.0)* |
-| `registerWindowControl` | `( def: WindowControlDef ) => void` | Stable *(0.6.0)* |
-| `registerWindowSlot` | `( def: WindowSlotDef ) => void` | Stable *(0.6.0)* |
-| `registerWindowChrome` | `( def: WindowChromeDef ) => void` | Experimental *(0.6.0)* |
-| `desktopThemes.list` | `() => DesktopThemeEntry[]` | Experimental *(0.9.7)* |
-| `desktopThemes.getActive` | `() => string \| null` | Experimental *(0.9.7)* |
-| `desktopThemes.setActive` | `( themeId: string ) => void` | Experimental *(0.9.7)* |
-| `desktopThemes.subscribe` | `( cb ) => () => void` | Experimental *(0.9.7)* |
-| `desktopThemes.resolveIcon` | `( slot: string ) => string \| null` | Experimental *(0.9.7)* |
+| `registerUnfocusEffect` | `( def: UnfocusEffectDef ) => void` | Experimental |
+| `unregisterUnfocusEffect` | `( id: string ) => void` | Experimental |
+| `listUnfocusEffects` | `() => UnfocusEffectDef[]` | Experimental |
+| `registerWindowReveal` | `( def: WindowRevealDef ) => void` | Experimental |
+| `unregisterWindowReveal` | `( id: string ) => void` | Experimental |
+| `listWindowReveals` | `() => WindowRevealDef[]` | Experimental |
+| `registerWindowLinkRenderer` | `( def: WindowLinkRendererDef ) => void` | Experimental |
+| `unregisterWindowLinkRenderer` | `( id: string ) => void` | Experimental |
+| `listWindowLinkRenderers` | `() => WindowLinkRendererDef[]` | Experimental |
+| `relations.get` | `( windowId: string ) => WindowContentRef \| undefined` | Experimental |
+| `relations.set` | `( windowId: string, ref: WindowContentRef \| null ) => void` | Experimental |
+| `relations.groups` | `() => WindowLinkGroup[]` | Experimental |
+| `relations.edges` | `() => WindowLinkEdge[]` | Experimental |
+| `relations.groupOf` | `( windowId: string ) => WindowLinkGroup \| undefined` | Experimental |
+| `relations.related` | `( windowId: string ) => string[]` | Experimental |
+| `relations.subscribe` | `( cb: () => void ) => () => void` | Experimental |
+| `registerWindowTheme` | `( def: WindowThemeDef ) => void` | Stable |
+| `registerWindowControl` | `( def: WindowControlDef ) => void` | Stable |
+| `registerWindowSlot` | `( def: WindowSlotDef ) => void` | Stable |
+| `registerWindowChrome` | `( def: WindowChromeDef ) => void` | Experimental |
+| `desktopThemes.list` | `() => DesktopThemeEntry[]` | Experimental |
+| `desktopThemes.getActive` | `() => string \| null` | Experimental |
+| `desktopThemes.setActive` | `( themeId: string ) => void` | Experimental |
+| `desktopThemes.ensureFull` | `() => Promise<void>` | Experimental |
+| `desktopThemes.subscribe` | `( cb ) => () => void` | Experimental |
+| `desktopThemes.resolveIcon` | `( slot: string ) => string \| null` | Experimental |
+| `desktopThemes.applyRecommendedOsSettings` | `( themeId?: string ) => RecommendedOsSettings` | Experimental |
 
 ### Files on the desktop
 
 | Member | Signature | Status |
 |---|---|---|
-| `files.registerType` | `( def: FileTypeDef ) => void` | Experimental *(0.9.0)* |
-| `files.resolve` | `( serialized ) => DesktopFile \| null` | Experimental *(0.9.0)* |
-| `files.getTypes` | `() => FileTypeDef[]` | Experimental *(0.9.0)* |
-| `files.open` | `( file: DesktopFile ) => void` | Experimental *(0.9.0)* |
-| `files.registerOpener` | `( def: FileOpenerDef ) => void` | Experimental *(0.9.0)* |
+| `files.registerType` | `( def: FileTypeDef ) => void` | Experimental |
+| `files.resolve` | `( serialized ) => DesktopFile \| null` | Experimental |
+| `files.getTypes` | `() => FileTypeDef[]` | Experimental |
+| `files.open` | `( file: DesktopFile ) => void` | Experimental |
+| `files.registerOpener` | `( def: FileOpenerDef ) => void` | Experimental |
 
 ### PWA
 
 | Member | Signature | Status |
 |---|---|---|
-| `pwa.promptInstall` | `() => Promise<'accepted' \| 'dismissed' \| 'unavailable'>` | Stable *(0.8.0)* |
-| `pwa.undismissInstallHint` | `() => void` | Stable *(0.8.0)* |
-| `pwa.getState` | `() => { installHintDismissed: boolean, notificationsEnabled: boolean }` | Stable *(0.8.0)* |
-| `pwa.subscribe` | `( cb: ( state ) => void ) => () => void` | Stable *(0.8.0)* |
-| `pwa.requestNotificationPermission` | `() => Promise<'granted' \| 'denied' \| 'default' \| 'unsupported'>` | Stable *(0.8.0)* |
-| `pwa.getNotificationPermission` | `() => 'granted' \| 'denied' \| 'default' \| 'unsupported'` | Stable *(0.8.0)* |
+| `pwa.promptInstall` | `() => Promise<'accepted' \| 'dismissed' \| 'unavailable'>` | Stable |
+| `pwa.undismissInstallHint` | `() => void` | Stable |
+| `pwa.getState` | `() => { installHintDismissed: boolean, notificationsEnabled: boolean }` | Stable |
+| `pwa.subscribe` | `( cb: ( state ) => void ) => () => void` | Stable |
+| `pwa.requestNotificationPermission` | `() => Promise<'granted' \| 'denied' \| 'default' \| 'unsupported'>` | Stable |
+| `pwa.getNotificationPermission` | `() => 'granted' \| 'denied' \| 'default' \| 'unsupported'` | Stable |
 
 ### Drag bridge
 
 | Member | Signature | Status |
 |---|---|---|
-| `dragManager` | `DragManager` *(in-shell drag)* | Stable *(0.8.1)* |
-| `dragBridge` | `DragBridge` *(cross-iframe drag)* | Stable *(0.5.0)* |
+| `dragManager` | `DragManager` *(in-shell drag)* | Stable |
+| `dragBridge` | `DragBridge` *(cross-iframe drag)* | Stable |
 
-### Iframe-side bridge — `wp.desktop.iframe.*`
+### Iframe-side bridge — `wp.os.iframe.*`
 
 Inside an iframe window, after the chromeless bridge installs the API:
 
 | Member | Signature | Status |
 |---|---|---|
-| `iframe.publish` | `( channel: string, payload? ) => void` | Stable *(0.5.5)* |
-| `iframe.subscribe` | `( channel, cb ) => () => void` | Stable *(0.5.5)* |
-| `iframe.requestConnection` | `( opts: RequestConnectionOptions ) => Promise<ConnectionRecord>` | Stable *(0.5.5)* |
-| `iframe.onConnection` | `( cb ) => () => void` | Stable *(0.5.5)* |
+| `iframe.publish` | `( channel: string, payload? ) => void` | Stable |
+| `iframe.subscribe` | `( channel, cb ) => () => void` | Stable |
+| `iframe.requestConnection` | `( opts: RequestConnectionOptions ) => Promise<ConnectionRecord>` | Stable |
+| `iframe.onConnection` | `( cb ) => () => void` | Stable |
 
 ### Module loader
 
@@ -169,10 +191,48 @@ Inside an iframe window, after the chromeless bridge installs the API:
 | `registerModule` | `( def: ModuleDef ) => void` | Stable |
 | `loadModules` | `( ids: string[] ) => Promise<void>` | Stable |
 | `loadVendorScript` | `( url: string, extras? ) => Promise<void>` | Stable |
-| `createInfiniteList` | `<T>( opts: InfiniteListOptions<T> ) => InfiniteList` *(IntersectionObserver + AbortController + dedup-by-id + cursor pagination)* | Stable *(0.8.2)* |
-| `startOAuth` | `( service: string, opts? ) => Promise<{ ok: true, service }>` *(framework owns state nonce + popup + postMessage round-trip)* | Stable *(0.8.2)* |
+| `createInfiniteList` | `<T>( opts: InfiniteListOptions<T> ) => InfiniteList` *(IntersectionObserver + AbortController + dedup-by-id + cursor pagination)* | Stable |
+| `startOAuth` | `( service: string, opts? ) => Promise<{ ok: true, service }>` *(framework owns state nonce + popup + postMessage round-trip)* | Stable |
 
 ---
+
+### AI Agents *(Experimental — behind the `agents` extended option)*
+
+No dedicated `wp.os.agents` namespace yet — the surface is REST +
+shared-store + registries. Index:
+
+| Surface | Where | Status |
+|---|---|---|
+| Trust model, capability ceiling, untrusted tool output | [`agents-security.md`](./agents-security.md) | Experimental |
+| `/desktop-mode/v1/agents[…]` REST routes | [`includes/rest/README.md`](../includes/rest/README.md) | Experimental |
+| `openstation_agent_*` PHP helpers, actions, filters | [`hooks-reference.md`](./hooks-reference.md#ai-agents) | Experimental |
+| `desktop-mode/agents-chat` shared-store key + `desktop-mode-agent-run` window | [`javascript-reference.md`](./javascript-reference.md#ai-agents--client-surface-experimental) | Experimental |
+| `agent` WP Explorer entity kind | `registerEntityKind()` seam | Experimental |
+
+### WooCommerce integration *(Experimental — inert unless WooCommerce is active)*
+
+No `wp.os.woo` namespace. The surface is PHP filters + REST + a
+native window, all hanging off WP Explorer. Index:
+
+| Surface | Where | Status |
+|---|---|---|
+| What the integration renders, and why | [`plugin-compat-layer.md`](./plugin-compat-layer.md#the-site-window-side-woocommerce) | Experimental |
+| `openstation_my_wordpress_woo_*` filters (orders, products, coupons, store, summaries, customers) | [`hooks-reference.md`](./hooks-reference.md#woocommerce-integration--experimental-filters) | Experimental |
+| `desktop-mode/v1/woocommerce/{orders, store, summary/<type>/<id>, customers, customers/<id>}` | `includes/my-wordpress/integrations/` | Experimental |
+| `openstation_woo_customer` REST field on the core `user` resource | [`hooks-reference.md`](./hooks-reference.md#customers) | Experimental |
+| `desktop-mode-woo-customer` native window *(retargetable singleton, `customerId` param)* | [`hooks-reference.md`](./hooks-reference.md#the-customer-window) | Experimental |
+
+### Station Home plugin cards *(Experimental)*
+
+| Surface | Signature | Status |
+|---|---|---|
+| `openstation_register_station_home_card` | `( string $id, array $args ) => true|WP_Error` | Experimental |
+| `openstation_unregister_station_home_card` | `( string $id ) => bool` | Experimental |
+| `openstation_station_home_cards` | `( array $cards, int $user_id ) => array` | Experimental |
+| `openstation_station_home_card_data` | `( array $data, string $id, array $entry, int $user_id ) => array` | Experimental |
+| card lifecycle actions | registered, preference-updated, callback-error | Experimental |
+
+See [`station-home.md`](./station-home.md#plugin-cards) and the [complete plugin recipe](./examples/station-home-card.md).
 
 ## CustomEvents on `document`
 
@@ -180,31 +240,36 @@ Every event bubbles from `document`. See [`javascript-reference.md`](./javascrip
 
 | Event | Status |
 |---|---|
-| `desktop-mode-init` | Stable |
-| `desktop-mode-window-opened` | Stable |
-| `desktop-mode-window-reopened` | Stable *(0.5.5)* |
-| `desktop-mode-window-content-loading` | Stable *(0.6.0)* |
-| `desktop-mode-window-content-loaded` | Stable *(0.6.0)* |
-| `desktop-mode-window-focused` | Stable |
-| `desktop-mode-window-blurred` | Stable *(0.5.5)* |
-| `desktop-mode-window-closing` | Stable |
-| `desktop-mode-window-closed` | Stable |
-| `desktop-mode-window-changed` | Experimental |
-| `desktop-mode-window-content-changed` | Experimental *(0.9.4)* |
-| `desktop-mode-window-link-groups-changed` | Experimental *(0.9.4)* |
-| `desktop-mode-presence-changed` | Stable *(0.5.5)* |
-| `desktop-mode-layout-changed` | Stable *(0.6.0)* |
-| `desktop-mode-registry-changed` | Stable *(0.7.0)* |
-| `desktop-mode.drag.start` / `.move` / `.enter` / `.leave` / `.rejected` / `.commit` / `.cancel` / `.end` | Stable *(0.8.1)* |
-| `desktop-mode-cross-frame-drag-start` / `-end` *(cross-iframe drag bridge)* | Stable *(0.7.0)* |
-| `desktop-mode-os-settings-save-lifecycle` | Stable *(0.7.2)* |
-| `desktop-mode-default-window-changed` | Stable *(0.7.0)* |
-| `desktop-mode-open-ai` *(plugin-dispatched; the shell listens)* | Experimental *(0.7.0)* |
-| `desktop-mode-intros-reset` | Experimental *(0.8.3)* |
-| `desktop-mode-my-wordpress-entity-trashed` | Experimental *(0.8.9)* |
-| `desktop-mode-note-created` *(pinned-notes hand-off from the Note Pad widget)* | Experimental *(0.9.6)* |
-| `desktop-mode-auth-lost` / `desktop-mode-auth-restored` *(session expiry / recovery)* | Stable *(0.9.8)* |
-| `desktop-mode-desktop-theme-changed` *(whole-OS reskin activated / cleared)* | Experimental *(0.9.7)* |
+| `os-init` | Stable |
+| `os-window-opened` | Stable |
+| `os-window-reopened` | Stable |
+| `os-window-content-loading` | Stable |
+| `os-window-content-loaded` | Stable |
+| `os-window-focused` | Stable |
+| `os-window-blurred` | Stable |
+| `os-window-child-blocked` | Stable |
+| `os-window-closing` | Stable |
+| `os-window-closed` | Stable |
+| `os-window-changed` | Experimental |
+| `os-window-content-changed` | Experimental |
+| `os-window-link-groups-changed` | Experimental |
+| `os-presence-changed` | Stable |
+| `os-selection-changed` | Experimental |
+| `os-layout-changed` | Stable |
+| `os-item-menu-opening` | Stable |
+| `os-registry-changed` | Stable |
+| `os.drag.start` / `.move` / `.enter` / `.leave` / `.rejected` / `.commit` / `.cancel` / `.end` | Stable |
+| `os-cross-frame-drag-start` / `-end` *(cross-iframe drag bridge)* | Stable |
+| `os-settings-save-lifecycle` | Stable |
+| `os-default-window-changed` | Stable |
+| `os-open-ai` *(plugin-dispatched; the shell listens)* | Experimental |
+| `os-intros-reset` | Experimental |
+| `os-my-wordpress-entity-trashed` | Experimental |
+| `os-note-created` *(pinned-notes hand-off from the Note Pad widget)* | Experimental |
+| `os-auth-lost` / `os-auth-restored` *(session expiry / recovery)* | Stable |
+| `os-desktop-theme-changed` *(whole-OS reskin activated / cleared)* | Experimental |
+| `os-editor-preview-opened` / `-closed` *(editor↔preview pairing lifecycle)* | Experimental |
+| `os-desktop-host-freed` / `-docked` / `-connection` *(window set free into a real OS window)* | Experimental |
 
 ---
 
@@ -214,26 +279,30 @@ Typed messages between the parent shell and iframe windows. Full shapes in [`bri
 
 | Message type | Direction | Status |
 |---|---|---|
-| `desktop-mode-ready` | iframe → parent | Stable |
-| `desktop-mode-window-publish` | iframe → parent | Stable *(0.5.5)* |
-| `desktop-mode-window-send` | parent → iframe | Stable *(0.5.5)* |
-| `desktop-mode-bridge-*` *(connection-bridge family)* | both | Stable *(0.5.5)* |
-| `desktop-mode-plugins-changed` | iframe → shell (top window since 0.9.7) | Stable *(0.7.0)* |
-| `desktop-mode-menu-signature` | iframe → shell (top window since 0.9.7) | Stable *(0.9.4)* |
-| `desktop-mode-updates-changed` *(shiny-update completion nudge)* | iframe → shell | Stable *(0.9.7)* |
-| `wp-desktop-code-open` *(ships with the `desktop-mode-code-editor` extension)* | iframe → parent | Stable *(0.5.4)* |
-| `desktop-mode-drag-start` / `-end` / `-payload-request` | iframe → parent | Stable *(0.7.0)* |
-| `desktop-mode-drag-payload` *(reply to `-payload-request`)* | parent → iframe | Stable *(0.7.0)* |
-| `desktop-mode-drag-over` / `-leave` / `desktop-mode-drop` | parent → iframe | Stable *(0.8.7)* |
-| `desktop-mode-reauth-detected` *(session re-auth nudge)* | iframe → parent | Stable *(0.8.3)* |
+| `os-ready` | iframe → parent | Stable |
+| `os-window-publish` | iframe → parent | Stable |
+| `os-window-send` | parent → iframe | Stable |
+| `os-bridge-*` *(connection-bridge family)* | both | Stable |
+| `os-plugins-changed` | iframe → shell (top window) | Stable |
+| `os-menu-signature` | iframe → shell (top window) | Stable |
+| `os-updates-changed` *(shiny-update completion nudge)* | iframe → shell | Stable |
+| `os-code-open` *(ships with the `desktop-mode-code-editor` extension)* | iframe → parent | Stable |
+| `os-drag-start` / `-end` / `-payload-request` | iframe → parent | Stable |
+| `os-drag-payload` *(reply to `-payload-request`)* | parent → iframe | Stable |
+| `os-drag-over` / `-leave` / `os-drop` | parent → iframe | Stable |
+| `os-reauth-detected` *(session re-auth nudge)* | iframe → parent | Stable |
+| `os-pointer-track` *(arm / disarm the pointer forwarder; off by default)* | parent → iframe | Experimental |
+| `os-pointer-move` *(cursor position inside the iframe, ~25 Hz, only while armed)* | iframe → parent | Experimental |
+| `os-editor-autosave-request` / `-response` *(preview-button autosave query)* | parent → iframe / iframe → parent | Experimental |
+| `os-editor-live-watch` / `-unwatch` / `-live-saved` *(typing-driven preview refresh)* | parent → iframe / parent → iframe / iframe → parent | Experimental |
 
 ---
 
 ## Where status labels live
 
-- `wp.desktop.*` methods — JSDoc on each member, plus this table.
+- `wp.os.*` methods — JSDoc on each member, plus this table.
 - CustomEvents — section heading in `javascript-reference.md`, plus this table.
 - PHP hooks — `hooks-reference.md`.
-- Web Components — `static help` block on each `<wpd-*>` class, plus `components-reference.md`.
+- Web Components — `static help` block on each `<os-*>` class, plus `components-reference.md`.
 
 When a status changes (Experimental → Stable, or anything → removed), update **all three** of: the JSDoc, this table, and the relevant per-doc reference. The doc lint guidance in `AGENTS.md` enforces this rule of thumb: a hook change without a doc update ships a lie.

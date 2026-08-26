@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Challenges shared store.
+ * OpenStation — Challenges shared store.
  *
  * Holds every challenge row the Heartbeat channel (or a REST
  * resync) has delivered this session, plus the `challengesVersion`
@@ -7,8 +7,6 @@
  * across bundles: the main shell bundle ingests heartbeat deltas
  * and fires notifications; the Games hub bundle renders the
  * challenge list from the same rows.
- *
- * @since 0.9.6
  */
 
 import { createSharedStore } from '../shared-store';
@@ -76,7 +74,7 @@ function notify(): void {
 		} catch ( err ) {
 			if ( typeof console !== 'undefined' ) {
 				console.error(
-					'[desktop-mode] challenges store listener threw:',
+					'[openstation] challenges store listener threw:',
 					err,
 				);
 			}

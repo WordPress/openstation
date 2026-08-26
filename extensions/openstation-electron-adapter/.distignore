@@ -1,0 +1,13 @@
+.distignore
+.eslintrc.cjs
+.gitignore
+app
+build
+package-lock.json
+package.json
+scripts
+src
+tests
+tsconfig.json
+vite.config.mjs
+vitest.config.mts

@@ -8,8 +8,6 @@
  * the same skeleton underlies every age, growth is **monotone**: the tree
  * at age N+1 day contains the tree at age N, plus a few more nodes. No
  * daily reshuffle, ever — there's a regression test pinning exactly that.
- *
- * @since 0.9.4
  */
 
 import type { BranchNode } from '../types';

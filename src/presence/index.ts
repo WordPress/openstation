@@ -1,11 +1,11 @@
 /**
  * Framework-level presence client.
  *
- * Tracks who's currently in the desktop-mode WP-Admin and what
+ * Tracks who's currently in the openstation WP-Admin and what
  * their state is — `online`, `inactive`, `offline`. This module
  * lives at framework level (not inside any feature module) so any
  * plugin — chat, collaboration, presence-aware UI — can read
- * `wp.desktop.presence.*` without depending on a particular
+ * `wp.os.presence.*` without depending on a particular
  * feature plugin being installed.
  *
  * **State machine.**
@@ -18,16 +18,14 @@
  *   - **offline**  — no heartbeat in `_offline_after` seconds.
  *
  * **Storage.** A `createSharedStore` keyed by
- * `'desktop-mode/presence'` so any number of bundles can subscribe to
+ * `'os/presence'` so any number of bundles can subscribe to
  * the same map of `{ status, lastSeenMs, lastActiveMs }` per user.
  *
  * **Wire.** A jQuery-Heartbeat probe sends
- * `desktop_mode_presence_active: true` + `desktop_mode_user_active:
+ * `openstation_presence_active: true` + `openstation_user_active:
  * <bool>` on every tick; the server (`includes/presence.php`)
  * records the bump and returns a snapshot in the response, which
  * lands in the shared store.
- *
- * @since 0.5.5
  */
 
 import { activity } from '../activity';
@@ -53,7 +51,7 @@ interface HeartbeatBlock {
 }
 
 const store: SharedStore< PresenceState > = createSharedStore< PresenceState >(
-	'desktop-mode/presence',
+	'os/presence',
 	() => ( { byUser: new Map(), serverTimeMs: 0 } ),
 );
 
@@ -78,7 +76,7 @@ function noteUserActivity(): void {
  * we received and emits a state-change CustomEvent for each user
  * whose status flipped. We don't drop users not in the snapshot
  * (they may simply not be visible to this viewer) — the server
- * controls visibility via `desktop_mode_presence_visible_users`.
+ * controls visibility via `openstation_presence_visible_users`.
  */
 function applySnapshot( block: HeartbeatBlock ): void {
 	if ( ! block || ! block.snapshot ) {
@@ -131,16 +129,16 @@ function applySnapshot( block: HeartbeatBlock ): void {
 			lastActiveMs: t.entry.lastActiveMs,
 		};
 		document.dispatchEvent(
-			new CustomEvent( 'desktop-mode-presence-changed', { detail } ),
+			new CustomEvent( 'os-presence-changed', { detail } ),
 		);
 		// Mirror the per-transition event onto activity so plugins
 		// subscribe through the unified API.
-		activity.publish( 'desktop-mode/presence-changed', detail );
+		activity.publish( 'os/presence-changed', detail );
 	}
 	// Batch-level activity event — useful for "repaint everything
 	// that depends on presence" subscribers that don't need
 	// per-user granularity.
-	activity.publish( 'desktop-mode/presence-snapshot-applied', {
+	activity.publish( 'os/presence-snapshot-applied', {
 		applied: Object.keys( block.snapshot ).length,
 		transitions: transitions.length,
 	} );
@@ -151,10 +149,10 @@ function applySnapshot( block: HeartbeatBlock ): void {
  * multiple times — only the first call wires anything up.
  *
  * Hooks the WordPress Heartbeat:
- *   - `heartbeat-send` — adds `desktop_mode_presence_active: true` +
- *     `desktop_mode_user_active: <recent input?>` so the server's
+ *   - `heartbeat-send` — adds `openstation_presence_active: true` +
+ *     `openstation_user_active: <recent input?>` so the server's
  *     handler bumps the right slot.
- *   - `heartbeat-tick` — reads `response.desktop_mode_presence` and
+ *   - `heartbeat-tick` — reads `response.openstation_presence` and
  *     applies the snapshot to the shared store.
  *
  * Also subscribes a one-time `pointerdown` / `keydown` listener so
@@ -186,18 +184,18 @@ export function bootPresenceProbe(): void {
 
 	// Route through the framework's shared Heartbeat bus so the
 	// jQuery boilerplate lives in `src/heartbeat.ts` only.
-	heartbeat.contribute( 'desktop_mode_presence_active', () => true );
+	heartbeat.contribute( 'openstation_presence_active', () => true );
 	heartbeat.contribute(
-		'desktop_mode_user_active',
+		'openstation_user_active',
 		() => Date.now() - lastInputMs < ACTIVE_THRESHOLD_MS,
 	);
-	heartbeat.subscribe< HeartbeatBlock >( 'desktop_mode_presence', ( block ) => {
+	heartbeat.subscribe< HeartbeatBlock >( 'openstation_presence', ( block ) => {
 		applySnapshot( block );
 	} );
 }
 
 /* ------------------------------------------------------------------------- *
- * Public API surface — used by `wp.desktop.presence.*`
+ * Public API surface — used by `wp.os.presence.*`
  * ------------------------------------------------------------------------- */
 
 /**
@@ -272,12 +270,10 @@ export function _resetPresenceForTests(): void {
  * (presence-driven UI, plugin badges) sees the freshest data
  * without picking between two stores.
  *
- * Fires `desktop-mode-presence-changed` per id whose status moves,
+ * Fires `os-presence-changed` per id whose status moves,
  * mirroring the heartbeat-driven path. `lastSeenMs` and
  * `lastActiveMs` are optional — when omitted, the existing
  * timestamps are preserved (the writer doesn't always know them).
- *
- * @since 0.5.5
  */
 export function applyPresenceBatch(
 	updates: Array< {
@@ -341,18 +337,18 @@ export function applyPresenceBatch(
 			lastActiveMs: t.entry.lastActiveMs,
 		};
 		document.dispatchEvent(
-			new CustomEvent( 'desktop-mode-presence-changed', { detail } ),
+			new CustomEvent( 'os-presence-changed', { detail } ),
 		);
-		activity.publish( 'desktop-mode/presence-changed', detail );
+		activity.publish( 'os/presence-changed', detail );
 	}
-	activity.publish( 'desktop-mode/presence-snapshot-applied', {
+	activity.publish( 'os/presence-snapshot-applied', {
 		applied: updates.length,
 		transitions: transitions.length,
 	} );
 }
 
 /**
- * Public API surface that lands on `wp.desktop.presence`. Kept as a
+ * Public API surface that lands on `wp.os.presence`. Kept as a
  * frozen object so plugins can destructure stably and so a typo
  * fails at registration time rather than silently overwriting a
  * built-in.
@@ -361,7 +357,7 @@ export function applyPresenceBatch(
  * — feature modules with a faster delivery channel than the heartbeat
  * (e.g. an SSE stream that emits per-conversation presence events) push
  * batches into the framework store so any plugin reading
- * `wp.desktop.presence.getStatus` sees the freshest data.
+ * `wp.os.presence.getStatus` sees the freshest data.
  */
 export const presenceApi = Object.freeze( {
 	getStatus,

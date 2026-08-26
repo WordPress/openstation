@@ -3,14 +3,12 @@
  *
  * Same shape as `src/window-chrome/themes/server-sync.ts` and the
  * rest of the server-sync family. Plugins opt in server-side via
- * `desktop_mode_register_window_control_script()`; this module loads
+ * `openstation_register_window_control_script()`; this module loads
  * each opted-in script on activation and tears down owner-tagged
  * controls on deactivation.
  *
  * Built-in controls (`core/*`) carry no `owner` so server-sync's
  * owner-bulk teardown can never blow them away.
- *
- * @since 0.6.0
  */
 
 import { doAction, HOOKS } from '../../hooks';

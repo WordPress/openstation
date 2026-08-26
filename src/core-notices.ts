@@ -4,15 +4,13 @@
  * that would otherwise repeat in every window, as a single shell toast each.
  * The descriptors are re-derived from authoritative state server-side; this
  * just renders them.
- *
- * @since 0.9.6
  */
 
 import { showToast } from './toast';
 import {
 	isNoticeDismissed,
 	markNoticeDismissed,
-} from './ui/components/wpd-notice/storage';
+} from './ui/components/os-notice/storage';
 
 /** A single notice descriptor from `config.coreNotices` / `config.pluginNotices`. */
 export interface ShellNotice {

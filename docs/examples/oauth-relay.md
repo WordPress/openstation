@@ -4,13 +4,13 @@ Every plugin that integrates with an external service (Tumblr, Mastodon, Bluesky
 
 The framework ships a relay that owns those five steps. Plugins declare only what's plugin-specific: the authorize / token URLs, the client credentials, and a token-storage callback.
 
-*Stable API since 0.8.2.*
+*Stable.*
 
 ## Register the relay (PHP)
 
 ```php
 add_action( 'init', function () {
-    desktop_mode_register_oauth_relay( 'tumblrlike', array(
+    openstation_register_oauth_relay( 'tumblrlike', array(
         'authorize_url' => 'https://www.example.com/oauth2/authorize',
         'token_url'     => 'https://api.example.com/oauth2/token',
         'client_id'     => MYPLUGIN_CLIENT_ID,
@@ -24,7 +24,7 @@ add_action( 'init', function () {
 } );
 ```
 
-Need to undo it? `desktop_mode_unregister_oauth_relay( $service )` removes a previously registered relay — the mirror of `desktop_mode_register_oauth_relay()`, handy for plugins that register conditionally and for PHPUnit teardowns. *Since 0.8.2.*
+Need to undo it? `openstation_unregister_oauth_relay( $service )` removes a previously registered relay — the mirror of `openstation_register_oauth_relay()`, handy for plugins that register conditionally and for PHPUnit teardowns.
 
 ## Start the flow (JavaScript)
 
@@ -32,14 +32,14 @@ Need to undo it? `desktop_mode_unregister_oauth_relay( $service )` removes a pre
 document.getElementById( 'connect-button' )
     .addEventListener( 'click', async () => {
         try {
-            const result = await wp.desktop.startOAuth( 'tumblrlike' );
+            const result = await wp.os.startOAuth( 'tumblrlike' );
             // result === { ok: true, service: 'tumblrlike' }
-            wp.desktop.showToast( { message: 'Connected!' } );
+            wp.os.showToast( { message: 'Connected!' } );
         } catch ( err ) {
             // err.cause carries the failure payload:
             //   { ok: false, reason: 'invalid_state' | 'authorize_denied' |
             //                       'token_exchange_failed' | … , message: '…' }
-            wp.desktop.showToast( { message: err.message } );
+            wp.os.showToast( { message: err.message } );
         }
     } );
 ```
@@ -48,7 +48,7 @@ document.getElementById( 'connect-button' )
 
 1. **`POST /desktop-mode/v1/oauth/start`** — issues a 32-char `state` nonce, persists it in a 10-minute transient keyed by the state value (with the issuing `user_id` stored in the transient payload), returns the assembled authorize URL with the state appended.
 2. **`window.open( authorize_url, … )`** — centred popup with sensible window features.
-3. **`postMessage` listener** — origin-checked against `window.location.origin`, type-discriminated on `'desktop-mode-oauth-callback'`. Cross-origin or wrong-type messages are ignored.
+3. **`postMessage` listener** — origin-checked against `window.location.origin`, type-discriminated on `'os-oauth-callback'`. Cross-origin or wrong-type messages are ignored.
 4. **`GET /desktop-mode/v1/oauth/callback?code=…&state=…`** — server validates and *consumes* the state (single-use), POSTs to `token_url` with `grant_type=authorization_code`, parses JSON, calls the plugin's `on_success`, then renders an HTML page that `postMessage`s the opener and closes itself.
 5. **Promise resolves** with the success payload on the opener side; rejects with a tagged `Error` (with the failure payload as `cause`) on every error path.
 
@@ -64,9 +64,9 @@ document.getElementById( 'connect-button' )
 
 | Hook | Type | Payload | Use |
 |---|---|---|---|
-| `desktop_mode_oauth_relay_registered` | action | `( string $service, array $entry )` *(secrets redacted)* | Observability — log every relay that gets wired up. |
-| `desktop_mode_oauth_relay_connected` | action | `( string $service, int $user_id )` | Refresh badges, surface a "connected" toast in sibling windows via the activity bus. |
-| `desktop_mode_oauth_authorize_query` | filter | `( array $query, string $service, array $entry )` | Inject service-specific extras like `access_type=offline`, `prompt=consent`, etc. |
+| `openstation_oauth_relay_registered` | action | `( string $service, array $entry )` *(secrets redacted)* | Observability — log every relay that gets wired up. |
+| `openstation_oauth_relay_connected` | action | `( string $service, int $user_id )` | Refresh badges, surface a "connected" toast in sibling windows via the activity bus. |
+| `openstation_oauth_authorize_query` | filter | `( array $query, string $service, array $entry )` | Inject service-specific extras like `access_type=offline`, `prompt=consent`, etc. |
 
 ## Failure paths and `reason` codes
 
@@ -87,22 +87,22 @@ The `payload.reason` discriminator lets your client-side code branch on what wen
 Default: any logged-in user can start a relay. Pass `capabilities` to require specific caps:
 
 ```php
-desktop_mode_register_oauth_relay( 'admin-only-service', array(
+openstation_register_oauth_relay( 'admin-only-service', array(
     /* … URLs and creds … */
     'capabilities' => array( 'manage_options' ),
 ) );
 ```
 
-A user without the cap who tries to start the flow gets a `desktop_mode_oauth_capability_denied` REST error and the popup never opens.
+A user without the cap who tries to start the flow gets a `openstation_oauth_capability_denied` REST error and the popup never opens.
 
 ## Security notes
 
 - **State nonces are single-use.** The first successful `consume_state` deletes the transient — a replay with the same state fails.
 - **Origin check on the listener.** The opener-side listener only honours `postMessage` events whose `origin === window.location.origin`. A malicious cross-origin tab that knows the user's state can't impersonate the callback page.
-- **Secrets stay server-side.** `client_secret` is never passed to the client — the token exchange runs entirely in the REST callback. The redaction also applies to the `desktop_mode_oauth_relay_registered` action payload so observability logs don't leak credentials.
+- **Secrets stay server-side.** `client_secret` is never passed to the client — the token exchange runs entirely in the REST callback. The redaction also applies to the `openstation_oauth_relay_registered` action payload so observability logs don't leak credentials.
 - **Capabilities are checked on the start endpoint**, NOT on the callback. The callback's gate is the state nonce — which only the user who started the flow has.
 
 ## See also
 
-- [`docs/hooks-reference.md#oauth`](../hooks-reference.md) — the public PHP hooks above.
-- [`api-index.md`](../api-index.md) — `wp.desktop.startOAuth` in the JS API table.
+- [`docs/hooks-reference.md`](../hooks-reference.md#openstation_oauth_relay_registered--stable) — the public PHP hooks above, each under its own heading.
+- [`api-index.md`](../api-index.md) — `wp.os.startOAuth` in the JS API table.

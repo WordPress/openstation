@@ -9,8 +9,6 @@
  *
  * Trajectory math lives in `fx-math.ts` (pure, tested); this module
  * owns the Pixi display objects and their per-frame updates.
- *
- * @since 0.9.6
  */
 
 import {

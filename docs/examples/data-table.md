@@ -1,13 +1,13 @@
 # Example: render a data table
 
-`<wpd-table>` is the data-grid primitive: assign a `columns` descriptor and a `data` array and you get a styled table with optional per-column filters, click-to-sort, multi-row selection, sticky columns, sticky header, custom cell renderers, a loading skeleton, and a slottable empty state.
+`<os-table>` is the data-grid primitive: assign a `columns` descriptor and a `data` array and you get a styled table with optional per-column filters, click-to-sort, multi-row selection, sticky columns, sticky header, custom cell renderers, a loading skeleton, and a slottable empty state.
 
-> Status: **Experimental** since 0.6.0. The component shape is stable; the named events / filter kinds may grow.
+> Status: **Stable**. The named events / filter kinds may still grow.
 
 ## Minimum viable table
 
 ```html
-<wpd-table id="users"></wpd-table>
+<os-table id="users"></os-table>
 ```
 
 ```js
@@ -27,7 +27,7 @@ That's the entire happy path. Everything below is opt-in.
 
 ## TypeScript usage
 
-The `WpdTable` class is generic over the row type, but it is not yet on the **Stable** export list of the `desktop-mode` package (see [Importing the classes](../components-reference.md#importing-the-classes-for-typescript)) — there is no class or type import for it. Until it joins that list, declare the slice of the element API you use as a local structural type; the property contract below is the documented surface:
+The `OsTable` class is generic over the row type, but it is not yet on the **Stable** export list of the `openstation` package (see [Importing the classes](../components-reference.md#importing-the-classes-for-typescript)) — there is no class or type import for it. Until it joins that list, declare the slice of the element API you use as a local structural type; the property contract below is the documented surface:
 
 ```ts
 interface User extends Record< string, unknown > {
@@ -85,7 +85,7 @@ Filter inputs are persistent across re-paints, so typing never loses focus or ca
 
 ```js
 table.filters = { role: 'admin' };          // pre-seed
-table.addEventListener( 'wpd-table-filter-change', ( e ) => {
+table.addEventListener( 'os-table-filter-change', ( e ) => {
     console.log( e.detail.filters );
 } );
 table.clearFilters();                       // drop everything (emits filter-change)
@@ -109,25 +109,25 @@ Read or set the active sort programmatically:
 
 ```js
 table.sort = { key: 'name', direction: 'asc' };
-table.addEventListener( 'wpd-table-sort-change', ( e ) => {
+table.addEventListener( 'os-table-sort-change', ( e ) => {
     persist( e.detail.sort );               // null when cleared
 } );
 table.clearSort();
 ```
 
-If you don't want the built-in sort but want to react to header clicks (e.g. server-side sort), declare `sortable: true` and listen for `wpd-table-sort-change` — your handler can re-fetch and reassign `table.data` while letting the indicator UI handle itself.
+If you don't want the built-in sort but want to react to header clicks (e.g. server-side sort), declare `sortable: true` and listen for `os-table-sort-change` — your handler can re-fetch and reassign `table.data` while letting the indicator UI handle itself.
 
 ## Selection
 
 Set `selectable="single"` or `selectable="multi"` and a checkbox column is auto-prepended. Multi mode adds a select-all checkbox in the header; single mode enforces at-most-one selected.
 
 ```html
-<wpd-table id="users" selectable="multi"></wpd-table>
+<os-table id="users" selectable="multi"></os-table>
 ```
 
 ```js
 table.getRowId = ( row ) => row.email;      // stable id (default: row index)
-table.addEventListener( 'wpd-table-selection-change', ( e ) => {
+table.addEventListener( 'os-table-selection-change', ( e ) => {
     console.log( e.detail.selection ); // ids[]
     console.log( e.detail.rows );      // resolved row objects
 } );
@@ -151,7 +151,7 @@ table.selection = new Set( savedIds );      // bulk replace
 ## Sticky columns and sticky header
 
 ```html
-<wpd-table sticky-columns="2" sticky-header striped hover></wpd-table>
+<os-table sticky-columns="2" sticky-header striped hover></os-table>
 ```
 
 - `sticky-columns="N"` pins the first `N` columns. Widths are measured after layout and re-measured automatically — every paint runs three measurement passes (synchronous, microtask, animation frame) and a `ResizeObserver` watches the inner scroll element + the host so window resizes, hidden→visible transitions, sibling reflow, font loads, and scrollbar appearance all trigger a recompute. You don't have to call anything; offsets stay correct. Variable-width columns work, including RTL via `inset-inline-start`.
@@ -160,10 +160,10 @@ table.selection = new Set( savedIds );      // bulk replace
 - `sticky-header` keeps the header (plus the filter row, if any) pinned.
 - Per-column override: `column.sticky = true` opts in even outside the band, `column.sticky = false` opts out within it.
 
-For sticky to engage the table needs a scrolling container. Set `--wpd-table-max-height` (or wrap in any scrolling parent):
+For sticky to engage the table needs a scrolling container. Set `--os-ui-table-max-height` (or wrap in any scrolling parent):
 
 ```css
-wpd-table { --wpd-table-max-height: 400px; }
+os-table { --os-ui-table-max-height: 400px; }
 ```
 
 If you set `sticky-header` on a table with no scroll container, the component logs a one-time `console.warn` after enough data has loaded to need scrolling — saves the "why isn't it sticking?" debug session.
@@ -186,7 +186,7 @@ Rule of thumb: count from the visible left edge after all auto-prepended columns
 Set `subTable( row, index )` and an expander column is auto-prepended. Return any of:
 
 - `null` / `undefined` — no children for this row (no caret).
-- `{ columns, data, subTable? }` — a nested `<wpd-table>` is rendered. Sub-tables can themselves declare a `subTable` for unlimited nesting.
+- `{ columns, data, subTable? }` — a nested `<os-table>` is rendered. Sub-tables can themselves declare a `subTable` for unlimited nesting.
 - A `Node` — fully custom expanded content (build it with `document.createElement` or by cloning a `<template>`).
 
 ```js
@@ -220,14 +220,14 @@ table.expanded = JSON.parse( localStorage.getItem( 'orders.open' ) || '[]' );
 ## Loading state
 
 ```html
-<wpd-table loading loading-rows="5"></wpd-table>
+<os-table loading loading-rows="5"></os-table>
 ```
 
 While `loading` is set, the body paints shimmering skeleton rows. Headers, filters, and sort indicators remain live. Toggle the attribute when the fetch resolves:
 
 ```js
 table.toggleAttribute( 'loading', true );
-const data = await fetch( '/api/users' ).then( ( r ) => r.json() );
+const data = await wp.os.fetch( '/api/users', undefined, { source: 'my-plugin/users-table' } ).then( ( r ) => r.json() );
 table.data = data;
 table.toggleAttribute( 'loading', false );
 ```
@@ -239,12 +239,12 @@ table.toggleAttribute( 'loading', false );
 The `empty` attribute is the text fallback. For richer empty states (button, illustration, multi-line copy) project light-DOM into the `empty` slot:
 
 ```html
-<wpd-table id="orders">
+<os-table id="orders">
     <div slot="empty">
         <p>No orders yet.</p>
-        <wpd-button id="orders-cta">Create your first order</wpd-button>
+        <os-button id="orders-cta">Create your first order</os-button>
     </div>
-</wpd-table>
+</os-table>
 ```
 
 ```js
@@ -270,7 +270,7 @@ table.columns = [
     { key: 'name',   label: 'Name' },
     { key: 'status', label: 'Status',
       render: ( v ) => {
-          const badge = document.createElement( 'wpd-badge' );
+          const badge = document.createElement( 'os-badge' );
           badge.setAttribute( 'tone', v === 'active' ? 'success' : 'warning' );
           badge.textContent = String( v );
           return badge;
@@ -283,13 +283,13 @@ table.columns = [
 ## Row clicks
 
 ```js
-table.addEventListener( 'wpd-table-row-click', ( e ) => {
+table.addEventListener( 'os-table-row-click', ( e ) => {
     const { row, index, originalEvent } = e.detail;
     openOrder( row.id );
 } );
 ```
 
-Clicks on filter inputs, the expander button, and selection checkboxes do **not** fire `wpd-table-row-click` — they're marked `data-noclick`. Mark any of your own interactive cell content the same way to opt out:
+Clicks on filter inputs, the expander button, and selection checkboxes do **not** fire `os-table-row-click` — they're marked `data-noclick`. Mark any of your own interactive cell content the same way to opt out:
 
 ```js
 render: ( v, row ) => {
@@ -305,7 +305,7 @@ render: ( v, row ) => {
 
 Same pattern as custom renderers — return an input. Two real gotchas:
 
-1. **Mark the control `data-noclick`** so clicks on it don't fire `wpd-table-row-click`.
+1. **Mark the control `data-noclick`** so clicks on it don't fire `os-table-row-click`.
 2. **Avoid full-table repaints on every keystroke** — they tear down and rebuild the input, losing focus/caret. Either commit on blur/Enter (mutate `row.field` in place; reassign `table.data` only on save), or keep edits in a side buffer (`Map<rowId, edits>`) that the renderer reads from.
 
 ```js
@@ -361,26 +361,26 @@ If editing is the primary use case, request a first-class `column.editor` API �
 
 | Property | Default |
 |---|---|
-| `--wpd-table-bg` | `var( --wpd-surface, #fff )` |
-| `--wpd-table-border` | `var( --wpd-border, rgba(0,0,0,0.08) )` |
-| `--wpd-table-header-bg` | `var( --wpd-surface-elevated, #f6f7f7 )` |
-| `--wpd-table-row-hover` | `rgba(0,0,0,0.04)` |
-| `--wpd-table-stripe` | `rgba(0,0,0,0.02)` |
-| `--wpd-table-cell-padding` | `8px 12px` |
-| `--wpd-table-font-size` | `13px` |
-| `--wpd-table-max-height` | `none` |
-| `--wpd-table-skeleton-color` | `rgba(0,0,0,0.06)` |
-| `--wpd-table-skeleton-highlight` | `rgba(0,0,0,0.14)` |
+| `--os-ui-table-bg` | `var( --os-ui-surface, #fff )` |
+| `--os-ui-table-border` | `var( --os-ui-border, rgba(0,0,0,0.08) )` |
+| `--os-ui-table-header-bg` | `var( --os-ui-surface-elevated, #f6f7f7 )` |
+| `--os-ui-table-row-hover` | `rgba(0,0,0,0.04)` |
+| `--os-ui-table-stripe` | `var( --os-ui-surface-subtle, rgba( 0, 0, 0, 0.03 ) )` |
+| `--os-ui-table-cell-padding` | `8px 12px` |
+| `--os-ui-table-font-size` | `13px` |
+| `--os-ui-table-max-height` | `none` |
+| `--os-ui-table-skeleton-color` | `rgba(0,0,0,0.06)` |
+| `--os-ui-table-skeleton-highlight` | `rgba(0,0,0,0.14)` |
 
 ## Events
 
 | Name | `event.detail` | Fires when |
 |---|---|---|
-| `wpd-table-filter-change` | `{ filters }` | A filter input changed (or `clearFilters()` ran). |
-| `wpd-table-sort-change` | `{ sort }` (or `{ sort: null }`) | A sortable header was clicked or `sort` was set. |
-| `wpd-table-selection-change` | `{ selection: id[], rows: T[] }` | Selection mutated. |
-| `wpd-table-row-click` | `{ row, index, originalEvent }` | A body row was clicked (excluding `data-noclick`). |
-| `wpd-table-expand-change` | `{ row, index, expanded }` | A row's sub-table was toggled. |
+| `os-table-filter-change` | `{ filters }` | A filter input changed (or `clearFilters()` ran). |
+| `os-table-sort-change` | `{ sort }` (or `{ sort: null }`) | A sortable header was clicked or `sort` was set. |
+| `os-table-selection-change` | `{ selection: id[], rows: T[] }` | Selection mutated. |
+| `os-table-row-click` | `{ row, index, originalEvent }` | A body row was clicked (excluding `data-noclick`). |
+| `os-table-expand-change` | `{ row, index, expanded }` | A row's sub-table was toggled. |
 
 ## Slots
 
@@ -390,7 +390,7 @@ If editing is the primary use case, request a first-class `column.editor` API �
 
 ## Common pitfalls
 
-- **`sticky-header` with no scroll container.** If `--wpd-table-max-height` is unset and no ancestor scrolls, sticky positioning is inert. The component warns once via `console.warn` after the data has filled the viewport.
+- **`sticky-header` with no scroll container.** If `--os-ui-table-max-height` is unset and no ancestor scrolls, sticky positioning is inert. The component warns once via `console.warn` after the data has filled the viewport.
 - **`sticky-columns` counting auto columns.** The expander and select columns are *prepended*; `sticky-columns="2"` pins them, not your first two data columns. Pad accordingly (see "Worked example" above).
 - **Mixing `column.align: 'end'` with custom `render`.** Alignment applies to the cell, but if your renderer returns a `display: block`-ish element it may not pick up text-align. Either set `text-align: end` on the rendered element or wrap in a `<span>`.
 - **Editable cells losing focus.** Reassigning `table.data` on every keystroke triggers a full body repaint — the new `<input>` is a different element, so focus is lost. Commit on blur/Enter, or hold edits in a side buffer until save.
@@ -400,5 +400,5 @@ If editing is the primary use case, request a first-class `column.editor` API �
 
 ## See also
 
-- [Layout primitives](./layout-primitives.md) — wrap the table in `<wpd-body>` / `<wpd-panel>` for the standard window shape.
-- [JavaScript reference](../javascript-reference.md) — every wpd-* component.
+- [Layout primitives](./layout-primitives.md) — wrap the table in `<os-body>` / `<os-panel>` for the standard window shape.
+- [JavaScript reference](../javascript-reference.md) — every os-* component.

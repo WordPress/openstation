@@ -76,6 +76,22 @@ describe( 'resolveReleaseArt', () => {
 		expect( fetchMock ).toHaveBeenCalledTimes( 1 );
 	} );
 
+	test( 'retries a miss sooner while the announcement is still pending', async () => {
+		fetchMock.mockResolvedValue( { ok: true, json: async () => [ post( 'Unrelated', '' ) ] } );
+		// A miss recorded 45 minutes ago: still fresh for a settled
+		// branch, stale for one whose announcement hasn't landed yet.
+		localStorage.setItem(
+			'desktop-mode/release-art:v1:7.1',
+			JSON.stringify( { ok: false, ts: Date.now() - 45 * 60 * 1000 } ),
+		);
+
+		expect( await resolveReleaseArt( '7.1' ) ).toBeNull();
+		expect( fetchMock ).not.toHaveBeenCalled();
+
+		expect( await resolveReleaseArt( '7.1', true ) ).toBeNull();
+		expect( fetchMock ).toHaveBeenCalledTimes( 1 );
+	} );
+
 	test( 'returns null on a non-ok response', async () => {
 		fetchMock.mockResolvedValue( { ok: false, json: async () => [] } );
 		expect( await resolveReleaseArt( '7.0' ) ).toBeNull();

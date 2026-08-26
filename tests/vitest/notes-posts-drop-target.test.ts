@@ -68,7 +68,7 @@ describe( 'notes → posts dock drop target', () => {
 
 	function makeTile( slug: string ): HTMLElement {
 		const tile = document.createElement( 'div' );
-		tile.className = 'desktop-mode-dock__item';
+		tile.className = 'os-dock__item';
 		tile.setAttribute( 'data-menu-slug', slug );
 		document.body.appendChild( tile );
 		return tile;
@@ -86,7 +86,7 @@ describe( 'notes → posts dock drop target', () => {
 		};
 		// `installHooksStub()` mounted `window.wp.hooks`; add `desktop`
 		// alongside it rather than clobbering the whole `wp` object.
-		( window as unknown as { wp: { desktop?: unknown } } ).wp.desktop = {
+		( window as unknown as { wp: { os?: unknown } } ).wp.os = {
 			dragManager: fakeDragManager(),
 		};
 	} );
@@ -94,7 +94,7 @@ describe( 'notes → posts dock drop target', () => {
 	afterEach( () => {
 		__resetNotesPostsDropTargetForTests();
 		document.body.innerHTML = '';
-		delete ( window as unknown as { wp: { desktop?: unknown } } ).wp.desktop;
+		delete ( window as unknown as { wp: { os?: unknown } } ).wp.os;
 		clearHooksStub();
 	} );
 
@@ -135,11 +135,11 @@ describe( 'notes → posts dock drop target', () => {
 		const t = targets[ 0 ];
 
 		t.onEnter?.( noteSession() );
-		expect( tile.hasAttribute( 'data-desktop-mode-posts-drop-active' ) ).toBe( true );
+		expect( tile.hasAttribute( 'data-os-posts-drop-active' ) ).toBe( true );
 
 		t.onDrop( noteSession(), new MouseEvent( 'mouseup' ) as never );
 		expect( convertNote ).toHaveBeenCalledWith( NOTE );
-		expect( tile.hasAttribute( 'data-desktop-mode-posts-drop-active' ) ).toBe( false );
+		expect( tile.hasAttribute( 'data-os-posts-drop-active' ) ).toBe( false );
 	} );
 
 	test( 'no-op when the user cannot author posts', () => {

@@ -3,12 +3,12 @@
  *
  * Three things happen when a theme becomes active:
  *
- *   1. `data-desktop-mode-desktop-theme` lands on the shell root and
- *      `desktop-mode-desktop-theme-<slug>` on `<body>` — the two
+ *   1. `data-os-desktop-theme` lands on the shell root and
+ *      `os-desktop-theme-<slug>` on `<body>` — the two
  *      halves of the compiled stylesheet's doubled selector. Both
  *      are needed: the shell root covers the desktop and windows,
  *      the body class covers toasts / dialogs / tooltips / context
- *      menus, which mount OUTSIDE `#desktop-mode-shell`.
+ *      menus, which mount OUTSIDE `#os-shell`.
  *   2. The stylesheet is linked (uploaded themes) or injected
  *      (code-registered themes, which have no file).
  *   3. The icon map is published so `resolveThemedIcon()` starts
@@ -18,22 +18,25 @@
  * body class, and enqueued the stylesheet before the shell ran, so
  * there is no flash of the default palette. This module detects that
  * pre-stamped state and adopts it instead of rebuilding it.
- *
- * @since 0.9.7
  */
 
 import { doAction, HOOKS } from '../hooks';
-import { getDesktopTheme, getStore } from './registry';
+import {
+	ensureFullDesktopThemes,
+	getDesktopTheme,
+	getStore,
+} from './registry';
+import type { DesktopThemeEntry } from './types';
 
 /** `id` WordPress gives the `<link>` for the theme style handle. */
-const LINK_ID = 'desktop-mode-desktop-theme-css';
+const LINK_ID = 'os-desktop-theme-css';
 /** `id` WordPress gives the `<style>` for the inline (code-theme) variant. */
-const INLINE_ID = 'desktop-mode-desktop-theme-inline-css';
+const INLINE_ID = 'os-desktop-theme-inline-css';
 /** Marker on the element THIS module owns. */
-const OWNED_ATTR = 'data-desktop-mode-desktop-theme-css';
+const OWNED_ATTR = 'data-os-desktop-theme-css';
 
 /** Public CustomEvent name for a real desktop-theme change. */
-export const DESKTOP_THEME_CHANGED_EVENT = 'desktop-mode-desktop-theme-changed';
+export const DESKTOP_THEME_CHANGED_EVENT = 'os-desktop-theme-changed';
 
 /** Detail shape of {@link DESKTOP_THEME_CHANGED_EVENT}. */
 export interface DesktopThemeChangedDetail {
@@ -42,7 +45,7 @@ export interface DesktopThemeChangedDetail {
 }
 
 function shellRoot(): HTMLElement | null {
-	return document.getElementById( 'desktop-mode-shell' );
+	return document.getElementById( 'os-shell' );
 }
 
 /**
@@ -86,10 +89,32 @@ function bootAlreadyApplied( slug: string ): boolean {
 	if ( ! shell ) {
 		return false;
 	}
-	if ( shell.getAttribute( 'data-desktop-mode-desktop-theme' ) !== slug ) {
+	if ( shell.getAttribute( 'data-os-desktop-theme' ) !== slug ) {
 		return false;
 	}
 	return styleElements().length > 0;
+}
+
+/**
+ * Put one theme's stylesheet into `<head>` — a `<link>` for uploaded
+ * themes (compiled file on disk), an inline `<style>` for
+ * code-registered ones. Shared by the immediate apply path and the
+ * deferred one (slim boot entry → fetch → inject).
+ */
+function injectThemeStylesheet( theme: DesktopThemeEntry ): void {
+	if ( theme.cssUrl !== '' ) {
+		const link = document.createElement( 'link' );
+		link.id = LINK_ID;
+		link.rel = 'stylesheet';
+		link.href = theme.cssUrl;
+		link.setAttribute( OWNED_ATTR, theme.slug );
+		document.head.appendChild( link );
+	} else if ( theme.cssText !== '' ) {
+		const style = document.createElement( 'style' );
+		style.setAttribute( OWNED_ATTR, theme.slug );
+		style.textContent = theme.cssText;
+		document.head.appendChild( style );
+	}
 }
 
 function applyBodyClass( slug: string | null ): void {
@@ -99,17 +124,17 @@ function applyBodyClass( slug: string | null ): void {
 	}
 	const stale: string[] = [];
 	body.classList.forEach( ( name ) => {
-		if ( name.startsWith( 'desktop-mode-desktop-theme-' ) ) {
+		if ( name.startsWith( 'os-desktop-theme-' ) ) {
 			stale.push( name );
 		}
 	} );
 	for ( const name of stale ) {
-		if ( slug === null || name !== `desktop-mode-desktop-theme-${ slug }` ) {
+		if ( slug === null || name !== `os-desktop-theme-${ slug }` ) {
 			body.classList.remove( name );
 		}
 	}
 	if ( slug !== null ) {
-		body.classList.add( `desktop-mode-desktop-theme-${ slug }` );
+		body.classList.add( `os-desktop-theme-${ slug }` );
 	}
 }
 
@@ -123,7 +148,6 @@ function applyBodyClass( slug: string | null ): void {
  * route through it, and none of them need to know about themes.
  *
  * @public
- * @since 0.9.7
  *
  * @param themeId Theme slug or id. `''` / `null` = system default.
  */
@@ -145,7 +169,7 @@ export function applyDesktopTheme( themeId: string | null | undefined ): void {
 	const shell = shellRoot();
 
 	if ( ! theme ) {
-		shell?.removeAttribute( 'data-desktop-mode-desktop-theme' );
+		shell?.removeAttribute( 'data-os-desktop-theme' );
 		applyBodyClass( null );
 		removeStyleElements();
 		store.setState( {
@@ -156,21 +180,32 @@ export function applyDesktopTheme( themeId: string | null | undefined ): void {
 	} else {
 		if ( ! bootAlreadyApplied( theme.slug ) ) {
 			removeStyleElements();
-			if ( theme.cssUrl !== '' ) {
-				const link = document.createElement( 'link' );
-				link.id = LINK_ID;
-				link.rel = 'stylesheet';
-				link.href = theme.cssUrl;
-				link.setAttribute( OWNED_ATTR, theme.slug );
-				document.head.appendChild( link );
-			} else if ( theme.cssText !== '' ) {
-				const style = document.createElement( 'style' );
-				style.setAttribute( OWNED_ATTR, theme.slug );
-				style.textContent = theme.cssText;
-				document.head.appendChild( style );
+			if (
+				theme.cssDeferred &&
+				theme.cssUrl === '' &&
+				theme.cssText === ''
+			) {
+				// A slimmed boot entry picked mid-session: the
+				// attributes, body class and store flip NOW (below)
+				// so the pick feels instant, while the stylesheet
+				// arrives from `GET /desktop-themes`. Re-check the
+				// active id when it lands — the user may have picked
+				// something else while the request was in flight.
+				const slug = theme.slug;
+				void ensureFullDesktopThemes().then( () => {
+					if ( getStore().state.activeId !== slug ) {
+						return;
+					}
+					const full = getDesktopTheme( slug );
+					if ( full && ! full.cssDeferred ) {
+						injectThemeStylesheet( full );
+					}
+				} );
+			} else {
+				injectThemeStylesheet( theme );
 			}
 		}
-		shell?.setAttribute( 'data-desktop-mode-desktop-theme', theme.slug );
+		shell?.setAttribute( 'data-os-desktop-theme', theme.slug );
 		applyBodyClass( theme.slug );
 		store.setState( {
 			activeId: theme.slug,

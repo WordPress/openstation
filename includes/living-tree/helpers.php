@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — Living Tree: metric helpers.
+ * OpenStation — Living Tree: metric helpers.
  *
  * The scalar signals the snapshot builder folds into the site's DNA.
  * Each helper composes existing WordPress aggregates (`wp_count_posts`,
@@ -9,8 +9,7 @@
  * (WordPress emits hormones, never geometry) starts here: everything
  * returned is a scalar or a tiny capped list.
  *
- * @package WPDesktopMode
- * @since   0.9.4
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -22,11 +21,9 @@ defined( 'ABSPATH' ) || exit;
  * the earlier of the oldest user registration and the oldest published
  * post date.
  *
- * @since 0.9.4
- *
  * @return int Unix timestamp, or 0 when the site has neither.
  */
-function desktop_mode_living_tree_install_epoch() {
+function openstation_living_tree_install_epoch() {
 	global $wpdb;
 
 	$oldest_user = $wpdb->get_var(
@@ -54,12 +51,10 @@ function desktop_mode_living_tree_install_epoch() {
  * Age of the site in whole days, from the install epoch. Clamped to be
  * non-negative — the master clock never runs backwards.
  *
- * @since 0.9.4
- *
  * @return int Whole days since the site's inception. >= 0.
  */
-function desktop_mode_living_tree_site_age_days() {
-	$epoch = desktop_mode_living_tree_install_epoch();
+function openstation_living_tree_site_age_days() {
+	$epoch = openstation_living_tree_install_epoch();
 	if ( $epoch <= 0 ) {
 		return 0;
 	}
@@ -72,18 +67,16 @@ function desktop_mode_living_tree_site_age_days() {
  * `_post_views_YYYY-MM-DD` post-meta convention — both summed over the
  * last 14 days. Sites with neither simply report 0 (a windless day).
  *
- * The final value passes through the `desktop_mode_living_tree_traffic`
+ * The final value passes through the `openstation_living_tree_traffic`
  * filter so analytics plugins with their own counters can feed the
  * real number in.
  *
- * @since 0.9.4
- *
  * @return int Recent view sum. >= 0.
  */
-function desktop_mode_living_tree_traffic() {
-	$views = desktop_mode_living_tree_jetpack_visits();
+function openstation_living_tree_traffic() {
+	$views = openstation_living_tree_jetpack_visits();
 	if ( null === $views ) {
-		$views = desktop_mode_living_tree_meta_views();
+		$views = openstation_living_tree_meta_views();
 	}
 
 	/**
@@ -91,13 +84,11 @@ function desktop_mode_living_tree_traffic() {
 	 * non-negative view count for the last ~14 days — it drives the
 	 * wind (canopy sway amplitude / frequency).
 	 *
-	 * @since 0.9.5
-	 *
 	 * @param int $views Views in the window. Default: Jetpack Stats
 	 *                   when available, else the `_post_views_*` meta
 	 *                   sum, else 0.
 	 */
-	$views = (int) apply_filters( 'desktop_mode_living_tree_traffic', $views );
+	$views = (int) apply_filters( 'openstation_living_tree_traffic', $views );
 	return max( 0, $views );
 }
 
@@ -114,12 +105,10 @@ function desktop_mode_living_tree_traffic() {
  * post-views meta. A successful `0` is trusted (a quiet site is a
  * valid answer), matching the widget's source-ladder semantics.
  *
- * @since 0.9.5
- *
  * @return int|null Views over the last 14 days, or null when Jetpack
  *                  Stats can't answer.
  */
-function desktop_mode_living_tree_jetpack_visits() {
+function openstation_living_tree_jetpack_visits() {
 	if ( ! class_exists( '\Automattic\Jetpack\Stats\WPCOM_Stats' ) ) {
 		return null;
 	}
@@ -173,11 +162,9 @@ function desktop_mode_living_tree_jetpack_visits() {
  * convention — the plain-WP fallback shared with the site-views
  * widget. Sites without a view-counter plugin report 0.
  *
- * @since 0.9.5
- *
  * @return int Recent view sum. >= 0.
  */
-function desktop_mode_living_tree_meta_views() {
+function openstation_living_tree_meta_views() {
 	global $wpdb;
 
 	$total = 0;
@@ -201,18 +188,16 @@ function desktop_mode_living_tree_meta_views() {
 /**
  * Number of users currently online, from framework presence.
  *
- * @since 0.9.4
- *
  * @return int Count of users with `online` presence status. >= 0.
  */
-function desktop_mode_living_tree_active_users() {
-	if ( ! function_exists( 'desktop_mode_presence_snapshot' ) ) {
+function openstation_living_tree_active_users() {
+	if ( ! function_exists( 'openstation_presence_snapshot' ) ) {
 		return 0;
 	}
 	$count = 0;
-	foreach ( desktop_mode_presence_snapshot() as $record ) {
+	foreach ( openstation_presence_snapshot() as $record ) {
 		if ( isset( $record['status'] ) && 'online' === $record['status'] ) {
-			$count++;
+			++$count;
 		}
 	}
 	return $count;
@@ -230,21 +215,17 @@ function desktop_mode_living_tree_active_users() {
  * an SEO or monitoring plugin that *does* know the site's health can
  * feed the real value in via the filter.
  *
- * @since 0.9.4
- *
  * @return float Health score in [0, 1].
  */
-function desktop_mode_living_tree_seo_health() {
+function openstation_living_tree_seo_health() {
 	/**
 	 * Filter the Living Tree health hormone source. Return 0..1 — it
 	 * drives the canopy's colour temperature (green → yellow → red →
 	 * grey).
 	 *
-	 * @since 0.9.4
-	 *
 	 * @param float $health Default 0.7.
 	 */
-	$health = (float) apply_filters( 'desktop_mode_living_tree_seo_health', 0.7 );
+	$health = (float) apply_filters( 'openstation_living_tree_seo_health', 0.7 );
 	return min( 1.0, max( 0.0, $health ) );
 }
 
@@ -252,17 +233,15 @@ function desktop_mode_living_tree_seo_health() {
  * Performance headroom, normalised 0..1 (1 = plenty, 0 = under load).
  *
  * Sourced from core's own Site Health tallies when available (see
- * {@see desktop_mode_living_tree_site_health_performance()}), falling
+ * {@see openstation_living_tree_site_health_performance()}), falling
  * back to a comfortable 0.8 until the weekly Site Health cron has run
  * at least once. The filter remains the integration point for plugins
  * with real runtime telemetry.
  *
- * @since 0.9.4
- *
  * @return float Performance score in [0, 1].
  */
-function desktop_mode_living_tree_performance() {
-	$performance = desktop_mode_living_tree_site_health_performance();
+function openstation_living_tree_performance() {
+	$performance = openstation_living_tree_site_health_performance();
 	if ( null === $performance ) {
 		$performance = 0.8;
 	}
@@ -271,14 +250,12 @@ function desktop_mode_living_tree_performance() {
 	 * Filter the Living Tree performance hormone source. Return 0..1 —
 	 * it throttles growth vigour.
 	 *
-	 * @since 0.9.4
-	 *
 	 * @param float $performance Default: a composite of core's Site
 	 *                           Health issue counts when the
 	 *                           `health-check-site-status-result`
 	 *                           transient exists, else 0.8.
 	 */
-	$performance = (float) apply_filters( 'desktop_mode_living_tree_performance', $performance );
+	$performance = (float) apply_filters( 'openstation_living_tree_performance', $performance );
 	return min( 1.0, max( 0.0, $performance ) );
 }
 
@@ -301,12 +278,10 @@ function desktop_mode_living_tree_performance() {
  * brand-new site until the weekly cron first fires or someone opens
  * the Site Health screen; callers fall back to the 0.8 default then.
  *
- * @since 0.9.5
- *
  * @return float|null Composite in [0.2, 1], or null when the Site
  *                    Health tallies aren't available (yet).
  */
-function desktop_mode_living_tree_site_health_performance() {
+function openstation_living_tree_site_health_performance() {
 	$raw = get_transient( 'health-check-site-status-result' );
 	if ( is_string( $raw ) && '' !== $raw ) {
 		$counts = json_decode( $raw, true );
@@ -337,11 +312,9 @@ function desktop_mode_living_tree_site_health_performance() {
  * normalised against the busiest year. This is DNA, not geometry — the
  * simulator may bias growth density with it, never position anything.
  *
- * @since 0.9.4
- *
  * @return array[] Compact branch DNA hints (max 12 entries).
  */
-function desktop_mode_living_tree_branch_dna() {
+function openstation_living_tree_branch_dna() {
 	global $wpdb;
 
 	$rows = $wpdb->get_results(
@@ -371,7 +344,7 @@ function desktop_mode_living_tree_branch_dna() {
 			'girth'  => round( (int) $row['n'] / $max, 3 ),
 			'length' => round( min( 1.0, (int) $row['n'] / $max + 0.2 ), 3 ),
 		);
-		$depth++;
+		++$depth;
 	}
 	return $out;
 }

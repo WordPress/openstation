@@ -3,8 +3,8 @@
  *
  * WordPress nonces expire after `nonce_life` (24 hours by default).
  * The desktop shell is a long-running SPA — without periodic
- * refresh, every nonce stamped into `window.desktopModeConfig` /
- * `window.desktopModeWindowConfig` at page render goes stale once
+ * refresh, every nonce stamped into `window.openStationConfig` /
+ * `window.openStationWindowConfig` at page render goes stale once
  * the tab has been open longer than a day. Native windows that
  * carry a cached `restNonce` (Plugins, Posts, Pages, Users, …)
  * then hit `rest_cookie_invalid_nonce` — surfaced to the user as
@@ -23,12 +23,12 @@
  * Extending from third-party plugins: subscribe to the
  * heartbeat field directly via the public heartbeat surface —
  *
- *     wp.desktop.heartbeat.subscribe( 'desktop_mode_nonces', ( map ) => {
+ *     wp.os.heartbeat.subscribe( 'desktop_mode_nonces', ( map ) => {
  *         // map[ 'my-plugin/admin-ajax' ] is the fresh value
  *     } );
  *
  * The matching action must be published from PHP via the
- * `desktop_mode_nonce_refresh_actions` filter so the server
+ * `openstation_nonce_refresh_actions` filter so the server
  * actually ships it.
  *
  * `registerNonceTarget()` below is an internal helper the
@@ -36,8 +36,6 @@
  * bundles don't ship with the main bundle's module graph, so
  * importing it directly isn't supported. The public extension
  * surface is the heartbeat subscription above.
- *
- * @since 0.8.7
  */
 
 import { heartbeat } from './heartbeat';
@@ -75,7 +73,7 @@ let booted = false;
  *
  * Framework-only. Third-party plugins can't import this from a
  * separate bundle; use
- * `wp.desktop.heartbeat.subscribe( 'desktop_mode_nonces', cb )`
+ * `wp.os.heartbeat.subscribe( 'desktop_mode_nonces', cb )`
  * instead and read the action key off the returned map.
  *
  * @internal
@@ -147,7 +145,7 @@ export function bootNonceRefresh(): void {
 /**
  * Wire the framework's own cached nonces.
  *
- *   - `wp_rest` backs `window.desktopModeConfig.restNonce`
+ *   - `wp_rest` backs `window.openStationConfig.restNonce`
  *      (used by `injectRestNonce()` shell-wide) and the
  *      per-window blob for the Plugins window.
  *   - `desktop-mode-plugins` backs the Plugins window's
@@ -216,8 +214,8 @@ function readShellConfig(): { restNonce?: unknown } | undefined {
 		return undefined;
 	}
 	return ( window as unknown as {
-		desktopModeConfig?: { restNonce?: unknown };
-	} ).desktopModeConfig;
+		openStationConfig?: { restNonce?: unknown };
+	} ).openStationConfig;
 }
 
 function readWindowConfigs(): Record< string, unknown > | undefined {
@@ -225,8 +223,8 @@ function readWindowConfigs(): Record< string, unknown > | undefined {
 		return undefined;
 	}
 	return ( window as unknown as {
-		desktopModeWindowConfig?: Record< string, unknown >;
-	} ).desktopModeWindowConfig;
+		openStationWindowConfig?: Record< string, unknown >;
+	} ).openStationWindowConfig;
 }
 
 /**

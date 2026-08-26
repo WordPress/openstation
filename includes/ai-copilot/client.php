@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — AI Copilot: WordPress AI Client adapter.
+ * OpenStation — AI Copilot: WordPress AI Client adapter.
  *
  * Thin wrappers around `wp_ai_client_prompt()` that the agentic search loop
  * and the comment-scoring job use to generate. Credentials are injected by
@@ -12,15 +12,17 @@
  *
  * All SDK classes referenced here ship with WordPress 7.0+. The `use`
  * statements are compile-time aliases only; every call site is reached solely
- * through {@see desktop_mode_ai_is_available()}, so this file is inert (and
+ * through {@see openstation_ai_is_available()}, so this file is inert (and
  * never resolves the classes) on older WordPress.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 use WordPress\AiClient\Messages\DTO\Message;
 use WordPress\AiClient\Messages\DTO\MessagePart;
 use WordPress\AiClient\Messages\DTO\UserMessage;
+use WordPress\AiClient\Providers\Models\Contracts\ModelInterface;
+use WordPress\AiClient\Providers\Models\DTO\ModelConfig;
 use WordPress\AiClient\Tools\DTO\FunctionCall;
 use WordPress\AiClient\Tools\DTO\FunctionDeclaration;
 use WordPress\AiClient\Tools\DTO\FunctionResponse;
@@ -33,12 +35,10 @@ defined( 'ABSPATH' ) || exit;
  * Each definition is the neutral tool shape the registry already produces:
  * `{ type: 'function', name, description, parameters (JSON Schema) }`.
  *
- * @since 0.9.4
- *
  * @param array $tool_defs List of tool definitions.
  * @return FunctionDeclaration[]
  */
-function desktop_mode_ai_build_function_declarations( array $tool_defs ) {
+function openstation_ai_build_function_declarations( array $tool_defs ) {
 	$declarations = array();
 	foreach ( $tool_defs as $def ) {
 		if ( ! is_array( $def ) ) {
@@ -59,24 +59,20 @@ function desktop_mode_ai_build_function_declarations( array $tool_defs ) {
 /**
  * Wraps a user query as a text message for the conversation history.
  *
- * @since 0.9.4
- *
  * @param string $text
  * @return UserMessage
  */
-function desktop_mode_ai_user_text_message( $text ) {
+function openstation_ai_user_text_message( $text ) {
 	return new UserMessage( array( new MessagePart( (string) $text ) ) );
 }
 
 /**
  * Wraps tool results as a user message of function-response parts.
  *
- * @since 0.9.4
- *
  * @param array $tool_outputs List of `{ call_id, name, response }` entries.
  * @return UserMessage
  */
-function desktop_mode_ai_tool_result_message( array $tool_outputs ) {
+function openstation_ai_tool_result_message( array $tool_outputs ) {
 	$parts = array();
 	foreach ( $tool_outputs as $output ) {
 		$parts[] = new MessagePart(
@@ -104,12 +100,10 @@ function desktop_mode_ai_tool_result_message( array $tool_outputs ) {
  * returned unchanged rather than emptied; the loop never replays such a
  * turn anyway.
  *
- * @since 0.9.4
- *
  * @param Message $message Assistant message as returned by the AI Client.
  * @return Message Message safe to append to the conversation history.
  */
-function desktop_mode_ai_strip_thought_parts( Message $message ) {
+function openstation_ai_strip_thought_parts( Message $message ) {
 	$kept     = array();
 	$stripped = false;
 	foreach ( $message->getParts() as $part ) {
@@ -128,6 +122,106 @@ function desktop_mode_ai_strip_thought_parts( Message $message ) {
 }
 
 /**
+ * Builds the error for a final turn that produced no answer text.
+ *
+ * Observed live with the Anthropic provider under agent runs: a hard task
+ * spends the entire `max_tokens` budget inside a thinking block
+ * (`stop_reason: "max_tokens"`, a single text-less thought part), so the
+ * turn carries neither function calls nor extractable text. Callers that
+ * can meaningfully degrade instead (the command follow-up turn) match on
+ * this code and keep their own fallback.
+ *
+ * @param string $detail Underlying extraction failure, preserved for logs.
+ * @return WP_Error
+ */
+function openstation_ai_empty_answer_error( $detail ) {
+	return new WP_Error(
+		'openstation_ai_empty_answer',
+		__( 'The AI provider returned no answer text.', 'desktop-mode' ),
+		array(
+			'status' => 502,
+			'detail' => (string) $detail,
+		)
+	);
+}
+
+/**
+ * Applies the site's model config to a prompt builder.
+ *
+ * @param mixed $builder WP_AI_Client_Prompt_Builder.
+ * @param array $context Partial filter context; missing keys are defaulted.
+ * @return mixed
+ */
+function openstation_ai_apply_model_config( $builder, array $context ) {
+	$context = array_merge(
+		array(
+			'user_id'    => 0,
+			'request_id' => '',
+			'source'     => '',
+			'has_tools'  => false,
+			'has_schema' => false,
+		),
+		$context
+	);
+
+	/**
+	 * Filters the model config for one AI turn.
+	 *
+	 * Defaults to empty. Recipe: `docs/examples/ai-model-config.md`.
+	 *
+	 * @param array $config  { model?: string|ModelInterface, max_tokens?: int, temperature?: float, custom_options?: array<string, mixed> }.
+	 * @param array $context { user_id, request_id, source, has_tools, has_schema }.
+	 */
+	$config = apply_filters( 'openstation_ai_model_config', array(), $context );
+	if ( ! is_array( $config ) ) {
+		return $builder;
+	}
+
+	$model_config = new ModelConfig();
+
+	if ( isset( $config['max_tokens'] ) && is_numeric( $config['max_tokens'] ) && (int) $config['max_tokens'] > 0 ) {
+		$model_config->setMaxTokens( (int) $config['max_tokens'] );
+	}
+
+	// Unlike max_tokens, 0.0 is a legitimate temperature (deterministic). The
+	// 2.0 ceiling is the range the SDK's own schema declares.
+	if ( isset( $config['temperature'] ) && is_numeric( $config['temperature'] )
+		&& (float) $config['temperature'] >= 0.0 && (float) $config['temperature'] <= 2.0 ) {
+		$model_config->setTemperature( (float) $config['temperature'] );
+	}
+
+	$custom_options = array();
+	if ( isset( $config['custom_options'] ) && is_array( $config['custom_options'] ) ) {
+		foreach ( $config['custom_options'] as $key => $value ) {
+			// A list would reach the provider as parameters named `0`, `1`, ….
+			if ( is_string( $key ) && '' !== $key ) {
+				$custom_options[ $key ] = $value;
+			}
+		}
+	}
+
+	if ( ! empty( $custom_options ) ) {
+		$model_config->setCustomOptions( $custom_options );
+	}
+
+	$builder = $builder->using_model_config( $model_config );
+
+	// After the config: `using_model()` merges the model's own defaults under
+	// whatever the builder already carries, so ours has to land first.
+	$model = isset( $config['model'] ) ? $config['model'] : null;
+	if ( $model instanceof ModelInterface ) {
+		$builder = $builder->using_model( $model );
+	} elseif ( is_string( $model ) && '' !== trim( $model ) ) {
+		// `using_model()` needs a ModelInterface, so a bare model id goes
+		// through `using_model_preference()`, which throws on anything that
+		// isn't a non-empty string.
+		$builder = $builder->using_model_preference( trim( $model ) );
+	}
+
+	return $builder;
+}
+
+/**
  * Runs one generation turn through the AI Client.
  *
  * Rebuilds the prompt from the full ordered message list each turn (the
@@ -135,38 +229,50 @@ function desktop_mode_ai_strip_thought_parts( Message $message ) {
  * advertises the tools as function declarations, and constrains the final
  * answer to `$answer_schema` when given. Returns the assistant turn normalized
  * to the shape the loop consumes; `message` has thought-channel parts stripped
- * ({@see desktop_mode_ai_strip_thought_parts()}) so it is safe to replay.
+ * ({@see openstation_ai_strip_thought_parts()}) so it is safe to replay.
  *
- * @since 0.9.4
- *
- * @param int        $user_id       Requesting user id. Currently unused — the
- *                                  provider comes from Connectors and no
- *                                  per-user preference is applied; retained for
- *                                  signature stability and future attribution.
+ * @param int        $user_id       Requesting user id.
  * @param array      $messages      Ordered conversation as SDK Message objects.
  * @param array      $tool_defs     Tool definitions to advertise.
  * @param array|null $answer_schema JSON Schema for the final answer, or null.
  * @param string     $instructions  System instruction.
+ * @param array      $context       Optional. `{ source?: string, request_id?: string }`
+ *                                  for the model-config filter.
  * @return array{ text: ?string, function_calls: array, message: mixed, usage: ?array, model: ?array }|WP_Error
  */
-function desktop_mode_ai_client_generate( $user_id, array $messages, array $tool_defs, $answer_schema, $instructions ) {
+function openstation_ai_client_generate( $user_id, array $messages, array $tool_defs, $answer_schema, $instructions, array $context = array() ) {
 	$builder = wp_ai_client_prompt( $messages );
 
 	if ( is_string( $instructions ) && '' !== $instructions ) {
 		$builder = $builder->using_system_instruction( $instructions );
 	}
 
-	// Provider + model selection is delegated entirely to the Core AI Client
-	// (Connector-backed); Desktop Mode pins neither.
+	// Provider + model selection is delegated to the Core AI Client
+	// (Connector-backed) unless the model-config filter says otherwise.
 
-	$declarations = desktop_mode_ai_build_function_declarations( $tool_defs );
+	$declarations = openstation_ai_build_function_declarations( $tool_defs );
 	if ( ! empty( $declarations ) ) {
 		$builder = $builder->using_function_declarations( ...$declarations );
 	}
 
 	if ( is_array( $answer_schema ) ) {
-		$builder = $builder->as_json_response( $answer_schema );
+		// Strict structured output: providers reject an object subschema that
+		// doesn't set `additionalProperties: false`, and one such node 400s the
+		// whole turn. Normalize here so no schema author has to know that.
+		$builder = $builder->as_json_response( openstation_ai_normalize_response_schema( $answer_schema ) );
 	}
+
+	$builder = openstation_ai_apply_model_config(
+		$builder,
+		array_merge(
+			$context,
+			array(
+				'user_id'    => (int) $user_id,
+				'has_tools'  => ! empty( $declarations ),
+				'has_schema' => is_array( $answer_schema ),
+			)
+		)
+	);
 
 	$result = $builder->generate_result();
 	if ( is_wp_error( $result ) ) {
@@ -193,31 +299,36 @@ function desktop_mode_ai_client_generate( $user_id, array $messages, array $tool
 
 	$text = null;
 	if ( empty( $function_calls ) ) {
+		// A turn with no function calls IS the final answer, so failing to
+		// extract its text is a failed generation, not a valid empty one.
+		// Swallowing it here used to surface as a "successful" run with an
+		// empty answer, invisible to the retry and error paths alike.
 		try {
 			$text = $result->toText();
 		} catch ( \Throwable $e ) {
-			$text = null;
+			return openstation_ai_empty_answer_error( $e->getMessage() );
+		}
+		if ( ! is_string( $text ) || '' === trim( $text ) ) {
+			return openstation_ai_empty_answer_error( 'The provider response contains no text part.' );
 		}
 	}
 
 	return array(
 		'text'           => $text,
 		'function_calls' => $function_calls,
-		'message'        => desktop_mode_ai_strip_thought_parts( $message ),
-		'usage'          => desktop_mode_ai_result_token_usage( $result ),
-		'model'          => desktop_mode_ai_result_model_metadata( $result ),
+		'message'        => openstation_ai_strip_thought_parts( $message ),
+		'usage'          => openstation_ai_result_token_usage( $result ),
+		'model'          => openstation_ai_result_model_metadata( $result ),
 	);
 }
 
 /**
  * Extracts normalized token usage from a generation result.
  *
- * @since 0.9.4
- *
  * @param mixed $result GenerativeAiResult.
  * @return array{ prompt: int, completion: int, total: int }|null
  */
-function desktop_mode_ai_result_token_usage( $result ) {
+function openstation_ai_result_token_usage( $result ) {
 	try {
 		$usage = $result->getTokenUsage();
 		return array(
@@ -233,12 +344,10 @@ function desktop_mode_ai_result_token_usage( $result ) {
 /**
  * Extracts the resolved model's id + name from a generation result.
  *
- * @since 0.9.4
- *
  * @param mixed $result GenerativeAiResult.
  * @return array{ id: string, name: string }|null
  */
-function desktop_mode_ai_result_model_metadata( $result ) {
+function openstation_ai_result_model_metadata( $result ) {
 	try {
 		$model = $result->getModelMetadata();
 		return array(

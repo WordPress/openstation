@@ -67,6 +67,18 @@ if ! gh auth status >/dev/null 2>&1; then
 	exit 1
 fi
 
+# gh guesses its "base repo" from the remotes, and that guess is unreliable in
+# a clone that carries contributor forks alongside origin — some subcommands
+# resolve it, others bail with "No default remote repository has been set".
+# Resolve origin once through the API instead (which also follows repository
+# renames, so a stale remote URL still lands on the right slug) and pass
+# --repo explicitly to every gh call below.
+repo=$(gh repo view "$(git remote get-url origin)" --json nameWithOwner -q .nameWithOwner 2>/dev/null || true)
+if [[ -z "$repo" ]]; then
+	echo "error: could not resolve the GitHub repository behind 'origin'." >&2
+	exit 1
+fi
+
 # Fetches GitHub's auto-generated release notes for the next tag, keeps
 # only bullet lines, strips the trailing "by @user in <PR-URL>" suffix,
 # and drops "first contribution" boilerplate. Echoes the transformed
@@ -80,8 +92,7 @@ generate_changelog_draft() {
 		echo "warning: no previous tag found — skipping changelog draft." >&2
 		return 1
 	fi
-	local repo raw
-	repo=$(gh repo view --json nameWithOwner -q .nameWithOwner)
+	local raw
 	raw=$(gh api -X POST "repos/$repo/releases/generate-notes" \
 		-f tag_name="$target_tag" \
 		-f previous_tag_name="$prev" \
@@ -233,14 +244,22 @@ if [[ "$branch" != "trunk" ]]; then
 	exit 1
 fi
 
-# Leftovers from an aborted release attempt (the i18n refresh under
-# languages/, a drafted-but-unconfirmed changelog in readme.txt) are
-# regenerated or re-reviewed on every run and belong in the bump commit,
-# so they must not block a re-run. Anything else dirty still aborts:
-# the bump uses `git commit -am` and would silently sweep it up.
-dirty=$(git status --porcelain --untracked-files=no | grep -vE '^.{3}(languages/|readme\.txt$)' || true)
+# Leftovers from an aborted release attempt are regenerated or
+# re-reviewed on every run and belong in the bump commit, so they must
+# not block a re-run: the i18n refresh under languages/, a
+# drafted-but-unconfirmed changelog in readme.txt, and the version
+# strings themselves. The version files are on this list because
+# `bump-version.sh` runs before the changelog gate, so answering `n`
+# there leaves them written but uncommitted; without the exemption the
+# re-run that gate promises would abort instead of returning to the
+# prompt. `bump-version.sh` rewrites them deterministically on every
+# run, so a stale value cannot survive.
+#
+# Anything else dirty still aborts: the bump uses `git commit -am` and
+# would silently sweep it up.
+dirty=$(git status --porcelain --untracked-files=no | grep -vE '^.{3}(languages/|readme\.txt$|package\.json$|package-lock\.json$|desktop-mode\.php$|packages/openstation-types/)' || true)
 if [[ -n "$dirty" ]]; then
-	echo "error: working tree has changes beyond languages/ and readme.txt. Commit or stash first:" >&2
+	echo "error: working tree has changes beyond the release-owned files. Commit or stash first:" >&2
 	printf '%s\n' "$dirty" >&2
 	exit 1
 fi
@@ -273,10 +292,24 @@ fi
 # awk (instead of `grep -oP`) for BSD/macOS portability — `-P` is GNU-only.
 pkg=$(node -p "require('./package.json').version")
 header=$(awk '/^[[:space:]]*\*[[:space:]]*Version:/ { print $3; exit }' desktop-mode.php)
-constant=$(awk -F"'" '/DESKTOP_MODE_VERSION/ { print $4; exit }' desktop-mode.php)
+constant=$(awk -F"'" '/OPENSTATION_VERSION/ { print $4; exit }' desktop-mode.php)
 stable=$(awk '/^Stable tag:/ { print $3; exit }' readme.txt)
 
-if [[ "$pkg" == "$new" && "$header" == "$new" && "$constant" == "$new" && "$stable" == "$new" ]]; then
+# Matching strings are not proof the bump was committed. `bump-version.sh`
+# writes the files and never commits, and the changelog gate below can
+# exit between the write and the commit, so an aborted run leaves the
+# tree bumped and uncommitted. Resuming on the strings alone would skip
+# the commit and tag whatever HEAD already is, which is the pre-bump
+# commit. Require the bump to be committed as well; when it is not, the
+# else branch below re-runs `bump-version.sh` as a no-op and commits
+# normally.
+if git diff HEAD --quiet -- package.json package-lock.json packages/openstation-types/package.json desktop-mode.php; then
+	bump_committed=1
+else
+	bump_committed=0
+fi
+
+if [[ "$pkg" == "$new" && "$header" == "$new" && "$constant" == "$new" && "$stable" == "$new" && "$bump_committed" == "1" ]]; then
 	echo "All version locations already at $new — skipping bump, resuming at CI wait."
 	confirm_changelog
 	# In resume mode the bump commit is already pushed; readme.txt edits
@@ -289,12 +322,21 @@ if [[ "$pkg" == "$new" && "$header" == "$new" && "$constant" == "$new" && "$stab
 		exit 1
 	fi
 else
-	# Refresh translation files BEFORE the version bump so any churn
-	# (renumbered #: source refs, fresh POT-Creation-Date, fuzzy
-	# flags, new JSON bundles) ends up in the same commit as the
-	# bump. Running this here also gives a cheap Ctrl-C escape: if
-	# the language-file diff looks wrong, abort now — nothing has
-	# been committed or pushed yet.
+	# Bump the version BEFORE refreshing translations, because
+	# `wp i18n make-pot` reads Project-Id-Version straight from the
+	# plugin header in desktop-mode.php. Extracting first stamps the
+	# catalogues with the PREVIOUS version, which is how the shipped
+	# POT came to say "Desktop Mode 0.9.7" while the plugin was at
+	# 0.9.8. Nothing is committed here, so the Ctrl-C escape below
+	# still covers the bump too.
+	./bin/bump-version.sh "$new"
+
+	# Refresh translation files after the bump but BEFORE any commit,
+	# so the catalogues carry $new and any churn (renumbered #: source
+	# refs, fresh POT-Creation-Date, fuzzy flags, new JSON bundles)
+	# still ends up in the same commit as the bump. If the
+	# language-file diff looks wrong, abort now — nothing has been
+	# committed or pushed yet.
 	if [[ "$skip_i18n" == "0" ]]; then
 		echo "Refreshing translation files (npm run i18n)..."
 		npm run --silent i18n
@@ -381,9 +423,8 @@ else
 	# and require an explicit yes before the bump commit.
 	confirm_changelog
 
-	./bin/bump-version.sh "$new"
 	if git diff --quiet; then
-		echo "bump-version.sh produced no changes — versions already in sync."
+		echo "Nothing to commit — versions already in sync and no language churn."
 	else
 		git commit -am "chore: bump to $new"
 		# Skip the interactive pre-push trunk prompt — the preflight checks above
@@ -398,7 +439,7 @@ echo "Waiting for CI to register a run on ${sha} (polling for up to 5 min)..."
 # CI may take a few minutes to register the run after the push.
 run_id=""
 for i in $(seq 1 100); do
-	run_id=$(gh run list --branch trunk --workflow ci.yml --commit "$sha" --limit 1 --json databaseId -q '.[0].databaseId' 2>/dev/null || true)
+	run_id=$(gh run list --repo "$repo" --branch trunk --workflow ci.yml --commit "$sha" --limit 1 --json databaseId -q '.[0].databaseId' 2>/dev/null || true)
 	[[ -n "$run_id" ]] && break
 	# Heartbeat every 30 s so the script doesn't look frozen while CI registers.
 	if (( i % 10 == 0 )); then
@@ -412,12 +453,12 @@ if [[ -z "$run_id" ]]; then
 	exit 1
 fi
 
-run_url=$(gh run view "$run_id" --json url -q '.url' 2>/dev/null || true)
+run_url=$(gh run view "$run_id" --repo "$repo" --json url -q '.url' 2>/dev/null || true)
 echo "CI run ${run_id} registered — watching until it finishes (typically 3-5 min)."
 [[ -n "$run_url" ]] && echo "  ${run_url}"
 echo "  (gh run watch is silent until each job completes; this is normal.)"
 
-gh run watch "$run_id" --exit-status
+gh run watch "$run_id" --repo "$repo" --exit-status
 
 echo "CI passed — tagging ${tag} and pushing..."
 
@@ -425,4 +466,4 @@ git tag "$tag"
 git push origin "$tag"
 
 echo "Tagged $tag. Release workflow now building — watch with:"
-echo "  gh run watch \$(gh run list --workflow release.yml --limit 1 --json databaseId -q '.[0].databaseId')"
+echo "  gh run watch --repo $repo \$(gh run list --repo $repo --workflow release.yml --limit 1 --json databaseId -q '.[0].databaseId')"

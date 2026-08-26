@@ -3,7 +3,7 @@
  *
  * Two convenience wrappers land here:
  *
- *   - {@link createRegisterWindow} → `wp.desktop.registerWindow()`.
+ *   - {@link createRegisterWindow} → `wp.os.registerWindow()`.
  *     Wraps `windowManager.open()` with sensible native defaults so
  *     plugin authors don't have to re-declare the same scaffolding
  *     every time: `native: true`, fallback `url` (`#<id>`), minimum
@@ -13,7 +13,7 @@
  *   - {@link cloneTemplate} → a tiny `<template>` cloner. The shell
  *     uses it internally to populate every native window's body with
  *     the registered template before invoking the render callback,
- *     so plugin authors using `desktop_mode_register_window()` don't
+ *     so plugin authors using `openstation_register_window()` don't
  *     touch this directly. Exported for advanced cases that want to
  *     re-clone (e.g. dynamic per-row templates, custom hydration
  *     flows outside the standard pipeline).
@@ -21,14 +21,13 @@
  * Both are intentionally thin — they don't introduce new runtime
  * state. Plugins that outgrow them can always call the underlying
  * APIs directly.
- *
- * @since 0.5.0
  */
 
 import { activity } from './activity';
 import { HOOKS, addAction, doAction, removeAction } from './hooks';
-import { loadVendorScript } from './wallpapers/vendor-loader';
+import { injectInlineScript, loadVendorScript } from './wallpapers/vendor-loader';
 import { registerSyntheticIframe } from './connection';
+import { setPanelTabs } from './window/tab-strip';
 import {
 	loadNativeWindowGeometry,
 	saveNativeWindowGeometry,
@@ -38,9 +37,13 @@ import {
 import type { SystemDockItem } from './dock';
 import type {
 	NativeRenderContext,
+	NativeWindowCompanionScript,
 	NativeWindowDef,
 	NativeWindowIframeContent,
+	NativeWindowScriptData,
 	NativeWindowServerEntry,
+	NativeWindowTabEntry,
+	NativeWindowWireEntry,
 } from './types';
 import type { WindowManager } from './window-manager';
 import type { Window as DesktopWindow } from './window';
@@ -62,21 +65,19 @@ import {
  * argument to `onWindow`).
  *
  * @public
- * @since 0.5.0
  */
 export interface WindowLifecycleHandlers {
 	opened?: () => void;
 	/**
-	 * `wp.desktop.openWindow(id)` was called for an already-open
+	 * `wp.os.openWindow(id)` was called for an already-open
 	 * instance — the plugin's render callback won't run again, but
 	 * the user/caller is asking to "show this window". A typical
 	 * use is to re-orient content (focus a tab, scroll to a row).
 	 * Payload mirrors the `WINDOW_REOPENED` action: `{ baseId,
-	 * wasMinimized, navigated }`. `navigated` (since 0.9.4) is
+	 * wasMinimized, navigated }`. `navigated` is
 	 * `true` when the open request carried a URL the window wasn't
 	 * already showing and the framework navigated the existing
 	 * iframe to it in place; always `false` for native windows.
-	 * *Since 0.5.5.*
 	 */
 	reopened?: ( payload: {
 		baseId: string;
@@ -88,7 +89,7 @@ export interface WindowLifecycleHandlers {
 	 * Window lost focus to another window. Payload: `{ focusedTo }` —
 	 * the id of the window that took over (so subscribers can
 	 * decide whether the blur transitions to a peer they care
-	 * about). *Since 0.5.5.*
+	 * about).
 	 */
 	blurred?: ( payload: { focusedTo: string | null } ) => void;
 	closing?: ( payload: { element: HTMLElement } ) => void;
@@ -96,11 +97,11 @@ export interface WindowLifecycleHandlers {
 	minimized?: () => void;
 	restored?: () => void;
 	maximized?: () => void;
-	/** *Since 0.5.5.* Fires when the window leaves maximized state. */
+	/** Fires when the window leaves maximized state. */
 	unmaximized?: () => void;
-	/** *Since 0.5.5.* Fires when the window enters fullscreen / focus mode. */
+	/** Fires when the window enters fullscreen / focus mode. */
 	fullscreenEntered?: () => void;
-	/** *Since 0.5.5.* Fires when the window exits fullscreen / focus mode. */
+	/** Fires when the window exits fullscreen / focus mode. */
 	fullscreenExited?: () => void;
 	resized?: ( payload: { width: number; height: number } ) => void;
 	/** Body-resized — fires on every paint where body dimensions change. */
@@ -144,7 +145,10 @@ let _ctxInstance = 0;
  *
  * @internal
  */
-function buildNativeRenderContext( windowId: string ): {
+function buildNativeRenderContext(
+	windowId: string,
+	params: Record< string, string | number | boolean > = {},
+): {
 	ctx: NativeRenderContext;
 	dispose: () => void;
 } {
@@ -288,6 +292,7 @@ function buildNativeRenderContext( windowId: string ): {
 				},
 			);
 		},
+		params,
 	};
 
 	const dispose = (): void => {
@@ -316,13 +321,38 @@ function buildNativeRenderContext( windowId: string ): {
  * Window class's `hydrateNative()` — the single point inside the
  * framework that invokes `config.render(body)` for native windows.
  * Centralising the ctx build there means every code path
- * (`wp.desktop.registerWindow`, PHP-registered windows, direct
+ * (`wp.os.registerWindow`, PHP-registered windows, direct
  * `manager.open({ native: true, render })`) gets the same ctx
  * shape without each call site re-implementing the wiring.
  *
  * @internal
  */
 export { buildNativeRenderContext as _buildNativeRenderContext };
+
+/**
+ * Resolve the id of the window a native render callback is mounting
+ * into, by walking up from the body element to the window root
+ * (`id="wp-window-<windowId>"`, stamped by `createWindowElement`).
+ *
+ * `Window.hydrateNative()` runs AFTER the element is appended to the
+ * desktop, so by render time the ancestry is always present — the
+ * `fallback` only covers a detached body (a unit test rendering into
+ * a bare `<div>`, a future code path that pre-renders off-DOM).
+ *
+ * The same `wp-window-` walk backs `os-file-drop/manager.ts` and
+ * `drag/iframe-drop-targets.ts`; this is the id-of-record for
+ * anything that has a DOM node but not a `Window` reference.
+ *
+ * @internal
+ */
+function resolveMountedWindowId(
+	body: HTMLElement,
+	fallback: string,
+): string {
+	const root = body.closest< HTMLElement >( '[id^="wp-window-"]' );
+	const id = root?.id.slice( 'wp-window-'.length );
+	return id ? id : fallback;
+}
 
 /**
  * Synthesise a `render( body )` callback that renders an iframe
@@ -340,7 +370,7 @@ export { buildNativeRenderContext as _buildNativeRenderContext };
  *     `onMessage`.
  *   - When `bridge: true` AND the iframe is same-origin, injects
  *     the public iframe-side bridge script via `<script>` so the
- *     iframe can `wp.desktop.iframe.publish/subscribe/
+ *     iframe can `wp.os.iframe.publish/subscribe/
  *     onConnection/requestConnection` without enqueueing the
  *     bridge handle itself.
  *
@@ -348,14 +378,25 @@ export { buildNativeRenderContext as _buildNativeRenderContext };
  * — wired in by `createRegisterWindow` below so the plugin's own
  * `onClose` also runs.
  *
+ * `registeredId` is the id the PLUGIN asked for, which is NOT
+ * necessarily the id the window ends up with — `manager.open()`
+ * suffixes it (`chat` → `chat-2`) whenever an instance of the same
+ * baseId is already open on another virtual desktop, and `openNew`
+ * always does. Every id-keyed call below therefore resolves the LIVE
+ * instance id off the mounted DOM instead (see
+ * {@link resolveMountedWindowId}); `registeredId` is only the
+ * fallback for the theoretical case where the body isn't inside a
+ * window root yet.
+ *
  * @internal
  */
 function buildIframeContentRender(
 	cfg: NativeWindowIframeContent,
 	cleanups: ( () => void )[],
-	windowId: string,
+	registeredId: string,
 ): ( body: HTMLElement ) => Promise< void > {
 	return ( body: HTMLElement ) => {
+		const windowId = resolveMountedWindowId( body, registeredId );
 		const iframe = document.createElement( 'iframe' );
 		iframe.style.width = '100%';
 		iframe.style.height = '100%';
@@ -369,7 +410,7 @@ function buildIframeContentRender(
 
 		// Tell the connection bridge that this window's "iframe"
 		// lives here in the native body, not on `Window.iframe`.
-		// Without this, `wp.desktop.connect( id ).send( … )` would
+		// Without this, `wp.os.connect( id ).send( … )` would
 		// silently drop messages — the bridge's iframe lookup would
 		// hit a null `Window.iframe` and bail.
 		const unregisterSynth = registerSyntheticIframe( windowId, iframe );
@@ -406,16 +447,16 @@ function buildIframeContentRender(
 			if ( cfg.bridge ) {
 				try {
 					const doc = iframe.contentDocument;
-					if ( doc && ! doc.querySelector( 'script[data-desktop-mode-iframe-bridge]' ) ) {
+					if ( doc && ! doc.querySelector( 'script[data-os-iframe-bridge]' ) ) {
 						const bridgeUrl = (
 							window as unknown as {
-								desktopModeConfig?: { iframeBridgeUrl?: string };
+								openStationConfig?: { iframeBridgeUrl?: string };
 							}
-						).desktopModeConfig?.iframeBridgeUrl;
+						).openStationConfig?.iframeBridgeUrl;
 						if ( bridgeUrl ) {
 							const s = doc.createElement( 'script' );
 							s.src = bridgeUrl;
-							s.setAttribute( 'data-desktop-mode-iframe-bridge', '1' );
+							s.setAttribute( 'data-os-iframe-bridge', '1' );
 							doc.head?.appendChild( s );
 						}
 					}
@@ -439,9 +480,9 @@ function buildIframeContentRender(
 		// foreign caller). Origin is also validated — same-origin
 		// only by default, matching the chromeless bridge.
 		//
-		// Bridge-prefixed messages (`desktop-mode-bridge-*`) are also
+		// Bridge-prefixed messages (`os-bridge-*`) are also
 		// forwarded into the connection registry so this iframe can
-		// participate in `wp.desktop.connect()` traffic — the
+		// participate in `wp.os.connect()` traffic — the
 		// chromeless bridge's own message listener doesn't see this
 		// iframe (it sits inside a native window's body, not the
 		// shell-managed iframe).
@@ -457,18 +498,18 @@ function buildIframeContentRender(
 				data &&
 				typeof data === 'object' &&
 				typeof ( data as { type?: string } ).type === 'string' &&
-				( data as { type: string } ).type.startsWith( 'desktop-mode-bridge-' )
+				( data as { type: string } ).type.startsWith( 'os-bridge-' )
 			) {
 				const bridgeRouter = (
 					window as unknown as {
-						__desktopModeConnectionBridge?: {
+						__openStationConnectionBridge?: {
 							routeIncomingFromIframe(
 								d: unknown,
 								fromWindowId?: string,
 							): void;
 						};
 					}
-				).__desktopModeConnectionBridge;
+				).__openStationConnectionBridge;
 				bridgeRouter?.routeIncomingFromIframe( data, windowId );
 			}
 			// Unified window-channel publish from the synthetic iframe.
@@ -479,7 +520,7 @@ function buildIframeContentRender(
 			if (
 				data &&
 				typeof data === 'object' &&
-				( data as { type?: string } ).type === 'desktop-mode-window-publish' &&
+				( data as { type?: string } ).type === 'os-window-publish' &&
 				typeof ( data as { channel?: string } ).channel === 'string' &&
 				( data as { channel: string } ).channel !== ''
 			) {
@@ -494,7 +535,7 @@ function buildIframeContentRender(
 			} catch ( err ) {
 				if ( typeof console !== 'undefined' ) {
 					console.error(
-						'[desktop-mode] iframeContent.onMessage threw:',
+						'[openstation] iframeContent.onMessage threw:',
 						err,
 					);
 				}
@@ -514,7 +555,7 @@ function buildIframeContentRender(
 /**
  * Build the `registerWindow` implementation bound to the shell's
  * window manager. Returned function is the one exposed on
- * `wp.desktop.registerWindow`.
+ * `wp.os.registerWindow`.
  *
  * The returned helper is idempotent for a given id — if a window
  * with the same id is already open, it focuses it rather than
@@ -538,7 +579,7 @@ export function createRegisterWindow(
 		if ( def.iframeContent ) {
 			if ( userRender && typeof console !== 'undefined' ) {
 				console.warn(
-					'[desktop-mode] registerWindow: both `render` and `iframeContent` provided — ignoring `render` and using the iframe shorthand. Drop one.',
+					'[openstation] registerWindow: both `render` and `iframeContent` provided — ignoring `render` and using the iframe shorthand. Drop one.',
 				);
 			}
 			render = buildIframeContentRender(
@@ -551,14 +592,25 @@ export function createRegisterWindow(
 		// onHide / onShow) used to live here as a wrapper around the
 		// user's render. It moved into `Window.hydrateNative()` in
 		// 0.8.2 so EVERY code path that opens a native window —
-		// `wp.desktop.registerWindow`, PHP-registered windows, direct
+		// `wp.os.registerWindow`, PHP-registered windows, direct
 		// `manager.open({ native: true, render })` — gets the same
 		// shape without each call site re-implementing the wiring.
 		// `userRender` therefore reaches `manager.open()` unchanged
 		// here; the Window class wraps it at hydration time.
 
 		const userOnClose = def.onClose;
-		const onClose: typeof userOnClose = cleanups.length
+		// Wrap on "this def CAN produce cleanups", never on
+		// `cleanups.length`. The array is populated by the synthesised
+		// render callback, which doesn't run until `manager.open()`
+		// below hydrates the window — so at this point it is always
+		// empty and the length check wrapped nothing. Every
+		// `iframeContent` window therefore leaked: its synthetic-iframe
+		// registration outlived the close (a stale `_syntheticIframes`
+		// entry pointing at a detached iframe, which the next instance
+		// of the same id would then find instead of its own), and its
+		// `message` listener stayed on `window` for the rest of the
+		// session.
+		const onClose: typeof userOnClose = def.iframeContent
 			? ( () => {
 				for ( const fn of cleanups ) {
 					try {
@@ -629,7 +681,7 @@ export function createRegisterWindow(
  * Lets plugins write:
  *
  * ```ts
- * wp.desktop.onWindow( 'calc', {
+ * wp.os.onWindow( 'calc', {
  *   opened:  () => trackOpen(),
  *   closed:  () => trackClose(),
  *   resized: ( { width, height } ) => relayout( width, height ),
@@ -656,8 +708,6 @@ export function createRegisterWindow(
  */
 /**
  * Optional flags for {@link onWindow}.
- *
- * @since 0.5.5
  */
 export interface OnWindowOptions {
 	/**
@@ -765,16 +815,15 @@ export function onWindow(
  * `templateHtml`; ditto for the plugin script via
  * `loadVendorScript( entry.scriptUrl )`. Once the script loads the
  * plugin registers a render callback on
- * `window.desktopModeNativeWindows[ id ]`, which the shell invokes
+ * `window.openStationNativeWindows[ id ]`, which the shell invokes
  * when the tile opens its window.
  *
  * Mutually exclusive with the legacy JS-only path (a plugin calling
- * `wp.desktop.registerSystemTile` directly). Plugins that use
- * `desktop_mode_register_window()` get this automatic lifecycle;
+ * `wp.os.registerSystemTile` directly). Plugins that use
+ * `openstation_register_window()` get this automatic lifecycle;
  * plugins that stick to the JS-only path self-manage their tiles.
  *
  * @public
- * @since 0.5.0
  */
 export interface NativeWindowRegistryDeps {
 	manager: WindowManager;
@@ -804,8 +853,7 @@ export interface NativeWindowRegistryDeps {
  * `onHide`, `onShow`, `markLoading`, `markReady`, plus the nested
  * `window.send/on` channel API. Existing unary callbacks
  * (`( body ) => …`) keep working — `ctx` is detected by arity, never
- * required. *Since 0.8.2 for the ctx arg; the unary form has been the
- * contract since 0.5.0.*
+ * required.
  *
  * @public
  */
@@ -815,13 +863,16 @@ type RenderCallback = (
 ) => void | ( () => void ) | Promise< void | ( () => void ) >;
 
 interface NativeWindowGlobals {
-	desktopModeNativeWindows?: Record< string, RenderCallback | undefined >;
+	openStationNativeWindows?: Record< string, RenderCallback | undefined >;
 	/**
 	 * Deprecated legacy registry bag. Extension bundles built before
 	 * the rename (cron-manager, code-editor, phpMyAdmin) register
 	 * their render callbacks here; the shell merges it at read time
 	 * so those windows stay interactive. New code must register on
-	 * `desktopModeNativeWindows`.
+	 * `openStationNativeWindows`.
+	 *
+	 * Deliberately keeps its pre-rebrand spelling: the whole point of
+	 * the bag is to match what already-built bundles write.
 	 */
 	wpDesktopNativeWindows?: Record< string, RenderCallback | undefined >;
 }
@@ -829,7 +880,7 @@ interface NativeWindowGlobals {
 /**
  * Resolve the render-callback registry, merging the deprecated
  * `wpDesktopNativeWindows` bag under the canonical
- * `desktopModeNativeWindows` one (canonical wins on id collisions).
+ * `openStationNativeWindows` one (canonical wins on id collisions).
  *
  * Merged at every read — not copied once at load — because some
  * legacy bundles rewrite their entry after the bundle executes
@@ -840,7 +891,7 @@ function readGlobalRegistry(): Record< string, RenderCallback | undefined > {
 	const g = window as unknown as NativeWindowGlobals;
 	return {
 		...( g.wpDesktopNativeWindows || {} ),
-		...( g.desktopModeNativeWindows || {} ),
+		...( g.openStationNativeWindows || {} ),
 	};
 }
 
@@ -875,7 +926,13 @@ export interface NativeWindowSync {
 	 * so the body always has the cloned template before the render
 	 * callback fires. **Do not duplicate this elsewhere.**
 	 */
-	openById: ( id: string ) => boolean;
+	openById: (
+		id: string,
+		opts?: {
+			source?: string;
+			params?: Record< string, string | number | boolean >;
+		},
+	) => boolean;
 
 	/**
 	 * Spawn a BRAND-NEW instance of a registered native window — even
@@ -889,10 +946,145 @@ export interface NativeWindowSync {
 	 * windows do: every "+" yields a duplicate, not a focus-existing.
 	 *
 	 * Returns `false` when the id isn't registered.
-	 *
-	 * @since 0.8.3
 	 */
-	openNewById: ( id: string ) => boolean;
+	openNewById: (
+		id: string,
+		opts?: {
+			source?: string;
+			params?: Record< string, string | number | boolean >;
+		},
+	) => boolean;
+
+	/**
+	 * Load a registered native window's bundle (companions first,
+	 * then the window's own script) WITHOUT opening the window.
+	 *
+	 * Native-window bundles load on first open. That covers the
+	 * windows themselves, but not the second thing some of them do:
+	 * publish an API on `wp.os` that another bundle calls with no
+	 * window in sight — `wp.os.myWordpress.trashEntity()` from a
+	 * drop on the recycle bin, say. Those call sites await this
+	 * first, then read the API.
+	 *
+	 * Resolves `true` once the bundle is in the tab (immediately on
+	 * a repeat call), `false` when the id isn't registered. A load
+	 * FAILURE also resolves `true` — the script tag was attempted
+	 * and reported through `SHELL_ERROR`; the caller's own "is the
+	 * API there?" check is the honest test of whether it worked.
+	 */
+	loadScriptById: ( id: string ) => Promise< boolean >;
+}
+
+/**
+ * Declare a server-registered native window's tabs in the window
+ * chrome.
+ *
+ * The panes are server-rendered into the template (one
+ * `<os-tabpanel>` per registered tab); the strip that drives them is
+ * the shell's, in the chrome, the same one an admin-page window
+ * wears. The metadata to build it already rides the payload, so a
+ * plugin using `openstation_register_window_tab()` needs no JS for
+ * this at all.
+ *
+ * Single-tab windows are left alone: PHP emits their template bare,
+ * with no panes to switch between and so no strip to build.
+ */
+function declareServerTabs(
+	body: HTMLElement,
+	entry: NativeWindowServerEntry,
+): void {
+	const tabs = entry.tabs;
+	if ( ! Array.isArray( tabs ) || tabs.length < 2 ) {
+		return;
+	}
+	const winEl = body.closest< HTMLElement >( '.os-window' );
+	if ( ! winEl ) {
+		return;
+	}
+	setPanelTabs(
+		winEl,
+		tabs.map( ( tab ) => ( { value: tab.value, label: tab.label } ) ),
+		// The window's own template is the pane that opens.
+		tabs.find( ( tab ) => tab.isMain )?.value,
+	);
+}
+
+/**
+ * Join wire-format native-window entries with the handle-keyed
+ * script-data map into the full entries the sync consumes.
+ *
+ * The payload ships script data ONCE per handle
+ * (`nativeWindowScriptData`) because several windows share one
+ * bundle — Posts, Pages, Users and Profile all ride
+ * `os-posts-window`, and inlining each entry's resolved copy
+ * serialized the same blobs four times over. Entries reference
+ * handles; this join puts the resolved url / inline data back on
+ * each entry, companions and tabs included.
+ *
+ * Tolerant of the OLD inline format on purpose: a live session that
+ * predates the split can receive a bridge payload from a newer
+ * server (or vice versa during a deploy), so an entry that still
+ * carries its own resolved fields — or companion OBJECTS rather
+ * than handle strings — passes through untouched.
+ */
+export function hydrateServerEntries(
+	entries: NativeWindowWireEntry[],
+	scriptData?: NativeWindowScriptData,
+): NativeWindowServerEntry[] {
+	const data = scriptData ?? {};
+	return entries.map( ( entry ) => {
+		const own = entry.scriptHandle ? data[ entry.scriptHandle ] : undefined;
+
+		const companions: NativeWindowCompanionScript[] = [];
+		for ( const companion of entry.companionScripts ?? [] ) {
+			if ( typeof companion !== 'string' ) {
+				companions.push( companion );
+				continue;
+			}
+			const resolved = data[ companion ];
+			if ( ! resolved?.url ) {
+				continue;
+			}
+			companions.push( {
+				scriptUrl: resolved.url,
+				scriptHandle: companion,
+				scriptBefore: resolved.before,
+				scriptAfter: resolved.after,
+				scriptL10n: resolved.l10n,
+				scriptTranslations: resolved.translations,
+			} );
+		}
+
+		const tabs: NativeWindowTabEntry[] = ( entry.tabs ?? [] ).map(
+			( tab ) => {
+				if ( typeof tab.scriptUrl === 'string' ) {
+					return tab as NativeWindowTabEntry;
+				}
+				const resolved = tab.scriptHandle
+					? data[ tab.scriptHandle ]
+					: undefined;
+				return {
+					...tab,
+					scriptUrl: resolved?.url ?? '',
+					scriptBefore: resolved?.before,
+					scriptAfter: resolved?.after,
+					scriptL10n: resolved?.l10n,
+					scriptTranslations: resolved?.translations,
+				};
+			},
+		);
+
+		return {
+			...entry,
+			scriptUrl: entry.scriptUrl ?? own?.url ?? '',
+			scriptBefore: entry.scriptBefore ?? own?.before,
+			scriptAfter: entry.scriptAfter ?? own?.after,
+			scriptL10n: entry.scriptL10n ?? own?.l10n,
+			scriptTranslations: entry.scriptTranslations ?? own?.translations,
+			companionScripts: companions,
+			tabs,
+		};
+	} );
 }
 
 export function createNativeWindowSync(
@@ -903,6 +1095,8 @@ export function createNativeWindowSync(
 	const registered = new Set< string >();
 	const injectedTemplates = new Set< string >();
 	const loadedScripts = new Set< string >();
+	/** URL → in-flight load, so concurrent opens share one `<script>`. */
+	const inflightScripts = new Map< string, Promise< void > >();
 	const loadedStyles = new Set< string >();
 	// Entry index — `openById` reaches in here when the desktop-icon
 	// or AI-command paths request "open whatever's registered as <id>".
@@ -921,8 +1115,6 @@ export function createNativeWindowSync(
 	 * replay path uniform between native and classic windows. The
 	 * caller can suppress it by passing an explicit `initialState`
 	 * on the `manager.open` call.
-	 *
-	 * @since 0.8.5
 	 */
 	const resolveSizeForEntry = (
 		entry: NativeWindowServerEntry,
@@ -958,21 +1150,29 @@ export function createNativeWindowSync(
 		injectedTemplates.add( entry.templateId );
 	};
 
-	const ensureStyle = ( entry: NativeWindowServerEntry ): void => {
-		const url = entry.styleUrl;
+	/**
+	 * Inject one stylesheet (link + inline blobs), once per URL.
+	 *
+	 * `wp_print_styles` already ran when the parent shell page was
+	 * rendered, but a plugin activated mid-session never got its
+	 * `admin_enqueue_scripts` callback hit on this page. Inject the
+	 * `<link>` ourselves so the window's CSS lands before the
+	 * render callback queries the body for mount points.
+	 *
+	 * Idempotent on every dimension we care about: tracked by URL
+	 * in `loadedStyles`, AND a defensive `head` lookup so a
+	 * server-rendered `<link>` (plugin active at boot) is detected
+	 * and skipped — same shape as `ensureTemplate`'s guard.
+	 */
+	const injectStylesheet = ( style: {
+		styleUrl?: string;
+		styleHandle?: string;
+		styleInline?: string[];
+	} ): void => {
+		const url = style.styleUrl;
 		if ( ! url || loadedStyles.has( url ) ) {
 			return;
 		}
-		// `wp_print_styles` already ran when the parent shell page was
-		// rendered, but a plugin activated mid-session never got its
-		// `admin_enqueue_scripts` callback hit on this page. Inject the
-		// `<link>` ourselves so the window's CSS lands before the
-		// render callback queries the body for mount points.
-		//
-		// Idempotent on every dimension we care about: tracked by URL
-		// in `loadedStyles`, AND a defensive `head` lookup so a
-		// server-rendered `<link>` (plugin active at boot) is detected
-		// and skipped — same shape as `ensureTemplate`'s guard.
 		// Defensive lookup against `<link>`s the server printed at boot
 		// (plugin active at page load) so we don't duplicate. Escape `\`
 		// and `"` for the attribute selector — the URL is resolved by
@@ -985,8 +1185,8 @@ export function createNativeWindowSync(
 			const link = document.createElement( 'link' );
 			link.rel = 'stylesheet';
 			link.href = url;
-			if ( entry.styleHandle ) {
-				link.dataset.desktopModeStyleHandle = entry.styleHandle;
+			if ( style.styleHandle ) {
+				link.dataset.osStyleHandle = style.styleHandle;
 			}
 			document.head.appendChild( link );
 		}
@@ -994,68 +1194,238 @@ export function createNativeWindowSync(
 		// the link so the cascade matches what the print pipeline would
 		// have written. One blob per inline string keeps stack traces
 		// useful in DevTools when a rule misbehaves.
-		if ( Array.isArray( entry.styleInline ) ) {
-			for ( const css of entry.styleInline ) {
+		if ( Array.isArray( style.styleInline ) ) {
+			for ( const css of style.styleInline ) {
 				if ( typeof css !== 'string' || css === '' ) {
 					continue;
 				}
-				const style = document.createElement( 'style' );
-				if ( entry.styleHandle ) {
-					style.dataset.desktopModeStyleHandle = entry.styleHandle;
+				const el = document.createElement( 'style' );
+				if ( style.styleHandle ) {
+					el.dataset.osStyleHandle = style.styleHandle;
 				}
-				style.textContent = css;
-				document.head.appendChild( style );
+				el.textContent = css;
+				document.head.appendChild( el );
 			}
 		}
 		loadedStyles.add( url );
 	};
 
+	const ensureStyle = ( entry: NativeWindowServerEntry ): void => {
+		injectStylesheet( entry );
+	};
+
+	/**
+	 * Inject the window's companion stylesheets (`styles` arg), in
+	 * declared order. Runs on the first-open path, NOT at sync: a
+	 * companion sheet only paints surfaces inside this window, so it
+	 * is deliberately deferred until the window is actually shown.
+	 *
+	 * Appended to `<head>` after everything the server printed and
+	 * after the window's own style (which `ensureStyle` handled at
+	 * registration), so at equal specificity a companion's overrides
+	 * win by source order — the same contract a `wp_register_style`
+	 * dependency gives on the print path.
+	 */
+	const ensureCompanionStyles = ( entry: NativeWindowServerEntry ): void => {
+		for ( const companion of entry.companionStyles ?? [] ) {
+			injectStylesheet( companion );
+		}
+	};
+
+	/**
+	 * Load one bundle, once. The in-flight map is what makes this
+	 * safe to call from the render path: a window opened twice in
+	 * the same tick (tile click racing a session restore) would
+	 * otherwise get two `<script>` tags for the same URL, because
+	 * `loadedScripts` isn't written until the await resolves.
+	 */
+	/**
+	 * Per-entry inline data already replayed, keyed `id|url`.
+	 *
+	 * The script TAG dedupes by URL, but the harvested data an entry
+	 * carries is not guaranteed to have ridden the tag that loaded
+	 * the URL. Four windows share `os-posts-window[.min].js` (Posts,
+	 * Pages, Users, Profile); with the handle-keyed script-data map,
+	 * every sibling hydrates from the SAME blobs — including the
+	 * whole handle's `openStationWindowConfig[ id ]` set — so this
+	 * replay is normally a harmless idempotent repeat. It stays
+	 * because it is also the safety net for old-format payloads
+	 * (entries carrying genuinely per-entry data), where skipping a
+	 * sibling's data because the bundle was already fetched is
+	 * exactly how the Pages window opened to "[desktop-mode-pages]
+	 * config blob is missing" whenever Posts had opened first.
+	 */
+	const injectedScriptData = new Set< string >();
+
+	/**
+	 * Replay one entry's harvested inline data — translations, l10n,
+	 * before/after blobs — without fetching its script. Only for an
+	 * entry whose shared bundle another entry already brought into
+	 * the tab: the bundle has executed, so ordering relative to the
+	 * body no longer matters, and the render callback that needs the
+	 * data runs strictly after this (`ensureScript` is awaited).
+	 */
+	const injectScriptDataOnce = (
+		key: string,
+		script: {
+			scriptTranslations?: string;
+			scriptL10n?: string[];
+			scriptBefore?: string[];
+			scriptAfter?: string[];
+		},
+	): void => {
+		if ( injectedScriptData.has( key ) ) {
+			return;
+		}
+		injectedScriptData.add( key );
+		const blobs = [
+			script.scriptTranslations ?? '',
+			...( script.scriptL10n ?? [] ),
+			...( script.scriptBefore ?? [] ),
+			...( script.scriptAfter ?? [] ),
+		];
+		for ( const code of blobs ) {
+			if ( typeof code === 'string' && code !== '' ) {
+				injectInlineScript( code );
+			}
+		}
+	};
+
+	const loadOnce = (
+		id: string,
+		script: {
+			scriptUrl: string;
+			scriptTranslations?: string;
+			scriptL10n?: string[];
+			scriptBefore?: string[];
+			scriptAfter?: string[];
+		},
+	): Promise< void > => {
+		const url = script.scriptUrl;
+		const dataKey = `${ id }|${ url }`;
+		if ( loadedScripts.has( url ) ) {
+			// The bundle is in the tab, but this entry's own data may
+			// not be — see `injectedScriptData`.
+			injectScriptDataOnce( dataKey, script );
+			return Promise.resolve();
+		}
+		const pending = inflightScripts.get( url );
+		if ( pending ) {
+			// A sibling entry started the fetch with ITS extras; hand
+			// this entry's in once the bundle has executed.
+			return pending.then( () => injectScriptDataOnce( dataKey, script ) );
+		}
+		// This entry's extras travel with the script tag itself —
+		// mark them replayed so a repeat open doesn't double-inject.
+		injectedScriptData.add( dataKey );
+		const load = loadVendorScript( url, {
+			translations: script.scriptTranslations,
+			l10n: script.scriptL10n,
+			before: script.scriptBefore,
+			after: script.scriptAfter,
+		} )
+			.catch( ( err ) => {
+				// Load failed — surface via SHELL_ERROR. The window
+				// still opens, but its body only gets the bare
+				// template (no interactive render callback). Better
+				// than blocking the whole sync / open.
+				doAction( HOOKS.SHELL_ERROR, {
+					scope: 'native-window-script-load',
+					id,
+					error: err,
+				} );
+			} )
+			.then( () => {
+				loadedScripts.add( url );
+				inflightScripts.delete( url );
+			} );
+		inflightScripts.set( url, load );
+		return load;
+	};
+
+	/**
+	 * Bring every bundle this window needs into the tab: companion
+	 * handles first, in declaration order, then the window's own
+	 * script. The order is the contract — a companion subscribes to
+	 * actions the window's bundle fires while rendering, so it has
+	 * to be listening before that bundle is even parsed.
+	 */
 	const ensureScript = async (
 		entry: NativeWindowServerEntry,
 	): Promise< void > => {
-		if ( ! entry.scriptUrl || loadedScripts.has( entry.scriptUrl ) ) {
+		// Companion styles first — the `<link>` fetches in parallel
+		// with the bundles below, so by the time the render callback
+		// paints, the CSS has had the whole script load to arrive.
+		ensureCompanionStyles( entry );
+		for ( const companion of entry.companionScripts ?? [] ) {
+			if ( ! companion.scriptUrl ) {
+				continue;
+			}
+			await loadOnce( entry.id, companion );
+		}
+		if ( ! entry.scriptUrl ) {
 			return;
 		}
-		try {
-			await loadVendorScript( entry.scriptUrl, {
-				translations: entry.scriptTranslations,
-				l10n: entry.scriptL10n,
-				before: entry.scriptBefore,
-				after: entry.scriptAfter,
-			} );
-		} catch ( err ) {
-			// Load failed — surface via SHELL_ERROR. The tile will
-			// still render + open, but the window's body will only
-			// get the bare template (no interactive render
-			// callback). Better than blocking the whole sync.
-			doAction( HOOKS.SHELL_ERROR, {
-				scope: 'native-window-script-load',
-				id: entry.id,
-				error: err,
-			} );
-		}
-		loadedScripts.add( entry.scriptUrl );
+		await loadOnce( entry.id, entry );
 	};
 
-	const openFromEntry = ( entry: NativeWindowServerEntry ): void => {
-		const render = readGlobalRegistry()[ entry.id ];
+	/**
+	 * Boot-time load, for the windows that asked for one.
+	 *
+	 * Every other window's bundle waits for its first open — see the
+	 * `preload_script` note on `openstation_register_window()`. The
+	 * shell reads a window's render callback off
+	 * `window.openStationNativeWindows[ id ]` at open time, so
+	 * loading the bundle any earlier only buys weight on every admin
+	 * page the window is never opened from.
+	 */
+	const preloadScriptIfRequested = async (
+		entry: NativeWindowServerEntry,
+	): Promise< void > => {
+		if ( ! entry.preloadScript ) {
+			return;
+		}
+		await ensureScript( entry );
+	};
 
-		// Pre-populate the window body with the cloned template, then
-		// hand it to the optional render callback. The render contract
-		// is enhancement: declare static markup in `template`, query
-		// the body for mount points in render, light them up. Without
-		// a render callback the cloned template IS the window —
-		// declarative-only plugins need zero JS.
-		//
-		// `cloneTemplate` throws (and console.errors) when the
-		// template element is missing — let it surface; a missing
-		// template is a developer error worth seeing, not silencing.
-		//
-		// The `(body, ctx)` shape is built inside `Window.hydrateNative`
-		// — see the note in `createRegisterWindow` above. Legacy unary
-		// callbacks ignore `ctx`; new ones can destructure it.
-		const finalRender: RenderCallback = ( body, ctx ) => {
+	/**
+	 * Build the render callback the window manager will invoke once
+	 * the window element is in the DOM.
+	 *
+	 * Pre-populates the window body with the cloned template, then
+	 * hands it to the optional render callback. The render contract
+	 * is enhancement: declare static markup in `template`, query the
+	 * body for mount points in render, light them up. Without a
+	 * render callback the cloned template IS the window —
+	 * declarative-only plugins need zero JS.
+	 *
+	 * `cloneTemplate` throws (and console.errors) when the template
+	 * element is missing — let it surface; a missing template is a
+	 * developer error worth seeing, not silencing.
+	 *
+	 * The `(body, ctx)` shape is built inside `Window.hydrateNative`
+	 * — see the note in `createRegisterWindow` above. Legacy unary
+	 * callbacks ignore `ctx`; new ones can destructure it.
+	 *
+	 * The template is cloned BEFORE the bundle is awaited, so the
+	 * window paints its declared markup immediately and the wait
+	 * only covers the interactive layer. `hydrateNative` holds the
+	 * window's loading spinner for as long as this promise is
+	 * pending, so a cold open reads as loading rather than as an
+	 * empty window.
+	 */
+	const buildRender = ( entry: NativeWindowServerEntry ): RenderCallback => {
+		return async ( body, ctx ) => {
 			body.appendChild( cloneTemplate( entry.templateId ) );
+			// After the panes are in the body, so the strip can pair
+			// each tab to the one it shows and hide the rest.
+			declareServerTabs( body, entry );
+			// No-op once the bundle is in the tab — the second open of
+			// a window resolves on an already-settled promise.
+			await ensureScript( entry );
+			// Read the callback AFTER the load: on a lazy window this
+			// is the moment it exists.
+			const render = readGlobalRegistry()[ entry.id ];
 			// Forward the optional teardown returned by the plugin's
 			// render callback so the Window class can invoke it on
 			// close. Without this `return`, the teardown was silently
@@ -1063,6 +1433,13 @@ export function createNativeWindowSync(
 			// native windows.
 			return render?.( body, ctx );
 		};
+	};
+
+	const openFromEntry = (
+		entry: NativeWindowServerEntry,
+		params?: Record< string, string | number | boolean >,
+	): void => {
+		const finalRender = buildRender( entry );
 
 		const size = resolveSizeForEntry( entry );
 
@@ -1083,6 +1460,13 @@ export function createNativeWindowSync(
 			render: finalRender,
 			autofocus: entry.autofocus,
 			ownerHandle: entry.ownerHandle || entry.scriptHandle,
+			// What this open is showing. Persisted with the session,
+			// so a singleton that retargets comes back on the same
+			// subject after a reload instead of on its default.
+			// Omitted rather than set empty: `manager.open()` focuses
+			// an existing window rather than rebuilding it, and an
+			// argument-less reopen must not wipe what it was showing.
+			...( params ? { params } : {} ),
 		} );
 	};
 
@@ -1092,13 +1476,11 @@ export function createNativeWindowSync(
 	 * render callback is built fresh per call — every duplicate gets
 	 * its own template clone and its own teardown.
 	 */
-	const openNewFromEntry = ( entry: NativeWindowServerEntry ): void => {
-		const render = readGlobalRegistry()[ entry.id ];
-
-		const finalRender: RenderCallback = ( body, ctx ) => {
-			body.appendChild( cloneTemplate( entry.templateId ) );
-			return render?.( body, ctx );
-		};
+	const openNewFromEntry = (
+		entry: NativeWindowServerEntry,
+		params?: Record< string, string | number | boolean >,
+	): void => {
+		const finalRender = buildRender( entry );
 
 		// Duplicate instances always open floating — the remembered
 		// maximize preference applies to the primary window only.
@@ -1123,6 +1505,7 @@ export function createNativeWindowSync(
 			render: finalRender,
 			autofocus: entry.autofocus,
 			ownerHandle: entry.ownerHandle || entry.scriptHandle,
+			...( params ? { params } : {} ),
 		} );
 	};
 
@@ -1134,25 +1517,34 @@ export function createNativeWindowSync(
 		}
 		if ( 'none' === entry.placement ) {
 			// Plugin declared a window but opted out of a tile —
-			// shell still processes the template + script so the
+			// shell still processes the template + style so the
 			// plugin can open the window programmatically via
-			// `wp.desktop.windowManager.open()`. Nothing to
+			// `wp.os.windowManager.open()`. Nothing to
 			// register on the rails.
 			ensureTemplate( entry );
 			ensureStyle( entry );
-			await ensureScript( entry );
+			await preloadScriptIfRequested( entry );
 			registered.add( entry.id );
 			return;
 		}
 
 		ensureTemplate( entry );
 		ensureStyle( entry );
-		await ensureScript( entry );
+		await preloadScriptIfRequested( entry );
 
 		appendSystemTile( {
 			id: entry.id,
 			title: entry.title,
 			icon: entry.icon,
+			windowId: entry.id,
+			navKind: 'control' === entry.navKind ? 'control' : 'app',
+			// The window asked for a launcher, so the launcher's
+			// resting place is a rail rather than the wallpaper an app
+			// would otherwise default to. A proposal, not an
+			// instruction: the user's Navigation pick still wins.
+			defaultPlacement: 'rail',
+			order: entry.dockOrder,
+			placeable: true === entry.placeable,
 			isOpen: () => !! manager.getById( entry.id ),
 			onOpen: () => openFromEntry( entry ),
 		} );
@@ -1203,7 +1595,10 @@ export function createNativeWindowSync(
 
 	const openById = (
 		id: string,
-		opts: { source?: string } = {},
+		opts: {
+			source?: string;
+			params?: Record< string, string | number | boolean >;
+		} = {},
 	): boolean => {
 		const entry = entriesById.get( id );
 		if ( ! entry ) {
@@ -1215,27 +1610,30 @@ export function createNativeWindowSync(
 		// or "show coachmark on first open" hook this independent
 		// of the WINDOW_OPENED / WINDOW_REOPENED branch the
 		// framework will take next.
-		activity.publish( 'desktop-mode/open-requested', {
+		activity.publish( 'os/open-requested', {
 			windowId: id,
 			source: opts.source ?? 'api',
 		} );
-		openFromEntry( entry );
+		openFromEntry( entry, opts.params );
 		return true;
 	};
 
 	const openNewById = (
 		id: string,
-		opts: { source?: string } = {},
+		opts: {
+			source?: string;
+			params?: Record< string, string | number | boolean >;
+		} = {},
 	): boolean => {
 		const entry = entriesById.get( id );
 		if ( ! entry ) {
 			return false;
 		}
-		activity.publish( 'desktop-mode/open-requested', {
+		activity.publish( 'os/open-requested', {
 			windowId: id,
 			source: opts.source ?? 'api',
 		} );
-		openNewFromEntry( entry );
+		openNewFromEntry( entry, opts.params );
 		return true;
 	};
 
@@ -1382,7 +1780,16 @@ export function createNativeWindowSync(
 		},
 	);
 
-	return { sync, openById, openNewById };
+	const loadScriptById = async ( id: string ): Promise< boolean > => {
+		const entry = entriesById.get( id );
+		if ( ! entry ) {
+			return false;
+		}
+		await ensureScript( entry );
+		return true;
+	};
+
+	return { sync, openById, openNewById, loadScriptById };
 }
 
 export function cloneTemplate(
@@ -1399,7 +1806,7 @@ export function cloneTemplate(
 	}
 	if ( ! tpl ) {
 		throw new Error(
-			`[desktop-mode] cloneTemplate: no <template> found for ${
+			`[openstation] cloneTemplate: no <template> found for ${
 				typeof template === 'string' ? `#${ template }` : '<reference>'
 			}`,
 		);

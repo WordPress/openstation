@@ -2,7 +2,7 @@
  * OS-file drop manager — floating upload-progress HUD.
  *
  * A pinned bottom-right panel that shows one row per in-flight
- * upload. Each row is a `<wpd-progress-bar>` plus a filename and a
+ * upload. Each row is a `<os-progress-bar>` plus a filename and a
  * Cancel / Dismiss action. The HUD subscribes to the four upload-
  * lifecycle hooks and owns nothing else — its lifecycle is purely
  * reactive:
@@ -18,12 +18,10 @@
  * land on the wallpaper / windows behind it.
  *
  * Plugins can take this UI over entirely:
- *   - Set `data-desktop-mode-suppress-upload-hud` on `document.body`
+ *   - Set `data-os-suppress-upload-hud` on `document.body`
  *     before the shell boots to prevent the default panel from
  *     mounting — useful when a plugin wants to handle the same
  *     hook surface with its own UI.
- *
- * @since 0.31.0
  */
 
 import { addAction } from '../hooks';
@@ -32,8 +30,8 @@ import { formatBytes } from './format-bytes';
 import { FILE_DROP_HOOKS } from './hooks';
 import type { DropContext, DropDialogFields, DropUploadResult } from './types';
 
-import '../ui/components/wpd-progress-bar/wpd-progress-bar';
-import '../ui/components/wpd-button/wpd-button';
+import '../ui/components/os-progress-bar/os-progress-bar';
+import '../ui/components/os-button/os-button';
 
 interface HudRow {
 	file: File;
@@ -57,7 +55,7 @@ let panel: HTMLElement | null = null;
  * drops a file.
  */
 export function mountUploadProgressHud(): void {
-	if ( document.body.hasAttribute( 'data-desktop-mode-suppress-upload-hud' ) ) {
+	if ( document.body.hasAttribute( 'data-os-suppress-upload-hud' ) ) {
 		return;
 	}
 	if ( ( window as unknown as { __wpdUploadHud?: boolean } ).__wpdUploadHud ) {
@@ -133,30 +131,30 @@ function onStarted(
 ): void {
 	const p = ensurePanel();
 	const row = document.createElement( 'div' );
-	row.className = 'desktop-mode-upload-hud__row';
+	row.className = 'os-upload-hud__row';
 
 	const meta = document.createElement( 'div' );
-	meta.className = 'desktop-mode-upload-hud__meta';
+	meta.className = 'os-upload-hud__meta';
 
 	const name = document.createElement( 'div' );
-	name.className = 'desktop-mode-upload-hud__name';
+	name.className = 'os-upload-hud__name';
 	name.textContent = fields.filename || file.name;
 	name.title = fields.filename || file.name;
 
 	const statusEl = document.createElement( 'div' );
-	statusEl.className = 'desktop-mode-upload-hud__status';
+	statusEl.className = 'os-upload-hud__status';
 	statusEl.textContent = 'Uploading…';
 
 	meta.append( name, statusEl );
 
-	const bar = document.createElement( 'wpd-progress-bar' );
+	const bar = document.createElement( 'os-progress-bar' );
 	bar.setAttribute( 'indeterminate', '' );
 	bar.setAttribute( 'show-percent', '' );
 
 	const actions = document.createElement( 'div' );
-	actions.className = 'desktop-mode-upload-hud__actions';
+	actions.className = 'os-upload-hud__actions';
 
-	const cancelBtn = document.createElement( 'wpd-button' );
+	const cancelBtn = document.createElement( 'os-button' );
 	cancelBtn.setAttribute( 'variant', 'tertiary' );
 	cancelBtn.setAttribute( 'size', 'small' );
 	cancelBtn.textContent = 'Cancel';
@@ -181,7 +179,7 @@ function onStarted(
 	actions.appendChild( cancelBtn );
 
 	row.append( meta, bar, actions );
-	p.querySelector( '.desktop-mode-upload-hud__list' )!.appendChild( row );
+	p.querySelector( '.os-upload-hud__list' )!.appendChild( row );
 
 	ROWS.set( file, {
 		file,
@@ -240,7 +238,7 @@ function onComplete(
 	r.lingerTimer = setTimeout( () => dismissRow( r ), 2500 );
 	updateHeader();
 
-	activity.publish( 'desktop-mode/upload-hud-complete', {
+	activity.publish( 'os/upload-hud-complete', {
 		filename: fields.filename || result.filename,
 		attachmentId: result.id,
 	} );
@@ -283,20 +281,20 @@ function ensurePanel(): HTMLElement {
 		return panel;
 	}
 	const p = document.createElement( 'div' );
-	p.className = 'desktop-mode-upload-hud';
+	p.className = 'os-upload-hud';
 	p.setAttribute( 'role', 'region' );
 	p.setAttribute( 'aria-label', 'Uploads' );
 
 	const header = document.createElement( 'div' );
-	header.className = 'desktop-mode-upload-hud__header';
+	header.className = 'os-upload-hud__header';
 
 	const title = document.createElement( 'div' );
-	title.className = 'desktop-mode-upload-hud__title';
+	title.className = 'os-upload-hud__title';
 	title.textContent = 'Uploads';
 
 	const closeBtn = document.createElement( 'button' );
 	closeBtn.type = 'button';
-	closeBtn.className = 'desktop-mode-upload-hud__close';
+	closeBtn.className = 'os-upload-hud__close';
 	closeBtn.setAttribute( 'aria-label', 'Hide upload panel' );
 	closeBtn.textContent = '×';
 	closeBtn.addEventListener( 'click', () => {
@@ -315,7 +313,7 @@ function ensurePanel(): HTMLElement {
 	header.append( title, closeBtn );
 
 	const list = document.createElement( 'div' );
-	list.className = 'desktop-mode-upload-hud__list';
+	list.className = 'os-upload-hud__list';
 
 	p.append( header, list );
 	document.body.appendChild( p );
@@ -328,7 +326,7 @@ function updateHeader(): void {
 		return;
 	}
 	const title = panel.querySelector(
-		'.desktop-mode-upload-hud__title',
+		'.os-upload-hud__title',
 	) as HTMLElement | null;
 	if ( ! title ) {
 		return;

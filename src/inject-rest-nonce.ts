@@ -11,14 +11,14 @@
  *
  * Before this helper, every plugin author had to remember to attach
  * the header on every REST call, pulling the value out of
- * `desktopModeConfig.restNonce`. Forgetting silently 401'd in
+ * `openStationConfig.restNonce`. Forgetting silently 401'd in
  * production while passing locally with admin cookies that hadn't
- * yet expired. `wp.desktop.fetch` / `trackedFetch` now do it
+ * yet expired. `wp.os.fetch` / `trackedFetch` now do it
  * automatically — pass the URL, get the auth.
  *
  * Scope of injection — all four conditions must hold:
  *
- *   1. `window.desktopModeConfig.restNonce` is a non-empty string.
+ *   1. `window.openStationConfig.restNonce` is a non-empty string.
  *   2. The request URL is **same-origin** (the nonce is a credential
  *      for this site; we MUST NOT leak it to third-party endpoints).
  *   3. The URL targets a WordPress REST endpoint, detected by either
@@ -30,8 +30,6 @@
  * `admin-ajax.php` is intentionally NOT covered. Admin-ajax uses
  * per-action `_wpnonce` parameters with different action strings;
  * the `wp_rest` nonce wouldn't validate there.
- *
- * @since 0.8.2
  */
 
 const NONCE_HEADER = 'X-WP-Nonce';
@@ -80,8 +78,8 @@ function readRestNonce(): string | undefined {
 		return undefined;
 	}
 	const cfg = ( window as unknown as {
-		desktopModeConfig?: { restNonce?: unknown };
-	} ).desktopModeConfig;
+		openStationConfig?: { restNonce?: unknown };
+	} ).openStationConfig;
 	const value = cfg?.restNonce;
 	return typeof value === 'string' && value.length > 0 ? value : undefined;
 }

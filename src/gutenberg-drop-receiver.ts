@@ -1,9 +1,9 @@
 /**
- * Desktop Mode — Gutenberg drop receiver (iframe-side bundle).
+ * OpenStation — Gutenberg drop receiver (iframe-side bundle).
  *
  * Loaded only inside `post.php` / `post-new.php` chromeless iframes
  * (PHP enqueue keyed on `current_screen()->base`). Listens for
- * `desktop-mode-drop` postMessages from the parent shell —
+ * `os-drop` postMessages from the parent shell —
  * dispatched by `src/drag/iframe-drop-targets.ts` when the user
  * releases a shell-side drag (My WordPress media / post / user tile)
  * over a Gutenberg window's drop overlay.
@@ -25,8 +25,6 @@
  * Origin trust: messages whose `e.origin !== window.location.origin`
  * are dropped. Same-origin admin scripts can still forge messages,
  * but the browser's same-origin boundary is the real defence.
- *
- * @since 0.8.7
  */
 
 // ---------------------------------------------------------------------
@@ -67,7 +65,7 @@ type DragBridgePayload =
 	| UserDragPayload;
 
 interface DropMsg {
-	type: 'desktop-mode-drop';
+	type: 'os-drop';
 	payload: DragBridgePayload;
 	position?: { x: number; y: number };
 }
@@ -281,7 +279,7 @@ function notifyParentOfFailure( reason: string ): void {
 	}
 	try {
 		window.parent.postMessage(
-			{ type: 'desktop-mode-drop-failed', reason },
+			{ type: 'os-drop-failed', reason },
 			window.location.origin,
 		);
 	} catch {
@@ -298,7 +296,7 @@ function isDropMsg( m: unknown ): m is DropMsg {
 		return false;
 	}
 	const obj = m as { type?: unknown; payload?: unknown };
-	if ( obj.type !== 'desktop-mode-drop' ) {
+	if ( obj.type !== 'os-drop' ) {
 		return false;
 	}
 	const p = obj.payload as { kind?: unknown } | undefined;
@@ -310,7 +308,7 @@ function isDropMsg( m: unknown ): m is DropMsg {
 
 /**
  * Latest bridge payload broadcast from the parent shell while a
- * cross-frame drag is in flight. Set on `desktop-mode-drag-over`,
+ * cross-frame drag is in flight. Set on `os-drag-over`,
  * cleared on `-drag-leave` or after a successful insert.
  *
  * The native HTML5 backstop below uses it to insert the right block
@@ -321,14 +319,12 @@ function isDropMsg( m: unknown ): m is DropMsg {
  * take effect mid-drag, the drop fires INSIDE the canvas iframe and
  * never reaches the parent's `onBridgeDrop`. This stash + native
  * handler is the iframe-side catch.
- *
- * @since 0.8.7
  */
 let stashedBridgePayload: DragBridgePayload | null = null;
 
 /** Sentinel on `Document` so `attachToDocument` is idempotent. */
 interface AttachedDocSentinel extends Document {
-	__desktopModeDropReceiverAttached?: boolean;
+	__openStationDropReceiverAttached?: boolean;
 }
 
 /**
@@ -364,12 +360,12 @@ function dragCarriesOsFiles( e: DragEvent ): boolean {
 }
 
 interface DragOverMsg {
-	type: 'desktop-mode-drag-over';
+	type: 'os-drag-over';
 	payload: DragBridgePayload;
 }
 
 interface DragLeaveMsg {
-	type: 'desktop-mode-drag-leave';
+	type: 'os-drag-leave';
 }
 
 function isDragOverMsg( m: unknown ): m is DragOverMsg {
@@ -377,7 +373,7 @@ function isDragOverMsg( m: unknown ): m is DragOverMsg {
 		return false;
 	}
 	const obj = m as { type?: unknown; payload?: unknown };
-	if ( obj.type !== 'desktop-mode-drag-over' ) {
+	if ( obj.type !== 'os-drag-over' ) {
 		return false;
 	}
 	const p = obj.payload as { kind?: unknown } | undefined;
@@ -391,7 +387,7 @@ function isDragLeaveMsg( m: unknown ): m is DragLeaveMsg {
 	return (
 		!! m &&
 		typeof m === 'object' &&
-		( m as { type?: unknown } ).type === 'desktop-mode-drag-leave'
+		( m as { type?: unknown } ).type === 'os-drag-leave'
 	);
 }
 
@@ -434,7 +430,7 @@ function onNativeDrop( e: DragEvent ): void {
 		const reason = err instanceof Error ? err.message : String( err );
 		// eslint-disable-next-line no-console
 		console.error(
-			'[desktop-mode] Gutenberg drop receiver native-drop insert failed:',
+			'[openstation] Gutenberg drop receiver native-drop insert failed:',
 			err,
 		);
 		notifyParentOfFailure( reason );
@@ -455,10 +451,10 @@ function onNativeDrop( e: DragEvent ): void {
  */
 function attachToDocument( doc: Document ): void {
 	const sentinel = doc as AttachedDocSentinel;
-	if ( sentinel.__desktopModeDropReceiverAttached ) {
+	if ( sentinel.__openStationDropReceiverAttached ) {
 		return;
 	}
-	sentinel.__desktopModeDropReceiverAttached = true;
+	sentinel.__openStationDropReceiverAttached = true;
 	doc.addEventListener( 'drop', onNativeDrop, true );
 	doc.addEventListener( 'dragover', onNativeDragOver, true );
 }
@@ -499,7 +495,7 @@ function install(): void {
 		if ( ! isDropMsg( e.data ) ) {
 			return;
 		}
-		// Explicit `desktop-mode-drop` (parent's `onBridgeDrop`
+		// Explicit `os-drop` (parent's `onBridgeDrop`
 		// succeeded — pointer-events suppression routed the drop to
 		// the parent doc). Clear any stash so the native backstop
 		// doesn't double-fire on the same drop.
@@ -508,7 +504,7 @@ function install(): void {
 			const reason = err instanceof Error ? err.message : String( err );
 			// eslint-disable-next-line no-console
 			console.error(
-				'[desktop-mode] Gutenberg drop receiver insert failed:',
+				'[openstation] Gutenberg drop receiver insert failed:',
 				err,
 			);
 			notifyParentOfFailure( reason );

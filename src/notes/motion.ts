@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Pinned notes motion.
+ * OpenStation — Pinned notes motion.
  *
  * The WAAPI sequences + pendulum physics behind the pushpin feel:
  *
@@ -20,8 +20,6 @@
  * Everything routes through `prefersReducedMotion()` — reduced-motion
  * users get instant state changes / short fades, never transforms.
  * No dependencies; springs are explicit keyframe arrays.
- *
- * @since 0.9.6
  */
 
 /** House curves (mirrored in assets/css/notes.css). */
@@ -154,7 +152,7 @@ export function playPinPullOut( pin: Element, restRotation = 0 ): Promise< void 
 /** One-shot expanding "thunk" ripple at the pin anchor. */
 function spawnRipple( host: HTMLElement, duration: number ): void {
 	const ripple = document.createElement( 'span' );
-	ripple.className = 'desktop-mode-pinned-note__ripple';
+	ripple.className = 'os-pinned-note__ripple';
 	ripple.setAttribute( 'aria-hidden', 'true' );
 	host.appendChild( ripple );
 	void animate(
@@ -397,7 +395,7 @@ export function noteJitter( seed: number ): {
 	/* eslint-disable no-bitwise -- decorrelate the three knobs with
 	   unsigned shifts of the same seed. */
 	let hash = 0x811c9dc5;
-	const key = `wpd-note-${ seed }`;
+	const key = `os-note-${ seed }`;
 	for ( let i = 0; i < key.length; i++ ) {
 		hash ^= key.charCodeAt( i );
 		hash = Math.imul( hash, 0x01000193 ) >>> 0;

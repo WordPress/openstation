@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — Folders store.
+ * OpenStation — Folders store.
  *
  * CRUD primitives for the `_desktop_mode_folders` table. Folders
  * are first-class files: they have an owner, a name, a share
@@ -8,67 +8,72 @@
  * lists when `share_mode` is `users` or `roles`.
  *
  * Visibility beyond the owner is computed by sharing.php, which
- * hooks the `desktop_mode_files_visible_folders` filter at
+ * hooks the `openstation_files_visible_folders` filter at
  * priority 5 to merge accepted shares and `share_mode='all'`
  * folders onto the owner's list.
  *
- * @package WPDesktopMode
- * @since   0.9.0
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /** Allowed share-mode values. */
-function desktop_mode_files_share_modes() {
+function openstation_files_share_modes() {
 	$modes = array( 'private', 'users', 'roles', 'all' );
 	/**
 	 * Filter the allowed `share_mode` values. Plugins can add
 	 * (e.g. 'team') by registering both the value here and a
 	 * matching visibility callback.
 	 *
-	 * @since 0.9.0
-	 *
 	 * @param string[] $modes Default modes.
 	 */
-	return (array) apply_filters( 'desktop_mode_files_share_modes', $modes );
+	return (array) apply_filters( 'openstation_files_share_modes', $modes );
 }
 
 /**
  * Create a folder.
  *
- * @since 0.9.0
- *
  * @param int   $owner_id Owner.
  * @param array $args     `name`, `share_mode`, `share_meta`.
  * @return int|WP_Error Folder id on success.
  */
-function desktop_mode_files_create_folder( $owner_id, $args = array() ) {
+function openstation_files_create_folder( $owner_id, $args = array() ) {
 	global $wpdb;
 
 	$owner_id = (int) $owner_id;
 	if ( $owner_id <= 0 ) {
-		return new WP_Error( 'desktop_mode_files_invalid_user', __( 'A user id is required.', 'desktop-mode' ), array( 'status' => 400 ) );
+		return new WP_Error( 'openstation_files_invalid_user', __( 'A user id is required.', 'desktop-mode' ), array( 'status' => 400 ) );
 	}
 
-	$args = wp_parse_args( $args, array(
-		'name'       => '',
-		'share_mode' => 'private',
-		'share_meta' => null,
-	) );
+	$args = wp_parse_args(
+		$args,
+		array(
+			'name'       => '',
+			'share_mode' => 'private',
+			'share_meta' => null,
+		)
+	);
 
 	$name = sanitize_text_field( (string) $args['name'] );
 	if ( '' === $name ) {
-		return new WP_Error( 'desktop_mode_files_missing_name', __( 'Folder name is required.', 'desktop-mode' ), array( 'status' => 400 ) );
+		return new WP_Error( 'openstation_files_missing_name', __( 'Folder name is required.', 'desktop-mode' ), array( 'status' => 400 ) );
 	}
 
 	$mode  = (string) $args['share_mode'];
-	$modes = desktop_mode_files_share_modes();
+	$modes = openstation_files_share_modes();
 	if ( ! in_array( $mode, $modes, true ) ) {
-		return new WP_Error( 'desktop_mode_files_invalid_share_mode', __( 'Invalid share mode.', 'desktop-mode' ), array( 'status' => 400, 'mode' => $mode ) );
+		return new WP_Error(
+			'openstation_files_invalid_share_mode',
+			__( 'Invalid share mode.', 'desktop-mode' ),
+			array(
+				'status' => 400,
+				'mode'   => $mode,
+			)
+		);
 	}
 
-	$tables = desktop_mode_files_table_names();
-	$now    = desktop_mode_files_now_ms();
+	$tables = openstation_files_table_names();
+	$now    = openstation_files_now_ms();
 	$row    = array(
 		'owner_id'      => $owner_id,
 		'name'          => $name,
@@ -79,7 +84,7 @@ function desktop_mode_files_create_folder( $owner_id, $args = array() ) {
 
 	$ok = $wpdb->insert( $tables['folders'], $row, array( '%d', '%s', '%s', '%s', '%d' ) );
 	if ( false === $ok ) {
-		return new WP_Error( 'desktop_mode_files_insert_failed', __( 'Failed to create folder.', 'desktop-mode' ), array( 'status' => 500 ) );
+		return new WP_Error( 'openstation_files_insert_failed', __( 'Failed to create folder.', 'desktop-mode' ), array( 'status' => 500 ) );
 	}
 	$id = (int) $wpdb->insert_id;
 
@@ -88,12 +93,10 @@ function desktop_mode_files_create_folder( $owner_id, $args = array() ) {
 	/**
 	 * Fires after a folder is created.
 	 *
-	 * @since 0.9.0
-	 *
 	 * @param int   $id  Folder id.
 	 * @param array $row Inserted row.
 	 */
-	do_action( 'desktop_mode_folder_created', $id, $row );
+	do_action( 'openstation_folder_created', $id, $row );
 
 	return $id;
 }
@@ -101,24 +104,22 @@ function desktop_mode_files_create_folder( $owner_id, $args = array() ) {
 /**
  * Update a folder. Only the owner can update for now.
  *
- * @since 0.9.0
- *
  * @param int   $folder_id Folder id.
  * @param int   $user_id   Acting user.
  * @param array $changes   `name`, `share_mode`, `share_meta`.
  * @return true|WP_Error
  */
-function desktop_mode_files_update_folder( $folder_id, $user_id, $changes = array() ) {
+function openstation_files_update_folder( $folder_id, $user_id, $changes = array() ) {
 	global $wpdb;
 
 	$folder_id = (int) $folder_id;
 	$user_id   = (int) $user_id;
-	$prev      = desktop_mode_files_get_folder( $folder_id );
+	$prev      = openstation_files_get_folder( $folder_id );
 	if ( ! $prev ) {
-		return new WP_Error( 'desktop_mode_files_not_found', __( 'Folder not found.', 'desktop-mode' ), array( 'status' => 404 ) );
+		return new WP_Error( 'openstation_files_not_found', __( 'Folder not found.', 'desktop-mode' ), array( 'status' => 404 ) );
 	}
 	if ( (int) $prev['owner_id'] !== $user_id ) {
-		return new WP_Error( 'desktop_mode_files_forbidden', __( 'You cannot edit this folder.', 'desktop-mode' ), array( 'status' => 403 ) );
+		return new WP_Error( 'openstation_files_forbidden', __( 'You cannot edit this folder.', 'desktop-mode' ), array( 'status' => 403 ) );
 	}
 
 	$set = array();
@@ -127,16 +128,16 @@ function desktop_mode_files_update_folder( $folder_id, $user_id, $changes = arra
 	if ( isset( $changes['name'] ) ) {
 		$name = sanitize_text_field( (string) $changes['name'] );
 		if ( '' === $name ) {
-			return new WP_Error( 'desktop_mode_files_missing_name', __( 'Folder name cannot be empty.', 'desktop-mode' ), array( 'status' => 400 ) );
+			return new WP_Error( 'openstation_files_missing_name', __( 'Folder name cannot be empty.', 'desktop-mode' ), array( 'status' => 400 ) );
 		}
 		$set['name'] = $name;
 		$fmt[]       = '%s';
 	}
 	if ( isset( $changes['share_mode'] ) ) {
 		$mode  = (string) $changes['share_mode'];
-		$modes = desktop_mode_files_share_modes();
+		$modes = openstation_files_share_modes();
 		if ( ! in_array( $mode, $modes, true ) ) {
-			return new WP_Error( 'desktop_mode_files_invalid_share_mode', __( 'Invalid share mode.', 'desktop-mode' ), array( 'status' => 400 ) );
+			return new WP_Error( 'openstation_files_invalid_share_mode', __( 'Invalid share mode.', 'desktop-mode' ), array( 'status' => 400 ) );
 		}
 		$set['share_mode'] = $mode;
 		$fmt[]             = '%s';
@@ -149,14 +150,14 @@ function desktop_mode_files_update_folder( $folder_id, $user_id, $changes = arra
 		return true;
 	}
 
-	$now                  = desktop_mode_files_now_ms();
+	$now                  = openstation_files_now_ms();
 	$set['updated_at_ms'] = $now;
 	$fmt[]                = '%d';
 
-	$tables = desktop_mode_files_table_names();
+	$tables = openstation_files_table_names();
 	$ok     = $wpdb->update( $tables['folders'], $set, array( 'id' => $folder_id ), $fmt, array( '%d' ) );
 	if ( false === $ok ) {
-		return new WP_Error( 'desktop_mode_files_update_failed', __( 'Failed to update folder.', 'desktop-mode' ), array( 'status' => 500 ) );
+		return new WP_Error( 'openstation_files_update_failed', __( 'Failed to update folder.', 'desktop-mode' ), array( 'status' => 500 ) );
 	}
 
 	// Propagate rename to every placement that POINTS AT this folder
@@ -181,14 +182,12 @@ function desktop_mode_files_update_folder( $folder_id, $user_id, $changes = arra
 		 * the propagation by returning a non-null SQL fragment via
 		 * this filter. Return `null` to opt OUT entirely (rare).
 		 *
-		 * @since 0.8.5
-		 *
 		 * @param string $where     Default WHERE clause body.
 		 * @param int    $folder_id Folder being renamed.
 		 * @param int    $user_id   Acting user (folder owner).
 		 */
 		$where = (string) apply_filters(
-			'desktop_mode_folder_rename_bump_where',
+			'openstation_folder_rename_bump_where',
 			$wpdb->prepare(
 				"file_type = 'folder' AND file_ref = %s",
 				(string) $folder_id
@@ -212,15 +211,13 @@ function desktop_mode_files_update_folder( $folder_id, $user_id, $changes = arra
 		 * dispatch their own cross-window broadcasts, refresh sidebar
 		 * displays of the folder name).
 		 *
-		 * @since 0.8.5
-		 *
 		 * @param int    $folder_id Folder id.
 		 * @param string $new_name  New name (sanitized).
 		 * @param string $old_name  Previous name.
 		 * @param int    $user_id   Acting user (folder owner).
 		 */
 		do_action(
-			'desktop_mode_folder_renamed',
+			'openstation_folder_renamed',
 			$folder_id,
 			(string) $set['name'],
 			(string) $prev['name'],
@@ -228,32 +225,28 @@ function desktop_mode_files_update_folder( $folder_id, $user_id, $changes = arra
 		);
 	}
 
-	$next = desktop_mode_files_get_folder( $folder_id );
+	$next = openstation_files_get_folder( $folder_id );
 
 	/**
 	 * Fires after a folder is updated.
-	 *
-	 * @since 0.9.0
 	 *
 	 * @param int   $id   Folder id.
 	 * @param array $next Row after.
 	 * @param array $prev Row before.
 	 */
-	do_action( 'desktop_mode_folder_updated', $folder_id, $next, $prev );
+	do_action( 'openstation_folder_updated', $folder_id, $next, $prev );
 
 	if ( isset( $changes['share_mode'] ) || array_key_exists( 'share_meta', $changes ) ) {
 		/**
 		 * Fires after a folder's share state changes (mode or
 		 * meta). Plugins listening for sharing events can subscribe
-		 * to this rather than diff `desktop_mode_folder_updated`.
-		 *
-		 * @since 0.9.0
+		 * to this rather than diff `openstation_folder_updated`.
 		 *
 		 * @param int   $id   Folder id.
 		 * @param array $next Row after.
 		 * @param array $prev Row before.
 		 */
-		do_action( 'desktop_mode_folder_shared', $folder_id, $next, $prev );
+		do_action( 'openstation_folder_shared', $folder_id, $next, $prev );
 	}
 
 	return true;
@@ -283,21 +276,19 @@ function desktop_mode_files_update_folder( $folder_id, $user_id, $changes = arra
  *      deleted with tombstones.
  *   5. The folder row itself is deleted with a folder tombstone.
  *
- * @since 0.9.0
- *
  * @param int $folder_id Folder id.
  * @param int $user_id   Acting user.
  * @return true|WP_Error
  */
-function desktop_mode_files_delete_folder( $folder_id, $user_id ) {
+function openstation_files_delete_folder( $folder_id, $user_id ) {
 	$folder_id = (int) $folder_id;
 	$user_id   = (int) $user_id;
-	$row       = desktop_mode_files_get_folder( $folder_id );
+	$row       = openstation_files_get_folder( $folder_id );
 	if ( ! $row ) {
-		return new WP_Error( 'desktop_mode_files_not_found', __( 'Folder not found.', 'desktop-mode' ), array( 'status' => 404 ) );
+		return new WP_Error( 'openstation_files_not_found', __( 'Folder not found.', 'desktop-mode' ), array( 'status' => 404 ) );
 	}
 	if ( (int) $row['owner_id'] !== $user_id ) {
-		return new WP_Error( 'desktop_mode_files_forbidden', __( 'You cannot delete this folder.', 'desktop-mode' ), array( 'status' => 403 ) );
+		return new WP_Error( 'openstation_files_forbidden', __( 'You cannot delete this folder.', 'desktop-mode' ), array( 'status' => 403 ) );
 	}
 
 	/**
@@ -311,15 +302,13 @@ function desktop_mode_files_delete_folder( $folder_id, $user_id ) {
 	 *   - Require a confirmation token / nonce stored in the user's
 	 *     session.
 	 *
-	 * @since 0.8.5
-	 *
 	 * @param bool|WP_Error $can       Default `true`.
 	 * @param int           $folder_id Folder id about to be deleted.
 	 * @param int           $user_id   Acting user (folder owner).
 	 * @param array         $row       Folder row.
 	 */
 	$can = apply_filters(
-		'desktop_mode_files_can_delete_folder',
+		'openstation_files_can_delete_folder',
 		true,
 		$folder_id,
 		$user_id,
@@ -330,7 +319,7 @@ function desktop_mode_files_delete_folder( $folder_id, $user_id ) {
 	}
 	if ( true !== $can ) {
 		return new WP_Error(
-			'desktop_mode_files_delete_vetoed',
+			'openstation_files_delete_vetoed',
 			__( 'A plugin blocked this folder from being deleted.', 'desktop-mode' ),
 			array( 'status' => 403 )
 		);
@@ -342,22 +331,20 @@ function desktop_mode_files_delete_folder( $folder_id, $user_id ) {
 	 * stage a notification to recipients ("the folder you had
 	 * access to is being deleted in 10 s").
 	 *
-	 * @since 0.8.5
-	 *
 	 * @param int   $folder_id Folder being deleted.
 	 * @param int   $user_id   Acting user.
 	 * @param array $row       Folder row.
 	 */
-	do_action( 'desktop_mode_files_before_delete_folder', $folder_id, $user_id, $row );
+	do_action( 'openstation_files_before_delete_folder', $folder_id, $user_id, $row );
 
 	$visited = array();
 	$summary = array(
-		'folders_deleted'        => array(),
-		'shares_revoked'         => array(),
-		'placements_pointing'    => array(),
-		'placements_inside'      => array(),
+		'folders_deleted'     => array(),
+		'shares_revoked'      => array(),
+		'placements_pointing' => array(),
+		'placements_inside'   => array(),
 	);
-	$result = desktop_mode_files_delete_folder_recursive( $folder_id, $user_id, $visited, $summary );
+	$result  = openstation_files_delete_folder_recursive( $folder_id, $user_id, $visited, $summary );
 	if ( is_wp_error( $result ) ) {
 		return $result;
 	}
@@ -376,14 +363,12 @@ function desktop_mode_files_delete_folder( $folder_id, $user_id ) {
 	 *   - `placements_inside`    — placement ids removed (contents of
 	 *                              the deleted folders).
 	 *
-	 * @since 0.8.5
-	 *
 	 * @param int   $folder_id Root folder of the cascade.
 	 * @param int   $user_id   Acting user.
 	 * @param array $summary   Cascade summary (see above).
 	 */
 	do_action(
-		'desktop_mode_files_after_delete_folder_cascade',
+		'openstation_files_after_delete_folder_cascade',
 		$folder_id,
 		$user_id,
 		$summary
@@ -393,7 +378,7 @@ function desktop_mode_files_delete_folder( $folder_id, $user_id ) {
 }
 
 /**
- * Recursive worker for {@see desktop_mode_files_delete_folder}.
+ * Recursive worker for {@see openstation_files_delete_folder}.
  *
  * Walks the folder's sub-tree (sub-folders the same owner owns),
  * then on the way back up cleans up share rows, decisions,
@@ -405,7 +390,6 @@ function desktop_mode_files_delete_folder( $folder_id, $user_id ) {
  * ever corrupted with one. The owner check happens at the public
  * entry point above; this worker trusts its caller.
  *
- * @since 0.8.5
  * @internal
  *
  * @param int        $folder_id Folder id to delete.
@@ -418,34 +402,34 @@ function desktop_mode_files_delete_folder( $folder_id, $user_id ) {
  *                              null.
  * @return true|WP_Error
  */
-function desktop_mode_files_delete_folder_recursive( $folder_id, $user_id, &$visited, &$summary = null ) {
+function openstation_files_delete_folder_recursive( $folder_id, $user_id, &$visited, &$summary = null ) {
 	global $wpdb;
 	$folder_id = (int) $folder_id;
 	if ( isset( $visited[ $folder_id ] ) ) {
 		return true;
 	}
 	$visited[ $folder_id ] = true;
-	$row = desktop_mode_files_get_folder( $folder_id );
+	$row                   = openstation_files_get_folder( $folder_id );
 	if ( ! $row ) {
 		return true;
 	}
 
-	$tables = desktop_mode_files_table_names();
+	$tables = openstation_files_table_names();
 	if ( null === $summary || ! is_array( $summary ) ) {
 		$summary = array(
-			'folders_deleted'        => array(),
-			'shares_revoked'         => array(),
-			'placements_pointing'    => array(),
-			'placements_inside'      => array(),
+			'folders_deleted'     => array(),
+			'shares_revoked'      => array(),
+			'placements_pointing' => array(),
+			'placements_inside'   => array(),
 		);
 	}
 
 	// 1) Recurse into sub-folders the owner owns. A sub-folder
-	//    owned by SOMEONE ELSE (e.g. a writer recipient who built
-	//    their own folder inside this one) is left intact —
-	//    deleting the parent only severs the containment for the
-	//    owner; the sub-folder's owner can still reach it through
-	//    their own placements.
+	// owned by SOMEONE ELSE (e.g. a writer recipient who built
+	// their own folder inside this one) is left intact —
+	// deleting the parent only severs the containment for the
+	// owner; the sub-folder's owner can still reach it through
+	// their own placements.
 	$sub_folder_refs = (array) $wpdb->get_col(
 		$wpdb->prepare(
 			"SELECT DISTINCT file_ref FROM {$tables['placements']}
@@ -459,16 +443,16 @@ function desktop_mode_files_delete_folder_recursive( $folder_id, $user_id, &$vis
 		if ( $sub_id <= 0 || $sub_id === $folder_id ) {
 			continue;
 		}
-		$sub_row = desktop_mode_files_get_folder( $sub_id );
+		$sub_row = openstation_files_get_folder( $sub_id );
 		if ( $sub_row && (int) $sub_row['owner_id'] === $user_id ) {
-			desktop_mode_files_delete_folder_recursive( $sub_id, $user_id, $visited, $summary );
+			openstation_files_delete_folder_recursive( $sub_id, $user_id, $visited, $summary );
 		}
 	}
 
 	// 2) Revoke every share for this folder: shares table + per-
-	//    user decisions table. The folder is going away, so the
-	//    rows are obsolete; leaving them would let the heartbeat
-	//    keep delivering a `removed` tombstone for ghost rows.
+	// user decisions table. The folder is going away, so the
+	// rows are obsolete; leaving them would let the heartbeat
+	// keep delivering a `removed` tombstone for ghost rows.
 	// `target_type` scoping is load-bearing: `folder_id` carries a
 	// STORED-FILE id on `target_type='file'` rows — without the
 	// predicate this cascade would revoke an unrelated user's file
@@ -480,7 +464,7 @@ function desktop_mode_files_delete_folder_recursive( $folder_id, $user_id, &$vis
 		),
 		ARRAY_A
 	);
-	$share_ids = array();
+	$share_ids  = array();
 	foreach ( $share_rows as $share_row ) {
 		$share_ids[] = (int) $share_row['id'];
 	}
@@ -506,9 +490,9 @@ function desktop_mode_files_delete_folder_recursive( $folder_id, $user_id, &$vis
 		// hook. `$row` carries the pre-delete share data so
 		// listeners can read principal / capability for audit.
 		foreach ( $share_rows as $share_row ) {
-			/** @see desktop_mode_folder_share_revoke */
+			/** @see openstation_folder_share_revoke */
 			do_action(
-				'desktop_mode_files_share_revoked',
+				'openstation_files_share_revoked',
 				(int) $share_row['id'],
 				$share_row,
 				$user_id
@@ -521,7 +505,7 @@ function desktop_mode_files_delete_folder_recursive( $folder_id, $user_id, &$vis
 	}
 
 	// 3) Placements POINTING AT this folder (every recipient's
-	//    accept-created root placement, plus the owner's own).
+	// accept-created root placement, plus the owner's own).
 	$pointing_ids = (array) $wpdb->get_col(
 		$wpdb->prepare(
 			"SELECT id FROM {$tables['placements']}
@@ -530,7 +514,7 @@ function desktop_mode_files_delete_folder_recursive( $folder_id, $user_id, &$vis
 		)
 	);
 	foreach ( $pointing_ids as $pid ) {
-		desktop_mode_files_write_tombstone( 'placement', (int) $pid );
+		openstation_files_write_tombstone( 'placement', (int) $pid );
 	}
 	if ( ! empty( $pointing_ids ) ) {
 		$placeholders = implode( ',', array_fill( 0, count( $pointing_ids ), '%d' ) );
@@ -548,11 +532,11 @@ function desktop_mode_files_delete_folder_recursive( $folder_id, $user_id, &$vis
 	}
 
 	// 4) Placements INSIDE this folder. After step 1 the sub-folder
-	//    placements have been recursively handled for owner-owned
-	//    sub-folders; whatever remains here (loose post / link /
-	//    user / etc. placements, plus orphan folder placements
-	//    whose folder we did NOT recurse into because someone else
-	//    owns it) gets deleted with a tombstone each.
+	// placements have been recursively handled for owner-owned
+	// sub-folders; whatever remains here (loose post / link /
+	// user / etc. placements, plus orphan folder placements
+	// whose folder we did NOT recurse into because someone else
+	// owns it) gets deleted with a tombstone each.
 	$inside_rows = (array) $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT * FROM {$tables['placements']} WHERE parent_id = %d",
@@ -560,10 +544,10 @@ function desktop_mode_files_delete_folder_recursive( $folder_id, $user_id, &$vis
 		),
 		ARRAY_A
 	);
-	$inside_ids = array();
+	$inside_ids  = array();
 	foreach ( $inside_rows as $inside_row ) {
 		$inside_ids[] = (int) $inside_row['id'];
-		desktop_mode_files_write_tombstone( 'placement', (int) $inside_row['id'] );
+		openstation_files_write_tombstone( 'placement', (int) $inside_row['id'] );
 	}
 	if ( ! empty( $inside_ids ) ) {
 		$wpdb->delete( $tables['placements'], array( 'parent_id' => $folder_id ), array( '%d' ) );
@@ -571,12 +555,12 @@ function desktop_mode_files_delete_folder_recursive( $folder_id, $user_id, &$vis
 		// deletion contract now that the rows are gone. Direct
 		// guarded call (not the public unplaced action) so cascade
 		// hook semantics for other types stay unchanged.
-		if ( function_exists( 'desktop_mode_stored_files_handle_unplaced' ) ) {
+		if ( function_exists( 'openstation_stored_files_handle_unplaced' ) ) {
 			foreach ( $inside_rows as $inside_row ) {
 				if ( 'upload' === (string) $inside_row['file_type'] ) {
-					desktop_mode_stored_files_handle_unplaced(
+					openstation_stored_files_handle_unplaced(
 						(int) $inside_row['id'],
-						desktop_mode_files_normalize_placement_row( $inside_row )
+						openstation_files_normalize_placement_row( $inside_row )
 					);
 				}
 			}
@@ -590,31 +574,27 @@ function desktop_mode_files_delete_folder_recursive( $folder_id, $user_id, &$vis
 	// 5) The folder row itself + its tombstone.
 	$ok = $wpdb->delete( $tables['folders'], array( 'id' => $folder_id ), array( '%d' ) );
 	if ( false === $ok ) {
-		return new WP_Error( 'desktop_mode_files_delete_failed', __( 'Failed to delete folder.', 'desktop-mode' ), array( 'status' => 500 ) );
+		return new WP_Error( 'openstation_files_delete_failed', __( 'Failed to delete folder.', 'desktop-mode' ), array( 'status' => 500 ) );
 	}
-	desktop_mode_files_write_tombstone( 'folder', $folder_id );
+	openstation_files_write_tombstone( 'folder', $folder_id );
 	$summary['folders_deleted'][] = $folder_id;
 
 	/**
 	 * Fires after a folder is deleted. Plugins listening for share
 	 * lifecycle can subscribe alongside
-	 * `desktop_mode_files_share_revoked` if they want to react to
+	 * `openstation_files_share_revoked` if they want to react to
 	 * cascade-revokes triggered by folder deletion.
-	 *
-	 * @since 0.9.0
 	 *
 	 * @param int   $id  Folder id.
 	 * @param array $row Removed row.
 	 */
-	do_action( 'desktop_mode_folder_deleted', $folder_id, $row );
+	do_action( 'openstation_folder_deleted', $folder_id, $row );
 
 	return true;
 }
 
 /**
  * Lookup a folder row by id.
- *
- * @since 0.9.0
  *
  * @param int  $folder_id       Folder id.
  * @param bool $include_trashed Optional. Return the row even when
@@ -623,9 +603,9 @@ function desktop_mode_files_delete_folder_recursive( $folder_id, $user_id, &$vis
  *                              resolve to null.
  * @return array|null
  */
-function desktop_mode_files_get_folder( $folder_id, $include_trashed = false ) {
+function openstation_files_get_folder( $folder_id, $include_trashed = false ) {
 	global $wpdb;
-	$tables = desktop_mode_files_table_names();
+	$tables = openstation_files_table_names();
 	$row    = $wpdb->get_row(
 		$wpdb->prepare( "SELECT * FROM {$tables['folders']} WHERE id = %d", (int) $folder_id ),
 		ARRAY_A
@@ -638,27 +618,25 @@ function desktop_mode_files_get_folder( $folder_id, $include_trashed = false ) {
 	if ( ! $include_trashed && ! empty( $row['trashed_at_ms'] ) ) {
 		return null;
 	}
-	return desktop_mode_files_normalize_folder_row( $row );
+	return openstation_files_normalize_folder_row( $row );
 }
 
 /**
  * Folders visible to `$user_id`. Returns the folders the viewer
  * owns; sharing.php merges shared folders in via the
- * `desktop_mode_files_visible_folders` filter.
- *
- * @since 0.9.0
+ * `openstation_files_visible_folders` filter.
  *
  * @param int $user_id Viewer.
  * @return array[]
  */
-function desktop_mode_files_get_visible_folders( $user_id ) {
+function openstation_files_get_visible_folders( $user_id ) {
 	global $wpdb;
 	$user_id = (int) $user_id;
 	if ( $user_id <= 0 ) {
 		return array();
 	}
 
-	$tables = desktop_mode_files_table_names();
+	$tables = openstation_files_table_names();
 	$rows   = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT * FROM {$tables['folders']}
@@ -667,33 +645,30 @@ function desktop_mode_files_get_visible_folders( $user_id ) {
 		),
 		ARRAY_A
 	);
-	$out = array();
+	$out    = array();
 	foreach ( (array) $rows as $row ) {
-		$out[] = desktop_mode_files_normalize_folder_row( $row );
+		$out[] = openstation_files_normalize_folder_row( $row );
 	}
 
 	/**
 	 * Filter the folders visible to a viewer. sharing.php's
-	 * `desktop_mode_files_compute_visible_folders` (priority 5)
+	 * `openstation_files_compute_visible_folders` (priority 5)
 	 * merges accepted shares and `share_mode='all'` folders onto
 	 * this list.
-	 *
-	 * @since 0.9.0
 	 *
 	 * @param array[] $folders Folders the viewer owns.
 	 * @param int     $user_id Viewer.
 	 */
-	return (array) apply_filters( 'desktop_mode_files_visible_folders', $out, $user_id );
+	return (array) apply_filters( 'openstation_files_visible_folders', $out, $user_id );
 }
 
 /**
- * @since 0.9.0
  * @internal
  *
  * @param array $row Raw wpdb row.
  * @return array
  */
-function desktop_mode_files_normalize_folder_row( $row ) {
+function openstation_files_normalize_folder_row( $row ) {
 	$meta_raw = isset( $row['share_meta'] ) ? (string) $row['share_meta'] : '';
 	$meta     = '' !== $meta_raw ? json_decode( $meta_raw, true ) : null;
 	return array(

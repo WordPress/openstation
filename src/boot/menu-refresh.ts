@@ -1,24 +1,22 @@
 /**
  * Live menu-refresh pipeline.
  *
- * Listens for `desktop-mode-plugins-changed` postMessages and
+ * Listens for `os-plugins-changed` postMessages and
  * forwards every payload they carry to the apply step. The
  * chromeless bridge in `render.php` always emits a payload from
  * real admin context — both for the implicit case (`plugins.php`
  * etc.) and for the explicit refresh probe
- * (`?desktop_mode_menu_refresh=1`) — so a single mechanism handles
+ * (`?openstation_menu_refresh=1`) — so a single mechanism handles
  * every refresh.
  *
  * `bindMenuRefresh()` returns an async function plugins can call
  * to force a refresh. The implementation spawns a 1×1 hidden
- * iframe at `admin.php?desktop_mode_chromeless=1&desktop_mode_menu_refresh=1`,
+ * iframe at `admin.php?openstation_chromeless=1&openstation_menu_refresh=1`,
  * waits for the bridge's payload message, then disposes the
  * iframe.
  *
  * Extracted from `src/desktop.ts` during the architecture-0.8.1
  * boot decomposition (phase 5).
- *
- * @since 0.8.1
  */
 
 import { HOOKS, doAction } from '../hooks';
@@ -34,6 +32,7 @@ import type {
 	DesktopSettingsTabScriptServerEntry,
 	DesktopSettingsTabServerEntry,
 	DesktopTitleBarButtonScriptServerEntry,
+	DesktopWindowActionScriptServerEntry,
 	DesktopUnfocusEffectScriptServerEntry,
 	DesktopWindowLinkRendererScriptServerEntry,
 	DesktopWallpaperServerEntry,
@@ -45,7 +44,7 @@ import type {
 
 /**
  * Hard ceiling on how long `refreshMenu()` waits for its hidden
- * iframe to emit the `desktop-mode-plugins-changed` payload before
+ * iframe to emit the `os-plugins-changed` payload before
  * giving up. The probe is a normal admin page load, so the cap is
  * sized for a slow shared host on first request rather than the
  * happy path.
@@ -53,7 +52,7 @@ import type {
 const MENU_REFRESH_TIMEOUT_MS = 8000;
 
 /**
- * Trailing debounce for `desktop-mode-updates-changed` nudges. Long
+ * Trailing debounce for `os-updates-changed` nudges. Long
  * enough to collapse the burst from several open windows reporting the
  * same shiny-update run, short enough that the badge repaint still
  * reads as immediate.
@@ -78,6 +77,9 @@ export interface MenuRefreshDeps {
 	syncServerTitleBarButtons: (
 		scripts: DesktopTitleBarButtonScriptServerEntry[],
 	) => Promise< void >;
+	syncServerWindowActions: (
+		scripts: DesktopWindowActionScriptServerEntry[],
+	) => Promise< void >;
 	syncServerUnfocusEffects: (
 		scripts: DesktopUnfocusEffectScriptServerEntry[],
 	) => Promise< void >;
@@ -91,16 +93,14 @@ export interface MenuRefreshDeps {
 	/** See `MenuRefreshDeps.syncServerDesktopThemes` in `../menu-refresh-apply`. */
 	syncServerDesktopThemes?: ( list: DesktopThemeServerEntry[] ) => void;
 	renderIcons: ( icons: DesktopIconServerEntry[] | undefined ) => void;
+	/** See `MenuRefreshDeps.refreshRootPlacements` in `../menu-refresh-apply`. */
+	refreshRootPlacements?: () => void;
 	/** See `MenuRefreshDeps.syncShortcuts` in `../menu-refresh-apply`. */
 	syncShortcuts?: () => void;
 }
 
 /**
  * Wire the live menu-refresh pipeline.
- *
- * @since 0.8.1 (extracted from desktop.ts; argument list collected
- *               into a single options object so future syncers
- *               don't grow the parameter list).
  *
  * @return An async function plugins can call to force a refresh.
  */
@@ -115,12 +115,14 @@ export function bindMenuRefresh( deps: MenuRefreshDeps ): () => Promise< void > 
 		syncServerCommands,
 		syncServerSettingsTabs,
 		syncServerTitleBarButtons,
+		syncServerWindowActions,
 		syncServerUnfocusEffects,
 		syncServerWindowLinkRenderers,
 		syncServerDockRailRenderers,
 		syncServerGames,
 		syncServerDesktopThemes,
 		renderIcons,
+		refreshRootPlacements,
 		syncShortcuts,
 	} = deps;
 
@@ -134,12 +136,19 @@ export function bindMenuRefresh( deps: MenuRefreshDeps ): () => Promise< void > 
 		syncServerCommands,
 		syncServerSettingsTabs,
 		syncServerTitleBarButtons,
+		syncServerWindowActions,
 		syncServerUnfocusEffects,
 		syncServerWindowLinkRenderers,
 		syncServerDockRailRenderers,
 		syncServerGames,
 		syncServerDesktopThemes,
 		renderIcons,
+		// The dispatcher owns the nav model the files-layer shortcut
+		// grid reads — `renderIcons` alone only reaches the legacy
+		// rail, which is hidden while a files layer is mounted.
+		applyDesktopIcons: ( icons ) =>
+			layoutDispatcher?.applyDesktopIcons( icons ),
+		refreshRootPlacements,
 		syncShortcuts,
 	} );
 
@@ -155,7 +164,7 @@ export function bindMenuRefresh( deps: MenuRefreshDeps ): () => Promise< void > 
 	// can't spawn overlapping refresh probes for the same change.
 	let sigRefreshInFlight = false;
 
-	// `desktop-mode-updates-changed` scheduling state. The chromeless
+	// `os-updates-changed` scheduling state. The chromeless
 	// bridge nudges after Core's shiny (AJAX) plugin/theme updates and
 	// deletes complete (GH#296); the nudge carries no payload, so the
 	// shell answers with one refresh probe. Debounce collapses a burst
@@ -174,8 +183,8 @@ export function bindMenuRefresh( deps: MenuRefreshDeps ): () => Promise< void > 
 		const probeUrl = ( () => {
 			try {
 				const url = new URL( 'admin.php', config.adminUrl );
-				url.searchParams.set( 'desktop_mode_chromeless', '1' );
-				url.searchParams.set( 'desktop_mode_menu_refresh', '1' );
+				url.searchParams.set( 'openstation_chromeless', '1' );
+				url.searchParams.set( 'openstation_menu_refresh', '1' );
 				return url.toString();
 			} catch ( _err ) {
 				return null;
@@ -215,7 +224,7 @@ export function bindMenuRefresh( deps: MenuRefreshDeps ): () => Promise< void > 
 					return;
 				}
 				const data = e.data as { type?: string } | null;
-				if ( ! data || data.type !== 'desktop-mode-plugins-changed' ) {
+				if ( ! data || data.type !== 'os-plugins-changed' ) {
 					return;
 				}
 				// The shell-wide `message` listener applies the payload
@@ -280,6 +289,7 @@ export function bindMenuRefresh( deps: MenuRefreshDeps ): () => Promise< void > 
 				serverSettingsTabs?: unknown;
 				serverDockRailRendererScripts?: unknown;
 				serverTitleBarButtonScripts?: unknown;
+				serverWindowActionScripts?: unknown;
 				serverUnfocusEffectScripts?: unknown;
 				serverWindowLinkRendererScripts?: unknown;
 				serverGames?: unknown;
@@ -292,7 +302,7 @@ export function bindMenuRefresh( deps: MenuRefreshDeps ): () => Promise< void > 
 			return;
 		}
 
-		if ( data.type === 'desktop-mode-plugins-changed' ) {
+		if ( data.type === 'os-plugins-changed' ) {
 			// The chromeless bridge always embeds a fresh menu payload
 			// captured from real admin context — plugins that gate
 			// `admin_menu` on `is_admin()` at load time registered
@@ -311,7 +321,7 @@ export function bindMenuRefresh( deps: MenuRefreshDeps ): () => Promise< void > 
 			return;
 		}
 
-		if ( data.type === 'desktop-mode-updates-changed' ) {
+		if ( data.type === 'os-updates-changed' ) {
 			// A chromeless page reports that Core's shiny updater just
 			// finished a plugin/theme update or delete run. The update
 			// transient changed server-side without any navigation, so
@@ -321,7 +331,7 @@ export function bindMenuRefresh( deps: MenuRefreshDeps ): () => Promise< void > 
 			return;
 		}
 
-		if ( data.type === 'desktop-mode-menu-signature' ) {
+		if ( data.type === 'os-menu-signature' ) {
 			// A chromeless page off the full-payload allowlist reported
 			// its menu fingerprint. If it differs from the state the dock
 			// currently reflects, the admin menu changed somewhere we

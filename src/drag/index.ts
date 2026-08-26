@@ -1,16 +1,14 @@
 /**
- * Desktop Mode — Drag module barrel.
+ * OpenStation — Drag module barrel.
  *
- * `wp.desktop.dragManager` is the public surface. Plugin authors
+ * `wp.os.dragManager` is the public surface. Plugin authors
  * register drop targets via `dragManager.registerDropTarget()` and
  * (rarely) start sessions via `dragManager.start()` for plugin-defined
  * draggable surfaces.
  *
  * Cross-iframe Media Library drags continue to flow through
- * `wp.desktop.dragBridge` (`src/drag-bridge.ts`) — that's a payload
+ * `wp.os.dragBridge` (`src/drag-bridge.ts`) — that's a payload
  * channel, separate from this gesture manager.
- *
- * @since 0.8.1
  */
 
 export { DragManager } from './manager';

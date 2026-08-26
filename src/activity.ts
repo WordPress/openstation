@@ -15,7 +15,7 @@
  *   1. A documented naming convention (`<plugin>/<event>`,
  *      matching `createSharedStore` keys) so plugins don't bikeshed
  *      every new channel name.
- *   2. A predictable hook prefix (`desktop-mode.activity.<channel>`)
+ *   2. A predictable hook prefix (`os.activity.<channel>`)
  *      so the devtools "what's firing" panel can list activity
  *      events as a discrete group.
  *   3. Type safety: callers can extend `ActivityChannelMap` in
@@ -23,12 +23,10 @@
  *      typechecks the payload shape.
  *
  * **The pattern.** Apps subscribe to OS lifecycle events
- * (`wp.desktop.onWindow`, `desktop-mode-window-*` CustomEvents) AND
+ * (`wp.os.onWindow`, `os-window-*` CustomEvents) AND
  * to peer-app activity channels. They query window state when they
  * need to (`windowManager.isActive(id)`) and decide for themselves
  * what to do. The framework is the bus, not the policy.
- *
- * @since 0.5.5
  */
 
 import {
@@ -42,7 +40,9 @@ import {
  * Type-extension hook for plugin authors. Augment via:
  *
  * ```ts
- * declare module 'desktop-mode/activity' {
+ * import type {} from 'openstation/activity';
+ *
+ * declare module 'openstation/activity' {
  *     interface ActivityChannelMap {
  *         'my-plugin/something-happened': { id: number; reason: string };
  *     }
@@ -65,7 +65,7 @@ export interface ActivityChannelMap {
 	 * BEFORE the toast appears in the DOM; subscribers shouldn't
 	 * use this for "show another toast" or you'll loop.
 	 */
-	'desktop-mode/toast-requested': {
+	'os/toast-requested': {
 		message: string;
 		action?: { label: string; onClick: () => void };
 		duration?: number;
@@ -78,7 +78,7 @@ export interface ActivityChannelMap {
 	 * for audit / aggregation widgets. Filtering this is a no-op —
 	 * by the time it fires, the toast is on screen.
 	 */
-	'desktop-mode/toast-shown': {
+	'os/toast-shown': {
 		message: string;
 		action?: { label: string; onClick: () => void };
 		duration?: number;
@@ -87,13 +87,11 @@ export interface ActivityChannelMap {
 		cancel?: boolean;
 	};
 	/**
-	 * Framework: `wp.desktop.notify()` was called. Filter to cancel
+	 * Framework: `wp.os.notify()` was called. Filter to cancel
 	 * (`cancel: true`), mutate fields, or audit before the
 	 * Notification surface (or its toast fallback) is rendered.
-	 *
-	 * @since 0.8.0
 	 */
-	'desktop-mode/notification-requested': {
+	'os/notification-requested': {
 		title: string;
 		body?: string;
 		icon?: string;
@@ -109,10 +107,8 @@ export interface ActivityChannelMap {
 	 * so analytics can distinguish "user has notifications muted"
 	 * from "user explicitly hides nothing." `fallback: null` means
 	 * a real OS-level notification went up.
-	 *
-	 * @since 0.8.0
 	 */
-	'desktop-mode/notification-shown': {
+	'os/notification-shown': {
 		title: string;
 		body?: string;
 		icon?: string;
@@ -130,7 +126,7 @@ export interface ActivityChannelMap {
 	 * reduced-motion, mutate `mode` / `durationMs` / `intensity`
 	 * to scale the animation, or audit.
 	 */
-	'desktop-mode/window-attention-requested': {
+	'os/window-attention-requested': {
 		windowId: string;
 		mode: 'pulse' | 'shake' | 'bounce' | null;
 		durationMs?: number;
@@ -150,7 +146,7 @@ export interface ActivityChannelMap {
 	 * compose a unified count without duplicating logic per
 	 * surface.
 	 */
-	'desktop-mode/badge-changed': {
+	'os/badge-changed': {
 		itemId: string;
 		count: number;
 		/** Which rail painted the change. */
@@ -168,16 +164,16 @@ export interface ActivityChannelMap {
 	 * Useful for analytics + DND that want "user requested" rather
 	 * than "framework completed".
 	 */
-	'desktop-mode/open-requested': {
+	'os/open-requested': {
 		windowId: string;
 		source: string;
 	};
 	/**
 	 * Framework: a user's presence transitioned. Mirrors the
-	 * `desktop-mode-presence-changed` CustomEvent on the activity
+	 * `os-presence-changed` CustomEvent on the activity
 	 * bus so plugins can subscribe through the unified API.
 	 */
-	'desktop-mode/presence-changed': {
+	'os/presence-changed': {
 		userId: number;
 		oldStatus: 'online' | 'inactive' | 'offline' | null;
 		newStatus: 'online' | 'inactive' | 'offline';
@@ -191,9 +187,40 @@ export interface ActivityChannelMap {
 	 * everything that depends on presence" callers that don't
 	 * need per-user granularity.
 	 */
-	'desktop-mode/presence-snapshot-applied': {
+	'os/presence-snapshot-applied': {
 		applied: number;
 		transitions: number;
+	};
+	/**
+	 * Framework: a game run landed on the leaderboard. Fires after
+	 * the REST write resolves, so a subscriber that refetches sees
+	 * the new row. Games run in their own window
+	 * (`os-game-<id>`); this is how the Games hub, a
+	 * different window and possibly a different bundle, learns that
+	 * its scoreboard went stale.
+	 *
+	 * Both submission paths publish: free play and challenge
+	 * completion (completing a challenge writes a leaderboard row
+	 * too). `challengeId` is set only on the latter.
+	 */
+	'os/game-score-recorded': {
+		game: string;
+		score: number;
+		meta: Record< string, string | number >;
+		windowId: string;
+		challengeId?: number;
+	};
+	/**
+	 * Framework: a file dropped on the shell finished uploading.
+	 * Published by the floating progress HUD rather than by the
+	 * uploader — the upload itself runs on XHR (the only transport
+	 * that reports determinate progress) and so never routes
+	 * through `wp.os.fetch`, which makes this the activity bus's
+	 * only view of a completed drop.
+	 */
+	'os/upload-hud-complete': {
+		filename: string;
+		attachmentId: number;
 	};
 	// Plugin channels go here. The catch-all index signature lets
 	// third-party plugins fall through without explicit type
@@ -202,10 +229,15 @@ export interface ActivityChannelMap {
 	[ key: `${ string }/${ string }` ]: unknown;
 }
 
-const HOOK_PREFIX = 'desktop-mode.activity.';
+const HOOK_PREFIX = 'os.activity.';
 
+/**
+ * Channel slug → hook name. Characters outside the charset
+ * `@wordpress/hooks` accepts in a hook name collapse to a period,
+ * the separator the prefix already uses.
+ */
 function hookName< K extends keyof ActivityChannelMap >( channel: K ): string {
-	return `${ HOOK_PREFIX }${ String( channel ) }`;
+	return HOOK_PREFIX + String( channel ).replace( /[^a-zA-Z0-9_.-]/g, '.' );
 }
 
 /**
@@ -270,7 +302,7 @@ export const activity: ActivityApi = {
 		doAction( hookName( channel ), payload );
 	},
 	subscribe( channel, cb ) {
-		const ns = `desktop-mode/activity-sub/${ ++subscribeSeq }`;
+		const ns = `os/activity-sub/${ ++subscribeSeq }`;
 		const hook = hookName( channel );
 		addAction( hook, ns, ( payload: unknown ) =>
 			( cb as ( p: unknown ) => void )( payload ),

@@ -1,17 +1,17 @@
 /**
- * Desktop Mode — Window-link render host.
+ * OpenStation — Window-link render host.
  *
  * Owns *when and where* relation ties are drawn; the registered
  * renderer owns *how* (mirrors the unfocus-engine ↔ effect-def split).
  * Responsibilities:
  *
  *   - the link layer: a `pointer-events: none` element inside
- *     `#desktop-mode-area`, stacked between the widget layer (z 1)
+ *     `#os-area`, stacked between the widget layer (z 1)
  *     and the windows (z 100+), created lazily and only while at
  *     least one relation group is renderable (≥1 root + ≥1 child
  *     window open) — zero cost when the feature is unused;
  *   - resolving the ACTIVE renderer: OS Settings pick → the
- *     `desktop-mode.window-links.renderer` filter → registry lookup,
+ *     `os.window-links.renderer` filter → registry lookup,
  *     falling back to the built-in `svg-splines` when the picked id
  *     vanished (plugin deactivated);
  *   - the visibility policy (`windowLinkVisibility` OS setting):
@@ -24,9 +24,7 @@
  *     settled move/resize/state hooks, and group-membership changes
  *     into `onFrame` callbacks with fresh rects;
  *   - the related-window chrome highlight: while a group member is
- *     focused, its relatives carry `desktop-mode-window--linked`.
- *
- * @since 0.9.4
+ *     focused, its relatives carry `os-window--linked`.
  */
 
 import { addAction, applyFilters, doAction, HOOKS } from '../hooks';
@@ -58,14 +56,14 @@ import type { Window as DesktopWindow } from '../window';
 // since the host is what falls back to it.
 import './renderers/svg-splines';
 
-/** Layer element id, mirrors `#desktop-mode-widgets` naming. */
-const LAYER_ID = 'desktop-mode-window-links';
+/** Layer element id, mirrors `#os-widgets` naming. */
+const LAYER_ID = 'os-window-links';
 
 /** Class toggled on windows related to the focused group member. */
-const LINKED_CLASS = 'desktop-mode-window--linked';
+const LINKED_CLASS = 'os-window--linked';
 
 /** Class that fades the layer in under the `'focus'` policy. */
-const VISIBLE_CLASS = 'desktop-mode-window-links--visible';
+const VISIBLE_CLASS = 'os-window-links--visible';
 
 /**
  * Module-level once-guard — same rationale as the unfocus engine's:
@@ -120,7 +118,7 @@ export function startWindowLinkRenderHost( {
 	// ------------------------------------------------------------------
 
 	/**
-	 * Live geometry of a window, relative to `#desktop-mode-area`
+	 * Live geometry of a window, relative to `#os-area`
 	 * (which the layer and every window share as offset parent), or
 	 * `null` when the window isn't visible on the active desktop.
 	 */
@@ -293,7 +291,7 @@ export function startWindowLinkRenderHost( {
 				} catch ( err ) {
 					if ( typeof console !== 'undefined' ) {
 						console.error(
-							'[desktop-mode] window-link frame subscriber threw:',
+							'[openstation] window-link frame subscriber threw:',
 							err,
 						);
 					}
@@ -310,13 +308,13 @@ export function startWindowLinkRenderHost( {
 		if ( layer && layer.isConnected && elevatedLayer?.isConnected ) {
 			return layer;
 		}
-		const area = document.getElementById( 'desktop-mode-area' );
+		const area = document.getElementById( 'os-area' );
 		if ( ! area ) {
 			return null;
 		}
 		layer = document.createElement( 'div' );
 		layer.id = LAYER_ID;
-		layer.className = 'desktop-mode-window-links';
+		layer.className = 'os-window-links';
 		layer.setAttribute( 'aria-hidden', 'true' );
 		// A SIBLING (not a child): the base layer's own z-index makes
 		// it a stacking context, so a child could never rise above the
@@ -325,11 +323,11 @@ export function startWindowLinkRenderHost( {
 		elevatedLayer = document.createElement( 'div' );
 		elevatedLayer.id = `${ LAYER_ID }-elevated`;
 		elevatedLayer.className =
-			'desktop-mode-window-links desktop-mode-window-links--elevated';
+			'os-window-links os-window-links--elevated';
 		elevatedLayer.setAttribute( 'aria-hidden', 'true' );
 		// After the widget layer so DOM order mirrors the z-order
 		// (widgets z 1 → links z 50 → windows z 100+).
-		const widgets = document.getElementById( 'desktop-mode-widgets' );
+		const widgets = document.getElementById( 'os-widgets' );
 		if ( widgets && widgets.parentElement === area ) {
 			widgets.insertAdjacentElement( 'afterend', elevatedLayer );
 			widgets.insertAdjacentElement( 'afterend', layer );

@@ -59,7 +59,7 @@ describe( 'media-preview', () => {
 			previewActions: [],
 		} );
 		const img = host.querySelector< HTMLImageElement >(
-			'.desktop-mode-my-wordpress__media-image',
+			'.os-my-wordpress__media-image',
 		);
 		expect( img ).not.toBeNull();
 		expect( img!.src ).toBe( 'https://example.test/large.jpg' );
@@ -88,10 +88,10 @@ describe( 'media-preview', () => {
 			{ entityId: 'media', previewActions: [] },
 		);
 		expect(
-			host.querySelector( '.desktop-mode-my-wordpress__media-fallback-icon' ),
+			host.querySelector( '.os-my-wordpress__media-fallback-icon' ),
 		).not.toBeNull();
 		const link = host.querySelector< HTMLAnchorElement >(
-			'.desktop-mode-my-wordpress__media-doc-link',
+			'.os-my-wordpress__media-doc-link',
 		);
 		expect( link?.href ).toBe( 'https://x/doc.pdf' );
 	} );
@@ -135,7 +135,7 @@ describe( 'media-preview', () => {
 		const onSelect = vi.fn();
 		// Attach a filter that wires a handler onto the server descriptor.
 		window.wp!.hooks!.addFilter(
-			'desktop-mode.my-wordpress.preview-actions',
+			'os.my-wordpress.preview-actions',
 			'test/wire',
 			( actions: MediaPreviewAction[] ) =>
 				actions.map( ( a ) =>
@@ -156,12 +156,40 @@ describe( 'media-preview', () => {
 		expect( onSelect ).toHaveBeenCalledTimes( 1 );
 	} );
 
+	test( 'onSelect ctx keeps the media contract and gains the new fields', () => {
+		const host = document.createElement( 'div' );
+		document.body.appendChild( host );
+		const onSelect = vi.fn();
+		window.wp!.hooks!.addFilter(
+			'os.my-wordpress.preview-actions',
+			'test/ctx-shape',
+			( actions: MediaPreviewAction[] ) =>
+				actions.map( ( a ) => ( { ...a, onSelect } ) ),
+		);
+		renderMediaPreview( host, makeMedia(), {
+			entityId: 'media',
+			previewActions: [ { id: 'inspect', label: 'Inspect' } ],
+		} );
+		host.querySelector< HTMLElement >( '[data-action-id="inspect"]' )!
+			.dispatchEvent( new Event( 'click', { bubbles: true } ) );
+		expect( onSelect ).toHaveBeenCalledTimes( 1 );
+		const ctx = onSelect.mock.calls[ 0 ][ 0 ] as Record< string, unknown >;
+		// Pre-existing contract — unchanged.
+		expect( ctx.entityId ).toBe( 'media' );
+		expect( ctx.kind ).toBe( 'media' );
+		expect( ctx.mime ).toBe( 'image/jpeg' );
+		expect( ( ctx.item as { id: number } ).id ).toBe( 42 );
+		// Additive fields.
+		expect( ctx.itemId ).toBe( 42 );
+		expect( ctx.surface ).toBe( 'pane' );
+	} );
+
 	test( 'preview-extras action fires for each slot', () => {
 		const host = document.createElement( 'div' );
 		document.body.appendChild( host );
 		const slots: string[] = [];
 		window.wp!.hooks!.addAction(
-			'desktop-mode.my-wordpress.preview-extras',
+			'os.my-wordpress.preview-extras',
 			'test/extras',
 			( ctx: { slot: string } ) => {
 				slots.push( ctx.slot );

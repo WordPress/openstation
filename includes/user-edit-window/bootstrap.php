@@ -1,9 +1,8 @@
 <?php
 /**
- * Desktop Mode — Native User Edit (single user) window bootstrap.
+ * OpenStation — Native User Edit (single user) window bootstrap.
  *
- * @package WPDesktopMode
- * @since   0.8.1
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;

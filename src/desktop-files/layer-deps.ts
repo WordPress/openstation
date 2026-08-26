@@ -1,12 +1,10 @@
 /**
- * Desktop Mode — Layer-side dependency surface.
+ * OpenStation — Layer-side dependency surface.
  *
  * Re-exports the few REST + store entry points the layer
  * needs, in a tiny module so importing `layer.ts` doesn't
  * pull `index.ts` (which would create a cycle through the
  * built-in registrations).
- *
- * @since 0.9.0
  */
 
 export * as rest from './rest';

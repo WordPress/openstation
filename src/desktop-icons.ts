@@ -1,16 +1,16 @@
 /**
- * Desktop Mode — Wallpaper shortcut icons.
+ * OpenStation — Wallpaper shortcut icons.
  *
  * Renders the list of `config.desktopIcons` entries (registered
- * server-side via `desktop_mode_register_icon()`) as clickable
+ * server-side via `openstation_register_icon()`) as clickable
  * tiles on the desktop wallpaper. Clicking an icon opens the
  * referenced native window (via the injected `openWindow` callback)
  * or opens the URL as an iframe window / new tab.
  *
- * **Badge surface (since 0.6.0).** The icon rail mirrors the
+ * **Badge surface.** The icon rail mirrors the
  * dock + taskbar API exactly: `setBadge( id, count )` is
  * idempotent, `0` clears, `>99` renders `99+`. Every change emits
- * `desktop-mode/badge-changed` with `rail: 'icon'` on the activity
+ * `os/badge-changed` with `rail: 'icon'` on the activity
  * bus and {@link HOOKS.ICON_BADGE_CHANGED} on the hook bus, so a
  * plugin author writing one badge wrapper for all three rails
  * sees one consistent shape across every surface.
@@ -30,8 +30,6 @@
  * and {@link HOOKS.DESKTOP_ICONS_RENDERED}; reach for the badge
  * API rather than DOM-scraping `[data-icon-id]` whenever the
  * decoration is "show a number on this icon."
- *
- * @since 0.5.0
  */
 
 import { activity } from './activity';
@@ -73,7 +71,7 @@ export interface DesktopIconRenderDeps {
 	 * events (minimize, restore, focus) propagate to a single dock
 	 * tile state. Previously the icon path generated a per-entry
 	 * id (`desktop-icon-<id>`) that split the same app across two
-	 * parallel windows with independent state — fixed in 0.8.9.
+	 * parallel windows with independent state — since fixed.
 	 */
 	deriveWindowId: ( url: string ) => string;
 }
@@ -90,8 +88,9 @@ export interface DesktopIconRenderDeps {
  *  `DESKTOP_ICONS_RENDERED`.
  * --------------------------------------------------------------- */
 
-const BADGE_CLASS = 'desktop-mode-icon__badge';
+const BADGE_CLASS = 'os-icon__badge';
 const _badges = new Map< string, number >();
+const _art = new Map< string, string >();
 
 /**
  * Coerce a raw badge input to a non-negative integer count.
@@ -111,9 +110,9 @@ function _safeBadge( count: number ): number {
  *
  * ```ts
  * function setBadgeEverywhere( id: string, count: number ): void {
- *     wp.desktop.dock?.setBadge?.(    id, count );
- *     wp.desktop.taskbar?.setBadge?.( id, count );
- *     wp.desktop.icons?.setBadge?.(   id, count );
+ *     wp.os.dock?.setBadge?.(    id, count );
+ *     wp.os.taskbar?.setBadge?.( id, count );
+ *     wp.os.icons?.setBadge?.(   id, count );
  * }
  * ```
  *
@@ -122,9 +121,9 @@ function _safeBadge( count: number ): number {
  *
  * On every applied change this fires:
  *
- *   - `desktop-mode/badge-changed` on the activity bus with
+ *   - `os/badge-changed` on the activity bus with
  *     `{ itemId, count, rail: 'icon' }`. Subscribe via
- *     `wp.desktop.activity.subscribe( 'desktop-mode/badge-changed', cb )`
+ *     `wp.os.activity.subscribe( 'os/badge-changed', cb )`
  *     for global notification-center widgets that aggregate
  *     across rails.
  *   - {@link HOOKS.ICON_BADGE_CHANGED} on the hook bus with
@@ -136,9 +135,8 @@ function _safeBadge( count: number ): number {
  * doesn't need to re-decorate after every live menu refresh.
  *
  * @public
- * @since 0.6.0
  *
- * @param iconId Id passed to `desktop_mode_register_icon()`.
+ * @param iconId Id passed to `openstation_register_icon()`.
  * @param count  Non-negative integer. `>99` renders as `99+`.
  *               `0` removes the badge.
  */
@@ -162,7 +160,7 @@ export function setIconBadge( iconId: string, count: number ): void {
 		_badges.set( iconId, safe );
 	}
 	_paintBadgeNode( tile, safe );
-	activity.publish( 'desktop-mode/badge-changed', {
+	activity.publish( 'os/badge-changed', {
 		itemId: iconId,
 		count: safe,
 		rail: 'icon',
@@ -179,7 +177,6 @@ export function setIconBadge( iconId: string, count: number ): void {
  * `setIconBadge( id, 0 )`.
  *
  * @public
- * @since 0.6.0
  */
 export function clearIconBadge( iconId: string ): void {
 	setIconBadge( iconId, 0 );
@@ -196,10 +193,108 @@ export function clearIconBadge( iconId: string ): void {
  * activity channel for "tell me when it changes."
  *
  * @public
- * @since 0.6.0
  */
 export function getIconBadge( iconId: string ): number {
 	return _badges.get( iconId ) ?? 0;
+}
+
+/**
+ * Swap a desktop icon's artwork.
+ *
+ * The counterpart to {@link setIconBadge} for apps whose icon means
+ * something different depending on state rather than counting
+ * something. The Recycle Bin is the in-tree example: empty and
+ * holding-something are two drawings of one object.
+ *
+ * **Covers both desktop surfaces.** The legacy `.os-icons` grid and
+ * the `<os-tile>` placements in the files layer, and on a stock
+ * install that second one is what the user is actually looking at. A
+ * caller asking for "the desktop icon for id X" means whichever is on
+ * screen, so this paints both and lets the one that exists win.
+ *
+ * Same fan-out contract as the badge setters: an id this rail doesn't
+ * own is a silent no-op.
+ *
+ * Survives a grid rebuild — the renderer consults `_art` at build
+ * time, exactly as it does for badges.
+ *
+ * @public
+ *
+ * @param iconId Id passed to `openstation_register_icon()`.
+ * @param svg    Icon string (data URI, URL, or dashicon class), or
+ *               `''` to drop the override.
+ */
+export function setIconArt( iconId: string, svg: string ): void {
+	if ( ! iconId ) {
+		return;
+	}
+	if ( ! svg ) {
+		_art.delete( iconId );
+		return;
+	}
+	if ( _art.get( iconId ) === svg ) {
+		return; // Idempotent — no DOM mutation, no signal storm.
+	}
+	_art.set( iconId, svg );
+	_paintArtNodes( iconId, svg );
+	activity.publish( 'os/art-changed', {
+		itemId: iconId,
+		icon: svg,
+		rail: 'icon',
+	} );
+}
+
+/**
+ * Read the current art override for an icon, or `''` when the
+ * server-declared icon is still in charge.
+ *
+ * @public
+ */
+export function getIconArt( iconId: string ): string {
+	return _art.get( iconId ) ?? '';
+}
+
+/**
+ * Escape a value for use inside a `[attr="…"]` selector.
+ *
+ * `CSS.escape` is the right tool and is used when it exists, but it
+ * is absent in jsdom and in older engines, and an icon id reaching
+ * this function is server-registered rather than user input. Falling
+ * back to escaping the two characters that can terminate the quoted
+ * string keeps the lookup working instead of throwing on load.
+ */
+function _escapeAttr( value: string ): string {
+	if ( typeof CSS !== 'undefined' && typeof CSS.escape === 'function' ) {
+		return CSS.escape( value );
+	}
+	return value.replace( /["\\]/g, '\\$&' );
+}
+
+/**
+ * Paint an art override onto every surface that might be showing
+ * this icon. Both branches are no-ops when their layout isn't the
+ * one rendering, so this is safe to call blind.
+ */
+function _paintArtNodes( iconId: string, svg: string ): void {
+	// Classic layout — the `.os-icons` grid.
+	const tile = _findIconTile( iconId );
+	const img = tile?.querySelector< HTMLElement >( '.os-icon__image' );
+	if ( img ) {
+		const next = renderIcon( svg, {
+			className: 'os-icon__image',
+			title: '',
+		} );
+		img.replaceWith( next );
+	}
+	// Shortcut placements in the files layer. `icon` is a reactive
+	// prop on `<os-tile>`, so setting the
+	// attribute is the component's own supported repaint path
+	// rather than a poke at its internals.
+	document
+		.querySelectorAll< HTMLElement >(
+			`os-tile[data-file-ref="${ _escapeAttr( iconId ) }"]`,
+		)
+		.forEach( ( el ) => el.setAttribute( 'icon', svg ) );
 }
 
 /**
@@ -208,13 +303,18 @@ export function getIconBadge( iconId: string ): number {
  *
  * @internal
  */
+export function _resetIconArtForTests(): void {
+	_art.clear();
+}
+
+/** @internal */
 export function _resetIconBadgesForTests(): void {
 	_badges.clear();
 	_lastFingerprint = '';
 }
 
 /**
- * Public icon-rail surface exposed on `wp.desktop.icons`. The
+ * Public icon-rail surface exposed on `wp.os.icons`. The
  * shape is deliberately minimal and mirrors `Dock` so plugin
  * authors can write a single badge wrapper that dispatches
  * across rails. New methods only get added here when they earn
@@ -222,35 +322,37 @@ export function _resetIconBadgesForTests(): void {
  * dock / taskbar / icon is paid in plugin churn.
  *
  * @public
- * @since 0.6.0
  */
 export interface IconsApi {
 	setBadge: ( iconId: string, count: number ) => void;
 	clearBadge: ( iconId: string ) => void;
 	getBadge: ( iconId: string ) => number;
+	setArt: ( iconId: string, svg: string ) => void;
+	getArt: ( iconId: string ) => string;
 }
 
 /**
  * Singleton — every bundle that imports this module ends up
  * with the SAME badge map (the closure here is shared because
  * the module is only loaded by the always-on shell bundle).
- * Plugins reach this through `wp.desktop.icons` rather than
+ * Plugins reach this through `wp.os.icons` rather than
  * importing the symbol directly.
  *
  * @public
- * @since 0.6.0
  */
 export const iconsApi: IconsApi = {
 	setBadge: setIconBadge,
 	clearBadge: clearIconBadge,
 	getBadge: getIconBadge,
+	setArt: setIconArt,
+	getArt: getIconArt,
 };
 
 /**
  * Stable serialisation of the icons-array shape we actually care
  * about. Used to skip rebuilds when the live menu-refresh path
  * fires with an identical payload — chromeless `admin_footer`
- * emits `desktop-mode-plugins-changed` on every iframe paint, so
+ * emits `os-plugins-changed` on every iframe paint, so
  * `applyPayload()` was previously rebuilding the icon grid
  * dozens of times during normal use, taking out anything we'd
  * appended (drag handles, custom decorations) each time. Cheap
@@ -296,9 +398,7 @@ let _lastFingerprint = '';
  * called `setIconBadge` once doesn't need to re-decorate after
  * each {@link HOOKS.DESKTOP_ICONS_RENDERED}.
  *
- * @since 0.5.0
- *
- * @param host  Desktop-area element (`#desktop-mode-area`).
+ * @param host  Desktop-area element (`#os-area`).
  * @param icons Ordered list from `config.desktopIcons`.
  * @param deps  See {@link DesktopIconRenderDeps}.
  */
@@ -315,12 +415,12 @@ export function renderDesktopIcons(
 	// position shifted) flips the fingerprint and triggers the
 	// full rebuild.
 	const fp = fingerprintIcons( icons );
-	if ( fp === _lastFingerprint && host.querySelector( ':scope > .desktop-mode-icons' ) ) {
+	if ( fp === _lastFingerprint && host.querySelector( ':scope > .os-icons' ) ) {
 		return;
 	}
 	_lastFingerprint = fp;
 
-	const existing = host.querySelector( ':scope > .desktop-mode-icons' );
+	const existing = host.querySelector( ':scope > .os-icons' );
 	if ( existing ) {
 		existing.remove();
 	}
@@ -329,7 +429,7 @@ export function renderDesktopIcons(
 	}
 
 	const container = document.createElement( 'div' );
-	container.className = 'desktop-mode-icons';
+	container.className = 'os-icons';
 	container.setAttribute( 'role', 'list' );
 	container.setAttribute( 'aria-label', __( 'Desktop icons' ) );
 
@@ -348,6 +448,20 @@ export function renderDesktopIcons(
 		const stored = _badges.get( entry.id ) ?? 0;
 		if ( stored > 0 ) {
 			_paintBadgeNode( tile, stored );
+		}
+		const storedArt = _art.get( entry.id );
+		if ( storedArt ) {
+			const img = tile.querySelector< HTMLElement >(
+				'.os-icon__image',
+			);
+			if ( img ) {
+				img.replaceWith(
+					renderIcon( storedArt, {
+						className: 'os-icon__image',
+						title: '',
+					} ),
+				);
+			}
 		}
 		container.appendChild( tile );
 		tiles.set( entry.id, tile );
@@ -392,7 +506,7 @@ function _findIconTile( iconId: string ): HTMLElement | null {
 		return null;
 	}
 	const container = document.querySelector< HTMLElement >(
-		'.desktop-mode-icons',
+		'.os-icons',
 	);
 	if ( ! container ) {
 		return null;
@@ -461,8 +575,8 @@ function buildIcon(
 	const tile = document.createElement( 'button' );
 	tile.type = 'button';
 	tile.className = entry.pinned
-		? 'desktop-mode-icon desktop-mode-icon--pinned'
-		: 'desktop-mode-icon';
+		? 'os-icon os-icon--pinned'
+		: 'os-icon';
 	tile.dataset.iconId = entry.id;
 	if ( entry.pinned ) {
 		tile.dataset.pinned = '1';
@@ -476,16 +590,16 @@ function buildIcon(
 	// fallback for malformed values. Keeps the wallpaper rail
 	// rendering icons identically to the dock instead of falling
 	// through to a broken Dashicons-class glue path for SVG data
-	// URIs (the bug fixed in 0.8.2).
+	// URIs (an earlier bug).
 	const icon = renderIcon( entry.icon, {
 		title: entry.title,
-		className: 'desktop-mode-icon__image',
+		className: 'os-icon__image',
 		slot: slotForTileId( entry.id ),
 	} );
 	tile.appendChild( icon );
 
 	const label = document.createElement( 'span' );
-	label.className = 'desktop-mode-icon__label';
+	label.className = 'os-icon__label';
 	label.textContent = entry.title;
 	tile.appendChild( label );
 
@@ -563,6 +677,7 @@ function openTarget(
 				title: entry.title,
 				icon: entry.icon,
 				submenu: menuEntry?.submenu,
+				selfLabel: menuEntry?.selfLabel,
 				multi: !! menuEntry?.multi,
 			} );
 		} catch {

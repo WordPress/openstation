@@ -5,7 +5,7 @@
  * in-tree kinds (`post`, `user`, `media`). The registry decouples
  * the dispatch from the bundle: third-party plugins can ship their
  * own section type by calling
- * `wp.desktop.myWordpress.registerEntityKind(kind, renderer)`
+ * `wp.os.myWordpress.registerEntityKind(kind, renderer)`
  * before (or after) the window mounts, and the dispatcher will
  * find it.
  *
@@ -14,10 +14,13 @@
  * private to `index.ts`.
  *
  * @public
- * @since 0.8.6
  */
 
-import type { MyWordPressEntity, Route } from './types';
+import type {
+	MyWordPressEntity,
+	PreviewActionSurface,
+	Route,
+} from './types';
 
 /**
  * Surface passed to every renderer. The renderer paints into
@@ -25,7 +28,6 @@ import type { MyWordPressEntity, Route } from './types';
  * route.
  *
  * @public
- * @since 0.8.6
  */
 export interface EntityRenderHost {
 	/** The window body element the renderer should paint into. */
@@ -43,6 +45,22 @@ export interface EntityRenderHost {
 	 * subscription / observer / timer they create.
 	 */
 	addTeardown: ( fn: () => void ) => void;
+	/**
+	 * Resolve the section's server-declared preview actions
+	 * (`openstation_my_wordpress_preview_actions`) against one item
+	 * and return the same ready-made action row the built-in panes
+	 * render — or null when none apply. Runs the
+	 * `os.my-wordpress.preview-actions` JS filter, so a custom-kind
+	 * renderer gets the whole pipeline from one call.
+	 */
+	previewActionRow: ( args: {
+		/** The selected item, as the server sent it. */
+		item: Record< string, unknown >;
+		/** MIME type, when the item is a media file. */
+		mime?: string;
+		/** Invocation surface. Default `'pane'`. */
+		surface?: PreviewActionSurface;
+	} ) => HTMLElement | null;
 }
 
 /**
@@ -50,7 +68,6 @@ export interface EntityRenderHost {
  * descriptor whose section is being entered.
  *
  * @public
- * @since 0.8.6
  */
 export type EntityRenderer = (
 	host: EntityRenderHost,
@@ -65,7 +82,6 @@ const renderers = new Map< string, EntityRenderer >();
  * default, by design.
  *
  * @public
- * @since 0.8.6
  *
  * @param kind     Entity kind slug (`'post'`, `'user'`, plugin slug).
  * @param renderer Render callback.
@@ -101,7 +117,6 @@ export function registerEntityKind(
  * a generic "unknown kind" error in that case.
  *
  * @public
- * @since 0.8.6
  */
 export function getEntityRenderer(
 	kind: string | undefined,
@@ -116,7 +131,6 @@ export function getEntityRenderer(
  * Snapshot of registered kinds — diagnostics only.
  *
  * @public
- * @since 0.8.6
  */
 export function listRegisteredKinds(): string[] {
 	return Array.from( renderers.keys() );

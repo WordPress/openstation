@@ -1,9 +1,9 @@
 <?php
 /**
- * Desktop Mode — Desktop Themes module bootstrap.
+ * OpenStation — Desktop Themes module bootstrap.
  *
  * A **desktop theme** reskins the whole shell at once: every
- * `--desktop-mode-*` design token, the title-bar / dock / desktop
+ * `--os-*` design token, the title-bar / dock / desktop
  * textures, the window frame + per-corner images, and a complete
  * iconset (including the window control glyphs). Themes arrive as a
  * ZIP containing a `theme.json` manifest plus images — never CSS,
@@ -12,7 +12,7 @@
  * writes is ever executed or echoed into a `<style>` verbatim.
  *
  * Deliberately named "desktop theme" everywhere
- * (`desktop_mode_desktop_theme*`, `serverDesktopThemes`,
+ * (`openstation_desktop_theme*`, `serverDesktopThemes`,
  * `src/desktop-themes/`) — never bare "theme" — because the plugin
  * already has per-window "window themes"
  * (`includes/window-chrome.php`) and the two are different features.
@@ -21,17 +21,18 @@
  * (filterable); activation is per-user via the `desktopTheme` key in
  * the existing `desktop_mode_os_settings` user meta.
  *
- * @package WPDesktopMode
- * @since   0.9.7
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
 
-require_once DESKTOP_MODE_DIR . 'includes/desktop-themes/store.php';
-require_once DESKTOP_MODE_DIR . 'includes/desktop-themes/manifest.php';
-require_once DESKTOP_MODE_DIR . 'includes/desktop-themes/compile.php';
-require_once DESKTOP_MODE_DIR . 'includes/desktop-themes/install.php';
-require_once DESKTOP_MODE_DIR . 'includes/desktop-themes/registry.php';
-require_once DESKTOP_MODE_DIR . 'includes/desktop-themes/rest.php';
-require_once DESKTOP_MODE_DIR . 'includes/desktop-themes/assets.php';
-require_once DESKTOP_MODE_DIR . 'includes/desktop-themes/wallpapers.php';
+require_once OPENSTATION_DIR . 'includes/desktop-themes/store.php';
+require_once OPENSTATION_DIR . 'includes/desktop-themes/manifest.php';
+require_once OPENSTATION_DIR . 'includes/desktop-themes/compile.php';
+require_once OPENSTATION_DIR . 'includes/desktop-themes/install.php';
+require_once OPENSTATION_DIR . 'includes/desktop-themes/registry.php';
+require_once OPENSTATION_DIR . 'includes/desktop-themes/rest.php';
+require_once OPENSTATION_DIR . 'includes/desktop-themes/assets.php';
+require_once OPENSTATION_DIR . 'includes/desktop-themes/wallpapers.php';
+// After registry.php — it registers through that file's public API.
+require_once OPENSTATION_DIR . 'includes/desktop-themes/builtin.php';

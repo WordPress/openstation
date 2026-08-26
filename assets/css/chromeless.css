@@ -1,16 +1,16 @@
 /**
- * Desktop Mode — Chromeless Overrides.
+ * OpenStation — Chromeless Overrides.
  *
- * CSS adjustments for legacy admin pages rendered inside desktop mode
- * iframes (chromeless mode). All rules are scoped to .desktop-mode-chromeless
+ * CSS adjustments for legacy admin pages rendered inside OpenStation
+ * iframes (chromeless mode). All rules are scoped to .os-chromeless
  * so they never affect the classic admin or the desktop shell.
  *
  * Plugin and theme developers: to add your own chromeless overrides,
- * enqueue a stylesheet on the 'desktop_mode_chromeless_styles' action.
- * Your CSS just needs to target .desktop-mode-chromeless as the body class.
+ * enqueue a stylesheet on the 'openstation_chromeless_styles' action.
+ * Your CSS just needs to target .os-chromeless as the body class.
  *
  * Example:
- *   add_action( 'desktop_mode_chromeless_styles', function() {
+ *   add_action( 'openstation_chromeless_styles', function() {
  *       wp_enqueue_style( 'my-plugin-chromeless', plugin_dir_url( __FILE__ ) . 'chromeless.css' );
  *   } );
  *
@@ -22,13 +22,38 @@
  * reserve space (sidebar gutter, footer, admin bar) around the
  * chromeless page content.
  * --------------------------------------------------------------- */
-.desktop-mode-chromeless #adminmenuwrap,
-.desktop-mode-chromeless #adminmenuback,
-.desktop-mode-chromeless #wpfooter,
-.desktop-mode-chromeless #wpadminbar,
-.desktop-mode-chromeless .wp-responsive-toggle,
-.desktop-mode-chromeless #collapse-menu {
+.os-chromeless #adminmenuwrap,
+.os-chromeless #adminmenuback,
+.os-chromeless #wpfooter,
+.os-chromeless #wpadminbar,
+.os-chromeless .wp-responsive-toggle,
+.os-chromeless #collapse-menu {
 	display: none !important;
+}
+
+/* ---------------------------------------------------------------
+ * The iframe paints its own canvas.
+ *
+ * An admin page leaves whole regions unpainted — the gutter around
+ * `#wpbody-content`, the strip behind `.subsubsub` and `.tablenav`,
+ * everything below short content. In a normal admin tab the browser
+ * canvas is white underneath, so nobody notices. Inside an iframe the
+ * canvas is TRANSPARENT, and what shows through is the window element
+ * behind it — `--os-window-bg`.
+ *
+ * That was invisible while the window body was white and became a
+ * black band the moment the station's palette made it Obsidian. It is
+ * a real coupling either way: the look of a wp-admin page must not
+ * depend on the colour of the frame around it.
+ *
+ * So the chromeless document paints itself, in the colour the browser
+ * canvas would have been. Deliberately a literal and deliberately NOT
+ * a token: nothing about the shell's palette — or any desktop theme —
+ * should reach a real admin page. **An admin page in a window renders
+ * exactly as it does outside one.**
+ * --------------------------------------------------------------- */
+body.os-chromeless {
+	background: #fff;
 }
 
 /*
@@ -49,14 +74,14 @@
  * on small screens) gap that no longer exists, producing visible jumps
  * on first paint and dead space at the top of the content area.
  */
-html.wp-toolbar:has( body.desktop-mode-chromeless ) {
+html.wp-toolbar:has( body.os-chromeless ) {
 	padding-top: 0 !important;
 	--wp-admin--admin-bar--height: 0px;
 	--wp-admin--admin-bar--position-offset: 0px;
 }
 
 /* Remove the sidebar gutter on #wpcontent and let the body fill the frame. */
-.desktop-mode-chromeless #wpcontent {
+.os-chromeless #wpcontent {
 	margin-inline-start: 0 !important;
 	padding-inline-start: 0 !important;
 }
@@ -90,8 +115,36 @@ html.wp-toolbar:has( body.desktop-mode-chromeless ) {
  * and the header's content uses the full window width. No
  * transform / overflow / visibility tricks needed.
  */
-.desktop-mode-chromeless .woocommerce-layout__header {
+.os-chromeless .woocommerce-layout__header {
 	width: 100% !important;
+}
+
+/*
+ * MailPoet top-bar overlap fix.
+ *
+ * MailPoet mounts a 64px-tall brand bar on its screens as
+ * `.wrap .mailpoet-top-bar { position: absolute; top: 0 }` —
+ * anchored to `#wpbody` (core's `position: relative`), overlaying
+ * whatever the page's first 64px contain. In classic admin nothing
+ * is visibly covered only by accident of geometry: the in-flow
+ * space above `.wrap` — the `#screen-meta-links` row plus `.wrap`'s
+ * own top margin — happens to add up to more than the bar's height,
+ * so the content starts below it (measured: `.wrap` at y=114 vs
+ * bar bottom at y=96).
+ *
+ * Chromeless collapses exactly that space on purpose — screen-meta
+ * links are hidden (the window title bar owns those buttons) and
+ * `.wrap` margins are trimmed — which slides MailPoet's content up
+ * underneath the overlaid bar. Symptom: the page's heading sits
+ * half-hidden behind the white logo bar inside the window.
+ *
+ * Reserve the bar's height in flow instead. `:has()` scopes the
+ * rule to precisely the pages that render the in-wrap bar —
+ * whatever MailPoet screen shape it is, present or future — and to
+ * nothing else.
+ */
+.os-chromeless .wrap:has( .mailpoet-top-bar ) {
+	padding-top: 64px;
 }
 
 /* ---------------------------------------------------------------
@@ -104,12 +157,12 @@ html.wp-toolbar:has( body.desktop-mode-chromeless ) {
  * Collapse all margins on the hidden links and the panel container
  * so they don't leave a gap at the top of the iframe content.
  * --------------------------------------------------------------- */
-.desktop-mode-chromeless #screen-meta-links {
+.os-chromeless #screen-meta-links {
 	display: none;
 	margin: 0;
 }
 
-.desktop-mode-chromeless #screen-meta {
+.os-chromeless #screen-meta {
 	margin: 0;
 	border: none;
 }
@@ -119,7 +172,7 @@ html.wp-toolbar:has( body.desktop-mode-chromeless ) {
  * Remove the default left margin that accounts for the sidebar
  * which doesn't exist in chromeless mode.
  * --------------------------------------------------------------- */
-.desktop-mode-chromeless .wrap {
+.os-chromeless .wrap {
 	margin: 0;
 }
 
@@ -133,48 +186,61 @@ html.wp-toolbar:has( body.desktop-mode-chromeless ) {
  * `.page-title-action` (the "Add New" / "Add Order" button next to
  * the H1) stays VISIBLE by default — it's the only entry point to
  * the add-new flow on many plugin pages (WooCommerce Orders, custom
- * CPTs, plugin settings pages, etc.). Earlier versions of this CSS
- * hid it on the assumption that the submenu tab strip exposed the
- * same action — which holds for WP Core pages with a registered
- * "Add New" submenu (Posts, Pages, Users) but breaks every third-
- * party plugin page that has no submenu equivalent. A small bit of
- * redundancy with the submenu strip on Core pages is the better
- * trade-off vs. losing the primary affordance on plugin pages
- * entirely.
+ * CPTs, plugin settings pages, etc.). A blanket hide would break
+ * every third-party plugin page that has no submenu equivalent, so
+ * the button is only removed where the window's own tab strip
+ * demonstrably leads to the same place — see
+ * `includes/render/chromeless-title-actions.php`, which emits one
+ * `[href="…"]` rule per submenu tab URL of the current screen.
  *
- * Sites that prefer the cleaner Core-page look can hide the button
- * on specific pages via the `desktop_mode_chromeless_styles`
- * action — e.g.:
+ * Sites that want to hide it somewhere that rule deliberately
+ * doesn't reach can add their own via the
+ * `openstation_chromeless_styles` action — e.g. WooCommerce's "Add
+ * order", which we keep because it points at `&action=new` and the
+ * Orders tab doesn't:
  *
- *     body.edit-php .wrap > .page-title-action { display: none; }
+ *     body.woocommerce_page_wc-orders .wrap > .page-title-action {
+ *         display: none;
+ *     }
  *
  * --------------------------------------------------------------- */
-.desktop-mode-chromeless .wrap > h1,
-.desktop-mode-chromeless .wrap > h1.wp-heading-inline,
-.desktop-mode-chromeless #wpbody-content > .wrap > h1,
-.desktop-mode-chromeless .wrap > .wp-header-end {
+.os-chromeless .wrap > h1,
+.os-chromeless .wrap > h1.wp-heading-inline,
+.os-chromeless #wpbody-content > .wrap > h1,
+.os-chromeless .wrap > .wp-header-end {
 	display: none;
 }
 
 /*
  * The H1 above it is hidden, so the button would float at the very
  * top of the iframe area without breathing room — give it a small
- * margin so it lands cleanly. inline-block matches WP Core's
- * computed style on this element (matters for vertical-align with
- * any adjacent inline content like the `.subsubsub` filter row).
+ * margin so it lands cleanly.
+ *
+ * `block` + `fit-content` instead of Core's `inline-block`: with the
+ * H1 hidden, an inline button ends up on the same line as the
+ * floated `.subsubsub` filter row and reads as one more filter link
+ * ("All (6) | Published (4) | Trash (2) Add Post"). Its own row is
+ * also what the screen already looks like when an admin notice is
+ * showing. `clear` keeps it below anything floated before it.
  *
  * Themes.php's native "Add Theme" button lives in the submenu tab
- * strip via `desktop_mode_inject_appearance_tabs`
+ * strip via `openstation_inject_appearance_tabs`
  * (includes/themes-tabs.php), so its in-page page-title-action is
- * redundant on that one screen — keep the per-page hide rule below
- * so we don't ship two "Add Theme" entry points.
+ * redundant on that one screen. The generic href-matching hide in
+ * `includes/render/chromeless-title-actions.php` only matches exact
+ * URLs, and the injected tab points at
+ * `theme-install.php?browse=popular` while the button points at
+ * plain `theme-install.php`. Hence the per-page rule below.
  */
-.desktop-mode-chromeless .wrap > .page-title-action {
-	display: inline-block;
+.os-chromeless .wrap > .page-title-action {
+	display: block;
+	width: fit-content;
 	margin-top: 12px;
+	margin-bottom: 12px;
+	clear: both;
 }
 
-.desktop-mode-chromeless.themes-php .wrap > .page-title-action {
+.os-chromeless.themes-php .wrap > .page-title-action {
 	display: none;
 }
 
@@ -219,13 +285,38 @@ html.wp-toolbar:has( body.desktop-mode-chromeless ) {
  *
  * @since 0.8.9
  */
-.desktop-mode-chromeless.woocommerce_page_wc-orders .woocommerce-layout__header,
-.desktop-mode-chromeless.woocommerce_page_wc-orders--shop_order .woocommerce-layout__header {
+.os-chromeless.woocommerce_page_wc-orders .woocommerce-layout__header,
+.os-chromeless.woocommerce_page_wc-orders--shop_order .woocommerce-layout__header {
 	display: none !important;
 }
-.desktop-mode-chromeless.woocommerce_page_wc-orders #wpbody,
-.desktop-mode-chromeless.woocommerce_page_wc-orders--shop_order #wpbody {
+.os-chromeless.woocommerce_page_wc-orders #wpbody,
+.os-chromeless.woocommerce_page_wc-orders--shop_order #wpbody {
 	margin-top: 0 !important;
+}
+
+/* ---------------------------------------------------------------
+ * Revisions screen — page-scoped.
+ *
+ * "← Go to editor" is a back button for a screen the user navigated
+ * into. Here they didn't: the editor is open in its own window
+ * behind this one, and closing this window is the way back.
+ *
+ * The revision tooltip is positioned upward from the bottom of
+ * `.revisions-control-frame` and clears the top of the viewport only
+ * thanks to the screen H1, which chromeless hides. An iframe can't
+ * overflow its box, so the space has to be given back: 48px covers
+ * both slider modes.
+ *
+ * The padding goes on `.revisions`, not on the frame — the frame is
+ * the positioned ancestor for the compare-mode checkbox and the
+ * tooltip, so padding it would leave both behind at the old top edge.
+ * --------------------------------------------------------------- */
+.os-chromeless.revision-php .wrap > h1.long-header + a {
+	display: none;
+}
+
+.os-chromeless.revision-php .revisions {
+	padding-top: 48px;
 }
 
 /* ---------------------------------------------------------------
@@ -234,8 +325,8 @@ html.wp-toolbar:has( body.desktop-mode-chromeless ) {
  * visible gap at the top of the iframe. Collapse it in chromeless
  * mode so the panel sits flush with the top of the window body.
  * --------------------------------------------------------------- */
-.desktop-mode-chromeless #welcome-panel,
-.desktop-mode-chromeless .welcome-panel {
+.os-chromeless #welcome-panel,
+.os-chromeless .welcome-panel {
 	margin-top: 0.5em;
 }
 
@@ -244,7 +335,7 @@ html.wp-toolbar:has( body.desktop-mode-chromeless ) {
  * The classic footer is not rendered in chromeless mode,
  * but some pages have bottom padding assuming it exists.
  * --------------------------------------------------------------- */
-.desktop-mode-chromeless #wpbody-content {
+.os-chromeless #wpbody-content {
 	margin: 0;
 	padding: 0 8px 8px;
 	float: none;
@@ -273,13 +364,13 @@ html.wp-toolbar:has( body.desktop-mode-chromeless ) {
  * was permanently stealing the one-time orientation tour from every
  * user who never got to see it. Modal's focus trap is Tab-only and
  * doesn't fight the shell. Let it run. (See git history for the
- * removed `desktop_mode_chromeless_editor_preferences` override.)
+ * removed `openstation_chromeless_editor_preferences` override.)
  * --------------------------------------------------------------- */
-.desktop-mode-chromeless .edit-post-fullscreen-mode-close,
-.desktop-mode-chromeless .edit-post-fullscreen-mode-close__view-mode-toggle,
-.desktop-mode-chromeless .edit-site-navigation-link,
-.desktop-mode-chromeless .edit-site-site-hub,
-.desktop-mode-chromeless .edit-site-site-hub__toggle {
+.os-chromeless .edit-post-fullscreen-mode-close,
+.os-chromeless .edit-post-fullscreen-mode-close__view-mode-toggle,
+.os-chromeless .edit-site-navigation-link,
+.os-chromeless .edit-site-site-hub,
+.os-chromeless .edit-site-site-hub__toggle {
 	display: none !important;
 }
 
@@ -290,9 +381,9 @@ html.wp-toolbar:has( body.desktop-mode-chromeless ) {
  * editor and breaks its layout, so reset to zero on those pages
  * and let the editor render edge-to-edge.
  * --------------------------------------------------------------- */
-.desktop-mode-chromeless.block-editor-page #wpbody-content,
-.desktop-mode-chromeless.site-editor-php #wpbody-content,
-.desktop-mode-chromeless.is-fullscreen-mode #wpbody-content {
+.os-chromeless.block-editor-page #wpbody-content,
+.os-chromeless.site-editor-php #wpbody-content,
+.os-chromeless.is-fullscreen-mode #wpbody-content {
 	padding: 0;
 }
 
@@ -307,11 +398,11 @@ html.wp-toolbar:has( body.desktop-mode-chromeless ) {
  * — detection is purely structural (`:has()`), so a plugin that
  * adopts the same container class inherits the fix automatically.
  * --------------------------------------------------------------- */
-.desktop-mode-chromeless #wpbody-content:has( .boot-layout-container ) {
+.os-chromeless #wpbody-content:has( .boot-layout-container ) {
 	padding: 0;
 }
 
-.desktop-mode-chromeless:has( .boot-layout-container ) #wpwrap {
+.os-chromeless:has( .boot-layout-container ) #wpwrap {
 	/* Neutralize the inline dark background so any stray overflow
 	 * matches the window body instead of flashing black. */
 	background: transparent;
@@ -325,9 +416,9 @@ html.wp-toolbar:has( body.desktop-mode-chromeless ) {
  * side margins leave ugly bleed at the edges. Collapse it to a plain
  * edge-to-edge surface.
  */
-.desktop-mode-chromeless .boot-layout__surfaces,
-.desktop-mode-chromeless .boot-layout__stage,
-.desktop-mode-chromeless .boot-layout__canvas {
+.os-chromeless .boot-layout__surfaces,
+.os-chromeless .boot-layout__stage,
+.os-chromeless .boot-layout__canvas {
 	border-radius: 0 !important;
 	margin: 0 !important;
 }
@@ -339,8 +430,8 @@ html.wp-toolbar:has( body.desktop-mode-chromeless ) {
  * redundant. Visually hide it but keep it in the DOM for screen readers
  * and for the boot app's own focus management.
  */
-.desktop-mode-chromeless .boot-navigation-screen__title,
-.desktop-mode-chromeless .boot-navigation-screen__title-icon {
+.os-chromeless .boot-navigation-screen__title,
+.os-chromeless .boot-navigation-screen__title-icon {
 	position: absolute;
 	width: 1px;
 	height: 1px;
@@ -366,13 +457,13 @@ html.wp-toolbar:has( body.desktop-mode-chromeless ) {
  * Pin them flush to the bottom of the iframe and make sure nothing
  * in the window chrome can occlude them.
  *
- * Triggering a snackbar to verify (desktop mode enabled):
+ * Triggering a snackbar to verify (OpenStation enabled):
  *   - Open Posts → Add New, save/publish → "Post published" toast.
  *   - Open Media, upload a file → "Uploaded" toast.
  *   - Open Appearance → Fonts, install a Google Font → toast.
  * --------------------------------------------------------------- */
-.desktop-mode-chromeless .components-snackbar-list,
-.desktop-mode-chromeless .boot-notices__snackbar {
+.os-chromeless .components-snackbar-list,
+.os-chromeless .boot-notices__snackbar {
 	bottom: 16px !important;
 	z-index: 100000;
 }
@@ -390,7 +481,7 @@ html.wp-toolbar:has( body.desktop-mode-chromeless ) {
  * shared persistence layer. This rule keeps chromeless rendering
  * edge-to-edge either way.
  */
-.desktop-mode-chromeless .interface-interface-skeleton {
+.os-chromeless .interface-interface-skeleton {
 	top: 0 !important;
 	left: 0 !important;
 	right: 0 !important;
@@ -401,7 +492,7 @@ html.wp-toolbar:has( body.desktop-mode-chromeless ) {
  * Notices
  * Give notices a bit of top margin since there's no admin bar above.
  * --------------------------------------------------------------- */
-.desktop-mode-chromeless .notice:first-child {
+.os-chromeless .notice:first-child {
 	margin-top: 4px;
 }
 
@@ -409,10 +500,10 @@ html.wp-toolbar:has( body.desktop-mode-chromeless ) {
  * Update nag
  * Core's global update / maintenance nags are detached server-side
  * inside chromeless iframes (see
- * `desktop_mode_chromeless_suppress_update_nags()`) and re-surfaced
+ * `openstation_chromeless_suppress_update_nags()`) and re-surfaced
  * once by the shell as a single notice.
  * --------------------------------------------------------------- */
-.desktop-mode-chromeless .update-nag {
+.os-chromeless .update-nag {
 	display: none !important;
 }
 
@@ -424,7 +515,582 @@ html.wp-toolbar:has( body.desktop-mode-chromeless ) {
  * the dialog would still render. Hide it so the shell's palette
  * stays the only surface users ever see.
  * --------------------------------------------------------------- */
-.desktop-mode-chromeless .commands-command-menu__container,
-.desktop-mode-chromeless .commands-command-menu {
+.os-chromeless .commands-command-menu__container,
+.os-chromeless .commands-command-menu {
 	display: none !important;
+}
+
+/* ---------------------------------------------------------------
+ * Appearance → Themes workspace
+ *
+ * Core's one-theme state renders the Theme Details dialog inline and
+ * removes its header. Inside a short desktop window that leaves a large,
+ * unexplained panel whose actions fall below the fold. Treat it as an
+ * active-site identity card instead: screenshot first, useful context at
+ * the side, and actions kept in the card's visible edge.
+ *
+ * With multiple installed themes the native cards become a deliberate
+ * library grid and Core's details view remains a dialog. All selectors are
+ * scoped to the chromeless Themes screen; the classic wp-admin page keeps
+ * Core's own presentation and the shell's palette cannot leak in here.
+ * --------------------------------------------------------------- */
+.os-chromeless.themes-php #wpbody-content {
+	padding: 10px 16px;
+	background: #f6f7f7;
+}
+
+.os-chromeless.themes-php .openstation-themes-intro {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 24px;
+	margin: 0 0 8px;
+	padding: 14px 18px;
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 12px;
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+	box-sizing: border-box;
+}
+
+.os-chromeless.themes-php .openstation-themes-intro__copy {
+	max-width: 680px;
+}
+
+.os-chromeless.themes-php .openstation-themes-intro__eyebrow {
+	margin: 0 0 5px;
+	color: var(--wp-admin-theme-color, #2271b1);
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	line-height: 1.4;
+	text-transform: uppercase;
+}
+
+.os-chromeless.themes-php .openstation-themes-intro h1 {
+	margin: 0;
+	color: #1d2327;
+	font-size: clamp(22px, 2.8vw, 30px);
+	font-weight: 650;
+	letter-spacing: -0.025em;
+	line-height: 1.12;
+}
+
+.os-chromeless.themes-php .openstation-themes-intro__copy > p:last-child {
+	max-width: 650px;
+	margin: 6px 0 0;
+	color: #50575e;
+	font-size: 13px;
+	line-height: 1.45;
+}
+
+.os-chromeless.themes-php .openstation-themes-intro__count {
+	display: grid;
+	flex: 0 0 auto;
+	min-width: 104px;
+	margin: 0;
+	padding: 10px 14px;
+	background: #f6f7f7;
+	border: 1px solid #dcdcde;
+	border-radius: 9px;
+	box-sizing: border-box;
+	text-align: center;
+}
+
+.os-chromeless.themes-php .openstation-themes-intro__count strong {
+	color: #1d2327;
+	font-size: 22px;
+	font-weight: 650;
+	letter-spacing: -0.03em;
+	line-height: 1;
+}
+
+.os-chromeless.themes-php .openstation-themes-intro__count span {
+	margin-top: 5px;
+	color: #646970;
+	font-size: 10px;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	line-height: 1.25;
+	text-transform: uppercase;
+}
+
+.os-chromeless.themes-php .wrap {
+	margin: 0;
+}
+
+.os-chromeless.themes-php .search-form {
+	display: flex;
+	margin: 0 0 16px;
+	padding: 0;
+}
+
+.os-chromeless.themes-php .wp-filter-search {
+	width: min(320px, 100%);
+	min-height: 36px;
+	padding-inline: 12px;
+	background: #fff;
+	border-color: #8c8f94;
+	border-radius: 7px;
+}
+
+/* Searching a library of one is noise, so the field goes away in Core's
+ * single-theme state. The general sibling combinator rather than `+`:
+ * themes.php emits `wp_admin_notice()` output between the search form and
+ * `.theme-browser` on `?activated`, `?deleted`, `?broken` and
+ * `?delete-active-child` — exactly the loads that follow activating or
+ * deleting a theme — which breaks strict adjacency. */
+.os-chromeless.themes-php
+	.search-form:has(~ .theme-browser .themes.single-theme) {
+	display: none;
+}
+
+/* Installed-theme library. The Add Theme destination already has its own
+ * persistent window tab, so Core's duplicate dashed card is unnecessary. */
+.os-chromeless.themes-php .theme-browser .themes:not(.single-theme) {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
+	gap: 18px;
+	clear: both;
+}
+
+.os-chromeless.themes-php .theme-browser .themes:not(.single-theme) > .theme {
+	float: none;
+	width: auto;
+	margin: 0;
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 10px;
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+	overflow: hidden;
+	transition:
+		border-color 120ms ease,
+		box-shadow 120ms ease,
+		transform 120ms ease;
+}
+
+.os-chromeless.themes-php
+	.theme-browser
+	.themes:not(.single-theme)
+	> .theme:hover,
+.os-chromeless.themes-php
+	.theme-browser
+	.themes:not(.single-theme)
+	> .theme.focus {
+	border-color: #8c8f94;
+	box-shadow: 0 7px 20px rgba(0, 0, 0, 0.1);
+	transform: translateY(-2px);
+}
+
+.os-chromeless.themes-php
+	.theme-browser
+	.themes:not(.single-theme)
+	> .theme.active {
+	border-color: var(--wp-admin-theme-color, #2271b1);
+	box-shadow:
+		0 0 0 1px var(--wp-admin-theme-color, #2271b1),
+		0 7px 20px rgba(0, 0, 0, 0.08);
+}
+
+.os-chromeless.themes-php
+	.theme-browser
+	.themes:not(.single-theme)
+	> .add-new-theme {
+	display: none;
+}
+
+.os-chromeless.themes-php
+	.theme-browser
+	.themes:not(.single-theme)
+	.theme-screenshot {
+	background: #f0f0f1;
+}
+
+.os-chromeless.themes-php
+	.theme-browser
+	.themes:not(.single-theme)
+	.theme-id-container {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	min-height: 58px;
+	background: #fff;
+}
+
+.os-chromeless.themes-php .theme-browser .themes:not(.single-theme) .theme-name,
+.os-chromeless.themes-php
+	.theme-browser
+	.themes:not(.single-theme)
+	.theme.active
+	.theme-name {
+	flex: 1 1 auto;
+	height: auto;
+	min-width: 0;
+	margin: 0;
+	padding: 14px 12px 14px 14px;
+	background: #fff;
+	box-shadow: none;
+	color: #1d2327;
+	font-size: 14px;
+	font-weight: 600;
+	line-height: 1.3;
+}
+
+.os-chromeless.themes-php
+	.theme-browser
+	.themes:not(.single-theme)
+	.theme.active
+	.theme-name
+	span {
+	display: block;
+	margin-bottom: 2px;
+	color: var(--wp-admin-theme-color, #2271b1);
+	font-size: 10px;
+	font-weight: 700;
+	letter-spacing: 0.06em;
+	line-height: 1.2;
+	text-transform: uppercase;
+}
+
+.os-chromeless.themes-php
+	.theme-browser
+	.themes:not(.single-theme)
+	.theme-actions,
+.os-chromeless.themes-php
+	.theme-browser
+	.themes:not(.single-theme)
+	.theme.active
+	.theme-actions {
+	display: flex;
+	align-items: center;
+	flex: 0 0 auto;
+	position: static;
+	opacity: 1;
+	padding: 10px 12px 10px 0;
+	background: #fff;
+	border: 0;
+	box-shadow: none;
+	transform: none;
+}
+
+/* Multiple-theme details remain a modal, but fit the iframe rather than
+ * reserving the classic admin sidebar's 160px gutter. */
+.os-chromeless.themes-php .theme-overlay.active .theme-backdrop {
+	position: fixed;
+	left: 0;
+	background: rgba(29, 35, 39, 0.62);
+	backdrop-filter: blur(2px);
+}
+
+.os-chromeless.themes-php .theme-overlay.active .theme-wrap {
+	top: 18px;
+	right: 18px;
+	bottom: 18px;
+	left: 18px;
+	border: 1px solid #c3c4c7;
+	border-radius: 12px;
+	box-shadow: 0 20px 55px rgba(0, 0, 0, 0.28);
+	overflow: hidden;
+}
+
+.os-chromeless.themes-php .theme-overlay.active .theme-header {
+	background: #fff;
+}
+
+.os-chromeless.themes-php .theme-overlay.active .theme-about {
+	padding: 24px;
+}
+
+.os-chromeless.themes-php .theme-overlay.active .theme-actions {
+	justify-content: flex-end;
+	padding: 10px 16px 5px;
+}
+
+/* Single-theme mode is a workspace card, not a stranded modal. */
+.os-chromeless.themes-php .themes.single-theme {
+	display: block;
+	margin: 0;
+}
+
+.os-chromeless.themes-php .themes.single-theme .theme-overlay.active {
+	display: block;
+	position: static;
+}
+
+.os-chromeless.themes-php
+	.themes.single-theme
+	.theme-overlay.active
+	.theme-backdrop,
+.os-chromeless.themes-php
+	.themes.single-theme
+	.theme-overlay.active
+	.theme-header {
+	display: none;
+}
+
+.os-chromeless.themes-php
+	.themes.single-theme
+	.theme-overlay.active
+	.theme-wrap {
+	display: grid;
+	grid-template-columns: minmax(320px, 0.95fr) minmax(300px, 1.05fr);
+	grid-template-areas: "screenshot details";
+	column-gap: 24px;
+	align-items: start;
+	position: relative;
+	top: auto;
+	right: auto;
+	bottom: auto;
+	left: auto;
+	min-height: 0;
+	padding: 12px 16px;
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 12px;
+	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+	overflow: visible;
+	z-index: 10;
+}
+
+.os-chromeless.themes-php
+	.themes.single-theme
+	.theme-overlay.active
+	.theme-about {
+	display: contents;
+}
+
+.os-chromeless.themes-php
+	.themes.single-theme
+	.theme-overlay.active
+	.theme-screenshots {
+	grid-area: screenshot;
+	float: none;
+	width: 100%;
+	max-width: none;
+	margin: 0;
+}
+
+.os-chromeless.themes-php
+	.themes.single-theme
+	.theme-overlay.active
+	.screenshot {
+	background: #f0f0f1;
+	border: 0;
+	border-radius: 8px;
+	box-shadow: 0 0 0 1px #dcdcde;
+	overflow: hidden;
+}
+
+.os-chromeless.themes-php
+	.themes.single-theme
+	.theme-overlay.active
+	.theme-info {
+	grid-area: details;
+	align-self: start;
+	float: none;
+	width: auto;
+	max-height: 240px;
+	padding: 2px 10px 2px 0;
+	overflow: auto;
+	scrollbar-gutter: stable;
+}
+
+.os-chromeless.themes-php
+	.themes.single-theme
+	.theme-overlay.active
+	.current-label {
+	margin: 0 0 10px;
+	padding: 4px 9px;
+	background: #e7f5ed;
+	border: 1px solid #9ad7b5;
+	border-radius: 999px;
+	color: #0a5c36;
+	font-size: 10px;
+	font-weight: 700;
+	letter-spacing: 0.05em;
+	line-height: 1.4;
+	text-transform: uppercase;
+}
+
+.os-chromeless.themes-php
+	.themes.single-theme
+	.theme-overlay.active
+	.theme-name {
+	margin: 0;
+	color: #1d2327;
+	font-size: clamp(25px, 3vw, 34px);
+	font-weight: 650;
+	letter-spacing: -0.03em;
+	line-height: 1.12;
+}
+
+.os-chromeless.themes-php
+	.themes.single-theme
+	.theme-overlay.active
+	.theme-version {
+	margin-left: 8px;
+	color: #646970;
+	font-size: 11px;
+	font-weight: 500;
+	letter-spacing: 0;
+}
+
+.os-chromeless.themes-php
+	.themes.single-theme
+	.theme-overlay.active
+	.theme-author {
+	margin: 8px 0 14px;
+	color: #646970;
+	font-size: 13px;
+}
+
+.os-chromeless.themes-php
+	.themes.single-theme
+	.theme-overlay.active
+	.theme-autoupdate {
+	margin: 0 0 14px;
+	padding: 9px 10px;
+	background: #f6f7f7;
+	border: 1px solid #dcdcde;
+	border-radius: 6px;
+	font-size: 12px;
+}
+
+.os-chromeless.themes-php
+	.themes.single-theme
+	.theme-overlay.active
+	.theme-description {
+	margin: 0;
+	color: #3c434a;
+	font-size: 13px;
+	line-height: 1.55;
+}
+
+.os-chromeless.themes-php
+	.themes.single-theme
+	.theme-overlay.active
+	.theme-tags,
+.os-chromeless.themes-php
+	.themes.single-theme
+	.theme-overlay.active
+	.parent-theme {
+	margin-top: 16px;
+	padding-top: 12px;
+	border-top-width: 1px;
+	color: #646970;
+	font-size: 11px;
+	line-height: 1.5;
+}
+
+.os-chromeless.themes-php
+	.themes.single-theme
+	.theme-overlay.active
+	.theme-actions {
+	display: flex;
+	grid-area: details;
+	align-items: center;
+	align-self: end;
+	justify-content: flex-start;
+	position: static;
+	padding: 14px 0 0;
+	background: transparent;
+	border-top: 1px solid #dcdcde;
+	text-align: left;
+}
+
+.os-chromeless.themes-php
+	.themes.single-theme
+	.theme-overlay.active
+	.theme-actions
+	.active-theme {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 7px;
+}
+
+.os-chromeless.themes-php
+	.themes.single-theme
+	.theme-overlay.active
+	.theme-actions
+	.inactive-theme {
+	display: none;
+}
+
+.os-chromeless.themes-php
+	.themes.single-theme
+	.theme-overlay.active
+	.theme-actions
+	.button {
+	margin: 0;
+}
+
+@media (max-width: 760px) {
+	.os-chromeless.themes-php #wpbody-content {
+		padding: 12px;
+	}
+
+	.os-chromeless.themes-php .openstation-themes-intro {
+		align-items: flex-start;
+		gap: 16px;
+		padding: 16px;
+	}
+
+	.os-chromeless.themes-php .openstation-themes-intro__copy > p:last-child {
+		display: none;
+	}
+
+	.os-chromeless.themes-php
+		.themes.single-theme
+		.theme-overlay.active
+		.theme-wrap {
+		grid-template-columns: minmax(0, 1fr);
+		grid-template-areas:
+			"screenshot"
+			"info"
+			"actions";
+		padding: 16px;
+	}
+
+	.os-chromeless.themes-php
+		.themes.single-theme
+		.theme-overlay.active
+		.theme-info {
+		grid-area: info;
+		max-height: none;
+		padding-right: 0;
+		overflow: visible;
+	}
+
+	.os-chromeless.themes-php
+		.themes.single-theme
+		.theme-overlay.active
+		.theme-actions {
+		grid-area: actions;
+	}
+
+	.os-chromeless.themes-php .theme-overlay.active .theme-wrap {
+		top: 10px;
+		right: 10px;
+		bottom: 10px;
+		left: 10px;
+	}
+}
+
+@media (max-width: 480px) {
+	.os-chromeless.themes-php .openstation-themes-intro__count {
+		display: none;
+	}
+
+	.os-chromeless.themes-php .openstation-themes-intro h1 {
+		font-size: 21px;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.os-chromeless.themes-php
+		.theme-browser
+		.themes:not(.single-theme)
+		> .theme {
+		transition: none;
+	}
 }

@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — Games schema.
+ * OpenStation — Games schema.
  *
  * Two custom tables back the game system:
  *
@@ -19,23 +19,33 @@
  * `state` columns are VARCHAR rather than ENUM, matching the
  * folder-shares table (house style — dbDelta and ENUM don't mix).
  *
- * @package WPDesktopMode
- * @since   0.9.6
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'DESKTOP_MODE_GAMES_SCHEMA_VERSION', '1' );
-define( 'DESKTOP_MODE_GAMES_SCHEMA_OPTION', 'desktop_mode_games_schema_version' );
+define( 'OPENSTATION_GAMES_SCHEMA_VERSION', '1' );
+/**
+ * The VALUE keeps its pre-rebrand spelling on purpose: it is a
+ * persisted or externally-visible identifier, so renaming it would
+ * orphan data already written by live installs (or break a live
+ * URL). The mismatch between this constant's name and its value is
+ * deliberate — it is NOT a half-finished rename.
+ */
+define( 'OPENSTATION_GAMES_SCHEMA_OPTION', 'desktop_mode_games_schema_version' );
 
 /**
  * Returns the per-table names with the active prefix applied.
  *
- * @since 0.9.6
+ * The `desktop_mode_` segment is the pre-rebrand spelling and is frozen:
+ * these are real tables holding real rows on live installs. Renaming
+ * them silently creates a second, empty set and every score and
+ * challenge disappears. The mismatch against the `openstation_*`
+ * function name is deliberate.
  *
  * @return array{ scores: string, challenges: string }
  */
-function desktop_mode_games_table_names() {
+function openstation_games_table_names() {
 	global $wpdb;
 	return array(
 		'scores'     => $wpdb->prefix . 'desktop_mode_game_scores',
@@ -48,15 +58,13 @@ function desktop_mode_games_table_names() {
  * on `admin_init` / `rest_api_init` / `init` (gated by a
  * version-option mismatch) so a manual file-copy install still ends
  * up with the tables.
- *
- * @since 0.9.6
  */
-function desktop_mode_games_install_schema() {
+function openstation_games_install_schema() {
 	global $wpdb;
 
 	require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 
-	$tables          = desktop_mode_games_table_names();
+	$tables          = openstation_games_table_names();
 	$charset_collate = $wpdb->get_charset_collate();
 
 	$scores_sql = "CREATE TABLE {$tables['scores']} (
@@ -100,19 +108,17 @@ function desktop_mode_games_install_schema() {
 	// documented failure modes (see the files schema for the full
 	// rationale) — verify both tables physically exist and CREATE them
 	// explicitly when not.
-	desktop_mode_games_ensure_table( $tables['scores'], $scores_sql );
-	desktop_mode_games_ensure_table( $tables['challenges'], $challenges_sql );
+	openstation_games_ensure_table( $tables['scores'], $scores_sql );
+	openstation_games_ensure_table( $tables['challenges'], $challenges_sql );
 
-	update_option( DESKTOP_MODE_GAMES_SCHEMA_OPTION, DESKTOP_MODE_GAMES_SCHEMA_VERSION );
+	update_option( OPENSTATION_GAMES_SCHEMA_OPTION, OPENSTATION_GAMES_SCHEMA_VERSION );
 
 	/**
 	 * Fires after the games schema is installed / migrated.
 	 *
-	 * @since 0.9.6
-	 *
 	 * @param string $version The version that was installed.
 	 */
-	do_action( 'desktop_mode_games_schema_installed', DESKTOP_MODE_GAMES_SCHEMA_VERSION );
+	do_action( 'openstation_games_schema_installed', OPENSTATION_GAMES_SCHEMA_VERSION );
 }
 
 /**
@@ -121,19 +127,18 @@ function desktop_mode_games_install_schema() {
  * suppressed around the CREATE so a concurrent worker that won the
  * same race doesn't log a benign "already exists".
  *
- * @since 0.9.6
  * @internal
  *
  * @param string $table Fully-prefixed table name.
  * @param string $sql   The dbDelta CREATE TABLE statement for it.
  */
-function desktop_mode_games_ensure_table( $table, $sql ) {
+function openstation_games_ensure_table( $table, $sql ) {
 	global $wpdb;
 
 	$exists = (int) $wpdb->get_var(
 		$wpdb->prepare(
-			"SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES
-			WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s",
+			'SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES
+			WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s',
 			$table
 		)
 	);
@@ -151,32 +156,28 @@ function desktop_mode_games_ensure_table( $table, $sql ) {
  * Lazy migrator — runs when the stored schema version doesn't match
  * the constant. Idempotent: `dbDelta` itself is a no-op when the
  * tables already match.
- *
- * @since 0.9.6
  */
-function desktop_mode_games_maybe_install_schema() {
-	$installed = get_option( DESKTOP_MODE_GAMES_SCHEMA_OPTION, '' );
-	if ( $installed === DESKTOP_MODE_GAMES_SCHEMA_VERSION ) {
+function openstation_games_maybe_install_schema() {
+	$installed = get_option( OPENSTATION_GAMES_SCHEMA_OPTION, '' );
+	if ( OPENSTATION_GAMES_SCHEMA_VERSION === $installed ) {
 		return;
 	}
-	desktop_mode_games_install_schema();
+	openstation_games_install_schema();
 }
-add_action( 'admin_init', 'desktop_mode_games_maybe_install_schema' );
+add_action( 'admin_init', 'openstation_games_maybe_install_schema' );
 // REST + Heartbeat requests never fire `admin_init` — without these a
 // session hitting the scores endpoint before any admin page load
 // would query missing tables.
-add_action( 'rest_api_init', 'desktop_mode_games_maybe_install_schema' );
-add_action( 'init', 'desktop_mode_games_maybe_install_schema', 1 );
-register_activation_hook( DESKTOP_MODE_FILE, 'desktop_mode_games_install_schema' );
+add_action( 'rest_api_init', 'openstation_games_maybe_install_schema' );
+add_action( 'init', 'openstation_games_maybe_install_schema', 1 );
+register_activation_hook( OPENSTATION_FILE, 'openstation_games_install_schema' );
 
 /**
  * Current epoch-ms timestamp. Centralized so the store and the
  * Heartbeat channel stay in lock-step.
  *
- * @since 0.9.6
- *
  * @return int
  */
-function desktop_mode_games_now_ms() {
+function openstation_games_now_ms() {
 	return (int) round( microtime( true ) * 1000 );
 }

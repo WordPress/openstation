@@ -12,8 +12,6 @@
  * 1.5× before the streak multiplier). The streak counts consecutive
  * completed words with zero typos and resets on any typo or lost
  * life.
- *
- * @since 0.9.6
  */
 
 export interface ScoreState {

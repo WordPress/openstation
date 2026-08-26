@@ -9,11 +9,9 @@
  * back to the real DNA.
  *
  * The panel is bespoke DOM with raw `<input type="range">` on purpose:
- * the `<wpd-*>` field components live in the lazily-loaded OS Settings
+ * the `<os-*>` field components live in the lazily-loaded OS Settings
  * bundle and aren't guaranteed upgraded inside a wallpaper's document
  * context — a dev tool must not depend on another bundle having loaded.
- *
- * @since 0.9.4
  */
 
 import { buildHormones } from './dna';
@@ -65,7 +63,7 @@ export const SLIDER_DEFS: SliderDef[] = [
  * every trunk click so flipping the toggle needs no wallpaper remount.
  */
 export function isDeveloperModeEnabled(): boolean {
-	const api = window.wp?.desktop as
+	const api = window.wp?.os as
 		| { getOsSettings?: () => { developerModeEnabled?: boolean } }
 		| undefined;
 	try {

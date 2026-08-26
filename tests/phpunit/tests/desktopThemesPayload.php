@@ -5,10 +5,10 @@
  * @package WordPress
  * @subpackage UnitTests
  *
- * @group desktop-mode
- * @group desktop-mode-themes
+ * @group openstation
+ * @group os-themes
  */
-class Tests_DesktopMode_DesktopThemesPayload extends WP_UnitTestCase {
+class Tests_OpenStation_DesktopThemesPayload extends WP_UnitTestCase {
 
 	protected static $admin_id;
 
@@ -19,26 +19,26 @@ class Tests_DesktopMode_DesktopThemesPayload extends WP_UnitTestCase {
 	public function set_up() {
 		parent::set_up();
 		wp_set_current_user( self::$admin_id );
-		delete_option( DESKTOP_MODE_DESKTOP_THEMES_OPTION );
+		delete_option( OPENSTATION_DESKTOP_THEMES_OPTION );
 	}
 
 	public function tear_down() {
-		foreach ( array_keys( desktop_mode_desktop_theme_registry() ) as $slug ) {
-			desktop_mode_unregister_desktop_theme( $slug );
+		foreach ( array_keys( openstation_desktop_theme_registry() ) as $slug ) {
+			openstation_unregister_desktop_theme( $slug );
 		}
-		delete_option( DESKTOP_MODE_DESKTOP_THEMES_OPTION );
-		remove_all_filters( 'desktop_mode_desktop_themes' );
-		remove_all_filters( 'desktop_mode_desktop_themes_payload_cap' );
-		remove_all_actions( 'desktop_mode_desktop_theme_registered' );
+		delete_option( OPENSTATION_DESKTOP_THEMES_OPTION );
+		remove_all_filters( 'openstation_desktop_themes' );
+		remove_all_filters( 'openstation_desktop_themes_payload_cap' );
+		remove_all_actions( 'openstation_desktop_theme_registered' );
 		parent::tear_down();
 	}
 
 	private function register( $id, $overrides = array() ) {
-		return desktop_mode_register_desktop_theme( $id, array_merge(
+		return openstation_register_desktop_theme( $id, array_merge(
 			array(
 				'name'    => 'Theme ' . $id,
 				'version' => '1.0.0',
-				'tokens'  => array( '--desktop-mode-window-radius' => '14px' ),
+				'tokens'  => array( '--os-window-radius' => '14px' ),
 			),
 			$overrides
 		) );
@@ -46,7 +46,7 @@ class Tests_DesktopMode_DesktopThemesPayload extends WP_UnitTestCase {
 
 	/** Seed the option index directly, as an install would. */
 	private function seed_upload( $slug, $name = 'Uploaded' ) {
-		$index = desktop_mode_desktop_themes_index();
+		$index = openstation_desktop_themes_index();
 		$index[ $slug ] = array(
 			'slug'        => $slug,
 			'installedAt' => 1700000000,
@@ -64,7 +64,7 @@ class Tests_DesktopMode_DesktopThemesPayload extends WP_UnitTestCase {
 				'textures'        => array(),
 			),
 		);
-		desktop_mode_desktop_themes_put_index( $index );
+		openstation_desktop_themes_put_index( $index );
 	}
 
 	// ------------------------------------------------------------------
@@ -72,76 +72,76 @@ class Tests_DesktopMode_DesktopThemesPayload extends WP_UnitTestCase {
 	// ------------------------------------------------------------------
 
 	/**
-	 * @covers ::desktop_mode_register_desktop_theme
+	 * @covers ::openstation_register_desktop_theme
 	 */
 	public function test_register_succeeds_and_compiles_css_text() {
 		$this->assertTrue( $this->register( 'acme/neon' ) );
 
-		$entry = desktop_mode_desktop_theme_registry( 'acme-neon' );
+		$entry = openstation_desktop_theme_registry( 'acme-neon' );
 		$this->assertIsArray( $entry );
 		$this->assertStringContainsString(
-			'--desktop-mode-window-radius: 14px;',
+			'--os-window-radius: 14px;',
 			$entry['cssText']
 		);
 	}
 
 	/**
-	 * @covers ::desktop_mode_register_desktop_theme
+	 * @covers ::openstation_register_desktop_theme
 	 */
 	public function test_register_returns_wp_error_on_bad_input() {
-		$this->assertWPError( desktop_mode_register_desktop_theme( 'Bad Id!', array( 'name' => 'x' ) ) );
-		$this->assertWPError( desktop_mode_register_desktop_theme( 'acme/neon', array( 'name' => '' ) ) );
+		$this->assertWPError( openstation_register_desktop_theme( 'Bad Id!', array( 'name' => 'x' ) ) );
+		$this->assertWPError( openstation_register_desktop_theme( 'acme/neon', array( 'name' => '' ) ) );
 	}
 
 	/**
-	 * @covers ::desktop_mode_register_desktop_theme
+	 * @covers ::openstation_register_desktop_theme
 	 */
 	public function test_registered_action_fires_only_on_success() {
 		$fired = array();
 		add_action(
-			'desktop_mode_desktop_theme_registered',
+			'openstation_desktop_theme_registered',
 			static function ( $slug ) use ( &$fired ) {
 				$fired[] = $slug;
 			}
 		);
-		desktop_mode_register_desktop_theme( 'Bad Id!', array( 'name' => 'x' ) );
+		openstation_register_desktop_theme( 'Bad Id!', array( 'name' => 'x' ) );
 		$this->register( 'acme/neon' );
 
 		$this->assertSame( array( 'acme-neon' ), $fired );
 	}
 
 	/**
-	 * @covers ::desktop_mode_unregister_desktop_theme
+	 * @covers ::openstation_unregister_desktop_theme
 	 */
 	public function test_unregister_accepts_id_or_slug() {
 		$this->register( 'acme/neon' );
-		desktop_mode_unregister_desktop_theme( 'acme/neon' );
-		$this->assertNull( desktop_mode_desktop_theme_registry( 'acme-neon' ) );
+		openstation_unregister_desktop_theme( 'acme/neon' );
+		$this->assertNull( openstation_desktop_theme_registry( 'acme-neon' ) );
 	}
 
 	/**
 	 * Code themes go through the same sanitizer as uploads — a plugin
 	 * doesn't get a wider grammar than an admin does.
 	 *
-	 * @covers ::desktop_mode_register_desktop_theme
+	 * @covers ::openstation_register_desktop_theme
 	 */
 	public function test_code_themes_are_sanitized_like_uploads() {
 		$this->register( 'acme/neon', array(
 			'tokens' => array(
-				'--desktop-mode-window-radius' => '14px',
+				'--os-window-radius' => '14px',
 				'--evil'                       => 'red',
-				'--desktop-mode-bad'           => 'red; background: url(//evil)',
+				'--os-bad'           => 'red; background: url(//evil)',
 			),
 		) );
-		$css = desktop_mode_desktop_theme_registry( 'acme-neon' )['cssText'];
+		$css = openstation_desktop_theme_registry( 'acme-neon' )['cssText'];
 
-		$this->assertStringContainsString( '--desktop-mode-window-radius: 14px;', $css );
+		$this->assertStringContainsString( '--os-window-radius: 14px;', $css );
 		$this->assertStringNotContainsString( '--evil', $css );
 		$this->assertStringNotContainsString( 'evil', $css );
 	}
 
 	/**
-	 * @covers ::desktop_mode_register_desktop_theme
+	 * @covers ::openstation_register_desktop_theme
 	 */
 	public function test_code_theme_assets_must_be_absolute_urls() {
 		$this->register( 'acme/neon', array(
@@ -150,7 +150,7 @@ class Tests_DesktopMode_DesktopThemesPayload extends WP_UnitTestCase {
 				'RECYCLE_BIN' => array( 'type' => 'image', 'path' => 'https://cdn.test/bin.svg' ),
 			),
 		) );
-		$icons = desktop_mode_desktop_theme_registry( 'acme-neon' )['manifest']['icons'];
+		$icons = openstation_desktop_theme_registry( 'acme-neon' )['manifest']['icons'];
 
 		$this->assertArrayNotHasKey( 'OS_SETTINGS', $icons );
 		$this->assertSame( 'https://cdn.test/bin.svg', $icons['RECYCLE_BIN']['path'] );
@@ -161,20 +161,20 @@ class Tests_DesktopMode_DesktopThemesPayload extends WP_UnitTestCase {
 	// ------------------------------------------------------------------
 
 	/**
-	 * @covers ::desktop_mode_build_desktop_themes_payload
+	 * @covers ::openstation_build_desktop_themes_payload
 	 */
 	public function test_payload_is_empty_by_default() {
-		$this->assertSame( array(), desktop_mode_build_desktop_themes_payload() );
+		$this->assertSame( array(), openstation_build_desktop_themes_payload() );
 	}
 
 	/**
-	 * @covers ::desktop_mode_build_desktop_themes_payload
+	 * @covers ::openstation_build_desktop_themes_payload
 	 */
 	public function test_payload_merges_uploads_and_code_themes() {
 		$this->register( 'acme/neon' );
 		$this->seed_upload( 'house-style' );
 
-		$payload = desktop_mode_build_desktop_themes_payload();
+		$payload = openstation_build_desktop_themes_payload();
 		$slugs   = wp_list_pluck( $payload, 'slug' );
 
 		$this->assertContains( 'acme-neon', $slugs );
@@ -185,13 +185,13 @@ class Tests_DesktopMode_DesktopThemesPayload extends WP_UnitTestCase {
 	 * A site admin who installed a theme by hand outranks a plugin
 	 * that later claims the same slug.
 	 *
-	 * @covers ::desktop_mode_build_desktop_themes_payload
+	 * @covers ::openstation_build_desktop_themes_payload
 	 */
 	public function test_uploads_win_on_slug_collision() {
 		$this->register( 'acme-neon', array( 'name' => 'From code' ) );
 		$this->seed_upload( 'acme-neon', 'From upload' );
 
-		$payload = desktop_mode_build_desktop_themes_payload();
+		$payload = openstation_build_desktop_themes_payload();
 		$this->assertCount( 1, $payload );
 		$this->assertSame( 'From upload', $payload[0]['name'] );
 		$this->assertSame( 'upload', $payload[0]['source'] );
@@ -201,14 +201,14 @@ class Tests_DesktopMode_DesktopThemesPayload extends WP_UnitTestCase {
 	 * Uploads link a compiled file; code themes inline the compiled
 	 * text because they have no file to link.
 	 *
-	 * @covers ::desktop_mode_shape_desktop_theme_payload_entry
+	 * @covers ::openstation_shape_desktop_theme_payload_entry
 	 */
 	public function test_css_url_versus_css_text_by_source() {
 		$this->register( 'acme/neon' );
 		$this->seed_upload( 'house-style' );
 
 		$payload = array();
-		foreach ( desktop_mode_build_desktop_themes_payload() as $entry ) {
+		foreach ( openstation_build_desktop_themes_payload() as $entry ) {
 			$payload[ $entry['slug'] ] = $entry;
 		}
 
@@ -227,7 +227,7 @@ class Tests_DesktopMode_DesktopThemesPayload extends WP_UnitTestCase {
 	/**
 	 * The shell only needs a paintable string per slot.
 	 *
-	 * @covers ::desktop_mode_shape_desktop_theme_payload_entry
+	 * @covers ::openstation_shape_desktop_theme_payload_entry
 	 */
 	public function test_icon_map_flattens_to_strings() {
 		$this->register( 'acme/neon', array(
@@ -236,49 +236,49 @@ class Tests_DesktopMode_DesktopThemesPayload extends WP_UnitTestCase {
 				'WINDOW_CONTROL_CLOSE' => array( 'type' => 'image', 'path' => 'https://cdn.test/close.svg' ),
 			),
 		) );
-		$payload = desktop_mode_build_desktop_themes_payload();
+		$payload = openstation_build_desktop_themes_payload();
 
 		$this->assertSame( 'dashicons-admin-generic', $payload[0]['icons']['OS_SETTINGS'] );
 		$this->assertSame( 'https://cdn.test/close.svg', $payload[0]['icons']['WINDOW_CONTROL_CLOSE'] );
 	}
 
 	/**
-	 * @covers ::desktop_mode_build_desktop_themes_payload
+	 * @covers ::openstation_build_desktop_themes_payload
 	 */
 	public function test_payload_filter_can_hide_entries() {
 		$this->register( 'acme/neon' );
 		$this->register( 'acme/other' );
 
-		add_filter( 'desktop_mode_desktop_themes', static function ( $themes ) {
+		add_filter( 'openstation_desktop_themes', static function ( $themes ) {
 			unset( $themes['acme-other'] );
 			return $themes;
 		} );
 
-		$payload = desktop_mode_build_desktop_themes_payload();
+		$payload = openstation_build_desktop_themes_payload();
 		$this->assertSame( array( 'acme-neon' ), wp_list_pluck( $payload, 'slug' ) );
 	}
 
 	/**
-	 * @covers ::desktop_mode_desktop_themes_payload_cap
+	 * @covers ::openstation_desktop_themes_payload_cap
 	 */
 	public function test_payload_cap_is_enforced_and_filterable() {
 		for ( $i = 0; $i < 5; $i++ ) {
 			$this->register( "acme/theme-{$i}" );
 		}
-		add_filter( 'desktop_mode_desktop_themes_payload_cap', static function () {
+		add_filter( 'openstation_desktop_themes_payload_cap', static function () {
 			return 2;
 		} );
-		$this->assertCount( 2, desktop_mode_build_desktop_themes_payload() );
+		$this->assertCount( 2, openstation_build_desktop_themes_payload() );
 	}
 
 	/**
-	 * @covers ::desktop_mode_build_desktop_themes_payload
+	 * @covers ::openstation_build_desktop_themes_payload
 	 */
 	public function test_payload_is_name_sorted() {
 		$this->register( 'z-theme', array( 'name' => 'Alpha' ) );
 		$this->register( 'a-theme', array( 'name' => 'Zulu' ) );
 
-		$payload = desktop_mode_build_desktop_themes_payload();
+		$payload = openstation_build_desktop_themes_payload();
 		$this->assertSame( array( 'Alpha', 'Zulu' ), wp_list_pluck( $payload, 'name' ) );
 	}
 
@@ -286,11 +286,11 @@ class Tests_DesktopMode_DesktopThemesPayload extends WP_UnitTestCase {
 	 * The builder must be registered in the shell payload's builder
 	 * map, or the library never reaches the client.
 	 *
-	 * @covers ::desktop_mode_build_menu_payload
+	 * @covers ::openstation_build_menu_payload
 	 */
 	public function test_builder_is_wired_into_the_shell_payload() {
 		$this->register( 'acme/neon' );
-		$payload = desktop_mode_build_menu_payload();
+		$payload = openstation_build_menu_payload();
 
 		$this->assertArrayHasKey( 'serverDesktopThemes', $payload );
 		$this->assertSame(

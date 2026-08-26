@@ -9,20 +9,18 @@
  * falls back to "no persistence" silently. Widgets that truly
  * require persistence can wire their own defensive re-read after
  * set, but most shouldn't need to.
- *
- * @since 0.5.0
  */
 
 import type { WidgetStorage } from './types';
 
 /**
  * Build a `WidgetStorage` for the given widget id. Keys are
- * prefixed with `desktop-mode.widget.<id>.` so the namespace is
+ * prefixed with `os.widget.<id>.` so the namespace is
  * guaranteed unique across widgets, and `clear()` only removes
  * keys under that prefix (never touches siblings).
  */
 export function createWidgetStorage( widgetId: string ): WidgetStorage {
-	const prefix = `desktop-mode.widget.${ widgetId }.`;
+	const prefix = `os.widget.${ widgetId }.`;
 
 	const safeGet = ( key: string ): string | null => {
 		try {

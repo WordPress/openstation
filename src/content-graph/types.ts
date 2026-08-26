@@ -6,7 +6,6 @@
  * side just types the wire payloads.
  *
  * @public
- * @since 0.8.2
  */
 
 export interface PostTypeDescriptor {
@@ -289,6 +288,12 @@ export interface ContentGraphConfig {
 	editUserUrl: string;
 	editCommentUrl: string;
 	mediaUrl: string;
+	/**
+	 * The site's own name, used to label the detail panel's
+	 * "Open in <site>" action. Sourced from
+	 * `openstation_site_title()` server-side.
+	 */
+	siteName?: string;
 	postTypes: PostTypeDescriptor[];
 }
 

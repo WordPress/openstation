@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Window-link anchor geometry.
+ * OpenStation — Window-link anchor geometry.
  *
  * Pure math for occlusion-aware spline anchoring. In a cascade of
  * overlapping windows, the naive "border point toward the target"
@@ -14,8 +14,6 @@
  * Kept renderer-agnostic and side-effect-free so custom renderers can
  * import the same helpers, and so the interval math is trivially
  * unit-testable.
- *
- * @since 0.9.4
  */
 
 export interface LinkRect {

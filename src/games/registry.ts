@@ -1,8 +1,8 @@
 /**
- * Desktop Mode — Games registry.
+ * OpenStation — Games registry.
  *
  * Owns the in-memory list of registered games and applies the
- * `desktop-mode.games` filter on every read, mirroring the wallpaper
+ * `os.games` filter on every read, mirroring the wallpaper
  * registry it is modeled on.
  *
  * Cross-bundle by construction: the Games hub window ships in its
@@ -11,8 +11,6 @@
  * live in a `createSharedStore` record — both bundles mutate the
  * same arrays. See AGENTS.md ("Cross-bundle state") for why a plain
  * module-level array would silently split into per-bundle copies.
- *
- * @since 0.9.6
  */
 
 import { applyFilters, HOOKS } from '../hooks';
@@ -92,7 +90,7 @@ function notify(): void {
 		} catch ( err ) {
 			if ( typeof console !== 'undefined' ) {
 				console.error(
-					'[desktop-mode] games registry listener threw:',
+					'[openstation] games registry listener threw:',
 					err,
 				);
 			}
@@ -101,7 +99,7 @@ function notify(): void {
 }
 
 /**
- * The current game list with the `desktop-mode.games` filter
+ * The current game list with the `os.games` filter
  * applied. The seed array is copied so filter callbacks can safely
  * mutate their input.
  */
@@ -111,7 +109,7 @@ export function all(): GameRegistryEntry[] {
 	if ( ! Array.isArray( filtered ) ) {
 		if ( typeof console !== 'undefined' ) {
 			console.warn(
-				'[desktop-mode] `desktop-mode.games` filter returned a ' +
+				'[openstation] `os.games` filter returned a ' +
 					'non-array; falling back to seed list.',
 			);
 		}

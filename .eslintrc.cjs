@@ -1,5 +1,5 @@
 /**
- * ESLint configuration for the wp-desktop-mode TypeScript shell.
+ * ESLint configuration for the openstation TypeScript shell.
  *
  * Baseline is WordPress's first-party rule set — `@wordpress/eslint-plugin`
  * — the same package Calypso uses (Calypso layers its own overrides on
@@ -115,20 +115,20 @@ module.exports = {
 			SwitchCase: 1,
 		} ],
 		// Steer authors away from raw browser globals that bypass
-		// the framework. Use `wp.desktop.fetch` / `trackedFetch`
+		// the framework. Use `wp.os.fetch` / `trackedFetch`
 		// instead of `fetch()` so requests feed the loading
-		// spinner + activity bus. Use `wp.desktop.confirm` /
-		// `wpdConfirm()` instead of `window.confirm()` /
+		// spinner + activity bus. Use `wp.os.confirm` /
+		// `osConfirm()` instead of `window.confirm()` /
 		// `window.prompt()` / `window.alert()` so prompts use
-		// `<wpd-confirm-dialog>` and match the rest of the desktop
+		// `<os-confirm-dialog>` and match the rest of the desktop
 		// visually. Sites that genuinely need the raw global —
 		// service worker, the framework wrapper itself, last-resort
 		// fallbacks — can opt out with an inline `eslint-disable`.
 		// `no-duplicate-imports` (the ESLint core rule) is supposed
 		// to allow side-effect imports alongside named imports from
 		// the same source, but v8.x flags
-		//   import '../ui/components/wpd-foo/wpd-foo';
-		//   import type { WpdFoo } from '../ui/components/wpd-foo/wpd-foo';
+		//   import '../ui/components/os-foo/os-foo';
+		//   import type { OsFoo } from '../ui/components/os-foo/os-foo';
 		// as a duplicate — which is exactly the shape our component
 		// registration pattern needs (side-effect to trigger
 		// `defineComponent`, plus `import type` for the type
@@ -138,42 +138,42 @@ module.exports = {
 		// disable comments on every component leaf-import block.
 		'no-duplicate-imports': 'off',
 		// Local rule — fails when a module calls
-		// `document.createElement( 'wpd-foo' )` without also
-		// side-effect-importing `'…/ui/components/wpd-foo/wpd-foo'`.
+		// `document.createElement( 'os-foo' )` without also
+		// side-effect-importing `'…/ui/components/os-foo/os-foo'`.
 		// Catches the regression class that broke posts / pages /
 		// users / plugins / comments / recycle-bin: a secondary
-		// bundle does `import { WpdFoo } from '…'` purely for the
+		// bundle does `import { OsFoo } from '…'` purely for the
 		// TS type, esbuild elides the import, the
-		// `defineComponent( 'wpd-foo', WpdFoo )` side-effect never
-		// runs, and `<wpd-foo>` renders as an inert un-upgraded
+		// `defineComponent( 'os-foo', OsFoo )` side-effect never
+		// runs, and `<os-foo>` renders as an inert un-upgraded
 		// custom element. See the rule source for details.
-		'local-rules/wpd-component-registration': 'error',
+		'local-rules/os-component-registration': 'error',
 		'no-restricted-syntax': [
 			'error',
 			{
 				selector: 'CallExpression[callee.name="fetch"]',
 				message:
-					'Use the framework fetch (`wp.desktop.fetch` or the `trackedFetch` helper from `src/tracked-fetch.ts`) so the request feeds the loading spinner + activity bus. If you really need the raw global, opt out with `// eslint-disable-next-line no-restricted-syntax` and a comment explaining why.',
+					'Use the framework fetch (`wp.os.fetch` or the `trackedFetch` helper from `src/tracked-fetch.ts`) so the request feeds the loading spinner + activity bus. If you really need the raw global, opt out with `// eslint-disable-next-line no-restricted-syntax` and a comment explaining why.',
 			},
 			{
 				selector: 'MemberExpression[object.name="window"][property.name="fetch"]',
 				message:
-					'Use `wp.desktop.fetch` / `trackedFetch` instead of `window.fetch` so the request feeds the loading spinner + activity bus.',
+					'Use `wp.os.fetch` / `trackedFetch` instead of `window.fetch` so the request feeds the loading spinner + activity bus.',
 			},
 			{
 				selector: 'CallExpression[callee.object.name="window"][callee.property.name="confirm"]',
 				message:
-					'Use `wp.desktop.confirm` (or `wpdConfirm()`) — the framework `<wpd-confirm-dialog>` — instead of `window.confirm()` so the prompt matches the rest of the desktop visually.',
+					'Use `wp.os.confirm` (or `osConfirm()`) — the framework `<os-confirm-dialog>` — instead of `window.confirm()` so the prompt matches the rest of the desktop visually.',
 			},
 			{
 				selector: 'CallExpression[callee.object.name="window"][callee.property.name="alert"]',
 				message:
-					'Use a toast (`wp.desktop.toasts`) or `wp.desktop.confirm` instead of `window.alert()` so users get framework-styled feedback.',
+					'Use a toast (`wp.os.toasts`) or `wp.os.confirm` instead of `window.alert()` so users get framework-styled feedback.',
 			},
 			{
 				selector: 'CallExpression[callee.object.name="window"][callee.property.name="prompt"]',
 				message:
-					'Build a small `<wpd-confirm-dialog>`-style modal with a `<wpd-text-field>` instead of `window.prompt()`.',
+					'Build a small `<os-confirm-dialog>`-style modal with a `<os-text-field>` instead of `window.prompt()`.',
 			},
 		],
 	},
@@ -186,6 +186,58 @@ module.exports = {
 			rules: {
 				// These config files aren't TS.
 				'@typescript-eslint/no-var-requires': 'off',
+			},
+		},
+		{
+			// The chromeless bridge — the one first-class bundle whose
+			// source is plain JavaScript, because it was lifted
+			// verbatim out of a PHP nowdoc. It gets the syntactic half
+			// of the safety net (undefined names, unused bindings,
+			// unreachable code) via espree; the type-aware half needs
+			// the TypeScript conversion tracked in the file header.
+			files: [ 'src/chromeless-bridge.js' ],
+			env: { browser: true },
+			parser: 'espree',
+			parserOptions: { project: null, ecmaVersion: 2020 },
+			rules: {
+				// Type-aware rules cannot run without a project.
+				'@typescript-eslint/no-explicit-any': 'off',
+				'@typescript-eslint/explicit-module-boundary-types': 'off',
+				// The bridge's whole job includes wrapping `fetch` and
+				// `XMLHttpRequest` so an admin page's own requests move
+				// the window's activity ring. It runs inside a
+				// wp-admin document with no `wp.os` of its own, so the
+				// framework helper the rule points at does not exist
+				// here — this file is where that plumbing is built.
+				'no-restricted-syntax': 'off',
+				// The file is deliberately ES5-flavoured: it executes
+				// in a real wp-admin document beside whatever else that
+				// page loads. The rules below encode the house *modern*
+				// style, and auto-fixing them across a 3,500-line
+				// verbatim lift would rewrite working code for taste —
+				// `no-var` in particular changes binding semantics
+				// around closures. They come back with the TypeScript
+				// conversion, when the whole file is being rewritten
+				// deliberately rather than by `--fix`.
+				'no-var': 'off',
+				'object-shorthand': 'off',
+				'space-before-function-paren': 'off',
+				'brace-style': 'off',
+				'comma-dangle': 'off',
+				curly: 'off',
+				'no-multi-spaces': 'off',
+				'operator-linebreak': 'off',
+				'key-spacing': 'off',
+				'wrap-iife': 'off',
+				'func-call-spacing': 'off',
+				'@typescript-eslint/no-this-alias': 'off',
+				// No React here; the plugin's heuristic misfires on
+				// plain callbacks that happen to look like hooks.
+				'react-hooks/exhaustive-deps': 'off',
+				// `document.activeElement` is correct inside the
+				// iframe's own document, which is the only document
+				// this file ever runs in.
+				'@wordpress/no-global-active-element': 'off',
 			},
 		},
 	],

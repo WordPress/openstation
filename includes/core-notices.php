@@ -5,8 +5,7 @@
  * shell can surface each once. The update nag is handled separately (see
  * update-notice.php); this covers the rest.
  *
- * @since 0.9.6
- * @package DesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -18,18 +17,16 @@ defined( 'ABSPATH' ) || exit;
  * capability-gated exactly as Core gates the underlying notice. The shell
  * renders each as a persistent, dismissible toast.
  *
- * @since 0.9.6
- *
  * @return array<int,array{id:string,title:string,message:string,actionLabel:string,actionUrl:string}>
  */
-function desktop_mode_get_core_notices() {
+function openstation_get_core_notices() {
 	$builders = array(
-		'desktop_mode_core_notice_maintenance',
-		'desktop_mode_core_notice_recovery_mode',
-		'desktop_mode_core_notice_default_password',
-		'desktop_mode_core_notice_deactivated_plugins',
-		'desktop_mode_core_notice_paused_plugins',
-		'desktop_mode_core_notice_paused_themes',
+		'openstation_core_notice_maintenance',
+		'openstation_core_notice_recovery_mode',
+		'openstation_core_notice_default_password',
+		'openstation_core_notice_deactivated_plugins',
+		'openstation_core_notice_paused_plugins',
+		'openstation_core_notice_paused_themes',
 	);
 
 	$notices = array();
@@ -44,22 +41,18 @@ function desktop_mode_get_core_notices() {
 	 * Filters the core notices surfaced once in the desktop shell. Return an
 	 * empty array to suppress them all, or unset individual entries by `id`.
 	 *
-	 * @since 0.9.6
-	 *
 	 * @param array $notices List of notice descriptors.
 	 */
-	return apply_filters( 'desktop_mode_core_notices', $notices );
+	return apply_filters( 'openstation_core_notices', $notices );
 }
 
 /**
  * Normalizes a notice descriptor, filling optional fields.
  *
- * @since 0.9.6
- *
  * @param array $notice Partial descriptor with at least `id` + `message`.
  * @return array{id:string,title:string,message:string,actionLabel:string,actionUrl:string}
  */
-function desktop_mode_core_notice( array $notice ) {
+function openstation_core_notice( array $notice ) {
 	return array(
 		'id'          => (string) $notice['id'],
 		'title'       => isset( $notice['title'] ) ? (string) $notice['title'] : '',
@@ -72,11 +65,9 @@ function desktop_mode_core_notice( array $notice ) {
 /**
  * Interrupted / failed automated core update — mirrors `maintenance_nag()`.
  *
- * @since 0.9.6
- *
  * @return array|null
  */
-function desktop_mode_core_notice_maintenance() {
+function openstation_core_notice_maintenance() {
 	$nag = isset( $GLOBALS['upgrading'] );
 
 	if ( ! $nag ) {
@@ -94,7 +85,7 @@ function desktop_mode_core_notice_maintenance() {
 	}
 
 	$can = current_user_can( 'update_core' );
-	return desktop_mode_core_notice(
+	return openstation_core_notice(
 		array(
 			'id'          => 'maintenance',
 			'title'       => __( 'WordPress Updates', 'desktop-mode' ),
@@ -110,11 +101,9 @@ function desktop_mode_core_notice_maintenance() {
 /**
  * Site is in recovery mode — mirrors `wp_recovery_mode_nag()`.
  *
- * @since 0.9.6
- *
  * @return array|null
  */
-function desktop_mode_core_notice_recovery_mode() {
+function openstation_core_notice_recovery_mode() {
 	if ( ! function_exists( 'wp_is_recovery_mode' ) || ! wp_is_recovery_mode() ) {
 		return null;
 	}
@@ -123,7 +112,7 @@ function desktop_mode_core_notice_recovery_mode() {
 	$url = add_query_arg( 'action', WP_Recovery_Mode::EXIT_ACTION, $url );
 	$url = wp_nonce_url( $url, WP_Recovery_Mode::EXIT_ACTION );
 
-	return desktop_mode_core_notice(
+	return openstation_core_notice(
 		array(
 			'id'          => 'recovery-mode',
 			'title'       => __( 'Recovery Mode', 'desktop-mode' ),
@@ -138,16 +127,14 @@ function desktop_mode_core_notice_recovery_mode() {
  * User is still on their auto-generated password — mirrors
  * `default_password_nag()`.
  *
- * @since 0.9.6
- *
  * @return array|null
  */
-function desktop_mode_core_notice_default_password() {
+function openstation_core_notice_default_password() {
 	if ( ! get_user_option( 'default_password_nag' ) ) {
 		return null;
 	}
 
-	return desktop_mode_core_notice(
+	return openstation_core_notice(
 		array(
 			'id'          => 'default-password',
 			'title'       => __( 'Profile', 'desktop-mode' ),
@@ -162,11 +149,9 @@ function desktop_mode_core_notice_default_password() {
  * Plugins force-deactivated on a WordPress upgrade — mirrors
  * `deactivated_plugins_notice()`.
  *
- * @since 0.9.6
- *
  * @return array|null
  */
-function desktop_mode_core_notice_deactivated_plugins() {
+function openstation_core_notice_deactivated_plugins() {
 	if ( ! current_user_can( 'activate_plugins' ) ) {
 		return null;
 	}
@@ -186,7 +171,7 @@ function desktop_mode_core_notice_deactivated_plugins() {
 		return null;
 	}
 
-	return desktop_mode_core_notice(
+	return openstation_core_notice(
 		array(
 			'id'          => 'deactivated-plugins',
 			'title'       => __( 'Plugins', 'desktop-mode' ),
@@ -204,11 +189,9 @@ function desktop_mode_core_notice_deactivated_plugins() {
 /**
  * Plugins paused by recovery mode — mirrors `paused_plugins_notice()`.
  *
- * @since 0.9.6
- *
  * @return array|null
  */
-function desktop_mode_core_notice_paused_plugins() {
+function openstation_core_notice_paused_plugins() {
 	if ( ! current_user_can( 'resume_plugins' ) || ! function_exists( 'wp_paused_plugins' ) ) {
 		return null;
 	}
@@ -217,7 +200,7 @@ function desktop_mode_core_notice_paused_plugins() {
 		return null;
 	}
 
-	return desktop_mode_core_notice(
+	return openstation_core_notice(
 		array(
 			'id'          => 'paused-plugins',
 			'title'       => __( 'Plugins', 'desktop-mode' ),
@@ -231,11 +214,9 @@ function desktop_mode_core_notice_paused_plugins() {
 /**
  * Themes paused by recovery mode — mirrors `paused_themes_notice()`.
  *
- * @since 0.9.6
- *
  * @return array|null
  */
-function desktop_mode_core_notice_paused_themes() {
+function openstation_core_notice_paused_themes() {
 	if ( ! current_user_can( 'resume_themes' ) || ! function_exists( 'wp_paused_themes' ) ) {
 		return null;
 	}
@@ -244,7 +225,7 @@ function desktop_mode_core_notice_paused_themes() {
 		return null;
 	}
 
-	return desktop_mode_core_notice(
+	return openstation_core_notice(
 		array(
 			'id'          => 'paused-themes',
 			'title'       => __( 'Themes', 'desktop-mode' ),

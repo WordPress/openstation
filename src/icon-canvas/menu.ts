@@ -1,12 +1,12 @@
 /**
- * Desktop Mode — generic icon-canvas context menu.
+ * OpenStation — generic icon-canvas context menu.
  *
  * Any window that mounts an icon grid can call
  * {@link attachIconCanvasMenu} to get the same right-click /
  * background-click context menu the wallpaper offers — currently
  * the **Sort By** submenu (name / date, asc / desc), with room for
  * plugins to add more entries via the
- * `desktop-mode.icon-canvas.menu` JS filter.
+ * `os.icon-canvas.menu` JS filter.
  *
  * The helper deliberately stays small: it doesn't know how the
  * canvas stores its tiles or how it persists positions. It just
@@ -15,19 +15,19 @@
  * its tiles however it wants — REST writeback, localStorage, or a
  * pure DOM reflow are all valid strategies.
  *
- * **Bundle hygiene.** This module reaches the `<wpd-context-menu>`
+ * **Bundle hygiene.** This module reaches the `<os-context-menu>`
  * web component via `document.createElement` — the tag is already
  * defined by the always-loaded main desktop bundle. We deliberately
  * avoid importing the wallpaper menu's helper directly because that
  * pulls in the entire files-layer dependency tree (~20KB).
  *
  * @public
- * @since 0.8.0
  */
 
 import { applyFilters } from '../hooks';
 import { __ } from '../i18n';
 import { openWithShellOverlays } from '../shell-overlays/loader';
+import { clampToViewport, positionFlyout } from '../ui/util/menu-position';
 
 export type SortMode = 'name-asc' | 'name-desc' | 'date-asc' | 'date-desc';
 
@@ -73,7 +73,7 @@ interface AttachedHandle {
 	dispose: () => void;
 }
 
-const MENU_CLASS = 'desktop-mode-icon-canvas-menu';
+const MENU_CLASS = 'os-icon-canvas-menu';
 
 let activeMenu: HTMLElement | null = null;
 let activeFlyout: HTMLElement | null = null;
@@ -93,7 +93,7 @@ let escHandler: ( ( e: KeyboardEvent ) => void ) | null = null;
  * menu on right-click (and, by default, on a primary click on the
  * background — matches the wallpaper's UX).
  *
- * Tile-targeted clicks (anything inside `.desktop-mode-file-tile`)
+ * Tile-targeted clicks (anything inside `.os-file-tile`)
  * are ignored so per-tile menus keep working unchanged.
  */
 export function attachIconCanvasMenu(
@@ -128,12 +128,12 @@ export function attachIconCanvasMenu(
 		}
 		const items = buildItems( deps );
 		const filtered = applyFilters< IconCanvasMenuItem[], [ string ] >(
-			'desktop-mode.icon-canvas.menu',
+			'os.icon-canvas.menu',
 			items,
 			deps.scope,
 		);
 		const finalItems = Array.isArray( filtered ) ? filtered : items;
-		// Lazy-load the `<wpd-context-menu>` class from the shell-
+		// Lazy-load the `<os-context-menu>` class from the shell-
 		// overlays bundle before constructing. In steady state the
 		// bundle is preloaded after first paint so this resolves
 		// immediately; the generation check just drops a stale
@@ -159,7 +159,7 @@ function isInsideTile( target: EventTarget | null ): boolean {
 	if ( ! ( target instanceof Element ) ) {
 		return false;
 	}
-	return target.closest( '.desktop-mode-file-tile' ) !== null;
+	return target.closest( '.os-file-tile' ) !== null;
 }
 
 function isInsideMenu( target: EventTarget | null ): boolean {
@@ -234,7 +234,7 @@ function openMenu(
 	activeCanvas = canvas;
 
 	const sorted = sortItems( items );
-	const menu = document.createElement( 'wpd-context-menu' );
+	const menu = document.createElement( 'os-context-menu' );
 	menu.setAttribute( 'open', '' );
 	menu.classList.add( MENU_CLASS );
 	( menu as HTMLElement ).style.left = `${ pos.x }px`;
@@ -251,7 +251,7 @@ function openMenu(
 		}
 	}
 
-	menu.addEventListener( 'wpd-context-menu-pick', ( e: Event ) => {
+	menu.addEventListener( 'os-context-menu-pick', ( e: Event ) => {
 		const detail = ( e as CustomEvent< { id: string } > ).detail;
 		const item = itemById.get( detail.id );
 		if ( ! item ) {
@@ -273,6 +273,8 @@ function openMenu(
 
 	document.body.appendChild( menu );
 	activeMenu = menu;
+	// Measured a frame later, once the component has rendered. See
+	// `src/ui/util/menu-position.ts`.
 	clampToViewport( menu );
 
 	// Outside-click + Escape dismiss. We attach the dismissers
@@ -303,7 +305,7 @@ function appendOption(
 	host: HTMLElement,
 	item: IconCanvasMenuItem,
 ): HTMLElement {
-	const opt = document.createElement( 'wpd-context-menu-option' );
+	const opt = document.createElement( 'os-context-menu-option' );
 	( opt as HTMLElement ).dataset.menuItemId = item.id;
 	opt.setAttribute( 'value', item.id );
 	if ( item.heading ) {
@@ -328,7 +330,7 @@ function openFlyout( parent: IconCanvasMenuItem, anchor: HTMLElement ): void {
 	if ( ! hasChildren( parent ) ) {
 		return;
 	}
-	const fly = document.createElement( 'wpd-context-menu' );
+	const fly = document.createElement( 'os-context-menu' );
 	fly.setAttribute( 'open', '' );
 	fly.classList.add( MENU_CLASS, `${ MENU_CLASS }--flyout` );
 	const childById = new Map< string, IconCanvasMenuItem >();
@@ -336,7 +338,7 @@ function openFlyout( parent: IconCanvasMenuItem, anchor: HTMLElement ): void {
 		childById.set( child.id, child );
 		appendOption( fly, child );
 	}
-	fly.addEventListener( 'wpd-context-menu-pick', ( e: Event ) => {
+	fly.addEventListener( 'os-context-menu-pick', ( e: Event ) => {
 		const detail = ( e as CustomEvent< { id: string } > ).detail;
 		const child = childById.get( detail.id );
 		if ( ! child ) {
@@ -349,30 +351,6 @@ function openFlyout( parent: IconCanvasMenuItem, anchor: HTMLElement ): void {
 	document.body.appendChild( fly );
 	activeFlyout = fly;
 	positionFlyout( fly, anchor );
-}
-
-function positionFlyout( fly: HTMLElement, anchor: HTMLElement ): void {
-	const ar = anchor.getBoundingClientRect();
-	fly.style.position = 'fixed';
-	fly.style.left = `${ ar.right }px`;
-	fly.style.top = `${ ar.top }px`;
-	const fr = fly.getBoundingClientRect();
-	if ( fr.right > window.innerWidth ) {
-		fly.style.left = `${ Math.max( 0, ar.left - fr.width ) }px`;
-	}
-	if ( fr.bottom > window.innerHeight ) {
-		fly.style.top = `${ Math.max( 0, window.innerHeight - fr.height - 8 ) }px`;
-	}
-}
-
-function clampToViewport( menu: HTMLElement ): void {
-	const rect = menu.getBoundingClientRect();
-	if ( rect.right > window.innerWidth ) {
-		menu.style.left = `${ Math.max( 0, window.innerWidth - rect.width - 8 ) }px`;
-	}
-	if ( rect.bottom > window.innerHeight ) {
-		menu.style.top = `${ Math.max( 0, window.innerHeight - rect.height - 8 ) }px`;
-	}
 }
 
 function hasChildren( item: IconCanvasMenuItem ): boolean {

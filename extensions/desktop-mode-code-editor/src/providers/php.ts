@@ -14,7 +14,6 @@
  * typing.
  *
  * @public
- * @since 0.7.0
  */
 
 import {

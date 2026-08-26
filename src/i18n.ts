@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — i18n bridge.
+ * OpenStation — i18n bridge.
  *
  * Thin wrapper around `window.wp.i18n` (the `@wordpress/i18n` package
  * shipped by core under the `wp-i18n` script handle). We depend on
@@ -18,12 +18,17 @@
  * script handle is a hard dep, so this should never trigger in
  * production), the original English string is returned verbatim.
  * We'd rather show English than throw.
- *
- * @since 0.8.0
  */
 /* eslint-disable @wordpress/i18n-text-domain, @wordpress/i18n-no-variables */
 
-/** Plugin-wide text domain. Kept as a const so typos become TS errors. */
+/**
+ * Plugin-wide text domain. Kept as a const so typos become TS errors.
+ *
+ * This is the TEXT DOMAIN, not a script handle. It has to match the
+ * second argument of every `wp_set_script_translations()` call, since
+ * that is the domain WordPress passes to `wp.i18n.setLocaleData()`.
+ * `openstation` is a script handle and resolves to no locale data.
+ */
 export const TEXT_DOMAIN = 'desktop-mode';
 
 /**

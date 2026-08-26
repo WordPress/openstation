@@ -5,23 +5,22 @@
  * Builds the catalogue Monaco's PHP completion + hover providers query
  * against. Three layers:
  *
- *   - {@see desktop_mode_code_editor_get_wp_core_index()}
- *   - {@see desktop_mode_code_editor_build_wp_core_index()}
- *   - {@see desktop_mode_code_editor_query_php_symbols()}
+ *   - {@see openstation_code_editor_get_wp_core_index()}
+ *   - {@see openstation_code_editor_build_wp_core_index()}
+ *   - {@see openstation_code_editor_query_php_symbols()}
  *
  * Plugin authors can extend the index without forking via the
- * `desktop_mode_code_editor_php_index_extra_symbols` filter — return
+ * `openstation_code_editor_php_index_extra_symbols` filter — return
  * an array shaped like the canonical entries below and they're merged
  * in. The workspace indexer feeds this same filter.
  *
- * @package DesktopModeCodeEditor
- * @since   0.7.0
+ * @package OpenStationCodeEditor
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /** Transient TTL — index lives until WP updates. 30 days is generous. */
-const DESKTOP_MODE_CODE_EDITOR_INDEX_TTL = 30 * DAY_IN_SECONDS;
+const OPENSTATION_CODE_EDITOR_INDEX_TTL = 30 * DAY_IN_SECONDS;
 
 // ---------------------------------------------------------------------------
 // Public reader
@@ -31,28 +30,24 @@ const DESKTOP_MODE_CODE_EDITOR_INDEX_TTL = 30 * DAY_IN_SECONDS;
  * Returns the WP core symbol index. Cached as a transient keyed on
  * the WP version.
  *
- * @since 0.7.0
- *
  * @return array{ functions: array<string, array>, hooks: array<string, array> }
  */
-function desktop_mode_code_editor_get_wp_core_index() {
+function openstation_code_editor_get_wp_core_index() {
 	$cache_key = 'desktop_mode_code_editor_php_index_' . get_bloginfo( 'version' );
 	$cached    = get_transient( $cache_key );
 	if ( is_array( $cached ) && isset( $cached['functions'], $cached['hooks'] ) ) {
 		return $cached;
 	}
 
-	$index = desktop_mode_code_editor_build_wp_core_index();
-	set_transient( $cache_key, $index, DESKTOP_MODE_CODE_EDITOR_INDEX_TTL );
+	$index = openstation_code_editor_build_wp_core_index();
+	set_transient( $cache_key, $index, OPENSTATION_CODE_EDITOR_INDEX_TTL );
 	return $index;
 }
 
 /**
  * Drop the cached index.
- *
- * @since 0.7.0
  */
-function desktop_mode_code_editor_flush_wp_core_index() {
+function openstation_code_editor_flush_wp_core_index() {
 	delete_transient( 'desktop_mode_code_editor_php_index_' . get_bloginfo( 'version' ) );
 }
 
@@ -63,13 +58,11 @@ function desktop_mode_code_editor_flush_wp_core_index() {
 /**
  * Build the index from scratch. Slow — call only via the cached reader.
  *
- * @since 0.7.0
- *
  * @return array
  */
-function desktop_mode_code_editor_build_wp_core_index() {
-	$functions = desktop_mode_code_editor_index_wp_core_functions();
-	$hooks     = desktop_mode_code_editor_index_wp_core_hooks();
+function openstation_code_editor_build_wp_core_index() {
+	$functions = openstation_code_editor_index_wp_core_functions();
+	$hooks     = openstation_code_editor_index_wp_core_hooks();
 
 	return array(
 		'functions' => $functions,
@@ -81,11 +74,9 @@ function desktop_mode_code_editor_build_wp_core_index() {
  * Index every defined function whose source file lives under
  * `ABSPATH` but outside `WP_CONTENT_DIR`.
  *
- * @since 0.7.0
- *
  * @return array<string, array>
  */
-function desktop_mode_code_editor_index_wp_core_functions() {
+function openstation_code_editor_index_wp_core_functions() {
 	$out = array();
 
 	$content_dir = defined( 'WP_CONTENT_DIR' )
@@ -120,7 +111,7 @@ function desktop_mode_code_editor_index_wp_core_functions() {
 				'name'     => $p->getName(),
 				'optional' => $p->isOptional(),
 				'default'  => $p->isDefaultValueAvailable()
-					? desktop_mode_code_editor_format_default( $p->getDefaultValue() )
+					? openstation_code_editor_format_default( $p->getDefaultValue() )
 					: null,
 				'variadic' => $p->isVariadic(),
 				'by_ref'   => $p->isPassedByReference(),
@@ -129,14 +120,14 @@ function desktop_mode_code_editor_index_wp_core_functions() {
 		}
 
 		$doc     = $ref->getDocComment() ?: '';
-		$summary = desktop_mode_code_editor_phpdoc_summary( $doc );
-		$since   = desktop_mode_code_editor_phpdoc_tag( $doc, 'since' );
-		$return  = desktop_mode_code_editor_phpdoc_tag( $doc, 'return' );
+		$summary = openstation_code_editor_phpdoc_summary( $doc );
+		$since   = openstation_code_editor_phpdoc_tag( $doc, 'since' );
+		$return  = openstation_code_editor_phpdoc_tag( $doc, 'return' );
 
 		$out[ $name ] = array(
 			'name'      => $name,
 			'kind'      => 'function',
-			'signature' => desktop_mode_code_editor_format_signature( $name, $params, $return ),
+			'signature' => openstation_code_editor_format_signature( $name, $params, $return ),
 			'params'    => $params,
 			'doc'       => $summary,
 			'since'     => $since,
@@ -151,11 +142,9 @@ function desktop_mode_code_editor_index_wp_core_functions() {
  * Walk wp-includes / wp-admin and pull out every literal-string
  * `do_action` / `apply_filters` call.
  *
- * @since 0.7.0
- *
  * @return array<string, array>
  */
-function desktop_mode_code_editor_index_wp_core_hooks() {
+function openstation_code_editor_index_wp_core_hooks() {
 	$out = array();
 
 	$dirs       = array();
@@ -195,12 +184,12 @@ function desktop_mode_code_editor_index_wp_core_hooks() {
 			if ( 'php' !== strtolower( $file->getExtension() ) ) {
 				continue;
 			}
-			desktop_mode_code_editor_scan_hooks_in_file( $file->getPathname(), $out );
+			openstation_code_editor_scan_hooks_in_file( $file->getPathname(), $out );
 		}
 	}
 
 	foreach ( $root_files as $file ) {
-		desktop_mode_code_editor_scan_hooks_in_file( $file, $out );
+		openstation_code_editor_scan_hooks_in_file( $file, $out );
 	}
 
 	return $out;
@@ -210,13 +199,12 @@ function desktop_mode_code_editor_index_wp_core_hooks() {
  * Tokenize a single PHP file and append every literal-string
  * `do_action` / `apply_filters` (and `_ref_array` variants) into `$out`.
  *
- * @since 0.7.0
  * @internal
  *
  * @param string $path Absolute path to a PHP file.
  * @param array  $out  Accumulator.
  */
-function desktop_mode_code_editor_scan_hooks_in_file( $path, array &$out ) {
+function openstation_code_editor_scan_hooks_in_file( $path, array &$out ) {
 	// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
 	$source = @file_get_contents( $path );
 	if ( false === $source ) {
@@ -228,7 +216,7 @@ function desktop_mode_code_editor_scan_hooks_in_file( $path, array &$out ) {
 		return;
 	}
 
-	$rel = desktop_mode_code_editor_path_relative_to_abspath( $path );
+	$rel = openstation_code_editor_path_relative_to_abspath( $path );
 
 	$count            = count( $tokens );
 	$last_doc_comment = '';
@@ -249,24 +237,24 @@ function desktop_mode_code_editor_scan_hooks_in_file( $path, array &$out ) {
 		}
 
 		$name          = $tok[1];
-		$kind_for_name = desktop_mode_code_editor_hook_kind_for_function_name( $name );
+		$kind_for_name = openstation_code_editor_hook_kind_for_function_name( $name );
 		if ( null === $kind_for_name ) {
 			$last_doc_comment = '';
 			continue;
 		}
 
-		$next = desktop_mode_code_editor_next_significant_token( $tokens, $i + 1 );
+		$next = openstation_code_editor_next_significant_token( $tokens, $i + 1 );
 		if ( null === $next || '(' !== $tokens[ $next ] ) {
 			$last_doc_comment = '';
 			continue;
 		}
-		$arg = desktop_mode_code_editor_next_significant_token( $tokens, $next + 1 );
+		$arg = openstation_code_editor_next_significant_token( $tokens, $next + 1 );
 		if ( null === $arg || ! is_array( $tokens[ $arg ] ) || T_CONSTANT_ENCAPSED_STRING !== $tokens[ $arg ][0] ) {
 			$last_doc_comment = '';
 			continue;
 		}
 
-		$hook = desktop_mode_code_editor_unquote_string( $tokens[ $arg ][1] );
+		$hook = openstation_code_editor_unquote_string( $tokens[ $arg ][1] );
 		if ( '' === $hook || isset( $out[ $hook ] ) ) {
 			$last_doc_comment = '';
 			continue;
@@ -276,8 +264,8 @@ function desktop_mode_code_editor_scan_hooks_in_file( $path, array &$out ) {
 			'name'      => $hook,
 			'kind'      => $kind_for_name,
 			'signature' => $name . "( '" . $hook . "', … )",
-			'doc'       => desktop_mode_code_editor_phpdoc_summary( $last_doc_comment ),
-			'since'     => desktop_mode_code_editor_phpdoc_tag( $last_doc_comment, 'since' ),
+			'doc'       => openstation_code_editor_phpdoc_summary( $last_doc_comment ),
+			'since'     => openstation_code_editor_phpdoc_tag( $last_doc_comment, 'since' ),
 			'source'    => $rel . ':' . ( is_array( $tok ) ? (int) $tok[2] : 0 ),
 		);
 
@@ -286,7 +274,7 @@ function desktop_mode_code_editor_scan_hooks_in_file( $path, array &$out ) {
 }
 
 /** Map a function name to its hook kind, or null if it isn't a hook call. */
-function desktop_mode_code_editor_hook_kind_for_function_name( $name ) {
+function openstation_code_editor_hook_kind_for_function_name( $name ) {
 	switch ( $name ) {
 		case 'do_action':
 		case 'do_action_ref_array':
@@ -307,7 +295,7 @@ function desktop_mode_code_editor_hook_kind_for_function_name( $name ) {
  *
  * @internal
  */
-function desktop_mode_code_editor_next_significant_token( array $tokens, $start ) {
+function openstation_code_editor_next_significant_token( array $tokens, $start ) {
 	$count = count( $tokens );
 	for ( $i = $start; $i < $count; $i++ ) {
 		$tok = $tokens[ $i ];
@@ -322,7 +310,7 @@ function desktop_mode_code_editor_next_significant_token( array $tokens, $start 
 }
 
 /** Strip the surrounding quotes from a `T_CONSTANT_ENCAPSED_STRING` token's lexeme. */
-function desktop_mode_code_editor_unquote_string( $lexeme ) {
+function openstation_code_editor_unquote_string( $lexeme ) {
 	$lexeme = (string) $lexeme;
 	if ( strlen( $lexeme ) < 2 ) {
 		return '';
@@ -335,7 +323,7 @@ function desktop_mode_code_editor_unquote_string( $lexeme ) {
 }
 
 /** Format a value for display as a default in a parameter list. */
-function desktop_mode_code_editor_format_default( $value ) {
+function openstation_code_editor_format_default( $value ) {
 	if ( is_string( $value ) ) {
 		return "'" . $value . "'";
 	}
@@ -352,7 +340,7 @@ function desktop_mode_code_editor_format_default( $value ) {
 }
 
 /** Compose a human-readable signature line. */
-function desktop_mode_code_editor_format_signature( $name, array $params, $return = null ) {
+function openstation_code_editor_format_signature( $name, array $params, $return = null ) {
 	$parts = array();
 	foreach ( $params as $p ) {
 		$part = '';
@@ -388,12 +376,10 @@ function desktop_mode_code_editor_format_signature( $name, array $params, $retur
 /**
  * Pull the human-readable summary out of a PHPDoc block.
  *
- * @since 0.7.0
- *
  * @param string $doc Full docblock text including delimiters.
  * @return string
  */
-function desktop_mode_code_editor_phpdoc_summary( $doc ) {
+function openstation_code_editor_phpdoc_summary( $doc ) {
 	$doc = (string) $doc;
 	if ( '' === $doc ) {
 		return '';
@@ -421,13 +407,11 @@ function desktop_mode_code_editor_phpdoc_summary( $doc ) {
 /**
  * Pull a single `@tag` value out of a PHPDoc block.
  *
- * @since 0.7.0
- *
  * @param string $doc PHPDoc block.
  * @param string $tag Tag name without `@`.
  * @return string
  */
-function desktop_mode_code_editor_phpdoc_tag( $doc, $tag ) {
+function openstation_code_editor_phpdoc_tag( $doc, $tag ) {
 	$doc = (string) $doc;
 	$tag = preg_quote( (string) $tag, '/' );
 	if ( '' === $doc ) {
@@ -440,7 +424,7 @@ function desktop_mode_code_editor_phpdoc_tag( $doc, $tag ) {
 }
 
 /** Strip ABSPATH from a path; emit forward-slashed relative form. */
-function desktop_mode_code_editor_path_relative_to_abspath( $path ) {
+function openstation_code_editor_path_relative_to_abspath( $path ) {
 	if ( ! defined( 'ABSPATH' ) ) {
 		return wp_normalize_path( $path );
 	}
@@ -460,18 +444,16 @@ function desktop_mode_code_editor_path_relative_to_abspath( $path ) {
  * Query the index — prefix-match across functions + hooks, optionally
  * filtered by `$kinds`.
  *
- * @since 0.7.0
- *
  * @param string   $prefix Lower-cased identifier prefix.
  * @param string[] $kinds  Subset of {`function`, `action`, `filter`}.
  * @param int      $limit  Hard cap on returned matches.
  * @return array[] List of symbol entries.
  */
-function desktop_mode_code_editor_query_php_symbols( $prefix, array $kinds = array(), $limit = 50 ) {
+function openstation_code_editor_query_php_symbols( $prefix, array $kinds = array(), $limit = 50 ) {
 	$prefix = strtolower( (string) $prefix );
 	$limit  = max( 1, (int) $limit );
 
-	$index = desktop_mode_code_editor_get_wp_core_index();
+	$index = openstation_code_editor_get_wp_core_index();
 	$pool  = array();
 
 	if ( empty( $kinds ) || in_array( 'function', $kinds, true ) ) {
@@ -498,13 +480,11 @@ function desktop_mode_code_editor_query_php_symbols( $prefix, array $kinds = arr
 	 * Inject extra symbols (workspace functions, framework
 	 * dictionaries, etc.).
 	 *
-	 * @since 0.7.0
-	 *
 	 * @param array  $pool   Symbols collected from WP core.
 	 * @param string $prefix The prefix being queried.
 	 * @param array  $kinds  Kind filter.
 	 */
-	$pool = (array) apply_filters( 'desktop_mode_code_editor_php_index_extra_symbols', $pool, $prefix, $kinds );
+	$pool = (array) apply_filters( 'openstation_code_editor_php_index_extra_symbols', $pool, $prefix, $kinds );
 
 	$matches = array();
 	foreach ( $pool as $entry ) {
@@ -534,13 +514,11 @@ function desktop_mode_code_editor_query_php_symbols( $prefix, array $kinds = arr
 /**
  * Look up a single symbol by exact name.
  *
- * @since 0.7.0
- *
  * @param string $name
  * @return array|null
  */
-function desktop_mode_code_editor_get_php_symbol( $name ) {
-	$index = desktop_mode_code_editor_get_wp_core_index();
+function openstation_code_editor_get_php_symbol( $name ) {
+	$index = openstation_code_editor_get_wp_core_index();
 	$name  = (string) $name;
 	if ( isset( $index['functions'][ $name ] ) ) {
 		return $index['functions'][ $name ];

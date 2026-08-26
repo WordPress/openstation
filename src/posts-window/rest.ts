@@ -13,8 +13,8 @@
  * `createPostsWindowClient(windowId)` returns a {@link PostsWindowClient}
  * bound to one window's localized config blob. Each registry entry
  * in `./index.ts` builds its own client at mount time and threads
- * it into render code through closures. This replaces the
- * pre-0.8.3 module-level `_activeWindowId` singleton, which
+ * it into render code through closures. This replaces a
+ * module-level `_activeWindowId` singleton, which
  * silently drifted whenever a sibling window opened (notably the
  * Users window opening User-edit) and caused REST calls to read
  * the wrong window's config — observed as
@@ -23,7 +23,6 @@
  * structurally impossible.
  *
  * @public
- * @since 0.8.0
  */
 
 import { joinRestUrl } from '../rest-url';
@@ -31,44 +30,27 @@ import { trackedFetch } from '../tracked-fetch';
 
 declare global {
 	interface Window {
-		desktopModeWindowConfig?: Record< string, unknown >;
+		openStationWindowConfig?: Record< string, unknown >;
 	}
 }
 
 export interface PostsWindowConfig {
 	/**
 	 * Window mode — `'posts'` (default) or `'pages'`. Drives JS-side
-	 * branches: which intro dialog to show, whether to bind taxonomy
-	 * tabs, the column set, and the {@link introSlug} default. Absent
-	 * on Posts-window configs registered before 0.18 (treated as
-	 * `'posts'`).
-	 *
-	 * @since 0.8.1
+	 * branches: whether to bind taxonomy tabs, and the column set.
+	 * Absent on older Posts-window configs (treated as `'posts'`).
 	 */
 	mode?: 'posts' | 'pages' | 'users';
-	/**
-	 * Intro-dialog slug — `'posts'` for the canonical Posts window,
-	 * `'pages'` for the Pages window, plus any plugin-introduced
-	 * variant. Falls back to `mode` (or `'posts'` if `mode` is also
-	 * absent) so legacy Posts configs keep working unchanged.
-	 *
-	 * @since 0.8.1
-	 */
-	introSlug?: string;
 	/**
 	 * Page id assigned as the static front page (`page_on_front`),
 	 * or `0` when the site uses the latest-posts homepage. Pages-mode
 	 * only — the title cell paints a "Front page" badge on the row
 	 * matching this id.
-	 *
-	 * @since 0.8.1
 	 */
 	frontPageId?: number;
 	/**
 	 * Page id assigned as the blog-posts page (`page_for_posts`), or
 	 * `0` when unset. Same pattern as {@link frontPageId}.
-	 *
-	 * @since 0.8.1
 	 */
 	postsPageId?: number;
 	/**
@@ -76,8 +58,6 @@ export interface PostsWindowConfig {
 	 * templates. The Template column reads this to paint friendly
 	 * names instead of raw filenames. Falls back to the slug when a
 	 * theme registers a template the table doesn't yet know.
-	 *
-	 * @since 0.8.1
 	 */
 	pageTemplates?: Record< string, string >;
 	// ─── Users window only ───────────────────────────────────────────
@@ -126,25 +106,14 @@ export interface PostsWindowConfig {
 	defaultPerPage: number;
 	/** Default outbound query args (e.g. `_fields`, `_embed`, `post_type`). */
 	queryArgs: Record< string, string >;
-	/**
-	 * Boot-time snapshot of whether the user has already dismissed the
-	 * Posts intro dialog. When false, the bundle shows the dialog the
-	 * first time the window opens and POSTs to {@link introUrl} on
-	 * dismiss.
-	 */
-	introSeen: boolean;
-	/** REST URL for `POST /desktop-mode/v1/intros/seen`. */
-	introUrl: string;
 }
 
 /**
  * Active edit-lock holder for a row, surfaced via the
- * `desktop_mode_lock` REST field registered in
+ * `openstation_lock` REST field registered in
  * `includes/my-wordpress/lock.php`. `null` when the row isn't
  * locked, when the requester lacks edit caps, or when the
  * requester is the lock holder.
- *
- * @since 0.8.0
  */
 export interface PostListItemLock {
 	userId: number;
@@ -170,15 +139,11 @@ export interface PostListItem {
 	 * and surface this via `/wp/v2/pages`; the Posts collection always
 	 * returns `0`. Optional so legacy callers don't need to add the
 	 * field to their `_fields` whitelist.
-	 *
-	 * @since 0.8.1
 	 */
 	parent?: number;
 	/**
 	 * `menu_order` field (also primarily used by Pages). Optional for
 	 * the same reason as {@link parent}.
-	 *
-	 * @since 0.8.1
 	 */
 	menu_order?: number;
 	/** URL-friendly slug. Optional — Posts callers may not include it. */
@@ -192,16 +157,14 @@ export interface PostListItem {
 	template?: string;
 	/**
 	 * Comments count for this row, surfaced via the
-	 * `desktop_mode_comment_count` REST field registered in
+	 * `openstation_comment_count` REST field registered in
 	 * `includes/pages-window/window.php`. Absent for callers that
 	 * don't include the field in `_fields`.
-	 *
-	 * @since 0.8.1
 	 */
-	desktop_mode_comment_count?: number;
+	openstation_comment_count?: number;
 	comment_status: 'open' | 'closed';
 	excerpt?: { rendered: string; protected?: boolean };
-	desktop_mode_lock?: PostListItemLock | null;
+	openstation_lock?: PostListItemLock | null;
 	_embedded?: {
 		author?: Array< {
 			id: number;
@@ -290,8 +253,6 @@ export interface TagOptionsPage {
  * Common shape for both categories and tags as displayed in the term-
  * management tabs. The `parent` field is `0` for tags (flat taxonomy)
  * and the parent term id for categories.
- *
- * @since 0.8.0
  */
 export interface TermRow {
 	id: number;
@@ -303,11 +264,11 @@ export interface TermRow {
 	/**
 	 * Whether this term is the taxonomy's default fallback (e.g.
 	 * Uncategorized for category; populated server-side via the
-	 * `desktop_mode_is_default` REST field). `false` when the field
+	 * `openstation_is_default` REST field). `false` when the field
 	 * isn't surfaced (older PHP build) or the term isn't the default.
 	 */
 	isDefault: boolean;
-	// Index signature so `<wpd-table>`'s row constraint
+	// Index signature so `<os-table>`'s row constraint
 	// (`Record<string, unknown>`) is satisfied — the table never
 	// reads beyond the declared keys, but the type-level constraint
 	// is structural.
@@ -348,8 +309,6 @@ interface RequestResult< T > {
  * to the client's bound `windowId`, so two windows of the same
  * bundle (Posts + Pages, Users + User-edit) cannot read each
  * other's config or steal each other's title-bar spinner.
- *
- * @since 0.8.3
  */
 export interface PostsWindowClient {
 	readonly windowId: string;
@@ -401,7 +360,6 @@ export interface PostsWindowClient {
  * posts the two terms share.
  *
  * @public
- * @since 0.8.5
  */
 export interface TermNeighbor {
 	id: number;
@@ -414,7 +372,7 @@ export interface TermNeighbor {
  * caches the full tree per window-open) clear their caches so they
  * pick up the change without needing F5.
  *
- * Channel: `desktop-mode.term.changed`. Payload:
+ * Channel: `os.term.changed`. Payload:
  * `{ taxonomy: 'category' | 'post_tag', action, id }`.
  *
  * @internal
@@ -427,7 +385,7 @@ function broadcastTermChange(
 	const api = (
 		window as unknown as {
 			wp?: {
-				desktop?: {
+				os?: {
 					broadcast?: (
 						channel: string,
 						payload: unknown,
@@ -435,9 +393,9 @@ function broadcastTermChange(
 				};
 			};
 		}
-	).wp?.desktop;
+	).wp?.os;
 	if ( api && typeof api.broadcast === 'function' ) {
-		api.broadcast( 'desktop-mode.term.changed', {
+		api.broadcast( 'os.term.changed', {
 			source: 'posts-window',
 			taxonomy,
 			action,
@@ -453,21 +411,19 @@ function broadcastTermChange(
  *                 (`'desktop-mode-posts'`, `'desktop-mode-pages'`, …). All
  *                 `getConfig()` reads key off this id, and every fetch is
  *                 attributed to it via `trackedFetch`'s `windowId` option.
- *
- * @since 0.8.3
  */
 export function createPostsWindowClient(
 	windowId: string,
 ): PostsWindowClient {
 	const getConfig = (): PostsWindowConfig => {
-		const store = window.desktopModeWindowConfig;
+		const store = window.openStationWindowConfig;
 		const cfg = store
 			? ( store[ windowId ] as PostsWindowConfig | undefined )
 			: undefined;
 		if ( ! cfg ) {
 			throw new Error(
 				`[${ windowId }] config blob is missing — was the window opened ` +
-					'without registration? See the matching `desktop_mode_register_window()` ' +
+					'without registration? See the matching `openstation_register_window()` ' +
 					'call in `includes/{posts,pages}-window/window.php`.',
 			);
 		}
@@ -815,7 +771,7 @@ export function createPostsWindowClient(
 		url.searchParams.set( 'page', String( params.page ?? 1 ) );
 		url.searchParams.set(
 			'_fields',
-			'id,name,slug,parent,count,description,desktop_mode_count,desktop_mode_is_default',
+			'id,name,slug,parent,count,description,openstation_count,openstation_is_default',
 		);
 		url.searchParams.set( 'orderby', params.orderby ?? 'name' );
 		url.searchParams.set( 'order', params.order ?? 'asc' );
@@ -834,11 +790,11 @@ export function createPostsWindowClient(
 				// Prefer the any-status count (includes drafts + pending)
 				// when the server emits it; fall back to core's `count`
 				// for older PHP builds that predate the custom field.
-				const anyCount = ( t as { desktop_mode_count?: number } )
-					.desktop_mode_count;
+				const anyCount = ( t as { openstation_count?: number } )
+					.openstation_count;
 				const isDefault =
-					( t as { desktop_mode_is_default?: boolean } )
-						.desktop_mode_is_default === true;
+					( t as { openstation_is_default?: boolean } )
+						.openstation_is_default === true;
 				return {
 					id: ( t.id as number ) ?? 0,
 					name: ( t.name as string ) ?? '',

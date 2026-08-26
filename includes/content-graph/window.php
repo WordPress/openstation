@@ -1,20 +1,70 @@
 <?php
 /**
- * Desktop Mode — Content Graph: window + desktop icon registration.
+ * OpenStation — Content Graph: window + desktop icon registration.
  *
  * Filterable surface (mirrors the my-wordpress module shape):
  *
- *   - `desktop_mode_content_graph_window_args`
- *   - `desktop_mode_content_graph_icon_args`
- *   - `desktop_mode_content_graph_user_can_use`
- *   - `desktop_mode_content_graph_post_types`
- *   - `desktop_mode_content_graph_template_html`
+ *   - `openstation_content_graph_window_args`
+ *   - `openstation_content_graph_icon_args`
+ *   - `openstation_content_graph_user_can_use`
+ *   - `openstation_content_graph_post_types`
+ *   - `openstation_content_graph_template_html`
  *
- * @package WPDesktopMode
- * @since   0.8.2
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
+
+/**
+ * The Corkboard SVG, shared by the window icon and the desktop icon.
+ *
+ * The thread is the window's actual subject: the links between pieces
+ * of content. That reading is unchanged and is why this icon exists at
+ * all. What changed is everything drawn around it.
+ *
+ * The previous version framed two pinned notes with the thread arcing
+ * over them. On a 64-unit grid the arc closed the top of the
+ * silhouette, and a closed top over two rectangles is a bag: at 40px
+ * and below the icon read as a shopping bag rather than a board. The
+ * frame was also spending most of the 20px budget on an outline that
+ * carried no meaning, leaving the notes too small to be notes.
+ *
+ * So the board and the paper are gone and the graph is the whole mark:
+ * one focused post with related ones fanned around it, which is what
+ * the window itself draws now that nodes are discs rather than post-
+ * type glyphs (see `src/content-graph/satellites.ts`). Sizes are
+ * deliberately unequal, so the hierarchy reads without a caption.
+ *
+ * Pin-led marks are deliberately avoided: `assets/images/pushpin.svg`
+ * belongs to pinned notes, and an icon led by a pin would point at
+ * that feature instead of this one.
+ *
+ * Drawn in `currentColor`, which makes it a silhouette: `renderIcon()`
+ * paints it as a CSS mask rather than a background-image, so it takes
+ * whatever colour the surface is already using for text. That keeps it
+ * legible on the dark dock, on a light title bar, and under a desktop
+ * theme's icon tint, with nothing to configure.
+ *
+ * Hand-placed at 64×64 like the Games icon, the established shape for
+ * custom icons here, and held to five elements because it renders as
+ * small as 20px in the dock.
+ *
+ * @return string Raw `<svg>` markup.
+ */
+function openstation_content_graph_icon_svg() {
+	return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">'
+		// Threads first: the discs below are drawn over their ends, so
+		// the joins stay round instead of showing a stroke cap.
+		. '<path d="M14 16 32 32 52 18M32 32 40 49" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>'
+		// The focused post.
+		. '<circle cx="32" cy="32" r="9" fill="currentColor"/>'
+		// Its satellites, sized just under the hub so the eye lands on
+		// the middle first.
+		. '<circle cx="14" cy="16" r="5.5" fill="currentColor"/>'
+		. '<circle cx="52" cy="18" r="5.5" fill="currentColor"/>'
+		. '<circle cx="40" cy="49" r="5" fill="currentColor"/>'
+		. '</svg>';
+}
 
 /**
  * Whether the current user should see Content Graph.
@@ -22,22 +72,18 @@ defined( 'ABSPATH' ) || exit;
  * Mirrors the my-wordpress gate, anyone who can edit posts can view
  * the link map of the content they author and maintain.
  *
- * @since 0.8.2
- *
  * @return bool
  */
-function desktop_mode_content_graph_user_can_use() {
+function openstation_content_graph_user_can_use() {
 	$can = current_user_can( 'edit_posts' );
 
 	/**
 	 * Filter whether the current user can see the Content Graph
 	 * desktop icon and window.
 	 *
-	 * @since 0.8.2
-	 *
 	 * @param bool $can Default: edit_posts capability.
 	 */
-	return (bool) apply_filters( 'desktop_mode_content_graph_user_can_use', $can );
+	return (bool) apply_filters( 'openstation_content_graph_user_can_use', $can );
 }
 
 /**
@@ -46,11 +92,9 @@ function desktop_mode_content_graph_user_can_use() {
  * default), matching the user-facing filter bar that ships ON for all
  * of them.
  *
- * @since 0.8.2
- *
  * @return array[] Each entry: `array( 'slug', 'label', 'icon', 'taxonomies' )`.
  */
-function desktop_mode_content_graph_post_types() {
+function openstation_content_graph_post_types() {
 	$types  = get_post_types( array( 'public' => true ), 'objects' );
 	$result = array();
 	foreach ( $types as $type ) {
@@ -80,11 +124,9 @@ function desktop_mode_content_graph_post_types() {
 	 * an entry hides it from the filter bar AND excludes it from the
 	 * graph entirely.
 	 *
-	 * @since 0.8.2
-	 *
 	 * @param array[] $result Default: every public post type except attachment.
 	 */
-	$filtered = apply_filters( 'desktop_mode_content_graph_post_types', $result );
+	$filtered = apply_filters( 'openstation_content_graph_post_types', $result );
 	$filtered = is_array( $filtered ) ? array_values( $filtered ) : $result;
 
 	foreach ( $filtered as $i => $entry ) {
@@ -100,22 +142,20 @@ function desktop_mode_content_graph_post_types() {
 
 /**
  * Render the Content Graph window's static template body. The bundle
- * mounts its UI into `[data-desktop-mode-content-graph-root]`.
- *
- * @since 0.8.2
+ * mounts its UI into `[data-os-content-graph-root]`.
  */
-function desktop_mode_content_graph_render_template() {
+function openstation_content_graph_render_template() {
 	ob_start();
 	?>
-	<div class="desktop-mode-content-graph" data-desktop-mode-content-graph-root>
-		<header class="desktop-mode-content-graph__toolbar" data-desktop-mode-content-graph-toolbar></header>
-		<div class="desktop-mode-content-graph__body">
-			<div class="desktop-mode-content-graph__stage" data-desktop-mode-content-graph-stage>
-				<div class="desktop-mode-content-graph__loading" data-desktop-mode-content-graph-loading>
-					<wpd-spinner></wpd-spinner>
+	<div class="desktop-mode-content-graph" data-os-content-graph-root>
+		<header class="os-content-graph__toolbar" data-os-content-graph-toolbar></header>
+		<div class="os-content-graph__body">
+			<div class="os-content-graph__stage" data-os-content-graph-stage>
+				<div class="os-content-graph__loading" data-os-content-graph-loading>
+					<os-spinner></os-spinner>
 				</div>
 			</div>
-			<aside class="desktop-mode-content-graph__panel" data-desktop-mode-content-graph-panel hidden></aside>
+			<aside class="os-content-graph__panel" data-os-content-graph-panel hidden></aside>
 		</div>
 	</div>
 	<?php
@@ -124,14 +164,12 @@ function desktop_mode_content_graph_render_template() {
 	/**
 	 * Filter the Content Graph window's template HTML.
 	 *
-	 * @since 0.8.2
-	 *
 	 * @param string $html Default template HTML.
 	 */
-	$filtered = (string) apply_filters( 'desktop_mode_content_graph_template_html', $html );
+	$filtered = (string) apply_filters( 'openstation_content_graph_template_html', $html );
 
-	$allowed_html = function_exists( 'desktop_mode_native_window_allowed_html' )
-		? desktop_mode_native_window_allowed_html()
+	$allowed_html = function_exists( 'openstation_native_window_allowed_html' )
+		? openstation_native_window_allowed_html()
 		: wp_kses_allowed_html( 'post' );
 
 	echo wp_kses( $filtered, $allowed_html );
@@ -140,20 +178,20 @@ function desktop_mode_content_graph_render_template() {
 /**
  * Register the native window + the desktop icon on `init` priority 20,
  * matching the my-wordpress + recycle-bin modules.
- *
- * @since 0.8.2
  */
-function desktop_mode_content_graph_register_window() {
-	if ( ! desktop_mode_content_graph_user_can_use() ) {
+function openstation_content_graph_register_window() {
+	if ( ! openstation_content_graph_user_can_use() ) {
 		return;
 	}
 
+	$icon_uri = 'data:image/svg+xml;base64,' . base64_encode( openstation_content_graph_icon_svg() );
+
 	$window_args = array(
-		'title'      => __( 'Content Graph', 'desktop-mode' ),
-		'icon'       => 'dashicons-networking',
-		'template'   => 'desktop_mode_content_graph_render_template',
+		'title'      => __( 'Corkboard', 'desktop-mode' ),
+		'icon'       => $icon_uri,
+		'template'   => 'openstation_content_graph_render_template',
 		'script'     => 'desktop-mode-content-graph',
-		'style'      => 'desktop-mode-content-graph',
+		'styles'     => array( 'desktop-mode-content-graph' ),
 		'width'      => 1080,
 		'height'     => 720,
 		'min_width'  => 720,
@@ -168,29 +206,30 @@ function desktop_mode_content_graph_register_window() {
 			'editUserUrl'    => esc_url_raw( admin_url( 'user-edit.php' ) ),
 			'editCommentUrl' => esc_url_raw( admin_url( 'comment.php' ) ),
 			'mediaUrl'       => esc_url_raw( admin_url( 'upload.php' ) ),
-			'postTypes'      => desktop_mode_content_graph_post_types(),
+			// Labels the "Open in <site>" action on the detail panel,
+			// which hands off to the WP Explorer window.
+			'siteName'       => openstation_site_title(),
+			'postTypes'      => openstation_content_graph_post_types(),
 		),
 	);
 
 	/**
 	 * Filter the args used to register the Content Graph native window.
 	 *
-	 * @since 0.8.2
-	 *
-	 * @param array $window_args Args passed to `desktop_mode_register_window()`.
+	 * @param array $window_args Args passed to `openstation_register_window()`.
 	 */
-	$window_args = (array) apply_filters( 'desktop_mode_content_graph_window_args', $window_args );
+	$window_args = (array) apply_filters( 'openstation_content_graph_window_args', $window_args );
 
-	$registered = desktop_mode_register_window( 'desktop-mode-content-graph', $window_args );
+	$registered = openstation_register_window( 'desktop-mode-content-graph', $window_args );
 	if ( is_wp_error( $registered ) ) {
 		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-		error_log( '[desktop-mode] Content Graph window registration failed: ' . $registered->get_error_message() );
+		error_log( '[openstation] Content Graph window registration failed: ' . $registered->get_error_message() );
 		return;
 	}
 
 	$icon_args = array(
-		'title'    => __( 'Content Graph', 'desktop-mode' ),
-		'icon'     => 'dashicons-networking',
+		'title'    => __( 'Corkboard', 'desktop-mode' ),
+		'icon_svg' => openstation_content_graph_icon_svg(),
 		'window'   => 'desktop-mode-content-graph',
 		'pinned'   => false,
 		'position' => 20,
@@ -199,26 +238,10 @@ function desktop_mode_content_graph_register_window() {
 	/**
 	 * Filter the args used to register the Content Graph desktop icon.
 	 *
-	 * @since 0.8.2
-	 *
-	 * @param array $icon_args Args passed to `desktop_mode_register_icon()`.
+	 * @param array $icon_args Args passed to `openstation_register_icon()`.
 	 */
-	$icon_args = (array) apply_filters( 'desktop_mode_content_graph_icon_args', $icon_args );
+	$icon_args = (array) apply_filters( 'openstation_content_graph_icon_args', $icon_args );
 
-	desktop_mode_register_icon( 'desktop-mode-content-graph', $icon_args );
+	openstation_register_icon( 'desktop-mode-content-graph', $icon_args );
 }
-add_action( 'init', 'desktop_mode_content_graph_register_window', 20 );
-
-/**
- * Enqueue the bundle's CSS in admin context. The script is lazy-
- * loaded by the native-window sync.
- *
- * @since 0.8.2
- */
-function desktop_mode_content_graph_enqueue_styles() {
-	if ( ! desktop_mode_content_graph_user_can_use() ) {
-		return;
-	}
-	wp_enqueue_style( 'desktop-mode-content-graph' );
-}
-add_action( 'admin_enqueue_scripts', 'desktop_mode_content_graph_enqueue_styles', 30 );
+add_action( 'init', 'openstation_content_graph_register_window', 20 );

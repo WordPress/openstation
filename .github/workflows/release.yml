@@ -1,13 +1,30 @@
 name: Release
 
-# Triggered by pushing a vX.Y.Z tag. Builds the plugin zip and creates a
-# GitHub Release with it attached. Use `bin/release.sh` locally to cut a
-# release end-to-end (bump + commit + tag + push).
+# Triggered by pushing a vX.Y.Z tag. Builds the plugin zip, creates a GitHub
+# Release with it attached, then deploys stable tags to WordPress.org. Use
+# `bin/release.sh` locally to cut a release end-to-end (bump + commit + tag
+# + push).
+#
+# Also runnable manually against an already-published tag, which re-attempts
+# the WordPress.org deploy and leaves the GitHub Release untouched:
+#
+#     gh workflow run release.yml --ref trunk -f tag=v1.0.0
+#
+# That exists because a tag push runs the workflow definition frozen into
+# that tag's commit, so a deploy that fails for a workflow-level reason can
+# never be fixed by re-running it. Dispatching from trunk runs the current
+# definition instead.
 
 on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Published tag to deploy to WordPress.org (e.g. v1.0.0)'
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -16,11 +33,18 @@ jobs:
   release:
     name: Build & publish release
     runs-on: ubuntu-latest
+    env:
+      # The tag being released: the pushed ref, or the dispatch input.
+      # Consumed as a shell variable rather than interpolated into `run:`
+      # bodies, so the dispatch input can't inject into the script.
+      TAG: ${{ inputs.tag || github.ref_name }}
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag || github.ref_name }}
 
       - name: Set up Node
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '24'
           cache: 'npm'
@@ -31,16 +55,21 @@ jobs:
 
       - name: Verify tag matches plugin version
         run: |
-          tag="${{ github.ref_name }}"
-          tag="${tag#v}"
+          tag="${TAG#v}"
           pkg=$(node -p "require('./package.json').version")
           header=$(grep -oP '^\s*\*\s*Version:\s*\K\S+' desktop-mode.php)
-          constant=$(grep -oP "DESKTOP_MODE_VERSION',\s*'\K[^']+" desktop-mode.php)
+          constant=$(grep -oP "OPENSTATION_VERSION',\s*'\K[^']+" desktop-mode.php)
           stable=$(grep -oP '^Stable tag:\s*\K\S+' readme.txt)
           if ! [[ "$tag" == "$pkg" && "$tag" == "$header" && "$tag" == "$constant" && "$tag" == "$stable" ]]; then
-            echo "::error::Version mismatch — tag '$tag' vs package.json=$pkg header=$header DESKTOP_MODE_VERSION=$constant readme.txt Stable tag=$stable"
+            echo "::error::Version mismatch — tag '$tag' vs package.json=$pkg header=$header OPENSTATION_VERSION=$constant readme.txt Stable tag=$stable"
             exit 1
           fi
+          # The deploy action derives VERSION from GITHUB_REF, which is only a
+          # tag ref on a tag push — on a dispatch it resolves to the branch ref
+          # and the SVN tag copy becomes `tags/refs/heads/trunk`. Publish the
+          # version that was just checked against all four locations, so the
+          # deploy uses a verified value however the workflow was triggered.
+          echo "VERSION=$tag" >> "$GITHUB_ENV"
 
       - name: Build
         run: npm run build
@@ -51,29 +80,42 @@ jobs:
       - name: Package Desktop Mode Beta companion zip
         run: bin/package-beta.sh
 
+      # Skipped on a manual dispatch: the Release already exists, and
+      # `gh release create` is not idempotent — it would fail the job
+      # before it ever reached the deploy.
       - name: Create GitHub Release
+        if: github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="${{ github.ref_name }}"
           flags=()
-          if [[ "$tag" == *-* ]]; then
+          if [[ "$TAG" == *-* ]]; then
             flags+=(--prerelease)
           fi
-          gh release create "$tag" \
-            --title "$tag" \
+          gh release create "$TAG" \
+            --title "$TAG" \
             --generate-notes \
             "${flags[@]}" \
-            desktop-mode.zip desktop-mode-beta.zip
+            openstation.zip desktop-mode-beta.zip
 
       - name: Unpack zip for wp.org deploy
-        if: ${{ !contains(github.ref_name, '-') }}
-        run: unzip -q desktop-mode.zip -d build/
+        if: ${{ !contains(env.TAG, '-') }}
+        run: unzip -q openstation.zip -d build/
 
       - name: Deploy to WordPress.org
-        if: ${{ !contains(github.ref_name, '-') }}
+        if: ${{ !contains(env.TAG, '-') }}
         uses: 10up/action-wordpress-plugin-deploy@54bd289b8525fd23a5c365ec369185f2966529c2 # 2.3.0
         env:
           SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
           SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
+          # The wp.org slug is frozen at `desktop-mode` (see AGENTS.md) — it is
+          # the published plugin's SVN path and install directory, and renaming
+          # it would orphan every existing install's update check. Set it
+          # explicitly: the action otherwise defaults SLUG to the GitHub repo
+          # name, which used to coincide with the wp.org slug and stopped
+          # doing so when this repo was renamed to `openstation`.
+          SLUG: desktop-mode
           BUILD_DIR: ./build/desktop-mode
+          # VERSION comes from the verify step via $GITHUB_ENV — see the note
+          # there. Both it and SLUG default off a GitHub context that is only
+          # correct for a tag push, so neither is left implicit.

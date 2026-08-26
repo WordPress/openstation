@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Window content-relations types.
+ * OpenStation — Window content-relations types.
  *
  * A window may carry a **content identity**: the piece of content it
  * shows ("I am post 123", "I am comment 45 *of* post 123"). Identities
@@ -13,8 +13,6 @@
  * A ref without `root` IS a root; a ref with `root` is a child of it.
  * Third parties join by namespacing their `type` (`vendor/order`) and
  * pointing `root` wherever they like.
- *
- * @since 0.9.4
  */
 
 import type { WindowState } from '../types';
@@ -23,10 +21,8 @@ import type { WindowState } from '../types';
  * A ready-to-open navigation target related to a window's content —
  * one entry in the title bar's "Related" menu. Built server-side for
  * posts/pages (comments, assigned terms, attached media) and open to
- * plugins via the `desktop_mode_window_related_entities` PHP filter
- * and the `desktop-mode.related-entities.items` JS filter.
- *
- * @since 0.9.6
+ * plugins via the `openstation_window_related_entities` PHP filter
+ * and the `os.related-entities.items` JS filter.
  */
 export interface RelatedEntityItem {
 	/**
@@ -48,8 +44,46 @@ export interface RelatedEntityItem {
 	label: string;
 	/** Dashicons class painted before the label. */
 	icon?: string;
-	/** Admin URL the item opens (as its own desktop window). */
-	url: string;
+	/**
+	 * Admin URL the item opens (as its own desktop window).
+	 *
+	 * Consulted against the native-URL remap registry first, so a
+	 * URL a native window has claimed opens that window rather than
+	 * an iframe of the classic page.
+	 *
+	 * Optional only when {@link windowId} is given — an item has to
+	 * name a destination one way or the other.
+	 */
+	url?: string;
+	/**
+	 * Native window to open instead of a URL.
+	 *
+	 * A native window has no admin URL, so before this the only way
+	 * to point a related item at one was to register an admin URL
+	 * for it, remap that URL back to the window, and encode any
+	 * scoping into the query string on the way through. Name it
+	 * directly:
+	 *
+	 * ```js
+	 * { id: 'entries', group: 'forms', label: 'Entries for this form',
+	 *   windowId: 'my-plugin-entries', params: { formId: 42 } }
+	 * ```
+	 *
+	 * Takes precedence over `url` when both are present. Falls back
+	 * to `url` when no window is registered under this id — a plugin
+	 * whose native window is gone still opens its admin page.
+	 */
+	windowId?: string;
+	/**
+	 * Open-time params for {@link windowId} — what the window should
+	 * be showing. Ignored for URL destinations, which carry their
+	 * scoping in the query string.
+	 *
+	 * Persisted with the session like any other window params, so
+	 * the window comes back on the same subject after a reload. See
+	 * `WindowConfig.params`.
+	 */
+	params?: Record< string, string | number | boolean >;
 	/** Optional count rendered after the label (comment total). */
 	count?: number;
 }
@@ -114,17 +148,24 @@ export interface WindowContentRef {
 	 * Ready-to-open navigation targets related to this content — what
 	 * the title bar's "Related" button lists. Built server-side (the
 	 * chromeless bridge announces it with the identity) and filterable
-	 * client-side via `desktop-mode.related-entities.items`. Not part
+	 * client-side via `os.related-entities.items`. Not part
 	 * of group membership — purely a navigation affordance.
-	 *
-	 * @since 0.9.6
 	 */
 	related?: RelatedEntityItem[];
+	/**
+	 * Front-end preview URL for this content — the target of the title
+	 * bar's "Preview" (eye) button. Built server-side via
+	 * `get_preview_post_link()` (autosave-aware, carries a
+	 * `preview_nonce`), so it is only present on post-editor
+	 * identities of viewable post types. Same-origin URLs only — the
+	 * engine drops anything else.
+	 */
+	previewUrl?: string;
 	/**
 	 * Provenance, stamped by the engine — never set it yourself:
 	 * `'config'` (seeded from `WindowConfig.content`), `'bridge'`
 	 * (announced by the chromeless iframe bridge), `'api'`
-	 * (`wp.desktop.relations.set()`).
+	 * (`wp.os.relations.set()`).
 	 */
 	source?: 'config' | 'bridge' | 'api';
 }
@@ -188,7 +229,7 @@ export interface WindowLinkFrame {
 			content: WindowContentRef;
 			/**
 			 * Window geometry relative to the link layer (which shares
-			 * `#desktop-mode-area` as offset parent with the windows).
+			 * `#os-area` as offset parent with the windows).
 			 * `null` when the window is minimized, snapped into split
 			 * view (`snapped-left` / `snapped-right` — a half-screen
 			 * tile draws no ties), on another virtual desktop, or
@@ -289,7 +330,7 @@ export interface WindowLinkRendererContext {
 /**
  * A pluggable window-link renderer — how relation groups are drawn on
  * the desktop. The built-in `svg-splines` registers through the same
- * public API (`wp.desktop.registerWindowLinkRenderer`) a plugin would
+ * public API (`wp.os.registerWindowLinkRenderer`) a plugin would
  * use; the user picks the active renderer in OS Settings → Effects.
  */
 export interface WindowLinkRendererDef {
@@ -320,7 +361,7 @@ export interface WindowLinkRendererDef {
 }
 
 /**
- * The `wp.desktop.relations` public API surface.
+ * The `wp.os.relations` public API surface.
  */
 export interface WindowRelationsApi {
 	/** Current content identity of a window, if any. */

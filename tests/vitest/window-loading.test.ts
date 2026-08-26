@@ -4,8 +4,6 @@
  * `WINDOW_CONTENT_LOADING` / `WINDOW_CONTENT_LOADED` hooks +
  * matching CustomEvents) and the visual side (overlay element, body
  * `--loading` modifier, sync vs. Promise-returning native render).
- *
- * @since 0.6.0
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { WindowManager } from '../../src/window-manager';
@@ -27,6 +25,16 @@ import {
 	installWindowLoadingTransitions,
 	repaintLoadingOverlays,
 } from '../../src/window/loading';
+import {
+	LOADING_HANDOFF_BODY_CLASS,
+	LOADING_STARTED_ATTR,
+} from '../../src/window/dom';
+import {
+	LOADING_CONTENT_FADE_IN_MS,
+	LOADING_OVERLAY_FADE_OUT_MS,
+	LOADING_OVERLAY_SHOW_DELAY_MS,
+	LOADING_OVERLAY_VISIBLE_CLASS,
+} from '../../src/window/constants';
 
 const tick = (): Promise< void > => Promise.resolve();
 const raf = (): Promise< void > =>
@@ -74,12 +82,12 @@ describe( 'createWindowElement — loading overlay', async () => {
 			width: 800,
 			height: 600,
 		} );
-		const body = el.querySelector( '.desktop-mode-window__body' );
+		const body = el.querySelector( '.os-window__body' );
 		expect( body ).not.toBeNull();
-		expect( body!.classList.contains( 'desktop-mode-window__body--loading' ) ).toBe( true );
-		const overlay = el.querySelector( '.desktop-mode-window__loading' );
+		expect( body!.classList.contains( 'os-window__body--loading' ) ).toBe( true );
+		const overlay = el.querySelector( '.os-window__loading' );
 		expect( overlay ).not.toBeNull();
-		expect( overlay!.querySelector( 'wpd-spinner' ) ).not.toBeNull();
+		expect( overlay!.querySelector( 'os-spinner' ) ).not.toBeNull();
 	} );
 
 	test( 'native windows mount with the same overlay', async () => {
@@ -94,11 +102,11 @@ describe( 'createWindowElement — loading overlay', async () => {
 			width: 400,
 			height: 320,
 		} );
-		const body = el.querySelector( '.desktop-mode-window__body' );
+		const body = el.querySelector( '.os-window__body' );
 		expect( body ).not.toBeNull();
-		expect( body!.classList.contains( 'desktop-mode-window__body--loading' ) ).toBe( true );
-		expect( body!.classList.contains( 'desktop-mode-window__body--native' ) ).toBe( true );
-		expect( el.querySelector( 'wpd-spinner' ) ).not.toBeNull();
+		expect( body!.classList.contains( 'os-window__body--loading' ) ).toBe( true );
+		expect( body!.classList.contains( 'os-window__body--native' ) ).toBe( true );
+		expect( el.querySelector( 'os-spinner' ) ).not.toBeNull();
 	} );
 
 	test( 'construction marks the window as loading', async () => {
@@ -126,8 +134,65 @@ describe( 'createWindowElement — loading overlay', async () => {
 			width: 400,
 			height: 320,
 		} );
-		const spinner = el.querySelector( 'wpd-spinner' );
+		const spinner = el.querySelector( 'os-spinner' );
 		expect( spinner!.getAttribute( 'size' ) ).toBe( 'clamp(96px, 14vw, 192px)' );
+	} );
+
+	test( 'the overlay mounts INVISIBLE and only shows past the delay', async () => {
+		vi.useFakeTimers();
+		try {
+			const el = createWindowElement( {
+				id: 'probe-delay',
+				url: '#probe-delay',
+				title: 'Probe',
+				icon: 'dashicons-admin-post',
+				x: 0,
+				y: 0,
+				width: 400,
+				height: 320,
+			} );
+			document.body.appendChild( el );
+			const overlay = el.querySelector( '.os-window__loading' )!;
+
+			// The whole point: a body built with the loading modifier
+			// already on it gives its overlay no before-change style to
+			// transition from, so the visible state has to be withheld
+			// by JS rather than delayed by CSS.
+			expect(
+				overlay.classList.contains( LOADING_OVERLAY_VISIBLE_CLASS ),
+			).toBe( false );
+
+			vi.advanceTimersByTime( LOADING_OVERLAY_SHOW_DELAY_MS - 1 );
+			expect(
+				overlay.classList.contains( LOADING_OVERLAY_VISIBLE_CLASS ),
+			).toBe( false );
+
+			vi.advanceTimersByTime( 1 );
+			expect(
+				overlay.classList.contains( LOADING_OVERLAY_VISIBLE_CLASS ),
+			).toBe( true );
+
+			el.remove();
+		} finally {
+			vi.useRealTimers();
+		}
+	} );
+
+	test( 'construction stamps the show-delay clock on the body', async () => {
+		const el = createWindowElement( {
+			id: 'probe-stamp',
+			url: '#probe-stamp',
+			title: 'Probe',
+			icon: 'dashicons-admin-post',
+			x: 0,
+			y: 0,
+			width: 400,
+			height: 320,
+		} );
+		const body = el.querySelector< HTMLElement >( '.os-window__body' )!;
+		expect( Number( body.getAttribute( LOADING_STARTED_ATTR ) ) ).toBeGreaterThan(
+			0,
+		);
 	} );
 } );
 
@@ -152,7 +217,7 @@ describe( 'markWindowContentLoading / Ready — hook + CustomEvent firing', asyn
 		);
 		const eventSpy = vi.fn();
 		document.addEventListener(
-			'desktop-mode-window-content-loading',
+			'os-window-content-loading',
 			eventSpy as EventListener,
 		);
 
@@ -164,7 +229,7 @@ describe( 'markWindowContentLoading / Ready — hook + CustomEvent firing', asyn
 		expect( detail ).toEqual( { windowId: 'win-1' } );
 
 		document.removeEventListener(
-			'desktop-mode-window-content-loading',
+			'os-window-content-loading',
 			eventSpy as EventListener,
 		);
 	} );
@@ -194,7 +259,7 @@ describe( 'markWindowContentLoading / Ready — hook + CustomEvent firing', asyn
 		);
 		const eventSpy = vi.fn();
 		document.addEventListener(
-			'desktop-mode-window-content-loaded',
+			'os-window-content-loaded',
 			eventSpy as EventListener,
 		);
 
@@ -207,7 +272,7 @@ describe( 'markWindowContentLoading / Ready — hook + CustomEvent firing', asyn
 		expect( detail ).toEqual( { windowId: 'win-3' } );
 
 		document.removeEventListener(
-			'desktop-mode-window-content-loaded',
+			'os-window-content-loaded',
 			eventSpy as EventListener,
 		);
 	} );
@@ -272,15 +337,15 @@ describe( 'installWindowLoadingTransitions — visual side', async () => {
 			title: 'Visual 1',
 		} );
 		const body = document.querySelector(
-			'#wp-window-visual-1 .desktop-mode-window__body',
+			'#wp-window-visual-1 .os-window__body',
 		);
-		expect( body!.classList.contains( 'desktop-mode-window__body--loading' ) ).toBe(
+		expect( body!.classList.contains( 'os-window__body--loading' ) ).toBe(
 			true,
 		);
 
 		markWindowContentReady( 'visual-1' );
 
-		expect( body!.classList.contains( 'desktop-mode-window__body--loading' ) ).toBe(
+		expect( body!.classList.contains( 'os-window__body--loading' ) ).toBe(
 			false,
 		);
 	} );
@@ -293,22 +358,251 @@ describe( 'installWindowLoadingTransitions — visual side', async () => {
 		} );
 		markWindowContentReady( 'visual-2' );
 		const body = document.querySelector(
-			'#wp-window-visual-2 .desktop-mode-window__body',
+			'#wp-window-visual-2 .os-window__body',
 		);
-		expect( body!.classList.contains( 'desktop-mode-window__body--loading' ) ).toBe(
+		expect( body!.classList.contains( 'os-window__body--loading' ) ).toBe(
 			false,
 		);
 
 		markWindowContentLoading( 'visual-2' );
 
-		expect( body!.classList.contains( 'desktop-mode-window__body--loading' ) ).toBe(
+		expect( body!.classList.contains( 'os-window__body--loading' ) ).toBe(
 			true,
 		);
-		// Overlay is still in the DOM at this moment — the
-		// fade-out timer hasn't fired yet (default jsdom timing).
-		// Either way, `ensureLoadingOverlay` paints a fresh one.
-		const overlays = body!.querySelectorAll( '.desktop-mode-window__loading' );
+		// The previous overlay never became visible, so the ready
+		// edge dropped it in the same tick; `ensureLoadingOverlay`
+		// paints a fresh one for the re-arm.
+		const overlays = body!.querySelectorAll( '.os-window__loading' );
 		expect( overlays.length ).toBeGreaterThanOrEqual( 1 );
+	} );
+} );
+
+/**
+ * The spinner and the content must never be on screen together. Two
+ * cases, and the visible-modifier on the overlay is what tells them
+ * apart: a load that finished inside the show delay has no spinner to
+ * clear, and a load that painted one owes it an uninterrupted fade-out
+ * before the content underneath may appear.
+ */
+describe( 'loading → ready hand-off — the spinner never overlaps content', async () => {
+	let desktop: HTMLElement;
+	let manager: WindowManager;
+
+	const bodyOf = ( id: string ): HTMLElement =>
+		document.querySelector< HTMLElement >(
+			`#wp-window-${ id } .os-window__body`,
+		)!;
+
+	/**
+	 * Put a still-loading window in the state it would be in after the
+	 * show delay elapsed: back-date the body's clock and repaint, which
+	 * promotes the overlay synchronously instead of waiting on a timer
+	 * registered before the fake clock was installed.
+	 */
+	const paintSpinner = ( id: string ): HTMLElement => {
+		const body = bodyOf( id );
+		body.setAttribute(
+			LOADING_STARTED_ATTR,
+			String( Date.now() - LOADING_OVERLAY_SHOW_DELAY_MS - 1 ),
+		);
+		repaintLoadingOverlays();
+		return body.querySelector< HTMLElement >( '.os-window__loading' )!;
+	};
+
+	beforeEach( async () => {
+		installHooksStub();
+		desktop = makeDesktop();
+		manager = new WindowManager( desktop );
+		installWindowLoadingTransitions();
+	} );
+	afterEach( async () => {
+		vi.useRealTimers();
+		for ( const win of manager.getAll() ) {
+			win.destroy();
+		}
+		desktop.remove();
+		clearHooksStub();
+		_resetWindowChannelsForTests();
+		_resetWindowLoadingTransitionsForTests();
+	} );
+
+	test( 'a repaint mid-load resumes the clock instead of restarting it', async () => {
+		await manager.open( {
+			id: 'resume',
+			url: '#resume',
+			title: 'Resume',
+		} );
+		const overlay = paintSpinner( 'resume' );
+		expect( overlay.classList.contains( LOADING_OVERLAY_VISIBLE_CLASS ) ).toBe(
+			true,
+		);
+	} );
+
+	test( 'a spinner that never painted is dropped in the same tick', async () => {
+		await manager.open( {
+			id: 'fast',
+			url: '#fast',
+			title: 'Fast',
+		} );
+		const body = bodyOf( 'fast' );
+		expect( body.querySelector( '.os-window__loading' ) ).not.toBeNull();
+
+		markWindowContentReady( 'fast' );
+
+		// No fade to wait out: the overlay is gone before the content
+		// is uncovered, so the two are never both on screen.
+		expect( body.querySelector( '.os-window__loading' ) ).toBeNull();
+		// And no hand-off, because there is nothing to hand off from.
+		expect( body.classList.contains( LOADING_HANDOFF_BODY_CLASS ) ).toBe(
+			false,
+		);
+		expect( body.hasAttribute( LOADING_STARTED_ATTR ) ).toBe( false );
+	} );
+
+	test( 'a painted spinner keeps the content back for its fade-out', async () => {
+		await manager.open( {
+			id: 'slow',
+			url: '#slow',
+			title: 'Slow',
+		} );
+		paintSpinner( 'slow' );
+		const body = bodyOf( 'slow' );
+
+		vi.useFakeTimers();
+		markWindowContentReady( 'slow' );
+
+		// The loading modifier is off, but the content is still held
+		// transparent by the hand-off while the spinner fades.
+		expect( body.classList.contains( 'os-window__body--loading' ) ).toBe(
+			false,
+		);
+		expect( body.classList.contains( LOADING_HANDOFF_BODY_CLASS ) ).toBe(
+			true,
+		);
+		expect( body.querySelector( '.os-window__loading' ) ).not.toBeNull();
+
+		// One tick short of the fade-out: the overlay is still there,
+		// so the content must still be held.
+		vi.advanceTimersByTime( LOADING_OVERLAY_FADE_OUT_MS - 1 );
+		expect( body.querySelector( '.os-window__loading' ) ).not.toBeNull();
+		expect( body.classList.contains( LOADING_HANDOFF_BODY_CLASS ) ).toBe(
+			true,
+		);
+
+		// Fade-out done — the overlay leaves, the content fades in.
+		vi.advanceTimersByTime( 1 );
+		expect( body.querySelector( '.os-window__loading' ) ).toBeNull();
+		expect( body.classList.contains( LOADING_HANDOFF_BODY_CLASS ) ).toBe(
+			true,
+		);
+
+		// Content fade-in done — the hand-off modifier retires with it
+		// rather than leaving a delayed transition on the body.
+		vi.advanceTimersByTime( LOADING_CONTENT_FADE_IN_MS );
+		expect( body.classList.contains( LOADING_HANDOFF_BODY_CLASS ) ).toBe(
+			false,
+		);
+	} );
+
+	test( 'a re-arm during the hand-off cancels it', async () => {
+		await manager.open( {
+			id: 'rearm',
+			url: '#rearm',
+			title: 'Re-arm',
+		} );
+		paintSpinner( 'rearm' );
+		const body = bodyOf( 'rearm' );
+
+		vi.useFakeTimers();
+		markWindowContentReady( 'rearm' );
+		expect( body.classList.contains( LOADING_HANDOFF_BODY_CLASS ) ).toBe(
+			true,
+		);
+
+		markWindowContentLoading( 'rearm' );
+
+		// The content is about to be covered again — a delayed fade-in
+		// of it would be stale.
+		expect( body.classList.contains( LOADING_HANDOFF_BODY_CLASS ) ).toBe(
+			false,
+		);
+		expect( body.classList.contains( 'os-window__body--loading' ) ).toBe(
+			true,
+		);
+
+		// The pending teardown timers must not strip the re-armed
+		// overlay or the fresh loading state.
+		vi.advanceTimersByTime(
+			LOADING_OVERLAY_FADE_OUT_MS + LOADING_CONTENT_FADE_IN_MS,
+		);
+		expect( body.querySelector( '.os-window__loading' ) ).not.toBeNull();
+		expect( body.classList.contains( 'os-window__body--loading' ) ).toBe(
+			true,
+		);
+	} );
+
+	test( "a second cycle's hold survives the first cycle's timers", async () => {
+		await manager.open( {
+			id: 'twocycle',
+			url: '#twocycle',
+			title: 'Two cycles',
+		} );
+		paintSpinner( 'twocycle' );
+		const body = bodyOf( 'twocycle' );
+
+		vi.useFakeTimers();
+
+		// Cycle A: ready with a painted spinner. Its teardown timers are
+		// now pending at FADE_OUT_MS and FADE_OUT_MS + FADE_IN_MS.
+		markWindowContentReady( 'twocycle' );
+		expect( body.classList.contains( LOADING_HANDOFF_BODY_CLASS ) ).toBe(
+			true,
+		);
+
+		// Cycle B starts before either fires. The title-bar reload path
+		// allows this: its guard only blocks while `--loading` is set,
+		// and cycle A dropped that on ready.
+		vi.advanceTimersByTime( 50 );
+		markWindowContentLoading( 'twocycle' );
+		paintSpinner( 'twocycle' );
+
+		// Cycle B lands, opening its own hold.
+		vi.advanceTimersByTime( 350 );
+		markWindowContentReady( 'twocycle' );
+		expect( body.classList.contains( LOADING_HANDOFF_BODY_CLASS ) ).toBe(
+			true,
+		);
+
+		// Advance past cycle A's teardown timers but not yet to cycle
+		// B's. Scoped to their own cycle they are no-ops here; unscoped,
+		// A's second timer strips B's hold mid fade-out and puts the
+		// content back on screen under a spinner that is still fading.
+		vi.advanceTimersByTime( 150 );
+		expect( body.classList.contains( LOADING_HANDOFF_BODY_CLASS ) ).toBe(
+			true,
+		);
+		expect( body.querySelector( '.os-window__loading' ) ).not.toBeNull();
+	} );
+
+	test( 'a detached overlay never gets promoted to visible', async () => {
+		await manager.open( {
+			id: 'detached',
+			url: '#detached',
+			title: 'Detached',
+		} );
+		const body = bodyOf( 'detached' );
+		const overlay = body.querySelector< HTMLElement >(
+			'.os-window__loading',
+		)!;
+
+		vi.useFakeTimers();
+		// Tear the window down mid-load, then let the show delay pass.
+		overlay.remove();
+		vi.advanceTimersByTime( LOADING_OVERLAY_SHOW_DELAY_MS + 1 );
+
+		expect(
+			overlay.classList.contains( LOADING_OVERLAY_VISIBLE_CLASS ),
+		).toBe( false );
 	} );
 } );
 
@@ -451,7 +745,7 @@ describe( 'hydrateNative — Promise-returning render defers ready', async () =>
 
 describe( 'ctx.window.markLoading / markReady — plugin-driven toggling', async () => {
 	// `ctx.window.markLoading/markReady` are only wired in the
-	// `wp.desktop.registerWindow` path (createRegisterWindow). The
+	// `wp.os.registerWindow` path (createRegisterWindow). The
 	// raw `manager.open` path tested above doesn't receive them —
 	// plugins that want toggling there can call
 	// `Window.markContentLoading()` / `Window.markContentLoaded()`
@@ -485,21 +779,21 @@ describe( 'ctx.window.markLoading / markReady — plugin-driven toggling', async
 		} );
 		// Initial body class — every window starts in loading.
 		const body = win.element.querySelector(
-			'.desktop-mode-window__body',
+			'.os-window__body',
 		)!;
-		expect( body.classList.contains( 'desktop-mode-window__body--loading' ) ).toBe(
+		expect( body.classList.contains( 'os-window__body--loading' ) ).toBe(
 			true,
 		);
 
 		// Manual fade-in.
 		win.markContentLoaded();
-		expect( body.classList.contains( 'desktop-mode-window__body--loading' ) ).toBe(
+		expect( body.classList.contains( 'os-window__body--loading' ) ).toBe(
 			false,
 		);
 
 		// Manual re-arm.
 		win.markContentLoading();
-		expect( body.classList.contains( 'desktop-mode-window__body--loading' ) ).toBe(
+		expect( body.classList.contains( 'os-window__body--loading' ) ).toBe(
 			true,
 		);
 	} );
@@ -540,9 +834,9 @@ describe( 'Loading overlay customization', async () => {
 			},
 		} );
 		const overlay = win.element.querySelector(
-			'.desktop-mode-window__loading',
+			'.os-window__loading',
 		)!;
-		expect( overlay.querySelector( 'wpd-spinner' ) ).not.toBeNull();
+		expect( overlay.querySelector( 'os-spinner' ) ).not.toBeNull();
 		expect( overlay.querySelector( '.my-loading-status' )!.textContent ).toBe(
 			'Fetching things…',
 		);
@@ -563,9 +857,9 @@ describe( 'Loading overlay customization', async () => {
 			},
 		} );
 		const overlay = win.element.querySelector(
-			'.desktop-mode-window__loading',
+			'.os-window__loading',
 		)!;
-		expect( overlay.querySelector( 'wpd-spinner' ) ).toBeNull();
+		expect( overlay.querySelector( 'os-spinner' ) ).toBeNull();
 		expect( overlay.querySelector( '.my-custom-loader' )!.textContent ).toBe(
 			'BRAND LOADER',
 		);
@@ -593,7 +887,7 @@ describe( 'Loading overlay customization', async () => {
 
 		expect( seenCtx ).toEqual( [ { windowId: 'filtered' } ] );
 		const overlay = win.element.querySelector< HTMLElement >(
-			'.desktop-mode-window__loading',
+			'.os-window__loading',
 		)!;
 		expect( overlay.dataset.skinned ).toBe( 'true' );
 	} );
@@ -617,7 +911,7 @@ describe( 'Loading overlay customization', async () => {
 		} );
 
 		const overlay = win.element.querySelector(
-			'.desktop-mode-window__loading',
+			'.os-window__loading',
 		);
 		// Even when a filter returns a totally different element,
 		// the framework re-adds the marker class so CSS positioning
@@ -669,10 +963,10 @@ describe( 'Loading overlay customization', async () => {
 		} );
 
 		const overlay = win.element.querySelector(
-			'.desktop-mode-window__loading',
+			'.os-window__loading',
 		);
 		expect( overlay ).not.toBeNull();
-		expect( overlay!.querySelector( 'wpd-spinner' ) ).not.toBeNull();
+		expect( overlay!.querySelector( 'os-spinner' ) ).not.toBeNull();
 		errSpy.mockRestore();
 	} );
 
@@ -685,7 +979,7 @@ describe( 'Loading overlay customization', async () => {
 			title: 'Late Filter',
 		} );
 		const overlay = () => win.element.querySelector< HTMLElement >(
-			'.desktop-mode-window__loading',
+			'.os-window__loading',
 		)!;
 		expect( overlay().dataset.skinned ).toBeUndefined();
 
@@ -722,7 +1016,7 @@ describe( 'Loading overlay customization', async () => {
 		} );
 
 		// Plugin filter lands AFTER construction (typical
-		// `wp.desktop.whenReady( () => addFilter(...) )` shape that
+		// `wp.os.whenReady( () => addFilter(...) )` shape that
 		// fires during HOOKS.INIT).
 		( window.wp!.hooks! ).addFilter(
 			HOOKS.WINDOW_LOADING_OVERLAY,
@@ -740,7 +1034,7 @@ describe( 'Loading overlay customization', async () => {
 		await Promise.resolve();
 
 		const overlay = win.element.querySelector< HTMLElement >(
-			'.desktop-mode-window__loading',
+			'.os-window__loading',
 		)!;
 		expect( overlay.dataset.skinned ).toBe( 'f5' );
 	} );
@@ -782,13 +1076,13 @@ describe( 'Loading overlay customization', async () => {
 		// — we simulate the after-fade state by manually removing.)
 		win.markContentLoaded();
 		win.element
-			.querySelector( '.desktop-mode-window__loading' )
+			.querySelector( '.os-window__loading' )
 			?.remove();
 		win.markContentLoading();
 
 		expect( renderCalls ).toBe( 2 );
 		const overlay = win.element.querySelector< HTMLElement >(
-			'.desktop-mode-window__loading',
+			'.os-window__loading',
 		)!;
 		expect( overlay.dataset.renderCount ).toBe( '2' );
 	} );

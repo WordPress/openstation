@@ -101,7 +101,7 @@ describe( 'notes REST client', () => {
 		fetchSpy.mockResolvedValueOnce(
 			jsonResponse(
 				{
-					code: 'desktop_mode_notes_conflict',
+					code: 'openstation_notes_conflict',
 					message: 'changed',
 					data: { status: 409, current: { ...NOTE, text: 'server' } },
 				},
@@ -151,12 +151,12 @@ describe( 'notes REST client', () => {
 	test( 'non-409 errors surface code + message', async () => {
 		fetchSpy.mockResolvedValueOnce(
 			jsonResponse(
-				{ code: 'desktop_mode_notes_forbidden', message: 'Only the note owner can change it.' },
+				{ code: 'openstation_notes_forbidden', message: 'Only the note owner can change it.' },
 				403,
 			),
 		);
 		await expect( updateNote( 12, { text: 'x' } ) ).rejects.toThrow(
-			/403.*desktop_mode_notes_forbidden/,
+			/403.*openstation_notes_forbidden/,
 		);
 	} );
 } );

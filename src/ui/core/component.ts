@@ -1,5 +1,5 @@
 /**
- * wpd-ui — Component base class.
+ * os-ui — Component base class.
  *
  * Minimalistic Lit-style custom-element base. Extends `HTMLElement`
  * and gives subclasses:
@@ -23,13 +23,11 @@
  * attributes and deserialize manually when needed), lifecycle
  * callbacks beyond connected / disconnected, directive support
  * inside `html\`\``.
- *
- * @since 0.9.0
  */
 
 import { render, type TemplateResult } from './html';
 import type { StyleDef } from './css';
-import type { WpdHelp } from './help';
+import type { OsHelp } from './help';
 
 /**
  * Prop-accessor declaration. For now every prop is a string at the
@@ -40,7 +38,7 @@ import type { WpdHelp } from './help';
 export type Prop = string;
 
 /**
- * Base class for every wpd-ui component. Subclasses register
+ * Base class for every os-ui component. Subclasses register
  * themselves with `customElements.define()`; the base class handles
  * rendering + prop reactivity.
  */
@@ -66,9 +64,9 @@ export abstract class Component extends HTMLElement {
 	/**
 	 * Optional in-product help descriptor. Consumed by the Help tab
 	 * in OS Settings — components without one fall back to a minimal
-	 * rendering built from `static props`. See {@link WpdHelp}.
+	 * rendering built from `static props`. See {@link OsHelp}.
 	 */
-	static help?: WpdHelp;
+	static help?: OsHelp;
 
 	static get observedAttributes(): string[] {
 		return ( this.props as readonly string[] ).map( kebab );
@@ -127,7 +125,7 @@ export abstract class Component extends HTMLElement {
 	 *
 	 * ```js
 	 * element.classNames = [ 'my-plugin-brand', 'is-active' ];
-	 * // → <wpd-select class="my-plugin-brand is-active">
+	 * // → <os-select class="my-plugin-brand is-active">
 	 * ```
 	 *
 	 * The plain HTML `class="…"` attribute works just the same and
@@ -137,8 +135,6 @@ export abstract class Component extends HTMLElement {
 	 *
 	 * Getter returns the current `classList` as a plain array for
 	 * symmetric read/write.
-	 *
-	 * @since 0.5.0
 	 */
 	get classNames(): string[] {
 		return Array.from( this.classList );
@@ -309,7 +305,7 @@ export abstract class Component extends HTMLElement {
 			// Light DOM: inline all styles into <head> ONCE per
 			// component class (identified by the class reference).
 			// We intentionally don't scope these — the whole point
-			// of light-DOM wpd-ui is so outer CSS wins. Each
+			// of light-DOM os-ui is so outer CSS wins. Each
 			// component's styles are just "extra rules" on global.
 			this._adoptLightStyles( ctor );
 		}
@@ -324,7 +320,7 @@ export abstract class Component extends HTMLElement {
 		Component._lightStylesAdopted.add( ctor );
 		for ( const s of ctor.styles ) {
 			const tag = document.createElement( 'style' );
-			tag.dataset.wpdUi = this.tagName.toLowerCase();
+			tag.dataset.osUi = this.tagName.toLowerCase();
 			tag.textContent = s.cssText;
 			document.head.appendChild( tag );
 		}

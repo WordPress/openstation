@@ -1,7 +1,7 @@
 /**
  * Console-quiet Gravatar resolver.
  *
- * `<wpd-avatar>` falls back to initials when its `src` errors out,
+ * `<os-avatar>` falls back to initials when its `src` errors out,
  * but a raw Gravatar URL serves the "mystery person" silhouette by
  * default (HTTP 200, no error) — so the initials fallback never
  * triggers and users with no registered Gravatar see the silhouette
@@ -20,15 +20,13 @@
  *     (or `null` to fall back to initials). Results cached per
  *     canonical URL.
  *   - {@link applyAvatarSrc} — fire-and-forget convenience wrapper
- *     that sets / removes the `src` attribute on a `<wpd-avatar>`
+ *     that sets / removes the `src` attribute on a `<os-avatar>`
  *     element once the probe resolves. Safe to call from cell
  *     renderers — the helper guards against detached hosts when the
  *     row is removed mid-probe.
  *
  * Non-Gravatar URLs (BuddyPress, custom plugin avatars, …) skip the
  * probe and pass through unchanged.
- *
- * @since 0.8.3
  */
 
 const gravatarCache = new Map<
@@ -37,7 +35,7 @@ const gravatarCache = new Map<
 >();
 
 /**
- * Resolve the URL a `<wpd-avatar>` should use for `src`, or `null`
+ * Resolve the URL a `<os-avatar>` should use for `src`, or `null`
  * when the commenter / user has no registered Gravatar and the
  * avatar should fall back to its initials tile.
  *
@@ -121,7 +119,7 @@ export async function resolveAvatarUrl(
 
 /**
  * Fire-and-forget convenience: probe the URL and set / remove the
- * `src` attribute on the given `<wpd-avatar>` element when the
+ * `src` attribute on the given `<os-avatar>` element when the
  * probe resolves. Safe to call from cell renderers — guards against
  * detached hosts when the row was removed mid-probe.
  */

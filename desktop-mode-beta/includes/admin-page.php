@@ -85,7 +85,7 @@ function desktop_mode_beta_render_admin_page() {
 	<div class="wrap desktop-mode-beta-wrap">
 		<h1><?php esc_html_e( 'Desktop Mode Beta', 'desktop-mode-beta' ); ?></h1>
 		<p>
-			<?php esc_html_e( 'Install a Desktop Mode build from a pull request branch, the trunk branch, or switch back to the latest stable release.', 'desktop-mode-beta' ); ?>
+			<?php esc_html_e( 'Install an OpenStation build from a pull request branch, the trunk branch, or switch back to the latest stable release.', 'desktop-mode-beta' ); ?>
 		</p>
 		<div id="desktop-mode-beta-root">
 			<p><?php esc_html_e( 'Loading builds…', 'desktop-mode-beta' ); ?></p>

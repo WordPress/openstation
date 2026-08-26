@@ -7,11 +7,9 @@
  * `docs/living-tree-algorithm.md` for the full algorithm.
  *
  * Publishing pattern (same as animated-logo): the bundle's only side
- * effect is writing `window.desktopModeWallpapers['wp-living-tree']`; the
+ * effect is writing `window.openStationWallpapers['wp-living-tree']`; the
  * shell's wallpaper `server-sync` reads that global after the script
  * loads. Server registration lives in `includes/living-tree/wallpaper.php`.
- *
- * @since 0.9.4
  */
 
 import type {
@@ -68,7 +66,7 @@ async function fetchSnapshot(): Promise< TreeSnapshot | null > {
  * Default preview parameters — a site in its prime, so the OS Settings
  * tile shows what the wallpaper can become rather than the sprout a
  * day-old site would render. Every key is overridable through the
- * `desktop-mode.wallpaper.preview-params` filter; non-numeric
+ * `os.wallpaper.preview-params` filter; non-numeric
  * overrides fall back to these values.
  */
 const PREVIEW_PARAMS: Record< string, number > = {
@@ -163,8 +161,8 @@ const def: WallpaperDef = {
 		// covers the whole desktop, tab backgrounded). Same public hook
 		// surface the animated-logo wallpaper uses.
 		const NAMESPACE = 'desktop-mode/living-tree';
-		const HOOK = 'desktop-mode.wallpaper.visibility';
-		const api = window.wp?.desktop;
+		const HOOK = 'os.wallpaper.visibility';
+		const api = window.wp?.os;
 		const visibilityHandler = ( ...args: unknown[] ): void => {
 			const detail = args[ 0 ] as
 				| { id?: string; state?: 'visible' | 'hidden' }
@@ -185,9 +183,9 @@ const def: WallpaperDef = {
 
 declare global {
 	interface Window {
-		desktopModeWallpapers?: Record< string, WallpaperDef >;
+		openStationWallpapers?: Record< string, WallpaperDef >;
 	}
 }
 
-window.desktopModeWallpapers = window.desktopModeWallpapers || {};
-window.desktopModeWallpapers[ WALLPAPER_ID ] = def;
+window.openStationWallpapers = window.openStationWallpapers || {};
+window.openStationWallpapers[ WALLPAPER_ID ] = def;

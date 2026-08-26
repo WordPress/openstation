@@ -1,13 +1,13 @@
 # Connect to a window — title-bar button + iframe pub/sub
 
-End-to-end recipe for the connection bridge: a plugin adds a button in the Gutenberg window's title bar, the button shows a dropdown of other open windows, hovering an item highlights the candidate window, clicking opens a `wp.desktop.connect()` channel, and Gutenberg keystrokes stream into a preview window in real time.
+End-to-end recipe for the connection bridge: a plugin adds a button in the Gutenberg window's title bar, the button shows a dropdown of other open windows, hovering an item highlights the candidate window, clicking opens a `wp.os.connect()` channel, and Gutenberg keystrokes stream into a preview window in real time.
 
-This is the canonical use case for the four 0.5.2 APIs working together:
+This is the canonical use case for the four connection APIs working together:
 
-1. `wp.desktop.registerTitleBarButton` — UI entry point
+1. `wp.os.registerTitleBarButton` — UI entry point
 2. `Window.setHighlight` — visual feedback
-3. `wp.desktop.connect` — parent-side channel
-4. `wp.desktop.iframe.publish` / `subscribe` / `onConnection` — iframe-side channel
+3. `wp.os.connect` — parent-side channel
+4. `wp.os.iframe.publish` / `subscribe` / `onConnection` — iframe-side channel
 
 ## 1. PHP — declare the script handles
 
@@ -19,7 +19,7 @@ add_action( 'admin_enqueue_scripts', function () {
     wp_register_script(
         'my-plugin-titlebar',
         plugins_url( 'js/titlebar.js', __FILE__ ),
-        array( 'desktop-mode' ),
+        array( 'openstation' ),
         '1.0.0',
         true
     );
@@ -27,7 +27,7 @@ add_action( 'admin_enqueue_scripts', function () {
 
     // Iframe-side script — runs inside the Gutenberg page, publishes
     // editor state. Use the standard admin enqueue; the chromeless
-    // bridge already wires up `wp.desktop.iframe.*`.
+    // bridge already wires up `wp.os.iframe.*`.
     wp_register_script(
         'my-plugin-iframe',
         plugins_url( 'js/iframe.js', __FILE__ ),
@@ -40,7 +40,7 @@ add_action( 'admin_enqueue_scripts', function () {
 
 // Tell the shell our titlebar script registers buttons — gets the
 // live-refresh injection on plugin activation.
-desktop_mode_register_titlebar_button_script( 'my-plugin-titlebar' );
+openstation_register_titlebar_button_script( 'my-plugin-titlebar' );
 ```
 
 ## 2. Parent-side — register the button
@@ -48,8 +48,8 @@ desktop_mode_register_titlebar_button_script( 'my-plugin-titlebar' );
 ```javascript
 // js/titlebar.js
 
-wp.desktop.ready( () => {
-    wp.desktop.registerTitleBarButton( {
+wp.os.ready( () => {
+    wp.os.registerTitleBarButton( {
         id:       'live-preview/connect',
         label:    'Live preview',
         icon:     'dashicons-visibility',
@@ -57,7 +57,7 @@ wp.desktop.ready( () => {
         match:    ( w ) => /post(?:-new)?\.php/.test( w.config.url ?? '' ),
         owner:    'my-plugin-titlebar',
         // Custom render — we own the host so we can wire a popover
-        // dropdown without fighting `<wpd-window-button>` defaults.
+        // dropdown without fighting `<os-window-button>` defaults.
         render: ( host, hostWindow ) => {
             host.addEventListener( 'click', () =>
                 showCandidatesPopover( host, hostWindow ),
@@ -68,18 +68,18 @@ wp.desktop.ready( () => {
 
 function showCandidatesPopover( anchor, hostWindow ) {
     // Build a quick popover listing every other open window.
-    const popover = document.createElement( 'wpd-menu' );
+    const popover = document.createElement( 'os-menu' );
     popover.style.position = 'absolute';
     popover.style.top = `${ anchor.getBoundingClientRect().bottom }px`;
     popover.style.left = `${ anchor.getBoundingClientRect().left }px`;
     document.body.appendChild( popover );
 
-    const others = wp.desktop.windowManager
+    const others = wp.os.windowManager
         .getAll()
         .filter( ( w ) => w.id !== hostWindow.id );
 
     others.forEach( ( target ) => {
-        const item = document.createElement( 'wpd-menu-item' );
+        const item = document.createElement( 'os-menu-item' );
         item.textContent = target.config.title;
 
         // Hover-preview → highlight the candidate window.
@@ -110,13 +110,13 @@ function showCandidatesPopover( anchor, hostWindow ) {
 
 function wireUpLivePreview( gutenbergWin, previewWin ) {
     // Subscribe to Gutenberg edits + forward into the preview window.
-    const editorConn = wp.desktop.connect( gutenbergWin.id, {
+    const editorConn = wp.os.connect( gutenbergWin.id, {
         topics: [ 'gutenberg:content' ],
     } );
 
     // The preview window is also an iframe — open a second connection
     // and `send` the latest content on every keystroke.
-    const previewConn = wp.desktop.connect( previewWin.id );
+    const previewConn = wp.os.connect( previewWin.id );
 
     editorConn.subscribe( 'gutenberg:content', ( html ) => {
         previewConn.send( 'preview:html', html );
@@ -137,8 +137,8 @@ function wireUpLivePreview( gutenbergWin, previewWin ) {
 ```javascript
 // js/iframe.js — runs inside the Gutenberg iframe.
 
-if ( window.wp?.desktop?.iframe ) {
-    wp.desktop.iframe.onConnection( () => {
+if ( window.wp?.os?.iframe ) {
+    wp.os.iframe.onConnection( () => {
         // Start emitting only when somebody connects — saves work.
         const editor = wp.data.select( 'core/editor' );
         let lastContent = '';
@@ -149,7 +149,7 @@ if ( window.wp?.desktop?.iframe ) {
                 return;
             }
             lastContent = next;
-            wp.desktop.iframe.publish( 'gutenberg:content', next );
+            wp.os.iframe.publish( 'gutenberg:content', next );
         } );
     } );
 }
@@ -162,8 +162,8 @@ If the preview is also an iframe (a custom plugin page), have it subscribe to `p
 ```javascript
 // js/preview-iframe.js — inside the preview window.
 
-if ( window.wp?.desktop?.iframe ) {
-    wp.desktop.iframe.subscribe( 'preview:html', ( html ) => {
+if ( window.wp?.os?.iframe ) {
+    wp.os.iframe.subscribe( 'preview:html', ( html ) => {
         document.querySelector( '#preview-target' ).innerHTML = html;
     } );
 }
@@ -178,7 +178,7 @@ If your preview window is itself an iframe pointing at a custom plugin URL, skip
 ```javascript
 // `registerWindow` is async — it resolves to the DesktopWindow, so the
 // enclosing function must be `async`.
-const previewWin = await wp.desktop.registerWindow( {
+const previewWin = await wp.os.registerWindow( {
     id:    'live-preview/preview',
     title: 'Live Preview',
     icon:  'dashicons-visibility',
@@ -186,7 +186,7 @@ const previewWin = await wp.desktop.registerWindow( {
     height: 720,
     iframeContent: {
         url:     '/wp-admin/admin.php?page=my-preview-page',
-        bridge:  true,                                  // auto-inject `wp.desktop.iframe.*`
+        bridge:  true,                                  // auto-inject `wp.os.iframe.*`
         onMessage: ( payload ) => {
             // Source-checked already by the shell — no need to validate event.source.
         },
@@ -223,7 +223,7 @@ editorConn.subscribe( 'gutenberg:content', ( html ) => {
 Then inside `my-preview-page`:
 
 ```javascript
-wp.desktop.on( 'preview:html', ( html ) => {
+wp.os.on( 'preview:html', ( html ) => {
     document.querySelector( '#preview-target' ).innerHTML = html;
 } );
 ```
@@ -236,18 +236,18 @@ If the editor sidebar (running inside the Gutenberg iframe) wants to *initiate* 
 
 ```javascript
 // Inside the Gutenberg iframe:
-const conn = await wp.desktop.iframe.requestConnection( {
+const conn = await wp.os.iframe.requestConnection( {
     topics: [ 'wpglp:content' ],
 } );
 // `conn` = { id, topics } — the parent already opened a connection back to us.
 // From here, just `publish` like normal.
 ```
 
-Parent-side, plugins can intervene with the `desktop-mode.iframe.connection-request` filter:
+Parent-side, plugins can intervene with the `os.iframe.connection-request` filter:
 
 ```javascript
-wp.desktop.hooks.addFilter(
-    'desktop-mode.iframe.connection-request',
+wp.os.hooks.addFilter(
+    'os.iframe.connection-request',
     'my-plugin/gate',
     ( accept, ctx ) => {
         // ctx = { windowId, requestId, topics }

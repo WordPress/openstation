@@ -1,12 +1,17 @@
 /**
- * Tests for the iframe postMessage handlers that landed in 0.5.0:
- * `desktop-mode-ready`, `desktop-mode-navigate`, and
- * `desktop-mode-notification`. The older handlers (`title-change`,
+ * Tests for the iframe postMessage handlers:
+ * `os-ready`, `os-navigate`, and
+ * `os-notification`. The older handlers (`title-change`,
  * `focus-request`, etc.) are covered by the cross-module
  * observability tests under `tests/vitest/`.
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { bindAdminLinkDispatch, handleWindowMessage } from './iframe-bridge';
+import {
+	adoptPageTitle,
+	bindAdminLinkDispatch,
+	handleFinishedScreenHandoff,
+	handleWindowMessage,
+} from './iframe-bridge';
 import {
 	_resetDestructiveAdminActionsForTests,
 	registerDestructiveAdminAction,
@@ -23,9 +28,9 @@ import {
 	type FakeWpHooks,
 } from '../../tests/vitest/helpers/hooks-stub';
 
-const { wpdConfirm } = vi.hoisted( () => ( { wpdConfirm: vi.fn() } ) );
-vi.mock( '../ui/components/wpd-confirm-dialog/wpd-confirm-dialog', () => ( {
-	wpdConfirm,
+const { osConfirm } = vi.hoisted( () => ( { osConfirm: vi.fn() } ) );
+vi.mock( '../ui/components/os-confirm-dialog/os-confirm-dialog', () => ( {
+	osConfirm,
 } ) );
 
 function mockWindow( overrides: Partial< Window > = {} ): Window {
@@ -41,6 +46,11 @@ function mockWindow( overrides: Partial< Window > = {} ): Window {
 		_isDestroyed: false,
 		_closePending: false,
 		_iframeCloseTimeout: null,
+		// Activity surface — the bridge brackets iframe requests onto
+		// the title-bar status ring, and resets on every new document.
+		_markActivityStart: vi.fn(),
+		_markActivitySettled: vi.fn(),
+		_resetActivity: vi.fn(),
 		...overrides,
 	} as unknown as Window;
 }
@@ -59,7 +69,7 @@ function postToWindow(
 	handleWindowMessage( win, event );
 }
 
-describe( 'iframe-bridge: desktop-mode-ready', () => {
+describe( 'iframe-bridge: os-ready', () => {
 	let hooks: FakeWpHooks;
 	beforeEach( () => {
 		hooks = installHooksStub();
@@ -76,7 +86,7 @@ describe( 'iframe-bridge: desktop-mode-ready', () => {
 			seen.push( args[ 0 ] as { windowId: string } );
 		} );
 
-		postToWindow( win, { type: 'desktop-mode-ready' } );
+		postToWindow( win, { type: 'os-ready' } );
 
 		expect( seen ).toEqual( [ { windowId: 'test-window' } ] );
 	} );
@@ -91,13 +101,86 @@ describe( 'iframe-bridge: desktop-mode-ready', () => {
 		// would correctly stay silent (no transition to surface).
 		markWindowContentLoading( 'test-window' );
 
-		postToWindow( win, { type: 'desktop-mode-ready' } );
+		postToWindow( win, { type: 'os-ready' } );
 
 		expect( seen ).toEqual( [ { windowId: 'test-window' } ] );
 	} );
+
+	test( 'a new document resets the activity count', () => {
+		// An iframe that navigates mid-request takes its pending
+		// `end` messages with it. Without the reset the ring stays
+		// lit for the rest of the window's life.
+		const win = mockWindow();
+		postToWindow( win, { type: 'os-ready' } );
+		expect( win._resetActivity ).toHaveBeenCalled();
+	} );
 } );
 
-describe( 'iframe-bridge: desktop-mode-navigate', () => {
+describe( 'iframe-bridge: os-iframe-activity', () => {
+	beforeEach( () => installHooksStub() );
+	afterEach( () => clearHooksStub() );
+
+	test( 'start marks the window busy', () => {
+		const win = mockWindow();
+		postToWindow( win, { type: 'os-iframe-activity', phase: 'start' } );
+		expect( win._markActivityStart ).toHaveBeenCalledTimes( 1 );
+	} );
+
+	test( 'a 2xx end settles as success', () => {
+		const win = mockWindow();
+		postToWindow( win, {
+			type: 'os-iframe-activity',
+			phase: 'end',
+			failed: false,
+			status: 200,
+		} );
+		expect( win._markActivitySettled ).toHaveBeenCalledWith(
+			true,
+			undefined,
+		);
+	} );
+
+	test( 'an HTTP error settles as failure and carries the status', () => {
+		const win = mockWindow();
+		postToWindow( win, {
+			type: 'os-iframe-activity',
+			phase: 'end',
+			failed: true,
+			status: 500,
+		} );
+		const [ ok, message ] = ( win._markActivitySettled as ReturnType<
+			typeof vi.fn
+		> ).mock.calls[ 0 ];
+		expect( ok ).toBe( false );
+		expect( message ).toContain( '500' );
+	} );
+
+	test( 'a network-level failure reports no status number', () => {
+		// `status: 0` is the iframe's marker for "no response
+		// arrived" — printing it would be noise, not information.
+		const win = mockWindow();
+		postToWindow( win, {
+			type: 'os-iframe-activity',
+			phase: 'end',
+			failed: true,
+			status: 0,
+		} );
+		const [ ok, message ] = ( win._markActivitySettled as ReturnType<
+			typeof vi.fn
+		> ).mock.calls[ 0 ];
+		expect( ok ).toBe( false );
+		expect( message ).not.toContain( '0' );
+	} );
+
+	test( 'an unknown phase does nothing', () => {
+		const win = mockWindow();
+		postToWindow( win, { type: 'os-iframe-activity', phase: 'nonsense' } );
+		expect( win._markActivityStart ).not.toHaveBeenCalled();
+		expect( win._markActivitySettled ).not.toHaveBeenCalled();
+	} );
+} );
+
+describe( 'iframe-bridge: os-navigate', () => {
 	let openSpy: ReturnType< typeof vi.spyOn >;
 
 	beforeEach( () => {
@@ -114,7 +197,7 @@ describe( 'iframe-bridge: desktop-mode-navigate', () => {
 		const target = window.location.origin + '/wp-admin/edit.php';
 
 		postToWindow( win, {
-			type: 'desktop-mode-navigate',
+			type: 'os-navigate',
 			url: target,
 			target: 'new',
 		} );
@@ -131,7 +214,7 @@ describe( 'iframe-bridge: desktop-mode-navigate', () => {
 		const target = window.location.origin + '/wp-admin/profile.php';
 
 		postToWindow( win, {
-			type: 'desktop-mode-navigate',
+			type: 'os-navigate',
 			url: target,
 			target: 'self',
 		} );
@@ -145,7 +228,7 @@ describe( 'iframe-bridge: desktop-mode-navigate', () => {
 		const originalSrc = win.iframe!.src;
 
 		postToWindow( win, {
-			type: 'desktop-mode-navigate',
+			type: 'os-navigate',
 			url: 'https://evil.example.com/wp-admin/edit.php',
 			target: 'self',
 		} );
@@ -159,7 +242,7 @@ describe( 'iframe-bridge: desktop-mode-navigate', () => {
 
 		expect( () => {
 			postToWindow( win, {
-				type: 'desktop-mode-navigate',
+				type: 'os-navigate',
 				url: 'http://[invalid',
 				target: 'new',
 			} );
@@ -168,12 +251,12 @@ describe( 'iframe-bridge: desktop-mode-navigate', () => {
 	} );
 } );
 
-describe( 'iframe-bridge: desktop-mode-notification', () => {
+describe( 'iframe-bridge: os-notification', () => {
 	beforeEach( () => {
 		installHooksStub();
 	} );
 	afterEach( () => {
-		document.querySelectorAll( 'wpd-toast-container' ).forEach( ( el ) => el.remove() );
+		document.querySelectorAll( 'os-toast-container' ).forEach( ( el ) => el.remove() );
 		clearHooksStub();
 	} );
 
@@ -181,12 +264,12 @@ describe( 'iframe-bridge: desktop-mode-notification', () => {
 		const win = mockWindow();
 
 		postToWindow( win, {
-			type: 'desktop-mode-notification',
+			type: 'os-notification',
 			title: 'Saved',
 			body: 'Settings updated',
 		} );
 
-		const toast = document.querySelector( 'wpd-toast' );
+		const toast = document.querySelector( 'os-toast' );
 		expect( toast ).not.toBeNull();
 		expect( toast!.textContent ).toContain( 'Saved' );
 		expect( toast!.textContent ).toContain( 'Settings updated' );
@@ -196,11 +279,11 @@ describe( 'iframe-bridge: desktop-mode-notification', () => {
 		const win = mockWindow();
 
 		postToWindow( win, {
-			type: 'desktop-mode-notification',
+			type: 'os-notification',
 			title: 'Only title',
 		} );
 
-		const toast = document.querySelector( 'wpd-toast' );
+		const toast = document.querySelector( 'os-toast' );
 		expect( toast ).not.toBeNull();
 		expect( toast!.textContent ).toContain( 'Only title' );
 	} );
@@ -209,16 +292,16 @@ describe( 'iframe-bridge: desktop-mode-notification', () => {
 		const win = mockWindow();
 
 		postToWindow( win, {
-			type: 'desktop-mode-notification',
+			type: 'os-notification',
 			title: '',
 			body: 'orphan body',
 		} );
 
-		expect( document.querySelector( 'wpd-toast' ) ).toBeNull();
+		expect( document.querySelector( 'os-toast' ) ).toBeNull();
 	} );
 } );
 
-describe( 'iframe-bridge: desktop-mode-iframe-admin-link', () => {
+describe( 'iframe-bridge: os-iframe-admin-link', () => {
 	type DispatchDeps = Parameters< typeof bindAdminLinkDispatch >[ 0 ];
 
 	const adminUrl = window.location.origin + '/wp-admin/';
@@ -242,7 +325,17 @@ describe( 'iframe-bridge: desktop-mode-iframe-admin-link', () => {
 		return { openWindow, findDockEntry };
 	}
 
-	function mockAdminWindow( opts: { id: string; baseId?: string } ): {
+	function mockAdminWindow( opts: {
+		id: string;
+		baseId?: string;
+		/**
+		 * The URL the iframe is currently showing. Diverges from the
+		 * window's opening slug once the submenu tab strip re-points
+		 * the iframe in place. Omitted → no live URL readable, which
+		 * is the pre-navigation state.
+		 */
+		currentUrl?: string;
+	} ): {
 		win: Window;
 		assignSpy: ReturnType< typeof vi.fn >;
 	} {
@@ -267,6 +360,7 @@ describe( 'iframe-bridge: desktop-mode-iframe-admin-link', () => {
 			onFocusRequest: null,
 			setTitle: vi.fn(),
 			close: vi.fn(),
+			getCurrentUrl: () => opts.currentUrl ?? '',
 		} as unknown as Window;
 		return { win, assignSpy };
 	}
@@ -288,7 +382,7 @@ describe( 'iframe-bridge: desktop-mode-iframe-admin-link', () => {
 
 		const target =
 			window.location.origin + '/wp-admin/edit.php?post_type=page&paged=2';
-		postToWindow( win, { type: 'desktop-mode-iframe-admin-link', url: target } );
+		postToWindow( win, { type: 'os-iframe-admin-link', url: target } );
 
 		expect( assignSpy ).toHaveBeenCalledWith( target );
 		expect( openWindow ).not.toHaveBeenCalled();
@@ -309,7 +403,7 @@ describe( 'iframe-bridge: desktop-mode-iframe-admin-link', () => {
 
 		const target =
 			window.location.origin + '/wp-admin/edit.php?post_type=post';
-		postToWindow( win, { type: 'desktop-mode-iframe-admin-link', url: target } );
+		postToWindow( win, { type: 'os-iframe-admin-link', url: target } );
 
 		expect( openWindow ).toHaveBeenCalledTimes( 1 );
 		expect( openWindow.mock.calls[ 0 ][ 0 ] ).toMatchObject( {
@@ -324,6 +418,58 @@ describe( 'iframe-bridge: desktop-mode-iframe-admin-link', () => {
 		expect( win.close ).not.toHaveBeenCalled();
 	} );
 
+	test( 'click matching the live iframe slug navigates in place, not a new window', () => {
+		// Appearance window opened on `themes.php`, then re-pointed at
+		// `nav-menus.php` by the submenu tab strip. Its `baseId` still
+		// says `themes-php`, so the Menus screen's own tab links used
+		// to read as cross-page and spawn a window per click.
+		const { openWindow } = bindFakeDispatcher();
+		const { win, assignSpy } = mockAdminWindow( {
+			id: 'themes-php',
+			currentUrl:
+				window.location.origin +
+				'/wp-admin/nav-menus.php?openstation_chromeless=1',
+		} );
+
+		const target =
+			window.location.origin + '/wp-admin/nav-menus.php?action=edit&menu=2';
+		postToWindow( win, { type: 'os-iframe-admin-link', url: target } );
+
+		expect( assignSpy ).toHaveBeenCalledWith( target );
+		expect( openWindow ).not.toHaveBeenCalled();
+		expect( win.close ).not.toHaveBeenCalled();
+	} );
+
+	test( 'live slug never narrows the same-page set — baseId still matches', () => {
+		// A window that navigated away from its landing page must still
+		// treat a link BACK to that landing page as in-place.
+		const { openWindow } = bindFakeDispatcher();
+		const { win, assignSpy } = mockAdminWindow( {
+			id: 'themes-php',
+			currentUrl: window.location.origin + '/wp-admin/nav-menus.php',
+		} );
+
+		const target = window.location.origin + '/wp-admin/themes.php';
+		postToWindow( win, { type: 'os-iframe-admin-link', url: target } );
+
+		expect( assignSpy ).toHaveBeenCalledWith( target );
+		expect( openWindow ).not.toHaveBeenCalled();
+	} );
+
+	test( 'live slug that matches neither side still opens a fresh window', () => {
+		const { openWindow } = bindFakeDispatcher();
+		const { win, assignSpy } = mockAdminWindow( {
+			id: 'themes-php',
+			currentUrl: window.location.origin + '/wp-admin/nav-menus.php',
+		} );
+
+		const target = window.location.origin + '/wp-admin/upload.php';
+		postToWindow( win, { type: 'os-iframe-admin-link', url: target } );
+
+		expect( openWindow ).toHaveBeenCalledTimes( 1 );
+		expect( assignSpy ).not.toHaveBeenCalled();
+	} );
+
 	test( 'different-slug click without a dock entry uses the link label as title', () => {
 		const { openWindow } = bindFakeDispatcher();
 		const { win } = mockAdminWindow( { id: 'edit-php-post-type-page' } );
@@ -332,7 +478,7 @@ describe( 'iframe-bridge: desktop-mode-iframe-admin-link', () => {
 			window.location.origin +
 			'/wp-admin/options-general.php?page=some-plugin';
 		postToWindow( win, {
-			type: 'desktop-mode-iframe-admin-link',
+			type: 'os-iframe-admin-link',
 			url: target,
 			label: 'Scheduler',
 		} );
@@ -351,7 +497,7 @@ describe( 'iframe-bridge: desktop-mode-iframe-admin-link', () => {
 			window.location.origin +
 			'/wp-admin/options-general.php?page=some-plugin';
 		postToWindow( win, {
-			type: 'desktop-mode-iframe-admin-link',
+			type: 'os-iframe-admin-link',
 			url: target,
 		} );
 
@@ -371,12 +517,52 @@ describe( 'iframe-bridge: desktop-mode-iframe-admin-link', () => {
 		const { win } = mockAdminWindow( { id: 'edit-php-post-type-page' } );
 
 		postToWindow( win, {
-			type: 'desktop-mode-iframe-admin-link',
+			type: 'os-iframe-admin-link',
 			url: window.location.origin + '/wp-admin/edit.php?post_type=post',
 			label: 'All the posts',
 		} );
 
 		expect( openWindow.mock.calls[ 0 ][ 0 ].title ).toBe( 'Posts' );
+	} );
+
+	test( 'a new-context link never drives the window it was clicked in', () => {
+		// `target="_blank"` asks for one thing: that the page it was
+		// clicked on survives. The same-slug branch would move that
+		// window instead, which is worse than the browser tab it used
+		// to get.
+		const { openWindow } = bindFakeDispatcher();
+		const { win, assignSpy } = mockAdminWindow( {
+			id: 'edit-php-post-type-page',
+		} );
+
+		postToWindow( win, {
+			type: 'os-iframe-admin-link',
+			url:
+				window.location.origin +
+				'/wp-admin/edit.php?post_type=page&paged=2',
+			newContext: true,
+		} );
+
+		expect( assignSpy ).not.toHaveBeenCalled();
+		expect( openWindow ).toHaveBeenCalledTimes( 1 );
+	} );
+
+	test( 'a new-context link skips the destructive in-place branch too', () => {
+		// That branch fires on a slug MISMATCH, which is exactly the
+		// shape a `_blank` reaches the parent with.
+		const { openWindow } = bindFakeDispatcher();
+		const { win, assignSpy } = mockAdminWindow( { id: 'edit-php' } );
+
+		postToWindow( win, {
+			type: 'os-iframe-admin-link',
+			url:
+				window.location.origin +
+				'/wp-admin/post.php?post=42&action=trash&_wpnonce=abc',
+			newContext: true,
+		} );
+
+		expect( assignSpy ).not.toHaveBeenCalled();
+		expect( openWindow ).toHaveBeenCalledTimes( 1 );
 	} );
 
 	test( 'cross-origin URL is silently refused', () => {
@@ -386,7 +572,7 @@ describe( 'iframe-bridge: desktop-mode-iframe-admin-link', () => {
 		} );
 
 		postToWindow( win, {
-			type: 'desktop-mode-iframe-admin-link',
+			type: 'os-iframe-admin-link',
 			url: 'https://evil.example.com/wp-admin/edit.php',
 		} );
 
@@ -407,9 +593,9 @@ describe( 'iframe-bridge: desktop-mode-iframe-admin-link', () => {
 
 		const target =
 			window.location.origin +
-			'/wp-admin/post.php?post=42&action=trash&_wpnonce=abc&desktop_mode_chromeless=1';
+			'/wp-admin/post.php?post=42&action=trash&_wpnonce=abc&openstation_chromeless=1';
 		postToWindow( win, {
-			type: 'desktop-mode-iframe-admin-link',
+			type: 'os-iframe-admin-link',
 			url: target,
 		} );
 
@@ -431,7 +617,7 @@ describe( 'iframe-bridge: desktop-mode-iframe-admin-link', () => {
 			window.location.origin +
 			'/wp-admin/post.php?post=42&action=trash';
 		postToWindow( win, {
-			type: 'desktop-mode-iframe-admin-link',
+			type: 'os-iframe-admin-link',
 			url: target,
 		} );
 
@@ -447,7 +633,7 @@ describe( 'iframe-bridge: desktop-mode-iframe-admin-link', () => {
 			window.location.origin +
 			'/wp-admin/post.php?post=42&action=edit';
 		postToWindow( win, {
-			type: 'desktop-mode-iframe-admin-link',
+			type: 'os-iframe-admin-link',
 			url: target,
 		} );
 
@@ -481,7 +667,7 @@ describe( 'iframe-bridge: desktop-mode-iframe-admin-link', () => {
 				window.location.origin +
 				'/wp-admin/admin.php?page=wc-orders&action=trash&order=99&_wpnonce=woo';
 			postToWindow( win, {
-				type: 'desktop-mode-iframe-admin-link',
+				type: 'os-iframe-admin-link',
 				url: target,
 			} );
 
@@ -514,7 +700,7 @@ describe( 'iframe-bridge: desktop-mode-iframe-admin-link', () => {
 				window.location.origin +
 				'/wp-admin/admin.php?page=foo&action=export&_wpnonce=zzz';
 			postToWindow( win, {
-				type: 'desktop-mode-iframe-admin-link',
+				type: 'os-iframe-admin-link',
 				url: target,
 			} );
 
@@ -533,7 +719,7 @@ describe( 'iframe-bridge: desktop-mode-iframe-admin-link', () => {
 			window.location.origin +
 			'/wp-admin/comment.php?action=spamcomment&c=99&_wpnonce=xyz';
 		postToWindow( win, {
-			type: 'desktop-mode-iframe-admin-link',
+			type: 'os-iframe-admin-link',
 			url: target,
 		} );
 
@@ -555,7 +741,7 @@ describe( 'iframe-bridge: desktop-mode-iframe-admin-link', () => {
 		const { openWindow } = bindFakeDispatcher();
 		const { win } = mockAdminWindow( { id: 'edit-php' } );
 		( win.config as unknown as { url: string } ).url =
-			window.location.origin + '/wp-admin/edit.php?desktop_mode_chromeless=1';
+			window.location.origin + '/wp-admin/edit.php?openstation_chromeless=1';
 
 		// Cross-page URL with a nonce but an action name OUTSIDE
 		// the destructive whitelist — represents a plugin's custom
@@ -564,14 +750,14 @@ describe( 'iframe-bridge: desktop-mode-iframe-admin-link', () => {
 			window.location.origin +
 			'/wp-admin/admin.php?page=my-plugin&action=custom-export&_wpnonce=abc';
 		postToWindow( win, {
-			type: 'desktop-mode-iframe-admin-link',
+			type: 'os-iframe-admin-link',
 			url: target,
 		} );
 
 		expect( openWindow ).toHaveBeenCalledTimes( 1 );
 		const openedUrl = String( openWindow.mock.calls[ 0 ][ 0 ].url );
 		const parsed = new URL( openedUrl );
-		// The `desktop_mode_chromeless` flag is stripped from the
+		// The `openstation_chromeless` flag is stripped from the
 		// referer hint — `wp_get_referer()` consumers pass the
 		// result downstream into further redirects, and a
 		// chromeless-flagged referer would loop the flag into URLs
@@ -593,13 +779,13 @@ describe( 'iframe-bridge: desktop-mode-iframe-admin-link', () => {
 		const { openWindow } = bindFakeDispatcher();
 		const { win, assignSpy } = mockAdminWindow( { id: 'edit-php' } );
 		( win.config as unknown as { url: string } ).url =
-			window.location.origin + '/wp-admin/edit.php?desktop_mode_chromeless=1';
+			window.location.origin + '/wp-admin/edit.php?openstation_chromeless=1';
 
 		const target =
 			window.location.origin +
-			'/wp-admin/post.php?post=42&action=trash&_wpnonce=abc&desktop_mode_chromeless=1';
+			'/wp-admin/post.php?post=42&action=trash&_wpnonce=abc&openstation_chromeless=1';
 		postToWindow( win, {
-			type: 'desktop-mode-iframe-admin-link',
+			type: 'os-iframe-admin-link',
 			url: target,
 		} );
 
@@ -626,7 +812,7 @@ describe( 'iframe-bridge: desktop-mode-iframe-admin-link', () => {
 			window.location.origin +
 			'/wp-admin/post.php?post=42&action=trash&_wp_http_referer=%2Fwp-admin%2Fcustom.php';
 		postToWindow( win, {
-			type: 'desktop-mode-iframe-admin-link',
+			type: 'os-iframe-admin-link',
 			url: target,
 		} );
 
@@ -645,7 +831,7 @@ describe( 'iframe-bridge: desktop-mode-iframe-admin-link', () => {
 
 		expect( () => {
 			postToWindow( win, {
-				type: 'desktop-mode-iframe-admin-link',
+				type: 'os-iframe-admin-link',
 				url: window.location.origin + '/wp-admin/upload.php',
 			} );
 		} ).not.toThrow();
@@ -662,7 +848,7 @@ describe( 'iframe-bridge: foreign events', () => {
 
 		postToWindow(
 			win,
-			{ type: 'desktop-mode-title-change', title: 'evil' },
+			{ type: 'os-title-change', title: 'evil' },
 			{ origin: 'https://evil.example.com' },
 		);
 
@@ -670,10 +856,10 @@ describe( 'iframe-bridge: foreign events', () => {
 	} );
 } );
 
-describe( 'iframe-bridge: desktop-mode-bridge-beforeunload-response', () => {
+describe( 'iframe-bridge: os-bridge-beforeunload-response', () => {
 	beforeEach( () => {
 		installHooksStub();
-		wpdConfirm.mockReset();
+		osConfirm.mockReset();
 	} );
 	afterEach( () => clearHooksStub() );
 
@@ -681,68 +867,68 @@ describe( 'iframe-bridge: desktop-mode-bridge-beforeunload-response', () => {
 		const win = mockWindow();
 
 		postToWindow( win, {
-			type: 'desktop-mode-bridge-beforeunload-response',
+			type: 'os-bridge-beforeunload-response',
 			prevent: false,
 		} );
 		await vi.dynamicImportSettled();
 
-		expect( wpdConfirm ).not.toHaveBeenCalled();
+		expect( osConfirm ).not.toHaveBeenCalled();
 		expect( win.destroy ).toHaveBeenCalledTimes( 1 );
 		expect( win._closePending ).toBe( false );
 	} );
 
 	test( 'prevent: true, user confirms — destroys the window', async () => {
 		const win = mockWindow();
-		wpdConfirm.mockResolvedValue( true );
+		osConfirm.mockResolvedValue( true );
 
 		postToWindow( win, {
-			type: 'desktop-mode-bridge-beforeunload-response',
+			type: 'os-bridge-beforeunload-response',
 			prevent: true,
 			message: 'You have unsaved edits.',
 		} );
 		await vi.dynamicImportSettled();
 		await vi.waitFor( () => expect( win.destroy ).toHaveBeenCalledTimes( 1 ) );
 
-		expect( wpdConfirm ).toHaveBeenCalledWith(
+		expect( osConfirm ).toHaveBeenCalledWith(
 			expect.objectContaining( { title: 'You have unsaved edits.', danger: true } ),
 		);
 	} );
 
 	test( 'prevent: true, user cancels — window stays open', async () => {
 		const win = mockWindow();
-		wpdConfirm.mockResolvedValue( false );
+		osConfirm.mockResolvedValue( false );
 
 		postToWindow( win, {
-			type: 'desktop-mode-bridge-beforeunload-response',
+			type: 'os-bridge-beforeunload-response',
 			prevent: true,
 		} );
 		await vi.dynamicImportSettled();
-		await vi.waitFor( () => expect( wpdConfirm ).toHaveBeenCalledTimes( 1 ) );
+		await vi.waitFor( () => expect( osConfirm ).toHaveBeenCalledTimes( 1 ) );
 
 		expect( win.destroy ).not.toHaveBeenCalled();
 	} );
 
 	test( 'prevent: true, missing message — falls back to a default dialog title', async () => {
 		const win = mockWindow();
-		wpdConfirm.mockResolvedValue( false );
+		osConfirm.mockResolvedValue( false );
 
 		postToWindow( win, {
-			type: 'desktop-mode-bridge-beforeunload-response',
+			type: 'os-bridge-beforeunload-response',
 			prevent: true,
 		} );
 		await vi.dynamicImportSettled();
 
-		expect( wpdConfirm ).toHaveBeenCalledWith(
+		expect( osConfirm ).toHaveBeenCalledWith(
 			expect.objectContaining( { title: 'Unsaved changes' } ),
 		);
 	} );
 
 	test( 'confirm dialog import failing still destroys the window (fail safe)', async () => {
 		const win = mockWindow();
-		wpdConfirm.mockRejectedValue( new Error( 'boom' ) );
+		osConfirm.mockRejectedValue( new Error( 'boom' ) );
 
 		postToWindow( win, {
-			type: 'desktop-mode-bridge-beforeunload-response',
+			type: 'os-bridge-beforeunload-response',
 			prevent: true,
 		} );
 		await vi.dynamicImportSettled();
@@ -753,13 +939,13 @@ describe( 'iframe-bridge: desktop-mode-bridge-beforeunload-response', () => {
 		const win = mockWindow( { _isDestroyed: true } );
 
 		postToWindow( win, {
-			type: 'desktop-mode-bridge-beforeunload-response',
+			type: 'os-bridge-beforeunload-response',
 			prevent: false,
 		} );
 		await vi.dynamicImportSettled();
 
 		expect( win.destroy ).not.toHaveBeenCalled();
-		expect( wpdConfirm ).not.toHaveBeenCalled();
+		expect( osConfirm ).not.toHaveBeenCalled();
 	} );
 
 	test( 'clears the pending safety timeout on any response', () => {
@@ -769,12 +955,207 @@ describe( 'iframe-bridge: desktop-mode-bridge-beforeunload-response', () => {
 		const win = mockWindow( { _iframeCloseTimeout: timeoutId } );
 
 		postToWindow( win, {
-			type: 'desktop-mode-bridge-beforeunload-response',
+			type: 'os-bridge-beforeunload-response',
 			prevent: false,
 		} );
 
 		expect( clearSpy ).toHaveBeenCalledWith( timeoutId );
 		expect( win._iframeCloseTimeout ).toBeNull();
 		vi.useRealTimers();
+	} );
+} );
+
+describe( 'iframe-bridge: finished-screen handoff', () => {
+	type DispatchDeps = Parameters< typeof bindAdminLinkDispatch >[ 0 ];
+
+	const adminUrl = window.location.origin + '/wp-admin/';
+
+	function bindFakeDispatcher() {
+		const openWindow = vi.fn();
+		const findDockEntry = vi.fn().mockReturnValue( null );
+		const deps: NonNullable< DispatchDeps > = {
+			adminUrl,
+			deriveSlug: ( url ) => {
+				const parsed = new URL( url, adminUrl );
+				const file = parsed.pathname
+					.replace( /.*\/wp-admin\//, '' )
+					.replace( /\.php$/, '-php' );
+				const post = parsed.searchParams.get( 'post' );
+				return post ? `${ file }-post-${ post }` : file;
+			},
+			openWindow,
+			findDockEntry,
+		};
+		bindAdminLinkDispatch( deps );
+		return { openWindow, findDockEntry };
+	}
+
+	/** A window whose iframe reports no navigation-timing entry. */
+	function mockScreenWindow( openedUrl: string ): Window {
+		const iframe = document.createElement( 'iframe' );
+		document.body.appendChild( iframe );
+		Object.defineProperty( iframe, 'contentWindow', {
+			value: { location: { href: '', assign: vi.fn() } },
+			configurable: true,
+		} );
+		return {
+			id: 'revision-php',
+			element: document.createElement( 'div' ),
+			iframe,
+			config: { baseId: 'revision-php', url: openedUrl, title: 'Revisions' },
+			close: vi.fn(),
+			setTitle: vi.fn(),
+			getCurrentUrl: () => openedUrl,
+		} as unknown as Window;
+	}
+
+	beforeEach( () => {
+		installHooksStub();
+	} );
+	afterEach( () => {
+		bindAdminLinkDispatch( null );
+		document.querySelectorAll( 'iframe' ).forEach( ( el ) => el.remove() );
+		clearHooksStub();
+	} );
+
+	test( 'a revisions window that lands on the editor hands off and closes', () => {
+		// The restore is a `document.location` assignment in Core's
+		// revisions.js, so the shell never sees a click — WP's redirect
+		// just turns the Revisions window into a second editor next to
+		// the one it was opened from.
+		const { openWindow } = bindFakeDispatcher();
+		const win = mockScreenWindow(
+			window.location.origin + '/wp-admin/revision.php?revision=31',
+		);
+
+		const landed =
+			window.location.origin +
+			'/wp-admin/post.php?post=4&action=edit&message=5&revision=31';
+		expect( handleFinishedScreenHandoff( win, landed ) ).toBe( true );
+
+		expect( openWindow ).toHaveBeenCalledTimes( 1 );
+		const arg = openWindow.mock.calls[ 0 ][ 0 ];
+		expect( arg.id ).toBe( 'post-php-post-4' );
+		// `message=5` is what renders "Post restored to revision from …"
+		// in the editor — the only confirmation the restore happened.
+		expect( arg.url ).toContain( 'message=5' );
+		expect( win.close ).toHaveBeenCalledTimes( 1 );
+	} );
+
+	test( 'staying on the revisions screen is not a handoff', () => {
+		const { openWindow } = bindFakeDispatcher();
+		const win = mockScreenWindow(
+			window.location.origin + '/wp-admin/revision.php?revision=31',
+		);
+
+		expect(
+			handleFinishedScreenHandoff(
+				win,
+				window.location.origin + '/wp-admin/revision.php?revision=30',
+			),
+		).toBe( false );
+		expect( openWindow ).not.toHaveBeenCalled();
+		expect( win.close ).not.toHaveBeenCalled();
+	} );
+
+	test( 'a window on any other screen is left alone', () => {
+		// The submenu tab strip re-points windows across slugs on
+		// purpose (Appearance → Menus); closing one out from under that
+		// click would be hostile.
+		const { openWindow } = bindFakeDispatcher();
+		const win = mockScreenWindow(
+			window.location.origin + '/wp-admin/themes.php',
+		);
+
+		expect(
+			handleFinishedScreenHandoff(
+				win,
+				window.location.origin + '/wp-admin/nav-menus.php',
+			),
+		).toBe( false );
+		expect( openWindow ).not.toHaveBeenCalled();
+		expect( win.close ).not.toHaveBeenCalled();
+	} );
+
+	test( 'an unbound dispatcher leaves the window open rather than closing it onto nothing', () => {
+		bindAdminLinkDispatch( null );
+		const win = mockScreenWindow(
+			window.location.origin + '/wp-admin/revision.php?revision=31',
+		);
+
+		expect(
+			handleFinishedScreenHandoff(
+				win,
+				window.location.origin + '/wp-admin/post.php?post=4&action=edit',
+			),
+		).toBe( false );
+		expect( win.close ).not.toHaveBeenCalled();
+	} );
+} );
+
+describe( 'iframe-bridge: adoptPageTitle', () => {
+	/** A window whose iframe document reports `documentTitle`. */
+	function mockTitledWindow(
+		config: Record< string, unknown >,
+		documentTitle: string,
+	): Window {
+		const iframe = document.createElement( 'iframe' );
+		Object.defineProperty( iframe, 'contentDocument', {
+			value: { title: documentTitle },
+			configurable: true,
+		} );
+		return {
+			id: 'revision-php',
+			element: document.createElement( 'div' ),
+			iframe,
+			config,
+			setTitle: vi.fn(),
+		} as unknown as Window;
+	}
+
+	test( 'a guessed title is replaced by the page’s own screen name', () => {
+		// The classic editor's revisions link reads "Browse", which
+		// says nothing about revisions once it is a window name.
+		const win = mockTitledWindow(
+			{ title: 'Browse', titleFromPage: true },
+			'Revisions ‹ My Site — WordPress',
+		);
+
+		adoptPageTitle( win );
+
+		expect( win.setTitle ).toHaveBeenCalledWith( 'Revisions' );
+	} );
+
+	test( 'a title the shell knows is never overwritten', () => {
+		const win = mockTitledWindow(
+			{ title: 'Posts' },
+			'Posts ‹ My Site — WordPress',
+		);
+
+		adoptPageTitle( win );
+
+		expect( win.setTitle ).not.toHaveBeenCalled();
+	} );
+
+	test( 'an unrecognised title format is kept whole rather than cut wrong', () => {
+		const win = mockTitledWindow(
+			{ title: 'Browse', titleFromPage: true },
+			'Revisions | My Site',
+		);
+
+		adoptPageTitle( win );
+
+		expect( win.setTitle ).toHaveBeenCalledWith( 'Revisions | My Site' );
+	} );
+
+	test( 'an unchanged name does not churn the title bar', () => {
+		const win = mockTitledWindow(
+			{ title: 'Revisions', titleFromPage: true },
+			'Revisions ‹ My Site — WordPress',
+		);
+
+		adoptPageTitle( win );
+
+		expect( win.setTitle ).not.toHaveBeenCalled();
 	} );
 } );
