@@ -65,10 +65,12 @@ function buildUrl( path: string ): string {
 async function shellFetch(
 	input: RequestInfo,
 	init: RequestInit,
+	opts: { silent?: boolean } = {},
 ): Promise< Response > {
 	return trackedFetch( input, init, {
 		windowId: WINDOW_ID,
 		source: 'desktop-mode/my-wordpress',
+		silent: opts.silent,
 	} );
 }
 
@@ -531,15 +533,25 @@ export async function fetchEntityTotal(
 		return url.toString();
 	};
 
+	// Silent: a background count the user never asked for. Attributing
+	// it to the window made a READ-ONLY probe drive the title bar's
+	// SAVE status — a 404 painted "Not saved. Request failed (HTTP 404
+	// Not Found)" on every WP Explorer open. Skipping the probe for a
+	// disabled entity fixed that instance; silencing it fixes the
+	// class, so no counter failure can read as a failed write again.
 	const send = ( target: string ): Promise< Response > =>
-		shellFetch( target, {
-			method: 'GET',
-			credentials: 'same-origin',
-			headers: {
-				'X-WP-Nonce': cfg.restNonce,
-				Accept: 'application/json',
+		shellFetch(
+			target,
+			{
+				method: 'GET',
+				credentials: 'same-origin',
+				headers: {
+					'X-WP-Nonce': cfg.restNonce,
+					Accept: 'application/json',
+				},
 			},
-		} );
+			{ silent: true },
+		);
 
 	let response = await send( buildRequestUrl( false ) );
 	if ( response.status === 403 && entity.kind === 'user' ) {

@@ -717,6 +717,27 @@ function openstation_enqueue_assets() {
 				// Extensionless retry target for hosts whose nginx 404s
 				// virtual .js paths before WordPress runs (WordPress.com).
 				'swFallbackUrl'  => esc_url_raw( openstation_pwa_sw_fallback_url() ),
+				// The worker's per-user flags, computed HERE rather than
+				// baked into the served `sw.js`.
+				//
+				// A service worker is origin-wide but these are per-user
+				// preferences, so putting them in the script bytes made
+				// the body differ between an anonymous and a logged-in
+				// request — and any in-scope logged-out navigation then
+				// installed a "new" worker and tripped the shell's
+				// `controllerchange` reload. The bytes are identical for
+				// everyone now; the shell posts these to the worker at
+				// boot.
+				//
+				// Computed server-side, not read from the settings
+				// snapshot client-side, because
+				// `openstation_pwa_admin_asset_cache_enabled()` applies
+				// the `openstation_pwa_admin_asset_cache` filter — an
+				// operator's site-wide veto has to keep working.
+				'swConfig'       => array(
+					'adminAssetCache' => (bool) openstation_pwa_admin_asset_cache_enabled(),
+					'windowPrewarm'   => ! empty( openstation_get_os_settings( get_current_user_id() )['windowPrewarmEnabled'] ),
+				),
 				'stateUrl'       => esc_url_raw( rest_url( 'desktop-mode/v1/pwa-state' ) ),
 				'state'          => openstation_pwa_get_user_state( get_current_user_id() ),
 				// Mirrors the manifest's `name` field — used by the

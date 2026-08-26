@@ -199,14 +199,25 @@ function openstation_pwa_admin_asset_cache_enabled() {
  * @return string One line of JavaScript, newline-terminated.
  */
 function openstation_pwa_sw_config_preamble() {
-	$settings = openstation_get_os_settings( get_current_user_id() );
-	$config   = array(
-		'adminAssetCache' => openstation_pwa_admin_asset_cache_enabled(),
-		// Hover prewarming, the same toggle the dock reads. The worker
-		// needs it because the speculative-document hand-off lives on
-		// its side: the shell asks, the worker fetches and holds.
-		'windowPrewarm'   => ! empty( $settings['windowPrewarmEnabled'] ),
-		'pluginUrl'       => OPENSTATION_URL,
+	/*
+	 * Site-level values ONLY. Nothing here may depend on who is asking.
+	 *
+	 * `adminAssetCache` and `windowPrewarm` are per-user preferences,
+	 * and a service worker is origin-wide. Putting them in the served
+	 * bytes made the body differ between an anonymous and a logged-in
+	 * request, so any in-scope logged-out navigation — the interim-login
+	 * iframe, logging out — served a different script. The browser
+	 * treats different bytes as an update, installs it, activates it,
+	 * and the shell's `controllerchange` handler hard-reloads the
+	 * desktop out from under the user.
+	 *
+	 * The shell pushes both flags to the running worker at boot instead
+	 * (`os-sw-config`), and the toggle pushes changes as they happen.
+	 * The worker starts with both off, so until that message lands it
+	 * simply does less — never more.
+	 */
+	$config = array(
+		'pluginUrl' => OPENSTATION_URL,
 	);
 	return sprintf( "self.__OS_SW_CONFIG = %s;\n", wp_json_encode( $config ) );
 }

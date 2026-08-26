@@ -158,6 +158,25 @@ const OWN_PLUGIN_PATH = new URL( CONFIG.pluginUrl ).pathname;
 let windowPrewarmEnabled = CONFIG.windowPrewarm;
 
 /**
+ * Whether the shared admin-asset cache is on, kept live for the same
+ * reason.
+ *
+ * Both flags are PER-USER preferences, and a service worker is
+ * origin-wide. Baking them into the served bytes made the body differ
+ * between an anonymous and a logged-in request — so any in-scope
+ * logged-out navigation (the interim-login iframe, logging out) served
+ * a different script, which the browser treats as an update, installs,
+ * and activates. The shell's `controllerchange` handler then hard-
+ * reloads the desktop out from under the user.
+ *
+ * The served bytes are now identical for everyone (`pluginUrl` only)
+ * and the shell pushes the per-user values at boot. Starting both off
+ * is the safe default: until the message lands the worker simply does
+ * less.
+ */
+let adminAssetCacheEnabled = CONFIG.adminAssetCache;
+
+/**
  * Asset URLs precached on install. Kept narrow on purpose — paths
  * are unversioned, and the runtime cache lookups pass
  * `ignoreSearch: true` so a versioned request like
@@ -256,7 +275,7 @@ sw.addEventListener( 'fetch', ( event: SWFetchEvent ) => {
 	// Range requests must never meet the cache: answering one with a
 	// cached 200 full body (or caching a 206) desyncs the consumer.
 	const adminAssetClass =
-		CONFIG.adminAssetCache && ! req.headers.has( 'range' )
+		adminAssetCacheEnabled && ! req.headers.has( 'range' )
 			? classifyAdminAssetRequest( url, OWN_PLUGIN_PATH )
 			: 'bypass';
 
@@ -515,6 +534,26 @@ sw.addEventListener( 'message', ( event: SWMessageEvent ) => {
 		if ( ! windowPrewarmEnabled ) {
 			speculative.clear();
 			event.waitUntil( caches.delete( SESSION_CACHE ) );
+		}
+		return;
+	}
+
+	// The per-user flags, pushed by the shell at boot. They are not in
+	// the served bytes any more — see `adminAssetCacheEnabled` — so
+	// this is how the worker learns them at all.
+	if ( data && data.type === 'os-sw-config' ) {
+		const cfg = data as {
+			adminAssetCache?: unknown;
+			windowPrewarm?: unknown;
+		};
+		if ( typeof cfg.adminAssetCache === 'boolean' ) {
+			adminAssetCacheEnabled = cfg.adminAssetCache;
+		}
+		if ( typeof cfg.windowPrewarm === 'boolean' ) {
+			windowPrewarmEnabled = cfg.windowPrewarm;
+			if ( ! windowPrewarmEnabled ) {
+				speculative.clear();
+			}
 		}
 		return;
 	}
