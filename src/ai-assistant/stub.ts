@@ -121,6 +121,26 @@ export class AiAssistantStub implements AiAssistantApi {
 	}
 
 	private _ensure(): Promise< LoadedAi > {
+		// Palette runtime first, and OUTSIDE the `_loadPromise` guard
+		// below. `ensureCommandPaletteAssets()` clears its own memo when
+		// a load fails, precisely so the next ⌘K can retry a flaky
+		// connection — but that retry never happened, because its only
+		// caller sat behind a guard that is set once and never cleared.
+		// One 404 among the ~50 replayed scripts and the palette showed
+		// shell commands only, with no WP baseline and no hoisted plugin
+		// contributors, for the rest of the session.
+		//
+		// Calling it every time is free: it is already memoised, so the
+		// success path hands back the same resolved promise.
+		//
+		// Fire-and-forget by design — the palette opens immediately with
+		// the shell's own commands and the WP set pops in when the chain
+		// lands, via `os-command-palette-ready`.
+		ensureCommandPaletteAssets().catch( ( err ) => {
+			// eslint-disable-next-line no-console -- a failed palette-runtime load would otherwise be silent; the palette still works with shell commands only.
+			console.warn( '[openstation] command-palette runtime failed to load', err );
+		} );
+
 		if ( this._loadPromise ) {
 			return this._loadPromise;
 		}
@@ -128,16 +148,6 @@ export class AiAssistantStub implements AiAssistantApi {
 		// a boot enqueue — inject it here so the `<link>` fetches in
 		// parallel with the impl bundle below.
 		ensureDeferredStyle( 'desktop-mode-ai-assistant' );
-		// First palette invocation is also the moment the Core
-		// command-palette runtime starts loading (the WP baseline
-		// commands the palette lists). Fire-and-forget: the palette
-		// opens immediately with the shell's own commands, and the
-		// WP set pops in when the chain lands — the harvester
-		// listens for `os-command-palette-ready`.
-		ensureCommandPaletteAssets().catch( ( err ) => {
-			// eslint-disable-next-line no-console -- a failed palette-runtime load would otherwise be silent; the palette still works with shell commands only.
-			console.warn( '[openstation] command-palette runtime failed to load', err );
-		} );
 		this._loadPromise = loadImpl( this._scriptUrl ).then( ( factory ) => {
 			const real = factory( this._config ) as LoadedAi;
 			if ( this._pendingAsk ) {

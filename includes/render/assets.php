@@ -747,11 +747,28 @@ function openstation_enqueue_assets() {
 			// `ensureDeferredStyle()` in `src/deferred-styles.ts`.
 			// Same resolved shape a native window's `styleUrl` /
 			// `styleInline` travels in.
+			// Which of the `deferredStyles` entries a game needs.
+			// `launchGame()` injects these before the window paints.
+			'gameStyleHandles'              => function_exists( 'openstation_games_style_handles' )
+				? openstation_games_style_handles()
+				: array(),
 			'deferredStyles'                => openstation_build_deferred_styles(
-				array(
-					'os-settings',
-					'desktop-mode-ai-assistant',
-					'desktop-mode-bug-report',
+				array_merge(
+					array(
+						'os-settings',
+						'desktop-mode-ai-assistant',
+						'desktop-mode-bug-report',
+					),
+					// The Games sheets. They also ride the hub window as
+					// companion styles, but a game is reachable without
+					// the hub — the challenge toast, solo mode, and
+					// `wp.os.games.launch()` all land in `launchGame()`
+					// with no hub window in the tab. Listing them here
+					// costs a URL each in the boot config and no CSS
+					// until `launchGame()` asks.
+					function_exists( 'openstation_games_style_handles' )
+						? openstation_games_style_handles()
+						: array()
 				)
 			),
 		)

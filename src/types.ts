@@ -2316,6 +2316,14 @@ export interface DesktopConfig {
 	 */
 	deferredStyles?: Record< string, { url: string; inline?: string[] } >;
 	/**
+	 * Which `deferredStyles` entries a game window needs. Injected by
+	 * `launchGame()` before the window paints, because a game is
+	 * reachable without the Games hub — the challenge toast, solo mode
+	 * and `wp.os.games.launch()` all skip it — and the hub is what
+	 * would otherwise have carried these as companion styles.
+	 */
+	gameStyleHandles?: string[];
+	/**
 	 * Ordered manifest of the Core command-palette asset chain —
 	 * `wp-commands` + `wp-core-commands` and their full dependency
 	 * closure (the Gutenberg runtime), resolved server-side in print

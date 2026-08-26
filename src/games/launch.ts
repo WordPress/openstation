@@ -29,6 +29,8 @@
  */
 
 import * as registry from './registry';
+import { ensureDeferredStyle } from '../deferred-styles';
+import type { DesktopConfig } from '../types';
 import { startPlaytimeTracker } from './playtime';
 import type { PlaytimeTracker } from './playtime';
 import { ingestChallenges } from './challenges-store';
@@ -110,6 +112,33 @@ const DEFAULT_GAME_MIN_HEIGHT = 380;
  * Exported for the server-sync module's tests; `launchGame` is the
  * production caller.
  */
+/**
+ * Inject the stylesheets a game window needs.
+ *
+ * They also ride the Games hub as companion styles, which covers the
+ * case where the hub is what opened. It is not the only way in: the
+ * challenge toast's "Accept & Play" is built to work with the hub
+ * closed, solo mode boots straight to `?openstation_solo=os-game-<id>`,
+ * and `wp.os.games.launch()` is documented for plugin authors. Each of
+ * those reaches `launchGame()` with no hub window in the tab, and the
+ * HUD painted as raw text until the user happened to open the hub
+ * afterwards — at which point the already-open game snapped into shape.
+ *
+ * `ensureDeferredStyle()` is idempotent and reads the same resolved map
+ * the hub's companion sheets come from, so this is a no-op once the hub
+ * has been open.
+ *
+ * Exported for its test; `launchGame` is the production caller.
+ */
+export function ensureGameStyles(): void {
+	const handles =
+		( window as unknown as { openStationConfig?: DesktopConfig } )
+			.openStationConfig?.gameStyleHandles ?? [];
+	for ( const handle of handles ) {
+		ensureDeferredStyle( handle );
+	}
+}
+
 export async function ensureGameRender(
 	entry: GameRegistryEntry,
 ): Promise< GameRegistryEntry > {
@@ -162,6 +191,23 @@ export async function launchGame(
 	if ( ! entry ) {
 		throw new Error( `[openstation] Unknown game "${ id }".` );
 	}
+	// The game's stylesheets, before anything paints.
+	//
+	// These ride the Games hub window as companion styles, which covers
+	// the case where the hub is what opened. It is not the only way in:
+	// the challenge toast's "Accept & Play" is built to work with the
+	// hub closed, solo mode boots straight to
+	// `?openstation_solo=os-game-<id>`, and `wp.os.games.launch()` is
+	// documented for plugins. Each of those runs this function with no
+	// hub window in the tab, and the HUD used to render as raw text
+	// until the user happened to open the hub afterwards — at which
+	// point the already-open game snapped into shape.
+	//
+	// `ensureDeferredStyle()` is idempotent and reads the same resolved
+	// map the hub's companion sheets come from, so this is a no-op once
+	// the hub has been open.
+	ensureGameStyles();
+
 	entry = await ensureGameRender( entry );
 	const render = entry.render;
 	if ( typeof render !== 'function' ) {
