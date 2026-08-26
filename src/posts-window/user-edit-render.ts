@@ -207,7 +207,7 @@ async function loadAndMountProfile(
 		host.replaceChildren();
 		const msg = document.createElement( 'p' );
 		msg.style.cssText =
-			'padding:32px;color:#b32d2e;font-size:13px;text-align:center;';
+			'padding:32px;color:var(--os-ui-danger, #b32d2e);font-size:13px;text-align:center;';
 		msg.textContent = sprintf(
 			// translators: %s is an error message.
 			__( 'Could not load profile (%s).' ),
@@ -817,7 +817,7 @@ async function loadInsightsInto(
 		host.replaceChildren();
 		const msg = document.createElement( 'p' );
 		msg.style.cssText =
-			'padding:24px;color:#b32d2e;font-size:13px;text-align:center;';
+			'padding:24px;color:var(--os-ui-danger, #b32d2e);font-size:13px;text-align:center;';
 		msg.textContent = sprintf(
 			// translators: %s is an error message.
 			__( 'Could not load insights (%s).' ),
@@ -889,7 +889,12 @@ function buildAsideSummary( data: UserInsightsPayload ): HTMLElement {
 		'padding:16px',
 		'border:1px solid var(--os-ui-border, #dcdcde)',
 		'border-radius:12px',
-		'background:var(--wp-admin-theme-bg-elevated, #f6f7f7)',
+		// The palette's card surface, NOT a `--wp-admin-theme-*`
+		// name: those aren't OpenStation tokens, so on any desktop
+		// theme the var came up undefined and the card sat on the
+		// light fallback while the text followed the theme —
+		// light-on-light on every dark desktop.
+		'background:var(--os-ui-card-bg, var(--os-ui-surface, #f6f7f7))',
 	].join( ';' );
 
 	const avatar = document.createElement( 'img' );
@@ -914,8 +919,8 @@ function buildAsideSummary( data: UserInsightsPayload ): HTMLElement {
 			'display:inline-flex',
 			'padding:2px 8px',
 			'border-radius:10px',
-			'background:rgba(34,113,177,0.10)',
-			'color:#0a4b78',
+			'background:var(--os-ui-badge-info-bg, rgba(34,113,177,0.10))',
+			'color:var(--os-ui-info-fg, #0a4b78)',
 			'font-size:11px',
 			'font-weight:600',
 		].join( ';' );
@@ -951,7 +956,10 @@ function buildAsideSummary( data: UserInsightsPayload ): HTMLElement {
 		track.style.cssText = [
 			'height:4px',
 			'border-radius:999px',
-			'background:rgba(0,0,0,0.06)',
+			// The palette's unlit-track token ("switch tracks, empty
+			// progress" — see variables.css); a raw black wash is
+			// invisible on a dark card.
+			'background:var(--os-ui-holo-track, rgba(0,0,0,0.06))',
 			'position:relative',
 			'overflow:hidden',
 		].join( ';' );
@@ -1257,7 +1265,7 @@ function buildRecentList(
 		if ( item.tag ) {
 			const tag = document.createElement( 'span' );
 			tag.style.cssText =
-				'font-size:10px;text-transform:uppercase;letter-spacing:0.04em;background:rgba(0,0,0,0.06);padding:1px 6px;border-radius:8px;flex-shrink:0;';
+				'font-size:10px;text-transform:uppercase;letter-spacing:0.04em;background:var(--os-ui-badge-neutral-bg, rgba(0,0,0,0.06));padding:1px 6px;border-radius:8px;flex-shrink:0;';
 			tag.textContent = item.tag;
 			top.appendChild( tag );
 		}
@@ -1681,7 +1689,10 @@ function buildAdminColorPicker(
 		tile.style.cssText = [
 			'appearance:none',
 			'border:1px solid var(--os-ui-border, #dcdcde)',
-			'background:var(--wp-admin-theme-bg, #fff)',
+			// Palette card surface — `--wp-admin-theme-bg` is not an
+			// OpenStation token, so every tile fell back to white and
+			// the inherited theme text vanished on it.
+			'background:var(--os-ui-card-bg, var(--os-ui-surface, #fff))',
 			'color:inherit',
 			'border-radius:8px',
 			'padding:10px 10px 8px',
@@ -1696,7 +1707,7 @@ function buildAdminColorPicker(
 
 		const swatchRow = document.createElement( 'span' );
 		swatchRow.style.cssText =
-			'display:flex;height:18px;border-radius:4px;overflow:hidden;border:1px solid rgba(0,0,0,0.06);';
+			'display:flex;height:18px;border-radius:4px;overflow:hidden;border:1px solid var(--os-ui-border, rgba(0,0,0,0.06));';
 		const colors = ( info.colors ?? [] ).slice( 0, 4 );
 		if ( colors.length === 0 ) {
 			colors.push( '#dcdcde', '#dcdcde', '#dcdcde' );

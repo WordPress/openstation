@@ -290,7 +290,7 @@ Detection is by visible text content on the clicked element rather than by selec
 
 1. **Iframe-side click handler** (`admin_head` priority 0, chromeless + Divi-active only). Installs a capture-phase `click` listener that walks up from `e.target` looking for a `BUTTON`, `A`, `INPUT`, or `SPAN` whose trimmed lowercase text matches the VB button set. On match: `preventDefault` + `stopPropagation` + `stopImmediatePropagation`, then `postMessage` to the parent shell with `{ type: 'os-divi-vb-handoff', url: window.location.href }`. The handler is also installed inside every reachable same-origin nested iframe (Gutenberg's editor canvas, etc.) — a `MutationObserver` on `document.documentElement` walks new iframes as they're added.
 
-2. **Parent-shell listener** (`admin_footer` priority 1, non-chromeless + Divi-active only). Listens for `os-divi-vb-handoff` postMessages, checks `ev.origin === window.location.origin`, then reshapes the URL: strip `openstation_chromeless` (the iframe-only flag would keep us in chromeless render at top level), add `desktop_mode_classic=1` (consumed by `openstation_redirect_plain_admin_to_portal()` in `includes/portal.php:286-288` to skip the portal-redirect for this request). Then shows `wp.os.confirm()` with `hideCancel: true` + `dismissable: true` — a single "Open Divi in this tab" action plus an X to close. On confirm, sets `window.top.location.href` to the reshaped URL. On X-close or Escape, does nothing — the user stays where they were and can click the button again later to re-show the dialog.
+2. **Parent-shell listener** (`admin_footer` priority 1, non-chromeless + Divi-active only). Listens for `os-divi-vb-handoff` postMessages, checks `ev.origin === window.location.origin`, then reshapes the URL: strip `openstation_chromeless` (the iframe-only flag would keep us in chromeless render at top level), add `desktop_mode_classic=1` (consumed by `openstation_redirect_plain_admin_to_portal()` in `includes/portal.php`, whose classic-flag check skips the portal-redirect for this request). Then shows `wp.os.confirm()` with `hideCancel: true` + `dismissable: true` — a single "Open Divi in this tab" action plus an X to close. On confirm, sets `window.top.location.href` to the reshaped URL. On X-close or Escape, does nothing — the user stays where they were and can click the button again later to re-show the dialog.
 
 3. **`openstation_compat_divi_is_active()`** — small helper that returns true for the Divi theme or the Divi Builder plugin. Both halves of the fix are gated on it so non-Divi sites pay nothing.
 
@@ -389,11 +389,11 @@ order. The real status is in the right pane.
 **The right pane said nothing useful.** Products, orders and coupons
 got the generic post preview — a title and some prose. The bundle
 subscribes to
-[`os.my-wordpress.preview-extras`](./javascript-reference.md#action--openstationmy-wordpresspreview-extras)
+[`os.my-wordpress.preview-extras`](./javascript-reference.md#action--osmy-wordpresspreview-extras)
 and paints merchant facts into the `header` slot: price / stock /
 units sold for a product, total / customer / line items for an order,
 validity / discount / usage for a coupon. It also subscribes to
-[`os.my-wordpress.group-extras`](./javascript-reference.md#action--openstationmy-wordpressgroup-extras)
+[`os.my-wordpress.group-extras`](./javascript-reference.md#action--osmy-wordpressgroup-extras)
 to show revenue this month, orders awaiting action, and out-of-stock
 count on the Woo folder itself. Data comes from
 `desktop-mode/v1/woocommerce/summary/<type>/<id>` and

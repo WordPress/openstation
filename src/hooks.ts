@@ -363,6 +363,30 @@ export const HOOKS = {
 	 */
 	WALLPAPERS_SERVER_CHANGED: 'os.wallpapers.server-changed',
 
+	/**
+	 * An Extended Option was saved.
+	 *
+	 * Same shape of problem as `WALLPAPERS_SERVER_CHANGED`: the panel
+	 * that writes the option and the surfaces that obey it are
+	 * different bundles, and the option is only read out of the page
+	 * config the server printed at load. Without an announcement, a
+	 * feature switched off in Preferences stays switched on in every
+	 * window already open. Worse, a window whose REST routes were
+	 * unregistered by the same save starts answering "No route was
+	 * found matching the URL" instead.
+	 *
+	 * So the panel announces and each surface reconciles: re-read the
+	 * option, re-render, and be whatever the option now says. Fires
+	 * once per successful save, carrying the whole saved set rather
+	 * than the one that moved: the endpoint returns the set, and a
+	 * listener that wants one key can read one key.
+	 *
+	 * Signature:
+	 *
+	 *     ( payload: { options: Record< string, boolean > } ) => void
+	 */
+	EXTENDED_OPTIONS_CHANGED: 'os.extended-options.changed',
+
 	// ------------------------------------------------------------------
 	// Window lifecycle actions. All payloads share a `windowId: string`
 	// field; additional fields are documented per-hook in the JS
@@ -1220,6 +1244,8 @@ export const HOOKS = {
 	DESKTOP_CLOSED: 'os.os.closed',
 	/** Action, fires when the active desktop changes. Payload `{ from, to }`. */
 	DESKTOP_SWITCHED: 'os.os.switched',
+	/** Action, fires when a desktop is renamed. Payload `{ desktopId, label, previousLabel }`. */
+	DESKTOP_RENAMED: 'os.os.renamed',
 	/**
 	 * Filter. Returns the id of the "primary" desktop — the one the
 	 * shell treats as canonical for batch operations. Receives the

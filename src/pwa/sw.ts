@@ -19,10 +19,18 @@
  *      the shell instantly while the SW updates the cache in the
  *      background. JS bundles — network-first with cache fallback,
  *      so a fresh deploy reaches online users immediately.
- *   3. Everything else (HTML, REST, AJAX) — network-only with an
- *      offline fallback for navigation requests so the user sees a
- *      friendly placeholder instead of the browser's default offline
- *      page.
+ *   3. Shared admin-asset cache (opt-in via the PHP filter
+ *      `openstation_pwa_admin_asset_cache`, delivered through the
+ *      `self.__OS_SW_CONFIG` preamble): versioned Core static assets
+ *      and the `load-scripts.php` / `load-styles.php` concat blobs —
+ *      exact-URL cache-first; versioned plugin/theme assets —
+ *      stale-while-revalidate. One origin-wide bucket serves the
+ *      shell and every chromeless iframe. Policy decisions live in
+ *      `sw-policy.ts`.
+ *   4. Everything else (HTML, REST, AJAX, uploads, unversioned
+ *      URLs) — network-only with an offline fallback for navigation
+ *      requests so the user sees a friendly placeholder instead of
+ *      the browser's default offline page.
  *
  * The `push` handler is a no-op in v1 — it claims the event so a
  * future v2 push payload doesn't fall through to the browser's
@@ -34,6 +42,14 @@
  */
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
+
+import {
+	classifyAdminAssetRequest,
+	isCacheableResponse,
+	isSpeculatableDocument,
+	readSwConfig,
+} from './sw-policy';
+import { SPECULATIVE_MAX, SpeculativeStore } from './speculative-store';
 
 // Minimal local typings for the service-worker global scope. We
 // intentionally don't pull in `lib.webworker.d.ts` — it re-declares
@@ -67,8 +83,13 @@ interface SWPushEvent {
 interface SWFetchEvent {
 	request: Request;
 	respondWith: ( r: Response | Promise< Response > ) => void;
+	waitUntil: ( p: Promise< unknown > ) => void;
 }
 interface SWExtendableEvent {
+	waitUntil: ( p: Promise< unknown > ) => void;
+}
+interface SWMessageEvent {
+	data?: unknown;
 	waitUntil: ( p: Promise< unknown > ) => void;
 }
 interface SWEventMap {
@@ -77,6 +98,7 @@ interface SWEventMap {
 	fetch: SWFetchEvent;
 	push: SWPushEvent;
 	notificationclick: SWNotificationEvent;
+	message: SWMessageEvent;
 }
 interface SWGlobal {
 	addEventListener< K extends keyof SWEventMap >(
@@ -86,6 +108,13 @@ interface SWGlobal {
 	skipWaiting: () => Promise< void >;
 	clients: SWClients;
 	location: { origin: string; pathname: string };
+	/**
+	 * Config preamble injected by the PHP endpoint serving this file
+	 * (`openstation_pwa_serve_service_worker()`). Optional on purpose:
+	 * a body cached without the preamble must still boot with the
+	 * defaults `readSwConfig` supplies.
+	 */
+	__OS_SW_CONFIG?: unknown;
 }
 
 // Single typed alias to the SW global. Avoids redeclaring `self`
@@ -93,10 +122,25 @@ interface SWGlobal {
 // concise.
 const sw = globalThis as unknown as SWGlobal;
 
-const VERSION = '0.8.0-pwa-5';
+const VERSION = '0.8.0-pwa-6';
 const STATIC_CACHE = `os-static-${ VERSION }`;
 const RUNTIME_CACHE = `os-runtime-${ VERSION }`;
+const ADMIN_CACHE = `os-admin-${ VERSION }`;
 const OFFLINE_URL = '/openstation/?offline=1';
+
+// Fallback plugin URL for bodies served without the config preamble.
+// See `pluginAssetBase()` for the layout caveats this covers.
+const FALLBACK_PLUGIN_URL =
+	sw.location.origin + '/wp-content/plugins/desktop-mode/';
+
+// Resolved once at evaluation time — the preamble (when present) runs
+// before this module body, so the value is already on the global.
+const CONFIG = readSwConfig( sw.__OS_SW_CONFIG, FALLBACK_PLUGIN_URL );
+
+// Pathname fragment of the plugin directory, derived from the config
+// so non-default layouts (Bedrock etc.) classify their own assets
+// correctly. `CONFIG.pluginUrl` is validated by `readSwConfig`.
+const OWN_PLUGIN_PATH = new URL( CONFIG.pluginUrl ).pathname;
 
 /**
  * Asset URLs precached on install. Kept narrow on purpose — paths
@@ -151,6 +195,10 @@ sw.addEventListener( 'activate', ( event: SWExtendableEvent ) => {
 					.filter( ( k ) => ! k.endsWith( VERSION ) )
 					.map( ( k ) => caches.delete( k ) ),
 			);
+			// Also trim the (versioned) admin-asset bucket, so a bucket
+			// that grew past the cap while puts were throttled gets
+			// squared away on every activation.
+			await pruneAdminCache();
 			await sw.clients.claim();
 		} )(),
 	);
@@ -166,13 +214,27 @@ sw.addEventListener( 'fetch', ( event: SWFetchEvent ) => {
 		return;
 	}
 
-	// Only intercept paths under the openstation portal or wp-admin.
+	// Only intercept paths under the openstation portal or wp-admin —
+	// plus, when the shared admin-asset cache is opted in, versioned
+	// static assets anywhere WordPress serves them from (wp-includes
+	// lives outside /wp-admin/, and so do plugin/theme directories).
 	const isPortal = url.pathname.startsWith( '/openstation/' );
 	const isAdmin = url.pathname.startsWith( '/wp-admin/' );
-	const isPluginAsset = url.pathname.includes(
-		'/wp-content/plugins/desktop-mode/',
-	);
-	if ( ! isPortal && ! isAdmin && ! isPluginAsset ) {
+	const isPluginAsset = url.pathname.includes( OWN_PLUGIN_PATH );
+
+	// Range requests must never meet the cache: answering one with a
+	// cached 200 full body (or caching a 206) desyncs the consumer.
+	const adminAssetClass =
+		CONFIG.adminAssetCache && ! req.headers.has( 'range' )
+			? classifyAdminAssetRequest( url, OWN_PLUGIN_PATH )
+			: 'bypass';
+
+	if (
+		! isPortal &&
+		! isAdmin &&
+		! isPluginAsset &&
+		adminAssetClass === 'bypass'
+	) {
 		return;
 	}
 
@@ -191,11 +253,61 @@ sw.addEventListener( 'fetch', ( event: SWFetchEvent ) => {
 	}
 
 	if ( isPluginAsset && isStaticAssetPath( url.pathname ) ) {
-		event.respondWith( staleWhileRevalidate( req ) );
+		event.respondWith( staleWhileRevalidate( req, RUNTIME_CACHE ) );
 		return;
 	}
 
+	// Shared admin-asset cache (opt-in via the PHP filter
+	// `openstation_pwa_admin_asset_cache`). One origin-wide bucket
+	// serves every window: an asset fetched by one chromeless iframe
+	// is answered from Cache Storage for every later window. The
+	// own-plugin branches above deliberately keep precedence — the
+	// policy module classifies our own assets as `own-plugin`, so
+	// they can never reach these branches; the guard order here is
+	// still explicit because `tests/vitest/sw-policy.test.ts` pins it.
+	if ( adminAssetClass === 'core-cache-first' ) {
+		event.respondWith( cacheFirstAdminAsset( req ) );
+		return;
+	}
+	if ( adminAssetClass === 'content-swr' ) {
+		event.respondWith( staleWhileRevalidate( req, ADMIN_CACHE ) );
+		return;
+	}
+
+	// A window navigating to a document the shell asked us to fetch
+	// early. Answered from the held response — never re-fetched, which
+	// is what keeps the Sec-Fetch hazard described below out of play.
+	// Exact-URL, single-use; anything not waiting falls through to the
+	// normal pass-through for iframes.
+	if ( req.mode === 'navigate' && speculative.size > 0 ) {
+		const held = speculative.take( url.toString() );
+		if ( held ) {
+			event.respondWith(
+				held.then( ( res ) => {
+					if ( res ) {
+						return res;
+					}
+					// The speculative fetch failed or came back
+					// unusable. Re-fetching is safe for exactly these
+					// URLs — every one carries
+					// `openstation_chromeless=1`, which the server
+					// reads before it ever consults Sec-Fetch, so the
+					// hazard the navigate branch below guards against
+					// cannot bite here.
+					// eslint-disable-next-line no-restricted-syntax -- service-worker context, no `wp.os` global available; raw fetch is the API.
+					return fetch( req );
+				} ),
+			);
+			return;
+		}
+	}
+
 	if ( req.mode === 'navigate' && req.destination === 'document' ) {
+		// The shell is being loaded. Start its windows' documents now,
+		// in parallel with the server building this one, instead of
+		// after it — see `replayRestoreTargets()`. Fire-and-forget:
+		// the navigation below must not wait on speculation.
+		event.waitUntil( replayRestoreTargets() );
 		// Only intercept TOP-LEVEL navigations. Iframe navigations
 		// (`req.destination === 'iframe'`) pass through directly to
 		// the browser. If the SW called `fetch( req )` for an iframe
@@ -217,6 +329,231 @@ sw.addEventListener( 'fetch', ( event: SWFetchEvent ) => {
 	// don't want to cache REST / AJAX (they carry nonces, per-request
 	// screen state) and HTML in admin pages is never safe to cache.
 } );
+
+/* -------------------------------------------------------------------------
+ * Speculative documents.
+ *
+ * The asset cache took the network out of a window's *assets*. What it
+ * cannot touch is the document: admin HTML carries nonces and
+ * per-request screen state, so it is never cacheable, and on this
+ * install it is the majority of a window open — measured at ~2.1 s of
+ * a ~3.8 s tab click, against ~1.7 s for everything the browser then
+ * does with it.
+ *
+ * That cost does not have to be paid *after* the click. The shell
+ * knows every URL a window can reach (dock items and submenu tabs come
+ * straight from the menu payload) and already reads hover intent. What
+ * was missing is the hand-off: the shell asks for a document ahead of
+ * time, the worker fetches it once and holds it, and the iframe's own
+ * navigation is answered from that held response.
+ *
+ * This is deliberately NOT keeping the tab alive. Nothing rendered is
+ * retained — no DOM, no live iframe, no memory beyond a Response body
+ * that expires in seconds. The page is still built fresh; it is simply
+ * built while the user is still deciding.
+ *
+ * **Why answering an iframe navigation is safe here, when the fetch
+ * handler otherwise refuses to.** The hazard it avoids (see the
+ * navigate branch above, and issue #171) is the worker *re-fetching*
+ * an iframe request: Chrome then sends `Sec-Fetch-Dest: empty`, the
+ * server's chromeless detection falls through, and the whole desktop
+ * renders inside a window. A speculative document is never re-fetched.
+ * It is fetched once, ahead of time, from a URL the shell built with
+ * `openstation_chromeless=1` present — and the server checks that
+ * query flag first, treating Sec-Fetch only as a fallback. So the
+ * bytes held here are already correctly chromeless, and serving them
+ * involves no second request at all.
+ *
+ * Single-use and short-lived on purpose: a document carries nonces and
+ * a moment-in-time view of the screen, so it is served at most once
+ * and only within {@link SPECULATIVE_TTL_MS}.
+ * ---------------------------------------------------------------------- */
+
+/**
+ * Held documents, keyed by exact URL.
+ *
+ * The store itself lives in `speculative-store.ts` so its rules — hold
+ * the promise rather than the settled response, take once, expire —
+ * can be tested without a service-worker global scope.
+ */
+const speculative = new SpeculativeStore();
+
+/**
+ * Where the restore list lives between visits.
+ *
+ * A Cache entry rather than IndexedDB because the worker already owns
+ * caches, and this is one small JSON blob read once per boot. The key
+ * is a synthetic same-origin URL that nothing ever navigates to.
+ */
+const SESSION_CACHE = `os-session-${ VERSION }`;
+const SESSION_KEY = '/__openstation_restore_targets__';
+
+/**
+ * When the restore list was last replayed.
+ *
+ * Deliberately a timestamp rather than a "done" flag. A worker outlives
+ * any single page load — it stays resident across navigations and can
+ * be reused for hours — so a boolean would fire on the first shell load
+ * this worker ever saw and never again, leaving every later boot
+ * unaccelerated. That is exactly what the first live measurement
+ * showed: one window's TTFB halved, the other untouched.
+ *
+ * The throttle only exists to stop a burst of navigations stacking
+ * duplicate work; `beginSpeculation()` already de-duplicates by URL.
+ */
+let lastReplayAt = 0;
+const REPLAY_THROTTLE_MS = 3_000;
+
+/**
+ * Start fetching the windows this session will restore, without
+ * waiting to be asked.
+ *
+ * Called the moment the shell's own top-level navigation reaches the
+ * worker — which is *before* the server has finished building the
+ * shell document, and long before the shell's JavaScript exists to ask
+ * for anything. That is the entire point: the two server renders are
+ * independent, and this is the only place in the system that can see
+ * the second one coming early enough to overlap them.
+ */
+async function replayRestoreTargets(): Promise< void > {
+	const now = Date.now();
+	if ( ! CONFIG.windowPrewarm || now - lastReplayAt < REPLAY_THROTTLE_MS ) {
+		return;
+	}
+	lastReplayAt = now;
+	try {
+		const cache = await caches.open( SESSION_CACHE );
+		const stored = await cache.match( SESSION_KEY );
+		if ( ! stored ) {
+			return;
+		}
+		const urls = ( await stored.json() ) as unknown;
+		if ( ! Array.isArray( urls ) ) {
+			return;
+		}
+		for ( const raw of urls.slice( 0, SPECULATIVE_MAX ) ) {
+			if ( typeof raw !== 'string' ) {
+				continue;
+			}
+			try {
+				const url = new URL( raw );
+				if (
+					url.origin === sw.location.origin &&
+					isSpeculatableDocument( url )
+				) {
+					beginSpeculation( url.toString() );
+				}
+			} catch {
+				// Skip anything unparseable.
+			}
+		}
+	} catch {
+		// Best-effort: a boot must never fail because speculation did.
+	}
+}
+
+sw.addEventListener( 'message', ( event: SWMessageEvent ) => {
+	const data = event.data as
+		| { type?: string; url?: string; urls?: unknown }
+		| undefined;
+
+	// The restore list for the NEXT boot. Gated like everything else
+	// here: the shell already checks the opt-in before posting, and
+	// checking again means a stray message can never make an
+	// opted-out browser start writing caches.
+	if ( data && data.type === 'os-remember-session' ) {
+		if ( ! CONFIG.windowPrewarm ) {
+			return;
+		}
+		const urls = Array.isArray( data.urls ) ? data.urls : [];
+		event.waitUntil(
+			( async () => {
+				try {
+					const cache = await caches.open( SESSION_CACHE );
+					await cache.put(
+						SESSION_KEY,
+						new Response( JSON.stringify( urls.slice( 0, SPECULATIVE_MAX ) ), {
+							headers: { 'Content-Type': 'application/json' },
+						} ),
+					);
+				} catch {
+					// Best-effort.
+				}
+			} )(),
+		);
+		return;
+	}
+
+	if ( ! data || data.type !== 'os-speculate-doc' || ! data.url ) {
+		return;
+	}
+	if ( ! CONFIG.windowPrewarm ) {
+		// Same opt-in the dock's hover prewarming uses — this is that
+		// feature, applied to the document instead of a whole window.
+		return;
+	}
+	let url: URL;
+	try {
+		url = new URL( data.url );
+	} catch {
+		return;
+	}
+	if ( url.origin !== sw.location.origin || ! isSpeculatableDocument( url ) ) {
+		return;
+	}
+	const started = beginSpeculation( url.toString() );
+	if ( started ) {
+		event.waitUntil( started );
+	}
+} );
+
+/**
+ * Fetch a document now and hold it for the navigation that follows.
+ *
+ * Returns the in-flight promise, or `null` when this URL is already
+ * being held — the caller only needs it to keep the worker alive.
+ *
+ * The entry is registered *before* the fetch resolves, so a navigation
+ * that lands mid-flight finds the promise and waits on it rather than
+ * starting a duplicate request for the same screen.
+ */
+function beginSpeculation( href: string ): Promise< Response | null > | null {
+	if ( speculative.has( href ) ) {
+		return null;
+	}
+	const inFlight = ( async () => {
+		try {
+			// A plain same-origin GET: no `Referer`, no `Accept-Language`
+			// carried over from the navigation this stands in for.
+			// Deliberate — an admin screen's HTML does not branch on
+			// either (locale comes from the user's profile, server
+			// side), and forwarding request headers we did not receive
+			// would be guessing. If a screen ever did vary by them, the
+			// symptom would be a speculative copy differing from the
+			// real navigation, which is a reason to exclude that screen
+			// rather than to fabricate headers here.
+			// eslint-disable-next-line no-restricted-syntax -- service-worker context, no `wp.os` global available; raw fetch is the API.
+			const res = await fetch( href, {
+				credentials: 'same-origin',
+				redirect: 'follow',
+			} );
+			// Only a clean, non-redirected 200 is worth holding: a
+			// redirect means the server wanted to send the user
+			// somewhere else, and replaying the destination under the
+			// original URL would hide that.
+			if ( res.status !== 200 || res.redirected ) {
+				return null;
+			}
+			return res;
+		} catch {
+			// Speculation is best-effort by definition.
+			return null;
+		}
+	} )();
+
+	speculative.put( href, inFlight );
+	return inFlight;
+}
 
 sw.addEventListener( 'push', ( event: SWPushEvent ) => {
 	// v1: no-op. Phase 4 will populate this from the push payload.
@@ -265,23 +602,17 @@ async function precache(): Promise< void > {
 }
 
 function pluginAssetBase(): string {
-	// Plugin URL — we can't read OPENSTATION_URL from the JS-side
-	// service-worker context, so we hardcode the conventional path.
-	// Hosts using a non-default `wp-content/plugins/` directory
-	// (Bedrock/Trellis's `web/app/plugins/`, Composer-based sites,
-	// custom `WP_CONTENT_DIR`, multisite with `wp-content` moved out)
-	// will see precache silently no-op — `addAll` rejects on the
-	// first 404 and the install handler swallows the error. Runtime
-	// caching still works because it keys off the real URL the page
-	// requests, so the only user-visible loss is the install-time
-	// precache warmup.
-	//
-	// TODO: in the next SW revision, surface the plugin URL via the
-	// PHP-side `?ver=` query string (`<script src="…/sw.js?plugin_url=…">`)
-	// so non-standard install layouts get the precache benefit too.
-	// Today this lives as a hardcoded fallback because every
-	// non-trivial alternative needs that PHP-side handoff.
-	return sw.location.origin + '/wp-content/plugins/desktop-mode/';
+	// Plugin URL — handed to us by the PHP serve endpoint via the
+	// `self.__OS_SW_CONFIG` preamble, so hosts using a non-default
+	// `wp-content/plugins/` directory (Bedrock/Trellis's
+	// `web/app/plugins/`, Composer-based sites, custom
+	// `WP_CONTENT_DIR`, multisite with `wp-content` moved out) get a
+	// working precache too. `readSwConfig` falls back to the
+	// conventional path for a body cached without the preamble; in
+	// that case precache silently no-ops on exotic layouts (`addAll`
+	// rejects on the first 404 and the install handler swallows the
+	// error) while runtime caching keeps working off real URLs.
+	return CONFIG.pluginUrl;
 }
 
 function isStaticAssetPath( pathname: string ): boolean {
@@ -344,8 +675,11 @@ async function networkFirstForAsset( req: Request ): Promise< Response > {
 	}
 }
 
-async function staleWhileRevalidate( req: Request ): Promise< Response > {
-	const cache = await caches.open( RUNTIME_CACHE );
+async function staleWhileRevalidate(
+	req: Request,
+	cacheName: string,
+): Promise< Response > {
+	const cache = await caches.open( cacheName );
 	// **Runtime cache: EXACT match (no `ignoreSearch`).** The runtime
 	// cache stores responses keyed by their full URL including any
 	// `?ver=<filemtime>` cache-bust suffix WordPress appends on every
@@ -360,8 +694,19 @@ async function staleWhileRevalidate( req: Request ): Promise< Response > {
 	// eslint-disable-next-line no-restricted-syntax -- service-worker context, no `wp.os` global available; raw fetch is the API.
 	const network = fetch( req )
 		.then( ( res ) => {
-			if ( res && res.status === 200 ) {
+			if (
+				res &&
+				isCacheableResponse(
+					res.status,
+					res.type,
+					res.redirected,
+					res.headers.get( 'cache-control' ),
+				)
+			) {
 				cache.put( req, res.clone() ).catch( () => undefined );
+				if ( cacheName === ADMIN_CACHE ) {
+					void pruneAdminCacheThrottled();
+				}
 			}
 			return res;
 		} )
@@ -400,6 +745,89 @@ async function staleWhileRevalidate( req: Request ): Promise< Response > {
 		return precached;
 	}
 	return new Response( '', { status: 504 } );
+}
+
+/**
+ * Exact-URL cache-first for Core static assets and the concat loader
+ * endpoints. Safe because every URL in this class embeds a `ver=`
+ * cache-buster: the bytes behind a URL only change when the URL
+ * changes (a WordPress update rewrites `ver=<wp_version>` everywhere),
+ * which is the same contract Core expresses by serving
+ * `load-scripts.php` with a one-year `Cache-Control`.
+ *
+ * A cache hit never touches the network — that is the whole point:
+ * the second window opening any admin page gets its Core CSS/JS from
+ * Cache Storage with zero HTTP requests, revalidations included.
+ */
+async function cacheFirstAdminAsset( req: Request ): Promise< Response > {
+	const cache = await caches.open( ADMIN_CACHE );
+	const cached = await cache.match( req );
+	if ( cached ) {
+		return cached;
+	}
+	// eslint-disable-next-line no-restricted-syntax -- service-worker context, no `wp.os` global available; raw fetch is the API.
+	const fresh = await fetch( req );
+	if (
+		isCacheableResponse(
+			fresh.status,
+			fresh.type,
+			fresh.redirected,
+			fresh.headers.get( 'cache-control' ),
+		)
+	) {
+		cache.put( req, fresh.clone() ).catch( () => undefined );
+		void pruneAdminCacheThrottled();
+	}
+	return fresh;
+}
+
+/**
+ * Cap on the admin-asset bucket. Cache Storage has no native
+ * eviction, and an unbounded bucket on a plugin-heavy admin would
+ * lean on the origin quota. Entries are immutable-by-URL, so FIFO by
+ * insertion order is a fine proxy for "oldest version first" — a
+ * re-`put` of an existing key doesn't move it to the tail, but an
+ * immutable entry never needs to.
+ */
+const ADMIN_CACHE_MAX_ENTRIES = 500;
+const ADMIN_CACHE_PRUNE_BATCH = 50;
+const ADMIN_CACHE_PRUNE_EVERY_N_PUTS = 20;
+
+let _putsSincePrune = 0;
+
+/**
+ * Runs the prune every Nth put rather than on every put — `keys()`
+ * enumerates the whole bucket, which is too heavy to pay per asset
+ * during a page load's burst of 30–60 requests. The activate handler
+ * backstops anything the throttle window misses.
+ */
+async function pruneAdminCacheThrottled(): Promise< void > {
+	_putsSincePrune += 1;
+	if ( _putsSincePrune < ADMIN_CACHE_PRUNE_EVERY_N_PUTS ) {
+		return;
+	}
+	_putsSincePrune = 0;
+	await pruneAdminCache();
+}
+
+async function pruneAdminCache(): Promise< void > {
+	try {
+		const cache = await caches.open( ADMIN_CACHE );
+		const keys = await cache.keys();
+		if ( keys.length <= ADMIN_CACHE_MAX_ENTRIES ) {
+			return;
+		}
+		// Delete down to (cap − batch) so consecutive puts don't each
+		// trigger a full re-prune the moment the cap is grazed again.
+		const excess = keys.slice(
+			0,
+			keys.length - ADMIN_CACHE_MAX_ENTRIES + ADMIN_CACHE_PRUNE_BATCH,
+		);
+		await Promise.all( excess.map( ( k ) => cache.delete( k ) ) );
+	} catch {
+		// Best-effort: quota/enumeration failures must never break
+		// request handling.
+	}
 }
 
 async function networkFirstWithOfflineFallback(

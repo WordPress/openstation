@@ -115,6 +115,16 @@ export interface DesktopThemeEntry {
 	/** Compiled design tokens, informational (the CSS is authoritative). */
 	tokens: Record< string, string >;
 	/**
+	 * True on a BOOT-payload entry whose `cssText` / `tokens` were
+	 * slimmed away (the active theme's stylesheet is server-delivered
+	 * at boot; an inactive theme's CSS is only needed when picked).
+	 * `ensureFullDesktopThemes()` fetches the full entries from
+	 * `GET desktop-mode/v1/desktop-themes` and upserts them, which
+	 * clears the flag. Distinguishes "slimmed" from "this theme
+	 * genuinely ships no CSS".
+	 */
+	cssDeferred: boolean;
+	/**
 	 * Font families the theme bundles, in declaration order and
 	 * de-duplicated across weights. Informational — the compiled
 	 * stylesheet carries the `@font-face` rules that actually load

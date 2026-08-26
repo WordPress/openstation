@@ -170,10 +170,13 @@ describe( 'menu-refresh-apply.createApplyPayload', () => {
 	} );
 
 	test( 'forwards every server-* array to its dedicated sync', () => {
-		const { deps, syncs } = makeDeps();
+		const { deps, syncs, config } = makeDeps();
 		const apply = createApplyPayload( deps );
 
 		const nativeWindows = [ { id: 'calc' } ];
+		const scriptData = {
+			'os-calc': { url: 'https://example.test/calc.js' },
+		};
 		const widgets = [ { id: 'clock' } ];
 		const wallpapers = [ { id: 'starfield' } ];
 		const cmdScripts = [ { handle: 'p-a', scriptUrl: 'a.js' } ];
@@ -186,6 +189,7 @@ describe( 'menu-refresh-apply.createApplyPayload', () => {
 		apply( {
 			dockItems: [ ...MIN_DOCK ],
 			nativeWindows,
+			nativeWindowScriptData: scriptData,
 			serverWidgets: widgets,
 			serverWallpapers: wallpapers,
 			serverCommandScripts: cmdScripts,
@@ -196,7 +200,18 @@ describe( 'menu-refresh-apply.createApplyPayload', () => {
 			serverGames: games,
 		} );
 
-		expect( syncs.nativeWindows ).toHaveBeenCalledWith( nativeWindows );
+		// Native-window entries are hydrated on the way through —
+		// wire format references script handles; the sync gets full
+		// entries (see hydrateServerEntries).
+		expect( syncs.nativeWindows ).toHaveBeenCalledWith( [
+			expect.objectContaining( { id: 'calc', scriptUrl: '' } ),
+		] );
+		// The handle-keyed map must persist onto config alongside the
+		// entries it decodes: `wp.os.debug.window()` reads
+		// `config.nativeWindowScriptData` directly, so a stale
+		// boot-time copy would report an empty URL for any window
+		// whose plugin activated after boot.
+		expect( config.nativeWindowScriptData ).toEqual( scriptData );
 		expect( syncs.widgets ).toHaveBeenCalledWith( widgets );
 		expect( syncs.wallpapers ).toHaveBeenCalledWith( wallpapers );
 		expect( syncs.commands ).toHaveBeenCalledWith( cmdScripts, cmds );

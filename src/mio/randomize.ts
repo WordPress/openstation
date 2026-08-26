@@ -132,3 +132,33 @@ function randomInk( random: () => number ): number {
 	 * packed 24-bit ints; this is the native representation. */
 	return ( channel() << 16 ) | ( channel() << 8 ) | channel();
 }
+
+/**
+ * A seeded random source, for looks that have to come back the same.
+ *
+ * {@link randomMioLook} takes its randomness as a parameter precisely
+ * so it can be driven by something other than `Math.random`. Agents
+ * need that: a face is stored, but it is also derived, and an agent
+ * whose portrait changed every time the page painted would not be a
+ * character.
+ *
+ * Mulberry32, chosen because it is four lines and its whole state is
+ * one 32-bit integer, so a seed can live in an integer meta row and
+ * PHP can hold the same value without either side agreeing on a
+ * float format.
+ *
+ * @param seed Any integer. `0` is a legitimate seed.
+ */
+export function mulberry32( seed: number ): () => number {
+	/* eslint-disable no-bitwise -- A PRNG is bit arithmetic; written
+	 * any other way this is neither this algorithm nor fast. */
+	let a = seed >>> 0;
+	return (): number => {
+		a = ( a + 0x6d2b79f5 ) >>> 0;
+		let t = a;
+		t = Math.imul( t ^ ( t >>> 15 ), t | 1 );
+		t ^= t + Math.imul( t ^ ( t >>> 7 ), t | 61 );
+		return ( ( t ^ ( t >>> 14 ) ) >>> 0 ) / 4294967296;
+	};
+	/* eslint-enable no-bitwise */
+}

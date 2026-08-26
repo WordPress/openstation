@@ -793,6 +793,19 @@ describe( 'dock constellation', () => {
 		expect( panel() ).not.toBeNull();
 	} );
 
+	test( 'scrolling the menu itself does not dismiss it', () => {
+		const tile = setupShell( 'openstation' );
+		mount();
+		hover( tile );
+
+		// Reaching for the rows past the fold must not be the gesture
+		// that closes the panel they are in.
+		const group = panel()!.querySelector( '.os-constellation__group' )!;
+		group.dispatchEvent( new Event( 'scroll' ) );
+
+		expect( panel() ).not.toBeNull();
+	} );
+
 	test( 'teardown removes the flyout and stops responding', () => {
 		const tile = setupShell( 'openstation' );
 		mount();

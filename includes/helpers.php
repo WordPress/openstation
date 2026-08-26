@@ -221,6 +221,30 @@ function openstation_site_title() {
 }
 
 /**
+ * Decode a rendered title into the plain text the desktop paints with.
+ *
+ * `wptexturize()` encodes the characters titles are full of — `&` as
+ * `&#038;`, an apostrophe as `&#8217;` — and the shell writes titles
+ * into text nodes, where the entity renders as itself. Same reasoning
+ * as {@see openstation_site_title()}, one layer down.
+ *
+ * Decode BEFORE the tag strip, never after: `&lt;script&gt;` decodes
+ * into a real tag, and stripping second is what removes it.
+ *
+ * @param string $rendered A title that has been through a display filter.
+ * @return string Plain text, tag-free.
+ */
+function openstation_plain_text_title( $rendered ) {
+	$decoded = html_entity_decode(
+		(string) $rendered,
+		ENT_QUOTES,
+		get_bloginfo( 'charset' )
+	);
+
+	return trim( wp_strip_all_tags( $decoded ) );
+}
+
+/**
  * Build a `WP_Error` for a openstation registration failure.
  *
  * Centralises the error-code vocabulary used by every

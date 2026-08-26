@@ -57,6 +57,7 @@ import {
 } from './state';
 import { setActiveDockRailRenderer } from '../dock-rail';
 import { applyDesktopTheme } from '../desktop-themes/apply';
+import { ensureDeferredStyle } from '../deferred-styles';
 import type {
 	OsSettingsConfig,
 	OsSettingsState,
@@ -219,6 +220,8 @@ export class OsSettings implements SettingsCtx {
 			nativePluginsEnabled: this.state.nativePluginsEnabled,
 			nativeCommentsEnabled: this.state.nativeCommentsEnabled,
 			stationHomeEnabled: this.state.stationHomeEnabled,
+			adminAssetCacheEnabled: this.state.adminAssetCacheEnabled,
+			windowPrewarmEnabled: this.state.windowPrewarmEnabled,
 			developerModeEnabled: this.state.developerModeEnabled,
 			foldersSharingEnabled: this.state.foldersSharingEnabled,
 			showPostStatusRibbons: this.state.showPostStatusRibbons,
@@ -581,6 +584,11 @@ export class OsSettings implements SettingsCtx {
 	}
 
 	public renderPanel( body: HTMLElement ): void {
+		// The panel's stylesheet is a `deferredStyles` entry, not a
+		// boot enqueue — inject it here so the `<link>` fetches in
+		// parallel with the panel bundle below.
+		ensureDeferredStyle( 'os-settings' );
+
 		// Track the body so the save-failure rollback handler can
 		// re-render after restoring the last-confirmed state.
 		this._lastRenderedBody = body;

@@ -273,14 +273,19 @@ class Tests_OpenStation_DesktopThemesRest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * The library rides the payload; a GET route would be a second
-	 * source of truth to keep in sync for no gain.
+	 * The GET route exists for the boot-payload diet and is NOT a
+	 * second source of truth: it serves the same builder + filter as
+	 * the payload, with the full entries the boot copy is slimmed of.
+	 * Full coverage (entries, gating) lives in
+	 * `Tests_OpenStation_BootPayloadDiet`; this pins that it stays
+	 * registered.
 	 *
 	 * @covers ::openstation_register_desktop_themes_rest_routes
 	 */
-	public function test_there_is_no_get_route() {
+	public function test_the_get_route_serves_the_library() {
 		$request  = new WP_REST_Request( 'GET', '/desktop-mode/v1/desktop-themes' );
 		$response = $this->server->dispatch( $request );
-		$this->assertSame( 404, $response->get_status() );
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertArrayHasKey( 'themes', $response->get_data() );
 	}
 }

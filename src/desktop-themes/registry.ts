@@ -9,6 +9,7 @@
  */
 
 import { createSharedStore } from '../shared-store';
+import { trackedFetch } from '../tracked-fetch';
 import { sanitizeRecommendedOsSettings } from './recommended';
 import type { DesktopThemeEntry, DesktopThemeState } from './types';
 
@@ -130,6 +131,7 @@ export function normalizeEntry( raw: unknown ): DesktopThemeEntry | null {
 		installedAt:
 			typeof source.installedAt === 'number' ? source.installedAt : 0,
 		source: source.source === 'code' ? 'code' : 'upload',
+		cssDeferred: source.cssDeferred === true,
 	};
 }
 
@@ -224,6 +226,70 @@ export function upsertDesktopTheme( raw: unknown ): DesktopThemeEntry | null {
 	themes.sort( ( a, b ) => a.name.localeCompare( b.name ) );
 	store.setState( { themes } );
 	return entry;
+}
+
+/**
+ * In-flight fetch of the full theme library, so concurrent callers
+ * share one request. NOT in the shared store: a Promise doesn't
+ * survive structured sharing, and a second bundle re-fetching once
+ * is acceptable where a corrupted store is not.
+ */
+let fullLibraryFetch: Promise< void > | null = null;
+
+/**
+ * Fetch the FULL theme entries and upsert them over the slimmed boot
+ * copies.
+ *
+ * The boot payload ships the library without `cssText` / `tokens`
+ * (marked `cssDeferred: true`) because nothing reads them at boot —
+ * the active theme's stylesheet is server-delivered, and an inactive
+ * theme's CSS matters only at the moment the user picks it. This is
+ * that moment's data path: `GET desktop-mode/v1/desktop-themes`
+ * returns the same builder's full entries, and upserting them clears
+ * the flags. Resolves even on failure — the caller re-checks the
+ * entry it needs and decides what a still-deferred theme means.
+ *
+ * @public
+ */
+export function ensureFullDesktopThemes(): Promise< void > {
+	if ( fullLibraryFetch ) {
+		return fullLibraryFetch;
+	}
+	const url = (
+		window as unknown as {
+			openStationConfig?: { desktopThemesUrl?: string };
+		}
+	).openStationConfig?.desktopThemesUrl;
+	if ( ! url ) {
+		return Promise.resolve();
+	}
+	fullLibraryFetch = trackedFetch(
+		url,
+		{ method: 'GET', credentials: 'same-origin' },
+		{ source: 'desktop-mode/desktop-themes' },
+	)
+		.then( ( response ) => {
+			if ( ! response.ok ) {
+				throw new Error( `HTTP ${ response.status }` );
+			}
+			return response.json();
+		} )
+		.then( ( body: { themes?: unknown[] } ) => {
+			for ( const raw of body?.themes ?? [] ) {
+				upsertDesktopTheme( raw );
+			}
+		} )
+		.catch( () => {
+			// Allow a retry on the next call — a flaky connection
+			// must not permanently strand the picker on slim entries.
+			fullLibraryFetch = null;
+		} );
+	return fullLibraryFetch;
+}
+
+/** Test-only: forget the in-flight library fetch. */
+export function __resetFullDesktopThemesFetchForTests(): void {
+	fullLibraryFetch = null;
 }
 
 /**

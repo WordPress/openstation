@@ -57,7 +57,7 @@ defined( 'ABSPATH' ) || exit;
  *   placement the shell had auto-placed for it and closes the hole that
  *   leaves in the icon column.
  */
-const OPENSTATION_MIGRATION_VERSION = 6;
+const OPENSTATION_MIGRATION_VERSION = 7;
 
 /**
  * Option storing the highest migration version that has run. autoload=no.
@@ -156,6 +156,68 @@ function openstation_run_pending_migrations( $from ) {
 
 	if ( $from < 6 ) {
 		openstation_migrate_close_recycle_bin_icon_gap();
+	}
+
+	if ( $from < 7 ) {
+		openstation_migrate_seed_agent_faces();
+	}
+}
+
+/**
+ * Migration 7 — give the agents that predate faces a seed to grow one
+ * from.
+ *
+ * Agents used to share a single grey robot glyph. They now carry a Mio
+ * look, and an agent created from here on gets a seed at birth. The
+ * ones already on the site do not, and without a seed there is nothing
+ * to derive a face from.
+ *
+ * **This writes the seed and stops.** It does not write the face. The
+ * face comes from `randomMioLook()`, which lives in TypeScript, and
+ * porting it is exactly the wrong trade: it is a taste filter with a
+ * dozen judgment calls in it, pinned by `mio-randomize.test.ts`, and a
+ * PHP twin of it would drift with nothing watching. So the shell fills
+ * the looks in on its next paint of the Agents section, rolling each
+ * one from the seed written here.
+ *
+ * That is a client writing on the server's behalf, which is worth
+ * naming rather than slipping past. It is safe because it is entirely
+ * derived: the seed is `crc32` of the login, so two admins racing the
+ * backfill produce byte-identical faces, and running it twice changes
+ * nothing.
+ *
+ * The five shipped agents are unaffected: their faces are written out
+ * in `default-definitions.php` and were never rolled.
+ *
+ * @return void
+ */
+function openstation_migrate_seed_agent_faces() {
+	// Agents is behind a feature flag, so on a site that has never
+	// turned it on there is nothing to seed, and none of the module's
+	// functions exist to call. A site that turns it on later creates
+	// its agents through `openstation_agent_create`, which seeds them
+	// at birth, so nothing is missed by returning here.
+	if (
+		! function_exists( 'openstation_agent_get_agents' )
+		|| ! function_exists( 'openstation_agent_get_face_seed' )
+		|| ! defined( 'OPENSTATION_AGENT_FACE_SEED_META' )
+	) {
+		return;
+	}
+
+	foreach ( openstation_agent_get_agents() as $agent ) {
+		$user_id = isset( $agent->ID ) ? (int) $agent->ID : 0;
+		if ( $user_id <= 0 ) {
+			continue;
+		}
+		if ( openstation_agent_get_face_seed( $user_id ) > 0 ) {
+			continue;
+		}
+		update_user_meta(
+			$user_id,
+			OPENSTATION_AGENT_FACE_SEED_META,
+			crc32( (string) $agent->user_login )
+		);
 	}
 }
 

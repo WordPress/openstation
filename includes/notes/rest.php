@@ -603,3 +603,103 @@ function openstation_notes_rest_convert( $request ) {
 		)
 	);
 }
+
+/**
+ * Whether the current user's desktop would show any pinned notes.
+ *
+ * The presence hint the boot config ships as `hasNotes`: the notes
+ * bundle is presence-gated client-side (`src/notes/sentinel.ts`), so
+ * a user with no notes never downloads it — and never fires the
+ * boot-time list request the layer used to make unconditionally.
+ *
+ * **Steady-state cost: zero queries.** The computed answer is cached
+ * in user meta, stamped with a revision the site bumps whenever any
+ * note changes (`openstation_notes_bump_rev()` below). The revision
+ * lives in an autoloaded option and the user's meta cache is already
+ * primed on every admin request, so a boot between note changes
+ * reads two warm caches and touches the database not at all. Only
+ * the first boot after a note is created / deleted / re-scoped runs
+ * the probes again — two `fields => ids`, one-row queries at most:
+ * anyone's public note first, the user's own private ones second,
+ * mirroring the visibility rule the list route enforces.
+ *
+ * @return bool
+ */
+function openstation_notes_user_has_any() {
+	$rev     = (string) get_option( 'desktop_mode_notes_rev', '0' );
+	$user_id = get_current_user_id();
+	$cached  = (string) get_user_meta( $user_id, '_desktop_mode_has_notes', true );
+	if ( '' !== $cached ) {
+		list( $cached_rev, $cached_value ) = array_pad( explode( ':', $cached, 2 ), 2, '' );
+		if ( $cached_rev === $rev ) {
+			return '1' === $cached_value;
+		}
+	}
+
+	$public = new WP_Query(
+		array(
+			'post_type'      => OPENSTATION_NOTES_POST_TYPE,
+			'post_status'    => 'publish',
+			'posts_per_page' => 1,
+			'fields'         => 'ids',
+			'no_found_rows'  => true,
+		)
+	);
+	$has = (bool) $public->posts;
+	if ( ! $has ) {
+		$own = new WP_Query(
+			array(
+				'post_type'      => OPENSTATION_NOTES_POST_TYPE,
+				'post_status'    => 'private',
+				'author'         => $user_id,
+				'posts_per_page' => 1,
+				'fields'         => 'ids',
+				'no_found_rows'  => true,
+			)
+		);
+		$has = (bool) $own->posts;
+	}
+
+	update_user_meta( $user_id, '_desktop_mode_has_notes', $rev . ':' . ( $has ? '1' : '0' ) );
+	return $has;
+}
+
+/**
+ * Invalidate every user's cached `hasNotes` answer.
+ *
+ * One autoloaded revision counter instead of per-user cache deletes:
+ * a public note's existence changes the answer for EVERY user, and
+ * enumerating users to clear meta would be the expensive thing this
+ * cache exists to avoid. Bumping the rev makes all stamped answers
+ * stale at the cost of one option write per note change — and note
+ * changes are rare next to boots.
+ *
+ * @param int|WP_Post $post Post id or object being changed.
+ * @return void
+ */
+function openstation_notes_bump_rev( $post ) {
+	$post = get_post( $post );
+	if ( ! $post instanceof WP_Post || OPENSTATION_NOTES_POST_TYPE !== $post->post_type ) {
+		return;
+	}
+	update_option( 'desktop_mode_notes_rev', (string) time() . '.' . wp_rand( 0, 999 ), true );
+}
+
+/**
+ * Every path a note can change through: status moves (create,
+ * publish/private flips, trash, restore) fire
+ * `transition_post_status`; hard deletes fire `deleted_post`.
+ *
+ * @param string  $new_status New status.
+ * @param string  $old_status Old status.
+ * @param WP_Post $post       The post.
+ * @return void
+ */
+function openstation_notes_bump_rev_on_transition( $new_status, $old_status, $post ) {
+	if ( $new_status === $old_status ) {
+		return;
+	}
+	openstation_notes_bump_rev( $post );
+}
+add_action( 'transition_post_status', 'openstation_notes_bump_rev_on_transition', 10, 3 );
+add_action( 'deleted_post', 'openstation_notes_bump_rev' );

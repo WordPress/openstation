@@ -941,7 +941,7 @@ describe( 'WindowManager — virtual desktops', async () => {
 		// inside it, making it unreachable by Tab. Fix: wrap the tile <button>
 		// and a sibling close <button> in a <div> wrapper so both are independently
 		// focusable. The "+" create-tile stays as a direct child (no close X).
-		test( 'each desktop tile has a wrapper with two sibling buttons', async () => {
+		test( 'each desktop tile has a wrapper with three sibling buttons', async () => {
 			const extraDesktops = [ manager.createDesktop(), manager.createDesktop() ];
 			try {
 				await manager.open( openConfig( 'a' ) );
@@ -954,22 +954,18 @@ describe( 'WindowManager — virtual desktops', async () => {
 				// 3 desktops = 3 wrappers (the "+" tile is a direct child, not wrapped)
 				expect( wrappers ).toHaveLength( 3 );
 
+				// Tile, rename pencil, close X — the latter two are
+				// SIBLINGS of the tile, which is itself a <button>.
 				for ( const wrapper of wrappers ) {
-					const buttons = wrapper.querySelectorAll( 'button' );
-					expect( buttons ).toHaveLength( 2 );
-
-					const tile = buttons[ 0 ];
 					expect(
-						tile.classList.contains( 'os-overview-top-bar__tile' ),
-					).toBe( true );
-
-					const close = buttons[ 1 ];
-					expect(
-						close.classList.contains(
-							'os-overview-top-bar__tile-close',
+						Array.from( wrapper.querySelectorAll( 'button' ) ).map(
+							( b ) => b.classList[ 0 ],
 						),
-					).toBe( true );
-					expect( close.tagName ).toBe( 'BUTTON' );
+					).toEqual( [
+						'os-overview-top-bar__tile',
+						'os-overview-top-bar__tile-rename',
+						'os-overview-top-bar__tile-close',
+					] );
 				}
 			} finally {
 				for ( const d of extraDesktops ) {

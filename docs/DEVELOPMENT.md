@@ -55,6 +55,42 @@ Notes:
 - **Cost.** Each instance is three containers (WordPress, CLI, database). `npm run env:stop` / `env:stop:tests` parks an instance and keeps its data; `npm run env:destroy` / `env:destroy:tests` deletes it.
 - `npm run test:php` in a worktree runs inside that worktree's own tests instance, so PHPUnit is isolated per worktree too.
 
+## Measuring boot cost
+
+`bin/boot-cost.mjs` answers one question deterministically: what does the shell's boot document actually cost, and what changed between two builds. It logs into a local WordPress, fetches one document, then fetches every `<script src>` and `<link rel=stylesheet>` the **server** printed into it, and reports request count plus raw and gzipped bytes grouped by owner.
+
+Measuring the server's output rather than the browser's behaviour is the whole point. DevTools' footer totals (`N requests / X MB transferred / Finish: Y`) move with cache state, with how long the tab sat there polling, and with how many windows you opened, so two recordings of the same build routinely disagree by more than the change being measured. Same code in, same numbers out.
+
+It needs a running instance (see [Manual QA and per-worktree instances](#manual-qa-and-per-worktree-instances-wp-env)); it will not start one for you.
+
+```bash
+npm run perf:boot-cost -- --label trunk --out /tmp/trunk.json
+npm run perf:boot-cost -- --diff /tmp/trunk.json /tmp/branch.json
+```
+
+Defaults are the QA instance (`http://localhost:8890`, `admin` / `password`) and the shell boot document (`/wp-admin/`, which redirects into the portal). `--base` points at another port, `--path` at another document, so `--path '/wp-admin/edit.php?openstation_chromeless=1'` measures what a page opened inside a window costs. `--out` writes the per-asset detail that `--diff` consumes, and `--diff` prints the delta table plus the list of files that left or joined the document.
+
+### Comparing two branches
+
+Use **one** instance and switch the code under it. The mount serves the start directory live, so a branch switch is enough for PHP, and `assets/js/` is committed, so the bundles switch with it:
+
+```bash
+git switch trunk
+npm run perf:boot-cost -- --label trunk --out /tmp/trunk.json
+git switch my-branch
+npm run perf:boot-cost -- --label my-branch --out /tmp/branch.json
+npm run perf:boot-cost -- --diff /tmp/trunk.json /tmp/branch.json
+```
+
+Running two wp-env instances instead is the obvious alternative and it is a trap: each keeps its own database, so they disagree about active plugins, theme and content, and the gap between the two sites will swamp the gap between the two branches.
+
+Four things that will bite you:
+
+- **`SCRIPT_DEBUG` decides whether you are measuring production.** It is on by default in wp-env, which serves unminified core assets and unminified plugin bundles; numbers taken that way have the right shape but run roughly 3x the production figure. For a number destined for a PR description, `wp config set SCRIPT_DEBUG false --raw` inside the instance first and set it back afterwards. Turning it off also switches core to concatenated `load-scripts.php` bundles, so request counts change shape as well as size.
+- **What else is active can change the answer completely.** `bin/setup-wp-env.sh` installs and activates Gutenberg on every fresh instance, and Gutenberg's Dashboard page (`build/pages/dashboard/page-wp-admin.php`) enqueues the entire editor package chain on the Dashboard screen, which is the screen the shell boots on. Work that defers part of that same chain measures as approximately zero on such an instance and as several megabytes without it. When a boot-cost change looks far smaller than expected, find out what else on the page enqueues the same handles before concluding the change did nothing.
+- **Deferral moves cost, it does not delete it.** Do not open windows during a run. A deferral is supposed to make the boot document cheaper and the first open more expensive, so measure the two separately or the second effect hides the first.
+- **Only compare like with like.** Absolute totals from a Gutenberg-active instance and a Gutenberg-inactive one are not comparable to each other. Only the trunk-versus-branch delta *within* one configuration means anything.
+
 ## Coding standards (PHPCS)
 
 `phpcs.xml.dist` inherits the full `WordPress` standard. It scans **PHP only** — the `extensions` arg is load-bearing, because without it PHPCS applies its CSS and JS sniffs to `assets/`, walks ~70 minified bundles and exhausts a 1GB memory limit on any checkout where `npm run build` has run.
@@ -133,8 +169,9 @@ src/
 ├── plugins/                 # Built-in plugins that use the public API —
 │                            #   animated-logo-wallpaper is the reference
 │                            #   example for third-party authors.
-├── dock.ts                  # The left-edge dock (icons, tooltips,
-│                            #   submenu popover, instance rail).
+├── dock.ts                  # The dock rail (icons, tooltips, submenu
+│                            #   popover, instance rail; bottom by
+│                            #   default, left/right per layout).
 ├── toast.ts                 # Toast queue (wraps <os-toast-container>).
 ├── utils.ts                 # urlMatchKey, deriveWindowId, sanitize*.
 └── i18n.ts                  # Thin wrapper around window.wp.i18n.
@@ -276,8 +313,39 @@ Pass `--skip-i18n` for hotfixes where you do not want translation-
 file churn in the release commit:
 
 ```bash
-./bin/release.sh 0.9.1 --skip-i18n
+./bin/release.sh 1.1.4 --skip-i18n
 ```
+
+## Docs → GitHub wiki
+
+The repository's GitHub wiki is a **generated mirror of `docs/`** — never
+edit it through the wiki UI; the next sync overwrites it. Doc changes go
+through pull requests against `docs/` like any other change.
+
+The pipeline is two pieces:
+
+- `bin/build-wiki.mjs` flattens `docs/` into the wiki's flat page
+  namespace: `docs/README.md` becomes `Home`, `docs/examples/README.md`
+  becomes `Examples`, every example page gets an `example-` prefix (which
+  is also what prevents basename collisions such as `desktop-host.md`
+  existing in both directories), `docs/plans/` is excluded, and
+  `docs/assets/` is copied verbatim. Relative `.md` links are rewritten to
+  wiki page names (anchors preserved); links escaping `docs/` into the
+  source tree become absolute GitHub `blob/trunk` URLs. It also generates
+  the `_Sidebar.md` navigation and a `_Footer.md` provenance note.
+  Unresolved relative links are printed as warnings — run
+  `node bin/build-wiki.mjs /tmp/wiki-out` locally to preview a sync or
+  check links.
+- `.github/workflows/wiki.yml` runs the script on every push to `trunk`
+  that touches `docs/**` (plus `workflow_dispatch` for manual runs) and
+  pushes the output to `<repo>.wiki.git` — a wiki is itself a git
+  repository — using the workflow's `GITHUB_TOKEN`. Deletes and renames
+  propagate; the sync is authoritative.
+
+One-time prerequisite: GitHub only creates the wiki repository when a
+first page is saved through the UI. If the sync job fails with "Could not
+clone", enable the wiki, save any page (its content will be replaced), and
+re-run the workflow.
 
 ## Where things are tested
 

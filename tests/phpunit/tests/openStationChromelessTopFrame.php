@@ -50,14 +50,30 @@ class Tests_OpenStation_ChromelessTopFrame extends WP_UnitTestCase {
 	private function bridge_markup() {
 		ob_start();
 		openstation_chromeless_bridge_script();
-		return (string) ob_get_clean();
+		$printed = (string) ob_get_clean();
+
+		// The bridge code ships as a built bundle now; PHP enqueues it
+		// and attaches per-request data instead of printing the script
+		// inline. Behaviour assertions read the bundle's source.
+		if ( ! openstation_is_chromeless_request() ) {
+			return $printed;
+		}
+
+		return $printed . (string) file_get_contents(
+			OPENSTATION_DIR . 'src/chromeless-bridge.js'
+		);
 	}
 
 	/**
 	 * @covers ::openstation_chromeless_bridge_script
 	 */
 	public function test_the_bridge_is_emitted_on_a_chromeless_request() {
-		$this->assertStringContainsString( 'os-chromeless-bridge.js', $this->bridge_markup() );
+		// The bridge used to identify itself by a `//# sourceURL=`
+		// comment in the inline script. It is a real bundle now, so the
+		// contract is that the handle gets enqueued.
+		openstation_chromeless_bridge_script();
+
+		$this->assertTrue( wp_script_is( 'os-chromeless-bridge', 'enqueued' ) );
 	}
 
 	/**

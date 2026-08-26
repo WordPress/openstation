@@ -293,6 +293,23 @@ export interface OsSettingsState {
 	 */
 	stationHomeEnabled: boolean;
 	/**
+	 * Per-user opt-in for the service worker's shared admin-asset
+	 * cache (Experimental). When true, the SW serves versioned admin
+	 * static assets from one origin-wide Cache Storage bucket shared
+	 * by every window. The value lives server-side and reaches the SW
+	 * inside the served script bytes, so a change applies via a
+	 * normal SW update on the next reload. Default off.
+	 */
+	adminAssetCacheEnabled: boolean;
+	/**
+	 * Per-user opt-in for hover-intent window prewarming
+	 * (Experimental). When true, a sustained mouse hover on a dock
+	 * tile speculatively builds that page's window hidden, so the
+	 * document is already loading — or loaded — when the user clicks.
+	 * Default off.
+	 */
+	windowPrewarmEnabled: boolean;
+	/**
 	 * When true, left-clicking the empty wallpaper triggers the
 	 * "Show desktop" toggle (macOS-style) and the matching entry is
 	 * hidden from the wallpaper context menu. When false (default),

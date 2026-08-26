@@ -46,7 +46,7 @@ document.addEventListener( 'os-init', function () {
 
 ```javascript
 document.addEventListener( 'os-window-focused', function ( e ) {
-    if ( e.detail.windowId !== 'wp-window-edit-php' ) {
+    if ( e.detail.windowId !== 'edit-php' ) {
         return;
     }
     // Open a companion analytics window if it's not already up.

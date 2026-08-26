@@ -1900,23 +1900,32 @@ add_action( 'rest_api_init', 'openstation_my_wordpress_woo_register_routes' );
 /**
  * Register the integration bundle.
  *
+ * Cache-busted by `filemtime`, like the window bundle it rides along
+ * with (see `openstation_my_wordpress_register_assets()`). The bundle
+ * is fetched lazily by URL, so a `ver` that only moves on release
+ * would let a browser's cached copy outlive builds within one — a
+ * stale companion against a fresh WP Explorer bundle is a contract
+ * drift no error message points at.
+ *
  * @return void
  */
 function openstation_my_wordpress_woo_register_assets() {
+	$js_path = OPENSTATION_DIR . 'assets/js/my-wordpress-woocommerce' . openstation_asset_suffix() . '.js';
 	wp_register_script(
 		'os-my-wordpress-woocommerce',
-		OPENSTATION_URL . 'assets/js/my-wordpress-woocommerce' . ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '' : '.min' ) . '.js',
+		OPENSTATION_URL . 'assets/js/my-wordpress-woocommerce' . openstation_asset_suffix() . '.js',
 		array( 'wp-hooks' ),
-		OPENSTATION_VERSION,
+		file_exists( $js_path ) ? (string) filemtime( $js_path ) : OPENSTATION_VERSION,
 		true
 	);
 	wp_set_script_translations( 'os-my-wordpress-woocommerce', 'desktop-mode' );
 
+	$css_path = OPENSTATION_DIR . 'assets/css/my-wordpress-woocommerce.css';
 	wp_register_style(
 		'os-my-wordpress-woocommerce',
 		OPENSTATION_URL . 'assets/css/my-wordpress-woocommerce.css',
 		array( 'desktop-mode-my-wordpress' ),
-		OPENSTATION_VERSION
+		file_exists( $css_path ) ? (string) filemtime( $css_path ) : OPENSTATION_VERSION
 	);
 }
 add_action( 'init', 'openstation_my_wordpress_woo_register_assets', 5 );
@@ -1924,14 +1933,18 @@ add_action( 'init', 'openstation_my_wordpress_woo_register_assets', 5 );
 /**
  * Attach the integration's config to its script handle.
  *
- * The bundle itself is NOT enqueued here, and that is the point. It
+ * NOTHING is enqueued here, and that is the point. The bundle
  * subscribes to the WP Explorer window's `preview-extras` /
  * `group-extras` actions, so it has to be in the tab before that
  * window's bundle paints — but not one moment sooner. It travels as
  * a companion of `desktop-mode-my-wordpress` (see the `scripts` arg
  * on that window's registration), which means the shell loads it
  * when the window first opens and a merchant who never opens WP
- * Explorer never downloads it at all.
+ * Explorer never downloads it at all. The stylesheet travels the
+ * same way (the `styles` arg): every selector in it is scoped to
+ * surfaces inside the Explorer or the Customer window, so on any
+ * document not showing those — every chromeless iframe included —
+ * it was pure parse weight.
  *
  * Only for users who can open the site window on a store — everyone
  * else pays nothing.
@@ -1955,10 +1968,6 @@ function openstation_my_wordpress_woo_enqueue() {
 		return;
 	}
 
-	// The stylesheet stays eager: it is a few KB, it has no parse
-	// cost worth deferring, and the window's own CSS is enqueued the
-	// same way.
-	wp_enqueue_style( 'os-my-wordpress-woocommerce' );
 	wp_add_inline_script(
 		'os-my-wordpress-woocommerce',
 		sprintf(
@@ -1994,13 +2003,24 @@ function openstation_my_wordpress_woo_enqueue() {
 add_action( 'admin_enqueue_scripts', 'openstation_my_wordpress_woo_enqueue', 5 );
 
 /**
- * Attach the bundle to the WP Explorer window as a companion script.
+ * Attach the bundle and stylesheet to the WP Explorer window as
+ * companions.
  *
  * `scripts` handles load in order immediately before the window's own
  * `script`, so the integration is listening to `preview-extras` /
  * `group-extras` by the time the window bundle fires them — the same
  * guarantee the old boot-time enqueue gave, at the cost of nothing
  * until the window opens.
+ *
+ * `styles` handles inject on the same first open, in ARRAY ORDER —
+ * and that order is the whole ballgame here: this sheet overrides
+ * `my-wordpress.css` at EQUAL specificity (the ribbon and panel
+ * chrome), which the old enqueue path guaranteed through a
+ * `wp_register_style` dependency. The Explorer's registration
+ * declares its own sheet first in `styles` (see the comment in
+ * `includes/my-wordpress/window.php`), this filter APPENDS, so the
+ * Woo sheet lands after it in `<head>` and wins by source order.
+ * Prepending here would silently invert the cascade.
  *
  * @param array $window_args Args passed to `openstation_register_window()`.
  * @return array
@@ -2013,7 +2033,11 @@ function openstation_my_wordpress_woo_window_args( $window_args ) {
 	$scripts   = isset( $window_args['scripts'] ) ? (array) $window_args['scripts'] : array();
 	$scripts[] = 'os-my-wordpress-woocommerce';
 
+	$styles   = isset( $window_args['styles'] ) ? (array) $window_args['styles'] : array();
+	$styles[] = 'os-my-wordpress-woocommerce';
+
 	$window_args['scripts'] = $scripts;
+	$window_args['styles']  = $styles;
 
 	return $window_args;
 }

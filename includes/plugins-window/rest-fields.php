@@ -414,6 +414,39 @@ function openstation_plugins_window_field_can_manage( $row ) {
 }
 
 /**
+ * What wp.org last said about one plugin — `slug`, `icons`, versions.
+ *
+ * Both halves have to be read: a plugin is filed under `response`
+ * when an update is pending and `no_update` otherwise, with the same
+ * directory metadata in each. Reading only `response` misses every
+ * up-to-date plugin.
+ *
+ * @param string $plugin_file Plugin file (e.g. `"akismet/akismet.php"`).
+ * @return array|null Null when wp.org doesn't know this plugin, or the
+ *                    transient is cold.
+ */
+function openstation_plugins_window_update_entry( $plugin_file ) {
+	if ( '' === $plugin_file ) {
+		return null;
+	}
+
+	openstation_plugins_window_prime_updates_once();
+
+	$updates = get_site_transient( 'update_plugins' );
+	if ( ! is_object( $updates ) ) {
+		return null;
+	}
+	if ( isset( $updates->response[ $plugin_file ] ) ) {
+		return (array) $updates->response[ $plugin_file ];
+	}
+	if ( isset( $updates->no_update[ $plugin_file ] ) ) {
+		return (array) $updates->no_update[ $plugin_file ];
+	}
+
+	return null;
+}
+
+/**
  * `openstation_wporg_slug` callback.
  *
  * Is this plugin listed on the WordPress.org directory, and under
@@ -425,25 +458,15 @@ function openstation_plugins_window_field_can_manage( $row ) {
  * @return string|null Directory slug, or null when the plugin isn't listed.
  */
 function openstation_plugins_window_field_wporg_slug( $row ) {
-	$plugin_file = openstation_plugins_window_row_plugin_file( $row );
+	$entry = openstation_plugins_window_update_entry(
+		openstation_plugins_window_row_plugin_file( $row )
+	);
 
-	openstation_plugins_window_prime_updates_once();
-
-	$slug = '';
-	if ( '' !== $plugin_file ) {
-		$updates = get_site_transient( 'update_plugins' );
-		if ( is_object( $updates ) ) {
-			$entry = null;
-			if ( isset( $updates->response[ $plugin_file ] ) ) {
-				$entry = (array) $updates->response[ $plugin_file ];
-			} elseif ( isset( $updates->no_update[ $plugin_file ] ) ) {
-				$entry = (array) $updates->no_update[ $plugin_file ];
-			}
-			if ( null !== $entry && ! empty( $entry['slug'] ) ) {
-				$slug = sanitize_key( (string) $entry['slug'] );
-			}
-		}
+	if ( null === $entry || empty( $entry['slug'] ) ) {
+		return null;
 	}
+
+	$slug = sanitize_key( (string) $entry['slug'] );
 
 	return '' !== $slug ? $slug : null;
 }
@@ -462,26 +485,33 @@ function openstation_plugins_window_field_wporg_slug( $row ) {
  *      correctly — they aren't on `ps.w.org/<slug>/`, so the wp.org
  *      candidate chain 404s through every variant before the
  *      placeholder paints.
- *   2. **wp.org SVN asset** — `https://ps.w.org/<slug>/assets/icon.svg`,
- *      keyed off the plugin's **folder name** (which is the .org repo
- *      slug). Folder beats textdomain because the two often diverge
- *      (`woocommerce` vs textdomain `woo`, `wordpress-seo` vs
- *      `yoast-seo`). Falls back to textdomain for single-file plugins.
+ *   2. **The `icons` map wp.org returned** for this plugin, cached in
+ *      the `update_plugins` transient — a URL the directory gave us
+ *      rather than one we built.
+ *   3. **Guessed SVN asset** — `https://ps.w.org/<slug>/assets/icon.svg`,
+ *      for when that metadata isn't cached. `<slug>` prefers the
+ *      directory slug, then the folder name, then the textdomain.
+ *      Last, because both halves of the guess are unknowable: the
+ *      format (Gutenberg and UpdraftPlus ship JPEG only) and the slug
+ *      (`hello.php` is listed as `hello-dolly`).
  *
- * We don't HEAD-check the URL — the JS card walks a candidate chain
- * (SVG → 256 PNG → 256 GIF → 128 PNG → 128 GIF) on `<img>` error for wp.org URLs, then
- * drops to a `<os-icon name="dashicons-admin-plugins">` placeholder.
- * A 404 here costs nothing.
+ * Skipped entirely when step 2 established the plugin uploaded no art:
+ * `null` paints the placeholder without a request, where guessing would
+ * spend a 404 per candidate arriving at the same picture.
  *
  * @param array $row Core REST plugin row.
  * @return string|null
  */
 function openstation_plugins_window_field_icon_url( $row ) {
 	$plugin_file = openstation_plugins_window_row_plugin_file( $row );
+	$entry       = openstation_plugins_window_update_entry( $plugin_file );
 	$folder      = '' !== $plugin_file ? dirname( $plugin_file ) : '';
 	$slug        = ( '' !== $folder && '.' !== $folder ) ? $folder : '';
 
-	if ( '' === $slug ) {
+	// wp.org's own slug when it knows the plugin; the rest are inferred.
+	if ( null !== $entry && ! empty( $entry['slug'] ) ) {
+		$slug = (string) $entry['slug'];
+	} elseif ( '' === $slug ) {
 		// Single-file plugin (e.g. hello.php at the plugins root) —
 		// no folder slug, so fall back to the text domain.
 		$slug = isset( $row['textdomain'] ) ? (string) $row['textdomain'] : '';
@@ -493,7 +523,12 @@ function openstation_plugins_window_field_icon_url( $row ) {
 	}
 
 	$default = openstation_plugins_window_local_icon_url( $plugin_file );
-	if ( null === $default ) {
+	$no_art  = false;
+	if ( null === $default && null !== $entry ) {
+		$default = openstation_plugins_window_directory_icon_url( $entry );
+		$no_art = ( null === $default && ! empty( $entry['icons'] ) );
+	}
+	if ( null === $default && ! $no_art ) {
 		/*
 		 * Plugin Check's offloading rule is right in general and does
 		 * not fit here, so the suppression is one line wide and says
@@ -526,18 +561,15 @@ function openstation_plugins_window_field_icon_url( $row ) {
 	 * Return a different URL to override the default — useful for
 	 * custom CDN art or for overriding the auto-detected local icon.
 	 *
-	 * The `$url` parameter is either a local `plugins_url()` (when the
-	 * plugin's own folder ships an icon at a conventional path) or the
-	 * wp.org `ps.w.org/<slug>/assets/icon.svg` URL. The JS receiver
-	 * walks a candidate chain on `<img>` error (`icon.svg` → 256 PNG →
-	 * 256 GIF → 128 PNG → 128 GIF) only when the URL matches the
-	 * wp.org SVN pattern;
-	 * custom URLs and local URLs are one-shot, then placeholder.
+	 * The `$url` parameter is a local `plugins_url()`, a URL from
+	 * wp.org's `icons` map, or the guessed
+	 * `ps.w.org/<slug>/assets/icon.svg`. Only that last shape walks the
+	 * JS candidate chain on `<img>` error; every other URL is one-shot,
+	 * then placeholder.
 	 *
-	 * @param string|null $url  Default URL (local file if the plugin's
-	 *                          folder ships one, else wp.org SVG).
-	 * @param string      $slug Plugin slug (folder name, or textdomain
-	 *                          for single-file plugins).
+	 * @param string|null $url  Default URL — see the ladder above.
+	 * @param string      $slug Directory slug when wp.org knows the
+	 *                          plugin, else folder name or textdomain.
 	 * @param array       $row  Core REST plugin row.
 	 */
 	return apply_filters(
@@ -546,6 +578,37 @@ function openstation_plugins_window_field_icon_url( $row ) {
 		$slug,
 		$row
 	);
+}
+
+/**
+ * Pick a card icon out of the `icons` map wp.org returned.
+ *
+ * `svg` → `2x` → `1x`, the ladder core's Add Plugins cards use (see
+ * `WP_Plugin_Install_List_Table::display_rows()`); matching it is what
+ * makes the two screens agree. `default` — wp.org's geopattern for
+ * plugins that uploaded no art — is skipped, so those keep the
+ * window's own placeholder.
+ *
+ * @param array $entry An `update_plugins` entry.
+ * @return string|null Null when the entry carries no art.
+ */
+function openstation_plugins_window_directory_icon_url( $entry ) {
+	if ( empty( $entry['icons'] ) || ! is_array( $entry['icons'] ) ) {
+		return null;
+	}
+
+	$icons = $entry['icons'];
+	foreach ( array( 'svg', '2x', '1x' ) as $size ) {
+		if ( empty( $icons[ $size ] ) || ! is_string( $icons[ $size ] ) ) {
+			continue;
+		}
+		$url = esc_url_raw( $icons[ $size ] );
+		if ( '' !== $url ) {
+			return $url;
+		}
+	}
+
+	return null;
 }
 
 /**
@@ -598,10 +661,18 @@ function openstation_plugins_window_local_icon_url( $plugin_file ) {
 		array(
 			'assets/icon.svg',
 			'assets/icon-256x256.png',
+			'assets/icon-256x256.jpg',
+			'assets/icon-256x256.jpeg',
 			'assets/icon-128x128.png',
+			'assets/icon-128x128.jpg',
+			'assets/icon-128x128.jpeg',
 			'icon.svg',
 			'icon-256x256.png',
+			'icon-256x256.jpg',
+			'icon-256x256.jpeg',
 			'icon-128x128.png',
+			'icon-128x128.jpg',
+			'icon-128x128.jpeg',
 		),
 		$folder
 	);

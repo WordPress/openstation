@@ -116,7 +116,7 @@ wp.hooks.addAction(
 );
 ```
 
-Available actions: `enabled`, `disabled`, `mounted`, `unmounted`, `grabbed`, `dropped`, `displaced` (a window opened on top of it and it hopped clear).
+Available actions: `enabled`, `disabled`, `mounted`, `unmounted`, `grabbed`, `dropped`, `displaced` (a window opened on top of it and it hopped clear), `shape-changed` (`{ shape, from }` — the silhouette shuffle picked a new shape).
 
 ---
 
@@ -150,7 +150,7 @@ wp.hooks.addFilter(
 );
 ```
 
-Users who don't want a desk companion hide the tile from OpenStation Preferences → **Navigation**; it is the one system tile that opts into that list (`SystemDockItem.placeable`). There is nothing to filter out server-side — a shell whose user never switches Mio on downloads none of the simulation.
+Users who don't want a desk companion hide the tile from OpenStation Preferences → **Navigation**; it opts into that list via `SystemDockItem.placeable`, like the System and Overview tiles do. There is nothing to filter out server-side — a shell whose user never switches Mio on downloads none of the simulation.
 
 ---
 

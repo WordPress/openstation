@@ -264,7 +264,7 @@ function openstation_users_window_register_window() {
 		// shared module branches on `cfg.mode` to render the Users
 		// view.
 		'script'     => 'os-posts-window',
-		'style'      => 'os-posts-window',
+		'styles'     => array( 'os-posts-window' ),
 		'width'      => 1100,
 		'height'     => 720,
 		'min_width'  => 720,

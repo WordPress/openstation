@@ -14,8 +14,10 @@
 
 import { HOOKS, doAction } from '../hooks';
 import { trackedFetch } from './tracked-fetch';
+import { rememberRestoreTargets } from '../pwa/speculate';
+import { withChromelessParam } from '../window/dom';
 import type { WindowManager } from '../window-manager';
-import type { DesktopConfig } from '../types';
+import type { DesktopConfig, Session } from '../types';
 
 /** Trailing-edge debounce window (ms) for the foreground saver. */
 const SESSION_SAVE_DEBOUNCE_MS = 500;
@@ -41,6 +43,47 @@ const SESSION_SAVE_MIN_INTERVAL_MS = 1500;
  * Also exposed on `wp.os.saveSession()` for plugins that want
  * to flush.
  */
+/**
+ * Hand the worker the list of screens this session would restore.
+ *
+ * It cannot use them now — it uses them on the NEXT boot, where it is
+ * woken by the shell's own navigation and can start fetching these
+ * documents in parallel with the server building the shell, instead of
+ * ~3.9s later once the shell's JavaScript exists to ask. See
+ * `rememberRestoreTargets()`.
+ *
+ * Gated on the same opt-in every other speculation call site reads, so
+ * "off by default" means a user who never touched the setting does not
+ * even pay the postMessage. Called from both save paths: the debounced
+ * one and the unload beacon.
+ *
+ * @param payload The session snapshot about to be persisted.
+ */
+function noteRestoreTargets( payload: Session ): void {
+	try {
+		const os = (
+			window as unknown as {
+				wp?: {
+					os?: {
+						getOsSettings?: () => { windowPrewarmEnabled?: boolean };
+					};
+				};
+			}
+		).wp?.os;
+		if ( ! os?.getOsSettings?.().windowPrewarmEnabled ) {
+			return;
+		}
+		rememberRestoreTargets(
+			payload.windows
+				.filter( ( w ) => ! w.native && w.url )
+				.map( ( w ) => withChromelessParam( w.url ) || '' )
+				.filter( Boolean ),
+		);
+	} catch {
+		// Never let a speculation hint break a session save.
+	}
+}
+
 export function createSessionSaver(
 	manager: WindowManager,
 	config: DesktopConfig,
@@ -72,6 +115,9 @@ export function createSessionSaver(
 		// so the payload reflects the state at send time, not at the
 		// moment the save was queued.
 		const payload = manager.snapshot();
+
+		noteRestoreTargets( payload );
+
 		try {
 			// Session save is a debounced background ping — silent
 			// so the user doesn't see a spinner every time they
@@ -129,6 +175,15 @@ export function createSessionSaver(
 		// and the session on disk stays at its pre-close state.
 		// Symptom: close a window, reload fast, window reappears.
 		const payload = manager.snapshot();
+		// The unload snapshot is the most accurate one there is — it is
+		// taken as the tab goes away, after the last window the user
+		// closed or opened. Skipping it here would leave the worker
+		// replaying whichever debounced save happened to land last, so
+		// a window closed just before exit would still be speculated on
+		// the next boot (and one opened just before exit would not be).
+		// That is precisely the "close it and come straight back"
+		// moment this is for.
+		noteRestoreTargets( payload );
 		const body = new Blob(
 			[ JSON.stringify( { session: payload } ) ],
 			{ type: 'application/json' },

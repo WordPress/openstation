@@ -17,7 +17,7 @@
 import { addFilter, addAction } from '../hooks';
 import { registerTitleBarButton } from '../title-bar-buttons/registry';
 import type { Window as DesktopWindow } from '../window';
-import { openShareSettingsModal } from './share-settings-modal';
+import { openShareSettingsModal } from './overlays-loader';
 import { getFilesState, removePlacement, setFolderPlacements } from './store';
 import { leaveShare, listPlacements } from './rest';
 import { showToast } from '../toast';

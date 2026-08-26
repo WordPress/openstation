@@ -278,6 +278,9 @@
             "%s (already added)": [
                 "%s (ya añadido)"
             ],
+            "%s (empty)": [
+                ""
+            ],
             "%s MB": [
                 ""
             ],
@@ -291,6 +294,9 @@
                 ""
             ],
             "%s deleted.": [
+                ""
+            ],
+            "%s entry": [
                 ""
             ],
             "%s is already installed. Open it from your apps menu or home screen.": [
@@ -354,6 +360,18 @@
                 ""
             ],
             "1 item": [
+                ""
+            ],
+            "1h": [
+                ""
+            ],
+            "24h": [
+                ""
+            ],
+            "30d": [
+                ""
+            ],
+            "7d": [
                 ""
             ],
             "90 seconds on the clock — every word buys you more.": [
@@ -623,6 +641,9 @@
             "Authors": [
                 ""
             ],
+            "Auto": [
+                ""
+            ],
             "Auto-update unavailable": [
                 ""
             ],
@@ -693,6 +714,9 @@
                 ""
             ],
             "Bookmark": [
+                ""
+            ],
+            "Both <os-*> tags in the next piece of code are intentionally bogus, one per answer the warner has. Open the browser console: within ~2 seconds you should see two console.error entries from the framework, each pointing the developer at the fix — a name nothing in the registry comes close to, and a typo the warner can suggest a fix for (\"did you mean\"). Live copies of the same two tags are rendered off-screen, so the demo fires without affecting layout. Remove this section in your fork if you want a quieter Components tab.": [
                 ""
             ],
             "Bottom": [
@@ -830,6 +854,12 @@
             "Classic Dashboard": [
                 ""
             ],
+            "Clear log": [
+                ""
+            ],
+            "Clear this log?": [
+                ""
+            ],
             "Clicking a window also surfaces its parent and children.": [
                 ""
             ],
@@ -858,6 +888,9 @@
                 ""
             ],
             "Co-occurring": [
+                ""
+            ],
+            "Code Blue container missing.": [
                 ""
             ],
             "Colour": [
@@ -977,6 +1010,9 @@
             "Could not apply the suggestion.": [
                 "No se pudieron cargar tus medios: %s"
             ],
+            "Could not clear the log: %s": [
+                "No se pudieron cargar tus medios: %s"
+            ],
             "Could not convert the note to a post.": [
                 "No se pudieron cargar tus medios: %s"
             ],
@@ -1013,6 +1049,9 @@
             "Could not load footprint.": [
                 "No se pudieron cargar tus medios."
             ],
+            "Could not load log sources: %s": [
+                "No se pudieron cargar tus medios."
+            ],
             "Could not load plugin details.": [
                 "No se pudieron cargar tus medios."
             ],
@@ -1036,6 +1075,9 @@
             ],
             "Could not reach the clipboard — copying needs a secure (https) connection.": [
                 ""
+            ],
+            "Could not read the log: %s": [
+                "No se pudieron cargar tus medios: %s"
             ],
             "Could not read the selected entries.": [
                 "No se pudieron cargar tus medios: %s"
@@ -1148,6 +1190,9 @@
             "Define": [
                 ""
             ],
+            "Define WP_DEBUG and WP_DEBUG_LOG in wp-config.php (or point the error_log PHP directive at a file) and errors will start collecting here.": [
+                ""
+            ],
             "Delete": [
                 ""
             ],
@@ -1207,6 +1252,9 @@
             ],
             "Deleting…": [
                 "Subiendo…"
+            ],
+            "Deprecated": [
+                ""
             ],
             "Describe the issue or the feature you have in mind.": [
                 ""
@@ -1430,10 +1478,19 @@
             "Environment included with the report": [
                 ""
             ],
+            "Errors": [
+                ""
+            ],
             "Events": [
                 ""
             ],
+            "Events over time": [
+                ""
+            ],
             "Every <os-*> web component shipped by this plugin, with its props, slots, and a live example.": [
+                ""
+            ],
+            "Every entry in %s will be deleted from disk. This cannot be undone.": [
                 ""
             ],
             "Every menu in a single dock.": [
@@ -1523,6 +1580,9 @@
             "Fewer than 10 active": [
                 ""
             ],
+            "File": [
+                ""
+            ],
             "File size": [
                 ""
             ],
@@ -1530,6 +1590,9 @@
                 ""
             ],
             "Files REST endpoint is not available.": [
+                ""
+            ],
+            "Filter messages…": [
                 ""
             ],
             "Find %s words": [
@@ -1548,6 +1611,9 @@
                 ""
             ],
             "First published": [
+                ""
+            ],
+            "First seen": [
                 ""
             ],
             "Fit": [
@@ -1575,6 +1641,9 @@
                 ""
             ],
             "Found a bug or have a feature idea? Fill this in and we will open a pre-filled GitHub issue for you to review and submit.": [
+                ""
+            ],
+            "Frequent": [
                 ""
             ],
             "Friday": [
@@ -1733,6 +1802,9 @@
             "Individual use only": [
                 ""
             ],
+            "Info": [
+                ""
+            ],
             "Inkfall": [
                 ""
             ],
@@ -1778,6 +1850,12 @@
             "Iris": [
                 ""
             ],
+            "Issues": [
+                ""
+            ],
+            "Issues (%s)": [
+                ""
+            ],
             "It is a playful, open-source experiment by Automattic exploring what WordPress can feel like when the dashboard becomes a place of its own.": [
                 ""
             ],
@@ -1808,6 +1886,9 @@
             "Last published %s": [
                 ""
             ],
+            "Last seen": [
+                ""
+            ],
             "Latest": [
                 ""
             ],
@@ -1818,6 +1899,9 @@
                 ""
             ],
             "Latest journal posts": [
+                ""
+            ],
+            "Latest occurrences": [
                 ""
             ],
             "Latest post": [
@@ -1885,6 +1969,9 @@
             ],
             "Location": [
                 "Navegación del administrador"
+            ],
+            "Log source": [
+                ""
             ],
             "Longest streak": [
                 ""
@@ -2168,6 +2255,12 @@
             "No drafts — all caught up.": [
                 ""
             ],
+            "No entries were recorded in this time range.": [
+                ""
+            ],
+            "No events in this range.": [
+                ""
+            ],
             "No featured plugins yet.": [
                 ""
             ],
@@ -2205,6 +2298,9 @@
                 ""
             ],
             "No ratings yet.": [
+                ""
+            ],
+            "No readable log files found": [
                 ""
             ],
             "No revisions yet.": [
@@ -2291,6 +2387,9 @@
             "Nothing could be updated.": [
                 "%d actualización"
             ],
+            "Nothing matches the filters": [
+                ""
+            ],
             "Nothing needs your attention right now.": [
                 ""
             ],
@@ -2307,6 +2406,9 @@
                 ""
             ],
             "Nothing to show.": [
+                ""
+            ],
+            "Occurrences": [
                 ""
             ],
             "Off": [
@@ -2466,6 +2568,9 @@
                 "Se ha abierto «%s» en una nueva pestaña del navegador — este sitio no permite incrustarse."
             ],
             "Opening the journal…": [
+                ""
+            ],
+            "Opens Station Home instead of the classic WordPress Dashboard: recent work, site pulse, and quick actions in one native window. Leave off to keep the classic Dashboard, including any customizations plugins have made to it.": [
                 ""
             ],
             "Order": [
@@ -2735,6 +2840,9 @@
             "Read the dispatch": [
                 ""
             ],
+            "Recent": [
+                "Cambiar a modo escritorio"
+            ],
             "Recent activity": [
                 ""
             ],
@@ -2773,6 +2881,9 @@
             ],
             "Removes every share and its access list. Cannot be undone.": [
                 ""
+            ],
+            "Rename %s": [
+                "Eliminar %s"
             ],
             "Replace": [
                 "Error al subir."
@@ -2941,6 +3052,9 @@
             ],
             "Saving…": [
                 "Subiendo…"
+            ],
+            "Scanned %1$s of %2$s": [
+                "Error al subir."
             ],
             "Scope": [
                 ""
@@ -3116,6 +3230,9 @@
             "Show links": [
                 "Mostrando %d"
             ],
+            "Show pins": [
+                "Mostrando %d"
+            ],
             "Show post/page status ribbon": [
                 ""
             ],
@@ -3186,6 +3303,9 @@
                 ""
             ],
             "Sort by": [
+                ""
+            ],
+            "Sort issues": [
                 ""
             ],
             "Soup finished!": [
@@ -3386,6 +3506,9 @@
             "The latest posts are arriving over RSS.": [
                 ""
             ],
+            "The log is clean": [
+                ""
+            ],
             "The look OpenStation ships with": [
                 "Cambiar a modo escritorio"
             ],
@@ -3402,9 +3525,6 @@
                 ""
             ],
             "The preview opens once the post has been saved.": [
-                ""
-            ],
-            "The three <os-*> tags below are intentionally bogus. Open the browser console: within ~2 seconds you should see three console.error entries from the framework, each pointing the developer at the fix (typo with \"did you mean\", and unknown tags). The tags are kept off-screen so they do not affect layout. Remove this section in your fork if you want a quieter Components tab.": [
                 ""
             ],
             "The underlying entity is no longer available.": [
@@ -3491,6 +3611,9 @@
             "Time Attack": [
                 ""
             ],
+            "Time range": [
+                ""
+            ],
             "Time’s up!": [
                 ""
             ],
@@ -3510,6 +3633,9 @@
                 "Hasta"
             ],
             "Today": [
+                ""
+            ],
+            "Toggle severities": [
                 ""
             ],
             "Tool calls": [
@@ -3552,6 +3678,9 @@
                 ""
             ],
             "Try asking": [
+                ""
+            ],
+            "Try widening the time range or clearing the search.": [
                 ""
             ],
             "Tuesday": [
@@ -3656,6 +3785,9 @@
             "Update to %s": [
                 "Añadir %s"
             ],
+            "Updated": [
+                "Añadir %s"
+            ],
             "Updated %s": [
                 "Añadir %s"
             ],
@@ -3705,6 +3837,9 @@
                 "Subiendo…"
             ],
             "Use Customize to opt in to information from your plugins.": [
+                ""
+            ],
+            "Use Station Home as your Dashboard": [
                 ""
             ],
             "Use the native Comments window": [
@@ -3822,6 +3957,9 @@
                 "Fondo de pantalla"
             ],
             "Warming up the soup…": [
+                ""
+            ],
+            "Warnings": [
                 ""
             ],
             "Watch the dot in the OpenStation Preferences title bar to see when a change has been saved.": [
@@ -4029,6 +4167,9 @@
                 ""
             ],
             "no reason given": [
+                ""
+            ],
+            "older entries not shown": [
                 ""
             ],
             "one contributor": [

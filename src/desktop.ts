@@ -92,7 +92,6 @@ import { createWindowActionRegistrySync } from './window-actions/server-sync';
 import { type UnfocusEffectDef } from './effects/types';
 import { type WindowRevealDef } from './reveals/types';
 import { startWindowLinksEngine } from './window-links/engine';
-import { startWindowLinkRenderHost } from './window-links/render-host';
 import { bootRelatedEntities } from './related-entities';
 import { bootEditorPreview } from './editor-preview';
 import type {
@@ -104,7 +103,8 @@ import { createWindowLinkRendererRegistrySync } from './window-links/server-sync
 import { startUnfocusEngine } from './effects/unfocus-engine';
 import { startWindowRevealEngine } from './reveals/engine';
 import { createDockRailRendererSync } from './dock-rail/server-sync';
-import { mountDockConstellation } from './dock-constellation';
+import { loadVendorScript } from './wallpapers/vendor-loader';
+import { installDockConstellationSentinel } from './dock-constellation/sentinel';
 import {
 	type WindowThemeDef,
 } from './window-chrome/themes/registry';
@@ -131,6 +131,7 @@ import {
 import { IframeCommandBridge } from './commands/iframe-bridge';
 import { installWindowActivityNotifier } from './window-activity-notifier';
 import { ShellCommandHarvester } from './commands/shell-harvester';
+import { PALETTE_ASSETS_READY_EVENT } from './commands/palette-assets';
 import { type ScriptExtras } from './wallpapers/vendor-loader';
 import {
 	type WallpaperSurface,
@@ -139,6 +140,7 @@ import { WidgetLayer } from './widgets/layer';
 import {
 	createNativeWindowSync,
 	createRegisterWindow,
+	hydrateServerEntries,
 	type WindowLifecycleHandlers,
 } from './native-windows';
 import { iconsApi, renderDesktopIcons, type IconsApi } from './desktop-icons';
@@ -160,6 +162,7 @@ import {
 	BUG_REPORT_WINDOW_ID,
 	renderBugReport,
 } from './bug-report';
+import { ensureDeferredStyle } from './deferred-styles';
 import { showToast, type ToastOptions } from './toast';
 import {
 	bootstrapPwa,
@@ -210,7 +213,7 @@ import {
 	installShortcutsSync,
 	syncDesktopShortcuts,
 } from './nav/desktop-sync';
-import { bootNotes } from './notes';
+import { installNotesSentinel } from './notes/sentinel';
 
 // `INITIAL_ORIGIN` lives in `src/boot/origin.ts` so every
 // boot-time consumer reaches the same captured value — see the import
@@ -282,7 +285,8 @@ import {
 	type SortMode as RootSortMode,
 } from './desktop-files/wallpaper-menu';
 import { openCreateFolderDialog } from './desktop-files/create-folder-dialog';
-import { openUrlDialog } from './desktop-files/url-dialog';
+import { openUrlDialog } from './desktop-files/overlays-loader';
+import { installFileDropSentinel } from './os-file-drop/sentinel';
 import type {
 	DesktopConfig,
 	DesktopWallpaperServerEntry,
@@ -1402,6 +1406,13 @@ export interface OpenStationPublicApi {
 		 * for that.
 		 */
 		setActive: ( themeId: string ) => void;
+		/**
+		 * Hydrate boot-slimmed entries (`cssDeferred: true`) with
+		 * their full `cssText` / `tokens`, without activating
+		 * anything. Resolves once the library holds the full
+		 * entries; safe to call repeatedly (single-flight).
+		 */
+		ensureFull: () => Promise< void >;
 		/** Subscribe to library / active-theme changes. */
 		subscribe: (
 			cb: ( state: Readonly< DesktopThemeState > ) => void,
@@ -2357,10 +2368,23 @@ function init(): void {
 		// (Posts, Files, Plugins, Comments) contribute none, so the user
 		// would never see the WP baseline while one of those is focused.
 		// Re-harvests automatically on `os-plugins-changed`.
-		new ShellCommandHarvester( {
+		//
+		// The Core palette runtime is no longer on the boot page — it
+		// loads on the first palette invocation (`palette-assets.ts`).
+		// This idle `install()` is therefore usually a graceful no-op
+		// (it only bites when another plugin shipped `wp.data` at
+		// boot); the listener below finishes the job the moment the
+		// lazy chain lands.
+		const shellHarvester = new ShellCommandHarvester( {
 			manager,
 			adminUrl: config.adminUrl,
-		} ).install();
+		} );
+		shellHarvester.install();
+		document.addEventListener(
+			PALETTE_ASSETS_READY_EVENT,
+			() => shellHarvester.install(),
+			{ once: true },
+		);
 	} );
 
 	// Programmatic `os-open-ai` dispatches route through
@@ -2718,17 +2742,23 @@ function init(): void {
 			config.desktopIcons,
 			initialPlacement,
 		);
-		// Constellation — the hover-submenu flyout. Mounted once and
-		// left mounted: it is a single delegated listener serving every
-		// menu tile on every rail, and it reads the direction to fan in
-		// off the rail the tile is on, so a user flipping between
-		// layouts or dock placements never needs it re-wired.
-		mountDockConstellation( {
-			windowManager: manager,
-			adminUrl: config.adminUrl,
-			getMenuItems: () => layoutDispatcher?.getMenuItems() ?? [],
-			getSystemItem: ( id ) =>
-				layoutDispatcher?.getSystemTile( id ) ?? null,
+		// Constellation — the hover-submenu flyout. Once mounted it is
+		// a single delegated listener serving every menu tile on every
+		// rail, reading fan-in direction off the rail the tile is on,
+		// so layout/placement flips never need it re-wired. The MOUNT
+		// is deferred though: the bundle (~11 KB min) loads on the
+		// first pointer entering a dock rail — hover UI has no
+		// boot-time job, and the flyout's own hover-intent delay
+		// covers the one-time fetch.
+		installDockConstellationSentinel( {
+			bundleUrl: config.dockConstellationBundleUrl ?? '',
+			deps: {
+				windowManager: manager,
+				adminUrl: config.adminUrl,
+				getMenuItems: () => layoutDispatcher?.getMenuItems() ?? [],
+				getSystemItem: ( id: string ) =>
+					layoutDispatcher?.getSystemTile( id ) ?? null,
+			},
 		} );
 
 		// The notch — the site assistant's front door, and the shell's
@@ -2935,6 +2965,9 @@ function init(): void {
 	 * and any future widget all reach the same window instance.
 	 */
 	function openBugReport(): void {
+		// The window's stylesheet is a `deferredStyles` entry, not a
+		// boot enqueue — inject on first open.
+		ensureDeferredStyle( 'desktop-mode-bug-report' );
 		void manager.open( {
 			id: BUG_REPORT_WINDOW_ID,
 			baseId: BUG_REPORT_WINDOW_ID,
@@ -3022,9 +3055,14 @@ function init(): void {
 	// Initial native-window registry sync — runs AFTER the dispatcher
 	// is wired so plugin-owned tiles route through the dispatcher's
 	// `appendSystemTile` callback rather than hitting the no-op
-	// fallback while the dispatcher is still null.
+	// fallback while the dispatcher is still null. Entries arrive in
+	// wire format (script data keyed by handle in a sibling map, one
+	// copy per bundle) — join them before the sync consumes them.
 	void syncNativeWindows(
-		Array.isArray( config.nativeWindows ) ? config.nativeWindows : [],
+		hydrateServerEntries(
+			Array.isArray( config.nativeWindows ) ? config.nativeWindows : [],
+			config.nativeWindowScriptData,
+		),
 	);
 
 	// Bootstrap: restore session (if any), then decide whether to also
@@ -3494,7 +3532,33 @@ function init(): void {
 	// (built-in `svg-splines` by default) into a lazy overlay layer
 	// whenever a relation group is renderable, and applies the
 	// `windowLinkVisibility` policy + related-window chrome highlight.
-	startWindowLinkRenderHost( { manager, osSettings } );
+	// The VISUALS bundle (~14 KB min: host + geometry + svg-splines)
+	// loads on the first groups-changed the engine fires — that hook
+	// only fires when relations actually exist, so a session whose
+	// windows never relate skips the renderer entirely.
+	{
+		let visualsRequested = false;
+		addAction(
+			HOOKS.WINDOW_LINK_GROUPS_CHANGED,
+			'desktop-mode/window-link-visuals-sentinel',
+			() => {
+				if ( visualsRequested || ! config.windowLinkVisualsBundleUrl ) {
+					return;
+				}
+				visualsRequested = true;
+				void loadVendorScript( config.windowLinkVisualsBundleUrl )
+					.then( () => {
+						window.openStationWindowLinkVisuals?.start( {
+							manager,
+							osSettings,
+						} );
+					} )
+					.catch( () => {
+						visualsRequested = false;
+					} );
+			},
+		);
+	}
 
 	// Related-entities title-bar button — "Related" dropdown on any
 	// window whose content identity carries navigation targets
@@ -4063,7 +4127,16 @@ function init(): void {
 	// drop routes (wallpaper create/reposition via the canvas payload
 	// seam, recycle-bin trash via the bin payload seam), and the
 	// wallpaper context-menu entry.
-	bootNotes( {
+	// Pinned notes — presence-gated: the sentinel loads the `notes`
+	// bundle when this desktop HAS notes (config.hasNotes), and on
+	// the gestures that would create the first one. A note-less user
+	// never downloads the layer.
+	installNotesSentinel( {
+		bundleUrl: config.notesBundleUrl ?? '',
+		// Loose truthiness on purpose: the top-level config scalars
+		// pass through a sanitization that stringifies booleans
+		// ("1" / ""), same as `currentUserIsAdmin`.
+		hasNotes: Boolean( config.hasNotes ),
 		host: desktopArea,
 		config,
 		onError: ( message ) => {
@@ -4745,19 +4818,24 @@ function init(): void {
 	// `config.portalUrl` stays in the shell config so plugins that want
 	// to build "home" links can still point at the portal.
 
-	// OS-file drop manager — catches files dragged from the user's
-	// host OS (Finder / Explorer / Nautilus) anywhere on the shell
-	// and routes them through a confirmation dialog before uploading
-	// to the Media Library. Idempotent; no-op when the user lacks
-	// `upload_files`.
-	void import( './os-file-drop' ).then( ( mod ) => {
-		mod.bootOsFileDrop( {
+	// OS-file drop — catches files dragged from the user's host OS
+	// (Finder / Explorer / Nautilus) anywhere on the shell and routes
+	// them through a confirmation dialog before uploading. Only the
+	// SENTINEL boots here: the machinery (~28 KB min) rides the
+	// `file-drop` bundle and loads on the first dragenter carrying
+	// files. (This used to be a `void import( './os-file-drop' )` —
+	// good intent the IIFE build flattened straight back into the
+	// shell bundle; rollup inlines dynamic imports in single-chunk
+	// output, so lazy here has to mean a separate build target.)
+	installFileDropSentinel( {
+		bundleUrl: config.fileDropBundleUrl ?? '',
+		boot: {
 			config: config.dropConfig,
 			mediaUrl: config.mediaUrl,
 			restNonce: config.restNonce,
 			filesUrl: config.filesUrl,
 			storage: config.desktopStorage,
-		} );
+		},
 	} );
 
 	document.dispatchEvent(

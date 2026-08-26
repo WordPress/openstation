@@ -91,7 +91,10 @@ class Tests_OpenStation_StationHome extends WP_UnitTestCase {
 
 		$this->assertIsArray( $entry );
 		$this->assertSame( 'os-station-home', $entry['script'] );
-		$this->assertSame( 'os-station-home', $entry['style'] );
+		// The sheet rides the `styles` companion list (loaded on
+		// first open), not `style` (injected at boot).
+		$this->assertSame( '', $entry['style'] );
+		$this->assertSame( array( 'os-station-home' ), $entry['styles'] );
 		$this->assertSame( 0, $entry['main_tab_padding'] );
 		$this->assertStringContainsString( '/desktop-mode/v1/station-home', $entry['config']['endpoint'] );
 		$this->assertStringContainsString( '/desktop-mode/v1/station-home/cards', $entry['config']['cardsEndpoint'] );

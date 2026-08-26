@@ -158,6 +158,42 @@ describe( 'agent chat window', () => {
 		}
 	} );
 
+	test( 'the in-flight row is an instrument line: inline arc, then the word', async () => {
+		// The bubble used to append the classic WordPress-mark spinner
+		// at 24px, below the size where its rings survive, so it read
+		// as a static disc under "Working…". The inline preset is the
+		// arc that stays legible beside text.
+		const body = makeBody();
+		const cleanup = getRender()( body );
+		openAgentChat( {
+			id: 5,
+			name: 'TLDR Editor',
+			description: '',
+			avatarUrl: 'https://example.test/agent.svg',
+		} );
+		agentsChatStore.state.transcripts[ 5 ] = [
+			{ role: 'user', text: 'Summarize it', at: 1 },
+			{ role: 'agent', text: 'Working…', at: 2, pending: true },
+		];
+		agentsChatStore.notify();
+		await flush();
+
+		const line = body.querySelector( '.dm-agent-chat__line--pending' );
+		expect( line ).not.toBeNull();
+		const row = line!.querySelector( '.dm-agent-chat__msg--pending' );
+		expect( row ).not.toBeNull();
+		const [ first, second ] = [ ...row!.children ];
+		expect( first.tagName.toLowerCase() ).toBe( 'os-spinner' );
+		expect( first.getAttribute( 'preset' ) ).toBe( 'inline' );
+		expect( second.className ).toBe( 'dm-agent-chat__msg-text' );
+		expect( second.textContent ).toBe( 'Working…' );
+		// The face that bobs is the agent's, on the pending line.
+		expect(
+			line!.querySelector( '.dm-agent-chat__msg-avatar' )?.tagName.toLowerCase(),
+		).toBe( 'os-avatar' );
+		cleanup();
+	} );
+
 	test( 'rows carry avatars, agent markdown renders, and New chat resets', async () => {
 		const body = makeBody();
 		const cleanup = getRender()( body );

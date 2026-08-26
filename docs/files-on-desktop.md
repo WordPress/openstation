@@ -2,7 +2,7 @@
 
 **Status:** Experimental.
 
-The Files-on-the-Desktop system lets users place WordPress entities — posts, users, media, terms, comments, bookmarks — on their desktop wallpaper, organize them inside folders, and (in later phases) share folders with other users via Heartbeat-driven sync. Plugin authors extend the system by registering their own file types through the same surface the ten built-ins use.
+The Files-on-the-Desktop system lets users place WordPress entities — posts, users, media, terms, comments, bookmarks — on their desktop wallpaper, organize them inside folders, and (in later phases) share folders with other users via Heartbeat-driven sync. Plugin authors extend the system by registering their own file types through the same surface the eleven built-ins use.
 
 This is an evolving feature. Phase 0 (this document's current scope) establishes the registry and the `OpenStation_File` base class. Future phases layer in:
 
@@ -65,7 +65,7 @@ add_action( 'init', static function () {
 }, 6 ); // priority 6 so we land after the built-ins (5).
 ```
 
-`Jorvy_Quote_File` extends `OpenStation_File` and overrides the methods that don't fit the defaults. The base shape is intentionally minimal:
+`Jorvy_Quote_File` extends `OpenStation_File` and overrides the methods that don't fit the defaults. Return whatever your entity gives you from `title()` — `serialize()` decodes HTML entities and strips tags before the shape crosses the wire, because the shell paints `title` into text nodes and `title=` attributes where an encoded `&#038;` would read as itself. The base shape is intentionally minimal:
 
 ```php
 class Jorvy_Quote_File extends OpenStation_File {
@@ -227,16 +227,18 @@ Three handler kinds:
 |---|---|---|---|
 | `wp-post-editor` | `post` | `url` | `post.php?post=…&action=edit` |
 | `wp-media-editor` | `attachment` | `url` | `post.php?post=…&action=edit` |
+| `agent-chat` | `user` | `js` | Opens the Agent chat window for agent users. A per-file `appliesTo` predicate keeps it invisible for human users; it registers before the profile opener so the default-flag scan picks it for agents. |
 | `wp-user-profile` | `user` | `url` | `user-edit.php?user_id=…` |
 | `wp-term-editor` | `term` | `url` | `term.php?taxonomy=…&tag_ID=…` |
 | `wp-comment-editor` | `comment` | `url` | `comment.php?action=editcomment&c=…` |
+| `desktop-mode-upload-download` | `upload` | `js` | Downloads the stored file — the download URL (with its nonce) is minted at click time, because nonces expire. Preview openers are a follow-up. |
 | `browser-navigate` | `bookmark` | `js` | `window.open(url, '_blank', 'noopener,noreferrer')` — `url` is the server-sanitized `url` field from the serialized shape (the `esc_url_raw()` output), not the raw placement ref, and the protocol is re-validated client-side (http/https only) before opening. |
 | `desktop-mode-link-opener` | `link` | `js` | Same as `browser-navigate`: server-sanitized `shape.url`, http/https re-validated, then `window.open(url, '_blank', 'noopener,noreferrer')`. |
 | `desktop-mode-embed-opener` | `embed` | `js` | Opens an iframe-backed window at `url`. Reads `placement.meta.window` for restored geometry, clamps it to the current desktop area, and persists subsequent drag-end / resize-end back to `placement.meta.window` via REST. |
 | `desktop-mode-folder-window` | `folder` | `js` | Opens a native folder window (breadcrumbs, tile grid, preview pane, status bar). |
 | `desktop-mode-shortcut-opener` | `shortcut` | `js` | Opens the shortcut's registered native window (`shortcutWindow`) or its URL (`shortcutUrl`) in a desktop window — external origins fall back to a new browser tab. A `shortcutSystemTile` shortcut runs that dock tile's own `onOpen` instead, so a tile that toggles rather than opens behaves the same on both surfaces. |
 
-The `desktop-mode-folder-window` and `desktop-mode-shortcut-opener` openers are registered JS-side only — unlike the other eight, they have no entry in the PHP metadata mirror (`includes/desktop-files/built-in-openers.php`), so don't expect them in `openstation_get_file_openers()`.
+Four of the twelve — `agent-chat`, `desktop-mode-upload-download`, `desktop-mode-folder-window` and `desktop-mode-shortcut-opener` — are registered JS-side only: unlike the other eight, they have no entry in the PHP metadata mirror (`includes/desktop-files/built-in-openers.php`), so don't expect them in `openstation_get_file_openers()`.
 
 ### Opening a file
 
@@ -433,20 +435,21 @@ thumbnail is sized by its grid column, not by the icon cell.
 ### Tile DOM contract
 
 ```html
-<button class="os-file-tile"
-        data-placement-id="42"
-        data-file-type="post"
-        data-file-ref="13"
-        data-folder-id="0"
-        style="position: absolute; left: 100px; top: 200px;">
+<os-tile class="os-file-tile"
+         role="listitem"
+         data-placement-id="42"
+         data-file-type="post"
+         data-file-ref="13"
+         data-folder-id="0"
+         style="position: absolute; left: 100px; top: 200px;">
     <span class="os-file-tile__visual">
         <span class="os-file-tile__icon dashicons dashicons-admin-post"></span>
     </span>
     <span class="os-file-tile__label">My post</span>
-</button>
+</os-tile>
 ```
 
-The class names and `data-*` attributes are part of the stable contract. The tile is built with `buildTile()` in `src/desktop-files/file-tile.ts`.
+The root is the `<os-tile>` custom element, and the host element itself IS the tile — light DOM, no inner button wrapper — so `document.querySelector( '.os-file-tile' )` returns it, `data-placement-id` lives on it, and `style.left/top` applies to it. Its `role` is `listitem`, switching to `option` on a multi-select canvas so it can carry `aria-selected`. The class names and `data-*` attributes are part of the stable contract. The tile is built with `buildTileFromSpec()` in `src/desktop-files/tile-spec.ts`.
 
 ### Drag
 
@@ -493,17 +496,23 @@ The payload grew one field per type, and nothing else changed:
 
 **A drop target written before multi-drag is not broken.** It reads
 `data.placement` and acts on the grabbed tile, which is the one the
-user pointed at. To handle sets, read them through the helper:
+user pointed at. To handle sets, read the plural field and fall back
+to the singular:
 
 ```ts
-import { dragPlacements, dragShortcutItems } from 'openstation/desktop-files';
-
 onDrop: ( session ) => {
-    for ( const placement of dragPlacements( session.payload.data ) ) {
+    const data = session.payload.data;
+    for ( const placement of data.placements ?? [ data.placement ] ) {
         // Runs once for a single drag, N times for a set.
     }
 },
 ```
+
+(The built-in targets do the same through an internal helper,
+`dragPlacements()` / `dragShortcutItems()` in
+`src/desktop-files/drag-payloads.ts` — internal modules aren't
+importable from plugin bundles, but the fallback is the whole
+contract.)
 
 Two rules the built-in targets follow, and yours should:
 
@@ -582,7 +591,7 @@ Two boundaries worth knowing if you build on this:
   on a window's title bar is not a drop on the wallpaper. The check
   walks up from the event target and stops at the first answer, and it
   is relative to the canvas host — a folder window's canvas lives
-  *inside* a `.wp-window` and must still accept.
+  *inside* an `.os-window` and must still accept.
 - **Drops over an iframe window belong to the bridge**, which routes
   them into that iframe as `os-drop` (this is how Gutenberg receives
   an insertion). When there is no iframe window under the cursor the
@@ -660,10 +669,13 @@ nothing after it, so asking whether its gap fits condemns a
 fully-visible tile and repacks the whole canvas around it.
 
 Pinned tiles (registered with `pinned: true` via
-`openstation_register_icon`) skip drag wiring entirely. A pointerdown
-on a pinned tile flashes a `--bump` animation and shows the
-`not-allowed` cursor so the (lack of) interaction reads as
-intentional rather than buggy.
+`openstation_register_icon`) skip drag wiring entirely. There is no
+upfront visual cue — a pinned tile keeps the normal pointer cursor for
+click-to-open, and an attempted drag simply does nothing; feedback
+happens at the moment of the gesture, not before. (The `not-allowed`
+cursor is reserved for access-gated tiles.) Pinned tiles that reject
+drops also register a rejecting drop target so a payload can't fall
+through to the wallpaper beneath them.
 
 Legacy: HTML5 drag (`setShortcutDragPayload` /
 `hasShortcutPayload` / `readShortcutPayload`) remains exported from
@@ -726,10 +738,17 @@ a count-and-type summary instead of previewing one arbitrary member.
 The `os.files.folder-window.status-bar` filter context carries
 `selectedCount`.
 
-### Public API
+### The FilesLayer handle
+
+`mountFilesLayer( host, folderId )` is **internal**
+(`src/desktop-files/layer.ts`) — it is how the shell itself mounts a
+tile canvas, once for the wallpaper (folder `0`) and once per folder
+window, and it is not importable from a plugin bundle. The handle it
+returns is documented here because its selection contract is what the
+selection-aware surfaces above are built on:
 
 ```ts
-import { mountFilesLayer } from 'openstation/desktop-files';
+// Inside the shell, per canvas:
 const handle = mountFilesLayer( hostElement, folderId );
 
 // Selection.
@@ -882,19 +901,19 @@ Real desktop-style file storage: users upload arbitrary files (or whole folder t
 
 ### Storage model
 
-Bytes live **flat** on disk under `wp-content/uploads/os-files/<user_id>/` with server-generated, extensionless UUID names — hierarchy, display names, and sharing are entirely DB concerns (the existing folders + placements + shares tables). Metadata lives in the `{prefix}desktop_mode_stored_files` table (`owner_id`, `display_name`, `disk_name`, `size_bytes`, `mime`). Renames and moves are single-row updates; no user input ever composes a disk path.
+Bytes live **flat** on disk under `wp-content/uploads/desktop-mode-files/<owner_id>/` (the `desktop-mode-files` segment is the frozen pre-rebrand spelling — users' bytes already live there) with server-generated, extensionless UUID names — hierarchy, display names, and sharing are entirely DB concerns (the existing folders + placements + shares tables). Metadata lives in the `{prefix}desktop_mode_stored_files` table (`owner_id`, `display_name`, `disk_name`, `size_bytes`, `mime`). Renames and moves are single-row updates; no user input ever composes a disk path.
 
 The storage dir is protected by `.htaccess` (both Apache 2.2/2.4 syntaxes) + `index.php`, and bytes are only ever served through the authenticated download endpoints with `Content-Disposition: attachment` + `X-Content-Type-Options: nosniff` (uploaded SVG/HTML never renders from the site origin). **nginx ignores `.htaccess`** — add this to the server config:
 
 ```nginx
-location ^~ /wp-content/uploads/os-files/ { deny all; }
+location ^~ /wp-content/uploads/desktop-mode-files/ { deny all; }
 ```
 
 Even without it, the extensionless UUID names and the PHP-gated serving are the effective floor. Back up the DB and the storage dir together.
 
 ### Uploading
 
-- **Drag from the OS** onto the wallpaper, a folder window, or a closed folder tile. The upload dialog offers a destination selector — Desktop storage or Media Library (the pre-0.9.6 behavior). Defaults follow the drop's intent: folder-targeted drops go to Desktop (into that folder); flat desk drops default to Media Library when every file is a media kind (`image/*`, `video/*`, `audio/*`) and to Desktop otherwise; WordPress admin windows keep Media Library. Folder drops force Desktop storage and recreate the tree (empty directories included, via the drag path only). Dropping again while the dialog is open updates it to the latest drop (the earlier, unconfirmed batch is discarded).
+- **Drag from the OS** onto the wallpaper, a folder window, or a closed folder tile. The upload dialog offers a destination selector — Desktop storage or Media Library (the classic behavior). Defaults follow the drop's intent: folder-targeted drops go to Desktop (into that folder); flat desk drops default to Media Library when every file is a media kind (`image/*`, `video/*`, `audio/*`) and to Desktop otherwise; WordPress admin windows keep Media Library. Folder drops force Desktop storage and recreate the tree (empty directories included, via the drag path only). Dropping again while the dialog is open updates it to the latest drop (the earlier, unconfirmed batch is discarded).
 - **Pickers**: wallpaper context menu → "Upload files…" / "Upload folder…".
 - Capability gate: `upload_files` by default, filterable via `openstation_stored_files_upload_capability`. Per-file cap: `wp_max_upload_size()`, filterable down via `openstation_stored_files_max_upload_bytes`. Optional per-user quota: `openstation_stored_files_user_quota_bytes` (default unlimited). MIME policy: the user-scoped WordPress allow-list (widen with `openstation_stored_files_allowed_mimes` — it keeps core's re-check in agreement) plus a hard executable/config denylist (`php*`, `phtml`, `phar`, `.htaccess`, …) that also rejects double extensions.
 

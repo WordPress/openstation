@@ -122,6 +122,64 @@ a role plugin hands `edit_users` to a shop-manager-shaped role, which
 mints an administrator agent, which then acts with capabilities its
 creator never had.
 
+## Identity is not a new privilege boundary
+
+An agent carries a **voice** (`vibes`), one short line of character that
+is appended to its instructions before a run. It reaches a language
+model, so it is worth being explicit about what that does and does not
+change.
+
+**It adds no reach.** Writing `vibes` requires `edit_users`, the same
+capability that already lets you write `instructions` — the entire
+system prompt. A 120-character tone line is strictly less than that, so
+it deliberately sits behind the same gate. Do not "harden" it onto a
+different capability later: that buys nothing and creates a confusing
+split where the smaller field is the harder one to set.
+
+Two structural guards it does have, both cheap and both load-bearing:
+
+- **No line breaks.** `openstation_agent_sanitize_vibes()` routes
+  through `sanitize_text_field()`, which strips them. The composed
+  prompt marks operator turns, so a multi-line voice line could
+  otherwise fake a turn boundary. `agentsIdentity2.php` pins this;
+  swapping in `sanitize_textarea_field()` would quietly remove the
+  guard.
+- **It goes after the instructions, never before.** A voice and a
+  workflow can disagree, and when they do the workflow should win.
+  Position is the whole mechanism: `openstation_agent_apply_vibes()`
+  appends, and a test asserts the ordering.
+
+**The face is data, not text.** An agent's portrait is a Mio look:
+numbers and a silhouette name, clamped to their ranges by
+`openstation_mio_clamp_look()` before anything draws with them. The
+generated SVG contains no text nodes and no caller-supplied string at
+all — every value in it is a number the renderer computed. That rule is
+what makes it safe to write those files into uploads and serve them;
+`Tests_OpenStation_MioPortrait` asserts it in both languages.
+
+The face directory is hardened **exec-off, not deny-all**: portraits
+have to stay servable or every agent avatar on the site breaks. PHP
+cannot execute there.
+
+That hardening is `.htaccess`, so it is **defence in depth and Apache
+only**: the `php_flag` and `<FilesMatch>` rules are inert on nginx,
+the same limitation WordPress's own `uploads/.htaccess` has. The
+control that actually holds is the one above it: the renderer cannot
+be made to emit anything but inert SVG, because it never interpolates
+a caller-supplied string. Read in that order if you are adding to this
+directory later. A **different** file type dropped in beside the
+portraits would not inherit the renderer's guarantee, and the
+`.htaccess` is not enough on its own to cover it.
+
+**The one thing to be careful with is a roster digest.** Telling agent A
+about agent B — so it can hand work over by name — would put text one
+`edit_users` holder wrote into another's system prompt. On a
+single-admin site that is nothing; on a multi-editor site it is a
+lateral channel. Nothing ships that today. If it is added, it needs the
+same fencing the runner already applies to tool output, a hard cap on
+how many rows it carries, and `vibes` left out of it entirely: a
+hand-off needs a name and a job, not a personality.
+
 ## Rate limits
 
 Two independent buckets, both hourly:

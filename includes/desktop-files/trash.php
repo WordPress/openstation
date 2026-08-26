@@ -1120,7 +1120,9 @@ function openstation_files_list_trashed_for_recycle_bin( $user_id ) {
 		$file  = function_exists( 'openstation_resolve_file' )
 			? openstation_resolve_file( $row['file_type'], $row['file_ref'] )
 			: null;
-		$title = $file ? (string) $file->title() : (string) $row['file_type'];
+		$title = $file
+			? openstation_plain_text_title( $file->title() )
+			: (string) $row['file_type'];
 		$icon  = $file ? (string) $file->icon() : 'dashicons-no-alt';
 		// Two recycle-bin buckets:
 		// - `shortcut`  → plugin-registered icons (file_type='shortcut')

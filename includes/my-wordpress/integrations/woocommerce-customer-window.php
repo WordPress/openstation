@@ -93,7 +93,13 @@ function openstation_my_wordpress_woo_customer_window_register() {
 		// summary transport and the panel renderers — one more
 		// window, no second bundle.
 		'script'     => 'os-my-wordpress-woocommerce',
-		'style'      => 'os-my-wordpress-woocommerce',
+		// `styles` (companion), NOT `style`: a window's own style
+		// injects when the window REGISTERS, which for this one means
+		// every shell boot on a store — exactly the eager cost the
+		// integration is built to avoid. As a companion it lands on
+		// first open, and since the Explorer declares the same handle,
+		// whichever window opens first pays it once for both.
+		'styles'     => array( 'os-my-wordpress-woocommerce' ),
 		'width'      => 880,
 		'height'     => 700,
 		'min_width'  => 520,

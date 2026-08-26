@@ -2,9 +2,9 @@
 
 Canonical mapping of every shipped web component: tag name → exported class → source file → one-line purpose. The runtime missing-component warner (`src/ui/components/missing-import-warner.ts`) points readers here.
 
-Components are **side-effect registered** at import time, per bundle, into the page-global custom-element registry. The shell bundle (`desktop[.min].js`) registers a core subset and pre-loads `shell-overlays[.min].js` (the toast / confirm-dialog / context-menu / menu / select / window-chrome kit) right after first paint, so those tags upgrade anywhere once the shell is up. That is 26 of the 64 tags below. Every other component registers only when a bundle that imports its module loads — emitting a `<os-foo>` tag that no loaded bundle has imported renders inert HTML, and the missing-component warner logs a `console.error` with the exact import line to add.
+Components are **side-effect registered** at import time, per bundle, into the page-global custom-element registry. The shell bundle (`desktop[.min].js`) registers a core subset and pre-loads `shell-overlays[.min].js` (the toast / confirm-dialog / context-menu / menu / select / window-chrome kit) right after first paint, so those tags upgrade anywhere once the shell is up. That is 26 of the 67 tags below. Every other component registers only when a bundle that imports its module loads — emitting a `<os-foo>` tag that no loaded bundle has imported renders inert HTML, and the missing-component warner logs a `console.error` with the exact import line to add.
 
-**Two ways to get the other 38.**
+**Two ways to get the other 41.**
 
 1. **Import the module** — `import 'openstation'` (the package entry re-exports the barrel, so any import registers every tag) or a single leaf module. Right for code built inside this repo, or beside it via the `file:` dependency in [`use-from-a-plugin.md`](./use-from-a-plugin.md). The class export is only needed for TypeScript types or programmatic instantiation.
 2. **Load the kit at runtime** — `await wp.os.loadComponents( [ 'os-switch' ] )`. No build-time relationship with this repo required, which is what a plugin distributed as a zip has. See [`wp.os.loadComponents()`](./javascript-reference.md#wposloadcomponents-tags---stable) for the cost, and [`examples/load-components.md`](./examples/load-components.md) for a working panel.
@@ -197,7 +197,7 @@ you relabel the host, e.g. Maximize ⇄ Restore.
 | --- | --- | --- | --- |
 | `<os-tabs>` / `<os-tab>` / `<os-tabpanel>` | `OsTabs`, `OsTab`, `OsTabPanel` | `os-tabs/os-tabs.ts` | Tab strip with associated panels, for a tab group **inside** content. A window's own top-level tabs belong in the window chrome instead — see `Window.setTabs()` in [`javascript-reference.md`](javascript-reference.md). |
 | `<os-tab-chip>` | `OsTabChip` | `os-tab-chip/os-tab-chip.ts` | Single chip tab (e.g. window tabs). |
-| `<os-steps>` / `<os-step>` | `OsSteps`, `OsStep` | `os-steps/os-steps.ts` | Wizard step indicator. |
+| `<os-steps>` / `<os-step>` | `OsSteps`, `OsStep` | `os-steps/os-steps.ts` | Numbered steps, stacked or as a horizontal trail. `current` marks where the reader is, `interactive` makes a step a way back. |
 | `<os-crumb-chain>` | `OsCrumbChain` | `os-crumb-chain/os-crumb-chain.ts` | Breadcrumb trail with chevron separators. |
 
 ## Color & theming
@@ -217,18 +217,19 @@ Three treatments, in ascending loudness:
 
 | Fragment | What it does | Who gets it |
 | --- | --- | --- |
-| `holoEdge` | An iridescent hairline, invisible at rest, lit on hover and focus. | `<os-button>` (all variants but `link`/`danger`), and the *selected* state of `<os-chip>`, `<os-card>`, `<os-swatch>`. |
+| `holoEdge` | An iridescent hairline, invisible at rest, lit on hover and focus. | `<os-button>` (all variants but `link`/`danger`), and the *selected* state of `<os-chip>` and `<os-card>` (the selected `<os-swatch>` wears a flat accent ring instead). |
 | `holoSheen` | A ~10%-alpha film of the mesh's hues over the existing surface, faded in under the pointer. | `<os-button>`, `<os-key>`, unselected `<os-segment>`. |
-| `holoFill` | The mesh itself, at full strength, with Void ink on top. | The on state of `<os-switch>`, checked `<os-checkbox>` / `<os-checkbox-label>` / `<os-menu-item>`, the selected `<os-segment>`, the elapsed track of `<os-range-field>`, the fill of `<os-progress-bar>`, the `<os-step>` chip, and `<os-button variant="holo">`. |
+| `holoFill` | The mesh itself, at full strength, with Void ink on top. | Checked `<os-menu-item>`, the fill of `<os-progress-bar>`, the `<os-step>` chip, and `<os-button variant="holo">`. Form controls — the on `<os-switch>`, checked `<os-checkbox>` / `<os-checkbox-label>`, the selected `<os-segment>`, the elapsed `<os-range-field>` track — wear the flat accent instead. |
 
-…and four motions, which are what make the surfaces read as foil rather than as paint:
+…and five motions, which are what make the surfaces read as foil rather than as paint:
 
 | Fragment | What it does | Who gets it |
 | --- | --- | --- |
 | `holoGlint` | A specular band crosses the surface once on hover. The single most "holographic" thing in the kit. | `<os-button>`, `<os-key>`, interactive `<os-card>`. |
 | `holoRing` | A ring expands out of the control and fades on `:active`, so a press reads as received before its result paints. | `<os-button>`, `<os-key>`. |
 | `holoShimmer` | The mesh travelling, for waits of unknown length. | Indeterminate `<os-progress-bar>`. |
-| `holoEnter` | Scale-and-fade arrival on the spring. | `<os-menu>`, `<os-context-menu>`, `<os-modal>`, `<os-confirm-dialog>`. |
+| `holoDrift` | The mesh slowly traversing the surface, running for as long as the state lasts. | `<os-button variant="holo" busy>`. |
+| `holoEnter` | Scale-and-fade arrival on the spring. | `<os-menu>`, `<os-context-menu>` (`<os-modal>` and `<os-confirm-dialog>` arrive on their own dialog keyframes). |
 
 Plus the motions that belong to one component and stayed there: the `<os-segmented>` thumb that slides between segments, the `<os-tabs>` underline that grows from the centre, the `<os-switch>` knob's spring-and-squash, the `<os-checkbox>` tick landing with an overshoot, `<os-toast>` arriving from above and leaving sideways, and the `<os-avatar>` presence ring — which pulses **only** on `online`, so "who is here" survives being read by someone who cannot separate the three dot colours.
 
@@ -237,7 +238,7 @@ Plus the motions that belong to one component and stayed there: the `<os-segment
 Two shared fragments carry the states that are not decorative:
 
 - **`holoField`** — one hover, one focus ring, one transition duration and one placeholder colour for every text-like control (`<os-text-field>`, `<os-textarea>`, `<os-number-field>`, `<os-select>`, and any component that renders a bare `input` / `select` / `textarea` in its shadow root). Its selectors wrap their type exclusions in `:where()` so a component's own `aria-invalid` ring still outranks it — an invalid field focuses in red, not in Pulse.
-- **`holoCheck`** — the checkbox and radio paint, shared by `<os-checkbox>`, `<os-checkbox-label>` and `<os-table>`'s selection column. It replaced `accent-color`, which takes a *colour* where the checked state here is a *gradient*.
+- **`holoCheck`** — the checkbox and radio paint, shared by `<os-checkbox>`, `<os-checkbox-label>` and `<os-table>`'s selection column. It replaced `accent-color` so the checked paint resolves through `--os-ui-accent` — following the accent the user picked — instead of a browser-painted colour the tokens can't reach.
 
 ### Tokens
 
@@ -302,9 +303,9 @@ Two rules the guards enforce (`tests/vitest/holo-layer.test.ts`, `tests/vitest/c
 import { OsLog, type OsLogRowRenderer } from 'openstation';
 ```
 
-Not every class in the tables above is importable from `'openstation'`. The package `exports` map exposes only the entry point (`src/public-api.ts`), which re-exports the **Stable** kit: `OsAvatar`, `OsBadge`, `OsButton`, `OsCheckboxLabel`, `OsCluster`, `OsCode`, `OsColorField`, `OsDisplay`, `OsEmptyState`, `OsGrid`, `OsIcon`, `OsKey`, `OsLog`, `OsMenu`, `OsMenuItem`, `OsPanel`, `OsRangeField`, `OsSection`, `OsSegment`, `OsSegmented`, `OsStack`, `OsStep`, `OsSteps`, `OsSwatch`, `OsSwatchGrid`, `OsTab`, `OsTabChip`, `OsTabs`, `OsTextarea`, `OsToast`, `OsToastContainer`, `OsWindowButton`. If `src/public-api.ts` and this list disagree, the source wins.
+Not every class in the tables above is importable from `'openstation'`. The package `exports` map exposes the entry point (`src/public-api.ts`) plus two subpaths — `openstation/activity` and `openstation/global` (ambient types); the entry point re-exports the **Stable** kit: `OsAvatar`, `OsBadge`, `OsButton`, `OsCheckboxLabel`, `OsCluster`, `OsCode`, `OsColorField`, `OsDisplay`, `OsEmptyState`, `OsGrid`, `OsIcon`, `OsKey`, `OsLog`, `OsMenu`, `OsMenuItem`, `OsPanel`, `OsRangeField`, `OsSection`, `OsSegment`, `OsSegmented`, `OsStack`, `OsStep`, `OsSteps`, `OsSwatch`, `OsSwatchGrid`, `OsTab`, `OsTabChip`, `OsTabs`, `OsTextarea`, `OsToast`, `OsToastContainer`, `OsWindowButton`. If `src/public-api.ts` and this list disagree, the source wins.
 
-The remaining classes are internal-only for now — subpath / source-path imports are blocked by the `exports` map — though their *tags* still work wherever a loaded bundle has registered them. The class import is for type-checking, subclassing, or programmatic instantiation; importing anything from `'openstation'` also registers every tag as a side effect. See [`use-from-a-plugin.md`](./use-from-a-plugin.md) for the local-install workflow.
+The remaining classes are internal-only for now — any other subpath / source-path import is blocked by the `exports` map — though their *tags* still work wherever a loaded bundle has registered them. The class import is for type-checking, subclassing, or programmatic instantiation; importing anything from `'openstation'` also registers every tag as a side effect. See [`use-from-a-plugin.md`](./use-from-a-plugin.md) for the local-install workflow.
 
 ## Per-component help
 

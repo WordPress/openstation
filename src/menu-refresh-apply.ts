@@ -31,8 +31,11 @@ import type {
 	DesktopWidgetServerEntry,
 	DesktopWindowNoticeServerEntry,
 	DesktopThemeServerEntry,
+	NativeWindowScriptData,
 	NativeWindowServerEntry,
+	NativeWindowWireEntry,
 } from './types';
+import { hydrateServerEntries } from './native-windows';
 import { applyServerWindowNotices } from './window-notices-server-sync';
 import { applyAdminBarUpdates } from './admin-bar-updates';
 
@@ -40,6 +43,7 @@ import { applyAdminBarUpdates } from './admin-bar-updates';
 export interface MenuRefreshPayload {
 	dockItems?: unknown;
 	nativeWindows?: unknown;
+	nativeWindowScriptData?: unknown;
 	serverWidgets?: unknown;
 	serverWallpapers?: unknown;
 	serverCommandScripts?: unknown;
@@ -305,11 +309,31 @@ export function createApplyPayload(
 		// deactivated disappear. All without a shell reload.
 		if ( Array.isArray( nativeWindows ) ) {
 			const prevNativeWindows = config.nativeWindows;
+			// Wire-format entries + handle-keyed script data — join
+			// them the same way the boot path does. A payload from an
+			// older server carries no map; the hydrator passes its
+			// inline entries through untouched.
 			void syncNativeWindows(
-				nativeWindows as NativeWindowServerEntry[],
+				hydrateServerEntries(
+					nativeWindows as NativeWindowWireEntry[],
+					payload.nativeWindowScriptData as
+						| NativeWindowScriptData
+						| undefined,
+				),
 			);
 			config.nativeWindows =
 				nativeWindows as DesktopConfig[ 'nativeWindows' ];
+			// Persist the map beside the entries it decodes —
+			// `wp.os.debug.window()` resolves URLs through
+			// `config.nativeWindowScriptData` directly, so leaving the
+			// boot-time copy in place would report an empty URL for
+			// any window whose plugin activated (or whose bundle
+			// changed) after boot. An old-format payload carries no
+			// map; keep the previous one rather than wiping it.
+			if ( payload.nativeWindowScriptData ) {
+				config.nativeWindowScriptData =
+					payload.nativeWindowScriptData as DesktopConfig[ 'nativeWindowScriptData' ];
+			}
 			emitRegistryChanged(
 				'native-windows',
 				prevNativeWindows as ReadonlyArray< { id?: unknown } > | undefined,

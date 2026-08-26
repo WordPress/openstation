@@ -57,6 +57,12 @@ class Tests_OpenStation_NativeWindowLazyScript extends WP_UnitTestCase {
 		return null;
 	}
 
+	/** The handle-keyed script-data half of the collector's bundle. */
+	private function script_data() {
+		$bundle = openstation_collect_native_windows_payload();
+		return $bundle['scriptData'];
+	}
+
 	// --------------------------------------------------------------
 	// preload_script
 	// --------------------------------------------------------------
@@ -108,11 +114,12 @@ class Tests_OpenStation_NativeWindowLazyScript extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Companions resolve to the same shape the main script travels
-	 * in — URL plus the harvested `wp_add_inline_script` data — so
-	 * the shell's loader can replay them around the script tag.
+	 * A companion's resolved data — URL plus the harvested
+	 * `wp_add_inline_script` blobs — lives ONCE in the handle-keyed
+	 * `scriptData` map; the entry itself only names the handle. The
+	 * shell joins the two on receipt.
 	 *
-	 * @covers ::openstation_build_native_windows_payload
+	 * @covers ::openstation_collect_native_windows_payload
 	 */
 	public function test_companion_scripts_resolve_with_inline_data() {
 		$this->register_demo_script( 'demo-main', 'https://example.test/main.js' );
@@ -129,13 +136,14 @@ class Tests_OpenStation_NativeWindowLazyScript extends WP_UnitTestCase {
 
 		$entry = $this->payload_entry( 'demo-companion-one' );
 		$this->assertNotNull( $entry );
-		$this->assertCount( 1, $entry['companionScripts'] );
-		$companion = $entry['companionScripts'][0];
-		$this->assertSame( 'demo-extra', $companion['scriptHandle'] );
-		$this->assertStringContainsString( 'extra.js', $companion['scriptUrl'] );
+		$this->assertSame( array( 'demo-extra' ), $entry['companionScripts'] );
+
+		$data = $this->script_data();
+		$this->assertArrayHasKey( 'demo-extra', $data );
+		$this->assertStringContainsString( 'extra.js', $data['demo-extra']['url'] );
 		$this->assertSame(
 			array( 'window.demoExtraConfig={a:1};' ),
-			$companion['scriptBefore']
+			$data['demo-extra']['before']
 		);
 	}
 
@@ -158,15 +166,12 @@ class Tests_OpenStation_NativeWindowLazyScript extends WP_UnitTestCase {
 
 		$entry = $this->payload_entry( 'demo-companion-order' );
 		$this->assertNotNull( $entry );
-		$this->assertSame(
-			array( 'demo-b', 'demo-a' ),
-			wp_list_pluck( $entry['companionScripts'], 'scriptHandle' )
-		);
+		$this->assertSame( array( 'demo-b', 'demo-a' ), $entry['companionScripts'] );
 	}
 
 	/**
-	 * A handle nobody registered resolves to no URL, and an entry the
-	 * loader would skip anyway is not worth shipping. Same silent
+	 * A handle nobody registered resolves to no URL, and a name the
+	 * loader could never resolve is not worth shipping. Same silent
 	 * drop the `style` arg does.
 	 *
 	 * @covers ::openstation_build_native_windows_payload
@@ -181,10 +186,8 @@ class Tests_OpenStation_NativeWindowLazyScript extends WP_UnitTestCase {
 
 		$entry = $this->payload_entry( 'demo-companion-missing' );
 		$this->assertNotNull( $entry );
-		$this->assertSame(
-			array( 'demo-real' ),
-			wp_list_pluck( $entry['companionScripts'], 'scriptHandle' )
-		);
+		$this->assertSame( array( 'demo-real' ), $entry['companionScripts'] );
+		$this->assertArrayNotHasKey( 'never-registered', $this->script_data() );
 	}
 
 	// --------------------------------------------------------------
@@ -259,7 +262,8 @@ class Tests_OpenStation_NativeWindowLazyScript extends WP_UnitTestCase {
 
 		$entry = $this->payload_entry( 'demo-config-filter' );
 		$this->assertNotNull( $entry );
-		$l10n = implode( "\n", $entry['scriptL10n'] );
+		$data = $this->script_data();
+		$l10n = implode( "\n", $data['demo-main']['l10n'] );
 		$this->assertStringContainsString( 'emit-time', $l10n );
 		$this->assertStringContainsString( 'snapshot', $l10n );
 	}
@@ -323,9 +327,10 @@ class Tests_OpenStation_NativeWindowLazyScript extends WP_UnitTestCase {
 
 		$entry = $this->payload_entry( 'demo-config-bogus' );
 		$this->assertNotNull( $entry );
+		$data = $this->script_data();
 		$this->assertStringNotContainsString(
 			'openStationWindowConfig',
-			implode( "\n", $entry['scriptL10n'] )
+			implode( "\n", isset( $data['demo-main']['l10n'] ) ? $data['demo-main']['l10n'] : array() )
 		);
 	}
 
@@ -388,9 +393,193 @@ class Tests_OpenStation_NativeWindowLazyScript extends WP_UnitTestCase {
 
 		$entry = $this->payload_entry( 'demo-companion-dup' );
 		$this->assertNotNull( $entry );
+		$this->assertSame( array( 'demo-dup' ), $entry['companionScripts'] );
+	}
+
+	// --------------------------------------------------------------
+	// Shared bundles — configs group by script handle
+	// --------------------------------------------------------------
+
+	/**
+	 * A shared bundle's script data — including the whole handle's
+	 * synthesized config set — lives ONCE in the `scriptData` map.
+	 * The shell fetches a URL once, so config that only travelled
+	 * with its own entry was dropped for every sibling after the
+	 * first ("[desktop-mode-pages] config blob is missing"), and a
+	 * bundle serving one window from inside another (the Users
+	 * window's embedded Profile form reads the user-edit config)
+	 * could never see it at all. Keying by handle fixes both AND
+	 * stops the payload serializing four copies of identical data.
+	 *
+	 * @covers ::openstation_collect_native_windows_payload
+	 */
+	public function test_windows_sharing_a_bundle_share_one_config_set() {
+		$this->register_demo_script( 'demo-shared', 'https://example.test/shared.js' );
+		$this->register_demo_window(
+			'demo-shared-posts',
+			array(
+				'script' => 'demo-shared',
+				'config' => array( 'who' => 'posts' ),
+			)
+		);
+		$this->register_demo_window(
+			'demo-shared-pages',
+			array(
+				'script' => 'demo-shared',
+				'config' => array( 'who' => 'pages' ),
+			)
+		);
+
+		$posts = $this->payload_entry( 'demo-shared-posts' );
+		$pages = $this->payload_entry( 'demo-shared-pages' );
+		$this->assertNotNull( $posts );
+		$this->assertNotNull( $pages );
+		// Entries carry no resolved data of their own any more — the
+		// handle name is the reference.
+		$this->assertArrayNotHasKey( 'scriptL10n', $posts );
+		$this->assertSame( 'demo-shared', $posts['scriptHandle'] );
+		$this->assertSame( 'demo-shared', $pages['scriptHandle'] );
+
+		$data = $this->script_data();
+		$this->assertArrayHasKey( 'demo-shared', $data );
+		$l10n = implode( "\n", $data['demo-shared']['l10n'] );
+		$this->assertStringContainsString( '"demo-shared-posts"', $l10n );
+		$this->assertStringContainsString( '"demo-shared-pages"', $l10n );
+		// Exactly once each — the dedupe is the point.
+		$this->assertSame( 1, substr_count( $l10n, '"demo-shared-posts"' ) );
+		$this->assertSame( 1, substr_count( $l10n, '"demo-shared-pages"' ) );
+	}
+
+	// --------------------------------------------------------------
+	// styles (companion stylesheets)
+	// --------------------------------------------------------------
+
+	/**
+	 * @covers ::openstation_build_native_windows_payload
+	 */
+	public function test_companion_styles_default_to_empty() {
+		$this->register_demo_window( 'demo-style-none' );
+
+		$entry = $this->payload_entry( 'demo-style-none' );
+		$this->assertNotNull( $entry );
+		$this->assertSame( array(), $entry['companionStyles'] );
+	}
+
+	/**
+	 * Companion styles resolve to the same shape the window's own
+	 * `style` travels in — URL plus harvested `wp_add_inline_style`
+	 * blobs — so the shell can replay both on the first open.
+	 * Unregistered handles drop silently, like script companions.
+	 *
+	 * @covers ::openstation_register_window
+	 * @covers ::openstation_build_native_windows_payload
+	 */
+	public function test_companion_styles_resolve_with_inline_data() {
+		wp_register_style( 'demo-style-extra', 'https://example.test/extra.css', array(), '1.0.0' );
+		wp_add_inline_style( 'demo-style-extra', '.demo{color:red}' );
+
+		$this->register_demo_window(
+			'demo-style-one',
+			array( 'styles' => array( 'demo-style-extra', 'never-registered', '' ) )
+		);
+
+		$entry = $this->payload_entry( 'demo-style-one' );
+		$this->assertNotNull( $entry );
+		$this->assertCount( 1, $entry['companionStyles'] );
+		$companion = $entry['companionStyles'][0];
+		$this->assertSame( 'demo-style-extra', $companion['styleHandle'] );
+		$this->assertStringContainsString( 'extra.css', $companion['styleUrl'] );
+		$this->assertSame( array( '.demo{color:red}' ), $companion['styleInline'] );
+
+		wp_deregister_style( 'demo-style-extra' );
+	}
+
+	/**
+	 * Preload means "everything at boot": a window that opted its
+	 * bundle back into the boot load gets its companion styles
+	 * enqueued through the normal print pipeline too, so a preloaded
+	 * first open paints styled.
+	 *
+	 * @covers ::openstation_enqueue_native_window_scripts
+	 */
+	public function test_preload_enqueues_companion_styles() {
+		wp_register_style( 'demo-style-preload', 'https://example.test/preload.css', array(), '1.0.0' );
+		$this->register_demo_script( 'demo-main', 'https://example.test/main.js' );
+		$this->register_demo_window(
+			'demo-style-eager',
+			array(
+				'script'         => 'demo-main',
+				'styles'         => array( 'demo-style-preload' ),
+				'preload_script' => true,
+			)
+		);
+
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		openstation_enqueue_native_window_scripts();
+
+		$this->assertTrue( wp_style_is( 'demo-style-preload', 'enqueued' ) );
+
+		wp_dequeue_style( 'demo-style-preload' );
+		wp_deregister_style( 'demo-style-preload' );
+	}
+
+	// --------------------------------------------------------------
+	// The menu-refresh probe's payload
+	// --------------------------------------------------------------
+
+	/**
+	 * The refresh probe emits the same payload shape as the boot
+	 * harvest, and the shell overwrites its native-window index with
+	 * whichever payload arrived last — so the probe's copy must carry
+	 * the handle-attached data too. The probe runs on `admin_init`,
+	 * before Core fires `admin_enqueue_scripts`, which is where every
+	 * module attaches that data (priority ≤ 5, the contract
+	 * `Tests_OpenStation_LazyWindowConfigPriority` pins). Without the
+	 * replay inside `openstation_menu_refresh_probe_payload()`, one
+	 * `wp.os.refreshMenu()` cycle downgraded every lazy window the
+	 * boot payload had delivered complete: WP Explorer's WooCommerce
+	 * companion lost `openStationWooConfig`, and the store's order
+	 * bands and preview panels went dark until a full reload.
+	 *
+	 * @covers ::openstation_menu_refresh_probe_payload
+	 */
+	public function test_probe_payload_carries_data_attached_on_admin_enqueue_scripts() {
+		$this->register_demo_script( 'demo-main', 'https://example.test/main.js' );
+		$this->register_demo_script( 'demo-extra', 'https://example.test/extra.js' );
+		$this->register_demo_window(
+			'demo-probe-window',
+			array(
+				'script'  => 'demo-main',
+				'scripts' => array( 'demo-extra' ),
+			)
+		);
+
+		// Attach config the way the in-tree modules do — on
+		// `admin_enqueue_scripts` at priority 5, which a bare
+		// `admin_init`-time payload build never fires.
+		add_action(
+			'admin_enqueue_scripts',
+			static function () {
+				wp_add_inline_script( 'demo-extra', 'window.demoProbeConfig={b:2};', 'before' );
+			},
+			5
+		);
+
+		$this->assertSame( 0, did_action( 'admin_enqueue_scripts' ) );
+
+		$payload = openstation_menu_refresh_probe_payload();
+
+		$entry = null;
+		foreach ( $payload['nativeWindows'] as $row ) {
+			if ( 'demo-probe-window' === $row['id'] ) {
+				$entry = $row;
+			}
+		}
+		$this->assertNotNull( $entry );
+		$this->assertSame( array( 'demo-extra' ), $entry['companionScripts'] );
 		$this->assertSame(
-			array( 'demo-dup' ),
-			wp_list_pluck( $entry['companionScripts'], 'scriptHandle' )
+			array( 'window.demoProbeConfig={b:2};' ),
+			$payload['nativeWindowScriptData']['demo-extra']['before']
 		);
 	}
 }

@@ -283,7 +283,7 @@ function buildIdentityCell(
 		const sub = document.createElement( 'span' );
 		sub.textContent = `@${ row.slug }`;
 		sub.style.cssText =
-			'font-size:11px;color:var(--wp-admin-theme-fg-muted, #8c8f94);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px;';
+			'font-size:11px;color:var(--os-ui-fg-muted, #8c8f94);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px;';
 		text.appendChild( sub );
 	}
 
@@ -350,7 +350,7 @@ function buildRoleCell(
 		const none = document.createElement( 'span' );
 		none.textContent = __( 'No role' );
 		none.style.cssText =
-			'color:var(--wp-admin-theme-fg-muted, #8c8f94);font-style:italic;';
+			'color:var(--os-ui-fg-muted, #8c8f94);font-style:italic;';
 		cell.appendChild( none );
 		return cell;
 	}
@@ -398,12 +398,12 @@ function buildStatsCell( row: UserListItem ): HTMLElement {
 		const ic = document.createElement( 'os-icon' );
 		ic.setAttribute( 'name', dashicon );
 		ic.setAttribute( 'size', '14' );
-		ic.style.color = 'var(--wp-admin-theme-fg-muted, #8c8f94)';
+		ic.style.color = 'var(--os-ui-fg-muted, #8c8f94)';
 		span.appendChild( ic );
 		const txt = document.createElement( 'span' );
 		txt.textContent = String( count );
 		if ( count === 0 ) {
-			txt.style.color = 'var(--wp-admin-theme-fg-muted, #8c8f94)';
+			txt.style.color = 'var(--os-ui-fg-muted, #8c8f94)';
 		}
 		span.appendChild( txt );
 		return span;
@@ -454,7 +454,7 @@ function buildLastLoginCell( row: UserListItem ): HTMLElement {
 	const ts = row.openstation_last_login;
 	if ( ! ts || typeof ts !== 'number' ) {
 		cell.textContent = __( 'Never' );
-		cell.style.color = 'var(--wp-admin-theme-fg-muted, #8c8f94)';
+		cell.style.color = 'var(--os-ui-fg-muted, #8c8f94)';
 		return cell;
 	}
 	cell.textContent = relativeTime( ts );
@@ -469,7 +469,7 @@ function buildRegisteredCell( row: UserListItem ): HTMLElement {
 	const raw = typeof row.registered_date === 'string' ? row.registered_date : '';
 	if ( ! raw ) {
 		cell.textContent = '—';
-		cell.style.color = 'var(--wp-admin-theme-fg-muted, #8c8f94)';
+		cell.style.color = 'var(--os-ui-fg-muted, #8c8f94)';
 		return cell;
 	}
 	// `_fields=registered_date` returns the bare WP format
@@ -501,7 +501,7 @@ function buildActionsCell(
 	const canEditRow = row.openstation_can_edit === true;
 	if ( ! canEditViewer || ! canEditRow ) {
 		cell.textContent = '—';
-		cell.style.color = 'var(--wp-admin-theme-fg-muted, #8c8f94)';
+		cell.style.color = 'var(--os-ui-fg-muted, #8c8f94)';
 		return cell;
 	}
 
@@ -512,8 +512,11 @@ function buildActionsCell(
 		btn.setAttribute( 'aria-label', label );
 		Object.assign( btn.style, {
 			appearance: 'none',
-			border: '1px solid var(--wp-admin-theme-border, #dcdcde)',
-			background: 'var(--wp-admin-theme-bg, #fff)',
+			// Palette tokens — the `--wp-admin-theme-*` names aren't
+			// OpenStation's, so these fell back to light literals on
+			// every dark desktop theme.
+			border: '1px solid var(--os-ui-border, #dcdcde)',
+			background: 'var(--os-ui-btn-bg, #fff)',
 			color: 'inherit',
 			padding: '4px 6px',
 			borderRadius: '4px',
@@ -932,8 +935,8 @@ export async function renderUsersWindow(
 			Object.assign( roleDropdown.style, {
 				padding: '4px 8px',
 				borderRadius: '4px',
-				border: '1px solid var(--wp-admin-theme-border, #dcdcde)',
-				background: 'var(--wp-admin-theme-bg, #fff)',
+				border: '1px solid var(--os-ui-border, #dcdcde)',
+				background: 'var(--os-ui-field-bg, var(--os-ui-surface, #fff))',
 				color: 'inherit',
 				font: 'inherit',
 				fontSize: '13px',

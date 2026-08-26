@@ -93,14 +93,22 @@ function openstation_inkfall_register() {
 add_action( 'init', 'openstation_inkfall_register', 20 );
 
 /**
- * Enqueue the Inkfall window styles. The game's script is lazily
- * loaded by the framework on first launch, but its CSS is tiny and
- * must already be present when the window opens.
+ * Ride the Inkfall window styles on the Games window as a companion.
+ *
+ * The game's script is lazily loaded by the framework on first
+ * launch, and every launch goes through the games bundle — so a
+ * sheet travelling with that bundle is in the tab before the game
+ * window paints, without costing every admin page that never plays.
+ *
+ * @param array $window_args Args passed to `openstation_register_window()`.
+ * @return array
  */
-function openstation_inkfall_enqueue_styles() {
-	if ( ! function_exists( 'openstation_games_user_can_use' ) || ! openstation_games_user_can_use() ) {
-		return;
+function openstation_inkfall_window_styles( $window_args ) {
+	if ( ! is_array( $window_args ) ) {
+		return $window_args;
 	}
-	wp_enqueue_style( 'os-game-inkfall' );
+	$window_args['styles']   = isset( $window_args['styles'] ) ? (array) $window_args['styles'] : array();
+	$window_args['styles'][] = 'os-game-inkfall';
+	return $window_args;
 }
-add_action( 'admin_enqueue_scripts', 'openstation_inkfall_enqueue_styles', 30 );
+add_filter( 'openstation_games_window_args', 'openstation_inkfall_window_styles' );

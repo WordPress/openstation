@@ -5,7 +5,7 @@ Maintainer guide. Users install by downloading `/releases/latest/download/openst
 ## Cutting a release
 
 ```bash
-./bin/release.sh 0.5.0
+./bin/release.sh 1.2.0
 ```
 
 Bumps all four version locations, refreshes translation files (`npm run i18n`) — in that order, because `wp i18n make-pot` reads `Project-Id-Version` from the plugin header, so extracting first would stamp the catalogues with the *previous* version — drafts a `= X.Y.Z =` changelog block into `readme.txt` from GitHub's auto-generated release notes, then stops at **a single interactive gate**: it shows the block and requires an explicit `y` to continue — on every path, including `--skip-changelog` and resumed runs, and with a loud warning if the block is missing. Editing `readme.txt` while the prompt waits is supported: the bump commit picks up the file as saved, and the script re-prints the block if it changed. Answering `n` stops the release with nothing committed; fix the block and re-run — leftovers are tolerated, the draft merge is idempotent, and your edits survive, so the re-run lands straight back at the gate. If `readme.txt` already has a `= X.Y.Z =` block (hand-written, or committed by a feature PR), the draft still runs: existing entries are kept, only drafted bullets not already present verbatim are appended, and the appended ones are listed — watch for semantic duplicates. After confirmation it commits the bump and the language churn together, pushes to trunk, **waits for CI green**, tags, pushes the tag. Nothing is committed before the gate, so answering `n` leaves the bumped version files and refreshed catalogues in the working tree only. Aborts cleanly if you're not on trunk, local trunk is out of sync with origin, CI fails, or the working tree has changes beyond the script-owned files (`languages/`, `readme.txt` and the version files from an aborted attempt are fine; `bump-version.sh` rewrites them deterministically and they're swept into the bump commit). Resumable — re-running after a mid-flow failure picks up where it left off. The resume path requires the bump to be **committed**, not merely written: matching version strings in a dirty tree mean an earlier run stopped at the gate, so the re-run redoes the bump and commits it rather than tagging the pre-bump commit.
@@ -45,26 +45,27 @@ The GitHub Release is left untouched: `gh release create` is not idempotent, so 
 Hyphenated versions publish as GitHub pre-releases, so `/releases/latest` keeps pointing at the last stable. The workflow detects the hyphen and sets `--prerelease` automatically:
 
 ```bash
-./bin/release.sh 0.5.0-rc1
+./bin/release.sh 1.2.0-rc1
 ```
 
 ## What each tool does
 
 | Tool | Purpose |
 |---|---|
-| `bin/bump-version.sh <version>` | Syncs `package.json`, `package-lock.json`, plugin header, `OPENSTATION_VERSION`, `readme.txt` `Stable tag:`. |
+| `bin/bump-version.sh <version>` | Syncs `package.json`, `package-lock.json`, plugin header, `OPENSTATION_VERSION`, `readme.txt` `Stable tag:`, and `packages/openstation-types/package.json`. |
 | `bin/package.sh` | Packages `openstation.zip` from HEAD + current built JS. The ZIP keeps the internal `desktop-mode/` directory so WordPress.org upgrades and dependent plugins continue to resolve the established plugin slug. Derives the expected bundle list from `vite.config.js` TARGETS and ships each target's `<fileBase>.min.js` **only** — the unminified dev bundles (~4–5 MB) stay out of the zip; `openstation_asset_suffix()` falls back to `.min` on installs where they're absent, so a `SCRIPT_DEBUG` site degrades gracefully. Errors if any expected `.min.js` is missing under `assets/js/`, or if a stale gitignored `.js` not produced by any Vite target is left behind there. |
 | `bin/release.sh <version>` | Full end-to-end release. |
 | `release.yml` — `push: tags: v*` | Build + publish the GitHub Release, then deploy stable tags to WordPress.org. |
 
 ## Version locations
 
-Four places, kept in sync by `bin/bump-version.sh`:
+Five places, kept in sync by `bin/bump-version.sh`:
 
 - `package.json` → `"version"` (and `package-lock.json` via `npm version`)
 - `desktop-mode.php` → plugin header `Version:`
 - `desktop-mode.php` → `OPENSTATION_VERSION` constant
 - `readme.txt` → `Stable tag:` (wp.org rejects submissions when this drifts from the plugin header `Version:`)
+- `packages/openstation-types/package.json` → `"version"` (via `npm version --prefix`)
 
 The `release` job re-reads all four at tag time and fails with a clear error if any doesn't match the tag. This catches "forgot to bump one".
 
@@ -76,7 +77,7 @@ Semver: `vMAJOR.MINOR.PATCH`.
 - **MINOR** — new hooks / JS API / features. Backwards-compatible.
 - **MAJOR** — breaking changes to documented PHP hooks, JS API, or the chromeless bridge protocol. Bump with care; plugins extend this shell.
 
-Tags carry the `v` prefix (`v0.5.0`); `package.json` and the plugin header store the bare number.
+Tags carry the `v` prefix (`v1.2.0`); `package.json` and the plugin header store the bare number.
 
 ## Manual packaging
 

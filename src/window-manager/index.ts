@@ -47,6 +47,7 @@ import {
 	getActiveDesktop,
 	getActiveDesktopId,
 	getDesktops,
+	renameDesktop,
 	seedDesktops,
 	switchDesktop,
 	type SwitchDesktopOptions,
@@ -62,6 +63,7 @@ import {
 	commitSnapIfPending,
 	updateSnapZoneForDrag,
 } from './snap-zones';
+import { destroyDesktopNameHud } from './desktop-name-hud';
 import { cancelOverviewTimers, enterOverview, exitOverview } from './overview';
 import { loadNativeWindowGeometry } from './native-window-geometry';
 import { clampWindowPosition } from '../window/pointer';
@@ -188,6 +190,27 @@ export class WindowManager {
 	 * Empty outside of session restore.
 	 */
 	private _pendingRestoreState = new Map< string, Partial< WindowConfig > >();
+
+	/**
+	 * The one prewarmed (hidden, speculative) window, if any — built by
+	 * {@link prewarm} ahead of an anticipated open so the iframe's
+	 * document TTFB and parse are already paid when the user clicks.
+	 *
+	 * Deliberately NOT in {@link _stack}: session snapshots, the
+	 * taskbar, dock peek, Alt-Tab and every other consumer walk the
+	 * stack, so a window that was never announced as opened stays
+	 * invisible to all of them for free. Adoption (in {@link open})
+	 * pushes it into the stack and fires `os-window-opened`, at which
+	 * point every event-driven consumer catches up exactly as for a
+	 * regular open. Single slot on purpose — each speculative iframe
+	 * is a full admin page (tens of MB of renderer memory), so the
+	 * newest prediction always evicts the previous one.
+	 */
+	private _prewarmed: { baseId: string; win: Window; timer: number } | null =
+		null;
+
+	/** Re-entrancy guard for {@link prewarm} (async construction). */
+	private _prewarmInFlight = false;
 
 	/**
 	 * Virtual desktops ("Spaces"). Always at least one entry — the
@@ -637,15 +660,148 @@ export class WindowManager {
 			return existing;
 		}
 
-		// No instance on the current desktop. If any instance is open
-		// on another desktop, the bare `baseId` is taken — pick the
-		// next free suffix so DOM ids stay unique. Otherwise use the
-		// caller-supplied id as-is (plain `plugins-php`, `edit-php`,
-		// etc.).
+		// No instance on the current desktop — but a prewarmed hidden
+		// window might already be loading this exact page. Adopt it
+		// (reveal + focus + announce) instead of building a new one.
+		const adopted = this.adoptPrewarmed( baseId, config );
+		if ( adopted ) {
+			return adopted;
+		}
+
+		// If any instance is open on another desktop, the bare `baseId`
+		// is taken — pick the next free suffix so DOM ids stay unique.
+		// Otherwise use the caller-supplied id as-is (plain
+		// `plugins-php`, `edit-php`, etc.).
 		const id = this.getByBaseId( baseId )
 			? this.nextInstanceId( baseId )
 			: config.id;
 		return this.createWindow( { ...config, id, baseId } );
+	}
+
+	/**
+	 * Speculatively build a hidden iframe window for a page the user is
+	 * likely to open next (dock hover intent), so the document's server
+	 * render, transfer and parse are already underway — or done — when
+	 * the real `open()` arrives and adopts it.
+	 *
+	 * The window mounts `display: none` + `aria-hidden` and lives in a
+	 * single-slot cache OUTSIDE the stack (see {@link _prewarmed}), so
+	 * it is invisible to sessions, the taskbar, peek cards and Alt-Tab
+	 * until adoption. No `os-window-*` event fires for it. Unclaimed
+	 * prewarms self-destruct after a TTL. Returns `true` when a
+	 * prewarm was started, `false` when skipped (native target,
+	 * instance already open, same prewarm already present, or one in
+	 * flight).
+	 */
+	public async prewarm(
+		config: Partial< WindowConfig > & {
+			id: string;
+			url: string;
+			title: string;
+		},
+	): Promise< boolean > {
+		const baseId = config.baseId || config.id;
+		if (
+			config.native ||
+			this._prewarmInFlight ||
+			this._prewarmed?.baseId === baseId ||
+			this.getByBaseId( baseId )
+		) {
+			return false;
+		}
+		this._prewarmInFlight = true;
+		try {
+			// Newest prediction wins the single slot.
+			this.discardPrewarmed();
+			const win = await this.createWindow(
+				{ ...config, id: config.id, baseId },
+				{ prewarm: true },
+			);
+			// Unclaimed speculative windows must not outlive the intent
+			// that spawned them — an admin iframe holds real renderer
+			// memory, and its nonces age. 45s comfortably covers the
+			// hover → decide → click window.
+			const timer = window.setTimeout(
+				() => this.discardPrewarmed(),
+				45_000,
+			);
+			this._prewarmed = { baseId, win, timer };
+			return true;
+		} finally {
+			this._prewarmInFlight = false;
+		}
+	}
+
+	/**
+	 * Hand a prewarmed window over to a real `open()` call: reveal it,
+	 * join the stack, focus, and fire `os-window-opened` so sessions,
+	 * the taskbar and the dock catch up exactly as for a normal open.
+	 * Returns `null` (after discarding, where appropriate) when the
+	 * slot doesn't match the request — wrong page, different URL than
+	 * was prewarmed, or an id that got taken in the meantime.
+	 */
+	private adoptPrewarmed(
+		baseId: string,
+		config: Partial< WindowConfig > & { url: string },
+	): Window | null {
+		const slot = this._prewarmed;
+		if ( ! slot || slot.baseId !== baseId ) {
+			return null;
+		}
+		const win = slot.win;
+		// The prewarm is only valid for the URL it actually loaded — a
+		// submenu link under the same tile is a different destination.
+		// And its id may have been claimed by an openNew() on another
+		// desktop while it sat hidden. Either way: discard, fall
+		// through to the normal create path.
+		if (
+			urlReuseKey( config.url ) !== urlReuseKey( win.config.url || '' ) ||
+			this.getById( win.id )
+		) {
+			this.discardPrewarmed();
+			return null;
+		}
+		window.clearTimeout( slot.timer );
+		this._prewarmed = null;
+		win.config.desktopId = this._activeDesktopId;
+		win.element.style.display = '';
+		win.element.removeAttribute( 'aria-hidden' );
+		this._stack.push( win );
+		applyDesktopVisibility( this, win );
+		this.focus( win );
+		const openedDetail = {
+			windowId: win.id,
+			page: win.config.url ?? config.url,
+			title: win.config.title,
+			url: win.config.url ?? config.url,
+		};
+		document.dispatchEvent(
+			new CustomEvent( 'os-window-opened', { detail: openedDetail } ),
+		);
+		doAction( HOOKS.WINDOW_OPENED, openedDetail );
+		return win;
+	}
+
+	/**
+	 * Destroy the current prewarmed window, if any. Detaches the close
+	 * callback first — the shell never announced this window as opened,
+	 * so its teardown must not announce a close either.
+	 */
+	public discardPrewarmed(): void {
+		const slot = this._prewarmed;
+		if ( ! slot ) {
+			return;
+		}
+		this._prewarmed = null;
+		window.clearTimeout( slot.timer );
+		slot.win.onClose = null;
+		try {
+			slot.win.destroy();
+		} catch {
+			// Best-effort teardown; the element removal below is the
+			// part that must not fail silently forever.
+		}
+		slot.win.element.remove();
 	}
 
 	/**
@@ -697,6 +853,7 @@ export class WindowManager {
 	 */
 	private async createWindow(
 		config: Partial<WindowConfig> & { id: string; url: string; title: string; baseId?: string },
+		createOpts: { prewarm?: boolean } = {},
 	): Promise< Window > {
 		// Apply (and consume) anything session restore staged for this
 		// id — see {@link seedWindowRestoreState}. Merged before the
@@ -1046,6 +1203,19 @@ export class WindowManager {
 			abortSnapIfPending( this );
 			return false;
 		};
+
+		if ( createOpts.prewarm ) {
+			// Speculative build (see {@link prewarm}): mount hidden so
+			// the iframe starts loading (a detached iframe never
+			// fetches; a display:none one does), skip the stack, skip
+			// focus, fire nothing. The loading-overlay and reveal
+			// machinery finds the element by id and runs to completion
+			// invisibly — by adoption time the content is simply ready.
+			win.element.style.display = 'none';
+			win.element.setAttribute( 'aria-hidden', 'true' );
+			this._desktop.appendChild( win.element );
+			return win;
+		}
 
 		this._stack.push( win );
 		this._desktop.appendChild( win.element );
@@ -1823,6 +1993,9 @@ export class WindowManager {
 	public closeDesktop( id: string ): void {
 		closeDesktop( this, id );
 	}
+	public renameDesktop( id: string, label: string ): boolean {
+		return renameDesktop( this, id, label );
+	}
 
 	/**
 	 * Returns the "primary" desktop id — the one new sessions land on
@@ -2080,7 +2253,9 @@ export class WindowManager {
 		if ( this._overviewActive ) {
 			exitOverview( this );
 		}
+		this.discardPrewarmed();
 		cancelOverviewTimers( this );
+		destroyDesktopNameHud();
 	}
 
 	/**

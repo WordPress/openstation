@@ -507,4 +507,42 @@ class Tests_OpenStation_NotesRest extends WP_UnitTestCase {
 		$this->assertContains( $mine['id'], $delta['removed'] );
 		$this->assertContains( $flipped['id'], $delta['removed'] );
 	}
+
+	/**
+	 * The `hasNotes` presence hint: correct, and CACHED — the boot
+	 * path must not re-run the probes between note changes, and any
+	 * note transition must invalidate every user's cached answer
+	 * (a public note changes it for everyone).
+	 *
+	 * @covers ::openstation_notes_user_has_any
+	 * @covers ::openstation_notes_bump_rev
+	 */
+	public function test_has_notes_hint_is_cached_and_invalidated_by_note_changes() {
+		$user_id = self::factory()->user->create( array( 'role' => 'editor' ) );
+		wp_set_current_user( $user_id );
+
+		$this->assertFalse( openstation_notes_user_has_any() );
+		// The answer is now stamped into user meta against the
+		// current revision.
+		$this->assertStringEndsWith(
+			':0',
+			(string) get_user_meta( $user_id, '_desktop_mode_has_notes', true )
+		);
+
+		// Another user publishes a public note → the revision bumps
+		// and the stale cached "no" is recomputed to "yes".
+		$author = self::factory()->user->create( array( 'role' => 'editor' ) );
+		self::factory()->post->create(
+			array(
+				'post_type'   => OPENSTATION_NOTES_POST_TYPE,
+				'post_status' => 'publish',
+				'post_author' => $author,
+			)
+		);
+		$this->assertTrue( openstation_notes_user_has_any() );
+		$this->assertStringEndsWith(
+			':1',
+			(string) get_user_meta( $user_id, '_desktop_mode_has_notes', true )
+		);
+	}
 }

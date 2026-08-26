@@ -137,7 +137,7 @@ function openstation_user_edit_window_register_window() {
 		// to `user-edit-render`'s mount points — same code the Users
 		// window's Profile tab uses.
 		'script'     => 'os-posts-window',
-		'style'      => 'os-posts-window',
+		'styles'     => array( 'os-posts-window' ),
 		'width'      => 1100,
 		'height'     => 760,
 		'min_width'  => 720,

@@ -321,6 +321,49 @@
 }
 
 /*
+ * Desktop-name HUD. `pointer-events: none` is required, not cosmetic:
+ * it sits over the wallpaper's click surface, which minimizes every
+ * window.
+ */
+.os-desktop-name-hud {
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform: translate( -50%, -50% );
+	z-index: var( --os-z-desktop-name, 195 );
+	max-width: min( 70%, 520px );
+	padding: 14px 28px;
+	border-radius: 16px;
+	font-size: 20px;
+	font-weight: 600;
+	letter-spacing: 0.01em;
+	text-align: center;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	color: var( --os-ui-fg-on-accent, #fff );
+	background-color: var( --os-ui-scrim, rgba( 0, 0, 0, 0.32 ) );
+	backdrop-filter: blur( 18px ) saturate( 140% );
+	-webkit-backdrop-filter: blur( 18px ) saturate( 140% );
+	box-shadow:
+		0 8px 28px rgba( 0, 0, 0, 0.35 ),
+		inset 0 0 0 1px rgba( 255, 255, 255, 0.08 );
+	pointer-events: none;
+	opacity: 1;
+	transition: opacity 0.26s ease;
+}
+
+.os-desktop-name-hud--out {
+	opacity: 0;
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.os-desktop-name-hud {
+		transition: none;
+	}
+}
+
+/*
  * Minimized state — fade + scale down.
  * Uses opacity + pointer-events instead of display: none so the
  * CSS transition can animate the change. The window is invisible

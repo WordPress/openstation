@@ -18,6 +18,8 @@
 import { addFilter } from '../hooks';
 import { showToast } from '../toast';
 import { navigateToDownload } from './download-nav';
+import { openFileShareModal } from './overlays-loader';
+import { loadVendorScript } from '../wallpapers/vendor-loader';
 import {
 	getFolderZipUrl,
 	getUploadDownloadUrl,
@@ -121,12 +123,13 @@ export function installUploadMenuItems(): void {
 					icon: 'dashicons-share',
 					sort: 30,
 					onClick: () => {
-						void import( './share-settings-modal' ).then( ( mod ) => {
-							void mod.openFileShareModal( {
-								fileId,
-								fileName:
-									placement.file.title || `File ${ fileId }`,
-							} );
+						// Via the lazy loader — the old dynamic
+						// import was flattened into the shell bundle
+						// by the IIFE build.
+						void openFileShareModal( {
+							fileId,
+							fileName:
+								placement.file.title || `File ${ fileId }`,
 						} );
 					},
 				} );
@@ -227,49 +230,24 @@ function openFilePicker( directory: boolean ): void {
 }
 
 async function routePickedFiles( files: File[], directory: boolean ): Promise< void > {
-	const config = window.openStationConfig;
-	const dropConfig = config?.dropConfig ?? {
-		enabled: false,
-		allowedMimes: [],
-		maxSize: 0,
-	};
-	const manager = await import( '../os-file-drop/manager' );
-	const { accepted, rejected } = manager.partitionByPolicy( files, dropConfig );
-	if ( rejected.length > 0 ) {
-		showToast( {
-			message:
-				rejected.length === 1
-					? rejected[ 0 ].message
-					: `${ rejected.length } files can't be uploaded.`,
-		} );
-	}
-	if ( accepted.length === 0 ) {
+	// The policy check + upload dialog live in the lazy `file-drop`
+	// bundle now (the old `await import( '../os-file-drop/… )` calls
+	// were flattened straight into the shell bundle by the IIFE
+	// build). A picker flow is a click-then-choose gesture — the
+	// bundle fetch hides entirely inside the file-picker dialog time.
+	const url = (
+		window as unknown as {
+			openStationConfig?: { fileDropBundleUrl?: string };
+		}
+	).openStationConfig?.fileDropBundleUrl;
+	if ( ! url ) {
 		return;
 	}
-	const entries = accepted.map( ( { file, mime } ) => ( {
-		file,
-		mime,
-		fields: manager.defaultFields( file, mime ),
-		// `webkitRelativePath` is populated by directory picks (and
-		// ONLY by them — drag-drops leave it empty).
-		relativePath: directory
-			? ( file as { webkitRelativePath?: string } ).webkitRelativePath ?? ''
-			: '',
-	} ) );
-	const dialog = await import( '../os-file-drop/dialog' );
-	await dialog.openUploadDialog( {
-		entries,
-		// Root-targeted picker: desktop destination default, server
-		// picks free grid slots (no coords on non-wallpaper surfaces).
-		context: { surface: 'folder', folderId: 0, x: 0, y: 0 },
-		mediaUrl: config?.mediaUrl ?? '',
-		restNonce: config?.restNonce ?? '',
-		filesUrl: config?.filesUrl,
-		storage: config?.desktopStorage,
-		forceDesktop: directory,
-		// These pickers live in the desktop's own menu — their whole
-		// point is desktop storage, media-kind files included.
-		preferDesktop: true,
-		mediaMaxBytes: dropConfig.maxSize,
-	} );
+	try {
+		await loadVendorScript( url );
+	} catch {
+		showToast( { message: 'Upload machinery failed to load — try again.' } );
+		return;
+	}
+	await window.openStationFileDrop?.routePickedFiles( files, directory );
 }

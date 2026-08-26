@@ -254,16 +254,95 @@
 	margin-top: 2px;
 }
 
+/* The composer is one field. The textarea is still the kit's, but the
+   wrapper carries the chrome (field surface, border, focus bloom) and
+   the textarea's own box is flattened through its exported part, so
+   the send button sits inside the same border rather than beside it. */
 .dm-agent-chat__composer {
 	display: flex;
 	align-items: flex-end;
-	gap: 8px;
-	padding: 10px 12px;
-	border-top: 1px solid var( --os-border, rgba( 0, 0, 0, 0.08 ) );
+	gap: 6px;
+	margin: 10px 12px 12px;
+	padding: 4px 8px 4px 10px;
+	border: 1px solid var( --os-ui-field-border, var( --os-ui-border, #dcdcde ) );
+	border-radius: 12px;
+	background: var( --os-ui-field-bg, var( --os-window-bg, #fff ) );
+	transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.dm-agent-chat__composer:focus-within {
+	border-color: var( --os-ui-accent, #f252fc );
+	box-shadow: 0 0 0 3px
+		color-mix( in srgb, var( --os-ui-accent-dim, #f252fc ) 28%, transparent );
 }
 
 .dm-agent-chat__composer os-textarea {
 	flex: 1;
+	min-width: 0;
+}
+
+/* One line of 13px text at 1.45 is 18.85px; 6.5px above and below
+   makes the single-line textarea 31.85px, the send button's height,
+   so with the row bottom-aligned the two centres coincide on one line
+   and the button stays anchored at the bottom as the text grows. */
+.dm-agent-chat__composer os-textarea::part( textarea ),
+.dm-agent-chat__composer os-textarea::part( textarea ):hover,
+.dm-agent-chat__composer os-textarea::part( textarea ):focus,
+.dm-agent-chat__composer os-textarea::part( textarea ):focus-visible {
+	border: 0;
+	border-radius: 0;
+	background: transparent;
+	box-shadow: none;
+	outline: none;
+	padding: 6.5px 0;
+}
+
+/* Round and icon-only, a size down from a toolbar button so it reads
+   as part of the field rather than a control beside it. Sized through
+   the exported part: the host's width does not reach the inner button,
+   and a zero padding token on its own shrank it to the glyph. The
+   bottom margin is half the difference to the single-line textarea
+   (31.85px), so the two centres meet on one line and the button stays
+   anchored to the last line as the text grows. */
+.dm-agent-chat__send {
+	flex: none;
+	margin-block-end: 4px;
+}
+
+.dm-agent-chat__send::part( button ) {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 24px;
+	height: 24px;
+	min-height: 0;
+	padding: 0;
+	border-radius: 999px;
+}
+
+.dm-agent-chat__send-icon {
+	display: block;
+	width: 14px;
+	height: 14px;
+}
+
+/* The accessible name, off-screen. */
+.dm-agent-chat__send-label {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect( 0, 0, 0, 0 );
+	white-space: nowrap;
+	border: 0;
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.dm-agent-chat__composer {
+		transition: none;
+	}
 }
 
 
@@ -377,17 +456,76 @@
 	min-width: min( 176px, 100% );
 }
 
+/* Spinner and label on one line, centred. The bubble is a flex column
+   everywhere else; the working row is the one place it reads as an
+   instrument line, arc first, then the word. */
 .dm-agent-chat__line--pending .dm-agent-chat__msg {
 	flex: 1;
-	/* Center the label + spinner inside the wide bubble. The bubble
-	   is a flex column, so the spinner needs align-items (text-align
-	   alone only centers the label's inline text). */
+	flex-direction: row;
 	align-items: center;
-	text-align: center;
+	justify-content: center;
+	gap: 8px;
 }
 
 .dm-agent-chat__msg--pending os-spinner {
-	--os-ui-spinner-size: 24px;
+	flex: none;
+	--os-ui-spinner-size: 16px;
+}
+
+/* Three motions say "working", each quiet on its own: the arc turns
+   (the component's), a sheen sweeps the label, and the agent's face
+   bobs beside the bubble. The sheen is the skeleton shimmer clipped
+   to text, so the label stays a real, selectable word rather than a
+   drawn one. Every one of them stops under reduced motion; the label
+   falls back to its plain colour, not to invisible text. */
+.dm-agent-chat__msg--pending .dm-agent-chat__msg-text {
+	background: linear-gradient(
+		90deg,
+		currentColor 0%,
+		currentColor 35%,
+		var( --os-ui-accent, #f252fc ) 50%,
+		currentColor 65%,
+		currentColor 100%
+	);
+	background-size: 250% 100%;
+	-webkit-background-clip: text;
+	background-clip: text;
+	-webkit-text-fill-color: transparent;
+	animation: dm-agent-chat-sheen 1.8s ease-in-out infinite;
+}
+
+.dm-agent-chat__line--pending .dm-agent-chat__msg-avatar {
+	animation: dm-agent-chat-bob 1.4s ease-in-out infinite;
+}
+
+@keyframes dm-agent-chat-sheen {
+	from {
+		background-position: 125% 0;
+	}
+	to {
+		background-position: -125% 0;
+	}
+}
+
+@keyframes dm-agent-chat-bob {
+	0%,
+	100% {
+		transform: translateY( 0 );
+	}
+	50% {
+		transform: translateY( -3px );
+	}
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.dm-agent-chat__msg--pending .dm-agent-chat__msg-text {
+		animation: none;
+		background: none;
+		-webkit-text-fill-color: currentColor;
+	}
+	.dm-agent-chat__line--pending .dm-agent-chat__msg-avatar {
+		animation: none;
+	}
 }
 
 /* Markdown content inside agent bubbles. */

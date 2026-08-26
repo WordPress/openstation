@@ -100,7 +100,7 @@ function openstation_comments_window_register_window() {
 		'icon'       => 'dashicons-admin-comments',
 		'template'   => 'openstation_comments_window_render_template',
 		'script'     => 'os-comments-window',
-		'style'      => 'os-comments-window',
+		'styles'     => array( 'os-comments-window' ),
 		'width'      => 1180,
 		'height'     => 760,
 		'min_width'  => 760,

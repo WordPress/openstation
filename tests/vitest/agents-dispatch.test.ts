@@ -263,4 +263,30 @@ describe( 'dispatchAgentDrop', () => {
 		expect( transcript[ 1 ].role ).toBe( 'error' );
 		expect( transcript[ 1 ].text ).toBe( 'Rate limited.' );
 	} );
+
+	test( 'a gateway timeout reads as the agent taking too long, not as HTTP 504', async () => {
+		// nginx answers with an HTML error page, so there is no JSON
+		// message to relay; "HTTP 504" told the user nothing and
+		// invited the retry that runs the whole task again.
+		installOpenWindowStub();
+		const fetchMock: FetchMock = vi.fn( async () => ( {
+			ok: false,
+			status: 504,
+			json: async () => {
+				throw new Error( 'not json' );
+			},
+		} ) as unknown as Response );
+		( globalThis as unknown as { fetch: FetchMock } ).fetch = fetchMock;
+
+		await dispatchAgentDrop(
+			AGENT,
+			{ kind: 'post', id: 7, title: 'Draft' },
+			{ restRoot: 'https://example.test/wp-json/', restNonce: 'n' },
+		);
+
+		const transcript = agentsChatStore.state.transcripts[ 9 ];
+		expect( transcript[ 1 ].role ).toBe( 'error' );
+		expect( transcript[ 1 ].text ).toContain( 'took too long to reply' );
+		expect( transcript[ 1 ].text ).not.toContain( '504' );
+	} );
 } );

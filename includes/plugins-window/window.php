@@ -127,7 +127,7 @@ function openstation_plugins_window_register_window() {
 		'icon'       => 'dashicons-admin-plugins',
 		'template'   => 'openstation_plugins_window_render_template',
 		'script'     => 'os-plugins-window',
-		'style'      => 'os-plugins-window',
+		'styles'     => array( 'os-plugins-window' ),
 		'width'      => 1180,
 		'height'     => 760,
 		'min_width'  => 760,

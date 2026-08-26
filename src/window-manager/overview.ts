@@ -20,7 +20,12 @@ import { osIconSvg } from '../ui/icons';
 import type { Desktop } from '../types';
 import { computeOverviewLayout, type OverviewLayoutItem } from './geometry';
 import { OVERVIEW_TOP_BAR_RESERVE } from './overview-constants';
-import { closeDesktop, createDesktop, switchDesktop } from './desktops';
+import {
+	closeDesktop,
+	createDesktop,
+	renameDesktop,
+	switchDesktop,
+} from './desktops';
 import type { Window } from '../window';
 import { updateFullscreenBodyClass } from '../window/dom';
 import type { WindowManager } from './index';
@@ -155,6 +160,8 @@ export function enterOverview( mgr: WindowManager ): void {
 	mgr._overviewActive = true;
 
 	doAction( HOOKS.OVERVIEW_ENTERING, {} );
+	// The dock only re-reads system-tile predicates when told to.
+	doAction( HOOKS.DOCK_REFRESH_ACTIVE, {} );
 
 	// Make background left admin bar and the Dock inert so Tab focus doesn't traverse them.
 	// We deliberately leave the top admin bar (wpadminbar) active and reachable.
@@ -598,7 +605,28 @@ function buildDesktopTile( mgr: WindowManager, d: Desktop ): HTMLElement {
 	tile.addEventListener( 'click', ( e: MouseEvent ) => {
 		e.preventDefault();
 		e.stopPropagation();
+		// A space typed into the label activates this <button> — the
+		// browser synthesises a click. That is a default action, so no
+		// `stopPropagation` upstream reaches it; the click has to be
+		// refused here.
+		if ( label.hasAttribute( 'contenteditable' ) ) {
+			return;
+		}
 		exitOverviewToDesktop( mgr, d.id );
+	} );
+
+	// Wrapper, not tile: a control nested in the tile's <button> is
+	// invalid markup and unclickable.
+	const renameBtn = document.createElement( 'button' );
+	renameBtn.type = 'button';
+	renameBtn.className = 'os-overview-top-bar__tile-rename';
+	// translators: %s is the desktop label
+	renameBtn.setAttribute( 'aria-label', sprintf( __( 'Rename %s' ), d.label ) );
+	renameBtn.innerHTML = osIconSvg( 'edit', { size: 14 } );
+	renameBtn.addEventListener( 'click', ( e: MouseEvent ) => {
+		e.preventDefault();
+		e.stopPropagation();
+		beginRename( mgr, label, d );
 	} );
 
 	// Close X — hidden via CSS when only one desktop exists, so users
@@ -621,9 +649,82 @@ function buildDesktopTile( mgr: WindowManager, d: Desktop ): HTMLElement {
 	} );
 
 	wrapper.appendChild( tile );
+	wrapper.appendChild( renameBtn );
 	wrapper.appendChild( closeBtn );
 
 	return wrapper;
+}
+
+/**
+ * Edit a tile's label in place. Enter commits, Escape reverts, blur
+ * commits.
+ *
+ * The label itself becomes editable rather than being covered by an
+ * `<input>`: an overlay has to be re-measured onto the label's box and
+ * font to keep the name from moving, and never matched exactly.
+ */
+function beginRename(
+	mgr: WindowManager,
+	label: HTMLElement,
+	d: Desktop,
+): void {
+	if ( label.hasAttribute( 'contenteditable' ) ) {
+		return;
+	}
+	// Attribute first: it is what the re-entry guard and `finish` read,
+	// and the IDL setter below is a silent no-op on some engines.
+	// `plaintext-only` keeps pasted markup out where supported.
+	label.setAttribute( 'contenteditable', 'true' );
+	try {
+		label.contentEditable = 'plaintext-only';
+	} catch {
+		/* `true` stands. */
+	}
+	label.spellcheck = false;
+	label.focus();
+
+	const view = label.ownerDocument.defaultView;
+	const range = label.ownerDocument.createRange();
+	range.selectNodeContents( label );
+	const selection = view?.getSelection();
+	selection?.removeAllRanges();
+	selection?.addRange( range );
+
+	let settled = false;
+	const finish = ( commit: boolean ): void => {
+		if ( settled ) {
+			return;
+		}
+		settled = true;
+		label.removeAttribute( 'contenteditable' );
+		if ( commit ) {
+			renameDesktop( mgr, d.id, label.textContent ?? '' );
+		}
+		// Rebuild to restore the label from data, repaint the
+		// aria-labels that embed the name, and drop these listeners
+		// with the element. Not while closing: blur lands mid-teardown,
+		// and replacing the bar there throws out of the exit finaliser.
+		if ( mgr._overviewActive ) {
+			refreshOverviewTopBar( mgr );
+		}
+	};
+
+	label.addEventListener( 'keydown', ( e: KeyboardEvent ) => {
+		// Overview reads Escape as "leave" and Enter as "commit the
+		// cursor", both mid-edit. The shell's other bare-key shortcuts
+		// listen in the capture phase, where this cannot reach them —
+		// they guard themselves with `isTextEntryFocus`, which covers
+		// contenteditable.
+		e.stopPropagation();
+		if ( e.key === 'Enter' || e.key === 'Escape' ) {
+			e.preventDefault();
+			finish( e.key === 'Enter' );
+		}
+	} );
+	label.addEventListener( 'blur', () => finish( true ) );
+	// Clicking to place the caret must not reach the tile beneath,
+	// which switches desktops.
+	label.addEventListener( 'click', ( e: MouseEvent ) => e.stopPropagation() );
 }
 
 /**
@@ -736,6 +837,10 @@ export function exitOverview(
 		windowId: selected ? selected.id : undefined,
 		reason: selected ? 'select' : 'cancel',
 	} );
+	// Must fire AFTER the flag drops: an exit via desktop switch has
+	// already refreshed the dock from `switchDesktop`, while overview
+	// was still active, leaving the dot lit on a closed overview.
+	doAction( HOOKS.DOCK_REFRESH_ACTIVE, {} );
 
 	// Remove area + shell classes AT T=0 so the backdrop fades and
 	// the dock slides back in IN PARALLEL with the windows animating

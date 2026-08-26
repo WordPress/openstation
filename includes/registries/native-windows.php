@@ -100,6 +100,25 @@ defined( 'ABSPATH' ) || exit;
  *                                  keeps it off the boot critical
  *                                  path: it travels with the window
  *                                  it extends. Default empty.
+ *     @type string[] $styles       Companion style handles injected on
+ *                                  the window's first open, after the
+ *                                  window's own `$style`, in the order
+ *                                  given — so at equal specificity a
+ *                                  companion's overrides win, the same
+ *                                  source-order contract an enqueue
+ *                                  dependency gives. The styles-side
+ *                                  mirror of `$scripts`: a stylesheet
+ *                                  that only paints surfaces inside
+ *                                  this window is dead weight on every
+ *                                  document that never shows it —
+ *                                  declared here it costs nothing at
+ *                                  boot and never reaches chromeless
+ *                                  iframes at all. Unlike `$style`
+ *                                  (injected when the window registers,
+ *                                  so mid-session activations paint),
+ *                                  companions wait for the first open;
+ *                                  the deferral is the point. Default
+ *                                  empty.
  *     @type bool     $preload_script Load `$script` (and `$scripts`) at
  *                                  shell boot instead of on first
  *                                  open. Default false — a window's
@@ -215,6 +234,7 @@ function openstation_register_window( $id, $args = array() ) {
 		'template'         => null,
 		'script'           => '',
 		'scripts'          => array(),
+		'styles'           => array(),
 		'preload_script'   => false,
 		// Optional WP style handle (registered with `wp_register_style()`).
 		// Resolved at payload-build time so the shell can lazy-inject a
@@ -298,6 +318,17 @@ function openstation_register_window( $id, $args = array() ) {
 			array_unique(
 				array_filter(
 					array_map( 'strval', (array) $args['scripts'] ),
+					static function ( $handle ) {
+						return '' !== $handle;
+					}
+				)
+			)
+		),
+		// Companion style handles, same dedupe/strip as `scripts`.
+		'styles'           => array_values(
+			array_unique(
+				array_filter(
+					array_map( 'strval', (array) $args['styles'] ),
 					static function ( $handle ) {
 						return '' !== $handle;
 					}
@@ -961,6 +992,14 @@ function openstation_enqueue_native_window_scripts() {
 			wp_enqueue_script( $entry['script'] );
 			foreach ( (array) $entry['scripts'] as $companion ) {
 				wp_enqueue_script( $companion );
+			}
+			// Preload means "everything at boot" — companion styles
+			// ride along so the window paints styled on a preloaded
+			// first open, same as its scripts are already parsed.
+			if ( ! empty( $entry['styles'] ) ) {
+				foreach ( (array) $entry['styles'] as $companion_style ) {
+					wp_enqueue_style( $companion_style );
+				}
 			}
 		}
 		// Localize the config the JS side reads to register itself.

@@ -188,6 +188,58 @@ module.exports = {
 				'@typescript-eslint/no-var-requires': 'off',
 			},
 		},
+		{
+			// The chromeless bridge — the one first-class bundle whose
+			// source is plain JavaScript, because it was lifted
+			// verbatim out of a PHP nowdoc. It gets the syntactic half
+			// of the safety net (undefined names, unused bindings,
+			// unreachable code) via espree; the type-aware half needs
+			// the TypeScript conversion tracked in the file header.
+			files: [ 'src/chromeless-bridge.js' ],
+			env: { browser: true },
+			parser: 'espree',
+			parserOptions: { project: null, ecmaVersion: 2020 },
+			rules: {
+				// Type-aware rules cannot run without a project.
+				'@typescript-eslint/no-explicit-any': 'off',
+				'@typescript-eslint/explicit-module-boundary-types': 'off',
+				// The bridge's whole job includes wrapping `fetch` and
+				// `XMLHttpRequest` so an admin page's own requests move
+				// the window's activity ring. It runs inside a
+				// wp-admin document with no `wp.os` of its own, so the
+				// framework helper the rule points at does not exist
+				// here — this file is where that plumbing is built.
+				'no-restricted-syntax': 'off',
+				// The file is deliberately ES5-flavoured: it executes
+				// in a real wp-admin document beside whatever else that
+				// page loads. The rules below encode the house *modern*
+				// style, and auto-fixing them across a 3,500-line
+				// verbatim lift would rewrite working code for taste —
+				// `no-var` in particular changes binding semantics
+				// around closures. They come back with the TypeScript
+				// conversion, when the whole file is being rewritten
+				// deliberately rather than by `--fix`.
+				'no-var': 'off',
+				'object-shorthand': 'off',
+				'space-before-function-paren': 'off',
+				'brace-style': 'off',
+				'comma-dangle': 'off',
+				curly: 'off',
+				'no-multi-spaces': 'off',
+				'operator-linebreak': 'off',
+				'key-spacing': 'off',
+				'wrap-iife': 'off',
+				'func-call-spacing': 'off',
+				'@typescript-eslint/no-this-alias': 'off',
+				// No React here; the plugin's heuristic misfires on
+				// plain callbacks that happen to look like hooks.
+				'react-hooks/exhaustive-deps': 'off',
+				// `document.activeElement` is correct inside the
+				// iframe's own document, which is the only document
+				// this file ever runs in.
+				'@wordpress/no-global-active-element': 'off',
+			},
+		},
 	],
 	ignorePatterns: [
 		'assets/js/**',

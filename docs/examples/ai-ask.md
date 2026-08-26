@@ -35,11 +35,11 @@ wp.os.ready( () => {
             if ( state !== 'ON' && state !== 'OFF' ) {
                 return `Usage: /turn_lights ON|OFF (got "${ args }")`;
             }
-            await fetch( '/api/ha/lights', {
+            await wp.os.fetch( '/api/ha/lights', {
                 method:  'POST',
                 body:    JSON.stringify( { state } ),
                 headers: { 'Content-Type': 'application/json' },
-            } );
+            }, { source: 'my-plugin/turn-lights' } );
             return `Lights ${ state }.`;
         },
     } );

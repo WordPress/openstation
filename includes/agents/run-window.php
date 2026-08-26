@@ -97,7 +97,7 @@ function openstation_agent_run_window_register() {
 			'icon'       => openstation_agent_run_window_icon(),
 			'template'   => 'openstation_agent_run_render_template',
 			'script'     => 'desktop-mode-agent-run',
-			'style'      => 'desktop-mode-agent-run',
+			'styles'     => array( 'desktop-mode-agent-run' ),
 			'width'      => 760,
 			'height'     => 620,
 			'min_width'  => 540,

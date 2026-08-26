@@ -177,7 +177,10 @@ function openstation_posts_window_register_window() {
 		'icon'       => 'dashicons-admin-post',
 		'template'   => 'openstation_posts_window_render_template',
 		'script'     => 'os-posts-window',
-		'style'      => 'os-posts-window',
+		// `styles` (companion), not `style`: the sheet only paints
+		// surfaces inside this window, so it loads on first open
+		// instead of being injected into every shell boot.
+		'styles'     => array( 'os-posts-window' ),
 		'width'      => 1100,
 		'height'     => 720,
 		'min_width'  => 720,

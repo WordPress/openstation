@@ -277,6 +277,18 @@ const TARGETS = {
 		fileBase: 'iframe-bridge',
 		iifeName: 'openStationIframeBridge',
 	},
+	// Chromeless bridge — the iframe side of every window. Plain JS
+	// rather than TypeScript because it is a verbatim lift of the
+	// nowdoc that `includes/render/chromeless-bridge.php` used to
+	// inline into every window's HTML (~125 KB, unminified, in the one
+	// document no cache can help with). Building it means it is
+	// fetched once and then served from cache for every later window.
+	// Per-request values arrive on `window.__osChromelessData`.
+	'chromeless-bridge': {
+		entry:    'src/chromeless-bridge.js',
+		fileBase: 'chromeless-bridge',
+		iifeName: 'openStationChromelessBridge',
+	},
 	// Gutenberg drop-receiver — tiny iframe-side bundle enqueued only
 	// on post.php / post-new.php. Listens for `os-drop`
 	// messages from the shell and inserts the corresponding block via
@@ -515,6 +527,49 @@ const TARGETS = {
 		entry:    'src/shell-overlays/entry.ts',
 		fileBase: 'shell-overlays',
 		iifeName: 'openStationShellOverlays',
+	},
+	// OS-file drop machinery — dialog, progress HUD, upload pipeline.
+	// Loaded by the sentinel in `src/os-file-drop/sentinel.ts` on the
+	// first dragenter that carries files; a drop can land before the
+	// load resolves, so the sentinel captures and the bundle replays.
+	'file-drop': {
+		entry:    'src/os-file-drop/entry.ts',
+		fileBase: 'file-drop',
+		iifeName: 'openStationFileDrop',
+	},
+	// Click-opened desktop-files surfaces: the share-settings /
+	// share-invite modals and the URL-file dialog. Loaded on first
+	// use by `src/desktop-files/overlays-loader.ts`. (The file
+	// PREVIEW pane deliberately stays in the shell for now — see the
+	// folder-window renderer note in `built-in-openers.ts`.)
+	'files-overlays': {
+		entry:    'src/desktop-files/overlays-entry.ts',
+		fileBase: 'files-overlays',
+		iifeName: 'openStationFilesOverlays',
+	},
+	// Pinned desktop notes. Presence-gated: the sentinel
+	// (`src/notes/sentinel.ts`) loads it when the user HAS notes, and
+	// on the actions that would create the first one.
+	'notes': {
+		entry:    'src/notes/entry.ts',
+		fileBase: 'notes',
+		iifeName: 'openStationNotes',
+	},
+	// Dock hover-submenu flyout. Loaded on the first pointer entering
+	// a dock rail — see `src/dock-constellation/sentinel.ts`.
+	'dock-constellation': {
+		entry:    'src/dock-constellation/entry.ts',
+		fileBase: 'dock-constellation',
+		iifeName: 'openStationDockConstellation',
+	},
+	// Window-link visuals: the render host + the built-in svg-splines
+	// renderer. The relations ENGINE stays in the shell (it tracks
+	// identities continuously); the visuals load on the first
+	// `os.window-links.groups-changed` that has something to draw.
+	'window-link-visuals': {
+		entry:    'src/window-links/visuals-entry.ts',
+		fileBase: 'window-link-visuals',
+		iifeName: 'openStationWindowLinkVisuals',
 	},
 	// Full `<os-*>` kit — every tag in `OS_COMPONENT_TAGS`, for
 	// `wp.os.loadComponents()`. The shell never loads this itself:

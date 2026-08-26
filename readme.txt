@@ -1,10 +1,10 @@
 === OpenStation: Desktop Windows, Dock & Virtual Desktops for WP Admin ===
-Contributors: automattic, allterraindeveloper, epeicher, mmtr86, nickhamze, nuriapenya
+Contributors: automattic, allterraindeveloper, epeicher, mmtr86, nickhamze, nuriapena
 Tags: admin, dashboard, desktop, productivity, ai
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.1.2
+Stable tag: 1.1.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -169,6 +169,24 @@ The **Inkfall** game's word list (`assets/games/inkfall/words.txt`) is generated
 * **[LDNOOBW English list](https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words)** (CC-BY 4.0) — used as an exclusion filter.
 
 == Changelog ==
+
+= 1.1.3 =
+* Refresh file associations when openers change
+* Add Code Blue, the error-log reader app
+* Station Home: stop claiming Dashboard subpages
+* Add MailPoet compatiblity
+* Station Home: make it opt-in via OS Settings → Features
+* Components: the missing-import demo shows the code it talks about
+* Desktop icons: one reading order per canvas, and a bounded scan
+* Trash: localize config before the lazy payload harvest
+* Corkboard: disc nodes by default, pins one row away
+* Unfocus effects: split view is not "behind"
+* Menu-refresh probe: attach script data before the payload harvest
+* Windows: companion stylesheets, and the Woo CSS stops riding every page
+* Plugin icons still missing
+* Defer every window stylesheet to first open; fix shared-bundle configs; real theming tokens in Users/Profile
+* Virtual desktops: rename in place, and four overview fixes
+* Defer the command palette's Gutenberg runtime to first ⌘K
 
 = 1.1.2 =
 * Window: the open-animation deadline must not outlive its window

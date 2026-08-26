@@ -12,12 +12,20 @@
  * bootstrap.php) so the section is always discoverable. While the flag
  * is off the config carries `enabled => false` and the renderer paints
  * the section read-only — no REST call is attempted, because the
- * routes are not registered.
+ * routes are not registered. It also carries `preview`, the cast the
+ * site would get, read straight from `default-definitions.php`.
  *
  * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
+
+/**
+ * The roster as data. Deliberately not `defaults.php`, which registers
+ * a seeder at file scope and needs the whole agents module behind it:
+ * this file runs with the feature flag off, where none of that exists.
+ */
+require_once __DIR__ . '/default-definitions.php';
 
 /**
  * Append the Agents entity to WP Explorer's entity list.
@@ -43,6 +51,53 @@ function openstation_agents_my_wordpress_entity( $entities ) {
 add_filter( 'openstation_my_wordpress_entities', 'openstation_agents_my_wordpress_entity' );
 
 /**
+ * The cast a site would get, for the flag-off state.
+ *
+ * A site that has never switched Agents on has no agents: `defaults.php`
+ * only loads inside the flag, so the seeder has never run. That used to
+ * make the off-state a paragraph of explanatory text, which is a weak
+ * argument for turning something on. These are the same five cards the
+ * grid draws once the flag is on, greyed and inert above the button
+ * that flips it. Seeing who you would get is the argument.
+ *
+ * Only what a card draws: a name, a voice, what it is good for, and a
+ * face. The instructions and the abilities are the bulk of a
+ * definition and none of them are on screen here, so they stay out of
+ * a payload that ships on every WP Explorer window open.
+ *
+ * Faces go through `openstation_mio_narrow_look()`, the same narrowing
+ * the store applies when an agent saves one, so a preview cannot show
+ * a face the seeder would then clamp into a different one.
+ *
+ * The role arrives already translated. A real card reads its label out
+ * of the `/agents/roles` catalogue, and that route does not exist while
+ * the flag is off — left to the client the badge would fall back to the
+ * raw slug and five preview cards would say "editor" in English on a
+ * Spanish site.
+ *
+ * @return array<int, array<string, mixed>>
+ */
+function openstation_agents_preview_cast() {
+	$names = wp_roles()->get_names();
+	$cast  = array();
+
+	foreach ( openstation_agents_default_definitions() as $definition ) {
+		$role = $definition['role'];
+
+		$cast[] = array(
+			'name'        => $definition['name'],
+			'vibes'       => $definition['vibes'],
+			'description' => $definition['description'],
+			'role'        => $role,
+			'roleLabel'   => isset( $names[ $role ] ) ? translate_user_role( $names[ $role ] ) : $role,
+			'face'        => openstation_mio_narrow_look( $definition['face'] ),
+		);
+	}
+
+	return $cast;
+}
+
+/**
  * Ship the agents section config on the WP Explorer window config.
  *
  * `enabled` mirrors the `agents` extended option. When it is false the
@@ -59,6 +114,10 @@ add_filter( 'openstation_my_wordpress_entities', 'openstation_agents_my_wordpres
  * OS Settings Features tab, so a freshly configured connector is
  * picked up without a reload.
  *
+ * `preview` is only sent while the flag is off, which is the only
+ * state that draws it: once Agents is on, the real cast has been
+ * seeded and the grid renders that instead.
+ *
  * @param array $window_args Args passed to `openstation_register_window()`.
  * @return array
  */
@@ -71,8 +130,10 @@ function openstation_agents_my_wordpress_window_args( $window_args ) {
 		$window_args['config'] = array();
 	}
 
+	$enabled = openstation_agents_enabled();
+
 	$window_args['config']['agents'] = array(
-		'enabled'       => openstation_agents_enabled(),
+		'enabled'       => $enabled,
 		'canEnable'     => current_user_can( 'manage_options' ),
 		'canManage'     => openstation_agents_user_can_manage(),
 		'canInvoke'     => openstation_agents_user_can_invoke(),
@@ -81,6 +142,10 @@ function openstation_agents_my_wordpress_window_args( $window_args ) {
 		'connectorsUrl' => esc_url_raw( admin_url( 'options-connectors.php' ) ),
 		'runWindowId'   => 'desktop-mode-agent-run',
 	);
+
+	if ( ! $enabled ) {
+		$window_args['config']['agents']['preview'] = openstation_agents_preview_cast();
+	}
 
 	return $window_args;
 }

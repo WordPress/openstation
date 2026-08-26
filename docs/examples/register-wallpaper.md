@@ -219,6 +219,7 @@ wp.hooks.addFilter(
 Every wallpaper context (`mount`, `renderPreview`, `renderEditor`, `renderConfig`) reads the persisted bag back as `ctx.settings`. Each `setSettings` call also fires the `os.wallpaper.settings-changed` action with the full post-merge bag, so a mounted wallpaper applies edits live — the dialog doubles as a tuning panel.
 
 ```javascript
+window.openStationWallpapers = window.openStationWallpapers || {};
 window.openStationWallpapers[ 'my-plugin/aquarium' ] = {
     id: 'my-plugin/aquarium',
     label: 'Aquarium',

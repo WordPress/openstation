@@ -95,6 +95,38 @@ const OPENSTATION_AGENT_RATE_LIMIT_META = '_desktop_mode_agent_rate_limit';
  * deliberate — it is NOT a half-finished rename.
  */
 const OPENSTATION_AGENT_CREATED_BY_META = '_desktop_mode_agent_created_by';
+/**
+ * The VALUE keeps its pre-rebrand spelling on purpose: it is a
+ * persisted or externally-visible identifier, so renaming it would
+ * orphan data already written by live installs (or break a live
+ * URL). The mismatch between this constant's name and its value is
+ * deliberate — it is NOT a half-finished rename.
+ */
+const OPENSTATION_AGENT_VIBES_META = '_desktop_mode_agent_vibes';
+
+/**
+ * Longest voice line an agent may carry.
+ *
+ * Short enough that it stays a voice rather than becoming a second
+ * instruction block by volume.
+ */
+const OPENSTATION_AGENT_VIBES_MAX_LENGTH = 120;
+/**
+ * The VALUE keeps its pre-rebrand spelling on purpose: it is a
+ * persisted or externally-visible identifier, so renaming it would
+ * orphan data already written by live installs (or break a live
+ * URL). The mismatch between this constant's name and its value is
+ * deliberate — it is NOT a half-finished rename.
+ */
+const OPENSTATION_AGENT_FACE_META = '_desktop_mode_agent_face';
+/**
+ * The VALUE keeps its pre-rebrand spelling on purpose: it is a
+ * persisted or externally-visible identifier, so renaming it would
+ * orphan data already written by live installs (or break a live
+ * URL). The mismatch between this constant's name and its value is
+ * deliberate — it is NOT a half-finished rename.
+ */
+const OPENSTATION_AGENT_FACE_SEED_META = '_desktop_mode_agent_face_seed';
 
 /**
  * Every meta key the store writes — the privacy eraser and any future
@@ -112,6 +144,9 @@ function openstation_agent_meta_keys() {
 		OPENSTATION_AGENT_MODEL_META,
 		OPENSTATION_AGENT_RATE_LIMIT_META,
 		OPENSTATION_AGENT_CREATED_BY_META,
+		OPENSTATION_AGENT_VIBES_META,
+		OPENSTATION_AGENT_FACE_META,
+		OPENSTATION_AGENT_FACE_SEED_META,
 	);
 }
 
@@ -201,6 +236,42 @@ function openstation_agents_register_user_meta() {
 			'auth_callback'     => $auth,
 		)
 	);
+	register_meta(
+		'user',
+		OPENSTATION_AGENT_VIBES_META,
+		array(
+			'type'              => 'string',
+			'single'            => true,
+			'default'           => '',
+			'show_in_rest'      => false,
+			'sanitize_callback' => 'openstation_agent_sanitize_vibes',
+			'auth_callback'     => $auth,
+		)
+	);
+	register_meta(
+		'user',
+		OPENSTATION_AGENT_FACE_META,
+		array(
+			'type'              => 'string',
+			'single'            => true,
+			'default'           => '',
+			'show_in_rest'      => false,
+			'sanitize_callback' => 'openstation_agent_sanitize_face_json',
+			'auth_callback'     => $auth,
+		)
+	);
+	register_meta(
+		'user',
+		OPENSTATION_AGENT_FACE_SEED_META,
+		array(
+			'type'              => 'integer',
+			'single'            => true,
+			'default'           => 0,
+			'show_in_rest'      => false,
+			'sanitize_callback' => 'absint',
+			'auth_callback'     => $auth,
+		)
+	);
 }
 add_action( 'init', 'openstation_agents_register_user_meta' );
 
@@ -245,6 +316,111 @@ function openstation_agents_sanitize_ability_slugs( $value ) {
  */
 function openstation_agent_sanitize_abilities_json( $value ) {
 	return (string) wp_json_encode( openstation_agents_sanitize_ability_slugs( $value ) );
+}
+
+/**
+ * Sanitize an agent's voice line.
+ *
+ * One short line of character: "blunt, precise, no sugarcoating". It
+ * is appended to the agent's instructions at run time, so it reaches a
+ * language model.
+ *
+ * **That is not a new privilege boundary.** Writing it needs
+ * `edit_users`, the same capability that already lets you write
+ * `instructions`, which is the entire system prompt. A 120-character
+ * tone line is strictly less reach than that, so it deliberately sits
+ * behind the same gate rather than a stricter one, and this note
+ * exists so nobody "hardens" it later into a confusing split.
+ *
+ * Two structural guards it does need. `sanitize_text_field()` strips
+ * line breaks, which is load-bearing: the runner marks operator turns
+ * in the composed prompt, and a multi-line voice line could otherwise
+ * fake a turn boundary. And the length cap keeps a "voice" from
+ * becoming a second instruction block by volume.
+ *
+ * @param mixed $value Incoming line.
+ * @return string
+ */
+function openstation_agent_sanitize_vibes( $value ) {
+	if ( ! is_scalar( $value ) ) {
+		return '';
+	}
+	$clean = sanitize_text_field( (string) $value );
+	return mb_substr( $clean, 0, OPENSTATION_AGENT_VIBES_MAX_LENGTH );
+}
+
+/**
+ * Sanitize an agent's face for storage.
+ *
+ * The narrowing itself is `openstation_mio_narrow_look()`, which the
+ * WP Explorer config also calls to preview the shipped cast while the
+ * feature flag is off. Shared on purpose: two copies of "clamp, then
+ * keep what was carried" is how a preview starts drawing a face the
+ * seeder would never store. What this adds on top is the storage
+ * shape — a JSON string, and an empty one when nothing was set, so an
+ * agent with no opinion keeps no row at all rather than an empty blob.
+ *
+ * @param mixed $value Incoming look (array or JSON string).
+ * @return string JSON, or an empty string when nothing was set.
+ */
+function openstation_agent_sanitize_face_json( $value ) {
+	if ( is_string( $value ) ) {
+		$decoded = json_decode( $value, true );
+		$value   = is_array( $decoded ) ? $decoded : array();
+	}
+	$out = openstation_mio_narrow_look( $value );
+	if ( empty( $out['appearance'] ) && empty( $out['physics'] ) ) {
+		return '';
+	}
+	return (string) wp_json_encode( $out );
+}
+
+/**
+ * Read an agent's voice line.
+ *
+ * @param int $user_id Agent user id.
+ * @return string
+ */
+function openstation_agent_get_vibes( $user_id ) {
+	return (string) get_user_meta( (int) $user_id, OPENSTATION_AGENT_VIBES_META, true );
+}
+
+/**
+ * Read an agent's stored face.
+ *
+ * A partial look: only what was overridden. Empty means "no face
+ * chosen", which the avatar resolver reads as the shipped robot.
+ *
+ * @param int $user_id Agent user id.
+ * @return array {
+ *     @type array $appearance Partial appearance overrides.
+ *     @type array $physics    Partial silhouette overrides.
+ * }
+ */
+function openstation_agent_get_face( $user_id ) {
+	$raw = (string) get_user_meta( (int) $user_id, OPENSTATION_AGENT_FACE_META, true );
+	if ( '' === $raw ) {
+		return array(
+			'appearance' => array(),
+			'physics'    => array(),
+		);
+	}
+	return openstation_sanitize_mio_look( json_decode( $raw, true ) );
+}
+
+/**
+ * Read the seed an agent's face was rolled from.
+ *
+ * Kept alongside the face rather than instead of it. The face is what
+ * gets drawn; the seed is provenance, and it is what lets a future
+ * change to the randomizer's ranges re-roll every agent in one
+ * migration instead of stranding them on an old palette.
+ *
+ * @param int $user_id Agent user id.
+ * @return int Seed, or 0 when none was recorded.
+ */
+function openstation_agent_get_face_seed( $user_id ) {
+	return (int) get_user_meta( (int) $user_id, OPENSTATION_AGENT_FACE_SEED_META, true );
 }
 
 /**
@@ -806,7 +982,7 @@ function openstation_agent_get_agents( $args = array() ) {
 /**
  * Create an agent: synthetic user row + definition meta.
  *
- * @param array{name:string, role:string, slug?:string, description?:string, instructions?:string, abilities?:array} $args Creation args.
+ * @param array{name:string, role:string, slug?:string, description?:string, instructions?:string, abilities?:array, triggers?:array, vibes?:string, face?:array|string, faceSeed?:int} $args Creation args.
  * @return WP_User|WP_Error
  */
 function openstation_agent_create( $args ) {
@@ -827,6 +1003,17 @@ function openstation_agent_create( $args ) {
 	$description  = isset( $args['description'] ) ? sanitize_text_field( (string) $args['description'] ) : '';
 	$instructions = isset( $args['instructions'] ) ? wp_kses_post( (string) $args['instructions'] ) : '';
 	$abilities    = isset( $args['abilities'] ) ? openstation_agents_sanitize_ability_slugs( $args['abilities'] ) : array();
+	$triggers     = isset( $args['triggers'] ) ? openstation_agent_sanitize_triggers( $args['triggers'] ) : array();
+	$vibes        = isset( $args['vibes'] ) ? openstation_agent_sanitize_vibes( $args['vibes'] ) : '';
+	$face         = isset( $args['face'] ) ? openstation_agent_sanitize_face_json( $args['face'] ) : '';
+	// Every agent gets a seed even when nobody chose a face, so the
+	// backfill has something deterministic to roll from and two admins
+	// racing it land on the same portrait. `crc32` of the login is
+	// stable, cheap, and already unique per agent.
+	$seed = isset( $args['faceSeed'] ) ? absint( $args['faceSeed'] ) : 0;
+	if ( 0 === $seed ) {
+		$seed = crc32( (string) $user->user_login );
+	}
 
 	if ( '' !== $description ) {
 		update_user_meta( $user->ID, OPENSTATION_AGENT_DESCRIPTION_META, $description );
@@ -837,6 +1024,16 @@ function openstation_agent_create( $args ) {
 	if ( ! empty( $abilities ) ) {
 		update_user_meta( $user->ID, OPENSTATION_AGENT_ABILITIES_META, wp_json_encode( $abilities ) );
 	}
+	if ( ! empty( $triggers ) ) {
+		update_user_meta( $user->ID, OPENSTATION_AGENT_TRIGGERS_META, wp_json_encode( $triggers ) );
+	}
+	if ( '' !== $vibes ) {
+		update_user_meta( $user->ID, OPENSTATION_AGENT_VIBES_META, $vibes );
+	}
+	if ( '' !== $face ) {
+		update_user_meta( $user->ID, OPENSTATION_AGENT_FACE_META, $face );
+	}
+	update_user_meta( $user->ID, OPENSTATION_AGENT_FACE_SEED_META, $seed );
 	update_user_meta( $user->ID, OPENSTATION_AGENT_CREATED_BY_META, get_current_user_id() );
 
 	/**
@@ -856,6 +1053,9 @@ function openstation_agent_create( $args ) {
 			'description'  => $description,
 			'instructions' => $instructions,
 			'abilities'    => $abilities,
+			'vibes'        => $vibes,
+			'face'         => $face,
+			'faceSeed'     => $seed,
 		),
 		get_current_user_id()
 	);
@@ -869,7 +1069,8 @@ function openstation_agent_create( $args ) {
  * once with a before/after map of everything that changed.
  *
  * Recognized fields: `name`, `role`, `description`, `instructions`,
- * `abilities`, `triggers`, `model`, `rateLimit`.
+ * `abilities`, `triggers`, `model`, `rateLimit`, `vibes`, `face`,
+ * `faceSeed`.
  *
  * @param int   $user_id Agent user id.
  * @param array $fields  Field map.
@@ -1004,6 +1205,50 @@ function openstation_agent_update( $user_id, array $fields ) {
 			} else {
 				update_user_meta( $user->ID, OPENSTATION_AGENT_RATE_LIMIT_META, $rate );
 			}
+		}
+	}
+
+	if ( isset( $fields['vibes'] ) ) {
+		$vibes  = openstation_agent_sanitize_vibes( $fields['vibes'] );
+		$before = openstation_agent_get_vibes( $user->ID );
+		if ( $vibes !== $before ) {
+			$changed['vibes'] = array(
+				'from' => $before,
+				'to'   => $vibes,
+			);
+			if ( '' === $vibes ) {
+				delete_user_meta( $user->ID, OPENSTATION_AGENT_VIBES_META );
+			} else {
+				update_user_meta( $user->ID, OPENSTATION_AGENT_VIBES_META, $vibes );
+			}
+		}
+	}
+
+	if ( isset( $fields['face'] ) ) {
+		$face   = openstation_agent_sanitize_face_json( $fields['face'] );
+		$before = (string) get_user_meta( $user->ID, OPENSTATION_AGENT_FACE_META, true );
+		if ( $face !== $before ) {
+			$changed['face'] = array(
+				'from' => $before,
+				'to'   => $face,
+			);
+			if ( '' === $face ) {
+				delete_user_meta( $user->ID, OPENSTATION_AGENT_FACE_META );
+			} else {
+				update_user_meta( $user->ID, OPENSTATION_AGENT_FACE_META, $face );
+			}
+		}
+	}
+
+	if ( isset( $fields['faceSeed'] ) ) {
+		$seed   = absint( $fields['faceSeed'] );
+		$before = openstation_agent_get_face_seed( $user->ID );
+		if ( $seed !== $before ) {
+			$changed['faceSeed'] = array(
+				'from' => $before,
+				'to'   => $seed,
+			);
+			update_user_meta( $user->ID, OPENSTATION_AGENT_FACE_SEED_META, $seed );
 		}
 	}
 

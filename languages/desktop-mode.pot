@@ -2,14 +2,14 @@
 # This file is distributed under the GPLv2 or later.
 msgid ""
 msgstr ""
-"Project-Id-Version: OpenStation 1.1.2\n"
+"Project-Id-Version: OpenStation 1.1.3\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/desktop-mode\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-08-21T13:13:40+00:00\n"
+"POT-Creation-Date: 2026-08-24T15:37:01+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: desktop-mode\n"
@@ -360,7 +360,7 @@ msgstr ""
 #: src/content-graph/panel.ts:898
 #: src/my-wordpress/integrations/woocommerce.ts:742
 #: src/my-wordpress/media-preview.ts:229
-#: src/settings/sections/help.ts:442
+#: src/settings/sections/help.ts:480
 #: includes/agents/identity.php:217
 msgid "Type"
 msgstr ""
@@ -379,6 +379,221 @@ msgstr ""
 
 #: src/bug-report/index.ts:224
 msgid "Environment included with the report"
+msgstr ""
+
+#: src/code-blue/index.ts:121
+msgid "Errors"
+msgstr ""
+
+#: src/code-blue/index.ts:122
+msgid "Warnings"
+msgstr ""
+
+#: src/code-blue/index.ts:123
+msgid "Deprecated"
+msgstr ""
+
+#: src/code-blue/index.ts:124
+msgid "Info"
+msgstr ""
+
+#: src/code-blue/index.ts:175
+msgid "Code Blue container missing."
+msgstr ""
+
+#: src/code-blue/index.ts:202
+msgid "Log source"
+msgstr ""
+
+#: src/code-blue/index.ts:206
+msgid "Time range"
+msgstr ""
+
+#: src/code-blue/index.ts:209
+msgid "1h"
+msgstr ""
+
+#: src/code-blue/index.ts:210
+msgid "24h"
+msgstr ""
+
+#: src/code-blue/index.ts:211
+msgid "7d"
+msgstr ""
+
+#: src/code-blue/index.ts:212
+msgid "30d"
+msgstr ""
+
+#: src/code-blue/index.ts:213
+#: src/plugins-window/installed-view.ts:148
+#: src/posts-window/index.ts:954
+#: src/posts-window/users-render.ts:717
+#: includes/comments-window/window.php:36
+#: includes/recycle-bin/window.php:147
+msgid "All"
+msgstr ""
+
+#: src/code-blue/index.ts:223
+#: src/my-wordpress/list-toolbar.ts:70
+msgid "Search"
+msgstr ""
+
+#: src/code-blue/index.ts:224
+msgid "Filter messages…"
+msgstr ""
+
+#: src/code-blue/index.ts:228
+msgid "Sort issues"
+msgstr ""
+
+#: src/code-blue/index.ts:231
+msgid "Recent"
+msgstr ""
+
+#: src/code-blue/index.ts:232
+msgid "Frequent"
+msgstr ""
+
+#: src/code-blue/index.ts:241
+msgid "Auto"
+msgstr ""
+
+#: src/code-blue/index.ts:246
+#: src/plugins-window/browse-view.ts:174
+#: src/plugins-window/installed-view.ts:221
+#: includes/pages-window/window.php:43
+#: includes/posts-window/window.php:70
+#: includes/recycle-bin/window.php:188
+#: includes/station-home/window.php:62
+#: includes/users-window/window.php:63
+msgid "Refresh"
+msgstr ""
+
+#: src/code-blue/index.ts:250
+#: src/code-blue/index.ts:804
+msgid "Clear log"
+msgstr ""
+
+#: src/code-blue/index.ts:275
+msgid "Events over time"
+msgstr ""
+
+#: src/code-blue/index.ts:279
+msgid "Toggle severities"
+msgstr ""
+
+#: src/code-blue/index.ts:286
+msgid "Issues"
+msgstr ""
+
+#: src/code-blue/index.ts:364
+#: src/settings/sections/help.ts:547
+msgid "Events"
+msgstr ""
+
+#: src/code-blue/index.ts:453
+msgid "No events in this range."
+msgstr ""
+
+#. %s: number of grouped issues.
+#: src/code-blue/index.ts:466
+msgid "Issues (%s)"
+msgid_plural "Issues (%s)"
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/code-blue/index.ts:476
+msgid "Nothing matches the filters"
+msgstr ""
+
+#: src/code-blue/index.ts:477
+msgid "The log is clean"
+msgstr ""
+
+#: src/code-blue/index.ts:482
+msgid "Try widening the time range or clearing the search."
+msgstr ""
+
+#: src/code-blue/index.ts:483
+msgid "No entries were recorded in this time range."
+msgstr ""
+
+#: src/code-blue/index.ts:574
+msgid "File"
+msgstr ""
+
+#: src/code-blue/index.ts:579
+msgid "First seen"
+msgstr ""
+
+#: src/code-blue/index.ts:582
+msgid "Last seen"
+msgstr ""
+
+#: src/code-blue/index.ts:584
+msgid "Occurrences"
+msgstr ""
+
+#: src/code-blue/index.ts:593
+msgid "Latest occurrences"
+msgstr ""
+
+#. 1: bytes scanned, 2: total file size.
+#: src/code-blue/index.ts:622
+msgid "Scanned %1$s of %2$s"
+msgstr ""
+
+#. %s: number of parsed log entries.
+#: src/code-blue/index.ts:630
+msgid "%s entry"
+msgid_plural "%s entries"
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/code-blue/index.ts:635
+msgid "older entries not shown"
+msgstr ""
+
+#: src/code-blue/index.ts:642
+msgid "Updated"
+msgstr ""
+
+#. %s: error message.
+#: src/code-blue/index.ts:700
+msgid "Could not read the log: %s"
+msgstr ""
+
+#. %s: log source label.
+#: src/code-blue/index.ts:728
+msgid "%s (empty)"
+msgstr ""
+
+#: src/code-blue/index.ts:796
+msgid "Clear this log?"
+msgstr ""
+
+#. %s: log file path.
+#: src/code-blue/index.ts:799
+msgid "Every entry in %s will be deleted from disk. This cannot be undone."
+msgstr ""
+
+#. %s: error message.
+#: src/code-blue/index.ts:816
+msgid "Could not clear the log: %s"
+msgstr ""
+
+#. %s: error message.
+#: src/code-blue/index.ts:868
+msgid "Could not load log sources: %s"
+msgstr ""
+
+#: src/code-blue/index.ts:890
+msgid "No readable log files found"
+msgstr ""
+
+#: src/code-blue/index.ts:893
+msgid "Define WP_DEBUG and WP_DEBUG_LOG in wp-config.php (or point the error_log PHP directive at a file) and errors will start collecting here."
 msgstr ""
 
 #: src/comments-window/conversation.ts:187
@@ -676,29 +891,33 @@ msgstr ""
 msgid "Comments window configuration missing."
 msgstr ""
 
-#: src/content-graph/index.ts:52
+#: src/content-graph/index.ts:97
+msgid "Show pins"
+msgstr ""
+
+#: src/content-graph/index.ts:121
 msgid "Corkboard container missing."
 msgstr ""
 
 #. %d: numeric post id that failed to load.
-#: src/content-graph/index.ts:140
+#: src/content-graph/index.ts:209
 msgid "Could not load post #%d."
 msgstr ""
 
-#: src/content-graph/index.ts:177
+#: src/content-graph/index.ts:246
 msgid "Loading graph…"
 msgstr ""
 
 #. 1: number of nodes (posts/pages) in the graph. 2: number of links between them.
-#: src/content-graph/index.ts:187
+#: src/content-graph/index.ts:256
 msgid "%1$d nodes · %2$d links"
 msgstr ""
 
-#: src/content-graph/index.ts:199
+#: src/content-graph/index.ts:268
 msgid "Failed to load graph."
 msgstr ""
 
-#: src/content-graph/index.ts:238
+#: src/content-graph/index.ts:309
 msgid "Could not initialise the graph renderer."
 msgstr ""
 
@@ -722,7 +941,7 @@ msgstr ""
 #: src/my-wordpress/index.ts:636
 #: src/my-wordpress/index.ts:4078
 #: src/posts-window/index.ts:458
-#: src/posts-window/user-edit-render.ts:1037
+#: src/posts-window/user-edit-render.ts:1045
 #: src/posts-window/users-render.ts:415
 #: includes/ai-copilot/search.php:111
 #: includes/comments-window/window.php:99
@@ -811,7 +1030,7 @@ msgstr ""
 #: src/desktop-files/preview.ts:481
 #: src/my-wordpress/index.ts:3655
 #: src/my-wordpress/index.ts:4065
-#: src/posts-window/user-edit-render.ts:1026
+#: src/posts-window/user-edit-render.ts:1034
 #: src/posts-window/users-render.ts:412
 #: includes/my-wordpress/window.php:137
 #: includes/posts-window/window.php:176
@@ -878,7 +1097,7 @@ msgstr ""
 #: src/posts-window/categories-mindmap.ts:2533
 #: src/posts-window/tags-cloud.ts:1659
 #: src/posts-window/tags-cloud.ts:1850
-#: src/settings/sections/help.ts:444
+#: src/settings/sections/help.ts:482
 #: includes/agents/privacy.php:69
 msgid "Description"
 msgstr ""
@@ -962,21 +1181,21 @@ msgstr ""
 msgid "%1$s · %2$d posts"
 msgstr ""
 
-#: src/content-graph/scene.ts:1019
+#: src/content-graph/scene.ts:1160
 msgid "Uncategorized"
 msgstr ""
 
-#: src/content-graph/scene.ts:1029
+#: src/content-graph/scene.ts:1170
 msgid "Untagged"
 msgstr ""
 
-#: src/content-graph/scene.ts:1040
+#: src/content-graph/scene.ts:1181
 #: src/plugins-window/installed-detail.ts:237
 msgid "Unknown author"
 msgstr ""
 
-#: src/content-graph/scene.ts:1047
-#: src/content-graph/scene.ts:1053
+#: src/content-graph/scene.ts:1188
+#: src/content-graph/scene.ts:1194
 msgid "Undated"
 msgstr ""
 
@@ -1184,7 +1403,7 @@ msgstr ""
 #: src/my-wordpress/integrations/woocommerce.ts:913
 #: src/my-wordpress/integrations/woocommerce.ts:1052
 #: src/station-home/index.ts:369
-#: src/window/tabs.ts:448
+#: src/window/tabs.ts:490
 msgid "Open"
 msgstr ""
 
@@ -2184,8 +2403,8 @@ msgstr ""
 #: src/posts-window/tags-cloud.ts:1648
 #: src/posts-window/tags-cloud.ts:1817
 #: src/posts-window/tags-cloud.ts:1823
-#: src/posts-window/users-render.ts:627
-#: src/settings/sections/help.ts:441
+#: src/posts-window/users-render.ts:630
+#: src/settings/sections/help.ts:479
 msgid "Name"
 msgstr ""
 
@@ -2205,8 +2424,8 @@ msgstr ""
 #: src/my-wordpress/agents-renderer.ts:823
 #: src/my-wordpress/agents-renderer.ts:1097
 #: src/posts-window/user-edit-render.ts:391
-#: src/posts-window/users-render.ts:645
-#: src/posts-window/users-render.ts:1323
+#: src/posts-window/users-render.ts:648
+#: src/posts-window/users-render.ts:1326
 #: includes/agents/privacy.php:65
 #: includes/users-window/window.php:177
 msgid "Role"
@@ -2281,7 +2500,7 @@ msgstr ""
 #: src/my-wordpress/agents-renderer.ts:1124
 #: src/posts-window/categories-mindmap.ts:2361
 #: src/posts-window/tags-cloud.ts:1673
-#: src/posts-window/user-edit-render.ts:1892
+#: src/posts-window/user-edit-render.ts:1903
 msgid "Create"
 msgstr ""
 
@@ -2649,7 +2868,7 @@ msgstr ""
 #: src/my-wordpress/media-list.ts:130
 #: src/plugins-window/installed-view.ts:674
 #: src/posts-window/index.ts:2322
-#: src/posts-window/users-render.ts:917
+#: src/posts-window/users-render.ts:920
 #: src/recycle-bin/index.ts:743
 msgid "%d selected"
 msgstr ""
@@ -2958,7 +3177,7 @@ msgstr ""
 #. %d is a number of days.
 #: src/my-wordpress/index.ts:6466
 #: src/my-wordpress/index.ts:6481
-#: src/posts-window/user-edit-render.ts:1052
+#: src/posts-window/user-edit-render.ts:1060
 msgid "%d day"
 msgid_plural "%d days"
 msgstr[0] ""
@@ -3130,7 +3349,7 @@ msgstr ""
 
 #: src/my-wordpress/index.ts:3715
 #: src/my-wordpress/index.ts:4151
-#: src/posts-window/user-edit-render.ts:1171
+#: src/posts-window/user-edit-render.ts:1179
 msgid "Recent posts"
 msgstr ""
 
@@ -3368,7 +3587,7 @@ msgid "Expires"
 msgstr ""
 
 #: src/my-wordpress/integrations/woocommerce.ts:900
-#: src/posts-window/user-edit-render.ts:1042
+#: src/posts-window/user-edit-render.ts:1050
 #: src/posts-window/users-render.ts:456
 msgid "Never"
 msgstr ""
@@ -3488,7 +3707,7 @@ msgid "Location"
 msgstr ""
 
 #: src/my-wordpress/integrations/woocommerce.ts:1049
-#: src/posts-window/users-render.ts:638
+#: src/posts-window/users-render.ts:641
 msgid "Email"
 msgstr ""
 
@@ -3701,10 +3920,6 @@ msgstr ""
 
 #: src/my-wordpress/list-toolbar.ts:67
 msgid "Search…"
-msgstr ""
-
-#: src/my-wordpress/list-toolbar.ts:70
-msgid "Search"
 msgstr ""
 
 #. 1: number of selected rows, 2: site title.
@@ -4046,7 +4261,7 @@ msgid "Category added."
 msgstr ""
 
 #: src/plugins/drafts-widget/index.ts:440
-#: src/posts-window/user-edit-render.ts:1453
+#: src/posts-window/user-edit-render.ts:1461
 #: src/posts-window/users-render.ts:424
 msgid "just now"
 msgstr ""
@@ -4270,16 +4485,6 @@ msgstr ""
 
 #: src/plugins-window/browse-view.ts:158
 msgid "Upload Plugin"
-msgstr ""
-
-#: src/plugins-window/browse-view.ts:174
-#: src/plugins-window/installed-view.ts:221
-#: includes/pages-window/window.php:43
-#: includes/posts-window/window.php:70
-#: includes/recycle-bin/window.php:188
-#: includes/station-home/window.php:62
-#: includes/users-window/window.php:63
-msgid "Refresh"
 msgstr ""
 
 #: src/plugins-window/browse-view.ts:213
@@ -4730,14 +4935,6 @@ msgstr ""
 #: src/plugins-window/installed-detail.ts:1229
 #: src/plugins-window/installed-view.ts:1340
 msgid "%s MB"
-msgstr ""
-
-#: src/plugins-window/installed-view.ts:148
-#: src/posts-window/index.ts:954
-#: src/posts-window/users-render.ts:714
-#: includes/comments-window/window.php:36
-#: includes/recycle-bin/window.php:147
-msgid "All"
 msgstr ""
 
 #: src/plugins-window/installed-view.ts:151
@@ -5382,13 +5579,13 @@ msgid "Share a little about yourself — visible on author archives."
 msgstr ""
 
 #: src/posts-window/user-edit-render.ts:344
-#: src/posts-window/users-render.ts:1327
+#: src/posts-window/users-render.ts:1330
 #: includes/users-window/window.php:181
 msgid "Language"
 msgstr ""
 
 #: src/posts-window/user-edit-render.ts:347
-#: src/posts-window/users-render.ts:1328
+#: src/posts-window/users-render.ts:1331
 #: includes/user-edit-window/window.php:173
 msgid "Site default"
 msgstr ""
@@ -5458,226 +5655,226 @@ msgid "Profile saved."
 msgstr ""
 
 #: src/posts-window/user-edit-render.ts:793
-#: src/posts-window/user-edit-render.ts:926
+#: src/posts-window/user-edit-render.ts:931
 #: src/posts-window/users-render.ts:351
 msgid "No role"
 msgstr ""
 
-#: src/posts-window/user-edit-render.ts:943
+#: src/posts-window/user-edit-render.ts:948
 msgid "Profile completeness"
 msgstr ""
 
 #. %d is a count of pages.
-#: src/posts-window/user-edit-render.ts:1021
+#: src/posts-window/user-edit-render.ts:1029
 msgid "+ %d page"
 msgid_plural "+ %d pages"
 msgstr[0] ""
 msgstr[1] ""
 
 #. %d is a count of received comments.
-#: src/posts-window/user-edit-render.ts:1032
+#: src/posts-window/user-edit-render.ts:1040
 msgid "%d received"
 msgstr ""
 
-#: src/posts-window/user-edit-render.ts:1041
-#: src/posts-window/users-render.ts:665
+#: src/posts-window/user-edit-render.ts:1049
+#: src/posts-window/users-render.ts:668
 msgid "Last login"
 msgstr ""
 
-#: src/posts-window/user-edit-render.ts:1058
+#: src/posts-window/user-edit-render.ts:1066
 msgid "Member"
 msgstr ""
 
-#: src/posts-window/user-edit-render.ts:1082
+#: src/posts-window/user-edit-render.ts:1090
 msgid "Posts published — last 12 months"
 msgstr ""
 
 #. %d is a count of posts.
-#: src/posts-window/user-edit-render.ts:1091
+#: src/posts-window/user-edit-render.ts:1099
 msgid "%d total"
 msgstr ""
 
-#: src/posts-window/user-edit-render.ts:1101
+#: src/posts-window/user-edit-render.ts:1109
 msgid "No activity in the last 12 months."
 msgstr ""
 
 #. %1$s is a YYYY-MM month, %2$d is post count.
-#: src/posts-window/user-edit-render.ts:1132
+#: src/posts-window/user-edit-render.ts:1140
 msgid "%1$s — %2$d posts"
 msgstr ""
 
-#: src/posts-window/user-edit-render.ts:1172
+#: src/posts-window/user-edit-render.ts:1180
 msgid "No recent posts."
 msgstr ""
 
 #. %d is a count of comments.
-#: src/posts-window/user-edit-render.ts:1181
+#: src/posts-window/user-edit-render.ts:1189
 msgid "%d 💬"
 msgstr ""
 
-#: src/posts-window/user-edit-render.ts:1191
+#: src/posts-window/user-edit-render.ts:1199
 msgid "Recent comments"
 msgstr ""
 
-#: src/posts-window/user-edit-render.ts:1192
+#: src/posts-window/user-edit-render.ts:1200
 msgid "No recent comments."
 msgstr ""
 
-#: src/posts-window/user-edit-render.ts:1196
+#: src/posts-window/user-edit-render.ts:1204
 msgid "(empty comment)"
 msgstr ""
 
-#: src/posts-window/user-edit-render.ts:1198
+#: src/posts-window/user-edit-render.ts:1206
 msgid "on"
 msgstr ""
 
-#: src/posts-window/user-edit-render.ts:1200
+#: src/posts-window/user-edit-render.ts:1208
 msgid "pending"
 msgstr ""
 
-#: src/posts-window/user-edit-render.ts:1295
+#: src/posts-window/user-edit-render.ts:1303
 msgid "Active sessions & app access"
 msgstr ""
 
-#: src/posts-window/user-edit-render.ts:1308
-#: src/posts-window/user-edit-render.ts:1788
+#: src/posts-window/user-edit-render.ts:1316
+#: src/posts-window/user-edit-render.ts:1799
 msgid "Active sessions"
 msgstr ""
 
-#: src/posts-window/user-edit-render.ts:1317
+#: src/posts-window/user-edit-render.ts:1325
 msgid "Includes the current device."
 msgstr ""
 
-#: src/posts-window/user-edit-render.ts:1318
+#: src/posts-window/user-edit-render.ts:1326
 msgid "Logged in across multiple devices."
 msgstr ""
 
-#: src/posts-window/user-edit-render.ts:1330
-#: src/posts-window/user-edit-render.ts:1862
+#: src/posts-window/user-edit-render.ts:1338
+#: src/posts-window/user-edit-render.ts:1873
 msgid "Application passwords"
 msgstr ""
 
 #. %1$s is the app password name, %2$s is a relative time.
-#: src/posts-window/user-edit-render.ts:1342
+#: src/posts-window/user-edit-render.ts:1350
 msgid "\"%1$s\" last used %2$s"
 msgstr ""
 
-#: src/posts-window/user-edit-render.ts:1348
+#: src/posts-window/user-edit-render.ts:1356
 msgid "No recent use."
 msgstr ""
 
-#: src/posts-window/user-edit-render.ts:1349
+#: src/posts-window/user-edit-render.ts:1357
 msgid "No app passwords issued yet."
 msgstr ""
 
 #. %d minutes ago.
 #. %d is a number of minutes.
-#: src/posts-window/user-edit-render.ts:1457
+#: src/posts-window/user-edit-render.ts:1465
 #: src/posts-window/users-render.ts:429
 msgid "%d min ago"
 msgstr ""
 
 #. %d hours ago.
 #. %d is a number of hours.
-#: src/posts-window/user-edit-render.ts:1461
+#: src/posts-window/user-edit-render.ts:1469
 #: src/posts-window/users-render.ts:434
 msgid "%d h ago"
 msgstr ""
 
 #. %d days ago.
 #. %d is a number of days.
-#: src/posts-window/user-edit-render.ts:1465
+#: src/posts-window/user-edit-render.ts:1473
 #: src/posts-window/users-render.ts:439
 msgid "%d d ago"
 msgstr ""
 
 #. %d months ago.
 #. %d is a number of months.
-#: src/posts-window/user-edit-render.ts:1469
+#: src/posts-window/user-edit-render.ts:1477
 #: src/posts-window/users-render.ts:444
 msgid "%d mo ago"
 msgstr ""
 
 #. %d years ago.
 #. %d is a number of years.
-#: src/posts-window/user-edit-render.ts:1472
+#: src/posts-window/user-edit-render.ts:1480
 #: src/posts-window/users-render.ts:448
 msgid "%d y ago"
 msgstr ""
 
-#: src/posts-window/user-edit-render.ts:1528
+#: src/posts-window/user-edit-render.ts:1536
 msgid "Email address is not valid."
 msgstr ""
 
-#: src/posts-window/user-edit-render.ts:1531
-#: src/posts-window/users-render.ts:1470
+#: src/posts-window/user-edit-render.ts:1539
+#: src/posts-window/users-render.ts:1473
 #: includes/users-window/rest.php:537
 msgid "That email is already in use."
 msgstr ""
 
-#: src/posts-window/user-edit-render.ts:1533
-#: src/posts-window/users-render.ts:1479
+#: src/posts-window/user-edit-render.ts:1541
+#: src/posts-window/users-render.ts:1482
 #: includes/users-window/rest.php:560
 msgid "You are not allowed to assign that role."
 msgstr ""
 
-#: src/posts-window/user-edit-render.ts:1633
+#: src/posts-window/user-edit-render.ts:1641
 msgid "Admin colour scheme"
 msgstr ""
 
-#: src/posts-window/user-edit-render.ts:1795
+#: src/posts-window/user-edit-render.ts:1806
 msgid "Log out everywhere else"
 msgstr ""
 
-#: src/posts-window/user-edit-render.ts:1796
+#: src/posts-window/user-edit-render.ts:1807
 msgid "Log this user out everywhere"
 msgstr ""
 
-#: src/posts-window/user-edit-render.ts:1823
+#: src/posts-window/user-edit-render.ts:1834
 msgid "Sessions destroyed."
 msgstr ""
 
 #. %s is an error message.
-#: src/posts-window/user-edit-render.ts:1828
+#: src/posts-window/user-edit-render.ts:1839
 msgid "Could not destroy sessions (%s)."
 msgstr ""
 
-#: src/posts-window/user-edit-render.ts:1882
+#: src/posts-window/user-edit-render.ts:1893
 msgid "New application password name"
 msgstr ""
 
-#: src/posts-window/user-edit-render.ts:1885
+#: src/posts-window/user-edit-render.ts:1896
 msgid "e.g. iPhone, WP-CLI, Backup tool"
 msgstr ""
 
-#: src/posts-window/user-edit-render.ts:1902
+#: src/posts-window/user-edit-render.ts:1913
 msgid "No application passwords issued yet."
 msgstr ""
 
 #. %s is a relative time.
-#: src/posts-window/user-edit-render.ts:1920
+#: src/posts-window/user-edit-render.ts:1931
 msgid "last used %s"
 msgstr ""
 
-#: src/posts-window/user-edit-render.ts:1923
+#: src/posts-window/user-edit-render.ts:1934
 msgid "never used"
 msgstr ""
 
-#: src/posts-window/user-edit-render.ts:1928
+#: src/posts-window/user-edit-render.ts:1939
 msgid "Revoke"
 msgstr ""
 
-#: src/posts-window/user-edit-render.ts:1945
+#: src/posts-window/user-edit-render.ts:1956
 msgid "Application password revoked."
 msgstr ""
 
-#: src/posts-window/user-edit-render.ts:1983
+#: src/posts-window/user-edit-render.ts:1994
 #: includes/user-edit-window/rest.php:301
 msgid "Application password name is required."
 msgstr ""
 
 #. %s is an application password.
-#: src/posts-window/user-edit-render.ts:2010
+#: src/posts-window/user-edit-render.ts:2021
 msgid "Created. Copy the password now: %s"
 msgstr ""
 
@@ -5711,149 +5908,149 @@ msgstr ""
 msgid "Click to copy email"
 msgstr ""
 
-#: src/posts-window/users-render.ts:536
+#: src/posts-window/users-render.ts:539
 msgid "Send password reset"
 msgstr ""
 
-#: src/posts-window/users-render.ts:540
+#: src/posts-window/users-render.ts:543
 msgid "Send password reset email?"
 msgstr ""
 
 #. %s is a user name.
-#: src/posts-window/users-render.ts:543
+#: src/posts-window/users-render.ts:546
 msgid "WordPress will email %s a password-reset link."
 msgstr ""
 
-#: src/posts-window/users-render.ts:546
+#: src/posts-window/users-render.ts:549
 msgid "Send reset email"
 msgstr ""
 
 #. %s is the user's email address.
-#: src/posts-window/users-render.ts:556
+#: src/posts-window/users-render.ts:559
 msgid "Reset email sent to %s."
 msgstr ""
 
 #. %s is an error code.
-#: src/posts-window/users-render.ts:565
+#: src/posts-window/users-render.ts:568
 msgid "Could not send reset email (%s)."
 msgstr ""
 
-#: src/posts-window/users-render.ts:576
+#: src/posts-window/users-render.ts:579
 msgid "Resend welcome email"
 msgstr ""
 
-#: src/posts-window/users-render.ts:580
+#: src/posts-window/users-render.ts:583
 msgid "Resend welcome email?"
 msgstr ""
 
 #. %s is a user name.
-#: src/posts-window/users-render.ts:583
+#: src/posts-window/users-render.ts:586
 msgid "WordPress will resend the original welcome email to %s."
 msgstr ""
 
-#: src/posts-window/users-render.ts:588
+#: src/posts-window/users-render.ts:591
 msgid "Resend"
 msgstr ""
 
 #. %s is the user's email address.
-#: src/posts-window/users-render.ts:598
+#: src/posts-window/users-render.ts:601
 msgid "Welcome email resent to %s."
 msgstr ""
 
 #. %s is an error code.
-#: src/posts-window/users-render.ts:607
+#: src/posts-window/users-render.ts:610
 msgid "Could not resend welcome (%s)."
 msgstr ""
 
-#: src/posts-window/users-render.ts:654
+#: src/posts-window/users-render.ts:657
 #: includes/station-home/rest.php:169
 msgid "Content"
 msgstr ""
 
-#: src/posts-window/users-render.ts:679
+#: src/posts-window/users-render.ts:682
 msgid "Registered"
 msgstr ""
 
-#: src/posts-window/users-render.ts:696
+#: src/posts-window/users-render.ts:699
 msgid "Actions"
 msgstr ""
 
-#: src/posts-window/users-render.ts:715
+#: src/posts-window/users-render.ts:718
 msgid "Online"
 msgstr ""
 
-#: src/posts-window/users-render.ts:716
+#: src/posts-window/users-render.ts:719
 msgid "Active 30d"
 msgstr ""
 
-#: src/posts-window/users-render.ts:717
+#: src/posts-window/users-render.ts:720
 msgid "Never logged in"
 msgstr ""
 
-#: src/posts-window/users-render.ts:1349
+#: src/posts-window/users-render.ts:1352
 msgid "Generated password copied to clipboard."
 msgstr ""
 
 #. %s is the user's email address.
-#: src/posts-window/users-render.ts:1396
+#: src/posts-window/users-render.ts:1399
 msgid "User created — welcome email sent to %s."
 msgstr ""
 
-#: src/posts-window/users-render.ts:1466
+#: src/posts-window/users-render.ts:1469
 #: includes/users-window/rest.php:530
 msgid "That username is already in use."
 msgstr ""
 
-#: src/posts-window/users-render.ts:1473
+#: src/posts-window/users-render.ts:1476
 #: includes/users-window/rest.php:516
 msgid "Username is not valid."
 msgstr ""
 
-#: src/posts-window/users-render.ts:1476
+#: src/posts-window/users-render.ts:1479
 #: includes/users-window/rest.php:523
 msgid "A valid email address is required."
 msgstr ""
 
-#: src/posts-window/users-render.ts:1482
+#: src/posts-window/users-render.ts:1485
 msgid "Could not create the user."
 msgstr ""
 
-#: src/posts-window/users-render.ts:943
+#: src/posts-window/users-render.ts:946
 msgid "Set role to…"
 msgstr ""
 
-#: src/posts-window/users-render.ts:954
+#: src/posts-window/users-render.ts:957
 msgid "Apply"
 msgstr ""
 
-#: src/posts-window/users-render.ts:975
+#: src/posts-window/users-render.ts:978
 msgid "Change role for selected users?"
 msgstr ""
 
 #. %1$d is a user count, %2$s is a role label.
-#: src/posts-window/users-render.ts:978
+#: src/posts-window/users-render.ts:981
 msgid "Set %1$d user(s)' role to %2$s?"
 msgstr ""
 
-#: src/posts-window/users-render.ts:982
+#: src/posts-window/users-render.ts:985
 msgid "Set role"
 msgstr ""
 
 #. %1$d users updated, %2$d failed.
-#: src/posts-window/users-render.ts:1007
+#: src/posts-window/users-render.ts:1010
 msgid "Role updated for %1$d user(s) (%2$d skipped)."
 msgstr ""
 
-#: src/posts-window/users-render.ts:1014
+#: src/posts-window/users-render.ts:1017
 msgid "No users updated."
 msgstr ""
 
 #. %1$d current page, %2$d total pages, %3$d total rows.
-#: src/posts-window/users-render.ts:1051
+#: src/posts-window/users-render.ts:1054
 msgid "Page %1$d of %2$d · %3$d users"
 msgstr ""
 
-#: src/posts-window/users-render.ts:1107
+#: src/posts-window/users-render.ts:1110
 msgid "Could not load users. Try Refresh."
 msgstr ""
 
@@ -6114,7 +6311,7 @@ msgstr ""
 
 #: src/settings/labels.ts:44
 #: src/settings/labels.ts:60
-#: src/settings/sections/help.ts:443
+#: src/settings/sections/help.ts:481
 #: includes/user-edit-window/window.php:115
 msgid "Default"
 msgstr ""
@@ -6217,7 +6414,7 @@ msgstr ""
 
 #: src/settings/panel.ts:389
 #: src/settings/panel.ts:393
-#: src/settings/sections/help.ts:290
+#: src/settings/sections/help.ts:328
 msgid "Components"
 msgstr ""
 
@@ -6552,7 +6749,7 @@ msgid "Reveal speed"
 msgstr ""
 
 #: src/settings/sections/effects.ts:245
-#: src/settings/sections/features.ts:553
+#: src/settings/sections/features.ts:606
 msgid "Window links"
 msgstr ""
 
@@ -6604,282 +6801,286 @@ msgstr ""
 msgid "Saving…"
 msgstr ""
 
-#: src/settings/sections/features.ts:196
+#: src/settings/sections/features.ts:249
 msgid "Delete folder sharing data?"
 msgstr ""
 
-#: src/settings/sections/features.ts:197
+#: src/settings/sections/features.ts:250
 msgid "This drops every shares table on the site (current + legacy). All invites, accept/deny decisions, and share rows are permanently removed. Recipients lose their access until someone shares with them again. The empty tables are recreated on the next admin load so the feature keeps working — but every existing share is gone."
 msgstr ""
 
-#: src/settings/sections/features.ts:200
+#: src/settings/sections/features.ts:253
 msgid "Delete data"
 msgstr ""
 
-#: src/settings/sections/features.ts:209
+#: src/settings/sections/features.ts:262
 msgid "Files REST endpoint is not available."
 msgstr ""
 
-#: src/settings/sections/features.ts:231
+#: src/settings/sections/features.ts:284
 msgid "Folder sharing data deleted."
 msgstr ""
 
-#: src/settings/sections/features.ts:237
+#: src/settings/sections/features.ts:290
 msgid "Could not delete sharing data."
 msgstr ""
 
-#: src/settings/sections/features.ts:417
+#: src/settings/sections/features.ts:470
 msgid "Connectors"
 msgstr ""
 
-#: src/settings/sections/features.ts:473
+#: src/settings/sections/features.ts:526
 msgid "Watch the dot in the OpenStation Preferences title bar to see when a change has been saved."
 msgstr ""
 
-#: src/settings/sections/features.ts:481
+#: src/settings/sections/features.ts:534
 msgid "AI assistant"
 msgstr ""
 
 #. %s: keyboard shortcut, e.g. ⌘K or Ctrl+K
-#: src/settings/sections/features.ts:489
+#: src/settings/sections/features.ts:542
 msgid "Adds an AI mode to the %s command palette: find content and ask about your site."
 msgstr ""
 
-#: src/settings/sections/features.ts:498
-#: src/settings/sections/features.ts:536
+#: src/settings/sections/features.ts:551
+#: src/settings/sections/features.ts:589
 msgid "This feature requires an AI provider configured in"
 msgstr ""
 
-#: src/settings/sections/features.ts:509
-#: src/settings/sections/features.ts:543
+#: src/settings/sections/features.ts:562
+#: src/settings/sections/features.ts:596
 msgid "Settings → Connectors"
 msgstr ""
 
-#: src/settings/sections/features.ts:523
+#: src/settings/sections/features.ts:576
 msgid "Score new comments with AI"
 msgstr ""
 
-#: src/settings/sections/features.ts:529
+#: src/settings/sections/features.ts:582
 msgid "Rates incoming comments so you can triage the queue faster."
 msgstr ""
 
-#: src/settings/sections/features.ts:558
+#: src/settings/sections/features.ts:611
 msgid "Draws connector lines between related windows. Line style and visibility live in Windows → Window links."
 msgstr ""
 
-#: src/settings/sections/features.ts:564
+#: src/settings/sections/features.ts:617
 msgid "Bring related windows to front"
 msgstr ""
 
-#: src/settings/sections/features.ts:570
+#: src/settings/sections/features.ts:623
 msgid "Clicking a window also surfaces its parent and children."
 msgstr ""
 
-#: src/settings/sections/features.ts:577
+#: src/settings/sections/features.ts:630
 msgid "Highlight related windows"
 msgstr ""
 
-#: src/settings/sections/features.ts:583
+#: src/settings/sections/features.ts:636
 msgid "Related windows get an accent outline while one of them is focused."
 msgstr ""
 
-#: src/settings/sections/features.ts:591
+#: src/settings/sections/features.ts:644
 msgid "Show desktop when clicking the wallpaper"
 msgstr ""
 
-#: src/settings/sections/features.ts:598
+#: src/settings/sections/features.ts:651
 msgid "A click on the empty desktop minimizes every window; a second click restores them."
 msgstr ""
 
-#: src/settings/sections/features.ts:605
+#: src/settings/sections/features.ts:658
 msgid "Show post/page status ribbon"
 msgstr ""
 
-#: src/settings/sections/features.ts:612
+#: src/settings/sections/features.ts:665
 msgid "Marks unpublished posts and pages with a corner ribbon on their tiles."
 msgstr ""
 
-#: src/settings/sections/features.ts:619
+#: src/settings/sections/features.ts:672
 msgid "Enable developer mode"
 msgstr ""
 
-#: src/settings/sections/features.ts:624
+#: src/settings/sections/features.ts:677
 msgid "Unlocks developer surfaces meant for plugin authors."
 msgstr ""
 
-#: src/settings/sections/features.ts:631
+#: src/settings/sections/features.ts:684
 msgid "Folder sharing"
 msgstr ""
 
-#: src/settings/sections/features.ts:636
+#: src/settings/sections/features.ts:689
 msgid "Share desktop folders with other users or roles, with read or write access."
 msgstr ""
 
-#: src/settings/sections/features.ts:644
+#: src/settings/sections/features.ts:697
 msgid "Removes every share and its access list. Cannot be undone."
 msgstr ""
 
-#: src/settings/sections/features.ts:654
+#: src/settings/sections/features.ts:707
 msgid "Deleting…"
 msgstr ""
 
-#: src/settings/sections/features.ts:655
+#: src/settings/sections/features.ts:708
 msgid "Delete folder sharing data"
 msgstr ""
 
-#: src/settings/sections/features.ts:663
+#: src/settings/sections/features.ts:716
 msgid "WordPress Heartbeat rate"
 msgstr ""
 
-#: src/settings/sections/features.ts:670
+#: src/settings/sections/features.ts:723
 msgid "Fast (15s, not recommended)"
 msgstr ""
 
-#: src/settings/sections/features.ts:671
+#: src/settings/sections/features.ts:724
 msgid "Medium (30s)"
 msgstr ""
 
-#: src/settings/sections/features.ts:672
+#: src/settings/sections/features.ts:725
 msgid "Slow (45s)"
 msgstr ""
 
-#: src/settings/sections/features.ts:673
+#: src/settings/sections/features.ts:726
 msgid "Very slow (60s, default)"
 msgstr ""
 
-#: src/settings/sections/features.ts:677
+#: src/settings/sections/features.ts:730
 msgid "How often the Heartbeat API runs. Faster means quicker live updates and more server traffic. The 30s and 45s rates apply exactly from the next page load."
 msgstr ""
 
-#: src/settings/sections/features.ts:684
+#: src/settings/sections/features.ts:737
 msgid "Brings back the one-time announcements you have dismissed, such as the welcome dialog."
 msgstr ""
 
-#: src/settings/sections/features.ts:694
+#: src/settings/sections/features.ts:747
 msgid "Resetting…"
 msgstr ""
 
-#: src/settings/sections/features.ts:695
+#: src/settings/sections/features.ts:748
 msgid "Reset what’s-new dialogs"
 msgstr ""
 
-#: src/settings/sections/features.ts:700
+#: src/settings/sections/features.ts:753
 msgid "Beta features"
 msgstr ""
 
-#: src/settings/sections/features.ts:701
+#: src/settings/sections/features.ts:754
 msgid "Experimental redesigns of core admin screens, off by default. Each toggle affects only your account and takes effect immediately."
 msgstr ""
 
-#: src/settings/sections/features.ts:707
+#: src/settings/sections/features.ts:760
+msgid "Use Station Home as your Dashboard"
+msgstr ""
+
+#: src/settings/sections/features.ts:765
+msgid "Opens Station Home instead of the classic WordPress Dashboard: recent work, site pulse, and quick actions in one native window. Leave off to keep the classic Dashboard, including any customizations plugins have made to it."
+msgstr ""
+
+#: src/settings/sections/features.ts:772
 msgid "Use the native Posts window"
 msgstr ""
 
-#: src/settings/sections/features.ts:712
+#: src/settings/sections/features.ts:777
 msgid "Replaces the classic Posts list with a native table window: sticky header, paginated rows, bulk actions, and a row preview."
 msgstr ""
 
-#: src/settings/sections/features.ts:719
+#: src/settings/sections/features.ts:784
 msgid "Use the native Pages window"
 msgstr ""
 
-#: src/settings/sections/features.ts:724
+#: src/settings/sections/features.ts:789
 msgid "The Posts table experience for Pages, with a Parent column, hierarchical sort, and edit-lock indicators."
 msgstr ""
 
-#: src/settings/sections/features.ts:731
+#: src/settings/sections/features.ts:796
 msgid "Use the native Users window"
 msgstr ""
 
-#: src/settings/sections/features.ts:736
+#: src/settings/sections/features.ts:801
 msgid "A native Users list with bulk role changes, online indicators, and one-click password resets."
 msgstr ""
 
-#: src/settings/sections/features.ts:743
+#: src/settings/sections/features.ts:808
 msgid "Use the native Plugins window"
 msgstr ""
 
-#: src/settings/sections/features.ts:748
+#: src/settings/sections/features.ts:813
 msgid "A native Plugins window with an Installed list, bulk actions, and a Browse gallery from the WordPress.org directory."
 msgstr ""
 
-#: src/settings/sections/features.ts:755
+#: src/settings/sections/features.ts:820
 msgid "Use the native Comments window"
 msgstr ""
 
-#: src/settings/sections/features.ts:760
+#: src/settings/sections/features.ts:825
 msgid "A native two-pane Comments window: a list of conversations beside the full reply thread."
 msgstr ""
 
-#: src/settings/sections/help.ts:240
+#: src/settings/sections/help.ts:270
 msgid "Missing-import warner — live demo"
 msgstr ""
 
-#: src/settings/sections/help.ts:241
-msgid "The three <os-*> tags below are intentionally bogus. Open the browser console: within ~2 seconds you should see three console.error entries from the framework, each pointing the developer at the fix (typo with \"did you mean\", and unknown tags). The tags are kept off-screen so they do not affect layout. Remove this section in your fork if you want a quieter Components tab."
+#: src/settings/sections/help.ts:274
+msgid "Both <os-*> tags in the next piece of code are intentionally bogus, one per answer the warner has. Open the browser console: within ~2 seconds you should see two console.error entries from the framework, each pointing the developer at the fix — a name nothing in the registry comes close to, and a typo the warner can suggest a fix for (\"did you mean\"). Live copies of the same two tags are rendered off-screen, so the demo fires without affecting layout. Remove this section in your fork if you want a quieter Components tab."
 msgstr ""
 
-#: src/settings/sections/help.ts:277
+#: src/settings/sections/help.ts:315
 msgid "Search components"
 msgstr ""
 
-#: src/settings/sections/help.ts:278
+#: src/settings/sections/help.ts:316
 msgid "Name, tag, prop, event…"
 msgstr ""
 
-#: src/settings/sections/help.ts:296
+#: src/settings/sections/help.ts:334
 msgid "No components match."
 msgstr ""
 
-#: src/settings/sections/help.ts:406
+#: src/settings/sections/help.ts:444
 msgid "Example"
 msgstr ""
 
-#: src/settings/sections/help.ts:418
+#: src/settings/sections/help.ts:456
 msgid "This component has no help descriptor yet. Add `static help` to its class for a fuller reference."
 msgstr ""
 
-#: src/settings/sections/help.ts:437
+#: src/settings/sections/help.ts:475
 msgid "Props"
 msgstr ""
 
-#: src/settings/sections/help.ts:466
+#: src/settings/sections/help.ts:504
 msgid "Undocumented — declared via static props."
 msgstr ""
 
-#: src/settings/sections/help.ts:486
+#: src/settings/sections/help.ts:524
 msgid "Slots"
 msgstr ""
 
-#: src/settings/sections/help.ts:509
-msgid "Events"
-msgstr ""
-
-#: src/settings/sections/help.ts:533
+#: src/settings/sections/help.ts:571
 msgid "Shadow parts"
 msgstr ""
 
-#: src/settings/sections/help.ts:554
+#: src/settings/sections/help.ts:592
 msgid "CSS custom properties"
 msgstr ""
 
-#: src/settings/sections/help.ts:562
+#: src/settings/sections/help.ts:600
 msgid "default"
 msgstr ""
 
-#: src/settings/sections/help.ts:576
+#: src/settings/sections/help.ts:614
 msgid "No components registered."
 msgstr ""
 
-#: src/settings/sections/help.ts:612
+#: src/settings/sections/help.ts:650
 msgid "Experimental"
 msgstr ""
 
-#: src/settings/sections/help.ts:614
+#: src/settings/sections/help.ts:652
 msgid "Planned"
 msgstr ""
 
-#: src/settings/sections/help.ts:617
+#: src/settings/sections/help.ts:655
 msgid "Stable"
 msgstr ""
 
@@ -7094,17 +7295,17 @@ msgid "Classic Dashboard"
 msgstr ""
 
 #. %s: current user's name.
-#: src/station-home/model.ts:28
+#: src/station-home/model.ts:31
 msgid "Good morning, %s"
 msgstr ""
 
 #. %s: current user's name.
-#: src/station-home/model.ts:35
+#: src/station-home/model.ts:38
 msgid "Good afternoon, %s"
 msgstr ""
 
 #. %s: current user's name.
-#: src/station-home/model.ts:41
+#: src/station-home/model.ts:44
 msgid "Good evening, %s"
 msgstr ""
 
@@ -7269,43 +7470,48 @@ msgid "Curved connectors between related windows, ending in circular dots — th
 msgstr ""
 
 #. %d is the desktop number (e.g., "Desktop 2")
-#: src/window-manager/desktops.ts:84
+#: src/window-manager/desktops.ts:85
 msgid "Desktop %d"
 msgstr ""
 
-#: src/window-manager/overview.ts:529
+#: src/window-manager/overview.ts:536
 msgid "Add new desktop"
 msgstr ""
 
 #. %s is the desktop label
-#: src/window-manager/overview.ts:573
+#: src/window-manager/overview.ts:580
 msgid "Switch to %s"
 msgstr ""
 
 #. %s is the desktop label
-#: src/window-manager/overview.ts:612
+#: src/window-manager/overview.ts:624
+msgid "Rename %s"
+msgstr ""
+
+#. %s is the desktop label
+#: src/window-manager/overview.ts:640
 msgid "Close %s"
 msgstr ""
 
 #. %d is the number of external sub-tabs open on this window.
-#: src/window-manager/overview.ts:706
+#: src/window-manager/overview.ts:807
 msgid "· %d open tab"
 msgid_plural "· %d open tabs"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/window/tabs.ts:230
-#: src/window/tabs.ts:231
+#: src/window/tabs.ts:272
+#: src/window/tabs.ts:273
 msgid "Open in a new browser tab"
 msgstr ""
 
-#: src/window/tabs.ts:238
-#: src/window/tabs.ts:239
+#: src/window/tabs.ts:280
+#: src/window/tabs.ts:281
 msgid "Close tab"
 msgstr ""
 
 #. %s is the external site's title or URL.
-#: src/window/tabs.ts:442
+#: src/window/tabs.ts:484
 msgid "Opened \"%s\" in a new browser tab — this site doesn't allow embedding."
 msgstr ""
 
@@ -8091,6 +8297,48 @@ msgstr ""
 msgid "The AI assistant is turned off. Enable it in OpenStation Preferences → Features."
 msgstr ""
 
+#: includes/code-blue/log-reader.php:121
+msgid "WordPress debug log"
+msgstr ""
+
+#: includes/code-blue/log-reader.php:135
+msgid "PHP error log"
+msgstr ""
+
+#: includes/code-blue/log-reader.php:359
+#: includes/code-blue/log-reader.php:406
+msgid "Log"
+msgstr ""
+
+#: includes/code-blue/log-reader.php:401
+msgid "Database error"
+msgstr ""
+
+#: includes/code-blue/rest.php:107
+msgid "Environment"
+msgstr ""
+
+#: includes/code-blue/rest.php:161
+msgid "Unknown log source."
+msgstr ""
+
+#: includes/code-blue/rest.php:198
+msgid "The log file exists but PHP cannot read it."
+msgstr ""
+
+#: includes/code-blue/rest.php:236
+msgid "The log file is not writable, so it cannot be cleared."
+msgstr ""
+
+#: includes/code-blue/rest.php:246
+msgid "Clearing the log file failed."
+msgstr ""
+
+#: includes/code-blue/window.php:83
+#: includes/code-blue/window.php:114
+msgid "Code Blue"
+msgstr ""
+
 #: includes/commands.php:63
 msgid "Command script registration requires a non-empty script handle."
 msgstr ""
@@ -8275,7 +8523,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: 1: kind ("Command"/"Settings-tab"/"Title-bar button"), 2: handle.
-#: includes/core/payload.php:1956
+#: includes/core/payload.php:2117
 #, php-format
 msgid "%1$s script handle \"%2$s\" is not registered with WordPress (no `wp_register_script` call found). The script will not load."
 msgstr ""
@@ -9139,7 +9387,7 @@ msgstr ""
 
 #: includes/games/window.php:92
 #: includes/games/window.php:125
-#: includes/games/window.php:158
+#: includes/games/window.php:165
 msgid "Games"
 msgstr ""
 
@@ -9372,8 +9620,8 @@ msgid "Additional contributor users beyond the primary author. Sourced from Co-A
 msgstr ""
 
 #: includes/my-wordpress/term-stats.php:67
-#: includes/posts-window/window.php:468
-#: includes/posts-window/window.php:612
+#: includes/posts-window/window.php:471
+#: includes/posts-window/window.php:615
 msgid "Unknown taxonomy."
 msgstr ""
 
@@ -9644,11 +9892,11 @@ msgstr ""
 msgid "No posts found."
 msgstr ""
 
-#: includes/posts-window/window.php:318
+#: includes/posts-window/window.php:321
 msgid "Number of non-trashed posts (any status) in this term."
 msgstr ""
 
-#: includes/posts-window/window.php:336
+#: includes/posts-window/window.php:339
 msgid "Whether this term is the taxonomy's default (fallback) term."
 msgstr ""
 
@@ -9765,21 +10013,21 @@ msgstr ""
 msgid "Desktop icon `url` must be a valid http(s) URL."
 msgstr ""
 
-#: includes/registries/native-windows.php:208
+#: includes/registries/native-windows.php:227
 msgid "Native window id is required and must be a valid slug."
 msgstr ""
 
 #. translators: %s: capability slug.
-#: includes/registries/native-windows.php:249
+#: includes/registries/native-windows.php:269
 #, php-format
 msgid "Current user lacks the %s capability required to register this native window."
 msgstr ""
 
-#: includes/registries/native-windows.php:264
+#: includes/registries/native-windows.php:284
 msgid "Native window registration requires a non-empty `title`."
 msgstr ""
 
-#: includes/registries/native-windows.php:271
+#: includes/registries/native-windows.php:291
 msgid "Native window registration requires a callable `template` that echoes the template body."
 msgstr ""
 
@@ -9850,7 +10098,7 @@ msgid "Window tab registration requires a callable `template` that echoes the pa
 msgstr ""
 
 #. translators: 1: parent menu label, 2: submenu label
-#: includes/render/assets.php:1055
+#: includes/render/assets.php:1108
 #, php-format
 msgid "%1$s > %2$s"
 msgstr ""

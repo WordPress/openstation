@@ -107,6 +107,22 @@ function openstation_agents_personal_data_exporter( $email_address, $page = 1 ) 
 		);
 	}
 
+	$vibes = openstation_agent_get_vibes( (int) $user->ID );
+	if ( '' !== $vibes ) {
+		$rows[] = array(
+			'name'  => __( 'Voice', 'desktop-mode' ),
+			'value' => $vibes,
+		);
+	}
+
+	$face = (string) get_user_meta( (int) $user->ID, OPENSTATION_AGENT_FACE_META, true );
+	if ( '' !== $face ) {
+		$rows[] = array(
+			'name'  => __( 'Face (JSON)', 'desktop-mode' ),
+			'value' => $face,
+		);
+	}
+
 	return array(
 		'data' => array(
 			array(

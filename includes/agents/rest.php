@@ -74,6 +74,33 @@ function openstation_agents_register_rest_routes() {
 						'default' => array(),
 						'items'   => array( 'type' => 'string' ),
 					),
+					// Like `face`, deliberately schema-light. Each row
+					// is validated against the live trigger-kind
+					// catalogue by openstation_agent_sanitize_triggers(),
+					// which drops rows it does not recognise rather
+					// than rejecting the whole create.
+					'triggers'     => array(
+						'type'    => 'array',
+						'default' => array(),
+					),
+					'vibes'        => array(
+						'type'    => 'string',
+						'default' => '',
+					),
+					// `face` carries no schema beyond "object" and no
+					// sanitize_callback on purpose. The real validator is
+					// openstation_agent_sanitize_face_json(), which clamps
+					// every number; a partial JSON Schema here would only
+					// suggest the route had checked it.
+					'face'         => array(
+						'type'    => 'object',
+						'default' => null,
+					),
+					'faceSeed'     => array(
+						'type'              => 'integer',
+						'default'           => 0,
+						'sanitize_callback' => 'absint',
+					),
 				),
 			),
 		)
@@ -86,6 +113,24 @@ function openstation_agents_register_rest_routes() {
 			'methods'             => WP_REST_Server::READABLE,
 			'permission_callback' => 'openstation_agents_rest_read_permission',
 			'callback'            => 'openstation_agents_rest_abilities_catalogue',
+		)
+	);
+
+	register_rest_route(
+		$namespace,
+		'/agents/draft',
+		array(
+			'methods'             => WP_REST_Server::CREATABLE,
+			'permission_callback' => 'openstation_agents_rest_write_permission',
+			'callback'            => 'openstation_agents_rest_draft',
+			'args'                => array(
+				'brief' => array(
+					'type'              => 'string',
+					'required'          => true,
+					'sanitize_callback' => 'sanitize_textarea_field',
+					'validate_callback' => 'openstation_agents_rest_validate_brief',
+				),
+			),
 		)
 	);
 
@@ -291,6 +336,11 @@ function openstation_agents_rest_get( WP_REST_Request $request ) {
  * @return WP_REST_Response|WP_Error
  */
 function openstation_agents_rest_create( WP_REST_Request $request ) {
+	// Every field the route declares is forwarded. `vibes`, `face` and
+	// `faceSeed` are the character half of an agent, and a create that
+	// took the name and dropped the portrait is how an agent ends up
+	// wearing the fallback glyph seconds after someone picked a face
+	// for it. `openstation_agent_create()` sanitizes each one.
 	$user = openstation_agent_create(
 		array(
 			'name'         => (string) $request['name'],
@@ -298,6 +348,10 @@ function openstation_agents_rest_create( WP_REST_Request $request ) {
 			'description'  => (string) $request['description'],
 			'instructions' => (string) $request['instructions'],
 			'abilities'    => (array) $request['abilities'],
+			'triggers'     => (array) $request['triggers'],
+			'vibes'        => (string) $request['vibes'],
+			'face'         => $request['face'],
+			'faceSeed'     => (int) $request['faceSeed'],
 		)
 	);
 	if ( is_wp_error( $user ) ) {
@@ -338,7 +392,19 @@ function openstation_agents_rest_patch( WP_REST_Request $request ) {
 	}
 
 	$fields  = array();
-	$allowed = array( 'name', 'role', 'description', 'instructions', 'abilities', 'triggers', 'model', 'rateLimit' );
+	$allowed = array(
+		'name',
+		'role',
+		'description',
+		'instructions',
+		'abilities',
+		'triggers',
+		'model',
+		'rateLimit',
+		'vibes',
+		'face',
+		'faceSeed',
+	);
 	foreach ( $allowed as $field ) {
 		if ( array_key_exists( $field, $body ) ) {
 			$fields[ $field ] = $body[ $field ];
@@ -445,6 +511,35 @@ function openstation_agents_rest_abilities_catalogue() {
 }
 
 /**
+ * `brief` must carry words and fit the drafting cap.
+ *
+ * @param mixed $value Raw param.
+ * @return bool
+ */
+function openstation_agents_rest_validate_brief( $value ) {
+	return is_string( $value )
+		&& '' !== trim( $value )
+		&& mb_strlen( $value ) <= OPENSTATION_AGENT_DRAFT_BRIEF_MAX;
+}
+
+/**
+ * POST /agents/draft — draft a definition from a brief.
+ *
+ * Nothing is created: the wizard shows the draft for review and the
+ * create route is still the only way an agent comes to exist.
+ *
+ * @param WP_REST_Request $request Request.
+ * @return WP_REST_Response|WP_Error
+ */
+function openstation_agents_rest_draft( WP_REST_Request $request ) {
+	$draft = openstation_agent_draft( (string) $request['brief'], get_current_user_id() );
+	if ( is_wp_error( $draft ) ) {
+		return $draft;
+	}
+	return rest_ensure_response( $draft );
+}
+
+/**
  * GET /agents/trigger-kinds — the trigger-kinds catalogue.
  *
  * @return WP_REST_Response
@@ -502,7 +597,7 @@ function openstation_agents_rest_shape_user( $user ) {
 
 	$avatar = get_avatar_url( $user->ID, array( 'size' => 96 ) );
 	if ( ! is_string( $avatar ) || '' === $avatar ) {
-		$avatar = openstation_agent_avatar_url();
+		$avatar = openstation_agent_avatar_url( (int) $user->ID );
 	}
 
 	return array(
@@ -516,6 +611,9 @@ function openstation_agents_rest_shape_user( $user ) {
 		'triggers'     => openstation_agent_get_triggers( (int) $user->ID ),
 		'model'        => openstation_agent_get_model( (int) $user->ID ),
 		'rateLimit'    => openstation_agent_get_rate_limit( (int) $user->ID ),
+		'vibes'        => openstation_agent_get_vibes( (int) $user->ID ),
+		'face'         => openstation_agent_get_face( (int) $user->ID ),
+		'faceSeed'     => openstation_agent_get_face_seed( (int) $user->ID ),
 		'avatarUrl'    => $avatar,
 	);
 }

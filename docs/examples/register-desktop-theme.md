@@ -204,7 +204,7 @@ And themes can be extended by other plugins through the icon filter:
 
 ```js
 wp.hooks.addFilter(
-    'os.desktop-theme.icon',
+    'os.os-theme.icon',
     'my-plugin',
     ( icon, { slot, themeId } ) =>
         slot === 'APP:my-plugin' ? myBrandedIconUrl : icon,

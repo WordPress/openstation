@@ -229,7 +229,7 @@ to a specific layer reaches for these instead of DOM scraping. All
 
 | API | Returns | Use it for |
 |---|---|---|
-| `wp.os.openOsSettings( opts? )` | `void` | Portable opener for the shell's OpenStation Preferences window — same window the dock tile opens. Avoids the Classic-layout gotcha where the OpenStation Preferences tile lives on a different rail than your custom renderer. Pass `{ tabId }` (e.g. `'ai'`, `'features'`) to deep-link to a specific tab. |
+| `wp.os.openOsSettings( opts? )` | `void` | Portable opener for the shell's OpenStation Preferences window — same window the dock tile opens. Avoids the Classic-layout gotcha where the OpenStation Preferences tile lives on a different rail than your custom renderer. Pass `{ tabId }` (e.g. `'features'`, `'themes'`) to deep-link to a specific tab. |
 | `wp.os.listSystemTiles()` | `Array<{ id, title, icon, navKind, placeable, locked }>` | Enumerate every JS-registered system tile (Mio toggle, the Trash, plugin native-window launchers). Compose your own launcher palette without scraping the DOM. |
 | `wp.os.getSystemTile( id )` | `SystemDockItem \| null` | Fetch a specific tile to invoke its `onOpen()` callback. |
 | `wp.os.getMenuItems()` | `DockItem[]` | The complete admin-menu list, regardless of how the active layout would partition it. Renderer-agnostic alternative to `mount-deps.fullMenu`. |
@@ -239,13 +239,13 @@ to a specific layer reaches for these instead of DOM scraping. All
 
 ```js
 // Open a known system tile from anywhere — no DOM scraping.
-wp.os.getSystemTile( 'os-settings' )?.onOpen();
+wp.os.getSystemTile( 'os-system' )?.onOpen();
 
 // Or the dedicated entry point for OpenStation Preferences:
 wp.os.openOsSettings();
 
 // Deep-link straight to a specific settings tab:
-wp.os.openOsSettings( { tabId: 'ai' } );
+wp.os.openOsSettings( { tabId: 'features' } );
 
 // Iterate all system tiles for a custom launcher.
 for ( const tile of wp.os.listSystemTiles() ) {

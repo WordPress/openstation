@@ -38,7 +38,7 @@ const pending = new Map<string, Promise<void>>();
  * @param url Candidate URL.
  * @return The existing tag, or `null`.
  */
-function findScriptByPath( url: string ): HTMLScriptElement | null {
+export function findScriptByPath( url: string ): HTMLScriptElement | null {
 	let origin: string;
 	let path: string;
 	try {
@@ -250,6 +250,22 @@ function injectInline( code: string ): void {
 	tag.textContent = code;
 	tag.dataset.osVendorInline = '1';
 	document.head.appendChild( tag );
+}
+
+/**
+ * Inject one inline `<script>` outside a `loadVendorScript()` call.
+ *
+ * For harvested handle data that has to land even though the bundle
+ * it belongs to is NOT being fetched: two native windows can share
+ * one script URL (Posts / Pages / Users / Profile all ride
+ * `os-posts-window`), and the URL-keyed dedupe means only the first
+ * window's load carries its extras through `loadVendorScript`. The
+ * sibling's per-entry data — most critically its synthesized
+ * `openStationWindowConfig[ id ]` assignment — is injected through
+ * this on its own first open instead.
+ */
+export function injectInlineScript( code: string ): void {
+	injectInline( code );
 }
 
 /**

@@ -265,7 +265,7 @@ Right-click is bound to the **handle**, the only part of the layer that takes po
 
 ### What it can change, and what it can't
 
-**Look only — the `appearance` group minus `radius`, plus the five shape keys.**
+**Look only — the `appearance` group minus `radius` and `glowBlur`, plus the seven physics keys a stored look may carry: the five shape keys and `idleWobble` / `idleWobbleSpeed`.**
 
 | Section | Controls |
 |---|---|
@@ -325,7 +325,7 @@ Mio never treats the panel as an obstacle. The collision set comes from `getWall
 
 No spring constants. Those belong to the site, they interact in ways a flat list of sliders hides (stiffness against damping against pressure), and a user who makes Mio unstable from a slider has no way to know which slider did it. Not `radius` either: how big the companion is on the desk is a layout decision, not a look.
 
-`mio-style-panel.test.ts` enforces the boundary in both directions: it walks every control, fires it, and asserts that every key written falls inside one of the two whitelists (never `radius`) — *and* that between them the controls reach every key those whitelists contain. A control added later cannot quietly widen the scope, and a config key added later cannot quietly stay unreachable.
+`mio-style-panel.test.ts` enforces the boundary in both directions: it walks every control, fires it, and asserts that every key written falls inside one of the two whitelists (never `radius`) — *and* that between them the controls reach every key those whitelists contain except the two deliberate omissions, `radius` (a size, not a look) and `glowBlur` (unblurred, a glow ramp shows its contour rings). A control added later cannot quietly widen the scope, and a config key added later cannot quietly stay unreachable.
 
 ### Where it is saved
 
@@ -351,6 +351,18 @@ Two sanitizers guard the trip, and they are deliberately not the same thing:
 |---|---|---|
 | `sanitizeMioLook()` / `openstation_sanitize_mio_look()` | `src/mio/look.ts`, `includes/mio.php` | **Shape check.** Which keys may be stored, and that their values are storable scalars. |
 | `sanitizeMioConfig()` | `src/mio/config.ts` | **Clamp.** What a legal hue, silhouette or spring constant is. |
+| `openstation_mio_narrow_look()` | `includes/mio.php` | **Both, for a look that a PHP renderer will draw.** Shape-check, clamp against the defaults, then keep only the keys the look carried. |
+
+`openstation_mio_narrow_look()` exists because a *stored* look now
+reaches something that draws it server-side — [a portrait](#portraits)
+samples trigonometry and builds a path, where the live companion could
+afford to re-clamp in the browser. It keeps only the overridden keys, so
+a change to the site's shipped Mio still shows through wherever nobody
+had an opinion. Two callers share it, on opposite sides of the Agents
+feature flag: the agent store when a face is saved, and the WP Explorer
+window config when the flag is off and the section is previewing the
+cast it would seed. One owner means the preview cannot draw a face the
+seeder would then store differently.
 
 Two validators with overlapping opinions about ranges is how ranges drift apart, so the storage layer has none. It only refuses keys — and the key it refuses hardest is anything in `physics` outside `LOOK_PHYSICS_KEYS`, because a stored preference that could reach the spring constants would be a way for a corrupt row to make Mio unstable.
 
@@ -457,7 +469,7 @@ This is a general facility, not Mio-private one: any shell-side feature that nee
 
 ## Rendering the chroma ring
 
-Four passes over one resampled outline, back to front:
+Five passes over one resampled outline, back to front:
 
 1. **halo** — very wide, very faint, additive, optionally blurred. Light spilling onto the wallpaper. A [dilated silhouette ramped to nothing](#a-glow-is-a-dilated-silhouette-not-a-fat-outline), not a wide ring.
 2. **bloom** — medium width, additive, optionally blurred. The bright fringe hugging the tube; the same dilation and the same ramp, shorter and brighter.
@@ -618,11 +630,11 @@ Three terms, all keyed on `d = dot( outward normal, rake )`, scaled by `appearan
 
 | Term | What it does |
 |---|---|
-| Angle hue shift | `d` displaces the hue by up to ±62°, so opposite sides of the ring sit at opposite ends of the shift and the whole band re-sorts itself as the rake turns. |
+| Angle hue shift | `d` displaces the hue by up to ±82°, so opposite sides of the ring sit at opposite ends of the shift and the whole band re-sorts itself as the rake turns. |
 | Diffraction grating | Two incommensurable harmonics (3 and 5 cycles) of fine hue ripple around the perimeter. This is the detail that reads as "holographic" rather than "gradient" — a single sine reads as a regular scallop once it has gone round twice. |
 | Specular glint | A narrow, desaturating hotspot that slides along the rim as the rake turns. `holoSpecular()` exposes it separately so the crisp core band can be pushed hardest to white exactly where the glint sits. |
 
-The rake's own **magnitude** is the effect strength: `0.45` at rest, up to `1` at 900 px/s. The velocity behind it is a heavily smoothed centroid delta — a single frame's delta is far too noisy to steer a colour effect with, and every contact bounce would strobe the ring — and it is reset on every teleport (escape hop, `setPosition`, resize clamp, rebuild) so a jump never lands in it as a several-thousand-px/s "throw".
+The rake's own **magnitude** is the effect strength: `0.62` at rest, up to `1` at 900 px/s. The velocity behind it is a heavily smoothed centroid delta — a single frame's delta is far too noisy to steer a colour effect with, and every contact bounce would strobe the ring — and it is reset on every teleport (escape hop, `setPosition`, resize clamp, rebuild) so a jump never lands in it as a several-thousand-px/s "throw".
 
 The ambient half of the rake is gated on `hueDrift`, so the reduced-motion path that already zeroes the hue drift stills the shimmer too, without a second preference to read. Motion the user causes still colours the ring, in line with the rest of Mio's reduced-motion policy.
 
@@ -634,15 +646,100 @@ The inside of Mio is not flat black — it catches the hologram too, the way a h
 
 They are **additive**, so the sheen can only ever lift the interior toward colour, never darken or wash it out. Being adjacent rather than nested, the brightest lift anywhere inside the body is simply the largest alpha, and that is the whole budget. The body still has to read as black; the sheen is a film over it, not a paint job. `mio-render.test.ts` pins the ceiling.
 
-**The layer is blurred**, and that is what makes the brightness affordable. A flat shell against a flat shell is a hard edge, and left alone it reads as a set of concentric contour lines drawn inside Mio — which caps how bright the sheen can get before the banding gives it away. The blur dissolves the radial steps and the angular facets both, so the shells can be few (five), coarse (every third sample), and actually visible. Its strength scales off `radius`: a kiosk-sized Mio needs a proportionally wider blur to hide the same number of shells. The outermost shell starts a little way in from the outline so the blur spends itself on the interior rather than bleeding colour out over the ring.
+**The layer is blurred**, and that is what makes the brightness affordable. A flat shell against a flat shell is a hard edge, and left alone it reads as a set of concentric contour lines drawn inside Mio — which caps how bright the sheen can get before the banding gives it away. The blur dissolves the radial steps and the angular facets both, so the shells can be few (five), coarse (eight cells around the ring — each spanning 18 of the 144 samples, filled at a stride of six), and actually visible. Its strength scales off `radius`: a kiosk-sized Mio needs a proportionally wider blur to hide the same number of shells. The outermost shell starts a little way in from the outline so the blur spends itself on the interior rather than bleeding colour out over the ring.
 
 The sheen's rake is the ring's turned a quarter turn, and its hue ramp runs at a different rate — an inside that simply repeated the edge would read as a blurred copy of it rather than as a second surface catching the same light. It scales with `appearance.iridescence`, so `0` restores a flat black body and drops the blur pass entirely.
 
 ### The face
 
-Eyes are [Starlight](#mio-wears-the-brand) pills that inherit a fraction of the body's squash, offset toward the pointer with a saturating response (clamped inside the face), and blink on a randomised 2.6–7 s schedule.
+Eyes are [Starlight](#mio-wears-the-brand) pills that inherit a fraction of the body's squash, offset toward the pointer with a saturating response (clamped inside the face), and blink on a randomised 2.6–7.1 s schedule.
 
 ---
+
+## Mio is a species
+
+Mio is the desk companion, singular. It is also a **look**, and a look
+can belong to something other than the desk. Agents wear them: every
+agent on the site carries its own `MioLook` in its own user meta, and
+that is its face everywhere WordPress shows an avatar.
+
+Nothing new was drawn for that. Nine silhouettes crossed with a free
+hue is already more distinct faces than any site will have agents, and
+`randomMioLook()` was already a taste filter rather than a dice roll,
+which is exactly what a face picker needs.
+
+### Portraits
+
+A **portrait** is a Mio at rest, as an SVG string: the rest shape
+sampled into a path, stroked with the chroma ramp as a single linear
+gradient, plus two eye pills. No simulation, no PixiJS, no DOM.
+
+It exists twice on purpose.
+
+| | |
+|---|---|
+| `src/mio/portrait.ts` | The browser's copy. Draws the picker's candidates instantly, and rolls a look for an agent that has a seed but no face yet. |
+| `includes/mio-portrait.php` | The server's copy. `get_avatar()` needs a URL, and it is called on the front end for comment authors where no shell bundle is loaded at all. |
+
+**They are held together by `tests/fixtures/mio-portraits.json`**, and
+neither generates the other. The TypeScript side is asserted against
+the fixture exactly; the PHP side against its structure exactly and its
+numbers to within a hundredth of a unit. That tolerance is deliberate:
+PHP and V8 do not agree to the last bit on a chain of `pow`, `cos` and
+division, so byte equality across two languages' floating point is not a
+contract anyone can hold. A real drift moves a coordinate by units.
+
+To change either renderer: change both, regenerate with
+`UPDATE_MIO_PORTRAITS=1 npx vitest run mio-portrait`, and read both
+diffs.
+
+Two rules the portrait renderers keep:
+
+- **No text, ever.** The output is numbers and a fixed vocabulary of
+  elements. These files are written into uploads and served, so a
+  portrait that could carry a caller's string would be stored XSS with
+  a `.svg` extension.
+- **Ids are scoped per portrait.** The markup defines the outline once
+  and references it, so two portraits inlined into one document with
+  the same ids both render the first one's shape — silently. Pass an
+  `idSuffix` whenever more than one goes into the page as markup. A
+  portrait used as an `img` source or written to its own file is its
+  own document and needs nothing.
+
+### Where the geometry lives
+
+`src/mio/shape.ts` holds the rest shapes — `shapeProfile()`,
+`presetRimPoints()` and the per-preset deviations — split out of
+`soft-body.ts` so a portrait can use them without dragging the
+simulation and `environment.ts` in behind it. `soft-body.ts` re-exports
+everything public, so existing imports are unchanged.
+
+### Agent identity is the sanctioned exception to the mesh budget
+
+The kit-wide rule is that a control wears the flat accent when it is on,
+and the mesh is spent on hero moments only. Agent faces are the
+exception, and only agent faces: a cast has to be distinguishable at a
+glance in a grid, which is the one thing a flat accent cannot do. The
+rest of the Agents surface obeys the rule, and its create flow still
+spends exactly one holo moment, on the drafting CTA.
+
+### The shipped cast
+
+`includes/agents/default-definitions.php` writes out five looks rather
+than deriving them from their seeds. The five are a designed cast, not a
+rolled one — five silhouettes, five hues spread around the wheel — and
+writing them out means a future retuning of the randomizer's ranges
+does not silently turn them into five different characters. The seed is
+kept alongside as provenance.
+
+The file is **pure data with no hooks**, which is what lets it be read
+on a site where Agents has never been switched on: `defaults.php`
+registers a seeder at file scope and needs the whole module behind it,
+and neither exists while the flag is off. That is the whole reason for
+the split. `openstation_agents_preview_cast()` reads it to put the crew
+on screen in the off-state — greyed, inert, above the button that turns
+the feature on — because seeing who you would get is a better argument
+than a paragraph saying there are five of them.
 
 ## PHP API
 
@@ -691,7 +788,7 @@ add_filter( 'openstation_mio_config', function ( $config ) {
 | Key | Default | Range | Meaning |
 |---|---|---|---|
 | `points` | `12` | 12–128 | Rim resolution. A *simulation* resolution — the renderer resamples it into a smooth curve, so raising it buys a busier silhouette and per-frame cost, not a rounder one. |
-| `shapePreset` | `blob` | `circle` \| `blob` \| `ghost` \| `potato` \| `custom` | Which [silhouette](#the-rest-shape) Mio settles into. Unknown names fall back to the default rather than throwing. |
+| `shapePreset` | `blob` | `circle` \| `blob` \| `ghost` \| `potato` \| `star` \| `flower` \| `heart` \| `diamond` \| `drop` \| `cloud` \| `custom` | Which [silhouette](#the-rest-shape) Mio settles into. Unknown names fall back to the default rather than throwing. |
 | `shapeLobes` | `3` | 0–8 | Corners, for the `custom` preset only. `3` is a rounded triangle, `4` a rounded square, `0`/`1` a circle. |
 | `shapeAmount` | `1` | 0–1.4 | How far the silhouette departs from a circle. `0` is a circle whatever the preset; `1` is the preset as authored. For `custom`, above `1` the sides bow inward into a clover. |
 | `shapeAngle` | `0` | −360–360 | Rotation in degrees clockwise from upright. Presets are authored upright, so `0` leaves them as designed. |
@@ -732,7 +829,7 @@ Two per-user OS settings, both in the `desktop_mode_os_settings` user meta and s
 - **`mioEnabled`** (default `false`) — whether Mio is on.
 - **`mioStyle`** — the user's own look, `{ appearance, physics }`, both partial and both empty until they open ["Make it yours"](#make-it-yours). Sanitized by `openstation_sanitize_mio_look()`.
 
-One thing is browser-local, in `localStorage`: the resting position (`os-mio-position`). Where Mio sits is a fact about one screen; everything else about it is a fact about the person.
+One thing is browser-local, in `localStorage`: the resting position (`desktop-mode-mio-position`). Where Mio sits is a fact about one screen; everything else about it is a fact about the person.
 
 ---
 
@@ -745,7 +842,7 @@ One thing is browser-local, in `localStorage`: the resting position (`os-mio-pos
 | `isEnabled` | `() => boolean` | |
 | `enable` | `() => Promise<void>` | Persists the preference; resolves once on screen. |
 | `disable` | `() => void` | Persists; stops and hides Mio. Does *not* release the WebGL context — see [Switching off parks, it does not destroy](#switching-off-parks-it-does-not-destroy). |
-| `toggle` | `() => Promise<void>` | What the wallpaper menu entry calls. |
+| `toggle` | `() => Promise<void>` | What the Mio dock tile (`os-mio-toggle`) calls. |
 | `getPosition` | `() => { x, y } \| null` | Viewport coordinates; `null` when off. |
 | `setPosition` | `( x, y ) => void` | No-op when off. |
 | `getConfig` | `() => MioConfig` | The resolved config in force. |
