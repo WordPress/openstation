@@ -186,6 +186,41 @@ class Tests_OpenStation_ContentGraphVisibility extends WP_UnitTestCase {
 		$this->assertArrayHasKey( self::$editor_id, $data['groups']['authors'] );
 	}
 
+	public function test_nodes_distinguishes_omitted_types_from_explicit_empty_filter() {
+		$post_id = self::factory()->post->create(
+			array(
+				'post_author' => self::$editor_id,
+				'post_status' => 'publish',
+				'post_type'   => 'post',
+			)
+		);
+		wp_set_current_user( self::$editor_id );
+
+		$default_request = new WP_REST_Request(
+			'GET',
+			'/desktop-mode/v1/content-graph/nodes'
+		);
+		$default_data    = rest_ensure_response(
+			openstation_content_graph_rest_nodes( $default_request )
+		)->get_data();
+		$this->assertContains(
+			$post_id,
+			$this->node_ids( $default_data ),
+			'Omitting the types parameter must keep the route default of all registered post types.'
+		);
+
+		$empty_request = new WP_REST_Request(
+			'GET',
+			'/desktop-mode/v1/content-graph/nodes'
+		);
+		$empty_request->set_param( 'types', '' );
+		$empty_data = rest_ensure_response(
+			openstation_content_graph_rest_nodes( $empty_request )
+		)->get_data();
+		$this->assertSame( array(), $empty_data['nodes'] );
+		$this->assertSame( 0, $empty_data['stats']['nodes'] );
+	}
+
 	public function test_post_detail_gates_revisions_on_edit_post() {
 		$post_id = self::factory()->post->create(
 			array(

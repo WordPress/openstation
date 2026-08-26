@@ -9,6 +9,16 @@
  * out per-relationship satellites that the user can click to deep-link
  * into authors, terms, comments, media, and revisions.
  *
+ * Loading has two tiers. The window shell's own overlay covers the
+ * cold part — bundle, Pixi, scene mount — and drops the moment the
+ * window is interactive. Every graph fetch after that (the first one
+ * included) runs behind the toolbar's "Loading graph…" status, and
+ * the full-canvas overlay in the template only paints if the fetch
+ * turns out to be long (`loading-overlay.ts`). When the fetch lands,
+ * `board-notice.ts` decides whether the board needs to explain
+ * itself: nothing to pin, everything filtered out, or cards with no
+ * thread between them yet.
+ *
  * The `<os-*>` web components are defined by the main desktop
  * bundle; this module only consumes them.
  *
@@ -17,13 +27,15 @@
 
 import { __, sprintf } from '../i18n';
 import { registerWindowAction } from '../window-actions/registry';
+import { deriveBoardNotice, renderBoardNotice } from './board-notice';
+import { createLoadingOverlay } from './loading-overlay';
 import { fetchGraph, fetchPostDetail, fetchPostTypes, getConfig } from './rest';
 import { renderToolbar } from './toolbar';
 import { renderPanel } from './panel';
 import { GraphScene, type NodeStyle } from './scene';
 import type { SatelliteRef } from './satellites';
 import type { DesktopApiLike } from './pixi-types';
-import type { GraphNode, GroupFacet } from './types';
+import type { GraphNode, GroupFacet, PostTypeDescriptor } from './types';
 
 // The framework's actual signature is wider (`() => void | (() => void) |
 // Promise<…>`) but every feature bundle re-declares it as a narrow
@@ -140,16 +152,17 @@ async function renderContentGraph( body: HTMLElement ): Promise< ActiveState > {
 		?.os ?? {};
 
 	let activeTypes: string[] = cfg.postTypes.map( ( t ) => t.slug );
+	// Descriptors with live counts once `/post-types` has answered;
+	// until then the config's (count-less) list. The board notice
+	// reads the counts to tell "the site is empty" from "the toolbar
+	// hid everything".
+	let postTypes: PostTypeDescriptor[] = cfg.postTypes;
 	let scene: GraphScene | null = null;
 	let detailRequestId = 0;
 	let aborted = false;
 
-	const showLoading = ( show: boolean ): void => {
-		if ( ! loading ) {
-			return;
-		}
-		loading.hidden = ! show;
-	};
+	const loadingOverlay = createLoadingOverlay( loading );
+	const notice = renderBoardNotice( stageHost );
 
 	const panel = renderPanel( panelHost, cfg, {
 		onClose: () => {
@@ -242,7 +255,7 @@ async function renderContentGraph( body: HTMLElement ): Promise< ActiveState > {
 		if ( aborted ) {
 			return;
 		}
-		showLoading( true );
+		loadingOverlay.show();
 		toolbar.setStatus( __( 'Loading graph…' ) );
 		try {
 			const payload = await fetchGraph( cfg, activeTypes );
@@ -258,6 +271,14 @@ async function renderContentGraph( body: HTMLElement ): Promise< ActiveState > {
 					payload.stats.edges,
 				),
 			);
+			notice.set(
+				deriveBoardNotice( {
+					nodes: payload.stats.nodes,
+					edges: payload.stats.edges,
+					types: postTypes,
+					activeTypes,
+				} ),
+			);
 			scene?.fitToView();
 			scene?.clearFocus();
 			panel.hide();
@@ -265,11 +286,12 @@ async function renderContentGraph( body: HTMLElement ): Promise< ActiveState > {
 			if ( aborted ) {
 				return;
 			}
+			notice.set( { kind: 'none' } );
 			toolbar.setStatus( __( 'Failed to load graph.' ) );
 			// eslint-disable-next-line no-console
 			console.warn( '[content-graph] graph fetch failed', err );
 		} finally {
-			showLoading( false );
+			loadingOverlay.hide();
 		}
 	};
 
@@ -313,24 +335,38 @@ async function renderContentGraph( body: HTMLElement ): Promise< ActiveState > {
 		return { abort: () => {} };
 	}
 
-	// First-load: refresh post-type counts so chips reflect live state,
-	// then load the graph itself.
-	try {
-		const refreshed = await fetchPostTypes( cfg );
-		// Replace the live toolbar handle so subsequent setStatus calls
-		// target the new DOM. Without this the original handle silently
-		// writes to a removed element.
-		toolbar.destroy();
-		toolbar = renderToolbar( toolbarHost, refreshed, buildToolbarCallbacks() );
-	} catch {
-		// Non-fatal — keep the chips that came from the window config.
-	}
-
-	await loadGraph();
+	// First load: refresh post-type counts so chips reflect live
+	// state, then load the graph itself. Not awaited — the window is
+	// interactive from here (toolbar painted, empty board under it),
+	// and the fetch runs behind the toolbar status + the late-painting
+	// stage overlay rather than behind the shell's full-window loader.
+	void ( async () => {
+		try {
+			const refreshed = await fetchPostTypes( cfg );
+			if ( aborted ) {
+				return;
+			}
+			postTypes = refreshed;
+			// Replace the live toolbar handle so subsequent setStatus
+			// calls target the new DOM. Without this the original
+			// handle silently writes to a removed element.
+			toolbar.destroy();
+			toolbar = renderToolbar(
+				toolbarHost,
+				refreshed,
+				buildToolbarCallbacks(),
+			);
+		} catch {
+			// Non-fatal — keep the chips that came from the window config.
+		}
+		await loadGraph();
+	} )();
 
 	return {
 		abort: () => {
 			aborted = true;
+			loadingOverlay.destroy();
+			notice.destroy();
 			toolbar.destroy();
 			panel.destroy();
 			if ( scene ) {
@@ -348,14 +384,16 @@ const registry =
 		string,
 		RenderCallback | undefined
 	>;
-// Return the render Promise so the framework keeps its W loading
-// overlay up until the graph has actually fetched + painted. Without
-// this `await` we used to see a "double loading" — the framework
-// thought we were done the instant the registry callback returned,
-// hid the overlay, and our own toolbar then briefly showed
-// "Loading graph…" while the REST fetch finished. Bonus: forward the
-// returned `abort` as the framework's teardown so close-time cleanup
-// (Pixi destroy, panel destroy, toolbar destroy) actually fires.
+// Return the render Promise so the framework keeps its loading
+// overlay up until the window is interactive: bundle loaded, Pixi
+// initialised, toolbar painted. The graph fetch itself is deliberately
+// NOT inside that promise — holding the full-window overlay through a
+// fetch that usually takes a fraction of a second made every open
+// look slow. The fetch runs behind the toolbar status, and the stage's
+// own overlay paints only when the wait turns out to be long. Also
+// forward the returned `abort` as the framework's teardown so
+// close-time cleanup (Pixi destroy, panel destroy, toolbar destroy,
+// in-flight fetch ignored) actually fires.
 registry[ WINDOW_ID ] = async ( body: HTMLElement ) => {
 	const state = await renderContentGraph( body );
 	return state.abort;

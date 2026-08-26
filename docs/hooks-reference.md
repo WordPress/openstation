@@ -3905,11 +3905,15 @@ array(
 
 ## Corkboard
 
-An interactive PixiJS map of post links — every public post type participates as a node; internal links, terms, authors, and comments form the edges. Registers a native window (`desktop-mode-content-graph`) plus a desktop icon on `init` priority 20. The filterable surface mirrors WP Explorer’s module shape.
+An interactive PixiJS map of post links — every public post type participates as a node, and a **thread** is drawn between two nodes when one post's content links to the other. Terms, authors, comments, media and revisions are not threads: they fan out as satellites around the focused post, and terms, authors and dates double as the Group by facets that cluster the board. Registers a native window (`desktop-mode-content-graph`) plus a desktop icon on `init` priority 20. The filterable surface mirrors WP Explorer’s module shape.
 
 The window and icon are titled **Corkboard** — a thing you can have on a desk, rather than the name of the data structure behind it. The module directory, window id, REST routes, and every hook below keep the `content_graph` slug.
 
 Nodes are drawn as **discs coloured by post type**, using the same palette the relationship satellites use so a focused post and the bubbles fanned around it read as one system. The original **pin** look — the post type's Dashicon glyph as the node body — is one row away in the window's ⋯ menu ("Show pins"), and the choice persists in `localStorage` under `desktop-mode/corkboard-node-style`. Either way the focused node reveals its glyph, so focus never costs the user the type information. The row is an ordinary checkbox registered through the public [`registerWindowAction`](./javascript-reference.md#wposregisterwindowaction--experimental) surface — see [`examples/window-action.md`](./examples/window-action.md) to add your own.
+
+Under each node hangs a **card**: the title (up to two lines) over one muted line naming the post — its type in the singular, author and month — with a spine in the type's colour. Cards are sized in screen space so they stay readable at any zoom, fade out at overview zoom so a dense board is still a constellation of discs, and clicking or dragging a card acts on its node.
+
+A sparse board explains itself. Small boards (up to twelve nodes) are laid out deterministically around the centre of the stage and settled before the first paint, so a site with two posts opens onto two cards side by side rather than two dots drifting off under the dock. A board with nodes but no thread between any of them carries a note saying what a thread is and where the other relationships live; an empty board says whether the site has nothing to pin yet or the toolbar has filtered everything out. The full-canvas loading wash paints only for a graph fetch that runs past 400 ms; shorter waits show as the toolbar's status line, and the window shell's own loader covers just the cold bundle + renderer start-up.
 
 ### `openstation_content_graph_user_can_use` — Experimental (filter)
 
@@ -3925,7 +3929,7 @@ Gates icon registration and window registration in one shot. Default `current_us
 apply_filters( 'openstation_content_graph_post_types', array[] $post_types ): array[]
 ```
 
-The list of post types shown in the graph's filter bar. Each entry declares `slug`, `label`, `icon`, and `taxonomies` (`array( 'category' => bool, 'post_tag' => bool )`), used to keep types without a taxonomy out of the shared Uncategorized/Untagged clusters. Entries added without `taxonomies` get it derived via `is_object_in_taxonomy()`. Default: every public post type except `attachment` (media renders in the side panel rather than as nodes). Removing an entry hides it from the filter bar AND excludes it from the graph entirely.
+The list of post types shown in the graph's filter bar. Each entry declares `slug`, `label` (plural, for the chips), `singular` (for the node cards), `icon`, and `taxonomies` (`array( 'category' => bool, 'post_tag' => bool )`), used to keep types without a taxonomy out of the shared Uncategorized/Untagged clusters. Entries added without `singular` fall back to `label`; entries added without `taxonomies` get it derived via `is_object_in_taxonomy()`. Default: every public post type except `attachment` (media renders in the side panel rather than as nodes). Removing an entry hides it from the filter bar AND excludes it from the graph entirely.
 
 ### `openstation_content_graph_template_html` — Experimental (filter)
 

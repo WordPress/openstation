@@ -107,6 +107,9 @@ function openstation_content_graph_post_types() {
 		$result[] = array(
 			'slug'       => (string) $type->name,
 			'label'      => (string) $type->labels->name,
+			// The card under each node names the post in the singular
+			// ("Post · Author · Month"); the plural is for the chips.
+			'singular'   => (string) $type->labels->singular_name,
 			'icon'       => (string) ( ! empty( $type->menu_icon ) ? $type->menu_icon : 'dashicons-admin-post' ),
 			'taxonomies' => array(
 				'category' => is_object_in_taxonomy( $type->name, 'category' ),
@@ -118,6 +121,7 @@ function openstation_content_graph_post_types() {
 	/**
 	 * Filter the list of post types shown in the Content Graph filter
 	 * bar. Each entry declares `slug`, `label`, `icon`, and optionally
+	 * `singular` (the label a node card uses; defaults to `label`) and
 	 * `taxonomies` (`array( 'category' => bool, 'post_tag' => bool )`);
 	 * entries missing `taxonomies` get it derived from
 	 * `is_object_in_taxonomy()` after filtering. Removing
@@ -130,7 +134,10 @@ function openstation_content_graph_post_types() {
 	$filtered = is_array( $filtered ) ? array_values( $filtered ) : $result;
 
 	foreach ( $filtered as $i => $entry ) {
-		$slug                         = isset( $entry['slug'] ) ? (string) $entry['slug'] : '';
+		$slug = isset( $entry['slug'] ) ? (string) $entry['slug'] : '';
+		if ( empty( $entry['singular'] ) ) {
+			$filtered[ $i ]['singular'] = isset( $entry['label'] ) ? (string) $entry['label'] : $slug;
+		}
 		$filtered[ $i ]['taxonomies'] = array(
 			'category' => isset( $entry['taxonomies'] ) ? ! empty( $entry['taxonomies']['category'] ) : is_object_in_taxonomy( $slug, 'category' ),
 			'post_tag' => isset( $entry['taxonomies'] ) ? ! empty( $entry['taxonomies']['post_tag'] ) : is_object_in_taxonomy( $slug, 'post_tag' ),

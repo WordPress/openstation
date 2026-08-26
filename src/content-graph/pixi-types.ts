@@ -69,6 +69,10 @@ export interface PixiTextOpts {
 		fontFamily?: string;
 		fontWeight?: string;
 		align?: string;
+		wordWrap?: boolean;
+		wordWrapWidth?: number;
+		breakWords?: boolean;
+		lineHeight?: number;
 	};
 	resolution?: number;
 	anchor?: { x: number; y: number };

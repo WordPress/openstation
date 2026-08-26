@@ -41,7 +41,6 @@
  */
 
 import { __ } from '../i18n';
-import { decodeHTML } from '../utils';
 import { resolveDashicon } from '../ui/components/os-icon/dashicons-map';
 import {
 	getPixi,
@@ -52,6 +51,20 @@ import {
 	type PixiNamespace,
 	type PixiText,
 } from './pixi-types';
+import {
+	cardMetaParts,
+	cardTitle,
+	formatYearMonth,
+	joinMeta,
+	truncate,
+} from './card';
+import {
+	frameBounds,
+	randomSeed,
+	seedPositions,
+	warmupStepLimit,
+	type Point,
+} from './layout';
 import { ForceSim } from './sim';
 import {
 	SatelliteLayer,
@@ -144,6 +157,36 @@ const TYPE_PALETTE = [
 const DISC_RING = 0xffffff;
 
 /**
+ * Node cards. A node's label used to be an 11px pill under the disc,
+ * which on a sparse board read as a tiny floating caption next to a
+ * dot. The card is a unit you can read: the title (up to two lines)
+ * over one muted line naming the post — type, author, month — with a
+ * spine in the post type's colour tying it to the disc it hangs from.
+ * It is counter-scaled every frame so it keeps this size on screen at
+ * any zoom, and it fades in the same zoom band the labels did, so a
+ * dense overview is still a constellation of discs.
+ */
+const CARD_MAX_WIDTH = 200;
+const CARD_PAD_X = 10;
+const CARD_PAD_Y = 7;
+const CARD_RADIUS = 6;
+const CARD_SPINE_WIDTH = 3;
+const CARD_SPINE_INSET = 6;
+/** Text starts past the spine: inset + spine + a gap. */
+const CARD_TEXT_LEFT = CARD_SPINE_INSET + CARD_SPINE_WIDTH + 8;
+const CARD_TITLE_SIZE = 12;
+const CARD_TITLE_LINE_HEIGHT = 15;
+const CARD_META_SIZE = 10;
+const CARD_LINE_GAP = 3;
+/** Screen-space gap between the node body and the card's top edge. */
+const CARD_GAP = 8;
+const CARD_BG = 0xffffff;
+const CARD_TITLE_FILL = 0x1f2937;
+const CARD_META_FILL = 0x5a6473;
+const CARD_FONT =
+	'-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+
+/**
  * How the node body is drawn.
  *
  *   - `'disc'`  — filled circle + keyline, coloured by post type. The
@@ -219,6 +262,16 @@ const GROUP_LABEL_COLOR: Record< GroupFacet, string > = {
 
 const ZOOM_MIN = 0.15;
 const ZOOM_MAX = 4;
+/**
+ * Fit never zooms past this, however small the board: a lone card at
+ * 4× is a poster, not a board. Wheel zoom still reaches `ZOOM_MAX`.
+ */
+const FIT_ZOOM_MAX = 1.5;
+const FIT_OPTIONS = {
+	padding: 100,
+	minScale: ZOOM_MIN,
+	maxScale: FIT_ZOOM_MAX,
+};
 const ZOOM_SENSITIVITY = 0.0008;
 const CAMERA_EASE = 0.18;
 // A tiny snap distance below which we skip easing (avoids the camera
@@ -240,6 +293,7 @@ interface NodeView {
 	labelBox: PixiContainer;
 	labelBg: PixiGraphics;
 	label: PixiText;
+	meta: PixiText;
 	iconCharCode: string | null;
 	iconName: string;
 	/** Post-type body colour — see {@link TYPE_PALETTE}. */
@@ -364,6 +418,9 @@ export class GraphScene {
 	private resizeObserver: ResizeObserver | null = null;
 	private lastResizeWidth = 0;
 	private lastResizeHeight = 0;
+	// A fit asked for while the host had no size yet (window still
+	// laying out). Honoured by the resize observer once it does.
+	private fitPending = false;
 	// Camera target system — wheel + focus + fitToView write here, the
 	// tick loop eases the actual world.x / world.y / world.scale toward
 	// these targets each frame.
@@ -573,14 +630,22 @@ export class GraphScene {
 			tags: {},
 		};
 
-		const nodes: GraphNode[] = payload.nodes.map( ( p ) => {
+		// A board laid out from scratch (first load, or a filter change
+		// that replaced every node) is seeded with its centroid on the
+		// world origin — see `layout.ts` for why that is the property
+		// the camera depends on. Nodes joining an existing layout keep
+		// the random periphery seed and get pulled in by gravity.
+		const fromScratch = payload.nodes.every( ( p ) => ! prev.has( p.id ) );
+		const seeds = fromScratch
+			? seedPositions( payload.nodes.length )
+			: null;
+		const nodes: GraphNode[] = payload.nodes.map( ( p, i ) => {
 			const old = prev.get( p.id );
-			const angle = Math.random() * Math.PI * 2;
-			const r = 150 + Math.random() * 250;
+			const seed = seeds ? seeds[ i ] : randomSeed();
 			return {
 				...p,
-				x: old?.x ?? Math.cos( angle ) * r,
-				y: old?.y ?? Math.sin( angle ) * r,
+				x: old?.x ?? seed.x,
+				y: old?.y ?? seed.y,
 				vx: 0,
 				vy: 0,
 				pinned: false,
@@ -620,8 +685,12 @@ export class GraphScene {
 		// happened yet (no paint until the ticker fires), so these
 		// steps are invisible — they only collapse the period of
 		// chaotic motion that made it hard to click a node before.
-		const warmupSteps = Math.min( 90, 30 + nodes.length );
-		for ( let i = 0; i < warmupSteps; i++ ) {
+		// Small boards run all the way to rest here, so the first frame
+		// IS the final layout and nothing drifts out of the frame the
+		// camera is about to be given. Large boards keep the short
+		// warm-start and finish settling on screen.
+		const warmupSteps = warmupStepLimit( nodes.length );
+		for ( let i = 0; i < warmupSteps && ! this.sim.isSettled; i++ ) {
 			this.sim.step( 1 );
 		}
 		// If a grouping was active before this rebuild (e.g. the post-type
@@ -654,7 +723,6 @@ export class GraphScene {
 				0,
 				Math.max( 18, n.radius + 8 ),
 			);
-			this.bindNodeInput( container, n );
 			this.nodeLayer.addChild( container );
 
 			const halo = new this.pixi.Graphics();
@@ -680,47 +748,14 @@ export class GraphScene {
 			} );
 			container.addChild( icon );
 
-			// Wrap each label in a Container so the backing rect, the
-			// text, and the per-node alpha all transform as one unit
-			// when the camera zooms. The backing keeps labels readable
-			// over busy edge tangles + the dot-grid background — the
-			// review feedback flagged unbacked labels as hard to read.
-			const labelBox = new this.pixi.Container();
-			this.labelLayer.addChild( labelBox );
-
-			const labelBg = new this.pixi.Graphics();
-			labelBox.addChild( labelBg );
-
-			const label = new this.pixi.Text( {
-				text: this.truncate( decodeHTML( n.title ) || `#${ n.id }`, 32 ),
-				style: {
-					fill: 0x1f2937,
-					fontSize: 11,
-					fontFamily:
-						'-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-					fontWeight: '500',
-				},
-				resolution: RENDER_RESOLUTION,
-				anchor: { x: 0.5, y: 0 },
-			} );
-			labelBox.addChild( label );
-
-			// Draw the backing once now that the text has measured
-			// itself. Width doesn't change after construction (we
-			// don't mutate label.text after this), so re-painting per
-			// frame would be pure waste.
-			const padX = 5;
-			const padY = 1;
-			const lw = label.width + padX * 2;
-			const lh = label.height + padY * 2;
-			labelBg
-				.roundRect( -lw / 2, -padY, lw, lh, 4 )
-				.fill( { color: 0xffffff, alpha: 0.78 } )
-				.stroke( {
-					color: 0x000000,
-					alpha: 0.06,
-					width: 1,
-				} );
+			const typeColor =
+				this.postTypeColor.get( n.type ) ?? TYPE_PALETTE[ 0 ];
+			// The card lives in its own layer (above every disc) and is
+			// part of the node: clicking or dragging it acts on the
+			// disc it hangs from, so both share one input binding.
+			const card = this.buildCard( n, typeColor );
+			this.labelLayer.addChild( card.labelBox );
+			this.bindNodeInput( [ container, card.labelBox ], n );
 
 			this.nodeViews.set( n.id, {
 				node: n,
@@ -728,27 +763,164 @@ export class GraphScene {
 				halo,
 				disc,
 				icon,
-				labelBox,
-				labelBg,
-				label,
+				labelBox: card.labelBox,
+				labelBg: card.labelBg,
+				label: card.label,
+				meta: card.meta,
 				iconCharCode: iconChar,
 				iconName,
-				typeColor:
-					this.postTypeColor.get( n.type ) ?? TYPE_PALETTE[ 0 ],
+				typeColor,
 				// Empty so the first `draw()` always paints.
 				discKey: '',
 			} );
 		}
 	}
 
-	private truncate( text: string, max: number ): string {
-		if ( text.length <= max ) {
-			return text;
+	/**
+	 * Build a node's card: title (up to two lines) over a muted meta
+	 * line, on a white sheet with a spine in the post type's colour.
+	 * Measured and painted once here; the per-frame loop only moves,
+	 * scales and fades it.
+	 *
+	 * Everything is laid out from `x = -width / 2`, so the card hangs
+	 * centred under its node whatever width it settles on.
+	 */
+	private buildCard(
+		n: GraphNode,
+		typeColor: number,
+	): {
+		labelBox: PixiContainer;
+		labelBg: PixiGraphics;
+		label: PixiText;
+		meta: PixiText;
+	} {
+		const pixi = this.pixi;
+		const labelBox = new pixi.Container();
+		const shadow = new pixi.Graphics();
+		const labelBg = new pixi.Graphics();
+		labelBox.addChild( shadow );
+		labelBox.addChild( labelBg );
+
+		const textWidth = CARD_MAX_WIDTH - CARD_TEXT_LEFT - CARD_PAD_X;
+		let title = cardTitle( n.title, n.id );
+		const label = new pixi.Text( {
+			text: title,
+			style: {
+				fill: CARD_TITLE_FILL,
+				fontSize: CARD_TITLE_SIZE,
+				fontFamily: CARD_FONT,
+				fontWeight: '600',
+				wordWrap: true,
+				wordWrapWidth: textWidth,
+				breakWords: true,
+				lineHeight: CARD_TITLE_LINE_HEIGHT,
+			},
+			resolution: RENDER_RESOLUTION,
+			anchor: { x: 0, y: 0 },
+		} );
+		// Two lines at most. The character cap in `cardTitle` gets
+		// nearly every title there; a run of wide glyphs can still
+		// spill onto a third line, so trim until it fits.
+		while (
+			label.height > CARD_TITLE_LINE_HEIGHT * 2 + 1 &&
+			title.length > 8
+		) {
+			title = truncate( title, title.length - 6 );
+			label.text = title;
 		}
-		return text.slice( 0, max - 1 ).trimEnd() + '…';
+
+		const descriptor = this.postTypeBySlug.get( n.type );
+		const metaInput = {
+			typeLabel: descriptor?.singular ?? descriptor?.label ?? n.type,
+			author: this.groupCatalogs.authors[ n.author_id ]?.name,
+			yearMonth: n.year_month,
+			status: n.status,
+		};
+		let metaText = joinMeta( cardMetaParts( metaInput ) );
+		const meta = new pixi.Text( {
+			text: metaText,
+			style: {
+				fill: CARD_META_FILL,
+				fontSize: CARD_META_SIZE,
+				fontFamily: CARD_FONT,
+				fontWeight: '500',
+			},
+			resolution: RENDER_RESOLUTION,
+			anchor: { x: 0, y: 0 },
+		} );
+		// The meta line never wraps. Drop the author first — the type
+		// and the month are the two facts that place the card — then
+		// trim whatever is left.
+		if ( meta.width > textWidth && metaInput.author ) {
+			metaText = joinMeta(
+				cardMetaParts( { ...metaInput, author: undefined } ),
+			);
+			meta.text = metaText;
+		}
+		while ( meta.width > textWidth && metaText.length > 8 ) {
+			metaText = truncate( metaText, metaText.length - 4 );
+			meta.text = metaText;
+		}
+
+		const contentWidth = Math.max( label.width, meta.width );
+		const width = Math.min(
+			CARD_MAX_WIDTH,
+			Math.ceil( contentWidth ) + CARD_TEXT_LEFT + CARD_PAD_X,
+		);
+		const height = Math.ceil(
+			CARD_PAD_Y * 2 + label.height + CARD_LINE_GAP + meta.height,
+		);
+		const left = -width / 2;
+		label.x = left + CARD_TEXT_LEFT;
+		label.y = CARD_PAD_Y;
+		meta.x = left + CARD_TEXT_LEFT;
+		meta.y = CARD_PAD_Y + label.height + CARD_LINE_GAP;
+
+		// Sheet with a soft drop shadow: reads as paper pinned over
+		// the dot grid rather than a caption floating on it.
+		shadow
+			.roundRect( left, 1.5, width, height, CARD_RADIUS )
+			.fill( { color: 0x000000, alpha: 0.1 } );
+		labelBg
+			.roundRect( left, 0, width, height, CARD_RADIUS )
+			.fill( { color: CARD_BG, alpha: 0.95 } )
+			.stroke( { color: 0x000000, alpha: 0.08, width: 1 } );
+		labelBg
+			.roundRect(
+				left + CARD_SPINE_INSET,
+				CARD_PAD_Y,
+				CARD_SPINE_WIDTH,
+				height - CARD_PAD_Y * 2,
+				CARD_SPINE_WIDTH / 2,
+			)
+			.fill( { color: typeColor, alpha: 1 } );
+
+		labelBox.addChild( label );
+		labelBox.addChild( meta );
+		labelBox.eventMode = 'static';
+		labelBox.cursor = 'pointer';
+		// A plain Container has no shape of its own to hit-test, and
+		// its children are passive — without an explicit hit area the
+		// card would be interactive in name only. Local coordinates,
+		// so the per-frame counter-scale is applied for free.
+		labelBox.hitArea = new pixi.Rectangle( left, 0, width, height );
+		return { labelBox, labelBg, label, meta };
 	}
 
-	private bindNodeInput( gfx: PixiContainer, node: GraphNode ): void {
+	/**
+	 * Wire pointer handling for one node across every display object
+	 * that stands for it (the disc container and its card). One
+	 * closure serves all of them: a binding per target would keep
+	 * separate drag state, and the target that did not receive the
+	 * press would be left believing a drag was still in progress and
+	 * swallow its next click.
+	 */
+	private bindNodeInput( targets: PixiContainer[], node: GraphNode ): void {
+		const on = ( event: string, cb: ( e: unknown ) => void ): void => {
+			for ( const t of targets ) {
+				t.on( event, cb );
+			}
+		};
 		let downAt = { x: 0, y: 0 };
 		let isDragging = false;
 		// Pointer must travel > 6px to be considered an intentional
@@ -758,7 +930,7 @@ export class GraphScene {
 		// the "click on a moving node didn't open" bug — now we only
 		// commit to drag after the user actually moves the cursor).
 		const DRAG_THRESHOLD_SQ = 36;
-		gfx.on( 'pointerdown', ( evt: unknown ) => {
+		on( 'pointerdown', ( evt: unknown ) => {
 			const e = evt as {
 				global: { x: number; y: number };
 				stopPropagation?: () => void;
@@ -776,17 +948,17 @@ export class GraphScene {
 			node.vx = 0;
 			node.vy = 0;
 		} );
-		gfx.on( 'pointerover', () => {
+		on( 'pointerover', () => {
 			this.hoveredId = node.id;
 			this.draw();
 		} );
-		gfx.on( 'pointerout', () => {
+		on( 'pointerout', () => {
 			if ( this.hoveredId === node.id ) {
 				this.hoveredId = null;
 				this.draw();
 			}
 		} );
-		gfx.on( 'pointerup', ( evt: unknown ) => {
+		on( 'pointerup', ( evt: unknown ) => {
 			const e = evt as { global: { x: number; y: number } };
 			const dx = e.global.x - downAt.x;
 			const dy = e.global.y - downAt.y;
@@ -806,7 +978,7 @@ export class GraphScene {
 			}
 			isDragging = false;
 		} );
-		gfx.on( 'pointerupoutside', () => {
+		on( 'pointerupoutside', () => {
 			node.pinned = this.focusedId === node.id;
 			this.pressedNode = null;
 			if ( this.sim ) {
@@ -814,7 +986,9 @@ export class GraphScene {
 			}
 			isDragging = false;
 		} );
-		gfx.on( 'globalpointermove', ( evt: unknown ) => {
+		// Global moves reach every listener; one target is enough to
+		// track the drag.
+		targets[ 0 ].on( 'globalpointermove', ( evt: unknown ) => {
 			// Only the pressed node should react. Without this guard,
 			// other pinned nodes (e.g. the focused one) would also
 			// run the drag-promotion check on every pointer move.
@@ -955,6 +1129,9 @@ export class GraphScene {
 				this.app.render();
 			} catch {
 				// Pixi sometimes throws on race during teardown.
+			}
+			if ( this.fitPending ) {
+				this.fitToView();
 			}
 			// Sub-pixel sidebar reflows (panel open/close, scroll
 			// adjustments) shouldn't trigger camera repositioning. Only
@@ -1458,7 +1635,10 @@ export class GraphScene {
 			// glyph's visible height is about the same as the disc's
 			// diameter, so the un-scaled radius is the right floor for
 			// both.
-			labelBox.y = node.y + ( discs ? discRadius : node.radius ) + 4;
+			labelBox.y =
+				node.y +
+				( discs ? discRadius : node.radius ) +
+				CARD_GAP * inverseScale;
 			labelBox.scale.set( inverseScale );
 			let baseLabelAlpha: number;
 			if ( isFocus ) {
@@ -1780,35 +1960,29 @@ export class GraphScene {
 		if ( targets.size === 0 ) {
 			return;
 		}
-		let minX = Infinity;
-		let minY = Infinity;
-		let maxX = -Infinity;
-		let maxY = -Infinity;
-		for ( const t of targets.values() ) {
-			if ( t.x < minX ) {
-				minX = t.x;
-			}
-			if ( t.y < minY ) {
-				minY = t.y;
-			}
-			if ( t.x > maxX ) {
-				maxX = t.x;
-			}
-			if ( t.y > maxY ) {
-				maxY = t.y;
-			}
+		this.frame( targets.values() );
+	}
+
+	/**
+	 * Point the camera at `points`, centred and at the largest fit
+	 * zoom. When the host has no size yet the request is parked and
+	 * replayed by the resize observer — framing against a 0×0 host
+	 * would leave the board in the top-left corner at minimum zoom.
+	 */
+	private frame( points: Iterable< Point > ): void {
+		const target = frameBounds(
+			points,
+			{ width: this.host.clientWidth, height: this.host.clientHeight },
+			FIT_OPTIONS,
+		);
+		if ( ! target ) {
+			this.fitPending = true;
+			return;
 		}
-		const padding = 100;
-		const w = maxX - minX + padding * 2;
-		const h = maxY - minY + padding * 2;
-		const sx = this.host.clientWidth / w;
-		const sy = this.host.clientHeight / h;
-		const s = Math.max( ZOOM_MIN, Math.min( 1.5, Math.min( sx, sy ) ) );
-		const cx = ( minX + maxX ) / 2;
-		const cy = ( minY + maxY ) / 2;
-		this.targetScale = s;
-		this.targetX = this.host.clientWidth / 2 - cx * s;
-		this.targetY = this.host.clientHeight / 2 - cy * s;
+		this.fitPending = false;
+		this.targetScale = target.scale;
+		this.targetX = target.x;
+		this.targetY = target.y;
 	}
 
 	/**
@@ -1932,35 +2106,7 @@ export class GraphScene {
 		if ( this.nodes.length === 0 ) {
 			return;
 		}
-		let minX = Infinity;
-		let minY = Infinity;
-		let maxX = -Infinity;
-		let maxY = -Infinity;
-		for ( const n of this.nodes ) {
-			if ( n.x < minX ) {
-				minX = n.x;
-			}
-			if ( n.y < minY ) {
-				minY = n.y;
-			}
-			if ( n.x > maxX ) {
-				maxX = n.x;
-			}
-			if ( n.y > maxY ) {
-				maxY = n.y;
-			}
-		}
-		const padding = 100;
-		const w = maxX - minX + padding * 2;
-		const h = maxY - minY + padding * 2;
-		const sx = this.host.clientWidth / w;
-		const sy = this.host.clientHeight / h;
-		const s = Math.max( ZOOM_MIN, Math.min( 1.5, Math.min( sx, sy ) ) );
-		const cx = ( minX + maxX ) / 2;
-		const cy = ( minY + maxY ) / 2;
-		this.targetScale = s;
-		this.targetX = this.host.clientWidth / 2 - cx * s;
-		this.targetY = this.host.clientHeight / 2 - cy * s;
+		this.frame( this.nodes );
 	}
 
 	destroy(): void {
@@ -2063,28 +2209,6 @@ function smoothstep( a: number, b: number, x: number ): number {
  * (e.g. `'2024-03'` → `'Mar 2024'`) using the browser's locale.
  * Falls back to the raw token if parsing fails.
  */
-function formatYearMonth( token: string ): string {
-	const m = /^(\d{4})-(\d{2})$/.exec( token );
-	if ( ! m ) {
-		return token;
-	}
-	const monthIdx = Number( m[ 2 ] ) - 1;
-	if ( monthIdx < 0 || monthIdx > 11 ) {
-		return token;
-	}
-	const year = Number( m[ 1 ] );
-	try {
-		const d = new Date( Date.UTC( year, monthIdx, 1 ) );
-		return new Intl.DateTimeFormat( undefined, {
-			month: 'short',
-			year: 'numeric',
-			timeZone: 'UTC',
-		} ).format( d );
-	} catch {
-		return token;
-	}
-}
-
 function defaultIconForPostType( slug: string ): string {
 	switch ( slug ) {
 		case 'post':

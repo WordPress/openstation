@@ -100,9 +100,11 @@ function openstation_content_graph_rest_post_types() {
 				$count += (int) $counts->private;
 			}
 		}
+		$label = isset( $entry['label'] ) ? (string) $entry['label'] : $slug;
 		$out[] = array(
 			'slug'       => $slug,
-			'label'      => isset( $entry['label'] ) ? (string) $entry['label'] : $slug,
+			'label'      => $label,
+			'singular'   => isset( $entry['singular'] ) ? (string) $entry['singular'] : $label,
 			'icon'       => isset( $entry['icon'] ) ? (string) $entry['icon'] : 'dashicons-admin-post',
 			'count'      => $count,
 			'taxonomies' => $entry['taxonomies'],
@@ -118,10 +120,10 @@ function openstation_content_graph_rest_post_types() {
  * @return WP_REST_Response
  */
 function openstation_content_graph_rest_nodes( WP_REST_Request $request ) {
-	$raw     = (string) $request->get_param( 'types' );
-	$types   = '' === $raw
-		? wp_list_pluck( openstation_content_graph_post_types(), 'slug' )
-		: array_map( 'trim', explode( ',', $raw ) );
+	$raw   = $request->get_param( 'types' );
+	$types = $request->has_param( 'types' )
+		? array_map( 'trim', explode( ',', (string) $raw ) )
+		: wp_list_pluck( openstation_content_graph_post_types(), 'slug' );
 	$payload = openstation_content_graph_build( (array) $types );
 	return rest_ensure_response( openstation_content_graph_filter_payload_for_user( $payload ) );
 }
