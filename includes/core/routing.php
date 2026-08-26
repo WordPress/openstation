@@ -400,6 +400,10 @@ add_action( 'admin_init', 'openstation_chromeless_suppress_admin_bar' );
  *
  * `initialize()` is deliberately left alone — it sets up the object's
  * own state and costs nothing worth reclaiming.
+ *
+ * @param string $class_name Admin bar class WordPress intends to instantiate.
+ * @return string The silent subclass inside a window; `$class_name` untouched
+ *                everywhere else, and whenever the parent class is unavailable.
  */
 function openstation_chromeless_silence_admin_bar( $class_name ) {
 	if ( ! openstation_is_chromeless_request() ) {
