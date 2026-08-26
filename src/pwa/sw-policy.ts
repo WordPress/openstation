@@ -185,10 +185,30 @@ const ACTING_QUERY_KEYS = [
 ] as const;
 
 /**
+ * Admin screens that act merely by being loaded.
+ *
+ * A query key is not the only way a URL does something. `post-new.php`
+ * creates an auto-draft the moment it renders, so speculating it mints
+ * a fresh orphan post per hover — invisible to the user, cleaned up by
+ * Core only after seven days. The same is true of every `*-new.php`
+ * screen that provisions before it paints, so the rule is written
+ * against the filename rather than a list of individual pages.
+ *
+ * Matched on the path's last segment so a subdirectory install or a
+ * renamed admin folder is handled the same way.
+ */
+function actsOnLoad( pathname: string ): boolean {
+	const file = pathname.slice( pathname.lastIndexOf( '/' ) + 1 );
+	return /-new\.php$/.test( file );
+}
+
+/**
  * Whether a URL is a plain admin screen safe to fetch early.
  *
  * Three conditions, all required: it is an admin page, it is the
- * chromeless variant a window actually loads, and it does nothing.
+ * chromeless variant a window actually loads, and it does nothing —
+ * neither through an acting query key nor merely by being rendered
+ * ({@see actsOnLoad}).
  *
  * The chromeless flag is not incidental. It is what makes serving the
  * result to an iframe navigation safe at all — the server reads that
@@ -205,6 +225,9 @@ export function isSpeculatableDocument( url: URL ): boolean {
 		return false;
 	}
 	if ( ! url.searchParams.has( 'openstation_chromeless' ) ) {
+		return false;
+	}
+	if ( actsOnLoad( url.pathname ) ) {
 		return false;
 	}
 	for ( const key of ACTING_QUERY_KEYS ) {

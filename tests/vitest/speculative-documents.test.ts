@@ -77,6 +77,51 @@ describe( 'isSpeculatableDocument', () => {
 			).toBe( false );
 		}
 	} );
+
+	test( 'refuses screens that act merely by rendering', () => {
+		// A query key is not the only way a URL does something.
+		// `post-new.php` creates an auto-draft the moment it renders, so
+		// speculating it mints a fresh orphan post per hover — invisible
+		// to the user, and cleaned up by Core only after seven days.
+		for ( const file of [ 'post-new.php', 'user-new.php', 'media-new.php' ] ) {
+			expect(
+				isSpeculatableDocument(
+					new URL( `https://site.test/wp-admin/${ file }${ CHROMELESS }` ),
+				),
+				`${ file } must never be speculated`,
+			).toBe( false );
+		}
+	} );
+
+	test( 'a query string on an acting screen does not smuggle it past the rule', () => {
+		expect(
+			isSpeculatableDocument(
+				new URL(
+					`https://site.test/wp-admin/post-new.php${ CHROMELESS }&post_type=page`,
+				),
+			),
+		).toBe( false );
+	} );
+
+	test( 'the acts-on-load rule reads the filename, not the whole path', () => {
+		// A subdirectory install or a renamed admin folder must be
+		// handled the same way; a directory that merely ends in
+		// `-new.php` must not swallow the page inside it.
+		expect(
+			isSpeculatableDocument(
+				new URL(
+					`https://site.test/blog/wp-admin/post-new.php${ CHROMELESS }`,
+				),
+			),
+		).toBe( false );
+		expect(
+			isSpeculatableDocument(
+				new URL(
+					`https://site.test/wp-admin/edit.php${ CHROMELESS }&post_type=post`,
+				),
+			),
+		).toBe( true );
+	} );
 } );
 
 describe( 'SpeculativeStore', () => {

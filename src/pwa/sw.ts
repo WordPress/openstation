@@ -279,7 +279,18 @@ sw.addEventListener( 'fetch', ( event: SWFetchEvent ) => {
 	// is what keeps the Sec-Fetch hazard described below out of play.
 	// Exact-URL, single-use; anything not waiting falls through to the
 	// normal pass-through for iframes.
-	if ( req.mode === 'navigate' && speculative.size > 0 ) {
+	// `cache: 'reload'` is the browser telling us this navigation is an
+	// explicit refresh — the window's Reload action, or the user asking
+	// for the page again. Answering that from a snapshot taken up to
+	// 30 s ago defeats the single gesture people reach for when a list
+	// looks stale: the plugin they just activated, the post they just
+	// trashed, the title they just quick-edited would all still be
+	// missing from the list they deliberately re-opened. Drop the held
+	// copy — it is now known to be unwanted — and let the request go to
+	// the network.
+	if ( req.mode === 'navigate' && req.cache === 'reload' ) {
+		speculative.take( url.toString() );
+	} else if ( req.mode === 'navigate' && speculative.size > 0 ) {
 		const held = speculative.take( url.toString() );
 		if ( held ) {
 			event.respondWith(
