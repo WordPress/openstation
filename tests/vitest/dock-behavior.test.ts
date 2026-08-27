@@ -12,6 +12,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
 	installDockBehavior,
+	KEEP_OUT_FACTOR,
 	pointerInZone,
 	REVEAL_ZONE,
 	REVEALED_CLASS,
@@ -94,7 +95,7 @@ describe( 'installDockBehavior', () => {
 		ctl.destroy();
 	} );
 
-	test( 'a revealed rail stays out while the pointer is on it, past the edge band', () => {
+	test( 'a revealed rail stays out while the pointer is near it, twice its height from the edge', () => {
 		const ctl = installDockBehavior( { shellBody: body } );
 		move( 800, window.innerHeight - 5 );
 		expect( revealed() ).toBe( true );
@@ -102,8 +103,36 @@ describe( 'installDockBehavior', () => {
 		// inside the rail's box.
 		move( 800, window.innerHeight - 12 - 60 );
 		expect( revealed() ).toBe( true );
-		// Off the pill sideways: parks.
+		// Above the pill, still within KEEP_OUT_FACTOR heights of its
+		// top: the strip a window's bottom actions live in.
+		const pillTop = window.innerHeight - 12 - 64;
+		move( 800, pillTop - 64 * KEEP_OUT_FACTOR + 1 );
+		expect( revealed() ).toBe( true );
+		// One pixel beyond: parks.
+		move( 800, pillTop - 64 * KEEP_OUT_FACTOR - 1 );
+		expect( revealed() ).toBe( false );
+		ctl.destroy();
+	} );
+
+	test( 'a revealed rail parks once the pointer moves off its ends', () => {
+		const ctl = installDockBehavior( { shellBody: body } );
+		move( 800, window.innerHeight - 5 );
+		expect( revealed() ).toBe( true );
 		move( 200, window.innerHeight - 12 - 60 );
+		expect( revealed() ).toBe( false );
+		ctl.destroy();
+	} );
+
+	test( 'the pointer leaving the window changes nothing', () => {
+		const ctl = installDockBehavior( { shellBody: body } );
+		move( 800, window.innerHeight - 5 );
+		expect( revealed() ).toBe( true );
+		document.documentElement.dispatchEvent(
+			new MouseEvent( 'pointerleave', { clientX: 800, clientY: window.innerHeight + 10 } ),
+		);
+		expect( revealed() ).toBe( true );
+		// Back in the window, away from the dock: parks as usual.
+		move( 300, 200 );
 		expect( revealed() ).toBe( false );
 		ctl.destroy();
 	} );

@@ -1232,14 +1232,14 @@ body.os-active {
 	/*
 	 * The indicator line a dynamic dock collapses into while parked
 	 * (Preferences → Appearance → Desktop layout → Dock behavior):
-	 * the iOS home indicator's proportions, painted in the dock's
-	 * outline colour. `-length` runs along the rail's edge, `-thickness`
-	 * across it.
+	 * the iOS home indicator, painted in the accent at partial alpha
+	 * so it reads as a mark on the wallpaper rather than a control.
+	 * `-length` runs along the rail's edge, `-thickness` across it; a
+	 * theme retunes any of the three.
 	 */
-	--os-dock-indicator-length: 96px;
-	--os-dock-indicator-thickness: 4px;
-	--os-dock-indicator-bg: var( --os-dock-item-outline, rgba( 255, 255, 255, 0.55 ) );
-	--os-dock-indicator-opacity: 0.7;
+	--os-dock-indicator-length: 180px;
+	--os-dock-indicator-thickness: 5px;
+	--os-dock-indicator-bg: color-mix( in srgb, var( --os-ui-accent, #f252fc ) 72%, transparent );
 	--os-dock-bg: rgba(12, 11, 15, 0.72);
 	--os-dock-icon-color: rgba(255, 251, 255, 0.72);
 	--os-dock-icon-color-hover: #fffbff;

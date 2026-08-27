@@ -1315,7 +1315,6 @@ body.os-dock-dynamic .os-dock:not( .os-dock--revealed ) {
 	backdrop-filter: none;
 	-webkit-backdrop-filter: none;
 	box-shadow: none;
-	opacity: var( --os-dock-indicator-opacity, 0.7 );
 	cursor: pointer;
 }
 
@@ -1324,16 +1323,16 @@ body.os-dock-dynamic .os-dock:not( .os-dock--revealed ) > * {
 }
 
 body.os-dock-dynamic .os-dock[ data-os-dock-placement="bottom" ]:not( .os-dock--revealed ) {
-	width: var( --os-dock-indicator-length, 96px );
-	height: var( --os-dock-indicator-thickness, 4px );
+	width: var( --os-dock-indicator-length, 180px );
+	height: var( --os-dock-indicator-thickness, 5px );
 	bottom: 8px;
 }
 
 body.os-dock-dynamic .os-dock[ data-os-dock-placement="left" ]:not( .os-dock--revealed ),
 body.os-dock-dynamic .os-dock[ data-os-dock-placement="right" ]:not( .os-dock--revealed ) {
-	width: var( --os-dock-indicator-thickness, 4px );
-	height: var( --os-dock-indicator-length, 96px );
-	inset-block: calc( 50% - var( --os-dock-indicator-length, 96px ) / 2 );
+	width: var( --os-dock-indicator-thickness, 5px );
+	height: var( --os-dock-indicator-length, 180px );
+	inset-block: calc( 50% - var( --os-dock-indicator-length, 180px ) / 2 );
 }
 
 body.os-dock-dynamic .os-dock[ data-os-dock-placement="left" ]:not( .os-dock--revealed ) {

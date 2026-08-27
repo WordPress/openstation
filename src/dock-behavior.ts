@@ -18,13 +18,20 @@
  * - the pointer is within {@link REVEAL_ZONE} px of the rail's edge
  *   of the viewport — the whole edge, not just the indicator's
  *   width, so "move the pointer to the bottom" means the bottom;
- * - the pointer is over the rail itself (plus a small margin), which
- *   is what keeps a revealed rail out while the pointer climbs up
- *   its tiles, past the edge band;
+ * - the rail is out and the pointer is still near it: over the rail,
+ *   or within {@link KEEP_OUT_FACTOR} rail-heights past it on the
+ *   desktop side (twice the rail's height from the screen edge, all
+ *   told), so the user can work right above the dock without folding
+ *   it by accident and it only folds once they have clearly moved on;
  * - the pointer is over one of the rail's flyouts (the constellation,
  *   the peek cards), which are body-level and would otherwise retract
  *   the rail out from under the pointer;
  * - something on the rail has keyboard focus.
+ *
+ * The pointer leaving the window changes nothing: a dock that was out
+ * stays out, a line stays a line, until the pointer is back and says
+ * otherwise. Reaching for the browser's own chrome, or the OS dock
+ * below the window, is not "moving on".
  *
  * **The morph.** Each flip runs inside `document.startViewTransition()`
  * when the browser has it: the rail gets a transient
@@ -45,8 +52,18 @@
 /** Pointer band at the rail's edge that summons it, in px. */
 export const REVEAL_ZONE = 20;
 
-/** Air around a revealed rail within which the pointer still counts as "on it". */
-const RAIL_HOVER_MARGIN = 8;
+/**
+ * How far a revealed rail's "still near it" band reaches past the
+ * rail onto the desktop, in rail heights (widths, for a side rail).
+ * One rail deep, so the band spans twice the rail's height measured
+ * from the screen edge: the pointer can cross the strip of desktop
+ * just above the dock — where a window's bottom row of actions sits
+ * — without folding it, and anything further up means moving on.
+ */
+export const KEEP_OUT_FACTOR = 1;
+
+/** Air past a revealed rail's ends within which the pointer still counts as "on it". */
+const RAIL_HOVER_MARGIN = 24;
 
 /** Class a rail wears while expanded; absent = parked (under `os-dock-dynamic`). */
 export const REVEALED_CLASS = 'os-dock--revealed';
@@ -114,18 +131,37 @@ export function pointerInZone(
 	return false;
 }
 
-/** Is the pointer on `rail`'s box, with {@link RAIL_HOVER_MARGIN} of air? */
-function pointerOnRail( rail: HTMLElement, clientX: number, clientY: number ): boolean {
+/**
+ * Is the pointer near a revealed `rail`: on its box, past its ends by
+ * {@link RAIL_HOVER_MARGIN}, or onto the desktop by
+ * {@link KEEP_OUT_FACTOR} rail extents?
+ */
+function pointerNearRail(
+	rail: HTMLElement,
+	edge: Edge,
+	clientX: number,
+	clientY: number,
+): boolean {
 	const r = rail.getBoundingClientRect();
 	if ( r.width <= 0 || r.height <= 0 ) {
 		return false;
 	}
-	return (
-		clientX >= r.left - RAIL_HOVER_MARGIN &&
-		clientX <= r.right + RAIL_HOVER_MARGIN &&
-		clientY >= r.top - RAIL_HOVER_MARGIN &&
-		clientY <= r.bottom + RAIL_HOVER_MARGIN
-	);
+	let top = r.top - RAIL_HOVER_MARGIN;
+	const bottom = r.bottom + RAIL_HOVER_MARGIN;
+	let left = r.left - RAIL_HOVER_MARGIN;
+	let right = r.right + RAIL_HOVER_MARGIN;
+	switch ( edge ) {
+		case 'bottom':
+			top = r.top - r.height * KEEP_OUT_FACTOR;
+			break;
+		case 'left':
+			right = r.right + r.width * KEEP_OUT_FACTOR;
+			break;
+		case 'right':
+			left = r.left - r.width * KEEP_OUT_FACTOR;
+			break;
+	}
+	return clientX >= left && clientX <= right && clientY >= top && clientY <= bottom;
 }
 
 function prefersReducedMotion(): boolean {
@@ -162,9 +198,11 @@ export function installDockBehavior( deps: DockBehaviorDeps ): DockBehaviorContr
 		if ( overFlyout ) {
 			return true;
 		}
+		const edge = edgeOf( rail );
 		return (
-			pointerInZone( edgeOf( rail ), pointer.x, pointer.y, window.innerWidth, window.innerHeight ) ||
-			( rail.classList.contains( REVEALED_CLASS ) && pointerOnRail( rail, pointer.x, pointer.y ) )
+			pointerInZone( edge, pointer.x, pointer.y, window.innerWidth, window.innerHeight ) ||
+			( rail.classList.contains( REVEALED_CLASS ) &&
+				pointerNearRail( rail, edge, pointer.x, pointer.y ) )
 		);
 	};
 
@@ -250,11 +288,6 @@ export function installDockBehavior( deps: DockBehaviorDeps ): DockBehaviorContr
 			target instanceof Element && target.closest( FLYOUT_SELECTOR ) !== null;
 		evaluate();
 	};
-	const onLeave = (): void => {
-		pointer = null;
-		overFlyout = false;
-		evaluate();
-	};
 	// Focus moves land before `activeElement` settles on the new
 	// target; evaluate on the next frame so a Tab off the rail parks
 	// it and a Tab onto it reveals it, in that order.
@@ -274,7 +307,10 @@ export function installDockBehavior( deps: DockBehaviorDeps ): DockBehaviorContr
 	// A tap has no move before it: the indicator line is the target
 	// on touch, and the down is what should summon the rail.
 	document.addEventListener( 'pointerdown', onPointer, { passive: true } );
-	document.documentElement.addEventListener( 'pointerleave', onLeave );
+	// Deliberately no `pointerleave`: the pointer leaving the window
+	// freezes whatever state the rails are in (see the module
+	// docblock). The last in-window position stays on record for
+	// the focus-driven re-evaluations.
 	document.addEventListener( 'focusin', onFocusChange );
 	document.addEventListener( 'focusout', onFocusChange );
 	document.addEventListener( 'os-layout-changed', onLayoutChanged );
@@ -297,7 +333,6 @@ export function installDockBehavior( deps: DockBehaviorDeps ): DockBehaviorContr
 			bodyObserver?.disconnect();
 			document.removeEventListener( 'pointermove', onPointer );
 			document.removeEventListener( 'pointerdown', onPointer );
-			document.documentElement.removeEventListener( 'pointerleave', onLeave );
 			document.removeEventListener( 'focusin', onFocusChange );
 			document.removeEventListener( 'focusout', onFocusChange );
 			document.removeEventListener( 'os-layout-changed', onLayoutChanged );
