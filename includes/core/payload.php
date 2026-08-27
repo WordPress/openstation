@@ -1735,6 +1735,138 @@ function openstation_menu_signature() {
 }
 
 /**
+ * A handle's dependency closure, in load order.
+ *
+ * Post-order depth-first: a handle is emitted only after everything it
+ * declares, which is the order `WP_Scripts::do_item()` would have
+ * printed them in. A handle is marked visited *before* its own
+ * dependencies are walked, so a dependency cycle unwinds instead of
+ * recursing forever, and an unregistered handle is skipped rather than
+ * being fatal — it contributes nothing and stops nothing.
+ *
+ * **Deliberately not `WP_Dependencies::all_deps()`.** Three reasons,
+ * each of which has bitten this codebase:
+ *
+ * 1. `WP_Scripts::all_deps()` applies `print_scripts_array` to its
+ * result whenever `$recursion` is falsy. That filter is where the
+ * chromeless palette trim and the asset guard live, so resolving a
+ * payload through it would run a print-time trim across a dependency
+ * list and let the guard splice this plugin's own bundles into it.
+ * Called from inside one of those filters it is an infinite loop.
+ *
+ * 2. Passing `$recursion = true` silences that filter but changes the
+ * contract: the first handle that fails aborts the entire call
+ * (`return false`), abandoning every handle after it in the list. The
+ * caller is left with a `$to_do` that is a truncated prefix of the real
+ * closure and indistinguishable from a complete one — a silent, partial
+ * answer conditional on unrelated registrations elsewhere on the page.
+ * A lazily-delivered bundle resolved that way loses packages it
+ * declared and throws on an undefined global at mount, which is the
+ * exact bug this whole mechanism exists to prevent.
+ *
+ * 3. `all_deps()` reports missing dependencies through
+ * `_doing_it_wrong()`. This is read-only analysis; the real print pass
+ * raises those anyway, and raising them twice turns someone else's
+ * pre-existing warning into our noise.
+ *
+ * O(V+E) over the graph, allocates one set, and clones nothing.
+ *
+ * @param WP_Dependencies $dependencies The scripts or styles registry.
+ * @param string[]        $handles      Roots to walk.
+ * @return string[] Registered handles, dependencies before dependents.
+ */
+function openstation_script_dependency_closure( $dependencies, $handles ) {
+	$seen = array();
+	$out  = array();
+	openstation_collect_script_dependency_closure( $dependencies, (array) $handles, $seen, $out );
+
+	return $out;
+}
+
+/**
+ * Recursive half of {@see openstation_script_dependency_closure()}.
+ *
+ * @param WP_Dependencies $dependencies The scripts or styles registry.
+ * @param string[]        $handles      Handles to walk.
+ * @param array           $seen         Handle => true, by reference.
+ * @param string[]        $out          Ordered result, by reference.
+ */
+function openstation_collect_script_dependency_closure( $dependencies, $handles, &$seen, &$out ) {
+	foreach ( (array) $handles as $handle ) {
+		if ( isset( $seen[ $handle ] ) ) {
+			continue;
+		}
+		// Marked BEFORE recursing, so a cycle meets itself as visited
+		// and unwinds rather than recursing forever.
+		$seen[ $handle ] = true;
+		if ( ! isset( $dependencies->registered[ $handle ] ) ) {
+			continue;
+		}
+		openstation_collect_script_dependency_closure(
+			$dependencies,
+			$dependencies->registered[ $handle ]->deps,
+			$seen,
+			$out
+		);
+		$out[] = $handle;
+	}
+}
+
+/**
+ * Resolve a handle's dependency closure, in load order.
+ *
+ * **Why a lazily-delivered handle needs this at all.** WordPress
+ * normally resolves a script's dependencies when it enqueues it — the
+ * packages a bundle declares are on the page before its own body runs.
+ * A handle that is only ever delivered lazily never goes through that:
+ * `loadVendorScript()` injects one URL, and a bundle declaring
+ * `wp-api-fetch` found `wp.apiFetch` undefined at mount.
+ *
+ * That used to work by accident. Core's ⌘K palette was enqueued on
+ * every admin page and its closure is the whole Gutenberg runtime, so
+ * `wp.apiFetch`, `wp.element` and friends happened to be globals.
+ * Deferring the palette took the accident away and left the contract
+ * exposed — see `docs/migration-wp-package-globals.md`.
+ *
+ * The closure comes from {@see openstation_script_dependency_closure()}
+ * rather than `WP_Dependencies::all_deps()`; that function's docblock
+ * records why, and the short version is that `all_deps()` answers a
+ * question like this one with a silently truncated list. The handle
+ * itself is excluded — the caller loads it separately, after these.
+ *
+ * @param string $handle Script handle.
+ * @return array<int,array<string,mixed>> Ordered dependency payloads.
+ */
+function openstation_resolve_script_dependencies( $handle ) {
+	$handle     = (string) $handle;
+	$wp_scripts = wp_scripts();
+	if ( '' === $handle || ! $wp_scripts || ! isset( $wp_scripts->registered[ $handle ] ) ) {
+		return array();
+	}
+	$deps = $wp_scripts->registered[ $handle ]->deps;
+	if ( empty( $deps ) ) {
+		return array();
+	}
+
+	$out = array();
+	foreach ( openstation_script_dependency_closure( $wp_scripts, $deps ) as $dep_handle ) {
+		if ( $dep_handle === $handle ) {
+			continue;
+		}
+		$payload = openstation_resolve_script_payload( $dep_handle );
+		if ( '' === $payload['url']
+			&& empty( $payload['before'] )
+			&& empty( $payload['after'] )
+			&& empty( $payload['l10n'] ) ) {
+			continue;
+		}
+		$payload['handle'] = (string) $dep_handle;
+		$out[]             = $payload;
+	}
+	return $out;
+}
+
+/**
  * Resolve a registered WP script handle into the full payload the
  * shell needs to lazy-load it without going through `wp_print_scripts()`.
  *
@@ -1772,63 +1904,6 @@ function openstation_menu_signature() {
  * @param string $handle WP script handle.
  * @return array{ url:string, before:string[], after:string[], l10n:string[], translations:string } Payload (empty `url` on miss).
  */
-/**
- * Resolve a handle's dependency closure, in load order.
- *
- * **Why a lazily-delivered handle needs this at all.** WordPress
- * normally resolves a script's dependencies when it enqueues it — the
- * packages a bundle declares are on the page before its own body runs.
- * A handle that is only ever delivered lazily never goes through that:
- * `loadVendorScript()` injects one URL, and a bundle declaring
- * `wp-api-fetch` found `wp.apiFetch` undefined at mount.
- *
- * That used to work by accident. Core's ⌘K palette was enqueued on
- * every admin page and its closure is the whole Gutenberg runtime, so
- * `wp.apiFetch`, `wp.element` and friends happened to be globals.
- * Deferring the palette took the accident away and left the contract
- * exposed — see `docs/migration-wp-package-globals.md`.
- *
- * The closure is resolved on a CLONE, so the request's real
- * `$to_do` / `$done` bookkeeping is untouched, and the handle itself is
- * excluded — the caller loads that separately, after these.
- *
- * @param string $handle Script handle.
- * @return array<int,array<string,mixed>> Ordered dependency payloads.
- */
-function openstation_resolve_script_dependencies( $handle ) {
-	$handle     = (string) $handle;
-	$wp_scripts = wp_scripts();
-	if ( '' === $handle || ! $wp_scripts || ! isset( $wp_scripts->registered[ $handle ] ) ) {
-		return array();
-	}
-	$deps = $wp_scripts->registered[ $handle ]->deps;
-	if ( empty( $deps ) ) {
-		return array();
-	}
-
-	$probe        = clone $wp_scripts;
-	$probe->to_do = array();
-	$probe->done  = array();
-	$probe->all_deps( $deps, true );
-
-	$out = array();
-	foreach ( $probe->to_do as $dep_handle ) {
-		if ( $dep_handle === $handle ) {
-			continue;
-		}
-		$payload = openstation_resolve_script_payload( $dep_handle );
-		if ( '' === $payload['url']
-			&& empty( $payload['before'] )
-			&& empty( $payload['after'] )
-			&& empty( $payload['l10n'] ) ) {
-			continue;
-		}
-		$payload['handle'] = (string) $dep_handle;
-		$out[]             = $payload;
-	}
-	return $out;
-}
-
 function openstation_resolve_script_payload( $handle ) {
 	$empty = array(
 		'url'          => '',

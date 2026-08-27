@@ -50,6 +50,7 @@ import {
 	readSwConfig,
 } from './sw-policy';
 import { SPECULATIVE_MAX, SpeculativeStore } from './speculative-store';
+import { applyFlagMessage } from './sw-flags';
 
 // Minimal local typings for the service-worker global scope. We
 // intentionally don't pull in `lib.webworker.d.ts` — it re-declares
@@ -518,46 +519,33 @@ sw.addEventListener( 'message', ( event: SWMessageEvent ) => {
 		| { type?: string; url?: string; urls?: unknown }
 		| undefined;
 
-	// The restore list for the NEXT boot. Gated like everything else
-	// here: the shell already checks the opt-in before posting, and
-	// checking again means a stray message can never make an
-	// opted-out browser start writing caches.
-	// The prewarm toggle, applied to the RUNNING worker. Without this
-	// the flag only moved when a new worker installed, so the setting
-	// appeared to do nothing (on) or to keep working (off) until some
-	// later reload. Turning it off also drops anything already held —
-	// leaving rendered pages in memory after the user opted out is the
-	// one thing the toggle is expected to prevent.
-	if ( data && data.type === 'os-sw-set-prewarm' ) {
-		windowPrewarmEnabled =
-			( data as { enabled?: unknown } ).enabled === true;
-		if ( ! windowPrewarmEnabled ) {
+	// The two per-user flags: the prewarm toggle applied to the RUNNING
+	// worker, and the boot-time sync of both. Neither is in the served
+	// bytes any more — see `applyFlagMessage()` for why, and for why
+	// only the toggle drops the session cache. Without the running-
+	// worker half the flag moved only when a new worker installed, so
+	// the setting appeared to do nothing (on) or to keep working (off)
+	// until some later reload.
+	const flagUpdate = applyFlagMessage( data, {
+		windowPrewarm: windowPrewarmEnabled,
+		adminAssetCache: adminAssetCacheEnabled,
+	} );
+	if ( flagUpdate ) {
+		windowPrewarmEnabled = flagUpdate.flags.windowPrewarm;
+		adminAssetCacheEnabled = flagUpdate.flags.adminAssetCache;
+		if ( flagUpdate.clearSpeculative ) {
 			speculative.clear();
+		}
+		if ( flagUpdate.dropSessionCache ) {
 			event.waitUntil( caches.delete( SESSION_CACHE ) );
 		}
 		return;
 	}
 
-	// The per-user flags, pushed by the shell at boot. They are not in
-	// the served bytes any more — see `adminAssetCacheEnabled` — so
-	// this is how the worker learns them at all.
-	if ( data && data.type === 'os-sw-config' ) {
-		const cfg = data as {
-			adminAssetCache?: unknown;
-			windowPrewarm?: unknown;
-		};
-		if ( typeof cfg.adminAssetCache === 'boolean' ) {
-			adminAssetCacheEnabled = cfg.adminAssetCache;
-		}
-		if ( typeof cfg.windowPrewarm === 'boolean' ) {
-			windowPrewarmEnabled = cfg.windowPrewarm;
-			if ( ! windowPrewarmEnabled ) {
-				speculative.clear();
-			}
-		}
-		return;
-	}
-
+	// The restore list for the NEXT boot. Gated like everything else
+	// here: the shell already checks the opt-in before posting, and
+	// checking again means a stray message can never make an
+	// opted-out browser start writing caches.
 	if ( data && data.type === 'os-remember-session' ) {
 		if ( ! windowPrewarmEnabled ) {
 			return;

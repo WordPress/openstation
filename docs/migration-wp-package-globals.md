@@ -62,12 +62,28 @@ files, 10.66 MB raw / 1.94 MB gzipped — 73.6% of everything the window
 downloaded — parsed and executed again in every window's own JavaScript
 realm, where an HTTP cache hit buys nothing.
 
-## A note on lazily-loaded scripts
+## Lazily-loaded scripts — what is replayed, and what is not
 
-Scripts delivered through OpenStation's lazy paths — widget bundles,
-native-window scripts, command scripts — are injected by URL and their
-dependency closure is **not** replayed ahead of them. A declared
-dependency still resolves correctly whenever WordPress itself enqueues
-the handle; the gap is specific to handles that are only ever fetched
-lazily. If your script must run inside one of those and needs a
-package, load it yourself before use rather than relying on load order.
+WordPress resolves a script's dependencies when it **enqueues** it. A
+handle that OpenStation only ever fetches lazily never goes through
+that pass: the loader injects one URL and nothing else, so a declared
+dependency is not on the page when the bundle runs. A declared
+dependency still resolves normally whenever WordPress itself enqueues
+the handle — the gap is specific to handles only ever fetched lazily.
+
+**Widget bundles close that gap.** `openstation_register_widget()`
+resolves the handle's dependency closure server-side and ships it in
+the payload, and the loader executes those handles in order before the
+widget's own — each with its `wp_localize_script` /
+`wp_add_inline_script` / `wp_set_script_translations` data attached.
+Declare your packages and it works.
+
+**No other lazy path does this yet.** Native-window scripts, command
+scripts, settings-tab scripts, wallpapers, games and desktop-file
+openers all travel the same loader, but their payload builders do not
+resolve a closure. If one of those needs a `@wordpress/*` package,
+either enqueue the handle normally so WordPress resolves it, or load
+the package yourself before use — do not rely on load order.
+
+The loader side of the mechanism is generic, so extending the
+remaining builders is a payload change rather than a new mechanism.

@@ -151,11 +151,13 @@ function openstation_pwa_force_replace_sw() {
  * Features → Beta features** (`adminAssetCacheEnabled`, per user), or
  * site-wide via the filter below.
  *
- * Per-user works here because the SW script itself is fetched with
- * credentials: the served bytes reflect whoever is logged in on that
- * browser profile, which is also who the SW will be serving. A
- * logged-out update check simply reads the default (`false`) and the
- * setting reasserts itself on the next authenticated load.
+ * Per-user works even though a service worker is origin-wide because
+ * the answer never travels in the worker's own bytes. It is resolved
+ * per request here and pushed to the running worker as an `os-sw-config`
+ * message when the shell boots, and again whenever the preference
+ * changes — see {@see openstation_pwa_sw_config_preamble()} for why
+ * baking it into the script was abandoned. The worker starts with the
+ * cache off, so until that message lands it does less, never more.
  *
  * @return bool
  */
@@ -168,10 +170,10 @@ function openstation_pwa_admin_asset_cache_enabled() {
 	 *
 	 * Return `true` to let the service worker cache versioned admin
 	 * static assets in a shared, origin-wide bucket, or `false` to
-	 * veto it site-wide regardless of per-user opt-ins. The value is
-	 * delivered to the SW inside the served script bytes, so a change
-	 * triggers a normal SW update on the next load — no URL change,
-	 * no re-registration.
+	 * veto it site-wide regardless of per-user opt-ins. The value
+	 * reaches the worker as an `os-sw-config` message on the next shell
+	 * boot, so a change takes effect without altering the served script
+	 * — no SW update, no URL change, no re-registration.
 	 *
 	 * @param bool $enabled Defaults to the requesting user's
 	 *                      `adminAssetCacheEnabled` OpenStation

@@ -620,44 +620,19 @@ function openstation_protect_survivor_dependencies( $dependencies, $handles, $dr
 	}
 
 	/*
-	 * An explicit closure walk rather than `all_deps()`, for three
-	 * reasons, each of which bit:
-	 *
-	 * 1. `WP_Styles::all_deps()` / `WP_Scripts::all_deps()` apply
-	 * `print_styles_array` / `print_scripts_array` to their result —
-	 * the very filters this helper is called from. That is an infinite
-	 * loop, and it hangs the request.
-	 *
-	 * 2. Passing `$recursion = true` silences the filter but changes
-	 * the contract: one handle with an unregistered dependency aborts
-	 * the ENTIRE call (`return false`), so a single unrelated
-	 * registration mistake elsewhere on the page would quietly protect
-	 * nothing at all.
-	 *
-	 * 3. `all_deps()` reports missing dependencies through
-	 * `_doing_it_wrong()`. This is a read-only analysis; the real print
-	 * pass raises those anyway, and raising them twice turns someone
-	 * else's pre-existing warning into our noise.
-	 *
-	 * The walk below is O(V+E) over the graph, allocates one set, and
-	 * clones nothing.
+	 * An explicit closure walk rather than `all_deps()`. The three
+	 * reasons — filter re-entry, silent truncation under
+	 * `$recursion = true`, and duplicated `_doing_it_wrong()` noise —
+	 * are recorded on {@see openstation_script_dependency_closure()},
+	 * which is the shared implementation. The one that bites hardest
+	 * here: `WP_Styles::all_deps()` / `WP_Scripts::all_deps()` apply
+	 * `print_styles_array` / `print_scripts_array` to their result, and
+	 * those are the very filters this helper is called from — an
+	 * infinite loop that hangs the request.
 	 */
-	$needed = array();
-	$stack  = $survivors;
-	while ( $stack ) {
-		$handle = array_pop( $stack );
-		if ( isset( $needed[ $handle ] ) || ! isset( $dependencies->registered[ $handle ] ) ) {
-			continue;
-		}
-		$needed[ $handle ] = true;
-		foreach ( $dependencies->registered[ $handle ]->deps as $dep ) {
-			if ( ! isset( $needed[ $dep ] ) ) {
-				$stack[] = $dep;
-			}
-		}
-	}
+	$needed = openstation_script_dependency_closure( $dependencies, $survivors );
 
-	return array_values( array_diff( $drops, array_keys( $needed ) ) );
+	return array_values( array_diff( $drops, $needed ) );
 }
 
 /**

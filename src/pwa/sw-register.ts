@@ -318,24 +318,18 @@ export async function registerServiceWorker(
 }
 
 /**
- * Synchronous read of the most recent registration outcome. Drives
- * UI that needs to differentiate "install isn't available" causes —
- * e.g. the install tile's click handler surfaces a foreign-SW-specific
- * toast when the value is `'foreign-sw'`.
- */
-/**
  * Tell the RUNNING worker that hover prewarming was switched.
  *
- * The worker's own copy of the flag comes from the config preamble
- * baked into its body at install, so it could not otherwise learn about
- * a toggle until a new worker happened to install. That made the
- * setting look broken in both directions: turning it on enabled the
+ * A worker has no copy of this flag except what it is told: the served
+ * bytes carry only `pluginUrl`, so every worker starts with prewarming
+ * off and stays that way until a message arrives. Without this call the
+ * setting looked broken in both directions — turning it on enabled the
  * shell-side half immediately while the worker went on dropping
  * `os-speculate-doc`, and turning it off left the worker speculating.
  *
- * Best-effort by design — with no controller there is no worker to
- * disagree with us, and the next one installs with the correct value
- * baked in anyway.
+ * Best-effort by design: with no controller there is no worker to
+ * disagree with us, and the next one starts from the safe default
+ * (off) until {@link notifyServiceWorkerConfig} syncs it at boot.
  *
  * @param enabled The new setting.
  */
@@ -383,6 +377,12 @@ export function notifyServiceWorkerConfig( config: {
 	}
 }
 
+/**
+ * Synchronous read of the most recent registration outcome. Drives
+ * UI that needs to differentiate "install isn't available" causes —
+ * e.g. the install tile's click handler surfaces a foreign-SW-specific
+ * toast when the value is `'foreign-sw'`.
+ */
 export function getSwRegistrationStatus(): SwRegistrationStatus {
 	return _status;
 }
