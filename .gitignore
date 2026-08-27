@@ -2,6 +2,13 @@
 /vendor
 /openstation.zip
 /desktop-mode.zip
+# Version-stamped release artifacts. `bin/package.sh` takes the output
+# name as an argument, so a hand-built beta lands as e.g.
+# `openstation-1.1.4-beta3.zip` and slipped past the two exact names
+# above — a multi-megabyte binary sitting in `git status` waiting to be
+# caught by an `git add -A`.
+/openstation-*.zip
+/desktop-mode-*.zip
 /dist/
 /tests/phpunit/.phpunit.result.cache
 /.scratch/

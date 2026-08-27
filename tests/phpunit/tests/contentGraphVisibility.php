@@ -186,6 +186,44 @@ class Tests_OpenStation_ContentGraphVisibility extends WP_UnitTestCase {
 		$this->assertArrayHasKey( self::$editor_id, $data['groups']['authors'] );
 	}
 
+	public function test_nodes_distinguishes_omitted_types_from_explicit_empty_filter() {
+		$post_id = self::factory()->post->create(
+			array(
+				'post_author' => self::$editor_id,
+				'post_status' => 'publish',
+				'post_type'   => 'post',
+			)
+		);
+		wp_set_current_user( self::$editor_id );
+
+		// Through the server, not the callback: dispatch is what installs
+		// registered arg defaults into the request, and the omitted-vs-
+		// empty distinction only holds if no default is registered.
+		$default_request = new WP_REST_Request(
+			'GET',
+			'/desktop-mode/v1/content-graph/nodes'
+		);
+		$default_response = rest_get_server()->dispatch( $default_request );
+		$this->assertSame( 200, $default_response->get_status() );
+		$default_data = $default_response->get_data();
+		$this->assertContains(
+			$post_id,
+			$this->node_ids( $default_data ),
+			'Omitting the types parameter must keep the route default of all registered post types.'
+		);
+
+		$empty_request = new WP_REST_Request(
+			'GET',
+			'/desktop-mode/v1/content-graph/nodes'
+		);
+		$empty_request->set_query_params( array( 'types' => '' ) );
+		$empty_response = rest_get_server()->dispatch( $empty_request );
+		$this->assertSame( 200, $empty_response->get_status() );
+		$empty_data = $empty_response->get_data();
+		$this->assertSame( array(), $empty_data['nodes'] );
+		$this->assertSame( 0, $empty_data['stats']['nodes'] );
+	}
+
 	public function test_post_detail_gates_revisions_on_edit_post() {
 		$post_id = self::factory()->post->create(
 			array(

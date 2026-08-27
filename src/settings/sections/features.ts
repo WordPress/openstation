@@ -28,6 +28,7 @@ import type { SettingsCtx } from '../types';
 import { osConfirm } from '../../ui/components/os-confirm-dialog/os-confirm-dialog';
 import { showToast } from '../../toast';
 import { notifyServiceWorkerPrewarm } from '../../pwa/sw-register';
+import { spendMenuRefresh } from '../spend-menu-refresh';
 
 /**
  * Developer mode gates SERVER-side registrations (Code Blue's native
@@ -64,14 +65,7 @@ document.addEventListener( 'os-settings-save-lifecycle', ( event ) => {
 	if ( phase !== 'saved' ) {
 		return;
 	}
-	const refreshMenu = (
-		window.wp as
-			| { os?: { refreshMenu?: () => Promise< void > } }
-			| undefined
-	)?.os?.refreshMenu;
-	if ( typeof refreshMenu === 'function' ) {
-		void refreshMenu();
-	}
+	spendMenuRefresh();
 } );
 
 // Show the platform-native shortcut: ⌘K on Apple, Ctrl+K elsewhere.

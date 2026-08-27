@@ -46,6 +46,17 @@ add_action( 'init', function () {
         'config'        => array(
             'roundsUrl' => plugins_url( 'rounds.json', __FILE__ ),
         ),
+        // Same numbers as the JS def below, and not redundant: the
+        // shell opens the window on the click and fetches the bundle
+        // behind the loading spinner, so it needs the size before it
+        // has seen the def. Omit it and the first launch of a session
+        // opens at the framework default.
+        'window'        => array(
+            'width'     => 640,
+            'height'    => 480,
+            'minWidth'  => 400,
+            'minHeight' => 320,
+        ),
     ) );
 }, 20 );
 ```

@@ -21,9 +21,25 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 	protected static $admin_id;
 	protected static $subscriber_id;
 
+	/**
+	 * `$pagenow` as the test bootstrap left it, restored on tear-down.
+	 *
+	 * The admin_init redirect guard compares the request path against
+	 * the page actually being served, so tests that exercise it have to
+	 * fake `$pagenow` to match the URI they set.
+	 *
+	 * @var string|null
+	 */
+	protected $pagenow_backup;
+
 	public static function wpSetUpBeforeClass( WP_UnitTest_Factory $factory ) {
 		self::$admin_id      = $factory->user->create( array( 'role' => 'administrator' ) );
 		self::$subscriber_id = $factory->user->create( array( 'role' => 'subscriber' ) );
+	}
+
+	public function set_up() {
+		parent::set_up();
+		$this->pagenow_backup = isset( $GLOBALS['pagenow'] ) ? $GLOBALS['pagenow'] : null;
 	}
 
 	public function tear_down() {
@@ -33,13 +49,20 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 			$_GET[ OPENSTATION_PORTAL_FLAG ],
 			$_GET[ OPENSTATION_PORTAL_INTENT_FLAG ],
 			$_GET[ OPENSTATION_CLASSIC_FLAG ],
-			$_GET['openstation_chromeless']
+			$_GET['openstation_chromeless'],
+			$_GET['target']
 		);
+		if ( null === $this->pagenow_backup ) {
+			unset( $GLOBALS['pagenow'] );
+		} else {
+			$GLOBALS['pagenow'] = $this->pagenow_backup;
+		}
 		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );
 		delete_user_meta( self::$admin_id, OPENSTATION_SESSION_META_KEY );
 		delete_user_meta( self::$subscriber_id, 'desktop_mode_mode' );
 		remove_all_filters( 'openstation_portal_auto_enable' );
 		remove_all_filters( 'openstation_admin_redirect_to_portal' );
+		remove_all_filters( 'openstation_skip_redundant_portal_forward' );
 		parent::tear_down();
 	}
 
@@ -385,9 +408,10 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::openstation_handle_portal_request
-	 */
-	/**
+	 * With no `REQUEST_URI` to inspect, the guard can't prove the
+	 * forward is redundant, so it falls through to the portal — and
+	 * with nothing to preserve, it forwards to the bare portal URL.
+	 *
 	 * @covers ::openstation_redirect_plain_admin_to_portal
 	 */
 	public function test_admin_redirect_sends_desktop_user_to_portal() {
@@ -491,6 +515,151 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 	}
 
 	/**
+	 * An ordinary admin URL is not forwarded at all.
+	 *
+	 * `/wp-admin/edit.php?post_type=page` resolves through the portal's
+	 * allowlist back to itself, so the round trip would spend two extra
+	 * WordPress bootstraps to land on the page this request is already
+	 * about to render — tagged with a flag pair every consumer reads as
+	 * `fromPortal && ! fromPortalIntent`, i.e. as no flags at all.
+	 *
+	 * @covers ::openstation_redirect_plain_admin_to_portal
+	 */
+	public function test_admin_redirect_skipped_when_portal_would_land_here() {
+		wp_set_current_user( self::$admin_id );
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		$_SERVER['REQUEST_METHOD'] = 'GET';
+		$_SERVER['REQUEST_URI']    = '/wp-admin/edit.php?post_type=page';
+		$GLOBALS['pagenow']        = 'edit.php';
+
+		$this->assertNull( $this->capture_admin_init_redirect() );
+	}
+
+	/**
+	 * The bare admin root — the URL the perf report measured — resolves
+	 * to `index.php`, which is what WordPress serves there anyway.
+	 *
+	 * @covers ::openstation_redirect_plain_admin_to_portal
+	 */
+	public function test_admin_redirect_skipped_for_bare_admin_root() {
+		wp_set_current_user( self::$admin_id );
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		$_SERVER['REQUEST_METHOD'] = 'GET';
+		$_SERVER['REQUEST_URI']    = '/wp-admin/';
+		$GLOBALS['pagenow']        = 'index.php';
+
+		$this->assertNull( $this->capture_admin_init_redirect() );
+	}
+
+	/**
+	 * Multisite network-admin URLs still forward. `network/sites.php`
+	 * carries a sub-path, which the wp-admin allowlist rejects, so the
+	 * portal genuinely picks a different destination (the session's
+	 * focused window) — the case the forward still exists to serve.
+	 *
+	 * @covers ::openstation_redirect_plain_admin_to_portal
+	 */
+	public function test_admin_redirect_still_forwards_network_admin_path() {
+		wp_set_current_user( self::$admin_id );
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		$_SERVER['REQUEST_METHOD'] = 'GET';
+		$_SERVER['REQUEST_URI']    = '/wp-admin/network/sites.php';
+		$GLOBALS['pagenow']        = 'sites.php';
+
+		$redirect = $this->capture_admin_init_redirect();
+
+		$this->assertNotNull( $redirect );
+		$this->assertStringContainsString( 'target=', $redirect );
+	}
+
+	/**
+	 * The portal drops `target` from the URL it rebuilds, so a request
+	 * already carrying one comes back different and must still forward.
+	 *
+	 * @covers ::openstation_redirect_plain_admin_to_portal
+	 */
+	public function test_admin_redirect_still_forwards_when_query_would_be_rewritten() {
+		wp_set_current_user( self::$admin_id );
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		$_SERVER['REQUEST_METHOD'] = 'GET';
+		$_SERVER['REQUEST_URI']    = '/wp-admin/edit.php?target=%2Fwp-admin%2Findex.php';
+		$GLOBALS['pagenow']        = 'edit.php';
+		$_GET['target']            = '/wp-admin/index.php';
+
+		$this->assertNotNull( $this->capture_admin_init_redirect() );
+	}
+
+	/**
+	 * A plugin that hooks `openstation_handle_portal_request` for its
+	 * own side effects can force the round trip back on.
+	 *
+	 * @covers ::openstation_redirect_plain_admin_to_portal
+	 */
+	public function test_admin_redirect_skip_is_filterable() {
+		wp_set_current_user( self::$admin_id );
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		$_SERVER['REQUEST_METHOD'] = 'GET';
+		$_SERVER['REQUEST_URI']    = '/wp-admin/edit.php?post_type=page';
+		$GLOBALS['pagenow']        = 'edit.php';
+		add_filter( 'openstation_skip_redundant_portal_forward', '__return_false' );
+
+		$redirect = $this->capture_admin_init_redirect();
+
+		$this->assertNotNull( $redirect );
+		$this->assertStringContainsString( 'target=', $redirect );
+	}
+
+	/**
+	 * @covers ::openstation_portal_forward_is_redundant
+	 */
+	public function test_forward_is_redundant_for_allowlisted_page_being_served() {
+		$GLOBALS['pagenow'] = 'edit.php';
+
+		$this->assertTrue( openstation_portal_forward_is_redundant( '/wp-admin/edit.php?post_type=page' ) );
+	}
+
+	/**
+	 * `$pagenow` disagreeing with the URL path means a rewrite is in
+	 * play and we can't claim to know what renders here, so the forward
+	 * stands.
+	 *
+	 * @covers ::openstation_portal_forward_is_redundant
+	 */
+	public function test_forward_is_not_redundant_when_pagenow_disagrees() {
+		$GLOBALS['pagenow'] = 'index.php';
+
+		$this->assertFalse( openstation_portal_forward_is_redundant( '/wp-admin/edit.php' ) );
+	}
+
+	/**
+	 * @covers ::openstation_portal_forward_is_redundant
+	 */
+	public function test_forward_is_not_redundant_outside_the_admin_path() {
+		$GLOBALS['pagenow'] = 'index.php';
+
+		$this->assertFalse( openstation_portal_forward_is_redundant( '/blog/hello-world/' ) );
+	}
+
+	/**
+	 * @covers ::openstation_portal_forward_is_redundant
+	 */
+	public function test_forward_is_not_redundant_without_a_request_uri() {
+		$GLOBALS['pagenow'] = 'index.php';
+
+		$this->assertFalse( openstation_portal_forward_is_redundant( '' ) );
+	}
+
+	/**
+	 * @covers ::openstation_portal_forward_is_redundant
+	 */
+	public function test_forward_is_not_redundant_when_a_stripped_query_arg_is_present() {
+		$GLOBALS['pagenow'] = 'edit.php';
+		$_GET['target']     = '/wp-admin/index.php';
+
+		$this->assertFalse( openstation_portal_forward_is_redundant( '/wp-admin/edit.php' ) );
+	}
+
+	/**
 	 * Regression: a request URI carrying a percent-encoded slash in a
 	 * query arg (e.g. `plugin=dir%2Ffile.php` on the WP "Activate
 	 * Plugin" link) must survive the redirect to the portal with the
@@ -501,13 +670,23 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 	 * We use `esc_url_raw` instead, which preserves percent-encoded
 	 * chars while still stripping control sequences.
 	 *
+	 * The URI is a NETWORK-admin activate link on purpose. The
+	 * single-site equivalent no longer reaches this code path: the
+	 * portal would resolve it straight back to itself, so
+	 * {@see openstation_portal_forward_is_redundant()} short-circuits
+	 * the forward and we render in place. `network/plugins.php` fails
+	 * the wp-admin allowlist (sub-path), which is exactly the case the
+	 * forward still exists to serve — and it carries the same encoded
+	 * slash, so the regression stays pinned.
+	 *
 	 * @covers ::openstation_redirect_plain_admin_to_portal
 	 */
 	public function test_admin_redirect_preserves_percent_encoded_slashes() {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$_SERVER['REQUEST_METHOD'] = 'GET';
-		$_SERVER['REQUEST_URI']    = '/wp-admin/plugins.php?action=activate&plugin=desktop-mode-cron-manager%2Fdesktop-mode-cron-manager.php&_wpnonce=abc123';
+		$GLOBALS['pagenow']        = 'plugins.php';
+		$_SERVER['REQUEST_URI']    = '/wp-admin/network/plugins.php?action=activate&plugin=desktop-mode-cron-manager%2Fdesktop-mode-cron-manager.php&_wpnonce=abc123';
 
 		$redirect = $this->capture_admin_init_redirect();
 

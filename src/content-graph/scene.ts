@@ -52,6 +52,14 @@ import {
 	type PixiNamespace,
 	type PixiText,
 } from './pixi-types';
+import {
+	frameBounds,
+	JOIN_WARMUP_STEPS,
+	randomSeed,
+	seedPositions,
+	warmupStepLimit,
+	type Point,
+} from './layout';
 import { ForceSim } from './sim';
 import {
 	SatelliteLayer,
@@ -219,6 +227,16 @@ const GROUP_LABEL_COLOR: Record< GroupFacet, string > = {
 
 const ZOOM_MIN = 0.15;
 const ZOOM_MAX = 4;
+/**
+ * Fit never zooms past this, however small the board: a lone node at
+ * 4× is a poster, not a board. Wheel zoom still reaches `ZOOM_MAX`.
+ */
+const FIT_ZOOM_MAX = 1.5;
+const FIT_OPTIONS = {
+	padding: 100,
+	minScale: ZOOM_MIN,
+	maxScale: FIT_ZOOM_MAX,
+};
 const ZOOM_SENSITIVITY = 0.0008;
 const CAMERA_EASE = 0.18;
 // A tiny snap distance below which we skip easing (avoids the camera
@@ -364,6 +382,9 @@ export class GraphScene {
 	private resizeObserver: ResizeObserver | null = null;
 	private lastResizeWidth = 0;
 	private lastResizeHeight = 0;
+	// A fit asked for while the host had no size yet (window still
+	// laying out). Honoured by the resize observer once it does.
+	private fitPending = false;
 	// Camera target system — wheel + focus + fitToView write here, the
 	// tick loop eases the actual world.x / world.y / world.scale toward
 	// these targets each frame.
@@ -573,14 +594,22 @@ export class GraphScene {
 			tags: {},
 		};
 
-		const nodes: GraphNode[] = payload.nodes.map( ( p ) => {
+		// A board laid out from scratch (first load, or a filter change
+		// that replaced every node) is seeded with its centroid on the
+		// world origin — see `layout.ts` for why that is the property
+		// the camera depends on. Nodes joining an existing layout keep
+		// the random periphery seed and get pulled in by gravity.
+		const fromScratch = payload.nodes.every( ( p ) => ! prev.has( p.id ) );
+		const seeds = fromScratch
+			? seedPositions( payload.nodes.length )
+			: null;
+		const nodes: GraphNode[] = payload.nodes.map( ( p, i ) => {
 			const old = prev.get( p.id );
-			const angle = Math.random() * Math.PI * 2;
-			const r = 150 + Math.random() * 250;
+			const seed = seeds ? seeds[ i ] : randomSeed();
 			return {
 				...p,
-				x: old?.x ?? Math.cos( angle ) * r,
-				y: old?.y ?? Math.sin( angle ) * r,
+				x: old?.x ?? seed.x,
+				y: old?.y ?? seed.y,
 				vx: 0,
 				vy: 0,
 				pinned: false,
@@ -620,8 +649,18 @@ export class GraphScene {
 		// happened yet (no paint until the ticker fires), so these
 		// steps are invisible — they only collapse the period of
 		// chaotic motion that made it hard to click a node before.
-		const warmupSteps = Math.min( 90, 30 + nodes.length );
-		for ( let i = 0; i < warmupSteps; i++ ) {
+		// A small board laid out from scratch runs all the way to rest
+		// here, so the first frame IS the final layout and nothing
+		// drifts out of the frame the camera is about to be given.
+		// Large boards, and any board where nodes are joining a layout
+		// the user is already looking at, keep the short warm-start and
+		// finish settling on screen — settling a joined board here
+		// would snap the nodes the user can see to new positions with
+		// no transition.
+		const warmupSteps = fromScratch
+			? warmupStepLimit( nodes.length )
+			: JOIN_WARMUP_STEPS;
+		for ( let i = 0; i < warmupSteps && ! this.sim.isSettled; i++ ) {
 			this.sim.step( 1 );
 		}
 		// If a grouping was active before this rebuild (e.g. the post-type
@@ -955,6 +994,9 @@ export class GraphScene {
 				this.app.render();
 			} catch {
 				// Pixi sometimes throws on race during teardown.
+			}
+			if ( this.fitPending ) {
+				this.fitToView();
 			}
 			// Sub-pixel sidebar reflows (panel open/close, scroll
 			// adjustments) shouldn't trigger camera repositioning. Only
@@ -1780,35 +1822,29 @@ export class GraphScene {
 		if ( targets.size === 0 ) {
 			return;
 		}
-		let minX = Infinity;
-		let minY = Infinity;
-		let maxX = -Infinity;
-		let maxY = -Infinity;
-		for ( const t of targets.values() ) {
-			if ( t.x < minX ) {
-				minX = t.x;
-			}
-			if ( t.y < minY ) {
-				minY = t.y;
-			}
-			if ( t.x > maxX ) {
-				maxX = t.x;
-			}
-			if ( t.y > maxY ) {
-				maxY = t.y;
-			}
+		this.frame( targets.values() );
+	}
+
+	/**
+	 * Point the camera at `points`, centred and at the largest fit
+	 * zoom. When the host has no size yet the request is parked and
+	 * replayed by the resize observer — framing against a 0×0 host
+	 * would leave the board in the top-left corner at minimum zoom.
+	 */
+	private frame( points: Iterable< Point > ): void {
+		const target = frameBounds(
+			points,
+			{ width: this.host.clientWidth, height: this.host.clientHeight },
+			FIT_OPTIONS,
+		);
+		if ( ! target ) {
+			this.fitPending = true;
+			return;
 		}
-		const padding = 100;
-		const w = maxX - minX + padding * 2;
-		const h = maxY - minY + padding * 2;
-		const sx = this.host.clientWidth / w;
-		const sy = this.host.clientHeight / h;
-		const s = Math.max( ZOOM_MIN, Math.min( 1.5, Math.min( sx, sy ) ) );
-		const cx = ( minX + maxX ) / 2;
-		const cy = ( minY + maxY ) / 2;
-		this.targetScale = s;
-		this.targetX = this.host.clientWidth / 2 - cx * s;
-		this.targetY = this.host.clientHeight / 2 - cy * s;
+		this.fitPending = false;
+		this.targetScale = target.scale;
+		this.targetX = target.x;
+		this.targetY = target.y;
 	}
 
 	/**
@@ -1932,35 +1968,7 @@ export class GraphScene {
 		if ( this.nodes.length === 0 ) {
 			return;
 		}
-		let minX = Infinity;
-		let minY = Infinity;
-		let maxX = -Infinity;
-		let maxY = -Infinity;
-		for ( const n of this.nodes ) {
-			if ( n.x < minX ) {
-				minX = n.x;
-			}
-			if ( n.y < minY ) {
-				minY = n.y;
-			}
-			if ( n.x > maxX ) {
-				maxX = n.x;
-			}
-			if ( n.y > maxY ) {
-				maxY = n.y;
-			}
-		}
-		const padding = 100;
-		const w = maxX - minX + padding * 2;
-		const h = maxY - minY + padding * 2;
-		const sx = this.host.clientWidth / w;
-		const sy = this.host.clientHeight / h;
-		const s = Math.max( ZOOM_MIN, Math.min( 1.5, Math.min( sx, sy ) ) );
-		const cx = ( minX + maxX ) / 2;
-		const cy = ( minY + maxY ) / 2;
-		this.targetScale = s;
-		this.targetX = this.host.clientWidth / 2 - cx * s;
-		this.targetY = this.host.clientHeight / 2 - cy * s;
+		this.frame( this.nodes );
 	}
 
 	destroy(): void {

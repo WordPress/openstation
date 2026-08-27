@@ -214,10 +214,18 @@ openstation_register_game( 'my-plugin-puzzle', array(
     ),
     'config'        => array( 'assetUrl' => '…' ),          // arbitrary blob → the game's launch context
     'capabilities'  => array(),                             // ALL must pass for the registering user
+    'window'        => array(                               // window size, known before the bundle is
+        'width'     => 860,
+        'height'    => 660,
+        'minWidth'  => 600,
+        'minHeight' => 500,
+    ),
 ) );
 ```
 
 Returns `true` or `WP_Error` (`openstation_missing_id` / `openstation_missing_title` / `openstation_missing_script` / `openstation_invalid_icon_svg` / `openstation_capability_denied`). Only server-registered games can persist scores and challenges — the REST routes 404 unknown ids. `openstation_unregister_game( $id )` removes an entry.
+
+**Declare `window` here as well as in your JS def.** The two look redundant and are not. A game's bundle is heavy — the game, its engine, sometimes a dictionary — so the shell opens the window on the click and fetches the bundle *inside* the render callback, where the window manager's loading spinner covers the wait. That means the size is needed one round trip before the def that also carries it. Any subset of `{ width, height, minWidth, minHeight }` is accepted, in pixels; values are clamped rather than rejected, and anything non-numeric or non-positive is dropped. Declaring it only in JS still works — the window just opens at the framework default (760×560) the first time a player launches that game in a session, and at its own size from then on.
 
 **Framework config keys**: the `serverGames` payload merges framework-level keys underneath every game's `config` (the game's own keys win on collision). Currently: **`wordsUrl`** — the URL of the shared ~20k-word dictionary asset (`assets/games/words.txt`), identical for every player, which is what lets seeded games generate the same puzzle worldwide. See `openstation_games_words_url` below.
 
@@ -1430,6 +1438,26 @@ Governs the `admin_init` redirect from classic `/wp-admin/` URLs to `/openstatio
 
 ```php
 apply_filters( 'openstation_admin_redirect_to_portal', bool $redirect, int $user_id );
+```
+
+---
+
+### `openstation_skip_redundant_portal_forward` — Stable
+
+Governs whether a portal forward that would resolve back to the URL already being served is skipped. Applied only after `openstation_admin_redirect_to_portal` has allowed the forward, and only for requests the portal would hand straight back — an allowlisted wp-admin file that is also the page `$pagenow` reports, carrying no query arg the portal would strip.
+
+Default `true`. For those URLs the round trip costs two extra WordPress bootstraps and lands on the same page tagged `desktop_mode_portal=1&desktop_mode_portal_intent=1` — a flag pair the boot flow reads as `fromPortal && ! fromPortalIntent`, which is indistinguishable from no flags at all. The shell does not need the portal to reach it: it enqueues on any admin page where OpenStation is enabled.
+
+Return `false` to force the round trip — the one reason to do so is a plugin that hooks `openstation_handle_portal_request` for side effects and needs it to run on every admin entry.
+
+```php
+apply_filters( 'openstation_skip_redundant_portal_forward', bool $skip, string $request_uri );
+```
+
+**Example — keep the round trip so a portal-entry hook keeps firing:**
+
+```php
+add_filter( 'openstation_skip_redundant_portal_forward', '__return_false' );
 ```
 
 ---
@@ -2784,6 +2812,8 @@ The bin registers **no desktop icon**, so it lands on the dock and nowhere else.
 
 The full template body before it's emitted into the native-window template element. Keep the `data-os-recycle-bin-*` hooks intact so the JS bundle can find its mount points.
 
+Some are visibility hooks rather than mount points: while the bin is empty the JS hides `[data-os-recycle-bin-toolbar]` and the `<os-table>`, and shows `[data-os-recycle-bin-empty-state]`. Put added toolbar controls inside the toolbar element or they stay visible over an empty bin. A filter or search that matches nothing keeps the toolbar and shows the table's own `empty` text instead; so does a failed load, which swaps that text for a retry message.
+
 ### `openstation_recycle_bin_empty_chunk_size` — Experimental (filter)
 
 ```php
@@ -3941,11 +3971,13 @@ array(
 
 ## Corkboard
 
-An interactive PixiJS map of post links — every public post type participates as a node; internal links, terms, authors, and comments form the edges. Registers a native window (`desktop-mode-content-graph`) plus a desktop icon on `init` priority 20. The filterable surface mirrors WP Explorer’s module shape.
+An interactive PixiJS map of post links — every public post type participates as a node, and a **thread** is drawn between two nodes when one post's content links to the other. Terms, authors, comments, media and revisions are not threads: they fan out as satellites around the focused post, and terms, authors and dates double as the Group by facets that cluster the board. Registers a native window (`desktop-mode-content-graph`) plus a desktop icon on `init` priority 20. The filterable surface mirrors WP Explorer’s module shape.
 
 The window and icon are titled **Corkboard** — a thing you can have on a desk, rather than the name of the data structure behind it. The module directory, window id, REST routes, and every hook below keep the `content_graph` slug.
 
 Nodes are drawn as **discs coloured by post type**, using the same palette the relationship satellites use so a focused post and the bubbles fanned around it read as one system. The original **pin** look — the post type's Dashicon glyph as the node body — is one row away in the window's ⋯ menu ("Show pins"), and the choice persists in `localStorage` under `desktop-mode/corkboard-node-style`. Either way the focused node reveals its glyph, so focus never costs the user the type information. The row is an ordinary checkbox registered through the public [`registerWindowAction`](./javascript-reference.md#wposregisterwindowaction--experimental) surface — see [`examples/window-action.md`](./examples/window-action.md) to add your own.
+
+A sparse board explains itself. Small boards (up to twelve nodes) are laid out deterministically around the centre of the stage and settled before the first paint, so a site with two posts opens onto two nodes side by side rather than two dots drifting off under the dock. A board with nodes but no thread between any of them carries a note saying what a thread is and where the other relationships live (hidden while a grouping is active, when the cluster labels need the space); an empty board says whether the site has nothing to pin yet, the toolbar has filtered everything out, or every type is switched off. The full-canvas loading wash paints only for a graph fetch that runs past 400 ms; shorter waits show as the toolbar's status line, and the window shell's own loader covers just the cold bundle + renderer start-up. The `/nodes` route tells an omitted `types` query (every registered type) apart from an explicitly empty one (no types); the shell sends the latter when every chip is off.
 
 ### `openstation_content_graph_user_can_use` — Experimental (filter)
 

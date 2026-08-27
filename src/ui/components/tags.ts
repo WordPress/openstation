@@ -51,6 +51,7 @@ export const OS_COMPONENT_TAGS = [
 	'os-row',
 	'os-grid',
 	'os-display',
+	'os-disclosure',
 	'os-empty-state',
 	'os-key',
 	'os-code',

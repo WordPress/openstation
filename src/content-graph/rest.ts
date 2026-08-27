@@ -67,9 +67,11 @@ export async function fetchGraph(
 	types: string[],
 ): Promise< GraphPayload > {
 	const url = new URL( `${ cfg.apiBase }/nodes` );
-	if ( types.length > 0 ) {
-		url.searchParams.set( 'types', types.join( ',' ) );
-	}
+	// Omission means "use every registered type" to the REST route;
+	// an explicit empty value means "show no types". Always send the
+	// parameter so switching off the final toolbar chip cannot fall
+	// back to the route's default and repopulate the board.
+	url.searchParams.set( 'types', types.join( ',' ) );
 	const res = await trackedFetch(
 		url.toString(),
 		{ headers: authHeaders( cfg ) },

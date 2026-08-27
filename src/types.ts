@@ -1195,6 +1195,22 @@ export interface DesktopGameServerEntry {
 	} >;
 	/** Arbitrary server-declared config blob handed to the game's launch context. */
 	config: Record< string, unknown >;
+	/**
+	 * The game window's size, declared server-side so the shell knows it
+	 * before the game's bundle arrives.
+	 *
+	 * The window opens on the click and loads its bundle inside the
+	 * render callback, so the size has to be available a round trip
+	 * earlier than the JS def that also carries it. Empty when the game
+	 * declared none, which reads as "use the framework defaults"; the
+	 * def still wins once it lands.
+	 */
+	window?: {
+		width?: number;
+		height?: number;
+		minWidth?: number;
+		minHeight?: number;
+	};
 	/** Absolute URL of the game's (lazily loaded) script. */
 	scriptUrl: string;
 	/** WordPress script handle (informational). */

@@ -188,4 +188,110 @@ class Tests_OpenStation_GamesRegistry extends WP_UnitTestCase {
 		$ids = wp_list_pluck( $payload['serverGames'], 'id' );
 		$this->assertContains( 'test-game', $ids );
 	}
+
+	/**
+	 * The window size has to survive to the payload, because the shell
+	 * opens the game window — and paints its loading spinner — before
+	 * it has fetched the bundle that also declares the size.
+	 *
+	 * @covers ::openstation_register_game
+	 * @covers ::openstation_build_desktop_games_payload
+	 */
+	public function test_window_size_reaches_the_payload() {
+		$this->register_test_game(
+			'test-game',
+			array(
+				'window' => array(
+					'width'     => 860,
+					'height'    => 660,
+					'minWidth'  => 600,
+					'minHeight' => 500,
+				),
+			)
+		);
+
+		$payload = openstation_build_desktop_games_payload();
+		$entry   = null;
+		foreach ( $payload as $row ) {
+			if ( 'test-game' === $row['id'] ) {
+				$entry = $row;
+			}
+		}
+
+		$this->assertNotNull( $entry );
+		$this->assertSame(
+			array(
+				'width'     => 860,
+				'height'    => 660,
+				'minWidth'  => 600,
+				'minHeight' => 500,
+			),
+			$entry['window']
+		);
+	}
+
+	/**
+	 * Omitted entirely, not defaulted: an empty array is what the JS
+	 * side reads as "use the framework defaults".
+	 *
+	 * @covers ::openstation_build_desktop_games_payload
+	 */
+	public function test_window_defaults_to_empty_when_undeclared() {
+		$this->register_test_game();
+
+		$payload = openstation_build_desktop_games_payload();
+		foreach ( $payload as $row ) {
+			if ( 'test-game' === $row['id'] ) {
+				$this->assertSame( array(), $row['window'] );
+			}
+		}
+	}
+
+	/**
+	 * Clamped, never rejected. A nonsensical size is a plugin bug that
+	 * must not stop the game opening — an unopenable window is a worse
+	 * answer than an oddly-sized one.
+	 *
+	 * @covers ::openstation_register_game
+	 */
+	public function test_window_drops_junk_and_keeps_the_rest() {
+		$this->register_test_game(
+			'test-game',
+			array(
+				'window' => array(
+					'width'     => '820',
+					'height'    => 0,
+					'minWidth'  => -40,
+					'minHeight' => 'wide',
+					'depth'     => 3,
+				),
+			)
+		);
+
+		$payload = openstation_build_desktop_games_payload();
+		foreach ( $payload as $row ) {
+			if ( 'test-game' !== $row['id'] ) {
+				continue;
+			}
+			// Numeric string coerced; zero, negative, non-numeric and
+			// unknown keys all dropped.
+			$this->assertSame( array( 'width' => 820 ), $row['window'] );
+		}
+	}
+
+	/**
+	 * @covers ::openstation_register_game
+	 */
+	public function test_window_ignores_a_non_array_declaration() {
+		$this->assertTrue(
+			$this->register_test_game( 'test-game', array( 'window' => 'big' ) )
+		);
+
+		$payload = openstation_build_desktop_games_payload();
+		foreach ( $payload as $row ) {
+			if ( 'test-game' === $row['id'] ) {
+				$this->assertSame( array(), $row['window'] );
+			}
+		}
+	}
 }
