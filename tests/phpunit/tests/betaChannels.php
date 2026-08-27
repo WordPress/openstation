@@ -1,7 +1,7 @@
 <?php
 /**
  * Tests for the OpenStation Beta companion plugin's build discovery
- * and target resolution (openstation-beta/).
+ * and target resolution (extensions/openstation-beta/).
  *
  * The companion is a standalone plugin that is not loaded by the test
  * bootstrap — its include files are required directly below. All
@@ -38,7 +38,7 @@ class Tests_OpenStationBeta_Channels extends WP_UnitTestCase {
 		if ( ! defined( 'OPENSTATION_BETA_TARGET_PLUGIN' ) ) {
 			define( 'OPENSTATION_BETA_TARGET_PLUGIN', 'desktop-mode/desktop-mode.php' );
 		}
-		$dir = dirname( __DIR__, 3 ) . '/openstation-beta/includes/';
+		$dir = dirname( __DIR__, 3 ) . '/extensions/openstation-beta/includes/';
 		require_once $dir . 'github.php';
 		require_once $dir . 'installer.php';
 		require_once $dir . 'ajax.php';

@@ -1,7 +1,7 @@
 name: Trunk Build
 
 # Publishes a "bleeding edge" build on every push to trunk, consumed by
-# the OpenStation Beta companion plugin (openstation-beta/). Two
+# the OpenStation Beta companion plugin (extensions/openstation-beta/). Two
 # fixed-name assets are maintained on the same rolling `ci-artifacts`
 # release the PR preview flow uses:
 #

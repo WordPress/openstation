@@ -146,6 +146,14 @@ jobs:
             --standard=extensions/desktop-mode-feed-buddy/phpcs.xml.dist \
             extensions/desktop-mode-feed-buddy
 
+      - name: Check OpenStation Beta coding standards
+        run: |
+          npx wp-env run --config=.wp-env.tests.json cli \
+            --env-cwd=wp-content/plugins/desktop-mode \
+            vendor/bin/phpcs \
+            --standard=extensions/openstation-beta/phpcs.xml.dist \
+            extensions/openstation-beta/openstation-beta.php extensions/openstation-beta/includes
+
   plugin-check:
     name: Plugin Check
     runs-on: ubuntu-latest

@@ -31,7 +31,7 @@ defined( 'ABSPATH' ) || exit;
 /** Release tag holding CI build assets (see pr-preview-publish.yml). */
 const OPENSTATION_BETA_CI_TAG = 'ci-artifacts';
 
-/** wp_options key recording the beta build currently installed. */
+/** The wp_options key recording the beta build currently installed. */
 const OPENSTATION_BETA_CURRENT_OPTION = 'openstation_beta_current';
 
 /**
@@ -571,7 +571,7 @@ function openstation_beta_state( $force = false ) {
 
 	$current = openstation_beta_current();
 	$state   = array(
-		'current' => array(
+		'current'         => array(
 			'managed'      => null !== $current,
 			'source'       => $current ? (string) $current['source'] : 'release',
 			'id'           => $current && isset( $current['id'] ) ? (string) $current['id'] : '',
