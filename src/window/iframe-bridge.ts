@@ -196,6 +196,14 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 		bridge?.routeIncomingFromIframe( data, win.id );
 	}
 
+	// A navigation landed, reported from the answering document's head
+	// — as early as a response can say so, and a second or more ahead
+	// of `os-ready` below, which is a footer script. Only a window
+	// waiting on a submit has anything to do with it.
+	if ( data.type === 'os-iframe-navigated' ) {
+		win._settleNavigationActivity();
+	}
+
 	// Iframe boot signal — the chromeless bridge script posts this
 	// once its message listeners are attached. Fires
 	// `HOOKS.IFRAME_READY` so plugin authors get a reliable
@@ -208,8 +216,12 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 		// never report back — navigating away cancels them and takes
 		// the `end` message with them. Without this the ring stays
 		// lit forever on any window where the user clicked a link
-		// mid-request, which is most of them.
-		win._resetActivity();
+		// mid-request, which is most of them. Unless the navigation IS
+		// the request: a submit's outcome is on the ring by now and
+		// must not be reset off it.
+		if ( ! win._settleNavigationActivity( true ) ) {
+			win._resetActivity();
+		}
 		// Bridge announced — anything queued via `Window.send()`
 		// before this point flushes now in FIFO order.
 		markWindowContentReady( win.id );
@@ -490,6 +502,11 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 	if ( data.type === 'os-iframe-activity' ) {
 		if ( data.phase === 'start' ) {
 			win._markActivityStart();
+			// A submit has no `end` to send — the document that posted
+			// this is replaced by the response, which closes it.
+			if ( data.navigation ) {
+				win._noteNavigationActivity();
+			}
 		} else if ( data.phase === 'end' ) {
 			const failed = !! data.failed;
 			const status = typeof data.status === 'number' ? data.status : 0;

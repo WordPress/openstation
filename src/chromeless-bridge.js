@@ -1476,6 +1476,39 @@
 	}, true );
 
 	/*
+	 * Form submits — the other half of the status ring. The wrappers
+	 * above miss the admin's most common save, a classic POST, which
+	 * navigates rather than issuing a request they can see.
+	 * `navigation: true` tells the parent no `end` is coming: this
+	 * document is about to be replaced, and the response is the end.
+	 *
+	 * Bubble phase, after `defaultPrevented`, and never with a
+	 * `target` — a submit a script handles itself, or one aimed at
+	 * another browsing context, leaves this document where it is, and
+	 * a start posted for it would never be closed.
+	 */
+	document.addEventListener( 'submit', function ( e ) {
+		var form = e.target;
+		if ( ! form || form.tagName !== 'FORM' || e.defaultPrevented ) {
+			return;
+		}
+		var method = String( form.getAttribute( 'method' ) || 'get' ).toUpperCase();
+		if ( 'POST' !== method ) {
+			return;
+		}
+		var target = form.getAttribute( 'target' );
+		if ( target && '_self' !== target ) {
+			return;
+		}
+		try {
+			window.parent.postMessage(
+				{ type: 'os-iframe-activity', phase: 'start', navigation: true },
+				window.location.origin
+			);
+		} catch ( _subErr ) { /* swallow — instrumentation is best-effort */ }
+	} );
+
+	/*
 	 * Focus-request bridge.
 	 *
 	 * Clicks inside an iframe don't cross the browsing-context

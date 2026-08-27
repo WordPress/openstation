@@ -1505,7 +1505,7 @@ Drop-in wrapper around the global `fetch()` that drives the target window's **ac
 >
 > Restyling is five themeable tokens: `--os-titlebar-activity-idle-color` (at rest), `--os-titlebar-activity-color` (in flight), `--os-titlebar-activity-saved-color`, `--os-titlebar-activity-failed-color`, and `--os-titlebar-activity-size`.
 >
-> **Iframe windows report too.** See [`os-iframe-activity`](#os-iframe-activity--experimental) — the chromeless bridge brackets every `fetch` and `XMLHttpRequest` inside the iframe, so an admin page's own jQuery calls move the ring without knowing the shell exists.
+> **Iframe windows report too.** See [`os-iframe-activity`](#os-iframe-activity--experimental) — the chromeless bridge brackets every `fetch`, `XMLHttpRequest` and classic form submit inside the iframe, so an admin page's own jQuery calls and its Save Changes button move the ring without knowing the shell exists.
 
 ```js
 // In any window's render callback / event handler:
@@ -4273,6 +4273,15 @@ Posted once by the chromeless bridge script when its message listeners are attac
 { type: 'os-ready' }
 ```
 
+#### `os-iframe-navigated` — Experimental
+Posted from the **head** of every chromeless document, before the body renders. It says one thing: a navigation landed in this window.
+
+```typescript
+{ type: 'os-iframe-navigated' }
+```
+
+It exists because `os-ready` is too late for one job. The bridge bundle is enqueued on `admin_footer`, so it runs after every other admin script in the document — a second or more after the browser painted the content on a page with a heavy plugin set. Fine for "the bridge is wired up", wrong for "your save went through" (see the form-submit note under [`os-iframe-activity`](#os-iframe-activity--experimental)). The parent ignores it unless the window has a submit waiting.
+
 #### `os-focus-request` — Stable
 Posted by the chromeless bridge on every pointerdown inside the iframe. The parent focuses the window, unless it's currently in the overview grid (where clicks are absorbed by the grid controller).
 
@@ -4327,7 +4336,7 @@ Posted by the chromeless bridge's `fetch` and `XMLHttpRequest` wrappers whenever
 Posted by the same `fetch` / `XMLHttpRequest` wrappers as `os-iframe-network`, but **bracketing** the request rather than only reporting its completion — an indicator that can only be told "it finished" never shows the part the user waits through. This is what makes an iframe window report activity like a native one: native windows route through `wp.os.fetch`, which the shell owns, while an admin page inside an iframe does its own jQuery / XHR / `fetch` calls the parent has no other way to see.
 
 ```typescript
-{ type: 'os-iframe-activity'; phase: 'start' }
+{ type: 'os-iframe-activity'; phase: 'start'; navigation?: boolean }
 { type: 'os-iframe-activity'; phase: 'end'; failed: boolean; status: number }
 ```
 
@@ -4338,6 +4347,12 @@ The parent feeds these to the same reference-counted `Window._markActivityStart(
 - **Reads never reach the ring** — `GET`, `HEAD`, `OPTIONS`, and `QUERY`. The ring answers "did my change go through?", and a read has no *through*: nothing changed, so nothing can have failed to change. An admin page also fires reads constantly on its own (list-table refreshes, dashboard widgets, autosave checks, media queries) and the user never asked about any of them. `QUERY` is in the list because it carries a **body** — it is a safe, idempotent read whose parameters wouldn't fit in a URL, so any "does it have a payload?" test would classify it backwards.
 - **WordPress Heartbeat** never reports even though it POSTs. It is a poll the user did not initiate, on a timer, forever; reporting it would light every open window's ring every 15 seconds and flash a success check for a save nobody made. Same judgement `wp.os.fetch`'s `silent: true` exists for. The action name is read from the request body, since Heartbeat POSTs to `admin-ajax.php` with no action in the URL.
 - **A new document resets the count.** An iframe that navigates mid-request takes its pending `end` messages with it, so `os-ready` calls `Window._resetActivity()`; without it the ring would stay lit for the rest of the window's life.
+
+**Form submits report as `navigation: true`.** A classic wp-admin POST — Settings, Permalinks, Discussion, a list-table bulk action — is the most common save in the shell and touches neither `fetch` nor `XHR`: it navigates. The bridge posts a `start` for it on the way out, and the flag tells the parent no `end` is coming, because the document that would have sent one is being replaced. The answering document is the end, and it says so from its head via [`os-iframe-navigated`](#os-iframe-navigated--experimental) — early enough to beat its own content to the screen. `os-ready` is the fallback for a response that carries no head hook, and settles the submit there instead of doing its usual reset; a submit that produces no document at all (a `wp_die()` page runs no admin hooks) is dropped after 30 seconds so the ring can't blink forever.
+
+A navigation settles the ring **immediately**, with none of the minimum-display hold a tracked `fetch` gets. That floor stands in for feedback the user would otherwise not receive — a request resolving in 50 ms would flash green before the blink was seen at all — and a whole document arriving and painting is that feedback. Holding past it only makes the title bar contradict the page: "Settings saved." on screen, still saving in the corner.
+
+"It landed" is as much as this side can honestly know — there is no response object to read a status off, and a validation message or a settings error comes back as a perfectly good 200 that the user reads in the page itself. Submits that will never navigate stay silent: `GET` forms (every list-table search box), forms whose submit an in-page script has already `preventDefault()`ed, and forms aimed at another browsing context via `target`.
 
 This is the automatic path, and it is conservative on purpose. `wp.os.fetch` is the deliberate one: a call site that passes a `GET` there **does** move the phase, because someone chose to report it. Pass `silent: true` to opt a single call out.
 
