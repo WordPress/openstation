@@ -518,6 +518,7 @@ function openstation_native_window_allowed_html() {
 			'compact'        => true,
 			'loading'        => true,
 			'loading-rows'   => true,
+			'empty'          => true,
 			'columns'        => true,
 			'rows'           => true,
 			'sortable'       => true,

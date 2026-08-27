@@ -38,11 +38,14 @@
 /*
  * Honour the `hidden` attribute. The browser's UA stylesheet
  * sets `[hidden] { display: none }`, but our explicit
- * `display: flex` above wins on specificity. This rule restores
- * the expected behaviour so `bulk.hidden = true` from JS
- * actually hides the bulk action group when nothing is selected.
+ * `display: flex` above wins on specificity. These rules restore
+ * the expected behaviour for every group the JS hides: the bulk
+ * actions (nothing selected), and the whole toolbar plus the
+ * standalone empty state (nothing in the bin).
  */
-.os-recycle-bin__toolbar-right[hidden] {
+.os-recycle-bin__toolbar[hidden],
+.os-recycle-bin__toolbar-right[hidden],
+.os-recycle-bin__empty[hidden] {
 	display: none;
 }
 
@@ -80,9 +83,11 @@
  */
 
 .os-recycle-bin__empty {
+	flex: 1 1 auto;
 	display: flex;
 	flex-direction: column;
 	align-items: center;
+	justify-content: center;
 	gap: 8px;
 	padding: 32px 16px;
 	color: var( --os-ui-fg-muted, #50575e );

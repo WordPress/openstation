@@ -151,7 +151,8 @@ export function adjustRecycleBinCount( delta: number ): void {
 }
 
 /**
- * Read the current value (mostly for tests / debug).
+ * Read the current value. The bin window reads it at render time to
+ * pick its initial chrome state, before the first `/list` lands.
  *
  * @internal
  */
