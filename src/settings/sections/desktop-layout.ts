@@ -158,7 +158,7 @@ export function buildDesktopLayoutSection( ctx: SettingsCtx ): HTMLElement {
 	const describeBehavior = ( id: DockBehaviorId ): string =>
 		id === 'dynamic'
 			? __(
-				'The dock slides out of the way and comes back when you move the pointer to its edge of the screen. Windows can use the whole desktop.',
+				'The dock folds into a thin line at its edge of the screen and comes back when you move the pointer there. Windows can use the whole desktop.',
 			)
 			: __( 'The dock is always visible, and windows open above it.' );
 

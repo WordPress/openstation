@@ -1248,91 +1248,159 @@
 }
 
 /* ------------------------------------------------------------------
- * Dynamic dock behavior — OpenStation Preferences → Appearance → Dock
- * behavior, persisted as `dockBehavior` and emitted as an
- * `os-dock-<behavior>` body class by PHP on first paint and by the
- * apply pass on every change. `static` is the absence of rules.
+ * Dynamic dock behavior — OpenStation Preferences → Appearance →
+ * Desktop layout → Dock behavior, persisted as `dockBehavior` and
+ * emitted as an `os-dock-<behavior>` body class by PHP on first paint
+ * and by the apply pass on every change. `static` is the absence of
+ * rules.
  *
- * The rail parks off its edge leaving a peek strip and comes back when
- * the pointer reaches that edge (`src/dock-behavior.ts` toggles
- * `os-dock--revealed` from a full-width edge zone), while the pointer
- * is over the rail or one of its flyouts, or while something on it has
- * keyboard focus. The admin bar's Dynamic mode, one edge down — but
- * parked by INSET rather than by transform: the tooltip below is
- * `position: fixed`, and a transformed ancestor would become its
- * containing block and pin it to the rail.
+ * A dynamic rail that is not `os-dock--revealed` is PARKED: it
+ * collapses into a thin indicator line hugging its edge — the iOS
+ * home indicator, one line that says "there is a dock here" — and
+ * expands back into the full rail when the pointer comes for it.
+ * `src/dock-behavior.ts` owns the flip (a full-width edge zone, the
+ * rail's own box, its flyouts, keyboard focus) and runs it through
+ * the View Transitions API, so the line morphs into the pill and
+ * back; the rules below only describe the two resting states and
+ * tune the morph. There is deliberately no `:hover` here — a state
+ * CSS flipped on its own would jump instead of morphing.
  *
- * `--os-dock-extent` is the rail's own size along the hide axis
- * (height for the pill, width for a side rail), written by
- * `src/dock-behavior.ts` from a ResizeObserver; the parked inset is
- * "everything but the peek". A side rail leaves the flex row for the
+ * The line is the rail itself, not a separate element: same node,
+ * same `view-transition-name`, which is what lets the browser animate
+ * one box into the other. Its children are hidden while parked so
+ * the line is a line. A side rail leaves the flex row for the
  * duration, so the area grows to the full width and the rail rides
  * over it when summoned; the work area reserves nothing for a
  * dynamic rail (`src/work-area/index.ts`).
  * ------------------------------------------------------------------ */
 
-body.os-dock-dynamic .os-dock[ data-os-dock-placement="bottom" ] {
-	bottom: calc( var( --os-dock-peek, 4px ) - var( --os-dock-extent, 64px ) );
-	transition: bottom 180ms ease;
-}
-
+/*
+ * Side rails overlay the area in both states — the flex row must not
+ * shrink for a rail that is only sometimes there.
+ */
 body.os-dock-dynamic .os-dock[ data-os-dock-placement="left" ],
 body.os-dock-dynamic .os-dock[ data-os-dock-placement="right" ] {
 	position: absolute;
 	inset-block: 0;
-	transition:
-		inset-inline-start 180ms ease,
-		inset-inline-end 180ms ease;
 }
 
 body.os-dock-dynamic .os-dock[ data-os-dock-placement="left" ] {
-	inset-inline-start: calc( var( --os-dock-peek, 4px ) - var( --os-dock-extent, 56px ) );
-}
-
-body.os-dock-dynamic .os-dock[ data-os-dock-placement="right" ] {
-	inset-inline-end: calc( var( --os-dock-peek, 4px ) - var( --os-dock-extent, 56px ) );
-}
-
-/*
- * Revealed — back to the static resting inset. `:hover` holds it
- * while the pointer is on the rail; `:focus-within` while a tile has
- * keyboard focus; the `:has()` pair while the pointer is on a flyout
- * the rail opened, since those are body-level and leaving the rail
- * for one would otherwise retract the rail out from under it.
- */
-body.os-dock-dynamic .os-dock--revealed[ data-os-dock-placement="bottom" ],
-body.os-dock-dynamic .os-dock[ data-os-dock-placement="bottom" ]:hover,
-body.os-dock-dynamic .os-dock[ data-os-dock-placement="bottom" ]:focus-within,
-body.os-dock-dynamic:has( .os-constellation:hover ) .os-dock[ data-os-dock-placement="bottom" ],
-body.os-dock-dynamic:has( .os-dock-peek:hover ) .os-dock[ data-os-dock-placement="bottom" ] {
-	bottom: 12px;
-}
-
-body.os-dock-dynamic .os-dock--revealed[ data-os-dock-placement="left" ],
-body.os-dock-dynamic .os-dock[ data-os-dock-placement="left" ]:hover,
-body.os-dock-dynamic .os-dock[ data-os-dock-placement="left" ]:focus-within,
-body.os-dock-dynamic:has( .os-constellation:hover ) .os-dock[ data-os-dock-placement="left" ],
-body.os-dock-dynamic:has( .os-dock-peek:hover ) .os-dock[ data-os-dock-placement="left" ] {
 	inset-inline-start: 0;
 }
 
-body.os-dock-dynamic .os-dock--revealed[ data-os-dock-placement="right" ],
-body.os-dock-dynamic .os-dock[ data-os-dock-placement="right" ]:hover,
-body.os-dock-dynamic .os-dock[ data-os-dock-placement="right" ]:focus-within,
-body.os-dock-dynamic:has( .os-constellation:hover ) .os-dock[ data-os-dock-placement="right" ],
-body.os-dock-dynamic:has( .os-dock-peek:hover ) .os-dock[ data-os-dock-placement="right" ] {
+body.os-dock-dynamic .os-dock[ data-os-dock-placement="right" ] {
 	inset-inline-end: 0;
 }
 
 /*
- * Coarse pointers have no hover state and a much fatter contact patch,
- * so a 4px seam is neither discoverable nor tappable. Widen it — the
- * pointerdown in `src/dock-behavior.ts` is what actually reveals the
- * rail there.
+ * Parked — the indicator line. Everything that makes the pill a
+ * pill (padding, border, blur, texture, tile gap) comes off, and the
+ * box is the line's size. `overflow: hidden` clips whatever a tile
+ * paints past its box during the morph.
  */
-@media ( hover: none ) {
+body.os-dock-dynamic .os-dock:not( .os-dock--revealed ) {
+	min-width: 0;
+	min-height: 0;
+	max-width: none;
+	padding: 0;
+	gap: 0;
+	border: 0;
+	border-radius: 999px;
+	overflow: hidden;
+	background-color: var(
+		--os-dock-indicator-bg,
+		var( --os-dock-item-outline, rgba( 255, 255, 255, 0.55 ) )
+	);
+	background-image: none;
+	backdrop-filter: none;
+	-webkit-backdrop-filter: none;
+	box-shadow: none;
+	opacity: var( --os-dock-indicator-opacity, 0.7 );
+	cursor: pointer;
+}
+
+body.os-dock-dynamic .os-dock:not( .os-dock--revealed ) > * {
+	display: none;
+}
+
+body.os-dock-dynamic .os-dock[ data-os-dock-placement="bottom" ]:not( .os-dock--revealed ) {
+	width: var( --os-dock-indicator-length, 96px );
+	height: var( --os-dock-indicator-thickness, 4px );
+	bottom: 8px;
+}
+
+body.os-dock-dynamic .os-dock[ data-os-dock-placement="left" ]:not( .os-dock--revealed ),
+body.os-dock-dynamic .os-dock[ data-os-dock-placement="right" ]:not( .os-dock--revealed ) {
+	width: var( --os-dock-indicator-thickness, 4px );
+	height: var( --os-dock-indicator-length, 96px );
+	inset-block: calc( 50% - var( --os-dock-indicator-length, 96px ) / 2 );
+}
+
+body.os-dock-dynamic .os-dock[ data-os-dock-placement="left" ]:not( .os-dock--revealed ) {
+	inset-inline-start: 8px;
+}
+
+body.os-dock-dynamic .os-dock[ data-os-dock-placement="right" ]:not( .os-dock--revealed ) {
+	inset-inline-end: 8px;
+}
+
+/*
+ * The morph. With the API, `src/dock-behavior.ts` names the rail for
+ * the duration of one flip and the browser animates the old box into
+ * the new one; the rail's contents cross-fade underneath. The root is
+ * opted out of the snapshot so the rest of the desktop keeps
+ * running while the line becomes a pill — a frozen page for 260ms
+ * on every reveal would be the animation costing more than it
+ * gives. Without the API, the properties that can transition do.
+ */
+@supports ( view-transition-name: none ) {
+	html.os-dock-vt {
+		view-transition-name: none;
+	}
+
+	html.os-dock-vt::view-transition-old( root ),
+	html.os-dock-vt::view-transition-new( root ) {
+		animation: none;
+	}
+
+	::view-transition-group( os-dock-os-dock ),
+	::view-transition-group( os-dock-os-side-dock ) {
+		animation-duration: 260ms;
+		animation-timing-function: cubic-bezier( 0.22, 1, 0.36, 1 );
+	}
+
+	::view-transition-old( os-dock-os-dock ),
+	::view-transition-old( os-dock-os-side-dock ) {
+		animation: os-dock-vt-out 120ms ease-out both;
+	}
+
+	::view-transition-new( os-dock-os-dock ),
+	::view-transition-new( os-dock-os-side-dock ) {
+		animation: os-dock-vt-in 180ms ease-out 80ms both;
+	}
+
+	@keyframes os-dock-vt-out {
+		to {
+			opacity: 0;
+		}
+	}
+
+	@keyframes os-dock-vt-in {
+		from {
+			opacity: 0;
+		}
+	}
+}
+
+@supports not ( view-transition-name: none ) {
 	body.os-dock-dynamic .os-dock {
-		--os-dock-peek: 10px;
+		transition:
+			width 240ms ease,
+			height 240ms ease,
+			opacity 240ms ease,
+			border-radius 240ms ease,
+			bottom 240ms ease,
+			inset-block 240ms ease;
 	}
 }
 

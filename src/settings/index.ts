@@ -52,6 +52,7 @@ import {
 	getDefaultWallpaperId,
 } from './constants';
 import { refreshWorkArea } from '../work-area';
+import { refreshDockBehavior } from '../dock-behavior';
 import {
 	loadState,
 	saveState,
@@ -519,6 +520,7 @@ export class OsSettings implements SettingsCtx {
 				behavior.id === dockBehavior.id,
 			);
 		}
+		refreshDockBehavior();
 		refreshWorkArea();
 
 		// Desktop layout is driven by an attribute on the shell root;

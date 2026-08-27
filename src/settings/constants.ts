@@ -175,11 +175,10 @@ export const ADMIN_BAR_MODES = [
  *
  * `static` is the rail as it always was: always on screen, and the
  * band it floats over is reserved from the work area. `dynamic`
- * parks it off its edge behind a peek strip and brings it back when
- * the pointer reaches that edge or something on it takes keyboard
- * focus — the classic auto-hide taskbar — and reserves nothing, so
- * windows get the whole desktop. Mirrors the admin bar's `dynamic`
- * mode one edge down.
+ * folds it into a thin indicator line at its edge (the iOS home
+ * indicator) and morphs it back when the pointer reaches that edge
+ * or something on it takes keyboard focus, and reserves nothing, so
+ * windows get the whole desktop.
  */
 export const DOCK_BEHAVIORS = [
 	{ id: 'static', label: 'Static' },

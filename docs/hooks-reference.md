@@ -1522,7 +1522,7 @@ apply_filters( 'openstation_dock_behavior', string $behavior );
 | Behavior | What it does |
 |---|---|
 | `static` | The rail is always on screen, and the band it floats over is reserved from the [work area](javascript-reference.md#workarea--experimental) so default window placement stays clear of it. The default. |
-| `dynamic` | The rail parks off its edge leaving a visible seam (`--os-dock-peek`, `4px`; `10px` on coarse pointers) and slides back in when the pointer reaches that edge of the screen (a `20px` band, the full width or height of it), while it is over the rail or one of its flyouts, or while something on the rail has keyboard focus. It reserves nothing: windows get the whole desktop and the rail rides over them when summoned. The admin bar's `dynamic` mode, one edge down. |
+| `dynamic` | The rail folds into a thin indicator line at its edge (`--os-dock-indicator-length` × `--os-dock-indicator-thickness`, `96px` × `4px`, in `--os-dock-indicator-bg`) and morphs back into the full rail — through the View Transitions API where the browser has it — when the pointer reaches that edge of the screen (a `20px` band, the full width or height of it), while it is over the rail or one of its flyouts, or while something on the rail has keyboard focus. It reserves nothing: windows get the whole desktop and the rail rides over them when summoned. |
 
 A value outside the two coerces back to `static`. The same two ids are the user-facing setting (`dockBehavior` in `wp.os.getOsSettings()`).
 
