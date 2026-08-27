@@ -1442,6 +1442,26 @@ apply_filters( 'openstation_admin_redirect_to_portal', bool $redirect, int $user
 
 ---
 
+### `openstation_skip_redundant_portal_forward` — Stable
+
+Governs whether a portal forward that would resolve back to the URL already being served is skipped. Applied only after `openstation_admin_redirect_to_portal` has allowed the forward, and only for requests the portal would hand straight back — an allowlisted wp-admin file that is also the page `$pagenow` reports, carrying no query arg the portal would strip.
+
+Default `true`. For those URLs the round trip costs two extra WordPress bootstraps and lands on the same page tagged `desktop_mode_portal=1&desktop_mode_portal_intent=1` — a flag pair the boot flow reads as `fromPortal && ! fromPortalIntent`, which is indistinguishable from no flags at all. The shell does not need the portal to reach it: it enqueues on any admin page where OpenStation is enabled.
+
+Return `false` to force the round trip — the one reason to do so is a plugin that hooks `openstation_handle_portal_request` for side effects and needs it to run on every admin entry.
+
+```php
+apply_filters( 'openstation_skip_redundant_portal_forward', bool $skip, string $request_uri );
+```
+
+**Example — keep the round trip so a portal-entry hook keeps firing:**
+
+```php
+add_filter( 'openstation_skip_redundant_portal_forward', '__return_false' );
+```
+
+---
+
 ### `openstation_accent_colors` — Stable
 
 Extends or restricts the accent-color swatches shown in OpenStation Preferences. Applied to `--wp-admin-theme-color` on the shell's `<html>`. Each entry is `{ id: string, label: string, value: string }` — `id` is a stable slug persisted to `localStorage`, `label` is the picker tooltip, `value` is a hex color validated server-side via `sanitize_hex_color()`. Invalid entries are dropped; a filter that leaves the list empty falls back to the ten built-in swatches.

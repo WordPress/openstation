@@ -273,14 +273,27 @@ function openstation_is_portal_request() {
 
 /**
  * Forwards plain `/wp-admin/...` requests to the `/openstation/` portal
- * when the current user has OpenStation enabled.
+ * when the portal would land the user somewhere other than here.
  *
- * Why: when OpenStation is on, `/openstation/` is meant to be the one
- * canonical address. A user who bookmarks `/wp-admin/plugins.php` or
- * follows an old admin link should still land in the shell, not in
- * vanilla admin with the shell glued over the top. Running through the
- * portal unifies the address bar and honors the saved session's focused
- * window.
+ * Why: the portal honors the saved session's focused window, so a user
+ * who follows a link the portal can't resolve — a network-admin URL, a
+ * path outside the wp-admin allowlist — is better off on their restored
+ * desktop than on a page the shell can't place.
+ *
+ * Why NOT unconditionally: for the ordinary case the forward is a round
+ * trip to nowhere. The portal resolves `?target=` straight back to the
+ * URL we are already serving and redirects here with
+ * `desktop_mode_portal=1&desktop_mode_portal_intent=1` — a flag pair
+ * every consumer reads as `fromPortal && ! fromPortalIntent`, i.e. as
+ * indistinguishable from no flags at all. Two full WordPress bootstraps
+ * bought nothing. The shell does not need the portal to reach it: it
+ * enqueues on any admin page where {@see openstation_is_enabled()}, and
+ * the address bar is deliberately no longer normalized to
+ * `/openstation/` (see the `history.replaceState` note in
+ * `src/desktop.ts` — the round trip is exactly what made reloads flash).
+ * So {@see openstation_portal_forward_is_redundant()} answers the
+ * portal's question locally and we render in place when the answer is
+ * "right here."
  *
  * Narrowly scoped to bail on every automated or sub-request entry point
  * — AJAX, REST, cron, admin-post.php, non-GET methods — so the hook
@@ -340,6 +353,34 @@ function openstation_redirect_plain_admin_to_portal() {
 		return;
 	}
 
+	// `esc_url_raw` instead of `sanitize_text_field`: the latter strips
+	// every `%XX` percent-encoded sequence, which corrupts URIs whose
+	// query string legitimately carries an encoded slash — e.g. WP's
+	// own `plugins.php?action=activate&plugin=dir%2Ffile.php` activate
+	// link. The portal handler will validate this target downstream.
+	$target = isset( $_SERVER['REQUEST_URI'] ) ? esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
+	$target = is_string( $target ) ? $target : '';
+
+	if ( openstation_portal_forward_is_redundant( $target ) ) {
+		/**
+		 * Filters whether to skip a portal forward that would resolve
+		 * back to the URL already being served.
+		 *
+		 * Default: true — the forward costs two extra WordPress
+		 * bootstraps and lands on the same page with flags the shell
+		 * reads as a no-op. Return false to force the round trip, e.g.
+		 * for a plugin that hooks `openstation_handle_portal_request`
+		 * for its own side effects and needs it to run on every admin
+		 * entry.
+		 *
+		 * @param bool   $skip        Whether to skip the redundant forward.
+		 * @param string $request_uri The current request URI.
+		 */
+		if ( apply_filters( 'openstation_skip_redundant_portal_forward', true, $target ) ) {
+			return;
+		}
+	}
+
 	// Preserve the original target on the portal redirect. Without this,
 	// navigating to a specific admin page (profile.php, plugins.php, any
 	// deep link) loses the user's intent — the portal would forward them
@@ -347,13 +388,7 @@ function openstation_redirect_plain_admin_to_portal() {
 	// for. The portal handler reads `target`, validates it's same-origin
 	// wp-admin, and uses it as the entry URL.
 	$portal_url = openstation_portal_url();
-	// `esc_url_raw` instead of `sanitize_text_field`: the latter strips
-	// every `%XX` percent-encoded sequence, which corrupts URIs whose
-	// query string legitimately carries an encoded slash — e.g. WP's
-	// own `plugins.php?action=activate&plugin=dir%2Ffile.php` activate
-	// link. The portal handler will validate this target downstream.
-	$target = isset( $_SERVER['REQUEST_URI'] ) ? esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
-	if ( is_string( $target ) && '' !== $target ) {
+	if ( '' !== $target ) {
 		$portal_url = add_query_arg( 'target', rawurlencode( $target ), $portal_url );
 	}
 
@@ -361,6 +396,84 @@ function openstation_redirect_plain_admin_to_portal() {
 	exit;
 }
 add_action( 'admin_init', 'openstation_redirect_plain_admin_to_portal' );
+
+/**
+ * Whether forwarding this request through `/openstation/` would land
+ * the user straight back on the URL already being served.
+ *
+ * Answers locally, and without the HTTP round trip, the same question
+ * {@see openstation_handle_portal_request()} answers after two full
+ * WordPress bootstraps. True means the forward is pure overhead and the
+ * caller should render in place instead.
+ *
+ * Deliberately conservative: every "don't know" answers false, so the
+ * forward survives wherever the portal might genuinely choose a
+ * different destination.
+ *
+ *   1. The path must resolve through the same wp-admin allowlist the
+ *      portal validates `?target=` against. Anything that list rejects
+ *      — a `network/` or `user/` sub-path on multisite, a filename that
+ *      isn't canonical wp-admin — makes the portal fall back to the
+ *      session's focused window, which is a real change of destination.
+ *   2. The resolved filename must be the file this request is actually
+ *      serving. If `$pagenow` disagrees with the URL path then a
+ *      rewrite is in play and we can't claim to know what renders here.
+ *   3. The query must survive intact. The portal drops
+ *      `openstation_chromeless`, both portal flags and `target` from
+ *      the URL it rebuilds, so a request carrying any of them comes
+ *      back as a different URL.
+ *
+ * @param string $request_uri The current request URI, unslashed.
+ * @return bool True when the portal would resolve this URL to itself.
+ */
+function openstation_portal_forward_is_redundant( $request_uri ) {
+	global $pagenow;
+
+	if ( ! is_string( $request_uri ) || '' === $request_uri ) {
+		return false;
+	}
+
+	$path = wp_parse_url( $request_uri, PHP_URL_PATH );
+	if ( ! is_string( $path ) || '' === $path ) {
+		return false;
+	}
+
+	$admin_path = wp_parse_url( admin_url(), PHP_URL_PATH );
+	$admin_path = is_string( $admin_path ) ? $admin_path : '/wp-admin/';
+	if ( 0 !== strpos( $path, $admin_path ) ) {
+		return false;
+	}
+
+	$file = ltrim( (string) substr( $path, strlen( $admin_path ) ), '/' );
+	if ( '' === $file ) {
+		$file = 'index.php';
+	}
+
+	// 1. The portal's allowlist has to accept it.
+	if ( is_wp_error( openstation_resolve_admin_target( $file ) ) ) {
+		return false;
+	}
+
+	// 2. …and it has to be the page we are actually serving.
+	if ( ! is_string( $pagenow ) || strtolower( $file ) !== strtolower( $pagenow ) ) {
+		return false;
+	}
+
+	// 3. …carrying a query the portal would hand back unchanged.
+	$rewritten = array(
+		'openstation_chromeless',
+		OPENSTATION_PORTAL_FLAG,
+		OPENSTATION_PORTAL_INTENT_FLAG,
+		'target',
+	);
+	foreach ( $rewritten as $key ) {
+		if ( isset( $_GET[ $key ] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			return false;
+		}
+	}
+
+	return true;
+}
 
 /**
  * Resolves the admin URL the portal should forward to for a given user.
