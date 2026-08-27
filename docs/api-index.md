@@ -269,6 +269,7 @@ Every event bubbles from `document`. See [`javascript-reference.md`](./javascrip
 | `os-auth-lost` / `os-auth-restored` *(session expiry / recovery)* | Stable |
 | `os-desktop-theme-changed` *(whole-OS reskin activated / cleared)* | Experimental |
 | `os-editor-preview-opened` / `-closed` *(editor↔preview pairing lifecycle)* | Experimental |
+| `os-revisions-opened` *(revision browser opened beside its editor)* | Experimental |
 | `os-desktop-host-freed` / `-docked` / `-connection` *(window set free into a real OS window)* | Experimental |
 
 ---

@@ -1472,6 +1472,34 @@ export const HOOKS = {
 	EDITOR_PREVIEW_CLOSED: 'os.editor-preview.closed',
 
 	// ------------------------------------------------------------------
+	// Revision browser. The "View revisions" row in the ⋯ menu of any
+	// post / page / CPT editor window — Gutenberg or classic — opens
+	// Core's revision browser as its own desktop window, placed clear
+	// of the editor and tied to it by a window link. Visibility and
+	// the count follow the identity's `revisionsUrl` /
+	// `revisionCount` (see `openstation_window_revisions()` in
+	// `includes/window-links.php`).
+	// Module: `src/revisions/index.ts`.
+	// ------------------------------------------------------------------
+	/**
+	 * Filter — applied to the revision window's `WindowConfig` right
+	 * before `manager.open()`. Signature: `( config: WindowConfig, ctx:
+	 * { editorWindowId: string, content: WindowContentRef } ) =>
+	 * WindowConfig`. Rewrite geometry (the default placement is only
+	 * computed for a window with no remembered geometry), the title, or
+	 * the URL — though the engine already dropped a cross-origin
+	 * `revisionsUrl` at identity time.
+	 */
+	REVISIONS_WINDOW_CONFIG: 'os.revisions.window-config',
+	/**
+	 * Action — fires after the revision window opened. Payload:
+	 * `{ editorWindowId: string, revisionsWindowId: string, content:
+	 * WindowContentRef }`. The matching `os-revisions-opened`
+	 * CustomEvent dispatches on `document` with the same payload.
+	 */
+	REVISIONS_OPENED: 'os.revisions.opened',
+
+	// ------------------------------------------------------------------
 	// OS-file drop manager. Catches files dragged from
 	// the user's host OS (Finder / Explorer / Nautilus) onto any
 	// openstation surface and routes them through a confirmation

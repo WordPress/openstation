@@ -35,6 +35,7 @@ defined( 'ABSPATH' ) || exit;
 - [Register a custom window reveal (Experimental)](./window-reveal.md)
 - [Window links — relate windows and restyle the ties (Experimental)](./window-links.md)
 - [Related entities — extend the title bar's "Related" menu (Experimental)](./related-entities.md)
+- [Revisions in their own window — extend or redirect "View revisions" (Experimental)](./revisions.md)
 - [Add a row to a window's ⋯ menu (Experimental)](./window-action.md)
 - [React to a window being set free onto the real desktop (Experimental)](./desktop-host.md)
 - [Inject data into `openStationConfig`](./inject-shell-config.md)

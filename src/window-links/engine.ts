@@ -190,7 +190,38 @@ function validateRef( ref: unknown ): string[] {
 			message:
 				"when present, must be an array of { type, id, rel?: 'references'|'child' } entries",
 		},
+		{
+			field: 'revisionCount',
+			valid: ( r ) =>
+				r.revisionCount === undefined ||
+				( typeof r.revisionCount === 'number' &&
+					Number.isFinite( r.revisionCount ) ),
+			message: 'when present, must be a finite number',
+		},
 	] );
+}
+
+/**
+ * Keep a same-origin URL, drop everything else (cross-origin,
+ * unparseable, empty, not a string).
+ *
+ * Both URLs an identity can carry — `previewUrl` and `revisionsUrl` —
+ * arrive as server data through the bridge and end up as an iframe
+ * `src` in a desktop window, so neither is allowed to point off-site.
+ */
+function sameOriginOnly( value: unknown ): string | undefined {
+	if ( typeof value !== 'string' || value === '' ) {
+		return undefined;
+	}
+	try {
+		return new URL( value, window.location.origin ).origin ===
+			window.location.origin
+			? value
+			: undefined;
+	} catch {
+		// Unparseable URL — drop it.
+		return undefined;
+	}
 }
 
 /** Normalize a validated ref: trimmed lowercase types, stamped source. */
@@ -225,17 +256,27 @@ function normalizeRef(
 	if ( typeof ref.label === 'string' && ref.label !== '' ) {
 		next.label = ref.label;
 	}
-	// Same-origin front-end preview URLs only — the bridge payload is
-	// server data, and the editor-preview module loads this URL into a
-	// desktop window iframe. Anything else is silently dropped.
-	if ( typeof ref.previewUrl === 'string' && ref.previewUrl !== '' ) {
-		try {
-			const parsed = new URL( ref.previewUrl, window.location.origin );
-			if ( parsed.origin === window.location.origin ) {
-				next.previewUrl = ref.previewUrl;
-			}
-		} catch {
-			// Unparseable URL — drop it.
+	// Same-origin URLs only — the bridge payload is server data, and
+	// both of these are loaded into a desktop window iframe (the
+	// editor-preview companion, the revision browser). Anything else
+	// is silently dropped.
+	const previewUrl = sameOriginOnly( ref.previewUrl );
+	if ( previewUrl ) {
+		next.previewUrl = previewUrl;
+	}
+	const revisionsUrl = sameOriginOnly( ref.revisionsUrl );
+	if ( revisionsUrl ) {
+		next.revisionsUrl = revisionsUrl;
+		// A count with no browser to open is noise, so it only travels
+		// alongside a surviving URL.
+		if (
+			typeof ref.revisionCount === 'number' &&
+			Number.isFinite( ref.revisionCount )
+		) {
+			next.revisionCount = Math.max(
+				0,
+				Math.trunc( ref.revisionCount ),
+			);
 		}
 	}
 	if ( Array.isArray( ref.related ) && ref.related.length > 0 ) {
@@ -375,6 +416,11 @@ export function setWindowContent(
 		refSignature( next ) === refSignature( previous ) &&
 		next.label === previous.label &&
 		next.previewUrl === previous.previewUrl &&
+		// The FIRST save of a draft writes its first revision and
+		// changes nothing else about the identity — without these two
+		// the "View revisions" row would stay hidden until a reload.
+		next.revisionsUrl === previous.revisionsUrl &&
+		next.revisionCount === previous.revisionCount &&
 		relatedSignature( next ) === relatedSignature( previous )
 	) {
 		return;

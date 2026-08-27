@@ -162,6 +162,22 @@ export interface WindowContentRef {
 	 */
 	previewUrl?: string;
 	/**
+	 * Revision-browser URL for this content — the target of the window
+	 * ⋯ menu's "View revisions" row. Built server-side by
+	 * `openstation_window_revisions()` for post/page/CPT edit screens
+	 * whose type supports revisions and which have at least one, so it
+	 * is absent until the first save writes one. Same-origin URLs only
+	 * — the engine drops anything else.
+	 */
+	revisionsUrl?: string;
+	/**
+	 * How many revisions {@link revisionsUrl} will list — rendered as
+	 * the count beside the menu row. Autosaves are included, matching
+	 * Core's own revisions meta box and the block editor's revisions
+	 * panel. Only meaningful alongside `revisionsUrl`.
+	 */
+	revisionCount?: number;
+	/**
 	 * Provenance, stamped by the engine — never set it yourself:
 	 * `'config'` (seeded from `WindowConfig.content`), `'bridge'`
 	 * (announced by the chromeless iframe bridge), `'api'`

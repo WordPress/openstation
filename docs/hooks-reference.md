@@ -651,7 +651,7 @@ apply_filters(
 
 `$identity` shape (mirrors the JS `WindowContentRef`): `type` (lowercase object-type slug; namespace yours `vendor/order`), `id` (int|string), optional `label`, optional `root => array( 'type', 'id' )`, optional `links => array( array( 'type', 'id', 'rel'? ), … )`. A ref **without** `root` is itself a root (the post a comment window points back to); a ref **with** `root` joins that root's relation group as a child (an edge pointing at the root — the built-in renderer marks the target end with its larger endpoint dot). `links` declare outbound ties: the default (`rel` omitted) is a `reference` — an edge FROM this window TO the linked object ("my content points at that"); `rel => 'child'` reverses it — the linked object BELONGS TO this content (a post's embedded media), drawn exactly like a root tie. Mutual references merge into one bidirectional edge. One reading everywhere: **the edge points at what its source belongs to or refers to** — relational structure, never navigation history.
 
-Built-in detection covers `post.php` (post/page/CPT edit → root, with `links` extracted from the content's internal hyperlinks, its embedded media — `wp-image-{id}`, which catches inserted-but-unattached images — its featured image, and its assigned public-taxonomy terms as `term/{taxonomy}` refs), attachment edit — both the classic `post.php` screen and the `upload.php?item=N` Media Library grid detail — (`media`, rooted at `post_parent` when attached), `comment.php` (`comment`, rooted at the parent post), `edit-comments.php?p=N` — the per-post filtered comments list the Related menu opens — (`comments`, rooted at the post; the unfiltered list stays identity-less;), `term.php` (`term/{taxonomy}` → root, which assigned posts reference), and `user-edit.php` / `profile.php` (`user` → root, gated on `edit_user` — a person is what a post's author and an order's customer both point at). Use this filter to add identities for your own admin screens, or return `null` to suppress detection:
+Built-in detection covers `post.php` (post/page/CPT edit → root, with `links` extracted from the content's internal hyperlinks, its embedded media — `wp-image-{id}`, which catches inserted-but-unattached images — its featured image, and its assigned public-taxonomy terms as `term/{taxonomy}` refs), attachment edit — both the classic `post.php` screen and the `upload.php?item=N` Media Library grid detail — (`media`, rooted at `post_parent` when attached), `comment.php` (`comment`, rooted at the parent post), `edit-comments.php?p=N` — the per-post filtered comments list the Related menu opens — (`comments`, rooted at the post; the unfiltered list stays identity-less;), `revision.php` — the revision browser the ⋯ menu's "View revisions" row opens — (`revisions`, rooted at the post whose history it shows, and keyed by that post rather than by the revision on screen, because Core's slider walks revisions client-side without a reload), `term.php` (`term/{taxonomy}` → root, which assigned posts reference), and `user-edit.php` / `profile.php` (`user` → root, gated on `edit_user` — a person is what a post's author and an order's customer both point at). Use this filter to add identities for your own admin screens, or return `null` to suppress detection:
 
 ```php
 add_filter( 'openstation_window_content_identity', function ( $identity, $screen ) {
@@ -672,7 +672,7 @@ add_filter( 'openstation_window_content_identity', function ( $identity, $screen
 
 After this filter resolves, the builder attaches a `related` key — the navigation targets behind the title bar's "Related" button — via the `openstation_window_related_entities` filter below. Identities may ship their own `related` array; it is folded into that pass and sanitized with everything else.
 
-Post-editor identities also carry a `previewUrl` key — the front-end preview link behind the title bar's "Preview" (eye) button, built by `openstation_window_preview_url()` **before** this filter runs (so you can inspect or strip it here). The client engine only accepts same-origin `previewUrl` values.
+Post-editor identities also carry a `previewUrl` key — the front-end preview link behind the title bar's "Preview" (eye) button, built by `openstation_window_preview_url()` **before** this filter runs (so you can inspect or strip it here) — and a `revisionsUrl` / `revisionCount` pair, the revision browser behind the ⋯ menu's "View revisions" row, built by `openstation_window_revisions()` in the same pass. The client engine only accepts same-origin values for both URLs, and drops `revisionCount` when `revisionsUrl` doesn't survive.
 
 ---
 
@@ -753,6 +753,46 @@ add_filter( 'openstation_window_preview_url', function ( $url, $post ) {
 ```
 
 The JS-side surface (pairing lifecycle hooks, the companion `WindowConfig` filter) is documented in [javascript-reference](./javascript-reference.md) under "The Preview (eye) title-bar button"; the autosave bridge round-trip in [bridge-protocol](./bridge-protocol.md).
+
+---
+
+### `openstation_window_revisions` — Experimental
+
+Filters the revision-browser descriptor attached to a post-editor content identity as `revisionsUrl` + `revisionCount` — the target of the window ⋯ menu's **"View revisions (N)" row**. Picking it opens Core's revision browser as its own desktop window, placed clear of the editor and tied to it by a [window link](./examples/window-links.md), instead of navigating the editor away from itself. Runs in the same pass as `openstation_window_content_identity`, **before** that filter, on both the page-render build and the `GET /desktop-mode/v1/content-identity` REST recompute the block editor's save-watcher triggers — which is what makes the row appear the moment a draft's first save writes its first revision, with no reload.
+
+```php
+apply_filters(
+    'openstation_window_revisions',
+    array $revisions,      // array( 'url' => string, 'count' => int ); url '' when none applies
+    WP_Post $post
+);
+```
+
+The unfiltered `url` is `get_edit_post_link()` for the newest revision — i.e. `revision.php?revision={id}` — and `count` is the total `wp_get_post_revisions()` will list (autosaves included, matching Core's own revisions meta box and the block editor's revisions panel). Both are empty/zero, and the row hidden, for attachments, post types that don't `supports( 'revisions' )`, posts with no revisions yet, and users lacking `edit_post` for the post. There is **no post-type allowlist**: any CPT that declares revisions support gets the row.
+
+```php
+// Send one CPT's history to a plugin's own diff screen.
+add_filter( 'openstation_window_revisions', function ( $revisions, $post ) {
+    if ( 'acme_contract' !== $post->post_type || '' === $revisions['url'] ) {
+        return $revisions;
+    }
+    // NOTE: the shell only accepts SAME-ORIGIN URLs — a cross-origin
+    // rewrite hides the row.
+    return array(
+        'url'   => admin_url( 'admin.php?page=acme-history&contract=' . $post->ID ),
+        'count' => acme_contract_version_count( $post->ID ),
+    );
+}, 10, 2 );
+
+// Or hide the row everywhere.
+add_filter( 'openstation_window_revisions', function () {
+    return array( 'url' => '', 'count' => 0 );
+} );
+```
+
+A malformed return (not an array, a non-string `url`, a negative `count`) is sanitized back to `array( 'url' => '', 'count' => 0 )` rather than propagated — the JS engine validates the identity as a unit, and one bad key would discard the whole ref.
+
+The JS-side surface (the window-config filter, the opened action, the placement rule) is documented in [javascript-reference](./javascript-reference.md) under "The View revisions ⋯ menu row"; the recipe is [`examples/revisions.md`](./examples/revisions.md).
 
 ---
 

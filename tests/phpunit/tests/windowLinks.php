@@ -29,9 +29,10 @@ class Tests_OpenStation_WindowLinks extends WP_UnitTestCase {
 	}
 
 	public function tear_down() {
-		unset( $_GET['c'], $_GET['item'], $_GET['tag_ID'], $_GET['user_id'], $GLOBALS['pagenow'], $GLOBALS['post'] );
+		unset( $_GET['c'], $_GET['item'], $_GET['tag_ID'], $_GET['user_id'], $_GET['revision'], $_GET['to'], $GLOBALS['pagenow'], $GLOBALS['post'] );
 		remove_all_filters( 'openstation_window_content_identity' );
 		remove_all_filters( 'openstation_window_preview_url' );
+		remove_all_filters( 'openstation_window_revisions' );
 		parent::tear_down();
 	}
 
@@ -737,5 +738,293 @@ class Tests_OpenStation_WindowLinks extends WP_UnitTestCase {
 		$identity = $response->get_data()['identity'];
 		$this->assertArrayHasKey( 'previewUrl', $identity );
 		$this->assertStringContainsString( 'preview_nonce=', $identity['previewUrl'] );
+	}
+
+	// ────────────────────────────────────────────────────────────────
+	// Revision browser — the `revisionsUrl` / `revisionCount` keys
+	// behind the window ⋯ menu's "View revisions" row, and the
+	// `revision.php` identity that ties the browser to its post.
+	// ────────────────────────────────────────────────────────────────
+
+	/**
+	 * @covers ::openstation_build_content_identity
+	 * @covers ::openstation_window_revisions
+	 */
+	public function test_post_identity_carries_revisions_url_and_count() {
+		$post_id = self::factory()->post->create( array( 'post_content' => 'v1' ) );
+		wp_save_post_revision( $post_id );
+		$this->fake_post_edit_screen( get_post( $post_id ) );
+
+		$identity = openstation_build_content_identity();
+
+		$this->assertArrayHasKey( 'revisionsUrl', $identity );
+		$this->assertStringContainsString( 'revision.php?revision=', $identity['revisionsUrl'] );
+		$this->assertSame( 1, $identity['revisionCount'] );
+	}
+
+	/**
+	 * The URL points at the NEWEST revision — that's the one Core's
+	 * browser opens on, and the slider walks back from there.
+	 *
+	 * @covers ::openstation_window_revisions
+	 */
+	public function test_revisions_url_points_at_the_latest_revision() {
+		$post_id = self::factory()->post->create( array( 'post_content' => 'v1' ) );
+		wp_save_post_revision( $post_id );
+		wp_update_post(
+			array(
+				'ID'           => $post_id,
+				'post_content' => 'v2',
+			)
+		);
+		wp_save_post_revision( $post_id );
+
+		$revisions = wp_get_post_revisions( $post_id, array( 'fields' => 'ids' ) );
+		$latest    = (int) reset( $revisions );
+
+		$this->assertGreaterThan( 1, count( $revisions ) );
+
+		$this->fake_post_edit_screen( get_post( $post_id ) );
+		$identity = openstation_build_content_identity();
+
+		$this->assertStringContainsString( 'revision=' . $latest, $identity['revisionsUrl'] );
+		$this->assertSame( count( $revisions ), $identity['revisionCount'] );
+	}
+
+	/**
+	 * A post nobody has saved twice has nothing to browse — no keys,
+	 * no menu row.
+	 *
+	 * @covers ::openstation_window_revisions
+	 */
+	public function test_post_without_revisions_carries_no_revisions_url() {
+		$post_id = self::factory()->post->create();
+		$this->fake_post_edit_screen( get_post( $post_id ) );
+
+		$identity = openstation_build_content_identity();
+
+		$this->assertArrayNotHasKey( 'revisionsUrl', $identity );
+		$this->assertArrayNotHasKey( 'revisionCount', $identity );
+	}
+
+	/**
+	 * @covers ::openstation_window_revisions
+	 */
+	public function test_post_type_without_revisions_support_carries_none() {
+		register_post_type(
+			'dm_norev',
+			array(
+				'public'   => true,
+				'show_ui'  => true,
+				'supports' => array( 'title', 'editor' ),
+			)
+		);
+		$post_id = self::factory()->post->create( array( 'post_type' => 'dm_norev' ) );
+		wp_save_post_revision( $post_id );
+		$this->fake_post_edit_screen( get_post( $post_id ) );
+
+		$identity = openstation_build_content_identity();
+
+		$this->assertArrayNotHasKey( 'revisionsUrl', $identity );
+
+		unregister_post_type( 'dm_norev' );
+	}
+
+	/**
+	 * A CPT that DOES declare `revisions` support gets the row like
+	 * any post or page — the built-in has no post-type allowlist.
+	 *
+	 * @covers ::openstation_window_revisions
+	 */
+	public function test_custom_post_type_with_revisions_support_carries_them() {
+		register_post_type(
+			'dm_rev',
+			array(
+				'public'   => true,
+				'show_ui'  => true,
+				'supports' => array( 'title', 'editor', 'revisions' ),
+			)
+		);
+		$post_id = self::factory()->post->create( array( 'post_type' => 'dm_rev' ) );
+		wp_save_post_revision( $post_id );
+		$this->fake_post_edit_screen( get_post( $post_id ) );
+
+		$identity = openstation_build_content_identity();
+
+		$this->assertSame( 'dm_rev', $identity['type'] );
+		$this->assertArrayHasKey( 'revisionsUrl', $identity );
+		$this->assertSame( 1, $identity['revisionCount'] );
+
+		unregister_post_type( 'dm_rev' );
+	}
+
+	/**
+	 * @covers ::openstation_window_revisions
+	 */
+	public function test_revisions_filter_can_rewrite_the_descriptor() {
+		$post_id = self::factory()->post->create();
+		wp_save_post_revision( $post_id );
+		$this->fake_post_edit_screen( get_post( $post_id ) );
+
+		add_filter(
+			'openstation_window_revisions',
+			static function ( $revisions, $post ) {
+				return array(
+					'url'   => 'https://example.test/history/' . $post->ID,
+					'count' => 42,
+				);
+			},
+			10,
+			2
+		);
+
+		$identity = openstation_build_content_identity();
+
+		$this->assertSame( 'https://example.test/history/' . $post_id, $identity['revisionsUrl'] );
+		$this->assertSame( 42, $identity['revisionCount'] );
+	}
+
+	/**
+	 * @covers ::openstation_window_revisions
+	 */
+	public function test_revisions_filter_can_suppress_the_row() {
+		$post_id = self::factory()->post->create();
+		wp_save_post_revision( $post_id );
+		$this->fake_post_edit_screen( get_post( $post_id ) );
+
+		add_filter(
+			'openstation_window_revisions',
+			static function () {
+				return array(
+					'url'   => '',
+					'count' => 0,
+				);
+			}
+		);
+
+		$identity = openstation_build_content_identity();
+
+		$this->assertArrayNotHasKey( 'revisionsUrl', $identity );
+	}
+
+	/**
+	 * A filter returning nonsense must not put nonsense on the
+	 * identity — the JS engine validates the ref as a unit and would
+	 * discard the whole thing.
+	 *
+	 * @covers ::openstation_window_revisions
+	 */
+	public function test_revisions_filter_output_is_sanitized() {
+		$post_id = self::factory()->post->create();
+		wp_save_post_revision( $post_id );
+
+		add_filter( 'openstation_window_revisions', '__return_false' );
+		$this->assertSame(
+			array(
+				'url'   => '',
+				'count' => 0,
+			),
+			openstation_window_revisions( get_post( $post_id ) )
+		);
+		remove_all_filters( 'openstation_window_revisions' );
+
+		add_filter(
+			'openstation_window_revisions',
+			static function () {
+				return array(
+					'url'   => array( 'not', 'a', 'string' ),
+					'count' => -8,
+				);
+			}
+		);
+		$this->assertSame(
+			array(
+				'url'   => '',
+				'count' => 0,
+			),
+			openstation_window_revisions( get_post( $post_id ) )
+		);
+	}
+
+	/**
+	 * The browser announces itself as a CHILD of the post whose
+	 * history it shows, which is what draws the spline between the two
+	 * windows.
+	 *
+	 * @covers ::openstation_build_content_identity
+	 */
+	public function test_revision_browser_roots_at_the_parent_post() {
+		$post_id = self::factory()->post->create( array( 'post_title' => 'Hello Desktop' ) );
+		$revision_id = wp_save_post_revision( $post_id );
+
+		$GLOBALS['pagenow'] = 'revision.php';
+		$_GET['revision']   = $revision_id;
+		set_current_screen( 'revision' );
+
+		$identity = openstation_build_content_identity();
+
+		$this->assertSame( 'revisions', $identity['type'] );
+		$this->assertSame( $post_id, $identity['id'], 'Keyed by the POST, not the revision on screen.' );
+		$this->assertSame(
+			array(
+				'type' => 'post',
+				'id'   => $post_id,
+			),
+			$identity['root']
+		);
+		$this->assertStringContainsString( 'Hello Desktop', $identity['label'] );
+	}
+
+	/**
+	 * Core reads `?to=N` when `?revision=` is absent (the
+	 * compare-two-revisions URL) — both forms are the same window.
+	 *
+	 * @covers ::openstation_build_content_identity
+	 */
+	public function test_revision_browser_falls_back_to_the_to_param() {
+		$post_id     = self::factory()->post->create();
+		$revision_id = wp_save_post_revision( $post_id );
+
+		$GLOBALS['pagenow'] = 'revision.php';
+		$_GET['to']         = $revision_id;
+		set_current_screen( 'revision' );
+
+		$identity = openstation_build_content_identity();
+
+		$this->assertSame( 'revisions', $identity['type'] );
+		$this->assertSame( $post_id, $identity['id'] );
+	}
+
+	/**
+	 * @covers ::openstation_build_content_identity
+	 */
+	public function test_revision_browser_without_a_revision_yields_null() {
+		$GLOBALS['pagenow'] = 'revision.php';
+		set_current_screen( 'revision' );
+
+		$this->assertNull( openstation_build_content_identity() );
+	}
+
+	/**
+	 * The FIRST save of a draft is what creates its first revision, and
+	 * a block-editor save never reloads the page — so the recompute
+	 * endpoint is the only path that can make the row appear.
+	 *
+	 * @covers ::openstation_rest_content_identity
+	 */
+	public function test_rest_content_identity_includes_revisions_url() {
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		$post_id = self::factory()->post->create();
+		wp_save_post_revision( $post_id );
+
+		$request = new WP_REST_Request( 'GET', '/desktop-mode/v1/content-identity' );
+		$request->set_param( 'post', $post_id );
+		$response = rest_get_server()->dispatch( $request );
+		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );
+
+		$this->assertSame( 200, $response->get_status() );
+		$identity = $response->get_data()['identity'];
+		$this->assertArrayHasKey( 'revisionsUrl', $identity );
+		$this->assertSame( 1, $identity['revisionCount'] );
 	}
 }

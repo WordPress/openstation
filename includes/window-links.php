@@ -41,6 +41,12 @@ defined( 'ABSPATH' ) || exit;
  *  - `comment.php` (comment edit / moderation) — `comment`, rooted at
  *    the parent post. The URL alone can't answer this one; only real
  *    admin context can.
+ *  - `revision.php` (the revision browser) — `revisions`, rooted at
+ *    the post whose history it shows. Keyed by the PARENT post rather
+ *    than the revision on screen, because the browser's slider walks
+ *    revisions client-side (`history.replaceState`) without a reload:
+ *    a revision-keyed identity would go stale on the first drag, and
+ *    the window is "the history of post 123" throughout anyway.
  *  - `user-edit.php` / `profile.php` — `user`, a root identity. What
  *    points at a person (a post's author, an order's customer) does so
  *    from its own `links`.
@@ -71,6 +77,37 @@ function openstation_build_content_identity() {
 					'id'   => $post_id,
 				);
 			}
+		}
+	} elseif ( 'revision.php' === $pagenow ) {
+		// Revision browser — `revision.php?revision=N`. Core falls back
+		// to `?to=N` when `revision` is absent (the compare-two-revisions
+		// form of the URL), so mirror that: both forms show the same
+		// post's history and must announce the same identity.
+		//
+		// The identity is keyed by the PARENT post, not by the revision
+		// on screen — see the "Detected screens" note above — which also
+		// means the shell can seed it at open time knowing only the post
+		// it opened the browser for, so the tie to the editor window
+		// draws before the iframe has finished loading.
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only identity harvest; the host admin page enforces capability + nonce.
+		$revision_id = isset( $_GET['revision'] ) ? absint( $_GET['revision'] ) : 0;
+		if ( ! $revision_id ) {
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only identity harvest; the host admin page enforces capability + nonce.
+			$revision_id = isset( $_GET['to'] ) ? absint( $_GET['to'] ) : 0;
+		}
+		$revision = $revision_id ? wp_get_post_revision( $revision_id ) : null;
+		$parent   = $revision ? get_post( (int) $revision->post_parent ) : null;
+		if ( $parent instanceof WP_Post && current_user_can( 'edit_post', $parent->ID ) ) {
+			$identity = array(
+				'type'  => 'revisions',
+				'id'    => (int) $parent->ID,
+				/* translators: %s: post title. */
+				'label' => sprintf( __( 'Revisions of %s', 'desktop-mode' ), get_the_title( $parent ) ),
+				'root'  => array(
+					'type' => sanitize_key( $parent->post_type ),
+					'id'   => (int) $parent->ID,
+				),
+			);
 		}
 	} elseif ( $screen && 'post' === $screen->base && 'add' !== $screen->action ) {
 		$post = get_post();
@@ -110,6 +147,12 @@ function openstation_build_content_identity() {
 				$preview_url = openstation_window_preview_url( $post );
 				if ( '' !== $preview_url ) {
 					$identity['previewUrl'] = $preview_url;
+				}
+
+				$revisions = openstation_window_revisions( $post );
+				if ( '' !== $revisions['url'] ) {
+					$identity['revisionsUrl']  = $revisions['url'];
+					$identity['revisionCount'] = $revisions['count'];
 				}
 
 				// Source for the built-in related-entity items attached
@@ -282,6 +325,109 @@ function openstation_window_preview_url( $post ) {
 	 * @param WP_Post $post        The post being edited.
 	 */
 	return (string) apply_filters( 'openstation_window_preview_url', $preview_url, $post );
+}
+
+/**
+ * Build the revision-browser link and revision total for a post — the
+ * target of the window ⋯ menu's "View revisions" row, and the count it
+ * shows beside the label.
+ *
+ * Core's revision browser is a whole admin screen that the block editor
+ * can only reach by navigating the editor away from itself; in a
+ * desktop shell it is simply another window, opened beside the editor
+ * and tied to it by a window link. That only needs two facts, and both
+ * are cheap enough to compute on every identity build.
+ *
+ * `wp_get_post_revisions()` with `fields => ids` returns the flat,
+ * newest-first id list straight out of `get_children()` — one query, no
+ * post hydration — and already answers `wp_revisions_enabled()` for the
+ * post type and the `WP_POST_REVISIONS` constant. Autosaves are
+ * included in the total, exactly as they are in Core's own revisions
+ * meta box and in the block editor's revisions panel, so the number
+ * beside the menu row matches the number the browser will list.
+ *
+ * @param WP_Post $post The post being edited.
+ * @return array {
+ *     Revision browser descriptor. `url` is `''` when the post has no
+ *     revisions to browse (revisions disabled for the type, none
+ *     written yet, insufficient capability) or a filter suppressed it.
+ *
+ *     @type string $url   Admin URL of the revision browser.
+ *     @type int    $count Total revisions the browser will list.
+ * }
+ */
+function openstation_window_revisions( $post ) {
+	$revisions = array(
+		'url'   => '',
+		'count' => 0,
+	);
+
+	if (
+		$post instanceof WP_Post &&
+		$post->ID > 0 &&
+		'attachment' !== $post->post_type &&
+		// An auto-draft has never been saved, so it cannot have a
+		// revision — worth its own check because the REST recompute
+		// takes any post id and would otherwise spend a guaranteed-
+		// empty query on one.
+		'auto-draft' !== $post->post_status &&
+		post_type_supports( $post->post_type, 'revisions' ) &&
+		current_user_can( 'edit_post', $post->ID )
+	) {
+		// One query, IDs only — `wp_get_post_revisions()` checks
+		// `wp_revisions_enabled()` BEFORE querying, so a post type with
+		// revisions turned off costs nothing here either.
+		$ids = wp_get_post_revisions( $post->ID, array( 'fields' => 'ids' ) );
+		if ( ! empty( $ids ) ) {
+			/*
+			 * `get_edit_post_link()` maps the `revision` post type onto
+			 * `revision.php?revision=%d` and runs the `edit_post` meta
+			 * cap — which for a revision maps to its parent — so it is
+			 * the capability gate as much as the URL builder, and it
+			 * stays correct if a plugin re-points the revision screen
+			 * through the `get_edit_post_link` filter.
+			 *
+			 * Raw context deliberately: this URL is JSON-encoded into
+			 * the bridge payload and ends up as an iframe `src`, where
+			 * a display-escaped `&amp;` would arrive as a literal.
+			 */
+			$link = get_edit_post_link( (int) reset( $ids ), 'raw' );
+			if ( is_string( $link ) && '' !== $link ) {
+				$revisions['url']   = $link;
+				$revisions['count'] = count( $ids );
+			}
+		}
+	}
+
+	/**
+	 * Filters the revision-browser descriptor attached to a post-editor
+	 * content identity (`revisionsUrl` / `revisionCount` — the target
+	 * of the window ⋯ menu's "View revisions" row).
+	 *
+	 * Return `array( 'url' => '', 'count' => 0 )` to hide the row for
+	 * this post, or rewrite `url` to point somewhere else (a custom
+	 * diff screen, a plugin's own history UI). Note the shell only
+	 * accepts same-origin URLs; a cross-origin rewrite hides the row.
+	 *
+	 * @param array   $revisions {
+	 *     @type string $url   Admin URL of the revision browser, `''` when none applies.
+	 *     @type int    $count Total revisions the browser will list.
+	 * }
+	 * @param WP_Post $post      The post being edited.
+	 */
+	$revisions = apply_filters( 'openstation_window_revisions', $revisions, $post );
+
+	if ( ! is_array( $revisions ) ) {
+		return array(
+			'url'   => '',
+			'count' => 0,
+		);
+	}
+
+	return array(
+		'url'   => isset( $revisions['url'] ) && is_string( $revisions['url'] ) ? $revisions['url'] : '',
+		'count' => isset( $revisions['count'] ) ? max( 0, (int) $revisions['count'] ) : 0,
+	);
 }
 
 /**
@@ -790,6 +936,16 @@ function openstation_rest_content_identity( $request ) {
 	$preview_url = openstation_window_preview_url( $post );
 	if ( '' !== $preview_url ) {
 		$identity['previewUrl'] = $preview_url;
+	}
+
+	// The reason this recompute exists at all, for revisions: the FIRST
+	// save of a draft is what creates its first revision, so the "View
+	// revisions" row can only appear after a save — and a block-editor
+	// save never reloads the page.
+	$revisions = openstation_window_revisions( $post );
+	if ( '' !== $revisions['url'] ) {
+		$identity['revisionsUrl']  = $revisions['url'];
+		$identity['revisionCount'] = $revisions['count'];
 	}
 
 	/** This filter is documented in includes/window-links.php */

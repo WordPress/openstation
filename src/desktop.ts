@@ -94,6 +94,7 @@ import { type WindowRevealDef } from './reveals/types';
 import { startWindowLinksEngine } from './window-links/engine';
 import { bootRelatedEntities } from './related-entities';
 import { bootEditorPreview } from './editor-preview';
+import { bootRevisions } from './revisions';
 import type {
 	WindowLinkRendererDef,
 	WindowRelationsApi,
@@ -3637,6 +3638,15 @@ function init(): void {
 	// identity's `previewUrl` (see `openstation_window_preview_url()`
 	// in `includes/window-links.php`).
 	bootEditorPreview( { manager } );
+
+	// "View revisions" ⋯ menu row — on any post/page/CPT editor window
+	// (Gutenberg or classic) whose content has revisions. Opens Core's
+	// revision browser as its own window, placed clear of the editor
+	// and tied to it by a window link, instead of navigating the editor
+	// away from itself. Visibility follows the identity's
+	// `revisionsUrl` (see `openstation_window_revisions()` in
+	// `includes/window-links.php`).
+	bootRevisions( { manager } );
 
 	// Dock rail renderer sync — loads plugin renderer scripts on
 	// activation so OS Settings → Dock style surfaces them

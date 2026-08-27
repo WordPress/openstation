@@ -3206,6 +3206,8 @@ Window content relations: which piece of content each window shows, and how wind
 | `label` | `string` | Optional human label for renderers/tooltips. |
 | `related` | `RelatedEntityItem[]` | Optional. Ready-to-open navigation targets related to this content — what the title bar's **"Related" button** lists (see below). Built server-side for posts/pages and capped at 64; never affects group membership or edges. |
 | `previewUrl` | `string` | Optional. Front-end preview URL for this content — what the title bar's **"Preview" (eye) button** opens (see below). Built server-side for post/page/CPT editors of viewable post types (autosave-aware, carries a `preview_nonce`); the engine silently drops non-same-origin values. Never affects group membership or edges. |
+| `revisionsUrl` | `string` | Optional. Revision-browser URL for this content — what the ⋯ menu's **"View revisions" row** opens (see below). Built server-side for post/page/CPT editors whose type supports revisions and which have at least one, so it is absent until the first save writes one; the engine silently drops non-same-origin values. Never affects group membership or edges. |
+| `revisionCount` | `number` | Optional. How many revisions `revisionsUrl` will list — the count in the menu row's label. Autosaves included, matching Core's revisions meta box. Dropped when `revisionsUrl` doesn't survive: a count with no browser to open is noise. |
 | `source` | `'config' \| 'bridge' \| 'api'` | Stamped by the engine — never set it yourself. |
 
 **API:**
@@ -3325,6 +3327,35 @@ wp.hooks.addFilter(
 ```
 
 The PHP-side control point is the `openstation_window_preview_url` filter (rewrite or suppress the URL per post — see [hooks-reference](./hooks-reference.md)). Related: `WindowConfig.ephemeral?: boolean` is a general flag — any window opened with it is excluded from session snapshots and never restored on boot.
+
+### The "View revisions" ⋯ menu row — Experimental
+
+Any window whose content identity carries a `revisionsUrl` grows a **"View revisions (N)"** row in its title-bar ⋯ menu (registered through the public `registerWindowAction` surface as `desktop-mode/view-revisions`, `order: 60`). The URL and count are built server-side by `openstation_window_revisions()` for post/page/CPT edit screens — Gutenberg **and** classic, any post type that declares `revisions` support — so the row appears exactly where there is history to browse. A draft with no revisions has no row; the block editor's save-watcher refetches the identity after the first save, so it appears the moment one exists, with no reload. Label and visibility are re-read on every menu open, so the count counts up while the window stays open.
+
+Picking it opens Core's revision browser (`revision.php`) as **its own desktop window** — id `revisions-{type}-{id}`, a singleton per post, session-restorable (the URL carries no nonce) — instead of navigating the editor away from itself.
+
+Two things make it read as a pair rather than a stray window:
+
+- **The window link.** The revision window is seeded at open time with the identity the `revision.php` bridge will announce a moment later — `{ type: 'revisions', id: postId, root: { type, id: postId } }` — so the desktop draws its spline to the editor **before the iframe has finished loading**, and focusing either window raises and highlights the other. The server's announcement then replaces the seed with the authoritative one.
+- **The placement.** On a first open (nothing remembered for this window, desktop-width viewport, a measurable editor) the window opens *beside* the editor: to its right if there is room, to its left if not, otherwise in the corner diagonally opposite the editor's own. Once the user has moved or resized it, the window manager's remembered geometry wins and the shell stops arranging. Deliberately **not** a snap — snapped windows report no rect to the link frame, so the tidiest-looking arrangement is the one that would cost the spline.
+
+**JS surface** (hook bus + matching document CustomEvent):
+
+| Hook | Kind | Payload |
+|---|---|---|
+| `os.revisions.window-config` | Filter | `( config: WindowConfig, { editorWindowId, content } ) => config` — reshape the window before it opens (geometry, title, URL). An invalid return is ignored with a console warning. |
+| `os.revisions.opened` (CustomEvent `os-revisions-opened`) | Action | `{ editorWindowId, revisionsWindowId, content }` |
+
+```javascript
+// Always open the revision browser maximized.
+wp.hooks.addFilter(
+    'os.revisions.window-config',
+    'my-plugin/big-revisions',
+    ( config ) => ( { ...config, initialState: 'maximized' } ),
+);
+```
+
+The PHP-side control point is the `openstation_window_revisions` filter (rewrite or suppress the URL and count per post — see [hooks-reference](./hooks-reference.md)). Recipe: [`docs/examples/revisions.md`](./examples/revisions.md).
 
 ### `registerWindowLinkRenderer( def )` — Experimental
 
