@@ -53,6 +53,8 @@ export interface OsSettingsSnapshot {
 	 * route back to classic admin.
 	 */
 	adminBarMode: string;
+	/** `'static'` (always on screen) or `'dynamic'` (auto-hides behind a peek strip). */
+	dockBehavior: string;
 	/**
 	 * Top-level desktop layout. Drives the dock(s) layout:
 	 *

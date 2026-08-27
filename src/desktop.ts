@@ -241,6 +241,13 @@ import {
 } from './mio/controller';
 import { OS_GEAR_ICON } from './ui/gear-icon';
 import { mountNotch } from './notch';
+import { installDockBehavior } from './dock-behavior';
+import {
+	installWorkArea,
+	subscribeWorkArea,
+	workAreaRectOf,
+	type WorkAreaApi,
+} from './work-area';
 import {
 	OS_OVERVIEW_ICON,
 	OS_SYSTEM_ICON,
@@ -1743,6 +1750,31 @@ export interface OpenStationPublicApi {
 	 */
 	presence: PresenceApi;
 	/**
+	 * The work area — the rectangle of the desktop area that no shell
+	 * chrome floats over, computed from the live dock geometry. The
+	 * one answer to "where may I put this?" for windows, widgets,
+	 * icons and anything a plugin places on the desktop.
+	 *
+	 * `get()` is the latest snapshot; `rectOf()` derives the rect from
+	 * an element's live size; `insetsOf( el )` says how far `el` hangs
+	 * outside the work area on each edge (a surface framing content
+	 * inside its own box subtracts these); `subscribe()` fires on
+	 * every actual change. The same numbers are on `#os-shell` as
+	 * `--os-work-area-inset-{top,right,bottom,left}` and
+	 * `--os-work-area-{width,height}`, and every change also fires
+	 * the `os-work-area-changed` CustomEvent on `document`.
+	 *
+	 * @example
+	 * ```js
+	 * const { rect } = wp.os.workArea.get();
+	 * wp.os.windowManager.open( {
+	 *     id: 'my-plugin', title: 'My plugin', url: 'admin.php?page=my-plugin',
+	 *     x: rect.x + 24, y: rect.y + 24, width: 900, height: rect.height - 48,
+	 * } );
+	 * ```
+	 */
+	workArea: WorkAreaApi;
+	/**
 	 * Multi-selection framework. `active()` returns a snapshot of the
 	 * most recent selection change anywhere in the shell;
 	 * `resolveCommonActions()` is the rule that decides what a mixed
@@ -2742,6 +2774,19 @@ function init(): void {
 			config.desktopIcons,
 			initialPlacement,
 		);
+		// The work area — measured AFTER the dispatcher has built the
+		// rails so the first snapshot already knows the pill. From here
+		// on it follows the rails itself (ResizeObserver per dock,
+		// `os-layout-changed` for a rebuild) and every placing surface
+		// reads it instead of guessing at the dock.
+		installWorkArea( {
+			shell: shellEl,
+			shellBody,
+			area: desktopArea,
+		} );
+		// The dynamic dock behavior's JS half — parked-inset extent and
+		// the edge reveal zone. Inert while the behavior is static.
+		installDockBehavior( { shellBody } );
 		// Constellation — the hover-submenu flyout. Once mounted it is
 		// a single delegated listener serving every menu tile on every
 		// rail, reading fan-in direction off the rail the tile is on,
@@ -4443,11 +4488,13 @@ function init(): void {
 		const root = filesApi.store.getState().placementsByFolder.get( 0 ) ?? [];
 		const ordered = transform( root );
 		// Column-major fill: top-to-bottom within a column, then to
-		// the next column. Number of rows comes from the desktop
-		// area's measured height so columns wrap cleanly.
+		// the next column. Number of rows comes from the WORK AREA's
+		// measured height — the desktop area minus the band the dock
+		// pill covers — so columns wrap above the dock, not under it.
+		const canvas = workAreaRectOf( desktopArea );
 		const rowsPerCol = Math.max(
 			1,
-			Math.floor( ( desktopArea.clientHeight - 16 ) / 110 ),
+			Math.floor( ( canvas.height - 16 ) / 110 ),
 		);
 		const occupied = new Set< string >();
 		let i = 0;
@@ -4456,7 +4503,7 @@ function init(): void {
 				16 + Math.floor( i / rowsPerCol ) * 96,
 				16 + ( i % rowsPerCol ) * 110,
 				occupied,
-				desktopArea,
+				canvas,
 			);
 			occupied.add( `${ cell.col },${ cell.row }` );
 			i++;
@@ -4572,28 +4619,35 @@ function init(): void {
 		},
 	);
 
-	// Re-pack icons when the desktop area resizes — but ONLY while
+	// Re-pack icons when the WORK AREA resizes — but ONLY while
 	// auto-arrange is active. Manual layouts stay untouched. The
 	// non-persisting relayout mutates the store so the layer's
 	// subscription repaints, and avoids a REST writeback storm
 	// during a continuous drag-resize of the browser window.
-	if ( typeof ResizeObserver !== 'undefined' ) {
-		let lastW = desktopArea.clientWidth;
-		let lastH = desktopArea.clientHeight;
-		const ro = new ResizeObserver( () => {
+	//
+	// Gated on the work-area rect, not the area's client box: the
+	// dock pill growing changes the rows that fit without changing
+	// `clientHeight` (padding is inside it). Two triggers feed one
+	// guard — the area's ResizeObserver for browser resizes and rail
+	// flips, the work-area store for inset-only changes.
+	{
+		let last = workAreaRectOf( desktopArea );
+		const repack = (): void => {
 			if ( ! rootSortMode ) {
 				return;
 			}
-			const w = desktopArea.clientWidth;
-			const h = desktopArea.clientHeight;
-			if ( w === lastW && h === lastH ) {
+			const next = workAreaRectOf( desktopArea );
+			if ( next.width === last.width && next.height === last.height ) {
 				return;
 			}
-			lastW = w;
-			lastH = h;
+			last = next;
 			relayoutRoot( rootSortTransform( rootSortMode ), false );
-		} );
-		ro.observe( desktopArea );
+		};
+		if ( typeof ResizeObserver !== 'undefined' ) {
+			const ro = new ResizeObserver( repack );
+			ro.observe( desktopArea );
+		}
+		subscribeWorkArea( repack );
 	}
 
 	// Wallpaper LEFT-click → "Show desktop" toggle, gated behind the
@@ -4718,7 +4772,12 @@ function init(): void {
 				const occupied = buildOccupiedSet(
 					filesApi.store.getState().placementsByFolder.get( 0 ) ?? [],
 				);
-				return snapToEmptyCell( rawX, rawY, occupied, desktopArea );
+				return snapToEmptyCell(
+					rawX,
+					rawY,
+					occupied,
+					workAreaRectOf( desktopArea ),
+				);
 			};
 			const createUrlPlacement = (
 				dialogTitle: string,

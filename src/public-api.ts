@@ -79,6 +79,15 @@ export type {
 	WidgetTeardown,
 } from './widgets/types';
 
+// ----- Types: the work area (`wp.os.workArea`) -----
+
+export type {
+	WorkAreaApi,
+	WorkAreaInsets,
+	WorkAreaRect,
+	WorkAreaSnapshot,
+} from './work-area';
+
 // ----- Types: modules (vendor-script registry) -----
 
 export type { ModuleDef } from './modules/registry';

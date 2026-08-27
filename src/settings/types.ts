@@ -10,7 +10,12 @@ import type { NavPlacement } from '../nav/types';
 import type { MioLook } from '../mio/types';
 import type { WallpaperLayer } from '../wallpapers/layer';
 import type { WallpaperTeardown } from '../wallpapers/types';
-import type { ADMIN_BAR_MODES, DOCK_SIZES, WINDOW_RADII } from './constants';
+import type {
+	ADMIN_BAR_MODES,
+	DOCK_BEHAVIORS,
+	DOCK_SIZES,
+	WINDOW_RADII,
+} from './constants';
 
 /**
  * Accent id. Historically derived from the built-in `ACCENTS` tuple,
@@ -23,6 +28,7 @@ export type AccentId = string;
 export type DockSizeId = ( typeof DOCK_SIZES )[ number ][ 'id' ];
 export type WindowRadiusId = ( typeof WINDOW_RADII )[ number ][ 'id' ];
 export type AdminBarModeId = ( typeof ADMIN_BAR_MODES )[ number ][ 'id' ];
+export type DockBehaviorId = ( typeof DOCK_BEHAVIORS )[ number ][ 'id' ];
 export type DockPlacementId = 'left' | 'right' | 'bottom';
 
 /**
@@ -113,6 +119,14 @@ export interface OsSettingsState {
 	 * moving one of the two rails would leave both on the same edge.
 	 */
 	dockPlacement: DockPlacementId;
+	/**
+	 * How the dock presents: `'static'` (always on screen, the
+	 * default — the band it floats over is reserved from the work
+	 * area) or `'dynamic'` (parked off its edge behind a peek strip,
+	 * revealed when the pointer reaches that edge or something on it
+	 * takes focus; reserves nothing).
+	 */
+	dockBehavior: DockBehaviorId;
 	/**
 	 * Active dock rail-renderer id. Resolves through the dock-rail
 	 * registry; missing or invalid falls back to `'default'` (the

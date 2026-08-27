@@ -302,6 +302,21 @@ The primitive is also exposed on the public API as `wp.os.createSharedStore`. Se
 
 **Before importing from one bundle's entry into another bundle's tree**, double-check that you aren't dragging in heavy code as a side-effect. Pulling a single symbol from a bundle entry that side-effect-imports the whole feature (poller, SSE, leader, heartbeat, …) inflates the consumer bundle. Pull the symbol from the leaf module that defines it instead.
 
+### The work area — never size against `#os-area` directly
+
+**Anything that places or frames content on the desktop reads the work area, not the desktop area.** The bottom dock pill floats OVER `#os-area`, so `desktopArea.clientHeight`, `parent.clientWidth / 2` and `getBoundingClientRect()` on the area all describe space the user cannot reach; every surface that guessed at the dock on its own (an 80px padding here, a 100px canvas margin there) was wrong in a different way, and the dock covered content and actions.
+
+`src/work-area/index.ts` owns the one rectangle. It measures the area and every `.os-dock` in the shell body, works out which bands the chrome overlays (`compute.ts` has the rules: only overlap counts, a rail claims the edge it is nearest to), and publishes it as CSS custom properties on `#os-shell` (`--os-work-area-inset-{top,right,bottom,left}`, `--os-work-area-{width,height}`), a JS query (`workAreaRectOf( areaEl )` for a rect in the area's own coordinates, `workAreaInsetsOf( el )` for how far any element hangs outside it, `getWorkArea()` for the snapshot with both coordinate spaces), and change notifications (`subscribeWorkArea`, the `os.work-area.changed` action, the `os-work-area-changed` CustomEvent). Public surface: `wp.os.workArea`.
+
+Three things to know:
+
+- **`workAreaRectOf( parent )` is the drop-in for `parent.clientWidth` / `clientHeight` wherever something is placed by DEFAULT.** It reads the element's live size and only adds the insets, so a consumer running synchronously after a layout change is still right, and a test document with no layout gets exactly the numbers it used to. Window open (a registered size is fitted to it), session restore, cascade, tile, child placement, widgets, sticky notes, embed-window restore and the icon grid all go through it; the Corkboard, the categories mind map and the tags cloud, which frame content inside their OWN box, use `workAreaInsetsOf( host )` instead. **Explicit actions deliberately don't:** maximize, snap and the drag clamp use the whole desktop area, dock band included — the band is the user's to use on purpose, and the `dynamic` dock behavior (below) is the answer for a dock that should get out of the way.
+- **A dynamic dock claims nothing.** Preferences → Appearance → Dock behavior writes `os-dock-<behavior>` on `<body>` (PHP for the first paint, the apply pass live); `dock.css` parks the rail off its edge by INSET (not transform — the tooltip is `position: fixed`, and a transformed ancestor would pin it to the rail), `src/dock-behavior.ts` writes the rail's extent and summons it from a full-width edge zone, and `measureWorkArea` skips every rail under `os-dock-dynamic`. The apply pass calls `refreshWorkArea()` right after flipping the class.
+- **The admin bar and the side docks need no special case**, and adding one is the mistake. `.os-shell` already starts below the admin bar when the user keeps it; a left or right dock is a flex sibling of the area. Measuring the area's viewport rect is what makes the snapshot aware of both. Only chrome that floats over the area claims an inset.
+- **The notch does not claim, by contract**, and neither should a new floating affordance without a conversation: a work area is only useful while few things carve it. `assets/css/notch.css` and the notch section of `docs/javascript-reference.md` say why.
+
+`tests/vitest/work-area.test.ts` pins the rules; the `.os-area` padding, the `.os-icons` grid and the `.os-widgets` column read the same tokens in `assets/css/desktop.css`.
+
 ### Chromeless admin-bar suppression
 
 `is_admin_bar_showing()` short-circuits to `true` in admin context, the `show_admin_bar` filter alone is NOT sufficient inside chromeless iframes. We pair it with `remove_action( 'in_admin_header', 'wp_admin_bar_render', 0 )` on `admin_init`, AND a CSS rule killing the reserved 32px. Do not remove either half.

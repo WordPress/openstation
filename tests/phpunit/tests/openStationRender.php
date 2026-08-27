@@ -26,6 +26,7 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );
 		delete_user_meta( self::$admin_id, OPENSTATION_OS_SETTINGS_META_KEY );
 		remove_all_filters( 'openstation_admin_bar_mode' );
+		remove_all_filters( 'openstation_dock_behavior' );
 		unset( $_GET['openstation_chromeless'], $_GET[ OPENSTATION_CLASSIC_FLAG ] );
 		parent::tear_down();
 	}
@@ -93,6 +94,52 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 
 		$this->assertStringContainsString( 'os-admin-bar-dynamic', $classes );
 		$this->assertStringNotContainsString( 'os-admin-bar-static', $classes );
+	}
+
+	/**
+	 * @covers ::openstation_admin_body_classes
+	 * @covers ::openstation_get_dock_behavior
+	 */
+	public function test_body_class_carries_default_dock_behavior() {
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+
+		$this->assertStringContainsString(
+			'os-dock-static',
+			openstation_admin_body_classes( '' )
+		);
+	}
+
+	/**
+	 * @covers ::openstation_admin_body_classes
+	 * @covers ::openstation_get_dock_behavior
+	 */
+	public function test_body_class_reflects_saved_dock_behavior() {
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		openstation_save_os_settings( self::$admin_id, array( 'dockBehavior' => 'dynamic' ) );
+
+		$classes = openstation_admin_body_classes( '' );
+
+		$this->assertStringContainsString( 'os-dock-dynamic', $classes );
+		$this->assertStringNotContainsString( 'os-dock-static', $classes );
+	}
+
+	/**
+	 * @covers ::openstation_get_dock_behavior
+	 */
+	public function test_dock_behavior_filter_overrides_the_user_pick() {
+		openstation_save_os_settings( self::$admin_id, array( 'dockBehavior' => 'dynamic' ) );
+		add_filter( 'openstation_dock_behavior', static fn () => 'static' );
+
+		$this->assertSame( 'static', openstation_get_dock_behavior() );
+	}
+
+	/**
+	 * @covers ::openstation_get_dock_behavior
+	 */
+	public function test_dock_behavior_filter_returning_junk_fails_closed() {
+		add_filter( 'openstation_dock_behavior', static fn () => array( 'nope' ) );
+
+		$this->assertSame( 'static', openstation_get_dock_behavior() );
 	}
 
 	/**

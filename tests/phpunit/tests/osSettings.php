@@ -72,6 +72,29 @@ class Tests_OpenStation_OsSettings extends WP_UnitTestCase {
 	/**
 	 * @covers ::openstation_sanitize_os_settings
 	 */
+	public function test_default_dock_behavior_is_static() {
+		$defaults = openstation_default_os_settings();
+		$this->assertArrayHasKey( 'dockBehavior', $defaults );
+		$this->assertSame( 'static', $defaults['dockBehavior'] );
+	}
+
+	public function test_sanitize_keeps_known_dock_behavior() {
+		foreach ( array( 'static', 'dynamic' ) as $behavior ) {
+			$clean = openstation_sanitize_os_settings( array( 'dockBehavior' => $behavior ) );
+			$this->assertSame( $behavior, $clean['dockBehavior'], "behavior '{$behavior}' should round-trip" );
+		}
+	}
+
+	/**
+	 * An unknown behavior would emit `os-dock-<junk>`, which matches
+	 * no stylesheet rule — the rail would simply stay put, but the
+	 * stored value would be a lie. Fall back to the default instead.
+	 */
+	public function test_sanitize_falls_back_to_default_for_unknown_dock_behavior() {
+		$clean = openstation_sanitize_os_settings( array( 'dockBehavior' => 'peekaboo' ) );
+		$this->assertSame( 'static', $clean['dockBehavior'] );
+	}
+
 	public function test_sanitize_falls_back_when_admin_bar_mode_missing() {
 		$clean = openstation_sanitize_os_settings( array( 'wallpaper' => 'dark' ) );
 		$this->assertSame( 'hidden', $clean['adminBarMode'] );

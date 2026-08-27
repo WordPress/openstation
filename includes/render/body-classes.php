@@ -42,6 +42,8 @@ function openstation_admin_body_classes( $classes ) {
 		$classes = ltrim(
 			$classes . ' os-active os-admin-bar-'
 				. openstation_get_admin_bar_mode()
+				. ' os-dock-'
+				. openstation_get_dock_behavior()
 		);
 
 		// Solo mode — one window freed onto the real desktop by the
@@ -92,5 +94,39 @@ function openstation_get_admin_bar_mode() {
 	// that can't hide the user's way out of the shell.
 	return is_string( $mode ) && in_array( $mode, OPENSTATION_OS_SETTINGS_ADMIN_BAR_MODES, true )
 		? $mode
+		: 'static';
+}
+
+/**
+ * Resolves the current user's dock behavior.
+ *
+ * Emitted as an `os-dock-<behavior>` body class so the very first
+ * paint already parks (or doesn't) the rail — the shell's JS apply
+ * pass re-writes the same class on every settings change, but it runs
+ * after the dock has painted, which would flash a rail the user asked
+ * to keep out of the way.
+ *
+ * @return string One of `static`, `dynamic`.
+ */
+function openstation_get_dock_behavior() {
+	$settings = openstation_get_os_settings( get_current_user_id() );
+	$behavior = isset( $settings['dockBehavior'] ) ? (string) $settings['dockBehavior'] : 'static';
+
+	/**
+	 * Filters the dock behavior for the current request.
+	 *
+	 * Lets a plugin pin the behavior regardless of the user's own
+	 * OpenStation Preferences pick — keeping the rail always on
+	 * screen for users who would otherwise not find it, say.
+	 *
+	 * @param string $behavior One of `static`, `dynamic`.
+	 */
+	$behavior = apply_filters( 'openstation_dock_behavior', $behavior );
+
+	// Fails closed, same as the admin-bar mode: `static` is the one
+	// behavior that can't hide the rail from a user who doesn't know
+	// where to point.
+	return is_string( $behavior ) && in_array( $behavior, OPENSTATION_OS_SETTINGS_DOCK_BEHAVIORS, true )
+		? $behavior
 		: 'static';
 }

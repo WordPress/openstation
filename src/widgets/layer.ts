@@ -30,7 +30,13 @@ import {
 	openWidgetPicker,
 	refreshWidgetPicker,
 } from './picker';
-import { applyGeometry, buildFrame, type Frame } from './frame';
+import {
+	applyGeometry,
+	buildFrame,
+	clampGeometryToParent,
+	type Frame,
+} from './frame';
+import { subscribeWorkArea } from '../work-area';
 import {
 	loadDockedHeights,
 	loadEnabledIds,
@@ -544,11 +550,18 @@ export class WidgetLayer {
 			}
 		}
 
+		// Floating cards were clamped into the work area when they were
+		// placed, and the work area can shrink under them afterwards —
+		// the dock moving from a side edge to the bottom claims the
+		// floor a card was parked on. Pull them back in when it does.
+		const offWorkArea = subscribeWorkArea( () => this.reclampFloating() );
+
 		this.unwatchPointer = () => {
 			if ( frame ) {
 				cancelAnimationFrame( frame );
 				frame = 0;
 			}
+			offWorkArea();
 			observer?.disconnect();
 			document.removeEventListener( 'pointermove', onMove );
 			document.documentElement.removeEventListener(
@@ -633,6 +646,30 @@ export class WidgetLayer {
 		// insertion order — "most recently added / redocked is last").
 		this.listEl.appendChild( card );
 		this.paintEmptyState();
+	}
+
+	/**
+	 * Pull every floating card back inside the work area after it
+	 * changed. Only the position moves, and only when it has to;
+	 * a card that still fits is not touched, and a card that moved
+	 * is persisted so the next load starts from the corrected spot.
+	 */
+	private reclampFloating(): void {
+		for ( const [ id, record ] of this.mounted ) {
+			if ( ! record.floating ) {
+				continue;
+			}
+			const current = this.geometry[ id ];
+			if ( ! current ) {
+				continue;
+			}
+			const next = clampGeometryToParent( current, this.floatingHost );
+			if ( next.x === current.x && next.y === current.y ) {
+				continue;
+			}
+			applyGeometry( record.frame.card, next );
+			this.persistGeometry( id, next );
+		}
 	}
 
 	private persistGeometry( id: string, geometry: WidgetGeometry ): void {

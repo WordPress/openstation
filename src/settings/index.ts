@@ -45,11 +45,13 @@ import {
 	ADMIN_BAR_MODES,
 	CUSTOM_ACCENT_ID,
 	DEFAULT_WALLPAPER_ID,
+	DOCK_BEHAVIORS,
 	DOCK_SIZES,
 	WINDOW_RADII,
 	getAccents,
 	getDefaultWallpaperId,
 } from './constants';
+import { refreshWorkArea } from '../work-area';
 import {
 	loadState,
 	saveState,
@@ -200,6 +202,7 @@ export class OsSettings implements SettingsCtx {
 			adminBarMode: this.state.adminBarMode,
 			desktopLayout: this.state.desktopLayout,
 			dockPlacement: this.state.dockPlacement,
+			dockBehavior: this.state.dockBehavior,
 			dockRailRenderer: this.state.dockRailRenderer,
 			desktopTheme: this.state.desktopTheme,
 			appliedThemeRecommendations:
@@ -481,6 +484,23 @@ export class OsSettings implements SettingsCtx {
 				mode.id === adminBarMode.id,
 			);
 		}
+
+		// Dock behavior — the same shape as the admin-bar mode: one
+		// `os-dock-<behavior>` body class, written by PHP for the
+		// first paint and re-written here so a pick lands live.
+		// `dock.css` parks the rail off `os-dock-dynamic`, and the
+		// work area stops reserving the rail's band under it — which
+		// is why the measurement is refreshed right after the class.
+		const dockBehavior =
+			DOCK_BEHAVIORS.find( ( b ) => b.id === this.state.dockBehavior ) ??
+			DOCK_BEHAVIORS[ 0 ];
+		for ( const behavior of DOCK_BEHAVIORS ) {
+			document.body.classList.toggle(
+				`os-dock-${ behavior.id }`,
+				behavior.id === dockBehavior.id,
+			);
+		}
+		refreshWorkArea();
 
 		// Desktop layout is driven by an attribute on the shell root;
 		// the layout dispatcher (desktop.ts) reads it on init and on

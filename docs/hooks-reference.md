@@ -1503,6 +1503,31 @@ add_filter( 'openstation_admin_bar_mode', function () {
 
 ---
 
+### `openstation_dock_behavior` — Experimental
+
+Overrides how the dock presents for the current request, regardless of the user's own **OpenStation Preferences → Appearance → Dock behavior** pick. The resolved value is emitted as an `os-dock-<behavior>` body class on `admin_body_class`, which is what `assets/css/dock.css` and `src/dock-behavior.ts` key off.
+
+```php
+apply_filters( 'openstation_dock_behavior', string $behavior );
+```
+
+| Behavior | What it does |
+|---|---|
+| `static` | The rail is always on screen, and the band it floats over is reserved from the [work area](javascript-reference.md#workarea--experimental) so default window placement stays clear of it. The default. |
+| `dynamic` | The rail parks off its edge leaving a visible seam (`--os-dock-peek`, `4px`; `10px` on coarse pointers) and slides back in when the pointer reaches that edge of the screen (a `20px` band, the full width or height of it), while it is over the rail or one of its flyouts, or while something on the rail has keyboard focus. It reserves nothing: windows get the whole desktop and the rail rides over them when summoned. The admin bar's `dynamic` mode, one edge down. |
+
+A value outside the two coerces back to `static`. The same two ids are the user-facing setting (`dockBehavior` in `wp.os.getOsSettings()`).
+
+**Example — keep the rail on screen for anyone who might not find the seam:**
+
+```php
+add_filter( 'openstation_dock_behavior', function ( $behavior ) {
+    return current_user_can( 'manage_options' ) ? $behavior : 'static';
+} );
+```
+
+---
+
 ### `openstation_toast_types` — Stable
 
 Extends the toast-notification type map the shell consumes when a plugin calls `wp.os.toast( id, … )`. Each entry is `{ id, label, icon, tone }` where `tone` is one of `positive | warning | critical | neutral`. Entries with an unknown tone are dropped.

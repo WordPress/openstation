@@ -1246,3 +1246,98 @@
 		transform: none;
 	}
 }
+
+/* ------------------------------------------------------------------
+ * Dynamic dock behavior — OpenStation Preferences → Appearance → Dock
+ * behavior, persisted as `dockBehavior` and emitted as an
+ * `os-dock-<behavior>` body class by PHP on first paint and by the
+ * apply pass on every change. `static` is the absence of rules.
+ *
+ * The rail parks off its edge leaving a peek strip and comes back when
+ * the pointer reaches that edge (`src/dock-behavior.ts` toggles
+ * `os-dock--revealed` from a full-width edge zone), while the pointer
+ * is over the rail or one of its flyouts, or while something on it has
+ * keyboard focus. The admin bar's Dynamic mode, one edge down — but
+ * parked by INSET rather than by transform: the tooltip below is
+ * `position: fixed`, and a transformed ancestor would become its
+ * containing block and pin it to the rail.
+ *
+ * `--os-dock-extent` is the rail's own size along the hide axis
+ * (height for the pill, width for a side rail), written by
+ * `src/dock-behavior.ts` from a ResizeObserver; the parked inset is
+ * "everything but the peek". A side rail leaves the flex row for the
+ * duration, so the area grows to the full width and the rail rides
+ * over it when summoned; the work area reserves nothing for a
+ * dynamic rail (`src/work-area/index.ts`).
+ * ------------------------------------------------------------------ */
+
+body.os-dock-dynamic .os-dock[ data-os-dock-placement="bottom" ] {
+	bottom: calc( var( --os-dock-peek, 4px ) - var( --os-dock-extent, 64px ) );
+	transition: bottom 180ms ease;
+}
+
+body.os-dock-dynamic .os-dock[ data-os-dock-placement="left" ],
+body.os-dock-dynamic .os-dock[ data-os-dock-placement="right" ] {
+	position: absolute;
+	inset-block: 0;
+	transition:
+		inset-inline-start 180ms ease,
+		inset-inline-end 180ms ease;
+}
+
+body.os-dock-dynamic .os-dock[ data-os-dock-placement="left" ] {
+	inset-inline-start: calc( var( --os-dock-peek, 4px ) - var( --os-dock-extent, 56px ) );
+}
+
+body.os-dock-dynamic .os-dock[ data-os-dock-placement="right" ] {
+	inset-inline-end: calc( var( --os-dock-peek, 4px ) - var( --os-dock-extent, 56px ) );
+}
+
+/*
+ * Revealed — back to the static resting inset. `:hover` holds it
+ * while the pointer is on the rail; `:focus-within` while a tile has
+ * keyboard focus; the `:has()` pair while the pointer is on a flyout
+ * the rail opened, since those are body-level and leaving the rail
+ * for one would otherwise retract the rail out from under it.
+ */
+body.os-dock-dynamic .os-dock--revealed[ data-os-dock-placement="bottom" ],
+body.os-dock-dynamic .os-dock[ data-os-dock-placement="bottom" ]:hover,
+body.os-dock-dynamic .os-dock[ data-os-dock-placement="bottom" ]:focus-within,
+body.os-dock-dynamic:has( .os-constellation:hover ) .os-dock[ data-os-dock-placement="bottom" ],
+body.os-dock-dynamic:has( .os-dock-peek:hover ) .os-dock[ data-os-dock-placement="bottom" ] {
+	bottom: 12px;
+}
+
+body.os-dock-dynamic .os-dock--revealed[ data-os-dock-placement="left" ],
+body.os-dock-dynamic .os-dock[ data-os-dock-placement="left" ]:hover,
+body.os-dock-dynamic .os-dock[ data-os-dock-placement="left" ]:focus-within,
+body.os-dock-dynamic:has( .os-constellation:hover ) .os-dock[ data-os-dock-placement="left" ],
+body.os-dock-dynamic:has( .os-dock-peek:hover ) .os-dock[ data-os-dock-placement="left" ] {
+	inset-inline-start: 0;
+}
+
+body.os-dock-dynamic .os-dock--revealed[ data-os-dock-placement="right" ],
+body.os-dock-dynamic .os-dock[ data-os-dock-placement="right" ]:hover,
+body.os-dock-dynamic .os-dock[ data-os-dock-placement="right" ]:focus-within,
+body.os-dock-dynamic:has( .os-constellation:hover ) .os-dock[ data-os-dock-placement="right" ],
+body.os-dock-dynamic:has( .os-dock-peek:hover ) .os-dock[ data-os-dock-placement="right" ] {
+	inset-inline-end: 0;
+}
+
+/*
+ * Coarse pointers have no hover state and a much fatter contact patch,
+ * so a 4px seam is neither discoverable nor tappable. Widen it — the
+ * pointerdown in `src/dock-behavior.ts` is what actually reveals the
+ * rail there.
+ */
+@media ( hover: none ) {
+	body.os-dock-dynamic .os-dock {
+		--os-dock-peek: 10px;
+	}
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	body.os-dock-dynamic .os-dock {
+		transition: none;
+	}
+}

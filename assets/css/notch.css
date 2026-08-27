@@ -2,9 +2,12 @@
  * The notch — top-centre, floating, never reserving.
  *
  * The load-bearing rule in this file is that nothing here touches
- * `.os-area`. Reserving height would make the notch another hardcoded
- * claimant on a work-area rectangle that already has several
- * disagreeing answers. It floats, and it gets out of the way instead.
+ * `.os-area`. The desktop has one work-area rectangle now
+ * (`src/work-area/index.ts`, carved out of the area by the dock),
+ * and it stays useful only while few things carve it; a notch that
+ * reserved height would be a second claimant on the top edge for
+ * the sake of a pill a window may cover. It floats, and it gets out
+ * of the way instead.
  *
  * Getting out of the way is also what the stacking order says: the
  * notch is on the desk, under the window layer, so a window reaching

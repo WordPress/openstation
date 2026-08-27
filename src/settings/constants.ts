@@ -168,6 +168,25 @@ export const ADMIN_BAR_MODES = [
 ] as const;
 
 /**
+ * Dock behaviors — OpenStation Preferences → Appearance → Dock
+ * behavior, persisted as `dockBehavior` and emitted as an
+ * `os-dock-<behavior>` body class by PHP on first paint and by the
+ * apply pass on every change.
+ *
+ * `static` is the rail as it always was: always on screen, and the
+ * band it floats over is reserved from the work area. `dynamic`
+ * parks it off its edge behind a peek strip and brings it back when
+ * the pointer reaches that edge or something on it takes keyboard
+ * focus — the classic auto-hide taskbar — and reserves nothing, so
+ * windows get the whole desktop. Mirrors the admin bar's `dynamic`
+ * mode one edge down.
+ */
+export const DOCK_BEHAVIORS = [
+	{ id: 'static', label: 'Static' },
+	{ id: 'dynamic', label: 'Dynamic' },
+] as const;
+
+/**
  * Dock-placement options. Drives the `data-os-dock-placement`
  * attribute that each `Dock` instance writes onto its own root. CSS
  * keys off that attribute to position the rail, flip the tooltip
@@ -222,6 +241,9 @@ export const DEFAULTS: OsSettingsState = {
 	// is the other option.
 	desktopLayout: 'unified',
 	dockPlacement: 'bottom',
+	// Always on screen. `dynamic` (auto-hide behind a peek strip) is
+	// one pick away in Appearance.
+	dockBehavior: 'static',
 	dockRailRenderer: 'default',
 	// `''` = System default. Any other value is a desktop-theme
 	// slug; the registry resolves it at apply time and falls back

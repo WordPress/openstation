@@ -9,6 +9,7 @@
  */
 
 import { applyFilters, doAction, HOOKS } from '../hooks';
+import { workAreaRectOf } from '../work-area';
 import { isValidGrid, pickGridDimensions } from './geometry';
 import type { WindowManager } from './index';
 
@@ -63,7 +64,9 @@ export function cascade( mgr: WindowManager ): void {
 		}
 	}
 
-	const rect = mgr._desktop.getBoundingClientRect();
+	// The work area: the cascade must not walk the last windows'
+	// bottom edges under the dock pill.
+	const rect = workAreaRectOf( mgr._desktop );
 	const padding = 30;
 	const offset = 30;
 	const targetWidth = Math.min( Math.round( rect.width * 0.7 ), 1100 );
@@ -84,8 +87,8 @@ export function cascade( mgr: WindowManager ): void {
 
 	eligible.forEach( ( w, i ) => {
 		const step = i % Math.max( 1, maxSteps );
-		w.element.style.left = `${ padding + step * offset }px`;
-		w.element.style.top = `${ padding + step * offset }px`;
+		w.element.style.left = `${ rect.x + padding + step * offset }px`;
+		w.element.style.top = `${ rect.y + padding + step * offset }px`;
 		w.element.style.width = `${ targetWidth }px`;
 		w.element.style.height = `${ targetHeight }px`;
 	} );
@@ -141,7 +144,9 @@ export function tile( mgr: WindowManager ): void {
 		}
 	}
 
-	const rect = mgr._desktop.getBoundingClientRect();
+	// The work area — the grid covers what the user can reach, and
+	// the bottom row stops above the dock pill.
+	const rect = workAreaRectOf( mgr._desktop );
 	const auto = pickGridDimensions(
 		eligible.length,
 		rect.width,
@@ -186,8 +191,8 @@ export function tile( mgr: WindowManager ): void {
 	eligible.forEach( ( w, i ) => {
 		const col = i % cols;
 		const row = Math.floor( i / cols );
-		w.element.style.left = `${ padding + col * ( cellWidth + gap ) }px`;
-		w.element.style.top = `${ padding + row * ( cellHeight + gap ) }px`;
+		w.element.style.left = `${ rect.x + padding + col * ( cellWidth + gap ) }px`;
+		w.element.style.top = `${ rect.y + padding + row * ( cellHeight + gap ) }px`;
 		w.element.style.width = `${ cellWidth }px`;
 		w.element.style.height = `${ cellHeight }px`;
 	} );

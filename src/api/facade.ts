@@ -40,6 +40,7 @@ import { showToast } from '../toast';
 import { activity } from '../activity';
 import { heartbeat } from '../heartbeat';
 import { presenceApi } from '../presence';
+import { workAreaApi } from '../work-area';
 import { selectionApi } from '../selection';
 import { createSharedStore } from '../shared-store';
 import { osConfirm } from '../os-confirm';
@@ -243,7 +244,7 @@ export const RESERVED_NAMESPACE_KEYS: ReadonlySet< string > = new Set( [
 	'broadcast', 'subscribe', 'announceContentChange',
 	'registerPalette', 'unregisterPalette',
 	'listPalettes', 'openPalette', 'devtools', 'createSharedStore',
-	'presence', 'selection', 'activity', 'heartbeat', 'showToast',
+	'presence', 'workArea', 'selection', 'activity', 'heartbeat', 'showToast',
 	'renderKeyedList',
 	'clearKeyedList', 'registerNamespace',
 	'notify', 'pwa',
@@ -458,6 +459,10 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 				osSettings.state.dockPlacement =
 					patch.dockPlacement as typeof osSettings.state.dockPlacement;
 			}
+			if ( typeof patch.dockBehavior === 'string' ) {
+				osSettings.state.dockBehavior =
+					patch.dockBehavior as typeof osSettings.state.dockBehavior;
+			}
 			// `desktopTheme` accepts `''` — that is the system default,
 			// a real value rather than a missing one, so this is the
 			// one id field here with no non-empty guard.
@@ -636,6 +641,7 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 				typeof patch.adminBarMode === 'string' ||
 				typeof patch.desktopLayout === 'string' ||
 				typeof patch.dockPlacement === 'string' ||
+				typeof patch.dockBehavior === 'string' ||
 				typeof patch.dockRailRenderer === 'string' ||
 				typeof patch.desktopTheme === 'string'
 			) {
@@ -778,6 +784,7 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 		devtools,
 		createSharedStore,
 		presence: presenceApi,
+		workArea: workAreaApi,
 		selection: selectionApi,
 		activity,
 		heartbeat,

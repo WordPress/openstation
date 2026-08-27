@@ -39,6 +39,7 @@ import {
 	readSynthSource,
 } from './synthetic';
 import {
+	canvasSize,
 	cellKey,
 	cellToPos,
 	nextFreeCell,
@@ -47,8 +48,10 @@ import {
 	snapToEmptyCell,
 	TILE_H,
 	TILE_W,
+	type GridCanvas,
 	type GridOrder,
 } from './grid';
+import { workAreaRectOf } from '../work-area';
 import type { RestPlacementShape } from './rest';
 import type { FilesState } from './store';
 import type { DragBridgePayload } from '../drag-bridge';
@@ -255,8 +258,36 @@ function takeBootPlacements( folderId: number ): RestPlacementShape[] | null {
 	return list;
 }
 
+/**
+ * What the grid lays tiles against for a canvas.
+ *
+ * A folder window's canvas is its whole element. The wallpaper's is
+ * the desktop's WORK AREA — the area minus the band the dock pill
+ * covers — otherwise the column-major fill wraps one row too late
+ * and the last icon of every column lands under the dock. The
+ * object is live (getters), so a cached reference keeps tracking
+ * the dock through resizes and placement changes.
+ */
+export function gridCanvasFor(
+	host: HTMLElement | null | undefined,
+	folderId: number,
+): GridCanvas {
+	if ( folderId !== 0 || ! host ) {
+		return host;
+	}
+	return {
+		get width(): number {
+			return workAreaRectOf( host ).width;
+		},
+		get height(): number {
+			return workAreaRectOf( host ).height;
+		},
+	};
+}
+
 export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 	const order = orderForFolder( folderId );
+	const canvas = gridCanvasFor( host, folderId );
 
 	const container = document.createElement( 'div' );
 	container.className = LAYER_CLASS;
@@ -376,7 +407,7 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 				placement.x,
 				placement.y,
 				occupiedCells,
-				host,
+				canvas,
 				order,
 			);
 			occupiedCells.add( cellKey( free.col, free.row ) );
@@ -618,7 +649,7 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 
 		// Fastest path: position-only changes (intra-folder drag,
 		// auto-arrange). Same set, same structure, no rewiring.
-		if ( tryPatchPositions( list, container, host, order ) ) {
+		if ( tryPatchPositions( list, container, canvas, order ) ) {
 			return;
 		}
 
@@ -750,7 +781,7 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 					.getState()
 					.placementsByFolder.get( folderId ) ?? [];
 			const occupied = buildVisualOccupiedSet( peers, movingId );
-			const cell = snapToEmptyCell( rawX, rawY, occupied, host, order );
+			const cell = snapToEmptyCell( rawX, rawY, occupied, canvas, order );
 			previewEl.style.transform = `translate3d(${ cell.x }px, ${ cell.y }px, 0)`;
 		};
 
@@ -873,7 +904,7 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 					rawX,
 					rawY,
 					occupied,
-					host,
+					canvas,
 					order,
 				);
 				occupied.add( cellKey( primaryCell.col, primaryCell.row ) );
@@ -892,7 +923,7 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 							Math.max( 0, primaryCell.x + dx ),
 							Math.max( 0, primaryCell.y + dy ),
 							occupied,
-							host,
+							canvas,
 							order,
 						);
 						occupied.add( cellKey( cell.col, cell.row ) );
@@ -1121,7 +1152,7 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 			sorted.length,
 			reservedCells( pinned.length ),
 			order,
-			host,
+			canvas,
 		);
 
 		sorted.forEach( ( p, i ) => {
@@ -1180,8 +1211,9 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 		if ( ! live || live.length === 0 ) {
 			return;
 		}
-		const w = host.clientWidth > 0 ? host.clientWidth : Infinity;
-		const h = host.clientHeight > 0 ? host.clientHeight : Infinity;
+		const size = canvasSize( canvas );
+		const w = size.width > 0 ? size.width : Infinity;
+		const h = size.height > 0 ? size.height : Infinity;
 		// The TILE box, not the cell box. A cell carries the gap that
 		// separates it from the next one, and a tile in the last row
 		// has nothing after it — asking whether its gap fits condemns
@@ -1202,7 +1234,7 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 			draggable.length,
 			reservedCells( pinned.length ),
 			order,
-			host,
+			canvas,
 		);
 		draggable.forEach( ( p, i ) => {
 			const tile = container.querySelector< HTMLElement >(
@@ -1220,18 +1252,23 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 	// as much as width: shortening a folder window strands its
 	// bottom row exactly the way narrowing it strands the right
 	// column, and the layer has no scroll to fall back on.
-	let lastWidth = host.clientWidth;
-	let lastHeight = host.clientHeight;
+	//
+	// The guard compares the CANVAS the reflow measures against, not
+	// the host: on the wallpaper that is the work area, and the dock
+	// pill growing shrinks it without touching `clientHeight` (the
+	// area's padding is inside the client box). The area's padding
+	// reads the work-area tokens, so the observer already fires on
+	// every inset change; the guard just has to look at the right
+	// numbers.
+	let last = canvasSize( canvas );
 	let resizeObserver: ResizeObserver | null = null;
 	if ( typeof ResizeObserver !== 'undefined' ) {
 		resizeObserver = new ResizeObserver( () => {
-			const w = host.clientWidth;
-			const h = host.clientHeight;
-			if ( w === lastWidth && h === lastHeight ) {
+			const size = canvasSize( canvas );
+			if ( size.width === last.width && size.height === last.height ) {
 				return;
 			}
-			lastWidth = w;
-			lastHeight = h;
+			last = size;
 			reflow();
 		} );
 		resizeObserver.observe( host );
@@ -1465,7 +1502,7 @@ function fileShortcutEntities(
 	const occupied = buildVisualOccupiedSet( peers );
 	const order = orderForFolder( parentId );
 	for ( const entity of entities ) {
-		const cell = nextFreeCell( occupied, order, host );
+		const cell = nextFreeCell( occupied, order, gridCanvasFor( host, parentId ) );
 		occupied.add( cellKey( cell.col, cell.row ) );
 		void rest
 			.createPlacement( {
@@ -1640,7 +1677,7 @@ function persistDockPromotedPosition(
 function tryPatchPositions(
 	list: readonly RestPlacementShape[],
 	container: HTMLElement,
-	host: HTMLElement,
+	canvas: GridCanvas,
 	order: GridOrder,
 ): boolean {
 	const tiles = Array.from(
@@ -1713,7 +1750,7 @@ function tryPatchPositions(
 			placement.x,
 			placement.y,
 			occupiedCells,
-			host,
+			canvas,
 			order,
 		);
 		occupiedCells.add( cellKey( free.col, free.row ) );
