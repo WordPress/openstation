@@ -53,7 +53,17 @@ interface DesktopGlobal {
 		height?: number;
 		minWidth?: number;
 		minHeight?: number;
-		render: ( body: HTMLElement ) => ( () => void ) | void;
+		// A Promise is a first-class return here, not a convenience:
+		// `Window.hydrateNative()` holds the window's loading overlay
+		// until it settles, which is what lets a game open its window
+		// on the click and fetch its bundle behind the spinner. The
+		// shim was narrower than the framework it stands in for.
+		render: (
+			body: HTMLElement,
+		) =>
+			| ( () => void )
+			| void
+			| Promise< ( () => void ) | void >;
 	} ) => Promise< unknown >;
 	onWindow?: (
 		id: string,
@@ -187,7 +197,10 @@ export async function launchGame(
 	opts: { challenge?: GameChallengeContext } = {},
 ): Promise< void > {
 	const desktop = desktopGlobal();
-	let entry = registry.get( id );
+	// `const` now: the entry is no longer reassigned here, because
+	// `ensureGameRender()` moved inside the render callback below and
+	// its upgraded copy is consumed there.
+	const entry = registry.get( id );
 	if ( ! entry ) {
 		throw new Error( `[openstation] Unknown game "${ id }".` );
 	}
@@ -208,13 +221,20 @@ export async function launchGame(
 	// the hub has been open.
 	ensureGameStyles();
 
-	entry = await ensureGameRender( entry );
-	const render = entry.render;
-	if ( typeof render !== 'function' ) {
-		throw new Error(
-			`[openstation] Game "${ id }" did not provide a render callback.`,
-		);
-	}
+	// NOT `await ensureGameRender()` here, deliberately. A game's
+	// bundle is heavyweight — the game, its engine, sometimes a
+	// dictionary asset — and loading it before `registerWindow()` meant
+	// the click produced nothing at all, for seconds, with no window to
+	// hang a spinner on. The load now happens inside the render
+	// callback below, so the window opens on the click and the window
+	// manager's own loading overlay covers the wait.
+	//
+	// The size comes from the server registration (`window` on
+	// `openstation_register_game()`), which is why that argument exists:
+	// it is the one part of the def the shell needs BEFORE the def. A
+	// game that declares a size only in JS still works — it opens at the
+	// framework default the first time, and at its own size afterwards,
+	// once `ensureGameRender` has cached the upgraded entry.
 	if ( typeof desktop.registerWindow !== 'function' ) {
 		throw new Error(
 			'[openstation] wp.os.registerWindow is missing — the shell must boot before launching games.',
@@ -333,11 +353,24 @@ export async function launchGame(
 			height: entry.window?.height ?? DEFAULT_GAME_HEIGHT,
 			minWidth: entry.window?.minWidth ?? DEFAULT_GAME_MIN_WIDTH,
 			minHeight: entry.window?.minHeight ?? DEFAULT_GAME_MIN_HEIGHT,
-			render: ( body: HTMLElement ) => {
+			render: async ( body: HTMLElement ) => {
+				// The window manager holds this window's loading overlay
+				// for as long as the render promise is pending, so the
+				// bundle fetch reads as a loading window rather than as
+				// a frozen desktop. Same shape native windows use for
+				// their own lazy bundles (`buildRender` in
+				// `src/native-windows.ts`).
+				const loaded = await ensureGameRender( entry );
+				const render = loaded.render;
+				if ( typeof render !== 'function' ) {
+					throw new Error(
+						`[openstation] Game "${ id }" did not provide a render callback.`,
+					);
+				}
 				const ctx: GameLaunchContext = {
 					windowId,
 					container: body,
-					config: entry.config ?? {},
+					config: loaded.config ?? {},
 					challenge: opts.challenge,
 					submitScore: submit,
 					close: () => {

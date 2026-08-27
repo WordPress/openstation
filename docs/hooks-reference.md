@@ -214,10 +214,18 @@ openstation_register_game( 'my-plugin-puzzle', array(
     ),
     'config'        => array( 'assetUrl' => '…' ),          // arbitrary blob → the game's launch context
     'capabilities'  => array(),                             // ALL must pass for the registering user
+    'window'        => array(                               // window size, known before the bundle is
+        'width'     => 860,
+        'height'    => 660,
+        'minWidth'  => 600,
+        'minHeight' => 500,
+    ),
 ) );
 ```
 
 Returns `true` or `WP_Error` (`openstation_missing_id` / `openstation_missing_title` / `openstation_missing_script` / `openstation_invalid_icon_svg` / `openstation_capability_denied`). Only server-registered games can persist scores and challenges — the REST routes 404 unknown ids. `openstation_unregister_game( $id )` removes an entry.
+
+**Declare `window` here as well as in your JS def.** The two look redundant and are not. A game's bundle is heavy — the game, its engine, sometimes a dictionary — so the shell opens the window on the click and fetches the bundle *inside* the render callback, where the window manager's loading spinner covers the wait. That means the size is needed one round trip before the def that also carries it. Any subset of `{ width, height, minWidth, minHeight }` is accepted, in pixels; values are clamped rather than rejected, and anything non-numeric or non-positive is dropped. Declaring it only in JS still works — the window just opens at the framework default (760×560) the first time a player launches that game in a session, and at its own size from then on.
 
 **Framework config keys**: the `serverGames` payload merges framework-level keys underneath every game's `config` (the game's own keys win on collision). Currently: **`wordsUrl`** — the URL of the shared ~20k-word dictionary asset (`assets/games/words.txt`), identical for every player, which is what lets seeded games generate the same puzzle worldwide. See `openstation_games_words_url` below.
 

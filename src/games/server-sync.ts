@@ -35,6 +35,15 @@ export function stubFromServerEntry(
 			? entry.scoreColumns
 			: [],
 		config: entry.config ?? {},
+		// The one part of the def the shell needs BEFORE the def: the
+		// window opens on the click and its bundle loads inside the
+		// render callback, so without a size here that first window
+		// would open at the framework default and jump once the def
+		// landed. Omitted server-side reads as "use the defaults".
+		window:
+			entry.window && Object.keys( entry.window ).length > 0
+				? entry.window
+				: undefined,
 		scriptUrl: entry.scriptUrl,
 		scriptTranslations: entry.scriptTranslations,
 		scriptL10n: entry.scriptL10n,

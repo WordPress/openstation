@@ -44,6 +44,7 @@ export { OsPanel } from './os-panel/os-panel';
 export { OsRow } from './os-row/os-row';
 export { OsGrid } from './os-grid/os-grid';
 export { OsDisplay } from './os-display/os-display';
+export { OsDisclosure } from './os-disclosure/os-disclosure';
 export { OsEmptyState } from './os-empty-state/os-empty-state';
 export { OsKey } from './os-key/os-key';
 export { OsCode } from './os-code/os-code';

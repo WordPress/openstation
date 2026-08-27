@@ -2407,7 +2407,7 @@ window.openStationGames[ 'my-plugin-puzzle' ] = {
     title:        'Puzzle',
     icon:         'dashicons-screenoptions',
     scoreColumns: [ { key: 'score', label: 'Score', type: 'number' } ],
-    window:       { width: 800, height: 600 },   // hosting-window sizing
+    window:       { width: 800, height: 600 },   // hosting-window sizing — declare it in PHP too
     render( ctx ) {                              // runs once per window open
         // ctx: { windowId, container, config, challenge?, submitScore, close }
         return () => { /* teardown — runs on every close path */ };
@@ -2416,6 +2416,8 @@ window.openStationGames[ 'my-plugin-puzzle' ] = {
 ```
 
 `render` receives a `GameLaunchContext`: `container` (the window body), `config` (the PHP-registered blob), `challenge` (set when the run is an accepted score-to-beat challenge: `{ id, scoreToBeat, scoreMeta, challengerName }`), `submitScore( { score, meta } )` (routes to the leaderboard, or to the challenge-completion endpoint in challenge mode), and `close()`. The framework suspends the wallpaper for the window's lifetime and opens the window as `os-game-<id>` (no dock tile).
+
+**The window opens before your bundle is fetched.** `launch()` calls `registerWindow()` first and loads the game script *inside* the render callback, so the window manager's loading overlay covers the download instead of the click appearing to do nothing. Two consequences for a game author: the `window` block should also be declared in `openstation_register_game()` (the size is needed a round trip before this def — see [hooks-reference](hooks-reference.md#openstation_register_game-id-args--experimental-php-function)), and a `render` that throws surfaces as a failed window open rather than a rejected `launch()`.
 
 **Score announcements.** Once a `submitScore()` write resolves, the launcher publishes `os/game-score-recorded` on the activity bus with `{ game, score, meta, windowId, challengeId? }` (both paths publish; `challengeId` only on challenge completion). Games play in their own window, so this is how leaderboards elsewhere in the shell find out they went stale: the hub's scoreboard subscribes and reloads the page the viewer is on. Subscribe to it if your plugin paints anything derived from scores. A failed write publishes nothing.
 
