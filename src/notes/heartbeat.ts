@@ -7,10 +7,11 @@
  */
 
 import { heartbeat } from '../heartbeat';
+import { NOTES_HEARTBEAT_RESPONSE_FIELD } from './types';
 import type { NotesHeartbeatPayload, NotesHeartbeatSubscribe } from './types';
 
 const SUBSCRIBE_FIELD = 'openstation_notes_subscribe';
-const RESPONSE_FIELD = 'openstation_notes';
+const RESPONSE_FIELD = NOTES_HEARTBEAT_RESPONSE_FIELD;
 
 export interface NotesHeartbeatTarget {
 	getHeartbeatSubscription: () => NotesHeartbeatSubscribe | undefined;

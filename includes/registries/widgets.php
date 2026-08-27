@@ -217,6 +217,13 @@ function openstation_build_desktop_widgets_payload() {
 			'defaultWidth'       => $entry['default_width'],
 			'defaultHeight'      => $entry['default_height'],
 			'scriptUrl'          => $script_payload['url'],
+			// The packages this widget declares, in load order.
+			// WordPress resolves a script's dependencies when it
+			// enqueues it; a widget bundle is delivered lazily and
+			// never goes through that, so a widget declaring
+			// `wp-api-fetch` found `wp.apiFetch` undefined at mount.
+			// See docs/migration-wp-package-globals.md.
+			'scriptDeps'         => openstation_resolve_script_dependencies( $entry['script'] ),
 			'scriptHandle'       => $entry['script'],
 			'scriptBefore'       => $script_payload['before'],
 			'scriptAfter'        => $script_payload['after'],

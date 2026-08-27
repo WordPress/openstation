@@ -20,6 +20,7 @@ import { __ } from '../../i18n';
 import { html, render } from '../../ui/core';
 import { trackedFetch } from '../../tracked-fetch';
 import { doAction, HOOKS } from '../../hooks';
+import { spendMenuRefresh } from '../spend-menu-refresh';
 import type { SettingsCtx } from '../types';
 
 interface ExtendedState {
@@ -131,10 +132,25 @@ export function buildExtendedSection( ctx: SettingsCtx ): HTMLElement {
 			if ( pending ) {
 				// Awaited rather than fired off, so the promise this
 				// call returns only settles once the values on the
-				// server match the ones on screen.
+				// server match the ones on screen. The refresh below is
+				// deliberately skipped on this branch — the trailing
+				// save spends one of its own, and refreshing against a
+				// value we are about to change again is a wasted round
+				// trip that can also repaint a stale registry.
 				pending = false;
 				await save();
 			} else {
+				// Every option here gates SERVER-side registrations, so
+				// the shell cannot see the change without a fresh
+				// payload: `games` decides whether the games module
+				// loads at all, and with it the Games window, its
+				// desktop icon and the game list. Without this, turning
+				// Games on saved correctly and showed nothing until an
+				// F5. See `spendMenuRefresh()` for why it has to be a
+				// separate request.
+				if ( announce ) {
+					spendMenuRefresh();
+				}
 				paint();
 			}
 		}

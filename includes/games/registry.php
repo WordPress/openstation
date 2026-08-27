@@ -76,6 +76,19 @@ defined( 'ABSPATH' ) || exit;
  *                                   includes/games/config.php); the
  *                                   game's keys win on collision.
  *     @type string[] $capabilities  Gate: ALL caps must match.
+ *     @type array    $window        The game window's size, as any
+ *                                   subset of `{ width, height,
+ *                                   minWidth, minHeight }` in pixels.
+ *                                   Declare it here as well as in the
+ *                                   JS def: a game's bundle is fetched
+ *                                   on first play, so the shell opens
+ *                                   the window — and paints its loading
+ *                                   spinner — before it has seen the
+ *                                   def. Without this the first window
+ *                                   of a session opens at the framework
+ *                                   default. The def still wins once it
+ *                                   arrives, so declaring only in JS
+ *                                   keeps working.
  * }
  * @return true|WP_Error `true` on success; `WP_Error` otherwise.
  */
@@ -97,6 +110,7 @@ function openstation_register_game( $id, $args = array() ) {
 		'score_columns' => array(),
 		'config'        => array(),
 		'capabilities'  => array(),
+		'window'        => array(),
 	);
 	$args     = wp_parse_args( $args, $defaults );
 
@@ -162,6 +176,7 @@ function openstation_register_game( $id, $args = array() ) {
 		'script'        => (string) $args['script'],
 		'score_columns' => openstation_games_sanitize_score_columns( $args['score_columns'] ),
 		'config'        => is_array( $args['config'] ) ? $args['config'] : array(),
+		'window'        => openstation_games_sanitize_window( $args['window'] ),
 	);
 	openstation_games_registry( $id, $entry );
 
@@ -177,6 +192,54 @@ function openstation_register_game( $id, $args = array() ) {
 	do_action( 'openstation_game_registered', $id, $entry );
 
 	return true;
+}
+
+/**
+ * Normalize the `window` declaration — the game window's size, known
+ * before its bundle is.
+ *
+ * **Why this is registered server-side at all**, when the JS def
+ * already carries a `window` block: a game's bundle is heavyweight
+ * (the game, its engine, sometimes a dictionary asset), so it is
+ * fetched on first play rather than at boot. The shell therefore has
+ * to open the window — and paint its loading spinner — *before* it has
+ * ever seen the def. Without a size here that first window opens at
+ * the framework default and would have to jump to the real size once
+ * the def landed. With it, the size is right from the first frame.
+ *
+ * The JS def still wins once it arrives, so a game that declares only
+ * in JS keeps working exactly as before; it simply gets the default
+ * size on the first open of a session.
+ *
+ * Values are clamped rather than rejected: a nonsensical size is a
+ * plugin bug that should not stop the game opening, and an unopenable
+ * window is a worse answer than an oddly-sized one.
+ *
+ * @internal
+ *
+ * @param mixed $window Raw caller input.
+ * @return array Sanitized subset of `{ width, height, minWidth, minHeight }`.
+ */
+function openstation_games_sanitize_window( $window ) {
+	if ( ! is_array( $window ) ) {
+		return array();
+	}
+	$out = array();
+	foreach ( array( 'width', 'height', 'minWidth', 'minHeight' ) as $key ) {
+		if ( ! isset( $window[ $key ] ) || ! is_numeric( $window[ $key ] ) ) {
+			continue;
+		}
+		$value = (int) $window[ $key ];
+		if ( $value <= 0 ) {
+			continue;
+		}
+		// The ceiling is generous on purpose — it exists to catch a
+		// typo'd pixel value, not to have an opinion about how big a
+		// game may be. The window manager clamps to the viewport anyway.
+		$out[ $key ] = min( $value, 10000 );
+	}
+
+	return $out;
 }
 
 /**
@@ -349,6 +412,14 @@ function openstation_build_desktop_games_payload() {
 				openstation_games_framework_config(),
 				isset( $entry['config'] ) && is_array( $entry['config'] ) ? $entry['config'] : array()
 			),
+			// The window's size, known before its bundle is — so the
+			// shell can open the window (and start its loading spinner)
+			// on the click rather than after the download. Omitted
+			// entirely when the game declared none, which reads as
+			// "use the framework defaults" on the JS side.
+			'window'             => isset( $entry['window'] ) && is_array( $entry['window'] )
+				? $entry['window']
+				: array(),
 			'scriptUrl'          => $payload['url'],
 			'scriptHandle'       => $handle,
 			'scriptBefore'       => $payload['before'],

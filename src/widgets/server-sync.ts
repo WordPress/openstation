@@ -72,6 +72,13 @@ export function createWidgetRegistrySync(
 				l10n: entry.scriptL10n,
 				before: entry.scriptBefore,
 				after: entry.scriptAfter,
+				// The packages this widget declares. WordPress resolves
+				// a script's dependencies when it ENQUEUES it; a widget
+				// bundle is delivered lazily and never goes through
+				// that, so one declaring `wp-api-fetch` found
+				// `wp.apiFetch` undefined at mount. Anything already on
+				// the page is skipped.
+				deps: entry.scriptDeps,
 			} );
 		} catch ( err ) {
 			doAction( HOOKS.SHELL_ERROR, {

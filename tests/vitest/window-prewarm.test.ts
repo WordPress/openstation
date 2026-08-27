@@ -163,6 +163,56 @@ describe( 'WindowManager.prewarm', () => {
 		).not.toBeNull();
 	} );
 
+	test( 'a click landing mid-prewarm does not leave two windows on one id', async () => {
+		// `prewarm()` awaits its bundles before it can record the slot,
+		// and a prewarmed window stays OUT of the stack — so an
+		// `open()` arriving during that await found nothing to adopt
+		// and built its own. Storing the speculation afterwards left
+		// two Window instances answering to the same id, one of them
+		// invisible and holding an admin iframe.
+		const warming = manager.prewarm( openConfig( 'edit-php' ) );
+		await manager.open( openConfig( 'edit-php' ) );
+		const warmed = await warming;
+
+		expect( warmed, 'the click won; the speculation is dropped' ).toBe(
+			false,
+		);
+		expect(
+			desktopArea.querySelectorAll( '#wp-window-edit-php' ),
+		).toHaveLength( 1 );
+		// Exactly one open announced — the click's. The discarded
+		// speculation must not announce anything.
+		expect( openedEvents ).toEqual( [ 'edit-php' ] );
+	} );
+
+	test( 'discarding releases the connection bridge without announcing a close', async () => {
+		// A prewarmed iframe loads a real admin page, so its bridge
+		// posts `os-ready` and the parent registers the window with the
+		// connection bridge — keyed by id, and normally released on
+		// WINDOW_CLOSED. This path must not fire that event (nothing
+		// ever announced the open), so the registration was simply
+		// never released and every unadopted hover leaked one.
+		const closed: string[] = [];
+		(
+			globalThis as unknown as {
+				__openStationConnectionBridge?: unknown;
+			}
+		).__openStationConnectionBridge = {
+			onWindowClosed: ( id: string ) => closed.push( id ),
+		};
+
+		await manager.prewarm( openConfig( 'edit-php' ) );
+		manager.discardPrewarmed();
+
+		expect( closed ).toEqual( [ 'edit-php' ] );
+		expect( closedEvents, 'no close is announced' ).toEqual( [] );
+		delete (
+			globalThis as unknown as {
+				__openStationConnectionBridge?: unknown;
+			}
+		).__openStationConnectionBridge;
+	} );
+
 	test( 'an unclaimed prewarm is reaped by the TTL', async () => {
 		vi.useFakeTimers();
 		await manager.prewarm( openConfig( 'edit-php' ) );

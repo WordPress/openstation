@@ -17,6 +17,16 @@
 	<exclude-pattern>/assets/vendor/</exclude-pattern>
 	<exclude-pattern>/tests/</exclude-pattern>
 	<exclude-pattern>/.scratch/</exclude-pattern>
+	<!--
+		Agent worktrees. A checkout under `.claude/worktrees/` holds a
+		COPY of the repo at some other revision — often pre-rename code
+		that has since been fixed on trunk. Scanning it makes a local,
+		throwaway directory able to fail a CI gate about the real source
+		(observed: 5,368 errors, none of them in the repo proper), and
+		makes the gate's result depend on what happens to be checked out
+		next to it.
+	-->
+	<exclude-pattern>/.claude/</exclude-pattern>
 
 	<!--
 		PHP only.

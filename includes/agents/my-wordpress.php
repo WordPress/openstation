@@ -44,6 +44,15 @@ function openstation_agents_my_wordpress_entity( $entities ) {
 		'icon'     => openstation_agent_avatar_url(),
 		'restPath' => 'desktop-mode/v1/agents',
 		'kind'     => 'agent',
+		// The section is listed even with the feature off, so it can
+		// render its own "disabled" preview and say how to enable it.
+		// The REST route is NOT registered in that state, so anything
+		// that probes `restPath` gets a 404 — and because the count
+		// probe is a tracked fetch attributed to the window, the title
+		// bar painted it as "Not saved. Request failed (HTTP 404)" on
+		// every open, in the default install state. Clients skip the
+		// probe when this is false.
+		'enabled'  => openstation_agents_enabled(),
 	);
 
 	return $entities;

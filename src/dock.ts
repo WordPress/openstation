@@ -32,6 +32,7 @@ import type { NavPlacement } from './nav/types';
 // decides what goes in them — two copies of an ordered enum is two
 // places to forget when a zone is added.
 import { NAV_ZONES as DOCK_ZONE_ORDER } from './nav/compute';
+import { urlActs } from './pwa/acting-url';
 
 /**
  * A JS-registered dock tile appended below the admin-menu items.
@@ -2307,6 +2308,17 @@ export class Dock {
 			try {
 				const parsed = new URL( item.url, window.location.href );
 				if ( parsed.origin !== window.location.origin ) {
+					return;
+				}
+				// Prewarming LOADS the page, so a dock item whose URL
+				// acts would have acted — on hover, with no click. A
+				// plugin is free to put `admin.php?action=…&_wpnonce=…`
+				// behind a menu entry, and `post-new.php` mints an
+				// auto-draft merely by rendering. The service worker's
+				// speculative documents have always refused these;
+				// hover prewarming builds a real hidden window and did
+				// not, so the two paths now share one predicate.
+				if ( urlActs( parsed ) ) {
 					return;
 				}
 			} catch {

@@ -242,6 +242,25 @@ function openstation_is_core_package_handle( $dependencies, $handle ) {
 	if ( ! isset( $dependencies->registered[ $handle ] ) ) {
 		return false;
 	}
+
+	// Identify a package by its NAME, not by where it is served from.
+	// The `wp-` prefix is the `@wordpress/*` package convention and is
+	// the only stable signal: the Gutenberg plugin re-registers the
+	// entire family — `wp-block-editor`, `wp-commands`, `wp-core-data`,
+	// `wp-customize-widgets` — from `/wp-content/plugins/gutenberg/
+	// build/scripts/…` via its own `$scripts->add()`. A path test for
+	// `/wp-includes/js/dist/` therefore answers false for every package
+	// on a Gutenberg site, silently retiring this guard exactly where
+	// it matters most, and the walk goes on to convict the whole editor
+	// stack. That is what emptied the Customizer's Widgets panel.
+	//
+	// A plugin that registers a handle under this prefix is treated as
+	// a package too. That direction is safe — the only consequence is
+	// that it is never trimmed.
+	if ( 0 === strpos( $handle, 'wp-' ) ) {
+		return true;
+	}
+
 	$src = $dependencies->registered[ $handle ]->src;
 
 	return ( is_string( $src ) && false !== strpos( $src, '/wp-includes/js/dist/' ) );
@@ -309,14 +328,101 @@ function openstation_handle_depends_on( $dependencies, $handle, $roots, &$memo )
 }
 
 /**
+ * Whether a handle carries no file of its own.
+ *
+ * A src-less handle is an aggregator: it exists to group dependencies
+ * and to hang inline data on. **Trimming one can only lose.** There is
+ * no file to stop downloading — the entire saving this module exists to
+ * make is zero — while dropping it discards its inline payload, which
+ * may be the whole reason the handle exists.
+ *
+ * Gutenberg's Connectors screen is the case that taught this:
+ * `options-connectors-wp-admin-prerequisites` is registered with an
+ * empty `src` and the dependency list of its boot module, and carries
+ * the app's bootstrap as an inline script —
+ * `import("@wordpress/boot").then( mod => mod.initSinglePage( … ) )`.
+ * Convicting it printed no bootstrap and rendered a blank page, for a
+ * saving of nothing.
+ *
+ * This is a structural rule, not a guess about intent: whatever a
+ * src-less handle is for, trimming it has no upside.
+ *
+ * @param WP_Dependencies $dependencies The scripts registry.
+ * @param string          $handle       Handle to test.
+ * @return bool
+ */
+function openstation_handle_has_no_src( $dependencies, $handle ) {
+	if ( ! isset( $dependencies->registered[ $handle ] ) ) {
+		return false;
+	}
+	$src = $dependencies->registered[ $handle ]->src;
+
+	return ( ! is_string( $src ) || '' === $src );
+}
+
+/**
+ * Whether the trim may also drop handles that merely *depend on* the
+ * palette. Defaults to **true**, guarded structurally.
+ *
+ * Dropping the roots alone reclaims nothing while one dependent
+ * survives — `WP_Dependencies::all_deps()` pulls the whole chain back
+ * in on its behalf — so the walk earns its place. What it must never do
+ * is guess.
+ *
+ * **The graph records "needs", not "is."** `wp-block-editor` declares
+ * `wp-commands`; so does Gutenberg's Connectors bootstrap; so does a
+ * genuine palette extension. All three for the same honest reason —
+ * their UI needs the commands *store*. Nothing about the dependency
+ * itself separates the palette from something merely using it, and two
+ * regressions came from pretending otherwise.
+ *
+ * So conviction is fenced by **structural** exclusions rather than by
+ * inference about intent, and each is a statement about what trimming
+ * could possibly save:
+ *
+ *   - {@see openstation_is_core_package_handle()} — Core's own packages
+ *     are libraries `WP_Dependencies` already knows how to include or
+ *     omit, and the palette is a feature *of* the editor, so the
+ *     dependency there runs backwards.
+ *   - {@see openstation_handle_has_no_src()} — a handle with no file
+ *     offers nothing to reclaim, so trimming it is all risk.
+ *
+ * Neither rule names a plugin, and neither reads a handle's name: a
+ * site with a completely different plugin set gets the same treatment,
+ * derived from the graph in front of it.
+ *
+ * A residue remains — a plugin bundle with a real `src` that depends on
+ * the palette and also paints part of its screen would still be
+ * convicted. That is what {@see openstation_command_palette_family()}
+ * is for: a site knows its own handles, and can name the exception the
+ * framework has no way to infer.
+ *
+ * @return bool
+ */
+function openstation_command_palette_trims_dependents() {
+	/**
+	 * Filters whether handles depending on the palette are dropped too.
+	 *
+	 * Default true. Return false to trim only the palette roots, which
+	 * gives up the saving on sites carrying palette extensions and
+	 * keeps the whole of it on a site where Core's palette is the only
+	 * consumer — the safest setting, and rarely a necessary one.
+	 *
+	 * @param bool $trim Whether to trim palette dependents.
+	 */
+	return (bool) apply_filters( 'openstation_command_palette_trim_dependents', true );
+}
+
+/**
  * The command-palette family present in a given handle list.
  *
- * Returns the roots plus every handle in `$handles` that reaches one of
- * them without routing through a Core package — Astra's
- * `astra-command-palette`, WooCommerce's `command-palette`, and anything
- * else a plugin registers *against* the palette. See
- * {@see openstation_is_core_package_handle()} for why that second
- * condition is load-bearing rather than a tidiness rule.
+ * The roots, plus every handle in `$handles` that reaches one of them
+ * and survives the structural exclusions —
+ * {@see openstation_command_palette_trims_dependents()} sets out what
+ * those are and why they are the only fencing this walk is allowed.
+ *
+ * Nothing here reads a handle's name or knows any plugin: the same
+ * rules run against whatever graph the site happens to present.
  *
  * @param WP_Dependencies $dependencies The scripts registry.
  * @param string[]        $handles      Handles to scan.
@@ -325,15 +431,18 @@ function openstation_handle_depends_on( $dependencies, $handle, $roots, &$memo )
 function openstation_command_palette_family( $dependencies, $handles ) {
 	$roots  = openstation_command_palette_root_handles();
 	$family = $roots;
-	$memo   = array();
 
-	foreach ( $handles as $handle ) {
-		if ( in_array( $handle, $family, true )
-			|| openstation_is_core_package_handle( $dependencies, $handle ) ) {
-			continue;
-		}
-		if ( openstation_handle_depends_on( $dependencies, $handle, $roots, $memo ) ) {
-			$family[] = $handle;
+	if ( openstation_command_palette_trims_dependents() ) {
+		$memo = array();
+		foreach ( $handles as $handle ) {
+			if ( in_array( $handle, $family, true )
+				|| openstation_is_core_package_handle( $dependencies, $handle )
+				|| openstation_handle_has_no_src( $dependencies, $handle ) ) {
+				continue;
+			}
+			if ( openstation_handle_depends_on( $dependencies, $handle, $roots, $memo ) ) {
+				$family[] = $handle;
+			}
 		}
 	}
 
@@ -469,7 +578,61 @@ function openstation_chromeless_command_palette_drops( $dependencies, $handles )
 		}
 	}
 
-	return openstation_command_palette_family( $dependencies, $handles );
+	return openstation_protect_survivor_dependencies(
+		$dependencies,
+		$handles,
+		openstation_command_palette_family( $dependencies, $handles )
+	);
+}
+
+/**
+ * Removes from `$drops` anything a surviving handle still depends on.
+ *
+ * **The safety property the rest of this module rests on**, and the one
+ * that turns a guess about a handle's purpose into a fact about the
+ * page: whatever we believe a handle is *for*, if something that is
+ * still going to print needs it, dropping it strands that thing.
+ *
+ * `WP_Dependencies` walks the graph downwards — it will happily print a
+ * script whose dependency we removed from the list underneath it, and
+ * the browser then throws on the missing global rather than on the
+ * handle we actually meant to drop. That is how a trim aimed at the
+ * command palette emptied the Customizer's Widgets panel:
+ * `customize-widgets` survived, `wp-block-editor` and `wp-commands`
+ * were taken out from under it, and the panel rendered nothing.
+ *
+ * The closure is resolved on a CLONE, so the request's real `$to_do` /
+ * `$done` bookkeeping is untouched — the same technique the palette
+ * manifest builder uses.
+ *
+ * @param WP_Dependencies $dependencies The scripts or styles registry.
+ * @param string[]        $handles      The full list under consideration.
+ * @param string[]        $drops        Handles the trim wants to remove.
+ * @return string[] `$drops`, less anything a survivor depends on.
+ */
+function openstation_protect_survivor_dependencies( $dependencies, $handles, $drops ) {
+	if ( empty( $drops ) ) {
+		return $drops;
+	}
+	$survivors = array_values( array_diff( (array) $handles, (array) $drops ) );
+	if ( empty( $survivors ) ) {
+		return $drops;
+	}
+
+	/*
+	 * An explicit closure walk rather than `all_deps()`. The three
+	 * reasons — filter re-entry, silent truncation under
+	 * `$recursion = true`, and duplicated `_doing_it_wrong()` noise —
+	 * are recorded on {@see openstation_script_dependency_closure()},
+	 * which is the shared implementation. The one that bites hardest
+	 * here: `WP_Styles::all_deps()` / `WP_Scripts::all_deps()` apply
+	 * `print_styles_array` / `print_scripts_array` to their result, and
+	 * those are the very filters this helper is called from — an
+	 * infinite loop that hangs the request.
+	 */
+	$needed = openstation_script_dependency_closure( $dependencies, $survivors );
+
+	return array_values( array_diff( $drops, $needed ) );
 }
 
 /**
@@ -667,8 +830,19 @@ function openstation_chromeless_filter_palette_style_print_list( $handles ) {
 		return $handles;
 	}
 
+	// Styles have their own dependency graph, and a surviving sheet may
+	// sit on top of a palette one — `wp-commands`' stylesheet is a
+	// dependency of others on editor screens. Drop only what nothing
+	// still printing depends on.
 	return array_values(
-		array_diff( $handles, openstation_command_palette_root_handles() )
+		array_diff(
+			$handles,
+			openstation_protect_survivor_dependencies(
+				wp_styles(),
+				$handles,
+				openstation_command_palette_root_handles()
+			)
+		)
 	);
 }
 add_filter( 'print_styles_array', 'openstation_chromeless_filter_palette_style_print_list' );
@@ -756,6 +930,20 @@ function openstation_shell_hoist_command_palette_contributors() {
 	}
 	$scripts = wp_scripts();
 	if ( ! $scripts || ! wp_script_is( 'openstation', 'enqueued' ) ) {
+		return;
+	}
+
+	// No Core palette on this WordPress, no manifest to hoist into.
+	//
+	// `openstation_build_command_palette_assets_payload()` returns null
+	// when `wp_enqueue_command_palette_assets()` does not exist, so
+	// `openStationConfig.commandPalette` is null and the replay has
+	// nowhere to put anything. Hoisting anyway would dequeue the
+	// contributors from the boot page and then drop them on the floor —
+	// their commands would not merely be late, they would be gone, which
+	// is strictly worse than the eager loading this replaces. Leave them
+	// printing normally instead.
+	if ( ! function_exists( 'wp_enqueue_command_palette_assets' ) ) {
 		return;
 	}
 

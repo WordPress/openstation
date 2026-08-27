@@ -207,3 +207,93 @@ describe( 'Extended Options — saving', () => {
 		expect( fetchMock ).not.toHaveBeenCalled();
 	} );
 } );
+
+describe( 'Extended Options — the menu refresh', () => {
+	/**
+	 * Every option in this section gates a SERVER-side registration.
+	 * `games` gates the entire games module, so while it is off there
+	 * is no Games window, no desktop icon and no game list for the
+	 * shell to have heard of — and the request that writes the option
+	 * decided that on `plugins_loaded`, before the write. Only a LATER
+	 * request can report the new registrations, which is why the save
+	 * has to spend a menu refresh: without it, enabling Games saved
+	 * correctly and showed nothing until an F5.
+	 */
+	test( 'a successful save refreshes the shell registries', async () => {
+		const refreshMenu = vi.fn().mockResolvedValue( undefined );
+		( window as unknown as { wp: { os: Record< string, unknown > } } ).wp.os.refreshMenu =
+			refreshMenu;
+		fetchMock.mockImplementation( ( _url: string, init: { body: string } ) =>
+			Promise.resolve( echo( init ) ),
+		);
+		const el = buildExtendedSection( ctxStub() );
+
+		toggle( el, 1, true );
+
+		await vi.waitFor( () => expect( refreshMenu ).toHaveBeenCalledOnce() );
+	} );
+
+	test( 'a failed save refreshes nothing', async () => {
+		// The server still holds the old value, so a refresh would
+		// repaint exactly what is already on screen — and would read as
+		// confirmation of a save that did not happen.
+		const refreshMenu = vi.fn().mockResolvedValue( undefined );
+		( window as unknown as { wp: { os: Record< string, unknown > } } ).wp.os.refreshMenu =
+			refreshMenu;
+		fetchMock.mockResolvedValue( {
+			ok: false,
+			status: 500,
+			json: async () => ( { message: 'nope' } ),
+		} as unknown as Response );
+		const el = buildExtendedSection( ctxStub() );
+
+		toggle( el, 1, true );
+
+		await vi.waitFor( () => expect( fetchMock ).toHaveBeenCalledOnce() );
+		expect( refreshMenu ).not.toHaveBeenCalled();
+	} );
+
+	test( 'coalesced flips spend one refresh, not one each', async () => {
+		// The trailing save owns the refresh. Refreshing against a
+		// value we are about to change again is a wasted round trip
+		// that can also repaint a stale registry.
+		const refreshMenu = vi.fn().mockResolvedValue( undefined );
+		( window as unknown as { wp: { os: Record< string, unknown > } } ).wp.os.refreshMenu =
+			refreshMenu;
+
+		let releaseFirst: () => void = () => undefined;
+		const first = new Promise< void >( ( resolve ) => {
+			releaseFirst = resolve;
+		} );
+		fetchMock.mockImplementation(
+			async ( _url: string, init: { body: string } ) => {
+				if ( fetchMock.mock.calls.length === 1 ) {
+					await first;
+				}
+				return echo( init );
+			},
+		);
+		const el = buildExtendedSection( ctxStub() );
+
+		toggle( el, 1, true );
+		await vi.waitFor( () => expect( fetchMock ).toHaveBeenCalledOnce() );
+		toggle( el, 1, false );
+
+		releaseFirst();
+		await vi.waitFor( () => expect( fetchMock ).toHaveBeenCalledTimes( 2 ) );
+		await vi.waitFor( () => expect( refreshMenu ).toHaveBeenCalledOnce() );
+	} );
+
+	test( 'a shell without refreshMenu saves without throwing', async () => {
+		// Classic mode, and any moment before the shell has booted.
+		fetchMock.mockImplementation( ( _url: string, init: { body: string } ) =>
+			Promise.resolve( echo( init ) ),
+		);
+		const el = buildExtendedSection( ctxStub() );
+
+		toggle( el, 1, true );
+
+		await vi.waitFor( () => expect( fetchMock ).toHaveBeenCalledOnce() );
+		expect( el.querySelector( '.os-ext__error' ) ).toBeNull();
+	} );
+} );

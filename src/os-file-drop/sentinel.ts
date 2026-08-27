@@ -120,12 +120,20 @@ export function installFileDropSentinel( args: SentinelArgs ): () => void {
 		if ( booted || ! dragCarriesFiles( ev ) ) {
 			return;
 		}
+		// Read this BEFORE our own `preventDefault()` below, which
+		// would otherwise make every captured drop look claimed. A
+		// closer handler having already claimed the file is exactly the
+		// case the manager refuses to double-handle — the Plugins
+		// `.zip` dropzone is the live example — and the replay skipped
+		// that check entirely, so a zip dropped there was handled twice.
+		const alreadyClaimed = ev.defaultPrevented;
 		ev.preventDefault();
 		captured.push( {
 			files: ev.dataTransfer ? Array.from( ev.dataTransfer.files ) : [],
 			clientX: ev.clientX,
 			clientY: ev.clientY,
 			target: ev.target,
+			alreadyClaimed,
 		} );
 		void ensure();
 	};

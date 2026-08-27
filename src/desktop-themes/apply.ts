@@ -21,6 +21,8 @@
  */
 
 import { doAction, HOOKS } from '../hooks';
+import { __ } from '../i18n';
+import { showToast } from '../toast';
 import {
 	ensureFullDesktopThemes,
 	getDesktopTheme,
@@ -179,7 +181,6 @@ export function applyDesktopTheme( themeId: string | null | undefined ): void {
 		} );
 	} else {
 		if ( ! bootAlreadyApplied( theme.slug ) ) {
-			removeStyleElements();
 			if (
 				theme.cssDeferred &&
 				theme.cssUrl === '' &&
@@ -191,17 +192,56 @@ export function applyDesktopTheme( themeId: string | null | undefined ): void {
 				// arrives from `GET /desktop-themes`. Re-check the
 				// active id when it lands — the user may have picked
 				// something else while the request was in flight.
+				//
+				// The OUTGOING sheet stays up until the replacement is
+				// in hand. Removing it here, before the request, meant
+				// a failed fetch left the shell on the default look
+				// while the body class, the store, the picker and the
+				// saved setting all said otherwise — and the error was
+				// swallowed, so nothing said why. Keeping the old theme
+				// on screen is the better wrong answer, and it makes
+				// the failure recoverable: re-picking still works,
+				// because the store never claimed success.
 				const slug = theme.slug;
-				void ensureFullDesktopThemes().then( () => {
-					if ( getStore().state.activeId !== slug ) {
-						return;
-					}
-					const full = getDesktopTheme( slug );
-					if ( full && ! full.cssDeferred ) {
-						injectThemeStylesheet( full );
-					}
-				} );
+				const loadAndInject = (): Promise< void > =>
+					ensureFullDesktopThemes()
+						.then( () => {
+							if ( getStore().state.activeId !== slug ) {
+								return;
+							}
+							const full = getDesktopTheme( slug );
+							if ( ! full || full.cssDeferred ) {
+								throw new Error(
+									`theme "${ slug }" resolved without a stylesheet`,
+								);
+							}
+							removeStyleElements();
+							injectThemeStylesheet( full );
+						} )
+						.catch( ( err ) => {
+							if ( getStore().state.activeId !== slug ) {
+								return;
+							}
+							showToast( {
+								message: __(
+									'Could not load that desktop theme — the previous one is still showing.',
+								),
+								action: {
+									label: __( 'Retry' ),
+									onClick: () => void loadAndInject(),
+								},
+								persistent: true,
+								dismissible: true,
+							} );
+							// eslint-disable-next-line no-console -- the toast says what happened; this says why.
+							console.warn(
+								'[openstation] desktop theme stylesheet failed to load',
+								err,
+							);
+						} );
+				void loadAndInject();
 			} else {
+				removeStyleElements();
 				injectThemeStylesheet( theme );
 			}
 		}

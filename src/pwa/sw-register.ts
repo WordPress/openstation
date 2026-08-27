@@ -186,6 +186,39 @@ function isOwnSwScriptUrl(
  *
  * Returns the registration on success, `null` otherwise.
  */
+/**
+ * Read this user's PWA flags from OpenStation Preferences and send
+ * them to the worker.
+ *
+ * Reads through `wp.os` rather than importing the settings module: this
+ * file is part of the boot path, and the settings state may not have
+ * been created when registration runs. Absent means both off, which is
+ * what the worker already assumes.
+ */
+function sendCurrentConfigToWorker(): void {
+	// `openStationConfig.pwa.swConfig`, not the settings snapshot: the
+	// admin-asset-cache value is computed server-side through the
+	// `openstation_pwa_admin_asset_cache` filter, so an operator's
+	// site-wide veto must survive. Reading the raw user preference here
+	// would quietly ignore it.
+	const swConfig = (
+		window as unknown as {
+			openStationConfig?: {
+				pwa?: {
+					swConfig?: {
+						adminAssetCache?: boolean;
+						windowPrewarm?: boolean;
+					};
+				};
+			};
+		}
+	).openStationConfig?.pwa?.swConfig;
+	notifyServiceWorkerConfig( {
+		adminAssetCache: swConfig?.adminAssetCache === true,
+		windowPrewarm: swConfig?.windowPrewarm === true,
+	} );
+}
+
 export async function registerServiceWorker(
 	config: PwaConfig | undefined,
 	options: { forceReplace?: boolean } = {},
@@ -263,6 +296,16 @@ export async function registerServiceWorker(
 		// successful registration so we never reload a page that has no
 		// SW relationship in the first place.
 		bindControllerChangeReload();
+		// Hand the worker this user's flags. They are not in the served
+		// bytes — see `notifyServiceWorkerConfig()` — so this is how it
+		// learns them at all. Sent now and again on `controllerchange`,
+		// because a worker that has just taken control starts from the
+		// defaults.
+		sendCurrentConfigToWorker();
+		navigator.serviceWorker.addEventListener(
+			'controllerchange',
+			sendCurrentConfigToWorker,
+		);
 		return _registration;
 	} catch ( err ) {
 		_registrationFailed = true;
@@ -271,6 +314,66 @@ export async function registerServiceWorker(
 			console.warn( '[openstation] SW registration failed:', err );
 		}
 		return null;
+	}
+}
+
+/**
+ * Tell the RUNNING worker that hover prewarming was switched.
+ *
+ * A worker has no copy of this flag except what it is told: the served
+ * bytes carry only `pluginUrl`, so every worker starts with prewarming
+ * off and stays that way until a message arrives. Without this call the
+ * setting looked broken in both directions — turning it on enabled the
+ * shell-side half immediately while the worker went on dropping
+ * `os-speculate-doc`, and turning it off left the worker speculating.
+ *
+ * Best-effort by design: with no controller there is no worker to
+ * disagree with us, and the next one starts from the safe default
+ * (off) until {@link notifyServiceWorkerConfig} syncs it at boot.
+ *
+ * @param enabled The new setting.
+ */
+export function notifyServiceWorkerPrewarm( enabled: boolean ): void {
+	try {
+		navigator.serviceWorker?.controller?.postMessage( {
+			type: 'os-sw-set-prewarm',
+			enabled,
+		} );
+	} catch {
+		/* No controller, or messaging unavailable — nothing to sync. */
+	}
+}
+
+/**
+ * Hand the running worker this user's PWA preferences.
+ *
+ * They are no longer in the served script bytes, and deliberately so:
+ * both are per-user, a service worker is origin-wide, and baking them
+ * in made the body differ between an anonymous and a logged-in request.
+ * Any in-scope logged-out navigation then served different bytes, which
+ * the browser installs as an update — and the `controllerchange`
+ * handler below hard-reloads the desktop. Identical bytes for everyone,
+ * per-user values over a message.
+ *
+ * Called at boot and whenever a toggle changes. Best-effort: with no
+ * controller there is nothing to configure, and the worker's defaults
+ * (both off) are the safe side to be on.
+ *
+ * @param config                 The user's current flags.
+ * @param config.adminAssetCache Shared admin-asset cache opt-in.
+ * @param config.windowPrewarm   Hover-intent prewarming opt-in.
+ */
+export function notifyServiceWorkerConfig( config: {
+	adminAssetCache: boolean;
+	windowPrewarm: boolean;
+} ): void {
+	try {
+		navigator.serviceWorker?.controller?.postMessage( {
+			type: 'os-sw-config',
+			...config,
+		} );
+	} catch {
+		/* No controller yet — `controllerchange` re-sends. */
 	}
 }
 

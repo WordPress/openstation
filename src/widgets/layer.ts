@@ -40,6 +40,7 @@ import {
 	saveEnabledIds,
 	saveGeometry,
 } from './state';
+import { showInlineLoader } from '../ui/inline-loader';
 import { createWidgetStorage } from './storage';
 import type { WidgetGeometry, WidgetTeardown } from './types';
 
@@ -397,11 +398,34 @@ export class WidgetLayer {
 			return;
 		}
 		if ( isThenable( result ) ) {
-			result.then( onResolve, ( err ) => {
-				if ( this.mounted.get( id )?.generation === gen ) {
-					this.handleMountFailure( id, err );
-				}
+			// A server-registered widget's `mount` awaits its own bundle
+			// (`ensureScript` in `widgets/server-sync.ts`), so between
+			// here and `onResolve` the card is empty — indistinguishable
+			// from a widget that mounted and drew nothing. The loader
+			// waits 120 ms first, so a widget whose script is already in
+			// the tab (every widget after the first, and every widget on
+			// a warm boot) never flashes one.
+			const loader = showInlineLoader( frame.body, {
+				label: __( 'Loading…' ),
 			} );
+			result.then(
+				( teardown ) => {
+					loader.done();
+					onResolve( teardown );
+				},
+				( err ) => {
+					// `handleMountFailure` removes the card outright, so
+					// the loader usually goes with it. Clear it anyway
+					// for the stale-generation path below, where the
+					// failure is ignored and the frame survives — a
+					// spinner left running on a card nobody is loading
+					// into is worse than the empty card was.
+					loader.done();
+					if ( this.mounted.get( id )?.generation === gen ) {
+						this.handleMountFailure( id, err );
+					}
+				},
+			);
 			return;
 		}
 		onResolve( result );

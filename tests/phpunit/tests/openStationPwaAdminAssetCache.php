@@ -99,26 +99,81 @@ class Tests_OpenStation_PwaAdminAssetCache extends WP_UnitTestCase {
 		$this->assertStringEndsWith( ";\n", $preamble );
 
 		$config = $this->decode_preamble( $preamble );
-		$this->assertSame( false, $config['adminAssetCache'] );
 		$this->assertSame( OPENSTATION_URL, $config['pluginUrl'] );
 	}
 
 	/**
-	 * Flipping the filter must change the served bytes — that byte
-	 * difference is what triggers the browser's SW update check, so a
-	 * preamble that didn't reflect the filter would leave every
-	 * installed SW running the old setting forever.
+	 * The served bytes must NOT depend on who is asking.
+	 *
+	 * A service worker is origin-wide, but `adminAssetCache` and
+	 * `windowPrewarm` are per-user preferences. Carrying them in the
+	 * script made the body differ between an anonymous and a logged-in
+	 * request, so any in-scope logged-out navigation — the interim-login
+	 * iframe, logging out — served a different script. The browser
+	 * treats different bytes as an update, installs it, activates it,
+	 * and the shell's `controllerchange` handler hard-reloads the
+	 * desktop. The shell posts both flags to the running worker instead.
 	 *
 	 * @covers ::openstation_pwa_sw_config_preamble
 	 */
-	public function test_preamble_reflects_the_filter() {
-		$before = openstation_pwa_sw_config_preamble();
+	public function test_preamble_carries_nothing_user_specific() {
+		$config = $this->decode_preamble( openstation_pwa_sw_config_preamble() );
+
+		$this->assertArrayNotHasKey( 'adminAssetCache', $config );
+		$this->assertArrayNotHasKey( 'windowPrewarm', $config );
+	}
+
+	/**
+	 * The bytes are identical whoever asks — the property the whole
+	 * change exists to establish.
+	 *
+	 * @covers ::openstation_pwa_sw_config_preamble
+	 */
+	public function test_preamble_is_identical_logged_in_and_out() {
+		$admin = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		update_user_meta(
+			$admin,
+			'desktop_mode_os_settings',
+			wp_json_encode(
+				array(
+					'adminAssetCacheEnabled' => true,
+					'windowPrewarmEnabled'   => true,
+				)
+			)
+		);
+		add_filter( 'openstation_pwa_admin_asset_cache', '__return_true' );
+
+		wp_set_current_user( 0 );
+		$anonymous = openstation_pwa_sw_config_preamble();
+		wp_set_current_user( $admin );
+		$authenticated = openstation_pwa_sw_config_preamble();
+
+		$this->assertSame( $anonymous, $authenticated );
+	}
+
+	/**
+	 * The filter still decides — it just reaches the worker through the
+	 * shell rather than through the script bytes.
+	 *
+	 * This is the half that must not be lost by moving the flag out of
+	 * the preamble: an operator's site-wide veto has to keep working, so
+	 * the value the shell forwards is the FILTERED one, computed here,
+	 * not the requesting user's raw preference.
+	 *
+	 * @covers ::openstation_pwa_admin_asset_cache_enabled
+	 */
+	public function test_the_filter_still_decides_the_forwarded_value() {
+		$this->assertFalse( openstation_pwa_admin_asset_cache_enabled() );
 
 		add_filter( 'openstation_pwa_admin_asset_cache', '__return_true' );
-		$after = openstation_pwa_sw_config_preamble();
+		$this->assertTrue( openstation_pwa_admin_asset_cache_enabled() );
 
-		$this->assertNotSame( $before, $after );
-		$this->assertSame( true, $this->decode_preamble( $after )['adminAssetCache'] );
+		remove_all_filters( 'openstation_pwa_admin_asset_cache' );
+		add_filter( 'openstation_pwa_admin_asset_cache', '__return_false' );
+		$this->assertFalse(
+			openstation_pwa_admin_asset_cache_enabled(),
+			'a site-wide veto must survive a per-user opt-in'
+		);
 	}
 
 	/**

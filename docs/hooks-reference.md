@@ -214,10 +214,18 @@ openstation_register_game( 'my-plugin-puzzle', array(
     ),
     'config'        => array( 'assetUrl' => '…' ),          // arbitrary blob → the game's launch context
     'capabilities'  => array(),                             // ALL must pass for the registering user
+    'window'        => array(                               // window size, known before the bundle is
+        'width'     => 860,
+        'height'    => 660,
+        'minWidth'  => 600,
+        'minHeight' => 500,
+    ),
 ) );
 ```
 
 Returns `true` or `WP_Error` (`openstation_missing_id` / `openstation_missing_title` / `openstation_missing_script` / `openstation_invalid_icon_svg` / `openstation_capability_denied`). Only server-registered games can persist scores and challenges — the REST routes 404 unknown ids. `openstation_unregister_game( $id )` removes an entry.
+
+**Declare `window` here as well as in your JS def.** The two look redundant and are not. A game's bundle is heavy — the game, its engine, sometimes a dictionary — so the shell opens the window on the click and fetches the bundle *inside* the render callback, where the window manager's loading spinner covers the wait. That means the size is needed one round trip before the def that also carries it. Any subset of `{ width, height, minWidth, minHeight }` is accepted, in pixels; values are clamped rather than rejected, and anything non-numeric or non-positive is dropped. Declaring it only in JS still works — the window just opens at the framework default (760×560) the first time a player launches that game in a session, and at its own size from then on.
 
 **Framework config keys**: the `serverGames` payload merges framework-level keys underneath every game's `config` (the game's own keys win on collision). Currently: **`wordsUrl`** — the URL of the shared ~20k-word dictionary asset (`assets/games/words.txt`), identical for every player, which is what lets seeded games generate the same puzzle worldwide. See `openstation_games_words_url` below.
 
@@ -1746,6 +1754,22 @@ Controls the `Sec-Fetch-*` fallback in chromeless detection: when a request arri
 apply_filters( 'openstation_chromeless_sec_fetch_fallback', bool $allow );
 ```
 
+### `openstation_chromeless_silence_admin_bar` — Experimental
+
+Whether a window skips **building** the admin bar it never draws. Default `true` inside windows.
+
+Suppressing the render stops the markup, not the work. `_wp_admin_bar_init()` is hooked on `admin_init`, `is_admin_bar_showing()` short-circuits to true for any admin request, and so every window still instantiated `WP_Admin_Bar` and called `add_menus()` — which fires `admin_bar_menu` and runs **every** registered callback, core's twenty-odd nodes and every plugin's, each resolving links and checking capabilities — before dropping the finished object on the floor. The shell draws a real bar once; a window drawing none should pay for none.
+
+The class is swapped rather than the init unhooked, deliberately. `remove_action( 'admin_init', '_wp_admin_bar_init' )` would leave `$wp_admin_bar` null, and a plugin that touches the global outside the hook would fatal on it. Core exposes `wp_admin_bar_class` for exactly this, so a window gets a real `WP_Admin_Bar` subclass that works in every respect — `add_node()`, `get_nodes()`, the global is still an object — except that it never solicits nodes.
+
+How much this saves is a property of the site's admin bar: roughly 1.5% of a window's server time on a stock-ish install, and materially more wherever the bar is expensive (a WordPress.com masterbar, a plugin adding counted nodes).
+
+```php
+// Let a window build the bar, for a plugin that relies on
+// `admin_bar_menu` firing for a side effect rather than a node.
+add_filter( 'openstation_chromeless_silence_admin_bar', '__return_false' );
+```
+
 ---
 
 ### `openstation_chromeless_admin_bar_top_values` — Experimental
@@ -1826,11 +1850,31 @@ The handles treated as command-palette roots. Defaults: `wp-commands` (the `core
 apply_filters( 'openstation_command_palette_root_handles', string[] $handles );
 ```
 
+
+### `openstation_command_palette_trim_dependents` — Experimental
+
+Whether handles that merely *depend on* the palette are dropped alongside the roots. Default `true`.
+
+Dropping the roots alone reclaims nothing while one dependent survives — `WP_Dependencies::all_deps()` pulls the whole chain back in on its behalf — so the walk earns its place. Return `false` to trim only the two Core roots: that gives up the saving on sites carrying palette extensions, and keeps all of it on a site where Core's palette is the only consumer of that chain. It is the safest setting and rarely a necessary one; prefer naming the individual exception through `openstation_command_palette_family` below.
+
+```php
+add_filter( 'openstation_command_palette_trim_dependents', '__return_false' );
+```
+
 ### `openstation_command_palette_family` — Experimental
 
-The full set of handles dropped by the palette trim: the roots plus every scanned handle that reaches one of them **without routing through one of Core's own packages**.
+The full set of handles dropped by the palette trim: the roots plus every scanned handle that reaches one of them and survives the structural exclusions below.
 
-That second condition is load-bearing, not tidiness. `wp-block-editor` declares `wp-commands` directly — the editor *registers* commands, so the dependency runs the opposite way from a palette extension's — and `wp-editor` does the same. A plain closure walk therefore convicts the whole block-editor stack, and every plugin block script above it, of being palette contributors. Core packages are consequently never trimmed as dependents, and the walk will not travel through one to reach a root: a handle qualifies only when the palette appears in its own chain, the way Astra's and WooCommerce's palette scripts both name `wp-commands` themselves.
+**The dependency graph records "needs", not "is."** `wp-block-editor` declares `wp-commands`; so does Gutenberg's Connectors bootstrap; so does a genuine palette extension — all three because their UI needs the commands *store*. Nothing about the dependency separates the palette from something merely using it, and both regressions in this area came from pretending otherwise.
+
+Conviction is therefore fenced by **structural** exclusions, never by inference about intent, and each says something about what trimming could possibly save:
+
+- **Core's own packages** (`/wp-includes/js/dist/`) are never convicted, and the walk will not travel *through* one to reach a root. They are libraries `WP_Dependencies` already knows how to include or omit, and the palette is a feature *of* the editor, so the dependency there runs backwards. Without this, a plugin's block script is convicted by way of `wp-block-editor` — Contact Form 7's was the real case.
+- **A handle with no `src`** is never convicted. There is no file to stop downloading, so the saving is zero, while dropping it discards its inline payload. Gutenberg's Connectors screen registers exactly such a handle and hangs its whole app bootstrap on it; convicting it rendered a blank page for a saving of nothing.
+
+Neither rule names a plugin or reads a handle's name, so a site with a completely different plugin set gets the same treatment, derived from the graph in front of it.
+
+A residue remains: a plugin bundle with a real `src` that depends on the palette *and* paints part of its own screen would still be convicted. This filter is the escape hatch for it — a site knows its own handles, and can name the exception the framework has no way to infer.
 
 This is a family trim for the same reason the admin-bar trim above is: dropping the roots alone saves nothing while a single dependent survives, because `WP_Dependencies::all_deps()` pulls the whole chain back in on that dependent's behalf. Measured with only Core's enqueue deferred, a Settings window still pulled 14.28 MB of the original 14.49 MB — Astra's `command-palette.js` and WooCommerce's `command-palette.js` / `command-palette-analytics.js` each declare `wp-commands` and were still queued.
 

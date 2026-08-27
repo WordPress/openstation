@@ -28,6 +28,7 @@ class Tests_OpenStation_ChromelessCommandPalette extends WP_UnitTestCase {
 		remove_all_filters( 'openstation_command_palette_root_handles' );
 		remove_all_filters( 'openstation_command_palette_contributors' );
 		remove_all_filters( 'openstation_command_palette_contributor_owns_screen' );
+		remove_all_filters( 'openstation_command_palette_trim_dependents' );
 		unset( $_GET['page'] );
 		parent::tear_down();
 	}
@@ -46,7 +47,7 @@ class Tests_OpenStation_ChromelessCommandPalette extends WP_UnitTestCase {
 	 *
 	 *   os-test-direct    -> wp-commands          (a palette contributor)
 	 *   os-test-indirect  -> os-test-direct       (reaches it transitively)
-	 *   os-test-unrelated -> jquery               (must be left alone)
+	 *   os-test-unrelated -> (nothing)            (must be left alone)
 	 */
 	private function register_graph() {
 		// This WordPress may predate the Core command palette, in which
@@ -57,9 +58,14 @@ class Tests_OpenStation_ChromelessCommandPalette extends WP_UnitTestCase {
 		if ( ! wp_script_is( 'wp-commands', 'registered' ) ) {
 			wp_register_script( 'wp-commands', includes_url( 'js/dist/commands.js' ), array(), '1', true );
 		}
+		// Deliberately generic names: conviction must never depend on
+		// what a handle is called, so the fixtures do not hint.
 		wp_register_script( 'os-test-direct', 'https://example.org/d.js', array( 'wp-commands' ), '1', true );
 		wp_register_script( 'os-test-indirect', 'https://example.org/i.js', array( 'os-test-direct' ), '1', true );
-		wp_register_script( 'os-test-unrelated', 'https://example.org/u.js', array( 'jquery' ), '1', true );
+		// No deps at all: its only job is to be a handle that does not
+		// reach the palette. Naming a real Core handle here coupled the
+		// fixture to whatever else the suite had registered by then.
+		wp_register_script( 'os-test-unrelated', 'https://example.org/u.js', array(), '1', true );
 	}
 
 	/**
@@ -170,6 +176,183 @@ class Tests_OpenStation_ChromelessCommandPalette extends WP_UnitTestCase {
 		$family = openstation_command_palette_family( wp_scripts(), array( 'os-test-ext' ) );
 
 		$this->assertContains( 'os-test-ext', $family );
+	}
+
+	/**
+	 * The Connectors regression, in its exact shape.
+	 *
+	 * Gutenberg's Settings → Connectors screen registers a src-LESS
+	 * handle carrying its boot module's dependency list — which names
+	 * `wp-commands`, because the UI needs the commands store — and hangs
+	 * the app's whole bootstrap on it as an inline script. Convicting it
+	 * dequeued the handle, the inline never printed, and the page
+	 * rendered blank.
+	 *
+	 * A handle with no `src` has no file to reclaim, so trimming it is
+	 * pure downside however its dependencies read.
+	 *
+	 * @covers ::openstation_handle_has_no_src
+	 * @covers ::openstation_command_palette_family
+	 */
+	public function test_a_srcless_bootstrap_handle_is_never_convicted() {
+		wp_register_script(
+			'os-test-connectors-prerequisites',
+			'',
+			array( 'react', 'wp-components', 'wp-editor', 'wp-commands', 'wp-data' ),
+			'1',
+			true
+		);
+		wp_add_inline_script(
+			'os-test-connectors-prerequisites',
+			'import("@wordpress/boot").then(m=>m.initSinglePage({}));'
+		);
+
+		$family = openstation_command_palette_family(
+			wp_scripts(),
+			array( 'os-test-connectors-prerequisites' )
+		);
+
+		$this->assertNotContains( 'os-test-connectors-prerequisites', $family );
+	}
+
+	/**
+	 * The Gutenberg plugin re-registers the whole `wp-*` family from
+	 * `/wp-content/plugins/gutenberg/build/scripts/…` through its own
+	 * `$scripts->add()`. A Core-package test that looked at the SRC
+	 * path answered false for every package on such a site, retiring
+	 * the guard exactly where it mattered and convicting the entire
+	 * editor stack.
+	 *
+	 * @covers ::openstation_is_core_package_handle
+	 */
+	public function test_core_packages_are_recognised_when_gutenberg_serves_them() {
+		wp_register_script(
+			'wp-block-editor',
+			'https://example.org/wp-content/plugins/gutenberg/build/scripts/block-editor/index.min.js',
+			array( 'wp-commands' ),
+			'1',
+			true
+		);
+
+		$this->assertTrue(
+			openstation_is_core_package_handle( wp_scripts(), 'wp-block-editor' )
+		);
+
+		$family = openstation_command_palette_family( wp_scripts(), array( 'wp-block-editor' ) );
+		$this->assertNotContains( 'wp-block-editor', $family );
+	}
+
+	/**
+	 * The Customizer regression, in its shape.
+	 *
+	 * `customize-widgets` survives the trim and depends on
+	 * `wp-block-editor`, which depends on `wp-commands`. Dropping the
+	 * palette out from under a package that still prints strands it —
+	 * the Widgets panel rendered nothing while its own script had
+	 * loaded. Whatever we believe a handle is FOR, if something still
+	 * printing needs it, it has to stay.
+	 *
+	 * @covers ::openstation_protect_survivor_dependencies
+	 * @covers ::openstation_chromeless_command_palette_drops
+	 */
+	public function test_a_surviving_handles_dependency_is_never_dropped() {
+		$this->enter_chromeless();
+		set_current_screen( 'options-general' );
+		$this->register_graph();
+		wp_register_script(
+			'wp-customize-widgets',
+			'https://example.org/wp-content/plugins/gutenberg/build/scripts/customize-widgets/index.min.js',
+			array( 'wp-commands' ),
+			'1',
+			true
+		);
+
+		$drops = openstation_chromeless_command_palette_drops(
+			wp_scripts(),
+			array( 'wp-customize-widgets', 'os-test-direct' )
+		);
+
+		$this->assertNotContains(
+			'wp-commands',
+			$drops,
+			'a survivor still depends on it'
+		);
+	}
+
+	/**
+	 * The protection must not blunt the trim: when nothing surviving
+	 * needs the palette, it still goes.
+	 *
+	 * @covers ::openstation_protect_survivor_dependencies
+	 */
+	public function test_protection_does_not_spare_a_palette_nothing_needs() {
+		$this->enter_chromeless();
+		set_current_screen( 'options-general' );
+		$this->register_graph();
+
+		$drops = openstation_chromeless_command_palette_drops(
+			wp_scripts(),
+			array( 'os-test-direct', 'os-test-unrelated' )
+		);
+
+		$this->assertContains( 'wp-commands', $drops );
+		$this->assertContains( 'os-test-direct', $drops );
+		$this->assertNotContains( 'os-test-unrelated', $drops );
+	}
+
+	/**
+	 * Conviction must never turn on what a handle is called. Two
+	 * handles with identical graphs and different names get the same
+	 * verdict — otherwise the rule stops being about the site in front
+	 * of it and starts being about a list of plugins somebody knew
+	 * about.
+	 *
+	 * @covers ::openstation_command_palette_family
+	 */
+	public function test_conviction_ignores_the_handles_name() {
+		wp_register_script( 'os-test-command-palette-thing', 'https://example.org/command-palette.js', array( 'wp-commands' ), '1', true );
+		wp_register_script( 'os-test-anonymous-thing', 'https://example.org/x9f2.js', array( 'wp-commands' ), '1', true );
+
+		$family = openstation_command_palette_family(
+			wp_scripts(),
+			array( 'os-test-command-palette-thing', 'os-test-anonymous-thing' )
+		);
+
+		$this->assertContains( 'os-test-command-palette-thing', $family );
+		$this->assertContains( 'os-test-anonymous-thing', $family );
+	}
+
+	/**
+	 * The escape hatch that does not guess: a site knows its own
+	 * handles and can spare one the framework has no way to infer.
+	 *
+	 * @covers ::openstation_command_palette_family
+	 */
+	public function test_a_site_can_spare_one_of_its_own_handles() {
+		$this->register_graph();
+		add_filter(
+			'openstation_command_palette_family',
+			static function ( $family ) {
+				return array_values( array_diff( $family, array( 'os-test-direct' ) ) );
+			}
+		);
+
+		$family = openstation_command_palette_family( wp_scripts(), array( 'os-test-direct' ) );
+
+		$this->assertNotContains( 'os-test-direct', $family );
+	}
+
+	/**
+	 * @covers ::openstation_command_palette_trims_dependents
+	 */
+	public function test_dependent_trimming_can_be_turned_off_entirely() {
+		$this->register_graph();
+		add_filter( 'openstation_command_palette_trim_dependents', '__return_false' );
+
+		$family = openstation_command_palette_family( wp_scripts(), array( 'os-test-direct' ) );
+
+		$this->assertNotContains( 'os-test-direct', $family );
+		$this->assertContains( 'wp-commands', $family );
 	}
 
 	/**
@@ -558,6 +741,34 @@ class Tests_OpenStation_ChromelessCommandPalette extends WP_UnitTestCase {
 			'the contributor must still reach the manifest'
 		);
 		$this->assertFalse( wp_script_is( 'os-test-direct', 'enqueued' ) );
+	}
+
+	/**
+	 * On a WordPress with no Core palette there is no manifest to hoist
+	 * into — `openStationConfig.commandPalette` is null and the replay
+	 * has nowhere to put anything. Dequeuing the contributors anyway
+	 * would lose their commands outright, which is strictly worse than
+	 * the eager loading the hoist replaces.
+	 *
+	 * @covers ::openstation_shell_hoist_command_palette_contributors
+	 */
+	public function test_shell_hoist_leaves_contributors_alone_with_no_core_palette() {
+		if ( function_exists( 'wp_enqueue_command_palette_assets' ) ) {
+			$this->markTestSkipped( 'This WordPress has the Core command palette.' );
+		}
+		wp_set_current_user( self::$admin_id );
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		wp_register_script( 'openstation', 'https://example.org/desktop.js', array(), '1', true );
+		wp_enqueue_script( 'openstation' );
+		$this->register_graph();
+		wp_enqueue_script( 'os-test-direct' );
+
+		openstation_shell_hoist_command_palette_contributors();
+
+		$this->assertTrue(
+			wp_script_is( 'os-test-direct', 'enqueued' ),
+			'the contributor must keep printing when it cannot be replayed'
+		);
 	}
 
 	/**
