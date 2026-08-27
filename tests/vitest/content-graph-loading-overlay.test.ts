@@ -73,6 +73,22 @@ describe( 'createLoadingOverlay', () => {
 		expect( overlay.isVisible() ).toBe( true );
 	} );
 
+	test( 're-arms cleanly after a hide (the per-chip-toggle sequence)', () => {
+		const overlay = createLoadingOverlay( el );
+		// First fetch: long enough to paint.
+		overlay.show();
+		vi.advanceTimersByTime( LOADING_OVERLAY_DELAY_MS );
+		expect( overlay.isVisible() ).toBe( true );
+		overlay.hide();
+		// Second fetch: the clock restarts from zero, not from the
+		// first arm, and paints again once the full delay elapses.
+		overlay.show();
+		vi.advanceTimersByTime( LOADING_OVERLAY_DELAY_MS - 1 );
+		expect( overlay.isVisible() ).toBe( false );
+		vi.advanceTimersByTime( 1 );
+		expect( overlay.isVisible() ).toBe( true );
+	} );
+
 	test( 'destroy disarms a pending show', () => {
 		const overlay = createLoadingOverlay( el );
 		overlay.show();

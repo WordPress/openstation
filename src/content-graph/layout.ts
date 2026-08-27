@@ -126,16 +126,24 @@ export function seedPositions(
 }
 
 /**
- * Upper bound on synchronous warm-up steps before the first paint.
- * The caller stops early once the sim reports `isSettled`.
+ * The short warm-start: enough synchronous steps to collapse the
+ * chaotic opening frames, cheap enough for a board of any size, and
+ * short enough that the layout is still visibly settling on screen.
+ * Used for large boards, and for every board where nodes are joining
+ * a layout the user is already looking at.
+ */
+export const JOIN_WARMUP_STEPS = 90;
+
+/**
+ * Upper bound on synchronous warm-up steps before the first paint of
+ * a board laid out from scratch. The caller stops early once the sim
+ * reports `isSettled`.
  */
 export function warmupStepLimit( count: number ): number {
 	if ( count <= SETTLE_ON_LOAD_MAX_NODES ) {
 		return SETTLE_ON_LOAD_MAX_STEPS;
 	}
-	// The historical warm-start: enough to collapse the chaotic
-	// opening frames, cheap enough for a board of any size.
-	return Math.min( 90, 30 + count );
+	return JOIN_WARMUP_STEPS;
 }
 
 export interface Viewport {

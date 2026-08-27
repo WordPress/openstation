@@ -317,7 +317,16 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	background: rgba( 247, 248, 251, 0.7 );
+	/*
+	 * A translucent sheet of the stage's own surface, so it dims a
+	 * dark board as well as a light one. The literal is the pre-brand
+	 * light surface, kept as the floor if the token is missing.
+	 */
+	background: color-mix(
+		in srgb,
+		var( --os-ui-surface, #f7f8fb ) 72%,
+		transparent
+	);
 	pointer-events: none;
 	z-index: 3;
 	opacity: 0;
@@ -358,8 +367,10 @@
 /*
  * "No threads yet" note. Top-left, out of the way of a small board
  * centred in the stage and of the side panel on the right. Real DOM
- * text over the canvas, so it is selectable, translatable and follows
- * the theme tokens like the rest of the chrome.
+ * text over the canvas, so it is translatable and follows the theme
+ * tokens like the rest of the chrome; pointer-events are off so a
+ * pan that starts on it still pans the board. The bundle hides it
+ * while a grouping is active, when the cluster labels need the space.
  */
 .os-content-graph__hint {
 	position: absolute;

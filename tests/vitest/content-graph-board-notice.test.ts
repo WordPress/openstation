@@ -34,7 +34,7 @@ describe( 'deriveBoardNotice', () => {
 		).toEqual( { kind: 'none' } );
 	} );
 
-	test( 'cards without a single thread get the explainer', () => {
+	test( 'nodes without a single thread get the explainer', () => {
 		expect(
 			deriveBoardNotice( {
 				nodes: 2,
@@ -43,7 +43,7 @@ describe( 'deriveBoardNotice', () => {
 				activeTypes: [ 'post' ],
 			} ),
 		).toEqual( { kind: 'no-threads' } );
-		// One lone card counts too — there is nothing for it to link to.
+		// One lone node counts too — there is nothing for it to link to.
 		expect(
 			deriveBoardNotice( {
 				nodes: 1,
@@ -77,7 +77,9 @@ describe( 'deriveBoardNotice', () => {
 				activeTypes: [ 'page' ],
 			} ),
 		).toEqual( { kind: 'filtered-out' } );
-		// Every chip off is the same story.
+	} );
+
+	test( 'every chip off is its own message', () => {
 		expect(
 			deriveBoardNotice( {
 				nodes: 0,
@@ -85,15 +87,41 @@ describe( 'deriveBoardNotice', () => {
 				types: TYPES,
 				activeTypes: [],
 			} ),
-		).toEqual( { kind: 'filtered-out' } );
+		).toEqual( { kind: 'all-off' } );
 	} );
 
-	test( 'descriptors without counts (the config list) read as empty', () => {
+	test( 'unknown counts (the config list) assume a hidden type has content', () => {
+		// `/post-types` failed: no descriptor carries a count. A
+		// switched-off type is then assumed to hold content, so the
+		// board blames the chips rather than claiming the site is empty.
 		expect(
 			deriveBoardNotice( {
 				nodes: 0,
 				edges: 0,
 				types: [ { slug: 'post' }, { slug: 'page' } ],
+				activeTypes: [ 'post' ],
+			} ),
+		).toEqual( { kind: 'filtered-out' } );
+		// …but with every type on, an empty board is an empty site.
+		expect(
+			deriveBoardNotice( {
+				nodes: 0,
+				edges: 0,
+				types: [ { slug: 'post' }, { slug: 'page' } ],
+				activeTypes: [ 'post', 'page' ],
+			} ),
+		).toEqual( { kind: 'no-content' } );
+	} );
+
+	test( 'known zero counts on hidden types still read as an empty site', () => {
+		expect(
+			deriveBoardNotice( {
+				nodes: 0,
+				edges: 0,
+				types: [
+					{ slug: 'post', count: 0 },
+					{ slug: 'page', count: 0 },
+				],
 				activeTypes: [ 'post' ],
 			} ),
 		).toEqual( { kind: 'no-content' } );
@@ -112,6 +140,10 @@ describe( 'renderBoardNotice', () => {
 		document.body.appendChild( host );
 		return renderBoardNotice( host );
 	}
+
+	test( 'registers <os-empty-state> for this bundle', () => {
+		expect( customElements.get( 'os-empty-state' ) ).toBeDefined();
+	} );
 
 	test( 'paints nothing for kind none', () => {
 		const handle = mount();
@@ -132,6 +164,11 @@ describe( 'renderBoardNotice', () => {
 		const filtered = host.querySelectorAll( `.${ BOARD_EMPTY_CLASS }` );
 		expect( filtered ).toHaveLength( 1 );
 		expect( filtered[ 0 ].getAttribute( 'description' ) ).toMatch( /toolbar/i );
+
+		handle.set( { kind: 'all-off' } );
+		const off = host.querySelectorAll( `.${ BOARD_EMPTY_CLASS }` );
+		expect( off ).toHaveLength( 1 );
+		expect( off[ 0 ].getAttribute( 'heading' ) ).toMatch( /switched off/i );
 	} );
 
 	test( 'the no-threads note says what a thread is and where the rest lives', () => {
@@ -143,9 +180,11 @@ describe( 'renderBoardNotice', () => {
 		const text = el?.textContent ?? '';
 		expect( text ).toMatch( /thread/i );
 		expect( text ).toMatch( /links/i );
-		// Names the relationships that appear on focus and via Group by.
+		// Names the relationships that appear on focus and the Group by
+		// facets as the toolbar labels them.
 		expect( text ).toMatch( /author/i );
 		expect( text ).toMatch( /categor/i );
+		expect( text ).toMatch( /year/i );
 		expect( host.querySelector( `.${ BOARD_EMPTY_CLASS }` ) ).toBeNull();
 	} );
 
@@ -164,6 +203,22 @@ describe( 'renderBoardNotice', () => {
 		const first = host.firstElementChild;
 		handle.set( { kind: 'no-threads' } );
 		expect( host.firstElementChild ).toBe( first );
+	} );
+
+	test( 'suppression hides the note but not an empty state, and remembers', () => {
+		const handle = mount();
+		handle.set( { kind: 'no-threads' } );
+		handle.setSuppressed( true );
+		expect( host.children ).toHaveLength( 0 );
+		// A grouping change while suppressed must not lose the notice.
+		handle.set( { kind: 'no-threads' } );
+		expect( host.children ).toHaveLength( 0 );
+		handle.setSuppressed( false );
+		expect( host.querySelector( `.${ BOARD_HINT_CLASS }` ) ).not.toBeNull();
+		// Empty-board states stay visible whatever the grouping.
+		handle.setSuppressed( true );
+		handle.set( { kind: 'no-content' } );
+		expect( host.querySelector( `.${ BOARD_EMPTY_CLASS }` ) ).not.toBeNull();
 	} );
 
 	test( 'destroy removes whatever is showing', () => {

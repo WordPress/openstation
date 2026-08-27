@@ -9,8 +9,10 @@
  *     `count`, `taxonomies`).
  *
  *   GET /nodes?types=post,page,...
- *     Returns the full `{ nodes, edges, stats }` tuple. Cached server-
- *     side, see graph-builder.php.
+ *     Returns the full `{ nodes, edges, groups, stats }` tuple. Cached
+ *     server-side, see graph-builder.php. `types` omitted means every
+ *     registered type; `types=` (present but empty) means none — the
+ *     shell sends the latter when every toolbar chip is off.
  *
  *   GET /post/<id>
  *     Returns the side-panel detail bundle for one post:
@@ -52,10 +54,15 @@ function openstation_content_graph_register_routes() {
 			'callback'            => 'openstation_content_graph_rest_nodes',
 			'permission_callback' => 'openstation_content_graph_rest_permission',
 			'args'                => array(
+				// Deliberately no `default`: the dispatcher copies a
+				// registered default into the request before the
+				// callback runs, and `WP_REST_Request::has_param()`
+				// sees it, so a default here would make an omitted
+				// parameter indistinguishable from an explicitly empty
+				// one — and the callback tells those two apart.
 				'types' => array(
-					'description' => 'Comma-separated list of post type slugs to include.',
+					'description' => 'Comma-separated list of post type slugs to include. Omit for every registered type; pass an empty value for none.',
 					'type'        => 'string',
-					'default'     => '',
 				),
 			),
 		)
@@ -100,11 +107,9 @@ function openstation_content_graph_rest_post_types() {
 				$count += (int) $counts->private;
 			}
 		}
-		$label = isset( $entry['label'] ) ? (string) $entry['label'] : $slug;
 		$out[] = array(
 			'slug'       => $slug,
-			'label'      => $label,
-			'singular'   => isset( $entry['singular'] ) ? (string) $entry['singular'] : $label,
+			'label'      => isset( $entry['label'] ) ? (string) $entry['label'] : $slug,
 			'icon'       => isset( $entry['icon'] ) ? (string) $entry['icon'] : 'dashicons-admin-post',
 			'count'      => $count,
 			'taxonomies' => $entry['taxonomies'],
@@ -115,6 +120,11 @@ function openstation_content_graph_rest_post_types() {
 
 /**
  * GET /nodes
+ *
+ * An omitted `types` parameter selects every registered type; a
+ * present-but-empty one selects none. The route registers no default
+ * for the parameter so the two stay distinguishable through a real
+ * dispatch (see the route registration above).
  *
  * @param WP_REST_Request $request
  * @return WP_REST_Response

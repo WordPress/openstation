@@ -11,6 +11,7 @@
 import { describe, expect, test } from 'vitest';
 import {
 	frameBounds,
+	JOIN_WARMUP_STEPS,
 	randomSeed,
 	seedPositions,
 	SETTLE_ON_LOAD_MAX_NODES,
@@ -134,10 +135,11 @@ describe( 'warmupStepLimit', () => {
 	} );
 
 	test( 'large boards keep the short warm-start', () => {
+		expect( JOIN_WARMUP_STEPS ).toBe( 90 );
 		expect( warmupStepLimit( SETTLE_ON_LOAD_MAX_NODES + 1 ) ).toBe(
-			Math.min( 90, 30 + SETTLE_ON_LOAD_MAX_NODES + 1 ),
+			JOIN_WARMUP_STEPS,
 		);
-		expect( warmupStepLimit( 500 ) ).toBe( 90 );
+		expect( warmupStepLimit( 500 ) ).toBe( JOIN_WARMUP_STEPS );
 	} );
 
 	test( 'the settle budget actually settles a small board', () => {

@@ -10,15 +10,7 @@
 
 export interface PostTypeDescriptor {
 	slug: string;
-	/** Plural label ("Posts"), as shown on the toolbar chips. */
 	label: string;
-	/**
-	 * Singular label ("Post"), as shown on a node card's meta line.
-	 * Optional: a descriptor injected through the
-	 * `openstation_content_graph_post_types` filter may omit it, in
-	 * which case the card falls back to `label`.
-	 */
-	singular?: string;
 	icon: string;
 	count: number;
 	taxonomies?: {

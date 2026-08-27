@@ -196,13 +196,16 @@ class Tests_OpenStation_ContentGraphVisibility extends WP_UnitTestCase {
 		);
 		wp_set_current_user( self::$editor_id );
 
+		// Through the server, not the callback: dispatch is what installs
+		// registered arg defaults into the request, and the omitted-vs-
+		// empty distinction only holds if no default is registered.
 		$default_request = new WP_REST_Request(
 			'GET',
 			'/desktop-mode/v1/content-graph/nodes'
 		);
-		$default_data    = rest_ensure_response(
-			openstation_content_graph_rest_nodes( $default_request )
-		)->get_data();
+		$default_response = rest_get_server()->dispatch( $default_request );
+		$this->assertSame( 200, $default_response->get_status() );
+		$default_data = $default_response->get_data();
 		$this->assertContains(
 			$post_id,
 			$this->node_ids( $default_data ),
@@ -213,10 +216,10 @@ class Tests_OpenStation_ContentGraphVisibility extends WP_UnitTestCase {
 			'GET',
 			'/desktop-mode/v1/content-graph/nodes'
 		);
-		$empty_request->set_param( 'types', '' );
-		$empty_data = rest_ensure_response(
-			openstation_content_graph_rest_nodes( $empty_request )
-		)->get_data();
+		$empty_request->set_query_params( array( 'types' => '' ) );
+		$empty_response = rest_get_server()->dispatch( $empty_request );
+		$this->assertSame( 200, $empty_response->get_status() );
+		$empty_data = $empty_response->get_data();
 		$this->assertSame( array(), $empty_data['nodes'] );
 		$this->assertSame( 0, $empty_data['stats']['nodes'] );
 	}

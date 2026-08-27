@@ -19,8 +19,10 @@
  * itself: nothing to pin, everything filtered out, or cards with no
  * thread between them yet.
  *
- * The `<os-*>` web components are defined by the main desktop
- * bundle; this module only consumes them.
+ * The `<os-*>` web components this module consumes are defined by
+ * the main desktop bundle; the one it constructs itself
+ * (`<os-empty-state>`, in `board-notice.ts`) is side-effect-imported
+ * there so the window does not depend on registration order.
  *
  * @public
  */
@@ -241,11 +243,14 @@ async function renderContentGraph( body: HTMLElement ): Promise< ActiveState > {
 			// on every window open by virtue of the toolbar being
 			// constructed fresh each render.
 			scene?.setGrouping( facet );
+			// A clustered board has its own top-left labels; the
+			// "No threads yet" note would sit on top of them.
+			notice.setSuppressed( facet !== null );
 		},
 		getNodes: () => scene?.getNodes() ?? [],
 	} );
 
-	let toolbar = renderToolbar(
+	const toolbar = renderToolbar(
 		toolbarHost,
 		cfg.postTypes,
 		buildToolbarCallbacks(),
@@ -347,15 +352,12 @@ async function renderContentGraph( body: HTMLElement ): Promise< ActiveState > {
 				return;
 			}
 			postTypes = refreshed;
-			// Replace the live toolbar handle so subsequent setStatus
-			// calls target the new DOM. Without this the original
-			// handle silently writes to a removed element.
-			toolbar.destroy();
-			toolbar = renderToolbar(
-				toolbarHost,
-				refreshed,
-				buildToolbarCallbacks(),
-			);
+			// In place, not a rebuild: the toolbar is already live and
+			// the user may have toggled a chip or started typing while
+			// `/post-types` was in flight. Both lists come from the
+			// same `openstation_content_graph_post_types()`, so only
+			// the counts differ.
+			toolbar.updateCounts( refreshed );
 		} catch {
 			// Non-fatal — keep the chips that came from the window config.
 		}
