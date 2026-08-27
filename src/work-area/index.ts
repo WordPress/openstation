@@ -250,8 +250,8 @@ export function subscribeWorkArea(
 export function measureWorkArea( deps: WorkAreaInstallDeps ): WorkAreaSnapshot {
 	const areaRect = areaViewportRect( deps );
 	const chrome: RectLike[] = [];
-	// A dynamic dock (OpenStation Preferences → Appearance → Dock
-	// behavior) parks off its edge and slides over content only when
+	// A dynamic dock (OpenStation Preferences → Appearance → Desktop
+	// layout → Dock behavior) parks off its edge and slides over content only when
 	// summoned — transient chrome, like a popover. It claims nothing:
 	// windows get the whole desktop, and the rail rides over them.
 	const dynamicDock = document.body.classList.contains( DYNAMIC_DOCK_CLASS );

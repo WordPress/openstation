@@ -679,6 +679,18 @@
 }
 
 /*
+ * One line under a control saying what the picked value does. Dock
+ * behavior needs it where Dock size does not: "Compact" is
+ * self-explaining, "Dynamic" is a promise about the pointer.
+ */
+.os-settings__dock-option-hint {
+	max-width: 56ch;
+	font-size: 12px;
+	line-height: 1.5;
+	color: var( --os-ui-fg-muted, #646970 );
+}
+
+/*
  * The card is the BOX, not the control. It holds the radio that
  * picks the layout and, for One dock, that layout's own options —
  * and a radio cannot contain a segmented control, so the two are

@@ -62,7 +62,6 @@ import { listSettingsTabs, subscribeSettingsTabs } from './registry';
 import { buildAboutSection } from './sections/about';
 import { buildAccentSection } from './sections/accent';
 import { buildAdminBarSection } from './sections/admin-bar';
-import { buildDockBehaviorSection } from './sections/dock-behavior';
 import { buildThemesSection } from './sections/themes';
 import { buildNavigationSection } from './sections/navigation';
 import { buildDesktopLayoutSection } from './sections/desktop-layout';
@@ -302,7 +301,6 @@ export function renderOsSettingsPanel(
 					${ buildAccentSection( ctx ) }
 					${ buildWallpaperSection( ctx, body ) }
 					${ buildDesktopLayoutSection( ctx ) }
-					${ buildDockBehaviorSection( ctx ) }
 					${ buildDockRailRendererSection( ctx ) }
 					${ buildAdminBarSection( ctx ) }
 				</os-panel>

@@ -17,7 +17,8 @@
  * answer, and saying so by containment beats saying it by proximity.
  * Dock size sits under both cards instead: both layouts have a dock,
  * and Split's bottom rail reads `--os-dock-width` exactly as Unified's
- * does.
+ * does. Dock behavior (Static / Dynamic, the auto-hide rail) sits
+ * right under it for the same reason — every layout's rails can park.
  * They used to be a separate Dock page in the sidebar; a page for two
  * segmented controls sent people hunting for what is really one
  * decision made in one place. Dock STYLE (the rail renderer registry)
@@ -38,17 +39,20 @@ import { __ } from '../../i18n';
 import { html, render } from '../../ui/core';
 import {
 	DESKTOP_LAYOUTS,
+	DOCK_BEHAVIORS,
 	DOCK_PLACEMENTS,
 	DOCK_SIZES,
 } from '../constants';
 import {
 	translateDesktopLayoutDescription,
 	translateDesktopLayoutLabel,
+	translateDockBehaviorLabel,
 	translateDockPlacementLabel,
 	translateDockSizeLabel,
 } from '../labels';
 import type {
 	DesktopLayoutId,
+	DockBehaviorId,
 	DockPlacementId,
 	DockSizeId,
 	SettingsCtx,
@@ -139,6 +143,25 @@ export function buildDesktopLayoutSection( ctx: SettingsCtx ): HTMLElement {
 		paint();
 	};
 
+	const onBehaviorPick = ( e: Event ): void => {
+		const id = ( ( e as CustomEvent ).detail?.value ?? '' ) as string;
+		if ( ! DOCK_BEHAVIORS.some( ( b ) => b.id === id ) ) {
+			return;
+		}
+		ctx.state.dockBehavior = id as DockBehaviorId;
+		ctx.save();
+		ctx.apply();
+		paint();
+	};
+
+	/** What the picked behavior does, in one line under its control. */
+	const describeBehavior = ( id: DockBehaviorId ): string =>
+		id === 'dynamic'
+			? __(
+				'The dock slides out of the way and comes back when you move the pointer to its edge of the screen. Windows can use the whole desktop.',
+			)
+			: __( 'The dock is always visible, and windows open above it.' );
+
 	/*
 	 * Placement belongs to the Unified card, and only there: Split
 	 * draws its rails on its own edges, so a position control in its
@@ -205,6 +228,30 @@ export function buildDesktopLayoutSection( ctx: SettingsCtx ): HTMLElement {
 									>`,
 							) }
 						</os-segmented>
+					</div>
+					<div class="os-settings__dock-option">
+						<span
+							class="os-settings__dock-option-label"
+							id="os-settings-dock-behavior-label"
+							>${ __( 'Dock behavior' ) }</span
+						>
+						<os-segmented
+							value=${ ctx.state.dockBehavior }
+							label=${ __( 'Dock behavior' ) }
+							@os-pick=${ onBehaviorPick }
+						>
+							${ DOCK_BEHAVIORS.map(
+								( b ) => html`<os-segment value=${ b.id }
+										>${ translateDockBehaviorLabel(
+											b.id,
+											b.label,
+										) }</os-segment
+									>`,
+							) }
+						</os-segmented>
+						<span class="os-settings__dock-option-hint"
+							>${ describeBehavior( ctx.state.dockBehavior ) }</span
+						>
 					</div>
 			  </div>`;
 

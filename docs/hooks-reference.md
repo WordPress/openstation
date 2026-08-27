@@ -1513,7 +1513,7 @@ add_filter( 'openstation_admin_bar_mode', function () {
 
 ### `openstation_dock_behavior` — Experimental
 
-Overrides how the dock presents for the current request, regardless of the user's own **OpenStation Preferences → Appearance → Dock behavior** pick. The resolved value is emitted as an `os-dock-<behavior>` body class on `admin_body_class`, which is what `assets/css/dock.css` and `src/dock-behavior.ts` key off.
+Overrides how the dock presents for the current request, regardless of the user's own **OpenStation Preferences → Appearance → Desktop layout → Dock behavior** pick. The resolved value is emitted as an `os-dock-<behavior>` body class on `admin_body_class`, which is what `assets/css/dock.css` and `src/dock-behavior.ts` key off.
 
 ```php
 apply_filters( 'openstation_dock_behavior', string $behavior );

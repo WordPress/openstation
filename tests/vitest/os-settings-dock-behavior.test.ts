@@ -1,5 +1,5 @@
 /**
- * OpenStation Preferences → Appearance → Dock behavior, at the apply
+ * OpenStation Preferences → Appearance → Desktop layout → Dock behavior, at the apply
  * pass and on the way in.
  *
  * The pick reaches CSS as an `os-dock-<behavior>` body class, and it

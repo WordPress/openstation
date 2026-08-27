@@ -1,7 +1,7 @@
 /**
  * Dynamic dock behavior — the auto-hide rail.
  *
- * OpenStation Preferences → Appearance → Dock behavior, persisted as
+ * OpenStation Preferences → Appearance → Desktop layout → Dock behavior, persisted as
  * `dockBehavior` and emitted as an `os-dock-<behavior>` body class
  * (PHP on first paint, the settings apply pass on every change).
  * Under `os-dock-dynamic`, `dock.css` parks every rail off its edge

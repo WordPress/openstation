@@ -168,8 +168,8 @@ export const ADMIN_BAR_MODES = [
 ] as const;
 
 /**
- * Dock behaviors — OpenStation Preferences → Appearance → Dock
- * behavior, persisted as `dockBehavior` and emitted as an
+ * Dock behaviors — OpenStation Preferences → Appearance → Desktop
+ * layout → Dock behavior, persisted as `dockBehavior` and emitted as an
  * `os-dock-<behavior>` body class by PHP on first paint and by the
  * apply pass on every change.
  *
