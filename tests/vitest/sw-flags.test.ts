@@ -142,6 +142,162 @@ describe( 'applyFlagMessage — everything else', () => {
 	} );
 } );
 
+/**
+ * The refactor itself, proved rather than inspected.
+ *
+ * `applyFlagMessage()` was lifted out of two inline branches in the
+ * worker's message listener. A refactor of the service worker is not
+ * something to take on trust — a wrong decision here does not throw,
+ * it silently leaves prewarming on for someone who turned it off, or
+ * strands a cache nobody clears.
+ *
+ * `legacyApply` below is those two branches transcribed verbatim from
+ * before the extraction. Every reachable input is run through both and
+ * the four observable outcomes compared: the two flags, whether the
+ * speculation store is cleared, whether the session cache is deleted,
+ * and whether the listener returned early (which decides if the
+ * message reaches the handlers underneath).
+ */
+interface LegacyOutcome {
+	flags: SwFlags;
+	clearSpeculative: boolean;
+	dropSessionCache: boolean;
+	handled: boolean;
+}
+
+function legacyApply( data: unknown, current: SwFlags ): LegacyOutcome {
+	let windowPrewarmEnabled = current.windowPrewarm;
+	let adminAssetCacheEnabled = current.adminAssetCache;
+	let clearSpeculative = false;
+	let dropSessionCache = false;
+	const d = data as
+		| { type?: string; enabled?: unknown; adminAssetCache?: unknown; windowPrewarm?: unknown }
+		| undefined;
+
+	if ( d && d.type === 'os-sw-set-prewarm' ) {
+		windowPrewarmEnabled = ( d as { enabled?: unknown } ).enabled === true;
+		if ( ! windowPrewarmEnabled ) {
+			clearSpeculative = true;
+			dropSessionCache = true;
+		}
+		return {
+			flags: {
+				windowPrewarm: windowPrewarmEnabled,
+				adminAssetCache: adminAssetCacheEnabled,
+			},
+			clearSpeculative,
+			dropSessionCache,
+			handled: true,
+		};
+	}
+
+	if ( d && d.type === 'os-sw-config' ) {
+		const cfg = d as { adminAssetCache?: unknown; windowPrewarm?: unknown };
+		if ( typeof cfg.adminAssetCache === 'boolean' ) {
+			adminAssetCacheEnabled = cfg.adminAssetCache;
+		}
+		if ( typeof cfg.windowPrewarm === 'boolean' ) {
+			windowPrewarmEnabled = cfg.windowPrewarm;
+			if ( ! windowPrewarmEnabled ) {
+				clearSpeculative = true;
+			}
+		}
+		return {
+			flags: {
+				windowPrewarm: windowPrewarmEnabled,
+				adminAssetCache: adminAssetCacheEnabled,
+			},
+			clearSpeculative,
+			dropSessionCache,
+			handled: true,
+		};
+	}
+
+	return {
+		flags: { windowPrewarm: windowPrewarmEnabled, adminAssetCache: adminAssetCacheEnabled },
+		clearSpeculative,
+		dropSessionCache,
+		handled: false,
+	};
+}
+
+describe( 'applyFlagMessage is equivalent to the branches it replaced', () => {
+	// Every flag state the worker can be in.
+	const STATES: SwFlags[] = [
+		{ windowPrewarm: false, adminAssetCache: false },
+		{ windowPrewarm: true, adminAssetCache: false },
+		{ windowPrewarm: false, adminAssetCache: true },
+		{ windowPrewarm: true, adminAssetCache: true },
+	];
+
+	// Values a field can carry once structured-cloned through
+	// postMessage, boolean and not.
+	const VALUES: unknown[] = [ true, false, 'true', 'yes', 1, 0, null, undefined, {}, [] ];
+
+	function messages(): unknown[] {
+		const out: unknown[] = [
+			undefined,
+			null,
+			'os-sw-config',
+			42,
+			true,
+			{},
+			[],
+			{ type: undefined },
+			{ type: 'os-remember-session', urls: [ '/wp-admin/' ] },
+			{ type: 'os-speculate-doc', url: '/wp-admin/edit.php' },
+			{ type: 'os-sw-set-prewarm' },
+			{ type: 'os-sw-config' },
+		];
+		for ( const value of VALUES ) {
+			out.push( { type: 'os-sw-set-prewarm', enabled: value } );
+			// The config message carries both fields; cross them so a
+			// boolean in one position is checked against every value in
+			// the other.
+			for ( const other of VALUES ) {
+				out.push( {
+					type: 'os-sw-config',
+					adminAssetCache: value,
+					windowPrewarm: other,
+				} );
+			}
+			out.push( { type: 'os-sw-config', adminAssetCache: value } );
+			out.push( { type: 'os-sw-config', windowPrewarm: value } );
+		}
+		return out;
+	}
+
+	it( 'agrees on every reachable input', () => {
+		const inputs = messages();
+		// Guard the guard: a shrunken matrix would pass vacuously.
+		expect( inputs.length ).toBeGreaterThan( 130 );
+
+		let compared = 0;
+		for ( const state of STATES ) {
+			for ( const data of inputs ) {
+				const legacy = legacyApply( data, state );
+				const update = applyFlagMessage( data, state );
+
+				const actual: LegacyOutcome = update
+					? { ...update, handled: true }
+					: {
+							flags: state,
+							clearSpeculative: false,
+							dropSessionCache: false,
+							handled: false,
+					  };
+
+				expect(
+					actual,
+					`diverged on ${ JSON.stringify( data ) } from ${ JSON.stringify( state ) }`,
+				).toEqual( legacy );
+				compared++;
+			}
+		}
+		expect( compared ).toBe( STATES.length * inputs.length );
+	} );
+} );
+
 describe( 'the shell side of the contract', () => {
 	let posted: unknown[];
 
