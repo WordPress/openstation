@@ -525,6 +525,7 @@ function openstation_native_window_allowed_html() {
 			'expandable'     => true,
 			'preset'         => true,
 			'label'          => true,
+			'heading'        => true,
 			'description'    => true,
 			'orientation'    => true,
 			'level'          => true,

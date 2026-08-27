@@ -2784,7 +2784,7 @@ The bin registers **no desktop icon**, so it lands on the dock and nowhere else.
 
 The full template body before it's emitted into the native-window template element. Keep the `data-os-recycle-bin-*` hooks intact so the JS bundle can find its mount points.
 
-Two are visibility hooks rather than mount points: while the bin is empty the JS hides `[data-os-recycle-bin-toolbar]` and the `<os-table>`, and shows `[data-os-recycle-bin-empty-state]`. Put added toolbar controls inside the toolbar element or they stay visible over an empty bin. A filter or search that matches nothing keeps the toolbar and shows the table's own `empty` text instead.
+Some are visibility hooks rather than mount points: while the bin is empty the JS hides `[data-os-recycle-bin-toolbar]` and the `<os-table>`, and shows `[data-os-recycle-bin-empty-state]`. Put added toolbar controls inside the toolbar element or they stay visible over an empty bin. A filter or search that matches nothing keeps the toolbar and shows the table's own `empty` text instead; so does a failed load, which swaps that text for a retry message.
 
 ### `openstation_recycle_bin_empty_chunk_size` — Experimental (filter)
 

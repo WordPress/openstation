@@ -195,13 +195,14 @@ function openstation_recycle_bin_render_template() {
 			</div>
 		</header>
 		<div class="os-recycle-bin__body" data-os-recycle-bin-body>
-			<div class="os-recycle-bin__empty" data-os-recycle-bin-empty-state hidden>
-				<span class="dashicons dashicons-trash" aria-hidden="true"></span>
-				<p><?php esc_html_e( 'The Trash is empty.', 'desktop-mode' ); ?></p>
-				<p class="os-recycle-bin__empty-hint">
-					<?php esc_html_e( 'Deleted posts, pages, and media show up here. Restoring puts them back where they were.', 'desktop-mode' ); ?>
-				</p>
-			</div>
+			<os-empty-state
+				data-os-recycle-bin-empty-state
+				role="status"
+				icon="trash"
+				heading="<?php esc_attr_e( 'The Trash is empty.', 'desktop-mode' ); ?>"
+				description="<?php esc_attr_e( 'Deleted posts, pages, and media show up here. Restoring puts them back where they were.', 'desktop-mode' ); ?>"
+				hidden
+			></os-empty-state>
 			<os-table
 				data-os-recycle-bin-table
 				selectable="multi"

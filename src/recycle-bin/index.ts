@@ -28,6 +28,8 @@ import '../ui/components/os-relative-time/os-relative-time';
 // `createElement('os-*')` doesn't see it. Register the compound
 // class set explicitly so the server-rendered toolbar works.
 import '../ui/components/os-segmented/os-segmented';
+// Same story for `<os-empty-state>`, which the template emits.
+import '../ui/components/os-empty-state/os-empty-state';
 import { DESKTOP_THEME_CHANGED_EVENT } from '../desktop-themes/apply';
 import {
 	resolveThemedIcon,
@@ -613,6 +615,7 @@ export function renderRecycleBin( body: HTMLElement ): void {
 
 	const toolbar = root.querySelector< HTMLElement >( TOOLBAR );
 	const emptyState = root.querySelector< HTMLElement >( EMPTY_STATE );
+	const noMatchText = table.getAttribute( 'empty' ) ?? '';
 
 	/**
 	 * Show or hide everything that only makes sense against a list.
@@ -720,20 +723,26 @@ export function renderRecycleBin( body: HTMLElement ): void {
 			// way to keep the badge truthful: we already paid for
 			// the round-trip, so we may as well consume the count.
 			setRecycleBinCount( total );
+			table.setAttribute( 'empty', noMatchText );
 			setChromeVisible( total > 0 );
 		} catch ( err ) {
 			if ( mySeq !== refreshSeq ) {
 				return;
 			}
 			console.error( '[recycle-bin] list failed', err );
-			// On the first-load failure with no cache, render an
-			// empty table so the slotted empty state shows. On
-			// subsequent failures with a cache, keep stale data —
-			// better UX than flashing "empty" because the network
-			// blipped.
+			// With a cache, keep the stale rows — better than
+			// flashing "empty" because the network blipped. With
+			// none, show an empty table, and force the chrome on
+			// whatever the seeded count said: the failure copy
+			// below points at Refresh, which lives in the toolbar.
 			if ( showSkeleton ) {
 				table.data = [];
 				currentFingerprint = '';
+				table.setAttribute(
+					'empty',
+					__( 'Could not load the Trash. Try Refresh.' ),
+				);
+				setChromeVisible( true );
 			}
 		} finally {
 			// Only the latest in-flight refresh gets to flip the
