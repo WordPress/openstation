@@ -42,6 +42,8 @@
 		"--os-dock-icon-color": "rgba( 255, 255, 255, 0.7 )",
 		"--os-dock-icon-color-hover": "#fff",
 		"--os-dock-icon-size": "20px",
+		"--os-dock-indicator-length": "180px",
+		"--os-dock-indicator-thickness": "5px",
 		"--os-dock-item-bg-hover": "rgba( 255, 255, 255, 0.15 )",
 		"--os-dock-item-outline": "rgba( 255, 255, 255, 0.7 )",
 		"--os-dock-recycle-badge-bg": "rgba( 29, 35, 39, 0.72 )",
