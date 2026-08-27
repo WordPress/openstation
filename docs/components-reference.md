@@ -42,6 +42,7 @@ The search box above the list filters on the flattened descriptor, not just the 
 | `<os-grid>` | `OsGrid` | `os-grid/os-grid.ts` | Auto-fit CSS grid primitive. |
 | `<os-card>` | `OsCard` | `os-card/os-card.ts` | Bordered surface for entity-card UIs. |
 | `<os-display>` | `OsDisplay` | `os-display/os-display.ts` | Hero / display-typography container. |
+| `<os-disclosure>` | `OsDisclosure` | `os-disclosure/os-disclosure.ts` | Titled section that folds away. Closed by default. |
 
 ## Form controls
 

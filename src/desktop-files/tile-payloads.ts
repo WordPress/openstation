@@ -16,6 +16,7 @@
  * never has to fight the claimant for the element.
  */
 
+import { createSharedStore } from '../shared-store';
 import type { DragPayload, DragSession } from '../drag';
 import type { RestPlacementShape } from './rest';
 
@@ -56,7 +57,23 @@ export interface TilePayloadHandler {
  * Resolution is first-applies-wins, so a handler only ever competes
  * with another that claims the *same tile* for the *same type*.
  */
-const handlers = new Map< string, TilePayloadHandler[] >();
+/**
+ * Shared across bundles — this module is compiled into the shell AND
+ * into `notes.js`. Two module-level copies meant the notes bundle
+ * registered its handler into one map while the shell's tile targets
+ * consulted the other, and dropping a note on a Posts shortcut tile was
+ * rejected. See AGENTS.md, "Cross-bundle state".
+ */
+const store = createSharedStore< {
+	handlers: Map< string, TilePayloadHandler[] >;
+} >( 'desktop-mode/tile-payload-handlers', () => ( {
+	handlers: new Map(),
+} ) );
+
+/** The one live registry, whichever bundle is asking. */
+function handlerMap(): Map< string, TilePayloadHandler[] > {
+	return store.state.handlers;
+}
 
 /**
  * Register a handler for a payload `type`. Returns a deregister
@@ -76,14 +93,14 @@ export function registerTilePayloadHandler(
 	type: string,
 	handler: TilePayloadHandler,
 ): () => void {
-	const list = handlers.get( type );
+	const list = handlerMap().get( type );
 	if ( list ) {
 		list.push( handler );
 	} else {
-		handlers.set( type, [ handler ] );
+		handlerMap().set( type, [ handler ] );
 	}
 	return () => {
-		const current = handlers.get( type );
+		const current = handlerMap().get( type );
 		if ( ! current ) {
 			return;
 		}
@@ -92,7 +109,7 @@ export function registerTilePayloadHandler(
 			current.splice( at, 1 );
 		}
 		if ( current.length === 0 ) {
-			handlers.delete( type );
+			handlerMap().delete( type );
 		}
 	};
 }
@@ -108,7 +125,7 @@ function resolveTileHandler(
 	type: string,
 	ctx: TilePayloadContext,
 ): TilePayloadHandler | undefined {
-	const list = handlers.get( type );
+	const list = handlerMap().get( type );
 	if ( ! list ) {
 		return undefined;
 	}
@@ -158,5 +175,5 @@ export function tilePayloadDrop(
 
 /** Test-only. */
 export function __resetTilePayloadHandlersForTests(): void {
-	handlers.clear();
+	handlerMap().clear();
 }

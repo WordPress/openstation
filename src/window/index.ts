@@ -163,6 +163,18 @@ function speculateTabDocument( rawUrl: string ): void {
 	}
 }
 
+/**
+ * How long the pointer must rest on a submenu tab before its document
+ * is speculated.
+ *
+ * `pointerover` fires on every crossing, so without a dwell a pointer
+ * sweeping across a strip of tabs on its way somewhere else asked for
+ * every one — and each ask holds a fully rendered admin page for 30 s.
+ * Intent looks like stopping. Short enough that a deliberate hover
+ * still buys most of the fetch before the click lands.
+ */
+const TAB_SPECULATE_DWELL_MS = 120;
+
 /** Animation mode accepted by `Window.requestAttention()`. */
 export type WindowAttentionMode = 'pulse' | 'shake' | 'bounce' | null;
 
@@ -590,6 +602,9 @@ export class Window {
 	 * @internal
 	 */
 	public _tabOverflowTeardown: ( () => void ) | null = null;
+
+	/** Pending submenu-tab speculation, while the pointer rests. */
+	public _tabSpeculateTimer: number | null = null;
 
 	constructor( config: WindowConfig ) {
 		this.id = config.id;
@@ -1311,8 +1326,35 @@ export class Window {
 					'.os-window__tab[data-url]',
 				) as HTMLElement | null;
 				const href = tab?.dataset.url;
-				if ( href ) {
+				if ( ! href ) {
+					return;
+				}
+				// The tab already on screen is not a prediction. It was
+				// speculated like any other, and the held copy then
+				// answered the next navigation TO it — which is how a
+				// list the user had just acted on could come back
+				// stale. There is nothing to warm here: the document is
+				// already in the iframe.
+				if ( tab?.classList.contains( 'is-active' ) ) {
+					return;
+				}
+				// Require a dwell. `pointerover` fires on every crossing
+				// — sweeping the pointer across a strip of tabs on the
+				// way somewhere else used to ask for every one of them,
+				// and each ask holds a rendered admin page for 30 s.
+				// Intent looks like stopping.
+				if ( this._tabSpeculateTimer ) {
+					window.clearTimeout( this._tabSpeculateTimer );
+				}
+				this._tabSpeculateTimer = window.setTimeout( () => {
+					this._tabSpeculateTimer = null;
 					speculateTabDocument( href );
+				}, TAB_SPECULATE_DWELL_MS );
+			} );
+			tabs.addEventListener( 'pointerleave', () => {
+				if ( this._tabSpeculateTimer ) {
+					window.clearTimeout( this._tabSpeculateTimer );
+					this._tabSpeculateTimer = null;
 				}
 			} );
 			// Paint the edge fades only where scrolling would
@@ -3648,6 +3690,10 @@ export class Window {
 		// Same rationale for the tab strip's overflow watcher: its
 		// observers would otherwise keep measuring a strip that is
 		// animating out of the document.
+		if ( this._tabSpeculateTimer ) {
+			window.clearTimeout( this._tabSpeculateTimer );
+			this._tabSpeculateTimer = null;
+		}
 		this._tabOverflowTeardown?.();
 		this._tabOverflowTeardown = null;
 

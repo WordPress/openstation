@@ -43,6 +43,8 @@
  * lookups) are fine; avoid synchronous network or heavy
  * computation.
  */
+import { createSharedStore } from './shared-store';
+
 type HeartbeatSupplier< T = unknown > = () => T;
 
 /**
@@ -61,9 +63,30 @@ interface JQueryLike {
 	};
 }
 
-const suppliers = new Map< string, HeartbeatSupplier >();
-const subscribers = new Map< string, Set< HeartbeatSubscriber > >();
-let booted = false;
+/**
+ * The bus registries, shared across bundles.
+ *
+ * This module is compiled into the shell bundle AND into `notes.js`.
+ * With plain module-level state each bundle got its own bus:
+ * `bootHeartbeatBus()` runs in the shell and only ever bound the
+ * SHELL's copy, so a `subscribe()` made from the notes bundle landed in
+ * a registry nothing was pumping. `openstation_notes_subscribe` was
+ * therefore never sent, and another user's note edits and moves never
+ * arrived until a reload.
+ *
+ * `booted` belongs in here for the same reason: two copies meant the
+ * second bundle believed the bus was unbooted and could bind Heartbeat
+ * a second time. See AGENTS.md, "Cross-bundle state".
+ */
+const store = createSharedStore< {
+	suppliers: Map< string, HeartbeatSupplier >;
+	subscribers: Map< string, Set< HeartbeatSubscriber > >;
+	booted: boolean;
+} >( 'desktop-mode/heartbeat-bus', () => ( {
+	suppliers: new Map(),
+	subscribers: new Map(),
+	booted: false,
+} ) );
 
 export interface HeartbeatBus {
 	/**
@@ -91,21 +114,21 @@ export interface HeartbeatBus {
 
 export const heartbeat: HeartbeatBus = {
 	contribute( field, supplier ) {
-		suppliers.set( field, supplier as HeartbeatSupplier );
+		store.state.suppliers.set( field, supplier as HeartbeatSupplier );
 		return () => {
 			// Only delete if THIS supplier is still the registered
 			// one — protects against a later contributor's
 			// unsubscribe accidentally pulling out the wrong one.
-			if ( suppliers.get( field ) === ( supplier as HeartbeatSupplier ) ) {
-				suppliers.delete( field );
+			if ( store.state.suppliers.get( field ) === ( supplier as HeartbeatSupplier ) ) {
+				store.state.suppliers.delete( field );
 			}
 		};
 	},
 	subscribe( field, cb ) {
-		let set = subscribers.get( field );
+		let set = store.state.subscribers.get( field );
 		if ( ! set ) {
 			set = new Set();
-			subscribers.set( field, set );
+			store.state.subscribers.set( field, set );
 		}
 		set.add( cb as HeartbeatSubscriber );
 		return () => {
@@ -125,10 +148,10 @@ export const heartbeat: HeartbeatBus = {
  * shared `suppliers` map directly.
  */
 export function bootHeartbeatBus(): void {
-	if ( booted ) {
+	if ( store.state.booted ) {
 		return;
 	}
-	booted = true;
+	store.state.booted = true;
 	const $ = ( window as unknown as { jQuery?: JQueryLike } ).jQuery;
 	if ( ! $ ) {
 		// Heartbeat ships with WordPress core admin — its absence
@@ -146,7 +169,7 @@ export function bootHeartbeatBus(): void {
 		if ( ! data ) {
 			return;
 		}
-		for ( const [ field, supplier ] of suppliers ) {
+		for ( const [ field, supplier ] of store.state.suppliers ) {
 			try {
 				data[ field ] = supplier();
 			} catch ( err ) {
@@ -166,7 +189,7 @@ export function bootHeartbeatBus(): void {
 		if ( ! response ) {
 			return;
 		}
-		for ( const [ field, set ] of subscribers ) {
+		for ( const [ field, set ] of store.state.subscribers ) {
 			const value = response[ field ];
 			if ( value === undefined ) {
 				continue;
@@ -196,7 +219,7 @@ export function bootHeartbeatBus(): void {
  * @internal
  */
 export function _resetHeartbeatBusForTests(): void {
-	suppliers.clear();
-	subscribers.clear();
-	booted = false;
+	store.state.suppliers.clear();
+	store.state.subscribers.clear();
+	store.state.booted = false;
 }

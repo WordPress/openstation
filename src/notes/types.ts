@@ -51,6 +51,18 @@ export const NOTE_PAYLOAD_TYPE = 'note';
  */
 export const NOTE_CREATED_EVENT = 'os-note-created';
 
+/**
+ * Heartbeat tick field carrying note changes.
+ *
+ * It lives here rather than in `./heartbeat` because the SENTINEL needs
+ * it: a desktop with no notes yet watches this field so the site's
+ * first public note arrives live rather than on the next reload, and
+ * the sentinel ships in the shell bundle. Importing `./heartbeat` from
+ * there would pull the presence-gated module back onto every boot —
+ * `shell-bundle-boundary.test.ts` enforces exactly that, and caught it.
+ */
+export const NOTES_HEARTBEAT_RESPONSE_FIELD = 'openstation_notes';
+
 /** `payload.data` for a `'note-draft'` drag (widget → wallpaper). */
 export interface NoteDraftDragData {
 	text: string;

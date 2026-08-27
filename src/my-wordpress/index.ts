@@ -811,6 +811,17 @@ function renderFolderGrid(
 		if ( ! entity ) {
 			return;
 		}
+		// A section can be listed while its feature is off — Agents
+		// ships regardless so it can render its own "disabled" preview.
+		// Its REST route is not registered in that state, so this probe
+		// 404s; and because it is a tracked fetch attributed to the
+		// window, the title bar painted the failure as "Not saved.
+		// Request failed (HTTP 404 Not Found)" every time WP Explorer
+		// opened, in the default install state. There is no count to
+		// fetch, so don't ask.
+		if ( entity.enabled === false ) {
+			return;
+		}
 		let fetchTimer: number | null = null;
 		const updateCount = () => {
 			void fetchEntityTotal( entity )

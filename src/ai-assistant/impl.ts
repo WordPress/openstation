@@ -178,6 +178,13 @@ export class AiAssistant implements AiAssistantApi {
 	private _isOpen = false;
 	private _isSearching = false;
 	private _previousFocus: Element | null = null;
+
+	/**
+	 * Disarms the `transitionend` listener that hides the panel after a
+	 * close fade. Set while that fade is pending, cleared when it fires
+	 * or when an `open()` supersedes it.
+	 */
+	private _closeFadeCleanup: ( () => void ) | null = null;
 	private _aiSearchUrl: string;
 	private _restNonce: string;
 	/**
@@ -295,6 +302,11 @@ export class AiAssistant implements AiAssistantApi {
 		this._updateModeUI();
 		this._renderForMode();
 
+		// Disarm any close-fade listener still waiting: it belongs to a
+		// close this open has just superseded, and letting it fire
+		// would hide the panel we are opening.
+		this._closeFadeCleanup?.();
+
 		this._el.removeAttribute( 'hidden' );
 		void this._el.offsetHeight;
 		this._el.classList.add( 'is-open' );
@@ -336,15 +348,40 @@ export class AiAssistant implements AiAssistantApi {
 			} ),
 		);
 
+		// Hide once the fade finishes — and only if we are still closed
+		// when it does.
+		//
+		// The listener outlived the close it belonged to: reopening
+		// during the 180 ms fade left it armed, so the NEXT opacity
+		// transition — the one bringing the panel back — fired it and
+		// set `hidden` on a panel that had just been opened. The result
+		// is `is-open` plus `display: none`: open as far as every piece
+		// of state is concerned, invisible on screen, and unrecoverable
+		// without another open/close cycle. Seen once in a
+		// background-throttled tab, where transitions run long enough
+		// for a person to get ahead of them.
+		//
+		// `_closeFadeCleanup` lets `open()` disarm it, and the
+		// `_isOpen` re-check makes the listener refuse to act on a
+		// transition that no longer belongs to a close.
+		this._closeFadeCleanup?.();
 		const onEnd = ( e: TransitionEvent ) => {
 			if ( e.target !== this._el || e.propertyName !== 'opacity' ) {
 				return;
 			}
-			this._el.setAttribute( 'hidden', '' );
 			this._el.removeEventListener( 'transitionend', onEnd );
+			this._closeFadeCleanup = null;
+			if ( this._isOpen ) {
+				return;
+			}
+			this._el.setAttribute( 'hidden', '' );
 			if ( this._previousFocus instanceof HTMLElement ) {
 				this._previousFocus.focus();
 			}
+		};
+		this._closeFadeCleanup = () => {
+			this._el.removeEventListener( 'transitionend', onEnd );
+			this._closeFadeCleanup = null;
 		};
 		this._el.addEventListener( 'transitionend', onEnd );
 	}

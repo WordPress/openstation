@@ -33,6 +33,17 @@ export interface MyWordPressEntity {
 	 */
 	kind?: EntityKind;
 	/**
+	 * Whether this entity's REST route is actually registered.
+	 *
+	 * An entity can be listed while its feature is switched off — the
+	 * Agents section ships regardless so it can render its own
+	 * "disabled" preview and explain how to turn it on. Its route,
+	 * however, only registers when the feature is enabled, so probing
+	 * it 404s. Absent means enabled, so an entity that never opts out
+	 * behaves exactly as before.
+	 */
+	enabled?: boolean;
+	/**
 	 * Canonical slug for cross-window broadcast events (e.g., 'post', 'page').
 	 * The bundle prefixes 'os.' and suffixes '.changed' for subscriptions.
 	 */

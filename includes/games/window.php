@@ -19,6 +19,33 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
+ * The stylesheet handles a game window needs, hub or no hub.
+ *
+ * Set once while the Games window is registered — after the
+ * `openstation_games_window_args` filter, so it includes the built-in
+ * games' own sheets and any a plugin appended — and read back when the
+ * shell config is assembled.
+ *
+ * These ride the hub window as companion styles, which is right when
+ * the hub is what opened. It is not the only way in: the challenge
+ * toast's "Accept & Play" is built to work with the hub closed, solo
+ * mode boots straight to `?openstation_solo=os-game-<id>`, and
+ * `wp.os.games.launch()` is documented for plugin authors. Each of
+ * those reaches `launchGame()` in the shell bundle without the hub
+ * window ever existing, and the game then paints unstyled.
+ *
+ * @param string[]|null $set Handles to store, when registering.
+ * @return string[] The stored handles.
+ */
+function openstation_games_style_handles( $set = null ) {
+	static $handles = array();
+	if ( null !== $set ) {
+		$handles = array_values( array_unique( array_filter( array_map( 'strval', (array) $set ) ) ) );
+	}
+	return $handles;
+}
+
+/**
  * The shared gamepad SVG used by the window icon and the desktop
  * icon.
  *
@@ -153,6 +180,18 @@ function openstation_games_register_window() {
 	 * @param array $window_args Args passed to `openstation_register_window()`.
 	 */
 	$window_args = (array) apply_filters( 'openstation_games_window_args', $window_args );
+
+	// Remember the finished style list — base sheet plus whatever the
+	// built-in games and any plugin appended through the filter above.
+	// A game window does NOT always arrive through the hub: the
+	// challenge toast's "Accept & Play" is designed to work with the
+	// hub closed, solo mode boots straight into
+	// `?openstation_solo=os-game-<id>`, and `wp.os.games.launch()` is
+	// documented for plugins. In each of those, `launchGame()` runs
+	// from the SHELL bundle's copy, the hub window never opens, and its
+	// companion sheets never load — the HUD paints as raw text. The
+	// shell needs the list to inject them on demand.
+	openstation_games_style_handles( $window_args['styles'] );
 
 	$registered = openstation_register_window( 'desktop-mode-games', $window_args );
 	if ( is_wp_error( $registered ) ) {

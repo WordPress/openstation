@@ -100,10 +100,11 @@ import type {
 } from './window-links/types';
 import { createUnfocusEffectRegistrySync } from './effects/server-sync';
 import { createWindowLinkRendererRegistrySync } from './window-links/server-sync';
+import { ensureWindowLinkVisuals } from './window-links/ensure-visuals';
+import { registerBuiltInLinkRendererStub } from './window-links/stub-renderer';
 import { startUnfocusEngine } from './effects/unfocus-engine';
 import { startWindowRevealEngine } from './reveals/engine';
 import { createDockRailRendererSync } from './dock-rail/server-sync';
-import { loadVendorScript } from './wallpapers/vendor-loader';
 import { installDockConstellationSentinel } from './dock-constellation/sentinel';
 import {
 	type WindowThemeDef,
@@ -3573,6 +3574,16 @@ function init(): void {
 	// render host below owns the visuals.
 	startWindowLinksEngine( { manager } );
 
+	// The built-in renderer's METADATA, from boot. Its drawing code is
+	// in the lazy visuals bundle, and until that arrived the registry
+	// held nothing — so `listWindowLinkRenderers()` broke its documented
+	// promise to "always include the built-in `svg-splines`", and
+	// Preferences painted a blank "Link style" because the stored value
+	// matched no option. Three strings now register here; the bundle
+	// still loads only when a link needs drawing or someone opens the
+	// tab that lists renderers.
+	registerBuiltInLinkRendererStub();
+
 	// Window-link render host — mounts the user's chosen link renderer
 	// (built-in `svg-splines` by default) into a lazy overlay layer
 	// whenever a relation group is renderable, and applies the
@@ -3587,12 +3598,18 @@ function init(): void {
 			HOOKS.WINDOW_LINK_GROUPS_CHANGED,
 			'desktop-mode/window-link-visuals-sentinel',
 			() => {
-				if ( visualsRequested || ! config.windowLinkVisualsBundleUrl ) {
+				if ( visualsRequested ) {
 					return;
 				}
 				visualsRequested = true;
-				void loadVendorScript( config.windowLinkVisualsBundleUrl )
-					.then( () => {
+				// Shared with the Preferences "Link style" picker, which
+				// needs the same bundle for its registrations alone —
+				// whichever asks second shares the first one's fetch.
+				void ensureWindowLinkVisuals()
+					.then( ( loaded ) => {
+						if ( ! loaded ) {
+							return;
+						}
 						window.openStationWindowLinkVisuals?.start( {
 							manager,
 							osSettings,

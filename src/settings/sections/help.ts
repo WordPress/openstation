@@ -260,50 +260,69 @@ export function buildHelpSection( ctx: SettingsCtx ): HTMLElement {
 				${ ctx.state.developerModeEnabled
 					? html`
 						<!--
-							The sentence lives in the body rather than on the
+							Folded away by default. The demo is worth keeping
+							— it is the only place the warner can be seen
+							working — but it is read once and then costs every
+							later visit the ~200px it occupies, squeezing the
+							two panes below into a letterbox. A disclosure
+							keeps it one click away and gives the browser its
+							height back.
+
+							The sentence lives in the body rather than on a
 							description attribute because it has to sit BESIDE
-							the snippet on a wide window, and the description
-							renders in the os-section shadow tree — nothing in
-							the slot can share a row with it.
+							the snippet on a wide window, and a description
+							would render in the component's shadow tree —
+							nothing in the slot can share a row with it.
 						-->
-						<os-section
+						<os-disclosure
+							class="os-settings__help-warner-section"
 							heading=${ __( 'Missing-import warner — live demo' ) }
+							hint=${ __( 'Developer mode' ) }
 						>
 							<div class="os-settings__help-warner">
 								<p class="os-settings__help-warner-text">
 									${ __(
-										'Both <os-*> tags in the next piece of code are intentionally bogus, one per answer the warner has. Open the browser console: within ~2 seconds you should see two console.error entries from the framework, each pointing the developer at the fix — a name nothing in the registry comes close to, and a typo the warner can suggest a fix for ("did you mean"). Live copies of the same two tags are rendered off-screen, so the demo fires without affecting layout. Remove this section in your fork if you want a quieter Components tab.',
+										'Both <os-*> tags in the next piece of code are intentionally bogus, one per answer the warner has. Open the browser console: within ~2 seconds you should see two console.error entries from the framework, each pointing the developer at the fix — a name nothing in the registry comes close to, and a typo the warner can suggest a fix for ("did you mean"). Live copies of the same two tags are rendered off-screen, so the demo fires without affecting layout — including while this section is folded away. Remove this section in your fork if you want a quieter Components tab.',
 									) }
 								</p>
 								<pre
 									class="os-settings__help-warner-code"
 								><code>${ WARNER_DEMO_SNIPPET }</code></pre>
 							</div>
+						</os-disclosure>
 
-							<!--
-								The live copies. Real elements, because the
-								warner watches the document for tags nothing
-								registered — a snippet of text cannot trigger
-								it. Clipped rather than display:none so the
-								upgrade path runs exactly as it would on a
-								visible element.
+						<!--
+							The live copies. Real elements, because the warner
+							watches the document for tags nothing registered —
+							a snippet of text cannot trigger it. Clipped
+							rather than display:none so the upgrade path runs
+							exactly as it would on a visible element.
 
-								Case 1 — invented name, nothing close in the
-								registry: the "no component by that name
-								exists" branch.
-								Case 2 — typo within Levenshtein distance of a
-								real tag: the "Did you mean <os-button>?"
-								branch.
-							-->
-							<div
-								class="os-settings__help-warner-demo"
-								aria-hidden="true"
-								style="position:absolute;width:0;height:0;overflow:hidden;clip:rect(0 0 0 0);"
-							>
-								<os-example-console-fail-due-to-unregistered-component></os-example-console-fail-due-to-unregistered-component>
-								<os-buton></os-buton>
-							</div>
-						</os-section>
+							DELIBERATELY OUTSIDE the disclosure above. A
+							closed disclosure's body carries the hidden
+							attribute, which is display:none — the one thing
+							this markup has always avoided. The warner itself
+							scans with querySelectorAll and would still find
+							them, but the reason for clipping was never the
+							warner; it was that the upgrade path should run as
+							it does for a real element, and a demo that only
+							fires when someone expands the section is not a
+							demo of what happens on page load.
+
+							Case 1 — invented name, nothing close in the
+							registry: the "no component by that name exists"
+							branch.
+							Case 2 — typo within Levenshtein distance of a
+							real tag: the "Did you mean <os-button>?" branch.
+						-->
+						<div
+							class="os-settings__help-warner-demo"
+							aria-hidden="true"
+							style="position:absolute;width:0;height:0;overflow:hidden;clip:rect(0 0 0 0);"
+						>
+							<os-example-console-fail-due-to-unregistered-component></os-example-console-fail-due-to-unregistered-component>
+							<os-buton></os-buton>
+						</div>
 					`
 					: '' }
 

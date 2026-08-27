@@ -304,19 +304,101 @@
 	height: 100%;
 }
 
+/*
+ * Full-canvas loading wash. Resting state is invisible: the bundle
+ * arms it on every graph fetch and adds `--visible` only once the
+ * fetch has run long enough to be worth interrupting the board for
+ * (see `src/content-graph/loading-overlay.ts`). A class rather than
+ * `[hidden]` so the wash fades instead of popping.
+ */
 .os-content-graph__loading {
 	position: absolute;
 	inset: 0;
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	background: rgba( 247, 248, 251, 0.7 );
+	/*
+	 * A translucent sheet of the stage's own surface, so it dims a
+	 * dark board as well as a light one. The literal is the pre-brand
+	 * light surface, kept as the floor if the token is missing.
+	 */
+	background: color-mix(
+		in srgb,
+		var( --os-ui-surface, #f7f8fb ) 72%,
+		transparent
+	);
 	pointer-events: none;
-	z-index: 2;
+	z-index: 3;
+	opacity: 0;
+	visibility: hidden;
+	transition: opacity 0.2s ease, visibility 0s linear 0.2s;
+}
+
+.os-content-graph__loading--visible {
+	opacity: 1;
+	visibility: visible;
+	transition: opacity 0.2s ease;
 }
 
 .os-content-graph__loading[ hidden ] {
 	display: none;
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.os-content-graph__loading {
+		transition: none;
+	}
+}
+
+/* ---------- Board notices (empty board, no threads yet) ----------- */
+
+/*
+ * <os-empty-state> owns the icon + copy; this is placement only. It
+ * covers the (empty) canvas and lets pointer events through so the
+ * stage still pans and the dot grid still reads as a board.
+ */
+.os-content-graph__empty {
+	position: absolute;
+	inset: 0;
+	z-index: 2;
+	pointer-events: none;
+}
+
+/*
+ * "No threads yet" note. Top-left, out of the way of a small board
+ * centred in the stage and of the side panel on the right. Real DOM
+ * text over the canvas, so it is translatable and follows the theme
+ * tokens like the rest of the chrome; pointer-events are off so a
+ * pan that starts on it still pans the board. The bundle hides it
+ * while a grouping is active, when the cluster labels need the space.
+ */
+.os-content-graph__hint {
+	position: absolute;
+	top: 12px;
+	left: 12px;
+	z-index: 2;
+	max-width: 320px;
+	padding: 10px 14px 12px;
+	border: 1px solid var( --os-ui-border, #e2e6ec );
+	border-radius: 8px;
+	background: var( --os-ui-surface-elevated, #fff );
+	color: var( --os-ui-fg-muted, #5a6473 );
+	box-shadow: 0 1px 3px rgba( 0, 0, 0, 0.08 );
+	font-size: 12px;
+	line-height: 1.45;
+	pointer-events: none;
+}
+
+.os-content-graph__hint-title {
+	display: block;
+	margin-bottom: 3px;
+	color: var( --os-ui-fg, #1a1f2b );
+	font-size: 12.5px;
+	font-weight: 600;
+}
+
+.os-content-graph__hint-body {
+	margin: 0;
 }
 
 /* ---------- Right side panel: breadcrumb --------------------------- */

@@ -13,6 +13,8 @@
  * one window is served from Cache Storage to every later window.
  */
 
+import { urlActs } from './acting-url';
+
 /**
  * Runtime configuration handed to the SW by the PHP endpoint that
  * serves it (`openstation_pwa_serve_service_worker()`), as a
@@ -169,26 +171,14 @@ export function classifyAdminAssetRequest(
 }
 
 /**
- * Query keys that mean a URL *does something*.
- *
- * Speculation must never act. Anything carrying an action or a nonce
- * is a request to change state — activating a plugin, emptying a
- * trash, applying an update — and fetching it ahead of a click the
- * user has not made yet would perform it.
- */
-const ACTING_QUERY_KEYS = [
-	'action',
-	'action2',
-	'_wpnonce',
-	'nonce',
-	'delete_all',
-] as const;
-
-/**
  * Whether a URL is a plain admin screen safe to fetch early.
  *
  * Three conditions, all required: it is an admin page, it is the
- * chromeless variant a window actually loads, and it does nothing.
+ * chromeless variant a window actually loads, and it does nothing —
+ * neither through an acting query key nor merely by being rendered
+ * ({@see urlActs}) — the same test the dock's hover prewarming uses,
+ * because both fetch a page ahead of a click and carry the same
+ * obligation not to act.
  *
  * The chromeless flag is not incidental. It is what makes serving the
  * result to an iframe navigation safe at all — the server reads that
@@ -207,12 +197,7 @@ export function isSpeculatableDocument( url: URL ): boolean {
 	if ( ! url.searchParams.has( 'openstation_chromeless' ) ) {
 		return false;
 	}
-	for ( const key of ACTING_QUERY_KEYS ) {
-		if ( url.searchParams.has( key ) ) {
-			return false;
-		}
-	}
-	return true;
+	return ! urlActs( url );
 }
 
 /**

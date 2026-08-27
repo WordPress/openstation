@@ -48,6 +48,16 @@ function openstation_inkfall_register() {
 			'description'   => __( 'Words fall down a notebook page — type them before they reach the bottom. Finishing a word sends up a musical note that tears it into scattering letters.', 'desktop-mode' ),
 			'icon_svg'      => openstation_inkfall_icon_svg(),
 			'script'        => 'os-game-inkfall',
+			// Mirrors the `window` block in `src/games/inkfall/index.ts`.
+			// Declared here as well so the window opens at the right
+			// size on the very first play, before the bundle that
+			// carries the def has been fetched. Keep the two in step.
+			'window'        => array(
+				'width'     => 820,
+				'height'    => 620,
+				'minWidth'  => 520,
+				'minHeight' => 420,
+			),
 			'score_columns' => array(
 				array(
 					'key'   => 'score',

@@ -57,6 +57,14 @@ import {
 	type PixiNamespace,
 	type PixiText,
 } from './pixi-types';
+import {
+	frameBounds,
+	JOIN_WARMUP_STEPS,
+	randomSeed,
+	seedPositions,
+	warmupStepLimit,
+	type Point,
+} from './layout';
 import { ForceSim } from './sim';
 import {
 	SatelliteLayer,
@@ -224,6 +232,16 @@ const GROUP_LABEL_COLOR: Record< GroupFacet, string > = {
 
 const ZOOM_MIN = 0.15;
 const ZOOM_MAX = 4;
+/**
+ * Fit never zooms past this, however small the board: a lone node at
+ * 4× is a poster, not a board. Wheel zoom still reaches `ZOOM_MAX`.
+ */
+const FIT_ZOOM_MAX = 1.5;
+const FIT_OPTIONS = {
+	padding: 100,
+	minScale: ZOOM_MIN,
+	maxScale: FIT_ZOOM_MAX,
+};
 const ZOOM_SENSITIVITY = 0.0008;
 const CAMERA_EASE = 0.18;
 // A tiny snap distance below which we skip easing (avoids the camera
@@ -380,6 +398,9 @@ export class GraphScene {
 	private unsubscribeWorkArea: ( () => void ) | null = null;
 	private lastResizeWidth = 0;
 	private lastResizeHeight = 0;
+	// A fit asked for while the host had no size yet (window still
+	// laying out). Honoured by the resize observer once it does.
+	private fitPending = false;
 	// Camera target system — wheel + focus + fitToView write here, the
 	// tick loop eases the actual world.x / world.y / world.scale toward
 	// these targets each frame.
@@ -589,14 +610,22 @@ export class GraphScene {
 			tags: {},
 		};
 
-		const nodes: GraphNode[] = payload.nodes.map( ( p ) => {
+		// A board laid out from scratch (first load, or a filter change
+		// that replaced every node) is seeded with its centroid on the
+		// world origin — see `layout.ts` for why that is the property
+		// the camera depends on. Nodes joining an existing layout keep
+		// the random periphery seed and get pulled in by gravity.
+		const fromScratch = payload.nodes.every( ( p ) => ! prev.has( p.id ) );
+		const seeds = fromScratch
+			? seedPositions( payload.nodes.length )
+			: null;
+		const nodes: GraphNode[] = payload.nodes.map( ( p, i ) => {
 			const old = prev.get( p.id );
-			const angle = Math.random() * Math.PI * 2;
-			const r = 150 + Math.random() * 250;
+			const seed = seeds ? seeds[ i ] : randomSeed();
 			return {
 				...p,
-				x: old?.x ?? Math.cos( angle ) * r,
-				y: old?.y ?? Math.sin( angle ) * r,
+				x: old?.x ?? seed.x,
+				y: old?.y ?? seed.y,
 				vx: 0,
 				vy: 0,
 				pinned: false,
@@ -636,8 +665,18 @@ export class GraphScene {
 		// happened yet (no paint until the ticker fires), so these
 		// steps are invisible — they only collapse the period of
 		// chaotic motion that made it hard to click a node before.
-		const warmupSteps = Math.min( 90, 30 + nodes.length );
-		for ( let i = 0; i < warmupSteps; i++ ) {
+		// A small board laid out from scratch runs all the way to rest
+		// here, so the first frame IS the final layout and nothing
+		// drifts out of the frame the camera is about to be given.
+		// Large boards, and any board where nodes are joining a layout
+		// the user is already looking at, keep the short warm-start and
+		// finish settling on screen — settling a joined board here
+		// would snap the nodes the user can see to new positions with
+		// no transition.
+		const warmupSteps = fromScratch
+			? warmupStepLimit( nodes.length )
+			: JOIN_WARMUP_STEPS;
+		for ( let i = 0; i < warmupSteps && ! this.sim.isSettled; i++ ) {
 			this.sim.step( 1 );
 		}
 		// If a grouping was active before this rebuild (e.g. the post-type
@@ -974,6 +1013,9 @@ export class GraphScene {
 				this.app.render();
 			} catch {
 				// Pixi sometimes throws on race during teardown.
+			}
+			if ( this.fitPending ) {
+				this.fitToView();
 			}
 			// Sub-pixel sidebar reflows (panel open/close, scroll
 			// adjustments) shouldn't trigger camera repositioning. Only
@@ -1809,60 +1851,41 @@ export class GraphScene {
 		// A user-initiated fit: measure once so a window dragged under
 		// the dock since the last resize is framed correctly.
 		this.fitInsets = workAreaInsetsOf( this.host );
-		let minX = Infinity;
-		let minY = Infinity;
-		let maxX = -Infinity;
-		let maxY = -Infinity;
-		for ( const t of targets.values() ) {
-			if ( t.x < minX ) {
-				minX = t.x;
-			}
-			if ( t.y < minY ) {
-				minY = t.y;
-			}
-			if ( t.x > maxX ) {
-				maxX = t.x;
-			}
-			if ( t.y > maxY ) {
-				maxY = t.y;
-			}
-		}
-		this.frameBounds( minX, minY, maxX, maxY );
+		this.frame( targets.values() );
 	}
 
 	/**
-	 * Point the camera at a world-space bounding box so it fills the
-	 * REACHABLE part of the host: the host's box minus whatever hangs
-	 * outside the desktop's work area (the band under the dock pill
-	 * when the window is maximized or dragged low). Framing into the
-	 * whole host put a small graph's lowest nodes under the dock after
-	 * every Fit — visible, unreachable.
+	 * Point the camera at `points`, centred and at the largest fit
+	 * zoom, in the REACHABLE part of the host: its box minus whatever
+	 * hangs outside the desktop's work area (the band under the dock
+	 * pill when the window is dragged low). Framing into the whole
+	 * host put a small graph's lowest nodes under the dock after every
+	 * Fit — visible, unreachable. The insets are host px, and so is
+	 * the camera's translation, so the reachable box's centre is where
+	 * the bounds' centre lands.
 	 *
-	 * The insets are screen px; `targetX` / `targetY` are the world's
-	 * translation in the same screen px, so the reachable box's centre
-	 * is where the bounds' centre lands. Zoom is capped at 1.5× so a
-	 * two-node graph doesn't fill the screen with two discs.
+	 * When the host has no size yet the request is parked and
+	 * replayed by the resize observer — framing against a 0×0 host
+	 * would leave the board in the top-left corner at minimum zoom.
 	 */
-	private frameBounds(
-		minX: number,
-		minY: number,
-		maxX: number,
-		maxY: number,
-	): void {
-		const padding = 100;
-		const w = maxX - minX + padding * 2;
-		const h = maxY - minY + padding * 2;
+	private frame( points: Iterable< Point > ): void {
 		const inset = this.fitInsets;
-		const viewW = Math.max( 1, this.host.clientWidth - inset.left - inset.right );
-		const viewH = Math.max( 1, this.host.clientHeight - inset.top - inset.bottom );
-		const sx = viewW / w;
-		const sy = viewH / h;
-		const s = Math.max( ZOOM_MIN, Math.min( 1.5, Math.min( sx, sy ) ) );
-		const cx = ( minX + maxX ) / 2;
-		const cy = ( minY + maxY ) / 2;
-		this.targetScale = s;
-		this.targetX = inset.left + viewW / 2 - cx * s;
-		this.targetY = inset.top + viewH / 2 - cy * s;
+		const target = frameBounds(
+			points,
+			{
+				width: this.host.clientWidth - inset.left - inset.right,
+				height: this.host.clientHeight - inset.top - inset.bottom,
+			},
+			FIT_OPTIONS,
+		);
+		if ( ! target ) {
+			this.fitPending = true;
+			return;
+		}
+		this.fitPending = false;
+		this.targetScale = target.scale;
+		this.targetX = inset.left + target.x;
+		this.targetY = inset.top + target.y;
 	}
 
 	/**
@@ -1995,25 +2018,7 @@ export class GraphScene {
 		if ( measure ) {
 			this.fitInsets = workAreaInsetsOf( this.host );
 		}
-		let minX = Infinity;
-		let minY = Infinity;
-		let maxX = -Infinity;
-		let maxY = -Infinity;
-		for ( const n of this.nodes ) {
-			if ( n.x < minX ) {
-				minX = n.x;
-			}
-			if ( n.y < minY ) {
-				minY = n.y;
-			}
-			if ( n.x > maxX ) {
-				maxX = n.x;
-			}
-			if ( n.y > maxY ) {
-				maxY = n.y;
-			}
-		}
-		this.frameBounds( minX, minY, maxX, maxY );
+		this.frame( this.nodes );
 	}
 
 	destroy(): void {

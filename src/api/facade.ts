@@ -183,6 +183,7 @@ import {
 import { applyThemeRecommendations } from '../settings/theme-recommendations';
 import { loadComponents } from '../ui/components/loader';
 import { registerNativeUrlRemap } from '../native-url-remap';
+import { notifyServiceWorkerPrewarm } from '../pwa/sw-register';
 import type { NativeWindowDef, DesktopConfig } from '../types';
 
 /**
@@ -506,6 +507,28 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 			}
 			if ( patch.ai && typeof patch.ai === 'object' ) {
 				osSettings.state.ai = { ...osSettings.state.ai, ...patch.ai };
+			}
+			// The two PWA flags. They were absent from this list, so
+			// they could only be changed from the Preferences UI — an
+			// asymmetry with no reason behind it, since every other
+			// boolean here is settable.
+			//
+			// `windowPrewarmEnabled` carries the same side effect the
+			// toggle does: the running service worker keeps its own
+			// copy of the flag (baked in at install), so without
+			// telling it, turning this on leaves the worker dropping
+			// every speculation and turning it off leaves it
+			// speculating. `adminAssetCacheEnabled` needs no equivalent
+			// — it reaches the worker inside the served `sw.js` bytes,
+			// as a normal SW update.
+			if ( typeof patch.windowPrewarmEnabled === 'boolean' ) {
+				osSettings.state.windowPrewarmEnabled =
+					patch.windowPrewarmEnabled;
+				notifyServiceWorkerPrewarm( patch.windowPrewarmEnabled );
+			}
+			if ( typeof patch.adminAssetCacheEnabled === 'boolean' ) {
+				osSettings.state.adminAssetCacheEnabled =
+					patch.adminAssetCacheEnabled;
 			}
 			if ( typeof patch.nativePostsEnabled === 'boolean' ) {
 				osSettings.state.nativePostsEnabled = patch.nativePostsEnabled;

@@ -1740,9 +1740,37 @@
 	gap: 12px;
 }
 /* The intro card (Component library description) shouldn't grow —
-   it's content-sized so the grid below gets the remaining height. */
-.os-settings__help > os-section {
+   it's content-sized so the grid below gets the remaining height.
+   The warner disclosure is the same: content-sized whether it is
+   folded or open, so opening it takes room from the panes below
+   rather than from the window. */
+.os-settings__help > os-section,
+.os-settings__help > os-disclosure {
 	flex: 0 0 auto;
+}
+
+/*
+ * The warner demo reads as one of this tab's section boxes, but the
+ * box has to start BELOW the summary row: a disclosure whose frame
+ * wraps its own toggle looks like a card you cannot close, and when
+ * folded it leaves an empty bordered strip with a title in it. So the
+ * host stays transparent and the box is painted on the body part,
+ * which is `hidden` while closed and therefore paints nothing at all.
+ */
+.os-settings__help-warner-section::part( body ) {
+	padding: 18px;
+	background: var( --os-ui-surface-subtle, rgba( 0, 0, 0, 0.03 ) );
+	border: 1px solid var( --os-ui-border, #dcdcde );
+	border-radius: 10px;
+	/*
+	 * `overflow: hidden` matches `os-section::part( body )` above, and
+	 * is load-bearing rather than cosmetic: the `<pre>` inside carries
+	 * `overflow-x: auto` precisely BECAUSE the box clips (see the
+	 * comment on `.os-settings__help-warner-code`). Drop it here and
+	 * the 56-character tag would push the box wide instead of
+	 * scrolling inside it.
+	 */
+	overflow: hidden;
 }
 .os-settings__help-layout {
 	flex: 1;

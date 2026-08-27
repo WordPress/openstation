@@ -2472,7 +2472,7 @@ window.openStationGames[ 'my-plugin-puzzle' ] = {
     title:        'Puzzle',
     icon:         'dashicons-screenoptions',
     scoreColumns: [ { key: 'score', label: 'Score', type: 'number' } ],
-    window:       { width: 800, height: 600 },   // hosting-window sizing
+    window:       { width: 800, height: 600 },   // hosting-window sizing — declare it in PHP too
     render( ctx ) {                              // runs once per window open
         // ctx: { windowId, container, config, challenge?, submitScore, close }
         return () => { /* teardown — runs on every close path */ };
@@ -2481,6 +2481,8 @@ window.openStationGames[ 'my-plugin-puzzle' ] = {
 ```
 
 `render` receives a `GameLaunchContext`: `container` (the window body), `config` (the PHP-registered blob), `challenge` (set when the run is an accepted score-to-beat challenge: `{ id, scoreToBeat, scoreMeta, challengerName }`), `submitScore( { score, meta } )` (routes to the leaderboard, or to the challenge-completion endpoint in challenge mode), and `close()`. The framework suspends the wallpaper for the window's lifetime and opens the window as `os-game-<id>` (no dock tile).
+
+**The window opens before your bundle is fetched.** `launch()` calls `registerWindow()` first and loads the game script *inside* the render callback, so the window manager's loading overlay covers the download instead of the click appearing to do nothing. Two consequences for a game author: the `window` block should also be declared in `openstation_register_game()` (the size is needed a round trip before this def — see [hooks-reference](hooks-reference.md#openstation_register_game-id-args--experimental-php-function)), and a `render` that throws surfaces as a failed window open rather than a rejected `launch()`.
 
 **Score announcements.** Once a `submitScore()` write resolves, the launcher publishes `os/game-score-recorded` on the activity bus with `{ game, score, meta, windowId, challengeId? }` (both paths publish; `challengeId` only on challenge completion). Games play in their own window, so this is how leaderboards elsewhere in the shell find out they went stale: the hub's scoreboard subscribes and reloads the page the viewer is on. Subscribe to it if your plugin paints anything derived from scores. A failed write publishes nothing.
 
@@ -3934,6 +3936,7 @@ wp.os.updateOsSettings(
 - **Whitelist semantics.** Only keys present on the public `OsSettingsSnapshot` shape are honored; unknown (or wrong-typed) keys are silently ignored, so a typo'd field can't bloat the persisted state. Collection fields are sanitized on the way in (`nativePostsHiddenColumns` / `navOrder` entries must be non-empty strings, `navPlacement` values must be one of `'rail' | 'desktop' | 'both' | 'hidden'`, `dockPromotedPositions` values must be finite `{ x, y }` coordinates).
 - **Persistence.** The write runs through the same pipeline as the panel: a `localStorage` cache write plus a debounced REST sync (250 ms window).
 - **Presentation keys apply live.** A patch touching `wallpaper`, `accent`, `dockSize`, `windowRadius`, `adminBarMode`, `desktopLayout`, `dockPlacement`, `dockBehavior`, `dockRailRenderer` or `desktopTheme` also runs the shell's apply pass, so the change is visible immediately rather than on the next page load. `unfocusEffect` repaints too, through the subscriber above rather than the apply pass. `windowReveal` and `windowRevealDuration` reach the shell the same way, and take effect on the next window load. Every other key is state-only.
+- **The two PWA flags are settable too.** `windowPrewarmEnabled` and `adminAssetCacheEnabled` were previously reachable only from the Preferences UI. Patching `windowPrewarmEnabled` also tells the running service worker, exactly as the toggle does — the worker holds its own copy of the flag, baked in when it installed, so without that message turning it on leaves the worker refusing every speculation and turning it off leaves it speculating. `adminAssetCacheEnabled` needs no equivalent: it reaches the worker inside the served `sw.js` bytes, applying on the next SW update.
 - **Subscribers fire.** Both the top-level `wp.os.subscribeOsSettings( cb )` and every settings tab's `ctx.subscribeOsSettings` see the new snapshot.
 - **Observable save lifecycle.** Each phase fires on `document` as [`os-settings-save-lifecycle`](#os-settings-save-lifecycle--stable) (`'pending'` → `'saving'` → `'saved'` / `'failed'`), same as a built-in tab's save. `<os-save-status auto>` renders it for free.
 - **`opts.windowId`** attributes the in-flight REST sync to a specific window's activity phase (defaults to the OpenStation Preferences window).

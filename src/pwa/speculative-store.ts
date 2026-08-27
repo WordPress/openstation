@@ -100,4 +100,15 @@ export class SpeculativeStore {
 			this.entries.delete( oldest );
 		}
 	}
+
+	/**
+	 * Drop everything, now.
+	 *
+	 * For a session boundary rather than housekeeping: held entries are
+	 * fully rendered admin pages belonging to whoever was signed in, and
+	 * they must not outlive that session by even the normal TTL.
+	 */
+	public clear(): void {
+		this.entries.clear();
+	}
 }

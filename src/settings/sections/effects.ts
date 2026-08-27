@@ -28,6 +28,7 @@ import {
 	subscribeWindowLinkRenderers,
 	WINDOW_LINK_RENDERER_NONE as LINKS_NONE,
 } from '../../window-links/renderer-registry';
+import { ensureWindowLinkVisuals } from '../../window-links/ensure-visuals';
 import {
 	listWindowReveals,
 	REVEAL_DURATION_AUTO,
@@ -290,6 +291,18 @@ export function buildEffectsSection( ctx: SettingsCtx ): HTMLElement {
 		linkRenderers = listWindowLinkRenderers();
 		paint();
 	} );
+
+	// The built-in `svg-splines` renderer registers itself as a
+	// load-time side effect of the visuals bundle, which the shell only
+	// fetches once two windows actually relate. Until then this list
+	// holds nothing but `None`, while the stored value is still
+	// `svg-splines` — and a `<os-select>` asked to show a value no
+	// option carries renders blank. Pull the bundle in when the tab is
+	// on screen so the dropdown can describe the setting that is
+	// actually in force; the subscription above repaints when the
+	// registrations land. Failure is survivable — the list simply stays
+	// as it was — so the rejection is swallowed rather than surfaced.
+	void ensureWindowLinkVisuals().catch( () => {} );
 
 	const observer = new MutationObserver( () => {
 		if ( ! wrapper.isConnected ) {
