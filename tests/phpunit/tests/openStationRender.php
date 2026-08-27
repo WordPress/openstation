@@ -97,30 +97,36 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::openstation_admin_body_classes
+	 * The dock is stamped for the first paint so a dynamic rail never
+	 * flashes on screen before the JS folds it.
+	 *
+	 * @covers ::openstation_render_shell
 	 * @covers ::openstation_get_dock_behavior
 	 */
-	public function test_body_class_carries_default_dock_behavior() {
+	public function test_shell_stamps_default_dock_behavior_on_the_dock() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 
-		$this->assertStringContainsString(
-			'os-dock-static',
-			openstation_admin_body_classes( '' )
-		);
+		ob_start();
+		openstation_render_shell();
+		$output = ob_get_clean();
+
+		$this->assertStringContainsString( 'data-os-dock-behavior="static"', $output );
 	}
 
 	/**
-	 * @covers ::openstation_admin_body_classes
+	 * @covers ::openstation_render_shell
 	 * @covers ::openstation_get_dock_behavior
 	 */
-	public function test_body_class_reflects_saved_dock_behavior() {
+	public function test_shell_stamps_saved_dock_behavior_on_the_dock() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		openstation_save_os_settings( self::$admin_id, array( 'dockBehavior' => 'dynamic' ) );
 
-		$classes = openstation_admin_body_classes( '' );
+		ob_start();
+		openstation_render_shell();
+		$output = ob_get_clean();
 
-		$this->assertStringContainsString( 'os-dock-dynamic', $classes );
-		$this->assertStringNotContainsString( 'os-dock-static', $classes );
+		$this->assertStringContainsString( 'data-os-dock-behavior="dynamic"', $output );
+		$this->assertStringNotContainsString( 'data-os-dock-behavior="static"', $output );
 	}
 
 	/**

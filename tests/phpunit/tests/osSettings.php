@@ -86,6 +86,24 @@ class Tests_OpenStation_OsSettings extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The Split sidebar carries its own answer, independent of the
+	 * bottom dock's.
+	 */
+	public function test_sanitize_keeps_side_dock_behavior_independently() {
+		$clean = openstation_sanitize_os_settings(
+			array(
+				'dockBehavior'     => 'static',
+				'sideDockBehavior' => 'dynamic',
+			)
+		);
+		$this->assertSame( 'static', $clean['dockBehavior'] );
+		$this->assertSame( 'dynamic', $clean['sideDockBehavior'] );
+
+		$clean = openstation_sanitize_os_settings( array( 'sideDockBehavior' => 'peekaboo' ) );
+		$this->assertSame( 'static', $clean['sideDockBehavior'] );
+	}
+
+	/**
 	 * An unknown behavior would emit `os-dock-<junk>`, which matches
 	 * no stylesheet rule — the rail would simply stay put, but the
 	 * stored value would be a lie. Fall back to the default instead.

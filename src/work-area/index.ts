@@ -74,11 +74,10 @@ export {
 export const WORK_AREA_CHANGED_EVENT = 'os-work-area-changed';
 
 /**
- * Body class the settings apply pass writes for the `dynamic` dock
- * behavior (`src/settings/index.ts`). Rails claim no band while it
- * is on.
+ * The per-rail attribute the dock-behavior settings are stamped as
+ * (`src/dock-behavior.ts`). A rail carrying `dynamic` claims no band.
  */
-export const DYNAMIC_DOCK_CLASS = 'os-dock-dynamic';
+export const DYNAMIC_DOCK_ATTR = 'data-os-dock-behavior';
 
 /**
  * What the shell knows about the reachable desktop, all at once.
@@ -250,21 +249,18 @@ export function subscribeWorkArea(
 export function measureWorkArea( deps: WorkAreaInstallDeps ): WorkAreaSnapshot {
 	const areaRect = areaViewportRect( deps );
 	const chrome: RectLike[] = [];
-	// A dynamic dock (OpenStation Preferences → Appearance → Desktop
-	// layout → Dock behavior) folds into a thin line at its edge and
-	// expands over content only when summoned — transient chrome,
-	// like a popover. It claims nothing:
+	// A dynamic rail (OpenStation Preferences → Appearance → Desktop
+	// layout; `data-os-dock-behavior="dynamic"` on the rail) folds
+	// into a thin line at its edge and expands over content only when
+	// summoned — transient chrome, like a popover. It claims nothing:
 	// windows get the whole desktop, and the rail rides over them.
-	const dynamicDock = document.body.classList.contains( DYNAMIC_DOCK_CLASS );
-	const nodes = dynamicDock
-		? []
-		: Array.from(
-			deps.shellBody.querySelectorAll< HTMLElement >(
-				deps.chromeSelector ?? '.os-dock',
-			),
-		);
-	for ( const node of nodes ) {
-		if ( node.hidden ) {
+	// Per rail, because the Split layout's sidebar and bottom dock
+	// answer independently.
+	const nodes = deps.shellBody.querySelectorAll< HTMLElement >(
+		deps.chromeSelector ?? '.os-dock',
+	);
+	for ( const node of Array.from( nodes ) ) {
+		if ( node.hidden || node.getAttribute( DYNAMIC_DOCK_ATTR ) === 'dynamic' ) {
 			continue;
 		}
 		chrome.push( node.getBoundingClientRect() );

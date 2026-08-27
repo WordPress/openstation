@@ -169,9 +169,11 @@ export const ADMIN_BAR_MODES = [
 
 /**
  * Dock behaviors — OpenStation Preferences → Appearance → Desktop
- * layout → Dock behavior, persisted as `dockBehavior` and emitted as an
- * `os-dock-<behavior>` body class by PHP on first paint and by the
- * apply pass on every change.
+ * layout, persisted as `dockBehavior` (the dock: the single rail in
+ * Unified, the bottom dock in Split) and `sideDockBehavior` (the Split
+ * sidebar), and worn by each rail as a `data-os-dock-behavior`
+ * attribute: PHP stamps the dock on first paint, the apply pass
+ * re-stamps both on every change.
  *
  * `static` is the rail as it always was: always on screen, and the
  * band it floats over is reserved from the work area. `dynamic`
@@ -240,9 +242,12 @@ export const DEFAULTS: OsSettingsState = {
 	// is the other option.
 	desktopLayout: 'unified',
 	dockPlacement: 'bottom',
-	// Always on screen. `dynamic` (auto-hide behind a peek strip) is
-	// one pick away in Appearance.
+	// Always on screen. `dynamic` (folded into an indicator line) is
+	// one pick away in Appearance. The Split layout's sidebar answers
+	// for itself: a folded sidebar over a static bottom dock is a
+	// valid desk.
 	dockBehavior: 'static',
+	sideDockBehavior: 'static',
 	dockRailRenderer: 'default',
 	// `''` = System default. Any other value is a desktop-theme
 	// slug; the registry resolves it at apply time and falls back

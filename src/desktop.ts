@@ -2785,9 +2785,15 @@ function init(): void {
 			shellBody,
 			area: desktopArea,
 		} );
-		// The dynamic dock behavior's JS half — parked-inset extent and
-		// the edge reveal zone. Inert while the behavior is static.
-		installDockBehavior( { shellBody } );
+		// The dynamic dock behavior's JS half — per-rail stamping and
+		// the fold / reveal state. Inert while every rail is static.
+		installDockBehavior( {
+			shellBody,
+			getBehaviors: () => ( {
+				dock: osSettings.state.dockBehavior,
+				sidebar: osSettings.state.sideDockBehavior,
+			} ),
+		} );
 		// Constellation — the hover-submenu flyout. Once mounted it is
 		// a single delegated listener serving every menu tile on every
 		// rail, reading fan-in direction off the rail the tile is on,

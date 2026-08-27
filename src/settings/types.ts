@@ -120,13 +120,19 @@ export interface OsSettingsState {
 	 */
 	dockPlacement: DockPlacementId;
 	/**
-	 * How the dock presents: `'static'` (always on screen, the
+	 * How the dock presents — the single rail in `'unified'`, the
+	 * bottom dock in `'classic'`: `'static'` (always on screen, the
 	 * default — the band it floats over is reserved from the work
-	 * area) or `'dynamic'` (parked off its edge behind a peek strip,
-	 * revealed when the pointer reaches that edge or something on it
-	 * takes focus; reserves nothing).
+	 * area) or `'dynamic'` (folded into an indicator line at its
+	 * edge, expanded when the pointer reaches that edge or something
+	 * on it takes focus; reserves nothing).
 	 */
 	dockBehavior: DockBehaviorId;
+	/**
+	 * The same choice for the `'classic'` layout's sidebar, its own
+	 * rail on its own edge. Ignored by `'unified'`.
+	 */
+	sideDockBehavior: DockBehaviorId;
 	/**
 	 * Active dock rail-renderer id. Resolves through the dock-rail
 	 * registry; missing or invalid falls back to `'default'` (the

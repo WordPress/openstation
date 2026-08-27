@@ -464,6 +464,10 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 				osSettings.state.dockBehavior =
 					patch.dockBehavior as typeof osSettings.state.dockBehavior;
 			}
+			if ( typeof patch.sideDockBehavior === 'string' ) {
+				osSettings.state.sideDockBehavior =
+					patch.sideDockBehavior as typeof osSettings.state.sideDockBehavior;
+			}
 			// `desktopTheme` accepts `''` — that is the system default,
 			// a real value rather than a missing one, so this is the
 			// one id field here with no non-empty guard.
@@ -665,6 +669,7 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 				typeof patch.desktopLayout === 'string' ||
 				typeof patch.dockPlacement === 'string' ||
 				typeof patch.dockBehavior === 'string' ||
+				typeof patch.sideDockBehavior === 'string' ||
 				typeof patch.dockRailRenderer === 'string' ||
 				typeof patch.desktopTheme === 'string'
 			) {

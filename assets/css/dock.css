@@ -1249,9 +1249,12 @@
 
 /* ------------------------------------------------------------------
  * Dynamic dock behavior — OpenStation Preferences → Appearance →
- * Desktop layout → Dock behavior, persisted as `dockBehavior` and
- * emitted as an `os-dock-<behavior>` body class by PHP on first paint
- * and by the apply pass on every change. `static` is the absence of
+ * Desktop layout, persisted as `dockBehavior` (the dock) and
+ * `sideDockBehavior` (the Split sidebar) and worn by each rail as
+ * `data-os-dock-behavior` — an attribute PER RAIL rather than a body
+ * class, because Split's two rails answer independently. PHP stamps
+ * the dock on first paint; the apply pass and `src/dock-behavior.ts`
+ * re-stamp on every change and rebuild. `static` is the absence of
  * rules.
  *
  * A dynamic rail that is not `os-dock--revealed` is PARKED: it
@@ -1278,17 +1281,17 @@
  * Side rails overlay the area in both states — the flex row must not
  * shrink for a rail that is only sometimes there.
  */
-body.os-dock-dynamic .os-dock[ data-os-dock-placement="left" ],
-body.os-dock-dynamic .os-dock[ data-os-dock-placement="right" ] {
+.os-dock[ data-os-dock-behavior="dynamic" ][ data-os-dock-placement="left" ],
+.os-dock[ data-os-dock-behavior="dynamic" ][ data-os-dock-placement="right" ] {
 	position: absolute;
 	inset-block: 0;
 }
 
-body.os-dock-dynamic .os-dock[ data-os-dock-placement="left" ] {
+.os-dock[ data-os-dock-behavior="dynamic" ][ data-os-dock-placement="left" ] {
 	inset-inline-start: 0;
 }
 
-body.os-dock-dynamic .os-dock[ data-os-dock-placement="right" ] {
+.os-dock[ data-os-dock-behavior="dynamic" ][ data-os-dock-placement="right" ] {
 	inset-inline-end: 0;
 }
 
@@ -1298,7 +1301,7 @@ body.os-dock-dynamic .os-dock[ data-os-dock-placement="right" ] {
  * box is the line's size. `overflow: hidden` clips whatever a tile
  * paints past its box during the morph.
  */
-body.os-dock-dynamic .os-dock:not( .os-dock--revealed ) {
+.os-dock[ data-os-dock-behavior="dynamic" ]:not( .os-dock--revealed ) {
 	min-width: 0;
 	min-height: 0;
 	max-width: none;
@@ -1318,28 +1321,28 @@ body.os-dock-dynamic .os-dock:not( .os-dock--revealed ) {
 	cursor: pointer;
 }
 
-body.os-dock-dynamic .os-dock:not( .os-dock--revealed ) > * {
+.os-dock[ data-os-dock-behavior="dynamic" ]:not( .os-dock--revealed ) > * {
 	display: none;
 }
 
-body.os-dock-dynamic .os-dock[ data-os-dock-placement="bottom" ]:not( .os-dock--revealed ) {
+.os-dock[ data-os-dock-behavior="dynamic" ][ data-os-dock-placement="bottom" ]:not( .os-dock--revealed ) {
 	width: var( --os-dock-indicator-length, 180px );
 	height: var( --os-dock-indicator-thickness, 5px );
 	bottom: 8px;
 }
 
-body.os-dock-dynamic .os-dock[ data-os-dock-placement="left" ]:not( .os-dock--revealed ),
-body.os-dock-dynamic .os-dock[ data-os-dock-placement="right" ]:not( .os-dock--revealed ) {
+.os-dock[ data-os-dock-behavior="dynamic" ][ data-os-dock-placement="left" ]:not( .os-dock--revealed ),
+.os-dock[ data-os-dock-behavior="dynamic" ][ data-os-dock-placement="right" ]:not( .os-dock--revealed ) {
 	width: var( --os-dock-indicator-thickness, 5px );
 	height: var( --os-dock-indicator-length, 180px );
 	inset-block: calc( 50% - var( --os-dock-indicator-length, 180px ) / 2 );
 }
 
-body.os-dock-dynamic .os-dock[ data-os-dock-placement="left" ]:not( .os-dock--revealed ) {
+.os-dock[ data-os-dock-behavior="dynamic" ][ data-os-dock-placement="left" ]:not( .os-dock--revealed ) {
 	inset-inline-start: 8px;
 }
 
-body.os-dock-dynamic .os-dock[ data-os-dock-placement="right" ]:not( .os-dock--revealed ) {
+.os-dock[ data-os-dock-behavior="dynamic" ][ data-os-dock-placement="right" ]:not( .os-dock--revealed ) {
 	inset-inline-end: 8px;
 }
 
@@ -1392,7 +1395,7 @@ body.os-dock-dynamic .os-dock[ data-os-dock-placement="right" ]:not( .os-dock--r
 }
 
 @supports not ( view-transition-name: none ) {
-	body.os-dock-dynamic .os-dock {
+	.os-dock[ data-os-dock-behavior="dynamic" ] {
 		transition:
 			width 240ms ease,
 			height 240ms ease,
@@ -1404,7 +1407,7 @@ body.os-dock-dynamic .os-dock[ data-os-dock-placement="right" ]:not( .os-dock--r
 }
 
 @media ( prefers-reduced-motion: reduce ) {
-	body.os-dock-dynamic .os-dock {
+	.os-dock[ data-os-dock-behavior="dynamic" ] {
 		transition: none;
 	}
 }

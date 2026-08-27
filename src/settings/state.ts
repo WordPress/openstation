@@ -158,6 +158,11 @@ function _parseRaw( parsed: Partial<OsSettingsState> ): OsSettingsState {
 		)
 			? ( parsed.dockBehavior as DockBehaviorId )
 			: DEFAULTS.dockBehavior,
+		sideDockBehavior: DOCK_BEHAVIORS.some(
+			( b ) => b.id === parsed.sideDockBehavior,
+		)
+			? ( parsed.sideDockBehavior as DockBehaviorId )
+			: DEFAULTS.sideDockBehavior,
 		// Dock rail renderer — any sanitize_key()-clean string
 		// survives; the registry resolves at use time and falls back
 		// to `'default'` when the picked renderer isn't registered.

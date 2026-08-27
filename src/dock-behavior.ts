@@ -1,14 +1,21 @@
 /**
  * Dynamic dock behavior — the auto-hide rail.
  *
- * OpenStation Preferences → Appearance → Desktop layout → Dock
- * behavior, persisted as `dockBehavior` and emitted as an
- * `os-dock-<behavior>` body class (PHP on first paint, the settings
- * apply pass on every change). Under `os-dock-dynamic`, a rail that
- * is not `os-dock--revealed` is PARKED: `dock.css` collapses it into
- * a thin indicator line hugging its edge — the iOS home indicator,
- * one line that says "there is a dock here" — and it expands back
- * into the full rail when the pointer comes for it.
+ * OpenStation Preferences → Appearance → Desktop layout, persisted as
+ * `dockBehavior` (the dock: the single rail in Unified, the bottom
+ * dock in Split) and `sideDockBehavior` (the Split sidebar). Each
+ * rail wears its answer as a `data-os-dock-behavior` attribute — an
+ * attribute per rail rather than a body class, because the two rails
+ * answer independently. PHP stamps the dock for the first paint; the
+ * settings apply pass re-stamps both on every change; this module
+ * re-stamps whenever the layout dispatcher rebuilds a rail, since
+ * the Split sidebar is a fresh element every time.
+ *
+ * A `dynamic` rail that is not `os-dock--revealed` is PARKED:
+ * `dock.css` collapses it into a thin indicator line hugging its
+ * edge — the iOS home indicator, one line that says "there is a dock
+ * here" — and it expands back into the full rail when the pointer
+ * comes for it.
  *
  * This module owns the revealed / parked state. Nothing in CSS
  * decides it (no `:hover`), because the flip is animated through the
@@ -45,8 +52,8 @@
  * remembered and applied when the morph settles, so a pointer
  * skating along the edge never stacks animations.
  *
- * Nothing here costs anything while the behavior is `static`: the
- * pointer handler returns on its first line.
+ * Nothing here costs anything while every rail is `static`: the
+ * pointer handler skips a static rail on its first line.
  */
 
 /** Pointer band at the rail's edge that summons it, in px. */
@@ -65,11 +72,17 @@ export const KEEP_OUT_FACTOR = 1;
 /** Air past a revealed rail's ends within which the pointer still counts as "on it". */
 const RAIL_HOVER_MARGIN = 24;
 
-/** Class a rail wears while expanded; absent = parked (under `os-dock-dynamic`). */
+/** Class a dynamic rail wears while expanded; absent = parked. */
 export const REVEALED_CLASS = 'os-dock--revealed';
 
-/** Body class for the dynamic behavior (mirrors `src/work-area`). */
-const DYNAMIC_CLASS = 'os-dock-dynamic';
+/** The per-rail attribute carrying `static` / `dynamic` (mirrors `src/work-area`). */
+export const DOCK_BEHAVIOR_ATTR = 'data-os-dock-behavior';
+
+/** The dock's element id (from the PHP shell template). */
+export const PRIMARY_DOCK_ID = 'os-dock';
+
+/** The Split layout's sidebar id (synthesised by `desktop-layout.ts`). */
+export const SIDE_DOCK_ID = 'os-side-dock';
 
 /** Root class worn for the duration of one of this module's view transitions. */
 export const VIEW_TRANSITION_CLASS = 'os-dock-vt';
@@ -79,10 +92,18 @@ const FLYOUT_SELECTOR = '.os-constellation, .os-dock-peek';
 
 type Edge = 'bottom' | 'left' | 'right';
 
+/** One answer per rail. */
+export interface DockBehaviors {
+	dock: string;
+	sidebar: string;
+}
+
 /** Wiring the installer needs from the shell boot path. */
 export interface DockBehaviorDeps {
 	/** `.os-shell__body` — the flex row every rail lives in. */
 	shellBody: HTMLElement;
+	/** The current picks, read whenever a rail needs stamping. */
+	getBehaviors: () => DockBehaviors;
 }
 
 export interface DockBehaviorController {
@@ -109,6 +130,11 @@ function edgeOf( rail: HTMLElement ): Edge {
 		return ( placement === 'left' ) !== rtl ? 'left' : 'right';
 	}
 	return 'bottom';
+}
+
+/** Is `rail` set to fold? */
+export function isDynamicRail( rail: Element ): boolean {
+	return rail.getAttribute( DOCK_BEHAVIOR_ATTR ) === 'dynamic';
 }
 
 /** Is the pointer within the reveal band of `edge`? */
@@ -184,7 +210,14 @@ export function installDockBehavior( deps: DockBehaviorDeps ): DockBehaviorContr
 	const rails = (): HTMLElement[] =>
 		Array.from( deps.shellBody.querySelectorAll< HTMLElement >( '.os-dock' ) );
 
-	const isDynamic = (): boolean => document.body.classList.contains( DYNAMIC_CLASS );
+	/** Write a rail's pick onto it. The sidebar is a fresh element on every rebuild. */
+	const stamp = ( rail: HTMLElement ): void => {
+		const picks = deps.getBehaviors();
+		const behavior = rail.id === SIDE_DOCK_ID ? picks.sidebar : picks.dock;
+		if ( rail.getAttribute( DOCK_BEHAVIOR_ATTR ) !== behavior ) {
+			rail.setAttribute( DOCK_BEHAVIOR_ATTR, behavior );
+		}
+	};
 
 	/** The state a rail should be in, from everything the pointer and focus say. */
 	const wanted = ( rail: HTMLElement ): boolean => {
@@ -266,9 +299,9 @@ export function installDockBehavior( deps: DockBehaviorDeps ): DockBehaviorContr
 		if ( destroyed ) {
 			return;
 		}
-		const dynamic = isDynamic();
 		for ( const rail of rails() ) {
-			if ( ! dynamic ) {
+			stamp( rail );
+			if ( ! isDynamicRail( rail ) ) {
 				// Static rails never wear the class; a leftover from a
 				// behavior flip is cleared without ceremony.
 				rail.classList.remove( REVEALED_CLASS );
@@ -279,7 +312,7 @@ export function installDockBehavior( deps: DockBehaviorDeps ): DockBehaviorContr
 	};
 
 	const onPointer = ( e: PointerEvent ): void => {
-		if ( destroyed || ! isDynamic() ) {
+		if ( destroyed || ! rails().some( isDynamicRail ) ) {
 			return;
 		}
 		pointer = { x: e.clientX, y: e.clientY };

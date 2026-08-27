@@ -52,7 +52,12 @@ import {
 	getDefaultWallpaperId,
 } from './constants';
 import { refreshWorkArea } from '../work-area';
-import { refreshDockBehavior } from '../dock-behavior';
+import {
+	DOCK_BEHAVIOR_ATTR,
+	PRIMARY_DOCK_ID,
+	refreshDockBehavior,
+	SIDE_DOCK_ID,
+} from '../dock-behavior';
 import {
 	loadState,
 	saveState,
@@ -223,6 +228,7 @@ export class OsSettings implements SettingsCtx {
 			desktopLayout: this.state.desktopLayout,
 			dockPlacement: this.state.dockPlacement,
 			dockBehavior: this.state.dockBehavior,
+			sideDockBehavior: this.state.sideDockBehavior,
 			dockRailRenderer: this.state.dockRailRenderer,
 			desktopTheme: this.state.desktopTheme,
 			appliedThemeRecommendations:
@@ -505,21 +511,22 @@ export class OsSettings implements SettingsCtx {
 			);
 		}
 
-		// Dock behavior — the same shape as the admin-bar mode: one
-		// `os-dock-<behavior>` body class, written by PHP for the
-		// first paint and re-written here so a pick lands live.
-		// `dock.css` parks the rail off `os-dock-dynamic`, and the
-		// work area stops reserving the rail's band under it — which
-		// is why the measurement is refreshed right after the class.
-		const dockBehavior =
-			DOCK_BEHAVIORS.find( ( b ) => b.id === this.state.dockBehavior ) ??
-			DOCK_BEHAVIORS[ 0 ];
-		for ( const behavior of DOCK_BEHAVIORS ) {
-			document.body.classList.toggle(
-				`os-dock-${ behavior.id }`,
-				behavior.id === dockBehavior.id,
-			);
-		}
+		// Dock behavior — one `data-os-dock-behavior` attribute PER
+		// RAIL rather than a body class, because the Split layout's
+		// sidebar and bottom dock answer independently. PHP stamps
+		// the dock for the first paint; this re-stamps both so a pick
+		// lands live, `src/dock-behavior.ts` re-stamps whenever the
+		// dispatcher rebuilds a rail, `dock.css` folds a rail off the
+		// attribute, and the work area stops reserving a dynamic
+		// rail's band — which is why it is re-measured right after.
+		const behaviorOf = ( id: string ): string =>
+			( DOCK_BEHAVIORS.find( ( b ) => b.id === id ) ?? DOCK_BEHAVIORS[ 0 ] ).id;
+		document
+			.getElementById( PRIMARY_DOCK_ID )
+			?.setAttribute( DOCK_BEHAVIOR_ATTR, behaviorOf( this.state.dockBehavior ) );
+		document
+			.getElementById( SIDE_DOCK_ID )
+			?.setAttribute( DOCK_BEHAVIOR_ATTR, behaviorOf( this.state.sideDockBehavior ) );
 		refreshDockBehavior();
 		refreshWorkArea();
 

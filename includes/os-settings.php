@@ -109,6 +109,9 @@ function openstation_default_os_settings() {
 		// Always on screen. `dynamic` (auto-hide behind a peek strip)
 		// is one pick away in OpenStation Preferences → Appearance.
 		'dockBehavior'                => 'static',
+		// The Split layout's sidebar answers for itself: a folded
+		// sidebar over a static bottom dock is a valid desk.
+		'sideDockBehavior'            => 'static',
 		// One dock holding every menu, with the system tiles grouped
 		// behind a hairline. `classic` (side bar for core menus + bottom
 		// dock for plugins) is the other option; it is no longer what a
@@ -470,11 +473,16 @@ function openstation_sanitize_os_settings( $raw ) {
 		? (string) $raw['adminBarMode']
 		: $defaults['adminBarMode'];
 
-	// Dock behavior — must be one of the two known values.
+	// Dock behavior — must be one of the two known values. One answer
+	// per rail: the dock, and the Split layout's sidebar.
 	$dock_behavior = isset( $raw['dockBehavior'] )
 		&& in_array( $raw['dockBehavior'], OPENSTATION_OS_SETTINGS_DOCK_BEHAVIORS, true )
 		? (string) $raw['dockBehavior']
 		: $defaults['dockBehavior'];
+	$side_dock_behavior = isset( $raw['sideDockBehavior'] )
+		&& in_array( $raw['sideDockBehavior'], OPENSTATION_OS_SETTINGS_DOCK_BEHAVIORS, true )
+		? (string) $raw['sideDockBehavior']
+		: $defaults['sideDockBehavior'];
 
 	// Desktop layout — must be one of the known values (`classic`,
 	// `unified`). Default `unified`.
@@ -932,6 +940,7 @@ function openstation_sanitize_os_settings( $raw ) {
 		'desktopLayout'               => $desktop_layout,
 		'dockPlacement'               => $dock_placement,
 		'dockBehavior'                => $dock_behavior,
+		'sideDockBehavior'            => $side_dock_behavior,
 		'dockRailRenderer'            => $dock_rail_renderer,
 		'desktopTheme'                => $desktop_theme,
 		'appliedThemeRecommendations' => $applied_theme_recommendations,

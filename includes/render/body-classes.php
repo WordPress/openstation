@@ -42,8 +42,6 @@ function openstation_admin_body_classes( $classes ) {
 		$classes = ltrim(
 			$classes . ' os-active os-admin-bar-'
 				. openstation_get_admin_bar_mode()
-				. ' os-dock-'
-				. openstation_get_dock_behavior()
 		);
 
 		// Solo mode — one window freed onto the real desktop by the
@@ -98,13 +96,16 @@ function openstation_get_admin_bar_mode() {
 }
 
 /**
- * Resolves the current user's dock behavior.
+ * Resolves the current user's behavior for the dock — the single rail
+ * in the Unified layout, the bottom dock in Split. (The Split sidebar
+ * has its own `sideDockBehavior`, but it is synthesised by JS and
+ * needs no first-paint answer from PHP.)
  *
- * Emitted as an `os-dock-<behavior>` body class so the very first
- * paint already parks (or doesn't) the rail — the shell's JS apply
- * pass re-writes the same class on every settings change, but it runs
- * after the dock has painted, which would flash a rail the user asked
- * to keep out of the way.
+ * Emitted as `data-os-dock-behavior` on `#os-dock` by the shell
+ * template so the very first paint already folds (or doesn't) the
+ * rail — the shell's JS apply pass re-writes the same attribute on
+ * every settings change, but it runs after the dock has painted,
+ * which would flash a rail the user asked to keep out of the way.
  *
  * @return string One of `static`, `dynamic`.
  */

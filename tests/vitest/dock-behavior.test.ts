@@ -55,6 +55,8 @@ function fakeRect( left: number, top: number, width: number, height: number ): D
 describe( 'installDockBehavior', () => {
 	let body: HTMLElement;
 	let dock: HTMLElement;
+	let behaviors = { dock: 'dynamic', sidebar: 'dynamic' };
+	const getBehaviors = () => behaviors;
 
 	beforeEach( () => {
 		body = document.createElement( 'div' );
@@ -65,7 +67,7 @@ describe( 'installDockBehavior', () => {
 		dock.setAttribute( 'data-os-dock-placement', 'bottom' );
 		body.appendChild( dock );
 		document.body.appendChild( body );
-		document.body.classList.add( 'os-dock-dynamic' );
+		behaviors = { dock: 'dynamic', sidebar: 'dynamic' };
 		// The revealed pill: 600×64, 12px above the floor.
 		dock.getBoundingClientRect = () =>
 			fakeRect( 500, window.innerHeight - 12 - 64, 600, 64 );
@@ -86,7 +88,7 @@ describe( 'installDockBehavior', () => {
 	const revealed = (): boolean => dock.classList.contains( REVEALED_CLASS );
 
 	test( 'reveals the rail while the pointer is in its edge band, and parks it again', () => {
-		const ctl = installDockBehavior( { shellBody: body } );
+		const ctl = installDockBehavior( { shellBody: body, getBehaviors } );
 		expect( revealed() ).toBe( false );
 		move( 300, window.innerHeight - 5 );
 		expect( revealed() ).toBe( true );
@@ -96,7 +98,7 @@ describe( 'installDockBehavior', () => {
 	} );
 
 	test( 'a revealed rail stays out while the pointer is near it, twice its height from the edge', () => {
-		const ctl = installDockBehavior( { shellBody: body } );
+		const ctl = installDockBehavior( { shellBody: body, getBehaviors } );
 		move( 800, window.innerHeight - 5 );
 		expect( revealed() ).toBe( true );
 		// Up onto the pill's top row of tiles: outside the 20px band,
@@ -115,7 +117,7 @@ describe( 'installDockBehavior', () => {
 	} );
 
 	test( 'a revealed rail parks once the pointer moves off its ends', () => {
-		const ctl = installDockBehavior( { shellBody: body } );
+		const ctl = installDockBehavior( { shellBody: body, getBehaviors } );
 		move( 800, window.innerHeight - 5 );
 		expect( revealed() ).toBe( true );
 		move( 200, window.innerHeight - 12 - 60 );
@@ -124,7 +126,7 @@ describe( 'installDockBehavior', () => {
 	} );
 
 	test( 'the pointer leaving the window changes nothing', () => {
-		const ctl = installDockBehavior( { shellBody: body } );
+		const ctl = installDockBehavior( { shellBody: body, getBehaviors } );
 		move( 800, window.innerHeight - 5 );
 		expect( revealed() ).toBe( true );
 		document.documentElement.dispatchEvent(
@@ -140,14 +142,14 @@ describe( 'installDockBehavior', () => {
 	test( 'the rail box does not reveal a parked rail on its own', () => {
 		// Parked, the rail is a thin line; only the edge band or the
 		// line itself (which sits inside the band) summons it.
-		const ctl = installDockBehavior( { shellBody: body } );
+		const ctl = installDockBehavior( { shellBody: body, getBehaviors } );
 		move( 800, window.innerHeight - 12 - 60 );
 		expect( revealed() ).toBe( false );
 		ctl.destroy();
 	} );
 
 	test( 'a pointerdown at the edge reveals too (touch has no move first)', () => {
-		const ctl = installDockBehavior( { shellBody: body } );
+		const ctl = installDockBehavior( { shellBody: body, getBehaviors } );
 		document.dispatchEvent(
 			new MouseEvent( 'pointerdown', {
 				clientX: 40,
@@ -160,7 +162,7 @@ describe( 'installDockBehavior', () => {
 	} );
 
 	test( 'a flyout under the pointer holds the rail out', () => {
-		const ctl = installDockBehavior( { shellBody: body } );
+		const ctl = installDockBehavior( { shellBody: body, getBehaviors } );
 		const flyout = document.createElement( 'div' );
 		flyout.className = 'os-constellation';
 		document.body.appendChild( flyout );
@@ -176,7 +178,7 @@ describe( 'installDockBehavior', () => {
 
 	test( 'keyboard focus on the rail holds it out', () => {
 		vi.useFakeTimers( { toFake: [ 'requestAnimationFrame', 'cancelAnimationFrame' ] } );
-		const ctl = installDockBehavior( { shellBody: body } );
+		const ctl = installDockBehavior( { shellBody: body, getBehaviors } );
 		const tile = document.createElement( 'button' );
 		dock.appendChild( tile );
 		tile.focus();
@@ -190,9 +192,9 @@ describe( 'installDockBehavior', () => {
 	} );
 
 	test( 'a static rail never reveals, and a leftover class is cleared', () => {
-		document.body.classList.remove( 'os-dock-dynamic' );
+		behaviors.dock = 'static';
 		dock.classList.add( REVEALED_CLASS );
-		const ctl = installDockBehavior( { shellBody: body } );
+		const ctl = installDockBehavior( { shellBody: body, getBehaviors } );
 		expect( revealed() ).toBe( false );
 		move( 300, window.innerHeight - 5 );
 		expect( revealed() ).toBe( false );
@@ -200,7 +202,7 @@ describe( 'installDockBehavior', () => {
 	} );
 
 	test( 'a rail added later is picked up; destroy parks everything', () => {
-		const ctl = installDockBehavior( { shellBody: body } );
+		const ctl = installDockBehavior( { shellBody: body, getBehaviors } );
 		const side = document.createElement( 'nav' );
 		side.id = 'os-side-dock';
 		side.className = 'os-dock';
@@ -226,7 +228,7 @@ describe( 'installDockBehavior', () => {
 		} );
 		( document as Document & { startViewTransition?: unknown } ).startViewTransition = start;
 		try {
-			const ctl = installDockBehavior( { shellBody: body } );
+			const ctl = installDockBehavior( { shellBody: body, getBehaviors } );
 			move( 300, window.innerHeight - 5 );
 			expect( start ).toHaveBeenCalledTimes( 1 );
 			expect( revealed() ).toBe( true );

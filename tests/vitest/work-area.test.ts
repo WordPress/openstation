@@ -357,16 +357,16 @@ describe( 'installWorkArea', () => {
 		ctl.destroy();
 	} );
 
-	test( 'a dynamic dock claims nothing', () => {
+	test( 'a dynamic rail claims nothing', () => {
 		const ctl = installWorkArea( { shell, shellBody: body, area } );
 		expect( getWorkArea().insets.bottom ).toBe( 84 );
-		// The settings apply pass flips the body class and asks for a
-		// re-measure; the parked rail is transient chrome.
-		document.body.classList.add( 'os-dock-dynamic' );
+		// The settings apply pass stamps the rail and asks for a
+		// re-measure; the folded rail is transient chrome.
+		dock.setAttribute( 'data-os-dock-behavior', 'dynamic' );
 		ctl.refresh();
 		expect( getWorkArea().insets ).toEqual( { top: 0, right: 0, bottom: 0, left: 0 } );
 		expect( shell.style.getPropertyValue( '--os-work-area-inset-bottom' ) ).toBe( '0px' );
-		document.body.classList.remove( 'os-dock-dynamic' );
+		dock.setAttribute( 'data-os-dock-behavior', 'static' );
 		ctl.refresh();
 		expect( getWorkArea().insets.bottom ).toBe( 84 );
 		ctl.destroy();
