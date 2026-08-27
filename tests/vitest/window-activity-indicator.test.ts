@@ -14,7 +14,7 @@
  * the first, and the phase is announced to screen readers because a
  * ring announces nothing.
  */
-import { afterEach, beforeEach, describe, expect, test } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { Window } from '../../src/window';
@@ -205,6 +205,80 @@ describe( 'reference counting and the reset escape hatch', () => {
 		expect( ring().getAttribute( 'phase' ) ).toBe( 'idle' );
 		expect( win._activityCount ).toBe( 0 );
 		expect( titleBar().hasAttribute( 'data-os-activity' ) ).toBe( false );
+	} );
+} );
+
+describe( 'a form submit, bracketed across two documents', () => {
+	beforeEach( () => {
+		vi.useFakeTimers();
+		installHooksStub();
+		parent = document.createElement( 'div' );
+		document.body.appendChild( parent );
+		win = new Window( baseConfig() );
+		parent.appendChild( win.element );
+	} );
+
+	afterEach( () => {
+		parent.remove();
+		clearHooksStub();
+		document.body.innerHTML = '';
+		vi.useRealTimers();
+	} );
+
+	test( 'the answer landing is the end the submit never sent', () => {
+		// Settled the moment it lands, with none of the minimum-blink
+		// hold a fetch gets — that floor stands in for feedback a 50ms
+		// request can't give, and a document arriving IS that
+		// feedback. The fade back to idle survives, though.
+		win._noteNavigationActivity();
+		win._markActivityStart();
+		vi.advanceTimersByTime( 500 );
+
+		expect( win._settleNavigationActivity() ).toBe( true );
+		expect( win._activityCount ).toBe( 0 );
+		expect( ring().getAttribute( 'phase' ) ).toBe( 'saved' );
+
+		vi.advanceTimersByTime( 2200 );
+		expect( ring().getAttribute( 'phase' ) ).toBe( 'idle' );
+	} );
+
+	test( 'the boot signal behind the head report leaves the outcome alone', () => {
+		// Both arrive for every submit, in that order: the head report
+		// settles the ring, `os-ready` follows from the footer of the
+		// same document, and its usual reset would wipe the check off
+		// a ring that had only just earned it. Once — the navigation
+		// after this one is an ordinary one again.
+		win._noteNavigationActivity();
+		win._markActivityStart();
+		win._settleNavigationActivity();
+
+		expect( win._settleNavigationActivity( true ) ).toBe( true );
+		expect( ring().getAttribute( 'phase' ) ).toBe( 'saved' );
+		expect( win._settleNavigationActivity( true ) ).toBe( false );
+	} );
+
+	test( 'os-ready settles a document that sent no head report', () => {
+		// Not every response carries the head hook, and the ring
+		// cannot be left blinking on the ones that don't.
+		win._noteNavigationActivity();
+		win._markActivityStart();
+
+		expect( win._settleNavigationActivity( true ) ).toBe( true );
+		expect( ring().getAttribute( 'phase' ) ).toBe( 'saved' );
+	} );
+
+	test( 'a submit that lands nowhere lets go of the ring', () => {
+		// A `wp_die()` page (an expired nonce) runs no admin hooks, so
+		// nothing on it reports back and the blink would outlive the
+		// window.
+		win._noteNavigationActivity();
+		win._markActivityStart();
+		expect( ring().getAttribute( 'phase' ) ).toBe( 'saving' );
+
+		vi.advanceTimersByTime( Window.NAVIGATION_ACTIVITY_TIMEOUT_MS );
+
+		expect( ring().getAttribute( 'phase' ) ).toBe( 'idle' );
+		expect( win._settleNavigationActivity() ).toBe( false );
 	} );
 } );
 

@@ -184,4 +184,46 @@ class Tests_OpenStation_ChromelessActivity extends WP_UnitTestCase {
 
 		$this->assertStringContainsString( 'osActivityEnd( tracked, ! res.ok, res.status )', $markup );
 	}
+
+	/**
+	 * Capture what the head hook prints.
+	 *
+	 * @return string Script markup.
+	 */
+	private function navigation_ping_markup() {
+		ob_start();
+		openstation_chromeless_navigation_ping_script();
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * A submit is answered by a whole new document, and the ring
+	 * cannot settle until something in it reports back. The bridge is
+	 * the wrong messenger for that one job: enqueued on
+	 * `admin_footer`, it runs after every other admin script in the
+	 * document — a second or more after the browser painted the notice
+	 * the ring is confirming. The report is addressed to the shell
+	 * that owns this iframe and to nothing else.
+	 *
+	 * @covers ::openstation_chromeless_navigation_ping_script
+	 */
+	public function test_a_landing_document_reports_from_the_head() {
+		$markup = $this->navigation_ping_markup();
+
+		$this->assertStringContainsString( "type:'os-iframe-navigated'", $markup );
+		$this->assertStringContainsString( 'window.parent!==window', $markup );
+		$this->assertStringContainsString( 'window.location.origin', $markup );
+	}
+
+	/**
+	 * Classic admin has no shell listening, and `window.parent` there
+	 * is the window itself.
+	 *
+	 * @covers ::openstation_chromeless_navigation_ping_script
+	 */
+	public function test_classic_admin_is_left_alone() {
+		unset( $_GET['openstation_chromeless'] );
+
+		$this->assertSame( '', trim( $this->navigation_ping_markup() ) );
+	}
 }

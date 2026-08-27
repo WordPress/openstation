@@ -1476,6 +1476,59 @@
 	}, true );
 
 	/*
+	 * Form submits — the other half of the status ring. The wrappers
+	 * above miss the admin's most common save, a classic POST, which
+	 * navigates rather than issuing a request they can see.
+	 * `navigation: true` tells the parent no `end` is coming: this
+	 * document is about to be replaced, and the response is the end.
+	 *
+	 * Bubble phase, after `defaultPrevented`, and never with a
+	 * `target` — a submit a script handles itself, or one aimed at
+	 * another browsing context, leaves this document where it is, and
+	 * a start posted for it would never be closed.
+	 */
+	document.addEventListener( 'submit', function ( e ) {
+		var form = e.target;
+		if ( ! form || form.tagName !== 'FORM' || e.defaultPrevented ) {
+			return;
+		}
+		var target = form.getAttribute( 'target' );
+		if ( target && '_self' !== target ) {
+			return;
+		}
+		// A GET submit is a read — the search box, the date filter —
+		// with one exception, and it is the most common destructive
+		// action in the admin: `edit.php`, `upload.php` and
+		// `edit-comments.php` all submit their bulk actions over GET,
+		// on the same form as the search box. Trashing twenty posts
+		// is a write however it travels. Mirror
+		// `WP_List_Table::current_action()`: a bulk-action select set
+		// to anything but -1 is an action, and the Filter button is
+		// not one whatever the select says.
+		if ( 'POST' !== String( form.getAttribute( 'method' ) || 'get' ).toUpperCase() ) {
+			if ( e.submitter && 'filter_action' === e.submitter.name ) {
+				return;
+			}
+			var picked = false;
+			var actions = form.querySelectorAll( 'select[name="action"],select[name="action2"]' );
+			for ( var i = 0; i < actions.length; i++ ) {
+				if ( actions[ i ].value && '-1' !== actions[ i ].value ) {
+					picked = true;
+				}
+			}
+			if ( ! picked ) {
+				return;
+			}
+		}
+		try {
+			window.parent.postMessage(
+				{ type: 'os-iframe-activity', phase: 'start', navigation: true },
+				window.location.origin
+			);
+		} catch ( _subErr ) { /* swallow — instrumentation is best-effort */ }
+	} );
+
+	/*
 	 * Focus-request bridge.
 	 *
 	 * Clicks inside an iframe don't cross the browsing-context

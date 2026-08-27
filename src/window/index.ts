@@ -270,6 +270,18 @@ export class Window {
 	 * @internal
 	 */
 	public _activitySettleTimer: number | null = null;
+
+	/**
+	 * Where a submitted form has got to. `settled` is a state rather
+	 * than a cleared flag because the answering document reports from
+	 * its head, and its `os-ready` follows a beat later with a reset
+	 * that must not wipe the outcome just settled.
+	 *
+	 * @internal
+	 */
+	public _navigationActivity: 'none' | 'pending' | 'settled' = 'none';
+	/** @internal */
+	public _navigationActivityTimer: number | null = null;
 	/** @internal */
 	public _isDragging = false;
 	/** @internal */
@@ -3105,6 +3117,71 @@ export class Window {
 	}
 
 	/**
+	 * How long a submit has to produce a document before the ring
+	 * gives up: `wp_die()` output runs no admin hooks, so nothing on
+	 * it ever reports back.
+	 *
+	 * @internal
+	 */
+	public static readonly NAVIGATION_ACTIVITY_TIMEOUT_MS = 30000;
+
+	/**
+	 * Note that the iframe submitted a form — the one save the ring
+	 * cannot see for itself, a submit being a navigation rather than
+	 * a `fetch`. The outgoing document reports the start; the document
+	 * that answers it is the end.
+	 *
+	 * @internal
+	 */
+	public _noteNavigationActivity(): void {
+		this._navigationActivity = 'pending';
+		if ( this._navigationActivityTimer !== null ) {
+			window.clearTimeout( this._navigationActivityTimer );
+		}
+		this._navigationActivityTimer = window.setTimeout( () => {
+			this._navigationActivityTimer = null;
+			this._navigationActivity = 'none';
+			this._resetActivity();
+		}, Window.NAVIGATION_ACTIVITY_TIMEOUT_MS ) as unknown as number;
+	}
+
+	/**
+	 * Settle a waiting submit, always as `saved` — there is no
+	 * response object on this side to read a status off, and a
+	 * validation failure comes back as a good 200 the user is reading.
+	 *
+	 * Pass `final` from the answering document's `os-ready`, which
+	 * closes the book and doubles as the fallback when no head report
+	 * arrived. Returns whether the ring is carrying a submit's
+	 * outcome, so that caller knows not to reset it away.
+	 *
+	 * @internal
+	 */
+	public _settleNavigationActivity( final = false ): boolean {
+		const carrying = this._navigationActivity !== 'none';
+		if ( this._navigationActivity === 'pending' ) {
+			this._navigationActivity = 'settled';
+			if ( this._navigationActivityTimer !== null ) {
+				window.clearTimeout( this._navigationActivityTimer );
+				this._navigationActivityTimer = null;
+			}
+			// Straight to the outcome, with none of the minimum-blink
+			// hold {@link MIN_SAVING_DISPLAY_MS} gives a fetch: that
+			// floor stands in for feedback a 50ms request wouldn't
+			// otherwise give, and a whole document arriving and
+			// painting IS that feedback. Holding past it puts "still
+			// saving" in the title bar of a page reading "Settings
+			// saved."
+			this._resetActivity();
+			this._finalizeActivitySettle( true );
+		}
+		if ( final ) {
+			this._navigationActivity = 'none';
+		}
+		return carrying;
+	}
+
+	/**
 	 * Track a Promise's lifecycle on this window's activity indicator.
 	 * The dot pulses while the Promise is in flight; on resolve it
 	 * settles to `saved` (green flash); on reject it shows `failed`
@@ -3615,6 +3692,10 @@ export class Window {
 		if ( this._activitySettleTimer !== null ) {
 			window.clearTimeout( this._activitySettleTimer );
 			this._activitySettleTimer = null;
+		}
+		if ( this._navigationActivityTimer !== null ) {
+			window.clearTimeout( this._navigationActivityTimer );
+			this._navigationActivityTimer = null;
 		}
 
 		// Drop the title-bar-button subscription so a closed window

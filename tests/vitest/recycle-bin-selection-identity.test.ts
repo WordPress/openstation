@@ -25,6 +25,7 @@ const mocks = vi.hoisted( () => ( {
 vi.mock( '../../src/recycle-bin/rest', () => mocks );
 vi.mock( '../../src/recycle-bin/icon-state', () => ( {
 	setRecycleBinCount: vi.fn(),
+	_currentRecycleBinCount: () => 0,
 } ) );
 vi.mock( '../../src/recycle-bin/realtime', () => ( {
 	start: vi.fn(),
@@ -135,27 +136,13 @@ describe( 'recycle-bin selection identity', () => {
 		expect( Array.from( table.selection ) ).toEqual( [ 'post:5' ] );
 	} );
 
-	test( 'changing a client-side column filter clears the selection', async () => {
-		const postCb = table.shadowRoot!.querySelector< HTMLInputElement >(
-			'tr[data-row-id="post:5"] input.select-row-checkbox',
-		)!;
-		postCb.checked = true;
-		postCb.dispatchEvent( new Event( 'change', { bubbles: true } ) );
-		await settle();
-		expect( table.selection.size ).toBe( 1 );
-
-		// Type into the Title column filter — the previously selected
-		// row may now be hidden while still present in `data`, so the
-		// app must drop the selection rather than let it ride into a
-		// bulk purge the user can't see.
-		const input = table.shadowRoot!.querySelector< HTMLInputElement >(
-			'.filter-input',
-		)!;
-		input.value = 'comment';
-		input.dispatchEvent( new Event( 'input', { bubbles: true } ) );
-		await settle();
-
-		expect( table.selection.size ).toBe( 0 );
+	test( 'no column renders its own filter input', () => {
+		// One search box: the toolbar's. A per-column "Filter…" input
+		// under Title and under By sat directly beneath it and only
+		// narrowed the rows already fetched.
+		expect(
+			table.shadowRoot!.querySelector( '.filter-input' ),
+		).toBeNull();
 	} );
 
 	test( 'a refresh prunes selection keys whose row left the list', async () => {
@@ -211,11 +198,11 @@ describe( 'recycle-bin selection identity', () => {
 		postCb.dispatchEvent( new Event( 'change', { bubbles: true } ) );
 		await settle();
 
-		// Programmatic filter assignment does NOT fire
-		// `os-table-filter-change` — this simulates a data-driven
+		// `<os-table>` applies `filters` whether or not a column
+		// declares a control, so this simulates a data-driven
 		// visibility change (e.g. a realtime refresh replaced the row
-		// with a title that no longer matches an already-active column
-		// filter). The selected post is now hidden but still in `data`.
+		// with a title that no longer matches a filter a plugin set).
+		// The selected post is now hidden but still in `data`.
 		table.filters = { title: 'comment' };
 		await settle();
 

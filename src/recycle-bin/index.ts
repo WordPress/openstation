@@ -28,13 +28,15 @@ import '../ui/components/os-relative-time/os-relative-time';
 // `createElement('os-*')` doesn't see it. Register the compound
 // class set explicitly so the server-rendered toolbar works.
 import '../ui/components/os-segmented/os-segmented';
+// Same story for `<os-empty-state>`, which the template emits.
+import '../ui/components/os-empty-state/os-empty-state';
 import { DESKTOP_THEME_CHANGED_EVENT } from '../desktop-themes/apply';
 import {
 	resolveThemedIcon,
 	resolveThemedIconColor,
 } from '../desktop-themes/icons';
 import { DESKTOP_THEME_SLOTS } from '../desktop-themes/slots';
-import { setRecycleBinCount } from './icon-state';
+import { _currentRecycleBinCount, setRecycleBinCount } from './icon-state';
 import { runEmptyLoop } from './empty-loop';
 import * as realtime from './realtime';
 import {
@@ -164,6 +166,8 @@ function makeTypeBadge( row: RecycleBinItem ): HTMLElement {
 }
 
 const ROOT = '[data-os-recycle-bin-root]';
+const TOOLBAR = '[data-os-recycle-bin-toolbar]';
+const EMPTY_STATE = '[data-os-recycle-bin-empty-state]';
 const FILTER = '[data-os-recycle-bin-filter]';
 const SEARCH = '[data-os-recycle-bin-search]';
 const REFRESH = '[data-os-recycle-bin-refresh]';
@@ -245,7 +249,6 @@ function buildColumns(): OsTableColumn< RecycleBinItem >[] {
 			key: 'title',
 			label: __( 'Title' ),
 			sortable: true,
-			filter: 'text',
 			render: ( _v, row ) => {
 				// One-cell layout: optional thumbnail (image
 				// attachments only) sits inline at the start, then
@@ -324,7 +327,6 @@ function buildColumns(): OsTableColumn< RecycleBinItem >[] {
 			key: 'deleted_by',
 			label: __( 'By' ),
 			sortable: true,
-			filter: 'text',
 			width: '160px',
 			render: ( _v, row ) => row.deleted_by || '—',
 		},
@@ -611,6 +613,30 @@ export function renderRecycleBin( body: HTMLElement ): void {
 	// reserved for tables where dragging IS the primary
 	// affordance (e.g. plugin-authored picker UIs).
 
+	const toolbar = root.querySelector< HTMLElement >( TOOLBAR );
+	const emptyState = root.querySelector< HTMLElement >( EMPTY_STATE );
+	const noMatchText = table.getAttribute( 'empty' ) ?? '';
+
+	/**
+	 * Show or hide everything that only makes sense against a list.
+	 * The table goes too — its header row carries the sort controls.
+	 *
+	 * Callers pass the list endpoint's `total`, which counts the whole
+	 * bin regardless of the active filter or search: a search matching
+	 * nothing must keep the toolbar, or there is no way back out of
+	 * it. That case shows the table's own `empty` text instead.
+	 */
+	const setChromeVisible = ( hasItems: boolean ): void => {
+		toolbar?.toggleAttribute( 'hidden', ! hasItems );
+		emptyState?.toggleAttribute( 'hidden', hasItems );
+		table.hidden = ! hasItems;
+	};
+
+	// The badge count is seeded from the shell config on boot, so an
+	// empty bin opens straight into its empty state rather than a
+	// skeleton and a toolbar that both vanish a moment later.
+	setChromeVisible( _currentRecycleBinCount() > 0 );
+
 	// If we have a cached snapshot from a previous open, paint it
 	// synchronously — the user sees the data they expect on
 	// reopen, no skeleton, no flash. The fingerprint becomes the
@@ -669,8 +695,8 @@ export function renderRecycleBin( body: HTMLElement ): void {
 				cachedItems = items;
 				// Prune selection keys whose row is no longer VISIBLE —
 				// it left the list (purged / restored elsewhere) or a
-				// data-driven change hid it behind an active column
-				// filter. `collectSelectedItems()` already resolves
+				// data-driven change hid it behind a `table.filters`
+				// entry. `collectSelectedItems()` resolves
 				// against the visible rows, so this is not load-bearing
 				// for safety — it keeps the bulk bar's "N selected"
 				// count truthful instead of overcounting ghosts.
@@ -697,19 +723,26 @@ export function renderRecycleBin( body: HTMLElement ): void {
 			// way to keep the badge truthful: we already paid for
 			// the round-trip, so we may as well consume the count.
 			setRecycleBinCount( total );
+			table.setAttribute( 'empty', noMatchText );
+			setChromeVisible( total > 0 );
 		} catch ( err ) {
 			if ( mySeq !== refreshSeq ) {
 				return;
 			}
 			console.error( '[recycle-bin] list failed', err );
-			// On the first-load failure with no cache, render an
-			// empty table so the slotted empty state shows. On
-			// subsequent failures with a cache, keep stale data —
-			// better UX than flashing "empty" because the network
-			// blipped.
+			// With a cache, keep the stale rows — better than
+			// flashing "empty" because the network blipped. With
+			// none, show an empty table, and force the chrome on
+			// whatever the seeded count said: the failure copy
+			// below points at Refresh, which lives in the toolbar.
 			if ( showSkeleton ) {
 				table.data = [];
 				currentFingerprint = '';
+				table.setAttribute(
+					'empty',
+					__( 'Could not load the Trash. Try Refresh.' ),
+				);
+				setChromeVisible( true );
 			}
 		} finally {
 			// Only the latest in-flight refresh gets to flip the
@@ -753,8 +786,8 @@ export function renderRecycleBin( body: HTMLElement ): void {
 	//
 	// Resolve against the VISIBLE rows, not the full `data` buffer:
 	// a data-driven change (e.g. a realtime refresh replacing a row
-	// whose new title no longer matches an active Title column filter)
-	// can hide a selected row without any filter event firing — and a
+	// whose new title no longer matches a `table.filters` entry) can
+	// hide a selected row without any filter event firing — and a
 	// row the user cannot see must never ride into a purge.
 	const collectSelectedItems = (): RecycleBinItemRef[] => {
 		const sel = new Set( Array.from( table.selection ?? [], String ) );
@@ -1075,16 +1108,6 @@ export function renderRecycleBin( body: HTMLElement ): void {
 
 	table.addEventListener( 'os-table-selection-change', () => {
 		refreshBulkBar();
-	} );
-
-	// The Title / "By" columns declare client-side `filter: 'text'`
-	// filters. A row ticked BEFORE the user types into one stays
-	// selected while hidden — and it's still in `table.data`, so
-	// `collectSelectedItems()` would sweep it into a bulk purge the
-	// user can't see coming. Same hygiene as the toolbar filter /
-	// search: any visibility change starts with a clean selection.
-	table.addEventListener( 'os-table-filter-change', () => {
-		table.clearSelection();
 	} );
 
 	// Default sort: most-recently-deleted first. Users can change it.
