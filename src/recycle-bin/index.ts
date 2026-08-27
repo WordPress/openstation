@@ -702,6 +702,16 @@ export function renderRecycleBin( body: HTMLElement ): void {
 				return;
 			}
 			console.error( '[recycle-bin] list failed', err );
+			// The list read is silenced on the status ring, so a
+			// failure has to put itself back on it: an empty table and
+			// a console line are the same thing an empty bin looks
+			// like, and the ring is the only place left that can say
+			// otherwise.
+			window.wp?.os?.windowManager
+				?.getById( 'desktop-mode-recycle-bin' )
+				?.markActivity( 'failed', {
+					error: err instanceof Error ? err.message : String( err ),
+				} );
 			// On the first-load failure with no cache, render an
 			// empty table so the slotted empty state shows. On
 			// subsequent failures with a cache, keep stale data —

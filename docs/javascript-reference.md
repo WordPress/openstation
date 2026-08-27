@@ -4352,7 +4352,9 @@ The parent feeds these to the same reference-counted `Window._markActivityStart(
 
 A navigation settles the ring **immediately**, with none of the minimum-display hold a tracked `fetch` gets. That floor stands in for feedback the user would otherwise not receive — a request resolving in 50 ms would flash green before the blink was seen at all — and a whole document arriving and painting is that feedback. Holding past it only makes the title bar contradict the page: "Settings saved." on screen, still saving in the corner.
 
-"It landed" is as much as this side can honestly know — there is no response object to read a status off, and a validation message or a settings error comes back as a perfectly good 200 that the user reads in the page itself. Submits that will never navigate stay silent: `GET` forms (every list-table search box), forms whose submit an in-page script has already `preventDefault()`ed, and forms aimed at another browsing context via `target`.
+"It landed" is as much as this side can honestly know — there is no response object to read a status off, and a validation message or a settings error comes back as a perfectly good 200 that the user reads in the page itself. Silent are the submits that change nothing or never navigate: forms whose submit an in-page script has already `preventDefault()`ed, forms aimed at another browsing context via `target`, and `GET` forms.
+
+`GET` carries one exception, because WordPress breaks its own rule where it matters most: `edit.php`, `upload.php` and `edit-comments.php` submit their **bulk actions** over `GET`, on the same form as the search box. So a `GET` submit reports when a bulk-action `<select>` (`action` / `action2`) holds anything but `-1`, and stays quiet otherwise — which mirrors `WP_List_Table::current_action()`, including its rule that the Filter button is not an action whatever the select says.
 
 This is the automatic path, and it is conservative on purpose. `wp.os.fetch` is the deliberate one: a call site that passes a `GET` there **does** move the phase, because someone chose to report it. Pass `silent: true` to opt a single call out.
 

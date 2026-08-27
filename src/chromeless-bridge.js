@@ -1492,13 +1492,33 @@
 		if ( ! form || form.tagName !== 'FORM' || e.defaultPrevented ) {
 			return;
 		}
-		var method = String( form.getAttribute( 'method' ) || 'get' ).toUpperCase();
-		if ( 'POST' !== method ) {
-			return;
-		}
 		var target = form.getAttribute( 'target' );
 		if ( target && '_self' !== target ) {
 			return;
+		}
+		// A GET submit is a read — the search box, the date filter —
+		// with one exception, and it is the most common destructive
+		// action in the admin: `edit.php`, `upload.php` and
+		// `edit-comments.php` all submit their bulk actions over GET,
+		// on the same form as the search box. Trashing twenty posts
+		// is a write however it travels. Mirror
+		// `WP_List_Table::current_action()`: a bulk-action select set
+		// to anything but -1 is an action, and the Filter button is
+		// not one whatever the select says.
+		if ( 'POST' !== String( form.getAttribute( 'method' ) || 'get' ).toUpperCase() ) {
+			if ( e.submitter && 'filter_action' === e.submitter.name ) {
+				return;
+			}
+			var picked = false;
+			var actions = form.querySelectorAll( 'select[name="action"],select[name="action2"]' );
+			for ( var i = 0; i < actions.length; i++ ) {
+				if ( actions[ i ].value && '-1' !== actions[ i ].value ) {
+					picked = true;
+				}
+			}
+			if ( ! picked ) {
+				return;
+			}
 		}
 		try {
 			window.parent.postMessage(

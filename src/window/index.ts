@@ -3683,6 +3683,10 @@ export class Window {
 			window.clearTimeout( this._activitySettleTimer );
 			this._activitySettleTimer = null;
 		}
+		if ( this._navigationActivityTimer !== null ) {
+			window.clearTimeout( this._navigationActivityTimer );
+			this._navigationActivityTimer = null;
+		}
 
 		// Drop the title-bar-button subscription so a closed window
 		// stops repainting on registry changes.

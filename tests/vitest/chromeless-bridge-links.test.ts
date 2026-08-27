@@ -391,10 +391,56 @@ describe( 'chromeless bridge: which submits light the status ring', () => {
 		] );
 	} );
 
+	test( 'a bulk action reports, even over GET', () => {
+		// `edit.php`, `upload.php` and `edit-comments.php` submit
+		// their bulk actions over GET, on the same form as the search
+		// box. Trashing twenty posts is a write however it travels.
+		submitForm(
+			'<form id="posts-filter" method="get">' +
+				'<select name="action">' +
+				'<option value="-1">Bulk actions</option>' +
+				'<option value="trash" selected>Move to Trash</option>' +
+				'</select></form>'
+		);
+
+		expect( activityMessages() ).toHaveLength( 1 );
+	} );
+
+	test( 'the Filter button is not a bulk action, whatever is selected', () => {
+		// What core does: `current_action()` returns false outright
+		// when `filter_action` is set.
+		document.body.innerHTML =
+			'<form id="posts-filter" method="get">' +
+			'<select name="action">' +
+			'<option value="trash" selected>Move to Trash</option>' +
+			'</select>' +
+			'<input type="submit" name="filter_action" value="Filter">' +
+			'</form>';
+		const form = document.querySelector( 'form' ) as HTMLFormElement;
+		form.dispatchEvent(
+			new SubmitEvent( 'submit', {
+				bubbles: true,
+				cancelable: true,
+				submitter: document.querySelector(
+					'[name="filter_action"]'
+				) as HTMLElement,
+			} )
+		);
+
+		expect( activityMessages() ).toHaveLength( 0 );
+	} );
+
 	test.each( [
 		// The search box above every list table: nothing changed, so
 		// nothing can have failed to change.
 		[ 'a GET form is a read', '<form method="get" action="edit.php"><input name="s"></form>', undefined ],
+		// The same form once a list table is on it, with the bulk
+		// select left at its default.
+		[
+			'a GET form with no bulk action picked',
+			'<form method="get"><select name="action"><option value="-1" selected>Bulk actions</option></select><input name="s"></form>',
+			undefined,
+		],
 		// Aimed at another browsing context — this document stays put.
 		[ 'a submit aimed elsewhere', '<form method="post" action="options.php" target="_blank"></form>', undefined ],
 		// Handled in-page: it either fires its own XHR, which is

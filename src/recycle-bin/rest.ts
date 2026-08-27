@@ -89,11 +89,11 @@ function config(): NonNullable< Window[ 'openStationRecycleBinConfig' ] > {
 async function request< T >( url: string, init: RequestInit ): Promise< T > {
 	const cfg = config();
 	// Always route through the framework `wp.os.fetch` so the
-	// request feeds the active window's loading spinner + the
-	// activity bus. The recycle-bin bundle is registered as a
-	// dependency of the main `openstation` script handle, which
-	// guarantees the framework helper is on the global before
-	// this code runs — no fallback needed.
+	// request reaches the activity bus (reads opt out of the status
+	// ring below, but stay tracked). The recycle-bin bundle is
+	// registered as a dependency of the main `openstation` script
+	// handle, which guarantees the framework helper is on the global
+	// before this code runs — no fallback needed.
 	const response = await trackedFetch(
 		url,
 		{
