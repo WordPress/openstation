@@ -3,12 +3,11 @@
  *
  * `siteLogo` from `@wordpress/icons`, transcribed rather than imported
  * so it costs a string instead of a package. It heads the assistant's
- * palette, and it is the mark on the notch.
+ * palette.
  *
- * A leaf both bundles can reach: the assistant is lazy-loaded, and the
- * notch paints on every boot, so importing the glyph from the
- * assistant's entry would drag the whole feature into the shell
- * bundle.
+ * A leaf rather than a member of the assistant's own tree, so a shell
+ * surface that wants to wear the mark can import it without dragging
+ * the lazy assistant bundle in behind it.
  */
 
 /** The mark as standalone SVG source, in Core's 24×24 icon viewBox. */

@@ -313,6 +313,99 @@ const mount = async ( container: HTMLElement, _ctx: WidgetContext ) => {
 
 ---
 
+## Recipe 5 — Interval-driven content
+
+A ticking clock — the smallest complete example of the pattern, and it gets
+right the two things interval-driven widgets usually get wrong. This is the
+shell's own built-in clock, so the working version is in-tree at
+[`src/widgets/built-in.ts`](../../src/widgets/built-in.ts).
+
+**Align the first tick to the boundary you are displaying.** A widget showing
+seconds that starts its interval whenever the shell happened to boot will
+flip a fraction of a second out of step with the system clock, the user's
+phone, and every other clock on screen. Delay the first tick to the next
+boundary, then run the interval from there.
+
+**Return a teardown that clears both timers.** The initial `setTimeout` and
+the `setInterval` it starts are two separate handles, and a widget removed
+during the alignment delay leaks the first one — a card the user deleted,
+still repainting a detached element every second for the rest of the session.
+
+```ts
+import type { WidgetContext, WidgetTeardown } from '../../widgets/types';
+
+const WIDGET_ID = 'myplugin/clock';
+
+const mount = (
+    container: HTMLElement,
+    _ctx: WidgetContext,
+): WidgetTeardown => {
+    container.classList.add( 'my-clock' );
+
+    const time = document.createElement( 'div' );
+    time.className = 'my-clock__time';
+    container.appendChild( time );
+
+    const date = document.createElement( 'div' );
+    date.className = 'my-clock__date';
+    container.appendChild( date );
+
+    const render = (): void => {
+        const now = new Date();
+        // Locale-aware, so a German user sees 14:05 and an American
+        // user sees 2:05 PM without a branch here.
+        time.textContent = now.toLocaleTimeString( undefined, {
+            hour: '2-digit',
+            minute: '2-digit',
+        } );
+        date.textContent = now.toLocaleDateString( undefined, {
+            weekday: 'long',
+            month: 'short',
+            day: 'numeric',
+        } );
+    };
+    render();
+
+    // Align the first tick with the wall-clock second boundary so every
+    // visible clock onscreen flips in sync. Without the initial delay,
+    // this one would sit up to a second off from the system clock.
+    const msUntilNextSecond = 1000 - ( Date.now() % 1000 );
+    let interval: number | null = null;
+    const kickoff = window.setTimeout( () => {
+        render();
+        interval = window.setInterval( render, 1000 );
+    }, msUntilNextSecond );
+
+    // Both handles. The widget can be removed during the alignment
+    // delay, before `interval` is ever assigned.
+    return () => {
+        window.clearTimeout( kickoff );
+        if ( interval !== null ) {
+            window.clearInterval( interval );
+        }
+    };
+};
+
+const w = window as unknown as {
+    openStationWidgets?: Record< string, typeof mount >;
+};
+w.openStationWidgets = w.openStationWidgets ?? {};
+w.openStationWidgets[ WIDGET_ID ] = mount;
+```
+
+Two variations worth knowing:
+
+- **Displaying minutes, not seconds?** Don't run a 1-second interval and
+  repaint 59 times for nothing. Schedule a single `setTimeout` to the next
+  minute boundary, and have it re-schedule itself after each render — that
+  is self-correcting where a fixed interval drifts, which matters after the
+  machine sleeps.
+- **Anything that costs more than a `Date` read** — a fetch, a canvas
+  redraw — should also stop while the tab is hidden. Recipe 2 shows the
+  `visibilitychange` pattern for that.
+
+---
+
 ## Size constraints reference
 
 All sizes are pixels, passed to `openstation_register_widget()`:

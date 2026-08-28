@@ -1,9 +1,9 @@
 /**
- * Exit OpenStation dock tile.
+ * Exit OpenStation.
  *
- * Builds the {@link SystemDockItem} for the "Exit OpenStation" entry on
- * the primary dock rail and the click handler that disables the user's
- * openstation preference and routes them back to classic admin.
+ * The action that disables the user's openstation preference and
+ * routes them back to classic admin. Its affordance lives in the
+ * tray (`src/tray.ts`); this module owns only what leaving means.
  *
  * Reuses the existing `save-openstation` AJAX endpoint
  * (`includes/ajax.php`) via the `window.openStationAdminBar` global
@@ -11,12 +11,7 @@
  * toggle. Same nonce, same redirect contract — no new PHP surface.
  */
 
-import type { SystemDockItem } from './dock';
-import { SYSTEM_TILE_ORDER } from './dock-shell-tiles';
 import type { ShortcutsData } from './shortcuts';
-import { __ } from './i18n';
-
-export const EXIT_OPENSTATION_TILE_ID = 'os-exit';
 
 interface AdminBarConfig {
 	nonce?: string;
@@ -34,34 +29,6 @@ declare global {
 	interface Window {
 		openStationAdminBar?: AdminBarConfig;
 	}
-}
-
-/**
- * Build the dock-tile definition. Kept as a factory so desktop.ts can
- * register it the same way the OS Settings / Bug Report / PWA install
- * tiles are registered, and so the click logic stays unit-testable.
- */
-export function getExitOpenStationTileDef(): SystemDockItem {
-	return {
-		id: EXIT_OPENSTATION_TILE_ID,
-		title: __( 'Exit OpenStation' ),
-		navKind: 'control',
-		// The one tile that cannot be moved or hidden: it is the way
-		// out of the shell, and a user who hid it would have to know
-		// about the admin bar's toggle to get back.
-		locked: true,
-		// After the shell cluster, before Trash. Without an explicit
-		// key it defaults to 0 and interleaves with plugin launchers,
-		// whose order is also 0.
-		order: SYSTEM_TILE_ORDER.exit,
-		// `dashicons-exit` (door with arrow) is the clearest "leave"
-		// glyph in the WordPress set, distinct from `dashicons-desktop`
-		// used by OS Settings.
-		icon: 'dashicons-exit',
-		onOpen: () => {
-			void exitOpenStation();
-		},
-	};
 }
 
 /**
@@ -112,9 +79,9 @@ export async function exitOpenStation(): Promise< void > {
 }
 
 /**
- * Drive a full top-window navigation. The dock tile may be hosted in
- * the shell page (top window) or — in tests / embedded scenarios — in
- * an iframe; either way we want the whole tab to land on the new URL.
+ * Drive a full top-window navigation. The caller may be hosted in the
+ * shell page (top window) or — in tests / embedded scenarios — in an
+ * iframe; either way we want the whole tab to land on the new URL.
  */
 function navigateTop( url: string ): void {
 	try {

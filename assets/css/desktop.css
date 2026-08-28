@@ -191,13 +191,17 @@ body.os-active.os-admin-bar-dynamic #wpadminbar:hover,
 body.os-active.os-admin-bar-dynamic #wpadminbar:focus-within,
 body.os-active.os-admin-bar-dynamic #wpadminbar:active,
 /*
- * …and while the notch is being used. The notch hangs from the same
+ * …and while the tray is being used. The tray hangs from the same
  * edge and steps down to sit under the bar when it appears (see
- * notch.css), so letting the bar retract out from over it mid-reach
- * would drop the notch back up under the pointer.
+ * tray.css), so letting the bar retract out from over it mid-reach
+ * would drop the tray back up under the pointer.
  */
-body.os-active.os-admin-bar-dynamic:has( .os-notch:hover ) #wpadminbar,
-body.os-active.os-admin-bar-dynamic:has( .os-notch:focus-visible ) #wpadminbar {
+body.os-active.os-admin-bar-dynamic:has(
+		.os-tray[ data-os-tray-mode="pill" ]:hover
+	) #wpadminbar,
+body.os-active.os-admin-bar-dynamic:has(
+		.os-tray[ data-os-tray-mode="pill" ]:focus-within
+	) #wpadminbar {
 	transform: translateY(0);
 }
 
@@ -864,6 +868,19 @@ body.os-has-fullscreen-window .os-shell {
 	transition:
 		opacity 0.22s ease,
 		transform 0.28s cubic-bezier( 0.2, 0, 0.2, 1 );
+}
+
+/*
+ * Clear of the tray, but only when the tray is the top-right pill —
+ * in its shelf placement it is tucked behind the bottom dock and this
+ * corner is free. The tray reserves no work area in either mode (it
+ * is not in the `.os-area` calculation and never will be), so this is
+ * one sibling yielding to another rather than a claim on the
+ * rectangle. The tray's own 12px inset, plus its 26px pill, plus a
+ * 12px gap below it.
+ */
+.os-shell:has( .os-tray[ data-os-tray-mode="pill" ] ) .os-widgets {
+	top: 50px;
 }
 
 .os-area--overview .os-widgets {

@@ -3,7 +3,7 @@
  * sit in.
  *
  * The tiles that answer for OpenStation itself rather than for the
- * site: Mio, Overview, System and Exit OpenStation, clustered at the
+ * site: Mio, Overview and System, clustered at the
  * tail of the rail. Everything here is data; `desktop.ts` does the
  * registering.
  *
@@ -44,7 +44,6 @@ export const SYSTEM_TILE_ORDER = {
 	mio: 10,
 	overview: 20,
 	system: 30,
-	exit: 35,
 } as const;
 
 /**

@@ -19,7 +19,7 @@ export interface NavSystemTile {
 	item: SystemDockItem;
 	/** `'app'` for a launcher, `'control'` for a shell affordance. */
 	kind: Extract< NavKind, 'app' | 'control' >;
-	/** Exit OpenStation. Never movable, never hideable. */
+	/** Never movable, never hideable. */
 	locked?: boolean;
 }
 

@@ -1596,13 +1596,13 @@ body.os-active {
 	 */
 	--os-z-desktop-name: 195;
 	/*
-	 * The notch — on the desk, under the windows (100 + stack index),
+	 * The tray — on the desk, under the windows (100 + stack index),
 	 * above the window-link wires (50) so a tie never draws across the
-	 * pill. It hangs over the strip a window's title bar occupies, and
+	 * pills. It hangs over the strip a window's title bar occupies, and
 	 * a pill floating above someone's window is the shell talking over
 	 * the thing they are working in.
 	 */
-	--os-z-notch: 60;
+	--os-z-tray: 60;
 
 	/*
 	 * Window-link ties (relation splines between windows). The accent

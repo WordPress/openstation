@@ -1044,15 +1044,31 @@ window.wp.hooks.addFilter(
 );
 ```
 
-#### The notch
+#### The tray
 
-A small pill fixed to the **top centre** of the shell, `#os-notch`. It is the site assistant's front door — click it, or press `⌘/Ctrl + K` — and it is where the shell says short things: `say( text )` expands it with a message and collapses it again after a couple of seconds.
+One pill, `#os-tray`, divided into two sections:
 
-**It never reserves work area, and that is the contract.** A full-width bar that permanently stole height is what OpenStation removed; an element that reserved space would be the same mistake in a nicer shape, and it would make the notch a second hardcoded claimant on a work-area rectangle that already has several disagreeing answers. So it is positioned against the shell rather than the viewport, which places it correctly whichever admin-bar mode is on, and it stacks *under* the window layer rather than pushing windows down: a window that reaches the top edge covers the pill, because the strip the notch hangs over is also where a title bar lives and the shell has no business talking over the thing you are working in. Top-*centre* is chosen rather than incidental: the desktop icon grid fills the leading column top-down, so the centre is the one part of the top edge it never claims.
+| Pill | What it is |
+|---|---|
+| `.os-tray__assistant` | The site assistant's front door — click it, or press `⌘/Ctrl + K`. This is the only *visible* ⌘K affordance the shell has; Core's own command-palette button lives in an admin bar OpenStation hides by default. |
+| `.os-tray__exit` | **Exit OpenStation** — disables the user's shell preference and returns them to classic admin. Labelled by a tooltip on hover, and by `aria-label` always. |
 
-The message region is always in the DOM with `aria-live="polite"` — a live region created at the moment it gains text is announced unreliably — and `say()` replaces rather than queues, because two things happening at once is one situation, not two messages.
+They share one capsule because they belong to the same corner and read as one object; the hairline divider between them is what keeps them two separate subjects rather than one long readout.
 
-Hidden entirely in solo mode.
+The time is deliberately not here. A clock is glanceable content, which is what the [widget layer](./examples/register-widget.md) is for — the shell ships one, and it can be moved, resized and removed like anything else on the desk. Pinning it into shell chrome would make it the one readout on the desktop nobody could turn off. The surface is drawn once, by the pill itself — the sections carry only their contents and a leading-edge divider, so the outer caps are rounded without any section needing to know which end of the row it sits on.
+
+**Where it sits depends on the dock**, and `data-os-tray-mode` on the element says which of the two it currently is:
+
+- **`shelf`** — the default. A second, smaller sheet reading as though it sits behind the bottom dock, the way a stacked card sits behind the one in front of it. Nothing is actually behind anything: it rests flush on the dock's top edge, and **square bottom corners** are what say the surface carries on underneath. Rounding that pair would make it a second bar balanced on top instead. The dock casts a glow upward onto it, since with no real occlusion the depth has to come from light. It is not a child of the dock — the layout dispatcher tears rails down and builds fresh ones on every layout change, so anything parented inside one is destroyed with it. The tray stays on the shell and is positioned from measurements of the live dock, which also means it never has to care that the split layout has two docks.
+- **`pill`** — the fallback, when the user places their single rail on the left or right edge. There is no bottom dock to tuck behind, so the tray floats in the top-right corner instead.
+
+In `shelf` mode it stacks just under the dock rather than under the windows: a shelf that slid beneath a maximized window while the dock it is attached to stayed floating would come apart as two objects. In `pill` mode it stacks *under* the window layer, because it hangs over the strip a title bar occupies and the shell has no business talking over the thing you are working in.
+
+**It never reserves work area in either mode, and that is the contract.** A full-width bar that permanently stole height is what OpenStation removed; an element that reserved space would be the same mistake in a nicer shape, and it would make the tray a second hardcoded claimant on a work-area rectangle that already has several disagreeing answers. So it is positioned against the shell rather than the viewport, which places it correctly whichever admin-bar mode is on. The one element that *does* move for the tray is the widgets column, which starts in the same corner — and only in `pill` mode, since in `shelf` mode that corner is free. Either way that is one sibling yielding to another, not a claim on the rectangle.
+
+Logging out is not here — it is a row in the dock's System menu, with the rest of the shell's own affordances. A one-click power glyph sitting permanently in the corner is far more prominence than an action that rare deserves.
+
+Hidden entirely in solo mode, and faded out in the overview.
 
 #### The constellation
 
@@ -3980,7 +3996,7 @@ Each entry:
 | `id` | `string` | Canonical id. Keys `navPlacement` and `navOrder`. |
 | `kind` | `'core' \| 'plugin' \| 'app' \| 'control'` | What the item IS. Decides its default placement and its dock zone. |
 | `title` / `icon` | `string` | Display label and icon string (see [`renderIcon`](#rendericon-icon-opts--stable)). |
-| `locked` | `boolean?` | Cannot be moved or hidden. Exit OpenStation only. |
+| `locked` | `boolean?` | Cannot be moved or hidden. Nothing built-in claims it; use it only for a tile whose absence would strand the user. |
 | `windowId` | `string?` | The native-window id it opens, when it opens one. |
 | `menu` / `tile` / `entry` | object? | The sources that produced it. An app registered as both a native window and a desktop icon carries a `tile` and an `entry`, and is still **one** item. |
 

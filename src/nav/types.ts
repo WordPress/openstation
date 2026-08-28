@@ -69,8 +69,10 @@ export interface NavItem {
 	/** Dashicon class, data: URI, or image URL. */
 	icon: string;
 	/**
-	 * Cannot be moved, hidden, or reordered. Exit OpenStation is the
-	 * only one: it is the way out of the shell.
+	 * Cannot be moved, hidden, or reordered. For an item a user must
+	 * always be able to reach — nothing built-in claims it now, and a
+	 * plugin should claim it only for something whose absence would
+	 * strand them.
 	 */
 	locked?: boolean;
 	/**

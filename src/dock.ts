@@ -134,8 +134,10 @@ export interface SystemDockItem {
 	 */
 	navKind?: 'app' | 'control';
 	/**
-	 * Cannot be moved, hidden, or reordered. Exit OpenStation is the
-	 * only one: it is the way out of the shell.
+	 * Cannot be moved, hidden, or reordered. For a tile a user must
+	 * always be able to reach — nothing built-in claims it now, and a
+	 * plugin should claim it only for something whose absence would
+	 * strand them.
 	 */
 	locked?: boolean;
 	/**
@@ -1518,7 +1520,7 @@ export class Dock {
 		 * cross-zone move to detect and undo.
 		 *
 		 * A locked tile is excluded as a TARGET, not just as a thing
-		 * to pick up. Exit OpenStation carries no drag handler, but a
+		 * to pick up. A locked tile carries no drag handler, but a
 		 * neighbour's gesture still hit-tests against it, and matching
 		 * here would let the drag reorder across it and write its id
 		 * into the persisted order — after which every load paints it

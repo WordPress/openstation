@@ -38,7 +38,6 @@ import type { DestructiveAdminActionEntry } from './destructive-admin-actions';
 // `src/dock-helpers.ts` — `src/api/facade.ts` is the only consumer
 // in this bundle.
 import { OsSettings } from './settings';
-import { getExitOpenStationTileDef } from './exit-openstation';
 import { deriveWindowId, urlMatchKey } from './utils';
 // Static import — `setUserEditTarget` MUST run before the user-edit
 // window's render callback reads the target, and the render callback
@@ -241,7 +240,7 @@ import {
 	type MioApi,
 } from './mio/controller';
 import { OS_GEAR_ICON } from './ui/gear-icon';
-import { mountNotch } from './notch';
+import { mountTray } from './tray';
 import {
 	OS_OVERVIEW_ICON,
 	OS_SYSTEM_ICON,
@@ -1168,7 +1167,7 @@ export interface OpenStationPublicApi {
 		 * system tiles are load-bearing.
 		 */
 		placeable: boolean;
-		/** Cannot be moved or hidden. Exit OpenStation only. */
+		/** Cannot be moved or hidden. Nothing built-in claims it. */
 		locked: boolean;
 	} >;
 	/**
@@ -2762,13 +2761,15 @@ function init(): void {
 			},
 		} );
 
-		// The notch — the site assistant's front door, and the shell's
-		// place to speak from. Deliberately not a dock tile: the rail
-		// is a list of apps, and "what is going on with this site?" is
-		// not one of them. Mounted on the shell root rather than the
-		// desk area so it never enters the work-area calculation.
-		mountNotch( shellEl, () => {
-			document.dispatchEvent( new CustomEvent( 'os-open-ai' ) );
+		// The tray — the site assistant's front door, the clock, and
+		// who is signed in. Deliberately not dock tiles: the rail is a
+		// list of apps, and none of these three are one. Mounted on the
+		// shell root rather than the desk area so it never enters the
+		// work-area calculation.
+		mountTray( shellEl, {
+			openAssistant: () => {
+				document.dispatchEvent( new CustomEvent( 'os-open-ai' ) );
+			},
 		} );
 		// Tracked by the dispatcher so it re-attaches automatically
 		// after a layout rebuild. `'core'` classifies it as a
@@ -2995,13 +2996,6 @@ function init(): void {
 		// Bug Report has no tile of its own anymore — it is a row in
 		// the System menu. `openBugReport` is still the one opener,
 		// reached from there and from the `os-open-bug-report` event.
-
-		// Exit OpenStation tile — last on the core rail so users have
-		// a discoverable in-shell way out, complementing the admin-bar
-		// "Switch to Classic Admin" toggle. Reuses the existing
-		// save-openstation AJAX endpoint via the
-		// `window.openStationAdminBar` global; no new PHP surface.
-		layoutDispatcher.appendSystemTile( getExitOpenStationTileDef() );
 
 		// Mio tile — one of OpenStation's controls, so it rides the
 		// dock's trailing cluster rather than sitting among the apps.

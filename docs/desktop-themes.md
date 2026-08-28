@@ -1129,7 +1129,7 @@ still apply.
 | `desktopLayout` | `classic`, `unified` |
 | `dockPlacement` | `bottom`, `left`, `right` — which edge the dock sits on. Read by `unified`; `classic` owns both of its edges and ignores it. |
 | `windowRadius` | `sharp`, `default`, `round` |
-| `adminBarMode` | `static`, `dynamic`, `hidden` — how the WordPress admin bar presents above the shell. `dynamic` parks it off the top edge behind a peek strip that reveals on hover or keyboard focus; `hidden` removes it, leaving the dock's **Exit OpenStation** tile as the route back to classic admin. A theme wanting an edge-to-edge desk recommends one of the two. |
+| `adminBarMode` | `static`, `dynamic`, `hidden` — how the WordPress admin bar presents above the shell. `dynamic` parks it off the top edge behind a peek strip that reveals on hover or keyboard focus; `hidden` removes it, leaving the tray's **Exit OpenStation** button as the route back to classic admin. A theme wanting an edge-to-edge desk recommends one of the two. |
 | `dockRailRenderer` | A registered dock rail renderer id. Core ships `default`; plugins register their own. |
 | `windowReveal` | A registered window-reveal id — the transition that uncovers a window's content once it loads. Core ships twelve (`sweep`, `rise`, `diagonal`, `iris`, `diamond`, `curtain`, `shutter`, `blinds`, `slats`, `mosaic`, `radar`, `obturator`); `none` is always valid and means no transition. |
 | `windowRevealDuration` | How long reveals run, in whole ms. Clamped to 80–4000. Omit it to leave the user's speed alone — recommending `0` is not a way to say "default". |
