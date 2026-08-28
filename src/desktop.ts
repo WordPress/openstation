@@ -240,7 +240,15 @@ import {
 	type MioApi,
 } from './mio/controller';
 import { OS_GEAR_ICON } from './ui/gear-icon';
-import { mountTray } from './tray';
+import {
+	decorateAssistantTile,
+	getAssistantTileDef,
+} from './assistant-tile';
+import {
+	EXIT_OPENSTATION_TILE_ID,
+	getExitOpenStationTileDef,
+} from './exit-openstation';
+import { findBottomDock, mountTray } from './tray';
 import { installDockBehavior } from './dock-behavior';
 import {
 	installWorkArea,
@@ -249,6 +257,7 @@ import {
 	type WorkAreaApi,
 } from './work-area';
 import {
+	ASSISTANT_TILE_ID,
 	OS_OVERVIEW_ICON,
 	OS_SYSTEM_ICON,
 	OVERVIEW_TILE_ID,
@@ -2774,15 +2783,36 @@ function init(): void {
 			config.desktopIcons,
 			initialPlacement,
 		);
+		// The tray — the site assistant's front door and the way out.
+		// Deliberately not dock tiles: the rail is a list of things
+		// you open and close, and neither of these is one.
+		//
+		// Mounted in the shell BODY, not on the shell root, for two
+		// reasons that are really one: it is a sibling of the dock it
+		// draws itself onto, and `installWorkArea` only measures
+		// chrome inside the body.
+		mountTray( shellBody, {
+			openAssistant: () => {
+				document.dispatchEvent( new CustomEvent( 'os-open-ai' ) );
+			},
+		} );
 		// The work area — measured AFTER the dispatcher has built the
-		// rails so the first snapshot already knows the pill. From here
-		// on it follows the rails itself (ResizeObserver per dock,
-		// `os-layout-changed` for a rebuild) and every placing surface
-		// reads it instead of guessing at the dock.
+		// rails AND after the tray has mounted, so the first snapshot
+		// already knows both. From here on it follows them itself
+		// (ResizeObserver per element, `os-layout-changed` for a
+		// rebuild) and every placing surface reads it instead of
+		// guessing at the dock.
 		installWorkArea( {
 			shell: shellEl,
 			shellBody,
 			area: desktopArea,
+			// The tray sits on top of the bottom dock and stands above
+			// the windows, so the band it covers is reserved the same
+			// way the dock's is — by being measured, rather than by a
+			// number written into a stylesheet. It detaches itself
+			// when there is no bottom dock, so this matches nothing
+			// on a side-placed rail.
+			chromeSelector: '.os-dock, .os-tray',
 		} );
 		// The dynamic dock behavior's JS half — per-rail stamping and
 		// the fold / reveal state. Inert while every rail is static.
@@ -2812,16 +2842,6 @@ function init(): void {
 			},
 		} );
 
-		// The tray — the site assistant's front door, the clock, and
-		// who is signed in. Deliberately not dock tiles: the rail is a
-		// list of apps, and none of these three are one. Mounted on the
-		// shell root rather than the desk area so it never enters the
-		// work-area calculation.
-		mountTray( shellEl, {
-			openAssistant: () => {
-				document.dispatchEvent( new CustomEvent( 'os-open-ai' ) );
-			},
-		} );
 		// Tracked by the dispatcher so it re-attaches automatically
 		// after a layout rebuild. `'core'` classifies it as a
 		// shell-owned affordance; every system tile lands on the
@@ -2935,6 +2955,33 @@ function init(): void {
 			isOpen: () => anyRowOpen( systemTile.submenu ?? [] ),
 		};
 		layoutDispatcher.appendSystemTile( systemTile );
+
+		// The tray's two controls, as dock tiles, for the rails that
+		// have no tray. Registered and removed rather than declared
+		// once: a tile that stayed while the tray was also showing
+		// would offer both actions twice.
+		decorateAssistantTile();
+
+		const syncRailTiles = (): void => {
+			// The ELSE branch of the tray, so it asks the tray's own
+			// question rather than one that resembles it:
+			// `getDockPlacement()` answers `'left'` in Split while a
+			// bottom dock is on screen carrying the tray, which put
+			// the assistant in Split twice.
+			if ( ! findBottomDock() ) {
+				layoutDispatcher?.appendSystemTile( getAssistantTileDef() );
+				layoutDispatcher?.appendSystemTile(
+					getExitOpenStationTileDef(),
+				);
+			} else {
+				layoutDispatcher?.removeSystemTile( ASSISTANT_TILE_ID );
+				layoutDispatcher?.removeSystemTile(
+					EXIT_OPENSTATION_TILE_ID,
+				);
+			}
+		};
+		syncRailTiles();
+		document.addEventListener( 'os-layout-changed', syncRailTiles );
 
 		// Async post-boot: if the PWA is already installed in the
 		// current browser profile (Chrome's `Open in app` indicator in

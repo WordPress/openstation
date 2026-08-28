@@ -35,6 +35,8 @@
 /** Tile ids. Stable strings: they key visibility overrides in Preferences. */
 export const OVERVIEW_TILE_ID = 'os-overview';
 export const SYSTEM_TILE_ID = 'os-system';
+/** The site assistant's tile, on rails that have no tray to hold it. */
+export const ASSISTANT_TILE_ID = 'os-assistant';
 
 /**
  * Sort keys for the trailing cluster. Spaced by ten so a plugin can
@@ -44,6 +46,7 @@ export const SYSTEM_TILE_ORDER = {
 	mio: 10,
 	overview: 20,
 	system: 30,
+	exit: 35,
 } as const;
 
 /**

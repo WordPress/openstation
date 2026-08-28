@@ -1,76 +1,38 @@
 /*
- * The tray — top-right, floating, never reserving.
+ * The tray — the bottom dock's controls strip.
  *
- * The load-bearing rule in this file is that nothing here touches
- * `.os-area`. Reserving height would make the tray another hardcoded
- * claimant on a work-area rectangle that already has several
- * disagreeing answers. It floats, and it gets out of the way instead.
- * The one thing that DOES move for it is the widgets column, which
- * starts at the same corner — that offset lives in `desktop.css`,
- * next to the column it applies to.
+ * A surface the dock rests in: the dock's width, sitting behind it and
+ * extending `--os-tray-strip` above, so the dock keeps all four of its
+ * own corners and neither shape is cut to fit the other. There is no
+ * tray without a bottom dock; a side-placed rail takes the same two
+ * controls as tiles (see `dock.css`).
  *
- * Getting out of the way is also what the stacking order says: the
- * tray is on the desk, under the window layer, so a window reaching
- * the top edge covers the pills instead of the pills hanging over it.
+ * Nothing here touches `.os-area`. The strip does claim a work-area
+ * band, but the way the dock does — by being measured, through
+ * `desktop.ts`'s `chromeSelector`, not by a number written in here.
  */
 
-/*
- * Anchored to the SHELL, not the viewport. `.os-shell` starts below
- * the admin bar when the user keeps it, and at the viewport top when
- * they don't, so an absolutely-positioned tray lands correctly in
- * every admin-bar mode without knowing which one is on. Fixed
- * positioning put it under the bar, which paints above the shell.
- *
- * Inset from both edges rather than flush against them: this is a
- * free-floating pill sitting ON the desk, not chrome bolted to the
- * frame around it.
- *
- * The ELEMENT owns the pill — surface, hairline, caps, shadow — and
- * the sections inside it own only their contents and the divider on
- * their leading edge. Drawing the surface once is what guarantees an
- * unbroken capsule: three separately-bordered children sharing an
- * edge produce a double-thickness seam wherever they meet, and each
- * would need to know which end of the row it was on to round the
- * right two corners.
- *
- * Half the height for the caps, so they stay true semicircles at any
- * height a theme picks. A large fixed radius would flatten as it grew.
- *
- * Without the hairline the surface disappears into the default
- * wallpaper — Void on Void, with only the shadow separating them.
- */
 .os-tray {
 	position: absolute;
 	display: flex;
-	align-items: stretch;
-	max-width: min( 560px, 70vw );
 	/*
-	 * The dock's edge treatment, chain for chain.
-	 *
-	 * `dock.css` builds each of these from a floating-specific token
-	 * that falls back to the general dock one and then to a literal,
-	 * so a theme that only tokenized its side rails still gets the
-	 * floating pill. Read here the same way, with a tray-level name
-	 * in front, the shelf inherits every one of those decisions —
-	 * including a theme that set only the general token.
-	 *
-	 * Private aliases rather than repeating the chains at each use
-	 * site: the public names stay reachable because nothing declares
-	 * them here, and the box-shadow below stays readable.
+	 * Border-box, and load-bearing: the width below is the dock's
+	 * MEASURED width, a border-box number. Under content-box it would
+	 * gain this element's own border and padding, and the strip would
+	 * overhang the dock it is the edge of.
 	 */
-	--_border: var(
-		--os-tray-border,
-		var(
-			--os-dock-floating-border,
-			var( --os-dock-border, rgba( 255, 251, 255, 0.12 ) )
-		)
-	);
+	box-sizing: border-box;
+
 	/*
-	 * Brighter along the top than the other edges. This is the whole
-	 * "lit from above" read: a surface catching light on the edge
-	 * that faces it. The dock declares the same relationship, and the
-	 * two sitting together with only one of them lit is what made the
-	 * shelf look like a different object.
+	 * The dock's edge treatment, chain for chain. `dock.css` builds
+	 * each from a floating-specific token falling back to the general
+	 * dock one and then a literal, so a theme that tokenized only its
+	 * side rails still gets the pill. Read the same way here, with a
+	 * tray-level name in front, and the strip inherits every one of
+	 * those decisions.
+	 *
+	 * Private aliases so the public names stay reachable: nothing
+	 * declares them on this element, so an inherited theme value wins.
 	 */
 	--_border-top: var(
 		--os-tray-border-top,
@@ -82,322 +44,138 @@
 			)
 		)
 	);
-	/* The inner edge of that same light — a hairline just inside the
-	   top border, which is what gives the glass its thickness. */
-	--_highlight: var(
-		--os-tray-highlight,
-		var( --os-dock-floating-highlight, rgba( 255, 251, 255, 0.08 ) )
-	);
-	--_shadow: var(
-		--os-tray-shadow,
-		var( --os-dock-floating-shadow, rgba( 0, 0, 0, 0.45 ) )
-	);
-
-	border: 1px solid var( --_border );
-	border-block-start: 1px solid var( --_border-top );
-	border-radius: calc( var( --os-tray-height, 26px ) / 2 );
-	/*
-	 * The dock's own glass, and it has to be a DARK tint rather than
-	 * a light wash.
-	 *
-	 * `--os-ui-surface-raised` is 6% white — over a wallpaper that
-	 * reads as a faint dark surface, which is why it looked right at
-	 * first. Over a wp-admin window it is 6% white on near-white, so
-	 * the tray turns pale, the near-white text on it stops being
-	 * legible, and the surface inverts against the dock sitting
-	 * beside it. A floating readout passes over arbitrary content by
-	 * definition, so its tint cannot be one that depends on what is
-	 * behind it.
-	 *
-	 * Using the dock's token rather than a private one is also the
-	 * honest description of what this is: the same chrome, and a
-	 * theme restyling the dock should carry the shelf attached to it.
-	 * `--os-tray-bg` in front lets a theme separate them again.
-	 */
-	background: var(
+	--_glass: var(
 		--os-tray-bg,
 		var( --os-dock-floating-bg, rgba( 12, 11, 15, 0.62 ) )
 	);
-	/* Matched to the dock's own blur, so the two are one material. */
-	backdrop-filter: blur( 28px ) saturate( 170% );
-	-webkit-backdrop-filter: blur( 28px ) saturate( 170% );
-	/*
-	 * Same two layers the dock casts, in the same order: the inset
-	 * highlight riding the top edge, then the drop shadow. Softer and
-	 * closer than the dock's own, because this is a 26px strip rather
-	 * than a 58px slab and the dock's throw would read as the shelf
-	 * floating well in front of it.
-	 */
-	box-shadow:
-		inset 0 1px 0 var( --_highlight ),
-		0 4px 14px var( --_shadow );
-	/*
-	 * Foreground from the DOCK's family, not the palette's, because
-	 * the background above comes from the dock's too. Split them
-	 * across two families and a theme that moves one has no way to
-	 * move the other: Legacy sets `--os-dock-floating-bg` dark and
-	 * `--os-ui-fg` to #1d2327, since its palette foreground is for
-	 * light surfaces like cards and windows. Reading the palette here
-	 * painted near-black text on a dark translucent shelf.
-	 *
-	 * The `--os-dock-icon-color` pair already means
-	 * "legible against the dock's surface", which is exactly the
-	 * question being asked. `--os-tray-fg` in front lets a theme
-	 * separate them again, the same way `--os-tray-bg` does.
-	 */
-	color: var(
-		--os-tray-fg,
-		var( --os-dock-icon-color-hover, #fffbff )
+	--_hover: var(
+		--os-tray-hover-bg,
+		var( --os-dock-item-bg-hover, rgba( 242, 82, 252, 0.18 ) )
 	);
+	--_fg: var( --os-tray-fg, var( --os-dock-icon-color-hover, #fffbff ) );
+	--_fg-muted: var(
+		--os-tray-fg-muted,
+		var( --os-dock-icon-color, rgba( 255, 251, 255, 0.72 ) )
+	);
+
+	/* How far the strip stands proud of the dock, and how much of it
+	   shows above. The height below is the dock's own plus the strip,
+	   so the strip stays this tall whatever the dock measures at. */
+	--_pad: 6px;
+	--os-tray-strip: 16px;
+
 	/*
-	 * NOT clipped. `overflow: hidden` would be the easy way to keep a
-	 * section's hover fill inside the capsule, and it also eats the
-	 * exit tooltip, which has to escape the pill entirely to be read.
-	 * `position: fixed` is no way out of that either — the
-	 * `backdrop-filter` above (and the shelf's `translateX`) makes
-	 * this element a containing block, so a fixed descendant is
-	 * contained by it just the same.
-	 *
-	 * The caps are handled by the two rules below instead, which give
-	 * the outer sections the pill's own radius so their fills round
-	 * off on their own.
-	 */
-	overflow: visible;
-	font-size: 11px;
-	line-height: 1;
-	transition: opacity 160ms ease, top 180ms ease,
-		visibility 0s linear 160ms;
-}
-
-/*
- * One section. Three of these divide the pill rather than sitting
- * apart as three pills: they belong to the same corner and read as
- * one object, and the dividers are what keep them three unrelated
- * subjects instead of one long readout.
- *
- * The divider is a leading-edge border, so it falls BETWEEN sections
- * and never on the outer caps — `:first-child` simply has nothing to
- * its leading side. Logical rather than `border-left`, so an RTL
- * shell divides on the correct side without a second rule.
- */
-.os-tray__group {
-	display: flex;
-	align-items: center;
-	gap: 6px;
-	height: var( --os-tray-height, 26px );
-	padding: 0 10px;
-	border: 0;
-	/* Fainter than the pill's own outline. A divider only has to
-	   separate two things that are already inside one enclosure; at
-	   the outline's weight it read as three joined boxes. Translucent
-	   like the outline, so it darkens the glass rather than painting
-	   an opaque line across it. */
-	border-inline-start: 1px solid
-		var( --os-tray-divider, rgba( 255, 251, 255, 0.08 ) );
-	background: none;
-	color: inherit;
-	white-space: nowrap;
-	transition: background 160ms ease;
-}
-
-/* ------------------------------------------------------------------
- * Two placements, and which one is live is decided in `tray.ts` from
- * whether a bottom dock exists to tuck behind.
- * ------------------------------------------------------------------ */
-
-/*
- * SHELF — tucked in behind the bottom dock, a second smaller sheet
- * peeking over its top edge. The iOS stacked-card idiom: the card
- * behind is the same material, and it is the GEOMETRY that says
- * "behind" — narrower, offset, and rounded only on the edge you can
- * actually see. Tinting it differently would read as a second
- * unrelated surface rather than the same stack.
- *
- * Every number here comes from `tray.ts` measuring the live dock, so
- * the shelf tracks a dock that changed width (a plugin activated, the
- * menu refreshed) or moved (a dock-size change) without either of
- * them knowing about the other.
- */
-.os-tray[ data-os-tray-mode="shelf" ] {
-	/*
-	 * Centred on the dock, not on the shell. A bottom dock is centred
-	 * in the viewport today, but it is `width: fit-content` with a
-	 * max-width, so a long enough menu makes those two different
-	 * things.
+	 * Centred on the DOCK, not the shell: a bottom dock is centred in
+	 * the viewport today, but it is `width: fit-content` with a
+	 * max-width, so a long enough menu makes those two differ.
 	 */
 	inset-inline: auto;
 	left: var( --os-tray-dock-center, 50% );
 	transform: translateX( -50% );
-	/*
-	 * Sitting ON the dock's top edge, flush, with nothing hidden
-	 * behind it. The shelf does not actually go behind anything —
-	 * SQUARE BOTTOM CORNERS are what make it read as continuing under
-	 * the dock, and a rounded pair there is the only thing that would
-	 * break the effect. So there is no overlap to maintain, no
-	 * padding compensating for one, and no part of the surface being
-	 * paid for and then covered up.
-	 *
-	 * The 1px is subpixel insurance, not a tuck: the dock's bottom
-	 * and height are rounded to whole pixels when measured, and a
-	 * fractional device pixel between the two edges would show a
-	 * hairline of wallpaper along the seam. Overlapping by one kills
-	 * that without moving anything the eye can find.
-	 */
-	bottom: calc(
-		var( --os-tray-dock-bottom, 12px ) +
-			var( --os-tray-dock-height, 56px ) - 1px
+	width: calc( var( --os-tray-dock-width, auto ) );
+	height: calc(
+		var( --os-tray-dock-height, 56px ) + var( --os-tray-strip, 16px )
 	);
+	bottom: calc( var( --os-tray-dock-bottom, 12px ) );
+
+	/* Concentric with the dock's own 18px: outer radius = inner radius
+	   plus the gap. Reuse 18px and the two curves run at different
+	   rates and the gap pinches at each corner. */
+	border-radius: calc( 18px + var( --_pad ) );
+
 	/*
-	 * Narrower than the dock, which is what makes it read as a card
-	 * behind rather than a second bar. `fit-content` first — the
-	 * three sections are ~330px and a stock dock is wider than that —
-	 * with the dock's own width as the ceiling for the case where it
-	 * isn't.
+	 * Two layers, and both are needed: the dock's glass, with the top
+	 * border's colour over it.
+	 *
+	 * The border colour alone is what a thickened border should be, but
+	 * it is a white ALPHA — over a wallpaper it lands as a light strip
+	 * and the white icons read fine; over a wp-admin window it
+	 * composites to white on white and they disappear. A surface
+	 * floating over arbitrary content cannot take its darkness from
+	 * whatever is behind it, so the glass supplies it.
+	 *
+	 * The fill carries on behind the dock rather than stopping at the
+	 * strip, which does tint the dock. Painting only the strip was
+	 * tried: its straight bottom edge then meets the dock's rounded top
+	 * corners and leaves both ends hanging over wallpaper.
 	 */
-	width: fit-content;
-	/*
-	 * `max()` is load-bearing, not defensive dressing. A dock narrow
-	 * enough — a stock install with a couple of menus, a small dock
-	 * size — makes that subtraction negative, and a negative
-	 * `max-width` clamps to zero: the shelf collapses to a sliver and
-	 * its contents spill out of it. The floor is what a shelf has to
-	 * be wide enough to say.
-	 */
-	max-width: max( 200px, calc( var( --os-tray-dock-width, 100vw ) - 28px ) );
-	/*
-	 * The whole illusion, in two declarations. Square bottom corners
-	 * say the surface carries on underneath the dock; rounded ones
-	 * would say it stops there, and the shelf would read as a second
-	 * bar balanced on top. The dropped bottom border is the other
-	 * half — a hairline along the seam draws exactly the edge the
-	 * square corners are denying.
-	 */
-	border-block-end: 0;
-	border-radius: 14px 14px 0 0;
-	/*
-	 * Immediately under the dock (200) rather than under the windows.
-	 * A shelf that slid beneath a maximized window while the dock it
-	 * is attached to stayed floating would come apart as two objects.
-	 */
+	background-color: var( --_glass );
+	background-image: linear-gradient(
+		var( --_border-top ),
+		var( --_border-top )
+	);
+	backdrop-filter: blur( 28px ) saturate( 170% );
+	-webkit-backdrop-filter: blur( 28px ) saturate( 170% );
+
+	/* Behind the dock, which is what lets the dock keep its corners and
+	   simply sit on this. */
 	z-index: calc( var( --os-z-dock, 200 ) - 1 );
+	color: var( --_fg );
+
 	/*
-	 * Same layers as the base rule, with the drop shadow mirrored to
-	 * throw UPWARD. The dock's shadow falls away from its exposed
-	 * edge; the shelf's exposed edge is the top one, so its shadow
-	 * has to go the other way. Left pointing down it would land on
-	 * the dock standing in front of it, which is backwards — the dock
-	 * is the nearer object and does that casting (see the glow rule
-	 * below).
+	 * Clipped, which keeps a hover fill inside the rounded corners
+	 * without every control knowing the radius — the radius is far
+	 * larger than the strip's height, so at the top the strip is still
+	 * transparent well inside its own edge.
 	 *
-	 * The inset highlight is NOT mirrored: it belongs to the top edge
-	 * in both, because in both that is the edge facing the light.
+	 * The price is the hover label: it opens ABOVE the strip, so it is
+	 * hosted in `document.body` instead, the same answer `dock.css`
+	 * gives its own tooltip.
 	 */
-	box-shadow:
-		inset 0 1px 0 var( --_highlight ),
-		0 -4px 14px var( --_shadow );
+	overflow: hidden;
+	font-size: 11px;
+	line-height: 1;
+	transition: opacity 160ms ease, visibility 0s linear 160ms;
+
+	/* Controls into the top strip, at the trailing end where a system
+	   tray sits. `flex-start` because they size themselves: stretched,
+	   their hover fills would paint down the sides of the dock. */
+	align-items: flex-start;
+	justify-content: flex-end;
+	padding-inline-end: calc( var( --_pad ) + 6px );
 }
 
 /*
- * …and the dock answers by casting UP onto the shelf.
- *
- * This is what sells the stack. The shelf is not behind anything, so
- * nothing occludes it; depth has to come from light instead. A glow
- * rising off the dock's top edge darkens the shelf exactly along the
- * seam, which is what a nearer object does to one behind it.
- *
- * `filter`, deliberately, rather than a fourth `box-shadow` layer.
- * The dock's own shadow list is a themeable chain of four tokens in
- * `dock.css`; restating it here to append one more layer would copy
- * that chain into a second file, where it would quietly stop
- * matching the day the dock's changes. `drop-shadow` composes with
- * whatever `box-shadow` resolved to, follows the dock's rounded
- * silhouette for free, and leaves every token where it was.
- *
- * Only while a shelf is actually there — a dock glowing upward into
- * empty wallpaper is just a dock with a halo.
+ * One control. Both carry no surface of their own at rest: the strip
+ * is one continuous band, and a fill or divider here would draw a seam
+ * inside what reads as the dock's own edge.
  */
-.os-shell:has( .os-tray[ data-os-tray-mode="shelf" ] )
-	.os-dock[ data-os-dock-placement="bottom" ] {
-	filter: drop-shadow(
-		0 -3px 10px var( --os-dock-floating-shadow, rgba( 0, 0, 0, 0.45 ) )
-	);
-}
-
-/*
- * PILL — the fallback, for a left- or right-placed dock: there is no
- * bottom rail to tuck behind, so the tray floats in the top-right
- * corner instead.
- *
- * Inset from both edges rather than flush against them: a
- * free-floating pill sitting ON the desk, not chrome bolted to the
- * frame around it. Under the window band here, unlike the shelf —
- * it hangs over the strip a title bar occupies, and the shell has no
- * business talking over the thing you are working in.
- */
-.os-tray[ data-os-tray-mode="pill" ] {
-	top: var( --os-tray-inset, 12px );
-	inset-inline-end: var( --os-tray-inset, 12px );
-	z-index: var( --os-z-tray, 60 );
-}
-
-.os-tray__group:first-child {
-	border-inline-start: 0;
-}
-
-/*
- * The caps, on the sections that touch them. This is the one thing a
- * section is allowed to know about its position in the row, and it is
- * `:first-child` / `:last-child` that knows it rather than the section
- * itself — nothing is hardcoded about which subject sits where, so
- * reordering them stays a matter of reordering the DOM.
- *
- * Logical corners, so the caps follow the writing direction.
- */
-.os-tray__group:first-child {
-	border-start-start-radius: calc( var( --os-tray-height, 26px ) / 2 );
-	border-end-start-radius: calc( var( --os-tray-height, 26px ) / 2 );
-}
-
-.os-tray__group:last-child {
-	border-start-end-radius: calc( var( --os-tray-height, 26px ) / 2 );
-	border-end-end-radius: calc( var( --os-tray-height, 26px ) / 2 );
-}
-
-/* --- The assistant pill ------------------------------------------ */
-
-.os-tray__assistant {
+.os-tray__group {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	height: 16px;
 	margin: 0;
+	padding: 0 10px;
+	/* Anchors nothing now the label is body-hosted, but keeps the
+	   focus ring drawn against this box rather than the strip. */
+	position: relative;
+	border: 0;
+	background: none;
+	color: var( --_fg-muted );
 	font: inherit;
+	white-space: nowrap;
 	cursor: pointer;
 	appearance: none;
+	transition: background 160ms ease, color 160ms ease;
 }
 
 /*
- * A translucent wash rather than a step up to some other opaque
- * surface — against a frosted pill an opaque hover fill punches a
- * solid rectangle through the blur.
- *
- * The dock's own hover token, for the same reason the text and the
- * glass come from the dock: it is the value that already means
- * "pointer feedback ON this material", so it stays right wherever a
- * theme takes the surface. An alpha wash also cannot collide with
- * the pill's tint the way two colours from one family can — it
- * lifts whatever is underneath rather than replacing it.
+ * A translucent wash, not a step up to another opaque surface — an
+ * opaque fill punches a solid rectangle through the frosted strip.
+ * The dock's own hover token, for the same reason the text and glass
+ * come from the dock: it already means "pointer feedback ON this
+ * material", so it stays right wherever a theme takes the surface.
  */
-.os-tray__assistant:hover,
-.os-tray__assistant:focus-visible {
-	background: var(
-		--os-tray-hover-bg,
-		var( --os-dock-item-bg-hover, rgba( 242, 82, 252, 0.18 ) )
-	);
+.os-tray__group:hover,
+.os-tray__group:focus-visible {
+	background: var( --_hover );
+	color: var( --_fg );
 }
 
-/*
- * Inset, because the pill clips its children — an outline drawn
- * outside the section's box would be cut off by `overflow: hidden`
- * on the two sections that touch a cap.
- */
-.os-tray__assistant:focus-visible {
+/* Inset, so the ring stays within the strip rather than spilling over
+   the dock below it. */
+.os-tray__group:focus-visible {
 	outline: 2px solid var( --os-ui-accent, #f252fc );
 	outline-offset: -2px;
 }
@@ -405,12 +183,8 @@
 .os-tray__glyph {
 	display: flex;
 	flex: 0 0 auto;
-	width: 14px;
-	height: 14px;
-	color: var(
-		--os-tray-fg-muted,
-		var( --os-dock-icon-color, rgba( 255, 251, 255, 0.72 ) )
-	);
+	width: 12px;
+	height: 12px;
 }
 
 .os-tray__glyph svg {
@@ -419,90 +193,31 @@
 	fill: currentColor;
 }
 
-/*
- * The chord hint. Muted rather than full-strength: it is a reminder
- * for someone who already knows the shortcut exists, not a second
- * label competing with the glyph.
- */
-.os-tray__chord {
-	display: flex;
-	gap: 2px;
-	color: var(
-		--os-tray-fg-muted,
-		var( --os-dock-icon-color, rgba( 255, 251, 255, 0.72 ) )
-	);
-}
-
-.os-tray__chord kbd {
-	font: inherit;
-	font-size: 10px;
-	/* Bare text, no key-cap box. Two bordered caps inside a bordered
-	   pill is three nested rectangles in 40px of width. */
-	background: none;
-	border: 0;
-	padding: 0;
-}
-
-/* --- The exit section --------------------------------------------- */
-
-.os-tray__exit {
-	margin: 0;
-	padding-inline: 10px;
-	font: inherit;
-	color: var(
-		--os-tray-fg-muted,
-		var( --os-dock-icon-color, rgba( 255, 251, 255, 0.72 ) )
-	);
-	cursor: pointer;
-	appearance: none;
-	/* The tooltip hangs off this, so it anchors here. */
-	position: relative;
-}
-
-.os-tray__exit:hover,
-.os-tray__exit:focus-visible {
-	background: var(
-		--os-tray-hover-bg,
-		var( --os-dock-item-bg-hover, rgba( 242, 82, 252, 0.18 ) )
-	);
-	color: var(
-		--os-tray-fg,
-		var( --os-dock-icon-color-hover, #fffbff )
-	);
-}
-
-.os-tray__exit:focus-visible {
-	outline: 2px solid var( --os-ui-accent, #f252fc );
-	outline-offset: -2px;
-}
-
-/*
- * The dashicon. Sized down from the font's native 20px, and laid out
- * as a block so its line-height cannot add a stray pixel that would
- * push the section taller than its siblings.
- */
+/* Sized down from the dashicon font's native 20px, and laid out as a
+   block so its line-height cannot push the control taller. */
 .os-tray__exit .dashicons {
 	display: block;
-	width: 15px;
-	height: 15px;
-	font-size: 15px;
+	width: 13px;
+	height: 13px;
+	font-size: 13px;
 	line-height: 1;
 }
 
+.os-tray__assistant .os-chord {
+	font-size: 10px;
+}
+
 /*
- * The tooltip. Above the section rather than below, because below is
- * where the dock is — and in shelf mode the pill is sitting directly
- * on it, so a downward tooltip would open behind the dock.
- *
- * `pointer-events: none` so it can never take the click meant for the
- * button underneath it, and it is `aria-hidden` in the markup because
- * the button's own label already says this.
+ * The hover label. In `document.body`, not in the strip — the strip
+ * clips and this opens above it. `fixed` with JS-written coordinates,
+ * because body-hosting leaves no ancestor to anchor to. Above rather
+ * than below: below is the dock, and the strip sits on it.
  */
 .os-tray__tip {
-	position: absolute;
-	bottom: calc( 100% + 8px );
-	inset-inline-start: 50%;
-	transform: translateX( -50% );
+	position: fixed;
+	z-index: calc( var( --os-z-dock, 200 ) + 1 );
+	/* Anchored by its own bottom edge: JS writes the control's top. */
+	transform: translateY( -100% );
 	padding: 5px 10px;
 	border-radius: 6px;
 	background: var(
@@ -511,7 +226,6 @@
 	);
 	color: var( --os-tooltip-fg, var( --os-ui-fg-on-accent, #fff ) );
 	font-size: 12px;
-	font-weight: 400;
 	line-height: 1.4;
 	white-space: nowrap;
 	pointer-events: none;
@@ -519,28 +233,19 @@
 	transition: opacity 0.15s ease;
 }
 
-.os-tray__exit:hover .os-tray__tip,
-.os-tray__exit:focus-visible .os-tray__tip {
+.os-tray__tip--on {
 	opacity: 1;
 }
 
-/* --- Getting out of the way -------------------------------------- */
-
 /*
- * Overview is the shell talking about itself — a zoomed-out view of
- * every window and desktop. Pills hanging over that view are chrome
- * on top of chrome, and they land squarely on the desktop thumbnails.
- * Mio steps aside for the same reason and in the same way.
- *
- * `visibility` alongside the fade so they stop taking clicks on the
- * way out; a transparent button over a desktop thumbnail still
- * swallows the click that was meant to switch desktops.
+ * Overview is the shell talking about itself, and a strip hanging over
+ * that view is chrome on top of chrome. `visibility` alongside the
+ * fade so it stops taking clicks on the way out; a transparent button
+ * over a desktop thumbnail still swallows the click.
  */
 .os-shell:has( .os-area--overview ) .os-tray {
 	opacity: 0;
 	visibility: hidden;
-	/* No delay on the way OUT — the pills must stop taking clicks the
-	   moment they start fading, not after. */
 	transition-delay: 0s;
 }
 
@@ -556,49 +261,4 @@ body.os-solo .os-tray {
 	.os-tray__tip {
 		transition-duration: 1ms;
 	}
-}
-
-/*
- * Auto-hide admin bar.
- *
- * The shell starts at the viewport top in this mode (the bar is out of
- * flow), so the tray would be underneath the bar whenever it rolls
- * down. It steps down to sit below it instead, on the bar's own timing,
- * keeping its own inset from the bar's lower edge.
- */
-body.os-active.os-admin-bar-dynamic:has( #wpadminbar:hover )
-	.os-tray[ data-os-tray-mode="pill" ],
-body.os-active.os-admin-bar-dynamic:has( #wpadminbar:focus-within )
-	.os-tray[ data-os-tray-mode="pill" ],
-body.os-active.os-admin-bar-dynamic:has( .os-tray:hover )
-	.os-tray[ data-os-tray-mode="pill" ],
-body.os-active.os-admin-bar-dynamic:has( .os-tray:focus-within )
-	.os-tray[ data-os-tray-mode="pill" ] {
-	top: calc(
-		var( --wp-admin--admin-bar--height, 32px ) +
-			var( --os-tray-inset, 12px )
-	);
-}
-
-/*
- * The hover bridge, and it is what makes the step stable.
- *
- * Hovering the tray is one of the things that rolls the bar down, and
- * the tray answers by moving 32px away from the pointer — which ends
- * the hover, retracts the bar, and brings the tray back up under the
- * pointer to start again. This claims the space the tray vacates, so
- * the pointer is still over the element after the step. Hovering a
- * pseudo-element counts as hovering its owner, the same trick the
- * bar's own reveal zone uses.
- *
- * Only in this mode: nothing moves in the other two, and a permanent
- * 32px hit area hanging off the tray would swallow clicks meant for
- * whatever is behind it.
- */
-body.os-active.os-admin-bar-dynamic .os-tray[ data-os-tray-mode="pill" ]::before {
-	content: "";
-	position: absolute;
-	inset-inline: 0;
-	inset-block-end: 100%;
-	height: var( --wp-admin--admin-bar--height, 32px );
 }

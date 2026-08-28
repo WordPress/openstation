@@ -189,19 +189,7 @@ body.os-active.os-admin-bar-dynamic #wpadminbar {
 
 body.os-active.os-admin-bar-dynamic #wpadminbar:hover,
 body.os-active.os-admin-bar-dynamic #wpadminbar:focus-within,
-body.os-active.os-admin-bar-dynamic #wpadminbar:active,
-/*
- * …and while the tray is being used. The tray hangs from the same
- * edge and steps down to sit under the bar when it appears (see
- * tray.css), so letting the bar retract out from over it mid-reach
- * would drop the tray back up under the pointer.
- */
-body.os-active.os-admin-bar-dynamic:has(
-		.os-tray[ data-os-tray-mode="pill" ]:hover
-	) #wpadminbar,
-body.os-active.os-admin-bar-dynamic:has(
-		.os-tray[ data-os-tray-mode="pill" ]:focus-within
-	) #wpadminbar {
+body.os-active.os-admin-bar-dynamic #wpadminbar:active {
 	transform: translateY(0);
 }
 
@@ -897,28 +885,6 @@ body.os-has-fullscreen-window .os-shell {
 		transform 0.28s cubic-bezier( 0.2, 0, 0.2, 1 );
 }
 
-/*
- * Clear of the tray, but only when the tray is the top-right pill —
- * in its shelf placement it rests on the bottom dock and this corner
- * is free.
- *
- * The tray claims no work-area inset of its own. The work area is a
- * band model, and this is a corner pill: a top inset would push every
- * window, icon and graph on the desktop down by the tray's height
- * across the full width, which is the full-width-bar-that-steals-
- * height mistake in a smaller shape. Only the one neighbour that
- * actually shares the corner yields, and it yields here rather than
- * in the shared rectangle.
- *
- * Added to the inset rather than replacing it, so a dock rail
- * renderer that does float something along the top edge still gets
- * its band. The 50px is the tray's own 12px inset, its 26px pill, and
- * a 12px gap below it.
- */
-.os-shell:has( .os-tray[ data-os-tray-mode="pill" ] ) .os-widgets {
-	top: calc( var( --os-work-area-inset-top, 0px ) + 50px );
-}
-
 .os-area--overview .os-widgets {
 	opacity: 0;
 	/* Slight slide-off-right so the fade reads as "the column is
@@ -1544,4 +1510,43 @@ os-notice a:hover,
 os-notice a:focus,
 os-notice a:active {
 	color: var(--os-ui-notice-link-hover, #fffbff);
+}
+
+/* ---------------------------------------------------------------
+ * The ⌘K / Ctrl+K chord hint.
+ *
+ * Shared: the assistant is offered from the tray's strip on a bottom
+ * dock and from a rail tile on a side one, and the hint has to look
+ * the same in both. Lives here rather than in either consumer's
+ * stylesheet so neither owns it.
+ *
+ * Colour is inherited, not declared — the two hosts sit on different
+ * surfaces with different foreground families, and each already sets
+ * a muted colour on the element the chord goes inside.
+ * --------------------------------------------------------------- */
+
+.os-chord {
+	display: flex;
+	color: inherit;
+}
+
+.os-chord kbd {
+	font: inherit;
+	/* Bare text, no key-cap box. Bordered caps inside an already
+	   bordered surface is three nested rectangles in 40px of width. */
+	margin: 0;
+	padding: 0;
+	border: 0;
+	background: none;
+	color: inherit;
+	line-height: 1;
+}
+
+/*
+ * The `+` between `Ctrl` and `K`. Dimmer than the keys it separates,
+ * so the chord reads as two keys with punctuation between rather than
+ * as three glyphs of equal weight.
+ */
+.os-chord__plus {
+	opacity: 0.6;
 }

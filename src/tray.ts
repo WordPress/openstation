@@ -1,272 +1,222 @@
 /**
- * The tray — one pill of shell chrome, divided into sections.
+ * The tray — the shell's two standing controls, on the dock's edge.
  *
- * The assistant's front door and the way out. They belong to the same
- * corner and read as one object, so they share one capsule; the
- * hairline divider between them is what keeps them two separate
- * subjects rather than one long readout.
+ * The assistant's front door and the way out. Neither belongs on the
+ * dock's rail, which is a list of things you open and close.
  *
- * The time is deliberately NOT here. A clock is glanceable content,
- * which is what the widget layer is for — `src/widgets/built-in.ts`
- * ships one, and it can be moved, resized and removed like anything
- * else on the desk. Pinning it into shell chrome made it the one
- * readout on the desktop nobody could turn off.
+ * It wraps the bottom dock, extending `--os-tray-strip` above it, and
+ * claims that band of work area by being measured. There is no tray
+ * without a bottom dock: a side-placed rail takes the same two
+ * controls as tiles instead, registered from `desktop.ts`.
  *
- * The surface is drawn once, by the pill itself — the sections carry
- * only their contents and a leading-edge divider, so the outer caps
- * are rounded without any section needing to know which end of the row
- * it sits on. See `tray.css`.
- *
- * **It claims no work-area inset.** The work area (`src/work-area/`)
- * is a band model, and this is a corner pill: a top inset would push
- * every window, icon and graph down by the tray's height across the
- * full width of the desktop, to clear something occupying one corner
- * of it. The widgets column IS nudged down (`desktop.css`), because
- * it is the one neighbour that actually shares the corner, but that
- * is one sibling yielding to another rather than a claim on the
- * shared rectangle.
- *
- * **Nothing here imports a `<os-*>` component.** The tray paints on
- * every boot and the component classes live in the lazy
- * `shell-overlays` bundle, so one would either drag that bundle into
- * the critical path or render as an inert unstyled tag until it
- * arrived. Plain DOM instead, for as long as this stays small.
+ * Nothing here imports a `<os-*>` component — they live in the lazy
+ * `shell-overlays` bundle, and the tray paints on every boot.
  */
 
 import { __ } from './i18n';
 import { exitOpenStation } from './exit-openstation';
-import { osIconSvg } from './ui/icons';
+import { buildChord } from './ui/chord';
+import { OS_SITE_LOGO_SVG } from './ui/site-logo-icon';
 
 /** Root element id, so a second boot can find and replace its own. */
 const TRAY_ID = 'os-tray';
 
+/**
+ * The bottom dock, if one is on screen.
+ *
+ * Exported because two decisions hang off it and they have to agree:
+ * the tray attaches when it finds one, `desktop.ts` registers the rail
+ * tiles when it does not. `getDockPlacement()` looks like the same
+ * question and is not — the split layout stores the user's pick
+ * without acting on it, and answers `'left'` while a bottom dock is on
+ * screen carrying the tray.
+ */
+export function findBottomDock(): HTMLElement | null {
+	return document.querySelector< HTMLElement >(
+		'.os-dock[ data-os-dock-placement="bottom" ]',
+	);
+}
+
 export interface TrayDeps {
 	/**
-	 * Opens the assistant. Injected rather than imported so this
-	 * module never reaches into the lazy assistant bundle — the tray
-	 * paints on every boot, the assistant is downloaded only if
-	 * asked for.
+	 * Opens the assistant. Injected rather than imported so this module
+	 * never reaches into the lazy assistant bundle.
 	 */
 	openAssistant: () => void;
 }
 
 export interface TrayApi {
-	/** Remove the tray and drop its timers. */
+	/** Remove the tray and its listeners. */
+	destroy(): void;
+}
+
+interface TipHost {
+	bind( control: HTMLElement, text: string ): void;
 	destroy(): void;
 }
 
 /**
- * Is this a Mac keyboard? Decides `⌘` vs `Ctrl` in the chord hint.
+ * The hover label, hosted in `document.body`.
  *
- * `userAgentData.platform` where it exists, `navigator.platform`
- * where it doesn't. The latter is deprecated and the former is
- * Chromium-only, so neither alone covers the field. Getting this
- * wrong costs a wrong glyph in a hint, so there is no fallback
- * beyond guessing "not a Mac".
+ * The strip clips (`overflow: hidden`), which is what keeps a hover
+ * fill inside its rounded corners without every control knowing the
+ * radius — but the label opens ABOVE the strip, so rendered inside it
+ * would be clipped too. The dock's tooltip is body-hosted for the same
+ * reason, and pays the same price: position is computed, because there
+ * is no longer an ancestor to anchor to.
+ *
+ * `aria-hidden` always. Every control showing one also carries an
+ * `aria-label` saying the same thing, so nothing here is hover-only.
  */
-function isMacKeyboard(): boolean {
-	const uaData = ( navigator as Navigator & {
-		userAgentData?: { platform?: string };
-	} ).userAgentData;
-	const platform = uaData?.platform || navigator.platform || '';
-	return /mac/i.test( platform );
-}
-
-/**
- * The assistant pill: a search glyph and the chord that also opens it.
- *
- * The chord is spelled out rather than implied because this is the
- * only visible ⌘K affordance the shell has — Core's own palette
- * button is in an admin bar that OpenStation hides by default.
- */
-function buildAssistant( openAssistant: () => void ): HTMLElement {
-	const button = document.createElement( 'button' );
-	button.type = 'button';
-	button.className = 'os-tray__group os-tray__assistant';
-	button.setAttribute( 'aria-label', __( 'Open the site assistant' ) );
-
-	const glyph = document.createElement( 'span' );
-	glyph.className = 'os-tray__glyph';
-	glyph.setAttribute( 'aria-hidden', 'true' );
-	glyph.innerHTML = osIconSvg( 'search', { size: null } );
-	button.appendChild( glyph );
-
-	// `aria-hidden`: the button's own label already names the action,
-	// and a screen reader spelling out "command K" adds nothing for a
-	// user who reaches this by keyboard anyway.
-	const chord = document.createElement( 'span' );
-	chord.className = 'os-tray__chord';
-	chord.setAttribute( 'aria-hidden', 'true' );
-	for ( const key of isMacKeyboard() ? [ '⌘', 'K' ] : [ 'Ctrl', 'K' ] ) {
-		const kbd = document.createElement( 'kbd' );
-		kbd.textContent = key;
-		chord.appendChild( kbd );
-	}
-	button.appendChild( chord );
-
-	button.addEventListener( 'click', openAssistant );
-	return button;
-}
-
-/**
- * The way out of the shell.
- *
- * `dashicons-exit` — the same glyph it wore on the dock, and the
- * clearest "leave" mark in the WordPress set. A dashicon rather than
- * one of ours because the icon set is generated from the brand
- * repository and has no exit drawing; the font is already on the page
- * for the dock's own tiles.
- *
- * The label is a tooltip rather than text beside the glyph. Spelling
- * it out inline would make leaving the loudest thing in a pill whose
- * other sections are a search hint and a name, and this is a rare,
- * one-way action — findable on hover is the right prominence for it.
- * It is still the button's `aria-label`, so nothing about it is
- * hover-only for anyone not using a pointer.
- */
-function buildExit(): HTMLElement {
-	const button = document.createElement( 'button' );
-	button.type = 'button';
-	button.className = 'os-tray__group os-tray__exit';
-	button.setAttribute( 'aria-label', __( 'Exit OpenStation' ) );
-
-	const glyph = document.createElement( 'span' );
-	glyph.className = 'dashicons dashicons-exit';
-	glyph.setAttribute( 'aria-hidden', 'true' );
-	button.appendChild( glyph );
-
-	// `aria-hidden`: the button's own label already says this, and a
-	// screen reader announcing both would read the control twice.
-	const tip = document.createElement( 'span' );
+function createTipHost(): TipHost {
+	const tip = document.createElement( 'div' );
 	tip.className = 'os-tray__tip';
 	tip.setAttribute( 'aria-hidden', 'true' );
-	tip.textContent = __( 'Exit OpenStation' );
-	button.appendChild( tip );
+	document.body.appendChild( tip );
 
-	button.addEventListener( 'click', () => {
-		void exitOpenStation();
-	} );
+	const show = ( control: HTMLElement, text: string ) => (): void => {
+		const rect = control.getBoundingClientRect();
+		tip.textContent = text;
+		tip.classList.add( 'os-tray__tip--on' );
+		// Measured after the text lands, so the centring uses this
+		// label's width rather than the previous one's.
+		const width = tip.getBoundingClientRect().width;
+		tip.style.left = `${ Math.round(
+			rect.left + rect.width / 2 - width / 2,
+		) }px`;
+		tip.style.top = `${ Math.round( rect.top - 8 ) }px`;
+	};
+	const hide = (): void => tip.classList.remove( 'os-tray__tip--on' );
+
+	return {
+		bind: ( control, text ) => {
+			control.addEventListener( 'pointerenter', show( control, text ) );
+			control.addEventListener( 'focus', show( control, text ) );
+			control.addEventListener( 'pointerleave', hide );
+			control.addEventListener( 'blur', hide );
+		},
+		destroy: () => tip.remove(),
+	};
+}
+
+/**
+ * One control: a glyph, a hover label, and a click.
+ *
+ * The label is a tooltip rather than text beside the glyph because the
+ * strip is 16px of the dock's edge, with no room for words.
+ */
+function buildControl(
+	modifier: string,
+	label: string,
+	glyph: HTMLElement,
+	onClick: () => void,
+	tips: TipHost,
+): HTMLElement {
+	const button = document.createElement( 'button' );
+	button.type = 'button';
+	button.className = `os-tray__group os-tray__${ modifier }`;
+	button.setAttribute( 'aria-label', label );
+	glyph.setAttribute( 'aria-hidden', 'true' );
+	button.appendChild( glyph );
+	tips.bind( button, label );
+	button.addEventListener( 'click', onClick );
 	return button;
+}
+
+/** The site mark, the same one heading the assistant's own palette. */
+function assistantGlyph(): HTMLElement {
+	const glyph = document.createElement( 'span' );
+	glyph.className = 'os-tray__glyph';
+	glyph.innerHTML = OS_SITE_LOGO_SVG;
+	return glyph;
+}
+
+/** `dashicons-exit`, the clearest "leave" mark in the WordPress set. */
+function exitGlyph(): HTMLElement {
+	const glyph = document.createElement( 'span' );
+	glyph.className = 'dashicons dashicons-exit';
+	return glyph;
 }
 
 /**
  * Anchor the tray to the bottom dock, and keep it anchored.
  *
- * The tray reads as a second, smaller shelf behind the dock — the iOS
- * stacked-sheet idiom, where the card behind is the same material,
- * just narrower. Nothing is actually behind anything: the shelf rests
- * flush on the dock's top edge, and SQUARE BOTTOM CORNERS are what
- * say the surface carries on underneath it. Hiding real geometry back
- * there would be paying to render a strip nobody can see.
- *
- * It is NOT a child of the dock. The layout dispatcher tears rails
- * down and builds fresh ones on every layout or placement change, so
- * anything parented inside one is destroyed with it. The tray stays on
- * the shell and is positioned from measurements instead, which also
- * means it never has to care that the split layout has two docks.
- *
- * There is no bottom dock to hide behind when the user puts their
- * single rail on the left or the right, so the tray falls back to
- * floating in the top-right corner. `data-os-tray-mode` carries which
- * of the two it currently is, and the stylesheet does the rest.
+ * A SIBLING of the dock, not a child: the layout dispatcher tears
+ * rails down and builds fresh ones on every layout change, so anything
+ * parented inside one is destroyed with it. Positioned from
+ * measurements instead, which also means it never has to care that the
+ * split layout has two docks.
  */
-function anchorToDock( root: HTMLElement, shell: HTMLElement ): () => void {
+function anchorToDock( root: HTMLElement, host: HTMLElement ): () => void {
 	let observer: ResizeObserver | null = null;
+	let dock: HTMLElement | null = null;
 
-	const measure = ( dock: HTMLElement ): void => {
-		const dockBox = dock.getBoundingClientRect();
-		// A dock with no box yet has nothing to say. Writing its zero
-		// would place the shelf at the shell's leading edge for a
-		// frame, which is worse than the `50%` the stylesheet falls
-		// back to while the properties are unset.
-		if ( dockBox.width === 0 ) {
+	const measure = ( rail: HTMLElement ): void => {
+		const box = rail.getBoundingClientRect();
+		// A dock with no box yet has nothing to say; its zero would
+		// park the tray at the host's leading edge for a frame.
+		if ( box.width === 0 ) {
 			return;
 		}
-		const shellBox = shell.getBoundingClientRect();
-		// Relative to the shell, which is the tray's offset parent —
-		// the dock lives further down the tree and floats on its own
-		// absolute positioning, so the two boxes have no useful
-		// ancestor relationship to lean on.
-		root.style.setProperty(
-			'--os-tray-dock-height',
-			`${ Math.round( dockBox.height ) }px`,
-		);
-		root.style.setProperty(
-			'--os-tray-dock-bottom',
-			`${ Math.round( shellBox.bottom - dockBox.bottom ) }px`,
-		);
-		root.style.setProperty(
-			'--os-tray-dock-width',
-			`${ Math.round( dockBox.width ) }px`,
-		);
-		root.style.setProperty(
-			'--os-tray-dock-center',
-			`${ Math.round(
-				dockBox.left + dockBox.width / 2 - shellBox.left,
-			) }px`,
-		);
+		// Relative to the host, the tray's offset parent. The dock is a
+		// sibling floating on its own absolute positioning, so there is
+		// no layout relationship to lean on — only measurement.
+		const hostBox = host.getBoundingClientRect();
+		const set = ( name: string, px: number ): void =>
+			root.style.setProperty( name, `${ Math.round( px ) }px` );
+		set( '--os-tray-dock-height', box.height );
+		set( '--os-tray-dock-bottom', hostBox.bottom - box.bottom );
+		set( '--os-tray-dock-width', box.width );
+		set( '--os-tray-dock-center', box.left + box.width / 2 - hostBox.left );
 	};
 
 	const attach = (): void => {
 		observer?.disconnect();
 		observer = null;
 
-		const dock = document.querySelector< HTMLElement >(
-			'.os-dock[ data-os-dock-placement="bottom" ]',
-		);
-		root.dataset.osTrayMode = dock ? 'shelf' : 'pill';
+		dock = findBottomDock();
 		if ( ! dock ) {
+			// Detached rather than hidden: a tray that merely went
+			// transparent would still be measured by the work area and
+			// still reserve a band nothing occupies.
+			root.remove();
 			return;
 		}
+		host.appendChild( root );
+		const live = dock;
 
-		// A dock whose tile list changes — a plugin activating, a
-		// menu refresh — changes width, and the shelf is centred on
-		// it. Observing is what keeps the two from drifting apart
-		// without polling for it.
+		// A dock whose tile list changes — a plugin activating, a menu
+		// refresh — changes width, and the tray is centred on it.
 		//
 		// Feature-detected, and not as a formality: this runs during
-		// shell boot, and an unguarded constructor call would throw
-		// there. Losing the desktop because a decorative shelf could
-		// not watch a box is not a trade worth making — without the
-		// observer the shelf still lands correctly from the measures
-		// below and still follows a window resize, it just stops
-		// tracking a dock that silently changes width.
+		// shell boot, and an unguarded constructor would take the
+		// desktop down with it. Without the observer the tray still
+		// lands correctly from the measures below.
 		if ( typeof ResizeObserver === 'function' ) {
-			observer = new ResizeObserver( () => measure( dock ) );
-			observer.observe( dock );
+			observer = new ResizeObserver( () => measure( live ) );
+			observer.observe( live );
 		}
 
-		// Measured here as well, rather than left to the observer's
-		// initial callback. That callback is specified but not
-		// dependable — a document that is not painting (a background
-		// tab, a headless pane) can leave it undelivered, and the
-		// shelf would sit on its fallback centre indefinitely with
-		// nothing scheduled to correct it.
-		measure( dock );
-		// …and again next frame, because the reverse case is just as
-		// real: a dock mid-render measures narrower than it ends up,
-		// which is a wrong centre rather than no centre, and the
-		// zero-width guard does not catch it.
-		requestAnimationFrame( () => measure( dock ) );
+		// Measured here too, not left to the observer's initial
+		// callback: that is specified but undelivered in a document
+		// that is not painting. And again next frame, because a dock
+		// mid-render measures narrower than it ends up — a wrong
+		// centre rather than none, which the zero guard cannot catch.
+		measure( live );
+		requestAnimationFrame( () => measure( live ) );
 	};
 
-	// A resize moves the dock's centre without changing its own box,
-	// so the observer never hears about it. Re-measuring is enough —
-	// the element itself has not been replaced, so nothing needs
-	// rebinding, and rebuilding the observer on every resize event
-	// would be the expensive way to ask the same question.
+	// A resize moves the dock's centre without changing its own box, so
+	// the observer never hears about it.
 	const onResize = (): void => {
-		const dock = document.querySelector< HTMLElement >(
-			'.os-dock[ data-os-dock-placement="bottom" ]',
-		);
 		if ( dock ) {
 			measure( dock );
 		}
 	};
 
 	attach();
-	// The dispatcher fires this after every rebuild, which is exactly
-	// when the element the observer is holding stops being the dock.
+	// Fired after every rebuild — exactly when the element the observer
+	// holds stops being the dock.
 	document.addEventListener( 'os-layout-changed', attach );
 	window.addEventListener( 'resize', onResize );
 
@@ -280,25 +230,47 @@ function anchorToDock( root: HTMLElement, shell: HTMLElement ): () => void {
 /**
  * Mount the tray.
  *
- * @param shell Shell root to append to.
- * @param deps  Injected behaviour — see {@link TrayDeps}.
+ * @param host Shell body — a sibling of the dock, and inside what
+ *             `installWorkArea` measures.
+ * @param deps Injected behaviour.
  */
-export function mountTray( shell: HTMLElement, deps: TrayDeps ): TrayApi {
+export function mountTray( host: HTMLElement, deps: TrayDeps ): TrayApi {
 	document.getElementById( TRAY_ID )?.remove();
 
 	const root = document.createElement( 'div' );
 	root.id = TRAY_ID;
 	root.className = 'os-tray';
 
-	root.appendChild( buildAssistant( deps.openAssistant ) );
-	root.appendChild( buildExit() );
+	const tips = createTipHost();
+	const assistant = buildControl(
+		'assistant',
+		__( 'Open site assistant' ),
+		assistantGlyph(),
+		deps.openAssistant,
+		tips,
+	);
+	// The chord is spelled out because this is the only visible ⌘K
+	// affordance the shell has: Core's own palette button lives in an
+	// admin bar OpenStation hides by default.
+	assistant.appendChild( buildChord() );
+	root.appendChild( assistant );
+	root.appendChild(
+		buildControl(
+			'exit',
+			__( 'Exit OpenStation' ),
+			exitGlyph(),
+			() => void exitOpenStation(),
+			tips,
+		),
+	);
 
-	shell.appendChild( root );
-	const unanchor = anchorToDock( root, shell );
+	host.appendChild( root );
+	const unanchor = anchorToDock( root, host );
 
 	return {
 		destroy: () => {
 			unanchor();
+			tips.destroy();
 			root.remove();
 		},
 	};

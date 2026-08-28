@@ -127,12 +127,15 @@ export interface SystemDockItem {
 	 * What the tile IS — which decides its default placement and the
 	 * dock zone it sits in. `'app'` (the default) for a launcher,
 	 * `'control'` for an OpenStation affordance: Mio, Overview,
-	 * System, Trash, Exit.
+	 * System, Trash, Exit. `'core'` puts the tile in the leading zone
+	 * with the core admin menus, ahead of every launcher — the shell
+	 * uses it for the site assistant, and it is the only kind that can
+	 * sort in front of Dashboard.
 	 *
 	 * See `src/nav/defaults.ts`. A plugin's launcher wants `'app'`
 	 * and gets it by saying nothing.
 	 */
-	navKind?: 'app' | 'control';
+	navKind?: 'core' | 'app' | 'control';
 	/**
 	 * Cannot be moved, hidden, or reordered. For a tile a user must
 	 * always be able to reach — nothing built-in claims it now, and a
@@ -186,6 +189,9 @@ export interface DockZones {
 export function zoneForSystemTile(
 	item: SystemDockItem,
 ): keyof DockZones {
+	if ( 'core' === item.navKind ) {
+		return 'core';
+	}
 	return 'control' === item.navKind ? 'controls' : 'apps';
 }
 
