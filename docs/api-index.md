@@ -95,6 +95,7 @@ The full surface is documented in [`javascript-reference.md`](./javascript-refer
 | `subscribe` | `( topic: string, cb ) => () => void` *(cross-window)* | Stable |
 | — topic family | `os.<type>.changed` *(content-change realtime; `{ source, action, ids }`)* | Stable |
 | `presence` | `PresenceApi` | Stable |
+| `workArea` | `WorkAreaApi` *(`get()` / `rectOf( areaEl? )` / `insetsOf( el )` / `subscribe( cb )` — the reachable desktop rectangle, also on `#os-shell` as `--os-work-area-*`)* | Experimental |
 | `selection` | `SelectionApi` *(`active()`, `resolveCommonActions()`, `createModel()`)* | Experimental |
 
 ### Commands, palettes, AI, settings
@@ -254,6 +255,7 @@ Every event bubbles from `document`. See [`javascript-reference.md`](./javascrip
 | `os-window-content-changed` | Experimental |
 | `os-window-link-groups-changed` | Experimental |
 | `os-presence-changed` | Stable |
+| `os-work-area-changed` | Experimental |
 | `os-selection-changed` | Experimental |
 | `os-layout-changed` | Stable |
 | `os-item-menu-opening` | Stable |

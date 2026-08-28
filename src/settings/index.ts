@@ -45,11 +45,19 @@ import {
 	ADMIN_BAR_MODES,
 	CUSTOM_ACCENT_ID,
 	DEFAULT_WALLPAPER_ID,
+	DOCK_BEHAVIORS,
 	DOCK_SIZES,
 	WINDOW_RADII,
 	getAccents,
 	getDefaultWallpaperId,
 } from './constants';
+import { refreshWorkArea } from '../work-area';
+import {
+	DOCK_BEHAVIOR_ATTR,
+	PRIMARY_DOCK_ID,
+	refreshDockBehavior,
+	SIDE_DOCK_ID,
+} from '../dock-behavior';
 import {
 	loadState,
 	saveState,
@@ -219,6 +227,8 @@ export class OsSettings implements SettingsCtx {
 			adminBarMode: this.state.adminBarMode,
 			desktopLayout: this.state.desktopLayout,
 			dockPlacement: this.state.dockPlacement,
+			dockBehavior: this.state.dockBehavior,
+			sideDockBehavior: this.state.sideDockBehavior,
 			dockRailRenderer: this.state.dockRailRenderer,
 			desktopTheme: this.state.desktopTheme,
 			appliedThemeRecommendations:
@@ -500,6 +510,25 @@ export class OsSettings implements SettingsCtx {
 				mode.id === adminBarMode.id,
 			);
 		}
+
+		// Dock behavior — one `data-os-dock-behavior` attribute PER
+		// RAIL rather than a body class, because the Split layout's
+		// sidebar and bottom dock answer independently. PHP stamps
+		// the dock for the first paint; this re-stamps both so a pick
+		// lands live, `src/dock-behavior.ts` re-stamps whenever the
+		// dispatcher rebuilds a rail, `dock.css` folds a rail off the
+		// attribute, and the work area stops reserving a dynamic
+		// rail's band — which is why it is re-measured right after.
+		const behaviorOf = ( id: string ): string =>
+			( DOCK_BEHAVIORS.find( ( b ) => b.id === id ) ?? DOCK_BEHAVIORS[ 0 ] ).id;
+		document
+			.getElementById( PRIMARY_DOCK_ID )
+			?.setAttribute( DOCK_BEHAVIOR_ATTR, behaviorOf( this.state.dockBehavior ) );
+		document
+			.getElementById( SIDE_DOCK_ID )
+			?.setAttribute( DOCK_BEHAVIOR_ATTR, behaviorOf( this.state.sideDockBehavior ) );
+		refreshDockBehavior();
+		refreshWorkArea();
 
 		// Desktop layout is driven by an attribute on the shell root;
 		// the layout dispatcher (desktop.ts) reads it on init and on

@@ -17,12 +17,14 @@
  * are rounded without any section needing to know which end of the row
  * it sits on. See `tray.css`.
  *
- * **It never reserves work area.** It floats above the desk and is
- * covered by a maximized window rather than pushing it down: a
- * work-area rectangle that already has several disagreeing claimants
- * does not need another one. The widgets column IS nudged down to
- * clear it (`desktop.css`), but that is one sibling yielding to
- * another, not a reservation.
+ * **It claims no work-area inset.** The work area (`src/work-area/`)
+ * is a band model, and this is a corner pill: a top inset would push
+ * every window, icon and graph down by the tray's height across the
+ * full width of the desktop, to clear something occupying one corner
+ * of it. The widgets column IS nudged down (`desktop.css`), because
+ * it is the one neighbour that actually shares the corner, but that
+ * is one sibling yielding to another rather than a claim on the
+ * shared rectangle.
  *
  * **Nothing here imports a `<os-*>` component.** The tray paints on
  * every boot and the component classes live in the lazy

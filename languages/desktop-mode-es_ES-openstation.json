@@ -123,6 +123,10 @@
             "%d KB": [
                 ""
             ],
+            "%d agent": [
+                "Error al subir.",
+                "Error al subir."
+            ],
             "%d comment site-wide": [
                 ""
             ],
@@ -290,6 +294,9 @@
             "%s average": [
                 ""
             ],
+            "%s copy": [
+                ""
+            ],
             "%s deactivated.": [
                 ""
             ],
@@ -341,9 +348,6 @@
             "(No title)": [
                 ""
             ],
-            "(coming soon)": [
-                ""
-            ],
             "(folder)": [
                 ""
             ],
@@ -352,9 +356,6 @@
             ],
             "(opens in a new tab)": [
                 "Abrir en una nueva pestaña del navegador"
-            ],
-            "+ Create agent": [
-                ""
             ],
             "+ New chat": [
                 ""
@@ -420,6 +421,9 @@
                 ""
             ],
             "A straight edge travels across the window, uncovering the page behind it.": [
+                ""
+            ],
+            "A thread joins two posts when one links to the other. Click a node to see its author, terms, comments, media and revisions, or group the board by category, tag, author, year or month from the toolbar.": [
                 ""
             ],
             "A year of activity": [
@@ -488,9 +492,6 @@
             "Add tags…": [
                 "Añadir %s"
             ],
-            "Add trigger": [
-                "Añadir %s"
-            ],
             "Add widget": [
                 "Añadir widget"
             ],
@@ -522,9 +523,6 @@
                 ""
             ],
             "Agent saved.": [
-                ""
-            ],
-            "Agents": [
                 ""
             ],
             "Agents are turned off": [
@@ -564,6 +562,9 @@
                 ""
             ],
             "Always": [
+                ""
+            ],
+            "Always on": [
                 ""
             ],
             "Amber": [
@@ -716,7 +717,7 @@
             "Bookmark": [
                 ""
             ],
-            "Both <os-*> tags in the next piece of code are intentionally bogus, one per answer the warner has. Open the browser console: within ~2 seconds you should see two console.error entries from the framework, each pointing the developer at the fix — a name nothing in the registry comes close to, and a typo the warner can suggest a fix for (\"did you mean\"). Live copies of the same two tags are rendered off-screen, so the demo fires without affecting layout. Remove this section in your fork if you want a quieter Components tab.": [
+            "Both <os-*> tags in the next piece of code are intentionally bogus, one per answer the warner has. Open the browser console: within ~2 seconds you should see two console.error entries from the framework, each pointing the developer at the fix — a name nothing in the registry comes close to, and a typo the warner can suggest a fix for (\"did you mean\"). Live copies of the same two tags are rendered off-screen, so the demo fires without affecting layout — including while this section is folded away. Remove this section in your fork if you want a quieter Components tab.": [
                 ""
             ],
             "Bottom": [
@@ -779,6 +780,15 @@
             "Card saved as an image.": [
                 "Ese archivo no es una imagen."
             ],
+            "Cast a new agent": [
+                "Ese archivo no es una imagen."
+            ],
+            "Cast an agent": [
+                "Subpáginas de %s"
+            ],
+            "Cast your first agent: describe what it should do, give it a face and a voice, then pick the abilities it may use.": [
+                ""
+            ],
             "Categories": [
                 ""
             ],
@@ -831,6 +841,9 @@
                 ""
             ],
             "Chat": [
+                ""
+            ],
+            "Chat is always on. Tick where else this site should reach the agent; a door with nothing ticked stays closed.": [
                 ""
             ],
             "Chat window config is missing.": [
@@ -968,6 +981,9 @@
             "Connectors": [
                 ""
             ],
+            "Continue": [
+                ""
+            ],
             "Contributor": [
                 ""
             ],
@@ -981,6 +997,12 @@
                 ""
             ],
             "Convert to post": [
+                ""
+            ],
+            "Copied from %s, with a face of its own.": [
+                ""
+            ],
+            "Copies their instructions and abilities, and rolls a new face. Nothing you pick is changed.": [
                 ""
             ],
             "Copy %d links": [
@@ -1064,6 +1086,9 @@
             "Could not load reviews.": [
                 "No se pudieron cargar tus medios."
             ],
+            "Could not load that desktop theme — the previous one is still showing.": [
+                ""
+            ],
             "Could not move the draft to Trash.": [
                 "No se pudieron cargar tus medios: %s"
             ],
@@ -1115,14 +1140,11 @@
             "Coupons": [
                 ""
             ],
-            "Create": [
-                ""
-            ],
             "Create agent": [
                 ""
             ],
-            "Create your first agent: give it a name, a role, and instructions, then pick the abilities it may use.": [
-                ""
+            "Create and chat": [
+                "Ese archivo no es una imagen."
             ],
             "Created": [
                 ""
@@ -1256,6 +1278,12 @@
             "Deprecated": [
                 ""
             ],
+            "Describe": [
+                ""
+            ],
+            "Describe the agent first. A sentence is enough.": [
+                ""
+            ],
             "Describe the issue or the feature you have in mind.": [
                 ""
             ],
@@ -1284,6 +1312,9 @@
                 ""
             ],
             "Details": [
+                ""
+            ],
+            "Developer mode": [
                 ""
             ],
             "Diagonal": [
@@ -1328,6 +1359,9 @@
             "Dock %s back to widget column": [
                 ""
             ],
+            "Dock behavior": [
+                ""
+            ],
             "Dock position": [
                 "Tamaño del dock"
             ],
@@ -1347,6 +1381,9 @@
                 ""
             ],
             "Draft": [
+                ""
+            ],
+            "Draft it for me": [
                 ""
             ],
             "Draft moved to Trash.": [
@@ -1496,6 +1533,9 @@
             "Every menu in a single dock.": [
                 ""
             ],
+            "Every post type is switched off": [
+                ""
+            ],
             "Everything is already set up. You don't need to install any new plugins, so you can keep using the same features as before.": [
                 ""
             ],
@@ -1548,6 +1588,9 @@
                 ""
             ],
             "FAQ": [
+                ""
+            ],
+            "Face": [
                 ""
             ],
             "Failed to load graph.": [
@@ -1673,6 +1716,9 @@
             "Glow": [
                 ""
             ],
+            "Go through my drafts once a week and tell me which ones are closest to finished.": [
+                ""
+            ],
             "Good afternoon, %s": [
                 ""
             ],
@@ -1770,6 +1816,9 @@
                 ""
             ],
             "Hue spread": [
+                ""
+            ],
+            "I will fill it in myself": [
                 ""
             ],
             "IP": [
@@ -1907,6 +1956,9 @@
             "Latest post": [
                 ""
             ],
+            "Launch": [
+                ""
+            ],
             "Left": [
                 ""
             ],
@@ -1950,6 +2002,9 @@
                 ""
             ],
             "Loading graph…": [
+                "Subiendo…"
+            ],
+            "Loading preferences…": [
                 "Subiendo…"
             ],
             "Loading recent reviews…": [
@@ -2022,6 +2077,9 @@
                 ""
             ],
             "Medium (30s)": [
+                ""
+            ],
+            "Meet": [
                 ""
             ],
             "Member since": [
@@ -2150,6 +2208,9 @@
             "New %s": [
                 ""
             ],
+            "New agent": [
+                "Añadir nuevo escritorio"
+            ],
             "New name": [
                 "Añadir nuevo escritorio"
             ],
@@ -2185,6 +2246,12 @@
             ],
             "No HD images found. Try unchecking the filter, or upload a larger image.": [
                 "No se encontraron imágenes HD. Prueba a desactivar el filtro o sube una imagen más grande."
+            ],
+            "No abilities ticked: the agent can talk, but not touch the site.": [
+                ""
+            ],
+            "No ability matches \"%s\".": [
+                ""
             ],
             "No activity recorded in the last year.": [
                 ""
@@ -2273,6 +2340,9 @@
             "No images in your Media Library yet.": [
                 "Aún no hay imágenes en tu biblioteca de medios."
             ],
+            "No instructions yet: the agent will improvise. You can add them any time in Define.": [
+                ""
+            ],
             "No media attached to this post.": [
                 ""
             ],
@@ -2318,7 +2388,10 @@
             "No tags assigned.": [
                 ""
             ],
-            "No triggers configured yet.": [
+            "No threads yet": [
+                "Subiendo…"
+            ],
+            "No triggers configured: reachable in chat.": [
                 ""
             ],
             "No users match \"%s\".": [
@@ -2393,6 +2466,9 @@
             "Nothing needs your attention right now.": [
                 ""
             ],
+            "Nothing on the board yet": [
+                ""
+            ],
             "Nothing on this post here": [
                 ""
             ],
@@ -2400,6 +2476,9 @@
                 ""
             ],
             "Nothing to copy — no links found.": [
+                ""
+            ],
+            "Nothing to show for these types": [
                 ""
             ],
             "Nothing to show yet.": [
@@ -2423,6 +2502,9 @@
             "Oldest first": [
                 ""
             ],
+            "On": [
+                "Abrir"
+            ],
             "On both": [
                 ""
             ],
@@ -2436,6 +2518,9 @@
                 ""
             ],
             "On: %s": [
+                ""
+            ],
+            "One line of voice. It goes into the agent's instructions, so it is how the agent sounds rather than a label on a card.": [
                 ""
             ],
             "One pot, whole world: everyone gets the same soup today (%s). Drag across the letters to fish the words out.": [
@@ -2573,6 +2658,9 @@
             "Opens Station Home instead of the classic WordPress Dashboard: recent work, site pulse, and quick actions in one native window. Leave off to keep the classic Dashboard, including any customizations plugins have made to it.": [
                 ""
             ],
+            "Or describe a new one": [
+                ""
+            ],
             "Order": [
                 ""
             ],
@@ -2633,9 +2721,6 @@
             "Pick a .zip file from your computer, or drop one onto the area below.": [
                 ""
             ],
-            "Pick a trigger kind…": [
-                ""
-            ],
             "Pick one from the list to read and reply.": [
                 ""
             ],
@@ -2671,6 +2756,9 @@
             ],
             "Placement": [
                 "Error al subir."
+            ],
+            "Plain words are fine: what it should watch, what it should write, where it may act. This is what the agent reads before every run; drafting rewrites it into proper instructions, filling it in yourself keeps it as written.": [
+                ""
             ],
             "Planned": [
                 ""
@@ -2747,6 +2835,12 @@
             "Potato": [
                 ""
             ],
+            "Powers": [
+                ""
+            ],
+            "Preferences could not be loaded.": [
+                ""
+            ],
             "Press %s to run": [
                 ""
             ],
@@ -2763,6 +2857,9 @@
                 "Vista general"
             ],
             "Previous": [
+                ""
+            ],
+            "Prewarm windows on hover (experimental)": [
                 ""
             ],
             "Price": [
@@ -2796,6 +2893,9 @@
                 ""
             ],
             "Publish %d entries": [
+                ""
+            ],
+            "Publish a post or a page and it is pinned here. Threads are drawn between posts when one links to another.": [
                 ""
             ],
             "Published": [
@@ -2969,6 +3069,9 @@
             "Resume": [
                 ""
             ],
+            "Retry": [
+                ""
+            ],
             "Reveal speed": [
                 ""
             ],
@@ -3095,6 +3198,9 @@
             "Search WordPress.org…": [
                 ""
             ],
+            "Search abilities": [
+                "Buscar medios"
+            ],
             "Search commands…": [
                 "Buscar medios"
             ],
@@ -3176,6 +3282,9 @@
             "Server returned %d": [
                 ""
             ],
+            "Serves the admin’s stylesheets and scripts from one cache shared by every window, so opening a window skips the network for files any window has already loaded. Unlike the other toggles here, this one takes effect after your next reload.": [
+                ""
+            ],
             "Settings sections": [
                 ""
             ],
@@ -3201,6 +3310,9 @@
                 ""
             ],
             "Share desktop folders with other users or roles, with read or write access.": [
+                ""
+            ],
+            "Shared asset cache (experimental)": [
                 ""
             ],
             "Shared with the agent": [
@@ -3252,6 +3364,9 @@
                 ""
             ],
             "Shutter": [
+                ""
+            ],
+            "Sidebar behavior": [
                 ""
             ],
             "Site Assistant": [
@@ -3332,7 +3447,22 @@
             "Start focus": [
                 ""
             ],
+            "Start from one of these, or from scratch.": [
+                ""
+            ],
+            "Start from someone": [
+                ""
+            ],
             "Start something new and it will be waiting here when you return.": [
+                ""
+            ],
+            "Starting the command palette…": [
+                "Buscar medios"
+            ],
+            "Starts from: %s.": [
+                ""
+            ],
+            "Starts loading a page in a hidden window while you hover its dock icon, so the window appears already rendered when you click. Uses extra memory for one speculative window at a time.": [
                 ""
             ],
             "Static": [
@@ -3380,7 +3510,10 @@
             "Suggested commands": [
                 ""
             ],
-            "Suggestions": [
+            "Suggestions: %s": [
+                ""
+            ],
+            "Summon": [
                 ""
             ],
             "Sunday": [
@@ -3393,6 +3526,9 @@
                 ""
             ],
             "Switch %d entries to Draft": [
+                ""
+            ],
+            "Switch a type back on in the toolbar to see its posts.": [
                 ""
             ],
             "Switch to %s": [
@@ -3440,6 +3576,9 @@
             "Text domain": [
                 ""
             ],
+            "That drop could not be processed — please try again.": [
+                ""
+            ],
             "That file isn’t an image.": [
                 "Ese archivo no es una imagen."
             ],
@@ -3473,10 +3612,19 @@
             "The agent acts with this role's capabilities — pick the least privilege that still lets it do its job.": [
                 ""
             ],
+            "The agent acts with this role's capabilities. Pick the least privilege that still lets it do its job.": [
+                ""
+            ],
             "The agent finished without a text answer.": [
                 ""
             ],
             "The agent may only call abilities ticked here — and every call is still gated by the ability's own permission check against the agent's role.": [
+                ""
+            ],
+            "The agent may only call abilities ticked here, and every call is still gated by the ability's own permission check against the agent's role.": [
+                ""
+            ],
+            "The agent took too long to reply, so the answer never arrived. It may still be finishing the work: give it a moment before asking again.": [
                 ""
             ],
             "The agent user is deleted permanently. Content it authored is not reassigned.": [
@@ -3494,7 +3642,16 @@
             "The card could not be shared.": [
                 ""
             ],
+            "The crew you would get": [
+                ""
+            ],
             "The desktop files API is not available in this context.": [
+                ""
+            ],
+            "The dock folds into a thin line at its edge of the screen and comes back when you move the pointer there. Windows can use the whole desktop.": [
+                ""
+            ],
+            "The dock is always visible, and windows open above it.": [
                 ""
             ],
             "The journal could not be reached.": [
@@ -3522,6 +3679,9 @@
                 ""
             ],
             "The page rises into the window from the bottom edge upward.": [
+                ""
+            ],
+            "The post types switched on in the toolbar have no content yet. Switch another one on to see its posts.": [
                 ""
             ],
             "The preview opens once the post has been saved.": [
@@ -3671,9 +3831,6 @@
             "Triggers": [
                 ""
             ],
-            "Triggers describe how this site reaches the agent. Chat, drag & drop, and Send to work today; kinds marked \"coming soon\" can be configured but are not wired yet.": [
-                ""
-            ],
             "Triggers saved.": [
                 ""
             ],
@@ -3689,7 +3846,7 @@
             "Turn on Agents": [
                 ""
             ],
-            "Turn the Agents framework on in OpenStation Preferences → Features to create agents, give them abilities, and chat with them.": [
+            "Turn the Agents framework on in OpenStation Preferences → Features to hire this crew, or cast your own.": [
                 ""
             ],
             "Two panels part from the middle of the window and slide off the sides.": [
@@ -3896,6 +4053,9 @@
             "Very slow — 1100 ms": [
                 ""
             ],
+            "Vibes": [
+                ""
+            ],
             "View": [
                 ""
             ],
@@ -3986,11 +4146,20 @@
             "What happened? What did you expect?": [
                 ""
             ],
+            "What it may call (abilities)": [
+                ""
+            ],
+            "What should this agent do? (system prompt)": [
+                ""
+            ],
             "When": [
                 ""
             ],
             "When a related window is focused": [
                 ""
+            ],
+            "When to use": [
+                "Añadir %s"
             ],
             "When to use (description)": [
                 ""
@@ -4121,6 +4290,9 @@
             "Your assistant to quickly navigate and manage your entire site.": [
                 ""
             ],
+            "Your cast": [
+                ""
+            ],
             "Your desk is clear": [
                 ""
             ],
@@ -4128,6 +4300,9 @@
                 ""
             ],
             "activated": [
+                ""
+            ],
+            "blunt, precise, no sugarcoating": [
                 ""
             ],
             "by": [
@@ -4140,6 +4315,9 @@
                 ""
             ],
             "comments": [
+                ""
+            ],
+            "custom fields, orders, media…": [
                 ""
             ],
             "deactivated": [
@@ -4216,6 +4394,9 @@
                 ""
             ],
             "“%s” will be removed from this site for everyone. This cannot be undone.": [
+                ""
+            ],
+            "‹ Your cast": [
                 ""
             ],
             "→ %s": [

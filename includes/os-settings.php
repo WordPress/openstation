@@ -53,6 +53,16 @@ const OPENSTATION_OS_SETTINGS_DESKTOP_LAYOUTS = array( 'classic', 'unified' );
 const OPENSTATION_OS_SETTINGS_DOCK_PLACEMENTS = array( 'bottom', 'left', 'right' );
 
 /**
+ * Valid dock-behavior IDs — mirrors the TS `DOCK_BEHAVIORS` constant.
+ *
+ * `static` keeps the dock always on screen (the default); `dynamic`
+ * parks it off its edge behind a peek strip that reveals when the
+ * pointer reaches that edge or something on it takes keyboard focus,
+ * and releases the band it floats over from the work area.
+ */
+const OPENSTATION_OS_SETTINGS_DOCK_BEHAVIORS = array( 'static', 'dynamic' );
+
+/**
  * Playable range for the window-reveal duration override, in ms.
  * Mirrors `MIN_REVEAL_DURATION_MS` / `MAX_REVEAL_DURATION_MS` in
  * `src/reveals/registry.ts`.
@@ -96,6 +106,12 @@ function openstation_default_os_settings() {
 		// to classic admin. `static` (vanilla behavior) and `dynamic`
 		// are one pick away in OpenStation Preferences → Appearance.
 		'adminBarMode'                => 'hidden',
+		// Always on screen. `dynamic` (auto-hide behind a peek strip)
+		// is one pick away in OpenStation Preferences → Appearance.
+		'dockBehavior'                => 'static',
+		// The Split layout's sidebar answers for itself: a folded
+		// sidebar over a static bottom dock is a valid desk.
+		'sideDockBehavior'            => 'static',
 		// One dock holding every menu, with the system tiles grouped
 		// behind a hairline. `classic` (side bar for core menus + bottom
 		// dock for plugins) is the other option; it is no longer what a
@@ -456,6 +472,17 @@ function openstation_sanitize_os_settings( $raw ) {
 		&& in_array( $raw['adminBarMode'], OPENSTATION_OS_SETTINGS_ADMIN_BAR_MODES, true )
 		? (string) $raw['adminBarMode']
 		: $defaults['adminBarMode'];
+
+	// Dock behavior — must be one of the two known values. One answer
+	// per rail: the dock, and the Split layout's sidebar.
+	$dock_behavior = isset( $raw['dockBehavior'] )
+		&& in_array( $raw['dockBehavior'], OPENSTATION_OS_SETTINGS_DOCK_BEHAVIORS, true )
+		? (string) $raw['dockBehavior']
+		: $defaults['dockBehavior'];
+	$side_dock_behavior = isset( $raw['sideDockBehavior'] )
+		&& in_array( $raw['sideDockBehavior'], OPENSTATION_OS_SETTINGS_DOCK_BEHAVIORS, true )
+		? (string) $raw['sideDockBehavior']
+		: $defaults['sideDockBehavior'];
 
 	// Desktop layout — must be one of the known values (`classic`,
 	// `unified`). Default `unified`.
@@ -912,6 +939,8 @@ function openstation_sanitize_os_settings( $raw ) {
 		'adminBarMode'                => $admin_bar_mode,
 		'desktopLayout'               => $desktop_layout,
 		'dockPlacement'               => $dock_placement,
+		'dockBehavior'                => $dock_behavior,
+		'sideDockBehavior'            => $side_dock_behavior,
 		'dockRailRenderer'            => $dock_rail_renderer,
 		'desktopTheme'                => $desktop_theme,
 		'appliedThemeRecommendations' => $applied_theme_recommendations,

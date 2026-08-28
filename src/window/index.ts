@@ -1745,6 +1745,11 @@ export class Window {
 		if ( ! parent ) {
 			return false;
 		}
+		// Half the desktop area, full height — the whole area, dock
+		// band included. Snapping is an explicit ask for the edge, and
+		// the band under the dock is the user's to use on purpose; only
+		// DEFAULT placement (open, restore, cascade, tile) stays out of
+		// it. See `workAreaRectOf` in `src/work-area`.
 		const halfW = Math.floor( parent.clientWidth / 2 );
 		const height = parent.clientHeight;
 		this.element.classList.remove(
@@ -2000,6 +2005,11 @@ export class Window {
 			'os-window--snapped-right',
 		);
 		this.element.classList.add( 'os-window--maximized' );
+		// The whole desktop area, dock band included. Maximizing is an
+		// explicit ask for everything, and a dock the user wants out of
+		// the way of a maximized window is what the `dynamic` dock
+		// behavior is for. Only DEFAULT placement stays clear of the
+		// dock (see `workAreaRectOf` in `src/work-area`).
 		this.element.style.left = '0px';
 		this.element.style.top = '0px';
 		this.element.style.width = `${ parent.clientWidth }px`;

@@ -18,6 +18,9 @@
             "By": [
                 ""
             ],
+            "Could not load the Trash. Try Refresh.": [
+                "No se pudieron cargar tus medios: %s"
+            ],
             "Delete forever": [
                 ""
             ],

@@ -25,6 +25,7 @@ import {
 	CUSTOM_ACCENT_ID,
 	DEFAULTS,
 	DESKTOP_LAYOUTS,
+	DOCK_BEHAVIORS,
 	DOCK_PLACEMENTS,
 	DOCK_SIZES,
 	STORAGE_KEY,
@@ -39,6 +40,7 @@ import type {
 	CustomGradient,
 	CustomImage,
 	DesktopLayoutId,
+	DockBehaviorId,
 	DockPlacementId,
 	DockSizeId,
 	OsSettingsState,
@@ -151,6 +153,16 @@ function _parseRaw( parsed: Partial<OsSettingsState> ): OsSettingsState {
 		)
 			? ( parsed.dockPlacement as DockPlacementId )
 			: DEFAULTS.dockPlacement,
+		dockBehavior: DOCK_BEHAVIORS.some(
+			( b ) => b.id === parsed.dockBehavior,
+		)
+			? ( parsed.dockBehavior as DockBehaviorId )
+			: DEFAULTS.dockBehavior,
+		sideDockBehavior: DOCK_BEHAVIORS.some(
+			( b ) => b.id === parsed.sideDockBehavior,
+		)
+			? ( parsed.sideDockBehavior as DockBehaviorId )
+			: DEFAULTS.sideDockBehavior,
 		// Dock rail renderer — any sanitize_key()-clean string
 		// survives; the registry resolves at use time and falls back
 		// to `'default'` when the picked renderer isn't registered.

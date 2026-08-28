@@ -67,6 +67,7 @@ import { destroyDesktopNameHud } from './desktop-name-hud';
 import { cancelOverviewTimers, enterOverview, exitOverview } from './overview';
 import { loadNativeWindowGeometry } from './native-window-geometry';
 import { clampWindowPosition } from '../window/pointer';
+import { workAreaRectOf, type WorkAreaRect } from '../work-area';
 
 /** Base z-index for desktop windows. */
 const BASE_Z_INDEX = 100;
@@ -102,8 +103,10 @@ export interface ResolvedWindowGeometry {
  * alongside the resolved geometry. `windowId` is the unique
  * per-instance id; `baseId` is the registry id (multiple windows
  * sharing one baseId in the multi-window case). `desktopRect`
- * carries the live desktop area dimensions so a filter can compute
- * "bottom-right corner" without touching the DOM.
+ * carries the live desktop area dimensions; `workArea` is the part
+ * of it no shell chrome floats over (see `wp.os.workArea`), in
+ * desktop-area-local coordinates — the rectangle to compute a
+ * "bottom-right corner" against so the window lands above the dock.
  *
  * The two booleans capture the only useful distinctions a filter
  * actually cares about:
@@ -131,6 +134,7 @@ export interface WindowGeometryContext {
 		width: number;
 		height: number;
 	};
+	workArea: WorkAreaRect;
 }
 
 /**
@@ -479,20 +483,35 @@ export class WindowManager {
 			if ( ! parent ) {
 				continue;
 			}
+			// Same rectangle `Window` sizes against on maximize / snap:
+			// the whole desktop area. Stateful windows and a dragged
+			// window may sit under the dock by the user's choice; only
+			// default placement keeps clear of it.
+			const area = {
+				x: 0,
+				y: 0,
+				width: parent.clientWidth,
+				height: parent.clientHeight,
+			};
 			if ( w.state === 'maximized' ) {
 				w.element.classList.add( 'os-window--reflowing' );
-				w.element.style.width = `${ parent.clientWidth }px`;
-				w.element.style.height = `${ parent.clientHeight }px`;
+				w.element.style.left = `${ area.x }px`;
+				w.element.style.top = `${ area.y }px`;
+				w.element.style.width = `${ area.width }px`;
+				w.element.style.height = `${ area.height }px`;
 			} else if (
 				w.state === 'snapped-left' ||
 				w.state === 'snapped-right'
 			) {
 				w.element.classList.add( 'os-window--reflowing' );
-				const halfW = Math.floor( parent.clientWidth / 2 );
-				const height = parent.clientHeight;
-				const left = w.state === 'snapped-left' ? 0 : halfW;
+				const halfW = Math.floor( area.width / 2 );
+				const height = area.height;
+				const left =
+					w.state === 'snapped-left'
+						? area.x
+						: area.x + area.width - halfW;
 				w.element.style.left = `${ left }px`;
-				w.element.style.top = '0px';
+				w.element.style.top = `${ area.y }px`;
 				w.element.style.width = `${ halfW }px`;
 				w.element.style.height = `${ height }px`;
 			} else if ( w.state === 'normal' ) {
@@ -500,7 +519,7 @@ export class WindowManager {
 				const currentY = parseInt( w.element.style.top, 10 ) || 0;
 				const width = w.element.offsetWidth || 0;
 
-				const safe = clampWindowPosition( currentX, currentY, width, parent.clientWidth, parent.clientHeight );
+				const safe = clampWindowPosition( currentX, currentY, width, area );
 
 				if ( currentX !== safe.x || currentY !== safe.y ) {
 					w.element.classList.add( 'os-window--reflowing' );
@@ -915,10 +934,17 @@ export class WindowManager {
 		}
 
 		const desktopRect = this._desktop.getBoundingClientRect();
-		const defaultWidth = Math.min( Math.round( desktopRect.width * 0.8 ), 1200 );
-		const defaultHeight = Math.min( Math.round( desktopRect.height * 0.8 ), 800 );
-		const cascadeX = 40 + ( this.cascadeIndex % 8 ) * CASCADE_OFFSET;
-		const cascadeY = 40 + ( this.cascadeIndex % 8 ) * CASCADE_OFFSET;
+		// Defaults, the cascade origin and the saved-position clamp all
+		// work in the WORK area — the desktop area minus the band the
+		// dock pill covers — so a fresh window never opens with its
+		// bottom edge under the dock. `desktopRect` stays the whole
+		// area for the `WINDOW_GEOMETRY` filter's documented context.
+		const workArea = workAreaRectOf( this._desktop );
+		const margin = 12;
+		const defaultWidth = Math.min( Math.round( workArea.width * 0.8 ), 1200 );
+		const defaultHeight = Math.min( Math.round( workArea.height * 0.8 ), 800 );
+		const cascadeX = workArea.x + 40 + ( this.cascadeIndex % 8 ) * CASCADE_OFFSET;
+		const cascadeY = workArea.y + 40 + ( this.cascadeIndex % 8 ) * CASCADE_OFFSET;
 
 		// When the caller didn't pin geometry (a fresh dock click or
 		// desktop-icon open, not a session restore which passes
@@ -945,12 +971,39 @@ export class WindowManager {
 			! hasExplicitY
 				? loadNativeWindowGeometry( resolvedBaseId )
 				: null;
-		const resolvedWidth =
+		let resolvedWidth =
 			config.width ??
 			( saved ? Math.max( saved.width, minWidth ) : defaultWidth );
-		const resolvedHeight =
+		let resolvedHeight =
 			config.height ??
 			( saved ? Math.max( saved.height, minHeight ) : defaultHeight );
+		// A window nobody positioned must not open under the dock. A
+		// registered size is honoured as far as the work area allows —
+		// a native window declared 1080×720 on a laptop whose reachable
+		// height is 640 opens 616 tall, at its minimum at worst — and
+		// the cascade origin below is pulled up so the bottom edge
+		// lands inside. Caller-pinned x / y are trusted as-is, and so
+		// is a size the user saved by resizing: both are deliberate
+		// placement, the user's or a plugin's, not a default.
+		const placedByDefault = ! hasExplicitX && ! hasExplicitY && ! saved;
+		if ( placedByDefault ) {
+			resolvedWidth = Math.max(
+				minWidth,
+				Math.min( resolvedWidth, workArea.width - margin * 2 ),
+			);
+			resolvedHeight = Math.max(
+				minHeight,
+				Math.min( resolvedHeight, workArea.height - margin * 2 ),
+			);
+		}
+		const defaultX = Math.max(
+			workArea.x + margin,
+			Math.min( cascadeX, workArea.x + workArea.width - resolvedWidth - margin ),
+		);
+		const defaultY = Math.max(
+			workArea.y + margin,
+			Math.min( cascadeY, workArea.y + workArea.height - resolvedHeight - margin ),
+		);
 		const resolvedState =
 			config.initialState ??
 			( saved?.state === 'maximized' ? 'maximized' : undefined );
@@ -966,20 +1019,19 @@ export class WindowManager {
 			typeof saved.x === 'number' &&
 			typeof saved.y === 'number'
 		) {
-			const margin = 12;
 			const maxX = Math.max(
-				0,
-				desktopRect.width - resolvedWidth - margin,
+				workArea.x,
+				workArea.x + workArea.width - resolvedWidth - margin,
 			);
 			const maxY = Math.max(
-				0,
-				desktopRect.height - resolvedHeight - margin,
+				workArea.y,
+				workArea.y + workArea.height - resolvedHeight - margin,
 			);
-			clampedSavedX = Math.max( margin, Math.min( saved.x, maxX ) );
-			clampedSavedY = Math.max( margin, Math.min( saved.y, maxY ) );
+			clampedSavedX = Math.max( workArea.x + margin, Math.min( saved.x, maxX ) );
+			clampedSavedY = Math.max( workArea.y + margin, Math.min( saved.y, maxY ) );
 		}
-		const resolvedX = config.x ?? clampedSavedX ?? cascadeX;
-		const resolvedY = config.y ?? clampedSavedY ?? cascadeY;
+		const resolvedX = config.x ?? clampedSavedX ?? defaultX;
+		const resolvedY = config.y ?? clampedSavedY ?? defaultY;
 
 		// `WINDOW_GEOMETRY` filter context — two booleans that capture
 		// the only useful distinctions a filter actually cares about:
@@ -1019,6 +1071,7 @@ export class WindowManager {
 						width: desktopRect.width,
 						height: desktopRect.height,
 					},
+					workArea: { ...workArea },
 				},
 			);
 		} catch ( err ) {
@@ -1585,23 +1638,23 @@ export class WindowManager {
 			const owner = parent.getSnapshot();
 			const width = config.width ?? Math.round( owner.width * 0.8 );
 			const height = config.height ?? Math.round( owner.height * 0.8 );
-			// Keep the child inside the desktop area even when its owner
+			// Keep the child inside the work area even when its owner
 			// is hanging off an edge. `open()` clamps saved geometry but
 			// trusts caller-pinned coordinates, and this counts as
 			// caller-pinned.
-			const desktopRect = this._desktop.getBoundingClientRect();
-			const maxX = Math.max( 0, desktopRect.width - width );
-			const maxY = Math.max( 0, desktopRect.height - height );
+			const area = workAreaRectOf( this._desktop );
+			const maxX = Math.max( area.x, area.x + area.width - width );
+			const maxY = Math.max( area.y, area.y + area.height - height );
 			placement = {
 				width,
 				height,
 				x: Math.min(
 					maxX,
-					Math.max( 0, Math.round( owner.x + ( owner.width - width ) / 2 ) ),
+					Math.max( area.x, Math.round( owner.x + ( owner.width - width ) / 2 ) ),
 				),
 				y: Math.min(
 					maxY,
-					Math.max( 0, Math.round( owner.y + ( owner.height - height ) / 2 ) ),
+					Math.max( area.y, Math.round( owner.y + ( owner.height - height ) / 2 ) ),
 				),
 			};
 		}

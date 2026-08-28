@@ -12,6 +12,7 @@
  */
 
 import { doAction, HOOKS } from '../hooks';
+import { workAreaRectOf, type WorkAreaRect } from '../work-area';
 import { DRAG_THRESHOLD_SQUARED, EDGE_MARGIN, GRAB_MARGIN } from './constants';
 import type { Window } from './index';
 
@@ -227,10 +228,18 @@ export function handleDragStart( win: Window, e: PointerEvent ): void {
 		let x = ev.clientX - win._dragOffsetX;
 		let y = ev.clientY - win._dragOffsetY;
 
-		// Constrain to desktop bounds keeping GRAB_MARGIN visible.
+		// Constrain to the desktop area keeping GRAB_MARGIN visible.
+		// The whole area, not the work area: a window dragged under
+		// the dock is where the user put it, and the title bar stays
+		// grabbable either way.
 		const desktop = win.element.parentElement;
 		if ( desktop ) {
-			const safe = clampWindowPosition( x, y, win.element.offsetWidth, desktop.clientWidth, desktop.clientHeight );
+			const safe = clampWindowPosition( x, y, win.element.offsetWidth, {
+				x: 0,
+				y: 0,
+				width: desktop.clientWidth,
+				height: desktop.clientHeight,
+			} );
 			x = safe.x;
 			y = safe.y;
 		}
@@ -339,11 +348,12 @@ function captureUnstateParams(
 	// area) when the window was born maximized / snapped and never had
 	// a floating size to remember.
 	const parent = win.element.parentElement;
-	const fallbackW = parent
-		? Math.min( 960, Math.round( parent.clientWidth * 0.6 ) )
+	const workArea = parent ? workAreaRectOf( parent ) : null;
+	const fallbackW = workArea
+		? Math.min( 960, Math.round( workArea.width * 0.6 ) )
 		: 640;
-	const fallbackH = parent
-		? Math.min( 640, Math.round( parent.clientHeight * 0.7 ) )
+	const fallbackH = workArea
+		? Math.min( 640, Math.round( workArea.height * 0.7 ) )
 		: 480;
 	const w = win._savedGeometry?.width ?? fallbackW;
 	const h = win._savedGeometry?.height ?? fallbackH;
@@ -628,23 +638,28 @@ export function computeResize(
 }
 
 /**
- * Clamp a window's left/top coordinate to ensure a minimum clickable grab area
- * (GRAB_MARGIN) remains visible within the parent desktop boundaries, and the top
- * edge is strictly constrained above the top menu (EDGE_MARGIN).
+ * Clamp a window's left/top coordinate to ensure a minimum clickable
+ * grab area (GRAB_MARGIN) remains visible inside `bounds` — the work
+ * area, in desktop-area-local coordinates — and the top edge is
+ * strictly constrained below the work area's top (EDGE_MARGIN).
+ *
+ * `bounds` rather than a bare width / height because the work area
+ * does not start at the desktop area's origin once chrome claims a
+ * top or left band; the far edges are `bounds.x + bounds.width` and
+ * `bounds.y + bounds.height`, not the desktop area's.
  */
 export function clampWindowPosition(
 	x: number,
 	y: number,
 	width: number,
-	desktopW: number,
-	desktopH: number,
+	bounds: WorkAreaRect,
 ): { x: number; y: number } {
-	const minX = GRAB_MARGIN - width;
-	const maxX = desktopW - GRAB_MARGIN;
+	const minX = bounds.x + GRAB_MARGIN - width;
+	const maxX = bounds.x + bounds.width - GRAB_MARGIN;
 	const safeX = Math.max( minX, Math.min( x, maxX ) );
 
-	const minY = EDGE_MARGIN;
-	const maxY = desktopH - GRAB_MARGIN;
+	const minY = bounds.y + EDGE_MARGIN;
+	const maxY = bounds.y + bounds.height - GRAB_MARGIN;
 	const safeY = Math.max( minY, Math.min( y, maxY ) );
 
 	return { x: safeX, y: safeY };

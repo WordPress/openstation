@@ -656,6 +656,19 @@
 }
 
 /*
+ * Inside a card, the control sits on the card's floor rather than
+ * under its description. The two cards share one height (grid rows
+ * stretch), but Split's description runs three lines to Unified's
+ * one, so a control that followed the text landed a couple of lines
+ * higher on one side. Pushed down, both controls sit on the same
+ * line and the cards read as the pair they are.
+ */
+.os-settings__layout-card > .os-settings__dock-options {
+	margin-top: auto;
+	padding-top: 14px;
+}
+
+/*
  * Dock size, under both cards rather than inside one: both layouts
  * have a dock. Off the grid entirely, so it clears the taller card
  * rather than sitting beside it, and on the section's own rhythm
@@ -676,6 +689,18 @@
 	font-size: 14px;
 	font-weight: 500;
 	color: var( --os-ui-fg, #1d2327 );
+}
+
+/*
+ * One line under a control saying what the picked value does. Dock
+ * behavior needs it where Dock size does not: "Compact" is
+ * self-explaining, "Dynamic" is a promise about the pointer.
+ */
+.os-settings__dock-option-hint {
+	max-width: 56ch;
+	font-size: 12px;
+	line-height: 1.5;
+	color: var( --os-ui-fg-muted, #646970 );
 }
 
 /*
@@ -703,7 +728,10 @@
 	transform: translateY( -2px );
 }
 
-.os-settings__layout-card:has( [ aria-checked='true' ] ) {
+/* The CHOICE's own checked state, not any checked thing in the card:
+   every card now holds a segmented control, and its picked segment
+   is `aria-checked` too. */
+.os-settings__layout-card:has( .os-settings__layout-choice[ aria-checked='true' ] ) {
 	box-shadow: 0 0 0 2px var( --os-ui-accent, #2271b1 );
 }
 
@@ -780,6 +808,48 @@
 .os-settings__layout-bar.is-accent {
 	background: var( --os-ui-accent, #2271b1 );
 	border-color: transparent;
+	transition: transform 0.35s cubic-bezier( 0.22, 1, 0.36, 1 ), opacity 0.35s ease;
+}
+
+/*
+ * A rail set to Dynamic is drawn as what the real one folds into: the
+ * thin indicator line at its edge (`dock.css`, the parked state). The
+ * card says which rails are folded — `is-dock-dynamic` for the bottom
+ * dock, `is-sidebar-dynamic` for Split's side rail — and the bar
+ * shrinks by TRANSFORM rather than by re-sizing, because its geometry
+ * is an inline style from the preview table in `desktop-layout.ts`
+ * and a transform leaves that table the single owner of where things
+ * sit. The dock keeps its feet on the floor (origin at the bottom
+ * edge, shrinking towards its centre), the sidebar stays on its wall
+ * (origin at the left edge, nudged in the way the real line sits 8px
+ * off the screen edge).
+ *
+ * The slow breathe is the one hint that this rail is not always
+ * there. It is opacity only, never scale, so the line's size stays
+ * an honest picture of the indicator; and it stops under reduced
+ * motion along with the fold itself.
+ */
+.os-settings__layout-card.is-dock-dynamic .os-settings__layout-bar.is-dock {
+	transform: scale( 0.55, 0.4 );
+	transform-origin: 50% 100%;
+	animation: os-settings-layout-bar-breathe 2.6s ease-in-out infinite;
+}
+
+.os-settings__layout-card.is-sidebar-dynamic .os-settings__layout-bar.is-sidebar {
+	transform: translateX( 40% ) scale( 0.4, 0.45 );
+	transform-origin: 0 50%;
+	animation: os-settings-layout-bar-breathe 2.6s ease-in-out infinite;
+}
+
+@keyframes os-settings-layout-bar-breathe {
+	0%,
+	100% {
+		opacity: 1;
+	}
+
+	50% {
+		opacity: 0.55;
+	}
 }
 
 .os-settings__layout-name {
@@ -802,6 +872,12 @@
 
 	.os-settings__layout-card:has( .os-settings__layout-choice:hover ) {
 		transform: none;
+	}
+
+	/* The fold lands at once and the line holds still. */
+	.os-settings__layout-bar.is-accent {
+		transition-duration: 0.01ms;
+		animation: none;
 	}
 }
 

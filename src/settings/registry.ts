@@ -53,6 +53,10 @@ export interface OsSettingsSnapshot {
 	 * route back to classic admin.
 	 */
 	adminBarMode: string;
+	/** The dock: `'static'` (always on screen) or `'dynamic'` (folds into an indicator line). */
+	dockBehavior: string;
+	/** The Split layout's sidebar, same values. Ignored by Unified. */
+	sideDockBehavior: string;
 	/**
 	 * Top-level desktop layout. Drives the dock(s) layout:
 	 *

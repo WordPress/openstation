@@ -43,6 +43,7 @@ import {
 import { startNotesHeartbeat } from './heartbeat';
 import { trashNoteWithUndo } from './trash';
 import { convertNoteToPost } from './convert';
+import { workAreaRectOf } from '../work-area';
 import {
 	NOTE_PAYLOAD_TYPE,
 	type Note,
@@ -212,14 +213,23 @@ export class NotesLayer {
 		};
 	}
 
-	/** Clamp a normalized position so the note stays reachable. */
+	/**
+	 * Clamp a normalized position so the note stays reachable: its
+	 * full width and its top 120px inside the desktop's WORK area,
+	 * not the whole host — a note parked at the host's floor sat
+	 * under the dock pill. Positions stay normalised against the
+	 * host's full size, so nothing stored changes shape.
+	 */
 	clampPosition( x: number, y: number ): { x: number; y: number } {
 		const { width, height } = this.hostSize();
-		const maxX = Math.max( 0, 1 - NOTE_WIDTH / width );
-		const maxY = Math.max( 0, 1 - 120 / height );
+		const area = workAreaRectOf( this.host );
+		const minX = area.x / width;
+		const minY = area.y / height;
+		const maxX = Math.max( minX, ( area.x + area.width - NOTE_WIDTH ) / width );
+		const maxY = Math.max( minY, ( area.y + area.height - 120 ) / height );
 		return {
-			x: Math.min( maxX, Math.max( 0, x ) ),
-			y: Math.min( maxY, Math.max( 0, y ) ),
+			x: Math.min( maxX, Math.max( minX, x ) ),
+			y: Math.min( maxY, Math.max( minY, y ) ),
 		};
 	}
 

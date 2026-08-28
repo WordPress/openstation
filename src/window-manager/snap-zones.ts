@@ -56,8 +56,10 @@ export function detectSnapZone(
 /**
  * Compute the final bounds (in desktop-area-local coordinates) for a
  * given snap zone. Always exactly half the desktop area's width,
- * full height. Rounded to whole pixels so the preview rectangle and
- * the committed window line up pixel-perfectly.
+ * full height — the whole area, dock band included, since snapping is
+ * an explicit ask for the edge (the same rule as maximize; see
+ * `src/window/index.ts`). Rounded to whole pixels so the preview
+ * rectangle and the committed window line up pixel-perfectly.
  */
 export function snapZoneBounds(
 	mgr: WindowManager,

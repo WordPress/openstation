@@ -11,6 +11,7 @@
  */
 
 import { addAction, removeAction, HOOKS } from '../hooks';
+import { workAreaRectOf } from '../work-area';
 import * as filesRest from './rest';
 import type { DesktopFile } from './file';
 import type { OpenerContext } from './openers';
@@ -87,19 +88,22 @@ export function openEmbedWindow(
 	};
 
 	const saved = meta?.window;
+	// The WORK area, not the whole desktop area: a window restored to
+	// the area's full height would put its bottom edge under the dock.
 	const area = document.getElementById( 'os-area' );
-	const aw = area?.clientWidth ?? window.innerWidth;
-	const ah = area?.clientHeight ?? window.innerHeight;
+	const canvas = area
+		? workAreaRectOf( area )
+		: { x: 0, y: 0, width: window.innerWidth, height: window.innerHeight };
 
 	if ( saved && Number.isFinite( saved.width ) && Number.isFinite( saved.height ) ) {
-		const { x, y, width, height } = clampGeometry( saved, aw, ah );
+		const { x, y, width, height } = clampGeometry( saved, canvas );
 		cfg.x = x;
 		cfg.y = y;
 		cfg.width = width;
 		cfg.height = height;
 	} else {
-		cfg.width = Math.min( DEFAULT_W, Math.max( MIN_W, aw - PADDING * 2 ) );
-		cfg.height = Math.min( DEFAULT_H, Math.max( MIN_H, ah - PADDING * 2 ) );
+		cfg.width = Math.min( DEFAULT_W, Math.max( MIN_W, canvas.width - PADDING * 2 ) );
+		cfg.height = Math.min( DEFAULT_H, Math.max( MIN_H, canvas.height - PADDING * 2 ) );
 	}
 
 	if ( placement ) {
@@ -209,13 +213,14 @@ async function persist( placementId: number, geo: SavedGeometry ): Promise< void
 
 function clampGeometry(
 	g: SavedGeometry,
-	areaW: number,
-	areaH: number,
+	canvas: { x: number; y: number; width: number; height: number },
 ): SavedGeometry {
-	const width = Math.max( MIN_W, Math.min( g.width, areaW - PADDING ) );
-	const height = Math.max( MIN_H, Math.min( g.height, areaH - PADDING ) );
-	const x = Math.max( 0, Math.min( g.x, Math.max( 0, areaW - width ) ) );
-	const y = Math.max( 0, Math.min( g.y, Math.max( 0, areaH - height ) ) );
+	const width = Math.max( MIN_W, Math.min( g.width, canvas.width - PADDING ) );
+	const height = Math.max( MIN_H, Math.min( g.height, canvas.height - PADDING ) );
+	const maxX = canvas.x + Math.max( 0, canvas.width - width );
+	const maxY = canvas.y + Math.max( 0, canvas.height - height );
+	const x = Math.max( canvas.x, Math.min( g.x, maxX ) );
+	const y = Math.max( canvas.y, Math.min( g.y, maxY ) );
 	return { x, y, width, height };
 }
 

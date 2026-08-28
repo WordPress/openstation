@@ -1531,6 +1531,31 @@ add_filter( 'openstation_admin_bar_mode', function () {
 
 ---
 
+### `openstation_dock_behavior` — Experimental
+
+Overrides how the dock presents for the current request, regardless of the user's own **OpenStation Preferences → Appearance → Desktop layout → Dock behavior** pick. The resolved value is stamped as `data-os-dock-behavior` on `#os-dock` by the shell template, which is what `assets/css/dock.css` and `src/dock-behavior.ts` key off. It answers for the dock only (the single rail in Unified, the bottom dock in Split); the Split sidebar carries its own `sideDockBehavior`, synthesised and stamped client-side, and is not filtered here.
+
+```php
+apply_filters( 'openstation_dock_behavior', string $behavior );
+```
+
+| Behavior | What it does |
+|---|---|
+| `static` | The rail is always on screen, and the band it floats over is reserved from the [work area](javascript-reference.md#workarea--experimental) so default window placement stays clear of it. The default. |
+| `dynamic` | The rail folds into a thin indicator line at its edge (`--os-dock-indicator-length` × `--os-dock-indicator-thickness`, `180px` × `5px`, in `--os-dock-indicator-bg`, the accent at 72% alpha; a theme retunes all three) and morphs back into the full rail — through the View Transitions API where the browser has it — when the pointer reaches that edge of the screen (a `20px` band, the full width or height of it). Once out it stays out while the pointer is on the rail or just above it (a band reaching twice the rail's height from the screen edge), or on one of its flyouts, and while something on the rail has keyboard focus; the pointer leaving the browser window changes nothing. It reserves nothing: windows get the whole desktop and the rail rides over them when summoned. |
+
+A value outside the two coerces back to `static`. The same two ids are the user-facing settings (`dockBehavior` and `sideDockBehavior` in `wp.os.getOsSettings()`).
+
+**Example — keep the rail on screen for anyone who might not find the seam:**
+
+```php
+add_filter( 'openstation_dock_behavior', function ( $behavior ) {
+    return current_user_can( 'manage_options' ) ? $behavior : 'static';
+} );
+```
+
+---
+
 ### `openstation_toast_types` — Stable
 
 Extends the toast-notification type map the shell consumes when a plugin calls `wp.os.toast( id, … )`. Each entry is `{ id, label, icon, tone }` where `tone` is one of `positive | warning | critical | neutral`. Entries with an unknown tone are dropped.

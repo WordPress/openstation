@@ -394,20 +394,37 @@ describe( 'drag auto-unstate', () => {
 } );
 
 describe( 'clampWindowPosition', () => {
+	const bounds = { x: 0, y: 0, width: 1600, height: 900 };
+
 	test( 'clamps left/right/bottom to GRAB_MARGIN and top to EDGE_MARGIN', () => {
 		// Inside desktop bounds (no clamping needed)
-		expect( clampWindowPosition( 100, 100, 800, 1600, 900 ) ).toEqual( { x: 100, y: 100 } );
+		expect( clampWindowPosition( 100, 100, 800, bounds ) ).toEqual( { x: 100, y: 100 } );
 
 		// Off left edge: minX = GRAB_MARGIN (40) - width (800) = -760
-		expect( clampWindowPosition( -1000, 100, 800, 1600, 900 ) ).toEqual( { x: -760, y: 100 } );
+		expect( clampWindowPosition( -1000, 100, 800, bounds ) ).toEqual( { x: -760, y: 100 } );
 
 		// Off top edge: minY = EDGE_MARGIN = 0
-		expect( clampWindowPosition( 100, -500, 800, 1600, 900 ) ).toEqual( { x: 100, y: 0 } );
+		expect( clampWindowPosition( 100, -500, 800, bounds ) ).toEqual( { x: 100, y: 0 } );
 
 		// Off right edge: maxX = 1600 - GRAB_MARGIN (40) = 1560
-		expect( clampWindowPosition( 2000, 100, 800, 1600, 900 ) ).toEqual( { x: 1560, y: 100 } );
+		expect( clampWindowPosition( 2000, 100, 800, bounds ) ).toEqual( { x: 1560, y: 100 } );
 
 		// Off bottom edge: maxY = 900 - GRAB_MARGIN (40) = 860
-		expect( clampWindowPosition( 100, 2000, 800, 1600, 900 ) ).toEqual( { x: 100, y: 860 } );
+		expect( clampWindowPosition( 100, 2000, 800, bounds ) ).toEqual( { x: 100, y: 860 } );
+	} );
+
+	test( 'clamps against the work area, not the desktop area', () => {
+		// A bottom dock pill claiming 80px, a left rail claiming 60px.
+		const workArea = { x: 60, y: 0, width: 1540, height: 820 };
+
+		// Off bottom edge: maxY = 0 + 820 - GRAB_MARGIN (40) = 780 — the
+		// title bar stays above the dock.
+		expect( clampWindowPosition( 100, 2000, 800, workArea ) ).toEqual( { x: 100, y: 780 } );
+
+		// Off left edge: minX = 60 + GRAB_MARGIN (40) - width (800) = -700
+		expect( clampWindowPosition( -1000, 100, 800, workArea ) ).toEqual( { x: -700, y: 100 } );
+
+		// Off right edge: maxX = 60 + 1540 - GRAB_MARGIN (40) = 1560
+		expect( clampWindowPosition( 2000, 100, 800, workArea ) ).toEqual( { x: 1560, y: 100 } );
 	} );
 } );

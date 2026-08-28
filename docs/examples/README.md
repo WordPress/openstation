@@ -78,6 +78,7 @@ defined( 'ABSPATH' ) || exit;
 - [Build a feed reader without the bookkeeping — `wp.os.createInfiniteList()`](./infinite-list.md)
 - [Connect to an external service via OAuth — `openstation_register_oauth_relay()`](./oauth-relay.md)
 - [Share state across multi-bundle plugins — `wp.os.createSharedStore()`](./shared-store.md)
+- [Place something where the user can reach it — `wp.os.workArea`](./work-area.md)
 - [Track who's around — `wp.os.presence`](./presence.md)
 - [Surface a custom "Install as App" button](./pwa-install.md)
 - [Send a notification — `wp.os.notify()`](./notify.md)

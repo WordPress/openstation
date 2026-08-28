@@ -253,8 +253,12 @@ describe( 'the tray', () => {
 		const pillHeight = Number(
 			/--os-tray-height,\s*(\d+)px/.exec( trayCss )?.[ 1 ]
 		);
+		// The offset is ADDED to the work-area's own top inset rather
+		// than replacing it, so a dock-rail renderer that floats
+		// something along the top edge still gets its band. What is
+		// asserted here is the tray's own contribution.
 		const scoped =
-			/:has\( \.os-tray\[ data-os-tray-mode="pill" \] \) \.os-widgets \{\s*top:\s*(\d+)px/.exec(
+			/:has\( \.os-tray\[ data-os-tray-mode="pill" \] \) \.os-widgets \{\s*top:\s*calc\(\s*var\( --os-work-area-inset-top, 0px \) \+ (\d+)px/.exec(
 				desktopCss
 			);
 		const columnTop = Number( scoped?.[ 1 ] );

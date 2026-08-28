@@ -42,6 +42,11 @@
 
 import { __ } from '../i18n';
 import { decodeHTML } from '../utils';
+import {
+	subscribeWorkArea,
+	workAreaInsetsOf,
+	type WorkAreaInsets,
+} from '../work-area';
 import { resolveDashicon } from '../ui/components/os-icon/dashicons-map';
 import {
 	getPixi,
@@ -380,6 +385,17 @@ export class GraphScene {
 	private destroyed = false;
 	private tickerCb: ( ( t: { deltaTime: number } ) => void ) | null = null;
 	private resizeObserver: ResizeObserver | null = null;
+	/**
+	 * How far the host hangs outside the desktop's work area, per
+	 * edge, in host px — what {@link frameBounds} subtracts before
+	 * centring. Cached rather than measured per call: the fit-follow
+	 * loop re-frames every tick for up to three seconds, and a
+	 * `getBoundingClientRect()` inside it would force layout each
+	 * frame. Refreshed on every host resize, on every work-area
+	 * change, and at the start of each user-initiated fit.
+	 */
+	private fitInsets: WorkAreaInsets = { top: 0, right: 0, bottom: 0, left: 0 };
+	private unsubscribeWorkArea: ( () => void ) | null = null;
 	private lastResizeWidth = 0;
 	private lastResizeHeight = 0;
 	// A fit asked for while the host had no size yet (window still
@@ -970,6 +986,9 @@ export class GraphScene {
 			}
 			const w = this.host.clientWidth;
 			const h = this.host.clientHeight;
+			// Layout is clean inside a ResizeObserver callback, so this
+			// is the cheap place to re-measure the work-area overhang.
+			this.fitInsets = workAreaInsetsOf( this.host );
 			// Hidden / detached host has clientWidth/clientHeight = 0.
 			// `renderer.resize(0, 0)` puts Pixi v8's batched renderer
 			// into a state that crashes the next render with
@@ -1012,6 +1031,13 @@ export class GraphScene {
 			}
 		} );
 		this.resizeObserver.observe( this.host );
+		// The dock moving or resizing changes the overhang without the
+		// host changing size — the store fires once per real change.
+		this.unsubscribeWorkArea = subscribeWorkArea( () => {
+			if ( ! this.destroyed ) {
+				this.fitInsets = workAreaInsetsOf( this.host );
+			}
+		} );
 	}
 
 	private toWorld(
@@ -1115,7 +1141,7 @@ export class GraphScene {
 		}
 		if ( peakVelocity >= this.fitFollowVelocityThreshold ) {
 			this.fitFollowSawMotion = true;
-			this.fitToView();
+			this.fitToView( false );
 		} else if ( this.fitFollowSawMotion ) {
 			// Only disarm AFTER we've observed non-zero motion at
 			// least once. Otherwise the first tick after the tween
@@ -1822,19 +1848,34 @@ export class GraphScene {
 		if ( targets.size === 0 ) {
 			return;
 		}
+		// A user-initiated fit: measure once so a window dragged under
+		// the dock since the last resize is framed correctly.
+		this.fitInsets = workAreaInsetsOf( this.host );
 		this.frame( targets.values() );
 	}
 
 	/**
 	 * Point the camera at `points`, centred and at the largest fit
-	 * zoom. When the host has no size yet the request is parked and
+	 * zoom, in the REACHABLE part of the host: its box minus whatever
+	 * hangs outside the desktop's work area (the band under the dock
+	 * pill when the window is dragged low). Framing into the whole
+	 * host put a small graph's lowest nodes under the dock after every
+	 * Fit — visible, unreachable. The insets are host px, and so is
+	 * the camera's translation, so the reachable box's centre is where
+	 * the bounds' centre lands.
+	 *
+	 * When the host has no size yet the request is parked and
 	 * replayed by the resize observer — framing against a 0×0 host
 	 * would leave the board in the top-left corner at minimum zoom.
 	 */
 	private frame( points: Iterable< Point > ): void {
+		const inset = this.fitInsets;
 		const target = frameBounds(
 			points,
-			{ width: this.host.clientWidth, height: this.host.clientHeight },
+			{
+				width: this.host.clientWidth - inset.left - inset.right,
+				height: this.host.clientHeight - inset.top - inset.bottom,
+			},
 			FIT_OPTIONS,
 		);
 		if ( ! target ) {
@@ -1843,8 +1884,8 @@ export class GraphScene {
 		}
 		this.fitPending = false;
 		this.targetScale = target.scale;
-		this.targetX = target.x;
-		this.targetY = target.y;
+		this.targetX = inset.left + target.x;
+		this.targetY = inset.top + target.y;
 	}
 
 	/**
@@ -1964,9 +2005,18 @@ export class GraphScene {
 		return this.focusedId;
 	}
 
-	fitToView(): void {
+	/**
+	 * Frame every node. `measure` re-reads the host's work-area
+	 * overhang first — the default, right for the Fit button and a
+	 * fresh load; the fit-follow loop passes `false` and rides the
+	 * cached value so it never forces layout mid-simulation.
+	 */
+	fitToView( measure = true ): void {
 		if ( this.nodes.length === 0 ) {
 			return;
+		}
+		if ( measure ) {
+			this.fitInsets = workAreaInsetsOf( this.host );
 		}
 		this.frame( this.nodes );
 	}
@@ -1995,6 +2045,8 @@ export class GraphScene {
 		}
 		this.resizeObserver?.disconnect();
 		this.resizeObserver = null;
+		this.unsubscribeWorkArea?.();
+		this.unsubscribeWorkArea = null;
 		this.satellites?.destroy();
 		this.satellites = null;
 		// DOM overlay for cluster labels lives outside the Pixi

@@ -19,6 +19,7 @@
 
 import { __, sprintf } from '../i18n';
 import { osIconSvg } from '../ui/icons';
+import { workAreaRectOf } from '../work-area';
 import type { WidgetDef, WidgetGeometry } from './types';
 
 const FLOATING_CLASS = 'os-widgets__card--floating';
@@ -683,7 +684,7 @@ function clampDockedHeight( height: number, def: WidgetDef ): number {
  * can never grab it back. Size is left untouched; only the position
  * is pulled back into view.
  */
-function clampGeometryToParent(
+export function clampGeometryToParent(
 	geometry: WidgetGeometry,
 	parent: HTMLElement,
 ): WidgetGeometry {
@@ -719,6 +720,12 @@ function snapWithin( value: number ): number {
 	return snapped >= VIEWPORT_MARGIN ? snapped : Math.min( value, VIEWPORT_MARGIN );
 }
 
+/**
+ * Clamp a card into the parent's WORK AREA — the desktop area minus
+ * the band the dock pill covers — with {@link VIEWPORT_MARGIN} of air
+ * on every side. A widget parked against the bottom edge stops above
+ * the dock instead of sliding under it.
+ */
 function clampToParent(
 	x: number,
 	y: number,
@@ -726,14 +733,14 @@ function clampToParent(
 	height: number,
 	parent: HTMLElement,
 ): { x: number; y: number } {
-	const parentWidth = parent.clientWidth || parent.getBoundingClientRect().width;
-	const parentHeight =
-		parent.clientHeight || parent.getBoundingClientRect().height;
-	const maxX = Math.max( 0, parentWidth - width - VIEWPORT_MARGIN );
-	const maxY = Math.max( 0, parentHeight - height - VIEWPORT_MARGIN );
+	const area = workAreaRectOf( parent );
+	const minX = area.x + VIEWPORT_MARGIN;
+	const minY = area.y + VIEWPORT_MARGIN;
+	const maxX = Math.max( area.x, area.x + area.width - width - VIEWPORT_MARGIN );
+	const maxY = Math.max( area.y, area.y + area.height - height - VIEWPORT_MARGIN );
 	return {
-		x: Math.min( Math.max( VIEWPORT_MARGIN, x ), maxX ),
-		y: Math.min( Math.max( VIEWPORT_MARGIN, y ), maxY ),
+		x: Math.min( Math.max( minX, x ), maxX ),
+		y: Math.min( Math.max( minY, y ), maxY ),
 	};
 }
 
@@ -758,9 +765,14 @@ export function computeResize(
 	const minH = def.minHeight ?? DEFAULT_MIN_HEIGHT;
 	const maxW = def.maxWidth ?? Infinity;
 	const maxH = def.maxHeight ?? Infinity;
-	const parentWidth = parent.clientWidth || parent.getBoundingClientRect().width;
-	const parentHeight =
-		parent.clientHeight || parent.getBoundingClientRect().height;
+	// The far edges a resize may reach: the work area's, so a card
+	// pulled taller stops above the dock pill. (The near edges stay at
+	// 0 — a card's top-left is already inside the work area, and the
+	// north / west handles only ever move it towards its own bottom-
+	// right.)
+	const area = workAreaRectOf( parent );
+	const parentWidth = area.x + area.width;
+	const parentHeight = area.y + area.height;
 
 	let x = startLeft;
 	let y = startTop;
