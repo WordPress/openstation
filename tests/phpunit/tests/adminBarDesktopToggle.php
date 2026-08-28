@@ -24,7 +24,7 @@ class Tests_OpenStation_AdminBarDesktopToggle extends WP_UnitTestCase {
 
 	public function set_up() {
 		parent::set_up();
-		set_current_screen( 'dashboard' );
+		set_current_screen( OPENSTATION_SHELL_SCREEN_ID );
 		// Re-register admin-bar style + script fresh so inline data from
 		// other tests doesn't leak into the assertions below.
 		wp_styles()->remove( 'admin-bar' );

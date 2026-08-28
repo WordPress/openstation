@@ -8,6 +8,7 @@
 
 import type { WindowConfig } from '../types';
 import { urlMatchKey } from '../utils';
+import { isShellDocumentUrl } from '../shell-url';
 import { paintThemedControlIcon } from '../window-chrome/controls/paint-themed-icon';
 import { __, sprintf } from '../i18n';
 // Side-effect import — registers `<os-spinner>` so the loading
@@ -172,11 +173,17 @@ const INITIAL_ORIGIN = window.location.origin;
 /**
  * Returns the URL with the chromeless query parameter set, so the iframe
  * keeps rendering without the admin shell. Returns null for cross-origin
- * URLs so the caller can refuse the navigation.
+ * URLs, and for the shell screen itself, so the caller can refuse the
+ * navigation: every iframe src, tab navigation and in-place navigation
+ * passes through here, which makes it the one gate that keeps the
+ * desktop from booting a second desktop inside a window.
  */
 export function withChromelessParam( url: string ): string | null {
 	const parsed = new URL( url, INITIAL_ORIGIN );
 	if ( parsed.origin !== INITIAL_ORIGIN ) {
+		return null;
+	}
+	if ( isShellDocumentUrl( parsed ) ) {
 		return null;
 	}
 	parsed.searchParams.set( 'openstation_chromeless', '1' );

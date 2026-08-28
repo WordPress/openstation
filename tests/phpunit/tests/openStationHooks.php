@@ -21,7 +21,9 @@ class Tests_OpenStation_OpenStationHooks extends WP_UnitTestCase {
 
 	public function set_up() {
 		parent::set_up();
-		set_current_screen( 'dashboard' );
+		// The shell boots from its own screen; the asset hook paints
+		// nothing anywhere else.
+		set_current_screen( OPENSTATION_SHELL_SCREEN_ID );
 		wp_set_current_user( self::$admin_id );
 		openstation_flush_script_handle_registries();
 	}
@@ -34,7 +36,7 @@ class Tests_OpenStation_OpenStationHooks extends WP_UnitTestCase {
 		remove_all_filters( 'openstation_mode_enabled' );
 		remove_all_actions( 'openstation_mode_init' );
 		remove_all_actions( 'openstation_chromeless_styles' );
-		unset( $_GET['openstation_chromeless'], $_GET[ OPENSTATION_PORTAL_FLAG ], $_GET[ OPENSTATION_PORTAL_INTENT_FLAG ] );
+		unset( $_GET['openstation_chromeless'], $_GET[ OPENSTATION_PORTAL_FLAG ], $_GET[ OPENSTATION_PORTAL_INTENT_FLAG ], $_GET[ OPENSTATION_SHELL_TARGET_ARG ], $_GET[ OPENSTATION_SHELL_INTENT_ARG ] );
 		parent::tear_down();
 	}
 
@@ -114,18 +116,17 @@ class Tests_OpenStation_OpenStationHooks extends WP_UnitTestCase {
 	}
 
 	/**
-	 * The shell config surfaces `fromPortalIntent` mirroring the
-	 * `desktop_mode_portal_intent` query flag, and strips it out of
-	 * `currentPage` so the URL-derived window id matches the dock's.
+	 * The shell config derives `currentPage` from the screen's `target`
+	 * arg and surfaces `fromPortalIntent` from its `intent` arg. The
+	 * page carries no routing args of its own, so the URL-derived
+	 * window id matches the dock's.
 	 *
 	 * @covers ::openstation_enqueue_assets
 	 */
-	public function test_openstation_shell_config_surfaces_portal_intent_flag() {
+	public function test_openstation_shell_config_surfaces_target_and_intent() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
-		$_GET[ OPENSTATION_PORTAL_FLAG ]        = '1';
-		$_GET[ OPENSTATION_PORTAL_INTENT_FLAG ] = '1';
-		$_GET['post']                            = '104';
-		$_GET['action']                          = 'edit';
+		$_GET[ OPENSTATION_SHELL_TARGET_ARG ] = '/wp-admin/post.php?post=104&action=edit&' . OPENSTATION_PORTAL_FLAG . '=1';
+		$_GET[ OPENSTATION_SHELL_INTENT_ARG ] = '1';
 
 		$received = null;
 		add_filter(
@@ -136,29 +137,27 @@ class Tests_OpenStation_OpenStationHooks extends WP_UnitTestCase {
 			}
 		);
 
-		try {
-			openstation_enqueue_assets();
-		} finally {
-			unset( $_GET['post'], $_GET['action'] );
-		}
+		openstation_enqueue_assets();
 
 		$this->assertIsArray( $received );
 		$this->assertTrue( $received['fromPortal'] );
 		$this->assertTrue( $received['fromPortalIntent'] );
+		$this->assertStringStartsWith( admin_url( 'post.php' ), $received['currentPage'] );
+		$this->assertStringContainsString( 'post=104', $received['currentPage'] );
+		$this->assertStringContainsString( 'action=edit', $received['currentPage'] );
 		$this->assertStringNotContainsString( OPENSTATION_PORTAL_FLAG, $received['currentPage'] );
-		$this->assertStringNotContainsString( OPENSTATION_PORTAL_INTENT_FLAG, $received['currentPage'] );
+		$this->assertStringNotContainsString( OPENSTATION_SHELL_TARGET_ARG . '=', $received['currentPage'] );
 	}
 
 	/**
-	 * Bare portal entry — `fromPortal=true`, but no intent flag — must
-	 * surface `fromPortalIntent=false` so the boot flow leaves the
-	 * restored session alone.
+	 * A bare shell screen — no `target`, so no intent — must surface
+	 * `fromPortalIntent=false` so the boot flow leaves the restored
+	 * session alone.
 	 *
 	 * @covers ::openstation_enqueue_assets
 	 */
 	public function test_openstation_shell_config_intent_flag_defaults_false() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
-		$_GET[ OPENSTATION_PORTAL_FLAG ] = '1';
 
 		$received = null;
 		add_filter(

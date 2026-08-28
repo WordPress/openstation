@@ -106,7 +106,7 @@ The plugin is **OpenStation**; its code is prefixed `openstation_` / `OPENSTATIO
 | Upload directories | `uploads/desktop-mode-files`, `uploads/desktop-mode-themes` |
 | Cron hooks | `desktop_mode_files_daily_prune`, `desktop_mode_ai_analyze_comment` |
 | Post types, REST namespaces | `desktop_mode_chat`, `desktop-mode/v1` |
-| Query vars | `desktop_mode_portal`, `desktop_mode_classic` |
+| Query vars | `desktop_mode_portal`, `desktop_mode_classic` (`desktop_mode_portal` is now an alias — a URL carrying it redirects to the shell screen with that URL as `target` — still frozen) |
 | Native-window / desktop-icon / file-opener ids | `desktop-mode-recycle-bin`, `wpdc-editor` |
 | Web-storage keys | `desktop-mode-widgets-geometry`, `desktop-mode/files` |
 | The wp.org slug, `desktop-mode.php`, the text domain | see [Workflow](#workflow) |

@@ -673,7 +673,8 @@ class Tests_OpenStation_ChromelessCommandPalette extends WP_UnitTestCase {
 	public function test_shell_hoist_moves_contributors_into_the_manifest() {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
-		// Shell, not a window: no chromeless flag.
+		// Shell, not a window: the shell screen, no chromeless flag.
+		set_current_screen( OPENSTATION_SHELL_SCREEN_ID );
 		wp_register_script( 'openstation', 'https://example.org/desktop.js', array(), '1', true );
 		wp_enqueue_script( 'openstation' );
 		$this->register_graph();
@@ -722,6 +723,7 @@ class Tests_OpenStation_ChromelessCommandPalette extends WP_UnitTestCase {
 		$this->setExpectedIncorrectUsage( 'WP_Scripts::add' );
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		set_current_screen( OPENSTATION_SHELL_SCREEN_ID );
 		wp_register_script( 'openstation', 'https://example.org/desktop.js', array(), '1', true );
 		wp_enqueue_script( 'openstation' );
 		$this->register_graph();

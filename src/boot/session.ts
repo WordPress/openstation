@@ -13,6 +13,7 @@
  */
 
 import { tryNativeUrlRemap } from '../native-url-remap';
+import { isShellDocumentUrl } from '../shell-url';
 import { deriveWindowId } from '../utils';
 import {
 	clampGeometryToViewport,
@@ -205,6 +206,13 @@ export async function restoreSession(
 			continue;
 		}
 
+		// A saved window pointing at the shell screen cannot be made by
+		// the shell, but a session is user data; restoring it would
+		// boot a desktop inside a window.
+		if ( isShellDocumentUrl( win.url, config.adminUrl ) ) {
+			continue;
+		}
+
 		const clamped = clampGeometryToViewport( win, rect );
 		// Resolve the owning dock entry from the CURRENT URL first —
 		// a window navigated onto another menu's page belongs to that
@@ -300,6 +308,12 @@ export async function openCurrentPage(
 	manager: WindowManager,
 	config: DesktopConfig,
 ): Promise< void > {
+	// The server never hands the shell screen back as `currentPage`,
+	// but a filtered config could; a desktop inside a window is the
+	// one thing this must never build.
+	if ( isShellDocumentUrl( config.currentPage, config.adminUrl ) ) {
+		return;
+	}
 	if ( tryNativeUrlRemap( config.currentPage ) ) {
 		return;
 	}
@@ -313,7 +327,12 @@ export async function openCurrentPage(
 		multi: !! dockEntry?.multi,
 		url: config.currentPage,
 		parentUrl: dockEntry?.url ?? config.currentPage,
-		title: config.currentTitle,
+		// The shell screen has no host page to take a title from, so
+		// the server names the dock entry for the page instead and
+		// leaves it empty when nothing matches; the owning dock entry
+		// is the next best first paint, and the iframe reports its own
+		// title once it lands.
+		title: config.currentTitle || dockEntry?.title || '',
 		icon: config.currentIcon,
 		submenu: dockEntry?.submenu,
 		selfLabel: dockEntry?.selfLabel,

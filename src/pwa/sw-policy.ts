@@ -14,6 +14,7 @@
  */
 
 import { urlActs } from './acting-url';
+import { isShellDocumentUrl } from '../shell-url';
 
 /**
  * Runtime configuration handed to the SW by the PHP endpoint that
@@ -195,6 +196,10 @@ export function isSpeculatableDocument( url: URL ): boolean {
 		return false;
 	}
 	if ( ! url.searchParams.has( 'openstation_chromeless' ) ) {
+		return false;
+	}
+	// The shell screen boots a desktop; it is never a window's document.
+	if ( isShellDocumentUrl( url ) ) {
 		return false;
 	}
 	return ! urlActs( url );

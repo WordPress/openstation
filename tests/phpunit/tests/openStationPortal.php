@@ -50,7 +50,10 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 			$_GET[ OPENSTATION_PORTAL_INTENT_FLAG ],
 			$_GET[ OPENSTATION_CLASSIC_FLAG ],
 			$_GET['openstation_chromeless'],
-			$_GET['target']
+			$_GET[ OPENSTATION_SOLO_FLAG ],
+			$_GET['target'],
+			$GLOBALS['plugin_page'],
+			$GLOBALS['current_screen']
 		);
 		if ( null === $this->pagenow_backup ) {
 			unset( $GLOBALS['pagenow'] );
@@ -243,13 +246,13 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 	/**
 	 * @covers ::openstation_handle_portal_request
 	 */
-	public function test_portal_redirects_to_admin_with_flag() {
+	public function test_portal_redirects_to_the_shell_screen() {
 		wp_set_current_user( self::$admin_id );
 		$redirect = $this->capture_redirect( '/openstation/' );
 
 		$this->assertNotNull( $redirect );
-		$this->assertStringStartsWith( admin_url(), $redirect );
-		$this->assertStringContainsString( OPENSTATION_PORTAL_FLAG . '=1', $redirect );
+		$this->assertSame( openstation_shell_url(), $redirect );
+		$this->assertTrue( openstation_url_is_shell_screen( $redirect ) );
 	}
 
 	/**
@@ -447,13 +450,112 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The frozen `desktop_mode_portal` flag is the desktop's pre-screen
+	 * address: a URL carrying it goes to the shell screen with that URL
+	 * as the target, flags stripped.
+	 *
 	 * @covers ::openstation_redirect_plain_admin_to_portal
 	 */
-	public function test_admin_redirect_noop_when_portal_flag_already_present() {
+	public function test_admin_redirect_aliases_the_portal_flag_to_the_shell_screen() {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
-		$_SERVER['REQUEST_METHOD']    = 'GET';
+		$_SERVER['REQUEST_METHOD']       = 'GET';
+		$_SERVER['REQUEST_URI']          = '/wp-admin/index.php?' . OPENSTATION_PORTAL_FLAG . '=1';
+		$GLOBALS['pagenow']              = 'index.php';
 		$_GET[ OPENSTATION_PORTAL_FLAG ] = '1';
+
+		$redirect = $this->capture_admin_init_redirect();
+
+		$this->assertSame( openstation_shell_url( admin_url( 'index.php' ), false ), $redirect );
+		$this->assertStringNotContainsString( 'intent=', $redirect );
+		$this->assertStringNotContainsString( OPENSTATION_PORTAL_FLAG, rawurldecode( $redirect ) );
+	}
+
+	/**
+	 * The intent flag travels with the alias.
+	 *
+	 * @covers ::openstation_redirect_plain_admin_to_portal
+	 */
+	public function test_admin_redirect_alias_carries_intent() {
+		wp_set_current_user( self::$admin_id );
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		$_SERVER['REQUEST_METHOD']              = 'GET';
+		$_SERVER['REQUEST_URI']                 = '/wp-admin/post.php?post=104&action=edit&' . OPENSTATION_PORTAL_FLAG . '=1&' . OPENSTATION_PORTAL_INTENT_FLAG . '=1';
+		$GLOBALS['pagenow']                     = 'post.php';
+		$_GET[ OPENSTATION_PORTAL_FLAG ]        = '1';
+		$_GET[ OPENSTATION_PORTAL_INTENT_FLAG ] = '1';
+
+		$redirect = $this->capture_admin_init_redirect();
+
+		$this->assertSame( openstation_shell_url( admin_url( 'post.php?post=104&action=edit' ), true ), $redirect );
+	}
+
+	/**
+	 * An alias whose URL the allowlist rejects still reaches the
+	 * desktop — the bare screen, which resolves the entry itself.
+	 *
+	 * @covers ::openstation_redirect_plain_admin_to_portal
+	 */
+	public function test_admin_redirect_alias_with_an_unresolvable_url_lands_on_the_bare_screen() {
+		wp_set_current_user( self::$admin_id );
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		$_SERVER['REQUEST_METHOD']              = 'GET';
+		$_SERVER['REQUEST_URI']                 = '/wp-admin/network/sites.php?' . OPENSTATION_PORTAL_FLAG . '=1&' . OPENSTATION_PORTAL_INTENT_FLAG . '=1';
+		$GLOBALS['pagenow']                     = 'sites.php';
+		$_GET[ OPENSTATION_PORTAL_FLAG ]        = '1';
+		$_GET[ OPENSTATION_PORTAL_INTENT_FLAG ] = '1';
+
+		$this->assertSame( openstation_shell_url(), $this->capture_admin_init_redirect() );
+	}
+
+	/**
+	 * The alias outranks `openstation_admin_redirect_to_portal`: a URL
+	 * naming the desktop is not a plain admin page.
+	 *
+	 * @covers ::openstation_redirect_plain_admin_to_portal
+	 */
+	public function test_admin_redirect_alias_runs_even_when_plain_redirects_are_disabled() {
+		wp_set_current_user( self::$admin_id );
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		$_SERVER['REQUEST_METHOD']       = 'GET';
+		$_SERVER['REQUEST_URI']          = '/wp-admin/index.php?' . OPENSTATION_PORTAL_FLAG . '=1';
+		$GLOBALS['pagenow']              = 'index.php';
+		$_GET[ OPENSTATION_PORTAL_FLAG ] = '1';
+		add_filter( 'openstation_admin_redirect_to_portal', '__return_false' );
+
+		$this->assertNotNull( $this->capture_admin_init_redirect() );
+	}
+
+	/**
+	 * The screen every branch redirects to is itself a plain admin GET
+	 * and must never be redirected again.
+	 *
+	 * @covers ::openstation_redirect_plain_admin_to_portal
+	 */
+	public function test_admin_redirect_noop_on_the_shell_screen() {
+		wp_set_current_user( self::$admin_id );
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		$_SERVER['REQUEST_METHOD'] = 'GET';
+		$_SERVER['REQUEST_URI']    = '/wp-admin/admin.php?page=openstation&target=%2Fwp-admin%2Fedit.php&intent=1';
+		$GLOBALS['pagenow']        = 'admin.php';
+		$GLOBALS['plugin_page']    = OPENSTATION_SHELL_PAGE_SLUG;
+		set_current_screen( OPENSTATION_SHELL_SCREEN_ID );
+
+		$this->assertNull( $this->capture_admin_init_redirect() );
+	}
+
+	/**
+	 * A solo boot renders one window in place, wherever it landed.
+	 *
+	 * @covers ::openstation_redirect_plain_admin_to_portal
+	 */
+	public function test_admin_redirect_noop_on_a_solo_request() {
+		wp_set_current_user( self::$admin_id );
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		$_SERVER['REQUEST_METHOD']     = 'GET';
+		$_SERVER['REQUEST_URI']        = '/wp-admin/?openstation_solo=os-files';
+		$GLOBALS['pagenow']            = 'index.php';
+		$_GET[ OPENSTATION_SOLO_FLAG ] = 'os-files';
 
 		$this->assertNull( $this->capture_admin_init_redirect() );
 	}
@@ -515,24 +617,26 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 	}
 
 	/**
-	 * An ordinary admin URL is not forwarded at all.
+	 * An ordinary admin URL goes straight to the shell screen, one hop.
 	 *
 	 * `/wp-admin/edit.php?post_type=page` resolves through the portal's
-	 * allowlist back to itself, so the round trip would spend two extra
-	 * WordPress bootstraps to land on the page this request is already
-	 * about to render — tagged with a flag pair every consumer reads as
-	 * `fromPortal && ! fromPortalIntent`, i.e. as no flags at all.
+	 * allowlist back to itself, so routing through `/openstation/` would
+	 * spend a WordPress bootstrap to learn what is already known. The
+	 * URL is the target, and it is the user's intent.
 	 *
 	 * @covers ::openstation_redirect_plain_admin_to_portal
 	 */
-	public function test_admin_redirect_skipped_when_portal_would_land_here() {
+	public function test_admin_redirect_goes_straight_to_the_shell_screen_when_the_portal_would_only_hand_the_url_back() {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$_SERVER['REQUEST_METHOD'] = 'GET';
 		$_SERVER['REQUEST_URI']    = '/wp-admin/edit.php?post_type=page';
 		$GLOBALS['pagenow']        = 'edit.php';
 
-		$this->assertNull( $this->capture_admin_init_redirect() );
+		$redirect = $this->capture_admin_init_redirect();
+
+		$this->assertSame( openstation_shell_url( admin_url( 'edit.php?post_type=page' ), true ), $redirect );
+		$this->assertStringNotContainsString( openstation_portal_url(), $redirect );
 	}
 
 	/**
@@ -541,14 +645,37 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 	 *
 	 * @covers ::openstation_redirect_plain_admin_to_portal
 	 */
-	public function test_admin_redirect_skipped_for_bare_admin_root() {
+	public function test_admin_redirect_sends_bare_admin_root_to_the_shell_screen_with_the_dashboard() {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$_SERVER['REQUEST_METHOD'] = 'GET';
 		$_SERVER['REQUEST_URI']    = '/wp-admin/';
 		$GLOBALS['pagenow']        = 'index.php';
 
+		$this->assertSame(
+			openstation_shell_url( admin_url( 'index.php' ), true ),
+			$this->capture_admin_init_redirect()
+		);
+	}
+
+	/**
+	 * A plain admin page rendered with the redirect disabled is classic
+	 * admin: the shell lives on its screen and at `/openstation/` only.
+	 *
+	 * @covers ::openstation_redirect_plain_admin_to_portal
+	 * @covers ::openstation_is_shell_request
+	 */
+	public function test_admin_redirect_disabled_leaves_a_classic_page_without_the_shell() {
+		wp_set_current_user( self::$admin_id );
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		$_SERVER['REQUEST_METHOD'] = 'GET';
+		$_SERVER['REQUEST_URI']    = '/wp-admin/edit.php';
+		$GLOBALS['pagenow']        = 'edit.php';
+		set_current_screen( 'edit-post' );
+		add_filter( 'openstation_admin_redirect_to_portal', '__return_false' );
+
 		$this->assertNull( $this->capture_admin_init_redirect() );
+		$this->assertFalse( openstation_is_shell_request() );
 	}
 
 	/**
@@ -606,6 +733,7 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		$redirect = $this->capture_admin_init_redirect();
 
 		$this->assertNotNull( $redirect );
+		$this->assertStringStartsWith( openstation_portal_url(), $redirect );
 		$this->assertStringContainsString( 'target=', $redirect );
 	}
 
@@ -731,9 +859,28 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		}
 
 		$this->assertNotNull( $redirect );
-		$this->assertStringContainsString( 'plugin=desktop-mode-cron-manager%2Fdesktop-mode-cron-manager.php', $redirect );
-		$this->assertStringContainsString( 'action=activate', $redirect );
-		$this->assertStringContainsString( '_wpnonce=abc123', $redirect );
+		// The URL now travels as the shell screen's `target` arg, so the
+		// encoded slash is encoded once more on the way; one decode
+		// must give back exactly what the activate link said.
+		$target = $this->shell_target_of( $redirect );
+		$this->assertStringContainsString( 'plugin=desktop-mode-cron-manager%2Fdesktop-mode-cron-manager.php', $target );
+		$this->assertStringContainsString( 'action=activate', $target );
+		$this->assertStringContainsString( '_wpnonce=abc123', $target );
+	}
+
+	/**
+	 * The decoded `target` arg of a shell screen URL, '' when absent.
+	 *
+	 * @param string $url Shell screen URL.
+	 * @return string
+	 */
+	private function shell_target_of( $url ) {
+		$query = wp_parse_url( $url, PHP_URL_QUERY );
+		if ( ! is_string( $query ) ) {
+			return '';
+		}
+		parse_str( $query, $args );
+		return isset( $args['target'] ) ? (string) $args['target'] : '';
 	}
 
 	public function test_portal_honors_session_focused_window() {
@@ -761,14 +908,17 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 
 		$redirect = $this->capture_redirect( '/openstation/' );
 
-		$this->assertStringContainsString( 'post_type=page', $redirect );
-		$this->assertStringContainsString( OPENSTATION_PORTAL_FLAG . '=1', $redirect );
+		// The portal no longer resolves the session itself: it sends
+		// the user to the bare screen, which resolves the focused
+		// window on arrival (see `openstation_shell_boot_target()`).
+		$this->assertSame( openstation_shell_url(), $redirect );
+		$this->assertSame( admin_url( $target_path ), openstation_portal_entry_url( self::$admin_id ) );
 	}
 
 	/**
-	 * Bare `/openstation/` visits — no `?target=` — must NOT carry the
-	 * portal-intent flag. The shell uses its absence as the signal that
-	 * the portal picked the landing page itself (default window /
+	 * Bare `/openstation/` visits — no `?target=` — must NOT carry
+	 * `intent`. The shell uses its absence as the signal that the
+	 * screen picked the landing page itself (default window /
 	 * session-focused), so a restored session shouldn't be disturbed.
 	 *
 	 * @covers ::openstation_handle_portal_request
@@ -779,8 +929,9 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		$redirect = $this->capture_redirect( '/openstation/' );
 
 		$this->assertNotNull( $redirect );
-		$this->assertStringContainsString( OPENSTATION_PORTAL_FLAG . '=1', $redirect );
-		$this->assertStringNotContainsString( OPENSTATION_PORTAL_INTENT_FLAG . '=1', $redirect );
+		$this->assertTrue( openstation_url_is_shell_screen( $redirect ) );
+		$this->assertStringNotContainsString( 'target=', $redirect );
+		$this->assertStringNotContainsString( 'intent=', $redirect );
 	}
 
 	/**
@@ -805,11 +956,12 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		}
 
 		$this->assertNotNull( $redirect );
-		$this->assertStringContainsString( 'post.php', $redirect );
-		$this->assertStringContainsString( 'post=104', $redirect );
-		$this->assertStringContainsString( 'action=edit', $redirect );
-		$this->assertStringContainsString( OPENSTATION_PORTAL_FLAG . '=1', $redirect );
-		$this->assertStringContainsString( OPENSTATION_PORTAL_INTENT_FLAG . '=1', $redirect );
+		$this->assertSame( openstation_shell_url( admin_url( 'post.php?post=104&action=edit' ), true ), $redirect );
+		$target = $this->shell_target_of( $redirect );
+		$this->assertStringContainsString( 'post.php', $target );
+		$this->assertStringContainsString( 'post=104', $target );
+		$this->assertStringContainsString( 'action=edit', $target );
+		$this->assertStringContainsString( 'intent=1', $redirect );
 	}
 
 	/**
@@ -832,8 +984,8 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		}
 
 		$this->assertNotNull( $redirect );
-		$this->assertStringContainsString( OPENSTATION_PORTAL_FLAG . '=1', $redirect );
-		$this->assertStringNotContainsString( OPENSTATION_PORTAL_INTENT_FLAG . '=1', $redirect );
+		$this->assertSame( openstation_shell_url(), $redirect );
+		$this->assertStringNotContainsString( 'intent=', $redirect );
 	}
 
 	/**
@@ -862,10 +1014,9 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		}
 
 		$this->assertNotNull( $redirect );
-		// Exactly one occurrence of the intent flag in the final URL.
-		$this->assertSame(
-			1,
-			substr_count( $redirect, OPENSTATION_PORTAL_INTENT_FLAG . '=1' )
-		);
+		// The frozen flag is gone from the target; intent travels once,
+		// as the screen's own arg.
+		$this->assertStringNotContainsString( OPENSTATION_PORTAL_INTENT_FLAG, $this->shell_target_of( $redirect ) );
+		$this->assertSame( 1, substr_count( $redirect, 'intent=1' ) );
 	}
 }

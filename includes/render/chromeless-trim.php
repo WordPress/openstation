@@ -923,9 +923,7 @@ add_filter(
  * every store registered against the first copy.
  */
 function openstation_shell_hoist_command_palette_contributors() {
-	if ( ! openstation_is_enabled()
-		|| openstation_is_chromeless_request()
-		|| openstation_is_classic_request() ) {
+	if ( ! openstation_is_shell_request() ) {
 		return;
 	}
 	$scripts = wp_scripts();

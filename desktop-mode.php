@@ -123,6 +123,11 @@ require_once OPENSTATION_DIR . 'includes/default-window.php';
 // because `includes/render/` reads its flag, and because extensions
 // (the Electron adapter) call its helpers from their own hooks.
 require_once OPENSTATION_DIR . 'includes/solo-window.php';
+// The shell screen (`admin.php?page=openstation`) and the one "this
+// request paints the shell" predicate. Unconditional because modules
+// loaded outside the admin block (PWA, native windows, desktop themes)
+// gate on it.
+require_once OPENSTATION_DIR . 'includes/shell-screen.php';
 require_once OPENSTATION_DIR . 'includes/themes-tabs.php';
 require_once OPENSTATION_DIR . 'includes/media-query.php';
 require_once OPENSTATION_DIR . 'includes/accents.php';

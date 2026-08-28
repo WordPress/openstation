@@ -41,26 +41,22 @@ function openstation_ajax_save() {
 
 	// Tell the client where to land.
 	//
-	// Enabling from classic admin: land directly on the Dashboard with
-	// the portal flag (`wp-admin/index.php?desktop_mode_portal=1`).
-	// Previously this redirected through `/openstation/` so the
-	// portal handler could pick a landing page (saved-session focused
-	// window, `?target=`, or Dashboard fallback). That logic remains
-	// in place for users who visit `/openstation/` directly — a
-	// bookmark or shared link — but the explicit "Switch to Desktop
-	// Mode" button is a deliberate user action that consistently
-	// lands on the Dashboard, so users get a predictable starting
-	// point regardless of what they did last session. The shell still
-	// honours session restore and the user's default-window pref via
-	// its own boot-time logic — the URL just provides a stable entry
-	// point rather than a portal hop.
+	// Enabling from classic admin: land on the shell screen with the
+	// Dashboard as the page it opens first. The explicit "Switch to
+	// Desktop Mode" button is a deliberate user action that
+	// consistently lands on the Dashboard, so users get a predictable
+	// starting point regardless of what they did last session; the
+	// shell still honours session restore and the user's default-window
+	// pref via its own boot-time logic. Going to the screen directly
+	// rather than through `/openstation/` skips a hop the portal would
+	// spend re-deciding what this URL already says.
 	//
 	// Disabling from the shell jumps to a plain admin URL — NOT the
 	// portal, which would auto-re-enable the mode via the
 	// `openstation_portal_auto_enable` filter and trap the user in a
 	// loop.
 	$redirect = '1' === $enabled
-		? admin_url( 'index.php?' . OPENSTATION_PORTAL_FLAG . '=1' )
+		? openstation_shell_url( admin_url( 'index.php' ) )
 		: admin_url();
 
 	wp_send_json_success(

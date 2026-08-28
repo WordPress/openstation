@@ -222,6 +222,8 @@ class Tests_OpenStation_SoloWindow extends WP_UnitTestCase {
 	public function test_body_gets_the_solo_class_in_solo_mode() {
 		wp_set_current_user( self::$admin_id );
 		$_GET[ OPENSTATION_SOLO_FLAG ] = 'os-files';
+		// A solo boot renders in place, on whatever admin screen it hit.
+		set_current_screen( 'dashboard' );
 
 		$classes = openstation_admin_body_classes( '' );
 
@@ -237,6 +239,7 @@ class Tests_OpenStation_SoloWindow extends WP_UnitTestCase {
 	 */
 	public function test_body_has_no_solo_class_on_a_normal_request() {
 		wp_set_current_user( self::$admin_id );
+		set_current_screen( OPENSTATION_SHELL_SCREEN_ID );
 
 		$classes = openstation_admin_body_classes( '' );
 

@@ -8,9 +8,12 @@
  *      redirect back to `/openstation/`.
  *   2. Logged-in users with basic admin-read capability have the
  *      `desktop_mode_mode` user-meta toggle auto-enabled on first visit,
- *      then are forwarded into `wp-admin` at whichever window was
- *      last focused in their saved session (or the dashboard as
- *      fallback).
+ *      then are forwarded to the shell screen
+ *      (`admin.php?page=openstation`, see `includes/shell-screen.php`).
+ *      An explicit `?target=` travels along as the page the shell opens
+ *      first; without one the screen resolves the entry itself — the
+ *      last-focused window of the saved session, else the default
+ *      window, else the Dashboard.
  *
  * The URL is served virtually (no rewrite rules, no `.htaccess`
  * surgery) by intercepting `parse_request` before WordPress routes the
@@ -149,13 +152,17 @@ function openstation_handle_portal_request( $wp ) {
 		update_user_meta( $user_id, 'desktop_mode_mode', '1' );
 	}
 
-	// Pick the landing page. Priority:
-	// 1. Explicit `target` query arg, if same-origin wp-admin URL.
-	// This is how `openstation_redirect_plain_admin_to_portal` preserves
-	// the user's navigation intent when they follow a link to a
-	// specific admin page (e.g. profile.php).
-	// 2. Last-focused window from the saved session.
-	// 3. Dashboard fallback.
+	// Pick the page the shell opens first. An explicit `target` query
+	// arg — a same-origin wp-admin URL — is how
+	// `openstation_redirect_plain_admin_to_portal` preserves the user's
+	// navigation intent when they follow a link to a specific admin
+	// page (e.g. profile.php). Without one the shell screen resolves
+	// the entry itself: the last-focused window from the saved
+	// session, else the default window, else the Dashboard — see
+	// `openstation_shell_boot_target()`. The bare screen URL is the
+	// canonical address, and a reload of it re-resolves against the
+	// live session rather than against the window that was focused
+	// when the redirect happened.
 	$target     = '';
 	$has_intent = false;
 	if ( ! empty( $_GET['target'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
@@ -173,24 +180,12 @@ function openstation_handle_portal_request( $wp ) {
 			$has_intent = true;
 		}
 	}
-	if ( '' === $target ) {
-		$target = openstation_portal_entry_url( $user_id );
-	}
-
-	// Flag the forward so the shell can stamp the address bar back to
-	// /openstation/ via history.replaceState once it has loaded.
-	$target = add_query_arg( OPENSTATION_PORTAL_FLAG, '1', $target );
-
-	// Second flag: the redirect resolved from an explicit `target`, so
-	// the shell should treat the resulting `currentPage` as user
-	// intent and auto-open it on top of the restored session. Without
-	// this, a bare `/openstation/` visit and a portal-redirected
-	// admin-bar click would be indistinguishable downstream.
-	if ( $has_intent ) {
-		$target = add_query_arg( OPENSTATION_PORTAL_INTENT_FLAG, '1', $target );
-	}
-
-	wp_safe_redirect( $target );
+	// `intent=1` rides along with an explicit target so the shell treats
+	// the resulting `currentPage` as user intent and opens it on top of
+	// the restored session. Without it, a bare `/openstation/` visit and
+	// a portal-redirected admin-bar click would be indistinguishable
+	// downstream.
+	wp_safe_redirect( openstation_shell_url( $target, $has_intent ) );
 	exit;
 }
 add_action( 'parse_request', 'openstation_handle_portal_request' );
@@ -272,42 +267,60 @@ function openstation_is_portal_request() {
 }
 
 /**
- * Forwards plain `/wp-admin/...` requests to the `/openstation/` portal
- * when the portal would land the user somewhere other than here.
+ * Sends plain `/wp-admin/...` requests into the desktop.
  *
- * Why: the portal honors the saved session's focused window, so a user
- * who follows a link the portal can't resolve — a network-admin URL, a
- * path outside the wp-admin allowlist — is better off on their restored
- * desktop than on a page the shell can't place.
+ * The shell is served by its own screen (`includes/shell-screen.php`),
+ * so a plain admin page is never where the desktop renders: a user who
+ * typed or bookmarked `/wp-admin/edit.php` is forwarded to the shell
+ * screen with that URL as the page it opens first. Three routes out of
+ * here, cheapest first:
  *
- * Why NOT unconditionally: for the ordinary case the forward is a round
- * trip to nowhere. The portal resolves `?target=` straight back to the
- * URL we are already serving and redirects here with
- * `desktop_mode_portal=1&desktop_mode_portal_intent=1` — a flag pair
- * every consumer reads as `fromPortal && ! fromPortalIntent`, i.e. as
- * indistinguishable from no flags at all. Two full WordPress bootstraps
- * bought nothing. The shell does not need the portal to reach it: it
- * enqueues on any admin page where {@see openstation_is_enabled()}, and
- * the address bar is deliberately no longer normalized to
- * `/openstation/` (see the `history.replaceState` note in
- * `src/desktop.ts` — the round trip is exactly what made reloads flash).
- * So {@see openstation_portal_forward_is_redundant()} answers the
- * portal's question locally and we render in place when the answer is
- * "right here."
+ *   1. **Straight to the shell screen** when the portal would only hand
+ *      this URL back — an allowlisted wp-admin file that is also the
+ *      page being served, carrying no query arg the portal would strip
+ *      ({@see openstation_portal_forward_is_redundant()}). One
+ *      redirect; the portal hop would have cost a WordPress bootstrap
+ *      to learn what is already known. `openstation_skip_redundant_portal_forward`
+ *      (return false) forces the hop back on for a plugin that hooks
+ *      the portal handler for side effects.
+ *   2. **Through `/openstation/?target=…`** otherwise — a network-admin
+ *      URL, a path outside the wp-admin allowlist — so the portal can
+ *      fall back to the saved session's focused window, which is a real
+ *      change of destination the shell can't make from here.
+ *   3. **The frozen-flag alias.** A URL carrying `desktop_mode_portal=1`
+ *      is the desktop's pre-screen address: the portal used to forward
+ *      to a real admin page tagged with it, and bookmarks, the PWA start
+ *      URL and plugin-built links still say so. It goes to the shell
+ *      screen with that URL as the target, and `intent=1` when the
+ *      intent flag was present. The flags stay frozen (see AGENTS.md);
+ *      only what they resolve to moved.
  *
  * Narrowly scoped to bail on every automated or sub-request entry point
  * — AJAX, REST, cron, admin-post.php, non-GET methods — so the hook
- * can't corrupt a form submission or break an API call.
+ * can't corrupt a form submission or break an API call. The shell
+ * screen itself, chromeless loads, solo boots and classic-flagged
+ * requests pass through.
  *
  * Disable via the `openstation_admin_redirect_to_portal` filter (return
- * false). Passthrough kicks in automatically when the current request
- * is chromeless or already carries the portal flag.
+ * false); plain admin pages then render as classic admin and the
+ * desktop lives at `/openstation/` only. The alias route runs before
+ * the filter: a URL that names the desktop is not a plain admin page.
  */
 function openstation_redirect_plain_admin_to_portal() {
 	if ( ! openstation_is_enabled() ) {
 		return;
 	}
+	// The screen the redirects land on. First in the chain: every other
+	// branch below ends in a redirect here, and the screen is a plain
+	// admin GET like any other.
+	if ( openstation_is_shell_screen_request() ) {
+		return;
+	}
 	if ( openstation_is_chromeless_request() ) {
+		return;
+	}
+	// A solo boot renders one window in place, wherever it landed.
+	if ( function_exists( 'openstation_is_solo_request' ) && openstation_is_solo_request() ) {
 		return;
 	}
 	if ( wp_doing_ajax() || wp_doing_cron() ) {
@@ -317,12 +330,6 @@ function openstation_redirect_plain_admin_to_portal() {
 		return;
 	}
 	if ( ! empty( $_SERVER['REQUEST_METHOD'] ) && 'GET' !== strtoupper( sanitize_text_field( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) ) ) {
-		return;
-	}
-
-	// The portal handler adds this flag after it forwards into admin.
-	// Bailing here keeps us out of an infinite redirect loop.
-	if ( ! empty( $_GET[ OPENSTATION_PORTAL_FLAG ] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		return;
 	}
 
@@ -341,8 +348,26 @@ function openstation_redirect_plain_admin_to_portal() {
 		return;
 	}
 
+	// `esc_url_raw` instead of `sanitize_text_field`: the latter strips
+	// every `%XX` percent-encoded sequence, which corrupts URIs whose
+	// query string legitimately carries an encoded slash — e.g. WP's
+	// own `plugins.php?action=activate&plugin=dir%2Ffile.php` activate
+	// link. The shell screen validates the target on read.
+	$target = isset( $_SERVER['REQUEST_URI'] ) ? esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
+	$target = is_string( $target ) ? $target : '';
+
+	// Route 3: the frozen-flag alias. The sanitiser strips both flags
+	// from the target; an unresolvable one leaves the screen to pick
+	// the entry, exactly as the portal did for an invalid `target`.
+	if ( ! empty( $_GET[ OPENSTATION_PORTAL_FLAG ] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$clean  = openstation_sanitize_portal_target( $target );
+		$intent = '' !== $clean && ! empty( $_GET[ OPENSTATION_PORTAL_INTENT_FLAG ] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		wp_safe_redirect( openstation_shell_url( $clean, $intent ) );
+		exit;
+	}
+
 	/**
-	 * Filters whether plain admin URLs should redirect to the portal
+	 * Filters whether plain admin URLs should redirect into the desktop
 	 * when OpenStation is active.
 	 *
 	 * @param bool $redirect Whether to redirect. Default true.
@@ -353,40 +378,33 @@ function openstation_redirect_plain_admin_to_portal() {
 		return;
 	}
 
-	// `esc_url_raw` instead of `sanitize_text_field`: the latter strips
-	// every `%XX` percent-encoded sequence, which corrupts URIs whose
-	// query string legitimately carries an encoded slash — e.g. WP's
-	// own `plugins.php?action=activate&plugin=dir%2Ffile.php` activate
-	// link. The portal handler will validate this target downstream.
-	$target = isset( $_SERVER['REQUEST_URI'] ) ? esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
-	$target = is_string( $target ) ? $target : '';
-
+	// Route 1: straight to the shell screen.
 	if ( openstation_portal_forward_is_redundant( $target ) ) {
 		/**
-		 * Filters whether to skip a portal forward that would resolve
-		 * back to the URL already being served.
+		 * Filters whether to skip the portal hop for a URL the portal
+		 * would only hand straight back.
 		 *
-		 * Default: true — the forward costs two extra WordPress
-		 * bootstraps and lands on the same page with flags the shell
-		 * reads as a no-op. Return false to force the round trip, e.g.
-		 * for a plugin that hooks `openstation_handle_portal_request`
-		 * for its own side effects and needs it to run on every admin
-		 * entry.
+		 * Default: true — the request goes straight to the shell screen
+		 * with this URL as its target. Return false to route through
+		 * `/openstation/` anyway, e.g. for a plugin that hooks
+		 * `openstation_handle_portal_request` for its own side effects
+		 * and needs it to run on every admin entry.
 		 *
-		 * @param bool   $skip        Whether to skip the redundant forward.
+		 * @param bool   $skip        Whether to skip the portal hop.
 		 * @param string $request_uri The current request URI.
 		 */
 		if ( apply_filters( 'openstation_skip_redundant_portal_forward', true, $target ) ) {
-			return;
+			wp_safe_redirect( openstation_shell_url( openstation_sanitize_portal_target( $target ), true ) );
+			exit;
 		}
 	}
 
-	// Preserve the original target on the portal redirect. Without this,
+	// Route 2: through the portal, target preserved. Without it,
 	// navigating to a specific admin page (profile.php, plugins.php, any
 	// deep link) loses the user's intent — the portal would forward them
 	// to whichever window was last focused instead of the page they asked
 	// for. The portal handler reads `target`, validates it's same-origin
-	// wp-admin, and uses it as the entry URL.
+	// wp-admin, and passes it on to the shell screen.
 	$portal_url = openstation_portal_url();
 	if ( '' !== $target ) {
 		$portal_url = add_query_arg( 'target', rawurlencode( $target ), $portal_url );
@@ -398,13 +416,14 @@ function openstation_redirect_plain_admin_to_portal() {
 add_action( 'admin_init', 'openstation_redirect_plain_admin_to_portal' );
 
 /**
- * Whether forwarding this request through `/openstation/` would land
- * the user straight back on the URL already being served.
+ * Whether forwarding this request through `/openstation/` would only
+ * hand the URL already being served back as the shell's target.
  *
  * Answers locally, and without the HTTP round trip, the same question
- * {@see openstation_handle_portal_request()} answers after two full
- * WordPress bootstraps. True means the forward is pure overhead and the
- * caller should render in place instead.
+ * {@see openstation_handle_portal_request()} answers after another
+ * WordPress bootstrap. True means the hop is pure overhead and the
+ * caller can send the user straight to the shell screen with this URL
+ * as its target.
  *
  * Deliberately conservative: every "don't know" answers false, so the
  * forward survives wherever the portal might genuinely choose a
@@ -525,6 +544,12 @@ function openstation_portal_entry_url( $user_id ) {
 		if ( ! openstation_url_is_same_admin( $win['url'] ) ) {
 			return $fallback;
 		}
+		// The shell must never open itself. A saved window pointing at
+		// the shell screen cannot be produced by the shell, but a
+		// hand-edited session could say so; treat it as nothing focused.
+		if ( openstation_url_is_shell_screen( $win['url'] ) ) {
+			return $fallback;
+		}
 		return remove_query_arg( array( 'openstation_chromeless', OPENSTATION_PORTAL_FLAG ), $win['url'] );
 	}
 
@@ -598,6 +623,13 @@ function openstation_sanitize_portal_target( $raw ) {
 		if ( ! empty( $args ) ) {
 			$target = add_query_arg( $args, $target );
 		}
+	}
+
+	// The shell screen is where a target is opened, never a target: the
+	// shell would open itself in a window, and a redirect chain built
+	// from it would loop. Fall back to the entry resolver instead.
+	if ( openstation_url_is_shell_screen( $target ) ) {
+		return '';
 	}
 
 	return $target;

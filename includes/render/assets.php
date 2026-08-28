@@ -74,7 +74,7 @@ function openstation_enqueue_assets() {
 		return;
 	}
 
-	if ( ! openstation_is_enabled() || openstation_is_classic_request() ) {
+	if ( ! openstation_is_shell_request() ) {
 		return;
 	}
 
@@ -200,7 +200,7 @@ function openstation_enqueue_assets() {
 	}
 
 	// Pass configuration to JavaScript.
-	global $title, $pagenow, $parent_file, $menu;
+	global $title, $parent_file, $menu;
 
 	$menu_icon = 'dashicons-admin-generic';
 	if ( ! empty( $parent_file ) && ! empty( $menu ) ) {
@@ -433,16 +433,31 @@ function openstation_enqueue_assets() {
 		);
 	};
 
-	// Build the current page URL from $pagenow + $_GET. Strip the portal
-	// markers so the derived window ID matches what the dock would produce
-	// for the same page — otherwise auto-opening the entry window and
-	// clicking the same dock icon would create a duplicate.
-	$current_query = $_GET; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-	unset( $current_query[ OPENSTATION_PORTAL_FLAG ], $current_query[ OPENSTATION_PORTAL_INTENT_FLAG ] );
-	$current_page = admin_url( $pagenow ) . ( ! empty( $current_query ) ? '?' . http_build_query( $current_query ) : '' );
+	// The page the shell opens first. On the shell screen it is the
+	// validated `target` query arg (else the session's focused window,
+	// the default window, the Dashboard); on a solo boot it is the
+	// request's own URL. Either way the frozen portal flags are gone
+	// from it, so the derived window id matches what the dock would
+	// produce for the same page — otherwise auto-opening the entry
+	// window and clicking the same dock icon would create a duplicate.
+	$boot_target        = openstation_shell_boot_target();
+	$current_page       = $boot_target['url'];
+	$from_portal        = $boot_target['fromPortal'];
+	$from_portal_intent = $boot_target['fromPortalIntent'];
 
-	$from_portal        = ! empty( $_GET[ OPENSTATION_PORTAL_FLAG ] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-	$from_portal_intent = ! empty( $_GET[ OPENSTATION_PORTAL_INTENT_FLAG ] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	// On the shell screen `$title` and `$parent_file` describe the
+	// screen ("OpenStation", no menu), not the page about to open. The
+	// dock entry for that page is the identity the entry window folds
+	// into, so its title and icon are the right first paint; the iframe
+	// reports its own title once it lands either way.
+	$current_title = wp_strip_all_tags( (string) $title );
+	if ( openstation_is_shell_screen_request() ) {
+		$boot_meta     = openstation_shell_boot_target_meta( $current_page, $dock_items );
+		$current_title = wp_strip_all_tags( $boot_meta['title'] );
+		if ( '' !== $boot_meta['icon'] ) {
+			$menu_icon = $boot_meta['icon'];
+		}
+	}
 
 	/**
 	 * Filters the desktop shell configuration passed to JavaScript.
@@ -491,7 +506,7 @@ function openstation_enqueue_assets() {
 		'openstation_shell_config',
 		array(
 			'currentPage'                   => esc_url( $current_page ),
-			'currentTitle'                  => wp_strip_all_tags( $title ),
+			'currentTitle'                  => $current_title,
 			'currentIcon'                   => sanitize_html_class( $menu_icon ),
 			'adminUrl'                      => esc_url( admin_url() ),
 			'homeUrl'                       => esc_url( home_url( '/' ) ),
@@ -844,7 +859,7 @@ add_action( 'admin_enqueue_scripts', 'openstation_enqueue_assets' );
  * hook) the `remove_action()` is a harmless no-op.
  */
 function openstation_defer_core_command_palette() {
-	if ( ! openstation_is_enabled() || openstation_is_chromeless_request() || openstation_is_classic_request() ) {
+	if ( ! openstation_is_shell_request() ) {
 		return;
 	}
 	remove_action( 'admin_enqueue_scripts', 'wp_enqueue_command_palette_assets' );
@@ -896,12 +911,7 @@ add_action( 'admin_enqueue_scripts', 'openstation_defer_core_command_palette', 0
  * is responsible for the `crossorigin` semantics.
  */
 function openstation_print_preload_hints() {
-	if (
-		! is_admin()
-		|| ! openstation_is_enabled()
-		|| openstation_is_chromeless_request()
-		|| openstation_is_classic_request()
-	) {
+	if ( ! openstation_is_shell_request() ) {
 		return;
 	}
 

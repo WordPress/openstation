@@ -50,29 +50,26 @@ class Tests_OpenStation_AjaxSave extends WP_Ajax_UnitTestCase {
 	}
 
 	/**
-	 * Enabling must return the Dashboard URL with the portal flag so
-	 * the client navigates directly into the shell on a stable entry
-	 * point (`wp-admin/index.php?desktop_mode_portal=1`). Previously
-	 * the redirect was the `/openstation/` portal URL, which would
-	 * forward through the session-restore / default-window logic — but
-	 * the explicit "Switch to OpenStation" action is a deliberate
-	 * user gesture that benefits from a predictable starting point.
-	 * Visiting `/openstation/` directly (a bookmark or shared link)
-	 * still goes through the portal handler; only the toggle's
-	 * redirect changed.
+	 * Enabling must return the shell screen with the Dashboard as its
+	 * target so the client navigates straight into the desktop on a
+	 * stable entry point. The explicit "Switch to OpenStation" action
+	 * is a deliberate user gesture that benefits from a predictable
+	 * starting point; visiting `/openstation/` directly (a bookmark or
+	 * shared link) still goes through the portal handler and its
+	 * session-restore / default-window logic. Only the toggle's
+	 * redirect is pinned here.
 	 */
-	public function test_enable_response_redirects_to_dashboard_with_portal_flag() {
+	public function test_enable_response_redirects_to_shell_screen_with_dashboard_target() {
 		$this->_setRole( 'administrator' );
 		$response = $this->dispatch( '1' );
 
-		$expected = admin_url( 'index.php?' . OPENSTATION_PORTAL_FLAG . '=1' );
+		$expected = openstation_shell_url( admin_url( 'index.php' ) );
 		$this->assertSame( $expected, $response['data']['redirect'] );
-		// Sanity: this URL carries the portal flag the shell reads as
-		// `config.fromPortal=true` at boot.
-		$this->assertStringContainsString( 'desktop_mode_portal=1', $response['data']['redirect'] );
-		// Sanity: it is NOT the home-relative `/openstation/` portal
-		// URL — that path keeps working for users hitting it directly,
-		// but the toggle no longer forwards through it.
+		$this->assertTrue( openstation_url_is_shell_screen( $response['data']['redirect'] ) );
+		$this->assertStringContainsString( 'target=', $response['data']['redirect'] );
+		// Not the home-relative `/openstation/` portal URL — that path
+		// keeps working for users hitting it directly, but the toggle
+		// does not forward through it.
 		$this->assertNotSame( openstation_portal_url(), $response['data']['redirect'] );
 	}
 

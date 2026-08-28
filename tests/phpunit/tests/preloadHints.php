@@ -17,7 +17,7 @@ class Tests_OpenStation_PreloadHints extends WP_UnitTestCase {
 		parent::set_up();
 		wp_set_current_user( self::$user_id );
 		// `openstation_print_preload_hints()` gates on `is_admin()`.
-		set_current_screen( 'dashboard' );
+		set_current_screen( OPENSTATION_SHELL_SCREEN_ID );
 		// Re-establish the enabled baseline every test. The disabled-state
 		// test below flips the meta to '' for its assertion; setting it here
 		// (rather than once in wpSetUpBeforeClass) means it doesn't have to

@@ -3,9 +3,10 @@
  * OpenStation — Shell markup injection.
  *
  * Emits the `<div id="os-shell">…</div>` skeleton at
- * `in_admin_header @ 5`. The shell floats on top of the classic
- * admin via `position: fixed`; the body class added by
- * `body-classes.php` triggers the CSS that hides classic chrome.
+ * `in_admin_header @ 5` on the shell screen (`includes/shell-screen.php`).
+ * The shell floats on top of the admin document via `position: fixed`;
+ * the body class added by `body-classes.php` triggers the CSS that
+ * hides classic chrome.
  *
  * Extracted from `render.php` during the architecture-0.8.1 PHP
  * slicing (phase 6).
@@ -26,7 +27,7 @@ defined( 'ABSPATH' ) || exit;
  * selectors.
  */
 function openstation_render_shell() {
-	if ( openstation_is_chromeless_request() || ! openstation_is_enabled() || openstation_is_classic_request() ) {
+	if ( ! openstation_is_shell_request() ) {
 		return;
 	}
 

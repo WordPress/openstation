@@ -33,6 +33,7 @@ import type { NavPlacement } from './nav/types';
 // places to forget when a zone is added.
 import { NAV_ZONES as DOCK_ZONE_ORDER } from './nav/compute';
 import { urlActs } from './pwa/acting-url';
+import { isShellDocumentUrl } from './shell-url';
 
 /**
  * A JS-registered dock tile appended below the admin-menu items.
@@ -2319,6 +2320,10 @@ export class Dock {
 				// hover prewarming builds a real hidden window and did
 				// not, so the two paths now share one predicate.
 				if ( urlActs( parsed ) ) {
+					return;
+				}
+				// The shell screen boots a desktop, not a window's page.
+				if ( isShellDocumentUrl( parsed ) ) {
 					return;
 				}
 			} catch {

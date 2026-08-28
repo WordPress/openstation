@@ -363,6 +363,7 @@ class Tests_OpenStation_DiviCompat extends WP_UnitTestCase {
 		$this->chromeless_user_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $this->chromeless_user_id );
 		update_user_meta( $this->chromeless_user_id, 'desktop_mode_mode', '1' );
+		set_current_screen( OPENSTATION_SHELL_SCREEN_ID );
 		$this->activate_divi_theme();
 
 		$out = $this->capture_parent_listener_output();

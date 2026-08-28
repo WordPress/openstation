@@ -20,7 +20,7 @@ class Tests_OpenStation_GamesConfig extends WP_UnitTestCase {
 
 	public function set_up() {
 		parent::set_up();
-		set_current_screen( 'dashboard' );
+		set_current_screen( OPENSTATION_SHELL_SCREEN_ID );
 		wp_set_current_user( self::$admin_id );
 		openstation_flush_script_handle_registries();
 	}

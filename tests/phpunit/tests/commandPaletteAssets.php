@@ -172,6 +172,7 @@ class Tests_OpenStation_CommandPaletteAssets extends WP_UnitTestCase {
 	 */
 	public function test_core_default_enqueue_is_unhooked_on_shell_pages_only() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		set_current_screen( OPENSTATION_SHELL_SCREEN_ID );
 
 		// Simulate Core 7.0's default wiring regardless of the
 		// environment's own version.

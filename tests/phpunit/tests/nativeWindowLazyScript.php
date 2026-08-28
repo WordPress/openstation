@@ -27,6 +27,8 @@ class Tests_OpenStation_NativeWindowLazyScript extends WP_UnitTestCase {
 	public function set_up() {
 		parent::set_up();
 		wp_set_current_user( self::$admin_id );
+		// The enqueue hook only fires on a shell boot.
+		set_current_screen( OPENSTATION_SHELL_SCREEN_ID );
 
 		// `wp_scripts()` is process-global; prior tests leak handles.
 		wp_scripts()->registered = array();

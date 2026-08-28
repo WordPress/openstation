@@ -1160,9 +1160,9 @@ Core keys (non-exhaustive — the full blob carries many more keys, e.g. `colorS
 
 ```php
 array(
-    'currentPage'      => string,   // e.g. 'http://localhost:8889/wp-admin/'
-    'currentTitle'     => string,   // human title of the current page
-    'currentIcon'      => string,   // dashicons-* class
+    'currentPage'      => string,   // the admin URL the shell opens first: the shell screen's validated `target`, else the session's focused window, the default window, the Dashboard
+    'currentTitle'     => string,   // the dock entry's title for that page ('' when no entry matches; the iframe reports its own title once it lands)
+    'currentIcon'      => string,   // dashicons-* class of that dock entry
     'adminUrl'         => string,   // admin_url()
     'homeUrl'          => string,   // home_url() — the System tile's "View site"
     'logoutUrl'        => string,   // wp_logout_url(), nonced; the shell cannot build this itself
@@ -1434,7 +1434,7 @@ add_filter( 'openstation_portal_auto_enable', '__return_false' );
 
 ### `openstation_admin_redirect_to_portal` — Stable
 
-Governs the `admin_init` redirect from classic `/wp-admin/` URLs to `/openstation/` for users with OpenStation on. Return `false` to keep the user on the classic URL even when they have the mode enabled (useful for support sessions).
+Governs the `admin_init` redirect from classic `/wp-admin/` URLs into the desktop for users with OpenStation on. Return `false` to keep the user on the classic URL even when they have the mode enabled (useful for support sessions). The page then renders as classic admin — the shell boots only from its own screen (`admin.php?page=openstation`, reached through `/openstation/`), never over another admin page. A URL carrying the frozen `desktop_mode_portal` flag is an alias for the desktop and is redirected to the shell screen before this filter runs.
 
 ```php
 apply_filters( 'openstation_admin_redirect_to_portal', bool $redirect, int $user_id );
@@ -1444,21 +1444,55 @@ apply_filters( 'openstation_admin_redirect_to_portal', bool $redirect, int $user
 
 ### `openstation_skip_redundant_portal_forward` — Stable
 
-Governs whether a portal forward that would resolve back to the URL already being served is skipped. Applied only after `openstation_admin_redirect_to_portal` has allowed the forward, and only for requests the portal would hand straight back — an allowlisted wp-admin file that is also the page `$pagenow` reports, carrying no query arg the portal would strip.
+Governs whether a plain admin GET skips the `/openstation/` hop and goes straight to the shell screen. Applied only after `openstation_admin_redirect_to_portal` has allowed the redirect, and only for requests the portal would hand straight back as the shell's target — an allowlisted wp-admin file that is also the page `$pagenow` reports, carrying no query arg the portal would strip.
 
-Default `true`. For those URLs the round trip costs two extra WordPress bootstraps and lands on the same page tagged `desktop_mode_portal=1&desktop_mode_portal_intent=1` — a flag pair the boot flow reads as `fromPortal && ! fromPortalIntent`, which is indistinguishable from no flags at all. The shell does not need the portal to reach it: it enqueues on any admin page where OpenStation is enabled.
+Default `true`. For those URLs the request is redirected once, to `admin.php?page=openstation&target=<the URL>&intent=1`; routing through the portal would spend a WordPress bootstrap to learn what is already known.
 
-Return `false` to force the round trip — the one reason to do so is a plugin that hooks `openstation_handle_portal_request` for side effects and needs it to run on every admin entry.
+Return `false` to route through `/openstation/?target=…` anyway — the one reason to do so is a plugin that hooks `openstation_handle_portal_request` for side effects and needs it to run on every admin entry.
 
 ```php
 apply_filters( 'openstation_skip_redundant_portal_forward', bool $skip, string $request_uri );
 ```
 
-**Example — keep the round trip so a portal-entry hook keeps firing:**
+**Example — keep the portal hop so a portal-entry hook keeps firing:**
 
 ```php
 add_filter( 'openstation_skip_redundant_portal_forward', '__return_false' );
 ```
+
+---
+
+### `openstation_shell_dequeue_handles` — Experimental
+
+Handles to dequeue from the shell screen (`admin.php?page=openstation`, the document the desktop boots from). With no host screen under the shell, what still prints there is OpenStation's own assets, Core's every-admin-page set (`common`, jQuery, `admin-bar`, `heartbeat`, `wp-auth-check`, …) and whatever plugins enqueue on every admin page — a global nag, a tracker, a chat bubble. The framework does not guess which of those belong in the shell; the site says so through this filter.
+
+Called once for scripts and once for styles, at `admin_enqueue_scripts` priority `PHP_INT_MAX` so every plugin has enqueued, and only on a shell boot — windows keep the chromeless trims, classic pages keep everything. Default empty. A named handle that a surviving script or style still depends on is refused with a `_doing_it_wrong()` rather than dropped, because dequeuing it would strand the dependent. Handles are dequeued, never deregistered, so anything that genuinely depends on one still resolves it.
+
+```php
+apply_filters( 'openstation_shell_dequeue_handles', string[] $handles, string $kind ); // $kind is 'script' or 'style'
+```
+
+**Example — keep a plugin's global upsell off the desktop:**
+
+```php
+add_filter( 'openstation_shell_dequeue_handles', function ( $handles, $kind ) {
+    if ( 'script' === $kind ) {
+        $handles[] = 'acme-upsell-nag';
+    } else {
+        $handles[] = 'acme-upsell-nag-css';
+    }
+    return $handles;
+}, 10, 2 );
+```
+
+Related PHP predicates, all Stable:
+
+- `openstation_is_shell_request()` — true when this request paints the shell: the shell screen for a user with OpenStation enabled, or a solo boot. Never inside a window or on a classic-flagged request. Gate shell-only enqueues and output on this, never on a screen id.
+- `openstation_is_shell_screen_request()` — true on the shell screen whether or not the shell renders there.
+- `openstation_shell_url( $target = '', $intent = false )` — the screen's URL, optionally carrying the admin URL to open first.
+- `openstation_url_is_shell_screen( $url )` — whether a URL names the screen; the shell never opens itself.
+
+See [`migration-shell-screen.md`](./migration-shell-screen.md).
 
 ---
 

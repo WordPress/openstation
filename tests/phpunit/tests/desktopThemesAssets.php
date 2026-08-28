@@ -24,7 +24,7 @@ class Tests_OpenStation_DesktopThemesAssets extends WP_UnitTestCase {
 
 	public function set_up() {
 		parent::set_up();
-		set_current_screen( 'dashboard' );
+		set_current_screen( OPENSTATION_SHELL_SCREEN_ID );
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		delete_option( OPENSTATION_DESKTOP_THEMES_OPTION );

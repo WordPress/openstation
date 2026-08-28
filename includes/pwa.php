@@ -381,7 +381,11 @@ function openstation_pwa_build_manifest() {
 	// `id` is held at the previous `/openstation/` value so existing
 	// installs aren't treated as a different app and reset by Chrome
 	// after this change ships.
-	$start_url = admin_url( 'index.php?desktop_mode_portal=1' );
+	// The shell screen, bare: it resolves the entry itself from the
+	// saved session. Installs made when this was
+	// `index.php?desktop_mode_portal=1` still work — that URL is an
+	// alias the admin_init redirect sends here (`includes/portal.php`).
+	$start_url = openstation_shell_url();
 	$scope     = admin_url( '/', 'relative' );
 	if ( '' === $scope ) {
 		$scope = '/wp-admin/';
@@ -583,10 +587,7 @@ function openstation_pwa_render_head_tags() {
 	if ( ! is_admin() || ! is_user_logged_in() ) {
 		return;
 	}
-	if ( openstation_is_chromeless_request() ) {
-		return;
-	}
-	if ( ! openstation_is_enabled() || openstation_is_classic_request() ) {
+	if ( ! openstation_is_shell_request() ) {
 		return;
 	}
 

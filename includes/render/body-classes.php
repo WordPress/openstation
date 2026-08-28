@@ -32,13 +32,11 @@ function openstation_admin_body_classes( $classes ) {
 		return ltrim( $classes . ' os-chromeless' );
 	}
 
-	// Per-request classic override: don't tag the body as desktop-active so
-	// the classic chrome isn't hidden by CSS for this one tab.
-	if ( openstation_is_classic_request() ) {
-		return $classes;
-	}
-
-	if ( openstation_is_enabled() ) {
+	// `os-active` hides the classic chrome, so it belongs only to a
+	// request that paints the shell: the shell screen, or a solo boot.
+	// A classic-flagged request, and a plain admin page reached with
+	// the portal redirect disabled, keep their chrome.
+	if ( openstation_is_shell_request() ) {
 		$classes = ltrim(
 			$classes . ' os-active os-admin-bar-'
 				. openstation_get_admin_bar_mode()
