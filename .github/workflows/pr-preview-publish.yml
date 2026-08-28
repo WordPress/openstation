@@ -98,6 +98,79 @@ jobs:
             core.setOutput('pr-number', String(pr.number));
             core.setOutput('head-sha', headSha);
 
+      - name: Prune preview zips of closed PRs
+        # The expose step below keeps 20 zips per PR, but nothing removed a
+        # PR's zips once it closed, and the `ci-artifacts` release hit
+        # GitHub's 1000-assets-per-release cap that way: every upload (this
+        # one and trunk-build.yml's) then failed with HTTP 422. Sweep before
+        # uploading so a full release frees room instead of failing.
+        # Fail-open on purpose: a cleanup hiccup must never cost a preview.
+        continue-on-error: true
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          CURRENT_PR: ${{ steps.meta.outputs.pr-number }}
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const currentPr = Number(process.env.CURRENT_PR);
+            const release = (await github.rest.repos.getReleaseByTag({ owner, repo, tag: 'ci-artifacts' })).data;
+            const assets = await github.paginate(github.rest.repos.listReleaseAssets, {
+              owner,
+              repo,
+              release_id: release.id,
+              per_page: 100,
+            });
+            // Only preview zips are candidates. trunk.zip / trunk.json and
+            // anything else that does not match the pr-N-sha name stay.
+            const pattern = /^pr-(\d+)-[0-9a-f]{40}\.zip$/;
+            const byPr = new Map();
+            for (const asset of assets) {
+              const m = pattern.exec(asset.name);
+              if (!m) continue;
+              const number = Number(m[1]);
+              if (number === currentPr) continue;
+              if (!byPr.has(number)) byPr.set(number, []);
+              byPr.get(number).push(asset);
+            }
+            // Resolve PR states in batches of aliased GraphQL lookups. Delete
+            // only what is positively known to be closed or merged: an
+            // unresolved number (a partial response, or a number that isn't a
+            // PR) is left alone.
+            const numbers = [...byPr.keys()];
+            const closed = [];
+            for (let i = 0; i < numbers.length; i += 50) {
+              const batch = numbers.slice(i, i + 50);
+              const fields = batch.map((n) => `pr${n}: pullRequest(number: ${n}) { state }`).join(' ');
+              const query = `query($owner: String!, $repo: String!) { repository(owner: $owner, name: $repo) { ${fields} } }`;
+              let data;
+              try {
+                data = await github.graphql(query, { owner, repo });
+              } catch (error) {
+                // A GraphqlResponseError still carries the fields that did resolve.
+                data = error.data;
+                if (!data?.repository) {
+                  core.warning(`PR state lookup failed for a batch: ${error.message}`);
+                  continue;
+                }
+              }
+              for (const n of batch) {
+                const pr = data.repository[`pr${n}`];
+                if (pr && pr.state !== 'OPEN') closed.push(n);
+              }
+            }
+            let deleted = 0;
+            for (const n of closed) {
+              for (const asset of byPr.get(n)) {
+                try {
+                  await github.rest.repos.deleteReleaseAsset({ owner, repo, asset_id: asset.id });
+                  deleted++;
+                } catch (error) {
+                  core.warning(`Could not delete ${asset.name}: ${error.message}`);
+                }
+              }
+            }
+            core.info(`${assets.length} assets on ci-artifacts; ${closed.length} closed PRs; deleted ${deleted} zip(s).`);
+
       - name: Expose built artifact on a public URL
         id: expose
         uses: WordPress/action-wp-playground-pr-preview/.github/actions/expose-artifact-on-public-url@43fc435558bc6cee69f5b214d6b8ca4f9f80c31d # v3
