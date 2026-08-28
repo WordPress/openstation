@@ -83,6 +83,36 @@
 }
 
 /*
+ * ---- Registered, so "undeclared" never means transparent ---------
+ *
+ * The scope note below keeps this palette out of iframe documents on
+ * purpose: an admin page inside a window renders with the values its
+ * own stylesheets were written with. That promise has one hole CSS
+ * digs by itself — a stylesheet that consumes
+ * `var(--wp-admin-theme-color)` with no fallback, in a document where
+ * nothing declares it, does not fall back to an earlier declaration
+ * in the cascade. An unresolved `var()` is invalid at computed-value
+ * time, so the property computes to `initial` — and an unregistered
+ * custom property's initial value is the guaranteed-invalid value,
+ * which for a `background` means transparent. Core's own scheme files
+ * declare the property, but a third-party admin scheme that consumes
+ * it without declaring it renders `.button-primary` white-on-white
+ * inside every chromeless window (#702).
+ *
+ * Registering the property gives "undeclared" a real answer:
+ * WordPress's default admin colour, the same value Core's fallbacks
+ * reach for. Declarations are untouched — a scheme, the palette
+ * below, or the accent picker's inline style all keep winning exactly
+ * as before. Registration only decides what the absence of all of
+ * them computes to.
+ */
+@property --wp-admin-theme-color {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #3858e9;
+}
+
+/*
  * ---- Scope: the shell document, and nothing else -----------------
  *
  * `body.os-active` rather than `:root`, and that is
