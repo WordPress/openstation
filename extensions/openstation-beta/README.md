@@ -29,6 +29,7 @@ Viewing requires `update_plugins`; switching builds requires `install_plugins`.
 - **Development checkouts are protected.** If the installed `desktop-mode` folder is a source tree (contains `.git`, `package.json`, `vite.config.js`, `src/`, or `.wp-env.json` — a wp-env instance bind-mounts the working tree exactly like this), switching is refused server-side and the UI disables the install buttons with an explanation, so a stray click can never overwrite uncommitted work. A packaged install ships none of those markers. Opt out deliberately with the `openstation_beta_allow_dev_overwrite` filter.
 - What's installed is recorded in the `openstation_beta_current` option. While a PR/trunk build is active, WordPress **auto**-updates for OpenStation are suppressed (an overnight wp.org update would silently replace the build under test) and a warning shows on the Plugins screen. Manual updates stay possible — they're a visible, deliberate act.
 - When the tracked PR gets new commits, the UI offers a one-click "Update to latest build". When the PR closes, it tells you to go back to stable.
+- PRs whose author is not an owner, member, or collaborator of the repository carry a **Community fork** badge: installing them runs code the team has not necessarily reviewed.
 - "Back to stable" installs the latest GitHub release zip and clears the record; from then on the install is a normal wp.org-updatable OpenStation.
 
 ## Install

@@ -88,6 +88,7 @@ class Tests_OpenStationBeta_Channels extends WP_UnitTestCase {
 				'updated_at' => '2026-07-26T10:00:00Z',
 				'html_url'   => 'https://github.com/WordPress/openstation/pull/501',
 				'user'       => array( 'login' => 'alice' ),
+				'author_association' => 'MEMBER',
 				'head'       => array(
 					'ref' => 'add/widget-gallery',
 					'sha' => self::sha( 'a' ),
@@ -100,6 +101,7 @@ class Tests_OpenStationBeta_Channels extends WP_UnitTestCase {
 				'updated_at' => '2026-07-25T09:00:00Z',
 				'html_url'   => 'https://github.com/WordPress/openstation/pull/502',
 				'user'       => array( 'login' => 'bob' ),
+				'author_association' => 'NONE',
 				'head'       => array(
 					'ref' => 'fix/dock-overflow',
 					'sha' => self::sha( 'b' ),
@@ -188,6 +190,8 @@ class Tests_OpenStationBeta_Channels extends WP_UnitTestCase {
 		$this->assertSame( 'add/widget-gallery', $prs[0]['branch'] );
 		$this->assertSame( self::sha( 'a' ), $prs[0]['sha'] );
 		$this->assertSame( 'alice', $prs[0]['author'] );
+		$this->assertTrue( $prs[0]['member'], 'MEMBER association maps to member=true.' );
+		$this->assertFalse( $prs[1]['member'], 'NONE association marks a community fork.' );
 		$this->assertFalse( $prs[0]['draft'] );
 		$this->assertSame( 'pr-501-' . self::sha( 'a' ) . '.zip', $prs[0]['asset'] );
 		$this->assertTrue( $prs[1]['draft'] );

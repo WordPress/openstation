@@ -620,6 +620,11 @@
 							( pr.draft ? ' · ' + __( 'draft' ) : '' )
 					),
 				];
+				if ( ! pr.member ) {
+					parts.push(
+						skin.badge( __( 'Community fork' ), 'warning' )
+					);
+				}
 				if ( isCurrent ) {
 					parts.push( skin.badge( __( 'Installed' ), 'success' ) );
 				} else if ( ! pr.build_ready ) {

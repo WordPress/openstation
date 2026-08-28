@@ -206,6 +206,13 @@ function openstation_beta_fetch_open_prs( $force = false ) {
 			'sha'        => $sha,
 			'draft'      => ! empty( $pr['draft'] ),
 			'author'     => sanitize_text_field( isset( $pr['user']['login'] ) ? (string) $pr['user']['login'] : '' ),
+			// True for PRs authored by the team (owner/member/collaborator);
+			// false marks community fork PRs so the UI can badge them.
+			'member'     => in_array(
+				isset( $pr['author_association'] ) ? (string) $pr['author_association'] : '',
+				array( 'OWNER', 'MEMBER', 'COLLABORATOR' ),
+				true
+			),
 			'updated_at' => sanitize_text_field( isset( $pr['updated_at'] ) ? (string) $pr['updated_at'] : '' ),
 			'url'        => esc_url_raw( isset( $pr['html_url'] ) ? (string) $pr['html_url'] : '' ),
 			'asset'      => sprintf( 'pr-%d-%s.zip', $number, $sha ),
