@@ -919,12 +919,12 @@ function mountKebabColumnToggles(
 		const next = Array.from( hidden ).sort();
 		const api = window.wp?.os;
 		if ( api && typeof api.updateOsSettings === 'function' ) {
-			// Attribute the in-flight save to the Posts window so the
+			// Attribute the in-flight save to the correct window so the
 			// title-bar activity dot blinks on this window, not on the
 			// (probably-closed) OS Settings window.
 			api.updateOsSettings(
 				{ nativePostsHiddenColumns: next },
-				{ windowId: 'desktop-mode-posts' },
+				{ windowId: client.windowId },
 			);
 		}
 		paintChecked();
@@ -2781,7 +2781,7 @@ export async function renderPostsWindow(
 
 	const onWindowClosed = ( e: Event ): void => {
 		const detail = ( e as CustomEvent< { windowId?: string } > ).detail;
-		if ( detail?.windowId !== 'desktop-mode-posts' ) {
+		if ( detail?.windowId !== client.windowId ) {
 			return;
 		}
 		document.removeEventListener( 'os-window-closed', onWindowClosed );
