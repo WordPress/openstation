@@ -595,16 +595,25 @@ body.os-has-fullscreen-window .os-shell {
  * both this area and the dock. Stacking context via position: relative
  * ensures children (windows) sit above the wallpaper.
  *
- * `padding-bottom` reserves room for the floating bottom dock pill
- * that every layout (Classic, Unified, Spatial) puts at the bottom
- * — 40px icons + 16px padding + 12px gap below + 8px breathing room.
+ * The padding reserves the band the floating bottom dock pill covers.
+ * It reads the work-area insets `src/work-area/index.ts` writes on
+ * `#os-shell` from the pill's LIVE geometry, so it is 0 with a side
+ * dock (which is a flex sibling and already narrows the area) and
+ * tracks the dock-size preference with the pill at the bottom. The
+ * `80px` literal is the pre-measurement floor: 40px tile + 16px pill
+ * padding + 12px gap below + 8px breathing room, what the rule
+ * hardcoded before the work area existed, in force until the shell
+ * has measured once.
  */
 .os-area {
 	flex: 1;
 	position: relative;
 	overflow: hidden;
 	background: transparent;
-	padding-bottom: 80px;
+	padding-top: var( --os-work-area-inset-top, 0px );
+	padding-right: var( --os-work-area-inset-right, 0px );
+	padding-bottom: var( --os-work-area-inset-bottom, 80px );
+	padding-left: var( --os-work-area-inset-left, 0px );
 	transition: opacity 180ms ease;
 }
 
@@ -678,10 +687,21 @@ body.os-has-fullscreen-window .os-shell {
 
 .os-icons {
 	position: absolute;
-	inset-block-start: 16px;
-	inset-block-end: 16px;
-	inset-inline-start: 16px;
-	inset-inline-end: 16px;
+	/*
+	 * 16px of gutter inside the WORK AREA, not inside the desktop
+	 * area: an absolutely positioned box ignores its parent's
+	 * padding, so without the insets the grid's last row sat under
+	 * the bottom dock pill. Same tokens `.os-area` reserves with.
+	 *
+	 * Physical `left` / `right`, not the logical pair: the insets are
+	 * measured from rects, so `-left` is the visual left whichever
+	 * way the locale reads. The gutter is 16px on both sides, so
+	 * nothing is lost by going physical here.
+	 */
+	top: calc( var( --os-work-area-inset-top, 0px ) + 16px );
+	bottom: calc( var( --os-work-area-inset-bottom, 80px ) + 16px );
+	left: calc( var( --os-work-area-inset-left, 0px ) + 16px );
+	right: calc( var( --os-work-area-inset-right, 0px ) + 16px );
 	display: grid;
 	/*
 	 * Column-major flow: icons fill the first column top-to-bottom,
@@ -843,8 +863,15 @@ body.os-has-fullscreen-window .os-shell {
 .os-widgets {
 	border-radius: 14px;
 	position: absolute;
-	top: 16px;
-	bottom: 16px;
+	/*
+	 * Inside the work area vertically — see `.os-icons` for why the
+	 * insets are here. The inline edge stays a plain 16px: the column
+	 * hugs the trailing side, which is a logical choice, while the
+	 * side insets are physical; and a side rail never claims one
+	 * anyway (it is a flex sibling, the area is already narrower).
+	 */
+	top: calc( var( --os-work-area-inset-top, 0px ) + 16px );
+	bottom: calc( var( --os-work-area-inset-bottom, 80px ) + 16px );
 	inset-inline-end: 16px;
 	width: 320px;
 	display: flex;

@@ -31,6 +31,7 @@
 import { __, _n, sprintf } from '../i18n';
 import { joinRestUrl } from '../rest-url';
 import { trackedFetch } from '../tracked-fetch';
+import { workAreaInsetsOf } from '../work-area';
 import {
 	type PostsWindowClient,
 	type TermNeighbor,
@@ -1987,9 +1988,19 @@ export async function mountTagsCloud(
 		const padding = opts.padding ?? 90;
 		const animate = opts.animate ?? false;
 		const r = stage.getBoundingClientRect();
-		if ( tags.size === 0 || r.width === 0 || r.height === 0 ) {
-			const cx = r.width / 2;
-			const cy = r.height / 2;
+		// Fit into the REACHABLE part of the stage: a maximized window's
+		// stage runs under the dock pill, and a cloud centred on the
+		// whole box parks its bottom row there. The insets are the
+		// stage's own px outside the desktop's work area — zero unless
+		// the window hangs over the dock.
+		const inset = workAreaInsetsOf( stage );
+		const viewX = inset.left;
+		const viewY = inset.top;
+		const viewW = Math.max( 0, r.width - inset.left - inset.right );
+		const viewH = Math.max( 0, r.height - inset.top - inset.bottom );
+		if ( tags.size === 0 || viewW === 0 || viewH === 0 ) {
+			const cx = viewX + viewW / 2;
+			const cy = viewY + viewH / 2;
 			targetScale = 1;
 			targetWorldX = cx;
 			targetWorldY = cy;
@@ -2012,13 +2023,13 @@ export async function mountTagsCloud(
 		}
 		const w = Math.max( 1, maxX - minX );
 		const h = Math.max( 1, maxY - minY );
-		const sx = ( r.width - padding * 2 ) / w;
-		const sy = ( r.height - padding * 2 ) / h;
+		const sx = ( viewW - padding * 2 ) / w;
+		const sy = ( viewH - padding * 2 ) / h;
 		const scale = Math.max( 0.2, Math.min( 1.5, Math.min( sx, sy ) ) );
 		const cx = ( minX + maxX ) / 2;
 		const cy = ( minY + maxY ) / 2;
-		const newWorldX = r.width / 2 - cx * scale;
-		const newWorldY = r.height / 2 - cy * scale;
+		const newWorldX = viewX + viewW / 2 - cx * scale;
+		const newWorldY = viewY + viewH / 2 - cy * scale;
 		targetScale = scale;
 		targetWorldX = newWorldX;
 		targetWorldY = newWorldY;

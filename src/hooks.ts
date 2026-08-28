@@ -408,8 +408,13 @@ export const HOOKS = {
 	 *
 	 * Where `ResolvedWindowGeometry = { x, y, width, height, state? }`
 	 * and `ctx = { windowId, baseId, hasSavedGeometry, callerPinned,
-	 * desktopRect }`.
+	 * desktopRect, workArea }`.
 	 *
+	 * - `desktopRect` is the whole desktop area's `{ width, height }`;
+	 *   `workArea` is the `{ x, y, width, height }` of it that no
+	 *   shell chrome floats over (see `wp.os.workArea`), in
+	 *   desktop-area-local coordinates. Place against `workArea` —
+	 *   a corner computed from `desktopRect` lands under the dock.
 	 * - `hasSavedGeometry` is `true` when the user previously
 	 *   dragged or resized this window and the resolved geometry
 	 *   includes those restored values. Plugins that want to
@@ -427,10 +432,10 @@ export const HOOKS = {
 	 * The shell re-clamps `width`/`height` to the registered
 	 * `minWidth`/`minHeight` after the filter returns — a buggy
 	 * filter cannot ship a sub-minimum window. `x` and `y` are
-	 * NOT re-clamped to the desktop rect after the filter (plugins
-	 * sometimes want to place windows partially off-screen for
-	 * deliberate stylistic reasons); the filter is responsible for
-	 * its own viewport math when it cares.
+	 * NOT re-clamped after the filter (plugins sometimes want to
+	 * place windows partially off-screen for deliberate stylistic
+	 * reasons); the filter is responsible for its own math when it
+	 * cares, and `ctx.workArea` is the rect to clamp against.
 	 *
 	 * Companion of `openstation_register_window` server-side
 	 * defaults — runs every time a window opens, not just at
@@ -1143,6 +1148,26 @@ export const HOOKS = {
 	OVERVIEW_WINDOW_UNHOVER: 'os.overview.window-unhover',
 	/** Action, fires the instant a thumbnail click is registered (before exit + maximize kick in). Payload `{ windowId }`. */
 	OVERVIEW_WINDOW_CLICK: 'os.overview.window-click',
+
+	/**
+	 * Action, fires after the work area — the part of the desktop
+	 * area no shell chrome floats over — actually changed: the dock
+	 * moved to another edge, grew, collapsed for the overview, the
+	 * browser resized, the admin bar mode flipped. Never fires on a
+	 * re-measure that lands on the same numbers.
+	 *
+	 * Payload is a `WorkAreaSnapshot` (see `src/work-area/index.ts`
+	 * and `wp.os.workArea`):
+	 *
+	 *     { insets: { top, right, bottom, left },
+	 *       rect: { x, y, width, height },      // desktop-area-local
+	 *       viewport: { x, y, width, height },  // viewport coordinates
+	 *       area: { width, height } }
+	 *
+	 * A CustomEvent with the same detail is dispatched on `document`
+	 * as `os-work-area-changed`.
+	 */
+	WORK_AREA_CHANGED: 'os.work-area.changed',
 
 	/** Action, fires before cascade computes + applies new positions. Payload `{ windowCount }`. */
 	ARRANGE_CASCADE_STARTING: 'os.arrange.cascade.starting',

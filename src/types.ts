@@ -1065,6 +1065,27 @@ export interface DesktopWidgetServerEntry {
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
+	/**
+	 * The WordPress packages this widget declares, in load order,
+	 * replayed before the bundle.
+	 *
+	 * WordPress resolves a script's dependencies when it ENQUEUES it,
+	 * so a normally-printed bundle finds its packages already there. A
+	 * widget bundle is delivered lazily and never goes through that:
+	 * one declaring `wp-api-fetch` found `wp.apiFetch` undefined at
+	 * mount. That used to work by accident — Core's ⌘K palette put the
+	 * whole Gutenberg runtime on every admin page until it was
+	 * deferred. Anything already in the document is skipped. See
+	 * `docs/migration-wp-package-globals.md`.
+	 */
+	scriptDeps?: Array< {
+		handle?: string;
+		url: string;
+		before?: string[];
+		after?: string[];
+		l10n?: string[];
+		translations?: string;
+	} >;
 }
 
 /**
@@ -1174,6 +1195,22 @@ export interface DesktopGameServerEntry {
 	} >;
 	/** Arbitrary server-declared config blob handed to the game's launch context. */
 	config: Record< string, unknown >;
+	/**
+	 * The game window's size, declared server-side so the shell knows it
+	 * before the game's bundle arrives.
+	 *
+	 * The window opens on the click and loads its bundle inside the
+	 * render callback, so the size has to be available a round trip
+	 * earlier than the JS def that also carries it. Empty when the game
+	 * declared none, which reads as "use the framework defaults"; the
+	 * def still wins once it lands.
+	 */
+	window?: {
+		width?: number;
+		height?: number;
+		minWidth?: number;
+		minHeight?: number;
+	};
 	/** Absolute URL of the game's (lazily loaded) script. */
 	scriptUrl: string;
 	/** WordPress script handle (informational). */
@@ -2315,6 +2352,14 @@ export interface DesktopConfig {
 	 * window's `styleUrl` / `styleInline` travels in.
 	 */
 	deferredStyles?: Record< string, { url: string; inline?: string[] } >;
+	/**
+	 * Which `deferredStyles` entries a game window needs. Injected by
+	 * `launchGame()` before the window paints, because a game is
+	 * reachable without the Games hub — the challenge toast, solo mode
+	 * and `wp.os.games.launch()` all skip it — and the hub is what
+	 * would otherwise have carried these as companion styles.
+	 */
+	gameStyleHandles?: string[];
 	/**
 	 * Ordered manifest of the Core command-palette asset chain —
 	 * `wp-commands` + `wp-core-commands` and their full dependency

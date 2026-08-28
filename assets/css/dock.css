@@ -1246,3 +1246,168 @@
 		transform: none;
 	}
 }
+
+/* ------------------------------------------------------------------
+ * Dynamic dock behavior — OpenStation Preferences → Appearance →
+ * Desktop layout, persisted as `dockBehavior` (the dock) and
+ * `sideDockBehavior` (the Split sidebar) and worn by each rail as
+ * `data-os-dock-behavior` — an attribute PER RAIL rather than a body
+ * class, because Split's two rails answer independently. PHP stamps
+ * the dock on first paint; the apply pass and `src/dock-behavior.ts`
+ * re-stamp on every change and rebuild. `static` is the absence of
+ * rules.
+ *
+ * A dynamic rail that is not `os-dock--revealed` is PARKED: it
+ * collapses into a thin indicator line hugging its edge — the iOS
+ * home indicator, one line that says "there is a dock here" — and
+ * expands back into the full rail when the pointer comes for it.
+ * `src/dock-behavior.ts` owns the flip (a full-width edge zone, the
+ * rail's own box, its flyouts, keyboard focus) and runs it through
+ * the View Transitions API, so the line morphs into the pill and
+ * back; the rules below only describe the two resting states and
+ * tune the morph. There is deliberately no `:hover` here — a state
+ * CSS flipped on its own would jump instead of morphing.
+ *
+ * The line is the rail itself, not a separate element: same node,
+ * same `view-transition-name`, which is what lets the browser animate
+ * one box into the other. Its children are hidden while parked so
+ * the line is a line. A side rail leaves the flex row for the
+ * duration, so the area grows to the full width and the rail rides
+ * over it when summoned; the work area reserves nothing for a
+ * dynamic rail (`src/work-area/index.ts`).
+ * ------------------------------------------------------------------ */
+
+/*
+ * Side rails overlay the area in both states — the flex row must not
+ * shrink for a rail that is only sometimes there.
+ */
+.os-dock[ data-os-dock-behavior="dynamic" ][ data-os-dock-placement="left" ],
+.os-dock[ data-os-dock-behavior="dynamic" ][ data-os-dock-placement="right" ] {
+	position: absolute;
+	inset-block: 0;
+}
+
+.os-dock[ data-os-dock-behavior="dynamic" ][ data-os-dock-placement="left" ] {
+	inset-inline-start: 0;
+}
+
+.os-dock[ data-os-dock-behavior="dynamic" ][ data-os-dock-placement="right" ] {
+	inset-inline-end: 0;
+}
+
+/*
+ * Parked — the indicator line. Everything that makes the pill a
+ * pill (padding, border, blur, texture, tile gap) comes off, and the
+ * box is the line's size. `overflow: hidden` clips whatever a tile
+ * paints past its box during the morph.
+ */
+.os-dock[ data-os-dock-behavior="dynamic" ]:not( .os-dock--revealed ) {
+	min-width: 0;
+	min-height: 0;
+	max-width: none;
+	padding: 0;
+	gap: 0;
+	border: 0;
+	border-radius: 999px;
+	overflow: hidden;
+	background-color: var(
+		--os-dock-indicator-bg,
+		var( --os-dock-item-outline, rgba( 255, 255, 255, 0.55 ) )
+	);
+	background-image: none;
+	backdrop-filter: none;
+	-webkit-backdrop-filter: none;
+	box-shadow: none;
+	cursor: pointer;
+}
+
+.os-dock[ data-os-dock-behavior="dynamic" ]:not( .os-dock--revealed ) > * {
+	display: none;
+}
+
+.os-dock[ data-os-dock-behavior="dynamic" ][ data-os-dock-placement="bottom" ]:not( .os-dock--revealed ) {
+	width: var( --os-dock-indicator-length, 180px );
+	height: var( --os-dock-indicator-thickness, 5px );
+	bottom: 8px;
+}
+
+.os-dock[ data-os-dock-behavior="dynamic" ][ data-os-dock-placement="left" ]:not( .os-dock--revealed ),
+.os-dock[ data-os-dock-behavior="dynamic" ][ data-os-dock-placement="right" ]:not( .os-dock--revealed ) {
+	width: var( --os-dock-indicator-thickness, 5px );
+	height: var( --os-dock-indicator-length, 180px );
+	inset-block: calc( 50% - var( --os-dock-indicator-length, 180px ) / 2 );
+}
+
+.os-dock[ data-os-dock-behavior="dynamic" ][ data-os-dock-placement="left" ]:not( .os-dock--revealed ) {
+	inset-inline-start: 8px;
+}
+
+.os-dock[ data-os-dock-behavior="dynamic" ][ data-os-dock-placement="right" ]:not( .os-dock--revealed ) {
+	inset-inline-end: 8px;
+}
+
+/*
+ * The morph. With the API, `src/dock-behavior.ts` names the rail for
+ * the duration of one flip and the browser animates the old box into
+ * the new one; the rail's contents cross-fade underneath. The root is
+ * opted out of the snapshot so the rest of the desktop keeps
+ * running while the line becomes a pill — a frozen page for 260ms
+ * on every reveal would be the animation costing more than it
+ * gives. Without the API, the properties that can transition do.
+ */
+@supports ( view-transition-name: none ) {
+	html.os-dock-vt {
+		view-transition-name: none;
+	}
+
+	html.os-dock-vt::view-transition-old( root ),
+	html.os-dock-vt::view-transition-new( root ) {
+		animation: none;
+	}
+
+	::view-transition-group( os-dock-os-dock ),
+	::view-transition-group( os-dock-os-side-dock ) {
+		animation-duration: 260ms;
+		animation-timing-function: cubic-bezier( 0.22, 1, 0.36, 1 );
+	}
+
+	::view-transition-old( os-dock-os-dock ),
+	::view-transition-old( os-dock-os-side-dock ) {
+		animation: os-dock-vt-out 120ms ease-out both;
+	}
+
+	::view-transition-new( os-dock-os-dock ),
+	::view-transition-new( os-dock-os-side-dock ) {
+		animation: os-dock-vt-in 180ms ease-out 80ms both;
+	}
+
+	@keyframes os-dock-vt-out {
+		to {
+			opacity: 0;
+		}
+	}
+
+	@keyframes os-dock-vt-in {
+		from {
+			opacity: 0;
+		}
+	}
+}
+
+@supports not ( view-transition-name: none ) {
+	.os-dock[ data-os-dock-behavior="dynamic" ] {
+		transition:
+			width 240ms ease,
+			height 240ms ease,
+			opacity 240ms ease,
+			border-radius 240ms ease,
+			bottom 240ms ease,
+			inset-block 240ms ease;
+	}
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.os-dock[ data-os-dock-behavior="dynamic" ] {
+		transition: none;
+	}
+}

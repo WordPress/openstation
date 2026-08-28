@@ -40,6 +40,7 @@ import { showToast } from '../toast';
 import { activity } from '../activity';
 import { heartbeat } from '../heartbeat';
 import { presenceApi } from '../presence';
+import { workAreaApi } from '../work-area';
 import { selectionApi } from '../selection';
 import { createSharedStore } from '../shared-store';
 import { osConfirm } from '../os-confirm';
@@ -182,6 +183,7 @@ import {
 import { applyThemeRecommendations } from '../settings/theme-recommendations';
 import { loadComponents } from '../ui/components/loader';
 import { registerNativeUrlRemap } from '../native-url-remap';
+import { notifyServiceWorkerPrewarm } from '../pwa/sw-register';
 import type { NativeWindowDef, DesktopConfig } from '../types';
 
 /**
@@ -243,7 +245,7 @@ export const RESERVED_NAMESPACE_KEYS: ReadonlySet< string > = new Set( [
 	'broadcast', 'subscribe', 'announceContentChange',
 	'registerPalette', 'unregisterPalette',
 	'listPalettes', 'openPalette', 'devtools', 'createSharedStore',
-	'presence', 'selection', 'activity', 'heartbeat', 'showToast',
+	'presence', 'workArea', 'selection', 'activity', 'heartbeat', 'showToast',
 	'renderKeyedList',
 	'clearKeyedList', 'registerNamespace',
 	'notify', 'pwa',
@@ -458,6 +460,14 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 				osSettings.state.dockPlacement =
 					patch.dockPlacement as typeof osSettings.state.dockPlacement;
 			}
+			if ( typeof patch.dockBehavior === 'string' ) {
+				osSettings.state.dockBehavior =
+					patch.dockBehavior as typeof osSettings.state.dockBehavior;
+			}
+			if ( typeof patch.sideDockBehavior === 'string' ) {
+				osSettings.state.sideDockBehavior =
+					patch.sideDockBehavior as typeof osSettings.state.sideDockBehavior;
+			}
 			// `desktopTheme` accepts `''` — that is the system default,
 			// a real value rather than a missing one, so this is the
 			// one id field here with no non-empty guard.
@@ -501,6 +511,28 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 			}
 			if ( patch.ai && typeof patch.ai === 'object' ) {
 				osSettings.state.ai = { ...osSettings.state.ai, ...patch.ai };
+			}
+			// The two PWA flags. They were absent from this list, so
+			// they could only be changed from the Preferences UI — an
+			// asymmetry with no reason behind it, since every other
+			// boolean here is settable.
+			//
+			// `windowPrewarmEnabled` carries the same side effect the
+			// toggle does: the running service worker keeps its own
+			// copy of the flag (baked in at install), so without
+			// telling it, turning this on leaves the worker dropping
+			// every speculation and turning it off leaves it
+			// speculating. `adminAssetCacheEnabled` needs no equivalent
+			// — it reaches the worker inside the served `sw.js` bytes,
+			// as a normal SW update.
+			if ( typeof patch.windowPrewarmEnabled === 'boolean' ) {
+				osSettings.state.windowPrewarmEnabled =
+					patch.windowPrewarmEnabled;
+				notifyServiceWorkerPrewarm( patch.windowPrewarmEnabled );
+			}
+			if ( typeof patch.adminAssetCacheEnabled === 'boolean' ) {
+				osSettings.state.adminAssetCacheEnabled =
+					patch.adminAssetCacheEnabled;
 			}
 			if ( typeof patch.nativePostsEnabled === 'boolean' ) {
 				osSettings.state.nativePostsEnabled = patch.nativePostsEnabled;
@@ -636,6 +668,8 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 				typeof patch.adminBarMode === 'string' ||
 				typeof patch.desktopLayout === 'string' ||
 				typeof patch.dockPlacement === 'string' ||
+				typeof patch.dockBehavior === 'string' ||
+				typeof patch.sideDockBehavior === 'string' ||
 				typeof patch.dockRailRenderer === 'string' ||
 				typeof patch.desktopTheme === 'string'
 			) {
@@ -778,6 +812,7 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 		devtools,
 		createSharedStore,
 		presence: presenceApi,
+		workArea: workAreaApi,
 		selection: selectionApi,
 		activity,
 		heartbeat,

@@ -12,6 +12,7 @@ import type {
 	AccentId,
 	AdminBarModeId,
 	DesktopLayoutId,
+	DockBehaviorId,
 	DockPlacementId,
 	DockSizeId,
 	WindowRadiusId,
@@ -76,6 +77,20 @@ export function translateAdminBarModeLabel(
 			return __( 'Dynamic' );
 		case 'hidden':
 			return __( 'Hidden' );
+		default:
+			return fallback;
+	}
+}
+
+export function translateDockBehaviorLabel(
+	id: DockBehaviorId,
+	fallback: string,
+): string {
+	switch ( id ) {
+		case 'static':
+			return __( 'Static' );
+		case 'dynamic':
+			return __( 'Dynamic' );
 		default:
 			return fallback;
 	}

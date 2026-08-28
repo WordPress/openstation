@@ -20,6 +20,7 @@ import {
 	findDockEntryForWindowId,
 } from './geometry';
 import type { WindowManager } from '../window-manager';
+import { workAreaRectOf } from '../work-area';
 import type { Window } from '../window';
 import type { DesktopConfig, Session, WindowConfig } from '../types';
 
@@ -138,7 +139,9 @@ export async function restoreSession(
 	desktopArea: HTMLElement,
 	openNative?: OpenNativeWindow,
 ): Promise< void > {
-	const rect = desktopArea.getBoundingClientRect();
+	// The work area, so a window saved with its bottom edge under the
+	// dock pill on the last session is pulled back above it.
+	const rect = workAreaRectOf( desktopArea );
 
 	// Seed desktops + active id BEFORE recreating windows. Windows
 	// pass `desktopId` from the session through to their config; the

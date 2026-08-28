@@ -84,9 +84,17 @@ function openstation_register_starter_widget_assets() {
 		'os-starter-widget',                              // Handle name — passed as 'script' to openstation_register_widget().
 		OPENSTATION_URL . 'assets/js/widget-starter' . $suffix . '.js',
 		array( 'wp-api-fetch' ),                                    // List WordPress script handles your widget depends on.
-		// 'wp-api-fetch' is available on every admin page and handles
-																	// REST nonces automatically. Remove it if your widget does
-																	// not make REST API calls.
+		// Declare every WordPress package you use, and do not assume any
+		// of them are already on the page. They used to be: Core's ⌘K
+		// palette pulled the whole Gutenberg runtime onto every admin
+		// screen, so `wp.apiFetch`, `wp.element` and friends happened to
+		// be globals by the time any widget mounted. Deferring that
+		// runtime to the first ⌘K took the accident away — on a fresh
+		// boot they are undefined until the palette is opened, and a
+		// widget that reached for one at mount threw. A declared
+		// dependency is resolved by WordPress when the script is
+		// enqueued, which is why this line is the fix and not a
+		// workaround. See docs/migration-wp-package-globals.md.
 		file_exists( $js_path ) ? (string) filemtime( $js_path ) : $version,
 		true                                                        // Load in the footer — always true for widget scripts.
 	);

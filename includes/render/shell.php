@@ -64,7 +64,16 @@ function openstation_render_shell() {
 		?>
 		<div id="os-wallpaper" class="os-wallpaper" aria-hidden="true"></div>
 		<div class="os-shell__body">
-			<nav id="os-dock" class="os-dock" role="toolbar" aria-label="<?php esc_attr_e( 'Admin navigation', 'desktop-mode' ); ?>"></nav>
+			<?php
+			/*
+			 * `data-os-dock-behavior` is stamped here, not only by the
+			 * shell's apply pass, so a `dynamic` dock is folded from the
+			 * first paint instead of flashing on screen and folding once
+			 * the JS lands. The Split layout's sidebar is synthesised by
+			 * JS and stamped there.
+			 */
+			?>
+			<nav id="os-dock" class="os-dock" role="toolbar" aria-label="<?php esc_attr_e( 'Admin navigation', 'desktop-mode' ); ?>" data-os-dock-behavior="<?php echo esc_attr( openstation_get_dock_behavior() ); ?>"></nav>
 			<div id="os-area" class="os-area os-area--with-dock os-area--booting">
 				<?php
 				/*

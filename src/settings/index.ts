@@ -45,11 +45,19 @@ import {
 	ADMIN_BAR_MODES,
 	CUSTOM_ACCENT_ID,
 	DEFAULT_WALLPAPER_ID,
+	DOCK_BEHAVIORS,
 	DOCK_SIZES,
 	WINDOW_RADII,
 	getAccents,
 	getDefaultWallpaperId,
 } from './constants';
+import { refreshWorkArea } from '../work-area';
+import {
+	DOCK_BEHAVIOR_ATTR,
+	PRIMARY_DOCK_ID,
+	refreshDockBehavior,
+	SIDE_DOCK_ID,
+} from '../dock-behavior';
 import {
 	loadState,
 	saveState,
@@ -58,6 +66,8 @@ import {
 import { setActiveDockRailRenderer } from '../dock-rail';
 import { applyDesktopTheme } from '../desktop-themes/apply';
 import { ensureDeferredStyle } from '../deferred-styles';
+import { showInlineLoader } from '../ui/inline-loader';
+import { __ } from '../i18n';
 import type {
 	OsSettingsConfig,
 	OsSettingsState,
@@ -77,6 +87,16 @@ export type { OsSettingsConfig };
  * Idempotent — concurrent callers share a single promise; once the
  * bundle has registered `window.openStationRenderOsSettingsPanel`,
  * subsequent calls resolve synchronously from the global.
+ *
+ * **A failure is not memoized.** The rejected promise is dropped and
+ * the dead `<script>` is removed from the DOM, so the next call injects
+ * a fresh tag and genuinely re-fetches. Without both halves a retry is
+ * theatre: keeping the promise re-awaits the same rejection, and
+ * keeping the tag sends the retry down the `existing` branch below to
+ * attach listeners to a script whose `error` already fired and will
+ * never fire again — a spinner that hangs forever. The panel offers the
+ * user a Retry control, and a transient network blip is the ordinary
+ * reason it is pressed.
  */
 let _panelLoadPromise:
 	| Promise< NonNullable< Window[ 'openStationRenderOsSettingsPanel' ] > >
@@ -94,10 +114,17 @@ function loadOsSettingsPanelBundle(
 		const existing = document.querySelector< HTMLScriptElement >(
 			'script[data-os-settings-panel="1"]',
 		);
+		const fail = ( err: Error ): void => {
+			_panelLoadPromise = null;
+			document
+				.querySelector( 'script[data-os-settings-panel="1"]' )
+				?.remove();
+			reject( err );
+		};
 		const finish = (): void => {
 			const fn = window.openStationRenderOsSettingsPanel;
 			if ( ! fn ) {
-				reject(
+				fail(
 					new Error(
 						'[openstation] os-settings-panel bundle loaded but did not register openStationRenderOsSettingsPanel',
 					),
@@ -112,7 +139,7 @@ function loadOsSettingsPanelBundle(
 			} else {
 				existing.addEventListener( 'load', finish );
 				existing.addEventListener( 'error', () =>
-					reject( new Error( 'failed to load os-settings-panel bundle' ) ),
+					fail( new Error( 'failed to load os-settings-panel bundle' ) ),
 				);
 			}
 			return;
@@ -123,7 +150,7 @@ function loadOsSettingsPanelBundle(
 		s.dataset.osSettingsPanel = '1';
 		s.addEventListener( 'load', finish );
 		s.addEventListener( 'error', () =>
-			reject( new Error( 'failed to load os-settings-panel bundle' ) ),
+			fail( new Error( 'failed to load os-settings-panel bundle' ) ),
 		);
 		document.head.appendChild( s );
 	} );
@@ -200,6 +227,8 @@ export class OsSettings implements SettingsCtx {
 			adminBarMode: this.state.adminBarMode,
 			desktopLayout: this.state.desktopLayout,
 			dockPlacement: this.state.dockPlacement,
+			dockBehavior: this.state.dockBehavior,
+			sideDockBehavior: this.state.sideDockBehavior,
 			dockRailRenderer: this.state.dockRailRenderer,
 			desktopTheme: this.state.desktopTheme,
 			appliedThemeRecommendations:
@@ -482,6 +511,25 @@ export class OsSettings implements SettingsCtx {
 			);
 		}
 
+		// Dock behavior — one `data-os-dock-behavior` attribute PER
+		// RAIL rather than a body class, because the Split layout's
+		// sidebar and bottom dock answer independently. PHP stamps
+		// the dock for the first paint; this re-stamps both so a pick
+		// lands live, `src/dock-behavior.ts` re-stamps whenever the
+		// dispatcher rebuilds a rail, `dock.css` folds a rail off the
+		// attribute, and the work area stops reserving a dynamic
+		// rail's band — which is why it is re-measured right after.
+		const behaviorOf = ( id: string ): string =>
+			( DOCK_BEHAVIORS.find( ( b ) => b.id === id ) ?? DOCK_BEHAVIORS[ 0 ] ).id;
+		document
+			.getElementById( PRIMARY_DOCK_ID )
+			?.setAttribute( DOCK_BEHAVIOR_ATTR, behaviorOf( this.state.dockBehavior ) );
+		document
+			.getElementById( SIDE_DOCK_ID )
+			?.setAttribute( DOCK_BEHAVIOR_ATTR, behaviorOf( this.state.sideDockBehavior ) );
+		refreshDockBehavior();
+		refreshWorkArea();
+
 		// Desktop layout is driven by an attribute on the shell root;
 		// the layout dispatcher (desktop.ts) reads it on init and on
 		// every settings change to rebuild the dock(s). Written here so
@@ -599,16 +647,34 @@ export class OsSettings implements SettingsCtx {
 			return;
 		}
 
+		// The window's own spinner has already gone: the native-window
+		// render callback that got us here returned synchronously, so
+		// `markWindowContentReady()` fired while THIS bundle is still in
+		// flight. Without an affordance of its own the panel is an empty
+		// window body — and on a rejection it was an empty window body
+		// permanently, with nothing but a console line to say why.
+		const loader = showInlineLoader( body, {
+			label: __( 'Loading preferences…' ),
+		} );
+
 		void loadOsSettingsPanelBundle(
 			this.config.osSettingsPanelBundleUrl ?? '',
 		)
 			.then( ( render ) => {
+				loader.done();
 				if ( ! body.isConnected ) {
 					return;
 				}
 				render( this, body );
 			} )
 			.catch( ( err ) => {
+				loader.fail(
+					__( 'Preferences could not be loaded.' ),
+					// Genuinely re-fetches: `loadOsSettingsPanelBundle`
+					// drops both the rejected promise and the dead
+					// `<script>` before rejecting.
+					() => this.renderPanel( body ),
+				);
 				if ( typeof console !== 'undefined' ) {
 					console.error(
 						'[openstation] OpenStation Preferences panel failed to load:',

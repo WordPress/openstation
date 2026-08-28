@@ -178,6 +178,16 @@ jobs:
       - name: Build
         run: npm run build
 
+      # Needs the built bundles, which the Vitest job deliberately does
+      # not produce — `assets/js/*.js` is gitignored build output. The
+      # check itself is the only one that can see cross-bundle state
+      # splits: vitest imports both sides of a seam into one module
+      # graph, so a module-level Map looks shared there however it is
+      # written, while each Vite bundle actually compiles its own copy.
+      # It skips when the bundles are absent, so this is where it counts.
+      - name: Cross-bundle state boundary
+        run: npx vitest run tests/vitest/bundle-shared-state.test.ts
+
       - name: Package release zip
         run: npm run package
 

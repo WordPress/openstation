@@ -1,5 +1,6 @@
 /**
- * The chromeless bridge's link interceptor, run against a real DOM.
+ * The chromeless bridge's link and form interceptors, run against a
+ * real DOM — one pair of listeners in the source, one file here.
  *
  * The interceptor runs in a document PHPUnit never loads, so the PHP
  * suite can only assert that source strings appear in the right
@@ -91,6 +92,22 @@ beforeEach( () => {
 	posted = [];
 	document.body.innerHTML = '';
 } );
+
+/** Appends a form and submits it. */
+function submitForm(
+	html: string,
+	onForm?: ( form: HTMLFormElement ) => void
+): void {
+	document.body.innerHTML = html;
+	const form = document.querySelector( 'form' ) as HTMLFormElement;
+	onForm?.( form );
+	form.dispatchEvent( new Event( 'submit', { bubbles: true, cancelable: true } ) );
+}
+
+/** The activity messages the bridge sent for the last submit. */
+function activityMessages(): Array< Record< string, unknown > > {
+	return posted.filter( ( m ) => m.type === 'os-iframe-activity' );
+}
 
 /** Appends an anchor and clicks it. Returns its href afterwards. */
 function clickLink( html: string ): string {
@@ -354,5 +371,89 @@ describe( 'chromeless bridge: the referer stamp on unowned links', () => {
 		);
 
 		expect( href ).not.toContain( '_wp_http_referer' );
+	} );
+} );
+
+describe( 'chromeless bridge: which submits light the status ring', () => {
+	/*
+	 * The fetch + XHR wrappers miss the admin's most common save, a
+	 * classic POST, which navigates. Getting that half back is easy to
+	 * get wrong: a start with no end wedges the ring lit for the life
+	 * of the window, so submits that will never navigate stay silent.
+	 */
+	test( 'a settings POST opens an activity the next document closes', () => {
+		submitForm(
+			'<form method="post" action="options.php"><input name="blogname"></form>'
+		);
+
+		expect( activityMessages() ).toEqual( [
+			{ type: 'os-iframe-activity', phase: 'start', navigation: true },
+		] );
+	} );
+
+	test( 'a bulk action reports, even over GET', () => {
+		// `edit.php`, `upload.php` and `edit-comments.php` submit
+		// their bulk actions over GET, on the same form as the search
+		// box. Trashing twenty posts is a write however it travels.
+		submitForm(
+			'<form id="posts-filter" method="get">' +
+				'<select name="action">' +
+				'<option value="-1">Bulk actions</option>' +
+				'<option value="trash" selected>Move to Trash</option>' +
+				'</select></form>'
+		);
+
+		expect( activityMessages() ).toHaveLength( 1 );
+	} );
+
+	test( 'the Filter button is not a bulk action, whatever is selected', () => {
+		// What core does: `current_action()` returns false outright
+		// when `filter_action` is set.
+		document.body.innerHTML =
+			'<form id="posts-filter" method="get">' +
+			'<select name="action">' +
+			'<option value="trash" selected>Move to Trash</option>' +
+			'</select>' +
+			'<input type="submit" name="filter_action" value="Filter">' +
+			'</form>';
+		const form = document.querySelector( 'form' ) as HTMLFormElement;
+		form.dispatchEvent(
+			new SubmitEvent( 'submit', {
+				bubbles: true,
+				cancelable: true,
+				submitter: document.querySelector(
+					'[name="filter_action"]'
+				) as HTMLElement,
+			} )
+		);
+
+		expect( activityMessages() ).toHaveLength( 0 );
+	} );
+
+	test.each( [
+		// The search box above every list table: nothing changed, so
+		// nothing can have failed to change.
+		[ 'a GET form is a read', '<form method="get" action="edit.php"><input name="s"></form>', undefined ],
+		// The same form once a list table is on it, with the bulk
+		// select left at its default.
+		[
+			'a GET form with no bulk action picked',
+			'<form method="get"><select name="action"><option value="-1" selected>Bulk actions</option></select><input name="s"></form>',
+			undefined,
+		],
+		// Aimed at another browsing context — this document stays put.
+		[ 'a submit aimed elsewhere', '<form method="post" action="options.php" target="_blank"></form>', undefined ],
+		// Handled in-page: it either fires its own XHR, which is
+		// already instrumented, or does nothing at all.
+		[
+			'a submit a script handles itself',
+			'<form method="post" action="options.php"></form>',
+			( form: HTMLFormElement ) =>
+				form.addEventListener( 'submit', ( e ) => e.preventDefault() ),
+		],
+	] )( '%s stays silent', ( _label, html, onForm ) => {
+		submitForm( html as string, onForm as ( ( f: HTMLFormElement ) => void ) | undefined );
+
+		expect( activityMessages() ).toHaveLength( 0 );
 	} );
 } );

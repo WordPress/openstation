@@ -9,8 +9,10 @@
  *     `count`, `taxonomies`).
  *
  *   GET /nodes?types=post,page,...
- *     Returns the full `{ nodes, edges, stats }` tuple. Cached server-
- *     side, see graph-builder.php.
+ *     Returns the full `{ nodes, edges, groups, stats }` tuple. Cached
+ *     server-side, see graph-builder.php. `types` omitted means every
+ *     registered type; `types=` (present but empty) means none — the
+ *     shell sends the latter when every toolbar chip is off.
  *
  *   GET /post/<id>
  *     Returns the side-panel detail bundle for one post:
@@ -52,10 +54,15 @@ function openstation_content_graph_register_routes() {
 			'callback'            => 'openstation_content_graph_rest_nodes',
 			'permission_callback' => 'openstation_content_graph_rest_permission',
 			'args'                => array(
+				// Deliberately no `default`: the dispatcher copies a
+				// registered default into the request before the
+				// callback runs, and `WP_REST_Request::has_param()`
+				// sees it, so a default here would make an omitted
+				// parameter indistinguishable from an explicitly empty
+				// one — and the callback tells those two apart.
 				'types' => array(
-					'description' => 'Comma-separated list of post type slugs to include.',
+					'description' => 'Comma-separated list of post type slugs to include. Omit for every registered type; pass an empty value for none.',
 					'type'        => 'string',
-					'default'     => '',
 				),
 			),
 		)
@@ -114,14 +121,19 @@ function openstation_content_graph_rest_post_types() {
 /**
  * GET /nodes
  *
+ * An omitted `types` parameter selects every registered type; a
+ * present-but-empty one selects none. The route registers no default
+ * for the parameter so the two stay distinguishable through a real
+ * dispatch (see the route registration above).
+ *
  * @param WP_REST_Request $request
  * @return WP_REST_Response
  */
 function openstation_content_graph_rest_nodes( WP_REST_Request $request ) {
-	$raw     = (string) $request->get_param( 'types' );
-	$types   = '' === $raw
-		? wp_list_pluck( openstation_content_graph_post_types(), 'slug' )
-		: array_map( 'trim', explode( ',', $raw ) );
+	$raw   = $request->get_param( 'types' );
+	$types = $request->has_param( 'types' )
+		? array_map( 'trim', explode( ',', (string) $raw ) )
+		: wp_list_pluck( openstation_content_graph_post_types(), 'slug' );
 	$payload = openstation_content_graph_build( (array) $types );
 	return rest_ensure_response( openstation_content_graph_filter_payload_for_user( $payload ) );
 }

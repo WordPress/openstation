@@ -15,6 +15,7 @@
  * `wp.os.files` + docs if third-party bundles ever need it.
  */
 
+import { createSharedStore } from '../shared-store';
 import type { DragPayload, DragSession } from '../drag';
 
 export interface CanvasPayloadContext {
@@ -33,7 +34,30 @@ export interface CanvasPayloadHandler {
 	): void;
 }
 
-const handlers = new Map< string, CanvasPayloadHandler >();
+/**
+ * The registry, shared across bundles.
+ *
+ * This module is compiled into the shell bundle AND into `notes.js`.
+ * A plain module-level `Map` would therefore exist twice: the notes
+ * bundle would register its handlers into its own copy while the
+ * shell's `FilesLayer` consulted an empty one, and every drop of a note
+ * onto the wallpaper was rejected with "Can't pin here" — the handler
+ * was registered, just not into the map anyone asked.
+ *
+ * `createSharedStore` keys the map on the page instead of on the
+ * module, so whichever bundle gets there first creates it and the rest
+ * find it. See AGENTS.md, "Cross-bundle state".
+ */
+const store = createSharedStore< {
+	handlers: Map< string, CanvasPayloadHandler >;
+} >( 'desktop-mode/canvas-payload-handlers', () => ( {
+	handlers: new Map(),
+} ) );
+
+/** The one live registry, whichever bundle is asking. */
+function handlerMap(): Map< string, CanvasPayloadHandler > {
+	return store.state.handlers;
+}
 
 /**
  * Register a handler for a payload `type`. Returns a deregister
@@ -43,10 +67,10 @@ export function registerCanvasPayloadHandler(
 	type: string,
 	handler: CanvasPayloadHandler,
 ): () => void {
-	handlers.set( type, handler );
+	handlerMap().set( type, handler );
 	return () => {
-		if ( handlers.get( type ) === handler ) {
-			handlers.delete( type );
+		if ( handlerMap().get( type ) === handler ) {
+			handlerMap().delete( type );
 		}
 	};
 }
@@ -56,7 +80,7 @@ export function canvasPayloadAccepts(
 	payload: DragPayload,
 	ctx: CanvasPayloadContext,
 ): boolean {
-	const handler = handlers.get( payload.type );
+	const handler = handlerMap().get( payload.type );
 	return handler
 		? handler.accept( payload.data as Record< string, unknown >, ctx )
 		: false;
@@ -68,7 +92,7 @@ export function canvasPayloadDrop(
 	ev: { clientX: number; clientY: number },
 	ctx: CanvasPayloadContext,
 ): boolean {
-	const handler = handlers.get( session.payload.type );
+	const handler = handlerMap().get( session.payload.type );
 	if ( ! handler ) {
 		return false;
 	}
@@ -78,5 +102,5 @@ export function canvasPayloadDrop(
 
 /** Test-only. */
 export function __resetCanvasPayloadHandlersForTests(): void {
-	handlers.clear();
+	handlerMap().clear();
 }

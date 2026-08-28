@@ -58,13 +58,25 @@ describe( 'games/launch.ts', () => {
 		capturedCtx = null;
 		fake = {
 			registerWindow: vi.fn().mockImplementation(
-				( def: {
-					render: ( body: HTMLElement ) => ( () => void ) | void;
+				async ( def: {
+					render: (
+						body: HTMLElement,
+					) =>
+						| ( () => void )
+						| void
+						| Promise< ( () => void ) | void >;
 				} ) => {
 					// The shell runs the render callback with the window
-					// body once the window opens.
-					capturedTeardown = def.render( document.createElement( 'div' ) );
-					return Promise.resolve( {} );
+					// body once the window opens, and AWAITS it: a
+					// native window's render may be async, and
+					// `Window.hydrateNative()` holds the loading overlay
+					// until it settles. Games rely on that — the window
+					// opens on the click and the game's bundle is
+					// fetched inside the callback, behind the spinner.
+					capturedTeardown = await def.render(
+						document.createElement( 'div' ),
+					);
+					return {};
 				},
 			),
 			onWindow: vi.fn().mockImplementation(
@@ -240,6 +252,82 @@ describe( 'games/launch.ts', () => {
 		// The registry entry is upgraded in place — a second launch
 		// won't reload the script.
 		expect( registry.get( 'test-game' )?.render ).toBeDefined();
+	} );
+
+	test( 'the window opens BEFORE the game bundle is fetched', async () => {
+		// The point of the whole arrangement. A game's bundle is heavy
+		// — the game, its engine, sometimes a dictionary — and loading
+		// it before `registerWindow()` meant a click produced nothing
+		// at all for seconds, with no window to hang a spinner on. The
+		// window now opens first and the fetch happens inside the
+		// render callback, where the window manager's loading overlay
+		// covers it.
+		const { registry, launch } = await loadModules();
+		registerGame( registry, {
+			render: undefined,
+			scriptUrl: 'https://example.test/game.js',
+		} );
+
+		const order: string[] = [];
+		fake.registerWindow.mockImplementation(
+			async ( def: {
+				render: ( body: HTMLElement ) => unknown;
+			} ) => {
+				order.push( 'window-opened' );
+				await def.render( document.createElement( 'div' ) );
+				return {};
+			},
+		);
+		fake.loadVendorScript.mockImplementation( () => {
+			order.push( 'script-fetched' );
+			(
+				window as unknown as {
+					openStationGames?: Record< string, unknown >;
+				}
+			 ).openStationGames = {
+				'test-game': {
+					id: 'test-game',
+					title: 'Test Game',
+					icon: 'x',
+					scoreColumns: [],
+					render: vi.fn(),
+				},
+			};
+			return Promise.resolve();
+		} );
+
+		await launch.launchGame( 'test-game' );
+
+		expect( order ).toEqual( [ 'window-opened', 'script-fetched' ] );
+	} );
+
+	test( 'the window opens at the size the server declared', async () => {
+		// The size has to be known a round trip before the def that
+		// also carries it, which is why `openstation_register_game()`
+		// takes a `window` argument at all.
+		const { registry, launch } = await loadModules();
+		registerGame( registry, {
+			render: undefined,
+			scriptUrl: 'https://example.test/game.js',
+			window: {
+				width: 860,
+				height: 660,
+				minWidth: 600,
+				minHeight: 500,
+			},
+		} );
+		fake.loadVendorScript.mockResolvedValue( undefined );
+
+		await launch.launchGame( 'test-game' ).catch( () => undefined );
+
+		expect( fake.registerWindow ).toHaveBeenCalledWith(
+			expect.objectContaining( {
+				width: 860,
+				height: 660,
+				minWidth: 600,
+				minHeight: 500,
+			} ),
+		);
 	} );
 
 	test( 'the launch context carries config and windowId', async () => {

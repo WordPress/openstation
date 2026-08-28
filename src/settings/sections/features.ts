@@ -27,6 +27,8 @@ import { html, render } from '../../ui/core';
 import type { SettingsCtx } from '../types';
 import { osConfirm } from '../../ui/components/os-confirm-dialog/os-confirm-dialog';
 import { showToast } from '../../toast';
+import { notifyServiceWorkerPrewarm } from '../../pwa/sw-register';
+import { spendMenuRefresh } from '../spend-menu-refresh';
 
 /**
  * Developer mode gates SERVER-side registrations (Code Blue's native
@@ -63,14 +65,7 @@ document.addEventListener( 'os-settings-save-lifecycle', ( event ) => {
 	if ( phase !== 'saved' ) {
 		return;
 	}
-	const refreshMenu = (
-		window.wp as
-			| { os?: { refreshMenu?: () => Promise< void > } }
-			| undefined
-	)?.os?.refreshMenu;
-	if ( typeof refreshMenu === 'function' ) {
-		void refreshMenu();
-	}
+	spendMenuRefresh();
 } );
 
 // Show the platform-native shortcut: ⌘K on Apple, Ctrl+K elsewhere.
@@ -187,6 +182,13 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 		const checked = ( e as CustomEvent ).detail?.checked === true;
 		ctx.state.windowPrewarmEnabled = checked;
 		ctx.save();
+		// The shell-side half of prewarming reads this state directly,
+		// so it takes effect at once. The worker's half does not: its
+		// copy is baked into the body it was installed with, so without
+		// telling it, turning this ON left the worker dropping every
+		// `os-speculate-doc` until some later reload re-installed it —
+		// and turning it OFF left the worker still speculating.
+		notifyServiceWorkerPrewarm( checked );
 		paint();
 	};
 

@@ -155,9 +155,42 @@ export type GridOrder = 'column' | 'row';
 export const GRID_FALLBACK_ROWS = 5;
 export const GRID_FALLBACK_COLS = 4;
 
+/**
+ * What a grid function measures the canvas against: the host element
+ * itself, or an explicit size.
+ *
+ * The explicit form exists for the wallpaper. Its host is the whole
+ * desktop area, but the canvas it may lay tiles on is the WORK AREA
+ * — the area minus the band the dock pill covers — and only the
+ * caller knows which surface it is on. A folder window passes its
+ * element; the desktop passes `workAreaRectOf( area )`. Both are
+ * structurally `{ width, height }`-readable through
+ * {@link canvasSize}.
+ */
+export type GridCanvas =
+	| HTMLElement
+	| { width: number; height: number }
+	| null
+	| undefined;
+
+/** `{ width, height }` of a {@link GridCanvas}; zeros when unmeasurable. */
+export function canvasSize( canvas: GridCanvas ): { width: number; height: number } {
+	if ( ! canvas ) {
+		return { width: 0, height: 0 };
+	}
+	if ( typeof HTMLElement !== 'undefined' && canvas instanceof HTMLElement ) {
+		return { width: canvas.clientWidth, height: canvas.clientHeight };
+	}
+	const c = canvas as { width?: unknown; height?: unknown };
+	return {
+		width: typeof c.width === 'number' ? c.width : 0,
+		height: typeof c.height === 'number' ? c.height : 0,
+	};
+}
+
 /** Rows that fit in `host`, or {@link GRID_FALLBACK_ROWS}. */
-export function gridRows( host?: HTMLElement | null ): number {
-	const h = host?.clientHeight ?? 0;
+export function gridRows( host?: GridCanvas ): number {
+	const h = canvasSize( host ).height;
 	if ( h <= 0 ) {
 		// An unmeasurable host is not a one-row host. Reading `0` off
 		// a canvas that hasn't been laid out yet and believing it is
@@ -168,8 +201,8 @@ export function gridRows( host?: HTMLElement | null ): number {
 }
 
 /** Columns that fit in `host`, or {@link GRID_FALLBACK_COLS}. */
-export function gridCols( host?: HTMLElement | null ): number {
-	const w = host?.clientWidth ?? 0;
+export function gridCols( host?: GridCanvas ): number {
+	const w = canvasSize( host ).width;
 	if ( w <= 0 ) {
 		return GRID_FALLBACK_COLS;
 	}
@@ -197,7 +230,7 @@ const SCAN_LIMIT = 999;
 export function nextFreeCell(
 	occupied: Set< string >,
 	order: GridOrder = 'column',
-	host?: HTMLElement | null,
+	host?: GridCanvas,
 ): GridPos {
 	if ( 'row' === order ) {
 		const cols = gridCols( host );
@@ -237,7 +270,7 @@ export function packCells(
 	count: number,
 	occupied: Set< string >,
 	order: GridOrder = 'column',
-	host?: HTMLElement | null,
+	host?: GridCanvas,
 ): GridPos[] {
 	const taken = new Set( occupied );
 	const out: GridPos[] = [];
@@ -259,7 +292,7 @@ export function snapToEmptyCell(
 	x: number,
 	y: number,
 	occupied: Set< string >,
-	host?: HTMLElement | null,
+	host?: GridCanvas,
 	order: GridOrder = 'column',
 ): GridPos {
 	const target = pointToCell( x, y );

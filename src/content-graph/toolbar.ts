@@ -30,6 +30,15 @@ const GROUP_NONE = 'none';
 
 export interface ToolbarHandle {
 	setStatus: ( text: string ) => void;
+	/**
+	 * Refresh the count badge on each chip from a newer descriptor
+	 * list, in place. The window config's descriptors carry no counts;
+	 * `/post-types` answers with them a moment after the window is
+	 * already interactive, and rebuilding the toolbar at that point
+	 * would reset every chip, the search box and Group by under the
+	 * user's pointer. Slugs the toolbar does not know are ignored.
+	 */
+	updateCounts: ( types: PostTypeDescriptor[] ) => void;
 	destroy: () => void;
 }
 
@@ -197,6 +206,16 @@ export function renderToolbar(
 	return {
 		setStatus: ( text: string ) => {
 			status.textContent = text;
+		},
+		updateCounts: ( types: PostTypeDescriptor[] ) => {
+			for ( const type of types ) {
+				const badge = chipsRow.querySelector< HTMLElement >(
+					`.os-content-graph__chip[data-slug="${ escapeAttr( type.slug ) }"] .os-content-graph__chip-count`,
+				);
+				if ( badge ) {
+					badge.textContent = String( type.count ?? 0 );
+				}
+			}
 		},
 		destroy: () => {
 			document.removeEventListener( 'click', onDocClick );

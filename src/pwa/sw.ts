@@ -50,6 +50,7 @@ import {
 	readSwConfig,
 } from './sw-policy';
 import { SPECULATIVE_MAX, SpeculativeStore } from './speculative-store';
+import { applyFlagMessage } from './sw-flags';
 
 // Minimal local typings for the service-worker global scope. We
 // intentionally don't pull in `lib.webworker.d.ts` — it re-declares
@@ -143,6 +144,40 @@ const CONFIG = readSwConfig( sw.__OS_SW_CONFIG, FALLBACK_PLUGIN_URL );
 const OWN_PLUGIN_PATH = new URL( CONFIG.pluginUrl ).pathname;
 
 /**
+ * Whether hover prewarming is on, kept LIVE rather than read off
+ * `CONFIG` at each use.
+ *
+ * The config preamble is baked into the worker body at install, so a
+ * `const` read of it can only change when a new worker installs. That
+ * made the toggle half-work: flipping "Prewarm windows on hover" ON
+ * enabled the shell-side half immediately (hover really did build a
+ * hidden window) while the worker kept dropping `os-speculate-doc`
+ * until some later reload happened to re-install it — and flipping it
+ * OFF left the worker still speculating. The shell now tells the
+ * running worker directly.
+ */
+let windowPrewarmEnabled = CONFIG.windowPrewarm;
+
+/**
+ * Whether the shared admin-asset cache is on, kept live for the same
+ * reason.
+ *
+ * Both flags are PER-USER preferences, and a service worker is
+ * origin-wide. Baking them into the served bytes made the body differ
+ * between an anonymous and a logged-in request — so any in-scope
+ * logged-out navigation (the interim-login iframe, logging out) served
+ * a different script, which the browser treats as an update, installs,
+ * and activates. The shell's `controllerchange` handler then hard-
+ * reloads the desktop out from under the user.
+ *
+ * The served bytes are now identical for everyone (`pluginUrl` only)
+ * and the shell pushes the per-user values at boot. Starting both off
+ * is the safe default: until the message lands the worker simply does
+ * less.
+ */
+let adminAssetCacheEnabled = CONFIG.adminAssetCache;
+
+/**
  * Asset URLs precached on install. Kept narrow on purpose — paths
  * are unversioned, and the runtime cache lookups pass
  * `ignoreSearch: true` so a versioned request like
@@ -214,6 +249,22 @@ sw.addEventListener( 'fetch', ( event: SWFetchEvent ) => {
 		return;
 	}
 
+	// A session boundary: drop everything held for the outgoing user.
+	//
+	// Speculative documents are fully rendered admin pages, and the
+	// restore list names the screens someone had open. Both outlived
+	// logout, so a second person signing in on the same browser inside
+	// the 30 s window could be handed the previous user's rendered page
+	// — their drafts, their comments, their settings — and their window
+	// list replayed. Reaching `wp-login.php` at all is the signal: it
+	// covers logging out, being logged out, and a different account
+	// signing in, without needing the shell to still be alive to say so.
+	if ( url.pathname.endsWith( '/wp-login.php' ) ) {
+		speculative.clear();
+		event.waitUntil( caches.delete( SESSION_CACHE ) );
+		return;
+	}
+
 	// Only intercept paths under the openstation portal or wp-admin —
 	// plus, when the shared admin-asset cache is opted in, versioned
 	// static assets anywhere WordPress serves them from (wp-includes
@@ -225,7 +276,7 @@ sw.addEventListener( 'fetch', ( event: SWFetchEvent ) => {
 	// Range requests must never meet the cache: answering one with a
 	// cached 200 full body (or caching a 206) desyncs the consumer.
 	const adminAssetClass =
-		CONFIG.adminAssetCache && ! req.headers.has( 'range' )
+		adminAssetCacheEnabled && ! req.headers.has( 'range' )
 			? classifyAdminAssetRequest( url, OWN_PLUGIN_PATH )
 			: 'bypass';
 
@@ -279,7 +330,18 @@ sw.addEventListener( 'fetch', ( event: SWFetchEvent ) => {
 	// is what keeps the Sec-Fetch hazard described below out of play.
 	// Exact-URL, single-use; anything not waiting falls through to the
 	// normal pass-through for iframes.
-	if ( req.mode === 'navigate' && speculative.size > 0 ) {
+	// `cache: 'reload'` is the browser telling us this navigation is an
+	// explicit refresh — the window's Reload action, or the user asking
+	// for the page again. Answering that from a snapshot taken up to
+	// 30 s ago defeats the single gesture people reach for when a list
+	// looks stale: the plugin they just activated, the post they just
+	// trashed, the title they just quick-edited would all still be
+	// missing from the list they deliberately re-opened. Drop the held
+	// copy — it is now known to be unwanted — and let the request go to
+	// the network.
+	if ( req.mode === 'navigate' && req.cache === 'reload' ) {
+		speculative.take( url.toString() );
+	} else if ( req.mode === 'navigate' && speculative.size > 0 ) {
 		const held = speculative.take( url.toString() );
 		if ( held ) {
 			event.respondWith(
@@ -417,7 +479,7 @@ const REPLAY_THROTTLE_MS = 3_000;
  */
 async function replayRestoreTargets(): Promise< void > {
 	const now = Date.now();
-	if ( ! CONFIG.windowPrewarm || now - lastReplayAt < REPLAY_THROTTLE_MS ) {
+	if ( ! windowPrewarmEnabled || now - lastReplayAt < REPLAY_THROTTLE_MS ) {
 		return;
 	}
 	lastReplayAt = now;
@@ -457,12 +519,35 @@ sw.addEventListener( 'message', ( event: SWMessageEvent ) => {
 		| { type?: string; url?: string; urls?: unknown }
 		| undefined;
 
+	// The two per-user flags: the prewarm toggle applied to the RUNNING
+	// worker, and the boot-time sync of both. Neither is in the served
+	// bytes any more — see `applyFlagMessage()` for why, and for why
+	// only the toggle drops the session cache. Without the running-
+	// worker half the flag moved only when a new worker installed, so
+	// the setting appeared to do nothing (on) or to keep working (off)
+	// until some later reload.
+	const flagUpdate = applyFlagMessage( data, {
+		windowPrewarm: windowPrewarmEnabled,
+		adminAssetCache: adminAssetCacheEnabled,
+	} );
+	if ( flagUpdate ) {
+		windowPrewarmEnabled = flagUpdate.flags.windowPrewarm;
+		adminAssetCacheEnabled = flagUpdate.flags.adminAssetCache;
+		if ( flagUpdate.clearSpeculative ) {
+			speculative.clear();
+		}
+		if ( flagUpdate.dropSessionCache ) {
+			event.waitUntil( caches.delete( SESSION_CACHE ) );
+		}
+		return;
+	}
+
 	// The restore list for the NEXT boot. Gated like everything else
 	// here: the shell already checks the opt-in before posting, and
 	// checking again means a stray message can never make an
 	// opted-out browser start writing caches.
 	if ( data && data.type === 'os-remember-session' ) {
-		if ( ! CONFIG.windowPrewarm ) {
+		if ( ! windowPrewarmEnabled ) {
 			return;
 		}
 		const urls = Array.isArray( data.urls ) ? data.urls : [];
@@ -487,7 +572,7 @@ sw.addEventListener( 'message', ( event: SWMessageEvent ) => {
 	if ( ! data || data.type !== 'os-speculate-doc' || ! data.url ) {
 		return;
 	}
-	if ( ! CONFIG.windowPrewarm ) {
+	if ( ! windowPrewarmEnabled ) {
 		// Same opt-in the dock's hover prewarming uses — this is that
 		// feature, applied to the document instead of a whole window.
 		return;

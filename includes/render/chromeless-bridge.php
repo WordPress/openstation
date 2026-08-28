@@ -2,7 +2,7 @@
 /**
  * OpenStation — Chromeless iframe bridge.
  *
- * Two cooperative pieces emitted into chromeless admin pages:
+ * Three cooperative pieces emitted into chromeless admin pages:
  *
  *   - `openstation_chromeless_offset_neutralizer_script()` —
  *     runs on `admin_head @ 1` and rewrites positioned-element
@@ -10,6 +10,9 @@
  *     46px) to 0 inside chromeless iframes. Catches plugins that
  *     hardcode the admin-bar height instead of using the WP CSS
  *     custom property.
+ *
+ *   - `openstation_chromeless_navigation_ping_script()` — runs on
+ *     `admin_head @ 1` and tells the shell a navigation has landed.
  *
  *   - `openstation_chromeless_bridge_script()` — runs on
  *     `admin_footer` and emits the chromeless ↔ shell bridge
@@ -198,6 +201,27 @@ function openstation_chromeless_offset_neutralizer_script() {
 	wp_print_inline_script_tag( $js );
 }
 add_action( 'admin_head', 'openstation_chromeless_offset_neutralizer_script', 1 );
+
+/**
+ * Tells the shell that a navigation has landed, for the status ring:
+ * a submit's "end" can only come from the document answering it, and
+ * the bridge below is the wrong messenger. Enqueued on `admin_footer`,
+ * it runs after every other admin script — a second or more after the
+ * browser painted the "Settings saved." notice the ring is
+ * confirming. From the head it beats the body to the screen.
+ *
+ * The parent ignores it unless that window has a submit waiting.
+ */
+function openstation_chromeless_navigation_ping_script() {
+	if ( ! openstation_is_chromeless_request() ) {
+		return;
+	}
+
+	wp_print_inline_script_tag(
+		"try{if(window.parent&&window.parent!==window){window.parent.postMessage({type:'os-iframe-navigated'},window.location.origin);}}catch(e){}"
+	);
+}
+add_action( 'admin_head', 'openstation_chromeless_navigation_ping_script', 1 );
 
 /**
  * Short-circuit `admin.php?openstation_menu_refresh=1` requests with

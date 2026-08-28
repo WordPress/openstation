@@ -214,10 +214,18 @@ openstation_register_game( 'my-plugin-puzzle', array(
     ),
     'config'        => array( 'assetUrl' => '…' ),          // arbitrary blob → the game's launch context
     'capabilities'  => array(),                             // ALL must pass for the registering user
+    'window'        => array(                               // window size, known before the bundle is
+        'width'     => 860,
+        'height'    => 660,
+        'minWidth'  => 600,
+        'minHeight' => 500,
+    ),
 ) );
 ```
 
 Returns `true` or `WP_Error` (`openstation_missing_id` / `openstation_missing_title` / `openstation_missing_script` / `openstation_invalid_icon_svg` / `openstation_capability_denied`). Only server-registered games can persist scores and challenges — the REST routes 404 unknown ids. `openstation_unregister_game( $id )` removes an entry.
+
+**Declare `window` here as well as in your JS def.** The two look redundant and are not. A game's bundle is heavy — the game, its engine, sometimes a dictionary — so the shell opens the window on the click and fetches the bundle *inside* the render callback, where the window manager's loading spinner covers the wait. That means the size is needed one round trip before the def that also carries it. Any subset of `{ width, height, minWidth, minHeight }` is accepted, in pixels; values are clamped rather than rejected, and anything non-numeric or non-positive is dropped. Declaring it only in JS still works — the window just opens at the framework default (760×560) the first time a player launches that game in a session, and at its own size from then on.
 
 **Framework config keys**: the `serverGames` payload merges framework-level keys underneath every game's `config` (the game's own keys win on collision). Currently: **`wordsUrl`** — the URL of the shared ~20k-word dictionary asset (`assets/games/words.txt`), identical for every player, which is what lets seeded games generate the same puzzle worldwide. See `openstation_games_words_url` below.
 
@@ -1434,6 +1442,26 @@ apply_filters( 'openstation_admin_redirect_to_portal', bool $redirect, int $user
 
 ---
 
+### `openstation_skip_redundant_portal_forward` — Stable
+
+Governs whether a portal forward that would resolve back to the URL already being served is skipped. Applied only after `openstation_admin_redirect_to_portal` has allowed the forward, and only for requests the portal would hand straight back — an allowlisted wp-admin file that is also the page `$pagenow` reports, carrying no query arg the portal would strip.
+
+Default `true`. For those URLs the round trip costs two extra WordPress bootstraps and lands on the same page tagged `desktop_mode_portal=1&desktop_mode_portal_intent=1` — a flag pair the boot flow reads as `fromPortal && ! fromPortalIntent`, which is indistinguishable from no flags at all. The shell does not need the portal to reach it: it enqueues on any admin page where OpenStation is enabled.
+
+Return `false` to force the round trip — the one reason to do so is a plugin that hooks `openstation_handle_portal_request` for side effects and needs it to run on every admin entry.
+
+```php
+apply_filters( 'openstation_skip_redundant_portal_forward', bool $skip, string $request_uri );
+```
+
+**Example — keep the round trip so a portal-entry hook keeps firing:**
+
+```php
+add_filter( 'openstation_skip_redundant_portal_forward', '__return_false' );
+```
+
+---
+
 ### `openstation_accent_colors` — Stable
 
 Extends or restricts the accent-color swatches shown in OpenStation Preferences. Applied to `--wp-admin-theme-color` on the shell's `<html>`. Each entry is `{ id: string, label: string, value: string }` — `id` is a stable slug persisted to `localStorage`, `label` is the picker tooltip, `value` is a hex color validated server-side via `sanitize_hex_color()`. Invalid entries are dropped; a filter that leaves the list empty falls back to the ten built-in swatches.
@@ -1498,6 +1526,31 @@ add_filter( 'openstation_admin_bar_mode', function ( $mode ) {
 ```php
 add_filter( 'openstation_admin_bar_mode', function () {
     return 'hidden';
+} );
+```
+
+---
+
+### `openstation_dock_behavior` — Experimental
+
+Overrides how the dock presents for the current request, regardless of the user's own **OpenStation Preferences → Appearance → Desktop layout → Dock behavior** pick. The resolved value is stamped as `data-os-dock-behavior` on `#os-dock` by the shell template, which is what `assets/css/dock.css` and `src/dock-behavior.ts` key off. It answers for the dock only (the single rail in Unified, the bottom dock in Split); the Split sidebar carries its own `sideDockBehavior`, synthesised and stamped client-side, and is not filtered here.
+
+```php
+apply_filters( 'openstation_dock_behavior', string $behavior );
+```
+
+| Behavior | What it does |
+|---|---|
+| `static` | The rail is always on screen, and the band it floats over is reserved from the [work area](javascript-reference.md#workarea--experimental) so default window placement stays clear of it. The default. |
+| `dynamic` | The rail folds into a thin indicator line at its edge (`--os-dock-indicator-length` × `--os-dock-indicator-thickness`, `180px` × `5px`, in `--os-dock-indicator-bg`, the accent at 72% alpha; a theme retunes all three) and morphs back into the full rail — through the View Transitions API where the browser has it — when the pointer reaches that edge of the screen (a `20px` band, the full width or height of it). Once out it stays out while the pointer is on the rail or just above it (a band reaching twice the rail's height from the screen edge), or on one of its flyouts, and while something on the rail has keyboard focus; the pointer leaving the browser window changes nothing. It reserves nothing: windows get the whole desktop and the rail rides over them when summoned. |
+
+A value outside the two coerces back to `static`. The same two ids are the user-facing settings (`dockBehavior` and `sideDockBehavior` in `wp.os.getOsSettings()`).
+
+**Example — keep the rail on screen for anyone who might not find the seam:**
+
+```php
+add_filter( 'openstation_dock_behavior', function ( $behavior ) {
+    return current_user_can( 'manage_options' ) ? $behavior : 'static';
 } );
 ```
 
@@ -1842,11 +1895,31 @@ The handles treated as command-palette roots. Defaults: `wp-commands` (the `core
 apply_filters( 'openstation_command_palette_root_handles', string[] $handles );
 ```
 
+
+### `openstation_command_palette_trim_dependents` — Experimental
+
+Whether handles that merely *depend on* the palette are dropped alongside the roots. Default `true`.
+
+Dropping the roots alone reclaims nothing while one dependent survives — `WP_Dependencies::all_deps()` pulls the whole chain back in on its behalf — so the walk earns its place. Return `false` to trim only the two Core roots: that gives up the saving on sites carrying palette extensions, and keeps all of it on a site where Core's palette is the only consumer of that chain. It is the safest setting and rarely a necessary one; prefer naming the individual exception through `openstation_command_palette_family` below.
+
+```php
+add_filter( 'openstation_command_palette_trim_dependents', '__return_false' );
+```
+
 ### `openstation_command_palette_family` — Experimental
 
-The full set of handles dropped by the palette trim: the roots plus every scanned handle that reaches one of them **without routing through one of Core's own packages**.
+The full set of handles dropped by the palette trim: the roots plus every scanned handle that reaches one of them and survives the structural exclusions below.
 
-That second condition is load-bearing, not tidiness. `wp-block-editor` declares `wp-commands` directly — the editor *registers* commands, so the dependency runs the opposite way from a palette extension's — and `wp-editor` does the same. A plain closure walk therefore convicts the whole block-editor stack, and every plugin block script above it, of being palette contributors. Core packages are consequently never trimmed as dependents, and the walk will not travel through one to reach a root: a handle qualifies only when the palette appears in its own chain, the way Astra's and WooCommerce's palette scripts both name `wp-commands` themselves.
+**The dependency graph records "needs", not "is."** `wp-block-editor` declares `wp-commands`; so does Gutenberg's Connectors bootstrap; so does a genuine palette extension — all three because their UI needs the commands *store*. Nothing about the dependency separates the palette from something merely using it, and both regressions in this area came from pretending otherwise.
+
+Conviction is therefore fenced by **structural** exclusions, never by inference about intent, and each says something about what trimming could possibly save:
+
+- **Core's own packages** (`/wp-includes/js/dist/`) are never convicted, and the walk will not travel *through* one to reach a root. They are libraries `WP_Dependencies` already knows how to include or omit, and the palette is a feature *of* the editor, so the dependency there runs backwards. Without this, a plugin's block script is convicted by way of `wp-block-editor` — Contact Form 7's was the real case.
+- **A handle with no `src`** is never convicted. There is no file to stop downloading, so the saving is zero, while dropping it discards its inline payload. Gutenberg's Connectors screen registers exactly such a handle and hangs its whole app bootstrap on it; convicting it rendered a blank page for a saving of nothing.
+
+Neither rule names a plugin or reads a handle's name, so a site with a completely different plugin set gets the same treatment, derived from the graph in front of it.
+
+A residue remains: a plugin bundle with a real `src` that depends on the palette *and* paints part of its own screen would still be convicted. This filter is the escape hatch for it — a site knows its own handles, and can name the exception the framework has no way to infer.
 
 This is a family trim for the same reason the admin-bar trim above is: dropping the roots alone saves nothing while a single dependent survives, because `WP_Dependencies::all_deps()` pulls the whole chain back in on that dependent's behalf. Measured with only Core's enqueue deferred, a Settings window still pulled 14.28 MB of the original 14.49 MB — Astra's `command-palette.js` and WooCommerce's `command-palette.js` / `command-palette-analytics.js` each declare `wp-commands` and were still queued.
 
@@ -2763,6 +2836,8 @@ The bin registers **no desktop icon**, so it lands on the dock and nowhere else.
 ### `openstation_recycle_bin_template_html` — Experimental (filter)
 
 The full template body before it's emitted into the native-window template element. Keep the `data-os-recycle-bin-*` hooks intact so the JS bundle can find its mount points.
+
+Some are visibility hooks rather than mount points: while the bin is empty the JS hides `[data-os-recycle-bin-toolbar]` and the `<os-table>`, and shows `[data-os-recycle-bin-empty-state]`. Put added toolbar controls inside the toolbar element or they stay visible over an empty bin. A filter or search that matches nothing keeps the toolbar and shows the table's own `empty` text instead; so does a failed load, which swaps that text for a retry message.
 
 ### `openstation_recycle_bin_empty_chunk_size` — Experimental (filter)
 
@@ -3921,11 +3996,13 @@ array(
 
 ## Corkboard
 
-An interactive PixiJS map of post links — every public post type participates as a node; internal links, terms, authors, and comments form the edges. Registers a native window (`desktop-mode-content-graph`) plus a desktop icon on `init` priority 20. The filterable surface mirrors WP Explorer’s module shape.
+An interactive PixiJS map of post links — every public post type participates as a node, and a **thread** is drawn between two nodes when one post's content links to the other. Terms, authors, comments, media and revisions are not threads: they fan out as satellites around the focused post, and terms, authors and dates double as the Group by facets that cluster the board. Registers a native window (`desktop-mode-content-graph`) plus a desktop icon on `init` priority 20. The filterable surface mirrors WP Explorer’s module shape.
 
 The window and icon are titled **Corkboard** — a thing you can have on a desk, rather than the name of the data structure behind it. The module directory, window id, REST routes, and every hook below keep the `content_graph` slug.
 
 Nodes are drawn as **discs coloured by post type**, using the same palette the relationship satellites use so a focused post and the bubbles fanned around it read as one system. The original **pin** look — the post type's Dashicon glyph as the node body — is one row away in the window's ⋯ menu ("Show pins"), and the choice persists in `localStorage` under `desktop-mode/corkboard-node-style`. Either way the focused node reveals its glyph, so focus never costs the user the type information. The row is an ordinary checkbox registered through the public [`registerWindowAction`](./javascript-reference.md#wposregisterwindowaction--experimental) surface — see [`examples/window-action.md`](./examples/window-action.md) to add your own.
+
+A sparse board explains itself. Small boards (up to twelve nodes) are laid out deterministically around the centre of the stage and settled before the first paint, so a site with two posts opens onto two nodes side by side rather than two dots drifting off under the dock. A board with nodes but no thread between any of them carries a note saying what a thread is and where the other relationships live (hidden while a grouping is active, when the cluster labels need the space); an empty board says whether the site has nothing to pin yet, the toolbar has filtered everything out, or every type is switched off. The full-canvas loading wash paints only for a graph fetch that runs past 400 ms; shorter waits show as the toolbar's status line, and the window shell's own loader covers just the cold bundle + renderer start-up. The `/nodes` route tells an omitted `types` query (every registered type) apart from an explicitly empty one (no types); the shell sends the latter when every chip is off.
 
 ### `openstation_content_graph_user_can_use` — Experimental (filter)
 

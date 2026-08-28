@@ -17,6 +17,7 @@
 
 import { __ } from '../i18n';
 import { registerOpener } from './openers';
+import { ensureDeferredStyle } from '../deferred-styles';
 import type { DesktopFile } from './file';
 import { openAgentChatWindow } from '../agents-dispatch';
 import { mountFilesLayer, orderForFolder } from './layer';
@@ -245,6 +246,17 @@ export function registerBuiltInFileOpeners(): void {
 					render: ( body: HTMLElement ) => {
 						body.replaceChildren();
 						body.classList.add( 'desktop-mode-folder-window' );
+
+						// The preview pane paints with WP Explorer's
+						// stylesheet (`os-my-wordpress__*` classes), and
+						// this window does not declare it — a native
+						// window opened straight from JS carries no
+						// companion styles. Until WP Explorer had been
+						// opened once in the session, that sheet was not
+						// in the tab and the pane rendered unstyled.
+						// Idempotent, and it fetches nothing once the
+						// sheet is present.
+						ensureDeferredStyle( 'desktop-mode-my-wordpress' );
 
 						// Route stack — breadcrumb history within
 						// this single window. Opening a sub-folder

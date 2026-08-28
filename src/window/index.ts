@@ -163,6 +163,18 @@ function speculateTabDocument( rawUrl: string ): void {
 	}
 }
 
+/**
+ * How long the pointer must rest on a submenu tab before its document
+ * is speculated.
+ *
+ * `pointerover` fires on every crossing, so without a dwell a pointer
+ * sweeping across a strip of tabs on its way somewhere else asked for
+ * every one — and each ask holds a fully rendered admin page for 30 s.
+ * Intent looks like stopping. Short enough that a deliberate hover
+ * still buys most of the fetch before the click lands.
+ */
+const TAB_SPECULATE_DWELL_MS = 120;
+
 /** Animation mode accepted by `Window.requestAttention()`. */
 export type WindowAttentionMode = 'pulse' | 'shake' | 'bounce' | null;
 
@@ -258,6 +270,18 @@ export class Window {
 	 * @internal
 	 */
 	public _activitySettleTimer: number | null = null;
+
+	/**
+	 * Where a submitted form has got to. `settled` is a state rather
+	 * than a cleared flag because the answering document reports from
+	 * its head, and its `os-ready` follows a beat later with a reset
+	 * that must not wipe the outcome just settled.
+	 *
+	 * @internal
+	 */
+	public _navigationActivity: 'none' | 'pending' | 'settled' = 'none';
+	/** @internal */
+	public _navigationActivityTimer: number | null = null;
 	/** @internal */
 	public _isDragging = false;
 	/** @internal */
@@ -590,6 +614,9 @@ export class Window {
 	 * @internal
 	 */
 	public _tabOverflowTeardown: ( () => void ) | null = null;
+
+	/** Pending submenu-tab speculation, while the pointer rests. */
+	public _tabSpeculateTimer: number | null = null;
 
 	constructor( config: WindowConfig ) {
 		this.id = config.id;
@@ -1311,8 +1338,35 @@ export class Window {
 					'.os-window__tab[data-url]',
 				) as HTMLElement | null;
 				const href = tab?.dataset.url;
-				if ( href ) {
+				if ( ! href ) {
+					return;
+				}
+				// The tab already on screen is not a prediction. It was
+				// speculated like any other, and the held copy then
+				// answered the next navigation TO it — which is how a
+				// list the user had just acted on could come back
+				// stale. There is nothing to warm here: the document is
+				// already in the iframe.
+				if ( tab?.classList.contains( 'is-active' ) ) {
+					return;
+				}
+				// Require a dwell. `pointerover` fires on every crossing
+				// — sweeping the pointer across a strip of tabs on the
+				// way somewhere else used to ask for every one of them,
+				// and each ask holds a rendered admin page for 30 s.
+				// Intent looks like stopping.
+				if ( this._tabSpeculateTimer ) {
+					window.clearTimeout( this._tabSpeculateTimer );
+				}
+				this._tabSpeculateTimer = window.setTimeout( () => {
+					this._tabSpeculateTimer = null;
 					speculateTabDocument( href );
+				}, TAB_SPECULATE_DWELL_MS );
+			} );
+			tabs.addEventListener( 'pointerleave', () => {
+				if ( this._tabSpeculateTimer ) {
+					window.clearTimeout( this._tabSpeculateTimer );
+					this._tabSpeculateTimer = null;
 				}
 			} );
 			// Paint the edge fades only where scrolling would
@@ -1691,6 +1745,11 @@ export class Window {
 		if ( ! parent ) {
 			return false;
 		}
+		// Half the desktop area, full height — the whole area, dock
+		// band included. Snapping is an explicit ask for the edge, and
+		// the band under the dock is the user's to use on purpose; only
+		// DEFAULT placement (open, restore, cascade, tile) stays out of
+		// it. See `workAreaRectOf` in `src/work-area`.
 		const halfW = Math.floor( parent.clientWidth / 2 );
 		const height = parent.clientHeight;
 		this.element.classList.remove(
@@ -1946,6 +2005,11 @@ export class Window {
 			'os-window--snapped-right',
 		);
 		this.element.classList.add( 'os-window--maximized' );
+		// The whole desktop area, dock band included. Maximizing is an
+		// explicit ask for everything, and a dock the user wants out of
+		// the way of a maximized window is what the `dynamic` dock
+		// behavior is for. Only DEFAULT placement stays clear of the
+		// dock (see `workAreaRectOf` in `src/work-area`).
 		this.element.style.left = '0px';
 		this.element.style.top = '0px';
 		this.element.style.width = `${ parent.clientWidth }px`;
@@ -3053,6 +3117,71 @@ export class Window {
 	}
 
 	/**
+	 * How long a submit has to produce a document before the ring
+	 * gives up: `wp_die()` output runs no admin hooks, so nothing on
+	 * it ever reports back.
+	 *
+	 * @internal
+	 */
+	public static readonly NAVIGATION_ACTIVITY_TIMEOUT_MS = 30000;
+
+	/**
+	 * Note that the iframe submitted a form — the one save the ring
+	 * cannot see for itself, a submit being a navigation rather than
+	 * a `fetch`. The outgoing document reports the start; the document
+	 * that answers it is the end.
+	 *
+	 * @internal
+	 */
+	public _noteNavigationActivity(): void {
+		this._navigationActivity = 'pending';
+		if ( this._navigationActivityTimer !== null ) {
+			window.clearTimeout( this._navigationActivityTimer );
+		}
+		this._navigationActivityTimer = window.setTimeout( () => {
+			this._navigationActivityTimer = null;
+			this._navigationActivity = 'none';
+			this._resetActivity();
+		}, Window.NAVIGATION_ACTIVITY_TIMEOUT_MS ) as unknown as number;
+	}
+
+	/**
+	 * Settle a waiting submit, always as `saved` — there is no
+	 * response object on this side to read a status off, and a
+	 * validation failure comes back as a good 200 the user is reading.
+	 *
+	 * Pass `final` from the answering document's `os-ready`, which
+	 * closes the book and doubles as the fallback when no head report
+	 * arrived. Returns whether the ring is carrying a submit's
+	 * outcome, so that caller knows not to reset it away.
+	 *
+	 * @internal
+	 */
+	public _settleNavigationActivity( final = false ): boolean {
+		const carrying = this._navigationActivity !== 'none';
+		if ( this._navigationActivity === 'pending' ) {
+			this._navigationActivity = 'settled';
+			if ( this._navigationActivityTimer !== null ) {
+				window.clearTimeout( this._navigationActivityTimer );
+				this._navigationActivityTimer = null;
+			}
+			// Straight to the outcome, with none of the minimum-blink
+			// hold {@link MIN_SAVING_DISPLAY_MS} gives a fetch: that
+			// floor stands in for feedback a 50ms request wouldn't
+			// otherwise give, and a whole document arriving and
+			// painting IS that feedback. Holding past it puts "still
+			// saving" in the title bar of a page reading "Settings
+			// saved."
+			this._resetActivity();
+			this._finalizeActivitySettle( true );
+		}
+		if ( final ) {
+			this._navigationActivity = 'none';
+		}
+		return carrying;
+	}
+
+	/**
 	 * Track a Promise's lifecycle on this window's activity indicator.
 	 * The dot pulses while the Promise is in flight; on resolve it
 	 * settles to `saved` (green flash); on reject it shows `failed`
@@ -3564,6 +3693,10 @@ export class Window {
 			window.clearTimeout( this._activitySettleTimer );
 			this._activitySettleTimer = null;
 		}
+		if ( this._navigationActivityTimer !== null ) {
+			window.clearTimeout( this._navigationActivityTimer );
+			this._navigationActivityTimer = null;
+		}
 
 		// Drop the title-bar-button subscription so a closed window
 		// stops repainting on registry changes.
@@ -3638,6 +3771,10 @@ export class Window {
 		// Same rationale for the tab strip's overflow watcher: its
 		// observers would otherwise keep measuring a strip that is
 		// animating out of the document.
+		if ( this._tabSpeculateTimer ) {
+			window.clearTimeout( this._tabSpeculateTimer );
+			this._tabSpeculateTimer = null;
+		}
 		this._tabOverflowTeardown?.();
 		this._tabOverflowTeardown = null;
 

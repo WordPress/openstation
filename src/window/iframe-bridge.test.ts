@@ -51,6 +51,8 @@ function mockWindow( overrides: Partial< Window > = {} ): Window {
 		_markActivityStart: vi.fn(),
 		_markActivitySettled: vi.fn(),
 		_resetActivity: vi.fn(),
+		_noteNavigationActivity: vi.fn(),
+		_settleNavigationActivity: vi.fn( () => false ),
 		...overrides,
 	} as unknown as Window;
 }
@@ -114,6 +116,32 @@ describe( 'iframe-bridge: os-ready', () => {
 		postToWindow( win, { type: 'os-ready' } );
 		expect( win._resetActivity ).toHaveBeenCalled();
 	} );
+
+	test( 'a document that answers a form submit settles it instead', () => {
+		// The submit's own outcome is on the ring — resetting here
+		// would throw away the thing the ring exists to show.
+		const win = mockWindow( {
+			_settleNavigationActivity: vi.fn( () => true ),
+		} as unknown as Partial< Window > );
+
+		postToWindow( win, { type: 'os-ready' } );
+
+		expect( win._settleNavigationActivity ).toHaveBeenCalledWith( true );
+		expect( win._resetActivity ).not.toHaveBeenCalled();
+	} );
+
+	test( 'the head report settles it earlier, and touches nothing else', () => {
+		// Every navigation posts one, submit or not, so a window with
+		// nothing waiting comes away untouched — and it is not the
+		// closing report, which stays `os-ready`'s job.
+		const win = mockWindow();
+
+		postToWindow( win, { type: 'os-iframe-navigated' } );
+
+		expect( win._settleNavigationActivity ).toHaveBeenCalledWith();
+		expect( win._resetActivity ).not.toHaveBeenCalled();
+		expect( win._markActivityStart ).not.toHaveBeenCalled();
+	} );
 } );
 
 describe( 'iframe-bridge: os-iframe-activity', () => {
@@ -124,6 +152,22 @@ describe( 'iframe-bridge: os-iframe-activity', () => {
 		const win = mockWindow();
 		postToWindow( win, { type: 'os-iframe-activity', phase: 'start' } );
 		expect( win._markActivityStart ).toHaveBeenCalledTimes( 1 );
+	} );
+
+	test( 'only a navigation start waits on the next document', () => {
+		// An ordinary start has an `end` of its own coming.
+		const plain = mockWindow();
+		postToWindow( plain, { type: 'os-iframe-activity', phase: 'start' } );
+		expect( plain._noteNavigationActivity ).not.toHaveBeenCalled();
+
+		const nav = mockWindow();
+		postToWindow( nav, {
+			type: 'os-iframe-activity',
+			phase: 'start',
+			navigation: true,
+		} );
+		expect( nav._markActivityStart ).toHaveBeenCalledTimes( 1 );
+		expect( nav._noteNavigationActivity ).toHaveBeenCalledTimes( 1 );
 	} );
 
 	test( 'a 2xx end settles as success', () => {

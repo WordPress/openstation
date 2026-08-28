@@ -717,6 +717,27 @@ function openstation_enqueue_assets() {
 				// Extensionless retry target for hosts whose nginx 404s
 				// virtual .js paths before WordPress runs (WordPress.com).
 				'swFallbackUrl'  => esc_url_raw( openstation_pwa_sw_fallback_url() ),
+				// The worker's per-user flags, computed HERE rather than
+				// baked into the served `sw.js`.
+				//
+				// A service worker is origin-wide but these are per-user
+				// preferences, so putting them in the script bytes made
+				// the body differ between an anonymous and a logged-in
+				// request — and any in-scope logged-out navigation then
+				// installed a "new" worker and tripped the shell's
+				// `controllerchange` reload. The bytes are identical for
+				// everyone now; the shell posts these to the worker at
+				// boot.
+				//
+				// Computed server-side, not read from the settings
+				// snapshot client-side, because
+				// `openstation_pwa_admin_asset_cache_enabled()` applies
+				// the `openstation_pwa_admin_asset_cache` filter — an
+				// operator's site-wide veto has to keep working.
+				'swConfig'       => array(
+					'adminAssetCache' => (bool) openstation_pwa_admin_asset_cache_enabled(),
+					'windowPrewarm'   => ! empty( openstation_get_os_settings( get_current_user_id() )['windowPrewarmEnabled'] ),
+				),
 				'stateUrl'       => esc_url_raw( rest_url( 'desktop-mode/v1/pwa-state' ) ),
 				'state'          => openstation_pwa_get_user_state( get_current_user_id() ),
 				// Mirrors the manifest's `name` field — used by the
@@ -747,11 +768,37 @@ function openstation_enqueue_assets() {
 			// `ensureDeferredStyle()` in `src/deferred-styles.ts`.
 			// Same resolved shape a native window's `styleUrl` /
 			// `styleInline` travels in.
+			// Which of the `deferredStyles` entries a game needs.
+			// `launchGame()` injects these before the window paints.
+			'gameStyleHandles'              => function_exists( 'openstation_games_style_handles' )
+				? openstation_games_style_handles()
+				: array(),
 			'deferredStyles'                => openstation_build_deferred_styles(
-				array(
-					'os-settings',
-					'desktop-mode-ai-assistant',
-					'desktop-mode-bug-report',
+				array_merge(
+					array(
+						'os-settings',
+						'desktop-mode-ai-assistant',
+						'desktop-mode-bug-report',
+						// WP Explorer's sheet. It rides that window as a
+						// companion style, but the desktop FOLDER window
+						// paints its preview pane with the same
+						// `os-my-wordpress__*` classes and — being a
+						// native window opened straight from JS — carries
+						// no companion styles of its own. Without this,
+						// the pane rendered unstyled until WP Explorer
+						// had been opened once in the session.
+						'desktop-mode-my-wordpress',
+					),
+					// The Games sheets. They also ride the hub window as
+					// companion styles, but a game is reachable without
+					// the hub — the challenge toast, solo mode, and
+					// `wp.os.games.launch()` all land in `launchGame()`
+					// with no hub window in the tab. Listing them here
+					// costs a URL each in the boot config and no CSS
+					// until `launchGame()` asks.
+					function_exists( 'openstation_games_style_handles' )
+						? openstation_games_style_handles()
+						: array()
 				)
 			),
 		)

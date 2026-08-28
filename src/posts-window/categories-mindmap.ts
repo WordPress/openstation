@@ -26,6 +26,7 @@
 import { __, _n, sprintf } from '../i18n';
 import { joinRestUrl } from '../rest-url';
 import { trackedFetch } from '../tracked-fetch';
+import { workAreaInsetsOf } from '../work-area';
 import { type PostsWindowClient, type TermRow } from './rest';
 
 interface PixiPoint {
@@ -2721,9 +2722,19 @@ export async function mountCategoriesMindmap(
 		const padding = opts.padding ?? 90;
 		const animate = opts.animate ?? false;
 		const r = stage.getBoundingClientRect();
-		if ( nodes.size === 0 || r.width === 0 || r.height === 0 ) {
-			const cx = r.width / 2;
-			const cy = r.height / 2;
+		// Fit into the REACHABLE part of the stage: a maximized window's
+		// stage runs under the dock pill, and a tree centred on the
+		// whole box parks its bottom row there. The insets are the
+		// stage's own px outside the desktop's work area — zero unless
+		// the window hangs over the dock.
+		const inset = workAreaInsetsOf( stage );
+		const viewX = inset.left;
+		const viewY = inset.top;
+		const viewW = Math.max( 0, r.width - inset.left - inset.right );
+		const viewH = Math.max( 0, r.height - inset.top - inset.bottom );
+		if ( nodes.size === 0 || viewW === 0 || viewH === 0 ) {
+			const cx = viewX + viewW / 2;
+			const cy = viewY + viewH / 2;
 			targetScale = 1;
 			targetWorldX = cx;
 			targetWorldY = cy;
@@ -2751,8 +2762,8 @@ export async function mountCategoriesMindmap(
 		}
 		const w = Math.max( 1, maxX - minX );
 		const h = Math.max( 1, maxY - minY );
-		const sx = ( r.width - padding * 2 ) / w;
-		const sy = ( r.height - padding * 2 ) / h;
+		const sx = ( viewW - padding * 2 ) / w;
+		const sy = ( viewH - padding * 2 ) / h;
 		// Pick the smaller of the two so the bbox fully fits both
 		// axes. Cap zoom-IN at 1.5x (tiny graphs shouldn't balloon),
 		// but allow zoom-OUT all the way to 0.2x so a 200-node tree
@@ -2767,8 +2778,8 @@ export async function mountCategoriesMindmap(
 		// nothing visibly moves; when `animate` is true, only the
 		// targets change and the per-frame ease in tick() interpolates
 		// the world toward them over ~5-6 frames (~80-100ms).
-		const newWorldX = r.width / 2 - cx * scale;
-		const newWorldY = r.height / 2 - cy * scale;
+		const newWorldX = viewX + viewW / 2 - cx * scale;
+		const newWorldY = viewY + viewH / 2 - cy * scale;
 		targetScale = scale;
 		targetWorldX = newWorldX;
 		targetWorldY = newWorldY;

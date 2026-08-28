@@ -17,16 +17,22 @@
  *      the note itself and announces it; the sentinel stashes the
  *      announcement, loads, and re-dispatches so the layer's own
  *      listener pins it.
- *   4. Any internal drag starting — a post tile dragged toward the
- *      wallpaper can become a post→note conversion, and the drop
- *      target must exist by the time it lands. Drags give the fetch
- *      hundreds of ms of headroom.
+ *   4. Any drag starting — a post tile dragged toward the wallpaper can
+ *      become a post→note conversion, and the drop target must exist by
+ *      the time it lands. Drags give the fetch hundreds of ms of
+ *      headroom. BOTH kinds count: native `dragstart` for a file coming
+ *      in from the OS, and `os.drag.start` for anything starting inside
+ *      the shell. The in-shell ones are pointer-driven through
+ *      `DragManager` and never create a native drag, so listening for
+ *      `dragstart` alone missed every Note Pad tear-off and every tile.
  */
 
 import { addFilter } from '../hooks';
 import { __ } from '../i18n';
 import { loadVendorScript } from '../wallpapers/vendor-loader';
-import { NOTE_CREATED_EVENT } from './types';
+import { DRAG_EVENTS } from '../drag/types';
+import { heartbeat } from '../heartbeat';
+import { NOTE_CREATED_EVENT, NOTES_HEARTBEAT_RESPONSE_FIELD } from './types';
 import type { NotesLayer } from './layer';
 import type { BootNotesOptions } from './index';
 
@@ -43,6 +49,8 @@ export function installNotesSentinel( args: SentinelArgs ): () => void {
 	}
 	let loading: Promise< NotesLayer | null > | null = null;
 	const stashedCreations: Event[] = [];
+	/** Unsubscribe for the no-notes Heartbeat watcher, while it is armed. */
+	let firstNoteWatcher: ( () => void ) | null = null;
 
 	const ensure = (): Promise< NotesLayer | null > => {
 		if ( ! loading ) {
@@ -65,6 +73,7 @@ export function installNotesSentinel( args: SentinelArgs ): () => void {
 						onNoteCreated,
 					);
 					window.removeEventListener( 'dragstart', onDragStart, true );
+					document.removeEventListener( DRAG_EVENTS.START, onDragStart );
 					for ( const ev of stashedCreations.splice( 0 ) ) {
 						document.dispatchEvent( ev );
 					}
@@ -98,7 +107,17 @@ export function installNotesSentinel( args: SentinelArgs ): () => void {
 	const onDragStart = (): void => {
 		void ensure();
 	};
+	// Native `dragstart` covers a file dragged in from the OS. It does
+	// NOT cover any drag that starts inside the shell: the Note Pad
+	// tear-off and every desktop tile are pointer-driven through
+	// `DragManager`, which never creates a native drag and instead
+	// dispatches `os.drag.start` on `document`. A user with no notes
+	// yet — so the bundle has not been loaded by `os-note-created`
+	// either — could therefore tear a draft off the pad and have
+	// nothing at all happen, because the drop handlers live in the
+	// bundle this listener exists to fetch.
 	window.addEventListener( 'dragstart', onDragStart, true );
+	document.addEventListener( DRAG_EVENTS.START, onDragStart );
 
 	// Same item id the bundle's own `installNotesWallpaperMenu()`
 	// registers — it yields when the id is already present, so this
@@ -150,6 +169,34 @@ export function installNotesSentinel( args: SentinelArgs ): () => void {
 				? requestIdleCallback
 				: ( cb: () => void ) => window.setTimeout( cb, 200 );
 		idle( () => void ensure() );
+	} else {
+		// A desktop with no notes yet still has to notice the site's
+		// FIRST one.
+		//
+		// `hasNotes: false` skipped the bundle entirely, and the
+		// Heartbeat subscription lives inside it — so a public note
+		// someone else pinned during the session only appeared after a
+		// reload. The pre-diet layer delivered it within one tick for
+		// every user, and losing that is not the trade-off the diet was
+		// meant to make.
+		//
+		// Subscribing from the sentinel costs one field on ticks that
+		// are already happening. The moment a payload carries anything,
+		// the bundle loads and takes over: `startNotesHeartbeat()`
+		// registers its own subscriber on the same field, and both are
+		// called with the same value, so nothing is missed in the
+		// handover. This listener then stands down.
+		firstNoteWatcher = heartbeat.subscribe< unknown >(
+			NOTES_HEARTBEAT_RESPONSE_FIELD,
+			( payload ) => {
+				if ( ! payload ) {
+					return;
+				}
+				firstNoteWatcher?.();
+				firstNoteWatcher = null;
+				void ensure();
+			},
+		);
 	}
 
 	// Uninstall for callers (and tests) tearing down an un-booted
@@ -157,5 +204,8 @@ export function installNotesSentinel( args: SentinelArgs ): () => void {
 	return () => {
 		document.removeEventListener( NOTE_CREATED_EVENT, onNoteCreated );
 		window.removeEventListener( 'dragstart', onDragStart, true );
+		document.removeEventListener( DRAG_EVENTS.START, onDragStart );
+		firstNoteWatcher?.();
+		firstNoteWatcher = null;
 	};
 }

@@ -30,7 +30,13 @@ import {
 	openWidgetPicker,
 	refreshWidgetPicker,
 } from './picker';
-import { applyGeometry, buildFrame, type Frame } from './frame';
+import {
+	applyGeometry,
+	buildFrame,
+	clampGeometryToParent,
+	type Frame,
+} from './frame';
+import { subscribeWorkArea } from '../work-area';
 import {
 	loadDockedHeights,
 	loadEnabledIds,
@@ -40,6 +46,7 @@ import {
 	saveEnabledIds,
 	saveGeometry,
 } from './state';
+import { showInlineLoader } from '../ui/inline-loader';
 import { createWidgetStorage } from './storage';
 import type { WidgetGeometry, WidgetTeardown } from './types';
 
@@ -397,11 +404,34 @@ export class WidgetLayer {
 			return;
 		}
 		if ( isThenable( result ) ) {
-			result.then( onResolve, ( err ) => {
-				if ( this.mounted.get( id )?.generation === gen ) {
-					this.handleMountFailure( id, err );
-				}
+			// A server-registered widget's `mount` awaits its own bundle
+			// (`ensureScript` in `widgets/server-sync.ts`), so between
+			// here and `onResolve` the card is empty — indistinguishable
+			// from a widget that mounted and drew nothing. The loader
+			// waits 120 ms first, so a widget whose script is already in
+			// the tab (every widget after the first, and every widget on
+			// a warm boot) never flashes one.
+			const loader = showInlineLoader( frame.body, {
+				label: __( 'Loading…' ),
 			} );
+			result.then(
+				( teardown ) => {
+					loader.done();
+					onResolve( teardown );
+				},
+				( err ) => {
+					// `handleMountFailure` removes the card outright, so
+					// the loader usually goes with it. Clear it anyway
+					// for the stale-generation path below, where the
+					// failure is ignored and the frame survives — a
+					// spinner left running on a card nobody is loading
+					// into is worse than the empty card was.
+					loader.done();
+					if ( this.mounted.get( id )?.generation === gen ) {
+						this.handleMountFailure( id, err );
+					}
+				},
+			);
 			return;
 		}
 		onResolve( result );
@@ -544,11 +574,18 @@ export class WidgetLayer {
 			}
 		}
 
+		// Floating cards were clamped into the work area when they were
+		// placed, and the work area can shrink under them afterwards —
+		// the dock moving from a side edge to the bottom claims the
+		// floor a card was parked on. Pull them back in when it does.
+		const offWorkArea = subscribeWorkArea( () => this.reclampFloating() );
+
 		this.unwatchPointer = () => {
 			if ( frame ) {
 				cancelAnimationFrame( frame );
 				frame = 0;
 			}
+			offWorkArea();
 			observer?.disconnect();
 			document.removeEventListener( 'pointermove', onMove );
 			document.documentElement.removeEventListener(
@@ -633,6 +670,30 @@ export class WidgetLayer {
 		// insertion order — "most recently added / redocked is last").
 		this.listEl.appendChild( card );
 		this.paintEmptyState();
+	}
+
+	/**
+	 * Pull every floating card back inside the work area after it
+	 * changed. Only the position moves, and only when it has to;
+	 * a card that still fits is not touched, and a card that moved
+	 * is persisted so the next load starts from the corrected spot.
+	 */
+	private reclampFloating(): void {
+		for ( const [ id, record ] of this.mounted ) {
+			if ( ! record.floating ) {
+				continue;
+			}
+			const current = this.geometry[ id ];
+			if ( ! current ) {
+				continue;
+			}
+			const next = clampGeometryToParent( current, this.floatingHost );
+			if ( next.x === current.x && next.y === current.y ) {
+				continue;
+			}
+			applyGeometry( record.frame.card, next );
+			this.persistGeometry( id, next );
+		}
 	}
 
 	private persistGeometry( id: string, geometry: WidgetGeometry ): void {

@@ -325,6 +325,32 @@ document.addEventListener( 'os-presence-changed', ( e ) => {
 
 ---
 
+### `os-work-area-changed` — Experimental
+
+Fires after the [work area](#workarea--experimental) — the part of the desktop area no shell chrome floats over — actually changed: the dock moved to another edge, grew, collapsed for the overview, the browser resized, the admin bar mode flipped. Never fires on a re-measure that lands on the same numbers, so a listener can repaint on every event without debouncing.
+
+```javascript
+document.addEventListener( 'os-work-area-changed', ( e ) => {
+    const { rect } = e.detail;
+    myOverlay.style.maxHeight = `${ rect.height }px`;
+} );
+```
+
+**`detail` shape** — a `WorkAreaSnapshot`, the same object `wp.os.workArea.get()` returns:
+
+```typescript
+{
+    insets:   { top: number, right: number, bottom: number, left: number }, // px of the area each edge's chrome claims
+    rect:     { x: number, y: number, width: number, height: number },      // desktop-area-local
+    viewport: { x: number, y: number, width: number, height: number },      // viewport coordinates
+    area:     { width: number, height: number },                            // the whole desktop area
+}
+```
+
+The same detail reaches the hook bus as the `os.work-area.changed` action.
+
+---
+
 ### `os-selection-changed` — Experimental
 
 Fires whenever the selection changes on any tile canvas in the shell — the wallpaper, a folder window, or a list inside My WordPress. Every surface routes through the same controller, so one listener covers all of them.
@@ -779,6 +805,7 @@ window.wp.os = {
 
     // Framework features
     presence:          PresenceApi,
+    workArea:          WorkAreaApi,                            // the reachable desktop rect (Experimental)
     ai:                AiApi,
     devtools:          DevtoolsApi,
 
@@ -1048,7 +1075,7 @@ window.wp.hooks.addFilter(
 
 A small pill fixed to the **top centre** of the shell, `#os-notch`. It is the site assistant's front door — click it, or press `⌘/Ctrl + K` — and it is where the shell says short things: `say( text )` expands it with a message and collapses it again after a couple of seconds.
 
-**It never reserves work area, and that is the contract.** A full-width bar that permanently stole height is what OpenStation removed; an element that reserved space would be the same mistake in a nicer shape, and it would make the notch a second hardcoded claimant on a work-area rectangle that already has several disagreeing answers. So it is positioned against the shell rather than the viewport, which places it correctly whichever admin-bar mode is on, and it stacks *under* the window layer rather than pushing windows down: a window that reaches the top edge covers the pill, because the strip the notch hangs over is also where a title bar lives and the shell has no business talking over the thing you are working in. Top-*centre* is chosen rather than incidental: the desktop icon grid fills the leading column top-down, so the centre is the one part of the top edge it never claims.
+**It never reserves work area, and that is the contract.** A full-width bar that permanently stole height is what OpenStation removed; an element that reserved space would be the same mistake in a nicer shape, and it would make the notch a second claimant on the [work area](#workarea--experimental), which stays useful only while few things carve it. So it is positioned against the shell rather than the viewport, which places it correctly whichever admin-bar mode is on, and it stacks *under* the window layer rather than pushing windows down: a window that reaches the top edge covers the pill, because the strip the notch hangs over is also where a title bar lives and the shell has no business talking over the thing you are working in. Top-*centre* is chosen rather than incidental: the desktop icon grid fills the leading column top-down, so the centre is the one part of the top edge it never claims.
 
 The message region is always in the DOM with `aria-live="polite"` — a live region created at the moment it gains text is announced unreliably — and `say()` replaces rather than queues, because two things happening at once is one situation, not two messages.
 
@@ -1505,7 +1532,7 @@ Drop-in wrapper around the global `fetch()` that drives the target window's **ac
 >
 > Restyling is five themeable tokens: `--os-titlebar-activity-idle-color` (at rest), `--os-titlebar-activity-color` (in flight), `--os-titlebar-activity-saved-color`, `--os-titlebar-activity-failed-color`, and `--os-titlebar-activity-size`.
 >
-> **Iframe windows report too.** See [`os-iframe-activity`](#os-iframe-activity--experimental) — the chromeless bridge brackets every `fetch` and `XMLHttpRequest` inside the iframe, so an admin page's own jQuery calls move the ring without knowing the shell exists.
+> **Iframe windows report too.** See [`os-iframe-activity`](#os-iframe-activity--experimental) — the chromeless bridge brackets every `fetch`, `XMLHttpRequest` and classic form submit inside the iframe, so an admin page's own jQuery calls and its Save Changes button move the ring without knowing the shell exists.
 
 ```js
 // In any window's render callback / event handler:
@@ -1968,6 +1995,44 @@ The server-side `openstation_presence_visible_users` filter gates which users su
 
 ---
 
+### `workArea` — Experimental
+
+The **work area** is the rectangle of the desktop area (`#os-area`) that no shell chrome floats over — the space content may occupy and the user can reach. The bottom dock pill floats over the area's lower band; a window, widget or icon grid that sized itself against the whole area ended up with its last row under the dock, and every surface that guessed at the dock on its own guessed differently. The shell measures it once, from the live dock geometry, and every **default** placement reads it: window open (a registered size taller than the reachable height is fitted), session restore, cascade and tile, child windows, the widget clamp, the icon grid, sticky notes, embed-window restore, and the Fit of the Corkboard, the categories mind map and the tags cloud.
+
+**Explicit actions may cover the dock.** Maximize and snap fill the whole desktop area, dock band included, and a window dragged or resized under the dock stays where the user put it; the band is theirs to use on purpose, and a dock that should get out of a maximized window's way is what the `dynamic` [dock behavior](#getossettings--stable) is for. With that behavior on, the rail folds into a thin indicator line at its edge and claims nothing — the work area is the whole desktop.
+
+```javascript
+// The latest snapshot (a copy).
+const { insets, rect, viewport, area } = wp.os.workArea.get();
+// insets   — { top, right, bottom, left }: px of the area each edge's chrome claims
+// rect     — { x, y, width, height } in desktop-area-local coordinates (a window's x / y space)
+// viewport — the same rectangle in viewport coordinates (clientX / getBoundingClientRect space)
+// area     — { width, height } of the whole desktop area
+
+// The rect derived from an element's LIVE size — what the shell's own
+// paths call. Defaults to the desktop area.
+const r = wp.os.workArea.rectOf();
+
+// How far `el` hangs outside the work area on each edge, in px of its
+// own box. For a surface that frames content inside its own element:
+// subtract these from the box before centring.
+const inset = wp.os.workArea.insetsOf( myCanvasHost );
+
+// React to changes — fires once per actual change, never on a
+// same-numbers re-measure.
+const off = wp.os.workArea.subscribe( ( snapshot ) => relayout( snapshot.rect ) );
+```
+
+**CSS custom properties.** The same numbers are written on `#os-shell` so a stylesheet can reserve the band without JS: `--os-work-area-inset-top`, `--os-work-area-inset-right`, `--os-work-area-inset-bottom`, `--os-work-area-inset-left` (px) and `--os-work-area-width`, `--os-work-area-height`. Give the `bottom` inset an `80px` fallback (the bottom pill at its default size, the placement almost every user has) and the others `0px`; those apply until the shell has measured once. `.os-area`'s own padding, the `.os-icons` grid and the `.os-widgets` column read them the same way.
+
+**What claims an inset.** Only chrome that floats **over** the area: the bottom dock pill, and anything a custom dock-rail renderer floats over it (every `.os-dock` in the shell body is measured; a rail claims the edge it is nearest to). A left or right dock is a flex sibling of the area, so the area is already narrower and its inset is 0. The admin bar sits above the shell in every mode, so `viewport` is already below it. The notch floats and claims nothing, by contract. There is no API for a plugin to claim a band, on purpose: a work area is only useful while few things carve it.
+
+**Outside the contract.** Body-level popovers — context menus, tooltips, the dock's constellation and peek cards — position against the viewport and may open over the dock; they are transient chrome, not content, and stay that way. The Exposé overview collapses every rail while it is open and lays its grid out against the whole area on purpose.
+
+**Companions:** the [`os-work-area-changed`](#os-work-area-changed--experimental) CustomEvent and the `os.work-area.changed` action carry the same snapshot; the [`os.window.geometry`](#hooks-catalog) filter receives the rect as `workArea` in its context. Recipe: [`docs/examples/work-area.md`](./examples/work-area.md).
+
+---
+
 ### `selection` — Experimental
 
 Multi-selection is framework-level. Every tile canvas in the shell — the wallpaper, folder windows, and each list inside My WordPress — runs the same selection controller, so the gestures are identical everywhere: click replaces, `Ctrl`/`Cmd`+click toggles, `Shift`+click extends from the anchor, a drag on empty space draws a marquee, `Ctrl`/`Cmd`+A selects all, `Escape` clears.
@@ -2407,7 +2472,7 @@ window.openStationGames[ 'my-plugin-puzzle' ] = {
     title:        'Puzzle',
     icon:         'dashicons-screenoptions',
     scoreColumns: [ { key: 'score', label: 'Score', type: 'number' } ],
-    window:       { width: 800, height: 600 },   // hosting-window sizing
+    window:       { width: 800, height: 600 },   // hosting-window sizing — declare it in PHP too
     render( ctx ) {                              // runs once per window open
         // ctx: { windowId, container, config, challenge?, submitScore, close }
         return () => { /* teardown — runs on every close path */ };
@@ -2416,6 +2481,8 @@ window.openStationGames[ 'my-plugin-puzzle' ] = {
 ```
 
 `render` receives a `GameLaunchContext`: `container` (the window body), `config` (the PHP-registered blob), `challenge` (set when the run is an accepted score-to-beat challenge: `{ id, scoreToBeat, scoreMeta, challengerName }`), `submitScore( { score, meta } )` (routes to the leaderboard, or to the challenge-completion endpoint in challenge mode), and `close()`. The framework suspends the wallpaper for the window's lifetime and opens the window as `os-game-<id>` (no dock tile).
+
+**The window opens before your bundle is fetched.** `launch()` calls `registerWindow()` first and loads the game script *inside* the render callback, so the window manager's loading overlay covers the download instead of the click appearing to do nothing. Two consequences for a game author: the `window` block should also be declared in `openstation_register_game()` (the size is needed a round trip before this def — see [hooks-reference](hooks-reference.md#openstation_register_game-id-args--experimental-php-function)), and a `render` that throws surfaces as a failed window open rather than a rejected `launch()`.
 
 **Score announcements.** Once a `submitScore()` write resolves, the launcher publishes `os/game-score-recorded` on the activity bus with `{ game, score, meta, windowId, challengeId? }` (both paths publish; `challengeId` only on challenge completion). Games play in their own window, so this is how leaderboards elsewhere in the shell find out they went stale: the hub's scoreboard subscribes and reloads the page the viewer is on. Subscribe to it if your plugin paints anything derived from scores. A failed write publishes nothing.
 
@@ -3633,7 +3700,7 @@ Register a tab in the OpenStation Preferences window. The tab is appended (or so
 | Field | Type | Notes |
 |---|---|---|
 | `isAdmin` | `boolean` | `true` when current user has `manage_options`. |
-| `getOsSettings()` | `function` | Snapshot of the persisted OpenStation Preferences state — `{ wallpaper, accent, dockSize, windowRadius, unfocusEffect, ai: { enabled } }` plus `adminBarMode` (`'static'` \| `'dynamic'` \| `'hidden'` — how the WordPress admin bar presents above the shell; emitted as a `os-admin-bar-<mode>` body class), `desktopLayout`, `dockPlacement` (`'bottom'` \| `'left'` \| `'right'` — which edge the dock sits on; read by the one-rail layouts, ignored by `classic`), `dockRailRenderer`, `desktopTheme`, `appliedThemeRecommendations`, the native-window opt-ins (`nativePostsEnabled`, `nativePostsHiddenColumns`, `nativePagesEnabled`, `nativeUsersEnabled`, `nativePluginsEnabled`, `nativeCommentsEnabled`, `stationHomeEnabled` — Station Home as the Dashboard, default off), `adminAssetCacheEnabled` (the service worker's shared admin-asset cache, Experimental, default off — informational: the cache is enforced inside the SW, and changes apply via a SW update on the next reload), `windowPrewarmEnabled` (hover-intent window prewarming, Experimental, default off — the dock reads it live at hover time and calls `windowManager.prewarm()`), `developerModeEnabled`, `foldersSharingEnabled`, `navPlacement`, `navOrder`, and `dockPromotedPositions` — see `OsSettingsSnapshot` in `src/settings/registry.ts` for the authoritative shape. `navPlacement` maps a nav-item id to `'rail' | 'desktop' | 'both' | 'hidden'` and `navOrder` is a flat ordering hint across every rail zone; both replaced the pre-navigation `itemVisibility` / `dockOrder` (see [migration-navigation.md](./migration-navigation.md)). `unfocusEffect` is the active unfocused-window effect id (`'darken'` default, `'none'` disables). `windowReveal` is the active window-reveal id — the clip-path transition that uncovers a window's content when it finishes loading (`'none'` by default; reveals are opt-in) — and `windowRevealDuration` is the global speed override in ms (`0`, the default, means each reveal keeps its own timing). `ai.enabled` is the per-user AI assistant toggle (opt-in, default off; enable-able only once a provider is configured in Settings → Connectors). `developerModeEnabled` (default `false`) gates developer-facing surfaces — the Starter Widget in the add-widget picker and the OpenStation Preferences → Components tab's missing-import-warner demo — set from OpenStation Preferences → Features. **Removed:** `ai.apiKey`, `ai.transport`, `ai.provider` and `ai.model` were removed — credentials live in WordPress Core's Settings → Connectors and provider + model selection is delegated to the Core AI Client. Read-only; returns a defensive copy. |
+| `getOsSettings()` | `function` | Snapshot of the persisted OpenStation Preferences state — `{ wallpaper, accent, dockSize, windowRadius, unfocusEffect, ai: { enabled } }` plus `adminBarMode` (`'static'` \| `'dynamic'` \| `'hidden'` — how the WordPress admin bar presents above the shell; emitted as a `os-admin-bar-<mode>` body class), `desktopLayout`, `dockPlacement` (`'bottom'` \| `'left'` \| `'right'` — which edge the dock sits on; read by the one-rail layouts, ignored by `classic`), `dockBehavior` (`'static'` \| `'dynamic'` — the dock always on screen, or folded into a thin indicator line at its edge and morphed back when the pointer reaches that edge; stamped as `data-os-dock-behavior` on the rail; a dynamic rail reserves no [work area](#workarea--experimental)), `sideDockBehavior` (the same choice for the `classic` layout's sidebar, its own rail on its own edge; ignored by the one-rail layouts), `dockRailRenderer`, `desktopTheme`, `appliedThemeRecommendations`, the native-window opt-ins (`nativePostsEnabled`, `nativePostsHiddenColumns`, `nativePagesEnabled`, `nativeUsersEnabled`, `nativePluginsEnabled`, `nativeCommentsEnabled`, `stationHomeEnabled` — Station Home as the Dashboard, default off), `adminAssetCacheEnabled` (the service worker's shared admin-asset cache, Experimental, default off — informational: the cache is enforced inside the SW, and changes apply via a SW update on the next reload), `windowPrewarmEnabled` (hover-intent window prewarming, Experimental, default off — the dock reads it live at hover time and calls `windowManager.prewarm()`), `developerModeEnabled`, `foldersSharingEnabled`, `navPlacement`, `navOrder`, and `dockPromotedPositions` — see `OsSettingsSnapshot` in `src/settings/registry.ts` for the authoritative shape. `navPlacement` maps a nav-item id to `'rail' | 'desktop' | 'both' | 'hidden'` and `navOrder` is a flat ordering hint across every rail zone; both replaced the pre-navigation `itemVisibility` / `dockOrder` (see [migration-navigation.md](./migration-navigation.md)). `unfocusEffect` is the active unfocused-window effect id (`'darken'` default, `'none'` disables). `windowReveal` is the active window-reveal id — the clip-path transition that uncovers a window's content when it finishes loading (`'none'` by default; reveals are opt-in) — and `windowRevealDuration` is the global speed override in ms (`0`, the default, means each reveal keeps its own timing). `ai.enabled` is the per-user AI assistant toggle (opt-in, default off; enable-able only once a provider is configured in Settings → Connectors). `developerModeEnabled` (default `false`) gates developer-facing surfaces — the Starter Widget in the add-widget picker and the OpenStation Preferences → Components tab's missing-import-warner demo — set from OpenStation Preferences → Features. **Removed:** `ai.apiKey`, `ai.transport`, `ai.provider` and `ai.model` were removed — credentials live in WordPress Core's Settings → Connectors and provider + model selection is delegated to the Core AI Client. Read-only; returns a defensive copy. |
 | `subscribeOsSettings( cb )` | `function` | Subscribe to in-panel OpenStation Preferences changes (user toggles a feature in the Features tab, etc.). Returns an unsubscribe function. Fires on local edits only — cross-device changes arrive on the next page load. |
 
 ```javascript
@@ -3868,7 +3935,8 @@ wp.os.updateOsSettings(
 
 - **Whitelist semantics.** Only keys present on the public `OsSettingsSnapshot` shape are honored; unknown (or wrong-typed) keys are silently ignored, so a typo'd field can't bloat the persisted state. Collection fields are sanitized on the way in (`nativePostsHiddenColumns` / `navOrder` entries must be non-empty strings, `navPlacement` values must be one of `'rail' | 'desktop' | 'both' | 'hidden'`, `dockPromotedPositions` values must be finite `{ x, y }` coordinates).
 - **Persistence.** The write runs through the same pipeline as the panel: a `localStorage` cache write plus a debounced REST sync (250 ms window).
-- **Presentation keys apply live.** A patch touching `wallpaper`, `accent`, `dockSize`, `windowRadius`, `adminBarMode`, `desktopLayout`, `dockPlacement`, `dockRailRenderer` or `desktopTheme` also runs the shell's apply pass, so the change is visible immediately rather than on the next page load. `unfocusEffect` repaints too, through the subscriber above rather than the apply pass. `windowReveal` and `windowRevealDuration` reach the shell the same way, and take effect on the next window load. Every other key is state-only.
+- **Presentation keys apply live.** A patch touching `wallpaper`, `accent`, `dockSize`, `windowRadius`, `adminBarMode`, `desktopLayout`, `dockPlacement`, `dockBehavior`, `sideDockBehavior`, `dockRailRenderer` or `desktopTheme` also runs the shell's apply pass, so the change is visible immediately rather than on the next page load. `unfocusEffect` repaints too, through the subscriber above rather than the apply pass. `windowReveal` and `windowRevealDuration` reach the shell the same way, and take effect on the next window load. Every other key is state-only.
+- **The two PWA flags are settable too.** `windowPrewarmEnabled` and `adminAssetCacheEnabled` were previously reachable only from the Preferences UI. Patching `windowPrewarmEnabled` also tells the running service worker, exactly as the toggle does — the worker holds its own copy of the flag, baked in when it installed, so without that message turning it on leaves the worker refusing every speculation and turning it off leaves it speculating. `adminAssetCacheEnabled` needs no equivalent: it reaches the worker inside the served `sw.js` bytes, applying on the next SW update.
 - **Subscribers fire.** Both the top-level `wp.os.subscribeOsSettings( cb )` and every settings tab's `ctx.subscribeOsSettings` see the new snapshot.
 - **Observable save lifecycle.** Each phase fires on `document` as [`os-settings-save-lifecycle`](#os-settings-save-lifecycle--stable) (`'pending'` → `'saving'` → `'saved'` / `'failed'`), same as a built-in tab's save. `<os-save-status auto>` renders it for free.
 - **`opts.windowId`** attributes the in-flight REST sync to a specific window's activity phase (defaults to the OpenStation Preferences window).
@@ -4272,6 +4340,15 @@ Posted once by the chromeless bridge script when its message listeners are attac
 { type: 'os-ready' }
 ```
 
+#### `os-iframe-navigated` — Experimental
+Posted from the **head** of every chromeless document, before the body renders. It says one thing: a navigation landed in this window.
+
+```typescript
+{ type: 'os-iframe-navigated' }
+```
+
+It exists because `os-ready` is too late for one job. The bridge bundle is enqueued on `admin_footer`, so it runs after every other admin script in the document — a second or more after the browser painted the content on a page with a heavy plugin set. Fine for "the bridge is wired up", wrong for "your save went through" (see the form-submit note under [`os-iframe-activity`](#os-iframe-activity--experimental)). The parent ignores it unless the window has a submit waiting.
+
 #### `os-focus-request` — Stable
 Posted by the chromeless bridge on every pointerdown inside the iframe. The parent focuses the window, unless it's currently in the overview grid (where clicks are absorbed by the grid controller).
 
@@ -4326,7 +4403,7 @@ Posted by the chromeless bridge's `fetch` and `XMLHttpRequest` wrappers whenever
 Posted by the same `fetch` / `XMLHttpRequest` wrappers as `os-iframe-network`, but **bracketing** the request rather than only reporting its completion — an indicator that can only be told "it finished" never shows the part the user waits through. This is what makes an iframe window report activity like a native one: native windows route through `wp.os.fetch`, which the shell owns, while an admin page inside an iframe does its own jQuery / XHR / `fetch` calls the parent has no other way to see.
 
 ```typescript
-{ type: 'os-iframe-activity'; phase: 'start' }
+{ type: 'os-iframe-activity'; phase: 'start'; navigation?: boolean }
 { type: 'os-iframe-activity'; phase: 'end'; failed: boolean; status: number }
 ```
 
@@ -4337,6 +4414,14 @@ The parent feeds these to the same reference-counted `Window._markActivityStart(
 - **Reads never reach the ring** — `GET`, `HEAD`, `OPTIONS`, and `QUERY`. The ring answers "did my change go through?", and a read has no *through*: nothing changed, so nothing can have failed to change. An admin page also fires reads constantly on its own (list-table refreshes, dashboard widgets, autosave checks, media queries) and the user never asked about any of them. `QUERY` is in the list because it carries a **body** — it is a safe, idempotent read whose parameters wouldn't fit in a URL, so any "does it have a payload?" test would classify it backwards.
 - **WordPress Heartbeat** never reports even though it POSTs. It is a poll the user did not initiate, on a timer, forever; reporting it would light every open window's ring every 15 seconds and flash a success check for a save nobody made. Same judgement `wp.os.fetch`'s `silent: true` exists for. The action name is read from the request body, since Heartbeat POSTs to `admin-ajax.php` with no action in the URL.
 - **A new document resets the count.** An iframe that navigates mid-request takes its pending `end` messages with it, so `os-ready` calls `Window._resetActivity()`; without it the ring would stay lit for the rest of the window's life.
+
+**Form submits report as `navigation: true`.** A classic wp-admin POST — Settings, Permalinks, Discussion, a list-table bulk action — is the most common save in the shell and touches neither `fetch` nor `XHR`: it navigates. The bridge posts a `start` for it on the way out, and the flag tells the parent no `end` is coming, because the document that would have sent one is being replaced. The answering document is the end, and it says so from its head via [`os-iframe-navigated`](#os-iframe-navigated--experimental) — early enough to beat its own content to the screen. `os-ready` is the fallback for a response that carries no head hook, and settles the submit there instead of doing its usual reset; a submit that produces no document at all (a `wp_die()` page runs no admin hooks) is dropped after 30 seconds so the ring can't blink forever.
+
+A navigation settles the ring **immediately**, with none of the minimum-display hold a tracked `fetch` gets. That floor stands in for feedback the user would otherwise not receive — a request resolving in 50 ms would flash green before the blink was seen at all — and a whole document arriving and painting is that feedback. Holding past it only makes the title bar contradict the page: "Settings saved." on screen, still saving in the corner.
+
+"It landed" is as much as this side can honestly know — there is no response object to read a status off, and a validation message or a settings error comes back as a perfectly good 200 that the user reads in the page itself. Silent are the submits that change nothing or never navigate: forms whose submit an in-page script has already `preventDefault()`ed, forms aimed at another browsing context via `target`, and `GET` forms.
+
+`GET` carries one exception, because WordPress breaks its own rule where it matters most: `edit.php`, `upload.php` and `edit-comments.php` submit their **bulk actions** over `GET`, on the same form as the search box. So a `GET` submit reports when a bulk-action `<select>` (`action` / `action2`) holds anything but `-1`, and stays quiet otherwise — which mirrors `WP_List_Table::current_action()`, including its rule that the Filter button is not an action whatever the select says.
 
 This is the automatic path, and it is conservative on purpose. `wp.os.fetch` is the deliberate one: a call site that passes a `GET` there **does** move the phase, because someone chose to report it. Pass `silent: true` to opt a single call out.
 
@@ -4589,6 +4674,12 @@ The desk companion. Full documentation in [mio.md](./mio.md).
 | `os.mio.displaced` | action | Experimental | `{ position: { x, y } }` — a window opened, moved, or maximised on top of it, so it hopped clear of the window cluster |
 | `os.mio.shape-changed` | action | Experimental | `{ shape, from }` — the silhouette shuffle picked a new stock shape (`circle` \| `blob` \| `ghost` \| `potato`). Fires when the morph starts, not when it finishes |
 
+#### Work area
+
+| Hook | Kind | Status | Payload |
+|---|---|---|---|
+| `os.work-area.changed` | action | Experimental | `WorkAreaSnapshot` — `{ insets, rect, viewport, area }`, see [`workArea`](#workarea--experimental). Fires once per actual change, never on a same-numbers re-measure; the `os-work-area-changed` CustomEvent carries the same detail |
+
 #### Arrange & Overview
 
 Fired by the admin-bar "Arrange" menu's layout algorithms. The overview hooks come in pairs (enter/exit, hover/unhover) so plugins can maintain accurate state counts.
@@ -4779,13 +4870,17 @@ wp.os.hooks.addFilter(
         if ( ctx.baseId !== 'my-shop' || ctx.hasSavedGeometry ) {
             return geometry;
         }
-        const { width, height } = ctx.desktopRect;
+        // The WORK area — the desktop minus the band the dock floats
+        // over — so the bottom-right corner is one the user can reach.
+        const { x, y, width, height } = ctx.workArea;
+        const w = Math.min( 720, width  - 40 );
+        const h = Math.min( 540, height - 80 );
         return {
             ...geometry,
-            width:  Math.min( 720, width  - 40 ),
-            height: Math.min( 540, height - 80 ),
-            x:      width  - Math.min( 720, width  - 40 ) - 20,
-            y:      height - Math.min( 540, height - 80 ) - 20,
+            width:  w,
+            height: h,
+            x:      x + width  - w - 20,
+            y:      y + height - h - 20,
         };
     }
 );
@@ -4811,7 +4906,8 @@ type WindowGeometryContext = {
     baseId:           string;        // registry id — stable across instances
     hasSavedGeometry: boolean;       // user previously dragged/resized — respect their layout
     callerPinned:     boolean;       // caller passed at least one explicit dim (native windows: usually true)
-    desktopRect:      { width: number; height: number };
+    desktopRect:      { width: number; height: number };            // the WHOLE desktop area
+    workArea:         { x: number; y: number; width: number; height: number }; // the part no chrome floats over — place against this (see wp.os.workArea)
 };
 
 // Filter shape
@@ -4827,8 +4923,8 @@ type WindowGeometryContext = {
 **Guarantees:**
 
 - The shell re-clamps `width`/`height` to the window's registered `minWidth`/`minHeight` after the filter returns — a buggy filter cannot ship a sub-minimum window.
-- `x`/`y` are NOT re-clamped to the desktop rect; plugins sometimes deliberately place windows partially off-screen. The filter is responsible for its own viewport math when it cares.
-- The filter runs *every time the window opens*, not just at registration — so a deactivation/reactivation of a plugin re-runs its filter with fresh `desktopRect` numbers.
+- `x`/`y` are NOT re-clamped after the filter; plugins sometimes deliberately place windows partially off-screen. The filter is responsible for its own math when it cares, and `ctx.workArea` is the rect to clamp against — `desktopRect` includes the band under the dock.
+- The filter runs *every time the window opens*, not just at registration — so a deactivation/reactivation of a plugin re-runs its filter with fresh `desktopRect` / `workArea` numbers.
 - Companion of `openstation_register_window`'s server-side `width` / `height` defaults: the filter sees those defaults as the starting `geometry` value, and `ctx.callerPinned` is `true` for native windows because the framework's own opener passes them through as explicit `manager.open()` args. The filter is free to override anyway — `callerPinned` is signal, not veto.
 
 #### `DockItem` shape

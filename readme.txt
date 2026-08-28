@@ -4,7 +4,7 @@ Tags: admin, dashboard, desktop, productivity, ai
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.1.3
+Stable tag: 1.1.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -169,6 +169,32 @@ The **Inkfall** game's word list (`assets/games/inkfall/words.txt`) is generated
 * **[LDNOOBW English list](https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words)** (CC-BY 4.0) — used as an exclusion filter.
 
 == Changelog ==
+
+= 1.1.4 =
+* Tooling: a deterministic boot-cost measurement for the shell document
+* Native-window script data ships once per handle, not once per window (boot document −8.9%)
+* The boot config ships references, not copies (boot document −12.8%)
+* The shell-bundle diet — five features leave desktop.min.js (−21% vs the v1.1.3 release)
+* Tooling: mirror docs/ into the GitHub wiki on every trunk push
+* Purge pre-1.0 history and reconcile every page with the code
+* Agents: give the cast faces, and rebuild create as a guided flow
+* Shared admin-asset cache + hover window prewarming (opt-in)
+* The shell asks the service worker for a screen before you click it
+* Fix: Sub-pages within main page are not shown in dock menu
+* Fix: Tile icons in the wallpaper can't display correctly some characters
+* Windows stop paying for a command palette they never show
+* The command palette stops costing every window and every boot
+* Sync layout and status on settings rollback
+* Decode HTML entities in Corkboard titles.
+* A window stops building the admin bar it never draws
+* Perf regression sweep: every finding, fixed
+* Show a loader in place for every lazy-loaded surface
+* Corkboard: keep a sparse board centred and explained
+* The shell stops bouncing /wp-admin/ through the portal
+* Trash: Hide the list chrome while the bin is empty
+* Status ring: report classic form saves, and stop reporting reads
+* Dynamic dock: auto-hide behavior setting, and one shared work area so windows, widgets, icons and graphs stay clear of the dock
+* Adding Nuria as a contributor
 
 = 1.1.3 =
 * Refresh file associations when openers change
