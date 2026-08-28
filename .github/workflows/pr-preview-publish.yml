@@ -34,11 +34,11 @@ jobs:
     if: ${{ github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Resolve PR from trusted workflow_run data
         id: meta
-        uses: actions/github-script@v9
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             // PR identity is never taken from the build run's artifacts — that
@@ -110,7 +110,7 @@ jobs:
           artifact-source-run-id: ${{ github.event.workflow_run.id }}
 
       - name: Build blueprint
-        uses: actions/github-script@v9
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         id: blueprint
         env:
           ARTIFACT_URL: ${{ steps.expose.outputs.artifact-url }}
