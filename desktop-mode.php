@@ -97,6 +97,7 @@ require_once OPENSTATION_DIR . 'includes/core/payload.php';
 require_once OPENSTATION_DIR . 'includes/assets.php';
 require_once OPENSTATION_DIR . 'includes/admin-bar.php';
 require_once OPENSTATION_DIR . 'includes/session.php';
+require_once OPENSTATION_DIR . 'includes/multisite.php';
 require_once OPENSTATION_DIR . 'includes/presence.php';
 require_once OPENSTATION_DIR . 'includes/nonce-refresh.php';
 require_once OPENSTATION_DIR . 'includes/os-settings.php';

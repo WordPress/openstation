@@ -508,7 +508,11 @@ function openstation_enqueue_assets() {
 			'currentPage'                   => esc_url( $current_page ),
 			'currentTitle'                  => $current_title,
 			'currentIcon'                   => sanitize_html_class( $menu_icon ),
-			'adminUrl'                      => esc_url( admin_url() ),
+			// `self_admin_url()`: the base a window id is derived from,
+			// and the URL the shell leaves for on exit. Both want the
+			// admin the screen is in, which is the network one when the
+			// network shell screen is what rendered.
+			'adminUrl'                      => esc_url( self_admin_url() ),
 			'homeUrl'                       => esc_url( home_url( '/' ) ),
 			// Decoded: the shell assigns this to `window.location`,
 			// where `&amp;` would make `_wpnonce` arrive as
@@ -723,6 +727,9 @@ function openstation_enqueue_assets() {
 				)
 				: null,
 			'currentUserIsAdmin'            => current_user_can( 'manage_options' ),
+			// Null on single-site installs and without `manage_network`,
+			// which is what keeps the dock tile from registering.
+			'multisite'                     => openstation_multisite_payload(),
 			'portalUrl'                     => esc_url( openstation_portal_url() ),
 			'fromPortal'                    => $from_portal,
 			'fromPortalIntent'              => $from_portal_intent,

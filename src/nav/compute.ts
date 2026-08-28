@@ -111,14 +111,30 @@ export function computeNav( input: NavInput ): NavResult {
 		ephemeral.add( win.id );
 	}
 
+	const ordered = ( list: NavItem[] ) =>
+		applyOrder( afterTheLeadMenu( sortByOrder( list ) ), config.order );
 	for ( const zone of NAV_ZONES ) {
-		dock[ zone ] = applyOrder( sortByOrder( dock[ zone ] ), config.order );
+		dock[ zone ] = ordered( dock[ zone ] );
 	}
 
 	return {
 		dock,
-		sidebar: applyOrder( sortByOrder( sidebar ), config.order ),
+		sidebar: ordered( sidebar ),
 		desktop: applyOrder( sortByOrder( desktop ), config.order ),
 		ephemeral,
 	};
+}
+
+/**
+ * Slot a `'core'` TILE in behind the run's first menu — beside the
+ * Dashboard rather than ahead of it. No `order` expresses that: menus
+ * carry none and tie at 0, so a tile can only sort ahead of every one or
+ * behind every one. Runs before `applyOrder`, so a drag still wins.
+ */
+function afterTheLeadMenu( items: NavItem[] ): NavItem[] {
+	const tiles = items.filter( ( item ) => 'core' === item.kind && item.tile );
+	const menus = items.filter( ( item ) => ! tiles.includes( item ) );
+	return 0 === tiles.length || 0 === menus.length
+		? items
+		: [ menus[ 0 ], ...tiles, ...menus.slice( 1 ) ];
 }

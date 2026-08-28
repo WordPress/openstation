@@ -25,6 +25,25 @@ defined( 'ABSPATH' ) || exit;
  */
 const OPENSTATION_SESSION_META_KEY = 'desktop_mode_session';
 
+/**
+ * The session meta key for the site the request is running against.
+ *
+ * User meta is network-wide, so every site shared one blob, and the
+ * sanitizer drops any window URL outside the current site's
+ * `admin_url()` — so the first save from site B rewrote it and site A's
+ * desktop was gone. The MAIN site keeps the bare key, and so does every
+ * single-site install: those sessions already exist, and a new key would
+ * silently empty every desktop on upgrade. The network admin shares it
+ * too, running in the main site's blog context.
+ *
+ * @return string Meta key to read and write for this request.
+ */
+function openstation_session_meta_key() {
+	return ! is_multisite() || get_current_blog_id() === get_main_site_id()
+		? OPENSTATION_SESSION_META_KEY
+		: OPENSTATION_SESSION_META_KEY . '_' . get_current_blog_id();
+}
+
 /** Hard cap on persisted windows — guards against runaway meta size. */
 const OPENSTATION_SESSION_MAX_WINDOWS = 32;
 
@@ -100,7 +119,7 @@ function openstation_get_session( $user_id ) {
 		return openstation_empty_session();
 	}
 
-	$raw = get_user_meta( $user_id, OPENSTATION_SESSION_META_KEY, true );
+	$raw = get_user_meta( $user_id, openstation_session_meta_key(), true );
 	if ( ! is_array( $raw ) ) {
 		return openstation_empty_session();
 	}
@@ -175,7 +194,7 @@ function openstation_save_session( $user_id, $session ) {
 
 	$clean = openstation_sanitize_session( $session );
 
-	return false !== update_user_meta( $user_id, OPENSTATION_SESSION_META_KEY, $clean );
+	return false !== update_user_meta( $user_id, openstation_session_meta_key(), $clean );
 }
 
 /**
@@ -189,7 +208,7 @@ function openstation_clear_session( $user_id ) {
 	if ( $user_id <= 0 ) {
 		return false;
 	}
-	return (bool) delete_user_meta( $user_id, OPENSTATION_SESSION_META_KEY );
+	return (bool) delete_user_meta( $user_id, openstation_session_meta_key() );
 }
 
 /**

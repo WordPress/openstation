@@ -17,8 +17,8 @@ import type { NavItem, NavKind } from './types';
 /** A system tile plus the kind its registration declared. */
 export interface NavSystemTile {
 	item: SystemDockItem;
-	/** `'app'` for a launcher, `'control'` for a shell affordance. */
-	kind: Extract< NavKind, 'app' | 'control' >;
+	/** A launcher, a shell affordance, or a stand-in for a WP menu. */
+	kind: Extract< NavKind, 'core' | 'app' | 'control' >;
 	/** Exit OpenStation. Never movable, never hideable. */
 	locked?: boolean;
 }

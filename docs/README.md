@@ -35,6 +35,7 @@ If you are **building a plugin** that interacts with the desktop shell — opens
 27. **[Migration — the shell boots from its own screen](./migration-shell-screen.md)** — the desktop is served by `admin.php?page=openstation` instead of being painted over the Dashboard (or whichever screen the portal forwarded to), so another screen's scripts, render and hidden HTML never reach the shell document. `desktop_mode_portal` URLs become alias redirects. Read if you keyed anything on the shell being the Dashboard, or built desktop URLs by hand.
 28. **[Register a widget — polling, storage, canvas charts](./examples/register-widget.md)**
 29. **[The Living Tree — algorithm definition](./living-tree-algorithm.md)** — *Experimental.* The full normative spec for the `wp-living-tree` canvas wallpaper: WordPress emits hormones, the biology (Space Colonization) decides geometry inside age-bounded morphological constraints. Read before touching any part of the wallpaper.
+30. **[Multisite](./multisite.md)** — *Experimental.* What the shell does on a network: the network admin, the Network Admin dock tile, and per-site session scoping. Read before touching anything cross-site — it opens with the constraint that decides the rest, which is that WordPress refuses to be framed cross-origin, so nothing leaving the current site can be a window.
 
 ## Conventions used in this docs folder
 
