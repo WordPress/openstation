@@ -27,28 +27,16 @@ import {
 	type FakeWpHooks,
 } from './helpers/hooks-stub';
 import { _resetAllSharedStoresForTests } from '../../src/shared-store';
+import { loadTwoBundleCopies } from './helpers/bundle-seam';
 
 type Channels = typeof import( '../../src/window-channels' );
 
-/**
- * Two independent module instances of `window-channels.ts`, standing in
- * for the two bundles that both compile it. `vi.resetModules()` drops
- * the module cache so the second `import()` re-evaluates the file.
- */
-async function loadTwoBundleCopies(): Promise< [ Channels, Channels ] > {
-	const { resetModules } = await import( 'vitest' ).then( ( m ) => ( {
-		resetModules: m.vi.resetModules.bind( m.vi ),
-	} ) );
-	resetModules();
-	const bundleA = ( await import(
-		'../../src/window-channels?bundle-a'
-	) ) as Channels;
-	resetModules();
-	const bundleB = ( await import(
-		'../../src/window-channels?bundle-b'
-	) ) as Channels;
-	return [ bundleA, bundleB ];
-}
+/** The window-system copy and the shell copy, in that order. */
+const loadCopies = (): Promise< [ Channels, Channels ] > =>
+	loadTwoBundleCopies< Channels >(
+		() => import( '../../src/window-channels?bundle-a' ) as Promise< Channels >,
+		() => import( '../../src/window-channels?bundle-b' ) as Promise< Channels >,
+	);
 
 describe( 'window-channels across a bundle seam', () => {
 	let hooks: FakeWpHooks;
@@ -64,7 +52,7 @@ describe( 'window-channels across a bundle seam', () => {
 	} );
 
 	test( 'a loading mark in one bundle is cleared by a ready signal in the other', async () => {
-		const [ windowSystem, shell ] = await loadTwoBundleCopies();
+		const [ windowSystem, shell ] = await loadCopies();
 
 		const loaded: string[] = [];
 		hooks.addAction(
@@ -87,7 +75,7 @@ describe( 'window-channels across a bundle seam', () => {
 	} );
 
 	test( 'a repeat ready signal from the other bundle stays a no-op', async () => {
-		const [ windowSystem, shell ] = await loadTwoBundleCopies();
+		const [ windowSystem, shell ] = await loadCopies();
 
 		const loaded: string[] = [];
 		hooks.addAction(
@@ -109,7 +97,7 @@ describe( 'window-channels across a bundle seam', () => {
 	} );
 
 	test( 'transport readiness and the queued-send flush cross the seam', async () => {
-		const [ windowSystem, shell ] = await loadTwoBundleCopies();
+		const [ windowSystem, shell ] = await loadCopies();
 
 		const flushed: string[] = [];
 		windowSystem.enqueueWindowSend( 'probe', 'greet', { a: 1 }, () => {
@@ -125,7 +113,7 @@ describe( 'window-channels across a bundle seam', () => {
 	} );
 
 	test( 'a parent-side subscriber registered in one bundle hears a publish from the other', async () => {
-		const [ windowSystem, shell ] = await loadTwoBundleCopies();
+		const [ windowSystem, shell ] = await loadCopies();
 
 		const seen: unknown[] = [];
 		// `Window.on()` — window-system bundle.
@@ -141,7 +129,7 @@ describe( 'window-channels across a bundle seam', () => {
 	} );
 
 	test( 'a native subscriber registered in one bundle hears a send from the other', async () => {
-		const [ windowSystem, shell ] = await loadTwoBundleCopies();
+		const [ windowSystem, shell ] = await loadCopies();
 
 		const seen: unknown[] = [];
 		windowSystem.addNativeSubscriber( 'probe', 'ping', ( payload ) => {
@@ -154,7 +142,7 @@ describe( 'window-channels across a bundle seam', () => {
 	} );
 
 	test( 'closing a window in one bundle clears the bookkeeping the other holds', async () => {
-		const [ windowSystem, shell ] = await loadTwoBundleCopies();
+		const [ windowSystem, shell ] = await loadCopies();
 
 		windowSystem.markWindowContentLoading( 'probe' );
 		shell.markWindowContentReady( 'probe' );

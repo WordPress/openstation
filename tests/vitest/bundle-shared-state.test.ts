@@ -58,6 +58,11 @@ const SHARED_KEYS = [
 const WINDOW_SYSTEM_SHARED_KEYS = [
 	'desktop-mode/window-channels',
 	'desktop-mode/admin-link-deps',
+	// `connection/index.ts` splits the same way: the shell registers an
+	// `iframeContent` window's body iframe, and `Window.send()` — in the
+	// window-system bundle — looks it up to resolve its postMessage
+	// target. On separate copies it resolved none and dropped the send.
+	'desktop-mode/connection',
 ] as const;
 
 function read( path: string ): string | null {

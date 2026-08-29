@@ -24,6 +24,19 @@
  * `subscribe( topic, cb )` fires on every inbound match. Plugin
  * authors don't need to know whether their target is an iframe or
  * a native window — that's the whole point.
+ *
+ * ## This module is compiled into two bundles
+ *
+ * The bridge itself runs in the shell (`desktop.js`), but `Window.send()`
+ * reaches in for {@link getSyntheticIframe}, and the `Window` class rides
+ * the lazy `window-system.js` bundle. So the registries below are shared
+ * state for the same reason `src/window-channels.ts`' are: on plain
+ * module-level `Map`s the shell registers a synthetic iframe into its own
+ * copy while `Window.send()` consults an empty one, resolves no target,
+ * and silently routes an `iframeContent` window's payload to
+ * `dispatchToNative()` — where a shell-synthesised body has no subscriber
+ * to receive it. See AGENTS.md § "Cross-bundle state —
+ * `wp.os.createSharedStore`".
  */
 
 import { applyFilters, doAction, HOOKS } from './../hooks';
@@ -33,6 +46,7 @@ import {
 	dispatchToNative,
 	type WindowChannelCb,
 } from './../window-channels';
+import { createSharedStore } from './../shared-store';
 
 const INITIAL_ORIGIN = window.location.origin;
 
@@ -86,20 +100,44 @@ interface InternalConnection extends WindowConnection {
 	_destroy( reason: 'disconnect' | 'window-closed' | 'navigated' ): void;
 }
 
-let _connSeq = 0;
-const _connections = new Map< string, InternalConnection >();
-const _connectionsByTarget = new Map< string, Set< string > >();
-
 /**
- * Registry of iframes that aren't on the `Window.iframe` slot but
- * still participate in the connection bridge — typically a native
- * window whose body is a single iframe via the `iframeContent`
- * shorthand. The lookup in `connect()` consults this registry
- * first, falling back to `win.iframe`.
+ * Every registry this module owns, in one cross-bundle record.
  *
- * @internal
+ * `syntheticIframes` is the one with a live seam today — the shell
+ * writes it, `Window.send()` in the `window-system` bundle reads it.
+ * The connection registries are only reached from the shell so far, and
+ * they join it rather than staying module-level because the module is
+ * ALREADY known to be multi-bundle: leaving them behind means the next
+ * symbol a lazy bundle imports from here re-opens the same hole, one
+ * silent dropped message at a time.
+ *
+ * Every call site reads `connectionStore.state.<field>` fresh — never a
+ * module-level capture, which would go stale the first time a test
+ * resets the store.
  */
-const _syntheticIframes = new Map< string, HTMLIFrameElement >();
+interface ConnectionState {
+	connSeq: number;
+	connections: Map< string, InternalConnection >;
+	connectionsByTarget: Map< string, Set< string > >;
+	/**
+	 * Iframes that aren't on the `Window.iframe` slot but still
+	 * participate in the connection bridge — typically a native window
+	 * whose body is a single iframe via the `iframeContent` shorthand.
+	 * The lookup in `connect()` consults this first, falling back to
+	 * `win.iframe`.
+	 */
+	syntheticIframes: Map< string, HTMLIFrameElement >;
+}
+
+const connectionStore = createSharedStore< ConnectionState >(
+	'desktop-mode/connection',
+	() => ( {
+		connSeq: 0,
+		connections: new Map(),
+		connectionsByTarget: new Map(),
+		syntheticIframes: new Map(),
+	} ),
+);
 
 /**
  * Register a synthetic iframe under a window id. Returns an
@@ -112,10 +150,11 @@ export function registerSyntheticIframe(
 	windowId: string,
 	iframe: HTMLIFrameElement,
 ): () => void {
-	_syntheticIframes.set( windowId, iframe );
+	const { syntheticIframes } = connectionStore.state;
+	syntheticIframes.set( windowId, iframe );
 	return () => {
-		if ( _syntheticIframes.get( windowId ) === iframe ) {
-			_syntheticIframes.delete( windowId );
+		if ( syntheticIframes.get( windowId ) === iframe ) {
+			syntheticIframes.delete( windowId );
 		}
 	};
 }
@@ -130,7 +169,7 @@ export function registerSyntheticIframe(
 export function getSyntheticIframe(
 	windowId: string,
 ): HTMLIFrameElement | null {
-	return _syntheticIframes.get( windowId ) ?? null;
+	return connectionStore.state.syntheticIframes.get( windowId ) ?? null;
 }
 
 /**
@@ -139,7 +178,7 @@ export function getSyntheticIframe(
  * single shell instance).
  */
 function nextId(): string {
-	return `os-conn-${ ++_connSeq }`;
+	return `os-conn-${ ++connectionStore.state.connSeq }`;
 }
 
 /**
@@ -181,7 +220,7 @@ export function createConnectionBridge( manager: WindowManager ) {
 			// `iframeContent`) over the Window class's own iframe
 			// slot — native windows never set the latter, but their
 			// `iframeContent` body still wants bridge participation.
-			const synth = _syntheticIframes.get( targetWindowId );
+			const synth = connectionStore.state.syntheticIframes.get( targetWindowId );
 			if ( synth ) {
 				return synth;
 			}
@@ -394,12 +433,12 @@ export function createConnectionBridge( manager: WindowManager ) {
 				destroyed = true;
 				const wasOpen = isOpen;
 				isOpen = false;
-				_connections.delete( id );
-				const targetSet = _connectionsByTarget.get( targetWindowId );
+				connectionStore.state.connections.delete( id );
+				const targetSet = connectionStore.state.connectionsByTarget.get( targetWindowId );
 				if ( targetSet ) {
 					targetSet.delete( id );
 					if ( targetSet.size === 0 ) {
-						_connectionsByTarget.delete( targetWindowId );
+						connectionStore.state.connectionsByTarget.delete( targetWindowId );
 					}
 				}
 				// Native subscribers — drop the channel-bus handles so
@@ -439,11 +478,11 @@ export function createConnectionBridge( manager: WindowManager ) {
 			},
 		};
 
-		_connections.set( id, conn );
-		let bucket = _connectionsByTarget.get( targetWindowId );
+		connectionStore.state.connections.set( id, conn );
+		let bucket = connectionStore.state.connectionsByTarget.get( targetWindowId );
 		if ( ! bucket ) {
 			bucket = new Set();
-			_connectionsByTarget.set( targetWindowId, bucket );
+			connectionStore.state.connectionsByTarget.set( targetWindowId, bucket );
 		}
 		bucket.add( id );
 
@@ -540,7 +579,7 @@ export function createConnectionBridge( manager: WindowManager ) {
 		if ( typeof msg.connectionId !== 'string' ) {
 			return;
 		}
-		const conn = _connections.get( msg.connectionId );
+		const conn = connectionStore.state.connections.get( msg.connectionId );
 		conn?._handleIframeMessage( data );
 	};
 
@@ -549,7 +588,7 @@ export function createConnectionBridge( manager: WindowManager ) {
 		requestId: string,
 		topics: string[],
 	): void => {
-		const synth = _syntheticIframes.get( windowId );
+		const synth = connectionStore.state.syntheticIframes.get( windowId );
 		const iframe = synth ?? manager.getById( windowId )?.iframe ?? null;
 		if ( ! iframe ) {
 			return;
@@ -604,12 +643,12 @@ export function createConnectionBridge( manager: WindowManager ) {
 	 * before the iframe finished loading still complete.
 	 */
 	const onIframeReady = ( windowId: string ): void => {
-		const bucket = _connectionsByTarget.get( windowId );
+		const bucket = connectionStore.state.connectionsByTarget.get( windowId );
 		if ( ! bucket ) {
 			return;
 		}
 		for ( const connId of Array.from( bucket ) ) {
-			const conn = _connections.get( connId );
+			const conn = connectionStore.state.connections.get( connId );
 			if ( ! conn || conn.isOpen() ) {
 				continue;
 			}
@@ -632,12 +671,12 @@ export function createConnectionBridge( manager: WindowManager ) {
 	 * don't leak.
 	 */
 	const onWindowClosed = ( windowId: string ): void => {
-		const bucket = _connectionsByTarget.get( windowId );
+		const bucket = connectionStore.state.connectionsByTarget.get( windowId );
 		if ( ! bucket ) {
 			return;
 		}
 		for ( const connId of Array.from( bucket ) ) {
-			const conn = _connections.get( connId );
+			const conn = connectionStore.state.connections.get( connId );
 			conn?._destroy( 'window-closed' );
 		}
 	};
@@ -659,7 +698,7 @@ export function createConnectionBridge( manager: WindowManager ) {
 	const getConnection = (
 		connectionId: string,
 	): WindowConnection | null => {
-		const conn = _connections.get( connectionId );
+		const conn = connectionStore.state.connections.get( connectionId );
 		return conn ?? null;
 	};
 
