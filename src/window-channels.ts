@@ -22,9 +22,38 @@
  * `Window.send`, the iframe-bridge handler, the native render's
  * `windowApi`) is the only thing that picks the right path. Plugin
  * authors stay in API-land — they never see this module.
+ *
+ * ## Every registry here is shared state, and it has to be
+ *
+ * This module is compiled into MORE THAN ONE bundle: the `Window`
+ * class and `createWindowElement()` live in `window-system.js`, while
+ * the shell's own callers — `native-windows.ts`' synthetic-iframe
+ * readiness signal, `connection/index.ts`' subscriber registration —
+ * ride in `desktop.js`. Plain module-level `Map`s / `Set`s here give
+ * each bundle its own private bookkeeping, and the two halves of every
+ * pairing below then talk past each other:
+ *
+ *   - `markWindowContentLoading()` in one copy, `markWindowContentReady()`
+ *     in the other → the loading → ready edge never fires, so
+ *     `WINDOW_CONTENT_LOADED` never fires and the window sits under
+ *     its loading overlay forever. Silently: every guard on the path
+ *     is an early return.
+ *   - `enqueueWindowSend()` in one copy, the flush in the other → a
+ *     `Window.send()` issued before the content is ready is never
+ *     delivered.
+ *   - `addParentSubscriber()` in one copy, `dispatchFromWindow()` in
+ *     the other → `Window.on( channel, cb )` never fires.
+ *   - `clearWindowChannels()` in one copy → the other keeps a closed
+ *     window's ready flag, and the reopened window skips its flush.
+ *
+ * So everything lives in one `createSharedStore` record, keyed on the
+ * page rather than on the module. See AGENTS.md § "Cross-bundle state
+ * — `wp.os.createSharedStore`", and the same treatment applied to the
+ * admin-link deps a few files over in `src/window/iframe-bridge.ts`.
  */
 
 import { HOOKS, doAction } from './hooks';
+import { createSharedStore } from './shared-store';
 
 export type WindowChannelMeta = {
 	channel: string;
@@ -36,11 +65,45 @@ export type WindowChannelCb = (
 	meta: WindowChannelMeta,
 ) => void;
 
-const _parentSubs = new Map< string, Map< string, Set< WindowChannelCb > > >();
-const _nativeSubs = new Map< string, Map< string, Set< WindowChannelCb > > >();
+type PendingSend = {
+	channel: string;
+	payload: unknown;
+	flush: () => void;
+};
+
+type SubRoot = Map< string, Map< string, Set< WindowChannelCb > > >;
+
+/**
+ * Every registry this module owns, in one cross-bundle record.
+ *
+ * Every call site reads `channelsStore.state.<field>` fresh rather
+ * than capturing a field in a module-level `const`: a store reset
+ * swaps the field values (keeping the outer object's identity), so a
+ * capture taken at module load would go stale the first time a test
+ * resets the store — the same silent-divergence failure the store is
+ * here to prevent.
+ */
+interface WindowChannelsState {
+	parentSubs: SubRoot;
+	nativeSubs: SubRoot;
+	readyWindows: Set< string >;
+	loadingWindows: Set< string >;
+	pendingSends: Map< string, PendingSend[] >;
+}
+
+const channelsStore = createSharedStore< WindowChannelsState >(
+	'desktop-mode/window-channels',
+	() => ( {
+		parentSubs: new Map(),
+		nativeSubs: new Map(),
+		readyWindows: new Set(),
+		loadingWindows: new Set(),
+		pendingSends: new Map(),
+	} ),
+);
 
 function bucket(
-	root: Map< string, Map< string, Set< WindowChannelCb > > >,
+	root: SubRoot,
 	windowId: string,
 	channel: string,
 	create: boolean,
@@ -65,7 +128,7 @@ function bucket(
 }
 
 function dispatch(
-	root: Map< string, Map< string, Set< WindowChannelCb > > >,
+	root: SubRoot,
 	windowId: string,
 	channel: string,
 	payload: unknown,
@@ -114,7 +177,12 @@ export function addParentSubscriber(
 	channel: string,
 	cb: WindowChannelCb,
 ): () => void {
-	const set = bucket( _parentSubs, windowId, channel, true )!;
+	const set = bucket(
+		channelsStore.state.parentSubs,
+		windowId,
+		channel,
+		true,
+	)!;
 	set.add( cb );
 	let removed = false;
 	return () => {
@@ -138,7 +206,7 @@ export function dispatchFromWindow(
 	channel: string,
 	payload: unknown,
 ): void {
-	dispatch( _parentSubs, windowId, channel, payload );
+	dispatch( channelsStore.state.parentSubs, windowId, channel, payload );
 }
 
 /**
@@ -154,7 +222,12 @@ export function addNativeSubscriber(
 	channel: string,
 	cb: WindowChannelCb,
 ): () => void {
-	const set = bucket( _nativeSubs, windowId, channel, true )!;
+	const set = bucket(
+		channelsStore.state.nativeSubs,
+		windowId,
+		channel,
+		true,
+	)!;
 	set.add( cb );
 	let removed = false;
 	return () => {
@@ -178,7 +251,7 @@ export function dispatchToNative(
 	channel: string,
 	payload: unknown,
 ): void {
-	dispatch( _nativeSubs, windowId, channel, payload );
+	dispatch( channelsStore.state.nativeSubs, windowId, channel, payload );
 }
 
 /* ---------------------------------------------------------------- *
@@ -191,15 +264,6 @@ export function dispatchToNative(
  *  boundary between `Window.send()` and the render's listeners.
  * ---------------------------------------------------------------- */
 
-const _readyWindows = new Set< string >();
-const _loadingWindows = new Set< string >();
-type PendingSend = {
-	channel: string;
-	payload: unknown;
-	flush: () => void;
-};
-const _pendingSends = new Map< string, PendingSend[] >();
-
 /**
  * Whether a window's content is ready to receive sends. True for
  * pure native windows from the start. For iframe-backed windows
@@ -208,7 +272,7 @@ const _pendingSends = new Map< string, PendingSend[] >();
  * @internal
  */
 export function isWindowContentReady( windowId: string ): boolean {
-	return _readyWindows.has( windowId );
+	return channelsStore.state.readyWindows.has( windowId );
 }
 
 /**
@@ -223,7 +287,7 @@ export function isWindowContentReady( windowId: string ): boolean {
  * @internal
  */
 export function isWindowContentLoading( windowId: string ): boolean {
-	return _loadingWindows.has( windowId );
+	return channelsStore.state.loadingWindows.has( windowId );
 }
 
 /**
@@ -238,10 +302,11 @@ export function isWindowContentLoading( windowId: string ): boolean {
  * @internal
  */
 export function markWindowContentLoading( windowId: string ): void {
-	if ( _loadingWindows.has( windowId ) ) {
+	const { loadingWindows } = channelsStore.state;
+	if ( loadingWindows.has( windowId ) ) {
 		return;
 	}
-	_loadingWindows.add( windowId );
+	loadingWindows.add( windowId );
 	doAction( HOOKS.WINDOW_CONTENT_LOADING, { windowId } );
 	if ( typeof document !== 'undefined' ) {
 		document.dispatchEvent(
@@ -271,11 +336,12 @@ export function markWindowContentLoading( windowId: string ): void {
  * @internal
  */
 export function markWindowContentReady( windowId: string ): void {
-	if ( ! _readyWindows.has( windowId ) ) {
-		_readyWindows.add( windowId );
-		const queued = _pendingSends.get( windowId );
+	const { readyWindows, loadingWindows, pendingSends } = channelsStore.state;
+	if ( ! readyWindows.has( windowId ) ) {
+		readyWindows.add( windowId );
+		const queued = pendingSends.get( windowId );
 		if ( queued ) {
-			_pendingSends.delete( windowId );
+			pendingSends.delete( windowId );
 			for ( const m of queued ) {
 				try {
 					m.flush();
@@ -295,7 +361,7 @@ export function markWindowContentReady( windowId: string ): void {
 	// when the entry was actually present, so this fires exactly
 	// once per loading episode regardless of how many times callers
 	// invoke `markWindowContentReady`.
-	if ( _loadingWindows.delete( windowId ) ) {
+	if ( loadingWindows.delete( windowId ) ) {
 		doAction( HOOKS.WINDOW_CONTENT_LOADED, { windowId } );
 		if ( typeof document !== 'undefined' ) {
 			document.dispatchEvent(
@@ -320,10 +386,11 @@ export function enqueueWindowSend(
 	payload: unknown,
 	flush: () => void,
 ): void {
-	let q = _pendingSends.get( windowId );
+	const { pendingSends } = channelsStore.state;
+	let q = pendingSends.get( windowId );
 	if ( ! q ) {
 		q = [];
-		_pendingSends.set( windowId, q );
+		pendingSends.set( windowId, q );
 	}
 	q.push( { channel, payload, flush } );
 }
@@ -335,11 +402,12 @@ export function enqueueWindowSend(
  * @internal
  */
 export function clearWindowChannels( windowId: string ): void {
-	_parentSubs.delete( windowId );
-	_nativeSubs.delete( windowId );
-	_readyWindows.delete( windowId );
-	_loadingWindows.delete( windowId );
-	_pendingSends.delete( windowId );
+	const s = channelsStore.state;
+	s.parentSubs.delete( windowId );
+	s.nativeSubs.delete( windowId );
+	s.readyWindows.delete( windowId );
+	s.loadingWindows.delete( windowId );
+	s.pendingSends.delete( windowId );
 }
 
 /**
@@ -349,9 +417,13 @@ export function clearWindowChannels( windowId: string ): void {
  * @internal
  */
 export function _resetWindowChannelsForTests(): void {
-	_parentSubs.clear();
-	_nativeSubs.clear();
-	_readyWindows.clear();
-	_loadingWindows.clear();
-	_pendingSends.clear();
+	// Cleared in place rather than via `channelsStore.reset()`: the
+	// store's reset also drops subscribers, and every registry here is
+	// reachable from another bundle's handle on the same record.
+	const s = channelsStore.state;
+	s.parentSubs.clear();
+	s.nativeSubs.clear();
+	s.readyWindows.clear();
+	s.loadingWindows.clear();
+	s.pendingSends.clear();
 }

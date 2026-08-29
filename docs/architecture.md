@@ -256,6 +256,12 @@ The `'config'` arg on `openstation_register_window()` ships through the same del
 
 Nothing changes for plugin authors on either: `openstation_register_wallpaper()` / `openstation_register_widget()` and the `window.openStationWallpapers[ id ]` / `window.openStationWidgets[ id ]` contracts are unchanged.
 
+### One channel bus, either kind of window, across the bundle seam
+
+`Window.on()` / `Window.send()`, `ctx.window.send/on` inside a native render, `whenContentReady()`, the loading → ready edge that `WINDOW_CONTENT_LOADING` / `WINDOW_CONTENT_LOADED` report, and the in-process leg of `wp.os.connect()` all read and write **one** set of per-window registries (`src/window-channels.ts`): parent-side subscribers, native-side subscribers, transport readiness, visual loading state, and the queue that holds a `send()` issued before the content is ready.
+
+Those registries live in a `createSharedStore` (`desktop-mode/window-channels`) because the module compiles into both the main bundle and the lazy `window-system` one — `createWindowElement()` marks a window loading from the latter, while `native-windows.ts`' synthetic-iframe readiness signal and `connection/index.ts`' subscriber registration run in the former. On module-level state the two halves kept separate books and every pairing failed silently in one direction: a window whose loading mark and ready signal landed in different copies never fired `WINDOW_CONTENT_LOADED` and sat under its loading overlay for good. `tests/vitest/bundle-shared-state.test.ts` checks the key is present in both built bundles; `tests/vitest/window-channels-cross-bundle.test.ts` drives the seam itself.
+
 ## A third rendering path: solo mode, and the native desktop host
 
 *Experimental. Full narrative: [`docs/desktop-host.md`](./desktop-host.md).*

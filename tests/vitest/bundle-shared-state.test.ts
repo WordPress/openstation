@@ -30,6 +30,7 @@ import { describe, expect, it } from 'vitest';
 const BUNDLES = {
 	shell: 'assets/js/desktop.js',
 	notes: 'assets/js/notes.js',
+	windowSystem: 'assets/js/window-system.js',
 } as const;
 
 /**
@@ -43,13 +44,30 @@ const SHARED_KEYS = [
 	'desktop-mode/heartbeat-bus',
 ] as const;
 
+/**
+ * The same check across the shell ↔ `window-system` seam.
+ *
+ * `window-channels.ts` is compiled into both: `createWindowElement()`
+ * marks a window loading from the window-system bundle, while the
+ * shell's own callers (`native-windows.ts`' synthetic-iframe readiness
+ * signal, `connection/index.ts`' subscriber registration) run in the
+ * shell bundle. On module-level `Set`s those two halves kept separate
+ * bookkeeping, so `WINDOW_CONTENT_LOADED` never fired and windows sat
+ * under the loading overlay forever.
+ */
+const WINDOW_SYSTEM_SHARED_KEYS = [
+	'desktop-mode/window-channels',
+	'desktop-mode/admin-link-deps',
+] as const;
+
 function read( path: string ): string | null {
 	return existsSync( path ) ? readFileSync( path, 'utf8' ) : null;
 }
 
 const shell = read( BUNDLES.shell );
 const notes = read( BUNDLES.notes );
-const built = shell !== null && notes !== null;
+const windowSystem = read( BUNDLES.windowSystem );
+const built = shell !== null && notes !== null && windowSystem !== null;
 
 /**
  * Skipped when the bundles are not built.
@@ -75,6 +93,19 @@ describe.skipIf( ! built )( 'cross-bundle state', () => {
 			expect(
 				notes?.includes( key ),
 				`${ key } absent from the notes bundle — its state is module-level again, so the shell cannot see it`,
+			).toBe( true );
+		} );
+	}
+
+	for ( const key of WINDOW_SYSTEM_SHARED_KEYS ) {
+		it( `"${ key }" is resolved through the shared store in the shell and window-system bundles`, () => {
+			expect(
+				shell?.includes( key ),
+				`${ key } absent from the shell bundle — its state is module-level again, so the window-system bundle cannot see it`,
+			).toBe( true );
+			expect(
+				windowSystem?.includes( key ),
+				`${ key } absent from the window-system bundle — its state is module-level again, so the shell cannot see it`,
 			).toBe( true );
 		} );
 	}
