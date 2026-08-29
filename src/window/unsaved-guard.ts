@@ -53,6 +53,15 @@ import {
 import type { Window } from './index';
 
 /**
+ * Origin snapshot taken at module load. Both the query's target
+ * origin and the reply's origin check compare against this value, so
+ * a plugin script that mutates `window.location` after boot can't
+ * relax the check — the same treatment `./index.ts` and
+ * `./iframe-bridge.ts` give their own same-origin guards.
+ */
+const INITIAL_ORIGIN = window.location.origin;
+
+/**
  * Monotonic counter behind the correlation id. Paired with a
  * timestamp so ids stay unique across a page that reloads its shell
  * bundle without reloading the document.
@@ -117,7 +126,7 @@ export function queryUnsavedGuard(
 		};
 
 		const onMessage = ( ev: MessageEvent ): void => {
-			if ( ev.origin !== window.location.origin ) {
+			if ( ev.origin !== INITIAL_ORIGIN ) {
 				return;
 			}
 			const data = ev?.data as {
@@ -145,7 +154,7 @@ export function queryUnsavedGuard(
 		try {
 			target.postMessage(
 				{ type: 'os-bridge-beforeunload-query', requestId },
-				window.location.origin,
+				INITIAL_ORIGIN,
 			);
 		} catch {
 			finish( false );
