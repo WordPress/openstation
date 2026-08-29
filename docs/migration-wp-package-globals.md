@@ -89,11 +89,12 @@ every registered store.
 because on a stock wp-admin the URL alone cannot answer it. Core
 concatenates every script below `wp-includes/js/` and `wp-admin/js/`
 into a single `load-scripts.php` response — the wp-admin default, off
-only under `SCRIPT_DEBUG` — so those packages are in the tab with no
-`<script src>` of their own to match. The blob names the handles it
-carries in its own query string, and the shell reads them back
-(`src/script-presence.ts`). Nothing is asked of you: the handles ride
-along in the payload OpenStation builds from your registration.
+under `SCRIPT_DEBUG` or `CONCATENATE_SCRIPTS = false` — so those
+packages are in the tab with no `<script src>` of their own to match.
+The blob names the handles it carries in its own query string, and
+the shell reads them back (`src/script-presence.ts`). Nothing is
+asked of you: the handles ride along in the payload OpenStation
+builds from your registration.
 
 **No other lazy path does this yet.** Native-window scripts, command
 scripts, settings-tab scripts, wallpapers, games and desktop-file

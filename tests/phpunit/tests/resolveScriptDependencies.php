@@ -186,12 +186,12 @@ class Tests_OpenStation_ResolveScriptDependencies extends WP_UnitTestCase {
 	 *
 	 * The shell skips a dependency the page already has, and on a
 	 * stock wp-admin it cannot do that from the URL: Core's script
-	 * concatenation (on by default there, off only under
-	 * `SCRIPT_DEBUG`) serves every package below `wp-includes/js/`
-	 * from one `load-scripts.php` blob, so none of them has a
-	 * `<script src>` carrying its path. The handle is the only
-	 * evidence left — `src/script-presence.ts` matches it against the
-	 * handle list the blob names in its own query string.
+	 * concatenation (on by default there, off under `SCRIPT_DEBUG` or
+	 * `CONCATENATE_SCRIPTS = false`) serves every package below
+	 * `wp-includes/js/` from one `load-scripts.php` blob, so none of
+	 * them has a `<script src>` carrying its path. The handle is the
+	 * only evidence left — `src/script-presence.ts` matches it against
+	 * the handle list the blob names in its own query string.
 	 *
 	 * Dropping this field would not fail loudly. It would re-inject
 	 * `wp-hooks`, replace `window.wp.hooks` with a fresh registry, and

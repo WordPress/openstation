@@ -147,6 +147,69 @@ describe( 'widgets — deferred bundle loading', () => {
 		expect( load ).toHaveBeenCalledTimes( 1 );
 	} );
 
+	test( 'a package Core concatenated into load-scripts.php is not fetched again', async () => {
+		// The path #715 reports. On a stock wp-admin `wp-hooks` is in
+		// the tab inside Core's concat blob, with no `<script src>`
+		// carrying its path, and the widget manifest lists it as a
+		// dependency. The loader recognizes it by handle — but only if
+		// this sync forwards the payload's `scriptDeps` intact. A
+		// mapping that dropped `handle` would pass every unit test the
+		// loader has and still re-inject `wp-hooks`, replacing
+		// `window.wp.hooks` under every subscriber the shell registered
+		// at boot. So: real loader, real presence test; only
+		// `appendChild` is stubbed, to answer `load` without a network.
+		const m = await loadModulesUnderTest();
+		const blob = document.createElement( 'script' );
+		blob.src =
+			'https://site.test/wp-admin/load-scripts.php?c=1&load%5Bchunk_0%5D=jquery-core,wp-hooks&ver=6.9';
+		document.head.append( blob );
+
+		const appended: string[] = [];
+		vi.spyOn( document.head, 'appendChild' ).mockImplementation(
+			( node ) => {
+				const el = node as HTMLScriptElement;
+				if ( el.tagName === 'SCRIPT' && el.src ) {
+					appended.push( new URL( el.src ).pathname );
+					if ( el.src.includes( 'widget-drafts.js' ) ) {
+						publishMount( 'os/drafts', () => () => {} );
+					}
+					queueMicrotask( () => el.dispatchEvent( new Event( 'load' ) ) );
+				}
+				return node;
+			},
+		);
+
+		try {
+			const sync = m.serverSync.createWidgetRegistrySync( { layer: null } );
+			await sync( [
+				serverEntry( {
+					scriptDeps: [
+						{
+							handle: 'wp-hooks',
+							url: 'https://site.test/wp-includes/js/dist/hooks.min.js',
+						},
+						{
+							handle: 'wp-api-fetch',
+							url: 'https://site.test/wp-includes/js/dist/api-fetch.min.js',
+						},
+					],
+				} ),
+			] );
+			const def = m.registry.all().find( ( d ) => d.id === 'os/drafts' );
+			await def!.mount( document.createElement( 'div' ), ctx );
+		} finally {
+			blob.remove();
+		}
+
+		// api-fetch is genuinely absent and still loads, in order,
+		// before the widget's own bundle; the concatenated package is
+		// the only thing skipped.
+		expect( appended ).toEqual( [
+			'/wp-includes/js/dist/api-fetch.min.js',
+			'/widget-drafts.js',
+		] );
+	} );
+
 	test( 'a bundle that publishes no callback throws so the card shows its error state', async () => {
 		const m = await loadModulesUnderTest();
 		vi.spyOn( m.vendorLoader, 'loadVendorScript' ).mockResolvedValue(
