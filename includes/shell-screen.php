@@ -238,7 +238,7 @@ function openstation_is_shell_request() {
  * can enter the desktop can reach its screen.
  */
 function openstation_register_shell_screen() {
-	add_submenu_page(
+	$hook = add_submenu_page(
 		'',
 		__( 'OpenStation', 'desktop-mode' ),
 		__( 'OpenStation', 'desktop-mode' ),
@@ -246,28 +246,45 @@ function openstation_register_shell_screen() {
 		OPENSTATION_SHELL_PAGE_SLUG,
 		'openstation_render_shell_screen'
 	);
+
+	if ( $hook ) {
+		add_action( "load-{$hook}", 'openstation_shell_screen_set_title' );
+	}
 }
 add_action( 'admin_menu', 'openstation_register_shell_screen' );
 
 /**
- * Names the shell document.
+ * Names the shell document, before `admin-header.php` asks for a name.
  *
- * `get_admin_page_title()` finds no title for a page whose parent is
- * the empty menu, so the shell's `<title>` came out as "‹ Site —
- * WordPress". The host screen used to supply the word before the
- * chevron; now the screen does.
+ * `get_admin_page_title()` finds no title for a page whose parent is the
+ * empty menu — it walks `$menu` and `$submenu` for an entry that paints,
+ * and this screen deliberately has none. So the global `$title` stayed
+ * null, and `admin-header.php` line 41 runs `strip_tags( $title )` on it
+ * unconditionally.
  *
- * @param string $admin_title The page title, with the site name appended.
- * @param string $title       The original page title.
- * @return string
+ * On PHP 8.1+ that is a deprecation notice, and with `WP_DEBUG_DISPLAY`
+ * on it PRINTS — before `<!DOCTYPE html>`, because the header has not
+ * emitted it yet. A document whose first bytes are not the doctype loads
+ * in QUIRKS MODE, and quirks mode is not a cosmetic difference here: the
+ * quirks UA stylesheet stops `<table>` inheriting `color` and `font-*`
+ * from its ancestors. Every `<os-table>` in a native window therefore
+ * dropped the palette's `--os-ui-fg` and fell back to core's
+ * `body { color: #3c434a }` — near-black text on the station's dark
+ * surfaces, at 1.3:1 against a table header (#697 → the Pages window).
+ *
+ * `load-{$hook}` fires in `admin.php` before `admin-header.php` is
+ * required, so a real string is in place by the time core reads it.
+ * `get_admin_page_title()` then returns early on its own `! empty()`
+ * check, which is also what gives the document the word before the
+ * chevron: "OpenStation ‹ Site — WordPress".
+ *
+ * Set unconditionally: the screen wants its name whether or not the
+ * shell paints on this request ({@see openstation_render_shell_screen()}
+ * answers with a pointer at the portal when it does not).
  */
-function openstation_shell_screen_admin_title( $admin_title, $title ) {
-	if ( '' !== trim( (string) $title ) || ! openstation_is_shell_screen_request() ) {
-		return $admin_title;
-	}
-	return __( 'OpenStation', 'desktop-mode' ) . $admin_title;
+function openstation_shell_screen_set_title() {
+	$GLOBALS['title'] = __( 'OpenStation', 'desktop-mode' ); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- naming an admin screen IS writing $title; every core screen does it (options-general.php, edit.php), and admin-header.php reads it moments later.
 }
-add_filter( 'admin_title', 'openstation_shell_screen_admin_title', 10, 2 );
 
 /**
  * The shell screen's page callback.

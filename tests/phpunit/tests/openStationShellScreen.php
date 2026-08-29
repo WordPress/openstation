@@ -273,26 +273,53 @@ class Tests_OpenStation_ShellScreen extends WP_UnitTestCase {
 	}
 
 	/**
-	 * The document is named after the desktop, not left as
-	 * "‹ Site — WordPress".
+	 * The screen names itself before `admin-header.php` reads the name.
 	 *
-	 * @covers ::openstation_shell_screen_admin_title
+	 * A null `$title` there is `strip_tags( null )`, which prints a
+	 * deprecation ahead of `<!DOCTYPE html>` and drops the whole shell
+	 * into quirks mode — where `<table>` stops inheriting `color` and
+	 * every `<os-table>` in a native window falls back to core's
+	 * `body { color: #3c434a }`. The name is also what puts "OpenStation"
+	 * before the chevron in the document title.
+	 *
+	 * @covers ::openstation_shell_screen_set_title
 	 */
-	public function test_admin_title_names_the_shell_document() {
-		set_current_screen( OPENSTATION_SHELL_SCREEN_ID );
-		$this->assertSame(
-			'OpenStation ‹ Site — WordPress',
-			openstation_shell_screen_admin_title( ' ‹ Site — WordPress', '' )
+	public function test_screen_sets_a_title_for_admin_header() {
+		$GLOBALS['title'] = null;
+		openstation_shell_screen_set_title();
+
+		$this->assertIsString( $GLOBALS['title'] );
+		$this->assertSame( 'OpenStation', $GLOBALS['title'] );
+
+		// `get_admin_page_title()` returns early on a non-empty title,
+		// so core never walks the menus it cannot find this page in.
+		$this->assertSame( 'OpenStation', get_admin_page_title() );
+
+		unset( $GLOBALS['title'] );
+	}
+
+	/**
+	 * …and it is wired to the hook that fires before the header runs.
+	 *
+	 * `load-{$hook}` is the only point between `add_submenu_page()` and
+	 * `require admin-header.php`; setting the title anywhere later is
+	 * too late to stop the notice.
+	 *
+	 * @covers ::openstation_register_shell_screen
+	 */
+	public function test_screen_registration_wires_the_title_to_its_load_hook() {
+		remove_action(
+			'load-' . OPENSTATION_SHELL_SCREEN_ID,
+			'openstation_shell_screen_set_title'
 		);
-		// A screen with its own title, and any other screen, are left alone.
-		$this->assertSame(
-			'Posts ‹ Site — WordPress',
-			openstation_shell_screen_admin_title( 'Posts ‹ Site — WordPress', 'Posts' )
-		);
-		set_current_screen( 'dashboard' );
-		$this->assertSame(
-			' ‹ Site — WordPress',
-			openstation_shell_screen_admin_title( ' ‹ Site — WordPress', '' )
+
+		openstation_register_shell_screen();
+
+		$this->assertNotFalse(
+			has_action(
+				'load-' . OPENSTATION_SHELL_SCREEN_ID,
+				'openstation_shell_screen_set_title'
+			)
 		);
 	}
 
