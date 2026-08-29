@@ -78,6 +78,23 @@ widget's own — each with its `wp_localize_script` /
 `wp_add_inline_script` / `wp_set_script_translations` data attached.
 Declare your packages and it works.
 
+**A package the page already has is never replayed**, so a page that
+carried the packages anyway pays nothing — and, more to the point, a
+singleton package is never evaluated twice. Re-running `wp-hooks`
+assigns a fresh registry to `window.wp.hooks` and everything that
+subscribed before that point goes deaf; re-running `wp-data` wipes
+every registered store.
+
+"Already in the document" is answered by handle as well as by URL,
+because on a stock wp-admin the URL alone cannot answer it. Core
+concatenates every script below `wp-includes/js/` and `wp-admin/js/`
+into a single `load-scripts.php` response — the wp-admin default, off
+only under `SCRIPT_DEBUG` — so those packages are in the tab with no
+`<script src>` of their own to match. The blob names the handles it
+carries in its own query string, and the shell reads them back
+(`src/script-presence.ts`). Nothing is asked of you: the handles ride
+along in the payload OpenStation builds from your registration.
+
 **No other lazy path does this yet.** Native-window scripts, command
 scripts, settings-tab scripts, wallpapers, games and desktop-file
 openers all travel the same loader, but their payload builders do not

@@ -71,6 +71,58 @@ describe( 'loadVendorScript — dependency closure', () => {
 		expect( appended ).toEqual( [ '/widget-two.js' ] );
 	} );
 
+	it( 'skips a package Core concatenated into load-scripts.php', async () => {
+		// The wp-admin default. `wp-hooks` is in the tab, inside the
+		// concat blob, with no tag carrying its path — so the loader
+		// has to recognize it by handle. Appending it again assigns a
+		// fresh registry to `window.wp.hooks` and every subscriber
+		// registered at boot stops hearing its own events.
+		const blob = document.createElement( 'script' );
+		blob.src =
+			'https://site.test/wp-admin/load-scripts.php?c=1&load%5Bchunk_0%5D=wp-hooks,wp-i18n,jquery-core&ver=6.9';
+		document.head.append( blob );
+		appended = [];
+
+		await loadVendorScript( 'https://site.test/widget-three.js', {
+			deps: [
+				{
+					handle: 'wp-hooks',
+					url: 'https://site.test/wp-includes/js/dist/hooks.min.js',
+				},
+				{
+					handle: 'wp-api-fetch',
+					url: 'https://site.test/wp-includes/js/dist/api-fetch.min.js',
+				},
+			],
+		} );
+
+		// api-fetch is genuinely absent and still loads; only the
+		// concatenated one is skipped.
+		expect( appended ).toEqual( [
+			'/wp-includes/js/dist/api-fetch.min.js',
+			'/widget-three.js',
+		] );
+	} );
+
+	it( 'skips a concatenated handle passed as the bundle itself', async () => {
+		// The command-palette replay walks a manifest of Core handles
+		// as top-level loads rather than as anyone's dependencies. A
+		// handle of its own, so the URL memo from the case above
+		// cannot be what makes this pass.
+		const blob = document.createElement( 'script' );
+		blob.src =
+			'https://site.test/wp-admin/load-scripts.php?c=1&load%5Bchunk_0%5D=wp-dom-ready&ver=6.9';
+		document.head.append( blob );
+		appended = [];
+
+		await loadVendorScript(
+			'https://site.test/wp-includes/js/dist/dom-ready.min.js',
+			{ handle: 'wp-dom-ready' },
+		);
+
+		expect( appended ).toEqual( [] );
+	} );
+
 	it( 'is a no-op for a bundle that declares nothing', async () => {
 		await loadVendorScript( 'https://site.test/plain.js' );
 

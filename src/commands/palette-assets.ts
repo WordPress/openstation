@@ -20,10 +20,13 @@
  *      before → src → after) exactly as `wp_print_scripts()` would
  *      have printed it. Sequential awaits are cheap here: the
  *      preloads already put every file in the HTTP cache.
- *   3. Handles some other plugin already delivered at boot (a store
- *      loads `wp-block-editor` on the dashboard all by itself) are
- *      detected by a same-path DOM sniff and skipped — re-executing
- *      `wp-data` would wipe every registered store.
+ *   3. Handles the page already delivered at boot — `wp-hooks` and
+ *      `wp-i18n` always, plus whatever a plugin pulled in (a store
+ *      loads `wp-block-editor` on the dashboard all by itself) — are
+ *      skipped. Re-executing `wp-data` would wipe every registered
+ *      store, and `wp-hooks` every subscriber. `isScriptInDocument`
+ *      matches by handle as well as by path, so a package Core
+ *      concatenated into `load-scripts.php` is recognized too.
  *   4. Src-less aggregator handles carry only inline data; their
  *      snippets run at their slot in the order.
  *
@@ -35,9 +38,9 @@
  * install has already done the work.
  */
 
+import { isScriptInDocument } from '../script-presence';
 import type { DesktopConfig } from '../types';
 import {
-	findScriptByPath,
 	injectInlineScript,
 	loadVendorScript,
 } from '../wallpapers/vendor-loader';
@@ -150,8 +153,15 @@ async function load(): Promise< boolean > {
 		return true;
 	} );
 
+	// Skipping what the page already has is not an optimization here:
+	// every handle in this chain is a Core package, and re-running one
+	// replaces an object the rest of the tab is holding — `wp-data`
+	// would wipe every registered store, `wp-hooks` every subscriber.
+	// Matched by handle as well as by path, because on a stock
+	// wp-admin those packages arrive concatenated and have no tag of
+	// their own to match (`isScriptInDocument`).
 	const missing = ordered.filter(
-		( script ) => ! script.url || ! findScriptByPath( script.url ),
+		( script ) => ! script.url || ! isScriptInDocument( script ),
 	);
 	for ( const script of missing ) {
 		if ( script.url ) {
@@ -167,6 +177,7 @@ async function load(): Promise< boolean > {
 			// its before/after snippets, …). The preloads above make
 			// each await a cache read, not a network round-trip.
 			await loadVendorScript( script.url, {
+				handle: script.handle,
 				translations: script.translations,
 				l10n: script.l10n,
 				before: script.before,

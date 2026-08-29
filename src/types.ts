@@ -1079,6 +1079,14 @@ export interface DesktopWidgetServerEntry {
 	 * `docs/migration-wp-package-globals.md`.
 	 */
 	scriptDeps?: Array< {
+		/**
+		 * The package's WP script handle. Load-bearing, not
+		 * informational: on a stock wp-admin these packages arrive
+		 * concatenated into one `load-scripts.php` blob and have no
+		 * `<script src>` of their own, so the handle is the only way
+		 * the shell can tell they are already here. See
+		 * `src/script-presence.ts`.
+		 */
 		handle?: string;
 		url: string;
 		before?: string[];
@@ -2372,6 +2380,13 @@ export interface DesktopConfig {
 	 */
 	commandPalette?: {
 		scripts: Array< {
+			/**
+			 * WP script handle. Load-bearing on the replay path: it is
+			 * how the shell recognizes a package the boot page already
+			 * printed, including one Core concatenated into
+			 * `load-scripts.php` with no tag of its own. See
+			 * `src/script-presence.ts`.
+			 */
 			handle: string;
 			url: string;
 			before?: string[];

@@ -13,62 +13,13 @@
  * first activation.
  */
 
+import { findScriptByPath, isScriptInDocument } from '../script-presence';
+
 /**
  * Map of url → in-flight or resolved load promise. Keeps concurrent
  * requests for the same script deduplicated.
  */
 const pending = new Map<string, Promise<void>>();
-
-/**
- * Find a `<script src>` already in the document serving the same
- * file, ignoring the query string.
- *
- * `wp_enqueue_script()` prints `…/desktop.min.js?ver=0.9.8` while a
- * registry entry may hold the bare path or a different `ver`. Within
- * one document those are the same bundle, and injecting it a second
- * time evaluates it a second time — which duplicates every hook
- * subscription the bundle registers.
- *
- * Origin is part of the identity, though the query string isn't:
- * `loadVendorScript` is public API and vendor bundles have generic
- * paths, so two CDNs both serving `/dist/index.js` are two different
- * bundles. Matching on pathname alone would silently swallow the
- * second one.
- *
- * @param url Candidate URL.
- * @return The existing tag, or `null`.
- */
-export function findScriptByPath( url: string ): HTMLScriptElement | null {
-	let origin: string;
-	let path: string;
-	try {
-		const parsed = new URL( url, document.baseURI );
-		origin = parsed.origin;
-		path = parsed.pathname;
-	} catch {
-		return null;
-	}
-	if ( ! path ) {
-		return null;
-	}
-	const tags = document.querySelectorAll< HTMLScriptElement >(
-		'script[src]',
-	);
-	for ( const tag of Array.from( tags ) ) {
-		try {
-			const candidate = new URL( tag.src, document.baseURI );
-			if (
-				candidate.origin === origin &&
-				candidate.pathname === path
-			) {
-				return tag;
-			}
-		} catch {
-			/* A malformed src can't match anything — skip it. */
-		}
-	}
-	return null;
-}
 
 /**
  * Inline `extra` data harvested from a registered WP script handle by
@@ -81,6 +32,21 @@ export function findScriptByPath( url: string ): HTMLScriptElement | null {
  * @public
  */
 export interface ScriptExtras {
+	/**
+	 * The WordPress script handle this payload was harvested from.
+	 *
+	 * Carried so the loader can tell whether the document already ran
+	 * the script when there is no `<script src>` to find — which is
+	 * every Core package on a stock wp-admin, where concatenation
+	 * serves them all from one `load-scripts.php` blob. See
+	 * {@link isScriptInDocument}.
+	 *
+	 * Optional, and worth passing whenever the caller knows it: a
+	 * URL-only ref can only be matched against tags, and re-running a
+	 * package that was already delivered replaces the object other
+	 * code is holding.
+	 */
+	handle?: string;
 	/**
 	 * `wp.i18n.setLocaleData( … )` snippet emitted by
 	 * `wp_set_script_translations()`. A single blob; injected before
@@ -155,7 +121,7 @@ export function loadVendorScript(
 	const deps = extras?.deps;
 	if ( deps && deps.length > 0 ) {
 		const loadDep = ( dep: { url: string } & ScriptExtras ) => {
-			if ( ! dep.url || findScriptByPath( dep.url ) ) {
+			if ( ! dep.url || isScriptInDocument( dep ) ) {
 				return Promise.resolve();
 			}
 			return loadVendorScript( dep.url, { ...dep, deps: undefined } );
@@ -241,6 +207,16 @@ function injectScriptTag( url: string, extras?: ScriptExtras ): Promise< void > 
 			// callback.
 			alreadyInDocument.dataset.osVendor = url;
 			alreadyInDocument.dataset.loaded = '1';
+			resolve();
+			return;
+		}
+
+		// Or the document has it with no tag of its own to stamp,
+		// because Core's concatenator folded it into a
+		// `load-scripts.php` blob along with every other package. Same
+		// verdict, reached by reading the blob's handle list —
+		// `isScriptInDocument` has the full reasoning.
+		if ( isScriptInDocument( { handle: extras?.handle } ) ) {
 			resolve();
 			return;
 		}

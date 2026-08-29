@@ -4,14 +4,17 @@
  * The server ships an ordered manifest
  * (`openStationConfig.commandPalette`); `ensureCommandPaletteAssets()`
  * replays it on the first palette invocation. What these tests pin:
- * strict dependency-order execution, the skip for handles another
- * plugin already delivered at boot (re-running `wp-data` would wipe
- * every registered store), inline-only aggregator handles running at
- * their slot, the single-flight memo (with retry after a failed
+ * strict dependency-order execution, the skip for handles the page
+ * already delivered at boot — by handle as well as by URL, since a
+ * concatenated package has no tag of its own, and re-running
+ * `wp-data` would wipe every registered store while `wp-hooks` would
+ * silence every subscriber — inline-only aggregator handles running
+ * at their slot, the single-flight memo (with retry after a failed
  * load), the ready event the shell harvester re-installs on, and the
  * graceful no-op on a site with no manifest at all.
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import * as scriptPresence from '../../src/script-presence';
 import * as vendorLoader from '../../src/wallpapers/vendor-loader';
 import {
 	ensureCommandPaletteAssets,
@@ -63,7 +66,9 @@ describe( 'ensureCommandPaletteAssets', () => {
 				inline.push( code );
 			},
 		);
-		vi.spyOn( vendorLoader, 'findScriptByPath' ).mockReturnValue( null );
+		vi.spyOn( scriptPresence, 'isScriptInDocument' ).mockReturnValue(
+			false,
+		);
 	} );
 
 	afterEach( () => {
@@ -104,15 +109,37 @@ describe( 'ensureCommandPaletteAssets', () => {
 	} );
 
 	test( 'skips handles another plugin already put on the page', async () => {
-		vi.mocked( vendorLoader.findScriptByPath ).mockImplementation(
-			( url: string ) =>
-				url.includes( 'data.js' )
-					? ( {} as HTMLScriptElement )
-					: null,
+		vi.mocked( scriptPresence.isScriptInDocument ).mockImplementation(
+			( ref ) => !! ref.url?.includes( 'data.js' ),
 		);
 		setManifest( {
 			scripts: [
 				{ handle: 'wp-data', url: 'https://example.test/data.js' },
+				{ handle: 'wp-commands', url: 'https://example.test/commands.js' },
+			],
+			styles: [],
+		} );
+
+		await ensureCommandPaletteAssets();
+
+		expect( loaded ).toEqual( [ 'https://example.test/commands.js' ] );
+	} );
+
+	test( 'hands the handle to the presence test, not just the URL', async () => {
+		// On a stock wp-admin every package in this chain arrives
+		// concatenated into `load-scripts.php` and no tag carries its
+		// path, so the handle is the only evidence that it is already
+		// in the tab. Re-running `wp-hooks` would replace
+		// `window.wp.hooks` out from under every boot-time subscriber.
+		vi.mocked( scriptPresence.isScriptInDocument ).mockImplementation(
+			( ref ) => 'wp-hooks' === ref.handle,
+		);
+		setManifest( {
+			scripts: [
+				{
+					handle: 'wp-hooks',
+					url: 'https://example.test/hooks.min.js',
+				},
 				{ handle: 'wp-commands', url: 'https://example.test/commands.js' },
 			],
 			styles: [],

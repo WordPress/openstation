@@ -1860,6 +1860,15 @@ function openstation_resolve_script_dependencies( $handle ) {
 			&& empty( $payload['l10n'] ) ) {
 			continue;
 		}
+		// The handle rides along because the shell needs it to decide
+		// whether the page already has this package. A URL is not
+		// enough: with Core's script concatenation on — the wp-admin
+		// default — every package below `wp-includes/js/` is served
+		// from one `load-scripts.php` blob and has no `<script src>`
+		// of its own to match against. Re-running `wp-hooks` because
+		// we could not see it replaces `window.wp.hooks`, and every
+		// subscriber registered at boot goes deaf. See
+		// `src/script-presence.ts`.
 		$payload['handle'] = (string) $dep_handle;
 		$out[]             = $payload;
 	}
@@ -2084,10 +2093,13 @@ function openstation_resolve_style_payload( $handle ) {
  *
  * Handles with no `src` (pure aggregators) are kept whenever they
  * carry inline data; dropping them would lose middleware and locale
- * setup the chain depends on. Handles another plugin already
- * enqueued at boot print normally and are skipped client-side by a
- * same-path DOM sniff — the manifest deliberately lists them anyway,
- * because which ones those are differs per site and per screen.
+ * setup the chain depends on. Handles the boot page already printed
+ * are skipped client-side, by handle as well as by path so that a
+ * package Core concatenated into `load-scripts.php` is recognized
+ * (`src/script-presence.ts`) — the manifest deliberately lists them
+ * anyway, because which ones those are differs per site and per
+ * screen. Each entry therefore carries its `handle`, and that is
+ * load-bearing rather than informational.
  *
  * Returns `null` on pre-6.9 sites (no Core palette to defer).
  *
