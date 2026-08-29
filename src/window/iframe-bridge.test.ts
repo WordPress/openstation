@@ -53,6 +53,10 @@ function mockWindow( overrides: Partial< Window > = {} ): Window {
 		_resetActivity: vi.fn(),
 		_noteNavigationActivity: vi.fn(),
 		_settleNavigationActivity: vi.fn( () => false ),
+		// Release / drop for a navigation paint withheld over an
+		// unsaved-changes prompt — see `./unsaved-guard.ts`.
+		_commitDeferredNavigation: vi.fn(),
+		_clearDeferredNavigation: vi.fn(),
 		...overrides,
 	} as unknown as Window;
 }
@@ -141,6 +145,31 @@ describe( 'iframe-bridge: os-ready', () => {
 		expect( win._settleNavigationActivity ).toHaveBeenCalledWith();
 		expect( win._resetActivity ).not.toHaveBeenCalled();
 		expect( win._markActivityStart ).not.toHaveBeenCalled();
+	} );
+} );
+
+describe( 'iframe-bridge: os-iframe-unloading', () => {
+	beforeEach( () => installHooksStub() );
+	afterEach( () => clearHooksStub() );
+
+	test( 'releases a navigation paint the shell withheld over a prompt', () => {
+		const win = mockWindow();
+
+		postToWindow( win, { type: 'os-iframe-unloading' } );
+
+		expect( win._commitDeferredNavigation ).toHaveBeenCalledTimes( 1 );
+	} );
+
+	test( 'a paint still armed when the next document is ready is dropped, not run', () => {
+		// Overtaken: running it here would arm the overlay for a load
+		// that has already finished, and the ready edge that would
+		// have cleared it is spent.
+		const win = mockWindow();
+
+		postToWindow( win, { type: 'os-ready' } );
+
+		expect( win._clearDeferredNavigation ).toHaveBeenCalledTimes( 1 );
+		expect( win._commitDeferredNavigation ).not.toHaveBeenCalled();
 	} );
 } );
 
@@ -985,6 +1014,23 @@ describe( 'iframe-bridge: os-bridge-beforeunload-response', () => {
 		postToWindow( win, {
 			type: 'os-bridge-beforeunload-response',
 			prevent: false,
+		} );
+		await vi.dynamicImportSettled();
+
+		expect( win.destroy ).not.toHaveBeenCalled();
+		expect( osConfirm ).not.toHaveBeenCalled();
+	} );
+
+	test( 'a correlated response belongs to the navigation guard, not the close flow', async () => {
+		const win = mockWindow();
+
+		// The pre-navigation query in `unsaved-guard.ts` listens for
+		// its own reply. Reading it here too would close a window
+		// whose user only clicked a submenu tab.
+		postToWindow( win, {
+			type: 'os-bridge-beforeunload-response',
+			prevent: false,
+			requestId: 'os-unsaved-guard-1-1',
 		} );
 		await vi.dynamicImportSettled();
 

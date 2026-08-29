@@ -960,6 +960,7 @@ export function installEditorAutosaveHandler(): void {
 					topic?: string;
 					payload?: unknown;
 					topics?: unknown;
+					requestId?: unknown;
 				}
 			| null;
 		if ( ! data || typeof data !== 'object' || typeof data.type !== 'string' ) {
@@ -1061,14 +1062,24 @@ export function installEditorAutosaveHandler(): void {
 				checkPrevent( dispatchEvent, null );
 			}
 			try {
-				window.parent.postMessage(
-					{
-						type: 'os-bridge-beforeunload-response',
-						prevent,
-						message: msg,
-					},
-					parentOrigin,
-				);
+				// Echo the asker's correlation id when there is one.
+				// The pre-CLOSE query sends none and is answered by
+				// the window's own message handler; the pre-NAVIGATION
+				// query sends one and is answered by the promise that
+				// asked. Without the echo the two share one reply and
+				// a tab click closes the window.
+				const reply: Record< string, unknown > = {
+					type: 'os-bridge-beforeunload-response',
+					prevent,
+					message: msg,
+				};
+				if (
+					typeof data.requestId === 'string' &&
+					data.requestId !== ''
+				) {
+					reply.requestId = data.requestId;
+				}
+				window.parent.postMessage( reply, parentOrigin );
 			} catch {
 				/* swallow */
 			}
@@ -1729,6 +1740,34 @@ export function installEditorAutosaveHandler(): void {
 			},
 			{ capture: true, passive: true },
 		);
+	}
+
+	/*
+	 * "I am really leaving." `pagehide` fires once, at the moment a
+	 * navigation commits, which makes it the one signal that
+	 * separates a "Leave site?" prompt the user accepted from one
+	 * they cancelled — a cancelled navigation fires nothing and
+	 * leaves this document running, indistinguishable from the
+	 * outside from a page still waiting on a slow response. The
+	 * shell releases a navigation paint it withheld over the prompt
+	 * on this message (see `src/window/unsaved-guard.ts`); a window
+	 * with nothing withheld ignores it.
+	 */
+	try {
+		window.addEventListener( 'pagehide', () => {
+			try {
+				if ( window.parent && window.parent !== window ) {
+					window.parent.postMessage(
+						{ type: 'os-iframe-unloading' },
+						parentOrigin,
+					);
+				}
+			} catch {
+				/* parent gone; swallow */
+			}
+		} );
+	} catch {
+		/* swallow */
 	}
 
 	/*

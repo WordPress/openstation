@@ -247,6 +247,35 @@
 	 * full payload must ship their own deeper wrapper (at which
 	 * point they own the consent conversation).
 	 */
+	/*
+	 * "I am really leaving."
+	 *
+	 * `pagehide` fires once, at the moment a navigation commits — so
+	 * it is the one thing that separates a "Leave site?" prompt the
+	 * user accepted from one they cancelled. A cancelled navigation
+	 * fires nothing at all and leaves this document running, which is
+	 * why the parent cannot work it out for itself: it looks
+	 * identical, from the outside, to a page still waiting on a slow
+	 * response.
+	 *
+	 * The shell uses it to release a navigation paint it withheld
+	 * over the prompt (see `src/window/unsaved-guard.ts`); a window
+	 * with nothing withheld ignores the message. Registered next to
+	 * the error relay rather than gated on anything, because by the
+	 * time this document knows a prompt is coming it is too late to
+	 * start listening.
+	 */
+	try {
+		window.addEventListener( 'pagehide', function () {
+			try {
+				window.parent.postMessage(
+					{ type: 'os-iframe-unloading' },
+					window.location.origin
+				);
+			} catch ( _err ) { /* parent gone */ }
+		} );
+	} catch ( _err ) { /* swallow */ }
+
 	try {
 		window.addEventListener( 'error', function ( e ) {
 			try {
@@ -3065,11 +3094,21 @@
 			}
 
 			try {
-				window.parent.postMessage( {
+				/* Echo the asker's correlation id when there is one.
+				 * The pre-CLOSE query sends none and is answered by
+				 * the window's own message handler; the pre-NAVIGATION
+				 * query sends one and is answered by the promise that
+				 * asked. Without the echo the two share one reply and
+				 * a tab click closes the window. */
+				var reply = {
 					type: 'os-bridge-beforeunload-response',
 					prevent: prevent,
 					message: msg
-				}, _wpdParentOrigin );
+				};
+				if ( typeof data.requestId === 'string' && data.requestId !== '' ) {
+					reply.requestId = data.requestId;
+				}
+				window.parent.postMessage( reply, _wpdParentOrigin );
 			} catch ( _err ) { /* swallow */ }
 			return;
 		}

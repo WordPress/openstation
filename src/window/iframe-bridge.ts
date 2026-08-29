@@ -212,6 +212,14 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 	// listener-timing a known footgun otherwise).
 	if ( data.type === 'os-ready' ) {
 		win._iframeBridgeReady = true;
+		// A withheld navigation paint that is still armed here has
+		// been overtaken: the content it was going to announce as
+		// loading is already on screen. Running it now would put the
+		// overlay up for a load that has finished — with the ready
+		// edge already spent, nothing would take it back down. This
+		// is the belt to `os-iframe-unloading`'s braces; the tab
+		// highlight is `_wireTabNavSync`'s job either way.
+		win._clearDeferredNavigation();
 		// A new document means the old one's in-flight requests will
 		// never report back — navigating away cancels them and takes
 		// the `end` message with them. Without this the ring stays
@@ -228,9 +236,29 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 		doAction( HOOKS.IFRAME_READY, { windowId: win.id } );
 	}
 
+	// The document really left — reported from its own `pagehide`,
+	// which fires only once a navigation has actually committed. The
+	// one thing that can tell a "Leave site?" prompt the user accepted
+	// apart from one they cancelled, and so the release for a
+	// navigation paint the shell withheld over that prompt. Windows
+	// with nothing withheld ignore it. See `./unsaved-guard.ts`.
+	if ( data.type === 'os-iframe-unloading' ) {
+		win._commitDeferredNavigation();
+	}
+
 	// Response to the parent's pre-close query for unsaved changes.
+	//
+	// A response carrying a `requestId` belongs to a correlated
+	// asker — the pre-NAVIGATION query in `./unsaved-guard.ts`, which
+	// listens for its own reply — and must not fall through to the
+	// close flow below. That flow destroys the window on any response
+	// it sees, so an uncorrelated read of one would close a window
+	// whose user only clicked a tab.
 	if ( data.type === 'os-bridge-beforeunload-response' ) {
 		if ( win._isDestroyed ) {
+			return;
+		}
+		if ( typeof data.requestId === 'string' && data.requestId !== '' ) {
 			return;
 		}
 		win._closePending = false;

@@ -27,6 +27,7 @@ import {
 	positionTabPlate,
 	syncTabRoving,
 } from './tab-strip';
+import { navigateWithUnsavedGuard } from './unsaved-guard';
 import type { Window } from './index';
 
 /*
@@ -593,8 +594,15 @@ export function handleTabStripClick( win: Window, e: Event ): void {
 	// Submenu tab — navigate primary iframe in place and bring it
 	// forward. The load listener below syncs the active-tab highlight.
 	if ( tab.dataset.url ) {
-		const next = withChromelessParam( tab.dataset.url );
-		if ( next && win.iframe ) {
+		const destination = tab.dataset.url;
+		const next = withChromelessParam( destination );
+		// Foreground the primary surface first — the submenu strip
+		// describes that frame, so the click belongs to it whatever
+		// the page inside decides about leaving. It also has to
+		// precede the paint below: `syncActiveTab` no-ops while an
+		// external sub-tab holds the foreground.
+		switchToTab( win, 'primary' );
+		const paint = (): void => {
 			// Arm the loading overlay before re-pointing the iframe.
 			// The chromeless bridge clears it via `os-ready`
 			// once the next page hydrates (and the iframe `load`
@@ -604,14 +612,36 @@ export function handleTabStripClick( win: Window, e: Event ): void {
 			// gave users a reason to navigate within tabs instead of
 			// closing + reopening the window.
 			win.markContentLoading();
-			win.iframe.src = next;
+			// Light the destination now. The load event calls this
+			// again with wherever the navigation landed, and on
+			// `site-editor.php` that is seconds away — long enough for
+			// the strip to sit there naming the page the user just
+			// left.
+			syncActiveTab( win, destination );
+		};
+		if ( next && win.iframe ) {
+			// Both halves go through the guard: a page holding unsaved
+			// changes gets the browser's "Leave site?" prompt, and a
+			// prompt the user cancels used to leave this window under
+			// a spinner that nothing would ever clear, with the
+			// highlight on a tab it never reached. See
+			// `./unsaved-guard.ts`.
+			navigateWithUnsavedGuard( win, {
+				commit: paint,
+				navigate: () => {
+					if ( win.iframe ) {
+						win.iframe.src = next;
+					}
+				},
+			} );
+		} else {
+			// Nothing to navigate (no frame, or a cross-origin URL the
+			// chromeless gate refused). The strip still follows the
+			// click, as it always has — but the overlay stays off,
+			// because arming it with no load behind it is the stuck
+			// spinner this whole file is trying to avoid.
+			syncActiveTab( win, destination );
 		}
-		switchToTab( win, 'primary' );
-		// Light the destination now. The load event calls this again
-		// with wherever the navigation landed, and on
-		// `site-editor.php` that is seconds away — long enough for the
-		// strip to sit there naming the page the user just left.
-		syncActiveTab( win, tab.dataset.url );
 	}
 }
 

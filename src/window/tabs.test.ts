@@ -5,7 +5,7 @@
  * `edit.php?paged=2` — without ever letting one submenu entry claim
  * another entry's page.
  */
-import { afterEach, beforeEach, describe, expect, test } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
 	handleTabStripClick,
 	observeTabOverflow,
@@ -285,6 +285,78 @@ describe( 'syncActiveTab', () => {
 		} as unknown as Event );
 
 		expect( activeLabels( win ) ).toEqual( [ 'Editor' ] );
+	} );
+
+	test( 'a page holding unsaved changes keeps its highlight and its spinner off', async () => {
+		const win = mockTabbedWindow( [
+			[ 'All Users', ADMIN + 'users.php' ],
+			[ 'Add User', ADMIN + 'user-new.php' ],
+			[ 'Profile', ADMIN + 'profile.php' ],
+		] );
+		const iframe = document.createElement( 'iframe' );
+		const asked: { type?: string; requestId?: string }[] = [];
+		Object.defineProperty( iframe, 'contentWindow', {
+			value: {
+				postMessage: ( m: unknown ) => {
+					asked.push( m as { type?: string; requestId?: string } );
+				},
+			},
+		} );
+		const markContentLoading = vi.fn();
+		Object.assign( win as unknown as Record< string, unknown >, {
+			iframe,
+			_externalTabs: new Map(),
+			_iframeBridgeReady: true,
+			_isDestroyed: false,
+			_unsavedGuardPending: false,
+			_deferredNavigationCommit: null,
+			_deferNavigationCommit( commit: () => void ) {
+				(
+					win as unknown as Record< string, unknown >
+				)._deferredNavigationCommit = commit;
+			},
+			markContentLoading,
+		} );
+		syncActiveTab( win, ADMIN + 'user-new.php' );
+		expect( activeLabels( win ) ).toEqual( [ 'Add User' ] );
+
+		const profile = win.element.querySelectorAll( '.os-window__tab' )[ 2 ];
+		handleTabStripClick( win, {
+			target: profile,
+			stopPropagation: () => {},
+		} as unknown as Event );
+
+		// The frame is asked before anything is painted…
+		await vi.waitFor( () => expect( asked ).toHaveLength( 1 ) );
+		expect( asked[ 0 ].type ).toBe( 'os-bridge-beforeunload-query' );
+
+		// …and answering "something is holding on" starts the
+		// navigation without committing to it. The browser's own
+		// prompt is now on screen; if the user cancels it, this is the
+		// state the window is left in — the one it was already in.
+		window.dispatchEvent(
+			new MessageEvent( 'message', {
+				data: {
+					type: 'os-bridge-beforeunload-response',
+					prevent: true,
+					requestId: asked[ 0 ].requestId,
+				},
+				origin: window.location.origin,
+			} ),
+		);
+		await vi.waitFor( () => expect( iframe.src ).toContain( 'profile.php' ) );
+
+		expect( markContentLoading ).not.toHaveBeenCalled();
+		expect( activeLabels( win ) ).toEqual( [ 'Add User' ] );
+
+		// The user chose to leave after all: the frame reports a real
+		// unload and the withheld paint lands.
+		(
+			win as unknown as { _deferredNavigationCommit: () => void }
+		)._deferredNavigationCommit();
+
+		expect( markContentLoading ).toHaveBeenCalledTimes( 1 );
+		expect( activeLabels( win ) ).toEqual( [ 'Profile' ] );
 	} );
 
 	test( 'aria-selected tracks the active tab', () => {

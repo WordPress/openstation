@@ -132,6 +132,7 @@ import {
 	toggleActionsMenu,
 } from './menus';
 import { handleDragStart, handleResizeStart } from './pointer';
+import { navigateWithUnsavedGuard } from './unsaved-guard';
 import { speculateDocument } from '../pwa/speculate';
 
 /**
@@ -520,6 +521,31 @@ export class Window {
 	 * @internal
 	 */
 	public _closePending: boolean = false;
+
+	/**
+	 * True while a pre-NAVIGATION unsaved-changes query is in flight.
+	 * Distinct from {@link _closePending}: that one guards a close,
+	 * this one guards the re-entrancy `reload()` used to get for free
+	 * from the loading class — which the guard now arms a task later
+	 * than the click.
+	 *
+	 * @internal
+	 */
+	public _unsavedGuardPending: boolean = false;
+
+	/**
+	 * The paint half of a navigation this window started but withheld,
+	 * because the page inside is holding unsaved changes and the
+	 * browser is about to raise its own "Leave site?" prompt over the
+	 * top. Released by {@link _commitDeferredNavigation} when the frame
+	 * reports it really left. See `./unsaved-guard.ts`.
+	 *
+	 * @internal
+	 */
+	public _deferredNavigationCommit: ( () => void ) | null = null;
+
+	/** @internal */
+	public _deferredNavigationTimer: number | null = null;
 
 	/**
 	 * Which tab is currently foregrounded: 'primary' or a tab id.
@@ -2282,6 +2308,14 @@ export class Window {
 		if ( body?.classList.contains( 'os-window__body--loading' ) ) {
 			return;
 		}
+		// The class above stops the second click of a double-click, but
+		// only once it is on — and the unsaved-changes query below now
+		// arms it a task later than the click. This flag covers that
+		// gap; without it two reloads slip through on a page the query
+		// is still answering for.
+		if ( this._unsavedGuardPending ) {
+			return;
+		}
 		if ( this.config.native ) {
 			this._reloadNative();
 			return;
@@ -2327,12 +2361,28 @@ export class Window {
 		// arm the loading overlay (will be cleared by `os-ready`),
 		// then fire the actual reload, then notify subscribers.
 		this._spinReloadButton();
-		this.markContentLoading();
-		triggerReload();
-		doAction( HOOKS.WINDOW_RELOADED, {
-			windowId: this.id,
-			url: reloadedUrl,
-		} );
+		const commit = (): void => {
+			this.markContentLoading();
+		};
+		const navigate = (): void => {
+			triggerReload();
+			doAction( HOOKS.WINDOW_RELOADED, {
+				windowId: this.id,
+				url: reloadedUrl,
+			} );
+		};
+		// A reload is a navigation, so an unsaved-changes prompt can
+		// cancel it — and a cancelled one that had already armed the
+		// overlay leaves the window under a spinner AND locked out of
+		// reloading again, since the class above is the re-entrancy
+		// guard. Only the primary frame is asked: an external sub-tab
+		// is another origin's page with no bridge to answer.
+		if ( this._activeTabId === 'primary' ) {
+			navigateWithUnsavedGuard( this, { commit, navigate } );
+		} else {
+			commit();
+			navigate();
+		}
 	}
 
 	/**
@@ -2427,8 +2477,14 @@ export class Window {
 	 * entry (Back still works), falling back to `iframe.src` when the
 	 * content window is torn down or inaccessible.
 	 *
-	 * Returns `true` when a navigation was started, `false` for
-	 * native windows, missing iframes, or cross-origin URLs.
+	 * Returns `true` when a navigation was **issued**, `false` for
+	 * native windows, missing iframes, or cross-origin URLs. Issued,
+	 * not completed: the page inside still gets its own say, and one
+	 * holding unsaved changes can have the browser's "Leave site?"
+	 * prompt cancel the navigation this returned `true` for. Which is
+	 * also why the overlay and the tab highlight below are withheld on
+	 * that path rather than painted optimistically — see
+	 * `./unsaved-guard.ts`.
 	 */
 	public navigateTo( url: string ): boolean {
 		if ( this.config.native || ! this.iframe ) {
@@ -2438,26 +2494,34 @@ export class Window {
 		if ( ! target ) {
 			return false;
 		}
-		// Arm the loading overlay before re-pointing the iframe — the
-		// same affordance the submenu tab strip shows for in-place
-		// navigation. Cleared by `os-ready` / the iframe
-		// `load` event, exactly like a fresh open.
-		this.markContentLoading();
-		// Optimistic click highlight so Gutenberg's `replaceState`
-		// racing the `load` event doesn't leave the tab strip blank
-		// or on the old tab.
-		syncActiveTab( this, url );
-		const inner = this.iframe.contentWindow;
-		if ( inner ) {
-			try {
-				inner.location.assign( target );
-				return true;
-			} catch {
-				// Torn-down frame — fall through to the never-throwing
-				// `src` assignment.
-			}
-		}
-		this.iframe.src = target;
+		navigateWithUnsavedGuard( this, {
+			commit: () => {
+				// Arm the loading overlay before re-pointing the iframe
+				// — the same affordance the submenu tab strip shows for
+				// in-place navigation. Cleared by `os-ready` / the
+				// iframe `load` event, exactly like a fresh open.
+				this.markContentLoading();
+				// Optimistic click highlight so Gutenberg's
+				// `replaceState` racing the `load` event doesn't leave
+				// the tab strip blank or on the old tab.
+				syncActiveTab( this, url );
+			},
+			navigate: () => {
+				const inner = this.iframe?.contentWindow;
+				if ( inner ) {
+					try {
+						inner.location.assign( target );
+						return;
+					} catch {
+						// Torn-down frame — fall through to the
+						// never-throwing `src` assignment.
+					}
+				}
+				if ( this.iframe ) {
+					this.iframe.src = target;
+				}
+			},
+		} );
 		return true;
 	}
 
@@ -3121,6 +3185,60 @@ export class Window {
 	}
 
 	/**
+	 * Hold back the paint half of a navigation until the frame proves
+	 * it left. Called by `navigateWithUnsavedGuard()` when the page
+	 * inside answered the pre-navigation query with "something is
+	 * holding on" — see `./unsaved-guard.ts` for why the shell waits
+	 * rather than guesses.
+	 *
+	 * The expiry is not housekeeping. Without it a navigation the
+	 * user answered "Stay" to leaves a callback armed for the rest of
+	 * the window's life, and the next unrelated navigation — a link,
+	 * a form submit, minutes later — would fire it and light a tab
+	 * for a page nobody is going to.
+	 *
+	 * @internal
+	 * @param commit    The withheld paint.
+	 * @param expiresMs How long it stays armed. The clock is event-
+	 *                  loop time, which the native prompt blocks, so
+	 *                  it effectively starts when the user answers.
+	 */
+	public _deferNavigationCommit( commit: () => void, expiresMs: number ): void {
+		this._clearDeferredNavigation();
+		this._deferredNavigationCommit = commit;
+		this._deferredNavigationTimer = window.setTimeout( () => {
+			this._deferredNavigationTimer = null;
+			this._deferredNavigationCommit = null;
+		}, expiresMs ) as unknown as number;
+	}
+
+	/**
+	 * Release a withheld navigation paint — the frame reported it is
+	 * really unloading, so the navigation the user was prompted about
+	 * is happening after all. A no-op when nothing was withheld,
+	 * which is every navigation on a page with nothing to lose.
+	 *
+	 * @internal
+	 */
+	public _commitDeferredNavigation(): void {
+		const commit = this._deferredNavigationCommit;
+		this._clearDeferredNavigation();
+		if ( ! commit || this._isDestroyed ) {
+			return;
+		}
+		commit();
+	}
+
+	/** @internal */
+	public _clearDeferredNavigation(): void {
+		if ( this._deferredNavigationTimer !== null ) {
+			window.clearTimeout( this._deferredNavigationTimer );
+			this._deferredNavigationTimer = null;
+		}
+		this._deferredNavigationCommit = null;
+	}
+
+	/**
 	 * How long a submit has to produce a document before the ring
 	 * gives up: `wp_die()` output runs no admin hooks, so nothing on
 	 * it ever reports back.
@@ -3686,6 +3804,11 @@ export class Window {
 		// Drop any in-flight swap buffer — its load handler would be a
 		// no-op post-destroy, but the abandon timer shouldn't linger.
 		this._discardSwapBuffer();
+
+		// Drop a withheld navigation paint and its expiry timer. The
+		// commit already checks `_isDestroyed`, so this is only about
+		// not leaving a timer running for a window that has gone.
+		this._clearDeferredNavigation();
 
 		// Cancel any pending activity timers so a still-pending
 		// settle / clear doesn't fire after the window has gone away.

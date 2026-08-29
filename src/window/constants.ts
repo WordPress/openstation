@@ -42,6 +42,36 @@ export const DRAG_THRESHOLD_SQUARED = DRAG_THRESHOLD_PX * DRAG_THRESHOLD_PX;
 export const EXTERNAL_IFRAME_READY_TIMEOUT_MS = 3000;
 
 /**
+ * How long the pre-navigation unsaved-changes query waits for the
+ * iframe bridge to answer before assuming nothing is holding on to
+ * the page.
+ *
+ * Deliberately far shorter than the 500 ms the pre-CLOSE query
+ * allows: this one sits in front of every submenu-tab click and
+ * every in-place navigation, so it is latency the user feels on the
+ * happy path. The answer is a same-origin `postMessage` round trip
+ * — two task hops — and a frame slow enough to miss this window is
+ * a frame that would not have answered a longer one either. Timing
+ * out resolves "no guard", which reinstates the pre-guard behaviour
+ * exactly.
+ */
+export const UNSAVED_GUARD_QUERY_TIMEOUT_MS = 250;
+
+/**
+ * How long a withheld navigation keeps waiting for the iframe to
+ * report that it really left.
+ *
+ * The native "Leave site?" prompt is modal and blocks the whole
+ * agent's event loop, so this clock does not start ticking until the
+ * user has answered it — 15 s of *running* time after that is a
+ * generous allowance for a WordPress admin response, and anything
+ * past it is a navigation that never happened. Expiring matters
+ * because the alternative is a callback that survives a "Stay" and
+ * fires on some unrelated navigation minutes later.
+ */
+export const UNSAVED_GUARD_COMMIT_WINDOW_MS = 15000;
+
+/**
  * Duration of the loading overlay's fade-out before the element is
  * removed from the DOM. Must match the `transition: opacity` duration
  * on `.os-window__loading` in

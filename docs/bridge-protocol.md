@@ -141,17 +141,43 @@ Before tearing down an iframe-backed (non-native) window, `Window.close()` gives
 
 | Type | Direction | Carries | Purpose |
 |---|---|---|---|
-| `os-bridge-beforeunload-query` | parent → iframe | *(none)* | Sent once `close()` is called on a window whose bridge has announced readiness (`os-ready` already fired). |
-| `os-bridge-beforeunload-response` | iframe → parent | `{ prevent: boolean, message?: string }` | Reply. `prevent: true` means the iframe's own `beforeunload` handling (`window.onbeforeunload` or an `addEventListener('beforeunload', …)` listener) set a message or called `preventDefault()`. |
+| `os-bridge-beforeunload-query` | parent → iframe | `{ requestId?: string }` | "Is anything holding on to this page?" Sent by `close()` **without** a `requestId`, and by the pre-navigation guard **with** one. |
+| `os-bridge-beforeunload-response` | iframe → parent | `{ prevent: boolean, message?: string, requestId?: string }` | Reply, echoing the query's `requestId` when it carried one. `prevent: true` means the iframe's own `beforeunload` handling (`window.onbeforeunload` or an `addEventListener('beforeunload', …)` listener) set a message or called `preventDefault()`. |
 
 Flow:
 
 1. `close()` checks `win._iframeBridgeReady` — a window whose iframe never announced readiness (still loading, or a non-openstation page) skips the query entirely and destroys immediately, same as before this feature existed.
 2. Otherwise it posts the query, sets `win._closePending = true`, and returns **without** destroying — a 500ms safety timer (`win._iframeCloseTimeout`) forces the close through if no response arrives (a hung or unresponsive iframe can't block closing forever).
-3. Both bridge implementations (the inline PHP script in `includes/render/chromeless-bridge.php` and the standalone `src/iframe-bridge-standalone.ts`) answer the query the same way: synthesize a `beforeunload` `Event`, invoke `window.onbeforeunload` with it if set, then (if not already prevented) dispatch a real `beforeunload` event so `addEventListener('beforeunload', …)` listeners run too. Whichever mechanism sets `event.returnValue` or calls `preventDefault()` flips `prevent: true`, carrying the handler's message string through if one was set.
+3. Both bridge implementations (`src/chromeless-bridge.js` and the standalone `src/iframe-bridge-standalone.ts`) answer the query the same way: synthesize a `beforeunload` `Event`, invoke `window.onbeforeunload` with it if set, then (if not already prevented) dispatch a real `beforeunload` event so `addEventListener('beforeunload', …)` listeners run too. Whichever mechanism sets `event.returnValue` or calls `preventDefault()` flips `prevent: true`, carrying the handler's message string through if one was set.
 4. On the parent side, `prevent: false` destroys the window immediately. `prevent: true` shows a `<os-confirm-dialog>` (title = the iframe's message, or a generic fallback) — the window is only destroyed if the user confirms.
 
+**`requestId` is what keeps the two askers apart.** The close flow reads any *uncorrelated* response and acts on it — it destroys the window. The pre-navigation guard below listens for its own correlated reply instead, and the window's message handler skips every response that carries a `requestId` so a tab click can never be mistaken for a close.
+
 Native windows are untouched — they still use the synchronous `os.native-window.before-close` filter (see [`javascript-reference.md`](./javascript-reference.md#native-window-lifecycle)), not this postMessage round-trip.
+
+### Pre-navigation unsaved-changes guard — `os-iframe-unloading`
+
+Re-pointing a window's iframe is optimistic: the shell arms the loading overlay and lights the destination tab *before* the frame moves, so a click doesn't look like it did nothing for as long as the server takes to answer.
+
+That optimism has exactly one failure mode, and it strands the window. When the page inside is holding unsaved changes — Add User with a generated password, an editor mid-draft, a plugin with its own `beforeunload` — the browser raises its native "Leave site?" prompt over the navigation. A user who answers **Cancel** produces no `load`, no `os-ready`, and no other event: the frame never moves, nothing corrects the guess, and the window keeps a spinner nothing will ever clear over content that never changed. There is no "the user cancelled" signal to listen for, and no timer that can infer one — the document stays alive and running whichever button was pressed, so a cancelled navigation looks identical, from outside, to a page waiting on a slow response.
+
+So the shell asks first (`src/window/unsaved-guard.ts`), and on a guarded page **withholds** the paint rather than taking it back:
+
+| Type | Direction | Carries | Purpose |
+|---|---|---|---|
+| `os-iframe-unloading` | iframe → parent | *(none)* | Posted from the document's own `pagehide`, which fires once, at the moment a navigation commits. The one signal that separates a prompt the user accepted from one they cancelled. |
+
+Flow, for every submenu-tab click, `Window.navigateTo()` and `Window.reload()` on the primary frame:
+
+1. A window whose bridge has not announced readiness skips the guard entirely and behaves exactly as it did before — no query, no added latency.
+2. Otherwise the shell posts `os-bridge-beforeunload-query` with a `requestId` and waits up to **250ms** (`UNSAVED_GUARD_QUERY_TIMEOUT_MS`). A timeout resolves "nothing is holding on", which reinstates the pre-guard behaviour.
+3. `prevent: false` — the overwhelmingly common case — paints and navigates back to back, one task later than the click.
+4. `prevent: true` — the shell navigates but paints nothing. The browser's prompt decides. **Cancel** leaves the window exactly as the user left it, which is the whole fix. **Leave** produces a real unload, the iframe posts `os-iframe-unloading`, and the withheld paint runs then — late by the length of one request, the honest price of not being able to un-ring the bell.
+5. A withheld paint that is never claimed expires after 15 s of event-loop time (`UNSAVED_GUARD_COMMIT_WINDOW_MS`). Without the expiry, a navigation the user answered "Stay" to would leave a callback armed to fire on some unrelated navigation minutes later. A paint still armed when the next document announces `os-ready` is dropped rather than run, for the same reason in reverse: arming the overlay for a load that has already finished spends the ready edge that would have cleared it.
+
+The shell deliberately does **not** raise its own `<os-confirm-dialog>` here the way `close()` does. `close()` can, because `destroy()` removes the iframe from the DOM and removal discards a document without prompting. A navigation has no such exit: the native prompt fires whatever the shell does, so a dialog in front of it would ask the same question twice.
+
+Windows with nothing withheld ignore `os-iframe-unloading`, so plugin pages that navigate for their own reasons cost nothing but the message.
 
 ### Editor-autosave query — `os-editor-autosave-*`
 
