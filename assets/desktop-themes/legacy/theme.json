@@ -270,6 +270,8 @@
 		"--os-ui-code-padding": "0.1em 0.4em",
 		"--os-ui-code-white-space": "nowrap",
 		"--os-ui-color-accent": "#3b82f6",
+		"--os-ui-color-border": "#e5e7eb",
+		"--os-ui-color-surface": "rgba( 20, 20, 22, 0.55 )",
 		"--os-ui-confirm-dialog-bg": "#1d2327",
 		"--os-ui-confirm-dialog-fg": "#fff",
 		"--os-ui-confirm-dialog-fg-muted": "rgba( 255, 255, 255, 0.7 )",
