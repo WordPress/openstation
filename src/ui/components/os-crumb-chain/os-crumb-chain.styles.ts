@@ -10,10 +10,16 @@
  * one merged shape with internal "tear lines" separating each
  * hierarchy level.
  *
- * Each segment's color is set inline via the `--os-ui-crumb-bg` /
- * `--os-ui-crumb-fg` custom properties so the consumer can vary
- * lightness per depth (root darkest, leaf brightest) while keeping
- * one hashed hue for the whole chain.
+ * A segment that CARRIES ITS OWN COLOUR sets `--os-ui-crumb-bg` /
+ * `--os-ui-crumb-fg` inline, so the consumer can vary lightness per
+ * depth (root darkest, leaf brightest) while keeping one hashed hue
+ * for the whole chain.
+ *
+ * A segment with no colour sets neither, deliberately: an inline
+ * custom property outranks the palette and every desktop theme, so a
+ * neutral default written there is unreachable by both. The `var()`
+ * chain below is the neutral default instead — theme first, palette
+ * next, the pre-brand literal last.
  */
 import { css } from '../../core';
 

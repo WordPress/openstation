@@ -48,7 +48,12 @@ import { styles } from './os-crumb-chain.styles';
 export interface OsCrumbSegment {
 	id?: number | string;
 	name: string;
-	/** Background color. Falls back to a neutral grey when unset. */
+	/**
+	 * Background color. Left unset, the segment paints the neutral
+	 * crumb from `--os-ui-crumb-bg` / `--os-ui-crumb-fg` — which a
+	 * desktop theme and the palette can both re-point, and an inline
+	 * default could not.
+	 */
 	color?: string;
 }
 
@@ -139,9 +144,33 @@ export class OsCrumbChain extends Component {
 			<div class="os-crumb-chain" role="group">
 				${ segments.map( ( seg, idx ) => {
 					const variant = pickVariant( idx, segments.length );
-					const bg = seg.color ?? 'rgba( 0, 0, 0, 0.08 )';
-					const fg = pickForegroundColor( bg );
-					const styleStr = `--os-ui-crumb-bg: ${ bg }; --os-ui-crumb-fg: ${ fg };`;
+					/*
+					 * A segment WITHOUT a colour of its own carries no
+					 * inline paint at all — an empty attribute value is
+					 * removed outright, so the stylesheet's
+					 * `var( --os-ui-crumb-bg, … )` chain is what answers,
+					 * and a desktop theme or the palette can reach it.
+					 *
+					 * It used to hard-code `rgba( 0, 0, 0, 0.08 )` here
+					 * and let `pickForegroundColor()` derive `#1d2327`
+					 * ink for that (correct arithmetic — the wash IS
+					 * light, on a white page). Inline custom properties
+					 * outrank every document-tree declaration, so both
+					 * survived the brand: a black wash on Obsidian with
+					 * near-black ink on top, 1.2:1, which is what the
+					 * Posts window's Categories column was painting.
+					 *
+					 * Nothing downstream needed adding. The palette has
+					 * named `--os-ui-crumb-bg` since the rebrand, in the
+					 * "fills that must stay fills" block, and the Legacy
+					 * manifest declares both — neither had ever reached
+					 * this component. The ink falls through to
+					 * `--os-ui-fg` and always did.
+					 */
+					const own = seg.color;
+					const styleStr = own
+						? `--os-ui-crumb-bg: ${ own }; --os-ui-crumb-fg: ${ pickForegroundColor( own ) };`
+						: '';
 					return html`
 						<span
 							class=${ `os-crumb os-crumb--${ variant }` }
@@ -282,10 +311,14 @@ function buildDragGhost( segments: readonly OsCrumbSegment[] ): HTMLElement {
 		'z-index: 2147483647',
 	].join( '; ' );
 	const total = segments.length;
+	// The ghost is rasterised by the browser from a detached snapshot,
+	// so it cannot defer to the stylesheet the way a rendered chain
+	// does — it has to resolve the neutral tokens itself.
+	const neutral = neutralCrumbPaint();
 	segments.forEach( ( seg, idx ) => {
 		const span = document.createElement( 'span' );
-		const bg = seg.color ?? 'rgba( 0, 0, 0, 0.08 )';
-		const fg = pickForegroundColor( bg );
+		const bg = seg.color ?? neutral.bg;
+		const fg = seg.color ? pickForegroundColor( seg.color ) : neutral.fg;
 		const variant = pickVariant( idx, total );
 		const styleParts: string[] = [
 			'display: inline-flex',
@@ -324,6 +357,35 @@ function buildDragGhost( segments: readonly OsCrumbSegment[] ): HTMLElement {
 		wrap.appendChild( span );
 	} );
 	return wrap;
+}
+
+/*
+ * The pre-brand paint for a segment with no colour of its own, and the
+ * floor under the tokens below. These are the literals the component
+ * shipped with, so an unstyled page lands exactly where it always did.
+ */
+const NEUTRAL_CRUMB_BG = 'rgba( 0, 0, 0, 0.08 )';
+const NEUTRAL_CRUMB_FG = '#1d2327';
+
+/**
+ * Resolve the neutral crumb's paint from the document.
+ *
+ * Only the drag ghost needs this: a rendered chain leaves an
+ * uncoloured segment's `style` attribute off entirely and lets the
+ * stylesheet's `var( --os-ui-crumb-bg, … )` chain resolve, which is
+ * what keeps the palette and every desktop theme in reach. The ghost
+ * is built detached and snapshotted, so it reads the same two tokens
+ * directly and falls back to the literals when nothing declares them.
+ */
+function neutralCrumbPaint(): { bg: string; fg: string } {
+	if ( typeof document === 'undefined' || ! document.body ) {
+		return { bg: NEUTRAL_CRUMB_BG, fg: NEUTRAL_CRUMB_FG };
+	}
+	const style = getComputedStyle( document.body );
+	return {
+		bg: style.getPropertyValue( '--os-ui-crumb-bg' ).trim() || NEUTRAL_CRUMB_BG,
+		fg: style.getPropertyValue( '--os-ui-crumb-fg' ).trim() || NEUTRAL_CRUMB_FG,
+	};
 }
 
 function pickVariant(
