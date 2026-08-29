@@ -806,6 +806,7 @@ export class AiAssistant implements AiAssistantApi {
 
 	private async _onSubmit(): Promise<void> {
 		if ( this._isSearching ) {
+			this._warnBusy( 'submit' );
 			return;
 		}
 		const parsed = parseCommandInput( this._input.value );
@@ -849,6 +850,7 @@ export class AiAssistant implements AiAssistantApi {
 	 */
 	private async _runCommand( cmd: DesktopCommand, args: string ): Promise<void> {
 		if ( this._isSearching ) {
+			this._warnBusy( `run /${ cmd.slug }` );
 			return;
 		}
 
@@ -928,6 +930,32 @@ export class AiAssistant implements AiAssistantApi {
 			this._input.disabled = false;
 			this._input.focus();
 		}
+	}
+
+	/**
+	 * Say out loud that a busy guard just dropped an action.
+	 *
+	 * `_onSubmit` and `_runCommand` both refuse to start while a
+	 * search or an earlier command is still in flight, and both did
+	 * it by returning. From outside, a guard exit and a command that
+	 * ran and did nothing are the same event — nothing happens, no
+	 * error, no console line — and telling them apart is the first
+	 * question anybody debugging this surface has to answer. It cost
+	 * the reporter of #705 several wrong hypotheses. One line here
+	 * answers it.
+	 *
+	 * `warn` rather than `debug` because the default console filter
+	 * hides `debug`, and this is precisely the message somebody is
+	 * looking for when they open the console to find out why their
+	 * keypress did nothing.
+	 *
+	 * @param what What was refused, for the message.
+	 */
+	private _warnBusy( what: string ): void {
+		// eslint-disable-next-line no-console -- a dropped action is otherwise indistinguishable from a no-op; see the doc block.
+		console.warn(
+			`[openstation] command palette is busy — ignored: ${ what }. A search or command is still running.`,
+		);
 	}
 
 	/**
@@ -1310,21 +1338,33 @@ export class AiAssistant implements AiAssistantApi {
 
 		// Click handlers — clicking a row runs the command (or locks it in
 		// for args when it takes them), like a command palette.
-		// NOTE: `findCommand()` only searches the command registry, but
-		// remote entity-search results from `_fetchRemoteCommands` live
-		// in `_currentRemoteCommands` — they're NOT registered. We use
-		// `data-index` to look up from the fresh match list instead.
+		//
+		// Each row closes over the command it was rendered from, rather
+		// than re-deriving it through `data-index` against a fresh
+		// `_commandMatches()` at click time. `findCommand()` can't do
+		// the lookup either — remote entity-search results from
+		// `_fetchRemoteCommands` live in `_currentRemoteCommands` and
+		// are never registered — which is why the index existed.
+		//
+		// Re-deriving is not wrong today: every registry change runs
+		// `subscribeCommands` → `_renderForMode()` synchronously, so
+		// the rows and the list they index into are rebuilt together,
+		// and the shell harvester's republish (drop every
+		// `owner: 'global'` command, re-add it, moving everything else
+		// in insertion order) repaints before anyone can click. It is
+		// load-bearing on that, though, and the failure if it ever
+		// stops holding is a row that runs its neighbour or nothing at
+		// all — silently, since a missing index just returns. Deciding
+		// the row and its command once, together, costs nothing and
+		// cannot drift.
 		this._resultsEl
 			.querySelectorAll< HTMLButtonElement >( '.os-ai__cmd-item' )
 			.forEach( ( btn ) => {
+				const idx = parseInt( btn.dataset.index ?? '', 10 );
+				const rowCommand = Number.isNaN( idx ) ? undefined : matches[ idx ];
 				btn.addEventListener( 'click', () => {
-					const idx = parseInt( btn.dataset.index ?? '', 10 );
-					if ( ! Number.isNaN( idx ) ) {
-						const clickMatches = this._commandMatches();
-						const cmd = clickMatches[ idx ];
-						if ( cmd ) {
-							this._pickCommand( cmd );
-						}
+					if ( rowCommand ) {
+						this._pickCommand( rowCommand );
 					}
 				} );
 				btn.addEventListener( 'mouseenter', () => {
@@ -1334,7 +1374,6 @@ export class AiAssistant implements AiAssistantApi {
 					if ( this._keyboardNav ) {
 						return;
 					}
-					const idx = parseInt( btn.dataset.index ?? '0', 10 );
 					if ( ! Number.isNaN( idx ) ) {
 						this._selectedCommand = idx;
 						this._resultsEl

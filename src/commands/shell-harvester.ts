@@ -34,6 +34,7 @@ import {
 	unregisterByOwner,
 	type DesktopCommand,
 } from './../commands';
+import { __, sprintf } from './../i18n';
 import { tryNativeUrlRemap } from './../native-url-remap';
 import type { WindowManager } from './../window-manager';
 import { deriveWindowId, sanitizeIconSvg } from './../utils';
@@ -433,7 +434,7 @@ export class ShellCommandHarvester {
 				// palette UX (open, type, find).
 				run: c.kind === 'navigate' && c.url
 					? this.runNavigate( c.url, c.windowTitle || c.label, icon )
-					: this.runInvoke( c.name, c.label, icon ),
+					: this.runInvoke( c.name ),
 			};
 			try {
 				registerCommand( def );
@@ -566,10 +567,21 @@ export class ShellCommandHarvester {
 				}
 			}
 			// else: pure JS action (no `location` writes detected).
-			// Keep `kind: 'action'` — `runInvoke` will execute the
-			// callback in the shell with the location shadow as a
-			// belt-and-braces guard. Toggles, dispatches, modal opens
-			// all land here and work fine.
+			// Keep `kind: 'action'` — `runInvoke` executes the callback
+			// in the shell. Toggles, dispatches, modal opens all land
+			// here and work fine.
+			//
+			// The detection is textual and therefore only as good as
+			// the callback's own body: a handler that navigates
+			// through a helper (`callback: ( a ) => goTo( url,
+			// a.close )`) mentions no sink here and is classified an
+			// action. There is no runtime net under it — `location`
+			// cannot be shadowed (see the note at the top of this
+			// file) — so such a command navigates the shell for real
+			// when it runs. Widening the regexes past the callback's
+			// own source is not possible; what IS possible is that the
+			// command says so, which is why `runInvoke` no longer
+			// swallows what the callback does or throws.
 		}
 
 		this.kindCache[ out.name ] = {
@@ -628,122 +640,61 @@ export class ShellCommandHarvester {
 		};
 	}
 
-	private runInvoke( name: string, title: string, icon: string ): DesktopCommand[ 'run' ] {
+	/**
+	 * Run an `action`-classified command by calling the callback the
+	 * store handed us.
+	 *
+	 * Two things here are the command's own to decide, and neither is
+	 * ours to invent:
+	 *
+	 * **The callback gets the palette's real `close`.** WordPress
+	 * documents the handler as `callback( { close } )`, and every
+	 * command written against that contract calls it — usually first,
+	 * before the work, so the overlay is gone by the time anything
+	 * happens. Handing it a no-op stub instead ran the command with
+	 * the palette still sitting over the result.
+	 *
+	 * **A callback that throws is the command failing.** It reaches
+	 * `_runCommand`, which renders "Command /x failed: …" and fires
+	 * `HOOKS.COMMAND_ERROR`. Swallowing it produced the exact bug
+	 * this method was reported for: a third-party command that
+	 * listed, highlighted and picked, and then did nothing at all —
+	 * no error, no console line, nothing to tell the author their
+	 * handler had thrown on its first statement.
+	 *
+	 * Note what is deliberately NOT here: an attempt to sandbox
+	 * `location` around the call. `location` is `[LegacyUnforgeable]`
+	 * (see the classification note at the top of this file), so
+	 * `Object.defineProperty( document | window, 'location', … )`
+	 * throws `TypeError: Cannot redefine property: location` and the
+	 * guard it was meant to install never existed. Classification is
+	 * the only line of defence against a callback navigating the
+	 * shell, which is what `docs/architecture.md` has said all along:
+	 * callbacks are never executed to classify.
+	 */
+	private runInvoke( name: string ): DesktopCommand[ 'run' ] {
 		return ( _args, ctx ) => {
 			const cb = this.callbackCache[ name ];
 			if ( typeof cb !== 'function' ) {
-				ctx.close();
-				return;
+				// The cache is rebuilt from each harvest, so a name that
+				// is registered but uncached means the two went out of
+				// step. Say so — the alternative (close and return) is
+				// indistinguishable from a command that ran fine.
+				throw new Error(
+					sprintf(
+						/* translators: %s: the `core/commands` command name. */
+						__( 'No live callback for command “%s” — the palette and the command registry are out of step. Reload the page.' ),
+						name,
+					),
+				);
 			}
-			// Many "action"-classified commands are actually navigation
-			// in disguise — `useAdminNavigationCommands` writes
-			// `document.location = menuCommand.url` (variable URL), so
-			// our static regex can't catch them at classify time and
-			// they fall into this branch. Running them as-is would
-			// navigate the SHELL window, unloading every iframe
-			// (including an editor with unsaved changes → Chrome's
-			// "leave site?" dialog). Shadow the navigation sinks so
-			// any `document.location = ...` / `window.location = ...`
-			// / `location.assign(...)` / `location.replace(...)`
-			// inside the callback is captured instead of executed.
-			// If we capture a URL, open it as a new desktop window;
-			// otherwise treat the command as a pure JS action and run
-			// the callback for real.
-			const captured = this.runWithNavCapture( cb );
-			if ( captured ) {
-				// Navigation → open a desktop window and dismiss the palette.
-				ctx.close();
-				const id = deriveWindowId( captured, this.adminUrl );
-				this.manager.open( { id, baseId: id, url: captured, title, icon } );
-			}
-			// Pure JS action (e.g. "View site" → window.open in a new tab):
-			// the effect happens elsewhere, so leave the palette open — closing
-			// it here means returning to this tab finds it mid-close (the fade
-			// was throttled while the tab was backgrounded) and it vanishes.
+			cb( { close: () => ctx.close() } );
+			// The palette stays open unless the command closed it. A
+			// pure JS action (e.g. "View site" → window.open in a new
+			// tab) has its effect elsewhere, and closing on its behalf
+			// means returning to this tab finds the overlay mid-close
+			// (the fade was throttled while the tab was backgrounded)
+			// and it vanishes.
 		};
-	}
-
-	/**
-	 * Invoke `cb` with navigation sinks (`document.location`,
-	 * `window.location`, `location.assign`, `location.replace`)
-	 * shadowed so any assignment is captured instead of navigating
-	 * the shell. Returns the captured URL or `null` if the callback
-	 * was a pure JS action.
-	 *
-	 * The shadow uses `Object.defineProperty` on the document /
-	 * window instance to override the prototype's accessor for the
-	 * duration of the call. `delete` afterwards unshadows so the
-	 * native setter is restored.
-	 */
-	private runWithNavCapture(
-		cb: ( ...args: unknown[] ) => void,
-	): string | null {
-		let captured: string | null = null;
-		const setCaptured = ( v: unknown ) => {
-			if ( captured === null && typeof v === 'string' && v !== '' ) {
-				captured = v;
-			}
-		};
-
-		const realLocation = window.location;
-		// Read-through descriptor: any property access on the shadow
-		// proxy reads through to the real location. Writes to `href`
-		// / `pathname` / `search` are captured.
-		const locationProxy = new Proxy( realLocation, {
-			get( target, prop ) {
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				const value = ( target as any )[ prop ];
-				if ( prop === 'assign' || prop === 'replace' ) {
-					return ( url: string ) => setCaptured( url );
-				}
-				if ( typeof value === 'function' ) {
-					return value.bind( target );
-				}
-				return value;
-			},
-			set( _target, prop, value ) {
-				if ( prop === 'href' ) {
-					setCaptured( value );
-					return true;
-				}
-				return true;
-			},
-		} );
-
-		const shadowed: Array< { obj: object; key: 'location' } > = [];
-		const installShadow = ( obj: object ) => {
-			try {
-				Object.defineProperty( obj, 'location', {
-					configurable: true,
-					get: () => locationProxy,
-					set: ( v: unknown ) => setCaptured( v ),
-				} );
-				shadowed.push( { obj, key: 'location' } );
-			} catch {
-				/* the platform refused to shadow — fall through and
-				 * accept that this callback will navigate for real if
-				 * it writes to this particular sink */
-			}
-		};
-
-		installShadow( document );
-		installShadow( window );
-
-		try {
-			cb( { close: () => {} } );
-		} catch {
-			/* a callback that throws shouldn't break the palette */
-		} finally {
-			for ( const s of shadowed ) {
-				try {
-					// eslint-disable-next-line @typescript-eslint/no-explicit-any
-					delete ( s.obj as any )[ s.key ];
-				} catch {
-					/* swallow — best-effort unshadow */
-				}
-			}
-		}
-
-		return captured;
 	}
 }
