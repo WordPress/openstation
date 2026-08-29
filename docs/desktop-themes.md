@@ -421,6 +421,29 @@ tables and the rest. Reach for a component-local token only when you
 want that one component to differ — it still wins when set. Any
 `--os-ui-*` name is accepted by the manifest.
 
+#### The `--os-ui-color-*` widget contract
+
+Five names sit deliberately outside the palette above, because the
+surface they paint sits outside a window body: the **desktop widget
+card**. They are the contract a third-party widget's stylesheet is told
+to read, listed in the starter widget plugin authors copy.
+
+| Token | Role |
+|---|---|
+| `--os-ui-color-surface` | The card's glass. `.os-widgets__card` paints this. |
+| `--os-ui-color-text` | Primary text on the card |
+| `--os-ui-color-text-subtle` | Labels, timestamps, metadata |
+| `--os-ui-color-border` | Dividers inside the card |
+| `--os-ui-color-accent` | Buttons, highlights, links — follows the accent the user picked |
+
+**The widget card is a dark glass panel in every theme, Legacy
+included**, so unlike the palette above these do not flip with the
+theme: `--os-ui-color-text` and `--os-ui-color-text-subtle` default to
+on-dark values whatever `--os-ui-fg` says. Set them only alongside
+`--os-ui-color-surface` — a theme that darkens the text without
+lightening the card writes near-black on near-black, which is the
+failure this contract exists to prevent.
+
 #### Telling the two families apart
 
 Both resolve at runtime, which is the trap: reading

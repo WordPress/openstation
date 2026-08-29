@@ -12,19 +12,22 @@
  *
  * CSS CUSTOM PROPERTIES
  * ---------------------
- * OpenStation sets these variables on the card body element. Using them
- * means your widget automatically respects the user's chosen theme
- * (light, dark, or any custom accent colour) without any extra code.
+ * OpenStation declares these variables in the shell palette, so your card
+ * inherits them. Using them means your widget follows the desktop theme
+ * and the user's chosen accent without any extra code.
  *
  *   --os-ui-color-text          Primary text — body copy, headings
  *   --os-ui-color-text-subtle   Muted text — labels, timestamps, metadata
  *   --os-ui-color-border        Divider lines and borders
- *   --os-ui-color-accent        Brand blue — use for buttons, highlights, links
+ *   --os-ui-color-accent        The user's accent — buttons, highlights, links
  *   --os-ui-color-surface       The card's glass background (rarely needed)
  *
- * Always provide a fallback value as the second argument to var() in case
- * the shell loads in an unexpected context:
- *   color: var(--os-ui-color-text, #1a1a1a);
+ * The card is a dark glass panel under every theme, so the first four
+ * resolve to on-dark values. Always provide a fallback as the second
+ * argument to var() in case the shell loads in an unexpected context —
+ * and pick a fallback that reads on dark, or the card looks correct
+ * everywhere except where the palette is missing:
+ *   color: var(--os-ui-color-text, #fff);
  *
  * LAYOUT
  * ------

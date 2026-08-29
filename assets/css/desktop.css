@@ -925,7 +925,13 @@ body.os-has-fullscreen-window .os-shell {
 	display: flex;
 	flex-direction: column;
 	pointer-events: auto;
-	background-color: rgba( 20, 20, 22, 0.55 );
+	/*
+	 * The glass is also `--os-ui-color-surface`, the one name in the
+	 * widget contract that describes the card itself. Declared in
+	 * `variables.css` so a widget reading it and the card painting it
+	 * cannot drift apart.
+	 */
+	background-color: var( --os-ui-color-surface, rgba( 20, 20, 22, 0.55 ) );
 	/*
 	 * WIDGET texture slot — layered over the frosted card colour, so a
 	 * translucent texture still gets the blur underneath.

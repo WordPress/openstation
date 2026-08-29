@@ -332,6 +332,36 @@ and edge handles; column-docked widgets get a bottom-edge handle only.
 
 ---
 
+## Theme tokens
+
+Your stylesheet gets five custom properties from the shell. Read them and
+your widget follows the desktop theme and the accent the user picked,
+with no extra code:
+
+| Token | Role |
+|---|---|
+| `--os-ui-color-text` | Primary text — body copy, headings |
+| `--os-ui-color-text-subtle` | Muted text — labels, timestamps, metadata |
+| `--os-ui-color-border` | Divider lines and borders |
+| `--os-ui-color-accent` | Buttons, highlights, links |
+| `--os-ui-color-surface` | The card's glass background (rarely needed) |
+
+```css
+.my-widget__label {
+	color: var( --os-ui-color-text-subtle, rgba( 255, 255, 255, 0.7 ) );
+	border-bottom: 1px solid var( --os-ui-color-border, rgba( 255, 255, 255, 0.12 ) );
+}
+```
+
+**Pick a fallback that reads on dark.** The card is a dark glass panel in
+every theme, Legacy included, so the first four resolve to on-dark
+values. A light-theme grey like `#6b7280` in the `var()` fallback looks
+fine while the palette is present and turns near-invisible the moment it
+isn't — the failure is silent, because an undeclared custom property just
+yields to the fallback with no error.
+
+---
+
 ## See also
 
 - [Hooks reference — `openstation_register_widget()`](../hooks-reference.md) — full argument reference, error codes, and lifecycle actions.
