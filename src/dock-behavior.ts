@@ -30,10 +30,22 @@
  *   desktop side (twice the rail's height from the screen edge, all
  *   told), so the user can work right above the dock without folding
  *   it by accident and it only folds once they have clearly moved on;
- * - the pointer is over one of the rail's flyouts (the constellation,
- *   the peek cards), which are body-level and would otherwise retract
- *   the rail out from under the pointer;
+ * - the rail is out and the pointer is over a flyout (the
+ *   constellation, the peek cards), which are body-level and would
+ *   otherwise retract the rail out from under the pointer;
  * - something on the rail has keyboard focus.
+ *
+ * **A flyout can only KEEP a rail out — never summon a parked one.**
+ * The constellation and the peek cards are appended to `document.body`
+ * and carry nothing that says which rail they belong to, so the test
+ * can only ask "is the pointer on a flyout", not "on *this* rail's
+ * flyout". Letting that summon meant a menu opened from the static
+ * left rail pulled the dynamic bottom dock up out of its line, over
+ * the panel the user was reading — and the pill, now under the
+ * pointer, took the `pointerout` that dismissed the panel. Restricting
+ * it to rails that are already out is the whole job the rule was
+ * added for: a body-level panel must not retract the rail out from
+ * under itself.
  *
  * The pointer leaving the window changes nothing: a dock that was out
  * stays out, a line stays a line, until the pointer is back and says
@@ -87,7 +99,12 @@ export const SIDE_DOCK_ID = 'os-side-dock';
 /** Root class worn for the duration of one of this module's view transitions. */
 export const VIEW_TRANSITION_CLASS = 'os-dock-vt';
 
-/** The rail's flyouts — body-level, so a pointer on them has "left" the rail. */
+/**
+ * The dock flyouts — body-level, so a pointer on one has "left" the
+ * rail it opened from. Neither records WHICH rail that is, which is
+ * why a flyout can only hold a revealed rail out, never summon a
+ * parked one (see the module docblock).
+ */
 const FLYOUT_SELECTOR = '.os-constellation, .os-dock-peek';
 
 type Edge = 'bottom' | 'left' | 'right';
@@ -229,7 +246,10 @@ export function installDockBehavior( deps: DockBehaviorDeps ): DockBehaviorContr
 			return false;
 		}
 		if ( overFlyout ) {
-			return true;
+			// Hold, never summon — see the module docblock. A flyout is
+			// body-level and anonymous, so this cannot tell whose it is;
+			// a rail that is already out is the only one it can be.
+			return rail.classList.contains( REVEALED_CLASS );
 		}
 		const edge = edgeOf( rail );
 		return (

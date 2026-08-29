@@ -176,6 +176,54 @@ describe( 'installDockBehavior', () => {
 		ctl.destroy();
 	} );
 
+	test( 'a flyout does not summon a parked rail', () => {
+		// The flyout rule holds a rail that is already out; it must not
+		// pull a parked one up. Flyouts are body-level and anonymous,
+		// so "a flyout is under the pointer" says nothing about whose.
+		const ctl = installDockBehavior( { shellBody: body, getBehaviors } );
+		const flyout = document.createElement( 'div' );
+		flyout.className = 'os-constellation';
+		document.body.appendChild( flyout );
+		expect( revealed() ).toBe( false );
+		move( 800, 300, flyout );
+		expect( revealed() ).toBe( false );
+		ctl.destroy();
+	} );
+
+	test( "a static rail's flyout leaves the dynamic rail parked (Split)", () => {
+		// The production bug: hovering the static left rail to fan its
+		// constellation out summoned the dynamic bottom dock, which
+		// painted over the panel and took the pointer that dismissed it.
+		behaviors.sidebar = 'static';
+		const ctl = installDockBehavior( { shellBody: body, getBehaviors } );
+		const side = document.createElement( 'nav' );
+		side.id = 'os-side-dock';
+		side.className = 'os-dock';
+		side.setAttribute( 'data-os-dock-placement', 'left' );
+		side.getBoundingClientRect = () => fakeRect( 0, 0, 56, window.innerHeight );
+		body.prepend( side );
+		const tile = document.createElement( 'button' );
+		tile.className = 'os-dock__item';
+		side.appendChild( tile );
+		document.dispatchEvent( new CustomEvent( 'os-layout-changed' ) );
+
+		// Onto the static rail, then onto the panel it opened. Neither
+		// is the bottom dock's business.
+		move( 10, 300, tile );
+		expect( revealed() ).toBe( false );
+		const panel = document.createElement( 'div' );
+		panel.className = 'os-constellation';
+		document.body.appendChild( panel );
+		move( 300, 400, panel );
+		expect( revealed() ).toBe( false );
+		// Even where the panel runs down into the dock's own edge band:
+		// the pointer is reading a menu, not reaching for the dock.
+		move( 300, window.innerHeight - 5, panel );
+		expect( revealed() ).toBe( false );
+		expect( side.classList.contains( REVEALED_CLASS ) ).toBe( false );
+		ctl.destroy();
+	} );
+
 	test( 'keyboard focus on the rail holds it out', () => {
 		vi.useFakeTimers( { toFake: [ 'requestAnimationFrame', 'cancelAnimationFrame' ] } );
 		const ctl = installDockBehavior( { shellBody: body, getBehaviors } );
