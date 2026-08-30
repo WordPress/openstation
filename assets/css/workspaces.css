@@ -53,7 +53,7 @@
 	display: flex;
 	flex-direction: column;
 	gap: 14px;
-	height: min( 60vh, 560px );
+	height: min( 60vh, 390px );
 	overflow-y: auto;
 	/* The pane scrolls DOWN and only down. A child that wants to be
 	   wider than the dialog is a bug in the child, and a horizontal
