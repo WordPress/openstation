@@ -1698,7 +1698,7 @@ manager.closeDesktop( id ): void;          // delete `id`; its windows migrate t
 manager.renameDesktop( id, label ): boolean;  // relabel `id`; see below
 ```
 
-**Workspaces** build on this: a desktop plus the answer to what it is FOR — which apps show on it, which widgets sit on it, what it looks like, what it opens with. `wp.os.workspaces.*` creates them, `wp.os.workspaces.registerPreset()` adds a template, and three ship (Woo, Sensei, Longreads). The picker is an `<os-select>` in the **overview top bar** — overview is already the Spaces surface, and the desk itself belongs to the user's windows.
+**Workspaces** build on this: a desktop plus the answer to what it is FOR — which apps show on it, which widgets sit on it, what it looks like, what it opens with. `wp.os.workspaces.*` creates them, `wp.os.workspaces.registerPreset()` adds a template, and three ship: Commerce, Learning and Publishing — named for the job, built around the products that do it. The picker is an `<os-select>` in the **overview top bar** — overview is already the Spaces surface, and the desk itself belongs to the user's windows.
 
 The one rule the whole feature rests on: **a workspace is a view, never a write.** The rails, the widget column and the appearance are all computed on top of the user's own state and restored the moment they leave, so a workspace they delete costs them nothing. See **[Workspaces](./workspaces.md)** for the whole surface: it is documented there rather than here because it is a layer above Spaces, not a change to them.
 

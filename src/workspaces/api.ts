@@ -3,7 +3,7 @@
  *
  * Thin on purpose: every method here is one of the operations in
  * `manager.ts` with the shell's dependencies already bound. Plugin
- * authors get "create a Woo desk", "narrow this desk to my app",
+ * authors get "create a Commerce desk", "narrow this desk to my app",
  * "open the editor" without having to hold a `WorkspaceDeps`.
  *
  * See `docs/workspaces.md` and `docs/javascript-reference.md`.

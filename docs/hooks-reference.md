@@ -1406,7 +1406,7 @@ An entry you allow back in still has to survive the browser: a host that sends `
 
 ### `openstation_workspace_presets` — Stable
 
-The workspace templates offered in the switcher's "New from template" group. A **[workspace](workspaces.md)** is a desktop plus the answer to what it is for: which apps show on it, which windows it opens with, how they are arranged. Three ship — Woo, Sensei and Longreads.
+The workspace templates offered in the switcher's "New from template" group. A **[workspace](workspaces.md)** is a desktop plus the answer to what it is for: which apps show on it, which windows it opens with, how they are arranged. Three ship — Commerce, Learning and Publishing, named for the job and built around the products that do it (the Commerce tokens name WooCommerce, the Learning ones name Sensei).
 
 ```php
 apply_filters( 'openstation_workspace_presets', array $presets );
@@ -1430,7 +1430,7 @@ array(
 )
 ```
 
-The filter has both powers. **Removing** an entry drops that template — a blog with no store has no reason to be offered a Woo desk. **Adding** one with an id of its own registers it whole, so a plugin can ship a complete workspace from PHP with no JavaScript at all.
+The filter has both powers. **Removing** an entry drops that template — a blog with no store has no reason to be offered a Commerce desk. **Adding** one with an id of its own registers it whole, so a plugin can ship a complete workspace from PHP with no JavaScript at all.
 
 `apps` and `windows` hold **match tokens**, not ids: each is tested as a substring against every navigable item's id, URL, window id and title, and a launch entry that matches nothing is skipped. That is what lets a template degrade on a site missing the plugin it names instead of opening four permission errors. The three shipped entries deliberately carry neither — the client already has their token lists, and a second copy here would be a second place to keep in step.
 

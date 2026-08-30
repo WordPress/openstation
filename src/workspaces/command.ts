@@ -114,7 +114,8 @@ export function registerWorkspaceCommand(
 			const ql = q.toLowerCase();
 			const list = entries();
 			// Exact first, then substring — so "/workspace woo" lands on
-			// the Woo desk rather than on "New: Woo" when both exist.
+			// the Commerce desk rather than on "New: Commerce" when
+			// both exist.
 			const match =
 				list.find( ( row ) => row.label.toLowerCase() === ql ) ??
 				list.find( ( row ) => row.label.toLowerCase().includes( ql ) );

@@ -134,9 +134,9 @@ describe( 'workspace picker — overview top bar', () => {
 			'heading:Workspaces',
 			'desktop-1',
 			'heading:New from template',
-			'os-new-preset:woo',
-			'os-new-preset:sensei',
-			'os-new-preset:longreads',
+			'os-new-preset:commerce',
+			'os-new-preset:learning',
+			'os-new-preset:publishing',
 			'heading:Manage',
 			'os-new-blank',
 			'os-edit-current',
@@ -192,11 +192,11 @@ describe( 'workspace picker — overview top bar', () => {
 			h,
 		)!;
 
-		pick( control, 'os-new-preset:woo' );
+		pick( control, 'os-new-preset:commerce' );
 
 		const created = manager.getDesktops().at( -1 )!;
-		expect( created.label ).toBe( 'Woo' );
-		expect( created.profile?.preset ).toBe( 'woo' );
+		expect( created.label ).toBe( 'Commerce' );
+		expect( created.profile?.preset ).toBe( 'commerce' );
 		expect( created.profile?.layout ).toBe( 'columns' );
 		expect( h.onCreated ).toHaveBeenCalledWith( created.id );
 		// Created without activating: the bar decides when to land on

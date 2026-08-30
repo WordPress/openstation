@@ -4,9 +4,9 @@
  * Three rules this file exists to pin, because breaking any of them
  * is silent:
  *
- * 1. **A template resolves against the live navigation**, so the Woo
- *    desk on a site without WooCommerce is a smaller desk rather than
- *    four permission errors.
+ * 1. **A template resolves against the live navigation**, so the
+ *    Commerce desk on a site without WooCommerce is a smaller desk
+ *    rather than four permission errors.
  * 2. **A workspace narrows the view, it never edits the settings.**
  *    `workspacePlacements` returns a NEW map and leaves the user's own
  *    `navPlacement` untouched — the identity check below is the whole
@@ -134,8 +134,8 @@ describe( 'matching', () => {
 	} );
 
 	test( 'resolveLaunches drops entries whose app is missing', () => {
-		// The core-only site: the Woo entries find nothing and simply
-		// do not open.
+		// The core-only site: the commerce entries find nothing and
+		// simply do not open.
 		const coreOnly = fullSite().filter(
 			( i ) => ! i.id.includes( 'woo' ) && ! i.id.includes( 'product' ),
 		);
@@ -161,9 +161,9 @@ describe( 'matching', () => {
 describe( 'presets', () => {
 	test( 'the three shipped desks are there, in order', () => {
 		expect( listWorkspacePresets().map( ( p ) => p.id ) ).toEqual( [
-			'woo',
-			'sensei',
-			'longreads',
+			'commerce',
+			'learning',
+			'publishing',
 		] );
 	} );
 
@@ -193,8 +193,8 @@ describe( 'presets', () => {
 		).toBe( false );
 	} );
 
-	test( 'a profile read from Woo narrows to commerce plus the essentials', () => {
-		const preset = findWorkspacePreset( 'woo' )!;
+	test( 'a profile read from Commerce narrows to the shop plus the essentials', () => {
+		const preset = findWorkspacePreset( 'commerce' )!;
 		const profile = workspaceProfileFromPreset( preset, fullSite() );
 		expect( profile.apps.mode ).toBe( 'only' );
 		expect( profile.apps.ids ).toContain( 'woocommerce' );
@@ -214,7 +214,7 @@ describe( 'presets', () => {
 	test( 'a template degrades on a site missing the apps it names', () => {
 		const coreOnly = fullSite().filter( ( i ) => 'core' === i.kind );
 		const profile = workspaceProfileFromPreset(
-			findWorkspacePreset( 'woo' )!,
+			findWorkspacePreset( 'commerce' )!,
 			coreOnly,
 		);
 		// Still a workspace, still narrowed — just to what exists.
@@ -226,8 +226,8 @@ describe( 'presets', () => {
 		] );
 	} );
 
-	test( 'Longreads is the writing desk', () => {
-		const preset = findWorkspacePreset( 'longreads' )!;
+	test( 'Publishing is the writing desk', () => {
+		const preset = findWorkspacePreset( 'publishing' )!;
 		expect( preset.layout ).toBe( 'focus' );
 		// It opens with a blank page, not with the library.
 		expect( preset.windows[ 0 ].url ).toBe( 'post-new.php' );
@@ -239,7 +239,7 @@ describe( 'presets', () => {
 
 	test( 'a template with widgets gives the desk its own column', () => {
 		const profile = workspaceProfileFromPreset(
-			findWorkspacePreset( 'woo' )!,
+			findWorkspacePreset( 'commerce' )!,
 			fullSite(),
 		);
 		expect( profile.widgets?.mode ).toBe( 'only' );

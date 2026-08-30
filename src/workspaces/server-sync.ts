@@ -13,7 +13,7 @@
  *   registered as a template of its own, tokens and all — so a plugin
  *   can ship a complete workspace from PHP with no JavaScript.
  * - **Remove.** A built-in the server list no longer names is filtered
- *   out client-side. That is what makes "drop the Woo desk on a site
+ *   out client-side. That is what makes "drop the Commerce desk on a site
  *   with no store" a one-line filter rather than a JS bundle.
  *
  * The three shipped ids deliberately do NOT re-register from the

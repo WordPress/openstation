@@ -4,8 +4,8 @@
  * The pill sits under the window layer by design, so this command is
  * the route that still works with something maximized over it. What
  * matters here is that one command answers the whole question — switch,
- * create, edit — and that "woo" lands on the Woo *desk* rather than on
- * "New: Woo" when both are in the list.
+ * create, edit — and that "commerce" lands on the Commerce *desk*
+ * rather than on "New: Commerce" when both are in the list.
  */
 
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
@@ -78,9 +78,9 @@ describe( '/workspace', () => {
 		const rows = await labels( command.suggest?.( '', ctx() ) );
 
 		expect( rows[ 0 ] ).toBe( 'Desktop 1' );
-		expect( rows ).toContain( 'New: Woo' );
-		expect( rows ).toContain( 'New: Sensei' );
-		expect( rows ).toContain( 'New: Longreads' );
+		expect( rows ).toContain( 'New: Commerce' );
+		expect( rows ).toContain( 'New: Learning' );
+		expect( rows ).toContain( 'New: Publishing' );
 		expect( rows.at( -1 ) ).toBe( 'Edit this workspace…' );
 	} );
 
@@ -88,26 +88,26 @@ describe( '/workspace', () => {
 		const command = listCommands().find( ( c ) => c.slug === 'workspace' )!;
 		const before = manager.getDesktops().length;
 
-		command.run( 'New: Longreads', ctx() );
+		command.run( 'New: Publishing', ctx() );
 
 		expect( manager.getDesktops() ).toHaveLength( before + 1 );
 		const active = manager.getActiveDesktop();
-		expect( active.label ).toBe( 'Longreads' );
-		expect( active.profile?.preset ).toBe( 'longreads' );
+		expect( active.label ).toBe( 'Publishing' );
+		expect( active.profile?.preset ).toBe( 'publishing' );
 	} );
 
 	test( 'an existing desk wins over the template of the same name', () => {
-		const woo = createWorkspace( deps, { preset: 'woo' } );
+		const shop = createWorkspace( deps, { preset: 'commerce' } );
 		manager.switchDesktop( manager.getDesktops()[ 0 ].id );
 		const command = listCommands().find( ( c ) => c.slug === 'workspace' )!;
 		const before = manager.getDesktops().length;
 
-		command.run( 'woo', ctx() );
+		command.run( 'commerce', ctx() );
 
-		// Switched, not created: "/workspace woo" when a Woo desk
-		// already exists means "take me there".
+		// Switched, not created: "/workspace commerce" when a Commerce
+		// desk already exists means "take me there".
 		expect( manager.getDesktops() ).toHaveLength( before );
-		expect( manager.getActiveDesktopId() ).toBe( woo.id );
+		expect( manager.getActiveDesktopId() ).toBe( shop.id );
 	} );
 
 	test( 'the editor row opens the editor on the current desk', () => {

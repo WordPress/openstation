@@ -37,14 +37,14 @@ class Tests_OpenStation_Workspaces extends WP_UnitTestCase {
 	 * The ids are the contract with `builtInPresets()` in
 	 * `src/workspaces/presets.ts`: the client resolves a template's
 	 * tokens, the server exists so a filter has something to filter,
-	 * and a drifting id would silently turn "drop the Woo desk" into a
+	 * and a drifting id would silently turn "drop the Commerce desk" into a
 	 * filter that removes nothing.
 	 *
 	 * @covers ::openstation_workspace_presets
 	 */
 	public function test_ships_three_templates_in_order() {
 		$ids = wp_list_pluck( openstation_workspace_presets(), 'id' );
-		$this->assertSame( array( 'woo', 'sensei', 'longreads' ), $ids );
+		$this->assertSame( array( 'commerce', 'learning', 'publishing' ), $ids );
 	}
 
 	/**
@@ -61,7 +61,7 @@ class Tests_OpenStation_Workspaces extends WP_UnitTestCase {
 	}
 
 	/**
-	 * A site with no store drops the Woo desk in one line.
+	 * A site with no store drops the Commerce desk in one line.
 	 *
 	 * @covers ::openstation_workspace_presets
 	 */
@@ -73,14 +73,14 @@ class Tests_OpenStation_Workspaces extends WP_UnitTestCase {
 					array_filter(
 						$presets,
 						static function ( $preset ) {
-							return 'woo' !== $preset['id'];
+							return 'commerce' !== $preset['id'];
 						}
 					)
 				);
 			}
 		);
 		$ids = wp_list_pluck( openstation_workspace_presets(), 'id' );
-		$this->assertSame( array( 'sensei', 'longreads' ), $ids );
+		$this->assertSame( array( 'learning', 'publishing' ), $ids );
 	}
 
 	/**
@@ -132,7 +132,7 @@ class Tests_OpenStation_Workspaces extends WP_UnitTestCase {
 		);
 		$presets = openstation_workspace_presets();
 		$ids     = wp_list_pluck( $presets, 'id' );
-		$this->assertSame( array( 'woo', 'sensei', 'longreads', 'odd' ), $ids );
+		$this->assertSame( array( 'commerce', 'learning', 'publishing', 'odd' ), $ids );
 		// An unknown layout falls back rather than reaching the client.
 		$odd = end( $presets );
 		$this->assertSame( 'free', $odd['layout'] );
@@ -158,7 +158,7 @@ class Tests_OpenStation_Workspaces extends WP_UnitTestCase {
 	public function test_profile_is_bounded() {
 		$profile = openstation_sanitize_workspace_profile(
 			array(
-				'preset'      => 'Woo!',
+				'preset'      => 'Commerce!',
 				'icon'        => 'dashicons-cart',
 				'color'       => '#7f54b3',
 				'apps'        => array(
@@ -175,7 +175,7 @@ class Tests_OpenStation_Workspaces extends WP_UnitTestCase {
 			)
 		);
 
-		$this->assertSame( 'woo', $profile['preset'] );
+		$this->assertSame( 'commerce', $profile['preset'] );
 		$this->assertSame( 'columns', $profile['layout'] );
 		$this->assertSame( '#7f54b3', $profile['color'] );
 		$this->assertSame( 'only', $profile['apps']['mode'] );
@@ -459,9 +459,9 @@ class Tests_OpenStation_Workspaces extends WP_UnitTestCase {
 				'desktops'      => array(
 					array(
 						'id'      => 'desktop-1',
-						'label'   => 'Woo',
+						'label'   => 'Commerce',
 						'profile' => array(
-							'preset'      => 'woo',
+							'preset'      => 'commerce',
 							'icon'        => 'dashicons-cart',
 							'color'       => '#7f54b3',
 							'apps'        => array(
@@ -493,7 +493,7 @@ class Tests_OpenStation_Workspaces extends WP_UnitTestCase {
 		);
 
 		$session = openstation_get_session( self::$admin_id );
-		$this->assertSame( 'woo', $session['desktops'][0]['profile']['preset'] );
+		$this->assertSame( 'commerce', $session['desktops'][0]['profile']['preset'] );
 		$this->assertSame( 'columns', $session['desktops'][0]['profile']['layout'] );
 		$this->assertSame(
 			array( 'woocommerce' ),

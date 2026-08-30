@@ -132,14 +132,14 @@ describe( 'workspace operations', () => {
 
 	test( 'create() from a template names, profiles and activates the desk', () => {
 		const before = manager.getDesktops().length;
-		const created = createWorkspace( deps, { preset: 'longreads' } );
+		const created = createWorkspace( deps, { preset: 'publishing' } );
 
 		expect( manager.getDesktops() ).toHaveLength( before + 1 );
-		expect( created.label ).toBe( 'Longreads' );
+		expect( created.label ).toBe( 'Publishing' );
 		expect( manager.getActiveDesktopId() ).toBe( created.id );
 
 		const profile = getWorkspaceProfile( manager, created.id );
-		expect( profile?.preset ).toBe( 'longreads' );
+		expect( profile?.preset ).toBe( 'publishing' );
 		expect( profile?.layout ).toBe( 'focus' );
 		// The rails answer to the profile, so a write has to repaint.
 		expect( refreshLayout ).toHaveBeenCalled();
@@ -161,14 +161,14 @@ describe( 'workspace operations', () => {
 				icon: 'dashicons-star-filled',
 			} ),
 		);
-		const created = createWorkspace( deps, { preset: 'woo' } );
+		const created = createWorkspace( deps, { preset: 'commerce' } );
 		expect( getWorkspaceProfile( manager, created.id )?.icon ).toBe(
 			'dashicons-star-filled',
 		);
 	} );
 
 	test( 'setProfile( null ) turns a workspace back into a plain Space', () => {
-		const created = createWorkspace( deps, { preset: 'woo' } );
+		const created = createWorkspace( deps, { preset: 'commerce' } );
 		const log = recordActions( hooks, WORKSPACE_HOOKS );
 
 		expect( setWorkspaceProfile( deps, created.id, null ) ).toBe( true );
@@ -272,7 +272,7 @@ describe( 'workspace operations', () => {
 	} );
 
 	test( 'capture shapes the open windows into a launch list', async () => {
-		const created = createWorkspace( deps, { preset: 'longreads' } );
+		const created = createWorkspace( deps, { preset: 'publishing' } );
 		await manager.open( {
 			id: 'edit-php',
 			url: `${ ADMIN_URL }edit.php`,
@@ -458,30 +458,30 @@ describe( 'template server sync', () => {
 		// A shell booting without the config key must not show an
 		// empty switcher.
 		expect( listWorkspacePresets().map( ( p ) => p.id ) ).toEqual( [
-			'woo',
-			'sensei',
-			'longreads',
+			'commerce',
+			'learning',
+			'publishing',
 		] );
 	} );
 
 	test( 'a template the server no longer names is dropped', () => {
 		applyServerWorkspacePresets( [
-			{ id: 'sensei' },
-			{ id: 'longreads' },
+			{ id: 'learning' },
+			{ id: 'publishing' },
 		] );
-		// The PHP filter removed Woo — a blog with no store.
+		// The PHP filter removed Commerce — a blog with no store.
 		expect( listWorkspacePresets().map( ( p ) => p.id ) ).toEqual( [
-			'sensei',
-			'longreads',
+			'learning',
+			'publishing',
 		] );
-		expect( findWorkspacePreset( 'woo' ) ).toBeNull();
+		expect( findWorkspacePreset( 'commerce' ) ).toBeNull();
 	} );
 
 	test( 'a server template with an id of its own is registered whole', () => {
 		applyServerWorkspacePresets( [
-			{ id: 'woo' },
-			{ id: 'sensei' },
-			{ id: 'longreads' },
+			{ id: 'commerce' },
+			{ id: 'learning' },
+			{ id: 'publishing' },
 			{
 				id: 'support',
 				label: 'Support',
@@ -503,21 +503,21 @@ describe( 'template server sync', () => {
 	} );
 
 	test( 'a server template survives a payload that still names it', () => {
-		applyServerWorkspacePresets( [ { id: 'woo' }, { id: 'support' } ] );
-		applyServerWorkspacePresets( [ { id: 'woo' }, { id: 'support' } ] );
+		applyServerWorkspacePresets( [ { id: 'commerce' }, { id: 'support' } ] );
+		applyServerWorkspacePresets( [ { id: 'commerce' }, { id: 'support' } ] );
 		expect( findWorkspacePreset( 'support' ) ).not.toBeNull();
 	} );
 
 	test( 'a server template retires when its plugin is deactivated', () => {
-		applyServerWorkspacePresets( [ { id: 'woo' }, { id: 'support' } ] );
+		applyServerWorkspacePresets( [ { id: 'commerce' }, { id: 'support' } ] );
 		expect( findWorkspacePreset( 'support' ) ).not.toBeNull();
-		applyServerWorkspacePresets( [ { id: 'woo' } ] );
+		applyServerWorkspacePresets( [ { id: 'commerce' } ] );
 		expect( findWorkspacePreset( 'support' ) ).toBeNull();
 	} );
 
 	test( 'a malformed layout on a server template falls back', () => {
 		applyServerWorkspacePresets( [
-			{ id: 'woo' },
+			{ id: 'commerce' },
 			{ id: 'weird', layout: 'diagonal' },
 		] );
 		expect( findWorkspacePreset( 'weird' )?.layout ).toBe( 'free' );

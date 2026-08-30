@@ -94,7 +94,7 @@ export interface ResolvedLaunch {
  * opened here. Entries whose `match` finds nothing are dropped.
  *
  * The explicit `url` wins when given, because a launch entry often
- * wants a page the menu itself does not open: the Longreads desk opens
+ * wants a page the menu itself does not open: the Publishing desk opens
  * `post-new.php`, and the only thing proving that page exists is the
  * Posts menu it hangs off.
  */

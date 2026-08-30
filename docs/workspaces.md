@@ -8,7 +8,7 @@ That answer is four things, and they travel with the desktop:
 
 | | |
 |---|---|
-| **Which apps show** | The rails can be narrowed to the apps this desk is about. A Woo desk shows commerce; a writing desk shows Posts and Media and nothing else. |
+| **Which apps show** | The rails can be narrowed to the apps this desk is about. A Commerce desk shows the store; a writing desk shows Posts and Media and nothing else. |
 | **Which widgets are on it** | The desk can carry its own widget column — drafts and a timer on a writing desk, traffic on a shop floor. |
 | **What it looks like** | Wallpaper, accent, desktop theme, dock — the desk's whole appearance, painted on entry and handed back on exit. |
 | **What it opens with** | A launch list. Entering the workspace for the first time opens it. |
@@ -19,9 +19,11 @@ Three workspaces ship, and they are three different jobs rather than three arran
 
 | Template | Layout | Widgets | Look | The desk |
 |---|---|---|---|---|
-| **Woo** | `columns` | clock, site views | dark ground, indigo | A shop floor. Orders, products and analytics are things you *compare*, so they get full-height columns side by side, on a flat ground three tables read cleanly against. |
-| **Sensei** | `tile` | clock, heartbeat, recent comments | aurora, emerald | A course studio. Courses, lessons and learners are a set you move *between*, so they tile — with the room's pulse beside them: who is around, and what is being said. |
-| **Longreads** | `focus` | drafts, post stats, focus timer, notes | mono, rose, dock folds away | A writing desk, named for [Automattic's home for long-form](https://longreads.com/). A blank page takes two thirds of the screen and the library sits in the margin. Its instruments are about the page, not the audience — no traffic chart — and the quietest ground there is. The one template whose point is what it leaves out, made in paint as well as in the app list. |
+| **Commerce** | `columns` | clock, site views | dark ground, indigo | A shop floor. WooCommerce orders, products and analytics are things you *compare*, so they get full-height columns side by side, on a flat ground three tables read cleanly against. |
+| **Learning** | `tile` | clock, heartbeat, recent comments | aurora, emerald | A course studio. Sensei courses, lessons and learners are a set you move *between*, so they tile — with the room's pulse beside them: who is around, and what is being said. |
+| **Publishing** | `focus` | drafts, post stats, focus timer, notes | mono, rose, dock folds away | A writing desk. A blank page takes two thirds of the screen and the library sits in the margin. Its instruments are about the page, not the audience — no traffic chart — and the quietest ground there is. The one template whose point is what it leaves out, made in paint as well as in the app list. |
+
+**Named for the job, not for the plugin.** A desk called "Woo" is wrong on a store running something else, and wrong again the day the product is renamed — but the *work* is commerce either way. The products are still what the templates reach for: the tokens name WooCommerce and Sensei directly, so on a site that has them the Commerce desk is a WooCommerce desk in everything but its label. On a site that does not, it degrades to the core menus its tokens still match rather than promising a product that isn't there.
 
 ---
 
@@ -47,11 +49,11 @@ Three decisions worth naming:
 
 - **It force-provisions.** The once-per-workspace guard exists to stop the *shell* reopening windows on its own, not to stop the user asking. A desk they have since tidied is exactly the case this button is for. Windows still open reuse their instance rather than doubling, so restoring an intact desk just brings it to order.
 - **It only appears where it has work to do.** A plain Space has nothing stored, and neither does a workspace whose profile says nothing beyond its name and colour. A button that visibly does nothing is worse than no button, so its absence is information.
-- **The word is short, the accessible name is not.** "Restore" alone could be read as the session restore the shell does at boot, so the `aria-label` and tooltip carry the whole sentence: *"Restore Woo — reopen its windows, widgets and look"*.
+- **The word is short, the accessible name is not.** "Restore" alone could be read as the session restore the shell does at boot, so the `aria-label` and tooltip carry the whole sentence: *"Restore Commerce — reopen its windows, widgets and look"*.
 
 `wp.os.workspaces.provision( id, { force: true } )` is the programmatic equivalent for the windows half; `arrange()`, `setProfile()` and a switch cover the rest.
 
-`/workspace` in the command palette (⌘K) is the keyboard route — one command for the whole question. It lists the desks that exist, then the templates that could become one, then the editor. An existing desk wins over a template of the same name, so `/workspace woo` means "take me there" once a Woo desk exists.
+`/workspace` in the command palette (⌘K) is the keyboard route — one command for the whole question. It lists the desks that exist, then the templates that could become one, then the editor. An existing desk wins over a template of the same name, so `/workspace commerce` means "take me there" once a Commerce desk exists.
 
 ## Templates degrade, they do not break
 
@@ -59,7 +61,7 @@ A template cannot name nav ids directly and stay useful. The id of the Products 
 
 So a template names what it is **about** — `'post_type=product'`, `'sensei'` — and those tokens are matched as substrings against each item's id, URL, window id and title. Everything that matches lands in the workspace's visible set; a launch entry that matches nothing is **skipped**.
 
-The consequence worth stating: **the Woo template on a site without WooCommerce is a smaller desk, not four "you do not have permission" pages.**
+The consequence worth stating: **the Commerce template on a site without WooCommerce is a smaller desk, not four "you do not have permission" pages.**
 
 Every template also keeps Dashboard, Media and Settings, whatever else it names. A desk with no way to reach them is a dead end, and the user would have to leave the workspace to do anything its author did not think of.
 
@@ -67,7 +69,7 @@ Every template also keeps Dashboard, Media and Settings, whatever else it names.
 
 The navigation already has one answer to "where does this item show?" — `navPlacement`, the user's stored per-item override — and `computeNav` is a pure function of it. A workspace does not add a second mechanism: it computes the navigation with **extra `'hidden'` entries in that map**, fresh on every repaint.
 
-**Switching to a Woo desk and back leaves `navPlacement` byte-identical.** A workspace can be deleted without unpicking anything, and an item the user hid globally stays hidden inside every workspace.
+**Switching to a Commerce desk and back leaves `navPlacement` byte-identical.** A workspace can be deleted without unpicking anything, and an item the user hid globally stays hidden inside every workspace.
 
 Two things a workspace may never hide, structurally rather than by default:
 
@@ -92,7 +94,7 @@ A widget whose plugin has since been deactivated is skipped rather than reported
 
 A workspace can carry a **wallpaper, an accent, a desktop theme and a dock configuration** — the same settings the Appearance tab holds — and it paints the desk with them on entry.
 
-`profile.appearance` is a **sparse patch**: only the keys present are overridden, and only while the workspace is active. `OsSettings.setWorkspaceAppearance()` keeps the user's own state aside and puts it straight back on the way out. Switch to a Woo desk, look at its dark ground and indigo accent, switch back — the settings are byte-identical.
+`profile.appearance` is a **sparse patch**: only the keys present are overridden, and only while the workspace is active. `OsSettings.setWorkspaceAppearance()` keeps the user's own state aside and puts it straight back on the way out. Switch to a Commerce desk, look at its dark ground and indigo accent, switch back — the settings are byte-identical.
 
 Three things this has to get right, and each has a test:
 
@@ -258,14 +260,14 @@ openstation_workspace_presets(): array
 The server's view of the template list, shipped to the shell as `openStationConfig.workspacePresets`. Filterable, and the filter has both powers:
 
 ```php
-// Drop the Woo desk on a site with no store.
+// Drop the Commerce desk on a site with no store.
 add_filter(
     'openstation_workspace_presets',
     function ( $presets ) {
         return array_values(
             array_filter(
                 $presets,
-                fn( $preset ) => 'woo' !== $preset['id']
+                fn( $preset ) => 'commerce' !== $preset['id']
             )
         );
     }

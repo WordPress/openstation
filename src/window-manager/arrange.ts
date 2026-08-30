@@ -281,7 +281,7 @@ const MAX_COLUMNS = 4;
  * area.
  *
  * The comparison shape: three lists you read across rather than one
- * you read down. What the Woo workspace opens with, and what "Columns"
+ * you read down. What the Commerce workspace opens with, and what "Columns"
  * means in the workspace editor.
  */
 export function columns( mgr: WindowManager ): void {
@@ -332,7 +332,7 @@ const FOCUS_SPLIT = 0.64;
  *
  * The writing shape: the page being worked on takes roughly two
  * thirds, and everything else stays visible without competing for
- * attention. What the Longreads workspace opens with.
+ * attention. What the Publishing workspace opens with.
  *
  * The lead is the FOCUSED window when one is on this desktop, not the
  * first in the stack — re-applying the layout after clicking into the

@@ -58,7 +58,7 @@ That is the whole integration. The client resolves the tokens against the live n
 
 ## Drop a shipped template
 
-The same filter removes one. A blog with no store has no reason to be offered a Woo desk:
+The same filter removes one. A blog with no store has no reason to be offered a Commerce desk:
 
 ```php
 add_filter(
@@ -67,7 +67,7 @@ add_filter(
         return array_values(
             array_filter(
                 $presets,
-                fn( $preset ) => 'woo' !== $preset['id']
+                fn( $preset ) => 'commerce' !== $preset['id']
             )
         );
     }
@@ -97,14 +97,14 @@ wp.os.workspaces.registerPreset( {
 
 ## Adjust a shipped template instead of replacing it
 
-`os.workspaces.profile` fires the moment a profile is read off a template, before the desktop is created. This adds a plugin's own screen to the Woo desk without redefining it:
+`os.workspaces.profile` fires the moment a profile is read off a template, before the desktop is created. This adds a plugin's own screen to the Commerce desk without redefining it:
 
 ```js
 wp.hooks.addFilter(
     'os.workspaces.profile',
-    'my-plugin/woo-extras',
+    'my-plugin/commerce-extras',
     ( profile, preset ) => {
-        if ( 'woo' !== preset.id || 'only' !== profile.apps.mode ) {
+        if ( 'commerce' !== preset.id || 'only' !== profile.apps.mode ) {
             return profile;
         }
         const shipping = wp.os

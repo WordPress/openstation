@@ -53,7 +53,7 @@ export const WORKSPACE_LAYOUTS: readonly WorkspaceLayoutId[] = [
  * `'all'` is the neutral setting and the default for a blank
  * workspace: the rails look exactly as they do without workspaces at
  * all. `'only'` narrows them to {@link WorkspaceApps.ids}, which is
- * what makes a Woo desk feel like a commerce tool rather than a
+ * what makes a Commerce desk feel like a shop tool rather than a
  * WordPress admin with commerce in it.
  *
  * Narrowing never reaches OpenStation's own controls (Overview, the
@@ -176,8 +176,9 @@ export interface WorkspaceLaunch {
  */
 export interface WorkspaceProfile {
 	/**
-	 * Preset this workspace was minted from (`'woo'`, `'sensei'`,
-	 * `'longreads'`), or `''` for one the user built themselves.
+	 * Preset this workspace was minted from (`'commerce'`,
+	 * `'learning'`, `'publishing'`), or `''` for one the user built
+	 * themselves.
 	 *
 	 * Provenance only. A preset is a template read once at creation
 	 * time; editing the workspace afterwards never writes back to it,

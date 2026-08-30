@@ -89,6 +89,13 @@ const OPENSTATION_WORKSPACE_APPEARANCE_KEYS = array(
  * on the JS side, which is where they are resolved against the live
  * navigation.
  *
+ * Named for the job, not for the plugin: a desk called "Woo" is wrong
+ * on a store running something else, and wrong again the day the
+ * product is renamed. The products are still what the templates reach
+ * for — the JS token lists name WooCommerce and Sensei directly — so
+ * on a site that has them, Commerce is a WooCommerce desk in
+ * everything but its label.
+ *
  * Filterable so a site can add a template, or drop one it has no use
  * for. A blog with no store has no reason to be offered a Woo desk.
  *
@@ -97,26 +104,26 @@ const OPENSTATION_WORKSPACE_APPEARANCE_KEYS = array(
 function openstation_workspace_presets() {
 	$presets = array(
 		array(
-			'id'          => 'woo',
-			'label'       => __( 'Woo', 'desktop-mode' ),
-			'description' => __( 'A shop floor. Orders, products and analytics side by side; everything that is not commerce leaves the rails.', 'desktop-mode' ),
+			'id'          => 'commerce',
+			'label'       => __( 'Commerce', 'desktop-mode' ),
+			'description' => __( 'A shop floor. WooCommerce orders, products and analytics side by side; everything that is not commerce leaves the rails.', 'desktop-mode' ),
 			'icon'        => 'dashicons-cart',
 			'color'       => '#7f54b3',
 			'layout'      => 'columns',
 			'order'       => 10,
 		),
 		array(
-			'id'          => 'sensei',
-			'label'       => __( 'Sensei', 'desktop-mode' ),
-			'description' => __( 'A course studio. Courses, lessons and learners tiled together, so moving between them is a glance rather than a navigation.', 'desktop-mode' ),
+			'id'          => 'learning',
+			'label'       => __( 'Learning', 'desktop-mode' ),
+			'description' => __( 'A course studio. Sensei courses, lessons and learners tiled together, so moving between them is a glance rather than a navigation.', 'desktop-mode' ),
 			'icon'        => 'dashicons-welcome-learn-more',
 			'color'       => '#43a047',
 			'layout'      => 'tile',
 			'order'       => 20,
 		),
 		array(
-			'id'          => 'longreads',
-			'label'       => __( 'Longreads', 'desktop-mode' ),
+			'id'          => 'publishing',
+			'label'       => __( 'Publishing', 'desktop-mode' ),
 			'description' => __( 'A writing desk. A blank page takes two thirds of the screen, the library sits in the margin, and the rest of the admin is somewhere else.', 'desktop-mode' ),
 			'icon'        => 'dashicons-edit-page',
 			'color'       => '#c8102e',

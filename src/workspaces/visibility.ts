@@ -10,7 +10,7 @@
  * That is what this module produces, and it produces it fresh on every
  * repaint rather than writing to the stored preferences. The
  * distinction is the whole design: **a workspace narrows the view, it
- * does not edit the user's settings.** Switching to a Woo desk and back
+ * does not edit the user's settings.** Switching to a Commerce desk and back
  * leaves `navPlacement` byte-identical, so a workspace can be deleted
  * without unpicking anything, and the item a user hid globally stays
  * hidden inside every workspace.

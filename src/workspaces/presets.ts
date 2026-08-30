@@ -4,15 +4,23 @@
  * Three desks ship, and they are three different jobs rather than
  * three arrangements of the same one:
  *
- * - **Woo** — a shop floor. Orders, products and analytics are things
- *   you compare, so they land in columns, and everything that is not
- *   commerce leaves the rails.
- * - **Sensei** — a course studio. Courses, lessons and learners are a
- *   set you move between, so they tile.
- * - **Longreads** — a writing desk, named for Automattic's home for
- *   long-form. A blank page takes two thirds of the screen and the
- *   library sits in the margin. It is the one preset whose point is
- *   what it leaves OUT.
+ * - **Commerce** — a shop floor. Orders, products and analytics are
+ *   things you compare, so they land in columns, and everything that
+ *   is not commerce leaves the rails.
+ * - **Learning** — a course studio. Courses, lessons and learners are
+ *   a set you move between, so they tile.
+ * - **Publishing** — a writing desk. A blank page takes two thirds of
+ *   the screen and the library sits in the margin. It is the one
+ *   preset whose point is what it leaves OUT.
+ *
+ * **Named for the job, not for the plugin.** A desk called "Woo" is
+ * wrong on a store running something else, and wrong again the day the
+ * product is renamed — but the WORK is commerce either way. The
+ * products are still what the templates reach for: the tokens below
+ * name WooCommerce and Sensei directly, and on a site that has them
+ * the Commerce desk is a WooCommerce desk in everything but its
+ * label. On a site that does not, it degrades to the core menus its
+ * tokens still match rather than promising a product that isn't there.
  *
  * Presets are templates: {@link workspaceProfileFromPreset} reads one
  * once, against the navigation as it stands, and what lands on the
@@ -51,15 +59,16 @@ const ALWAYS_KEEP: readonly string[] = [
 function builtInPresets(): WorkspacePreset[] {
 	return [
 		{
-			id: 'woo',
-			label: __( 'Woo' ),
+			id: 'commerce',
+			label: __( 'Commerce' ),
 			description: __(
-				'A shop floor. Orders, products and analytics side by side; everything that is not commerce leaves the rails.',
+				'A shop floor. WooCommerce orders, products and analytics side by side; everything that is not commerce leaves the rails.',
 			),
 			icon: 'dashicons-cart',
-			// WooCommerce purple.
+			// WooCommerce purple — the label is generic, the desk is
+			// still built around the product.
 			color: '#7f54b3',
-			defaultLabel: __( 'Woo' ),
+			defaultLabel: __( 'Commerce' ),
 			order: 10,
 			apps: [
 				'woocommerce',
@@ -94,15 +103,15 @@ function builtInPresets(): WorkspacePreset[] {
 			layout: 'columns',
 		},
 		{
-			id: 'sensei',
-			label: __( 'Sensei' ),
+			id: 'learning',
+			label: __( 'Learning' ),
 			description: __(
-				'A course studio. Courses, lessons and learners tiled together, so moving between them is a glance rather than a navigation.',
+				'A course studio. Sensei courses, lessons and learners tiled together, so moving between them is a glance rather than a navigation.',
 			),
 			icon: 'dashicons-welcome-learn-more',
 			// Sensei green.
 			color: '#43a047',
-			defaultLabel: __( 'Sensei' ),
+			defaultLabel: __( 'Learning' ),
 			order: 20,
 			apps: [
 				'sensei',
@@ -135,15 +144,15 @@ function builtInPresets(): WorkspacePreset[] {
 			layout: 'tile',
 		},
 		{
-			id: 'longreads',
-			label: __( 'Longreads' ),
+			id: 'publishing',
+			label: __( 'Publishing' ),
 			description: __(
 				'A writing desk. A blank page takes two thirds of the screen, the library sits in the margin, and the rest of the admin is somewhere else.',
 			),
 			icon: 'dashicons-edit-page',
-			// Longreads red.
+			// Editorial red.
 			color: '#c8102e',
-			defaultLabel: __( 'Longreads' ),
+			defaultLabel: __( 'Publishing' ),
 			order: 30,
 			apps: [
 				'edit.php',
@@ -213,7 +222,7 @@ export function unregisterWorkspacePreset( id: string ): void {
  * by `order`.
  *
  * Filterable so a site can drop a shipped preset it has no use for —
- * a blog with no store has no reason to be offered a Woo desk.
+ * a blog with no store has no reason to be offered a Commerce desk.
  */
 export function listWorkspacePresets(): WorkspacePreset[] {
 	const all = [ ...builtInPresets(), ...registered.values() ];
