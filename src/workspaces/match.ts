@@ -87,6 +87,9 @@ export interface ResolvedLaunch {
 	 */
 	url: string;
 	title: string;
+	/** Carried through from the entry — see `WorkspaceLaunch`. */
+	gridSpan?: WorkspaceLaunch[ 'gridSpan' ];
+	place?: WorkspaceLaunch[ 'place' ];
 }
 
 /**
@@ -114,6 +117,8 @@ export function resolveLaunches(
 			item,
 			url: launch.url ?? item.menu?.url ?? item.entry?.url ?? '',
 			title: launch.title ?? item.title,
+			...( launch.gridSpan ? { gridSpan: launch.gridSpan } : {} ),
+			...( launch.place ? { place: launch.place } : {} ),
 		} );
 	}
 	return out;

@@ -166,6 +166,7 @@ import {
 } from './bug-report';
 import { ensureDeferredStyle } from './deferred-styles';
 import { showToast, type ToastOptions } from './toast';
+import { __, sprintf } from './i18n';
 import {
 	bootstrapPwa,
 	type NotifyOptions,
@@ -262,9 +263,12 @@ import {
 	installWorkspaceOverviewControl,
 	installWorkspacePresetSync,
 	listWorkspacePresets,
+	getWorkspaceProfile,
 	provisionWorkspace,
 	registerWorkspaceCommand,
+	saveDeskToWorkspace,
 	setWorkspaceProfile,
+	withWorkspaceWidget,
 	workspaceProfileFromPreset,
 	type WorkspaceDeps,
 	type WorkspacesApi,
@@ -2614,6 +2618,52 @@ function init(): void {
 		} );
 	};
 
+	/**
+	 * "Keep this desk": make the workspace open the way the desk is
+	 * now — these windows where they are, these widgets, these apps.
+	 * The one write a workspace makes on purpose, and the cheapest way
+	 * to turn a plain Space into one.
+	 */
+	const saveDesk = ( desktopId: string = manager.getActiveDesktopId() ): boolean => {
+		if ( ! workspaceDeps ) {
+			return false;
+		}
+		const nav = layoutDispatcher?.getNav();
+		let visibleAppIds: string[] | undefined;
+		if ( nav ) {
+			const onScreen = [
+				...nav.dock.core,
+				...nav.dock.apps,
+				...nav.dock.controls,
+				...nav.sidebar,
+				...nav.desktop,
+			];
+			// An ephemeral tile is there because its window is open,
+			// not because the user placed it.
+			visibleAppIds = onScreen
+				.filter( ( item ) => ! nav.ephemeral.has( item.id ) )
+				.map( ( item ) => item.id );
+		}
+		const saved = saveDeskToWorkspace( workspaceDeps, desktopId, {
+			visibleAppIds,
+			mountedWidgetIds: widgetLayer?.getMountedIds(),
+		} );
+		if ( ! saved ) {
+			return false;
+		}
+		const label =
+			manager.getDesktops().find( ( d ) => d.id === desktopId )?.label ?? '';
+		showToast( {
+			message: sprintf(
+				// translators: %1$s is the workspace name, %2$d a number of windows.
+				__( '%1$s will open like this — %2$d windows, where they are.' ),
+				label,
+				saved.windows.length,
+			),
+		} );
+		return true;
+	};
+
 	/** Edit under a tile: open the wizard on an existing desk. */
 	const editWorkspace = ( desktopId: string ): void => {
 		if ( ! workspaceDeps ) {
@@ -3054,6 +3104,7 @@ function init(): void {
 			workspaceDeps,
 			editWorkspace,
 			createWorkspaceWithWizard,
+			saveDesk,
 		);
 
 		// The picker lives in the overview top bar — overview is
@@ -3086,6 +3137,33 @@ function init(): void {
 				provisionWorkspace( workspaceDeps, payload.to );
 			},
 		);
+		// A widget added or removed while a workspace's column is in
+		// force is a change to THAT desk. The layer mounts or unmounts
+		// and fires; this records it on the profile, so the desk comes
+		// back the same way and the user's own list is never touched.
+		// Only under `'only'`: on a plain desk the layer already wrote
+		// the user's list itself.
+		const recordWidgetChange = ( id: string, visible: boolean ): void => {
+			if ( ! workspaceDeps ) {
+				return;
+			}
+			const desktopId = manager.getActiveDesktopId();
+			const profile = getWorkspaceProfile( manager, desktopId );
+			if ( ! profile || 'only' !== profile.widgets?.mode ) {
+				return;
+			}
+			const next = withWorkspaceWidget( profile, id, visible );
+			if ( next !== profile ) {
+				setWorkspaceProfile( workspaceDeps, desktopId, next );
+			}
+		};
+		addAction( HOOKS.WIDGET_ADDED, 'desktop-mode/workspace-widgets', ( p: { id: string } ) =>
+			recordWidgetChange( p.id, true ),
+		);
+		addAction( HOOKS.WIDGET_REMOVED, 'desktop-mode/workspace-widgets', ( p: { id: string } ) =>
+			recordWidgetChange( p.id, false ),
+		);
+
 		// The desk the user boots onto never fires a switch, so its
 		// launch list would otherwise wait for them to leave and come
 		// back. A no-op for every desktop already provisioned, which is
@@ -4422,6 +4500,7 @@ function init(): void {
 			editWorkspace,
 			currentWorkspaceLook,
 			createWorkspaceWithWizard,
+			saveDesk,
 		),
 		wallpaperSuspend: {
 			suspend: ( reason: string ) => wallpaperLayer?.suspend( reason ),

@@ -14,13 +14,17 @@
 import { applyFilters, doAction, HOOKS } from '../hooks';
 import type { Desktop } from '../types';
 import type { NavItem } from '../nav/types';
+import type { Window } from '../window';
 import type { WindowManager } from '../window-manager';
+import { reflowGridSpan } from '../window-manager/grid-snap';
+import { workAreaRectOf } from '../work-area';
 import { resolveLaunches } from './match';
 import { findWorkspacePreset, workspaceProfileFromPreset } from './presets';
-import type {
-	WorkspaceLaunch,
-	WorkspaceLayoutId,
-	WorkspaceProfile,
+import {
+	blankWorkspaceProfile,
+	type WorkspaceLaunch,
+	type WorkspaceLayoutId,
+	type WorkspaceProfile,
 } from './types';
 import { workspaceAppearance, workspaceWidgetIds } from './visibility';
 
@@ -280,6 +284,7 @@ export function provisionWorkspace(
 					icon: launch.item.icon,
 					desktopId,
 				} )
+				.then( ( win ) => placeLaunchedWindow( deps.manager, win, launch ) )
 				.catch( () => {
 					/* One window short is not a failed workspace. */
 				} );
@@ -288,6 +293,13 @@ export function provisionWorkspace(
 		if ( launch.item.windowId ) {
 			opened++;
 			deps.openNative( launch.item.windowId );
+			void whenWindowOpens( deps.manager, launch.item.windowId ).then(
+				( win ) => {
+					if ( win ) {
+						placeLaunchedWindow( deps.manager, win, launch );
+					}
+				},
+			);
 		}
 	}
 
@@ -326,6 +338,7 @@ export function captureWorkspaceWindows(
 ): WorkspaceLaunch[] {
 	const out: WorkspaceLaunch[] = [];
 	const seen = new Set< string >();
+	const area = workAreaRectOf( mgr._desktop );
 	for ( const win of mgr.getAll() ) {
 		if ( ( win.config.desktopId || mgr.getActiveDesktopId() ) !== desktopId ) {
 			continue;
@@ -344,9 +357,164 @@ export function captureWorkspaceWindows(
 		if ( true !== win.config.native && win.config.url ) {
 			entry.url = win.config.url;
 		}
+		// Where it is — and it is where it is in a form that survives
+		// the desk changing size. A grid-snapped window keeps its
+		// cells; a free one becomes fractions of the work area. Only a
+		// window that owns its geometry: a maximized or snapped one is
+		// where its state put it, and restoring the state is the
+		// arrangement's job, not a rectangle's.
+		if ( win._gridSpan ) {
+			entry.gridSpan = { ...win._gridSpan };
+		} else if ( win.state === 'normal' && area.width > 0 && area.height > 0 ) {
+			const el = win.element;
+			entry.place = clampPlace( {
+				x: ( el.offsetLeft - area.x ) / area.width,
+				y: ( el.offsetTop - area.y ) / area.height,
+				width: el.offsetWidth / area.width,
+				height: el.offsetHeight / area.height,
+			} );
+		}
 		out.push( entry );
 	}
 	return out;
+}
+
+/** Fractions stay in `[0, 1]`: a window half off the desk is saved at the edge. */
+function clampPlace( p: NonNullable< WorkspaceLaunch[ 'place' ] > ): NonNullable< WorkspaceLaunch[ 'place' ] > {
+	const unit = ( v: number ): number =>
+		Number.isFinite( v ) ? Math.min( 1, Math.max( 0, v ) ) : 0;
+	return {
+		x: unit( p.x ),
+		y: unit( p.y ),
+		width: Math.max( 0.05, unit( p.width ) ),
+		height: Math.max( 0.05, unit( p.height ) ),
+	};
+}
+
+/**
+ * Put a freshly opened window where its launch entry says.
+ *
+ * Cells first, fractions second, and nothing when the entry carries
+ * neither — the arrangement decides then. Both forms are resolved
+ * against the live work area, which is the whole reason they were
+ * stored that way.
+ */
+function placeLaunchedWindow(
+	mgr: WindowManager,
+	win: Window,
+	launch: Pick< WorkspaceLaunch, 'gridSpan' | 'place' >,
+): void {
+	const area = workAreaRectOf( mgr._desktop );
+	if ( launch.gridSpan ) {
+		win._gridSpan = {
+			anchor: { ...launch.gridSpan.anchor },
+			cursor: { ...launch.gridSpan.cursor },
+			cols: launch.gridSpan.cols,
+			rows: launch.gridSpan.rows,
+		};
+		reflowGridSpan( win, area );
+		win._emitChange( 'moved' );
+		return;
+	}
+	if ( launch.place ) {
+		const p = launch.place;
+		win.element.style.left = `${ Math.round( area.x + p.x * area.width ) }px`;
+		win.element.style.top = `${ Math.round( area.y + p.y * area.height ) }px`;
+		win.element.style.width = `${ Math.round( p.width * area.width ) }px`;
+		win.element.style.height = `${ Math.round( p.height * area.height ) }px`;
+		win._emitChange( 'moved' );
+	}
+}
+
+/**
+ * Resolve with a window once it exists, or `null` if it never does.
+ *
+ * A native window opens through its registry, which may first have to
+ * fetch the window's script; there is no promise to await, only the
+ * `os-window-opened` event when it lands. Bounded, because a plugin
+ * that was deactivated between save and restore never lands at all.
+ */
+function whenWindowOpens(
+	mgr: WindowManager,
+	id: string,
+	timeoutMs = 8000,
+): Promise< Window | null > {
+	const now = mgr.getById( id );
+	if ( now ) {
+		return Promise.resolve( now );
+	}
+	return new Promise( ( resolve ) => {
+		const done = ( win: Window | null ): void => {
+			document.removeEventListener( 'os-window-opened', onOpened );
+			window.clearTimeout( timer );
+			resolve( win );
+		};
+		const onOpened = ( e: Event ): void => {
+			const detail = ( e as CustomEvent< { windowId?: string } > ).detail;
+			if ( detail?.windowId === id ) {
+				done( mgr.getById( id ) ?? null );
+			}
+		};
+		const timer = window.setTimeout( () => done( null ), timeoutMs );
+		document.addEventListener( 'os-window-opened', onOpened );
+	} );
+}
+
+/** What {@link saveDeskToWorkspace} needs beyond the deps. */
+export interface SaveDeskOptions {
+	/** The nav ids on the rails and wallpaper right now. */
+	visibleAppIds?: readonly string[];
+	/** The widgets mounted right now. */
+	mountedWidgetIds?: readonly string[];
+}
+
+/**
+ * Make the workspace open the way the desk is now.
+ *
+ * The launch list becomes the open windows, each with where it is; the
+ * widget column becomes what is mounted; the visible set becomes what
+ * is on the rails. The arrangement becomes `free`, because the
+ * positions ARE the arrangement now and an algorithm re-laying them
+ * out would undo the thing just saved. A plain Space becomes a
+ * workspace by being saved — that is the cheapest way to make one.
+ *
+ * Marks the desk provisioned: what it would open is already open.
+ * Returns the profile written, or `null` when the desk does not exist.
+ */
+export function saveDeskToWorkspace(
+	deps: WorkspaceDeps,
+	desktopId: string,
+	opts: SaveDeskOptions = {},
+): WorkspaceProfile | null {
+	const desktop = deps.manager._desktops.find( ( d: Desktop ) => d.id === desktopId );
+	if ( ! desktop ) {
+		return null;
+	}
+	const current = desktop.profile ?? blankWorkspaceProfile();
+	const next: WorkspaceProfile = {
+		...current,
+		windows: captureWorkspaceWindows( deps.manager, desktopId ),
+		layout: 'free',
+		provisioned: true,
+	};
+	if ( opts.visibleAppIds ) {
+		// Controls are never named — the narrowing cannot hide them,
+		// and listing them would put "Exit" in a checklist as a choice.
+		const controls = new Set(
+			deps.getNavItems()
+				.filter( ( item ) => 'control' === item.kind || item.locked )
+				.map( ( item ) => item.id ),
+		);
+		next.apps = {
+			mode: 'only',
+			ids: opts.visibleAppIds.filter( ( id ) => ! controls.has( id ) ),
+		};
+	}
+	if ( opts.mountedWidgetIds ) {
+		next.widgets = { mode: 'only', ids: [ ...opts.mountedWidgetIds ] };
+	}
+	setWorkspaceProfile( deps, desktopId, next );
+	return next;
 }
 
 /**

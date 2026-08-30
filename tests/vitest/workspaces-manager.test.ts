@@ -22,6 +22,7 @@ import {
 	installWorkspacePresetSync,
 	listWorkspacePresets,
 	provisionWorkspace,
+	saveDeskToWorkspace,
 	setWorkspaceProfile,
 	absoluteAdminUrl,
 	type WorkspaceDeps,
@@ -63,6 +64,15 @@ function navItems(): NavItem[] {
 			title: 'My panel',
 			icon: 'dashicons-admin-generic',
 			windowId: 'my-panel',
+		},
+		// A control, so the tests that must never name one have one
+		// to not name.
+		{
+			id: 'os-exit',
+			kind: 'control',
+			title: 'Exit',
+			icon: 'dashicons-exit',
+			locked: true,
 		},
 	];
 }
@@ -289,7 +299,10 @@ describe( 'workspace operations', () => {
 
 		const captured = captureWorkspaceWindows( manager, created.id );
 
-		expect( captured ).toEqual( [
+		// `toMatchObject`: each entry also carries a `place` (where the
+		// window is, as fractions of the work area), which the
+		// positioning test below pins on its own.
+		expect( captured ).toMatchObject( [
 			{
 				match: 'edit-php',
 				title: 'Posts',
@@ -300,6 +313,123 @@ describe( 'workspace operations', () => {
 			// registry instead.
 			{ match: 'my-panel', title: 'My panel' },
 		] );
+		expect( captured[ 1 ] ).not.toHaveProperty( 'url' );
+	} );
+
+	test( 'capture records where each window is, in a form that survives a resize', async () => {
+		const created = createWorkspace( deps, { preset: 'publishing' } );
+		// A free window: its box becomes fractions of the work area.
+		const free = await manager.open( {
+			id: 'edit-php',
+			url: `${ ADMIN_URL }edit.php`,
+			title: 'Posts',
+			icon: 'dashicons-admin-post',
+		} );
+		free.element.style.left = '160px';
+		free.element.style.top = '90px';
+		Object.defineProperty( free.element, 'offsetLeft', { value: 160, configurable: true } );
+		Object.defineProperty( free.element, 'offsetTop', { value: 90, configurable: true } );
+		Object.defineProperty( free.element, 'offsetWidth', { value: 800, configurable: true } );
+		Object.defineProperty( free.element, 'offsetHeight', { value: 450, configurable: true } );
+		// A grid-snapped window: its cells come along as they are.
+		const snapped = await manager.open( {
+			id: 'upload-php',
+			url: `${ ADMIN_URL }upload.php`,
+			title: 'Media',
+			icon: 'dashicons-admin-media',
+		} );
+		snapped._gridSpan = {
+			anchor: { col: 3, row: 0 },
+			cursor: { col: 5, row: 2 },
+			cols: 6,
+			rows: 6,
+		};
+
+		const captured = captureWorkspaceWindows( manager, created.id );
+
+		expect( captured.find( ( w ) => w.match === 'edit-php' )?.place ).toEqual( {
+			x: 0.1,
+			y: 0.1,
+			width: 0.5,
+			height: 0.5,
+		} );
+		expect( captured.find( ( w ) => w.match === 'upload-php' )?.gridSpan ).toEqual(
+			snapped._gridSpan,
+		);
+	} );
+
+	test( 'saveDesk makes the workspace open the way the desk is', async () => {
+		const created = createWorkspace( deps, { preset: 'commerce' } );
+		await manager.open( {
+			id: 'edit-php',
+			url: `${ ADMIN_URL }edit.php`,
+			title: 'Posts',
+			icon: 'dashicons-admin-post',
+		} );
+		const log = recordActions( hooks, WORKSPACE_HOOKS );
+
+		const saved = saveDeskToWorkspace( deps, created.id, {
+			visibleAppIds: [ 'edit-php', 'my-panel', 'os-exit' ],
+			mountedWidgetIds: [ 'clock', 'desktop-mode/notes' ],
+		} );
+
+		expect( saved?.windows.map( ( w ) => w.match ) ).toEqual( [ 'edit-php' ] );
+		// The positions ARE the arrangement now; an algorithm re-laying
+		// them out would undo the thing just saved.
+		expect( saved?.layout ).toBe( 'free' );
+		// What it would open is already open.
+		expect( saved?.provisioned ).toBe( true );
+		expect( saved?.widgets ).toEqual( { mode: 'only', ids: [ 'clock', 'desktop-mode/notes' ] } );
+		// Controls are never named: the narrowing cannot hide them
+		// and a checklist should not offer "Exit" as a choice.
+		expect( saved?.apps ).toEqual( { mode: 'only', ids: [ 'edit-php', 'my-panel' ] } );
+		// The template's own identity is kept — this is the same desk,
+		// opening differently.
+		expect( saved?.preset ).toBe( 'commerce' );
+		expect( getWorkspaceProfile( manager, created.id ) ).toEqual( saved );
+		expect( log.some( ( e ) => e.name === 'os.workspaces.updated' ) ).toBe( true );
+	} );
+
+	test( 'saveDesk turns a plain Space into a workspace', () => {
+		const plain = manager.getDesktops()[ 0 ].id;
+		expect( getWorkspaceProfile( manager, plain ) ).toBeNull();
+		const saved = saveDeskToWorkspace( deps, plain );
+		expect( saved ).not.toBeNull();
+		expect( getWorkspaceProfile( manager, plain )?.provisioned ).toBe( true );
+		// Nothing was said about apps or widgets, so nothing narrows.
+		expect( saved?.apps.mode ).toBe( 'all' );
+		expect( saved?.widgets?.mode ).toBe( 'all' );
+		expect( saveDeskToWorkspace( deps, 'desktop-nope' ) ).toBeNull();
+	} );
+
+	test( 'provision puts a window where its entry says', async () => {
+		const open = vi.spyOn( manager, 'open' );
+		const created = createWorkspace( deps, {
+			profile: {
+				preset: '',
+				icon: 'dashicons-desktop',
+				color: '',
+				apps: { mode: 'all', ids: [] },
+				windows: [
+					{
+						match: 'edit.php',
+						url: 'edit.php',
+						place: { x: 0.25, y: 0.25, width: 0.5, height: 0.5 },
+					},
+				],
+				layout: 'free',
+				provisioned: false,
+			},
+		} );
+
+		provisionWorkspace( deps, created.id );
+		const win = await open.mock.results[ 0 ].value;
+
+		// 1600×900 desk: a quarter in, half wide.
+		expect( win.element.style.left ).toBe( '400px' );
+		expect( win.element.style.top ).toBe( '225px' );
+		expect( win.element.style.width ).toBe( '800px' );
+		expect( win.element.style.height ).toBe( '450px' );
 	} );
 
 	test( 'capture ignores windows on other desks', async () => {

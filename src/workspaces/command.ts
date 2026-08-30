@@ -28,16 +28,32 @@ const EDIT_LABEL = __( 'Edit this workspace…' );
 const NEW_LABEL = __( 'New desktop…' );
 
 /**
+ * "Keep this desk" — save the desk as it is into its workspace.
+ *
+ * Not "save layout": a layout is what `cascade` and `tile` are, and
+ * this keeps more than one — the windows and where they are, the
+ * widgets, the apps. Not "save workspace" either, because the
+ * workspace is already saved; what is being kept is the DESK, and the
+ * workspace is what it is kept into.
+ */
+const KEEP_LABEL = __( 'Keep this desk' );
+const KEEP_DESCRIPTION = __(
+	'Make this workspace open the way the desk is now — these windows where they are, these widgets, these apps.',
+);
+
+/**
  * Register `/workspace`.
  *
  * @param deps   Bound workspace operations.
  * @param edit   Open the wizard on a desktop.
  * @param create Open the wizard to make a desk.
+ * @param save   Save a desk into its workspace.
  */
 export function registerWorkspaceCommand(
 	deps: WorkspaceDeps,
 	edit: ( desktopId: string ) => void,
 	create: () => void = () => undefined,
+	save: ( desktopId?: string ) => boolean = () => false,
 ): void {
 	/** Every row the command can offer, as `{ label, run }`. */
 	const entries = (): Array< {
@@ -92,8 +108,34 @@ export function registerWorkspaceCommand(
 			run: () => edit( deps.manager.getActiveDesktopId() ),
 		} );
 
+		rows.push( {
+			label: KEEP_LABEL,
+			description: KEEP_DESCRIPTION,
+			icon: 'dashicons-saved',
+			run: () => {
+				save( deps.manager.getActiveDesktopId() );
+			},
+		} );
+
 		return rows;
 	};
+
+	// Its own command as well as a row, because it is the one the user
+	// reaches for while LOOKING at the desk they mean — the natural
+	// moment to keep a layout is when it is in front of you, not after
+	// opening a picker to find the row.
+	registerCommand( {
+		slug: 'keep-desk',
+		label: KEEP_LABEL,
+		description: KEEP_DESCRIPTION,
+		icon: 'dashicons-saved',
+		run( _args: string, ctx: CommandContext ) {
+			if ( ! save( deps.manager.getActiveDesktopId() ) ) {
+				return __( 'There is no desk to keep.' );
+			}
+			ctx.close();
+		},
+	} );
 
 	registerCommand( {
 		slug: 'workspace',

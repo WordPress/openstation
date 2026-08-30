@@ -1326,6 +1326,80 @@ describe( 'widgets/layer', () => {
 		layer.disposeAll();
 	} );
 
+	test( 'the × works on a widget a workspace mounted, and leaves the user’s list alone', async () => {
+		const registry = await import( '../../src/widgets/registry' );
+		const { WidgetLayer } = await import( '../../src/widgets/layer' );
+		for ( const id of [ 'clock', 'stats' ] ) {
+			registry.register( {
+				id,
+				label: id,
+				description: '',
+				icon: 'dashicons-star-filled',
+				mount: () => () => undefined,
+			} );
+		}
+		window.localStorage.setItem( 'desktop-mode-widgets', '["clock"]' );
+		const layer = new WidgetLayer( host, '' );
+		layer.hydrate();
+		const log = recordActions( hooks, WIDGET_HOOKS );
+
+		// A workspace's column: `stats`, which the user never enabled.
+		layer.setVisibleIds( [ 'stats' ] );
+		expect( layer.getMountedIds() ).toEqual( [ 'stats' ] );
+
+		// The × on it. This used to do nothing at all: `remove` looked
+		// for the id in the user's list, found nothing, and returned.
+		layer.remove( 'stats' );
+		expect( layer.getMountedIds() ).toEqual( [] );
+		expect( log.map( ( e ) => e.name ) ).toContain( 'os.widget.removed' );
+		// The user's list — and its storage — untouched.
+		expect( layer.getEnabledIds() ).toEqual( [ 'clock' ] );
+		expect( window.localStorage.getItem( 'desktop-mode-widgets' ) ).toBe( '["clock"]' );
+
+		// Adding on that desk goes to the desk, not the list.
+		layer.add( 'stats' );
+		expect( layer.getMountedIds() ).toEqual( [ 'stats' ] );
+		expect( layer.getEnabledIds() ).toEqual( [ 'clock' ] );
+
+		// Back on the user's own desk, their column is exactly theirs.
+		layer.setVisibleIds( null );
+		expect( layer.getMountedIds() ).toEqual( [ 'clock' ] );
+		layer.disposeAll();
+	} );
+
+	test( 'a widget arriving late lands only on the desk that names it', async () => {
+		const registry = await import( '../../src/widgets/registry' );
+		const { WidgetLayer } = await import( '../../src/widgets/layer' );
+		registry.register( {
+			id: 'clock',
+			label: 'Clock',
+			description: '',
+			icon: 'dashicons-clock',
+			mount: () => () => undefined,
+		} );
+		window.localStorage.setItem( 'desktop-mode-widgets', '["clock","late"]' );
+		const layer = new WidgetLayer( host, '' );
+		layer.hydrate();
+		layer.setVisibleIds( [ 'clock' ] );
+
+		// The plugin behind `late` activates now — the user enabled it
+		// once, but this desk does not name it.
+		registry.register( {
+			id: 'late',
+			label: 'Late',
+			description: '',
+			icon: 'dashicons-star-filled',
+			mount: () => () => undefined,
+		} );
+		layer.mountIfEnabled( 'late' );
+		expect( layer.getMountedIds() ).toEqual( [ 'clock' ] );
+
+		layer.setVisibleIds( null );
+		layer.mountIfEnabled( 'late' );
+		expect( layer.getMountedIds().sort() ).toEqual( [ 'clock', 'late' ] );
+		layer.disposeAll();
+	} );
+
 	test( 'setVisibleIds skips an id no plugin registers', async () => {
 		const registry = await import( '../../src/widgets/registry' );
 		const { WidgetLayer } = await import( '../../src/widgets/layer' );

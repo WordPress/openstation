@@ -162,6 +162,39 @@ function openstation_workspace_presets() {
 }
 
 /**
+ * Sanitizes a launch entry's `place` — where a window goes, as
+ * fractions of the work area.
+ *
+ * Four numbers in `[0, 1]`, width and height at least 5% so a saved
+ * window can never come back as a sliver the user cannot grab. Null
+ * for anything else: the window then lands wherever the arrangement
+ * puts it, which is what an entry written before positions does.
+ *
+ * @param mixed $raw Raw place from the payload.
+ * @return array|null Sanitized place, or null.
+ */
+function openstation_sanitize_workspace_place( $raw ) {
+	if ( ! is_array( $raw ) ) {
+		return null;
+	}
+	$out = array();
+	foreach ( array( 'x', 'y', 'width', 'height' ) as $key ) {
+		if ( ! isset( $raw[ $key ] ) || ! is_numeric( $raw[ $key ] ) ) {
+			return null;
+		}
+		$v = (float) $raw[ $key ];
+		if ( ! is_finite( $v ) ) {
+			return null;
+		}
+		$out[ $key ] = round( max( 0.0, min( 1.0, $v ) ), 4 );
+	}
+	if ( $out['width'] < 0.05 || $out['height'] < 0.05 ) {
+		return null;
+	}
+	return $out;
+}
+
+/**
  * Sanitizes a workspace's appearance patch.
  *
  * Keys outside {@see OPENSTATION_WORKSPACE_APPEARANCE_KEYS} are
@@ -446,6 +479,17 @@ function openstation_sanitize_workspace_profile( $raw ) {
 				if ( '' !== $title ) {
 					$entry['title'] = $title;
 				}
+			}
+			// Where the window goes — cells or fractions of the work
+			// area, both of which survive a different display. See
+			// `openstation_sanitize_workspace_place()`.
+			$grid_span = openstation_sanitize_session_grid_span( $win['gridSpan'] ?? null );
+			if ( null !== $grid_span ) {
+				$entry['gridSpan'] = $grid_span;
+			}
+			$place = openstation_sanitize_workspace_place( $win['place'] ?? null );
+			if ( null !== $place ) {
+				$entry['place'] = $place;
 			}
 			$windows[] = $entry;
 			if ( count( $windows ) >= OPENSTATION_WORKSPACE_MAX_WINDOWS ) {

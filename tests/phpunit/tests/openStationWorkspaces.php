@@ -142,6 +142,86 @@ class Tests_OpenStation_Workspaces extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A launch entry carries where its window goes — cells or fractions
+	 * — in a form that survives a different display.
+	 *
+	 * @covers ::openstation_sanitize_workspace_place
+	 */
+	public function test_launch_entries_keep_where_the_window_goes() {
+		$profile = openstation_sanitize_workspace_profile(
+			array(
+				'windows' => array(
+					array(
+						'match' => 'edit-php',
+						'place' => array(
+							'x'      => 0.1,
+							'y'      => 0.1,
+							'width'  => 0.5,
+							'height' => 0.5,
+						),
+					),
+					array(
+						'match'    => 'upload-php',
+						'gridSpan' => array(
+							'anchor' => array(
+								'col' => 3,
+								'row' => 0,
+							),
+							'cursor' => array(
+								'col' => 5,
+								'row' => 2,
+							),
+							'cols'   => 6,
+							'rows'   => 6,
+						),
+					),
+					// Off the desk: clamped to it.
+					array(
+						'match' => 'clamped',
+						'place' => array(
+							'x'      => -1,
+							'y'      => 2,
+							'width'  => 9,
+							'height' => 0.5,
+						),
+					),
+					// A sliver, or nonsense: dropped, the arrangement decides.
+					array(
+						'match' => 'sliver',
+						'place' => array(
+							'x'      => 0,
+							'y'      => 0,
+							'width'  => 0.01,
+							'height' => 0.5,
+						),
+					),
+					array(
+						'match' => 'junk',
+						'place' => 'here',
+					),
+				),
+			)
+		);
+		$w = $profile['windows'];
+		$this->assertSame(
+			array(
+				'x'      => 0.1,
+				'y'      => 0.1,
+				'width'  => 0.5,
+				'height' => 0.5,
+			),
+			$w[0]['place']
+		);
+		$this->assertSame( 6, $w[1]['gridSpan']['cols'] );
+		$this->assertSame( array( 'col' => 5, 'row' => 2 ), $w[1]['gridSpan']['cursor'] );
+		$this->assertSame( 0.0, $w[2]['place']['x'] );
+		$this->assertSame( 1.0, $w[2]['place']['y'] );
+		$this->assertSame( 1.0, $w[2]['place']['width'] );
+		$this->assertArrayNotHasKey( 'place', $w[3] );
+		$this->assertArrayNotHasKey( 'place', $w[4] );
+	}
+
+	/**
 	 * A desktop with no profile is a plain Space, and stays one.
 	 *
 	 * @covers ::openstation_sanitize_workspace_profile

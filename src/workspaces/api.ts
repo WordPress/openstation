@@ -70,6 +70,13 @@ export interface WorkspacesApi {
 	edit( desktopId: string ): void;
 	/** Open the wizard to create a desk. Loads its bundle on first use. */
 	openCreator(): void;
+	/**
+	 * Make a workspace open the way its desk is now — the open windows
+	 * where they are, the mounted widgets, the visible apps. Defaults
+	 * to the active desk. A plain Space becomes a workspace by being
+	 * saved. Returns whether anything was saved.
+	 */
+	saveDesk( desktopId?: string ): boolean;
 	/** Every template offered in the switcher. */
 	presets(): WorkspacePreset[];
 	/** Add a template. Re-registering an id replaces it. */
@@ -89,12 +96,16 @@ export interface WorkspacesApi {
  *                      module ships in bundles that must not pull the
  *                      settings tree in.
  * @param openCreator   Open the wizard to create a desk.
+ * @param saveDesk      Save a desk into its workspace. Bound in the
+ *                      shell, which is where the visible apps and the
+ *                      mounted widgets can be read from.
  */
 export function createWorkspacesApi(
 	deps: WorkspaceDeps,
 	editWorkspace: ( desktopId: string ) => void,
 	currentLook: () => WorkspaceProfile[ 'appearance' ] = () => ( {} ),
 	openCreator: () => void = () => undefined,
+	saveDesk: ( desktopId?: string ) => boolean = () => false,
 ): WorkspacesApi {
 	return {
 		list: () => deps.manager.getDesktops(),
@@ -116,6 +127,7 @@ export function createWorkspacesApi(
 		captureAppearance: currentLook,
 		edit: editWorkspace,
 		openCreator,
+		saveDesk,
 		presets: listWorkspacePresets,
 		registerPreset: registerWorkspacePreset,
 		unregisterPreset: unregisterWorkspacePreset,

@@ -56,8 +56,10 @@ export {
 	getActiveWorkspaceProfile,
 	getWorkspaceProfile,
 	provisionWorkspace,
+	saveDeskToWorkspace,
 	setWorkspaceProfile,
 	type CreateWorkspaceOptions,
+	type SaveDeskOptions,
 	type WorkspaceDeps,
 } from './manager';
 export { registerWorkspaceCommand } from './command';

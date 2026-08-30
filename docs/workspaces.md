@@ -137,6 +137,14 @@ The layout is applied on the next frame, not inline — every arrangement reads 
 
 `provision( id, { force: true } )` runs it anyway. That is the user asking on purpose — Restore under a tile — which is a different question from the shell deciding on its own, so every automatic caller leaves the flag off.
 
+### Keep this desk
+
+**`/keep-desk`** in the command palette (also a row in `/workspace`, and `wp.os.workspaces.saveDesk()`) makes the workspace open the way the desk is *now*: the open windows and **where they are**, the mounted widgets, the apps on the rails. It is the one write a workspace makes on purpose, and the cheapest way to turn a plain Space into a workspace — save it, and it is one.
+
+Where each window is comes along in a form that survives a resized browser or a different display: a grid-snapped window keeps its cells (`gridSpan`), a free one becomes fractions of the work area (`place`, each of `x`, `y`, `width`, `height` in `[0, 1]`). The arrangement becomes `free`, because the positions *are* the arrangement now and an algorithm re-laying them out would undo the thing just kept. The desk is marked provisioned — what it would open is already open — and controls (Overview, System, Trash, Exit) are never written into the app list, since the narrowing cannot hide them anyway.
+
+On a workspace desk with its own column, a widget's × takes it off *this* desk and a widget added from the picker joins *this* desk — the user's own column, geometry and docked heights are untouched either way, and the change is recorded on the profile so the desk comes back the same. That is what keeps "a workspace never writes the user's settings" true even for a write the user makes from inside one.
+
 ### Saving the arrangement you already have
 
 The wizard's **Use the windows I have open now** captures the desk's open windows into the launch list — the desktop-OS gesture of saving an arrangement you arrived at by working rather than by planning. `wp.os.workspaces.capture( desktopId )` is the same call.
@@ -173,6 +181,7 @@ wp.os.workspaces.capture( desktopId ): WorkspaceProfile[ 'windows' ];
 wp.os.workspaces.captureAppearance(): WorkspaceProfile[ 'appearance' ];
 wp.os.workspaces.edit( desktopId ): void;      // the wizard, on an existing desk
 wp.os.workspaces.openCreator(): void;          // the wizard, as the + opens it
+wp.os.workspaces.saveDesk( desktopId? ): boolean; // keep the desk as it is — /keep-desk
 wp.os.workspaces.presets(): WorkspacePreset[];
 wp.os.workspaces.registerPreset( preset ): void;
 wp.os.workspaces.unregisterPreset( id ): void;
@@ -211,6 +220,8 @@ interface WorkspaceProfile {
         match:  string;           // token tested against the navigation
         url?:   string;           // admin-relative URL to open instead
         title?: string;
+        gridSpan?: GridSpan;      // where it goes, in cells (wins over place)
+        place?: { x, y, width, height }; // where it goes, as fractions of the work area
     } >;
     layout: WorkspaceLayoutId;
     provisioned?: boolean;        // whether the launch list has run

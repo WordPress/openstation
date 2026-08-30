@@ -81,7 +81,8 @@ describe( '/workspace', () => {
 		expect( rows ).toContain( 'New: Commerce' );
 		expect( rows ).toContain( 'New: Learning' );
 		expect( rows ).toContain( 'New: Publishing' );
-		expect( rows.at( -1 ) ).toBe( 'Edit this workspace…' );
+		expect( rows.at( -2 ) ).toBe( 'Edit this workspace…' );
+		expect( rows.at( -1 ) ).toBe( 'Keep this desk' );
 	} );
 
 	test( 'running a template name creates and enters that desk', () => {

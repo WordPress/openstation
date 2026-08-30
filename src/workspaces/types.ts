@@ -165,6 +165,21 @@ export interface WorkspaceLaunch {
 	url?: string;
 	/** Title override for the opened window. */
 	title?: string;
+	/**
+	 * Where the window goes, as a span of the grid — when it was
+	 * grid-snapped at the moment the desk was saved. Cells, not
+	 * pixels, so a 2×2 at (1,1) is a 2×2 at (1,1) on any display.
+	 * Wins over `place`.
+	 */
+	gridSpan?: import( '../types' ).GridSpan;
+	/**
+	 * Where the window goes, as fractions of the work area — `x`, `y`,
+	 * `width`, `height` each in `[0, 1]`. What a free (not grid-
+	 * snapped) window's position becomes when the desk is saved, and
+	 * for the same reason: a fraction survives a resized browser and
+	 * a different display; pixels do not.
+	 */
+	place?: { x: number; y: number; width: number; height: number };
 }
 
 /**
