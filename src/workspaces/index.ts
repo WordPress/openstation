@@ -1,10 +1,11 @@
 /**
  * Workspaces — barrel.
  *
- * The editor is deliberately NOT re-exported here: it lives in its own
+ * The wizard is deliberately NOT re-exported here: it lives in its own
  * lazy bundle and pulling it through the barrel would drag
- * `<os-modal>`, `<os-checkbox>` and `<os-switch>` into whatever
- * imported "just the types". Reach for `./editor-loader` instead.
+ * `<os-modal>`, `<os-steps>`, `<os-card>` and the picker kit into
+ * whatever imported "just the types". Reach for `./wizard-loader`
+ * instead.
  */
 
 export type {
@@ -61,12 +62,13 @@ export {
 } from './manager';
 export { registerWorkspaceCommand } from './command';
 export {
-	buildWorkspaceOverviewControl,
+	createWorkspaceFromOverview,
+	editWorkspaceFromOverview,
 	installWorkspaceOverviewControl,
+	isWorkspaceOverviewInstalled,
 	restoreWorkspace,
 	workspaceCanRestore,
 	type WorkspaceOverviewDeps,
-	type WorkspaceOverviewHandlers,
 } from './overview-control';
 export { createWorkspacesApi, type WorkspacesApi } from './api';
 export {

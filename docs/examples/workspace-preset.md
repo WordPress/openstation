@@ -2,7 +2,7 @@
 
 **Status: Stable**
 
-A [workspace](../workspaces.md) is a desktop plus the answer to what it is for: which apps show on it, which windows it opens with, and how they are arranged. A **template** is how a plugin offers one — it appears in the switcher's "New from template" group, and picking it mints a desk.
+A [workspace](../workspaces.md) is a desktop plus the answer to what it is for: which apps show on it, which windows it opens with, and how they are arranged. A **template** is how a plugin offers one — it appears as a card on the wizard's Start step, beside Blank desktop, and picking it mints a desk.
 
 ## From PHP alone — no JavaScript
 

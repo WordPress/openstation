@@ -1406,7 +1406,7 @@ An entry you allow back in still has to survive the browser: a host that sends `
 
 ### `openstation_workspace_presets` — Stable
 
-The workspace templates offered in the switcher's "New from template" group. A **[workspace](workspaces.md)** is a desktop plus the answer to what it is for: which apps show on it, which windows it opens with, how they are arranged. Three ship — Commerce, Learning and Publishing, named for the job and built around the products that do it (the Commerce tokens name WooCommerce, the Learning ones name Sensei).
+The workspace templates offered as cards on the wizard's Start step, beside Blank desktop. A **[workspace](workspaces.md)** is a desktop plus the answer to what it is for: which apps show on it, which windows it opens with, how they are arranged. Three ship — Commerce, Learning and Publishing, named for the job and built around the products that do it (the Commerce tokens name WooCommerce, the Learning ones name Sensei).
 
 ```php
 apply_filters( 'openstation_workspace_presets', array $presets );
@@ -1459,7 +1459,7 @@ add_filter( 'openstation_workspace_presets', function ( $presets ) {
 } );
 ```
 
-Every entry is sanitized, shipped ones included: an entry with no `id` is dropped, an unknown `layout` falls back to `'free'`, and one with no `label` is named after its id. A malformed template costs that template, never the switcher.
+Every entry is sanitized, shipped ones included: an entry with no `id` is dropped, an unknown `layout` falls back to `'free'`, and one with no `label` is named after its id. A malformed template costs that template, never the wizard.
 
 See [`docs/workspaces.md`](workspaces.md) and [`docs/examples/workspace-preset.md`](examples/workspace-preset.md).
 

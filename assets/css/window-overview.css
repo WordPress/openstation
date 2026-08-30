@@ -328,13 +328,6 @@
 	left: 50%;
 	transform: translateX( -50% );
 	z-index: 2;
-	/* A column so the workspace picker can sit above the tile row.
-	   `align-items: center` keeps both children on the bar's own
-	   centre line, which is what the translate is aligning. */
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	gap: 8px;
 	opacity: 0;
 	pointer-events: none;
 	transition:
@@ -351,47 +344,6 @@
 	opacity: 0 !important;
 	transform: translateX( -50% ) translateY( -6px ) !important;
 	transition-delay: 0s !important;
-}
-
-/*
- * The workspace picker — switch desk, create one from a template, or
- * open the editor. It leads the bar, above the tile row, because it
- * answers a question about the whole set rather than about any one
- * tile. Wears the same scrim + blur as the tile row so the two read as
- * one surface split in two.
- *
- * **It shrinks to the control.** `<os-select plain>` is documented as
- * shrinking to its content — it is built to be a row's trailing
- * control, not a field that fills a box — so a container with a
- * min-width draws a wide pill around a chip-sized trigger and leaves
- * dead space beside it. The chip IS the affordance: the pill is the
- * surface under it, nothing more. `max-width` is the only size rule
- * here, and it exists so a long workspace name ellipsizes instead of
- * pushing the bar wider than the tile row.
- */
-.os-overview-top-bar__workspace {
-	display: inline-flex;
-	align-items: center;
-	max-width: min( 320px, 70vw );
-	padding: 2px 4px;
-	border-radius: 12px;
-	background-color: var( --os-ui-scrim, rgba( 0, 0, 0, 0.32 ) );
-	backdrop-filter: blur( 18px ) saturate( 140% );
-	-webkit-backdrop-filter: blur( 18px ) saturate( 140% );
-	box-shadow:
-		0 8px 28px rgba( 0, 0, 0, 0.35 ),
-		inset 0 0 0 1px rgba( 255, 255, 255, 0.08 );
-	color: var( --os-ui-fg, #fffbff );
-}
-
-/*
- * `0 1 auto`, not `1 1 auto`: the chip must not stretch to a track it
- * no longer has. `min-width: 0` is what still lets the value's own
- * ellipsis fire when the name outgrows the max-width above.
- */
-.os-overview-top-bar__workspace-select {
-	flex: 0 1 auto;
-	min-width: 0;
 }
 
 .os-overview-top-bar__list {
@@ -587,24 +539,30 @@
 }
 
 /*
- * "Restore" — put the desk back the way its workspace defines it.
+ * The desk's actions — a column below the tile, separated by the
+ * wrapper's gap. Not over the preview: the preview is the tile's
+ * picture of the desk, and a bar laid across it covers the one thing
+ * the tile is there to show. Not the corners either — rename and
+ * close have those — and these two are the actions that need a word,
+ * because no glyph says "rebuild this desk" or "change what it is".
  *
- * A button of its own BELOW the tile, separated by the wrapper's gap.
- * Not over the preview: the preview is the tile's picture of the desk,
- * and a bar laid across it covers the one thing the tile is there to
- * show. Not a third corner circle either — the corners are spoken for
- * by rename and close, and this is the one action here that genuinely
- * needs a word, because no glyph says "rebuild this desk".
- *
- * Always visible rather than hover-revealed. Once it is outside the
- * tile the wrapper reserves its height anyway, so hiding it would buy
- * nothing and cost the user the only sign that this desk has a
- * workspace to restore FROM.
- *
- * Only rendered on a desk that has something to restore, so its
- * absence is information too.
+ * Two rows. **Restore** is always visible, but only painted on a desk
+ * with something to restore, so its absence is information. **Edit**
+ * is revealed on hover and keyboard focus, like rename and close: it
+ * is a way to change the desk rather than a thing about it, and a row
+ * of Edit buttons at rest would make the bar read as a form. The
+ * column reserves both rows' height whether or not either is present,
+ * so every tile box stays on the same line.
  */
-.os-overview-top-bar__tile-restore {
+.os-overview-top-bar__tile-actions {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	/* Two 22px rows and the gap between them. */
+	min-height: 48px;
+}
+
+.os-overview-top-bar__tile-action {
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -622,32 +580,42 @@
 	text-transform: uppercase;
 	cursor: pointer;
 	transition:
+		opacity 0.15s ease,
 		background-color 0.15s ease,
 		border-color 0.15s ease,
 		color 0.15s ease;
 }
 
-.os-overview-top-bar__tile-restore svg {
+.os-overview-top-bar__tile-action svg {
 	width: 12px;
 	height: 12px;
 	flex: 0 0 auto;
 }
 
-.os-overview-top-bar__tile-restore:hover,
-.os-overview-top-bar__tile-wrapper:focus-within
-	.os-overview-top-bar__tile-restore:focus-visible {
+.os-overview-top-bar__tile-action:hover {
 	background: var( --os-ui-accent, #f252fc );
 	border-color: var( --os-ui-accent, #f252fc );
 	color: var( --os-ui-fg-on-accent, #fff );
 }
 
-.os-overview-top-bar__tile-restore:focus-visible {
+.os-overview-top-bar__tile-action:focus-visible {
 	outline: 2px solid var( --wp-admin-theme-color, #2271b1 );
 	outline-offset: 2px;
 }
 
+/* Edit rests hidden; the wrapper's hover / focus brings it up. */
+.os-overview-top-bar__tile-edit {
+	opacity: 0;
+}
+
+.os-overview-top-bar__tile-wrapper:is( :hover, :focus-within )
+	.os-overview-top-bar__tile-edit,
+.os-overview-top-bar__tile-edit:focus-visible {
+	opacity: 1;
+}
+
 @media ( prefers-reduced-motion: reduce ) {
-	.os-overview-top-bar__tile-restore {
+	.os-overview-top-bar__tile-action {
 		transition: none;
 	}
 }

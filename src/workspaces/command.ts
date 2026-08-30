@@ -21,18 +21,23 @@ import { listWorkspacePresets } from './presets';
 /** Prefix marking a suggestion as "make a desk from this template". */
 const NEW_PREFIX = 'New: ';
 
-/** The suggestion that opens the editor on the current desk. */
+/** The suggestion that opens the wizard on the current desk. */
 const EDIT_LABEL = __( 'Edit this workspace…' );
+
+/** The suggestion that opens the wizard to make a desk. */
+const NEW_LABEL = __( 'New desktop…' );
 
 /**
  * Register `/workspace`.
  *
- * @param deps Bound workspace operations.
- * @param edit Open the editor on a desktop.
+ * @param deps   Bound workspace operations.
+ * @param edit   Open the wizard on a desktop.
+ * @param create Open the wizard to make a desk.
  */
 export function registerWorkspaceCommand(
 	deps: WorkspaceDeps,
 	edit: ( desktopId: string ) => void,
+	create: () => void = () => undefined,
 ): void {
 	/** Every row the command can offer, as `{ label, run }`. */
 	const entries = (): Array< {
@@ -74,8 +79,15 @@ export function registerWorkspaceCommand(
 		}
 
 		rows.push( {
+			label: NEW_LABEL,
+			description: __( 'Blank, or set up for a job — the wizard asks.' ),
+			icon: 'dashicons-plus-alt2',
+			run: create,
+		} );
+
+		rows.push( {
 			label: EDIT_LABEL,
-			description: __( 'Name, layout, and which apps show here.' ),
+			description: __( 'Name, apps, widgets, look and windows.' ),
 			icon: 'dashicons-admin-generic',
 			run: () => edit( deps.manager.getActiveDesktopId() ),
 		} );

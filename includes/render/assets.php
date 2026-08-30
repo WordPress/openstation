@@ -664,10 +664,10 @@ function openstation_enqueue_assets() {
 			// right-click "hide from dock / desktop" menu. Injected by
 			// the main bundle's loader shim on the first right-click.
 			'itemVisibilityMenuBundleUrl'   => $lazy_bundle_url( 'item-visibility-menu' ),
-			// URL of the workspace-editor lazy bundle — the modal
+			// URL of the workspace-wizard lazy bundle — the modal
 			// behind "Edit this workspace…". Injected by the main
 			// bundle's loader shim on first open.
-			'workspaceEditorBundleUrl'      => $lazy_bundle_url( 'workspace-editor' ),
+			'workspaceWizardBundleUrl'      => $lazy_bundle_url( 'workspace-wizard' ),
 			// Server-side view of the workspace templates, so a plugin
 			// can add or drop one from PHP. The client merges these
 			// with its own built-ins by id — see

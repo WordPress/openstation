@@ -507,16 +507,16 @@ const TARGETS = {
 		fileBase: 'item-visibility-menu',
 		iifeName: 'openStationItemVisibilityMenu',
 	},
-	// Workspace editor — the modal behind "Edit this workspace…" in
-	// the switcher. The only surface in the shell that needs
-	// `<os-modal>`, `<os-checkbox>` and `<os-switch>`, and one most
-	// sessions never open; injected by the main bundle's
-	// `src/workspaces/editor-loader.ts` shim on the first open.
-	// Publishes `window.openStationWorkspaceEditor`.
-	'workspace-editor': {
-		entry:    'src/workspaces/editor-entry.ts',
-		fileBase: 'workspace-editor',
-		iifeName: 'openStationWorkspaceEditorBundle',
+	// Workspace wizard — the modal behind the overview bar's `+` and a
+	// tile's Edit. The only surface in the shell that needs
+	// `<os-modal>`, `<os-steps>`, `<os-card>` and the picker kit at
+	// once, and one most sessions never open; injected by the main
+	// bundle's `src/workspaces/wizard-loader.ts` shim on the first
+	// open. Publishes `window.openStationWorkspaceWizard`.
+	'workspace-wizard': {
+		entry:    'src/workspaces/wizard-entry.ts',
+		fileBase: 'workspace-wizard',
+		iifeName: 'openStationWorkspaceWizardBundle',
 	},
 	// Release card — the vinyl core-update announcement (card DOM +
 	// animation CSS + art resolver). Only needed when an update is

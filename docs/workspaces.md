@@ -29,21 +29,35 @@ Three workspaces ship, and they are three different jobs rather than three arran
 
 ## Using them
 
-The picker is an `<os-select>` **in the overview top bar**, above the row of desktop tiles. It lists the workspaces that exist, then the templates, then `New workspace…` and `Edit this workspace…`.
+Everything happens **in the overview top bar**, and there is **one door: the `+`**. It opens the wizard.
 
-- Picking an existing desk **switches** to it and leaves overview — the same thing clicking its tile does.
-- Picking a template **creates a desk from it** and lands you on it. The template is read against the navigation as it stands right now, and what reaches the desktop is concrete data.
-- `New workspace…` creates a blank desk and opens the editor on it.
+There used to be a dropdown beside the `+` as well. Two doors to the same room — one that created desks from templates, one that created a blank desk without asking — and a user had to know which did what. The dropdown is gone; the `+` is the obvious place to press, so it is the only one.
 
-**Overview is the only surface that carries it, on purpose.** It is already the Spaces surface — it names every desk, renames them, closes them, and adds new ones — and it is where a user goes with the question "which desk?" already in mind. The desk itself belongs to the user's windows; a picker parked on it would be shell chrome hovering over the thing they are working in, and would need a work-area claim or an apology for covering something. Overview needs neither.
+**Overview is the only surface that carries any of this, on purpose.** It is already the Spaces surface — it names every desk, renames them, closes them, and adds new ones — and it is where a user goes with the question "which desk?" already in mind. The desk itself belongs to the user's windows; a control parked on it would be shell chrome hovering over the thing they are working in, and would need a work-area claim or an apology for covering something. Overview needs neither.
 
-Overview tiles also wear each workspace's glyph and accent, so a row of desks is legible at a glance rather than a row of identical grey rectangles.
+Overview tiles wear each workspace's glyph and accent, so a row of desks is legible at a glance rather than a row of identical grey rectangles.
 
-### Restore
+### The wizard
 
-Hovering a workspace tile reveals **Restore** across the foot of its preview: put this desk back the way its workspace defines it — reopen the windows it names, remount its column, repaint its look, re-run its arrangement.
+The wizard's first step is **Start**, and it is the escape hatch:
 
-It is the counterpart to the editor's "Use the … I have now" captures. One saves the desk into the workspace; Restore applies the workspace back onto the desk.
+- **Blank desktop** is a card, preselected, and **Create desktop** is the focused button. `+` then Enter is a plain new desk — the same two gestures it was before the wizard existed. Nobody is walked through five steps to get an empty desk.
+- The templates are cards beside it. Pick one and press **Create from template** and the desk is made from it exactly as the dropdown used to — the template is read against the navigation as it stands right now, and the `os.workspaces.profile` filter runs.
+- Activating a card that is already selected (a second click, or Enter on it) creates. Click once to choose, again to go.
+- **Customize** is the only way into the remaining steps: **Name** (name, glyph, colour) → **Apps** → **Widgets** → **Look** (wallpaper, accent, dock) → **Windows** (launch list and arrangement). On every one of them, **Create workspace** is still in the footer: the wizard can be left at any point with whatever has been set so far.
+
+A blank start that the user never customized creates a plain Space — no profile at all, behaving exactly as a desktop did before workspaces existed.
+
+The wizard takes its whole world as data (apps, widgets, wallpapers, accents, templates) and hands its whole result back through one callback, so it lives in its own lazy bundle (`workspace-wizard[.min].js`) and never reaches `desktop.min.js`.
+
+### Under each tile
+
+Two buttons sit in a column below a tile, outside its preview:
+
+- **Restore** — always visible, but only on a desk with something to restore: put it back the way its workspace defines it — reopen the windows it names, remount its column, repaint its look, re-run its arrangement.
+- **Edit** — revealed on hover and keyboard focus, like rename and close. Opens the same wizard on that desk, without the Start step, with Save where Create was and a Delete in the corner. Offered on plain Spaces too: for one of those it is how it *becomes* a workspace.
+
+Restore is the counterpart to the wizard's "Use the … I have now" captures. One saves the desk into the workspace; Restore applies the workspace back onto the desk.
 
 Three decisions worth naming:
 
@@ -53,7 +67,7 @@ Three decisions worth naming:
 
 `wp.os.workspaces.provision( id, { force: true } )` is the programmatic equivalent for the windows half; `arrange()`, `setProfile()` and a switch cover the rest.
 
-`/workspace` in the command palette (⌘K) is the keyboard route — one command for the whole question. It lists the desks that exist, then the templates that could become one, then the editor. An existing desk wins over a template of the same name, so `/workspace commerce` means "take me there" once a Commerce desk exists.
+`/workspace` in the command palette (⌘K) is the keyboard route — one command for the whole question. It lists the desks that exist, then the templates that could become one, then `New desktop…` (the wizard) and `Edit this workspace…`. An existing desk wins over a template of the same name, so `/workspace commerce` means "take me there" once a Commerce desk exists.
 
 ## Templates degrade, they do not break
 
@@ -108,7 +122,7 @@ Everything on the list is visual and instantly reversible, which is the test for
 
 ### Picking a look
 
-There is no wallpaper picker in the workspace editor, on purpose. A look is arrived at by trying things in Preferences with the desk in front of you — so the editor offers **"Use the look I have now"**, which captures the shell's current appearance into the profile. `wp.os.workspaces.captureAppearance()` is the same call. Rebuilding the picker, the accent grid and the theme library inside a modal would be a worse copy of a surface that already exists.
+The wizard's **Look** step is a real picker — wallpaper swatches (the same previews the Preferences grid paints), accent swatches, and the dock's behaviour — plus **"Use the look I have now"**, which captures the shell's current appearance into the profile. `wp.os.workspaces.captureAppearance()` is the same call. The desktop theme and the finer dock settings are not in the wizard; they are set in Preferences and captured from there.
 
 ## Provisioning runs once, not once per visit
 
@@ -118,11 +132,11 @@ The flag is claimed *before* the windows open: opening a window is asynchronous,
 
 The layout is applied on the next frame, not inline — every arrangement reads the work area and the windows' own boxes, and a window created in this tick has neither until the browser has laid it out.
 
-`provision( id, { force: true } )` runs it anyway. That is the user asking on purpose — the editor's **Open them now** button — which is a different question from the shell deciding on its own, so every automatic caller leaves the flag off.
+`provision( id, { force: true } )` runs it anyway. That is the user asking on purpose — the wizard's **Open them now** button, or Restore under a tile — which is a different question from the shell deciding on its own, so every automatic caller leaves the flag off.
 
 ### Saving the arrangement you already have
 
-The editor's **Use the windows I have open now** captures the desk's open windows into the launch list — the desktop-OS gesture of saving an arrangement you arrived at by working rather than by planning. `wp.os.workspaces.capture( desktopId )` is the same call.
+The wizard's **Use the windows I have open now** captures the desk's open windows into the launch list — the desktop-OS gesture of saving an arrangement you arrived at by working rather than by planning. `wp.os.workspaces.capture( desktopId )` is the same call.
 
 A captured entry's `match` is the window's own id, not a token: a captured list is about *this* install, so there is nothing to degrade gracefully against and an id is the exact answer. Capturing also marks the workspace provisioned — those windows are already on screen, and re-running the list on the next entry would open a second copy of everything.
 
@@ -154,7 +168,8 @@ wp.os.workspaces.arrange( layout ): void;
 wp.os.workspaces.provision( desktopId, { force? } ): void;
 wp.os.workspaces.capture( desktopId ): WorkspaceProfile[ 'windows' ];
 wp.os.workspaces.captureAppearance(): WorkspaceProfile[ 'appearance' ];
-wp.os.workspaces.edit( desktopId ): void;
+wp.os.workspaces.edit( desktopId ): void;      // the wizard, on an existing desk
+wp.os.workspaces.openCreator(): void;          // the wizard, as the + opens it
 wp.os.workspaces.presets(): WorkspacePreset[];
 wp.os.workspaces.registerPreset( preset ): void;
 wp.os.workspaces.unregisterPreset( id ): void;
@@ -241,7 +256,7 @@ wp.os.workspaces.registerPreset( {
 
 | Hook | Kind | Status | Payload |
 |---|---|---|---|
-| `os.workspaces.presets` | filter | Stable | `WorkspacePreset[]` — the switcher's template list. Return a shorter list to drop one, a longer one to add your own. |
+| `os.workspaces.presets` | filter | Stable | `WorkspacePreset[]` — the wizard's template cards. Return a shorter list to drop one, a longer one to add your own. |
 | `os.workspaces.profile` | filter | Stable | `WorkspaceProfile`, context `WorkspacePreset` — fires the moment a profile is read off a template, before the desktop is created. |
 | `os.workspaces.updated` | action | Stable | `{ desktopId, profile }` — a workspace's profile changed. `profile` is `null` when it became a plain Space. |
 | `os.workspaces.provisioned` | action | Stable | `{ desktopId, opened, layout }` — the launch list has run. `opened` is smaller than the list whenever an app it names is not installed. |
@@ -294,7 +309,7 @@ add_filter(
 
 The three shipped entries deliberately carry **no** `apps` or `windows`: the client already has their token lists, and a second copy in PHP would be a second place to keep in step. A server entry naming a client built-in says only "this one still exists"; an entry with an id of its own is registered whole.
 
-Every entry the filter returns is sanitized. A malformed template costs that template, not the switcher: an entry with no id is dropped, an unknown layout falls back to `free`, and one with no label is named after its id.
+Every entry the filter returns is sanitized. A malformed template costs that template, not the wizard: an entry with no id is dropped, an unknown layout falls back to `free`, and one with no label is named after its id.
 
 ### Persistence
 

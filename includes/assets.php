@@ -202,10 +202,10 @@ function openstation_register_assets() {
 		array( 'os-variables' ),
 		$built_version( 'assets/css/notch.css' )
 	);
-	// The workspace editor modal. Scoped to `.os-workspace-editor`, so
-	// it is inert until the user opens it from the overview picker.
-	// The picker itself is styled with the rest of the overview bar in
-	// `window-overview.css`.
+	// The workspace wizard. Scoped to `.os-workspace-wizard`, so it is
+	// inert until the user opens it from the overview bar's `+` or a
+	// tile's Edit. Those controls are styled with the rest of the bar
+	// in `window-overview.css`.
 	wp_register_style(
 		'os-workspaces',
 		OPENSTATION_URL . 'assets/css/workspaces.css',

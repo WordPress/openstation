@@ -1,59 +1,58 @@
 /**
- * The workspace picker in the overview top bar.
+ * What the overview top bar can do with workspaces.
  *
- * Two rules this file exists to hold:
+ * Three rules this file exists to hold:
  *
- * 1. **Nothing appears on the desk.** The picker is a control in the
- *    overview bar; overview is already the Spaces surface, and shell
- *    chrome floating over the user's windows is not the shape this
- *    feature takes. A grep for the old pill's class is part of the
- *    test on purpose.
+ * 1. **Nothing appears on the desk.** Creating, editing and restoring
+ *    are controls in the overview bar; shell chrome floating over the
+ *    user's windows is not the shape this feature takes.
  * 2. **Without an installed shell, the bar is exactly what it was.**
- *    `buildWorkspaceOverviewControl` returns `null` before the install
- *    and after teardown, so every existing overview test still builds
- *    the bar it always did.
+ *    Every export answers `false` before the install and after
+ *    teardown, so the `+` falls back to a plain new desk and every
+ *    existing overview test still builds the bar it always did.
+ * 3. **One door.** The `+` opens the wizard; there is no second
+ *    control that creates desks. The wizard's own escape hatch — a
+ *    blank desk one Enter away — is tested in `workspaces-wizard`.
  */
 
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { WindowManager } from '../../src/window-manager';
 import {
-	buildWorkspaceOverviewControl,
 	createWorkspace,
+	createWorkspaceFromOverview,
+	editWorkspaceFromOverview,
 	installWorkspaceOverviewControl,
+	isWorkspaceOverviewInstalled,
 	restoreWorkspace,
 	workspaceCanRestore,
 	type WorkspaceDeps,
 } from '../../src/workspaces';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 
-/** Option values in the built control, headings included. */
-function optionValues( el: HTMLElement ): string[] {
-	return Array.from( el.querySelectorAll( 'os-option' ) ).map(
-		( o ) => o.getAttribute( 'value' ) ?? '',
-	);
-}
-
-/** Pick an option the way `<os-select>` reports a user choice. */
-function pick( el: HTMLElement, value: string ): void {
-	el.querySelector( 'os-select' )?.dispatchEvent(
-		new CustomEvent( 'os-pick', { detail: { value } } ),
-	);
-}
-
-describe( 'workspace picker — overview top bar', () => {
+describe( 'workspaces — overview top bar', () => {
 	let desktop: HTMLElement;
 	let manager: WindowManager;
 	let deps: WorkspaceDeps;
+	let openCreator: ReturnType< typeof vi.fn >;
 	let openEditor: ReturnType< typeof vi.fn >;
 	let setAppearance: ReturnType< typeof vi.fn >;
 	let setVisibleWidgets: ReturnType< typeof vi.fn >;
 	let teardown: ( () => void ) | null = null;
+
+	const install = (): void => {
+		teardown = installWorkspaceOverviewControl( {
+			...deps,
+			openCreator,
+			openEditor,
+		} );
+	};
 
 	beforeEach( () => {
 		installHooksStub();
 		desktop = document.createElement( 'div' );
 		document.body.appendChild( desktop );
 		manager = new WindowManager( desktop );
+		openCreator = vi.fn();
 		openEditor = vi.fn();
 		setAppearance = vi.fn();
 		setVisibleWidgets = vi.fn();
@@ -100,137 +99,37 @@ describe( 'workspace picker — overview top bar', () => {
 		vi.restoreAllMocks();
 	} );
 
-	const handlers = () => ( {
-		onSwitch: vi.fn(),
-		onCreated: vi.fn(),
-	} );
-
-	test( 'without an installed shell there is no control at all', () => {
-		expect(
-			buildWorkspaceOverviewControl( manager.getDesktops(), 'desktop-1', handlers() ),
-		).toBeNull();
+	test( 'without an installed shell, every door answers false', () => {
+		expect( isWorkspaceOverviewInstalled() ).toBe( false );
+		expect( createWorkspaceFromOverview() ).toBe( false );
+		expect( editWorkspaceFromOverview( 'desktop-1' ) ).toBe( false );
+		expect( restoreWorkspace( 'desktop-1' ) ).toBe( false );
 	} );
 
 	test( 'teardown puts the bar back the way it was', () => {
-		const off = installWorkspaceOverviewControl( { ...deps, openEditor } );
-		expect(
-			buildWorkspaceOverviewControl( manager.getDesktops(), 'desktop-1', handlers() ),
-		).not.toBeNull();
-		off();
-		expect(
-			buildWorkspaceOverviewControl( manager.getDesktops(), 'desktop-1', handlers() ),
-		).toBeNull();
+		install();
+		expect( isWorkspaceOverviewInstalled() ).toBe( true );
+		teardown?.();
+		teardown = null;
+		expect( isWorkspaceOverviewInstalled() ).toBe( false );
+		expect( createWorkspaceFromOverview() ).toBe( false );
 	} );
 
-	test( 'it lists desks, then templates, then the manage rows', () => {
-		teardown = installWorkspaceOverviewControl( { ...deps, openEditor } );
-		const control = buildWorkspaceOverviewControl(
-			manager.getDesktops(),
-			manager.getActiveDesktopId(),
-			handlers(),
-		)!;
+	test( 'the + opens the wizard, and creates nothing itself', () => {
+		install();
+		const before = manager.getDesktops().length;
 
-		expect( optionValues( control ) ).toEqual( [
-			'heading:Workspaces',
-			'desktop-1',
-			'heading:New from template',
-			'os-new-preset:commerce',
-			'os-new-preset:learning',
-			'os-new-preset:publishing',
-			'heading:Manage',
-			'os-new-blank',
-			'os-edit-current',
-		] );
+		expect( createWorkspaceFromOverview() ).toBe( true );
 
-		// The value is the active desk, so the trigger reads as where
-		// the user is rather than as an empty field.
-		expect(
-			control.querySelector( 'os-select' )?.getAttribute( 'value' ),
-		).toBe( 'desktop-1' );
+		expect( openCreator ).toHaveBeenCalledTimes( 1 );
+		// The wizard decides what gets made — a blank desk, a template,
+		// a customized one. The bar only opens the door.
+		expect( manager.getDesktops() ).toHaveLength( before );
 	} );
 
-	test( 'headings are disabled, so a user cannot land on one', () => {
-		teardown = installWorkspaceOverviewControl( { ...deps, openEditor } );
-		const control = buildWorkspaceOverviewControl(
-			manager.getDesktops(),
-			'desktop-1',
-			handlers(),
-		)!;
-		for ( const opt of Array.from(
-			control.querySelectorAll( 'os-option' ),
-		) ) {
-			const isHeading = (
-				opt.getAttribute( 'value' ) ?? ''
-			).startsWith( 'heading:' );
-			expect( opt.hasAttribute( 'disabled' ) ).toBe( isHeading );
-		}
-	} );
-
-	test( 'picking a desk asks the bar to go there', () => {
-		teardown = installWorkspaceOverviewControl( { ...deps, openEditor } );
-		const h = handlers();
-		const control = buildWorkspaceOverviewControl(
-			manager.getDesktops(),
-			'desktop-1',
-			h,
-		)!;
-
-		pick( control, 'desktop-1' );
-
-		// Navigation is the bar's call, not the control's — leaving
-		// overview is what a tile click means too.
-		expect( h.onSwitch ).toHaveBeenCalledWith( 'desktop-1' );
-		expect( h.onCreated ).not.toHaveBeenCalled();
-	} );
-
-	test( 'picking a template creates the desk and hands it back', () => {
-		teardown = installWorkspaceOverviewControl( { ...deps, openEditor } );
-		const h = handlers();
-		const control = buildWorkspaceOverviewControl(
-			manager.getDesktops(),
-			'desktop-1',
-			h,
-		)!;
-
-		pick( control, 'os-new-preset:commerce' );
-
-		const created = manager.getDesktops().at( -1 )!;
-		expect( created.label ).toBe( 'Commerce' );
-		expect( created.profile?.preset ).toBe( 'commerce' );
-		expect( created.profile?.layout ).toBe( 'columns' );
-		expect( h.onCreated ).toHaveBeenCalledWith( created.id );
-		// Created without activating: the bar decides when to land on
-		// it, because landing means leaving overview.
-		expect( manager.getActiveDesktopId() ).toBe( 'desktop-1' );
-	} );
-
-	test( '"New workspace…" makes a blank desk and opens the editor on it', () => {
-		teardown = installWorkspaceOverviewControl( { ...deps, openEditor } );
-		const h = handlers();
-		const control = buildWorkspaceOverviewControl(
-			manager.getDesktops(),
-			'desktop-1',
-			h,
-		)!;
-
-		pick( control, 'os-new-blank' );
-
-		const created = manager.getDesktops().at( -1 )!;
-		expect( created.profile ).toBeUndefined();
-		expect( openEditor ).toHaveBeenCalledWith( created.id );
-		expect( h.onCreated ).toHaveBeenCalledWith( created.id );
-	} );
-
-	test( '"Edit this workspace…" edits the desk the bar named', () => {
-		teardown = installWorkspaceOverviewControl( { ...deps, openEditor } );
-		const control = buildWorkspaceOverviewControl(
-			manager.getDesktops(),
-			'desktop-1',
-			handlers(),
-		)!;
-
-		pick( control, 'os-edit-current' );
-
+	test( 'Edit opens the wizard on that desk', () => {
+		install();
+		expect( editWorkspaceFromOverview( 'desktop-1' ) ).toBe( true );
 		expect( openEditor ).toHaveBeenCalledWith( 'desktop-1' );
 	} );
 
@@ -294,9 +193,9 @@ describe( 'workspace picker — overview top bar', () => {
 	} );
 
 	test( 'restore switches to the desk and rebuilds it', () => {
-		teardown = installWorkspaceOverviewControl( { ...deps, openEditor } );
+		install();
 		const open = vi.spyOn( manager, 'open' ).mockResolvedValue( {} as never );
-		const woo = createWorkspace( deps, {
+		const shop = createWorkspace( deps, {
 			activate: false,
 			profile: {
 				preset: '',
@@ -316,32 +215,24 @@ describe( 'workspace picker — overview top bar', () => {
 		setAppearance.mockClear();
 		setVisibleWidgets.mockClear();
 
-		expect( restoreWorkspace( woo.id ) ).toBe( true );
+		expect( restoreWorkspace( shop.id ) ).toBe( true );
 
-		expect( manager.getActiveDesktopId() ).toBe( woo.id );
+		expect( manager.getActiveDesktopId() ).toBe( shop.id );
 		expect( setAppearance ).toHaveBeenCalledWith( { wallpaper: 'mono' } );
 		expect( setVisibleWidgets ).toHaveBeenCalledWith( [ 'clock' ] );
 		expect( open ).toHaveBeenCalledTimes( 1 );
 	} );
 
-	test( 'restore without an installed shell does nothing', () => {
-		expect( restoreWorkspace( 'desktop-1' ) ).toBe( false );
-	} );
-
 	test( 'nothing is ever mounted on the desk', () => {
-		teardown = installWorkspaceOverviewControl( { ...deps, openEditor } );
-		buildWorkspaceOverviewControl(
-			manager.getDesktops(),
-			'desktop-1',
-			handlers(),
-		);
-		// The picker is a control the overview bar appends. Building
-		// one must not put anything on the desk or in the document —
-		// shell chrome floating over the user's windows is exactly the
-		// shape this feature does not take.
+		install();
+		createWorkspaceFromOverview();
+		editWorkspaceFromOverview( 'desktop-1' );
+		// Every door hands off to the shell's wizard. Opening one must
+		// not put anything on the desk or in the document — shell
+		// chrome floating over the user's windows is exactly the shape
+		// this feature does not take.
 		expect( desktop.children ).toHaveLength( 0 );
-		expect(
-			document.querySelector( '.os-workspace-switcher' ),
-		).toBeNull();
+		expect( document.querySelector( '.os-workspace-switcher' ) ).toBeNull();
+		expect( document.querySelector( 'os-select' ) ).toBeNull();
 	} );
 } );

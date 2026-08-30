@@ -1,80 +1,182 @@
 /*
- * Workspaces — the editor modal.
+ * Workspaces — the wizard.
  *
- * The workspace PICKER is not here: it is a control in the overview top
- * bar and is styled with the rest of that bar in
+ * The workspace ACTIONS are not here: Restore and Edit are controls
+ * under the overview tiles and are styled with the rest of that bar in
  * `window-overview.css`. That is deliberate and worth stating, because
- * the obvious alternative — a pill floating at the corner of the
+ * the obvious alternative — a picker floating at the corner of the
  * desk — is the wrong shape. Overview is already the Spaces surface,
  * and the desk belongs to the user's windows, not to shell chrome
  * hovering over them.
  *
  * `<os-modal>` draws the dialog surface and owns the scrim, the focus
- * trap and Escape; everything here is the body's own stacking.
+ * trap and Escape; `<os-steps>`, `<os-card>`, `<os-swatch-grid>` and
+ * the fields draw themselves. Everything here is the body's own
+ * stacking — where the trail sits, how the pane scrolls, how the
+ * footer splits its buttons.
  */
 
-.os-workspace-editor__body {
+.os-workspace-wizard__body {
 	display: flex;
 	flex-direction: column;
-	gap: 14px;
-}
-
-.os-workspace-editor__apps {
-	display: flex;
-	flex-direction: column;
-	gap: 8px;
-	padding-top: 6px;
-	border-top: 1px solid var( --os-ui-border, rgba( 255, 251, 255, 0.14 ) );
+	gap: 16px;
 }
 
 /*
- * The checklist scrolls itself rather than growing the dialog: a site
- * with forty plugins would otherwise produce a modal taller than the
- * viewport, with the Save button below the fold.
+ * The trail reads left-to-right across the top and never wraps: a
+ * wizard whose header reflows between steps looks like a different
+ * dialog every time. Six steps at the modal's `lg` width fit with
+ * room; a plugin that adds none can never make it seven.
  */
-.os-workspace-editor__app-list {
+.os-workspace-wizard__trail {
+	--os-ui-steps-gap: 10px;
+	--os-ui-step-chip-size: 24px;
+	--os-ui-step-chip-font-size: 12px;
+	padding-bottom: 12px;
+	border-bottom: 1px solid var( --os-ui-border, rgba( 255, 251, 255, 0.14 ) );
+	white-space: nowrap;
+	overflow-x: auto;
+}
+
+/*
+ * The pane scrolls, the dialog does not. A site with forty plugins
+ * makes a tall Apps step, and a Save button below the fold is a Save
+ * button the user cannot find.
+ */
+.os-workspace-wizard__pane {
 	display: flex;
 	flex-direction: column;
-	gap: 2px;
-	max-height: min( 320px, 40vh );
+	gap: 14px;
+	max-height: min( 56vh, 520px );
 	overflow-y: auto;
-	padding: 4px;
-	border: 1px solid var( --os-ui-border, rgba( 255, 251, 255, 0.14 ) );
-	border-radius: 8px;
+	/* Room for focus rings on the last control. */
+	padding: 2px 2px 6px;
 }
 
-.os-workspace-editor__opens {
+.os-workspace-wizard__heading {
 	display: flex;
 	flex-direction: column;
-	gap: 6px;
-	padding-top: 6px;
-	border-top: 1px solid var( --os-ui-border, rgba( 255, 251, 255, 0.14 ) );
+	gap: 4px;
 }
 
-.os-workspace-editor__opens-actions {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 8px;
+.os-workspace-wizard__title {
+	margin: 0;
+	font-size: 16px;
+	font-weight: 600;
+	line-height: 1.3;
+	color: var( --os-ui-fg, #fffbff );
 }
 
-.os-workspace-editor__hint {
+.os-workspace-wizard__hint {
 	margin: 0;
 	color: var( --os-ui-fg-muted, rgba( 255, 251, 255, 0.66 ) );
 	font-size: 12px;
 	line-height: 1.5;
 }
 
-.os-workspace-editor__footer {
+/* --- Start: the cards ---------------------------------------- */
+
+.os-workspace-wizard__card {
+	--os-ui-card-gap: 6px;
+	min-height: 96px;
+	cursor: pointer;
+}
+
+.os-workspace-wizard__card-header {
 	display: flex;
 	align-items: center;
-	gap: 8px;
+	gap: 10px;
+	font-size: 14px;
 }
 
 /*
- * The delete button leads the row and everything else is pushed to the
- * trailing edge — the destructive action sits apart from the pair the
- * user is actually choosing between.
+ * A template's colour goes on its glyph — the smallest place it can
+ * live and still be the first thing the eye lands on, and the same
+ * place it lives on the overview tile the card will become.
  */
-.os-workspace-editor__footer > os-button[ variant='danger' ] {
-	margin-inline-end: auto;
+.os-workspace-wizard__card-icon {
+	flex: 0 0 auto;
+	color: var( --os-workspace-accent, var( --os-ui-fg-muted, rgba( 255, 251, 255, 0.66 ) ) );
+}
+
+.os-workspace-wizard__card-desc {
+	color: var( --os-ui-fg-muted, rgba( 255, 251, 255, 0.66 ) );
+	font-size: 12px;
+	line-height: 1.45;
+}
+
+/* --- Name: glyph and colour ---------------------------------- */
+
+/*
+ * Glyph swatches are transparent tiles (`preview="transparent"`, which
+ * the swatch paints inline) with a slotted icon; the swatch's own
+ * selected ring is what marks the choice. The slot is anchored for
+ * overlays, so the icon only has to fill and centre.
+ */
+.os-workspace-wizard__icon-swatch os-icon {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var( --os-ui-fg, #fffbff );
+	pointer-events: none;
+}
+
+/* --- Apps / Widgets: the checklist ---------------------------- */
+
+/*
+ * The list scrolls inside the pane's own scroll, capped so the mode
+ * switch above it stays in view while the user ticks boxes below.
+ */
+.os-workspace-wizard__list {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	max-height: 260px;
+	overflow-y: auto;
+	padding: 4px;
+	border: 1px solid var( --os-ui-border, rgba( 255, 251, 255, 0.14 ) );
+	border-radius: 8px;
+}
+
+/* --- Look: the pickers ----------------------------------------- */
+
+.os-workspace-wizard__pickers {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+/* --- Windows: chips and actions -------------------------------- */
+
+.os-workspace-wizard__chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.os-workspace-wizard__actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+/* --- Footer ---------------------------------------------------- */
+
+/*
+ * Delete leads and everything else is pushed to the trailing edge —
+ * the destructive action sits apart from the pair the user is
+ * actually choosing between. The spacer is what does the pushing, so
+ * a footer with no Delete still lays out the same.
+ */
+.os-workspace-wizard__footer {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	width: 100%;
+}
+
+.os-workspace-wizard__spacer {
+	flex: 1 1 auto;
 }

@@ -257,6 +257,7 @@ import {
 	blankWorkspaceProfile,
 	captureWorkspaceAppearance,
 	captureWorkspaceWindows,
+	createWorkspace,
 	createWorkspacesApi,
 	getActiveWorkspaceProfile,
 	installWorkspaceOverviewControl,
@@ -265,11 +266,15 @@ import {
 	provisionWorkspace,
 	registerWorkspaceCommand,
 	setWorkspaceProfile,
+	workspaceProfileFromPreset,
 	type WorkspaceDeps,
 	type WorkspacesApi,
 } from './workspaces';
-import { openWorkspaceEditor } from './workspaces/editor-loader';
+import { openWorkspaceWizard } from './workspaces/wizard-loader';
 import { all as listWidgetDefs } from './widgets/registry';
+import { all as listWallpaperDefs } from './wallpapers/registry';
+import { getAccents } from './settings/constants';
+import type { WorkspacePreset } from './workspaces/types';
 import {
 	OS_OVERVIEW_ICON,
 	OS_SYSTEM_ICON,
@@ -2524,15 +2529,87 @@ function init(): void {
 	let pwaAlreadyInstalled = false;
 
 	/**
-	 * Open the workspace editor on a desktop.
-	 *
-	 * Everything the modal needs is passed as data — the desk's label,
-	 * its profile, the apps it could show, the templates — and the
-	 * result comes back through one `onSave`. That is what lets the
-	 * editor live in its own lazy bundle without any cross-bundle
-	 * module state: it never reads a store, and there is no store copy
-	 * of it to drift.
+	 * The shell's look right now, narrowed to the keys a workspace may
+	 * own. Read from the SNAPSHOT, which is the effective state — so
+	 * capturing on a desk that already has a look keeps that look
+	 * rather than reverting to the user's underneath it.
 	 */
+	const currentWorkspaceLook = (): ReturnType<
+		typeof captureWorkspaceAppearance
+	> =>
+		captureWorkspaceAppearance(
+			osSettings.getOsSettingsSnapshot() as unknown as Record<
+				string,
+				unknown
+			>,
+		);
+
+	/**
+	 * Everything the wizard shows, whichever mode it opens in.
+	 *
+	 * Passed as data — the apps it could show, the widgets, the
+	 * wallpapers and accents, the templates — and the result comes back
+	 * through one `onCreate` / `onSave`. That is what lets the wizard
+	 * live in its own lazy bundle without any cross-bundle module state:
+	 * it never reads a store, and there is no store copy of it to drift.
+	 */
+	const wizardWorld = ( deps: WorkspaceDeps ) => ( {
+		presets: listWorkspacePresets(),
+		apps: deps.getNavItems().map( ( item ) => ( {
+			id: item.id,
+			title: item.title,
+			kind: item.kind,
+			locked: item.locked,
+		} ) ),
+		widgets: listWidgetDefs().map( ( def ) => ( {
+			id: def.id,
+			label: def.label || def.id,
+			description: def.description,
+		} ) ),
+		enabledWidgetIds: widgetLayer?.getEnabledIds() ?? [],
+		// `preview` is the same CSS the Preferences swatches paint, so a
+		// wallpaper looks in the wizard the way it looks in the picker
+		// the user already knows.
+		wallpapers: listWallpaperDefs().map( ( def ) => ( {
+			id: def.id,
+			label: def.label,
+			preview: def.preview,
+		} ) ),
+		accents: getAccents().map( ( a ) => ( {
+			id: a.id,
+			label: a.label,
+			value: a.value,
+		} ) ),
+		resolvePreset: ( preset: WorkspacePreset ) =>
+			workspaceProfileFromPreset( preset, deps.getNavItems() ),
+		captureAppearance: currentWorkspaceLook,
+	} );
+
+	/** The `+`: open the wizard to make a desk. */
+	const createWorkspaceWithWizard = (): void => {
+		if ( ! workspaceDeps ) {
+			return;
+		}
+		const deps = workspaceDeps;
+		openWorkspaceWizard( {
+			mode: 'create',
+			...wizardWorld( deps ),
+			onCreate: ( result ) => {
+				// A template left untouched creates FROM the preset, so
+				// the `os.workspaces.profile` filter runs exactly as it
+				// would have from the old dropdown. Anything customized
+				// carries its own profile; a blank desk carries none.
+				createWorkspace( deps, {
+					label: result.label || undefined,
+					...( result.preset
+						? { preset: result.preset }
+						: { profile: result.profile ?? undefined } ),
+				} );
+			},
+		} );
+	};
+
+	/** Edit under a tile: open the wizard on an existing desk. */
 	const editWorkspace = ( desktopId: string ): void => {
 		if ( ! workspaceDeps ) {
 			return;
@@ -2544,50 +2621,31 @@ function init(): void {
 			return;
 		}
 		const deps = workspaceDeps;
-		openWorkspaceEditor( {
+		openWorkspaceWizard( {
+			mode: 'edit',
 			desktopId,
 			label: desktop.label,
 			// A plain Space edited for the first time starts from the
 			// blank profile rather than from nothing, so the form has
 			// something to bind to and saving turns it into a workspace.
 			profile: desktop.profile ?? blankWorkspaceProfile(),
-			apps: deps.getNavItems().map( ( item ) => ( {
-				id: item.id,
-				title: item.title,
-				kind: item.kind,
-				locked: item.locked,
-			} ) ),
-			widgets: listWidgetDefs().map( ( def ) => ( {
-				id: def.id,
-				label: def.label || def.id,
-			} ) ),
-			enabledWidgetIds: widgetLayer?.getEnabledIds() ?? [],
-			presets: listWorkspacePresets(),
-			onSave: ( next ) => {
-				manager.renameDesktop( desktopId, next.label );
-				setWorkspaceProfile( deps, desktopId, next.profile );
+			...wizardWorld( deps ),
+			onSave: ( result ) => {
+				if ( result.label ) {
+					manager.renameDesktop( desktopId, result.label );
+				}
+				// `null` when the user switched everything off — the desk
+				// goes back to being a plain Space, tile and all.
+				setWorkspaceProfile( deps, desktopId, result.profile );
 			},
 			onApplyLayout: ( layout ) => {
 				// Arrange the desk being edited, not whichever one is
-				// in front: "Arrange the windows now" from a modal that
-				// names a workspace has to mean that workspace.
+				// in front: "Arrange now" from a modal that names a
+				// workspace has to mean that workspace.
 				deps.manager.switchDesktop( desktopId );
 				applyWorkspaceLayout( deps.manager, layout );
 			},
-			onCaptureWindows: () =>
-				captureWorkspaceWindows( manager, desktopId ),
-			// The shell's look right now, narrowed to the keys a
-			// workspace may own. Read from the SNAPSHOT, which is the
-			// effective state — so capturing on a desk that already has
-			// a look keeps that look rather than reverting to the
-			// user's underneath it.
-			onCaptureAppearance: () =>
-				captureWorkspaceAppearance(
-					osSettings.getOsSettingsSnapshot() as unknown as Record<
-						string,
-						unknown
-					>,
-				),
+			captureWindows: () => captureWorkspaceWindows( manager, desktopId ),
 			onOpenWindows: () => {
 				deps.manager.switchDesktop( desktopId );
 				// `force`, because the user asked. The automatic path
@@ -2995,7 +3053,11 @@ function init(): void {
 		// ⌘K → `/workspace`. The pill is the discoverable route and it
 		// sits under the window layer, which is the right trade for a
 		// floating affordance and the wrong one for the only way in.
-		registerWorkspaceCommand( workspaceDeps, editWorkspace );
+		registerWorkspaceCommand(
+			workspaceDeps,
+			editWorkspace,
+			createWorkspaceWithWizard,
+		);
 
 		// The picker lives in the overview top bar — overview is
 		// already the Spaces surface, and the desk itself is the
@@ -3004,6 +3066,7 @@ function init(): void {
 		// time it paints.
 		installWorkspaceOverviewControl( {
 			...workspaceDeps,
+			openCreator: createWorkspaceWithWizard,
 			openEditor: editWorkspace,
 		} );
 
@@ -4346,9 +4409,9 @@ function init(): void {
 		connect: connectionBridge.connect,
 		getConnection: connectionBridge.getConnection,
 		mio: mioApi,
-		// Bound to the same deps bag the switcher and the provisioner
-		// use, so `wp.os.workspaces.create( … )` and picking a template
-		// from the pill are the same call.
+		// Bound to the same deps bag the overview bar and the
+		// provisioner use, so `wp.os.workspaces.create( … )` and the
+		// wizard's Create are the same call.
 		workspaces: createWorkspacesApi(
 			workspaceDeps ?? {
 				manager,
@@ -4360,13 +4423,8 @@ function init(): void {
 				refreshLayout: () => layoutDispatcher?.refresh(),
 			},
 			editWorkspace,
-			() =>
-				captureWorkspaceAppearance(
-					osSettings.getOsSettingsSnapshot() as unknown as Record<
-						string,
-						unknown
-					>,
-				),
+			currentWorkspaceLook,
+			createWorkspaceWithWizard,
 		),
 		wallpaperSuspend: {
 			suspend: ( reason: string ) => wallpaperLayer?.suspend( reason ),

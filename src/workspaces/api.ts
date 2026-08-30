@@ -4,13 +4,13 @@
  * Thin on purpose: every method here is one of the operations in
  * `manager.ts` with the shell's dependencies already bound. Plugin
  * authors get "create a Commerce desk", "narrow this desk to my app",
- * "open the editor" without having to hold a `WorkspaceDeps`.
+ * "open the wizard" without having to hold a `WorkspaceDeps`.
  *
  * See `docs/workspaces.md` and `docs/javascript-reference.md`.
  */
 
 import type { Desktop } from '../types';
-import { openWorkspaceEditor } from './editor-loader';
+import { openWorkspaceWizard } from './wizard-loader';
 import {
 	captureWorkspaceWindows,
 	createWorkspace,
@@ -66,8 +66,10 @@ export interface WorkspacesApi {
 	 * "use the look I have now". Only allowlisted keys are taken.
 	 */
 	captureAppearance(): WorkspaceProfile[ 'appearance' ];
-	/** Open the editor on a desktop. Loads its bundle on first use. */
+	/** Open the wizard on a desktop. Loads its bundle on first use. */
 	edit( desktopId: string ): void;
+	/** Open the wizard to create a desk. Loads its bundle on first use. */
+	openCreator(): void;
 	/** Every template offered in the switcher. */
 	presets(): WorkspacePreset[];
 	/** Add a template. Re-registering an id replaces it. */
@@ -80,17 +82,19 @@ export interface WorkspacesApi {
  * Bind the workspace operations to the shell's dependencies.
  *
  * @param deps          Bound operations.
- * @param editWorkspace Open the editor on a desktop.
+ * @param editWorkspace Open the wizard on a desktop.
  * @param currentLook   The shell's appearance right now, for
  *                      `captureAppearance()`. Injected rather than
  *                      read from a settings import, because this
  *                      module ships in bundles that must not pull the
  *                      settings tree in.
+ * @param openCreator   Open the wizard to create a desk.
  */
 export function createWorkspacesApi(
 	deps: WorkspaceDeps,
 	editWorkspace: ( desktopId: string ) => void,
 	currentLook: () => WorkspaceProfile[ 'appearance' ] = () => ( {} ),
+	openCreator: () => void = () => undefined,
 ): WorkspacesApi {
 	return {
 		list: () => deps.manager.getDesktops(),
@@ -111,6 +115,7 @@ export function createWorkspacesApi(
 			captureWorkspaceWindows( deps.manager, desktopId ),
 		captureAppearance: currentLook,
 		edit: editWorkspace,
+		openCreator,
 		presets: listWorkspacePresets,
 		registerPreset: registerWorkspacePreset,
 		unregisterPreset: unregisterWorkspacePreset,
@@ -118,4 +123,4 @@ export function createWorkspacesApi(
 }
 
 /** Re-exported so the shell can wire the editor without a second import. */
-export { getActiveWorkspaceProfile, openWorkspaceEditor };
+export { getActiveWorkspaceProfile, openWorkspaceWizard };
