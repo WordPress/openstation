@@ -13,6 +13,23 @@ import type { WindowContentRef } from './window-links/types';
 export type WindowState = 'normal' | 'maximized' | 'minimized' | 'fullscreen' | 'snapped-left' | 'snapped-right';
 
 /**
+ * A gesture carried by a title-bar drag beyond its position.
+ *
+ * - `modifier` — the grid-snap key (Option on macOS, Alt elsewhere)
+ *   went down (`active: true`) or came up. Reported with the pointer's
+ *   position at that moment, which is the cell the grid anchors on.
+ * - `shake` — the pointer was shaken; see `src/window/shake.ts`.
+ *
+ * A discriminated union rather than one callback per gesture, so a new
+ * gesture is a new variant and not a new field on every window.
+ *
+ * @public
+ */
+export type DragGesture =
+	| { type: 'modifier'; active: boolean; clientX: number; clientY: number }
+	| { type: 'shake'; clientX: number; clientY: number };
+
+/**
  * A virtual desktop ("Space" in macOS terminology).
  *
  * Each desktop owns its own set of windows. Only one desktop is

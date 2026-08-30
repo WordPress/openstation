@@ -4746,6 +4746,31 @@ The pairing holds even when a user re-enters overview inside the ~280 ms exit an
 | `os.arrange.snap.cell-size` | filter | Stable | filters `{ cellWidth, cellHeight }`; context `{ areaWidth, areaHeight }`. Override the auto-computed snap cell size (e.g., enforce a fixed 100×100 grid). Non-positive returns are ignored. |
 | `os.arrange.custom-action` | action | Stable | `{ id }` — fires when the user clicks a plugin-registered Arrange-menu item (registered server-side via the `openstation_arrange_menu_items` PHP filter). The `id` matches the `id` field the plugin supplied. |
 
+#### Grid snap — Option / Alt while dragging
+
+Hold **Option** (macOS) or **Alt** (Windows, Linux) while dragging a window by its title bar and the work area becomes a **6×6 grid**. The cell under the pointer when the key went down is the **anchor**; the cell under it now is the **cursor**; the window lands on the rectangle spanning the two. Drag from (1,1) to (2,2) and it is a 2×2 at the top-left; drag from (2,2) to (1,1) and it is the *same* 2×2 — the span is a bounding box, so it works backwards. **Shake the pointer** and the anchor moves to the cell the shake happened in, so a placement can be restarted without letting go. Release the key mid-drag and the drag is an ordinary one again.
+
+The grid is never stored in pixels: every cell is a fraction of the work area, resolved against the live rectangle on every move. A 6×6 desk on a 5K display and on a laptop are the same six columns at the same proportions, and a dock that folds away mid-drag moves the grid with it. It is laid over the **work area**, not the whole desk — a cell is a landing zone the user picks by pointing at it, and one hidden under the dock is one they cannot point at. (Edge snap and maximize deliberately use the whole area; see [`workArea`](#workarea--experimental).) While a grid snap is armed the edge zones stay quiet, so one release means one rectangle.
+
+| Hook | Kind | Status | Payload |
+|---|---|---|---|
+| `os.grid-snap.dimensions` | filter | Stable | filters `{ cols, rows }` (the shipped 6×6); context `{ areaWidth, areaHeight }`. Returns must be positive integers no greater than 24; anything else falls back to the default rather than being clamped. |
+| `os.grid-snap.armed` | action | Stable | `{ windowId, anchor: { col, row }, dims: { cols, rows } }` — the key went down. Cells are zero-indexed from the top-left. |
+| `os.grid-snap.changed` | action | Stable | `{ windowId, anchor, cursor, rect: { x, y, width, height } }` — the span changed: on arm, on every cell the pointer crosses, on every anchor reset. `rect` is area-relative. |
+| `os.grid-snap.anchor-reset` | action | Stable | `{ windowId, anchor, reason: 'modifier' \| 'shake' }` |
+| `os.grid-snap.canceled` | action | Stable | `{ windowId }` — the key was released mid-drag; nothing landed. |
+| `os.grid-snap.committed` | action | Stable | `{ windowId, x, y, width, height, anchor, cursor, dims }` — the window has its span. `os.window.moved`, `os.window.resized` and `os.window.drag-end` fire too, so a listener that only knows windows move and resize needs no grid knowledge. |
+
+#### The shake gesture
+
+A **shake** is the pointer changing direction quickly and repeatedly while a button is held — the thing a hand does to say "no, not that" or "start again". The platform has no event for it; OpenStation does. During a window drag it is published as the **`os-pointer-shake`** CustomEvent on the window element (bubbling and composed, so a listener on `document` hears every shake and one on a window hears its own) and as the `os.pointer.shake` action, whether or not anything acts on it. The grid snap takes it up for the anchor; a plugin can take it up for anything.
+
+Detail: `{ x, y, durationMs, reversals, axis: 'x' | 'y' }`, plus `windowId` on the action. The detector (`src/window/shake.ts`, pure, reusable for any pointer) counts **reversals** — turns after at least 14px of travel — and reports a shake at five of them within a run whose reversals are never more than 320ms apart and that has lasted at least one second. Each threshold rejects one thing: amplitude rejects jitter, count rejects a single overshoot correction, the gap rejects two wiggles a pause apart, duration rejects a flick.
+
+| Hook | Kind | Status | Payload |
+|---|---|---|---|
+| `os.pointer.shake` | action | Stable | `{ x, y, durationMs, reversals, axis, windowId? }` |
+
 #### Virtual desktops ("Spaces")
 
 Each user can have multiple desktops, each owning its own set of windows. Switching desktops swaps which windows are visible without destroying any. The overview top bar surfaces tile-per-desktop UI for switching, creating, and closing.

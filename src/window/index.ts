@@ -13,7 +13,7 @@
  * prevents the sibling modules from seeing them.
  */
 
-import type { WindowConfig, WindowState } from './../types';
+import type { DragGesture, WindowConfig, WindowState } from './../types';
 import { activity } from './../activity';
 import { getSyntheticIframe } from './../connection';
 import { HOOKS, applyFilters, doAction } from './../hooks';
@@ -610,6 +610,16 @@ export class Window {
 	 * `false` to let the default flow run.
 	 */
 	public onDragEnd: ( ( win: Window ) => boolean ) | null = null;
+
+	/**
+	 * Called by the drag pointer layer for the gestures a drag can
+	 * carry beyond its position: the grid-snap modifier going down or
+	 * up, and a shake. One callback with a discriminated detail rather
+	 * than one per gesture, so a new gesture is a new variant and not a
+	 * new field on every window. The window-manager wires it to the
+	 * grid-snap session.
+	 */
+	public onDragGesture: ( ( win: Window, gesture: DragGesture ) => void ) | null = null;
 
 	/**
 	 * Bound handler used to close the actions menu on outside clicks.

@@ -1225,6 +1225,52 @@ export const HOOKS = {
 	ARRANGE_CUSTOM_ACTION: 'os.arrange.custom-action',
 
 	// ------------------------------------------------------------------
+	// Pointer gestures the platform does not have.
+	// ------------------------------------------------------------------
+	/**
+	 * Action, fires when a pointer is shaken — rapid, sustained
+	 * direction reversals while a button is held. Payload
+	 * `{ x, y, durationMs, reversals, axis: 'x' | 'y', windowId? }`;
+	 * `windowId` is set when the shake happened during a window drag.
+	 * The same detail is dispatched as the `os-pointer-shake`
+	 * CustomEvent on the element being dragged.
+	 */
+	POINTER_SHAKE: 'os.pointer.shake',
+
+	// ------------------------------------------------------------------
+	// Grid snap — hold Option / Alt while dragging and the desk becomes
+	// a 6×6 grid; the window lands on the span from the cell the key
+	// went down in to the cell under the pointer. A shake moves the
+	// anchor to the cell it happened in.
+	// ------------------------------------------------------------------
+	/**
+	 * Filter on the grid's dimensions. Receives `{ cols, rows }` (the
+	 * shipped 6×6) plus a context arg `{ areaWidth, areaHeight }`.
+	 * Returns must be positive integers no greater than 24; anything
+	 * else falls back to the default rather than being clamped.
+	 */
+	GRID_SNAP_DIMENSIONS: 'os.grid-snap.dimensions',
+	/** Action, fires when the modifier arms a grid snap. Payload `{ windowId, anchor: { col, row }, dims: { cols, rows } }`. */
+	GRID_SNAP_ARMED: 'os.grid-snap.armed',
+	/**
+	 * Action, fires whenever the target span changes — on arm, on
+	 * every cell the pointer crosses, on every anchor reset. Payload
+	 * `{ windowId, anchor, cursor, rect: { x, y, width, height } }`,
+	 * cells zero-indexed from the top-left, `rect` area-relative.
+	 */
+	GRID_SNAP_CHANGED: 'os.grid-snap.changed',
+	/** Action, fires when the anchor moves. Payload `{ windowId, anchor, reason: 'modifier' | 'shake' }`. */
+	GRID_SNAP_ANCHOR_RESET: 'os.grid-snap.anchor-reset',
+	/** Action, fires when the modifier is released mid-drag, or the drag is cancelled, without landing. Payload `{ windowId }`. */
+	GRID_SNAP_CANCELED: 'os.grid-snap.canceled',
+	/**
+	 * Action, fires once the window has been given its span. Payload
+	 * `{ windowId, x, y, width, height, anchor, cursor, dims }`. The
+	 * generic `os.window.moved` / `os.window.resized` fire too.
+	 */
+	GRID_SNAP_COMMITTED: 'os.grid-snap.committed',
+
+	// ------------------------------------------------------------------
 	// Snap-zones — Windows-style edge snapping with a split-overview
 	// picker to fill the opposite half after commit.
 	// ------------------------------------------------------------------

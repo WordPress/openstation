@@ -65,6 +65,14 @@ import {
 	commitSnapIfPending,
 	updateSnapZoneForDrag,
 } from './snap-zones';
+import {
+	beginGridSnap,
+	cancelGridSnap,
+	commitGridSnapIfActive,
+	GridSnapAnchorReason,
+	resetGridSnapAnchor,
+	updateGridSnap,
+} from './grid-snap';
 import { destroyDesktopNameHud } from './desktop-name-hud';
 import { cancelOverviewTimers, enterOverview, exitOverview } from './overview';
 import { loadNativeWindowGeometry } from './native-window-geometry';
@@ -361,6 +369,13 @@ export class WindowManager {
 	 * @internal
 	 */
 	public _snapPreviewEl: HTMLElement | null = null;
+
+	/**
+	 * The grid-snap drag in progress — anchor, cursor, target span and
+	 * overlay. Null for an ordinary drag. See `grid-snap.ts`.
+	 * @internal
+	 */
+	public _gridSnap: import( './grid-snap' ).GridSnapSession | null = null;
 
 	/**
 	 * True while the split overview (partner picker) is up. Blocks
@@ -1296,10 +1311,41 @@ export class WindowManager {
 		// snap preview on every pointermove; `onDragEnd` commits the
 		// snap (and returns true, suppressing the pointer layer's
 		// default move-end hook firing).
-		win.onDragMove = ( w, clientX ) => {
+		win.onDragMove = ( w, clientX, clientY ) => {
+			// A grid snap owns the drag while it is armed: the edge
+			// zones stay quiet so one release means one rectangle.
+			if ( this._gridSnap ) {
+				updateGridSnap( this, clientX, clientY );
+				return;
+			}
 			updateSnapZoneForDrag( this, w, clientX );
 		};
+		win.onDragGesture = ( w, gesture ) => {
+			switch ( gesture.type ) {
+				case 'modifier':
+					if ( gesture.active ) {
+						beginGridSnap( this, w, gesture.clientX, gesture.clientY );
+					} else {
+						cancelGridSnap( this );
+					}
+					break;
+				case 'shake':
+					// A shake starts the placement over from where the
+					// hand is. Outside a grid snap it is only the event,
+					// which listeners already received.
+					resetGridSnapAnchor(
+						this,
+						gesture.clientX,
+						gesture.clientY,
+						GridSnapAnchorReason.Shake,
+					);
+					break;
+			}
+		};
 		win.onDragEnd = ( w ) => {
+			if ( this._gridSnap ) {
+				return commitGridSnapIfActive( this, w );
+			}
 			if ( this._snapPendingZone ) {
 				return commitSnapIfPending( this, w );
 			}
