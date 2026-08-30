@@ -22,6 +22,7 @@ import {
 } from '../../src/workspaces/wizard';
 import { blankWorkspaceProfile } from '../../src/workspaces';
 import type { WorkspacePreset, WorkspaceProfile } from '../../src/workspaces';
+import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 
 const COMMERCE: WorkspacePreset = {
 	id: 'commerce',
@@ -113,6 +114,9 @@ describe( 'workspace wizard', () => {
 	let onSave: ReturnType< typeof vi.fn >;
 
 	beforeEach( () => {
+		// The Look step's live-preview manager reads the wallpaper
+		// preview-params filter off the hooks bus.
+		installHooksStub();
 		onCreate = vi.fn();
 		onSave = vi.fn();
 		vi.useFakeTimers();
@@ -121,6 +125,7 @@ describe( 'workspace wizard', () => {
 	afterEach( () => {
 		closeWorkspaceWizard();
 		vi.useRealTimers();
+		clearHooksStub();
 	} );
 
 	test( '+ then Create is a plain desktop, with no profile at all', () => {
@@ -268,6 +273,73 @@ describe( 'workspace wizard', () => {
 		button( 'Create workspace' ).click();
 		const result: WorkspaceWizardResult = onCreate.mock.calls[ 0 ][ 0 ];
 		expect( result.profile?.appearance ).toEqual( { wallpaper: 'dark' } );
+	} );
+
+	test( 'the windows step adds an app from the picker', () => {
+		openWorkspaceWizard(
+			options( {
+				onCreate,
+				apps: [
+					{ id: 'edit-php', title: 'Posts', kind: 'core', url: 'edit.php' },
+					{ id: 'my-panel', title: 'My panel', kind: 'app', windowId: 'my-panel' },
+					// A control opens nothing and must not be offered.
+					{ id: 'os-exit', title: 'Exit', kind: 'control', locked: true },
+				],
+			} ),
+		);
+		button( 'Customize' ).click();
+		for ( let i = 0; i < 4; i++ ) {
+			button( 'Next' ).click();
+		}
+		expect( currentStep() ).toBe( 'Windows' );
+
+		const picker = modal().querySelector( 'os-select' )!;
+		expect(
+			Array.from( picker.querySelectorAll( 'os-option' ) ).map( ( o ) =>
+				o.getAttribute( 'value' ),
+			),
+		).toEqual( [ 'edit-php', 'my-panel' ] );
+
+		picker.dispatchEvent(
+			new CustomEvent( 'os-pick', { detail: { value: 'edit-php' } } ),
+		);
+		picker.dispatchEvent(
+			new CustomEvent( 'os-pick', { detail: { value: 'my-panel' } } ),
+		);
+		expect( modal().querySelectorAll( 'os-chip' ) ).toHaveLength( 2 );
+
+		button( 'Create workspace' ).click();
+		const result: WorkspaceWizardResult = onCreate.mock.calls[ 0 ][ 0 ];
+		expect( result.profile?.windows ).toEqual( [
+			{ match: 'edit-php', title: 'Posts', url: 'edit.php' },
+			// Native: no url, reopens through the registry.
+			{ match: 'my-panel', title: 'My panel' },
+		] );
+		// There is something new to open on the next entry.
+		expect( result.profile?.provisioned ).toBe( false );
+	} );
+
+	test( 'the wizard never acts on the desk behind it', () => {
+		openWorkspaceWizard(
+			options( {
+				mode: 'edit',
+				desktopId: 'desktop-2',
+				label: 'Shop',
+				profile: resolvedCommerce(),
+				onSave,
+			} ),
+		);
+		for ( let i = 0; i < 4; i++ ) {
+			button( 'Next' ).click();
+		}
+		const labels = Array.from( modal().querySelectorAll( 'os-button' ) ).map(
+			( b ) => b.textContent?.trim(),
+		);
+		// Both acted on a desk hidden behind the modal and read as
+		// buttons that did nothing. Restore under the tile is that
+		// action, done where it can be seen.
+		expect( labels ).not.toContain( 'Open them now' );
+		expect( labels ).not.toContain( 'Arrange now' );
 	} );
 
 	test( 'Cancel discards everything', () => {

@@ -39,18 +39,46 @@
 }
 
 /*
- * The pane scrolls, the dialog does not. A site with forty plugins
- * makes a tall Apps step, and a Save button below the fold is a Save
- * button the user cannot find.
+ * The pane has ONE height and keeps it. A wizard that grew and shrank
+ * with each step moved its own footer under the user's pointer between
+ * clicks — Next in one place, then Next somewhere else. Generous
+ * rather than tight: the tallest step (Apps on a site with forty
+ * plugins) scrolls inside it; the shortest (Start, four cards) leaves
+ * room, and room is cheaper than a jumping button.
+ *
+ * The pane scrolls, the dialog does not. A Save button below the fold
+ * is a Save button the user cannot find.
  */
 .os-workspace-wizard__pane {
 	display: flex;
 	flex-direction: column;
 	gap: 14px;
-	max-height: min( 56vh, 520px );
+	height: min( 60vh, 560px );
 	overflow-y: auto;
+	/* The pane scrolls DOWN and only down. A child that wants to be
+	   wider than the dialog is a bug in the child, and a horizontal
+	   scrollbar under a wizard is a worse symptom than a clipped
+	   edge — it reads as the whole dialog being broken. */
+	overflow-x: hidden;
 	/* Room for focus rings on the last control. */
 	padding: 2px 2px 6px;
+}
+
+/*
+ * Every child is boxed to the pane. `min-width: 0` is the part that
+ * matters: a flex item's minimum is its content width by default, so
+ * a grid or a long label could push past the dialog edge instead of
+ * wrapping or shrinking.
+ */
+.os-workspace-wizard__pane > * {
+	min-width: 0;
+	max-width: 100%;
+	box-sizing: border-box;
+}
+
+.os-workspace-wizard__pane > os-swatch-grid,
+.os-workspace-wizard__pickers > os-swatch-grid {
+	width: 100%;
 }
 
 .os-workspace-wizard__heading {
@@ -65,6 +93,22 @@
 	font-weight: 600;
 	line-height: 1.3;
 	color: var( --os-ui-fg, #fffbff );
+}
+
+/*
+ * A label and the control it names. The pane's gap is the step
+ * between fields; inside one, label and control are a pair.
+ */
+.os-workspace-wizard__field {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.os-workspace-wizard__label {
+	font-size: 12px;
+	font-weight: 500;
+	color: var( --os-ui-fg-muted, rgba( 255, 251, 255, 0.66 ) );
 }
 
 .os-workspace-wizard__hint {
@@ -108,10 +152,11 @@
 /* --- Name: glyph and colour ---------------------------------- */
 
 /*
- * Glyph swatches are transparent tiles (`preview="transparent"`, which
- * the swatch paints inline) with a slotted icon; the swatch's own
- * selected ring is what marks the choice. The slot is anchored for
- * overlays, so the icon only has to fill and centre.
+ * Glyph swatches are the kit's 28px accent chips (`size="small"
+ * variant="accent"`, in a `mode="row"` grid) painted transparent, with
+ * a slotted icon; the swatch's own selected ring is what marks the
+ * choice. The slot is anchored for overlays, so the icon only has to
+ * fill and centre.
  */
 .os-workspace-wizard__icon-swatch os-icon {
 	position: absolute;
@@ -146,6 +191,52 @@
 	display: flex;
 	flex-direction: column;
 	gap: 12px;
+}
+
+/*
+ * The wallpaper's name, on its tile. The swatch's wallpaper variant
+ * slots content at the bottom-left; this is the same caption the
+ * Preferences grid paints, at the same weight, so the same wallpaper
+ * looks the same in both places. Above the live-preview overlay
+ * (z-index 0) so it stays readable over a moving canvas.
+ */
+.os-workspace-wizard__swatch-label {
+	display: inline-block;
+	position: relative;
+	z-index: 1;
+	max-width: 100%;
+	padding: 2px 7px;
+	font-size: 11px;
+	font-weight: 500;
+	line-height: 1.4;
+	color: var( --os-ui-fg-on-accent, #fff );
+	background: var( --os-ui-scrim, rgba( 0, 0, 0, 0.45 ) );
+	border-radius: 6px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	pointer-events: none;
+}
+
+/*
+ * A canvas wallpaper's live preview, mounted into the tile by the
+ * same manager Preferences uses. Declared here rather than borrowed
+ * from `os-settings.css`, which is a deferred sheet the wizard cannot
+ * assume is loaded.
+ */
+.os-workspace-wizard .os-settings__wallpaper-live-preview {
+	position: absolute;
+	inset: 0;
+	z-index: 0;
+	overflow: hidden;
+	pointer-events: none;
+	border-radius: 10px;
+}
+
+.os-workspace-wizard .os-settings__wallpaper-live-preview canvas {
+	display: block;
+	width: 100%;
+	height: 100%;
 }
 
 /* --- Windows: chips and actions -------------------------------- */

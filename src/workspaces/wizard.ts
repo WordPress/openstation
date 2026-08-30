@@ -55,8 +55,17 @@ import '../ui/components/os-segmented/os-segmented';
 import '../ui/components/os-chip/os-chip';
 import '../ui/components/os-icon/os-icon';
 import '../ui/components/os-color-field/os-color-field';
+import '../ui/components/os-select/os-select';
 
 import { __ } from '../i18n';
+// The live-preview manager the Preferences wallpaper grid uses. Safe
+// to share with this bundle: the wallpaper registry and the per-
+// wallpaper settings it reads both live in a `createSharedStore`, so
+// the copy compiled here sees the shell's own defs.
+import {
+	createWallpaperPreviewManager,
+	type WallpaperPreviewManager,
+} from '../settings/sections/wallpaper-previews';
 import type { NavKind } from '../nav/types';
 import type {
 	WorkspaceAppearance,
@@ -67,12 +76,19 @@ import type {
 } from './types';
 import { blankWorkspaceProfile, WORKSPACE_LAYOUTS } from './types';
 
-/** One row in the apps checklist. */
+/**
+ * One row in the apps checklist — and, when it opens something, one
+ * option in the Windows step's "Add a window" picker.
+ */
 export interface WorkspaceWizardApp {
 	id: string;
 	title: string;
 	kind: NavKind;
 	locked?: boolean;
+	/** Admin URL the app opens, for an iframe window. */
+	url?: string;
+	/** Native window id the app opens, when it opens one. */
+	windowId?: string;
 }
 
 /** One row in the widgets checklist. */
@@ -136,10 +152,6 @@ export interface WorkspaceWizardOptions {
 	captureAppearance: () => WorkspaceAppearance;
 	/** The windows open on the desk, as a launch list. Edit mode. */
 	captureWindows?: () => WorkspaceLaunch[];
-	/** Re-run an arrangement on the desk now. Edit mode. */
-	onApplyLayout?: ( layout: WorkspaceLayoutId ) => void;
-	/** Open the launch list now. Edit mode. */
-	onOpenWindows?: () => void;
 	/** Commit. Create mode. */
 	onCreate?: ( result: WorkspaceWizardResult ) => void;
 	/** Commit. Edit mode. */
@@ -266,6 +278,21 @@ function hint( text: string ): HTMLElement {
 	return p;
 }
 
+/**
+ * A label sitting tight above a control that has none of its own —
+ * a swatch row, a segmented bar, a chip list. The pane's own gap is
+ * the step between *fields*; inside one, label and control are a
+ * pair and read as one.
+ */
+function labelled( text: string, control: HTMLElement ): HTMLElement {
+	const field = el( 'div', `${ ROOT_CLASS }__field` );
+	const label = el( 'span', `${ ROOT_CLASS }__label` );
+	label.textContent = text;
+	field.appendChild( label );
+	field.appendChild( control );
+	return field;
+}
+
 function heading( text: string, sub?: string ): HTMLElement {
 	const wrap = el( 'div', `${ ROOT_CLASS }__heading` );
 	const h = el( 'h3', `${ ROOT_CLASS }__title` );
@@ -279,8 +306,13 @@ function heading( text: string, sub?: string ): HTMLElement {
 
 let active: HTMLElement | null = null;
 
+/** Whatever the open wizard has to release before it goes. */
+let activeCleanup: ( () => void ) | null = null;
+
 /** Close the open wizard, if any. */
 export function closeWorkspaceWizard(): void {
+	activeCleanup?.();
+	activeCleanup = null;
 	active?.remove();
 	active = null;
 }
@@ -311,6 +343,16 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 	 */
 	let customized = isEdit;
 	let stepIndex = 0;
+	/**
+	 * Live previews for the Look step's wallpaper tiles. WebGL contexts
+	 * are a scarce per-page resource, so the manager exists only while
+	 * that step is on screen and is disposed the moment it is not.
+	 */
+	let previews: WallpaperPreviewManager | null = null;
+	const disposePreviews = (): void => {
+		previews?.dispose();
+		previews = null;
+	};
 
 	// --- Modal ----------------------------------------------------
 	const modal = el( 'os-modal', ROOT_CLASS );
@@ -482,21 +524,29 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 		field.addEventListener( 'os-submit', () => commit() );
 		pane.appendChild( field );
 
+		// `mode="row"` + `size="small"`: a flex row of fixed chips. The
+		// grid's default mode is `1fr` columns, which is right for
+		// wallpapers and wrong here — a glyph is a 28px choice, and a
+		// column that grows to 180px turns it into a billboard.
 		const icons = el( 'os-swatch-grid', `${ ROOT_CLASS }__icons` );
 		icons.setAttribute( 'label', __( 'Glyph' ) );
-		icons.setAttribute( 'columns', '6' );
+		icons.setAttribute( 'mode', 'row' );
 		for ( const icon of ICONS ) {
 			const sw = el( 'os-swatch', `${ ROOT_CLASS }__icon-swatch` );
 			sw.setAttribute( 'value', icon.id );
 			sw.setAttribute( 'label', icon.label );
-			sw.setAttribute( 'size', 'sm' );
+			sw.setAttribute( 'size', 'small' );
+			// The accent variant is the rounded square every other
+			// pickable thing in the kit is; the plain small size is a
+			// disc, which reads as a legend rather than a choice.
+			sw.setAttribute( 'variant', 'accent' );
 			sw.setAttribute( 'preview', 'transparent' );
 			if ( draft.icon === icon.id ) {
 				sw.setAttribute( 'selected', '' );
 			}
 			const glyph = el( 'os-icon' );
 			glyph.setAttribute( 'name', icon.id );
-			glyph.setAttribute( 'size', '18' );
+			glyph.setAttribute( 'size', '16' );
 			sw.appendChild( glyph );
 			sw.addEventListener( 'os-pick', () => {
 				draft.icon = icon.id;
@@ -509,10 +559,11 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 			} );
 			icons.appendChild( sw );
 		}
-		pane.appendChild( icons );
+		pane.appendChild( labelled( __( 'Glyph' ), icons ) );
 
 		const colors = el( 'os-swatch-grid', `${ ROOT_CLASS }__colors` );
 		colors.setAttribute( 'label', __( 'Colour' ) );
+		colors.setAttribute( 'mode', 'row' );
 		const paintColors = (): void => {
 			for ( const s of Array.from( colors.children ) ) {
 				s.toggleAttribute(
@@ -524,7 +575,8 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 		const none = el( 'os-swatch' );
 		none.setAttribute( 'value', 'none' );
 		none.setAttribute( 'label', __( 'No colour' ) );
-		none.setAttribute( 'size', 'sm' );
+		none.setAttribute( 'size', 'small' );
+		none.setAttribute( 'variant', 'accent' );
 		none.setAttribute( 'preview', 'transparent' );
 		none.addEventListener( 'os-pick', () => {
 			draft.color = '';
@@ -535,7 +587,8 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 			const sw = el( 'os-swatch' );
 			sw.setAttribute( 'value', accent.value );
 			sw.setAttribute( 'label', accent.label );
-			sw.setAttribute( 'size', 'sm' );
+			sw.setAttribute( 'size', 'small' );
+			sw.setAttribute( 'variant', 'accent' );
 			sw.setAttribute( 'preview', accent.value );
 			sw.addEventListener( 'os-pick', () => {
 				draft.color = accent.value;
@@ -544,7 +597,7 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 			colors.appendChild( sw );
 		}
 		paintColors();
-		pane.appendChild( colors );
+		pane.appendChild( labelled( __( 'Colour' ), colors ) );
 
 		const custom = el( 'os-color-field' );
 		custom.setAttribute( 'label', __( 'Or any colour' ) );
@@ -722,31 +775,50 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 
 			const walls = el( 'os-swatch-grid', `${ ROOT_CLASS }__wallpapers` );
 			walls.setAttribute( 'label', __( 'Wallpaper' ) );
-			walls.setAttribute( 'columns', '4' );
+			// Six across, not four: the modal is narrower than the
+			// Preferences panel, and a wallpaper tile here is a
+			// swatch to recognise, not a preview to study.
+			walls.setAttribute( 'columns', '6' );
 			for ( const w of options.wallpapers ) {
 				const sw = el( 'os-swatch' );
 				sw.setAttribute( 'value', w.id );
 				sw.setAttribute( 'label', w.label );
 				sw.setAttribute( 'variant', 'wallpaper' );
 				sw.setAttribute( 'preview', w.preview );
+				// What the preview manager keys on.
+				sw.dataset.wallpaperId = w.id;
 				if ( a.wallpaper === w.id ) {
 					sw.setAttribute( 'selected', '' );
 				}
+				// The name, on the tile — a swatch of a gradient says
+				// nothing about which gradient it is. Same caption the
+				// Preferences grid paints.
+				const name = el( 'span', `${ ROOT_CLASS }__swatch-label` );
+				name.textContent = w.label;
+				sw.appendChild( name );
 				sw.addEventListener( 'os-pick', () => {
 					draft.appearance = { ...draft.appearance, wallpaper: w.id };
 					paint();
 				} );
 				walls.appendChild( sw );
 			}
-			pickers.appendChild( walls );
+			pickers.appendChild( labelled( __( 'Wallpaper' ), walls ) );
+			// A canvas wallpaper (the living tree, the snow) renders its
+			// own moving preview into the tile, exactly as it does in
+			// Preferences; a CSS one keeps its `preview` background.
+			// Same manager, same cap on live contexts.
+			previews ??= createWallpaperPreviewManager( pickers );
+			previews.sync();
 
 			const accents = el( 'os-swatch-grid', `${ ROOT_CLASS }__accents` );
 			accents.setAttribute( 'label', __( 'Accent' ) );
+			accents.setAttribute( 'mode', 'row' );
 			for ( const c of options.accents ) {
 				const sw = el( 'os-swatch' );
 				sw.setAttribute( 'value', c.id );
 				sw.setAttribute( 'label', c.label );
-				sw.setAttribute( 'size', 'sm' );
+				sw.setAttribute( 'size', 'small' );
+				sw.setAttribute( 'variant', 'accent' );
 				sw.setAttribute( 'preview', c.value );
 				if ( a.accent === c.id ) {
 					sw.setAttribute( 'selected', '' );
@@ -757,10 +829,8 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 				} );
 				accents.appendChild( sw );
 			}
-			pickers.appendChild( accents );
+			pickers.appendChild( labelled( __( 'Accent' ), accents ) );
 
-			const dockLabel = hint( __( 'Dock' ) );
-			pickers.appendChild( dockLabel );
 			const dock = el( 'os-segmented' );
 			dock.setAttribute( 'label', __( 'Dock' ) );
 			for ( const [ id, text ] of [
@@ -780,7 +850,7 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 						.value,
 				};
 			} );
-			pickers.appendChild( dock );
+			pickers.appendChild( labelled( __( 'Dock' ), dock ) );
 		};
 		toggle.addEventListener( 'os-switch-change', ( e: Event ) => {
 			const on = ( e as CustomEvent< { checked: boolean } > ).detail.checked;
@@ -807,8 +877,6 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 			),
 		);
 
-		const layoutLabelEl = hint( __( 'Arrangement' ) );
-		pane.appendChild( layoutLabelEl );
 		const layout = el( 'os-segmented' );
 		layout.setAttribute( 'label', __( 'Arrangement' ) );
 		for ( const id of WORKSPACE_LAYOUTS ) {
@@ -824,17 +892,16 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 				.value as WorkspaceLayoutId;
 			layoutHintEl.textContent = layoutHint( draft.layout );
 		} );
-		pane.appendChild( layout );
-		pane.appendChild( layoutHintEl );
+		const layoutField = labelled( __( 'Arrangement' ), layout );
+		layoutField.appendChild( layoutHintEl );
+		pane.appendChild( layoutField );
 
-		const opensLabel = hint( __( 'Opens with' ) );
-		pane.appendChild( opensLabel );
 		const chips = el( 'div', `${ ROOT_CLASS }__chips` );
 		const paintChips = (): void => {
 			chips.replaceChildren();
 			if ( draft.windows.length === 0 ) {
 				chips.appendChild(
-					hint( __( 'Nothing yet — this desk starts empty.' ) ),
+					hint( __( 'Nothing yet — add an app below, or capture the windows you have open.' ) ),
 				);
 				return;
 			}
@@ -850,10 +917,49 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 			} );
 		};
 		paintChips();
-		pane.appendChild( chips );
+		pane.appendChild( labelled( __( 'Opens with' ), chips ) );
 
-		const actions = el( 'div', `${ ROOT_CLASS }__actions` );
+		// Add a window: every app that opens something, as a picker.
+		// Picking one appends it and the picker goes back to its
+		// placeholder, so adding three is three picks, not three picks
+		// and three resets.
+		const openable = options.apps.filter( ( a ) => a.url || a.windowId );
+		if ( openable.length > 0 ) {
+			const add = el( 'os-select' );
+			add.setAttribute( 'label', __( 'Add a window' ) );
+			add.setAttribute( 'placeholder', __( 'Choose an app…' ) );
+			for ( const app of openable ) {
+				const opt = el( 'os-option' );
+				opt.setAttribute( 'value', app.id );
+				opt.textContent = app.title;
+				add.appendChild( opt );
+			}
+			add.addEventListener( 'os-pick', ( e: Event ) => {
+				const id = ( e as CustomEvent< { value: string } > ).detail.value;
+				const app = openable.find( ( a ) => a.id === id );
+				if ( ! app ) {
+					return;
+				}
+				// `match` is the app's own id: a list built here is
+				// about THIS install, so an id is the exact answer. A
+				// native window carries no url and reopens through the
+				// registry.
+				const entry: WorkspaceLaunch = { match: app.id, title: app.title };
+				if ( app.url ) {
+					entry.url = app.url;
+				}
+				draft.windows = [ ...draft.windows, entry ];
+				// The user added a window they want opened; the desk has
+				// something new to provision on the next entry.
+				draft.provisioned = false;
+				paintChips();
+				add.removeAttribute( 'value' );
+			} );
+			pane.appendChild( add );
+		}
+
 		if ( options.captureWindows ) {
+			const actions = el( 'div', `${ ROOT_CLASS }__actions` );
 			const capture = el( 'os-button' );
 			capture.setAttribute( 'variant', 'ghost' );
 			capture.textContent = __( 'Use the windows I have open now' );
@@ -866,26 +972,13 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 				paintChips();
 			} );
 			actions.appendChild( capture );
-		}
-		if ( isEdit && options.onOpenWindows ) {
-			const open = el( 'os-button' );
-			open.setAttribute( 'variant', 'ghost' );
-			open.textContent = __( 'Open them now' );
-			open.addEventListener( 'click', () => options.onOpenWindows?.() );
-			actions.appendChild( open );
-		}
-		if ( isEdit && options.onApplyLayout ) {
-			const arrange = el( 'os-button' );
-			arrange.setAttribute( 'variant', 'ghost' );
-			arrange.textContent = __( 'Arrange now' );
-			arrange.addEventListener( 'click', () =>
-				options.onApplyLayout?.( draft.layout ),
-			);
-			actions.appendChild( arrange );
-		}
-		if ( actions.childElementCount > 0 ) {
 			pane.appendChild( actions );
 		}
+		// No "Open them now" or "Arrange now" here: both act on the desk
+		// BEHIND a modal, where the result is invisible until the modal
+		// closes and looks, from inside it, like a button that does
+		// nothing. Restore under the tile is that action, done where it
+		// can be seen.
 	};
 
 	const RENDER: Record< StepId, () => void > = {
@@ -978,6 +1071,9 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 			}
 		}
 		stepIndex = Math.max( 0, Math.min( steps.length - 1, index ) );
+		// Whatever the previous step mounted is gone with its DOM; the
+		// preview manager is told, so its WebGL contexts go too.
+		disposePreviews();
 		pane.replaceChildren();
 		RENDER[ steps[ stepIndex ] ]();
 		renderTrail();
@@ -988,6 +1084,7 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 
 	document.body.appendChild( modal );
 	active = modal;
+	activeCleanup = disposePreviews;
 	go( 0 );
 
 	// The primary action takes focus on open: `+` then Enter is a

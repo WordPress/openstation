@@ -252,7 +252,6 @@ import {
 } from './work-area';
 import {
 	applyServerWorkspacePresets,
-	applyWorkspaceLayout,
 	applyWorkspaceView,
 	blankWorkspaceProfile,
 	captureWorkspaceAppearance,
@@ -2560,6 +2559,11 @@ function init(): void {
 			title: item.title,
 			kind: item.kind,
 			locked: item.locked,
+			// What the app opens, for the Windows step's picker. An
+			// admin menu has a url; a native window has an id; a
+			// control (Overview, Exit) has neither and is not offered.
+			url: item.menu?.url || item.entry?.url || undefined,
+			windowId: item.windowId,
 		} ) ),
 		widgets: listWidgetDefs().map( ( def ) => ( {
 			id: def.id,
@@ -2638,20 +2642,7 @@ function init(): void {
 				// goes back to being a plain Space, tile and all.
 				setWorkspaceProfile( deps, desktopId, result.profile );
 			},
-			onApplyLayout: ( layout ) => {
-				// Arrange the desk being edited, not whichever one is
-				// in front: "Arrange now" from a modal that names a
-				// workspace has to mean that workspace.
-				deps.manager.switchDesktop( desktopId );
-				applyWorkspaceLayout( deps.manager, layout );
-			},
 			captureWindows: () => captureWorkspaceWindows( manager, desktopId ),
-			onOpenWindows: () => {
-				deps.manager.switchDesktop( desktopId );
-				// `force`, because the user asked. The automatic path
-				// runs a launch list once and never again.
-				provisionWorkspace( deps, desktopId, { force: true } );
-			},
 			// Refused on the last desktop: `closeDesktop` would decline
 			// it anyway, and an offered action that does nothing is
 			// worse than one that isn't there.

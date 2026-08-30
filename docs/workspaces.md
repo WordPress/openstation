@@ -44,7 +44,10 @@ The wizard's first step is **Start**, and it is the escape hatch:
 - **Blank desktop** is a card, preselected, and **Create desktop** is the focused button. `+` then Enter is a plain new desk — the same two gestures it was before the wizard existed. Nobody is walked through five steps to get an empty desk.
 - The templates are cards beside it. Pick one and press **Create from template** and the desk is made from it exactly as the dropdown used to — the template is read against the navigation as it stands right now, and the `os.workspaces.profile` filter runs.
 - Activating a card that is already selected (a second click, or Enter on it) creates. Click once to choose, again to go.
-- **Customize** is the only way into the remaining steps: **Name** (name, glyph, colour) → **Apps** → **Widgets** → **Look** (wallpaper, accent, dock) → **Windows** (launch list and arrangement). On every one of them, **Create workspace** is still in the footer: the wizard can be left at any point with whatever has been set so far.
+- **Customize** is the only way into the remaining steps: **Name** (name, glyph, colour) → **Apps** → **Widgets** → **Look** (wallpaper tiles with their names and live previews, accent, dock) → **Windows** (the arrangement, plus the launch list: add any app from a picker, remove one from its chip, or capture the windows open right now). On every one of them, **Create workspace** is still in the footer: the wizard can be left at any point with whatever has been set so far.
+- The pane keeps one generous height across every step, so the footer's buttons never move under the pointer between clicks.
+
+Nothing in the wizard acts on the desk behind it. "Open them now" and "Arrange now" were tried and dropped: both act on a desk hidden behind a modal, where the result is invisible until the modal closes and looks, from inside it, like a button that does nothing. **Restore** under the tile is that action, done where it can be seen.
 
 A blank start that the user never customized creates a plain Space — no profile at all, behaving exactly as a desktop did before workspaces existed.
 
@@ -132,7 +135,7 @@ The flag is claimed *before* the windows open: opening a window is asynchronous,
 
 The layout is applied on the next frame, not inline — every arrangement reads the work area and the windows' own boxes, and a window created in this tick has neither until the browser has laid it out.
 
-`provision( id, { force: true } )` runs it anyway. That is the user asking on purpose — the wizard's **Open them now** button, or Restore under a tile — which is a different question from the shell deciding on its own, so every automatic caller leaves the flag off.
+`provision( id, { force: true } )` runs it anyway. That is the user asking on purpose — Restore under a tile — which is a different question from the shell deciding on its own, so every automatic caller leaves the flag off.
 
 ### Saving the arrangement you already have
 
