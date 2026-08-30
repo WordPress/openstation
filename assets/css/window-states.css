@@ -548,17 +548,21 @@
 }
 
 /*
- * The window being held, while the grid is up. Translucent enough
- * that the grid and the wallpaper read through it — the point of the
- * grid is seeing where the window will land, and the window is the
- * one thing in the way of that view — and opaque enough that it is
- * still recognisably the window being moved, not a ghost of one.
+ * The desk in grid mode. Every OTHER window recedes so the grid and
+ * the landing zone read through them; the one in hand stays solid —
+ * it is the thing being placed, and the user needs to see it, not
+ * through it. Translucent enough that the grid shows, opaque enough
+ * that the other windows are still recognisably where they are,
+ * because "will this land on top of Posts?" is the question the grid
+ * is there to answer.
+ *
  * Opacity only: a blur or a desaturate on a live iframe is a
  * per-frame filter on a large surface, and the drag has to stay
- * pixel-accurate at 120Hz.
+ * pixel-accurate at 120Hz. Minimized windows are already hidden and
+ * need no rule.
  */
-.os-window--grid-snapping {
-	opacity: 0.55;
+.os-area--grid-snapping .os-window:not( .os-window--grid-snapping ) {
+	opacity: 0.45;
 	transition: opacity 0.16s ease;
 }
 

@@ -195,15 +195,20 @@ describe( 'grid snap — session', () => {
 		expect( log.filter( ( e ) => e.name === 'os.grid-snap.changed' ) ).toHaveLength( before );
 	} );
 
-	test( 'the held window is translucent while the grid is up, and solid again after', async () => {
+	test( 'the desk enters grid mode with the held window exempt, and leaves it after', async () => {
 		const win = await open();
 		beginGridSnap( manager, win, 400, 200 );
+		// The area dims every window; the held one wears the class
+		// that exempts it from that rule.
+		expect( desktop.classList.contains( 'os-area--grid-snapping' ) ).toBe( true );
 		expect( win.element.classList.contains( 'os-window--grid-snapping' ) ).toBe( true );
 		cancelGridSnap( manager );
+		expect( desktop.classList.contains( 'os-area--grid-snapping' ) ).toBe( false );
 		expect( win.element.classList.contains( 'os-window--grid-snapping' ) ).toBe( false );
 
 		beginGridSnap( manager, win, 400, 200 );
 		win.onDragEnd?.( win );
+		expect( desktop.classList.contains( 'os-area--grid-snapping' ) ).toBe( false );
 		expect( win.element.classList.contains( 'os-window--grid-snapping' ) ).toBe( false );
 	} );
 

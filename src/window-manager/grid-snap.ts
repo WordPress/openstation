@@ -107,11 +107,15 @@ export interface GridSnapSession {
 }
 
 /**
- * Worn by the dragged window while a grid snap is armed. Class, not an
- * inline opacity: the value is the stylesheet's to tune, and a theme
- * can retune it.
+ * Worn by the dragged window while a grid snap is armed — the one
+ * window the area's dimming rule leaves solid. Classes, not inline
+ * opacity: the values are the stylesheet's to tune, and a theme can
+ * retune them.
  */
 export const GRID_SNAPPING_CLASS = 'os-window--grid-snapping';
+
+/** Worn by the desktop area while a grid snap is armed: every other window recedes. */
+export const GRID_SNAPPING_AREA_CLASS = 'os-area--grid-snapping';
 
 /**
  * The grid this desk uses, after the `os.grid-snap.dimensions` filter.
@@ -280,10 +284,13 @@ export function beginGridSnap(
 		windowEl: win.element,
 	};
 	mgr._gridSnap = session;
-	// The window being held goes translucent for the duration: the
-	// point of the grid is seeing where the window will land, and the
-	// window itself is the one thing in the way of that view.
+	// The desk goes into grid mode: every OTHER window recedes so the
+	// grid and the landing zone read through them, and the one in
+	// hand stays solid — it is the thing being placed, and the user
+	// needs to see it, not through it. The held window's class is
+	// what exempts it from the area's dimming rule.
 	win.element.classList.add( GRID_SNAPPING_CLASS );
+	mgr._desktop.classList.add( GRID_SNAPPING_AREA_CLASS );
 	paint( session, area );
 	// Fade in on the next frame so the opacity transition has a
 	// painted starting state to run from.
@@ -395,6 +402,7 @@ function dispose( mgr: WindowManager ): GridSnapSession | null {
 	}
 	mgr._gridSnap = null;
 	session.windowEl.classList.remove( GRID_SNAPPING_CLASS );
+	mgr._desktop.classList.remove( GRID_SNAPPING_AREA_CLASS );
 	const el = session.overlayEl;
 	el.classList.remove( 'os-grid-snap--visible' );
 	window.setTimeout( () => el.remove(), GRID_SNAP_FADE_MS );
