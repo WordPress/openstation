@@ -338,6 +338,14 @@ export interface OsSettingsState {
 	 */
 	showDesktopOnWallpaperClick: boolean;
 	/**
+	 * Whether the "close all windows" shortcut (`⌥⌘W` / `Ctrl+Alt+W`)
+	 * asks before it closes. True by default, and the dialog's "Don't
+	 * ask again" checkbox is the only thing that writes false — which
+	 * is why the toggle exists in Preferences → Windows: an opt-out
+	 * with no way back is a trap, not a preference. Per-user.
+	 */
+	confirmCloseAllWindows: boolean;
+	/**
 	 * Whether Mio, the desk companion, is on. Toggled from Mio's dock
 	 * tile; the shell lazy-loads `assets/js/mio[.min].js` the first
 	 * time it flips true. Off by default. See `docs/mio.md`.

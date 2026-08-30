@@ -68,6 +68,7 @@ import { buildDesktopLayoutSection } from './sections/desktop-layout';
 import { buildWindowRadiusSection } from './sections/window-radius';
 import { buildDockRailRendererSection } from './sections/dock-rail-renderer';
 import { buildEffectsSection } from './sections/effects';
+import { buildCloseAllSection } from './sections/close-all';
 import { buildExtendedSection } from './sections/extended';
 import { buildFeaturesSection } from './sections/features';
 import { buildHelpSection } from './sections/help';
@@ -323,6 +324,7 @@ export function renderOsSettingsPanel(
 					) }
 					${ buildWindowRadiusSection( ctx ) }
 					${ buildEffectsSection( ctx ) }
+					${ buildCloseAllSection( ctx ) }
 				</os-panel>
 			</os-tabpanel>`,
 		},

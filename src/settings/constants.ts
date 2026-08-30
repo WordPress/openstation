@@ -319,6 +319,10 @@ export const DEFAULTS: OsSettingsState = {
 	// user opts in; read live by the dock at hover time.
 	windowPrewarmEnabled: false,
 	showDesktopOnWallpaperClick: false,
+	// Ask before the close-all chord wipes the desk. The dialog's
+	// "Don't ask again" checkbox is what turns this off; Preferences →
+	// Windows is what turns it back on.
+	confirmCloseAllWindows: true,
 	mioEnabled: false,
 	// No opinions: the user has not been to "Make it yours" yet, so
 	// they get whatever Mio the site ships.

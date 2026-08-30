@@ -1751,6 +1751,12 @@ return `Closed ${ closed } window${ closed === 1 ? '' : 's' }.`;
 
 If a `Window.close()` throws, the loop catches and continues — one bad window can't abort the batch.
 
+**The shell binds this to `⌥⌘W` (macOS) / `Ctrl+Alt+W`** — `src/window-manager/close-all-shortcut.ts`, installed next to the window switcher and the arrow-key desktop shortcuts. The chord raises a confirmation naming how many windows are about to go, then calls `closeAll()` with no `exceptIds`, so the hook chain above is the supported way to keep a window alive through it. Pressing it inside an admin window works too: native keydown doesn't cross an iframe boundary, so the chromeless bridge forwards the chord to the shell as `os-window-close-all` (see [`bridge-protocol.md`](./bridge-protocol.md#keyboard-forwarders)).
+
+The confirmation carries a **"Don't ask again"** checkbox. Ticking it writes `confirmCloseAllWindows: false` to the user's OpenStation Preferences (user meta, so the choice follows them to other browsers) and the chord closes immediately from then on — the per-window unsaved-changes prompt still fires for any page that raises one. **OpenStation Preferences → Windows → "Ask before closing all windows"** turns it back on, which is what keeps the checkbox a preference rather than a one-way door.
+
+`Cmd/Ctrl+Shift+W` is deliberately not the binding — the browser owns it and a page can't take it back.
+
 ---
 
 ### `dock` — Stable

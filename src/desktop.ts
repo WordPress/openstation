@@ -15,6 +15,7 @@ import './my-wordpress/early-api';
 import { WindowManager } from './window-manager';
 import { installWindowSwitcherShortcut } from './window-manager/switcher';
 import { installDesktopArrowShortcuts } from './window-manager/desktop-shortcuts';
+import { installCloseAllShortcut } from './window-manager/close-all-shortcut';
 import {
 	installWindowLoadingTransitions,
 } from './window/loading';
@@ -2372,6 +2373,13 @@ function init(): void {
 	installPaletteShortcut();
 	installWindowSwitcherShortcut( manager );
 	installDesktopArrowShortcuts( manager );
+	installCloseAllShortcut( manager, {
+		shouldAsk: () => osSettings.state.confirmCloseAllWindows,
+		setAsk: ( ask ) => {
+			osSettings.state.confirmCloseAllWindows = ask;
+			osSettings.save();
+		},
+	} );
 
 	// Iframe command bridge — pulls `wp.data.select('core/commands')` out
 	// of whichever window has focus and exposes the commands as slash-
