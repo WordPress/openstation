@@ -152,6 +152,37 @@ describe( 'workspace appearance — a view, never a write', () => {
 		expect( saved?.wallpaper ).toBe( 'galaxy' );
 	} );
 
+	test( 'an edit made IN PLACE on an overridden object key is still the user’s', () => {
+		// The wallpaper settings editor merges into
+		// `wallpaperSettings[ id ]` rather than replacing the record,
+		// so the edit never changes a reference. A comparison by
+		// identity called it "untouched" and dropped it on save.
+		settings.state.wallpaperSettings = { 'living-tree': { density: 1 } };
+		settings.setWorkspaceAppearance( {
+			wallpaperSettings: { 'living-tree': { density: 3 } },
+		} );
+
+		// The user opens the editor on this desk and turns density up.
+		settings.state.wallpaperSettings[ 'living-tree' ] = {
+			...settings.state.wallpaperSettings[ 'living-tree' ],
+			density: 5,
+		};
+		settings.save();
+
+		expect( saved?.wallpaperSettings ).toEqual( { 'living-tree': { density: 5 } } );
+	} );
+
+	test( 'an untouched overridden object key still goes back to the user’s', () => {
+		settings.state.wallpaperSettings = { 'living-tree': { density: 1 } };
+		settings.setWorkspaceAppearance( {
+			wallpaperSettings: { 'living-tree': { density: 3 } },
+		} );
+		settings.save();
+		expect( saved?.wallpaperSettings ).toEqual( { 'living-tree': { density: 1 } } );
+		// And the desk still shows the workspace's.
+		expect( settings.state.wallpaperSettings ).toEqual( { 'living-tree': { density: 3 } } );
+	} );
+
 	test( 'with no override active, save writes the state as-is', () => {
 		settings.state.wallpaper = 'sunset';
 		settings.save();

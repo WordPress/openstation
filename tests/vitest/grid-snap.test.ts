@@ -366,6 +366,25 @@ describe( 'grid snap — session', () => {
 		win.destroy();
 	} );
 
+	test( 'every arrangement takes its windows off the grid', async () => {
+		// A workspace lands a window on its cells, then applies its
+		// layout. The arrangement is the placement now; a span left
+		// behind would put the window straight back on its cells at
+		// the next browser resize and undo the arrangement.
+		for ( const arrange of [ 'cascade', 'tile', 'columns', 'focusLayout' ] as const ) {
+			const win = await open();
+			beginGridSnap( manager, win, 400, 200 );
+			win.onDragEnd?.( win );
+			expect( win._gridSpan ).not.toBeNull();
+
+			manager[ arrange ]();
+
+			expect( win._gridSpan ).toBeNull();
+			expect( reflowGridSpans( manager ) ).toEqual( [] );
+			win.destroy();
+		}
+	} );
+
 	test( 'a restored window is born on its cells, not on its saved pixels', async () => {
 		const win = await manager.open( {
 			id: 'r',

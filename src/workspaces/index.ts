@@ -21,6 +21,7 @@ export type {
 export {
 	WORKSPACE_APPEARANCE_KEYS,
 	WORKSPACE_LAYOUTS,
+	WORKSPACE_MAX_WINDOWS,
 	blankWorkspaceProfile,
 } from './types';
 export {

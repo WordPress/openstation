@@ -38,6 +38,15 @@ export type WorkspaceLayoutId =
 	| 'columns'
 	| 'focus';
 
+/**
+ * Most windows one workspace opens with. Mirrors
+ * `OPENSTATION_WORKSPACE_MAX_WINDOWS` in `includes/workspaces.php`,
+ * where the session sanitizer silently drops entries past it — so a
+ * capture has to stop here too, or the desk would be told it kept
+ * fifteen windows and get back twelve.
+ */
+export const WORKSPACE_MAX_WINDOWS = 12;
+
 /** Every layout id, for validation and for the picker's option list. */
 export const WORKSPACE_LAYOUTS: readonly WorkspaceLayoutId[] = [
 	'free',

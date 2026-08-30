@@ -167,6 +167,32 @@ function loadOsSettingsPanelBundle(
  * Implements `SettingsCtx` so section builders can depend on the
  * narrow interface instead of the class itself.
  */
+/**
+ * A copy of a settings patch deep enough that no object inside it is
+ * shared with the original. Every value a settings key can hold is
+ * JSON-shaped (the state round-trips through `JSON.stringify` to the
+ * server), so a JSON clone is exact rather than approximate.
+ */
+function cloneSettingsPatch< T extends Partial< OsSettingsState > >( patch: T ): T {
+	return JSON.parse( JSON.stringify( patch ) ) as T;
+}
+
+/**
+ * Whether two settings values are the same VALUE — scalars by
+ * equality, objects by shape. Identity is the wrong test for the
+ * object-valued keys: the wallpaper settings editor edits in place,
+ * so an edited record can share its reference with an untouched one.
+ */
+function sameSettingsValue( a: unknown, b: unknown ): boolean {
+	if ( a === b ) {
+		return true;
+	}
+	if ( 'object' !== typeof a || 'object' !== typeof b || null === a || null === b ) {
+		return false;
+	}
+	return JSON.stringify( a ) === JSON.stringify( b );
+}
+
 export class OsSettings implements SettingsCtx {
 	public state: OsSettingsState;
 	public config: OsSettingsConfig;
@@ -602,8 +628,15 @@ export class OsSettings implements SettingsCtx {
 			this.overridePatch = null;
 		} else {
 			this.baseState = base;
-			this.overridePatch = patch;
-			this.state = { ...base, ...patch };
+			// Two copies of every object-valued key — one on the state
+			// the panel edits, one kept aside to compare against at
+			// save time. With ONE object shared between them, an edit
+			// made in place (the wallpaper settings editor merges into
+			// `wallpaperSettings[ id ]` rather than replacing it) would
+			// change both at once, the comparison would still say
+			// "untouched", and the user's edit would be dropped on save.
+			this.overridePatch = cloneSettingsPatch( patch );
+			this.state = { ...base, ...cloneSettingsPatch( patch ) };
 		}
 		this.apply();
 		this._notify();
@@ -646,11 +679,11 @@ export class OsSettings implements SettingsCtx {
 			// Still holding exactly what the workspace asked for → the
 			// user never touched it, so their own value stands.
 			// Anything else is an edit they made on this desk, and it
-			// is theirs to keep. Reference identity is the right test
-			// for the object-valued keys too: `state` was built by
-			// spreading the patch in, so an untouched key IS the
-			// patch's value, and any edit replaces it.
-			if ( out[ key ] === source[ key ] ) {
+			// is theirs to keep. Compared by VALUE: the state holds its
+			// own copy of each object-valued key (see
+			// `setWorkspaceAppearance`), so an edit made in place shows
+			// up as a difference and identity would never have.
+			if ( sameSettingsValue( out[ key ], source[ key ] ) ) {
 				out[ key ] = original[ key ];
 			}
 		}

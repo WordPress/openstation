@@ -22,6 +22,7 @@ import { resolveLaunches } from './match';
 import { findWorkspacePreset, workspaceProfileFromPreset } from './presets';
 import {
 	blankWorkspaceProfile,
+	WORKSPACE_MAX_WINDOWS,
 	type WorkspaceLaunch,
 	type WorkspaceLayoutId,
 	type WorkspaceProfile,
@@ -375,6 +376,12 @@ export function captureWorkspaceWindows(
 			} );
 		}
 		out.push( entry );
+		// The server drops entries past its cap. Stopping here keeps
+		// what the desk is told it kept honest — and stack order is
+		// bottom-up, so the windows dropped are the ones underneath.
+		if ( out.length >= WORKSPACE_MAX_WINDOWS ) {
+			break;
+		}
 	}
 	return out;
 }

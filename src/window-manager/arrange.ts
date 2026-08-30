@@ -94,6 +94,10 @@ export function cascade( mgr: WindowManager ): void {
 
 	eligible.forEach( ( w, i ) => {
 		const step = i % Math.max( 1, maxSteps );
+		// An arrangement is a placement of its own; a grid span the
+		// window was carrying would put it straight back on its cells
+		// at the next work-area change and silently undo this.
+		w._gridSpan = null;
 		w.element.style.left = `${ rect.x + padding + step * offset }px`;
 		w.element.style.top = `${ rect.y + padding + step * offset }px`;
 		w.element.style.width = `${ targetWidth }px`;
@@ -198,6 +202,8 @@ export function tile( mgr: WindowManager ): void {
 	eligible.forEach( ( w, i ) => {
 		const col = i % cols;
 		const row = Math.floor( i / cols );
+		// See cascade: the tile is the placement now.
+		w._gridSpan = null;
 		w.element.style.left = `${ rect.x + padding + col * ( cellWidth + gap ) }px`;
 		w.element.style.top = `${ rect.y + padding + row * ( cellHeight + gap ) }px`;
 		w.element.style.width = `${ cellWidth }px`;
@@ -247,6 +253,12 @@ function prepareForArrange( mgr: WindowManager ): Window[] {
 		if ( w.state === 'maximized' ) {
 			w.toggleMaximize();
 		}
+		// An arrangement is a placement of its own. A window already
+		// `normal` passes through none of the state changes above, so
+		// a grid span it was carrying would survive and put it straight
+		// back on its cells at the next work-area change — a browser
+		// resize undoing the arrangement a workspace just applied.
+		w._gridSpan = null;
 	}
 	return eligible;
 }

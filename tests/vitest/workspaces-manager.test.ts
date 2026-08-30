@@ -25,6 +25,7 @@ import {
 	saveDeskToWorkspace,
 	setWorkspaceProfile,
 	absoluteAdminUrl,
+	WORKSPACE_MAX_WINDOWS,
 	type WorkspaceDeps,
 } from '../../src/workspaces';
 import {
@@ -430,6 +431,23 @@ describe( 'workspace operations', () => {
 		expect( win.element.style.top ).toBe( '225px' );
 		expect( win.element.style.width ).toBe( '800px' );
 		expect( win.element.style.height ).toBe( '450px' );
+	} );
+
+	test( 'capture stops at the number the server will keep', async () => {
+		const created = createWorkspace( deps, {} );
+		for ( let i = 0; i < WORKSPACE_MAX_WINDOWS + 3; i++ ) {
+			await manager.open( {
+				id: `w-${ i }`,
+				url: `${ ADMIN_URL }w-${ i }.php`,
+				title: `w-${ i }`,
+				icon: 'dashicons-admin-generic',
+			} );
+		}
+		// The desk would otherwise be told it kept fifteen and get back
+		// twelve on the next reload.
+		expect( captureWorkspaceWindows( manager, created.id ) ).toHaveLength(
+			WORKSPACE_MAX_WINDOWS,
+		);
 	} );
 
 	test( 'capture ignores windows on other desks', async () => {

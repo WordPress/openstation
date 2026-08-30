@@ -2653,14 +2653,32 @@ function init(): void {
 		}
 		const label =
 			manager.getDesktops().find( ( d ) => d.id === desktopId )?.label ?? '';
-		showToast( {
-			message: sprintf(
+		// The count is what was KEPT, which the capture already capped
+		// to what the server will store. When the desk held more, say
+		// so — a toast that promised fifteen and delivered twelve would
+		// be the one thing about this feature that lied.
+		const onDesk = manager
+			.getAll()
+			.filter( ( w ) => ( w.config.desktopId || desktopId ) === desktopId ).length;
+		const kept = saved.windows.length;
+		let message: string;
+		if ( onDesk > kept ) {
+			message = sprintf(
+				// translators: %1$s is the workspace name, %2$d the windows kept, %3$d the windows on the desk.
+				__( '%1$s will open like this — the top %2$d of %3$d windows, where they are.' ),
+				label,
+				kept,
+				onDesk,
+			);
+		} else {
+			message = sprintf(
 				// translators: %1$s is the workspace name, %2$d a number of windows.
 				__( '%1$s will open like this — %2$d windows, where they are.' ),
 				label,
-				saved.windows.length,
-			),
-		} );
+				kept,
+			);
+		}
+		showToast( { message } );
 		return true;
 	};
 
