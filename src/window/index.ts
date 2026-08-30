@@ -13,7 +13,7 @@
  * prevents the sibling modules from seeing them.
  */
 
-import type { DragGesture, WindowConfig, WindowState } from './../types';
+import type { DragGesture, GridSpan, WindowConfig, WindowState } from './../types';
 import { activity } from './../activity';
 import { getSyntheticIframe } from './../connection';
 import { HOOKS, applyFilters, doAction } from './../hooks';
@@ -309,6 +309,19 @@ export class Window {
 	 * @internal
 	 */
 	public _savedGeometry: { x: number; y: number; width: number; height: number } | null = null;
+
+	/**
+	 * The grid placement this window was last landed on, or null when
+	 * it is free. Kept in cells, not pixels, so the shell can put the
+	 * window back on the same cells after the work area changes —
+	 * a browser resize, a dock that moved, a session restored on a
+	 * different display. Cleared by a free move, a resize, or a state
+	 * change: each of those is the user saying the window is theirs
+	 * to place again. See `window-manager/grid-snap.ts`.
+	 *
+	 * @internal
+	 */
+	public _gridSpan: GridSpan | null = null;
 
 	/**
 	 * Snapshot taken before entering fullscreen so we can restore the
@@ -1067,6 +1080,15 @@ export class Window {
 	 * @internal
 	 */
 	public _emitChange( reason: 'moved' | 'resized' | 'state' ): void {
+		// A state change — maximize, snap, fullscreen and back — is the
+		// window leaving the grid. Minimize is one too, which is the
+		// deliberate simplification: a minimized window returns to the
+		// pixels it left, and those are still on its cells unless the
+		// desk changed meanwhile; a placement that outlived every
+		// state would have to be reconciled against each of them.
+		if ( reason === 'state' ) {
+			this._gridSpan = null;
+		}
 		document.dispatchEvent(
 			new CustomEvent( 'os-window-changed', {
 				detail: { windowId: this.id, reason, state: this.state },

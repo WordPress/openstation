@@ -1269,6 +1269,14 @@ export const HOOKS = {
 	 * generic `os.window.moved` / `os.window.resized` fire too.
 	 */
 	GRID_SNAP_COMMITTED: 'os.grid-snap.committed',
+	/**
+	 * Action, fires after the work area changed and every grid-snapped
+	 * window was put back on its cells. Payload `{ windowIds }` — the
+	 * windows whose geometry actually moved. One per pass, not one per
+	 * window; the per-window `os-window-changed` still fires so the
+	 * session saves the new pixels.
+	 */
+	GRID_SNAP_REFLOWED: 'os.grid-snap.reflowed',
 
 	// ------------------------------------------------------------------
 	// Snap-zones — Windows-style edge snapping with a split-overview

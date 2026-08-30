@@ -30,6 +30,26 @@ export type DragGesture =
 	| { type: 'shake'; clientX: number; clientY: number };
 
 /**
+ * Where a grid-snapped window lives, in cells rather than pixels.
+ *
+ * A grid placement is a fraction of the work area — "the two-by-two at
+ * (1,1) of a 6×6" — and a fraction survives what pixels do not: a
+ * browser resized, a dock that moved, a session restored on a
+ * different display. The shell keeps this on the window after a grid
+ * snap and re-derives the pixels from it whenever the work area
+ * changes. Cleared by any free move, resize or state change, because
+ * those are the user saying the window is theirs to place again.
+ *
+ * @public
+ */
+export interface GridSpan {
+	anchor: { col: number; row: number };
+	cursor: { col: number; row: number };
+	cols: number;
+	rows: number;
+}
+
+/**
  * A virtual desktop ("Space" in macOS terminology).
  *
  * Each desktop owns its own set of windows. Only one desktop is
@@ -349,6 +369,13 @@ export interface WindowConfig {
 	 * are showing, and it round-trips through the session on its own.
 	 */
 	params?: Record< string, string | number | boolean >;
+	/**
+	 * A grid placement to restore the window onto — see
+	 * {@link GridSpan}. Passed by session restore; the shell then
+	 * derives the geometry from the CURRENT work area rather than
+	 * trusting the saved pixels, which may be from another display.
+	 */
+	gridSpan?: GridSpan;
 	/**
 	 * Per-window appearance overrides — themes (CSS variables),
 	 * controls (close / minimize / maximize layout + custom buttons),
@@ -1800,6 +1827,13 @@ export interface SessionWindow {
 	 * See {@link WindowConfig.params}.
 	 */
 	params?: Record< string, string | number | boolean >;
+	/**
+	 * Where the window sits on the grid, when it was grid-snapped —
+	 * see {@link GridSpan}. The pixels below are still saved, but on
+	 * restore the span wins: it is what keeps a 2×2 a 2×2 on a
+	 * different display.
+	 */
+	gridSpan?: GridSpan;
 	url: string;
 	title: string;
 	icon: string;

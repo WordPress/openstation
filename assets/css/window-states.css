@@ -547,6 +547,21 @@
 	font-variant-numeric: tabular-nums;
 }
 
+/*
+ * The window being held, while the grid is up. Translucent enough
+ * that the grid and the wallpaper read through it — the point of the
+ * grid is seeing where the window will land, and the window is the
+ * one thing in the way of that view — and opaque enough that it is
+ * still recognisably the window being moved, not a ghost of one.
+ * Opacity only: a blur or a desaturate on a live iframe is a
+ * per-frame filter on a large surface, and the drag has to stay
+ * pixel-accurate at 120Hz.
+ */
+.os-window--grid-snapping {
+	opacity: 0.55;
+	transition: opacity 0.16s ease;
+}
+
 /* A shake moved the anchor: one pulse so the reset is seen, not inferred. */
 .os-grid-snap__target--reset {
 	animation: os-grid-snap-reset 0.32s ease;

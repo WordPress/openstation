@@ -184,6 +184,10 @@ export async function restoreSession(
 			// customer window) reopens on its default and reads as
 			// having silently changed subject.
 			...( win.params ? { params: win.params } : {} ),
+			// Its cells, when it was grid-snapped: the manager derives
+			// the geometry from the live work area rather than from
+			// the clamped pixels above.
+			...( win.gridSpan ? { gridSpan: win.gridSpan } : {} ),
 		};
 	}
 	if ( Object.keys( nativeSeeds ).length > 0 ) {
@@ -262,6 +266,9 @@ export async function restoreSession(
 			initialState: win.state,
 			submenu: dockEntry?.submenu,
 			selfLabel: dockEntry?.selfLabel,
+			// Cells outrank the clamped pixels — see `gridSpan` on
+			// `WindowConfig`.
+			...( win.gridSpan ? { gridSpan: win.gridSpan } : {} ),
 		} );
 
 		// Rehydrate any external sub-tabs the user had open on this

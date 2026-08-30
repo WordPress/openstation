@@ -26,6 +26,7 @@ import {
 	GRID_SNAP_ROWS,
 	GridSnapAnchorReason,
 	gridSnapDimensions,
+	reflowGridSpans,
 	resetGridSnapAnchor,
 	spanRect,
 	updateGridSnap,
@@ -194,6 +195,18 @@ describe( 'grid snap — session', () => {
 		expect( log.filter( ( e ) => e.name === 'os.grid-snap.changed' ) ).toHaveLength( before );
 	} );
 
+	test( 'the held window is translucent while the grid is up, and solid again after', async () => {
+		const win = await open();
+		beginGridSnap( manager, win, 400, 200 );
+		expect( win.element.classList.contains( 'os-window--grid-snapping' ) ).toBe( true );
+		cancelGridSnap( manager );
+		expect( win.element.classList.contains( 'os-window--grid-snapping' ) ).toBe( false );
+
+		beginGridSnap( manager, win, 400, 200 );
+		win.onDragEnd?.( win );
+		expect( win.element.classList.contains( 'os-window--grid-snapping' ) ).toBe( false );
+	} );
+
 	test( 'arming twice is one arm', async () => {
 		const win = await open();
 		beginGridSnap( manager, win, 400, 200 );
@@ -286,6 +299,99 @@ describe( 'grid snap — session', () => {
 		expect( log.map( ( e ) => e.name ) ).toEqual( [ 'os.grid-snap.canceled' ] );
 		// And a release now is an ordinary drop.
 		expect( commitGridSnapIfActive( manager, win ) ).toBe( false );
+	} );
+
+	test( 'a landed window remembers its cells and follows the desk when it resizes', async () => {
+		const win = await open();
+		beginGridSnap( manager, win, 400, 200 );
+		updateGridSnap( manager, 700, 400 );
+		win.onDragEnd?.( win );
+		expect( win._gridSpan ).toEqual( {
+			anchor: { col: 1, row: 1 },
+			cursor: { col: 2, row: 2 },
+			cols: 6,
+			rows: 6,
+		} );
+		const log = recordActions( hooks, [ 'os.grid-snap.reflowed' ] );
+
+		// The browser shrinks: the desk is now 1200×600.
+		Object.defineProperty( desktop, 'clientWidth', { value: 1200, configurable: true } );
+		Object.defineProperty( desktop, 'clientHeight', { value: 600, configurable: true } );
+		const moved = reflowGridSpans( manager );
+
+		expect( moved ).toEqual( [ 'a' ] );
+		// Still the 2×2 at (1,1) — of the NEW desk.
+		const expected = spanRect(
+			{ col: 1, row: 1 },
+			{ col: 2, row: 2 },
+			{ x: 0, y: 0, width: 1200, height: 600 },
+			SIX,
+		);
+		expect( win.element.style.left ).toBe( `${ expected.x }px` );
+		expect( win.element.style.width ).toBe( `${ expected.width }px` );
+		expect( win.element.style.height ).toBe( `${ expected.height }px` );
+		expect( log.find( ( e ) => e.name === 'os.grid-snap.reflowed' )?.args[ 0 ] ).toEqual( {
+			windowIds: [ 'a' ],
+		} );
+
+		// Nothing changed: no second pass reports it.
+		expect( reflowGridSpans( manager ) ).toEqual( [] );
+	} );
+
+	test( 'a free move, a resize, or a state change takes the window off the grid', async () => {
+		const land = async () => {
+			const win = await open();
+			beginGridSnap( manager, win, 400, 200 );
+			win.onDragEnd?.( win );
+			expect( win._gridSpan ).not.toBeNull();
+			return win;
+		};
+		// A free drop — what the pointer layer does on an unconsumed
+		// drag end.
+		let win = await land();
+		win._gridSpan = null;
+		win._emitChange( 'moved' );
+		expect( reflowGridSpans( manager ) ).toEqual( [] );
+		win.destroy();
+
+		// A state change: maximize.
+		win = await land();
+		win.toggleMaximize();
+		expect( win._gridSpan ).toBeNull();
+		win.destroy();
+	} );
+
+	test( 'a restored window is born on its cells, not on its saved pixels', async () => {
+		const win = await manager.open( {
+			id: 'r',
+			url: 'http://example.test/wp-admin/r.php',
+			title: 'r',
+			icon: 'dashicons-admin-generic',
+			// Pixels from some other display…
+			x: 5,
+			y: 5,
+			width: 50,
+			height: 50,
+			// …and the cells that outrank them.
+			gridSpan: {
+				anchor: { col: 3, row: 0 },
+				cursor: { col: 5, row: 2 },
+				cols: 6,
+				rows: 6,
+			},
+		} );
+		const expected = spanRect( { col: 3, row: 0 }, { col: 5, row: 2 }, AREA, SIX );
+		expect( win.element.style.left ).toBe( `${ expected.x }px` );
+		expect( win.element.style.width ).toBe( `${ expected.width }px` );
+		expect( win._gridSpan ).toEqual( {
+			anchor: { col: 3, row: 0 },
+			cursor: { col: 5, row: 2 },
+			cols: 6,
+			rows: 6,
+		} );
+		// And the session carries it forward.
+		const entry = manager.snapshot().windows.find( ( w ) => w.id === 'r' );
+		expect( entry?.gridSpan ).toEqual( win._gridSpan );
 	} );
 
 	test( 'the gesture callback drives arm, shake and cancel', async () => {

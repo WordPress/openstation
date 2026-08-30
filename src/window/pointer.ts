@@ -382,6 +382,9 @@ export function handleDragStart( win: Window, e: PointerEvent ): void {
 			return;
 		}
 
+		// A free drop is the user placing the window themselves; it is
+		// off the grid from here on.
+		win._gridSpan = null;
 		win._emitChange( 'moved' );
 		const payload = {
 			windowId: win.id,
@@ -598,6 +601,9 @@ export function handleResizeStart( win: Window, e: PointerEvent ): void {
 		handle.removeEventListener( 'pointerup', onResizeEnd );
 		handle.removeEventListener( 'pointercancel', onResizeEnd );
 		handle.removeEventListener( 'lostpointercapture', onResizeEnd );
+		// Same as a free drop: a hand-resized window is no longer a
+		// span of cells.
+		win._gridSpan = null;
 		win._emitChange( 'resized' );
 		const payload = {
 			windowId: win.id,

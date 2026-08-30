@@ -270,6 +270,7 @@ import {
 	type WorkspacesApi,
 } from './workspaces';
 import { openWorkspaceWizard } from './workspaces/wizard-loader';
+import { installGridSpanReflow } from './window-manager/grid-snap';
 import { all as listWidgetDefs } from './widgets/registry';
 import { all as listWallpaperDefs } from './wallpapers/registry';
 import { getAccents } from './settings/constants';
@@ -2972,6 +2973,11 @@ function init(): void {
 			shellBody,
 			area: desktopArea,
 		} );
+		// A grid-snapped window is a fraction of the work area, so when
+		// the work area changes — a browser resize, a dock that moves —
+		// the window goes back on its cells. Subscribed right after the
+		// area is installed so the first real change is caught.
+		installGridSpanReflow( manager );
 		// The dynamic dock behavior's JS half — per-rail stamping and
 		// the fold / reveal state. Inert while every rail is static.
 		installDockBehavior( {

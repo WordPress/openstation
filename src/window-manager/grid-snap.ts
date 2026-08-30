@@ -38,8 +38,13 @@
  */
 
 import { applyFilters, doAction, HOOKS } from '../hooks';
+import type { GridSpan } from '../types';
 import type { Window } from '../window';
-import { workAreaRectOf, type WorkAreaRect } from '../work-area';
+import {
+	subscribeWorkArea,
+	workAreaRectOf,
+	type WorkAreaRect,
+} from '../work-area';
 import { abortSnapIfPending } from './snap-zones';
 import type { WindowManager } from './index';
 
@@ -97,7 +102,16 @@ export interface GridSnapSession {
 	/** The grid lines and the target highlight, inside `.os-area`. */
 	overlayEl: HTMLElement;
 	targetEl: HTMLElement;
+	/** The window being dragged — translucent while the grid is up. */
+	windowEl: HTMLElement;
 }
+
+/**
+ * Worn by the dragged window while a grid snap is armed. Class, not an
+ * inline opacity: the value is the stylesheet's to tune, and a theme
+ * can retune it.
+ */
+export const GRID_SNAPPING_CLASS = 'os-window--grid-snapping';
 
 /**
  * The grid this desk uses, after the `os.grid-snap.dimensions` filter.
@@ -263,8 +277,13 @@ export function beginGridSnap(
 		rect: cellRect( anchor, area, dims ),
 		overlayEl,
 		targetEl,
+		windowEl: win.element,
 	};
 	mgr._gridSnap = session;
+	// The window being held goes translucent for the duration: the
+	// point of the grid is seeing where the window will land, and the
+	// window itself is the one thing in the way of that view.
+	win.element.classList.add( GRID_SNAPPING_CLASS );
 	paint( session, area );
 	// Fade in on the next frame so the opacity transition has a
 	// painted starting state to run from.
@@ -375,6 +394,7 @@ function dispose( mgr: WindowManager ): GridSnapSession | null {
 		return null;
 	}
 	mgr._gridSnap = null;
+	session.windowEl.classList.remove( GRID_SNAPPING_CLASS );
 	const el = session.overlayEl;
 	el.classList.remove( 'os-grid-snap--visible' );
 	window.setTimeout( () => el.remove(), GRID_SNAP_FADE_MS );
@@ -428,6 +448,16 @@ export function commitGridSnapIfActive(
 
 	win._emitChange( 'moved' );
 	win._emitChange( 'resized' );
+	// Remembered in cells, AFTER the change events: `_emitChange`
+	// clears the span on a state change and must not eat this one.
+	// This is what lets the placement survive a browser resize — see
+	// `reflowGridSpans`.
+	win._gridSpan = {
+		anchor: { ...session.anchor },
+		cursor: { ...session.cursor },
+		cols: session.dims.cols,
+		rows: session.dims.rows,
+	};
 
 	const geometry = {
 		windowId: win.id,
@@ -452,4 +482,90 @@ export function commitGridSnapIfActive(
 		height: rect.height,
 	} );
 	return true;
+}
+
+/** The pixels a span resolves to on the work area as it is right now. */
+export function gridSpanRect( span: GridSpan, area: WorkAreaRect ): GridRect {
+	return spanRect( span.anchor, span.cursor, area, {
+		cols: span.cols,
+		rows: span.rows,
+	} );
+}
+
+/**
+ * Put one window back on its cells. Returns `true` when its geometry
+ * actually changed. A no-op for a window that is not on the grid, or
+ * not in a state where its geometry is its own (maximized, snapped,
+ * fullscreen — those own the geometry; minimized returns to what it
+ * left, which this will have kept current).
+ */
+export function reflowGridSpan( win: Window, area: WorkAreaRect ): boolean {
+	const span = win._gridSpan;
+	if ( ! span || ( win.state !== 'normal' && win.state !== 'minimized' ) ) {
+		return false;
+	}
+	const rect = gridSpanRect( span, area );
+	const el = win.element;
+	const next = {
+		left: `${ rect.x }px`,
+		top: `${ rect.y }px`,
+		width: `${ rect.width }px`,
+		height: `${ rect.height }px`,
+	};
+	if (
+		el.style.left === next.left &&
+		el.style.top === next.top &&
+		el.style.width === next.width &&
+		el.style.height === next.height
+	) {
+		return false;
+	}
+	el.style.left = next.left;
+	el.style.top = next.top;
+	el.style.width = next.width;
+	el.style.height = next.height;
+	return true;
+}
+
+/**
+ * Put every grid-snapped window back on its cells after the work area
+ * changed — a browser resize, a dock that moved or folded, a layout
+ * switch. This is the whole reason a placement is kept in cells: a
+ * 2×2 at (1,1) is a fraction of the desk, and the desk just changed
+ * size, so the pixels are re-derived and the fraction is what stays.
+ *
+ * One `os.grid-snap.reflowed` for the pass rather than a move and a
+ * resize per window: a listener wants to know the desk re-laid itself
+ * out, not to hear forty geometry events in one frame. The per-window
+ * `os-window-changed` still fires, because the session has to save
+ * the new pixels.
+ */
+export function reflowGridSpans( mgr: WindowManager ): string[] {
+	const area = workAreaRectOf( mgr._desktop );
+	const moved: string[] = [];
+	for ( const win of mgr._stack ) {
+		if ( reflowGridSpan( win, area ) ) {
+			win._emitChange( 'moved' );
+			moved.push( win.id );
+		}
+	}
+	if ( moved.length > 0 ) {
+		doAction( HOOKS.GRID_SNAP_REFLOWED, { windowIds: moved } );
+	}
+	return moved;
+}
+
+/**
+ * Keep grid placements true to the work area for the life of the
+ * shell. The work-area store is the one signal: it already fires for
+ * the desktop area resizing (which is what a browser resize is), for
+ * every rail's own size, and for a layout rebuild, and it fires only
+ * on an actual change — so this is never a poll and never a no-op.
+ *
+ * Returns the unsubscribe, for teardown and tests.
+ */
+export function installGridSpanReflow( mgr: WindowManager ): () => void {
+	return subscribeWorkArea( () => {
+		reflowGridSpans( mgr );
+	} );
 }

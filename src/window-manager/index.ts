@@ -70,6 +70,7 @@ import {
 	cancelGridSnap,
 	commitGridSnapIfActive,
 	GridSnapAnchorReason,
+	gridSpanRect,
 	resetGridSnapAnchor,
 	updateGridSnap,
 } from './grid-snap';
@@ -1157,6 +1158,23 @@ export class WindowManager {
 			desktopId: config.desktopId || this._activeDesktopId,
 		};
 
+		// A restored grid placement outranks the restored pixels: the
+		// pixels are from whatever display the session was saved on,
+		// the cells are a fraction of THIS desk. Resolved now, against
+		// the live work area, so the window is born on its cells
+		// rather than landing on stale pixels and jumping a frame
+		// later.
+		if ( config.gridSpan ) {
+			const onGrid = gridSpanRect(
+				config.gridSpan,
+				workAreaRectOf( this._desktop ),
+			);
+			fullConfig.x = onGrid.x;
+			fullConfig.y = onGrid.y;
+			fullConfig.width = onGrid.width;
+			fullConfig.height = onGrid.height;
+		}
+
 		this.cascadeIndex++;
 
 		// Construct a `Window` only once BOTH lazy bundles are
@@ -1185,6 +1203,17 @@ export class WindowManager {
 			ensureShellOverlaysLoaded( shellOverlaysBundleUrl() ),
 		] );
 		const win = system.createWindow( fullConfig );
+		// The restored placement stays with the window so the next
+		// work-area change puts it back on the same cells, and the
+		// next session save carries it forward again.
+		if ( config.gridSpan ) {
+			win._gridSpan = {
+				anchor: { ...config.gridSpan.anchor },
+				cursor: { ...config.gridSpan.cursor },
+				cols: config.gridSpan.cols,
+				rows: config.gridSpan.rows,
+			};
+		}
 
 		win.onFocusRequest = ( w: Window ) => {
 			// Mid-cascade, the window asking for focus is one the
@@ -2552,6 +2581,9 @@ export class WindowManager {
 				width: snap.width,
 				height: snap.height,
 				...( externalTabs.length > 0 ? { externalTabs } : {} ),
+				// Cells, alongside the pixels. On restore the cells win,
+				// which is what keeps a 2×2 a 2×2 on a different display.
+				...( w._gridSpan ? { gridSpan: { ...w._gridSpan } } : {} ),
 			};
 		} );
 		// Same two exclusions as `persistable` — a focused id pointing
