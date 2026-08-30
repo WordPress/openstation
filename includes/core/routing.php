@@ -16,6 +16,7 @@
  *
  * Functions in this file:
  *   - {@see openstation_url_is_same_admin()}      — same-origin admin URL predicate
+ *   - {@see openstation_url_is_page_less_admin_php()} — "renders nothing" predicate
  *   - {@see openstation_resolve_admin_target()}   — admin filename → URL resolver
  *   - {@see openstation_admin_target_allowlist()} — wp-admin filename allowlist
  *   - {@see openstation_is_chromeless_request()}  — chromeless request detection
@@ -72,6 +73,50 @@ function openstation_url_is_same_admin( $url ) {
 	$url_path   = isset( $parts['path'] ) ? $parts['path'] : '';
 	$admin_path = isset( $admin_parts['path'] ) ? $admin_parts['path'] : '/wp-admin/';
 	return 0 === strpos( $url_path, $admin_path );
+}
+
+/**
+ * Whether `$url` addresses `wp-admin/admin.php` with no `page` arg.
+ *
+ * `admin.php` is core's plugin-screen bootstrap, and the allowlist in
+ * {@see openstation_admin_target_allowlist()} accepts it for exactly
+ * that reason — every plugin screen in the admin lives there. Without
+ * a `page` arg, though, there is no screen to dispatch to: core falls
+ * through the last `else` in `wp-admin/admin.php`, fires a couple of
+ * back-compat `load-*` hooks, and returns 200 with an empty body,
+ * having required neither `admin-header.php` nor `admin-footer.php`.
+ *
+ * So the URL resolves, passes every same-origin and allowlist check,
+ * and renders nothing. Callers that are about to turn a URL into a
+ * window or a redirect target use this to refuse it and fall back.
+ *
+ * Accepts absolute URLs and request-URI-shaped paths, mirroring
+ * {@see openstation_url_is_shell_screen()}, whose guard this sits
+ * beside at every call site.
+ *
+ * @param string $url URL or path to test.
+ * @return bool
+ */
+function openstation_url_is_page_less_admin_php( $url ) {
+	if ( ! is_string( $url ) || '' === $url ) {
+		return false;
+	}
+
+	$path = wp_parse_url( $url, PHP_URL_PATH );
+	if ( ! is_string( $path ) || 'admin.php' !== basename( $path ) ) {
+		return false;
+	}
+
+	$query = wp_parse_url( $url, PHP_URL_QUERY );
+	if ( ! is_string( $query ) || '' === $query ) {
+		return true;
+	}
+
+	// `page=` present but empty is the same nothing: core only sets
+	// `$plugin_page` from a non-empty `?page=`. An array (`page[]=x`)
+	// is not a slug either.
+	parse_str( $query, $args );
+	return ! isset( $args['page'] ) || ! is_string( $args['page'] ) || '' === $args['page'];
 }
 
 /**

@@ -3,9 +3,13 @@
  *
  * Initializes the desktop shell, restores the user's session if one
  * exists, opens the current admin page otherwise, wires session
- * persistence to change events, and normalizes the browser URL to
- * `/openstation/` so the address bar shows a single stable location
- * regardless of which admin page is open in which window.
+ * persistence to change events, and strips the shell screen's consumed
+ * boot args from the address bar so a reload re-resolves against the
+ * live session instead of replaying the target it was reached by.
+ *
+ * The URL is deliberately left on the shell screen rather than
+ * normalised to `/openstation/` — see the note next to the file-drop
+ * sentinel for why that normalisation was reverted.
  */
 
 // Install the `wp.os.myWordpress` early-registration stub so
@@ -40,6 +44,7 @@ import type { DestructiveAdminActionEntry } from './destructive-admin-actions';
 import { OsSettings } from './settings';
 import { getExitOpenStationTileDef } from './exit-openstation';
 import { deriveWindowId, urlMatchKey } from './utils';
+import { shellUrlWithoutBootArgs } from './shell-url';
 // Static import — `setUserEditTarget` MUST run before the user-edit
 // window's render callback reads the target, and the render callback
 // fires synchronously inside `openById` (`manager.open` → `hydrateNative`
@@ -2106,6 +2111,21 @@ function init(): void {
 	const desktopArea = document.getElementById( 'os-area' );
 	if ( ! desktopArea ) {
 		return;
+	}
+
+	// The boot args have already been read — server-side, into
+	// `config.currentPage` and `config.fromPortalIntent`. Drop them from
+	// the address bar so they stay one-shot: left there, every reload
+	// re-opens the target on top of the restored session. Done before
+	// anything can throw, so a boot failure can't leave them pinned.
+	const cleanUrl = shellUrlWithoutBootArgs( window.location.href );
+	if ( cleanUrl ) {
+		try {
+			window.history.replaceState( window.history.state, '', cleanUrl );
+		} catch {
+			// A sandboxed or file:// document refuses replaceState.
+			// Cosmetic here — the shell has its config either way.
+		}
 	}
 
 	const manager = new WindowManager( desktopArea );

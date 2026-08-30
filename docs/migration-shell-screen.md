@@ -54,11 +54,50 @@ on `is_admin()` at load time.
 | `/wp-admin/edit.php` (plain GET, user enabled) | rendered in place with the shell over it | 302 → the shell screen with `target=/wp-admin/edit.php&intent=1` (one hop) |
 | `/wp-admin/network/sites.php` (not allowlisted) | 302 → `/openstation/?target=…` → focused window | unchanged, ending on the shell screen |
 | `index.php?desktop_mode_portal=1` (old bookmark, PWA start URL) | rendered in place | 302 → the shell screen with that URL as `target` |
+| `/wp-admin/admin.php` (no `page` arg) | rendered in place | 302 → `admin.php?page=openstation`; the screen resolves the entry itself |
 
 `desktop_mode_portal` and `desktop_mode_portal_intent` stay frozen (see
 AGENTS.md). They are aliases now: a URL carrying them is the desktop's
 pre-screen address and redirects to the screen. Nothing that emits them
 breaks; nothing new should emit them.
+
+## `target` and `intent` are one-shot
+
+They are an instruction — "open this page first" — not an address. The
+screen reads them once, on the request that carries them, and hands the
+answer to the shell as `currentPage` and `fromPortalIntent`; nothing on
+the JS side reads them from the URL. So the shell strips both with a
+`history.replaceState()` at boot, leaving the canonical
+`admin.php?page=openstation`.
+
+Left in place they stop being one-shot: every reload re-reads the same
+`target`, and `intent=1` re-opens that page on top of the restored
+session — for the life of the tab, and past it through a bookmark or a
+browser session restore. `openstation_shell_boot_target()` has always
+documented that a reload of the bare screen URL re-resolves against the
+live session; stripping the args is what makes the address bar hold that
+URL.
+
+The address bar is **not** normalised to `/openstation/`. That was tried
+and reverted: the portal path costs an HTTP redirect on every reload,
+which the user sees as an address-bar flash. Dropping two consumed args
+stays on the same screen and the same route.
+
+### A target must be a page, not just an allowlisted file
+
+`openstation_admin_target_allowlist()` matches filenames and cannot see
+the query. `admin.php` is on it — every plugin screen in the admin lives
+there — but `admin.php` **without** a `page` arg is core's bootstrap with
+nothing to dispatch to: it falls through the last `else` in
+`wp-admin/admin.php` and answers 200 with an empty body. A URL like that
+resolves, passes every same-origin and allowlist check, and renders a
+window showing nothing.
+
+`openstation_sanitize_portal_target()` refuses it, beside the guard that
+refuses the shell screen itself, and the caller falls back to the entry
+resolver: the saved session's focused window, else the default window,
+else the Dashboard. A plugin extending the allowlist gets the same
+treatment for free — the check is on the resolved URL, not the list.
 
 `currentPage`, `fromPortal` and `fromPortalIntent` in `openStationConfig`
 keep their meaning. `currentPage` is the validated `target` (else the

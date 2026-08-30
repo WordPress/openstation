@@ -632,5 +632,18 @@ function openstation_sanitize_portal_target( $raw ) {
 		return '';
 	}
 
+	// `admin.php` is a bootstrap, not a page. Without a `page` arg core
+	// falls through the last `else` in `wp-admin/admin.php`, never
+	// requires `admin-header.php`, and answers 200 with an empty body —
+	// so the URL becomes a window showing nothing. The allowlist above
+	// matches filenames and cannot see the query, which is why the
+	// check belongs here, beside the shell-screen one: both are URLs
+	// that resolve but must not become a target. Returning '' hands the
+	// caller back to the entry resolver (session's focused window, else
+	// the default window, else the Dashboard).
+	if ( openstation_url_is_page_less_admin_php( $target ) ) {
+		return '';
+	}
+
 	return $target;
 }

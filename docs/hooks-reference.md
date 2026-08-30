@@ -1859,6 +1859,8 @@ add_filter( 'openstation_native_window_tab_wrap_padding', function ( $padding, $
 
 The wp-admin filename allowlist consulted when resolving portal `target=` query args — only files on the list may resolve as a window target. Filtered values are restricted to strings, lowercased, and deduplicated after the filter runs.
 
+The list matches filenames and never sees the query, so passing it is necessary but not sufficient: a resolved target is refused when it names the shell screen (it would boot a second desktop inside a window) or a `page`-less `admin.php` (core's plugin-screen bootstrap with nothing to dispatch to — it answers 200 with an empty body). Either way the caller falls back to the entry resolver: the saved session's focused window, else the default window, else the Dashboard.
+
 ```php
 apply_filters( 'openstation_admin_target_allowlist', string[] $files );
 ```
