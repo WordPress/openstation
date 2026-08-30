@@ -320,6 +320,44 @@ export class WidgetLayer {
 	}
 
 	/**
+	 * Show exactly these widgets, without touching what the user
+	 * enabled.
+	 *
+	 * The workspace primitive. A workspace says which widgets belong on
+	 * its desk, and switching between two of them must not rewrite the
+	 * user's own column — the same rule the navigation follows, where a
+	 * narrowed desk adds `'hidden'` placements to a computed map and
+	 * leaves `navPlacement` byte-identical. So this mounts and unmounts
+	 * and writes nothing: leave the workspace, or delete it, and the
+	 * column the user built is still there.
+	 *
+	 * Passing `null` restores that column — every id in the persisted
+	 * enabled list, and nothing else.
+	 *
+	 * An id no registry entry claims is skipped rather than reported: a
+	 * workspace naming a widget whose plugin has since been deactivated
+	 * should be a shorter column, not a broken desk. It comes back on
+	 * its own when the plugin does, because the profile still names it.
+	 *
+	 * @param ids Widgets to show, or `null` for the user's own list.
+	 */
+	public setVisibleIds( ids: readonly string[] | null ): void {
+		const want = new Set( ids ?? this.enabledIds );
+		for ( const id of Array.from( this.mounted.keys() ) ) {
+			if ( ! want.has( id ) ) {
+				this.unmountById( id );
+			}
+		}
+		for ( const id of want ) {
+			if ( this.mounted.has( id ) || ! registry.get( id ) ) {
+				continue;
+			}
+			this.mountById( id );
+		}
+		this.paintEmptyState();
+	}
+
+	/**
 	 * Tear down every widget. Called on shell unload via `pagehide`
 	 * so intervals / RAF loops stop before the beacon flush.
 	 */

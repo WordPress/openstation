@@ -1187,6 +1187,23 @@ export const HOOKS = {
 	 * smaller than `windowCount`, fall back to the original.
 	 */
 	ARRANGE_TILE_DIMENSIONS: 'os.arrange.tile.dimensions',
+	/** Action, fires before columns computes + applies new positions. Payload `{ windowCount, cols }`. */
+	ARRANGE_COLUMNS_STARTING: 'os.arrange.columns.starting',
+	/** Action, fires after columns has positioned every window. Payload `{ windowCount, cols }`. */
+	ARRANGE_COLUMNS_APPLIED: 'os.arrange.columns.applied',
+	/**
+	 * Filter on the share of the work area the focus arrangement gives
+	 * its lead window, as a fraction between 0 and 1. Receives the
+	 * default (0.64) plus a context arg `{ windowCount, areaWidth,
+	 * areaHeight }`. Returns outside `[0.3, 0.9]` fall back to the
+	 * default — a lead window that leaves no room for the stack, or no
+	 * room for itself, is not an arrangement.
+	 */
+	ARRANGE_FOCUS_SPLIT: 'os.arrange.focus.split',
+	/** Action, fires before focus computes + applies new positions. Payload `{ windowCount, split }`. */
+	ARRANGE_FOCUS_STARTING: 'os.arrange.focus.starting',
+	/** Action, fires after focus has positioned every window. Payload `{ windowCount, split }`. */
+	ARRANGE_FOCUS_APPLIED: 'os.arrange.focus.applied',
 	/** Action, fires when snap-to-grid is toggled. Payload `{ enabled }`. */
 	ARRANGE_SNAP_CHANGED: 'os.arrange.snap.changed',
 	/**
@@ -1277,6 +1294,38 @@ export const HOOKS = {
 	 * default (first desktop's id) and the full `Desktop[]` list.
 	 */
 	PRIMARY_DESKTOP_ID: 'os.primary-desktop-id',
+
+	// ------------------------------------------------------------------
+	// Workspaces — a desktop plus the answer to "what is this desk for".
+	//
+	// A workspace carries which apps belong on it, which windows it
+	// opens with, and how they are arranged. See `docs/workspaces.md`.
+	// ------------------------------------------------------------------
+	/**
+	 * Filter on the list of workspace templates offered in the
+	 * switcher. Receives `WorkspacePreset[]` — the three shipped desks
+	 * plus anything `registerWorkspacePreset()` added. Return a shorter
+	 * list to drop a template the site has no use for, or a longer one
+	 * to add your own.
+	 */
+	WORKSPACE_PRESETS: 'os.workspaces.presets',
+	/**
+	 * Filter on a profile the moment it is read off a template, before
+	 * the desktop is created. Receives the `WorkspaceProfile` plus the
+	 * `WorkspacePreset` it came from. The place to add an app to a
+	 * shipped desk without redefining it.
+	 */
+	WORKSPACE_PROFILE: 'os.workspaces.profile',
+	/** Action, fires when a workspace's profile changes. Payload `{ desktopId, profile }`. */
+	WORKSPACE_UPDATED: 'os.workspaces.updated',
+	/**
+	 * Action, fires once per workspace, after its launch list has
+	 * opened and its layout has been applied. Payload
+	 * `{ desktopId, opened, layout }` — `opened` is the number of
+	 * windows the launch list actually produced, which is smaller than
+	 * the list whenever an app it names is not installed.
+	 */
+	WORKSPACE_PROVISIONED: 'os.workspaces.provisioned',
 
 	// ------------------------------------------------------------------
 	// Batch window operations.

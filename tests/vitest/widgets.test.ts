@@ -1270,4 +1270,84 @@ describe( 'widgets/layer', () => {
 
 		layer.disposeAll();
 	} );
+
+	/*
+	 * `setVisibleIds` — the workspace primitive.
+	 *
+	 * The rule it exists to hold is that it NEVER writes: a workspace
+	 * says which widgets belong on its desk, and switching between two
+	 * of them must leave the column the user built exactly as it was.
+	 * The localStorage assertions below are the whole guarantee.
+	 */
+	test( 'setVisibleIds mounts and unmounts without writing the enabled list', async () => {
+		const registry = await import( '../../src/widgets/registry' );
+		const { WidgetLayer } = await import( '../../src/widgets/layer' );
+		for ( const id of [ 'clock', 'stats', 'notes' ] ) {
+			registry.register( {
+				id,
+				label: id,
+				description: '',
+				icon: 'dashicons-star-filled',
+				mount: ( body ) => {
+					body.textContent = id;
+					return () => undefined;
+				},
+			} );
+		}
+		window.localStorage.setItem(
+			'desktop-mode-widgets',
+			'["clock","notes"]',
+		);
+		const layer = new WidgetLayer( host, '' );
+		layer.hydrate();
+		const mountedIds = (): string[] =>
+			Array.from(
+				host.querySelectorAll< HTMLElement >( '.os-widgets__card' ),
+			).map( ( el ) => el.dataset.widgetId ?? '' );
+		expect( mountedIds().sort() ).toEqual( [ 'clock', 'notes' ] );
+
+		// A workspace takes the column over. `stats` mounts even though
+		// the user never enabled it: a workspace's column is a layout,
+		// not a filter over what they picked.
+		layer.setVisibleIds( [ 'stats' ] );
+		expect( mountedIds() ).toEqual( [ 'stats' ] );
+		expect( layer.getEnabledIds().sort() ).toEqual( [ 'clock', 'notes' ] );
+		expect( window.localStorage.getItem( 'desktop-mode-widgets' ) ).toBe(
+			'["clock","notes"]',
+		);
+
+		// Leaving it hands the column back, unchanged.
+		layer.setVisibleIds( null );
+		expect( mountedIds().sort() ).toEqual( [ 'clock', 'notes' ] );
+		expect( window.localStorage.getItem( 'desktop-mode-widgets' ) ).toBe(
+			'["clock","notes"]',
+		);
+
+		layer.disposeAll();
+	} );
+
+	test( 'setVisibleIds skips an id no plugin registers', async () => {
+		const registry = await import( '../../src/widgets/registry' );
+		const { WidgetLayer } = await import( '../../src/widgets/layer' );
+		registry.register( {
+			id: 'clock',
+			label: 'Clock',
+			description: '',
+			icon: 'dashicons-clock',
+			mount: () => () => undefined,
+		} );
+		window.localStorage.setItem( 'desktop-mode-widgets', '[]' );
+		const layer = new WidgetLayer( host, '' );
+		layer.hydrate();
+
+		// A workspace naming a widget whose plugin was deactivated
+		// should be a shorter column, not a broken desk.
+		layer.setVisibleIds( [ 'clock', 'gone-with-its-plugin' ] );
+
+		expect(
+			host.querySelectorAll( '.os-widgets__card' ),
+		).toHaveLength( 1 );
+
+		layer.disposeAll();
+	} );
 } );

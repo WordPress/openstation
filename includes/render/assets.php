@@ -90,6 +90,7 @@ function openstation_enqueue_assets() {
 	wp_enqueue_style( 'os-dock' );
 	wp_enqueue_style( 'os-dock-peek' );
 	wp_enqueue_style( 'os-notch' );
+	wp_enqueue_style( 'os-workspaces' );
 	wp_enqueue_style( 'os-shortcuts' );
 	wp_enqueue_style( 'os-openstation-layout' );
 	wp_enqueue_style( 'os-files' );
@@ -663,6 +664,15 @@ function openstation_enqueue_assets() {
 			// right-click "hide from dock / desktop" menu. Injected by
 			// the main bundle's loader shim on the first right-click.
 			'itemVisibilityMenuBundleUrl'   => $lazy_bundle_url( 'item-visibility-menu' ),
+			// URL of the workspace-editor lazy bundle — the modal
+			// behind "Edit this workspace…". Injected by the main
+			// bundle's loader shim on first open.
+			'workspaceEditorBundleUrl'      => $lazy_bundle_url( 'workspace-editor' ),
+			// Server-side view of the workspace templates, so a plugin
+			// can add or drop one from PHP. The client merges these
+			// with its own built-ins by id — see
+			// `src/workspaces/server-sync.ts`.
+			'workspacePresets'              => openstation_workspace_presets(),
 			// URL of the release-card lazy bundle — the vinyl core-
 			// update announcement. Injected by `maybeShowUpdate()` only
 			// when a core update is actually pending.

@@ -27,6 +27,18 @@ export interface Desktop {
 	id: string;
 	/** Human-readable label, shown beneath the overview top-bar tile. */
 	label: string;
+	/**
+	 * What this desk is FOR: which apps belong on it, which windows it
+	 * opens with, how they are arranged.
+	 *
+	 * Optional, and absent is meaningful: a desktop with no profile is
+	 * a plain Space, behaving exactly as it did before workspaces
+	 * existed. Every session saved before them is in that state, which
+	 * is why nothing in the shell may assume the field is there.
+	 *
+	 * @see import('./workspaces/types').WorkspaceProfile
+	 */
+	profile?: import( './workspaces/types' ).WorkspaceProfile;
 }
 
 /**
@@ -1884,6 +1896,16 @@ export interface DesktopConfig {
 	 * stylesheet reference; no JS is ever involved.
 	 */
 	serverDesktopThemes?: DesktopThemeServerEntry[];
+	/**
+	 * Workspace templates the server knows about
+	 * (`openstation_workspace_presets`). The one registry in the family
+	 * that carries no script: a template is metadata plus two token
+	 * lists, so `src/workspaces/server-sync.ts` reconciles it
+	 * synchronously. An entry naming a client built-in says only "this
+	 * one still exists"; an entry with an id of its own is registered
+	 * whole, so a plugin can ship a workspace from PHP alone.
+	 */
+	workspacePresets?: import( './workspaces/server-sync' ).WorkspacePresetServerEntry[];
 	/**
 	 * Whether this user may upload / delete desktop themes. Gates the
 	 * management controls in OS Settings → Themes; picking a theme is

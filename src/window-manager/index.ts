@@ -52,7 +52,9 @@ import {
 	switchDesktop,
 	type SwitchDesktopOptions,
 } from './desktops';
-import { cascade, tile } from './arrange';
+// `focus` is already a method on the manager (raise a window), so the
+// arrangement is imported under a name that says which one it is.
+import { cascade, columns, focus as focusLayout, tile } from './arrange';
 import {
 	getSnapConfig,
 	loadSnapEnabled,
@@ -2316,6 +2318,12 @@ export class WindowManager {
 	}
 	public tile(): void {
 		tile( this );
+	}
+	public columns(): void {
+		columns( this );
+	}
+	public focusLayout(): void {
+		focusLayout( this );
 	}
 	public isSnapEnabled(): boolean {
 		return this._snapEnabled;

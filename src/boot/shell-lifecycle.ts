@@ -30,6 +30,12 @@ export function wireSessionEvents( save: () => void ): void {
 	addAction( HOOKS.DESKTOP_CLOSED, 'desktop-mode/session-save', save );
 	addAction( HOOKS.DESKTOP_SWITCHED, 'desktop-mode/session-save', save );
 	addAction( HOOKS.DESKTOP_RENAMED, 'desktop-mode/session-save', save );
+	// A workspace's profile — which apps it shows, what it opens with,
+	// how it arranges them — rides on the desktop and is persisted with
+	// it. Without this, editing a workspace would look like it worked
+	// and be gone on reload.
+	addAction( HOOKS.WORKSPACE_UPDATED, 'desktop-mode/session-save', save );
+	addAction( HOOKS.WORKSPACE_PROVISIONED, 'desktop-mode/session-save', save );
 }
 
 /**

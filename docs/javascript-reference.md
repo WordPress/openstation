@@ -1681,6 +1681,11 @@ Multiple "Spaces" with windows distributed across them. Each desktop has an id, 
 interface Desktop {
     id:    string;
     label: string;
+    // A desktop with a job — which apps show on it, what it opens
+    // with, how they are arranged. Absent means a plain Space, which
+    // is what every session saved before workspaces carries.
+    // See docs/workspaces.md.
+    profile?: WorkspaceProfile;
 }
 
 manager.getDesktops(): Desktop[];          // every desktop, in order
@@ -1692,6 +1697,10 @@ manager.switchDesktop( id ): void;         // make `id` the active desktop
 manager.closeDesktop( id ): void;          // delete `id`; its windows migrate to the active desktop
 manager.renameDesktop( id, label ): boolean;  // relabel `id`; see below
 ```
+
+**Workspaces** build on this: a desktop plus the answer to what it is FOR — which apps show on it, which widgets sit on it, what it looks like, what it opens with. `wp.os.workspaces.*` creates them, `wp.os.workspaces.registerPreset()` adds a template, and three ship (Woo, Sensei, Longreads). The picker is an `<os-select>` in the **overview top bar** — overview is already the Spaces surface, and the desk itself belongs to the user's windows.
+
+The one rule the whole feature rests on: **a workspace is a view, never a write.** The rails, the widget column and the appearance are all computed on top of the user's own state and restored the moment they leave, so a workspace they delete costs them nothing. See **[Workspaces](./workspaces.md)** for the whole surface: it is documented there rather than here because it is a layer above Spaces, not a change to them.
 
 Lifecycle hooks fire on each operation: `HOOKS.DESKTOP_CREATED`, `HOOKS.DESKTOP_CLOSED { desktopId, migratedTo }`, `HOOKS.DESKTOP_SWITCHED { from, to }`, `HOOKS.DESKTOP_RENAMED { desktopId, label, previousLabel }`.
 
@@ -4749,6 +4758,25 @@ Each user can have multiple desktops, each owning its own set of windows. Switch
 | `os.os.renamed` | action | Stable | `{ desktopId, label, previousLabel }` — the user renamed a desktop |
 
 Closing the last remaining desktop is rejected silently (the shell needs at least one). Closing a desktop that has windows migrates them to the surviving desktop on its left (falling back to the right when the leftmost is closed) — no work is silently destroyed.
+
+#### Workspaces
+
+A desktop plus the answer to what it is FOR. Full surface in **[Workspaces](./workspaces.md)**; the hooks:
+
+| Hook | Kind | Status | Payload |
+|---|---|---|---|
+| `os.workspaces.presets` | filter | Stable | `WorkspacePreset[]` — the switcher's template list. Return a shorter list to drop one, a longer one to add your own. |
+| `os.workspaces.profile` | filter | Stable | `WorkspaceProfile`, context `WorkspacePreset` — fires as a profile is read off a template, before the desktop is created |
+| `os.workspaces.updated` | action | Stable | `{ desktopId, profile }` — a workspace's profile changed; `profile` is `null` when it became a plain Space |
+| `os.workspaces.provisioned` | action | Stable | `{ desktopId, opened, layout }` — the launch list has run. Fires once per workspace, never once per visit |
+
+#### Arrangements added by workspaces
+
+| Hook | Kind | Status | Payload |
+|---|---|---|---|
+| `os.arrange.columns.starting` / `.applied` | action | Stable | `{ windowCount, cols }` — full-height columns, side by side. Hands off to `tile()` past four windows |
+| `os.arrange.focus.starting` / `.applied` | action | Stable | `{ windowCount, split }` — one window leading, the rest stacked in the margin |
+| `os.arrange.focus.split` | filter | Stable | filters the lead window's share of the work area (default `0.64`); context `{ windowCount, areaWidth, areaHeight }`. Returns outside `[0.3, 0.9]` fall back to the default rather than being clamped |
 
 #### Widgets
 

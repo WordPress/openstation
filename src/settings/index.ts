@@ -557,9 +557,104 @@ export class OsSettings implements SettingsCtx {
 		applyDesktopTheme( this.state.desktopTheme );
 	}
 
-	public save( opts: { windowId?: string } = {} ): void {
-		saveState( this.state, opts );
+	/**
+	 * The user's own settings, before any workspace override, or `null`
+	 * when none is active.
+	 *
+	 * The whole reason a workspace can repaint the desk without editing
+	 * anything: `state` becomes the overridden view, this keeps what to
+	 * hand back on the way out, and {@link save} writes from here.
+	 */
+	private baseState: OsSettingsState | null = null;
+
+	/** The active override itself, for {@link save} to compare against. */
+	private overridePatch: Partial< OsSettingsState > | null = null;
+
+	/**
+	 * Paint the desk with a workspace's appearance, or hand it back.
+	 *
+	 * A view, never a write. The user's settings survive intact in
+	 * {@link baseState} and go back on screen the moment they leave the
+	 * workspace — the same rule the navigation and the widget column
+	 * follow, and for the same reason: a workspace they delete must
+	 * cost them nothing.
+	 *
+	 * Re-entrant by design. Switching straight from one overridden desk
+	 * to another restores the base first, so the second workspace's
+	 * patch lands on the user's settings rather than on the first
+	 * workspace's.
+	 *
+	 * @param patch Sparse appearance patch, or `null` to restore.
+	 */
+	public setWorkspaceAppearance(
+		patch: Partial< OsSettingsState > | null,
+	): void {
+		const base = this.baseState ?? this.state;
+		const empty = ! patch || Object.keys( patch ).length === 0;
+		if ( empty ) {
+			// Nothing to restore and nothing to apply — a plain Space
+			// following a plain Space, which is most switches.
+			if ( ! this.baseState ) {
+				return;
+			}
+			this.state = base;
+			this.baseState = null;
+			this.overridePatch = null;
+		} else {
+			this.baseState = base;
+			this.overridePatch = patch;
+			this.state = { ...base, ...patch };
+		}
+		this.apply();
 		this._notify();
+		// A panel already on screen is showing the values that just
+		// changed under it.
+		if ( this._lastRenderedBody?.isConnected ) {
+			this.renderPanel( this._lastRenderedBody );
+		}
+	}
+
+	/**
+	 * Persist the user's settings.
+	 *
+	 * With a workspace appearance active, an overridden key is written
+	 * back as the USER's value, not the workspace's — unless they
+	 * changed it since, in which case that edit is theirs and is saved.
+	 * Without this, opening Preferences on a Woo desk and pressing save
+	 * would quietly adopt the workspace's wallpaper as the user's own.
+	 */
+	public save( opts: { windowId?: string } = {} ): void {
+		saveState( this._persistableState(), opts );
+		this._notify();
+	}
+
+	/** {@link state}, with untouched workspace overrides unwound. */
+	private _persistableState(): OsSettingsState {
+		const base = this.baseState;
+		const patch = this.overridePatch;
+		if ( ! base || ! patch ) {
+			return this.state;
+		}
+		// `Record<string, unknown>` for the write: indexing a mapped
+		// union by a runtime key narrows the assignable type to
+		// `never`, and there is no key-by-key form of this loop that
+		// does not restate the whole settings schema.
+		const out = { ...this.state } as unknown as Record< string, unknown >;
+		const source = patch as Record< string, unknown >;
+		const original = base as unknown as Record< string, unknown >;
+		for ( const key of Object.keys( source ) ) {
+			// Still holding exactly what the workspace asked for → the
+			// user never touched it, so their own value stands.
+			// Anything else is an edit they made on this desk, and it
+			// is theirs to keep. Reference identity is the right test
+			// for the object-valued keys too: `state` was built by
+			// spreading the patch in, so an untouched key IS the
+			// patch's value, and any edit replaces it.
+			if ( out[ key ] === source[ key ] ) {
+				out[ key ] = original[ key ];
+			}
+		}
+		return out as unknown as OsSettingsState;
 	}
 
 	private _notify(): void {

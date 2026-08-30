@@ -353,6 +353,10 @@ Each entry in `windows[]` carries the window's id, geometry, state, desktop assi
 
 Param **keys** are filtered to `[A-Za-z0-9_-]` and capped, deliberately *not* passed through `sanitize_key()` — that lowercases, and every param name in the shell is camelCase, so `customerId` would be stored as `customerid` and the client's read would come back `undefined`. A window that restores blank with the data sitting right there under a name nobody looks up is worse than one that doesn't restore at all.
 
+Each entry in `desktops[]` carries an id and a label, plus an optional **`profile`** — the [workspace](./workspaces.md) it is: which apps show on it, which widgets sit on it, what it looks like, which windows it opens with, how they are arranged, and whether its launch list has already run. Absent is meaningful and is what every session written before workspaces carries, so nothing in the shell may assume the field is there. `openstation_sanitize_workspace_profile()` bounds it (128 app ids, 32 widget ids, 12 launch entries, a known layout, a `#rrggbb` colour or nothing, and an appearance patch restricted to an allowlist of visual settings keys); app ids are filtered the same camelCase-preserving way window params are, and for the same reason.
+
+None of it is applied by writing: the rails are recomputed with extra `'hidden'` placements, the widget column is mounted and unmounted, and the appearance is layered over the user's settings and lifted on exit — so a workspace never mutates `navPlacement`, the enabled-widget list, or `desktop_mode_os_settings`.
+
 `updated` is the write-ordering key, in **epoch milliseconds** (`Date.now()`). The server rejects a POST whose `updated` is lower than the stored one, so a slow request that was snapshotted earlier cannot clobber newer state — the case that matters is a `keepalive` fetch still in flight when the `pagehide` beacon fires. Equal values tie and the first processed wins. Omit the field and the server stamps it for you; sessions written before the field moved to milliseconds carry a seconds value, which any current write outranks.
 
 ### What comes back, and how

@@ -28,6 +28,14 @@ import {
 } from './desktops';
 import type { Window } from '../window';
 import { updateFullscreenBodyClass } from '../window/dom';
+// Leaf import, not the `../workspaces` barrel: the bar needs the one
+// control builder, and the barrel also carries the public API and the
+// editor loader.
+import {
+	buildWorkspaceOverviewControl,
+	restoreWorkspace,
+	workspaceCanRestore,
+} from '../workspaces/overview-control';
 import type { WindowManager } from './index';
 
 /**
@@ -511,6 +519,21 @@ function buildOverviewTopBar( mgr: WindowManager ): HTMLElement {
 	const bar = document.createElement( 'div' );
 	bar.className = 'os-overview-top-bar';
 
+	// The workspace picker leads the bar. `null` until the shell has
+	// installed the workspace operations — and in any test that builds
+	// a bar without one — so the bar stays exactly what it was.
+	const picker = buildWorkspaceOverviewControl(
+		mgr._desktops,
+		mgr._activeDesktopId,
+		{
+			onSwitch: ( id ) => exitOverviewToDesktop( mgr, id ),
+			onCreated: ( id ) => exitOverviewToDesktop( mgr, id ),
+		},
+	);
+	if ( picker ) {
+		bar.appendChild( picker );
+	}
+
 	const list = document.createElement( 'div' );
 	list.className = 'os-overview-top-bar__list';
 	bar.appendChild( list );
@@ -579,8 +602,24 @@ function buildDesktopTile( mgr: WindowManager, d: Desktop ): HTMLElement {
 	// translators: %s is the desktop label
 	tile.setAttribute( 'aria-label', sprintf( __( 'Switch to %s' ), d.label ) );
 
+	// A workspace wears its identity here too, not only on the
+	// switcher pill: overview is where the user compares desks, and a
+	// row of identical grey tiles is exactly where "which one was the
+	// shop?" gets asked. A plain Space has no profile and stays plain.
+	const profile = d.profile;
+	if ( profile?.color ) {
+		wrapper.style.setProperty( '--os-workspace-accent', profile.color );
+		tile.classList.add( 'os-overview-top-bar__tile--tinted' );
+	}
+
 	const preview = document.createElement( 'span' );
 	preview.className = 'os-overview-top-bar__tile-preview';
+	if ( profile?.icon ) {
+		const glyph = document.createElement( 'span' );
+		glyph.className = `os-overview-top-bar__tile-glyph dashicons ${ profile.icon }`;
+		glyph.setAttribute( 'aria-hidden', 'true' );
+		preview.appendChild( glyph );
+	}
 	// Window-count badge inside the preview area gives users a quick
 	// "what's on this desktop" hint without needing real per-window
 	// thumbnails (a follow-up enhancement). Includes native windows —
@@ -651,6 +690,46 @@ function buildDesktopTile( mgr: WindowManager, d: Desktop ): HTMLElement {
 	wrapper.appendChild( tile );
 	wrapper.appendChild( renameBtn );
 	wrapper.appendChild( closeBtn );
+
+	// Restore — put the desk back the way its workspace defines it:
+	// reopen its windows, remount its column, repaint its look, re-run
+	// its arrangement.
+	//
+	// A button of its own BELOW the tile, not over its preview: the
+	// preview is the tile's picture of the desk, and a bar laid across
+	// it covers the one thing the tile is there to show. Not a third
+	// corner circle either — the corners are spoken for by rename and
+	// close, and this is the one action here that needs a word.
+	//
+	// Only on a desk that has something to restore — see
+	// `workspaceCanRestore`. A button that visibly does nothing is
+	// worse than no button.
+	if ( workspaceCanRestore( d ) ) {
+		const restoreBtn = document.createElement( 'button' );
+		restoreBtn.type = 'button';
+		restoreBtn.className = 'os-overview-top-bar__tile-restore';
+		// The visible word is short; the accessible name is the whole
+		// sentence, because "Restore" alone could be read as the
+		// session restore the shell does at boot.
+		restoreBtn.setAttribute(
+			'aria-label',
+			// translators: %s is the workspace name.
+			sprintf( __( 'Restore %s — reopen its windows, widgets and look' ), d.label ),
+		);
+		restoreBtn.title = restoreBtn.getAttribute( 'aria-label' ) ?? '';
+		restoreBtn.innerHTML = `${ osIconSvg( 'windows', { size: 12 } ) }<span>${ __( 'Restore' ) }</span>`;
+		restoreBtn.addEventListener( 'click', ( e: MouseEvent ) => {
+			e.preventDefault();
+			e.stopPropagation();
+			if ( restoreWorkspace( d.id ) ) {
+				// Land on the desk being restored — the windows are
+				// opening there, and watching that happen from inside
+				// overview would show a grid mid-rebuild.
+				exitOverview( mgr );
+			}
+		} );
+		wrapper.appendChild( restoreBtn );
+	}
 
 	return wrapper;
 }

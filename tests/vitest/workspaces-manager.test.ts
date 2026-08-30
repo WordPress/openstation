@@ -1,0 +1,525 @@
+/**
+ * Workspace operations: create, edit, provision, and the server sync.
+ *
+ * The one with real ordering in it is provisioning, and the rule it
+ * exists to pin is that the launch list runs **once per workspace, not
+ * once per visit**. Close a window the workspace opened, switch away,
+ * come back — the desk stays as the user left it. Get that wrong and
+ * the workspace refuses to be tidied.
+ */
+
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import { WindowManager } from '../../src/window-manager';
+import type { NavItem } from '../../src/nav';
+import {
+	applyServerWorkspacePresets,
+	applyWorkspaceView,
+	applyWorkspaceWidgets,
+	captureWorkspaceWindows,
+	createWorkspace,
+	findWorkspacePreset,
+	getWorkspaceProfile,
+	installWorkspacePresetSync,
+	listWorkspacePresets,
+	provisionWorkspace,
+	setWorkspaceProfile,
+	absoluteAdminUrl,
+	type WorkspaceDeps,
+} from '../../src/workspaces';
+import {
+	clearHooksStub,
+	installHooksStub,
+	recordActions,
+	type FakeWpHooks,
+} from './helpers/hooks-stub';
+
+const ADMIN_URL = 'http://example.test/wp-admin/';
+
+const WORKSPACE_HOOKS = [
+	'os.workspaces.updated',
+	'os.workspaces.provisioned',
+] as const;
+
+function navItems(): NavItem[] {
+	return [
+		{
+			id: 'edit-php',
+			kind: 'core',
+			title: 'Posts',
+			icon: 'dashicons-admin-post',
+			menu: {
+				id: 'edit.php',
+				title: 'Posts',
+				icon: 'dashicons-admin-post',
+				url: 'edit.php',
+				badge: 0,
+				submenu: [],
+				isCore: true,
+			},
+		},
+		{
+			id: 'my-panel',
+			kind: 'app',
+			title: 'My panel',
+			icon: 'dashicons-admin-generic',
+			windowId: 'my-panel',
+		},
+	];
+}
+
+describe( 'workspace operations', () => {
+	let hooks: FakeWpHooks;
+	let desktop: HTMLElement;
+	let manager: WindowManager;
+	let deps: WorkspaceDeps;
+	let openNative: ReturnType< typeof vi.fn >;
+	let refreshLayout: ReturnType< typeof vi.fn >;
+	let setVisibleWidgets: ReturnType< typeof vi.fn >;
+	let setAppearance: ReturnType< typeof vi.fn >;
+
+	beforeEach( () => {
+		hooks = installHooksStub();
+		desktop = document.createElement( 'div' );
+		Object.defineProperty( desktop, 'getBoundingClientRect', {
+			value: () =>
+				( {
+					left: 0,
+					top: 0,
+					right: 1600,
+					bottom: 900,
+					width: 1600,
+					height: 900,
+					x: 0,
+					y: 0,
+					toJSON: () => ( {} ),
+				} ) as DOMRect,
+		} );
+		Object.defineProperty( desktop, 'clientWidth', {
+			value: 1600,
+			configurable: true,
+		} );
+		Object.defineProperty( desktop, 'clientHeight', {
+			value: 900,
+			configurable: true,
+		} );
+		document.body.appendChild( desktop );
+		manager = new WindowManager( desktop );
+		openNative = vi.fn();
+		refreshLayout = vi.fn();
+		setVisibleWidgets = vi.fn();
+		setAppearance = vi.fn();
+		deps = {
+			manager,
+			getNavItems: navItems,
+			adminUrl: ADMIN_URL,
+			deriveWindowId: ( url: string ) =>
+				url.replace( /[^a-z0-9]+/gi, '-' ).toLowerCase(),
+			openNative,
+			refreshLayout,
+			setVisibleWidgets,
+			setAppearance,
+		};
+	} );
+
+	afterEach( () => {
+		for ( const win of manager.getAll() ) {
+			win.destroy();
+		}
+		desktop.remove();
+		clearHooksStub();
+		vi.restoreAllMocks();
+	} );
+
+	test( 'create() from a template names, profiles and activates the desk', () => {
+		const before = manager.getDesktops().length;
+		const created = createWorkspace( deps, { preset: 'longreads' } );
+
+		expect( manager.getDesktops() ).toHaveLength( before + 1 );
+		expect( created.label ).toBe( 'Longreads' );
+		expect( manager.getActiveDesktopId() ).toBe( created.id );
+
+		const profile = getWorkspaceProfile( manager, created.id );
+		expect( profile?.preset ).toBe( 'longreads' );
+		expect( profile?.layout ).toBe( 'focus' );
+		// The rails answer to the profile, so a write has to repaint.
+		expect( refreshLayout ).toHaveBeenCalled();
+	} );
+
+	test( 'create() without a template leaves a plain Space', () => {
+		const created = createWorkspace( deps, { activate: false } );
+		expect( getWorkspaceProfile( manager, created.id ) ).toBeNull();
+		// Not activated: the caller said so.
+		expect( manager.getActiveDesktopId() ).not.toBe( created.id );
+	} );
+
+	test( 'the profile filter can extend a template before it lands', () => {
+		hooks.addFilter(
+			'os.workspaces.profile',
+			'test/extend',
+			( profile: unknown ) => ( {
+				...( profile as Record< string, unknown > ),
+				icon: 'dashicons-star-filled',
+			} ),
+		);
+		const created = createWorkspace( deps, { preset: 'woo' } );
+		expect( getWorkspaceProfile( manager, created.id )?.icon ).toBe(
+			'dashicons-star-filled',
+		);
+	} );
+
+	test( 'setProfile( null ) turns a workspace back into a plain Space', () => {
+		const created = createWorkspace( deps, { preset: 'woo' } );
+		const log = recordActions( hooks, WORKSPACE_HOOKS );
+
+		expect( setWorkspaceProfile( deps, created.id, null ) ).toBe( true );
+		expect( getWorkspaceProfile( manager, created.id ) ).toBeNull();
+		expect(
+			log.some( ( e ) => e.name === 'os.workspaces.updated' ),
+		).toBe( true );
+	} );
+
+	test( 'setProfile on an unknown desktop reports failure', () => {
+		expect( setWorkspaceProfile( deps, 'desktop-nope', null ) ).toBe(
+			false,
+		);
+	} );
+
+	test( 'provision opens the launch list once and never again', async () => {
+		const open = vi
+			.spyOn( manager, 'open' )
+			.mockResolvedValue( {} as never );
+		const created = createWorkspace( deps, {
+			profile: {
+				preset: '',
+				icon: 'dashicons-desktop',
+				color: '',
+				apps: { mode: 'all', ids: [] },
+				windows: [
+					{ match: 'edit.php', url: 'post-new.php' },
+					{ match: 'my-panel' },
+				],
+				layout: 'free',
+				provisioned: false,
+			},
+		} );
+
+		provisionWorkspace( deps, created.id );
+
+		expect( open ).toHaveBeenCalledTimes( 1 );
+		expect( open.mock.calls[ 0 ][ 0 ] ).toMatchObject( {
+			url: `${ ADMIN_URL }post-new.php`,
+			desktopId: created.id,
+		} );
+		// An entry with no url opens the matched item's native window.
+		expect( openNative ).toHaveBeenCalledWith( 'my-panel' );
+		expect(
+			getWorkspaceProfile( manager, created.id )?.provisioned,
+		).toBe( true );
+
+		// Second pass: the user has since closed one of these, and the
+		// desk must stay as they left it.
+		open.mockClear();
+		openNative.mockClear();
+		provisionWorkspace( deps, created.id );
+		expect( open ).not.toHaveBeenCalled();
+		expect( openNative ).not.toHaveBeenCalled();
+	} );
+
+	test( 'provision skips a launch whose app is not installed', () => {
+		const open = vi
+			.spyOn( manager, 'open' )
+			.mockResolvedValue( {} as never );
+		const created = createWorkspace( deps, {
+			profile: {
+				preset: '',
+				icon: 'dashicons-desktop',
+				color: '',
+				apps: { mode: 'all', ids: [] },
+				windows: [ { match: 'woocommerce', url: 'admin.php?page=wc' } ],
+				layout: 'free',
+				provisioned: false,
+			},
+		} );
+
+		provisionWorkspace( deps, created.id );
+
+		expect( open ).not.toHaveBeenCalled();
+	} );
+
+	test( 'a forced provision runs the list again', async () => {
+		const open = vi
+			.spyOn( manager, 'open' )
+			.mockResolvedValue( {} as never );
+		const created = createWorkspace( deps, {
+			profile: {
+				preset: '',
+				icon: 'dashicons-desktop',
+				color: '',
+				apps: { mode: 'all', ids: [] },
+				windows: [ { match: 'edit.php', url: 'edit.php' } ],
+				layout: 'free',
+				provisioned: true,
+			},
+		} );
+
+		// Not forced: already provisioned, so nothing happens.
+		provisionWorkspace( deps, created.id );
+		expect( open ).not.toHaveBeenCalled();
+
+		// Forced — the user pressed "Open them now".
+		provisionWorkspace( deps, created.id, { force: true } );
+		expect( open ).toHaveBeenCalledTimes( 1 );
+	} );
+
+	test( 'capture shapes the open windows into a launch list', async () => {
+		const created = createWorkspace( deps, { preset: 'longreads' } );
+		await manager.open( {
+			id: 'edit-php',
+			url: `${ ADMIN_URL }edit.php`,
+			title: 'Posts',
+			icon: 'dashicons-admin-post',
+		} );
+		await manager.open( {
+			id: 'my-panel',
+			url: '#my-panel',
+			title: 'My panel',
+			icon: 'dashicons-admin-generic',
+			native: true,
+		} );
+
+		const captured = captureWorkspaceWindows( manager, created.id );
+
+		expect( captured ).toEqual( [
+			{
+				match: 'edit-php',
+				title: 'Posts',
+				url: `${ ADMIN_URL }edit.php`,
+			},
+			// A native window carries no url — its `#slug` is a marker,
+			// never somewhere to navigate — so it reopens through the
+			// registry instead.
+			{ match: 'my-panel', title: 'My panel' },
+		] );
+	} );
+
+	test( 'capture ignores windows on other desks', async () => {
+		const first = manager.getActiveDesktopId();
+		await manager.open( {
+			id: 'edit-php',
+			url: `${ ADMIN_URL }edit.php`,
+			title: 'Posts',
+			icon: 'dashicons-admin-post',
+		} );
+		const other = createWorkspace( deps, {} );
+
+		expect( captureWorkspaceWindows( manager, other.id ) ).toEqual( [] );
+		expect( captureWorkspaceWindows( manager, first ) ).toHaveLength( 1 );
+	} );
+
+	test( 'provision is a no-op on a plain Space', () => {
+		const open = vi
+			.spyOn( manager, 'open' )
+			.mockResolvedValue( {} as never );
+		provisionWorkspace( deps, manager.getActiveDesktopId() );
+		expect( open ).not.toHaveBeenCalled();
+	} );
+
+	test( 'the desk’s look follows it, and hands back on a plain Space', () => {
+		const woo = createWorkspace( deps, {
+			profile: {
+				preset: '',
+				icon: 'dashicons-desktop',
+				color: '',
+				apps: { mode: 'all', ids: [] },
+				appearance: { wallpaper: 'mono', accent: 'rose' },
+				windows: [],
+				layout: 'free',
+				provisioned: true,
+			},
+		} );
+
+		applyWorkspaceView( deps, woo.id );
+		expect( setAppearance ).toHaveBeenCalledWith( {
+			wallpaper: 'mono',
+			accent: 'rose',
+		} );
+
+		setAppearance.mockClear();
+		applyWorkspaceView( deps, manager.getDesktops()[ 0 ].id );
+		expect( setAppearance ).toHaveBeenCalledWith( null );
+	} );
+
+	test( 'the look is applied before the widgets', () => {
+		// The column reads the accent and the dock placement the
+		// appearance just set; the other order paints it twice.
+		const order: string[] = [];
+		setAppearance.mockImplementation( () => order.push( 'appearance' ) );
+		setVisibleWidgets.mockImplementation( () => order.push( 'widgets' ) );
+
+		applyWorkspaceView( deps, manager.getActiveDesktopId() );
+
+		expect( order ).toEqual( [ 'appearance', 'widgets' ] );
+	} );
+
+	test( 'the widget column follows the desk, and only mounts', () => {
+		const woo = createWorkspace( deps, {
+			profile: {
+				preset: '',
+				icon: 'dashicons-desktop',
+				color: '',
+				apps: { mode: 'all', ids: [] },
+				widgets: { mode: 'only', ids: [ 'desktop-mode/site-views' ] },
+				windows: [],
+				layout: 'free',
+				provisioned: true,
+			},
+		} );
+
+		applyWorkspaceWidgets( deps, woo.id );
+		expect( setVisibleWidgets ).toHaveBeenCalledWith( [
+			'desktop-mode/site-views',
+		] );
+
+		// A plain Space hands the column back to the user — `null`,
+		// never an empty list, which would blank what they built.
+		setVisibleWidgets.mockClear();
+		applyWorkspaceWidgets( deps, manager.getDesktops()[ 0 ].id );
+		expect( setVisibleWidgets ).toHaveBeenCalledWith( null );
+	} );
+
+	test( 'a profile with no widgets field hands the column back', () => {
+		// Every profile written before workspaces had widgets is in
+		// this shape. It must mean "the user's own column", not "an
+		// empty one".
+		const desk = createWorkspace( deps, {
+			profile: {
+				preset: '',
+				icon: 'dashicons-desktop',
+				color: '',
+				apps: { mode: 'all', ids: [] },
+				windows: [],
+				layout: 'free',
+				provisioned: true,
+			},
+		} );
+		setVisibleWidgets.mockClear();
+		applyWorkspaceWidgets( deps, desk.id );
+		expect( setVisibleWidgets ).toHaveBeenCalledWith( null );
+	} );
+
+	test( 'editing a desk you are not on leaves the visible column alone', () => {
+		const other = createWorkspace( deps, { activate: false } );
+		manager.switchDesktop( manager.getDesktops()[ 0 ].id );
+		setVisibleWidgets.mockClear();
+
+		setWorkspaceProfile( deps, other.id, {
+			preset: '',
+			icon: 'dashicons-desktop',
+			color: '',
+			apps: { mode: 'all', ids: [] },
+			widgets: { mode: 'only', ids: [ 'clock' ] },
+			windows: [],
+			layout: 'free',
+			provisioned: true,
+		} );
+
+		// The editor can be opened on any desk; repainting the column
+		// in front of the user with another desk's widgets would be a
+		// write they did not ask for.
+		expect( setVisibleWidgets ).not.toHaveBeenCalled();
+	} );
+
+	test( 'a relative launch url resolves against wp-admin', () => {
+		expect( absoluteAdminUrl( 'edit.php?post_type=product', ADMIN_URL ) ).toBe(
+			`${ ADMIN_URL }edit.php?post_type=product`,
+		);
+		// An absolute one is a plugin's deliberate choice.
+		expect(
+			absoluteAdminUrl( 'https://other.test/x', ADMIN_URL ),
+		).toBe( 'https://other.test/x' );
+	} );
+} );
+
+describe( 'template server sync', () => {
+	let teardown: ( () => void ) | null = null;
+
+	beforeEach( () => {
+		installHooksStub();
+		teardown = installWorkspacePresetSync();
+	} );
+
+	afterEach( () => {
+		teardown?.();
+		teardown = null;
+		clearHooksStub();
+	} );
+
+	test( 'before the server has spoken, every built-in stands', () => {
+		// A shell booting without the config key must not show an
+		// empty switcher.
+		expect( listWorkspacePresets().map( ( p ) => p.id ) ).toEqual( [
+			'woo',
+			'sensei',
+			'longreads',
+		] );
+	} );
+
+	test( 'a template the server no longer names is dropped', () => {
+		applyServerWorkspacePresets( [
+			{ id: 'sensei' },
+			{ id: 'longreads' },
+		] );
+		// The PHP filter removed Woo — a blog with no store.
+		expect( listWorkspacePresets().map( ( p ) => p.id ) ).toEqual( [
+			'sensei',
+			'longreads',
+		] );
+		expect( findWorkspacePreset( 'woo' ) ).toBeNull();
+	} );
+
+	test( 'a server template with an id of its own is registered whole', () => {
+		applyServerWorkspacePresets( [
+			{ id: 'woo' },
+			{ id: 'sensei' },
+			{ id: 'longreads' },
+			{
+				id: 'support',
+				label: 'Support',
+				icon: 'dashicons-sos',
+				layout: 'columns',
+				apps: [ 'edit-comments.php' ],
+				windows: [ { match: 'edit-comments.php' } ],
+				order: 40,
+			},
+		] );
+		const support = findWorkspacePreset( 'support' );
+		expect( support ).toMatchObject( {
+			label: 'Support',
+			layout: 'columns',
+			apps: [ 'edit-comments.php' ],
+		} );
+		// Order 40 puts it after the three shipped desks.
+		expect( listWorkspacePresets().at( -1 )?.id ).toBe( 'support' );
+	} );
+
+	test( 'a server template survives a payload that still names it', () => {
+		applyServerWorkspacePresets( [ { id: 'woo' }, { id: 'support' } ] );
+		applyServerWorkspacePresets( [ { id: 'woo' }, { id: 'support' } ] );
+		expect( findWorkspacePreset( 'support' ) ).not.toBeNull();
+	} );
+
+	test( 'a server template retires when its plugin is deactivated', () => {
+		applyServerWorkspacePresets( [ { id: 'woo' }, { id: 'support' } ] );
+		expect( findWorkspacePreset( 'support' ) ).not.toBeNull();
+		applyServerWorkspacePresets( [ { id: 'woo' } ] );
+		expect( findWorkspacePreset( 'support' ) ).toBeNull();
+	} );
+
+	test( 'a malformed layout on a server template falls back', () => {
+		applyServerWorkspacePresets( [
+			{ id: 'woo' },
+			{ id: 'weird', layout: 'diagonal' },
+		] );
+		expect( findWorkspacePreset( 'weird' )?.layout ).toBe( 'free' );
+	} );
+} );

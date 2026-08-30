@@ -249,10 +249,19 @@ function openstation_sanitize_session( $session ) {
 			if ( strlen( $d_label ) > 64 ) {
 				$d_label = substr( $d_label, 0, 64 );
 			}
-			$clean_desktops[] = array(
+			$entry = array(
 				'id'    => $d_id,
 				'label' => $d_label,
 			);
+			// A desktop's workspace profile — which apps it shows, what
+			// it opens with, how they are arranged. Optional, and only
+			// written when there is one, so a plain Space keeps the
+			// shape every session saved before workspaces existed had.
+			$profile = openstation_sanitize_workspace_profile( isset( $d['profile'] ) ? $d['profile'] : null );
+			if ( null !== $profile ) {
+				$entry['profile'] = $profile;
+			}
+			$clean_desktops[] = $entry;
 			$desktop_ids[]    = $d_id;
 			if ( count( $clean_desktops ) >= OPENSTATION_SESSION_MAX_DESKTOPS ) {
 				break;

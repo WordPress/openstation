@@ -1,0 +1,80 @@
+/*
+ * Workspaces — the editor modal.
+ *
+ * The workspace PICKER is not here: it is a control in the overview top
+ * bar and is styled with the rest of that bar in
+ * `window-overview.css`. That is deliberate and worth stating, because
+ * the obvious alternative — a pill floating at the corner of the
+ * desk — is the wrong shape. Overview is already the Spaces surface,
+ * and the desk belongs to the user's windows, not to shell chrome
+ * hovering over them.
+ *
+ * `<os-modal>` draws the dialog surface and owns the scrim, the focus
+ * trap and Escape; everything here is the body's own stacking.
+ */
+
+.os-workspace-editor__body {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+}
+
+.os-workspace-editor__apps {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding-top: 6px;
+	border-top: 1px solid var( --os-ui-border, rgba( 255, 251, 255, 0.14 ) );
+}
+
+/*
+ * The checklist scrolls itself rather than growing the dialog: a site
+ * with forty plugins would otherwise produce a modal taller than the
+ * viewport, with the Save button below the fold.
+ */
+.os-workspace-editor__app-list {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	max-height: min( 320px, 40vh );
+	overflow-y: auto;
+	padding: 4px;
+	border: 1px solid var( --os-ui-border, rgba( 255, 251, 255, 0.14 ) );
+	border-radius: 8px;
+}
+
+.os-workspace-editor__opens {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	padding-top: 6px;
+	border-top: 1px solid var( --os-ui-border, rgba( 255, 251, 255, 0.14 ) );
+}
+
+.os-workspace-editor__opens-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.os-workspace-editor__hint {
+	margin: 0;
+	color: var( --os-ui-fg-muted, rgba( 255, 251, 255, 0.66 ) );
+	font-size: 12px;
+	line-height: 1.5;
+}
+
+.os-workspace-editor__footer {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+/*
+ * The delete button leads the row and everything else is pushed to the
+ * trailing edge — the destructive action sits apart from the pair the
+ * user is actually choosing between.
+ */
+.os-workspace-editor__footer > os-button[ variant='danger' ] {
+	margin-inline-end: auto;
+}
