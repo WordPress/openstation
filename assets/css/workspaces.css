@@ -60,8 +60,17 @@
 	   scrollbar under a wizard is a worse symptom than a clipped
 	   edge — it reads as the whole dialog being broken. */
 	overflow-x: hidden;
-	/* Room for focus rings on the last control. */
-	padding: 2px 2px 6px;
+	/*
+	 * Room for the rings. A selected chip's ring sits 4px OUTSIDE its
+	 * box, and a focused field's bloom further still; a clipping pane
+	 * with 2px of padding cut the leading edge off both. The inline
+	 * padding pays for the ring and the matching negative margin gives
+	 * the width back, so the pane's content still lines up with the
+	 * dialog's own edges — the room is inside the clip, not inside the
+	 * layout.
+	 */
+	padding: 6px 8px 8px;
+	margin-inline: -8px;
 }
 
 /*
@@ -161,6 +170,12 @@
 .os-workspace-wizard__icon-swatch os-icon {
 	position: absolute;
 	inset: 0;
+	/* The component sizes its host to the glyph (16px), and `inset: 0`
+	   on a 16px box pins it to the top-left corner rather than
+	   stretching it. Own the box, then let the component's own flex
+	   centring put the glyph in the middle of it. */
+	width: 100%;
+	height: 100%;
 	display: flex;
 	align-items: center;
 	justify-content: center;
