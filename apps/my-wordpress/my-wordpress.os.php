@@ -533,6 +533,285 @@ function detail( Os $os, array $section, $id ) {
 	);
 }
 
+// -------------------------------------------------- navigate-into
+
+/**
+ * The detail FOLDER a post navigates into: the rendered article plus
+ * one folder tile per related surface — Author, Contributors,
+ * Comments, Categories, Tags, Attached media, Revisions — with live
+ * counts. WP Explorer's detail view, as data.
+ *
+ * @param Os                  $os      Host handle.
+ * @param array<string,mixed> $section Section descriptor.
+ * @param int                 $id      Post id.
+ * @return array<string,mixed>|null Null when the post vanished.
+ */
+function folder( Os $os, array $section, $id ) {
+	$post = get_post( $id );
+	if ( ! $post || $post->post_type !== $section['post_type'] ) {
+		return null;
+	}
+
+	$contributors = function_exists( 'openstation_my_wordpress_post_contributors_payload' )
+		? openstation_my_wordpress_post_contributors_payload( $id )
+		: array();
+	$categories   = get_the_terms( $post, 'category' );
+	$categories   = is_array( $categories ) ? $categories : array();
+	$tags         = get_the_terms( $post, 'post_tag' );
+	$tags         = is_array( $tags ) ? $tags : array();
+	$media_count  = count(
+		get_children(
+			array(
+				'post_parent' => $id,
+				'post_type'   => 'attachment',
+				'fields'      => 'ids',
+			)
+		)
+	) + ( has_post_thumbnail( $post ) ? 1 : 0 );
+	$comments     = (int) get_comments_number( $post );
+	$revisions    = wp_revisions_enabled( $post ) ? count( wp_get_post_revisions( $id, array( 'fields' => 'ids' ) ) ) : 0;
+
+	$folders   = array();
+	$folders[] = array(
+		'relation' => 'author',
+		'label'    => __( 'Author', 'desktop-mode' ),
+		'icon'     => 'dashicons-admin-users',
+		'count'    => 1,
+	);
+	if ( array() !== $contributors ) {
+		$folders[] = array(
+			'relation' => 'contributors',
+			'label'    => __( 'Contributors', 'desktop-mode' ),
+			'icon'     => 'dashicons-groups',
+			'count'    => count( $contributors ),
+		);
+	}
+	$folders[] = array(
+		'relation' => 'comments',
+		'label'    => __( 'Comments', 'desktop-mode' ),
+		'icon'     => 'dashicons-admin-comments',
+		'count'    => $comments,
+		'disabled' => 0 === $comments && 'closed' === $post->comment_status,
+	);
+	if ( array() !== $categories ) {
+		$folders[] = array(
+			'relation' => 'categories',
+			'label'    => __( 'Categories', 'desktop-mode' ),
+			'icon'     => 'dashicons-category',
+			'count'    => count( $categories ),
+		);
+	}
+	if ( array() !== $tags ) {
+		$folders[] = array(
+			'relation' => 'tags',
+			'label'    => __( 'Tags', 'desktop-mode' ),
+			'icon'     => 'dashicons-tag',
+			'count'    => count( $tags ),
+		);
+	}
+	$folders[] = array(
+		'relation' => 'media',
+		'label'    => __( 'Attached media', 'desktop-mode' ),
+		'icon'     => 'dashicons-format-image',
+		'count'    => $media_count,
+	);
+	$folders[] = array(
+		'relation' => 'revisions',
+		'label'    => __( 'Revisions', 'desktop-mode' ),
+		'icon'     => 'dashicons-backup',
+		'count'    => $revisions,
+	);
+
+	return array(
+		'id'      => $id,
+		'title'   => '' !== $post->post_title ? (string) $post->post_title : __( '(no title)', 'desktop-mode' ),
+		'status'  => (string) $post->post_status,
+		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Applying Core's own content pipeline, not declaring a hook.
+		'content' => (string) apply_filters( 'the_content', (string) $post->post_content ),
+		'folders' => $folders,
+	);
+}
+
+/**
+ * The rows inside one relation sub-folder. Uniform shape: `id`,
+ * `title`, `subtitle`, `icon` | `thumb`, `editUrl`.
+ *
+ * @param Os                  $os       Host handle.
+ * @param array<string,mixed> $section  Section descriptor.
+ * @param int                 $id       Post id.
+ * @param string              $relation Relation slug.
+ * @return array{label:string,rows:array[]}|null
+ */
+function sub( Os $os, array $section, $id, $relation ) {
+	$post = get_post( $id );
+	if ( ! $post || $post->post_type !== $section['post_type'] ) {
+		return null;
+	}
+	$rows  = array();
+	$label = '';
+
+	$user_row = static function ( $user_id, $name = '', $avatar = '' ) {
+		$user = get_userdata( (int) $user_id );
+		return array(
+			'id'       => (int) $user_id,
+			'title'    => '' !== $name ? $name : ( $user ? (string) $user->display_name : sprintf( '#%d', $user_id ) ),
+			'subtitle' => $user ? (string) $user->user_email : '',
+			'thumb'    => '' !== $avatar ? $avatar : (string) get_avatar_url( (int) $user_id, array( 'size' => 96 ) ),
+			'editUrl'  => current_user_can( 'edit_user', (int) $user_id )
+				? admin_url( 'user-edit.php?user_id=' . (int) $user_id )
+				: '',
+		);
+	};
+
+	switch ( $relation ) {
+		case 'author':
+			$label  = __( 'Author', 'desktop-mode' );
+			$rows[] = $user_row( (int) $post->post_author );
+			break;
+		case 'contributors':
+			$label = __( 'Contributors', 'desktop-mode' );
+			if ( function_exists( 'openstation_my_wordpress_post_contributors_payload' ) ) {
+				foreach ( openstation_my_wordpress_post_contributors_payload( $id ) as $person ) {
+					$rows[] = $user_row( $person['userId'], $person['userName'], $person['userAvatarUrl'] );
+				}
+			}
+			break;
+		case 'comments':
+			$label = __( 'Comments', 'desktop-mode' );
+			foreach ( get_comments(
+				array(
+					'post_id' => $id,
+					'number'  => 100,
+				)
+			) as $comment ) {
+				$rows[] = array(
+					'id'       => (int) $comment->comment_ID,
+					'title'    => (string) $comment->comment_author,
+					'subtitle' => wp_trim_words( wp_strip_all_tags( (string) $comment->comment_content ), 12 ),
+					'icon'     => 'dashicons-admin-comments',
+					'editUrl'  => current_user_can( 'edit_comment', (int) $comment->comment_ID )
+						? admin_url( 'comment.php?action=editcomment&c=' . (int) $comment->comment_ID )
+						: '',
+				);
+			}
+			break;
+		case 'categories':
+		case 'tags':
+			$taxonomy = 'tags' === $relation ? 'post_tag' : 'category';
+			$label    = 'tags' === $relation ? __( 'Tags', 'desktop-mode' ) : __( 'Categories', 'desktop-mode' );
+			$terms    = get_the_terms( $post, $taxonomy );
+			foreach ( is_array( $terms ) ? $terms : array() as $term ) {
+				$rows[] = array(
+					'id'       => (int) $term->term_id,
+					'title'    => (string) $term->name,
+					'subtitle' => sprintf(
+						/* translators: %s: entry count. */
+						_n( '%s entry', '%s entries', (int) $term->count, 'desktop-mode' ),
+						number_format_i18n( (int) $term->count )
+					),
+					'icon'     => 'tags' === $relation ? 'dashicons-tag' : 'dashicons-category',
+					'editUrl'  => current_user_can( 'manage_categories' )
+						? admin_url( 'term.php?taxonomy=' . $taxonomy . '&tag_ID=' . (int) $term->term_id )
+						: '',
+				);
+			}
+			break;
+		case 'media':
+			$label = __( 'Attached media', 'desktop-mode' );
+			$ids   = get_children(
+				array(
+					'post_parent' => $id,
+					'post_type'   => 'attachment',
+					'fields'      => 'ids',
+				)
+			);
+			$ids   = array_map( 'intval', array_keys( $ids ) );
+			if ( has_post_thumbnail( $post ) ) {
+				$ids[] = (int) get_post_thumbnail_id( $post );
+			}
+			foreach ( array_unique( $ids ) as $media_id ) {
+				$media = get_post( $media_id );
+				if ( ! $media ) {
+					continue;
+				}
+				$rows[] = array(
+					'id'       => $media_id,
+					'title'    => '' !== $media->post_title ? (string) $media->post_title : sprintf( '#%d', $media_id ),
+					'subtitle' => (string) $media->post_mime_type,
+					'thumb'    => (string) wp_get_attachment_image_url( $media_id, 'medium' ),
+					'icon'     => 'dashicons-format-image',
+					'editUrl'  => current_user_can( 'edit_post', $media_id )
+						? admin_url( 'post.php?post=' . $media_id . '&action=edit' )
+						: '',
+				);
+			}
+			break;
+		case 'revisions':
+			$label = __( 'Revisions', 'desktop-mode' );
+			foreach ( wp_get_post_revisions( $id ) as $revision ) {
+				$rows[] = array(
+					'id'       => (int) $revision->ID,
+					'title'    => (string) wp_post_revision_title_expanded( $revision, false ),
+					'subtitle' => (string) get_the_author_meta( 'display_name', (int) $revision->post_author ),
+					'icon'     => 'dashicons-backup',
+					'editUrl'  => current_user_can( 'edit_post', $id )
+						? admin_url( 'revision.php?revision=' . (int) $revision->ID )
+						: '',
+				);
+			}
+			break;
+		default:
+			return null;
+	}
+
+	return array(
+		'label' => $label,
+		'rows'  => $rows,
+	);
+}
+
+/**
+ * The choices the Edit… modal offers: the site's authors and the
+ * category terms. Only computed while a post-kind section is open.
+ *
+ * @return array{authors:array[],categories:array[]}
+ */
+function edit_choices() {
+	$authors = array();
+	foreach ( get_users(
+		array(
+			'capability' => array( 'edit_posts' ),
+			'number'     => 100,
+			'orderby'    => 'display_name',
+			'fields'     => array( 'ID', 'display_name' ),
+		)
+	) as $user ) {
+		$authors[] = array(
+			'id'   => (int) $user->ID,
+			'name' => (string) $user->display_name,
+		);
+	}
+	$categories = array();
+	foreach ( get_terms(
+		array(
+			'taxonomy'   => 'category',
+			'hide_empty' => false,
+			'number'     => 100,
+		)
+	) as $term ) {
+		if ( $term instanceof \WP_Term ) {
+			$categories[] = array(
+				'id'   => (int) $term->term_id,
+				'name' => (string) $term->name,
+			);
+		}
+	}
+	return array(
+		'authors'    => $authors,
+		'categories' => $categories,
+	);
+}
+
 /**
  * The preview-action descriptors the acting user may see — the same
  * `openstation_my_wordpress_preview_actions` pipeline WP Explorer
@@ -580,6 +859,8 @@ return App::define( 'my-wordpress' )
 			'group'    => '',
 			'section'  => '',
 			'item'     => 0,
+			'into'     => 0,
+			'relation' => '',
 			'query'    => '',
 			'page'     => 1,
 			'sort'     => '',
@@ -601,13 +882,22 @@ return App::define( 'my-wordpress' )
 		static function ( State $state, Os $os, array $args ) {
 			$state->set( 'group', isset( $args['group'] ) ? (string) $args['group'] : '' );
 			$state->set( 'section', isset( $args['section'] ) ? (string) $args['section'] : '' );
-			$state->set( 'item', 0 )->set( 'query', '' )->set( 'page', 1 )
+			$state->set( 'item', 0 )->set( 'into', 0 )->set( 'relation', '' )
+				->set( 'query', '' )->set( 'page', 1 )
 				->set( 'sort', '' )->reset( 'selected' );
 		}
 	)
 	->action(
 		'back',
 		static function ( State $state ) {
+			if ( '' !== (string) $state->get( 'relation' ) ) {
+				$state->set( 'relation', '' );
+				return;
+			}
+			if ( (int) $state->get( 'into' ) > 0 ) {
+				$state->set( 'into', 0 );
+				return;
+			}
 			if ( (int) $state->get( 'item' ) > 0 ) {
 				$state->set( 'item', 0 );
 				return;
@@ -624,6 +914,21 @@ return App::define( 'my-wordpress' )
 		'open',
 		static function ( State $state, Os $os, array $args ) {
 			$state->set( 'item', (int) ( $args['item'] ?? 0 ) );
+		}
+	)
+	->action(
+		'into',
+		static function ( State $state, Os $os, array $args ) {
+			$state->set( 'into', (int) ( $args['item'] ?? 0 ) )
+				->set( 'relation', '' )->set( 'item', 0 );
+		}
+	)
+	->action(
+		'relation',
+		static function ( State $state, Os $os, array $args ) {
+			$relation = (string) ( $args['relation'] ?? '' );
+			$allowed  = array( 'author', 'contributors', 'comments', 'categories', 'tags', 'media', 'revisions' );
+			$state->set( 'relation', in_array( $relation, $allowed, true ) ? $relation : '' );
 		}
 	)
 	->action(
@@ -686,6 +991,28 @@ return App::define( 'my-wordpress' )
 		}
 	)
 	->action(
+		'sub-open',
+		static function ( State $state, Os $os, array $args ) {
+			$section = section_of( $os, (string) $state->get( 'section' ) );
+			$into    = (int) $state->get( 'into' );
+			$rel     = (string) $state->get( 'relation' );
+			if ( ! $section || $into <= 0 || '' === $rel ) {
+				return;
+			}
+			// The URL is recomputed here from the row id — never taken
+			// from the client — so it carries the same capability gates
+			// the sub-list applied.
+			$payload = sub( $os, $section, $into, $rel );
+			$wanted  = (int) ( $args['row'] ?? 0 );
+			foreach ( (array) ( $payload['rows'] ?? array() ) as $row ) {
+				if ( $wanted === (int) $row['id'] && '' !== $row['editUrl'] ) {
+					$os->open_url( (string) $row['editUrl'], (string) $row['title'] );
+					return;
+				}
+			}
+		}
+	)
+	->action(
 		'quick-edit',
 		static function ( State $state, Os $os, array $args ) {
 			$section = section_of( $os, (string) $state->get( 'section' ) );
@@ -694,9 +1021,17 @@ return App::define( 'my-wordpress' )
 			}
 			$status   = isset( $args['status'] ) ? (string) $args['status'] : '';
 			$comments = isset( $args['comments'] ) ? (string) $args['comments'] : '';
+			$author   = (int) ( $args['author'] ?? 0 );
+			$sticky   = isset( $args['sticky'] ) ? (string) $args['sticky'] : '';
+			$add_cats = array_filter( array_map( 'intval', (array) ( $args['categories'] ?? array() ) ) );
+			$add_tags = array_filter( array_map( 'trim', explode( ',', (string) ( $args['tags'] ?? '' ) ) ) );
 			if ( ! in_array( $status, array( '', 'publish', 'pending', 'draft', 'private' ), true )
 				|| ! in_array( $comments, array( '', 'open', 'closed' ), true )
-				|| ( '' === $status && '' === $comments ) ) {
+				|| ! in_array( $sticky, array( '', 'sticky', 'not-sticky' ), true ) ) {
+				return;
+			}
+			if ( '' === $status && '' === $comments && 0 === $author && '' === $sticky
+				&& array() === $add_cats && array() === $add_tags ) {
 				return;
 			}
 			$updated = array();
@@ -708,6 +1043,9 @@ return App::define( 'my-wordpress' )
 				if ( 'publish' === $status && ! $os->can( 'publish_post', $id ) ) {
 					continue;
 				}
+				if ( $author > 0 && ! $os->can( 'edit_others_posts' ) ) {
+					continue;
+				}
 				$fields = array( 'ID' => $id );
 				if ( '' !== $status ) {
 					$fields['post_status'] = $status;
@@ -715,9 +1053,26 @@ return App::define( 'my-wordpress' )
 				if ( '' !== $comments ) {
 					$fields['comment_status'] = $comments;
 				}
-				if ( wp_update_post( $fields ) ) {
-					$updated[] = $id;
+				if ( $author > 0 && false !== get_userdata( $author ) ) {
+					$fields['post_author'] = $author;
 				}
+				if ( ! wp_update_post( $fields ) ) {
+					continue;
+				}
+				if ( 'post' === $post->post_type ) {
+					if ( 'sticky' === $sticky ) {
+						stick_post( $id );
+					} elseif ( 'not-sticky' === $sticky ) {
+						unstick_post( $id );
+					}
+					if ( array() !== $add_cats && is_object_in_taxonomy( $post->post_type, 'category' ) ) {
+						wp_set_post_categories( $id, $add_cats, true );
+					}
+					if ( array() !== $add_tags && is_object_in_taxonomy( $post->post_type, 'post_tag' ) ) {
+						wp_set_post_terms( $id, $add_tags, 'post_tag', true );
+					}
+				}
+				$updated[] = $id;
 			}
 			if ( array() === $updated ) {
 				$os->toast( __( 'Nothing could be updated.', 'desktop-mode' ) );
@@ -787,6 +1142,17 @@ return App::define( 'my-wordpress' )
 			}
 
 			$item = (int) $state->get( 'item' );
+			$into = (int) $state->get( 'into' );
+			if ( $into > 0 && ( ! $section || 'post' !== $section['kind'] ) ) {
+				$state->set( 'into', 0 )->set( 'relation', '' );
+				$into = 0;
+			}
+			$relation = (string) $state->get( 'relation' );
+			$is_post  = $section && 'post' === $section['kind'];
+			$choices  = $is_post ? edit_choices() : array(
+				'authors'    => array(),
+				'categories' => array(),
+			);
 			return array(
 				'siteName'       => (string) get_bloginfo( 'name' ),
 				'sections'       => $with_counts,
@@ -799,8 +1165,12 @@ return App::define( 'my-wordpress' )
 						sort_options( $section )
 					)
 					: (object) array(),
-				'list'           => $section ? fetch( $os, $section, $state ) : null,
-				'detail'         => $section && $item > 0 ? detail( $os, $section, $item ) : null,
+				'list'           => $section && 0 === $into ? fetch( $os, $section, $state ) : null,
+				'detail'         => $section && 0 === $into && $item > 0 ? detail( $os, $section, $item ) : null,
+				'folder'         => $section && $into > 0 ? folder( $os, $section, $into ) : null,
+				'sub'            => $section && $into > 0 && '' !== $relation ? sub( $os, $section, $into, $relation ) : null,
+				'authors'        => $choices['authors'],
+				'categories'     => $choices['categories'],
 				'previewActions' => preview_actions( $os ),
 			);
 		}

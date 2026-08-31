@@ -125,6 +125,37 @@ function openstation_apps_directories() {
 }
 
 /**
+ * Whether this request is an app dispatch (`POST …/apps/<id>/dispatch`).
+ *
+ * Sniffed from the request URI because callers need the answer DURING
+ * `init` — before the REST server has parsed the route. Both REST URL
+ * shapes are covered (`/wp-json/…` and `?rest_route=…`).
+ *
+ * @return bool
+ */
+function openstation_apps_is_dispatch_request() {
+	$uri = isset( $_SERVER['REQUEST_URI'] ) ? (string) wp_unslash( $_SERVER['REQUEST_URI'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Substring probe only; never stored or echoed.
+	return false !== strpos( $uri, 'desktop-mode/v1/apps/' );
+}
+
+/**
+ * An app dispatch renders admin UI, so request-scoped facts that are
+ * normally collected on admin requests only must be collected here
+ * too. First case: the CPT/taxonomy → registering-plugin map
+ * (`openstation_track_type_registrants` defaults to `is_admin()`),
+ * which My WordPress reads to fold plugin CPTs into plugin folders —
+ * without this, every CPT rendered loose in a dispatch while the same
+ * site grouped them on an admin page load.
+ *
+ * @param bool $track Whether to track.
+ * @return bool
+ */
+function openstation_apps_track_registrants( $track ) {
+	return $track || openstation_apps_is_dispatch_request();
+}
+add_filter( 'openstation_track_type_registrants', 'openstation_apps_track_registrants' );
+
+/**
  * Load every app file, then let plugins add apps built in code.
  */
 function openstation_apps_load() {

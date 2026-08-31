@@ -51,7 +51,18 @@ function section( over: Partial< SectionDef > = {} ): SectionDef {
 }
 
 function state( over: Partial< AppState > = {} ): AppState {
-	return { group: '', section: '', item: 0, query: '', page: 1, sort: '', selected: [], ...over };
+	return {
+		group: '',
+		section: '',
+		item: 0,
+		into: 0,
+		relation: '',
+		query: '',
+		page: 1,
+		sort: '',
+		selected: [],
+		...over,
+	};
 }
 
 function data( over: Partial< AppData > = {} ): AppData {
@@ -62,6 +73,10 @@ function data( over: Partial< AppData > = {} ): AppData {
 		sortOptions: { default: 'Newest first', oldest: 'Oldest first' },
 		list: null,
 		detail: null,
+		folder: null,
+		sub: null,
+		authors: [],
+		categories: [],
 		previewActions: [],
 		...over,
 	};
@@ -272,6 +287,53 @@ describe( 'view', () => {
 		expect( open.textContent ).toContain( 'Status' );
 		expect( open.querySelector( '[os-action="trash"]' ) ).not.toBeNull();
 		expect( open.querySelector( '[data-mywp-content]' ) ).not.toBeNull();
+	} );
+
+	it( 'navigate-into paints the relation folders beside the article', () => {
+		const root = mount(
+			state( { section: 'posts', into: 1 } ),
+			data( {
+				folder: {
+					id: 1,
+					title: 'Alpha strategy',
+					status: 'draft',
+					content: '<p>Body</p>',
+					folders: [
+						{ relation: 'author', label: 'Author', icon: 'dashicons-admin-users', count: 1 },
+						{ relation: 'comments', label: 'Comments', icon: 'dashicons-admin-comments', count: 3 },
+						{ relation: 'revisions', label: 'Revisions', icon: 'dashicons-backup', count: 5 },
+					],
+				},
+			} ),
+		);
+		const labels = Array.from( root.querySelectorAll( 'os-tile' ), ( el ) => el.getAttribute( 'label' ) );
+		expect( labels ).toEqual( [ 'Author · 1', 'Comments · 3', 'Revisions · 5' ] );
+		expect( root.querySelector( '[data-mywp-content="folder"]' ) ).not.toBeNull();
+		expect( root.textContent ).toContain( '3 folders' );
+		// The trail: Site › Posts are links, the post is current.
+		const links = Array.from( root.querySelectorAll( '.os-mywp__crumb-link' ), ( el ) => el.textContent );
+		expect( links ).toEqual( [ 'Test Site', 'Posts' ] );
+		expect( root.querySelector( '.os-mywp__crumb-current' )?.textContent ).toBe( 'Alpha strategy' );
+	} );
+
+	it( 'a relation sub-list paints its rows and deepens the trail', () => {
+		const root = mount(
+			state( { section: 'posts', into: 1, relation: 'revisions' } ),
+			data( {
+				folder: { id: 1, title: 'Alpha strategy', status: 'draft', content: '', folders: [] },
+				sub: {
+					label: 'Revisions',
+					rows: [
+						{ id: 9, title: 'Yesterday at 10:03', subtitle: 'Ada', icon: 'dashicons-backup', editUrl: 'x' },
+						{ id: 8, title: 'Monday at 09:00', subtitle: 'Grace', icon: 'dashicons-backup', editUrl: '' },
+					],
+				},
+			} ),
+		);
+		const labels = Array.from( root.querySelectorAll( 'os-tile' ), ( el ) => el.getAttribute( 'label' ) );
+		expect( labels ).toEqual( [ 'Yesterday at 10:03', 'Monday at 09:00' ] );
+		expect( root.querySelector( '.os-mywp__crumb-current' )?.textContent ).toBe( 'Revisions' );
+		expect( root.textContent ).toContain( '2 items' );
 	} );
 
 	it( 'renders the breadcrumb trail as links behind the current segment', () => {

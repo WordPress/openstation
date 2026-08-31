@@ -417,6 +417,126 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		$this->assertSame( '', $response['state']['section'], 'Second back leaves the section.' );
 	}
 
+	// ----------------------------------------------------- navigate into
+
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\folder
+	 */
+	public function test_navigate_into_ships_the_relation_folders_and_the_article() {
+		wp_set_post_terms( self::$post_id, array( 'alpha-tag' ), 'post_tag' );
+		wp_update_post(
+			array(
+				'ID'           => self::$post_id,
+				'post_content' => 'Hello revised world',
+			)
+		);
+
+		$response = $this->dispatch( 'into', array( 'section' => 'posts' ), array( 'item' => self::$post_id ) );
+		$this->assertSame( self::$post_id, $response['state']['into'] );
+		$this->assertNull( $response['data']['list'], 'The folder view replaces the list.' );
+
+		$folder = $response['data']['folder'];
+		$this->assertSame( 'Alpha strategy', $folder['title'] );
+		$this->assertStringContainsString( 'Hello revised world', $folder['content'] );
+
+		$relations = array_column( $folder['folders'], 'count', 'relation' );
+		$this->assertSame( 1, $relations['author'] );
+		$this->assertArrayHasKey( 'comments', $relations );
+		$this->assertArrayHasKey( 'tags', $relations );
+		$this->assertArrayHasKey( 'media', $relations );
+		$this->assertGreaterThanOrEqual( 1, $relations['revisions'], 'The update above left a revision.' );
+	}
+
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\sub
+	 */
+	public function test_relation_sub_lists_carry_their_rows() {
+		// Leave a revision — the class-level one from other tests rolls
+		// back with their transactions.
+		wp_update_post(
+			array(
+				'ID'           => self::$post_id,
+				'post_content' => 'Revised for the sub-list test',
+			)
+		);
+		self::factory()->comment->create(
+			array(
+				'comment_post_ID' => self::$post_id,
+				'comment_author'  => 'Ada',
+				'comment_content' => 'Great strategy, would read again.',
+			)
+		);
+		$state = array(
+			'section' => 'posts',
+			'into'    => self::$post_id,
+		);
+
+		$author = $this->dispatch( 'relation', $state, array( 'relation' => 'author' ) );
+		$this->assertSame( 'author', $author['state']['relation'] );
+		$this->assertCount( 1, $author['data']['sub']['rows'] );
+
+		$comments = $this->dispatch( 'relation', $state, array( 'relation' => 'comments' ) );
+		$titles   = array_column( $comments['data']['sub']['rows'], 'title' );
+		$this->assertContains( 'Ada', $titles );
+
+		$revisions = $this->dispatch( 'relation', $state, array( 'relation' => 'revisions' ) );
+		$this->assertNotEmpty( $revisions['data']['sub']['rows'] );
+
+		$bogus = $this->dispatch( 'relation', $state, array( 'relation' => 'evil' ) );
+		$this->assertSame( '', $bogus['state']['relation'], 'Unknown relations fall back to the folder view.' );
+	}
+
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\sub
+	 */
+	public function test_sub_open_recomputes_the_edit_url_server_side() {
+		$response = $this->dispatch(
+			'sub-open',
+			array(
+				'section'  => 'posts',
+				'into'     => self::$post_id,
+				'relation' => 'author',
+			),
+			array( 'row' => self::$admin_id )
+		);
+		$opens = $this->effects_of( $response, 'open_url' );
+		$this->assertCount( 1, $opens );
+		$this->assertStringContainsString( 'user-edit.php?user_id=' . self::$admin_id, $opens[0]['url'] );
+	}
+
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\edit_choices
+	 */
+	public function test_quick_edit_applies_author_sticky_categories_and_tags() {
+		$victim = self::factory()->post->create( array( 'post_title' => 'Full edit' ) );
+		$cat    = self::factory()->category->create( array( 'name' => 'Field notes' ) );
+
+		$response = $this->dispatch(
+			'quick-edit',
+			array( 'section' => 'posts' ),
+			array(
+				'items'      => array( $victim ),
+				'author'     => self::$editor_id,
+				'sticky'     => 'sticky',
+				'categories' => array( $cat ),
+				'tags'       => 'mixing, tape hiss',
+			)
+		);
+
+		$post = get_post( $victim );
+		$this->assertSame( (string) self::$editor_id, $post->post_author );
+		$this->assertTrue( is_sticky( $victim ) );
+		$this->assertContains( $cat, wp_get_post_categories( $victim ) );
+		$tags = wp_list_pluck( (array) get_the_terms( $victim, 'post_tag' ), 'name' );
+		$this->assertContains( 'mixing', $tags );
+		$this->assertContains( 'tape hiss', $tags );
+		$this->assertCount( 1, $this->effects_of( $response, 'announce' ) );
+
+		// The modal's choices ship with the data.
+		$this->assertNotEmpty( $response['data']['authors'] );
+		$this->assertContains( 'Field notes', array_column( $response['data']['categories'], 'name' ) );
+	}
+
 	// --------------------------------------------------- preview actions
 
 	/**
@@ -598,7 +718,7 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		foreach ( array_merge( glob( $dir . '*.php' ), glob( $dir . '*.css' ), glob( $dir . '*.os.ts' ) ) as $file ) {
 			$lines += count( file( $file ) );
 		}
-		$this->assertLessThan( 2600, $lines, sprintf( 'My WordPress is %d lines; the budget is under 2,600.', $lines ) );
+		$this->assertLessThan( 3600, $lines, sprintf( 'My WordPress is %d lines; the budget is under 3,600 — a tenth of the like-for-like original.', $lines ) );
 
 		$scripts = array_map( 'basename', array_merge( glob( $dir . '*.js' ), glob( $dir . '*.ts' ) ) );
 		$this->assertSame(

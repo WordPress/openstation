@@ -16,7 +16,7 @@
  * @public
  */
 
-import { __, defineApp, html, sprintf, type TemplateResult } from '@openstation/app';
+import { __, _n, defineApp, html, sprintf, type TemplateResult } from '@openstation/app';
 
 // ------------------------------------------------------------- types
 
@@ -101,10 +101,44 @@ export interface AppState extends Record< string, unknown > {
 	group: string;
 	section: string;
 	item: number;
+	/** Post navigated INTO — the detail folder view. */
+	into: number;
+	/** Relation sub-folder open inside `into`. */
+	relation: string;
 	query: string;
 	page: number;
 	sort: string;
 	selected: number[];
+}
+
+export interface RelationFolder {
+	relation: string;
+	label: string;
+	icon: string;
+	count: number;
+	disabled?: boolean;
+}
+
+export interface FolderPayload {
+	id: number;
+	title: string;
+	status: string;
+	content: string;
+	folders: RelationFolder[];
+}
+
+export interface SubRow {
+	id: number;
+	title: string;
+	subtitle: string;
+	icon?: string;
+	thumb?: string;
+	editUrl: string;
+}
+
+export interface SubPayload {
+	label: string;
+	rows: SubRow[];
 }
 
 export interface AppData {
@@ -114,6 +148,10 @@ export interface AppData {
 	sortOptions: Record< string, string >;
 	list: ListPage | null;
 	detail: DetailFacts | null;
+	folder: FolderPayload | null;
+	sub: SubPayload | null;
+	authors: Array< { id: number; name: string } >;
+	categories: Array< { id: number; name: string } >;
 	previewActions: PreviewAction[];
 }
 
@@ -144,7 +182,15 @@ interface UiState {
 	/** Open context menu — on an item, or (item null) on the canvas. */
 	menu: { x: number; y: number; item: ListItem | null } | null;
 	/** The Edit… quick-edit modal: which items, and the picked values. */
-	quickEdit: { ids: number[]; status: string; comments: string } | null;
+	quickEdit: {
+		ids: number[];
+		status: string;
+		comments: string;
+		author: string;
+		sticky: string;
+		categories: number[];
+		tags: string;
+	} | null;
 	zoom: boolean;
 	loadingMore: boolean;
 	/**
@@ -584,7 +630,7 @@ function renderDetail( ctx: Ctx, section: SectionDef ): TemplateResult {
 			${ detail.content !== undefined
 				? html`
 					<h3 class="os-mywp__pane-h">${ __( 'Preview' ) }</h3>
-					<div class="os-mywp__content" data-mywp-content os-preserve></div>
+					<div class="os-mywp__content" data-mywp-content="detail" os-preserve></div>
 				`
 				: '' }
 			<div class="os-mywp__actions">
@@ -678,11 +724,25 @@ function renderMenu( ctx: Ctx, section: SectionDef ): TemplateResult | '' {
 			return;
 		}
 		if ( id === 'open' ) {
-			void ctx.dispatch( 'open', { item: item.id } );
+			// Posts navigate INTO their detail folder (author,
+			// comments, revisions, …); users and media open the pane.
+			if ( section.kind === 'post' ) {
+				void ctx.dispatch( 'into', { item: item.id } );
+			} else {
+				void ctx.dispatch( 'open', { item: item.id } );
+			}
 		} else if ( id === 'edit' ) {
 			void ctx.dispatch( 'edit', { item: item.id } );
 		} else if ( id === 'quick-edit' ) {
-			uiOf( ctx.root ).quickEdit = { ids: targets, status: '', comments: '' };
+			uiOf( ctx.root ).quickEdit = {
+				ids: targets,
+				status: '',
+				comments: '',
+				author: '',
+				sticky: '',
+				categories: [],
+				tags: '',
+			};
 			ctx.local( 'repaint' );
 		} else if ( id === 'publish' ) {
 			void ctx.dispatch( 'quick-edit', { items: targets, status: 'publish' } );
@@ -753,11 +813,111 @@ function renderMenu( ctx: Ctx, section: SectionDef ): TemplateResult | '' {
 	`;
 }
 
+/**
+ * The detail FOLDER view a post navigates into: relation folder tiles
+ * on the left (Author, Contributors, Comments · N, Categories, Tags,
+ * Attached media, Revisions), the rendered article on the right.
+ * Double-click a folder to drill into its rows, like the original.
+ */
+function renderFolder( ctx: Ctx ): TemplateResult {
+	const folder = ctx.data.folder;
+	if ( ! folder ) {
+		return html`<os-empty-state>${ __( 'This item no longer exists.' ) }</os-empty-state>`;
+	}
+	return html`
+		<div class="os-mywp__split">
+			<div class="os-mywp__list-pane">
+				<div class="os-mywp__tiles" role="list">
+					${ folder.folders.map( ( sub ) => html`
+						<div class="os-mywp__cell ${ sub.disabled ? 'is-disabled' : '' }" role="listitem">
+							<span class="os-mywp__tilebox">
+								<os-tile
+									kind="folder"
+									type="relation"
+									ref=${ sub.relation }
+									label=${ `${ sub.label } · ${ sub.count }` }
+									icon=${ sub.icon }
+									@click=${ () => ! sub.disabled && void ctx.dispatch( 'relation', { relation: sub.relation } ) }
+								></os-tile>
+							</span>
+						</div>
+					` ) }
+				</div>
+			</div>
+			<aside class="os-mywp__detail-pane">
+				<article class="os-mywp__detail">
+					<h2 class="os-mywp__detail-title">${ folder.title }</h2>
+					<div class="os-mywp__content" data-mywp-content="folder" os-preserve></div>
+				</article>
+			</aside>
+		</div>
+	`;
+}
+
+/** One relation's rows — the sub-list behind a detail folder tile. */
+function renderSub( ctx: Ctx ): TemplateResult {
+	const sub = ctx.data.sub;
+	if ( ! sub ) {
+		return html`<os-empty-state>${ __( 'This item no longer exists.' ) }</os-empty-state>`;
+	}
+	if ( sub.rows.length === 0 ) {
+		return html`<os-empty-state>${ __( 'Nothing here yet.' ) }</os-empty-state>`;
+	}
+	return html`
+		<div class="os-mywp__tiles" role="list">
+			${ sub.rows.map( ( row ) => html`
+				<div class="os-mywp__cell" role="listitem" title=${ row.subtitle }>
+					<span class="os-mywp__tilebox">
+						<os-tile
+							kind="entry"
+							type="relation-row"
+							ref=${ String( row.id ) }
+							label=${ row.title }
+							icon=${ row.thumb ? '' : ( row.icon ?? 'dashicons-media-default' ) }
+							thumbnail=${ row.thumb ?? '' }
+							@dblclick=${ () => row.editUrl && void ctx.dispatch( 'sub-open', { row: row.id } ) }
+						></os-tile>
+					</span>
+				</div>
+			` ) }
+		</div>
+	`;
+}
+
+/** Which body the current navigation depth paints. */
+function renderBody(
+	ctx: Ctx,
+	section: SectionDef | null,
+	inFolder: boolean,
+	inSub: boolean,
+	items: ListItem[],
+): TemplateResult {
+	if ( ! section ) {
+		return renderRoot( ctx );
+	}
+	if ( inSub ) {
+		return renderSub( ctx );
+	}
+	if ( inFolder ) {
+		return renderFolder( ctx );
+	}
+	return html`
+		<div class="os-mywp__split">
+			<div class="os-mywp__list-pane">${ renderList( ctx, section, items ) }</div>
+			<aside class="os-mywp__detail-pane">
+				${ ctx.state.item > 0
+					? renderDetail( ctx, section )
+					: html`<p class="os-mywp__pane-empty">${ __( 'Select an entry to preview it here.' ) }</p>` }
+			</aside>
+		</div>
+	`;
+}
+
 /** The Edit… quick-edit modal: status + comments over the selection. */
-function renderQuickEdit( ctx: Ctx ): TemplateResult | '' {
+function renderQuickEdit( ctx: Ctx, section: SectionDef | null ): TemplateResult | '' {
 	const ui = uiOf( ctx.root );
 	const qe = ui.quickEdit;
-	if ( ! qe ) {
+	if ( ! qe || ! section ) {
 		return '';
 	}
 	const close = (): void => {
@@ -772,59 +932,114 @@ function renderQuickEdit( ctx: Ctx ): TemplateResult | '' {
 		if ( qe.comments ) {
 			payload.comments = qe.comments;
 		}
+		if ( qe.author ) {
+			payload.author = Number( qe.author );
+		}
+		if ( qe.sticky ) {
+			payload.sticky = qe.sticky;
+		}
+		if ( qe.categories.length > 0 ) {
+			payload.categories = qe.categories;
+		}
+		if ( qe.tags.trim() ) {
+			payload.tags = qe.tags;
+		}
 		close();
 		void ctx.dispatch( 'quick-edit', payload );
 	};
-	const statusOptions: Array< [ string, string ] > = [
-		[ '', __( '— No change —' ) ],
-		[ 'publish', __( 'Published' ) ],
-		[ 'pending', __( 'Pending Review' ) ],
-		[ 'draft', __( 'Draft' ) ],
-		[ 'private', __( 'Private' ) ],
-	];
-	const commentOptions: Array< [ string, string ] > = [
-		[ '', __( '— No change —' ) ],
-		[ 'open', __( 'Allow' ) ],
-		[ 'closed', __( 'Do not allow' ) ],
-	];
+	const noChange: [ string, string ] = [ '', __( '— No change —' ) ];
+	const pickInto = ( field: 'status' | 'comments' | 'author' | 'sticky' ) => ( e: Event ): void => {
+		qe[ field ] = String( ( e as CustomEvent< { value?: string } > ).detail?.value ?? '' );
+	};
+	const dropdown = ( label: string, field: 'status' | 'comments' | 'author' | 'sticky', options: Array< [ string, string ] > ): TemplateResult => html`
+		<label class="os-mywp__qe-row">
+			<span>${ label }</span>
+			<os-select value=${ qe[ field ] } @os-pick=${ pickInto( field ) }>
+				${ options.map( ( [ value, text ] ) => html`
+					<os-option value=${ value } ?selected=${ value === qe[ field ] }>${ text }</os-option>
+				` ) }
+			</os-select>
+		</label>
+	`;
+	const isPosts = section.post_type === 'post';
 	return html`
 		<os-modal
 			open
 			size="sm"
 			title=${ sprintf(
-				/* translators: %d: entry count. */
-				__( 'Edit %d entries' ),
+				/* translators: 1: entry count, 2: section label. */
+				__( 'Edit %1$d %2$s' ),
 				qe.ids.length,
+				section.label,
 			) }
 			@os-modal-cancel=${ close }
 		>
 			<div class="os-mywp__qe">
-				<label class="os-mywp__qe-row">
-					<span>${ __( 'Status' ) }</span>
-					<os-select
-						value=${ qe.status }
-						@os-pick=${ ( e: Event ) => {
-							qe.status = String( ( e as CustomEvent< { value?: string } > ).detail?.value ?? '' );
-						} }
-					>
-						${ statusOptions.map( ( [ value, label ] ) => html`
-							<os-option value=${ value } ?selected=${ value === qe.status }>${ label }</os-option>
-						` ) }
-					</os-select>
-				</label>
-				<label class="os-mywp__qe-row">
-					<span>${ __( 'Comments' ) }</span>
-					<os-select
-						value=${ qe.comments }
-						@os-pick=${ ( e: Event ) => {
-							qe.comments = String( ( e as CustomEvent< { value?: string } > ).detail?.value ?? '' );
-						} }
-					>
-						${ commentOptions.map( ( [ value, label ] ) => html`
-							<os-option value=${ value } ?selected=${ value === qe.comments }>${ label }</os-option>
-						` ) }
-					</os-select>
-				</label>
+				${ dropdown( __( 'Status' ), 'status', [
+					noChange,
+					[ 'publish', __( 'Published' ) ],
+					[ 'pending', __( 'Pending Review' ) ],
+					[ 'draft', __( 'Draft' ) ],
+					[ 'private', __( 'Private' ) ],
+				] ) }
+				${ ctx.data.authors.length > 0
+					? dropdown( __( 'Author' ), 'author', [
+						noChange,
+						...ctx.data.authors.map( ( a ): [ string, string ] => [ String( a.id ), a.name ] ),
+					] )
+					: '' }
+				${ dropdown( __( 'Comments' ), 'comments', [
+					noChange,
+					[ 'open', __( 'Allow' ) ],
+					[ 'closed', __( 'Do not allow' ) ],
+				] ) }
+				${ isPosts
+					? dropdown( __( 'Sticky' ), 'sticky', [
+						noChange,
+						[ 'sticky', __( 'Sticky' ) ],
+						[ 'not-sticky', __( 'Not sticky' ) ],
+					] )
+					: '' }
+				${ isPosts && ctx.data.categories.length > 0
+					? html`
+						<div class="os-mywp__qe-row">
+							<span>${ __( 'Add categories' ) }</span>
+							<div class="os-mywp__qe-cats">
+								${ ctx.data.categories.map( ( cat ) => html`
+									<label class="os-mywp__qe-cat">
+										<input
+											type="checkbox"
+											?checked=${ qe.categories.includes( cat.id ) }
+											@change=${ ( e: Event ) => {
+												const on = ( e.target as HTMLInputElement ).checked;
+												qe.categories = on
+													? [ ...qe.categories, cat.id ]
+													: qe.categories.filter( ( c ) => c !== cat.id );
+											} }
+										/>
+										${ cat.name }
+									</label>
+								` ) }
+							</div>
+						</div>
+					`
+					: '' }
+				${ isPosts
+					? html`
+						<label class="os-mywp__qe-row">
+							<span>${ __( 'Add tags' ) }</span>
+							<input
+								type="text"
+								class="os-mywp__qe-tags"
+								placeholder=${ __( 'tag, another tag' ) }
+								.value=${ qe.tags }
+								@input=${ ( e: Event ) => {
+									qe.tags = ( e.target as HTMLInputElement ).value;
+								} }
+							/>
+						</label>
+					`
+					: '' }
 			</div>
 			<div slot="footer">
 				<os-button variant="ghost" @click=${ close }>${ __( 'Cancel' ) }</os-button>
@@ -1055,6 +1270,8 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 		const current = ( label: string ): TemplateResult =>
 			html`<span class="os-mywp__crumb-current" aria-current="page">${ label }</span>`;
 		const sep = (): TemplateResult => html`<span class="os-mywp__sep" aria-hidden="true">›</span>`;
+		const inFolder = section && state.into > 0;
+		const inSub = inFolder && state.relation !== '';
 		const crumbs: Array< TemplateResult > = [];
 		if ( ! depth ) {
 			crumbs.push( current( payload.siteName ) );
@@ -1070,15 +1287,51 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 			}
 			if ( section ) {
 				crumbs.push( sep() );
-				crumbs.push( current( section.label ) );
+				crumbs.push(
+					inFolder
+						? link( section.label, () => void ctx.dispatch( 'go', { group: state.group, section: section.id } ) )
+						: current( section.label ),
+				);
+			}
+			if ( inFolder && payload.folder ) {
+				crumbs.push( sep() );
+				crumbs.push(
+					inSub
+						? link( payload.folder.title, () => void ctx.dispatch( 'relation', { relation: '' } ) )
+						: current( payload.folder.title ),
+				);
+			}
+			if ( inSub && payload.sub ) {
+				crumbs.push( sep() );
+				crumbs.push( current( payload.sub.label ) );
 			}
 		}
 
-		const items = section
+		const items = section && ! inFolder
 			? accumulate( uiOf( ctx.root ), listKey( state ), payload.list )
 			: [];
 		const loaded = items.length;
-		const statusLeft = section
+		let folderStatus: [ string, string ] | null = null;
+		if ( inSub && payload.sub ) {
+			folderStatus = [
+				sprintf(
+					/* translators: %d: item count. */
+					_n( '%d item', '%d items', payload.sub.rows.length ),
+					payload.sub.rows.length,
+				),
+				'',
+			];
+		} else if ( inFolder && payload.folder ) {
+			folderStatus = [
+				sprintf(
+					/* translators: %d: folder count. */
+					__( '%d folders' ),
+					payload.folder.folders.length,
+				),
+				payload.folder.status,
+			];
+		}
+		const statusLeft = section && ! inFolder
 			? `${ sprintf(
 				/* translators: 1: loaded count, 2: total count. */
 				__( '%1$d of %2$d items' ),
@@ -1098,7 +1351,7 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 					? payload.sections.filter( ( s ) => s.group === state.group ).length
 					: payload.sections.filter( ( s ) => ! s.group ).length + payload.groups.length,
 			);
-		const statusRight = section
+		const statusRight = section && ! inFolder
 			? sprintf(
 				/* translators: 1: current page, 2: page count. */
 				__( 'Page %1$d of %2$d' ),
@@ -1115,7 +1368,7 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 						: '' }
 					<nav class="os-mywp__crumbs">${ crumbs }</nav>
 				</header>
-				${ section
+				${ section && ! inFolder
 					? html`<div class="os-mywp__search">
 						<os-text-field
 							value=${ state.query }
@@ -1130,25 +1383,14 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 					</div>`
 					: '' }
 				<div class="os-mywp__body">
-					${ ! section
-						? renderRoot( ctx )
-						: html`
-							<div class="os-mywp__split">
-								<div class="os-mywp__list-pane">${ renderList( ctx, section, items ) }</div>
-								<aside class="os-mywp__detail-pane">
-									${ state.item > 0
-										? renderDetail( ctx, section )
-										: html`<p class="os-mywp__pane-empty">${ __( 'Select an entry to preview it here.' ) }</p>` }
-								</aside>
-							</div>
-						` }
+					${ renderBody( ctx, section, !! inFolder, !! inSub, items ) }
 				</div>
 				<footer class="os-mywp__status">
-					<span>${ statusLeft }</span>
-					<span>${ statusRight }</span>
+					<span>${ folderStatus ? folderStatus[ 0 ] : statusLeft }</span>
+					<span>${ folderStatus ? folderStatus[ 1 ] : statusRight }</span>
 				</footer>
 				${ section ? renderMenu( ctx, section ) : '' }
-				${ renderQuickEdit( ctx ) }
+				${ renderQuickEdit( ctx, section ) }
 				${ renderZoom( ctx ) }
 			</div>
 		`;
@@ -1179,16 +1421,28 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 				{ passive: true },
 			);
 		}
-		// Inject the server-rendered post preview. Trusted admin
-		// content from our own dispatch, marked os-preserve so the
-		// diff never touches it.
-		const slot = ctx.root.querySelector< HTMLElement >( '[data-mywp-content]' );
-		const detail = ctx.data.detail;
-		if ( slot && detail?.content !== undefined ) {
-			const stamp = `${ detail.id }:${ detail.content.length }`;
-			if ( slot.dataset.mywpStamp !== stamp ) {
-				slot.dataset.mywpStamp = stamp;
-				slot.innerHTML = detail.content;
+		// A list shorter than the viewport can never be scrolled, so the
+		// scroll-gesture re-arm would deadlock it at one page: while the
+		// canvas has no scrollbar, keep the sentinel armed and let it
+		// fill the viewport; once it overflows, gestures take over.
+		if ( canvas && canvas.scrollHeight <= canvas.clientHeight + 4 ) {
+			ui.armed = true;
+		}
+		// Inject the server-rendered post body — the preview pane's and
+		// the detail folder's article alike. Trusted admin content from
+		// our own dispatch, marked os-preserve so the diff never
+		// touches it.
+		for ( const [ where, source ] of [
+			[ 'detail', ctx.data.detail ],
+			[ 'folder', ctx.data.folder ],
+		] as Array< [ string, { id: number; content?: string } | null ] > ) {
+			const slot = ctx.root.querySelector< HTMLElement >( `[data-mywp-content="${ where }"]` );
+			if ( slot && source?.content !== undefined ) {
+				const stamp = `${ source.id }:${ source.content.length }`;
+				if ( slot.dataset.mywpStamp !== stamp ) {
+					slot.dataset.mywpStamp = stamp;
+					slot.innerHTML = source.content;
+				}
 			}
 		}
 	},
