@@ -352,6 +352,69 @@
 	flex-wrap: wrap;
 }
 
+.os-mywp__row.is-selected {
+	background: var( --os-ui-selection-bg, rgba( 34, 113, 177, 0.14 ) );
+	outline: 1px solid var( --os-ui-accent, #2271b1 );
+	outline-offset: -1px;
+}
+
+.os-mywp__content {
+	max-inline-size: 100%;
+	overflow-wrap: anywhere;
+	font-size: 13px;
+}
+
+.os-mywp__content img {
+	max-inline-size: 100%;
+	block-size: auto;
+}
+
+.os-mywp__hero.is-zoomable {
+	cursor: zoom-in;
+}
+
+.os-mywp__sentinel {
+	block-size: 1px;
+}
+
+/* ---------------------------------------------------- marquee + menu */
+
+.os-mywp__marquee {
+	position: fixed;
+	z-index: 100000;
+	border: 1px solid var( --os-ui-accent, #2271b1 );
+	background: var( --os-ui-selection-bg, rgba( 34, 113, 177, 0.14 ) );
+	pointer-events: none;
+}
+
+.os-mywp__menu-backdrop {
+	position: fixed;
+	inset: 0;
+	z-index: 99998;
+}
+
+.os-mywp__menu {
+	z-index: 99999;
+}
+
+/* -------------------------------------------------------------- zoom */
+
+.os-mywp__zoom {
+	position: fixed;
+	inset: 0;
+	z-index: 100000;
+	display: grid;
+	place-items: center;
+	background: rgba( 0, 0, 0, 0.8 );
+	cursor: zoom-out;
+}
+
+.os-mywp__zoom img {
+	max-inline-size: 92vw;
+	max-block-size: 92vh;
+	object-fit: contain;
+}
+
 /* ------------------------------------------------------------ status */
 
 .os-mywp__status {

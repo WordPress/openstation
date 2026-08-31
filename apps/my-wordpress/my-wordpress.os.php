@@ -2,24 +2,29 @@
 /**
  * My WordPress — the content explorer, as an OpenStation app.
  *
- * The whole window in this one file: the root folder grid (the four
- * builtin sections plus every eligible custom post type, grouped into
- * plugin folders exactly as WP Explorer groups them), a two-pane
- * section view — searchable, sortable, paged list on the left, the
- * selected item's dossier on the right — multi-select with bulk
- * trash, double-click to edit, a per-row context menu, media usage
- * ("used in") and user footprint facts. The body is a server view —
- * the app ships no JavaScript — and every list is queried where
- * WordPress already is: `WP_Query` / `WP_User_Query` in the dispatch,
- * not `wp/v2/*` REST from the browser. `watch( '*' )` keeps it
- * honest: when any window changes any content, this one repaints.
+ * The full WP Explorer surface on the App Framework, split the way
+ * the framework splits: THIS file is the window and the truth — the
+ * section registry (builtins + every eligible custom post type with
+ * its plugin-group folder, discovered through the same
+ * `openstation_my_wordpress_*` helpers WP Explorer uses), the
+ * queries (`WP_Query` / `WP_User_Query`, not `wp/v2/*` REST from the
+ * browser), per-item authorization, the mutating actions (trash,
+ * bulk trash, open-in-editor) and the preview-action descriptors.
+ * The BODY lives in `my-wordpress.os.ts` beside it: a client view
+ * where selection (click / ctrl / shift / marquee), infinite scroll,
+ * drag-out to the desktop, the context menu, media zoom and every
+ * repaint are instant — no request for anything the browser already
+ * knows. `watch( '*' )` repaints the window whenever any other
+ * window changes any content.
  *
- * Custom post types are not re-discovered here: the app calls the
- * same `openstation_my_wordpress_*` helpers WP Explorer uses
- * (`eligible_post_types`, `post_type_icon`, `post_type_group`,
- * `collect_groups`), so both windows always agree on what a site
- * contains — and their filters keep working. This is a sibling of WP
- * Explorer (`desktop-mode-my-wordpress`), not a replacement.
+ * Plugin surfaces are shared with WP Explorer, not forked: CPT
+ * discovery honours `openstation_my_wordpress_post_types` /
+ * `_post_type_entity` / `_post_type_groups`, and the preview-action
+ * pipeline consumes the same `openstation_my_wordpress_preview_actions`
+ * descriptors and the same `os.my-wordpress.preview-actions` JS
+ * filter — an action written for WP Explorer appears here unchanged.
+ * This is a sibling of WP Explorer (`desktop-mode-my-wordpress`),
+ * not a replacement.
  *
  * @package OpenStation
  */
@@ -29,8 +34,6 @@ namespace OpenStation\Apps\MyWordPress;
 use OpenStation\App;
 use OpenStation\App\Os;
 use OpenStation\App\State;
-use function OpenStation\App\Html\esc;
-use function OpenStation\App\Html\tag;
 
 // Direct access, unless a standalone host is booting on bare PHP.
 if ( ! defined( 'ABSPATH' ) ) {
@@ -234,18 +237,54 @@ function sort_of( array $section, State $state ) {
 }
 
 /**
- * One page of a section, in the uniform shape every view renders:
- * `items` (each: `id`, `title`, `subtitle`, `status`, `thumb`),
- * `total`, `pages`.
+ * Whether the acting user may edit / trash one item.
  *
+ * @param Os                  $os      Host handle.
+ * @param array<string,mixed> $section Section descriptor.
+ * @param int                 $id      Item id.
+ * @param string              $verb    `edit` | `delete`.
+ * @return bool
+ */
+function allowed( Os $os, array $section, $id, $verb ) {
+	if ( 'user' === $section['kind'] ) {
+		return 'edit' === $verb && $os->can( 'edit_user', (int) $id );
+	}
+	return $os->can( $verb . '_post', (int) $id );
+}
+
+/**
+ * The name of whoever holds the edit lock on a post, '' when free.
+ * WP Explorer's lock payload, reused.
+ *
+ * @param int $post_id Post id.
+ * @return string
+ */
+function lock_holder( $post_id ) {
+	if ( ! function_exists( 'openstation_my_wordpress_post_lock_payload' ) ) {
+		return '';
+	}
+	$lock = openstation_my_wordpress_post_lock_payload( (int) $post_id );
+	if ( is_array( $lock ) && ! empty( $lock['locked'] ) && ! empty( $lock['name'] ) ) {
+		return (string) $lock['name'];
+	}
+	return '';
+}
+
+/**
+ * One page of a section, in the uniform shape the client view
+ * renders: `items` (each: `id`, `title`, `subtitle`, `status`,
+ * `thumb`, `link`, `mime`, `lockedBy`, `canEdit`, `canDelete`),
+ * `total`, `pages`, `page`.
+ *
+ * @param Os                  $os      Host handle.
  * @param array<string,mixed> $section Section descriptor.
  * @param State               $state   State (`query`, `page`, `sort`).
- * @return array{items:array[],total:int,pages:int}
+ * @return array{items:array[],total:int,pages:int,page:int}
  */
-function fetch( array $section, State $state ) {
-	$query               = (string) $state->get( 'query' );
-	$page                = max( 1, (int) $state->get( 'page' ) );
-	list( $by, $order )  = sort_of( $section, $state );
+function fetch( Os $os, array $section, State $state ) {
+	$query              = (string) $state->get( 'query' );
+	$page               = max( 1, (int) $state->get( 'page' ) );
+	list( $by, $order ) = sort_of( $section, $state );
 
 	if ( 'user' === $section['kind'] ) {
 		$users = new \WP_User_Query(
@@ -261,11 +300,16 @@ function fetch( array $section, State $state ) {
 		$items = array();
 		foreach ( $users->get_results() as $user ) {
 			$items[] = array(
-				'id'       => (int) $user->ID,
-				'title'    => (string) $user->display_name,
-				'subtitle' => (string) $user->user_email,
-				'status'   => implode( ', ', array_map( 'ucfirst', (array) $user->roles ) ),
-				'thumb'    => (string) get_avatar_url( $user->ID, array( 'size' => 96 ) ),
+				'id'        => (int) $user->ID,
+				'title'     => (string) $user->display_name,
+				'subtitle'  => (string) $user->user_email,
+				'status'    => implode( ', ', array_map( 'ucfirst', (array) $user->roles ) ),
+				'thumb'     => (string) get_avatar_url( $user->ID, array( 'size' => 96 ) ),
+				'link'      => esc_url_raw( get_author_posts_url( $user->ID ) ),
+				'mime'      => '',
+				'lockedBy'  => '',
+				'canEdit'   => allowed( $os, $section, (int) $user->ID, 'edit' ),
+				'canDelete' => false,
 			);
 		}
 		$total = (int) $users->get_total();
@@ -273,6 +317,7 @@ function fetch( array $section, State $state ) {
 			'items' => $items,
 			'total' => $total,
 			'pages' => max( 1, (int) ceil( $total / PER_PAGE ) ),
+			'page'  => $page,
 		);
 	}
 
@@ -292,9 +337,9 @@ function fetch( array $section, State $state ) {
 	$items    = array();
 	foreach ( $posts->posts as $post ) {
 		$items[] = array(
-			'id'       => (int) $post->ID,
-			'title'    => '' !== $post->post_title ? (string) $post->post_title : __( '(no title)', 'desktop-mode' ),
-			'subtitle' => $is_media
+			'id'        => (int) $post->ID,
+			'title'     => '' !== $post->post_title ? (string) $post->post_title : __( '(no title)', 'desktop-mode' ),
+			'subtitle'  => $is_media
 				? (string) $post->post_mime_type
 				: sprintf(
 					/* translators: 1: author display name, 2: date. */
@@ -302,18 +347,24 @@ function fetch( array $section, State $state ) {
 					(string) get_the_author_meta( 'display_name', (int) $post->post_author ),
 					(string) get_the_date( '', $post )
 				),
-			'status'   => $is_media ? '' : (string) $post->post_status,
-			'thumb'    => ! empty( $section['thumbnails'] )
+			'status'    => $is_media ? '' : (string) $post->post_status,
+			'thumb'     => ! empty( $section['thumbnails'] )
 				? ( $is_media
 					? (string) wp_get_attachment_image_url( $post->ID, 'medium' )
 					: (string) get_the_post_thumbnail_url( $post, 'thumbnail' ) )
 				: '',
+			'link'      => esc_url_raw( $is_media ? (string) wp_get_attachment_url( $post->ID ) : (string) get_permalink( $post ) ),
+			'mime'      => $is_media ? (string) $post->post_mime_type : '',
+			'lockedBy'  => $is_media ? '' : lock_holder( $post->ID ),
+			'canEdit'   => allowed( $os, $section, (int) $post->ID, 'edit' ),
+			'canDelete' => allowed( $os, $section, (int) $post->ID, 'delete' ),
 		);
 	}
 	return array(
 		'items' => $items,
 		'total' => (int) $posts->found_posts,
 		'pages' => max( 1, (int) $posts->max_num_pages ),
+		'page'  => $page,
 	);
 }
 
@@ -354,588 +405,161 @@ function edit_url( array $section, $id ) {
 }
 
 /**
- * Whether the acting user may edit / trash one item.
+ * The dossier payload for the open item — everything the detail pane
+ * paints, per kind.
  *
  * @param Os                  $os      Host handle.
  * @param array<string,mixed> $section Section descriptor.
  * @param int                 $id      Item id.
- * @param string              $verb    `edit` | `delete`.
- * @return bool
+ * @return array<string,mixed>|null Null when the item vanished.
  */
-function allowed( Os $os, array $section, $id, $verb ) {
-	if ( 'user' === $section['kind'] ) {
-		return 'edit' === $verb && $os->can( 'edit_user', (int) $id );
-	}
-	return $os->can( $verb . '_post', (int) $id );
-}
-
-// --------------------------------------------------------------- views
-
-/**
- * An icon reference as markup: a Dashicons class renders as a glyph,
- * anything else (URL, data URI — a CPT's `menu_icon`) as an image.
- *
- * @param string $icon  Icon reference.
- * @param string $class Extra class for the element.
- * @return string
- */
-function glyph( $icon, $class = '' ) {
-	if ( 0 === strpos( $icon, 'dashicons-' ) ) {
-		return '<span class="' . esc( trim( $class . ' dashicons ' . $icon ) ) . '" aria-hidden="true"></span>';
-	}
-	return tag(
-		'img',
-		array(
-			'class' => trim( $class . ' os-mywp__icon-img' ),
-			'src'   => $icon,
-			'alt'   => '',
-		)
-	);
-}
-
-/**
- * One root tile: a folder or a section, labelled `Label · N`.
- *
- * @param array<string,mixed> $args  Trigger args (`group` / `section`).
- * @param string              $label Label.
- * @param string              $icon  Icon reference.
- * @param int                 $count Item count.
- * @param string              $key   Morph identity.
- * @return string
- */
-function root_tile( array $args, $label, $icon, $count, $key ) {
-	$attrs = array(
-		'type'      => 'button',
-		'class'     => 'os-mywp__tile',
-		'os-key'    => $key,
-		'os-on'     => 'click',
-		'os-action' => 'go',
-	);
-	foreach ( $args as $name => $value ) {
-		$attrs[ 'os-arg-' . $name ] = $value;
-	}
-	return tag(
-		'button',
-		$attrs,
-		glyph( $icon, 'os-mywp__tile-icon' )
-			. '<span class="os-mywp__tile-label">' . esc( $label ) . ' · ' . esc( number_format_i18n( $count ) ) . '</span>'
-	);
-}
-
-/**
- * The breadcrumb header: back chevron, the trail, and the search
- * field inside a section.
- *
- * @param Os                       $os      Host handle.
- * @param array<string,mixed>|null $group   Current group, if inside one.
- * @param array<string,mixed>|null $section Current section.
- * @param State                    $state   State.
- * @return string
- */
-function header_bar( Os $os, $group, $section, State $state ) {
-	$back = '';
-	if ( $group || $section ) {
-		$back = tag(
-			'os-button',
-			array(
-				'variant'    => 'ghost',
-				'class'      => 'os-mywp__back',
-				'aria-label' => __( 'Back', 'desktop-mode' ),
-				'os-action'  => 'back',
-			),
-			'‹'
-		);
-	}
-	$crumbs = tag(
-		'os-button',
-		array(
-			'variant'   => 'ghost',
-			'os-action' => 'go',
-		),
-		esc( get_bloginfo( 'name' ) )
-	);
-	if ( $group ) {
-		$crumbs .= '<span class="os-mywp__sep" aria-hidden="true">›</span>';
-		$crumbs .= tag(
-			'os-button',
-			array(
-				'variant'      => 'ghost',
-				'os-action'    => 'go',
-				'os-arg-group' => $group['id'],
-			),
-			esc( $group['label'] )
-		);
-	}
-	if ( $section ) {
-		$crumbs .= '<span class="os-mywp__sep" aria-hidden="true">›</span>';
-		$args    = array(
-			'variant'        => 'ghost',
-			'os-action'      => 'go',
-			'os-arg-section' => $section['id'],
-		);
-		if ( $group ) {
-			$args['os-arg-group'] = $group['id'];
-		}
-		$crumbs .= tag( 'os-button', $args, esc( $section['label'] ) );
-	}
-	$search = '';
-	if ( $section ) {
-		$search = tag(
-			'os-text-field',
-			array(
-				'value'       => (string) $state->get( 'query' ),
-				'placeholder' => sprintf(
-					/* translators: %s: section label. */
-					__( 'Search %s…', 'desktop-mode' ),
-					$section['label']
-				),
-				'os-bind'     => 'query',
-				'os-action'   => 'search',
-			)
-		);
-	}
-	return '<header class="os-mywp__header">' . $back . '<nav class="os-mywp__crumbs">' . $crumbs . '</nav>' . $search . '</header>';
-}
-
-/**
- * The root (or one group's) folder grid.
- *
- * @param Os     $os       Host handle.
- * @param string $group_id Group to render, '' for the root.
- * @return array{html:string,status:string}
- */
-function render_root( Os $os, $group_id = '' ) {
-	$sections = sections( $os );
-	$tiles    = '';
-	$shown    = 0;
-
-	if ( '' === $group_id ) {
-		foreach ( $sections as $section ) {
-			if ( ! empty( $section['group'] ) ) {
-				continue;
-			}
-			$tiles .= root_tile(
-				array( 'section' => $section['id'] ),
-				(string) $section['label'],
-				(string) $section['icon'],
-				count_of( $section ),
-				'section-' . $section['id']
-			);
-			$shown++;
-		}
-		foreach ( groups( $sections ) as $group ) {
-			$count = 0;
-			foreach ( $sections as $section ) {
-				if ( ( $section['group'] ?? null ) === $group['id'] ) {
-					$count += count_of( $section );
-				}
-			}
-			$tiles .= root_tile(
-				array( 'group' => $group['id'] ),
-				(string) $group['label'],
-				(string) $group['icon'],
-				$count,
-				'group-' . $group['id']
-			);
-			$shown++;
-		}
-	} else {
-		foreach ( $sections as $section ) {
-			if ( ( $section['group'] ?? null ) !== $group_id ) {
-				continue;
-			}
-			$tiles .= root_tile(
-				array(
-					'group'   => $group_id,
-					'section' => $section['id'],
-				),
-				(string) $section['label'],
-				(string) $section['icon'],
-				count_of( $section ),
-				'section-' . $section['id']
-			);
-			$shown++;
-		}
-	}
-
-	return array(
-		'html'   => '<div class="os-mywp__root" role="list">' . $tiles . '</div>',
-		'status' => sprintf(
-			/* translators: %s: folder count. */
-			_n( '%s folder', '%s folders', $shown, 'desktop-mode' ),
-			number_format_i18n( $shown )
-		),
-	);
-}
-
-/**
- * The list pane: toolbar (sort + bulk bar), rows or thumbnail grid,
- * and the pager.
- *
- * @param Os                  $os      Host handle.
- * @param array<string,mixed> $section Section descriptor.
- * @param State               $state   State.
- * @return array{html:string,status:string}
- */
-function render_list( Os $os, array $section, State $state ) {
-	$result   = fetch( $section, $state );
-	$selected = array_map( 'intval', (array) $state->get( 'selected' ) );
-	$open_id  = (int) $state->get( 'item' );
-
-	$options = '';
-	foreach ( sort_options( $section ) as $value => $row ) {
-		$options .= tag(
-			'os-option',
-			array(
-				'value'    => $value,
-				'selected' => $value === (string) $state->get( 'sort' ) || ( 'default' === $value && ! $state->get( 'sort' ) ),
-			),
-			esc( $row[0] )
-		);
-	}
-	$toolbar = '<div class="os-mywp__toolbar">'
-		. tag(
-			'os-select',
-			array(
-				'value'   => '' !== (string) $state->get( 'sort' ) ? (string) $state->get( 'sort' ) : 'default',
-				'os-bind' => 'sort',
-			),
-			$options
-		);
-	if ( array() !== $selected ) {
-		$toolbar .= '<div class="os-mywp__bulk">'
-			. '<span>' . esc(
-				sprintf(
-					/* translators: %s: selected count. */
-					_n( '%s selected', '%s selected', count( $selected ), 'desktop-mode' ),
-					number_format_i18n( count( $selected ) )
-				)
-			) . '</span>';
-		if ( 'post' === $section['kind'] ) {
-			$toolbar .= tag(
-				'os-button',
-				array(
-					'variant'           => 'danger',
-					'os-action'         => 'bulk-trash',
-					'os-confirm'        => __( 'Move the selected items to the Trash?', 'desktop-mode' ),
-					'os-confirm-label'  => __( 'Trash', 'desktop-mode' ),
-					'os-confirm-danger' => true,
-				),
-				esc( __( 'Trash selected', 'desktop-mode' ) )
-			);
-		}
-		$toolbar .= tag(
-			'os-button',
-			array(
-				'variant'   => 'ghost',
-				'os-action' => 'clear-select',
-			),
-			esc( __( 'Clear', 'desktop-mode' ) )
-		) . '</div>';
-	}
-	$toolbar .= '</div>';
-
-	if ( array() === $result['items'] ) {
-		return array(
-			'html'   => $toolbar . tag(
-				'os-empty-state',
-				array( 'icon' => 0 === strpos( (string) $section['icon'], 'dashicons-' ) ? $section['icon'] : 'dashicons-portfolio' ),
-				esc(
-					'' !== (string) $state->get( 'query' )
-						? __( 'Nothing matches the search.', 'desktop-mode' )
-						: __( 'Nothing here yet.', 'desktop-mode' )
-				)
-			),
-			'status' => __( 'Empty', 'desktop-mode' ),
-		);
-	}
-
-	$rows = '';
-	foreach ( $result['items'] as $item ) {
-		$art  = '' !== $item['thumb']
-			? tag(
-				'img',
-				array(
-					'class'   => 'os-mywp__thumb',
-					'src'     => $item['thumb'],
-					'alt'     => '',
-					'loading' => 'lazy',
-				)
-			)
-			: glyph( (string) $section['icon'], 'os-mywp__glyph' );
-		$meta = '<span class="os-mywp__title">' . esc( $item['title'] ) . '</span>'
-			. '<span class="os-mywp__subtitle">' . esc( $item['subtitle'] ) . '</span>';
-		$flag = '' !== $item['status'] && 'publish' !== $item['status']
-			? tag( 'os-badge', array( 'no-dot' => true ), esc( ucfirst( $item['status'] ) ) )
-			: '';
-		$pick = tag(
-			'input',
-			array(
-				'type'        => 'checkbox',
-				'class'       => 'os-mywp__pick',
-				'checked'     => in_array( (int) $item['id'], $selected, true ),
-				'aria-label'  => sprintf(
-					/* translators: %s: item title. */
-					__( 'Select %s', 'desktop-mode' ),
-					$item['title']
-				),
-				'os-action'   => 'pick',
-				'os-arg-item' => $item['id'],
-			)
-		);
-		// Three nested triggers, one per gesture: click on the row opens
-		// the dossier pane, double-click anywhere on it opens the editor,
-		// right-click pops the actions menu. Each wrapper answers only
-		// its own event, so they never shadow each other.
-		$rows .= tag(
-			'div',
-			array(
-				'class'       => 'os-mywp__row-wrap',
-				'os-key'      => 'item-' . $item['id'],
-				'os-on'       => 'contextmenu',
-				'os-action'   => 'row-menu',
-				'os-arg-item' => $item['id'],
-			),
-			tag(
-				'div',
-				array(
-					'class'       => 'os-mywp__row' . ( $open_id === (int) $item['id'] ? ' is-open' : '' ),
-					'os-on'       => 'dblclick',
-					'os-action'   => 'edit',
-					'os-arg-item' => $item['id'],
-				),
-				$pick . tag(
-					'button',
-					array(
-						'type'        => 'button',
-						'class'       => 'os-mywp__row-open',
-						'os-on'       => 'click',
-						'os-action'   => 'open',
-						'os-arg-item' => $item['id'],
-					),
-					$art . '<span class="os-mywp__meta">' . $meta . '</span>' . $flag
-				)
-			)
-		);
-	}
-
-	$page  = max( 1, (int) $state->get( 'page' ) );
-	$pager = '<footer class="os-mywp__pager">'
-		. tag(
-			'os-button',
-			array(
-				'variant'     => 'ghost',
-				'os-action'   => 'paginate',
-				'os-arg-page' => $page - 1,
-				'disabled'    => $page <= 1,
-			),
-			esc( __( 'Previous', 'desktop-mode' ) )
-		)
-		. '<span class="os-mywp__count">' . esc(
-			sprintf(
-				/* translators: 1: current page, 2: page count. */
-				__( 'Page %1$d of %2$d', 'desktop-mode' ),
-				$page,
-				$result['pages']
-			)
-		) . '</span>'
-		. tag(
-			'os-button',
-			array(
-				'variant'     => 'ghost',
-				'os-action'   => 'paginate',
-				'os-arg-page' => $page + 1,
-				'disabled'    => $page >= $result['pages'],
-			),
-			esc( __( 'Next', 'desktop-mode' ) )
-		)
-		. '</footer>';
-
-	$mode   = 'media' === $section['kind'] ? ' os-mywp__list--grid' : '';
-	$status = sprintf(
-		/* translators: %s: item count. */
-		_n( '%s item', '%s items', $result['total'], 'desktop-mode' ),
-		number_format_i18n( $result['total'] )
-	);
-	if ( array() !== $selected ) {
-		$status .= ' — ' . sprintf(
-			/* translators: %s: selected count. */
-			__( '%s selected', 'desktop-mode' ),
-			number_format_i18n( count( $selected ) )
-		);
-	}
-	return array(
-		'html'   => $toolbar . '<div class="os-mywp__list' . esc( $mode ) . '" role="list">' . $rows . '</div>' . $pager,
-		'status' => $status,
-	);
-}
-
-/**
- * One dossier row.
- *
- * @param string $label Field label.
- * @param string $value Field value (plain text).
- * @return string
- */
-function fact( $label, $value ) {
-	if ( '' === $value ) {
-		return '';
-	}
-	return '<div class="os-mywp__fact"><dt>' . esc( $label ) . '</dt><dd>' . esc( $value ) . '</dd></div>';
-}
-
-/**
- * The detail dossier for the open item — the right pane.
- *
- * @param Os                  $os      Host handle.
- * @param array<string,mixed> $section Section descriptor.
- * @param State               $state   State (`item`).
- * @return string
- */
-function render_detail( Os $os, array $section, State $state ) {
-	$id = (int) $state->get( 'item' );
-
-	$title = '';
-	$art   = '';
-	$facts = '';
-	$extra = '';
+function detail( Os $os, array $section, $id ) {
 	if ( 'user' === $section['kind'] ) {
 		$user = get_userdata( $id );
 		if ( ! $user ) {
-			return tag( 'os-empty-state', array(), esc( __( 'This user no longer exists.', 'desktop-mode' ) ) );
+			return null;
 		}
-		$title = (string) $user->display_name;
-		$art   = tag(
-			'os-avatar',
-			array(
-				'src'  => (string) get_avatar_url( $id, array( 'size' => 192 ) ),
-				'name' => $title,
-				'size' => 'xl',
-			)
-		);
-		$facts = fact( __( 'Email', 'desktop-mode' ), (string) $user->user_email )
-			. fact( __( 'Role', 'desktop-mode' ), implode( ', ', array_map( 'ucfirst', (array) $user->roles ) ) )
-			. fact( __( 'Registered', 'desktop-mode' ), (string) date_i18n( get_option( 'date_format' ), strtotime( $user->user_registered ) ) )
-			. fact( __( 'Posts', 'desktop-mode' ), number_format_i18n( count_user_posts( $id ) ) )
-			. fact(
-				__( 'Comments', 'desktop-mode' ),
-				number_format_i18n(
-					(int) get_comments(
+		return array(
+			'kind'      => 'user',
+			'id'        => $id,
+			'title'     => (string) $user->display_name,
+			'avatar'    => (string) get_avatar_url( $id, array( 'size' => 192 ) ),
+			'facts'     => array_values(
+				array_filter(
+					array(
+						array( __( 'Email', 'desktop-mode' ), (string) $user->user_email ),
+						array( __( 'Role', 'desktop-mode' ), implode( ', ', array_map( 'ucfirst', (array) $user->roles ) ) ),
+						array( __( 'Registered', 'desktop-mode' ), (string) date_i18n( get_option( 'date_format' ), strtotime( $user->user_registered ) ) ),
+						array( __( 'Posts', 'desktop-mode' ), number_format_i18n( count_user_posts( $id ) ) ),
 						array(
-							'user_id' => $id,
-							'count'   => true,
-						)
-					)
+							__( 'Comments', 'desktop-mode' ),
+							number_format_i18n(
+								(int) get_comments(
+									array(
+										'user_id' => $id,
+										'count'   => true,
+									)
+								)
+							),
+						),
+					),
+					static function ( $fact ) {
+						return '' !== $fact[1];
+					}
 				)
-			);
-	} else {
-		$post = get_post( $id );
-		if ( ! $post || $post->post_type !== $section['post_type'] ) {
-			return tag( 'os-empty-state', array(), esc( __( 'This item no longer exists.', 'desktop-mode' ) ) );
-		}
-		$title = '' !== $post->post_title ? (string) $post->post_title : __( '(no title)', 'desktop-mode' );
-		if ( 'media' === $section['kind'] ) {
-			$src   = (string) wp_get_attachment_image_url( $id, 'large' );
-			$art   = '' !== $src
-				? tag(
-					'img',
-					array(
-						'class' => 'os-mywp__hero',
-						'src'   => $src,
-						'alt'   => $title,
-					)
-				)
-				: '';
-			$file  = get_attached_file( $id );
-			$meta  = (array) wp_get_attachment_metadata( $id );
-			$facts = fact( __( 'Type', 'desktop-mode' ), (string) $post->post_mime_type )
-				. fact( __( 'Size', 'desktop-mode' ), $file && file_exists( $file ) ? size_format( (int) filesize( $file ) ) : '' )
-				. fact(
-					__( 'Dimensions', 'desktop-mode' ),
-					isset( $meta['width'], $meta['height'] ) ? $meta['width'] . ' × ' . $meta['height'] : ''
-				)
-				. fact( __( 'Uploaded', 'desktop-mode' ), (string) get_the_date( '', $post ) );
-			// Where the file is actually used — WP Explorer's usage scan,
-			// straight from the same helper. Viewer-specific by contract.
-			if ( function_exists( 'openstation_my_wordpress_media_usage_build' ) ) {
-				$usage = openstation_my_wordpress_media_usage_build( $post );
-				$rows  = '';
-				foreach ( array_slice( (array) ( $usage['usedIn'] ?? array() ), 0, 8 ) as $used ) {
-					$rows .= '<li>' . esc( (string) ( $used['title'] ?? '' ) )
-						. ' <span class="os-mywp__subtitle">' . esc( (string) ( $used['usedAs'] ?? '' ) ) . '</span></li>';
-				}
-				$extra = '<h3 class="os-mywp__pane-h">' . esc( __( 'Used in', 'desktop-mode' ) ) . '</h3>'
-					. ( '' !== $rows
-						? '<ul class="os-mywp__used-in">' . $rows . '</ul>'
-						: '<p class="os-mywp__subtitle">' . esc( __( 'Not used anywhere yet.', 'desktop-mode' ) ) . '</p>' );
+			),
+			'canEdit'   => allowed( $os, $section, $id, 'edit' ),
+			'canDelete' => false,
+		);
+	}
+
+	$post = get_post( $id );
+	if ( ! $post || $post->post_type !== $section['post_type'] ) {
+		return null;
+	}
+	$title = '' !== $post->post_title ? (string) $post->post_title : __( '(no title)', 'desktop-mode' );
+
+	if ( 'media' === $section['kind'] ) {
+		$file  = get_attached_file( $id );
+		$meta  = (array) wp_get_attachment_metadata( $id );
+		$used  = array();
+		if ( function_exists( 'openstation_my_wordpress_media_usage_build' ) ) {
+			foreach ( array_slice( (array) ( openstation_my_wordpress_media_usage_build( $post )['usedIn'] ?? array() ), 0, 12 ) as $row ) {
+				$used[] = array(
+					'title'  => (string) ( $row['title'] ?? '' ),
+					'usedAs' => (string) ( $row['usedAs'] ?? '' ),
+				);
 			}
-		} else {
-			$thumb = (string) get_the_post_thumbnail_url( $post, 'large' );
-			$art   = '' !== $thumb
-				? tag(
-					'img',
-					array(
-						'class' => 'os-mywp__hero',
-						'src'   => $thumb,
-						'alt'   => '',
-					)
-				)
-				: '';
-			$facts = fact( __( 'Status', 'desktop-mode' ), ucfirst( (string) $post->post_status ) )
-				. fact( __( 'Author', 'desktop-mode' ), (string) get_the_author_meta( 'display_name', (int) $post->post_author ) )
-				. fact( __( 'Published', 'desktop-mode' ), (string) get_the_date( '', $post ) )
-				. fact( __( 'Modified', 'desktop-mode' ), (string) get_the_modified_date( '', $post ) )
-				. fact( __( 'Words', 'desktop-mode' ), number_format_i18n( str_word_count( wp_strip_all_tags( (string) $post->post_content ) ) ) );
 		}
-	}
-
-	$actions = '';
-	if ( allowed( $os, $section, $id, 'edit' ) ) {
-		$actions .= tag(
-			'os-button',
-			array(
-				'variant'     => 'primary',
-				'os-action'   => 'edit',
-				'os-arg-item' => $id,
+		return array(
+			'kind'      => 'media',
+			'id'        => $id,
+			'title'     => $title,
+			'mime'      => (string) $post->post_mime_type,
+			'image'     => (string) wp_get_attachment_image_url( $id, 'large' ),
+			'full'      => (string) wp_get_attachment_image_url( $id, 'full' ),
+			'facts'     => array_values(
+				array_filter(
+					array(
+						array( __( 'Type', 'desktop-mode' ), (string) $post->post_mime_type ),
+						array( __( 'Size', 'desktop-mode' ), $file && file_exists( $file ) ? (string) size_format( (int) filesize( $file ) ) : '' ),
+						array(
+							__( 'Dimensions', 'desktop-mode' ),
+							isset( $meta['width'], $meta['height'] ) ? $meta['width'] . ' × ' . $meta['height'] : '',
+						),
+						array( __( 'Uploaded', 'desktop-mode' ), (string) get_the_date( '', $post ) ),
+					),
+					static function ( $fact ) {
+						return '' !== $fact[1];
+					}
+				)
 			),
-			esc( 'user' === $section['kind'] ? __( 'Edit profile', 'desktop-mode' ) : __( 'Open in editor', 'desktop-mode' ) )
+			'usedIn'    => $used,
+			'canEdit'   => allowed( $os, $section, $id, 'edit' ),
+			'canDelete' => allowed( $os, $section, $id, 'delete' ),
 		);
 	}
-	if ( 'post' === $section['kind'] && allowed( $os, $section, $id, 'delete' ) ) {
-		$actions .= tag(
-			'os-button',
-			array(
-				'variant'           => 'danger',
-				'os-action'         => 'trash',
-				'os-arg-item'       => $id,
-				'os-confirm'        => __( 'Move this to the Trash?', 'desktop-mode' ),
-				'os-confirm-label'  => __( 'Trash', 'desktop-mode' ),
-				'os-confirm-danger' => true,
-			),
-			esc( __( 'Trash', 'desktop-mode' ) )
-		);
-	}
 
-	$close = tag(
-		'os-button',
-		array(
-			'variant'    => 'ghost',
-			'class'      => 'os-mywp__pane-close',
-			'aria-label' => __( 'Close details', 'desktop-mode' ),
-			'os-action'  => 'open',
-			'os-arg-item' => 0,
+	// The rendered body — what WP Explorer's preview pane shows.
+	// Server-rendered, admin-trusted, injected verbatim by the client.
+	// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Applying Core's own content pipeline (blocks, shortcodes, embeds), not declaring a hook.
+	$content = apply_filters( 'the_content', (string) $post->post_content );
+
+	return array(
+		'kind'      => 'post',
+		'id'        => $id,
+		'title'     => $title,
+		'image'     => (string) get_the_post_thumbnail_url( $post, 'large' ),
+		'content'   => (string) $content,
+		'lockedBy'  => lock_holder( $id ),
+		'facts'     => array_values(
+			array_filter(
+				array(
+					array( __( 'Status', 'desktop-mode' ), ucfirst( (string) $post->post_status ) ),
+					array( __( 'Author', 'desktop-mode' ), (string) get_the_author_meta( 'display_name', (int) $post->post_author ) ),
+					array( __( 'Published', 'desktop-mode' ), (string) get_the_date( '', $post ) ),
+					array( __( 'Modified', 'desktop-mode' ), (string) get_the_modified_date( '', $post ) ),
+					array( __( 'Words', 'desktop-mode' ), number_format_i18n( str_word_count( wp_strip_all_tags( (string) $post->post_content ) ) ) ),
+				),
+				static function ( $fact ) {
+					return '' !== $fact[1];
+				}
+			)
 		),
-		'✕'
+		'canEdit'   => allowed( $os, $section, $id, 'edit' ),
+		'canDelete' => allowed( $os, $section, $id, 'delete' ),
 	);
+}
 
-	return '<article class="os-mywp__detail">'
-		. $close
-		. $art
-		. '<h2 class="os-mywp__detail-title">' . esc( $title ) . '</h2>'
-		. '<dl class="os-mywp__facts">' . $facts . '</dl>'
-		. $extra
-		. '<div class="os-mywp__actions">' . $actions . '</div>'
-		. '</article>';
+/**
+ * The preview-action descriptors the acting user may see — the same
+ * `openstation_my_wordpress_preview_actions` pipeline WP Explorer
+ * collects, minus the fields the client does not need.
+ *
+ * @param Os $os Host handle.
+ * @return array<int,array<string,mixed>>
+ */
+function preview_actions( Os $os ) {
+	if ( ! function_exists( 'openstation_my_wordpress_collect_preview_actions' ) ) {
+		return array();
+	}
+	$out = array();
+	foreach ( (array) openstation_my_wordpress_collect_preview_actions() as $action ) {
+		if ( ! is_array( $action ) || empty( $action['id'] ) ) {
+			continue;
+		}
+		if ( ! empty( $action['capability'] ) && ! $os->can( (string) $action['capability'] ) ) {
+			continue;
+		}
+		$out[] = array(
+			'id'       => (string) $action['id'],
+			'label'    => (string) ( $action['label'] ?? $action['id'] ),
+			'icon'     => (string) ( $action['icon'] ?? '' ),
+			'sections' => array_map( 'strval', (array) ( $action['sections'] ?? array() ) ),
+			'mime'     => (string) ( $action['mime'] ?? '' ),
+		);
+	}
+	return $out;
 }
 
 // ----------------------------------------------------------------- app
@@ -968,7 +592,7 @@ return App::define( 'my-wordpress' )
 			'action' => 'refresh',
 		)
 	)
-	// Re-rendering IS the refresh; the handler has nothing to do.
+	// Recomputing data() IS the refresh; the handler has nothing to do.
 	->action( 'refresh', static function () {} )
 	->action(
 		'go',
@@ -1007,24 +631,23 @@ return App::define( 'my-wordpress' )
 		}
 	)
 	->action(
+		'more',
+		static function ( State $state ) {
+			$state->set( 'page', (int) $state->get( 'page' ) + 1 );
+		}
+	)
+	->action(
+		'sort',
+		static function ( State $state ) {
+			// The bound `sort` value already arrived with the state;
+			// re-query from the first page in the new order.
+			$state->set( 'page', 1 )->reset( 'selected' );
+		}
+	)
+	->action(
 		'paginate',
 		static function ( State $state, Os $os, array $args ) {
 			$state->set( 'page', max( 1, (int) ( $args['page'] ?? 1 ) ) )->reset( 'selected' );
-		}
-	)
-	->action(
-		'pick',
-		static function ( State $state, Os $os, array $args ) {
-			$id = (int) ( $args['item'] ?? 0 );
-			if ( $id > 0 ) {
-				$state->toggle_item( 'selected', $id );
-			}
-		}
-	)
-	->action(
-		'clear-select',
-		static function ( State $state ) {
-			$state->reset( 'selected' );
 		}
 	)
 	->action(
@@ -1091,41 +714,7 @@ return App::define( 'my-wordpress' )
 			$os->announce( (string) $section['post_type'], 'trashed', $trashed );
 		}
 	)
-	->action(
-		'row-menu',
-		static function ( State $state, Os $os, array $args ) {
-			$section = section_of( $os, (string) $state->get( 'section' ) );
-			$id      = (int) ( $args['item'] ?? 0 );
-			if ( ! $section || $id <= 0 ) {
-				return;
-			}
-			$items = array(
-				array(
-					'label'  => __( 'Open', 'desktop-mode' ),
-					'action' => 'open',
-					'args'   => array( 'item' => $id ),
-				),
-			);
-			if ( allowed( $os, $section, $id, 'edit' ) ) {
-				$items[] = array(
-					'label'  => 'user' === $section['kind'] ? __( 'Edit profile', 'desktop-mode' ) : __( 'Open in editor', 'desktop-mode' ),
-					'action' => 'edit',
-					'args'   => array( 'item' => $id ),
-				);
-			}
-			if ( 'post' === $section['kind'] ) {
-				$items[] = array(
-					'label'    => __( 'Trash', 'desktop-mode' ),
-					'action'   => 'trash',
-					'args'     => array( 'item' => $id ),
-					'danger'   => true,
-					'disabled' => ! allowed( $os, $section, $id, 'delete' ),
-				);
-			}
-			$os->menu( $items );
-		}
-	)
-	->view(
+	->data(
 		static function ( State $state, Os $os ) {
 			$sections = sections( $os );
 			$section  = section_of( $os, (string) $state->get( 'section' ) );
@@ -1134,35 +723,35 @@ return App::define( 'my-wordpress' )
 				// fall back to the root rather than a dead end.
 				$state->set( 'section', '' )->set( 'item', 0 );
 			}
-			$group = null;
-			foreach ( groups( $sections ) as $candidate ) {
-				if ( $candidate['id'] === (string) $state->get( 'group' ) ) {
-					$group = $candidate;
-				}
-			}
-			if ( ! $group && '' !== (string) $state->get( 'group' ) ) {
+			$group_list = groups( $sections );
+			$group_ids  = array_column( $group_list, 'id' );
+			if ( '' !== (string) $state->get( 'group' ) && ! in_array( (string) $state->get( 'group' ), $group_ids, true ) ) {
 				$state->set( 'group', '' );
 			}
 
-			if ( ! $section ) {
-				$pane = render_root( $os, $group ? (string) $group['id'] : '' );
-				$body = $pane['html'];
-			} else {
-				$pane = render_list( $os, $section, $state );
-				$body = '<div class="os-mywp__split">'
-					. '<div class="os-mywp__list-pane">' . $pane['html'] . '</div>'
-					. ( (int) $state->get( 'item' ) > 0
-						? '<aside class="os-mywp__detail-pane">' . render_detail( $os, $section, $state ) . '</aside>'
-						: '' )
-					. '</div>';
+			$with_counts = array();
+			foreach ( $sections as $entry ) {
+				$entry['count'] = count_of( $entry );
+				unset( $entry['capability'] );
+				$with_counts[] = $entry;
 			}
 
-			echo '<div class="os-mywp">';
-			echo header_bar( $os, $group, $section, $state ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Built entirely from Html\tag()/esc().
-			echo '<div class="os-mywp__body">';
-			echo $body; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Built entirely from Html\tag()/esc().
-			echo '</div>';
-			echo '<footer class="os-mywp__status">' . esc( $pane['status'] ) . '</footer>';
-			echo '</div>';
+			$item = (int) $state->get( 'item' );
+			return array(
+				'siteName'       => (string) get_bloginfo( 'name' ),
+				'sections'       => $with_counts,
+				'groups'         => $group_list,
+				'sortOptions'    => $section
+					? array_map(
+						static function ( $row ) {
+							return $row[0];
+						},
+						sort_options( $section )
+					)
+					: (object) array(),
+				'list'           => $section ? fetch( $os, $section, $state ) : null,
+				'detail'         => $section && $item > 0 ? detail( $os, $section, $item ) : null,
+				'previewActions' => preview_actions( $os ),
+			);
 		}
 	);

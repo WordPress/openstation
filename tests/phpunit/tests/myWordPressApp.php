@@ -1,10 +1,13 @@
 <?php
 /**
  * Tests for My WordPress — the content explorer written as an App
- * Framework `.os.php`: the section registry (builtins + discovered
- * CPTs + groups), the queries with search/sort/paging, the two-pane
- * views, selection and bulk trash, and per-item authorization, end to
- * end through dispatch.
+ * Framework `.os.php` + `.os.ts`: the section registry (builtins +
+ * discovered CPTs + groups), the queries with search/sort/paging,
+ * the dossier payloads, the preview-action pipeline, and per-item
+ * authorization, end to end through dispatch. The server half
+ * returns DATA (the client view paints it — see
+ * `apps/my-wordpress/my-wordpress.test.ts` for that side), so these
+ * tests assert the `data` payload, the state, and the effects.
  *
  * @package WordPress
  * @subpackage UnitTests
@@ -98,12 +101,28 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * One section's descriptor from a response's data.
+	 *
+	 * @param array  $response Runtime response.
+	 * @param string $id       Section id.
+	 * @return array<string,mixed>|null
+	 */
+	protected function data_section( array $response, $id ) {
+		foreach ( $response['data']['sections'] as $section ) {
+			if ( $section['id'] === $id ) {
+				return $section;
+			}
+		}
+		return null;
+	}
+
 	// ------------------------------------------------------ registration
 
 	/**
 	 * @covers ::openstation_app
 	 */
-	public function test_the_app_is_loaded_from_apps_with_its_chrome() {
+	public function test_the_app_is_loaded_from_apps_with_both_halves() {
 		$app = openstation_app( 'my-wordpress' );
 		$this->assertNotNull( $app );
 
@@ -112,7 +131,12 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		$this->assertSame( array( '*' ), $manifest['watch'], 'Sections are dynamic, so ANY content change repaints the explorer.' );
 		$this->assertSame( 'refresh', $manifest['title_bar_buttons'][0]['action'] );
 		$this->assertIsArray( $manifest['desktop_icon'] );
-		$this->assertSame( '', $manifest['client_source'], 'A server view: the app ships no JavaScript.' );
+		$this->assertStringEndsWith(
+			'apps/my-wordpress/my-wordpress.os.ts',
+			wp_normalize_path( $manifest['client_source'] ),
+			'The body is a client view — selection, marquee, drag-out and zoom are instant.'
+		);
+		$this->assertTrue( $manifest['has_data'] );
 		$this->assertStringEndsWith( 'apps/my-wordpress/my-wordpress.css', wp_normalize_path( $manifest['style'] ) );
 	}
 
@@ -145,7 +169,7 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		$builtins = array( 'posts', 'pages', 'media', 'users' );
 		$this->assertSame( $builtins, array_values( array_intersect( $ids(), $builtins ) ) );
 
-		// An editor cannot list users; the tile simply is not there.
+		// An editor cannot list users; the section simply is not there.
 		wp_set_current_user( self::$editor_id );
 		$this->assertNotContains( 'users', $ids() );
 		$this->assertContains( 'posts', $ids() );
@@ -165,25 +189,18 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 			)
 		);
 
-		$list = sections( openstation_apps_os() );
-		$book = null;
-		foreach ( $list as $section ) {
-			if ( 'cpt-unit_book' === $section['id'] ) {
-				$book = $section;
-			}
-		}
+		$response = $this->dispatch( 'mount' );
+		$book     = $this->data_section( $response, 'cpt-unit_book' );
 		$this->assertNotNull( $book, 'The CPT is discovered by the same helper WP Explorer uses.' );
 		$this->assertSame( 'Books', $book['label'] );
 		$this->assertSame( 'dashicons-book', $book['icon'] );
-
-		$response = $this->dispatch( 'mount' );
-		$this->assertStringContainsString( 'os-arg-section="cpt-unit_book"', $response['html'] );
+		$this->assertSame( 'unit_book', $book['post_type'] );
 	}
 
 	/**
 	 * @covers \OpenStation\Apps\MyWordPress\groups
 	 */
-	public function test_grouped_sections_fold_into_a_root_folder() {
+	public function test_grouped_sections_ship_their_root_folder() {
 		add_filter(
 			'openstation_my_wordpress_app_sections',
 			static function ( $sections ) {
@@ -204,42 +221,47 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 			}
 		);
 
-		$root = $this->dispatch( 'mount' );
-		$this->assertStringContainsString( 'os-arg-group="my-shop"', $root['html'] );
-		$this->assertStringContainsString( 'My Shop', $root['html'] );
-		$this->assertStringNotContainsString( 'os-arg-section="products"', $root['html'], 'A grouped section lives inside its folder, not loose at the root.' );
+		$response = $this->dispatch( 'mount' );
+		$this->assertSame( 'my-shop', $this->data_section( $response, 'products' )['group'] );
+		$labels = array_column( $response['data']['groups'], 'label', 'id' );
+		$this->assertSame( 'My Shop', $labels['my-shop'] );
 
 		$folder = $this->dispatch( 'go', array(), array( 'group' => 'my-shop' ) );
 		$this->assertSame( 'my-shop', $folder['state']['group'] );
-		$this->assertStringContainsString( 'os-arg-section="products"', $folder['html'] );
 	}
 
-	// ------------------------------------------------------------- views
+	// -------------------------------------------------------------- data
 
 	/**
-	 * @covers \OpenStation\Apps\MyWordPress\render_root
+	 * @covers \OpenStation\Apps\MyWordPress\count_of
 	 */
-	public function test_mount_paints_the_root_grid_with_counts_and_status() {
+	public function test_mount_ships_sections_with_counts_and_no_body_html() {
 		$response = $this->dispatch( 'mount' );
 		$this->assertTrue( $response['ok'] );
-		$this->assertStringContainsString( 'os-arg-section="posts"', $response['html'] );
-		$this->assertStringContainsString( 'os-arg-section="users"', $response['html'] );
-		$this->assertStringContainsString( 'Posts ·', $response['html'], 'Each tile carries its count, WP Explorer style.' );
-		$this->assertStringContainsString( 'folders', $response['html'], 'The status bar counts the root.' );
+		$this->assertSame( '', $response['html'], 'A client view paints the body.' );
+		$this->assertGreaterThanOrEqual( 1, $this->data_section( $response, 'posts' )['count'] );
+		$this->assertNull( $response['data']['list'] );
+		$this->assertNull( $response['data']['detail'] );
 	}
 
 	/**
-	 * @covers \OpenStation\Apps\MyWordPress\render_list
+	 * @covers \OpenStation\Apps\MyWordPress\fetch
 	 */
-	public function test_opening_a_section_paints_the_list_pane_with_toolbar_and_pager() {
+	public function test_opening_a_section_ships_the_list_page() {
 		$response = $this->dispatch( 'go', array(), array( 'section' => 'posts' ) );
 		$this->assertSame( 'posts', $response['state']['section'] );
-		$this->assertStringContainsString( 'Alpha strategy', $response['html'] );
-		$this->assertStringContainsString( 'os-action="open"', $response['html'] );
-		$this->assertStringContainsString( 'os-on="dblclick"', $response['html'], 'Double-click opens the editor.' );
-		$this->assertStringContainsString( 'os-on="contextmenu"', $response['html'], 'Right-click opens the actions menu.' );
-		$this->assertStringContainsString( 'os-bind="sort"', $response['html'], 'The toolbar sorts.' );
-		$this->assertStringContainsString( 'Page 1 of', $response['html'] );
+
+		$list = $response['data']['list'];
+		$this->assertSame( 1, $list['page'] );
+		$titles = array_column( $list['items'], 'title' );
+		$this->assertContains( 'Alpha strategy', $titles );
+
+		$first = $list['items'][ array_search( 'Alpha strategy', $titles, true ) ];
+		$this->assertTrue( $first['canEdit'] );
+		$this->assertTrue( $first['canDelete'] );
+		$this->assertNotSame( '', $first['link'], 'Rows carry their permalink for Copy links.' );
+
+		$this->assertArrayHasKey( 'default', $response['data']['sortOptions'] );
 	}
 
 	/**
@@ -254,22 +276,26 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		);
 
 		$newest = $this->dispatch( 'refresh', array( 'section' => 'posts' ) );
+		$titles = array_column( $newest['data']['list']['items'], 'title' );
 		$this->assertLessThan(
-			strpos( $newest['html'], 'Alpha strategy' ),
-			strpos( $newest['html'], 'Zulu memo' ),
+			array_search( 'Alpha strategy', $titles, true ),
+			array_search( 'Zulu memo', $titles, true ),
 			'Default: newest first.'
 		);
 
 		$oldest = $this->dispatch(
-			'refresh',
+			'sort',
 			array(
 				'section' => 'posts',
 				'sort'    => 'oldest',
+				'page'    => 3,
 			)
 		);
+		$this->assertSame( 1, $oldest['state']['page'], 'A new order restarts from the first page.' );
+		$titles = array_column( $oldest['data']['list']['items'], 'title' );
 		$this->assertLessThan(
-			strpos( $oldest['html'], 'Zulu memo' ),
-			strpos( $oldest['html'], 'Alpha strategy' ),
+			array_search( 'Zulu memo', $titles, true ),
+			array_search( 'Alpha strategy', $titles, true ),
 			'Oldest first flips the order.'
 		);
 	}
@@ -289,45 +315,61 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 			)
 		);
 		$this->assertSame( 1, $response['state']['page'] );
-		$this->assertStringContainsString( 'Alpha strategy', $response['html'] );
-		$this->assertStringNotContainsString( 'Beta notes', $response['html'] );
+		$titles = array_column( $response['data']['list']['items'], 'title' );
+		$this->assertContains( 'Alpha strategy', $titles );
+		$this->assertNotContains( 'Beta notes', $titles );
 	}
 
 	/**
-	 * @covers \OpenStation\Apps\MyWordPress\render_detail
+	 * @covers \OpenStation\Apps\MyWordPress\fetch
 	 */
-	public function test_opening_an_item_adds_the_detail_pane_beside_the_list() {
+	public function test_more_advances_the_page_for_infinite_scroll() {
+		$response = $this->dispatch( 'more', array( 'section' => 'posts' ) );
+		$this->assertSame( 2, $response['state']['page'] );
+		$this->assertSame( 2, $response['data']['list']['page'] );
+	}
+
+	// ----------------------------------------------------------- dossier
+
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\detail
+	 */
+	public function test_post_dossier_carries_facts_and_the_rendered_preview() {
 		$response = $this->dispatch(
 			'open',
 			array( 'section' => 'posts' ),
 			array( 'item' => self::$post_id )
 		);
-		$this->assertStringContainsString( 'os-mywp__detail-pane', $response['html'], 'Two panes: the list stays.' );
-		$this->assertStringContainsString( 'os-mywp__list', $response['html'] );
-		$this->assertStringContainsString( 'Status', $response['html'] );
-		$this->assertStringContainsString( 'os-action="trash"', $response['html'] );
-		$this->assertStringContainsString( 'os-confirm', $response['html'], 'Trash asks first.' );
+		$detail = $response['data']['detail'];
+		$this->assertSame( 'post', $detail['kind'] );
+		$this->assertSame( 'Alpha strategy', $detail['title'] );
+		$this->assertContains( 'Status', array_column( $detail['facts'], 0 ) );
+		$this->assertArrayHasKey( 'content', $detail, 'The rendered body feeds the preview pane.' );
+		$this->assertTrue( $detail['canDelete'] );
 	}
 
 	/**
-	 * @covers \OpenStation\Apps\MyWordPress\render_detail
+	 * @covers \OpenStation\Apps\MyWordPress\detail
 	 */
-	public function test_user_dossier_shows_role_email_and_footprint() {
+	public function test_user_dossier_carries_role_email_and_footprint() {
 		$response = $this->dispatch(
 			'open',
 			array( 'section' => 'users' ),
 			array( 'item' => self::$editor_id )
 		);
-		$this->assertStringContainsString( 'Editor', $response['html'] );
-		$this->assertStringContainsString( 'os-avatar', $response['html'] );
-		$this->assertStringContainsString( 'Comments', $response['html'], 'The footprint facts are part of the dossier.' );
-		$this->assertStringNotContainsString( 'os-action="trash"', $response['html'], 'Users are never trashable here.' );
+		$detail = $response['data']['detail'];
+		$this->assertSame( 'user', $detail['kind'] );
+		$this->assertNotSame( '', $detail['avatar'] );
+		$labels = array_column( $detail['facts'], 0 );
+		$this->assertContains( 'Role', $labels );
+		$this->assertContains( 'Comments', $labels, 'The footprint facts are part of the dossier.' );
+		$this->assertFalse( $detail['canDelete'], 'Users are never trashable here.' );
 	}
 
 	/**
-	 * @covers \OpenStation\Apps\MyWordPress\render_detail
+	 * @covers \OpenStation\Apps\MyWordPress\detail
 	 */
-	public function test_media_dossier_carries_the_usage_scan() {
+	public function test_media_dossier_carries_the_usage_scan_and_zoom_source() {
 		$attachment = self::factory()->post->create(
 			array(
 				'post_type'      => 'attachment',
@@ -341,25 +383,11 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 			array( 'section' => 'media' ),
 			array( 'item' => $attachment )
 		);
-		$this->assertStringContainsString( 'Sunset photo', $response['html'] );
-		$this->assertStringContainsString( 'Used in', $response['html'], 'WP Explorer\'s usage scan, reused.' );
-	}
-
-	/**
-	 * @covers \OpenStation\Apps\MyWordPress\render_list
-	 */
-	public function test_media_section_lists_as_a_thumbnail_grid() {
-		self::factory()->post->create(
-			array(
-				'post_type'      => 'attachment',
-				'post_title'     => 'Grid photo',
-				'post_status'    => 'inherit',
-				'post_mime_type' => 'image/jpeg',
-			)
-		);
-		$response = $this->dispatch( 'go', array(), array( 'section' => 'media' ) );
-		$this->assertStringContainsString( 'Grid photo', $response['html'] );
-		$this->assertStringContainsString( 'os-mywp__list--grid', $response['html'] );
+		$detail = $response['data']['detail'];
+		$this->assertSame( 'media', $detail['kind'] );
+		$this->assertSame( 'Sunset photo', $detail['title'] );
+		$this->assertArrayHasKey( 'usedIn', $detail, 'WP Explorer\'s usage scan, reused.' );
+		$this->assertArrayHasKey( 'full', $detail, 'The zoom overlay reads the full-size source.' );
 	}
 
 	/**
@@ -369,72 +397,57 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		$response = $this->dispatch( 'refresh', array( 'section' => 'no-such-thing' ) );
 		$this->assertTrue( $response['ok'] );
 		$this->assertSame( '', $response['state']['section'] );
-		$this->assertStringContainsString( 'os-mywp__root', $response['html'] );
+		$this->assertNull( $response['data']['list'] );
 	}
 
 	/**
-	 * @covers \OpenStation\Apps\MyWordPress\render_root
+	 * @covers \OpenStation\Apps\MyWordPress\detail
 	 */
 	public function test_back_walks_pane_then_section_then_group() {
-		$state = array(
-			'group'   => '',
-			'section' => 'posts',
-			'item'    => self::$post_id,
+		$response = $this->dispatch(
+			'back',
+			array(
+				'section' => 'posts',
+				'item'    => self::$post_id,
+			)
 		);
-
-		$response = $this->dispatch( 'back', $state );
 		$this->assertSame( 0, $response['state']['item'], 'First back closes the pane.' );
 
 		$response = $this->dispatch( 'back', array( 'section' => 'posts' ) );
 		$this->assertSame( '', $response['state']['section'], 'Second back leaves the section.' );
 	}
 
-	// --------------------------------------------------------- selection
+	// --------------------------------------------------- preview actions
 
 	/**
-	 * @covers \OpenStation\Apps\MyWordPress\render_list
+	 * @covers \OpenStation\Apps\MyWordPress\preview_actions
 	 */
-	public function test_picking_rows_builds_a_selection_and_shows_the_bulk_bar() {
-		$picked = $this->dispatch(
-			'pick',
-			array( 'section' => 'posts' ),
-			array( 'item' => self::$post_id )
-		);
-		$this->assertSame( array( self::$post_id ), $picked['state']['selected'] );
-		$this->assertStringContainsString( '1 selected', $picked['html'] );
-		$this->assertStringContainsString( 'os-action="bulk-trash"', $picked['html'] );
-
-		$cleared = $this->dispatch( 'clear-select', $picked['state'] );
-		$this->assertSame( array(), $cleared['state']['selected'] );
-	}
-
-	/**
-	 * @covers \OpenStation\Apps\MyWordPress\allowed
-	 */
-	public function test_bulk_trash_trashes_only_what_the_user_may_trash() {
-		wp_set_current_user( self::$author_id );
-		$own = self::factory()->post->create(
-			array(
-				'post_title'  => 'Mine',
-				'post_author' => self::$author_id,
-			)
+	public function test_preview_actions_flow_from_the_wp_explorer_filter_capability_gated() {
+		add_filter(
+			'openstation_my_wordpress_preview_actions',
+			static function ( $actions ) {
+				$actions[] = array(
+					'id'       => 'export-form',
+					'label'    => 'Export',
+					'sections' => array( 'cpt-atf-forms' ),
+				);
+				$actions[] = array(
+					'id'         => 'admin-only',
+					'label'      => 'Danger zone',
+					'capability' => 'manage_options',
+				);
+				return $actions;
+			}
 		);
 
-		$response = $this->dispatch(
-			'bulk-trash',
-			array(
-				'section'  => 'posts',
-				'selected' => array( $own, self::$post_id ),
-			)
-		);
+		$ids = array_column( $this->dispatch( 'refresh' )['data']['previewActions'], 'id' );
+		$this->assertContains( 'export-form', $ids );
+		$this->assertContains( 'admin-only', $ids );
 
-		$this->assertSame( 'trash', get_post_status( $own ) );
-		$this->assertSame( 'publish', get_post_status( self::$post_id ), 'The admin\'s post survives an author\'s bulk trash.' );
-		$this->assertSame( array(), $response['state']['selected'] );
-
-		$announces = $this->effects_of( $response, 'announce' );
-		$this->assertCount( 1, $announces );
-		$this->assertSame( array( $own ), $announces[0]['ids'], 'Only what was actually trashed is announced.' );
+		wp_set_current_user( self::$editor_id );
+		$ids = array_column( $this->dispatch( 'refresh' )['data']['previewActions'], 'id' );
+		$this->assertContains( 'export-form', $ids );
+		$this->assertNotContains( 'admin-only', $ids, 'Capability-gated actions never reach a user without the capability.' );
 	}
 
 	// ----------------------------------------------------------- actions
@@ -498,47 +511,54 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 	/**
 	 * @covers \OpenStation\Apps\MyWordPress\allowed
 	 */
-	public function test_row_menu_reflects_per_item_authorization() {
+	public function test_bulk_trash_trashes_only_what_the_user_may_trash() {
 		wp_set_current_user( self::$author_id );
-		$response = $this->dispatch(
-			'row-menu',
-			array( 'section' => 'posts' ),
-			array( 'item' => self::$post_id )
+		$own = self::factory()->post->create(
+			array(
+				'post_title'  => 'Mine',
+				'post_author' => self::$author_id,
+			)
 		);
 
-		$menus = $this->effects_of( $response, 'menu' );
-		$this->assertCount( 1, $menus );
-		$labels = wp_list_pluck( $menus[0]['items'], 'label' );
-		$this->assertContains( 'Open', $labels );
-		$this->assertNotContains( 'Open in editor', $labels, 'An author cannot edit the admin\'s post.' );
-		$trash = null;
-		foreach ( $menus[0]['items'] as $item ) {
-			if ( 'trash' === $item['action'] ) {
-				$trash = $item;
-			}
-		}
-		$this->assertNotNull( $trash );
-		$this->assertTrue( $trash['danger'] );
-		$this->assertTrue( $trash['disabled'] );
+		$response = $this->dispatch(
+			'bulk-trash',
+			array(
+				'section'  => 'posts',
+				'selected' => array( $own, self::$post_id ),
+			)
+		);
+
+		$this->assertSame( 'trash', get_post_status( $own ) );
+		$this->assertSame( 'publish', get_post_status( self::$post_id ), 'The admin\'s post survives an author\'s bulk trash.' );
+		$this->assertSame( array(), $response['state']['selected'] );
+
+		$announces = $this->effects_of( $response, 'announce' );
+		$this->assertCount( 1, $announces );
+		$this->assertSame( array( $own ), $announces[0]['ids'], 'Only what was actually trashed is announced.' );
 	}
 
 	// -------------------------------------------------------------- size
 
 	/**
-	 * The point of the exercise: the whole explorer surface in one PHP
-	 * file plus a stylesheet, no JavaScript.
+	 * The point of the exercise: the whole explorer surface — root,
+	 * groups, lists, selection, drag-out, dossiers, preview actions —
+	 * in one PHP file, one client view and one stylesheet.
 	 *
 	 * @coversNothing
 	 */
-	public function test_the_app_stays_small_and_ships_no_script() {
+	public function test_the_app_stays_small_and_ships_exactly_one_script() {
 		$dir   = OPENSTATION_DIR . 'apps/my-wordpress/';
 		$lines = 0;
-		foreach ( array_merge( glob( $dir . '*.php' ), glob( $dir . '*.css' ) ) as $file ) {
+		foreach ( array_merge( glob( $dir . '*.php' ), glob( $dir . '*.css' ), glob( $dir . '*.os.ts' ) ) as $file ) {
 			$lines += count( file( $file ) );
 		}
-		$this->assertLessThan( 1800, $lines, sprintf( 'My WordPress is %d lines; the budget is under 1,800.', $lines ) );
+		$this->assertLessThan( 2600, $lines, sprintf( 'My WordPress is %d lines; the budget is under 2,600.', $lines ) );
 
-		$scripts = array_merge( glob( $dir . '*.js' ), glob( $dir . '*.ts' ) );
-		$this->assertSame( array(), $scripts, 'The explorer is a server view: no JavaScript at all.' );
+		$scripts = array_map( 'basename', array_merge( glob( $dir . '*.js' ), glob( $dir . '*.ts' ) ) );
+		$this->assertSame(
+			array( 'my-wordpress.os.ts', 'my-wordpress.test.ts' ),
+			$scripts,
+			'The only script an app ships is its .os.ts client view (plus its test).'
+		);
 	}
 }
