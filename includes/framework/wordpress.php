@@ -227,11 +227,13 @@ function openstation_apps_client_bundle( array $manifest ) {
  * `wp.os.getWindowConfig( id )`.
  *
  * @param array<string,mixed> $manifest Filtered manifest.
+ * @param string              $bundle   Resolved client bundle path, from
+ *                                      {@see openstation_apps_client_bundle()}.
  * @return array<string,mixed>
  */
-function openstation_apps_client_config( array $manifest ) {
+function openstation_apps_client_config( array $manifest, $bundle = '' ) {
 	return array(
-		'client'          => '' !== openstation_apps_client_bundle( $manifest ),
+		'client'          => '' !== $bundle,
 		'osApp'           => true,
 		'id'              => $manifest['id'],
 		'title'           => $manifest['title'],
@@ -338,7 +340,7 @@ function openstation_apps_register_windows() {
 				'dock_order' => $manifest['dock_order'],
 				'placeable'  => $manifest['placeable'],
 				'autofocus'  => $manifest['autofocus'],
-				'config'     => openstation_apps_client_config( $manifest ),
+				'config'     => openstation_apps_client_config( $manifest, $bundle ),
 			)
 		);
 		if ( is_wp_error( $registered ) ) {

@@ -208,22 +208,35 @@ export function createSession( deps: SessionDeps ): Session {
 
 	// ------------------------------------------------------------ apply
 
+	/**
+	 * The one pass that follows EVERY paint, server or local: assign
+	 * `os-prop-*` properties, lazy-load any `os-*` component the new
+	 * markup uses that is not defined yet, and start/stop `os-poll`
+	 * timers to match what is rendered.
+	 */
+	const finishRender = (): void => {
+		applyProps( root, propsSeen );
+		void ensureComponents();
+		reconcilePolls();
+	};
+
 	const apply = ( payload: DispatchResponse ): void => {
 		state = { ...payload.state };
 		if ( client ) {
 			data = payload.data;
 			const first = clientTeardown === undefined;
-			paintClient();
+			client.render( viewContext() );
+			finishRender();
+			// After finishRender, so a mounted() hook reads a complete
+			// DOM: os-prop properties assigned, polls running.
 			if ( first ) {
 				const teardown = client.mounted( viewContext() );
 				clientTeardown = typeof teardown === 'function' ? teardown : null;
 			}
 		} else {
 			morphChildren( root, payload.html );
+			finishRender();
 		}
-		applyProps( root, propsSeen );
-		void ensureComponents();
-		reconcilePolls();
 		for ( const effect of payload.effects ?? [] ) {
 			performEffect( effect );
 		}
@@ -239,15 +252,6 @@ export function createSession( deps: SessionDeps ): Session {
 		local: ( action: string, args: Record< string, unknown > = {} ) => runLocal( action, args ),
 	} );
 
-	const paintClient = (): void => {
-		if ( ! client || disposed ) {
-			return;
-		}
-		client.render( viewContext() );
-		applyProps( root, propsSeen );
-		reconcilePolls();
-	};
-
 	/** A client-side action: reduce, re-render, no request. */
 	const runLocal = ( action: string, args: Record< string, unknown > ): void => {
 		if ( ! client || disposed ) {
@@ -256,7 +260,8 @@ export function createSession( deps: SessionDeps ): Session {
 		if ( client.hasLocal( action ) ) {
 			state = client.runLocal( action, state, args, data );
 		}
-		paintClient();
+		client.render( viewContext() );
+		finishRender();
 	};
 
 	const ensureComponents = async (): Promise< void > => {

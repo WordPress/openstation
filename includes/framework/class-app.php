@@ -409,8 +409,8 @@ final class App {
 			return '';
 		}
 		$candidates = array( $this->dir . '/' . $this->id . '.css' );
-		if ( '' !== $this->file ) {
-			$candidates[] = $this->dir . '/' . preg_replace( '/\.os\.php$/', '', basename( $this->file ) ) . '.css';
+		if ( '' !== $this->file_base() ) {
+			$candidates[] = $this->dir . '/' . $this->file_base() . '.css';
 		}
 		foreach ( $candidates as $candidate ) {
 			if ( is_file( $candidate ) ) {
@@ -777,11 +777,25 @@ final class App {
 	 * @return string
 	 */
 	public function client_source() {
-		if ( '' === $this->dir || '' === $this->file ) {
+		if ( '' === $this->dir || '' === $this->file_base() ) {
 			return '';
 		}
-		$candidate = $this->dir . '/' . preg_replace( '/\.os\.php$/', '', basename( $this->file ) ) . '.os.ts';
+		$candidate = $this->dir . '/' . $this->file_base() . '.os.ts';
 		return is_file( $candidate ) ? $candidate : '';
+	}
+
+	/**
+	 * The definition file's name without `.os.php` — the base every
+	 * by-convention sibling (`<base>.css`, `<base>.os.ts`) is named
+	 * after. '' for an app built in code rather than loaded from disk.
+	 *
+	 * @return string
+	 */
+	private function file_base() {
+		if ( '' === $this->file ) {
+			return '';
+		}
+		return (string) preg_replace( '/\.os\.php$/', '', basename( $this->file ) );
 	}
 
 	/**
