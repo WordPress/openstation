@@ -78,7 +78,7 @@ export interface MenuItemDef {
 
 /** One side effect an action queued. */
 export type Effect =
-	| { type: 'toast'; message: string; tone?: string }
+	| { type: 'toast'; message: string }
 	| { type: 'title'; title: string }
 	| { type: 'close' }
 	| { type: 'open'; window: string }
@@ -123,7 +123,7 @@ export interface RuntimeHost {
 		opts?: { windowId?: string; source?: string },
 	) => Promise< Response >;
 	confirm?: ( options: ConfirmSpec & { confirmLabel?: string } ) => Promise< boolean >;
-	toast?: ( options: { message: string; tone?: string } ) => void;
+	toast?: ( options: { message: string } ) => void;
 	setTitle?: ( windowId: string, title: string ) => void;
 	closeWindow?: ( windowId: string ) => void;
 	openWindow?: ( id: string ) => void;

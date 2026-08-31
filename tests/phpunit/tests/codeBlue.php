@@ -1,7 +1,7 @@
 <?php
 /**
  * Tests for Code Blue — the Code Blue port written as an App
- * Framework `.osx.php`: the log model, the gate, and the window's
+ * Framework `.os.php`: the log model, the gate, and the window's
  * dispatch cycle end to end.
  *
  * @package WordPress
@@ -12,7 +12,10 @@
  */
 
 use OpenStation\App\State;
+use function OpenStation\Apps\CodeBlue\level_map;
+use function OpenStation\Apps\CodeBlue\make_entry;
 use function OpenStation\Apps\CodeBlue\parse;
+use function OpenStation\Apps\CodeBlue\read;
 use function OpenStation\Apps\CodeBlue\signature;
 use function OpenStation\Apps\CodeBlue\sources;
 use function OpenStation\Apps\CodeBlue\tail;
@@ -42,6 +45,11 @@ class Tests_OpenStation_CodeBlue extends WP_UnitTestCase {
 			}
 		}
 		$this->temp_files = array();
+		// `openstation_apps_register_windows()` registers Code Blue's
+		// desktop icon into a process-scoped registry; left behind, it
+		// counts as an unplaced shortcut for every later test that
+		// auto-places orphans (`Tests_OpenStation_FilesStore`).
+		openstation_unregister_icon( 'openstation-code-blue' );
 		parent::tear_down();
 	}
 
@@ -214,6 +222,92 @@ class Tests_OpenStation_CodeBlue extends WP_UnitTestCase {
 		$this->assertSame( 1, $test['size'] );
 		$ghost = $list[ array_search( 'ghost', $ids, true ) ];
 		$this->assertFalse( $ghost['exists'] );
+	}
+
+	/**
+	 * The source the `openstation_code_blue_log_sources` filter added.
+	 *
+	 * @param string $id Source id.
+	 * @return array<string,mixed>
+	 */
+	protected function source( $id ) {
+		foreach ( sources( openstation_apps_os() ) as $source ) {
+			if ( $source['id'] === $id ) {
+				return $source;
+			}
+		}
+		$this->fail( "No log source registered under '$id'." );
+	}
+
+	// ------------------------------------------------------------ reading
+
+	/**
+	 * @covers \OpenStation\Apps\CodeBlue\level_map
+	 * @covers \OpenStation\Apps\CodeBlue\parse
+	 */
+	public function test_every_php_error_label_maps_to_its_severity() {
+		$lines = array();
+		foreach ( array_keys( level_map() ) as $label ) {
+			$lines[] = sprintf( '[22-Aug-2026 09:14:02 UTC] PHP %s:  %s happened', ucfirst( $label ), $label );
+		}
+		// An unknown label is not an error — it is just a log line.
+		$lines[] = '[22-Aug-2026 09:14:03 UTC] PHP Something else:  who knows';
+
+		$entries = parse( implode( "\n", $lines ) . "\n" );
+		$levels  = array_column( $entries, 'level' );
+
+		$this->assertSame( array_values( level_map() ), array_slice( $levels, 0, count( level_map() ) ) );
+		$this->assertSame( 'info', end( $levels ) );
+	}
+
+	/**
+	 * @covers \OpenStation\Apps\CodeBlue\read
+	 */
+	public function test_read_entries_are_filterable() {
+		$this->make_temp_log( "not a php log line\n" );
+		add_filter(
+			'openstation_code_blue_entries',
+			static function ( $entries, $source, $raw ) {
+				return array( make_entry( 1000, 'error', 'Custom', trim( $raw ) ) );
+			},
+			10,
+			3
+		);
+
+		$result = read( openstation_apps_os(), $this->source( 'test-log' ) );
+
+		$this->assertCount( 1, $result['entries'] );
+		$this->assertSame( 'Custom', $result['entries'][0]['label'] );
+	}
+
+	/**
+	 * @covers \OpenStation\Apps\CodeBlue\read
+	 */
+	public function test_read_caps_entries_keeping_newest() {
+		$lines = array();
+		for ( $i = 1; $i <= 150; $i++ ) {
+			$lines[] = sprintf(
+				'[22-Aug-2026 09:%02d:%02d UTC] PHP Notice:  entry %d in /srv/a.php on line %d',
+				(int) floor( $i / 60 ),
+				$i % 60,
+				$i,
+				$i
+			);
+		}
+		$this->make_temp_log( implode( "\n", $lines ) . "\n" );
+		add_filter(
+			'openstation_code_blue_max_entries',
+			static function () {
+				return 100;
+			}
+		);
+
+		$result = read( openstation_apps_os(), $this->source( 'test-log' ) );
+
+		$this->assertCount( 100, $result['entries'] );
+		$this->assertSame( 50, $result['dropped'] );
+		$this->assertTrue( $result['truncated'] );
+		$this->assertStringContainsString( 'entry 150', end( $result['entries'] )['message'] );
 	}
 
 	// ------------------------------------------------------------- the app

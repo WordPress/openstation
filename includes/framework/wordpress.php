@@ -6,7 +6,7 @@
  * lives in this one file plus the adapters in `app/wordpress/`:
  *
  *   - `init` @5   registers the shared client runtime script.
- *   - `init` @10  loads every `.osx.php` under the app directories
+ *   - `init` @10  loads every `.os.php` under the app directories
  *                 (`apps/` in this plugin, more via the
  *                 `openstation_apps_directories` filter) and fires
  *                 `openstation_apps_loaded` so plugins can add
@@ -108,7 +108,7 @@ function openstation_app_render( $id, array $state = array() ) {
 }
 
 /**
- * Directories scanned for `.osx.php` files.
+ * Directories scanned for `.os.php` files.
  *
  * @return string[] Absolute paths.
  */
@@ -116,7 +116,7 @@ function openstation_apps_directories() {
 	$dirs = array( rtrim( OPENSTATION_DIR, '/\\' ) . '/apps' );
 
 	/**
-	 * Filter the directories the App Framework loads `.osx.php`
+	 * Filter the directories the App Framework loads `.os.php`
 	 * files from. Append your plugin's folder to ship apps as files.
 	 *
 	 * @param string[] $dirs Absolute directory paths.
@@ -134,7 +134,7 @@ function openstation_apps_load() {
 	}
 
 	/**
-	 * Fires once every `.osx.php` has been loaded. Add an `App`
+	 * Fires once every `.os.php` has been loaded. Add an `App`
 	 * defined in code with `$registry->add( App::define( … ) )`.
 	 *
 	 * @param Registry $registry The app registry.
@@ -204,7 +204,7 @@ function openstation_apps_style_handle( $id ) {
  * The built client-view bundle for an app, or '' when it has none.
  *
  * An explicit `App::client( $path )` wins. Otherwise an app that
- * ships `<file>.os.ts` beside its `.osx.php` inside this plugin is
+ * ships `<file>.os.ts` beside its `.os.php` inside this plugin is
  * built by `npm run build:apps` into `assets/js/apps/<file>[.min].js`.
  *
  * @param array<string,mixed> $manifest Filtered manifest.

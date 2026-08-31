@@ -23,7 +23,7 @@ The parser understands standard `error_log()` output — `[22-Aug-2026 09:14:02 
 - **Charting needs timestamps.** Lines written with `error_log( $msg, 3, $path )` carry no timestamp prefix, so they list and group but can't be placed on the histogram. Prepend the standard `[d-M-Y H:i:s T]` prefix when writing if you want your entries charted.
 - **Other formats can bring their own parser.** If your file is Monolog- or ISO-formatted, hook `openstation_code_blue_entries` — you get the raw scanned tail plus your source descriptor, and return your own entry array (build entries with `OpenStation\Apps\CodeBlue\make_entry( $timestamp, $level, $label, $message )`, loaded with the app on `init`).
 
-Code Blue is an [App Framework](../app-framework.md) app (`apps/code-blue/code-blue.osx.php`): there are no Code Blue REST routes, and its window, icon and markup are reshaped through the framework's `openstation_app_manifest` / `openstation_app_response` filters rather than per-window ones. See [`migration-code-blue-app.md`](../migration-code-blue-app.md) if you relied on the old surface.
+Code Blue is an [App Framework](../app-framework.md) app (`apps/code-blue/code-blue.os.php`): there are no Code Blue REST routes, and its window, icon and markup are reshaped through the framework's `openstation_app_manifest` / `openstation_app_response` filters rather than per-window ones. See [`migration-code-blue-app.md`](../migration-code-blue-app.md) if you relied on the old surface.
 
 Two things to know:
 

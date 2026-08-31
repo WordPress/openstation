@@ -77,7 +77,7 @@ class Tests_OpenStation_DeferredWindowStyles extends WP_UnitTestCase {
 			'openstation_games_register_window',
 			'openstation_station_home_register_window',
 			'openstation_agent_run_window_register',
-			// Code Blue is an App Framework `.osx.php`; the framework
+			// Code Blue is an App Framework `.os.php`; the framework
 			// registers every allowed app in one pass.
 			'openstation_apps_register_windows',
 			'openstation_my_wordpress_woo_customer_window_register',

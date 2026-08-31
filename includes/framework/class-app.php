@@ -5,7 +5,7 @@
  * One object describes a whole OpenStation window: what it is
  * called, how big it opens, which buttons sit in its title bar and
  * its ⋯ menu, what state it keeps, what happens on each action, and
- * how it paints. An `.osx.php` file is nothing but a `return` of one
+ * how it paints. An `.os.php` file is nothing but a `return` of one
  * of these:
  *
  *     return App::define( 'hello' )
@@ -34,8 +34,9 @@ use OpenStation\App\State;
 use OpenStation\App\View;
 use function OpenStation\App\Html\esc;
 
-if ( ! defined( 'ABSPATH' ) && ! defined( 'OPENSTATION_STANDALONE' ) ) {
-	exit;
+// Direct access, unless a standalone host is booting on bare PHP.
+if ( ! defined( 'ABSPATH' ) ) {
+	defined( 'OPENSTATION_STANDALONE' ) || exit;
 }
 
 /**
@@ -191,6 +192,7 @@ final class App {
 	private function __construct( $id ) {
 		$id = strtolower( trim( (string) $id ) );
 		if ( ! preg_match( '/^[a-z0-9][a-z0-9_-]*$/', $id ) ) {
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Escaped by `Html\esc()`; the host-agnostic core cannot call `esc_html()`, and Plugin Check runs its own ruleset without our `customEscapingFunctions`.
 			throw new \InvalidArgumentException( sprintf( 'Invalid app id "%s": use lowercase letters, digits, "-" and "_".', esc( $id ) ) );
 		}
 		$this->id = $id;
@@ -395,7 +397,7 @@ final class App {
 	/**
 	 * Absolute stylesheet path, or '' when the app has none. By
 	 * convention `<dir>/<id>.css`, else `<dir>/<file>.css` where
-	 * `<file>` is the definition file's name without `.osx.php`.
+	 * `<file>` is the definition file's name without `.os.php`.
 	 *
 	 * @return string
 	 */
@@ -408,7 +410,7 @@ final class App {
 		}
 		$candidates = array( $this->dir . '/' . $this->id . '.css' );
 		if ( '' !== $this->file ) {
-			$candidates[] = $this->dir . '/' . preg_replace( '/\.osx\.php$/', '', basename( $this->file ) ) . '.css';
+			$candidates[] = $this->dir . '/' . preg_replace( '/\.os\.php$/', '', basename( $this->file ) ) . '.css';
 		}
 		foreach ( $candidates as $candidate ) {
 			if ( is_file( $candidate ) ) {
@@ -486,6 +488,7 @@ final class App {
 	public function action( $name, callable $handler ) {
 		$name = strtolower( trim( (string) $name ) );
 		if ( ! preg_match( '/^[a-z0-9_-]+$/', $name ) || App\Runtime::ACTION_MOUNT === $name ) {
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Escaped by `Html\esc()`; see the note on the id exception above.
 			throw new \InvalidArgumentException( sprintf( 'Invalid action name "%s".', esc( $name ) ) );
 		}
 		$this->actions[ $name ] = $handler;
@@ -522,7 +525,7 @@ final class App {
 
 	/**
 	 * The built client-view script for this app. By convention an app
-	 * with `<dir>/<file>.os.ts` beside its `.osx.php` needs no call —
+	 * with `<dir>/<file>.os.ts` beside its `.os.php` needs no call —
 	 * the host resolves the built bundle. Third-party apps that build
 	 * their own pass the absolute path of the built file here.
 	 *
@@ -726,6 +729,7 @@ final class App {
 	public function run_action( $name, State $state, Os $os, array $args = array(), $required = true ) {
 		if ( ! isset( $this->actions[ $name ] ) ) {
 			if ( $required ) {
+				// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Escaped by `Html\esc()`; see the note on the id exception above.
 				throw new \RuntimeException( sprintf( 'Unknown action "%s".', esc( $name ) ) );
 			}
 			return;
@@ -776,7 +780,7 @@ final class App {
 		if ( '' === $this->dir || '' === $this->file ) {
 			return '';
 		}
-		$candidate = $this->dir . '/' . preg_replace( '/\.osx\.php$/', '', basename( $this->file ) ) . '.os.ts';
+		$candidate = $this->dir . '/' . preg_replace( '/\.os\.php$/', '', basename( $this->file ) ) . '.os.ts';
 		return is_file( $candidate ) ? $candidate : '';
 	}
 
@@ -895,6 +899,7 @@ final class App {
 			throw new \InvalidArgumentException( 'A title-bar button or window action needs an id.' );
 		}
 		if ( empty( $args['label'] ) || empty( $args['action'] ) ) {
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Escaped by `Html\esc()`; see the note on the id exception above.
 			throw new \InvalidArgumentException( sprintf( 'Control "%s" needs both a label and an action.', esc( $id ) ) );
 		}
 

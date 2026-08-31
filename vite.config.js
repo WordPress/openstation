@@ -356,7 +356,7 @@ const TARGETS = {
 		fileBase: 'content-graph',
 		iifeName: 'openStationContentGraph',
 	},
-	// App Framework runtime — the ONE bundle every `.osx.php` window
+	// App Framework runtime — the ONE bundle every `.os.php` window
 	// shares. Mounts the window, dispatches `os-action` triggers to
 	// the app's REST endpoint, morphs the returned markup into place,
 	// performs effects, and wires the title-bar buttons / ⋯ rows the

@@ -1,7 +1,7 @@
 /**
  * OpenStation — App Framework runtime styles.
  *
- * The root every `.osx.php` window mounts into. Fills the window
+ * The root every `.os.php` window mounts into. Fills the window
  * body, declares itself a container so an app's stylesheet can use
  * `@container` queries against the window's width, and centres the
  * first-paint spinner until the `mount` render lands.

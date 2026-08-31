@@ -1,4 +1,4 @@
-# Ship a window as an `.osx.php` app
+# Ship a window as an `.os.php` app
 
 A complete OpenStation window from one PHP file: state, actions, a
 title-bar button, a ⋯-menu row, auto-refresh, and a confirm dialog —
@@ -21,7 +21,7 @@ add_filter( 'openstation_apps_directories', static function ( array $dirs ) {
 } );
 ```
 
-## 2. Write the app — `apps/notes-counter/notes-counter.osx.php`
+## 2. Write the app — `apps/notes-counter/notes-counter.os.php`
 
 ```php
 <?php
@@ -66,7 +66,7 @@ return App::define( 'notes-counter' )
 		foreach ( get_posts( array( 'post_status' => 'draft', 'numberposts' => -1, 'fields' => 'ids' ) ) as $id ) {
 			wp_trash_post( $id );
 		}
-		$os->toast( __( 'Drafts trashed.', 'my-plugin' ), 'success' );
+		$os->toast( __( 'Drafts trashed.', 'my-plugin' ) );
 	} )
 
 	// The view is a function of the state. Derived data is computed
@@ -115,7 +115,7 @@ What each line buys you:
 
 ## 3. Style it — `apps/notes-counter/notes-counter.css` (optional)
 
-A stylesheet named after the app id, beside the `.osx.php`, is picked up automatically and injected on the window's first open.
+A stylesheet named after the app id, beside the `.os.php`, is picked up automatically and injected on the window's first open.
 
 ```css
 .os-app[data-os-app='notes-counter'] os-display {

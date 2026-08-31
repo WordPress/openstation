@@ -1,7 +1,7 @@
 /**
  * App Framework — the `.os.ts` half of an app.
  *
- * An `.osx.php` file owns the window, the state schema, the server
+ * An `.os.php` file owns the window, the state schema, the server
  * actions and the DATA. When an app also needs instant, in-browser
  * interaction — a filter that must not wait for a WordPress request
  * — it adds a `.os.ts` beside it:

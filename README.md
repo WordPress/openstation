@@ -120,7 +120,7 @@ See [`docs/architecture.md`](./docs/architecture.md) for how the pieces fit toge
 │   ├── accents.php              wallpapers.php      toast-types.php
 │   ├── media-query.php
 │   └── ai-copilot/              # AI assistant (OpenAI client, analysis, search, jobs)
-├── apps/                  # App Framework apps: <name>.osx.php (window, state, actions,
+├── apps/                  # App Framework apps: <name>.os.php (window, state, actions,
 │                          #   data) + optional <name>.os.ts (client view) + <name>.css;
 │                          #   Code Blue lives here — see docs/app-framework.md
 ├── assets/                # hand-authored CSS + JS build output

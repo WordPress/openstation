@@ -13,8 +13,9 @@
 
 namespace OpenStation\App;
 
-if ( ! defined( 'ABSPATH' ) && ! defined( 'OPENSTATION_STANDALONE' ) ) {
-	exit;
+// Direct access, unless a standalone host is booting on bare PHP.
+if ( ! defined( 'ABSPATH' ) ) {
+	defined( 'OPENSTATION_STANDALONE' ) || exit;
 }
 
 /**
@@ -30,18 +31,17 @@ final class Effects {
 	/**
 	 * Show a toast.
 	 *
+	 * There is no tone: the shell renders every toast the same way
+	 * (`wp.os.showToast()` takes no severity), so a `$tone` argument
+	 * here would be a promise the platform cannot keep. Say what
+	 * happened in the message, and use `<os-notice tone="…">` in the
+	 * body when a state needs a colour.
+	 *
 	 * @param string $message Text.
-	 * @param string $tone    `info` | `success` | `warning` | `error`.
 	 * @return self
 	 */
-	public function toast( $message, $tone = 'info' ) {
-		return $this->add(
-			'toast',
-			array(
-				'message' => (string) $message,
-				'tone'    => (string) $tone,
-			)
-		);
+	public function toast( $message ) {
+		return $this->add( 'toast', array( 'message' => (string) $message ) );
 	}
 
 	/**

@@ -2698,7 +2698,7 @@ wp.os[ 'my-plugin' ].open();
 
 ### `wp.os.apps` — Experimental
 
-The client side of the [App Framework](./app-framework.md). Published by the shared `app-runtime` bundle, which loads the first time any `.osx.php` window opens — so guard with `wp.os.apps?.` from code that may run earlier.
+The client side of the [App Framework](./app-framework.md). Published by the shared `app-runtime` bundle, which loads the first time any `.os.php` window opens — so guard with `wp.os.apps?.` from code that may run earlier.
 
 ```ts
 wp.os.apps.dispatch( windowId: string, action: string, args?: Record< string, unknown >, view?: string ): Promise< boolean >;

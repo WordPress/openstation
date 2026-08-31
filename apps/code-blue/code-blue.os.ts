@@ -1,7 +1,7 @@
 /**
  * Code Blue — the client half.
  *
- * The body, as a function of the state `code-blue.osx.php` declared
+ * The body, as a function of the state `code-blue.os.php` declared
  * and the data it returns: source picker + time range + search in the
  * toolbar, headline stat tiles, a stacked severity histogram whose
  * legend doubles as a series filter, and a grouped issue list with

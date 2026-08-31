@@ -163,7 +163,6 @@ export function createSession( deps: SessionDeps ): Session {
 					__( 'The window could not update: %s' ),
 					err instanceof Error ? err.message : String( err ),
 				),
-				tone: 'error',
 			} );
 			return false;
 		} finally {
@@ -284,10 +283,7 @@ export function createSession( deps: SessionDeps ): Session {
 	const performEffect = ( effect: Effect ): void => {
 		switch ( effect.type ) {
 			case 'toast':
-				host.toast?.( {
-					message: String( ( effect as { message: string } ).message ),
-					tone: ( effect as { tone?: string } ).tone,
-				} );
+				host.toast?.( { message: String( ( effect as { message: string } ).message ) } );
 				return;
 			case 'title':
 				host.setTitle?.( windowId, String( ( effect as { title: string } ).title ) );

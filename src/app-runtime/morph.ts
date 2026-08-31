@@ -72,6 +72,12 @@ function morphChildList( parent: Element, toNodes: Node[] ): void {
 			const candidate = keyed.get( key );
 			if ( candidate && compatible( candidate, to ) ) {
 				from = candidate;
+				// One live node per key. Without this, a view that emits
+				// the same `os-key` twice would match, move and morph the
+				// SAME node for both occurrences — the second render
+				// silently loses a row. Spending the key here makes the
+				// duplicate fall through to "insert a fresh node".
+				keyed.delete( key );
 				if ( candidate !== current ) {
 					parent.insertBefore( candidate, current );
 				}
@@ -111,8 +117,11 @@ function morphNode( from: Node, to: Node, active: Element | null ): void {
 
 	const focused = !! active && ( fromEl === active || fromEl.contains( active ) );
 	syncAttributes( fromEl, toEl, focused );
-	syncFormValue( fromEl, toEl, focused );
+	// Children first: a `<select>`'s value can only be set to an option
+	// it already holds, so assigning it before the new `<option>`s are
+	// morphed in makes selecting a freshly added option fail silently.
 	morphChildList( fromEl, Array.from( toEl.childNodes ) );
+	syncFormValue( fromEl, toEl, focused );
 }
 
 function syncAttributes( from: Element, to: Element, focused: boolean ): void {

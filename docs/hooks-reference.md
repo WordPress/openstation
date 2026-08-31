@@ -4117,7 +4117,7 @@ Tweak the args passed to `openstation_register_window()` / `openstation_register
 
 ## App Framework
 
-Windows declared in PHP as `.osx.php` files — see [`app-framework.md`](./app-framework.md). The WordPress host (`includes/framework/wordpress.php`) loads app files on `init` @10, registers each allowed app as a native window on `init` @20, and serves one REST route. Every seam below is `Experimental`.
+Windows declared in PHP as `.os.php` files — see [`app-framework.md`](./app-framework.md). The WordPress host (`includes/framework/wordpress.php`) loads app files on `init` @10, registers each allowed app as a native window on `init` @20, and serves one REST route. Every seam below is `Experimental`.
 
 ### `openstation_apps_directories` — Experimental (filter)
 
@@ -4125,7 +4125,7 @@ Windows declared in PHP as `.osx.php` files — see [`app-framework.md`](./app-f
 apply_filters( 'openstation_apps_directories', string[] $dirs ): string[]
 ```
 
-Absolute directories scanned for `.osx.php` files (directly inside, and one folder down). Default: `apps/` inside OpenStation. Append your plugin's folder to ship apps as files.
+Absolute directories scanned for `.os.php` files (directly inside, and one folder down). Default: `apps/` inside OpenStation. Append your plugin's folder to ship apps as files.
 
 ### `openstation_apps_loaded` — Experimental (action)
 
@@ -4173,7 +4173,7 @@ Body `{ action, state, args, client }`; response `{ ok, state, html, effects }`.
 
 ## Code Blue
 
-An error-log reader: tails the logs the install can produce (WP debug log, PHP error log, anything a plugin registers), parses them into structured entries, and renders a severity histogram plus a grouped issue list. It is an [App Framework](./app-framework.md) app — `apps/code-blue/code-blue.osx.php` plus `log-reader.php` — registered as the native window `openstation-code-blue` with a desktop icon, and it ships no JavaScript of its own. There are no Code Blue REST routes: every interaction is a dispatch to `POST desktop-mode/v1/apps/openstation-code-blue/dispatch`. (Its previous module-plus-bundle shape and the surface that went with it: [`migration-code-blue-app.md`](./migration-code-blue-app.md).)
+An error-log reader: tails the logs the install can produce (WP debug log, PHP error log, anything a plugin registers), parses them into structured entries, and renders a severity histogram plus a grouped issue list. It is an [App Framework](./app-framework.md) app — `apps/code-blue/code-blue.os.php` plus `log-reader.php` — registered as the native window `openstation-code-blue` with a desktop icon, and it ships no JavaScript of its own. There are no Code Blue REST routes: every interaction is a dispatch to `POST desktop-mode/v1/apps/openstation-code-blue/dispatch`. (Its previous module-plus-bundle shape and the surface that went with it: [`migration-code-blue-app.md`](./migration-code-blue-app.md).)
 
 The whole surface — icon, window, nav entry, dispatch endpoint — sits behind one gate with two conditions, both required: **Developer mode** (`developerModeEnabled` in OpenStation Preferences, off by default — Code Blue is a developer-facing surface and registers nothing until the user flips it) and a capability — `manage_options`, raised to `manage_network_options` on multisite, since log content leaks server paths and SQL and the debug/PHP error logs are network-wide files. Flipping the Preferences toggle takes effect live: once the settings save persists, the panel spends one [`wp.os.refreshMenu()`](./javascript-reference.md) probe and the icon/window appear (or disappear) without a reload.
 

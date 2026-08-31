@@ -2,7 +2,7 @@
 /**
  * OpenStation App Framework — template helpers.
  *
- * The four functions an `.osx.php` view needs and nothing more:
+ * The four functions an `.os.php` view needs and nothing more:
  *
  *     use function OpenStation\App\Html\{ esc, attr, json, tag };
  *
@@ -19,8 +19,9 @@
 
 namespace OpenStation\App\Html;
 
-if ( ! defined( 'ABSPATH' ) && ! defined( 'OPENSTATION_STANDALONE' ) ) {
-	exit;
+// Direct access, unless a standalone host is booting on bare PHP.
+if ( ! defined( 'ABSPATH' ) ) {
+	defined( 'OPENSTATION_STANDALONE' ) || exit;
 }
 
 /**

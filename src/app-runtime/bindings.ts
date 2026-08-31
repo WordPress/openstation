@@ -12,7 +12,8 @@
  *                        every kit component's event is listened for,
  *                        plus click / dblclick / change / input / submit
  *                        / keydown / contextmenu / toggle)
- *   os-debounce="250"    coalesce rapid triggers (default 250 for text)
+ *   os-debounce="250"    coalesce rapid triggers (default 250 for the
+ *                        continuous events: typing and slider drags)
  *   os-confirm="…"       ask before dispatching (+ os-confirm-title,
  *                        os-confirm-label, os-confirm-danger)
  *   os-poll="30000"      dispatch os-action every N ms while present
@@ -161,10 +162,22 @@ const DEFAULT_EVENTS: Record< string, string > = {
 	textarea: 'change',
 };
 
-/** Events whose triggers debounce by default (typing). */
-const TEXT_EVENTS = new Set( [ 'os-input-change', 'os-form-input', 'os-token-field-input', 'input' ] );
+/**
+ * Events whose triggers debounce by default: the ones a single
+ * gesture fires many times — a keystroke per character while typing,
+ * a tick per pixel while dragging a slider. Without `os-range-change`
+ * here, one drag of an `<os-range-field>` in a server view queues one
+ * request per tick.
+ */
+const CONTINUOUS_EVENTS = new Set( [
+	'os-input-change',
+	'os-form-input',
+	'os-token-field-input',
+	'os-range-change',
+	'input',
+] );
 
-const DEFAULT_TEXT_DEBOUNCE = 250;
+const DEFAULT_DEBOUNCE = 250;
 
 /** Every event type the runtime listens for on an app root. */
 export const LISTENED_EVENTS: readonly string[] = Array.from(
@@ -333,8 +346,8 @@ export function readBinding( trigger: Element, ev: Event | null ): Binding {
 	let debounce = 0;
 	if ( explicitDebounce !== null ) {
 		debounce = Math.max( 0, parseInt( explicitDebounce, 10 ) || 0 );
-	} else if ( TEXT_EVENTS.has( eventType ) ) {
-		debounce = DEFAULT_TEXT_DEBOUNCE;
+	} else if ( CONTINUOUS_EVENTS.has( eventType ) ) {
+		debounce = DEFAULT_DEBOUNCE;
 	}
 
 	return {

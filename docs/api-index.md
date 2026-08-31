@@ -148,7 +148,7 @@ The full surface is documented in [`javascript-reference.md`](./javascript-refer
 
 ### App Framework windows *(Experimental)*
 
-Windows declared in PHP as `.osx.php` files — [`app-framework.md`](./app-framework.md). Loaded lazily with the first app window.
+Windows declared in PHP as `.os.php` files — [`app-framework.md`](./app-framework.md). Loaded lazily with the first app window.
 
 | Member | Signature | Status |
 |---|---|---|

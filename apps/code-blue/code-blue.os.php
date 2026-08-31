@@ -20,8 +20,9 @@ use OpenStation\App;
 use OpenStation\App\Os;
 use OpenStation\App\State;
 
-if ( ! defined( 'ABSPATH' ) && ! defined( 'OPENSTATION_STANDALONE' ) ) {
-	exit;
+// Direct access, unless a standalone host is booting on bare PHP.
+if ( ! defined( 'ABSPATH' ) ) {
+	defined( 'OPENSTATION_STANDALONE' ) || exit;
 }
 
 require_once __DIR__ . '/log-reader.php';
@@ -117,7 +118,7 @@ return App::define( 'openstation-code-blue' )
 			$result = clear( $os, $source );
 			$state->reset( 'expanded' )->set( 'error', true === $result ? '' : $result );
 			if ( true === $result ) {
-				$os->toast( __( 'Log cleared.', 'desktop-mode' ), 'success' );
+				$os->toast( __( 'Log cleared.', 'desktop-mode' ) );
 			}
 		}
 	)

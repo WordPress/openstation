@@ -194,7 +194,7 @@
 	</rule>
 
 	<!--
-		App Framework template helpers. `.osx.php` views are host-
+		App Framework template helpers. `.os.php` views are host-
 		agnostic, so they escape with `OpenStation\App\Html\esc()` /
 		`json()` / `attr()` rather than `esc_html()`, and build markup
 		with `tag()`, which escapes every attribute it emits. Naming
@@ -214,12 +214,12 @@
 	</rule>
 
 	<!--
-		`.osx.php` is the App Framework's file format (an app file is a
+		`.os.php` is the App Framework's file format (an app file is a
 		PHP file that returns an App). The extra dot is the format's
 		signature, not a naming slip.
 	-->
 	<rule ref="WordPress.Files.FileName.NotHyphenatedLowercase">
-		<exclude-pattern>*.osx.php</exclude-pattern>
+		<exclude-pattern>*.os.php</exclude-pattern>
 	</rule>
 
 	<!-- PHP / WP version targets — match plugin headers. -->

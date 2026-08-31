@@ -179,7 +179,7 @@ require_once OPENSTATION_DIR . 'includes/comments-window/bootstrap.php';
 require_once OPENSTATION_DIR . 'includes/station-home/bootstrap.php';
 require_once OPENSTATION_DIR . 'includes/my-wordpress/bootstrap.php';
 require_once OPENSTATION_DIR . 'includes/content-graph/bootstrap.php';
-// The App Framework: `.osx.php` windows under `apps/` (Code Blue lives
+// The App Framework: `.os.php` windows under `apps/` (Code Blue lives
 // there) and any directory a plugin adds. Loads after the registries
 // it registers into and after the feature modules, so an app can
 // hook them.

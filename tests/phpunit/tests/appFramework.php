@@ -50,6 +50,13 @@ class Tests_OpenStation_AppFramework extends WP_UnitTestCase {
 		foreach ( array_keys( openstation_apps_registry()->all() ) as $id ) {
 			if ( 0 === strpos( $id, 'demo-host' ) ) {
 				openstation_apps_registry()->remove( $id );
+				// The desktop-icon registry is process-scoped, so an icon
+				// this class registered through
+				// `openstation_apps_register_windows()` would otherwise
+				// count as an unplaced shortcut in every later test —
+				// `Tests_OpenStation_FilesStore`'s auto-place expectations
+				// are the ones that notice.
+				openstation_unregister_icon( $id );
 			}
 		}
 		parent::tear_down();
@@ -146,8 +153,29 @@ class Tests_OpenStation_AppFramework extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers \OpenStation\App\State::toggle_item
+	 * @covers \OpenStation\App\State::__construct
 	 * @covers \OpenStation\App\State::contains
+	 */
+	public function test_state_typing_is_top_level_only_for_array_keys() {
+		$state = new State(
+			array( 'list' => array() ),
+			array( 'list' => array( 'nested' => array( 'deep' => array( 'x', 'y' ) ) ) )
+		);
+		// Documented limit, not an accident: an `array()` default is a
+		// shape check and nothing more, so a client can put any JSON
+		// object of any depth behind that key. `docs/app-framework.md`
+		// tells app authors to validate the shape themselves before
+		// indexing into a state array — this pins the behaviour that
+		// warning is about.
+		$this->assertSame(
+			array( 'nested' => array( 'deep' => array( 'x', 'y' ) ) ),
+			$state->get( 'list' )
+		);
+		$this->assertFalse( $state->contains( 'list', 'x' ), 'A nested map is not a flat list.' );
+	}
+
+	/**
+	 * @covers \OpenStation\App\State::toggle_item
 	 */
 	public function test_state_toggle_item_adds_then_removes() {
 		$state = new State( array( 'open' => array() ) );
@@ -164,7 +192,7 @@ class Tests_OpenStation_AppFramework extends WP_UnitTestCase {
 	/**
 	 * @covers \OpenStation\App\Registry::load_dir
 	 */
-	public function test_registry_loads_osx_files_and_resolves_the_conventional_stylesheet() {
+	public function test_registry_loads_app_files_and_resolves_the_conventional_stylesheet() {
 		$dir = trailingslashit( get_temp_dir() ) . 'os-apps-' . wp_generate_password( 6, false );
 		mkdir( $dir );
 		mkdir( $dir . '/nested' );
@@ -173,13 +201,13 @@ class Tests_OpenStation_AppFramework extends WP_UnitTestCase {
 		$this->temp_paths[] = $dir;
 		$this->temp_paths[] = $dir . '/nested';
 
-		file_put_contents( $dir . '/flat.osx.php', '<?php return OpenStation\App::define( "flat-app" )->title( "Flat" )->view( static function () { echo "flat"; } );' );
-		file_put_contents( $dir . '/nested/nested.osx.php', '<?php return OpenStation\App::define( "nested-app" )->title( "Nested" )->view( static function () { echo "nested"; } );' );
+		file_put_contents( $dir . '/flat.os.php', '<?php return OpenStation\App::define( "flat-app" )->title( "Flat" )->view( static function () { echo "flat"; } );' );
+		file_put_contents( $dir . '/nested/nested.os.php', '<?php return OpenStation\App::define( "nested-app" )->title( "Nested" )->view( static function () { echo "nested"; } );' );
 		file_put_contents( $dir . '/nested/nested-app.css', '.x{}' );
 		file_put_contents( $dir . '/flat.css', '.y{}' );
 		file_put_contents( $dir . '/ignored.php', '<?php return OpenStation\App::define( "ignored" )->title( "No" );' );
-		$this->temp_paths[] = $dir . '/flat.osx.php';
-		$this->temp_paths[] = $dir . '/nested/nested.osx.php';
+		$this->temp_paths[] = $dir . '/flat.os.php';
+		$this->temp_paths[] = $dir . '/nested/nested.os.php';
 		$this->temp_paths[] = $dir . '/nested/nested-app.css';
 		$this->temp_paths[] = $dir . '/flat.css';
 		$this->temp_paths[] = $dir . '/ignored.php';
@@ -244,7 +272,6 @@ class Tests_OpenStation_AppFramework extends WP_UnitTestCase {
 				array(
 					'type'    => 'toast',
 					'message' => 'Bumped',
-					'tone'    => 'info',
 				),
 			),
 			$response['effects']

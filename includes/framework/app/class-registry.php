@@ -1,10 +1,10 @@
 <?php
 /**
- * OpenStation App Framework — app registry and `.osx.php` loader.
+ * OpenStation App Framework — app registry and `.os.php` loader.
  *
  * Holds every defined `App` by id and knows how to find them on
- * disk: an `.osx.php` file is a PHP file that `return`s an `App`.
- * Loading a directory picks up the `.osx.php` files directly inside
+ * disk: an `.os.php` file is a PHP file that `return`s an `App`.
+ * Loading a directory picks up the `.os.php` files directly inside
  * it and those one folder down, so an app can be a single file or a
  * folder with its stylesheet and helpers beside it.
  *
@@ -15,16 +15,17 @@ namespace OpenStation\App;
 
 use OpenStation\App;
 
-if ( ! defined( 'ABSPATH' ) && ! defined( 'OPENSTATION_STANDALONE' ) ) {
-	exit;
+// Direct access, unless a standalone host is booting on bare PHP.
+if ( ! defined( 'ABSPATH' ) ) {
+	defined( 'OPENSTATION_STANDALONE' ) || exit;
 }
 
 /**
- * App registry + `.osx.php` loader.
+ * App registry + `.os.php` loader.
  */
 final class Registry {
 
-	const FILE_SUFFIX = '.osx.php';
+	const FILE_SUFFIX = '.os.php';
 
 	/**
 	 * @var array<string,App>
@@ -89,7 +90,7 @@ final class Registry {
 	}
 
 	/**
-	 * Evaluate one `.osx.php` file and register the app it returns.
+	 * Evaluate one `.os.php` file and register the app it returns.
 	 *
 	 * @param string $path Absolute file path.
 	 * @return App|null The app, or null when the file returned none.
@@ -113,7 +114,7 @@ final class Registry {
 	}
 
 	/**
-	 * Load every `.osx.php` under a directory (one level of
+	 * Load every `.os.php` under a directory (one level of
 	 * sub-folders deep), alphabetical.
 	 *
 	 * @param string $dir Absolute directory path.

@@ -1,6 +1,6 @@
 # Migration — Code Blue becomes an App Framework app
 
-Code Blue, the error-log reader, is now an `.osx.php` app (`apps/code-blue/`) driven by the [App Framework](./app-framework.md) instead of a PHP module plus a TypeScript bundle. The window is the same — same id (`openstation-code-blue`), same desktop icon, same features, same gate — so saved sessions, icon positions and the Developer-mode toggle carry over untouched. What changed is the surface underneath it.
+Code Blue, the error-log reader, is now an `.os.php` app (`apps/code-blue/`) driven by the [App Framework](./app-framework.md) instead of a PHP module plus a TypeScript bundle. The window is the same — same id (`openstation-code-blue`), same desktop icon, same features, same gate — so saved sessions, icon positions and the Developer-mode toggle carry over untouched. What changed is the surface underneath it.
 
 ## Removed
 
@@ -22,4 +22,4 @@ Code Blue, the error-log reader, is now an `.osx.php` app (`apps/code-blue/`) dr
 
 ## Why
 
-Code Blue was 3,235 lines — 981 PHP, 1,726 TypeScript, 528 CSS — for one window, most of it REST plumbing, registration and imperative DOM painting. As an app it is under half that: the `.osx.php` declares the window and reads the log, the `.os.ts` paints the body and re-slices it instantly (range, search, sort, legend, expand never leave the browser), and it doubles as the proof that the framework can carry a real window: charts (`<os-histogram>`), a filterable list, a title-bar button, a ⋯-menu row, a confirm dialog, auto-refresh. See [The client view](./app-framework.md#the-client-view--osts).
+Code Blue was 3,235 lines — 981 PHP, 1,726 TypeScript, 528 CSS — for one window, most of it REST plumbing, registration and imperative DOM painting. As an app it is under half that: the `.os.php` declares the window and reads the log, the `.os.ts` paints the body and re-slices it instantly (range, search, sort, legend, expand never leave the browser), and it doubles as the proof that the framework can carry a real window: charts (`<os-histogram>`), a filterable list, a title-bar button, a ⋯-menu row, a confirm dialog, auto-refresh. See [The client view](./app-framework.md#the-client-view--osts).

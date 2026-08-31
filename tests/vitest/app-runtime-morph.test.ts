@@ -74,6 +74,28 @@ describe( 'morphChildren', () => {
 		expect( input.value ).toBe( 'fresh' );
 	} );
 
+	it( 'morphs a select\'s options before assigning its value', () => {
+		const root = mount( '<select><option value="a">A</option></select>' );
+		const select = root.firstElementChild as HTMLSelectElement;
+		// The browser refuses a value no option carries, so assigning it
+		// before the new <option> lands would silently leave 'a' selected.
+		morphChildren(
+			root,
+			'<select value="b"><option value="a">A</option><option value="b" selected>B</option></select>',
+		);
+		expect( select.value ).toBe( 'b' );
+	} );
+
+	it( 'spends a duplicated os-key instead of matching the same node twice', () => {
+		const root = mount( '<ul><li os-key="a">A</li></ul>' );
+		const ul = root.firstElementChild as HTMLElement;
+		const first = ul.firstElementChild;
+		morphChildren( root, '<ul><li os-key="a">one</li><li os-key="a">two</li></ul>' );
+		expect( ul.children ).toHaveLength( 2 );
+		expect( ul.children[ 0 ] ).toBe( first );
+		expect( Array.from( ul.children, ( li ) => li.textContent ) ).toEqual( [ 'one', 'two' ] );
+	} );
+
 	it( 'keeps a custom element instance and routes attribute changes through it', () => {
 		const seen: string[] = [];
 		class OsProbe extends HTMLElement {

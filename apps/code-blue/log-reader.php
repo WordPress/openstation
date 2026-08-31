@@ -16,8 +16,9 @@ namespace OpenStation\Apps\CodeBlue;
 
 use OpenStation\App\Os;
 
-if ( ! defined( 'ABSPATH' ) && ! defined( 'OPENSTATION_STANDALONE' ) ) {
-	exit;
+// Direct access, unless a standalone host is booting on bare PHP.
+if ( ! defined( 'ABSPATH' ) ) {
+	defined( 'OPENSTATION_STANDALONE' ) || exit;
 }
 
 const MAX_BYTES   = 1048576;
@@ -315,6 +316,7 @@ function sources( Os $os ) {
 			'path'     => $path,
 			'exists'   => $exists,
 			'readable' => $exists && is_readable( $path ),
+			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_is_writable -- Probing a server-side log path from the host-agnostic model; `wp_is_writable()` does not exist on a standalone host.
 			'writable' => $exists && is_writable( $path ),
 			'size'     => $exists ? (int) filesize( $path ) : 0,
 			'mtime'    => $exists ? (int) filemtime( $path ) : 0,
@@ -335,8 +337,16 @@ function usable( array $source ) {
 }
 
 /**
- * Read + parse one source through the cache (keyed on path, size and
- * mtime, so a log that grew is re-read and one that did not is not).
+ * Read + parse one source.
+ *
+ * Deliberately uncached. A log reader's product is freshness, and an
+ * object cache would have to be keyed on more than the file: the
+ * `entries` / `max_bytes` / `max_entries` filters all shape the result,
+ * and `parse()` bakes localized level labels into it — on a Redis or
+ * Memcached install a filter change would lag and two admins in
+ * different locales would read each other's labels. A bounded tail
+ * (1 MB by default) parsed on an explicit Refresh is cheap enough that
+ * none of that is worth buying.
  *
  * @param Os                  $os     Host handle.
  * @param array<string,mixed> $source Normalised source.
@@ -358,37 +368,30 @@ function read( Os $os, array $source ) {
 		return $empty;
 	}
 
-	$key = 'code-blue:' . md5( $source['path'] ) . ':' . $source['size'] . ':' . $source['mtime'];
-	return $os->remember(
-		$key,
-		300,
-		static function () use ( $os, $source, $empty ) {
-			$max_bytes   = max( 4096, (int) $os->filter( 'openstation_code_blue_max_bytes', MAX_BYTES ) );
-			$max_entries = max( 100, (int) $os->filter( 'openstation_code_blue_max_entries', MAX_ENTRIES ) );
-			$tail        = tail( $source['path'], $max_bytes );
-			/**
-			 * Filter the parsed entries for one source — re-parse `$raw`
-			 * yourself for a format the built-in parser doesn't know.
-			 *
-			 * @param array[] $entries Parsed entries, oldest first.
-			 * @param array   $source  Normalised source.
-			 * @param string  $raw     The scanned tail.
-			 */
-			$entries = (array) $os->filter( 'openstation_code_blue_entries', parse( $tail['raw'] ), $source, $tail['raw'] );
-			$dropped = max( 0, count( $entries ) - $max_entries );
-			if ( $dropped > 0 ) {
-				$entries = array_slice( $entries, -$max_entries );
-			}
-			return array_merge(
-				$empty,
-				array(
-					'entries'       => $entries,
-					'truncated'     => $tail['truncated'] || $dropped > 0,
-					'scanned_bytes' => $tail['scanned_bytes'],
-					'dropped'       => $dropped,
-				)
-			);
-		}
+	$max_bytes   = max( 4096, (int) $os->filter( 'openstation_code_blue_max_bytes', MAX_BYTES ) );
+	$max_entries = max( 100, (int) $os->filter( 'openstation_code_blue_max_entries', MAX_ENTRIES ) );
+	$tail        = tail( $source['path'], $max_bytes );
+	/**
+	 * Filter the parsed entries for one source — re-parse `$raw`
+	 * yourself for a format the built-in parser doesn't know.
+	 *
+	 * @param array[] $entries Parsed entries, oldest first.
+	 * @param array   $source  Normalised source.
+	 * @param string  $raw     The scanned tail.
+	 */
+	$entries = (array) $os->filter( 'openstation_code_blue_entries', parse( $tail['raw'] ), $source, $tail['raw'] );
+	$dropped = max( 0, count( $entries ) - $max_entries );
+	if ( $dropped > 0 ) {
+		$entries = array_slice( $entries, -$max_entries );
+	}
+	return array_merge(
+		$empty,
+		array(
+			'entries'       => $entries,
+			'truncated'     => $tail['truncated'] || $dropped > 0,
+			'scanned_bytes' => $tail['scanned_bytes'],
+			'dropped'       => $dropped,
+		)
 	);
 }
 

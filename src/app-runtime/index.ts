@@ -1,7 +1,7 @@
 /**
  * App Framework runtime — entry point.
  *
- * The one bundle every `.osx.php` window shares. On load it finds
+ * The one bundle every `.os.php` window shares. On load it finds
  * every app config the PHP host shipped (`wp.os.getWindowConfig()`
  * entries flagged `osApp: true`), publishes a render callback for
  * each on `window.openStationNativeWindows[ id ]`, and registers the

@@ -11,8 +11,9 @@ namespace OpenStation\App\Standalone;
 
 use OpenStation\App\Contracts\Settings as SettingsContract;
 
-if ( ! defined( 'ABSPATH' ) && ! defined( 'OPENSTATION_STANDALONE' ) ) {
-	exit;
+// Direct access, unless a standalone host is booting on bare PHP.
+if ( ! defined( 'ABSPATH' ) ) {
+	defined( 'OPENSTATION_STANDALONE' ) || exit;
 }
 
 /**

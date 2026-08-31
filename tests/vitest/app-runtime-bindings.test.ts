@@ -1,7 +1,7 @@
 /**
  * App Framework runtime — the attribute vocabulary.
  *
- * Pins the grammar an `.osx.php` view relies on: which event each
+ * Pins the grammar an `.os.php` view relies on: which event each
  * tag triggers on, how `os-arg-*` and event details merge into
  * arguments, when typing debounces, what `os-bind` writes, and how
  * `os-poll` declarations are read.
@@ -96,6 +96,10 @@ describe( 'readBinding', () => {
 	it( 'debounces typing by default and honours os-debounce', () => {
 		const typed = el( '<os-text-field os-bind="query"></os-text-field>' );
 		expect( readBinding( typed, new CustomEvent( 'os-input-change', { detail: { value: 'a' } } ) ).debounce ).toBe( 250 );
+		// A slider drag fires per tick, same as typing fires per key —
+		// undebounced it is one WordPress request per pixel.
+		const dragged = el( '<os-range-field os-bind="size"></os-range-field>' );
+		expect( readBinding( dragged, new CustomEvent( 'os-range-change', { detail: { value: 3 } } ) ).debounce ).toBe( 250 );
 		const custom = el( '<os-text-field os-bind="query" os-debounce="50"></os-text-field>' );
 		expect( readBinding( custom, new CustomEvent( 'os-input-change', { detail: { value: 'a' } } ) ).debounce ).toBe( 50 );
 		const clicked = el( '<os-button os-action="go" os-debounce="abc"></os-button>' );

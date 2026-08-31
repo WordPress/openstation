@@ -22,8 +22,9 @@ use OpenStation\App\Contracts\Hooks;
 use OpenStation\App\Contracts\Settings;
 use OpenStation\App\Contracts\Store;
 
-if ( ! defined( 'ABSPATH' ) && ! defined( 'OPENSTATION_STANDALONE' ) ) {
-	exit;
+// Direct access, unless a standalone host is booting on bare PHP.
+if ( ! defined( 'ABSPATH' ) ) {
+	defined( 'OPENSTATION_STANDALONE' ) || exit;
 }
 
 /**
@@ -208,6 +209,14 @@ final class Os {
 	/**
 	 * Return a cached value, computing and storing it on a miss.
 	 *
+	 * The key is the whole contract, and on a persistent object cache
+	 * it is shared by every request on the site. Two things belong in
+	 * it that are easy to forget: anything a **filter** contributed to
+	 * the value (run the filter outside `$compute` and fold its result
+	 * into the key, or a plugin's change lags by the TTL) and the
+	 * **locale**, whenever the value carries translated text (or an
+	 * admin reading in one language is served another's labels).
+	 *
 	 * @param string   $key     Cache key.
 	 * @param int      $ttl     Seconds to keep it.
 	 * @param callable $compute Produces the value on a miss.
@@ -278,11 +287,10 @@ final class Os {
 	 * Queue a toast. See {@see Effects::toast()}.
 	 *
 	 * @param string $message Text.
-	 * @param string $tone    Tone.
 	 * @return self
 	 */
-	public function toast( $message, $tone = 'info' ) {
-		$this->effects->toast( $message, $tone );
+	public function toast( $message ) {
+		$this->effects->toast( $message );
 		return $this;
 	}
 

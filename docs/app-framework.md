@@ -2,11 +2,11 @@
 
 *Status: Experimental.*
 
-An OpenStation **app** is a window declared entirely in PHP. One file — an **`.osx.php`** — says what the window is called, how big it opens, which buttons sit in its title bar and its ⋯ menu, which tabs it has, what state it keeps, what each action does, and how the body paints from `<os-*>` components. You write no JavaScript. The framework's one shared runtime mounts the window, sends your `os-action` triggers to PHP, and morphs the re-rendered body back in.
+An OpenStation **app** is a window declared entirely in PHP. One file — an **`.os.php`** — says what the window is called, how big it opens, which buttons sit in its title bar and its ⋯ menu, which tabs it has, what state it keeps, what each action does, and how the body paints from `<os-*>` components. You write no JavaScript. The framework's one shared runtime mounts the window, sends your `os-action` triggers to PHP, and morphs the re-rendered body back in.
 
 ```php
 <?php
-// my-plugin/apps/hello/hello.osx.php
+// my-plugin/apps/hello/hello.os.php
 use OpenStation\App;
 use OpenStation\App\State;
 use function OpenStation\App\Html\esc;
@@ -32,9 +32,9 @@ return App::define( 'hello' )
 
 Drop that file in a directory the framework scans (see [Where apps live](#where-apps-live)) and the window exists: a dock tile, a title bar with a Reset button, a body that counts. Ship a `hello.css` beside it and it is styled.
 
-An app has two possible halves. The **`.osx.php`** is always there: the window, the state schema, the server actions, the data. A **server view** (`->view()`) paints the body in PHP and re-renders it on every interaction — the right shape for forms, settings, dashboards, lists with actions. When an interaction must be instant — a filter over rows already in the browser — the app adds a **client view**, a **`.os.ts`** beside the `.osx.php`, and the same state model moves into the browser: see [The client view](#the-client-view--osts). Either way the window, its chrome, its effects and its dispatch contract are identical.
+An app has two possible halves. The **`.os.php`** is always there: the window, the state schema, the server actions, the data. A **server view** (`->view()`) paints the body in PHP and re-renders it on every interaction — the right shape for forms, settings, dashboards, lists with actions. When an interaction must be instant — a filter over rows already in the browser — the app adds a **client view**, a **`.os.ts`** beside the `.os.php`, and the same state model moves into the browser: see [The client view](#the-client-view--osts). Either way the window, its chrome, its effects and its dispatch contract are identical.
 
-The shipped app is **Code Blue** — `apps/code-blue/` — the error-log reader, rebuilt from a PHP module plus a 1,726-line TypeScript bundle into an `.osx.php` (window, actions, data) and an `.os.ts` (the body, with range / search / sort / legend / expand running locally). Same features, under half the lines, and every filter is instant. Read it after this page.
+The shipped app is **Code Blue** — `apps/code-blue/` — the error-log reader, rebuilt from a PHP module plus a 1,726-line TypeScript bundle into an `.os.php` (window, actions, data) and an `.os.ts` (the body, with range / search / sort / legend / expand running locally). Same features, under half the lines, and every filter is instant. Read it after this page.
 
 ---
 
@@ -77,6 +77,14 @@ Everything hangs off `OpenStation\App::define( $id )`. Every method returns `$th
 
 Both gate the whole surface — window, icon, tabs, and dispatch endpoint. An anonymous user is always refused.
 
+#### The gate is the only authorization there is
+
+Three things follow from that, and all three have bitten someone:
+
+1. **Declaring neither means "any logged-in user."** `allows()` refuses anonymous requests and nothing else, matching `openstation_register_window()`'s own default. On a site with public registration — WooCommerce, BuddyPress, a membership plugin — every customer clears that bar. An app is a REST endpoint that runs your action handlers, so `->action( 'delete_all', … )` on an ungated app is `delete_all` for all of them. **Declare `capabilities()` or `can()` on every app**, and if one action is more dangerous than the window it lives in, check `$os->can()` inside that handler too: the framework gates the app, not the action.
+2. **A server view is not filtered.** The HTML an action returns goes to the browser as-is — `wp_kses` never sees it, deliberately, so views can use the whole component kit. The runtime then wires every trigger it finds in that markup, and some triggers need no user: a smuggled `<span os-poll="250" os-action="…">` dispatches on a timer, forever. So escape **everything** that came from a user, a post, an option or a plugin, with `Html\esc()` / `attr()` / `json()` — or build the node with `tag()`, which escapes every attribute it emits. A client view (`.os.ts`) escapes by construction: the `html` tag interpolates values as text, never as markup.
+3. **State typing is top-level only.** `State::accept()` coerces scalars against the declared default — `0` → int, `''` → string, `false` → bool. An `array()` default only checks `is_array()`: the client may send a nested map of arbitrary keys and depth, and it is stored verbatim. `toggle_item()` and `contains()` assume a flat list of scalars and will happily be handed something else. If an action indexes into a state array, or passes one to a query, validate its shape yourself.
+
 ### State, actions, views
 
 | Method | Meaning |
@@ -86,8 +94,18 @@ Both gate the whole surface — window, icon, tabs, and dispatch endpoint. An an
 | `action( $name, callable )` | `function ( State $state, Os $os, array $args )`. Mutate the state; the view re-renders after. Throwing surfaces as a toast. |
 | `view( callable )` | `function ( State $state, Os $os )`. The main body, rendered on the server. Echo markup (`?> … <?php`) or return a string. Omit it when the app has a client view. |
 | `data( callable )` | `function ( State $state, Os $os ): array`. What a client view renders from — rows, options, environment facts. Computed after every server action and shipped as `data` in the response. |
-| `client( $path )` | The built `.os.ts` bundle. Not needed for an app inside OpenStation (`<file>.os.ts` beside the `.osx.php` is discovered and built by `npm run build:apps`); a third-party app that builds its own passes the absolute path of the built file. |
+| `client( $path )` | The built `.os.ts` bundle. Not needed for an app inside OpenStation (`<file>.os.ts` beside the `.os.php` is discovered and built by `npm run build:apps`); a plugin that builds its own passes the absolute path of the built file. **Inside this repo only, for now** — see below. |
 | `tab( $value, array $args )` | An extra tab in the window's tab strip: `label`, `view` (callable), `position`. The main view is the first tab. Each tab panel is its own session — same declared state shape, separate values — and `$os->view` tells an action which tab dispatched it. Tabs are server views. |
+
+> **Client views are not third-party-ready yet.** `@openstation/app` is a
+> Vite alias (`vite.config.js`) onto `src/app-runtime/client.ts`, which
+> imports `../i18n` and `../ui/core/html` from this repo's source tree.
+> It is not published as a package and it is not exposed on a global, so
+> a plugin outside OpenStation cannot build a `.os.ts` today: `client(
+> $path )` will register whatever bundle you hand it, but there is no
+> supported way to produce one. **Server views (`view()`) are fully
+> third-party-usable** and are the general case anyway. Packaging the
+> client half is tracked work, not a documented capability.
 
 `State` is an `ArrayAccess` bag with `get()`, `set()`, `has()`, `toggle()`, `toggle_item( $key, $item )`, `contains( $key, $item )`, `reset( $key )`, `all()`. Setting an undeclared key is a no-op; declare it.
 
@@ -109,7 +127,7 @@ Two action names are built in: **`mount`** (the first render) and **`set`** (a b
 
 ### Assets
 
-`style( $path )` names a stylesheet for the body. Omit it and the framework looks for `<app dir>/<id>.css`, then `<app dir>/<file>.css` (the definition file's name without `.osx.php`). The sheet is injected on the window's first open, after the runtime's own, and never reaches chromeless iframes.
+`style( $path )` names a stylesheet for the body. Omit it and the framework looks for `<app dir>/<id>.css`, then `<app dir>/<file>.css` (the definition file's name without `.os.php`). The sheet is injected on the window's first open, after the runtime's own, and never reaches chromeless iframes.
 
 ### Readers
 
@@ -181,7 +199,7 @@ This is the decoupling: the framework core (`includes/framework/` minus `wordpre
 
 | Call | What the shell does |
 |---|---|
-| `$os->toast( $message, $tone )` | `wp.os.showToast` |
+| `$os->toast( $message )` | `wp.os.showToast`. There is no tone — the shell renders every toast the same way, so say what happened in the message and use `<os-notice tone="…">` in the body when a state needs a colour. |
 | `$os->title( $title )` | Retitles the window |
 | `$os->close()` | Closes the window |
 | `$os->open( $window_id )` | Opens or focuses another native window |
@@ -210,6 +228,8 @@ $whole = $runtime->describe( 'hello', array(), OpenStation\App\Os::standalone() 
 ```
 
 `describe()` is the "give me the whole window" call: the manifest plus the body (and every tab) it would paint for a state. The host moves those arrays over whatever wire it has.
+
+**What this is and is not.** The seam is real — `includes/framework/` minus `wordpress.php` and `app/wordpress/` calls no WordPress function, and `Tests_OpenStation_AppFramework` exercises the standalone adapters. What does not exist yet is a shipped bootstrap: nothing in this repo or in CI boots a site that way, so treat the snippet above as the shape of the contract rather than a supported install mode. An app is only as portable as its own code, too — Code Blue calls `__()`, so it runs on WordPress and not on bare PHP. Apps that stay inside `$os` run on both.
 
 ---
 
@@ -245,7 +265,7 @@ export default defineApp< State, Data >( 'hello', {
 } );
 ```
 
-And in the `.osx.php`, a `data()` in place of (or beside) the `view()`:
+And in the `.os.php`, a `data()` in place of (or beside) the `view()`:
 
 ```php
 ->state( array( 'query' => '', 'open' => array() ) )
@@ -275,7 +295,7 @@ What a client view does **not** change: the app is still declared in PHP, still 
 
 The framework covers what OpenStation's native windows do today, so any of them can be rewritten as an app. Map the old pieces like this:
 
-| In a module + bundle | In an `.osx.php` |
+| In a module + bundle | In an `.os.php` |
 |---|---|
 | `openstation_register_window()` args | `App::define()` → `title`, `icon`, `size`, `placement`, … |
 | `openstation_register_window_tab()` | `->tab( $value, … )` |
@@ -303,7 +323,7 @@ A server-view interaction is one WordPress REST request. On a local Docker with 
 
 Two things follow. First, the runtime never blocks on it: the current body stays interactive, `aria-busy` marks the root, the pressed `<os-button>` shows `busy`, dispatches are serialised so quick clicks land in order, typing is debounced, and components keep their own state across the morph. Second, and this is the actual answer: **an interaction that only re-slices what the browser already has should not be a request at all** — that is what the [client view](#the-client-view--osts) is for. Code Blue pays one request to read a log and none to filter it.
 
-So the choice is per app, not per framework. Forms, settings, dashboards, lists with actions: a server view, zero JavaScript. Readers and explorers over a fetched dataset: an `.os.ts` beside the `.osx.php`. Both are the same app.
+So the choice is per app, not per framework. Forms, settings, dashboards, lists with actions: a server view, zero JavaScript. Readers and explorers over a fetched dataset: an `.os.ts` beside the `.os.php`. Both are the same app.
 
 ---
 
@@ -312,7 +332,7 @@ So the choice is per app, not per framework. Forms, settings, dashboards, lists 
 On WordPress the host (`includes/framework/wordpress.php`) does three things on `init`:
 
 1. **@5** registers the shared runtime script + stylesheet (`openstation-app-runtime`).
-2. **@10** loads every `.osx.php` under the app directories — `apps/` inside OpenStation, plus whatever [`openstation_apps_directories`](./hooks-reference.md#openstation_apps_directories--experimental-filter) adds — one level of sub-folders deep, then fires [`openstation_apps_loaded`](./hooks-reference.md#openstation_apps_loaded--experimental-action) so a plugin can `$registry->add()` an `App` built in code.
+2. **@10** loads every `.os.php` under the app directories — `apps/` inside OpenStation, plus whatever [`openstation_apps_directories`](./hooks-reference.md#openstation_apps_directories--experimental-filter) adds — one level of sub-folders deep, then fires [`openstation_apps_loaded`](./hooks-reference.md#openstation_apps_loaded--experimental-action) so a plugin can `$registry->add()` an `App` built in code.
 3. **@20** turns every app the current user may use into a native window through `openstation_register_window()` (plus `openstation_register_window_tab()` per tab and `openstation_register_icon()` for a `desktop_icon`), after running the manifest through [`openstation_app_manifest`](./hooks-reference.md#openstation_app_manifest--experimental-filter).
 
 To ship apps from your plugin:
@@ -361,7 +381,7 @@ includes/framework/
   app/
     class-state.php             typed, schema-bound state
     class-runtime.php           dispatch( id, request, os ) / describe( id, state, os )
-    class-registry.php          apps by id; loads *.osx.php
+    class-registry.php          apps by id; loads *.os.php
     class-os.php                the host handle
     class-effects.php           toast / title / close / open / open_url / badge / announce / menu / send
     class-view.php              captures a view callable
@@ -374,7 +394,7 @@ src/app-runtime/                the client runtime (bindings, morph, session, en
 src/app-runtime/client.ts       what an .os.ts imports as @openstation/app: defineApp(), html, i18n
 assets/css/app-runtime.css      the mount root + first-paint spinner
 assets/js/apps/<name>[.min].js  built client views (npm run build:apps)
-apps/code-blue/                 the shipped app: code-blue.osx.php + code-blue.os.ts + log-reader.php + code-blue.css
+apps/code-blue/                 the shipped app: code-blue.os.php + code-blue.os.ts + log-reader.php + code-blue.css
 ```
 
 Tests: `tests/phpunit/tests/appFramework.php`, `tests/phpunit/tests/codeBlue.php`, `tests/vitest/app-runtime-*.test.ts`.
