@@ -558,7 +558,17 @@
 	display: flex;
 	flex-direction: column;
 	gap: 4px;
-	/* Two 22px rows and the gap between them. */
+	/*
+	 * One 22px row: Edit, which every desk has. Reserving two here
+	 * made every bar as tall as its most elaborate desk, so a user
+	 * with no workspaces at all paid a row of empty space under every
+	 * tile for a button none of their desks could show.
+	 */
+	min-height: 22px;
+}
+
+/* Two 22px rows and the gap, once some desk on the bar can restore. */
+.os-overview-top-bar__list--restorable .os-overview-top-bar__tile-actions {
 	min-height: 48px;
 }
 

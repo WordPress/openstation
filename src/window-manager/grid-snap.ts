@@ -30,8 +30,10 @@
  *
  * ## Layers
  *
- * `cellAt` / `cellRect` / `spanRect` are pure geometry, tested as a
- * table. The session functions below mutate one `_gridSnap` field on
+ * `cellAt` / `cellRect` / `spanRect` / `placementRect` are pure
+ * geometry, tested as a table: the first three in cells, the last one
+ * in the box a window actually gets, which is those cells inset by the
+ * gutter. The session functions below mutate one `_gridSnap` field on
  * the manager and one overlay element, the same shape `snap-zones.ts`
  * takes, so `pointer.ts` can drive both without reaching through two
  * class boundaries.
@@ -51,6 +53,21 @@ import type { WindowManager } from './index';
 /** The grid: six across, six down. Filterable — see `gridSnapDimensions`. */
 export const GRID_SNAP_COLUMNS = 6;
 export const GRID_SNAP_ROWS = 6;
+
+/**
+ * The gap between two windows placed on neighbouring cells.
+ *
+ * The cells themselves stay contiguous. `spanRect` still tiles the
+ * area exactly, and a span is still remembered in cells, so none of
+ * the responsive story changes. The gutter is applied when a span is
+ * turned into a window's box, which is the only place it means
+ * anything: two windows sharing an edge read as one broken window,
+ * and every tiling desktop worth copying leaves a margin. Half of it
+ * comes off each side, so neighbours end up a full `GRID_SNAP_GUTTER`
+ * apart and a window on the outer edge sits half that from it, the
+ * same proportions macOS uses for its own tiling.
+ */
+export const GRID_SNAP_GUTTER = 8;
 
 /**
  * Why the anchor is where it is.
@@ -208,6 +225,41 @@ export function spanRect(
 	return { x: left, y: top, width: right - left, height: bottom - top };
 }
 
+/**
+ * The box a window actually gets for a span: the cells, inset by half
+ * the gutter on each side.
+ *
+ * Separate from {@link spanRect} on purpose. `spanRect` answers "which
+ * part of the desk is this span", and the grid lines, the cell maths
+ * and the stored `GridSpan` all still speak in those terms. This
+ * answers "where does the window go", and it is the one the preview
+ * and the landing share, because a preview that did not carry the
+ * gutter would be a preview of somewhere else.
+ *
+ * A span too small to survive the inset keeps its cells. That is a
+ * pathological desk (a work area a few pixels tall, mid-collapse
+ * rather than in use), and a window with a negative width is a worse
+ * answer than one without a gutter.
+ */
+export function placementRect(
+	a: GridCell,
+	b: GridCell,
+	area: WorkAreaRect,
+	dims: GridDimensions,
+): GridRect {
+	const cells = spanRect( a, b, area, dims );
+	const inset = Math.round( GRID_SNAP_GUTTER / 2 );
+	if ( cells.width <= inset * 4 || cells.height <= inset * 4 ) {
+		return cells;
+	}
+	return {
+		x: cells.x + inset,
+		y: cells.y + inset,
+		width: cells.width - inset * 2,
+		height: cells.height - inset * 2,
+	};
+}
+
 function sameCell( a: GridCell, b: GridCell ): boolean {
 	return a.col === b.col && a.row === b.row;
 }
@@ -278,7 +330,7 @@ export function beginGridSnap(
 		dims,
 		anchor,
 		cursor: anchor,
-		rect: cellRect( anchor, area, dims ),
+		rect: placementRect( anchor, anchor, area, dims ),
 		overlayEl,
 		targetEl,
 		windowEl: win.element,
@@ -330,7 +382,7 @@ export function updateGridSnap(
 	const area = workAreaRectOf( mgr._desktop );
 	const p = toArea( mgr, clientX, clientY );
 	const cursor = cellAt( p.x, p.y, area, session.dims );
-	const rect = spanRect( session.anchor, cursor, area, session.dims );
+	const rect = placementRect( session.anchor, cursor, area, session.dims );
 	const moved = ! sameCell( cursor, session.cursor );
 	const resized =
 		rect.x !== session.rect.x ||
@@ -371,7 +423,7 @@ export function resetGridSnapAnchor(
 	const anchor = cellAt( p.x, p.y, area, session.dims );
 	session.anchor = anchor;
 	session.cursor = anchor;
-	session.rect = cellRect( anchor, area, session.dims );
+	session.rect = placementRect( anchor, anchor, area, session.dims );
 	paint( session, area );
 	// A brief pulse on the target so the reset is seen, not inferred.
 	session.targetEl.classList.remove( 'os-grid-snap__target--reset' );
@@ -494,7 +546,7 @@ export function commitGridSnapIfActive(
 
 /** The pixels a span resolves to on the work area as it is right now. */
 export function gridSpanRect( span: GridSpan, area: WorkAreaRect ): GridRect {
-	return spanRect( span.anchor, span.cursor, area, {
+	return placementRect( span.anchor, span.cursor, area, {
 		cols: span.cols,
 		rows: span.rows,
 	} );

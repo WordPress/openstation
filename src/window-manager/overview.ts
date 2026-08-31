@@ -525,6 +525,17 @@ function buildOverviewTopBar( mgr: WindowManager ): HTMLElement {
 	list.className = 'os-overview-top-bar__list';
 	bar.appendChild( list );
 
+	// How many action rows every tile reserves under it. Edit is on
+	// every desk, so one row is always paid for; Restore is on the
+	// desks that have something to restore, and the bar only grows to
+	// two rows once at least one of them does. Reserved for ALL tiles
+	// or none, never per tile: the rows sit below the tile, so a tile
+	// that reserved fewer would ride up out of line with its
+	// neighbours. A user with no workspaces gets the bar they had.
+	if ( mgr._desktops.some( workspaceCanRestore ) ) {
+		list.classList.add( 'os-overview-top-bar__list--restorable' );
+	}
+
 	for ( const d of mgr._desktops ) {
 		list.appendChild( buildDesktopTile( mgr, d ) );
 	}

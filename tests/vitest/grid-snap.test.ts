@@ -8,6 +8,8 @@
  *   per edge so adjacent cells share one and the last reaches the end;
  * - the span is a bounding box, so dragging backwards makes the same
  *   window as dragging forwards;
+ * - the cells are contiguous but the WINDOW is inset half a gutter on
+ *   each side, so two on neighbouring cells never share an edge;
  * - a shake moves the anchor to where the hand is;
  * - while a grid snap is armed the edge zones stay quiet, and the
  *   release lands on the span and fires the generic move/resize hooks
@@ -23,9 +25,11 @@ import {
 	cellRect,
 	commitGridSnapIfActive,
 	GRID_SNAP_COLUMNS,
+	GRID_SNAP_GUTTER,
 	GRID_SNAP_ROWS,
 	GridSnapAnchorReason,
 	gridSnapDimensions,
+	placementRect,
 	reflowGridSpans,
 	resetGridSnapAnchor,
 	spanRect,
@@ -99,6 +103,33 @@ describe( 'grid snap — geometry', () => {
 			width: Math.round( 1600 * 3 / 6 ) - Math.round( 1600 / 6 ),
 			height: 300,
 		} );
+	} );
+
+	test( 'the placement is the cells inset by half the gutter on each side', () => {
+		const cells = spanRect( { col: 1, row: 1 }, { col: 2, row: 2 }, AREA, SIX );
+		const placed = placementRect( { col: 1, row: 1 }, { col: 2, row: 2 }, AREA, SIX );
+		const inset = GRID_SNAP_GUTTER / 2;
+		expect( placed ).toEqual( {
+			x: cells.x + inset,
+			y: cells.y + inset,
+			width: cells.width - inset * 2,
+			height: cells.height - inset * 2,
+		} );
+	} );
+
+	test( 'two windows on neighbouring cells end up a full gutter apart', () => {
+		const left = placementRect( { col: 0, row: 0 }, { col: 0, row: 5 }, AREA, SIX );
+		const right = placementRect( { col: 1, row: 0 }, { col: 1, row: 5 }, AREA, SIX );
+		expect( right.x - ( left.x + left.width ) ).toBe( GRID_SNAP_GUTTER );
+	} );
+
+	test( 'a span too small for the inset keeps its cells rather than going negative', () => {
+		// A work area mid-collapse: six columns across 12px.
+		const sliver = { x: 0, y: 0, width: 12, height: 12 };
+		const placed = placementRect( { col: 0, row: 0 }, { col: 0, row: 0 }, sliver, SIX );
+		expect( placed ).toEqual( spanRect( { col: 0, row: 0 }, { col: 0, row: 0 }, sliver, SIX ) );
+		expect( placed.width ).toBeGreaterThan( 0 );
+		expect( placed.height ).toBeGreaterThan( 0 );
 	} );
 } );
 
@@ -183,7 +214,7 @@ describe( 'grid snap — session', () => {
 		updateGridSnap( manager, 700, 400 );
 		expect( manager._gridSnap?.cursor ).toEqual( { col: 2, row: 2 } );
 		expect( manager._gridSnap?.rect ).toEqual(
-			spanRect( { col: 1, row: 1 }, { col: 2, row: 2 }, AREA, SIX ),
+			placementRect( { col: 1, row: 1 }, { col: 2, row: 2 }, AREA, SIX ),
 		);
 		const target = desktop.querySelector< HTMLElement >( '.os-grid-snap__target' )!;
 		expect( target.dataset.cols ).toBe( '2' );
@@ -239,7 +270,7 @@ describe( 'grid snap — session', () => {
 		// Then dragging back to (2,2) is a 3×3 the other way.
 		updateGridSnap( manager, 700, 400 );
 		expect( manager._gridSnap?.rect ).toEqual(
-			spanRect( { col: 2, row: 2 }, { col: 4, row: 4 }, AREA, SIX ),
+			placementRect( { col: 2, row: 2 }, { col: 4, row: 4 }, AREA, SIX ),
 		);
 	} );
 
@@ -326,7 +357,7 @@ describe( 'grid snap — session', () => {
 
 		expect( moved ).toEqual( [ 'a' ] );
 		// Still the 2×2 at (1,1) — of the NEW desk.
-		const expected = spanRect(
+		const expected = placementRect(
 			{ col: 1, row: 1 },
 			{ col: 2, row: 2 },
 			{ x: 0, y: 0, width: 1200, height: 600 },
@@ -404,7 +435,7 @@ describe( 'grid snap — session', () => {
 				rows: 6,
 			},
 		} );
-		const expected = spanRect( { col: 3, row: 0 }, { col: 5, row: 2 }, AREA, SIX );
+		const expected = placementRect( { col: 3, row: 0 }, { col: 5, row: 2 }, AREA, SIX );
 		expect( win.element.style.left ).toBe( `${ expected.x }px` );
 		expect( win.element.style.width ).toBe( `${ expected.width }px` );
 		expect( win._gridSpan ).toEqual( {

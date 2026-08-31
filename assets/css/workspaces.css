@@ -41,10 +41,20 @@
 /*
  * The pane has ONE height and keeps it. A wizard that grew and shrank
  * with each step moved its own footer under the user's pointer between
- * clicks — Next in one place, then Next somewhere else. Generous
- * rather than tight: the tallest step (Apps on a site with forty
- * plugins) scrolls inside it; the shortest (Start, four cards) leaves
- * room, and room is cheaper than a jumping button.
+ * clicks — Next in one place, then Next somewhere else. The tallest
+ * step (Apps on a site with forty plugins) scrolls inside it.
+ *
+ * Sized to the steps that have something in them, not to the tallest
+ * one. Three of the six are a heading and a single switch until that
+ * switch is turned on, and at the old height they were about 45%
+ * empty: far enough past "roomy" that the dialog read as one that
+ * had failed to load. Room is cheaper than a jumping button; this much
+ * room was not buying anything.
+ *
+ * The remaining gap on those three steps is a content problem rather
+ * than a height one. The fix worth having is a preview of the desk
+ * being described, which would fill the space and answer "what am I
+ * actually choosing" on Look and Windows at the same time.
  *
  * The pane scrolls, the dialog does not. A Save button below the fold
  * is a Save button the user cannot find.
@@ -53,7 +63,7 @@
 	display: flex;
 	flex-direction: column;
 	gap: 14px;
-	height: min( 60vh, 390px );
+	height: min( 52vh, 320px );
 	overflow-y: auto;
 	/* The pane scrolls DOWN and only down. A child that wants to be
 	   wider than the dialog is a bug in the child, and a horizontal

@@ -900,8 +900,17 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 		const paintChips = (): void => {
 			chips.replaceChildren();
 			if ( draft.windows.length === 0 ) {
+				// Only offer the capture when the capture is there.
+				// `captureWindows` is an edit-mode option (a desk
+				// being created has no windows of its own to keep),
+				// so on the create pass the second half of this
+				// sentence named a button that was not in the dialog.
 				chips.appendChild(
-					hint( __( 'Nothing yet — add an app below, or capture the windows you have open.' ) ),
+					hint(
+						options.captureWindows
+							? __( 'Nothing yet — add an app below, or capture the windows you have open.' )
+							: __( 'Nothing yet — add an app below.' ),
+					),
 				);
 				return;
 			}
@@ -1027,8 +1036,27 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 			footer.appendChild( back );
 		}
 
-		// Create / Save is on EVERY step. It is the escape hatch: the
-		// wizard can be left at any point with whatever has been set.
+		// Next / Customize goes BEFORE the primary, because the primary
+		// is last. A footer that put a secondary to the right of the
+		// pink button asked the user to read the row twice: the
+		// rightmost seat is where a dialog's answer lives, and it was
+		// holding "Next" on four steps out of six and "Customize" on
+		// another, so the button under the pointer meant something
+		// different on every screen.
+		if ( ! last ) {
+			const next = el( 'os-button' );
+			next.setAttribute( 'variant', 'secondary' );
+			next.textContent = onStart ? __( 'Customize' ) : __( 'Next' );
+			next.addEventListener( 'click', () => go( stepIndex + 1 ) );
+			footer.appendChild( next );
+		}
+
+		// Create / Save is on EVERY step, and always in the same seat.
+		// It is the escape hatch: the wizard can be left at any point
+		// with whatever has been set, so it is the one thing that must
+		// never move. Keeping it primary on the Start step is what
+		// makes `+` then Enter a plain new desktop: the focus call at
+		// the bottom of this module lands on it.
 		primary = el( 'os-button' );
 		primary.setAttribute( 'variant', 'primary' );
 		if ( isEdit ) {
@@ -1042,14 +1070,6 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 		}
 		primary.addEventListener( 'click', commit );
 		footer.appendChild( primary );
-
-		if ( ! last ) {
-			const next = el( 'os-button' );
-			next.setAttribute( 'variant', 'secondary' );
-			next.textContent = onStart ? __( 'Customize' ) : __( 'Next' );
-			next.addEventListener( 'click', () => go( stepIndex + 1 ) );
-			footer.appendChild( next );
-		}
 	};
 
 	// --- Navigation -----------------------------------------------
