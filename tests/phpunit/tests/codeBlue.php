@@ -345,7 +345,14 @@ class Tests_OpenStation_CodeBlue extends WP_UnitTestCase {
 
 		$entry = openstation_native_window_registry( 'openstation-code-blue' );
 		$this->assertIsArray( $entry );
-		$this->assertTrue( $entry['config']['client'] );
+		// `openstation_apps_client_bundle()` resolves to a file on disk,
+		// so this asserts against real build output — `assets/js/apps/`
+		// is gitignored, and CI's PHPUnit job runs `npm run build:apps`
+		// before the suite for exactly this reason.
+		$this->assertTrue(
+			$entry['config']['client'],
+			'No built client view found — run `npm run build:apps` (or `npm run build`) first.'
+		);
 		$this->assertSame( array( 'openstation-app-openstation-code-blue-client' ), $entry['scripts'], 'The .os.ts bundle rides as a companion script.' );
 		$this->assertStringContainsString( 'assets/js/apps/code-blue', wp_scripts()->registered['openstation-app-openstation-code-blue-client']->src );
 	}
