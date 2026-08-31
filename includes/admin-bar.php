@@ -778,7 +778,7 @@ function openstation_enqueue_toggle_assets() {
 							),
 							array(
 								'keys'        => array( '⌥/Alt', '⌘/Ctrl', 'W' ),
-								'description' => __( 'Close every open window, on every desktop (asks first).', 'desktop-mode' ),
+								'description' => __( 'Close every open window on the current desktop (asks first).', 'desktop-mode' ),
 							),
 							array(
 								'keys'        => array( 'Esc' ),

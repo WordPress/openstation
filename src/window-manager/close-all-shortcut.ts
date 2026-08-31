@@ -10,6 +10,21 @@
  *
  * The key is read off `e.code`, not `e.key`: Option+W on macOS types
  * `∑`, and on a non-US layout the W glyph moves. `code` doesn't.
+ * `AltGraph` is the layout that has to be excluded rather than
+ * followed: Windows and Linux report a physical AltGr press as
+ * `ctrlKey` + `altKey`, so on a German, French, Polish, Spanish or
+ * Nordic layout every AltGr-composed character would otherwise
+ * satisfy this chord while the user is only typing.
+ *
+ * **It closes the ACTIVE desktop's windows, not every window
+ * everywhere.** A desktop is the unit the user is looking at, and
+ * with Workspaces landing it is a unit they switch between often; a
+ * chord that reached across all of them would be a much bigger hammer
+ * than the one being asked for. `closeAll()` itself is not
+ * desktop-scoped, so the windows parked on other desktops are handed
+ * to it as `exceptIds` — which also keeps them out of the
+ * `os.windows.close-all` filter, where a plugin would otherwise be
+ * asked to defend a window that was never in danger.
  *
  * Two things this module deliberately does NOT do:
  *
@@ -40,6 +55,7 @@
 import { __, _n, sprintf } from '../i18n';
 import { osConfirm, type OsConfirmOptions } from '../os-confirm';
 import { showToast } from '../toast';
+import type { Window } from '../window';
 import type { WindowManager } from './index';
 
 /** postMessage type the chromeless bridge forwards the chord as. */
@@ -49,9 +65,18 @@ export const CLOSE_ALL_MESSAGE = 'os-window-close-all';
  * True for `Ctrl/Cmd + Alt + W`. Shift is excluded rather than
  * ignored: `Cmd+Shift+Alt+W` belongs to whatever else claims it, and a
  * batch close is not something to fire on a near miss.
+ *
+ * The `AltGraph` check comes first because AltGr is not a near miss —
+ * it is an exact match. Browsers on Windows and Linux synthesise
+ * `ctrlKey: true, altKey: true` for it, so without this line typing
+ * an AltGr-composed character on a non-US layout would close the
+ * user's desktop. `getModifierState` is what tells the two apart.
  */
 export function isCloseAllChord( e: KeyboardEvent ): boolean {
 	if ( e.code !== 'KeyW' ) {
+		return false;
+	}
+	if ( e.getModifierState?.( 'AltGraph' ) ) {
 		return false;
 	}
 	if ( ! ( e.ctrlKey || e.metaKey ) ) {
@@ -87,11 +112,26 @@ export interface CloseAllPrefs {
 let confirming = false;
 
 /**
- * Ask, then close every open window on every desktop.
+ * Every window living on the desktop the user is currently looking
+ * at, minimized ones included — the set the chord acts on.
  *
- * Returns the number of windows `closeAll()` reported closing — 0 when
- * there was nothing open, when the user cancelled, or when the
- * `os.windows.close-all` filter protected everything.
+ * A window carries no `desktopId` until it has been moved, so an
+ * absent one reads as "wherever we are", the same rule
+ * {@link WindowManager.minimizeAll} follows.
+ */
+export function windowsOnActiveDesktop( mgr: WindowManager ): Window[] {
+	const activeId = mgr.getActiveDesktopId();
+	return mgr
+		.getAll()
+		.filter( ( w ) => ( w.config.desktopId || activeId ) === activeId );
+}
+
+/**
+ * Ask, then close every window on the ACTIVE desktop.
+ *
+ * Returns how many windows actually went — which is not the same as
+ * how many were asked to go, and is why the number is measured rather
+ * than predicted. See {@link countClosed}.
  *
  * The confirmation is not redundant with the per-window unsaved-changes
  * prompt: that one only fires for a page that actually holds unsaved
@@ -105,7 +145,7 @@ export async function closeAllWindows(
 	if ( confirming ) {
 		return 0;
 	}
-	const open = mgr.getAll();
+	const open = windowsOnActiveDesktop( mgr );
 	if ( open.length === 0 ) {
 		return 0;
 	}
@@ -135,10 +175,10 @@ export async function closeAllWindows(
 		confirmed = await osConfirm( {
 			title: __( 'Close all windows?' ),
 			message: sprintf(
-				/* translators: %d: number of open windows. */
+				/* translators: %d: number of open windows on this desktop. */
 				_n(
-					'%d open window will be closed, including any on other desktops.',
-					'%d open windows will be closed, including any on other desktops.',
+					'%d open window on this desktop will be closed.',
+					'%d open windows on this desktop will be closed.',
 					open.length,
 				),
 				open.length,
@@ -156,8 +196,56 @@ export async function closeAllWindows(
 	return runClose( mgr );
 }
 
+/**
+ * How long to wait for the deferred closes before counting what went.
+ *
+ * `Window.close()` gives an iframe 500 ms to answer its
+ * unsaved-changes query before forcing the close through, so this sits
+ * just past that: by the deadline, every window that was going to
+ * close without asking the user has closed.
+ */
+const CLOSE_SETTLE_TIMEOUT_MS = 700;
+
+/** How often to look, while waiting for that. */
+const CLOSE_SETTLE_POLL_MS = 50;
+
+/**
+ * How many of `targets` are actually gone.
+ *
+ * `closeAll()` returns how many closes it *dispatched*, and a
+ * dispatched close is not a closed window: a non-native window with a
+ * live bridge defers behind its unsaved-changes query, and a page that
+ * objects raises a prompt the user can answer with "keep it". Saying
+ * "Closed 7 windows" over a screen where two of them are still sitting
+ * there is the bug this avoids.
+ *
+ * So the count is measured, not predicted. Polling resolves the
+ * instant the set empties — the same tick, for the windows that close
+ * synchronously — and otherwise gives up at
+ * {@link CLOSE_SETTLE_TIMEOUT_MS}. A window still open then is either
+ * refused or waiting on the user's own answer; it is left out of the
+ * count and closes on its own terms afterwards, which the user is
+ * watching happen anyway.
+ */
+function countClosed( mgr: WindowManager, targets: string[] ): Promise< number > {
+	const gone = (): number =>
+		targets.filter( ( id ) => ! mgr.getById( id ) ).length;
+	return new Promise( ( resolve ) => {
+		const deadline = Date.now() + CLOSE_SETTLE_TIMEOUT_MS;
+		const check = (): void => {
+			const n = gone();
+			if ( n === targets.length || Date.now() >= deadline ) {
+				resolve( n );
+				return;
+			}
+			setTimeout( check, CLOSE_SETTLE_POLL_MS );
+		};
+		check();
+	} );
+}
+
 /** The close itself, once it is going to happen. */
-function runClose( mgr: WindowManager ): number {
+async function runClose( mgr: WindowManager ): Promise< number > {
 	// Overview frames the windows it is about to lose. Leaving it
 	// first means the grid animates out over a desktop that still has
 	// its thumbnails, rather than emptying under the user's cursor.
@@ -165,7 +253,20 @@ function runClose( mgr: WindowManager ): number {
 		mgr.exitOverview();
 	}
 
-	const closed = mgr.closeAll();
+	const targets = windowsOnActiveDesktop( mgr ).map( ( w ) => w.id );
+	// `closeAll()` is not desktop-scoped, so the other desktops' windows
+	// are excluded by id. `exceptIds` skips them before the
+	// `os.windows.close-all` filter runs, which is the right door: a
+	// plugin protecting a window should be asked about the ones that
+	// are actually in danger.
+	const elsewhere = mgr
+		.getAll()
+		.map( ( w ) => w.id )
+		.filter( ( id ) => ! targets.includes( id ) );
+
+	mgr.closeAll( { exceptIds: elsewhere } );
+
+	const closed = await countClosed( mgr, targets );
 	if ( closed > 0 ) {
 		showToast( {
 			message: sprintf(

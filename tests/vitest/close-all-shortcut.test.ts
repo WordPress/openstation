@@ -87,6 +87,28 @@ describe( 'close-all shortcut — chord matching', () => {
 		expect( isCloseAllChord( chord( { code: 'KeyQ' } ) ) ).toBe( false );
 	} );
 
+	test( 'ignores AltGr, which Windows and Linux report as Ctrl+Alt', () => {
+		// A German/French/Polish/Nordic layout composes characters with
+		// AltGr, and the browser synthesises ctrlKey + altKey for it.
+		// Only getModifierState tells the two apart.
+		const altGr = new KeyboardEvent( 'keydown', {
+			code: 'KeyW',
+			ctrlKey: true,
+			altKey: true,
+		} );
+		Object.defineProperty( altGr, 'getModifierState', {
+			value: ( key: string ) => key === 'AltGraph',
+		} );
+		expect( isCloseAllChord( altGr ) ).toBe( false );
+
+		// The same event without the AltGraph state is the real chord.
+		const real = chord();
+		Object.defineProperty( real, 'getModifierState', {
+			value: () => false,
+		} );
+		expect( isCloseAllChord( real ) ).toBe( true );
+	} );
+
 	test( 'reads the physical key, not the typed character', () => {
 		// Option+W on macOS types `∑`; `code` stays KeyW.
 		const e = new KeyboardEvent( 'keydown', {
@@ -241,6 +263,72 @@ describe( 'close-all shortcut — closing', async () => {
 		expect( closed ).toBe( 2 );
 		expect( confirmMock ).not.toHaveBeenCalled();
 		expect( manager.getAll() ).toHaveLength( 0 );
+	} );
+
+	test( 'leaves the other desktops alone', async () => {
+		await manager.open( openConfig( 'here' ) );
+		const second = manager.createDesktop();
+		manager.switchDesktop( second.id );
+		await manager.open( openConfig( 'there' ) );
+		manager.switchDesktop( 'desktop-1' );
+
+		const closed = await closeAllWindows( manager );
+
+		expect( closed ).toBe( 1 );
+		expect( manager.getAll().map( ( w ) => w.id ) ).toEqual( [ 'there' ] );
+	} );
+
+	test( 'counts and asks about this desktop only', async () => {
+		await manager.open( openConfig( 'here' ) );
+		const second = manager.createDesktop();
+		manager.switchDesktop( second.id );
+		await manager.open( openConfig( 'there-1' ) );
+		await manager.open( openConfig( 'there-2' ) );
+
+		await closeAllWindows( manager );
+
+		// Asked about the two on the desktop being looked at, not the
+		// three that exist.
+		expect( confirmMock.mock.calls[ 0 ][ 0 ].message ).toContain( '2' );
+	} );
+
+	test( 'a window that refuses to close is not counted', async () => {
+		await manager.open( openConfig( 'a' ) );
+		const stubborn = await manager.open( {
+			...openConfig( 'b' ),
+			native: true,
+			render: () => undefined,
+		} );
+		window.wp?.hooks?.addFilter(
+			'os.native-window.before-close',
+			'test/keep-b',
+			( proceed: unknown, ctx: unknown ) =>
+				( ctx as { windowId: string } ).windowId === 'b' ? false : proceed,
+		);
+
+		const closed = await closeAllWindows( manager );
+
+		expect( closed ).toBe( 1 );
+		expect( manager.getById( 'b' ) ).toBe( stubborn );
+		expect( toastMock.mock.calls[ 0 ][ 0 ] ).toMatchObject( {
+			message: expect.stringContaining( '1' ),
+		} );
+	} );
+
+	test( 'no toast when nothing actually closed', async () => {
+		await manager.open( {
+			...openConfig( 'a' ),
+			native: true,
+			render: () => undefined,
+		} );
+		window.wp?.hooks?.addFilter(
+			'os.native-window.before-close',
+			'test/keep-everything',
+			() => false,
+		);
+
+		expect( await closeAllWindows( manager ) ).toBe( 0 );
+		expect( toastMock ).not.toHaveBeenCalled();
 	} );
 
 	test( 'the keypress and the bridge message both close', async () => {

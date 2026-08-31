@@ -338,8 +338,9 @@ export interface OsSettingsState {
 	 */
 	showDesktopOnWallpaperClick: boolean;
 	/**
-	 * Whether the "close all windows" shortcut (`⌥⌘W` / `Ctrl+Alt+W`)
-	 * asks before it closes. True by default, and the dialog's "Don't
+	 * Whether the "close all windows" shortcut (`⌥⌘W` / `Ctrl+Alt+W`,
+	 * which closes the active desktop's windows) asks before it
+	 * closes. True by default, and the dialog's "Don't
 	 * ask again" checkbox is the only thing that writes false — which
 	 * is why the toggle exists in Preferences → Windows: an opt-out
 	 * with no way back is a trap, not a preference. Per-user.

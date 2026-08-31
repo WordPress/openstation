@@ -977,7 +977,7 @@ manager.seedWindowRestoreState( {
 wp.os.openWindow( 'my-plugin-panel' ); // opens at that geometry
 ```
 
-**`minimizeAll()` / `restoreFrom( windows )` / `toggleShowDesktop()`** — the "Show Desktop" gesture decomposed into reusable primitives. `minimizeAll()` returns the windows it actually minimized (skipping windows already in the `'minimized'` state), so you can pair it with a later `restoreFrom( minimizedSet )` that touches only what you minimized. `toggleShowDesktop()` is the higher-level call mirroring the wallpaper-click behaviour exactly — minimize when anything is visible, restore when everything's hidden. Returns `true` when the new state is "showing the desktop." All three are scoped to the **active virtual desktop only** — a window parked on a Space the user isn't currently viewing is left alone, unlike `closeAll()` below, which still acts across every desktop.
+**`minimizeAll()` / `restoreFrom( windows )` / `toggleShowDesktop()`** — the "Show Desktop" gesture decomposed into reusable primitives. `minimizeAll()` returns the windows it actually minimized (skipping windows already in the `'minimized'` state), so you can pair it with a later `restoreFrom( minimizedSet )` that touches only what you minimized. `toggleShowDesktop()` is the higher-level call mirroring the wallpaper-click behaviour exactly — minimize when anything is visible, restore when everything's hidden. Returns `true` when the new state is "showing the desktop." All three are scoped to the **active virtual desktop only** — a window parked on a Space the user isn't currently viewing is left alone, unlike `closeAll()` below, which acts across every desktop unless the caller scopes it with `exceptIds`.
 
 ```js
 // Plugin building an expand/collapse UI.
@@ -1724,7 +1724,9 @@ Filter receives `( defaultId: string, desktops: Desktop[] )` and must return a s
 manager.closeAll( options?: { exceptIds?: string[] } ): number;
 ```
 
-Closes every open window (across all desktops) and returns the number actually closed. Optional `exceptIds` skips specific windows entirely — never even passed to the filter. Unlike `minimizeAll()` / `restoreFrom()` / `toggleShowDesktop()` (above, active-desktop-only), `closeAll()` is not desktop-scoped.
+Closes every open window (across all desktops) and returns the number closed or committed to closing. Optional `exceptIds` skips specific windows entirely — never even passed to the filter. Unlike `minimizeAll()` / `restoreFrom()` / `toggleShowDesktop()` (above, active-desktop-only), `closeAll()` is not desktop-scoped; pass the other desktops' window ids as `exceptIds` to scope it, which is what the keyboard shortcut below does.
+
+**What the count means.** `close()` is a request, not a teardown. A native window's `os.native-window.before-close` filter can veto it outright — those windows land in the after-hook's `refused` array and are **not** counted. A non-native window with a live iframe bridge instead *defers*, behind the unsaved-changes query in [`bridge-protocol.md`](./bridge-protocol.md#pre-close-unsaved-changes-query--os-bridge-beforeunload-); it **is** counted, because it is on its way out. If the page inside objects, the user gets a prompt and may keep the window — so a caller that needs the *settled* truth (a "Closed N windows" toast, say) must watch the windows rather than trust the return value. `src/window-manager/close-all-shortcut.ts` is the worked example: it polls its targets until they are gone or the deferred round trip's own 500 ms timeout has passed, then reports what actually went.
 
 **Hook chain:**
 
@@ -1732,7 +1734,7 @@ Closes every open window (across all desktops) and returns the number actually c
 |---|---|---|---|
 | `os.windows.before-close-all` | action | `{ candidates: Window[] }` | Cleanup, dismiss menus, cancel pending saves |
 | `os.windows.close-all` | filter | `Window[]` → `Window[]` | **Protect specific windows** by removing them from the list. Returning `[]` cancels the close entirely. |
-| `os.windows.after-close-all` | action | `{ closed: number, skipped: Window[] }` | Toast, telemetry, refocus a tile |
+| `os.windows.after-close-all` | action | `{ closed: number, skipped: Window[], refused: Window[] }` | Toast, telemetry, refocus a tile |
 
 ```javascript
 // Protect any window with unsaved Gutenberg edits.
@@ -1751,7 +1753,7 @@ return `Closed ${ closed } window${ closed === 1 ? '' : 's' }.`;
 
 If a `Window.close()` throws, the loop catches and continues — one bad window can't abort the batch.
 
-**The shell binds this to `⌥⌘W` (macOS) / `Ctrl+Alt+W`** — `src/window-manager/close-all-shortcut.ts`, installed next to the window switcher and the arrow-key desktop shortcuts. The chord raises a confirmation naming how many windows are about to go, then calls `closeAll()` with no `exceptIds`, so the hook chain above is the supported way to keep a window alive through it. Pressing it inside an admin window works too: native keydown doesn't cross an iframe boundary, so the chromeless bridge forwards the chord to the shell as `os-window-close-all` (see [`bridge-protocol.md`](./bridge-protocol.md#keyboard-forwarders)).
+**The shell binds this to `⌥⌘W` (macOS) / `Ctrl+Alt+W`** — `src/window-manager/close-all-shortcut.ts`, installed next to the window switcher and the arrow-key desktop shortcuts. It closes the windows on the **active desktop**; the ones parked on other desktops are handed to `closeAll()` as `exceptIds`, so they never reach the filter either. The chord raises a confirmation naming how many windows are about to go, then calls `closeAll()`, so the hook chain above is the supported way to keep a window alive through it. AltGr is excluded from the chord — Windows and Linux report it as `ctrlKey` + `altKey`, so without that guard an AltGr-composed character on a non-US layout would close the user's desktop. Pressing it inside an admin window works too: native keydown doesn't cross an iframe boundary, so the chromeless bridge forwards the chord to the shell as `os-window-close-all` (see [`bridge-protocol.md`](./bridge-protocol.md#keyboard-forwarders)).
 
 The confirmation carries a **"Don't ask again"** checkbox. Ticking it writes `confirmCloseAllWindows: false` to the user's OpenStation Preferences (user meta, so the choice follows them to other browsers) and the chord closes immediately from then on — the per-window unsaved-changes prompt still fires for any page that raises one. **OpenStation Preferences → Windows → "Ask before closing all windows"** turns it back on, which is what keeps the checkbox a preference rather than a one-way door.
 

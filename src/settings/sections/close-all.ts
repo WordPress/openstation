@@ -30,7 +30,7 @@ export function buildCloseAllSection( ctx: SettingsCtx ): HTMLElement {
 				<os-section
 					heading=${ __( 'Closing every window' ) }
 					description=${ __(
-						'⌥⌘W on macOS, Ctrl+Alt+W elsewhere, closes every open window on every desktop. Unticked, it closes them without asking — a page holding unsaved changes still gets to raise its own prompt.',
+						'⌥⌘W on macOS, Ctrl+Alt+W elsewhere, closes every open window on the desktop you are looking at. Unticked, it closes them without asking — a page holding unsaved changes still gets to raise its own prompt.',
 					) }
 				>
 					<os-checkbox-label

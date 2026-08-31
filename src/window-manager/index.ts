@@ -2145,11 +2145,25 @@ export class WindowManager {
 	 *   3. Each surviving window's `close()` is called.
 	 *
 	 *   4. `os.windows.after-close-all` — action. Detail:
-	 *      `{ closed: number, skipped: Window[] }`.
+	 *      `{ closed: number, skipped: Window[], refused: Window[] }`.
+	 *
+	 * **What the count means.** `close()` is a request, not a
+	 * teardown: a native window's `os.native-window.before-close`
+	 * filter can veto it outright, and a non-native window with a live
+	 * iframe bridge defers behind its unsaved-changes query. A window
+	 * that comes back from `close()` neither destroyed nor pending has
+	 * refused, where this loop can still see it refuse: it is reported
+	 * in `refused` rather than counted. Counting those is how a batch
+	 * that left windows on screen still reported them closed. The deferred
+	 * ones are counted, because they are on their way; a caller that
+	 * needs the settled truth has to watch the windows, since the page
+	 * inside one can still raise a prompt the user answers with "keep
+	 * it" (`src/window-manager/close-all-shortcut.ts` does exactly
+	 * that for its toast).
 	 *
 	 * @param options           Close options.
 	 * @param options.exceptIds Window ids to skip even before the filter runs.
-	 * @return Number of windows actually closed.
+	 * @return Number of windows closed or committed to closing.
 	 */
 	public closeAll( options?: { exceptIds?: string[] } ): number {
 		const exceptSet = new Set( options?.exceptIds ?? [] );
@@ -2171,13 +2185,22 @@ export class WindowManager {
 		const skipped = initialCandidates.filter( ( w ) => ! finalList.includes( w ) );
 
 		let closed = 0;
+		const refused: Window[] = [];
 		// Iterate a copy because close() removes from the underlying
 		// array — iterating the live one would skip every other entry.
 		for ( const win of finalList.slice() ) {
 			try {
 				win.close();
-				closed++;
+				if ( win._isDestroyed || win._closePending ) {
+					closed++;
+				} else {
+					// Still here, and nothing in flight: the close was
+					// refused (a native window's before-close filter
+					// said no). Not a close, so not counted.
+					refused.push( win );
+				}
 			} catch ( err ) {
+				refused.push( win );
 				if ( typeof console !== 'undefined' ) {
 					console.error(
 						'[openstation] closeAll: window.close() threw for',
@@ -2188,7 +2211,7 @@ export class WindowManager {
 			}
 		}
 
-		doAction( HOOKS.WINDOWS_AFTER_CLOSE_ALL, { closed, skipped } );
+		doAction( HOOKS.WINDOWS_AFTER_CLOSE_ALL, { closed, skipped, refused } );
 
 		return closed;
 	}
