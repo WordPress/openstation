@@ -10,6 +10,7 @@
  */
 
 import { trackedFetch } from '../tracked-fetch';
+import { sanitizeFilename } from '../settings/utils';
 import { getConfig } from './rest';
 import type {
 	AgentDraft,
@@ -85,6 +86,7 @@ export interface CreateAgentPayload {
 	vibes?: string;
 	face?: MioLook;
 	faceSeed?: number;
+	avatarAttachmentId?: number;
 }
 
 export function createAgent( payload: CreateAgentPayload ): Promise< Agent > {
@@ -119,6 +121,7 @@ export interface UpdateAgentPayload {
 	vibes?: string;
 	face?: MioLook;
 	faceSeed?: number;
+	avatarAttachmentId?: number;
 }
 
 export function updateAgent(
@@ -129,6 +132,52 @@ export function updateAgent(
 		method: 'POST',
 		body: JSON.stringify( patch ),
 	} );
+}
+
+/**
+ * Upload a profile picture to the site's Media Library.
+ *
+ * The attachment id is what agent create/update stores. Its direct URL
+ * is returned only for the unsaved wizard preview; once saved, callers
+ * use the ribboned `avatarUrl` from the canonical agent response.
+ */
+export async function uploadAgentProfilePicture(
+	file: File,
+): Promise< { id: number; url: string } > {
+	const root = getConfig().restRoot.replace( /\/+$/, '' );
+	const res = await trackedFetch(
+		`${ root }/wp/v2/media`,
+		{
+			method: 'POST',
+			credentials: 'same-origin',
+			headers: {
+				'X-WP-Nonce': getConfig().restNonce,
+				'Content-Type': file.type,
+				'Content-Disposition': `attachment; filename="${ sanitizeFilename( file.name ) }"`,
+			},
+			body: file,
+		},
+		{ source: 'desktop-mode/agents/profile-picture' },
+	);
+	const body = ( await res.json().catch( () => null ) ) as
+		| { id?: number; source_url?: string; message?: string }
+		| null;
+	if ( ! res.ok ) {
+		throw new Error(
+			body && typeof body.message === 'string'
+				? body.message
+				: `HTTP ${ res.status }`,
+		);
+	}
+	if (
+		! body ||
+		typeof body.id !== 'number' ||
+		typeof body.source_url !== 'string' ||
+		body.source_url === ''
+	) {
+		throw new Error( 'The uploaded profile picture response was incomplete.' );
+	}
+	return { id: body.id, url: body.source_url };
 }
 
 export function deleteAgent(

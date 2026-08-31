@@ -19,11 +19,14 @@
  * be a write during a front-end GET.
  *
  * **The files are SVG in uploads, which is only safe because of what
- * the renderer refuses to emit.** `openstation_mio_portrait_svg()`
- * writes numbers and a fixed vocabulary of elements: no text nodes, no
- * caller-supplied string anywhere. The directory is hardened exec-off
- * rather than deny-all, because unlike a theme's PHP these files have
- * to stay servable.
+ * the renderers refuse to emit.** Mio portraits use a fixed vocabulary
+ * of numeric shapes. Custom profile pictures accept raster Media
+ * Library attachments only, re-encode or base64-wrap their bytes, and
+ * place that inert data URI behind a fixed AGENT ribbon. No source URL,
+ * filename, alt text, SVG markup, or other caller string is copied into
+ * the generated document. The directory is hardened exec-off rather
+ * than deny-all, because unlike a theme's PHP these files have to stay
+ * servable.
  *
  * **The .htaccess is the second line, not the first.** It is Apache
  * only: the `php_flag` and `<FilesMatch>` rules do nothing on nginx,
@@ -52,6 +55,12 @@ defined( 'ABSPATH' ) || exit;
  * dimensions falls back to. 96 matches what `get_avatar()` asks for.
  */
 const OPENSTATION_AGENT_FACE_SIZE = 96;
+
+/** Square raster size embedded behind a custom profile-picture ribbon. */
+const OPENSTATION_AGENT_PROFILE_PICTURE_RASTER_SIZE = 256;
+
+/** Largest original image embedded when WordPress cannot resize it. */
+const OPENSTATION_AGENT_PROFILE_PICTURE_SOURCE_MAX_BYTES = 5242880;
 
 /**
  * Absolute path to the face directory.
@@ -142,11 +151,18 @@ function openstation_agent_faces_ensure_dir() {
  * @return string Filename, or '' when the agent has no face.
  */
 function openstation_agent_face_filename( $user_id ) {
-	$raw = (string) get_user_meta( (int) $user_id, OPENSTATION_AGENT_FACE_META, true );
-	if ( '' === $raw ) {
+	$user_id       = (int) $user_id;
+	$raw           = (string) get_user_meta( $user_id, OPENSTATION_AGENT_FACE_META, true );
+	$attachment_id = openstation_agent_get_avatar_attachment_id( $user_id );
+	if ( '' === $raw && 0 === $attachment_id ) {
 		return '';
 	}
-	return (int) $user_id . '-' . substr( md5( $raw ), 0, 8 ) . '.svg';
+	$fingerprint = $raw;
+	if ( $attachment_id > 0 ) {
+		$fingerprint .= '|avatar:' . $attachment_id . ':'
+			. (int) get_post_modified_time( 'U', true, $attachment_id );
+	}
+	return $user_id . '-' . substr( md5( $fingerprint ), 0, 8 ) . '.svg';
 }
 
 /**
@@ -199,8 +215,21 @@ function openstation_agent_face_write( $user_id ) {
 		return $path;
 	}
 
-	$look = openstation_mio_clamp_look( openstation_agent_get_face( $user_id ) );
-	$svg  = openstation_mio_portrait_svg( $look, OPENSTATION_AGENT_FACE_SIZE );
+	$attachment_id = openstation_agent_get_avatar_attachment_id( $user_id );
+	if ( $attachment_id > 0 ) {
+		$svg = openstation_agent_profile_picture_svg(
+			$attachment_id,
+			OPENSTATION_AGENT_FACE_SIZE,
+			$base,
+			$user_id
+		);
+		if ( is_wp_error( $svg ) ) {
+			return $svg;
+		}
+	} else {
+		$look = openstation_mio_clamp_look( openstation_agent_get_face( $user_id ) );
+		$svg  = openstation_mio_portrait_svg( $look, OPENSTATION_AGENT_FACE_SIZE );
+	}
 
 	// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
 	$written = file_put_contents( $path, $svg );
@@ -214,6 +243,105 @@ function openstation_agent_face_write( $user_id ) {
 
 	openstation_agent_face_delete( $user_id, $file );
 	return $path;
+}
+
+/**
+ * Read a custom profile picture into an inert raster data URI.
+ *
+ * WordPress's image editor is preferred: it crops the source to a
+ * small square and strips format-specific payloads before those bytes
+ * enter the avatar SVG. Hosts without an available editor may still
+ * use a reasonably sized, allowlisted raster file directly.
+ *
+ * @param int    $attachment_id Image attachment id.
+ * @param string $base          Writable agent-face directory.
+ * @param int    $user_id       Agent user id, used in the temp name.
+ * @return string|WP_Error Raster data URI, or an error.
+ */
+function openstation_agent_profile_picture_data_uri( $attachment_id, $base, $user_id ) {
+	$attachment_id = openstation_agent_sanitize_avatar_attachment_id( $attachment_id );
+	$source        = $attachment_id > 0 ? get_attached_file( $attachment_id ) : false;
+	$mime          = $attachment_id > 0 ? (string) get_post_mime_type( $attachment_id ) : '';
+	if ( ! is_string( $source ) || '' === $source || ! is_readable( $source ) ) {
+		return new WP_Error(
+			'openstation_agent_profile_picture_missing',
+			__( 'The selected agent profile picture is unavailable.', 'desktop-mode' ),
+			array( 'status' => 400 )
+		);
+	}
+
+	$editor = wp_get_image_editor( $source );
+	if ( ! is_wp_error( $editor ) ) {
+		$resized = $editor->resize(
+			OPENSTATION_AGENT_PROFILE_PICTURE_RASTER_SIZE,
+			OPENSTATION_AGENT_PROFILE_PICTURE_RASTER_SIZE,
+			true
+		);
+		if ( ! is_wp_error( $resized ) ) {
+			$temp  = trailingslashit( $base ) . wp_unique_filename(
+				$base,
+				'.' . (int) $user_id . '-profile-picture.png'
+			);
+			$saved = $editor->save( $temp, 'image/png' );
+			if ( ! is_wp_error( $saved ) && isset( $saved['path'], $saved['mime'] ) ) {
+				// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- Reading the raster this function just rendered.
+				$bytes = file_get_contents( $saved['path'] );
+				wp_delete_file( $saved['path'] );
+				if ( false !== $bytes ) {
+					return 'data:' . (string) $saved['mime'] . ';base64,' . base64_encode( $bytes );
+				}
+			}
+		}
+	}
+
+	$size = filesize( $source );
+	if ( false === $size || $size > OPENSTATION_AGENT_PROFILE_PICTURE_SOURCE_MAX_BYTES ) {
+		return new WP_Error(
+			'openstation_agent_profile_picture_too_large',
+			__( 'The selected agent profile picture could not be resized.', 'desktop-mode' ),
+			array( 'status' => 400 )
+		);
+	}
+	// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- Reading an allowlisted local raster attachment.
+	$bytes = file_get_contents( $source );
+	if ( false === $bytes ) {
+		return new WP_Error(
+			'openstation_agent_profile_picture_unreadable',
+			__( 'The selected agent profile picture could not be read.', 'desktop-mode' ),
+			array( 'status' => 400 )
+		);
+	}
+	return 'data:' . $mime . ';base64,' . base64_encode( $bytes );
+}
+
+/**
+ * Compose a profile picture and the permanent AGENT identity ribbon.
+ *
+ * The ribbon is in the served image rather than CSS so it survives
+ * every `get_avatar()` consumer: WP Admin lists, comments, desktop
+ * user tiles, chat, and plugin surfaces all receive the same identity.
+ *
+ * @param int    $attachment_id Image attachment id.
+ * @param int    $size          Intrinsic SVG size.
+ * @param string $base          Writable agent-face directory.
+ * @param int    $user_id       Agent user id.
+ * @return string|WP_Error SVG document, or an error.
+ */
+function openstation_agent_profile_picture_svg( $attachment_id, $size, $base, $user_id ) {
+	$data = openstation_agent_profile_picture_data_uri( $attachment_id, $base, $user_id );
+	if ( is_wp_error( $data ) ) {
+		return $data;
+	}
+	$size = max( 24, min( 1024, (int) $size ) );
+	return '<svg xmlns="http://www.w3.org/2000/svg" width="' . $size . '" height="' . $size . '" viewBox="0 0 96 96">'
+		. '<defs><clipPath id="avatar-clip"><circle cx="48" cy="48" r="46"/></clipPath></defs>'
+		. '<circle cx="48" cy="48" r="48" fill="#f0f0f1"/>'
+		. '<image href="' . $data . '" x="2" y="2" width="92" height="92" preserveAspectRatio="xMidYMid slice" clip-path="url(#avatar-clip)"/>'
+		. '<circle cx="48" cy="48" r="46" fill="none" stroke="#ffffff" stroke-opacity=".55" stroke-width="2"/>'
+		. '<g clip-path="url(#avatar-clip)"><g transform="rotate(45 72 18)">'
+		. '<rect x="34" y="8" width="76" height="18" fill="#f252fc"/>'
+		. '<text x="72" y="21" fill="#050505" font-family="Arial,sans-serif" font-size="9" font-weight="700" letter-spacing="1" text-anchor="middle">AGENT</text>'
+		. '</g></g></svg>';
 }
 
 /**
@@ -248,7 +376,10 @@ function openstation_agent_face_delete( $user_id, $keep = '' ) {
  * @return void
  */
 function openstation_agent_face_sync_on_update( $user_id, $changed ) {
-	if ( ! is_array( $changed ) || ! array_key_exists( 'face', $changed ) ) {
+	if (
+		! is_array( $changed )
+		|| ( ! array_key_exists( 'face', $changed ) && ! array_key_exists( 'avatarAttachmentId', $changed ) )
+	) {
 		return;
 	}
 	openstation_agent_face_write( $user_id );
@@ -276,3 +407,43 @@ function openstation_agent_face_cleanup( $user_id ) {
 	openstation_agent_face_delete( $user_id );
 }
 add_action( 'openstation_agent_deleted', 'openstation_agent_face_cleanup', 10, 1 );
+
+/**
+ * Re-render agents that use an attachment whose image changed.
+ *
+ * @param int $attachment_id Attachment id.
+ * @return void
+ */
+function openstation_agent_profile_picture_attachment_updated( $attachment_id ) {
+	$agent_ids = get_users(
+		array(
+			'fields'     => 'ids',
+			'meta_key'   => OPENSTATION_AGENT_AVATAR_ATTACHMENT_META, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
+			'meta_value' => (string) (int) $attachment_id, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value
+		)
+	);
+	foreach ( $agent_ids as $agent_id ) {
+		openstation_agent_face_write( (int) $agent_id );
+	}
+}
+add_action( 'edit_attachment', 'openstation_agent_profile_picture_attachment_updated' );
+
+/**
+ * Fall back to the generated face when a chosen picture is deleted.
+ *
+ * @param int $attachment_id Attachment id being deleted.
+ * @return void
+ */
+function openstation_agent_profile_picture_attachment_deleted( $attachment_id ) {
+	$agent_ids = get_users(
+		array(
+			'fields'     => 'ids',
+			'meta_key'   => OPENSTATION_AGENT_AVATAR_ATTACHMENT_META, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
+			'meta_value' => (string) (int) $attachment_id, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value
+		)
+	);
+	foreach ( $agent_ids as $agent_id ) {
+		openstation_agent_update( (int) $agent_id, array( 'avatarAttachmentId' => 0 ) );
+	}
+}
+add_action( 'delete_attachment', 'openstation_agent_profile_picture_attachment_deleted' );

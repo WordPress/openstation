@@ -75,6 +75,7 @@ function installConfig( overrides: Record< string, unknown > = {} ): void {
 				enabled: true,
 				canEnable: true,
 				canManage: true,
+				canUpload: true,
 				canInvoke: true,
 				aiAvailable: false,
 				aiStatusUrl: '',
@@ -176,6 +177,59 @@ describe( 'agents entity kind', () => {
 
 		const nameField = host.body.querySelector( 'os-text-field' );
 		expect( nameField?.getAttribute( 'value' ) ).toBe( 'Audit Agent' );
+	} );
+
+	test( 'an existing custom picture can be restored to the generated face', async () => {
+		const custom = {
+			...AGENT,
+			avatarAttachmentId: 44,
+			avatarUrl: 'https://example.test/ribboned-agent.svg',
+		};
+		const patches: Array< Record< string, unknown > > = [];
+		const fn = vi.fn( async ( input: RequestInfo, init?: RequestInit ) => {
+			if ( String( input ).endsWith( '/agents/12' ) && init?.method === 'POST' ) {
+				const body = JSON.parse( String( init.body ) ) as Record< string, unknown >;
+				patches.push( body );
+				return {
+					ok: true,
+					status: 200,
+					json: async () => ( {
+						...custom,
+						...body,
+						avatarUrl: 'https://example.test/generated-agent.svg',
+					} ),
+				} as unknown as Response;
+			}
+			return {
+				ok: true,
+				status: 200,
+				json: async () => [ custom ],
+			} as unknown as Response;
+		} );
+		( globalThis as unknown as { fetch: FetchMock } ).fetch = fn;
+		const host = makeHost();
+
+		getEntityRenderer( 'agent' )!( host, ENTITY );
+		await flush();
+		host.body
+			.querySelector< HTMLElement >( '.dm-agents__cast-card' )!
+			.dispatchEvent( new CustomEvent( 'os-card-click', { bubbles: true } ) );
+		await flush();
+
+		expect(
+			host.body.querySelector( '.dm-agents__profile-picture-preview' )?.getAttribute( 'src' ),
+		).toBe( 'https://example.test/ribboned-agent.svg' );
+		const restore = [ ...host.body.querySelectorAll( 'os-button' ) ].find(
+			( button ) => ( button.textContent ?? '' ).trim() === 'Use generated face',
+		);
+		expect( restore ).toBeDefined();
+		restore!.click();
+		await flush();
+
+		expect( patches ).toEqual( [ { avatarAttachmentId: 0 } ] );
+		expect(
+			host.body.querySelector( '.dm-agents__profile-picture-preview' )?.getAttribute( 'src' ),
+		).toBe( 'https://example.test/generated-agent.svg' );
 	} );
 
 	test( 'empty list paints the empty state with a create CTA', async () => {

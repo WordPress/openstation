@@ -120,6 +120,7 @@ class Tests_OpenStation_AgentsRest extends WP_UnitTestCase {
 		$this->assertSame( array(), $shape['triggers'] );
 		$this->assertSame( '', $shape['model'] );
 		$this->assertSame( 0, $shape['rateLimit'] );
+		$this->assertSame( 0, $shape['avatarAttachmentId'] );
 		$this->assertNotEmpty( $shape['avatarUrl'] );
 		$this->assertTrue( openstation_agent_is_agent( $shape['id'] ) );
 	}
@@ -162,6 +163,29 @@ class Tests_OpenStation_AgentsRest extends WP_UnitTestCase {
 			'',
 			openstation_agent_face_url( (int) $data['id'] ),
 			'the created agent has no face file'
+		);
+	}
+
+	/**
+	 * The Media Library reference belongs in the initial create so the
+	 * first canonical response already carries the ribboned identity.
+	 *
+	 * @covers ::openstation_agents_rest_create
+	 */
+	public function test_create_keeps_the_profile_picture_attachment() {
+		$attachment_id = self::factory()->attachment->create_object(
+			'profile-picture.jpg',
+			0,
+			array( 'post_mime_type' => 'image/jpeg' )
+		);
+		$data = $this->create_agent_via_rest(
+			array( 'avatarAttachmentId' => $attachment_id )
+		);
+
+		$this->assertSame( $attachment_id, $data['avatarAttachmentId'] );
+		$this->assertSame(
+			$attachment_id,
+			openstation_agent_get_avatar_attachment_id( (int) $data['id'] )
 		);
 	}
 

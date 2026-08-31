@@ -98,6 +98,7 @@ class Tests_OpenStation_AgentsMyWordpress extends WP_UnitTestCase {
 		$this->assertTrue( $config['enabled'] );
 		$this->assertTrue( $config['canEnable'] );
 		$this->assertTrue( $config['canManage'] );
+		$this->assertTrue( $config['canUpload'] );
 		$this->assertTrue( $config['canInvoke'] );
 	}
 

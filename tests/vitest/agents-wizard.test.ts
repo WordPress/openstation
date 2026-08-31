@@ -61,6 +61,7 @@ function installConfig( overrides: Record< string, unknown > = {} ): void {
 				enabled: true,
 				canEnable: true,
 				canManage: true,
+				canUpload: true,
 				canInvoke: true,
 				aiAvailable: false,
 				aiStatusUrl: '',
@@ -192,6 +193,12 @@ function mockRoutes( agents: Agent[], onCreate?: ( body: unknown ) => void ) {
 				} );
 			}
 			return json( draftResponse ?? {} );
+		}
+		if ( url.endsWith( '/wp/v2/media' ) && init?.method === 'POST' ) {
+			return json( {
+				id: 77,
+				source_url: 'https://example.test/uploads/profile-picture.jpg',
+			} );
 		}
 		if ( url.match( /\/agents\/?$/ ) && init?.method === 'POST' ) {
 			const body = JSON.parse( String( init.body ) );
@@ -339,6 +346,74 @@ describe( 'the guided create flow', () => {
 		expect(
 			after[ 0 ].querySelector( 'img' )!.getAttribute( 'src' ),
 		).not.toBe( firstSrc );
+	} );
+
+	test( 'uploads a custom profile picture and carries it into create', async () => {
+		const { host, created } = await openWizard();
+		press( host, 'Continue' );
+		await flush();
+
+		const input = host.body.querySelector< HTMLInputElement >(
+			'.dm-agents__profile-picture-input',
+		);
+		expect( input ).not.toBeNull();
+		const file = new File( [ 'picture' ], 'portrait.jpg', {
+			type: 'image/jpeg',
+		} );
+		Object.defineProperty( input!, 'files', { value: [ file ] } );
+		input!.dispatchEvent( new Event( 'change', { bubbles: true } ) );
+		await flush();
+
+		expect(
+			host.body
+				.querySelector( '.dm-agents__portrait-face' )
+				?.getAttribute( 'src' ),
+		).toBe( 'https://example.test/uploads/profile-picture.jpg' );
+		expect( host.body.querySelector( '.dm-agents__portrait os-ribbon' )?.textContent ).toContain(
+			'Agent',
+		);
+
+		setField( host, 'Name', 'Portrait Agent' );
+		press( host, 'Continue' );
+		await flush();
+		press( host, 'Continue' );
+		await flush();
+		press( host, 'Continue' );
+		await flush();
+		expect( host.body.querySelector( '.dm-agents__summary os-ribbon' ) ).not.toBeNull();
+		press( host, 'Create agent' );
+		await flush();
+
+		expect( created ).toHaveLength( 1 );
+		expect(
+			( created[ 0 ] as Record< string, unknown > ).avatarAttachmentId,
+		).toBe( 77 );
+	} );
+
+	test( 'picking a generated face removes the custom-picture override', async () => {
+		const { host } = await openWizard();
+		press( host, 'Continue' );
+		await flush();
+		const input = host.body.querySelector< HTMLInputElement >(
+			'.dm-agents__profile-picture-input',
+		)!;
+		Object.defineProperty( input, 'files', {
+			value: [ new File( [ 'picture' ], 'portrait.png', { type: 'image/png' } ) ],
+		} );
+		input.dispatchEvent( new Event( 'change', { bubbles: true } ) );
+		await flush();
+		expect( host.body.querySelector( '.dm-agents__portrait os-ribbon' ) ).not.toBeNull();
+
+		host.body
+			.querySelector< HTMLButtonElement >( '.dm-agents__face-pick' )!
+			.click();
+		await flush();
+		expect( host.body.querySelector( '.dm-agents__portrait os-ribbon' ) ).toBeNull();
+		expect(
+			host.body
+				.querySelector( '.dm-agents__portrait-face' )
+				?.getAttribute( 'src' ),
+		).toContain( 'data:image/svg+xml' );
 	} );
 
 	test( 'Powers shows the abilities grouped, described, and badged', async () => {
