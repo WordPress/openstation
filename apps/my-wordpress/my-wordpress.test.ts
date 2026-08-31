@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 import app, {
 	accumulate,
 	applySelection,
+	buildMenuOptions,
 	listKey,
 	resolveActions,
 	type AppData,
@@ -33,7 +34,7 @@ function item( over: Partial< ListItem > ): ListItem {
 }
 
 function page( items: ListItem[], over: Partial< ListPage > = {} ): ListPage {
-	return { items, total: items.length, pages: 1, page: 1, ...over };
+	return { items, total: items.length, pages: 1, page: 1, perPage: 24, ...over };
 }
 
 function section( over: Partial< SectionDef > = {} ): SectionDef {
@@ -153,6 +154,42 @@ describe( 'resolveActions', () => {
 	} );
 } );
 
+describe( 'buildMenuOptions', () => {
+	it( 'matches the WP Explorer menu, in its order', () => {
+		const labels = buildMenuOptions(
+			section(),
+			item( { status: 'draft' } ),
+			[ { id: 'send-pdf', label: 'Export PDF' } ],
+		).map( ( o ) => o.label );
+		expect( labels ).toEqual( [
+			'Open in editor',
+			'Navigate into',
+			'Edit…',
+			'Publish',
+			'Copy link',
+			'Move to Trash',
+			'Export PDF',
+		] );
+	} );
+
+	it( 'drops Publish for published items and gates Trash on the meta capability', () => {
+		const published = buildMenuOptions( section(), item( { status: 'publish', canDelete: false } ), [] );
+		expect( published.map( ( o ) => o.id ) ).not.toContain( 'publish' );
+		const trash = published.find( ( o ) => o.id === 'trash' );
+		expect( trash?.danger ).toBe( true );
+		expect( trash?.disabled ).toBe( true );
+	} );
+
+	it( 'offers users only their own verbs', () => {
+		const ids = buildMenuOptions(
+			section( { id: 'users', kind: 'user', post_type: '' } ),
+			item( { canDelete: false } ),
+			[],
+		).map( ( o ) => o.id );
+		expect( ids ).toEqual( [ 'edit', 'open', 'copy-link' ] );
+	} );
+} );
+
 describe( 'view', () => {
 	function mount( s: AppState, d: AppData ): HTMLElement {
 		const root = document.createElement( 'div' );
@@ -201,9 +238,11 @@ describe( 'view', () => {
 		expect( root.querySelector( '[data-item-id="2"] os-tile' )?.hasAttribute( 'selected' ) ).toBe( true );
 		expect( root.querySelector( '[data-item-id="2"] .os-mywp__lock' )?.getAttribute( 'title' ) ).toContain( 'Ada' );
 		expect( root.textContent ).toContain( '1 selected' );
-		expect( root.querySelector( '[os-action="bulk-trash"]' ) ).not.toBeNull();
 		expect( root.textContent ).toContain( '2 of 2 items' );
 		expect( root.textContent ).toContain( 'Page 1 of 1' );
+		// No invented chrome: selection never opens a toolbar — actions
+		// live in the context menu, like WP Explorer.
+		expect( root.querySelector( '.os-mywp__bulk' ) ).toBeNull();
 	} );
 
 	it( 'keeps the preview pane present, empty until an entry is selected', () => {

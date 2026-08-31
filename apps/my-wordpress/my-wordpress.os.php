@@ -314,10 +314,11 @@ function fetch( Os $os, array $section, State $state ) {
 		}
 		$total = (int) $users->get_total();
 		return array(
-			'items' => $items,
-			'total' => $total,
-			'pages' => max( 1, (int) ceil( $total / PER_PAGE ) ),
-			'page'  => $page,
+			'items'   => $items,
+			'total'   => $total,
+			'pages'   => max( 1, (int) ceil( $total / PER_PAGE ) ),
+			'page'    => $page,
+			'perPage' => PER_PAGE,
 		);
 	}
 
@@ -361,10 +362,11 @@ function fetch( Os $os, array $section, State $state ) {
 		);
 	}
 	return array(
-		'items' => $items,
-		'total' => (int) $posts->found_posts,
-		'pages' => max( 1, (int) $posts->max_num_pages ),
-		'page'  => $page,
+		'items'   => $items,
+		'total'   => (int) $posts->found_posts,
+		'pages'   => max( 1, (int) $posts->max_num_pages ),
+		'page'    => $page,
+		'perPage' => $per_page,
 	);
 }
 
@@ -681,6 +683,54 @@ return App::define( 'my-wordpress' )
 			}
 			$os->toast( __( 'Moved to the Trash.', 'desktop-mode' ) );
 			$os->announce( (string) $section['post_type'], 'trashed', $id );
+		}
+	)
+	->action(
+		'quick-edit',
+		static function ( State $state, Os $os, array $args ) {
+			$section = section_of( $os, (string) $state->get( 'section' ) );
+			if ( ! $section || 'post' !== $section['kind'] ) {
+				return;
+			}
+			$status   = isset( $args['status'] ) ? (string) $args['status'] : '';
+			$comments = isset( $args['comments'] ) ? (string) $args['comments'] : '';
+			if ( ! in_array( $status, array( '', 'publish', 'pending', 'draft', 'private' ), true )
+				|| ! in_array( $comments, array( '', 'open', 'closed' ), true )
+				|| ( '' === $status && '' === $comments ) ) {
+				return;
+			}
+			$updated = array();
+			foreach ( array_map( 'intval', (array) ( $args['items'] ?? array() ) ) as $id ) {
+				$post = $id > 0 ? get_post( $id ) : null;
+				if ( ! $post || $post->post_type !== $section['post_type'] || ! allowed( $os, $section, $id, 'edit' ) ) {
+					continue;
+				}
+				if ( 'publish' === $status && ! $os->can( 'publish_post', $id ) ) {
+					continue;
+				}
+				$fields = array( 'ID' => $id );
+				if ( '' !== $status ) {
+					$fields['post_status'] = $status;
+				}
+				if ( '' !== $comments ) {
+					$fields['comment_status'] = $comments;
+				}
+				if ( wp_update_post( $fields ) ) {
+					$updated[] = $id;
+				}
+			}
+			if ( array() === $updated ) {
+				$os->toast( __( 'Nothing could be updated.', 'desktop-mode' ) );
+				return;
+			}
+			$os->toast(
+				sprintf(
+					/* translators: %s: updated count. */
+					_n( '%s entry updated.', '%s entries updated.', count( $updated ), 'desktop-mode' ),
+					number_format_i18n( count( $updated ) )
+				)
+			);
+			$os->announce( (string) $section['post_type'], 'updated', $updated );
 		}
 	)
 	->action(

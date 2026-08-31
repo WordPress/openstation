@@ -59,6 +59,7 @@ export interface ListPage {
 	total: number;
 	pages: number;
 	page: number;
+	perPage: number;
 }
 
 export interface DetailFacts {
@@ -142,8 +143,18 @@ function shell(): OsShell {
 interface UiState {
 	/** Open context menu — on an item, or (item null) on the canvas. */
 	menu: { x: number; y: number; item: ListItem | null } | null;
+	/** The Edit… quick-edit modal: which items, and the picked values. */
+	quickEdit: { ids: number[]; status: string; comments: string } | null;
 	zoom: boolean;
 	loadingMore: boolean;
+	/**
+	 * The sentinel may only fire while armed, and firing disarms it;
+	 * a scroll on the tile canvas re-arms. One page per scroll
+	 * gesture — a window parked at the bottom does NOT chain-load
+	 * every remaining page.
+	 */
+	armed: boolean;
+	scrollEl: HTMLElement | null;
 	cacheKey: string;
 	pages: Map< number, ListItem[] >;
 	total: number;
@@ -156,7 +167,18 @@ const uiByRoot = new WeakMap< HTMLElement, UiState >();
 function uiOf( root: HTMLElement ): UiState {
 	let ui = uiByRoot.get( root );
 	if ( ! ui ) {
-		ui = { menu: null, zoom: false, loadingMore: false, cacheKey: '', pages: new Map(), total: 0, pageCount: 1 };
+		ui = {
+			menu: null,
+			quickEdit: null,
+			zoom: false,
+			loadingMore: false,
+			armed: true,
+			scrollEl: null,
+			cacheKey: '',
+			pages: new Map(),
+			total: 0,
+			pageCount: 1,
+		};
 		uiByRoot.set( root, ui );
 	}
 	return ui;
@@ -384,67 +406,81 @@ function renderTile( ctx: Ctx, section: SectionDef, item: ListItem, order: numbe
 				ctx.local( 'repaint' );
 			} }
 		>
-			<os-tile
-				kind="entry"
-				type=${ section.kind === 'user' ? 'user' : section.post_type }
-				ref=${ String( item.id ) }
-				label=${ item.title }
-				icon=${ item.thumb ? '' : section.icon }
-				thumbnail=${ item.thumb }
-				status=${ item.status && item.status !== 'publish' && section.kind === 'post' ? item.status : '' }
-				?selected=${ isSelected }
-			></os-tile>
-			${ item.lockedBy
-				? html`<span class="os-mywp__lock" title=${ sprintf(
-					/* translators: %s: user display name. */
-					__( '%s is editing' ),
-					item.lockedBy,
-				) }>🔒</span>`
-				: '' }
+			<span class="os-mywp__tilebox">
+				<os-tile
+					kind="entry"
+					type=${ section.kind === 'user' ? 'user' : section.post_type }
+					ref=${ String( item.id ) }
+					label=${ item.title }
+					icon=${ item.thumb ? '' : section.icon }
+					thumbnail=${ item.thumb }
+					status=${ item.status && item.status !== 'publish' && section.kind === 'post' ? item.status : '' }
+					?selected=${ isSelected }
+				></os-tile>
+				${ item.lockedBy
+					? html`<span class="os-mywp__lock" title=${ sprintf(
+						/* translators: %s: user display name. */
+						__( '%s is editing' ),
+						item.lockedBy,
+					) }>🔒</span>`
+					: '' }
+			</span>
 		</div>
 	`;
 }
 
-/** The floating bulk bar — only exists while something is selected. */
-function renderBulkBar( ctx: Ctx, section: SectionDef, items: ListItem[] ): TemplateResult | '' {
-	const selected = ctx.state.selected;
-	if ( selected.length === 0 ) {
-		return '';
-	}
-	const copyLinks = (): void => {
-		const links = items
-			.filter( ( i ) => selected.includes( i.id ) )
-			.map( ( i ) => i.link )
-			.filter( Boolean );
-		void navigator.clipboard?.writeText( links.join( '\n' ) );
-		shell().showToast?.( {
-			message: sprintf(
-				/* translators: %d: link count. */
-				__( 'Copied %d links.' ),
-				links.length,
-			),
+/** One context-menu row — builtins and plugin-injected alike. */
+export interface MenuOption {
+	id: string;
+	label: string;
+	icon?: string;
+	danger?: boolean;
+	disabled?: boolean;
+	onSelect?: ( () => void ) | null;
+}
+
+/**
+ * The base context menu for one item, in WP Explorer's order: Open in
+ * editor, Navigate into, Edit…, Publish, Copy link, Move to Trash —
+ * then the item's preview actions. Plugin entries (the agents'
+ * "Send to …" rows among them) are appended afterwards by the shared
+ * `os.my-wordpress.tile-context-menu` filter, exactly as they are in
+ * WP Explorer.
+ */
+export function buildMenuOptions(
+	section: SectionDef,
+	item: ListItem,
+	previewActions: PreviewAction[],
+): MenuOption[] {
+	const options: MenuOption[] = [];
+	if ( item.canEdit ) {
+		options.push( {
+			id: 'edit',
+			label: section.kind === 'user' ? __( 'Edit profile' ) : __( 'Open in editor' ),
 		} );
-	};
-	return html`
-		<div class="os-mywp__bulk">
-			<span>${ sprintf(
-				/* translators: %d: selected count. */
-				__( '%d selected' ),
-				selected.length,
-			) }</span>
-			${ section.kind === 'post'
-				? html`<os-button
-					variant="danger"
-					os-action="bulk-trash"
-					os-confirm=${ __( 'Move the selected items to the Trash?' ) }
-					os-confirm-label=${ __( 'Trash' ) }
-					os-confirm-danger
-				>${ __( 'Trash selected' ) }</os-button>`
-				: '' }
-			<os-button variant="ghost" @click=${ copyLinks }>${ __( 'Copy links' ) }</os-button>
-			<os-button variant="ghost" @click=${ () => ctx.local( 'clear-select' ) }>${ __( 'Clear' ) }</os-button>
-		</div>
-	`;
+	}
+	options.push( { id: 'open', label: __( 'Navigate into' ) } );
+	if ( section.kind === 'post' && item.canEdit ) {
+		options.push( { id: 'quick-edit', label: __( 'Edit…' ) } );
+		if ( item.status !== 'publish' ) {
+			options.push( { id: 'publish', label: __( 'Publish' ) } );
+		}
+	}
+	if ( item.link ) {
+		options.push( { id: 'copy-link', label: __( 'Copy link' ) } );
+	}
+	if ( section.kind === 'post' ) {
+		options.push( {
+			id: 'trash',
+			label: __( 'Move to Trash' ),
+			danger: true,
+			disabled: ! item.canDelete,
+		} );
+	}
+	for ( const action of previewActions ) {
+		options.push( { id: action.id, label: action.label, icon: action.icon } );
+	}
+	return options;
 }
 
 function renderList( ctx: Ctx, section: SectionDef, items: ListItem[] ): TemplateResult {
@@ -463,8 +499,13 @@ function renderList( ctx: Ctx, section: SectionDef, items: ListItem[] ): Templat
 	};
 	const order = items.map( ( i ) => i.id );
 	const hasMore = ui.pageCount > Math.max( ...Array.from( ui.pages.keys() ), 1 );
+	// The page being fetched paints as skeleton tiles — WP Explorer's
+	// loading placeholders. They occupy the incoming page's real
+	// footprint, so the scroll height settles once instead of jumping.
+	const ghosts = ui.loadingMore && hasMore
+		? Math.max( 1, Math.min( ctx.data.list?.perPage ?? 24, ui.total - items.length ) )
+		: 0;
 	return html`
-		${ renderBulkBar( ctx, section, items ) }
 		<div
 			class="os-mywp__tiles os-mywp__canvas"
 			role="listbox"
@@ -472,6 +513,14 @@ function renderList( ctx: Ctx, section: SectionDef, items: ListItem[] ): Templat
 			@contextmenu=${ canvasMenu }
 		>
 			${ items.map( ( item ) => renderTile( ctx, section, item, order ) ) }
+			${ Array.from( { length: ghosts }, ( _unused, i ) => html`
+				<div class="os-mywp__cell os-mywp__cell--ghost" data-ghost-index=${ String( i ) } aria-hidden="true">
+					<span class="os-mywp__ghost">
+						<span class="os-mywp__ghost-visual"></span>
+						<span class="os-mywp__ghost-label"></span>
+					</span>
+				</div>
+			` ) }
 			${ hasMore ? html`<div class="os-mywp__sentinel" data-mywp-sentinel></div>` : '' }
 		</div>
 	`;
@@ -575,9 +624,37 @@ function renderMenu( ctx: Ctx, section: SectionDef ): TemplateResult | '' {
 		ctx.local( 'repaint' );
 	};
 	const sortValue = ctx.state.sort || 'default';
-	const actions = item
-		? resolveActions( ctx.data.previewActions, actionContext( section, item, 'menu' ), shell().hooks )
-		: [];
+
+	// An action from the menu applies to the whole selection when the
+	// clicked item is part of one, to just the item otherwise.
+	let targets: number[] = [];
+	if ( item ) {
+		targets = ctx.state.selected.includes( item.id ) && ctx.state.selected.length > 1
+			? ctx.state.selected
+			: [ item.id ];
+	}
+	const allItems = Array.from( ui.pages.values() ).flat();
+
+	let options: MenuOption[] = [];
+	if ( item ) {
+		const menuActions = resolveActions(
+			ctx.data.previewActions,
+			actionContext( section, item, 'menu' ),
+			shell().hooks,
+		);
+		options = buildMenuOptions( section, item, menuActions );
+		// The SAME filter WP Explorer runs — plugin entries, the
+		// agents' "Send to …" rows included, appear here unchanged.
+		const merged = shell().hooks?.applyFilters(
+			'os.my-wordpress.tile-context-menu',
+			options,
+			{ entityId: section.id, kind: section.kind, item: item as unknown as Record< string, unknown > },
+		);
+		if ( Array.isArray( merged ) ) {
+			options = merged as MenuOption[];
+		}
+	}
+
 	const pick = ( e: Event ): void => {
 		const id = String( ( e as CustomEvent< { id?: string } > ).detail?.id ?? '' );
 		close();
@@ -593,14 +670,47 @@ function renderMenu( ctx: Ctx, section: SectionDef ): TemplateResult | '' {
 		if ( ! item ) {
 			return;
 		}
+		const picked = options.find( ( o ) => o.id === id );
+		if ( picked?.onSelect ) {
+			// A plugin-injected entry (an agent's "Send to", …) owns
+			// its own behaviour.
+			picked.onSelect();
+			return;
+		}
 		if ( id === 'open' ) {
 			void ctx.dispatch( 'open', { item: item.id } );
 		} else if ( id === 'edit' ) {
 			void ctx.dispatch( 'edit', { item: item.id } );
+		} else if ( id === 'quick-edit' ) {
+			uiOf( ctx.root ).quickEdit = { ids: targets, status: '', comments: '' };
+			ctx.local( 'repaint' );
+		} else if ( id === 'publish' ) {
+			void ctx.dispatch( 'quick-edit', { items: targets, status: 'publish' } );
+		} else if ( id === 'copy-link' ) {
+			const links = allItems
+				.filter( ( i ) => targets.includes( i.id ) )
+				.map( ( i ) => i.link )
+				.filter( Boolean );
+			void navigator.clipboard?.writeText( links.join( '\n' ) );
+			shell().showToast?.( {
+				message: sprintf(
+					/* translators: %d: link count. */
+					__( 'Copied %d links.' ),
+					links.length,
+				),
+			} );
 		} else if ( id === 'trash' ) {
-			void ctx.dispatch( 'trash', { item: item.id } );
+			if ( targets.length > 1 ) {
+				void ctx.dispatch( 'bulk-trash' );
+			} else {
+				void ctx.dispatch( 'trash', { item: item.id } );
+			}
 		} else {
-			const action = actions.find( ( a ) => a.id === id );
+			const action = resolveActions(
+				ctx.data.previewActions,
+				actionContext( section, item, 'menu' ),
+				shell().hooks,
+			).find( ( a ) => a.id === id );
 			if ( action ) {
 				runAction( action, actionContext( section, item, 'menu' ) );
 			}
@@ -622,18 +732,14 @@ function renderMenu( ctx: Ctx, section: SectionDef ): TemplateResult | '' {
 			@os-context-menu-pick=${ pick }
 		>
 			${ item
-				? html`
-					<os-context-menu-option id="open">${ __( 'Open' ) }</os-context-menu-option>
-					${ item.canEdit
-						? html`<os-context-menu-option id="edit">
-							${ section.kind === 'user' ? __( 'Edit profile' ) : __( 'Open in editor' ) }
-						</os-context-menu-option>`
-						: '' }
-					${ actions.map( ( a ) => html`<os-context-menu-option id=${ a.id } icon=${ a.icon ?? '' }>${ a.label }</os-context-menu-option>` ) }
-					${ section.kind === 'post'
-						? html`<os-context-menu-option id="trash" danger ?disabled=${ ! item.canDelete }>${ __( 'Trash' ) }</os-context-menu-option>`
-						: '' }
-				`
+				? options.map( ( o ) => html`
+					<os-context-menu-option
+						id=${ o.id }
+						icon=${ o.icon ?? '' }
+						?danger=${ !! o.danger }
+						?disabled=${ !! o.disabled }
+					>${ o.label }</os-context-menu-option>
+				` )
 				: html`
 					<os-context-menu-option heading>${ __( 'Sort by' ) }</os-context-menu-option>
 					${ Object.entries( ctx.data.sortOptions ).map( ( [ value, label ] ) => html`
@@ -644,6 +750,87 @@ function renderMenu( ctx: Ctx, section: SectionDef ): TemplateResult | '' {
 					<os-context-menu-option id="refresh" icon="dashicons-update">${ __( 'Refresh' ) }</os-context-menu-option>
 				` }
 		</os-context-menu>
+	`;
+}
+
+/** The Edit… quick-edit modal: status + comments over the selection. */
+function renderQuickEdit( ctx: Ctx ): TemplateResult | '' {
+	const ui = uiOf( ctx.root );
+	const qe = ui.quickEdit;
+	if ( ! qe ) {
+		return '';
+	}
+	const close = (): void => {
+		ui.quickEdit = null;
+		ctx.local( 'repaint' );
+	};
+	const apply = (): void => {
+		const payload: Record< string, unknown > = { items: qe.ids };
+		if ( qe.status ) {
+			payload.status = qe.status;
+		}
+		if ( qe.comments ) {
+			payload.comments = qe.comments;
+		}
+		close();
+		void ctx.dispatch( 'quick-edit', payload );
+	};
+	const statusOptions: Array< [ string, string ] > = [
+		[ '', __( '— No change —' ) ],
+		[ 'publish', __( 'Published' ) ],
+		[ 'pending', __( 'Pending Review' ) ],
+		[ 'draft', __( 'Draft' ) ],
+		[ 'private', __( 'Private' ) ],
+	];
+	const commentOptions: Array< [ string, string ] > = [
+		[ '', __( '— No change —' ) ],
+		[ 'open', __( 'Allow' ) ],
+		[ 'closed', __( 'Do not allow' ) ],
+	];
+	return html`
+		<os-modal
+			open
+			size="sm"
+			title=${ sprintf(
+				/* translators: %d: entry count. */
+				__( 'Edit %d entries' ),
+				qe.ids.length,
+			) }
+			@os-modal-cancel=${ close }
+		>
+			<div class="os-mywp__qe">
+				<label class="os-mywp__qe-row">
+					<span>${ __( 'Status' ) }</span>
+					<os-select
+						value=${ qe.status }
+						@os-pick=${ ( e: Event ) => {
+							qe.status = String( ( e as CustomEvent< { value?: string } > ).detail?.value ?? '' );
+						} }
+					>
+						${ statusOptions.map( ( [ value, label ] ) => html`
+							<os-option value=${ value } ?selected=${ value === qe.status }>${ label }</os-option>
+						` ) }
+					</os-select>
+				</label>
+				<label class="os-mywp__qe-row">
+					<span>${ __( 'Comments' ) }</span>
+					<os-select
+						value=${ qe.comments }
+						@os-pick=${ ( e: Event ) => {
+							qe.comments = String( ( e as CustomEvent< { value?: string } > ).detail?.value ?? '' );
+						} }
+					>
+						${ commentOptions.map( ( [ value, label ] ) => html`
+							<os-option value=${ value } ?selected=${ value === qe.comments }>${ label }</os-option>
+						` ) }
+					</os-select>
+				</label>
+			</div>
+			<div slot="footer">
+				<os-button variant="ghost" @click=${ close }>${ __( 'Cancel' ) }</os-button>
+				<os-button variant="primary" @click=${ apply }>${ __( 'Update' ) }</os-button>
+			</div>
+		</os-modal>
 	`;
 }
 
@@ -789,13 +976,20 @@ function wire( ctx: Ctx ): () => void {
 	} );
 
 	// --- infinite scroll ------------------------------------------------
+	// One page per scroll gesture: firing disarms the sentinel, the
+	// canvas's next scroll re-arms it (see updated()), so a window
+	// parked at the bottom never chain-loads every remaining page.
 	ui.observer = new IntersectionObserver( ( entries ) => {
-		if ( ! entries.some( ( entry ) => entry.isIntersecting ) || ui.loadingMore ) {
+		if ( ! entries.some( ( entry ) => entry.isIntersecting ) || ui.loadingMore || ! ui.armed ) {
 			return;
 		}
+		ui.armed = false;
 		ui.loadingMore = true;
+		// Repaint now so the skeleton tiles appear while the page loads.
+		ctx.local( 'repaint' );
 		void ctx.dispatch( 'more' ).finally( () => {
 			ui.loadingMore = false;
+			ctx.local( 'repaint' );
 		} );
 	} );
 	teardowns.push( () => ui.observer?.disconnect() );
@@ -954,6 +1148,7 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 					<span>${ statusRight }</span>
 				</footer>
 				${ section ? renderMenu( ctx, section ) : '' }
+				${ renderQuickEdit( ctx ) }
 				${ renderZoom( ctx ) }
 			</div>
 		`;
@@ -969,6 +1164,20 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 		const sentinel = ctx.root.querySelector( '[data-mywp-sentinel]' );
 		if ( sentinel ) {
 			ui.observer?.observe( sentinel );
+		}
+		// The tile canvas is rebuilt across renders; keep a scroll
+		// listener on the current one to re-arm the sentinel — scroll
+		// does not bubble, so delegation on the root cannot hear it.
+		const canvas = ctx.root.querySelector< HTMLElement >( '.os-mywp__tiles' );
+		if ( canvas !== ui.scrollEl ) {
+			ui.scrollEl = canvas;
+			canvas?.addEventListener(
+				'scroll',
+				() => {
+					ui.armed = true;
+				},
+				{ passive: true },
+			);
 		}
 		// Inject the server-rendered post preview. Trusted admin
 		// content from our own dispatch, marked os-preserve so the

@@ -511,6 +511,52 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 	/**
 	 * @covers \OpenStation\Apps\MyWordPress\allowed
 	 */
+	public function test_quick_edit_updates_status_and_comments_over_the_selection() {
+		$draft    = self::factory()->post->create(
+			array(
+				'post_title'  => 'To publish',
+				'post_status' => 'draft',
+			)
+		);
+		$chatty   = self::factory()->post->create( array( 'comment_status' => 'open' ) );
+		$response = $this->dispatch(
+			'quick-edit',
+			array( 'section' => 'posts' ),
+			array(
+				'items'    => array( $draft, $chatty ),
+				'status'   => 'publish',
+				'comments' => 'closed',
+			)
+		);
+
+		$this->assertSame( 'publish', get_post_status( $draft ) );
+		$this->assertSame( 'closed', get_post( $chatty )->comment_status );
+
+		$announces = $this->effects_of( $response, 'announce' );
+		$this->assertCount( 1, $announces );
+		$this->assertSame( 'updated', $announces[0]['action'] );
+		$this->assertSame( array( $draft, $chatty ), $announces[0]['ids'] );
+	}
+
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\allowed
+	 */
+	public function test_quick_edit_refuses_items_outside_the_meta_capability() {
+		wp_set_current_user( self::$author_id );
+		$this->dispatch(
+			'quick-edit',
+			array( 'section' => 'posts' ),
+			array(
+				'items'  => array( self::$post_id ),
+				'status' => 'draft',
+			)
+		);
+		$this->assertSame( 'publish', get_post_status( self::$post_id ), 'The admin\'s post is untouched.' );
+	}
+
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\allowed
+	 */
 	public function test_bulk_trash_trashes_only_what_the_user_may_trash() {
 		wp_set_current_user( self::$author_id );
 		$own = self::factory()->post->create(
