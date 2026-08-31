@@ -140,7 +140,8 @@ function shell(): OsShell {
  * app never share it.
  */
 interface UiState {
-	menu: { x: number; y: number; item: ListItem } | null;
+	/** Open context menu — on an item, or (item null) on the canvas. */
+	menu: { x: number; y: number; item: ListItem | null } | null;
 	zoom: boolean;
 	loadingMore: boolean;
 	cacheKey: string;
@@ -330,7 +331,6 @@ function renderRoot( ctx: Ctx ): TemplateResult {
 				<button
 					type="button"
 					class="os-mywp__tile"
-					data-drag-kind="section"
 					data-section-id=${ s.id }
 					@click=${ () => void ctx.dispatch( 'go', { group: inGroup, section: s.id } ) }
 				>
@@ -352,14 +352,7 @@ function renderRoot( ctx: Ctx ): TemplateResult {
 	`;
 }
 
-function rowArt( section: SectionDef, item: ListItem ): TemplateResult {
-	if ( item.thumb ) {
-		return html`<img class="os-mywp__thumb" src=${ item.thumb } alt="" loading="lazy" />`;
-	}
-	return glyph( section.icon, 'os-mywp__glyph' );
-}
-
-function renderRow( ctx: Ctx, section: SectionDef, item: ListItem, order: number[] ): TemplateResult {
+function renderTile( ctx: Ctx, section: SectionDef, item: ListItem, order: number[] ): TemplateResult {
 	const { state } = ctx;
 	const isSelected = state.selected.includes( item.id );
 	const isOpen = state.item === item.id;
@@ -376,44 +369,53 @@ function renderRow( ctx: Ctx, section: SectionDef, item: ListItem, order: number
 	};
 	return html`
 		<div
-			class="os-mywp__row ${ isSelected ? 'is-selected' : '' } ${ isOpen ? 'is-open' : '' }"
+			class="os-mywp__cell ${ isOpen ? 'is-open' : '' }"
 			data-item-id=${ String( item.id ) }
-			data-drag-kind=${ section.kind === 'user' ? 'user' : section.post_type }
+			data-mywp-drag=${ section.kind === 'user' ? 'user' : section.post_type }
 			role="option"
 			aria-selected=${ isSelected ? 'true' : 'false' }
+			title=${ item.subtitle }
 			@click=${ select }
 			@dblclick=${ () => item.canEdit && void ctx.dispatch( 'edit', { item: item.id } ) }
 			@contextmenu=${ ( e: MouseEvent ) => {
 				e.preventDefault();
+				e.stopPropagation();
 				uiOf( ctx.root ).menu = { x: e.clientX, y: e.clientY, item };
 				ctx.local( 'repaint' );
 			} }
 		>
-			${ rowArt( section, item ) }
-			<span class="os-mywp__meta">
-				<span class="os-mywp__title">${ item.title }</span>
-				<span class="os-mywp__subtitle">${ item.subtitle }</span>
-			</span>
+			<os-tile
+				kind="entry"
+				type=${ section.kind === 'user' ? 'user' : section.post_type }
+				ref=${ String( item.id ) }
+				label=${ item.title }
+				icon=${ item.thumb ? '' : section.icon }
+				thumbnail=${ item.thumb }
+				status=${ item.status && item.status !== 'publish' && section.kind === 'post' ? item.status : '' }
+				?selected=${ isSelected }
+			></os-tile>
 			${ item.lockedBy
-				? html`<os-badge no-dot title=${ sprintf(
+				? html`<span class="os-mywp__lock" title=${ sprintf(
 					/* translators: %s: user display name. */
 					__( '%s is editing' ),
 					item.lockedBy,
-				) }>🔒 ${ item.lockedBy }</os-badge>`
-				: '' }
-			${ item.status && item.status !== 'publish'
-				? html`<os-badge no-dot>${ item.status.charAt( 0 ).toUpperCase() + item.status.slice( 1 ) }</os-badge>`
+				) }>🔒</span>`
 				: '' }
 		</div>
 	`;
 }
 
-function renderToolbar( ctx: Ctx, section: SectionDef, items: ListItem[] ): TemplateResult {
-	const { state, data } = ctx;
-	const selected = state.selected;
-	const selectedItems = items.filter( ( i ) => selected.includes( i.id ) );
+/** The floating bulk bar — only exists while something is selected. */
+function renderBulkBar( ctx: Ctx, section: SectionDef, items: ListItem[] ): TemplateResult | '' {
+	const selected = ctx.state.selected;
+	if ( selected.length === 0 ) {
+		return '';
+	}
 	const copyLinks = (): void => {
-		const links = selectedItems.map( ( i ) => i.link ).filter( Boolean );
+		const links = items
+			.filter( ( i ) => selected.includes( i.id ) )
+			.map( ( i ) => i.link )
+			.filter( Boolean );
 		void navigator.clipboard?.writeText( links.join( '\n' ) );
 		shell().showToast?.( {
 			message: sprintf(
@@ -424,60 +426,52 @@ function renderToolbar( ctx: Ctx, section: SectionDef, items: ListItem[] ): Temp
 		} );
 	};
 	return html`
-		<div class="os-mywp__toolbar">
-			<os-select value=${ state.sort || 'default' } os-bind="sort" os-action="sort">
-				${ Object.entries( data.sortOptions ).map( ( [ value, label ] ) => html`
-					<os-option value=${ value } ?selected=${ value === ( state.sort || 'default' ) }>${ label }</os-option>
-				` ) }
-			</os-select>
-			${ selected.length > 0
-				? html`
-					<div class="os-mywp__bulk">
-						<span>${ sprintf(
-							/* translators: %d: selected count. */
-							__( '%d selected' ),
-							selected.length,
-						) }</span>
-						${ section.kind === 'post'
-							? html`<os-button
-								variant="danger"
-								os-action="bulk-trash"
-								os-confirm=${ __( 'Move the selected items to the Trash?' ) }
-								os-confirm-label=${ __( 'Trash' ) }
-								os-confirm-danger
-							>${ __( 'Trash selected' ) }</os-button>`
-							: '' }
-						<os-button variant="ghost" @click=${ copyLinks }>${ __( 'Copy links' ) }</os-button>
-						<os-button variant="ghost" @click=${ () => ctx.local( 'clear-select' ) }>${ __( 'Clear' ) }</os-button>
-					</div>
-				`
+		<div class="os-mywp__bulk">
+			<span>${ sprintf(
+				/* translators: %d: selected count. */
+				__( '%d selected' ),
+				selected.length,
+			) }</span>
+			${ section.kind === 'post'
+				? html`<os-button
+					variant="danger"
+					os-action="bulk-trash"
+					os-confirm=${ __( 'Move the selected items to the Trash?' ) }
+					os-confirm-label=${ __( 'Trash' ) }
+					os-confirm-danger
+				>${ __( 'Trash selected' ) }</os-button>`
 				: '' }
+			<os-button variant="ghost" @click=${ copyLinks }>${ __( 'Copy links' ) }</os-button>
+			<os-button variant="ghost" @click=${ () => ctx.local( 'clear-select' ) }>${ __( 'Clear' ) }</os-button>
 		</div>
 	`;
 }
 
-function renderList( ctx: Ctx, section: SectionDef ): TemplateResult {
-	const { data } = ctx;
-	const ui = uiOf( ctx.root );
-	const items = accumulate( ui, listKey( ctx.state ), data.list );
+function renderList( ctx: Ctx, section: SectionDef, items: ListItem[] ): TemplateResult {
 	if ( items.length === 0 ) {
 		return html`
-			${ renderToolbar( ctx, section, items ) }
 			<os-empty-state icon=${ section.icon.startsWith( 'dashicons-' ) ? section.icon : 'dashicons-portfolio' }>
 				${ ctx.state.query ? __( 'Nothing matches the search.' ) : __( 'Nothing here yet.' ) }
 			</os-empty-state>
 		`;
 	}
+	const ui = uiOf( ctx.root );
+	const canvasMenu = ( e: MouseEvent ): void => {
+		e.preventDefault();
+		ui.menu = { x: e.clientX, y: e.clientY, item: null };
+		ctx.local( 'repaint' );
+	};
 	const order = items.map( ( i ) => i.id );
 	const hasMore = ui.pageCount > Math.max( ...Array.from( ui.pages.keys() ), 1 );
 	return html`
-		${ renderToolbar( ctx, section, items ) }
+		${ renderBulkBar( ctx, section, items ) }
 		<div
-			class="os-mywp__list os-mywp__canvas ${ section.kind === 'media' ? 'os-mywp__list--grid' : '' }"
+			class="os-mywp__tiles os-mywp__canvas"
 			role="listbox"
 			aria-multiselectable="true"
+			@contextmenu=${ canvasMenu }
 		>
-			${ items.map( ( item ) => renderRow( ctx, section, item, order ) ) }
+			${ items.map( ( item ) => renderTile( ctx, section, item, order ) ) }
 			${ hasMore ? html`<div class="os-mywp__sentinel" data-mywp-sentinel></div>` : '' }
 		</div>
 	`;
@@ -576,14 +570,29 @@ function renderMenu( ctx: Ctx, section: SectionDef ): TemplateResult | '' {
 		return '';
 	}
 	const { x, y, item } = ui.menu;
-	const actions = resolveActions( ctx.data.previewActions, actionContext( section, item, 'menu' ), shell().hooks );
 	const close = (): void => {
 		uiOf( ctx.root ).menu = null;
 		ctx.local( 'repaint' );
 	};
+	const sortValue = ctx.state.sort || 'default';
+	const actions = item
+		? resolveActions( ctx.data.previewActions, actionContext( section, item, 'menu' ), shell().hooks )
+		: [];
 	const pick = ( e: Event ): void => {
 		const id = String( ( e as CustomEvent< { id?: string } > ).detail?.id ?? '' );
 		close();
+		if ( id.startsWith( 'sort:' ) ) {
+			ctx.local( 'set-sort', { sort: id.slice( 'sort:'.length ) } );
+			void ctx.dispatch( 'sort' );
+			return;
+		}
+		if ( id === 'refresh' ) {
+			void ctx.dispatch( 'refresh' );
+			return;
+		}
+		if ( ! item ) {
+			return;
+		}
 		if ( id === 'open' ) {
 			void ctx.dispatch( 'open', { item: item.id } );
 		} else if ( id === 'edit' ) {
@@ -612,16 +621,28 @@ function renderMenu( ctx: Ctx, section: SectionDef ): TemplateResult | '' {
 			style="position:fixed;left:${ x }px;top:${ y }px;"
 			@os-context-menu-pick=${ pick }
 		>
-			<os-context-menu-option id="open">${ __( 'Open' ) }</os-context-menu-option>
-			${ item.canEdit
-				? html`<os-context-menu-option id="edit">
-					${ section.kind === 'user' ? __( 'Edit profile' ) : __( 'Open in editor' ) }
-				</os-context-menu-option>`
-				: '' }
-			${ actions.map( ( a ) => html`<os-context-menu-option id=${ a.id } icon=${ a.icon ?? '' }>${ a.label }</os-context-menu-option>` ) }
-			${ section.kind === 'post'
-				? html`<os-context-menu-option id="trash" danger ?disabled=${ ! item.canDelete }>${ __( 'Trash' ) }</os-context-menu-option>`
-				: '' }
+			${ item
+				? html`
+					<os-context-menu-option id="open">${ __( 'Open' ) }</os-context-menu-option>
+					${ item.canEdit
+						? html`<os-context-menu-option id="edit">
+							${ section.kind === 'user' ? __( 'Edit profile' ) : __( 'Open in editor' ) }
+						</os-context-menu-option>`
+						: '' }
+					${ actions.map( ( a ) => html`<os-context-menu-option id=${ a.id } icon=${ a.icon ?? '' }>${ a.label }</os-context-menu-option>` ) }
+					${ section.kind === 'post'
+						? html`<os-context-menu-option id="trash" danger ?disabled=${ ! item.canDelete }>${ __( 'Trash' ) }</os-context-menu-option>`
+						: '' }
+				`
+				: html`
+					<os-context-menu-option heading>${ __( 'Sort by' ) }</os-context-menu-option>
+					${ Object.entries( ctx.data.sortOptions ).map( ( [ value, label ] ) => html`
+						<os-context-menu-option id=${ 'sort:' + value } icon=${ value === sortValue ? 'dashicons-yes' : '' }>
+							${ label }
+						</os-context-menu-option>
+					` ) }
+					<os-context-menu-option id="refresh" icon="dashicons-update">${ __( 'Refresh' ) }</os-context-menu-option>
+				` }
 		</os-context-menu>
 	`;
 }
@@ -663,7 +684,7 @@ function wire( ctx: Ctx ): () => void {
 		if ( e.button !== 0 || e.shiftKey || e.ctrlKey || e.metaKey ) {
 			return;
 		}
-		const row = ( e.target as Element | null )?.closest< HTMLElement >( '[data-drag-kind][data-item-id]' );
+		const row = ( e.target as Element | null )?.closest< HTMLElement >( '[data-mywp-drag][data-item-id]' );
 		if ( ! row ) {
 			return;
 		}
@@ -672,7 +693,7 @@ function wire( ctx: Ctx ): () => void {
 			return;
 		}
 		const id = Number( row.getAttribute( 'data-item-id' ) );
-		const kind = row.getAttribute( 'data-drag-kind' ) ?? '';
+		const kind = row.getAttribute( 'data-mywp-drag' ) ?? '';
 		const all = Array.from( ui.pages.values() ).flat();
 		const item = all.find( ( i ) => i.id === id );
 		if ( ! item ) {
@@ -818,6 +839,9 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 		'clear-select': ( state ) => {
 			state.selected = [];
 		},
+		'set-sort': ( state, args ) => {
+			state.sort = String( args.sort ?? '' );
+		},
 		// Transient UI (context menu, zoom) lives in the per-root
 		// UiState — handlers mutate it directly and dispatch this
 		// no-op so the runtime repaints. Nothing travels to the server.
@@ -829,10 +853,42 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 		const section = sectionOf( payload, state.section );
 		const group = payload.groups.find( ( g ) => g.id === state.group ) ?? null;
 		const depth = !! ( group || section );
-		const status = section
+
+		// The trail: ancestors are links, the current segment is plain
+		// bold text — the desktop-files breadcrumb shape.
+		const link = ( label: string, go: () => void ): TemplateResult =>
+			html`<button type="button" class="os-mywp__crumb-link" @click=${ go }>${ label }</button>`;
+		const current = ( label: string ): TemplateResult =>
+			html`<span class="os-mywp__crumb-current" aria-current="page">${ label }</span>`;
+		const sep = (): TemplateResult => html`<span class="os-mywp__sep" aria-hidden="true">›</span>`;
+		const crumbs: Array< TemplateResult > = [];
+		if ( ! depth ) {
+			crumbs.push( current( payload.siteName ) );
+		} else {
+			crumbs.push( link( payload.siteName, () => void ctx.dispatch( 'go' ) ) );
+			if ( group ) {
+				crumbs.push( sep() );
+				crumbs.push(
+					section
+						? link( group.label, () => void ctx.dispatch( 'go', { group: group.id } ) )
+						: current( group.label ),
+				);
+			}
+			if ( section ) {
+				crumbs.push( sep() );
+				crumbs.push( current( section.label ) );
+			}
+		}
+
+		const items = section
+			? accumulate( uiOf( ctx.root ), listKey( state ), payload.list )
+			: [];
+		const loaded = items.length;
+		const statusLeft = section
 			? `${ sprintf(
-				/* translators: %d: item count. */
-				__( '%d items' ),
+				/* translators: 1: loaded count, 2: total count. */
+				__( '%1$d of %2$d items' ),
+				loaded,
 				payload.list?.total ?? 0,
 			) }${ state.selected.length > 0
 				? ' — ' + sprintf(
@@ -848,50 +904,55 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 					? payload.sections.filter( ( s ) => s.group === state.group ).length
 					: payload.sections.filter( ( s ) => ! s.group ).length + payload.groups.length,
 			);
+		const statusRight = section
+			? sprintf(
+				/* translators: 1: current page, 2: page count. */
+				__( 'Page %1$d of %2$d' ),
+				payload.list?.page ?? 1,
+				payload.list?.pages ?? 1,
+			)
+			: '';
 
 		return html`
 			<div class="os-mywp" tabindex="-1">
 				<header class="os-mywp__header">
 					${ depth
-						? html`<os-button variant="ghost" class="os-mywp__back" aria-label=${ __( 'Back' ) } @click=${ () => void ctx.dispatch( 'back' ) }>‹</os-button>`
+						? html`<button type="button" class="os-mywp__back" aria-label=${ __( 'Back' ) } @click=${ () => void ctx.dispatch( 'back' ) }>‹</button>`
 						: '' }
-					<nav class="os-mywp__crumbs">
-						<os-button variant="ghost" @click=${ () => void ctx.dispatch( 'go' ) }>${ payload.siteName }</os-button>
-						${ group ? html`
-							<span class="os-mywp__sep" aria-hidden="true">›</span>
-							<os-button variant="ghost" @click=${ () => void ctx.dispatch( 'go', { group: group.id } ) }>${ group.label }</os-button>
-						` : '' }
-						${ section ? html`
-							<span class="os-mywp__sep" aria-hidden="true">›</span>
-							<os-button variant="ghost" @click=${ () => void ctx.dispatch( 'go', { group: state.group, section: section.id } ) }>${ section.label }</os-button>
-						` : '' }
-					</nav>
-					${ section
-						? html`<os-text-field
+					<nav class="os-mywp__crumbs">${ crumbs }</nav>
+				</header>
+				${ section
+					? html`<div class="os-mywp__search">
+						<os-text-field
 							value=${ state.query }
 							placeholder=${ sprintf(
-								/* translators: %s: section label. */
+								/* translators: %s: section label, lowercased. */
 								__( 'Search %s…' ),
-								section.label,
+								section.label.toLowerCase(),
 							) }
 							os-bind="query"
 							os-action="search"
-						></os-text-field>`
-						: '' }
-				</header>
+						></os-text-field>
+					</div>`
+					: '' }
 				<div class="os-mywp__body">
 					${ ! section
 						? renderRoot( ctx )
 						: html`
 							<div class="os-mywp__split">
-								<div class="os-mywp__list-pane">${ renderList( ctx, section ) }</div>
-								${ state.item > 0
-									? html`<aside class="os-mywp__detail-pane">${ renderDetail( ctx, section ) }</aside>`
-									: '' }
+								<div class="os-mywp__list-pane">${ renderList( ctx, section, items ) }</div>
+								<aside class="os-mywp__detail-pane">
+									${ state.item > 0
+										? renderDetail( ctx, section )
+										: html`<p class="os-mywp__pane-empty">${ __( 'Select an entry to preview it here.' ) }</p>` }
+								</aside>
 							</div>
 						` }
 				</div>
-				<footer class="os-mywp__status">${ status }</footer>
+				<footer class="os-mywp__status">
+					<span>${ statusLeft }</span>
+					<span>${ statusRight }</span>
+				</footer>
 				${ section ? renderMenu( ctx, section ) : '' }
 				${ renderZoom( ctx ) }
 			</div>

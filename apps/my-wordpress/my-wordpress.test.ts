@@ -184,25 +184,37 @@ describe( 'view', () => {
 		expect( root.textContent ).toContain( '2 folders' );
 	} );
 
-	it( 'paints the list with lock badges, selection and the bulk bar', () => {
+	it( 'paints the list as a tile grid with ribbons, locks, selection and the bulk bar', () => {
 		const root = mount(
 			state( { section: 'posts', selected: [ 2 ] } ),
 			data( {
 				list: page( [
-					item( { id: 1, title: 'Alpha' } ),
+					item( { id: 1, title: 'Alpha', status: 'draft' } ),
 					item( { id: 2, title: 'Beta', lockedBy: 'Ada' } ),
 				] ),
 			} ),
 		);
-		expect( root.textContent ).toContain( 'Alpha' );
-		expect( root.textContent ).toContain( '🔒 Ada' );
-		expect( root.querySelector( '[data-item-id="2"]' )?.className ).toContain( 'is-selected' );
+		const first = root.querySelector( '[data-item-id="1"] os-tile' );
+		expect( first?.getAttribute( 'label' ) ).toBe( 'Alpha' );
+		expect( first?.getAttribute( 'status' ) ).toBe( 'draft' );
+		expect( first?.getAttribute( 'icon' ) ).toBe( 'dashicons-admin-post' );
+		expect( root.querySelector( '[data-item-id="2"] os-tile' )?.hasAttribute( 'selected' ) ).toBe( true );
+		expect( root.querySelector( '[data-item-id="2"] .os-mywp__lock' )?.getAttribute( 'title' ) ).toContain( 'Ada' );
 		expect( root.textContent ).toContain( '1 selected' );
 		expect( root.querySelector( '[os-action="bulk-trash"]' ) ).not.toBeNull();
+		expect( root.textContent ).toContain( '2 of 2 items' );
+		expect( root.textContent ).toContain( 'Page 1 of 1' );
 	} );
 
-	it( 'paints the detail pane beside the list with facts and actions', () => {
-		const root = mount(
+	it( 'keeps the preview pane present, empty until an entry is selected', () => {
+		const empty = mount(
+			state( { section: 'posts' } ),
+			data( { list: page( [ item( { id: 1 } ) ] ) } ),
+		);
+		expect( empty.querySelector( '.os-mywp__detail-pane' ) ).not.toBeNull();
+		expect( empty.textContent ).toContain( 'Select an entry to preview it here.' );
+
+		const open = mount(
 			state( { section: 'posts', item: 1 } ),
 			data( {
 				list: page( [ item( { id: 1 } ) ] ),
@@ -217,11 +229,21 @@ describe( 'view', () => {
 				},
 			} ),
 		);
-		expect( root.querySelector( '.os-mywp__detail-pane' ) ).not.toBeNull();
-		expect( root.querySelector( '.os-mywp__list' ) ).not.toBeNull();
-		expect( root.textContent ).toContain( 'Status' );
-		expect( root.querySelector( '[os-action="trash"]' ) ).not.toBeNull();
-		expect( root.querySelector( '[data-mywp-content]' ) ).not.toBeNull();
+		expect( open.querySelector( '.os-mywp__tiles' ) ).not.toBeNull();
+		expect( open.textContent ).toContain( 'Status' );
+		expect( open.querySelector( '[os-action="trash"]' ) ).not.toBeNull();
+		expect( open.querySelector( '[data-mywp-content]' ) ).not.toBeNull();
+	} );
+
+	it( 'renders the breadcrumb trail as links behind the current segment', () => {
+		const root = mount(
+			state( { section: 'posts' } ),
+			data( { list: page( [] ) } ),
+		);
+		const links = Array.from( root.querySelectorAll( '.os-mywp__crumb-link' ), ( el ) => el.textContent );
+		expect( links ).toEqual( [ 'Test Site' ] );
+		expect( root.querySelector( '.os-mywp__crumb-current' )?.textContent ).toBe( 'Posts' );
+		expect( root.querySelector( '.os-mywp__back' ) ).not.toBeNull();
 	} );
 
 	it( 'local selection actions reduce without a request', () => {
