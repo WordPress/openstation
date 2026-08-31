@@ -152,13 +152,15 @@ final class Os {
 	// ------------------------------------------------------------ sugar
 
 	/**
-	 * Whether the acting user holds a capability.
+	 * Whether the acting user holds a capability. Extra arguments
+	 * address a meta-capability's object: `can( 'delete_post', $id )`.
 	 *
 	 * @param string $capability Capability slug.
+	 * @param mixed  ...$args    Object the capability is asked against.
 	 * @return bool
 	 */
-	public function can( $capability ) {
-		return $this->auth->can( $capability );
+	public function can( $capability, ...$args ) {
+		return $this->auth->can( $capability, ...$args );
 	}
 
 	/**

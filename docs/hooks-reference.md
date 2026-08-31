@@ -4230,6 +4230,37 @@ Fires after the `clear` action truncates a log file.
 
 ---
 
+## My WordPress
+
+The content explorer app — `apps/my-wordpress/my-wordpress.os.php`, an [App Framework](./app-framework.md) server view with no JavaScript: a root folder grid (Posts, Pages, Media, Users, plus every eligible custom post type folded into plugin-group folders), a two-pane section view (searchable, sortable, paged list beside the selected item's dossier), multi-select with bulk trash, double-click to edit, per-row context menus, media usage and user footprint facts. Registered as the native window `my-wordpress` behind `edit_posts`, with a desktop icon, and repainted live by `watch( '*' )` whenever any window changes any content.
+
+It discovers custom post types through the **same helpers WP Explorer uses** — `openstation_my_wordpress_eligible_post_types()`, `openstation_my_wordpress_post_type_icon()`, `openstation_my_wordpress_post_type_group()`, `openstation_my_wordpress_collect_groups()` — so the `openstation_my_wordpress_post_types`, `openstation_my_wordpress_post_type_entity` (icon/group only) and `openstation_my_wordpress_post_type_groups` filters above shape both windows. It is a sibling of WP Explorer (`desktop-mode-my-wordpress`), not a replacement — WP Explorer keeps its id, icon and every filter.
+
+### `openstation_my_wordpress_app_sections` — Experimental (filter)
+
+```php
+apply_filters( 'openstation_my_wordpress_app_sections', array[] $sections ): array[]
+```
+
+The sections the explorer offers, builtins and discovered CPTs included. Each: `id`, `label`, `icon` (Dashicons class or image URL), `kind` (`post` | `media` | `user`), `post_type` (post kinds), `capability` (the section is silently absent for users without it), `thumbnails`, and the optional folder fields `group` / `groupLabel` / `groupIcon` / `groupOrder`. Runs on every render, so a post type registered at any point of the bootstrap can appear — nothing is frozen at registration time.
+
+```php
+add_filter( 'openstation_my_wordpress_app_sections', function ( $sections ) {
+	$sections[] = array(
+		'id'         => 'products',
+		'label'      => __( 'Products', 'my-plugin' ),
+		'icon'       => 'dashicons-cart',
+		'kind'       => 'post',
+		'post_type'  => 'product',
+		'capability' => 'edit_products',
+		'thumbnails' => true,
+		'group'      => 'my-shop',
+		'groupLabel' => __( 'My Shop', 'my-plugin' ),
+	);
+	return $sections;
+} );
+```
+
 ## Living Tree wallpaper
 
 The `wp-living-tree` canvas wallpaper renders the site as a growing plant organism. WordPress emits only *hormones* (age, vigour, health, diversity, bloom…) via a compact REST snapshot; the JS growth simulator decides all geometry. The full algorithm is documented in [`living-tree-algorithm.md`](./living-tree-algorithm.md).

@@ -247,6 +247,7 @@ function openstation_apps_client_config( array $manifest, $bundle = '' ) {
 		'actions'         => array_values( (array) $manifest['actions'] ),
 		'lifecycle'       => array_values( (array) $manifest['lifecycle'] ),
 		'channels'        => (object) $manifest['channels'],
+		'watch'           => array_values( (array) $manifest['watch'] ),
 		'tabs'            => array_values( (array) $manifest['tabs'] ),
 	);
 }

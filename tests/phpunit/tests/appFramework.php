@@ -47,16 +47,16 @@ class Tests_OpenStation_AppFramework extends WP_UnitTestCase {
 			}
 		}
 		$this->temp_paths = array();
+		// The desktop-icon registry is process-scoped, so any icon a
+		// call to `openstation_apps_register_windows()` registered —
+		// this class's demo apps AND the real apps under `apps/` —
+		// would otherwise count as an unplaced shortcut in every later
+		// test; `Tests_OpenStation_FilesStore`'s auto-place
+		// expectations are the ones that notice.
 		foreach ( array_keys( openstation_apps_registry()->all() ) as $id ) {
+			openstation_unregister_icon( $id );
 			if ( 0 === strpos( $id, 'demo-host' ) ) {
 				openstation_apps_registry()->remove( $id );
-				// The desktop-icon registry is process-scoped, so an icon
-				// this class registered through
-				// `openstation_apps_register_windows()` would otherwise
-				// count as an unplaced shortcut in every later test —
-				// `Tests_OpenStation_FilesStore`'s auto-place expectations
-				// are the ones that notice.
-				openstation_unregister_icon( $id );
 			}
 		}
 		parent::tear_down();
@@ -490,6 +490,48 @@ class Tests_OpenStation_AppFramework extends WP_UnitTestCase {
 			->manifest();
 		$this->assertSame( array( 'refresh-please' => 'reset' ), $manifest['channels'] );
 		$this->assertSame( array( 'resize', 'focus' ), $manifest['lifecycle'] );
+	}
+
+	/**
+	 * @covers \OpenStation\App::watch
+	 */
+	public function test_watch_normalises_and_dedupes_content_types() {
+		$manifest = $this->demo_app()
+			->watch( 'post', ' Page ', 'post', '' )
+			->watch( 'attachment' )
+			->manifest();
+		$this->assertSame( array( 'post', 'page', 'attachment' ), $manifest['watch'] );
+
+		$this->assertSame(
+			array( '*' ),
+			$this->demo_app( 'demo-wild' )->watch( '*' )->manifest()['watch'],
+			'The wildcard survives normalisation: any content change.'
+		);
+	}
+
+	/**
+	 * @covers ::openstation_apps_client_config
+	 */
+	public function test_host_ships_the_watch_list_to_the_runtime() {
+		wp_set_current_user( self::$admin_id );
+		openstation_apps_registry()->add( $this->demo_app( 'demo-host-watch' )->watch( 'post' ) );
+		openstation_apps_register_windows();
+		$entry = openstation_native_window_registry( 'demo-host-watch' );
+		$this->assertSame( array( 'post' ), $entry['config']['watch'] );
+	}
+
+	/**
+	 * @covers \OpenStation\App\WordPress\Auth::can
+	 */
+	public function test_auth_forwards_meta_capability_object_args() {
+		$author_id = self::factory()->user->create( array( 'role' => 'author' ) );
+		$own       = self::factory()->post->create( array( 'post_author' => $author_id ) );
+		$other     = self::factory()->post->create( array( 'post_author' => self::$admin_id ) );
+
+		wp_set_current_user( $author_id );
+		$os = openstation_apps_os();
+		$this->assertTrue( $os->can( 'edit_post', $own ) );
+		$this->assertFalse( $os->can( 'edit_post', $other ), 'An author cannot edit another user\'s post.' );
 	}
 
 	/**

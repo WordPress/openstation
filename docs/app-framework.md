@@ -121,6 +121,7 @@ Two action names are built in: **`mount`** (the first render) and **`set`** (a b
 | `controls( array )` | Reorder or hide the standard window controls (`order`, `hide`). |
 | `slot( $slot, $html )` | Static HTML into a title-bar slot (`before-titlebar`, `after-titlebar`, `after-title`, …). |
 | `on_channel( $channel, $action )` | Dispatch `$action` (with `$args['payload']`) whenever a peer publishes on the window's channel — `wp.os.connect( id ).send( channel, payload )` or `Window.send()`. |
+| `watch( ...$types )` | Re-render whenever the named content changes ANYWHERE on the desktop. The runtime subscribes to the shell's `os.<type>.changed` broadcasts (`wp.os.announceContentChange`) and re-dispatches the built-in `set` — state kept, `data()` recomputed, view repainted. A burst of changes coalesces into one refresh; a minimized window marks itself stale and catches up on restore. Pass `'*'` to watch ANY content change — the choice when the types the app shows are only known at render time (My WordPress's dynamic post-type list). The read half of the pair whose write half is the `$os->announce()` effect. |
 | `config( array )` | Extra values for the client, readable as `wp.os.getWindowConfig( id ).extra`. |
 
 `confirm` is a string (the question) or `array( 'title', 'message', 'label', 'danger' )`; the shell asks through `wp.os.confirm` before dispatching.
@@ -187,7 +188,7 @@ Every callback receives an `OpenStation\App\Os`. It is the app's entire view of 
 | `$os->client` | `width` / `height` of the mount root at dispatch time |
 | `$os->params` / `$os->param( $key, $fallback )` | The window's open-time params (`wp.os.openWindow( id, { params } )`) — a post id, a post type, whatever the opener passed |
 | `$os->app_id`, `$os->view` | Which app and which view (`main` or a tab slug) is being dispatched |
-| `$os->can()`, `$os->preference()`, `$os->filter()`, `$os->action()`, `$os->remember( $key, $ttl, $compute )` | Sugar over the contracts |
+| `$os->can()`, `$os->preference()`, `$os->filter()`, `$os->action()`, `$os->remember( $key, $ttl, $compute )` | Sugar over the contracts. `can()` takes a meta-capability's object too — `$os->can( 'delete_post', $id )` forwards to `current_user_can()`; the standalone adapter answers from the capability name alone. |
 | `$os->stored( $key, $fallback, $scope = 'user' )`, `$os->store( $key, $value, $scope )`, `$os->forget( $key, $scope )` | Durable storage, keys namespaced by app id |
 | `$os->toast()`, `->title()`, `->close()`, `->open( $window_id )`, `->open_url( $url, $title )`, `->badge( $count )`, `->announce( $type, $action, $ids )`, `->menu( $items )`, `->send( $channel, $payload )` | **Effects** — things the shell does after the morph (below) |
 

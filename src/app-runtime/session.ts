@@ -437,6 +437,45 @@ export function createSession( deps: SessionDeps ): Session {
 		listeners.push( () => root.removeEventListener( type, onEvent, capture ) );
 	}
 
+	// ------------------------------------------------------------ watch
+
+	/**
+	 * `App::watch( ...$types )` — re-render when watched content
+	 * changes anywhere on the desktop. A burst of broadcasts coalesces
+	 * into one queued refresh; a paused (minimized) window marks
+	 * itself stale instead and catches up on restore.
+	 */
+	let stale = false;
+	let refreshQueued = false;
+	const refresh = (): void => {
+		if ( disposed || refreshQueued ) {
+			return;
+		}
+		if ( paused ) {
+			stale = true;
+			return;
+		}
+		refreshQueued = true;
+		void dispatch( 'set' ).finally( () => {
+			refreshQueued = false;
+		} );
+	};
+	if ( host.onBroadcast ) {
+		for ( const type of config.watch ?? [] ) {
+			if ( type === '*' ) {
+				// Any content change: the wildcard subscription hears every
+				// broadcast, so filter down to the content-change envelope.
+				listeners.push( host.onBroadcast( '*', ( topic ) => {
+					if ( /^os\..+\.changed$/.test( topic ) ) {
+						refresh();
+					}
+				} ) );
+				continue;
+			}
+			listeners.push( host.onBroadcast( `os.${ type }.changed`, refresh ) );
+		}
+	}
+
 	// ---------------------------------------------------------- session
 
 	const session: Session = {
@@ -453,6 +492,10 @@ export function createSession( deps: SessionDeps ): Session {
 		local: ( action, args = {} ) => runLocal( action, args ),
 		setPaused( value: boolean ) {
 			paused = value;
+			if ( ! value && stale ) {
+				stale = false;
+				refresh();
+			}
 		},
 		dispose() {
 			disposed = true;

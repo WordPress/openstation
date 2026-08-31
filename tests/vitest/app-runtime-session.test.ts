@@ -336,4 +336,108 @@ describe( 'createSession', () => {
 			expect( await h.session.dispatch( 'anything' ) ).toBe( false );
 		} );
 	} );
+
+	describe( 'watch', () => {
+		interface WatchHarness extends Omit< Harness, 'session' > {
+			session: Session;
+			fire: ( topic: string ) => void;
+			unsubscribed: string[];
+		}
+
+		function watchHarness( watch: string[] = [ 'post', 'page' ] ): WatchHarness {
+			const subscribers = new Map< string, ( topic: string ) => void >();
+			const unsubscribed: string[] = [];
+			const root = document.createElement( 'div' );
+			document.body.appendChild( root );
+			const host: Harness[ 'host' ] = {
+				sent: [],
+				toasts: [],
+				fetch: async ( _input, init ) => {
+					const body = JSON.parse( String( init?.body ) ) as Sent;
+					host.sent.push( body );
+					return jsonResponse( { ok: true, state: body.state, html: '', effects: [] } );
+				},
+				toast: () => undefined,
+				onBroadcast: ( topic, cb ) => {
+					subscribers.set( topic, cb );
+					return () => {
+						unsubscribed.push( topic );
+					};
+				},
+			};
+			const session = createSession( {
+				root,
+				config: { ...config(), watch },
+				windowId: 'demo',
+				host,
+			} );
+			return {
+				root,
+				host,
+				session,
+				respond: () => undefined,
+				// A broadcast reaches the exact subscription and the wildcard.
+				fire: ( topic ) => {
+					subscribers.get( topic )?.( topic );
+					subscribers.get( '*' )?.( topic );
+				},
+				unsubscribed,
+			};
+		}
+
+		it( 'subscribes each watched type and re-dispatches `set` on a change', async () => {
+			const h = watchHarness();
+			h.fire( 'os.post.changed' );
+			await flush();
+			expect( h.host.sent.map( ( s ) => s.action ) ).toEqual( [ 'set' ] );
+			h.fire( 'os.page.changed' );
+			await flush();
+			expect( h.host.sent ).toHaveLength( 2 );
+		} );
+
+		it( 'coalesces a burst of changes into one queued refresh', async () => {
+			const h = watchHarness();
+			h.fire( 'os.post.changed' );
+			h.fire( 'os.post.changed' );
+			h.fire( 'os.page.changed' );
+			await flush();
+			expect( h.host.sent ).toHaveLength( 1 );
+		} );
+
+		it( 'marks a paused window stale and catches up on restore', async () => {
+			const h = watchHarness();
+			h.session.setPaused( true );
+			h.fire( 'os.post.changed' );
+			await flush();
+			expect( h.host.sent ).toHaveLength( 0 );
+			h.session.setPaused( false );
+			await flush();
+			expect( h.host.sent.map( ( s ) => s.action ) ).toEqual( [ 'set' ] );
+			// A clean restore does not refresh again.
+			h.session.setPaused( true );
+			h.session.setPaused( false );
+			await flush();
+			expect( h.host.sent ).toHaveLength( 1 );
+		} );
+
+		it( 'watch(*) refreshes on any content change and ignores other broadcasts', async () => {
+			const h = watchHarness( [ '*' ] );
+			h.fire( 'os.product.changed' );
+			await flush();
+			expect( h.host.sent.map( ( s ) => s.action ) ).toEqual( [ 'set' ] );
+			h.fire( 'os-window-focused' );
+			h.fire( 'os.data-refresh' );
+			await flush();
+			// Only os.<type>.changed topics count.
+			expect( h.host.sent ).toHaveLength( 1 );
+		} );
+
+		it( 'unsubscribes every watched topic on dispose', () => {
+			const h = watchHarness();
+			h.session.dispose();
+			expect( h.unsubscribed.sort() ).toEqual( [ 'os.page.changed', 'os.post.changed' ] );
+			h.fire( 'os.post.changed' );
+			expect( h.host.sent ).toHaveLength( 0 );
+		} );
+	} );
 } );

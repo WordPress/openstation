@@ -176,6 +176,14 @@ final class App {
 	private $channels = array();
 
 	/**
+	 * Content types whose `os.<type>.changed` broadcasts re-render
+	 * this app.
+	 *
+	 * @var string[]
+	 */
+	private $watch = array();
+
+	/**
 	 * @var string
 	 */
 	private $dir = '';
@@ -577,6 +585,35 @@ final class App {
 		return $this;
 	}
 
+	/**
+	 * Re-render whenever the named content changes ANYWHERE on the
+	 * desktop — another window trashing a post, the Recycle Bin
+	 * restoring one, a plugin announcing its own type.
+	 *
+	 * The runtime subscribes to the shell's `os.<type>.changed`
+	 * broadcasts (see `wp.os.announceContentChange`) and re-dispatches
+	 * the built-in `set` — state kept, `data()` recomputed, view
+	 * repainted. A minimized window skips the refresh and catches up
+	 * when it is restored. This is the read half of the pair whose
+	 * write half is the `$os->announce()` effect.
+	 *
+	 * @param string ...$types Content-type slugs (`post`, `page`,
+	 *                         `attachment`, or a plugin's own), or `'*'`
+	 *                         for any content change — the choice when
+	 *                         the types the app shows are only known at
+	 *                         render time (a dynamic post-type list).
+	 * @return self
+	 */
+	public function watch( ...$types ) {
+		foreach ( $types as $type ) {
+			$type = '*' === $type ? '*' : strtolower( trim( (string) $type ) );
+			if ( '' !== $type && ! in_array( $type, $this->watch, true ) ) {
+				$this->watch[] = $type;
+			}
+		}
+		return $this;
+	}
+
 	// ------------------------------------------------------------ chrome
 
 	/**
@@ -891,6 +928,7 @@ final class App {
 			'config'            => $this->config,
 			'tabs'              => $this->tabs(),
 			'channels'          => $this->channels,
+			'watch'             => $this->watch,
 			'client'            => $this->client_path(),
 			'client_source'     => $this->client_source(),
 			'has_data'          => $this->has_data(),

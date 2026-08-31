@@ -27,7 +27,7 @@ final class Auth implements AuthContract {
 	}
 
 	/** {@inheritDoc} */
-	public function can( $capability ) {
-		return current_user_can( (string) $capability );
+	public function can( $capability, ...$args ) {
+		return current_user_can( (string) $capability, ...$args );
 	}
 }
