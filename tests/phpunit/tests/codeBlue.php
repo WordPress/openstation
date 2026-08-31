@@ -1,7 +1,8 @@
 <?php
 /**
- * Tests for the Code Blue module: log parsing, source discovery,
- * tailing, and the REST surface.
+ * Tests for Code Blue — the Code Blue port written as an App
+ * Framework `.osx.php`: the log model, the gate, and the window's
+ * dispatch cycle end to end.
  *
  * @package WordPress
  * @subpackage UnitTests
@@ -9,13 +10,20 @@
  * @group openstation
  * @group code-blue
  */
+
+use OpenStation\App\State;
+use function OpenStation\Apps\CodeBlue\parse;
+use function OpenStation\Apps\CodeBlue\signature;
+use function OpenStation\Apps\CodeBlue\sources;
+use function OpenStation\Apps\CodeBlue\tail;
+
 class Tests_OpenStation_CodeBlue extends WP_UnitTestCase {
 
 	protected static $admin_id;
 	protected static $editor_id;
 
 	/**
-	 * Temp log files created per-test, removed on tearDown.
+	 * Temp log files created per-test, removed on tear_down.
 	 *
 	 * @var string[]
 	 */
@@ -24,10 +32,6 @@ class Tests_OpenStation_CodeBlue extends WP_UnitTestCase {
 	public static function wpSetUpBeforeClass( WP_UnitTest_Factory $factory ) {
 		self::$admin_id  = $factory->user->create( array( 'role' => 'administrator' ) );
 		self::$editor_id = $factory->user->create( array( 'role' => 'editor' ) );
-
-		// Code Blue is gated behind Developer mode — the admin
-		// fixture has it on; tests for the off state flip it
-		// per-user themselves.
 		openstation_save_os_settings( self::$admin_id, array( 'developerModeEnabled' => true ) );
 	}
 
@@ -42,8 +46,7 @@ class Tests_OpenStation_CodeBlue extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Create a temp log file with the given contents and register it
-	 * as a Code Blue source for the duration of the test.
+	 * Create a temp log and offer it as a Code Blue source.
 	 *
 	 * @param string $contents Log text.
 	 * @return string Absolute path.
@@ -52,7 +55,6 @@ class Tests_OpenStation_CodeBlue extends WP_UnitTestCase {
 		$path = wp_tempnam( 'code-blue-test-log' );
 		file_put_contents( $path, $contents );
 		$this->temp_files[] = $path;
-
 		add_filter(
 			'openstation_code_blue_log_sources',
 			static function ( $sources ) use ( $path ) {
@@ -64,511 +66,346 @@ class Tests_OpenStation_CodeBlue extends WP_UnitTestCase {
 				return $sources;
 			}
 		);
-
 		return $path;
 	}
 
-	// ------------------------------------------------------ parsing
+	/**
+	 * Run one dispatch against the registered app.
+	 *
+	 * @param string $action Action.
+	 * @param array  $state  Client state.
+	 * @param array  $args   Trigger args.
+	 * @return array Runtime response.
+	 */
+	protected function dispatch( $action, array $state = array(), array $args = array() ) {
+		return openstation_apps_runtime()->dispatch(
+			'openstation-code-blue',
+			array(
+				'action' => $action,
+				'state'  => $state,
+				'args'   => $args,
+			),
+			openstation_apps_os()
+		);
+	}
+
+	// ----------------------------------------------------------- parsing
 
 	/**
-	 * @covers ::openstation_code_blue_parse
+	 * @covers \OpenStation\Apps\CodeBlue\parse
 	 */
 	public function test_parse_warning_with_on_line_location() {
-		$entries = openstation_code_blue_parse(
-			'[22-Aug-2026 09:14:02 UTC] PHP Warning:  Undefined array key "foo" in /srv/wp-content/plugins/x/x.php on line 12'
-		);
+		$entries = parse( '[22-Aug-2026 09:14:02 UTC] PHP Warning:  Undefined array key "foo" in /srv/wp-content/plugins/x/x.php on line 12' );
 
 		$this->assertCount( 1, $entries );
-		$entry = $entries[0];
-		$this->assertSame( 'warning', $entry['level'] );
-		$this->assertSame( 'PHP Warning', $entry['label'] );
-		$this->assertSame( 'Undefined array key "foo"', $entry['message'] );
-		$this->assertSame( '/srv/wp-content/plugins/x/x.php', $entry['file'] );
-		$this->assertSame( 12, $entry['line'] );
-		$this->assertSame( strtotime( '2026-08-22 09:14:02 UTC' ), $entry['timestamp'] );
+		$this->assertSame( 'warning', $entries[0]['level'] );
+		$this->assertSame( 'PHP Warning', $entries[0]['label'] );
+		$this->assertSame( 'Undefined array key "foo"', $entries[0]['message'] );
+		$this->assertSame( '/srv/wp-content/plugins/x/x.php', $entries[0]['file'] );
+		$this->assertSame( 12, $entries[0]['line'] );
+		$this->assertSame( strtotime( '2026-08-22 09:14:02 UTC' ), $entries[0]['timestamp'] );
 	}
 
 	/**
-	 * @covers ::openstation_code_blue_parse
+	 * @covers \OpenStation\Apps\CodeBlue\parse
 	 */
-	public function test_parse_fatal_with_colon_location_and_stack_trace() {
-		$raw = implode(
-			"\n",
-			array(
-				'[22-Aug-2026 10:00:00 UTC] PHP Fatal error:  Uncaught TypeError: boom in /srv/wp-content/plugins/x/x.php:34',
-				'Stack trace:',
-				'#0 /srv/wp-includes/class-wp-hook.php(324): my_func()',
-				'#1 {main}',
-				'  thrown in /srv/wp-content/plugins/x/x.php on line 34',
-			)
-		);
-
-		$entries = openstation_code_blue_parse( $raw );
+	public function test_parse_fatal_with_colon_location_and_attached_trace() {
+		$raw     = "[22-Aug-2026 09:14:02 UTC] PHP Fatal error:  Uncaught Error: Call to undefined function foo() in /srv/x.php:3\nStack trace:\n#0 {main}\n  thrown in /srv/x.php on line 3";
+		$entries = parse( $raw );
 
 		$this->assertCount( 1, $entries );
-		$entry = $entries[0];
-		$this->assertSame( 'fatal', $entry['level'] );
-		$this->assertSame( 'Uncaught TypeError: boom', $entry['message'] );
-		$this->assertSame( '/srv/wp-content/plugins/x/x.php', $entry['file'] );
-		$this->assertSame( 34, $entry['line'] );
-		$this->assertStringContainsString( 'Stack trace:', $entry['trace'] );
-		$this->assertStringContainsString( '#1 {main}', $entry['trace'] );
-	}
-
-	/**
-	 * @covers ::openstation_code_blue_parse
-	 */
-	public function test_parse_database_error_splits_query_into_trace() {
-		$entries = openstation_code_blue_parse(
-			"[22-Aug-2026 11:00:00 UTC] WordPress database error Unknown column 'foo' in 'field list' for query SELECT foo FROM wp_posts made by require('wp-blog-header.php')"
-		);
-
-		$this->assertCount( 1, $entries );
-		$entry = $entries[0];
-		$this->assertSame( 'error', $entry['level'] );
-		$this->assertSame( 'Database error', $entry['label'] );
-		$this->assertSame( "Unknown column 'foo' in 'field list'", $entry['message'] );
-		$this->assertStringContainsString( 'Query: SELECT foo FROM wp_posts', $entry['trace'] );
-		$this->assertStringContainsString( "Made by: require('wp-blog-header.php')", $entry['trace'] );
-	}
-
-	/**
-	 * @covers ::openstation_code_blue_parse
-	 */
-	public function test_parse_xdebug_trace_lines_attach_to_previous_entry() {
-		$raw = implode(
-			"\n",
-			array(
-				'[22-Aug-2026 12:00:00 UTC] PHP Warning:  Something in /srv/x.php on line 5',
-				'[22-Aug-2026 12:00:00 UTC] PHP Stack trace:',
-				'[22-Aug-2026 12:00:00 UTC] PHP   1. {main}() /srv/index.php:0',
-				'[22-Aug-2026 12:00:00 UTC] PHP   2. foo() /srv/x.php:5',
-			)
-		);
-
-		$entries = openstation_code_blue_parse( $raw );
-
-		$this->assertCount( 1, $entries );
-		$this->assertStringContainsString( 'PHP Stack trace:', $entries[0]['trace'] );
-		$this->assertStringContainsString( '2. foo()', $entries[0]['trace'] );
-	}
-
-	/**
-	 * @covers ::openstation_code_blue_parse
-	 */
-	public function test_parse_custom_error_log_line_is_info() {
-		$entries = openstation_code_blue_parse(
-			'[22-Aug-2026 13:00:00 UTC] my-plugin: cache warmed in 2.3s'
-		);
-
-		$this->assertCount( 1, $entries );
-		$this->assertSame( 'info', $entries[0]['level'] );
-		$this->assertSame( 'my-plugin: cache warmed in 2.3s', $entries[0]['message'] );
-	}
-
-	/**
-	 * @covers ::openstation_code_blue_parse
-	 */
-	public function test_parse_deprecated_and_notice_levels() {
-		$raw = implode(
-			"\n",
-			array(
-				'[22-Aug-2026 14:00:00 UTC] PHP Deprecated:  Function get_settings is deprecated in /srv/wp-includes/functions.php on line 1',
-				'[22-Aug-2026 14:00:01 UTC] PHP Notice:  Undefined index: bar in /srv/x.php on line 2',
-			)
-		);
-
-		$entries = openstation_code_blue_parse( $raw );
-
-		$this->assertCount( 2, $entries );
-		$this->assertSame( 'deprecated', $entries[0]['level'] );
-		$this->assertSame( 'notice', $entries[1]['level'] );
-	}
-
-	/**
-	 * @covers ::openstation_code_blue_parse
-	 */
-	public function test_parse_preserves_bare_angle_bracket_in_message() {
-		$entries = openstation_code_blue_parse(
-			"[22-Aug-2026 10:00:00 UTC] PHP Parse error:  syntax error, unexpected '<' in /srv/x.php on line 3"
-		);
-
-		$this->assertCount( 1, $entries );
-		$this->assertSame( "syntax error, unexpected '<'", $entries[0]['message'] );
+		$this->assertSame( 'fatal', $entries[0]['level'] );
 		$this->assertSame( '/srv/x.php', $entries[0]['file'] );
 		$this->assertSame( 3, $entries[0]['line'] );
+		$this->assertStringContainsString( "Stack trace:\n#0 {main}", $entries[0]['trace'] );
 	}
 
 	/**
-	 * @covers ::openstation_code_blue_parse
+	 * @covers \OpenStation\Apps\CodeBlue\parse
 	 */
-	public function test_parse_untimestamped_plain_lines_become_individual_entries() {
-		// error_log( $msg, 3, $path ) writes raw text with no
-		// timestamp prefix — each line must be its own entry, not a
-		// continuation of the first.
-		$entries = openstation_code_blue_parse( "cache warmed in 2.3s\npayment webhook received\n" );
+	public function test_parse_database_error_moves_the_query_into_the_trace() {
+		$entries = parse( "[22-Aug-2026 09:14:02 UTC] WordPress database error Table 'wp.nope' doesn't exist for query SELECT * FROM nope made by require('wp-blog-header.php')" );
 
-		$this->assertCount( 2, $entries );
-		$this->assertSame( 'cache warmed in 2.3s', $entries[0]['message'] );
-		$this->assertSame( 'payment webhook received', $entries[1]['message'] );
+		$this->assertSame( 'error', $entries[0]['level'] );
+		$this->assertSame( "Table 'wp.nope' doesn't exist", $entries[0]['message'] );
+		$this->assertSame( "Query: SELECT * FROM nope\nMade by: require('wp-blog-header.php')", $entries[0]['trace'] );
+	}
+
+	/**
+	 * @covers \OpenStation\Apps\CodeBlue\parse
+	 */
+	public function test_parse_strips_markup_but_keeps_a_bare_angle_bracket() {
+		$entries = parse( "[22-Aug-2026 09:14:02 UTC] PHP Notice:  Function <strong>foo</strong> is <code>bad</code> in /a.php on line 1\n[22-Aug-2026 09:14:03 UTC] PHP Parse error:  syntax error, unexpected '<' in /b.php on line 2" );
+
+		$this->assertSame( 'Function foo is bad', $entries[0]['message'] );
+		$this->assertSame( "syntax error, unexpected '<'", $entries[1]['message'] );
+		$this->assertSame( '/b.php', $entries[1]['file'] );
+	}
+
+	/**
+	 * @covers \OpenStation\Apps\CodeBlue\parse
+	 */
+	public function test_parse_keeps_untimestamped_lines_as_their_own_entries() {
+		$entries = parse( "first plain line\nsecond plain line\n[22-Aug-2026 09:14:02 UTC] custom message" );
+
+		$this->assertCount( 3, $entries );
+		$this->assertSame( array( 'info', 'info', 'info' ), array_column( $entries, 'level' ) );
 		$this->assertNull( $entries[0]['timestamp'] );
+		$this->assertSame( 'custom message', $entries[2]['message'] );
 	}
 
 	/**
-	 * @covers ::openstation_code_blue_read_source
+	 * @covers \OpenStation\Apps\CodeBlue\signature
 	 */
-	public function test_read_source_entries_are_filterable() {
-		$this->make_temp_log( "not a php log line\n" );
-		add_filter(
-			'openstation_code_blue_entries',
-			static function ( $entries, $source, $raw ) {
-				return array(
-					openstation_code_blue_make_entry( 1000, 'error', 'Custom', trim( $raw ) ),
-				);
-			},
-			10,
-			3
-		);
-
-		$read = openstation_code_blue_read_source( openstation_code_blue_get_source( 'test-log' ) );
-
-		$this->assertCount( 1, $read['entries'] );
-		$this->assertSame( 'Custom', $read['entries'][0]['label'] );
-	}
-
-	/**
-	 * @covers ::openstation_code_blue_parse
-	 */
-	public function test_parse_strips_html_tags_from_message() {
-		$entries = openstation_code_blue_parse(
-			'[22-Aug-2026 15:00:00 UTC] PHP Notice:  Function map_meta_cap was called <strong>incorrectly</strong>. The post type <code>foo</code> is bad.'
-		);
-
-		$this->assertCount( 1, $entries );
+	public function test_signature_collapses_numbers_and_addresses() {
 		$this->assertSame(
-			'Function map_meta_cap was called incorrectly. The post type foo is bad.',
-			$entries[0]['message']
+			signature( 'warning', 'Allowed memory 0x1f exhausted at 12345', '/a.php' ),
+			signature( 'warning', 'Allowed memory 0xff exhausted at 9', '/a.php' )
 		);
+		$this->assertNotSame( signature( 'warning', 'x', '/a.php' ), signature( 'notice', 'x', '/a.php' ) );
 	}
 
 	/**
-	 * @covers ::openstation_code_blue_signature
+	 * @covers \OpenStation\Apps\CodeBlue\tail
 	 */
-	public function test_signature_collapses_numbers_and_hex() {
-		$a = openstation_code_blue_signature( 'warning', 'Allowed memory size of 134217728 bytes exhausted', '/srv/x.php' );
-		$b = openstation_code_blue_signature( 'warning', 'Allowed memory size of 268435456 bytes exhausted', '/srv/x.php' );
-		$this->assertSame( $a, $b );
-
-		$c = openstation_code_blue_signature( 'warning', 'Object 0xdeadbeef leaked', '' );
-		$d = openstation_code_blue_signature( 'warning', 'Object 0xcafebabe leaked', '' );
-		$this->assertSame( $c, $d );
-
-		$other = openstation_code_blue_signature( 'notice', 'Allowed memory size of 134217728 bytes exhausted', '/srv/x.php' );
-		$this->assertNotSame( $a, $other );
-	}
-
-	/**
-	 * @covers ::openstation_code_blue_level_for_label
-	 */
-	public function test_level_for_label_mapping() {
-		$this->assertSame( 'fatal', openstation_code_blue_level_for_label( 'Fatal error' ) );
-		$this->assertSame( 'fatal', openstation_code_blue_level_for_label( 'Parse error' ) );
-		$this->assertSame( 'error', openstation_code_blue_level_for_label( 'User error' ) );
-		$this->assertSame( 'warning', openstation_code_blue_level_for_label( 'Warning' ) );
-		$this->assertSame( 'deprecated', openstation_code_blue_level_for_label( 'User deprecated' ) );
-		$this->assertSame( 'notice', openstation_code_blue_level_for_label( 'Notice' ) );
-		$this->assertSame( 'info', openstation_code_blue_level_for_label( 'Something else' ) );
-	}
-
-	// ------------------------------------------------------- tailing
-
-	/**
-	 * @covers ::openstation_code_blue_tail
-	 */
-	public function test_tail_reads_whole_small_file() {
-		$path = wp_tempnam( 'code-blue-tail' );
-		$this->temp_files[] = $path;
-		file_put_contents( $path, "line one\nline two\n" );
-
-		$tail = openstation_code_blue_tail( $path, 1024 );
-
-		$this->assertFalse( $tail['truncated'] );
-		$this->assertSame( "line one\nline two\n", $tail['raw'] );
-	}
-
-	/**
-	 * @covers ::openstation_code_blue_tail
-	 */
-	public function test_tail_drops_partial_first_line_when_truncated() {
-		$path = wp_tempnam( 'code-blue-tail' );
-		$this->temp_files[] = $path;
-		file_put_contents( $path, "aaaaaaaaaa\nbbbbbbbbbb\ncccccccccc\n" );
-
-		// 15 bytes from the end lands mid-way through the second line.
-		$tail = openstation_code_blue_tail( $path, 15 );
+	public function test_tail_reads_the_end_and_drops_the_partial_first_line() {
+		$path = $this->make_temp_log( str_repeat( "line one is here\n", 100 ) );
+		$tail = tail( $path, 100 );
 
 		$this->assertTrue( $tail['truncated'] );
-		$this->assertSame( "cccccccccc\n", $tail['raw'] );
-	}
+		$this->assertStringStartsWith( 'line one', $tail['raw'] );
+		$this->assertLessThan( 100, $tail['scanned_bytes'] );
 
-	// ------------------------------------------------------- sources
-
-	/**
-	 * @covers ::openstation_code_blue_log_sources
-	 */
-	public function test_filtered_source_is_normalized_with_file_metadata() {
-		$path = $this->make_temp_log( "[22-Aug-2026 09:00:00 UTC] PHP Warning:  x in /srv/a.php on line 1\n" );
-
-		$source = openstation_code_blue_get_source( 'test-log' );
-
-		$this->assertNotNull( $source );
-		$this->assertSame( 'Test log', $source['label'] );
-		$this->assertSame( $path, $source['path'] );
-		$this->assertTrue( $source['exists'] );
-		$this->assertTrue( $source['readable'] );
-		$this->assertSame( filesize( $path ), $source['size'] );
+		$whole = tail( $path, 1000000 );
+		$this->assertFalse( $whole['truncated'] );
+		$this->assertSame( 1700, $whole['scanned_bytes'] );
 	}
 
 	/**
-	 * @covers ::openstation_code_blue_log_sources
+	 * @covers \OpenStation\Apps\CodeBlue\sources
 	 */
-	public function test_malformed_filtered_sources_are_skipped() {
-		$this->make_temp_log( "valid\n" );
+	public function test_sources_normalise_and_skip_malformed_entries() {
+		$path = $this->make_temp_log( 'x' );
 		add_filter(
 			'openstation_code_blue_log_sources',
 			static function ( $sources ) {
-				$sources[] = array( 'label' => 'No id or path' );
+				$sources[] = array( 'id' => 'no-path' );
 				$sources[] = array(
-					'id'   => 'no-path',
-					'path' => '',
+					'id'   => 'test-log',
+					'path' => '/dup',
+				);
+				$sources[] = array(
+					'id'   => 'ghost',
+					'path' => '/definitely/missing.log',
 				);
 				return $sources;
 			}
 		);
-
-		$ids = wp_list_pluck( openstation_code_blue_log_sources(), 'id' );
+		$list = sources( openstation_apps_os() );
+		$ids  = array_column( $list, 'id' );
 
 		$this->assertContains( 'test-log', $ids );
+		$this->assertContains( 'ghost', $ids );
 		$this->assertNotContains( 'no-path', $ids );
-		$this->assertNotContains( '', $ids );
+		$this->assertSame( 1, count( array_keys( $ids, 'test-log', true ) ) );
+		$test = $list[ array_search( 'test-log', $ids, true ) ];
+		$this->assertSame( $path, $test['path'] );
+		$this->assertTrue( $test['readable'] );
+		$this->assertSame( 1, $test['size'] );
+		$ghost = $list[ array_search( 'ghost', $ids, true ) ];
+		$this->assertFalse( $ghost['exists'] );
+	}
+
+	// ------------------------------------------------------------- the app
+	//
+	// Grouping, filtering, sorting and the time buckets run in the
+	// browser (`code-blue.os.ts`) and are covered by `code-blue.test.ts`.
+
+	/**
+	 * @covers ::openstation_app
+	 */
+	public function test_the_app_is_loaded_from_apps_with_its_chrome() {
+		$app = openstation_app( 'openstation-code-blue' );
+		$this->assertNotNull( $app );
+
+		$manifest = $app->manifest();
+		$this->assertSame( 'Code Blue', $manifest['title'] );
+		$this->assertSame( 1060, $manifest['width'] );
+		$this->assertSame( 'none', $manifest['placement'] );
+		$this->assertSame( 24, $manifest['desktop_icon']['position'] );
+		$this->assertSame( 'refresh', $manifest['title_bar_buttons'][0]['action'] );
+		$this->assertSame( 'clear', $manifest['window_actions'][0]['action'] );
+		$this->assertTrue( $manifest['window_actions'][0]['confirm']['danger'] );
+		$this->assertStringEndsWith( 'apps/code-blue/code-blue.css', wp_normalize_path( $manifest['style'] ) );
+		$this->assertStringEndsWith( 'apps/code-blue/code-blue.os.ts', wp_normalize_path( $manifest['client_source'] ), 'The body is a client view.' );
+		$this->assertTrue( $manifest['has_data'] );
+		$this->assertSame( array( 'refresh', 'source', 'clear' ), $manifest['actions'], 'Only the actions that need the server are server actions.' );
 	}
 
 	/**
-	 * @covers ::openstation_code_blue_read_source
+	 * @covers ::openstation_apps_register_windows
 	 */
-	public function test_read_source_caps_entries_keeping_newest() {
-		$lines = array();
-		for ( $i = 1; $i <= 150; $i++ ) {
-			$lines[] = sprintf( '[22-Aug-2026 09:%02d:%02d UTC] PHP Notice:  entry %d in /srv/a.php on line %d', floor( $i / 60 ), $i % 60, $i, $i );
-		}
-		$this->make_temp_log( implode( "\n", $lines ) . "\n" );
-		add_filter(
-			'openstation_code_blue_max_entries',
-			static function () {
-				return 100;
-			}
-		);
-
-		$read = openstation_code_blue_read_source( openstation_code_blue_get_source( 'test-log' ) );
-
-		$this->assertCount( 100, $read['entries'] );
-		$this->assertSame( 50, $read['dropped_entries'] );
-		$this->assertTrue( $read['truncated'] );
-		$this->assertStringContainsString( 'entry 150', end( $read['entries'] )['message'] );
-	}
-
-	// ---------------------------------------------------- capability
-
-	/**
-	 * @covers ::openstation_code_blue_user_can_use
-	 */
-	public function test_gate_defaults_to_manage_options() {
+	public function test_host_ships_the_client_view_with_the_window() {
 		wp_set_current_user( self::$admin_id );
-		$this->assertTrue( openstation_code_blue_user_can_use() );
+		openstation_apps_register_windows();
+
+		$entry = openstation_native_window_registry( 'openstation-code-blue' );
+		$this->assertIsArray( $entry );
+		$this->assertTrue( $entry['config']['client'] );
+		$this->assertSame( array( 'openstation-app-openstation-code-blue-client' ), $entry['scripts'], 'The .os.ts bundle rides as a companion script.' );
+		$this->assertStringContainsString( 'assets/js/apps/code-blue', wp_scripts()->registered['openstation-app-openstation-code-blue-client']->src );
+	}
+
+	/**
+	 * @covers \OpenStation\Apps\CodeBlue\can_use
+	 */
+	public function test_gate_requires_developer_mode_and_site_management() {
+		$app = openstation_app( 'openstation-code-blue' );
+		$os  = openstation_apps_os();
 
 		wp_set_current_user( self::$editor_id );
-		$this->assertFalse( openstation_code_blue_user_can_use() );
-	}
+		$this->assertFalse( $app->allows( $os ) );
 
-	/**
-	 * @covers ::openstation_code_blue_user_can_use
-	 */
-	public function test_gate_requires_developer_mode() {
-		// An administrator WITHOUT Developer mode sees nothing.
-		$plain_admin = self::factory()->user->create( array( 'role' => 'administrator' ) );
-		wp_set_current_user( $plain_admin );
-		$this->assertFalse( openstation_code_blue_user_can_use() );
-		$this->assertFalse( openstation_code_blue_rest_permission() );
-
-		// Flipping the switch in OpenStation Preferences unlocks it.
-		openstation_save_os_settings( $plain_admin, array( 'developerModeEnabled' => true ) );
-		$this->assertTrue( openstation_code_blue_user_can_use() );
-
-		// Developer mode alone is not enough without the capability.
-		openstation_save_os_settings( self::$editor_id, array( 'developerModeEnabled' => true ) );
-		wp_set_current_user( self::$editor_id );
-		$this->assertFalse( openstation_code_blue_user_can_use() );
-	}
-
-	/**
-	 * @covers ::openstation_code_blue_user_can_use
-	 */
-	public function test_gate_is_filterable() {
-		wp_set_current_user( self::$editor_id );
-		add_filter( 'openstation_code_blue_user_can_use', '__return_true' );
-		$this->assertTrue( openstation_code_blue_user_can_use() );
-	}
-
-	// ---------------------------------------------------------- REST
-
-	/**
-	 * @covers ::openstation_code_blue_register_routes
-	 */
-	public function test_routes_are_registered() {
-		do_action( 'rest_api_init' );
-		$routes = rest_get_server()->get_routes( 'desktop-mode/v1' );
-
-		$this->assertArrayHasKey( '/desktop-mode/v1/code-blue/sources', $routes );
-		$this->assertArrayHasKey( '/desktop-mode/v1/code-blue/entries', $routes );
-	}
-
-	/**
-	 * @covers ::openstation_code_blue_rest_sources
-	 */
-	public function test_rest_sources_carries_environment_rows() {
 		wp_set_current_user( self::$admin_id );
+		$this->assertTrue( $app->allows( $os ) );
 
-		$response = openstation_code_blue_rest_sources();
-		$data     = $response->get_data();
+		openstation_save_os_settings( self::$admin_id, array( 'developerModeEnabled' => false ) );
+		$this->assertFalse( $app->allows( $os ) );
+		openstation_save_os_settings( self::$admin_id, array( 'developerModeEnabled' => true ) );
 
-		$this->assertArrayHasKey( 'sources', $data );
-		$this->assertArrayHasKey( 'environment', $data );
-		$keys = wp_list_pluck( $data['environment'], 'key' );
-		$this->assertContains( 'wp_debug', $keys );
-		$this->assertContains( 'php', $keys );
+		add_filter( 'openstation_code_blue_user_can_use', '__return_false' );
+		$this->assertFalse( $app->allows( $os ) );
 	}
 
 	/**
-	 * @covers ::openstation_code_blue_rest_entries
+	 * @covers \OpenStation\App\Runtime::dispatch
 	 */
-	public function test_rest_entries_returns_parsed_entries() {
+	public function test_mount_picks_the_first_usable_source_and_paints_the_log() {
 		wp_set_current_user( self::$admin_id );
-		$this->make_temp_log(
-			"[22-Aug-2026 09:14:02 UTC] PHP Warning:  Undefined array key \"foo\" in /srv/x.php on line 12\n"
-		);
+		$this->make_temp_log( "[22-Aug-2026 09:14:02 UTC] PHP Warning:  Needle in haystack in /srv/wp-content/plugins/x/x.php on line 12\n" );
+		add_filter( 'openstation_code_blue_log_sources', '__return_empty_array', 5 );
 
-		$request = new WP_REST_Request( 'GET', '/desktop-mode/v1/code-blue/entries' );
-		$request->set_param( 'source', 'test-log' );
-		$response = openstation_code_blue_rest_entries( $request );
+		$response = $this->dispatch( 'mount', array( 'range' => 'all' ) );
 
-		$this->assertNotWPError( $response );
-		$data = $response->get_data();
+		$this->assertTrue( $response['ok'] );
+		$this->assertSame( 'test-log', $response['state']['source'] );
+		$this->assertSame( '', $response['html'], 'The body is painted by the client view, not the server.' );
+		$data = $response['data'];
+		$this->assertSame( 'test-log', $data['source']['id'] );
 		$this->assertCount( 1, $data['entries'] );
-		$this->assertSame( 'warning', $data['entries'][0]['level'] );
+		$this->assertSame( 'Needle in haystack', $data['entries'][0]['message'] );
+		$this->assertSame( 12, $data['entries'][0]['line'] );
+		$this->assertSame( 'WP_DEBUG', $data['environment'][0]['label'] );
+		$this->assertSame( '', $data['readError'] );
 		$this->assertFalse( $data['truncated'] );
+		$this->assertIsInt( $data['now'] );
 	}
 
 	/**
-	 * @covers ::openstation_code_blue_rest_entries
+	 * @covers \OpenStation\App\Runtime::dispatch
 	 */
-	public function test_rest_entries_missing_file_is_empty_success() {
+	public function test_the_instant_interactions_never_reach_the_server() {
 		wp_set_current_user( self::$admin_id );
-		add_filter(
-			'openstation_code_blue_log_sources',
-			static function ( $sources ) {
-				$sources[] = array(
-					'id'    => 'ghost-log',
-					'label' => 'Ghost log',
-					'path'  => '/nonexistent/ghost.log',
-				);
-				return $sources;
-			}
-		);
-
-		$request = new WP_REST_Request( 'GET', '/desktop-mode/v1/code-blue/entries' );
-		$request->set_param( 'source', 'ghost-log' );
-		$response = openstation_code_blue_rest_entries( $request );
-
-		$this->assertNotWPError( $response );
-		$data = $response->get_data();
-		$this->assertSame( array(), $data['entries'] );
-		$this->assertFalse( $data['truncated'] );
+		add_filter( 'openstation_code_blue_log_sources', '__return_empty_array', 5 );
+		foreach ( array( 'toggle', 'series', 'range' ) as $local ) {
+			$response = $this->dispatch( $local );
+			$this->assertSame( array( 'unknown_action', 400 ), array( $response['error'], $response['status'] ), "$local is a client-side action." );
+		}
 	}
 
 	/**
-	 * @covers ::openstation_code_blue_rest_clear
+	 * @covers \OpenStation\App\Runtime::dispatch
 	 */
-	public function test_rest_clear_missing_file_is_noop_success() {
+	public function test_switching_source_refreshes_the_data_and_collapses_rows() {
 		wp_set_current_user( self::$admin_id );
-		add_filter(
-			'openstation_code_blue_log_sources',
-			static function ( $sources ) {
-				$sources[] = array(
-					'id'    => 'ghost-log',
-					'label' => 'Ghost log',
-					'path'  => '/nonexistent/ghost.log',
-				);
-				return $sources;
-			}
-		);
+		$this->make_temp_log( "[22-Aug-2026 09:14:02 UTC] PHP Fatal error:  Boom in /srv/x.php:3\nStack trace:\n#0 {main}\n" );
+		add_filter( 'openstation_code_blue_log_sources', '__return_empty_array', 5 );
 
-		$request = new WP_REST_Request( 'DELETE', '/desktop-mode/v1/code-blue/entries' );
-		$request->set_param( 'source', 'ghost-log' );
-		$response = openstation_code_blue_rest_clear( $request );
+		$response = $this->dispatch( 'source', array( 'source' => 'test-log', 'expanded' => array( 'abc' ), 'error' => 'stale' ) );
 
-		$this->assertNotWPError( $response );
-		$this->assertTrue( $response->get_data()['cleared'] );
+		$this->assertSame( array(), $response['state']['expanded'] );
+		$this->assertSame( '', $response['state']['error'] );
+		$this->assertSame( "Stack trace:\n#0 {main}", $response['data']['entries'][0]['trace'] );
+		$this->assertSame( 'fatal', $response['data']['entries'][0]['level'] );
 	}
 
 	/**
-	 * @covers ::openstation_code_blue_rest_entries
+	 * @covers \OpenStation\Apps\CodeBlue\clear
 	 */
-	public function test_rest_entries_unknown_source_is_404() {
+	public function test_clear_truncates_the_log_and_toasts() {
 		wp_set_current_user( self::$admin_id );
-
-		$request = new WP_REST_Request( 'GET', '/desktop-mode/v1/code-blue/entries' );
-		$request->set_param( 'source', 'nope' );
-		$response = openstation_code_blue_rest_entries( $request );
-
-		$this->assertWPError( $response );
-		$this->assertSame( 404, $response->get_error_data()['status'] );
-	}
-
-	/**
-	 * @covers ::openstation_code_blue_rest_clear
-	 */
-	public function test_rest_clear_truncates_the_file_and_fires_action() {
-		wp_set_current_user( self::$admin_id );
-		$path = $this->make_temp_log( "[22-Aug-2026 09:14:02 UTC] PHP Warning:  x in /srv/a.php on line 1\n" );
-
-		$fired = array();
+		$path = $this->make_temp_log( "[22-Aug-2026 09:14:02 UTC] PHP Warning:  Gone soon in /a.php on line 1\n" );
+		add_filter( 'openstation_code_blue_log_sources', '__return_empty_array', 5 );
+		$cleared = array();
 		add_action(
 			'openstation_code_blue_log_cleared',
-			static function ( $id, $cleared_path ) use ( &$fired ) {
-				$fired = array( $id, $cleared_path );
+			static function ( $id, $file ) use ( &$cleared ) {
+				$cleared[] = array( $id, $file );
 			},
 			10,
 			2
 		);
 
-		$request = new WP_REST_Request( 'DELETE', '/desktop-mode/v1/code-blue/entries' );
-		$request->set_param( 'source', 'test-log' );
-		$response = openstation_code_blue_rest_clear( $request );
+		$response = $this->dispatch( 'clear', array( 'source' => 'test-log' ) );
 
-		$this->assertNotWPError( $response );
-		$this->assertTrue( $response->get_data()['cleared'] );
-		$this->assertSame( 0, filesize( $path ) );
-		$this->assertSame( array( 'test-log', $path ), $fired );
+		$this->assertTrue( $response['ok'] );
+		$this->assertSame( '', file_get_contents( $path ) );
+		$this->assertSame( array( array( 'test-log', $path ) ), $cleared );
+		$this->assertSame( 'toast', $response['effects'][0]['type'] );
+		$this->assertSame( array(), $response['data']['entries'], 'The data is re-read after the clear.' );
+		$this->assertSame( 0, $response['data']['source']['size'] );
 	}
 
 	/**
-	 * @covers ::openstation_code_blue_rest_permission
+	 * @covers \OpenStation\App\Runtime::dispatch
 	 */
-	public function test_rest_permission_follows_the_gate() {
-		wp_set_current_user( self::$editor_id );
-		$this->assertFalse( openstation_code_blue_rest_permission() );
-
+	public function test_state_from_the_client_is_bounded_by_the_schema() {
 		wp_set_current_user( self::$admin_id );
-		$this->assertTrue( openstation_code_blue_rest_permission() );
+		add_filter( 'openstation_code_blue_log_sources', '__return_empty_array', 5 );
+
+		$response = $this->dispatch(
+			'mount',
+			array(
+				'range'   => array( 'not', 'a', 'string' ),
+				'evil'    => 'payload',
+				'hidden'  => 'info',
+				'auto'    => 'on',
+			)
+		);
+
+		$this->assertTrue( $response['ok'] );
+		$this->assertSame( '24h', $response['state']['range'] );
+		$this->assertSame( array(), $response['state']['hidden'] );
+		$this->assertTrue( $response['state']['auto'] );
+		$this->assertArrayNotHasKey( 'evil', $response['state'] );
+		$this->assertNull( $response['data']['source'], 'No sources at all: the client paints its empty state.' );
+	}
+
+	/**
+	 * @covers ::openstation_apps_rest_permission
+	 */
+	public function test_rest_route_is_closed_to_users_outside_the_gate() {
+		wp_set_current_user( self::$editor_id );
+		$request = new WP_REST_Request( 'POST', '/desktop-mode/v1/apps/openstation-code-blue/dispatch' );
+		$request->set_param( 'action', 'mount' );
+		$this->assertSame( 403, rest_do_request( $request )->get_status() );
+	}
+
+	/**
+	 * The app stays small. The TypeScript Code Blue it replaced was
+	 * 3,235 lines (981 PHP + 1,726 TS + 528 CSS); the port has to stay
+	 * under half of that and ship no JavaScript at all — "just add a
+	 * little script" is the framework failing, not the app growing.
+	 */
+	public function test_the_app_stays_small_and_its_only_script_is_the_client_view() {
+		$dir   = OPENSTATION_DIR . 'apps/code-blue/';
+		$lines = 0;
+		foreach ( array_merge( glob( $dir . '*.php' ), glob( $dir . '*.css' ), glob( $dir . '*.os.ts' ) ) as $file ) {
+			$lines += count( file( $file ) );
+		}
+		$this->assertLessThan( 1600, $lines, sprintf( 'Code Blue is %d lines; the budget is under half of the 3,235-line original.', $lines ) );
+
+		$scripts = array_map( 'basename', array_merge( glob( $dir . '*.js' ), glob( $dir . '*.ts' ) ) );
+		$this->assertSame( array( 'code-blue.os.ts', 'code-blue.test.ts' ), $scripts, 'The only script an app ships is its .os.ts client view (plus its test).' );
 	}
 }

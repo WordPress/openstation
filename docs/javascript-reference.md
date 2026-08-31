@@ -2696,6 +2696,28 @@ wp.os[ 'my-plugin' ].open();
 
 ---
 
+### `wp.os.apps` — Experimental
+
+The client side of the [App Framework](./app-framework.md). Published by the shared `app-runtime` bundle, which loads the first time any `.osx.php` window opens — so guard with `wp.os.apps?.` from code that may run earlier.
+
+```ts
+wp.os.apps.dispatch( windowId: string, action: string, args?: Record< string, unknown >, view?: string ): Promise< boolean >;
+wp.os.apps.local( windowId: string, action: string, args?: Record< string, unknown > ): void;   // client-view apps: no request
+wp.os.apps.session( windowId: string, view?: string ): Session | undefined;
+wp.os.apps.refresh(): string[];   // re-scan window configs for app definitions; returns newly registered ids
+```
+
+An app with a client view (`<file>.os.ts`, see [`app-framework.md` → The client view](./app-framework.md#the-client-view--osts)) publishes `window.openStationApps[ id ]` from its bundle; `session.data` is what its `App::data()` returned on the last server response.
+
+- **`dispatch`** runs an action on a mounted app window exactly as one of its own `os-action` triggers would: the request carries the view's current state and the window's open-time params, the response is morphed in and its effects performed. Resolves `true` once applied, `false` if the window is not mounted or the dispatch failed (the failure is toasted). `view` is `main` (default) or a tab slug declared with `App::tab()` — each tab panel is its own session.
+- **`session`** is the live session object — `state` (read-only snapshot), `view`, `dispatch`, `setPaused`, `dispose`. Read `state` to react to what the window is showing; do not mutate it.
+
+Effects the runtime performs itself: `toast`, `title`, `close`, `open`, `open_url` (an admin URL in an iframe window), `badge` (dock tile + desktop icon), `announce` (`wp.os.announceContentChange`), `menu` (a context menu at the pointer whose items dispatch actions), `send` (the window's channel bus). Any other `type` is re-dispatched as **`os-app-effect`** on the app's root element (bubbles, composed) with `detail = { appId, windowId, view, effect }`. Queue one from PHP with `$os->effects->add( 'my-plugin/thing', array( … ) )`.
+
+Inbound: an app that declared `->on_channel( $channel, $action )` receives `wp.os.connect( id ).send( channel, payload )` / `Window.send()` as a dispatch of `$action` with `$args['payload']`; declared `resize` / `show` / `hide` / `focus` / `blur` actions are dispatched on those window moments.
+
+An app's body speaks a small attribute vocabulary — `os-action`, `os-bind`, `os-arg-*`, `os-on` (any event a kit component emits, plus `click` / `dblclick` / `change` / `input` / `submit` / `keydown` / `contextmenu` / `toggle`), `os-keys`, `os-debounce`, `os-confirm*`, `os-poll`, `os-key`, `os-preserve`, `os-prop-*` — documented in [`app-framework.md` → The view vocabulary](./app-framework.md#the-view-vocabulary). Nothing else in `wp.os` changes: an app window is a native window, so `wp.os.onWindow()`, `registerTitleBarButton()`, `openWindow()` and the rest apply to it unchanged.
+
 ### `registerCommand( def )` — Stable
 Registers a slash-command that appears in the AI Assistant palette (⌘K). The user types `/<slug>` to invoke your handler; arguments are whatever they type after the slug.
 

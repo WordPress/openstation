@@ -181,6 +181,7 @@ you relabel the host, e.g. Maximize ⇄ Restore.
 | `<os-progress-bar>` | `OsProgressBar` | `os-progress-bar/os-progress-bar.ts` | Determinate or indeterminate progress. |
 | `<os-save-status>` | `OsSaveStatus` | `os-save-status/os-save-status.ts` | Save indicator (idle / saving / saved / failed). `variant="ring"` is the window title bar's status ring: outline for every phase but success, which fills. |
 | `<os-relative-time>` | `OsRelativeTime` | `os-relative-time/os-relative-time.ts` | Auto-updating "2 min ago". |
+| `<os-histogram>` | `OsHistogram` | `os-histogram/os-histogram.ts` | Stacked time histogram (inline SVG) with a toggle legend; `series` + `columns` JSON in, `os-series-toggle` out. Colours ride the status tokens. |
 | `<os-empty-state>` | `OsEmptyState` | `os-empty-state/os-empty-state.ts` | Empty-list / no-results placeholder. |
 | `<os-rating-summary>` | `OsRatingSummary` | `os-rating-summary/os-rating-summary.ts` | Star average + per-star bucket bars. |
 

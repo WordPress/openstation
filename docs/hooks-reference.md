@@ -4115,17 +4115,69 @@ Tweak the args passed to `openstation_register_window()` / `openstation_register
 
 ---
 
+## App Framework
+
+Windows declared in PHP as `.osx.php` files — see [`app-framework.md`](./app-framework.md). The WordPress host (`includes/framework/wordpress.php`) loads app files on `init` @10, registers each allowed app as a native window on `init` @20, and serves one REST route. Every seam below is `Experimental`.
+
+### `openstation_apps_directories` — Experimental (filter)
+
+```php
+apply_filters( 'openstation_apps_directories', string[] $dirs ): string[]
+```
+
+Absolute directories scanned for `.osx.php` files (directly inside, and one folder down). Default: `apps/` inside OpenStation. Append your plugin's folder to ship apps as files.
+
+### `openstation_apps_loaded` — Experimental (action)
+
+```php
+do_action( 'openstation_apps_loaded', OpenStation\App\Registry $registry )
+```
+
+Fires once every app file has been loaded, on `init` @10. Add an app built in code with `$registry->add( App::define( … ) )`; remove one with `$registry->remove( $id )`.
+
+### `openstation_app_manifest` — Experimental (filter)
+
+```php
+apply_filters( 'openstation_app_manifest', array $manifest, string $id, OpenStation\App $app ): array
+```
+
+An app's manifest just before it is registered with the shell — `title`, `icon`, `width`/`height`, `min_width`/`min_height`, `placement`, `nav_kind`, `dock_order`, `placeable`, `autofocus`, `desktop_icon`, `style`, `state`, `actions`, `title_bar_buttons`, `window_actions`, `appearance`, `config`. Resize a window, add a title-bar button to someone else's app, retarget its stylesheet.
+
+### `openstation_app_registered` — Experimental (action)
+
+```php
+do_action( 'openstation_app_registered', string $id, array $manifest )
+```
+
+Fires after `openstation_register_window()` (and `openstation_register_icon()` when the app asked for a desktop icon) succeeded for an app.
+
+### `openstation_app_response` — Experimental (filter)
+
+```php
+apply_filters( 'openstation_app_response', array $response, string $id, string $action, OpenStation\App\State $state ): array
+```
+
+A dispatch response before it leaves `App\Runtime` — `ok`, `state`, `html`, `effects`, plus `data` when the app declared `App::data()` (a client-view app). Runs through the app's `$os->filter()`, so on WordPress it is an ordinary filter; on a standalone host it is whatever the host's `Hooks` adapter does. Append an effect, post-process the markup or the data, or log the action.
+
+### REST — `POST desktop-mode/v1/apps/<id>/dispatch` — Experimental
+
+Body `{ action, state, args, client }`; response `{ ok, state, html, effects }`. Permission: logged in AND the app exists AND `App::allows()` (its `capabilities()` and `can()` gate). Errors: `openstation_app_unauthorized` (401), `openstation_app_not_found` (404), `openstation_app_forbidden` (403), `openstation_app_unknown_action` (400), `openstation_app_action_failed` (500).
+
+### Helpers
+
+- `openstation_app( $id )` — the registered `App` or null.
+- `openstation_app_render( $id, array $state = array() )` — the whole window as a value: `manifest`, `state` after `mount`, `html`, `effects`.
+- `openstation_apps_registry()`, `openstation_apps_runtime()`, `openstation_apps_os()`.
+
+---
+
 ## Code Blue
 
-An error-log reader: tails the logs the install can produce (WP debug log, PHP error log, anything a plugin registers), parses them into structured entries, and renders a severity histogram plus a grouped issue list. Registers a native window (`openstation-code-blue`) plus a desktop icon on `init` priority 20. Server module: `includes/code-blue/`. The REST routes live under the plugin's frozen `desktop-mode/v1` namespace like every other route.
+An error-log reader: tails the logs the install can produce (WP debug log, PHP error log, anything a plugin registers), parses them into structured entries, and renders a severity histogram plus a grouped issue list. It is an [App Framework](./app-framework.md) app — `apps/code-blue/code-blue.osx.php` plus `log-reader.php` — registered as the native window `openstation-code-blue` with a desktop icon, and it ships no JavaScript of its own. There are no Code Blue REST routes: every interaction is a dispatch to `POST desktop-mode/v1/apps/openstation-code-blue/dispatch`. (Its previous module-plus-bundle shape and the surface that went with it: [`migration-code-blue-app.md`](./migration-code-blue-app.md).)
 
-The whole surface — icon, window, nav entry, and REST routes — sits behind one gate with two conditions, both required: **Developer mode** (`developerModeEnabled` in OpenStation Preferences, off by default — Code Blue is a developer-facing surface and registers nothing until the user flips it) and a capability — `manage_options`, raised to `manage_network_options` on multisite, since log content leaks server paths and SQL and the debug/PHP error logs are network-wide files. Flipping the Preferences toggle takes effect live: once the settings save persists, the panel spends one [`wp.os.refreshMenu()`](./javascript-reference.md) probe and the icon/window appear (or disappear) without a reload.
+The whole surface — icon, window, nav entry, dispatch endpoint — sits behind one gate with two conditions, both required: **Developer mode** (`developerModeEnabled` in OpenStation Preferences, off by default — Code Blue is a developer-facing surface and registers nothing until the user flips it) and a capability — `manage_options`, raised to `manage_network_options` on multisite, since log content leaks server paths and SQL and the debug/PHP error logs are network-wide files. Flipping the Preferences toggle takes effect live: once the settings save persists, the panel spends one [`wp.os.refreshMenu()`](./javascript-reference.md) probe and the icon/window appear (or disappear) without a reload.
 
-### REST — `desktop-mode/v1/code-blue/*` — Experimental
-
-- `GET /sources` — log sources plus the environment card (`WP_DEBUG*` constants, versions, environment type).
-- `GET /entries?source=<id>` — parsed entries from one source's trailing window: `{ source, entries, truncated, scanned_bytes, dropped_entries, generated_at }`. Each entry: `{ timestamp, level, label, message, file, line, trace, signature }` where `level` is one of `fatal | error | warning | deprecated | notice | info` and `signature` is the server-computed grouping key.
-- `DELETE /entries?source=<id>` — truncates the log file to zero bytes.
+To reshape the window itself — size, icon position, the title-bar Refresh button, the ⋯ Clear row — use [`openstation_app_manifest`](#openstation_app_manifest--experimental-filter) with `$id === 'openstation-code-blue'`; to post-process its markup, [`openstation_app_response`](#openstation_app_response--experimental-filter).
 
 ### `openstation_code_blue_user_can_use` — Experimental (filter)
 
@@ -4133,7 +4185,7 @@ The whole surface — icon, window, nav entry, and REST routes — sits behind o
 apply_filters( 'openstation_code_blue_user_can_use', bool $can ): bool
 ```
 
-Permission gate for the icon, the window, and every REST route. Default: Developer mode enabled in OpenStation Preferences AND `current_user_can( 'manage_options' )` (`manage_network_options` on multisite).
+Permission gate for the icon, the window, and the dispatch endpoint. Default: Developer mode enabled in OpenStation Preferences AND `current_user_can( 'manage_options' )` (`manage_network_options` on multisite).
 
 ### `openstation_code_blue_log_sources` — Experimental (filter)
 
@@ -4149,7 +4201,7 @@ The log files the window offers. Each entry declares `id` (slug), `label`, and `
 apply_filters( 'openstation_code_blue_entries', array[] $entries, array $source, string $raw ): array[]
 ```
 
-The parsed entries for one source, before the entry cap is applied. The escape hatch for logs the built-in parser doesn't understand (Monolog, ISO-timestamped formats): re-parse `$raw` yourself for your own `$source` and return your own entry array. Each entry: `timestamp` (int|null), `level`, `label`, `message`, `file`, `line`, `trace`, `signature` — build them with `openstation_code_blue_make_entry()` to get the location extraction and grouping signature for free.
+The parsed entries for one source, before the entry cap is applied. The escape hatch for logs the built-in parser doesn't understand (Monolog, ISO-timestamped formats): re-parse `$raw` yourself for your own `$source` and return your own entry array. Each entry: `timestamp` (int|null), `level`, `label`, `message`, `file`, `line`, `trace`, `signature` — build them with `OpenStation\Apps\CodeBlue\make_entry()` to get the location extraction and grouping signature for free.
 
 ### `openstation_code_blue_environment` — Experimental (filter)
 
@@ -4157,7 +4209,7 @@ The parsed entries for one source, before the entry cap is applied. The escape h
 apply_filters( 'openstation_code_blue_environment', array[] $rows ): array[]
 ```
 
-The environment rows shown as chips in the window. Each: `key`, `label`, `value` (string), `on` (bool renders an on/off tone, null renders neutral).
+The environment rows shown as badges in the window. Each: `label`, `value` (string), `on` (bool renders an on/off tone, null renders neutral).
 
 ### `openstation_code_blue_max_bytes` / `openstation_code_blue_max_entries` — Experimental (filter)
 
@@ -4166,24 +4218,7 @@ apply_filters( 'openstation_code_blue_max_bytes',   int $max_bytes ):   int // d
 apply_filters( 'openstation_code_blue_max_entries', int $max_entries ): int // default 3000, floor 100
 ```
 
-Caps on the trailing window read from a log file per request, and on how many parsed entries a response may carry (the oldest are dropped first).
-
-### `openstation_code_blue_template_html` — Experimental (filter)
-
-```php
-apply_filters( 'openstation_code_blue_template_html', string $html ): string
-```
-
-The window's static template body before it's `wp_kses`'d. The bundle mounts into `[data-os-code-blue-root]` — keep that hook intact.
-
-### `openstation_code_blue_window_args` / `openstation_code_blue_icon_args` — Experimental (filter)
-
-```php
-apply_filters( 'openstation_code_blue_window_args', array $window_args ): array
-apply_filters( 'openstation_code_blue_icon_args',   array $icon_args ):   array
-```
-
-Tweak the args passed to `openstation_register_window()` / `openstation_register_icon()` for Code Blue — dimensions, icon, icon position, or the `config` blob (`apiBase`, `restNonce`).
+Caps on the trailing window read from a log file per dispatch, and on how many parsed entries a render may carry (the oldest are dropped first). The parsed result is cached through `$os->cache` keyed on path + size + mtime.
 
 ### `openstation_code_blue_log_cleared` — Experimental (action)
 
@@ -4191,7 +4226,7 @@ Tweak the args passed to `openstation_register_window()` / `openstation_register
 do_action( 'openstation_code_blue_log_cleared', string $id, string $path )
 ```
 
-Fires after the `DELETE /entries` route truncates a log file.
+Fires after the `clear` action truncates a log file.
 
 ---
 

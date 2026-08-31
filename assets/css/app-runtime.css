@@ -1,0 +1,38 @@
+/**
+ * OpenStation — App Framework runtime styles.
+ *
+ * The root every `.osx.php` window mounts into. Fills the window
+ * body, declares itself a container so an app's stylesheet can use
+ * `@container` queries against the window's width, and centres the
+ * first-paint spinner until the `mount` render lands.
+ */
+
+.os-app {
+	display: flex;
+	flex-direction: column;
+	inline-size: 100%;
+	block-size: 100%;
+	min-block-size: 0;
+	overflow: hidden;
+	background: var( --os-ui-surface, #f0f0f1 );
+	color: var( --os-ui-fg, #1d2327 );
+	font-family: var(
+		--os-ui-font,
+		-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+		'Helvetica Neue', Arial, sans-serif
+	);
+	container-type: inline-size;
+}
+
+.os-app__loading {
+	display: flex;
+	flex: 1;
+	align-items: center;
+	justify-content: center;
+}
+
+/* A dispatch is in flight: dim nothing, just signal it to AT and
+   let an app style `[aria-busy]` if it wants a visible cue. */
+.os-app[aria-busy='true'] {
+	cursor: progress;
+}

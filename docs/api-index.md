@@ -146,6 +146,20 @@ The full surface is documented in [`javascript-reference.md`](./javascript-refer
 | `desktopThemes.resolveIcon` | `( slot: string ) => string \| null` | Experimental |
 | `desktopThemes.applyRecommendedOsSettings` | `( themeId?: string ) => RecommendedOsSettings` | Experimental |
 
+### App Framework windows *(Experimental)*
+
+Windows declared in PHP as `.osx.php` files — [`app-framework.md`](./app-framework.md). Loaded lazily with the first app window.
+
+| Member | Signature | Status |
+|---|---|---|
+| `apps.dispatch` | `( windowId: string, action: string, args?: Record<string, unknown>, view?: string ) => Promise<boolean>` | Experimental |
+| `apps.local` | `( windowId: string, action: string, args?: Record<string, unknown> ) => void` *(client-view apps; no request)* | Experimental |
+| `apps.session` | `( windowId: string, view?: string ) => Session \| undefined` | Experimental |
+| `@openstation/app` | `defineApp< State, Data >( id, { local?, view, mounted?, updated? } )`, `html`, `__`/`_n`/`_x`/`sprintf` *(what an `.os.ts` imports)* | Experimental |
+| `apps.refresh` | `() => string[]` | Experimental |
+
+PHP side: `App::define( $id )` fluent definition (`state`, `action`, `view`, `tab`, `title_bar_button`, `window_action`, `on_channel`, `theme` / `controls` / `slot`, `desktop_icon`), the `$os` handle (`auth`, `settings`, `hooks`, `cache`, `env`, `storage`, `param()`, `stored()` / `store()`, and the effects `toast` / `title` / `close` / `open` / `open_url` / `badge` / `announce` / `menu` / `send`), `openstation_app( $id )`, `openstation_app_render( $id, $state )`, filters `openstation_apps_directories` / `openstation_app_manifest` / `openstation_app_response`, actions `openstation_apps_loaded` / `openstation_app_registered`, route `POST desktop-mode/v1/apps/<id>/dispatch` — all in [`app-framework.md`](./app-framework.md) and [`hooks-reference.md` → App Framework](./hooks-reference.md#app-framework).
+
 ### Files on the desktop
 
 | Member | Signature | Status |

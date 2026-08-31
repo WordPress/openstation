@@ -182,6 +182,11 @@ single-purpose modules and feature directories (drag bridge, devtools,
 pinned notes, …). Run `ls src/` for the full picture; the shipped
 bundles (and the TS entry behind each) are the `build:*` scripts in
 `package.json`, resolved via `OPENSTATION_TARGET` in `vite.config.js`.
+App client views are the exception to that list: every
+`apps/<dir>/<name>.os.ts` is discovered by `vite.config.js` as the target
+`app:<name>` and built by `npm run build:apps` (part of `npm run build`)
+into `assets/js/apps/<name>[.min].js` — see
+[`app-framework.md`](./app-framework.md#the-client-view--osts).
 
 ## Public vs internal
 

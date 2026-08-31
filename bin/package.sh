@@ -34,6 +34,7 @@ include=(
 	"readme.txt"
 	"LICENSE"
 	"README.md"
+	"apps"
 	"assets"
 	"includes"
 	"languages"

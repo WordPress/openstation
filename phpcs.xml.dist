@@ -193,6 +193,35 @@
 		<severity>0</severity>
 	</rule>
 
+	<!--
+		App Framework template helpers. `.osx.php` views are host-
+		agnostic, so they escape with `OpenStation\App\Html\esc()` /
+		`json()` / `attr()` rather than `esc_html()`, and build markup
+		with `tag()`, which escapes every attribute it emits. Naming
+		them here lets the output-escaping sniff recognise them.
+	-->
+	<rule ref="WordPress.Security.EscapeOutput">
+		<properties>
+			<property name="customEscapingFunctions" type="array">
+				<element value="esc"/>
+				<element value="json"/>
+				<element value="attr"/>
+			</property>
+			<property name="customAutoEscapedFunctions" type="array">
+				<element value="tag"/>
+			</property>
+		</properties>
+	</rule>
+
+	<!--
+		`.osx.php` is the App Framework's file format (an app file is a
+		PHP file that returns an App). The extra dot is the format's
+		signature, not a naming slip.
+	-->
+	<rule ref="WordPress.Files.FileName.NotHyphenatedLowercase">
+		<exclude-pattern>*.osx.php</exclude-pattern>
+	</rule>
+
 	<!-- PHP / WP version targets — match plugin headers. -->
 	<config name="testVersion" value="7.4-"/>
 	<config name="minimum_supported_wp_version" value="6.0"/>
