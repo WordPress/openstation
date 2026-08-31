@@ -4218,7 +4218,7 @@ apply_filters( 'openstation_code_blue_max_bytes',   int $max_bytes ):   int // d
 apply_filters( 'openstation_code_blue_max_entries', int $max_entries ): int // default 3000, floor 100
 ```
 
-Caps on the trailing window read from a log file per dispatch, and on how many parsed entries a render may carry (the oldest are dropped first). The parsed result is cached through `$os->cache` keyed on path + size + mtime.
+Caps on the trailing window read from a log file per dispatch, and on how many parsed entries a render may carry (the oldest are dropped first). Reads are deliberately uncached — a log reader's product is freshness, and these filters plus the parser's localized labels would all have to key the cache.
 
 ### `openstation_code_blue_log_cleared` — Experimental (action)
 
