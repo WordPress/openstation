@@ -125,6 +125,18 @@ Both bridges install the forwarder behind the shared `__openStationPointerForwar
 
 Parent side: the consumer resolves the sending frame by matching `MessageEvent.source` against each `<iframe>`'s `contentWindow` (cached in a `WeakMap`), then adds that element's `left` / `top`. A message from a frame it can't resolve is dropped rather than guessed at.
 
+### Keyboard forwarders — `os-palette-cycle`, `os-window-switch`, `os-window-close-all`
+
+A keydown inside an iframe never reaches the parent document, and every admin window is an iframe — so a shell-level chord pressed while an admin page has focus would simply do nothing. The chromeless bridge claims those three chords in **capture phase**, `preventDefault()`s + `stopImmediatePropagation()`s them (winning the race against Gutenberg, TinyMCE and plugin handlers bound to the same keys), and posts the intent up instead.
+
+| Type | Direction | Carries | Purpose |
+|---|---|---|---|
+| `os-palette-cycle` | iframe → parent | *(none)* | `Cmd/Ctrl+K`. Opens the shell's command palette / Ask AI overlay rather than the in-page `core/commands` one, which the shell harvests anyway. |
+| `os-window-switch` | iframe → parent | `{ direction: 'prev' \| 'next' }` | `` ` `` / `` Shift+` ``. Cycles window focus on the active desktop. |
+| `os-window-close-all` | iframe → parent | *(none)* | `⌥⌘W` / `Ctrl+Alt+W`. Runs the shell's confirm-then-`closeAll()` path (see [`javascript-reference.md`](./javascript-reference.md#batch-close--closeall)). |
+
+The backtick forwarder — and only that one — applies a **text-entry gate** before forwarding: a bare key with no modifier has to yield to whatever the user is typing into, including the `IFRAME` case that catches Gutenberg's block canvas re-dispatching cloned keydowns. The other two carry modifiers that type nothing, so they forward from anywhere.
+
 ### Background heartbeat throttle — `os-window-active`
 
 Every chromeless iframe is a complete wp-admin page running Core's Heartbeat — 15 s in the post editor. Core only slows Heartbeat when the browser **tab** is hidden; a background desktop window is still a visible iframe, so that backoff never engages, and a desktop with several windows open fires several admin-ajax heartbeats a minute from windows the user isn't looking at.

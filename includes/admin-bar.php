@@ -777,6 +777,10 @@ function openstation_enqueue_toggle_assets() {
 								'description' => __( 'Open the command palette / Ask AI overlay.', 'desktop-mode' ),
 							),
 							array(
+								'keys'        => array( '⌥/Alt', '⌘/Ctrl', 'W' ),
+								'description' => __( 'Close every open window on the current desktop (asks first).', 'desktop-mode' ),
+							),
+							array(
 								'keys'        => array( 'Esc' ),
 								'description' => __( 'Exit Overview (or Snap Overview) without changing window state.', 'desktop-mode' ),
 							),

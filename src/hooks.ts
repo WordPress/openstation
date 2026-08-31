@@ -1297,7 +1297,11 @@ export const HOOKS = {
 	WINDOWS_CLOSE_ALL: 'os.windows.close-all',
 	/**
 	 * Action, fires after {@link WindowManager.closeAll} has finished.
-	 * Payload `{ closed: number, skipped: Window[] }`.
+	 * Payload `{ closed: number, skipped: Window[], refused: Window[] }`
+	 * — `skipped` are the windows the filter protected, `refused` the
+	 * ones that turned the close down themselves (a native window's
+	 * `os.native-window.before-close` veto). Neither is counted in
+	 * `closed`.
 	 */
 	WINDOWS_AFTER_CLOSE_ALL: 'os.windows.after-close-all',
 

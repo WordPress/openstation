@@ -95,13 +95,14 @@ export class OsConfirmDialog extends Component {
 		'danger',
 		'hide-cancel',
 		'dismissable',
+		'remember-label',
 	] as const;
 	static styles = [ dialogStyles ];
 
 	static help = {
 		title: 'Confirm dialog',
 		summary:
-			'Modal Yes/No replacement for window.confirm(). Two consumption paths: declarative element with `open` + `os-confirm` event, or the imperative Promise-returning `osConfirm()` helper. Opening moves focus into the dialog and traps Tab inside it; closing hands focus back to the control that opened it. Escape always cancels. Enter is the default action only while no button is focused — on a focused Cancel it cancels — and a `danger` dialog has no default action at all, opening on the safe control and never on its destructive button.',
+			'Modal Yes/No replacement for window.confirm(). Two consumption paths: declarative element with `open` + `os-confirm` event, or the imperative Promise-returning `osConfirm()` helper. Opening moves focus into the dialog and traps Tab inside it; closing hands focus back to the control that opened it. Escape always cancels. Enter is the default action only while no button is focused — on a focused Cancel it cancels — and a `danger` dialog has no default action at all, opening on the safe control and never on its destructive button. `remember-label` adds a "don\'t ask again" checkbox whose state rides on the confirm event.',
 		status: 'stable',
 		props: [
 			{ name: 'open', type: 'boolean attribute', description: 'Mounts the dialog visible.' },
@@ -112,11 +113,12 @@ export class OsConfirmDialog extends Component {
 			{ name: 'danger', type: 'boolean attribute', description: 'Renders the confirm button red.' },
 			{ name: 'hide-cancel', type: 'boolean attribute', description: 'Hides the cancel button entirely. Useful when there is no alternative action — pair with `dismissable` so the user still has an explicit way to close.' },
 			{ name: 'dismissable', type: 'boolean attribute', description: 'Renders an X close button in the top-right corner. Click emits `os-cancel`.' },
+			{ name: 'remember-label', type: 'string', description: 'Renders a checkbox above the buttons — a "don\'t ask again" opt-out. Its state rides along on the `os-confirm` detail as `remember`; it is only meaningful on confirm, since a cancelled question was never answered.' },
 		],
 		events: [
 			{
 				name: 'os-confirm',
-				description: 'Fires on confirm. Detail: `{ confirmed: true }`.',
+				description: 'Fires on confirm. Detail: `{ confirmed: true, remember: boolean }` — `remember` is the checkbox `remember-label` renders, `false` when there is none.',
 			},
 			{
 				name: 'os-cancel',
@@ -397,8 +399,24 @@ export class OsConfirmDialog extends Component {
 		}
 	};
 
+	/**
+	 * The "don't ask again" checkbox's state, or `false` when the
+	 * dialog renders none. Read off the live DOM rather than mirrored
+	 * into a field: the input owns its own checked state, and a copy
+	 * would only be a second thing to keep in sync.
+	 */
+	private _remembered(): boolean {
+		const box = this.shadowRoot?.querySelector< HTMLInputElement >(
+			'.remember__box',
+		);
+		return box?.checked === true;
+	}
+
 	private _confirm = (): void => {
-		this.emit( 'os-confirm', { confirmed: true } );
+		this.emit( 'os-confirm', {
+			confirmed: true,
+			remember: this._remembered(),
+		} );
 		this.removeAttribute( 'open' );
 	};
 
@@ -417,6 +435,8 @@ export class OsConfirmDialog extends Component {
 		const isDanger = this.hasAttribute( 'danger' );
 		const hideCancel = this.hasAttribute( 'hide-cancel' );
 		const isDismissable = this.hasAttribute( 'dismissable' );
+		const rememberLabel =
+			( this as unknown as { 'remember-label': string | null } )[ 'remember-label' ] ?? '';
 		return html`
 			<div class="dialog" tabindex="-1">
 				${ isDismissable
@@ -432,6 +452,12 @@ export class OsConfirmDialog extends Component {
 					: html`` }
 				${ message
 					? html`<p class="message">${ message }</p>`
+					: html`` }
+				${ rememberLabel
+					? html`<label class="remember">
+						<input type="checkbox" class="remember__box" />
+						<span class="remember__label">${ rememberLabel }</span>
+					</label>`
 					: html`` }
 				<div class="actions">
 					${ hideCancel
@@ -467,6 +493,20 @@ export interface OsConfirmOptions {
 	hideCancel?: boolean;
 	/** Render an X close button in the top-right corner. Click emits `os-cancel`. */
 	dismissable?: boolean;
+	/**
+	 * Label for a "don't ask again" checkbox rendered above the
+	 * buttons. Omit it and no checkbox is rendered — which is the
+	 * right default: a question worth asking is usually worth asking
+	 * every time, and the opt-out only makes sense where the caller
+	 * has somewhere to persist it and somewhere to turn it back on.
+	 */
+	rememberLabel?: string;
+	/**
+	 * Called with the checkbox state when the user CONFIRMS. Never
+	 * called on cancel: a question the user backed out of was not
+	 * answered, so "don't ask me this again" cannot have been meant.
+	 */
+	onRemember?: ( remember: boolean ) => void;
 }
 
 /**
@@ -498,11 +538,20 @@ export function osConfirm( options: OsConfirmOptions ): Promise< boolean > {
 		if ( options.dismissable ) {
 			dialog.setAttribute( 'dismissable', '' );
 		}
+		if ( options.rememberLabel ) {
+			dialog.setAttribute( 'remember-label', options.rememberLabel );
+		}
 		const cleanup = ( ok: boolean ): void => {
 			dialog.remove();
 			resolve( ok );
 		};
-		dialog.addEventListener( 'os-confirm', () => cleanup( true ) );
+		dialog.addEventListener( 'os-confirm', ( e: Event ) => {
+			options.onRemember?.(
+				( e as CustomEvent< { remember?: boolean } > ).detail
+					?.remember === true,
+			);
+			cleanup( true );
+		} );
 		dialog.addEventListener( 'os-cancel', () => cleanup( false ) );
 		document.body.appendChild( dialog );
 		// Focus is the component's job — it captures the opener on

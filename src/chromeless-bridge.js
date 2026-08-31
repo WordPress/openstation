@@ -2542,6 +2542,34 @@
 		} catch ( err ) { /* cross-origin parent; swallow */ }
 	}, true );
 
+	/*
+	 * Ctrl/Cmd+Alt+W forwarder — close all windows.
+	 *
+	 * Same iframe-crossing rationale as the two forwarders above.
+	 * Unlike the backtick one there is no text-entry gate: the chord
+	 * carries two modifiers, so it types nothing into a field, and
+	 * "close everything" is a reasonable thing to ask for from inside
+	 * the window you want gone.
+	 *
+	 * `e.code` rather than `e.key`, because Option+W on macOS types a
+	 * different character and the W glyph moves between layouts.
+	 */
+	document.addEventListener( 'keydown', function ( e ) {
+		if ( ! ( e.metaKey || e.ctrlKey ) ) return;
+		if ( ! e.altKey || e.shiftKey ) return;
+		if ( e.code !== 'KeyW' ) return;
+
+		e.preventDefault();
+		e.stopImmediatePropagation();
+
+		try {
+			window.parent.postMessage(
+				{ type: 'os-window-close-all' },
+				window.location.origin
+			);
+		} catch ( err ) { /* cross-origin parent; swallow */ }
+	}, true );
+
 	// Skip if the standalone iframe-bridge bundle already wired
 	// screen-meta hoisting on this page. Two bridges racing to read
 	// `aria-expanded` and reflect state would double-fire the

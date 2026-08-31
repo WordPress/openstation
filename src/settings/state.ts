@@ -310,6 +310,10 @@ function _parseRaw( parsed: Partial<OsSettingsState> ): OsSettingsState {
 			typeof parsed.showDesktopOnWallpaperClick === 'boolean'
 				? parsed.showDesktopOnWallpaperClick
 				: DEFAULTS.showDesktopOnWallpaperClick,
+		confirmCloseAllWindows:
+			typeof parsed.confirmCloseAllWindows === 'boolean'
+				? parsed.confirmCloseAllWindows
+				: DEFAULTS.confirmCloseAllWindows,
 		mioEnabled:
 			typeof parsed.mioEnabled === 'boolean'
 				? parsed.mioEnabled
