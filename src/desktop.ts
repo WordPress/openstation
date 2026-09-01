@@ -12,10 +12,6 @@
  * sentinel for why that normalisation was reverted.
  */
 
-// Install the `wp.os.myWordpress` early-registration stub so
-// plugin scripts can call `registerEntityKind()` before the lazy
-// my-wordpress bundle mounts. Side-effect import — runs once.
-import './my-wordpress/early-api';
 import { WindowManager } from './window-manager';
 import { installWindowSwitcherShortcut } from './window-manager/switcher';
 import { installDesktopArrowShortcuts } from './window-manager/desktop-shortcuts';
@@ -730,8 +726,8 @@ export interface OpenStationPublicApi {
 	 * sight. Await this, then read the API:
 	 *
 	 * ```js
-	 * await wp.os.loadWindowScript( 'desktop-mode-my-wordpress' );
-	 * await wp.os.myWordpress.trashEntity( 'posts', 42 );
+	 * await wp.os.loadWindowScript( 'desktop-mode-agent-run' );
+	 * // …then read the API that bundle publishes on `wp.os`.
 	 * ```
 	 *
 	 * Resolves `true` once the bundle is in the tab (immediately on

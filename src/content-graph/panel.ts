@@ -23,6 +23,7 @@
  */
 
 import { __, _n, sprintf } from '../i18n';
+import { openExplorerDetail } from '../my-wordpress/explorer-open';
 import { decodeHTML } from '../utils';
 import {
 	fetchCommentStats,
@@ -62,13 +63,6 @@ interface DesktopApi {
 		getFocused?: () => DesktopWindow | null;
 	};
 	deriveWindowId?: ( url: string ) => string;
-	myWordpress?: {
-		openDetail: ( args: {
-			entityId: string;
-			postId: number;
-			postTitle: string;
-		} ) => void;
-	};
 }
 
 type PanelView =
@@ -512,8 +506,7 @@ export function renderPanel(
 	const renderPostActionsBlock = ( detail: PostDetail ): HTMLElement => {
 		const wrap = document.createElement( 'div' );
 		wrap.className = 'os-content-graph__panel-actions';
-		const api = desktopApi();
-		if ( api.myWordpress ) {
+		{
 			const myWp = button( {
 				label: sprintf(
 					// translators: %s is the site title.
@@ -524,10 +517,8 @@ export function renderPanel(
 				primary: true,
 			} );
 			myWp.addEventListener( 'click', () => {
-				const entityId =
-					detail.post.type === 'page' ? 'pages' : 'posts';
-				api.myWordpress!.openDetail( {
-					entityId,
+				openExplorerDetail( {
+					entityId: detail.post.type === 'page' ? 'pages' : 'posts',
 					postId: detail.post.id,
 					postTitle:
 						decodeHTML( detail.post.title ) ||

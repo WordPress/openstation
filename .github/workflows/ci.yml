@@ -104,6 +104,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # The one piece of build output the PHP suite reads from disk:
+      # `openstation_apps_client_bundle()` only reports an app's client
+      # view when `assets/js/apps/<name>[.min].js` exists, and that
+      # directory is gitignored like the rest of `assets/js/`. Two vite
+      # runs, well under a second — cheaper than a test that asserts
+      # against source instead of the artifact a user installs.
+      - name: Build app client views
+        run: npm run build:apps
+
       - name: Start wp-env (tests instance)
         env:
           WP_ENV_PHP_VERSION: ${{ matrix.php }}

@@ -259,6 +259,18 @@ The `'config'` arg on `openstation_register_window()` ships through the same del
 
 Nothing changes for plugin authors on either: `openstation_register_wallpaper()` / `openstation_register_widget()` and the `window.openStationWallpapers[ id ]` / `window.openStationWidgets[ id ]` contracts are unchanged.
 
+### App windows — `.os.php` (Experimental)
+
+A third way to fill a native window, built on the two above rather than beside them: an **app** is a native window whose body is **server-rendered PHP and re-rendered on every interaction**, driven by one shared client bundle. Full contract in [`app-framework.md`](./app-framework.md).
+
+- **Definition.** `OpenStation\App::define( $id )` — title, icon, size, title-bar buttons, ⋯ rows, per-window chrome, a typed `state( $defaults )`, `action()` handlers, and a `view()` that paints `<os-*>` markup. An `.os.php` file `return`s one. `App::manifest()` is the whole window as data.
+- **Host-agnostic core.** `includes/framework/` (`App`, `App\State`, `App\Runtime`, `App\Registry`, `App\Os`, `App\Effects`, `App\Html\*`) calls no WordPress function. The `$os` handle every callback receives is the data-access layer: five contracts (`Auth`, `Settings`, `Hooks`, `Cache`, `Env`) with WordPress adapters in `app/wordpress/` and pure-PHP ones in `app/standalone/`. `define( 'OPENSTATION_STANDALONE', true )` + the autoloader runs the same framework — and the same app files — on a bare PHP host.
+- **WordPress host.** `includes/framework/wordpress.php`: `init` @5 registers the `openstation-app-runtime` script + stylesheet; @10 loads `apps/` (+ `openstation_apps_directories`) and fires `openstation_apps_loaded`; @20 calls `openstation_register_window()` / `openstation_register_icon()` for every app the current user may use, with a template that is just the mount root (`<div data-os-app="…">` + spinner) and a `config` blob flagged `osApp: true`. One REST route, `POST desktop-mode/v1/apps/<id>/dispatch`, moves `{ action, state, args, client }` in and `{ state, html, effects }` out of `App\Runtime`.
+- **Client runtime.** `src/app-runtime/` → `assets/js/app-runtime[.min].js`. Publishes a render callback per app on `window.openStationNativeWindows[ id ]`, registers the manifest's title-bar buttons / ⋯ rows through the ordinary registries, and on open mounts a session: `mount` dispatch, delegated `os-action` / `os-bind` triggers, serialised requests, a keyed DOM morph of each response, effects, `os-poll` timers. The **state lives on the client, typed by the app's declared defaults and rebuilt server-side on every dispatch** — the server keeps nothing between requests, which is what makes the model boringly robust.
+- **Why not "render once, hydrate in JS".** Every existing native window is a PHP `template` plus a bundle that re-implements the view imperatively (Code Blue: 929 lines of `paintX()` functions). Making the view a function of state on the server removes that whole layer: no client model, no diffing code, no per-app bundle, and a second host (CLI, tests, another CMS) gets the window for free by calling `Runtime::describe()`.
+
+The reference app is **Code Blue** (`apps/code-blue/`), rebuilt from its former PHP-module-plus-bundle shape into one app file with identical features in under half the lines and zero TypeScript; `tests/phpunit/tests/codeBlue.php` pins that budget. The cost is one WordPress request per interaction — see [`app-framework.md` → Latency](./app-framework.md#latency--what-a-round-trip-costs).
+
 ### One channel bus, either kind of window, across the bundle seam
 
 `Window.on()` / `Window.send()`, `ctx.window.send/on` inside a native render, `whenContentReady()`, the loading → ready edge that `WINDOW_CONTENT_LOADING` / `WINDOW_CONTENT_LOADED` report, and the in-process leg of `wp.os.connect()` all read and write **one** set of per-window registries (`src/window-channels.ts`): parent-side subscribers, native-side subscribers, transport readiness, visual loading state, and the queue that holds a `send()` issued before the content is ready.
@@ -536,9 +548,9 @@ so permission callbacks see the agent's role, not the human caller.
 Per-agent hourly rate limits ride a transient counter.
 
 **Surfaces:** `/desktop-mode/v1/agents` REST CRUD + `/invoke`
-(`includes/rest/README.md`), the Agents section inside WP Explorer
-(server: `openstation_my_wordpress_entities` filter; client: the
-`agent` entity kind via `registerEntityKind()`), and the lazy
+(`includes/rest/README.md`), the Agents section inside the WP
+Explorer app (`apps/my-wordpress/parts/agents*.php` / `.ts`, over the
+same `openstation_agent_*` store the routes wrap), and the lazy
 `desktop-mode-agent-run` chat window fed through the cross-bundle
 `desktop-mode/agents-chat` shared store. Phase A ships the chat
 trigger; send-to/drag, hook, endpoint, and agent-to-agent intakes are

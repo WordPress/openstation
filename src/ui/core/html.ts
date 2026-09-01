@@ -554,12 +554,36 @@ function updateTemplateChild( child: ChildPart, result: TemplateResult ): void {
 
 function updateArrayChild( child: ChildPart, arr: readonly unknown[] ): void {
 	const old = child.state;
-	if ( old?.shape === 'array' && old.entries.length === arr.length ) {
-		// Length match — reconcile each slot in place. Each entry
-		// has its own sub-anchor, so per-index transitions (text ↔
-		// template) handle themselves via the same update pipeline.
-		for ( let i = 0; i < arr.length; i++ ) {
+	if ( old?.shape === 'array' ) {
+		// Prefix-stable reconciliation (still positional, not keyed):
+		// shared slots update in place, a shorter array disposes only
+		// the tail, a longer one appends fresh entries before the end
+		// anchor. Tearing the whole list down on ANY length change —
+		// the previous behaviour — recreated every node whenever an
+		// infinite scroll appended a page, which repainted the entire
+		// canvas (custom elements re-upgrade, images re-decode) as a
+		// visible full-container blink.
+		const shared = Math.min( old.entries.length, arr.length );
+		for ( let i = 0; i < shared; i++ ) {
 			updateChildPart( old.entries[ i ], arr[ i ] );
+		}
+		if ( arr.length < old.entries.length ) {
+			for ( let i = arr.length; i < old.entries.length; i++ ) {
+				const entry = old.entries[ i ];
+				if ( entry.state ) {
+					disposeChildState( entry.state );
+				}
+				entry.anchor.remove();
+			}
+			old.entries.length = arr.length;
+		} else {
+			for ( let i = old.entries.length; i < arr.length; i++ ) {
+				const entryAnchor = document.createTextNode( '' );
+				insertBeforeAnchor( child, [ entryAnchor ] );
+				const entry: ChildPart = { anchor: entryAnchor, state: null };
+				updateChildPart( entry, arr[ i ] );
+				old.entries.push( entry );
+			}
 		}
 		return;
 	}

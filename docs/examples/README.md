@@ -58,6 +58,7 @@ defined( 'ABSPATH' ) || exit;
 - [Layout primitives (body → panel → row → col)](./layout-primitives.md)
 - [`<os-flyout>` — sliding edge-anchored panel](./os-flyout.md)
 - [Render a data table — filters, sticky columns, sub-tables](./data-table.md)
+- [Ship a window as an `.os.php` app — state, actions, chrome, no JavaScript (Experimental)](./os-app.md)
 - [Loading spinner — presets and color overrides](./spinner.md)
 - [Progress bar — determinate, indeterminate, tones](./progress-bar.md)
 - [Window loading state — spinner overlay + ready signal](./window-loading.md)

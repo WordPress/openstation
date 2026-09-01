@@ -82,6 +82,13 @@ export interface ShortcutDragItem {
 	 */
 	entityId?: string;
 	/**
+	 * REST collection path for the source section (`wp/v2/posts`, a
+	 * CPT's collection, the bridge route for a non-REST type). What
+	 * the recycle bin DELETEs against — carried on the payload so a
+	 * drop needs no window, no config blob and no cross-bundle API.
+	 */
+	restPath?: string;
+	/**
 	 * Optional cross-frame bridge payload. When present the shell
 	 * fans this into `wp.os.dragBridge` at lift time so iframe
 	 * receivers (e.g. the Gutenberg drop-receiver) can react to the

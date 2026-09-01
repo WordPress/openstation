@@ -77,11 +77,9 @@ The in-tree example is `my-wordpress-woocommerce`, which hooks WP Explorer's `pr
 Load it first:
 
 ```js
-await wp.os.loadWindowScript( 'desktop-mode-my-wordpress' );
-await wp.os.myWordpress.trashEntity( 'posts', 42 );
+await wp.os.loadWindowScript( 'desktop-mode-agent-run' );
+// …then read the API that bundle publishes on `wp.os`.
 ```
-
-`wp.os.myWordpress` specifically does not need this — the shell ships an early stub that forwards through the same path for you, so existing calls keep working. The general helper is there for bundles that publish an API without one.
 
 ## How to tell which path a window took
 

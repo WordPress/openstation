@@ -1,0 +1,269 @@
+/**
+ * Code Blue — window styles.
+ *
+ * Only what the `<os-*>` components don't already carry: the fixed-
+ * height regions, the card chrome, the stat-tile typography, the
+ * issue rows. Every colour reads a token with the pre-brand admin
+ * literal as its floor, and the four severity tones resolve through
+ * the status tokens.
+ */
+
+.os-cb {
+	block-size: 100%;
+	padding: 12px 14px;
+	box-sizing: border-box;
+	/* The window never page-scrolls: every region is fixed-height and
+	   only the issue list scrolls, so a long list can't crush the chart. */
+	overflow: hidden;
+}
+
+.os-cb > :not( .os-cb__issues ) {
+	flex: none;
+}
+
+.os-cb__source,
+.os-cb__search {
+	min-inline-size: 200px;
+}
+
+/* The toolbar aligns to its bottom edge; the switch track is shorter
+   than the buttons beside it, so lift it onto their visual centre. */
+.os-cb__auto {
+	margin-block-end: 6px;
+}
+
+/* ---------- Severity swatches ---------------------------------------- */
+
+/* The tone-to-colour mapping itself lives in app-runtime.css (the
+   shared `data-tone` contract); these consumers only read it back. */
+.os-cb-swatch {
+	display: inline-block;
+	inline-size: 10px;
+	block-size: 10px;
+	border-radius: 3px;
+	flex: none;
+	background: var( --os-app-tone, var( --os-ui-fg-muted, #646970 ) );
+}
+
+/* ---------- Stat tiles ---------------------------------------------- */
+
+/* Column count lives here rather than in a `columns` attribute so the
+   container query below can override it (the attribute writes an
+   inline style, which would win). */
+.os-cb__stats {
+	--os-ui-grid-columns: repeat( 5, minmax( 0, 1fr ) );
+}
+
+@container ( max-width: 760px ) {
+	.os-cb__stats {
+		--os-ui-grid-columns: repeat( 3, minmax( 0, 1fr ) );
+	}
+}
+
+/* The tiles are the kit's <os-stat>; only Code Blue's variations on
+   its defaults live here: neutral (not accent) values on an elevated
+   card surface, at the old tile's size and weight. */
+.os-cb__stats os-stat {
+	--os-ui-stat-bg: var( --os-ui-surface-elevated, #fff );
+	--os-ui-stat-value-color: var( --os-ui-fg, #1d2327 );
+	--os-ui-stat-value-size: 22px;
+}
+
+/* ---------- Cards --------------------------------------------------- */
+
+.os-cb__card {
+	display: block;
+	border: 1px solid var( --os-ui-border, #dcdcde );
+	border-radius: 8px;
+	background: var( --os-ui-surface-elevated, #fff );
+	overflow: hidden;
+}
+
+.os-cb__card-head,
+.os-cb__chart::part( head ) {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+	flex-wrap: wrap;
+	margin: 0;
+	padding: 10px 14px;
+	border-block-end: 1px solid var( --os-ui-border, #dcdcde );
+}
+
+.os-cb__card-title {
+	margin: 0;
+	font-size: 13px;
+	font-weight: 600;
+	color: var( --os-ui-fg, #1d2327 );
+}
+
+.os-cb__chart::part( chart ) {
+	padding: 8px 6px 4px;
+}
+
+/* ---------- Issues -------------------------------------------------- */
+
+.os-cb__issues {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	min-block-size: 120px;
+}
+
+.os-cb__list {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	flex: 1;
+	min-block-size: 0;
+	overflow-y: auto;
+}
+
+.os-cb__list-empty {
+	padding: 20px;
+	list-style: none;
+}
+
+.os-cb-issue {
+	border-block-end: 1px solid var( --os-ui-border, #dcdcde );
+	border-inline-start: 3px solid var( --os-app-tone, transparent );
+}
+
+.os-cb-issue:last-child {
+	border-block-end: none;
+}
+
+.os-cb-issue__row {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	inline-size: 100%;
+	padding: 8px 12px;
+	border: none;
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	text-align: start;
+	cursor: pointer;
+}
+
+.os-cb-issue__row:hover {
+	background: var( --os-ui-surface-subtle, rgba( 0, 0, 0, 0.03 ) );
+}
+
+.os-cb-issue__row:focus-visible {
+	outline: 2px solid var( --os-ui-accent, #2271b1 );
+	outline-offset: -2px;
+}
+
+.os-cb-issue__level {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	flex: none;
+	inline-size: 150px;
+	overflow: hidden;
+}
+
+.os-cb-issue__label {
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+	color: var( --os-ui-fg-muted, #646970 );
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.os-cb-issue__message {
+	flex: 1;
+	min-inline-size: 0;
+	font-family: var( --os-ui-font-mono, ui-monospace, Menlo, Consolas, monospace );
+	font-size: 12px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.os-cb-issue__meta {
+	display: inline-flex;
+	align-items: center;
+	gap: 10px;
+	flex: none;
+	color: var( --os-ui-fg-muted, #646970 );
+	font-size: 12px;
+}
+
+.os-cb-issue__file {
+	font-family: var( --os-ui-font-mono, ui-monospace, Menlo, Consolas, monospace );
+	font-size: 11px;
+	max-inline-size: 200px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	direction: rtl; /* Ellipsize the start of long basenames, keep the :line end visible. */
+	text-align: end;
+}
+
+.os-cb-issue__when {
+	min-inline-size: 48px;
+	text-align: end;
+}
+
+@container ( max-width: 640px ) {
+	.os-cb-issue__level {
+		inline-size: auto;
+	}
+
+	.os-cb-issue__label,
+	.os-cb-issue__file {
+		display: none;
+	}
+}
+
+.os-cb-issue__detail {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	padding: 4px 14px 14px 22px;
+}
+
+.os-cb-issue__facts {
+	display: grid;
+	grid-template-columns: auto 1fr;
+	gap: 2px 14px;
+	margin: 0;
+	font-size: 12px;
+}
+
+.os-cb-issue__facts dt {
+	color: var( --os-ui-fg-muted, #646970 );
+}
+
+.os-cb-issue__facts dd {
+	margin: 0;
+	font-family: var( --os-ui-font-mono, ui-monospace, Menlo, Consolas, monospace );
+	overflow-wrap: anywhere;
+}
+
+.os-cb-issue__times {
+	font-size: 11px;
+}
+
+.os-cb-issue__times-label {
+	color: var( --os-ui-fg-muted, #646970 );
+}
+
+.os-cb-issue__trace {
+	font-size: 11px;
+	max-block-size: 320px;
+	overflow: auto;
+}
+
+/* ---------- Footer -------------------------------------------------- */
+
+.os-cb__footer {
+	font-size: 12px;
+	color: var( --os-ui-fg-muted, #646970 );
+}

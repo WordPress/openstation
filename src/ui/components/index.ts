@@ -73,6 +73,9 @@ export type {
 	OsSpinnerPulse,
 } from './os-spinner/os-spinner';
 export { OsRelativeTime } from './os-relative-time/os-relative-time';
+export { OsHistogram } from './os-histogram/os-histogram';
+export type { HistogramSeries } from './os-histogram/os-histogram';
+export { OsStat } from './os-stat/os-stat';
 export { OsAvatar } from './os-avatar/os-avatar';
 export type { OsAvatarPresence } from './os-avatar/os-avatar';
 export { OsTextarea } from './os-textarea/os-textarea';

@@ -17,14 +17,11 @@
  * @public
  */
 
-import { addFilter, removeFilter } from '../hooks';
+import { addAction, addFilter, removeAction, removeFilter } from '../hooks';
 import { __, sprintf } from '../i18n';
 import { dispatchAgentSendTo } from '../agents-dispatch';
 import { listAgents } from './agents-rest';
 import type { Agent } from './agents-types';
-import { getConfig } from './rest';
-import type { MyWordPressConfig } from './types';
-import type { AgentsSectionConfig } from './agents-types';
 
 interface TileMenuOptionLike {
 	id: string;
@@ -42,23 +39,27 @@ interface TileMenuCtx {
 
 let cache: Agent[] | null = null;
 let warming = false;
-
 /**
- * The section config ships on every WP Explorer window the user may
- * read agents in — including sites where the framework itself is off,
- * so the section can render its "turn it on" state. `enabled` is the
- * half that says whether the REST routes exist; without it the warm-up
- * below would fetch a 404 on every such site.
+ * Whether the agents REST routes exist — `null` until a consumer
+ * says. The explorer app sets it from its payload's `agentsEnabled`
+ * flag on every render, so the warm-up never fetches a 404 on a
+ * site where the framework is off, and flipping the option in
+ * Preferences re-arms the menu without a reload.
  */
-function agentsConfigured(): boolean {
-	try {
-		const agents = ( getConfig() as MyWordPressConfig & {
-			agents?: AgentsSectionConfig;
-		} ).agents;
-		return Boolean( agents?.enabled );
-	} catch {
-		return false;
+let enabledFlag: boolean | null = null;
+
+/** Tell the intake whether the agents routes exist right now. */
+export function setSendToEnabled( enabled: boolean ): void {
+	if ( enabledFlag === false && enabled ) {
+		// Just switched on — the empty cache (if any) predates the
+		// routes existing.
+		cache = null;
 	}
+	enabledFlag = enabled;
+}
+
+function agentsConfigured(): boolean {
+	return enabledFlag === true;
 }
 
 /** Fetch (once) the agents the menu can offer. */
@@ -156,6 +157,14 @@ export function registerSendToMenuFilter(): void {
 		FILTER_NAMESPACE,
 		sendToMenuFilter,
 	);
+	// Another bundle changed the roster (the My WordPress APP's Agents
+	// section creates, edits and deletes agents in its own bundle, so
+	// it cannot reach this module's cache directly): drop it and
+	// re-warm, the same as the section renderer's refresh.
+	removeAction( 'os.agents.roster-changed', FILTER_NAMESPACE );
+	addAction( 'os.agents.roster-changed', FILTER_NAMESPACE, () => {
+		refreshSendToAgents();
+	} );
 	// Menus build synchronously — warm the cache up front so the first
 	// right-click already offers the agents.
 	void warmSendToAgents();
@@ -189,6 +198,11 @@ function sendToMenuFilter(
 			),
 			icon: 'dashicons-share-alt',
 			onSelect: () => {
+				const config = (
+					window.wp as
+						| { os?: { config?: { restUrl?: string; restNonce?: string } } }
+						| undefined
+				)?.os?.config;
 				void dispatchAgentSendTo(
 					{
 						id: agent.id,
@@ -198,8 +212,8 @@ function sendToMenuFilter(
 					},
 					{ kind, id, title },
 					{
-						restRoot: getConfig().restRoot,
-						restNonce: getConfig().restNonce,
+						restRoot: String( config?.restUrl ?? '' ),
+						restNonce: String( config?.restNonce ?? '' ),
 					},
 				);
 			},

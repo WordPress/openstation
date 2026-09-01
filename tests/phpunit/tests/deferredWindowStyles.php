@@ -66,7 +66,6 @@ class Tests_OpenStation_DeferredWindowStyles extends WP_UnitTestCase {
 	 */
 	private function register_built_in_windows() {
 		$registrars = array(
-			'openstation_my_wordpress_register_window',
 			'openstation_posts_window_register_window',
 			'openstation_pages_window_register_window',
 			'openstation_users_window_register_window',
@@ -77,7 +76,9 @@ class Tests_OpenStation_DeferredWindowStyles extends WP_UnitTestCase {
 			'openstation_games_register_window',
 			'openstation_station_home_register_window',
 			'openstation_agent_run_window_register',
-			'openstation_code_blue_register_window',
+			// Code Blue is an App Framework `.os.php`; the framework
+			// registers every allowed app in one pass.
+			'openstation_apps_register_windows',
 			'openstation_my_wordpress_woo_customer_window_register',
 		);
 		foreach ( $registrars as $registrar ) {
@@ -97,7 +98,7 @@ class Tests_OpenStation_DeferredWindowStyles extends WP_UnitTestCase {
 	 * @var string[]
 	 */
 	const DEFERRED_WINDOW_IDS = array(
-		'desktop-mode-my-wordpress',
+		'my-wordpress',
 		'desktop-mode-posts',
 		'desktop-mode-pages',
 		'desktop-mode-users',
@@ -119,7 +120,7 @@ class Tests_OpenStation_DeferredWindowStyles extends WP_UnitTestCase {
 	 * @var string[]
 	 */
 	const ALWAYS_PRESENT = array(
-		'desktop-mode-my-wordpress',
+		'my-wordpress',
 		'desktop-mode-posts',
 		'desktop-mode-pages',
 		'desktop-mode-comments',

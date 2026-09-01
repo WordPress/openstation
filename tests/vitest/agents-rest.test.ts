@@ -13,7 +13,6 @@ import {
 	updateAgent,
 } from '../../src/my-wordpress/agents-rest';
 
-const WINDOW_ID = 'desktop-mode-my-wordpress';
 
 type FetchMock = ReturnType< typeof vi.fn >;
 
@@ -31,21 +30,21 @@ function mockFetch(
 }
 
 beforeEach( () => {
-	( window as unknown as Record< string, unknown > ).openStationWindowConfig = {
-		[ WINDOW_ID ]: {
-			restRoot: 'https://example.test/wp-json/',
-			restNonce: 'test-nonce',
-			entities: [],
-			perPage: 24,
-			editPostUrlBase: '',
+	// The client reads the SHELL config (`wp.os.config`) — the boot
+	// payload every shell page carries — not any window's blob.
+	( window as unknown as { wp?: unknown } ).wp = {
+		os: {
+			config: {
+				restUrl: 'https://example.test/wp-json/',
+				restNonce: 'test-nonce',
+			},
 		},
 	};
 } );
 
 afterEach( () => {
 	vi.restoreAllMocks();
-	delete ( window as unknown as Record< string, unknown > )
-		.openStationWindowConfig;
+	delete ( window as unknown as { wp?: unknown } ).wp;
 } );
 
 describe( 'agents REST client', () => {

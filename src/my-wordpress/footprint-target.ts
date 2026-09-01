@@ -2,37 +2,38 @@
  * My WordPress — cross-bundle "open this user's activity footprint"
  * target.
  *
- * The native My WordPress window's bundle is lazy-loaded and lives in
- * its own Vite IIFE. The click that requests a footprint originates
- * elsewhere — most notably the chromeless `users.php` iframe, whose
- * row-action click is routed through the window-system bundle's
- * `handleWindowMessage`. Module-level state in one bundle is invisible
- * to another (see `AGENTS.md` § "Cross-bundle state"), so the target
- * user is threaded through `wp.os.createSharedStore` — the same
- * mechanism `src/posts-window/user-edit-target.ts` uses for the User
- * Edit window.
+ * Footprints render inside the WP Explorer APP, whose client bundle
+ * is a lazy companion of its window. The click that requests one
+ * originates elsewhere — most notably the chromeless `users.php`
+ * iframe, whose row-action click is routed through the window-system
+ * bundle's `handleWindowMessage`. Module-level state in one bundle is
+ * invisible to another (see `AGENTS.md` § "Cross-bundle state"), so
+ * the target user is threaded through `wp.os.createSharedStore` — the
+ * same mechanism `src/posts-window/user-edit-target.ts` uses for the
+ * User Edit window.
  *
  * Flow:
  *   1. A caller (parent shell handler, plugin code) invokes
  *      `openUserFootprintWindow( { userId, userName } )`.
  *   2. That stashes the target here, then calls
- *      `wp.os.openWindow( 'desktop-mode-my-wordpress' )`, which
- *      opens the window — triggering the lazy bundle load — or focuses
- *      it when it is already open.
- *   3. The My WordPress bundle reads the target on mount (cold open)
+ *      `wp.os.openWindow( 'my-wordpress' )`, which opens the app —
+ *      loading its bundle — or focuses it when it is already open.
+ *   3. The app's client view reads the target on mount (cold open)
  *      and subscribes for re-targets (warm, already-open window). See
- *      `src/my-wordpress/index.ts`.
+ *      `apps/my-wordpress/parts/wire.ts`.
  *
- * Cold-start safety is the whole point of routing through the shared
- * store rather than `wp.os.myWordpress.openDetail()`: the latter
- * only exists once the lazy bundle has mounted (the early stub in
- * `early-api.ts` buffers `registerEntityKind` and nothing else), so a
- * footprint click in a session that never opened My WordPress would
- * silently no-op.
+ * Cold-start safety is the point of routing through the shared store:
+ * a footprint click in a session that never opened the explorer must
+ * still land on the right person once the bundle mounts.
  */
 
-/** Native My WordPress window id — the lazy bundle's `WINDOW_ID`. */
-const WINDOW_ID = 'desktop-mode-my-wordpress';
+/**
+ * The window that renders footprints: the WP Explorer APP
+ * (`apps/my-wordpress/`). Its client view consumes the pending
+ * target on mount and subscribes for re-targets — see
+ * `apps/my-wordpress/parts/wire.ts`.
+ */
+const WINDOW_ID = 'my-wordpress';
 
 interface SharedStoreApi< T > {
 	state: T;

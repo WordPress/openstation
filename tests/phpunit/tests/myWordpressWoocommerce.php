@@ -148,11 +148,12 @@ class Tests_OpenStation_MyWordpressWoocommerce extends WP_UnitTestCase {
 	 * buys. Enqueueing it here instead would put 47 KB on every
 	 * admin page a merchant never opens WP Explorer from.
 	 *
-	 * @covers ::openstation_my_wordpress_woo_window_args
+	 * @covers ::openstation_my_wordpress_woo_app_window_args
 	 */
 	public function test_bundle_is_attached_to_the_explorer_window_not_enqueued() {
-		$args = openstation_my_wordpress_woo_window_args(
-			array( 'title' => 'WP Explorer' )
+		$args = openstation_my_wordpress_woo_app_window_args(
+			array( 'title' => 'WP Explorer' ),
+			'my-wordpress'
 		);
 
 		// No WooCommerce in this test process, so the filter passes

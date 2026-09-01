@@ -3634,17 +3634,20 @@ apply_filters( 'openstation_my_wordpress_user_can_use', bool $can ): bool
 
 Gates icon registration and window registration in one shot. Default `current_user_can( 'edit_posts' )`. Return `false` to hide the entry point for a role; return `true` to opt a role back in.
 
-### `openstation_my_wordpress_window_args` / `openstation_my_wordpress_icon_args` — Experimental (filter)
+### Removed — the legacy explorer window's filters
 
-Tweak the args passed to `openstation_register_window()` / `openstation_register_icon()` for WP Explorer — useful to change dimensions, swap the icon, or remove the `pinned` flag so the icon participates in the normal sort order. Retitling the window here retitles the app; to rename the *root folder* the window opens on, filter [`openstation_site_title`](#openstation_site_title--experimental) instead, which also covers the breadcrumb root and the cross-window "Open in &lt;site&gt;" actions.
+`openstation_my_wordpress_window_args`, `openstation_my_wordpress_icon_args` and `openstation_my_wordpress_template_html` are gone with the `desktop-mode-my-wordpress` native window they configured. WP Explorer is the `my-wordpress` **app** now:
 
-### `openstation_my_wordpress_entities` — Experimental (filter)
+- To reshape the window or the launcher — title, art, size, position, the `pinned` flag — filter [`openstation_app_manifest`](#openstation_app_manifest--experimental-filter) with `$id === 'my-wordpress'`, or [`openstation_app_window_args`](#openstation_app_window_args--experimental-filter) for the registration args (companion `scripts` / `styles` included).
+- To rename the *root folder* the explorer opens on, filter [`openstation_site_title`](#openstation_site_title--experimental), which also covers the breadcrumb root and the cross-window "Open in &lt;site&gt;" actions.
+
+### `openstation_my_wordpress_entities` — Experimental (filter, inert)
 
 ```php
 apply_filters( 'openstation_my_wordpress_entities', array[] $entities ): array[]
 ```
 
-The list of entity types rendered as folder tiles in the window's root view. Each entry must declare:
+**Inert since the legacy window's removal.** The filter still runs (registered subscribers keep executing, so nothing fatals), but no window consumes its list — the explorer app builds its own sections; register there via [`openstation_my_wordpress_app_sections`](#openstation_my_wordpress_app_sections--experimental-filter). Kept documented for the descriptor vocabulary older subscribers were written against. Each entry declared:
 
 - `id` — slug, used in the route hash and tile `data-entity-id`.
 - `label` — human-readable folder name.
@@ -3958,10 +3961,6 @@ customer means nothing).
 Both filters only run when WooCommerce is active and the viewer passes
 the customers permission gate — order access **and** `list_users`.
 
-### `openstation_my_wordpress_template_html` — Experimental (filter)
-
-The static template body before it's emitted into the native-window template element. Keep the `data-os-my-wordpress-*` data hooks intact so the JS bundle can find its mount points.
-
 ### `openstation_my_wordpress_user_stats` — Experimental (filter)
 
 ```php
@@ -4115,17 +4114,89 @@ Tweak the args passed to `openstation_register_window()` / `openstation_register
 
 ---
 
+## App Framework
+
+Windows declared in PHP as `.os.php` files — see [`app-framework.md`](./app-framework.md). The WordPress host (`includes/framework/wordpress.php`) loads app files on `init` @10, registers each allowed app as a native window on `init` @20, and serves one REST route. Every seam below is `Experimental`.
+
+### `openstation_apps_directories` — Experimental (filter)
+
+```php
+apply_filters( 'openstation_apps_directories', string[] $dirs ): string[]
+```
+
+Absolute directories scanned for `.os.php` files (directly inside, and one folder down). Default: `apps/` inside OpenStation. Append your plugin's folder to ship apps as files.
+
+### `openstation_apps_loaded` — Experimental (action)
+
+```php
+do_action( 'openstation_apps_loaded', OpenStation\App\Registry $registry )
+```
+
+Fires once every app file has been loaded, on `init` @10. Add an app built in code with `$registry->add( App::define( … ) )`; remove one with `$registry->remove( $id )`.
+
+### `openstation_app_manifest` — Experimental (filter)
+
+```php
+apply_filters( 'openstation_app_manifest', array $manifest, string $id, OpenStation\App $app ): array
+```
+
+An app's manifest just before it is registered with the shell — `title`, `icon`, `width`/`height`, `min_width`/`min_height`, `placement`, `nav_kind`, `dock_order`, `placeable`, `autofocus`, `desktop_icon`, `style`, `state`, `actions`, `title_bar_buttons`, `window_actions`, `appearance`, `config`. Resize a window, add a title-bar button to someone else's app, retarget its stylesheet.
+
+### `openstation_app_window_args` — Experimental (filter)
+
+```php
+apply_filters( 'openstation_app_window_args', array $window_args, string $id, OpenStation\App $app ): array
+```
+
+The `openstation_register_window()` args the manifest produced, just before the window registers. Where `openstation_app_manifest` shapes what the app *declared*, this filter reaches the registration itself — most usefully its `scripts` / `styles` arrays, which the manifest cannot express. That is the seam a companion plugin uses to ride an app window it doesn't own: append a registered script or style handle and it loads as a first-open companion — in the tab before the app's client view renders (so hook subscribers are listening when the app fires its seams), and never on a page that doesn't open the window.
+
+```php
+add_filter( 'openstation_app_window_args', function ( $args, $id ) {
+	if ( 'my-wordpress' !== $id ) {
+		return $args;
+	}
+	$args['scripts'][] = 'my-plugin-explorer-extras'; // wp_register_script()-ed elsewhere.
+	return $args;
+}, 10, 2 );
+```
+
+This is how the WooCommerce integration attaches its `os-my-wordpress-woocommerce` bundle (and stylesheet) to the My WordPress app — the same bundle WP Explorer's window declares, one subscriber decorating both windows.
+
+### `openstation_app_registered` — Experimental (action)
+
+```php
+do_action( 'openstation_app_registered', string $id, array $manifest )
+```
+
+Fires after `openstation_register_window()` (and `openstation_register_icon()` when the app asked for a desktop icon) succeeded for an app.
+
+### `openstation_app_response` — Experimental (filter)
+
+```php
+apply_filters( 'openstation_app_response', array $response, string $id, string $action, OpenStation\App\State $state ): array
+```
+
+A dispatch response before it leaves `App\Runtime` — `ok`, `state`, `html`, `effects`, plus `data` when the app declared `App::data()` (a client-view app). Runs through the app's `$os->filter()`, so on WordPress it is an ordinary filter; on a standalone host it is whatever the host's `Hooks` adapter does. Append an effect, post-process the markup or the data, or log the action.
+
+### REST — `POST desktop-mode/v1/apps/<id>/dispatch` — Experimental
+
+Body `{ action, state, args, client }`; response `{ ok, state, html, effects }`. Permission: logged in AND the app exists AND `App::allows()` (its `capabilities()` and `can()` gate). Errors: `openstation_app_unauthorized` (401), `openstation_app_not_found` (404), `openstation_app_forbidden` (403), `openstation_app_unknown_action` (400), `openstation_app_action_failed` (500).
+
+### Helpers
+
+- `openstation_app( $id )` — the registered `App` or null.
+- `openstation_app_render( $id, array $state = array() )` — the whole window as a value: `manifest`, `state` after `mount`, `html`, `effects`.
+- `openstation_apps_registry()`, `openstation_apps_runtime()`, `openstation_apps_os()`.
+
+---
+
 ## Code Blue
 
-An error-log reader: tails the logs the install can produce (WP debug log, PHP error log, anything a plugin registers), parses them into structured entries, and renders a severity histogram plus a grouped issue list. Registers a native window (`openstation-code-blue`) plus a desktop icon on `init` priority 20. Server module: `includes/code-blue/`. The REST routes live under the plugin's frozen `desktop-mode/v1` namespace like every other route.
+An error-log reader: tails the logs the install can produce (WP debug log, PHP error log, anything a plugin registers), parses them into structured entries, and renders a severity histogram plus a grouped issue list. It is an [App Framework](./app-framework.md) app — `apps/code-blue/code-blue.os.php` plus `log-reader.php` — registered as the native window `openstation-code-blue` with a desktop icon, and it ships no JavaScript of its own. There are no Code Blue REST routes: every interaction is a dispatch to `POST desktop-mode/v1/apps/openstation-code-blue/dispatch`. (Its previous module-plus-bundle shape and the surface that went with it: [`migration-code-blue-app.md`](./migration-code-blue-app.md).)
 
-The whole surface — icon, window, nav entry, and REST routes — sits behind one gate with two conditions, both required: **Developer mode** (`developerModeEnabled` in OpenStation Preferences, off by default — Code Blue is a developer-facing surface and registers nothing until the user flips it) and a capability — `manage_options`, raised to `manage_network_options` on multisite, since log content leaks server paths and SQL and the debug/PHP error logs are network-wide files. Flipping the Preferences toggle takes effect live: once the settings save persists, the panel spends one [`wp.os.refreshMenu()`](./javascript-reference.md) probe and the icon/window appear (or disappear) without a reload.
+The whole surface — icon, window, nav entry, dispatch endpoint — sits behind one gate with two conditions, both required: **Developer mode** (`developerModeEnabled` in OpenStation Preferences, off by default — Code Blue is a developer-facing surface and registers nothing until the user flips it) and a capability — `manage_options`, raised to `manage_network_options` on multisite, since log content leaks server paths and SQL and the debug/PHP error logs are network-wide files. Flipping the Preferences toggle takes effect live: once the settings save persists, the panel spends one [`wp.os.refreshMenu()`](./javascript-reference.md) probe and the icon/window appear (or disappear) without a reload.
 
-### REST — `desktop-mode/v1/code-blue/*` — Experimental
-
-- `GET /sources` — log sources plus the environment card (`WP_DEBUG*` constants, versions, environment type).
-- `GET /entries?source=<id>` — parsed entries from one source's trailing window: `{ source, entries, truncated, scanned_bytes, dropped_entries, generated_at }`. Each entry: `{ timestamp, level, label, message, file, line, trace, signature }` where `level` is one of `fatal | error | warning | deprecated | notice | info` and `signature` is the server-computed grouping key.
-- `DELETE /entries?source=<id>` — truncates the log file to zero bytes.
+To reshape the window itself — size, icon position, the title-bar Refresh button, the ⋯ Clear row — use [`openstation_app_manifest`](#openstation_app_manifest--experimental-filter) with `$id === 'openstation-code-blue'`; to post-process its markup, [`openstation_app_response`](#openstation_app_response--experimental-filter).
 
 ### `openstation_code_blue_user_can_use` — Experimental (filter)
 
@@ -4133,7 +4204,7 @@ The whole surface — icon, window, nav entry, and REST routes — sits behind o
 apply_filters( 'openstation_code_blue_user_can_use', bool $can ): bool
 ```
 
-Permission gate for the icon, the window, and every REST route. Default: Developer mode enabled in OpenStation Preferences AND `current_user_can( 'manage_options' )` (`manage_network_options` on multisite).
+Permission gate for the icon, the window, and the dispatch endpoint. Default: Developer mode enabled in OpenStation Preferences AND `current_user_can( 'manage_options' )` (`manage_network_options` on multisite).
 
 ### `openstation_code_blue_log_sources` — Experimental (filter)
 
@@ -4149,7 +4220,7 @@ The log files the window offers. Each entry declares `id` (slug), `label`, and `
 apply_filters( 'openstation_code_blue_entries', array[] $entries, array $source, string $raw ): array[]
 ```
 
-The parsed entries for one source, before the entry cap is applied. The escape hatch for logs the built-in parser doesn't understand (Monolog, ISO-timestamped formats): re-parse `$raw` yourself for your own `$source` and return your own entry array. Each entry: `timestamp` (int|null), `level`, `label`, `message`, `file`, `line`, `trace`, `signature` — build them with `openstation_code_blue_make_entry()` to get the location extraction and grouping signature for free.
+The parsed entries for one source, before the entry cap is applied. The escape hatch for logs the built-in parser doesn't understand (Monolog, ISO-timestamped formats): re-parse `$raw` yourself for your own `$source` and return your own entry array. Each entry: `timestamp` (int|null), `level`, `label`, `message`, `file`, `line`, `trace`, `signature` — build them with `OpenStation\Apps\CodeBlue\make_entry()` to get the location extraction and grouping signature for free.
 
 ### `openstation_code_blue_environment` — Experimental (filter)
 
@@ -4157,7 +4228,7 @@ The parsed entries for one source, before the entry cap is applied. The escape h
 apply_filters( 'openstation_code_blue_environment', array[] $rows ): array[]
 ```
 
-The environment rows shown as chips in the window. Each: `key`, `label`, `value` (string), `on` (bool renders an on/off tone, null renders neutral).
+The environment rows shown as badges in the window. Each: `label`, `value` (string), `on` (bool renders an on/off tone, null renders neutral).
 
 ### `openstation_code_blue_max_bytes` / `openstation_code_blue_max_entries` — Experimental (filter)
 
@@ -4166,24 +4237,7 @@ apply_filters( 'openstation_code_blue_max_bytes',   int $max_bytes ):   int // d
 apply_filters( 'openstation_code_blue_max_entries', int $max_entries ): int // default 3000, floor 100
 ```
 
-Caps on the trailing window read from a log file per request, and on how many parsed entries a response may carry (the oldest are dropped first).
-
-### `openstation_code_blue_template_html` — Experimental (filter)
-
-```php
-apply_filters( 'openstation_code_blue_template_html', string $html ): string
-```
-
-The window's static template body before it's `wp_kses`'d. The bundle mounts into `[data-os-code-blue-root]` — keep that hook intact.
-
-### `openstation_code_blue_window_args` / `openstation_code_blue_icon_args` — Experimental (filter)
-
-```php
-apply_filters( 'openstation_code_blue_window_args', array $window_args ): array
-apply_filters( 'openstation_code_blue_icon_args',   array $icon_args ):   array
-```
-
-Tweak the args passed to `openstation_register_window()` / `openstation_register_icon()` for Code Blue — dimensions, icon, icon position, or the `config` blob (`apiBase`, `restNonce`).
+Caps on the trailing window read from a log file per dispatch, and on how many parsed entries a render may carry (the oldest are dropped first). Reads are deliberately uncached — a log reader's product is freshness, and these filters plus the parser's localized labels would all have to key the cache.
 
 ### `openstation_code_blue_log_cleared` — Experimental (action)
 
@@ -4191,9 +4245,44 @@ Tweak the args passed to `openstation_register_window()` / `openstation_register
 do_action( 'openstation_code_blue_log_cleared', string $id, string $path )
 ```
 
-Fires after the `DELETE /entries` route truncates a log file.
+Fires after the `clear` action truncates a log file.
 
 ---
+
+## My WordPress
+
+The content explorer app — `apps/my-wordpress/my-wordpress.os.php` + `my-wordpress.os.ts`, an [App Framework](./app-framework.md) app in the framework's two halves. The PHP half is the truth: a root folder grid (Posts, Pages, Media, Users, plus every eligible custom post type folded into plugin-group folders), `WP_Query`-backed searchable/sortable lists, per-item dossiers (rendered post preview, media usage scan, user footprint, edit-lock holder), per-item authorization, and the trash / bulk-trash / open-in-editor actions. The client half makes it instant: click / Ctrl / Shift / **marquee selection**, **infinite scroll**, **drag rows out to the desktop** (`wp.os.dragManager`), the per-row context menu, media **zoom**, and the copy-links clipboard action — none of which leaves the tab. Registered as the native window `my-wordpress` behind `edit_posts`, with a desktop icon, and repainted live by `watch( '*' )` whenever any window changes any content.
+
+It discovers custom post types through the **same helpers WP Explorer uses** — `openstation_my_wordpress_eligible_post_types()`, `openstation_my_wordpress_post_type_icon()`, `openstation_my_wordpress_post_type_group()`, `openstation_my_wordpress_collect_groups()` — so the `openstation_my_wordpress_post_types`, `openstation_my_wordpress_post_type_entity` (icon/group only) and `openstation_my_wordpress_post_type_groups` filters above shape both windows. **Preview actions are shared too**: descriptors collected by `openstation_my_wordpress_preview_actions` and refined by the `os.my-wordpress.preview-actions` JS filter appear in this window's pane and context menu exactly as they do in WP Explorer — one registration, two surfaces. It is a sibling of WP Explorer (`desktop-mode-my-wordpress`), not a replacement — WP Explorer keeps its id, icon and every filter.
+
+The app consumes WP Explorer's **JS extension seams** too, unchanged: `os.my-wordpress.preview-extras` fires over the preview article's `header` / `meta` / `footer` slots (post, media and user kinds; the navigate-into article carries a `meta` slot), `os.my-wordpress.list-tile` fires per rendered tile after it is in the DOM, and the `os.my-wordpress.list-bands` filter groups a section's grid into the same banded layout (declared order, tone tints, count chips, unlabelled tail band). List rows carry the REST-visible fields subscribers read — registered `show_in_rest` meta under `meta`, and one term-id array per REST-exposed taxonomy keyed by `rest_base` — so a band assigner or extras painter written for WP Explorer works here without edits.
+
+The app also carries the **Agents section** (see [AI Agents](#ai-agents)) as a root tile, listed for every user who may read agents even while the framework is off — WP Explorer's design, 1:1, including the create wizard (Describe → Meet → Powers → Summon → Launch), the face picker, the off-state preview cast, drag & drop onto the cast cards and drag-out to the desktop. The mutations run as app actions (`agent-draft` / `agent-create` / `agent-update` / `agent-delete`) through the same `openstation_agent_*` store, draft and identity functions the `/desktop-mode/v1/agents` routes wrap, behind the same read/manage/invoke gates. After a roster change the client fires the `os.agents.roster-changed` JS action (on `wp.hooks`), which WP Explorer's "Send to" menu cache listens for — trigger edits made in the app reach WP Explorer's context menus without a reload.
+
+### `openstation_my_wordpress_app_sections` — Experimental (filter)
+
+```php
+apply_filters( 'openstation_my_wordpress_app_sections', array[] $sections ): array[]
+```
+
+The sections the explorer offers, builtins and discovered CPTs included. Each: `id`, `label`, `icon` (Dashicons class or image URL), `kind` (`post` | `media` | `user`), `post_type` (post kinds), `capability` (the section is silently absent for users without it), `thumbnails`, and the optional folder fields `group` / `groupLabel` / `groupIcon` / `groupOrder`. Runs on every render, so a post type registered at any point of the bootstrap can appear — nothing is frozen at registration time.
+
+```php
+add_filter( 'openstation_my_wordpress_app_sections', function ( $sections ) {
+	$sections[] = array(
+		'id'         => 'products',
+		'label'      => __( 'Products', 'my-plugin' ),
+		'icon'       => 'dashicons-cart',
+		'kind'       => 'post',
+		'post_type'  => 'product',
+		'capability' => 'edit_products',
+		'thumbnails' => true,
+		'group'      => 'my-shop',
+		'groupLabel' => __( 'My Shop', 'my-plugin' ),
+	);
+	return $sections;
+} );
+```
 
 ## Living Tree wallpaper
 

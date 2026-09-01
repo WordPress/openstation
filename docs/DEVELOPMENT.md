@@ -22,6 +22,8 @@ npm run lint:php:fix       # PHPCBF — applies every auto-fixable rule
 npm run env:stop:tests     # when you're done
 ```
 
+One PHPUnit test reads build output rather than source: an app's client view is only reported when `assets/js/apps/<name>[.min].js` exists on disk, and that directory is gitignored. On a fresh clone run `npm run build` (or just `npm run build:apps`) once before `npm run test:php` — the assertion names the command if you forget.
+
 `npm run env:start` spins up a self-contained WordPress + MariaDB stack with this checkout bind-mounted as the plugin: the manual QA environment on `http://localhost:8890/wp-admin/` (`admin` / `password`). PHPUnit runs in a second, independent instance defined by `.wp-env.tests.json` (port `8891`), started with `npm run env:start:tests`; the `test:php*` scripts target it via wp-env's `--config` flag, so QA state and test runs never share a database. See [Manual QA and per-worktree instances](#manual-qa-and-per-worktree-instances-wp-env) for how the mount works and how to run one instance per git worktree.
 
 ## Manual QA and per-worktree instances (wp-env)
@@ -109,6 +111,15 @@ Before reaching for a `phpcs:ignore`, check that the finding is genuinely not a 
 
 Extensions under `extensions/` are excluded here and scanned against their own rulesets — they ship as separate plugins with their own prefixes and text domains.
 
+### File length — a nudge, not a gate
+
+Two twin rules keep an eye on file size, one per language, both **warnings by design**:
+
+- **TypeScript**: `local-rules/os-file-length` (`eslint-local-rules/os-file-length.cjs`), shown by `npm run lint`.
+- **PHP**: `OpenStation.Files.FileLength` (`tools/phpcs/OpenStation/`), hidden by the errors-only gate, shown by `npm run lint:php:all` and in editors.
+
+Past 1,000 total lines a file gets one encouraging warning: split it along its natural seams and aim for modules of ~300–600 lines — small enough to hold in one head, one review and one test file. A long file is a smell, not a defect, which is why neither rule ever fails a build; the right moment to split is a judgement call. When the file is an App Framework app, the split recipe is documented: [`app-framework.md` → "Splitting a large app"](./app-framework.md#splitting-a-large-app).
+
 ## Module layout
 
 ```
@@ -182,6 +193,11 @@ single-purpose modules and feature directories (drag bridge, devtools,
 pinned notes, …). Run `ls src/` for the full picture; the shipped
 bundles (and the TS entry behind each) are the `build:*` scripts in
 `package.json`, resolved via `OPENSTATION_TARGET` in `vite.config.js`.
+App client views are the exception to that list: every
+`apps/<dir>/<name>.os.ts` is discovered by `vite.config.js` as the target
+`app:<name>` and built by `npm run build:apps` (part of `npm run build`)
+into `assets/js/apps/<name>[.min].js` — see
+[`app-framework.md`](./app-framework.md#the-client-view--osts).
 
 ## Public vs internal
 

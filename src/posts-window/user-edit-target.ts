@@ -36,6 +36,19 @@ interface DesktopFacade {
 		key: string,
 		initial: () => T,
 	) => SharedStoreApi< T >;
+	openWindow?: (
+		id: string,
+		opts?: {
+			source?: string;
+			params?: Record< string, string | number | boolean >;
+		},
+	) => boolean | undefined;
+	relations?: {
+		set?: (
+			windowId: string,
+			ref: { type: string; id: number | string; label?: string } | null,
+		) => void;
+	};
 }
 
 const _initial: UserEditTarget = {
@@ -131,6 +144,62 @@ export function setUserEditTabRequested( requested: boolean ): void {
 	const w = window as unknown as { _wpdUserEditTarget?: UserEditTarget };
 	const prev = w._wpdUserEditTarget ?? { ..._initial };
 	w._wpdUserEditTarget = { ...prev, tabRequested: requested };
+}
+
+/**
+ * Open (or retarget) the User Edit window on one person — the shared
+ * "edit this profile" contract every surface routes through: WP
+ * Explorer's user pane and tiles, the My WordPress app's, and any
+ * plugin that wants the same door. Deliberately in this leaf module
+ * (no imports) so a bundle can take the contract without dragging a
+ * window bundle in.
+ *
+ * Sets the shared-store target first (a warm, already-open window
+ * retargets through its subscription), then opens the singleton with
+ * `{ userId }` as an open-time param — params ride the session, so a
+ * reload brings the window back on the same person — and announces
+ * the `user` identity to the relations engine, matching what the
+ * chromeless bridge announces for `user-edit.php`, so both paths
+ * join one window group.
+ *
+ * @param userId        The person.
+ * @param opts          Options.
+ * @param opts.source   Source tag for the open call.
+ * @param opts.fallback Runs when the native window isn't registered
+ *                      (legacy / disabled sites) — the caller supplies
+ *                      its own classic-admin door, since only it knows
+ *                      how to build one.
+ * @return true when the native window took it.
+ */
+export function openUserEditWindow(
+	userId: number,
+	opts: { source?: string; fallback?: () => void } = {},
+): boolean {
+	if ( ! Number.isFinite( userId ) || userId <= 0 ) {
+		return false;
+	}
+	setUserEditTarget( userId );
+
+	const w = window as unknown as { wp?: { os?: DesktopFacade } };
+	const desktop = w.wp?.os;
+	const opened = desktop?.openWindow?.( 'desktop-mode-user-edit', {
+		source: opts.source ?? 'my-wordpress/user-tile',
+		params: { userId },
+	} );
+
+	if ( opened ) {
+		// The profile window is a singleton that retargets through the
+		// shared store, so nothing else can tell the relations engine
+		// its identity changed.
+		desktop?.relations?.set?.( 'desktop-mode-user-edit', {
+			type: 'user',
+			id: userId,
+		} );
+		return true;
+	}
+
+	opts.fallback?.();
+	return false;
 }
 
 /**

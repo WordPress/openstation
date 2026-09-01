@@ -12,6 +12,8 @@ Every built JS bundle has a TypeScript source under `src/`. The active build tar
 
 Two hand-written files are the exception and stay tracked in git: `assets/js/admin-bar.js` and `assets/js/media-library-enhanced.js` (see the re-includes in `.gitignore`) — edit those directly; everything else under `assets/js/` is build output.
 
+App client views are the one family whose source is NOT under `src/`: `apps/<dir>/<name>.os.ts` builds to `assets/js/apps/<name>[.min].js` (`npm run build:apps`). That subdirectory is build output like the rest and is gitignored on its own line — `/assets/js/*.js` matches only the top level, which is how two built bundles once got committed. `bin/package.sh` splices the minified one into the release zip by walking `apps/*/*.os.ts`, because their vite `fileBase` is a template literal the script's `fileBase` sed cannot see.
+
 Process for any JS change:
 
 1. Edit only TS files under `src/` (and CSS under `assets/css/` if styling, that's not built).
@@ -22,7 +24,9 @@ Process for any JS change:
 
 If you ever find yourself reaching for `assets/js/*.js` directly, stop and write the TS instead. Hand-edited JS is overwritten by the next `npm run build` and produces no TS-checked types, a silent class of bug.
 
-**Lint scope:** `npm run lint` runs on `src/**/*.ts` only. Test files under `tests/vitest/` aren't in the lint config (typescript-eslint project doesn't include them); rely on `npm run typecheck` + `npm run test:js` to catch issues there.
+**Lint scope:** `npm run lint` runs on `src/**/*.ts` and `apps/**/*.ts`. Test files under `tests/vitest/` aren't in the lint config (typescript-eslint project doesn't include them); rely on `npm run typecheck` + `npm run test:js` to catch issues there.
+
+**File length:** past 1,000 lines a file gets ONE warning (TS: `local-rules/os-file-length`; PHP: the `OpenStation.Files.FileLength` sniff, visible via `lint:php:all`) asking for a split toward the 300–600-line comfort zone. Warnings by design — never a gate — but when writing NEW code, honour them: compose from focused modules instead of growing a monolith. For apps, the sanctioned split shape is a `parts/` directory (see `docs/app-framework.md`, "Splitting a large app"; `apps/my-wordpress/` is the worked example).
 
 ### The palette lives in `variables.css` — one declaration, one owner
 
@@ -261,6 +265,27 @@ Payload shape (`openstation_build_menu_payload()` in `includes/core/payload.php`
 
 **When fixing this kind of "why doesn't X update live?" gap**, match the existing pattern: add server-side registration API (`openstation_register_*`), extend the payload with a `server*` array including `scriptUrl`, add a `src/*/server-sync.ts` module modeled on the wallpaper one, wire it into `createApplyPayload()` in `src/menu-refresh-apply.ts`. Don't invent a different mechanism.
 
+### The App Framework — `.os.php` windows have no JavaScript, on purpose
+
+`apps/*/*.os.php` (and any directory added through `openstation_apps_directories`) are whole windows declared in PHP: `App::define( $id )` → title, size, chrome, `state()`, `action()`s, and either a server `view()` (re-rendered in PHP on every interaction and morphed into the live body by ONE shared bundle, `src/app-runtime/`) or a `data()` plus a client view in `<file>.os.ts` beside it (`defineApp()` from `@openstation/app`: `local` actions and a `view( { state, data } )` rendered with the kit's `html` tag — no request for anything that only re-slices what the browser has). Read [`docs/app-framework.md`](docs/app-framework.md) before touching either side. The reference app is Code Blue (`apps/code-blue/`), rebuilt from its former module + TypeScript bundle (3,235 lines) into `.os.php` + `.os.ts`; `tests/phpunit/tests/codeBlue.php` pins it at under half of that and allows exactly one script, the `.os.ts` — free-form JS in an app dir fails the suite, so generic behaviour goes in the runtime or the component kit instead (that is how `<os-histogram>` came to exist). Every kit component is reachable from an app: `os-on` accepts every event a component emits (`tests/vitest/app-runtime-props-and-events.test.ts` scans the kit and fails when the runtime's list falls behind), and `os-prop-<name>='json'` feeds property-driven components (`<os-table os-prop-columns os-prop-data>`).
+
+Four things that will bite you:
+
+- **`includes/framework/` minus `wordpress.php` and `app/wordpress/` must not call a WordPress function.** Every host fact goes through the `$os` contracts (`Auth`, `Settings`, `Hooks`, `Cache`, `Env`) so the same framework — and the same app files — run on a bare PHP host (`define( 'OPENSTATION_STANDALONE', true )`, see the doc). Need a new host fact? Add it to a contract and implement it in BOTH `app/wordpress/` and `app/standalone/` (`Env::format_datetime()` is the template). Those files therefore carry a dual direct-access guard instead of the usual `defined( 'ABSPATH' ) || exit;` one-liner — and its **shape is load-bearing**: Plugin Check recognises exactly four guard spellings, and `if ( ! defined( 'ABSPATH' ) && ! defined( 'OPENSTATION_STANDALONE' ) )` is not one of them (it read as *no guard at all* and failed the `plugin-check` CI job on 23 files). Write it as, and leave it as:
+
+```php
+// Direct access, unless a standalone host is booting on bare PHP.
+if ( ! defined( 'ABSPATH' ) ) {
+	defined( 'OPENSTATION_STANDALONE' ) || exit;
+}
+```
+
+  The guard's **position** is load-bearing too: Plugin Check's AST pass cannot see a guard inside a `namespace` (it only walks top-level nodes), so namespaced files are judged by its regex fallback — which reads **only the first 50 raw lines**. A file docblock long enough to push the guard past line ~49 fails `missing_direct_file_access_protection` even though the guard is there (`my-wordpress.os.php` shipped that way). And the guard cannot move up past the docblock, because `namespace` must be the first statement — so in a namespaced file, keep the header short enough that the guard lands inside the window.
+- **State is a schema.** `App::state( $defaults )` declares every key and its type; `App\State` drops undeclared keys from the client and coerces the rest, so an action can trust `$state->get( 'range' )`. Derived data (parsed rows, counts) is never state — compute it in the view. If you find yourself wanting the client to "remember" something the server didn't declare, declare it.
+- **Views escape with `OpenStation\App\Html\esc()` / `attr()` / `json()` / `tag()`, not `esc_html()`**, so they stay host-agnostic; `phpcs.xml.dist` registers them as escaping functions. **Plugin Check does not read `phpcs.xml.dist`** — it runs PHPCS under its own ruleset, so `esc()` is invisible there and an escaped exception message still trips `EscapeOutput.ExceptionNotEscaped`. The four `throw`s in `class-app.php` carry a scoped `phpcs:ignore` with that reason; a new one needs the same. Short echo tags are rewritten to `<?php echo … ?>` by PHPCBF — write them that way from the start. The `.os.php` suffix is exempt from the file-name sniff for the same reason `.blade.php` would be.
+- **The morph keeps nodes; help it.** Put `os-key` on list items, `os-preserve` on anything a client script owns, and never rely on a re-render to reset a control the user is focused in (the morph deliberately leaves the focused control's `value` alone). Native `<details>` is a trap: setting `open` fires `toggle`, which would dispatch again — use a button + conditional panel, as Code Blue does.
+- **A server-view interaction is a WordPress request (~235 ms on the local Docker, ~5 ms of which is the app).** That is fine for forms, settings and lists with actions, and wrong for a filter over rows the browser already holds. The answer is never a cache in the app — it is the client view: put the rows in `data()`, the re-slicing in `local` actions and the body in `<file>.os.ts`. `os-bind` writes and `local` actions never leave the tab; everything else still round-trips. Code Blue is the worked example: one request to read the log, none to filter it.
+
 ### Event-driven framework
 
 The framework is a **transport + state provider**, not a UX policy maker. Apps subscribe to OS events, query window state synchronously, decide for themselves what to do. The framework MUST NOT auto-render based on heuristics it can't generalize across all apps. We learned this when the Dock briefly auto-suppressed badges while their window was focused, convenient for an unread-counter pattern, wrong for any plugin whose badge meant something else (deploy failures, queued items, etc.).
@@ -373,6 +398,7 @@ The full index lives in [`docs/README.md`](docs/README.md). Quick reference:
 | `docs/RELEASE.md` | The release process changes. |
 | `docs/examples/*.md` | The hook, API, or component the example uses changes. **One example per surface.** |
 | `docs/examples/README.md` | A new example is added or an existing one is renamed. |
+| `docs/app-framework.md` | The `.os.php` format, `App::*` fluent API, `State` typing rules, the `$os` contracts, the view attribute vocabulary (`os-action`, `os-bind`, …), the dispatch wire shape, or the client runtime's behaviour changes. **Slot names must stay equal on both sides** (`App::normalise_control()` ↔ `src/app-runtime/types.ts`; `bindings.ts` `DEFAULT_EVENTS` ↔ the "natural event" table). |
 
 **Rules of thumb:**
 
