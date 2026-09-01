@@ -22,6 +22,22 @@ import {
 } from './types';
 import { actionContext, resolveActions, runAction } from './helpers';
 
+/**
+ * A named plugin slot on the preview article — the container the
+ * shared `os.my-wordpress.preview-extras` action paints into (fired
+ * from `wire.ts` after render, once per item). `os-preserve` keeps
+ * the morph's hands off whatever a plugin appended; the class names
+ * are WP Explorer's, so plugin CSS written for its slots applies.
+ */
+function extrasSlot( slot: 'header' | 'meta' | 'footer', itemId: number ): TemplateResult {
+	return html`<div
+		class="os-my-wordpress__article-slot os-my-wordpress__article-slot--${ slot }"
+		data-mywp-slot=${ slot }
+		data-mywp-extras-item=${ String( itemId ) }
+		os-preserve
+	></div>`;
+}
+
 export function renderDetail( ctx: Ctx, section: SectionDef ): TemplateResult {
 	const { data } = ctx;
 	const detail = data.detail;
@@ -55,6 +71,7 @@ export function renderDetail( ctx: Ctx, section: SectionDef ): TemplateResult {
 				/>`
 				: '' }
 			<h2 class="os-mywp__detail-title">${ detail.title }</h2>
+			${ extrasSlot( 'header', detail.id ) }
 			${ detail.lockedBy
 				? html`<os-notice tone="warning" not-dismissible>${ sprintf(
 					/* translators: %s: user display name. */
@@ -83,6 +100,7 @@ export function renderDetail( ctx: Ctx, section: SectionDef ): TemplateResult {
 					<div class="os-mywp__content" data-mywp-content="detail" os-preserve></div>
 				`
 				: '' }
+			${ extrasSlot( 'meta', detail.id ) }
 			<div class="os-mywp__actions">
 				${ detail.kind === 'post'
 					? html`<os-button
@@ -114,6 +132,7 @@ export function renderDetail( ctx: Ctx, section: SectionDef ): TemplateResult {
 					>${ __( 'Trash' ) }</os-button>`
 					: '' }
 			</div>
+			${ extrasSlot( 'footer', detail.id ) }
 		</article>
 	`;
 }
@@ -163,6 +182,7 @@ export function renderFolder( ctx: Ctx ): TemplateResult {
 				<article class="os-mywp__detail">
 					<h2 class="os-mywp__detail-title">${ folder.title }</h2>
 					<div class="os-mywp__content" data-mywp-content="folder" os-preserve></div>
+					${ extrasSlot( 'meta', folder.id ) }
 				</article>
 			</aside>
 		</div>

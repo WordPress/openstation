@@ -64,6 +64,7 @@ export {
 	applySelection,
 	listKey,
 	resolveActions,
+	resolveBanding,
 	buildMenuOptions,
 	withSendToHeading,
 } from './parts/helpers';

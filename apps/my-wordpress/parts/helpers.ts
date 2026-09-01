@@ -13,6 +13,7 @@
 import { __, html, type TemplateResult } from '@openstation/app';
 import {
 	type AppData,
+	type ListBanding,
 	type AppState,
 	type ListItem,
 	type ListPage,
@@ -160,6 +161,31 @@ export function runAction( action: PreviewAction, ctx: PreviewActionContext ): v
 
 export function sectionOf( data: AppData, id: string ): SectionDef | null {
 	return data.sections.find( ( s ) => s.id === id ) ?? null;
+}
+
+/**
+ * Resolve the banding for a section through WP Explorer's own
+ * `os.my-wordpress.list-bands` filter, or null when its tiles should
+ * render as one flat canvas — the default for every built-in section.
+ * The section descriptor plays the entity's role (same `id`, `kind`,
+ * `post_type` keys the subscribers read).
+ */
+export function resolveBanding(
+	hooks: OsShell[ 'hooks' ],
+	section: SectionDef,
+): ListBanding | null {
+	const banding = hooks?.applyFilters( 'os.my-wordpress.list-bands', null, section ) as
+		| ListBanding
+		| null;
+	if (
+		! banding ||
+		! Array.isArray( banding.bands ) ||
+		banding.bands.length === 0 ||
+		typeof banding.assign !== 'function'
+	) {
+		return null;
+	}
+	return banding;
 }
 
 export function glyph( icon: string, cls: string ): TemplateResult {

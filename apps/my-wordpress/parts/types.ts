@@ -46,7 +46,13 @@ export interface GroupDef {
 	order: number;
 }
 
-export interface ListItem {
+/**
+ * One list row. Post-kind rows also carry the REST-visible extras
+ * plugin hook subscribers read — `meta` (registered `show_in_rest`
+ * values) and one term-id array per REST-exposed taxonomy, keyed by
+ * `rest_base` — hence the open index signature.
+ */
+export interface ListItem extends Record< string, unknown > {
 	id: number;
 	title: string;
 	subtitle: string;
@@ -59,6 +65,24 @@ export interface ListItem {
 	lockedBy: string;
 	canEdit: boolean;
 	canDelete: boolean;
+	meta?: Record< string, unknown >;
+}
+
+/**
+ * Banded list layout, supplied by the `os.my-wordpress.list-bands`
+ * filter — WP Explorer's contract, verbatim: bands in render order,
+ * and an assigner mapping each row to one of them (null, or an
+ * unknown id, drops the row into an unlabelled band at the end).
+ */
+export interface ListBanding {
+	bands: Array< {
+		id: string;
+		label: string;
+		order?: number;
+		tone?: 'warn' | 'danger';
+		count?: number;
+	} >;
+	assign: ( item: ListItem ) => string | null;
 }
 
 export interface ListPage {

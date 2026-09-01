@@ -351,6 +351,105 @@
 	}
 }
 
+/* ------------------------------------------------------- list bands */
+
+/* Banded layout — the `os.my-wordpress.list-bands` filter's canvas.
+ * The scroller becomes a column of band sections, each with its own
+ * grid at the same pitch as the flat canvas; headings mirror WP
+ * Explorer's band bars (sticky, frosted, tone-tintable). */
+
+.os-mywp__tiles--banded {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.os-mywp__band + .os-mywp__band {
+	margin-block-start: 8px;
+}
+
+.os-mywp__band-head {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	position: sticky;
+	/* Keeps the band label visible while scrolling a long band —
+	 * the whole point of banding is knowing what you're looking at. */
+	inset-block-start: 0;
+	z-index: 3;
+	margin: 0;
+	padding: 6px 12px;
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var( --os-ui-fg-muted, #787c82 );
+	/* Near-opaque frosted bar, WP Explorer's recipe: at 94% the tiles
+	 * scrolling beneath stay behind the bar instead of resolving into
+	 * ghostly shapes through it. */
+	background: color-mix(
+		in srgb,
+		var( --os-ui-bg, #fff ) 94%,
+		transparent
+	);
+	backdrop-filter: blur( 14px ) saturate( 180% );
+	border-block-end: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
+}
+
+@supports not ( background: color-mix( in srgb, red 50%, transparent ) ) {
+	.os-mywp__band-head {
+		background: var( --os-ui-bg, #fff );
+	}
+}
+
+/* Attention-carrying bands tint their bar so the eye lands there
+ * first instead of having to read every heading. */
+.os-mywp__band-head--warn {
+	color: var( --os-ui-warning, #8a6116 );
+	background: color-mix(
+		in srgb,
+		var( --os-ui-warning, #8a6116 ) 12%,
+		var( --os-ui-bg, #fff )
+	);
+	border-block-end-color: color-mix(
+		in srgb,
+		var( --os-ui-warning, #8a6116 ) 35%,
+		transparent
+	);
+}
+
+.os-mywp__band-head--danger {
+	color: var( --os-ui-danger, #b32d2e );
+	background: color-mix(
+		in srgb,
+		var( --os-ui-danger, #b32d2e ) 12%,
+		var( --os-ui-bg, #fff )
+	);
+	border-block-end-color: color-mix(
+		in srgb,
+		var( --os-ui-danger, #b32d2e ) 35%,
+		transparent
+	);
+}
+
+.os-mywp__band-count {
+	padding: 0 6px;
+	border-radius: 999px;
+	font-size: 11px;
+	line-height: 1.7;
+	background: color-mix( in srgb, currentColor 16%, transparent );
+	color: inherit;
+}
+
+.os-mywp__band-grid {
+	display: grid;
+	grid-template-columns: repeat( auto-fill, 104px );
+	justify-content: start;
+	gap: 10px 4px;
+	align-content: start;
+	padding: 12px;
+}
+
 /* ------------------------------------------------------------ detail */
 
 .os-mywp__detail {
@@ -366,6 +465,18 @@
 	position: absolute;
 	inset-block-start: 8px;
 	inset-inline-end: 8px;
+}
+
+/* Plugin slots on the article (`os.my-wordpress.preview-extras`).
+ * The article is a gap-spaced column, so a slot nobody painted into
+ * must not spend a gap step. Scoped to OUR pane — WP Explorer's own
+ * slots keep their stylesheet's rules. */
+.os-mywp__detail .os-my-wordpress__article-slot {
+	align-self: stretch;
+}
+
+.os-mywp__detail .os-my-wordpress__article-slot:empty {
+	display: none;
 }
 
 .os-mywp__hero {

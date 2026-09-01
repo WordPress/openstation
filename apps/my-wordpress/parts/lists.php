@@ -59,10 +59,44 @@ function lock_holder( $post_id ) {
 }
 
 /**
+ * The REST-visible extras plugin JS reads off a `wp/v2` row: the
+ * registered `show_in_rest` meta values under `meta`, and one
+ * term-id array per REST-exposed taxonomy, keyed by its `rest_base`
+ * — the exact fields WP Explorer's rows carry, which is what the
+ * shared `os.my-wordpress.*` hook subscribers (band assigners,
+ * preview-extras painters) read their facts from.
+ *
+ * @param \WP_Post $post Post.
+ * @return array<string,mixed>
+ */
+function rest_extras( \WP_Post $post ) {
+	$meta = array();
+	foreach ( get_registered_meta_keys( 'post', (string) $post->post_type ) as $key => $args ) {
+		if ( ! empty( $args['show_in_rest'] ) ) {
+			$meta[ $key ] = get_post_meta( $post->ID, $key, true );
+		}
+	}
+	// An empty PHP array JSON-encodes as `[]`; subscribers index
+	// `item.meta[ key ]`, which wants an object either way.
+	$extras = array( 'meta' => array() === $meta ? new \stdClass() : $meta );
+	foreach ( get_object_taxonomies( $post->post_type, 'objects' ) as $taxonomy ) {
+		if ( empty( $taxonomy->show_in_rest ) ) {
+			continue;
+		}
+		$base = isset( $taxonomy->rest_base ) && '' !== (string) $taxonomy->rest_base
+			? (string) $taxonomy->rest_base
+			: (string) $taxonomy->name;
+		$ids  = wp_get_object_terms( $post->ID, $taxonomy->name, array( 'fields' => 'ids' ) );
+		$extras[ $base ] = is_wp_error( $ids ) ? array() : array_map( 'intval', $ids );
+	}
+	return $extras;
+}
+
+/**
  * One page of a section, in the uniform shape the client view
  * renders: `items` (each: `id`, `title`, `subtitle`, `status`,
- * `thumb`, `link`, `mime`, `lockedBy`, `canEdit`, `canDelete`),
- * `total`, `pages`, `page`.
+ * `thumb`, `link`, `mime`, `lockedBy`, `canEdit`, `canDelete`, plus
+ * the REST-visible extras for post kinds), `total`, `pages`, `page`.
  *
  * @param Os                  $os      Host handle.
  * @param array<string,mixed> $section Section descriptor.
@@ -168,6 +202,12 @@ function fetch( Os $os, array $section, State $state ) {
 			'canEdit'   => allowed( $os, $section, (int) $post->ID, 'edit' ),
 			'canDelete' => allowed( $os, $section, (int) $post->ID, 'delete' ),
 		);
+		if ( ! $is_media ) {
+			// The base keys stay authoritative: an extras key that
+			// collides with one of ours (a taxonomy rest_base named
+			// `status`, say) must not overwrite it.
+			$items[ count( $items ) - 1 ] += rest_extras( $post );
+		}
 	}
 	return array(
 		'items'   => $items,

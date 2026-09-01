@@ -339,12 +339,95 @@ export function wire( ctx: Ctx ): () => void {
 	return () => teardowns.forEach( ( off ) => off() );
 }
 
+/**
+ * Fire WP Explorer's plugin seams over the freshly rendered DOM:
+ *
+ *   - `os.my-wordpress.preview-extras` — once per named slot on the
+ *     preview article (`header` / `meta` / `footer`), with the row so
+ *     subscribers can paint their facts (the AllTerrain Work board
+ *     meta, Woo's order analytics, …). Slots carry `os-preserve`, so
+ *     the morph leaves whatever a plugin appended alone; the stamp
+ *     keeps one firing per item, however many repaints follow.
+ *   - `os.my-wordpress.list-tile` — once per rendered tile, after it
+ *     is in the DOM (decorations added earlier are wiped when the
+ *     tile paints on connect), with the row it stands for.
+ */
+function pluginSeamsAfterRender( ctx: Ctx ): void {
+	const hooks = shell().hooks;
+	if ( ! hooks?.doAction ) {
+		return;
+	}
+	const section = sectionOf( ctx.data, ctx.state.section );
+	if ( ! section || section.kind === 'agent' ) {
+		return;
+	}
+	const rows = new Map< number, Record< string, unknown > >();
+	for ( const row of Array.from( uiOf( ctx.root ).pages.values() ).flat() ) {
+		rows.set( row.id, row as Record< string, unknown > );
+	}
+
+	// --- preview-extras ----------------------------------------------
+	const detail = ctx.data.detail;
+	const folder = ctx.data.folder;
+	for ( const host of Array.from(
+		ctx.root.querySelectorAll< HTMLElement >( '[data-mywp-slot]' ),
+	) ) {
+		const slot = host.dataset.mywpSlot ?? '';
+		const itemId = Number( host.dataset.mywpExtrasItem ?? 0 );
+		const stamp = `${ section.id }:${ slot }:${ itemId }`;
+		if ( host.dataset.mywpExtrasFor === stamp ) {
+			continue;
+		}
+		host.dataset.mywpExtrasFor = stamp;
+		host.replaceChildren();
+		// The richest row we hold: the list row (REST-visible meta and
+		// taxonomy fields included) under the dossier's own fields.
+		let item: Record< string, unknown > | null = null;
+		if ( detail && detail.id === itemId ) {
+			item = { ...( rows.get( itemId ) ?? {} ), ...detail };
+		} else if ( folder && folder.id === itemId ) {
+			item = { ...( rows.get( itemId ) ?? {} ), id: folder.id, title: folder.title, status: folder.status };
+		}
+		if ( ! item ) {
+			continue;
+		}
+		hooks.doAction( 'os.my-wordpress.preview-extras', {
+			slot,
+			container: host,
+			entityId: section.id,
+			kind: section.kind,
+			item,
+		} );
+	}
+
+	// --- list-tile ----------------------------------------------------
+	for ( const cell of Array.from(
+		ctx.root.querySelectorAll< HTMLElement >( '[data-mywp-drag][data-item-id]' ),
+	) ) {
+		const tile = cell.querySelector< HTMLElement >( 'os-tile' );
+		const id = Number( cell.getAttribute( 'data-item-id' ) );
+		const item = rows.get( id );
+		if ( ! tile || ! item || tile.dataset.mywpDecorated === String( id ) ) {
+			continue;
+		}
+		tile.dataset.mywpDecorated = String( id );
+		hooks.doAction( 'os.my-wordpress.list-tile', {
+			tile,
+			entityId: section.id,
+			kind: section.kind,
+			item,
+		} );
+	}
+}
+
 /** Runs after every render — the `updated()` half of the app. */
 export function afterRender( ctx: Ctx ): void {
 	const ui = uiOf( ctx.root );
 	// Agents wiring: drop targets, drag-out, the face backfill, the
 	// roster signal, the create-then-chat hand-off.
 	agentsAfterRender( ctx );
+	// WP Explorer's preview-extras + list-tile seams over the new DOM.
+	pluginSeamsAfterRender( ctx );
 	// Re-aim the infinite-scroll observer at the freshly rendered
 	// sentinel — the morph may have replaced the element.
 	ui.observer?.disconnect();

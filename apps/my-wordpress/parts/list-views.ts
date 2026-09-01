@@ -24,6 +24,7 @@ import {
 	buildMenuOptions,
 	glyph,
 	resolveActions,
+	resolveBanding,
 	runAction,
 	withSendToHeading,
 } from './helpers';
@@ -173,7 +174,6 @@ export function renderList( ctx: Ctx, section: SectionDef, items: ListItem[] ): 
 		ui.menu = { x: e.clientX, y: e.clientY, item: null };
 		ctx.local( 'repaint' );
 	};
-	const order = items.map( ( i ) => i.id );
 	const hasMore = ui.pageCount > Math.max( ...Array.from( ui.pages.keys() ), 1 );
 	// The page being fetched paints as skeleton tiles — WP Explorer's
 	// loading placeholders. They occupy the incoming page's real
@@ -181,6 +181,82 @@ export function renderList( ctx: Ctx, section: SectionDef, items: ListItem[] ): 
 	const ghosts = ui.loadingPage > 0 && ! ui.pages.has( ui.loadingPage ) && hasMore
 		? Math.max( 1, Math.min( ctx.data.list?.perPage ?? 24, ui.total - items.length ) )
 		: 0;
+	const ghostCells = html`
+		${ Array.from( { length: ghosts }, ( _unused, i ) => html`
+			<div class="os-mywp__cell os-mywp__cell--ghost" data-ghost-index=${ String( i ) } aria-hidden="true">
+				<span class="os-mywp__ghost">
+					<span class="os-mywp__ghost-visual"></span>
+					<span class="os-mywp__ghost-label"></span>
+				</span>
+			</div>
+		` ) }
+	`;
+
+	// Banded layout — WP Explorer's `os.my-wordpress.list-bands`
+	// filter, verbatim: bands in declared order, rows grouped by the
+	// subscriber's assigner, unassigned rows in an unlabelled band at
+	// the end. Shift-selection extends across the VISUAL order.
+	const banding = resolveBanding( shell().hooks, section );
+	if ( banding ) {
+		const known = new Set( banding.bands.map( ( b ) => b.id ) );
+		const byBand = new Map< string, ListItem[] >();
+		const unfiled: ListItem[] = [];
+		for ( const row of items ) {
+			const id = banding.assign( row );
+			if ( id !== null && known.has( id ) ) {
+				byBand.set( id, [ ...( byBand.get( id ) ?? [] ), row ] );
+			} else {
+				unfiled.push( row );
+			}
+		}
+		const sorted = [ ...banding.bands ].sort(
+			( a, b ) => ( a.order ?? 0 ) - ( b.order ?? 0 ),
+		);
+		const order = [
+			...sorted.flatMap( ( band ) => byBand.get( band.id ) ?? [] ),
+			...unfiled,
+		].map( ( i ) => i.id );
+		return html`
+			<div
+				class="os-mywp__tiles os-mywp__canvas os-mywp__tiles--banded"
+				role="listbox"
+				aria-multiselectable="true"
+				@contextmenu=${ canvasMenu }
+			>
+				${ sorted.map( ( band ) => {
+					const rows = byBand.get( band.id ) ?? [];
+					// Bands with a declared expected count are laid out
+					// before their rows land; ones without appear with
+					// their first row.
+					if ( rows.length === 0 && ! ( ( band.count ?? 0 ) > 0 ) ) {
+						return '';
+					}
+					return html`
+						<section class="os-mywp__band" data-band=${ band.id }>
+							<h3 class="os-mywp__band-head ${ band.tone ? `os-mywp__band-head--${ band.tone }` : '' }">
+								<span>${ band.label }</span>
+								<span class="os-mywp__band-count">${ rows.length }</span>
+							</h3>
+							<div class="os-mywp__band-grid" role="presentation">
+								${ rows.map( ( row ) => renderTile( ctx, section, row, order ) ) }
+							</div>
+						</section>
+					`;
+				} ) }
+				${ unfiled.length > 0
+					? html`<div class="os-mywp__band-grid" role="presentation">
+						${ unfiled.map( ( row ) => renderTile( ctx, section, row, order ) ) }
+					</div>`
+					: '' }
+				${ ghosts > 0
+					? html`<div class="os-mywp__band-grid" role="presentation">${ ghostCells }</div>`
+					: '' }
+				${ hasMore ? html`<div class="os-mywp__sentinel" data-mywp-sentinel></div>` : '' }
+			</div>
+		`;
+	}
+
+	const order = items.map( ( i ) => i.id );
 	return html`
 		<div
 			class="os-mywp__tiles os-mywp__canvas"
@@ -189,14 +265,7 @@ export function renderList( ctx: Ctx, section: SectionDef, items: ListItem[] ): 
 			@contextmenu=${ canvasMenu }
 		>
 			${ items.map( ( item ) => renderTile( ctx, section, item, order ) ) }
-			${ Array.from( { length: ghosts }, ( _unused, i ) => html`
-				<div class="os-mywp__cell os-mywp__cell--ghost" data-ghost-index=${ String( i ) } aria-hidden="true">
-					<span class="os-mywp__ghost">
-						<span class="os-mywp__ghost-visual"></span>
-						<span class="os-mywp__ghost-label"></span>
-					</span>
-				</div>
-			` ) }
+			${ ghostCells }
 			${ hasMore ? html`<div class="os-mywp__sentinel" data-mywp-sentinel></div>` : '' }
 		</div>
 	`;
