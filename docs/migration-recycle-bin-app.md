@@ -10,7 +10,7 @@ The Trash window is now an `.os.php` app (`apps/trash/`) driven by the [App Fram
 | Filter `openstation_recycle_bin_template_html` | There is no server template. The body is a client view; the JS `openstation.recycleBin.columns` filter still shapes the table, and the `data-os-recycle-bin-root` hook still marks the window root for drop targets. |
 | PHP functions `openstation_recycle_bin_render_template()`, `_register_window()`, `_localize_config()` | The app registers itself; its config rides the window config blob (`wp.os.getWindowConfig( 'desktop-mode-recycle-bin' )`), not `wp_localize_script`. |
 | Script handle `desktop-mode-recycle-bin`, bundle `assets/js/recycle-bin[.min].js`, `window.openStationRecycleBinConfig` | The shared `openstation-app-runtime` bundle plus the app's companion client view (`assets/js/apps/trash[.min].js`). Nothing to enqueue, no config global. |
-| `src/recycle-bin/index.ts` and `rest.ts` | The app's client view (`apps/trash/trash.os.ts`) over the dispatch wire and `ctx.fetch`. The shared leaves stay: `table-visuals.ts` (cell renderers + the columns filter), `empty-loop.ts`, `realtime.ts`, `icon-state.ts`, and the wire types in `types.ts`. |
+| The whole `src/recycle-bin/` directory | The app owns its code: `apps/trash/trash.os.ts` (the client view over the dispatch wire and `ctx.fetch`) and `apps/trash/parts/` — `table-visuals.ts` (cell renderers + the columns filter), `empty-loop.ts`, `realtime.ts`, and the wire types in `types.ts`. The one shell-side piece, the closed tile's empty/full art, is `src/desktop-files/recycle-bin-icon-state.ts`, beside the drop targets that share its frozen id. |
 
 ## Unchanged
 

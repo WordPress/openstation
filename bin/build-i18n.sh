@@ -47,12 +47,9 @@ fi
 # Order matters: the first matching prefix wins, so list the most
 # specific paths first.
 declare -a HANDLE_MAP=(
-	# The Trash app's client view (its companion-script handle, from
-	# includes/framework/wordpress.php). The shared renderers under
-	# src/recycle-bin/ ride whichever bundle imports them, so their
-	# strings map to the app handle too — first match wins.
+	# The Trash app's client view and its parts/ (its companion-script
+	# handle, from includes/framework/wordpress.php) — first match wins.
 	"apps/trash/=openstation-app-desktop-mode-recycle-bin-client"
-	"src/recycle-bin/=openstation-app-desktop-mode-recycle-bin-client"
 	"src/posts-window/=os-posts-window"
 	"src/=openstation"
 )
@@ -85,7 +82,7 @@ for po in "${po_files[@]}"; do
 	# pass each handle the list of MORE-specific prefixes that come
 	# before it in HANDLE_MAP, so a catch-all entry like `src/=...`
 	# does not also pull in strings already claimed by a narrower
-	# prefix like `src/recycle-bin/=...`.
+	# prefix like `src/posts-window/=...`.
 	previous_prefixes=""
 	for entry in "${HANDLE_MAP[@]}"; do
 		prefix="${entry%%=*}"

@@ -300,10 +300,9 @@ const TARGETS = {
 		fileBase: 'gutenberg-drop-receiver',
 		iifeName: 'openStationGutenbergDropReceiver',
 	},
-	// The Recycle Bin window is an App Framework app now
-	// (`apps/trash/`), built by `build:apps`; only its shared shell
-	// pieces (icon-state, realtime, table-visuals) remain under
-	// `src/recycle-bin/`, riding the bundles that import them.
+	// The Recycle Bin window is an App Framework app (`apps/trash/`),
+	// built by `build:apps`; the closed tile's art is the one piece the
+	// shell keeps (`src/desktop-files/recycle-bin-icon-state.ts`).
 	// Station Home — always-on native replacement for `index.php`.
 	// Publishes the dashboard render callback and ships only when the
 	// Dashboard entry point is opened.

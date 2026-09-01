@@ -8,11 +8,11 @@
  * dock placement, drag-to-trash drop target, theme icon slot and
  * Apps & Plugins row keeps working unchanged. The window is this
  * file; the body is `trash.os.ts`, a client view painting the same
- * toolbar, `<os-table>` and empty state through the shared cell
- * renderers (`src/recycle-bin/table-visuals.ts`). All data and
- * mutations run through the store (`includes/recycle-bin/`), which
- * also keeps capture, realtime, REST and the closed-window tile art
- * (`icon-state.ts`) exactly as they were.
+ * toolbar, `<os-table>` and empty state through its own cell
+ * renderers (`parts/table-visuals.ts`). All data and mutations run
+ * through the store (`includes/recycle-bin/`), which also keeps
+ * capture, realtime and REST exactly as they were; the closed-window
+ * tile art stays shell-side (`src/desktop-files/recycle-bin-icon-state.ts`).
  *
  * What the framework replaced: the window registration and template
  * (`window.php` keeps only the tile art, the gate and the shell

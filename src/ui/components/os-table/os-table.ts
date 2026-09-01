@@ -441,8 +441,8 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 	 * refresh editing a row so it no longer matches an active filter)
 	 * can hide a selected row without any filter event firing. Rows
 	 * the user cannot see must never be swept into a destructive
-	 * action. See `collectSelectedItems()` in src/recycle-bin/index.ts
-	 * for the canonical consumer.
+	 * action. See `collectSelected()` in apps/trash/trash.os.ts for
+	 * the canonical consumer.
 	 */
 	get visibleRows(): T[] {
 		return this._filteredRows().map( ( entry ) => entry.row );

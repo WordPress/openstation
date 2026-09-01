@@ -1861,7 +1861,7 @@ Every applied change publishes `os/art-changed` on the activity channel with `{ 
 
 `wp.os.icons.getArt( id )` reads the current override back, or `''` when the registered icon is still in charge.
 
-In-tree reference: [`src/recycle-bin/icon-state.ts`](../src/recycle-bin/icon-state.ts). The Recycle Bin uses it to draw an empty bin and a bin holding something as two states of one object. It replaced a count badge there: the badge pill is positioned onto the artwork rather than beside it, and at a 20px dock tile it covered about 30% of the icon.
+In-tree reference: [`src/desktop-files/recycle-bin-icon-state.ts`](../src/desktop-files/recycle-bin-icon-state.ts). The Recycle Bin uses it to draw an empty bin and a bin holding something as two states of one object. It replaced a count badge there: the badge pill is positioned onto the artwork rather than beside it, and at a 20px dock tile it covered about 30% of the icon.
 
 ### `icons` — Stable
 

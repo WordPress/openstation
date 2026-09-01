@@ -6,7 +6,7 @@
  */
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { mockViewContext, renderedText } from '../../src/app-runtime/testing';
-import type { RecycleBinItem } from '../../src/recycle-bin/types';
+import type { RecycleBinItem } from './parts/types';
 import app from './trash.os';
 
 interface AppState extends Record< string, unknown > {

@@ -2,9 +2,9 @@
  * Trash — the client view of the Recycle Bin app.
  *
  * The 1:1 rebuild of the legacy bin window's body, which it replaced
- * whole: same toolbar, same `<os-table>` painted through the shared
- * cell renderers (`src/recycle-bin/table-visuals.ts`), same empty
- * state, same confirm copy, same real-time channels. What the
+ * whole: same toolbar, same `<os-table>` painted through the cell
+ * renderers (`parts/table-visuals.ts`), same empty state, same
+ * confirm copy, same real-time channels. What the
  * framework absorbed from the old implementation: the REST client
  * and its config blob (actions + `data()` + `ctx.fetch`), the
  * fingerprint/cache/sequence choreography (data rides every dispatch
@@ -12,27 +12,30 @@
  * data), the broadcast subscriptions (`watch( '*' )`), and the
  * hand-built toolbar wiring (the view is a function of state).
  *
- * The chunked Empty Trash loop reuses the legacy driver
- * (`empty-loop.ts`) over `ctx.fetch` against the legacy REST route,
- * and the chromeless-postMessage + Heartbeat real-time channels
- * reuse `realtime.ts` wholesale.
+ * The chunked Empty Trash loop is `parts/empty-loop.ts` over
+ * `ctx.fetch` against the store's REST route, and the
+ * chromeless-postMessage + Heartbeat real-time channels are
+ * `parts/realtime.ts`. The one piece of the bin that is NOT the
+ * app's is the closed tile's art — `src/desktop-files/
+ * recycle-bin-icon-state.ts` — because it has to paint from the
+ * always-on shell bundle before this script ever loads.
  *
  * @public
  */
 
 import { __, defineApp, html, sprintf } from '@openstation/app';
-import { runEmptyLoop } from '../../src/recycle-bin/empty-loop';
-import * as realtime from '../../src/recycle-bin/realtime';
+import { runEmptyLoop } from './parts/empty-loop';
+import * as realtime from './parts/realtime';
 import {
 	buildColumns,
 	mapRecycleTypeToFileType,
-} from '../../src/recycle-bin/table-visuals';
+} from './parts/table-visuals';
 import type {
 	RecycleBinItem,
 	RecycleBinItemRef,
 	EmptyResponse,
 	BulkResponse,
-} from '../../src/recycle-bin/types';
+} from './parts/types';
 import type { OsTable } from '../../src/ui/components/os-table/os-table';
 import type { ViewContext } from '@openstation/app';
 

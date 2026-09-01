@@ -161,7 +161,7 @@ import {
 	attachBroadcastBus,
 	installBroadcastReceiver,
 } from './broadcast';
-import { startRecycleBinIconState, _currentRecycleBinCount } from './recycle-bin/icon-state';
+import { startRecycleBinIconState, _currentRecycleBinCount } from './desktop-files/recycle-bin-icon-state';
 import { registerBuiltInPeekRenderers } from './dock-peek/built-in-renderers';
 import {
 	BUG_REPORT_WINDOW_ID,

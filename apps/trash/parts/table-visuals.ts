@@ -1,33 +1,32 @@
 /**
  * Recycle Bin — the table's cell visuals.
  *
- * The Trash app (`apps/trash/trash.os.ts`) paints its rows through
- * these: type badge, title stack with optional thumbnail, relative
+ * The Trash app (`../trash.os.ts`) paints its rows through these:
+ * type badge, title stack with optional thumbnail, relative
  * deleted-at, and the restore / delete-forever row buttons. Kept as
- * a leaf (they were shared verbatim with the legacy window this app
- * replaced) because the hard-won shadow-DOM constraints belong in
- * one place: `<os-table>` renders its body into its own shadow root,
- * so nothing here may rely on a document stylesheet (every visual
- * property is an inline `style.*`, colours are inline `var()` chains
- * that inherit THROUGH the boundary, and icons are inline SVG
- * because the Dashicons stylesheet cannot reach in).
+ * a part of its own because the hard-won shadow-DOM constraints
+ * belong in one place: `<os-table>` renders its body into its own
+ * shadow root, so nothing here may rely on a document stylesheet
+ * (every visual property is an inline `style.*`, colours are inline
+ * `var()` chains that inherit THROUGH the boundary, and icons are
+ * inline SVG because the Dashicons stylesheet cannot reach in).
  *
  * @public
  */
 
-import { __ } from '../i18n';
-import { decodeHTML } from '../utils';
+import { __ } from '../../../src/i18n';
+import { decodeHTML } from '../../../src/utils';
 // Side-effect import — the deleted-at column constructs
 // `<os-relative-time>`, so every bundle shipping these renderers
 // must register it. `defineComponent` is idempotent.
-import '../ui/components/os-relative-time/os-relative-time';
+import '../../../src/ui/components/os-relative-time/os-relative-time';
 import {
 	resolveThemedIcon,
 	resolveThemedIconColor,
-} from '../desktop-themes/icons';
-import { DESKTOP_THEME_SLOTS } from '../desktop-themes/slots';
+} from '../../../src/desktop-themes/icons';
+import { DESKTOP_THEME_SLOTS } from '../../../src/desktop-themes/slots';
 import type { RecycleBinItem, RecycleBinItemRef } from './types';
-import type { OsTableColumn } from '../ui/components/os-table/os-table';
+import type { OsTableColumn } from '../../../src/ui/components/os-table/os-table';
 
 /**
  * Map a recycle-bin row's `type` (post/page/CPT/attachment/comment)
