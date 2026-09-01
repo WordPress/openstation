@@ -14,7 +14,7 @@
  * @public
  */
 
-import { __, sprintf } from '@openstation/app';
+import { __, createMarquee, sprintf } from '@openstation/app';
 import { clampToViewport } from '../../../src/ui/util/menu-position';
 import {
 	clearFootprintTarget,
@@ -117,63 +117,16 @@ export function wire( ctx: Ctx ): () => void {
 	teardowns.push( () => root.removeEventListener( 'pointerdown', onPointerDown ) );
 
 	// --- marquee selection on the list canvas ---------------------------
-	let marquee: { x: number; y: number; box: HTMLDivElement } | null = null;
-	const onMarqueeDown = ( e: PointerEvent ): void => {
-		if ( e.button !== 0 ) {
-			return;
-		}
-		const canvas = ( e.target as Element | null )?.closest< HTMLElement >( '.os-mywp__canvas' );
-		// Only a press on empty canvas starts a marquee — a press on a
-		// row is a click or a drag-out.
-		if ( ! canvas || ( e.target as Element ).closest( '[data-item-id]' ) ) {
-			return;
-		}
-		const box = document.createElement( 'div' );
-		box.className = 'os-mywp__marquee';
-		document.body.appendChild( box );
-		marquee = { x: e.clientX, y: e.clientY, box };
-		if ( ! e.ctrlKey && ! e.metaKey && ! e.shiftKey ) {
-			ctx.local( 'select-set', { ids: [] } );
-		}
-	};
-	const onMarqueeMove = ( e: PointerEvent ): void => {
-		if ( ! marquee ) {
-			return;
-		}
-		const left = Math.min( marquee.x, e.clientX );
-		const top = Math.min( marquee.y, e.clientY );
-		const width = Math.abs( e.clientX - marquee.x );
-		const height = Math.abs( e.clientY - marquee.y );
-		Object.assign( marquee.box.style, {
-			left: `${ left }px`,
-			top: `${ top }px`,
-			width: `${ width }px`,
-			height: `${ height }px`,
-		} );
-		const ids: number[] = [];
-		for ( const row of Array.from( root.querySelectorAll< HTMLElement >( '[data-item-id]' ) ) ) {
-			const r = row.getBoundingClientRect();
-			if ( r.left < left + width && r.right > left && r.top < top + height && r.bottom > top ) {
-				ids.push( Number( row.getAttribute( 'data-item-id' ) ) );
-			}
-		}
-		ctx.local( 'select-set', { ids } );
-	};
-	const onMarqueeUp = (): void => {
-		if ( marquee ) {
-			marquee.box.remove();
-			marquee = null;
-		}
-	};
-	root.addEventListener( 'pointerdown', onMarqueeDown );
-	document.addEventListener( 'pointermove', onMarqueeMove );
-	document.addEventListener( 'pointerup', onMarqueeUp );
-	teardowns.push( () => {
-		root.removeEventListener( 'pointerdown', onMarqueeDown );
-		document.removeEventListener( 'pointermove', onMarqueeMove );
-		document.removeEventListener( 'pointerup', onMarqueeUp );
-		onMarqueeUp();
-	} );
+	// The framework's drawn marquee; the class stays ours so the app
+	// sheet keeps painting it with WP Explorer's selection tokens.
+	teardowns.push(
+		createMarquee( {
+			root,
+			canvas: '.os-mywp__canvas',
+			className: 'os-mywp__marquee',
+			select: ( ids ) => ctx.local( 'select-set', { ids } ),
+		} ),
+	);
 
 	// --- infinite scroll ------------------------------------------------
 	// The framework's paged list owns the whole protocol (sentinel,

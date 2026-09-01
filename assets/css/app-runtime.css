@@ -42,6 +42,21 @@
 	flex: 1;
 }
 
+/* The drawn selection box `createMarquee()` appends to the body —
+   the same canonical selection tokens the shell's tiles wear. */
+.os-app__marquee {
+	position: fixed;
+	z-index: 100000;
+	border: 1px solid
+		var( --os-tile-focus-ring, var( --wp-admin-theme-color, #2271b1 ) );
+	border-radius: 2px;
+	background: var(
+		--os-selection-marquee-bg,
+		var( --os-ui-accent-soft, rgba( 34, 113, 177, 0.14 ) )
+	);
+	pointer-events: none;
+}
+
 /* ---------- Tone contract -------------------------------------------- */
 
 /* Any element inside an app root may carry `data-tone` and read the

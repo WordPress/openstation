@@ -6,7 +6,12 @@
  * deadlock guard, skeleton sizing, and modified-click selection.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { applySelection, createPagedList, type PageEnvelope } from '@openstation/app';
+import {
+	applySelection,
+	createMarquee,
+	createPagedList,
+	type PageEnvelope,
+} from '@openstation/app';
 
 interface Row {
 	id: number;
@@ -171,5 +176,71 @@ describe( 'applySelection', () => {
 
 	it( 'falls back to a plain selection when the anchor left the list', () => {
 		expect( applySelection( [ 99 ], order, 3, { shift: true } ) ).toEqual( [ 3 ] );
+	} );
+} );
+
+describe( 'createMarquee', () => {
+	function rig() {
+		const root = document.createElement( 'div' );
+		root.innerHTML = `
+			<div class="canvas">
+				<div data-item-id="1"></div>
+				<div data-item-id="2"></div>
+			</div>
+		`;
+		document.body.appendChild( root );
+		// jsdom has no layout: give each row a real box.
+		const boxes: Record< string, DOMRect > = {
+			'1': { left: 0, right: 50, top: 0, bottom: 50 } as DOMRect,
+			'2': { left: 0, right: 50, top: 200, bottom: 250 } as DOMRect,
+		};
+		for ( const row of Array.from( root.querySelectorAll< HTMLElement >( '[data-item-id]' ) ) ) {
+			row.getBoundingClientRect = () => boxes[ row.getAttribute( 'data-item-id' )! ];
+		}
+		const picks: number[][] = [];
+		const teardown = createMarquee( {
+			root,
+			canvas: '.canvas',
+			select: ( ids ) => picks.push( ids ),
+		} );
+		return { root, picks, teardown };
+	}
+
+	afterEach( () => {
+		document.body.replaceChildren();
+	} );
+
+	it( 'draws from empty canvas, reports intersected ids, and cleans up', () => {
+		const { root, picks, teardown } = rig();
+		const canvas = root.querySelector( '.canvas' )!;
+		// A press on a row never starts a marquee.
+		root.querySelector( '[data-item-id="1"]' )!.dispatchEvent(
+			new MouseEvent( 'pointerdown', { bubbles: true } ),
+		);
+		expect( document.body.querySelector( '.os-app__marquee' ) ).toBeNull();
+		// A plain press on empty canvas clears, then the drag selects.
+		canvas.dispatchEvent(
+			new MouseEvent( 'pointerdown', { bubbles: true, clientX: 10, clientY: 60 } ),
+		);
+		expect( picks ).toEqual( [ [] ] );
+		expect( document.body.querySelector( '.os-app__marquee' ) ).not.toBeNull();
+		document.dispatchEvent(
+			new MouseEvent( 'pointermove', { clientX: 40, clientY: 10 } ),
+		);
+		// The box spans y 10–60: row 1 (0–50) intersects, row 2 (200–250) does not.
+		expect( picks.at( -1 ) ).toEqual( [ 1 ] );
+		document.dispatchEvent( new MouseEvent( 'pointerup' ) );
+		expect( document.body.querySelector( '.os-app__marquee' ) ).toBeNull();
+		teardown();
+	} );
+
+	it( 'a modified press keeps the existing selection', () => {
+		const { root, picks, teardown } = rig();
+		root.querySelector( '.canvas' )!.dispatchEvent(
+			new MouseEvent( 'pointerdown', { bubbles: true, ctrlKey: true, clientX: 5, clientY: 5 } ),
+		);
+		expect( picks ).toEqual( [] );
+		teardown();
+		expect( document.body.querySelector( '.os-app__marquee' ) ).toBeNull();
 	} );
 } );
