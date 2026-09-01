@@ -42,6 +42,7 @@ import {
 	entityBulkActions,
 	userBulkActions,
 } from './bulk-actions';
+import { openUserEditWindow as openUserEditWindowShared } from '../posts-window/user-edit-target';
 import { getDragManager, stripTags } from './dom-utils';
 import {
 	getEntityRenderer,
@@ -6124,88 +6125,24 @@ function openUserTileMenu(
  * trimmed the registration via filter, primarily).
  */
 function openUserEditWindow( userId: number ): void {
-	if ( ! Number.isFinite( userId ) || userId <= 0 ) {
-		return;
-	}
-
-	interface SharedStoreApi< T > {
-		state: T;
-		notify(): void;
-		subscribe( cb: ( state: T ) => void ): () => void;
-	}
-	interface DesktopFacade {
-		createSharedStore?: < T >(
-			key: string,
-			initial: () => T,
-		) => SharedStoreApi< T >;
-		openWindow?: (
-			id: string,
-			opts?: {
-				source?: string;
-				params?: Record< string, string | number | boolean >;
-			},
-		) => boolean | undefined;
-		relations?: {
-			set?: (
-				windowId: string,
-				ref: { type: string; id: number | string; label?: string } | null,
-			) => void;
-		};
-	}
-	interface UserEditTarget {
-		userId: number | null;
-		requestedAt: number;
-		tabRequested: boolean;
-	}
-
-	const desktop = (
-		window.wp as { os?: DesktopFacade } | undefined
-	)?.os;
-
-	const createSharedStore = desktop?.createSharedStore;
-	if ( typeof createSharedStore === 'function' ) {
-		const store = createSharedStore< UserEditTarget >(
-			'desktop-mode/user-edit/target',
-			() => ( { userId: null, requestedAt: 0, tabRequested: false } ),
-		);
-		store.state.userId = userId;
-		store.state.requestedAt = Date.now();
-		store.state.tabRequested = true;
-		store.notify();
-	}
-
-	const opened = desktop?.openWindow?.( 'desktop-mode-user-edit', {
+	// The shared cross-bundle contract (store target → singleton
+	// window → relations announce) — the My WordPress app routes its
+	// user pane through the same call. Only the fallback is ours,
+	// because only this bundle knows how to build the classic URL.
+	openUserEditWindowShared( userId, {
 		source: 'my-wordpress/user-tile',
-		// Persisted with the session, so a reload brings the window
-		// back on this person. The shared store above only lives as
-		// long as the page does.
-		params: { userId },
+		fallback: () => {
+			// Native window not registered — open the classic admin
+			// user-edit page in an iframe window. Same shape as the
+			// post fallback in `openEditor()`.
+			openIframeWindow( {
+				id: `user-edit-${ userId }`,
+				url: buildEditUserUrl( userId ),
+				title: __( 'Edit user', 'desktop-mode' ),
+				icon: 'dashicons-admin-users',
+			} );
+		},
 	} );
-
-	if ( opened ) {
-		// Announce who the window is now showing. The profile window
-		// is a singleton that retargets through the shared store, so
-		// nothing else can tell the relations engine its identity
-		// changed — and without this a window opened onto a customer
-		// draws no tie to the order that sent you there.
-		//
-		// Matches the `user` identity the chromeless bridge announces
-		// for `user-edit.php`, so both paths join the same group.
-		desktop?.relations?.set?.( 'desktop-mode-user-edit', {
-			type: 'user',
-			id: userId,
-		} );
-	} else {
-		// Native window not registered — open the classic admin
-		// user-edit page in an iframe window. Same shape as the
-		// post fallback in `openEditor()`.
-		openIframeWindow( {
-			id: `user-edit-${ userId }`,
-			url: buildEditUserUrl( userId ),
-			title: __( 'Edit user', 'desktop-mode' ),
-			icon: 'dashicons-admin-users',
-		} );
-	}
 }
 
 function initialsOf( name: string ): string {

@@ -585,10 +585,13 @@ function woo_extras( \WP_Post $post ) {
 
 /**
  * The `openstation_woo_customer` facts for a user row — carried on
- * the Customers section AND the built-in Users folder, because on a
- * store "who is this person" and "what have they spent" are the same
- * question. Gated exactly as the REST field is: a viewer who can't
- * see orders sees no money.
+ * the Customers section's rows ONLY. Deliberately narrower than WP
+ * Explorer (whose `/wp/v2/users` field puts spend on its Users list
+ * too): in this app the built-in Users folder is about people who
+ * write, and stays money-free — the shared bundle keys its badges
+ * and panel off these facts being present, so leaving them off a row
+ * is how a surface opts out. Gated exactly as the REST field is: a
+ * viewer who can't see orders sees no money.
  *
  * @param int $user_id User id.
  * @return array<string,mixed>

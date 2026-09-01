@@ -11,6 +11,8 @@
  */
 
 import { __, _n, html, sprintf, type TemplateResult } from '@openstation/app';
+import { openUserFootprintWindow } from '../../../src/my-wordpress/footprint-target';
+import { openUserEditWindow } from '../../../src/posts-window/user-edit-target';
 import {
 	shell,
 	uiOf,
@@ -84,7 +86,7 @@ export function renderRoot( ctx: Ctx ): TemplateResult {
 	// the image it is, exactly as WP Explorer's os-tile paints it.
 	const sectionIcon = ( s: { kind: string; icon: string } ): TemplateResult =>
 		s.kind === 'agent' && /^(https?:|data:)/.test( s.icon )
-			? html`<img class="os-mywp__icon-img" src=${ s.icon } alt="" width="40" height="40" />`
+			? html`<img class="os-mywp__icon-img" src=${ s.icon } alt="" width="48" height="48" />`
 			: glyph( s.icon, 'os-mywp__tile-icon' );
 	return html`
 		${ inGroup
@@ -147,6 +149,11 @@ function renderTile( ctx: Ctx, section: SectionDef, item: ListItem, order: numbe
 			if ( handled === true ) {
 				return;
 			}
+			// The built-in answer, WP Explorer's: opening a person is
+			// their activity footprint — the profile editor stays one
+			// right-click (or pane button) away.
+			openUserFootprintWindow( { userId: item.id, userName: item.title } );
+			return;
 		}
 		if ( item.canEdit ) {
 			void ctx.dispatch( 'edit', { item: item.id } );
@@ -376,7 +383,17 @@ export function renderMenu( ctx: Ctx, section: SectionDef ): TemplateResult | ''
 				void ctx.dispatch( 'open', { item: item.id } );
 			}
 		} else if ( id === 'edit' ) {
-			void ctx.dispatch( 'edit', { item: item.id } );
+			// A person's "Edit profile" opens the shared profile
+			// window, exactly as the pane's button does; everything
+			// else goes to its editor through the server.
+			if ( section.kind === 'user' ) {
+				openUserEditWindow( item.id, {
+					source: 'my-wordpress-app/context-menu',
+					fallback: () => void ctx.dispatch( 'edit', { item: item.id } ),
+				} );
+			} else {
+				void ctx.dispatch( 'edit', { item: item.id } );
+			}
 		} else if ( id === 'quick-edit' ) {
 			uiOf( ctx.root ).quickEdit = {
 				ids: targets,

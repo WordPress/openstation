@@ -221,13 +221,21 @@ describe( 'user-activate', () => {
 		expect( dispatch ).not.toHaveBeenCalledWith( 'edit', { item: 8 } );
 	} );
 
-	it( 'falls through to the profile editor when nobody claims it', () => {
+	it( 'falls through to the activity footprint when nobody claims it — never the profile editor', () => {
 		const dispatch = vi.fn( async () => true );
+		const opened: string[] = [];
+		( ( window as unknown as { wp: { os: Record< string, unknown > } } ).wp.os ).openWindow = (
+			id: string,
+		) => {
+			opened.push( id );
+			return true;
+		};
 		const ctx = mountList( dispatch );
 		ctx.root
 			.querySelector( '[data-item-id="8"]' )!
 			.dispatchEvent( new MouseEvent( 'dblclick', { bubbles: true } ) );
-		expect( dispatch ).toHaveBeenCalledWith( 'edit', { item: 8 } );
+		expect( opened ).toContain( 'desktop-mode-my-wordpress' );
+		expect( dispatch ).not.toHaveBeenCalledWith( 'edit', { item: 8 } );
 	} );
 } );
 
@@ -285,6 +293,25 @@ describe( 'user preview pane', () => {
 		expect( labels ).toContain( 'Edit profile' );
 	} );
 
+	it( 'Edit profile opens the shared profile window, not a raw user-edit.php dispatch', () => {
+		const dispatch = vi.fn( async () => true );
+		const opened: string[] = [];
+		( ( window as unknown as { wp: { os: Record< string, unknown > } } ).wp.os ).openWindow = (
+			id: string,
+		) => {
+			opened.push( id );
+			return true;
+		};
+		const ctx = mount( state( { section: 'wc-customers', item: 8 } ), userDetailData(), dispatch );
+		const button = Array.from(
+			ctx.root.querySelectorAll< HTMLElement >( '.os-mywp__actions os-button' ),
+		).find( ( b ) => b.textContent?.trim() === 'Edit profile' );
+		button!.dispatchEvent( new MouseEvent( 'click', { bubbles: true } ) );
+
+		expect( opened ).toContain( 'desktop-mode-user-edit' );
+		expect( dispatch ).not.toHaveBeenCalledWith( 'edit', { item: 8 } );
+	} );
+
 	it( 'drops the fact blocks a user-dossier-sections subscriber removed', () => {
 		onFilter( 'os.my-wordpress.user-dossier-sections', () => [ 'bio' ] );
 
@@ -293,6 +320,53 @@ describe( 'user preview pane', () => {
 		expect( ctx.root.textContent ).toContain( 'Email' );
 		expect( ctx.root.textContent ).not.toContain( 'Posts' );
 		expect( ctx.root.textContent ).not.toContain( 'Comments' );
+	} );
+
+	it( 'renders the deep dossier blocks from stats — and the same filter gates them', () => {
+		const withStats = (): AppData => {
+			const d = userDetailData();
+			d.detail!.stats = {
+				profile: { registered: '2026-06-02T00:00:00', roleLabels: [ 'Author' ], link: 'https://example.test/author/jordan' },
+				counts: {
+					posts: { total: 104, publish: 103 },
+					pages: { total: 2, publish: 2 },
+					commentsReceived: 7,
+					commentsLeft: 3,
+				},
+				activity: [ { ym: '2026-05', count: 4 } ],
+				milestones: { firstPublished: '2025-06-01T00:00:00', lastPublished: '2026-05-01T00:00:00' },
+				recent: [ { id: 3, title: 'Hello', date: '2026-05-01T00:00:00', status: 'publish' } ],
+				topTerms: [ { id: 9, name: 'News', count: 12 } ],
+			};
+			return d;
+		};
+
+		const ctx = mount( state( { section: 'wc-customers', item: 8 } ), withStats() );
+		const text = ctx.root.textContent ?? '';
+		expect( text ).toContain( '104' );
+		expect( text ).toContain( '103 published' );
+		expect( text ).toContain( 'Comments received' );
+		expect( text ).toContain( 'Comments left' );
+		expect( text ).toContain( 'Activity (last 12 months)' );
+		expect( text ).toContain( 'Member since' );
+		expect( text ).toContain( 'First published' );
+		expect( text ).toContain( 'Recent posts' );
+		expect( text ).toContain( 'Top categories & tags' );
+		expect( text ).toContain( 'News · 12' );
+		expect( text ).toContain( 'AUTHOR' );
+		expect( text ).toContain( 'Author archive' );
+
+		// The Woo customer pane: same data, dossier stripped to bio —
+		// identity stays, every publishing block goes.
+		onFilter( 'os.my-wordpress.user-dossier-sections', () => [ 'bio' ] );
+		const gated = mount( state( { section: 'wc-customers', item: 8 } ), withStats() );
+		const gatedText = gated.root.textContent ?? '';
+		expect( gatedText ).toContain( 'Email' );
+		expect( gatedText ).toContain( 'AUTHOR' );
+		expect( gatedText ).not.toContain( 'Comments received' );
+		expect( gatedText ).not.toContain( 'Activity (last 12 months)' );
+		expect( gatedText ).not.toContain( 'Recent posts' );
+		expect( gatedText ).not.toContain( 'Top categories & tags' );
 	} );
 } );
 

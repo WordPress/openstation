@@ -186,17 +186,20 @@
 		var( --os-tile-focus-ring, var( --wp-admin-theme-color, #2271b1 ) );
 }
 
+/* The icon well matches WP Explorer's `.os-file-tile__icon` /
+ * `__preview` pair (48px box, 32px glyph), so the two windows' root
+ * grids — the Agents portrait included — read at the same size. */
 .os-mywp__tile-icon.dashicons {
-	inline-size: 40px;
-	block-size: 40px;
-	font-size: 36px;
+	inline-size: 48px;
+	block-size: 48px;
+	font-size: 32px;
 	display: grid;
 	place-items: center;
 }
 
 .os-mywp__icon-img {
-	inline-size: 40px;
-	block-size: 40px;
+	inline-size: 48px;
+	block-size: 48px;
 	object-fit: contain;
 }
 
@@ -209,20 +212,32 @@
 /* ------------------------------------------------------------- split */
 
 .os-mywp__split {
-	display: flex;
+	display: grid;
+	/*
+	 * WP Explorer's two-pane ratio: the list leads, the preview takes
+	 * roughly the remaining 40% and grows with the window — but never
+	 * below 430px while the window can afford it, because under that
+	 * the pane's fact tables and the Woo merchant panels wrap every
+	 * row. When the window truly can't (both floors exceed it), the
+	 * list keeps its 240px and the pane takes what is left.
+	 */
+	grid-template-columns: minmax( 240px, 1fr ) minmax( min( 430px, calc( 100% - 240px ) ), 40% );
 	flex: 1 1 auto;
 	min-block-size: 0;
 }
 
 .os-mywp__list-pane {
-	flex: 1 1 auto;
 	min-inline-size: 0;
+	/* Grid items default to min-size auto; without the 0 the row
+	   grows with a tall list instead of letting the canvas scroll. */
+	min-block-size: 0;
 	display: flex;
 	flex-direction: column;
 }
 
 .os-mywp__detail-pane {
-	flex: 0 0 320px;
+	min-inline-size: 0;
+	min-block-size: 0;
 	border-inline-start: 1px solid var( --os-ui-border, #dcdcde );
 	overflow-y: auto;
 }
@@ -502,6 +517,14 @@
 	padding-inline-end: 32px;
 }
 
+/* The identity line under a person's name: role badge + archive link. */
+.os-mywp__user-meta {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin: 0;
+}
+
 .os-mywp__facts {
 	display: grid;
 	grid-template-columns: max-content 1fr;
@@ -702,8 +725,8 @@
 /* -------------------------------------------- sub-list stats panes */
 
 .os-mywp__icon-mask {
-	inline-size: 40px;
-	block-size: 40px;
+	inline-size: 48px;
+	block-size: 48px;
 	display: inline-block;
 	background: currentColor;
 	-webkit-mask: var( --mywp-icon ) center / contain no-repeat;
@@ -883,6 +906,12 @@
 .os-mywp__chip:hover,
 .os-mywp__chip:focus-visible {
 	background: var( --os-hover, var( --os-ui-hover, rgba( 0, 0, 0, 0.06 ) ) );
+}
+
+/* The user dossier's top-terms chips are facts, not doors — no hover. */
+.os-mywp__chip--static:hover {
+	background: transparent;
+	cursor: default;
 }
 
 /* ------------------------------------------------------------ status */

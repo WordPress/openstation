@@ -302,6 +302,53 @@ describe( 'createSession', () => {
 			expect( h.host.sent[ 0 ].state.query ).toBe( 'abc' );
 		} );
 
+		it( 'a keystroke during an in-flight response survives the echo and rides the next dispatch', async () => {
+			const h = harness(
+				'<os-text-field os-bind="query" os-action="search"></os-text-field><button os-action="refresh">r</button>',
+			);
+			// Gate the FIRST response so a keystroke can land mid-flight —
+			// the shape of typing while a watch refresh is on the wire.
+			let release!: () => void;
+			const gate = new Promise< void >( ( resolve ) => {
+				release = resolve;
+			} );
+			const baseFetch = h.host.fetch;
+			let gated = true;
+			h.host.fetch = async ( input, init, opts ) => {
+				const response = baseFetch( input, init, opts );
+				if ( gated ) {
+					gated = false;
+					await gate;
+				}
+				return response;
+			};
+
+			( h.root.querySelector( 'button' ) as HTMLButtonElement ).click();
+			await Promise.resolve();
+			expect( h.host.sent ).toHaveLength( 1 );
+			expect( h.host.sent[ 0 ] ).toMatchObject( { action: 'refresh', state: { query: '' } } );
+
+			// The user types while that request is on the wire: the bind
+			// writes immediately, the search dispatch debounces behind it.
+			h.root.firstElementChild!.dispatchEvent(
+				new CustomEvent( 'os-input-change', { bubbles: true, detail: { value: 'hello' } } ),
+			);
+
+			// The refresh's response lands, echoing the EMPTY query it was
+			// sent with. The newer local write must survive the echo —
+			// this is the search box snapping back mid-word.
+			release();
+			await vi.advanceTimersByTimeAsync( 0 );
+			expect( h.session.state.query ).toBe( 'hello' );
+
+			// And the queued search must carry the typed value, not the
+			// stomped one — otherwise the text merely FLASHES right and
+			// the request that matters still searches for nothing.
+			await vi.advanceTimersByTimeAsync( 300 );
+			expect( h.host.sent ).toHaveLength( 2 );
+			expect( h.host.sent[ 1 ] ).toMatchObject( { action: 'search', state: { query: 'hello' } } );
+		} );
+
 		it( 'polls while an os-poll element is rendered and stops when it disappears', async () => {
 			const h = harness();
 			let auto = true;

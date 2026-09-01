@@ -352,6 +352,7 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 								__( 'Search %s…' ),
 								section.label.toLowerCase(),
 							) }
+							clearable
 							os-bind="query"
 							os-action="search"
 						></os-text-field>

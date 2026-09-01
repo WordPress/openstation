@@ -6411,8 +6411,11 @@ DOM with the same payload shapes — `preview-extras` (the
 `tile-context-menu`, `preview-actions`, `group-extras`,
 `user-activate`, `user-preview-actions` and `user-dossier-sections` —
 and its rows carry the same REST-visible fields subscribers read
-(`meta`, per-taxonomy term ids, `openstation_woo`,
-`openstation_woo_customer`). One `wp.hooks` registration decorates
+(`meta`, per-taxonomy term ids, `openstation_woo`; the Customers
+section's rows carry `openstation_woo_customer` — the app's built-in
+Users folder deliberately ships no money on its rows, and the Woo
+bundle treats the facts' presence as the opt-in outside the Customers
+section). One `wp.hooks` registration decorates
 both windows; the WooCommerce integration is the worked example. Only
 the `wp.os.myWordpress` API below (entity-kind renderers, the
 navigation calls) is WP Explorer's own. To ride the app window with a

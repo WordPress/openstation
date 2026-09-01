@@ -157,10 +157,6 @@ function fetch( Os $os, array $section, State $state ) {
 				'canEdit'   => allowed( $os, $section, (int) $user->ID, 'edit' ),
 				'canDelete' => false,
 			);
-			// Lifetime spend on the built-in Users folder too — on a
-			// store, "who is this person" and "what have they spent"
-			// are the same question. Empty without WooCommerce.
-			$items[ count( $items ) - 1 ] += woo_user_extras( (int) $user->ID );
 		}
 		$total = (int) $users->get_total();
 		return array(
@@ -312,9 +308,13 @@ function detail( Os $os, array $section, $id ) {
 		}
 		// The third element tags each fact with WP Explorer's dossier
 		// section id, so the shared
-		// `os.my-wordpress.user-dossier-sections` filter can drop the
-		// publishing blocks — a customer's Posts count is four zeroes
-		// above the number the merchant actually came for.
+		// `os.my-wordpress.user-dossier-sections` filter can drop
+		// whole blocks — a customer's publishing stats are four zeroes
+		// above the number the merchant actually came for. The counts
+		// themselves ride `stats` below: the SAME aggregated dossier
+		// WP Explorer's `/user-stats/<id>` route serves (stat tiles,
+		// 12-month activity, milestones, recent posts, top terms),
+		// through the same callback and its filters.
 		return array(
 			'kind'      => 'user',
 			'id'        => $id,
@@ -326,25 +326,13 @@ function detail( Os $os, array $section, $id ) {
 						array( __( 'Email', 'desktop-mode' ), (string) $user->user_email, 'bio' ),
 						array( __( 'Role', 'desktop-mode' ), implode( ', ', array_map( 'ucfirst', (array) $user->roles ) ), 'bio' ),
 						array( __( 'Registered', 'desktop-mode' ), (string) date_i18n( get_option( 'date_format' ), strtotime( $user->user_registered ) ), 'bio' ),
-						array( __( 'Posts', 'desktop-mode' ), number_format_i18n( count_user_posts( $id ) ), 'stats' ),
-						array(
-							__( 'Comments', 'desktop-mode' ),
-							number_format_i18n(
-								(int) get_comments(
-									array(
-										'user_id' => $id,
-										'count'   => true,
-									)
-								)
-							),
-							'stats',
-						),
 					),
 					static function ( $fact ) {
 						return '' !== $fact[1];
 					}
 				)
 			),
+			'stats'     => stats_payload( 'openstation_my_wordpress_user_stats_callback', array( 'id' => $id ) ),
 			'canEdit'   => allowed( $os, $section, $id, 'edit' ),
 			'canDelete' => false,
 		);

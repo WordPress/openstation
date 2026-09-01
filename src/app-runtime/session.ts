@@ -110,6 +110,11 @@ export function createSession( deps: SessionDeps ): Session {
 		if ( trigger && trigger.tagName.toLowerCase() === 'os-button' ) {
 			trigger.setAttribute( 'busy', '' );
 		}
+		// The snapshot this request carries. `apply()` diffs the live
+		// state against it when the response lands: any key written
+		// locally while the request was in flight is newer than the
+		// echo and must survive it.
+		const sentState = state;
 		try {
 			const headers: Record< string, string > = {
 				Accept: 'application/json',
@@ -126,7 +131,7 @@ export function createSession( deps: SessionDeps ): Session {
 					body: JSON.stringify( {
 						action,
 						view,
-						state,
+						state: sentState,
 						args,
 						params,
 						client: { width: root.clientWidth, height: root.clientHeight },
@@ -151,7 +156,7 @@ export function createSession( deps: SessionDeps ): Session {
 			if ( disposed || ! payload || payload.ok !== true ) {
 				return false;
 			}
-			apply( payload );
+			apply( payload, sentState );
 			return true;
 		} catch ( err ) {
 			if ( disposed || signal?.aborted ) {
@@ -220,8 +225,23 @@ export function createSession( deps: SessionDeps ): Session {
 		reconcilePolls();
 	};
 
-	const apply = ( payload: DispatchResponse ): void => {
-		state = { ...payload.state };
+	const apply = ( payload: DispatchResponse, sentState: Record< string, unknown > ): void => {
+		// The response echoes the state AS OF when its request was
+		// sent. Anything written locally since — an os-bind keystroke,
+		// a `local` reducer — is newer than that echo, and adopting the
+		// echo wholesale would visibly revert it (a search box snapping
+		// back mid-word during a watch refresh) and then LOSE it, since
+		// the next queued dispatch reads state at its own send time.
+		// So: adopt the server's answer, but every key whose live value
+		// diverged from this request's snapshot keeps the local value —
+		// the serialisation chain carries it up on the next dispatch.
+		const next = { ...payload.state };
+		for ( const key of Object.keys( state ) ) {
+			if ( state[ key ] !== sentState[ key ] ) {
+				next[ key ] = state[ key ];
+			}
+		}
+		state = next;
 		if ( client ) {
 			data = payload.data;
 			const first = clientTeardown === undefined;

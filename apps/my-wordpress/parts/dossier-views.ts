@@ -13,6 +13,7 @@
 
 import { __, _n, html, sprintf, type TemplateResult } from '@openstation/app';
 import { openUserFootprintWindow } from '../../../src/my-wordpress/footprint-target';
+import { openUserEditWindow } from '../../../src/posts-window/user-edit-target';
 import {
 	shell,
 	uiOf,
@@ -41,27 +42,101 @@ const USER_DOSSIER_SECTIONS = [
 ];
 
 /**
- * A user's facts, with the blocks the shared dossier filter dropped
- * removed — a customer's Posts count is four zeroes above the number
- * the merchant actually came for. Untagged facts always render.
+ * Which dossier blocks a user pane may render, through the shared
+ * `os.my-wordpress.user-dossier-sections` filter — a customer's
+ * publishing stats are four zeroes above the number the merchant
+ * actually came for. Null means "everything" (no subscriber, or a
+ * non-user pane).
  */
-function dossierFilteredFacts(
+function userDossierAllow(
 	detail: DetailFacts,
 	section: SectionDef,
-): DetailFacts[ 'facts' ] {
+): Set< string > | null {
 	if ( detail.kind !== 'user' ) {
-		return detail.facts;
+		return null;
 	}
 	const resolved = shell().hooks?.applyFilters(
 		'os.my-wordpress.user-dossier-sections',
 		USER_DOSSIER_SECTIONS,
 		{ entityId: section.id, kind: section.kind, userId: detail.id },
 	);
-	if ( ! Array.isArray( resolved ) ) {
+	return Array.isArray( resolved ) ? new Set( resolved as string[] ) : null;
+}
+
+/** Facts with the blocks the filter dropped removed; untagged facts always render. */
+function dossierFilteredFacts(
+	detail: DetailFacts,
+	allow: Set< string > | null,
+): DetailFacts[ 'facts' ] {
+	if ( ! allow ) {
 		return detail.facts;
 	}
-	const allow = new Set( resolved as string[] );
 	return detail.facts.filter( ( fact ) => ! fact[ 2 ] || allow.has( fact[ 2 ] ) );
+}
+
+/**
+ * The user dossier's deep blocks — WP Explorer's, 1:1: the four stat
+ * tiles, the 12-month activity bars, the member/published milestones,
+ * the recent posts and the top categories & tags chips. Painted from
+ * the aggregated `stats` blob the dossier's own route serves, and
+ * gated block by block through the shared filter.
+ */
+function userDossierBlocks(
+	ctx: Ctx,
+	detail: DetailFacts,
+	allow: Set< string > | null,
+): TemplateResult | '' {
+	const stats = detail.kind === 'user' ? detail.stats : null;
+	if ( ! stats ) {
+		return '';
+	}
+	const show = ( id: string ): boolean => ! allow || allow.has( id );
+	const posts = stats.counts?.posts ?? {};
+	const pages = stats.counts?.pages ?? {};
+	const published = ( bucket: Record< string, number > ): string =>
+		sprintf(
+			/* translators: %d: published count. */
+			__( '%d published' ),
+			bucket.publish ?? 0,
+		);
+	const milestoneRows: Array< [ string, string ] > = [];
+	if ( stats.profile?.registered ) {
+		milestoneRows.push( [ __( 'Member since' ), monthLabel( stats.profile.registered ) ] );
+	}
+	if ( stats.milestones?.firstPublished ) {
+		milestoneRows.push( [ __( 'First published' ), monthLabel( stats.milestones.firstPublished ) ] );
+	}
+	if ( stats.milestones?.lastPublished ) {
+		milestoneRows.push( [ __( 'Last published' ), monthLabel( stats.milestones.lastPublished ) ] );
+	}
+	const terms = stats.topTerms ?? [];
+	return html`
+		${ show( 'stats' )
+			? html`<div class="os-mywp__stats">
+				${ statTile( posts.total ?? 0, __( 'Posts' ), published( posts ) ) }
+				${ statTile( pages.total ?? 0, __( 'Pages' ) ) }
+				${ statTile( stats.counts?.commentsReceived ?? 0, __( 'Comments received' ) ) }
+				${ statTile( stats.counts?.commentsLeft ?? 0, __( 'Comments left' ) ) }
+			</div>`
+			: '' }
+		${ show( 'activity' ) ? activityBars( stats.activity ?? [] ) : '' }
+		${ show( 'milestones' ) && milestoneRows.length > 0
+			? html`<dl class="os-mywp__facts">
+				${ milestoneRows.map( ( [ label, value ] ) => html`
+					<div class="os-mywp__fact"><dt>${ label }</dt><dd>${ value }</dd></div>
+				` ) }
+			</dl>`
+			: '' }
+		${ show( 'recent' ) ? recentPosts( ctx, stats.recent ?? [] ) : '' }
+		${ show( 'terms' ) && terms.length > 0
+			? html`
+				<h3 class="os-mywp__pane-h">${ __( 'Top categories & tags' ) }</h3>
+				<div class="os-mywp__chips">
+					${ terms.map( ( t ) => html`<span class="os-mywp__chip os-mywp__chip--static">${ t.name } · ${ t.count }</span>` ) }
+				</div>
+			`
+			: '' }
+	`;
 }
 
 /**
@@ -94,7 +169,16 @@ function userPreviewActions(
 			id: 'open-profile',
 			label: __( 'Edit profile' ),
 			variant: 'secondary',
-			onSelect: () => void ctx.dispatch( 'edit', { item: detail.id } ),
+			// The shared profile-window contract WP Explorer's own
+			// button rides: the `desktop-mode-user-edit` singleton,
+			// retargeted through the cross-bundle store — not the raw
+			// `user-edit.php` iframe. The dispatch is only the
+			// legacy fallback for sites without the native window.
+			onSelect: () =>
+				openUserEditWindow( detail.id, {
+					source: 'my-wordpress-app/user-pane',
+					fallback: () => void ctx.dispatch( 'edit', { item: detail.id } ),
+				} ),
 		} );
 	}
 	const merged = shell().hooks?.applyFilters(
@@ -136,7 +220,14 @@ export function renderDetail( ctx: Ctx, section: SectionDef ): TemplateResult {
 	const actions = item
 		? resolveActions( data.previewActions, actionContext( section, item, 'pane' ), shell().hooks )
 		: [];
-	const facts = dossierFilteredFacts( detail, section );
+	const dossierAllow = userDossierAllow( detail, section );
+	const facts = dossierFilteredFacts( detail, dossierAllow );
+	// The identity line WP Explorer puts under a person's name: their
+	// role as a badge, and the author archive one click away. Not part
+	// of the filterable dossier — an identity header without identity
+	// is not a dossier.
+	const roleLabel = detail.kind === 'user' ? detail.stats?.profile?.roleLabels?.[ 0 ] ?? '' : '';
+	const archiveUrl = detail.kind === 'user' ? detail.stats?.profile?.link ?? '' : '';
 	// The edit half of the action row: a user's runs through the
 	// shared filter; everything else keeps the plain editor button.
 	let editRow: TemplateResult | TemplateResult[] | '' = '';
@@ -181,6 +272,14 @@ export function renderDetail( ctx: Ctx, section: SectionDef ): TemplateResult {
 				/>`
 				: '' }
 			<h2 class="os-mywp__detail-title">${ detail.title }</h2>
+			${ roleLabel || archiveUrl
+				? html`<p class="os-mywp__user-meta">
+					${ roleLabel ? html`<os-badge no-dot>${ roleLabel.toUpperCase() }</os-badge>` : '' }
+					${ archiveUrl
+						? html`<a class="os-mywp__crumb-link" href=${ archiveUrl } target="_blank" rel="noreferrer">${ __( 'Author archive' ) }</a>`
+						: '' }
+				</p>`
+				: '' }
 			${ extrasSlot( 'header', detail.id ) }
 			${ detail.lockedBy
 				? html`<os-notice tone="warning" not-dismissible>${ sprintf(
@@ -211,6 +310,7 @@ export function renderDetail( ctx: Ctx, section: SectionDef ): TemplateResult {
 				`
 				: '' }
 			${ extrasSlot( 'meta', detail.id ) }
+			${ userDossierBlocks( ctx, detail, dossierAllow ) }
 			<div class="os-mywp__actions">
 				${ detail.kind === 'post' && ! section.flat
 					? html`<os-button

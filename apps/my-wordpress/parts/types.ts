@@ -113,6 +113,8 @@ export interface DetailFacts {
 	 * whole blocks.
 	 */
 	facts: Array< [ string, string ] | [ string, string, string ] >;
+	/** A user's aggregated dossier — WP Explorer's user-stats blob. */
+	stats?: StatsPayload | null;
 	canEdit: boolean;
 	canDelete: boolean;
 	image?: string;
@@ -285,12 +287,17 @@ export interface StatsPayload {
 		taxonomyLabel?: string;
 		link?: string;
 		description?: string;
+		registered?: string;
+		roleLabels?: string[];
 	};
 	counts?: {
 		posts?: Record< string, number >;
+		pages?: Record< string, number >;
 		commentsReceived?: number;
+		commentsLeft?: number;
 		distinctAuthors?: number;
 	} & Record< string, unknown >;
+	topTerms?: Array< { id: number; name: string; count: number } >;
 	recent?: StatsRecentPost[];
 	topAuthors?: Array< { userId: number; userName: string; userAvatarUrl: string; count: number } >;
 	coTerms?: Array< { id: number; name: string; count: number } >;

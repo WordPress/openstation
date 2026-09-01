@@ -82,6 +82,51 @@ describe( '<os-text-field>', () => {
 		expect( fired ).toBe( 0 );
 	} );
 
+	test( 'clearable renders the clear button only while the field holds a value', async () => {
+		host.innerHTML = `<os-text-field clearable value=""></os-text-field>`;
+		await tick();
+
+		const el = host.querySelector( 'os-text-field' )!;
+		expect( el.shadowRoot!.querySelector( '.os-text-field__clear' ) ).toBeNull();
+
+		el.setAttribute( 'value', 'sofia' );
+		await tick();
+		expect( el.shadowRoot!.querySelector( '.os-text-field__clear' ) ).not.toBeNull();
+	} );
+
+	test( 'clearing empties the value, emits change AND commit, and refocuses the input', async () => {
+		host.innerHTML = `<os-text-field clearable value="sofia"></os-text-field>`;
+		await tick();
+
+		const el = host.querySelector( 'os-text-field' )!;
+		const heard: string[] = [];
+		el.addEventListener( 'os-input-change', ( e ) => {
+			heard.push( `change:${ ( e as CustomEvent ).detail.value }` );
+		} );
+		el.addEventListener( 'os-input-commit', ( e ) => {
+			heard.push( `commit:${ ( e as CustomEvent ).detail.value }` );
+		} );
+
+		( el.shadowRoot!.querySelector( '.os-text-field__clear' ) as HTMLButtonElement ).click();
+		await tick();
+
+		// Both events, deliberately: a clear is a keystroke-shaped edit
+		// and a commit point — an explicit clear must not wait out a
+		// caller's keystroke debounce.
+		expect( heard ).toEqual( [ 'change:', 'commit:' ] );
+		expect( el.getAttribute( 'value' ) ).toBe( '' );
+		expect( el.shadowRoot!.querySelector( '.os-text-field__clear' ) ).toBeNull();
+		expect( el.shadowRoot!.activeElement ).toBe( el.shadowRoot!.querySelector( 'input' ) );
+	} );
+
+	test( 'a plain field renders no clear button, value or not', async () => {
+		host.innerHTML = `<os-text-field value="sofia"></os-text-field>`;
+		await tick();
+
+		const el = host.querySelector( 'os-text-field' )!;
+		expect( el.shadowRoot!.querySelector( '.os-text-field__clear' ) ).toBeNull();
+	} );
+
 	test( 'invalid attribute surfaces aria-invalid on the native input', async () => {
 		host.innerHTML = `<os-text-field value="x" invalid></os-text-field>`;
 		await tick();

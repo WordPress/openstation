@@ -362,8 +362,19 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		$this->assertNotSame( '', $detail['avatar'] );
 		$labels = array_column( $detail['facts'], 0 );
 		$this->assertContains( 'Role', $labels );
-		$this->assertContains( 'Comments', $labels, 'The footprint facts are part of the dossier.' );
 		$this->assertFalse( $detail['canDelete'], 'Users are never trashable here.' );
+
+		// The deep dossier rides `stats`: the SAME aggregated blob WP
+		// Explorer's `/user-stats/<id>` route serves — stat tiles,
+		// 12-month activity, milestones, recent posts, top terms.
+		$this->assertIsArray( $detail['stats'] );
+		$this->assertArrayHasKey( 'posts', $detail['stats']['counts'] );
+		$this->assertArrayHasKey( 'pages', $detail['stats']['counts'] );
+		$this->assertArrayHasKey( 'commentsReceived', $detail['stats']['counts'] );
+		$this->assertArrayHasKey( 'commentsLeft', $detail['stats']['counts'] );
+		$this->assertArrayHasKey( 'activity', $detail['stats'] );
+		$this->assertArrayHasKey( 'milestones', $detail['stats'] );
+		$this->assertArrayHasKey( 'registered', $detail['stats']['profile'], 'An admin viewer sees the private profile half.' );
 	}
 
 	/**
