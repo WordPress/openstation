@@ -127,7 +127,6 @@ function renderTile( ctx: Ctx, section: SectionDef, item: ListItem, order: numbe
 			data-mywp-drag=${ section.kind === 'user' ? 'user' : section.post_type }
 			role="option"
 			aria-selected=${ isSelected ? 'true' : 'false' }
-			title=${ item.subtitle }
 			@click=${ select }
 			@dblclick=${ () => item.canEdit && void ctx.dispatch( 'edit', { item: item.id } ) }
 			@contextmenu=${ ( e: MouseEvent ) => {

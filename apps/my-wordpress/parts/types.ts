@@ -51,6 +51,8 @@ export interface ListItem {
 	title: string;
 	subtitle: string;
 	status: string;
+	/** Clamped excerpt for the hover card — '' for media and users. */
+	excerpt: string;
 	thumb: string;
 	link: string;
 	mime: string;

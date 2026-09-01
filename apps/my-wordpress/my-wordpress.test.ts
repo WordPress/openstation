@@ -35,6 +35,7 @@ function item( over: Partial< ListItem > ): ListItem {
 		title: 'Alpha',
 		subtitle: 'Admin — today',
 		status: 'publish',
+		excerpt: '',
 		thumb: '',
 		link: 'https://example.test/alpha',
 		mime: '',
@@ -439,6 +440,55 @@ describe( 'view', () => {
 		expect( mask ).not.toBeNull();
 		expect( mask?.getAttribute( 'style' ) ).toContain( '--mywp-icon:url' );
 		expect( root.querySelector( 'img.os-mywp__icon-img' ) ).toBeNull();
+	} );
+
+	it( 'hovering a tile summons WP Explorer\'s card: title, excerpt, lock banner', () => {
+		const root = document.createElement( 'div' );
+		document.body.appendChild( root );
+		const ctx = {
+			state: state( { section: 'posts' } ),
+			data: data( {
+				list: page( [
+					item( {
+						title: 'This is a test',
+						excerpt: 'Test 2 okay',
+						lockedBy: 'Ada',
+					} ),
+				] ),
+			} ),
+			root,
+			dispatch: async () => true,
+			local: () => undefined,
+		};
+		// jsdom has no IntersectionObserver; mounted() wires one for
+		// the infinite scroll, which this test never exercises.
+		( globalThis as { IntersectionObserver?: unknown } ).IntersectionObserver ??= class {
+			observe(): void {}
+			disconnect(): void {}
+		};
+		app.render( ctx );
+		const teardown = app.mounted( ctx ) as () => void;
+		const cell = root.querySelector< HTMLElement >( '[data-mywp-drag][data-item-id]' );
+		expect( cell ).not.toBeNull();
+		expect( cell?.hasAttribute( 'title' ) ).toBe( false );
+		cell?.dispatchEvent( new MouseEvent( 'mouseover', { bubbles: true } ) );
+		const tip = document.body.querySelector( '.os-my-wordpress__tooltip' );
+		expect( tip ).not.toBeNull();
+		expect( tip?.querySelector( '.os-my-wordpress__tooltip-title' )?.textContent ).toBe(
+			'This is a test',
+		);
+		expect( tip?.querySelector( '.os-my-wordpress__tooltip-excerpt' )?.textContent ).toBe(
+			'Test 2 okay',
+		);
+		expect( tip?.querySelector( '.os-my-wordpress__tooltip-lock' )?.textContent ).toContain(
+			'Ada is currently editing',
+		);
+		// A press means a click, a drag-out or the menu — card gone.
+		// (MouseEvent: jsdom has no PointerEvent constructor; listeners
+		// key on the event NAME either way.)
+		root.dispatchEvent( new MouseEvent( 'pointerdown', { bubbles: true } ) );
+		expect( document.body.querySelector( '.os-my-wordpress__tooltip' ) ).toBeNull();
+		teardown();
 	} );
 
 	it( 'the Edit… modal carries the original controls: notice, category picker, tag tokens', () => {

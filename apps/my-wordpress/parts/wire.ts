@@ -14,7 +14,7 @@
  * @public
  */
 
-import { __ } from '@openstation/app';
+import { __, sprintf } from '@openstation/app';
 import {
 	faceFromSeed,
 	hasFace,
@@ -187,6 +187,134 @@ export function wire( ctx: Ctx ): () => void {
 			deregister();
 		}
 		ui.agentDropTargets.clear();
+	} );
+
+	// --- hover card ------------------------------------------------------
+	// WP Explorer's tile tooltip: a floating card with the title, the
+	// lock banner, the thumbnail and the clamped excerpt. Same class
+	// names as the original, so the palette-level
+	// `--os-my-wordpress-card-*` family themes both windows' cards
+	// identically. Appended to document.body because the window clips.
+	let hoverTip: HTMLElement | null = null;
+	let hoverFor = 0;
+	const hideTip = (): void => {
+		hoverTip?.remove();
+		hoverTip = null;
+		hoverFor = 0;
+	};
+	const positionTip = ( tip: HTMLElement, ev: MouseEvent ): void => {
+		const offset = 16;
+		let x = ev.clientX + offset;
+		let y = ev.clientY + offset;
+		const rect = tip.getBoundingClientRect();
+		if ( x + rect.width > window.innerWidth - 8 ) {
+			x = Math.max( 8, ev.clientX - rect.width - offset );
+		}
+		if ( y + rect.height > window.innerHeight - 8 ) {
+			y = Math.max( 8, ev.clientY - rect.height - offset );
+		}
+		tip.style.left = `${ x }px`;
+		tip.style.top = `${ y }px`;
+	};
+	const buildTip = ( item: {
+		title: string;
+		lockedBy: string;
+		thumb: string;
+		excerpt: string;
+		subtitle: string;
+	} ): HTMLElement => {
+		const tip = document.createElement( 'div' );
+		tip.className = 'os-my-wordpress__tooltip';
+		tip.setAttribute( 'role', 'tooltip' );
+		const heading = document.createElement( 'div' );
+		heading.className = 'os-my-wordpress__tooltip-title';
+		heading.textContent = item.title;
+		tip.appendChild( heading );
+		if ( item.lockedBy ) {
+			const banner = document.createElement( 'div' );
+			banner.className = 'os-my-wordpress__tooltip-lock';
+			const icon = document.createElement( 'span' );
+			icon.className = 'dashicons dashicons-lock';
+			icon.setAttribute( 'aria-hidden', 'true' );
+			banner.appendChild( icon );
+			const text = document.createElement( 'span' );
+			text.textContent = sprintf(
+				/* translators: %s: the user name currently editing the post. */
+				__( '%s is currently editing' ),
+				item.lockedBy,
+			);
+			banner.appendChild( text );
+			tip.appendChild( banner );
+		}
+		if ( item.thumb ) {
+			const img = document.createElement( 'img' );
+			img.className = 'os-my-wordpress__tooltip-thumb';
+			img.src = item.thumb;
+			img.alt = '';
+			tip.appendChild( img );
+		}
+		// Posts quote their excerpt; users and media (which have none)
+		// show their subtitle line, the fact their tile abbreviates.
+		const excerpt = item.excerpt || item.subtitle;
+		if ( excerpt ) {
+			const p = document.createElement( 'p' );
+			p.className = 'os-my-wordpress__tooltip-excerpt';
+			p.textContent =
+				excerpt.length > 240 ? excerpt.slice( 0, 237 ) + '…' : excerpt;
+			tip.appendChild( p );
+		}
+		return tip;
+	};
+	const onTipOver = ( e: MouseEvent ): void => {
+		const cell = ( e.target as Element | null )?.closest< HTMLElement >(
+			'[data-mywp-drag][data-item-id]',
+		);
+		if ( ! cell ) {
+			return;
+		}
+		const id = Number( cell.getAttribute( 'data-item-id' ) );
+		if ( id === hoverFor ) {
+			return;
+		}
+		const item = Array.from( ui.pages.values() )
+			.flat()
+			.find( ( i ) => i.id === id );
+		if ( ! item ) {
+			return;
+		}
+		hideTip();
+		hoverTip = buildTip( item );
+		hoverFor = id;
+		document.body.appendChild( hoverTip );
+		positionTip( hoverTip, e );
+	};
+	const onTipMove = ( e: MouseEvent ): void => {
+		if ( ! hoverTip ) {
+			return;
+		}
+		const cell = ( e.target as Element | null )?.closest(
+			'[data-mywp-drag][data-item-id]',
+		);
+		if ( ! cell ) {
+			hideTip();
+			return;
+		}
+		positionTip( hoverTip, e );
+	};
+	root.addEventListener( 'mouseover', onTipOver );
+	root.addEventListener( 'mousemove', onTipMove );
+	root.addEventListener( 'mouseleave', hideTip );
+	// A press means a click, a drag-out or the context menu — the card
+	// must not sit over any of them.
+	root.addEventListener( 'pointerdown', hideTip );
+	root.addEventListener( 'contextmenu', hideTip );
+	teardowns.push( () => {
+		root.removeEventListener( 'mouseover', onTipOver );
+		root.removeEventListener( 'mousemove', onTipMove );
+		root.removeEventListener( 'mouseleave', hideTip );
+		root.removeEventListener( 'pointerdown', hideTip );
+		root.removeEventListener( 'contextmenu', hideTip );
+		hideTip();
 	} );
 
 	// --- Escape closes menu → zoom → pane -------------------------------

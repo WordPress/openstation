@@ -440,6 +440,97 @@
 	block-size: 1px;
 }
 
+/* ----- Hover card (floats over body) -----
+ *
+ * WP Explorer's tile tooltip, same class names and same tokens: every
+ * colour chains `--os-my-wordpress-card-*` first — derived in
+ * `variables.css` from the window family, so a theme that repaints
+ * the window repaints the card with it — then the chip tokens, then
+ * the pre-brand literal. Appended to `document.body`, not to the
+ * window, because it is `position: fixed` and the window would clip
+ * it; theme tokens still reach it, since desktop themes declare on
+ * `body.os-desktop-theme-<slug>`, an ancestor of both. */
+
+.os-my-wordpress__tooltip {
+	position: fixed;
+	z-index: 100000;
+	max-width: 320px;
+	background: var(
+		--os-my-wordpress-card-bg,
+		var(
+			--os-tooltip-bg,
+			var( --os-surface, var( --os-ui-surface, #fff ) )
+		)
+	);
+	color: var(
+		--os-my-wordpress-card-fg,
+		var( --os-tooltip-fg, var( --os-fg, #1d2327 ) )
+	);
+	/* The card lands on the same colour as the window under it — the
+	 * border and the shadow are the only reason it reads as a separate
+	 * object, so neither is decoration. */
+	border: 1px solid var( --os-my-wordpress-card-border, #dcdcde );
+	border-radius: 6px;
+	padding: 12px;
+	box-shadow: var(
+		--os-my-wordpress-card-shadow,
+		0 6px 24px rgba( 0, 0, 0, 0.18 )
+	);
+	font-size: 12px;
+	pointer-events: none;
+}
+
+.os-my-wordpress__tooltip-title {
+	font-weight: 600;
+	margin-bottom: 6px;
+	font-size: 13px;
+}
+
+/* Hover-card lock banner — shown above the excerpt when present. */
+.os-my-wordpress__tooltip-lock {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin: 0 0 8px;
+	padding: 6px 8px;
+	border-radius: 4px;
+	background: var(
+		--os-my-wordpress-card-lock-bg,
+		rgba( 179, 45, 46, 0.08 )
+	);
+	color: var( --os-danger, var( --os-ui-danger, #b32d2e ) );
+	font-size: 12px;
+	font-weight: 600;
+}
+
+.os-my-wordpress__tooltip-lock .dashicons {
+	font-size: 14px;
+	width: 14px;
+	height: 14px;
+}
+
+/* Same neutral well the entry and media tiles give their thumbnails:
+ * a transparent PNG or a still-loading image would otherwise show the
+ * card straight through. */
+.os-my-wordpress__tooltip-thumb {
+	display: block;
+	max-width: 100%;
+	height: auto;
+	border-radius: 4px;
+	margin: 6px 0;
+	background: var( --os-my-wordpress-card-thumb-bg, rgba( 0, 0, 0, 0.05 ) );
+	box-shadow: inset 0 0 0 1px var(
+		--os-my-wordpress-card-border,
+		#dcdcde
+	);
+}
+
+.os-my-wordpress__tooltip-excerpt {
+	margin: 0;
+	color: var( --os-my-wordpress-card-fg-muted, #50575e );
+	line-height: 1.4;
+}
+
 /* ---------------------------------------------------- marquee + menu */
 
 /* The SAME token pair the shell's rubber band wears

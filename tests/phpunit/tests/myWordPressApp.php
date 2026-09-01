@@ -834,10 +834,12 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		foreach ( array_merge( $sources, glob( $dir . '*.css' ) ) as $file ) {
 			$lines += count( file( $file ) );
 		}
-		// The budget moved when the Agents section landed: the
+		// The budget moved when the Agents section landed (the
 		// like-for-like original grew by the agents renderer, its REST
-		// client, the face helpers and ~800 lines of CSS.
-		$this->assertLessThan( 7600, $lines, sprintf( 'My WordPress is %d lines; the budget is under 7,600 — still a fraction of the like-for-like original.', $lines ) );
+		// client, the face helpers and ~800 lines of CSS), and again
+		// when the last parity gaps closed: the bulk-edit modal's real
+		// controls and the tile hover card.
+		$this->assertLessThan( 8000, $lines, sprintf( 'My WordPress is %d lines; the budget is under 8,000 — still a fraction of the like-for-like original.', $lines ) );
 
 		// The house file-length rule, pinned hard for this app: every
 		// PHP and TS source stays under 1,000 lines. The lint twins

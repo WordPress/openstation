@@ -100,6 +100,7 @@ function fetch( Os $os, array $section, State $state ) {
 				'title'     => (string) $user->display_name,
 				'subtitle'  => (string) $user->user_email,
 				'status'    => implode( ', ', array_map( 'ucfirst', (array) $user->roles ) ),
+				'excerpt'   => '',
 				'thumb'     => (string) get_avatar_url( $user->ID, array( 'size' => 96 ) ),
 				'link'      => esc_url_raw( get_author_posts_url( $user->ID ) ),
 				'mime'      => '',
@@ -151,6 +152,11 @@ function fetch( Os $os, array $section, State $state ) {
 					(string) get_the_date( '', $post )
 				),
 			'status'    => $is_media ? '' : (string) $post->post_status,
+			// For the hover card — the original tooltip's excerpt,
+			// already clamped to the 240 characters it shows.
+			'excerpt'   => $is_media
+				? ''
+				: mb_substr( wp_strip_all_tags( (string) get_the_excerpt( $post ) ), 0, 240 ),
 			'thumb'     => ! empty( $section['thumbnails'] )
 				? ( $is_media
 					? (string) wp_get_attachment_image_url( $post->ID, 'medium' )
