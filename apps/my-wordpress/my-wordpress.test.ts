@@ -9,6 +9,8 @@ import app, {
 	buildMenuOptions,
 	listKey,
 	resolveActions,
+	withSendToHeading,
+	type MenuOption,
 	type AppData,
 	type AppState,
 	type ListItem,
@@ -352,6 +354,8 @@ describe( 'view', () => {
 						profile: { name: 'Notes', taxonomyLabel: 'Category', link: 'https://example.test/category/notes' },
 						counts: { posts: { total: 10, publish: 5 }, commentsReceived: 0, distinctAuthors: 1 },
 						recent: [ { id: 9, title: 'Field recording: the 4am train', date: '2026-08-19T14:23:00', status: 'publish' } ],
+						topAuthors: [ { userId: 3, userName: 'Ada Dahl', userAvatarUrl: '', count: 7 } ],
+						coTerms: [ { id: 8, name: 'Tape', count: 4 } ],
 						activity: [ { ym: '2026-08', count: 10 } ],
 						milestones: { firstPosted: '2026-08-01T00:00:00', lastPosted: '2026-08-19T00:00:00' },
 					},
@@ -368,6 +372,34 @@ describe( 'view', () => {
 		expect( root.textContent ).toContain( 'August 2026' );
 		expect( root.textContent ).toContain( 'Field recording: the 4am train' );
 		expect( root.querySelectorAll( '.os-mywp__activity-col' ) ).toHaveLength( 12 );
+		expect( root.textContent ).toContain( 'Top contributors' );
+		expect( root.textContent ).toContain( 'Ada Dahl' );
+		expect( root.textContent ).toContain( '7 posts' );
+		expect( root.textContent ).toContain( 'Often paired with' );
+		expect( root.textContent ).toContain( 'Tape · 4' );
+	} );
+
+	it( 'groups the agents send-to rows behind an inert heading', () => {
+		const base: MenuOption[] = [
+			{ id: 'edit', label: 'Open in editor' },
+			{ id: 'trash', label: 'Move to Trash', danger: true },
+		];
+		const merged: MenuOption[] = [
+			...base,
+			{ id: 'plugin-extra', label: 'Export', onSelect: () => undefined },
+			{ id: 'agent-send-to-1', label: 'Send to Localizer', onSelect: () => undefined },
+			{ id: 'agent-send-to-2', label: 'Send to SEO Medic', onSelect: () => undefined },
+		];
+		const grouped = withSendToHeading( base, merged );
+		expect( grouped.map( ( o ) => o.id ) ).toEqual( [
+			'edit', 'trash', 'plugin-extra', 'send-to-heading', 'agent-send-to-1', 'agent-send-to-2',
+		] );
+		expect( grouped.find( ( o ) => o.id === 'send-to-heading' )?.heading ).toBe( true );
+
+		// No agents, or a filter that reordered: hands the list back verbatim.
+		expect( withSendToHeading( base, [ ...base, { id: 'plugin-extra', label: 'Export' } ] ) ).toHaveLength( 3 );
+		const reordered = [ merged[ 2 ], ...base ];
+		expect( withSendToHeading( base, reordered ) ).toBe( reordered );
 	} );
 
 	it( 'masks image icons to the current colour instead of painting the brand bitmap', () => {

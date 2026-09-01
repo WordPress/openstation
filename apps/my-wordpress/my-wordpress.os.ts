@@ -162,6 +162,8 @@ export interface StatsPayload {
 		distinctAuthors?: number;
 	} & Record< string, unknown >;
 	recent?: StatsRecentPost[];
+	topAuthors?: Array< { userId: number; userName: string; userAvatarUrl: string; count: number } >;
+	coTerms?: Array< { id: number; name: string; count: number } >;
 	activity?: Array< { ym: string; count: number } >;
 	milestones?: Record< string, string | null >;
 	comment?: { content?: string; date?: string; status?: string } & Record< string, unknown >;
@@ -236,6 +238,13 @@ interface UiState {
 	 * every remaining page.
 	 */
 	armed: boolean;
+	/**
+	 * The page number currently being fetched, 0 when none. Ghost
+	 * placeholders render only while THIS page is absent — keyed on
+	 * the page rather than the in-flight flag, so the paint that
+	 * delivers the page never flashes a ghost block for the next one.
+	 */
+	loadingPage: number;
 	scrollEl: HTMLElement | null;
 	cacheKey: string;
 	pages: Map< number, ListItem[] >;
@@ -255,6 +264,7 @@ function uiOf( root: HTMLElement ): UiState {
 			zoom: false,
 			loadingMore: false,
 			armed: true,
+			loadingPage: 0,
 			scrollEl: null,
 			cacheKey: '',
 			pages: new Map(),
@@ -525,7 +535,35 @@ export interface MenuOption {
 	icon?: string;
 	danger?: boolean;
 	disabled?: boolean;
+	/** A non-interactive section header — renders, never fires. */
+	heading?: boolean;
 	onSelect?: ( () => void ) | null;
+}
+
+/**
+ * Group the agents' "Send to …" rows behind an inert `Send to`
+ * heading. The shared filter appends plugin entries after our base
+ * options; the agent block is recognised by its id prefix
+ * (`agent-send-to-<id>`, the contract `agents-send-to.ts` ships) so
+ * other plugins' entries stay where the filter put them.
+ */
+export function withSendToHeading( base: MenuOption[], merged: MenuOption[] ): MenuOption[] {
+	if ( merged.length <= base.length || ! base.every( ( o, i ) => merged[ i ]?.id === o.id ) ) {
+		// The filter reordered or replaced — respect it verbatim.
+		return merged;
+	}
+	const appended = merged.slice( base.length );
+	const agents = appended.filter( ( o ) => o.id.startsWith( 'agent-send-to-' ) );
+	if ( agents.length === 0 ) {
+		return merged;
+	}
+	const others = appended.filter( ( o ) => ! o.id.startsWith( 'agent-send-to-' ) );
+	return [
+		...merged.slice( 0, base.length ),
+		...others,
+		{ id: 'send-to-heading', label: __( 'Send to' ), heading: true },
+		...agents,
+	];
 }
 
 /**
@@ -591,7 +629,7 @@ function renderList( ctx: Ctx, section: SectionDef, items: ListItem[] ): Templat
 	// The page being fetched paints as skeleton tiles — WP Explorer's
 	// loading placeholders. They occupy the incoming page's real
 	// footprint, so the scroll height settles once instead of jumping.
-	const ghosts = ui.loadingMore && hasMore
+	const ghosts = ui.loadingPage > 0 && ! ui.pages.has( ui.loadingPage ) && hasMore
 		? Math.max( 1, Math.min( ctx.data.list?.perPage ?? 24, ui.total - items.length ) )
 		: 0;
 	return html`
@@ -740,7 +778,7 @@ function renderMenu( ctx: Ctx, section: SectionDef ): TemplateResult | '' {
 			{ entityId: section.id, kind: section.kind, item: item as unknown as Record< string, unknown > },
 		);
 		if ( Array.isArray( merged ) ) {
-			options = merged as MenuOption[];
+			options = withSendToHeading( options, merged as MenuOption[] );
 		}
 	}
 
@@ -835,14 +873,16 @@ function renderMenu( ctx: Ctx, section: SectionDef ): TemplateResult | '' {
 			@os-context-menu-pick=${ pick }
 		>
 			${ item
-				? options.map( ( o ) => html`
-					<os-context-menu-option
-						id=${ o.id }
-						icon=${ o.icon ?? '' }
-						?danger=${ !! o.danger }
-						?disabled=${ !! o.disabled }
-					>${ o.label }</os-context-menu-option>
-				` )
+				? options.map( ( o ) => ( o.heading
+					? html`<os-context-menu-option heading>${ o.label }</os-context-menu-option>`
+					: html`
+						<os-context-menu-option
+							id=${ o.id }
+							icon=${ o.icon ?? '' }
+							?danger=${ !! o.danger }
+							?disabled=${ !! o.disabled }
+						>${ o.label }</os-context-menu-option>
+					` ) )
 				: html`
 					<os-context-menu-option heading>${ __( 'Sort by' ) }</os-context-menu-option>
 					${ Object.entries( ctx.data.sortOptions ).map( ( [ value, label ] ) => html`
@@ -1032,6 +1072,38 @@ function renderSubDetail( ctx: Ctx ): TemplateResult {
 						? html`<div class="os-mywp__fact"><dt>${ __( 'Last post' ) }</dt><dd>${ monthLabel( stats.milestones.lastPosted ) }</dd></div>`
 						: '' }
 				</dl>
+				${ ( stats.topAuthors ?? [] ).length > 0
+					? html`
+						<h3 class="os-mywp__pane-h">${ __( 'Top contributors' ) }</h3>
+						<div class="os-mywp__people">
+							${ ( stats.topAuthors ?? [] ).map( ( person ) => html`
+								<div class="os-mywp__person">
+									<os-avatar src=${ person.userAvatarUrl } name=${ person.userName } size="sm"></os-avatar>
+									<span class="os-mywp__person-name">${ person.userName }</span>
+									<span class="os-mywp__subtitle">${ sprintf(
+										/* translators: %d: post count. */
+										_n( '%d post', '%d posts', person.count ),
+										person.count,
+									) }</span>
+								</div>
+							` ) }
+						</div>
+					`
+					: '' }
+				${ ( stats.coTerms ?? [] ).length > 0
+					? html`
+						<h3 class="os-mywp__pane-h">${ __( 'Often paired with' ) }</h3>
+						<div class="os-mywp__chips">
+							${ ( stats.coTerms ?? [] ).map( ( co ) => html`
+								<button
+									type="button"
+									class="os-mywp__chip"
+									@click=${ () => void ctx.dispatch( 'open', { item: co.id } ) }
+								>${ co.name } · ${ co.count }</button>
+							` ) }
+						</div>
+					`
+					: '' }
 				${ recentPosts( ctx, stats.recent ?? [] ) }
 			</article>
 		`;
@@ -1431,10 +1503,12 @@ function wire( ctx: Ctx ): () => void {
 		}
 		ui.armed = false;
 		ui.loadingMore = true;
+		ui.loadingPage = Math.max( 1, ...Array.from( ui.pages.keys() ) ) + 1;
 		// Repaint now so the skeleton tiles appear while the page loads.
 		ctx.local( 'repaint' );
 		void ctx.dispatch( 'more' ).finally( () => {
 			ui.loadingMore = false;
+			ui.loadingPage = 0;
 			ctx.local( 'repaint' );
 		} );
 	} );

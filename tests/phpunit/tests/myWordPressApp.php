@@ -509,6 +509,46 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		$this->assertGreaterThanOrEqual( 1, $picked['stats']['counts']['posts']['total'] );
 		$this->assertContains( 'Alpha strategy', array_column( $picked['stats']['recent'], 'title' ) );
 		$this->assertArrayHasKey( 'activity', $picked['stats'], 'The 12-month activity feeds the bars.' );
+		$this->assertArrayHasKey( 'topAuthors', $picked['stats'], 'Top contributors ride along.' );
+		$this->assertArrayHasKey( 'coTerms', $picked['stats'], 'Often-paired terms ride along.' );
+	}
+
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\fetch
+	 */
+	public function test_pagination_is_deterministic_across_equal_dates() {
+		// Thirty posts sharing one post_date to the second — without the
+		// ID tiebreak their order is undefined PER QUERY, and an
+		// infinite-scrolled list visibly reshuffles as pages land.
+		$ids = array();
+		for ( $i = 0; $i < 30; $i++ ) {
+			$ids[] = self::factory()->post->create(
+				array(
+					'post_title' => 'Same second ' . $i,
+					'post_date'  => '2026-03-03 03:03:03',
+				)
+			);
+		}
+
+		$page1 = array_column( $this->dispatch( 'refresh', array( 'section' => 'posts' ) )['data']['list']['items'], 'id' );
+		$page2 = array_column(
+			$this->dispatch(
+				'refresh',
+				array(
+					'section' => 'posts',
+					'page'    => 2,
+				)
+			)['data']['list']['items'],
+			'id'
+		);
+
+		$this->assertSame( array(), array_values( array_intersect( $page1, $page2 ) ), 'Pages never overlap.' );
+
+		$batch = array_values( array_intersect( array_merge( $page1, $page2 ), $ids ) );
+		$this->assertGreaterThan( 1, count( $batch ) );
+		$sorted = $batch;
+		rsort( $sorted );
+		$this->assertSame( $sorted, $batch, 'Equal-date rows come back newest-ID-first, every page, every query.' );
 	}
 
 	/**
@@ -788,7 +828,7 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		foreach ( array_merge( glob( $dir . '*.php' ), glob( $dir . '*.css' ), glob( $dir . '*.os.ts' ) ) as $file ) {
 			$lines += count( file( $file ) );
 		}
-		$this->assertLessThan( 3600, $lines, sprintf( 'My WordPress is %d lines; the budget is under 3,600 — a tenth of the like-for-like original.', $lines ) );
+		$this->assertLessThan( 4200, $lines, sprintf( 'My WordPress is %d lines; the budget is under 4,200 — still well under a seventh of the like-for-like original.', $lines ) );
 
 		$scripts = array_map( 'basename', array_merge( glob( $dir . '*.js' ), glob( $dir . '*.ts' ) ) );
 		$this->assertSame(

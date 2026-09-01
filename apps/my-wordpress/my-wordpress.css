@@ -572,6 +572,50 @@
 	color: var( --os-ui-accent, #2271b1 );
 }
 
+.os-mywp__people {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	inline-size: 100%;
+}
+
+.os-mywp__person {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.os-mywp__person-name {
+	font-weight: 600;
+	flex: 1 1 auto;
+	min-inline-size: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.os-mywp__chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.os-mywp__chip {
+	border: 1px solid var( --os-ui-border, #dcdcde );
+	border-radius: 999px;
+	padding: 3px 10px;
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	font-size: 12px;
+	cursor: pointer;
+}
+
+.os-mywp__chip:hover,
+.os-mywp__chip:focus-visible {
+	background: var( --os-ui-selection-bg, rgba( 34, 113, 177, 0.14 ) );
+}
+
 /* ------------------------------------------------------------ status */
 
 .os-mywp__status {

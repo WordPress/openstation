@@ -292,8 +292,16 @@ function fetch( Os $os, array $section, State $state ) {
 				'number'      => PER_PAGE,
 				'offset'      => ( $page - 1 ) * PER_PAGE,
 				'search'      => '' !== $query ? '*' . $query . '*' : '',
-				'orderby'     => $by,
-				'order'       => $order,
+				// The ID tiebreak is load-bearing: rows equal on the
+				// primary sort (duplicate display names, same-second
+				// registrations) have NO defined order without it, so
+				// each page's query may resort the whole set differently
+				// and an infinite-scrolled list visibly reshuffles as
+				// pages land.
+				'orderby'     => array(
+					$by   => $order,
+					'ID'  => 'ASC',
+				),
 				'count_total' => true,
 			)
 		);
@@ -331,8 +339,14 @@ function fetch( Os $os, array $section, State $state ) {
 			's'              => $query,
 			'posts_per_page' => $per_page,
 			'paged'          => $page,
-			'orderby'        => $by,
-			'order'          => $order,
+			// ID tiebreak: demo and imported content routinely shares
+			// one post_date to the second, and equal rows have no
+			// defined order — each page could resort the set and the
+			// infinite scroll would reshuffle. See the user query above.
+			'orderby'        => array(
+				$by  => $order,
+				'ID' => 'DESC',
+			),
 		)
 	);
 	$items    = array();
