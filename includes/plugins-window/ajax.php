@@ -52,6 +52,21 @@ function openstation_plugins_window_ajax_guard( $cap ) {
 			array( 'status' => 403 )
 		);
 	}
+	// The marketplace surfaces (browse, info, reviews, featured,
+	// upload) don't exist on a multisite SITE admin — Core routes all
+	// of them to the network admin, which has no native windows. The
+	// caps map already hides the UI; this is the server half of the
+	// same gate, so a stale client can't reach them either.
+	if (
+		is_multisite() &&
+		in_array( $cap, array( 'install_plugins', 'upload_plugins', 'delete_plugins' ), true )
+	) {
+		return new WP_Error(
+			'openstation_plugins_network_managed',
+			__( 'Plugins are managed from the network admin on this site.', 'desktop-mode' ),
+			array( 'status' => 403 )
+		);
+	}
 	if ( ! current_user_can( $cap ) ) {
 		return new WP_Error(
 			'openstation_plugins_forbidden',

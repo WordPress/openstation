@@ -399,7 +399,10 @@ function openstation_plugins_window_field_can_manage( $row ) {
 	$status = isset( $row['status'] ) ? (string) $row['status'] : '';
 
 	$can_activate = current_user_can( 'activate_plugins' );
-	$can_delete   = current_user_can( 'delete_plugins' );
+	// Never on multisite: plugin files are network-wide, and Core's
+	// site screens offer no delete — see the note in
+	// `openstation_plugins_window_caps()`.
+	$can_delete = ! is_multisite() && current_user_can( 'delete_plugins' );
 
 	// Active plugins can only be deleted after deactivation; surface
 	// that constraint so the JS can dim the Delete action while the

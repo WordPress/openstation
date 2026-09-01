@@ -330,6 +330,7 @@ Three things to know:
 npm run env:start:tests   # idempotent; brings the PHPUnit wp-env instance up if needed
 npm run test:php          # full suite
 npm run test:php -- --filter='Tests_OpenStation_Render'   # one class
+npm run test:php:multisite   # same suite as a network install (CI runs both; no extra containers)
 ```
 
 `npm run env:start` is for the manual-QA instance only; it no longer brings up test containers.

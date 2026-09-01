@@ -438,6 +438,28 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The user admin (`wp-admin/user/`) renders classic: it has no
+	 * shell screen, and its URLs never survive the target allowlist —
+	 * without the pass-through the redirect claimed the request and
+	 * silently forwarded the user to the site desktop.
+	 *
+	 * @covers ::openstation_redirect_plain_admin_to_portal
+	 */
+	public function test_admin_redirect_leaves_the_user_admin_classic() {
+		if ( ! is_multisite() ) {
+			$this->markTestSkipped( 'The user admin only exists on multisite.' );
+		}
+		wp_set_current_user( self::$admin_id );
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		$_SERVER['REQUEST_METHOD'] = 'GET';
+		// A `-user` suffixed screen id is what makes `is_user_admin()`
+		// true, the same signal the live request carries.
+		set_current_screen( 'index-user' );
+
+		$this->assertNull( $this->capture_admin_init_redirect() );
+	}
+
+	/**
 	 * @covers ::openstation_redirect_plain_admin_to_portal
 	 */
 	public function test_admin_redirect_noop_on_chromeless_request() {

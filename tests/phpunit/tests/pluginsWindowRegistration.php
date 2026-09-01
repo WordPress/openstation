@@ -27,6 +27,15 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 		$this->admin_id      = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$this->editor_id     = self::factory()->user->create( array( 'role' => 'editor' ) );
 		$this->subscriber_id = self::factory()->user->create( array( 'role' => 'subscriber' ) );
+
+		// On multisite a plain administrator holds none of the plugin
+		// caps (`activate_plugins` included, absent the network's
+		// menu-items opt-in). This class's admin persona means "the
+		// user allowed to manage plugins here", which multisite spells
+		// super admin.
+		if ( is_multisite() ) {
+			grant_super_admin( $this->admin_id );
+		}
 	}
 
 	public function tear_down() {
@@ -161,9 +170,18 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 		wp_set_current_user( $this->admin_id );
 		$caps = openstation_plugins_window_caps();
 		$this->assertTrue( $caps['activate'] );
-		$this->assertTrue( $caps['install'] );
-		$this->assertTrue( $caps['delete'] );
-		$this->assertTrue( $caps['upload'] );
+		if ( is_multisite() ) {
+			// Plugin files are network-wide and Core's site screens
+			// offer no install/upload/delete — neither does the
+			// window, even for a super admin who holds the caps.
+			$this->assertFalse( $caps['install'] );
+			$this->assertFalse( $caps['delete'] );
+			$this->assertFalse( $caps['upload'] );
+		} else {
+			$this->assertTrue( $caps['install'] );
+			$this->assertTrue( $caps['delete'] );
+			$this->assertTrue( $caps['upload'] );
+		}
 	}
 
 	/**
@@ -259,7 +277,9 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 		$flags = openstation_plugins_window_field_can_manage( $row );
 		$this->assertTrue( $flags['activate'] );
 		$this->assertFalse( $flags['deactivate'] );
-		$this->assertTrue( $flags['delete'] );
+		// Delete is a network-admin action on multisite — see
+		// `test_caps_admin_has_every_action()`.
+		$this->assertSame( ! is_multisite(), $flags['delete'] );
 	}
 
 	/**

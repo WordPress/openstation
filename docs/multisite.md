@@ -106,3 +106,26 @@ desktop is saving, so the network screen's `sessionUrl` carries
 see `openstation_rest_session_network()`. Both read and write filter
 windows to the session's own admin scope, so a blob written before the
 keys split heals instead of leaking across.
+
+Deleting a subsite drops the plugin's per-site tables with Core's own —
+`openstation_filter_wpmu_drop_tables()` on the `wpmu_drop_tables`
+filter, fed by a static name list (`openstation_site_table_names()`)
+so the cleanup works whether or not the feature that created a table is
+enabled on the request that deletes the site.
+
+## What a site admin is offered
+
+The Plugins window follows Core's multisite split: per-site activate
+and deactivate stay, while install, upload and delete never appear on a
+site desktop — plugin files are network-wide and Core's own site
+screens offer none of the three, so neither do the window's caps
+(`openstation_plugins_window_caps()`), its per-row flags, or its
+marketplace AJAX endpoints, even for a super admin who holds the
+capabilities everywhere.
+
+## The user admin
+
+`wp-admin/user/` — multisite's dashboard for users with no site role —
+renders classic. It has no shell screen, and its URLs never survive the
+target allowlist; links to it from inside a window still open a browser
+tab through the bridge's admin-scope rule.

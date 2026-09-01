@@ -25,6 +25,16 @@ class Tests_OpenStation_CodeBlue extends WP_UnitTestCase {
 		self::$admin_id  = $factory->user->create( array( 'role' => 'administrator' ) );
 		self::$editor_id = $factory->user->create( array( 'role' => 'editor' ) );
 
+		// The gate reads network-wide (`manage_network_options` on
+		// multisite): the log is one file for the whole network, so a
+		// site administrator is deliberately refused there. The admin
+		// fixture is "the user allowed in", which multisite spells
+		// super admin; test_gate_denies_site_admin_on_multisite pins
+		// the refusal.
+		if ( is_multisite() ) {
+			grant_super_admin( self::$admin_id );
+		}
+
 		// Code Blue is gated behind Developer mode — the admin
 		// fixture has it on; tests for the off state flip it
 		// per-user themselves.
@@ -396,6 +406,9 @@ class Tests_OpenStation_CodeBlue extends WP_UnitTestCase {
 	public function test_gate_requires_developer_mode() {
 		// An administrator WITHOUT Developer mode sees nothing.
 		$plain_admin = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		if ( is_multisite() ) {
+			grant_super_admin( $plain_admin );
+		}
 		wp_set_current_user( $plain_admin );
 		$this->assertFalse( openstation_code_blue_user_can_use() );
 		$this->assertFalse( openstation_code_blue_rest_permission() );
@@ -413,6 +426,24 @@ class Tests_OpenStation_CodeBlue extends WP_UnitTestCase {
 	/**
 	 * @covers ::openstation_code_blue_user_can_use
 	 */
+	/**
+	 * The log is one file for the whole network, so on multisite the
+	 * gate is `manage_network_options` and a SITE administrator is
+	 * refused even with Developer mode on.
+	 *
+	 * @covers ::openstation_code_blue_user_can_use
+	 */
+	public function test_gate_denies_site_admin_on_multisite() {
+		if ( ! is_multisite() ) {
+			$this->markTestSkipped( 'Multisite-only behavior.' );
+		}
+		$site_admin = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		openstation_save_os_settings( $site_admin, array( 'developerModeEnabled' => true ) );
+		wp_set_current_user( $site_admin );
+		$this->assertFalse( openstation_code_blue_user_can_use() );
+		$this->assertFalse( openstation_code_blue_rest_permission() );
+	}
+
 	public function test_gate_is_filterable() {
 		wp_set_current_user( self::$editor_id );
 		add_filter( 'openstation_code_blue_user_can_use', '__return_true' );

@@ -22,6 +22,14 @@ class Tests_OpenStation_AgentsSecurity extends WP_UnitTestCase {
 
 	public static function wpSetUpBeforeClass( WP_UnitTest_Factory $factory ) {
 		self::$admin_id       = $factory->user->create( array( 'role' => 'administrator' ) );
+
+		// On multisite a plain administrator lacks the super-admin-only
+		// capabilities these tests exercise (update_core, edit_users,
+		// activate_plugins and friends). The admin fixture means "the
+		// fully-capable admin", which multisite spells super admin.
+		if ( is_multisite() ) {
+			grant_super_admin( self::$admin_id );
+		}
 		self::$editor_id      = $factory->user->create( array( 'role' => 'editor' ) );
 		self::$contributor_id = $factory->user->create( array( 'role' => 'contributor' ) );
 	}
