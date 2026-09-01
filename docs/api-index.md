@@ -109,7 +109,8 @@ The full surface is documented in [`javascript-reference.md`](./javascript-refer
 | `ai.ask` | `( prompt: string, opts? ) => Promise<AiAnswer>` | Experimental |
 | `registerSettingsTab` | `( def: SettingsTabDef ) => void` | Stable |
 | `subscribeOsSettings` | `( cb ) => () => void` | Stable |
-| `updateOsSettings` | `( patch, opts? ) => void` | Stable |
+| `updateOsSettings` | `( patch, opts? ) => void` *(every `OsSettingsState` key)* | Stable |
+| `resetOsSettings` | `( opts? ) => void` | Stable |
 
 ### Title-bar buttons, themes, controls, slots, chrome
 

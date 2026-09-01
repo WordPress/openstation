@@ -39,6 +39,7 @@ import type { DestructiveAdminActionEntry } from './destructive-admin-actions';
 // `src/dock-helpers.ts` — `src/api/facade.ts` is the only consumer
 // in this bundle.
 import { OsSettings } from './settings';
+import { OS_SETTINGS_WINDOW_ID } from './settings/constants';
 import { getExitOpenStationTileDef } from './exit-openstation';
 import { getNetworkAdminTileDef } from './multisite/dock-tiles';
 import { deriveWindowId, urlMatchKey } from './utils';
@@ -244,7 +245,6 @@ import {
 	MIO_TILE_ID,
 	type MioApi,
 } from './mio/controller';
-import { OS_GEAR_ICON } from './ui/gear-icon';
 import { mountNotch } from './notch';
 import { installDockBehavior } from './dock-behavior';
 import {
@@ -377,9 +377,6 @@ let _earlyReady = false;
 	// consumer reads beyond `whenReady` / `ready` / `isReady`.
 	w.wp.os = shim as unknown;
 }() );
-
-/** Stable id for the OS Settings native window. */
-const OS_SETTINGS_WINDOW_ID = 'desktop-mode-os-settings';
 
 /**
  * Run a non-critical boot task during browser idle time. Falls
@@ -1136,6 +1133,12 @@ export interface OpenStationPublicApi {
 		patch: Partial< OsSettingsSnapshot >,
 		opts?: { windowId?: string },
 	) => void;
+	/**
+	 * Put every preference back to its default — what the Preferences
+	 * window's Reset button does. The uploaded image survives: it is a
+	 * pointer at something the user made, not a preference.
+	 */
+	resetOsSettings: ( opts?: { windowId?: string } ) => void;
 	/**
 	 * Derive a stable window id from an admin URL — the same id the
 	 * default rail renderer uses when it opens a tile. Matches the
@@ -2166,22 +2169,14 @@ function init(): void {
 		isReady: () => typeof ( window as { PIXI?: unknown } ).PIXI !== 'undefined',
 	} );
 
-	// OS Settings — shell-level preferences. Takes the wallpaper layer
-	// so it can delegate apply() through the registry-driven path.
-	// Falls back to a stub layer when the shell markup somehow lacks
-	// the wallpaper element (defensive; shouldn't happen in practice).
+	// The Preferences store — shell-level preferences. Takes the
+	// wallpaper layer so it can delegate apply() through the
+	// registry-driven path. Falls back to a stub layer when the shell
+	// markup somehow lacks the wallpaper element (defensive; shouldn't
+	// happen in practice). The Preferences WINDOW is an App Framework
+	// app (`apps/os-settings/`) that edits this store through the
+	// public `wp.os.getOsSettings()` / `updateOsSettings()` API.
 	const osSettings = new OsSettings(
-		{
-			mediaUrl: config.mediaUrl,
-			restNonce: config.restNonce,
-			canUpload: !! config.canUpload,
-			isAdmin: !! config.currentUserIsAdmin,
-			extendedOptions: config.extendedOptions ?? null,
-			extendedOptionsUrl: config.extendedOptionsUrl ?? '',
-			osSettingsPanelBundleUrl: config.osSettingsPanelBundleUrl ?? '',
-			canManageDesktopThemes: !! config.canManageDesktopThemes,
-			desktopThemesUrl: config.desktopThemesUrl ?? '',
-		},
 		wallpaperLayer ?? new WallpaperLayer( document.createElement( 'div' ), pluginUrl ),
 	);
 	osSettings.apply();
@@ -3016,24 +3011,24 @@ function init(): void {
 		if ( merged ) {
 			opts = { ...opts, tabId: merged };
 		}
-		if ( opts.tabId ) {
-			osSettings.activeTabId = opts.tabId;
-		}
-		void manager.open( {
-			id: OS_SETTINGS_WINDOW_ID,
-			baseId: OS_SETTINGS_WINDOW_ID,
-			url: '#os-settings',
-			title: 'OpenStation Preferences',
-			icon: OS_GEAR_ICON,
-			native: true,
-			render: ( body ) => osSettings.renderPanel( body ),
-			width: 820,
-			height: 720,
-			minWidth: 560,
-			minHeight: 480,
+		// The window is the `apps/os-settings/` app, registered by PHP
+		// like every other app. A fresh open carries the tab as an
+		// open-time param (`$os->param( 'tab' )` in the app's mount);
+		// an already-open window is told through its client session,
+		// the same way any bundle drives an app window.
+		const alreadyOpen = !! manager.getById( OS_SETTINGS_WINDOW_ID );
+		nativeWindows.openById( OS_SETTINGS_WINDOW_ID, {
+			source: 'os-settings',
+			...( opts.tabId ? { params: { tab: opts.tabId } } : {} ),
 		} );
-		if ( opts.tabId ) {
-			osSettings.focusTab( opts.tabId );
+		if ( opts.tabId && alreadyOpen ) {
+			// `wp.os.apps` is the app runtime's namespace, registered by
+			// its own bundle once any app window has opened — which an
+			// already-open Preferences window guarantees.
+			const apps = ( window.wp?.os as {
+				apps?: { local: ( id: string, action: string, args: Record< string, unknown > ) => void };
+			} | undefined )?.apps;
+			apps?.local( OS_SETTINGS_WINDOW_ID, 'tab', { value: opts.tabId } );
 		}
 	}
 
@@ -3230,10 +3225,6 @@ function init(): void {
 			osSettings.getOsSettingsSnapshot().stationHomeEnabled !== true
 		) {
 			return false;
-		}
-		if ( nativeId === OS_SETTINGS_WINDOW_ID ) {
-			openOsSettings();
-			return true;
 		}
 		if ( nativeId === BUG_REPORT_WINDOW_ID ) {
 			openBugReport();

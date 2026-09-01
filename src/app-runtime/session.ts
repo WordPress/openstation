@@ -520,6 +520,9 @@ export function createSession( deps: SessionDeps ): Session {
 				host.send?.( e.channel, e.payload );
 				return;
 			}
+			case 'refresh_menu':
+				host.refreshMenu?.();
+				return;
 			default:
 				root.dispatchEvent(
 					new CustomEvent( 'os-app-effect', {

@@ -182,6 +182,25 @@ final class Effects {
 	}
 
 	/**
+	 * Ask the shell to rebuild its registries from a fresh menu
+	 * payload (`wp.os.refreshMenu()`).
+	 *
+	 * For an action that changed what the SERVER registers — a site
+	 * option that gates a whole module, a per-user flag a plugin's
+	 * `init` reads. The shell only learns about server registrations
+	 * from a payload, and the request that wrote the option decided,
+	 * near its own start, what to register: it cannot report the
+	 * window it would now add. The refresh is a separate request by
+	 * design, which an effect — performed after this response lands —
+	 * is exactly.
+	 *
+	 * @return self
+	 */
+	public function refresh_menu() {
+		return $this->add( 'refresh_menu', array() );
+	}
+
+	/**
 	 * Queue a custom effect for a runtime extension to handle.
 	 *
 	 * @param string              $type Effect type.

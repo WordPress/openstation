@@ -1,15 +1,13 @@
 /**
- * Shared types for the OS Settings module.
+ * Shared types for the Preferences store.
  *
- * Kept in a dedicated file so section builders, persistence helpers,
- * and the REST client can all import without pulling in the class
- * implementation (which would create a circular-import trap).
+ * Kept in a dedicated file so the persistence helpers, the public API
+ * facade and the Preferences app can all import without pulling in the
+ * store class (which would create a circular-import trap).
  */
 
 import type { NavPlacement } from '../nav/types';
 import type { MioLook } from '../mio/types';
-import type { WallpaperLayer } from '../wallpapers/layer';
-import type { WallpaperTeardown } from '../wallpapers/types';
 import type {
 	ADMIN_BAR_MODES,
 	DOCK_BEHAVIORS,
@@ -32,7 +30,7 @@ export type DockBehaviorId = ( typeof DOCK_BEHAVIORS )[ number ][ 'id' ];
 export type DockPlacementId = 'left' | 'right' | 'bottom';
 
 /**
- * Top-level desktop layout. User-tunable via OS Settings → Appearance.
+ * Top-level desktop layout. User-tunable via Preferences → Appearance.
  *
  * - `unified` — single bottom dock with every item, core cluster
  *   first. One `Dock` instance. Default, and shown as "Unified".
@@ -89,7 +87,11 @@ export interface AiAssistantConfig {
 	connectorsUrl: string;
 }
 
-/** Shape of the persisted settings. Defaults merged on load. */
+/**
+ * The persisted settings — the shape user meta holds, the shape
+ * `wp.os.getOsSettings()` returns, and the shape
+ * `wp.os.updateOsSettings()` patches. Defaults merged on load.
+ */
 export interface OsSettingsState {
 	wallpaper: string;
 	accent: AccentId;
@@ -100,12 +102,21 @@ export interface OsSettingsState {
 	 */
 	customAccent: string;
 	dockSize: DockSizeId;
+	/**
+	 * Window corner-radius preset: `'sharp'` | `'default'` | `'round'`.
+	 * Written to `--os-window-radius` by the apply pass, so a change
+	 * reflows every open window's corners live. A desktop theme that
+	 * sets that custom property in its `tokens` overrides this for as
+	 * long as the theme is worn.
+	 */
 	windowRadius: WindowRadiusId;
 	/**
 	 * How the WordPress admin bar presents above the shell:
 	 * `'static'` (always visible, vanilla behavior), `'dynamic'`
 	 * (auto-hides to a peek strip, reveals on hover/focus), or
-	 * `'hidden'` (not rendered — the default).
+	 * `'hidden'` (not rendered — the default). Written as an
+	 * `os-admin-bar-<mode>` body class by both PHP (first paint) and
+	 * the apply pass (live changes).
 	 */
 	adminBarMode: AdminBarModeId;
 	desktopLayout: DesktopLayoutId;
@@ -114,9 +125,9 @@ export interface OsSettingsState {
 	 * `'left'`, or `'right'`.
 	 *
 	 * Read by the layout dispatcher for `'unified'`. `'classic'`
-	 * ignores it — that layout
-	 * IS a placement decision, a left side bar plus a bottom dock, and
-	 * moving one of the two rails would leave both on the same edge.
+	 * ignores it — that layout IS a placement decision, a left side
+	 * bar plus a bottom dock, and moving one of the two rails would
+	 * leave both on the same edge.
 	 */
 	dockPlacement: DockPlacementId;
 	/**
@@ -161,7 +172,8 @@ export interface OsSettingsState {
 	 *
 	 * Slugs of themes that are no longer installed are kept: a theme
 	 * deleted and reinstalled must not re-seed over settings the user
-	 * has since chosen. Capped at 64.
+	 * has since chosen. Capped at 64. Shell-owned — the public write
+	 * path ignores it.
 	 */
 	appliedThemeRecommendations: string[];
 	/**
@@ -202,7 +214,7 @@ export interface OsSettingsState {
 	 */
 	windowLinkVisibility: 'focus' | 'always' | 'off';
 	/**
-	 * Master switch for the window-links feature (OS Settings →
+	 * Master switch for the window-links feature (Preferences →
 	 * Features). Off unmounts the visuals and disables the group
 	 * behaviors; the style knobs keep their values. Default on.
 	 */
@@ -239,12 +251,6 @@ export interface OsSettingsState {
 	libraryHdOnly: boolean;
 	ai: AiSettings;
 	/**
-	 * Per-user opt-in for the native Posts window. When true, clicking
-	 * the Posts dock tile opens the `<os-table>`-driven native window
-	 * instead of the chromeless `edit.php` iframe. Default off so
-	 * existing muscle memory is preserved on upgrade.
-	 */
-	/**
 	 * Per-user override of the WordPress Heartbeat rate, in
 	 * seconds. Applied via the `heartbeat_settings` PHP filter
 	 * on every page load. Allowed values: 15 (fast — Core's
@@ -258,6 +264,12 @@ export interface OsSettingsState {
 	 * over 15 s is negligible.
 	 */
 	heartbeatRate: 15 | 30 | 45 | 60;
+	/**
+	 * Per-user opt-in for the native Posts window. When true, clicking
+	 * the Posts dock tile opens the `<os-table>`-driven native window
+	 * instead of the chromeless `edit.php` iframe. Default off so
+	 * existing muscle memory is preserved on upgrade.
+	 */
 	nativePostsEnabled: boolean;
 	/**
 	 * Per-user list of column keys hidden in the native Posts window.
@@ -271,79 +283,58 @@ export interface OsSettingsState {
 	 * Per-user opt-in for the native Pages window. When true, clicking
 	 * the Pages dock tile (or any link to `edit.php?post_type=page`)
 	 * opens the `<os-table>`-driven native window instead of the
-	 * chromeless iframe. Defaults on — see the matching default in
-	 * `constants.ts`.
+	 * chromeless iframe. Default off.
 	 */
 	nativePagesEnabled: boolean;
 	/**
-	 * Per-user opt-in for the native Users window. When true, the
-	 * Users dock tile / `users.php` links open the native
-	 * `<os-table>` window instead of the classic iframe. Defaults on.
-	 * Capability-gated on the server (the window is only registered
-	 * for users with `list_users`); read-only for `list_users`-only
-	 * users, with mutation actions appearing only when the matching
-	 * `edit_users` / `promote_users` / `delete_users` caps are present.
+	 * Per-user opt-in for the native Users window. Capability-gated on
+	 * the server (the window is only registered for users with
+	 * `list_users`). Default off.
 	 */
 	nativeUsersEnabled: boolean;
 	/**
-	 * Per-user opt-in for the native Plugins window. When true, the
-	 * Plugins dock tile / `plugins.php` / `plugin-install.php` links
-	 * open the native two-tab window (Installed list + wp.org Browse
-	 * gallery) instead of the chromeless iframes. Defaults on.
-	 * Capability-gated on the server (`activate_plugins`); the Browse
-	 * tab is hidden for users without `install_plugins`. The
-	 * `plugin-editor.php` URL is intentionally NOT claimed — it stays
-	 * on the existing code-editor iframe.
+	 * Per-user opt-in for the native Plugins window (Installed list +
+	 * wp.org Browse gallery). Capability-gated on the server
+	 * (`activate_plugins`). Default off.
 	 */
 	nativePluginsEnabled: boolean;
 	/**
-	 * Per-user opt-in for the native Comments window. When true, the
-	 * Comments dock tile / `edit-comments.php` links open the native
-	 * `<os-table>`-driven moderation queue instead of the chromeless
-	 * iframe. Defaults on. Capability-gated on the server (`edit_posts`);
-	 * bulk + reply actions further cap-gate inside the bundle.
+	 * Per-user opt-in for the native Comments window. Capability-gated
+	 * on the server (`edit_posts`). Default off.
 	 */
 	nativeCommentsEnabled: boolean;
 	/**
 	 * Per-user opt-in for Station Home, the native Dashboard window.
 	 * When true, the Dashboard dock tile / `index.php` links open
 	 * Station Home instead of the chromeless Dashboard iframe. Default
-	 * off so custom dashboards (welcome panels, admin-page redirects,
-	 * dashboard-replacement plugins) keep working untouched on upgrade.
+	 * off so custom dashboards keep working untouched on upgrade.
 	 */
 	stationHomeEnabled: boolean;
 	/**
 	 * Per-user opt-in for the service worker's shared admin-asset
-	 * cache (Experimental). When true, the SW serves versioned admin
-	 * static assets from one origin-wide Cache Storage bucket shared
-	 * by every window. The value lives server-side and reaches the SW
-	 * inside the served script bytes, so a change applies via a
+	 * cache (Experimental). The value lives server-side and reaches
+	 * the SW inside the served script bytes, so a change applies via a
 	 * normal SW update on the next reload. Default off.
 	 */
 	adminAssetCacheEnabled: boolean;
 	/**
 	 * Per-user opt-in for hover-intent window prewarming
 	 * (Experimental). When true, a sustained mouse hover on a dock
-	 * tile speculatively builds that page's window hidden, so the
-	 * document is already loading — or loaded — when the user clicks.
-	 * Default off.
+	 * tile speculatively builds that page's window hidden. Default off.
 	 */
 	windowPrewarmEnabled: boolean;
 	/**
 	 * When true, left-clicking the empty wallpaper triggers the
 	 * "Show desktop" toggle (macOS-style) and the matching entry is
-	 * hidden from the wallpaper context menu. When false (default),
-	 * the entry stays in the context menu and left clicks on the
-	 * wallpaper do nothing. Per-user.
+	 * hidden from the wallpaper context menu. Default off. Per-user.
 	 */
 	showDesktopOnWallpaperClick: boolean;
 	/**
-	 * Whether the "close all windows" shortcut (`⌥⌘W` / `Ctrl+Alt+W`,
-	 * which closes the active desktop's windows) asks before it
-	 * closes. True by default, and the dialog's "Don't
-	 * ask again" checkbox is the only thing that writes false — which
-	 * is why the toggle exists in Preferences → Windows: an opt-out
-	 * with no way back is a trap, not a preference. Per-user.
+	 * Whether the "close all windows" shortcut (`⌥⌘W` / `Ctrl+Alt+W`)
+	 * asks before it closes. True by default; the dialog's "Don't ask
+	 * again" checkbox is the only thing that writes false — which is
+	 * why the toggle exists in Preferences → Windows: an opt-out with
+	 * no way back is a trap, not a preference. Per-user.
 	 */
 	confirmCloseAllWindows: boolean;
 	/**
@@ -355,47 +346,28 @@ export interface OsSettingsState {
 	/**
 	 * The user's own Mio, as built in "Make it yours" — colours, ring,
 	 * glow, hologram, and silhouette. Only the keys they actually
-	 * changed are stored, so a site that later ships a different Mio
-	 * still shows through everywhere the user has no opinion.
-	 *
-	 * Here rather than in localStorage because it is a preference about
-	 * the person, not the machine: ten minutes spent building a
-	 * companion should be waiting on their phone. See `docs/mio.md`.
+	 * changed are stored. Per user rather than per browser because it
+	 * is a preference about the person, not the machine.
 	 */
 	mioStyle: MioLook;
 	/**
-	 * When true, post-type tiles inside the My WordPress window
-	 * carry a diagonal corner ribbon (`Draft` / `Pending` /
-	 * `Private` / `Scheduled`) for non-published rows. Per-user.
-	 * Defaults to `true` — the ribbon is most users' easiest signal
-	 * that a tile won't show up on the front-end yet, so we surface
-	 * it out-of-the-box and let people who find it noisy toggle it
-	 * off.
+	 * When true, post-type tiles inside the My WordPress window carry
+	 * a diagonal corner ribbon (`Draft` / `Pending` / `Private` /
+	 * `Scheduled`) for non-published rows. Default on. Per-user.
 	 */
 	showPostStatusRibbons: boolean;
 	/**
 	 * When true, unlocks developer-facing surfaces meant for plugin
-	 * authors rather than end users: the Starter Widget appears in
-	 * the add-widget picker, and the OS Settings → Components tab
-	 * runs its intentional missing-import-warner demo (console
-	 * banner + three deliberate console.errors). Defaults to
-	 * `false` so regular users don't see developer noise. Per-user.
+	 * authors rather than end users: the Starter Widget, the
+	 * Preferences → Components tab's missing-import-warner demo, and
+	 * Code Blue. Default off. Per-user.
 	 */
 	developerModeEnabled: boolean;
 	/**
-	 * Per-user kill switch for the folder-sharing feature. Defaults
-	 * to `true`. When `false`, every share-related surface is
-	 * suppressed in this user's shell:
-	 *
-	 *   - The "Share folder" tile-menu entry and title-bar People
-	 *     button never appear.
-	 *   - The pending-invite modal never opens.
-	 *   - "Leave shared folder" is hidden.
-	 *   - The heartbeat skips the `shares.pending` payload for
-	 *     this user; share REST routes return 404.
-	 *
-	 * Independent of the destructive "Delete folder sharing data"
-	 * admin action, which drops the tables site-wide.
+	 * Per-user kill switch for the folder-sharing feature. Default on.
+	 * When `false`, every share-related surface is suppressed in this
+	 * user's shell and the share REST routes return 404. Independent of
+	 * the destructive "Delete folder sharing data" admin action.
 	 */
 	foldersSharingEnabled: boolean;
 	/**
@@ -404,12 +376,9 @@ export interface OsSettingsState {
 	 *
 	 * `'rail'` rather than `'dock'` on purpose: for a Core admin menu
 	 * in the split layout the rail IS the sidebar, so storing a rail
-	 * name would need a migration on every layout switch. See
-	 * `src/nav/defaults.ts`.
-	 *
-	 * Missing keys mean "no override" — the item takes the default for
-	 * its kind. Written sparsely: a newly-activated plugin's menu gets
-	 * the right default with no write and no reconciliation pass.
+	 * name would need a migration on every layout switch. Missing keys
+	 * mean "no override" — the item takes the default for its kind
+	 * (`src/nav/defaults.ts`).
 	 */
 	navPlacement: Record< string, NavPlacement >;
 	/**
@@ -418,89 +387,13 @@ export interface OsSettingsState {
 	 * registration order and render after the listed ones. Unknown ids
 	 * (a deactivated plugin) survive the round-trip in case it comes
 	 * back.
-	 *
-	 * Flat rather than per-zone so a Core menu keeps its position when
-	 * the layout moves it between the dock and the sidebar.
 	 */
 	navOrder: string[];
+	/**
+	 * Persisted desktop position (in CSS px) for every item the user
+	 * has promoted onto the wallpaper, keyed by item id. Missing keys
+	 * mean "no override" — the synth placement falls back to the
+	 * default grid slot.
+	 */
 	dockPromotedPositions: Record< string, { x: number; y: number } >;
-}
-
-/**
- * Subset of the REST media item we actually use. `_fields` on the
- * request narrows the payload to match so we're not shipping 60kb of
- * Gutenberg-specific metadata for a picker.
- */
-export interface MediaItem {
-	id: number;
-	source_url: string;
-	alt_text: string;
-	title: { rendered: string };
-	media_details: {
-		width: number;
-		height: number;
-		sizes?: Record<
-			string,
-			{ source_url: string; width: number; height: number } | undefined
-		>;
-	};
-}
-
-/** Config needed to talk to the REST media endpoint. */
-export interface OsSettingsConfig {
-	mediaUrl: string;
-	restNonce: string;
-	canUpload: boolean;
-	/** Whether the current user has manage_options capability. */
-	isAdmin: boolean;
-	/** Platform-wide extended options — null for non-admins. */
-	extendedOptions: {
-		media_library_enhanced: boolean;
-		games: boolean;
-		agents: boolean;
-	} | null;
-	/** REST endpoint for reading/writing extended options. */
-	extendedOptionsUrl: string;
-	/**
-	 * Fully-qualified URL of the lazy-loaded OS Settings panel
-	 * bundle (`os-settings-panel[.min].js`). The class's stub
-	 * `renderPanel()` `<script>`-injects it on the user's first
-	 * Settings open; the bundle holds every section renderer + the
-	 * `<os-*>` components only the panel needs.
-	 */
-	osSettingsPanelBundleUrl?: string;
-	/**
-	 * Whether this user may upload / delete desktop themes. Gates the
-	 * management controls in the Themes tab; PICKING a theme is
-	 * per-user and available to everyone, so the tab itself is not
-	 * gated.
-	 */
-	canManageDesktopThemes?: boolean;
-	/**
-	 * REST base for the desktop-theme upload / delete routes
-	 * (`desktop-mode/v1/desktop-themes`).
-	 */
-	desktopThemesUrl?: string;
-}
-
-/**
- * The context object that section builders and section-scoped helpers
- * receive. The `OsSettings` class implements this interface; decoupling
- * it as an interface lets sections depend on the shape without pulling
- * in the class itself, which would be a circular import.
- */
-export interface SettingsCtx {
-	state: OsSettingsState;
-	config: OsSettingsConfig;
-	layer: WallpaperLayer;
-	/**
-	 * Teardown for the currently-mounted wallpaper editor, or null when
-	 * nothing is mounted. Mutable — the wallpaper section updates it as
-	 * editors mount/unmount.
-	 */
-	activeEditorTeardown: WallpaperTeardown | null;
-	save(): void;
-	apply(): void;
-	/** Used by the Reset-to-defaults button to rebuild the panel. */
-	renderPanel( body: HTMLElement ): void;
 }

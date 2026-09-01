@@ -43,7 +43,7 @@
  * needing a second set of rules to keep the two in step.
  */
 
-import { osIcon } from '../ui/icons';
+import { osIcon } from '../../../src/ui/icons';
 
 /**
  * Partial because most ids have no glyph: only the built-in pages
@@ -62,7 +62,7 @@ type NavIconMap = Readonly< Partial< Record< string, () => SVGSVGElement > > >;
 const NAV = { size: null } as const;
 
 /**
- * Tab id to glyph. Ids match the `rows` table in `panel.ts`.
+ * Tab id to glyph. Ids match the page table in `pages.ts`.
  *
  * A tab with no entry renders without a glyph and keeps its label
  * aligned with the rest, which is the case every third-party tab is

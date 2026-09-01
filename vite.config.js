@@ -455,18 +455,6 @@ const TARGETS = {
 		fileBase: 'snow-wallpaper',
 		iifeName: 'openStationSnowWallpaper',
 	},
-	// OS Settings panel — the big lazy bundle (Stage 8). Hosts every
-	// section renderer + the `<os-*>` components only the panel
-	// uses (color/range field, swatch, swatch-grid, section,
-	// segmented, tabs, panel, empty-state, checkbox-label, button,
-	// select, text-field). Loaded on the user's first Settings open
-	// by the `OsSettings.renderPanel()` stub. Publishes
-	// `window.openStationRenderOsSettingsPanel`.
-	'os-settings-panel': {
-		entry:    'src/settings/panel-entry.ts',
-		fileBase: 'os-settings-panel',
-		iifeName: 'openStationOsSettingsPanel',
-	},
 	// Mio — the desk companion: a PixiJS soft-body blob with a
 	// chroma neon outline that floats over the wallpaper, falls onto
 	// nearby windows, watches the pointer, and can be dragged around.

@@ -608,13 +608,6 @@ function openstation_enqueue_assets() {
 			// opens the assistant. Picking `.js` vs `.min.js` here keeps
 			// the SCRIPT_DEBUG gate server-side, matching iframeBridgeUrl.
 			'aiAssistantBundleUrl'          => $lazy_bundle_url( 'ai-assistant' ),
-			// URL of the OS Settings panel lazy bundle. Injected by
-			// the main bundle's `OsSettings.renderPanel()` stub on
-			// the user's first Settings open. Holds every section
-			// renderer + the `<os-*>` components only the panel
-			// uses, so nothing about Settings ships in
-			// `desktop.min.js` for users who never open it.
-			'osSettingsPanelBundleUrl'      => $lazy_bundle_url( 'os-settings-panel' ),
 			// URL of the shell-overlays lazy bundle. Pre-loaded by
 			// the main bundle after first paint so action-triggered
 			// overlays (toast, confirm dialog, context menus) feel
@@ -806,7 +799,6 @@ function openstation_enqueue_assets() {
 			'deferredStyles'                => openstation_build_deferred_styles(
 				array_merge(
 					array(
-						'os-settings',
 						'desktop-mode-ai-assistant',
 						'desktop-mode-bug-report',
 						// The explorer's shared sheet. It rides the WP
@@ -1090,7 +1082,6 @@ function openstation_defer_non_critical_styles( $html, $handle, $href, $media ) 
 			'desktop-mode-ai-assistant',
 			'desktop-mode-bug-report',
 			'os-window-overview',
-			'os-settings',
 		)
 	);
 

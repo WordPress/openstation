@@ -17,6 +17,14 @@
  *     preference change so the debounce collapse rapid edits (e.g. dragging
  *     the gradient angle slider) into a single network request. Only the
  *     fields that actually changed are sent — see `_buildPayload()`.
+ *
+ * Sanitization is ONE table, {@link SANITIZERS}: a coercion per key,
+ * each taking the raw value and a fallback. The same table reads a
+ * whole snapshot out of user meta (fallback = the shipped defaults)
+ * and admits a partial patch from the public API (fallback = the
+ * current value, so an invalid field is ignored rather than reset).
+ * Two callers, one set of rules — a key that is valid on load is valid
+ * on write, and a key added here is writable everywhere at once.
  */
 
 import type { DesktopConfig } from '../types';
@@ -28,24 +36,19 @@ import {
 	DOCK_BEHAVIORS,
 	DOCK_PLACEMENTS,
 	DOCK_SIZES,
+	OS_SETTINGS_WINDOW_ID,
 	STORAGE_KEY,
 	WINDOW_RADII,
 	getAccents,
 	getDefaultWallpaperId,
 } from './constants';
 import type {
-	AccentId,
-	AdminBarModeId,
 	AiSettings,
 	CustomGradient,
 	CustomImage,
-	DesktopLayoutId,
-	DockBehaviorId,
-	DockPlacementId,
-	DockSizeId,
 	OsSettingsState,
-	WindowRadiusId,
 } from './types';
+import type { NavPlacement } from '../nav/types';
 import { isHexColor } from './utils';
 import { sanitizeMioLook } from '../mio/look';
 import { trackedFetch } from '../tracked-fetch';
@@ -71,7 +74,7 @@ export function loadState(): OsSettingsState {
 	// 1. Server snapshot — most authoritative.
 	const serverRaw = _readServerSettings();
 	if ( serverRaw ) {
-		const state = _parseRaw( serverRaw );
+		const state = sanitizeSettings( serverRaw, liveDefaults() );
 		// Prime the local cache so mid-session reads don't re-parse JSON.
 		_writeLocalStorage( state );
 		// This branch — and only this branch — read the state out of
@@ -86,18 +89,32 @@ export function loadState(): OsSettingsState {
 	try {
 		const cached = window.localStorage.getItem( STORAGE_KEY );
 		if ( cached ) {
-			return _parseRaw( JSON.parse( cached ) as Partial<OsSettingsState> );
+			return sanitizeSettings(
+				JSON.parse( cached ) as Partial< OsSettingsState >,
+				liveDefaults(),
+			);
 		}
 	} catch {
 		/* Quota / parse error — fall through to defaults. */
 	}
 
 	// 3. Defaults.
-	return structuredDefaults();
+	return liveDefaults();
+}
+
+/**
+ * The shipped defaults, with the one value PHP decides at runtime:
+ * the default wallpaper comes from `openstation_default_wallpaper`,
+ * not from the compile-time constant.
+ */
+function liveDefaults(): OsSettingsState {
+	const defaults = structuredDefaults();
+	defaults.wallpaper = getDefaultWallpaperId();
+	return defaults;
 }
 
 /** Read `openStationConfig.osSettings` from the global config. */
-function _readServerSettings(): Partial<OsSettingsState> | null {
+function _readServerSettings(): Partial< OsSettingsState > | null {
 	const config = ( window as unknown as {
 		openStationConfig?: DesktopConfig;
 	} ).openStationConfig;
@@ -105,242 +122,220 @@ function _readServerSettings(): Partial<OsSettingsState> | null {
 	if ( ! raw || typeof raw !== 'object' || Array.isArray( raw ) ) {
 		return null;
 	}
-	return raw as Partial<OsSettingsState>;
+	return raw as Partial< OsSettingsState >;
 }
 
-/** Coerce an untrusted shape into a fully-populated `OsSettingsState`. */
-function _parseRaw( parsed: Partial<OsSettingsState> ): OsSettingsState {
-	const accents = getAccents();
-	return {
-		wallpaper:
-			typeof parsed.wallpaper === 'string' && parsed.wallpaper !== ''
-				? parsed.wallpaper
-				: getDefaultWallpaperId(),
-		// `custom` is a valid selection that is deliberately absent from
-		// the preset list, so it has to be allowed explicitly or a saved
-		// custom accent would be discarded as unknown on every load.
-		accent:
-			parsed.accent === CUSTOM_ACCENT_ID ||
-			accents.some( ( a ) => a.id === parsed.accent )
-				? ( parsed.accent as AccentId )
-				: DEFAULTS.accent,
-		// Untrusted input painted straight into a CSS custom property,
-		// so it is validated as a hex triplet rather than merely
-		// type-checked as a string.
-		customAccent:
-			typeof parsed.customAccent === 'string' &&
-			/^#[0-9a-fA-F]{6}$/.test( parsed.customAccent )
-				? parsed.customAccent
-				: DEFAULTS.customAccent,
-		dockSize: DOCK_SIZES.some( ( d ) => d.id === parsed.dockSize )
-			? ( parsed.dockSize as DockSizeId )
-			: DEFAULTS.dockSize,
-		windowRadius: WINDOW_RADII.some( ( r ) => r.id === parsed.windowRadius )
-			? ( parsed.windowRadius as WindowRadiusId )
-			: DEFAULTS.windowRadius,
-		adminBarMode: ADMIN_BAR_MODES.some(
-			( m ) => m.id === parsed.adminBarMode,
-		)
-			? ( parsed.adminBarMode as AdminBarModeId )
-			: DEFAULTS.adminBarMode,
-		desktopLayout: DESKTOP_LAYOUTS.some(
-			( l ) => l.id === parsed.desktopLayout,
-		)
-			? ( parsed.desktopLayout as DesktopLayoutId )
-			: DEFAULTS.desktopLayout,
-		dockPlacement: DOCK_PLACEMENTS.some(
-			( p ) => p.id === parsed.dockPlacement,
-		)
-			? ( parsed.dockPlacement as DockPlacementId )
-			: DEFAULTS.dockPlacement,
-		dockBehavior: DOCK_BEHAVIORS.some(
-			( b ) => b.id === parsed.dockBehavior,
-		)
-			? ( parsed.dockBehavior as DockBehaviorId )
-			: DEFAULTS.dockBehavior,
-		sideDockBehavior: DOCK_BEHAVIORS.some(
-			( b ) => b.id === parsed.sideDockBehavior,
-		)
-			? ( parsed.sideDockBehavior as DockBehaviorId )
-			: DEFAULTS.sideDockBehavior,
-		// Dock rail renderer — any sanitize_key()-clean string
-		// survives; the registry resolves at use time and falls back
-		// to `'default'` when the picked renderer isn't registered.
-		dockRailRenderer:
-			typeof parsed.dockRailRenderer === 'string' &&
-			/^[a-z0-9_-]+$/.test( parsed.dockRailRenderer )
-				? parsed.dockRailRenderer
-				: DEFAULTS.dockRailRenderer,
-		// Desktop theme — mirrors the PHP sanitizer exactly: a
-		// `sanitize_key()`-clean slug, or the empty string for the
-		// system default. Note the `*` quantifier (not `+`): unlike
-		// every other id field here, EMPTY IS A REAL VALUE, and a `+`
-		// would silently rewrite "System default" to whatever the
-		// default happened to be.
-		desktopTheme:
-			typeof parsed.desktopTheme === 'string' &&
-			/^[a-z0-9_-]*$/.test( parsed.desktopTheme )
-				? parsed.desktopTheme
-				: DEFAULTS.desktopTheme,
-		// Seeded-theme ledger — `sanitize_key()`-clean slugs, capped at
-		// the most recent 64 (the same end PHP trims from; the writer
-		// appends, so keeping the head would discard the entry just
-		// written and re-arm that theme's one-time seed). Slugs of
-		// themes that are no longer installed survive on purpose:
-		// forgetting one would let a reinstall re-seed over settings
-		// the user has since chosen.
-		appliedThemeRecommendations: Array.isArray(
-			parsed.appliedThemeRecommendations,
-		)
+// -----------------------------------------------------------------------
+// Sanitize
+// -----------------------------------------------------------------------
+
+type Sanitizer< T > = ( raw: unknown, fallback: T ) => T;
+
+type Sanitizers = {
+	[ K in keyof OsSettingsState ]: Sanitizer< OsSettingsState[ K ] >;
+};
+
+const isObject = ( raw: unknown ): raw is Record< string, unknown > =>
+	!! raw && typeof raw === 'object' && ! Array.isArray( raw );
+
+const bool: Sanitizer< boolean > = ( raw, fallback ) =>
+	typeof raw === 'boolean' ? raw : fallback;
+
+/** One of a fixed option list, by `id`. */
+const oneOf =
+	< T extends string >( list: ReadonlyArray< { id: T } > ): Sanitizer< T > =>
+		( raw, fallback ) =>
+			list.some( ( option ) => option.id === raw ) ? ( raw as T ) : fallback;
+
+/** A string matching a charset. */
+const matching =
+	( pattern: RegExp ): Sanitizer< string > =>
+		( raw, fallback ) =>
+			typeof raw === 'string' && pattern.test( raw ) ? raw : fallback;
+
+/**
+ * Registry ids: `vendor/sub-id` slashes allowed, mirroring the PHP
+ * sanitizer, which lower-cases and strips to this charset rather than
+ * `sanitize_key()` (that would drop the slash and break a namespaced
+ * id on round-trip). No allow-list: each engine resolves at use time
+ * and treats an unknown id as "none".
+ */
+const REGISTRY_ID = /^[a-z0-9_/-]+$/;
+
+/**
+ * The coercion for every key. Order follows `OsSettingsState`.
+ *
+ * A sanitizer returns the FALLBACK for a value it rejects. On load the
+ * fallback is the shipped default; on a public-API patch it is the
+ * current value — which is what makes a rejected field a no-op rather
+ * than a reset, and why the table takes the fallback as an argument
+ * instead of reading `DEFAULTS` itself.
+ */
+const SANITIZERS: Sanitizers = {
+	wallpaper: ( raw, fallback ) =>
+		typeof raw === 'string' && raw !== '' ? raw : fallback,
+	// `custom` is a valid selection that is deliberately absent from
+	// the preset list, so it has to be allowed explicitly or a saved
+	// custom accent would be discarded as unknown on every load.
+	accent: ( raw, fallback ) =>
+		raw === CUSTOM_ACCENT_ID || getAccents().some( ( a ) => a.id === raw )
+			? ( raw as string )
+			: fallback,
+	// Untrusted input painted straight into a CSS custom property, so
+	// it is validated as a hex triplet rather than merely type-checked.
+	customAccent: matching( /^#[0-9a-fA-F]{6}$/ ),
+	dockSize: oneOf( DOCK_SIZES ),
+	windowRadius: oneOf( WINDOW_RADII ),
+	adminBarMode: oneOf( ADMIN_BAR_MODES ),
+	desktopLayout: oneOf( DESKTOP_LAYOUTS ),
+	dockPlacement: oneOf( DOCK_PLACEMENTS ),
+	dockBehavior: oneOf( DOCK_BEHAVIORS ),
+	sideDockBehavior: oneOf( DOCK_BEHAVIORS ),
+	// Any sanitize_key()-clean string survives; the registry resolves
+	// at use time and falls back to `'default'` when unregistered.
+	dockRailRenderer: matching( /^[a-z0-9_-]+$/ ),
+	// Mirrors the PHP sanitizer exactly: a `sanitize_key()`-clean slug,
+	// or the empty string for the system default. Note the `*`
+	// quantifier: unlike every other id here, EMPTY IS A REAL VALUE.
+	desktopTheme: matching( /^[a-z0-9_-]*$/ ),
+	// The seeded-theme ledger — `sanitize_key()`-clean slugs, capped at
+	// the most recent 64 (the same end PHP trims from; the writer
+	// appends, so keeping the head would discard the entry just written
+	// and re-arm that theme's one-time seed). Slugs of themes that are
+	// no longer installed survive on purpose: forgetting one would let
+	// a reinstall re-seed over settings the user has since chosen.
+	appliedThemeRecommendations: ( raw, fallback ) =>
+		Array.isArray( raw )
 			? Array.from(
 				new Set(
-					parsed.appliedThemeRecommendations.filter(
+					raw.filter(
 						( v ): v is string =>
 							typeof v === 'string' && /^[a-z0-9_-]+$/.test( v ),
 					),
 				),
 			).slice( -64 )
-			: DEFAULTS.appliedThemeRecommendations.slice(),
-		// Unfocus effect — any registry id (`vendor/sub-id` allowed) or
-		// the `'none'` sentinel survives; the engine resolves at use
-		// time and treats an unknown id as "no effect".
-		unfocusEffect:
-			typeof parsed.unfocusEffect === 'string' &&
-			/^[a-z0-9_/-]+$/.test( parsed.unfocusEffect )
-				? parsed.unfocusEffect
-				: DEFAULTS.unfocusEffect,
-		// Window reveal — same id charset as unfocus effects; the
-		// surface resolves at play time and treats an unknown id as
-		// "no reveal".
-		windowReveal:
-			typeof parsed.windowReveal === 'string' &&
-			/^[a-z0-9_/-]+$/.test( parsed.windowReveal )
-				? parsed.windowReveal
-				: DEFAULTS.windowReveal,
-		// Reveal duration override — 0 (or anything out of range) means
-		// "use each reveal's own timing"; the surface clamps the rest.
-		windowRevealDuration:
-			typeof parsed.windowRevealDuration === 'number' &&
-			Number.isFinite( parsed.windowRevealDuration ) &&
-			parsed.windowRevealDuration > 0
-				? Math.min( 4000, Math.max( 80, Math.round( parsed.windowRevealDuration ) ) )
-				: DEFAULTS.windowRevealDuration,
-		// Window-link renderer — same id charset as unfocus effects;
-		// the render host resolves at use time and falls back to the
-		// built-in `svg-splines` for unknown ids.
-		windowLinkRenderer:
-			typeof parsed.windowLinkRenderer === 'string' &&
-			/^[a-z0-9_/-]+$/.test( parsed.windowLinkRenderer )
-				? parsed.windowLinkRenderer
-				: DEFAULTS.windowLinkRenderer,
-		windowLinkVisibility:
-			parsed.windowLinkVisibility === 'focus' ||
-			parsed.windowLinkVisibility === 'always' ||
-			parsed.windowLinkVisibility === 'off'
-				? parsed.windowLinkVisibility
-				: DEFAULTS.windowLinkVisibility,
-		windowLinksEnabled:
-			typeof parsed.windowLinksEnabled === 'boolean'
-				? parsed.windowLinksEnabled
-				: DEFAULTS.windowLinksEnabled,
-		windowLinkRaiseOnFocus:
-			typeof parsed.windowLinkRaiseOnFocus === 'boolean'
-				? parsed.windowLinkRaiseOnFocus
-				: DEFAULTS.windowLinkRaiseOnFocus,
-		windowLinkHighlight:
-			typeof parsed.windowLinkHighlight === 'boolean'
-				? parsed.windowLinkHighlight
-				: DEFAULTS.windowLinkHighlight,
-		customGradient: sanitizeCustomGradient( parsed.customGradient ),
-		customImage: sanitizeCustomImage( parsed.customImage ),
-		wallpaperSettings: sanitizeWallpaperSettings( parsed.wallpaperSettings ),
-		libraryHdOnly:
-			typeof parsed.libraryHdOnly === 'boolean'
-				? parsed.libraryHdOnly
-				: DEFAULTS.libraryHdOnly,
-		ai: sanitizeAi( parsed.ai ),
-		heartbeatRate:
-			parsed.heartbeatRate === 15 ||
-			parsed.heartbeatRate === 30 ||
-			parsed.heartbeatRate === 45 ||
-			parsed.heartbeatRate === 60
-				? parsed.heartbeatRate
-				: DEFAULTS.heartbeatRate,
-		nativePostsEnabled:
-			typeof parsed.nativePostsEnabled === 'boolean'
-				? parsed.nativePostsEnabled
-				: DEFAULTS.nativePostsEnabled,
-		nativePostsHiddenColumns: Array.isArray( parsed.nativePostsHiddenColumns )
-			? parsed.nativePostsHiddenColumns
+			: fallback.slice(),
+	unfocusEffect: matching( REGISTRY_ID ),
+	windowReveal: matching( REGISTRY_ID ),
+	// 0 (or anything out of range) means "use each reveal's own
+	// timing"; the surface clamps the rest.
+	windowRevealDuration: ( raw, fallback ) => {
+		if ( typeof raw !== 'number' || ! Number.isFinite( raw ) ) {
+			return fallback;
+		}
+		return raw > 0 ? Math.min( 4000, Math.max( 80, Math.round( raw ) ) ) : 0;
+	},
+	windowLinkRenderer: matching( REGISTRY_ID ),
+	windowLinkVisibility: ( raw, fallback ) =>
+		raw === 'focus' || raw === 'always' || raw === 'off' ? raw : fallback,
+	windowLinksEnabled: bool,
+	windowLinkRaiseOnFocus: bool,
+	windowLinkHighlight: bool,
+	customGradient: ( raw, fallback ) =>
+		isObject( raw ) ? sanitizeCustomGradient( raw ) : { ...fallback },
+	// `null` is a real value — "no image" — not a rejected one.
+	customImage: ( raw, fallback ) =>
+		raw === null || isObject( raw ) ? sanitizeCustomImage( raw ) : fallback,
+	wallpaperSettings: ( raw, fallback ) =>
+		isObject( raw ) ? sanitizeWallpaperSettings( raw ) : fallback,
+	libraryHdOnly: bool,
+	ai: ( raw, fallback ) => sanitizeAi( raw, fallback ),
+	heartbeatRate: ( raw, fallback ) =>
+		raw === 15 || raw === 30 || raw === 45 || raw === 60 ? raw : fallback,
+	nativePostsEnabled: bool,
+	// Cap to a sane upper bound so a corrupted server payload can't
+	// memory-bloat the cell. 32 is far more than any plausible count.
+	nativePostsHiddenColumns: ( raw, fallback ) =>
+		Array.isArray( raw )
+			? raw
 				.filter( ( v ): v is string => typeof v === 'string' && v !== '' )
-			// Cap to a sane upper bound so a corrupted server
-			// payload can't memory-bloat the cell. 32 is far
-			// more than any plausible column count.
 				.slice( 0, 32 )
-			: DEFAULTS.nativePostsHiddenColumns.slice(),
-		nativePagesEnabled:
-			typeof parsed.nativePagesEnabled === 'boolean'
-				? parsed.nativePagesEnabled
-				: DEFAULTS.nativePagesEnabled,
-		nativeUsersEnabled:
-			typeof parsed.nativeUsersEnabled === 'boolean'
-				? parsed.nativeUsersEnabled
-				: DEFAULTS.nativeUsersEnabled,
-		nativePluginsEnabled:
-			typeof parsed.nativePluginsEnabled === 'boolean'
-				? parsed.nativePluginsEnabled
-				: DEFAULTS.nativePluginsEnabled,
-		nativeCommentsEnabled:
-			typeof parsed.nativeCommentsEnabled === 'boolean'
-				? parsed.nativeCommentsEnabled
-				: DEFAULTS.nativeCommentsEnabled,
-		stationHomeEnabled:
-			typeof parsed.stationHomeEnabled === 'boolean'
-				? parsed.stationHomeEnabled
-				: DEFAULTS.stationHomeEnabled,
-		adminAssetCacheEnabled:
-			typeof parsed.adminAssetCacheEnabled === 'boolean'
-				? parsed.adminAssetCacheEnabled
-				: DEFAULTS.adminAssetCacheEnabled,
-		windowPrewarmEnabled:
-			typeof parsed.windowPrewarmEnabled === 'boolean'
-				? parsed.windowPrewarmEnabled
-				: DEFAULTS.windowPrewarmEnabled,
-		showDesktopOnWallpaperClick:
-			typeof parsed.showDesktopOnWallpaperClick === 'boolean'
-				? parsed.showDesktopOnWallpaperClick
-				: DEFAULTS.showDesktopOnWallpaperClick,
-		confirmCloseAllWindows:
-			typeof parsed.confirmCloseAllWindows === 'boolean'
-				? parsed.confirmCloseAllWindows
-				: DEFAULTS.confirmCloseAllWindows,
-		mioEnabled:
-			typeof parsed.mioEnabled === 'boolean'
-				? parsed.mioEnabled
-				: DEFAULTS.mioEnabled,
-		// Shape check only — what a *legal* hue or silhouette is stays
-		// `sanitizeMioConfig`'s call, and it runs on everything headed
-		// for the simulation whatever route it arrived by.
-		mioStyle: sanitizeMioLook( parsed.mioStyle ),
-		showPostStatusRibbons:
-			typeof parsed.showPostStatusRibbons === 'boolean'
-				? parsed.showPostStatusRibbons
-				: DEFAULTS.showPostStatusRibbons,
-		developerModeEnabled:
-			typeof parsed.developerModeEnabled === 'boolean'
-				? parsed.developerModeEnabled
-				: DEFAULTS.developerModeEnabled,
-		foldersSharingEnabled:
-			typeof parsed.foldersSharingEnabled === 'boolean'
-				? parsed.foldersSharingEnabled
-				: DEFAULTS.foldersSharingEnabled,
-		navPlacement: sanitizeNavPlacement( parsed.navPlacement ),
-		navOrder: sanitizeNavOrder( parsed.navOrder ),
-		dockPromotedPositions: sanitizeDockPromotedPositions(
-			parsed.dockPromotedPositions,
-		),
-	};
+			: fallback.slice(),
+	nativePagesEnabled: bool,
+	nativeUsersEnabled: bool,
+	nativePluginsEnabled: bool,
+	nativeCommentsEnabled: bool,
+	stationHomeEnabled: bool,
+	adminAssetCacheEnabled: bool,
+	windowPrewarmEnabled: bool,
+	showDesktopOnWallpaperClick: bool,
+	confirmCloseAllWindows: bool,
+	mioEnabled: bool,
+	// Shape check only — what a *legal* hue or silhouette is stays
+	// `sanitizeMioConfig`'s call, and it runs on everything headed for
+	// the simulation whatever route it arrived by.
+	mioStyle: ( raw, fallback ) =>
+		isObject( raw ) ? sanitizeMioLook( raw ) : fallback,
+	showPostStatusRibbons: bool,
+	developerModeEnabled: bool,
+	foldersSharingEnabled: bool,
+	navPlacement: ( raw, fallback ) =>
+		isObject( raw ) ? sanitizeNavPlacement( raw ) : fallback,
+	navOrder: ( raw, fallback ) =>
+		Array.isArray( raw ) ? sanitizeNavOrder( raw ) : fallback,
+	dockPromotedPositions: ( raw, fallback ) =>
+		isObject( raw ) ? sanitizeDockPromotedPositions( raw ) : fallback,
+};
+
+/** Every key of the state, in schema order. */
+export const OS_SETTINGS_KEYS = Object.keys( SANITIZERS ) as Array<
+	keyof OsSettingsState
+>;
+
+/**
+ * Coerce an untrusted shape over a base state.
+ *
+ * Keys absent from `raw` keep the base value; keys present are run
+ * through their sanitizer with the base value as the fallback. Load
+ * calls this with the defaults as the base; a public-API patch calls
+ * it with the current state, so an invalid value is ignored and an
+ * unknown key never lands.
+ */
+export function sanitizeSettings(
+	raw: Partial< OsSettingsState > | Record< string, unknown >,
+	base: OsSettingsState,
+): OsSettingsState {
+	const out = cloneState( base ) as unknown as Record< string, unknown >;
+	const source = raw as Record< string, unknown >;
+	const table = SANITIZERS as unknown as Record<
+		string,
+		( value: unknown, fallback: unknown ) => unknown
+	>;
+	for ( const key of OS_SETTINGS_KEYS ) {
+		if ( ! ( key in source ) ) {
+			continue;
+		}
+		out[ key ] = table[ key ]( source[ key ], out[ key ] );
+	}
+	return out as unknown as OsSettingsState;
 }
+
+/**
+ * Keys whose change has to be PAINTED, not just saved — the ones
+ * `OsSettings.apply()` reads. A patch that touches none of them skips
+ * the apply pass: `unfocusEffect`, `windowReveal` and the window-link
+ * knobs reach their engines through `subscribeOsSettings` instead,
+ * and every other key is state-only.
+ */
+export const PRESENTATION_KEYS: ReadonlySet< keyof OsSettingsState > = new Set<
+	keyof OsSettingsState
+>( [
+	'wallpaper',
+	'accent',
+	'customAccent',
+	'customGradient',
+	'customImage',
+	'wallpaperSettings',
+	'dockSize',
+	'windowRadius',
+	'adminBarMode',
+	'desktopLayout',
+	'dockPlacement',
+	'dockBehavior',
+	'sideDockBehavior',
+	'dockRailRenderer',
+	'desktopTheme',
+] );
 
 /**
  * Coerce an untrusted `wallpaperSettings` value into per-wallpaper
@@ -354,7 +349,7 @@ function _parseRaw( parsed: Partial<OsSettingsState> ): OsSettingsState {
 export function sanitizeWallpaperSettings(
 	raw: unknown,
 ): Record< string, Record< string, string | number | boolean > > {
-	if ( ! raw || typeof raw !== 'object' || Array.isArray( raw ) ) {
+	if ( ! isObject( raw ) ) {
 		return {};
 	}
 	const out: Record<
@@ -362,43 +357,25 @@ export function sanitizeWallpaperSettings(
 		Record< string, string | number | boolean >
 	> = {};
 	let idCount = 0;
-	for ( const [ id, bag ] of Object.entries(
-		raw as Record< string, unknown >,
-	) ) {
+	for ( const [ id, bag ] of Object.entries( raw ) ) {
 		if ( idCount >= 64 ) {
 			break;
 		}
-		if (
-			typeof id !== 'string' ||
-			id === '' ||
-			! /^[a-z0-9_/-]+$/.test( id )
-		) {
-			continue;
-		}
-		if ( ! bag || typeof bag !== 'object' || Array.isArray( bag ) ) {
+		if ( id === '' || ! REGISTRY_ID.test( id ) || ! isObject( bag ) ) {
 			continue;
 		}
 		const clean: Record< string, string | number | boolean > = {};
 		let keyCount = 0;
-		for ( const [ key, value ] of Object.entries(
-			bag as Record< string, unknown >,
-		) ) {
+		for ( const [ key, value ] of Object.entries( bag ) ) {
 			if ( keyCount >= 32 ) {
 				break;
 			}
-			if (
-				typeof key !== 'string' ||
-				key === '' ||
-				! /^[a-zA-Z0-9_-]+$/.test( key )
-			) {
+			if ( key === '' || ! /^[a-zA-Z0-9_-]+$/.test( key ) ) {
 				continue;
 			}
 			if ( typeof value === 'boolean' ) {
 				clean[ key ] = value;
-			} else if (
-				typeof value === 'number' &&
-				Number.isFinite( value )
-			) {
+			} else if ( typeof value === 'number' && Number.isFinite( value ) ) {
 				clean[ key ] = value;
 			} else if ( typeof value === 'string' ) {
 				clean[ key ] = value.slice( 0, 256 );
@@ -416,44 +393,24 @@ export function sanitizeWallpaperSettings(
 	return out;
 }
 
-function sanitizeNavPlacement(
-	raw: unknown,
-): Record< string, import( '../nav/types' ).NavPlacement > {
-	if ( ! raw || typeof raw !== 'object' || Array.isArray( raw ) ) {
-		return {};
-	}
-	const allowed: ReadonlyArray<
-		import( '../nav/types' ).NavPlacement
-	> = [ 'both', 'rail', 'desktop', 'hidden' ];
-	const out: Record<
-		string,
-		import( '../nav/types' ).NavPlacement
-	> = {};
+function sanitizeNavPlacement( raw: Record< string, unknown > ): Record< string, NavPlacement > {
+	const allowed: ReadonlyArray< NavPlacement > = [ 'both', 'rail', 'desktop', 'hidden' ];
+	const out: Record< string, NavPlacement > = {};
 	let count = 0;
-	for ( const [ k, v ] of Object.entries( raw as Record< string, unknown > ) ) {
+	for ( const [ k, v ] of Object.entries( raw ) ) {
 		if ( count >= 256 ) {
 			break;
 		}
-		if ( typeof k !== 'string' || k === '' ) {
+		if ( k === '' || typeof v !== 'string' || ! allowed.includes( v as NavPlacement ) ) {
 			continue;
 		}
-		if ( typeof v !== 'string' ) {
-			continue;
-		}
-		const placement = v as import( '../nav/types' ).NavPlacement;
-		if ( ! allowed.includes( placement ) ) {
-			continue;
-		}
-		out[ k ] = placement;
+		out[ k ] = v as NavPlacement;
 		count++;
 	}
 	return out;
 }
 
-function sanitizeNavOrder( raw: unknown ): string[] {
-	if ( ! Array.isArray( raw ) ) {
-		return [];
-	}
+function sanitizeNavOrder( raw: unknown[] ): string[] {
 	const out: string[] = [];
 	const seen = new Set< string >();
 	for ( const id of raw ) {
@@ -476,22 +433,16 @@ function sanitizeNavOrder( raw: unknown ): string[] {
  * make the synth-placement positioner blow up.
  */
 function sanitizeDockPromotedPositions(
-	raw: unknown,
+	raw: Record< string, unknown >,
 ): Record< string, { x: number; y: number } > {
-	if ( ! raw || typeof raw !== 'object' || Array.isArray( raw ) ) {
-		return {};
-	}
 	const out: Record< string, { x: number; y: number } > = {};
 	let count = 0;
 	const MAX_COORD = 100_000; // generous; real screens stop in the thousands
-	for ( const [ k, v ] of Object.entries( raw as Record< string, unknown > ) ) {
+	for ( const [ k, v ] of Object.entries( raw ) ) {
 		if ( count >= 256 ) {
 			break;
 		}
-		if ( typeof k !== 'string' || k === '' ) {
-			continue;
-		}
-		if ( ! v || typeof v !== 'object' || Array.isArray( v ) ) {
+		if ( k === '' || ! isObject( v ) ) {
 			continue;
 		}
 		const pos = v as { x?: unknown; y?: unknown };
@@ -516,7 +467,7 @@ function sanitizeDockPromotedPositions(
 // -----------------------------------------------------------------------
 
 /** Pending debounce handle for the REST sync. */
-let _syncTimer: ReturnType<typeof setTimeout> | null = null;
+let _syncTimer: ReturnType< typeof setTimeout > | null = null;
 
 /**
  * Debounce window in ms before a change is flushed to user meta.
@@ -557,15 +508,15 @@ let _lastConfirmedState: OsSettingsState | null = null;
  * with values the server hasn't accepted.
  */
 export function setLastConfirmedState( state: OsSettingsState ): void {
-	_lastConfirmedState = _cloneState( state );
+	_lastConfirmedState = cloneState( state );
 }
 
 /**
- * Defensive deep-clone so the baseline doesn't share references
- * with the live state and accidentally mutate when the live state
- * is edited next.
+ * Deep-clone a state so a copy never shares references with the live
+ * object and cannot be mutated through it — the rollback baseline, the
+ * public snapshot, and the sanitizer's working copy all rely on it.
  */
-function _cloneState( state: OsSettingsState ): OsSettingsState {
+export function cloneState( state: OsSettingsState ): OsSettingsState {
 	return {
 		...state,
 		customGradient: { ...state.customGradient },
@@ -757,23 +708,23 @@ function _postToServer( state: OsSettingsState, windowId?: string | null ): void
 	// Snapshot what this request actually represents, now.
 	//
 	// `state` is the live settings object and callers mutate it in
-	// place (`ctx.state.accent = …; ctx.save()`), so by the time the
-	// response lands it may already carry changes this payload never
-	// included. Promoting the live object as the confirmed baseline
-	// would then mark those unsent fields as agreed with the server,
-	// and the next diff would find nothing to send — the change would
-	// be silently dropped rather than saved.
-	const sentSnapshot = _cloneState( state );
+	// place, so by the time the response lands it may already carry
+	// changes this payload never included. Promoting the live object
+	// as the confirmed baseline would then mark those unsent fields
+	// as agreed with the server, and the next diff would find nothing
+	// to send — the change would be silently dropped rather than
+	// saved.
+	const sentSnapshot = cloneState( state );
 	// Prefer `wp.os.fetch` so the originating window's title-bar
 	// activity dot blinks while the save is in flight. The
 	// originating window — passed through from the call site that
 	// triggered the most recent debounce-collapsed save — defaults to
-	// 'desktop-mode-os-settings' when no caller claimed it. That
+	// OpenStation Preferences when no caller claimed it. That
 	// preserves the original behaviour for saves coming from inside
-	// the OS Settings panel itself, while letting any other window
+	// the Preferences app itself, while letting any other window
 	// (Posts column toggles, future native windows that mutate OS
 	// state) attribute their own activity.
-	const attributedWindowId = windowId || 'desktop-mode-os-settings';
+	const attributedWindowId = windowId || OS_SETTINGS_WINDOW_ID;
 	trackedFetch(
 		url,
 		{
@@ -806,19 +757,18 @@ function _postToServer( state: OsSettingsState, windowId?: string | null ): void
 		.catch( ( err ) => {
 			/* Save failed — REVERT both localStorage and the
 			 * in-memory state to the last server-confirmed snapshot,
-			 * then surface the failure so the OS Settings panel can
+			 * then surface the failure so the Preferences app can
 			 * repaint with the rolled-back values.
 			 *
 			 * The emitted snapshot is a FRESH CLONE of
 			 * `_lastConfirmedState`. Without the clone, both
 			 * `this.state` (in OsSettings) and the rollback baseline
 			 * end up pointing at the same object — the user's next
-			 * `ctx.state.X = …` would mutate the baseline, which
-			 * means subsequent rollbacks would "restore" the
-			 * already-mutated state and silently no-op. Rollback
-			 * worked the first time; the second time looked broken.
-			 * Cloning at the emit boundary makes each rollback hand
-			 * out an independent copy.
+			 * write would mutate the baseline, which means subsequent
+			 * rollbacks would "restore" the already-mutated state and
+			 * silently no-op. Rollback worked the first time; the
+			 * second time looked broken. Cloning at the emit boundary
+			 * makes each rollback hand out an independent copy.
 			 */
 			_saveFailed = true;
 			if ( _lastConfirmedState ) {
@@ -826,7 +776,7 @@ function _postToServer( state: OsSettingsState, windowId?: string | null ): void
 				_emitSaveLifecycle(
 					'failed',
 					err instanceof Error ? err.message : String( err ),
-					_cloneState( _lastConfirmedState ),
+					cloneState( _lastConfirmedState ),
 				);
 			} else {
 				_emitSaveLifecycle(
@@ -875,7 +825,7 @@ let _saveFailed = false;
  * Sections subscribe via the matching CustomEvents to render save
  * status indicators. The `failed` phase carries the
  * server-confirmed `rolledBackTo` snapshot — listeners that own
- * UI keyed off `OsSettingsState` (the OS Settings panel is the
+ * UI keyed off `OsSettingsState` (the Preferences app is the
  * canonical example) replace their state with this snapshot and
  * re-render so the controls visually revert to the last-confirmed
  * values, not the optimistic ones the user just attempted.
@@ -917,45 +867,30 @@ function _emitSaveLifecycle(
 // -----------------------------------------------------------------------
 
 export function structuredDefaults(): OsSettingsState {
-	return {
-		...DEFAULTS,
-		customGradient: { ...DEFAULTS.customGradient },
-		customImage: null,
-		wallpaperSettings: { ...DEFAULTS.wallpaperSettings },
-		ai: { ...DEFAULTS.ai },
-		// Clone the collection fields too. A shallow `...DEFAULTS`
-		// aliases these nested objects, so a later in-place mutation
-		// (e.g. dragging the gradient editor after a Reset, which spreads
-		// these defaults into live state) would corrupt the module-level
-		// DEFAULTS singleton for the rest of the session.
-		//
-		// These are one-level clones, which is sufficient *because* all
-		// three defaults are empty (`{}` / `[]`) — there are no inner
-		// objects to share. If `DEFAULTS.dockPromotedPositions` ever
-		// ships seeded entries, its `{ x, y }` values would need a
-		// deeper clone here.
-		appliedThemeRecommendations: [ ...DEFAULTS.appliedThemeRecommendations ],
-		navPlacement: { ...DEFAULTS.navPlacement },
-		navOrder: [ ...DEFAULTS.navOrder ],
-		dockPromotedPositions: { ...DEFAULTS.dockPromotedPositions },
-	};
+	// A deep clone, so a reset (or a boot from defaults) can never
+	// alias — and later corrupt — the module-level DEFAULTS singleton
+	// through an in-place edit of a nested object.
+	return cloneState( DEFAULTS );
 }
 
-export function sanitizeAi( raw: unknown ): AiSettings {
-	if ( ! raw || typeof raw !== 'object' ) {
-		return { ...DEFAULTS.ai };
+export function sanitizeAi(
+	raw: unknown,
+	fallback: AiSettings = DEFAULTS.ai,
+): AiSettings {
+	if ( ! isObject( raw ) ) {
+		return { ...fallback };
 	}
 	const { enabled } = raw as Partial< AiSettings >;
 	return {
-		enabled: typeof enabled === 'boolean' ? enabled : DEFAULTS.ai.enabled,
+		enabled: typeof enabled === 'boolean' ? enabled : fallback.enabled,
 	};
 }
 
 export function sanitizeCustomGradient( raw: unknown ): CustomGradient {
-	if ( ! raw || typeof raw !== 'object' ) {
+	if ( ! isObject( raw ) ) {
 		return { ...DEFAULTS.customGradient };
 	}
-	const { from, to, angle } = raw as Partial<CustomGradient>;
+	const { from, to, angle } = raw as Partial< CustomGradient >;
 	return {
 		from: isHexColor( from ) ? ( from as string ) : DEFAULTS.customGradient.from,
 		to: isHexColor( to ) ? ( to as string ) : DEFAULTS.customGradient.to,
@@ -967,10 +902,10 @@ export function sanitizeCustomGradient( raw: unknown ): CustomGradient {
 }
 
 export function sanitizeCustomImage( raw: unknown ): CustomImage | null {
-	if ( ! raw || typeof raw !== 'object' ) {
+	if ( ! isObject( raw ) ) {
 		return null;
 	}
-	const { id, url } = raw as Partial<CustomImage>;
+	const { id, url } = raw as Partial< CustomImage >;
 	if ( typeof id !== 'number' || ! Number.isFinite( id ) || id <= 0 ) {
 		return null;
 	}

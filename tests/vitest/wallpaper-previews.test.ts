@@ -16,7 +16,7 @@ import {
 	createWallpaperPreviewManager,
 	PREVIEW_OVERLAY_CLASS,
 	type WallpaperPreviewManager,
-} from '../../src/settings/sections/wallpaper-previews';
+} from '../../apps/os-settings/parts/wallpaper-previews';
 import type {
 	WallpaperPreviewContext,
 	WallpaperTeardown,

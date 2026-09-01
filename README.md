@@ -73,7 +73,7 @@ Zero Core patches. Every feature is wired through public WordPress hooks.
   Shell-level toasts rendered via the `<os-toast>` component. Plugins register their own tone/icon via the `openstation_toast_types` filter. Iframe pages raise a toast through the `os-notification` bridge message — it survives the iframe's own lifecycle.
 
 - **OpenStation Preferences**
-  Native-window settings panel: wallpaper picker (with HD-only media filter), accent color swatches + custom gradient editor, dock size slider, AI platform config, and per-user default-on-startup window. Persisted via `/desktop-mode/v1/os-settings`.
+  The settings window, an App Framework app (`apps/os-settings/`): wallpaper picker (with HD-only media filter), accent color swatches + custom gradient editor, desktop layout and dock controls, themes, window effects, navigation placement, feature switches and the component reference. Persisted via `/desktop-mode/v1/os-settings`.
 
 - **Session persistence**
   Full window stack (including desktops, focus, state) is debounce-saved to `/desktop-mode/v1/session` and restored without layout flicker. Viewport-shrink clamping keeps off-screen windows reachable.

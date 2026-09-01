@@ -123,11 +123,12 @@ function openstation_register_assets() {
 	 *   window-chrome → window-states → effects → window-links
 	 *   → windows
 	 *
-	 * `window-overview` and `os-settings` are deliberately NOT in this
-	 * chain — they are registered below, after `os-windows`,
-	 * so they can load deferred. Adding a sheet here means splicing it
-	 * into the chain, not appending an unrelated dependency: order is
-	 * the contract.
+	 * `window-overview` is deliberately NOT in this chain — it is
+	 * registered below, after `os-windows`, so it can load deferred.
+	 * Adding a sheet here means splicing it into the chain, not
+	 * appending an unrelated dependency: order is the contract.
+	 * (The Preferences window's sheet is not here at all: it rides
+	 * the `apps/os-settings/` app as a first-open companion style.)
 	 */
 	$window_sheets = array(
 		'os-window-chrome' => 'assets/css/window-chrome.css',
@@ -155,23 +156,17 @@ function openstation_register_assets() {
 		$previous,
 		$built_version( 'assets/css/windows.css' )
 	);
-	// These two load DEFERRED (see `openstation_defer_non_critical_styles()`):
-	// the UI they style — the OS Settings panel and the window
-	// overview — is lazy-loaded JS that can never be on screen at
-	// first paint, so ~47 KB of CSS has no business blocking render.
-	// They depend on `os-windows` so they print after it,
-	// preserving the cascade position they had as `@import`s.
+	// Loads DEFERRED (see `openstation_defer_non_critical_styles()`):
+	// the UI it styles — the window overview — is lazy-loaded JS that
+	// can never be on screen at first paint, so its CSS has no
+	// business blocking render. It depends on `os-windows` so it
+	// prints after it, preserving the cascade position it had as an
+	// `@import`.
 	wp_register_style(
 		'os-window-overview',
 		OPENSTATION_URL . 'assets/css/window-overview.css',
 		array( 'os-windows' ),
 		$built_version( 'assets/css/window-overview.css' )
-	);
-	wp_register_style(
-		'os-settings',
-		OPENSTATION_URL . 'assets/css/os-settings.css',
-		array( 'os-windows' ),
-		$built_version( 'assets/css/os-settings.css' )
 	);
 	// Solo mode — one window, no desk around it. Loads last so it can
 	// hide surfaces the sheets above declared, and only enqueues on a

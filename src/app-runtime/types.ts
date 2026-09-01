@@ -92,6 +92,7 @@ export type Effect =
 	| { type: 'announce'; contentType: string; action: string; ids: number[] }
 	| { type: 'menu'; items: MenuItemDef[] }
 	| { type: 'send'; channel: string; payload?: unknown }
+	| { type: 'refresh_menu' }
 	| { type: string; [ key: string ]: unknown };
 
 /** A successful dispatch. */
@@ -149,6 +150,12 @@ export interface RuntimeHost {
 		pick: ( item: MenuItemDef ) => void,
 	) => void;
 	send?: ( channel: string, payload: unknown ) => void;
+	/**
+	 * Rebuild the shell's registries from a fresh menu payload — the
+	 * `refresh_menu` effect, for an action that changed what the
+	 * server registers.
+	 */
+	refreshMenu?: () => void;
 	/** Subscribe to a shell broadcast topic (`'*'` = all); returns the unsubscribe. */
 	onBroadcast?: ( topic: string, cb: ( firedTopic: string ) => void ) => () => void;
 	loadComponents?: ( tags: string[] ) => Promise< void >;

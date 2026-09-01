@@ -55,8 +55,9 @@ const ALLOWED_IN_MAIN: Readonly< Record< string, string > > = {
 	// when the share modal moved to the `files-overlays` bundle and
 	// the notes layer to the `notes` bundle — the shell-bundle diet
 	// (see `shell-bundle-boundary.test.ts`) took their importers with
-	// it.
-	'os-button': 'the wallpaper settings section',
+	// it. os-button followed when the Preferences panel became the
+	// `apps/os-settings/` app: the wallpaper section that rendered it
+	// now lives in the app's own bundle.
 };
 
 /**

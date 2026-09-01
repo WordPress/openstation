@@ -7,7 +7,7 @@
  * back to the English label.
  */
 
-import { __ } from '../i18n';
+import { __ } from '@openstation/app';
 import type {
 	AccentId,
 	AdminBarModeId,
@@ -16,7 +16,7 @@ import type {
 	DockPlacementId,
 	DockSizeId,
 	WindowRadiusId,
-} from './types';
+} from '../../../src/settings/types';
 
 export function translateAccentLabel( id: AccentId, fallback: string ): string {
 	switch ( id ) {

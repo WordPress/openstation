@@ -444,4 +444,14 @@ final class Os {
 		$this->effects->send( $channel, $payload );
 		return $this;
 	}
+
+	/**
+	 * Queue a menu-payload refresh. See {@see Effects::refresh_menu()}.
+	 *
+	 * @return self
+	 */
+	public function refresh_menu() {
+		$this->effects->refresh_menu();
+		return $this;
+	}
 }

@@ -34,7 +34,7 @@ Drop that file in a directory the framework scans (see [Where apps live](#where-
 
 An app has two possible halves. The **`.os.php`** is always there: the window, the state schema, the server actions, the data. A **server view** (`->view()`) paints the body in PHP and re-renders it on every interaction — the right shape for forms, settings, dashboards, lists with actions. When an interaction must be instant — a filter over rows already in the browser — the app adds a **client view**, a **`.os.ts`** beside the `.os.php`, and the same state model moves into the browser: see [The client view](#the-client-view--osts). Either way the window, its chrome, its effects and its dispatch contract are identical.
 
-Four of OpenStation's own windows are apps. **Code Blue** — `apps/code-blue/` — is the error-log reader, rebuilt from a PHP module plus a 1,726-line TypeScript bundle into an `.os.php` (window, actions, data) and an `.os.ts` (the body, with range / search / sort / legend / expand running locally): same features, under half the lines, every filter instant. **Station Home** — `apps/station-home/` — is the native Dashboard, and the one to read for the *server* view: an `.os.php`, a snapshot model and a body painted in PHP, no client script at all — Refresh is the built-in, the Customize picker is one state key, a switch is an action, a restore is the `show` lifecycle. Read one of them after this page.
+Five of OpenStation's own windows are apps. **Code Blue** — `apps/code-blue/` — is the error-log reader, rebuilt from a PHP module plus a 1,726-line TypeScript bundle into an `.os.php` (window, actions, data) and an `.os.ts` (the body, with range / search / sort / legend / expand running locally): same features, under half the lines, every filter instant. **Station Home** — `apps/station-home/` — is the native Dashboard, and the one to read for the *server* view: an `.os.php`, a snapshot model and a body painted in PHP, no client script at all — Refresh is the built-in, the Customize picker is one state key, a switch is an action, a restore is the `show` lifecycle. **OpenStation Preferences** — `apps/os-settings/` — is the one to read for an app that *edits shell state*: the settings are not its state (they are applied before the first paint and written by more than one window), so its client view reads them through `wp.os.getOsSettings()` and writes them through `wp.os.updateOsSettings()`, the same public API a third-party settings tab uses; its declared state is the page, and its server surface is the handful of writes that are site truth rather than a preference. Read one of them after this page.
 
 ---
 
@@ -210,7 +210,7 @@ Every callback receives an `OpenStation\App\Os`. It is the app's entire view of 
 | `$os->app_id`, `$os->view` | Which app and which view (`main` or a tab slug) is being dispatched |
 | `$os->can()`, `$os->preference()`, `$os->filter()`, `$os->action()`, `$os->remember( $key, $ttl, $compute )` | Sugar over the contracts. `can()` takes a meta-capability's object too — `$os->can( 'delete_post', $id )` forwards to `current_user_can()`; the standalone adapter answers from the capability name alone. |
 | `$os->stored( $key, $fallback, $scope = 'user' )`, `$os->store( $key, $value, $scope )`, `$os->forget( $key, $scope )` | Durable storage, keys namespaced by app id |
-| `$os->toast()`, `->title()`, `->close()`, `->open( $window_id )`, `->open_url( $url, $title, $icon )`, `->badge( $count )`, `->icon( $art )`, `->announce( $type, $action, $ids )`, `->menu( $items )`, `->send( $channel, $payload )` | **Effects** — things the shell does after the morph (below) |
+| `$os->toast()`, `->title()`, `->close()`, `->open( $window_id )`, `->open_url( $url, $title, $icon )`, `->badge( $count )`, `->icon( $art )`, `->announce( $type, $action, $ids )`, `->menu( $items )`, `->send( $channel, $payload )`, `->refresh_menu()` | **Effects** — things the shell does after the morph (below) |
 | `Os::page( $items, $total, $page, $per_page )` | The paged-list envelope (`items` / `total` / `pages` / `page` / `perPage`) — the one shape the client runtime's page accumulation understands. Build every list-shaped `data()` key with it. |
 | `Os::facts( $rows )` | Keep only the `array( label, value, tag? )` rows whose value is non-empty, reindexed — the detail-pane facts idiom. |
 
@@ -232,6 +232,7 @@ This is the decoupling: the framework core (`includes/framework/` minus `wordpre
 | `$os->announce( $type, $action, $ids )` | `wp.os.announceContentChange` — every window showing that content refreshes |
 | `$os->menu( $items )` | A context menu at the pointer; each item (`label`, `action`, `args`, `icon`, `danger`, `disabled`) dispatches its action. Pair with `os-on="contextmenu"` on the row. |
 | `$os->send( $channel, $payload )` | Publishes on the window's channel bus for `wp.os.connect( id )` peers |
+| `$os->refresh_menu()` | `wp.os.refreshMenu()` — rebuild the shell's registries from a fresh menu payload, for an action that changed what the SERVER registers (a site option that gates a module, a per-user flag a plugin's `init` reads). The shell only learns about server registrations from a payload, and the request that wrote the option decided what to register near its own start; an effect, performed after the response lands, is the separate request that rule needs |
 | `$os->effects->add( $type, $data )` | Anything else — re-dispatched client-side as an `os-app-effect` CustomEvent for an extension to handle |
 
 ### Standalone host in three lines
@@ -375,7 +376,9 @@ The framework covers what OpenStation's native windows do today, so any of them 
 | `ctx.onResize` / `onShow` / `onHide`, `wp.os.onWindow( focused / blurred )` | Actions named `resize` / `show` / `hide` / `focus` / `blur` |
 | `wp.os.confirm` | `os-confirm` on the trigger, or `confirm` on a control |
 | `showToast`, `announceContentChange`, `icons.setBadge`, context menus | Effects |
+| `spendMenuRefresh()` after a save that gated a server-side registration | The `$os->refresh_menu()` effect on that action |
 | `setInterval` refresh | `os-poll` |
+| A window whose subject is SHELL state (a preference the shell applies before any window opens) | Read it through `wp.os.getOsSettings()`, write it through `wp.os.updateOsSettings()`, repaint on `wp.os.subscribeOsSettings()` — the settings stay the shell's; the app's state is only its own UI (see `apps/os-settings/`) |
 | User meta / options for the window's own preferences | `$os->store()` / `$os->stored()` |
 | `<os-table>` with `.columns` / `.data` set from JS | `os-prop-columns` / `os-prop-data` (server view) or `.columns=${ … }` (client view) |
 | A bundle's in-memory filtering, sorting, searching over fetched rows | `data()` in PHP + `local` actions and a `view()` in the `.os.ts` |
@@ -485,6 +488,7 @@ assets/js/apps/<name>[.min].js  built client views (npm run build:apps)
 apps/code-blue/                 code-blue.os.php + code-blue.os.ts + log-reader.php + code-blue.css — the client-view reference
 apps/station-home/              station-home.os.php + parts/{snapshot,view}.php + station-home.css — the server-view reference
 apps/my-wordpress/, apps/trash/ the WP Explorer and Recycle Bin apps
+apps/os-settings/               os-settings.os.php + os-settings.os.ts + parts/*.ts + os-settings.css — OpenStation Preferences, the app that edits shell state through the public API
 ```
 
-Tests: `tests/phpunit/tests/appFramework.php`, `tests/phpunit/tests/codeBlue.php`, `tests/phpunit/tests/stationHomeApp.php`, `tests/vitest/app-runtime-*.test.ts`.
+Tests: `tests/phpunit/tests/appFramework.php`, `tests/phpunit/tests/codeBlue.php`, `tests/phpunit/tests/stationHomeApp.php`, `tests/phpunit/tests/osSettingsApp.php`, `tests/vitest/app-runtime-*.test.ts`.

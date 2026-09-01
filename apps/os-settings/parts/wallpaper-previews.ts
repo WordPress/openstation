@@ -20,15 +20,15 @@
  * (scroll-away, tab switch).
  */
 
-import { applyFilters, HOOKS } from '../../hooks';
-import * as registry from '../../wallpapers/registry';
-import { getWallpaperSettings } from '../../wallpapers/settings-store';
+import { applyFilters, HOOKS } from '../../../src/hooks';
+import * as registry from '../../../src/wallpapers/registry';
+import { getWallpaperSettings } from '../../../src/wallpapers/settings-store';
 import type {
 	WallpaperDef,
 	WallpaperPreviewContext,
 	WallpaperTeardown,
-} from '../../wallpapers/types';
-import { isPromise } from '../utils';
+} from '../../../src/wallpapers/types';
+import { isPromise } from '../../../src/settings/utils';
 
 /** Ceiling on simultaneously-mounted live previews. */
 const MAX_LIVE_PREVIEWS = 4;

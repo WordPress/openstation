@@ -215,7 +215,7 @@ the file itself is tracked. In particular:
 - `src/window-manager/desktops.ts`, `arrange.ts`, `overview.ts`,
   `snap.ts`, `geometry.ts` — package-private helpers of the
   `WindowManager` class.
-- `src/settings/sections/*` — OpenStation Preferences internals.
+- `apps/os-settings/parts/*` — OpenStation Preferences internals (the app's pages).
 - `src/widgets/frame.ts`, `state.ts` — widget-layer internals.
 
 Class fields prefixed with `_` (e.g. `_externalTabs`, `_activeDesktopId`)

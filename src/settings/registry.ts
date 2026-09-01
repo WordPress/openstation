@@ -1,12 +1,12 @@
 /**
- * Third-party OS Settings tab registry.
+ * Third-party Preferences tab registry.
  *
- * Plugins register additional tabs in the OS Settings window via the
- * public `wp.os.registerSettingsTab()` API. Built-in tabs
- * (appearance, ai, navigation, features, effects, help,
- * about) live directly in `panel.ts`; this registry extends the panel
- * with externally-contributed tabs without the core module needing to
- * know about them.
+ * Plugins register additional tabs in the OpenStation Preferences
+ * window via the public `wp.os.registerSettingsTab()` API. The
+ * built-in pages (Appearance, Themes, Windows, Navigation, Features,
+ * Components, About) live in the Preferences app (`apps/os-settings/`);
+ * this registry extends it with externally-contributed tabs without
+ * the app needing to know about them.
  *
  * Rendering is the tab's own responsibility — `render( body )` receives
  * the tabpanel body element and may do whatever it wants inside it
@@ -14,222 +14,18 @@
  */
 
 import { createSharedStore } from '../shared-store';
+import type { OsSettingsState } from './types';
 
 /**
- * Snapshot of the persisted OS Settings state that third-party tabs
- * can read. Intentionally re-declared here (instead of exporting the
- * private `OsSettingsState` type) so the public surface stays minimal:
- * tab authors see exactly the fields they can depend on, and the
- * internal shape can widen without churning the ctx contract.
- *
- * `ai` is particularly load-bearing — it's the read path a third-party
- * AI widget uses to pick up the provider + API key the user configured
- * in the built-in AI Settings tab.
+ * The persisted Preferences state as third-party code reads it — what
+ * `wp.os.getOsSettings()` returns and `wp.os.updateOsSettings()`
+ * patches. It IS the state shape: every key the store holds is public,
+ * documented on {@link OsSettingsState}, and writable through the
+ * public API (with one shell-owned exception, the seeded-theme ledger
+ * `appliedThemeRecommendations`, which the write path ignores). Always
+ * handed out as a defensive copy — mutating a snapshot changes nothing.
  */
-export interface OsSettingsSnapshot {
-	wallpaper: string;
-	accent: string;
-	dockSize: string;
-	/**
-	 * Window corner-radius preset: `'sharp'` | `'default'` | `'round'`.
-	 * Written to `--os-window-radius` by the apply pass, so
-	 * a change reflows every open window's corners live.
-	 *
-	 * A desktop theme that sets that custom property in its `tokens`
-	 * overrides this for as long as the theme is worn — the theme's
-	 * rule matches the shell root, which beats the value inherited
-	 * from the `:root` inline style this preset writes.
-	 */
-	windowRadius: string;
-	/**
-	 * How the WordPress admin bar presents above the shell:
-	 * `'static'` | `'dynamic'` | `'hidden'` (the default).
-	 *
-	 * Written as a `os-admin-bar-<mode>` body class by both
-	 * PHP (first paint) and the apply pass (live changes). `dynamic`
-	 * slides the bar off the top edge leaving a peek strip that
-	 * reveals it on hover or keyboard focus; `hidden` removes it
-	 * entirely and leaves the dock's "Exit OpenStation" tile as the
-	 * route back to classic admin.
-	 */
-	adminBarMode: string;
-	/** The dock: `'static'` (always on screen) or `'dynamic'` (folds into an indicator line). */
-	dockBehavior: string;
-	/** The Split layout's sidebar, same values. Ignored by Unified. */
-	sideDockBehavior: string;
-	/**
-	 * Top-level desktop layout. Drives the dock(s) layout:
-	 *
-	 * - `unified` — one dock with every menu, core cluster first. The
-	 *   default.
-	 * - `classic` — left side bar (core menus) + bottom dock (plugins).
-	 */
-	desktopLayout: 'classic' | 'unified';
-	/**
-	 * Which edge the dock sits on: `'bottom'` (the default), `'left'`,
-	 * or `'right'`. Read by the one-rail layouts; `'classic'` derives
-	 * its two rails from the layout and ignores this.
-	 */
-	dockPlacement: 'bottom' | 'left' | 'right';
-	/**
-	 * Active dock rail-renderer id; mirrors the dock-rail registry's
-	 * resolution. `'default'` is the shipped icon-strip renderer.
-	 */
-	dockRailRenderer: string;
-	/** Active desktop-theme slug, or `''` for the system default. */
-	desktopTheme: string;
-	/**
-	 * Slugs of the desktop themes whose recommended OS settings have
-	 * already been seeded for this user — the ledger that keeps a
-	 * theme's `recommendedOsSettings` a one-time suggestion rather
-	 * than something re-asserted on every activation.
-	 *
-	 * Slugs of themes that are no longer installed are kept on
-	 * purpose: a delete-and-reinstall must not re-seed. Removing a
-	 * slug re-arms that theme's one-time seed for the user's next
-	 * activation of it.
-	 */
-	appliedThemeRecommendations: string[];
-	/**
-	 * Active unfocused-window effect id; mirrors the unfocus-effect
-	 * registry's resolution. `'darken'` is the shipped built-in,
-	 * `'none'` disables the effect.
-	 */
-	unfocusEffect: string;
-	/**
-	 * Active window-reveal id — the `clip-path` transition that
-	 * uncovers a window's content when it finishes loading. `'none'`
-	 * (no transition) is the default: reveals are opt-in.
-	 */
-	windowReveal: string;
-	/**
-	 * Global reveal duration override in ms, or `0` to let each reveal
-	 * use its own tuned timing.
-	 */
-	windowRevealDuration: number;
-	/**
-	 * Active window-link renderer id; `'none'` disables the visuals,
-	 * unknown ids fall back to the built-in `'svg-splines'`.
-	 */
-	windowLinkRenderer: string;
-	/**
-	 * When window-link ties show: `'always'` | `'focus'` | `'off'`.
-	 */
-	windowLinkVisibility: 'focus' | 'always' | 'off';
-	/** Master switch for the window-links feature. Default on. */
-	windowLinksEnabled: boolean;
-	/** Raise related windows when a group member is focused. */
-	windowLinkRaiseOnFocus: boolean;
-	/** Outline related windows of the focused member. */
-	windowLinkHighlight: boolean;
-	/**
-	 * AI assistant preference. `enabled` is the per-user on/off toggle
-	 * (opt-in, default off). Credentials live in WordPress Core's Settings →
-	 * Connectors and provider + model selection is delegated to the Core AI
-	 * Client, so no preference is carried here.
-	 */
-	ai: {
-		enabled: boolean;
-	};
-	/**
-	 * Per-user opt-in for the native Posts window. When true, clicking
-	 * the Posts dock tile opens the `<os-table>`-driven native window
-	 * instead of the chromeless `edit.php` iframe. Default off.
-	 */
-	nativePostsEnabled: boolean;
-	/**
-	 * Per-user list of column keys hidden in the native Posts window.
-	 * Mirrors the underlying `OsSettingsState.nativePostsHiddenColumns`.
-	 * Empty array means every column is visible.
-	 */
-	nativePostsHiddenColumns: string[];
-	/**
-	 * Per-user opt-in for the native Pages window. When true, the Pages
-	 * dock tile / `edit.php?post_type=page` links open the native
-	 * `<os-table>` window instead of the chromeless iframe. Default off.
-	 */
-	nativePagesEnabled: boolean;
-	/**
-	 * Per-user opt-in for the native Users window. Same posture as
-	 * {@link nativePagesEnabled} — UI-side gate; the window itself is
-	 * cap-gated on the server. Default off.
-	 */
-	nativeUsersEnabled: boolean;
-	/**
-	 * Per-user opt-in for the native Plugins window. Same posture as
-	 * {@link nativeUsersEnabled} — UI-side gate; the window itself is
-	 * cap-gated on the server (`activate_plugins`). Default off.
-	 */
-	nativePluginsEnabled: boolean;
-	/**
-	 * Per-user opt-in for the native Comments window. Same posture as
-	 * {@link nativeUsersEnabled} — UI-side gate; the window itself is
-	 * cap-gated on the server (`edit_posts`). Default off.
-	 */
-	nativeCommentsEnabled: boolean;
-	/**
-	 * Per-user opt-in for Station Home, the native Dashboard window.
-	 * When true, the Dashboard tile / `index.php` links open Station
-	 * Home instead of the chromeless Dashboard iframe. Default off.
-	 */
-	stationHomeEnabled: boolean;
-	/**
-	 * Per-user opt-in for the service worker's shared admin-asset
-	 * cache (Experimental). Informational for plugins — the cache
-	 * itself is enforced inside the SW, not by shell code. Default
-	 * off; changes apply via a SW update on the next reload.
-	 */
-	adminAssetCacheEnabled: boolean;
-	/**
-	 * Per-user opt-in for hover-intent window prewarming
-	 * (Experimental). The dock reads this live at hover time; the
-	 * window manager's `prewarm()`/adoption machinery is always
-	 * present but idle without it. Default off.
-	 */
-	windowPrewarmEnabled: boolean;
-	/**
-	 * Per-user kill switch for the folder-sharing feature.
-	 * Defaults to `true`. When `false`, every share-related
-	 * surface is suppressed for this user (UI hidden, REST routes
-	 * return 404, heartbeat skips `shares.pending`). Independent
-	 * of the destructive site-admin "Delete folder sharing data"
-	 * action, which drops the tables outright.
-	 */
-	foldersSharingEnabled: boolean;
-	/**
-	 * When true, unlocks developer-facing surfaces meant for plugin
-	 * authors: the Starter Widget appears in the add-widget picker,
-	 * and the OS Settings → Components tab runs its intentional
-	 * missing-import-warner demo. Defaults to `false`. Per-user.
-	 */
-	developerModeEnabled: boolean;
-	/**
-	 * Per-item navigation placement. Map of item id → one of
-	 * `'rail' | 'desktop' | 'both' | 'hidden'`. Missing keys mean
-	 * "use the default for the item's kind". See
-	 * {@link OsSettingsState.navPlacement} for full semantics.
-	 */
-	navPlacement: Record< string, 'rail' | 'desktop' | 'both' | 'hidden' >;
-	/**
-	 * User-defined ordering, flat across every zone. Ids absent from
-	 * the list render after the listed ones in registration order.
-	 */
-	navOrder: string[];
-	/**
-	 * Persisted desktop position (in CSS px) for every item the
-	 * user has promoted onto the wallpaper. Keyed by dock-item id.
-	 * Missing keys mean "no override" — the synth placement falls
-	 * back to the default grid slot. See
-	 * {@link OsSettingsState.dockPromotedPositions} for the source
-	 * field.
-	 */
-	dockPromotedPositions: Record< string, { x: number; y: number } >;
-	/**
-	 * When true, shows draft/pending/private/scheduled status ribbons on post/page tiles.
-	 * Defaults to `true`.
-	 */
-	showPostStatusRibbons: boolean;
-}
+export type OsSettingsSnapshot = OsSettingsState;
 
 export interface SettingsTabRenderCtx {
 	/**
@@ -239,9 +35,9 @@ export interface SettingsTabRenderCtx {
 	 */
 	isAdmin: boolean;
 	/**
-	 * Read the current OS Settings state. Equivalent to what the
-	 * built-in tabs see — provider/apiKey for AI, wallpaper id, accent,
-	 * dock size. Safe to call repeatedly; no hidden cost (plain object
+	 * Read the current Preferences state. Equivalent to what the
+	 * built-in pages see — wallpaper id, accent, dock size, the AI
+	 * toggle. Safe to call repeatedly; no hidden cost (plain object
 	 * return).
 	 *
 	 * Returns a defensive copy — mutating the result does not change
@@ -252,8 +48,8 @@ export interface SettingsTabRenderCtx {
 	 */
 	getOsSettings(): OsSettingsSnapshot;
 	/**
-	 * Subscribe to OS Settings changes. Fires every time the user
-	 * changes a setting in the OS Settings window (accent, AI key,
+	 * Subscribe to Preferences changes. Fires every time the user
+	 * changes a setting in the Preferences window (accent, AI toggle,
 	 * etc.) — typically while they're in a different tab than yours.
 	 * Returns an unsubscribe function.
 	 *
@@ -279,11 +75,11 @@ export interface DesktopSettingsTab {
 	 */
 	capability?: string;
 	/**
-	 * Sort order relative to built-in tabs:
-	 * appearance = 10, ai = 20, navigation = 22, features = 25,
-	 * effects = 27, help = 40 (About is pinned last
-	 * with a sentinel order). Default 100 — third-party tabs render
-	 * after the built-ins, before About.
+	 * Sort order relative to the built-in pages:
+	 * appearance = 10, themes = 12, windows = 18, navigation = 22,
+	 * features = 30, help = 40 (About is pinned last with a sentinel
+	 * order). Default 100 — third-party tabs render after the
+	 * built-ins, before About.
 	 */
 	order?: number;
 	/**
@@ -295,16 +91,16 @@ export interface DesktopSettingsTab {
 	 *
 	 * Plugins that don't set `owner` still get live-registration on
 	 * activation — the JS runs, `registerSettingsTab()` is called,
-	 * the OS Settings window subscribes and repaints. Only the
+	 * the Preferences window subscribes and repaints. Only the
 	 * live-unregistration-on-deactivation case needs this field.
 	 */
 	owner?: string;
 	/**
-	 * Render callback — invoked with the tabpanel body element every
-	 * time the OS Settings panel renders. Must be idempotent: closing
-	 * and reopening the window rebuilds the tree, so any DOM state
-	 * the tab wants to preserve belongs in module scope, not inside
-	 * the body.
+	 * Render callback — invoked with the tabpanel body element when
+	 * the tab is first painted, and again whenever the tab is
+	 * re-registered. Must be idempotent: closing and reopening the
+	 * window rebuilds the tree, so any DOM state the tab wants to
+	 * preserve belongs in module scope, not inside the body.
 	 */
 	render( body: HTMLElement, ctx: SettingsTabRenderCtx ): void;
 }
@@ -312,10 +108,10 @@ export interface DesktopSettingsTab {
 /**
  * Cross-bundle shared backing store for the settings-tab registry.
  *
- * The OS Settings panel ships in its own Vite IIFE bundle since
- * 0.8.4 (`os-settings-panel[.min].js`) and reads from this registry
+ * The Preferences app ships in its own Vite IIFE bundle
+ * (`assets/js/apps/os-settings[.min].js`) and reads from this registry
  * via `listSettingsTabs()` / `subscribeSettingsTabs()` to interleave
- * plugin-registered tabs with the built-ins. Meanwhile the main
+ * plugin-registered tabs with the built-in pages. Meanwhile the main
  * bundle writes to it from two paths:
  *
  *   - `src/settings/server-sync.ts` — diffs PHP-declared tabs and
@@ -326,7 +122,7 @@ export interface DesktopSettingsTab {
  *
  * Without `createSharedStore`, the two bundles each get their own
  * compiled copy of this module's top-level `Map` + `Set`. Plugin
- * tabs registered in main never reach the panel, and the panel's
+ * tabs registered in main never reach the app, and the app's
  * own re-renders never wake main's subscribers. The shared store
  * pins both fields to one record on
  * `window.__openStationSharedStores` so every bundle sees the same
@@ -347,7 +143,7 @@ const registry = store.state.registry;
 const listeners = store.state.listeners;
 
 /**
- * Register (or replace) an OS Settings tab. Id matching is
+ * Register (or replace) a Preferences tab. Id matching is
  * case-insensitive; a second registration with the same id replaces
  * the first — mirrors WordPress's `register_*` semantics.
  */

@@ -34,10 +34,10 @@ type RegistryListener = () => void;
  * Shared store backing the wallpaper registry.
  *
  * The seed list AND the subscriber set live here. This is critical:
- * the OS Settings panel ships in its own Vite IIFE
- * bundle (`os-settings-panel[.min].js`), so a plain
+ * the Preferences app ships in its own Vite IIFE bundle
+ * (`assets/js/apps/os-settings[.min].js`), so a plain
  * `const seed: WallpaperDef[] = []` at module scope would give the
- * main bundle and the panel bundle each their own copy — main's
+ * main bundle and the app bundle each their own copy — main's
  * server-sync would register the PHP-declared CSS presets (dark /
  * aurora / sunset / forest / mono) into main's seed, but the panel's
  * wallpaper picker would iterate the panel's empty seed and render

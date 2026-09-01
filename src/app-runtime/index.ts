@@ -153,6 +153,17 @@ function buildHost(): RuntimeHost {
 				} ) ),
 			} );
 		},
+		refreshMenu: () => {
+			// Best-effort, like `spendMenuRefresh()`: absent before the
+			// shell has booted, and a failed refresh costs the user the
+			// F5 the effect exists to remove — never the response that
+			// just landed.
+			try {
+				void api?.refreshMenu?.();
+			} catch {
+				// Swallowed on purpose; see above.
+			}
+		},
 		onBroadcast: ( topic, cb ) =>
 			api?.subscribe( topic, ( _payload, meta ) => cb( meta.topic ) ) ?? ( () => undefined ),
 		loadComponents: ( tags ) => api?.loadComponents( tags ) ?? Promise.resolve(),

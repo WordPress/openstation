@@ -180,10 +180,8 @@ import {
 	listDesktopThemes,
 	subscribeDesktopThemes,
 } from '../desktop-themes/registry';
-import { applyThemeRecommendations } from '../settings/theme-recommendations';
 import { loadComponents } from '../ui/components/loader';
 import { registerNativeUrlRemap } from '../native-url-remap';
-import { notifyServiceWorkerPrewarm } from '../pwa/sw-register';
 import type { NativeWindowDef, DesktopConfig } from '../types';
 
 /**
@@ -216,6 +214,7 @@ export const RESERVED_NAMESPACE_KEYS: ReadonlySet< string > = new Set( [
 	'unregisterSettingsTab', 'listSettingsTabs',
 	'registerDockRailRenderer', 'unregisterDockRailRenderer', 'listDockRailRenderers',
 	'openOsSettings', 'getOsSettings', 'subscribeOsSettings', 'updateOsSettings',
+	'resetOsSettings',
 	'deriveWindowId',
 	'listSystemTiles', 'getSystemTile', 'getMenuItems',
 	'getNavItems', 'getNav',
@@ -428,253 +427,15 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 			patch: Partial< OsSettingsSnapshot >,
 			opts: { windowId?: string } = {},
 		) => {
-			// Whitelist only the public-snapshot keys so a typo'd
-			// field can't bloat the persisted state. The setters
-			// mutate the underlying private OsSettingsState, then
-			// `save()` runs the debounced REST sync + localStorage
-			// write + notifies every subscriber.
-			if ( typeof patch.wallpaper === 'string' ) {
-				osSettings.state.wallpaper = patch.wallpaper;
-			}
-			if ( typeof patch.accent === 'string' ) {
-				osSettings.state.accent =
-					patch.accent as typeof osSettings.state.accent;
-			}
-			if ( typeof patch.dockSize === 'string' ) {
-				osSettings.state.dockSize =
-					patch.dockSize as typeof osSettings.state.dockSize;
-			}
-			if ( typeof patch.windowRadius === 'string' ) {
-				osSettings.state.windowRadius =
-					patch.windowRadius as typeof osSettings.state.windowRadius;
-			}
-			if ( typeof patch.adminBarMode === 'string' ) {
-				osSettings.state.adminBarMode =
-					patch.adminBarMode as typeof osSettings.state.adminBarMode;
-			}
-			if ( typeof patch.desktopLayout === 'string' ) {
-				osSettings.state.desktopLayout =
-					patch.desktopLayout as typeof osSettings.state.desktopLayout;
-			}
-			if ( typeof patch.dockPlacement === 'string' ) {
-				osSettings.state.dockPlacement =
-					patch.dockPlacement as typeof osSettings.state.dockPlacement;
-			}
-			if ( typeof patch.dockBehavior === 'string' ) {
-				osSettings.state.dockBehavior =
-					patch.dockBehavior as typeof osSettings.state.dockBehavior;
-			}
-			if ( typeof patch.sideDockBehavior === 'string' ) {
-				osSettings.state.sideDockBehavior =
-					patch.sideDockBehavior as typeof osSettings.state.sideDockBehavior;
-			}
-			// `desktopTheme` accepts `''` — that is the system default,
-			// a real value rather than a missing one, so this is the
-			// one id field here with no non-empty guard.
-			if ( typeof patch.desktopTheme === 'string' ) {
-				osSettings.state.desktopTheme = patch.desktopTheme;
-			}
-			if ( typeof patch.unfocusEffect === 'string' ) {
-				osSettings.state.unfocusEffect = patch.unfocusEffect;
-			}
-			if ( typeof patch.windowReveal === 'string' ) {
-				osSettings.state.windowReveal = patch.windowReveal;
-			}
-			if ( typeof patch.windowRevealDuration === 'number' ) {
-				osSettings.state.windowRevealDuration =
-					patch.windowRevealDuration;
-			}
-			if ( typeof patch.dockRailRenderer === 'string' ) {
-				osSettings.state.dockRailRenderer = patch.dockRailRenderer;
-			}
-			if ( typeof patch.windowLinkRenderer === 'string' ) {
-				osSettings.state.windowLinkRenderer = patch.windowLinkRenderer;
-			}
-			if (
-				patch.windowLinkVisibility === 'focus' ||
-				patch.windowLinkVisibility === 'always' ||
-				patch.windowLinkVisibility === 'off'
-			) {
-				osSettings.state.windowLinkVisibility =
-					patch.windowLinkVisibility;
-			}
-			if ( typeof patch.windowLinksEnabled === 'boolean' ) {
-				osSettings.state.windowLinksEnabled = patch.windowLinksEnabled;
-			}
-			if ( typeof patch.windowLinkRaiseOnFocus === 'boolean' ) {
-				osSettings.state.windowLinkRaiseOnFocus =
-					patch.windowLinkRaiseOnFocus;
-			}
-			if ( typeof patch.windowLinkHighlight === 'boolean' ) {
-				osSettings.state.windowLinkHighlight =
-					patch.windowLinkHighlight;
-			}
-			if ( patch.ai && typeof patch.ai === 'object' ) {
-				osSettings.state.ai = { ...osSettings.state.ai, ...patch.ai };
-			}
-			// The two PWA flags. They were absent from this list, so
-			// they could only be changed from the Preferences UI — an
-			// asymmetry with no reason behind it, since every other
-			// boolean here is settable.
-			//
-			// `windowPrewarmEnabled` carries the same side effect the
-			// toggle does: the running service worker keeps its own
-			// copy of the flag (baked in at install), so without
-			// telling it, turning this on leaves the worker dropping
-			// every speculation and turning it off leaves it
-			// speculating. `adminAssetCacheEnabled` needs no equivalent
-			// — it reaches the worker inside the served `sw.js` bytes,
-			// as a normal SW update.
-			if ( typeof patch.windowPrewarmEnabled === 'boolean' ) {
-				osSettings.state.windowPrewarmEnabled =
-					patch.windowPrewarmEnabled;
-				notifyServiceWorkerPrewarm( patch.windowPrewarmEnabled );
-			}
-			if ( typeof patch.adminAssetCacheEnabled === 'boolean' ) {
-				osSettings.state.adminAssetCacheEnabled =
-					patch.adminAssetCacheEnabled;
-			}
-			if ( typeof patch.nativePostsEnabled === 'boolean' ) {
-				osSettings.state.nativePostsEnabled = patch.nativePostsEnabled;
-			}
-			if ( typeof patch.nativePagesEnabled === 'boolean' ) {
-				osSettings.state.nativePagesEnabled = patch.nativePagesEnabled;
-			}
-			if ( typeof patch.nativeUsersEnabled === 'boolean' ) {
-				osSettings.state.nativeUsersEnabled = patch.nativeUsersEnabled;
-			}
-			if ( typeof patch.nativePluginsEnabled === 'boolean' ) {
-				osSettings.state.nativePluginsEnabled = patch.nativePluginsEnabled;
-			}
-			if ( typeof patch.nativeCommentsEnabled === 'boolean' ) {
-				osSettings.state.nativeCommentsEnabled = patch.nativeCommentsEnabled;
-			}
-			if ( typeof patch.stationHomeEnabled === 'boolean' ) {
-				osSettings.state.stationHomeEnabled = patch.stationHomeEnabled;
-			}
-			if ( typeof patch.foldersSharingEnabled === 'boolean' ) {
-				osSettings.state.foldersSharingEnabled = patch.foldersSharingEnabled;
-			}
-			if ( typeof patch.showPostStatusRibbons === 'boolean' ) {
-				osSettings.state.showPostStatusRibbons = patch.showPostStatusRibbons;
-			}
-			if ( typeof patch.developerModeEnabled === 'boolean' ) {
-				osSettings.state.developerModeEnabled = patch.developerModeEnabled;
-			}
-			if ( Array.isArray( patch.nativePostsHiddenColumns ) ) {
-				osSettings.state.nativePostsHiddenColumns =
-					patch.nativePostsHiddenColumns
-						.filter(
-							( v ): v is string =>
-								typeof v === 'string' && v !== '',
-						)
-						.slice( 0, 32 );
-			}
-			if (
-				patch.navPlacement &&
-				typeof patch.navPlacement === 'object'
-			) {
-				const allowed = [ 'both', 'rail', 'desktop', 'hidden' ];
-				const next: Record<
-					string,
-					'both' | 'rail' | 'desktop' | 'hidden'
-				> = {};
-				for ( const [ k, v ] of Object.entries(
-					patch.navPlacement as Record< string, unknown >,
-				) ) {
-					if ( typeof k !== 'string' || k === '' ) {
-						continue;
-					}
-					if ( typeof v !== 'string' || ! allowed.includes( v ) ) {
-						continue;
-					}
-					next[ k ] = v as
-						| 'both'
-						| 'rail'
-						| 'desktop'
-						| 'hidden';
-				}
-				osSettings.state.navPlacement = next;
-			}
-			if ( Array.isArray( patch.navOrder ) ) {
-				osSettings.state.navOrder = patch.navOrder
-					.filter(
-						( v ): v is string =>
-							typeof v === 'string' && v !== '',
-					)
-					.slice( 0, 256 );
-			}
-			if (
-				patch.dockPromotedPositions &&
-				typeof patch.dockPromotedPositions === 'object'
-			) {
-				const MAX_COORD = 100_000;
-				const next: Record< string, { x: number; y: number } > = {};
-				for ( const [ k, v ] of Object.entries(
-					patch.dockPromotedPositions as Record< string, unknown >,
-				) ) {
-					if ( typeof k !== 'string' || k === '' ) {
-						continue;
-					}
-					if ( ! v || typeof v !== 'object' ) {
-						continue;
-					}
-					const pos = v as { x?: unknown; y?: unknown };
-					if (
-						typeof pos.x !== 'number' ||
-						typeof pos.y !== 'number' ||
-						! Number.isFinite( pos.x ) ||
-						! Number.isFinite( pos.y ) ||
-						Math.abs( pos.x ) > MAX_COORD ||
-						Math.abs( pos.y ) > MAX_COORD
-					) {
-						continue;
-					}
-					next[ k ] = { x: pos.x, y: pos.y };
-					if ( Object.keys( next ).length >= 256 ) {
-						break;
-					}
-				}
-				osSettings.state.dockPromotedPositions = next;
-			}
-			osSettings.save( opts );
-			// Presentation keys have to be applied, not just saved.
-			// `save()` only persists; without this a caller that sets
-			// a theme, an accent or a layout through the public API
-			// sees nothing change until the next page load, which is
-			// not what "update" reads as — and is why the documented
-			// `updateOsSettings( { desktopTheme } )` recipe needed a
-			// companion `desktopThemes.setActive()` call to do the
-			// visible half.
-			//
-			// `apply()` is documented as safe to call repeatedly: the
-			// wallpaper layer dedupes on a generation counter,
-			// `applyDesktopTheme` dedupes on the active id, and the
-			// rest are idempotent custom-property writes. A patch that
-			// touches none of these keys skips it anyway.
-			//
-			// `unfocusEffect` is deliberately absent from this list —
-			// `apply()` knows nothing about it. The unfocus engine
-			// listens on `subscribeOsSettings`, which `save()` above
-			// already fired, so that key repaints on its own.
-			// `windowReveal` is absent for the same reason: the reveal
-			// engine reads it off the same subscription, and it only
-			// takes effect on the NEXT window load either way.
-			if (
-				typeof patch.wallpaper === 'string' ||
-				typeof patch.accent === 'string' ||
-				typeof patch.dockSize === 'string' ||
-				typeof patch.windowRadius === 'string' ||
-				typeof patch.adminBarMode === 'string' ||
-				typeof patch.desktopLayout === 'string' ||
-				typeof patch.dockPlacement === 'string' ||
-				typeof patch.dockBehavior === 'string' ||
-				typeof patch.sideDockBehavior === 'string' ||
-				typeof patch.dockRailRenderer === 'string' ||
-				typeof patch.desktopTheme === 'string'
-			) {
-				osSettings.apply();
-			}
+			// The store owns the write: every `OsSettingsState` key is
+			// admitted through the same sanitizer that reads user meta
+			// (an invalid value is ignored, an unknown key never
+			// lands, the seeded-theme ledger stays shell-owned), the
+			// save runs the debounced REST sync + localStorage write +
+			// notifies every subscriber, and a presentation key is
+			// applied so the change is visible now rather than on the
+			// next page load.
+			osSettings.update( patch, opts );
 			// Belt-and-suspenders live repaint for visibility / order
 			// changes. The `subscribeOsSettings` listener installed in
 			// `desktop.ts` already calls `layoutDispatcher.refresh()`,
@@ -689,6 +450,10 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 			if ( patch.navPlacement || patch.navOrder ) {
 				layoutDispatcher?.refresh();
 			}
+		},
+		resetOsSettings: ( opts: { windowId?: string } = {} ) => {
+			osSettings.reset( opts );
+			layoutDispatcher?.refresh();
 		},
 		deriveWindowId: ( url: string, overrideAdminUrl?: string ) =>
 			deriveWindowId( url, overrideAdminUrl ?? config.adminUrl ),
@@ -742,20 +507,12 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 				if ( target === '' ) {
 					return {};
 				}
-				// `force` because this entry point IS the deliberate
-				// re-apply. First-activation seeding happens in the
-				// Themes tab; a caller reaching for the API is asking
-				// for the author's arrangement back.
-				const applied = applyThemeRecommendations(
-					osSettings.state,
-					target,
-					{ force: true },
-				);
-				if ( Object.keys( applied ).length > 0 ) {
-					osSettings.save();
-					osSettings.apply();
-				}
-				return applied;
+				// Forced, because this entry point IS the deliberate
+				// re-apply. First-activation seeding happens when the
+				// theme is activated (`updateOsSettings( { desktopTheme } )`
+				// or the Themes tab); a caller reaching for this is
+				// asking for the author's arrangement back.
+				return osSettings.applyThemeRecommendations( target );
 			},
 		},
 		applyWindowTheme: ( windowId, override ) => {

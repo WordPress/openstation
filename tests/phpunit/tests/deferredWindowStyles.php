@@ -202,11 +202,11 @@ class Tests_OpenStation_DeferredWindowStyles extends WP_UnitTestCase {
 	 */
 	public function test_shell_surface_handles_resolve_into_the_map() {
 		$map = openstation_build_deferred_styles(
-			array( 'os-settings', 'desktop-mode-ai-assistant', 'desktop-mode-bug-report' )
+			array( 'desktop-mode-ai-assistant', 'desktop-mode-bug-report' )
 		);
 
 		$this->assertSame(
-			array( 'os-settings', 'desktop-mode-ai-assistant', 'desktop-mode-bug-report' ),
+			array( 'desktop-mode-ai-assistant', 'desktop-mode-bug-report' ),
 			array_keys( $map ),
 			'A shell-surface stylesheet handle stopped resolving — its surface will open unstyled.'
 		);
