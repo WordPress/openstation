@@ -3634,17 +3634,20 @@ apply_filters( 'openstation_my_wordpress_user_can_use', bool $can ): bool
 
 Gates icon registration and window registration in one shot. Default `current_user_can( 'edit_posts' )`. Return `false` to hide the entry point for a role; return `true` to opt a role back in.
 
-### `openstation_my_wordpress_window_args` / `openstation_my_wordpress_icon_args` — Experimental (filter)
+### Removed — the legacy explorer window's filters
 
-Tweak the args passed to `openstation_register_window()` / `openstation_register_icon()` for WP Explorer — useful to change dimensions, swap the icon, or remove the `pinned` flag so the icon participates in the normal sort order. Retitling the window here retitles the app; to rename the *root folder* the window opens on, filter [`openstation_site_title`](#openstation_site_title--experimental) instead, which also covers the breadcrumb root and the cross-window "Open in &lt;site&gt;" actions.
+`openstation_my_wordpress_window_args`, `openstation_my_wordpress_icon_args` and `openstation_my_wordpress_template_html` are gone with the `desktop-mode-my-wordpress` native window they configured. WP Explorer is the `my-wordpress` **app** now:
 
-### `openstation_my_wordpress_entities` — Experimental (filter)
+- To reshape the window or the launcher — title, art, size, position, the `pinned` flag — filter [`openstation_app_manifest`](#openstation_app_manifest--experimental-filter) with `$id === 'my-wordpress'`, or [`openstation_app_window_args`](#openstation_app_window_args--experimental-filter) for the registration args (companion `scripts` / `styles` included).
+- To rename the *root folder* the explorer opens on, filter [`openstation_site_title`](#openstation_site_title--experimental), which also covers the breadcrumb root and the cross-window "Open in &lt;site&gt;" actions.
+
+### `openstation_my_wordpress_entities` — Experimental (filter, inert)
 
 ```php
 apply_filters( 'openstation_my_wordpress_entities', array[] $entities ): array[]
 ```
 
-The list of entity types rendered as folder tiles in the window's root view. Each entry must declare:
+**Inert since the legacy window's removal.** The filter still runs (registered subscribers keep executing, so nothing fatals), but no window consumes its list — the explorer app builds its own sections; register there via [`openstation_my_wordpress_app_sections`](#openstation_my_wordpress_app_sections--experimental-filter). Kept documented for the descriptor vocabulary older subscribers were written against. Each entry declared:
 
 - `id` — slug, used in the route hash and tile `data-entity-id`.
 - `label` — human-readable folder name.
@@ -3958,10 +3961,6 @@ customer means nothing).
 Both filters only run when WooCommerce is active and the viewer passes
 the customers permission gate — order access **and** `list_users`.
 
-### `openstation_my_wordpress_template_html` — Experimental (filter)
-
-The static template body before it's emitted into the native-window template element. Keep the `data-os-my-wordpress-*` data hooks intact so the JS bundle can find its mount points.
-
 ### `openstation_my_wordpress_user_stats` — Experimental (filter)
 
 ```php
@@ -4143,6 +4142,26 @@ apply_filters( 'openstation_app_manifest', array $manifest, string $id, OpenStat
 
 An app's manifest just before it is registered with the shell — `title`, `icon`, `width`/`height`, `min_width`/`min_height`, `placement`, `nav_kind`, `dock_order`, `placeable`, `autofocus`, `desktop_icon`, `style`, `state`, `actions`, `title_bar_buttons`, `window_actions`, `appearance`, `config`. Resize a window, add a title-bar button to someone else's app, retarget its stylesheet.
 
+### `openstation_app_window_args` — Experimental (filter)
+
+```php
+apply_filters( 'openstation_app_window_args', array $window_args, string $id, OpenStation\App $app ): array
+```
+
+The `openstation_register_window()` args the manifest produced, just before the window registers. Where `openstation_app_manifest` shapes what the app *declared*, this filter reaches the registration itself — most usefully its `scripts` / `styles` arrays, which the manifest cannot express. That is the seam a companion plugin uses to ride an app window it doesn't own: append a registered script or style handle and it loads as a first-open companion — in the tab before the app's client view renders (so hook subscribers are listening when the app fires its seams), and never on a page that doesn't open the window.
+
+```php
+add_filter( 'openstation_app_window_args', function ( $args, $id ) {
+	if ( 'my-wordpress' !== $id ) {
+		return $args;
+	}
+	$args['scripts'][] = 'my-plugin-explorer-extras'; // wp_register_script()-ed elsewhere.
+	return $args;
+}, 10, 2 );
+```
+
+This is how the WooCommerce integration attaches its `os-my-wordpress-woocommerce` bundle (and stylesheet) to the My WordPress app — the same bundle WP Explorer's window declares, one subscriber decorating both windows.
+
 ### `openstation_app_registered` — Experimental (action)
 
 ```php
@@ -4229,6 +4248,41 @@ do_action( 'openstation_code_blue_log_cleared', string $id, string $path )
 Fires after the `clear` action truncates a log file.
 
 ---
+
+## My WordPress
+
+The content explorer app — `apps/my-wordpress/my-wordpress.os.php` + `my-wordpress.os.ts`, an [App Framework](./app-framework.md) app in the framework's two halves. The PHP half is the truth: a root folder grid (Posts, Pages, Media, Users, plus every eligible custom post type folded into plugin-group folders), `WP_Query`-backed searchable/sortable lists, per-item dossiers (rendered post preview, media usage scan, user footprint, edit-lock holder), per-item authorization, and the trash / bulk-trash / open-in-editor actions. The client half makes it instant: click / Ctrl / Shift / **marquee selection**, **infinite scroll**, **drag rows out to the desktop** (`wp.os.dragManager`), the per-row context menu, media **zoom**, and the copy-links clipboard action — none of which leaves the tab. Registered as the native window `my-wordpress` behind `edit_posts`, with a desktop icon, and repainted live by `watch( '*' )` whenever any window changes any content.
+
+It discovers custom post types through the **same helpers WP Explorer uses** — `openstation_my_wordpress_eligible_post_types()`, `openstation_my_wordpress_post_type_icon()`, `openstation_my_wordpress_post_type_group()`, `openstation_my_wordpress_collect_groups()` — so the `openstation_my_wordpress_post_types`, `openstation_my_wordpress_post_type_entity` (icon/group only) and `openstation_my_wordpress_post_type_groups` filters above shape both windows. **Preview actions are shared too**: descriptors collected by `openstation_my_wordpress_preview_actions` and refined by the `os.my-wordpress.preview-actions` JS filter appear in this window's pane and context menu exactly as they do in WP Explorer — one registration, two surfaces. It is a sibling of WP Explorer (`desktop-mode-my-wordpress`), not a replacement — WP Explorer keeps its id, icon and every filter.
+
+The app consumes WP Explorer's **JS extension seams** too, unchanged: `os.my-wordpress.preview-extras` fires over the preview article's `header` / `meta` / `footer` slots (post, media and user kinds; the navigate-into article carries a `meta` slot), `os.my-wordpress.list-tile` fires per rendered tile after it is in the DOM, and the `os.my-wordpress.list-bands` filter groups a section's grid into the same banded layout (declared order, tone tints, count chips, unlabelled tail band). List rows carry the REST-visible fields subscribers read — registered `show_in_rest` meta under `meta`, and one term-id array per REST-exposed taxonomy keyed by `rest_base` — so a band assigner or extras painter written for WP Explorer works here without edits.
+
+The app also carries the **Agents section** (see [AI Agents](#ai-agents)) as a root tile, listed for every user who may read agents even while the framework is off — WP Explorer's design, 1:1, including the create wizard (Describe → Meet → Powers → Summon → Launch), the face picker, the off-state preview cast, drag & drop onto the cast cards and drag-out to the desktop. The mutations run as app actions (`agent-draft` / `agent-create` / `agent-update` / `agent-delete`) through the same `openstation_agent_*` store, draft and identity functions the `/desktop-mode/v1/agents` routes wrap, behind the same read/manage/invoke gates. After a roster change the client fires the `os.agents.roster-changed` JS action (on `wp.hooks`), which WP Explorer's "Send to" menu cache listens for — trigger edits made in the app reach WP Explorer's context menus without a reload.
+
+### `openstation_my_wordpress_app_sections` — Experimental (filter)
+
+```php
+apply_filters( 'openstation_my_wordpress_app_sections', array[] $sections ): array[]
+```
+
+The sections the explorer offers, builtins and discovered CPTs included. Each: `id`, `label`, `icon` (Dashicons class or image URL), `kind` (`post` | `media` | `user`), `post_type` (post kinds), `capability` (the section is silently absent for users without it), `thumbnails`, and the optional folder fields `group` / `groupLabel` / `groupIcon` / `groupOrder`. Runs on every render, so a post type registered at any point of the bootstrap can appear — nothing is frozen at registration time.
+
+```php
+add_filter( 'openstation_my_wordpress_app_sections', function ( $sections ) {
+	$sections[] = array(
+		'id'         => 'products',
+		'label'      => __( 'Products', 'my-plugin' ),
+		'icon'       => 'dashicons-cart',
+		'kind'       => 'post',
+		'post_type'  => 'product',
+		'capability' => 'edit_products',
+		'thumbnails' => true,
+		'group'      => 'my-shop',
+		'groupLabel' => __( 'My Shop', 'my-plugin' ),
+	);
+	return $sections;
+} );
+```
 
 ## Living Tree wallpaper
 

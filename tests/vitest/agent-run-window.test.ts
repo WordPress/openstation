@@ -701,7 +701,7 @@ describe( 'agent chat window', () => {
 			await flush();
 
 			expect( openWindow ).toHaveBeenCalledWith(
-				'desktop-mode-my-wordpress',
+				'my-wordpress',
 				{ source: 'agents/editor' },
 			);
 			expect( agentEditorTarget.state.agentId ).toBe( 9 );

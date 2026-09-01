@@ -305,7 +305,8 @@ function openstation_station_home_quick_actions() {
 			'label'    => __( 'WP Explorer', 'desktop-mode' ),
 			'icon'     => 'dashicons-open-folder',
 			'kind'     => 'native',
-			'windowId' => 'desktop-mode-my-wordpress',
+			// The explorer APP — the legacy native window is gone.
+			'windowId' => 'my-wordpress',
 		);
 	}
 	$actions[] = array(

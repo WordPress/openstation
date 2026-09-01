@@ -57,7 +57,7 @@ final class Auth implements AuthContract {
 	}
 
 	/** {@inheritDoc} */
-	public function can( $capability ) {
+	public function can( $capability, ...$args ) {
 		return in_array( '*', $this->capabilities, true )
 			|| in_array( (string) $capability, $this->capabilities, true );
 	}

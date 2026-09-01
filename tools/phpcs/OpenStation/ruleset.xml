@@ -1,0 +1,4 @@
+<?xml version="1.0"?>
+<ruleset name="OpenStation">
+	<description>House sniffs for the OpenStation plugin. Referenced from phpcs.xml.dist via installed_paths.</description>
+</ruleset>

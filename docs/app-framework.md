@@ -121,6 +121,7 @@ Two action names are built in: **`mount`** (the first render) and **`set`** (a b
 | `controls( array )` | Reorder or hide the standard window controls (`order`, `hide`). |
 | `slot( $slot, $html )` | Static HTML into a title-bar slot (`before-titlebar`, `after-titlebar`, `after-title`, …). |
 | `on_channel( $channel, $action )` | Dispatch `$action` (with `$args['payload']`) whenever a peer publishes on the window's channel — `wp.os.connect( id ).send( channel, payload )` or `Window.send()`. |
+| `watch( ...$types )` | Re-render whenever the named content changes ANYWHERE on the desktop. The runtime subscribes to the shell's `os.<type>.changed` broadcasts (`wp.os.announceContentChange`) and re-dispatches the built-in `set` — state kept, `data()` recomputed, view repainted. A burst of changes coalesces into one refresh; a minimized window marks itself stale and catches up on restore. Pass `'*'` to watch ANY content change — the choice when the types the app shows are only known at render time (My WordPress's dynamic post-type list). The read half of the pair whose write half is the `$os->announce()` effect. |
 | `config( array )` | Extra values for the client, readable as `wp.os.getWindowConfig( id ).extra`. |
 
 `confirm` is a string (the question) or `array( 'title', 'message', 'label', 'danger' )`; the shell asks through `wp.os.confirm` before dispatching.
@@ -187,7 +188,7 @@ Every callback receives an `OpenStation\App\Os`. It is the app's entire view of 
 | `$os->client` | `width` / `height` of the mount root at dispatch time |
 | `$os->params` / `$os->param( $key, $fallback )` | The window's open-time params (`wp.os.openWindow( id, { params } )`) — a post id, a post type, whatever the opener passed |
 | `$os->app_id`, `$os->view` | Which app and which view (`main` or a tab slug) is being dispatched |
-| `$os->can()`, `$os->preference()`, `$os->filter()`, `$os->action()`, `$os->remember( $key, $ttl, $compute )` | Sugar over the contracts |
+| `$os->can()`, `$os->preference()`, `$os->filter()`, `$os->action()`, `$os->remember( $key, $ttl, $compute )` | Sugar over the contracts. `can()` takes a meta-capability's object too — `$os->can( 'delete_post', $id )` forwards to `current_user_can()`; the standalone adapter answers from the capability name alone. |
 | `$os->stored( $key, $fallback, $scope = 'user' )`, `$os->store( $key, $value, $scope )`, `$os->forget( $key, $scope )` | Durable storage, keys namespaced by app id |
 | `$os->toast()`, `->title()`, `->close()`, `->open( $window_id )`, `->open_url( $url, $title )`, `->badge( $count )`, `->announce( $type, $action, $ids )`, `->menu( $items )`, `->send( $channel, $payload )` | **Effects** — things the shell does after the morph (below) |
 
@@ -333,7 +334,7 @@ On WordPress the host (`includes/framework/wordpress.php`) does three things on 
 
 1. **@5** registers the shared runtime script + stylesheet (`openstation-app-runtime`).
 2. **@10** loads every `.os.php` under the app directories — `apps/` inside OpenStation, plus whatever [`openstation_apps_directories`](./hooks-reference.md#openstation_apps_directories--experimental-filter) adds — one level of sub-folders deep, then fires [`openstation_apps_loaded`](./hooks-reference.md#openstation_apps_loaded--experimental-action) so a plugin can `$registry->add()` an `App` built in code.
-3. **@20** turns every app the current user may use into a native window through `openstation_register_window()` (plus `openstation_register_window_tab()` per tab and `openstation_register_icon()` for a `desktop_icon`), after running the manifest through [`openstation_app_manifest`](./hooks-reference.md#openstation_app_manifest--experimental-filter).
+3. **@20** turns every app the current user may use into a native window through `openstation_register_window()` (plus `openstation_register_window_tab()` per tab and `openstation_register_icon()` for a `desktop_icon`), after running the manifest through [`openstation_app_manifest`](./hooks-reference.md#openstation_app_manifest--experimental-filter) and the built registration args through [`openstation_app_window_args`](./hooks-reference.md#openstation_app_window_args--experimental-filter) — the latter is how a companion plugin appends its own `scripts` / `styles` handles to an app window it doesn't own (the WooCommerce integration rides the My WordPress app this way).
 
 To ship apps from your plugin:
 
@@ -345,6 +346,28 @@ add_filter( 'openstation_apps_directories', static function ( array $dirs ) {
 ```
 
 The window id is the app id. Everything the shell knows about native windows applies: session restore, the ⋯ menu, the tab strip, live registration on plugin activation.
+
+### Splitting a large app
+
+An app is one `.os.php` and (optionally) one `.os.ts` — but neither has to hold everything. When either file outgrows the ~300–600-line comfort zone (the `local-rules/os-file-length` ESLint rule and the `OpenStation.Files.FileLength` PHPCS sniff start nudging at 1,000), split it into a `parts/` directory beside the entries and keep each entry as the *composition*:
+
+```
+apps/my-app/
+├── my-app.os.php        # App::define(), state schema, action WIRING
+├── my-app.os.ts         # defineApp(), locals, the view frame
+├── my-app.css
+└── parts/
+    ├── sections.php     # plain .php — require_once'd from the entry
+    ├── actions.php      # named functions: ->action( 'go', __NAMESPACE__ . '\go_action' )
+    ├── types.ts         # plain .ts — imported from the entry
+    └── views.ts
+```
+
+Three rules make this safe:
+
+- **PHP parts are plain `.php` in the app's namespace**, pulled in with `require_once __DIR__ . '/parts/…'` from the entry. Never name a part `*.os.php` — the registry's loader globs one level of sub-folders for that suffix and would register the part as a second app. Actions can be named functions (`->action( 'name', __NAMESPACE__ . '\name_action' )`); `->data()` takes a function name too.
+- **TS parts are plain `.ts` imported by the entry**; Vite bundles them into the app's one script. Never name a part `*.os.ts` — every `apps/*/*.os.ts` is its own build entry. Re-export the part's public symbols from the entry so tests (and plugins reading the bundle's types) keep one import path.
+- **`parts/` is part of the app's line budget.** A split is for the reader, not for the counter — the worked example (My WordPress, `apps/my-wordpress/`) pins every source file under 1,000 lines in its suite.
 
 ### The dispatch route
 

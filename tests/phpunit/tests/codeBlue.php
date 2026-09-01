@@ -45,11 +45,13 @@ class Tests_OpenStation_CodeBlue extends WP_UnitTestCase {
 			}
 		}
 		$this->temp_files = array();
-		// `openstation_apps_register_windows()` registers Code Blue's
-		// desktop icon into a process-scoped registry; left behind, it
-		// counts as an unplaced shortcut for every later test that
+		// `openstation_apps_register_windows()` registers every app's
+		// desktop icon into a process-scoped registry; left behind,
+		// they count as unplaced shortcuts for every later test that
 		// auto-places orphans (`Tests_OpenStation_FilesStore`).
-		openstation_unregister_icon( 'openstation-code-blue' );
+		foreach ( array_keys( openstation_apps_registry()->all() ) as $id ) {
+			openstation_unregister_icon( $id );
+		}
 		parent::tear_down();
 	}
 

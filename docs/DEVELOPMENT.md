@@ -111,6 +111,15 @@ Before reaching for a `phpcs:ignore`, check that the finding is genuinely not a 
 
 Extensions under `extensions/` are excluded here and scanned against their own rulesets — they ship as separate plugins with their own prefixes and text domains.
 
+### File length — a nudge, not a gate
+
+Two twin rules keep an eye on file size, one per language, both **warnings by design**:
+
+- **TypeScript**: `local-rules/os-file-length` (`eslint-local-rules/os-file-length.cjs`), shown by `npm run lint`.
+- **PHP**: `OpenStation.Files.FileLength` (`tools/phpcs/OpenStation/`), hidden by the errors-only gate, shown by `npm run lint:php:all` and in editors.
+
+Past 1,000 total lines a file gets one encouraging warning: split it along its natural seams and aim for modules of ~300–600 lines — small enough to hold in one head, one review and one test file. A long file is a smell, not a defect, which is why neither rule ever fails a build; the right moment to split is a judgement call. When the file is an App Framework app, the split recipe is documented: [`app-framework.md` → "Splitting a large app"](./app-framework.md#splitting-a-large-app).
+
 ## Module layout
 
 ```

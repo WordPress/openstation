@@ -86,69 +86,9 @@ class Tests_OpenStation_MyWordpressPreviewActions extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * A plugin registering its filter AFTER `init` 99 (when the window
-	 * config was snapshotted) must still reach the emitted blob — the
-	 * emit-time refresh re-collects. This was the reported bug: the
-	 * action's script loaded (scripts were always collected late) but
-	 * its descriptor never shipped.
-	 *
-	 * @covers ::openstation_my_wordpress_refresh_window_config
-	 */
-	public function test_late_registered_action_reaches_emitted_config() {
-		wp_set_current_user( $this->admin_id );
-
-		// "Late": the snapshot below is taken before the filter exists,
-		// mirroring a window registered at init 99 and a plugin hooking
-		// on admin_init.
-		$snapshot = array( 'previewActions' => array() );
-
-		add_filter(
-			'openstation_my_wordpress_preview_actions',
-			static function ( $actions ) {
-				$actions[] = array(
-					'id'    => 'late',
-					'label' => 'Late',
-				);
-				return $actions;
-			}
-		);
-
-		$emitted = apply_filters(
-			'openstation_native_window_config',
-			$snapshot,
-			'desktop-mode-my-wordpress'
-		);
-		$ids = wp_list_pluck( $emitted['previewActions'], 'id' );
-		$this->assertContains( 'late', $ids );
-	}
-
-	/**
-	 * The refresh hook is scoped to the My WordPress window — every
-	 * other window's config passes through untouched.
-	 *
-	 * @covers ::openstation_my_wordpress_refresh_window_config
-	 */
-	public function test_refresh_leaves_other_windows_untouched() {
-		wp_set_current_user( $this->admin_id );
-		add_filter(
-			'openstation_my_wordpress_preview_actions',
-			static function ( $actions ) {
-				$actions[] = array(
-					'id'    => 'late',
-					'label' => 'Late',
-				);
-				return $actions;
-			}
-		);
-
-		$emitted = apply_filters(
-			'openstation_native_window_config',
-			array( 'previewActions' => array() ),
-			'some-other-window'
-		);
-		$this->assertSame( array(), $emitted['previewActions'] );
-	}
+	// (The emit-time window-config refresh tests went with the legacy
+	// window: the explorer app recomputes `previewActions` inside every
+	// dispatch payload, so there is no snapshot to go stale.)
 
 	/**
 	 * @covers ::openstation_my_wordpress_collect_preview_actions

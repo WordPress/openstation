@@ -2,15 +2,15 @@
  * WP Explorer — Agents: REST client over `/desktop-mode/v1/agents`.
  *
  * Every call routes through `trackedFetch` (source
- * `desktop-mode/agents`) with the window-config nonce. Errors are
- * normalized to `Error` instances carrying the server's `message`
- * when one exists.
+ * `desktop-mode/agents`) with the shell's REST root + nonce
+ * (`wp.os.config` — the boot payload every shell page carries).
+ * Errors are normalized to `Error` instances carrying the server's
+ * `message` when one exists.
  *
  * @public
  */
 
 import { trackedFetch } from '../tracked-fetch';
-import { getConfig } from './rest';
 import type {
 	AgentDraft,
 	Ability,
@@ -25,8 +25,20 @@ import type {
 
 const SOURCE = { source: 'desktop-mode/agents' };
 
+function shellRest(): { restRoot: string; restNonce: string } {
+	const config = (
+		window.wp as
+			| { os?: { config?: { restUrl?: string; restNonce?: string } } }
+			| undefined
+	)?.os?.config;
+	return {
+		restRoot: String( config?.restUrl ?? '' ),
+		restNonce: String( config?.restNonce ?? '' ),
+	};
+}
+
 function agentsUrl( path = '' ): string {
-	const root = getConfig().restRoot.replace( /\/+$/, '' );
+	const root = shellRest().restRoot.replace( /\/+$/, '' );
 	return `${ root }/desktop-mode/v1/agents${ path }`;
 }
 
@@ -40,7 +52,7 @@ async function request< T >(
 			...init,
 			headers: {
 				'Content-Type': 'application/json',
-				'X-WP-Nonce': getConfig().restNonce,
+				'X-WP-Nonce': shellRest().restNonce,
 				...( init.headers || {} ),
 			},
 		},
@@ -177,7 +189,7 @@ export async function fetchAiStatus(
 	try {
 		const res = await trackedFetch(
 			statusUrl,
-			{ headers: { 'X-WP-Nonce': getConfig().restNonce } },
+			{ headers: { 'X-WP-Nonce': shellRest().restNonce } },
 			{ ...SOURCE, silent: true },
 		);
 		if ( ! res.ok ) {

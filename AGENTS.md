@@ -26,6 +26,8 @@ If you ever find yourself reaching for `assets/js/*.js` directly, stop and write
 
 **Lint scope:** `npm run lint` runs on `src/**/*.ts` and `apps/**/*.ts`. Test files under `tests/vitest/` aren't in the lint config (typescript-eslint project doesn't include them); rely on `npm run typecheck` + `npm run test:js` to catch issues there.
 
+**File length:** past 1,000 lines a file gets ONE warning (TS: `local-rules/os-file-length`; PHP: the `OpenStation.Files.FileLength` sniff, visible via `lint:php:all`) asking for a split toward the 300–600-line comfort zone. Warnings by design — never a gate — but when writing NEW code, honour them: compose from focused modules instead of growing a monolith. For apps, the sanctioned split shape is a `parts/` directory (see `docs/app-framework.md`, "Splitting a large app"; `apps/my-wordpress/` is the worked example).
+
 ### The palette lives in `variables.css` — one declaration, one owner
 
 The shell wears the [OpenStation brand](https://nuriapenya.github.io/open-station-brand/), and it wears it as **token declarations in `assets/css/variables.css` and nowhere else**. Void as the base, Obsidian for surfaces, Pulse and Nebula for identity moments, Sirius and Starlight for contrast, the Shade ramp for text hierarchy and lines.

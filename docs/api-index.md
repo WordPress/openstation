@@ -158,7 +158,7 @@ Windows declared in PHP as `.os.php` files — [`app-framework.md`](./app-framew
 | `@openstation/app` | `defineApp< State, Data >( id, { local?, view, mounted?, updated? } )`, `html`, `__`/`_n`/`_x`/`sprintf` *(what an `.os.ts` imports)* | Experimental |
 | `apps.refresh` | `() => string[]` | Experimental |
 
-PHP side: `App::define( $id )` fluent definition (`state`, `action`, `view`, `tab`, `title_bar_button`, `window_action`, `on_channel`, `theme` / `controls` / `slot`, `desktop_icon`), the `$os` handle (`auth`, `settings`, `hooks`, `cache`, `env`, `storage`, `param()`, `stored()` / `store()`, and the effects `toast` / `title` / `close` / `open` / `open_url` / `badge` / `announce` / `menu` / `send`), `openstation_app( $id )`, `openstation_app_render( $id, $state )`, filters `openstation_apps_directories` / `openstation_app_manifest` / `openstation_app_response`, actions `openstation_apps_loaded` / `openstation_app_registered`, route `POST desktop-mode/v1/apps/<id>/dispatch` — all in [`app-framework.md`](./app-framework.md) and [`hooks-reference.md` → App Framework](./hooks-reference.md#app-framework).
+PHP side: `App::define( $id )` fluent definition (`state`, `action`, `view`, `tab`, `title_bar_button`, `window_action`, `on_channel`, `theme` / `controls` / `slot`, `desktop_icon`), the `$os` handle (`auth`, `settings`, `hooks`, `cache`, `env`, `storage`, `param()`, `stored()` / `store()`, and the effects `toast` / `title` / `close` / `open` / `open_url` / `badge` / `announce` / `menu` / `send`), `openstation_app( $id )`, `openstation_app_render( $id, $state )`, filters `openstation_apps_directories` / `openstation_app_manifest` / `openstation_app_window_args` / `openstation_app_response`, actions `openstation_apps_loaded` / `openstation_app_registered`, route `POST desktop-mode/v1/apps/<id>/dispatch` — all in [`app-framework.md`](./app-framework.md) and [`hooks-reference.md` → App Framework](./hooks-reference.md#app-framework).
 
 ### Files on the desktop
 
@@ -222,7 +222,7 @@ shared-store + registries. Index:
 | `/desktop-mode/v1/agents[…]` REST routes | [`includes/rest/README.md`](../includes/rest/README.md) | Experimental |
 | `openstation_agent_*` PHP helpers, actions, filters | [`hooks-reference.md`](./hooks-reference.md#ai-agents) | Experimental |
 | `desktop-mode/agents-chat` shared-store key + `desktop-mode-agent-run` window | [`javascript-reference.md`](./javascript-reference.md#ai-agents--client-surface-experimental) | Experimental |
-| `agent` WP Explorer entity kind | `registerEntityKind()` seam | Experimental |
+| Agents section in the WP Explorer app | `apps/my-wordpress/parts/agents*` | Experimental |
 
 ### WooCommerce integration *(Experimental — inert unless WooCommerce is active)*
 
@@ -280,7 +280,6 @@ Every event bubbles from `document`. See [`javascript-reference.md`](./javascrip
 | `os-default-window-changed` | Stable |
 | `os-open-ai` *(plugin-dispatched; the shell listens)* | Experimental |
 | `os-intros-reset` | Experimental |
-| `os-my-wordpress-entity-trashed` | Experimental |
 | `os-note-created` *(pinned-notes hand-off from the Note Pad widget)* | Experimental |
 | `os-auth-lost` / `os-auth-restored` *(session expiry / recovery)* | Stable |
 | `os-desktop-theme-changed` *(whole-OS reskin activated / cleared)* | Experimental |

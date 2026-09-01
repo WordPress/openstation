@@ -26,7 +26,8 @@ import {
 import { handleWindowMessage } from '../../src/window/iframe-bridge';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 
-const WINDOW_ID = 'desktop-mode-my-wordpress';
+// The explorer APP's window id — footprints render inside it now.
+const WINDOW_ID = 'my-wordpress';
 
 let openWindow: ReturnType< typeof vi.fn >;
 

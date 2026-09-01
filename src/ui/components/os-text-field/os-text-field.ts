@@ -53,6 +53,7 @@ export class OsTextField extends Component {
 		'suffix',
 		'invalid',
 		'reveal',
+		'clearable',
 	] as const;
 	static styles = [ textFieldStyles ];
 
@@ -93,6 +94,11 @@ export class OsTextField extends Component {
 				name: 'reveal',
 				type: 'boolean attribute',
 				description: 'On type="password" fields, adds an eye-icon toggle that flips the input between hidden and visible text.',
+			},
+			{
+				name: 'clearable',
+				type: 'boolean attribute',
+				description: 'Adds a clear (x) button at the inline end while the field holds a value — the search-box affordance the stripped native chrome cannot provide. Clearing emits os-input-change and os-input-commit with an empty value and refocuses the input.',
 			},
 		],
 		events: [
@@ -186,6 +192,8 @@ export class OsTextField extends Component {
 			( this as unknown as { invalid: string | null } ).invalid !== null;
 		const reveal =
 			( this as unknown as { reveal: string | null } ).reveal !== null;
+		const clearable =
+			( this as unknown as { clearable: string | null } ).clearable !== null;
 
 		// "Password" is a UI MODE (visually mask the value), not a
 		// credential field. We always render the underlying control as
@@ -214,9 +222,13 @@ export class OsTextField extends Component {
 			effectiveType = declaredType;
 		}
 
-		const rowClass = reveal
-			? 'os-text-field__row os-text-field__row--has-reveal'
-			: 'os-text-field__row';
+		const rowClass = [
+			'os-text-field__row',
+			reveal ? 'os-text-field__row--has-reveal' : '',
+			clearable ? 'os-text-field__row--has-clear' : '',
+		]
+			.filter( Boolean )
+			.join( ' ' );
 		const inputClass = isMasked
 			? 'os-text-field__input os-text-field__input--masked'
 			: 'os-text-field__input';
@@ -258,9 +270,38 @@ export class OsTextField extends Component {
 				${ suffix
 					? html`<span class="os-text-field__suffix">${ suffix }</span>`
 					: html`` }
+				${ clearable && value !== ''
+					? this._renderClearButton( disabled )
+					: html`` }
 				${ reveal ? this._renderRevealButton( disabled ) : html`` }
 			</span>
 		`;
+	}
+
+	private _renderClearButton( disabled: boolean ) {
+		return html`
+			<button
+				type="button"
+				class="os-text-field__clear"
+				aria-label="Clear"
+				?disabled=${ disabled }
+				tabindex="0"
+				@click=${ () => this._onClear() }
+			>
+				${ _iconClear() }
+			</button>
+		`;
+	}
+
+	private _onClear(): void {
+		( this as unknown as { value: string } ).value = '';
+		// Both events, deliberately: clearing is a keystroke-shaped
+		// edit AND a commit point — the old search toolbars emitted
+		// the empty query immediately rather than making an explicit
+		// clear wait out a debounce.
+		this.emit( 'os-input-change', { value: '' } );
+		this.emit( 'os-input-commit', { value: '' } );
+		this.shadowRoot?.querySelector< HTMLInputElement >( 'input' )?.focus();
 	}
 
 	private _renderRevealButton( disabled: boolean ) {
@@ -313,6 +354,24 @@ defineComponent( 'os-text-field', OsTextField );
 // Icon helpers — inline SVG so they work inside shadow DOM without any
 // external font dependency (Dashicons can't cross the shadow boundary).
 // ---------------------------------------------------------------------------
+
+function _iconClear() {
+	return html`
+		<svg
+			viewBox="0 0 16 16"
+			width="14"
+			height="14"
+			fill="none"
+			stroke="currentColor"
+			stroke-width="1.5"
+			stroke-linecap="round"
+			aria-hidden="true"
+			focusable="false"
+		>
+			<path d="M4 4l8 8M12 4l-8 8" />
+		</svg>
+	`;
+}
 
 function _iconEye() {
 	return html`

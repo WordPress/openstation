@@ -60,6 +60,8 @@ export interface AppConfig {
 	lifecycle?: string[];
 	/** Channel → action subscriptions. */
 	channels?: Record< string, string >;
+	/** Content types whose `os.<type>.changed` broadcasts re-render the app. */
+	watch?: string[];
 	tabs?: TabDef[];
 	/** The app ships a `.os.ts` client view (loaded with the window). */
 	client?: boolean;
@@ -136,6 +138,8 @@ export interface RuntimeHost {
 		pick: ( item: MenuItemDef ) => void,
 	) => void;
 	send?: ( channel: string, payload: unknown ) => void;
+	/** Subscribe to a shell broadcast topic (`'*'` = all); returns the unsubscribe. */
+	onBroadcast?: ( topic: string, cb: ( firedTopic: string ) => void ) => () => void;
 	loadComponents?: ( tags: string[] ) => Promise< void >;
 	applyAppearance?: ( windowId: string, appearance: AppearanceDef ) => void;
 }

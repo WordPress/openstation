@@ -233,6 +233,46 @@ describe( 'os-ui html renderer', () => {
 		expect( host.querySelectorAll( 'li' ).length ).toBe( 3 );
 	} );
 
+	test( 'array growth keeps the existing entries\' DOM nodes', () => {
+		const list = ( items: string[] ) =>
+			render( html`<ul>${ items.map( ( i ) => html`<li>${ i }</li>` ) }</ul>`, host );
+		list( [ 'a', 'b' ] );
+		const before = Array.from( host.querySelectorAll( 'li' ) );
+		list( [ 'a', 'b', 'c', 'd' ] );
+		const after = Array.from( host.querySelectorAll( 'li' ) );
+		// The prefix survives BY IDENTITY — appending a page to an
+		// infinite-scrolled list must not recreate (and visibly
+		// repaint) every tile already on screen.
+		expect( after[ 0 ] ).toBe( before[ 0 ] );
+		expect( after[ 1 ] ).toBe( before[ 1 ] );
+		expect( after.map( ( n ) => n.textContent ) ).toEqual( [ 'a', 'b', 'c', 'd' ] );
+	} );
+
+	test( 'array shrink keeps the surviving entries\' DOM nodes', () => {
+		const list = ( items: string[] ) =>
+			render( html`<ul>${ items.map( ( i ) => html`<li>${ i }</li>` ) }</ul>`, host );
+		list( [ 'a', 'b', 'c' ] );
+		const before = Array.from( host.querySelectorAll( 'li' ) );
+		list( [ 'a', 'b' ] );
+		const after = Array.from( host.querySelectorAll( 'li' ) );
+		expect( after.length ).toBe( 2 );
+		expect( after[ 0 ] ).toBe( before[ 0 ] );
+		expect( after[ 1 ] ).toBe( before[ 1 ] );
+	} );
+
+	test( 'array reconciliation keeps sibling content in order across growth', () => {
+		const view = ( items: string[] ) =>
+			render(
+				html`<div>${ items.map( ( i ) => html`<span>${ i }</span>` ) }<footer>end</footer></div>`,
+				host,
+			);
+		view( [ 'a' ] );
+		view( [ 'a', 'b' ] );
+		const div = host.querySelector( 'div' )!;
+		expect( div.textContent ).toBe( 'abend' );
+		expect( div.lastElementChild?.tagName ).toBe( 'FOOTER' );
+	} );
+
 	test( 'array items keep node identity when length + shape match', () => {
 		const list = ( items: string[] ) =>
 			render( html`<ul>${ items.map( ( i ) => html`<li>${ i }</li>` ) }</ul>`, host );

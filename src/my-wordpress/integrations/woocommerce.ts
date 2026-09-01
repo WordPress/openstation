@@ -1099,17 +1099,29 @@ function summaryTypeFor( entityId: string ): Summary[ 'type' ] | null {
  * Which summary a preview pane should show.
  *
  * Section id decides it for post-shaped sections, but a *person* is
- * decided by kind rather than by section: the same customer panel
- * belongs on the Customers list and on the built-in Users list, and
- * on any section a plugin adds that renders people. Gated on
+ * decided by their ROW rather than by section: the customer panel
+ * belongs wherever the surface put the `openstation_woo_customer`
+ * facts on its rows — the Customers list, WP Explorer's Users list
+ * (its `/wp/v2/users` field carries them), and any section a plugin
+ * adds that does the same. A people surface that deliberately ships
+ * no money on its rows — the My WordPress app's Users folder — gets
+ * no money panel either; the facts' presence IS the opt-in. Gated on
  * `canCustomers` so a viewer without order access never fires a
  * request that would 403.
  */
 function previewSummaryTypeFor(
 	payload: PreviewExtrasPayload,
 ): Summary[ 'type' ] | null {
-	if ( payload.kind === 'user' || payload.entityId === SECTION_CUSTOMERS ) {
+	// The Customers section is the panel's home — its rows are this
+	// integration's own, so the section id alone opts it in.
+	if ( payload.entityId === SECTION_CUSTOMERS ) {
 		return getConfig()?.canCustomers ? 'customer' : null;
+	}
+	if ( payload.kind === 'user' ) {
+		if ( ! getConfig()?.canCustomers ) {
+			return null;
+		}
+		return customerFacts( payload.item ) ? 'customer' : null;
 	}
 	return summaryTypeFor( payload.entityId );
 }

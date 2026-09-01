@@ -446,19 +446,4 @@ class Tests_OpenStation_MyWordpressPostTypes extends WP_UnitTestCase {
 		$this->assertSame( array(), $groups );
 	}
 
-	/**
-	 * The window config ships both the entity list and the derived
-	 * group list the bundle renders folders from.
-	 *
-	 * @covers ::openstation_my_wordpress_register_window
-	 */
-	public function test_window_config_ships_groups() {
-		openstation_my_wordpress_register_window();
-
-		$entry = openstation_native_window_registry( 'desktop-mode-my-wordpress' );
-
-		$this->assertIsArray( $entry );
-		$this->assertArrayHasKey( 'groups', $entry['config'] );
-		$this->assertIsArray( $entry['config']['groups'] );
-	}
 }

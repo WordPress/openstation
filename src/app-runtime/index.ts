@@ -122,6 +122,8 @@ function buildHost(): RuntimeHost {
 				} ) ),
 			} );
 		},
+		onBroadcast: ( topic, cb ) =>
+			api?.subscribe( topic, ( _payload, meta ) => cb( meta.topic ) ) ?? ( () => undefined ),
 		loadComponents: ( tags ) => api?.loadComponents( tags ) ?? Promise.resolve(),
 		applyAppearance: ( windowId, appearance ) => applyAppearance( windowId, appearance ),
 	};

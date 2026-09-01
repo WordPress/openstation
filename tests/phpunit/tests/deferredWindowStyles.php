@@ -66,7 +66,6 @@ class Tests_OpenStation_DeferredWindowStyles extends WP_UnitTestCase {
 	 */
 	private function register_built_in_windows() {
 		$registrars = array(
-			'openstation_my_wordpress_register_window',
 			'openstation_posts_window_register_window',
 			'openstation_pages_window_register_window',
 			'openstation_users_window_register_window',
@@ -99,7 +98,7 @@ class Tests_OpenStation_DeferredWindowStyles extends WP_UnitTestCase {
 	 * @var string[]
 	 */
 	const DEFERRED_WINDOW_IDS = array(
-		'desktop-mode-my-wordpress',
+		'my-wordpress',
 		'desktop-mode-posts',
 		'desktop-mode-pages',
 		'desktop-mode-users',
@@ -121,7 +120,7 @@ class Tests_OpenStation_DeferredWindowStyles extends WP_UnitTestCase {
 	 * @var string[]
 	 */
 	const ALWAYS_PRESENT = array(
-		'desktop-mode-my-wordpress',
+		'my-wordpress',
 		'desktop-mode-posts',
 		'desktop-mode-pages',
 		'desktop-mode-comments',

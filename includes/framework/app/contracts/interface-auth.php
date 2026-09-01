@@ -34,8 +34,14 @@ interface Auth {
 	/**
 	 * Whether the acting user holds a capability.
 	 *
+	 * Extra arguments address a meta-capability's object — the id in
+	 * `can( 'delete_post', $post_id )`. The WordPress adapter forwards
+	 * them to `current_user_can()`; the standalone adapter answers
+	 * from the capability name alone.
+	 *
 	 * @param string $capability Capability slug, e.g. `manage_options`.
+	 * @param mixed  ...$args    Object the capability is asked against.
 	 * @return bool
 	 */
-	public function can( $capability );
+	public function can( $capability, ...$args );
 }
