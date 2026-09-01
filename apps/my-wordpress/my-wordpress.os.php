@@ -771,6 +771,109 @@ function sub( Os $os, array $section, $id, $relation ) {
 }
 
 /**
+ * Invoke one of WP Explorer's stats REST callbacks in-process, with a
+ * synthetic request — the panes render the SAME payloads WP Explorer
+ * renders, filters (`openstation_my_wordpress_term_stats` and
+ * friends) included.
+ *
+ * @param string              $callback Function name.
+ * @param array<string,mixed> $params   Request params.
+ * @return array<string,mixed>|null Null when unavailable or refused.
+ */
+function stats_payload( $callback, array $params ) {
+	if ( ! function_exists( $callback ) || ! class_exists( '\WP_REST_Request' ) ) {
+		return null;
+	}
+	$request = new \WP_REST_Request();
+	foreach ( $params as $key => $value ) {
+		$request->set_param( $key, $value );
+	}
+	$payload = call_user_func( $callback, $request );
+	return is_array( $payload ) ? $payload : null;
+}
+
+/**
+ * The right-pane dossier for one SELECTED sub-list row, per relation:
+ * the term-stats card for a category or tag (stat tiles, 12-month
+ * activity, first/last post, recent posts), the user dossier + stats
+ * for author/contributors, the comment dossier, the media dossier
+ * with its usage scan, a revision preview.
+ *
+ * @param Os                  $os       Host handle.
+ * @param array<string,mixed> $section  Section descriptor.
+ * @param int                 $post_id  Post navigated into.
+ * @param string              $relation Relation slug.
+ * @param int                 $row_id   Selected row id.
+ * @return array<string,mixed>|null
+ */
+function sub_detail( Os $os, array $section, $post_id, $relation, $row_id ) {
+	switch ( $relation ) {
+		case 'categories':
+		case 'tags':
+			$stats = stats_payload(
+				'openstation_my_wordpress_term_stats_callback',
+				array(
+					'taxonomy' => 'tags' === $relation ? 'post_tag' : 'category',
+					'id'       => $row_id,
+				)
+			);
+			return $stats ? array(
+				'kind'  => 'term',
+				'stats' => $stats,
+			) : null;
+
+		case 'author':
+		case 'contributors':
+			$user_section = array(
+				'kind'      => 'user',
+				'post_type' => '',
+			);
+			$dossier      = detail( $os, $user_section, $row_id );
+			if ( ! $dossier ) {
+				return null;
+			}
+			return array(
+				'kind'   => 'user',
+				'detail' => $dossier,
+				'stats'  => stats_payload( 'openstation_my_wordpress_user_stats_callback', array( 'id' => $row_id ) ),
+			);
+
+		case 'comments':
+			$stats = stats_payload( 'openstation_my_wordpress_comment_stats_callback', array( 'id' => $row_id ) );
+			return $stats ? array(
+				'kind'  => 'comment',
+				'stats' => $stats,
+			) : null;
+
+		case 'media':
+			$media_section = array(
+				'kind'       => 'media',
+				'post_type'  => 'attachment',
+				'thumbnails' => true,
+			);
+			$dossier       = detail( $os, $media_section, $row_id );
+			return $dossier ? array(
+				'kind'   => 'media',
+				'detail' => $dossier,
+			) : null;
+
+		case 'revisions':
+			$revision = wp_get_post_revision( $row_id );
+			if ( ! $revision || (int) $revision->post_parent !== (int) $post_id || ! current_user_can( 'edit_post', $post_id ) ) {
+				return null;
+			}
+			return array(
+				'kind'    => 'revision',
+				'title'   => (string) wp_post_revision_title_expanded( $revision, false ),
+				'author'  => (string) get_the_author_meta( 'display_name', (int) $revision->post_author ),
+				'date'    => (string) get_the_date( '', $revision ) . ' ' . get_the_time( '', $revision ),
+				'content' => wp_kses_post( (string) apply_filters( 'the_content', (string) $revision->post_content ) ), // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Core's own content pipeline.
+			);
+	}
+	return null;
+}
+
+/**
  * The choices the Edit… modal offers: the site's authors and the
  * category terms. Only computed while a post-kind section is open.
  *
@@ -928,7 +1031,18 @@ return App::define( 'my-wordpress' )
 		static function ( State $state, Os $os, array $args ) {
 			$relation = (string) ( $args['relation'] ?? '' );
 			$allowed  = array( 'author', 'contributors', 'comments', 'categories', 'tags', 'media', 'revisions' );
-			$state->set( 'relation', in_array( $relation, $allowed, true ) ? $relation : '' );
+			$state->set( 'relation', in_array( $relation, $allowed, true ) ? $relation : '' )
+				->set( 'item', 0 );
+		}
+	)
+	->action(
+		'sub-open-post',
+		static function ( State $state, Os $os, array $args ) {
+			// A recent-posts row in a stats pane → its editor.
+			$id = (int) ( $args['post'] ?? 0 );
+			if ( $id > 0 && $os->can( 'edit_post', $id ) ) {
+				$os->open_url( admin_url( 'post.php?post=' . $id . '&action=edit' ) );
+			}
 		}
 	)
 	->action(
@@ -1169,6 +1283,9 @@ return App::define( 'my-wordpress' )
 				'detail'         => $section && 0 === $into && $item > 0 ? detail( $os, $section, $item ) : null,
 				'folder'         => $section && $into > 0 ? folder( $os, $section, $into ) : null,
 				'sub'            => $section && $into > 0 && '' !== $relation ? sub( $os, $section, $into, $relation ) : null,
+				'subDetail'      => $section && $into > 0 && '' !== $relation && $item > 0
+					? sub_detail( $os, $section, $into, $relation, $item )
+					: null,
 				'authors'        => $choices['authors'],
 				'categories'     => $choices['categories'],
 				'previewActions' => preview_actions( $os ),

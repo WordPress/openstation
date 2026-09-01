@@ -141,6 +141,41 @@ export interface SubPayload {
 	rows: SubRow[];
 }
 
+export interface StatsRecentPost {
+	id: number;
+	title: string;
+	date: string;
+	status?: string;
+}
+
+/** WP Explorer's stats payloads, consumed defensively. */
+export interface StatsPayload {
+	profile?: {
+		name?: string;
+		taxonomyLabel?: string;
+		link?: string;
+		description?: string;
+	};
+	counts?: {
+		posts?: Record< string, number >;
+		commentsReceived?: number;
+		distinctAuthors?: number;
+	} & Record< string, unknown >;
+	recent?: StatsRecentPost[];
+	activity?: Array< { ym: string; count: number } >;
+	milestones?: Record< string, string | null >;
+	comment?: { content?: string; date?: string; status?: string } & Record< string, unknown >;
+	author?: { name?: string; totalApprovedComments?: number } & Record< string, unknown >;
+	post?: { id?: number; title?: string } & Record< string, unknown >;
+}
+
+export type SubDetail =
+	| { kind: 'term'; stats: StatsPayload }
+	| { kind: 'user'; detail: DetailFacts; stats: StatsPayload | null }
+	| { kind: 'comment'; stats: StatsPayload }
+	| { kind: 'media'; detail: DetailFacts }
+	| { kind: 'revision'; title: string; author: string; date: string; content: string };
+
 export interface AppData {
 	siteName: string;
 	sections: SectionDef[];
@@ -150,6 +185,7 @@ export interface AppData {
 	detail: DetailFacts | null;
 	folder: FolderPayload | null;
 	sub: SubPayload | null;
+	subDetail: SubDetail | null;
 	authors: Array< { id: number; name: string } >;
 	categories: Array< { id: number; name: string } >;
 	previewActions: PreviewAction[];
@@ -374,7 +410,14 @@ function glyph( icon: string, cls: string ): TemplateResult {
 	if ( icon.startsWith( 'dashicons-' ) ) {
 		return html`<span class="${ cls } dashicons ${ icon }" aria-hidden="true"></span>`;
 	}
-	return html`<img class="${ cls } os-mywp__icon-img" src=${ icon } alt="" />`;
+	// Image icons are MASKED to the current text colour, the way the
+	// shell's renderIcon() paints them — a plugin's brand SVG (Woo's
+	// black W) must not break the monochrome tile family.
+	return html`<span
+		class="${ cls } os-mywp__icon-mask"
+		style="--mywp-icon:url(&quot;${ icon.replace( /"/g, '%22' ) }&quot;)"
+		aria-hidden="true"
+	></span>`;
 }
 
 // --------------------------------------------------------------- view
@@ -854,32 +897,220 @@ function renderFolder( ctx: Ctx ): TemplateResult {
 	`;
 }
 
+/** `2026-08` (or an ISO date) → `August 2026`. */
+function monthLabel( raw: string ): string {
+	const date = new Date( raw.length === 7 ? `${ raw }-01T00:00:00` : raw );
+	return Number.isNaN( date.getTime() )
+		? raw
+		: date.toLocaleDateString( undefined, { month: 'long', year: 'numeric' } );
+}
+
+/** One stat tile: big number, label, optional footnote. */
+function statTile( value: number, label: string, note = '' ): TemplateResult {
+	return html`
+		<div class="os-mywp__stat">
+			<span class="os-mywp__stat-value">${ value }</span>
+			<span class="os-mywp__stat-label">${ label }</span>
+			${ note ? html`<span class="os-mywp__stat-note">${ note }</span>` : '' }
+		</div>
+	`;
+}
+
+/** The 12-month activity bar row, zero months included. */
+function activityBars( activity: Array< { ym: string; count: number } > ): TemplateResult {
+	const byYm = new Map( activity.map( ( a ) => [ a.ym, a.count ] ) );
+	const months: Array< { ym: string; label: string; count: number } > = [];
+	const cursor = new Date();
+	cursor.setDate( 1 );
+	cursor.setMonth( cursor.getMonth() - 11 );
+	for ( let i = 0; i < 12; i++ ) {
+		const ym = `${ cursor.getFullYear() }-${ String( cursor.getMonth() + 1 ).padStart( 2, '0' ) }`;
+		months.push( {
+			ym,
+			label: cursor.toLocaleDateString( undefined, { month: 'short' } ),
+			count: byYm.get( ym ) ?? 0,
+		} );
+		cursor.setMonth( cursor.getMonth() + 1 );
+	}
+	const max = Math.max( 1, ...months.map( ( m ) => m.count ) );
+	return html`
+		<h3 class="os-mywp__pane-h">${ __( 'Activity (last 12 months)' ) }</h3>
+		<div class="os-mywp__activity" role="img" aria-label=${ __( 'Posts per month' ) }>
+			${ months.map( ( m ) => html`
+				<div class="os-mywp__activity-col" title="${ m.label } · ${ m.count }">
+					<span class="os-mywp__activity-bar" style="block-size:${ Math.round( ( m.count / max ) * 100 ) }%"></span>
+					<span class="os-mywp__activity-label">${ m.label }</span>
+				</div>
+			` ) }
+		</div>
+	`;
+}
+
+/** The clickable recent-posts list every stats pane ends with. */
+function recentPosts( ctx: Ctx, recent: StatsRecentPost[] ): TemplateResult | '' {
+	if ( recent.length === 0 ) {
+		return '';
+	}
+	return html`
+		<h3 class="os-mywp__pane-h">${ __( 'Recent posts' ) }</h3>
+		<div class="os-mywp__recent">
+			${ recent.slice( 0, 6 ).map( ( post ) => html`
+				<button
+					type="button"
+					class="os-mywp__recent-row"
+					@click=${ () => void ctx.dispatch( 'sub-open-post', { post: post.id } ) }
+				>
+					<span class="os-mywp__recent-title">${ post.title }</span>
+					<span class="os-mywp__subtitle">${ new Date( post.date ).toLocaleString() }${ post.status ? ` · ${ post.status }` : '' }</span>
+				</button>
+			` ) }
+		</div>
+	`;
+}
+
+/** Facts + hero, shared by the user and media sub-panes. */
+function dossierFacts( detail: DetailFacts ): TemplateResult {
+	return html`
+		${ detail.avatar ? html`<os-avatar src=${ detail.avatar } name=${ detail.title } size="xl"></os-avatar>` : '' }
+		${ detail.image ? html`<img class="os-mywp__hero" src=${ detail.image } alt=${ detail.title } />` : '' }
+		<h2 class="os-mywp__detail-title">${ detail.title }</h2>
+		<dl class="os-mywp__facts">
+			${ detail.facts.map( ( [ label, value ] ) => html`
+				<div class="os-mywp__fact"><dt>${ label }</dt><dd>${ value }</dd></div>
+			` ) }
+		</dl>
+		${ detail.usedIn
+			? html`
+				<h3 class="os-mywp__pane-h">${ __( 'Used in' ) }</h3>
+				${ detail.usedIn.length > 0
+					? html`<ul class="os-mywp__used-in">
+						${ detail.usedIn.map( ( u ) => html`<li>${ u.title } <span class="os-mywp__subtitle">${ u.usedAs }</span></li>` ) }
+					</ul>`
+					: html`<p class="os-mywp__subtitle">${ __( 'Not used anywhere yet.' ) }</p>` }
+			`
+			: '' }
+	`;
+}
+
+/** The right pane behind a selected sub-list row, per relation kind. */
+function renderSubDetail( ctx: Ctx ): TemplateResult {
+	const picked = ctx.data.subDetail;
+	if ( ! picked ) {
+		return html`<p class="os-mywp__pane-empty">${ __( 'Select an entry to preview it here.' ) }</p>`;
+	}
+	if ( picked.kind === 'term' ) {
+		const stats = picked.stats;
+		const posts = stats.counts?.posts ?? {};
+		const published = posts.publish ?? 0;
+		return html`
+			<article class="os-mywp__detail">
+				<header class="os-mywp__term-head">
+					<span class="os-mywp__term-swatch" aria-hidden="true"></span>
+					<div>
+						<h2 class="os-mywp__detail-title">${ stats.profile?.name ?? '' }</h2>
+						<os-badge no-dot>${ ( stats.profile?.taxonomyLabel ?? '' ).toUpperCase() }</os-badge>
+						${ stats.profile?.link
+							? html`<a class="os-mywp__crumb-link" href=${ stats.profile.link } target="_blank" rel="noreferrer">${ __( 'View archive' ) }</a>`
+							: '' }
+					</div>
+				</header>
+				<div class="os-mywp__stats">
+					${ statTile( posts.total ?? 0, __( 'Posts' ), sprintf(
+						/* translators: %d: published count. */
+						__( '%d published' ),
+						published,
+					) ) }
+					${ statTile( stats.counts?.commentsReceived ?? 0, __( 'Comments' ) ) }
+					${ statTile( stats.counts?.distinctAuthors ?? 0, __( 'Authors' ) ) }
+				</div>
+				${ activityBars( stats.activity ?? [] ) }
+				<dl class="os-mywp__facts">
+					${ stats.milestones?.firstPosted
+						? html`<div class="os-mywp__fact"><dt>${ __( 'First post' ) }</dt><dd>${ monthLabel( stats.milestones.firstPosted ) }</dd></div>`
+						: '' }
+					${ stats.milestones?.lastPosted
+						? html`<div class="os-mywp__fact"><dt>${ __( 'Last post' ) }</dt><dd>${ monthLabel( stats.milestones.lastPosted ) }</dd></div>`
+						: '' }
+				</dl>
+				${ recentPosts( ctx, stats.recent ?? [] ) }
+			</article>
+		`;
+	}
+	if ( picked.kind === 'user' ) {
+		return html`
+			<article class="os-mywp__detail">
+				${ dossierFacts( picked.detail ) }
+				${ activityBars( picked.stats?.activity ?? [] ) }
+				${ recentPosts( ctx, picked.stats?.recent ?? [] ) }
+			</article>
+		`;
+	}
+	if ( picked.kind === 'comment' ) {
+		const stats = picked.stats;
+		return html`
+			<article class="os-mywp__detail">
+				<h2 class="os-mywp__detail-title">${ stats.author?.name ?? __( 'Comment' ) }</h2>
+				${ stats.comment?.date ? html`<p class="os-mywp__subtitle">${ new Date( String( stats.comment.date ) ).toLocaleString() }${ stats.comment?.status ? ` · ${ stats.comment.status }` : '' }</p>` : '' }
+				<div class="os-mywp__content" data-mywp-content="sub" os-preserve></div>
+				${ stats.post?.id
+					? html`<os-button variant="secondary" @click=${ () => void ctx.dispatch( 'sub-open-post', { post: stats.post?.id } ) }>
+						${ __( 'Open the post' ) }
+					</os-button>`
+					: '' }
+			</article>
+		`;
+	}
+	if ( picked.kind === 'media' ) {
+		return html`<article class="os-mywp__detail">${ dossierFacts( picked.detail ) }</article>`;
+	}
+	return html`
+		<article class="os-mywp__detail">
+			<h2 class="os-mywp__detail-title">${ picked.title }</h2>
+			<p class="os-mywp__subtitle">${ picked.author }${ picked.date ? ` · ${ picked.date }` : '' }</p>
+			<h3 class="os-mywp__pane-h">${ __( 'Preview' ) }</h3>
+			<div class="os-mywp__content" data-mywp-content="sub" os-preserve></div>
+		</article>
+	`;
+}
+
 /** One relation's rows — the sub-list behind a detail folder tile. */
 function renderSub( ctx: Ctx ): TemplateResult {
 	const sub = ctx.data.sub;
 	if ( ! sub ) {
 		return html`<os-empty-state>${ __( 'This item no longer exists.' ) }</os-empty-state>`;
 	}
-	if ( sub.rows.length === 0 ) {
-		return html`<os-empty-state>${ __( 'Nothing here yet.' ) }</os-empty-state>`;
-	}
 	return html`
-		<div class="os-mywp__tiles" role="list">
-			${ sub.rows.map( ( row ) => html`
-				<div class="os-mywp__cell" role="listitem" title=${ row.subtitle }>
-					<span class="os-mywp__tilebox">
-						<os-tile
-							kind="entry"
-							type="relation-row"
-							ref=${ String( row.id ) }
-							label=${ row.title }
-							icon=${ row.thumb ? '' : ( row.icon ?? 'dashicons-media-default' ) }
-							thumbnail=${ row.thumb ?? '' }
-							@dblclick=${ () => row.editUrl && void ctx.dispatch( 'sub-open', { row: row.id } ) }
-						></os-tile>
-					</span>
-				</div>
-			` ) }
+		<div class="os-mywp__split">
+			<div class="os-mywp__list-pane">
+				${ sub.rows.length === 0
+					? html`<os-empty-state>${ __( 'Nothing here yet.' ) }</os-empty-state>`
+					: html`
+						<div class="os-mywp__tiles" role="list">
+							${ sub.rows.map( ( row ) => html`
+								<div
+									class="os-mywp__cell ${ ctx.state.item === row.id ? 'is-open' : '' }"
+									role="listitem"
+									title=${ row.subtitle }
+								>
+									<span class="os-mywp__tilebox">
+										<os-tile
+											kind="entry"
+											type="relation-row"
+											ref=${ String( row.id ) }
+											label=${ row.title }
+											icon=${ row.thumb ? '' : ( row.icon ?? 'dashicons-media-default' ) }
+											thumbnail=${ row.thumb ?? '' }
+											?selected=${ ctx.state.item === row.id }
+											@click=${ () => void ctx.dispatch( 'open', { item: row.id } ) }
+											@dblclick=${ () => row.editUrl && void ctx.dispatch( 'sub-open', { row: row.id } ) }
+										></os-tile>
+									</span>
+								</div>
+							` ) }
+						</div>
+					` }
+			</div>
+			<aside class="os-mywp__detail-pane">${ renderSubDetail( ctx ) }</aside>
 		</div>
 	`;
 }
@@ -1432,9 +1663,18 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 		// the detail folder's article alike. Trusted admin content from
 		// our own dispatch, marked os-preserve so the diff never
 		// touches it.
+		const picked = ctx.data.subDetail;
+		let pickedContent: string | undefined;
+		if ( picked?.kind === 'revision' ) {
+			pickedContent = picked.content;
+		} else if ( picked?.kind === 'comment' ) {
+			pickedContent = String( picked.stats.comment?.content ?? '' );
+		}
+		const subContent = picked ? { id: ctx.state.item, content: pickedContent } : null;
 		for ( const [ where, source ] of [
 			[ 'detail', ctx.data.detail ],
 			[ 'folder', ctx.data.folder ],
+			[ 'sub', subContent ],
 		] as Array< [ string, { id: number; content?: string } | null ] > ) {
 			const slot = ctx.root.querySelector< HTMLElement >( `[data-mywp-content="${ where }"]` );
 			if ( slot && source?.content !== undefined ) {

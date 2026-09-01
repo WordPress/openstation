@@ -487,6 +487,76 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 	}
 
 	/**
+	 * @covers \OpenStation\Apps\MyWordPress\sub_detail
+	 */
+	public function test_selecting_a_term_row_ships_the_wp_explorer_stats_pane() {
+		$cat = self::factory()->category->create( array( 'name' => 'Notes' ) );
+		wp_set_post_categories( self::$post_id, array( $cat ) );
+
+		$response = $this->dispatch(
+			'open',
+			array(
+				'section'  => 'posts',
+				'into'     => self::$post_id,
+				'relation' => 'categories',
+			),
+			array( 'item' => $cat )
+		);
+
+		$picked = $response['data']['subDetail'];
+		$this->assertSame( 'term', $picked['kind'] );
+		$this->assertSame( 'Notes', $picked['stats']['profile']['name'] );
+		$this->assertGreaterThanOrEqual( 1, $picked['stats']['counts']['posts']['total'] );
+		$this->assertContains( 'Alpha strategy', array_column( $picked['stats']['recent'], 'title' ) );
+		$this->assertArrayHasKey( 'activity', $picked['stats'], 'The 12-month activity feeds the bars.' );
+	}
+
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\sub_detail
+	 */
+	public function test_selecting_an_author_row_ships_the_user_dossier_with_stats() {
+		$response = $this->dispatch(
+			'open',
+			array(
+				'section'  => 'posts',
+				'into'     => self::$post_id,
+				'relation' => 'author',
+			),
+			array( 'item' => self::$admin_id )
+		);
+		$picked = $response['data']['subDetail'];
+		$this->assertSame( 'user', $picked['kind'] );
+		$this->assertContains( 'Email', array_column( $picked['detail']['facts'], 0 ) );
+		$this->assertIsArray( $picked['stats'], 'WP Explorer\'s user-stats payload rides along.' );
+	}
+
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\sub_detail
+	 */
+	public function test_a_revision_pane_refuses_a_row_from_another_post() {
+		$other = self::factory()->post->create();
+		wp_update_post(
+			array(
+				'ID'           => $other,
+				'post_content' => 'other rev',
+			)
+		);
+		$foreign = array_keys( wp_get_post_revisions( $other ) );
+		$this->assertNotEmpty( $foreign );
+
+		$response = $this->dispatch(
+			'open',
+			array(
+				'section'  => 'posts',
+				'into'     => self::$post_id,
+				'relation' => 'revisions',
+			),
+			array( 'item' => reset( $foreign ) )
+		);
+		$this->assertNull( $response['data']['subDetail'], 'A revision of a different post never leaks into this pane.' );
+	}
+
+	/**
 	 * @covers \OpenStation\Apps\MyWordPress\sub
 	 */
 	public function test_sub_open_recomputes_the_edit_url_server_side() {

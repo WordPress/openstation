@@ -75,6 +75,7 @@ function data( over: Partial< AppData > = {} ): AppData {
 		detail: null,
 		folder: null,
 		sub: null,
+		subDetail: null,
 		authors: [],
 		categories: [],
 		previewActions: [],
@@ -334,6 +335,52 @@ describe( 'view', () => {
 		expect( labels ).toEqual( [ 'Yesterday at 10:03', 'Monday at 09:00' ] );
 		expect( root.querySelector( '.os-mywp__crumb-current' )?.textContent ).toBe( 'Revisions' );
 		expect( root.textContent ).toContain( '2 items' );
+	} );
+
+	it( 'a selected term row paints the WP Explorer stats pane', () => {
+		const root = mount(
+			state( { section: 'posts', into: 1, relation: 'categories', item: 5 } ),
+			data( {
+				folder: { id: 1, title: 'Alpha strategy', status: 'publish', content: '', folders: [] },
+				sub: {
+					label: 'Categories',
+					rows: [ { id: 5, title: 'Notes', subtitle: '10 entries', icon: 'dashicons-category', editUrl: 'x' } ],
+				},
+				subDetail: {
+					kind: 'term',
+					stats: {
+						profile: { name: 'Notes', taxonomyLabel: 'Category', link: 'https://example.test/category/notes' },
+						counts: { posts: { total: 10, publish: 5 }, commentsReceived: 0, distinctAuthors: 1 },
+						recent: [ { id: 9, title: 'Field recording: the 4am train', date: '2026-08-19T14:23:00', status: 'publish' } ],
+						activity: [ { ym: '2026-08', count: 10 } ],
+						milestones: { firstPosted: '2026-08-01T00:00:00', lastPosted: '2026-08-19T00:00:00' },
+					},
+				},
+			} ),
+		);
+		expect( root.querySelector( 'os-tile[selected]' ) ).not.toBeNull();
+		expect( root.textContent ).toContain( 'View archive' );
+		expect( root.textContent ).toContain( '10' );
+		expect( root.textContent ).toContain( '5 published' );
+		expect( root.textContent ).toContain( 'Authors' );
+		expect( root.textContent ).toContain( 'Activity (last 12 months)' );
+		expect( root.textContent ).toContain( 'First post' );
+		expect( root.textContent ).toContain( 'August 2026' );
+		expect( root.textContent ).toContain( 'Field recording: the 4am train' );
+		expect( root.querySelectorAll( '.os-mywp__activity-col' ) ).toHaveLength( 12 );
+	} );
+
+	it( 'masks image icons to the current colour instead of painting the brand bitmap', () => {
+		const root = mount(
+			state(),
+			data( {
+				sections: [ section( { id: 'cpt-product', label: 'Woo', icon: 'data:image/svg+xml;base64,abc', count: 4 } ) ],
+			} ),
+		);
+		const mask = root.querySelector< HTMLElement >( '.os-mywp__icon-mask' );
+		expect( mask ).not.toBeNull();
+		expect( mask?.getAttribute( 'style' ) ).toContain( '--mywp-icon:url' );
+		expect( root.querySelector( 'img.os-mywp__icon-img' ) ).toBeNull();
 	} );
 
 	it( 'renders the breadcrumb trail as links behind the current segment', () => {
