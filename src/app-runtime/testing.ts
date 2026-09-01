@@ -42,13 +42,24 @@ export function renderedText( node: Node ): string {
 	if ( node.nodeType === Node.TEXT_NODE ) {
 		return node.textContent ?? '';
 	}
+	if ( node instanceof Element && /^(style|script)$/i.test( node.tagName ) ) {
+		// A user reads no stylesheet.
+		return '';
+	}
 	if ( typeof HTMLSlotElement !== 'undefined' && node instanceof HTMLSlotElement ) {
 		const assigned = node.assignedNodes( { flatten: true } );
 		const sources = assigned.length > 0 ? assigned : Array.from( node.childNodes );
 		return sources.map( renderedText ).join( '' );
 	}
 	if ( node instanceof Element && node.shadowRoot ) {
-		return Array.from( node.shadowRoot.childNodes ).map( renderedText ).join( '' );
+		// A shadow root that has not painted yet (the kit renders on a
+		// microtask) would swallow the element's light children — fall
+		// back to them until the shadow holds content.
+		const shadowChildren = Array.from( node.shadowRoot.childNodes );
+		if ( shadowChildren.length === 0 ) {
+			return Array.from( node.childNodes ).map( renderedText ).join( '' );
+		}
+		return shadowChildren.map( renderedText ).join( '' );
 	}
 	return Array.from( node.childNodes ).map( renderedText ).join( '' );
 }

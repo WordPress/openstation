@@ -17,7 +17,6 @@
  */
 
 import { __, sprintf } from '../i18n';
-import { decodeHTML } from '../utils';
 // Side-effect imports — register the `<os-*>` components this
 // bundle constructs that the main shell does not ship.
 import '../ui/components/os-table/os-table';
@@ -31,12 +30,8 @@ import '../ui/components/os-segmented/os-segmented';
 // Same story for `<os-empty-state>`, which the template emits.
 import '../ui/components/os-empty-state/os-empty-state';
 import { DESKTOP_THEME_CHANGED_EVENT } from '../desktop-themes/apply';
-import {
-	resolveThemedIcon,
-	resolveThemedIconColor,
-} from '../desktop-themes/icons';
-import { DESKTOP_THEME_SLOTS } from '../desktop-themes/slots';
 import { _currentRecycleBinCount, setRecycleBinCount } from './icon-state';
+import { buildColumns, mapRecycleTypeToFileType } from './table-visuals';
 import { runEmptyLoop } from './empty-loop';
 import * as realtime from './realtime';
 import {
@@ -48,10 +43,14 @@ import {
 	type RecycleBinItemRef,
 } from './rest';
 
-import type {
-	OsTable,
-	OsTableColumn,
-} from '../ui/components/os-table/os-table';
+import type { OsTable } from '../ui/components/os-table/os-table';
+
+// The table's cell visuals (type badge, title stack, row buttons,
+// the columns builder) live in `table-visuals.ts`, shared verbatim
+// with the App Framework port in `apps/trash/` so the two bins stay
+// pixel-identical. Re-exported here because tests and plugin code
+// historically import it from this module.
+export { mapRecycleTypeToFileType } from './table-visuals';
 
 type RenderCallback = ( body: HTMLElement ) => void;
 
@@ -90,79 +89,6 @@ function osConfirmGlobal( options: ConfirmOptions ): Promise< boolean > {
 		);
 	}
 	return fn( options );
-}
-
-export function mapRecycleTypeToFileType( recycleType: string ): string {
-	if ( recycleType === 'attachment' ) {
-		return 'attachment';
-	}
-	if ( recycleType === 'comment' ) {
-		return 'comment';
-	}
-	// Every public post type collapses into the 'post' file type;
-	// the desktop tile reads `postType` from the serialized shape
-	// for label / icon if it wants to differentiate.
-	return 'post';
-}
-
-/**
- * Inline-styled background tints for the type badge. Lives in JS
- * because `<os-table>` renders its body into a shadow DOM that
- * blocks document stylesheets — every visual property has to come
- * from inline `style.*` assignments. The palette is intentionally
- * desaturated so badges read as metadata, not as primary content.
- * Unknown types fall through to `_default`.
- */
-const TYPE_BADGE_COLORS: Record< string, { bg: string; fg: string } > = {
-	post: { bg: '#dbe9fe', fg: '#1d4ed8' },
-	page: { bg: '#e0f2fe', fg: '#075985' },
-	attachment: { bg: '#fef3c7', fg: '#92400e' },
-	comment: { bg: '#dcfce7', fg: '#166534' },
-	// The hued badges above are left alone deliberately — the colour
-	// IS the type signal, and it survives on a dark row. Only the
-	// neutral fallback follows the palette, because a grey-on-grey
-	// chip carries no signal to preserve.
-	_default: {
-		bg: 'var( --os-ui-surface-sunken, #e5e7eb )',
-		fg: 'var( --os-ui-fg-muted, #374151 )',
-	},
-};
-
-function humanizeType( slug: string ): string {
-	if ( ! slug ) {
-		return '';
-	}
-	return slug
-		.replace( /[_-]+/g, ' ' )
-		.replace( /\b\w/g, ( c ) => c.toUpperCase() );
-}
-
-function makeTypeBadge( row: RecycleBinItem ): HTMLElement {
-	const label =
-		row.type_label && row.type_label.length > 0
-			? row.type_label
-			: humanizeType( row.type );
-	const colors =
-		TYPE_BADGE_COLORS[ row.type ] ?? TYPE_BADGE_COLORS._default;
-	const badge = document.createElement( 'span' );
-	badge.setAttribute( 'data-os-recycle-bin-type-badge', row.type );
-	badge.textContent = label;
-	badge.style.cssText = [
-		'display: inline-flex',
-		'align-items: center',
-		'flex-shrink: 0',
-		'padding: 2px 8px',
-		'border-radius: 999px',
-		'font-size: 11px',
-		'font-weight: 600',
-		'line-height: 1.4',
-		'letter-spacing: 0.2px',
-		'text-transform: uppercase',
-		'white-space: nowrap',
-		'background: ' + colors.bg,
-		'color: ' + colors.fg,
-	].join( ';' );
-	return badge;
 }
 
 const ROOT = '[data-os-recycle-bin-root]';
@@ -242,334 +168,6 @@ interface BinState {
 	searchDebounce: number | null;
 }
 
-/** Build the columns descriptor. Filterable via the public hook. */
-function buildColumns(): OsTableColumn< RecycleBinItem >[] {
-	const cols: OsTableColumn< RecycleBinItem >[] = [
-		{
-			key: 'title',
-			label: __( 'Title' ),
-			sortable: true,
-			render: ( _v, row ) => {
-				// One-cell layout: optional thumbnail (image
-				// attachments only) sits inline at the start, then
-				// the two-line title/subtitle stack. A small type
-				// badge sits inline before the title so each row
-				// answers "what kind of thing is this?" without a
-				// dedicated column. Posts, pages, comments get the
-				// full title width since they have nothing to show
-				// on the left — no reserved gap.
-				const wrap = document.createElement( 'span' );
-				wrap.style.cssText =
-					'display:flex;align-items:center;gap:10px;min-width:0;';
-
-				const showsThumb =
-					row.preview &&
-					row.type === 'attachment' &&
-					row.mime.startsWith( 'image/' );
-				if ( showsThumb ) {
-					const img = document.createElement( 'img' );
-					img.src = row.preview;
-					img.alt = '';
-					img.loading = 'lazy';
-					img.style.cssText =
-						'width:36px;height:36px;border-radius:4px;object-fit:cover;display:block;flex-shrink:0;';
-					wrap.appendChild( img );
-				}
-
-				const stack = document.createElement( 'span' );
-				stack.style.cssText =
-					'display:flex;flex-direction:column;gap:2px;min-width:0;';
-				const titleRow = document.createElement( 'span' );
-				titleRow.style.cssText =
-					'display:flex;align-items:center;gap:8px;min-width:0;';
-				titleRow.appendChild( makeTypeBadge( row ) );
-				const title = document.createElement( 'span' );
-				title.style.cssText =
-					'font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:320px;';
-				const decodedTitle = decodeHTML( row.title );
-				title.textContent = decodedTitle;
-				title.title = decodedTitle;
-				titleRow.appendChild( title );
-				stack.appendChild( titleRow );
-				if ( row.subtitle ) {
-					const sub = document.createElement( 'span' );
-					sub.style.cssText =
-						'font-size:12px;color:var( --os-ui-fg-muted, #50575e );white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:320px;';
-					const decodedSubtitle = decodeHTML( row.subtitle );
-					sub.textContent = decodedSubtitle;
-					sub.title = decodedSubtitle;
-					stack.appendChild( sub );
-				}
-				wrap.appendChild( stack );
-				return wrap;
-			},
-		},
-		// No explicit Type column — the inline type badge in the
-		// title cell and the toolbar's type filter tabs already
-		// convey the entity kind, and an extra column inflates the
-		// row visually for no signal gain.
-		{
-			key: 'deleted_at',
-			label: __( 'Deleted' ),
-			sortable: true,
-			width: '180px',
-			sortValue: ( row ) => Date.parse( row.deleted_at + 'Z' ) || 0,
-			render: ( _v, row ) => {
-				// `<os-relative-time>` self-ticks every 30s on a
-				// shared interval — no row-level repaint required to
-				// roll "just now" → "1 minute ago" → "5 minutes ago".
-				const el = document.createElement( 'os-relative-time' );
-				el.setAttribute( 'datetime', row.deleted_at );
-				return el;
-			},
-		},
-		{
-			key: 'deleted_by',
-			label: __( 'By' ),
-			sortable: true,
-			width: '160px',
-			render: ( _v, row ) => row.deleted_by || '—',
-		},
-		{
-			key: '__actions',
-			label: '',
-			width: '96px',
-			align: 'end',
-			render: ( _v, row ) => {
-				// All wrapper styles inline — os-table renders
-				// into its own shadow DOM, so my recycle-bin.css
-				// can't reach this node. Direct click binding
-				// instead of body delegation (delegation lost
-				// races with web-component stop-propagation).
-				const wrap = document.createElement( 'span' );
-				wrap.style.cssText =
-					'display:inline-flex;gap:4px;justify-content:flex-end;align-items:center;flex-wrap:nowrap;white-space:nowrap;line-height:1;';
-				if ( row.can_restore ) {
-					wrap.appendChild( makeRowButton( {
-						label: __( 'Restore' ),
-						icon: 'restore',
-						onClick: () =>
-							rowActionRestore( { id: row.id, type: row.type } ),
-					} ) );
-				}
-				if ( row.can_purge ) {
-					wrap.appendChild( makeRowButton( {
-						label: __( 'Delete forever' ),
-						icon: 'trash',
-						variant: 'danger',
-						onClick: () =>
-							rowActionPurge( { id: row.id, type: row.type } ),
-					} ) );
-				}
-				return wrap;
-			},
-		},
-	];
-
-	const hooks = window.wp?.hooks;
-	if ( hooks && typeof hooks.applyFilters === 'function' ) {
-		// Mirror the PHP `openstation_recycle_bin_columns` extension
-		// point on the JS side so plugins can append/replace columns
-		// without forking the bundle.
-		return hooks.applyFilters(
-			'openstation.recycleBin.columns',
-			cols,
-		) as OsTableColumn< RecycleBinItem >[];
-	}
-	return cols;
-}
-
-interface RowButtonOptions {
-	label: string;
-	icon: string;
-	onClick: () => void;
-	variant?: string;
-}
-
-/**
- * Build a row-action button. Renders icon + visible label so
- * single-icon collapse (which gave the "two pills" misrender) is
- * impossible, and binds the click handler in place — no body-
- * level delegation, no `data-` attribute coupling.
- *
- * `data-noclick` opts the button out of `os-table-row-click`,
- * and `e.stopPropagation()` keeps the click from bubbling up to
- * any other listener that might be watching the row container.
- */
-/**
- * Inline SVG paths for the row-action icons.
- *
- * Why inline SVG instead of Dashicons spans: `<os-table>` renders
- * its body into its OWN shadow DOM (`shadow = true`), so any node
- * we return from a `column.render` callback ends up inside that
- * shadow boundary. Document-level stylesheets do not cross the
- * boundary — neither the global Dashicons CSS nor our own
- * `recycle-bin.css`. The result: Dashicons spans render empty,
- * outer height/width rules are ignored, and the button collapses.
- *
- * Inline SVG renders from its own attributes (no stylesheet
- * needed), and we apply every visual style as inline `style.*`
- * properties so the button is fully self-contained.
- *
- * 24×24 viewBox is the Dashicons grid; these paths are simplified
- * versions of the actual `dashicons-image-rotate` and
- * `dashicons-trash` glyphs — close enough that users recognise
- * them, simple enough to ship inline.
- */
-const ICON_SVG: Record< string, string > = {
-	restore:
-		'<path d="M12 5V2L7 6l5 4V7c2.76 0 5 2.24 5 5 0 .83-.21 1.61-.57 2.3l1.46 1.46A6.96 6.96 0 0 0 19 12c0-3.87-3.13-7-7-7zm0 12c-2.76 0-5-2.24-5-5 0-.83.21-1.61.57-2.3L6.11 8.24A6.96 6.96 0 0 0 5 12c0 3.87 3.13 7 7 7v3l5-4-5-4v3z" fill="currentColor"/>',
-	trash:
-		'<path d="M9 3v1H4v2h1v13a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V6h1V4h-5V3H9zm0 5h2v9H9V8zm4 0h2v9h-2V8z" fill="currentColor"/>',
-};
-
-function makeRowButton( opts: RowButtonOptions ): HTMLElement {
-	// Inline SVG + inline styles. We can't depend on outer CSS
-	// reaching this button — os-table's shadow DOM blocks both
-	// the Dashicons stylesheet and our `recycle-bin.css`. So the
-	// button carries every visual property on its `style` attribute,
-	// and the icon is an inline SVG sized via attributes.
-	const btn = document.createElement( 'button' );
-	btn.type = 'button';
-	btn.setAttribute( 'data-noclick', '' );
-	btn.setAttribute( 'aria-label', opts.label );
-	btn.title = opts.label;
-
-	const isDanger = opts.variant === 'danger';
-
-	// Every colour below is a `var()` against the shared palette with
-	// the original literal as its fallback.
-	//
-	// These buttons are built by hand with INLINE styles rather than
-	// as `<os-button>`s because `<os-table>` renders its body into a
-	// shadow root that document stylesheets cannot reach. That is a
-	// legitimate constraint — but it also meant the colours here were
-	// unreachable by any theme, so the row actions stayed white-on-
-	// white while the table around them went dark.
-	//
-	// Inline `var()` is the fix precisely BECAUSE custom properties
-	// inherit through a shadow boundary: the token resolves against
-	// the host even though the rule does not.
-	const restColor = isDanger
-		? 'var( --os-ui-danger, #d63638 )'
-		: 'var( --os-ui-fg-muted, #50575e )';
-	const restBorder = isDanger
-		? 'var( --os-ui-danger, #d63638 )'
-		: 'var( --os-ui-border, #c3c4c7 )';
-	const restBg = 'var( --os-ui-surface, #fff )';
-
-	// Single source of truth for visual state. Hover/leave swap
-	// the relevant inline properties — cheap, predictable, no
-	// CSS-rule cascade to debug.
-	const applyRest = (): void => {
-		btn.style.background = restBg;
-		btn.style.color = restColor;
-		btn.style.borderColor = restBorder;
-	};
-	const applyHover = (): void => {
-		if ( isDanger ) {
-			btn.style.background = 'var( --os-ui-danger, #d63638 )';
-			btn.style.color = 'var( --os-ui-fg-on-accent, #fff )';
-			btn.style.borderColor = 'var( --os-ui-danger, #d63638 )';
-		} else {
-			btn.style.background = 'var( --os-ui-hover, #f0f0f1 )';
-			btn.style.color = 'var( --os-ui-fg, #1d2327 )';
-			btn.style.borderColor = 'var( --os-ui-border-strong, #8c8f94 )';
-		}
-	};
-
-	btn.style.cssText = [
-		'display: inline-flex',
-		'align-items: center',
-		'justify-content: center',
-		'flex: 0 0 30px',
-		'width: 30px',
-		'height: 30px',
-		'padding: 0',
-		'margin: 0',
-		'border: 1px solid ' + restBorder,
-		'border-radius: 6px',
-		'background: ' + restBg,
-		'color: ' + restColor,
-		'cursor: pointer',
-		'box-sizing: border-box',
-		'line-height: 1',
-		'font: inherit',
-		'transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease',
-	].join( ';' );
-
-	btn.addEventListener( 'mouseenter', applyHover );
-	btn.addEventListener( 'mouseleave', applyRest );
-	btn.addEventListener( 'focus', applyHover );
-	btn.addEventListener( 'blur', applyRest );
-
-	// Desktop-theme override for the row-action glyph.
-	//
-	// Rendered as an 18x18 CSS MASK tinted with `currentColor`, not
-	// as an `<img>`. These buttons swap their colour on hover / focus
-	// and the danger variant goes red; an image would be blind to all
-	// of that. Same trade-off as `<os-window-button icon-src>`: the
-	// glyph is a monochrome silhouette.
-	//
-	// A theme that maps the slot to a DASHICON is ignored here on
-	// purpose — `<os-table>` renders into its own shadow root, which
-	// the global Dashicons stylesheet cannot reach, so the span would
-	// come out blank. The built-in SVG below is a better answer than
-	// an empty button.
-	const themedSlot =
-		opts.icon === 'restore'
-			? DESKTOP_THEME_SLOTS.RECYCLE_RESTORE
-			: DESKTOP_THEME_SLOTS.RECYCLE_DELETE;
-	const themed = resolveThemedIcon( themedSlot );
-	// A theme may name the fill. Unset, `currentColor` keeps the
-	// button's hover / danger tinting working, which is the default
-	// these two slots have always had.
-	const themedFill = resolveThemedIconColor( themedSlot ) ?? 'currentColor';
-	// The value is interpolated into a `url("…")` inside an inline
-	// `style`, so it must not be able to close that string or the
-	// attribute. Same reasoning (and same character set) as
-	// `sanitizeIconSrc` in `<os-window-button>`; a rejected value
-	// falls through to the built-in SVG below.
-	const maskSafe =
-		themed !== null &&
-		! themed.startsWith( 'dashicons-' ) &&
-		/^(https?:\/\/|data:image\/)/i.test( themed ) &&
-		! /['"()\\<>\s]/.test( themed );
-
-	if ( maskSafe ) {
-		const mask = document.createElement( 'span' );
-		mask.setAttribute( 'aria-hidden', 'true' );
-		mask.style.cssText = [
-			'display: block',
-			'width: 18px',
-			'height: 18px',
-			'flex-shrink: 0',
-			`background-color: ${ themedFill }`,
-			`-webkit-mask: url("${ themed }") center / contain no-repeat`,
-			`mask: url("${ themed }") center / contain no-repeat`,
-		].join( ';' );
-		btn.appendChild( mask );
-	} else {
-		const svgNs = 'http://www.w3.org/2000/svg';
-		const svg = document.createElementNS( svgNs, 'svg' );
-		svg.setAttribute( 'width', '18' );
-		svg.setAttribute( 'height', '18' );
-		svg.setAttribute( 'viewBox', '0 0 24 24' );
-		svg.setAttribute( 'aria-hidden', 'true' );
-		svg.setAttribute( 'focusable', 'false' );
-		svg.style.display = 'block';
-		svg.innerHTML = ICON_SVG[ opts.icon ] ?? '';
-		btn.appendChild( svg );
-	}
-
-	btn.addEventListener( 'click', ( e: Event ) => {
-		e.stopPropagation();
-		opts.onClick();
-	} );
-
-	return btn;
-}
-
 /**
  * Render entry point. The shell hands us a mounted body element on
  * every open; we own everything inside it for the lifetime of the
@@ -597,7 +195,10 @@ export function renderRecycleBin( body: HTMLElement ): void {
 	currentRowActionRestore = ( ref ) => void handleRestore( [ ref ] );
 	currentRowActionPurge = ( ref ) => void handlePurge( [ ref ] );
 
-	table.columns = buildColumns();
+	table.columns = buildColumns( {
+		onRestore: rowActionRestore,
+		onPurge: rowActionPurge,
+	} );
 	// Composite identity — the bin mixes entity types whose numeric id
 	// sequences are independent (comments live in wp_comments; posts /
 	// pages / attachments in wp_posts; placements / folders / shortcuts
