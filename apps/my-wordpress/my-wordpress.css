@@ -10,7 +10,37 @@
 	display: flex;
 	flex-direction: column;
 	block-size: 100%;
-	color: var( --os-ui-fg, #1d2327 );
+	font-family: var(
+		--os-font,
+		-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif
+	);
+	/* The SAME window-token family WP Explorer wears
+	 * (`--os-my-wordpress-*`), so a desktop theme that repaints one
+	 * explorer repaints both — with the palette chain underneath and
+	 * the pre-brand literal as the floor. */
+	color: var( --os-my-wordpress-fg, var( --os-ui-fg, #1d2327 ) );
+	background: var(
+		--os-my-wordpress-bg,
+		var( --os-window-bg, #fff )
+	);
+	/*
+	 * Tile token re-scope — the same recipe as WP Explorer. The
+	 * shared `.os-file-tile` is born on the WALLPAPER, where its
+	 * label is white over a dark gradient; inside a window those
+	 * defaults are invisible on a light surface. Re-pointing the
+	 * `--os-tile-*` tokens here retones the one shared element for
+	 * in-window reading, and keeps it on the theme chain.
+	 */
+	--os-tile-fg: var( --os-my-wordpress-fg, var( --os-ui-fg, #1d2327 ) );
+	--os-tile-fg-muted: var(
+		--os-my-wordpress-fg-muted,
+		var( --os-ui-fg-muted, rgba( 0, 0, 0, 0.55 ) )
+	);
+	--os-tile-hover-bg: var( --os-hover, rgba( 0, 0, 0, 0.06 ) );
+	--os-tile-label-shadow: none;
+	--os-tile-label-weight: 500;
+	--os-tile-label-smoothing: antialiased;
+	--os-tile-label-color: var( --os-my-wordpress-fg, var( --os-ui-fg, #1d2327 ) );
 }
 
 /* ------------------------------------------------------------ header */
