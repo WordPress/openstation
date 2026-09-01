@@ -186,6 +186,52 @@ final class Os {
 	}
 
 	/**
+	 * The paged-list envelope — the one shape the client runtime's
+	 * page accumulation understands, so every list-shaped `data()`
+	 * key builds it here instead of hand-assembling the array (five
+	 * hand-assembled copies is how the first app shipped).
+	 *
+	 * @param array<int,mixed> $items    This page's rows.
+	 * @param int              $total    Total rows across all pages.
+	 * @param int              $page     1-based page number.
+	 * @param int              $per_page Rows per page.
+	 * @return array{items:array<int,mixed>,total:int,pages:int,page:int,perPage:int}
+	 */
+	public static function page( array $items, $total, $page, $per_page ) {
+		$total = max( 0, (int) $total );
+		$per   = max( 1, (int) $per_page );
+		return array(
+			'items'   => array_values( $items ),
+			'total'   => $total,
+			'pages'   => max( 1, (int) ceil( $total / $per ) ),
+			'page'    => max( 1, (int) $page ),
+			'perPage' => $per,
+		);
+	}
+
+	/**
+	 * Keep only the facts that have a value.
+	 *
+	 * A detail pane is a list of `array( label, value )` rows (an
+	 * optional third element tags the row for filters), and a row
+	 * whose value came back empty should vanish rather than render a
+	 * labelled blank. One definition of "empty" for every pane.
+	 *
+	 * @param array<int,array<int,string>> $rows Label/value(/tag) rows.
+	 * @return array<int,array<int,string>>
+	 */
+	public static function facts( array $rows ) {
+		return array_values(
+			array_filter(
+				$rows,
+				static function ( $fact ) {
+					return isset( $fact[1] ) && '' !== (string) $fact[1];
+				}
+			)
+		);
+	}
+
+	/**
 	 * Run a value through a filter hook.
 	 *
 	 * @param string $hook    Hook name.

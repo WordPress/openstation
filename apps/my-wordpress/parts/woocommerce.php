@@ -357,13 +357,7 @@ function woo_orders_page( State $state ) {
 		}
 	}
 
-	return array(
-		'items'   => $items,
-		'total'   => $total,
-		'pages'   => max( 1, (int) ceil( $total / $per_page ) ),
-		'page'    => $page,
-		'perPage' => $per_page,
-	);
+	return Os::page( $items, $total, $page, $per_page );
 }
 
 /**
@@ -400,13 +394,7 @@ function woo_customers_page( Os $os, State $state ) {
 	} else {
 		$ids = array_map( 'intval', (array) ( $plan['ids'] ?? array() ) );
 		if ( array() === $ids ) {
-			return array(
-				'items'   => array(),
-				'total'   => 0,
-				'pages'   => 1,
-				'page'    => $page,
-				'perPage' => $per_page,
-			);
+			return Os::page( array(), 0, $page, $per_page );
 		}
 		$args['include'] = $ids;
 		// `include` + `orderby => include` replays the plan's order
@@ -433,33 +421,17 @@ function woo_customers_page( Os $os, State $state ) {
 		if ( ! $user instanceof \WP_User ) {
 			continue;
 		}
-		$row = array(
-			'id'        => (int) $user->ID,
-			'title'     => (string) $user->display_name,
-			// The REST spelling too — the shared seam subscribers were
-			// written against `/wp/v2/users` rows.
-			'name'      => (string) $user->display_name,
-			'subtitle'  => (string) $user->user_email,
-			'status'    => implode( ', ', array_map( 'ucfirst', (array) $user->roles ) ),
-			'excerpt'   => '',
-			'thumb'     => (string) get_avatar_url( $user->ID, array( 'size' => 96 ) ),
-			'link'      => esc_url_raw( get_author_posts_url( $user->ID ) ),
-			'mime'      => '',
-			'lockedBy'  => '',
-			'canEdit'   => $os->can( 'edit_user', (int) $user->ID ),
-			'canDelete' => false,
+		$row = user_row(
+			$user,
+			static function ( $user_id ) use ( $os ) {
+				return $os->can( 'edit_user', $user_id );
+			}
 		);
 		$row     += woo_user_extras( (int) $user->ID );
 		$items[]  = $row;
 	}
 
-	return array(
-		'items'   => $items,
-		'total'   => $total,
-		'pages'   => max( 1, (int) ceil( $total / $per_page ) ),
-		'page'    => $page,
-		'perPage' => $per_page,
-	);
+	return Os::page( $items, $total, $page, $per_page );
 }
 
 /**
@@ -676,19 +648,14 @@ function woo_detail( array $section, $id ) {
 		'kind'      => 'post',
 		'id'        => (int) $order->get_id(),
 		'title'     => (string) $item['title'],
-		'facts'     => array_values(
-			array_filter(
+		'facts'     => Os::facts(
+			array(
 				array(
-					array(
-						__( 'Placed', 'desktop-mode' ),
-						$order->get_date_created()
-							? (string) date_i18n( (string) get_option( 'date_format' ), $order->get_date_created()->getTimestamp() )
-							: '',
-					),
+					__( 'Placed', 'desktop-mode' ),
+					$order->get_date_created()
+						? (string) date_i18n( (string) get_option( 'date_format' ), $order->get_date_created()->getTimestamp() )
+						: '',
 				),
-				static function ( $fact ) {
-					return '' !== $fact[1];
-				}
 			)
 		),
 		'canEdit'   => ! empty( $item['canEdit'] ) && true === woo_allowed( $section, (int) $id, 'edit' ),

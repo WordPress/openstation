@@ -193,6 +193,8 @@ Every callback receives an `OpenStation\App\Os`. It is the app's entire view of 
 | `$os->can()`, `$os->preference()`, `$os->filter()`, `$os->action()`, `$os->remember( $key, $ttl, $compute )` | Sugar over the contracts. `can()` takes a meta-capability's object too — `$os->can( 'delete_post', $id )` forwards to `current_user_can()`; the standalone adapter answers from the capability name alone. |
 | `$os->stored( $key, $fallback, $scope = 'user' )`, `$os->store( $key, $value, $scope )`, `$os->forget( $key, $scope )` | Durable storage, keys namespaced by app id |
 | `$os->toast()`, `->title()`, `->close()`, `->open( $window_id )`, `->open_url( $url, $title )`, `->badge( $count )`, `->announce( $type, $action, $ids )`, `->menu( $items )`, `->send( $channel, $payload )` | **Effects** — things the shell does after the morph (below) |
+| `Os::page( $items, $total, $page, $per_page )` | The paged-list envelope (`items` / `total` / `pages` / `page` / `perPage`) — the one shape the client runtime's page accumulation understands. Build every list-shaped `data()` key with it. |
+| `Os::facts( $rows )` | Keep only the `array( label, value, tag? )` rows whose value is non-empty, reindexed — the detail-pane facts idiom. |
 
 Six small contracts under `OpenStation\App\Contracts` — `Auth`, `Settings`, `Hooks`, `Cache`, `Env`, `Store` — define those members. On WordPress they are implemented by `OpenStation\App\WordPress\*` (`current_user_can`, `openstation_get_os_settings`, `apply_filters`, the object cache, user meta + options, `wp_date`). On a bare PHP host — a CLI, a test, another CMS — `OpenStation\App\Standalone\*` implement them with plain arrays and an in-process hook bus. `Os::standalone()` builds the latter in one call.
 

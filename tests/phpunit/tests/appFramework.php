@@ -187,6 +187,50 @@ class Tests_OpenStation_AppFramework extends WP_UnitTestCase {
 		$this->assertFalse( $state->has( 'nope' ) );
 	}
 
+	// ---------------------------------------------------------------- Os
+
+	/**
+	 * @covers \OpenStation\App\Os::page
+	 */
+	public function test_os_page_builds_the_paged_list_envelope() {
+		$page = \OpenStation\App\Os::page( array( 'a', 'b' ), 41, 2, 20 );
+		$this->assertSame(
+			array(
+				'items'   => array( 'a', 'b' ),
+				'total'   => 41,
+				'pages'   => 3,
+				'page'    => 2,
+				'perPage' => 20,
+			),
+			$page
+		);
+		// Empty and degenerate inputs stay well-formed.
+		$empty = \OpenStation\App\Os::page( array(), 0, 0, 0 );
+		$this->assertSame( 1, $empty['pages'] );
+		$this->assertSame( 1, $empty['page'] );
+		$this->assertSame( 1, $empty['perPage'] );
+	}
+
+	/**
+	 * @covers \OpenStation\App\Os::facts
+	 */
+	public function test_os_facts_drops_valueless_rows_and_reindexes() {
+		$facts = \OpenStation\App\Os::facts(
+			array(
+				array( 'Email', 'ada@example.test', 'bio' ),
+				array( 'Role', '' ),
+				array( 'Registered', '2026' ),
+			)
+		);
+		$this->assertSame(
+			array(
+				array( 'Email', 'ada@example.test', 'bio' ),
+				array( 'Registered', '2026' ),
+			),
+			$facts
+		);
+	}
+
 	// ---------------------------------------------------------- Registry
 
 	/**

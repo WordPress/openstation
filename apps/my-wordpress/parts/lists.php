@@ -141,31 +141,14 @@ function fetch( Os $os, array $section, State $state ) {
 		);
 		$items = array();
 		foreach ( $users->get_results() as $user ) {
-			$items[] = array(
-				'id'        => (int) $user->ID,
-				'title'     => (string) $user->display_name,
-				// The REST spelling too — the shared seam subscribers
-				// were written against `/wp/v2/users` rows.
-				'name'      => (string) $user->display_name,
-				'subtitle'  => (string) $user->user_email,
-				'status'    => implode( ', ', array_map( 'ucfirst', (array) $user->roles ) ),
-				'excerpt'   => '',
-				'thumb'     => (string) get_avatar_url( $user->ID, array( 'size' => 96 ) ),
-				'link'      => esc_url_raw( get_author_posts_url( $user->ID ) ),
-				'mime'      => '',
-				'lockedBy'  => '',
-				'canEdit'   => allowed( $os, $section, (int) $user->ID, 'edit' ),
-				'canDelete' => false,
+			$items[] = user_row(
+				$user,
+				static function ( $user_id ) use ( $os, $section ) {
+					return allowed( $os, $section, $user_id, 'edit' );
+				}
 			);
 		}
-		$total = (int) $users->get_total();
-		return array(
-			'items'   => $items,
-			'total'   => $total,
-			'pages'   => max( 1, (int) ceil( $total / PER_PAGE ) ),
-			'page'    => $page,
-			'perPage' => PER_PAGE,
-		);
+		return Os::page( $items, $users->get_total(), $page, PER_PAGE );
 	}
 
 	$is_media = 'media' === $section['kind'];
@@ -228,12 +211,34 @@ function fetch( Os $os, array $section, State $state ) {
 			$items[ count( $items ) - 1 ] += woo_extras( $post );
 		}
 	}
+	return Os::page( $items, $posts->found_posts, $page, $per_page );
+}
+
+/**
+ * One list row for a WP_User — the REST-visible shape both the Users
+ * section and WooCommerce's Customers section paint. One definition,
+ * so the two lists can never drift apart field by field.
+ *
+ * @param \WP_User $user     The user.
+ * @param callable $can_edit Answers "may the viewer edit user $id?".
+ * @return array<string,mixed>
+ */
+function user_row( \WP_User $user, callable $can_edit ) {
 	return array(
-		'items'   => $items,
-		'total'   => (int) $posts->found_posts,
-		'pages'   => max( 1, (int) $posts->max_num_pages ),
-		'page'    => $page,
-		'perPage' => $per_page,
+		'id'        => (int) $user->ID,
+		'title'     => (string) $user->display_name,
+		// The REST spelling too — the shared seam subscribers were
+		// written against `/wp/v2/users` rows.
+		'name'      => (string) $user->display_name,
+		'subtitle'  => (string) $user->user_email,
+		'status'    => implode( ', ', array_map( 'ucfirst', (array) $user->roles ) ),
+		'excerpt'   => '',
+		'thumb'     => (string) get_avatar_url( $user->ID, array( 'size' => 96 ) ),
+		'link'      => esc_url_raw( get_author_posts_url( $user->ID ) ),
+		'mime'      => '',
+		'lockedBy'  => '',
+		'canEdit'   => (bool) $can_edit( (int) $user->ID ),
+		'canDelete' => false,
 	);
 }
 
@@ -320,16 +325,11 @@ function detail( Os $os, array $section, $id ) {
 			'id'        => $id,
 			'title'     => (string) $user->display_name,
 			'avatar'    => (string) get_avatar_url( $id, array( 'size' => 192 ) ),
-			'facts'     => array_values(
-				array_filter(
-					array(
-						array( __( 'Email', 'desktop-mode' ), (string) $user->user_email, 'bio' ),
-						array( __( 'Role', 'desktop-mode' ), implode( ', ', array_map( 'ucfirst', (array) $user->roles ) ), 'bio' ),
-						array( __( 'Registered', 'desktop-mode' ), (string) date_i18n( get_option( 'date_format' ), strtotime( $user->user_registered ) ), 'bio' ),
-					),
-					static function ( $fact ) {
-						return '' !== $fact[1];
-					}
+			'facts'     => Os::facts(
+				array(
+					array( __( 'Email', 'desktop-mode' ), (string) $user->user_email, 'bio' ),
+					array( __( 'Role', 'desktop-mode' ), implode( ', ', array_map( 'ucfirst', (array) $user->roles ) ), 'bio' ),
+					array( __( 'Registered', 'desktop-mode' ), (string) date_i18n( get_option( 'date_format' ), strtotime( $user->user_registered ) ), 'bio' ),
 				)
 			),
 			'stats'     => stats_payload( 'openstation_my_wordpress_user_stats_callback', array( 'id' => $id ) ),
@@ -363,20 +363,15 @@ function detail( Os $os, array $section, $id ) {
 			'mime'      => (string) $post->post_mime_type,
 			'image'     => (string) wp_get_attachment_image_url( $id, 'large' ),
 			'full'      => (string) wp_get_attachment_image_url( $id, 'full' ),
-			'facts'     => array_values(
-				array_filter(
+			'facts'     => Os::facts(
+				array(
+					array( __( 'Type', 'desktop-mode' ), (string) $post->post_mime_type ),
+					array( __( 'Size', 'desktop-mode' ), $file && file_exists( $file ) ? (string) size_format( (int) filesize( $file ) ) : '' ),
 					array(
-						array( __( 'Type', 'desktop-mode' ), (string) $post->post_mime_type ),
-						array( __( 'Size', 'desktop-mode' ), $file && file_exists( $file ) ? (string) size_format( (int) filesize( $file ) ) : '' ),
-						array(
-							__( 'Dimensions', 'desktop-mode' ),
-							isset( $meta['width'], $meta['height'] ) ? $meta['width'] . ' × ' . $meta['height'] : '',
-						),
-						array( __( 'Uploaded', 'desktop-mode' ), (string) get_the_date( '', $post ) ),
+						__( 'Dimensions', 'desktop-mode' ),
+						isset( $meta['width'], $meta['height'] ) ? $meta['width'] . ' × ' . $meta['height'] : '',
 					),
-					static function ( $fact ) {
-						return '' !== $fact[1];
-					}
+					array( __( 'Uploaded', 'desktop-mode' ), (string) get_the_date( '', $post ) ),
 				)
 			),
 			'usedIn'    => $used,
@@ -397,18 +392,13 @@ function detail( Os $os, array $section, $id ) {
 		'image'     => (string) get_the_post_thumbnail_url( $post, 'large' ),
 		'content'   => (string) $content,
 		'lockedBy'  => lock_holder( $id ),
-		'facts'     => array_values(
-			array_filter(
-				array(
-					array( __( 'Status', 'desktop-mode' ), ucfirst( (string) $post->post_status ) ),
-					array( __( 'Author', 'desktop-mode' ), (string) get_the_author_meta( 'display_name', (int) $post->post_author ) ),
-					array( __( 'Published', 'desktop-mode' ), (string) get_the_date( '', $post ) ),
-					array( __( 'Modified', 'desktop-mode' ), (string) get_the_modified_date( '', $post ) ),
-					array( __( 'Words', 'desktop-mode' ), number_format_i18n( str_word_count( wp_strip_all_tags( (string) $post->post_content ) ) ) ),
-				),
-				static function ( $fact ) {
-					return '' !== $fact[1];
-				}
+		'facts'     => Os::facts(
+			array(
+				array( __( 'Status', 'desktop-mode' ), ucfirst( (string) $post->post_status ) ),
+				array( __( 'Author', 'desktop-mode' ), (string) get_the_author_meta( 'display_name', (int) $post->post_author ) ),
+				array( __( 'Published', 'desktop-mode' ), (string) get_the_date( '', $post ) ),
+				array( __( 'Modified', 'desktop-mode' ), (string) get_the_modified_date( '', $post ) ),
+				array( __( 'Words', 'desktop-mode' ), number_format_i18n( str_word_count( wp_strip_all_tags( (string) $post->post_content ) ) ) ),
 			)
 		),
 		'canEdit'   => allowed( $os, $section, $id, 'edit' ),
