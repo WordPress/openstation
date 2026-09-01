@@ -222,7 +222,7 @@ shared-store + registries. Index:
 | `/desktop-mode/v1/agents[…]` REST routes | [`includes/rest/README.md`](../includes/rest/README.md) | Experimental |
 | `openstation_agent_*` PHP helpers, actions, filters | [`hooks-reference.md`](./hooks-reference.md#ai-agents) | Experimental |
 | `desktop-mode/agents-chat` shared-store key + `desktop-mode-agent-run` window | [`javascript-reference.md`](./javascript-reference.md#ai-agents--client-surface-experimental) | Experimental |
-| `agent` WP Explorer entity kind | `registerEntityKind()` seam | Experimental |
+| Agents section in the WP Explorer app | `apps/my-wordpress/parts/agents*` | Experimental |
 
 ### WooCommerce integration *(Experimental — inert unless WooCommerce is active)*
 
@@ -280,7 +280,6 @@ Every event bubbles from `document`. See [`javascript-reference.md`](./javascrip
 | `os-default-window-changed` | Stable |
 | `os-open-ai` *(plugin-dispatched; the shell listens)* | Experimental |
 | `os-intros-reset` | Experimental |
-| `os-my-wordpress-entity-trashed` | Experimental |
 | `os-note-created` *(pinned-notes hand-off from the Note Pad widget)* | Experimental |
 | `os-auth-lost` / `os-auth-restored` *(session expiry / recovery)* | Stable |
 | `os-desktop-theme-changed` *(whole-OS reskin activated / cleared)* | Experimental |

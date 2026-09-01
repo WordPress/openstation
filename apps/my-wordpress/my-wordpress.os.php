@@ -32,16 +32,18 @@
  *                       per-row shop facts. Inert without WooCommerce.
  *   parts/payload.php   The data payload, one function.
  *
- * Plugin surfaces are shared with WP Explorer, not forked: CPT
- * discovery honours `openstation_my_wordpress_post_types` /
+ * Plugin surfaces are shared with the original explorer, not forked:
+ * CPT discovery honours `openstation_my_wordpress_post_types` /
  * `_post_type_entity` / `_post_type_groups`, the preview-action
  * pipeline consumes the same `openstation_my_wordpress_preview_actions`
  * descriptors and the same `os.my-wordpress.preview-actions` JS
  * filter, and the Agents section runs through the same
  * `openstation_agent_*` store, draft, identity and catalogue
- * functions the `/desktop-mode/v1/agents` routes wrap. This is a
- * sibling of WP Explorer (`desktop-mode-my-wordpress`), not a
- * replacement.
+ * functions the `/desktop-mode/v1/agents` routes wrap. This app IS
+ * WP Explorer now — the legacy window (`desktop-mode-my-wordpress`)
+ * is gone, and the app carries its name, its icon, its pinned
+ * launcher slot, and every one of its surfaces (`parts/footprint.ts`
+ * holds the last one to move in, the activity footprint).
  *
  * @package OpenStation
  */
@@ -65,12 +67,30 @@ require_once __DIR__ . '/parts/agents.php';
 require_once __DIR__ . '/parts/payload.php';
 
 return App::define( 'my-wordpress' )
-	->title( __( 'My WordPress', 'desktop-mode' ) )
-	->icon( ICON )
+	// The app IS WP Explorer now: it wears the original's name, its
+	// folder-with-mark art, and its pinned launcher slot. The helpers
+	// stay in `includes/my-wordpress/window.php` (that module keeps
+	// hosting the detail/footprint surfaces, launcher-less); the
+	// guards cover a standalone host where they don't load.
+	->title(
+		function_exists( 'openstation_my_wordpress_app_title' )
+			? openstation_my_wordpress_app_title()
+			: __( 'WP Explorer', 'desktop-mode' )
+	)
+	->icon(
+		function_exists( 'openstation_my_wordpress_icon_svg' )
+			? openstation_my_wordpress_icon_svg()
+			: ICON
+	)
 	->size( 960, 640 )
 	->min_size( 640, 420 )
 	->placement( 'none' )
-	->desktop_icon( array( 'position' => 2 ) )
+	->desktop_icon(
+		array(
+			'position' => -1,
+			'pinned'   => true,
+		)
+	)
 	->capabilities( 'edit_posts' )
 	->watch( '*' )
 	->state(
@@ -80,6 +100,10 @@ return App::define( 'my-wordpress' )
 			'item'        => 0,
 			'into'        => 0,
 			'relation'    => '',
+			// The activity footprint: whose fills the body (0 = closed),
+			// and their name for the breadcrumb before the payload lands.
+			'footprint'   => 0,
+			'fpName'      => '',
 			'query'       => '',
 			'page'        => 1,
 			'sort'        => '',
@@ -115,6 +139,7 @@ return App::define( 'my-wordpress' )
 	->action( 'open', __NAMESPACE__ . '\open_action' )
 	->action( 'into', __NAMESPACE__ . '\into_action' )
 	->action( 'relation', __NAMESPACE__ . '\relation_action' )
+	->action( 'footprint', __NAMESPACE__ . '\footprint_action' )
 	->action( 'sub-open-post', __NAMESPACE__ . '\sub_open_post_action' )
 	// List controls: the bound values already arrived with the state;
 	// these only reposition the query window.

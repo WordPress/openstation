@@ -21,6 +21,7 @@ import type {
 	Trigger,
 	TriggerKindDescriptor,
 } from '../../../src/my-wordpress/agents-types';
+import type { UserFootprint } from '../../../src/my-wordpress/types';
 import type { DragManagerApi } from '../../../src/drag';
 
 // ------------------------------------------------------------- types
@@ -40,6 +41,8 @@ export interface SectionDef extends Record< string, unknown > {
 	 * admin screen.
 	 */
 	flat?: boolean;
+	/** REST collection path — what a bin-drop's DELETE runs against. */
+	restPath?: string;
 	group?: string | null;
 	groupLabel?: string | null;
 	groupIcon?: string | null;
@@ -168,6 +171,10 @@ export interface AppState extends Record< string, unknown > {
 	into: number;
 	/** Relation sub-folder open inside `into`. */
 	relation: string;
+	/** User whose activity footprint fills the body; 0 when closed. */
+	footprint: number;
+	/** Their name, for the breadcrumb before the payload lands. */
+	fpName: string;
 	query: string;
 	page: number;
 	sort: string;
@@ -317,6 +324,11 @@ export type SubDetail =
 
 export interface AppData {
 	siteName: string;
+	/** REST root + nonce, for the client-fetched surfaces (footprint). */
+	restRoot: string;
+	restNonce: string;
+	/** Whether the agents routes exist — gates the Send-to warm-up. */
+	agentsEnabled: boolean;
 	sections: SectionDef[];
 	groups: GroupDef[];
 	sortOptions: Record< string, string >;
@@ -472,6 +484,12 @@ export interface UiState {
 	rosterStamp: string;
 	/** Agents: open the chat window once the pending create lands. */
 	chatAfterCreate: boolean;
+	/** Footprint: the one-round-trip payload, cached per user. */
+	fp: {
+		userId: number;
+		status: 'loading' | 'error' | 'ready';
+		payload: UserFootprint | null;
+	} | null;
 }
 
 const uiByRoot = new WeakMap< HTMLElement, UiState >();
@@ -502,6 +520,7 @@ export function uiOf( root: HTMLElement ): UiState {
 			agentDropTargets: new Map(),
 			rosterStamp: '',
 			chatAfterCreate: false,
+			fp: null,
 		};
 		uiByRoot.set( root, ui );
 	}

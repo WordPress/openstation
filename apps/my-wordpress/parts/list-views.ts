@@ -11,7 +11,6 @@
  */
 
 import { __, _n, html, sprintf, type TemplateResult } from '@openstation/app';
-import { openUserFootprintWindow } from '../../../src/my-wordpress/footprint-target';
 import { openUserEditWindow } from '../../../src/posts-window/user-edit-target';
 import {
 	shell,
@@ -152,7 +151,7 @@ function renderTile( ctx: Ctx, section: SectionDef, item: ListItem, order: numbe
 			// The built-in answer, WP Explorer's: opening a person is
 			// their activity footprint — the profile editor stays one
 			// right-click (or pane button) away.
-			openUserFootprintWindow( { userId: item.id, userName: item.title } );
+			void ctx.dispatch( 'footprint', { user: item.id, name: item.title } );
 			return;
 		}
 		if ( item.canEdit ) {

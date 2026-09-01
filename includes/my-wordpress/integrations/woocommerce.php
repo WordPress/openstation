@@ -1934,16 +1934,16 @@ add_action( 'init', 'openstation_my_wordpress_woo_register_assets', 5 );
  * Attach the integration's config to its script handle.
  *
  * NOTHING is enqueued here, and that is the point. The bundle
- * subscribes to the WP Explorer window's `preview-extras` /
- * `group-extras` actions, so it has to be in the tab before that
- * window's bundle paints — but not one moment sooner. It travels as
- * a companion of `desktop-mode-my-wordpress` (see the `scripts` arg
- * on that window's registration), which means the shell loads it
- * when the window first opens and a merchant who never opens WP
- * Explorer never downloads it at all. The stylesheet travels the
- * same way (the `styles` arg): every selector in it is scoped to
- * surfaces inside the Explorer or the Customer window, so on any
- * document not showing those — every chromeless iframe included —
+ * subscribes to the WP Explorer app's `preview-extras` /
+ * `group-extras` actions, so it has to be in the tab before the app's
+ * client view paints — but not one moment sooner. It travels as a
+ * companion of the app window (see
+ * `openstation_my_wordpress_woo_app_window_args()` below), which
+ * means the shell loads it when the window first opens and a merchant
+ * who never opens the explorer never downloads it at all. The
+ * stylesheet travels the same way (the `styles` arg): every selector
+ * in it is scoped to surfaces inside the explorer or the Customer
+ * window, so on any document not showing those —
  * it was pure parse weight.
  *
  * Only for users who can open the site window on a store — everyone
@@ -2003,58 +2003,20 @@ function openstation_my_wordpress_woo_enqueue() {
 add_action( 'admin_enqueue_scripts', 'openstation_my_wordpress_woo_enqueue', 5 );
 
 /**
- * Attach the bundle and stylesheet to the WP Explorer window as
- * companions.
+ * Attach the bundle and stylesheet to the WP Explorer app.
  *
- * `scripts` handles load in order immediately before the window's own
- * `script`, so the integration is listening to `preview-extras` /
- * `group-extras` by the time the window bundle fires them — the same
- * guarantee the old boot-time enqueue gave, at the cost of nothing
- * until the window opens.
- *
- * `styles` handles inject on the same first open, in ARRAY ORDER —
- * and that order is the whole ballgame here: this sheet overrides
- * `my-wordpress.css` at EQUAL specificity (the ribbon and panel
- * chrome), which the old enqueue path guaranteed through a
- * `wp_register_style` dependency. The Explorer's registration
- * declares its own sheet first in `styles` (see the comment in
- * `includes/my-wordpress/window.php`), this filter APPENDS, so the
- * Woo sheet lands after it in `<head>` and wins by source order.
- * Prepending here would silently invert the cascade.
- *
- * @param array $window_args Args passed to `openstation_register_window()`.
- * @return array
- */
-function openstation_my_wordpress_woo_window_args( $window_args ) {
-	if ( ! is_array( $window_args ) || ! openstation_my_wordpress_woo_active() ) {
-		return $window_args;
-	}
-
-	$scripts   = isset( $window_args['scripts'] ) ? (array) $window_args['scripts'] : array();
-	$scripts[] = 'os-my-wordpress-woocommerce';
-
-	$styles   = isset( $window_args['styles'] ) ? (array) $window_args['styles'] : array();
-	$styles[] = 'os-my-wordpress-woocommerce';
-
-	$window_args['scripts'] = $scripts;
-	$window_args['styles']  = $styles;
-
-	return $window_args;
-}
-add_filter( 'openstation_my_wordpress_window_args', 'openstation_my_wordpress_woo_window_args' );
-
-/**
- * Attach the same bundle and stylesheet to the My WordPress app.
- *
- * The app fires the same `os.my-wordpress.*` seams WP Explorer does
- * (`preview-extras`, `group-extras`, `list-tile`, the banding and
- * user filters), and its rows carry the same `openstation_woo` /
- * `openstation_woo_customer` facts — so ONE bundle decorates both
- * windows, and it travels with each the same way: as a first-open
- * companion, costing nothing until a window actually opens. The
+ * The app fires the `os.my-wordpress.*` seams this bundle subscribes
+ * to (`preview-extras`, `group-extras`, `list-tile`, the banding and
+ * user filters), and its rows carry the `openstation_woo` /
+ * `openstation_woo_customer` facts. `scripts` handles load in order
+ * immediately before the window's own script, so the integration is
+ * listening by the time the app's client view fires the seams — as a
+ * first-open companion, costing nothing until the window opens. The
  * config blob rides the handle (see
  * `openstation_my_wordpress_woo_enqueue()`), so it arrives with the
- * bundle whichever window pulls it in first.
+ * bundle. The `styles` handle keeps its `wp_register_style`
+ * dependency on the shared explorer sheet, so its equal-specificity
+ * overrides (the ribbon and panel chrome) still win by source order.
  *
  * @param array  $window_args Args passed to `openstation_register_window()`.
  * @param string $app_id      App id.

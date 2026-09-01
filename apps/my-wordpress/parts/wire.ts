@@ -16,6 +16,26 @@
 
 import { __, sprintf } from '@openstation/app';
 import {
+	clearFootprintTarget,
+	readFootprintTarget,
+	subscribeFootprintTarget,
+} from '../../../src/my-wordpress/footprint-target';
+import {
+	clearExplorerOpenTarget,
+	readExplorerOpenTarget,
+	subscribeExplorerOpenTarget,
+	type ExplorerOpenTarget,
+} from '../../../src/my-wordpress/explorer-open';
+import {
+	clearAgentEditorTarget,
+	readAgentEditorTarget,
+	subscribeAgentEditorTarget,
+} from '../../../src/agents-editor-target';
+import {
+	registerSendToMenuFilter,
+	setSendToEnabled,
+} from '../../../src/my-wordpress/agents-send-to';
+import {
 	faceFromSeed,
 	hasFace,
 } from '../../../src/my-wordpress/agents-face';
@@ -55,6 +75,12 @@ export function wire( ctx: Ctx ): () => void {
 		if ( ! item ) {
 			return;
 		}
+		// The section rides along so drop targets can route the object:
+		// the Recycle Bin trashes through the section's REST collection
+		// (`restPath`), agents gate on the section id.
+		const section = sectionOf( ctx.data, ctx.state.section );
+		const entityId = section?.id ?? '';
+		const restPath = String( section?.restPath ?? '' );
 		const selectedItems = ctx.state.selected.includes( id )
 			? all.filter( ( i ) => ctx.state.selected.includes( i.id ) )
 			: [ item ];
@@ -67,6 +93,8 @@ export function wire( ctx: Ctx ): () => void {
 					ref: String( item.id ),
 					title: item.title,
 					icon: item.thumb || '',
+					entityId,
+					restPath,
 					...( selectedItems.length > 1
 						? {
 							items: selectedItems.map( ( i ) => ( {
@@ -74,6 +102,8 @@ export function wire( ctx: Ctx ): () => void {
 								ref: String( i.id ),
 								title: i.title,
 								icon: i.thumb || '',
+								entityId,
+								restPath,
 							} ) ),
 						}
 						: {} ),
@@ -317,7 +347,7 @@ export function wire( ctx: Ctx ): () => void {
 		hideTip();
 	} );
 
-	// --- Escape closes menu → zoom → pane -------------------------------
+	// --- Escape closes menu → zoom → footprint → pane -------------------
 	const onKey = ( e: KeyboardEvent ): void => {
 		if ( e.key !== 'Escape' ) {
 			return;
@@ -329,12 +359,76 @@ export function wire( ctx: Ctx ): () => void {
 		} else if ( state.zoom ) {
 			state.zoom = false;
 			ctx.local( 'repaint' );
+		} else if ( ctx.state.footprint > 0 ) {
+			void ctx.dispatch( 'back' );
 		} else if ( ctx.state.item > 0 ) {
 			void ctx.dispatch( 'open', { item: 0 } );
 		}
 	};
 	root.addEventListener( 'keydown', onKey );
 	teardowns.push( () => root.removeEventListener( 'keydown', onKey ) );
+
+	// --- the footprint target — the cross-bundle "open this person" ----
+	// `openUserFootprintWindow()` (the users.php row action riding the
+	// chromeless bridge, agent cards, any plugin) stashes the person in
+	// the shared store and opens THIS window. Consume the pending
+	// target on mount (cold open) and subscribe for re-targets (warm,
+	// already-open window) — the same contract the original honoured.
+	const consumeFootprintTarget = ( target: { userId: number | null; userName: string } ): void => {
+		const userId = Number( target.userId );
+		if ( ! Number.isFinite( userId ) || userId <= 0 ) {
+			return;
+		}
+		clearFootprintTarget();
+		void ctx.dispatch( 'footprint', { user: userId, name: target.userName } );
+	};
+	consumeFootprintTarget( readFootprintTarget() );
+	teardowns.push( subscribeFootprintTarget( consumeFootprintTarget ) );
+
+	// --- the open target — "open this object in the explorer" ----------
+	// `openExplorerDetail()` / `openExplorerMedia()` (the desktop
+	// tiles' "Navigate into", the wallpaper preview's "Explore
+	// details", the Corkboard's "Open in <site>") stash the object and
+	// open this window; the navigation serialises behind whatever is
+	// in flight.
+	const consumeOpenTarget = ( target: ExplorerOpenTarget ): void => {
+		if ( ! target.kind || ! ( Number( target.id ) > 0 ) ) {
+			return;
+		}
+		clearExplorerOpenTarget();
+		void ctx.dispatch( 'go', { section: target.entityId } );
+		if ( target.kind === 'media' ) {
+			void ctx.dispatch( 'open', { item: target.id } );
+		} else {
+			void ctx.dispatch( 'into', { item: target.id } );
+		}
+	};
+	consumeOpenTarget( readExplorerOpenTarget() );
+	teardowns.push( subscribeExplorerOpenTarget( consumeOpenTarget ) );
+
+	// --- the agent-editor target — an avatar in the chat window --------
+	const consumeAgentTarget = ( target: { agentId: number | null } ): void => {
+		const agentId = Number( target.agentId );
+		if ( ! Number.isFinite( agentId ) || agentId <= 0 ) {
+			return;
+		}
+		clearAgentEditorTarget();
+		void ctx.dispatch( 'go', { section: 'agents' } );
+		void ctx.dispatch( 'open', { item: agentId } );
+	};
+	consumeAgentTarget( readAgentEditorTarget() );
+	teardowns.push( subscribeAgentEditorTarget( consumeAgentTarget ) );
+
+	// --- the "Send to <agent>" menu intake -----------------------------
+	// Registered on the shared bus (idempotent there), gated by the
+	// payload's agents flag so the warm-up never 404s a site with the
+	// framework off. `afterRender()` keeps the flag current. The bus
+	// itself is `wp.hooks` — absent on a bare host, where the menu
+	// simply carries no plugin rows.
+	setSendToEnabled( ctx.data.agentsEnabled === true );
+	if ( ( window.wp as { hooks?: unknown } | undefined )?.hooks ) {
+		registerSendToMenuFilter();
+	}
 
 	return () => teardowns.forEach( ( off ) => off() );
 }
@@ -466,6 +560,9 @@ function pluginSeamsAfterRender( ctx: Ctx ): void {
 /** Runs after every render — the `updated()` half of the app. */
 export function afterRender( ctx: Ctx ): void {
 	const ui = uiOf( ctx.root );
+	// Keep the Send-to intake's routes flag current — Preferences can
+	// flip the agents framework while this window is open.
+	setSendToEnabled( ctx.data.agentsEnabled === true );
 	// Agents wiring: drop targets, drag-out, the face backfill, the
 	// roster signal, the create-then-chat hand-off.
 	agentsAfterRender( ctx );

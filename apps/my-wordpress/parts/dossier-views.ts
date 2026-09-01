@@ -12,7 +12,6 @@
  */
 
 import { __, _n, html, sprintf, type TemplateResult } from '@openstation/app';
-import { openUserFootprintWindow } from '../../../src/my-wordpress/footprint-target';
 import { openUserEditWindow } from '../../../src/posts-window/user-edit-target';
 import {
 	shell,
@@ -161,7 +160,7 @@ function userPreviewActions(
 			title: __( 'Open the full activity footprint surface for this user.' ),
 			variant: 'primary',
 			onSelect: () =>
-				openUserFootprintWindow( { userId: detail.id, userName: detail.title } ),
+				void ctx.dispatch( 'footprint', { user: detail.id, name: detail.title } ),
 		},
 	];
 	if ( detail.canEdit ) {

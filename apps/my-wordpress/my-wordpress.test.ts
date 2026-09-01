@@ -64,6 +64,8 @@ function state( over: Partial< AppState > = {} ): AppState {
 		item: 0,
 		into: 0,
 		relation: '',
+		footprint: 0,
+		fpName: '',
 		query: '',
 		page: 1,
 		sort: '',
@@ -81,6 +83,9 @@ function state( over: Partial< AppState > = {} ): AppState {
 function data( over: Partial< AppData > = {} ): AppData {
 	return {
 		siteName: 'Test Site',
+		restRoot: 'http://example.test/wp-json/',
+		restNonce: 'nonce',
+		agentsEnabled: false,
 		sections: [ section() ],
 		groups: [],
 		sortOptions: { default: 'Newest first', oldest: 'Oldest first' },
@@ -743,5 +748,27 @@ describe( 'theme tokenization', () => {
 		expect( ruleOf( '.os-mywp__stat-value' ) ).toContain( '--wp-admin-theme-color' );
 		expect( ruleOf( '.os-mywp__activity-bar' ) ).toContain( '--wp-admin-theme-color' );
 		expect( ruleOf( '.os-mywp__ghost-visual' ) ).toContain( '--os-skeleton-high' );
+	} );
+
+	it( 'the shared explorer sheet routes every admin-blue through the theme token', () => {
+		// The footprint hero's wash, the avatar well, the role chips
+		// and the calendar intensity ramp all used to hard-code
+		// rgba(34, 113, 177, …) — the pre-brand admin blue with no
+		// token in the chain, so no theme or accent pick could repaint
+		// the header. They resolve through
+		// `color-mix(…, var(--wp-admin-theme-color, #2271b1), …)` now;
+		// a raw occurrence is a regression.
+		const shared = readFileSync(
+			join(
+				dirname( fileURLToPath( import.meta.url ) ),
+				'..',
+				'..',
+				'assets',
+				'css',
+				'my-wordpress.css',
+			),
+			'utf8',
+		);
+		expect( shared ).not.toMatch( /rgba\(\s*34,\s*113,\s*177/ );
 	} );
 } );

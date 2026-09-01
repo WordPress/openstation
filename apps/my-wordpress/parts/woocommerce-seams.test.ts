@@ -86,6 +86,8 @@ function state( over: Partial< AppState > = {} ): AppState {
 		item: 0,
 		into: 0,
 		relation: '',
+		footprint: 0,
+		fpName: '',
 		query: '',
 		page: 1,
 		sort: '',
@@ -103,6 +105,9 @@ function state( over: Partial< AppState > = {} ): AppState {
 function data( over: Partial< AppData > = {} ): AppData {
 	return {
 		siteName: 'Shop',
+		restRoot: 'http://example.test/wp-json/',
+		restNonce: 'nonce',
+		agentsEnabled: false,
 		sections: [ section() ],
 		groups: [ { id: 'plugin:woocommerce', label: 'Woo', icon: 'dashicons-cart', order: 15 } ],
 		sortOptions: { default: 'Top spenders first' },
@@ -223,18 +228,11 @@ describe( 'user-activate', () => {
 
 	it( 'falls through to the activity footprint when nobody claims it — never the profile editor', () => {
 		const dispatch = vi.fn( async () => true );
-		const opened: string[] = [];
-		( ( window as unknown as { wp: { os: Record< string, unknown > } } ).wp.os ).openWindow = (
-			id: string,
-		) => {
-			opened.push( id );
-			return true;
-		};
 		const ctx = mountList( dispatch );
 		ctx.root
 			.querySelector( '[data-item-id="8"]' )!
 			.dispatchEvent( new MouseEvent( 'dblclick', { bubbles: true } ) );
-		expect( opened ).toContain( 'desktop-mode-my-wordpress' );
+		expect( dispatch ).toHaveBeenCalledWith( 'footprint', { user: 8, name: 'Jordan' } );
 		expect( dispatch ).not.toHaveBeenCalledWith( 'edit', { item: 8 } );
 	} );
 } );

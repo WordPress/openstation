@@ -548,9 +548,9 @@ so permission callbacks see the agent's role, not the human caller.
 Per-agent hourly rate limits ride a transient counter.
 
 **Surfaces:** `/desktop-mode/v1/agents` REST CRUD + `/invoke`
-(`includes/rest/README.md`), the Agents section inside WP Explorer
-(server: `openstation_my_wordpress_entities` filter; client: the
-`agent` entity kind via `registerEntityKind()`), and the lazy
+(`includes/rest/README.md`), the Agents section inside the WP
+Explorer app (`apps/my-wordpress/parts/agents*.php` / `.ts`, over the
+same `openstation_agent_*` store the routes wrap), and the lazy
 `desktop-mode-agent-run` chat window fed through the cross-bundle
 `desktop-mode/agents-chat` shared store. Phase A ships the chat
 trigger; send-to/drag, hook, endpoint, and agent-to-agent intakes are

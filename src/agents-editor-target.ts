@@ -26,8 +26,8 @@
 
 import { createSharedStore } from './shared-store';
 
-/** Native My WordPress window id — the lazy bundle's `WINDOW_ID`. */
-const MY_WORDPRESS_WINDOW_ID = 'desktop-mode-my-wordpress';
+/** The explorer app's window id — its Agents section renders the editor. */
+const MY_WORDPRESS_WINDOW_ID = 'my-wordpress';
 
 /** Entity id of the Agents section inside My WordPress. */
 export const AGENTS_ENTITY_ID = 'agents';

@@ -38,6 +38,8 @@ function state( over: Partial< AppState > = {} ): AppState {
 		item: 0,
 		into: 0,
 		relation: '',
+		footprint: 0,
+		fpName: '',
 		query: '',
 		page: 1,
 		sort: '',
@@ -55,6 +57,9 @@ function state( over: Partial< AppState > = {} ): AppState {
 function data( over: Partial< AppData > = {} ): AppData {
 	return {
 		siteName: 'Test Site',
+		restRoot: 'http://example.test/wp-json/',
+		restNonce: 'nonce',
+		agentsEnabled: false,
 		sections: [ section() ],
 		groups: [],
 		sortOptions: {},

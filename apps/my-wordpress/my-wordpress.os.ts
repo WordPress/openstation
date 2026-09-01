@@ -53,6 +53,7 @@ import {
 	renderZoom,
 } from './parts/list-views';
 import { renderDetail, renderFolder, renderSub } from './parts/dossier-views';
+import { footprintStatus, renderFootprint } from './parts/footprint';
 import { agentDefaultRole, emptyCast, newSeed } from './parts/agents';
 import { renderAgents } from './parts/agents-wizard';
 import { afterRender, wire } from './parts/wire';
@@ -106,6 +107,11 @@ function renderBody(
 	inSub: boolean,
 	items: ListItem[],
 ): TemplateResult {
+	// The activity footprint replaces the whole body — WP Explorer's
+	// full-width surface, whatever section it was opened from.
+	if ( ctx.state.footprint > 0 ) {
+		return renderFootprint( ctx );
+	}
 	if ( ! section ) {
 		return renderRoot( ctx );
 	}
@@ -223,7 +229,8 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 		const { state, data: payload } = ctx;
 		const section = sectionOf( payload, state.section );
 		const group = payload.groups.find( ( g ) => g.id === state.group ) ?? null;
-		const depth = !! ( group || section );
+		const inFootprint = state.footprint > 0;
+		const depth = !! ( group || section ) || inFootprint;
 
 		// The trail: ancestors are links, the current segment is plain
 		// bold text — the desktop-files breadcrumb shape.
@@ -250,10 +257,14 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 			if ( section ) {
 				crumbs.push( sep() );
 				crumbs.push(
-					inFolder
+					inFolder || inFootprint
 						? link( section.label, () => void ctx.dispatch( 'go', { group: state.group, section: section.id } ) )
 						: current( section.label ),
 				);
+			}
+			if ( inFootprint ) {
+				crumbs.push( sep() );
+				crumbs.push( current( state.fpName || __( 'Activity footprint' ) ) );
 			}
 			if ( inFolder && payload.folder ) {
 				crumbs.push( sep() );
@@ -306,6 +317,10 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 				]
 				: [ '', '' ];
 		}
+		if ( inFootprint ) {
+			// The footprint owns the whole status bar while it is open.
+			folderStatus = footprintStatus( ctx );
+		}
 		const statusLeft = section && ! inFolder
 			? `${ sprintf(
 				/* translators: 1: loaded count, 2: total count. */
@@ -343,7 +358,7 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 						: '' }
 					<nav class="os-mywp__crumbs">${ crumbs }</nav>
 				</header>
-				${ section && ! inFolder && ! isAgents
+				${ section && ! inFolder && ! isAgents && ! inFootprint
 					? html`<div class="os-mywp__search">
 						<os-text-field
 							value=${ state.query }

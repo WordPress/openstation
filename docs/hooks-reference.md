@@ -3634,17 +3634,20 @@ apply_filters( 'openstation_my_wordpress_user_can_use', bool $can ): bool
 
 Gates icon registration and window registration in one shot. Default `current_user_can( 'edit_posts' )`. Return `false` to hide the entry point for a role; return `true` to opt a role back in.
 
-### `openstation_my_wordpress_window_args` / `openstation_my_wordpress_icon_args` — Experimental (filter)
+### Removed — the legacy explorer window's filters
 
-Tweak the args passed to `openstation_register_window()` / `openstation_register_icon()` for WP Explorer — useful to change dimensions, swap the icon, or remove the `pinned` flag so the icon participates in the normal sort order. Retitling the window here retitles the app; to rename the *root folder* the window opens on, filter [`openstation_site_title`](#openstation_site_title--experimental) instead, which also covers the breadcrumb root and the cross-window "Open in &lt;site&gt;" actions.
+`openstation_my_wordpress_window_args`, `openstation_my_wordpress_icon_args` and `openstation_my_wordpress_template_html` are gone with the `desktop-mode-my-wordpress` native window they configured. WP Explorer is the `my-wordpress` **app** now:
 
-### `openstation_my_wordpress_entities` — Experimental (filter)
+- To reshape the window or the launcher — title, art, size, position, the `pinned` flag — filter [`openstation_app_manifest`](#openstation_app_manifest--experimental-filter) with `$id === 'my-wordpress'`, or [`openstation_app_window_args`](#openstation_app_window_args--experimental-filter) for the registration args (companion `scripts` / `styles` included).
+- To rename the *root folder* the explorer opens on, filter [`openstation_site_title`](#openstation_site_title--experimental), which also covers the breadcrumb root and the cross-window "Open in &lt;site&gt;" actions.
+
+### `openstation_my_wordpress_entities` — Experimental (filter, inert)
 
 ```php
 apply_filters( 'openstation_my_wordpress_entities', array[] $entities ): array[]
 ```
 
-The list of entity types rendered as folder tiles in the window's root view. Each entry must declare:
+**Inert since the legacy window's removal.** The filter still runs (registered subscribers keep executing, so nothing fatals), but no window consumes its list — the explorer app builds its own sections; register there via [`openstation_my_wordpress_app_sections`](#openstation_my_wordpress_app_sections--experimental-filter). Kept documented for the descriptor vocabulary older subscribers were written against. Each entry declared:
 
 - `id` — slug, used in the route hash and tile `data-entity-id`.
 - `label` — human-readable folder name.
@@ -3957,10 +3960,6 @@ customer means nothing).
 
 Both filters only run when WooCommerce is active and the viewer passes
 the customers permission gate — order access **and** `list_users`.
-
-### `openstation_my_wordpress_template_html` — Experimental (filter)
-
-The static template body before it's emitted into the native-window template element. Keep the `data-os-my-wordpress-*` data hooks intact so the JS bundle can find its mount points.
 
 ### `openstation_my_wordpress_user_stats` — Experimental (filter)
 

@@ -127,10 +127,23 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		$this->assertNotNull( $app );
 
 		$manifest = $app->manifest();
-		$this->assertSame( 'My WordPress', $manifest['title'] );
+		// The app reclaimed the original's name, folder mark and
+		// pinned launcher slot; the old window (launcher-less now, see
+		// `myWordpress.php`) keeps hosting the detail surfaces.
+		$this->assertSame( 'WP Explorer', $manifest['title'] );
+		$this->assertSame( openstation_my_wordpress_app_title(), $manifest['title'], 'One helper names the explorer.' );
+		if ( function_exists( 'openstation_my_wordpress_icon_svg' ) ) {
+			$this->assertSame(
+				'data:image/svg+xml;base64,' . base64_encode( openstation_my_wordpress_icon_svg() ),
+				$manifest['icon'],
+				'The launcher wears the original folder-with-mark art.'
+			);
+		}
 		$this->assertSame( array( '*' ), $manifest['watch'], 'Sections are dynamic, so ANY content change repaints the explorer.' );
 		$this->assertSame( 'refresh', $manifest['title_bar_buttons'][0]['action'] );
 		$this->assertIsArray( $manifest['desktop_icon'] );
+		$this->assertSame( -1, $manifest['desktop_icon']['position'], 'The original launcher slot.' );
+		$this->assertTrue( ! empty( $manifest['desktop_icon']['pinned'] ) );
 		$this->assertStringEndsWith(
 			'apps/my-wordpress/my-wordpress.os.ts',
 			wp_normalize_path( $manifest['client_source'] ),
@@ -855,16 +868,16 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		foreach ( array_merge( $sources, glob( $dir . '*.css' ) ) as $file ) {
 			$lines += count( file( $file ) );
 		}
-		// The budget moved when the Agents section landed (the
-		// like-for-like original grew by the agents renderer, its REST
-		// client, the face helpers and ~800 lines of CSS), again as
-		// the parity gaps closed (the bulk-edit modal's real controls,
-		// the tile hover card, the shared plugin seams), and again for
-		// the WooCommerce surface — whose like-for-like original is
-		// the ~7,400 lines of `integrations/woocommerce*` PHP + TS the
-		// app reaches for ~1,000: the sections, guards and remaining
-		// seams here, the rules and the bundle shared, not forked.
-		$this->assertLessThan( 9500, $lines, sprintf( 'My WordPress is %d lines; the budget is under 9,500 — still well under a third of the like-for-like original.', $lines ) );
+		// The budget's history: it moved when the Agents section
+		// landed, again as the parity gaps closed (bulk-edit controls,
+		// hover card, plugin seams), again for the WooCommerce
+		// surface, and finally when the app REPLACED the original
+		// outright — reclaiming the name and absorbing the last
+		// missing surface, the activity footprint (~600 lines here
+		// against the ~800 it retired with the legacy bundle). The
+		// like-for-like original it displaced measured ~32,000 lines;
+		// the whole replacement stays a third of that.
+		$this->assertLessThan( 10500, $lines, sprintf( 'My WordPress is %d lines; the budget is under 10,500 — still a third of the original it replaced.', $lines ) );
 
 		// The house file-length rule, pinned hard for this app: every
 		// PHP and TS source stays under 1,000 lines. The lint twins

@@ -35,6 +35,7 @@ function go_action( State $state, Os $os, array $args ) {
 	$state->set( 'group', isset( $args['group'] ) ? (string) $args['group'] : '' );
 	$state->set( 'section', isset( $args['section'] ) ? (string) $args['section'] : '' );
 	$state->set( 'item', 0 )->set( 'into', 0 )->set( 'relation', '' )
+		->set( 'footprint', 0 )->set( 'fpName', '' )
 		->set( 'query', '' )->set( 'page', 1 )
 		->set( 'sort', '' )->reset( 'selected' )
 		->set( 'pane', 'define' )->set( 'casting', false )->set( 'wstep', 0 )
@@ -52,6 +53,10 @@ function back_action( State $state ) {
 		// The window's back is the wizard's cancel.
 		$state->set( 'casting', false )->set( 'wstep', 0 )
 			->reset( 'cast' )->set( 'agentNotice', '' )->set( 'briefError', '' );
+		return;
+	}
+	if ( (int) $state->get( 'footprint' ) > 0 ) {
+		$state->set( 'footprint', 0 )->set( 'fpName', '' );
 		return;
 	}
 	if ( '' !== (string) $state->get( 'relation' ) ) {
@@ -113,6 +118,27 @@ function relation_action( State $state, Os $os, array $args ) {
 	$allowed  = array( 'author', 'contributors', 'comments', 'categories', 'tags', 'media', 'revisions' );
 	$state->set( 'relation', in_array( $relation, $allowed, true ) ? $relation : '' )
 		->set( 'item', 0 );
+}
+
+/**
+ * `footprint`: open a user's activity footprint over the body — the
+ * full-width surface WP Explorer answered "open this person" with.
+ * The id is validated (the payload route re-checks the viewer), the
+ * name is only ever a breadcrumb placeholder.
+ *
+ * @param State               $state State.
+ * @param Os                  $os    Host handle.
+ * @param array<string,mixed> $args  Trigger args (`user`, `name`).
+ * @return void
+ */
+function footprint_action( State $state, Os $os, array $args ) {
+	$user = (int) ( $args['user'] ?? 0 );
+	if ( $user <= 0 || false === get_userdata( $user ) ) {
+		return;
+	}
+	$state->set( 'footprint', $user )
+		->set( 'fpName', sanitize_text_field( (string) ( $args['name'] ?? '' ) ) )
+		->set( 'item', 0 )->set( 'into', 0 )->set( 'relation', '' );
 }
 
 /**

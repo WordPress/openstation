@@ -1393,15 +1393,14 @@ wp.os.loadWindowScript( id: string ): Promise< boolean >;
 A native window's script loads the first time the window opens — the shell reads the render callback off `window.openStationNativeWindows[ <id> ]` after the load, so opening a window needs no ceremony. This is for the other case: a bundle that *also* publishes an API on `wp.os` which a different bundle calls with no window in sight.
 
 ```javascript
-await wp.os.loadWindowScript( 'desktop-mode-my-wordpress' );
-await wp.os.myWordpress.trashEntity( 'posts', 42 );
+await wp.os.loadWindowScript( 'desktop-mode-agent-run' );
+// …then read the API that bundle publishes on `wp.os`.
 ```
 
 Resolves `true` once the bundle is in the tab — immediately on a repeat call, since loads are deduplicated by URL and concurrent callers share one `<script>`. Resolves `false` when no native window is registered with that id. A network failure still resolves `true` and reports through the `os.shell.error` action, so **check for the API you came for rather than trusting the boolean**.
 
 Companion bundles declared via the window's `'scripts'` arg load first, in declaration order, exactly as they would on an open — and companion stylesheets (`'styles'`) are injected too, so a bundle whose API renders into the page arrives styled.
 
-If the API you need has an early stub in the always-loaded shell bundle (WP Explorer's does — see `wp.os.myWordpress`), call it directly instead: the stub forwards through this same path for you.
 
 ---
 
@@ -4427,7 +4426,7 @@ Posted when a link inside the iframe points off-site; the parent opens an extern
 ```
 
 #### `os-open-user-footprint` — Stable
-Posted when a `[data-os-footprint]` link is clicked inside a chromeless iframe — the "View activity footprint" row action on the classic Users table. Checked *before* the admin-link classifier, so the link's fallback `href` is never followed inside the shell. The parent opens (or focuses) the WP Explorer window on that user's footprint route and leaves the source window open (it's an auxiliary peek, not a navigation away — contrast `os-iframe-admin-link`, which closes the source on a remap hit). The public entry point is [`wp.os.myWordpress.openUserFootprint`](#public-api--wposmywordpress); see also `bridge-protocol.md`.
+Posted when a `[data-os-footprint]` link is clicked inside a chromeless iframe — the "View activity footprint" row action on the classic Users table. Checked *before* the admin-link classifier, so the link's fallback `href` is never followed inside the shell. The parent opens (or focuses) the WP Explorer app on that user's footprint and leaves the source window open (it's an auxiliary peek, not a navigation away — contrast `os-iframe-admin-link`, which closes the source on a remap hit). The routing is the shared footprint target (`src/my-wordpress/footprint-target.ts`); see also `bridge-protocol.md`.
 
 ```typescript
 { type: 'os-open-user-footprint'; userId: number; userName: string }
@@ -6399,115 +6398,36 @@ Backed by `wp.os.createSharedStore( 'desktop-mode/plugins-window/tab-target', �
 
 ## WP Explorer — extensibility surface (Experimental)
 
-The native window registered under id `desktop-mode-my-wordpress`
-exposes three JS hook points and a small public API. Every section
-(Posts, Pages, Users, Media, plugin-defined kinds) uses the same
-hooks, so a single plugin descriptor can decorate any preview pane.
+**WP Explorer is the `my-wordpress` app** (`apps/my-wordpress/`,
+window id `my-wordpress`) — the App Framework rebuild that replaced
+the legacy `desktop-mode-my-wordpress` native window outright. Every
+section (Posts, Pages, Users, Media, plugin CPTs, Agents, the Woo
+sections) renders inside it, the activity footprint included.
 
-The **My WordPress app** (`apps/my-wordpress/`, window id
-`my-wordpress`) fires the same `os.my-wordpress.*` hooks over its own
-DOM with the same payload shapes — `preview-extras` (the
-`header`/`meta`/`footer` slots), `list-tile`, `list-bands`,
-`tile-context-menu`, `preview-actions`, `group-extras`,
-`user-activate`, `user-preview-actions` and `user-dossier-sections` —
-and its rows carry the same REST-visible fields subscribers read
-(`meta`, per-taxonomy term ids, `openstation_woo`; the Customers
-section's rows carry `openstation_woo_customer` — the app's built-in
-Users folder deliberately ships no money on its rows, and the Woo
-bundle treats the facts' presence as the opt-in outside the Customers
-section). One `wp.hooks` registration decorates
-both windows; the WooCommerce integration is the worked example. Only
-the `wp.os.myWordpress` API below (entity-kind renderers, the
-navigation calls) is WP Explorer's own. To ride the app window with a
-companion bundle, see
-[`openstation_app_window_args`](./hooks-reference.md#openstation_app_window_args--experimental-filter).
+The app fires the `os.my-wordpress.*` hooks documented below over its
+DOM — `preview-extras` (the `header`/`meta`/`footer` slots),
+`list-tile`, `list-bands`, `tile-context-menu`, `preview-actions`,
+`group-extras`, `user-activate`, `user-preview-actions` and
+`user-dossier-sections` — and its rows carry the REST-visible fields
+subscribers read (`meta`, per-taxonomy term ids, `openstation_woo`;
+the Customers section's rows carry `openstation_woo_customer` — the
+built-in Users folder deliberately ships no money on its rows, and
+the Woo bundle treats the facts' presence as the opt-in outside the
+Customers section). One `wp.hooks` registration decorates every
+surface; the WooCommerce integration is the worked example. To ride
+the app window with a companion bundle, see
+[`openstation_app_window_args`](./hooks-reference.md#openstation_app_window_args--experimental-filter);
+to add a section, filter
+[`openstation_my_wordpress_app_sections`](./hooks-reference.md#openstation_my_wordpress_app_sections--experimental-filter).
 
-### Public API — `wp.os.myWordpress`
+### Removed — `wp.os.myWordpress`
 
-```ts
-interface MyWordpressApi {
-    /**
-     * Open the post-detail dossier for a given post id. Idempotent
-     * — opens the window first if it isn't already.
-     */
-    openDetail( args: { entityId: string; postId: number; postTitle: string } ): void;
+The legacy explorer bundle's public API went with the legacy window. Its jobs moved to contracts that need no bundle in the tab:
 
-    /**
-     * Open the Media drill-in ("used in") view for an attachment.
-     * Mirror of `openDetail`.
-     *
-     */
-    openMedia( args: { mediaId: number; mediaTitle?: string } ): void;
-
-    /**
-     * Open a user's GitHub-style activity footprint. Mirror of
-     * `openDetail` / `openMedia`, for users. Idempotent and
-     * cold-start safe — opens (or focuses) the window and navigates
-     * it to the footprint route even from a session that never
-     * opened WP Explorer.
-     *
-     * This is the same window the "View activity footprint" row
-     * action in the classic Users table reaches (that path routes
-     * through the `os-open-user-footprint` bridge message;
-     * see § 3 and `bridge-protocol.md`).
-     *
-     */
-    openUserFootprint( args: { userId: number; userName?: string } ): void;
-
-    /**
-     * Register a renderer for a custom entity kind so a plugin
-     * can ship its own section type without patching the bundle.
-     * Pair with a PHP entry in `openstation_my_wordpress_entities`
-     * carrying the same `kind` slug.
-     *
-     * Returns an unregister function.
-     *
-     */
-    registerEntityKind(
-        kind: string,
-        renderer: ( host: EntityRenderHost, entity: MyWordPressEntity ) => void,
-    ): () => void;
-
-    /**
-     * Trash an entity by its WP Explorer entity id (`'posts'`,
-     * `'pages'`, `'users'`, plugin-defined). Resolves when the
-     * REST DELETE succeeds and broadcasts
-     * `os-my-wordpress-entity-trashed` on `document`
-     * so every live list view drops the tile reactively.
-     *
-     * Does NOT show a confirm dialog — that UX layer is the
-     * caller's responsibility. The right-click "Move to Trash"
-     * menu wraps this with its own confirm; the recycle-bin
-     * drag-to-trash calls it directly (macOS pattern: the drag
-     * is the deliberate gesture, no extra confirm).
-     *
-     */
-    trashEntity( entityId: string, id: number ): Promise< void >;
-}
-```
-
-`EntityRenderHost` surfaces just enough state to paint and navigate:
-
-```ts
-interface EntityRenderHost {
-    body: HTMLElement;
-    route: Route;
-    navigate( route: Route ): void;
-    addTeardown( fn: () => void ): void;
-    /**
-     * The section's server-declared preview actions, resolved
-     * against one item and returned as the same ready-made button
-     * row the built-in panes render — or null when none apply.
-     * Runs the full pipeline (section/MIME scoping + the
-     * `os.my-wordpress.preview-actions` filter) in one call.
-     */
-    previewActionRow( args: {
-        item: Record< string, unknown >;
-        mime?: string;
-        surface?: 'pane' | 'context-menu' | 'dblclick';
-    } ): HTMLElement | null;
-}
-```
+- **`openDetail()` / `openMedia()`** → the shared open target: stash the object in the `wp.os.createSharedStore` store keyed **`desktop-mode/my-wordpress/open-target`** (`{ kind: 'detail' | 'media', entityId, id, title, requestedAt }`), then `wp.os.openWindow( 'my-wordpress' )`. The app consumes the pending target on mount and on the store subscription — cold-start safe by construction. In-bundle code imports `openExplorerDetail()` / `openExplorerMedia()` from `src/my-wordpress/explorer-open.ts` instead of writing the store by hand.
+- **`openUserFootprint()`** → unchanged contract, new destination: `openUserFootprintWindow( { userId, userName } )` (`src/my-wordpress/footprint-target.ts`) stashes the person and opens the **app**, whose footprint surface replaced the legacy one 1:1. The classic Users table's row action still rides the `os-open-user-footprint` bridge message into this path.
+- **`trashEntity()`** → rows dragged onto the Recycle Bin carry their section's `restPath` on the shortcut payload, and the bin DELETEs against it directly (`src/my-wordpress/rest-trash.ts`). No API, no window, no config blob.
+- **`registerEntityKind()`** → no replacement by design. The app renders its kinds itself; a plugin adds a section through [`openstation_my_wordpress_app_sections`](./hooks-reference.md#openstation_my_wordpress_app_sections--experimental-filter) and decorates every surface through the `os.my-wordpress.*` seams on this page.
 
 ### Filter — `os.my-wordpress.preview-actions`
 
@@ -6964,126 +6884,36 @@ published and `to-draft` only for one that isn't a draft, so a
 selection holding one of each has neither in common and the menu
 shows only what applies to all of them.
 
-### Filter — `os.my-wordpress.status-bar` (existing)
+### Removed with the legacy window
 
-Already documented above — unchanged, except that `ctx.view` gained a
-`'group'` member for the plugin-folder view described below.
+The legacy bundle's window-internal surfaces went with it and have no
+app equivalent by design:
 
-### Navigation — routes
-
-The window's internal `Route` union drives the breadcrumb and the back
-button. Renderers installed via `registerEntityKind()` receive the
-current route on their host and can navigate to any of these:
-
-```ts
-type Route =
-    | { kind: 'root' }
-    | { kind: 'group'; groupId: string }
-    | { kind: 'list'; entityId: string }
-    | { kind: 'detail'; entityId: string; postId: number; postTitle: string }
-    | { kind: 'sub-list'; entityId: string; postId: number; postTitle: string; relation: SubRelation }
-    | { kind: 'user-footprint'; entityId: string; userId: number; userName: string }
-    | { kind: 'media-detail'; entityId: string; mediaId: number; mediaTitle: string };
-```
-
-`'group'` renders the folder that collects every section sharing a
-`group` id — one per plugin or theme that registered custom post types.
-Its members are the sections whose descriptor carries that id; the
-breadcrumb reads `Site › WooCommerce › Products`, and a grouped
-section's parent route is its group rather than the root.
-
-### Section descriptors — grouping, thumbnails, editing
-
-Entity descriptors reaching the bundle (from
-`openstation_my_wordpress_entities` server-side, or appended in JS)
-carry these optional fields beyond the documented core set:
-
-```ts
-interface MyWordPressEntity {
-    // …id, label, icon, restPath, kind, post_type
-    /** false keeps the section icon on every tile. Default: on. */
-    thumbnails?: boolean;
-    /** Root folder id this section nests under. null → loose at root. */
-    group?: string | null;
-    groupLabel?: string | null;
-    groupIcon?: string | null;
-    groupOrder?: number | null;
-    /**
-     * Extra REST fields to keep on this section's rows — anything
-     * outside the built-in `_fields` set, `editUrl` included. Sent
-     * on list AND detail requests.
-     */
-    listFields?: string[];
-    /** Extra query params sent with this section's list requests. */
-    listQuery?: Record< string, string >;
-    /** `'large'` roughly doubles the icon well. Default `'regular'`. */
-    tileSize?: 'regular' | 'large';
-    /**
-     * Who edits this section's rows. A preview-action id replaces
-     * "Open in editor" everywhere (pane primary button, context-menu
-     * open entry + its bulk fan-out, tile double-click); `false`
-     * removes every edit affordance. Omit for the classic editor.
-     */
-    editAction?: string | false;
-}
-```
-
-`editAction: '<action-id>'` names a descriptor from
-`openstation_my_wordpress_preview_actions`, so the replacement editor
-stays capability-gated and its script auto-enqueues. The named action
-stops rendering in the generic action row/menu (it IS the edit
-affordance now). If the action didn't ship for this user or no JS
-wired its `onSelect`, the edit affordances hide — for a section whose
-type has no editor screen, the classic URL is known-broken. With
-`editAction: false`, double-click navigates into the detail dossier
-instead, and the bulk "Edit…" modal is suppressed; with a string it is
-**kept** — that modal PATCHes over REST (status/author/terms) and
-doesn't touch the classic editor.
-
-Groups from the server and groups derived from entity descriptors are
-**merged**, not either-or: a section appended from JS with a `group` the
-server doesn't know about still gets a folder, slotted by its
-`groupOrder` among the server's. Server-declared groups keep the order
-PHP gave them, so the
-`openstation_my_wordpress_post_type_groups` filter's ordering is
-preserved.
-
-`listQuery` exists so a server-side query filter can tell a site-window
-request from any other REST caller's. `rest_product_query` fires for
-every consumer of that collection — the Product Collection block
-included — so a filter that reorders unconditionally silently replaces
-a storefront's chosen sort.
-
-With `thumbnails` unset or `true`, a `'post'`-kind entry that has a
-featured image renders it in place of the section icon — the list
-request already asks for `_embed=wp:featuredmedia`, so no extra
-request is made. Entries without a featured image fall back to `icon`.
-
-The window config also ships the resolved folder list as
-`groups: MyWordPressGroup[]` (`{ id, label, icon, order }`). When it is
-absent the bundle derives the same list from the entity descriptors, so
-a JS-only plugin can group its sections without a server round trip.
+- **`os.my-wordpress.status-bar`** — the app's status bar is computed
+  by its own view; there is no filter over it.
+- **The `Route` union and `EntityRenderHost`** — the app's navigation
+  is declared state (`section` / `item` / `into` / `relation` /
+  `footprint`), driven by dispatches; there is no client router to
+  hand a plugin.
+- **The `MyWordPressEntity` descriptor extras** (`listFields`,
+  `listQuery`, `tileSize`, `editAction`) — the app's section
+  descriptors (see
+  [`openstation_my_wordpress_app_sections`](./hooks-reference.md#openstation_my_wordpress_app_sections--experimental-filter))
+  carry their facts on the rows directly and order their queries
+  server-side, so none of these fields exist there.
+- **`os-my-wordpress-entity-trashed`** — trashes now broadcast the
+  standard `os.<post-type>.changed` content-change (the Recycle Bin's
+  shortcut drop announces `trashed` with the affected ids), which is
+  also what the app's `watch( '*' )` refreshes on.
 
 ### postMessage / CustomEvents
 
-No new postMessage types. Media drag-out uses the existing
-`'shortcut'` drag payload with `data.kind === 'attachment'`.
-
-One CustomEvent:
-
-#### `os-my-wordpress-entity-trashed` — Experimental
-
-Dispatched on `document` after a
-`wp.os.myWordpress.trashEntity()` REST DELETE succeeds —
-the recycle-bin drag-to-trash routes through it, as does any
-plugin calling the method directly. Live list views (any
-bundle) listen here to drop the trashed tile reactively.
-
-**`detail` shape:**
-
-```typescript
-{ entityId: string, id: number }
-```
+No postMessage types of its own. Drag-out uses the existing
+`'shortcut'` drag payload (`data.kind` is the row's post type or
+`'user'` / `'attachment'`, plus `entityId` and `restPath` for drop
+targets that act on the source). The legacy
+`os-my-wordpress-entity-trashed` CustomEvent is gone — see the
+removal note above.
 
 See [Examples — WP Explorer media action](./examples/my-wordpress-media-action.md).
 
@@ -7454,36 +7284,23 @@ snapshots the transcript before appending the new message.
 
 ### WP Explorer integration
 
-The server appends an `agents` entity (`kind: 'agent'`) to the site
-folder window via the `openstation_my_wordpress_entities` filter,
-and ships an `agents` block on the window config:
+The Agents section lives in the WP Explorer app (`apps/my-wordpress/`)
+— grid, detail panes, create wizard, off-state preview — backed by app
+actions over the same `openstation_agent_*` server functions the REST
+routes wrap. The section's config (`enabled`, `canManage`,
+`canInvoke`, `aiAvailable`, the connector probe, `runWindowId`)
+arrives settled on the app's dispatch payload.
 
-```ts
-interface AgentsSectionConfig {
-	canManage: boolean;   // edit_users (filterable)
-	canInvoke: boolean;   // edit_posts (filterable)
-	aiAvailable: boolean; // WP 7.0 AI Client + Abilities API present
-	aiStatusUrl: string;  // live provider probe (/ai/status)
-	connectorsUrl: string;
-	runWindowId: string;  // 'desktop-mode-agent-run'
-}
-```
-
-The `agent` entity-kind renderer is registered through the standard
-`registerEntityKind()` seam — plugins can override it like any other
-kind.
-
-The **My WordPress app** (`apps/my-wordpress/`) renders the same
-section — grid, detail panes, create wizard, off-state preview —
-inside its own window, backed by app actions instead of the REST
-client. Because the app's bundle cannot reach WP Explorer's
-module-level "Send to" cache, roster mutations are signalled across
-bundles with a `wp.hooks` action:
+The "Send to <agent>" context-menu intake
+(`src/my-wordpress/agents-send-to.ts`) registers the shared
+`os.my-wordpress.tile-context-menu` filter from the app's bundle,
+warms its agent cache from the shell's REST config, and re-warms when
+any bundle signals a roster mutation:
 
 ```ts
 // Fired (by any bundle) after agents are created / edited / deleted.
 wp.hooks.doAction( 'os.agents.roster-changed' );
-// WP Explorer's send-to intake listens and re-warms its agent cache.
+// The send-to intake listens and re-warms its agent cache.
 ```
 
 ### Chat window + shared store

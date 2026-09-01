@@ -60,6 +60,12 @@ function payload( State $state, Os $os ) {
 		$into = 0;
 	}
 	$relation  = (string) $state->get( 'relation' );
+	$fp        = (int) $state->get( 'footprint' );
+	if ( $fp > 0 && false === get_userdata( $fp ) ) {
+		// The person vanished — fall back to the list, not a dead end.
+		$state->set( 'footprint', 0 )->set( 'fpName', '' );
+		$fp = 0;
+	}
 	$is_post   = $section && 'post' === $section['kind'] && empty( $section['flat'] );
 	$is_agents = $section && 'agent' === $section['kind'];
 	$choices   = $is_post ? edit_choices() : array(
@@ -69,6 +75,13 @@ function payload( State $state, Os $os ) {
 	);
 	return array(
 		'siteName'       => (string) get_bloginfo( 'name' ),
+		// For the client-fetched surfaces — the footprint's one
+		// round-trip to `/desktop-mode/v1/user-footprint/<id>`.
+		'restRoot'       => esc_url_raw( rest_url() ),
+		'restNonce'      => (string) wp_create_nonce( 'wp_rest' ),
+		// Whether the agents REST routes exist — gates the "Send to"
+		// menu intake's cache warm-up client-side.
+		'agentsEnabled'  => function_exists( 'openstation_agents_enabled' ) && openstation_agents_enabled(),
 		'sections'       => $with_counts,
 		'groups'         => $group_list,
 		'sortOptions'    => $section
@@ -79,8 +92,8 @@ function payload( State $state, Os $os ) {
 				sort_options( $section )
 			)
 			: (object) array(),
-		'list'           => $section && ! $is_agents && 0 === $into ? fetch( $os, $section, $state ) : null,
-		'detail'         => $section && ! $is_agents && 0 === $into && $item > 0 ? detail( $os, $section, $item ) : null,
+		'list'           => $section && ! $is_agents && 0 === $into && 0 === $fp ? fetch( $os, $section, $state ) : null,
+		'detail'         => $section && ! $is_agents && 0 === $into && 0 === $fp && $item > 0 ? detail( $os, $section, $item ) : null,
 		'agents'         => $is_agents ? agents_payload( $os, $state ) : null,
 		'folder'         => $section && $into > 0 ? folder( $os, $section, $into ) : null,
 		'sub'            => $section && $into > 0 && '' !== $relation ? sub( $os, $section, $into, $relation ) : null,

@@ -328,19 +328,10 @@ const TARGETS = {
 		fileBase: 'posts-window',
 		iifeName: 'openStationPostsWindow',
 	},
-	// "My WordPress" file-explorer window — registers a render
-	// callback on `window.openStationNativeWindows['desktop-mode-my-wordpress']`
-	// and reuses the `<os-*>` tags defined by the main desktop bundle.
-	'my-wordpress': {
-		entry:    'src/my-wordpress/index.ts',
-		fileBase: 'my-wordpress',
-		iifeName: 'openStationMyWordpress',
-	},
-	// WooCommerce integration for the site window — subscribes to the
-	// window's `preview-extras` / `group-extras` actions to paint
-	// merchant panels. Enqueued only when WooCommerce is active, and
-	// deliberately separate from the `my-wordpress` bundle so stores
-	// without WooCommerce ship none of it.
+	// WooCommerce integration for the WP Explorer app — subscribes to
+	// the app's `preview-extras` / `group-extras` actions to paint
+	// merchant panels. Loaded as the app window's companion only when
+	// WooCommerce is active, so stores without it ship none of this.
 	'my-wordpress-woocommerce': {
 		entry:    'src/my-wordpress/integrations/woocommerce.ts',
 		fileBase: 'my-wordpress-woocommerce',

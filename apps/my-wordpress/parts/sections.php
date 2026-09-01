@@ -45,6 +45,9 @@ function sections( Os $os ) {
 			'post_type'  => 'post',
 			'capability' => 'edit_posts',
 			'thumbnails' => true,
+			// So a row dragged onto the Recycle Bin knows which REST
+			// collection its trash call hits — same for every section.
+			'restPath'   => 'wp/v2/posts',
 		),
 		array(
 			'id'         => 'pages',
@@ -54,6 +57,7 @@ function sections( Os $os ) {
 			'post_type'  => 'page',
 			'capability' => 'edit_pages',
 			'thumbnails' => true,
+			'restPath'   => 'wp/v2/pages',
 		),
 		array(
 			'id'         => 'media',
@@ -109,6 +113,9 @@ function sections( Os $os ) {
 				'groupLabel' => $group ? (string) $group['label'] : null,
 				'groupIcon'  => $group ? (string) $group['icon'] : null,
 				'groupOrder' => $group ? (int) $group['order'] : null,
+				'restPath'   => function_exists( 'openstation_my_wordpress_post_type_rest_path' )
+					? (string) openstation_my_wordpress_post_type_rest_path( $post_type )
+					: '',
 			);
 			$sections[] = woo_decorate_section( $entry, $post_type );
 		}

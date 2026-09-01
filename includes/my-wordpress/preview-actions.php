@@ -34,7 +34,7 @@
  *
  * Timing: descriptors are re-collected when the window config is
  * serialized for the browser (see
- * `openstation_my_wordpress_refresh_window_config()`), the same late
+ * the explorer app's per-dispatch payload), the same late
  * pass that enqueues declared `script` handles — registering the
  * filter any time during a normal bootstrap is fine.
  *
