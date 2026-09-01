@@ -74,6 +74,13 @@ export const stepStyles = css`
 		justify-content: center;
 		width: var( --os-ui-step-chip-size, 28px );
 		height: var( --os-ui-step-chip-size, 28px );
+		/* The chip size is the size of the CIRCLE, border included.
+		   Without this the outline variant below draws its 1px outside
+		   the box, so an unreached step comes out 2px wider and taller
+		   than the filled one beside it and its whole row grows with
+		   it. With the default border of 0 the two box models agree,
+		   so this changes nothing for a trail that has not opted in. */
+		box-sizing: border-box;
 		border-radius: 50%;
 		/*
 		 * The step number sits on a bright fill, which is exactly the

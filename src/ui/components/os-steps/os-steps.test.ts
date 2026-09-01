@@ -11,6 +11,7 @@
  */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import './os-steps';
+import { stepStyles } from './os-steps.styles';
 
 const tick = (): Promise< void > => Promise.resolve();
 
@@ -50,5 +51,22 @@ describe( '<os-steps> + <os-step>', () => {
 		await tick();
 		const step = host.querySelector( 'os-step' )!;
 		expect( step.hasAttribute( 'done' ) ).toBe( true );
+	} );
+
+	/*
+	 * A source assertion rather than a layout one, for the reason the
+	 * file header gives: jsdom has no style engine. It is worth having
+	 * anyway because the failure it guards is invisible in code review.
+	 *
+	 * `--os-ui-step-chip-border` is the hook a trail uses to draw its
+	 * unreached steps as outlines. Under `content-box` that border
+	 * lands OUTSIDE the declared chip size, so an outlined chip comes
+	 * out 2px wider and taller than the filled one next to it and its
+	 * whole row grows with it — a trail where the step you are on is
+	 * smaller than the ones you have not reached.
+	 */
+	test( 'the chip sizes border-box, so an outlined chip matches a filled one', () => {
+		// Whitespace-tolerant: the source is spaced, a minified build is not.
+		expect( stepStyles.cssText ).toMatch( /box-sizing:\s*border-box/ );
 	} );
 } );
