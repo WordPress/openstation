@@ -115,6 +115,7 @@
 .os-mywp__search {
 	padding: 10px 14px;
 	flex: 0 0 auto;
+	border-block-end: 1px solid var( --os-ui-border, #dcdcde );
 }
 
 .os-mywp__search os-text-field {
