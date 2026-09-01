@@ -4,6 +4,9 @@
  * The selected Imagegen direction sets the hierarchy and proportion. This
  * stylesheet translates it to live, theme-aware DOM: one identity mesh, no
  * card shadows, generous editorial rhythm, and a compact top-band fallback.
+ *
+ * Loaded by the App Framework as the app's stylesheet (`<app dir>/
+ * station-home.css`), on the window's first open.
  */
 
 .desktop-mode-station-home {
@@ -27,10 +30,6 @@
 	inline-size: 100%;
 	min-block-size: 0;
 	min-inline-size: 0;
-}
-
-.desktop-mode-station-home [hidden] {
-	display: none !important;
 }
 
 .os-station-home__rail {
@@ -275,15 +274,6 @@ os-button.os-station-home__action:hover {
 	flex: 0 0 auto;
 	--os-ui-button-padding: 10px;
 	--os-ui-button-min-height: 44px;
-}
-
-.os-station-home__error {
-	margin-block-end: 28px;
-	padding: 12px 14px;
-	border-inline-start: 3px solid var( --os-ui-danger, #ff8585 );
-	background: color-mix( in srgb, var( --os-ui-danger, #ff8585 ) 8%, transparent );
-	color: var( --os-ui-fg, #fffbff );
-	font-size: 14px;
 }
 
 .os-station-home__section + .os-station-home__section {
@@ -657,19 +647,6 @@ a.os-station-home__card:focus-visible {
 .os-station-home__card-preferences > os-switch {
 	padding: 14px;
 	background: var( --os-ui-surface, #1a1721 );
-}
-
-.os-station-home__loading {
-	position: absolute;
-	z-index: 3;
-	inset: 0;
-	display: grid;
-	place-content: center;
-	justify-items: center;
-	gap: 12px;
-	background: color-mix( in srgb, var( --os-ui-bg, #1a1721 ) 92%, transparent );
-	color: var( --os-ui-fg-muted, #b3afb5 );
-	font-size: 13px;
 }
 
 @container station-home ( max-width: 820px ) {

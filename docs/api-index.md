@@ -161,7 +161,7 @@ Windows declared in PHP as `.os.php` files — [`app-framework.md`](./app-framew
 | `apps.debug` | `( windowId?: string, on?: boolean ) => void` — per-window dispatch trace in the console (`'*'` = every app window) | Experimental |
 | `apps.defineApp` / `apps.html` / i18n + list/format helpers | The client-view API mirrored at runtime for third-party client views; before the runtime loads, queue via `( window.openStationAppsPending ??= [] ).push( ( api ) => … )` — see [`app-framework.md`](./app-framework.md) | Experimental |
 
-PHP side: `App::define( $id )` fluent definition (`state`, `action` — with `mount` / `set` / `refresh` built in — `view`, `tab`, `title_bar_button`, `window_action`, `on_channel`, `theme` / `controls` / `slot`, `desktop_icon`), the `$os` handle (`auth`, `settings`, `hooks`, `cache`, `env`, `storage`, `param()`, `stored()` / `store()`, the statics `Os::page()` / `Os::facts()`, and the effects `toast` / `title` / `close` / `open` / `open_url` / `badge` / `icon` / `announce` / `menu` / `send`), `openstation_app( $id )`, `openstation_app_render( $id, $state )`, filters `openstation_apps_directories` / `openstation_app_manifest` / `openstation_app_window_args` / `openstation_app_response`, actions `openstation_apps_loaded` / `openstation_app_registered`, route `POST desktop-mode/v1/apps/<id>/dispatch` — all in [`app-framework.md`](./app-framework.md) and [`hooks-reference.md` → App Framework](./hooks-reference.md#app-framework).
+PHP side: `App::define( $id )` fluent definition (`state`, `action` — with `mount` / `set` / `refresh` built in — `view`, `tab`, `title_bar_button`, `window_action`, `on_channel`, `theme` / `controls` / `slot`, `desktop_icon`), the `$os` handle (`auth`, `settings`, `hooks`, `cache`, `env`, `storage`, `param()`, `stored()` / `store()`, the statics `Os::page()` / `Os::facts()`, and the effects `toast` / `title` / `close` / `open` / `open_url( $url, $title, $icon )` / `badge` / `icon` / `announce` / `menu` / `send`), `openstation_app( $id )`, `openstation_app_render( $id, $state )`, filters `openstation_apps_directories` / `openstation_app_manifest` / `openstation_app_window_args` / `openstation_app_response`, actions `openstation_apps_loaded` / `openstation_app_registered`, route `POST desktop-mode/v1/apps/<id>/dispatch` — all in [`app-framework.md`](./app-framework.md) and [`hooks-reference.md` → App Framework](./hooks-reference.md#app-framework).
 
 ### Files on the desktop
 
@@ -246,11 +246,12 @@ native window, all hanging off WP Explorer. Index:
 |---|---|---|
 | `openstation_register_station_home_card` | `( string $id, array $args ) => true|WP_Error` | Experimental |
 | `openstation_unregister_station_home_card` | `( string $id ) => bool` | Experimental |
+| `openstation_station_home_set_card_preference` | `( int $user_id, string $id, bool $enabled ) => bool` | Experimental |
 | `openstation_station_home_cards` | `( array $cards, int $user_id ) => array` | Experimental |
 | `openstation_station_home_card_data` | `( array $data, string $id, array $entry, int $user_id ) => array` | Experimental |
 | card lifecycle actions | registered, preference-updated, callback-error | Experimental |
 
-See [`station-home.md`](./station-home.md#plugin-cards) and the [complete plugin recipe](./examples/station-home-card.md).
+See [`station-home.md`](./station-home.md#plugin-cards) and the [complete plugin recipe](./examples/station-home-card.md). Station Home itself is an App Framework app (window id `desktop-mode-dashboard`); it has no REST routes of its own — see [`migration-station-home-app.md`](./migration-station-home-app.md).
 
 ## CustomEvents on `document`
 

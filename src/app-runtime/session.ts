@@ -494,6 +494,7 @@ export function createSession( deps: SessionDeps ): Session {
 				host.openUrl?.(
 					String( ( effect as { url: string } ).url ),
 					String( ( effect as { title?: string } ).title ?? '' ),
+					String( ( effect as { icon?: string } ).icon ?? '' ),
 				);
 				return;
 			case 'badge':

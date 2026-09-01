@@ -34,7 +34,7 @@ Drop that file in a directory the framework scans (see [Where apps live](#where-
 
 An app has two possible halves. The **`.os.php`** is always there: the window, the state schema, the server actions, the data. A **server view** (`->view()`) paints the body in PHP and re-renders it on every interaction — the right shape for forms, settings, dashboards, lists with actions. When an interaction must be instant — a filter over rows already in the browser — the app adds a **client view**, a **`.os.ts`** beside the `.os.php`, and the same state model moves into the browser: see [The client view](#the-client-view--osts). Either way the window, its chrome, its effects and its dispatch contract are identical.
 
-The shipped app is **Code Blue** — `apps/code-blue/` — the error-log reader, rebuilt from a PHP module plus a 1,726-line TypeScript bundle into an `.os.php` (window, actions, data) and an `.os.ts` (the body, with range / search / sort / legend / expand running locally). Same features, under half the lines, and every filter is instant. Read it after this page.
+Four of OpenStation's own windows are apps. **Code Blue** — `apps/code-blue/` — is the error-log reader, rebuilt from a PHP module plus a 1,726-line TypeScript bundle into an `.os.php` (window, actions, data) and an `.os.ts` (the body, with range / search / sort / legend / expand running locally): same features, under half the lines, every filter instant. **Station Home** — `apps/station-home/` — is the native Dashboard, and the one to read for the *server* view: an `.os.php`, a snapshot model and a body painted in PHP, no client script at all — Refresh is the built-in, the Customize picker is one state key, a switch is an action, a restore is the `show` lifecycle. Read one of them after this page.
 
 ---
 
@@ -210,7 +210,7 @@ Every callback receives an `OpenStation\App\Os`. It is the app's entire view of 
 | `$os->app_id`, `$os->view` | Which app and which view (`main` or a tab slug) is being dispatched |
 | `$os->can()`, `$os->preference()`, `$os->filter()`, `$os->action()`, `$os->remember( $key, $ttl, $compute )` | Sugar over the contracts. `can()` takes a meta-capability's object too — `$os->can( 'delete_post', $id )` forwards to `current_user_can()`; the standalone adapter answers from the capability name alone. |
 | `$os->stored( $key, $fallback, $scope = 'user' )`, `$os->store( $key, $value, $scope )`, `$os->forget( $key, $scope )` | Durable storage, keys namespaced by app id |
-| `$os->toast()`, `->title()`, `->close()`, `->open( $window_id )`, `->open_url( $url, $title )`, `->badge( $count )`, `->icon( $art )`, `->announce( $type, $action, $ids )`, `->menu( $items )`, `->send( $channel, $payload )` | **Effects** — things the shell does after the morph (below) |
+| `$os->toast()`, `->title()`, `->close()`, `->open( $window_id )`, `->open_url( $url, $title, $icon )`, `->badge( $count )`, `->icon( $art )`, `->announce( $type, $action, $ids )`, `->menu( $items )`, `->send( $channel, $payload )` | **Effects** — things the shell does after the morph (below) |
 | `Os::page( $items, $total, $page, $per_page )` | The paged-list envelope (`items` / `total` / `pages` / `page` / `perPage`) — the one shape the client runtime's page accumulation understands. Build every list-shaped `data()` key with it. |
 | `Os::facts( $rows )` | Keep only the `array( label, value, tag? )` rows whose value is non-empty, reindexed — the detail-pane facts idiom. |
 
@@ -226,7 +226,7 @@ This is the decoupling: the framework core (`includes/framework/` minus `wordpre
 | `$os->title( $title )` | Retitles the window |
 | `$os->close()` | Closes the window |
 | `$os->open( $window_id )` | Opens or focuses another native window |
-| `$os->open_url( $url, $title )` | Opens an admin URL in an iframe window (an edit screen, a settings page) |
+| `$os->open_url( $url, $title, $icon )` | Opens an admin URL in an iframe window (an edit screen, a settings page). `$title` defaults to the page's own; `$icon` (a Dashicons class or image URL) to the shell's generic glyph |
 | `$os->badge( $count )` | Sets (0 clears) the badge on the app's dock tile and desktop icon |
 | `$os->icon( $art )` | Swaps the art on every rail hosting the app's tile — dock, taskbar, desktop icon. State-driven icons (the Trash app's empty/full bin); `$art` is an SVG data URI or image URL. Client views can also swap imperatively via `ctx.host.setIcon( appId, art )` — the Trash app does, from `updated()`, with both drawings shipped once through `App::config()` |
 | `$os->announce( $type, $action, $ids )` | `wp.os.announceContentChange` — every window showing that content refreshes |
@@ -478,7 +478,9 @@ src/app-runtime/                the client runtime (bindings, morph, session, en
 src/app-runtime/client.ts       what an .os.ts imports as @openstation/app: defineApp(), html, i18n
 assets/css/app-runtime.css      the mount root + first-paint spinner
 assets/js/apps/<name>[.min].js  built client views (npm run build:apps)
-apps/code-blue/                 the shipped app: code-blue.os.php + code-blue.os.ts + log-reader.php + code-blue.css
+apps/code-blue/                 code-blue.os.php + code-blue.os.ts + log-reader.php + code-blue.css — the client-view reference
+apps/station-home/              station-home.os.php + parts/{snapshot,view}.php + station-home.css — the server-view reference
+apps/my-wordpress/, apps/trash/ the WP Explorer and Recycle Bin apps
 ```
 
-Tests: `tests/phpunit/tests/appFramework.php`, `tests/phpunit/tests/codeBlue.php`, `tests/vitest/app-runtime-*.test.ts`.
+Tests: `tests/phpunit/tests/appFramework.php`, `tests/phpunit/tests/codeBlue.php`, `tests/phpunit/tests/stationHomeApp.php`, `tests/vitest/app-runtime-*.test.ts`.

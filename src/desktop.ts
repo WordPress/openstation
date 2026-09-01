@@ -32,7 +32,7 @@ import {
 	tryNativeUrlRemap,
 } from './native-url-remap';
 import type { NativeUrlRemap } from './native-url-remap';
-import { matchesStationHomeUrl } from './station-home/model';
+import { matchesStationHomeUrl } from './open-targets/station-home-url';
 import { bindAdminLinkDispatch } from './window/iframe-bridge';
 import type { DestructiveAdminActionEntry } from './destructive-admin-actions';
 // Tile-decoration helpers and the dock-selector registry live in

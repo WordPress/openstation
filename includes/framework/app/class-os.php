@@ -379,10 +379,11 @@ final class Os {
 	 *
 	 * @param string $url   Admin URL.
 	 * @param string $title Title.
+	 * @param string $icon  Icon (Dashicons class or image URL).
 	 * @return self
 	 */
-	public function open_url( $url, $title = '' ) {
-		$this->effects->open_url( $url, $title );
+	public function open_url( $url, $title = '', $icon = '' ) {
+		$this->effects->open_url( $url, $title, $icon );
 		return $this;
 	}
 

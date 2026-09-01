@@ -162,7 +162,7 @@ openstation_register_station_home_card( 'my-plugin-orders', array(
 ) );
 ```
 
-`label` and a callable `callback` are required. IDs must already be `sanitize_key()`-clean. `default_enabled` defaults to `false`, making first use an explicit opt-in; a plugin may set it to `true`, after which the user can opt out. Supported callback fields are `value`, `detail`, `url`, `action_label`, `external`, and `tone` (`neutral|info|success|warning|danger`). Returning `WP_Error` or a non-array omits the card for that snapshot. `openstation_unregister_station_home_card( $id )` removes a registration.
+`label` and a callable `callback` are required. IDs must already be `sanitize_key()`-clean. `default_enabled` defaults to `false`, making first use an explicit opt-in; a plugin may set it to `true`, after which the user can opt out. Supported callback fields are `value`, `detail`, `url`, `action_label`, `external`, and `tone` (`neutral|info|success|warning|danger`). Returning `WP_Error` or a non-array omits the card for that render. `openstation_unregister_station_home_card( $id )` removes a registration; `openstation_station_home_set_card_preference( $user_id, $id, $enabled )` stores a user's explicit choice (refusing ids not registered for the current user) and is what the app's Customize switches call.
 
 Returns `true` or `WP_Error` (`openstation_invalid_station_home_card_id`, `openstation_missing_label`, `openstation_invalid_callback`, or `openstation_capability_denied`). Full recipe: [`examples/station-home-card.md`](./examples/station-home-card.md).
 
@@ -1002,7 +1002,7 @@ apply_filters( 'openstation_station_home_cards', array $cards, int $user_id ): a
 apply_filters( 'openstation_station_home_card_data', array $data, string $id, array $entry, int $user_id ): array;
 ```
 
-`openstation_station_home_cards` filters the registration map before capability-safe metadata becomes the user's picker. Add, remove, reorder, or replace entries using the same shape accepted by `openstation_register_station_home_card()`. `openstation_station_home_card_data` filters an enabled card's callback result immediately before its values are sanitized for the REST snapshot.
+`openstation_station_home_cards` filters the registration map before capability-safe metadata becomes the user's picker. Add, remove, reorder, or replace entries using the same shape accepted by `openstation_register_station_home_card()`. `openstation_station_home_card_data` filters an enabled card's callback result immediately before its values are sanitized for the render.
 
 ---
 

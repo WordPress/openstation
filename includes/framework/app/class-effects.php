@@ -79,14 +79,17 @@ final class Effects {
 	 *
 	 * @param string $url   Admin URL.
 	 * @param string $title Window title; the page's own title when ''.
+	 * @param string $icon  Window icon (a Dashicons class or an image
+	 *                      URL); the shell's generic glyph when ''.
 	 * @return self
 	 */
-	public function open_url( $url, $title = '' ) {
+	public function open_url( $url, $title = '', $icon = '' ) {
 		return $this->add(
 			'open_url',
 			array(
 				'url'   => (string) $url,
 				'title' => (string) $title,
+				'icon'  => (string) $icon,
 			)
 		);
 	}

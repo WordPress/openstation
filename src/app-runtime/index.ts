@@ -96,7 +96,7 @@ function buildHost(): RuntimeHost {
 		openWindow: ( id ) => {
 			api?.openWindow( id );
 		},
-		openUrl: ( url, title ) => {
+		openUrl: ( url, title, icon ) => {
 			if ( ! api ) {
 				return;
 			}
@@ -106,7 +106,7 @@ function buildHost(): RuntimeHost {
 				baseId: id,
 				url,
 				title: title || url,
-				icon: 'dashicons-admin-generic',
+				icon: icon || 'dashicons-admin-generic',
 			} );
 		},
 		setBadge: ( appId, count ) => {

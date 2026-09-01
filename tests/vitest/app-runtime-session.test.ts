@@ -200,7 +200,7 @@ describe( 'createSession', () => {
 	it( 'performs the shell-side effects: open_url, badge, icon, announce, send, menu', async () => {
 		const h = harness();
 		const log: unknown[] = [];
-		h.host.openUrl = ( url, title ) => log.push( [ 'url', url, title ] );
+		h.host.openUrl = ( url, title, icon ) => log.push( [ 'url', url, title, icon ] );
 		h.host.setBadge = ( id, count ) => log.push( [ 'badge', id, count ] );
 		h.host.setIcon = ( id, art ) => log.push( [ 'icon', id, art ] );
 		h.host.announce = ( type, action, ids ) => log.push( [ 'announce', type, action, ids ] );
@@ -216,7 +216,7 @@ describe( 'createSession', () => {
 			effects:
 				sent.action === 'first'
 					? [
-						{ type: 'open_url', url: 'post.php?post=1', title: 'Edit' },
+						{ type: 'open_url', url: 'post.php?post=1', title: 'Edit', icon: 'dashicons-edit' },
 						{ type: 'badge', count: 3 },
 						{ type: 'icon', icon: 'data:image/svg+xml;base64,FULL' },
 						{ type: 'announce', contentType: 'post', action: 'updated', ids: [ 1 ] },
@@ -229,7 +229,7 @@ describe( 'createSession', () => {
 		await h.session.dispatch( 'first' );
 		await flush();
 		expect( log ).toEqual( [
-			[ 'url', 'post.php?post=1', 'Edit' ],
+			[ 'url', 'post.php?post=1', 'Edit', 'dashicons-edit' ],
 			[ 'badge', 'demo', 3 ],
 			[ 'icon', 'demo', 'data:image/svg+xml;base64,FULL' ],
 			[ 'announce', 'post', 'updated', [ 1 ] ],
