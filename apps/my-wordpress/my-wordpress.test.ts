@@ -209,14 +209,18 @@ describe( 'buildMenuOptions', () => {
 } );
 
 describe( 'view', () => {
-	function mount( s: AppState, d: AppData ): HTMLElement {
+	function mount(
+		s: AppState,
+		d: AppData,
+		dispatch: ( action: string, args?: Record< string, unknown > ) => Promise< boolean > = async () => true,
+	): HTMLElement {
 		const root = document.createElement( 'div' );
 		document.body.appendChild( root );
 		app.render( {
 			state: s,
 			data: d,
 			root,
-			dispatch: async () => true,
+			dispatch,
 			local: () => undefined,
 		} );
 		return root;
@@ -413,6 +417,20 @@ describe( 'view', () => {
 		expect( mask ).not.toBeNull();
 		expect( mask?.getAttribute( 'style' ) ).toContain( '--mywp-icon:url' );
 		expect( root.querySelector( 'img.os-mywp__icon-img' ) ).toBeNull();
+	} );
+
+	it( 'folder tiles are Finder-style: single click selects, double click navigates', () => {
+		const calls: string[] = [];
+		const root = mount( state(), data(), async ( action ) => {
+			calls.push( action );
+			return true;
+		} );
+		const tile = root.querySelector< HTMLElement >( '.os-mywp__tile' );
+		// A single click never navigates.
+		tile?.dispatchEvent( new MouseEvent( 'click', { bubbles: true } ) );
+		expect( calls ).toEqual( [] );
+		tile?.dispatchEvent( new MouseEvent( 'dblclick', { bubbles: true } ) );
+		expect( calls ).toEqual( [ 'go' ] );
 	} );
 
 	it( 'renders the breadcrumb trail as links behind the current segment', () => {

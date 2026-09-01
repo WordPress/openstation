@@ -128,6 +128,12 @@
 	background: var( --os-ui-surface-raised, rgba( 0, 0, 0, 0.05 ) );
 }
 
+.os-mywp__tile.is-selected {
+	background: var( --os-ui-selection-bg, rgba( 34, 113, 177, 0.14 ) );
+	outline: 1px solid var( --os-ui-accent, #2271b1 );
+	outline-offset: -1px;
+}
+
 .os-mywp__tile-icon.dashicons {
 	inline-size: 40px;
 	block-size: 40px;

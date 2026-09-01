@@ -219,6 +219,12 @@ function shell(): OsShell {
 interface UiState {
 	/** Open context menu — on an item, or (item null) on the canvas. */
 	menu: { x: number; y: number; item: ListItem | null } | null;
+	/**
+	 * Finder-style visual selection on the folder canvases (root
+	 * sections, groups, relation folders): single click selects,
+	 * double click navigates.
+	 */
+	folderSel: string | null;
 	/** The Edit… quick-edit modal: which items, and the picked values. */
 	quickEdit: {
 		ids: number[];
@@ -260,6 +266,7 @@ function uiOf( root: HTMLElement ): UiState {
 	if ( ! ui ) {
 		ui = {
 			menu: null,
+			folderSel: null,
 			quickEdit: null,
 			zoom: false,
 			loadingMore: false,
@@ -446,29 +453,56 @@ function renderRoot( ctx: Ctx ): TemplateResult {
 				.filter( ( s ) => s.group === g.id )
 				.reduce( ( sum, s ) => sum + s.count, 0 ),
 		} ) );
+	const ui = uiOf( ctx.root );
+	// Finder semantics, like WP Explorer's root: a single click only
+	// SELECTS the folder tile; double click (or Enter) navigates in.
+	const folderTile = (
+		key: string,
+		label: string,
+		icon: string,
+		count: number,
+		go: () => void,
+	): TemplateResult => html`
+		<button
+			type="button"
+			class="os-mywp__tile ${ ui.folderSel === key ? 'is-selected' : '' }"
+			aria-pressed=${ ui.folderSel === key ? 'true' : 'false' }
+			@click=${ () => {
+				ui.folderSel = key;
+				ctx.local( 'repaint' );
+			} }
+			@dblclick=${ () => {
+				ui.folderSel = null;
+				go();
+			} }
+			@keydown=${ ( e: KeyboardEvent ) => {
+				if ( e.key === 'Enter' ) {
+					e.preventDefault();
+					ui.folderSel = null;
+					go();
+				}
+			} }
+		>
+			${ glyph( icon, 'os-mywp__tile-icon' ) }
+			<span class="os-mywp__tile-label">${ label } · ${ count }</span>
+		</button>
+	`;
 	return html`
 		<div class="os-mywp__root" role="list">
-			${ loose.map( ( s ) => html`
-				<button
-					type="button"
-					class="os-mywp__tile"
-					data-section-id=${ s.id }
-					@click=${ () => void ctx.dispatch( 'go', { group: inGroup, section: s.id } ) }
-				>
-					${ glyph( s.icon, 'os-mywp__tile-icon' ) }
-					<span class="os-mywp__tile-label">${ s.label } · ${ s.count }</span>
-				</button>
-			` ) }
-			${ folders.map( ( g ) => html`
-				<button
-					type="button"
-					class="os-mywp__tile"
-					@click=${ () => void ctx.dispatch( 'go', { group: g.id } ) }
-				>
-					${ glyph( g.icon, 'os-mywp__tile-icon' ) }
-					<span class="os-mywp__tile-label">${ g.label } · ${ g.count }</span>
-				</button>
-			` ) }
+			${ loose.map( ( s ) => folderTile(
+				`section:${ s.id }`,
+				s.label,
+				s.icon,
+				s.count,
+				() => void ctx.dispatch( 'go', { group: inGroup, section: s.id } ),
+			) ) }
+			${ folders.map( ( g ) => folderTile(
+				`group:${ g.id }`,
+				g.label,
+				g.icon,
+				g.count,
+				() => void ctx.dispatch( 'go', { group: g.id } ),
+			) ) }
 		</div>
 	`;
 }
@@ -869,7 +903,7 @@ function renderMenu( ctx: Ctx, section: SectionDef ): TemplateResult | '' {
 		<os-context-menu
 			open
 			class="os-mywp__menu"
-			style="position:fixed;left:${ x }px;top:${ y }px;"
+			style="position:fixed;left:${ x }px;top:${ y }px;visibility:hidden"
 			@os-context-menu-pick=${ pick }
 		>
 			${ item
@@ -920,7 +954,17 @@ function renderFolder( ctx: Ctx ): TemplateResult {
 									ref=${ sub.relation }
 									label=${ `${ sub.label } · ${ sub.count }` }
 									icon=${ sub.icon }
-									@click=${ () => ! sub.disabled && void ctx.dispatch( 'relation', { relation: sub.relation } ) }
+									?selected=${ uiOf( ctx.root ).folderSel === `relation:${ sub.relation }` }
+									@click=${ () => {
+										uiOf( ctx.root ).folderSel = `relation:${ sub.relation }`;
+										ctx.local( 'repaint' );
+									} }
+									@dblclick=${ () => {
+										if ( ! sub.disabled ) {
+											uiOf( ctx.root ).folderSel = null;
+											void ctx.dispatch( 'relation', { relation: sub.relation } );
+										}
+									} }
 								></os-tile>
 							</span>
 						</div>
@@ -1725,6 +1769,28 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 				},
 				{ passive: true },
 			);
+		}
+		// The context menu paints hidden, then is measured, clamped
+		// inside the viewport and revealed in one frame — the shell's
+		// own placement pattern. Without the hidden frame the menu's
+		// unclamped first paint flashes at the raw pointer position
+		// before jumping into place.
+		const menuEl = ctx.root.querySelector< HTMLElement >( 'os-context-menu.os-mywp__menu' );
+		if ( menuEl && ui.menu ) {
+			requestAnimationFrame( () => {
+				if ( ! menuEl.isConnected ) {
+					return;
+				}
+				const rect = menuEl.getBoundingClientRect();
+				const margin = 8;
+				if ( rect.right > window.innerWidth ) {
+					menuEl.style.left = `${ Math.max( margin, window.innerWidth - rect.width - margin ) }px`;
+				}
+				if ( rect.bottom > window.innerHeight ) {
+					menuEl.style.top = `${ Math.max( margin, window.innerHeight - rect.height - margin ) }px`;
+				}
+				menuEl.style.visibility = 'visible';
+			} );
 		}
 		// A list shorter than the viewport can never be scrolled, so the
 		// scroll-gesture re-arm would deadlock it at one page: while the
