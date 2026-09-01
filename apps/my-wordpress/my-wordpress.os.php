@@ -9,41 +9,34 @@
  * and every repaint are instant. `watch( '*' )` repaints the window
  * whenever any other window changes any content.
  *
- * THIS file is deliberately just the composition: the window's
- * declaration, its state schema, and the wiring of actions to their
- * handlers. The substance lives in focused parts beside it (plain
- * `.php` on purpose — only `*.os.php` files are app entries to the
- * framework loader; see "Splitting a large app" in
- * `docs/app-framework.md`):
- *
- *   parts/sections.php  What the explorer OFFERS — the section
- *                       registry (builtins + discovered CPTs with
- *                       their plugin-group folders + Agents), sorts.
- *   parts/lists.php     What a section CONTAINS — the queries, the
- *                       counts, per-item authorization, the dossier.
- *   parts/dossiers.php  What a post OPENS INTO — relation folders,
- *                       sub-lists, the stats panes, edit choices,
- *                       preview actions.
- *   parts/actions.php   What a dispatch DOES — navigation and the
- *                       content mutations.
- *   parts/agents.php    The Agents section — payload + mutations.
- *   parts/woocommerce.php The WooCommerce surface — the Orders and
- *                       Customers sections, band-ordered queries,
- *                       per-row shop facts. Inert without WooCommerce.
- *   parts/payload.php   The data payload, one function.
+ * THIS file is deliberately just the composition: the declaration,
+ * the state schema, and the wiring of actions to their handlers. The
+ * substance lives in focused parts beside it (plain `.php` on purpose
+ * — only `*.os.php` files are app entries to the framework loader;
+ * see "Splitting a large app" in `docs/app-framework.md`):
+ * sections.php (what the explorer OFFERS — builtins + discovered CPTs
+ * with plugin-group folders + Agents, sorts), lists.php (what a
+ * section CONTAINS — queries, counts, per-item authorization, the
+ * dossier), dossiers.php (what a post OPENS INTO — relation folders,
+ * sub-lists, stats panes, edit choices, preview actions), actions.php
+ * (what a dispatch DOES), agents.php (the Agents payload +
+ * mutations), woocommerce.php (Orders + Customers, inert without
+ * WooCommerce), payload.php (the data payload, one function).
  *
  * Plugin surfaces are shared with the original explorer, not forked:
  * CPT discovery honours `openstation_my_wordpress_post_types` /
- * `_post_type_entity` / `_post_type_groups`, the preview-action
+ * `_post_type_entity` / `_post_type_groups`; the preview-action
  * pipeline consumes the same `openstation_my_wordpress_preview_actions`
- * descriptors and the same `os.my-wordpress.preview-actions` JS
- * filter, and the Agents section runs through the same
- * `openstation_agent_*` store, draft, identity and catalogue
- * functions the `/desktop-mode/v1/agents` routes wrap. This app IS
- * WP Explorer now — the legacy window (`desktop-mode-my-wordpress`)
- * is gone, and the app carries its name, its icon, its pinned
- * launcher slot, and every one of its surfaces (`parts/footprint.ts`
- * holds the last one to move in, the activity footprint).
+ * descriptors and `os.my-wordpress.preview-actions` JS filter; the
+ * Agents section runs through the same `openstation_agent_*` store,
+ * draft, identity and catalogue functions the `/desktop-mode/v1/agents`
+ * routes wrap. This app IS WP Explorer now — the legacy window
+ * (`desktop-mode-my-wordpress`) is gone, and the app carries its
+ * name, icon, pinned launcher slot, and every surface.
+ *
+ * (Header kept short on purpose: Plugin Check's direct-access scan
+ * reads only the first 50 raw lines, and the guard below must land
+ * inside that window — it cannot precede the `namespace` statement.)
  *
  * @package OpenStation
  */
