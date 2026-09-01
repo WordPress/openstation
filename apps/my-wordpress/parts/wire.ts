@@ -391,13 +391,21 @@ function pluginSeamsAfterRender( ctx: Ctx ): void {
 		if ( ! item ) {
 			continue;
 		}
-		hooks.doAction( 'os.my-wordpress.preview-extras', {
-			slot,
-			container: host,
-			entityId: section.id,
-			kind: section.kind,
-			item,
-		} );
+		try {
+			hooks.doAction( 'os.my-wordpress.preview-extras', {
+				slot,
+				container: host,
+				entityId: section.id,
+				kind: section.kind,
+				item,
+			} );
+		} catch ( err ) {
+			// Plugin code — contained. One throwing subscriber must not
+			// take the other slots (or the rest of the render wiring)
+			// down with it.
+			// eslint-disable-next-line no-console
+			console.error( '[my-wordpress] a preview-extras subscriber threw.', err );
+		}
 	}
 
 	// --- list-tile ----------------------------------------------------
@@ -411,12 +419,18 @@ function pluginSeamsAfterRender( ctx: Ctx ): void {
 			continue;
 		}
 		tile.dataset.mywpDecorated = String( id );
-		hooks.doAction( 'os.my-wordpress.list-tile', {
-			tile,
-			entityId: section.id,
-			kind: section.kind,
-			item,
-		} );
+		try {
+			hooks.doAction( 'os.my-wordpress.list-tile', {
+				tile,
+				entityId: section.id,
+				kind: section.kind,
+				item,
+			} );
+		} catch ( err ) {
+			// Plugin code — contained, per tile.
+			// eslint-disable-next-line no-console
+			console.error( '[my-wordpress] a list-tile subscriber threw.', err );
+		}
 	}
 }
 
@@ -426,8 +440,6 @@ export function afterRender( ctx: Ctx ): void {
 	// Agents wiring: drop targets, drag-out, the face backfill, the
 	// roster signal, the create-then-chat hand-off.
 	agentsAfterRender( ctx );
-	// WP Explorer's preview-extras + list-tile seams over the new DOM.
-	pluginSeamsAfterRender( ctx );
 	// Re-aim the infinite-scroll observer at the freshly rendered
 	// sentinel — the morph may have replaced the element.
 	ui.observer?.disconnect();
@@ -504,6 +516,10 @@ export function afterRender( ctx: Ctx ): void {
 			}
 		}
 	}
+	// WP Explorer's preview-extras + list-tile seams over the new DOM —
+	// LAST, so a throwing subscriber can never break the app's own
+	// wiring above (each fire is also try/caught individually).
+	pluginSeamsAfterRender( ctx );
 }
 
 /**

@@ -458,6 +458,14 @@ describe( 'view', () => {
 			},
 			doAction: ( hook: string, payload: Record< string, unknown > ) => {
 				fired.push( { hook, payload } );
+				// Do what the AllTerrain Work handler does: append DOM
+				// into the slot the moment it fires.
+				if ( hook === 'os.my-wordpress.preview-extras' && payload.slot === 'meta' ) {
+					const block = document.createElement( 'div' );
+					block.className = 'atwork-preview';
+					block.textContent = 'State: Active';
+					( payload.container as HTMLElement ).appendChild( block );
+				}
 			},
 		};
 		( window as { wp?: unknown } ).wp = { os: { hooks } };
@@ -534,6 +542,8 @@ describe( 'view', () => {
 				local: () => undefined,
 			} );
 			expect( fired.filter( ( f ) => f.hook === 'os.my-wordpress.preview-extras' ) ).toHaveLength( 0 );
+			// …and what the subscriber painted SURVIVES the repaint.
+			expect( root.querySelector( '.atwork-preview' )?.textContent ).toBe( 'State: Active' );
 		} finally {
 			delete ( window as { wp?: unknown } ).wp;
 		}
