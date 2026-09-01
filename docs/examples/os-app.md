@@ -61,7 +61,8 @@ return App::define( 'notes-counter' )
 	) )
 
 	// Actions mutate the state; the view re-renders after each one.
-	->action( 'refresh', static function () {} )
+	// (`refresh` needs no declaration — it is the built-in that
+	// recomputes and re-renders.)
 	->action( 'trash-drafts', static function ( State $state, Os $os ) {
 		foreach ( get_posts( array( 'post_status' => 'draft', 'numberposts' => -1, 'fields' => 'ids' ) ) as $id ) {
 			wp_trash_post( $id );

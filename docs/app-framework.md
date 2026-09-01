@@ -265,7 +265,7 @@ export default defineApp< State, Data >( 'hello', {
 				.filter( ( r ) => r.title.toLowerCase().includes( state.query.toLowerCase() ) )
 				.map( ( r ) => html`<li os-action="toggle" os-arg-id=${ r.id }>${ r.title }${ state.open.includes( r.id ) ? ' ▾' : '' }</li>` ) }
 		</ul>
-		<os-button os-action="reload">${ __( 'Reload' ) }</os-button>
+		<os-button os-action="refresh">${ __( 'Reload' ) }</os-button>
 	`,
 } );
 ```
@@ -274,7 +274,8 @@ And in the `.os.php`, a `data()` in place of (or beside) the `view()`:
 
 ```php
 ->state( array( 'query' => '', 'open' => array() ) )
-->action( 'reload', static function () {} )   // the round trip re-computes data()
+// No action needed for the Reload button: `refresh` is the built-in
+// round trip that re-computes data().
 ->data( static function ( State $state, Os $os ) {
 	return array( 'rows' => my_plugin_rows() );
 } )
@@ -284,7 +285,7 @@ The rules, all of which the runtime enforces:
 
 - **`state` is the same typed bag** the PHP side declared. The client keeps it; every server dispatch sends it and adopts what comes back.
 - **`os-bind` writes are local.** Typing in the search box updates `state.query` and re-renders; nothing is sent.
-- **An `os-action` that is in `local` runs in the browser; any other dispatches to PHP.** The server runs the handler, re-computes `data()`, and the client re-renders from the fresh `state` + `data`. `reload` above is just that.
+- **An `os-action` that is in `local` runs in the browser; any other dispatches to PHP.** The server runs the handler, re-computes `data()`, and the client re-renders from the fresh `state` + `data`. The Reload button above is just that — the built-in `refresh`, no handler declared.
 - **`data` is whatever `App::data()` returned on the last server round trip.** Keep it to what the view reads — it travels on every dispatch response.
 - **The view is rendered with the kit's own `html` tag** (`src/ui/core/html.ts`) and diffed in place, so nodes survive re-renders. Triggers keep the attribute vocabulary; `@click=${ fn }` bindings also work for anything purely local.
 - **Everything else is unchanged**: effects, `os-poll`, `os-confirm`, title-bar buttons, ⋯ rows, channels, lifecycle actions, `wp.os.apps.dispatch()`. `wp.os.apps.local( windowId, action, args )` runs a local action from outside.
