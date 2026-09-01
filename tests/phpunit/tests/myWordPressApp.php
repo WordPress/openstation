@@ -846,11 +846,14 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		}
 		// The budget moved when the Agents section landed (the
 		// like-for-like original grew by the agents renderer, its REST
-		// client, the face helpers and ~800 lines of CSS), and again as
-		// the parity gaps closed: the bulk-edit modal's real controls,
-		// the tile hover card, and the shared plugin seams
-		// (preview-extras slots, list-tile decorations, list bands).
-		$this->assertLessThan( 9000, $lines, sprintf( 'My WordPress is %d lines; the budget is under 9,000 — still well under a third of the like-for-like original.', $lines ) );
+		// client, the face helpers and ~800 lines of CSS), again as
+		// the parity gaps closed (the bulk-edit modal's real controls,
+		// the tile hover card, the shared plugin seams), and again for
+		// the WooCommerce surface — whose like-for-like original is
+		// the ~7,400 lines of `integrations/woocommerce*` PHP + TS the
+		// app reaches for ~1,000: the sections, guards and remaining
+		// seams here, the rules and the bundle shared, not forked.
+		$this->assertLessThan( 9500, $lines, sprintf( 'My WordPress is %d lines; the budget is under 9,500 — still well under a third of the like-for-like original.', $lines ) );
 
 		// The house file-length rule, pinned hard for this app: every
 		// PHP and TS source stays under 1,000 lines. The lint twins

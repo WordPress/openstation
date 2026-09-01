@@ -349,32 +349,49 @@ function openstation_apps_register_windows() {
 			}
 		}
 
-		$registered = openstation_register_window(
-			$id,
-			array(
-				'title'      => $manifest['title'],
-				'icon'       => $manifest['icon'],
-				'template'   => static function () use ( $id ) {
-					openstation_apps_render_template( $id );
-				},
-				'script'     => OPENSTATION_APP_RUNTIME_HANDLE,
-				'scripts'    => $scripts,
-				// Both sheets travel as first-open companions — nothing
-				// an app window paints is needed on a page that never
-				// opens it (see tests/phpunit/tests/deferredWindowStyles.php).
-				'styles'     => array_merge( array( OPENSTATION_APP_RUNTIME_HANDLE ), $styles ),
-				'width'      => $manifest['width'],
-				'height'     => $manifest['height'],
-				'min_width'  => $manifest['min_width'],
-				'min_height' => $manifest['min_height'],
-				'placement'  => $manifest['placement'],
-				'nav_kind'   => $manifest['nav_kind'],
-				'dock_order' => $manifest['dock_order'],
-				'placeable'  => $manifest['placeable'],
-				'autofocus'  => $manifest['autofocus'],
-				'config'     => openstation_apps_client_config( $manifest, $bundle ),
-			)
+		$window_args = array(
+			'title'      => $manifest['title'],
+			'icon'       => $manifest['icon'],
+			'template'   => static function () use ( $id ) {
+				openstation_apps_render_template( $id );
+			},
+			'script'     => OPENSTATION_APP_RUNTIME_HANDLE,
+			'scripts'    => $scripts,
+			// Both sheets travel as first-open companions — nothing
+			// an app window paints is needed on a page that never
+			// opens it (see tests/phpunit/tests/deferredWindowStyles.php).
+			'styles'     => array_merge( array( OPENSTATION_APP_RUNTIME_HANDLE ), $styles ),
+			'width'      => $manifest['width'],
+			'height'     => $manifest['height'],
+			'min_width'  => $manifest['min_width'],
+			'min_height' => $manifest['min_height'],
+			'placement'  => $manifest['placement'],
+			'nav_kind'   => $manifest['nav_kind'],
+			'dock_order' => $manifest['dock_order'],
+			'placeable'  => $manifest['placeable'],
+			'autofocus'  => $manifest['autofocus'],
+			'config'     => openstation_apps_client_config( $manifest, $bundle ),
 		);
+
+		/**
+		 * Filter the window-registration args an app's manifest
+		 * produced, just before `openstation_register_window()` runs.
+		 *
+		 * The seam a companion plugin uses to ride an app window it
+		 * doesn't own — appending registered `scripts` / `styles`
+		 * handles (an integration bundle that decorates the app
+		 * through its JS hook seams, loaded on first open and never
+		 * sooner) — or to tune any other registration arg.
+		 *
+		 * **Status: Experimental**
+		 *
+		 * @param array<string,mixed> $window_args `openstation_register_window()` args.
+		 * @param string              $id          App id.
+		 * @param App                 $app         The app.
+		 */
+		$window_args = (array) apply_filters( 'openstation_app_window_args', $window_args, $id, $app );
+
+		$registered = openstation_register_window( $id, $window_args );
 		if ( is_wp_error( $registered ) ) {
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			error_log( sprintf( '[openstation] App "%s" failed to register: %s', $id, $registered->get_error_message() ) );

@@ -2042,3 +2042,38 @@ function openstation_my_wordpress_woo_window_args( $window_args ) {
 	return $window_args;
 }
 add_filter( 'openstation_my_wordpress_window_args', 'openstation_my_wordpress_woo_window_args' );
+
+/**
+ * Attach the same bundle and stylesheet to the My WordPress app.
+ *
+ * The app fires the same `os.my-wordpress.*` seams WP Explorer does
+ * (`preview-extras`, `group-extras`, `list-tile`, the banding and
+ * user filters), and its rows carry the same `openstation_woo` /
+ * `openstation_woo_customer` facts — so ONE bundle decorates both
+ * windows, and it travels with each the same way: as a first-open
+ * companion, costing nothing until a window actually opens. The
+ * config blob rides the handle (see
+ * `openstation_my_wordpress_woo_enqueue()`), so it arrives with the
+ * bundle whichever window pulls it in first.
+ *
+ * @param array  $window_args Args passed to `openstation_register_window()`.
+ * @param string $app_id      App id.
+ * @return array
+ */
+function openstation_my_wordpress_woo_app_window_args( $window_args, $app_id ) {
+	if ( 'my-wordpress' !== (string) $app_id || ! is_array( $window_args ) || ! openstation_my_wordpress_woo_active() ) {
+		return $window_args;
+	}
+
+	$scripts   = isset( $window_args['scripts'] ) ? (array) $window_args['scripts'] : array();
+	$scripts[] = 'os-my-wordpress-woocommerce';
+
+	$styles   = isset( $window_args['styles'] ) ? (array) $window_args['styles'] : array();
+	$styles[] = 'os-my-wordpress-woocommerce';
+
+	$window_args['scripts'] = $scripts;
+	$window_args['styles']  = $styles;
+
+	return $window_args;
+}
+add_filter( 'openstation_app_window_args', 'openstation_my_wordpress_woo_app_window_args', 10, 2 );

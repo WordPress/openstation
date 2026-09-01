@@ -52,12 +52,15 @@ function payload( State $state, Os $os ) {
 
 	$item = (int) $state->get( 'item' );
 	$into = (int) $state->get( 'into' );
-	if ( $into > 0 && ( ! $section || 'post' !== $section['kind'] ) ) {
+	// A `flat` section (Woo's Orders) has no detail folder behind its
+	// tiles — its rows are not posts, so the relation queries have
+	// nothing to stand on.
+	if ( $into > 0 && ( ! $section || 'post' !== $section['kind'] || ! empty( $section['flat'] ) ) ) {
 		$state->set( 'into', 0 )->set( 'relation', '' );
 		$into = 0;
 	}
 	$relation  = (string) $state->get( 'relation' );
-	$is_post   = $section && 'post' === $section['kind'];
+	$is_post   = $section && 'post' === $section['kind'] && empty( $section['flat'] );
 	$is_agents = $section && 'agent' === $section['kind'];
 	$choices   = $is_post ? edit_choices() : array(
 		'authors'    => array(),

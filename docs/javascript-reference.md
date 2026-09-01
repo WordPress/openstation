@@ -6404,6 +6404,21 @@ exposes three JS hook points and a small public API. Every section
 (Posts, Pages, Users, Media, plugin-defined kinds) uses the same
 hooks, so a single plugin descriptor can decorate any preview pane.
 
+The **My WordPress app** (`apps/my-wordpress/`, window id
+`my-wordpress`) fires the same `os.my-wordpress.*` hooks over its own
+DOM with the same payload shapes — `preview-extras` (the
+`header`/`meta`/`footer` slots), `list-tile`, `list-bands`,
+`tile-context-menu`, `preview-actions`, `group-extras`,
+`user-activate`, `user-preview-actions` and `user-dossier-sections` —
+and its rows carry the same REST-visible fields subscribers read
+(`meta`, per-taxonomy term ids, `openstation_woo`,
+`openstation_woo_customer`). One `wp.hooks` registration decorates
+both windows; the WooCommerce integration is the worked example. Only
+the `wp.os.myWordpress` API below (entity-kind renderers, the
+navigation calls) is WP Explorer's own. To ride the app window with a
+companion bundle, see
+[`openstation_app_window_args`](./hooks-reference.md#openstation_app_window_args--experimental-filter).
+
 ### Public API — `wp.os.myWordpress`
 
 ```ts

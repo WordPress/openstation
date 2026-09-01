@@ -334,7 +334,7 @@ On WordPress the host (`includes/framework/wordpress.php`) does three things on 
 
 1. **@5** registers the shared runtime script + stylesheet (`openstation-app-runtime`).
 2. **@10** loads every `.os.php` under the app directories — `apps/` inside OpenStation, plus whatever [`openstation_apps_directories`](./hooks-reference.md#openstation_apps_directories--experimental-filter) adds — one level of sub-folders deep, then fires [`openstation_apps_loaded`](./hooks-reference.md#openstation_apps_loaded--experimental-action) so a plugin can `$registry->add()` an `App` built in code.
-3. **@20** turns every app the current user may use into a native window through `openstation_register_window()` (plus `openstation_register_window_tab()` per tab and `openstation_register_icon()` for a `desktop_icon`), after running the manifest through [`openstation_app_manifest`](./hooks-reference.md#openstation_app_manifest--experimental-filter).
+3. **@20** turns every app the current user may use into a native window through `openstation_register_window()` (plus `openstation_register_window_tab()` per tab and `openstation_register_icon()` for a `desktop_icon`), after running the manifest through [`openstation_app_manifest`](./hooks-reference.md#openstation_app_manifest--experimental-filter) and the built registration args through [`openstation_app_window_args`](./hooks-reference.md#openstation_app_window_args--experimental-filter) — the latter is how a companion plugin appends its own `scripts` / `styles` handles to an app window it doesn't own (the WooCommerce integration rides the My WordPress app this way).
 
 To ship apps from your plugin:
 

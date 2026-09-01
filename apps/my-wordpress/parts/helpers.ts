@@ -249,7 +249,10 @@ export function buildMenuOptions(
 		} );
 	}
 	options.push( { id: 'open', label: __( 'Navigate into' ) } );
-	if ( section.kind === 'post' && item.canEdit ) {
+	// A flat section's rows are not posts — no quick-edit, no
+	// publish, no trash. The plugin seam below still appends its own
+	// entries (Woo's orders get nothing extra; its customers do).
+	if ( section.kind === 'post' && item.canEdit && ! section.flat ) {
 		options.push( { id: 'quick-edit', label: __( 'Edit…' ) } );
 		if ( item.status !== 'publish' ) {
 			options.push( { id: 'publish', label: __( 'Publish' ) } );
@@ -258,7 +261,7 @@ export function buildMenuOptions(
 	if ( item.link ) {
 		options.push( { id: 'copy-link', label: __( 'Copy link' ) } );
 	}
-	if ( section.kind === 'post' ) {
+	if ( section.kind === 'post' && ! section.flat ) {
 		options.push( {
 			id: 'trash',
 			label: __( 'Move to Trash' ),

@@ -342,6 +342,10 @@ export function wire( ctx: Ctx ): () => void {
 /**
  * Fire WP Explorer's plugin seams over the freshly rendered DOM:
  *
+ *   - `os.my-wordpress.group-extras` — once per open plugin folder,
+ *     with a container above the folder tiles for whole-folder
+ *     context (store totals on a shop folder, sync status on an
+ *     importer's). Appended empty when nothing subscribes.
  *   - `os.my-wordpress.preview-extras` — once per named slot on the
  *     preview article (`header` / `meta` / `footer`), with the row so
  *     subscribers can paint their facts (the AllTerrain Work board
@@ -357,6 +361,31 @@ function pluginSeamsAfterRender( ctx: Ctx ): void {
 	if ( ! hooks?.doAction ) {
 		return;
 	}
+
+	// --- group-extras -------------------------------------------------
+	const groupHost = ctx.root.querySelector< HTMLElement >( '[data-mywp-group-extras]' );
+	if ( groupHost ) {
+		const groupId = groupHost.dataset.mywpGroupExtras ?? '';
+		if ( groupHost.dataset.mywpExtrasFor !== groupId ) {
+			groupHost.dataset.mywpExtrasFor = groupId;
+			groupHost.replaceChildren();
+			try {
+				hooks.doAction( 'os.my-wordpress.group-extras', {
+					container: groupHost,
+					groupId,
+					group: ctx.data.groups.find( ( g ) => g.id === groupId ) ?? null,
+					entityIds: ctx.data.sections
+						.filter( ( s ) => s.group === groupId )
+						.map( ( s ) => s.id ),
+				} );
+			} catch ( err ) {
+				// Plugin code — contained.
+				// eslint-disable-next-line no-console
+				console.error( '[my-wordpress] a group-extras subscriber threw.', err );
+			}
+		}
+	}
+
 	const section = sectionOf( ctx.data, ctx.state.section );
 	if ( ! section || section.kind === 'agent' ) {
 		return;

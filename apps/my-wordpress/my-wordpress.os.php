@@ -27,6 +27,9 @@
  *   parts/actions.php   What a dispatch DOES — navigation and the
  *                       content mutations.
  *   parts/agents.php    The Agents section — payload + mutations.
+ *   parts/woocommerce.php The WooCommerce surface — the Orders and
+ *                       Customers sections, band-ordered queries,
+ *                       per-row shop facts. Inert without WooCommerce.
  *   parts/payload.php   The data payload, one function.
  *
  * Plugin surfaces are shared with WP Explorer, not forked: CPT
@@ -53,6 +56,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	defined( 'OPENSTATION_STANDALONE' ) || exit;
 }
 
+require_once __DIR__ . '/parts/woocommerce.php';
 require_once __DIR__ . '/parts/sections.php';
 require_once __DIR__ . '/parts/lists.php';
 require_once __DIR__ . '/parts/dossiers.php';

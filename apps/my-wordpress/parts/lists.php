@@ -34,6 +34,10 @@ const MEDIA_PER_PAGE = 48;
  * @return bool
  */
 function allowed( Os $os, array $section, $id, $verb ) {
+	$woo = woo_allowed( $section, (int) $id, $verb );
+	if ( null !== $woo ) {
+		return $woo;
+	}
 	if ( 'user' === $section['kind'] ) {
 		return 'edit' === $verb && $os->can( 'edit_user', (int) $id );
 	}
@@ -104,6 +108,14 @@ function rest_extras( \WP_Post $post ) {
  * @return array{items:array[],total:int,pages:int,page:int}
  */
 function fetch( Os $os, array $section, State $state ) {
+	// The Woo sections own their pages whole: Orders walk the status
+	// bands through `wc_get_orders()` (HPOS keeps them out of
+	// `wp_posts`), Customers replay the band-and-spend plan.
+	$woo_page = woo_list( $os, $section, $state );
+	if ( null !== $woo_page ) {
+		return $woo_page;
+	}
+
 	$query              = (string) $state->get( 'query' );
 	$page               = max( 1, (int) $state->get( 'page' ) );
 	list( $by, $order ) = sort_of( $section, $state );
@@ -132,6 +144,9 @@ function fetch( Os $os, array $section, State $state ) {
 			$items[] = array(
 				'id'        => (int) $user->ID,
 				'title'     => (string) $user->display_name,
+				// The REST spelling too — the shared seam subscribers
+				// were written against `/wp/v2/users` rows.
+				'name'      => (string) $user->display_name,
 				'subtitle'  => (string) $user->user_email,
 				'status'    => implode( ', ', array_map( 'ucfirst', (array) $user->roles ) ),
 				'excerpt'   => '',
@@ -142,6 +157,10 @@ function fetch( Os $os, array $section, State $state ) {
 				'canEdit'   => allowed( $os, $section, (int) $user->ID, 'edit' ),
 				'canDelete' => false,
 			);
+			// Lifetime spend on the built-in Users folder too — on a
+			// store, "who is this person" and "what have they spent"
+			// are the same question. Empty without WooCommerce.
+			$items[ count( $items ) - 1 ] += woo_user_extras( (int) $user->ID );
 		}
 		$total = (int) $users->get_total();
 		return array(
@@ -155,23 +174,24 @@ function fetch( Os $os, array $section, State $state ) {
 
 	$is_media = 'media' === $section['kind'];
 	$per_page = $is_media ? MEDIA_PER_PAGE : PER_PAGE;
-	$posts    = new \WP_Query(
-		array(
-			'post_type'      => (string) $section['post_type'],
-			'post_status'    => $is_media ? 'inherit' : statuses(),
-			's'              => $query,
-			'posts_per_page' => $per_page,
-			'paged'          => $page,
-			// ID tiebreak: demo and imported content routinely shares
-			// one post_date to the second, and equal rows have no
-			// defined order — each page could resort the set and the
-			// infinite scroll would reshuffle. See the user query above.
-			'orderby'        => array(
-				$by  => $order,
-				'ID' => 'DESC',
-			),
-		)
+	$args     = array(
+		'post_type'      => (string) $section['post_type'],
+		'post_status'    => $is_media ? 'inherit' : statuses(),
+		's'              => $query,
+		'posts_per_page' => $per_page,
+		'paged'          => $page,
+		// ID tiebreak: demo and imported content routinely shares
+		// one post_date to the second, and equal rows have no
+		// defined order — each page could resort the set and the
+		// infinite scroll would reshuffle. See the user query above.
+		'orderby'        => array(
+			$by  => $order,
+			'ID' => 'DESC',
+		),
 	);
+	// Products and Coupons arrive in band order, decided server-side
+	// by the same cached plans that order them for WP Explorer.
+	$posts = new \WP_Query( woo_query_args( $args, $section, $state ) );
 	$items    = array();
 	foreach ( $posts->posts as $post ) {
 		$items[] = array(
@@ -207,6 +227,9 @@ function fetch( Os $os, array $section, State $state ) {
 			// collides with one of ours (a taxonomy rest_base named
 			// `status`, say) must not overwrite it.
 			$items[ count( $items ) - 1 ] += rest_extras( $post );
+			// The `openstation_woo` facts the shared band assigner and
+			// stock-ribbon decorator read. Empty without WooCommerce.
+			$items[ count( $items ) - 1 ] += woo_extras( $post );
 		}
 	}
 	return array(
@@ -225,6 +248,10 @@ function fetch( Os $os, array $section, State $state ) {
  * @return int
  */
 function count_of( array $section ) {
+	$woo = woo_count( $section );
+	if ( null !== $woo ) {
+		return $woo;
+	}
 	if ( 'agent' === $section['kind'] ) {
 		// Zero while the framework is off: the five shipped agents are
 		// only seeded when the flag flips, so none of them exist yet.
@@ -255,6 +282,10 @@ function count_of( array $section ) {
  * @return string
  */
 function edit_url( array $section, $id ) {
+	$woo = woo_edit_url( $section, (int) $id );
+	if ( '' !== $woo ) {
+		return $woo;
+	}
 	if ( 'user' === $section['kind'] ) {
 		return admin_url( 'user-edit.php?user_id=' . (int) $id );
 	}
@@ -271,11 +302,19 @@ function edit_url( array $section, $id ) {
  * @return array<string,mixed>|null Null when the item vanished.
  */
 function detail( Os $os, array $section, $id ) {
+	if ( woo_section_is( $section, 'wc-orders' ) ) {
+		return woo_detail( $section, $id );
+	}
 	if ( 'user' === $section['kind'] ) {
 		$user = get_userdata( $id );
 		if ( ! $user ) {
 			return null;
 		}
+		// The third element tags each fact with WP Explorer's dossier
+		// section id, so the shared
+		// `os.my-wordpress.user-dossier-sections` filter can drop the
+		// publishing blocks — a customer's Posts count is four zeroes
+		// above the number the merchant actually came for.
 		return array(
 			'kind'      => 'user',
 			'id'        => $id,
@@ -284,10 +323,10 @@ function detail( Os $os, array $section, $id ) {
 			'facts'     => array_values(
 				array_filter(
 					array(
-						array( __( 'Email', 'desktop-mode' ), (string) $user->user_email ),
-						array( __( 'Role', 'desktop-mode' ), implode( ', ', array_map( 'ucfirst', (array) $user->roles ) ) ),
-						array( __( 'Registered', 'desktop-mode' ), (string) date_i18n( get_option( 'date_format' ), strtotime( $user->user_registered ) ) ),
-						array( __( 'Posts', 'desktop-mode' ), number_format_i18n( count_user_posts( $id ) ) ),
+						array( __( 'Email', 'desktop-mode' ), (string) $user->user_email, 'bio' ),
+						array( __( 'Role', 'desktop-mode' ), implode( ', ', array_map( 'ucfirst', (array) $user->roles ) ), 'bio' ),
+						array( __( 'Registered', 'desktop-mode' ), (string) date_i18n( get_option( 'date_format' ), strtotime( $user->user_registered ) ), 'bio' ),
+						array( __( 'Posts', 'desktop-mode' ), number_format_i18n( count_user_posts( $id ) ), 'stats' ),
 						array(
 							__( 'Comments', 'desktop-mode' ),
 							number_format_i18n(
@@ -298,6 +337,7 @@ function detail( Os $os, array $section, $id ) {
 									)
 								)
 							),
+							'stats',
 						),
 					),
 					static function ( $fact ) {

@@ -157,7 +157,8 @@ function edit_action( State $state, Os $os, array $args ) {
 function trash_action( State $state, Os $os, array $args ) {
 	$section = section_of( $os, (string) $state->get( 'section' ) );
 	$id      = (int) ( $args['item'] ?? 0 );
-	if ( ! $section || 'post' !== $section['kind'] || ! allowed( $os, $section, $id, 'delete' ) ) {
+	if ( ! $section || 'post' !== $section['kind'] || ! empty( $section['flat'] )
+		|| ! allowed( $os, $section, $id, 'delete' ) ) {
 		$os->toast( __( 'You cannot trash this item.', 'desktop-mode' ) );
 		return;
 	}
@@ -212,7 +213,9 @@ function sub_open_action( State $state, Os $os, array $args ) {
  */
 function quick_edit_action( State $state, Os $os, array $args ) {
 	$section = section_of( $os, (string) $state->get( 'section' ) );
-	if ( ! $section || 'post' !== $section['kind'] ) {
+	// A `flat` section's rows are not posts (an order id may collide
+	// with a real post id under legacy storage) — never mutate them.
+	if ( ! $section || 'post' !== $section['kind'] || ! empty( $section['flat'] ) ) {
 		return;
 	}
 	$status   = isset( $args['status'] ) ? (string) $args['status'] : '';
@@ -293,7 +296,7 @@ function quick_edit_action( State $state, Os $os, array $args ) {
  */
 function bulk_trash_action( State $state, Os $os ) {
 	$section = section_of( $os, (string) $state->get( 'section' ) );
-	if ( ! $section || 'post' !== $section['kind'] ) {
+	if ( ! $section || 'post' !== $section['kind'] || ! empty( $section['flat'] ) ) {
 		return;
 	}
 	$trashed = array();

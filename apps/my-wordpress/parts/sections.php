@@ -75,14 +75,25 @@ function sections( Os $os ) {
 		),
 	);
 
+	// The WooCommerce sections (Orders, Customers) — ahead of the CPT
+	// pass, exactly where WP Explorer's entities filter puts them, so
+	// they lead the Woo folder. Empty unless WooCommerce is active.
+	$sections = array_merge( $sections, woo_sections( $os ) );
+
 	// Every eligible CPT, through the same discovery WP Explorer uses —
 	// one list of what the site contains, two windows rendering it.
 	if ( function_exists( 'openstation_my_wordpress_eligible_post_types' ) ) {
+		$claimed = array_column( $sections, 'post_type' );
 		foreach ( openstation_my_wordpress_eligible_post_types() as $name => $post_type ) {
+			// A type an earlier section already declares (Orders claims
+			// `shop_order`) must not become a second, broken folder.
+			if ( in_array( (string) $name, $claimed, true ) ) {
+				continue;
+			}
 			$group      = function_exists( 'openstation_my_wordpress_post_type_group' )
 				? openstation_my_wordpress_post_type_group( $name )
 				: null;
-			$sections[] = array(
+			$entry      = array(
 				'id'         => 'cpt-' . $name,
 				'label'      => isset( $post_type->labels->name ) && '' !== $post_type->labels->name
 					? (string) $post_type->labels->name
@@ -99,6 +110,7 @@ function sections( Os $os ) {
 				'groupIcon'  => $group ? (string) $group['icon'] : null,
 				'groupOrder' => $group ? (int) $group['order'] : null,
 			);
+			$sections[] = woo_decorate_section( $entry, $post_type );
 		}
 	}
 
@@ -202,6 +214,10 @@ function statuses() {
 function sort_options( array $section ) {
 	if ( 'agent' === $section['kind'] ) {
 		return array();
+	}
+	$woo = woo_sort_options( $section );
+	if ( null !== $woo ) {
+		return $woo;
 	}
 	if ( 'user' === $section['kind'] ) {
 		return array(

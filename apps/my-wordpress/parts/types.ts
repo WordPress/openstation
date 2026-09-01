@@ -33,6 +33,13 @@ export interface SectionDef extends Record< string, unknown > {
 	post_type: string;
 	thumbnails: boolean;
 	count: number;
+	/**
+	 * A post-kind section with no detail folder behind its tiles —
+	 * its rows are not posts (Woo's Orders). Navigate into, the Edit…
+	 * modal and Trash stand down; double-click opens the row's own
+	 * admin screen.
+	 */
+	flat?: boolean;
 	group?: string | null;
 	groupLabel?: string | null;
 	groupIcon?: string | null;
@@ -55,6 +62,8 @@ export interface GroupDef {
 export interface ListItem extends Record< string, unknown > {
 	id: number;
 	title: string;
+	/** User rows also carry the REST spelling of their display name. */
+	name?: string;
 	subtitle: string;
 	status: string;
 	/** Clamped excerpt for the hover card — '' for media and users. */
@@ -97,7 +106,13 @@ export interface DetailFacts {
 	kind: 'post' | 'media' | 'user';
 	id: number;
 	title: string;
-	facts: Array< [ string, string ] >;
+	/**
+	 * `[ label, value ]` rows; a user's facts carry a third element —
+	 * WP Explorer's dossier-section id (`bio`, `stats`, …) — so the
+	 * shared `os.my-wordpress.user-dossier-sections` filter can drop
+	 * whole blocks.
+	 */
+	facts: Array< [ string, string ] | [ string, string, string ] >;
 	canEdit: boolean;
 	canDelete: boolean;
 	image?: string;
@@ -116,6 +131,21 @@ export interface PreviewAction {
 	sections?: string[];
 	mime?: string;
 	onSelect?: ( ctx: PreviewActionContext ) => void;
+}
+
+/**
+ * One button in the user preview pane's action row — WP Explorer's
+ * `UserPreviewAction` contract, verbatim: the built-ins run through
+ * the shared `os.my-wordpress.user-preview-actions` filter before
+ * they render, so a section serving people who buy can drop
+ * "View activity footprint" and add its own.
+ */
+export interface UserPreviewAction {
+	id: string;
+	label: string;
+	title?: string;
+	variant?: 'primary' | 'secondary';
+	onSelect: () => void;
 }
 
 export interface PreviewActionContext {

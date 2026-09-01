@@ -133,6 +133,16 @@
 
 /* -------------------------------------------------------------- root */
 
+/*
+ * The group-extras seam's container — a plugin panel above a folder's
+ * tiles (Woo's Store totals). The panel inside brings its own chrome;
+ * this only gives it the folder grid's gutter, and only when a
+ * subscriber actually painted something.
+ */
+.os-mywp__body > .os-my-wordpress__group-extras:not( :empty ) {
+	padding: 16px 16px 0;
+}
+
 .os-mywp__root {
 	display: grid;
 	grid-template-columns: repeat( auto-fill, 116px );

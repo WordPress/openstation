@@ -87,6 +87,13 @@ export function renderRoot( ctx: Ctx ): TemplateResult {
 			? html`<img class="os-mywp__icon-img" src=${ s.icon } alt="" width="40" height="40" />`
 			: glyph( s.icon, 'os-mywp__tile-icon' );
 	return html`
+		${ inGroup
+			? html`<div
+				class="os-my-wordpress__group-extras"
+				data-mywp-group-extras=${ inGroup }
+				os-preserve
+			></div>`
+			: '' }
 		<div class="os-mywp__root" role="list">
 			${ loose.map( ( s ) => folderTile(
 				`section:${ s.id }`,
@@ -121,6 +128,30 @@ function renderTile( ctx: Ctx, section: SectionDef, item: ListItem, order: numbe
 			void ctx.dispatch( 'open', { item: item.id } );
 		}
 	};
+	const activate = (): void => {
+		// A plugin may claim "the user opened this person" — WP
+		// Explorer's `os.my-wordpress.user-activate` seam, verbatim.
+		// A shop's Customers folder opens the customer window; the
+		// built-in fallthrough keeps double-click meaning something
+		// when no subscriber answers.
+		if ( section.kind === 'user' ) {
+			const handled = shell().hooks?.applyFilters(
+				'os.my-wordpress.user-activate',
+				false,
+				{
+					entityId: section.id,
+					kind: section.kind,
+					item: item as unknown as Record< string, unknown >,
+				},
+			);
+			if ( handled === true ) {
+				return;
+			}
+		}
+		if ( item.canEdit ) {
+			void ctx.dispatch( 'edit', { item: item.id } );
+		}
+	};
 	return html`
 		<div
 			class="os-mywp__cell ${ isOpen ? 'is-open' : '' }"
@@ -129,7 +160,7 @@ function renderTile( ctx: Ctx, section: SectionDef, item: ListItem, order: numbe
 			role="option"
 			aria-selected=${ isSelected ? 'true' : 'false' }
 			@click=${ select }
-			@dblclick=${ () => item.canEdit && void ctx.dispatch( 'edit', { item: item.id } ) }
+			@dblclick=${ activate }
 			@contextmenu=${ ( e: MouseEvent ) => {
 				e.preventDefault();
 				e.stopPropagation();
@@ -337,8 +368,9 @@ export function renderMenu( ctx: Ctx, section: SectionDef ): TemplateResult | ''
 		}
 		if ( id === 'open' ) {
 			// Posts navigate INTO their detail folder (author,
-			// comments, revisions, …); users and media open the pane.
-			if ( section.kind === 'post' ) {
+			// comments, revisions, …); users, media and flat sections
+			// (whose rows are not posts) open the pane.
+			if ( section.kind === 'post' && ! section.flat ) {
 				void ctx.dispatch( 'into', { item: item.id } );
 			} else {
 				void ctx.dispatch( 'open', { item: item.id } );

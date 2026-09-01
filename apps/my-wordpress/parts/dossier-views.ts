@@ -12,6 +12,7 @@
  */
 
 import { __, _n, html, sprintf, type TemplateResult } from '@openstation/app';
+import { openUserFootprintWindow } from '../../../src/my-wordpress/footprint-target';
 import {
 	shell,
 	uiOf,
@@ -19,8 +20,95 @@ import {
 	type DetailFacts,
 	type SectionDef,
 	type StatsRecentPost,
+	type UserPreviewAction,
 } from './types';
 import { actionContext, resolveActions, runAction } from './helpers';
+
+/**
+ * WP Explorer's dossier blocks, in its order — the default the shared
+ * `os.my-wordpress.user-dossier-sections` filter starts from, so a
+ * subscriber written against the original sees the list it expects.
+ * The app renders `bio` and `stats` facts; the rest are the
+ * original's deeper panes, harmless to keep in the vocabulary.
+ */
+const USER_DOSSIER_SECTIONS = [
+	'bio',
+	'stats',
+	'activity',
+	'milestones',
+	'recent',
+	'terms',
+];
+
+/**
+ * A user's facts, with the blocks the shared dossier filter dropped
+ * removed — a customer's Posts count is four zeroes above the number
+ * the merchant actually came for. Untagged facts always render.
+ */
+function dossierFilteredFacts(
+	detail: DetailFacts,
+	section: SectionDef,
+): DetailFacts[ 'facts' ] {
+	if ( detail.kind !== 'user' ) {
+		return detail.facts;
+	}
+	const resolved = shell().hooks?.applyFilters(
+		'os.my-wordpress.user-dossier-sections',
+		USER_DOSSIER_SECTIONS,
+		{ entityId: section.id, kind: section.kind, userId: detail.id },
+	);
+	if ( ! Array.isArray( resolved ) ) {
+		return detail.facts;
+	}
+	const allow = new Set( resolved as string[] );
+	return detail.facts.filter( ( fact ) => ! fact[ 2 ] || allow.has( fact[ 2 ] ) );
+}
+
+/**
+ * The user pane's action row: WP Explorer's built-ins — the activity
+ * footprint first, the profile editor demoted to a secondary button —
+ * run through the shared `os.my-wordpress.user-preview-actions`
+ * filter, so a section serving people who buy can swap the row for
+ * one a merchant can use. The item handed to subscribers is the list
+ * row under the dossier's fields, the same merge `preview-extras`
+ * ships, so the Woo facts (`openstation_woo_customer`) are readable.
+ */
+function userPreviewActions(
+	ctx: Ctx,
+	section: SectionDef,
+	detail: DetailFacts,
+	item: Record< string, unknown > | null,
+): UserPreviewAction[] {
+	const base: UserPreviewAction[] = [
+		{
+			id: 'footprint',
+			label: __( 'View activity footprint' ),
+			title: __( 'Open the full activity footprint surface for this user.' ),
+			variant: 'primary',
+			onSelect: () =>
+				openUserFootprintWindow( { userId: detail.id, userName: detail.title } ),
+		},
+	];
+	if ( detail.canEdit ) {
+		base.push( {
+			id: 'open-profile',
+			label: __( 'Edit profile' ),
+			variant: 'secondary',
+			onSelect: () => void ctx.dispatch( 'edit', { item: detail.id } ),
+		} );
+	}
+	const merged = shell().hooks?.applyFilters(
+		'os.my-wordpress.user-preview-actions',
+		base,
+		{
+			entityId: section.id,
+			kind: section.kind,
+			item: { ...( item ?? {} ), ...detail } as Record< string, unknown >,
+		},
+	);
+	const actions = Array.isArray( merged ) ? ( merged as UserPreviewAction[] ) : base;
+	return actions.filter( ( a ) => !! a && typeof a.onSelect === 'function' );
+}
 
 /**
  * A named plugin slot on the preview article — the container the
@@ -48,6 +136,28 @@ export function renderDetail( ctx: Ctx, section: SectionDef ): TemplateResult {
 	const actions = item
 		? resolveActions( data.previewActions, actionContext( section, item, 'pane' ), shell().hooks )
 		: [];
+	const facts = dossierFilteredFacts( detail, section );
+	// The edit half of the action row: a user's runs through the
+	// shared filter; everything else keeps the plain editor button.
+	let editRow: TemplateResult | TemplateResult[] | '' = '';
+	if ( detail.kind === 'user' ) {
+		editRow = userPreviewActions(
+			ctx,
+			section,
+			detail,
+			( item as unknown as Record< string, unknown > ) ?? null,
+		).map( ( a ) => html`
+			<os-button
+				variant=${ a.variant ?? 'secondary' }
+				title=${ a.title ?? '' }
+				@click=${ () => a.onSelect() }
+			>${ a.label }</os-button>
+		` );
+	} else if ( detail.canEdit ) {
+		editRow = html`<os-button variant="primary" @click=${ () => void ctx.dispatch( 'edit', { item: detail.id } ) }>
+			${ __( 'Open in editor' ) }
+		</os-button>`;
+	}
 	return html`
 		<article class="os-mywp__detail">
 			<os-button
@@ -80,7 +190,7 @@ export function renderDetail( ctx: Ctx, section: SectionDef ): TemplateResult {
 				) }</os-notice>`
 				: '' }
 			<dl class="os-mywp__facts">
-				${ detail.facts.map( ( [ label, value ] ) => html`
+				${ facts.map( ( [ label, value ] ) => html`
 					<div class="os-mywp__fact"><dt>${ label }</dt><dd>${ value }</dd></div>
 				` ) }
 			</dl>
@@ -102,7 +212,7 @@ export function renderDetail( ctx: Ctx, section: SectionDef ): TemplateResult {
 				: '' }
 			${ extrasSlot( 'meta', detail.id ) }
 			<div class="os-mywp__actions">
-				${ detail.kind === 'post'
+				${ detail.kind === 'post' && ! section.flat
 					? html`<os-button
 						variant="secondary"
 						title=${ __(
@@ -111,11 +221,7 @@ export function renderDetail( ctx: Ctx, section: SectionDef ): TemplateResult {
 						@click=${ () => void ctx.dispatch( 'into', { item: detail.id } ) }
 					>${ __( 'Explore details' ) }</os-button>`
 					: '' }
-				${ detail.canEdit
-					? html`<os-button variant="primary" @click=${ () => void ctx.dispatch( 'edit', { item: detail.id } ) }>
-						${ detail.kind === 'user' ? __( 'Edit profile' ) : __( 'Open in editor' ) }
-					</os-button>`
-					: '' }
+				${ editRow }
 				${ actions.map( ( action ) => html`
 					<os-button variant="secondary" @click=${ () => item && runAction( action, actionContext( section, item, 'pane' ) ) }>
 						${ action.label }

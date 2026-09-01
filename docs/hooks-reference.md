@@ -4143,6 +4143,26 @@ apply_filters( 'openstation_app_manifest', array $manifest, string $id, OpenStat
 
 An app's manifest just before it is registered with the shell — `title`, `icon`, `width`/`height`, `min_width`/`min_height`, `placement`, `nav_kind`, `dock_order`, `placeable`, `autofocus`, `desktop_icon`, `style`, `state`, `actions`, `title_bar_buttons`, `window_actions`, `appearance`, `config`. Resize a window, add a title-bar button to someone else's app, retarget its stylesheet.
 
+### `openstation_app_window_args` — Experimental (filter)
+
+```php
+apply_filters( 'openstation_app_window_args', array $window_args, string $id, OpenStation\App $app ): array
+```
+
+The `openstation_register_window()` args the manifest produced, just before the window registers. Where `openstation_app_manifest` shapes what the app *declared*, this filter reaches the registration itself — most usefully its `scripts` / `styles` arrays, which the manifest cannot express. That is the seam a companion plugin uses to ride an app window it doesn't own: append a registered script or style handle and it loads as a first-open companion — in the tab before the app's client view renders (so hook subscribers are listening when the app fires its seams), and never on a page that doesn't open the window.
+
+```php
+add_filter( 'openstation_app_window_args', function ( $args, $id ) {
+	if ( 'my-wordpress' !== $id ) {
+		return $args;
+	}
+	$args['scripts'][] = 'my-plugin-explorer-extras'; // wp_register_script()-ed elsewhere.
+	return $args;
+}, 10, 2 );
+```
+
+This is how the WooCommerce integration attaches its `os-my-wordpress-woocommerce` bundle (and stylesheet) to the My WordPress app — the same bundle WP Explorer's window declares, one subscriber decorating both windows.
+
 ### `openstation_app_registered` — Experimental (action)
 
 ```php
