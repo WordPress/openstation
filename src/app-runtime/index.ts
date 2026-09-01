@@ -21,8 +21,21 @@
 import { openActionMenu } from '../selection/menu';
 import type { NativeRenderContext } from '../types';
 import type { Window as DesktopWindow } from '../window';
-import { clientAppFor } from './client';
-import { createSession, type Session } from './session';
+import {
+	__,
+	_n,
+	_x,
+	applySelection,
+	clientAppFor,
+	createMarquee,
+	createPagedList,
+	defineApp,
+	formatBytes,
+	formatDate,
+	html,
+	sprintf,
+} from './client';
+import { createSession, setSessionDebug, type Session } from './session';
 import type { AppConfig, AppearanceDef, ControlDef, RuntimeHost } from './types';
 
 const OWNER = 'openstation-app-runtime';
@@ -316,6 +329,66 @@ export function registerApps(): string[] {
 	return added;
 }
 
+/**
+ * The client-view API, published for scripts that cannot import
+ * `@openstation/app` — a third-party plugin's client view, built (or
+ * hand-written) outside this repo. Everything an in-repo `.os.ts`
+ * imports, as one value.
+ */
+const CLIENT_API = {
+	defineApp,
+	html,
+	__,
+	_n,
+	_x,
+	sprintf,
+	formatBytes,
+	formatDate,
+	createPagedList,
+	applySelection,
+	createMarquee,
+} as const;
+
+/** What a queued third-party client view receives. */
+export type ClientApi = typeof CLIENT_API;
+
+interface ClientApiGlobals {
+	openStationAppsPending?:
+		| Array< ( api: ClientApi ) => void >
+		| { push: ( fn: ( api: ClientApi ) => void ) => void };
+}
+
+/**
+ * Serve the client API to third-party client views, load order be
+ * damned. A companion script loads BEFORE this runtime, so it cannot
+ * read `wp.os.apps` at parse time; instead it queues:
+ *
+ *     ( window.openStationAppsPending ??= [] ).push( ( { defineApp, html } ) =>
+ *         defineApp( 'my-window', { view: ( { state } ) => html`…` } ) );
+ *
+ * On load the runtime drains the queue, then replaces it with a
+ * live object whose `push` runs immediately — the same snippet works
+ * whether the script ran before or after the runtime.
+ */
+export function publishClientApi(): void {
+	const globals = window as unknown as ClientApiGlobals;
+	const run = ( fn: ( api: ClientApi ) => void ): void => {
+		try {
+			fn( CLIENT_API );
+		} catch ( err ) {
+			// Third-party code — contained, named, never fatal to the shell.
+			// eslint-disable-next-line no-console
+			console.error( '[openstation] a queued client view threw.', err );
+		}
+	};
+	const queued = globals.openStationAppsPending;
+	if ( Array.isArray( queued ) ) {
+		queued.forEach( run );
+	}
+	globals.openStationAppsPending = { push: run };
+}
+
+publishClientApi();
 registerApps();
 // An app registered mid-session (a plugin activation) arrives with a
 // payload refresh; pick its config up without a reload.
@@ -324,6 +397,9 @@ document.addEventListener( 'os-registry-changed', () => {
 } );
 
 os()?.registerNamespace( 'apps', {
+	...CLIENT_API,
+	/** Log every dispatch of one window (or `'*'`) to the console. */
+	debug: ( windowId = '*', on = true ) => setSessionDebug( windowId, on ),
 	/** Run an action on a mounted app window (optionally on one tab). */
 	dispatch: (
 		windowId: string,

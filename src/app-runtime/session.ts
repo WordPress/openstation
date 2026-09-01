@@ -80,6 +80,36 @@ export interface Session {
 	dispose: () => void;
 }
 
+/**
+ * Windows whose sessions log every dispatch to the console —
+ * `wp.os.apps.debug( windowId | '*' )` flips them. Module-level so
+ * one call covers every session of a window, tabs included.
+ */
+const debugWindows = new Set< string >();
+
+/** Enable/disable the dispatch trace for one window (or `'*'`). */
+export function setSessionDebug( windowId: string, on = true ): void {
+	if ( on ) {
+		debugWindows.add( windowId );
+	} else {
+		debugWindows.delete( windowId );
+	}
+}
+
+/**
+ * One warning per (app, subject) per page — a guard that fires on
+ * every render would bury the console it is trying to help.
+ */
+const warnedOnce = new Set< string >();
+function warnOnce( key: string, message: string ): void {
+	if ( warnedOnce.has( key ) ) {
+		return;
+	}
+	warnedOnce.add( key );
+	// eslint-disable-next-line no-console
+	console.warn( message );
+}
+
 export function createSession( deps: SessionDeps ): Session {
 	const { root, config, windowId, host, signal, client } = deps;
 	const view = deps.view ?? 'main';
@@ -99,12 +129,63 @@ export function createSession( deps: SessionDeps ): Session {
 	const propsSeen = new WeakMap< Element, Record< string, string > >();
 	const listeners: Array< () => void > = [];
 
+	// ------------------------------------------------------- dev guards
+
+	// The two silent failure modes a new app author hits first: a
+	// trigger naming an action nothing implements (a typo no-ops until
+	// the click 400s), and a write to a state key the schema does not
+	// declare (works locally, vanishes on the next round trip). Both
+	// warn once, at the moment the mistake is visible.
+	const declaredKeys = new Set( Object.keys( config.state ?? {} ) );
+	const declaredActions = new Set( [
+		'mount',
+		'set',
+		'refresh',
+		...( config.actions ?? [] ),
+		...( config.lifecycle ?? [] ),
+	] );
+	const debugging = (): boolean => debugWindows.has( '*' ) || debugWindows.has( windowId );
+
+	/** Flag rendered triggers whose action nothing implements. */
+	const auditTriggers = (): void => {
+		// An older config blob without the action list cannot tell a
+		// typo from a legitimate action — stay quiet rather than cry
+		// wolf on everything.
+		if ( ! config.actions || config.actions.length === 0 ) {
+			return;
+		}
+		for ( const el of Array.from( root.querySelectorAll( '[os-action]' ) ) ) {
+			const action = el.getAttribute( 'os-action' ) ?? '';
+			if ( '' === action || declaredActions.has( action ) || ( client?.hasLocal( action ) ?? false ) ) {
+				continue;
+			}
+			warnOnce(
+				`${ config.id }:action:${ action }`,
+				`[openstation] app "${ config.id }": os-action="${ action }" names no server action, no local reducer and no built-in — dispatching it will fail. Declare ->action( '${ action }' ) in the .os.php, or a local reducer in the .os.ts.`,
+			);
+		}
+	};
+
+	/** Flag a write to a key the state schema does not declare. */
+	const auditStateKeys = ( wrote: string ): void => {
+		for ( const key of Object.keys( state ) ) {
+			if ( ! declaredKeys.has( key ) ) {
+				warnOnce(
+					`${ config.id }:key:${ key }`,
+					`[openstation] app "${ config.id }": ${ wrote } wrote state.${ key }, which App::state() does not declare — the next server response silently drops it. Declare it in ->state(), or keep client-only values in ctx.ui().`,
+				);
+			}
+		}
+	};
+
 	// ------------------------------------------------------- transport
 
 	const send = async ( action: string, args: Record< string, unknown >, trigger: Element | null ): Promise< boolean > => {
 		if ( disposed ) {
 			return false;
 		}
+		// eslint-disable-next-line @wordpress/no-unused-vars-before-return -- the trace must clock the WHOLE dispatch; the guards above return before any work exists to time.
+		const startedAt = Date.now();
 		inFlight++;
 		root.setAttribute( 'aria-busy', 'true' );
 		if ( trigger && trigger.tagName.toLowerCase() === 'os-button' ) {
@@ -157,10 +238,32 @@ export function createSession( deps: SessionDeps ): Session {
 				return false;
 			}
 			apply( payload, sentState );
+			if ( debugging() ) {
+				const changed = Object.keys( state ).filter( ( key ) => state[ key ] !== sentState[ key ] );
+				// eslint-disable-next-line no-console
+				console.groupCollapsed(
+					`[openstation:${ config.id }] ${ action } · ${ Date.now() - startedAt }ms`,
+				);
+				// eslint-disable-next-line no-console
+				console.log( 'args', args );
+				// eslint-disable-next-line no-console
+				console.log( 'state Δ', changed, changed.length > 0 ? Object.fromEntries( changed.map( ( key ) => [ key, state[ key ] ] ) ) : '' );
+				// eslint-disable-next-line no-console
+				console.log( 'effects', payload.effects ?? [] );
+				// eslint-disable-next-line no-console
+				console.groupEnd();
+			}
 			return true;
 		} catch ( err ) {
 			if ( disposed || signal?.aborted ) {
 				return false;
+			}
+			if ( debugging() ) {
+				// eslint-disable-next-line no-console
+				console.warn(
+					`[openstation:${ config.id }] ${ action } FAILED after ${ Date.now() - startedAt }ms:`,
+					err,
+				);
 			}
 			host.toast?.( {
 				message: sprintf(
@@ -223,6 +326,7 @@ export function createSession( deps: SessionDeps ): Session {
 		applyProps( root, propsSeen );
 		void ensureComponents();
 		reconcilePolls();
+		auditTriggers();
 	};
 
 	const apply = ( payload: DispatchResponse, sentState: Record< string, unknown > ): void => {
@@ -340,6 +444,11 @@ export function createSession( deps: SessionDeps ): Session {
 		}
 		if ( client.hasLocal( action ) ) {
 			state = client.runLocal( action, state, args, data );
+			auditStateKeys( `local action "${ action }"` );
+			if ( debugging() ) {
+				// eslint-disable-next-line no-console
+				console.debug( `[openstation:${ config.id }] local ${ action }`, args );
+			}
 		}
 		client.render( viewContext() );
 		finishRender();
@@ -447,6 +556,12 @@ export function createSession( deps: SessionDeps ): Session {
 
 	const trigger = ( binding: Binding, el: Element ): void => {
 		if ( binding.bind ) {
+			if ( ! declaredKeys.has( binding.bind ) ) {
+				warnOnce(
+					`${ config.id }:bind:${ binding.bind }`,
+					`[openstation] app "${ config.id }": os-bind="${ binding.bind }" writes a key App::state() does not declare — the server drops it on the next round trip. Declare it in ->state(), or keep client-only values in ctx.ui().`,
+				);
+			}
 			const value = boundValue( binding.args );
 			if ( value !== undefined ) {
 				state = { ...state, [ binding.bind ]: value };

@@ -94,18 +94,36 @@ Three things follow from that, and all three have bitten someone:
 | `action( $name, callable )` | `function ( State $state, Os $os, array $args )`. Mutate the state; the view re-renders after. Throwing surfaces as a toast. |
 | `view( callable )` | `function ( State $state, Os $os )`. The main body, rendered on the server. Echo markup (`?> … <?php`) or return a string. Omit it when the app has a client view. |
 | `data( callable )` | `function ( State $state, Os $os ): array`. What a client view renders from — rows, options, environment facts. Computed after every server action and shipped as `data` in the response. |
-| `client( $path )` | The built `.os.ts` bundle. Not needed for an app inside OpenStation (`<file>.os.ts` beside the `.os.php` is discovered and built by `npm run build:apps`); a plugin that builds its own passes the absolute path of the built file. **Inside this repo only, for now** — see below. |
+| `client( $path )` | The built client-view script. Not needed for an app inside OpenStation (`<file>.os.ts` beside the `.os.php` is discovered and built by `npm run build:apps`); a third-party plugin passes the absolute path of its own script here — written against the runtime's client API, see below. |
 | `tab( $value, array $args )` | An extra tab in the window's tab strip: `label`, `view` (callable), `position`. The main view is the first tab. Each tab panel is its own session — same declared state shape, separate values — and `$os->view` tells an action which tab dispatched it. Tabs are server views. |
 
-> **Client views are not third-party-ready yet.** `@openstation/app` is a
-> Vite alias (`vite.config.js`) onto `src/app-runtime/client.ts`, which
-> imports `../i18n` and `../ui/core/html` from this repo's source tree.
-> It is not published as a package and it is not exposed on a global, so
-> a plugin outside OpenStation cannot build a `.os.ts` today: `client(
-> $path )` will register whatever bundle you hand it, but there is no
-> supported way to produce one. **Server views (`view()`) are fully
-> third-party-usable** and are the general case anyway. Packaging the
-> client half is tracked work, not a documented capability.
+> **Third-party client views.** Inside OpenStation a `.os.ts` imports
+> `@openstation/app` (a Vite alias onto `src/app-runtime/client.ts`);
+> that alias does not exist outside this repo, so an external plugin
+> writes its client view against the **runtime's client API** instead.
+> The companion script loads *before* the runtime, so it queues:
+>
+> ```js
+> // my-plugin/apps/hello/hello-client.js — no build required.
+> ( window.openStationAppsPending ??= [] ).push( ( { defineApp, html } ) => {
+> 	defineApp( 'hello', {
+> 		local: { pick: ( state, args ) => ( { ...state, choice: String( args.id ) } ) },
+> 		view: ( { state, data } ) => html`…`,
+> 	} );
+> } );
+> ```
+>
+> The runtime drains the queue on load and then replaces it with a live
+> object whose `push` runs immediately — the same snippet works in any
+> load order. The API handed to the callback is everything an in-repo
+> `.os.ts` imports: `defineApp`, `html`, `__`/`_n`/`_x`/`sprintf`,
+> `formatBytes`/`formatDate`, `createPagedList`/`applySelection`/
+> `createMarquee` — also mirrored on `wp.os.apps` once the runtime is
+> up. Register the script with `client( $path )` (absolute path;
+> OpenStation serves it as the window's companion). **Server views
+> (`view()`) remain the general case** and need none of this; a typed
+> npm package for the client half is still tracked work — this global
+> API is the supported path until then.
 
 `State` is an `ArrayAccess` bag with `get()`, `set()`, `has()`, `toggle()`, `toggle_item( $key, $item )`, `contains( $key, $item )`, `reset( $key )`, `all()`. Setting an undeclared key is a no-op; declare it.
 
@@ -299,7 +317,25 @@ The context carries the framework's client-side services, so an app never re-imp
 - **`ctx.fetch( path, init )`** — REST the framework way: a relative path resolves against the site's REST root, the nonce and a JSON `Accept` header ride along unless the caller set their own, and the request is attributed to the window so its loading spinner shows.
 - **`ctx.host`** — the shell surface the runtime itself runs on (`toast`, `confirm`, `menu`, `openWindow`, …), already typed.
 
-Tests build a context with `mockViewContext()` from `src/app-runtime/testing.ts` instead of hand-writing these members.
+Tests build a context with `mockViewContext()` from `src/app-runtime/testing.ts` instead of hand-writing these members; its `renderedText( node )` reads the text a user would see **through shadow roots and slots**, because `textContent` stops at a shadow boundary and a view painted with kit components (`<os-stat>`'s value lives in its shadow) reads as a hole without it.
+
+### Where does an interaction live?
+
+The one decision every interaction needs, and the one a wrong default makes slow (a server round trip is a full WordPress request — ~235 ms on the local Docker):
+
+| The interaction… | Lives as |
+|---|---|
+| Re-slices rows the browser already holds (filter, sort, search-as-you-type, expand, select) | A `local` reducer, or `os-bind` alone — never leaves the tab |
+| Reads or writes server truth (save, trash, load a different source) | An `->action()` in the `.os.php` |
+| Only needs fresh `data()` (a Refresh button, a poll tick) | The built-in `refresh` — no handler to declare |
+| Remembers something the server must never see (an open menu, a fetch cache, an observer) | `ctx.ui()` + `ctx.repaint()` — not state at all |
+| Reads one REST resource on demand (a heavy payload only one pane needs) | `ctx.fetch()` cached in `ctx.ui()` |
+
+When in doubt: put it in `data()` and slice locally. The framework guards the two wrong turns that used to fail silently — a rendered `os-action` that nothing implements warns in the console at paint time (not at click time), and a write to a state key `App::state()` does not declare warns once with the fix in the message.
+
+### Debugging a dispatch
+
+A dispatch crosses more layers than a click handler ever did — trigger → binding → wire → `State` coercion → `data()` → render — so the runtime carries its own trace. `wp.os.apps.debug( windowId )` (or `debug( '*' )` for every app window) logs one collapsed console group per dispatch: the action, its arguments, the elapsed time, exactly which state keys changed and to what, and the effects that ran; local actions log a single `debug` line; failures log the error with the elapsed time. `debug( windowId, false )` turns it off.
 
 For list windows, `@openstation/app` also ships the machinery every one of them needs:
 

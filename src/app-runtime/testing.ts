@@ -27,6 +27,32 @@ type Seed< S, D > = Partial< ViewContext< S, D > > & {
  * member via the seed; assign `ctx.repaint` after creation when the
  * test wants a repaint to actually re-render.
  */
+/**
+ * The text a user would read, shadow DOM included.
+ *
+ * `textContent` stops at a shadow boundary, so an assertion against a
+ * view that paints through kit components (`<os-stat>`'s value lives
+ * in its shadow root) reads an empty hole where the number is. This
+ * walks the COMPOSED tree instead: into shadow roots, and through
+ * `<slot>`s to the light-DOM nodes they project. Components must be
+ * defined (import them in the test) and their microtask render
+ * flushed (`await Promise.resolve()`) before the shadow holds text.
+ */
+export function renderedText( node: Node ): string {
+	if ( node.nodeType === Node.TEXT_NODE ) {
+		return node.textContent ?? '';
+	}
+	if ( typeof HTMLSlotElement !== 'undefined' && node instanceof HTMLSlotElement ) {
+		const assigned = node.assignedNodes( { flatten: true } );
+		const sources = assigned.length > 0 ? assigned : Array.from( node.childNodes );
+		return sources.map( renderedText ).join( '' );
+	}
+	if ( node instanceof Element && node.shadowRoot ) {
+		return Array.from( node.shadowRoot.childNodes ).map( renderedText ).join( '' );
+	}
+	return Array.from( node.childNodes ).map( renderedText ).join( '' );
+}
+
 export function mockViewContext< S extends Record< string, unknown >, D >(
 	seed: Seed< S, D >,
 ): ViewContext< S, D > {
