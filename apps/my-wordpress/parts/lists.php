@@ -87,13 +87,33 @@ function rest_extras( \WP_Post $post ) {
 		if ( empty( $taxonomy->show_in_rest ) ) {
 			continue;
 		}
-		$base = isset( $taxonomy->rest_base ) && '' !== (string) $taxonomy->rest_base
+		$base            = isset( $taxonomy->rest_base ) && '' !== (string) $taxonomy->rest_base
 			? (string) $taxonomy->rest_base
 			: (string) $taxonomy->name;
-		$ids  = wp_get_object_terms( $post->ID, $taxonomy->name, array( 'fields' => 'ids' ) );
+		$ids             = wp_get_object_terms( $post->ID, $taxonomy->name, array( 'fields' => 'ids' ) );
 		$extras[ $base ] = is_wp_error( $ids ) ? array() : array_map( 'intval', $ids );
 	}
 	return $extras;
+}
+
+/**
+ * A primary order with the ID tiebreak behind it — unless the primary
+ * order IS the id, where a second `ID` key would silently replace the
+ * first (PHP array keys are unique) and flip the direction asked for.
+ *
+ * @param string $by        Primary `orderby`.
+ * @param string $order     Its direction.
+ * @param string $tiebreak  Direction of the ID tiebreak.
+ * @return array<string,string>
+ */
+function tiebroken( $by, $order, $tiebreak ) {
+	if ( 'ID' === $by ) {
+		return array( 'ID' => $order );
+	}
+	return array(
+		$by  => $order,
+		'ID' => $tiebreak,
+	);
 }
 
 /**
@@ -121,7 +141,7 @@ function fetch( Os $os, array $section, State $state ) {
 	list( $by, $order ) = sort_of( $section, $state );
 
 	if ( 'user' === $section['kind'] ) {
-		$users = new \WP_User_Query(
+		$users   = new \WP_User_Query(
 			array(
 				'number'      => PER_PAGE,
 				'offset'      => ( $page - 1 ) * PER_PAGE,
@@ -132,20 +152,22 @@ function fetch( Os $os, array $section, State $state ) {
 				// each page's query may resort the whole set differently
 				// and an infinite-scrolled list visibly reshuffles as
 				// pages land.
-				'orderby'     => array(
-					$by   => $order,
-					'ID'  => 'ASC',
-				),
+				'orderby'     => tiebroken( $by, $order, 'ASC' ),
 				'count_total' => true,
 			)
 		);
-		$items = array();
-		foreach ( $users->get_results() as $user ) {
+		$results = $users->get_results();
+		// One query for every row's post count — the list view's Posts
+		// column — instead of one per person.
+		$counts = count_many_users_posts( wp_list_pluck( $results, 'ID' ), 'post', true );
+		$items  = array();
+		foreach ( $results as $user ) {
 			$items[] = user_row(
 				$user,
 				static function ( $user_id ) use ( $os, $section ) {
 					return allowed( $os, $section, $user_id, 'edit' );
-				}
+				},
+				(int) ( $counts[ $user->ID ] ?? 0 )
 			);
 		}
 		return Os::page( $items, $users->get_total(), $page, PER_PAGE );
@@ -163,15 +185,12 @@ function fetch( Os $os, array $section, State $state ) {
 		// one post_date to the second, and equal rows have no
 		// defined order — each page could resort the set and the
 		// infinite scroll would reshuffle. See the user query above.
-		'orderby'        => array(
-			$by  => $order,
-			'ID' => 'DESC',
-		),
+		'orderby'        => tiebroken( $by, $order, 'DESC' ),
 	);
 	// Products and Coupons arrive in band order, decided server-side
 	// by the same cached plans that order them for WP Explorer.
 	$posts = new \WP_Query( woo_query_args( $args, $section, $state ) );
-	$items    = array();
+	$items = array();
 	foreach ( $posts->posts as $post ) {
 		$items[] = array(
 			'id'        => (int) $post->ID,
@@ -187,9 +206,17 @@ function fetch( Os $os, array $section, State $state ) {
 			'status'    => $is_media ? '' : (string) $post->post_status,
 			// For the hover card — the original tooltip's excerpt,
 			// already clamped to the 240 characters it shows.
+			// Stripped of tags AND decoded: the excerpt arrives with
+			// entities (`[&hellip;]` from `excerpt_more`, `&amp;` from
+			// the content), and the client sets it as text, where an
+			// undecoded entity reads literally.
 			'excerpt'   => $is_media
 				? ''
-				: mb_substr( wp_strip_all_tags( (string) get_the_excerpt( $post ) ), 0, 240 ),
+				: mb_substr(
+					html_entity_decode( wp_strip_all_tags( (string) get_the_excerpt( $post ) ), ENT_QUOTES | ENT_HTML5, 'UTF-8' ),
+					0,
+					240
+				),
 			'thumb'     => ! empty( $section['thumbnails'] )
 				? ( $is_media
 					? (string) wp_get_attachment_image_url( $post->ID, 'medium' )
@@ -201,6 +228,10 @@ function fetch( Os $os, array $section, State $state ) {
 			'canEdit'   => allowed( $os, $section, (int) $post->ID, 'edit' ),
 			'canDelete' => allowed( $os, $section, (int) $post->ID, 'delete' ),
 		);
+		// The list view's columns — the facts a person who thinks in
+		// ids needs at a glance, and the ones that tell a `-2` slug
+		// from the post it shadows.
+		$items[ count( $items ) - 1 ] += $is_media ? media_facts( $post ) : post_facts( $post );
 		if ( ! $is_media ) {
 			// The base keys stay authoritative: an extras key that
 			// collides with one of ours (a taxonomy rest_base named
@@ -215,30 +246,95 @@ function fetch( Os $os, array $section, State $state ) {
 }
 
 /**
+ * The list-view facts of a post-kind row: the slug, the author, both
+ * dates as ISO-8601 with the site offset (so the client formats them
+ * in the viewer's locale), the comment count, the `?p=` shortlink
+ * that survives a permalink change, the parent, and the word count.
+ *
+ * @param \WP_Post $post Post.
+ * @return array<string,mixed>
+ */
+function post_facts( \WP_Post $post ) {
+	$parent    = (int) $post->post_parent;
+	$shortlink = (string) wp_get_shortlink( $post->ID );
+	return array(
+		'slug'        => (string) $post->post_name,
+		'author'      => (string) get_the_author_meta( 'display_name', (int) $post->post_author ),
+		'authorId'    => (int) $post->post_author,
+		'date'        => (string) get_the_date( 'c', $post ),
+		'modified'    => (string) get_the_modified_date( 'c', $post ),
+		'comments'    => (int) $post->comment_count,
+		'shortlink'   => '' !== $shortlink ? esc_url_raw( $shortlink ) : '',
+		'parent'      => $parent,
+		'parentTitle' => $parent > 0 ? (string) get_the_title( $parent ) : '',
+		'words'       => str_word_count( wp_strip_all_tags( (string) $post->post_content ) ),
+	);
+}
+
+/**
+ * The list-view facts of a media row: the file name, its size and
+ * dimensions, both dates, and the post it is attached to.
+ *
+ * @param \WP_Post $post Attachment.
+ * @return array<string,mixed>
+ */
+function media_facts( \WP_Post $post ) {
+	$file   = get_attached_file( $post->ID );
+	$meta   = (array) wp_get_attachment_metadata( $post->ID );
+	$bytes  = $file && file_exists( $file ) ? (int) filesize( $file ) : 0;
+	$parent = (int) $post->post_parent;
+	return array(
+		'slug'        => (string) $post->post_name,
+		'file'        => $file ? wp_basename( $file ) : '',
+		'bytes'       => $bytes,
+		'size'        => $bytes > 0 ? (string) size_format( $bytes ) : '',
+		'dimensions'  => isset( $meta['width'], $meta['height'] ) ? $meta['width'] . ' × ' . $meta['height'] : '',
+		'author'      => (string) get_the_author_meta( 'display_name', (int) $post->post_author ),
+		'authorId'    => (int) $post->post_author,
+		'date'        => (string) get_the_date( 'c', $post ),
+		'modified'    => (string) get_the_modified_date( 'c', $post ),
+		'parent'      => $parent,
+		'parentTitle' => $parent > 0 ? (string) get_the_title( $parent ) : '',
+	);
+}
+
+/**
  * One list row for a WP_User — the REST-visible shape both the Users
  * section and WooCommerce's Customers section paint. One definition,
  * so the two lists can never drift apart field by field.
  *
- * @param \WP_User $user     The user.
- * @param callable $can_edit Answers "may the viewer edit user $id?".
+ * @param \WP_User $user       The user.
+ * @param callable $can_edit   Answers "may the viewer edit user $id?".
+ * @param int|null $post_count Their published post count, when the
+ *                             caller already counted the page in one
+ *                             query; null counts this one person.
  * @return array<string,mixed>
  */
-function user_row( \WP_User $user, callable $can_edit ) {
+function user_row( \WP_User $user, callable $can_edit, $post_count = null ) {
 	return array(
-		'id'        => (int) $user->ID,
-		'title'     => (string) $user->display_name,
+		'id'         => (int) $user->ID,
+		'title'      => (string) $user->display_name,
 		// The REST spelling too — the shared seam subscribers were
 		// written against `/wp/v2/users` rows.
-		'name'      => (string) $user->display_name,
-		'subtitle'  => (string) $user->user_email,
-		'status'    => implode( ', ', array_map( 'ucfirst', (array) $user->roles ) ),
-		'excerpt'   => '',
-		'thumb'     => (string) get_avatar_url( $user->ID, array( 'size' => 96 ) ),
-		'link'      => esc_url_raw( get_author_posts_url( $user->ID ) ),
-		'mime'      => '',
-		'lockedBy'  => '',
-		'canEdit'   => (bool) $can_edit( (int) $user->ID ),
-		'canDelete' => false,
+		'name'       => (string) $user->display_name,
+		'subtitle'   => (string) $user->user_email,
+		'status'     => implode( ', ', array_map( 'ucfirst', (array) $user->roles ) ),
+		'excerpt'    => '',
+		'thumb'      => (string) get_avatar_url( $user->ID, array( 'size' => 96 ) ),
+		'link'       => esc_url_raw( get_author_posts_url( $user->ID ) ),
+		'mime'       => '',
+		'lockedBy'   => '',
+		'canEdit'    => (bool) $can_edit( (int) $user->ID ),
+		'canDelete'  => false,
+		// The list view's columns.
+		'login'      => (string) $user->user_login,
+		'email'      => (string) $user->user_email,
+		'roles'      => array_values( array_map( 'strval', (array) $user->roles ) ),
+		// Stored in GMT; shipped as site-local ISO with its offset.
+		'registered' => (string) get_date_from_gmt( (string) $user->user_registered, 'c' ),
+		'posts'      => null === $post_count
+			? (int) count_user_posts( $user->ID, 'post', true )
+			: (int) $post_count,
 	);
 }
 
@@ -345,9 +441,9 @@ function detail( Os $os, array $section, $id ) {
 	$title = '' !== $post->post_title ? (string) $post->post_title : __( '(no title)', 'desktop-mode' );
 
 	if ( 'media' === $section['kind'] ) {
-		$file  = get_attached_file( $id );
-		$meta  = (array) wp_get_attachment_metadata( $id );
-		$used  = array();
+		$file = get_attached_file( $id );
+		$meta = (array) wp_get_attachment_metadata( $id );
+		$used = array();
 		if ( function_exists( 'openstation_my_wordpress_media_usage_build' ) ) {
 			foreach ( array_slice( (array) ( openstation_my_wordpress_media_usage_build( $post )['usedIn'] ?? array() ), 0, 12 ) as $row ) {
 				$used[] = array(

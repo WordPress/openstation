@@ -23,6 +23,107 @@ if ( ! defined( 'ABSPATH' ) ) {
 	defined( 'OPENSTATION_STANDALONE' ) || exit;
 }
 
+/** The two ways a section lists. */
+const VIEWS = array( 'icons', 'list' );
+
+/**
+ * The storage key of the per-section hidden-column map.
+ */
+const COLUMNS_KEY = 'hidden-columns';
+
+/**
+ * Mount: restore the remembered view mode. The client's first
+ * dispatch carries the schema default; the stored preference wins.
+ *
+ * @param State $state State.
+ * @param Os    $os    Host handle.
+ * @return void
+ */
+function mount( State $state, Os $os ) {
+	$stored = (string) $os->stored( 'view', 'icons' );
+	$state->set( 'view', in_array( $stored, VIEWS, true ) ? $stored : 'icons' );
+}
+
+/**
+ * `view`: the mode switch. The bound value already arrived with the
+ * state (the client flips locally first, so the switch is instant);
+ * this validates it and remembers it for the next window.
+ *
+ * @param State $state State.
+ * @param Os    $os    Host handle.
+ * @return void
+ */
+function view_action( State $state, Os $os ) {
+	$view = (string) $state->get( 'view' );
+	if ( ! in_array( $view, VIEWS, true ) ) {
+		$view = 'icons';
+		$state->set( 'view', $view );
+	}
+	$os->store( 'view', $view );
+}
+
+/**
+ * The per-section map of hidden list columns, as stored: section id
+ * → column ids. Columns are declared client-side (plugins add their
+ * own through the `os.my-wordpress.list-columns` filter), so the
+ * server keeps the user's choice as opaque, sanitised keys.
+ *
+ * @param Os $os Host handle.
+ * @return array<string,string[]>
+ */
+function hidden_columns( Os $os ) {
+	$stored = $os->stored( COLUMNS_KEY, array() );
+	$map    = array();
+	foreach ( is_array( $stored ) ? $stored : array() as $section => $ids ) {
+		$section = sanitize_key( (string) $section );
+		if ( '' === $section || ! is_array( $ids ) ) {
+			continue;
+		}
+		$map[ $section ] = array_values( array_unique( array_filter( array_map( 'sanitize_key', array_map( 'strval', $ids ) ) ) ) );
+	}
+	return $map;
+}
+
+/**
+ * `set-columns`: remember which columns the current section hides.
+ * The client sends the whole hidden list (`hidden`), because only it
+ * knows the default set — a column a plugin added last week is not
+ * something the server can name. An empty list is a choice too
+ * ("show everything"); `reset` is what forgets the section.
+ *
+ * @param State               $state State.
+ * @param Os                  $os    Host handle.
+ * @param array<string,mixed> $args  Trigger args (`hidden` | `reset`).
+ * @return void
+ */
+function set_columns_action( State $state, Os $os, array $args ) {
+	$section = sanitize_key( (string) $state->get( 'section' ) );
+	if ( '' === $section ) {
+		return;
+	}
+	$map = hidden_columns( $os );
+	if ( ! empty( $args['reset'] ) ) {
+		unset( $map[ $section ] );
+	} else {
+		$map[ $section ] = array_values(
+			array_unique(
+				array_filter(
+					array_map( 'sanitize_key', array_map( 'strval', array_slice( (array) ( $args['hidden'] ?? array() ), 0, 40 ) ) ),
+					'strlen'
+				)
+			)
+		);
+	}
+	// A bounded map: the sections a person actually tuned, never a
+	// growing log of every folder they ever opened.
+	$map = array_slice( $map, -40, 40, true );
+	if ( array() === $map ) {
+		$os->forget( COLUMNS_KEY );
+	} else {
+		$os->store( COLUMNS_KEY, $map );
+	}
+}
+
 /**
  * `go`: open a root folder or a section, resetting the whole trail.
  *

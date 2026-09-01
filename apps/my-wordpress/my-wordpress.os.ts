@@ -17,6 +17,11 @@
  *                          preview-action scoping, menu builders.
  *   parts/list-views.ts    The root grid, the tile canvas, the
  *                          context menu, quick-edit, zoom.
+ *   parts/list-table.ts    The list view: the per-kind column model,
+ *                          sortable headers, the row action cluster,
+ *                          the column chooser.
+ *   parts/rows.ts          What a tile and a row share: click,
+ *                          double click, right click, the clipboard.
  *   parts/dossier-views.ts The detail pane, the navigate-into folder,
  *                          the sub-lists and the stats panes.
  *   parts/agents.ts        Agents: character system, openers, the
@@ -48,6 +53,7 @@ import {
 	renderZoom,
 } from './parts/list-views';
 import { renderDetail, renderFolder, renderSub } from './parts/dossier-views';
+import { hiddenStatus, renderColumnsMenu, sortStatus } from './parts/list-table';
 import { footprintStatus, renderFootprint } from './parts/footprint';
 import { agentDefaultRole, emptyCast, newSeed } from './parts/agents';
 import { renderAgents } from './parts/agents-wizard';
@@ -62,6 +68,7 @@ export {
 	buildMenuOptions,
 	withSendToHeading,
 } from './parts/helpers';
+export { columnsFor, hiddenFor, nextSort } from './parts/list-table';
 // The framework's list/selection primitives, re-exported so plugins
 // reading this bundle's types keep one import path.
 export { applySelection } from '@openstation/app';
@@ -80,6 +87,7 @@ export type {
 	DetailFacts,
 	FolderPayload,
 	GroupDef,
+	ListColumn,
 	ListItem,
 	ListPage,
 	MenuOption,
@@ -120,6 +128,8 @@ function renderBody(
 	if ( inFolder ) {
 		return renderFolder( ctx );
 	}
+	// The preview pane stays in both views — the list's columns
+	// scroll sideways inside their own pane rather than push it out.
 	return html`
 		<div class="os-mywp__split">
 			<div class="os-mywp__list-pane">${ renderList( ctx, section, items ) }</div>
@@ -129,6 +139,39 @@ function renderBody(
 					: html`<p class="os-mywp__pane-empty">${ __( 'Select an entry to preview it here.' ) }</p>` }
 			</aside>
 		</div>
+	`;
+}
+
+/** The icons / list switch — instant locally, remembered by the server. */
+function renderViewSwitch( ctx: Ctx ): TemplateResult {
+	const { state } = ctx;
+	const pick = ( e: Event ): void => {
+		const view = String( ( e as CustomEvent< { value?: string } > ).detail?.value ?? '' );
+		if ( ( view !== 'icons' && view !== 'list' ) || view === state.view ) {
+			return;
+		}
+		// Selection and the open item are shared state, so they survive
+		// the switch; the other view scrolls them into sight.
+		uiOf( ctx ).revealSelection = true;
+		ctx.local( 'set-view', { view } );
+		void ctx.dispatch( 'view' );
+	};
+	return html`
+		<os-segmented
+			class="os-mywp__view-switch"
+			value=${ state.view }
+			label=${ __( 'View as' ) }
+			@os-pick=${ pick }
+		>
+			<os-segment value="icons" title=${ __( 'Icons' ) }>
+				<span class="dashicons dashicons-grid-view" aria-hidden="true"></span>
+				<span class="os-mywp__view-label">${ __( 'Icons' ) }</span>
+			</os-segment>
+			<os-segment value="list" title=${ __( 'List' ) }>
+				<span class="dashicons dashicons-list-view" aria-hidden="true"></span>
+				<span class="os-mywp__view-label">${ __( 'List' ) }</span>
+			</os-segment>
+		</os-segmented>
 	`;
 }
 
@@ -151,6 +194,18 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 		},
 		'set-sort': ( state, args ) => {
 			state.sort = String( args.sort ?? '' );
+		},
+		// The view switch flips here, instantly; the `view` server
+		// action that follows only remembers the choice.
+		'set-view': ( state, args ) => {
+			state.view = args.view === 'list' ? 'list' : 'icons';
+			// The table reads top-down by id: entering it with no order
+			// picked lists the highest id first, and says so in the ID
+			// header. An order the user chose is theirs in both views.
+			if ( state.view === 'list' && state.sort === '' ) {
+				state.sort = 'id-desc';
+				state.page = 1;
+			}
 		},
 		// Transient UI (context menu, zoom) lives in the framework's
 		// per-view bag (`ctx.ui`) — handlers mutate it directly and
@@ -336,7 +391,7 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 					? payload.sections.filter( ( s ) => s.group === state.group ).length
 					: payload.sections.filter( ( s ) => ! s.group ).length + payload.groups.length,
 			);
-		const statusRight = section && ! inFolder
+		let statusRight = section && ! inFolder
 			? sprintf(
 				/* translators: 1: current page, 2: page count. */
 				__( 'Page %1$d of %2$d' ),
@@ -344,6 +399,13 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 				payload.list?.pages ?? 1,
 			)
 			: '';
+		if ( section && ! inFolder && ! isAgents && state.view === 'list' ) {
+			// The list view says how it is ordered and what it is not
+			// showing — the two facts a table's reader keeps asking.
+			statusRight = [ hiddenStatus( ctx, section ), sortStatus( ctx ), statusRight ]
+				.filter( Boolean )
+				.join( ' · ' );
+		}
 
 		return html`
 			<div class="os-mywp" tabindex="-1">
@@ -366,6 +428,7 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 							os-bind="query"
 							os-action="search"
 						></os-text-field>
+						${ renderViewSwitch( ctx ) }
 					</div>`
 					: '' }
 				<div class="os-mywp__body">
@@ -376,6 +439,7 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 					<span>${ folderStatus ? folderStatus[ 1 ] : statusRight }</span>
 				</footer>
 				${ section && ! isAgents ? renderMenu( ctx, section ) : '' }
+				${ renderColumnsMenu( ctx, section ) }
 				${ renderQuickEdit( ctx, section ) }
 				${ renderZoom( ctx ) }
 			</div>

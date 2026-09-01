@@ -111,8 +111,13 @@
 	color: var( --os-ui-fg-muted, #646970 );
 }
 
-/* Search row — its own band under the header, WP Explorer style. */
+/* Search row — its own band under the header, WP Explorer style.
+ * The view switch sits at its far end. */
 .os-mywp__search {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
 	padding: 10px 14px;
 	flex: 0 0 auto;
 	border-block-end: 1px solid var( --os-ui-border, #dcdcde );
@@ -121,6 +126,25 @@
 .os-mywp__search os-text-field {
 	inline-size: min( 360px, 100% );
 	display: block;
+	flex: 1 1 auto;
+}
+
+.os-mywp__view-switch {
+	flex: 0 0 auto;
+}
+
+.os-mywp__view-switch .dashicons {
+	font-size: 16px;
+	inline-size: 16px;
+	block-size: 16px;
+	vertical-align: -3px;
+}
+
+/* Under ~560px the switch keeps its glyphs and drops the words. */
+@container ( max-width: 560px ) {
+	.os-mywp__view-label {
+		display: none;
+	}
 }
 
 /* -------------------------------------------------------------- body */
@@ -375,6 +399,313 @@
 	.os-mywp__ghost-label {
 		animation: none;
 	}
+}
+
+/* --------------------------------------------------------- list view */
+
+/*
+ * The table: the same rows as the tile canvas, in columns. The
+ * wrapper is the scrolling canvas (both axes — a narrow window scrolls
+ * the columns sideways rather than crushing them), the header sticks,
+ * and every colour resolves through the same chains the tiles read so
+ * a desktop theme repaints both views at once.
+ */
+.os-mywp__table-wrap {
+	flex: 1 1 auto;
+	min-block-size: 0;
+	overflow: auto;
+	position: relative;
+}
+
+/*
+ * Auto layout with ONE stretching column: every other column is
+ * declared 1px wide, which in an auto table means "as wide as your
+ * (nowrap) content"; the title column takes what is left. Its
+ * `max-inline-size: 0` is what lets the ellipsis work — an auto
+ * layout would otherwise size the column to its longest title. No
+ * percentage widths and no `max-content` minimum on the table: a
+ * 100% column against a max-content floor resolves to an unbounded
+ * width and the wrapper scrolls forever.
+ */
+.os-mywp__table {
+	inline-size: 100%;
+	border-collapse: separate;
+	border-spacing: 0;
+	font-size: 13px;
+	table-layout: auto;
+}
+
+.os-mywp__th:not( .os-mywp__th--title ),
+.os-mywp__td:not( .os-mywp__td--title ) {
+	inline-size: 1px;
+}
+
+.os-mywp__th--title,
+.os-mywp__td--title {
+	inline-size: 100%;
+	max-inline-size: 0;
+	min-inline-size: 160px;
+}
+
+.os-mywp__th {
+	position: sticky;
+	inset-block-start: 0;
+	z-index: 2;
+	padding: 0 10px;
+	block-size: 32px;
+	text-align: start;
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	white-space: nowrap;
+	color: var( --os-ui-fg-muted, #646970 );
+	/* The band-head recipe: near-opaque frost, so rows scrolling under
+	 * the header stay behind it. */
+	background: color-mix( in srgb, var( --os-ui-bg, #fff ) 94%, transparent );
+	backdrop-filter: blur( 14px ) saturate( 180% );
+	border-block-end: 1px solid var( --os-ui-border, #dcdcde );
+}
+
+@supports not ( background: color-mix( in srgb, red 50%, transparent ) ) {
+	.os-mywp__th {
+		background: var( --os-ui-bg, #fff );
+	}
+}
+
+.os-mywp__th--end,
+.os-mywp__td--end {
+	text-align: end;
+}
+
+.os-mywp__th,
+.os-mywp__td {
+	vertical-align: middle;
+}
+
+/* The column-chooser button sits on the header's centre line, not on
+ * its baseline. */
+.os-mywp__th--actions {
+	inline-size: 1px;
+	line-height: 0;
+}
+
+.os-mywp__columns-btn {
+	vertical-align: middle;
+}
+
+/* A sortable heading is a button wearing the heading's costume. */
+.os-mywp__sort {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	margin: 0;
+	padding: 0;
+	border: 0;
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	letter-spacing: inherit;
+	text-transform: inherit;
+	cursor: pointer;
+}
+
+.os-mywp__sort:hover,
+.os-mywp__sort:focus-visible,
+.os-mywp__sort.is-active {
+	color: var( --os-my-wordpress-fg, var( --os-ui-fg, #1d2327 ) );
+}
+
+.os-mywp__sort-arrow {
+	font-size: 8px;
+	min-inline-size: 8px;
+}
+
+.os-mywp__row {
+	cursor: default;
+}
+
+.os-mywp__td {
+	padding: 0 10px;
+	block-size: 36px;
+	vertical-align: middle;
+	white-space: nowrap;
+	max-inline-size: 320px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	border-block-end: 1px solid
+		var( --os-ui-border-subtle, var( --os-ui-border, rgba( 0, 0, 0, 0.06 ) ) );
+}
+
+.os-mywp__td--mono,
+.os-mywp__cell-id {
+	font-family: var( --os-ui-font-mono, ui-monospace, monospace );
+	font-variant-numeric: tabular-nums;
+	font-size: 12px;
+}
+
+/* Hover, selection and the open row read the tile canvas's tokens —
+ * one selection colour in the whole window, whichever view. */
+.os-mywp__row:hover .os-mywp__td {
+	background: var( --os-tile-hover-bg, rgba( 0, 0, 0, 0.06 ) );
+}
+
+.os-mywp__row.is-selected .os-mywp__td {
+	background: var( --os-tile-selected-bg, rgba( 34, 113, 177, 0.14 ) );
+}
+
+.os-mywp__row.is-open .os-mywp__td {
+	box-shadow: inset 0 -1px 0 var( --os-tile-focus-ring, var( --wp-admin-theme-color, #2271b1 ) ),
+		inset 0 1px 0 var( --os-tile-focus-ring, var( --wp-admin-theme-color, #2271b1 ) );
+}
+
+.os-mywp__row:focus-visible {
+	outline: none;
+}
+
+.os-mywp__row:focus-visible .os-mywp__td {
+	box-shadow: inset 0 0 0 1px var( --os-tile-focus-ring, var( --wp-admin-theme-color, #2271b1 ) );
+}
+
+/* The id copies itself; it looks like a chip so the affordance reads. */
+.os-mywp__cell-id--copy {
+	margin: 0;
+	padding: 2px 6px;
+	border: 0;
+	border-radius: 4px;
+	background: var( --os-ui-surface-raised, rgba( 0, 0, 0, 0.04 ) );
+	color: var( --os-my-wordpress-fg-muted, var( --os-ui-fg-muted, #646970 ) );
+	cursor: copy;
+}
+
+.os-mywp__cell-id--copy:hover,
+.os-mywp__cell-id--copy:focus-visible {
+	background: var( --os-hover, var( --os-ui-hover, rgba( 0, 0, 0, 0.08 ) ) );
+	color: var( --os-my-wordpress-fg, var( --os-ui-fg, #1d2327 ) );
+}
+
+.os-mywp__cell-title {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	min-inline-size: 0;
+	max-inline-size: 100%;
+}
+
+.os-mywp__cell-text {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	font-weight: 500;
+}
+
+.os-mywp__cell-thumb {
+	inline-size: 24px;
+	block-size: 24px;
+	border-radius: 4px;
+	object-fit: cover;
+	flex: 0 0 auto;
+	background: var( --os-ui-surface-raised, rgba( 0, 0, 0, 0.04 ) );
+}
+
+.os-mywp__cell-glyph.dashicons {
+	inline-size: 24px;
+	block-size: 24px;
+	font-size: 18px;
+	display: grid;
+	place-items: center;
+	color: var( --os-ui-fg-muted, #646970 );
+	flex: 0 0 auto;
+}
+
+.os-mywp__cell-glyph.os-mywp__icon-mask {
+	inline-size: 20px;
+	block-size: 20px;
+}
+
+.os-mywp__cell-badge {
+	flex: 0 0 auto;
+}
+
+.os-mywp__cell-lock {
+	font-size: 14px;
+	inline-size: 14px;
+	block-size: 14px;
+	color: var( --os-ui-fg-muted, #646970 );
+}
+
+.os-mywp__cell-muted {
+	color: var( --os-ui-fg-muted, #646970 );
+}
+
+.os-mywp__cell-parent .os-mywp__cell-id {
+	color: var( --os-ui-fg-muted, #646970 );
+}
+
+/* The action cluster: icon-only ghost buttons, visible on hover, on
+ * the selected row, and whenever one of them holds focus. */
+.os-mywp__row-actions {
+	display: inline-flex;
+	gap: 2px;
+	opacity: 0;
+	transition: opacity 120ms ease;
+}
+
+.os-mywp__row:hover .os-mywp__row-actions,
+.os-mywp__row.is-selected .os-mywp__row-actions,
+.os-mywp__row.is-open .os-mywp__row-actions,
+.os-mywp__row-actions:focus-within {
+	opacity: 1;
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.os-mywp__row-actions {
+		transition: none;
+	}
+}
+
+.os-mywp__row-action {
+	--os-ui-button-padding: 3px;
+	--os-ui-button-border-radius: 4px;
+	line-height: 0;
+}
+
+.os-mywp__row-action .dashicons {
+	font-size: 16px;
+	inline-size: 16px;
+	block-size: 16px;
+}
+
+.os-mywp__columns-btn {
+	opacity: 1;
+}
+
+/* Skeleton rows for the page being fetched — the tile ghosts' fill. */
+.os-mywp__row--ghost td {
+	padding: 10px;
+	border-block-end: 1px solid
+		var( --os-ui-border-subtle, var( --os-ui-border, rgba( 0, 0, 0, 0.06 ) ) );
+}
+
+.os-mywp__ghost-line {
+	display: block;
+	block-size: 12px;
+	inline-size: min( 60%, 420px );
+	border-radius: 6px;
+	background: var( --os-skeleton-high, var( --os-ui-hover, rgba( 0, 0, 0, 0.08 ) ) );
+	animation: os-mywp-shimmer 1.2s ease-in-out infinite;
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.os-mywp__ghost-line {
+		animation: none;
+	}
+}
+
+.os-mywp__table-empty {
+	margin: 0;
+	padding: 32px 16px;
+	text-align: center;
+	color: var( --os-ui-fg-muted, #646970 );
 }
 
 /* ------------------------------------------------------- list bands */

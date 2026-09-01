@@ -27,6 +27,7 @@ import {
 	_x,
 	applySelection,
 	clientAppFor,
+	copyText,
 	createMarquee,
 	createPagedList,
 	defineApp,
@@ -364,6 +365,7 @@ const CLIENT_API = {
 	createPagedList,
 	applySelection,
 	createMarquee,
+	copyText,
 } as const;
 
 /** What a queued third-party client view receives. */

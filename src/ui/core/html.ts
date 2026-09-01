@@ -46,14 +46,107 @@ function isTemplateResult( v: unknown ): v is TemplateResult {
  * A placeholder marker inserted wherever a `${}` slot lives. After
  * `innerHTML`-parse we walk the tree, find markers, and build a
  * list of `Part`s that know how to update their slot on re-render.
+ *
+ * A slot in CHILD position is marked with a comment node, a slot
+ * inside a tag (an attribute value) or inside a raw-text element
+ * (`<style>`, `<script>`, `<textarea>`, `<title>`) with marker text.
+ * The distinction is load-bearing for tables: the HTML parser
+ * foster-parents stray TEXT out of `<table>`, `<tbody>` and `<tr>`,
+ * so a text marker between two `<td>`s ended up after the table and
+ * the cells rendered there with it. A comment is left where it is.
  */
 const MARKER_PREFIX = '$$wpd$$';
 const MARKER_RE = /\$\$wpd\$\$(\d+)\$\$/g;
+/**
+ * The child-position marker is its own spelling, so a slot an author
+ * put INSIDE a comment (`<!-- ${ note } -->`, marked as text) can
+ * never be mistaken for one of ours and rendered into the page.
+ */
+const COMMENT_MARKER_PREFIX = '$$wpd-node$$';
+const COMMENT_MARKER_RE = /^\$\$wpd-node\$\$(\d+)\$\$$/;
+const RAW_TEXT_TAGS = new Set( [ 'style', 'script', 'textarea', 'title' ] );
 
 function joinWithMarkers( strings: TemplateStringsArray ): string {
-	let out = strings[ 0 ];
-	for ( let i = 1; i < strings.length; i++ ) {
-		out += `${ MARKER_PREFIX }${ i - 1 }$$` + strings[ i ];
+	let out = '';
+	// A small lexer over the static strings, enough to know whether
+	// each slot sits inside a tag, inside a comment, or in text.
+	let inTag = false;
+	let quote: string | null = null;
+	let inComment = false;
+	/** The raw-text element being read, until its closing tag. */
+	let rawText: string | null = null;
+	/** The name of the tag being read, while `naming` — raw-text detection only. */
+	let tagName = '';
+	let naming = false;
+	for ( let i = 0; i < strings.length; i++ ) {
+		const s = strings[ i ];
+		out += s;
+		for ( let j = 0; j < s.length; j++ ) {
+			const ch = s[ j ];
+			if ( inComment ) {
+				if ( s.startsWith( '-->', j ) ) {
+					inComment = false;
+					j += 2;
+				}
+				continue;
+			}
+			if ( rawText !== null ) {
+				const closes = ch === '<' && s[ j + 1 ] === '/' &&
+					s.slice( j + 2, j + 2 + rawText.length ).toLowerCase() === rawText;
+				if ( closes ) {
+					j += 1 + rawText.length;
+					rawText = null;
+					inTag = true;
+					naming = false;
+					tagName = '';
+				}
+				continue;
+			}
+			if ( quote !== null ) {
+				if ( ch === quote ) {
+					quote = null;
+				}
+				continue;
+			}
+			if ( inTag ) {
+				if ( ch === '"' || ch === "'" ) {
+					quote = ch;
+					naming = false;
+				} else if ( ch === '>' ) {
+					inTag = false;
+					naming = false;
+					if ( RAW_TEXT_TAGS.has( tagName ) ) {
+						rawText = tagName;
+					}
+					tagName = '';
+				} else if ( naming ) {
+					if ( /[a-zA-Z0-9-]/.test( ch ) ) {
+						tagName += ch.toLowerCase();
+					} else {
+						naming = false;
+					}
+				}
+				continue;
+			}
+			if ( s.startsWith( '<!--', j ) ) {
+				inComment = true;
+				j += 3;
+				continue;
+			}
+			const next = s[ j + 1 ] ?? '';
+			if ( ch === '<' && /[a-zA-Z/!]/.test( next ) ) {
+				inTag = true;
+				tagName = '';
+				// Only an opening tag's name matters (a closing tag or a
+				// doctype never starts a raw-text run).
+				naming = /[a-zA-Z]/.test( next );
+			}
+		}
+		if ( i < strings.length - 1 ) {
+			out += inTag || inComment || rawText !== null
+				? `${ MARKER_PREFIX }${ i }$$`
+				: `<!--${ COMMENT_MARKER_PREFIX }${ i }$$-->`;
+		}
 	}
 	return out;
 }
@@ -244,6 +337,21 @@ function compile( strings: TemplateStringsArray ): Compiled {
 		for ( let i = 0; i < children.length; i++ ) {
 			const child = children[ i ];
 			const liveIndex = i + shift;
+			if ( child.nodeType === Node.COMMENT_NODE ) {
+				// A child-position slot: swap the comment marker for the
+				// empty text anchor every child part is bracketed by.
+				const m = COMMENT_MARKER_RE.exec( ( child as Comment ).data );
+				if ( m ) {
+					const placeholder = document.createTextNode( '' );
+					child.parentNode!.replaceChild( placeholder, child );
+					recipes.push( {
+						path: [ ...path, liveIndex ],
+						kind: 'node',
+						valueIndex: Number( m[ 1 ] ),
+					} );
+				}
+				continue;
+			}
 			if ( child.nodeType === Node.TEXT_NODE ) {
 				const text = child.textContent || '';
 				if ( ! MARKER_RE.test( text ) ) {

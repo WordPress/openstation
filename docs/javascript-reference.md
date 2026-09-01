@@ -6769,6 +6769,83 @@ A user tile carries a `.os-my-wordpress__user-tile-sub` sub-line
 supported way to say something truer about the person for your
 section.
 
+### Filter — `os.my-wordpress.list-columns`
+
+Add, reorder or drop columns in the explorer's **list view** — the
+sortable table a section switches to from the Icons / List control in
+its search band. Runs on every paint of the table with the section's
+built-in columns; return the list you want rendered.
+
+```ts
+wp.hooks.addFilter(
+    'os.my-wordpress.list-columns',
+    'my-plugin/lane-column',
+    ( columns, section ) => {
+        if ( section.id !== 'cpt-ticket' ) {
+            return columns;
+        }
+        // After the title: the lane a ticket sits in, read off the
+        // row's REST-visible meta (registered with `show_in_rest`).
+        columns.splice( 2, 0, {
+            id: 'lane',
+            label: 'Lane',
+            render: ( item ) => String( item.meta?._lane ?? '—' ),
+        } );
+        return columns;
+    },
+);
+```
+
+```ts
+interface ListColumn {
+    id: string;
+    label: string;
+    /**
+     * Sortable when BOTH keys exist in the section's server orders
+     * (`data.sortOptions` — the same list the icon view's "Sort by"
+     * menu shows). `first` is what a first click applies.
+     */
+    sort?: { asc: string; desc: string; first: 'asc' | 'desc' };
+    align?: 'start' | 'end';
+    /** Tabular figures in the kit's monospace — ids, slugs, counts. */
+    mono?: boolean;
+    /** Off until the user turns it on in the column chooser. */
+    hidden?: boolean;
+    /** A CSS width, or `'1fr'` for the one column that stretches. */
+    width?: string;
+    /** Never offered in the column chooser. */
+    locked?: boolean;
+    /** A string, a number, or a template from `wp.os.apps.html`. */
+    render: ( item: ListItem, section: Section ) => string | number | TemplateResult;
+}
+```
+
+`render` runs per cell, inside a try/catch — a throwing renderer
+paints an empty cell, never breaks the table. The row is the same
+object the tiles carry: the base fields (`id`, `title`, `status`,
+`link`, `thumb`, `lockedBy`, `canEdit`, `canDelete`), the REST-visible
+extras (`meta`, one term-id array per REST-exposed taxonomy keyed by
+`rest_base`), and the list-view facts — `slug`, `author`, `authorId`,
+`date`, `modified` (ISO-8601 with the site offset), `comments`,
+`shortlink` (the `?p=<id>` link), `parent`, `parentTitle`, `words`
+for post kinds; `file`, `bytes`, `size`, `dimensions` for media;
+`login`, `email`, `roles`, `registered`, `posts` for users.
+
+The built-in ids, per kind — posts and custom post types: `id`,
+`title`, `slug`, `author`, `status`, `date`, `modified`, `comments`,
+`parent` (hierarchical types only), `words`, `actions`; media: `id`,
+`title`, `file`, `mime`, `size`, `dimensions`, `parent`, `author`,
+`date`, `modified`, `actions`; users: `id`, `title`, `login`, `email`,
+`roles`, `posts`, `registered`, `actions`. A result that drops `title`
+or `actions` gets them back (the table cannot work without either);
+a result that is not an array, or a row without an `id` and a
+`render`, is ignored.
+
+The user's column choices are remembered **per section, per user**
+(the app's own storage), keyed by these ids — so keep a plugin
+column's `id` stable across releases, or a person's hidden set will
+stop matching it.
+
 ### Action — `os.my-wordpress.group-extras`
 
 Inject a panel above the folder tiles when the user opens a plugin or

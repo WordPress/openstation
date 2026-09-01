@@ -194,6 +194,12 @@ export function buildMenuOptions(
 	if ( item.link ) {
 		options.push( { id: 'copy-link', label: __( 'Copy link' ) } );
 	}
+	// The `?p=<id>` link survives a permalink change; the id is what
+	// a person who thinks in ids came for. Both work over a selection.
+	if ( item.shortlink ) {
+		options.push( { id: 'copy-shortlink', label: __( 'Copy shortlink' ) } );
+	}
+	options.push( { id: 'copy-id', label: __( 'Copy ID' ) } );
 	if ( section.kind === 'post' && ! section.flat ) {
 		options.push( {
 			id: 'trash',

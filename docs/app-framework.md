@@ -118,8 +118,8 @@ Three things follow from that, and all three have bitten someone:
 > load order. The API handed to the callback is everything an in-repo
 > `.os.ts` imports: `defineApp`, `html`, `__`/`_n`/`_x`/`sprintf`,
 > `formatBytes`/`formatDate`, `createPagedList`/`applySelection`/
-> `createMarquee` — also mirrored on `wp.os.apps` once the runtime is
-> up. Register the script with `client( $path )` (absolute path;
+> `createMarquee`, `copyText` — also mirrored on `wp.os.apps` once the
+> runtime is up. Register the script with `client( $path )` (absolute path;
 > OpenStation serves it as the window's companion). **Server views
 > (`view()`) remain the general case** and need none of this; a typed
 > npm package for the client half is still tracked work — this global
@@ -346,6 +346,10 @@ For list windows, `@openstation/app` also ships the machinery every one of them 
 - **`createMarquee( { root, canvas, select, item?, className? } )`** — the drawn selection box: starts on a press on empty canvas (never on a row), reports the intersected `data-item-id`s on every move, clears first on a plain press, and honours Ctrl/Cmd/Shift. The box wears `.os-app__marquee` from the runtime sheet unless the app passes its own class. Returns the teardown.
 
 Beside `defineApp`, `html` and the i18n functions, `@openstation/app` exports the shared formatting primitives so every app renders the same value shapes the same way: `formatBytes( n )` (`844 B` / `12.4 MB` / `123 MB`) and `formatDate( value, style )` where `value` is an ISO string (a bare `YYYY-MM` reads as that month), epoch milliseconds, or a `Date`, and `style` is `'short' | 'long' | 'month' | 'datetime' | 'iso'`. For "N minutes ago" keep using `<os-relative-time>`.
+
+It also exports **`copyText( text ): Promise< boolean >`** — the clipboard, honestly: the async API first, a selection-and-`execCommand` fallback on a plain-HTTP dev site or an old WebView, and a promise that resolves to whether the text is actually on the clipboard, so the toast can say "could not copy" instead of lying. Every "Copy link" / "Copy ID" in a list window should go through it rather than a bare `navigator.clipboard`, which is `undefined` in exactly the places a copy silently fails. Mirrored on `wp.os.apps.copyText` for third-party client views.
+
+**Tables render.** The `html` tag marks child-position slots with comment nodes, so `<tr>` and `<td>` fragments interpolated inside a `<table>` stay where they are written — the HTML parser foster-parents stray *text* out of a table, and a text marker between two cells used to land the cells after it. Nest row and cell templates freely; `tests/vitest` under `src/ui/core/html-table-slots.test.ts` pins it.
 
 Build: every `apps/<dir>/<name>.os.ts` is discovered by `vite.config.js` as the target `app:<name>` and built by `npm run build:apps` (part of `npm run build`) into `assets/js/apps/<name>[.min].js`; the host registers it as a companion script of the window, so it is in the tab before the runtime mounts. Type-checked and linted with the rest of the TypeScript; tests live beside it (`<name>.test.ts`).
 
