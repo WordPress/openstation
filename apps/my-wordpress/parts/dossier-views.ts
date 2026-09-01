@@ -394,15 +394,9 @@ export function renderFolder( ctx: Ctx ): TemplateResult {
 	`;
 }
 
-/** One stat tile: big number, label, optional footnote. */
+/** One stat tile — the kit's `<os-stat>` carries the typography. */
 function statTile( value: number, label: string, note = '' ): TemplateResult {
-	return html`
-		<div class="os-mywp__stat">
-			<span class="os-mywp__stat-value">${ value }</span>
-			<span class="os-mywp__stat-label">${ label }</span>
-			${ note ? html`<span class="os-mywp__stat-note">${ note }</span>` : '' }
-		</div>
-	`;
+	return html`<os-stat value=${ String( value ) } label=${ label } caption=${ note }></os-stat>`;
 }
 
 /** The 12-month activity bar row, zero months included. */

@@ -336,9 +336,14 @@ describe( 'view', () => {
 		);
 		expect( root.querySelector( 'os-tile[selected]' ) ).not.toBeNull();
 		expect( root.textContent ).toContain( 'View archive' );
-		expect( root.textContent ).toContain( '10' );
-		expect( root.textContent ).toContain( '5 published' );
-		expect( root.textContent ).toContain( 'Authors' );
+		// The stat tiles are <os-stat> — value/label/caption live on the
+		// element, not in light-DOM text.
+		const statText = Array.from( root.querySelectorAll( 'os-stat' ) )
+			.map( ( s ) => `${ s.getAttribute( 'value' ) } ${ s.getAttribute( 'label' ) } ${ s.getAttribute( 'caption' ) ?? '' }` )
+			.join( ' ' );
+		expect( statText ).toContain( '10' );
+		expect( statText ).toContain( '5 published' );
+		expect( statText ).toContain( 'Authors' );
 		expect( root.textContent ).toContain( 'Activity (last 12 months)' );
 		expect( root.textContent ).toContain( 'First post' );
 		expect( root.textContent ).toContain( 'August 2026' );
@@ -684,7 +689,8 @@ describe( 'theme tokenization', () => {
 		expect( ruleOf( '.os-mywp__crumb-link {' ) ).toContain( '--os-link' );
 		expect( ruleOf( '.os-mywp__recent-title' ) ).toContain( '--os-link' );
 		expect( ruleOf( '.os-mywp__tile:hover' ) ).toContain( '--os-tile-hover-bg' );
-		expect( ruleOf( '.os-mywp__stat-value' ) ).toContain( '--wp-admin-theme-color' );
+		// The stat tiles are <os-stat> now; the accent chain lives in the
+		// component's own stylesheet and its test.
 		expect( ruleOf( '.os-mywp__activity-bar' ) ).toContain( '--wp-admin-theme-color' );
 		expect( ruleOf( '.os-mywp__ghost-visual' ) ).toContain( '--os-skeleton-high' );
 	} );

@@ -769,34 +769,9 @@
 	inline-size: 100%;
 }
 
-.os-mywp__stat {
-	display: flex;
-	flex-direction: column;
-	gap: 2px;
-	padding: 10px 12px;
-	border: 1px solid var( --os-ui-border, #dcdcde );
-	border-radius: 8px;
-}
-
-.os-mywp__stat-value {
-	font-size: 20px;
-	font-weight: 700;
-	/* The accent-picker-driven admin scheme colour — the same chain
-	 * WP Explorer's stat values read. */
-	color: var( --wp-admin-theme-color, #2271b1 );
-}
-
-.os-mywp__stat-label {
-	font-size: 10px;
-	letter-spacing: 0.06em;
-	text-transform: uppercase;
-	color: var( --os-ui-fg-muted, #646970 );
-}
-
-.os-mywp__stat-note {
-	font-size: 11px;
-	color: var( --os-ui-fg-muted, #646970 );
-}
+/* The stat tiles are the kit's <os-stat>, on its defaults — the
+   accent-coloured value is the same --wp-admin-theme-color chain WP
+   Explorer's stat values read, declared in the component. */
 
 .os-mywp__activity {
 	display: flex;

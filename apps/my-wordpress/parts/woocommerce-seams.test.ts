@@ -334,10 +334,15 @@ describe( 'user preview pane', () => {
 
 		const ctx = mount( state( { section: 'wc-customers', item: 8 } ), withStats() );
 		const text = ctx.root.textContent ?? '';
-		expect( text ).toContain( '104' );
-		expect( text ).toContain( '103 published' );
-		expect( text ).toContain( 'Comments received' );
-		expect( text ).toContain( 'Comments left' );
+		// The stat tiles are <os-stat> — value/label/caption live on the
+		// element, not in light-DOM text.
+		const statText = Array.from( ctx.root.querySelectorAll( 'os-stat' ) )
+			.map( ( s ) => `${ s.getAttribute( 'value' ) } ${ s.getAttribute( 'label' ) } ${ s.getAttribute( 'caption' ) ?? '' }` )
+			.join( ' ' );
+		expect( statText ).toContain( '104' );
+		expect( statText ).toContain( '103 published' );
+		expect( statText ).toContain( 'Comments received' );
+		expect( statText ).toContain( 'Comments left' );
 		expect( text ).toContain( 'Activity (last 12 months)' );
 		expect( text ).toContain( 'Member since' );
 		expect( text ).toContain( 'First published' );
@@ -354,6 +359,8 @@ describe( 'user preview pane', () => {
 		const gatedText = gated.root.textContent ?? '';
 		expect( gatedText ).toContain( 'Email' );
 		expect( gatedText ).toContain( 'AUTHOR' );
+		// The whole stat strip goes with the publishing blocks.
+		expect( gated.root.querySelector( 'os-stat' ) ).toBeNull();
 		expect( gatedText ).not.toContain( 'Comments received' );
 		expect( gatedText ).not.toContain( 'Activity (last 12 months)' );
 		expect( gatedText ).not.toContain( 'Recent posts' );

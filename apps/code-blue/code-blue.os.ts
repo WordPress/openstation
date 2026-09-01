@@ -318,8 +318,8 @@ export default defineApp< State, Data >( 'openstation-code-blue', {
 				${ error !== '' ? html`<os-notice tone="error" not-dismissible>${ error }</os-notice>` : '' }
 
 				<os-grid gap="10" class="os-cb__stats">
-					<os-card compact class="os-cb-tile"><span class="os-cb-tile__label">${ __( 'Events' ) }</span><span class="os-cb-tile__value">${ inRange.length.toLocaleString() }</span></os-card>
-					${ BUCKETS.map( ( b ) => html`<os-card compact class="os-cb-tile"><span class="os-cb-tile__label"><span class="os-cb-swatch" data-tone=${ TONES[ b ] }></span>${ labels[ b ] }</span><span class="os-cb-tile__value">${ totals[ b ].toLocaleString() }</span></os-card>` ) }
+					<os-stat value=${ inRange.length.toLocaleString() } label=${ __( 'Events' ) }></os-stat>
+					${ BUCKETS.map( ( b ) => html`<os-stat value=${ totals[ b ].toLocaleString() } label=${ labels[ b ] } swatch data-tone=${ TONES[ b ] }></os-stat>` ) }
 				</os-grid>
 
 				<os-cluster gap="6" class="os-cb__env">

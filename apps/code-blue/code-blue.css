@@ -60,25 +60,13 @@
 	}
 }
 
-.os-cb-tile {
-	display: flex;
-	flex-direction: column;
-	gap: 4px;
-}
-
-.os-cb-tile__label {
-	display: inline-flex;
-	align-items: center;
-	gap: 6px;
-	font-size: 12px;
-	color: var( --os-ui-fg-muted, #646970 );
-}
-
-.os-cb-tile__value {
-	font-size: 22px;
-	font-weight: 600;
-	line-height: 1.1;
-	color: var( --os-ui-fg, #1d2327 );
+/* The tiles are the kit's <os-stat>; only Code Blue's variations on
+   its defaults live here: neutral (not accent) values on an elevated
+   card surface, at the old tile's size and weight. */
+.os-cb__stats os-stat {
+	--os-ui-stat-bg: var( --os-ui-surface-elevated, #fff );
+	--os-ui-stat-value-color: var( --os-ui-fg, #1d2327 );
+	--os-ui-stat-value-size: 22px;
 }
 
 /* ---------- Cards --------------------------------------------------- */
