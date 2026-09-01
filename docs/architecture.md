@@ -82,6 +82,7 @@ Key server-side entry points:
 | `includes/portal.php` | Portal URL (`/openstation/`, with the pre-rebrand `/desktop-mode/` still accepted) and redirect rules. |
 | `includes/shell-screen.php` | The shell screen (`admin.php?page=openstation`), `openstation_shell_url()`, the `openstation_is_shell_request()` predicate, the boot-target resolver and the `openstation_shell_dequeue_handles` filter. |
 | `includes/session.php` | REST endpoints for saving/restoring the per-user window session. |
+| `includes/fleet-oauth.php` | Fleet authorization server: discovery, administrator consent, Authorization Code + PKCE, bearer authentication, rotating refresh tokens, and revocation. |
 
 ## Browser flow
 

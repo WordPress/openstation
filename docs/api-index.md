@@ -301,6 +301,18 @@ Typed messages between the parent shell and iframe windows. Full shapes in [`bri
 
 ---
 
+## Fleet OAuth server — Experimental
+
+The complete protocol and security contract is in [`fleet-oauth.md`](./fleet-oauth.md).
+
+| Surface | Method | Purpose | Status |
+|---|---|---|---|
+| `/.well-known/oauth-authorization-server` | GET | RFC 8414 authorization-server metadata | Experimental |
+| `/wp-json/openstation/v1/oauth/token` | POST | Authorization-code exchange and refresh-token rotation | Experimental |
+| `/wp-json/openstation/v1/oauth/revoke` | POST | Access-token or refresh-grant revocation | Experimental |
+| REST root `authentication.openstation-fleet-oauth` | GET | Fleet capability discovery | Experimental |
+| Bearer authentication | Any REST route | Establish the approving user; the route's native permission callback still decides access | Experimental |
+
 ## Where status labels live
 
 - `wp.os.*` methods — JSDoc on each member, plus this table.

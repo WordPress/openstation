@@ -162,6 +162,7 @@ require_once OPENSTATION_DIR . 'includes/widgets/widget-drafts.php';
 require_once OPENSTATION_DIR . 'includes/widgets/widget-focus-timer.php';
 require_once OPENSTATION_DIR . 'includes/extended-options.php';
 require_once OPENSTATION_DIR . 'includes/oauth-relay.php';
+require_once OPENSTATION_DIR . 'includes/fleet-oauth.php';
 require_once OPENSTATION_DIR . 'includes/ai-copilot/bootstrap.php';
 // Content-changes must load before the recycle bin — the bin's
 // changelog delegates into the generic recorder.

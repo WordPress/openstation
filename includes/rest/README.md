@@ -8,6 +8,8 @@ Plugin authors looking for the canonical route URL → handler map start here; t
 
 All in-tree routes register under `desktop-mode/v1`. Extensions are expected to register under `os-<extension>/v1` (declared via the `extensions/base/OpenStation_Extension_Rest` base's `namespace()` method; the base does not enforce a particular namespace — its docblock also permits `desktop-mode/v1`).
 
+The Fleet OAuth server uses the separate `openstation/v1` namespace because it authenticates requests to every REST namespace rather than belonging to the shell's application API.
+
 ## Routes
 
 | Route | Verb | Handler file | Permission |
@@ -23,6 +25,8 @@ All in-tree routes register under `desktop-mode/v1`. Extensions are expected to 
 | `/presence` | GET / POST | `includes/presence.php` | logged-in + OpenStation enabled |
 | `/oauth/start` | POST | `includes/oauth-relay.php` | logged-in |
 | `/oauth/callback` | GET | `includes/oauth-relay.php` | public (validated by the state nonce) |
+| `/openstation/v1/oauth/token` | POST | `includes/fleet-oauth.php` | public protocol endpoint; authorization code + PKCE or rotating refresh token required |
+| `/openstation/v1/oauth/revoke` | POST | `includes/fleet-oauth.php` | public protocol endpoint; token possession required; unknown tokens also return success |
 | `/term-counts` | GET | `includes/posts-window/window.php` | `edit_posts` |
 | `/tag-cooccurrence` | GET | `includes/posts-window/window.php` | `edit_posts` |
 | `/users` | POST | `includes/users-window/rest.php` | `create_users` |
