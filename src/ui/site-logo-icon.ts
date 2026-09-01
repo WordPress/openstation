@@ -3,12 +3,11 @@
  *
  * `siteLogo` from `@wordpress/icons`, transcribed rather than imported
  * so it costs a string instead of a package. It heads the assistant's
- * palette, and it is the mark on the notch.
+ * palette.
  *
- * A leaf both bundles can reach: the assistant is lazy-loaded, and the
- * notch paints on every boot, so importing the glyph from the
- * assistant's entry would drag the whole feature into the shell
- * bundle.
+ * A leaf rather than a member of the assistant's own tree, so a shell
+ * surface that wants to wear the mark can import it without dragging
+ * the lazy assistant bundle in behind it.
  */
 
 /** The mark as standalone SVG source, in Core's 24×24 icon viewBox. */
@@ -16,3 +15,13 @@ export const OS_SITE_LOGO_SVG =
 	'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">' +
 	'<path d="M12 4c-4.4 0-8 3.6-8 8s3.6 8 8 8 8-3.6 8-8-3.6-8-8-8Zm0 1.5c3.4 0 6.2 2.7 6.5 6l-1.2-.6-.8-.4c-.1 0-.2 0-.3-.1H16c-.1-.2-.4-.2-.7 0l-2.9 2.1L9 11.3h-.7L5.5 13v-1.1c0-3.6 2.9-6.5 6.5-6.5Zm0 13c-2.7 0-5-1.7-6-4l2.8-1.7 3.5 1.2h.4s.2 0 .4-.2l2.9-2.1.4.2c.6.3 1.4.7 2.1 1.1-.5 3.1-3.2 5.4-6.4 5.4Z"/>' +
 	'</svg>';
+
+/**
+ * The same mark as a data URI, for the `icon:` field of dock and
+ * window registrations — those take a URL or a dashicon class, never
+ * markup. Base64 rather than percent-encoded so the `#` and `"` in
+ * the SVG need no escaping pass of their own.
+ */
+export const OS_SITE_LOGO_ICON = `data:image/svg+xml;base64,${ btoa(
+	OS_SITE_LOGO_SVG,
+) }`;

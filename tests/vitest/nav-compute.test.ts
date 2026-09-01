@@ -424,6 +424,35 @@ describe( 'buildNavItems', () => {
 		] );
 	} );
 
+	/*
+	 * A system tile may declare `core`, and it has to survive the trip.
+	 *
+	 * `core` is the only kind that sorts ahead of Dashboard, which is
+	 * what the site assistant's tile needs on a side-placed rail. The
+	 * failure it guards against is silent and was real: the dispatcher
+	 * folded every non-control kind into `app`, and `app` defaults to
+	 * the DESKTOP — so the tile was routed off the rail it asked for
+	 * and simply never painted, with nothing anywhere reporting a
+	 * problem.
+	 */
+	test( 'a system tile declaring core lands in the leading rail zone', () => {
+		const items = buildNavItems( {
+			menuItems: [ menu( 'index.php', true ) ],
+			systemTiles: [
+				{ item: tile( 'os-assistant' ), kind: 'core' },
+			],
+			icons: [],
+		} );
+		expect(
+			items.find( ( i ) => i.id === 'os-assistant' )?.kind
+		).toBe( 'core' );
+
+		// …on the rail, not the desktop, and in the core zone.
+		const nav = run( items );
+		expect( ids( nav.dock.core ) ).toContain( 'os-assistant' );
+		expect( ids( nav.desktop ) ).not.toContain( 'os-assistant' );
+	} );
+
 	test( 'an app registered as both a window tile and a desktop icon is ONE item', () => {
 		const items = buildNavItems( {
 			menuItems: [],

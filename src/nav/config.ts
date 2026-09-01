@@ -70,7 +70,7 @@ export function findNavItem( id: string ): NavItem | null {
  * Store placements for one or more items, in a single write.
  *
  * Locked items are refused here rather than only being hidden in the
- * UI, so no caller can write a value that would take Exit OpenStation
+ * UI, so no caller can write a value that would take a locked item
  * off the rail. `null` for an entry's placement means "leave it
  * alone", which is what lets {@link setRegion} skip an id it cannot
  * resolve.

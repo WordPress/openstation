@@ -287,7 +287,15 @@ export function createLayoutDispatcher(
 		for ( const item of systemTiles.values() ) {
 			tiles.push( {
 				item,
-				kind: 'control' === item.navKind ? 'control' : 'app',
+				// Pass the declared kind through rather than folding
+				// everything that is not a control into `app`. `app`
+				// defaults to the DESKTOP, so a tile declaring any
+				// other kind used to be quietly routed off the rail it
+				// asked for and never painted.
+				kind:
+					'core' === item.navKind || 'control' === item.navKind
+						? item.navKind
+						: 'app',
 				locked: item.locked,
 			} );
 		}

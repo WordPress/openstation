@@ -43,7 +43,6 @@ import type { DestructiveAdminActionEntry } from './destructive-admin-actions';
 // `src/dock-helpers.ts` — `src/api/facade.ts` is the only consumer
 // in this bundle.
 import { OsSettings } from './settings';
-import { getExitOpenStationTileDef } from './exit-openstation';
 import { deriveWindowId, urlMatchKey } from './utils';
 import { shellUrlWithoutBootArgs } from './shell-url';
 // Static import — `setUserEditTarget` MUST run before the user-edit
@@ -248,7 +247,15 @@ import {
 	type MioApi,
 } from './mio/controller';
 import { OS_GEAR_ICON } from './ui/gear-icon';
-import { mountNotch } from './notch';
+import {
+	decorateAssistantTile,
+	getAssistantTileDef,
+} from './assistant-tile';
+import {
+	EXIT_OPENSTATION_TILE_ID,
+	getExitOpenStationTileDef,
+} from './exit-openstation';
+import { findBottomDock, mountTray } from './tray';
 import { installDockBehavior } from './dock-behavior';
 import {
 	installWorkArea,
@@ -257,6 +264,7 @@ import {
 	type WorkAreaApi,
 } from './work-area';
 import {
+	ASSISTANT_TILE_ID,
 	OS_OVERVIEW_ICON,
 	OS_SYSTEM_ICON,
 	OVERVIEW_TILE_ID,
@@ -1182,7 +1190,7 @@ export interface OpenStationPublicApi {
 		 * system tiles are load-bearing.
 		 */
 		placeable: boolean;
-		/** Cannot be moved or hidden. Exit OpenStation only. */
+		/** Cannot be moved or hidden. Nothing built-in claims it. */
 		locked: boolean;
 	} >;
 	/**
@@ -2804,15 +2812,36 @@ function init(): void {
 			config.desktopIcons,
 			initialPlacement,
 		);
+		// The tray — the site assistant's front door and the way out.
+		// Deliberately not dock tiles: the rail is a list of things
+		// you open and close, and neither of these is one.
+		//
+		// Mounted in the shell BODY, not on the shell root, for two
+		// reasons that are really one: it is a sibling of the dock it
+		// draws itself onto, and `installWorkArea` only measures
+		// chrome inside the body.
+		mountTray( shellBody, {
+			openAssistant: () => {
+				document.dispatchEvent( new CustomEvent( 'os-open-ai' ) );
+			},
+		} );
 		// The work area — measured AFTER the dispatcher has built the
-		// rails so the first snapshot already knows the pill. From here
-		// on it follows the rails itself (ResizeObserver per dock,
-		// `os-layout-changed` for a rebuild) and every placing surface
-		// reads it instead of guessing at the dock.
+		// rails AND after the tray has mounted, so the first snapshot
+		// already knows both. From here on it follows them itself
+		// (ResizeObserver per element, `os-layout-changed` for a
+		// rebuild) and every placing surface reads it instead of
+		// guessing at the dock.
 		installWorkArea( {
 			shell: shellEl,
 			shellBody,
 			area: desktopArea,
+			// The tray sits on top of the bottom dock and stands above
+			// the windows, so the band it covers is reserved the same
+			// way the dock's is — by being measured, rather than by a
+			// number written into a stylesheet. It detaches itself
+			// when there is no bottom dock, so this matches nothing
+			// on a side-placed rail.
+			chromeSelector: '.os-dock, .os-tray',
 		} );
 		// The dynamic dock behavior's JS half — per-rail stamping and
 		// the fold / reveal state. Inert while every rail is static.
@@ -2842,14 +2871,6 @@ function init(): void {
 			},
 		} );
 
-		// The notch — the site assistant's front door, and the shell's
-		// place to speak from. Deliberately not a dock tile: the rail
-		// is a list of apps, and "what is going on with this site?" is
-		// not one of them. Mounted on the shell root rather than the
-		// desk area so it never enters the work-area calculation.
-		mountNotch( shellEl, () => {
-			document.dispatchEvent( new CustomEvent( 'os-open-ai' ) );
-		} );
 		// Tracked by the dispatcher so it re-attaches automatically
 		// after a layout rebuild. `'core'` classifies it as a
 		// shell-owned affordance; every system tile lands on the
@@ -2964,6 +2985,33 @@ function init(): void {
 		};
 		layoutDispatcher.appendSystemTile( systemTile );
 
+		// The tray's two controls, as dock tiles, for the rails that
+		// have no tray. Registered and removed rather than declared
+		// once: a tile that stayed while the tray was also showing
+		// would offer both actions twice.
+		decorateAssistantTile();
+
+		const syncRailTiles = (): void => {
+			// The ELSE branch of the tray, so it asks the tray's own
+			// question rather than one that resembles it:
+			// `getDockPlacement()` answers `'left'` in Split while a
+			// bottom dock is on screen carrying the tray, which put
+			// the assistant in Split twice.
+			if ( ! findBottomDock() ) {
+				layoutDispatcher?.appendSystemTile( getAssistantTileDef() );
+				layoutDispatcher?.appendSystemTile(
+					getExitOpenStationTileDef(),
+				);
+			} else {
+				layoutDispatcher?.removeSystemTile( ASSISTANT_TILE_ID );
+				layoutDispatcher?.removeSystemTile(
+					EXIT_OPENSTATION_TILE_ID,
+				);
+			}
+		};
+		syncRailTiles();
+		document.addEventListener( 'os-layout-changed', syncRailTiles );
+
 		// Async post-boot: if the PWA is already installed in the
 		// current browser profile (Chrome's `Open in app` indicator in
 		// the address bar), drop the install row. The `isStandalone`
@@ -3075,13 +3123,6 @@ function init(): void {
 		// Bug Report has no tile of its own anymore — it is a row in
 		// the System menu. `openBugReport` is still the one opener,
 		// reached from there and from the `os-open-bug-report` event.
-
-		// Exit OpenStation tile — last on the core rail so users have
-		// a discoverable in-shell way out, complementing the admin-bar
-		// "Switch to Classic Admin" toggle. Reuses the existing
-		// save-openstation AJAX endpoint via the
-		// `window.openStationAdminBar` global; no new PHP surface.
-		layoutDispatcher.appendSystemTile( getExitOpenStationTileDef() );
 
 		// Mio tile — one of OpenStation's controls, so it rides the
 		// dock's trailing cluster rather than sitting among the apps.

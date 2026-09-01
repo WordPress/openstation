@@ -1073,15 +1073,26 @@ window.wp.hooks.addFilter(
 );
 ```
 
-#### The notch
+#### The tray
 
-A small pill fixed to the **top centre** of the shell, `#os-notch`. It is the site assistant's front door — click it, or press `⌘/Ctrl + K` — and it is where the shell says short things: `say( text )` expands it with a message and collapses it again after a couple of seconds.
+A strip of chrome, `#os-tray`, wrapping the bottom dock and extending above it. It carries two controls:
 
-**It never reserves work area, and that is the contract.** A full-width bar that permanently stole height is what OpenStation removed; an element that reserved space would be the same mistake in a nicer shape, and it would make the notch a second claimant on the [work area](#workarea--experimental), which stays useful only while few things carve it. So it is positioned against the shell rather than the viewport, which places it correctly whichever admin-bar mode is on, and it stacks *under* the window layer rather than pushing windows down: a window that reaches the top edge covers the pill, because the strip the notch hangs over is also where a title bar lives and the shell has no business talking over the thing you are working in. Top-*centre* is chosen rather than incidental: the desktop icon grid fills the leading column top-down, so the centre is the one part of the top edge it never claims.
+| Control | What it is |
+|---|---|
+| `.os-tray__assistant` | The site assistant's front door — click it, or press `⌘/Ctrl + K`. This is the only *visible* ⌘K affordance the shell has; Core's own command-palette button lives in an admin bar OpenStation hides by default. |
+| `.os-tray__exit` | **Exit OpenStation** — disables the user's shell preference and returns them to classic admin. |
 
-The message region is always in the DOM with `aria-live="polite"` — a live region created at the moment it gains text is announced unreliably — and `say()` replaces rather than queues, because two things happening at once is one situation, not two messages.
+Both are a bare glyph in 16px of the dock's edge, so both name themselves on hover. The label is hosted in `document.body`, not in the strip: the strip clips (which is what keeps a hover fill inside its rounded corners) and the label opens above it. `aria-label` carries the name regardless, so neither control is hover-only.
 
-Hidden entirely in solo mode.
+The time is deliberately not here. A clock is glanceable content, which is what the [widget layer](./examples/register-widget.md) is for — the shell ships one, and it can be moved, resized and removed like anything else on the desk. Pinning it into shell chrome would make it the one readout on the desktop nobody could turn off.
+
+**It exists only on the bottom dock.** Put the rail on a side edge and the tray detaches itself; the same two controls come back as dock tiles instead — the site assistant leading the rail (`navKind: 'core'`, the only kind that sorts ahead of Dashboard) and Exit OpenStation closing it. One surface for the job rather than two that have to agree.
+
+It stacks *with* the dock rather than under the windows: it is the dock's edge, and an edge that slid beneath a maximized window while the dock it belongs to stayed floating would come apart into two objects.
+
+**It reserves the band it covers**, the way the dock does — by being measured. `desktop.ts` passes `chromeSelector: '.os-dock, .os-tray'` to `installWorkArea`, so the number comes from the live element rather than from a constant written into a stylesheet. On a side-placed rail the tray is not in the DOM, so it matches nothing.
+
+Hidden entirely in solo mode, and faded out in the overview.
 
 #### The constellation
 
@@ -4016,7 +4027,7 @@ Each entry is a read-only descriptor — the underlying `SystemDockItem` (with i
         id:        string,
         title:     string,
         icon:      string,
-        navKind:   'app' | 'control',  // a launcher, or one of OpenStation's own
+        navKind:   'core' | 'app' | 'control',  // where it belongs on the rail
         placeable: boolean,            // opted into OpenStation Preferences → Navigation
         locked:    boolean,            // cannot be moved or hidden (Exit only)
     },
@@ -4024,7 +4035,9 @@ Each entry is a read-only descriptor — the underlying `SystemDockItem` (with i
 ]
 ```
 
-`navKind` describes what the tile IS, and that is what decides its default placement (apps default to the wallpaper, controls to a rail) and which dock zone it sits in. Set it on the tile (`SystemDockItem.navKind`, default `'app'`), or on a native window through `'nav_kind'`.
+`navKind` describes what the tile IS, and that is what decides its default placement (apps default to the wallpaper, controls and core to a rail) and which dock zone it sits in. Set it on the tile (`SystemDockItem.navKind`, default `'app'`), or on a native window through `'nav_kind'`.
+
+`'core'` puts a tile in the **leading** zone alongside the core admin menus, ahead of every launcher — it is the only kind that can sort in front of Dashboard, and it wants a negative `order` to do so (menu items start at 0). The shell uses it for the site assistant's tile on a side-placed rail, and nothing else. In the Split layout a `'core'` tile follows the core menus to the sidebar, which is what `railFor()` does for every core item.
 
 `placeable` is opt-in (`SystemDockItem.placeable`), because most system tiles are load-bearing — OpenStation Preferences is how you reach the very screen that would hide it. Set it on tiles that are genuinely optional decoration; Mio's toggle is the shipped example. Note the placement preference is honoured whether or not the flag is set: all it controls is whether the user is offered a row.
 
@@ -4086,7 +4099,7 @@ Each entry:
 | `id` | `string` | Canonical id. Keys `navPlacement` and `navOrder`. |
 | `kind` | `'core' \| 'plugin' \| 'app' \| 'control'` | What the item IS. Decides its default placement and its dock zone. |
 | `title` / `icon` | `string` | Display label and icon string (see [`renderIcon`](#rendericon-icon-opts--stable)). |
-| `locked` | `boolean?` | Cannot be moved or hidden. Exit OpenStation only. |
+| `locked` | `boolean?` | Cannot be moved or hidden. Use it only for a tile whose absence would strand the user — the shell sets it on Exit OpenStation. |
 | `windowId` | `string?` | The native-window id it opens, when it opens one. |
 | `menu` / `tile` / `entry` | object? | The sources that produced it. An app registered as both a native window and a desktop icon carries a `tile` and an `entry`, and is still **one** item. |
 

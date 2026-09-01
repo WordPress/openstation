@@ -128,15 +128,20 @@ export interface SystemDockItem {
 	 * What the tile IS — which decides its default placement and the
 	 * dock zone it sits in. `'app'` (the default) for a launcher,
 	 * `'control'` for an OpenStation affordance: Mio, Overview,
-	 * System, Trash, Exit.
+	 * System, Trash, Exit. `'core'` puts the tile in the leading zone
+	 * with the core admin menus, ahead of every launcher — the shell
+	 * uses it for the site assistant, and it is the only kind that can
+	 * sort in front of Dashboard.
 	 *
 	 * See `src/nav/defaults.ts`. A plugin's launcher wants `'app'`
 	 * and gets it by saying nothing.
 	 */
-	navKind?: 'app' | 'control';
+	navKind?: 'core' | 'app' | 'control';
 	/**
-	 * Cannot be moved, hidden, or reordered. Exit OpenStation is the
-	 * only one: it is the way out of the shell.
+	 * Cannot be moved, hidden, or reordered. For a tile a user must
+	 * always be able to reach — nothing built-in claims it now, and a
+	 * plugin should claim it only for something whose absence would
+	 * strand them.
 	 */
 	locked?: boolean;
 	/**
@@ -185,6 +190,9 @@ export interface DockZones {
 export function zoneForSystemTile(
 	item: SystemDockItem,
 ): keyof DockZones {
+	if ( 'core' === item.navKind ) {
+		return 'core';
+	}
 	return 'control' === item.navKind ? 'controls' : 'apps';
 }
 
@@ -1519,7 +1527,7 @@ export class Dock {
 		 * cross-zone move to detect and undo.
 		 *
 		 * A locked tile is excluded as a TARGET, not just as a thing
-		 * to pick up. Exit OpenStation carries no drag handler, but a
+		 * to pick up. A locked tile carries no drag handler, but a
 		 * neighbour's gesture still hit-tests against it, and matching
 		 * here would let the drag reorder across it and write its id
 		 * into the persisted order — after which every load paints it

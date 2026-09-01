@@ -194,13 +194,14 @@ function openstation_register_assets() {
 		array( 'os-dock' ),
 		$built_version( 'assets/css/dock-peek.css' )
 	);
-	// The notch — the shell's top-centre voice and the site
-	// assistant's front door. Scoped to `.os-notch`.
+	// The tray — the shell's top-right corner: the site assistant's
+	// front door, the clock, and who is signed in. Scoped to
+	// `.os-tray`.
 	wp_register_style(
-		'os-notch',
-		OPENSTATION_URL . 'assets/css/notch.css',
+		'os-tray',
+		OPENSTATION_URL . 'assets/css/tray.css',
 		array( 'os-variables' ),
-		$built_version( 'assets/css/notch.css' )
+		$built_version( 'assets/css/tray.css' )
 	);
 	// Keyboard-shortcuts window. Scoped to `.os-shortcuts`, so it is
 	// inert until the System menu opens the window, and unconditional

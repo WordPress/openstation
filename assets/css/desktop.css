@@ -189,15 +189,7 @@ body.os-active.os-admin-bar-dynamic #wpadminbar {
 
 body.os-active.os-admin-bar-dynamic #wpadminbar:hover,
 body.os-active.os-admin-bar-dynamic #wpadminbar:focus-within,
-body.os-active.os-admin-bar-dynamic #wpadminbar:active,
-/*
- * …and while the notch is being used. The notch hangs from the same
- * edge and steps down to sit under the bar when it appears (see
- * notch.css), so letting the bar retract out from over it mid-reach
- * would drop the notch back up under the pointer.
- */
-body.os-active.os-admin-bar-dynamic:has( .os-notch:hover ) #wpadminbar,
-body.os-active.os-admin-bar-dynamic:has( .os-notch:focus-visible ) #wpadminbar {
+body.os-active.os-admin-bar-dynamic #wpadminbar:active {
 	transform: translateY(0);
 }
 
@@ -1524,4 +1516,43 @@ os-notice a:hover,
 os-notice a:focus,
 os-notice a:active {
 	color: var(--os-ui-notice-link-hover, #fffbff);
+}
+
+/* ---------------------------------------------------------------
+ * The ⌘K / Ctrl+K chord hint.
+ *
+ * Shared: the assistant is offered from the tray's strip on a bottom
+ * dock and from a rail tile on a side one, and the hint has to look
+ * the same in both. Lives here rather than in either consumer's
+ * stylesheet so neither owns it.
+ *
+ * Colour is inherited, not declared — the two hosts sit on different
+ * surfaces with different foreground families, and each already sets
+ * a muted colour on the element the chord goes inside.
+ * --------------------------------------------------------------- */
+
+.os-chord {
+	display: flex;
+	color: inherit;
+}
+
+.os-chord kbd {
+	font: inherit;
+	/* Bare text, no key-cap box. Bordered caps inside an already
+	   bordered surface is three nested rectangles in 40px of width. */
+	margin: 0;
+	padding: 0;
+	border: 0;
+	background: none;
+	color: inherit;
+	line-height: 1;
+}
+
+/*
+ * The `+` between `Ctrl` and `K`. Dimmer than the keys it separates,
+ * so the chord reads as two keys with punctuation between rather than
+ * as three glyphs of equal weight.
+ */
+.os-chord__plus {
+	opacity: 0.6;
 }

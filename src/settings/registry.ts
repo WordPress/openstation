@@ -49,7 +49,7 @@ export interface OsSettingsSnapshot {
 	 * PHP (first paint) and the apply pass (live changes). `dynamic`
 	 * slides the bar off the top edge leaving a peek strip that
 	 * reveals it on hover or keyboard focus; `hidden` removes it
-	 * entirely and leaves the dock's "Exit OpenStation" tile as the
+	 * entirely and leaves the tray's "Exit OpenStation" button as the
 	 * route back to classic admin.
 	 */
 	adminBarMode: string;

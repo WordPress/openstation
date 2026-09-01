@@ -7,7 +7,7 @@
  *
  * `Hidden` takes away the admin bar's "Switch to Classic Admin"
  * toggle, so the description names the replacement route out — the
- * "Exit OpenStation" tile on the dock (`src/exit-os.ts`),
+ * "Exit OpenStation" button in the tray (`src/tray.ts`),
  * which is always present on the core rail.
  */
 
@@ -26,7 +26,7 @@ function describe( id: AdminBarModeId ): string {
 			);
 		case 'hidden':
 			return __(
-				'The admin bar is never shown. Use the Exit OpenStation tile on the dock to get back to the classic admin.',
+				'The admin bar is never shown. Use Exit OpenStation in the tray to get back to the classic admin.',
 			);
 		default:
 			return __( 'The admin bar is always visible above the desktop.' );

@@ -234,7 +234,7 @@ export const DEFAULTS: OsSettingsState = {
 	// Hidden by default. A desktop whose navigation is consolidated
 	// into one dock has no second place left for navigation to live,
 	// and the top bar was the loudest of those second places. The
-	// dock's "Exit OpenStation" tile keeps the way back to classic
+	// tray's "Exit OpenStation" button keeps the way back to classic
 	// admin, so this is not a one-way door; `static` and `dynamic`
 	// are one pick away in Appearance.
 	adminBarMode: 'hidden',

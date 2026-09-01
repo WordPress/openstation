@@ -3,7 +3,7 @@
  * sit in.
  *
  * The tiles that answer for OpenStation itself rather than for the
- * site: Mio, Overview, System and Exit OpenStation, clustered at the
+ * site: Mio, Overview and System, clustered at the
  * tail of the rail. Everything here is data; `desktop.ts` does the
  * registering.
  *
@@ -35,6 +35,8 @@
 /** Tile ids. Stable strings: they key visibility overrides in Preferences. */
 export const OVERVIEW_TILE_ID = 'os-overview';
 export const SYSTEM_TILE_ID = 'os-system';
+/** The site assistant's tile, on rails that have no tray to hold it. */
+export const ASSISTANT_TILE_ID = 'os-assistant';
 
 /**
  * Sort keys for the trailing cluster. Spaced by ten so a plugin can

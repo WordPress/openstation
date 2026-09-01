@@ -544,7 +544,10 @@
 .os-dock[ data-os-dock-placement="right" ] {
 	width: var( --os-dock-width );
 	flex-direction: column;
-	padding: 16px 0 12px;
+	/* No top padding: the assistant band is the first thing on the
+	   rail and sits flush against its head. A rail WITHOUT the band
+	   gets it back below. */
+	padding: 0 0 12px;
 	gap: 6px;
 	/*
 	 * Vertical docks split into two inner wrappers:
@@ -608,6 +611,21 @@
 	gap: 6px;
 	flex-shrink: 0;
 	width: 100%;
+}
+
+/*
+ * A vertical rail with no assistant band keeps its top padding. The
+ * Split layout is the case: its sidebar is a vertical rail, but Split
+ * also has a bottom dock, so the tray holds the controls and the rail
+ * never gets the band.
+ */
+.os-dock[ data-os-dock-placement="left" ]:not(
+		:has( .os-dock__item--assistant )
+	),
+.os-dock[ data-os-dock-placement="right" ]:not(
+		:has( .os-dock__item--assistant )
+	) {
+	padding-block-start: 16px;
 }
 
 /* Left: dock is the first flex item in __body (row layout). */
@@ -895,13 +913,6 @@
 	border: 1px solid var(
 		--os-dock-floating-border,
 		var( --os-dock-border, rgba( 255, 255, 255, 0.12 ) )
-	);
-	border-block-start: 1px solid var(
-		--os-dock-floating-border-top,
-		var(
-			--os-dock-floating-border,
-			var( --os-dock-border, rgba( 255, 255, 255, 0.18 ) )
-		)
 	);
 	box-shadow:
 		inset 0 1px 0 var(
@@ -1410,4 +1421,97 @@
 	.os-dock[ data-os-dock-behavior="dynamic" ] {
 		transition: none;
 	}
+}
+
+/* ------------------------------------------------------------------
+ * The site assistant — vertical rails only
+ *
+ * On a bottom dock the assistant lives in the tray. A side rail has
+ * no tray, so it takes the first slot on the rail instead — and it is
+ * deliberately NOT drawn like the menus below it. Those are places in
+ * wp-admin; this is a way to ask the site a question, and a tile that
+ * looked like the others would read as one more admin screen.
+ *
+ * The same argument the exit tile makes at the other end of the rail,
+ * and the same answer: the two things on a rail that are not
+ * navigation should not be drawn as though they were. The exit takes
+ * a ring; this takes the full width, its shortcut, and a hairline
+ * under it — a header for the rail rather than an item in it.
+ *
+ * Bottom placement is untouched: the tray is there, and this tile is
+ * not registered at all.
+ * ------------------------------------------------------------------ */
+
+.os-dock[ data-os-dock-placement="left" ]
+	.os-dock__item--assistant,
+.os-dock[ data-os-dock-placement="right" ]
+	.os-dock__item--assistant {
+	/*
+	 * Out to the rail's edges. `__scroll` centres 40px tiles; this is
+	 * a band, so it takes the full width instead.
+	 */
+	width: 100%;
+	margin-block-end: 4px;
+}
+
+.os-dock[ data-os-dock-placement="left" ]
+	.os-dock__item--assistant
+	.os-dock__item-primary,
+.os-dock[ data-os-dock-placement="right" ]
+	.os-dock__item--assistant
+	.os-dock__item-primary {
+	/*
+	 * A row, not a plate: the glyph and its shortcut side by side, the
+	 * way the tray writes the same control.
+	 */
+	flex-direction: row;
+	gap: 3px;
+	width: 100%;
+	height: auto;
+	padding: 4px 0;
+	border-radius: 0;
+	/*
+	 * The tray's band colour, so the assistant wears the same surface
+	 * whichever edge the rail is on. `--os-dock-border` closes it off
+	 * from the tiles below — the hairline is what makes it a header
+	 * rather than a very wide first item.
+	 */
+	background-color: var(
+		--os-dock-floating-border-top,
+		var(
+			--os-dock-floating-border,
+			var( --os-dock-border, rgba( 255, 255, 255, 0.08 ) )
+		)
+	);
+	border-block-end: 1px solid
+		var( --os-dock-border, rgba( 255, 255, 255, 0.08 ) );
+	color: var( --os-dock-icon-color, rgba( 255, 255, 255, 0.7 ) );
+}
+
+.os-dock[ data-os-dock-placement="left" ]
+	.os-dock__item--assistant
+	.os-dock__item-primary:hover,
+.os-dock[ data-os-dock-placement="right" ]
+	.os-dock__item--assistant
+	.os-dock__item-primary:hover {
+	color: var( --os-dock-icon-color-hover, #fff );
+}
+
+/*
+ * The rail is `--os-dock-width` (56px) and the glyph takes 20 of it,
+ * so the chord gets what is left. Small, and deliberately so: it is a
+ * reminder for someone who already knows the shortcut, not a label.
+ */
+.os-dock__item--assistant .os-chord {
+	font-size: 10px;
+	letter-spacing: -0.01em;
+}
+
+/*
+ * No active dot. Every other tile's dot means "something of mine is
+ * open on this desktop"; the assistant opens a palette, which is not
+ * a window and never has one.
+ */
+.os-dock__item--assistant.os-dock__item--active::before {
+	content: none;
 }

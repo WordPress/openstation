@@ -1585,7 +1585,7 @@ apply_filters( 'openstation_admin_bar_mode', string $mode );
 
 A value outside the three coerces back to `static`. The same three ids are the user-facing setting (`adminBarMode` in `wp.os.getOsSettings()`) and a [theme recommendation key](desktop-themes.md#fields).
 
-**`hidden` removes the "Switch to Classic Admin" toggle**, so it is not the only way out of the shell — the dock's core rail always carries an **Exit OpenStation** tile hitting the same endpoint. Keep it that way if you add modes of your own.
+**`hidden` removes the "Switch to Classic Admin" toggle**, so it is not the only way out of the shell — the tray always carries an **Exit OpenStation** button hitting the same endpoint. Keep it that way if you add modes of your own.
 
 **Example — pin the bar for anyone who can't reach the dock's exit tile:**
 

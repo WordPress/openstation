@@ -17,9 +17,13 @@ import type { NavItem, NavKind } from './types';
 /** A system tile plus the kind its registration declared. */
 export interface NavSystemTile {
 	item: SystemDockItem;
-	/** `'app'` for a launcher, `'control'` for a shell affordance. */
-	kind: Extract< NavKind, 'app' | 'control' >;
-	/** Exit OpenStation. Never movable, never hideable. */
+	/**
+	 * `'app'` for a launcher, `'control'` for a shell affordance,
+	 * `'core'` for one that belongs in the leading zone with the core
+	 * admin menus — the site assistant, and nothing else today.
+	 */
+	kind: Extract< NavKind, 'core' | 'app' | 'control' >;
+	/** Never movable, never hideable. */
 	locked?: boolean;
 }
 

@@ -1,9 +1,11 @@
 /**
- * Exit OpenStation dock tile.
+ * Exit OpenStation.
  *
- * Builds the {@link SystemDockItem} for the "Exit OpenStation" entry on
- * the primary dock rail and the click handler that disables the user's
- * openstation preference and routes them back to classic admin.
+ * The action that disables the user's openstation preference and
+ * routes them back to classic admin, plus the dock tile that offers
+ * it where there is no tray to. The bottom dock's tray carries the
+ * exit itself (`src/tray.ts`); a side-placed rail has no tray, so it
+ * gets the tile.
  *
  * Reuses the existing `save-openstation` AJAX endpoint
  * (`includes/ajax.php`) via the `window.openStationAdminBar` global
@@ -37,9 +39,13 @@ declare global {
 }
 
 /**
- * Build the dock-tile definition. Kept as a factory so desktop.ts can
- * register it the same way the OS Settings / Bug Report / PWA install
- * tiles are registered, and so the click logic stays unit-testable.
+ * Build the dock-tile definition, for the placements that have no
+ * tray to hold the exit.
+ *
+ * The bottom dock carries the tray, and the tray carries the way out.
+ * A left- or right-placed rail has no tray, so the exit goes back to
+ * being the last tile on it — where it was before the tray existed,
+ * and where a user who has been here a while will look for it.
  */
 export function getExitOpenStationTileDef(): SystemDockItem {
 	return {
@@ -112,9 +118,9 @@ export async function exitOpenStation(): Promise< void > {
 }
 
 /**
- * Drive a full top-window navigation. The dock tile may be hosted in
- * the shell page (top window) or — in tests / embedded scenarios — in
- * an iframe; either way we want the whole tab to land on the new URL.
+ * Drive a full top-window navigation. The caller may be hosted in the
+ * shell page (top window) or — in tests / embedded scenarios — in an
+ * iframe; either way we want the whole tab to land on the new URL.
  */
 function navigateTop( url: string ): void {
 	try {

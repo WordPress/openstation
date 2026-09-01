@@ -1,0 +1,264 @@
+/*
+ * The tray — the bottom dock's controls strip.
+ *
+ * A surface the dock rests in: the dock's width, sitting behind it and
+ * extending `--os-tray-strip` above, so the dock keeps all four of its
+ * own corners and neither shape is cut to fit the other. There is no
+ * tray without a bottom dock; a side-placed rail takes the same two
+ * controls as tiles (see `dock.css`).
+ *
+ * Nothing here touches `.os-area`. The strip does claim a work-area
+ * band, but the way the dock does — by being measured, through
+ * `desktop.ts`'s `chromeSelector`, not by a number written in here.
+ */
+
+.os-tray {
+	position: absolute;
+	display: flex;
+	/*
+	 * Border-box, and load-bearing: the width below is the dock's
+	 * MEASURED width, a border-box number. Under content-box it would
+	 * gain this element's own border and padding, and the strip would
+	 * overhang the dock it is the edge of.
+	 */
+	box-sizing: border-box;
+
+	/*
+	 * The dock's edge treatment, chain for chain. `dock.css` builds
+	 * each from a floating-specific token falling back to the general
+	 * dock one and then a literal, so a theme that tokenized only its
+	 * side rails still gets the pill. Read the same way here, with a
+	 * tray-level name in front, and the strip inherits every one of
+	 * those decisions.
+	 *
+	 * Private aliases so the public names stay reachable: nothing
+	 * declares them on this element, so an inherited theme value wins.
+	 */
+	--_border-top: var(
+		--os-tray-border-top,
+		var(
+			--os-dock-floating-border-top,
+			var(
+				--os-dock-floating-border,
+				var( --os-dock-border, rgba( 255, 251, 255, 0.18 ) )
+			)
+		)
+	);
+	--_glass: var(
+		--os-tray-bg,
+		var( --os-dock-floating-bg, rgba( 12, 11, 15, 0.62 ) )
+	);
+	--_hover: var(
+		--os-tray-hover-bg,
+		var( --os-dock-item-bg-hover, rgba( 242, 82, 252, 0.18 ) )
+	);
+	--_fg: var( --os-tray-fg, var( --os-dock-icon-color-hover, #fffbff ) );
+	--_fg-muted: var(
+		--os-tray-fg-muted,
+		var( --os-dock-icon-color, rgba( 255, 251, 255, 0.72 ) )
+	);
+
+	/* How far the strip stands proud of the dock, and how much of it
+	   shows above. The height below is the dock's own plus the strip,
+	   so the strip stays this tall whatever the dock measures at. */
+	--_pad: 6px;
+	--os-tray-strip: 16px;
+
+	/*
+	 * Centred on the DOCK, not the shell: a bottom dock is centred in
+	 * the viewport today, but it is `width: fit-content` with a
+	 * max-width, so a long enough menu makes those two differ.
+	 */
+	inset-inline: auto;
+	left: var( --os-tray-dock-center, 50% );
+	transform: translateX( -50% );
+	width: calc( var( --os-tray-dock-width, auto ) );
+	height: calc(
+		var( --os-tray-dock-height, 56px ) + var( --os-tray-strip, 16px )
+	);
+	bottom: calc( var( --os-tray-dock-bottom, 12px ) );
+
+	/* Concentric with the dock's own 18px: outer radius = inner radius
+	   plus the gap. Reuse 18px and the two curves run at different
+	   rates and the gap pinches at each corner. */
+	border-radius: calc( 18px + var( --_pad ) );
+
+	/*
+	 * Two layers, and both are needed: the dock's glass, with the top
+	 * border's colour over it.
+	 *
+	 * The border colour alone is what a thickened border should be, but
+	 * it is a white ALPHA — over a wallpaper it lands as a light strip
+	 * and the white icons read fine; over a wp-admin window it
+	 * composites to white on white and they disappear. A surface
+	 * floating over arbitrary content cannot take its darkness from
+	 * whatever is behind it, so the glass supplies it.
+	 *
+	 * The fill carries on behind the dock rather than stopping at the
+	 * strip, which does tint the dock. Painting only the strip was
+	 * tried: its straight bottom edge then meets the dock's rounded top
+	 * corners and leaves both ends hanging over wallpaper.
+	 */
+	background-color: var( --_glass );
+	background-image: linear-gradient(
+		var( --_border-top ),
+		var( --_border-top )
+	);
+	backdrop-filter: blur( 28px ) saturate( 170% );
+	-webkit-backdrop-filter: blur( 28px ) saturate( 170% );
+
+	/* Behind the dock, which is what lets the dock keep its corners and
+	   simply sit on this. */
+	z-index: calc( var( --os-z-dock, 200 ) - 1 );
+	color: var( --_fg );
+
+	/*
+	 * Clipped, which keeps a hover fill inside the rounded corners
+	 * without every control knowing the radius — the radius is far
+	 * larger than the strip's height, so at the top the strip is still
+	 * transparent well inside its own edge.
+	 *
+	 * The price is the hover label: it opens ABOVE the strip, so it is
+	 * hosted in `document.body` instead, the same answer `dock.css`
+	 * gives its own tooltip.
+	 */
+	overflow: hidden;
+	font-size: 11px;
+	line-height: 1;
+	transition: opacity 160ms ease, visibility 0s linear 160ms;
+
+	/* Controls into the top strip, at the trailing end where a system
+	   tray sits. `flex-start` because they size themselves: stretched,
+	   their hover fills would paint down the sides of the dock. */
+	align-items: flex-start;
+	justify-content: flex-end;
+	padding-inline-end: calc( var( --_pad ) + 6px );
+}
+
+/*
+ * One control. Both carry no surface of their own at rest: the strip
+ * is one continuous band, and a fill or divider here would draw a seam
+ * inside what reads as the dock's own edge.
+ */
+.os-tray__group {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	height: 16px;
+	margin: 0;
+	padding: 0 10px;
+	/* Anchors nothing now the label is body-hosted, but keeps the
+	   focus ring drawn against this box rather than the strip. */
+	position: relative;
+	border: 0;
+	background: none;
+	color: var( --_fg-muted );
+	font: inherit;
+	white-space: nowrap;
+	cursor: pointer;
+	appearance: none;
+	transition: background 160ms ease, color 160ms ease;
+}
+
+/*
+ * A translucent wash, not a step up to another opaque surface — an
+ * opaque fill punches a solid rectangle through the frosted strip.
+ * The dock's own hover token, for the same reason the text and glass
+ * come from the dock: it already means "pointer feedback ON this
+ * material", so it stays right wherever a theme takes the surface.
+ */
+.os-tray__group:hover,
+.os-tray__group:focus-visible {
+	background: var( --_hover );
+	color: var( --_fg );
+}
+
+/* Inset, so the ring stays within the strip rather than spilling over
+   the dock below it. */
+.os-tray__group:focus-visible {
+	outline: 2px solid var( --os-ui-accent, #f252fc );
+	outline-offset: -2px;
+}
+
+.os-tray__glyph {
+	display: flex;
+	flex: 0 0 auto;
+	width: 12px;
+	height: 12px;
+}
+
+.os-tray__glyph svg {
+	width: 100%;
+	height: 100%;
+	fill: currentColor;
+}
+
+/* Sized down from the dashicon font's native 20px, and laid out as a
+   block so its line-height cannot push the control taller. */
+.os-tray__exit .dashicons {
+	display: block;
+	width: 13px;
+	height: 13px;
+	font-size: 13px;
+	line-height: 1;
+}
+
+.os-tray__assistant .os-chord {
+	font-size: 10px;
+}
+
+/*
+ * The hover label. In `document.body`, not in the strip — the strip
+ * clips and this opens above it. `fixed` with JS-written coordinates,
+ * because body-hosting leaves no ancestor to anchor to. Above rather
+ * than below: below is the dock, and the strip sits on it.
+ */
+.os-tray__tip {
+	position: fixed;
+	z-index: calc( var( --os-z-dock, 200 ) + 1 );
+	/* Anchored by its own bottom edge: JS writes the control's top. */
+	transform: translateY( -100% );
+	padding: 5px 10px;
+	border-radius: 6px;
+	background: var(
+		--os-tooltip-bg,
+		var( --os-ui-scrim, rgba( 0, 0, 0, 0.85 ) )
+	);
+	color: var( --os-tooltip-fg, var( --os-ui-fg-on-accent, #fff ) );
+	font-size: 12px;
+	line-height: 1.4;
+	white-space: nowrap;
+	pointer-events: none;
+	opacity: 0;
+	transition: opacity 0.15s ease;
+}
+
+.os-tray__tip--on {
+	opacity: 1;
+}
+
+/*
+ * Overview is the shell talking about itself, and a strip hanging over
+ * that view is chrome on top of chrome. `visibility` alongside the
+ * fade so it stops taking clicks on the way out; a transparent button
+ * over a desktop thumbnail still swallows the click.
+ */
+.os-shell:has( .os-area--overview ) .os-tray {
+	opacity: 0;
+	visibility: hidden;
+	transition-delay: 0s;
+}
+
+/* Solo mode is one window freed into a native OS window — the shell's
+   own chrome has no place in it. */
+body.os-solo .os-tray {
+	display: none;
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.os-tray,
+	.os-tray__group,
+	.os-tray__tip {
+		transition-duration: 1ms;
+	}
+}
