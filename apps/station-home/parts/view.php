@@ -225,12 +225,12 @@ function render( State $state, Os $os ) {
 					<h2 id="os-station-home-pulse-heading"><?php esc_html_e( 'Site pulse', 'desktop-mode' ); ?></h2>
 					<div class="os-station-home__pulse">
 						<?php foreach ( $snapshot['metrics'] as $metric ) : ?>
-							<article class="os-station-home__metric" os-key="<?php echo esc( $metric['id'] ); ?>">
+							<article class="os-station-home__metric" os-key="<?php echo esc( $metric['id'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- esc() escapes. ?>">
 								<div class="os-station-home__metric-label">
 									<?php echo icon( $metric['icon'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- icon() escapes. ?>
-									<span><?php echo esc( $metric['label'] ); ?></span>
+									<span><?php echo esc( $metric['label'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- esc() escapes. ?></span>
 								</div>
-								<strong><?php echo esc( number_format_i18n( $metric['value'] ) ); ?></strong>
+								<strong><?php echo esc( number_format_i18n( $metric['value'] ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- esc() escapes. ?></strong>
 							</article>
 						<?php endforeach; ?>
 					</div>
@@ -284,15 +284,15 @@ function work( array $work ) {
 	}
 	foreach ( $work as $item ) {
 		?>
-		<a class="os-station-home__work-row" os-key="<?php echo esc( $item['id'] ); ?>" href="<?php echo esc_url( $item['editUrl'] ); ?>">
+		<a class="os-station-home__work-row" os-key="<?php echo esc( $item['id'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- esc() escapes. ?>" href="<?php echo esc_url( $item['editUrl'] ); ?>">
 			<span class="os-station-home__row-icon"><?php echo icon( $item['icon'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- icon() escapes. ?></span>
 			<span class="os-station-home__row-copy">
 				<span class="os-station-home__row-title"><?php echo text( $item['title'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- text() escapes. ?></span>
 				<span class="os-station-home__row-meta"><?php echo text( $item['typeLabel'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- text() escapes. ?></span>
 			</span>
-			<os-badge tone="<?php echo esc( status_tone( $item['status'] ) ); ?>"><?php echo esc( $item['statusLabel'] ); ?></os-badge>
+			<os-badge tone="<?php echo esc( status_tone( $item['status'] ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- esc() escapes. ?>"><?php echo esc( $item['statusLabel'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- esc() escapes. ?></os-badge>
 			<?php if ( '' !== $item['modifiedGmt'] ) : ?>
-				<os-relative-time datetime="<?php echo esc( $item['modifiedGmt'] ); ?>" compact></os-relative-time>
+				<os-relative-time datetime="<?php echo esc( $item['modifiedGmt'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- esc() escapes. ?>" compact></os-relative-time>
 			<?php endif; ?>
 			<?php echo icon( 'dashicons-arrow-right-alt2' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- icon() escapes. ?>
 		</a>
@@ -321,10 +321,10 @@ function attention_rows( array $attention ) {
 	}
 	foreach ( $attention as $item ) {
 		?>
-		<a class="os-station-home__attention-row" os-key="<?php echo esc( $item['id'] ); ?>" href="<?php echo esc_url( $item['url'] ); ?>">
+		<a class="os-station-home__attention-row" os-key="<?php echo esc( $item['id'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- esc() escapes. ?>" href="<?php echo esc_url( $item['url'] ); ?>">
 			<span class="os-station-home__attention-count">
 				<?php echo icon( $item['icon'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- icon() escapes. ?>
-				<strong><?php echo esc( number_format_i18n( $item['count'] ) ); ?></strong>
+				<strong><?php echo esc( number_format_i18n( $item['count'] ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- esc() escapes. ?></strong>
 			</span>
 			<span class="os-station-home__attention-copy">
 				<strong><?php echo text( $item['label'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- text() escapes. ?></strong>
