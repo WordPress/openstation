@@ -24,7 +24,12 @@ function openstation_multisite_payload() {
 	// `wp_admin_bar_my_sites_menu()`, so the tile can never offer a
 	// screen the admin bar would have hidden.
 	$network = esc_url_raw( network_admin_url() );
-	$rows    = array( array( 'title' => __( 'Dashboard', 'desktop-mode' ), 'url' => $network ) );
+	$rows    = array(
+		array(
+			'title' => __( 'Dashboard', 'desktop-mode' ),
+			'url'   => $network,
+		),
+	);
 	$gated   = array(
 		'manage_sites'           => array( 'sites.php', __( 'Sites', 'desktop-mode' ) ),
 		'manage_network_users'   => array( 'users.php', __( 'Users', 'desktop-mode' ) ),
@@ -35,7 +40,10 @@ function openstation_multisite_payload() {
 
 	foreach ( $gated as $capability => $row ) {
 		if ( current_user_can( $capability ) ) {
-			$rows[] = array( 'title' => $row[1], 'url' => esc_url_raw( network_admin_url( $row[0] ) ) );
+			$rows[] = array(
+				'title' => $row[1],
+				'url'   => esc_url_raw( network_admin_url( $row[0] ) ),
+			);
 		}
 	}
 

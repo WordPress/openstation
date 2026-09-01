@@ -85,8 +85,8 @@ function openstation_url_is_same_admin( $url ) {
  * `custom_admin_page.php` if a plugin named something that way;
  * the explicit allowlist closes that.
  *
+ * @param string $file    Bare admin filename (no path, no query string).
  * @param bool   $network Resolve against the network admin's own screens.
- * @param string $file Bare admin filename (no path, no query string).
  * @return string|WP_Error Absolute admin URL on success, `WP_Error` otherwise.
  */
 function openstation_resolve_admin_target( $file, $network = false ) {

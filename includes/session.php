@@ -26,22 +26,59 @@ defined( 'ABSPATH' ) || exit;
 const OPENSTATION_SESSION_META_KEY = 'desktop_mode_session';
 
 /**
- * The session meta key for the site the request is running against.
+ * The session meta key for the admin the request is running against.
  *
  * User meta is network-wide, so every site shared one blob, and the
  * sanitizer drops any window URL outside the current site's
  * `admin_url()` — so the first save from site B rewrote it and site A's
  * desktop was gone. The MAIN site keeps the bare key, and so does every
  * single-site install: those sessions already exist, and a new key would
- * silently empty every desktop on upgrade. The network admin shares it
- * too, running in the main site's blog context.
+ * silently empty every desktop on upgrade.
  *
- * @return string Meta key to read and write for this request.
+ * The NETWORK admin gets its own key rather than sharing the main
+ * site's, even though it runs in the main site's blog context. The two
+ * desktops derive the same window ids from different admins —
+ * `index-php` is the site dashboard on one and the network dashboard on
+ * the other — so one shared blob meant the network desktop restored the
+ * site's dashboard window (and the reverse), and the dock's Dashboard
+ * tile focused the wrong admin's screen.
+ *
+ * @param bool|null $network The network admin's session (true) or the
+ *                           current site's (false). Null follows the
+ *                           request, which is wrong on `admin-ajax.php`
+ *                           and REST — those callers must pass what the
+ *                           client reported.
+ * @return string Meta key to read and write.
  */
-function openstation_session_meta_key() {
+function openstation_session_meta_key( $network = null ) {
+	if ( null === $network ) {
+		$network = is_multisite() && is_network_admin();
+	}
+	if ( $network ) {
+		return OPENSTATION_SESSION_META_KEY . '_network';
+	}
 	return ! is_multisite() || get_current_blog_id() === get_main_site_id()
 		? OPENSTATION_SESSION_META_KEY
 		: OPENSTATION_SESSION_META_KEY . '_' . get_current_blog_id();
+}
+
+/**
+ * Whether a persisted window URL belongs to the session's admin.
+ *
+ * The scope gate behind the per-admin meta keys: keys separate the
+ * blobs, this separates their CONTENTS, so a blob written before the
+ * keys split (or by an older client posting to the wrong scope) heals
+ * on read instead of restoring one admin's window on the other's
+ * desktop. Runs on read and on sanitize both.
+ *
+ * @param string $url     Absolute window URL, already same-admin checked.
+ * @param bool   $network Whether the session is the network admin's.
+ * @return bool True when the URL lives in the session's own admin.
+ */
+function openstation_session_url_in_scope( $url, $network ) {
+	$path       = wp_parse_url( $url, PHP_URL_PATH );
+	$in_network = is_string( $path ) && false !== strpos( $path, '/wp-admin/network/' );
+	return $in_network === (bool) $network;
 }
 
 /** Hard cap on persisted windows — guards against runaway meta size. */
@@ -110,16 +147,20 @@ function openstation_empty_session() {
  * Always returns a well-shaped array so callers don't have to defend
  * against corrupt or partial meta.
  *
- * @param int $user_id The user ID.
+ * @param int       $user_id The user ID.
+ * @param bool|null $network See {@see openstation_session_meta_key()}.
  * @return array{windows: array, desktops: array, activeDesktop: string, focused: string, updated: int}
  */
-function openstation_get_session( $user_id ) {
+function openstation_get_session( $user_id, $network = null ) {
 	$user_id = (int) $user_id;
 	if ( $user_id <= 0 ) {
 		return openstation_empty_session();
 	}
+	if ( null === $network ) {
+		$network = is_multisite() && is_network_admin();
+	}
 
-	$raw = get_user_meta( $user_id, openstation_session_meta_key(), true );
+	$raw = get_user_meta( $user_id, openstation_session_meta_key( $network ), true );
 	if ( ! is_array( $raw ) ) {
 		return openstation_empty_session();
 	}
@@ -133,8 +174,26 @@ function openstation_get_session( $user_id ) {
 		: array( openstation_default_desktop() );
 	$active_desktop = isset( $raw['activeDesktop'] ) ? (string) $raw['activeDesktop'] : 'desktop-1';
 
+	// Scope gate on read: drop windows persisted for the other admin.
+	// Blobs written before the network admin had its own meta key mix
+	// the two, and restoring across the split would open one admin's
+	// window on the other's desktop under a colliding window id.
+	$windows = isset( $raw['windows'] ) && is_array( $raw['windows'] ) ? array_values( $raw['windows'] ) : array();
+	$windows = array_values(
+		array_filter(
+			$windows,
+			static function ( $win ) use ( $network ) {
+				if ( ! is_array( $win ) || ! empty( $win['native'] ) ) {
+					return true;
+				}
+				$url = isset( $win['url'] ) ? (string) $win['url'] : '';
+				return openstation_session_url_in_scope( $url, $network );
+			}
+		)
+	);
+
 	return array(
-		'windows'       => isset( $raw['windows'] ) && is_array( $raw['windows'] ) ? array_values( $raw['windows'] ) : array(),
+		'windows'       => $windows,
 		'desktops'      => $desktops,
 		'activeDesktop' => $active_desktop,
 		'focused'       => isset( $raw['focused'] ) ? (string) $raw['focused'] : '',
@@ -168,20 +227,24 @@ function openstation_get_session( $user_id ) {
  * Equal timestamps are still accepted — that's a tie and whichever the
  * server processes first wins.
  *
- * @param int   $user_id The user ID.
- * @param array $session Raw session payload (will be sanitized).
+ * @param int       $user_id The user ID.
+ * @param array     $session Raw session payload (will be sanitized).
+ * @param bool|null $network See {@see openstation_session_meta_key()}.
  * @return bool True on success, false when stale / invalid / failed.
  */
-function openstation_save_session( $user_id, $session ) {
+function openstation_save_session( $user_id, $session, $network = null ) {
 	$user_id = (int) $user_id;
 	if ( $user_id <= 0 ) {
 		return false;
+	}
+	if ( null === $network ) {
+		$network = is_multisite() && is_network_admin();
 	}
 
 	if ( is_array( $session ) && isset( $session['updated'] ) ) {
 		$incoming = (int) $session['updated'];
 		if ( $incoming > 0 ) {
-			$existing = openstation_get_session( $user_id );
+			$existing = openstation_get_session( $user_id, $network );
 			$stored   = isset( $existing['updated'] ) ? (int) $existing['updated'] : 0;
 			if ( $incoming < $stored ) {
 				// Stale write — another tab saved a newer snapshot
@@ -192,36 +255,42 @@ function openstation_save_session( $user_id, $session ) {
 		}
 	}
 
-	$clean = openstation_sanitize_session( $session );
+	$clean = openstation_sanitize_session( $session, $network );
 
-	return false !== update_user_meta( $user_id, openstation_session_meta_key(), $clean );
+	return false !== update_user_meta( $user_id, openstation_session_meta_key( $network ), $clean );
 }
 
 /**
  * Clears a user's saved desktop session.
  *
- * @param int $user_id The user ID.
+ * @param int       $user_id The user ID.
+ * @param bool|null $network See {@see openstation_session_meta_key()}.
  * @return bool True on success.
  */
-function openstation_clear_session( $user_id ) {
+function openstation_clear_session( $user_id, $network = null ) {
 	$user_id = (int) $user_id;
 	if ( $user_id <= 0 ) {
 		return false;
 	}
-	return (bool) delete_user_meta( $user_id, openstation_session_meta_key() );
+	return (bool) delete_user_meta( $user_id, openstation_session_meta_key( $network ) );
 }
 
 /**
  * Sanitizes a session payload before persistence.
  *
- * Rejects windows whose `url` isn't a same-origin admin URL, clamps
- * geometry to sane integer ranges, and normalizes the state enum.
- * Windows beyond {@see OPENSTATION_SESSION_MAX_WINDOWS} are dropped.
+ * Rejects windows whose `url` isn't a same-origin admin URL or lives
+ * in the other admin's scope, clamps geometry to sane integer ranges,
+ * and normalizes the state enum. Windows beyond
+ * {@see OPENSTATION_SESSION_MAX_WINDOWS} are dropped.
  *
- * @param mixed $session Raw session data from the client.
+ * @param mixed     $session Raw session data from the client.
+ * @param bool|null $network See {@see openstation_session_meta_key()}.
  * @return array{windows: array, desktops: array, activeDesktop: string, focused: string, updated: int}
  */
-function openstation_sanitize_session( $session ) {
+function openstation_sanitize_session( $session, $network = null ) {
+	if ( null === $network ) {
+		$network = is_multisite() && is_network_admin();
+	}
 	$clean = openstation_empty_session();
 
 	if ( ! is_array( $session ) ) {
@@ -360,6 +429,12 @@ function openstation_sanitize_session( $session ) {
 				// cross-origin page. Host+path parsing rejects tricks like
 				// `//evil.com/wp-admin/…` that a raw prefix check would miss.
 				if ( '' === $url || ! openstation_url_is_same_admin( $url ) ) {
+					continue;
+				}
+				// One admin's window never persists into the other's
+				// session — the same gate the read path applies, here so
+				// a mis-scoped save can't plant it in the first place.
+				if ( ! openstation_session_url_in_scope( $url, $network ) ) {
 					continue;
 				}
 				// Strip transient/routing flags before storage. The chromeless
@@ -584,6 +659,16 @@ function openstation_sanitize_session_params( $params ) {
  * the current user's session.
  */
 function openstation_register_session_rest_routes() {
+	// `network` addresses the network admin's own session. The route
+	// runs in the main site's blog context whichever desktop is
+	// saving, so the shell says which one it is: the network screen's
+	// `sessionUrl` carries `network=1`.
+	$network_arg = array(
+		'network' => array(
+			'type'    => 'boolean',
+			'default' => false,
+		),
+	);
 	register_rest_route(
 		'desktop-mode/v1',
 		'/session',
@@ -592,22 +677,27 @@ function openstation_register_session_rest_routes() {
 				'methods'             => WP_REST_Server::READABLE,
 				'callback'            => 'openstation_rest_get_session',
 				'permission_callback' => 'openstation_rest_session_permission',
+				'args'                => $network_arg,
 			),
 			array(
 				'methods'             => WP_REST_Server::CREATABLE,
 				'callback'            => 'openstation_rest_save_session',
 				'permission_callback' => 'openstation_rest_session_permission',
-				'args'                => array(
-					'session' => array(
-						'required' => true,
-						'type'     => 'object',
+				'args'                => array_merge(
+					array(
+						'session' => array(
+							'required' => true,
+							'type'     => 'object',
+						),
 					),
+					$network_arg
 				),
 			),
 			array(
 				'methods'             => WP_REST_Server::DELETABLE,
 				'callback'            => 'openstation_rest_clear_session',
 				'permission_callback' => 'openstation_rest_session_permission',
+				'args'                => $network_arg,
 			),
 		)
 	);
@@ -626,12 +716,33 @@ function openstation_rest_session_permission() {
 }
 
 /**
+ * Which admin's session a REST call addresses.
+ *
+ * `is_network_admin()` is false on every REST request, so the client
+ * reports the scope (`network=1`, stamped onto the network screen's
+ * `sessionUrl`). Honoured only for users who can open the network
+ * desktop at all — anyone else's flag falls back to the site session
+ * rather than minting a blob for a desktop they cannot reach.
+ *
+ * @param WP_REST_Request $request The REST request.
+ * @return bool True when the call addresses the network admin's session.
+ */
+function openstation_rest_session_network( WP_REST_Request $request ) {
+	return is_multisite()
+		&& rest_sanitize_boolean( $request->get_param( 'network' ) )
+		&& current_user_can( 'manage_network' );
+}
+
+/**
  * GET /desktop-mode/v1/session — returns the caller's session.
  *
+ * @param WP_REST_Request $request The REST request.
  * @return WP_REST_Response
  */
-function openstation_rest_get_session() {
-	return rest_ensure_response( openstation_get_session( get_current_user_id() ) );
+function openstation_rest_get_session( WP_REST_Request $request ) {
+	return rest_ensure_response(
+		openstation_get_session( get_current_user_id(), openstation_rest_session_network( $request ) )
+	);
 }
 
 /**
@@ -643,16 +754,18 @@ function openstation_rest_get_session() {
 function openstation_rest_save_session( WP_REST_Request $request ) {
 	$user_id = get_current_user_id();
 	$payload = $request->get_param( 'session' );
-	openstation_save_session( $user_id, $payload );
-	return rest_ensure_response( openstation_get_session( $user_id ) );
+	$network = openstation_rest_session_network( $request );
+	openstation_save_session( $user_id, $payload, $network );
+	return rest_ensure_response( openstation_get_session( $user_id, $network ) );
 }
 
 /**
  * DELETE /desktop-mode/v1/session — clears the caller's session.
  *
+ * @param WP_REST_Request $request The REST request.
  * @return WP_REST_Response
  */
-function openstation_rest_clear_session() {
-	openstation_clear_session( get_current_user_id() );
+function openstation_rest_clear_session( WP_REST_Request $request ) {
+	openstation_clear_session( get_current_user_id(), openstation_rest_session_network( $request ) );
 	return rest_ensure_response( openstation_empty_session() );
 }

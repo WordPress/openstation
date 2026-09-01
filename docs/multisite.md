@@ -91,6 +91,18 @@ and the dock is built from an admin menu near-identical across sites.
 
 OS settings, wallpaper, theme and accent are user meta, so network-wide;
 desktop files and folders are per-blog tables, so per site. **The session
-is per site too, and that is the one that changed** — see
-`openstation_session_meta_key()` for why, and for why the main site keeps
-the bare key.
+is per ADMIN, and that is the one that changed** — one per site, plus one
+of the network admin's own. See `openstation_session_meta_key()` for why,
+and for why the main site keeps the bare key. The network admin cannot
+share the main site's blob even though it runs in that site's blog
+context: the two desktops derive the same window ids from different
+admins (`index-php` is the site dashboard on one, the network dashboard
+on the other), so a shared session restored one admin's dashboard on the
+other's desktop and handed its window id to the dock's Dashboard tile.
+
+The session REST route runs in the main site's blog context whichever
+desktop is saving, so the network screen's `sessionUrl` carries
+`network=1` and the handlers honour it only alongside `manage_network` —
+see `openstation_rest_session_network()`. Both read and write filter
+windows to the session's own admin scope, so a blob written before the
+keys split heals instead of leaking across.
