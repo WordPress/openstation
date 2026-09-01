@@ -2903,17 +2903,7 @@ The total surfaced to the dock/icon badge. `$total` defaults to `$post_count + $
 apply_filters( 'openstation_recycle_bin_count', int $total, int $post_count, int $comment_count, int $files_count );
 ```
 
-### `openstation_recycle_bin_window_args` — Experimental (filter)
-
-Tweak the args passed to `openstation_register_window()` for the bin — useful to change dimensions, swap the icon, or drop the dock tile entirely (`'placement' => 'none'`). The bin ships its own silhouette; `openstation_recycle_bin_icon_svg()` returns the raw markup and `openstation_recycle_bin_icon_uris()` returns both states as data URIs, so a plugin substituting its own art has the same pair to replace.
-
-The bin registers **no desktop icon**, so it lands on the dock and nowhere else. That is the default, not the whole story: the window is registered `placeable`, so its row in OpenStation Preferences → Navigation offers the wallpaper, both, or hidden, like any other item.
-
-### `openstation_recycle_bin_template_html` — Experimental (filter)
-
-The full template body before it's emitted into the native-window template element. Keep the `data-os-recycle-bin-*` hooks intact so the JS bundle can find its mount points.
-
-Some are visibility hooks rather than mount points: while the bin is empty the JS hides `[data-os-recycle-bin-toolbar]` and the `<os-table>`, and shows `[data-os-recycle-bin-empty-state]`. Put added toolbar controls inside the toolbar element or they stay visible over an empty bin. A filter or search that matches nothing keeps the toolbar and shows the table's own `empty` text instead; so does a failed load, which swaps that text for a retry message.
+> **Removed with the App Framework port:** `openstation_recycle_bin_window_args` and `openstation_recycle_bin_template_html` no longer exist — the bin window is an app (`apps/trash/`) and there is no server template to filter. The general `openstation_app_manifest` filter covers what `window_args` did (dimensions, icon, placement, chrome). See [`migration-recycle-bin-app.md`](./migration-recycle-bin-app.md). The bin still ships its own silhouette (`openstation_recycle_bin_icon_svg()` / `openstation_recycle_bin_icon_uris()`), registers **no desktop icon**, and stays `placeable` — its row in OpenStation Preferences → Navigation offers the wallpaper, both, or hidden, like any other item.
 
 ### `openstation_recycle_bin_empty_chunk_size` — Experimental (filter)
 

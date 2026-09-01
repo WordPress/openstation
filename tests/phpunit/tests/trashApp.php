@@ -46,7 +46,7 @@ class Tests_OpenStation_TrashApp extends WP_UnitTestCase {
 	 */
 	protected function dispatch( $action, array $state = array(), array $args = array() ) {
 		return openstation_apps_runtime()->dispatch(
-			'trash',
+			'desktop-mode-recycle-bin',
 			array(
 				'action' => $action,
 				'state'  => $state,
@@ -60,7 +60,7 @@ class Tests_OpenStation_TrashApp extends WP_UnitTestCase {
 	 * @covers \OpenStation\App::manifest
 	 */
 	public function test_manifest_mirrors_the_legacy_windows_registration() {
-		$app = openstation_apps_registry()->get( 'trash' );
+		$app = openstation_apps_registry()->get( 'desktop-mode-recycle-bin' );
 		$this->assertNotNull( $app );
 		$manifest = $app->manifest();
 		$this->assertSame( 'Trash', $manifest['title'] );
@@ -68,11 +68,11 @@ class Tests_OpenStation_TrashApp extends WP_UnitTestCase {
 		$this->assertSame( 560, $manifest['height'] );
 		$this->assertSame( 520, $manifest['min_width'] );
 		$this->assertSame( 360, $manifest['min_height'] );
-		// The same rail furniture the legacy bin declares: a dock
-		// control at the end of the rail, one slot after the original.
+		// The legacy bin's rail furniture, inherited whole: a dock
+		// control, last on the rail after the shell's own cluster.
 		$this->assertSame( 'dock', $manifest['placement'] );
 		$this->assertSame( 'control', $manifest['nav_kind'] );
-		$this->assertSame( 41, $manifest['dock_order'] );
+		$this->assertSame( 40, $manifest['dock_order'] );
 		$this->assertTrue( $manifest['placeable'] );
 		// Any content change repaints the bin.
 		$this->assertSame( array( '*' ), $manifest['watch'] );
@@ -89,7 +89,7 @@ class Tests_OpenStation_TrashApp extends WP_UnitTestCase {
 	 * @covers \OpenStation\App::allows
 	 */
 	public function test_gate_follows_the_legacy_capability_filter() {
-		$app = openstation_apps_registry()->get( 'trash' );
+		$app = openstation_apps_registry()->get( 'desktop-mode-recycle-bin' );
 		$this->assertTrue( $app->allows( openstation_apps_os() ) );
 
 		add_filter( 'openstation_recycle_bin_user_can_use', '__return_false' );
@@ -153,7 +153,7 @@ class Tests_OpenStation_TrashApp extends WP_UnitTestCase {
 			array( 'items' => array( array( 'id' => $post_id, 'type' => 'post' ) ) )
 		);
 		$this->assertTrue( $response['ok'] );
-		$this->assertNotSame( 'trash', get_post_status( $post_id ) );
+		$this->assertNotSame( 'desktop-mode-recycle-bin', get_post_status( $post_id ) );
 		// The same `os.post.changed` broadcast the legacy bin emits,
 		// as the framework's announce effect.
 		$announce = null;

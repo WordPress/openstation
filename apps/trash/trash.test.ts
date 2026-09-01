@@ -6,7 +6,7 @@
  */
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { mockViewContext, renderedText } from '../../src/app-runtime/testing';
-import type { RecycleBinItem } from '../../src/recycle-bin/rest';
+import type { RecycleBinItem } from '../../src/recycle-bin/types';
 import app from './trash.os';
 
 interface AppState extends Record< string, unknown > {
@@ -163,7 +163,7 @@ describe( 'the trash app view', () => {
 		ctx.host.setIcon = setIcon;
 		ctx.host.setBadge = setBadge;
 		app.render( ctx );
-		expect( setIcon ).toHaveBeenCalledWith( 'trash', 'data:image/svg+xml;base64,FULL' );
+		expect( setIcon ).toHaveBeenCalledWith( 'desktop-mode-recycle-bin', 'data:image/svg+xml;base64,FULL' );
 		// Same state again — no re-push.
 		app.render( ctx );
 		expect( setIcon ).toHaveBeenCalledTimes( 1 );
@@ -171,7 +171,7 @@ describe( 'the trash app view', () => {
 		ctx.data.items = [];
 		ctx.data.total = 0;
 		app.render( ctx );
-		expect( setIcon ).toHaveBeenLastCalledWith( 'trash', 'data:image/svg+xml;base64,EMPTY' );
+		expect( setIcon ).toHaveBeenLastCalledWith( 'desktop-mode-recycle-bin', 'data:image/svg+xml;base64,EMPTY' );
 		// A count on the tile reads as update notifications.
 		expect( setBadge ).not.toHaveBeenCalled();
 	} );

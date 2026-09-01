@@ -47,7 +47,12 @@ fi
 # Order matters: the first matching prefix wins, so list the most
 # specific paths first.
 declare -a HANDLE_MAP=(
-	"src/recycle-bin/=desktop-mode-recycle-bin"
+	# The Trash app's client view (its companion-script handle, from
+	# includes/framework/wordpress.php). The shared renderers under
+	# src/recycle-bin/ ride whichever bundle imports them, so their
+	# strings map to the app handle too — first match wins.
+	"apps/trash/=openstation-app-desktop-mode-recycle-bin-client"
+	"src/recycle-bin/=openstation-app-desktop-mode-recycle-bin-client"
 	"src/posts-window/=os-posts-window"
 	"src/=openstation"
 )

@@ -13,7 +13,7 @@
 
 import { describe, expect, test, vi } from 'vitest';
 import { runEmptyLoop } from '../../src/recycle-bin/empty-loop';
-import type { EmptyResponse } from '../../src/recycle-bin/rest';
+import type { EmptyResponse } from '../../src/recycle-bin/types';
 
 function makeChunkedServer( total: number, chunkSize: number ) {
 	let purgedSoFar = 0;

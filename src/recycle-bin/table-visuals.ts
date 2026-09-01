@@ -1,11 +1,11 @@
 /**
- * Recycle Bin — the table's cell visuals, shared by both bins.
+ * Recycle Bin — the table's cell visuals.
  *
- * The legacy native window (`index.ts`) and the App Framework port
- * (`apps/trash/trash.os.ts`) paint the SAME rows: type badge, title
- * stack with optional thumbnail, relative deleted-at, and the
- * restore / delete-forever row buttons. One definition keeps the two
- * pixel-identical — and keeps the hard-won shadow-DOM constraints in
+ * The Trash app (`apps/trash/trash.os.ts`) paints its rows through
+ * these: type badge, title stack with optional thumbnail, relative
+ * deleted-at, and the restore / delete-forever row buttons. Kept as
+ * a leaf (they were shared verbatim with the legacy window this app
+ * replaced) because the hard-won shadow-DOM constraints belong in
  * one place: `<os-table>` renders its body into its own shadow root,
  * so nothing here may rely on a document stylesheet (every visual
  * property is an inline `style.*`, colours are inline `var()` chains
@@ -26,7 +26,7 @@ import {
 	resolveThemedIconColor,
 } from '../desktop-themes/icons';
 import { DESKTOP_THEME_SLOTS } from '../desktop-themes/slots';
-import type { RecycleBinItem, RecycleBinItemRef } from './rest';
+import type { RecycleBinItem, RecycleBinItemRef } from './types';
 import type { OsTableColumn } from '../ui/components/os-table/os-table';
 
 /**

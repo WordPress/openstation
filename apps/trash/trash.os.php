@@ -2,20 +2,23 @@
 /**
  * Trash — the Recycle Bin, as an OpenStation app.
  *
- * The 1:1 App Framework port of the legacy `desktop-mode-recycle-bin`
- * native window, which stays installed beside it for comparison. The
- * window is this file; the body is `trash.os.ts`, a client view that
- * paints the same toolbar, `<os-table>` and empty state through the
- * SAME cell renderers the legacy bin uses
- * (`src/recycle-bin/table-visuals.ts`), so the two are
- * pixel-identical by construction. All data and mutations run
- * through the legacy store (`includes/recycle-bin/store.php`) — one
- * trash, two windows.
+ * THE Recycle Bin: the App Framework rebuild replaced the legacy
+ * native window whole and claims its id — `desktop-mode-recycle-bin`
+ * is a frozen identifier (see AGENTS.md), so every desktop shortcut,
+ * dock placement, drag-to-trash drop target, theme icon slot and
+ * Apps & Plugins row keeps working unchanged. The window is this
+ * file; the body is `trash.os.ts`, a client view painting the same
+ * toolbar, `<os-table>` and empty state through the shared cell
+ * renderers (`src/recycle-bin/table-visuals.ts`). All data and
+ * mutations run through the store (`includes/recycle-bin/`), which
+ * also keeps capture, realtime, REST and the closed-window tile art
+ * (`icon-state.ts`) exactly as they were.
  *
- * What the framework replaces: the REST routes (actions + `data()`),
- * the localized config blob (`ctx.fetch` + the dispatch wire), the
- * broadcast subscriptions (`watch( '*' )`), and the imperative
- * toolbar wiring (the view is a function of state).
+ * What the framework replaced: the window registration and template
+ * (`window.php` keeps only the tile art, the gate and the shell
+ * config), the per-window REST client and config blob (actions +
+ * `data()` + `ctx.fetch`), the broadcast subscriptions
+ * (`watch( '*' )`), and the imperative toolbar wiring.
  *
  * (Header kept short on purpose: Plugin Check's direct-access scan
  * reads only the first 50 raw lines, and the guard below must land
@@ -101,7 +104,7 @@ function run_bulk( Os $os, array $items, $callback, $action ) {
 	}
 }
 
-return App::define( 'trash' )
+return App::define( 'desktop-mode-recycle-bin' )
 	->title( __( 'Trash', 'desktop-mode' ) )
 	// The same outlined-vessel mark the legacy dock tile draws — its
 	// empty state; the client view swaps in the full-bin art through
@@ -114,11 +117,12 @@ return App::define( 'trash' )
 	->config( function_exists( 'openstation_recycle_bin_icon_uris' ) ? openstation_recycle_bin_icon_uris() : array() )
 	->size( 880, 560 )
 	->min_size( 520, 360 )
-	// Same rail furniture as the legacy bin: a control (not an app),
-	// at the end of the dock, one slot after the original so the two
-	// sit side by side while both are installed.
+	// The legacy bin's rail furniture, inherited whole: a control
+	// (not an app), last on the dock after the shell's own cluster
+	// (Mio 10, Overview 20, System 30) — Trash is where things END
+	// UP, and a dock reads left to right.
 	->nav_kind( 'control' )
-	->dock_order( 41 )
+	->dock_order( 40 )
 	->placeable()
 	->can(
 		static function () {

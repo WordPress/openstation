@@ -7,7 +7,7 @@
  * registry slug to send to `POST /files/placements`.
  */
 import { describe, expect, test } from 'vitest';
-import { mapRecycleTypeToFileType } from '../../src/recycle-bin/index';
+import { mapRecycleTypeToFileType } from '../../src/recycle-bin/table-visuals';
 
 describe( 'mapRecycleTypeToFileType', () => {
 	test( 'attachment maps to attachment', () => {

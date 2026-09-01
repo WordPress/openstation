@@ -95,17 +95,15 @@ class Tests_OpenStation_NativeWindowDockOrder extends WP_UnitTestCase {
 	/**
 	 * Trash sits at the end of the rail, after the shell's own cluster.
 	 * The value is the whole reason `dock_order` exists, so it is
-	 * pinned rather than left to the module that sets it.
+	 * pinned rather than left to the app that sets it.
 	 */
 	public function test_the_recycle_bin_sorts_last() {
-		$args = apply_filters(
-			'openstation_recycle_bin_window_args',
-			array( 'dock_order' => 40 )
-		);
+		$app = openstation_apps_registry()->get( 'desktop-mode-recycle-bin' );
+		$this->assertNotNull( $app );
 
 		$this->assertSame(
 			40,
-			$args['dock_order'],
+			$app->manifest()['dock_order'],
 			'Trash must sort after System (30) to sit at the end of the dock.'
 		);
 	}

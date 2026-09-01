@@ -18,7 +18,7 @@
  *      `purged > 0`. Far above any realistic bin size.
  */
 
-import type { EmptyResponse } from './rest';
+import type { EmptyResponse } from './types';
 
 export interface EmptyProgress {
 	/** Items purged across all calls so far. */

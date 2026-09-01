@@ -169,7 +169,7 @@ class Tests_OpenStation_DeferredWindowStyles extends WP_UnitTestCase {
 	 */
 	public function test_recycle_bin_stylesheet_stays_on_the_boot_path() {
 		$this->assertNotFalse(
-			has_action( 'admin_enqueue_scripts', 'openstation_recycle_bin_localize_config' ),
+			has_action( 'admin_enqueue_scripts', 'openstation_recycle_bin_enqueue_style' ),
 			'The recycle-bin boot attach vanished — if its enqueue moved, the dock drop-target styling moved with it.'
 		);
 	}

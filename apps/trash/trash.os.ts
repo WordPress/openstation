@@ -1,16 +1,16 @@
 /**
  * Trash — the client view of the Recycle Bin app.
  *
- * The 1:1 port of the legacy bin window's body (`src/recycle-bin/
- * index.ts`): same toolbar, same `<os-table>` painted through the
- * SAME cell renderers (`src/recycle-bin/table-visuals.ts`), same
- * empty state, same confirm copy, same real-time channels. What the
- * framework absorbed: the REST client and its config blob (actions +
- * `data()` + `ctx.fetch`), the fingerprint/cache/sequence
- * choreography (data rides every dispatch response), the loading
- * skeleton (the first paint already has data), the broadcast
- * subscriptions (`watch( '*' )`), and the hand-built toolbar wiring
- * (the view is a function of state).
+ * The 1:1 rebuild of the legacy bin window's body, which it replaced
+ * whole: same toolbar, same `<os-table>` painted through the shared
+ * cell renderers (`src/recycle-bin/table-visuals.ts`), same empty
+ * state, same confirm copy, same real-time channels. What the
+ * framework absorbed from the old implementation: the REST client
+ * and its config blob (actions + `data()` + `ctx.fetch`), the
+ * fingerprint/cache/sequence choreography (data rides every dispatch
+ * response), the loading skeleton (the first paint already has
+ * data), the broadcast subscriptions (`watch( '*' )`), and the
+ * hand-built toolbar wiring (the view is a function of state).
  *
  * The chunked Empty Trash loop reuses the legacy driver
  * (`empty-loop.ts`) over `ctx.fetch` against the legacy REST route,
@@ -32,9 +32,16 @@ import type {
 	RecycleBinItemRef,
 	EmptyResponse,
 	BulkResponse,
-} from '../../src/recycle-bin/rest';
+} from '../../src/recycle-bin/types';
 import type { OsTable } from '../../src/ui/components/os-table/os-table';
 import type { ViewContext } from '@openstation/app';
+
+/**
+ * The app id — the legacy native window's FROZEN identifier (see
+ * AGENTS.md), claimed by the app so shortcuts, dock placements,
+ * drag-to-trash targets and theme slots keep working unchanged.
+ */
+const APP_ID = 'desktop-mode-recycle-bin';
 
 interface AppState extends Record< string, unknown > {
 	filter: string;
@@ -291,14 +298,14 @@ function emptyButtonLabel( ui: UiState ): string {
 	);
 }
 
-export default defineApp< AppState, AppData >( 'trash', {
+export default defineApp< AppState, AppData >( APP_ID, {
 	view: ( ctx ) => {
 		const { state, data } = ctx;
 		const ui = ctx.ui( freshUi );
 		const hasItems = data.total > 0;
 		const emptying = ui.empty.mode !== 'idle';
 		return html`
-			<div class="desktop-mode-recycle-bin">
+			<div class="desktop-mode-recycle-bin" data-os-recycle-bin-root>
 				<header class="os-recycle-bin__toolbar" ?hidden=${ ! hasItems }>
 					<div class="os-recycle-bin__toolbar-left">
 						<os-segmented os-bind="filter" os-action="refresh" value=${ state.filter } label=${ __( 'Filter by type' ) }>
@@ -467,7 +474,7 @@ export default defineApp< AppState, AppData >( 'trash', {
 		const art = String( ctx.extra[ ctx.data.total > 0 ? 'full' : 'empty' ] ?? '' );
 		if ( art && art !== ui.lastArt ) {
 			ui.lastArt = art;
-			ctx.host.setIcon?.( 'trash', art );
+			ctx.host.setIcon?.( APP_ID, art );
 		}
 	},
 } );
