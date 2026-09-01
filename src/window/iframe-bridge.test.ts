@@ -17,6 +17,7 @@ import {
 	registerDestructiveAdminAction,
 } from '../destructive-admin-actions';
 import { HOOKS } from '../hooks';
+import { deriveWindowId } from '../utils';
 import type { Window } from './index';
 import {
 	_resetWindowChannelsForTests,
@@ -712,6 +713,63 @@ describe( 'iframe-bridge: os-iframe-admin-link', () => {
 
 		expect( openWindow ).toHaveBeenCalledTimes( 1 );
 		expect( assignSpy ).not.toHaveBeenCalled();
+	} );
+
+	test( 'an HPOS order opens in its own window and leaves the Orders list alone', () => {
+		// Issue #721. The real slugifier is what decides this, so the
+		// test runs it rather than the simplified fake above: under
+		// WooCommerce's High-Performance Order Storage the order
+		// editor is `admin.php?page=wc-orders&action=edit&id=N`, one
+		// `admin.php?page=` screen with the list it was clicked from.
+		const { openWindow, findDockEntry } = bindFakeDispatcher( {
+			deriveSlug: ( url ) => deriveWindowId( url, adminUrl ),
+		} );
+		// No dock tile owns an individual order — the window takes
+		// its name from the page it loads, like a post editor does.
+		findDockEntry.mockReturnValue( null );
+		const { win, assignSpy } = mockAdminWindow( {
+			id: 'admin-php-page-wc-orders',
+		} );
+
+		const target =
+			window.location.origin +
+			'/wp-admin/admin.php?page=wc-orders&action=edit&id=123';
+		postToWindow( win, {
+			type: 'os-iframe-admin-link',
+			url: target,
+			label: '#123 John Doe',
+		} );
+
+		expect( assignSpy ).not.toHaveBeenCalled();
+		expect( openWindow ).toHaveBeenCalledTimes( 1 );
+		expect( openWindow.mock.calls[ 0 ][ 0 ] ).toMatchObject( {
+			id: 'admin-php-page-wc-orders-id-123',
+			baseId: 'admin-php-page-wc-orders-id-123',
+			title: '#123 John Doe',
+			titleFromPage: true,
+		} );
+		expect( win.close ).not.toHaveBeenCalled();
+	} );
+
+	test( 'an HPOS order row action still runs in the Orders window', () => {
+		// The other half of the same rule: `action=edit` drills into
+		// an entity, every other action on that screen keeps the
+		// list's slug, so it is an in-place navigation and WP's
+		// redirect lands the user back on the list.
+		const { openWindow } = bindFakeDispatcher( {
+			deriveSlug: ( url ) => deriveWindowId( url, adminUrl ),
+		} );
+		const { win, assignSpy } = mockAdminWindow( {
+			id: 'admin-php-page-wc-orders',
+		} );
+
+		const target =
+			window.location.origin +
+			'/wp-admin/admin.php?page=wc-orders&action=trash&id=123&_wpnonce=woo';
+		postToWindow( win, { type: 'os-iframe-admin-link', url: target } );
+
+		expect( openWindow ).not.toHaveBeenCalled();
+		expect( assignSpy ).toHaveBeenCalledWith( target );
 	} );
 
 	test( 'plugin-registered destructive predicate keeps cross-page URL in place', () => {

@@ -3998,6 +3998,10 @@ const id = wp.os.deriveWindowId( '/wp-admin/edit.php' );
 wp.os.windowManager.open( { id, baseId: id, url: '/wp-admin/edit.php', /* … */ } );
 ```
 
+The id is the admin filename plus the query args that distinguish one *page* from another — `post_type`, `page`, `taxonomy`, `path`, `post`, `c`, `tag_ID`, `item`, `p`. Everything else (pagination, nonces, feedback flags, the shell's own `openstation_chromeless` marker) is transient, so a direct-URL land and a dock click resolve to the same window.
+
+Two extra args are identity-bearing **only on an `admin.php` URL carrying a `page`**, where a plugin routes a whole feature through one file: `action=edit` promotes `id`, and `action=new` promotes `action` itself. That gives a plugin's entity editor its own window — a WooCommerce order under High-Performance Order Storage (`admin.php?page=wc-orders&action=edit&id=N`) opens beside the Orders list instead of navigating it away — while row actions on the same screen (`?action=duplicate&id=3`, `?action=trash&id=3&_wpnonce=…`) keep the list's id and run in place, which is what a redirect-back action needs.
+
 > **For rail renderers** — prefer `openItem( item )` / `openSubmenuPick( item, sub )` from `DockRailMountDeps`. They call `deriveWindowId` internally with the right `adminUrl` and build the rest of the window config for you. Only reach for `deriveWindowId` directly when you need the id for something other than `windowManager.open()` (e.g., an indicator, a deep-link, an analytics event).
 
 > **Don't pass a string to `windowManager.open()`.** It accepts a config object only — passing a URL string throws a `TypeError` at the call site (as does a missing or wrong-typed `id` / `url` / `title`). Build the config with `deriveWindowId` for the id, or use the routing callbacks above.

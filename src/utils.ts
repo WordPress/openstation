@@ -40,14 +40,12 @@ const IDENTITY_PARAMS: readonly string[] = [
 	// the first comment's window instead of opening its own (and the
 	// window-links ties can only ever point at one comment at a time).
 	'c',
-	// NOTE: the generic `id` param is deliberately NOT identity.
+	// NOTE: the generic `id` param is deliberately NOT in this list.
 	// Plugin list screens use `admin.php?page=foo&action=…&id=N` for
-	// row actions; treating `id` as identity would open every such
-	// action in a NEW window instead of navigating the list in place.
-	// The cost: two entities of the same `admin.php?page=` screen
-	// (e.g. two WooCommerce HPOS orders) can't be open side by side —
-	// plugins that want that can differentiate via `path` or their own
-	// window ids.
+	// row actions; treating `id` as identity everywhere would open
+	// every such action in a NEW window instead of navigating the
+	// list in place. It IS identity on the entity editor of such a
+	// screen — see {@link scopedIdentityParams}.
 	// The term ID on `term.php?taxonomy=category&tag_ID=X` — the term
 	// analogue of `post`. Without it every term-edit URL of the same
 	// taxonomy collapses to one window, so opening a second category
@@ -83,6 +81,57 @@ export const PAGE_IDENTITY_PARAMS: readonly string[] = IDENTITY_PARAMS.filter(
 	( key ) => key !== 'p',
 );
 
+const NO_SCOPED_PARAMS: readonly string[] = [];
+
+/**
+ * Extra identity params that only count on the URL that carries them.
+ *
+ * {@link IDENTITY_PARAMS} is a flat list applied to every admin URL,
+ * which is the wrong shape for `admin.php?page=…` screens: a plugin
+ * routes its whole feature through one file, so the same param name
+ * means "which row this row-action targets" on one URL and "which
+ * entity this editor is showing" on the next. The generic `id` is
+ * the case that matters — hence this scoped pass.
+ *
+ * One rule today: **the entity editor of an `admin.php?page=` screen
+ * is a different page from its list.**
+ *
+ *   - `action=edit` + `id=N` → `id` is identity, so every entity gets
+ *     its own window and clicking a row leaves the list where it is.
+ *   - `action=new` → `action` is identity, so the blank editor is its
+ *     own window too. Same reasoning, and the admin bar's "+ New"
+ *     already spawns a window for exactly this destination.
+ *
+ * WooCommerce's High-Performance Order Storage is what forced it:
+ * HPOS moves the order editor from `post.php?post=N&action=edit`
+ * (where `post` has always been identity) to
+ * `admin.php?page=wc-orders&action=edit&id=N`, so opening an order
+ * navigated the Orders list away and the only route back was closing
+ * the window and reopening it from the dock. The rule is written
+ * against the URL shape rather than against `wc-orders`, so any
+ * plugin using the same shape gets the same behaviour.
+ *
+ * Every OTHER `action=` on such a screen stays transient — row
+ * actions (`action=duplicate&id=3`, `action=trash&order=9`) must
+ * still resolve to the list window so they run in place.
+ */
+function scopedIdentityParams( parsed: URL ): readonly string[] {
+	if ( ! parsed.pathname.endsWith( '/admin.php' ) ) {
+		return NO_SCOPED_PARAMS;
+	}
+	if ( ! parsed.searchParams.get( 'page' ) ) {
+		return NO_SCOPED_PARAMS;
+	}
+	const action = parsed.searchParams.get( 'action' );
+	if ( 'edit' === action && parsed.searchParams.get( 'id' ) ) {
+		return [ 'id' ];
+	}
+	if ( 'new' === action ) {
+		return [ 'action' ];
+	}
+	return NO_SCOPED_PARAMS;
+}
+
 /**
  * Collapse a URL path (plus its significant query params) into a clean
  * slug that is safe to use as a DOM id attribute.
@@ -106,10 +155,11 @@ function slugify( path: string ): string {
  * Derive a window ID from an admin page URL.
  *
  * The ID is the admin filename plus any query params that distinguish
- * one admin page from another (see IDENTITY_PARAMS). Transient params —
- * openstation_chromeless, _wpnonce, paged, message — are discarded so the same
- * logical page always maps to the same window, whether reached via
- * direct URL or via the dock.
+ * one admin page from another — {@link IDENTITY_PARAMS} everywhere,
+ * plus whatever {@link scopedIdentityParams} adds for the URL at hand.
+ * Transient params — openstation_chromeless, _wpnonce, paged, message —
+ * are discarded so the same logical page always maps to the same
+ * window, whether reached via direct URL or via the dock.
  *
  * @param url      The full admin page URL.
  * @param adminUrl The base admin URL (e.g., 'http://localhost/wp-admin/').
@@ -128,7 +178,8 @@ export function deriveWindowId( url: string, adminUrl: string ): string {
 		const filename = parsed.pathname.replace( basePath, '' ).replace( /^\/+/, '' );
 
 		const significant = new URLSearchParams();
-		for ( const key of IDENTITY_PARAMS ) {
+		const keys = [ ...IDENTITY_PARAMS, ...scopedIdentityParams( parsed ) ];
+		for ( const key of keys ) {
 			const value = parsed.searchParams.get( key );
 			if ( value ) {
 				significant.set( key, value );
@@ -190,10 +241,12 @@ export function applyTileEntryStagger( tile: HTMLElement ): void {
  * Returns a key identifying the admin *page* a URL points at, ignoring
  * every param that only varies the view of that page — `action`,
  * `paged`, `s`, filters, nonces, feedback flags. Only
- * {@link PAGE_IDENTITY_PARAMS} survive, so `nav-menus.php`,
- * `nav-menus.php?action=locations`, and `nav-menus.php?action=edit&menu=2`
- * all collapse to the same key, while `edit-tags.php?taxonomy=category`
- * and `edit-tags.php?taxonomy=post_tag` stay apart.
+ * {@link PAGE_IDENTITY_PARAMS} (plus whatever
+ * {@link scopedIdentityParams} adds for the URL at hand) survive, so
+ * `nav-menus.php`, `nav-menus.php?action=locations`, and
+ * `nav-menus.php?action=edit&menu=2` all collapse to the same key,
+ * while `edit-tags.php?taxonomy=category` and
+ * `edit-tags.php?taxonomy=post_tag` stay apart.
  *
  * Same identity rule {@link deriveWindowId} uses to decide which window
  * owns a URL, minus the slugification and the in-screen route — this
@@ -207,7 +260,11 @@ export function pageIdentityKey( url: string ): string {
 	try {
 		const parsed = new URL( url, window.location.origin );
 		const significant = new URLSearchParams();
-		for ( const key of PAGE_IDENTITY_PARAMS ) {
+		const keys = [
+			...PAGE_IDENTITY_PARAMS,
+			...scopedIdentityParams( parsed ),
+		];
+		for ( const key of keys ) {
 			const value = parsed.searchParams.get( key );
 			if ( value ) {
 				significant.set( key, value );
