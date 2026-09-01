@@ -84,6 +84,15 @@ export function renderDetail( ctx: Ctx, section: SectionDef ): TemplateResult {
 				`
 				: '' }
 			<div class="os-mywp__actions">
+				${ detail.kind === 'post'
+					? html`<os-button
+						variant="secondary"
+						title=${ __(
+							'See author, comments, categories, tags, attached media, and revisions for this entry.',
+						) }
+						@click=${ () => void ctx.dispatch( 'into', { item: detail.id } ) }
+					>${ __( 'Explore details' ) }</os-button>`
+					: '' }
 				${ detail.canEdit
 					? html`<os-button variant="primary" @click=${ () => void ctx.dispatch( 'edit', { item: detail.id } ) }>
 						${ detail.kind === 'user' ? __( 'Edit profile' ) : __( 'Open in editor' ) }

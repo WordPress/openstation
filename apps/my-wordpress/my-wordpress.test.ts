@@ -309,6 +309,10 @@ describe( 'view', () => {
 		expect( open.querySelector( '.os-mywp__tiles' ) ).not.toBeNull();
 		expect( open.textContent ).toContain( 'Status' );
 		expect( open.querySelector( '[os-action="trash"]' ) ).not.toBeNull();
+		// The pane carries WP Explorer's full verb row: the door into
+		// the detail folder sits beside the editor button.
+		expect( open.textContent ).toContain( 'Explore details' );
+		expect( open.textContent ).toContain( 'Open in editor' );
 		expect( open.querySelector( '[data-mywp-content]' ) ).not.toBeNull();
 	} );
 
