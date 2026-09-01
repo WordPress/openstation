@@ -263,7 +263,10 @@ export interface AppData {
 	sub: SubPayload | null;
 	subDetail: SubDetail | null;
 	authors: Array< { id: number; name: string } >;
-	categories: Array< { id: number; name: string } >;
+	/** Category terms in `<os-category-picker>`'s item shape. */
+	categories: Array< { id: number; name: string; parent: number } >;
+	/** Tag terms — the Edit… modal's local suggestion pool. */
+	tags: Array< { id: number; name: string } >;
 	previewActions: PreviewAction[];
 	agents: AgentsPayload | null;
 }
@@ -359,7 +362,8 @@ export interface UiState {
 		author: string;
 		sticky: string;
 		categories: number[];
-		tags: string;
+		/** Picked tag tokens — labels are what the server consumes. */
+		tags: Array< { id?: number; label: string } >;
 	} | null;
 	zoom: boolean;
 	loadingMore: boolean;

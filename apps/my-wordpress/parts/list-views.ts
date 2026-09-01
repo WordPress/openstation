@@ -285,7 +285,7 @@ export function renderMenu( ctx: Ctx, section: SectionDef ): TemplateResult | ''
 				author: '',
 				sticky: '',
 				categories: [],
-				tags: '',
+				tags: [],
 			};
 			ctx.local( 'repaint' );
 		} else if ( id === 'publish' ) {
@@ -387,8 +387,11 @@ export function renderQuickEdit( ctx: Ctx, section: SectionDef | null ): Templat
 		if ( qe.categories.length > 0 ) {
 			payload.categories = qe.categories;
 		}
-		if ( qe.tags.trim() ) {
-			payload.tags = qe.tags;
+		if ( qe.tags.length > 0 ) {
+			// The server takes NAMES and creates what does not exist
+			// yet (`wp_set_post_terms` with append) — so a brand-new
+			// token never needs an id minted client-side.
+			payload.tags = qe.tags.map( ( t ) => t.label ).join( ', ' );
 		}
 		close();
 		void ctx.dispatch( 'quick-edit', payload );
@@ -420,6 +423,11 @@ export function renderQuickEdit( ctx: Ctx, section: SectionDef | null ): Templat
 			) }
 			@os-modal-cancel=${ close }
 		>
+			<os-notice tone="info" class="os-mywp__qe-notice" not-dismissible>
+				${ __(
+					'Only the fields you change are applied. Categories and tags are added to what each entry already has.',
+				) }
+			</os-notice>
 			<div class="os-mywp__qe">
 				${ dropdown( __( 'Status' ), 'status', [
 					noChange,
@@ -450,40 +458,65 @@ export function renderQuickEdit( ctx: Ctx, section: SectionDef | null ): Templat
 					? html`
 						<div class="os-mywp__qe-row">
 							<span>${ __( 'Add categories' ) }</span>
-							<div class="os-mywp__qe-cats">
-								${ ctx.data.categories.map( ( cat ) => html`
-									<label class="os-mywp__qe-cat">
-										<input
-											type="checkbox"
-											?checked=${ qe.categories.includes( cat.id ) }
-											@change=${ ( e: Event ) => {
-												const on = ( e.target as HTMLInputElement ).checked;
-												qe.categories = on
-													? [ ...qe.categories, cat.id ]
-													: qe.categories.filter( ( c ) => c !== cat.id );
-											} }
-										/>
-										${ cat.name }
-									</label>
-								` ) }
-							</div>
+							<os-category-picker
+								.items=${ ctx.data.categories }
+								.value=${ qe.categories }
+								@os-categories-change=${ ( e: Event ) => {
+									// The picker never mutates its own
+									// value — the consumer is the truth.
+									qe.categories = [
+										...( ( e as CustomEvent< { value: number[] } > )
+											.detail?.value ?? [] ),
+									];
+									ctx.local( 'repaint' );
+								} }
+							></os-category-picker>
 						</div>
 					`
 					: '' }
 				${ isPosts
 					? html`
-						<label class="os-mywp__qe-row">
+						<div class="os-mywp__qe-row">
 							<span>${ __( 'Add tags' ) }</span>
-							<input
-								type="text"
-								class="os-mywp__qe-tags"
-								placeholder=${ __( 'tag, another tag' ) }
+							<os-tag-input
+								creatable
+								placeholder=${ __( 'Add tags…' ) }
 								.value=${ qe.tags }
-								@input=${ ( e: Event ) => {
-									qe.tags = ( e.target as HTMLInputElement ).value;
+								.suggestions=${ [] }
+								@os-tag-suggest=${ ( e: Event ) => {
+									// Suggestions come from the tag list the
+									// data payload already holds — filtered
+									// here, no request.
+									const query = (
+										( e as CustomEvent< { query: string } > ).detail
+											?.query ?? ''
+									).toLowerCase();
+									( e.target as HTMLElement & {
+										suggestions: Array< { id?: number; label: string } >;
+									} ).suggestions = ctx.data.tags
+										.filter( ( t ) => t.name.toLowerCase().includes( query ) )
+										.map( ( t ) => ( { id: t.id, label: t.name } ) );
 								} }
-							/>
-						</label>
+								@os-tag-add=${ ( e: Event ) => {
+									const tag = ( e as CustomEvent< {
+										tag: { id?: number; label: string };
+									} > ).detail?.tag;
+									if ( tag && ! qe.tags.some( ( t ) => t.label === tag.label ) ) {
+										qe.tags = [ ...qe.tags, tag ];
+									}
+									ctx.local( 'repaint' );
+								} }
+								@os-tag-remove=${ ( e: Event ) => {
+									const tag = ( e as CustomEvent< {
+										tag: { id?: number; label: string };
+									} > ).detail?.tag;
+									if ( tag ) {
+										qe.tags = qe.tags.filter( ( t ) => t.label !== tag.label );
+									}
+									ctx.local( 'repaint' );
+								} }
+							></os-tag-input>
+						</div>
 					`
 					: '' }
 			</div>

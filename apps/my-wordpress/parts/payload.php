@@ -62,6 +62,7 @@ function payload( State $state, Os $os ) {
 	$choices   = $is_post ? edit_choices() : array(
 		'authors'    => array(),
 		'categories' => array(),
+		'tags'       => array(),
 	);
 	return array(
 		'siteName'       => (string) get_bloginfo( 'name' ),
@@ -85,6 +86,7 @@ function payload( State $state, Os $os ) {
 			: null,
 		'authors'        => $choices['authors'],
 		'categories'     => $choices['categories'],
+		'tags'           => $choices['tags'],
 		'previewActions' => preview_actions( $os ),
 	);
 }

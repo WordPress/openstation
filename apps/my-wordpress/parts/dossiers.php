@@ -361,10 +361,12 @@ function sub_detail( Os $os, array $section, $post_id, $relation, $row_id ) {
 }
 
 /**
- * The choices the Edit… modal offers: the site's authors and the
- * category terms. Only computed while a post-kind section is open.
+ * The choices the Edit… modal offers: the site's authors, the
+ * category tree (in `<os-category-picker>`'s item shape, `parent`
+ * included) and the tag terms the token field suggests from. Only
+ * computed while a post-kind section is open.
  *
- * @return array{authors:array[],categories:array[]}
+ * @return array{authors:array[],categories:array[],tags:array[]}
  */
 function edit_choices() {
 	$authors = array();
@@ -391,6 +393,22 @@ function edit_choices() {
 	) as $term ) {
 		if ( $term instanceof \WP_Term ) {
 			$categories[] = array(
+				'id'     => (int) $term->term_id,
+				'name'   => (string) $term->name,
+				'parent' => (int) $term->parent,
+			);
+		}
+	}
+	$tags = array();
+	foreach ( get_terms(
+		array(
+			'taxonomy'   => 'post_tag',
+			'hide_empty' => false,
+			'number'     => 100,
+		)
+	) as $term ) {
+		if ( $term instanceof \WP_Term ) {
+			$tags[] = array(
 				'id'   => (int) $term->term_id,
 				'name' => (string) $term->name,
 			);
@@ -399,6 +417,7 @@ function edit_choices() {
 	return array(
 		'authors'    => $authors,
 		'categories' => $categories,
+		'tags'       => $tags,
 	);
 }
 

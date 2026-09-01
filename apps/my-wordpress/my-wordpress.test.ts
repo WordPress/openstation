@@ -6,6 +6,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { uiOf } from './parts/types';
 import app, {
 	accumulate,
 	agentDefaultRole,
@@ -95,6 +96,7 @@ function data( over: Partial< AppData > = {} ): AppData {
 		subDetail: null,
 		authors: [],
 		categories: [],
+		tags: [],
 		previewActions: [],
 		agents: null,
 		...over,
@@ -437,6 +439,48 @@ describe( 'view', () => {
 		expect( mask ).not.toBeNull();
 		expect( mask?.getAttribute( 'style' ) ).toContain( '--mywp-icon:url' );
 		expect( root.querySelector( 'img.os-mywp__icon-img' ) ).toBeNull();
+	} );
+
+	it( 'the Edit… modal carries the original controls: notice, category picker, tag tokens', () => {
+		const root = document.createElement( 'div' );
+		document.body.appendChild( root );
+		uiOf( root ).quickEdit = {
+			ids: [ 1 ],
+			status: '',
+			comments: '',
+			author: '',
+			sticky: '',
+			categories: [],
+			tags: [],
+		};
+		app.render( {
+			state: state( { section: 'posts', selected: [ 1 ] } ),
+			data: data( {
+				list: page( [ item( {} ) ] ),
+				authors: [ { id: 3, name: 'Ada' } ],
+				categories: [ { id: 1, name: 'Uncategorized', parent: 0 } ],
+				tags: [ { id: 9, name: 'field-notes' } ],
+			} ),
+			root,
+			dispatch: async () => true,
+			local: () => undefined,
+		} );
+		// The hint the original's bulk modal leads with.
+		expect( root.textContent ).toContain(
+			'Only the fields you change are applied. Categories and tags are added to what each entry already has.',
+		);
+		// Chips and tokens, not raw checkboxes and a comma-separated
+		// text input — the same components WP Explorer's modal uses.
+		const picker = root.querySelector< HTMLElement & { items: unknown[]; value: number[] } >(
+			'os-category-picker',
+		);
+		expect( picker ).not.toBeNull();
+		expect( picker?.items ).toEqual( [ { id: 1, name: 'Uncategorized', parent: 0 } ] );
+		const tagInput = root.querySelector< HTMLElement >( 'os-tag-input' );
+		expect( tagInput ).not.toBeNull();
+		expect( tagInput?.hasAttribute( 'creatable' ) ).toBe( true );
+		expect( root.querySelector( '.os-mywp__qe-cats' ) ).toBeNull();
+		expect( root.querySelector( 'input.os-mywp__qe-tags' ) ).toBeNull();
 	} );
 
 	it( 'the agents root tile is a portrait, never a masked disc', () => {

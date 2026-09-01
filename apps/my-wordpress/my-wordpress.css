@@ -233,30 +233,12 @@
 	font-size: 12px;
 }
 
-.os-mywp__qe-cats {
-	max-block-size: 120px;
-	overflow-y: auto;
-	display: flex;
-	flex-direction: column;
-	gap: 2px;
-	border: 1px solid var( --os-ui-border, #dcdcde );
-	border-radius: 6px;
-	padding: 6px;
-}
-
-.os-mywp__qe-cat {
-	display: flex;
-	align-items: center;
-	gap: 6px;
-}
-
-.os-mywp__qe-tags {
-	font: inherit;
-	padding: 6px 8px;
-	border: 1px solid var( --os-ui-border, #dcdcde );
-	border-radius: 6px;
-	background: transparent;
-	color: inherit;
+/* The hint above the fields — the same info notice the original's
+ * bulk modal leads with. Ink contrast on the dark dialog is owned by
+ * os-modal itself (it re-points --os-ui-notice-color through
+ * --os-ui-modal-text); this rule is spacing only. */
+.os-mywp__qe-notice {
+	margin-block-end: 12px;
 }
 
 .os-mywp__cell.is-disabled {
