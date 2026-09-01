@@ -30,6 +30,11 @@
 		body.set( 'action', 'save-openstation' );
 		body.set( 'nonce', cfg.nonce );
 		body.set( 'enabled', newValue );
+		// Tells the handler which admin this click came from; see the
+		// note in `includes/ajax.php`.
+		if ( cfg.network ) {
+			body.set( 'network', '1' );
+		}
 		var xhr = new XMLHttpRequest();
 		xhr.open( 'POST', cfg.ajaxUrl, true );
 		xhr.setRequestHeader( 'Content-Type', 'application/x-www-form-urlencoded' );

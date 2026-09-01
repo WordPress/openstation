@@ -150,7 +150,7 @@ export interface LayoutDispatcher {
 		id: string;
 		title: string;
 		icon: string;
-		navKind: 'app' | 'control';
+		navKind: 'core' | 'app' | 'control';
 		/** Whether the tile opts into the Navigation preferences list. */
 		placeable: boolean;
 		locked: boolean;
@@ -287,7 +287,7 @@ export function createLayoutDispatcher(
 		for ( const item of systemTiles.values() ) {
 			tiles.push( {
 				item,
-				kind: 'control' === item.navKind ? 'control' : 'app',
+				kind: item.navKind ?? 'app',
 				locked: item.locked,
 			} );
 		}
@@ -769,9 +769,7 @@ export function createLayoutDispatcher(
 				id: item.id,
 				title: item.title,
 				icon: item.icon,
-				navKind: ( 'control' === item.navKind
-					? 'control'
-					: 'app' ) as 'app' | 'control',
+				navKind: item.navKind ?? 'app',
 				placeable: item.placeable === true,
 				locked: item.locked === true,
 			} ) ),

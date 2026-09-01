@@ -55,9 +55,15 @@ function openstation_ajax_save() {
 	// portal, which would auto-re-enable the mode via the
 	// `openstation_portal_auto_enable` filter and trap the user in a
 	// loop.
-	$redirect = '1' === $enabled
-		? openstation_shell_url( admin_url( 'index.php' ) )
-		: admin_url();
+	// Which admin to land in. The toggle reports its own context, since
+	// `is_network_admin()` is false on every `admin-ajax.php` request,
+	// and we confirm the capability before honouring it — a client
+	// cannot talk us into a screen the user can't open.
+	$in_network = ! empty( $_POST['network'] ) && current_user_can( 'manage_network' );
+	$admin      = $in_network ? network_admin_url() : admin_url();
+	$redirect   = '1' === $enabled
+		? openstation_shell_url( $admin . 'index.php', false, $in_network )
+		: $admin;
 
 	wp_send_json_success(
 		array(

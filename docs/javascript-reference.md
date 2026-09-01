@@ -4037,7 +4037,7 @@ Each entry is a read-only descriptor — the underlying `SystemDockItem` (with i
         id:        string,
         title:     string,
         icon:      string,
-        navKind:   'app' | 'control',  // a launcher, or one of OpenStation's own
+        navKind:   'core' | 'app' | 'control',  // a WordPress menu, a launcher, or one of OpenStation's own
         placeable: boolean,            // opted into OpenStation Preferences → Navigation
         locked:    boolean,            // cannot be moved or hidden (Exit only)
     },
@@ -4045,7 +4045,7 @@ Each entry is a read-only descriptor — the underlying `SystemDockItem` (with i
 ]
 ```
 
-`navKind` describes what the tile IS, and that is what decides its default placement (apps default to the wallpaper, controls to a rail) and which dock zone it sits in. Set it on the tile (`SystemDockItem.navKind`, default `'app'`), or on a native window through `'nav_kind'`.
+`navKind` describes what the tile IS, and that is what decides its default placement (apps default to the wallpaper, controls and core to a rail) and which dock zone it sits in. `'core'` is for a tile that stands for a WordPress navigation surface rather than for something a plugin added — it paints in the core zone with the admin menus, and moves to the sidebar with them in the split layout. The Network Admin tile on a multisite is the shipped one; it earns the zone because it IS an admin menu, one that lives on the network's own domain and so cannot arrive through `$menu`. Set it on the tile (`SystemDockItem.navKind`, default `'app'`), or on a native window through `'nav_kind'` (which takes `'app'` or `'control'` only).
 
 `placeable` is opt-in (`SystemDockItem.placeable`), because most system tiles are load-bearing — OpenStation Preferences is how you reach the very screen that would hide it. Set it on tiles that are genuinely optional decoration; Mio's toggle is the shipped example. Note the placement preference is honoured whether or not the flag is set: all it controls is whether the user is offered a row.
 
@@ -7537,6 +7537,7 @@ click, the switcher, a plugin calling `openWindow()` — raises the
 | Key | Type | Notes |
 |---|---|---|
 | `soloWindow` | `string` | Window id when the shell was asked to paint exactly one window (`?openstation_solo=<id>`); `''` otherwise. No dock, taskbar, wallpaper, desk or admin bar, and no session restore. Generic — an embed or a kiosk can use it too. |
+| `multisite` | `object \| null` | Network context for the Network Admin dock tile: whether the shell is on a network-admin screen, and the network admin rows the user may see. `null` on a single-site install and for any user without `manage_network`. Every URL in it is a navigation target, never an iframe source — see [multisite.md](./multisite.md). |
 
 ### `window.openStationChromelessHost` — *Experimental*
 

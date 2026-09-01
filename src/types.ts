@@ -1806,6 +1806,16 @@ export interface Session {
 }
 
 /**
+ * The multisite block of {@link DesktopConfig}. Every URL in it is a
+ * link OUT, never an iframe source: the network admin is on the
+ * network's own domain. Null without `manage_network`.
+ */
+export interface MultisiteConfig {
+	isNetworkAdmin: boolean;
+	networkAdmin: { url: string; rows: Array< { title: string; url: string } > } | null;
+}
+
+/**
  * Desktop shell configuration passed from PHP via wp_localize_script.
  */
 export interface DesktopConfig {
@@ -2475,6 +2485,8 @@ export interface DesktopConfig {
 	 * Whether the current user has the `manage_options` capability.
 	 */
 	currentUserIsAdmin?: boolean;
+	/** Network Admin tile context. Null without `manage_network`. */
+	multisite?: MultisiteConfig | null;
 	/**
 	 * Platform-wide extended options (admin-only). Contains toggles
 	 * for optional site-level enhancements such as Media Library

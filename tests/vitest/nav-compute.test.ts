@@ -141,6 +141,30 @@ describe( 'zones', () => {
 	} );
 } );
 
+describe( 'a core tile among the core menus', () => {
+	// A tile carrying `kind: 'core'` stands for an admin menu that
+	// cannot arrive through `$menu` — the Network Admin one lives on
+	// another domain — so it sits behind the menu that leads the run
+	// rather than ahead of it. No `order` expresses that: menus carry
+	// none and tie at 0, so a tile can only sort ahead of every one or
+	// behind every one. Only a tile moves; menus keep source order.
+	const withTile = () => [
+		item( 'index.php', 'core' ),
+		item( 'edit.php', 'core' ),
+		item( 'upload.php', 'core' ),
+		item( 'os-network-admin', 'core', { tile: {} as unknown as SystemDockItem } ),
+	];
+
+	test( 'lands second on either rail, unless the user dragged it', () => {
+		const second = [ 'index.php', 'os-network-admin', 'edit.php', 'upload.php' ];
+		const dragged = [ 'index.php', 'edit.php', 'upload.php', 'os-network-admin' ];
+
+		expect( ids( run( withTile() ).dock.core ) ).toEqual( second );
+		expect( ids( run( withTile(), { layout: 'classic' } ).sidebar ) ).toEqual( second );
+		expect( ids( run( withTile(), { order: dragged } ).dock.core ) ).toEqual( dragged );
+	} );
+} );
+
 describe( 'running windows', () => {
 	test( 'a desktop-only app gets an ephemeral dock tile while open', () => {
 		const games = item( 'games', 'app', { windowId: 'games-window' } );

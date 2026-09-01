@@ -24,7 +24,7 @@
  *
  * @vitest-environment-options { "url": "http://localhost/wp-admin/upload.php?openstation_chromeless=1" }
  */
-import { describe, expect, test, beforeAll, beforeEach } from 'vitest';
+import { describe, expect, test, beforeAll, beforeEach, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
@@ -282,6 +282,35 @@ describe( 'chromeless bridge: links that name another browsing context', () => {
 		clickLink( '<a href="/wp-admin/edit.php">Posts</a>' );
 
 		expect( adminLinkMessages()[ 0 ].newContext ).toBe( false );
+	} );
+
+	test( 'another admin opens in a browser tab, not a window and not this one', () => {
+		// Subdirectory multisite: `/site2/wp-admin/` is the same origin,
+		// and `/wp-admin/network/` shares this admin's own prefix, so
+		// both used to be waved through as in-window navigations, which
+		// repainted this dock with the other admin's menu. Nor in THIS
+		// tab: the user has windows open here. The href is never stamped
+		// chromeless either, which would leave the tab with no way out.
+		const open = vi.spyOn( window, 'open' ).mockReturnValue( null );
+
+		try {
+			for ( const path of [ '/site2/wp-admin/', '/wp-admin/network/sites.php' ] ) {
+				expect( clickLink( `<a href="${ path }">Go</a>` ) ).toBe( path );
+				expect( open ).toHaveBeenCalledWith(
+					`http://localhost${ path }`,
+					'_blank',
+					'noopener,noreferrer'
+				);
+			}
+			expect( adminLinkMessages() ).toHaveLength( 0 );
+
+			// The rule is scope-to-scope, so everything inside THIS
+			// admin behaves as it always did.
+			clickLink( '<a href="/wp-admin/options-general.php">Settings</a>' );
+			expect( adminLinkMessages() ).toHaveLength( 1 );
+		} finally {
+			open.mockRestore();
+		}
 	} );
 
 	test( 'a _blank non-admin link still opens a real browser tab', () => {

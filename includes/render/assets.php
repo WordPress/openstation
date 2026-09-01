@@ -218,9 +218,9 @@ function openstation_enqueue_assets() {
 	// is the per-item filter escape hatch for hiding. Shared with the
 	// REST menu endpoint so live refreshes (post plugin-activation)
 	// produce the same ordering as the boot payload.
-	$menu_payload                      = openstation_build_menu_payload();
-	$dock_items                        = $menu_payload['dockItems'];
-	$native_windows                    = isset( $menu_payload['nativeWindows'] )
+	$menu_payload   = openstation_build_menu_payload();
+	$dock_items     = $menu_payload['dockItems'];
+	$native_windows = isset( $menu_payload['nativeWindows'] )
 		? $menu_payload['nativeWindows']
 		: array();
 
@@ -330,7 +330,7 @@ function openstation_enqueue_assets() {
 		}
 	}
 	unset( $desktop_theme_row );
-	$desktop_icons         = isset( $menu_payload['desktopIcons'] )
+	$desktop_icons = isset( $menu_payload['desktopIcons'] )
 		? $menu_payload['desktopIcons']
 		: array();
 
@@ -508,7 +508,11 @@ function openstation_enqueue_assets() {
 			'currentPage'                   => esc_url( $current_page ),
 			'currentTitle'                  => $current_title,
 			'currentIcon'                   => sanitize_html_class( $menu_icon ),
-			'adminUrl'                      => esc_url( admin_url() ),
+			// `self_admin_url()`: the base a window id is derived from,
+			// and the URL the shell leaves for on exit. Both want the
+			// admin the screen is in, which is the network one when the
+			// network shell screen is what rendered.
+			'adminUrl'                      => esc_url( self_admin_url() ),
 			'homeUrl'                       => esc_url( home_url( '/' ) ),
 			// Decoded: the shell assigns this to `window.location`,
 			// where `&amp;` would make `_wpnonce` arrive as
@@ -571,7 +575,15 @@ function openstation_enqueue_assets() {
 			'pluginNotices'                 => openstation_get_plugin_notices(),
 			'defaultWallpaper'              => openstation_get_default_wallpaper(),
 			'session'                       => openstation_get_session( get_current_user_id() ),
-			'sessionUrl'                    => esc_url_raw( rest_url( 'desktop-mode/v1/session' ) ),
+			// The session route runs in the main site's blog context
+			// whichever desktop posts to it, so the network screen's
+			// URL says which session it is addressing — see
+			// `openstation_rest_session_network()`.
+			'sessionUrl'                    => esc_url_raw(
+				is_network_admin()
+					? add_query_arg( 'network', '1', rest_url( 'desktop-mode/v1/session' ) )
+					: rest_url( 'desktop-mode/v1/session' )
+			),
 			'restUrl'                       => esc_url_raw( rest_url() ),
 			'mediaUrl'                      => esc_url_raw( rest_url( 'wp/v2/media' ) ),
 			'dropConfig'                    => $drop_config,
@@ -723,6 +735,9 @@ function openstation_enqueue_assets() {
 				)
 				: null,
 			'currentUserIsAdmin'            => current_user_can( 'manage_options' ),
+			// Null on single-site installs and without `manage_network`,
+			// which is what keeps the dock tile from registering.
+			'multisite'                     => openstation_multisite_payload(),
 			'portalUrl'                     => esc_url( openstation_portal_url() ),
 			'fromPortal'                    => $from_portal,
 			'fromPortalIntent'              => $from_portal_intent,

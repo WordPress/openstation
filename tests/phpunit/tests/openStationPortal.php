@@ -500,12 +500,34 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$_SERVER['REQUEST_METHOD']              = 'GET';
-		$_SERVER['REQUEST_URI']                 = '/wp-admin/network/sites.php?' . OPENSTATION_PORTAL_FLAG . '=1&' . OPENSTATION_PORTAL_INTENT_FLAG . '=1';
-		$GLOBALS['pagenow']                     = 'sites.php';
+		// Not `network/sites.php`: the network admin's own screens
+		// resolve now, so an unresolvable URL has to be one no admin
+		// serves.
+		$_SERVER['REQUEST_URI']                 = '/wp-admin/not-a-real-screen.php?' . OPENSTATION_PORTAL_FLAG . '=1&' . OPENSTATION_PORTAL_INTENT_FLAG . '=1';
+		$GLOBALS['pagenow']                     = 'not-a-real-screen.php';
 		$_GET[ OPENSTATION_PORTAL_FLAG ]        = '1';
 		$_GET[ OPENSTATION_PORTAL_INTENT_FLAG ] = '1';
 
 		$this->assertSame( openstation_shell_url(), $this->capture_admin_init_redirect() );
+	}
+
+	/**
+	 * A network admin URL reaches the NETWORK shell screen, carrying
+	 * itself as the target. The two admins have separate screens
+	 * because a window on one is a window on the other's desktop
+	 * otherwise, with the wrong dock behind it.
+	 *
+	 * @covers ::openstation_sanitize_portal_target
+	 * @covers ::openstation_shell_url
+	 */
+	public function test_a_network_admin_target_resolves_to_the_network_screen() {
+		$resolved = openstation_sanitize_portal_target( '/wp-admin/network/sites.php' );
+
+		$this->assertSame( network_admin_url( 'sites.php' ), $resolved );
+		$this->assertSame(
+			openstation_shell_url( $resolved, true, true ),
+			openstation_shell_url( $resolved, true )
+		);
 	}
 
 	/**

@@ -38,6 +38,7 @@ If you are **building a plugin** that interacts with the desktop shell — opens
 30. **[Migration — Code Blue becomes an App Framework app](./migration-code-blue-app.md)** — the `desktop-mode/v1/code-blue/*` REST routes and the `openstation_code_blue_{window_args,icon_args,template_html}` filters are gone; the window, its id, its gate and its other hooks are unchanged. Read if you called those routes or filters.
 31. **[Migration — WP Explorer becomes the `my-wordpress` app](./migration-wp-explorer-app.md)** — the legacy `desktop-mode-my-wordpress` native window, its bundle and the `wp.os.myWordpress` API are gone; the app carries the name, the launcher and every surface (footprint included). Read if you opened, configured or extended the legacy window.
 32. **[The Living Tree — algorithm definition](./living-tree-algorithm.md)** — *Experimental.* The full normative spec for the `wp-living-tree` canvas wallpaper: WordPress emits hormones, the biology (Space Colonization) decides geometry inside age-bounded morphological constraints. Read before touching any part of the wallpaper.
+33. **[Multisite](./multisite.md)** — *Experimental.* What the shell does on a network: the network admin, the Network Admin dock tile, and per-site session scoping. Read before touching anything cross-site — it opens with the constraint that decides the rest, which is that WordPress refuses to be framed cross-origin, so nothing leaving the current site can be a window.
 
 ## Conventions used in this docs folder
 

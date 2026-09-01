@@ -40,6 +40,7 @@ import type { DestructiveAdminActionEntry } from './destructive-admin-actions';
 // in this bundle.
 import { OsSettings } from './settings';
 import { getExitOpenStationTileDef } from './exit-openstation';
+import { getNetworkAdminTileDef } from './multisite/dock-tiles';
 import { deriveWindowId, urlMatchKey } from './utils';
 import { shellUrlWithoutBootArgs } from './shell-url';
 // Static import — `setUserEditTarget` MUST run before the user-edit
@@ -1167,11 +1168,11 @@ export interface OpenStationPublicApi {
 		title: string;
 		icon: string;
 		/**
-		 * What the tile IS: `'app'` for a launcher, `'control'` for
-		 * one of OpenStation's own affordances. Decides its default
-		 * placement and its dock zone.
+		 * What the tile IS: `'app'` for a launcher, `'control'` for one
+		 * of OpenStation's own affordances, `'core'` for a tile
+		 * standing in for a WordPress menu.
 		 */
-		navKind: 'app' | 'control';
+		navKind: 'core' | 'app' | 'control';
 		/**
 		 * Whether the tile opts into OpenStation Preferences →
 		 * Navigation, so the user can move or hide it. Opt-in: most
@@ -3078,6 +3079,14 @@ function init(): void {
 		// save-openstation AJAX endpoint via the
 		// `window.openStationAdminBar` global; no new PHP surface.
 		layoutDispatcher.appendSystemTile( getExitOpenStationTileDef() );
+
+		// Null on a single-site install and without `manage_network`.
+		if ( config.multisite ) {
+			const networkTile = getNetworkAdminTileDef( config.multisite );
+			if ( networkTile ) {
+				layoutDispatcher.appendSystemTile( networkTile );
+			}
+		}
 
 		// Mio tile — one of OpenStation's controls, so it rides the
 		// dock's trailing cluster rather than sitting among the apps.

@@ -130,10 +130,11 @@ function openstation_url_is_page_less_admin_php( $url ) {
  * `custom_admin_page.php` if a plugin named something that way;
  * the explicit allowlist closes that.
  *
- * @param string $file Bare admin filename (no path, no query string).
+ * @param string $file    Bare admin filename (no path, no query string).
+ * @param bool   $network Resolve against the network admin's own screens.
  * @return string|WP_Error Absolute admin URL on success, `WP_Error` otherwise.
  */
-function openstation_resolve_admin_target( $file ) {
+function openstation_resolve_admin_target( $file, $network = false ) {
 	$file = is_string( $file ) ? trim( $file ) : '';
 	if ( '' === $file ) {
 		return new WP_Error(
@@ -160,6 +161,15 @@ function openstation_resolve_admin_target( $file ) {
 		);
 	}
 
+	if ( $network ) {
+		return in_array( strtolower( $file ), openstation_network_admin_target_allowlist(), true )
+			? network_admin_url( $file )
+			: new WP_Error(
+				'openstation_unknown_target',
+				__( 'Admin target does not exist.', 'desktop-mode' )
+			);
+	}
+
 	if ( ! in_array( strtolower( $file ), openstation_admin_target_allowlist(), true ) ) {
 		return new WP_Error(
 			'openstation_unknown_target',
@@ -168,6 +178,43 @@ function openstation_resolve_admin_target( $file ) {
 	}
 
 	return admin_url( $file );
+}
+
+/**
+ * Canonical `wp-admin/network/` filenames a target may resolve to.
+ *
+ * The network admin's own screens, and only those: the site allowlist
+ * cannot stand in for it, since the two directories share filenames
+ * that mean different things (`users.php` is everyone on the network
+ * here, one site's users there).
+ *
+ * @return string[]
+ */
+function openstation_network_admin_target_allowlist() {
+	return array(
+		'index.php',
+		'sites.php',
+		'site-new.php',
+		'site-info.php',
+		'site-users.php',
+		'site-themes.php',
+		'site-settings.php',
+		'users.php',
+		'user-new.php',
+		'themes.php',
+		'theme-install.php',
+		'plugins.php',
+		'plugin-install.php',
+		'plugin-editor.php',
+		'settings.php',
+		'setup.php',
+		'upgrade.php',
+		'update-core.php',
+		'about.php',
+		'credits.php',
+		'freedoms.php',
+		'privacy.php',
+	);
 }
 
 /**

@@ -602,6 +602,16 @@ function openstation_sanitize_portal_target( $raw ) {
 
 	$file = substr( $path, strlen( $admin_path ) );
 	$file = ltrim( (string) $file, '/' );
+
+	// The network admin's own screens live one directory down and are
+	// resolved against their own list. Without this a network URL came
+	// back empty and the user was quietly forwarded to the site
+	// dashboard, which is a different admin.
+	$network = 0 === strpos( $file, 'network/' );
+	if ( $network ) {
+		$file = substr( $file, strlen( 'network/' ) );
+	}
+
 	if ( '' === $file ) {
 		$file = 'index.php';
 	}
@@ -612,7 +622,7 @@ function openstation_sanitize_portal_target( $raw ) {
 	// isn't a real core admin page (e.g. `custom_admin_page.php`)
 	// and effectively become an open redirect to a 404 page served
 	// under the admin path; the explicit allowlist closes that.
-	$target = openstation_resolve_admin_target( $file );
+	$target = openstation_resolve_admin_target( $file, $network );
 	if ( is_wp_error( $target ) ) {
 		return '';
 	}
