@@ -344,6 +344,40 @@ class Tests_OpenStation_AppFramework extends WP_UnitTestCase {
 	/**
 	 * @covers \OpenStation\App\Runtime::dispatch
 	 */
+	public function test_refresh_is_built_in_and_a_declared_handler_still_wins() {
+		$registry = new Registry();
+		// Undeclared: `refresh` recomputes data() with no handler.
+		$registry->add(
+			$this->demo_app()->data(
+				static function ( State $state ) {
+					return array( 'echoed' => $state->get( 'label' ) );
+				}
+			)
+		);
+		// Declared: the app's own handler runs first.
+		$registry->add(
+			$this->demo_app( 'demo-declared' )->action(
+				'refresh',
+				static function ( State $state ) {
+					$state->set( 'label', 'handled' );
+				}
+			)
+		);
+		$runtime = new Runtime( $registry );
+		$os      = Os::standalone();
+
+		$bare = $runtime->dispatch( 'demo', array( 'action' => 'refresh', 'state' => array( 'label' => 'fresh' ) ), $os );
+		$this->assertTrue( $bare['ok'] );
+		$this->assertSame( array( 'echoed' => 'fresh' ), $bare['data'] );
+
+		$declared = $runtime->dispatch( 'demo-declared', array( 'action' => 'refresh' ), Os::standalone() );
+		$this->assertTrue( $declared['ok'] );
+		$this->assertSame( 'handled', $declared['state']['label'] );
+	}
+
+	/**
+	 * @covers \OpenStation\App\Runtime::dispatch
+	 */
 	public function test_runtime_failures_carry_codes_and_statuses() {
 		$registry = new Registry();
 		$registry->add( $this->demo_app() );

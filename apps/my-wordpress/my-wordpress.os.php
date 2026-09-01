@@ -131,8 +131,7 @@ return App::define( 'my-wordpress' )
 			'action' => 'refresh',
 		)
 	)
-	// Recomputing data() IS the refresh; the handler has nothing to do.
-	->action( 'refresh', static function () {} )
+	// `refresh` is the framework's built-in: recompute data(), re-render.
 	// Navigation — parts/actions.php.
 	->action( 'go', __NAMESPACE__ . '\go_action' )
 	->action( 'back', __NAMESPACE__ . '\back_action' )
@@ -159,12 +158,6 @@ return App::define( 'my-wordpress' )
 		'sort',
 		static function ( State $state ) {
 			$state->set( 'page', 1 )->reset( 'selected' );
-		}
-	)
-	->action(
-		'paginate',
-		static function ( State $state, $os, array $args ) {
-			$state->set( 'page', max( 1, (int) ( $args['page'] ?? 1 ) ) )->reset( 'selected' );
 		}
 	)
 	// Content mutations — parts/actions.php.

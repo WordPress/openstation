@@ -39,6 +39,14 @@ final class Runtime {
 	const ACTION_SET = 'set';
 
 	/**
+	 * Built-in: recompute `data()` and re-render, nothing else. Both
+	 * first apps declared an empty action just to get this; declaring
+	 * a `refresh` handler still works and wins, for the app that also
+	 * wants to reset something on the way.
+	 */
+	const ACTION_REFRESH = 'refresh';
+
+	/**
 	 * @var Registry
 	 */
 	private $registry;
@@ -102,7 +110,10 @@ final class Runtime {
 				$app->run_action( self::ACTION_SET, $state, $os, $args, false );
 			} elseif ( $app->has_action( $action ) ) {
 				$app->run_action( $action, $state, $os, $args );
-			} else {
+			} elseif ( self::ACTION_REFRESH !== $action ) {
+				// A bare `refresh` (no declared handler) falls through on
+				// purpose: recomputing `data()` below IS the action, and
+				// declaring an empty handler to get it is boilerplate.
 				return self::failure( 'unknown_action', sprintf( 'Unknown action "%s".', $action ), 400 );
 			}
 

@@ -109,7 +109,7 @@ Three things follow from that, and all three have bitten someone:
 
 `State` is an `ArrayAccess` bag with `get()`, `set()`, `has()`, `toggle()`, `toggle_item( $key, $item )`, `contains( $key, $item )`, `reset( $key )`, `all()`. Setting an undeclared key is a no-op; declare it.
 
-Two action names are built in: **`mount`** (the first render) and **`set`** (a bound control changed; nothing to run, just re-render). Five more are **lifecycle** names the runtime dispatches only when you declared a handler: **`resize`** (`$args['width']`/`['height']`, debounced), **`show`** / **`hide`** (restore / minimize), **`focus`** / **`blur`**.
+Three action names are built in: **`mount`** (the first render), **`set`** (a bound control changed; nothing to run, just re-render), and **`refresh`** (recompute `data()` and re-render — the action to point a Refresh button at with no handler declared; declaring one still works and wins, for the app that also resets something on the way). Five more are **lifecycle** names the runtime dispatches only when you declared a handler: **`resize`** (`$args['width']`/`['height']`, debounced), **`show`** / **`hide`** (restore / minimize), **`focus`** / **`blur`**.
 
 ### Chrome
 
@@ -153,7 +153,7 @@ Inside `view()` you write ordinary HTML with `<os-*>` components (see [`componen
 | `os-confirm="…"` (+ `os-confirm-title`, `os-confirm-label`, `os-confirm-danger`) | Ask before dispatching. |
 | `os-poll="30000"` | Dispatch the element's `os-action` every N ms for as long as the element is rendered. Render it conditionally and you have an auto-refresh switch. |
 | `os-key="…"` | Identity for the DOM morph — put it on list items so reorders move nodes instead of rebuilding them. |
-| `os-preserve` | The morph never touches this subtree (a canvas a client script owns). |
+| `os-preserve` | **Server views only.** The morph never touches this subtree (a canvas a client script owns). A client view never morphs — the kit's renderer keeps identical nodes on a same-template re-render, and imperative content an app injects should be guarded by its own stamp (a `data-*` marker checked in `updated()`), not by this attribute. |
 | `os-prop-foo='json'` | After every render, assign the parsed JSON to the element's **`foo` property** (kebab → camelCase). This is how property-driven components are fed from markup: `<os-table os-prop-columns='[…]' os-prop-data='[…]'>`, `<os-log os-prop-entries='[…]'>`. Unchanged values are skipped. |
 
 **Every `<os-*>` component is usable.** Its attributes are plain HTML; its properties come through `os-prop-*`; its events come through `os-on` (the runtime listens for every event the kit emits — `tests/vitest/app-runtime-props-and-events.test.ts` scans the component sources and fails when the list falls behind). Components the shell has not defined yet are loaded on demand after the render via `wp.os.loadComponents()`.

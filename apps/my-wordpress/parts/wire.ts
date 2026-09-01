@@ -427,9 +427,12 @@ export function wire( ctx: Ctx ): () => void {
  *   - `os.my-wordpress.preview-extras` — once per named slot on the
  *     preview article (`header` / `meta` / `footer`), with the row so
  *     subscribers can paint their facts (the AllTerrain Work board
- *     meta, Woo's order analytics, …). Slots carry `os-preserve`, so
- *     the morph leaves whatever a plugin appended alone; the stamp
- *     keeps one firing per item, however many repaints follow.
+ *     meta, Woo's order analytics, …). The stamp is what keeps one
+ *     firing per item and what protects a plugin's appended DOM
+ *     across repaints — in a client view the renderer keeps
+ *     identical nodes, and the stamp guard skips re-painting a slot
+ *     it already filled. (The slots also carry `os-preserve` for the
+ *     server-view morph, which never runs here.)
  *   - `os.my-wordpress.list-tile` — once per rendered tile, after it
  *     is in the DOM (decorations added earlier are wiped when the
  *     tile paints on connect), with the row it stands for.
@@ -571,8 +574,9 @@ export function afterRender( ctx: Ctx ): void {
 	}
 	// Inject the server-rendered post body — the preview pane's and
 	// the detail folder's article alike. Trusted admin content from
-	// our own dispatch, marked os-preserve so the diff never
-	// touches it.
+	// our own dispatch; the data-mywp-stamp guard below is what keeps
+	// a repaint from re-injecting (and wiping a reader's text
+	// selection) — the renderer keeps identical nodes between paints.
 	const picked = ctx.data.subDetail;
 	let pickedContent: string | undefined;
 	if ( picked?.kind === 'revision' ) {
