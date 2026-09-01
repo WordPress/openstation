@@ -59,10 +59,16 @@ export type LocalAction< S, D > = (
 	data: D,
 ) => S | void;
 
-/** What the view (and lifecycle hooks) receive. */
+/**
+ * What the view (and lifecycle hooks) receive.
+ *
+ * `state` and `data` are LIVE: reading them always answers with the
+ * current values, never a snapshot — so a listener installed in
+ * `mounted()` can safely read `ctx.state` months of renders later.
+ */
 export interface ViewContext< S, D > {
-	state: S;
-	data: D;
+	readonly state: S;
+	readonly data: D;
 	/**
 	 * Run a server action (a round trip). `options.confirm` asks the
 	 * shell's confirm dialog first — the same dialog the declarative

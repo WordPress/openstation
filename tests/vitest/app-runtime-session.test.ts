@@ -579,5 +579,53 @@ describe( 'createSession', () => {
 			expect( typeof h.ctx().host.fetch ).toBe( 'function' );
 			expect( typeof h.ctx().host.confirm ).toBe( 'function' );
 		} );
+
+		it( 'state and data stay LIVE on a captured context — mounted() listeners never go stale', async () => {
+			const root = document.createElement( 'div' );
+			document.body.appendChild( root );
+			let captured: Ctx | undefined;
+			const host: RuntimeHost = {
+				// Echo the sent state back with `selected` grown — the
+				// shape of a real selection changing after mount.
+				fetch: async ( _input, init ) => {
+					const body = JSON.parse( String( init?.body ) ) as {
+						state: Record< string, unknown >;
+						args: Record< string, unknown >;
+					};
+					return jsonResponse( {
+						ok: true,
+						state: { ...body.state, ...body.args },
+						html: '',
+						data: body.args,
+						effects: [],
+					} );
+				},
+			};
+			const session = createSession( {
+				root,
+				config: { ...config(), state: { selected: [] as number[] }, client: true },
+				windowId: 'demo',
+				host,
+				client: {
+					id: 'demo',
+					hasLocal: () => false,
+					runLocal: ( _a, s ) => s,
+					render: ( c ) => {
+						// The drag-out shape: mounted() captures the FIRST
+						// context it is handed and closes over it forever.
+						captured ??= c as Ctx;
+					},
+					mounted: () => undefined,
+				},
+			} );
+			await session.dispatch( 'mount' );
+			expect( ( captured!.state as { selected: number[] } ).selected ).toEqual( [] );
+			// The user selects four things (a later dispatch adopts them).
+			await session.dispatch( 'select', { selected: [ 1, 2, 3, 4 ] } );
+			// The context captured at mount answers with the CURRENT state.
+			expect( ( captured!.state as { selected: number[] } ).selected ).toEqual( [ 1, 2, 3, 4 ] );
+			expect( captured!.data ).toEqual( { selected: [ 1, 2, 3, 4 ] } );
+			session.dispose();
+		} );
 	} );
 } );

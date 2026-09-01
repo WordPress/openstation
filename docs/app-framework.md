@@ -291,7 +291,7 @@ The rules, all of which the runtime enforces:
 - **Everything else is unchanged**: effects, `os-poll`, `os-confirm`, title-bar buttons, ⋯ rows, channels, lifecycle actions, `wp.os.apps.dispatch()`. `wp.os.apps.local( windowId, action, args )` runs a local action from outside.
 - **`mounted( ctx )` / `updated( ctx )`** hooks exist for the rare imperative need (a `ResizeObserver`, a canvas); `ctx.root` is the mount root.
 
-The context carries the framework's client-side services, so an app never re-implements them:
+The context carries the framework's client-side services, so an app never re-implements them. **`ctx.state` and `ctx.data` are live**: reading them always answers with the current values, never a snapshot — a listener installed in `mounted()` can read `ctx.state` a hundred renders later and see the selection as it is now, not as it was at mount.
 
 - **`ctx.dispatch( action, args, { confirm } )`** — an imperative dispatch can ask the shell's confirm dialog first, the same dialog the declarative `os-confirm` attribute uses. An action reached from a context-menu row confirms exactly like its button twin.
 - **`ctx.ui( factory )`** — client-only state that must never travel to the server (an open menu, a fetch cache, an `IntersectionObserver`). One bag per mounted view, created on first call; two windows of the same app never share it. Declared state stays the schema for everything the server should echo back — `ctx.ui` is for what it must not.

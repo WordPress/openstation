@@ -306,9 +306,20 @@ export function createSession( deps: SessionDeps ): Session {
 		);
 	};
 
+	// `state` and `data` are LIVE getters, not snapshots: a `mounted()`
+	// hook installs listeners that outlive every render, and a
+	// captured context that froze the mount-time state would make
+	// them silently blind to everything the user did since (a
+	// drag-out reading the selection as it was at mount, an Escape
+	// handler reading the mount-time navigation). Reading through the
+	// context always answers with the current values.
 	const viewContext = () => ( {
-		state,
-		data,
+		get state() {
+			return state;
+		},
+		get data() {
+			return data;
+		},
 		root,
 		dispatch: (
 			action: string,
