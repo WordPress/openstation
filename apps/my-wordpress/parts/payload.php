@@ -75,10 +75,6 @@ function payload( State $state, Os $os ) {
 	);
 	return array(
 		'siteName'       => (string) get_bloginfo( 'name' ),
-		// For the client-fetched surfaces — the footprint's one
-		// round-trip to `/desktop-mode/v1/user-footprint/<id>`.
-		'restRoot'       => esc_url_raw( rest_url() ),
-		'restNonce'      => (string) wp_create_nonce( 'wp_rest' ),
 		// Whether the agents REST routes exist — gates the "Send to"
 		// menu intake's cache warm-up client-side.
 		'agentsEnabled'  => function_exists( 'openstation_agents_enabled' ) && openstation_agents_enabled(),

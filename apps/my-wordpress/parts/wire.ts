@@ -53,7 +53,7 @@ import { agentsMountIdOf, agentsRosterStamp, openChatWindow } from './agents';
 /** Marquee + drag-out + infinite scroll + Escape, wired once per window. */
 export function wire( ctx: Ctx ): () => void {
 	const { root } = ctx;
-	const ui = uiOf( root );
+	const ui = uiOf( ctx );
 	const teardowns: Array< () => void > = [];
 
 	// --- drag-out: rows lift into the shell DragManager -----------------
@@ -187,11 +187,11 @@ export function wire( ctx: Ctx ): () => void {
 		ui.loadingMore = true;
 		ui.loadingPage = Math.max( 1, ...Array.from( ui.pages.keys() ) ) + 1;
 		// Repaint now so the skeleton tiles appear while the page loads.
-		ctx.local( 'repaint' );
+		ctx.repaint();
 		void ctx.dispatch( 'more' ).finally( () => {
 			ui.loadingMore = false;
 			ui.loadingPage = 0;
-			ctx.local( 'repaint' );
+			ctx.repaint();
 		} );
 	} );
 	teardowns.push( () => ui.observer?.disconnect() );
@@ -353,13 +353,13 @@ export function wire( ctx: Ctx ): () => void {
 		if ( e.key !== 'Escape' ) {
 			return;
 		}
-		const state = uiOf( root );
+		const state = uiOf( ctx );
 		if ( state.menu ) {
 			state.menu = null;
-			ctx.local( 'repaint' );
+			ctx.repaint();
 		} else if ( state.zoom ) {
 			state.zoom = false;
-			ctx.local( 'repaint' );
+			ctx.repaint();
 		} else if ( ctx.state.footprint > 0 ) {
 			void ctx.dispatch( 'back' );
 		} else if ( ctx.state.item > 0 ) {
@@ -486,7 +486,7 @@ function pluginSeamsAfterRender( ctx: Ctx ): void {
 		return;
 	}
 	const rows = new Map< number, Record< string, unknown > >();
-	for ( const row of Array.from( uiOf( ctx.root ).pages.values() ).flat() ) {
+	for ( const row of Array.from( uiOf( ctx ).pages.values() ).flat() ) {
 		rows.set( row.id, row as Record< string, unknown > );
 	}
 
@@ -560,7 +560,7 @@ function pluginSeamsAfterRender( ctx: Ctx ): void {
 
 /** Runs after every render — the `updated()` half of the app. */
 export function afterRender( ctx: Ctx ): void {
-	const ui = uiOf( ctx.root );
+	const ui = uiOf( ctx );
 	// Keep the Send-to intake's routes flag current — Preferences can
 	// flip the agents framework while this window is open.
 	setSendToEnabled( ctx.data.agentsEnabled === true );
@@ -643,7 +643,7 @@ export function afterRender( ctx: Ctx ): void {
  * signal, and the create-then-chat hand-off.
  */
 function agentsAfterRender( ctx: Ctx ): void {
-	const ui = uiOf( ctx.root );
+	const ui = uiOf( ctx );
 	const payload = ctx.data.agents;
 	const section = sectionOf( ctx.data, ctx.state.section );
 	const active = !! payload && section?.kind === 'agent';

@@ -288,6 +288,16 @@ The rules, all of which the runtime enforces:
 - **Everything else is unchanged**: effects, `os-poll`, `os-confirm`, title-bar buttons, ⋯ rows, channels, lifecycle actions, `wp.os.apps.dispatch()`. `wp.os.apps.local( windowId, action, args )` runs a local action from outside.
 - **`mounted( ctx )` / `updated( ctx )`** hooks exist for the rare imperative need (a `ResizeObserver`, a canvas); `ctx.root` is the mount root.
 
+The context carries the framework's client-side services, so an app never re-implements them:
+
+- **`ctx.dispatch( action, args, { confirm } )`** — an imperative dispatch can ask the shell's confirm dialog first, the same dialog the declarative `os-confirm` attribute uses. An action reached from a context-menu row confirms exactly like its button twin.
+- **`ctx.ui( factory )`** — client-only state that must never travel to the server (an open menu, a fetch cache, an `IntersectionObserver`). One bag per mounted view, created on first call; two windows of the same app never share it. Declared state stays the schema for everything the server should echo back — `ctx.ui` is for what it must not.
+- **`ctx.repaint()`** — re-render the view from the current `state` + `data`. No action, no request. The pair for `ctx.ui`: mutate the bag, repaint.
+- **`ctx.fetch( path, init )`** — REST the framework way: a relative path resolves against the site's REST root, the nonce and a JSON `Accept` header ride along unless the caller set their own, and the request is attributed to the window so its loading spinner shows.
+- **`ctx.host`** — the shell surface the runtime itself runs on (`toast`, `confirm`, `menu`, `openWindow`, …), already typed.
+
+Tests build a context with `mockViewContext()` from `src/app-runtime/testing.ts` instead of hand-writing these members.
+
 Beside `defineApp`, `html` and the i18n functions, `@openstation/app` exports the shared formatting primitives so every app renders the same value shapes the same way: `formatBytes( n )` (`844 B` / `12.4 MB` / `123 MB`) and `formatDate( value, style )` where `value` is an ISO string (a bare `YYYY-MM` reads as that month), epoch milliseconds, or a `Date`, and `style` is `'short' | 'long' | 'month' | 'datetime' | 'iso'`. For "N minutes ago" keep using `<os-relative-time>`.
 
 Build: every `apps/<dir>/<name>.os.ts` is discovered by `vite.config.js` as the target `app:<name>` and built by `npm run build:apps` (part of `npm run build`) into `assets/js/apps/<name>[.min].js`; the host registers it as a companion script of the window, so it is in the tab before the runtime mounts. Type-checked and linted with the rest of the TypeScript; tests live beside it (`<name>.test.ts`).

@@ -54,7 +54,7 @@ export function agentsAbilityChecklist(
 	toggle: ( slug: string, on: boolean ) => void,
 	opts: { disabled?: boolean } = {},
 ): TemplateResult {
-	const ui = uiOf( ctx.root );
+	const ui = uiOf( ctx );
 	const all = payload.abilities;
 	const query = ui.abilityQuery.trim().toLowerCase();
 	const matches = ( ability: Ability ): boolean =>
@@ -95,7 +95,7 @@ export function agentsAbilityChecklist(
 						placeholder=${ __( 'custom fields, orders, media…' ) }
 						@os-input-change=${ ( e: CustomEvent< { value: string } > ) => {
 							ui.abilityQuery = e.detail?.value ?? '';
-							ctx.local( 'repaint' );
+							ctx.repaint();
 						} }
 					></os-text-field>
 			  `
@@ -270,7 +270,7 @@ function agentsTriggerCard(
 ): TemplateResult {
 	const index = triggerRowIndex( triggers, kind.slug );
 	const row = index === -1 ? null : triggers[ index ];
-	const locked = ! payload.canManage || uiOf( ctx.root ).agentBusy;
+	const locked = ! payload.canManage || uiOf( ctx ).agentBusy;
 	const without = (): Trigger[] => triggers.filter( ( t ) => t.kind !== kind.slug );
 	let body: TemplateResult | '' = '';
 	if ( kind.slug === 'chat' ) {
@@ -382,7 +382,7 @@ function agentsDefineDraft( ui: UiState, agent: Agent ): NonNullable< UiState[ '
 }
 
 function agentsDefinePane( ctx: Ctx, payload: AgentsPayload, agent: Agent ): TemplateResult {
-	const ui = uiOf( ctx.root );
+	const ui = uiOf( ctx );
 	const readOnly = ! payload.canManage;
 	const draft = agentsDefineDraft( ui, agent );
 	const dirty =
@@ -398,7 +398,7 @@ function agentsDefinePane( ctx: Ctx, payload: AgentsPayload, agent: Agent ): Tem
 				?readonly=${ readOnly }
 				@os-input-change=${ ( e: CustomEvent< { value: string } > ) => {
 					draft.name = e.detail.value;
-					ctx.local( 'repaint' );
+					ctx.repaint();
 				} }
 			></os-text-field>
 			<os-text-field
@@ -407,7 +407,7 @@ function agentsDefinePane( ctx: Ctx, payload: AgentsPayload, agent: Agent ): Tem
 				?readonly=${ readOnly }
 				@os-input-change=${ ( e: CustomEvent< { value: string } > ) => {
 					draft.description = e.detail.value;
-					ctx.local( 'repaint' );
+					ctx.repaint();
 				} }
 			></os-text-field>
 			<os-textarea
@@ -417,7 +417,7 @@ function agentsDefinePane( ctx: Ctx, payload: AgentsPayload, agent: Agent ): Tem
 				?readonly=${ readOnly }
 				@os-input-change=${ ( e: CustomEvent< { value: string } > ) => {
 					draft.instructions = e.detail.value;
-					ctx.local( 'repaint' );
+					ctx.repaint();
 				} }
 			></os-textarea>
 			${ readOnly
@@ -430,7 +430,7 @@ function agentsDefinePane( ctx: Ctx, payload: AgentsPayload, agent: Agent ): Tem
 										value=${ draft.role }
 										@os-pick=${ ( e: CustomEvent< { value: string } > ) => {
 											draft.role = e.detail?.value ?? draft.role;
-											ctx.local( 'repaint' );
+											ctx.repaint();
 										} }
 									>
 										${ roleOptionsTpl( payload.roles, draft.role ) }
@@ -482,14 +482,14 @@ function agentsToolsPane( ctx: Ctx, payload: AgentsPayload, agent: Agent ): Temp
 						: agent.abilities.filter( ( s ) => s !== slug );
 					void runAgent( ctx, 'agent-update', { id: agent.id, abilities } );
 				},
-				{ disabled: ! payload.canManage || uiOf( ctx.root ).agentBusy },
+				{ disabled: ! payload.canManage || uiOf( ctx ).agentBusy },
 			) }
 		</div>
 	`;
 }
 
 export function agentsDetail( ctx: Ctx, payload: AgentsPayload, agent: AppAgent ): TemplateResult {
-	const ui = uiOf( ctx.root );
+	const ui = uiOf( ctx );
 	const state = ctx.state;
 	const hasUsersSection = ctx.data.sections.some( ( s ) => s.id === 'users' );
 	const paneTabs = html`

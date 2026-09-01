@@ -264,12 +264,62 @@ export function createSession( deps: SessionDeps ): Session {
 
 	// ----------------------------------------------------- client view
 
+	/** The per-view client-only bag `ctx.ui( factory )` serves. */
+	let uiBag: unknown;
+	const uiOf = < T >( factory: () => T ): T => {
+		if ( uiBag === undefined ) {
+			uiBag = factory();
+		}
+		return uiBag as T;
+	};
+
+	/** Re-render the client view with no action and no request. */
+	const repaint = (): void => {
+		if ( ! client || disposed ) {
+			return;
+		}
+		client.render( viewContext() );
+		finishRender();
+	};
+
+	/**
+	 * `ctx.fetch` — a REST request the framework way: the path is
+	 * resolved against the site's REST root, the nonce and a JSON
+	 * Accept header ride along unless the caller set their own, and
+	 * the request is attributed to this window so its spinner shows.
+	 */
+	const restFetch = ( path: string, init: RequestInit = {} ): Promise< Response > => {
+		const url = /^https?:\/\//i.test( path )
+			? path
+			: String( config.restRoot ?? '' ) + path.replace( /^\//, '' );
+		const headers = new Headers( init.headers );
+		if ( ! headers.has( 'Accept' ) ) {
+			headers.set( 'Accept', 'application/json' );
+		}
+		if ( config.restNonce && ! headers.has( 'X-WP-Nonce' ) ) {
+			headers.set( 'X-WP-Nonce', config.restNonce );
+		}
+		return host.fetch(
+			url,
+			{ credentials: 'same-origin', signal, ...init, headers },
+			{ windowId, source: `openstation/app/${ config.id }` },
+		);
+	};
+
 	const viewContext = () => ( {
 		state,
 		data,
 		root,
-		dispatch: ( action: string, args: Record< string, unknown > = {} ) => dispatch( action, args ),
+		dispatch: (
+			action: string,
+			args: Record< string, unknown > = {},
+			options: { confirm?: ConfirmSpec | null } = {},
+		) => dispatch( action, args, { confirm: options.confirm ?? null } ),
 		local: ( action: string, args: Record< string, unknown > = {} ) => runLocal( action, args ),
+		ui: uiOf,
+		repaint,
+		fetch: restFetch,
+		host,
 	} );
 
 	/** A client-side action: reduce, re-render, no request. */

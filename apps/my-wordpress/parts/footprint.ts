@@ -18,15 +18,15 @@
  *   7. Action footer.
  *
  * All data comes from one round-trip to
- * `/desktop-mode/v1/user-footprint/<id>`, fetched here and cached per
- * window+user, so a `watch` repaint never re-asks for a year of
- * aggregates it already holds.
+ * `/desktop-mode/v1/user-footprint/<id>` — through `ctx.fetch`, so the
+ * REST root, the nonce and the window's spinner attribution are the
+ * framework's — cached per window+user, so a `watch` repaint never
+ * re-asks for a year of aggregates it already holds.
  *
  * @public
  */
 
 import { __, _n, formatDate, html, sprintf, type TemplateResult } from '@openstation/app';
-import { trackedFetch } from '../../../src/tracked-fetch';
 import type { UserFootprint } from '../../../src/my-wordpress/types';
 import { openUserEditWindow } from '../../../src/posts-window/user-edit-target';
 import { uiOf, type Ctx } from './types';
@@ -40,25 +40,13 @@ export interface FootprintCache {
 
 /** Kick (or reuse) the fetch for the open footprint. */
 function ensureFootprint( ctx: Ctx, userId: number ): FootprintCache {
-	const ui = uiOf( ctx.root );
+	const ui = uiOf( ctx );
 	if ( ui.fp && ui.fp.userId === userId ) {
 		return ui.fp;
 	}
 	const cache: FootprintCache = { userId, status: 'loading', payload: null };
 	ui.fp = cache;
-	const root = String( ctx.data.restRoot ?? '' );
-	void trackedFetch(
-		`${ root }desktop-mode/v1/user-footprint/${ userId }`,
-		{
-			method: 'GET',
-			credentials: 'same-origin',
-			headers: {
-				'X-WP-Nonce': String( ctx.data.restNonce ?? '' ),
-				Accept: 'application/json',
-			},
-		},
-		{ source: 'my-wordpress/footprint' },
-	)
+	void ctx.fetch( `desktop-mode/v1/user-footprint/${ userId }` )
 		.then( async ( response ) => {
 			if ( ! response.ok ) {
 				throw new Error( String( response.status ) );
@@ -67,16 +55,16 @@ function ensureFootprint( ctx: Ctx, userId: number ): FootprintCache {
 		} )
 		.then( ( payload ) => {
 			// Guard against late arrivals after the user navigated on.
-			if ( uiOf( ctx.root ).fp === cache ) {
+			if ( ui.fp === cache ) {
 				cache.status = 'ready';
 				cache.payload = payload;
-				ctx.local( 'repaint' );
+				ctx.repaint();
 			}
 		} )
 		.catch( () => {
-			if ( uiOf( ctx.root ).fp === cache ) {
+			if ( ui.fp === cache ) {
 				cache.status = 'error';
-				ctx.local( 'repaint' );
+				ctx.repaint();
 			}
 		} );
 	return cache;
@@ -92,7 +80,7 @@ export function footprintStatus( ctx: Ctx ): [ string, string ] | null {
 	if ( ! ( userId > 0 ) ) {
 		return null;
 	}
-	const cache = uiOf( ctx.root ).fp;
+	const cache = uiOf( ctx ).fp;
 	if ( ! cache || cache.userId !== userId || cache.status === 'loading' ) {
 		return [ __( 'Loading footprint…' ), '' ];
 	}

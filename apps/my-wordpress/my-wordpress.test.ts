@@ -6,6 +6,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { mockViewContext } from '../../src/app-runtime/testing';
 import { uiOf } from './parts/types';
 import app, {
 	accumulate,
@@ -83,8 +84,6 @@ function state( over: Partial< AppState > = {} ): AppState {
 function data( over: Partial< AppData > = {} ): AppData {
 	return {
 		siteName: 'Test Site',
-		restRoot: 'http://example.test/wp-json/',
-		restNonce: 'nonce',
 		agentsEnabled: false,
 		sections: [ section() ],
 		groups: [],
@@ -234,13 +233,7 @@ describe( 'view', () => {
 	): HTMLElement {
 		const root = document.createElement( 'div' );
 		document.body.appendChild( root );
-		app.render( {
-			state: s,
-			data: d,
-			root,
-			dispatch,
-			local: () => undefined,
-		} );
+		app.render( mockViewContext( { state: s, data: d, root, dispatch } ) );
 		return root;
 	}
 
@@ -482,7 +475,7 @@ describe( 'view', () => {
 				item( { id: 2, title: 'Shipped', meta: { _lane: 'done' } } ),
 				item( { id: 3, title: 'Loose end' } ),
 			];
-			app.render( {
+			app.render( mockViewContext( {
 				state: state( { section: 'posts', item: 1 } ),
 				data: data( {
 					list: page( rows ),
@@ -497,9 +490,7 @@ describe( 'view', () => {
 					},
 				} ),
 				root,
-				dispatch: async () => true,
-				local: () => undefined,
-			} );
+			} ) );
 			// Bands: declared order, tone class, count chips, and the
 			// unassigned row in an unlabelled grid at the end.
 			const heads = Array.from( root.querySelectorAll( '.os-mywp__band-head' ) );
@@ -528,7 +519,7 @@ describe( 'view', () => {
 			// One firing per item: a repaint with the same selection
 			// does not re-run the subscribers.
 			fired.length = 0;
-			app.render( {
+			app.render( mockViewContext( {
 				state: state( { section: 'posts', item: 1 } ),
 				data: data( {
 					list: page( rows ),
@@ -543,9 +534,7 @@ describe( 'view', () => {
 					},
 				} ),
 				root,
-				dispatch: async () => true,
-				local: () => undefined,
-			} );
+			} ) );
 			expect( fired.filter( ( f ) => f.hook === 'os.my-wordpress.preview-extras' ) ).toHaveLength( 0 );
 			// …and what the subscriber painted SURVIVES the repaint.
 			expect( root.querySelector( '.atwork-preview' )?.textContent ).toBe( 'State: Active' );
@@ -557,7 +546,7 @@ describe( 'view', () => {
 	it( 'hovering a tile summons WP Explorer\'s card: title, excerpt, lock banner', () => {
 		const root = document.createElement( 'div' );
 		document.body.appendChild( root );
-		const ctx = {
+		const ctx = mockViewContext( {
 			state: state( { section: 'posts' } ),
 			data: data( {
 				list: page( [
@@ -569,9 +558,7 @@ describe( 'view', () => {
 				] ),
 			} ),
 			root,
-			dispatch: async () => true,
-			local: () => undefined,
-		};
+		} );
 		// jsdom has no IntersectionObserver; mounted() wires one for
 		// the infinite scroll, which this test never exercises.
 		( globalThis as { IntersectionObserver?: unknown } ).IntersectionObserver ??= class {
@@ -606,16 +593,7 @@ describe( 'view', () => {
 	it( 'the Edit… modal carries the original controls: notice, category picker, tag tokens', () => {
 		const root = document.createElement( 'div' );
 		document.body.appendChild( root );
-		uiOf( root ).quickEdit = {
-			ids: [ 1 ],
-			status: '',
-			comments: '',
-			author: '',
-			sticky: '',
-			categories: [],
-			tags: [],
-		};
-		app.render( {
+		const ctx = mockViewContext( {
 			state: state( { section: 'posts', selected: [ 1 ] } ),
 			data: data( {
 				list: page( [ item( {} ) ] ),
@@ -624,9 +602,17 @@ describe( 'view', () => {
 				tags: [ { id: 9, name: 'field-notes' } ],
 			} ),
 			root,
-			dispatch: async () => true,
-			local: () => undefined,
 		} );
+		uiOf( ctx ).quickEdit = {
+			ids: [ 1 ],
+			status: '',
+			comments: '',
+			author: '',
+			sticky: '',
+			categories: [],
+			tags: [],
+		};
+		app.render( ctx );
 		// The hint the original's bulk modal leads with.
 		expect( root.textContent ).toContain(
 			'Only the fields you change are applied. Categories and tags are added to what each entry already has.',

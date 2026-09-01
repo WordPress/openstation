@@ -286,12 +286,12 @@ export function runAgent(
 	action: string,
 	args?: Record< string, unknown >,
 ): Promise< boolean > {
-	const ui = uiOf( ctx.root );
+	const ui = uiOf( ctx );
 	ui.agentBusy = true;
-	ctx.local( 'repaint' );
+	ctx.repaint();
 	return ctx.dispatch( action, args ).finally( () => {
 		ui.agentBusy = false;
-		ctx.local( 'repaint' );
+		ctx.repaint();
 	} );
 }
 
@@ -455,7 +455,7 @@ export function agentsCastGrid( ctx: Ctx, payload: AgentsPayload ): TemplateResu
 			${ cast }
 		`;
 	}
-	const ui = uiOf( ctx.root );
+	const ui = uiOf( ctx );
 	const roleLabel = ( slug: string ): string => payload.roleLabels[ slug ] ?? slug;
 	if ( payload.list.length === 0 ) {
 		const emptyDescription = payload.canManage

@@ -264,8 +264,8 @@ export function renderDetail( ctx: Ctx, section: SectionDef ): TemplateResult {
 					alt=${ detail.title }
 					@click=${ () => {
 						if ( detail.kind === 'media' ) {
-							uiOf( ctx.root ).zoom = true;
-							ctx.local( 'repaint' );
+							uiOf( ctx ).zoom = true;
+							ctx.repaint();
 						}
 					} }
 				/>`
@@ -366,14 +366,14 @@ export function renderFolder( ctx: Ctx ): TemplateResult {
 									ref=${ sub.relation }
 									label=${ `${ sub.label } · ${ sub.count }` }
 									icon=${ sub.icon }
-									?selected=${ uiOf( ctx.root ).folderSel === `relation:${ sub.relation }` }
+									?selected=${ uiOf( ctx ).folderSel === `relation:${ sub.relation }` }
 									@click=${ () => {
-										uiOf( ctx.root ).folderSel = `relation:${ sub.relation }`;
-										ctx.local( 'repaint' );
+										uiOf( ctx ).folderSel = `relation:${ sub.relation }`;
+										ctx.repaint();
 									} }
 									@dblclick=${ () => {
 										if ( ! sub.disabled ) {
-											uiOf( ctx.root ).folderSel = null;
+											uiOf( ctx ).folderSel = null;
 											void ctx.dispatch( 'relation', { relation: sub.relation } );
 										}
 									} }

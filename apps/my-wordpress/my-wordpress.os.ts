@@ -156,10 +156,9 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 		'set-sort': ( state, args ) => {
 			state.sort = String( args.sort ?? '' );
 		},
-		// Transient UI (context menu, zoom) lives in the per-root
-		// UiState — handlers mutate it directly and dispatch this
-		// no-op so the runtime repaints. Nothing travels to the server.
-		repaint: ( state ) => void state,
+		// Transient UI (context menu, zoom) lives in the framework's
+		// per-view bag (`ctx.ui`) — handlers mutate it directly and
+		// call `ctx.repaint()`.
 		// ------------------------------------------------- agents
 		// The wizard's navigation and every field of the cast are
 		// local: no request until the server is asked to draft or
@@ -281,7 +280,7 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 		}
 
 		const items = section && ! inFolder
-			? accumulate( uiOf( ctx.root ), listKey( state ), payload.list )
+			? accumulate( uiOf( ctx ), listKey( state ), payload.list )
 			: [];
 		const loaded = items.length;
 		let folderStatus: [ string, string ] | null = null;

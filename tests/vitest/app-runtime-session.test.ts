@@ -487,4 +487,97 @@ describe( 'createSession', () => {
 			expect( h.host.sent ).toHaveLength( 0 );
 		} );
 	} );
+
+	describe( 'the client view context', () => {
+		type Ctx = import( '../../src/app-runtime/client' ).ViewContext<
+			Record< string, unknown >,
+			unknown
+		>;
+
+		function clientHarness() {
+			const root = document.createElement( 'div' );
+			document.body.appendChild( root );
+			const fetches: Array< { input: string; init?: RequestInit } > = [];
+			const confirms: string[] = [];
+			let renders = 0;
+			let ctx: Ctx | undefined;
+			const host: RuntimeHost = {
+				fetch: async ( input, init ) => {
+					fetches.push( { input: String( input ), init } );
+					return jsonResponse( { ok: true, state: {}, html: '', data: null, effects: [] } );
+				},
+				confirm: async ( o ) => {
+					confirms.push( o.message );
+					return true;
+				},
+			};
+			const session = createSession( {
+				root,
+				config: { ...config(), restRoot: 'https://example.test/wp-json/', client: true },
+				windowId: 'demo',
+				host,
+				client: {
+					id: 'demo',
+					hasLocal: () => false,
+					runLocal: ( _a, state ) => state,
+					render: ( c ) => {
+						renders++;
+						ctx = c;
+					},
+					mounted: () => undefined,
+				},
+			} );
+			return {
+				session,
+				fetches,
+				confirms,
+				ctx: () => ctx as Ctx,
+				renders: () => renders,
+			};
+		}
+
+		it( 'ui() memoises one bag per view and repaint() re-renders without a request', async () => {
+			const h = clientHarness();
+			await h.session.dispatch( 'mount' );
+			const first = h.ctx().ui( () => ( { open: false } ) );
+			first.open = true;
+			// Same bag on every call, factory run once.
+			expect( h.ctx().ui( () => ( { open: false } ) ) ).toBe( first );
+			const before = h.renders();
+			const requests = h.fetches.length;
+			h.ctx().repaint();
+			expect( h.renders() ).toBe( before + 1 );
+			expect( h.fetches ).toHaveLength( requests );
+		} );
+
+		it( 'fetch() resolves paths against the REST root and carries the nonce', async () => {
+			const h = clientHarness();
+			await h.session.dispatch( 'mount' );
+			await h.ctx().fetch( 'desktop-mode/v1/things/7' );
+			const call = h.fetches.at( -1 );
+			expect( call?.input ).toBe( 'https://example.test/wp-json/desktop-mode/v1/things/7' );
+			const headers = new Headers( call?.init?.headers );
+			expect( headers.get( 'X-WP-Nonce' ) ).toBe( 'nonce' );
+			expect( headers.get( 'Accept' ) ).toBe( 'application/json' );
+			// An absolute URL passes through untouched.
+			await h.ctx().fetch( 'https://elsewhere.test/x' );
+			expect( h.fetches.at( -1 )?.input ).toBe( 'https://elsewhere.test/x' );
+		} );
+
+		it( 'dispatch() asks the confirm dialog when the caller passes one', async () => {
+			const h = clientHarness();
+			await h.session.dispatch( 'mount' );
+			await h.ctx().dispatch( 'trash', {}, {
+				confirm: { message: 'Move this to the Trash?', danger: true },
+			} );
+			expect( h.confirms ).toEqual( [ 'Move this to the Trash?' ] );
+		} );
+
+		it( 'exposes the runtime host itself', async () => {
+			const h = clientHarness();
+			await h.session.dispatch( 'mount' );
+			expect( typeof h.ctx().host.fetch ).toBe( 'function' );
+			expect( typeof h.ctx().host.confirm ).toBe( 'function' );
+		} );
+	} );
 } );

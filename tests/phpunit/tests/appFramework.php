@@ -611,6 +611,8 @@ class Tests_OpenStation_AppFramework extends WP_UnitTestCase {
 		$this->assertSame( 300, $entry['width'] );
 		$this->assertTrue( $entry['config']['osApp'] );
 		$this->assertStringContainsString( '/desktop-mode/v1/apps/demo-host/dispatch', $entry['config']['endpoint'] );
+		// What `ctx.fetch` resolves relative paths against.
+		$this->assertSame( rest_url(), $entry['config']['restRoot'] );
 		$this->assertSame( 'bump', $entry['config']['titleBarButtons'][0]['action'] );
 
 		ob_start();

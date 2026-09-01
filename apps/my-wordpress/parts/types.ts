@@ -21,6 +21,7 @@ import type {
 	Trigger,
 	TriggerKindDescriptor,
 } from '../../../src/my-wordpress/agents-types';
+import type { ViewContext } from '@openstation/app';
 import type { UserFootprint } from '../../../src/my-wordpress/types';
 import type { DragManagerApi } from '../../../src/drag';
 
@@ -324,9 +325,6 @@ export type SubDetail =
 
 export interface AppData {
 	siteName: string;
-	/** REST root + nonce, for the client-fetched surfaces (footprint). */
-	restRoot: string;
-	restNonce: string;
 	/** Whether the agents routes exist — gates the Send-to warm-up. */
 	agentsEnabled: boolean;
 	sections: SectionDef[];
@@ -358,14 +356,12 @@ export interface MenuOption {
 	onSelect?: ( () => void ) | null;
 }
 
-/** What every render helper receives — the runtime's view context. */
-export interface Ctx {
-	state: AppState;
-	data: AppData;
-	root: HTMLElement;
-	dispatch: ( action: string, args?: Record< string, unknown > ) => Promise< boolean >;
-	local: ( action: string, args?: Record< string, unknown > ) => void;
-}
+/**
+ * What every render helper receives — the framework's view context,
+ * typed to this app's state and data. `ctx.ui( … )`, `ctx.repaint()`,
+ * `ctx.fetch()` and `ctx.host` are the framework's, not ours.
+ */
+export type Ctx = ViewContext< AppState, AppData >;
 
 // ------------------------------------------------------------- shell
 
@@ -492,37 +488,35 @@ export interface UiState {
 	} | null;
 }
 
-const uiByRoot = new WeakMap< HTMLElement, UiState >();
+function freshUi(): UiState {
+	return {
+		menu: null,
+		folderSel: null,
+		quickEdit: null,
+		zoom: false,
+		loadingMore: false,
+		armed: true,
+		loadingPage: 0,
+		scrollEl: null,
+		cacheKey: '',
+		pages: new Map(),
+		total: 0,
+		pageCount: 1,
+		abilityQuery: '',
+		abilityOpen: new Map(),
+		nameError: '',
+		agentDraft: null,
+		agentDraftFor: 0,
+		agentBusy: false,
+		agentBackfilled: new Set(),
+		agentDropTargets: new Map(),
+		rosterStamp: '',
+		chatAfterCreate: false,
+		fp: null,
+	};
+}
 
-export function uiOf( root: HTMLElement ): UiState {
-	let ui = uiByRoot.get( root );
-	if ( ! ui ) {
-		ui = {
-			menu: null,
-			folderSel: null,
-			quickEdit: null,
-			zoom: false,
-			loadingMore: false,
-			armed: true,
-			loadingPage: 0,
-			scrollEl: null,
-			cacheKey: '',
-			pages: new Map(),
-			total: 0,
-			pageCount: 1,
-			abilityQuery: '',
-			abilityOpen: new Map(),
-			nameError: '',
-			agentDraft: null,
-			agentDraftFor: 0,
-			agentBusy: false,
-			agentBackfilled: new Set(),
-			agentDropTargets: new Map(),
-			rosterStamp: '',
-			chatAfterCreate: false,
-			fp: null,
-		};
-		uiByRoot.set( root, ui );
-	}
-	return ui;
+/** This app's slice of the framework's per-view client-only bag. */
+export function uiOf( ctx: Pick< Ctx, 'ui' > ): UiState {
+	return ctx.ui( freshUi );
 }

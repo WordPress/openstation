@@ -4,6 +4,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { formatBytes } from '@openstation/app';
+import { mockViewContext } from '../../src/app-runtime/testing';
 import app, {
 	BUCKETS,
 	bucketOf,
@@ -126,7 +127,7 @@ describe( 'app', () => {
 	it( 'renders the body from state + data and re-renders in place', () => {
 		const root = document.createElement( 'div' );
 		document.body.appendChild( root );
-		const ctx = { state: state(), data: data(), root, dispatch: async () => true, local: () => undefined };
+		const ctx = mockViewContext( { state: state(), data: data(), root } );
 		app.render( ctx );
 		expect( root.querySelector( '.os-cb-issue__message' )?.textContent ).toBe( 'Needle' );
 		expect( root.querySelector( 'os-option' )?.textContent ).toBe( 'Test log (550 KB)' );

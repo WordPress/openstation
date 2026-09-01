@@ -43,10 +43,12 @@
 
 import { __, _n, _x, sprintf } from '../i18n';
 import { html, render, type TemplateResult } from '../ui/core/html';
+import type { ConfirmSpec, RuntimeHost } from './types';
 
 export { html, __, _n, _x, sprintf };
 export type { TemplateResult };
 export { formatBytes, formatDate, type DateStyle } from './format';
+export type { ConfirmSpec, RuntimeHost } from './types';
 
 /** A reducer run in the browser. Return the next state, or mutate and return nothing. */
 export type LocalAction< S, D > = (
@@ -59,12 +61,38 @@ export type LocalAction< S, D > = (
 export interface ViewContext< S, D > {
 	state: S;
 	data: D;
-	/** Run a server action (a round trip). */
-	dispatch: ( action: string, args?: Record< string, unknown > ) => Promise< boolean >;
+	/**
+	 * Run a server action (a round trip). `options.confirm` asks the
+	 * shell's confirm dialog first — the same dialog the declarative
+	 * `os-confirm` attribute uses, so an action reached imperatively
+	 * (a context-menu row) confirms exactly like its button twin.
+	 */
+	dispatch: (
+		action: string,
+		args?: Record< string, unknown >,
+		options?: { confirm?: ConfirmSpec | null },
+	) => Promise< boolean >;
 	/** Run a local action (no request). */
 	local: ( action: string, args?: Record< string, unknown > ) => void;
 	/** The mount root — for a ResizeObserver, a canvas, a focus() call. */
 	root: HTMLElement;
+	/**
+	 * Client-only state that must never travel to the server — an open
+	 * menu, a fetch cache, an IntersectionObserver. One bag per mounted
+	 * view, created by `factory` on first call and returned as-is after
+	 * that; two windows of the same app never share it.
+	 */
+	ui: < T >( factory: () => T ) => T;
+	/** Re-render the view from the current state + data, no action, no request. */
+	repaint: () => void;
+	/**
+	 * REST fetch, the framework way: a path is resolved against the
+	 * site's REST root, the nonce and JSON Accept header ride along,
+	 * and the request is attributed to the window (its spinner shows).
+	 */
+	fetch: ( path: string, init?: RequestInit ) => Promise< Response >;
+	/** The shell surface the runtime itself runs on — toast, confirm, menu, open. */
+	host: RuntimeHost;
 }
 
 export interface ClientAppDef< S, D > {

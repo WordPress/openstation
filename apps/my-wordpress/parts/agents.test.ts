@@ -6,6 +6,7 @@
  * same seam as the source parts.
  */
 import { describe, expect, it } from 'vitest';
+import { mockViewContext } from '../../../src/app-runtime/testing';
 import app, {
 	agentDefaultRole,
 	agentFaceSrc,
@@ -57,8 +58,6 @@ function state( over: Partial< AppState > = {} ): AppState {
 function data( over: Partial< AppData > = {} ): AppData {
 	return {
 		siteName: 'Test Site',
-		restRoot: 'http://example.test/wp-json/',
-		restNonce: 'nonce',
 		agentsEnabled: false,
 		sections: [ section() ],
 		groups: [],
@@ -234,13 +233,12 @@ describe( 'agents view', () => {
 	): HTMLElement {
 		const root = document.createElement( 'div' );
 		document.body.appendChild( root );
-		app.render( {
+		app.render( mockViewContext( {
 			state: state( { section: 'agents', ...s } ),
 			data: data( { sections: [ section(), agentsSection() ], agents: payload } ),
 			root,
 			dispatch,
-			local: () => undefined,
-		} );
+		} ) );
 		return root;
 	}
 

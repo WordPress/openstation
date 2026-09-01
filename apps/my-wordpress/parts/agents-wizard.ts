@@ -95,7 +95,7 @@ function agentsCancelButton( ctx: Ctx, cast: CastDraft ): TemplateResult {
 	return html`
 		<os-button
 			variant="ghost"
-			?disabled=${ uiOf( ctx.root ).agentBusy || cast.drafting }
+			?disabled=${ uiOf( ctx ).agentBusy || cast.drafting }
 			@click=${ () => ctx.local( 'agent-cancel' ) }
 		>
 			${ __( 'Cancel' ) }
@@ -214,7 +214,7 @@ function agentsDescribeStep( ctx: Ctx, payload: AgentsPayload, cast: CastDraft )
 
 /** Step 1 — meet them: the face, the name, the voice. */
 function agentsMeetStep( ctx: Ctx, cast: CastDraft ): TemplateResult {
-	const ui = uiOf( ctx.root );
+	const ui = uiOf( ctx );
 	const strip = faceCandidates( cast.stripSeed, FACE_CANDIDATES );
 	return html`
 		<div class="dm-agents__meet">
@@ -285,7 +285,7 @@ function agentsMeetStep( ctx: Ctx, cast: CastDraft ): TemplateResult {
 							cast.name = e.detail?.value ?? '';
 							ui.nameError = '';
 							if ( before !== meetReady( cast ) ) {
-								ctx.local( 'repaint' );
+								ctx.repaint();
 							}
 						} }
 					></os-text-field>
@@ -422,7 +422,7 @@ function agentsSummonStep( ctx: Ctx, payload: AgentsPayload, cast: CastDraft ): 
 
 /** Step 4, launch. */
 function agentsLaunchStep( ctx: Ctx, payload: AgentsPayload, cast: CastDraft ): TemplateResult {
-	const ui = uiOf( ctx.root );
+	const ui = uiOf( ctx );
 	const canChat = payload.canInvoke && payload.aiReady;
 	const abilityLabel = ( slug: string ): string =>
 		payload.abilities.find( ( a ) => a.slug === slug )?.label ?? slug;

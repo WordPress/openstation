@@ -8,6 +8,7 @@
  * rows that are not posts (Woo's Orders).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { mockViewContext } from '../../../src/app-runtime/testing';
 import app, {
 	buildMenuOptions,
 	type AppData,
@@ -105,8 +106,6 @@ function state( over: Partial< AppState > = {} ): AppState {
 function data( over: Partial< AppData > = {} ): AppData {
 	return {
 		siteName: 'Shop',
-		restRoot: 'http://example.test/wp-json/',
-		restNonce: 'nonce',
 		agentsEnabled: false,
 		sections: [ section() ],
 		groups: [ { id: 'plugin:woocommerce', label: 'Woo', icon: 'dashicons-cart', order: 15 } ],
@@ -125,13 +124,7 @@ function data( over: Partial< AppData > = {} ): AppData {
 	};
 }
 
-interface Ctx {
-	state: AppState;
-	data: AppData;
-	root: HTMLElement;
-	dispatch: ( action: string, args?: Record< string, unknown > ) => Promise< boolean >;
-	local: ( action: string, args?: Record< string, unknown > ) => void;
-}
+type Ctx = ReturnType< typeof mockViewContext< AppState, AppData > >;
 
 function mount(
 	s: AppState,
@@ -140,7 +133,7 @@ function mount(
 ): Ctx {
 	const root = document.createElement( 'div' );
 	document.body.appendChild( root );
-	const ctx: Ctx = { state: s, data: d, root, dispatch, local: () => undefined };
+	const ctx = mockViewContext< AppState, AppData >( { state: s, data: d, root, dispatch } );
 	app.render( ctx );
 	return ctx;
 }

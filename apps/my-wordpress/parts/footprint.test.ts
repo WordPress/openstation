@@ -5,6 +5,7 @@
  * strings.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { mockViewContext } from '../../../src/app-runtime/testing';
 import app, { type AppData, type AppState } from '../my-wordpress.os';
 import { footprintStatus } from './footprint';
 
@@ -34,8 +35,6 @@ function state( over: Partial< AppState > = {} ): AppState {
 function data(): AppData {
 	return {
 		siteName: 'Alcázar Estates',
-		restRoot: 'http://example.test/wp-json/',
-		restNonce: 'nonce',
 		agentsEnabled: false,
 		sections: [
 			{
@@ -108,24 +107,16 @@ function stubFetch( body: unknown, ok = true ): ReturnType< typeof vi.fn > {
 	return fn;
 }
 
-interface TestCtx {
-	state: AppState;
-	data: AppData;
-	root: HTMLElement;
-	dispatch: ( action: string, args?: Record< string, unknown > ) => Promise< boolean >;
-	local: ( action: string, args?: Record< string, unknown > ) => void;
-}
+type TestCtx = ReturnType< typeof mockViewContext< AppState, AppData > >;
 
 function mount(): { root: HTMLElement; ctx: TestCtx } {
 	const root = document.createElement( 'div' );
 	document.body.appendChild( root );
-	const ctx: TestCtx = {
+	const ctx = mockViewContext< AppState, AppData >( {
 		state: state(),
 		data: data(),
 		root,
-		dispatch: async () => true,
-		local: () => undefined,
-	};
+	} );
 	app.render( ctx );
 	return { root, ctx };
 }
@@ -155,8 +146,10 @@ describe( 'the activity footprint', () => {
 		app.render( ctx );
 
 		expect( fetchMock ).toHaveBeenCalledTimes( 1 );
+		// The path only: `ctx.fetch` owns REST-root resolution and the
+		// nonce, and the session tests pin that.
 		expect( String( fetchMock.mock.calls[ 0 ][ 0 ] ) ).toBe(
-			'http://example.test/wp-json/desktop-mode/v1/user-footprint/12',
+			'desktop-mode/v1/user-footprint/12',
 		);
 
 		const text = root.textContent ?? '';

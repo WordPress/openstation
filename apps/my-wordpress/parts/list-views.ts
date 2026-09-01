@@ -44,7 +44,7 @@ export function renderRoot( ctx: Ctx ): TemplateResult {
 				.filter( ( s ) => s.group === g.id )
 				.reduce( ( sum, s ) => sum + s.count, 0 ),
 		} ) );
-	const ui = uiOf( ctx.root );
+	const ui = uiOf( ctx );
 	// Finder semantics, like WP Explorer's root: a single click only
 	// SELECTS the folder tile; double click (or Enter) navigates in.
 	const folderTile = (
@@ -60,7 +60,7 @@ export function renderRoot( ctx: Ctx ): TemplateResult {
 			aria-pressed=${ ui.folderSel === key ? 'true' : 'false' }
 			@click=${ () => {
 				ui.folderSel = key;
-				ctx.local( 'repaint' );
+				ctx.repaint();
 			} }
 			@dblclick=${ () => {
 				ui.folderSel = null;
@@ -170,8 +170,8 @@ function renderTile( ctx: Ctx, section: SectionDef, item: ListItem, order: numbe
 			@contextmenu=${ ( e: MouseEvent ) => {
 				e.preventDefault();
 				e.stopPropagation();
-				uiOf( ctx.root ).menu = { x: e.clientX, y: e.clientY, item };
-				ctx.local( 'repaint' );
+				uiOf( ctx ).menu = { x: e.clientX, y: e.clientY, item };
+				ctx.repaint();
 			} }
 		>
 			<span class="os-mywp__tilebox">
@@ -205,11 +205,11 @@ export function renderList( ctx: Ctx, section: SectionDef, items: ListItem[] ): 
 			</os-empty-state>
 		`;
 	}
-	const ui = uiOf( ctx.root );
+	const ui = uiOf( ctx );
 	const canvasMenu = ( e: MouseEvent ): void => {
 		e.preventDefault();
 		ui.menu = { x: e.clientX, y: e.clientY, item: null };
-		ctx.local( 'repaint' );
+		ctx.repaint();
 	};
 	const hasMore = ui.pageCount > Math.max( ...Array.from( ui.pages.keys() ), 1 );
 	// The page being fetched paints as skeleton tiles — WP Explorer's
@@ -309,14 +309,14 @@ export function renderList( ctx: Ctx, section: SectionDef, items: ListItem[] ): 
 }
 
 export function renderMenu( ctx: Ctx, section: SectionDef ): TemplateResult | '' {
-	const ui = uiOf( ctx.root );
+	const ui = uiOf( ctx );
 	if ( ! ui.menu ) {
 		return '';
 	}
 	const { x, y, item } = ui.menu;
 	const close = (): void => {
-		uiOf( ctx.root ).menu = null;
-		ctx.local( 'repaint' );
+		uiOf( ctx ).menu = null;
+		ctx.repaint();
 	};
 	const sortValue = ctx.state.sort || 'default';
 
@@ -394,7 +394,7 @@ export function renderMenu( ctx: Ctx, section: SectionDef ): TemplateResult | ''
 				void ctx.dispatch( 'edit', { item: item.id } );
 			}
 		} else if ( id === 'quick-edit' ) {
-			uiOf( ctx.root ).quickEdit = {
+			uiOf( ctx ).quickEdit = {
 				ids: targets,
 				status: '',
 				comments: '',
@@ -403,7 +403,7 @@ export function renderMenu( ctx: Ctx, section: SectionDef ): TemplateResult | ''
 				categories: [],
 				tags: [],
 			};
-			ctx.local( 'repaint' );
+			ctx.repaint();
 		} else if ( id === 'publish' ) {
 			void ctx.dispatch( 'quick-edit', { items: targets, status: 'publish' } );
 		} else if ( id === 'copy-link' ) {
@@ -412,7 +412,7 @@ export function renderMenu( ctx: Ctx, section: SectionDef ): TemplateResult | ''
 				.map( ( i ) => i.link )
 				.filter( Boolean );
 			void navigator.clipboard?.writeText( links.join( '\n' ) );
-			shell().showToast?.( {
+			ctx.host.toast?.( {
 				message: sprintf(
 					/* translators: %d: link count. */
 					__( 'Copied %d links.' ),
@@ -420,10 +420,25 @@ export function renderMenu( ctx: Ctx, section: SectionDef ): TemplateResult | ''
 				),
 			} );
 		} else if ( id === 'trash' ) {
+			// Same confirmation as the preview pane's Trash button — an
+			// action reached from the menu must not skip the dialog its
+			// button twin shows.
+			const confirm = {
+				message:
+					targets.length > 1
+						? sprintf(
+							/* translators: %d: selected item count. */
+							__( 'Move %d items to the Trash?' ),
+							targets.length,
+						)
+						: __( 'Move this to the Trash?' ),
+				label: __( 'Trash' ),
+				danger: true,
+			};
 			if ( targets.length > 1 ) {
-				void ctx.dispatch( 'bulk-trash' );
+				void ctx.dispatch( 'bulk-trash', {}, { confirm } );
 			} else {
-				void ctx.dispatch( 'trash', { item: item.id } );
+				void ctx.dispatch( 'trash', { item: item.id }, { confirm } );
 			}
 		} else {
 			const action = resolveActions(
@@ -477,14 +492,14 @@ export function renderMenu( ctx: Ctx, section: SectionDef ): TemplateResult | ''
 
 /** The Edit… quick-edit modal: status + comments over the selection. */
 export function renderQuickEdit( ctx: Ctx, section: SectionDef | null ): TemplateResult | '' {
-	const ui = uiOf( ctx.root );
+	const ui = uiOf( ctx );
 	const qe = ui.quickEdit;
 	if ( ! qe || ! section ) {
 		return '';
 	}
 	const close = (): void => {
 		ui.quickEdit = null;
-		ctx.local( 'repaint' );
+		ctx.repaint();
 	};
 	const apply = (): void => {
 		const payload: Record< string, unknown > = { items: qe.ids };
@@ -584,7 +599,7 @@ export function renderQuickEdit( ctx: Ctx, section: SectionDef | null ): Templat
 										...( ( e as CustomEvent< { value: number[] } > )
 											.detail?.value ?? [] ),
 									];
-									ctx.local( 'repaint' );
+									ctx.repaint();
 								} }
 							></os-category-picker>
 						</div>
@@ -620,7 +635,7 @@ export function renderQuickEdit( ctx: Ctx, section: SectionDef | null ): Templat
 									if ( tag && ! qe.tags.some( ( t ) => t.label === tag.label ) ) {
 										qe.tags = [ ...qe.tags, tag ];
 									}
-									ctx.local( 'repaint' );
+									ctx.repaint();
 								} }
 								@os-tag-remove=${ ( e: Event ) => {
 									const tag = ( e as CustomEvent< {
@@ -629,7 +644,7 @@ export function renderQuickEdit( ctx: Ctx, section: SectionDef | null ): Templat
 									if ( tag ) {
 										qe.tags = qe.tags.filter( ( t ) => t.label !== tag.label );
 									}
-									ctx.local( 'repaint' );
+									ctx.repaint();
 								} }
 							></os-tag-input>
 						</div>
@@ -645,7 +660,7 @@ export function renderQuickEdit( ctx: Ctx, section: SectionDef | null ): Templat
 }
 
 export function renderZoom( ctx: Ctx ): TemplateResult | '' {
-	const ui = uiOf( ctx.root );
+	const ui = uiOf( ctx );
 	const detail = ctx.data.detail;
 	if ( ! ui.zoom || ! detail?.full ) {
 		return '';
@@ -653,7 +668,7 @@ export function renderZoom( ctx: Ctx ): TemplateResult | '' {
 	return html`
 		<div class="os-mywp__zoom" @click=${ () => {
 			ui.zoom = false;
-			ctx.local( 'repaint' );
+			ctx.repaint();
 		} }>
 			<img src=${ detail.full } alt=${ detail.title } />
 		</div>

@@ -269,6 +269,7 @@ function openstation_apps_client_config( array $manifest, $bundle = '' ) {
 		'id'              => $manifest['id'],
 		'title'           => $manifest['title'],
 		'endpoint'        => esc_url_raw( rest_url( 'desktop-mode/v1/apps/' . $manifest['id'] . '/dispatch' ) ),
+		'restRoot'        => esc_url_raw( rest_url() ),
 		'restNonce'       => wp_create_nonce( 'wp_rest' ),
 		'state'           => $manifest['state'],
 		'titleBarButtons' => $manifest['title_bar_buttons'],

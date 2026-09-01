@@ -48,6 +48,8 @@ export interface AppConfig {
 	id: string;
 	title: string;
 	endpoint: string;
+	/** The site's REST root — what `ctx.fetch` resolves relative paths against. */
+	restRoot?: string;
 	restNonce?: string;
 	state: Record< string, unknown >;
 	titleBarButtons: ControlDef[];
