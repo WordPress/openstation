@@ -66,6 +66,29 @@ class Tests_OpenStation_MyWordpress extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The Users section opens Core's Add User screen as a window —
+	 * on multisite that screen IS the invite flow (Add Existing User,
+	 * confirmation emails, the network's Add Users setting), so the
+	 * config has to carry the URL and Core's own menu gate for it:
+	 * `create_users`, or `promote_users` on multisite, where a site
+	 * administrator keeps the invite half even when the network
+	 * withholds brand-new account creation.
+	 *
+	 * @covers ::openstation_my_wordpress_register_window
+	 */
+	public function test_users_section_carries_the_add_user_screen() {
+		openstation_my_wordpress_register_window();
+
+		$entry = openstation_native_window_registry( 'desktop-mode-my-wordpress' );
+		$this->assertIsArray( $entry );
+		$this->assertArrayHasKey( 'newUserUrl', $entry['config'] );
+		$this->assertStringContainsString( 'user-new.php', $entry['config']['newUserUrl'] );
+		// An administrator passes on both shapes: `create_users` on a
+		// single site, `promote_users` on a network.
+		$this->assertTrue( $entry['config']['canCreateUsers'] );
+	}
+
+	/**
 	 * The app is named after what it does; the site name labels the
 	 * root folder it opens on. The window title and the pinned icon
 	 * carry "WP Explorer" and do NOT move with `blogname` — only the

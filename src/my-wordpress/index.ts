@@ -50,6 +50,9 @@ import {
 	type EntityRenderer,
 } from './kind-registry';
 import { renderListToolbar } from './list-toolbar';
+// Side-effect import: defines the <os-button> custom element when the
+// shell's component bundle hasn't already (tests, embeds).
+import '../ui/components/os-button/os-button';
 import { renderMediaList } from './media-list';
 import { renderMediaDetail } from './media-detail';
 import {
@@ -5068,6 +5071,29 @@ function renderUserEntityList(
 	} );
 	state.body.appendChild( toolbar.host );
 	state.teardown.push( () => toolbar.destroy() );
+
+	// Core's Add User screen, as a window. Deliberately Core's own
+	// screen rather than a bespoke form: on multisite it carries the
+	// whole invite flow — Add Existing User, confirmation emails, the
+	// network's Add Users setting — which the section otherwise loses.
+	// Gated the way Core gates the screen's menu entry (see
+	// `canCreateUsers` in the window config).
+	if ( cfg.canCreateUsers && cfg.newUserUrl ) {
+		const addUrl = cfg.newUserUrl;
+		const add = document.createElement( 'os-button' );
+		add.setAttribute( 'variant', 'secondary' );
+		add.className = 'os-my-wordpress__add-user';
+		add.textContent = __( 'Add user', 'desktop-mode' );
+		add.addEventListener( 'click', () => {
+			openIframeWindow( {
+				id: 'users-add-new',
+				url: addUrl,
+				title: __( 'Add User', 'desktop-mode' ),
+				icon: entity.icon,
+			} );
+		} );
+		toolbar.host.appendChild( add );
+	}
 
 	const split = document.createElement( 'div' );
 	split.className = 'os-my-wordpress__split';

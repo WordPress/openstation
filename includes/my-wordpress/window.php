@@ -277,6 +277,19 @@ function openstation_my_wordpress_register_window() {
 			'restNonce'       => wp_create_nonce( 'wp_rest' ),
 			'editPostUrlBase' => esc_url_raw( admin_url( 'post.php' ) ),
 			'editUserUrlBase' => esc_url_raw( admin_url( 'user-edit.php' ) ),
+			// Core's Add User screen, opened as a window from the
+			// Users section. Deliberately Core's own screen rather
+			// than a bespoke form: on multisite it carries the whole
+			// invite flow — Add Existing User, confirmation emails,
+			// the network's Add Users setting — which subsite admins
+			// otherwise lose entirely.
+			'newUserUrl'      => esc_url_raw( admin_url( 'user-new.php' ) ),
+			// Core's own menu gate for that screen: `create_users`,
+			// or on multisite `promote_users` (the invite-existing
+			// half is available to site admins even when creating
+			// brand-new accounts is not).
+			'canCreateUsers'  => current_user_can( 'create_users' )
+				|| ( is_multisite() && current_user_can( 'promote_users' ) ),
 			'siteName'        => $site_title,
 			'entities'        => $entities,
 			'groups'          => function_exists( 'openstation_my_wordpress_collect_groups' )

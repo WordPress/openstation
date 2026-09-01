@@ -102,6 +102,13 @@
 	background: var( --os-ui-bg, #fff );
 }
 
+/* Right-aligned against the search input; the toolbar row is the
+ * natural home for the section's one creation affordance. */
+.os-my-wordpress__add-user {
+	margin-inline-start: auto;
+	flex: 0 0 auto;
+}
+
 .os-my-wordpress__list-toolbar-search {
 	position: relative;
 	flex: 1 1 auto;

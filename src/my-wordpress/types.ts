@@ -155,6 +155,19 @@ export interface MyWordPressConfig {
 	 * native user-edit window isn't registered.
 	 */
 	editUserUrlBase?: string;
+	/**
+	 * Core's Add User screen (`user-new.php`), opened as a window from
+	 * the Users section. On multisite this is the invite flow — Add
+	 * Existing User, confirmation emails, the network's Add Users
+	 * setting — so the window surfaces Core's screen rather than
+	 * re-implementing it.
+	 */
+	newUserUrl?: string;
+	/**
+	 * Whether the viewer may open it: Core's own menu gate —
+	 * `create_users`, or `promote_users` on multisite.
+	 */
+	canCreateUsers?: boolean;
 	entities: MyWordPressEntity[];
 	/**
 	 * Ordered root-level folders. Derived from the entity list when

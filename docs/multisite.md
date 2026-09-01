@@ -123,6 +123,13 @@ screens offer none of the three, so neither do the window's caps
 marketplace AJAX endpoints, even for a super admin who holds the
 capabilities everywhere.
 
+The WP Explorer's Users section offers **Add user**, which opens Core's
+`user-new.php` as a window — deliberately Core's screen rather than a
+bespoke form, because on multisite that screen is the invite flow: Add
+Existing User, confirmation emails, and the network's Add Users setting
+all come with it. The affordance follows Core's own menu gate
+(`create_users`, or `promote_users` on multisite).
+
 ## The PWA on a network
 
 Each site registers its own service worker at its own home-path scope
