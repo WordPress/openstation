@@ -747,6 +747,10 @@ function openstation_enqueue_assets() {
 				// Extensionless retry target for hosts whose nginx 404s
 				// virtual .js paths before WordPress runs (WordPress.com).
 				'swFallbackUrl'  => esc_url_raw( openstation_pwa_sw_fallback_url() ),
+				// The site's home path — the scope the registration
+				// asks for, so a subdirectory network's sites each get
+				// their own worker instead of fighting over the root.
+				'swScope'        => openstation_pwa_sw_scope(),
 				// The worker's per-user flags, computed HERE rather than
 				// baked into the served `sw.js`.
 				//

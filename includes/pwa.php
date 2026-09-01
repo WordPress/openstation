@@ -97,13 +97,32 @@ function openstation_pwa_sw_url() {
  * Builds the extensionless service-worker fallback URL.
  *
  * See {@see OPENSTATION_PWA_SW_QUERY} for why this exists. Kept as a
- * root-path URL on purpose: the SW script URL's path determines the
- * default maximum scope, and `/` is exactly the scope we register.
+ * home-path URL on purpose: the SW script URL's path determines the
+ * default maximum scope, and the home path is exactly the scope we
+ * register ({@see openstation_pwa_sw_scope()}).
  *
  * @return string
  */
 function openstation_pwa_sw_fallback_url() {
 	return add_query_arg( OPENSTATION_PWA_SW_QUERY, '1', home_url( '/' ) );
+}
+
+/**
+ * The service worker's registration scope: the SITE's home path.
+ *
+ * `/` everywhere except a subdirectory network's subsites, where it is
+ * the site path (`/site2/`). One scope per site is what makes the PWA
+ * work across a subdirectory network at all — every site registers its
+ * own worker, the browser routes each page to the longest matching
+ * scope, and the worker derives its portal and admin prefixes from the
+ * scope it was given (see `scopePath` in `src/pwa/sw.ts`) instead of
+ * assuming it owns the origin root.
+ *
+ * @return string Path with a trailing slash.
+ */
+function openstation_pwa_sw_scope() {
+	$path = wp_parse_url( home_url( '/' ), PHP_URL_PATH );
+	return is_string( $path ) && '' !== $path ? $path : '/';
 }
 
 /**
@@ -498,11 +517,11 @@ function openstation_pwa_default_icons() {
  * with the headers a SW needs to be valid:
  *
  *   - `Content-Type: application/javascript`
- *   - `Service-Worker-Allowed: /` — required for `/`-scoped registration
- *     when the script itself is served from `/openstation/`. Without
- *     this header the browser rejects the `register()` call with
- *     `SecurityError: The path of the provided scope ('/') is not
- *     under the max scope allowed`.
+ *   - `Service-Worker-Allowed: <home path>` — required for a
+ *     home-path-scoped registration when the script itself is served
+ *     from `<home>/openstation/`. Without this header the browser
+ *     rejects the `register()` call with `SecurityError: The path of
+ *     the provided scope is not under the max scope allowed`.
  *   - `Cache-Control: no-cache, must-revalidate` — the browser already
  *     re-checks SW scripts on a 24h cycle, but caching the response
  *     defeats the immediate-update guarantee.
@@ -534,7 +553,10 @@ function openstation_pwa_serve_service_worker() {
 	}
 
 	header( 'Content-Type: application/javascript; charset=utf-8' );
-	header( 'Service-Worker-Allowed: /' );
+	// The site's own home path — root everywhere except a subdirectory
+	// network's subsites, whose workers are scoped to the site path so
+	// every site of the network can register its own.
+	header( 'Service-Worker-Allowed: ' . openstation_pwa_sw_scope() );
 	header( 'Cache-Control: no-cache, must-revalidate' );
 	header( 'X-Content-Type-Options: nosniff' );
 

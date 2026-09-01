@@ -138,6 +138,65 @@ describe( 'registerServiceWorker — foreign SW detection', () => {
 		} );
 	} );
 
+	test( 'a sibling site\'s OpenStation SW is not foreign, and swScope routes the registration', async () => {
+		// A subdirectory network: the MAIN site's worker holds root
+		// scope, and this subsite registers its own at its site path.
+		const siblingReg: RegistrationLike = {
+			scope: '/',
+			active: {
+				scriptURL: 'https://example.test/openstation/sw.js',
+				state: 'activated',
+			} as unknown as ServiceWorker,
+			installing: null,
+		};
+		const handle = installSwStub( [ siblingReg ] );
+		const result = await registerServiceWorker( {
+			manifestUrl: '',
+			swUrl: 'https://example.test/site2/openstation/sw.js',
+			swScope: '/site2/',
+			stateUrl: '',
+			state: {
+				installHintDismissed: false,
+				notificationsEnabled: false,
+			},
+			appName: 'Test',
+		} );
+		expect( result ).not.toBeNull();
+		expect( getSwRegistrationStatus() ).toBe( 'registered' );
+		expect( handle.register ).toHaveBeenCalledWith(
+			'https://example.test/site2/openstation/sw.js',
+			{
+				scope: '/site2/',
+				updateViaCache: 'none',
+			},
+		);
+	} );
+
+	test( 'the extensionless fallback shape of a sibling is not foreign either', async () => {
+		const siblingReg: RegistrationLike = {
+			scope: '/',
+			active: {
+				scriptURL: 'https://example.test/?openstation_sw=1',
+				state: 'activated',
+			} as unknown as ServiceWorker,
+			installing: null,
+		};
+		installSwStub( [ siblingReg ] );
+		const result = await registerServiceWorker( {
+			manifestUrl: '',
+			swUrl: 'https://example.test/site2/openstation/sw.js',
+			swScope: '/site2/',
+			stateUrl: '',
+			state: {
+				installHintDismissed: false,
+				notificationsEnabled: false,
+			},
+			appName: 'Test',
+		} );
+		expect( result ).not.toBeNull();
+		expect( getSwRegistrationStatus() ).toBe( 'registered' );
+	} );
+
 	test( 'forceReplace bypasses the foreign-SW guard and registers anyway', async () => {
 		const handle = installSwStub( [ FOREIGN_REG ] );
 		const result = await registerServiceWorker(

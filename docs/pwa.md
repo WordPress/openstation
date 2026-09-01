@@ -17,22 +17,35 @@ copy-paste recipes see
 | Surface | Behaviour |
 |---|---|
 | **Web app manifest** | Served at `/openstation/manifest.webmanifest`. Site name + short name, theme color, icons (Site Icon when set, plugin logo otherwise), `start_url=/wp-admin/admin.php?page=openstation` (the shell screen, which resolves the entry from the saved session; installs made with the older `index.php?desktop_mode_portal=1` start URL still land there through the alias redirect), `scope=/wp-admin/` (narrowed from `/` so front-end links escape the PWA window; the manifest `id` stays at `/openstation/` so existing installs aren't reset). Filterable via `openstation_pwa_manifest`. |
-| **Service worker** | Served at `/openstation/sw.js` with `Service-Worker-Allowed: /`. Registered at root scope with a deliberately narrow fetch handler — it only intercepts paths under `/openstation/` and `/wp-admin/`, plus the plugin's own static assets. wp-admin HTML is **always** network-first (nonces would otherwise drift). |
+| **Service worker** | Served at `<home>/openstation/sw.js` with `Service-Worker-Allowed: <home path>`. Registered at the site's home-path scope (`/` on most installs, the site path on a subdirectory network's subsites) with a deliberately narrow fetch handler — it only intercepts paths under its scope's `openstation/` and `wp-admin/`, plus the plugin's own static assets. wp-admin HTML is **always** network-first (nonces would otherwise drift). |
 | **Install hint** | A system tile on the dock (`id: 'os-pwa-install'`) registered on shell boot — except when the shell is already running standalone. It is removed live when display-mode flips to standalone or when `getInstalledRelatedApps()` reports the app installed (Chromium); on Safari / Firefox it persists as a fallback. Clicking it dispatches the browser install prompt when the site is currently installable, otherwise shows a contextual toast ("already installed", "not yet"). |
 | **Local notifications** | `wp.os.notify({ title, body, icon, tag, onClick })` — uses the browser `Notification` API, falls back to a toast when permission is denied or the browser doesn't support it. |
 | **Push notifications** | **Not in v1.** The SW registers a no-op `push` handler (claimed so future v2 push payloads aren't silently dropped); the `notificationclick` handler is live — it closes the notification, focuses an existing `/openstation/` window client, or opens `notification.data.url` (default `/openstation/`) when none exists. The same `wp.os.notify` shape will route through the SW's `showNotification` once push is wired. |
 
-## Why root scope (with a narrow fetch handler)
+## Why home-path scope (with a narrow fetch handler)
 
 A service worker has exactly one scope path. The only common ancestor of
-`/openstation/` and `/wp-admin/` is `/`. Registering at `/openstation/`
-would cut the SW off from admin-page navigations — defeating the purpose
-for the typical install target (a dashboard URL inside wp-admin).
+`<home>/openstation/` and `<home>/wp-admin/` is the site's home path
+itself — `/` on most installs. Registering at `openstation/` would cut
+the SW off from admin-page navigations — defeating the purpose for the
+typical install target (a dashboard URL inside wp-admin).
 
-So the SW registers at root scope, but the fetch handler returns early
-(no `event.respondWith` call) for any URL outside `/openstation/`,
-`/wp-admin/`, or the plugin's own assets directory. Behaviorally this is
-"narrow scope" without inheriting the technical limitation.
+So the SW registers at the home-path scope (`PwaConfig.swScope`,
+computed server-side by `openstation_pwa_sw_scope()`), but the fetch
+handler returns early (no `event.respondWith` call) for any URL outside
+its scope's `openstation/`, `wp-admin/`, or the plugin's own assets
+directory. The worker derives those prefixes from
+`self.registration.scope` rather than assuming the origin root.
+Behaviorally this is "narrow scope" without inheriting the technical
+limitation.
+
+On a **subdirectory multisite** every site registers its own worker at
+its own path scope (`/site2/`). The browser routes each navigation to
+the registration with the longest matching scope, so the main site's
+root worker and every subsite worker coexist, and a sibling site's
+OpenStation worker is never treated as foreign by the guard below.
+Subdomain and domain-mapped networks are separate origins and were
+never in each other's way.
 
 ### Hosts that 404 virtual `.js` paths (WordPress.com)
 
@@ -42,8 +55,9 @@ nginx and never reaches WordPress, while the extensionless manifest
 route works fine. For those hosts the same SW bytes are also served at
 the extensionless fallback **`/?openstation_sw=1`** — registration
 tries the pretty URL first and retries once with
-`PwaConfig.swFallbackUrl` on failure. The fallback URL's path is `/`,
-so root scope needs no `Service-Worker-Allowed` header at all, and a
+`PwaConfig.swFallbackUrl` on failure. The fallback URL's path is the
+home path, which is also the registered scope, so the fallback needs no
+`Service-Worker-Allowed` header at all, and a
 SW registered through it is still recognized as OpenStation's own by
 the foreign-SW guard.
 
