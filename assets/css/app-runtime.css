@@ -36,3 +36,30 @@
 .os-app[aria-busy='true'] {
 	cursor: progress;
 }
+
+/* The flex-row gap filler every toolbar ends up needing. */
+.os-app__spacer {
+	flex: 1;
+}
+
+/* ---------- Tone contract -------------------------------------------- */
+
+/* Any element inside an app root may carry `data-tone` and read the
+   matching status colour back through `--os-app-tone` (a swatch fill, a
+   row's accent border). Scoped to `.os-app` so the mapping never
+   retints shell chrome or admin pages outside an app window. */
+.os-app [data-tone='danger'] {
+	--os-app-tone: var( --os-ui-danger, #d63638 );
+}
+
+.os-app [data-tone='warning'] {
+	--os-app-tone: var( --os-ui-warning, #dba617 );
+}
+
+.os-app [data-tone='neutral'] {
+	--os-app-tone: var( --os-ui-fg-muted, #646970 );
+}
+
+.os-app [data-tone='info'] {
+	--os-app-tone: var( --os-ui-info-fg, #72aee6 );
+}

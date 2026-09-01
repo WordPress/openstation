@@ -130,6 +130,8 @@ Two action names are built in: **`mount`** (the first render) and **`set`** (a b
 
 `style( $path )` names a stylesheet for the body. Omit it and the framework looks for `<app dir>/<id>.css`, then `<app dir>/<file>.css` (the definition file's name without `.os.php`). The sheet is injected on the window's first open, after the runtime's own, and never reaches chromeless iframes.
 
+The runtime sheet also carries the **tone contract**: inside an app root, any element with `data-tone` set to `danger`, `warning`, `neutral` or `info` can read the matching status colour back through `var( --os-app-tone, <fallback> )` — a severity swatch, a row's accent border. The mapping is scoped to `.os-app`, so it never retints shell chrome or admin pages outside an app window. It also ships `.os-app__spacer` (`flex: 1`), the toolbar gap filler, so apps stop re-declaring it.
+
 ### Readers
 
 `manifest()` returns the whole window as data — every value above, normalised, plus `tabs`, `channels`, `lifecycle` and the action names — which is what the host registers and the client runtime drives from. `render( $state, $os, $view = 'main' )` returns a body. `allows( $os )` answers the gate.
@@ -285,6 +287,8 @@ The rules, all of which the runtime enforces:
 - **The view is rendered with the kit's own `html` tag** (`src/ui/core/html.ts`) and diffed in place, so nodes survive re-renders. Triggers keep the attribute vocabulary; `@click=${ fn }` bindings also work for anything purely local.
 - **Everything else is unchanged**: effects, `os-poll`, `os-confirm`, title-bar buttons, ⋯ rows, channels, lifecycle actions, `wp.os.apps.dispatch()`. `wp.os.apps.local( windowId, action, args )` runs a local action from outside.
 - **`mounted( ctx )` / `updated( ctx )`** hooks exist for the rare imperative need (a `ResizeObserver`, a canvas); `ctx.root` is the mount root.
+
+Beside `defineApp`, `html` and the i18n functions, `@openstation/app` exports the shared formatting primitives so every app renders the same value shapes the same way: `formatBytes( n )` (`844 B` / `12.4 MB` / `123 MB`) and `formatDate( value, style )` where `value` is an ISO string (a bare `YYYY-MM` reads as that month), epoch milliseconds, or a `Date`, and `style` is `'short' | 'long' | 'month' | 'datetime' | 'iso'`. For "N minutes ago" keep using `<os-relative-time>`.
 
 Build: every `apps/<dir>/<name>.os.ts` is discovered by `vite.config.js` as the target `app:<name>` and built by `npm run build:apps` (part of `npm run build`) into `assets/js/apps/<name>[.min].js`; the host registers it as a companion script of the window, so it is in the tab before the runtime mounts. Type-checked and linted with the rest of the TypeScript; tests live beside it (`<name>.test.ts`).
 

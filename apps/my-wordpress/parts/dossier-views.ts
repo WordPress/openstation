@@ -11,7 +11,7 @@
  * @public
  */
 
-import { __, _n, html, sprintf, type TemplateResult } from '@openstation/app';
+import { __, _n, formatDate, html, sprintf, type TemplateResult } from '@openstation/app';
 import { openUserEditWindow } from '../../../src/posts-window/user-edit-target';
 import {
 	shell,
@@ -100,13 +100,13 @@ function userDossierBlocks(
 		);
 	const milestoneRows: Array< [ string, string ] > = [];
 	if ( stats.profile?.registered ) {
-		milestoneRows.push( [ __( 'Member since' ), monthLabel( stats.profile.registered ) ] );
+		milestoneRows.push( [ __( 'Member since' ), formatDate( stats.profile.registered, 'month' ) ] );
 	}
 	if ( stats.milestones?.firstPublished ) {
-		milestoneRows.push( [ __( 'First published' ), monthLabel( stats.milestones.firstPublished ) ] );
+		milestoneRows.push( [ __( 'First published' ), formatDate( stats.milestones.firstPublished, 'month' ) ] );
 	}
 	if ( stats.milestones?.lastPublished ) {
-		milestoneRows.push( [ __( 'Last published' ), monthLabel( stats.milestones.lastPublished ) ] );
+		milestoneRows.push( [ __( 'Last published' ), formatDate( stats.milestones.lastPublished, 'month' ) ] );
 	}
 	const terms = stats.topTerms ?? [];
 	return html`
@@ -394,14 +394,6 @@ export function renderFolder( ctx: Ctx ): TemplateResult {
 	`;
 }
 
-/** `2026-08` (or an ISO date) → `August 2026`. */
-function monthLabel( raw: string ): string {
-	const date = new Date( raw.length === 7 ? `${ raw }-01T00:00:00` : raw );
-	return Number.isNaN( date.getTime() )
-		? raw
-		: date.toLocaleDateString( undefined, { month: 'long', year: 'numeric' } );
-}
-
 /** One stat tile: big number, label, optional footnote. */
 function statTile( value: number, label: string, note = '' ): TemplateResult {
 	return html`
@@ -523,10 +515,10 @@ function renderSubDetail( ctx: Ctx ): TemplateResult {
 				${ activityBars( stats.activity ?? [] ) }
 				<dl class="os-mywp__facts">
 					${ stats.milestones?.firstPosted
-						? html`<div class="os-mywp__fact"><dt>${ __( 'First post' ) }</dt><dd>${ monthLabel( stats.milestones.firstPosted ) }</dd></div>`
+						? html`<div class="os-mywp__fact"><dt>${ __( 'First post' ) }</dt><dd>${ formatDate( stats.milestones.firstPosted, 'month' ) }</dd></div>`
 						: '' }
 					${ stats.milestones?.lastPosted
-						? html`<div class="os-mywp__fact"><dt>${ __( 'Last post' ) }</dt><dd>${ monthLabel( stats.milestones.lastPosted ) }</dd></div>`
+						? html`<div class="os-mywp__fact"><dt>${ __( 'Last post' ) }</dt><dd>${ formatDate( stats.milestones.lastPosted, 'month' ) }</dd></div>`
 						: '' }
 				</dl>
 				${ ( stats.topAuthors ?? [] ).length > 0

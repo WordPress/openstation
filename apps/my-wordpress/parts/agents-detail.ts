@@ -493,25 +493,26 @@ export function agentsDetail( ctx: Ctx, payload: AgentsPayload, agent: AppAgent 
 	const state = ctx.state;
 	const hasUsersSection = ctx.data.sections.some( ( s ) => s.id === 'users' );
 	const paneTabs = html`
-		<div class="dm-agents__tabs" role="tablist">
+		<os-tabs
+			class="dm-agents__tabs"
+			value=${ state.pane }
+			label=${ __( 'Agent detail' ) }
+			@os-tab-change=${ ( e: CustomEvent< { value: string | null } > ) => {
+				if ( e.detail.value ) {
+					ctx.local( 'agent-pane', { pane: e.detail.value } );
+				}
+			} }
+		>
 			${ ( [
 				[ 'define', __( 'Define' ) ],
 				[ 'tools', __( 'Tools' ) ],
 				[ 'triggers', __( 'Triggers' ) ],
 			] as Array< [ AppState[ 'pane' ], string ] > ).map(
 				( [ pane, label ] ) => html`
-					<button
-						type="button"
-						role="tab"
-						class="dm-agents__tab ${ state.pane === pane ? 'is-active' : '' }"
-						aria-selected=${ state.pane === pane ? 'true' : 'false' }
-						@click=${ () => ctx.local( 'agent-pane', { pane } ) }
-					>
-						${ label }
-					</button>
+					<os-tab value=${ pane }>${ label }</os-tab>
 				`,
 			) }
-		</div>
+		</os-tabs>
 	`;
 	return html`
 		<os-button class="dm-agents__back" variant="link" @click=${ () => void ctx.dispatch( 'open', { item: 0 } ) }>

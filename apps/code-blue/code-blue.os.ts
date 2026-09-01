@@ -14,7 +14,7 @@
  * then the view. `code-blue.test.ts` exercises the model directly.
  */
 
-import { __, _n, defineApp, html, sprintf } from '@openstation/app';
+import { __, _n, defineApp, formatBytes, formatDate, html, sprintf } from '@openstation/app';
 
 // ------------------------------------------------------------ types
 
@@ -205,17 +205,6 @@ export function bucketize( entries: readonly LogEntry[], since: number | null, n
 	return { start, end, columns };
 }
 
-export function formatBytes( bytes: number ): string {
-	let v = Math.max( 0, bytes );
-	let i = 0;
-	const units = [ 'B', 'KB', 'MB', 'GB', 'TB' ];
-	while ( v >= 1024 && i < units.length - 1 ) {
-		v /= 1024;
-		i++;
-	}
-	return `${ v.toFixed( v >= 100 || i === 0 ? 0 : 1 ) } ${ units[ i ] }`;
-}
-
 const rowKey = ( g: IssueGroup ): string => g.signature; // Signatures are already the stable identity.
 const envTone = ( on: boolean | null ): string => {
 	if ( on === null ) {
@@ -232,10 +221,9 @@ const emptyCopy = ( hasSource: boolean, filtered: boolean ): [ string, string ] 
 	}
 	return [ __( 'The log is clean' ), __( 'No entries were recorded in this time range.' ) ];
 };
-const fullTime = ( sec: number ): string =>
-	new Date( sec * 1000 ).toLocaleString( [], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' } );
+const fullTime = ( sec: number ): string => formatDate( sec * 1000, 'datetime' );
 const fileBase = ( path: string ): string => path.split( /[\\/]/ ).pop() || path;
-const iso = ( sec: number ): string => new Date( sec * 1000 ).toISOString();
+const iso = ( sec: number ): string => formatDate( sec * 1000, 'iso' );
 
 // ------------------------------------------------------------- view
 
@@ -313,7 +301,7 @@ export default defineApp< State, Data >( 'openstation-code-blue', {
 						${ ( Object.keys( RANGE_SECONDS ) as RangeKey[] ).map( ( k ) => html`<os-segment value=${ k }>${ k === 'all' ? __( 'All' ) : k }</os-segment>` ) }
 					</os-segmented>
 					<os-text-field type="search" class="os-cb__search" label=${ __( 'Search' ) } placeholder=${ __( 'Filter messages…' ) } os-bind="query"></os-text-field>
-					<span class="os-cb__spacer"></span>
+					<span class="os-app__spacer"></span>
 					<os-segmented label=${ __( 'Sort issues' ) } os-bind="sort" value=${ state.sort }>
 						<os-segment value="recent">${ __( 'Recent' ) }</os-segment>
 						<os-segment value="frequent">${ __( 'Frequent' ) }</os-segment>

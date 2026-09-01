@@ -206,7 +206,7 @@ function agentsDescribeStep( ctx: Ctx, payload: AgentsPayload, cast: CastDraft )
 			>
 				${ payload.aiReady ? __( 'I will fill it in myself' ) : __( 'Continue' ) }
 			</os-button>
-			<span class="dm-agents__spacer"></span>
+			<span class="os-app__spacer"></span>
 			${ agentsCancelButton( ctx, cast ) }
 		</div>
 	`;
@@ -317,7 +317,7 @@ function agentsMeetStep( ctx: Ctx, cast: CastDraft ): TemplateResult {
 			<os-button variant="ghost" @click=${ () => ctx.local( 'agent-step', { step: 0 } ) }>
 				${ __( 'Back' ) }
 			</os-button>
-			<span class="dm-agents__spacer"></span>
+			<span class="os-app__spacer"></span>
 			<os-button
 				variant="primary"
 				?disabled=${ ! meetReady( cast ) }
@@ -368,7 +368,7 @@ function agentsPowersStep( ctx: Ctx, payload: AgentsPayload, cast: CastDraft ): 
 			<os-button variant="ghost" @click=${ () => ctx.local( 'agent-step', { step: 1 } ) }>
 				${ __( 'Back' ) }
 			</os-button>
-			<span class="dm-agents__spacer"></span>
+			<span class="os-app__spacer"></span>
 			<os-button variant="primary" @click=${ () => ctx.local( 'agent-step', { step: 3 } ) }>
 				${ __( 'Continue' ) }
 			</os-button>
@@ -408,7 +408,7 @@ function agentsSummonStep( ctx: Ctx, payload: AgentsPayload, cast: CastDraft ): 
 			<os-button variant="ghost" @click=${ () => ctx.local( 'agent-step', { step: 2 } ) }>
 				${ __( 'Back' ) }
 			</os-button>
-			<span class="dm-agents__spacer"></span>
+			<span class="os-app__spacer"></span>
 			<os-button
 				variant="primary"
 				@click=${ () => ctx.local( 'agent-step', { step: STEP_LAUNCH } ) }
@@ -489,7 +489,7 @@ function agentsLaunchStep( ctx: Ctx, payload: AgentsPayload, cast: CastDraft ): 
 			<os-button variant="ghost" @click=${ () => ctx.local( 'agent-step', { step: 3 } ) }>
 				${ __( 'Back' ) }
 			</os-button>
-			<span class="dm-agents__spacer"></span>
+			<span class="os-app__spacer"></span>
 			<os-button
 				variant=${ canChat ? 'secondary' : 'primary' }
 				?disabled=${ ui.agentBusy }

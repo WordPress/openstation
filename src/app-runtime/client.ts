@@ -46,6 +46,7 @@ import { html, render, type TemplateResult } from '../ui/core/html';
 
 export { html, __, _n, _x, sprintf };
 export type { TemplateResult };
+export { formatBytes, formatDate, type DateStyle } from './format';
 
 /** A reducer run in the browser. Return the next state, or mutate and return nothing. */
 export type LocalAction< S, D > = (

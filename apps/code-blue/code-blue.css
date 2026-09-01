@@ -21,10 +21,6 @@
 	flex: none;
 }
 
-.os-cb__spacer {
-	flex: 1;
-}
-
 .os-cb__source,
 .os-cb__search {
 	min-inline-size: 200px;
@@ -38,29 +34,15 @@
 
 /* ---------- Severity swatches ---------------------------------------- */
 
+/* The tone-to-colour mapping itself lives in app-runtime.css (the
+   shared `data-tone` contract); these consumers only read it back. */
 .os-cb-swatch {
 	display: inline-block;
 	inline-size: 10px;
 	block-size: 10px;
 	border-radius: 3px;
 	flex: none;
-	background: var( --_tone, var( --os-ui-fg-muted, #646970 ) );
-}
-
-[data-tone='danger'] {
-	--_tone: var( --os-ui-danger, #d63638 );
-}
-
-[data-tone='warning'] {
-	--_tone: var( --os-ui-warning, #dba617 );
-}
-
-[data-tone='neutral'] {
-	--_tone: var( --os-ui-fg-muted, #646970 );
-}
-
-[data-tone='info'] {
-	--_tone: var( --os-ui-info-fg, #72aee6 );
+	background: var( --os-app-tone, var( --os-ui-fg-muted, #646970 ) );
 }
 
 /* ---------- Stat tiles ---------------------------------------------- */
@@ -157,7 +139,7 @@
 
 .os-cb-issue {
 	border-block-end: 1px solid var( --os-ui-border, #dcdcde );
-	border-inline-start: 3px solid var( --_tone, transparent );
+	border-inline-start: 3px solid var( --os-app-tone, transparent );
 }
 
 .os-cb-issue:last-child {

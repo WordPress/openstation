@@ -1016,29 +1016,7 @@
 	gap: 8px;
 }
 
-.dm-agents__tabs {
-	display: flex;
-	gap: 4px;
-	border-bottom: 1px solid var( --os-border, rgba( 0, 0, 0, 0.08 ) );
-}
-
-.dm-agents__tab {
-	appearance: none;
-	background: none;
-	border: none;
-	border-bottom: 2px solid transparent;
-	padding: 6px 10px;
-	font: inherit;
-	color: inherit;
-	cursor: pointer;
-	opacity: 0.7;
-}
-
-.dm-agents__tab.is-active {
-	border-bottom-color: var( --os-accent, #2271b1 );
-	opacity: 1;
-	font-weight: 600;
-}
+/* The pane strip is the kit's own <os-tabs>; nothing to restyle. */
 
 .dm-agents__pane {
 	display: flex;
@@ -1700,10 +1678,6 @@ summary.dm-agents__category:focus-visible {
 	font-family: var( --os-ui-font-mono, ui-monospace, monospace );
 	text-transform: uppercase;
 	letter-spacing: 0.06em;
-}
-
-.dm-agents__spacer {
-	flex: 1;
 }
 
 @media ( max-width: 640px ) {

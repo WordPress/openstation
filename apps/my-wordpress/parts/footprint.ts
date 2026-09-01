@@ -25,7 +25,7 @@
  * @public
  */
 
-import { __, _n, html, sprintf, type TemplateResult } from '@openstation/app';
+import { __, _n, formatDate, html, sprintf, type TemplateResult } from '@openstation/app';
 import { trackedFetch } from '../../../src/tracked-fetch';
 import type { UserFootprint } from '../../../src/my-wordpress/types';
 import { openUserEditWindow } from '../../../src/posts-window/user-edit-target';
@@ -110,56 +110,13 @@ export function footprintStatus( ctx: Ctx ): [ string, string ] | null {
 		sprintf(
 			/* translators: 1: window-start date, 2: window-end date. */
 			__( 'Window %1$s → %2$s' ),
-			shortDate( payload.range.from ),
-			shortDate( payload.range.to ),
+			formatDate( payload.range.from ),
+			formatDate( payload.range.to ),
 		),
 	];
 }
 
 // ------------------------------------------------------------ helpers
-
-function shortDate( iso: string ): string {
-	if ( ! iso ) {
-		return '';
-	}
-	try {
-		return new Date( iso ).toLocaleDateString( undefined, {
-			month: 'short',
-			day: 'numeric',
-		} );
-	} catch {
-		return iso;
-	}
-}
-
-function longDate( iso: string ): string {
-	if ( ! iso ) {
-		return '';
-	}
-	try {
-		return new Date( iso ).toLocaleDateString( undefined, {
-			year: 'numeric',
-			month: 'short',
-			day: 'numeric',
-		} );
-	} catch {
-		return iso;
-	}
-}
-
-function yearMonth( iso: string ): string {
-	if ( ! iso ) {
-		return '';
-	}
-	try {
-		return new Date( iso ).toLocaleString( undefined, {
-			year: 'numeric',
-			month: 'long',
-		} );
-	} catch {
-		return iso;
-	}
-}
 
 function initialsOf( name: string ): string {
 	const parts = name
@@ -206,7 +163,7 @@ function hero( payload: UserFootprint ): TemplateResult {
 						? html`<span class="os-my-wordpress__user-role os-my-wordpress__footprint-since">${ sprintf(
 							/* translators: %s is a year-month label like "January 2023". */
 							__( 'Member since %s' ),
-							yearMonth( payload.profile.registered ),
+							formatDate( payload.profile.registered, 'month' ),
 						) }</span>`
 						: '' }
 				</div>
@@ -257,8 +214,8 @@ function headlineStats( payload: UserFootprint ): TemplateResult {
 					? sprintf(
 						/* translators: 1: start date, 2: end date. */
 						__( '%1$s → %2$s' ),
-						shortDate( longestRange.from ),
-						shortDate( longestRange.to ),
+						formatDate( longestRange.from ),
+						formatDate( longestRange.to ),
 					)
 					: '',
 			) }
@@ -367,7 +324,7 @@ function calendar( payload: UserFootprint ): TemplateResult {
 						title=${ sprintf(
 							/* translators: 1: date, 2: post count, 3: comment count, 4: update (re-save) count. */
 							__( '%1$s — %2$d posts, %3$d comments, %4$d updates' ),
-							longDate( d.date ),
+							formatDate( d.date, 'long' ),
 							d.posts,
 							d.comments,
 							d.updates ?? 0,
@@ -455,7 +412,7 @@ function monthCallout( payload: UserFootprint ): TemplateResult | '' {
 	return html`
 		<section class="os-my-wordpress__footprint-section os-my-wordpress__footprint-callout">
 			<span class="os-my-wordpress__footprint-callout-label">${ __( 'Most prolific month' ) }</span>
-			<h3 class="os-my-wordpress__footprint-callout-value">${ yearMonth( m.ym + '-01T00:00:00Z' ) }</h3>
+			<h3 class="os-my-wordpress__footprint-callout-value">${ formatDate( m.ym, 'month' ) }</h3>
 			<p class="os-my-wordpress__footprint-callout-detail">${ sprintf(
 				/* translators: %d is a post count. */
 				_n(
@@ -498,7 +455,7 @@ function timeline( payload: UserFootprint ): TemplateResult {
 		return title;
 	};
 	const metaFor = ( ev: UserFootprint[ 'timeline' ][ number ] ): string => {
-		const parts = [ longDate( ev.date ) ];
+		const parts = [ formatDate( ev.date, 'long' ) ];
 		if ( ev.status && ev.status !== 'publish' && ev.status !== 'approved' ) {
 			parts.push( ev.status );
 		}

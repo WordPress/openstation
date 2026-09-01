@@ -15,6 +15,7 @@
  */
 
 import { __, sprintf } from '@openstation/app';
+import { clampToViewport } from '../../../src/ui/util/menu-position';
 import {
 	clearFootprintTarget,
 	readFootprintTarget,
@@ -587,27 +588,15 @@ export function afterRender( ctx: Ctx ): void {
 			{ passive: true },
 		);
 	}
-	// The context menu paints hidden, then is measured, clamped
-	// inside the viewport and revealed in one frame — the shell's
-	// own placement pattern. Without the hidden frame the menu's
-	// unclamped first paint flashes at the raw pointer position
-	// before jumping into place.
+	// The context menu paints hidden (the view renders it with an
+	// inline visibility:hidden), then the shell's own placement
+	// helper measures it post-render, clamps it inside the viewport
+	// and reveals it — without the hidden frame the menu's unclamped
+	// first paint flashes at the raw pointer position before jumping
+	// into place.
 	const menuEl = ctx.root.querySelector< HTMLElement >( 'os-context-menu.os-mywp__menu' );
 	if ( menuEl && ui.menu ) {
-		requestAnimationFrame( () => {
-			if ( ! menuEl.isConnected ) {
-				return;
-			}
-			const rect = menuEl.getBoundingClientRect();
-			const margin = 8;
-			if ( rect.right > window.innerWidth ) {
-				menuEl.style.left = `${ Math.max( margin, window.innerWidth - rect.width - margin ) }px`;
-			}
-			if ( rect.bottom > window.innerHeight ) {
-				menuEl.style.top = `${ Math.max( margin, window.innerHeight - rect.height - margin ) }px`;
-			}
-			menuEl.style.visibility = 'visible';
-		} );
+		clampToViewport( menuEl );
 	}
 	// A list shorter than the viewport can never be scrolled, so the
 	// scroll-gesture re-arm would deadlock it at one page: while the

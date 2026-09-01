@@ -3,13 +3,13 @@
  * and one render of the view into jsdom.
  */
 import { describe, expect, it } from 'vitest';
+import { formatBytes } from '@openstation/app';
 import app, {
 	BUCKETS,
 	bucketOf,
 	bucketize,
 	countBuckets,
 	filterEntries,
-	formatBytes,
 	groupEntries,
 	sortGroups,
 	type LogEntry,
