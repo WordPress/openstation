@@ -17,7 +17,7 @@
  * @public
  */
 
-import { addFilter, removeFilter } from '../hooks';
+import { addAction, addFilter, removeAction, removeFilter } from '../hooks';
 import { __, sprintf } from '../i18n';
 import { dispatchAgentSendTo } from '../agents-dispatch';
 import { listAgents } from './agents-rest';
@@ -156,6 +156,14 @@ export function registerSendToMenuFilter(): void {
 		FILTER_NAMESPACE,
 		sendToMenuFilter,
 	);
+	// Another bundle changed the roster (the My WordPress APP's Agents
+	// section creates, edits and deletes agents in its own bundle, so
+	// it cannot reach this module's cache directly): drop it and
+	// re-warm, the same as the section renderer's refresh.
+	removeAction( 'os.agents.roster-changed', FILTER_NAMESPACE );
+	addAction( 'os.agents.roster-changed', FILTER_NAMESPACE, () => {
+		refreshSendToAgents();
+	} );
 	// Menus build synchronously — warm the cache up front so the first
 	// right-click already offers the agents.
 	void warmSendToAgents();

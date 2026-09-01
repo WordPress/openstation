@@ -7455,6 +7455,19 @@ The `agent` entity-kind renderer is registered through the standard
 `registerEntityKind()` seam — plugins can override it like any other
 kind.
 
+The **My WordPress app** (`apps/my-wordpress/`) renders the same
+section — grid, detail panes, create wizard, off-state preview —
+inside its own window, backed by app actions instead of the REST
+client. Because the app's bundle cannot reach WP Explorer's
+module-level "Send to" cache, roster mutations are signalled across
+bundles with a `wp.hooks` action:
+
+```ts
+// Fired (by any bundle) after agents are created / edited / deleted.
+wp.hooks.doAction( 'os.agents.roster-changed' );
+// WP Explorer's send-to intake listens and re-warms its agent cache.
+```
+
 ### Chat window + shared store
 
 The `desktop-mode-agent-run` native window is a lazy bundle

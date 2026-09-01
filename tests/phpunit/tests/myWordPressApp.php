@@ -823,18 +823,46 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 	 * @coversNothing
 	 */
 	public function test_the_app_stays_small_and_ships_exactly_one_script() {
-		$dir   = OPENSTATION_DIR . 'apps/my-wordpress/';
-		$lines = 0;
-		foreach ( array_merge( glob( $dir . '*.php' ), glob( $dir . '*.css' ), glob( $dir . '*.os.ts' ) ) as $file ) {
+		$dir     = OPENSTATION_DIR . 'apps/my-wordpress/';
+		$sources = array_merge(
+			glob( $dir . '*.php' ),
+			glob( $dir . 'parts/*.php' ),
+			glob( $dir . '*.os.ts' ),
+			glob( $dir . 'parts/*.ts' )
+		);
+		$lines   = 0;
+		foreach ( array_merge( $sources, glob( $dir . '*.css' ) ) as $file ) {
 			$lines += count( file( $file ) );
 		}
-		$this->assertLessThan( 4200, $lines, sprintf( 'My WordPress is %d lines; the budget is under 4,200 — still well under a seventh of the like-for-like original.', $lines ) );
+		// The budget moved when the Agents section landed: the
+		// like-for-like original grew by the agents renderer, its REST
+		// client, the face helpers and ~800 lines of CSS.
+		$this->assertLessThan( 7600, $lines, sprintf( 'My WordPress is %d lines; the budget is under 7,600 — still a fraction of the like-for-like original.', $lines ) );
+
+		// The house file-length rule, pinned hard for this app: every
+		// PHP and TS source stays under 1,000 lines. The lint twins
+		// (`local-rules/os-file-length`, `OpenStation.Files.FileLength`)
+		// only warn — here, where the split already happened, growth
+		// past the ceiling is a regression, not a judgement call.
+		foreach ( $sources as $file ) {
+			$this->assertLessThan(
+				1000,
+				count( file( $file ) ),
+				sprintf( '%s outgrew the 1,000-line ceiling — split it along its seams (aim for 300–600 lines; see docs/app-framework.md, "Splitting a large app").', basename( $file ) )
+			);
+		}
 
 		$scripts = array_map( 'basename', array_merge( glob( $dir . '*.js' ), glob( $dir . '*.ts' ) ) );
 		$this->assertSame(
 			array( 'my-wordpress.os.ts', 'my-wordpress.test.ts' ),
 			$scripts,
-			'The only script an app ships is its .os.ts client view (plus its test).'
+			'The only top-level script an app ships is its .os.ts client view (plus its test); split modules live under parts/.'
 		);
+
+		// A part must never wear the entry suffixes: `parts/*.os.php`
+		// would be loaded as a second app by the registry's depth-2
+		// glob, and `parts/*.os.ts` would become a second Vite entry.
+		$this->assertSame( array(), (array) glob( $dir . 'parts/*.os.php' ), 'parts/ holds plain .php files, never .os.php entries.' );
+		$this->assertSame( array(), (array) glob( $dir . 'parts/*.os.ts' ), 'parts/ holds plain .ts files, never .os.ts entries.' );
 	}
 }

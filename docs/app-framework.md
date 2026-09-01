@@ -347,6 +347,28 @@ add_filter( 'openstation_apps_directories', static function ( array $dirs ) {
 
 The window id is the app id. Everything the shell knows about native windows applies: session restore, the ⋯ menu, the tab strip, live registration on plugin activation.
 
+### Splitting a large app
+
+An app is one `.os.php` and (optionally) one `.os.ts` — but neither has to hold everything. When either file outgrows the ~300–600-line comfort zone (the `local-rules/os-file-length` ESLint rule and the `OpenStation.Files.FileLength` PHPCS sniff start nudging at 1,000), split it into a `parts/` directory beside the entries and keep each entry as the *composition*:
+
+```
+apps/my-app/
+├── my-app.os.php        # App::define(), state schema, action WIRING
+├── my-app.os.ts         # defineApp(), locals, the view frame
+├── my-app.css
+└── parts/
+    ├── sections.php     # plain .php — require_once'd from the entry
+    ├── actions.php      # named functions: ->action( 'go', __NAMESPACE__ . '\go_action' )
+    ├── types.ts         # plain .ts — imported from the entry
+    └── views.ts
+```
+
+Three rules make this safe:
+
+- **PHP parts are plain `.php` in the app's namespace**, pulled in with `require_once __DIR__ . '/parts/…'` from the entry. Never name a part `*.os.php` — the registry's loader globs one level of sub-folders for that suffix and would register the part as a second app. Actions can be named functions (`->action( 'name', __NAMESPACE__ . '\name_action' )`); `->data()` takes a function name too.
+- **TS parts are plain `.ts` imported by the entry**; Vite bundles them into the app's one script. Never name a part `*.os.ts` — every `apps/*/*.os.ts` is its own build entry. Re-export the part's public symbols from the entry so tests (and plugins reading the bundle's types) keep one import path.
+- **`parts/` is part of the app's line budget.** A split is for the reader, not for the counter — the worked example (My WordPress, `apps/my-wordpress/`) pins every source file under 1,000 lines in its suite.
+
 ### The dispatch route
 
 `POST desktop-mode/v1/apps/<id>/dispatch` with a JSON body `{ action, view, state, args, params, client }`. Permission: logged in, app exists, `App::allows()`. Errors are `WP_Error`s: `openstation_app_not_found` (404), `openstation_app_forbidden` (403), `openstation_app_unknown_action` / `openstation_app_unknown_view` (400), `openstation_app_action_failed` (500, carrying the exception message).
