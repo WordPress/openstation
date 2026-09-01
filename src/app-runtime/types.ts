@@ -88,6 +88,7 @@ export type Effect =
 	| { type: 'open'; window: string }
 	| { type: 'open_url'; url: string; title?: string }
 	| { type: 'badge'; count: number }
+	| { type: 'icon'; icon: string }
 	| { type: 'announce'; contentType: string; action: string; ids: number[] }
 	| { type: 'menu'; items: MenuItemDef[] }
 	| { type: 'send'; channel: string; payload?: unknown }
@@ -133,6 +134,13 @@ export interface RuntimeHost {
 	openWindow?: ( id: string ) => void;
 	openUrl?: ( url: string, title: string ) => void;
 	setBadge?: ( appId: string, count: number ) => void;
+	/**
+	 * Swap the art on every rail hosting the app's tile (dock,
+	 * taskbar, desktop icon) — state-driven icons, the Recycle Bin's
+	 * empty/full swap being the canonical case. `art` is an SVG data
+	 * URI or image URL.
+	 */
+	setIcon?: ( appId: string, art: string ) => void;
 	announce?: ( contentType: string, action: string, ids: number[] ) => void;
 	menu?: (
 		position: { x: number; y: number },

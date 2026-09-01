@@ -85,6 +85,13 @@ export interface ViewContext< S, D > {
 	/** The mount root — for a ResizeObserver, a canvas, a focus() call. */
 	root: HTMLElement;
 	/**
+	 * What the app declared with `App::config()` — static values that
+	 * ship once with the window config instead of riding `data` on
+	 * every response (asset URLs, feature flags, the Trash app's
+	 * empty/full icon pair).
+	 */
+	readonly extra: Record< string, unknown >;
+	/**
 	 * Client-only state that must never travel to the server — an open
 	 * menu, a fetch cache, an IntersectionObserver. One bag per mounted
 	 * view, created by `factory` on first call and returned as-is after

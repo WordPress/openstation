@@ -114,6 +114,23 @@ function buildHost(): RuntimeHost {
 			api?.icons.setBadge( appId, count );
 			api?.dock?.setBadge( appId, count );
 		},
+		setIcon: ( appId, art ) => {
+			// Every rail that might host the tile exposes the same
+			// `setArt( id, art )` shape and silently no-ops for ids it
+			// doesn't own — fanning to all three is the canonical
+			// pattern (see the recycle-bin icon-state module), not a
+			// hack. The rails own paint state, including survival
+			// across grid rebuilds.
+			interface ArtRail {
+				setArt?: ( id: string, value: string ) => void;
+			}
+			const rails = api as unknown as
+				| { dock?: ArtRail; taskbar?: ArtRail; icons?: ArtRail }
+				| undefined;
+			rails?.dock?.setArt?.( appId, art );
+			rails?.taskbar?.setArt?.( appId, art );
+			rails?.icons?.setArt?.( appId, art );
+		},
 		announce: ( contentType, action, ids ) => {
 			api?.announceContentChange(
 				contentType,

@@ -398,6 +398,17 @@ final class Os {
 	}
 
 	/**
+	 * Queue a tile-art swap. See {@see Effects::icon()}.
+	 *
+	 * @param string $icon SVG data URI or image URL.
+	 * @return self
+	 */
+	public function icon( $icon ) {
+		$this->effects->icon( $icon );
+		return $this;
+	}
+
+	/**
 	 * Queue a content-change announcement. See {@see Effects::announce()}.
 	 *
 	 * @param string    $type   Content type.

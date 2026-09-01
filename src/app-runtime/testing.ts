@@ -82,6 +82,7 @@ export function mockViewContext< S extends Record< string, unknown >, D >(
 		host: {
 			fetch: ( input, init ) => globalThis.fetch( input, init ),
 		},
+		extra: {},
 		...seed,
 	};
 }

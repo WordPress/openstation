@@ -210,7 +210,7 @@ Every callback receives an `OpenStation\App\Os`. It is the app's entire view of 
 | `$os->app_id`, `$os->view` | Which app and which view (`main` or a tab slug) is being dispatched |
 | `$os->can()`, `$os->preference()`, `$os->filter()`, `$os->action()`, `$os->remember( $key, $ttl, $compute )` | Sugar over the contracts. `can()` takes a meta-capability's object too — `$os->can( 'delete_post', $id )` forwards to `current_user_can()`; the standalone adapter answers from the capability name alone. |
 | `$os->stored( $key, $fallback, $scope = 'user' )`, `$os->store( $key, $value, $scope )`, `$os->forget( $key, $scope )` | Durable storage, keys namespaced by app id |
-| `$os->toast()`, `->title()`, `->close()`, `->open( $window_id )`, `->open_url( $url, $title )`, `->badge( $count )`, `->announce( $type, $action, $ids )`, `->menu( $items )`, `->send( $channel, $payload )` | **Effects** — things the shell does after the morph (below) |
+| `$os->toast()`, `->title()`, `->close()`, `->open( $window_id )`, `->open_url( $url, $title )`, `->badge( $count )`, `->icon( $art )`, `->announce( $type, $action, $ids )`, `->menu( $items )`, `->send( $channel, $payload )` | **Effects** — things the shell does after the morph (below) |
 | `Os::page( $items, $total, $page, $per_page )` | The paged-list envelope (`items` / `total` / `pages` / `page` / `perPage`) — the one shape the client runtime's page accumulation understands. Build every list-shaped `data()` key with it. |
 | `Os::facts( $rows )` | Keep only the `array( label, value, tag? )` rows whose value is non-empty, reindexed — the detail-pane facts idiom. |
 
@@ -228,6 +228,7 @@ This is the decoupling: the framework core (`includes/framework/` minus `wordpre
 | `$os->open( $window_id )` | Opens or focuses another native window |
 | `$os->open_url( $url, $title )` | Opens an admin URL in an iframe window (an edit screen, a settings page) |
 | `$os->badge( $count )` | Sets (0 clears) the badge on the app's dock tile and desktop icon |
+| `$os->icon( $art )` | Swaps the art on every rail hosting the app's tile — dock, taskbar, desktop icon. State-driven icons (the Trash app's empty/full bin); `$art` is an SVG data URI or image URL. Client views can also swap imperatively via `ctx.host.setIcon( appId, art )` — the Trash app does, from `updated()`, with both drawings shipped once through `App::config()` |
 | `$os->announce( $type, $action, $ids )` | `wp.os.announceContentChange` — every window showing that content refreshes |
 | `$os->menu( $items )` | A context menu at the pointer; each item (`label`, `action`, `args`, `icon`, `danger`, `disabled`) dispatches its action. Pair with `os-on="contextmenu"` on the row. |
 | `$os->send( $channel, $payload )` | Publishes on the window's channel bus for `wp.os.connect( id )` peers |
@@ -315,7 +316,8 @@ The context carries the framework's client-side services, so an app never re-imp
 - **`ctx.ui( factory )`** — client-only state that must never travel to the server (an open menu, a fetch cache, an `IntersectionObserver`). One bag per mounted view, created on first call; two windows of the same app never share it. Declared state stays the schema for everything the server should echo back — `ctx.ui` is for what it must not.
 - **`ctx.repaint()`** — re-render the view from the current `state` + `data`. No action, no request. The pair for `ctx.ui`: mutate the bag, repaint.
 - **`ctx.fetch( path, init )`** — REST the framework way: a relative path resolves against the site's REST root, the nonce and a JSON `Accept` header ride along unless the caller set their own, and the request is attributed to the window so its loading spinner shows.
-- **`ctx.host`** — the shell surface the runtime itself runs on (`toast`, `confirm`, `menu`, `openWindow`, …), already typed.
+- **`ctx.host`** — the shell surface the runtime itself runs on (`toast`, `confirm`, `menu`, `openWindow`, `setBadge`, `setIcon`, …), already typed.
+- **`ctx.extra`** — what the app declared with `App::config()`: static values shipped once with the window config instead of riding `data` on every response (asset URLs, feature flags, the Trash app's empty/full icon pair).
 
 Tests build a context with `mockViewContext()` from `src/app-runtime/testing.ts` instead of hand-writing these members; its `renderedText( node )` reads the text a user would see **through shadow roots and slots**, because `textContent` stops at a shadow boundary and a view painted with kit components (`<os-stat>`'s value lives in its shadow) reads as a hole without it.
 
@@ -465,7 +467,7 @@ includes/framework/
     class-runtime.php           dispatch( id, request, os ) / describe( id, state, os )
     class-registry.php          apps by id; loads *.os.php
     class-os.php                the host handle
-    class-effects.php           toast / title / close / open / open_url / badge / announce / menu / send
+    class-effects.php           toast / title / close / open / open_url / badge / icon / announce / menu / send
     class-view.php              captures a view callable
     html.php                    esc(), attr(), json(), tag(), classes()
     contracts/                  Auth, Settings, Hooks, Cache, Env, Store

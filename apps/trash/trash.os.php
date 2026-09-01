@@ -103,11 +103,15 @@ function run_bulk( Os $os, array $items, $callback, $action ) {
 
 return App::define( 'trash' )
 	->title( __( 'Trash', 'desktop-mode' ) )
-	// The same outlined-vessel mark the legacy dock tile draws (its
-	// empty state; the full/empty art swap is the legacy tile's
-	// feature — the app's tile carries the live count as a BADGE,
-	// set by the client view after every data recompute).
+	// The same outlined-vessel mark the legacy dock tile draws — its
+	// empty state; the client view swaps in the full-bin art through
+	// `ctx.host.setIcon()` when the count crosses zero, and both
+	// drawings travel in the config extra below so the swap is a
+	// local operation, never a round trip. Deliberately NO badge: a
+	// count on the tile reads as update notifications, and a bin that
+	// changes shape carries the same signal without shouting.
 	->icon( function_exists( 'openstation_recycle_bin_icon_svg' ) ? openstation_recycle_bin_icon_svg() : 'dashicons-trash' )
+	->config( function_exists( 'openstation_recycle_bin_icon_uris' ) ? openstation_recycle_bin_icon_uris() : array() )
 	->size( 880, 560 )
 	->min_size( 520, 360 )
 	// Same rail furniture as the legacy bin: a control (not an app),

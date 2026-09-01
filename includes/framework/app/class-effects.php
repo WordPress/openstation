@@ -103,6 +103,18 @@ final class Effects {
 	}
 
 	/**
+	 * Swap the art on every rail hosting the app's tile — dock,
+	 * taskbar, desktop icon. State-driven icons (the Recycle Bin's
+	 * empty/full bin is the canonical case).
+	 *
+	 * @param string $icon SVG data URI or image URL.
+	 * @return self
+	 */
+	public function icon( $icon ) {
+		return $this->add( 'icon', array( 'icon' => (string) $icon ) );
+	}
+
+	/**
 	 * Announce a content change so every window showing that content
 	 * refreshes (`wp.os.announceContentChange`).
 	 *

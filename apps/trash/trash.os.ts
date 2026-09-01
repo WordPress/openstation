@@ -61,6 +61,8 @@ interface UiState {
 	empty: { mode: 'idle' | 'starting' | 'progress'; purged: number; total: number };
 	/** External-change debounce timer. */
 	refreshTimer: number | null;
+	/** The tile art last pushed to the rails — swap only on change. */
+	lastArt: string;
 }
 
 const freshUi = (): UiState => ( {
@@ -69,6 +71,7 @@ const freshUi = (): UiState => ( {
 	fingerprint: '',
 	empty: { mode: 'idle', purged: 0, total: 0 },
 	refreshTimer: null,
+	lastArt: '',
 } );
 
 /**
@@ -455,9 +458,16 @@ export default defineApp< AppState, AppData >( 'trash', {
 				ui.selected = collectSelected( ctx );
 			}
 		}
-		// The dock tile's badge is the live bin count — re-asserted on
-		// every data recompute, which every mutation and watch refresh
-		// causes. (The legacy tile's icon-state module owns ITS badge.)
-		ctx.host.setBadge?.( 'trash', ctx.data.total );
+		// State-driven tile art, the legacy bin's signature move: the
+		// tile draws the FULL bin while the trash holds anything, the
+		// empty one otherwise. Both drawings shipped in the config
+		// extra (App::config()), so crossing zero is a local swap.
+		// Deliberately no count badge — a number on the tile reads as
+		// update notifications.
+		const art = String( ctx.extra[ ctx.data.total > 0 ? 'full' : 'empty' ] ?? '' );
+		if ( art && art !== ui.lastArt ) {
+			ui.lastArt = art;
+			ctx.host.setIcon?.( 'trash', art );
+		}
 	},
 } );

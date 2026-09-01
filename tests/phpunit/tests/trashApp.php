@@ -79,6 +79,10 @@ class Tests_OpenStation_TrashApp extends WP_UnitTestCase {
 		// The whole server surface: two mutations. Filter, search and
 		// the Refresh button ride the built-in `refresh`.
 		$this->assertSame( array( 'restore', 'purge' ), $manifest['actions'] );
+		// Both bin drawings ride the config extra so the client's
+		// empty/full tile-art swap is local — and there is NO badge.
+		$this->assertStringStartsWith( 'data:image/svg+xml', (string) $manifest['config']['empty'] );
+		$this->assertStringStartsWith( 'data:image/svg+xml', (string) $manifest['config']['full'] );
 	}
 
 	/**

@@ -39,13 +39,18 @@ function item( over: Partial< RecycleBinItem > = {} ): RecycleBinItem {
 	};
 }
 
-function mount( state: Partial< AppState > = {}, data: Partial< AppData > = {} ) {
+function mount(
+	state: Partial< AppState > = {},
+	data: Partial< AppData > = {},
+	extra: Record< string, unknown > = {},
+) {
 	const root = document.createElement( 'div' );
 	document.body.appendChild( root );
 	const ctx = mockViewContext< AppState, AppData >( {
 		state: { filter: '', search: '', ...state },
 		data: { items: [ item() ], total: 1, mediaTrash: false, ...data },
 		root,
+		extra,
 	} );
 	ctx.repaint = () => app.render( ctx );
 	app.render( ctx );
@@ -141,12 +146,34 @@ describe( 'the trash app view', () => {
 		expect( assignments ).toBe( 1 );
 	} );
 
-	it( 'keeps the dock badge on the global bin count', () => {
-		const { ctx } = mount( {}, { total: 7 } );
+	it( 'swaps the tile art as the count crosses zero — and never badges', () => {
+		const root = document.createElement( 'div' );
+		document.body.appendChild( root );
+		const ctx = mockViewContext< AppState, AppData >( {
+			state: { filter: '', search: '' },
+			data: { items: [ item() ], total: 7, mediaTrash: false },
+			root,
+			extra: {
+				empty: 'data:image/svg+xml;base64,EMPTY',
+				full: 'data:image/svg+xml;base64,FULL',
+			},
+		} );
+		const setIcon = vi.fn();
 		const setBadge = vi.fn();
+		ctx.host.setIcon = setIcon;
 		ctx.host.setBadge = setBadge;
 		app.render( ctx );
-		expect( setBadge ).toHaveBeenCalledWith( 'trash', 7 );
+		expect( setIcon ).toHaveBeenCalledWith( 'trash', 'data:image/svg+xml;base64,FULL' );
+		// Same state again — no re-push.
+		app.render( ctx );
+		expect( setIcon ).toHaveBeenCalledTimes( 1 );
+		// The bin empties — the empty art goes up.
+		ctx.data.items = [];
+		ctx.data.total = 0;
+		app.render( ctx );
+		expect( setIcon ).toHaveBeenLastCalledWith( 'trash', 'data:image/svg+xml;base64,EMPTY' );
+		// A count on the tile reads as update notifications.
+		expect( setBadge ).not.toHaveBeenCalled();
 	} );
 
 	it( 'paints the empty-progress label declaratively', async () => {
