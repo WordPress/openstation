@@ -9,10 +9,7 @@ import { describe, expect, it } from 'vitest';
 import { mockViewContext } from '../../src/app-runtime/testing';
 import { uiOf } from './parts/types';
 import app, {
-	accumulate,
-	applySelection,
 	buildMenuOptions,
-	listKey,
 	resolveActions,
 	withSendToHeading,
 	type MenuOption,
@@ -102,52 +99,8 @@ function data( over: Partial< AppData > = {} ): AppData {
 	};
 }
 
-describe( 'applySelection', () => {
-	const order = [ 1, 2, 3, 4, 5 ];
-
-	it( 'replaces on plain click, toggles on ctrl, ranges on shift', () => {
-		expect( applySelection( [ 2 ], order, 4, {} ) ).toEqual( [ 4 ] );
-		expect( applySelection( [ 2 ], order, 4, { ctrl: true } ) ).toEqual( [ 2, 4 ] );
-		expect( applySelection( [ 2, 4 ], order, 4, { ctrl: true } ) ).toEqual( [ 2 ] );
-		expect( applySelection( [ 2 ], order, 5, { shift: true } ) ).toEqual( [ 2, 3, 4, 5 ] );
-		expect( applySelection( [ 4 ], order, 1, { shift: true } ) ).toEqual( [ 4, 1, 2, 3 ] );
-	} );
-
-	it( 'falls back to a plain selection when the anchor left the list', () => {
-		expect( applySelection( [ 99 ], order, 3, { shift: true } ) ).toEqual( [ 3 ] );
-	} );
-} );
-
-describe( 'accumulate', () => {
-	function ui() {
-		return { cacheKey: '', pages: new Map< number, ListItem[] >(), total: 0, pageCount: 1 };
-	}
-
-	it( 'appends pages in order and dedupes by id', () => {
-		const cache = ui();
-		const key = listKey( state( { section: 'posts' } ) );
-		accumulate( cache, key, page( [ item( { id: 1 } ), item( { id: 2 } ) ], { pages: 2, page: 1, total: 3 } ) );
-		const all = accumulate( cache, key, page( [ item( { id: 2 } ), item( { id: 3 } ) ], { pages: 2, page: 2, total: 3 } ) );
-		expect( all.map( ( i ) => i.id ) ).toEqual( [ 1, 2, 3 ] );
-		expect( cache.total ).toBe( 3 );
-	} );
-
-	it( 'starts clean when the section, query or sort changes', () => {
-		const cache = ui();
-		accumulate( cache, 'posts||', page( [ item( { id: 1 } ) ] ) );
-		const all = accumulate( cache, 'posts|alpha|', page( [ item( { id: 9 } ) ] ) );
-		expect( all.map( ( i ) => i.id ) ).toEqual( [ 9 ] );
-	} );
-
-	it( 'replaces exactly the re-fetched page on a watch refresh', () => {
-		const cache = ui();
-		const key = 'posts||';
-		accumulate( cache, key, page( [ item( { id: 1 } ) ], { pages: 2, page: 1 } ) );
-		accumulate( cache, key, page( [ item( { id: 2 } ) ], { pages: 2, page: 2 } ) );
-		const all = accumulate( cache, key, page( [ item( { id: 7 } ) ], { pages: 2, page: 1 } ) );
-		expect( all.map( ( i ) => i.id ) ).toEqual( [ 7, 2 ] );
-	} );
-} );
+// Page accumulation and selection math live in the framework now —
+// tests/vitest/app-runtime-paged-list.test.ts pins them.
 
 describe( 'resolveActions', () => {
 	const ctx = {

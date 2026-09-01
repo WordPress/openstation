@@ -29,7 +29,7 @@
  * @public
  */
 
-import { __, _n, defineApp, html, sprintf, type TemplateResult } from '@openstation/app';
+import { __, _n, applySelection, defineApp, html, sprintf, type TemplateResult } from '@openstation/app';
 import type { Agent } from '../../src/my-wordpress/agents-types';
 import {
 	uiOf,
@@ -39,12 +39,7 @@ import {
 	type ListItem,
 	type SectionDef,
 } from './parts/types';
-import {
-	accumulate,
-	applySelection,
-	listKey,
-	sectionOf,
-} from './parts/helpers';
+import { listKey, sectionOf } from './parts/helpers';
 import {
 	renderList,
 	renderMenu,
@@ -61,14 +56,15 @@ import { afterRender, wire } from './parts/wire';
 // The public surface, re-exported from the parts so the tests (and
 // any plugin reading this bundle's types) keep one import path.
 export {
-	accumulate,
-	applySelection,
 	listKey,
 	resolveActions,
 	resolveBanding,
 	buildMenuOptions,
 	withSendToHeading,
 } from './parts/helpers';
+// The framework's list/selection primitives, re-exported so plugins
+// reading this bundle's types keep one import path.
+export { applySelection } from '@openstation/app';
 export {
 	agentDefaultRole,
 	agentFaceSrc,
@@ -280,7 +276,7 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 		}
 
 		const items = section && ! inFolder
-			? accumulate( uiOf( ctx ), listKey( state ), payload.list )
+			? uiOf( ctx ).list.accumulate( listKey( state ), payload.list )
 			: [];
 		const loaded = items.length;
 		let folderStatus: [ string, string ] | null = null;

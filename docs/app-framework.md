@@ -300,6 +300,11 @@ The context carries the framework's client-side services, so an app never re-imp
 
 Tests build a context with `mockViewContext()` from `src/app-runtime/testing.ts` instead of hand-writing these members.
 
+For list windows, `@openstation/app` also ships the machinery every one of them needs:
+
+- **`createPagedList< Row >()`** — the infinitely scrolled, server-paginated list: it accumulates `Os::page()` envelopes (per-page replacement on a watch refresh, a new key starts clean, rows deduped by id), watches a sentinel with an IntersectionObserver, loads **one page per scroll gesture** (firing disarms, a scroll re-arms, a list too short to scroll stays armed so it fills until it overflows), and sizes skeleton ghosts to the incoming page. Keep it in `ctx.ui`, feed `accumulate( key, data.list )` in the view, call `sync( { sentinel, canvas, load, repaint } )` from `updated()`, `dispose()` on teardown.
+- **`applySelection( selected, order, id, { ctrl, shift } )`** — Finder-style selection math: plain click replaces, Ctrl/Cmd toggles, Shift extends from the anchor across the visual order.
+
 Beside `defineApp`, `html` and the i18n functions, `@openstation/app` exports the shared formatting primitives so every app renders the same value shapes the same way: `formatBytes( n )` (`844 B` / `12.4 MB` / `123 MB`) and `formatDate( value, style )` where `value` is an ISO string (a bare `YYYY-MM` reads as that month), epoch milliseconds, or a `Date`, and `style` is `'short' | 'long' | 'month' | 'datetime' | 'iso'`. For "N minutes ago" keep using `<os-relative-time>`.
 
 Build: every `apps/<dir>/<name>.os.ts` is discovered by `vite.config.js` as the target `app:<name>` and built by `npm run build:apps` (part of `npm run build`) into `assets/js/apps/<name>[.min].js`; the host registers it as a companion script of the window, so it is in the tab before the runtime mounts. Type-checked and linted with the rest of the TypeScript; tests live beside it (`<name>.test.ts`).

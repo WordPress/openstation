@@ -211,13 +211,11 @@ export function renderList( ctx: Ctx, section: SectionDef, items: ListItem[] ): 
 		ui.menu = { x: e.clientX, y: e.clientY, item: null };
 		ctx.repaint();
 	};
-	const hasMore = ui.pageCount > Math.max( ...Array.from( ui.pages.keys() ), 1 );
+	const hasMore = ui.list.hasMore();
 	// The page being fetched paints as skeleton tiles — WP Explorer's
 	// loading placeholders. They occupy the incoming page's real
 	// footprint, so the scroll height settles once instead of jumping.
-	const ghosts = ui.loadingPage > 0 && ! ui.pages.has( ui.loadingPage ) && hasMore
-		? Math.max( 1, Math.min( ctx.data.list?.perPage ?? 24, ui.total - items.length ) )
-		: 0;
+	const ghosts = ui.list.ghosts( ctx.data.list?.perPage ?? 24 );
 	const ghostCells = html`
 		${ Array.from( { length: ghosts }, ( _unused, i ) => html`
 			<div class="os-mywp__cell os-mywp__cell--ghost" data-ghost-index=${ String( i ) } aria-hidden="true">
@@ -328,7 +326,7 @@ export function renderMenu( ctx: Ctx, section: SectionDef ): TemplateResult | ''
 			? ctx.state.selected
 			: [ item.id ];
 	}
-	const allItems = Array.from( ui.pages.values() ).flat();
+	const allItems = ui.list.items();
 
 	let options: MenuOption[] = [];
 	if ( item ) {

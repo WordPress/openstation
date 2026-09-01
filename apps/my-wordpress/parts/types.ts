@@ -21,7 +21,12 @@ import type {
 	Trigger,
 	TriggerKindDescriptor,
 } from '../../../src/my-wordpress/agents-types';
-import type { ViewContext } from '@openstation/app';
+import {
+	createPagedList,
+	type PagedList,
+	type PageEnvelope,
+	type ViewContext,
+} from '@openstation/app';
 import type { UserFootprint } from '../../../src/my-wordpress/types';
 import type { DragManagerApi } from '../../../src/drag';
 
@@ -98,13 +103,8 @@ export interface ListBanding {
 	assign: ( item: ListItem ) => string | null;
 }
 
-export interface ListPage {
-	items: ListItem[];
-	total: number;
-	pages: number;
-	page: number;
-	perPage: number;
-}
+/** One server page of list rows — `Os::page()`'s envelope. */
+export type ListPage = PageEnvelope< ListItem >;
 
 export interface DetailFacts {
 	kind: 'post' | 'media' | 'user';
@@ -437,27 +437,12 @@ export interface UiState {
 		tags: Array< { id?: number; label: string } >;
 	} | null;
 	zoom: boolean;
-	loadingMore: boolean;
 	/**
-	 * The sentinel may only fire while armed, and firing disarms it;
-	 * a scroll on the tile canvas re-arms. One page per scroll
-	 * gesture — a window parked at the bottom does NOT chain-load
-	 * every remaining page.
+	 * The framework's infinitely scrolled list: page accumulation,
+	 * the one-page-per-gesture sentinel, skeletons, the short-list
+	 * deadlock guard. See `createPagedList()` in `@openstation/app`.
 	 */
-	armed: boolean;
-	/**
-	 * The page number currently being fetched, 0 when none. Ghost
-	 * placeholders render only while THIS page is absent — keyed on
-	 * the page rather than the in-flight flag, so the paint that
-	 * delivers the page never flashes a ghost block for the next one.
-	 */
-	loadingPage: number;
-	scrollEl: HTMLElement | null;
-	cacheKey: string;
-	pages: Map< number, ListItem[] >;
-	total: number;
-	pageCount: number;
-	observer?: IntersectionObserver;
+	list: PagedList< ListItem >;
 	/** Agents: free-text filter over the ability catalogue. */
 	abilityQuery: string;
 	/**
@@ -494,14 +479,7 @@ function freshUi(): UiState {
 		folderSel: null,
 		quickEdit: null,
 		zoom: false,
-		loadingMore: false,
-		armed: true,
-		loadingPage: 0,
-		scrollEl: null,
-		cacheKey: '',
-		pages: new Map(),
-		total: 0,
-		pageCount: 1,
+		list: createPagedList< ListItem >(),
 		abilityQuery: '',
 		abilityOpen: new Map(),
 		nameError: '',

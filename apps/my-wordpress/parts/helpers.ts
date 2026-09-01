@@ -16,83 +16,16 @@ import {
 	type ListBanding,
 	type AppState,
 	type ListItem,
-	type ListPage,
 	type MenuOption,
 	type OsShell,
 	type PreviewAction,
 	type PreviewActionContext,
 	type SectionDef,
-	type UiState,
 } from './types';
 
 /** The identity of a list: new key, new accumulation. */
 export function listKey( state: AppState ): string {
 	return [ state.section, state.query, state.sort ].join( '|' );
-}
-
-/**
- * Fold the server's latest page into the accumulated set. Pages are
- * kept per-number, so a `watch` refresh that re-fetches page N
- * replaces exactly page N, appending never duplicates, and a new
- * section / query / sort starts clean.
- */
-export function accumulate(
-	ui: Pick< UiState, 'cacheKey' | 'pages' | 'total' | 'pageCount' >,
-	key: string,
-	list: ListPage | null,
-): ListItem[] {
-	if ( ! list ) {
-		ui.cacheKey = '';
-		ui.pages.clear();
-		ui.total = 0;
-		ui.pageCount = 1;
-		return [];
-	}
-	if ( ui.cacheKey !== key ) {
-		ui.cacheKey = key;
-		ui.pages.clear();
-	}
-	ui.pages.set( list.page, list.items );
-	ui.total = list.total;
-	ui.pageCount = list.pages;
-	const out: ListItem[] = [];
-	const seen = new Set< number >();
-	for ( const page of Array.from( ui.pages.keys() ).sort( ( a, b ) => a - b ) ) {
-		for ( const item of ui.pages.get( page ) ?? [] ) {
-			if ( ! seen.has( item.id ) ) {
-				seen.add( item.id );
-				out.push( item );
-			}
-		}
-	}
-	return out;
-}
-
-/**
- * The next selection after a row click. Plain click replaces, Ctrl/Cmd
- * toggles, Shift extends from the anchor (the last selected id) across
- * the current visual order.
- */
-export function applySelection(
-	selected: number[],
-	order: number[],
-	id: number,
-	mods: { ctrl?: boolean; shift?: boolean },
-): number[] {
-	if ( mods.shift && selected.length > 0 ) {
-		const anchor = selected[ selected.length - 1 ];
-		const from = order.indexOf( anchor );
-		const to = order.indexOf( id );
-		if ( from !== -1 && to !== -1 ) {
-			const range = order.slice( Math.min( from, to ), Math.max( from, to ) + 1 );
-			const merged = new Set( [ ...selected, ...range ] );
-			return Array.from( merged );
-		}
-	}
-	if ( mods.ctrl ) {
-		return selected.includes( id ) ? selected.filter( ( s ) => s !== id ) : [ ...selected, id ];
-	}
-	return [ id ];
 }
 
 /**

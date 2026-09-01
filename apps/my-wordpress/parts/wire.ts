@@ -71,7 +71,7 @@ export function wire( ctx: Ctx ): () => void {
 		}
 		const id = Number( row.getAttribute( 'data-item-id' ) );
 		const kind = row.getAttribute( 'data-mywp-drag' ) ?? '';
-		const all = Array.from( ui.pages.values() ).flat();
+		const all = ui.list.items();
 		const item = all.find( ( i ) => i.id === id );
 		if ( ! item ) {
 			return;
@@ -176,25 +176,10 @@ export function wire( ctx: Ctx ): () => void {
 	} );
 
 	// --- infinite scroll ------------------------------------------------
-	// One page per scroll gesture: firing disarms the sentinel, the
-	// canvas's next scroll re-arms it (see afterRender()), so a window
-	// parked at the bottom never chain-loads every remaining page.
-	ui.observer = new IntersectionObserver( ( entries ) => {
-		if ( ! entries.some( ( entry ) => entry.isIntersecting ) || ui.loadingMore || ! ui.armed ) {
-			return;
-		}
-		ui.armed = false;
-		ui.loadingMore = true;
-		ui.loadingPage = Math.max( 1, ...Array.from( ui.pages.keys() ) ) + 1;
-		// Repaint now so the skeleton tiles appear while the page loads.
-		ctx.repaint();
-		void ctx.dispatch( 'more' ).finally( () => {
-			ui.loadingMore = false;
-			ui.loadingPage = 0;
-			ctx.repaint();
-		} );
-	} );
-	teardowns.push( () => ui.observer?.disconnect() );
+	// The framework's paged list owns the whole protocol (sentinel,
+	// one page per gesture, skeletons, the short-list guard); it is
+	// wired to the live DOM in afterRender() below.
+	teardowns.push( () => ui.list.dispose() );
 
 	// --- agents: live re-render when the framework is toggled -----------
 	// Agents can be switched off in Preferences while this very window
@@ -307,9 +292,7 @@ export function wire( ctx: Ctx ): () => void {
 		if ( id === hoverFor ) {
 			return;
 		}
-		const item = Array.from( ui.pages.values() )
-			.flat()
-			.find( ( i ) => i.id === id );
+		const item = ui.list.items().find( ( i ) => i.id === id );
 		if ( ! item ) {
 			return;
 		}
@@ -486,8 +469,8 @@ function pluginSeamsAfterRender( ctx: Ctx ): void {
 		return;
 	}
 	const rows = new Map< number, Record< string, unknown > >();
-	for ( const row of Array.from( uiOf( ctx ).pages.values() ).flat() ) {
-		rows.set( row.id, row as Record< string, unknown > );
+	for ( const row of uiOf( ctx ).list.items() ) {
+		rows.set( row.id, row as unknown as Record< string, unknown > );
 	}
 
 	// --- preview-extras ----------------------------------------------
@@ -567,27 +550,15 @@ export function afterRender( ctx: Ctx ): void {
 	// Agents wiring: drop targets, drag-out, the face backfill, the
 	// roster signal, the create-then-chat hand-off.
 	agentsAfterRender( ctx );
-	// Re-aim the infinite-scroll observer at the freshly rendered
-	// sentinel — the morph may have replaced the element.
-	ui.observer?.disconnect();
-	const sentinel = ctx.root.querySelector( '[data-mywp-sentinel]' );
-	if ( sentinel ) {
-		ui.observer?.observe( sentinel );
-	}
-	// The tile canvas is rebuilt across renders; keep a scroll
-	// listener on the current one to re-arm the sentinel — scroll
-	// does not bubble, so delegation on the root cannot hear it.
-	const canvas = ctx.root.querySelector< HTMLElement >( '.os-mywp__tiles' );
-	if ( canvas !== ui.scrollEl ) {
-		ui.scrollEl = canvas;
-		canvas?.addEventListener(
-			'scroll',
-			() => {
-				ui.armed = true;
-			},
-			{ passive: true },
-		);
-	}
+	// Re-wire the framework's paged list to the freshly rendered DOM:
+	// the sentinel (the render may have replaced it), the scrolling
+	// canvas, and what "load the next page" means here.
+	ui.list.sync( {
+		sentinel: ctx.root.querySelector( '[data-mywp-sentinel]' ),
+		canvas: ctx.root.querySelector< HTMLElement >( '.os-mywp__tiles' ),
+		load: () => ctx.dispatch( 'more' ),
+		repaint: () => ctx.repaint(),
+	} );
 	// The context menu paints hidden (the view renders it with an
 	// inline visibility:hidden), then the shell's own placement
 	// helper measures it post-render, clamps it inside the viewport
@@ -597,13 +568,6 @@ export function afterRender( ctx: Ctx ): void {
 	const menuEl = ctx.root.querySelector< HTMLElement >( 'os-context-menu.os-mywp__menu' );
 	if ( menuEl && ui.menu ) {
 		clampToViewport( menuEl );
-	}
-	// A list shorter than the viewport can never be scrolled, so the
-	// scroll-gesture re-arm would deadlock it at one page: while the
-	// canvas has no scrollbar, keep the sentinel armed and let it
-	// fill the viewport; once it overflows, gestures take over.
-	if ( canvas && canvas.scrollHeight <= canvas.clientHeight + 4 ) {
-		ui.armed = true;
 	}
 	// Inject the server-rendered post body — the preview pane's and
 	// the detail folder's article alike. Trusted admin content from
