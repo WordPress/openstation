@@ -1,5 +1,5 @@
 /**
- * Unit tests for `src/my-wordpress/agents-rest.ts` — URL building,
+ * Unit tests for `apps/my-wordpress/parts/agents-rest.ts` — URL building,
  * headers, payload shapes, and error normalization for the agents
  * REST client.
  */
@@ -11,7 +11,7 @@ import {
 	invokeAgent,
 	listAgents,
 	updateAgent,
-} from '../../src/my-wordpress/agents-rest';
+} from '../../apps/my-wordpress/parts/agents-rest';
 
 
 type FetchMock = ReturnType< typeof vi.fn >;

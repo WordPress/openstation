@@ -4426,7 +4426,7 @@ Posted when a link inside the iframe points off-site; the parent opens an extern
 ```
 
 #### `os-open-user-footprint` — Stable
-Posted when a `[data-os-footprint]` link is clicked inside a chromeless iframe — the "View activity footprint" row action on the classic Users table. Checked *before* the admin-link classifier, so the link's fallback `href` is never followed inside the shell. The parent opens (or focuses) the WP Explorer app on that user's footprint and leaves the source window open (it's an auxiliary peek, not a navigation away — contrast `os-iframe-admin-link`, which closes the source on a remap hit). The routing is the shared footprint target (`src/my-wordpress/footprint-target.ts`); see also `bridge-protocol.md`.
+Posted when a `[data-os-footprint]` link is clicked inside a chromeless iframe — the "View activity footprint" row action on the classic Users table. Checked *before* the admin-link classifier, so the link's fallback `href` is never followed inside the shell. The parent opens (or focuses) the WP Explorer app on that user's footprint and leaves the source window open (it's an auxiliary peek, not a navigation away — contrast `os-iframe-admin-link`, which closes the source on a remap hit). The routing is the shared footprint target (`src/open-targets/footprint-target.ts`); see also `bridge-protocol.md`.
 
 ```typescript
 { type: 'os-open-user-footprint'; userId: number; userName: string }
@@ -6424,9 +6424,9 @@ to add a section, filter
 
 The legacy explorer bundle's public API went with the legacy window. Its jobs moved to contracts that need no bundle in the tab:
 
-- **`openDetail()` / `openMedia()`** → the shared open target: stash the object in the `wp.os.createSharedStore` store keyed **`desktop-mode/my-wordpress/open-target`** (`{ kind: 'detail' | 'media', entityId, id, title, requestedAt }`), then `wp.os.openWindow( 'my-wordpress' )`. The app consumes the pending target on mount and on the store subscription — cold-start safe by construction. In-bundle code imports `openExplorerDetail()` / `openExplorerMedia()` from `src/my-wordpress/explorer-open.ts` instead of writing the store by hand.
-- **`openUserFootprint()`** → unchanged contract, new destination: `openUserFootprintWindow( { userId, userName } )` (`src/my-wordpress/footprint-target.ts`) stashes the person and opens the **app**, whose footprint surface replaced the legacy one 1:1. The classic Users table's row action still rides the `os-open-user-footprint` bridge message into this path.
-- **`trashEntity()`** → rows dragged onto the Recycle Bin carry their section's `restPath` on the shortcut payload, and the bin DELETEs against it directly (`src/my-wordpress/rest-trash.ts`). No API, no window, no config blob.
+- **`openDetail()` / `openMedia()`** → the shared open target: stash the object in the `wp.os.createSharedStore` store keyed **`desktop-mode/my-wordpress/open-target`** (`{ kind: 'detail' | 'media', entityId, id, title, requestedAt }`), then `wp.os.openWindow( 'my-wordpress' )`. The app consumes the pending target on mount and on the store subscription — cold-start safe by construction. In-bundle code imports `openExplorerDetail()` / `openExplorerMedia()` from `src/open-targets/explorer-open.ts` instead of writing the store by hand.
+- **`openUserFootprint()`** → unchanged contract, new destination: `openUserFootprintWindow( { userId, userName } )` (`src/open-targets/footprint-target.ts`) stashes the person and opens the **app**, whose footprint surface replaced the legacy one 1:1. The classic Users table's row action still rides the `os-open-user-footprint` bridge message into this path.
+- **`trashEntity()`** → rows dragged onto the Recycle Bin carry their section's `restPath` on the shortcut payload, and the bin DELETEs against it directly (`src/desktop-files/rest-trash.ts`). No API, no window, no config blob.
 - **`registerEntityKind()`** → no replacement by design. The app renders its kinds itself; a plugin adds a section through [`openstation_my_wordpress_app_sections`](./hooks-reference.md#openstation_my_wordpress_app_sections--experimental-filter) and decorates every surface through the `os.my-wordpress.*` seams on this page.
 
 ### Filter — `os.my-wordpress.preview-actions`
@@ -7292,7 +7292,7 @@ routes wrap. The section's config (`enabled`, `canManage`,
 arrives settled on the app's dispatch payload.
 
 The "Send to <agent>" context-menu intake
-(`src/my-wordpress/agents-send-to.ts`) registers the shared
+(`apps/my-wordpress/parts/agents-send-to.ts`) registers the shared
 `os.my-wordpress.tile-context-menu` filter from the app's bundle,
 warms its agent cache from the shell's REST config, and re-warms when
 any bundle signals a roster mutation:

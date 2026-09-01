@@ -29,7 +29,7 @@ import {
 	type AgentChatMessage,
 } from './agents-chat-store';
 import { persistAgentTranscript } from './agents-conversations';
-import type { AgentInvokeResult } from './my-wordpress/agents-types';
+import type { AgentInvokeResult } from './agents-types';
 
 /** Entity kinds agents understand — mirrors the trigger config enum. */
 export type DroppedEntityKind = 'post' | 'page' | 'media' | 'user' | 'comment';

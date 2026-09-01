@@ -204,7 +204,7 @@ function openstation_my_wordpress_entities() {
  * gone; every deep surface it used to host moved with the port — the
  * detail dossiers and the activity footprint render inside the app,
  * "open this object" travels through the shared stores in
- * `src/my-wordpress/explorer-open.ts` / `footprint-target.ts`, and
+ * `src/open-targets/explorer-open.ts` / `footprint-target.ts`, and
  * the Recycle Bin trashes dropped rows by their payload's `restPath`.
  *
  * `openstation_my_wordpress_entities()` and its filter remain as an

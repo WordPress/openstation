@@ -118,7 +118,7 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 		installHooksStub();
 		setConfig();
 		stubSummary( {} );
-		await import( '../../src/my-wordpress/integrations/woocommerce' );
+		await import( '../../src/plugins/my-wordpress-woocommerce/index' );
 	} );
 
 	afterAll( () => clearHooksStub() );

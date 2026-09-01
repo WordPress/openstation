@@ -10,7 +10,7 @@
  * @public
  */
 
-import { trackedFetch } from '../tracked-fetch';
+import { trackedFetch } from '../../../src/tracked-fetch';
 import type {
 	AgentDraft,
 	Ability,
@@ -21,7 +21,7 @@ import type {
 	RoleChoice,
 	Trigger,
 	TriggerKindDescriptor,
-} from './agents-types';
+} from '../../../src/agents-types';
 
 const SOURCE = { source: 'desktop-mode/agents' };
 

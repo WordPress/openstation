@@ -33,7 +33,7 @@
 
 import { __ } from '../i18n';
 import { addAction, HOOKS } from '../hooks';
-import { trashByRestPath } from '../my-wordpress/rest-trash';
+import { trashByRestPath } from './rest-trash';
 import type { DragManagerApi, DragSession } from '../drag';
 import { trashManyWithUndo } from './trash';
 import { showToast } from '../toast';

@@ -30,7 +30,7 @@
  */
 
 import { __, _n, applySelection, defineApp, html, sprintf, type TemplateResult } from '@openstation/app';
-import type { Agent } from '../../src/my-wordpress/agents-types';
+import type { Agent } from '../../src/agents-types';
 import {
 	uiOf,
 	type AppData,

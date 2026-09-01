@@ -28,7 +28,7 @@
  */
 
 import { applyFilters } from '../hooks';
-import { openExplorerDetail } from '../my-wordpress/explorer-open';
+import { openExplorerDetail } from '../open-targets/explorer-open';
 import { osConfirm } from '../os-confirm';
 import type { SelectionAction } from '../selection';
 import { openCreateFolderDialog } from './create-folder-dialog';

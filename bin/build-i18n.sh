@@ -50,6 +50,9 @@ declare -a HANDLE_MAP=(
 	# The Trash app's client view and its parts/ (its companion-script
 	# handle, from includes/framework/wordpress.php) — first match wins.
 	"apps/trash/=openstation-app-desktop-mode-recycle-bin-client"
+	"apps/my-wordpress/=openstation-app-my-wordpress-client"
+	"apps/code-blue/=openstation-app-openstation-code-blue-client"
+	"src/plugins/my-wordpress-woocommerce/=os-my-wordpress-woocommerce"
 	"src/posts-window/=os-posts-window"
 	"src/=openstation"
 )

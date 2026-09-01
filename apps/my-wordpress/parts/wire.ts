@@ -20,13 +20,13 @@ import {
 	clearFootprintTarget,
 	readFootprintTarget,
 	subscribeFootprintTarget,
-} from '../../../src/my-wordpress/footprint-target';
+} from '../../../src/open-targets/footprint-target';
 import {
 	clearExplorerOpenTarget,
 	readExplorerOpenTarget,
 	subscribeExplorerOpenTarget,
 	type ExplorerOpenTarget,
-} from '../../../src/my-wordpress/explorer-open';
+} from '../../../src/open-targets/explorer-open';
 import {
 	clearAgentEditorTarget,
 	readAgentEditorTarget,
@@ -35,11 +35,11 @@ import {
 import {
 	registerSendToMenuFilter,
 	setSendToEnabled,
-} from '../../../src/my-wordpress/agents-send-to';
+} from './agents-send-to';
 import {
 	faceFromSeed,
 	hasFace,
-} from '../../../src/my-wordpress/agents-face';
+} from './agents-face';
 import {
 	agentAcceptsDrop,
 	describeDragEntity,

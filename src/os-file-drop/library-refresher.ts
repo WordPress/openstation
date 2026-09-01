@@ -9,11 +9,10 @@
  * reload()` directly. For URLs we can't classify we leave the
  * iframe alone; this is purely additive.
  *
- * The My WordPress Media section has its own live-refresh path
- * (single REST GET → prepend) in `src/my-wordpress/media-list.ts`
- * — that's better UX (no scroll jump) and is the preferred surface
- * for plugins. This module covers the classic admin page that
- * doesn't yet have an in-place refresh affordance.
+ * The WP Explorer app's Media section repaints itself from its
+ * `watch()`ed broadcasts — that's better UX (no scroll jump) and is
+ * the preferred surface for plugins. This module covers the classic
+ * admin page that doesn't yet have an in-place refresh affordance.
  *
  * Plugins that want to suppress this behavior can set
  * `data-os-suppress-media-library-refresh` on `<body>`

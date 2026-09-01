@@ -326,7 +326,7 @@ const TARGETS = {
 	// merchant panels. Loaded as the app window's companion only when
 	// WooCommerce is active, so stores without it ship none of this.
 	'my-wordpress-woocommerce': {
-		entry:    'src/my-wordpress/integrations/woocommerce.ts',
+		entry:    'src/plugins/my-wordpress-woocommerce/index.ts',
 		fileBase: 'my-wordpress-woocommerce',
 		iifeName: 'openStationMyWordpressWoo',
 	},

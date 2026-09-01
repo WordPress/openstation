@@ -23,7 +23,7 @@
  */
 
 import { __, _n, sprintf } from '../i18n';
-import { openExplorerDetail } from '../my-wordpress/explorer-open';
+import { openExplorerDetail } from '../open-targets/explorer-open';
 import { decodeHTML } from '../utils';
 import {
 	fetchCommentStats,

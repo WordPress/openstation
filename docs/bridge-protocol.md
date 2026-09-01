@@ -353,7 +353,7 @@ This deliberately does NOT reuse the admin-link path above: that path closes the
 |---|---|---|---|
 | `os-open-user-footprint` | iframe → parent | `{ userId: number, userName: string }` | Posted from the chromeless bridge when a `[data-os-footprint]` link is clicked (checked *before* the admin-link classifier, so the fallback `href` is never followed inside the shell). The parent opens / focuses the WP Explorer window on that user's footprint route and leaves the source window open. |
 
-**Parent dispatch** (`src/window/iframe-bridge.ts`): calls `openUserFootprintWindow( { userId, userName } )` (`src/my-wordpress/footprint-target.ts`), which stashes the target in the `desktop-mode/my-wordpress/footprint-target` shared store, then opens the WP Explorer app (`my-wordpress`) via `wp.os.openWindow`. Cold-start safe: the app's client view reads the target on mount and subscribes for re-targets while it's already open. See [`javascript-reference.md`](javascript-reference.md).
+**Parent dispatch** (`src/window/iframe-bridge.ts`): calls `openUserFootprintWindow( { userId, userName } )` (`src/open-targets/footprint-target.ts`), which stashes the target in the `desktop-mode/my-wordpress/footprint-target` shared store, then opens the WP Explorer app (`my-wordpress`) via `wp.os.openWindow`. Cold-start safe: the app's client view reads the target on mount and subscribes for re-targets while it's already open. See [`javascript-reference.md`](javascript-reference.md).
 
 ## Top-frame escape hatch — and how to opt out
 

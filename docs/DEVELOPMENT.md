@@ -156,14 +156,16 @@ src/
 ├── presence/                # Presence store (`wp.os.presence`).
 ├── pwa/                     # PWA: install, notify, service worker.
 ├── desktop-files/           # Files/folders on the wallpaper
-│                            #   (`wp.os.files`).
-├── recycle-bin/             # Feature windows — one directory per
-├── posts-window/            #   window, each compiled to its own
-├── plugins-window/          #   lazy Vite bundle (see the `build:*`
-├── comments-window/         #   scripts in package.json).
-├── my-wordpress/
-├── content-graph/
-├── ai-assistant/
+│                            #   (`wp.os.files`), the Recycle Bin's drop
+│                            #   targets and closed-tile art.
+├── open-targets/            # Cross-bundle "open the app on X" hand-offs
+│                            #   (shared-store targets for `apps/`).
+├── posts-window/            # Feature windows — one directory per
+├── plugins-window/          #   window, each compiled to its own
+├── comments-window/         #   lazy Vite bundle (see the `build:*`
+├── content-graph/           #   scripts in package.json). Whole
+├── ai-assistant/            #   windows built on the App Framework
+│                            #   live under `apps/`, not here.
 ├── wallpapers/              # Registry, layer, built-ins, types, vendor
 │                            #   script loader.
 ├── widgets/                 # Registry, layer, picker, frame

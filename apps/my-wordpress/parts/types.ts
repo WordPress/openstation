@@ -20,14 +20,13 @@ import type {
 	RoleChoice,
 	Trigger,
 	TriggerKindDescriptor,
-} from '../../../src/my-wordpress/agents-types';
+} from '../../../src/agents-types';
 import {
 	createPagedList,
 	type PagedList,
 	type PageEnvelope,
 	type ViewContext,
 } from '@openstation/app';
-import type { UserFootprint } from '../../../src/my-wordpress/types';
 import type { DragManagerApi } from '../../../src/drag';
 
 // ------------------------------------------------------------- types
@@ -497,4 +496,68 @@ function freshUi(): UiState {
 /** This app's slice of the framework's per-view client-only bag. */
 export function uiOf( ctx: Pick< Ctx, 'ui' > ): UiState {
 	return ctx.ui( freshUi );
+}
+
+/**
+ * Per-user activity footprint payload returned by
+ * `/desktop-mode/v1/user-footprint/<id>`. Drives the right-click
+ * "View activity footprint" surface.
+ */
+export interface UserFootprint {
+	profile: {
+		id: number;
+		name: string;
+		avatarUrl: string;
+		link: string;
+		roleLabels?: string[];
+		registered?: string;
+	};
+	range: {
+		/** YYYY-MM-DD, inclusive. */
+		from: string;
+		/** YYYY-MM-DD, inclusive. */
+		to: string;
+		/** Count of day buckets (length of `daily`). */
+		days: number;
+	};
+	daily: Array< {
+		/** YYYY-MM-DD. */
+		date: string;
+		posts: number;
+		comments: number;
+		/**
+		 * Revisions saved by the user that day, excluding the initial
+		 * save of brand-new posts (those count under `posts`), so
+		 * the heatmap registers update activity, not just
+		 * publications and comments.
+		 */
+		updates: number;
+	} >;
+	/** Sunday-indexed weekday distribution; length 7. */
+	weekday: number[];
+	/** Hour-of-day distribution in site timezone; length 24. */
+	hour: number[];
+	streak: {
+		longest: number;
+		current: number;
+		longestRange: { from: string; to: string };
+	};
+	timeline: Array< {
+		/** `'post-update'` rows are most-recent-save-per-parent rollups. */
+		kind: 'post' | 'comment' | 'post-update';
+		date: string;
+		title: string;
+		link: string;
+		status: string;
+		postId?: number;
+		type?: string;
+	} >;
+	totals: {
+		posts: number;
+		pages: number;
+		comments: number;
+		/** Lifetime revision count, excluding the initial save. */
+		updates: number;
+		mostProlificMonth?: { ym: string; n: number };
+	};
 }

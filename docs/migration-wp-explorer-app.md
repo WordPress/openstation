@@ -23,10 +23,10 @@ A stored desktop layout that placed the old pinned icon (`desktop-mode-my-wordpr
 
 | Before | After |
 |---|---|
-| `openDetail( { entityId, postId, postTitle } )` | The shared open target: `wp.os.createSharedStore( 'desktop-mode/my-wordpress/open-target', … )` + `wp.os.openWindow( 'my-wordpress' )`; in-bundle code imports `openExplorerDetail()` from `src/my-wordpress/explorer-open.ts` |
+| `openDetail( { entityId, postId, postTitle } )` | The shared open target: `wp.os.createSharedStore( 'desktop-mode/my-wordpress/open-target', … )` + `wp.os.openWindow( 'my-wordpress' )`; in-bundle code imports `openExplorerDetail()` from `src/open-targets/explorer-open.ts` |
 | `openMedia( { mediaId } )` | Same store, `kind: 'media'` — or `openExplorerMedia()` |
-| `openUserFootprint( { userId, userName } )` | Unchanged call, new destination: `openUserFootprintWindow()` (`src/my-wordpress/footprint-target.ts`) opens the app; the `os-open-user-footprint` bridge message still lands here |
-| `trashEntity( entityId, id )` | Shortcut drag payloads carry their section's `restPath`; the Recycle Bin DELETEs against it (`src/my-wordpress/rest-trash.ts`) and announces `os.<post-type>.changed` (`trashed`) |
+| `openUserFootprint( { userId, userName } )` | Unchanged call, new destination: `openUserFootprintWindow()` (`src/open-targets/footprint-target.ts`) opens the app; the `os-open-user-footprint` bridge message still lands here |
+| `trashEntity( entityId, id )` | Shortcut drag payloads carry their section's `restPath`; the Recycle Bin DELETEs against it (`src/desktop-files/rest-trash.ts`) and announces `os.<post-type>.changed` (`trashed`) |
 | `registerEntityKind()` | — by design. Add a section via `openstation_my_wordpress_app_sections`; decorate every surface through the `os.my-wordpress.*` seams |
 
 ## Sections

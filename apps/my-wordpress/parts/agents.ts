@@ -18,14 +18,14 @@ import {
 	faceFromSeed,
 	faceSrc,
 	hasFace,
-} from '../../../src/my-wordpress/agents-face';
+} from './agents-face';
 import { openAgentChat } from '../../../src/agents-chat-store';
 import { createSharedStore } from '../../../src/shared-store';
 import type {
 	Agent,
 	PreviewAgent,
 	RoleChoice,
-} from '../../../src/my-wordpress/agents-types';
+} from '../../../src/agents-types';
 import {
 	shell,
 	uiOf,
