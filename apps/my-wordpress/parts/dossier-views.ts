@@ -119,13 +119,7 @@ function userDossierBlocks(
 			</div>`
 			: '' }
 		${ show( 'activity' ) ? activityBars( stats.activity ?? [] ) : '' }
-		${ show( 'milestones' ) && milestoneRows.length > 0
-			? html`<dl class="os-mywp__facts">
-				${ milestoneRows.map( ( [ label, value ] ) => html`
-					<div class="os-mywp__fact"><dt>${ label }</dt><dd>${ value }</dd></div>
-				` ) }
-			</dl>`
-			: '' }
+		${ show( 'milestones' ) && milestoneRows.length > 0 ? factList( milestoneRows ) : '' }
 		${ show( 'recent' ) ? recentPosts( ctx, stats.recent ?? [] ) : '' }
 		${ show( 'terms' ) && terms.length > 0
 			? html`
@@ -287,21 +281,8 @@ export function renderDetail( ctx: Ctx, section: SectionDef ): TemplateResult {
 					detail.lockedBy,
 				) }</os-notice>`
 				: '' }
-			<dl class="os-mywp__facts">
-				${ facts.map( ( [ label, value ] ) => html`
-					<div class="os-mywp__fact"><dt>${ label }</dt><dd>${ value }</dd></div>
-				` ) }
-			</dl>
-			${ detail.usedIn
-				? html`
-					<h3 class="os-mywp__pane-h">${ __( 'Used in' ) }</h3>
-					${ detail.usedIn.length > 0
-						? html`<ul class="os-mywp__used-in">
-							${ detail.usedIn.map( ( u ) => html`<li>${ u.title } <span class="os-mywp__subtitle">${ u.usedAs }</span></li>` ) }
-						</ul>`
-						: html`<p class="os-mywp__subtitle">${ __( 'Not used anywhere yet.' ) }</p>` }
-				`
-				: '' }
+			${ factList( facts ) }
+			${ usedInList( detail.usedIn ) }
 			${ detail.content !== undefined
 				? html`
 					<h3 class="os-mywp__pane-h">${ __( 'Preview' ) }</h3>
@@ -451,27 +432,44 @@ function recentPosts( ctx: Ctx, recent: StatsRecentPost[] ): TemplateResult | ''
 	`;
 }
 
+/**
+ * The label/value fact list every detail pane ends with. A row may
+ * carry the server's third element (the dossier-section tag); only
+ * label and value render.
+ */
+function factList( rows: Array< [ string, string ] | [ string, string, string ] > ): TemplateResult {
+	return html`
+		<dl class="os-mywp__facts">
+			${ rows.map( ( [ label, value ] ) => html`
+				<div class="os-mywp__fact"><dt>${ label }</dt><dd>${ value }</dd></div>
+			` ) }
+		</dl>
+	`;
+}
+
+/** The media "Used in" block — list of placements, or the empty line. */
+function usedInList( usedIn: DetailFacts[ 'usedIn' ] ): TemplateResult | '' {
+	if ( ! usedIn ) {
+		return '';
+	}
+	return html`
+		<h3 class="os-mywp__pane-h">${ __( 'Used in' ) }</h3>
+		${ usedIn.length > 0
+			? html`<ul class="os-mywp__used-in">
+				${ usedIn.map( ( u ) => html`<li>${ u.title } <span class="os-mywp__subtitle">${ u.usedAs }</span></li>` ) }
+			</ul>`
+			: html`<p class="os-mywp__subtitle">${ __( 'Not used anywhere yet.' ) }</p>` }
+	`;
+}
+
 /** Facts + hero, shared by the user and media sub-panes. */
 function dossierFacts( detail: DetailFacts ): TemplateResult {
 	return html`
 		${ detail.avatar ? html`<os-avatar src=${ detail.avatar } name=${ detail.title } size="xl"></os-avatar>` : '' }
 		${ detail.image ? html`<img class="os-mywp__hero" src=${ detail.image } alt=${ detail.title } />` : '' }
 		<h2 class="os-mywp__detail-title">${ detail.title }</h2>
-		<dl class="os-mywp__facts">
-			${ detail.facts.map( ( [ label, value ] ) => html`
-				<div class="os-mywp__fact"><dt>${ label }</dt><dd>${ value }</dd></div>
-			` ) }
-		</dl>
-		${ detail.usedIn
-			? html`
-				<h3 class="os-mywp__pane-h">${ __( 'Used in' ) }</h3>
-				${ detail.usedIn.length > 0
-					? html`<ul class="os-mywp__used-in">
-						${ detail.usedIn.map( ( u ) => html`<li>${ u.title } <span class="os-mywp__subtitle">${ u.usedAs }</span></li>` ) }
-					</ul>`
-					: html`<p class="os-mywp__subtitle">${ __( 'Not used anywhere yet.' ) }</p>` }
-			`
-			: '' }
+		${ factList( detail.facts ) }
+		${ usedInList( detail.usedIn ) }
 	`;
 }
 
@@ -507,14 +505,14 @@ function renderSubDetail( ctx: Ctx ): TemplateResult {
 					${ statTile( stats.counts?.distinctAuthors ?? 0, __( 'Authors' ) ) }
 				</div>
 				${ activityBars( stats.activity ?? [] ) }
-				<dl class="os-mywp__facts">
-					${ stats.milestones?.firstPosted
-						? html`<div class="os-mywp__fact"><dt>${ __( 'First post' ) }</dt><dd>${ formatDate( stats.milestones.firstPosted, 'month' ) }</dd></div>`
-						: '' }
-					${ stats.milestones?.lastPosted
-						? html`<div class="os-mywp__fact"><dt>${ __( 'Last post' ) }</dt><dd>${ formatDate( stats.milestones.lastPosted, 'month' ) }</dd></div>`
-						: '' }
-				</dl>
+				${ factList( [
+					...( stats.milestones?.firstPosted
+						? [ [ __( 'First post' ), formatDate( stats.milestones.firstPosted, 'month' ) ] as [ string, string ] ]
+						: [] ),
+					...( stats.milestones?.lastPosted
+						? [ [ __( 'Last post' ), formatDate( stats.milestones.lastPosted, 'month' ) ] as [ string, string ] ]
+						: [] ),
+				] ) }
 				${ ( stats.topAuthors ?? [] ).length > 0
 					? html`
 						<h3 class="os-mywp__pane-h">${ __( 'Top contributors' ) }</h3>
