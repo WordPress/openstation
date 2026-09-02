@@ -87,8 +87,23 @@ desktop, and the full-payload quarantine above still stands — a foreign
 admin's native windows, widgets and the rest never register here.
 Until a Space's first harvest lands, the previous dock stays (never an
 empty dock); a harvest that lands after the user has left is cached
-for next time without repainting. Pinned by
+for next time without repainting. The shell's own live refresh (a full
+payload from one of the home admin's windows, or a probe) repaints the
+dock only while it shows the home menu: inside a Space the fresh home
+items wait for the next switch home (`applyHomeDockItems()`), so a
+home-admin window that lives on a Space, opened there or restored with
+the session, cannot paint the home menu over the Space's. Pinned by
 `tests/vitest/space-dock.test.ts`.
+
+The probe keeps the request's admin context. It short-circuits
+`admin.php` before Core has set a screen, and builds a placeholder one
+so enqueue callbacks can run; that screen is `admin-network` or
+`admin-user` where the request is (`openstation_menu_refresh_probe_screen_id()`),
+because `WP_Screen` reads a bare id's context off its suffix, and a
+plain `admin` screen turned every network probe into a site request:
+the network menu came back with every slug resolved against the site
+admin, and the Space's Plugins tile opened the site's `plugins.php`.
+Pinned by `tests/phpunit/tests/openStationMultisite.php`.
 
 Shell-to-shell navigations that still happen (typed URLs, bookmarks, a
 kept admin bar) animate through the cross-document view-transition

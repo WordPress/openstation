@@ -6,7 +6,12 @@
 import { describe, expect, test, vi, afterEach } from 'vitest';
 import { createSpaceOpener, labelForScope } from '../../src/multisite/spaces';
 import type { SpacesManager } from '../../src/multisite/spaces';
-import { frameSourceIsOtherAdmin } from '../../src/boot/menu-refresh';
+import {
+	bindMenuRefresh,
+	frameSourceIsOtherAdmin,
+} from '../../src/boot/menu-refresh';
+import { INITIAL_ORIGIN } from '../../src/boot/origin';
+import type { DesktopConfig } from '../../src/types';
 
 const ADMIN = 'http://example.test/wp-admin/network/';
 
@@ -147,6 +152,53 @@ describe( 'labelForScope', () => {
 		[ '/wp-admin/', 'Main site' ],
 	] )( '%s → %s', ( scope, label ) => {
 		expect( labelForScope( scope ) ).toBe( label );
+	} );
+} );
+
+describe( 'bindMenuRefresh', () => {
+	test( 'routes a payload\'s dock items through the injected applier', () => {
+		// The shell hands in the per-Space dock controller here, so a
+		// home payload cannot overwrite a Space's menu — see
+		// `applyHomeDockItems()` in `src/multisite/space-dock.ts`.
+		const applyDockItems = vi.fn();
+		const noop = vi.fn( async () => {} );
+		bindMenuRefresh( {
+			layoutDispatcher: null,
+			applyDockItems,
+			desktopArea: document.createElement( 'div' ),
+			config: {
+				adminUrl: 'http://example.test/wp-admin/',
+			} as unknown as DesktopConfig,
+			syncNativeWindows: noop,
+			syncServerWidgets: noop,
+			syncServerWallpapers: noop,
+			syncServerCommands: noop,
+			syncServerSettingsTabs: noop,
+			syncServerTitleBarButtons: noop,
+			syncServerWindowActions: noop,
+			syncServerUnfocusEffects: noop,
+			syncServerWindowLinkRenderers: noop,
+			syncServerDockRailRenderers: noop,
+			syncServerGames: noop,
+			renderIcons: vi.fn(),
+		} );
+
+		const dockItems = [
+			{
+				id: 'menu-posts',
+				title: 'Posts',
+				url: 'http://example.test/wp-admin/edit.php',
+				icon: '',
+			},
+		];
+		window.dispatchEvent(
+			new MessageEvent( 'message', {
+				origin: INITIAL_ORIGIN,
+				data: { type: 'os-plugins-changed', payload: { dockItems } },
+			} ),
+		);
+
+		expect( applyDockItems ).toHaveBeenCalledWith( dockItems );
 	} );
 } );
 

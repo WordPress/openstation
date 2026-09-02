@@ -23,6 +23,7 @@ import { HOOKS, doAction } from '../hooks';
 import { createApplyPayload } from '../menu-refresh-apply';
 import { adminScopeOf } from '../admin-scope';
 import { INITIAL_ORIGIN } from './origin';
+import type { DockItem } from '../dock';
 import type { LayoutDispatcher } from '../desktop-layout';
 import type {
 	DesktopCommandScriptServerEntry,
@@ -62,6 +63,13 @@ const UPDATES_REFRESH_DEBOUNCE_MS = 600;
 
 export interface MenuRefreshDeps {
 	layoutDispatcher: LayoutDispatcher | null;
+	/**
+	 * Where a payload's dock items go. Defaults to the dispatcher's
+	 * dock-only repaint; the shell routes it through the per-Space dock
+	 * controller so a payload from the shell's own admin cannot
+	 * overwrite a Space's menu while the user stands in that Space.
+	 */
+	applyDockItems?: ( items: DockItem[] ) => void;
 	desktopArea: HTMLElement;
 	config: DesktopConfig;
 	syncNativeWindows: ( list: NativeWindowServerEntry[] ) => Promise< void >;
@@ -113,9 +121,9 @@ export interface MenuRefreshDeps {
  * scope it still has. Unknown sources — the window itself, a popup, a
  * frame already removed — answer `false`: they are not iframes of ours
  * to distrust, and every message from them keeps its pre-Spaces
- * treatment.
+ * treatment. Exported for tests.
  *
- * @internal Exported for tests.
+ * @internal
  */
 export function frameSourceIsOtherAdmin(
 	source: MessageEventSource | null,
@@ -166,7 +174,9 @@ export function bindMenuRefresh( deps: MenuRefreshDeps ): () => Promise< void > 
 	} = deps;
 
 	const applyPayload = createApplyPayload( {
-		applyDockItems: ( items ) => layoutDispatcher?.applyDockItems( items ),
+		applyDockItems:
+			deps.applyDockItems ??
+			( ( items ) => layoutDispatcher?.applyDockItems( items ) ),
 		desktopArea,
 		config,
 		syncNativeWindows,

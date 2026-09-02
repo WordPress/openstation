@@ -52,6 +52,17 @@ export interface SpaceDockController {
 	 * (`Desktop.scope`) or undefined for an ordinary desktop.
 	 */
 	onSwitch: ( scope: string | undefined ) => void;
+	/**
+	 * The shell's own live refresh landed — a full payload from one of
+	 * the home admin's windows, or the home probe. Painted only while
+	 * the dock is showing the home menu: inside a Space the Space's
+	 * menu stays put, and the fresh home items wait in
+	 * `getHomeDockItems()` for the next switch home. Without this, a
+	 * home-admin window that lives on a Space (`plugins.php` opened
+	 * there, or a restored one) repaints the Space's dock with the
+	 * home menu the moment it loads.
+	 */
+	applyHomeDockItems: ( items: DockItem[] ) => void;
 }
 
 /**
@@ -187,6 +198,11 @@ export function createSpaceDockController(
 			paint( target );
 			if ( target !== deps.homeScope ) {
 				harvestFor( target );
+			}
+		},
+		applyHomeDockItems: ( items ) => {
+			if ( activeScope === deps.homeScope ) {
+				deps.applyDockItems( items );
 			}
 		},
 	};

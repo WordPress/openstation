@@ -4047,6 +4047,12 @@ function init(): void {
 	// the same statement.
 	const refreshMenu = bindMenuRefresh( {
 		layoutDispatcher,
+		// A payload from the shell's own admin repaints the dock only
+		// while the dock shows the home menu. Inside a Space — a
+		// home-admin window living there, or a probe spent while the
+		// user stood there — the Space's menu stays; the fresh home
+		// items are picked up on the next switch home.
+		applyDockItems: ( items ) => spaceDock.applyHomeDockItems( items ),
 		desktopArea,
 		config,
 		syncNativeWindows,

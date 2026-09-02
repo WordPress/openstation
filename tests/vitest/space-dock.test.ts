@@ -111,6 +111,41 @@ describe( 'the per-Space dock', () => {
 		expect( harvest ).toHaveBeenCalledTimes( 2 );
 	} );
 
+	test( 'a home refresh that lands inside a Space waits for the next switch home', async () => {
+		const { harvest, land } = deferredHarvest();
+		let home = homeItems;
+		const applyDockItems = vi.fn();
+		const controller = createSpaceDockController( {
+			applyDockItems,
+			getHomeDockItems: () => home,
+			homeScope: HOME,
+			origin: 'http://example.test',
+			harvest,
+		} );
+
+		// At home, the shell's own live refresh paints straight away.
+		controller.applyHomeDockItems( homeItems );
+		expect( applyDockItems ).toHaveBeenLastCalledWith( homeItems );
+
+		controller.onSwitch( SITE );
+		land( '/site2/', siteItems );
+		await settle();
+		expect( applyDockItems ).toHaveBeenLastCalledWith( siteItems );
+
+		// A home-admin window living on the Space (a plugins.php opened
+		// there, or one restored with the session) emits its full
+		// payload: the Space's menu must stay.
+		const fresher = [ item( 'Dashboard' ), item( 'Sites' ), item( 'Shiny' ) ];
+		home = fresher;
+		applyDockItems.mockClear();
+		controller.applyHomeDockItems( fresher );
+		expect( applyDockItems ).not.toHaveBeenCalled();
+
+		// Back home, the dock shows the fresh items, not the boot-time ones.
+		controller.onSwitch( undefined );
+		expect( applyDockItems ).toHaveBeenLastCalledWith( fresher );
+	} );
+
 	test( 'switching within the same admin is a no-op', () => {
 		const { harvest } = deferredHarvest();
 		const { controller, applyDockItems } = build( harvest );

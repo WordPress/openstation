@@ -328,9 +328,11 @@ function openstation_menu_refresh_probe_payload() {
 		// so at probe time there is no screen yet — and Core's own
 		// enqueue callbacks (the block-editor script loader among
 		// them) read `get_current_screen()->id` unguarded. Build the
-		// screen the real flow would have had before the hook fires.
+		// screen the real flow would have had before the hook fires,
+		// in the request's own admin context — see
+		// `openstation_menu_refresh_probe_screen_id()`.
 		if ( function_exists( 'set_current_screen' ) && function_exists( 'get_current_screen' ) && ! get_current_screen() ) {
-			set_current_screen( 'admin' );
+			set_current_screen( openstation_menu_refresh_probe_screen_id() );
 		}
 		ob_start();
 		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- deliberate replay of Core's own hook so handle-attached script data exists before the harvest below.
@@ -339,6 +341,33 @@ function openstation_menu_refresh_probe_payload() {
 	}
 
 	return openstation_build_menu_payload();
+}
+
+/**
+ * The screen id the refresh probe builds its placeholder `WP_Screen`
+ * from: `admin-network` in the network admin, `admin-user` in the user
+ * admin, `admin` on a site.
+ *
+ * Once a screen exists, `is_network_admin()` answers from it — and a
+ * screen built from a bare id gets its admin context from the id's
+ * SUFFIX (`-network`, `-user`, or none for a site screen), never from
+ * `WP_NETWORK_ADMIN`. A plain `admin` screen therefore turned a
+ * network-admin probe into a site request for everything after it:
+ * `self_admin_url()` resolved every network menu slug against the site
+ * admin, and the harvested dock sent a Network Admin Space's Plugins
+ * tile to the site's `plugins.php`. Read the context here, BEFORE any
+ * screen exists, where the answer still comes from the request itself.
+ *
+ * @return string Screen id carrying the request's admin context.
+ */
+function openstation_menu_refresh_probe_screen_id() {
+	if ( is_network_admin() ) {
+		return 'admin-network';
+	}
+	if ( is_user_admin() ) {
+		return 'admin-user';
+	}
+	return 'admin';
 }
 
 /**
