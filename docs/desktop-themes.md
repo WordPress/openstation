@@ -651,11 +651,12 @@ Read `assets/css/variables.css` for the full set.
 > re-layout. `--os-tile-w-large` / `--os-tile-h-large` do the same job
 > for image-led sections (`tileSize: 'large'`).
 
-> **`--os-window-radius` is not one of them in practice.**
-> The Window-corners preset in OpenStation Preferences writes that property as an
-> inline style on the shell root, which outranks any stylesheet rule,
-> so a theme declaring it in `tokens` has no effect on windows. The
-> user's corner preference stays the user's. If your frame artwork
+> **`--os-window-radius`, `--os-dock-width` and `--os-dock-icon-size`
+> are not among them in practice.** The Window-corners and Dock-size
+> presets in OpenStation Preferences write those properties as inline
+> styles on the shell root, which outranks any stylesheet rule, so a
+> theme declaring them in `tokens` has no effect on windows or on the
+> dock. The user's preference stays the user's. If your frame artwork
 > needs a particular radius, ask for it through
 > [`recommendedOsSettings.windowRadius`](#recommended-os-settings) —
 > that sets their preference once, on first activation, and leaves it

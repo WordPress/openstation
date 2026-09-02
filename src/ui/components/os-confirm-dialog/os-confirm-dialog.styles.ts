@@ -143,6 +143,39 @@ export const dialogStyles = css`
 		white-space: pre-line;
 	}
 
+	/*
+	 * The "don't ask again" row, when remember-label renders one.
+	 *
+	 * A native checkbox rather than os-checkbox: this component ships
+	 * in the shell-overlays bundle, which registers the tags a
+	 * triggered overlay needs and no others, and a dialog that renders
+	 * an unregistered tag renders an inert box. accent-color is the
+	 * whole styling — one property, the flat UI accent the rest of the
+	 * form controls wear.
+	 */
+	.remember {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		margin-top: 4px;
+		font-size: 12px;
+		color: var( --os-ui-confirm-dialog-fg-muted, var( --os-ui-fg-muted, rgba( 255, 255, 255, 0.7 ) ) );
+		cursor: pointer;
+		user-select: none;
+	}
+
+	.remember__box {
+		margin: 0;
+		accent-color: var( --os-ui-accent, #2271b1 );
+		cursor: pointer;
+	}
+
+	.remember__box:focus,
+	.remember__box:focus-visible {
+		outline: none;
+		box-shadow: var( --_holo-focus );
+	}
+
 	.actions {
 		display: flex;
 		justify-content: flex-end;

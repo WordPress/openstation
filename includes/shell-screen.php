@@ -85,16 +85,35 @@ const OPENSTATION_SHELL_INTENT_ARG = 'intent';
  * never trusted from the URL alone. An empty target yields the bare
  * screen URL and the screen resolves the entry itself.
  *
- * @param string $target Admin URL to open first, or '' for none.
- * @param bool   $intent Whether the target is the user's navigation intent.
+ * The screen exists in both admins, so the URL follows the one the
+ * caller is in. `$network` overrides that for callers with no context
+ * of their own: `admin-ajax.php` is never the network admin, whatever
+ * the click that reached it.
+ *
+ * @param string    $target  Admin URL to open first, or '' for none.
+ * @param bool      $intent  Whether the target is the user's navigation intent.
+ * @param bool|null $network Force the network screen (true) or the site
+ *                           one (false). Null follows the request.
  * @return string Absolute shell screen URL.
  */
-function openstation_shell_url( $target = '', $intent = false ) {
-	$url = admin_url( 'admin.php?page=' . OPENSTATION_SHELL_PAGE_SLUG );
-
+function openstation_shell_url( $target = '', $intent = false, $network = null ) {
 	$target = is_string( $target ) ? openstation_shell_normalize_admin_url( $target ) : '';
+	$path   = '' !== $target ? wp_parse_url( $target, PHP_URL_PATH ) : '';
+
+	if ( null === $network ) {
+		// Follow the admin the TARGET lives in, falling back to the
+		// request's own. The network dashboard opened on the site
+		// screen would be one admin inside another's shell, which is
+		// what the bridge refuses on a link click for the same reason.
+		$network = is_string( $path ) && '' !== $path
+			? false !== strpos( $path, '/wp-admin/network/' )
+			: is_network_admin();
+	}
+
+	$screen = 'admin.php?page=' . OPENSTATION_SHELL_PAGE_SLUG;
+	$url    = $network ? network_admin_url( $screen ) : admin_url( $screen );
+
 	if ( '' !== $target ) {
-		$path  = wp_parse_url( $target, PHP_URL_PATH );
 		$query = wp_parse_url( $target, PHP_URL_QUERY );
 		if ( is_string( $path ) && '' !== $path ) {
 			$relative = $path . ( is_string( $query ) && '' !== $query ? '?' . $query : '' );
@@ -188,7 +207,13 @@ function openstation_is_shell_screen_request() {
 	if ( function_exists( 'get_current_screen' ) ) {
 		$screen = get_current_screen();
 		if ( $screen instanceof WP_Screen ) {
-			return OPENSTATION_SHELL_SCREEN_ID === $screen->id;
+			// WordPress suffixes screen ids in the network admin, so
+			// the network shell is `admin_page_openstation-network`.
+			return in_array(
+				$screen->id,
+				array( OPENSTATION_SHELL_SCREEN_ID, OPENSTATION_SHELL_SCREEN_ID . '-network' ),
+				true
+			);
 		}
 	}
 	global $pagenow, $plugin_page;
@@ -252,6 +277,11 @@ function openstation_register_shell_screen() {
 	}
 }
 add_action( 'admin_menu', 'openstation_register_shell_screen' );
+// The network admin builds its menu from its own hook, and the desktop
+// is reachable there for the same reason it is on a site: it is where
+// the network's own admin pages are. `network/admin.php` routes
+// `?page=` exactly as `admin.php` does.
+add_action( 'network_admin_menu', 'openstation_register_shell_screen' );
 
 /**
  * Names the shell document, before `admin-header.php` asks for a name.
@@ -352,17 +382,26 @@ function openstation_shell_boot_target() {
 			}
 		}
 		if ( '' === $target ) {
-			$target = openstation_portal_entry_url( get_current_user_id() );
+			// The network screen has its own dashboard to fall back to;
+			// the saved session belongs to a site, so it would open one
+			// admin's window on the other's desktop.
+			$target = is_network_admin()
+				? network_admin_url( 'index.php' )
+				: openstation_portal_entry_url( get_current_user_id() );
 		}
 		$target = openstation_shell_normalize_admin_url( $target );
 
-		// `admin_url()` alone names the directory; `$pagenow` on that
+		// An admin URL alone names the directory; `$pagenow` on that
 		// request is `index.php`, and the dock derives the Dashboard's
-		// window id from the file. Keep both sides deriving the same id.
+		// window id from the file. Keep both sides deriving the same id,
+		// naming the file inside the target's OWN admin so a network
+		// URL does not resolve to the site's dashboard.
 		$path = wp_parse_url( $target, PHP_URL_PATH );
 		if ( is_string( $path ) && '/' === substr( $path, -1 ) ) {
 			$query  = wp_parse_url( $target, PHP_URL_QUERY );
-			$target = admin_url( 'index.php' ) . ( is_string( $query ) && '' !== $query ? '?' . $query : '' );
+			$parts  = explode( '?', $target, 2 );
+			$target = rtrim( $parts[0], '/' ) . '/index.php'
+				. ( is_string( $query ) && '' !== $query ? '?' . $query : '' );
 		}
 
 		return array(

@@ -73,7 +73,7 @@ Zero Core patches. Every feature is wired through public WordPress hooks.
   Shell-level toasts rendered via the `<os-toast>` component. Plugins register their own tone/icon via the `openstation_toast_types` filter. Iframe pages raise a toast through the `os-notification` bridge message — it survives the iframe's own lifecycle.
 
 - **OpenStation Preferences**
-  Native-window settings panel: wallpaper picker (with HD-only media filter), accent color swatches + custom gradient editor, dock size slider, AI platform config, and per-user default-on-startup window. Persisted via `/desktop-mode/v1/os-settings`.
+  The settings window, an App Framework app (`apps/os-settings/`): wallpaper picker (with HD-only media filter), accent color swatches + custom gradient editor, desktop layout and dock controls, themes, window effects, navigation placement, feature switches and the component reference. Persisted via `/desktop-mode/v1/os-settings`.
 
 - **Session persistence**
   Full window stack (including desktops, focus, state) is debounce-saved to `/desktop-mode/v1/session` and restored without layout flicker. Viewport-shrink clamping keeps off-screen windows reachable.
@@ -120,6 +120,9 @@ See [`docs/architecture.md`](./docs/architecture.md) for how the pieces fit toge
 │   ├── accents.php              wallpapers.php      toast-types.php
 │   ├── media-query.php
 │   └── ai-copilot/              # AI assistant (OpenAI client, analysis, search, jobs)
+├── apps/                  # App Framework apps: <name>.os.php (window, state, actions,
+│                          #   data) + optional <name>.os.ts (client view) + <name>.css;
+│                          #   Code Blue lives here — see docs/app-framework.md
 ├── assets/                # hand-authored CSS + JS build output
 │   ├── css/  desktop.css, windows.css, dock.css, chromeless.css, variables.css
 │   │          variables.css carries the OpenStation palette — every design
@@ -204,8 +207,6 @@ Writes one `assets/js/<target>.js` / `.min.js` pair per target, including:
 
 - `assets/js/desktop.js` / `.min.js` — main shell bundle (loaded based on `SCRIPT_DEBUG`).
 - `assets/js/iframe-bridge.js` / `.min.js` — opt-in bridge that gives any same-origin iframe access to `wp.os.iframe.*`.
-- `assets/js/recycle-bin.js` / `.min.js` — Recycle Bin native window.
-- `assets/js/station-home.js` / `.min.js` — Station Home native Dashboard.
 - `assets/js/posts-window.js` / `.min.js` — Native Posts window (the `<os-table>` replacement for the `edit.php` iframe; opt-in per user via OpenStation Preferences → Features).
 
 **Development watch** — auto-recompiles the unminified bundle on save:

@@ -3,18 +3,19 @@
  *
  * Initializes the desktop shell, restores the user's session if one
  * exists, opens the current admin page otherwise, wires session
- * persistence to change events, and normalizes the browser URL to
- * `/openstation/` so the address bar shows a single stable location
- * regardless of which admin page is open in which window.
+ * persistence to change events, and strips the shell screen's consumed
+ * boot args from the address bar so a reload re-resolves against the
+ * live session instead of replaying the target it was reached by.
+ *
+ * The URL is deliberately left on the shell screen rather than
+ * normalised to `/openstation/` — see the note next to the file-drop
+ * sentinel for why that normalisation was reverted.
  */
 
-// Install the `wp.os.myWordpress` early-registration stub so
-// plugin scripts can call `registerEntityKind()` before the lazy
-// my-wordpress bundle mounts. Side-effect import — runs once.
-import './my-wordpress/early-api';
 import { WindowManager } from './window-manager';
 import { installWindowSwitcherShortcut } from './window-manager/switcher';
 import { installDesktopArrowShortcuts } from './window-manager/desktop-shortcuts';
+import { installCloseAllShortcut } from './window-manager/close-all-shortcut';
 import {
 	installWindowLoadingTransitions,
 } from './window/loading';
@@ -31,15 +32,18 @@ import {
 	tryNativeUrlRemap,
 } from './native-url-remap';
 import type { NativeUrlRemap } from './native-url-remap';
-import { matchesStationHomeUrl } from './station-home/model';
+import { matchesStationHomeUrl } from './open-targets/station-home-url';
 import { bindAdminLinkDispatch } from './window/iframe-bridge';
 import type { DestructiveAdminActionEntry } from './destructive-admin-actions';
 // Tile-decoration helpers and the dock-selector registry live in
 // `src/dock-helpers.ts` — `src/api/facade.ts` is the only consumer
 // in this bundle.
 import { OsSettings } from './settings';
+import { OS_SETTINGS_WINDOW_ID } from './settings/constants';
 import { getExitOpenStationTileDef } from './exit-openstation';
+import { getNetworkAdminTileDef } from './multisite/dock-tiles';
 import { deriveWindowId, urlMatchKey } from './utils';
+import { shellUrlWithoutBootArgs } from './shell-url';
 // Static import — `setUserEditTarget` MUST run before the user-edit
 // window's render callback reads the target, and the render callback
 // fires synchronously inside `openById` (`manager.open` → `hydrateNative`
@@ -158,7 +162,7 @@ import {
 	attachBroadcastBus,
 	installBroadcastReceiver,
 } from './broadcast';
-import { startRecycleBinIconState, _currentRecycleBinCount } from './recycle-bin/icon-state';
+import { startRecycleBinIconState, _currentRecycleBinCount } from './desktop-files/recycle-bin-icon-state';
 import { registerBuiltInPeekRenderers } from './dock-peek/built-in-renderers';
 import {
 	BUG_REPORT_WINDOW_ID,
@@ -242,7 +246,6 @@ import {
 	MIO_TILE_ID,
 	type MioApi,
 } from './mio/controller';
-import { OS_GEAR_ICON } from './ui/gear-icon';
 import { mountNotch } from './notch';
 import { installDockBehavior } from './dock-behavior';
 import {
@@ -403,9 +406,6 @@ let _earlyReady = false;
 	// consumer reads beyond `whenReady` / `ready` / `isReady`.
 	w.wp.os = shim as unknown;
 }() );
-
-/** Stable id for the OS Settings native window. */
-const OS_SETTINGS_WINDOW_ID = 'desktop-mode-os-settings';
 
 /**
  * Run a non-critical boot task during browser idle time. Falls
@@ -752,8 +752,8 @@ export interface OpenStationPublicApi {
 	 * sight. Await this, then read the API:
 	 *
 	 * ```js
-	 * await wp.os.loadWindowScript( 'desktop-mode-my-wordpress' );
-	 * await wp.os.myWordpress.trashEntity( 'posts', 42 );
+	 * await wp.os.loadWindowScript( 'desktop-mode-agent-run' );
+	 * // …then read the API that bundle publishes on `wp.os`.
 	 * ```
 	 *
 	 * Resolves `true` once the bundle is in the tab (immediately on
@@ -1163,6 +1163,12 @@ export interface OpenStationPublicApi {
 		opts?: { windowId?: string },
 	) => void;
 	/**
+	 * Put every preference back to its default — what the Preferences
+	 * window's Reset button does. The uploaded image survives: it is a
+	 * pointer at something the user made, not a preference.
+	 */
+	resetOsSettings: ( opts?: { windowId?: string } ) => void;
+	/**
 	 * Derive a stable window id from an admin URL — the same id the
 	 * default rail renderer uses when it opens a tile. Matches the
 	 * shell's internal slugifier; a custom renderer that calls
@@ -1194,11 +1200,11 @@ export interface OpenStationPublicApi {
 		title: string;
 		icon: string;
 		/**
-		 * What the tile IS: `'app'` for a launcher, `'control'` for
-		 * one of OpenStation's own affordances. Decides its default
-		 * placement and its dock zone.
+		 * What the tile IS: `'app'` for a launcher, `'control'` for one
+		 * of OpenStation's own affordances, `'core'` for a tile
+		 * standing in for a WordPress menu.
 		 */
-		navKind: 'app' | 'control';
+		navKind: 'core' | 'app' | 'control';
 		/**
 		 * Whether the tile opts into OpenStation Preferences →
 		 * Navigation, so the user can move or hide it. Opt-in: most
@@ -2164,6 +2170,21 @@ function init(): void {
 		return;
 	}
 
+	// The boot args have already been read — server-side, into
+	// `config.currentPage` and `config.fromPortalIntent`. Drop them from
+	// the address bar so they stay one-shot: left there, every reload
+	// re-opens the target on top of the restored session. Done before
+	// anything can throw, so a boot failure can't leave them pinned.
+	const cleanUrl = shellUrlWithoutBootArgs( window.location.href );
+	if ( cleanUrl ) {
+		try {
+			window.history.replaceState( window.history.state, '', cleanUrl );
+		} catch {
+			// A sandboxed or file:// document refuses replaceState.
+			// Cosmetic here — the shell has its config either way.
+		}
+	}
+
 	const manager = new WindowManager( desktopArea );
 
 	// Wallpaper layer + registry. Built-in presets register immediately
@@ -2204,22 +2225,14 @@ function init(): void {
 		isReady: () => typeof ( window as { PIXI?: unknown } ).PIXI !== 'undefined',
 	} );
 
-	// OS Settings — shell-level preferences. Takes the wallpaper layer
-	// so it can delegate apply() through the registry-driven path.
-	// Falls back to a stub layer when the shell markup somehow lacks
-	// the wallpaper element (defensive; shouldn't happen in practice).
+	// The Preferences store — shell-level preferences. Takes the
+	// wallpaper layer so it can delegate apply() through the
+	// registry-driven path. Falls back to a stub layer when the shell
+	// markup somehow lacks the wallpaper element (defensive; shouldn't
+	// happen in practice). The Preferences WINDOW is an App Framework
+	// app (`apps/os-settings/`) that edits this store through the
+	// public `wp.os.getOsSettings()` / `updateOsSettings()` API.
 	const osSettings = new OsSettings(
-		{
-			mediaUrl: config.mediaUrl,
-			restNonce: config.restNonce,
-			canUpload: !! config.canUpload,
-			isAdmin: !! config.currentUserIsAdmin,
-			extendedOptions: config.extendedOptions ?? null,
-			extendedOptionsUrl: config.extendedOptionsUrl ?? '',
-			osSettingsPanelBundleUrl: config.osSettingsPanelBundleUrl ?? '',
-			canManageDesktopThemes: !! config.canManageDesktopThemes,
-			desktopThemesUrl: config.desktopThemesUrl ?? '',
-		},
 		wallpaperLayer ?? new WallpaperLayer( document.createElement( 'div' ), pluginUrl ),
 	);
 	osSettings.apply();
@@ -2428,6 +2441,13 @@ function init(): void {
 	installPaletteShortcut();
 	installWindowSwitcherShortcut( manager );
 	installDesktopArrowShortcuts( manager );
+	installCloseAllShortcut( manager, {
+		shouldAsk: () => osSettings.state.confirmCloseAllWindows,
+		setAsk: ( ask ) => {
+			osSettings.state.confirmCloseAllWindows = ask;
+			osSettings.save();
+		},
+	} );
 
 	// Iframe command bridge — pulls `wp.data.select('core/commands')` out
 	// of whichever window has focus and exposes the commands as slash-
@@ -3362,24 +3382,24 @@ function init(): void {
 		if ( merged ) {
 			opts = { ...opts, tabId: merged };
 		}
-		if ( opts.tabId ) {
-			osSettings.activeTabId = opts.tabId;
-		}
-		void manager.open( {
-			id: OS_SETTINGS_WINDOW_ID,
-			baseId: OS_SETTINGS_WINDOW_ID,
-			url: '#os-settings',
-			title: 'OpenStation Preferences',
-			icon: OS_GEAR_ICON,
-			native: true,
-			render: ( body ) => osSettings.renderPanel( body ),
-			width: 820,
-			height: 720,
-			minWidth: 560,
-			minHeight: 480,
+		// The window is the `apps/os-settings/` app, registered by PHP
+		// like every other app. A fresh open carries the tab as an
+		// open-time param (`$os->param( 'tab' )` in the app's mount);
+		// an already-open window is told through its client session,
+		// the same way any bundle drives an app window.
+		const alreadyOpen = !! manager.getById( OS_SETTINGS_WINDOW_ID );
+		nativeWindows.openById( OS_SETTINGS_WINDOW_ID, {
+			source: 'os-settings',
+			...( opts.tabId ? { params: { tab: opts.tabId } } : {} ),
 		} );
-		if ( opts.tabId ) {
-			osSettings.focusTab( opts.tabId );
+		if ( opts.tabId && alreadyOpen ) {
+			// `wp.os.apps` is the app runtime's namespace, registered by
+			// its own bundle once any app window has opened — which an
+			// already-open Preferences window guarantees.
+			const apps = ( window.wp?.os as {
+				apps?: { local: ( id: string, action: string, args: Record< string, unknown > ) => void };
+			} | undefined )?.apps;
+			apps?.local( OS_SETTINGS_WINDOW_ID, 'tab', { value: opts.tabId } );
 		}
 	}
 
@@ -3425,6 +3445,14 @@ function init(): void {
 		// save-openstation AJAX endpoint via the
 		// `window.openStationAdminBar` global; no new PHP surface.
 		layoutDispatcher.appendSystemTile( getExitOpenStationTileDef() );
+
+		// Null on a single-site install and without `manage_network`.
+		if ( config.multisite ) {
+			const networkTile = getNetworkAdminTileDef( config.multisite );
+			if ( networkTile ) {
+				layoutDispatcher.appendSystemTile( networkTile );
+			}
+		}
 
 		// Mio tile — one of OpenStation's controls, so it rides the
 		// dock's trailing cluster rather than sitting among the apps.
@@ -3568,10 +3596,6 @@ function init(): void {
 			osSettings.getOsSettingsSnapshot().stationHomeEnabled !== true
 		) {
 			return false;
-		}
-		if ( nativeId === OS_SETTINGS_WINDOW_ID ) {
-			openOsSettings();
-			return true;
 		}
 		if ( nativeId === BUG_REPORT_WINDOW_ID ) {
 			openBugReport();

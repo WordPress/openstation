@@ -19,6 +19,7 @@
 
 import { applyFilters } from '../hooks';
 import { __, sprintf } from '../i18n';
+import { openExplorerDetail } from '../open-targets/explorer-open';
 import { joinRestUrl } from '../rest-url';
 import { trackedFetch } from '../tracked-fetch';
 import { formatBytes } from '../os-file-drop/format-bytes';
@@ -245,48 +246,30 @@ async function renderPostPreview(
 	const footer = document.createElement( 'footer' );
 	footer.className = 'os-my-wordpress__article-footer';
 
-	// "Explore details" — only shown when the My WordPress bundle
-	// is loaded and has registered its public API. Routes the
-	// existing My WordPress window straight to this post's detail
-	// dossier (Author / Comments / Tags / Categories / Attached
-	// media / Revisions). Single source of truth for the dossier
-	// renderer; no duplication here.
-	const myWordpressApi = (
-		window.wp as
-			| {
-					os?: {
-						myWordpress?: {
-							openDetail: ( a: {
-								entityId: string;
-								postId: number;
-								postTitle: string;
-							} ) => void;
-						};
-					};
-			}
-			| undefined
-	)?.os?.myWordpress;
-	if ( myWordpressApi ) {
-		const exploreBtn = document.createElement( 'os-button' );
-		exploreBtn.setAttribute( 'variant', 'secondary' );
-		exploreBtn.textContent = __( 'Explore details', 'desktop-mode' );
-		exploreBtn.title = __(
-			'See author, comments, categories, tags, attached media, and revisions for this entry.',
-			'desktop-mode',
-		);
-		exploreBtn.addEventListener( 'click', () => {
-			const postType =
-				typeof file.postType === 'string'
-					? ( file.postType as string )
-					: 'post';
-			myWordpressApi.openDetail( {
-				entityId: postType === 'page' ? 'pages' : 'posts',
-				postId: id,
-				postTitle: stripTags( data.title.rendered ) || `#${ id }`,
-			} );
+	// "Explore details" — routes the explorer app straight to this
+	// post's detail dossier (Author / Comments / Tags / Categories /
+	// Attached media / Revisions) through the shared open target.
+	// Single source of truth for the dossier renderer; no
+	// duplication here.
+	const exploreBtn = document.createElement( 'os-button' );
+	exploreBtn.setAttribute( 'variant', 'secondary' );
+	exploreBtn.textContent = __( 'Explore details', 'desktop-mode' );
+	exploreBtn.title = __(
+		'See author, comments, categories, tags, attached media, and revisions for this entry.',
+		'desktop-mode',
+	);
+	exploreBtn.addEventListener( 'click', () => {
+		const postType =
+			typeof file.postType === 'string'
+				? ( file.postType as string )
+				: 'post';
+		openExplorerDetail( {
+			entityId: postType === 'page' ? 'pages' : 'posts',
+			postId: id,
+			postTitle: stripTags( data.title.rendered ) || `#${ id }`,
 		} );
-		footer.appendChild( exploreBtn );
-	}
+	} );
+	footer.appendChild( exploreBtn );
 
 	const editBtn = document.createElement( 'os-button' );
 	editBtn.setAttribute( 'variant', 'primary' );

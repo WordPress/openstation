@@ -1,0 +1,2880 @@
+/**
+ * OpenStation — OS Settings native panel.
+ *
+ * The preferences panel rendered inside the OS Settings native
+ * window: wallpaper swatches + editor slot, accent colors, dock size,
+ * and the "Or use your own image" uploader + Media Library grid.
+ * Currently shipped alongside the window-chrome stylesheet because
+ * historically the rules lived there; marked for a future move to its
+ * own enqueue handle once the coupling to the shell CSS is removed.
+ *
+ * @since 0.5.0
+ */
+/*
+ * Body Small, straight off the brand guide: Geist 14 / Regular / 1.5.
+ * The panel used to sit at 13, which is the guide's Caption tier and
+ * therefore the size everything SECONDARY should be, not the size the
+ * body is. Every rule below that names a smaller size was lifted one
+ * step with it, so the panel now bottoms out at Caption instead of
+ * running two tiers under the smallest size the guide defines.
+ */
+.os-settings {
+	font-size: 14px;
+	line-height: 1.5;
+}
+
+.os-settings__intro {
+	margin: 0 0 16px;
+	color: var( --os-ui-fg-muted, #50575e );
+}
+
+/*
+ * The page header: the title again, at the size of a title, plus the
+ * one line the sidebar has no room for.
+ *
+ * Sits outside the section cards rather than inside the first one, so
+ * a section stays reusable on any page and has no opinion about being
+ * first on one. Heading 24 / Medium 500 with the guide's optical
+ * tightening; the sentence under it is Body Small on Ash, the same as
+ * every other piece of secondary text in the panel.
+ */
+.os-settings__page-header {
+	margin: 0 0 34px;
+}
+
+.os-settings__page-title {
+	margin: 0 0 6px;
+	font-size: 24px;
+	font-weight: 500;
+	line-height: 1.25;
+	letter-spacing: -0.012em;
+	color: var( --os-ui-fg, #1d2327 );
+}
+
+.os-settings__page-description {
+	margin: 0;
+	max-width: 74ch;
+	line-height: 1.55;
+	color: var( --os-ui-fg-muted, #50575e );
+}
+
+/*
+ * Section chrome. The heading and its sentence sit on the page, and
+ * the BOX is the section's body alone: a bounded surface under a
+ * heading, not a card with a title locked inside it. That is the
+ * separator system of the whole panel: a box is the only divider,
+ * so there is no horizontal rule anywhere.
+ *
+ * `<os-section>`'s shadow DOM handles the heading + description and
+ * exposes the body as `part="body"`; the box (background, border,
+ * radius, padding) lives here because it's a per-surface visual
+ * choice, not a property of the component itself.
+ *
+ * The box is the SUBTLE wash (3%) with the plain border on top of it,
+ * at the card radius. Its default padding is 18px, the mockup's
+ * inset for grids, which is what most section bodies hold.
+ */
+.os-settings os-section {
+	display: block;
+	margin: 0 0 36px;
+}
+
+.os-settings os-section::part( body ) {
+	padding: 18px;
+	background: var( --os-ui-surface-subtle, rgba( 0, 0, 0, 0.03 ) );
+	border: 1px solid var( --os-ui-border, #dcdcde );
+	border-radius: 10px;
+	overflow: hidden;
+}
+
+/*
+ * Rhythm between stacked pickers inside one section box. The
+ * components carry no outer margin of their own (a component cannot
+ * know its context), so the surface says how far apart they sit:
+ * 16px, two steps on the space scale, enough that a control's label
+ * reads as a label and not as a caption of the control above it.
+ */
+.os-settings os-section > os-select + os-select,
+.os-settings os-section > os-select + os-segmented,
+.os-settings os-section > os-segmented + os-select,
+.os-settings os-section > os-segmented + os-segmented {
+	margin-block-start: 16px;
+}
+
+/*
+ * Generic grid. Auto-fill + minmax gives us a truly responsive
+ * layout — the panel reflows columns as OS Settings is resized,
+ * rather than locking to a fixed 3-across.
+ */
+.os-settings__grid {
+	display: grid;
+	grid-template-columns: repeat( auto-fill, minmax( 140px, 1fr ) );
+	gap: 12px;
+}
+
+/*
+ * Wallpaper swatches — each is a `<os-swatch variant="wallpaper">`
+ * with its own shadow-DOM button + aspect ratio + selected state.
+ * The only outer knobs we need are: wider minmax for wallpapers
+ * (so each tile shows meaningful preview area), and the 16:9
+ * aspect ratio override. Everything else lives in the component.
+ */
+.os-settings__grid--wallpapers {
+	grid-template-columns: repeat( auto-fill, minmax( 150px, 1fr ) );
+}
+
+/*
+ * Wallpaper preset label — sits above the gradient/image preview.
+ * Presets span the full tonal range (graphite dark, mono near-
+ * black, aurora blue, sunset hot pink) so neither pure white nor
+ * pure black text is universally readable. A Void chip at 75% behind
+ * the text gives the label its own local contrast on every preset.
+ * Flat rather than frosted, and at the small radius: a caption on
+ * the artwork, not a pill floating over it.
+ */
+.os-settings__swatch-label {
+	display: inline-block;
+	/* Sit above the live-preview overlay (z-index 0) — the caption
+	 * must stay readable over a moving canvas. */
+	position: relative;
+	z-index: 1;
+	padding: 3px 8px;
+	font-size: 13px;
+	font-weight: 500;
+	color: var( --os-ui-fg-on-accent, #fff );
+	background: var( --os-ui-scrim, rgba( 0, 0, 0, 0.45 ) );
+	border-radius: 6px;
+	pointer-events: none;
+}
+
+/*
+ * "Use your own image", the last tile in the wallpaper grid.
+ *
+ * Dashed rather than solid because it is the only tile in the row that
+ * cannot show you what you are choosing: every other one paints its
+ * own preview, and this one is a question. The same dashed border is
+ * what the upload dropzone below it wears, so the tile and the drawer
+ * it opens read as one control.
+ *
+ * Sized off the same 16:9 the wallpaper swatches use so it sits in the
+ * grid rather than beside it.
+ */
+.os-settings__wallpaper-add {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	aspect-ratio: 16 / 10;
+	padding: 8px;
+	background: transparent;
+	/*
+	 * `-strong`, not `--os-ui-border`. The plain border token is
+	 * #33303a, the same Astro the section box draws its own border in:
+	 * a dashed edge in it against that frame reads as part of the box
+	 * rather than as a tile. Every dashed dropzone in this file has
+	 * the same problem and the same fix. One pixel like every other
+	 * edge in the panel; dashes get their emphasis from the gaps.
+	 */
+	border: 1px dashed var( --os-ui-border-strong, #c3c4c7 );
+	border-radius: 10px;
+	color: var( --os-ui-fg-muted, #50575e );
+	font: inherit;
+	font-size: 13px;
+	text-align: center;
+	cursor: pointer;
+	transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.os-settings__wallpaper-add:hover {
+	border-color: var( --os-ui-accent, #2271b1 );
+	color: var( --os-ui-fg, #1d2327 );
+}
+
+.os-settings__wallpaper-add:focus-visible {
+	outline: none;
+	box-shadow: var( --os-ui-focus-ring, 0 0 0 2px #2271b1 );
+}
+
+/* A bare plus, not a button-in-a-tile: the dashed edge already says
+   "action", and a filled disc inside it is a control inside a
+   control. */
+.os-settings__wallpaper-add-plus {
+	font-size: 22px;
+	line-height: 1;
+}
+
+/*
+ * The drawer the tile opens. Same 0fr to 1fr collapse as the editor
+ * and description slots above it.
+ */
+.os-settings__image-picker-slot {
+	display: grid;
+	grid-template-rows: 0fr;
+	margin-top: 0;
+	opacity: 0;
+	transition:
+		grid-template-rows 0.25s cubic-bezier(0.2, 0, 0.2, 1),
+		margin-top 0.25s cubic-bezier(0.2, 0, 0.2, 1),
+		opacity 0.2s ease;
+}
+
+.os-settings__image-picker-slot[data-expanded="true"] {
+	grid-template-rows: 1fr;
+	margin-top: 12px;
+	opacity: 1;
+}
+
+.os-settings__image-picker-slot-inner {
+	overflow: hidden;
+	min-height: 0;
+}
+
+/*
+ * Live wallpaper preview — an overlay div slotted into a wallpaper
+ * `<os-swatch>` by the preview manager (see
+ * settings/sections/wallpaper-previews.ts). Fills the tile button
+ * (which is position: relative in the component's shadow styles) and
+ * paints between the CSS `preview` background and the label chip.
+ * pointer-events: none so the tile button keeps receiving the click.
+ */
+.os-settings__wallpaper-live-preview {
+	position: absolute;
+	inset: 0;
+	z-index: 0;
+	overflow: hidden;
+	pointer-events: none;
+	/* Match the swatch button's rounding so canvas corners don't
+	 * poke out of the tile. */
+	border-radius: 10px;
+}
+
+.os-settings__wallpaper-live-preview canvas {
+	display: block;
+	width: 100%;
+	height: 100%;
+}
+
+/* Accent swatches now render as `<os-swatch>` via `<os-swatch-grid>`.
+ * The old `__swatch--accent` / `__swatch-label` / `__segmented` /
+ * `__segment` rules moved into those component shadow-DOM
+ * stylesheets; nothing at host level needs to override them. */
+
+.os-settings__footer {
+	display: flex;
+	justify-content: flex-end;
+	margin-top: 12px;
+}
+
+/* Don't add a `display` rule for `os-tabpanel` here — the component's
+ * shadow-DOM `:host([hidden]) { display: none }` has lower specificity
+ * than any outer descendant selector, and overriding it from outside
+ * breaks the auto-swap (hidden panels stay visible). The component's
+ * own `:host { display: block }` already handles the shown state. */
+
+/* `__reset` now renders as `<os-button variant="ghost">`. */
+
+/* ---------------------------------------------------------------
+ * Custom gradient editor — color inputs + angle slider.
+ *
+ * Toggled by `data-expanded` on the outer wrapper. Uses the modern
+ * grid-template-rows 0fr ↔ 1fr trick so we can animate to natural
+ * content height without hard-coding a max-height. The inner wrapper
+ * owns the visible chrome (padding, border, background) and is
+ * clipped during the transition by overflow: hidden; the outer
+ * wrapper animates the row track + spacing + opacity.
+ *
+ * Supported in all evergreen browsers (Chrome 117+, Safari 17.2+,
+ * Firefox 128+). On older engines the transition is simply skipped —
+ * the editor still appears, just without the glide.
+ * --------------------------------------------------------------- */
+/*
+ * Editor slot — the per-wallpaper panel that slides in below the
+ * swatch grid when a wallpaper with `renderEditor` is selected.
+ * Collapses via the grid-template-rows 0fr → 1fr trick; TS drives
+ * the `[data-expanded]` attribute on the slot wrapper.
+ */
+.os-settings__editor-slot {
+	display: grid;
+	grid-template-rows: 0fr;
+	margin-top: 0;
+	opacity: 0;
+	transition:
+		grid-template-rows 0.25s cubic-bezier(0.2, 0, 0.2, 1),
+		margin-top 0.25s cubic-bezier(0.2, 0, 0.2, 1),
+		opacity 0.2s ease;
+}
+
+.os-settings__editor-slot[data-expanded="true"] {
+	grid-template-rows: 1fr;
+	margin-top: 12px;
+	opacity: 1;
+}
+
+.os-settings__editor-slot-inner {
+	overflow: hidden;
+	min-height: 0;
+	padding: 12px;
+	background: var( --os-ui-surface, #fff );
+	border: 1px solid var( --os-ui-border, #dcdcde );
+	border-radius: 6px;
+}
+
+/*
+ * Wallpaper config slot — hosts the "Wallpaper settings" button when
+ * the ACTIVE wallpaper ships a `renderConfig` dialog. Same 0fr → 1fr
+ * collapse as the slots above; TS drives `[data-expanded]` from
+ * `syncWallpaperConfigButton()`.
+ */
+.os-settings__wallpaper-config-slot {
+	display: grid;
+	grid-template-rows: 0fr;
+	margin-top: 0;
+	opacity: 0;
+	transition:
+		grid-template-rows 0.25s cubic-bezier(0.2, 0, 0.2, 1),
+		margin-top 0.25s cubic-bezier(0.2, 0, 0.2, 1),
+		opacity 0.2s ease;
+}
+
+.os-settings__wallpaper-config-slot[data-expanded="true"] {
+	grid-template-rows: 1fr;
+	margin-top: 12px;
+	opacity: 1;
+}
+
+.os-settings__wallpaper-config-slot-inner {
+	overflow: hidden;
+	min-height: 0;
+}
+
+.os-settings__wallpaper-config os-icon {
+	margin-inline-end: 4px;
+}
+
+/*
+ * Wallpaper config dialog body — the container `renderConfig` renders
+ * into inside the `<os-modal>`. A simple vertical rhythm; each
+ * `<os-*>` field owns its own label / control styling. The critical
+ * column rules are ALSO inlined by the dialog opener (long-lived
+ * sessions can lazy-load the dialog with a stylesheet that predates
+ * this block); keep the two in sync.
+ */
+.os-settings__wallpaper-config-form {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+	min-width: 0;
+}
+
+/* Bare buttons in a config form (Reset to defaults and friends) are
+ * actions, not fields — don't stretch them to the column width. */
+.os-settings__wallpaper-config-form > os-button {
+	align-self: flex-start;
+}
+
+/*
+ * Custom-gradient editor fills the inner slot. Kept as a separate
+ * class (vs. scoping to __editor-slot-inner) so a future plugin
+ * renderEditor can opt out of these per-control rules.
+ */
+.os-settings__gradient-editor-inner {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+/*
+ * Gradient editor row — laid out as a flex of `<os-color-field>` +
+ * `<os-range-field>`. Each field owns its own label / control /
+ * readout styling internally; only spacing between fields lives here.
+ */
+.os-settings__gradient-row {
+	display: flex;
+	gap: 16px;
+}
+
+.os-settings__gradient-row os-color-field {
+	flex: 1;
+}
+
+.os-settings__gradient-editor-inner os-range-field {
+	margin-top: 12px;
+}
+
+/* ---------------------------------------------------------------
+ * Image uploader tile.
+ *
+ * Empty state: dashed border, "+" glyph, drop-and-click zone.
+ * Filled state: thumbnail preview that doubles as a wallpaper swatch.
+ * --------------------------------------------------------------- */
+.os-settings__uploader {
+	margin-top: 16px;
+}
+
+/* Sentence case, like every other label in the panel. The brand's
+   type scale has no uppercase tier, and a shouted 12px heading over a
+   single upload tile was the loudest thing on the page. */
+.os-settings__uploader-heading {
+	margin: 0 0 6px;
+	font-size: 13px;
+	font-weight: 600;
+	color: var( --os-ui-fg-muted, #50575e );
+}
+
+.os-settings__file-input {
+	display: none;
+}
+
+.os-settings__upload-tile {
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 120px;
+	padding: 16px;
+	background: var( --os-ui-surface, #fff );
+	background-size: cover;
+	background-position: center;
+	/* See the note on `__wallpaper-add`: the plain border token is the
+	   card's own colour and vanishes on it. */
+	border: 2px dashed var( --os-ui-border-strong, #c3c4c7 );
+	border-radius: 8px;
+	color: var( --os-ui-fg-muted, #50575e );
+	cursor: pointer;
+	text-align: center;
+	transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.15s ease;
+}
+
+.os-settings__upload-tile:hover {
+	border-color: var(--wp-admin-theme-color, #2271b1);
+	color: var(--wp-admin-theme-color, #2271b1);
+}
+
+.os-settings__upload-tile:focus-within,
+.os-settings__upload-tile:focus-visible {
+	outline: 2px solid var(--wp-admin-theme-color, #2271b1);
+	outline-offset: 2px;
+}
+
+.os-settings__upload-tile--dragover {
+	border-style: solid;
+	border-color: var(--wp-admin-theme-color, #2271b1);
+	background-color: rgba(34, 113, 177, 0.06);
+	transform: scale(1.01);
+}
+
+.os-settings__upload-tile--busy {
+	cursor: progress;
+	opacity: 0.8;
+}
+
+/* Filled state — thumbnail is the whole tile; selection uses the same
+ * aria-pressed pattern as the other swatches. */
+.os-settings__upload-tile--filled {
+	border-style: solid;
+	border-color: transparent;
+	padding: 0;
+	min-height: 140px;
+	color: transparent;
+}
+
+.os-settings__upload-tile--filled:hover {
+	color: transparent;
+}
+
+.os-settings__upload-tile[aria-pressed="true"] {
+	border-color: var(--wp-admin-theme-color, #2271b1);
+	box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9) inset;
+}
+
+.os-settings__upload-inner {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 6px;
+	pointer-events: none;
+}
+
+.os-settings__upload-plus {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 32px;
+	height: 32px;
+	border-radius: 50%;
+	background: var( --os-ui-hover, rgba(0, 0, 0, 0.05) );
+	font-size: 22px;
+	font-weight: 300;
+	line-height: 1;
+	color: inherit;
+}
+
+.os-settings__upload-tile:hover .os-settings__upload-plus {
+	background: rgba(34, 113, 177, 0.12);
+}
+
+.os-settings__upload-prompt {
+	font-size: 13px;
+	font-weight: 500;
+}
+
+.os-settings__upload-hint {
+	font-size: 12px;
+	color: var( --os-ui-fg-muted, #8c8f94 );
+}
+
+.os-settings__upload-status {
+	font-size: 13px;
+	font-weight: 500;
+	color: var( --os-ui-fg-muted, #50575e );
+}
+
+.os-settings__upload-error {
+	position: absolute;
+	inset-inline: 10px;
+	bottom: 10px;
+	padding: 6px 10px;
+	background: var( --os-ui-danger, #d63638 );
+	color: var( --os-ui-fg-on-accent, #fff );
+	border-radius: 4px;
+	font-size: 12px;
+	line-height: 1.3;
+	text-align: start;
+	box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+/*
+ * `__upload-remove` renders as `<os-button variant="danger">`
+ * with component-owned styling. Only the positioning on the
+ * filled tile is caller-specific — stays here.
+ */
+.os-settings__upload-remove {
+	position: absolute;
+	top: 8px;
+	inset-inline-end: 8px;
+}
+
+/* Tab strip moved into `<os-tabs>` + `<os-tab>`
+ * (src/ui/components/os-tabs/). Only the surrounding pane keeps
+ * a host-level rule — it's an OS-Settings layout choice, not
+ * component-intrinsic. */
+.os-settings__tab-pane {
+	min-height: 140px;
+}
+
+/*
+ * The invisible anchor for the Custom accent's colour wheel.
+ *
+ * There is no visible colour field: picking the Custom swatch opens
+ * the native picker directly, and the picker anchors to THIS input.
+ * So the input is laid over the Custom swatch. The last cell of the
+ * accent row is its containing block and the input fills it exactly,
+ * so the wheel opens on the square it belongs to.
+ *
+ * Anchoring it in CSS rather than measuring it in JS is the whole
+ * fix: the browser places the popup from the box it has already laid
+ * out, so an input moved by an inline style in the same tick as
+ * showPicker() is placed from its PREVIOUS box, which put the wheel
+ * under the first swatch. A cell that owns the input has no such
+ * moment, and it survives resize and grid reflow for free.
+ *
+ * Absolute rather than fixed because a dragged window carries a
+ * transform, and a transform turns fixed positioning into a lie.
+ *
+ * It stays out of the tab order and off the accessibility tree: the
+ * Custom swatch is the control, and activating it (pointer or
+ * keyboard) is what opens the wheel.
+ */
+.os-settings__accent-custom {
+	position: relative;
+	display: inline-flex;
+}
+
+.os-settings__accent-picker {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	margin: 0;
+	padding: 0;
+	border: 0;
+	opacity: 0;
+	pointer-events: none;
+}
+
+/* ---------------------------------------------------------------
+ * Desktop layout cards.
+ *
+ * A layout is a spatial choice, so each option draws the arrangement
+ * it is offering. The four names on their own ("One dock",
+ * "OpenStation", "Side bar", "Spatial") asked the user to guess what
+ * each would do to their screen and then find out by trying it.
+ *
+ * The previews are schematic: two or three rectangles and a rail, on
+ * Void, with the dock (or the current Space) in the accent so the eye
+ * lands on the thing that differs between the four. Geometry comes
+ * from `desktop-layout.ts` as percentages, so the cards stay legible
+ * as the grid reflows.
+ * --------------------------------------------------------------- */
+/*
+ * Two layouts, half the pane each. Fixed tracks rather than
+ * auto-fill: there are exactly two of them and they are a pair to be
+ * compared, so a wide pane that fitted a third column would only
+ * shrink both cards away from each other for no reason.
+ *
+ * The cards stretch to the taller of the two (the grid's default
+ * `align-items`, left unset). They are a matched pair presented side
+ * by side, and two boxes of different heights read as two different
+ * KINDS of thing rather than as two answers to one question — which
+ * is the comparison the whole picker is for. What varies is the
+ * description: one line for Unified, two for Split, and neither is
+ * worth a ragged bottom edge.
+ *
+ * This used to be `align-items: start`, back when the Unified card
+ * also held Placement and Dock size and stretching Split to match
+ * left it mostly empty. Dock size has since moved out below both
+ * cards, so the gap it was guarding against is now one control deep.
+ */
+.os-settings__layout-grid {
+	display: grid;
+	grid-template-columns: repeat( 2, minmax( 0, 1fr ) );
+	gap: 12px;
+}
+
+/*
+ * The dock options, inside the One dock card. Stacked, because half
+ * a pane is not enough for two segmented controls side by side, and
+ * because reading them down the card follows the order the decision
+ * is made in: this layout, then where its dock sits, then how big.
+ */
+.os-settings__dock-options {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+	margin-top: 14px;
+}
+
+/*
+ * Inside a card, the control sits on the card's floor rather than
+ * under its description. The two cards share one height (grid rows
+ * stretch), but Split's description runs three lines to Unified's
+ * one, so a control that followed the text landed a couple of lines
+ * higher on one side. Pushed down, both controls sit on the same
+ * line and the cards read as the pair they are.
+ */
+.os-settings__layout-card > .os-settings__dock-options {
+	margin-top: auto;
+	padding-top: 14px;
+}
+
+/*
+ * Dock size, under both cards rather than inside one: both layouts
+ * have a dock. Off the grid entirely, so it clears the taller card
+ * rather than sitting beside it, and on the section's own rhythm
+ * rather than the card's tighter one.
+ */
+.os-settings__dock-options--page {
+	margin-top: 20px;
+}
+
+.os-settings__dock-option {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 8px;
+}
+
+.os-settings__dock-option-label {
+	font-size: 14px;
+	font-weight: 500;
+	color: var( --os-ui-fg, #1d2327 );
+}
+
+/*
+ * One line under a control saying what the picked value does. Dock
+ * behavior needs it where Dock size does not: "Compact" is
+ * self-explaining, "Dynamic" is a promise about the pointer.
+ */
+.os-settings__dock-option-hint {
+	max-width: 56ch;
+	font-size: 12px;
+	line-height: 1.5;
+	color: var( --os-ui-fg-muted, #646970 );
+}
+
+/*
+ * The card is the BOX, not the control. It holds the radio that
+ * picks the layout and, for One dock, that layout's own options —
+ * and a radio cannot contain a segmented control, so the two are
+ * siblings inside it. See the docblock in
+ * `src/settings/sections/desktop-layout.ts`.
+ *
+ * Which means the box wears the state of a child it does not own.
+ * Both `:has()` rules name the CHOICE rather than the card, so a
+ * pointer resting on a segmented control does not lift the card, and
+ * a segment taking focus does not light the selection ring.
+ */
+/* The whole card is the click target, bar its control: the two cards
+   share a height, so the shorter description leaves a band of card
+   between text and control, and that band picks the layout too. The
+   control is the option box — label, segments, hint — not the padded
+   row around it, which is as blank as the band above. */
+.os-settings__layout-card {
+	display: flex;
+	flex-direction: column;
+	padding: 10px;
+	background: var( --os-ui-surface-raised, rgba( 0, 0, 0, 0.04 ) );
+	border-radius: 10px;
+	cursor: pointer;
+	transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.os-settings__layout-card .os-settings__dock-option {
+	cursor: default;
+}
+
+.os-settings__layout-card:hover:not( :has( .os-settings__dock-option:hover ) ) {
+	transform: translateY( -2px );
+}
+
+/* The CHOICE's own checked state, not any checked thing in the card:
+   every card now holds a segmented control, and its picked segment
+   is `aria-checked` too. */
+.os-settings__layout-card:has( .os-settings__layout-choice[ aria-checked='true' ] ) {
+	box-shadow: 0 0 0 2px var( --os-ui-accent, #2271b1 );
+}
+
+/* The radio: everything in the card that means "this layout". */
+.os-settings__layout-choice {
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	padding: 0;
+	background: none;
+	border: 0;
+	border-radius: 8px;
+	font: inherit;
+	color: inherit;
+	text-align: start;
+	cursor: pointer;
+}
+
+.os-settings__layout-choice:focus-visible {
+	outline: none;
+	box-shadow: var( --os-ui-focus-ring, 0 0 0 2px #2271b1 );
+}
+
+/*
+ * A screen, so it is shaped like one: 16/9, not whatever shape is left
+ * over once the card has been sized. A full-width box at a fixed 78px
+ * ran about 6.7:1, and every shape inside is a percentage of it — so
+ * the two windows came out five times wider than they were tall and
+ * read as stacked bars rather than as windows, which is the one thing
+ * these previews exist to show.
+ *
+ * Capped in width rather than stretched, because 16/9 across a whole
+ * half-pane card is ~290px of preview for a schematic with four
+ * rectangles in it. The cap sets the height (288 → 162px); the card
+ * keeps its own width and the preview sits centred in it, which is why
+ * `inline-size` is a percentage with a ceiling instead of a fixed
+ * width: below the cap — the stacked single-column pane — it goes back
+ * to filling the card, still at 16/9.
+ */
+.os-settings__layout-preview {
+	position: relative;
+	display: block;
+	inline-size: 100%;
+	max-inline-size: 288px;
+	aspect-ratio: 16 / 9;
+	margin-block-end: 9px;
+	margin-inline: auto;
+	overflow: hidden;
+	background: var( --os-ui-surface-sunken, #f0f0f1 );
+	border-radius: 8px;
+}
+
+/* A window: a filled rectangle with a boundary, because at this size
+   a borderless one dissolves into the Void behind it. */
+.os-settings__layout-win {
+	position: absolute;
+	background: var( --os-ui-surface-elevated, #f6f7f7 );
+	border: 1px solid var( --os-ui-border-strong, #c3c4c7 );
+	border-radius: 4px;
+}
+
+/* A rail: the wp-admin menu, or the side rail. No border, because a
+   rail reads as a solid mass and a window does not. */
+.os-settings__layout-bar {
+	position: absolute;
+	background: var( --os-ui-border-strong, #c3c4c7 );
+	border-radius: 3px;
+}
+
+/* A rail the user gets to place: the dock, and in Side bar the admin
+   menu beside it. The accent is what separates the rails from the
+   windows they sit next to, so a card can carry more than one. */
+.os-settings__layout-win.is-accent,
+.os-settings__layout-bar.is-accent {
+	background: var( --os-ui-accent, #2271b1 );
+	border-color: transparent;
+	transition: transform 0.35s cubic-bezier( 0.22, 1, 0.36, 1 ), opacity 0.35s ease;
+}
+
+/*
+ * A rail set to Dynamic is drawn as what the real one folds into: the
+ * thin indicator line at its edge (`dock.css`, the parked state). The
+ * card says which rails are folded — `is-dock-dynamic` for the bottom
+ * dock, `is-sidebar-dynamic` for Split's side rail — and the bar
+ * shrinks by TRANSFORM rather than by re-sizing, because its geometry
+ * is an inline style from the preview table in `desktop-layout.ts`
+ * and a transform leaves that table the single owner of where things
+ * sit. The dock keeps its feet on the floor (origin at the bottom
+ * edge, shrinking towards its centre), the sidebar stays on its wall
+ * (origin at the left edge, nudged in the way the real line sits 8px
+ * off the screen edge).
+ *
+ * The slow breathe is the one hint that this rail is not always
+ * there. It is opacity only, never scale, so the line's size stays
+ * an honest picture of the indicator; and it stops under reduced
+ * motion along with the fold itself.
+ */
+.os-settings__layout-card.is-dock-dynamic .os-settings__layout-bar.is-dock {
+	transform: scale( 0.55, 0.4 );
+	transform-origin: 50% 100%;
+	animation: os-settings-layout-bar-breathe 2.6s ease-in-out infinite;
+}
+
+.os-settings__layout-card.is-sidebar-dynamic .os-settings__layout-bar.is-sidebar {
+	transform: translateX( 40% ) scale( 0.4, 0.45 );
+	transform-origin: 0 50%;
+	animation: os-settings-layout-bar-breathe 2.6s ease-in-out infinite;
+}
+
+@keyframes os-settings-layout-bar-breathe {
+	0%,
+	100% {
+		opacity: 1;
+	}
+
+	50% {
+		opacity: 0.55;
+	}
+}
+
+.os-settings__layout-name {
+	font-size: 14px;
+	font-weight: 500;
+	color: var( --os-ui-fg, #1d2327 );
+}
+
+.os-settings__layout-desc {
+	margin-top: 3px;
+	font-size: 13px;
+	line-height: 1.45;
+	color: var( --os-ui-fg-muted, #50575e );
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.os-settings__layout-card {
+		transition-duration: 0.01ms;
+	}
+
+	.os-settings__layout-card:hover:not( :has( .os-settings__dock-option:hover ) ) {
+		transform: none;
+	}
+
+	/* The fold lands at once and the line holds still. */
+	.os-settings__layout-bar.is-accent {
+		transition-duration: 0.01ms;
+		animation: none;
+	}
+}
+
+/* ---------------------------------------------------------------
+ * Media Library picker.
+ *
+ * Toolbar (search + HD toggle), responsive thumbnail grid, footer
+ * with count + Load more button.
+ * --------------------------------------------------------------- */
+.os-settings__library-toolbar {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	margin-bottom: 10px;
+	flex-wrap: wrap;
+}
+
+.os-settings__library-search {
+	flex: 1;
+	min-width: 180px;
+	padding: 6px 10px;
+	border: 1px solid var( --os-ui-border, #dcdcde );
+	border-radius: 4px;
+	background: var( --os-ui-surface, #fff );
+	font: inherit;
+	font-size: 13px;
+	color: var( --os-ui-fg, #1d2327 );
+}
+
+.os-settings__library-search:focus {
+	border-color: var(--wp-admin-theme-color, #2271b1);
+	box-shadow: 0 0 0 1px var(--wp-admin-theme-color, #2271b1);
+	outline: none;
+}
+
+/* `__library-hd` now renders as `<os-checkbox-label>`. */
+
+.os-settings__library-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+	gap: 8px;
+	min-height: 140px;
+}
+
+.os-settings__library-tile {
+	position: relative;
+	aspect-ratio: 16 / 10;
+	padding: 0;
+	border: 2px solid transparent;
+	border-radius: 6px;
+	background-color: var( --os-ui-surface-sunken, #eef0f1 );
+	background-size: cover;
+	background-position: center;
+	background-repeat: no-repeat;
+	cursor: pointer;
+	overflow: hidden;
+	transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.os-settings__library-tile:hover {
+	transform: translateY(-1px);
+	border-color: rgba(34, 113, 177, 0.4);
+}
+
+.os-settings__library-tile:focus-visible {
+	outline: 2px solid var(--wp-admin-theme-color, #2271b1);
+	outline-offset: 2px;
+}
+
+.os-settings__library-tile--selected,
+.os-settings__library-tile[aria-pressed="true"] {
+	border-color: var(--wp-admin-theme-color, #2271b1);
+	box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9) inset;
+}
+
+/* Dimension badge in the corner — readable over any thumbnail. */
+.os-settings__library-tile-dims {
+	position: absolute;
+	bottom: 4px;
+	inset-inline-end: 4px;
+	padding: 2px 6px;
+	background: var( --os-ui-scrim, rgba(0, 0, 0, 0.6) );
+	color: var( --os-ui-fg-on-accent, #fff );
+	font-size: 10px;
+	font-weight: 500;
+	line-height: 1.3;
+	border-radius: 3px;
+	letter-spacing: 0.02em;
+	font-variant-numeric: tabular-nums;
+	pointer-events: none;
+}
+
+/* Skeleton tiles during the first-page fetch. Animated subtle pulse
+ * so the user perceives progress without us needing a spinner. */
+.os-settings__library-tile--skeleton {
+	cursor: default;
+	background: linear-gradient(
+		90deg,
+		var( --os-ui-surface-sunken, #eef0f1 ) 0%,
+		#dcdcde 50%,
+		var( --os-ui-surface-sunken, #eef0f1 ) 100%
+	);
+	background-size: 200% 100%;
+	animation: os-library-shimmer 1.1s ease-in-out infinite;
+}
+
+.os-settings__library-tile--skeleton:hover {
+	transform: none;
+	border-color: transparent;
+}
+
+@keyframes os-library-shimmer {
+	from {
+		background-position: 200% 0;
+	}
+	to {
+		background-position: -200% 0;
+	}
+}
+
+.os-settings__library-empty,
+.os-settings__library-error {
+	grid-column: 1 / -1;
+	margin: 0;
+	padding: 24px 16px;
+	text-align: center;
+	color: var( --os-ui-fg-muted, #646970 );
+	font-size: 13px;
+}
+
+.os-settings__library-error {
+	color: var( --os-ui-danger-hover, #b32d2e );
+}
+
+.os-settings__library-footer {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-top: 10px;
+	gap: 10px;
+	min-height: 24px;
+}
+
+.os-settings__library-meta {
+	color: var( --os-ui-fg-muted, #8c8f94 );
+	font-size: 12px;
+}
+
+/* `__library-load-more` now renders as `<os-button variant="ghost">`. */
+
+/* ---------------------------------------------------------------
+ * Reduced-motion: collapse every OS-Settings animation/transition to
+ * near-zero so motion-sensitive users still get the layout changes
+ * (hover feedback, expanded editor, tile highlights) but without the
+ * glide. Kept as a single scoped block so the intent is readable at
+ * a glance rather than spread across each rule.
+ * --------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+	.os-settings__editor-slot,
+	.os-settings__image-picker-slot,
+	.os-settings__wallpaper-add,
+	.os-settings__wallpaper-config-slot,
+	.os-settings__upload-tile,
+	.os-settings__library-tile,
+	os-swatch {
+		transition-duration: 0.01ms !important;
+	}
+
+	.os-settings__library-tile--skeleton {
+		animation: none;
+	}
+}
+
+/* AI settings section — error and saving feedback */
+.os-ai-settings__error {
+	margin: 6px 0 0;
+	font-size: 13px;
+	color: var( --os-ui-danger, #d63638 );
+}
+
+.os-ai-settings__saving {
+	margin: 6px 0 0;
+	font-size: 13px;
+	color: var( --os-ui-fg-muted, #646970 );
+	font-style: italic;
+}
+
+/* Extended options section — hint paragraph + error/saving states */
+.os-ext__error {
+	margin: 6px 0 0;
+	font-size: 13px;
+	color: var( --os-ui-danger, #d63638 );
+}
+
+.os-ext__saving {
+	margin: 6px 0 0;
+	font-size: 13px;
+	color: var( --os-ui-fg-muted, #646970 );
+	font-style: italic;
+}
+
+/*
+ * Help tab — developer-facing component reference. Two-column layout
+ * (nav + detail) on desktop, stacks naturally on narrow windows via
+ * the same container the OS Settings panel lives in.
+ */
+
+.os-settings__help-layout {
+	display: grid;
+	grid-template-columns: 200px 1fr;
+	gap: 20px;
+}
+
+@container (max-width: 640px) {
+	.os-settings__help-layout {
+		grid-template-columns: 1fr;
+	}
+}
+
+/*
+ * Missing-import warner demo — the sentence and the snippet it talks
+ * about, in the section box.
+ *
+ * The snippet is shown because the section's whole subject is three
+ * tags and it used to show none of them: the live copies have to be
+ * real elements for the warner to fire, and a real element is exactly
+ * what cannot be read, so the box sat empty under a sentence pointing
+ * at nothing.
+ *
+ * One column by default; two equal halves once the window is wide
+ * enough for the prose to still have a paragraph's worth of room
+ * beside the code.
+ *
+ * Both tracks are `1fr` — the split is the box in half, and neither
+ * side carries a fixed width. A hard cap on the prose would leave a
+ * gutter of nothing between two columns that both had more to say.
+ * `minmax( 0, … )` on each so a long line of code shrinks the track to
+ * its share and scrolls inside the `<pre>` rather than pushing the
+ * grid wider than the section box.
+ *
+ * The container is the OS Settings WINDOW (`container-type` further
+ * down this file), not the viewport: this panel is a window inside the
+ * shell, so window width is the only width that moves here.
+ */
+.os-settings__help-warner {
+	display: grid;
+	gap: 16px;
+	align-items: start;
+}
+
+@container (min-width: 1350px) {
+	.os-settings__help-warner {
+		grid-template-columns: minmax( 0, 1fr ) minmax( 0, 1fr );
+	}
+}
+
+.os-settings__help-warner-text {
+	margin: 0;
+	font-size: 14px;
+	line-height: 1.55;
+	color: var( --os-ui-fg-muted, #646970 );
+}
+
+/*
+ * `overflow-x: auto` rather than wrapping: the first tag is 56
+ * characters of deliberately absurd component name, and breaking a tag
+ * across lines turns the one thing the reader is here to recognise
+ * into two things. The section box clips (`::part( body )` sets
+ * `overflow: hidden`), so the scroll has to live on the `<pre>`.
+ */
+.os-settings__help-warner-code {
+	margin: 0;
+	padding: 12px 14px;
+	overflow-x: auto;
+	background: var( --os-ui-surface, #fff );
+	border: 1px solid var( --os-ui-border, #dcdcde );
+	border-radius: 6px;
+	font-family: var( --os-ui-font-mono, Menlo, Consolas, monospace );
+	font-size: 12px;
+	line-height: 1.6;
+	color: var( --os-ui-fg, #1d2327 );
+	tab-size: 2;
+}
+
+/*
+ * The `<code>` inside is the whole block, not a run of inline code.
+ *
+ * Left inline it inherits wp-admin's own `code` chip — a wash and a
+ * padding meant for a word mid-sentence — and an inline box wrapped
+ * over nine lines paints that wash once per LINE BOX, so the two blank
+ * lines in the snippet cut it into three chips and the one code block
+ * read as three. `display: block` gives it a single box, and the
+ * `<pre>` above is the only surface.
+ */
+.os-settings__help-warner-code code {
+	display: block;
+	padding: 0;
+	border: 0;
+	background: none;
+	font: inherit;
+	color: inherit;
+}
+
+/*
+ * Search box + nav share one column so the field stays pinned while
+ * the component list below it scrolls.
+ */
+.os-settings__help-sidebar {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	min-height: 0;
+}
+
+.os-settings__help-nav {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	align-self: stretch;
+	min-height: 0;
+	overflow-y: auto;
+	padding: 4px;
+	background: var( --os-ui-surface-elevated, #f6f7f7 );
+	border: 1px solid var( --os-ui-border, #dcdcde );
+	border-radius: 8px;
+}
+
+.os-settings__help-nav-empty {
+	margin: 0;
+	padding: 8px 10px;
+	font-size: 13px;
+	color: var( --os-ui-fg-muted, #646970 );
+}
+
+.os-settings__help-nav-item {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	align-items: flex-start;
+	width: 100%;
+	padding: 6px 10px;
+	background: transparent;
+	border: 1px solid transparent;
+	border-radius: 6px;
+	text-align: start;
+	cursor: pointer;
+	font: inherit;
+	color: inherit;
+}
+
+.os-settings__help-nav-item:hover {
+	background: var( --os-ui-surface, #fff );
+	border-color: var( --os-ui-border, #dcdcde );
+}
+
+.os-settings__help-nav-item.is-active {
+	background: var( --os-ui-surface, #fff );
+	border-color: var( --wp-admin-theme-color, #2271b1 );
+}
+
+.os-settings__help-nav-title {
+	font-weight: 600;
+	font-size: 13px;
+}
+
+.os-settings__help-nav-tag {
+	font-family: var( --os-ui-font-mono, Menlo, Consolas, monospace );
+	font-size: 12px;
+	color: var( --os-ui-fg-muted, #646970 );
+}
+
+.os-settings__help-detail {
+	min-width: 0;
+	padding: 16px 18px 18px;
+	background: var( --os-ui-surface-elevated, #f6f7f7 );
+	border: 1px solid var( --os-ui-border, #dcdcde );
+	border-radius: 8px;
+}
+
+.os-settings__help-head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 8px;
+	margin: 0 0 8px;
+}
+
+.os-settings__help-title {
+	margin: 0;
+	font-size: 16px;
+	font-weight: 600;
+}
+
+.os-settings__help-code {
+	font-family: var( --os-ui-font-mono, Menlo, Consolas, monospace );
+	font-size: 13px;
+	color: var( --os-ui-fg-muted, #646970 );
+}
+
+.os-settings__help-badge {
+	padding: 1px 8px;
+	border-radius: 999px;
+	font-size: 13px;
+	font-weight: 600;
+	background: var( --os-ui-surface-sunken, #e4e7eb );
+	color: var( --os-ui-fg, #1d2327 );
+}
+
+.os-settings__help-badge.is-experimental {
+	background: var( --os-ui-warning-bg, #fcf9e8 );
+	color: var( --os-ui-warning-fg, #996800 );
+}
+
+.os-settings__help-badge.is-planned {
+	background: var( --os-ui-info-bg, #e1e8ff );
+	color: var( --os-ui-info-fg, #123fb3 );
+}
+
+.os-settings__help-summary {
+	margin: 0 0 16px;
+	color: var( --os-ui-fg, #1d2327 );
+}
+
+.os-settings__help-group {
+	margin: 0 0 16px;
+}
+
+.os-settings__help-group h4 {
+	margin: 0 0 8px;
+	font-size: 13px;
+	font-weight: 600;
+	color: var( --os-ui-fg-muted, #646970 );
+}
+
+.os-settings__help-example {
+	padding: 16px;
+	background: var( --os-ui-surface, #fff );
+	border: 1px dashed var( --os-ui-border, #c3c4c7 );
+	border-radius: 6px;
+}
+
+.os-settings__help-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 13px;
+}
+
+/*
+ * Rows are told apart by a wash rather than by a rule, which is the
+ * one place in the panel that needed a replacement rather than just a
+ * deletion: a props table with neither lines nor banding is a wall of
+ * words. Zebra striping carries the row across without drawing
+ * anything horizontal.
+ */
+.os-settings__help-table th,
+.os-settings__help-table td {
+	padding: 7px 8px;
+	text-align: start;
+	vertical-align: top;
+}
+
+.os-settings__help-table tbody tr:nth-child( odd ) {
+	background: var( --os-ui-hover, rgba( 0, 0, 0, 0.05 ) );
+}
+
+.os-settings__help-table th {
+	font-weight: 600;
+	color: var( --os-ui-fg-muted, #646970 );
+	background: var( --os-ui-surface, #fff );
+}
+
+.os-settings__help-table code,
+.os-settings__help-list code {
+	font-family: var( --os-ui-font-mono, Menlo, Consolas, monospace );
+	font-size: 12px;
+	padding: 1px 4px;
+	background: var( --os-ui-surface, #fff );
+	border: 1px solid var( --os-ui-border, #dcdcde );
+	border-radius: 3px;
+}
+
+.os-settings__help-list {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.os-settings__help-list li {
+	padding: 6px 10px;
+	background: var( --os-ui-hover, rgba( 0, 0, 0, 0.05 ) );
+	border-radius: 6px;
+	font-size: 13px;
+}
+
+.os-settings__help-note {
+	margin: 12px 0 0;
+	padding: 10px 12px;
+	background: var( --os-ui-warning-bg, #fcf9e8 );
+	border: 1px solid var( --os-ui-warning-border, #f5e6a5 );
+	border-radius: 6px;
+	font-size: 13px;
+	color: var( --os-ui-warning-fg, #996800 );
+}
+
+/* ---------------------------------------------------------------
+ * Window-fit scrolling.
+ *
+ * Without this block the OS Settings panel grows past the native
+ * window's viewport and the whole body scrolls — fine for short tabs
+ * but actively wrong for the Components tab, where a 200px nav rail
+ * and a tall detail pane should each scroll inside their own column,
+ * not in lockstep down a giant single-column page.
+ *
+ * Strategy:
+ *   1. The native window body normally has overflow:auto. Override it
+ *      to `hidden` ONLY when the OS Settings root is mounted (via
+ *      :has()) so other native windows keep their default page-scroll.
+ *   2. Make the OS Settings root a flex column that fills the body.
+ *      The tab strip + footer hug the top/bottom; the active
+ *      tabpanel takes the remaining height.
+ *   3. Each tabpanel scrolls itself (overflow:auto) — replaces the
+ *      whole-body scroll, visually identical for the simple tabs
+ *      (Appearance, AI, Extended) but pins the reset footer.
+ *   4. The Components tab opts OUT of overflow:auto so its inner
+ *      grid (nav + detail) can scroll independently per pane.
+ *
+ * `:has()` is supported in every evergreen engine (Chrome 105+,
+ * Safari 15.4+, Firefox 121+); fine for an admin-context shell.
+ * --------------------------------------------------------------- */
+/*
+ * NOTE: the rule that used to sit here was
+ * `.os-window__body--native:has( .os-settings )`, and it never once
+ * matched. `renderOsSettingsPanel()` adds the `os-settings` class TO
+ * the native window body rather than to a child of it, so the two
+ * selectors name the same element, and `:has()` only ever looks at
+ * descendants. The `overflow: hidden` it wanted now sits on
+ * `.os-settings` itself, where it reaches the element it was written
+ * for; its `display: flex` is dropped, because the grid this file
+ * declares below superseded that column layout.
+ *
+ * The query context for every narrow-layout rule in this file goes on
+ * the WINDOW, one level up. A container query styles a container's
+ * descendants and never the container itself, so it cannot live on
+ * the panel that has to respond to it. `:has()` does the right thing
+ * from here: the panel really is a descendant of the window, so only
+ * the OS Settings window becomes a container and every other native
+ * window is left alone.
+ *
+ * It has to be a container and not the viewport. OS Settings is a
+ * window inside the shell, so dragging that window narrow never
+ * changes the viewport width; the `@media ( max-width: 640px )` rule
+ * this replaced could only fire when the whole BROWSER went under the
+ * breakpoint, which is both the wrong moment and, on a desktop,
+ * never. The Components tab has wanted this since it was written: its
+ * own `@container` rule further up this file had no container to
+ * resolve against and so had never matched either.
+ */
+.os-window--native:has( .os-settings ) {
+	container-type: inline-size;
+}
+
+/*
+ * Two columns, two rows: the sidebar down the left, every pane sharing
+ * the cell on the right (only the unhidden one takes up space), and
+ * the footer spanning both.
+ */
+/*
+ * Two columns, four rows. The sidebar column stacks the search field,
+ * the scrolling strip and the empty-state line; the pane spans all
+ * three of those rows in column 2, and the reset bar spans both
+ * columns underneath. Four rows rather than a wrapper element because
+ * the strip and the panes have to stay siblings: see the note in
+ * `panel.ts` where they are rendered.
+ */
+.os-settings {
+	flex: 1;
+	min-height: 0;
+	display: grid;
+	grid-template-columns: var( --os-settings-nav-width, 224px ) minmax( 0, 1fr );
+	grid-template-rows: auto minmax( 0, 1fr ) auto auto;
+	/*
+	 * The native window body defaults to overflow: auto. Left alone,
+	 * a tall page scrolls the whole panel and takes the sidebar and
+	 * the reset bar with it; each tabpanel already scrolls itself, so
+	 * this pins the furniture and lets the content move inside it.
+	 * See the note above about where this declaration used to live.
+	 */
+	overflow: hidden;
+}
+
+/*
+ * The sidebar column. Obsidian against the pane's Void, so the
+ * column reads as part of the window furniture (it continues the
+ * title bar) while the content sits on the deepest surface. No
+ * dividing rule between them: two surfaces meeting IS the boundary,
+ * and a line drawn on top of a tonal step only says the same thing
+ * twice.
+ *
+ * The search field, the strip and the empty-state line are three
+ * SIBLINGS assembled into one column by the grid rather than one
+ * wrapped element, because `<os-tabs>` drives the panes by finding
+ * `os-tabpanel` children of its own parent. A sidebar div around the
+ * strip puts every pane out of its reach and the panel renders all
+ * nine at once. The shared background is what makes the three read as
+ * one surface.
+ */
+.os-settings__search,
+.os-settings > os-tabs,
+.os-settings__search-empty {
+	grid-column: 1;
+	background: var( --os-ui-surface, #fff );
+}
+
+/*
+ * No inline padding on the strip, which is load-bearing rather than
+ * tidy. The selected row's accent is a 2px edge at
+ * `inset-inline-start: 0`, so any padding here would float it in the
+ * middle of the gutter instead of sitting it on the column edge. The
+ * rows carry their own inline padding to hold the labels off it.
+ */
+.os-settings > os-tabs {
+	grid-row: 2;
+	min-height: 0;
+	overflow-y: auto;
+}
+
+/*
+ * The only vertical space in the column, and the entire grouping
+ * mechanism. `panel.ts` stamps this on the first row of each band;
+ * see `navGroup()` there for why the bands come from tab order.
+ */
+.os-settings > os-tabs > os-tab[ data-group-start='true' ] {
+	margin-top: 20px;
+}
+
+/*
+ * Filtered out by the search field. A plain `display: none` rather
+ * than anything cleverer, so a hidden row takes its group gap with it
+ * and a filtered list closes up instead of keeping the shape of the
+ * one it came from.
+ */
+.os-settings > os-tabs > os-tab[ data-search-hidden ] {
+	display: none;
+}
+
+/*
+ * Search. Sits above the nav rather than over the content, because
+ * what it filters is the nav.
+ *
+ * The field wears the row's own geometry (same 14px, same Ash) so the
+ * column reads as one list with a way in at the top, rather than as a
+ * form control that happens to have been parked above some links.
+ */
+/*
+ * The cell holds the column's surface and the field's inset; the
+ * field inside it holds the pill. Two elements because the surface has
+ * to run edge to edge (it is the sidebar) while the field must not.
+ */
+.os-settings__search {
+	grid-row: 1;
+	padding: 12px 12px 14px;
+}
+
+/*
+ * A sunken well in the Obsidian column: the field is a window onto
+ * the pane's Void, with the same Astro border the section boxes
+ * wear, at the inner radius (8px). The rows below it are
+ * square-edged and full-bleed, so the inset alone already says "not
+ * one of them".
+ *
+ * The field wears the row's own type: 14px Regular on Ash, a 15px
+ * glyph at full strength. 8px top and bottom around a 21px line puts
+ * the content box at 37px.
+ */
+.os-settings__search-field {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 10px;
+	background: var( --os-ui-surface-sunken, #f0f0f1 );
+	border: 1px solid var( --os-ui-border, #dcdcde );
+	border-radius: 8px;
+	color: var( --os-ui-fg-muted, #50575e );
+}
+
+.os-settings__search svg {
+	flex: 0 0 18px;
+	width: 18px;
+	height: 18px;
+}
+
+/*
+ * The class stack is the whole fix, not tidiness. The shell renders
+ * inside a real wp-admin document, and TWO outrankers dress this
+ * input as a second field inside the well: Core's forms.css styles
+ * `input[type="search"]` at (0,1,1), and our own window-chrome rule
+ * for raw controls in native window bodies weighs (0,2,1). Three
+ * classes are (0,3,0) and beat both, and the input goes back to
+ * being invisible: the FIELD is the control, the input is just
+ * where the letters go.
+ */
+.os-settings .os-settings__search .os-settings__search-input {
+	flex: 1;
+	min-width: 0;
+	min-height: 0;
+	padding: 0;
+	border: 0;
+	border-radius: 0;
+	background: none;
+	box-shadow: none;
+	font: inherit;
+	font-size: 14px;
+	line-height: 21px;
+	color: var( --os-ui-fg, #1d2327 );
+}
+
+/* Chrome draws its own clear button on type=search; it lands on the
+   pill's right edge and fights the rounding. */
+.os-settings__search-input::-webkit-search-cancel-button {
+	appearance: none;
+}
+
+.os-settings__search-input::placeholder {
+	color: var( --os-ui-fg-muted, #50575e );
+	opacity: 1;
+}
+
+/* The field is the visible control, so the ring goes on it, not on
+   the bare input inside. */
+.os-settings__search-field:focus-within {
+	box-shadow: var( --os-ui-focus-ring-field, 0 0 0 1px #2271b1 );
+}
+
+/* Same specificity story as above: Core's `input[type=search]:focus`
+   is (0,2,1) and would draw its blue ring on the inner input. */
+.os-settings .os-settings__search .os-settings__search-input:focus,
+.os-settings .os-settings__search .os-settings__search-input:focus-visible {
+	outline: none;
+	border: 0;
+	box-shadow: none;
+	background: none;
+}
+
+.os-settings__search-empty {
+	grid-row: 3;
+	margin: 0;
+	padding: 4px 20px 12px;
+	color: var( --os-ui-fg-muted, #50575e );
+	font-size: 13px;
+}
+
+/*
+ * The column's surface has to survive the empty-state line being
+ * hidden, which is most of the time: without this the sunken
+ * background would stop at the bottom of the nav and leave the rest
+ * of the column showing the pane's Obsidian.
+ */
+.os-settings__search-empty[ hidden ] {
+	display: block;
+	padding: 0;
+	font-size: 0;
+}
+
+/*
+ * Stand-in for a glyph a third-party tab cannot supply. Matches the
+ * 17px the real icons are sized to in the component's shadow styles,
+ * so the labels in a mixed column all start at the same x.
+ */
+.os-settings__nav-glyph-blank {
+	flex: 0 0 17px;
+	width: 17px;
+}
+
+/* Spans the three sidebar rows: the pane is one surface whatever the
+   column beside it is doing. */
+.os-settings > os-tabpanel {
+	grid-column: 2;
+	grid-row: 1 / -1;
+	min-height: 0;
+	overflow: auto;
+	padding: 28px 32px 44px;
+	background: var( --os-ui-surface-sunken, #f0f0f1 );
+}
+
+/*
+ * Reset sits at the foot of the nav, and it resets everything.
+ *
+ * In the column rather than across the page because that is what it
+ * addresses: the list names the pages, and the thing under the list
+ * acts on all of them. Across the bottom of the pane it read as
+ * belonging to whatever page happened to be open, which is the whole
+ * reason it once had to grow a name and a sentence to disown that
+ * reading.
+ *
+ * The column's own surface, so it continues the sidebar rather than
+ * starting a third one. No rule above it, for the same reason the
+ * sidebar has no divider against the pane: it is already the last
+ * thing in a column that ends.
+ */
+.os-settings > .os-settings__footer {
+	grid-column: 1;
+	grid-row: 4;
+	display: flex;
+	/*
+	 * Stated, not inherited. `<os-panel>` is a stack and sets
+	 * `flex-direction: column` on its own host, which would stretch
+	 * the button to the column's full width.
+	 */
+	flex-direction: row;
+	align-items: center;
+	justify-content: flex-start;
+	margin-top: 0;
+	padding: 12px;
+	background: var( --os-ui-surface, #fff );
+}
+
+/*
+ * The reset button at the mockup's measurements: a quiet 6% fill,
+ * no border, inner radius, Caption type. All reachable through the
+ * component's own custom-property knobs, so nothing here touches the
+ * kit's defaults.
+ */
+.os-settings > .os-settings__footer os-button {
+	--os-ui-button-padding: 8px 15px;
+	--os-ui-button-border-radius: 8px;
+	--os-ui-button-border: 0;
+	--os-ui-button-bg: var( --os-ui-hover, rgba( 0, 0, 0, 0.05 ) );
+	font-size: 13px;
+}
+
+/* Narrow windows: the sidebar would eat the pane, so fall back to the
+   stacked layout the panel had before. Container-scoped, so it tracks
+   the WINDOW being dragged narrow rather than the browser viewport. */
+@container ( max-width: 640px ) {
+	.os-settings {
+		grid-template-columns: minmax( 0, 1fr );
+		grid-template-rows: auto minmax( 0, 1fr ) auto;
+	}
+	.os-settings > os-tabs {
+		grid-column: 1;
+		grid-row: 1;
+		flex-direction: row;
+		overflow-x: auto;
+		overflow-y: hidden;
+	}
+	/*
+	 * Back to a strip, so the group gap becomes horizontal.
+	 *
+	 * The rows KEEP their vertical treatment, which this rule cannot
+	 * reach: it is styled inside the component's shadow root off
+	 * `data-orientation`, and a container query has no way in there.
+	 * They are full-bleed 40px rows laid in a horizontal line, which
+	 * reads as a strip of wide chips rather than as the compact tab
+	 * strip this width wants. Fixing it properly means the component
+	 * choosing its own layout at a width, not the panel overriding it
+	 * from outside; only the gap is restated here.
+	 */
+	.os-settings > os-tabs > os-tab[ data-group-start='true' ] {
+		margin-top: 0;
+		margin-inline-start: 20px;
+	}
+	/*
+	 * The search field goes with the sidebar's width, which it no
+	 * longer has: a full-bleed input above a horizontal strip reads as
+	 * the window's search rather than the nav's. The strip is short
+	 * enough at this width to scan without it.
+	 */
+	.os-settings__search,
+	.os-settings__search-empty,
+	.os-settings__search-empty[ hidden ] {
+		display: none;
+	}
+	.os-settings > os-tabpanel {
+		grid-column: 1;
+		grid-row: 2;
+	}
+	/*
+	 * Row 3, not row 4. The wide layout has four rows and puts the
+	 * reset bar last; this one has three, so the wide declaration would
+	 * place the bar in a row that does not exist and the grid would
+	 * grow an implicit one below the fold.
+	 */
+	.os-settings > .os-settings__footer {
+		grid-row: 3;
+	}
+	/*
+	 * Half a pane this narrow is not a card any more, and the One dock
+	 * card has segmented controls inside it that would start clipping
+	 * their labels. The two stack instead.
+	 */
+	.os-settings__layout-grid {
+		grid-template-columns: minmax( 0, 1fr );
+	}
+}
+
+/* Components tab — split-pane layout. Don't scroll the whole panel;
+   let the inner grid distribute height to nav + detail, each with
+   their own overflow.
+ *
+ * The `:not([hidden])` guard is load-bearing: a bare
+ * `os-tabpanel[for='help'] { display: flex }` rule has specificity
+ * (0,0,2,1) which outranks the shadow-DOM `:host([hidden]) {
+ * display: none }` rule (specificity 0,0,1,0), so the panel would
+ * keep rendering when it should be hidden — bleeding the Components
+ * UI into every other tab. Pinning the rule to the visible state
+ * leaves the hidden state to the shadow-DOM default. */
+.os-settings > os-tabpanel[ for='help' ]:not( [ hidden ] ) {
+	overflow: hidden;
+	display: flex;
+	flex-direction: column;
+	/*
+	 * Square off the bottom inset. Every other page carries 44px there
+	 * so a scrolling column has somewhere to end; this one does not
+	 * scroll, so those extra 16px are just the panes stopping short of
+	 * the window. Matching the top puts the same frame on both ends.
+	 */
+	padding-bottom: 28px;
+}
+.os-settings
+	> os-tabpanel[ for='help' ]:not( [ hidden ] )
+	> os-panel {
+	flex: 1;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+}
+
+.os-settings__help {
+	flex: 1;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+/* The intro card (Component library description) shouldn't grow —
+   it's content-sized so the grid below gets the remaining height.
+   The warner disclosure is the same: content-sized whether it is
+   folded or open, so opening it takes room from the panes below
+   rather than from the window. */
+.os-settings__help > os-section,
+.os-settings__help > os-disclosure {
+	flex: 0 0 auto;
+}
+
+/*
+ * The warner demo reads as one of this tab's section boxes, but the
+ * box has to start BELOW the summary row: a disclosure whose frame
+ * wraps its own toggle looks like a card you cannot close, and when
+ * folded it leaves an empty bordered strip with a title in it. So the
+ * host stays transparent and the box is painted on the body part,
+ * which is `hidden` while closed and therefore paints nothing at all.
+ */
+.os-settings__help-warner-section::part( body ) {
+	padding: 18px;
+	background: var( --os-ui-surface-subtle, rgba( 0, 0, 0, 0.03 ) );
+	border: 1px solid var( --os-ui-border, #dcdcde );
+	border-radius: 10px;
+	/*
+	 * `overflow: hidden` matches `os-section::part( body )` above, and
+	 * is load-bearing rather than cosmetic: the `<pre>` inside carries
+	 * `overflow-x: auto` precisely BECAUSE the box clips (see the
+	 * comment on `.os-settings__help-warner-code`). Drop it here and
+	 * the 56-character tag would push the box wide instead of
+	 * scrolling inside it.
+	 */
+	overflow: hidden;
+}
+.os-settings__help-layout {
+	flex: 1;
+	min-height: 0;
+}
+
+/* Each split pane is its own scroll container. min-height:0 unlocks
+   shrinking in a grid item (default is `auto` which equals content
+   height — would defeat the overflow). max-height:100% pins the
+   pane to the grid track. */
+.os-settings__help-nav,
+.os-settings__help-detail {
+	min-height: 0;
+	max-height: 100%;
+	overflow-y: auto;
+}
+
+/*
+ * Features section — per-user opt-in toggles.
+ *
+ * Save status pill renders the live OS-settings save lifecycle
+ * (`pending` → `saving` → `saved` / `failed`) so toggling a
+ * per-user feature flag gets immediate, honest feedback instead
+ * of an optimistic flicker.
+ */
+.os-features__status-row {
+	min-height: 22px;
+}
+
+/*
+ * One toggle + hint pair, in its own box.
+ *
+ * These used to be separated by a hairline above each item after the
+ * first. A box does the same job without drawing a line: it groups the
+ * label with its description and gives the eye a stopping point
+ * between unrelated settings, and it says which text belongs to which
+ * switch by enclosing it rather than by sitting between it and the
+ * next one. No horizontal rule survives anywhere in this panel.
+ */
+.os-features__item {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding: 12px 16px;
+	background: var( --os-ui-surface, #fff );
+	border-radius: 8px;
+}
+
+.os-features__item + .os-features__item {
+	margin-top: 12px;
+}
+
+/* Feature title line: Body 14 / Medium 500. The outer-tree rule wins
+ * over the component's own :host font-size, and the shadow label
+ * inherits both properties from the host. */
+.os-features__item > os-checkbox-label {
+	font-size: 14px;
+	font-weight: 500;
+}
+
+/* A functional notice (provider gating) gets a touch more air than
+ * the 4px title-to-description rhythm: 4px gap + 4px margin = 8px. */
+.os-features__item > os-notice {
+	margin-top: 4px;
+}
+
+/* Sub-toggles (the window-links children) sit inside the parent box:
+ * no box-in-box, indented 24px so their checkboxes align under the
+ * parent's label text (16px box + 8px gap). Declared after the
+ * sibling rule above so the 8px margin wins for nested siblings:
+ * 4px parent gap + 8px margin = the same 12px block rhythm. */
+.os-features__item .os-features__item {
+	margin-top: 8px;
+	margin-left: 24px;
+	padding: 0;
+	background: none;
+	border-radius: 0;
+}
+
+/* "Reset what's-new dialogs" row: description first, button directly
+ * under it on the shared 12px gap. `align-items: flex-start` keeps
+ * the inline-flex `<os-button>` from stretching full-width inside
+ * the column. */
+.os-features__row {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 12px;
+	margin-top: 12px;
+	padding: 12px 16px;
+	background: var( --os-ui-surface, #fff );
+	border-radius: 8px;
+}
+
+.os-features__row > os-button {
+	display: inline-flex;
+}
+
+.os-features__row > .os-features__hint {
+	margin: 0;
+}
+
+/* "Delete folder sharing data": the one-line description and its
+ * danger button read as a single row, button on the trailing edge.
+ * 4px parent gap + 8px margin = the 12px block rhythm above it. */
+.os-features__danger-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	margin-top: 8px;
+}
+
+.os-features__danger-row > os-button {
+	flex: 0 0 auto;
+}
+
+/* Heartbeat rate: 8px label-to-control, description 8px below the
+ * control (4px parent gap + 4px margin). */
+.os-features__select-label {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 8px;
+}
+
+.os-features__select-title {
+	font-size: 14px;
+	font-weight: 500;
+}
+
+.os-features__select-label + .os-features__hint {
+	margin-top: 4px;
+}
+
+.os-features__hint {
+	margin: 0;
+	font-size: 13px;
+	color: var( --os-ui-fg-muted, #50575e );
+	line-height: 1.5;
+}
+
+.os-features__status {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 13px;
+	font-weight: 500;
+	padding: 2px 10px;
+	border-radius: 999px;
+	white-space: nowrap;
+	transition: opacity 200ms ease;
+}
+
+.os-features__status--saving {
+	background: var( --os-ui-surface-elevated, #f0f0f1 );
+	color: var( --os-ui-fg-muted, #50575e );
+}
+
+.os-features__status--saved {
+	background: rgba( 30, 132, 73, 0.12 );
+	color: var( --os-ui-success-fg, #1d6f42 );
+}
+
+.os-features__status--saved .dashicons {
+	font-size: 14px;
+	width: 14px;
+	height: 14px;
+}
+
+.os-features__status--failed {
+	background: rgba( 214, 54, 56, 0.12 );
+	color: var( --os-ui-danger-hover, #a02622 );
+}
+
+.os-features__status--failed .dashicons {
+	font-size: 14px;
+	width: 14px;
+	height: 14px;
+}
+
+.os-features__status-dot {
+	display: inline-block;
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background: currentColor;
+	animation: os-features-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes os-features-pulse {
+	0%, 100% { opacity: 0.35; transform: scale( 0.85 ); }
+	50%      { opacity: 1;    transform: scale( 1 ); }
+}
+
+/*
+ * OS Settings panel header — hosts the global tabs strip and a single
+ * `<os-save-status>` indicator that auto-listens to the save
+ * lifecycle. The save status sits on the trailing edge of the header
+ * so it's visible across every tab without competing with section
+ * content.
+ */
+.os-settings__header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+	margin-bottom: 12px;
+}
+
+.os-settings__header os-tabs {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.os-settings__header os-save-status {
+	flex: 0 0 auto;
+	margin-inline-start: auto;
+}
+
+/*
+ * About tab — product context first, then a compact editorial front page
+ * for openstation.blog. The quiet overview establishes what OpenStation is;
+ * the first story remains the one expressive hero on the page.
+ */
+.os-settings > os-tabpanel[ for='about' ]:not( [ hidden ] ) {
+	display: flex;
+	flex-direction: column;
+	overflow: auto;
+}
+
+.os-settings > os-tabpanel[ for='about' ]:not( [ hidden ] ) > os-panel {
+	flex: 1;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+}
+
+.os-settings__about {
+	flex: 1;
+	min-height: 0;
+	margin: 0;
+	color: var( --os-ui-fg, #1d2327 );
+	background:
+		radial-gradient(
+			circle at 92% 0%,
+			color-mix(
+				in srgb,
+				var( --os-ui-accent-dim, #d92ee3 ) 10%,
+				transparent
+			),
+			transparent 30%
+		),
+		var( --os-ui-surface-sunken, #f0f0f1 );
+	container: os-about / inline-size;
+}
+
+.os-settings__about-inner {
+	width: min( 100%, 1120px );
+	box-sizing: border-box;
+	margin: 0 auto;
+	padding: clamp( 24px, 4cqi, 48px );
+}
+
+.os-settings__about-overview {
+	display: grid;
+	grid-template-columns: minmax( 0, 1.3fr ) minmax( 260px, 0.8fr );
+	gap: clamp( 28px, 5cqi, 56px );
+	padding-bottom: clamp( 26px, 4cqi, 40px );
+	border-bottom: 1px solid var( --os-ui-border, #dcdcde );
+}
+
+.os-settings__about-identity {
+	display: flex;
+	align-items: flex-start;
+	gap: 18px;
+	min-width: 0;
+}
+
+.os-settings__about-identity img {
+	display: block;
+	width: 64px;
+	height: 64px;
+	flex: 0 0 64px;
+	border: 1px solid
+		color-mix(
+			in srgb,
+			var( --os-ui-border, #dcdcde ) 78%,
+			var( --os-ui-surface, #fff )
+		);
+	border-radius: 16px;
+	box-shadow: var( --os-ui-shadow-md, 0 12px 30px rgba( 0, 0, 0, 0.14 ) );
+}
+
+.os-settings__about-eyebrow,
+.os-settings__about-kicker {
+	display: block;
+	margin: 0 0 4px;
+	color: var( --os-ui-accent-strong, var( --os-ui-accent, #2271b1 ) );
+	font-size: 10px;
+	font-weight: 750;
+	letter-spacing: 0.14em;
+	line-height: 1.4;
+	text-transform: uppercase;
+}
+
+.os-settings__about-overview h2,
+.os-settings__about-journal-head h2 {
+	margin: 0;
+	font-size: clamp( 25px, 4.5cqi, 38px );
+	font-weight: 670;
+	letter-spacing: -0.045em;
+	line-height: 1.06;
+}
+
+.os-settings__about-overview p,
+.os-settings__about-journal-head p {
+	max-width: 620px;
+	margin: 8px 0 0;
+	color: var( --os-ui-fg-muted, #50575e );
+	font-size: 13px;
+	line-height: 1.55;
+}
+
+.os-settings__about-story {
+	display: flex;
+	min-width: 0;
+	padding-inline-start: clamp( 20px, 3cqi, 34px );
+	flex-direction: column;
+	justify-content: space-between;
+	gap: 20px;
+	border-inline-start: 1px solid var( --os-ui-border, #dcdcde );
+}
+
+.os-settings__about-story > p {
+	margin: 0;
+	font-size: 14px;
+	line-height: 1.6;
+}
+
+.os-settings__about-meta {
+	display: flex;
+	align-items: flex-end;
+	justify-content: space-between;
+	gap: 18px;
+}
+
+.os-settings__about-meta > span {
+	display: flex;
+	min-width: 0;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.os-settings__about-meta strong {
+	font-size: 12px;
+}
+
+.os-settings__about-meta small {
+	color: var( --os-ui-fg-faint, #646970 );
+	font-size: 10px;
+}
+
+.os-settings__about-meta a {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	flex: 0 0 auto;
+	color: var( --os-ui-accent-strong, var( --os-ui-accent, #2271b1 ) );
+	font-size: 11px;
+	font-weight: 650;
+	text-decoration: none;
+}
+
+.os-settings__about-meta a:hover {
+	text-decoration: underline;
+}
+
+.os-settings__about-journal-head {
+	display: flex;
+	align-items: flex-end;
+	justify-content: space-between;
+	gap: 28px;
+	margin: clamp( 26px, 4cqi, 40px ) 0 18px;
+}
+
+.os-settings__about-journal-head h2 {
+	font-size: clamp( 22px, 3.7cqi, 31px );
+}
+
+.os-settings__about-journal-link {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 5px;
+	min-height: 38px;
+	box-sizing: border-box;
+	padding: 7px 14px;
+	flex: 0 0 auto;
+	color: var( --os-ui-fg, #1d2327 );
+	background: var( --os-ui-surface-elevated, #fff );
+	border: 1px solid var( --os-ui-border-strong, #8c8f94 );
+	border-radius: 999px;
+	font-weight: 650;
+	text-decoration: none;
+	transition:
+		border-color 0.16s ease,
+		box-shadow 0.16s ease,
+		transform 0.16s ease;
+}
+
+.os-settings__about-journal-link:hover {
+	color: var( --os-ui-fg, #1d2327 );
+	border-color: var( --os-ui-accent, #2271b1 );
+	box-shadow: var( --os-ui-holo-glow, 0 4px 14px rgba( 0, 0, 0, 0.12 ) );
+	transform: translateY( -1px );
+}
+
+.os-settings__about-journal-link:focus-visible,
+.os-settings__about-meta a:focus-visible,
+.os-settings__about-featured > a:focus-visible,
+.os-settings__about-card > a:focus-visible,
+.os-settings__about-footer a:focus-visible {
+	outline: 2px solid var( --os-ui-accent, #2271b1 );
+	outline-offset: 3px;
+}
+
+.os-settings__about-feed {
+	display: flex;
+	flex-direction: column;
+	gap: 18px;
+}
+
+.os-settings__about-featured {
+	position: relative;
+	min-height: 270px;
+	margin: 0;
+	overflow: hidden;
+	background:
+		var(
+			--os-ui-hero-mesh,
+			linear-gradient(
+				145deg,
+				rgba( 34, 113, 177, 0.16 ) 0%,
+				rgba( 34, 113, 177, 0.06 ) 55%,
+				rgba( 34, 113, 177, 0 ) 100%
+			)
+		),
+		var( --os-ui-surface-sunken, #f0f0f1 );
+	border: 1px solid
+		color-mix(
+			in srgb,
+			var( --os-ui-accent-dim, #d92ee3 ) 34%,
+			var( --os-ui-border, #dcdcde )
+		);
+	border-radius: 18px;
+	box-shadow: var( --os-ui-shadow-md, 0 18px 44px rgba( 0, 0, 0, 0.2 ) );
+}
+
+.os-settings__about-featured::after {
+	position: absolute;
+	inset: -34% -8% auto auto;
+	width: 45%;
+	aspect-ratio: 1;
+	background: radial-gradient(
+		circle,
+		color-mix( in srgb, var( --os-ui-fg, #fff ) 24%, transparent ),
+		transparent 66%
+	);
+	content: "";
+	pointer-events: none;
+}
+
+.os-settings__about-featured > a {
+	position: relative;
+	z-index: 1;
+	display: flex;
+	min-height: 270px;
+	box-sizing: border-box;
+	padding: clamp( 26px, 4.5cqi, 48px );
+	flex-direction: column;
+	justify-content: space-between;
+	color: var( --os-ui-fg, #1d2327 );
+	text-decoration: none;
+}
+
+.os-settings__about-featured-copy {
+	max-width: 760px;
+}
+
+.os-settings__about-featured .os-settings__about-kicker {
+	color: var( --os-ui-accent-strong, var( --os-ui-accent, #2271b1 ) );
+}
+
+.os-settings__about-featured h3 {
+	max-width: 780px;
+	margin: 0;
+	font-size: clamp( 26px, 5.2cqi, 46px );
+	font-weight: 680;
+	letter-spacing: -0.045em;
+	line-height: 1.02;
+}
+
+.os-settings__about-featured p {
+	max-width: 700px;
+	margin: 16px 0 0;
+	color: var( --os-ui-fg-muted, #50575e );
+	font-size: 14px;
+	line-height: 1.55;
+}
+
+.os-settings__about-featured footer {
+	display: flex;
+	align-items: flex-end;
+	justify-content: space-between;
+	gap: 24px;
+	margin-top: 32px;
+	color: var( --os-ui-fg-faint, #646970 );
+	font-size: 11px;
+}
+
+.os-settings__about-featured footer strong {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	color: var( --os-ui-fg, #1d2327 );
+	font-size: 12px;
+}
+
+.os-settings__about-grid {
+	display: grid;
+	grid-template-columns: repeat( auto-fit, minmax( 200px, 1fr ) );
+	gap: 14px;
+}
+
+.os-settings__about-card {
+	min-width: 0;
+	margin: 0;
+	background: var( --os-ui-surface-elevated, #fff );
+	border: 1px solid var( --os-ui-border, #dcdcde );
+	border-radius: 13px;
+	box-shadow: var( --os-ui-shadow-sm, 0 3px 10px rgba( 0, 0, 0, 0.07 ) );
+	transition:
+		border-color 0.16s ease,
+		box-shadow 0.16s ease,
+		transform 0.16s ease;
+}
+
+.os-settings__about-card:hover {
+	border-color: var( --os-ui-border-strong, #8c8f94 );
+	box-shadow: var( --os-ui-shadow-md, 0 10px 24px rgba( 0, 0, 0, 0.13 ) );
+	transform: translateY( -2px );
+}
+
+.os-settings__about-card > a {
+	display: flex;
+	height: 100%;
+	box-sizing: border-box;
+	padding: 18px;
+	flex-direction: column;
+	color: var( --os-ui-fg, #1d2327 );
+	text-decoration: none;
+}
+
+.os-settings__about-card-meta {
+	min-height: 17px;
+	color: var( --os-ui-fg-faint, #646970 );
+	font-size: 10px;
+	font-weight: 600;
+	letter-spacing: 0.02em;
+}
+
+.os-settings__about-card h3 {
+	margin: 10px 0 0;
+	font-size: 16px;
+	font-weight: 660;
+	letter-spacing: -0.018em;
+	line-height: 1.24;
+}
+
+.os-settings__about-card p {
+	display: -webkit-box;
+	margin: 10px 0 18px;
+	overflow: hidden;
+	color: var( --os-ui-fg-muted, #50575e );
+	font-size: 12px;
+	line-height: 1.5;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 4;
+}
+
+.os-settings__about-card strong {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	margin-top: auto;
+	color: var( --os-ui-accent-strong, var( --os-ui-accent, #2271b1 ) );
+	font-size: 11px;
+}
+
+.os-settings__about-status {
+	display: flex;
+	min-height: 180px;
+	box-sizing: border-box;
+	align-items: center;
+	justify-content: center;
+	gap: 14px;
+	padding: 28px;
+	background: var( --os-ui-surface-elevated, #fff );
+	border: 1px solid var( --os-ui-border, #dcdcde );
+	border-radius: 14px;
+	text-align: start;
+}
+
+.os-settings__about-status > .dashicons,
+.os-settings__about-spinner {
+	width: 28px;
+	height: 28px;
+	flex: 0 0 28px;
+}
+
+.os-settings__about-status > .dashicons {
+	color: var( --os-ui-accent, #2271b1 );
+	font-size: 28px;
+}
+
+.os-settings__about-spinner {
+	box-sizing: border-box;
+	border: 2px solid var( --os-ui-border-strong, #a7aaad );
+	border-top-color: var( --os-ui-accent, #2271b1 );
+	border-radius: 50%;
+	animation: os-about-spin 0.75s linear infinite;
+}
+
+.os-settings__about-status div {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.os-settings__about-status strong {
+	font-size: 14px;
+}
+
+.os-settings__about-status div span {
+	color: var( --os-ui-fg-muted, #50575e );
+}
+
+.os-settings__about-stale {
+	margin: 0 0 10px;
+	color: var( --os-ui-fg-muted, #50575e );
+	font-size: 11px;
+	text-align: end;
+}
+
+.os-settings__about-footer {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 20px;
+	margin-top: 28px;
+	padding-top: 18px;
+	color: var( --os-ui-fg-muted, #50575e );
+	border-top: 1px solid var( --os-ui-border, #dcdcde );
+}
+
+.os-settings__about-footer p {
+	display: flex;
+	margin: 0;
+	flex-direction: column;
+	font-size: 11px;
+}
+
+.os-settings__about-footer p strong {
+	color: var( --os-ui-fg, #1d2327 );
+	font-size: 12px;
+}
+
+.os-settings__about-footer a {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	color: var( --os-ui-fg-muted, #50575e );
+	font-weight: 600;
+	text-decoration: none;
+}
+
+.os-settings__about-footer a:hover {
+	color: var( --os-ui-accent-strong, var( --os-ui-accent, #2271b1 ) );
+}
+
+.os-settings__about-footer .dashicons {
+	width: 15px;
+	height: 15px;
+	font-size: 15px;
+}
+
+@keyframes os-about-spin {
+	to {
+		transform: rotate( 360deg );
+	}
+}
+
+@container os-about ( max-width: 680px ) {
+	.os-settings__about-overview {
+		grid-template-columns: 1fr;
+		gap: 22px;
+	}
+
+	.os-settings__about-identity {
+		align-items: flex-start;
+	}
+
+	.os-settings__about-identity img {
+		width: 52px;
+		height: 52px;
+		flex-basis: 52px;
+		border-radius: 13px;
+	}
+
+	.os-settings__about-story {
+		padding: 20px 0 0;
+		border-top: 1px solid var( --os-ui-border, #dcdcde );
+		border-inline-start: 0;
+	}
+
+	.os-settings__about-journal-head {
+		align-items: flex-start;
+		flex-direction: column;
+		gap: 14px;
+	}
+
+	.os-settings__about-featured footer,
+	.os-settings__about-footer {
+		align-items: flex-start;
+		flex-direction: column;
+	}
+
+	.os-settings__about-grid {
+		grid-template-columns: 1fr;
+	}
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.os-settings__about-spinner {
+		animation: none;
+	}
+
+	.os-settings__about-journal-link,
+	.os-settings__about-card {
+		transition: none;
+	}
+}
+
+/* Navigation section — per-item placement chooser. */
+/*
+ * A settings list, not a stack of cards: the section box is the only
+ * container, rows sit flush inside it, and a hairline separates one
+ * from the next. macOS Control Center is the reference — the row's
+ * title on the leading edge, its answer on the trailing one, and no
+ * chrome at all until the pointer arrives.
+ *
+ * The section's own 18px padding is dropped so the separators reach
+ * both edges; each row pays its own inset instead. Without that the
+ * hairlines would float with a gap at either end and read as
+ * underlines rather than as divisions.
+ */
+/*
+ * The page's opening sentence, standing in for the one the header
+ * would have carried. It moved here so it can follow a layout change
+ * made in the tab next door, and it keeps the header's spacing.
+ */
+.os-nav-settings__lead {
+	margin: -28px 0 34px;
+}
+
+.os-settings os-section.os-nav-settings::part( body ) {
+	padding: 0;
+}
+
+.os-nav-settings__row {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 6px 14px;
+	min-height: 44px;
+}
+
+.os-nav-settings__row + .os-nav-settings__row {
+	border-block-start: 1px solid var( --os-ui-border, #dcdcde );
+}
+
+.os-nav-settings__identity {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	flex: 1;
+	min-width: 0;
+}
+
+.os-nav-settings__icon {
+	width: 24px;
+	height: 24px;
+	flex-shrink: 0;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.os-nav-settings__icon.dashicons {
+	font-size: 20px;
+}
+
+.os-nav-settings__title {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* ------------------------------------------------------------------
+ * OS Settings → Themes.
+ *
+ * Card grid of the site's desktop-theme library. Deliberately styled
+ * with the SAME neutral palette as the rest of the panel rather than
+ * with themed tokens: the picker has to stay legible while the user
+ * is trying on themes, including ones with hostile contrast.
+ * ------------------------------------------------------------------ */
+
+.os-settings__theme-grid {
+	display: grid;
+	grid-template-columns: repeat( auto-fill, minmax( 160px, 1fr ) );
+	gap: 12px;
+	margin: 12px 0 16px;
+}
+
+.os-settings__theme-card-wrap {
+	position: relative;
+}
+
+/*
+ * Same geometry in every state: the border is 1px in both, and
+ * selection is a box-shadow ring OUTSIDE the box, so an active card
+ * occupies exactly the pixels an idle one does and the row stays
+ * aligned. The selected ring is the flat accent, the same language
+ * as the wallpaper tiles and layout cards beside it.
+ */
+.os-settings__theme-card {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	width: 100%;
+	height: 100%;
+	padding: 10px;
+	background: var( --os-ui-surface, #fff );
+	border: 1px solid var( --os-ui-border, #dcdcde );
+	border-radius: 10px;
+	cursor: pointer;
+	text-align: start;
+	font: inherit;
+	color: var( --os-ui-fg, #1d2327 );
+	transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.os-settings__theme-card:hover {
+	border-color: var( --os-ui-border-strong, #8c8f94 );
+}
+
+.os-settings__theme-card:focus-visible {
+	outline: 2px solid var( --os-ui-accent, #2271b1 );
+	outline-offset: 2px;
+}
+
+.os-settings__theme-card[ aria-pressed="true" ] {
+	border-color: transparent;
+	box-shadow: 0 0 0 2px var( --os-ui-accent, #2271b1 );
+}
+
+.os-settings__theme-preview {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	aspect-ratio: 16 / 10;
+	overflow: hidden;
+	border-radius: 6px;
+	background: var( --os-ui-surface-elevated, #f0f0f1 );
+}
+
+.os-settings__theme-preview img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	display: block;
+}
+
+/* Stand-in preview for "System default" — a miniature of the shipped
+ * graphite desktop, so the card reads as a real option rather than an
+ * absence. */
+.os-settings__theme-preview--system {
+	background: linear-gradient( 135deg, #1d2327 0%, #2c3338 50%, #1d2327 100% );
+}
+
+.os-settings__theme-initials {
+	font-size: 24px;
+	font-weight: 700;
+	letter-spacing: 1px;
+	color: var( --os-ui-fg-muted, #787c82 );
+}
+
+.os-settings__theme-name {
+	font-weight: 600;
+	line-height: 1.3;
+	overflow-wrap: anywhere;
+}
+
+/* Wraps rather than clipping. This string is a theme's own
+   description and a plugin can make it any length; a one-line box cut
+   "The look OpenStation ships with" off mid-sentence. */
+.os-settings__theme-meta {
+	font-size: 13px;
+	color: var( --os-ui-fg-muted, #646970 );
+	line-height: 1.45;
+	min-height: 1.45em;
+	overflow-wrap: anywhere;
+}
+
+/* Delete overlay — outside the card button, because nesting a button
+ * inside a button is invalid HTML and breaks keyboard traversal. */
+.os-settings__theme-delete {
+	position: absolute;
+	inset-block-start: 4px;
+	inset-inline-end: 4px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 22px;
+	height: 22px;
+	padding: 0;
+	border: none;
+	border-radius: 50%;
+	background: var( --os-ui-scrim, rgba( 0, 0, 0, 0.55 ) );
+	color: var( --os-ui-fg-on-accent, #fff );
+	font-size: 15px;
+	line-height: 1;
+	cursor: pointer;
+	opacity: 0;
+	transition: opacity 0.15s ease, background-color 0.15s ease;
+}
+
+.os-settings__theme-card-wrap:hover
+	.os-settings__theme-delete,
+.os-settings__theme-delete:focus-visible {
+	opacity: 1;
+}
+
+.os-settings__theme-delete:hover {
+	background: var( --os-ui-danger, #d63638 );
+}
+
+/*
+ * "Apply <theme>'s recommended layout" — sits between the theme grid
+ * and the upload tile, and only for a theme that recommends
+ * something. Just the button: the dock resizing and the layout
+ * moving is the feedback.
+ */
+.os-settings__theme-recommendation {
+	display: flex;
+	margin-block: 16px;
+}
+
+/*
+ * The last cell of the theme grid, not a dropzone underneath it.
+ * Uploading a theme is one of the ways to answer "which theme", so it
+ * belongs in the row of answers; dashed because it is the only one
+ * that cannot show you what you are picking until you have picked it.
+ * Same reasoning, and the same treatment, as "Use your own image" in
+ * the wallpaper grid.
+ */
+.os-settings__theme-upload {
+	display: block;
+	/* Same reason as the other two dropzones above: the plain border
+	   token is the card's own colour and vanishes on it. */
+	border: 2px dashed var( --os-ui-border-strong, #c3c4c7 );
+	border-radius: 10px;
+	background: transparent;
+	transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.os-settings__theme-upload-label {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	/* Matches a theme card: 16:10 preview plus its name and meta. */
+	min-height: 100%;
+	padding: 16px;
+	color: var( --os-ui-fg-muted, #50575e );
+	cursor: pointer;
+	text-align: center;
+}
+
+.os-settings__theme-upload:hover,
+.os-settings__theme-upload--dragover {
+	border-color: var( --wp-admin-theme-color, #2271b1 );
+	background-color: rgba( 34, 113, 177, 0.06 );
+}
+
+.os-settings__theme-upload--dragover {
+	border-style: solid;
+}
+
+.os-settings__theme-upload--busy
+	.os-settings__theme-upload-label {
+	cursor: progress;
+	opacity: 0.7;
+}
+
+.os-settings__theme-upload-plus {
+	font-size: 22px;
+	line-height: 1;
+}

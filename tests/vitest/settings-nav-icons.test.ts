@@ -12,10 +12,10 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, test } from 'vitest';
-import { NAV_ICONS } from '../../src/settings/nav-icons';
+import { NAV_ICONS } from '../../apps/os-settings/parts/nav-icons';
 
 /**
- * The built-in pages `renderOsSettingsPanel()` builds, by id.
+ * The built-in pages the Preferences app lists, by id.
  *
  * Third-party tabs are deliberately absent: they render the blank
  * spacer instead, because the settings-tab registry has no icon field
@@ -54,7 +54,7 @@ describe( 'settings nav icons', () => {
 	} );
 
 	test( 'nothing is drawn for a page that does not exist', () => {
-		// The blank-spacer path in panel.ts depends on a miss being
+		// The blank-spacer path in the app depends on a miss being
 		// undefined rather than a stray empty template.
 		expect( NAV_ICONS[ 'ext-file-associations' ] ).toBeUndefined();
 	} );
@@ -70,7 +70,7 @@ describe( 'settings nav icons', () => {
 		expect( make?.() ).not.toBe( make?.() );
 	} );
 
-	test( 'panel.ts resolves external-tab glyphs by RAW registry id', () => {
+	test( 'the page table resolves external-tab glyphs by RAW registry id', () => {
 		// The trap this guards: external rows render under an
 		// ext-prefixed id, so a NAV_ICONS entry keyed on the raw
 		// registry id (File Associations) matches NOTHING unless the
@@ -78,15 +78,15 @@ describe( 'settings nav icons', () => {
 		// above stays green while the sidebar quietly renders the
 		// blank spacer — which is exactly how the glyph shipped
 		// missing once.
-		const panelSource = readFileSync(
-			resolve( __dirname, '../../src/settings/panel.ts' ),
+		const pagesSource = readFileSync(
+			resolve( __dirname, '../../apps/os-settings/parts/pages.ts' ),
 			'utf8'
 		);
 		expect(
-			panelSource,
-			'External rows must carry `icon: NAV_ICONS[ tab.id ]?.()` so a ' +
+			pagesSource,
+			'External rows must carry `icon: NAV_ICONS[ tab.id ]` so a ' +
 				'shell-owned registry tab can resolve its glyph by raw id.'
-		).toMatch( /icon:\s*NAV_ICONS\[\s*tab\.id\s*\]\?\.\(\)/ );
+		).toMatch( /icon:\s*NAV_ICONS\[\s*tab\.id\s*\]/ );
 	} );
 
 	test.each( BUILT_IN_TAB_IDS )( '%s is drawn in currentColor', ( id ) => {

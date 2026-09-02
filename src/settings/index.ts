@@ -1,44 +1,31 @@
 /**
- * OpenStation — OpenStation Preferences.
+ * OpenStation — the Preferences store.
  *
  * Shell-level preferences that live outside WordPress: wallpaper, accent
- * color, dock size. Persisted to localStorage so they survive reloads
- * without a round-trip to the server; applied via the wallpaper layer +
- * CSS custom properties on the desktop shell so every downstream rule
- * (title bars, dock chips, focus rings, window chrome) inherits the new
- * values without per-rule plumbing.
+ * color, dock size, layout, the feature switches, and everything else
+ * OpenStation Preferences edits. Persisted to user meta through a
+ * debounced REST sync with a localStorage read cache (`state.ts`), and
+ * applied through the wallpaper layer + CSS custom properties on the
+ * desktop shell so every downstream rule (title bars, dock chips, focus
+ * rings, window chrome) inherits the new values without per-rule
+ * plumbing.
+ *
+ * This is the STORE, not the panel. The Preferences window is an App
+ * Framework app (`apps/os-settings/`) that reads the store through
+ * `wp.os.getOsSettings()` and writes it through `wp.os.updateOsSettings()`
+ * — the same public API a third-party settings tab uses — because the
+ * store has to apply before the first paint and outlives any window.
+ * Every other writer (the Mio tile, the close-all dialog, the
+ * right-click navigation menu, `wp.os.updateOsSettings()`) lands here
+ * too, so there is one apply pass and one save pipeline.
  *
  * Wallpapers are registry-driven: built-in presets live in
- * `src/wallpapers/built-in.ts`, third-party plugins register via the
- * public `wp.os.registerWallpaper()` / `os.wallpapers`
- * filter, and this module is responsible only for
- *
- *   - managing user preference state (current wallpaper id, accent,
- *     dock size, custom-gradient colors/angle, custom-image reference)
- *   - delegating wallpaper application to the WallpaperLayer
- *   - rendering the OpenStation Preferences panel UI, iterating the registry to
- *     produce swatches and hosting each selected wallpaper's optional
- *     in-panel editor (`renderEditor`).
- *
- * The 1,400-line monolith was split into this folder:
- *
- *   src/settings/
- *   ├── index.ts           — this file: class + panel composition
- *   ├── types.ts           — shared interfaces
- *   ├── constants.ts       — STORAGE_KEY, ACCENTS, DOCK_SIZES, DEFAULTS, ids
- *   ├── utils.ts           — stripHtml, isPromise, sanitize*, isHexColor
- *   ├── labels.ts          — translated accent / dock-size labels
- *   ├── state.ts           — load / save / sanitizers
- *   ├── media-api.ts       — REST client
- *   └── sections/
- *       ├── wallpaper.ts   — swatch grid + editor slot + custom-gradient
- *       ├── custom-image.ts — upload + library tabs
- *       ├── accent.ts      — accent swatch row
- *       └── desktop-layout.ts — layout cards + inline dock options
+ * `src/wallpapers/built-in.ts`, the two state-derived ones
+ * (`custom-gradient`, `custom-image`) in `./wallpaper-defs.ts`, and
+ * third-party plugins register via `wp.os.registerWallpaper()`.
  */
 
 import type { WallpaperLayer } from '../wallpapers/layer';
-import type { WallpaperTeardown } from '../wallpapers/types';
 import * as registry from '../wallpapers/registry';
 import { seedWallpaperSettings } from '../wallpapers/settings-store';
 import {
@@ -47,6 +34,7 @@ import {
 	DEFAULT_WALLPAPER_ID,
 	DOCK_BEHAVIORS,
 	DOCK_SIZES,
+	OS_SETTINGS_WINDOW_ID,
 	WINDOW_RADII,
 	getAccents,
 	getDefaultWallpaperId,
@@ -59,113 +47,39 @@ import {
 	SIDE_DOCK_ID,
 } from '../dock-behavior';
 import {
+	cloneState,
 	loadState,
+	OS_SETTINGS_KEYS,
+	PRESENTATION_KEYS,
+	sanitizeSettings,
 	saveState,
+	structuredDefaults,
 	type OsSettingsSaveLifecycleDetail,
 } from './state';
 import { setActiveDockRailRenderer } from '../dock-rail';
 import { applyDesktopTheme } from '../desktop-themes/apply';
-import { ensureDeferredStyle } from '../deferred-styles';
-import { showInlineLoader } from '../ui/inline-loader';
-import { __ } from '../i18n';
-import type {
-	OsSettingsConfig,
-	OsSettingsState,
-	SettingsCtx,
-} from './types';
+import { notifyServiceWorkerPrewarm } from '../pwa/sw-register';
+import { applyThemeRecommendations } from './theme-recommendations';
+import type { RecommendedOsSettings } from '../desktop-themes';
+import type { OsSettingsState } from './types';
+import type { OsSettingsSnapshot } from './registry';
 import {
 	registerCustomGradient,
 	registerCustomImageIfPresent,
-} from './sections/wallpaper';
-import type { OsSettingsSnapshot } from './registry';
+} from './wallpaper-defs';
 
-export type { OsSettingsConfig };
-
-/**
- * Lazy-load the `os-settings-panel[.min].js` bundle.
- *
- * Idempotent — concurrent callers share a single promise; once the
- * bundle has registered `window.openStationRenderOsSettingsPanel`,
- * subsequent calls resolve synchronously from the global.
- *
- * **A failure is not memoized.** The rejected promise is dropped and
- * the dead `<script>` is removed from the DOM, so the next call injects
- * a fresh tag and genuinely re-fetches. Without both halves a retry is
- * theatre: keeping the promise re-awaits the same rejection, and
- * keeping the tag sends the retry down the `existing` branch below to
- * attach listeners to a script whose `error` already fired and will
- * never fire again — a spinner that hangs forever. The panel offers the
- * user a Retry control, and a transient network blip is the ordinary
- * reason it is pressed.
- */
-let _panelLoadPromise:
-	| Promise< NonNullable< Window[ 'openStationRenderOsSettingsPanel' ] > >
-	| null = null;
-function loadOsSettingsPanelBundle(
-	scriptUrl: string,
-): Promise< NonNullable< Window[ 'openStationRenderOsSettingsPanel' ] > > {
-	if ( window.openStationRenderOsSettingsPanel ) {
-		return Promise.resolve( window.openStationRenderOsSettingsPanel );
-	}
-	if ( _panelLoadPromise ) {
-		return _panelLoadPromise;
-	}
-	_panelLoadPromise = new Promise( ( resolve, reject ) => {
-		const existing = document.querySelector< HTMLScriptElement >(
-			'script[data-os-settings-panel="1"]',
-		);
-		const fail = ( err: Error ): void => {
-			_panelLoadPromise = null;
-			document
-				.querySelector( 'script[data-os-settings-panel="1"]' )
-				?.remove();
-			reject( err );
-		};
-		const finish = (): void => {
-			const fn = window.openStationRenderOsSettingsPanel;
-			if ( ! fn ) {
-				fail(
-					new Error(
-						'[openstation] os-settings-panel bundle loaded but did not register openStationRenderOsSettingsPanel',
-					),
-				);
-				return;
-			}
-			resolve( fn );
-		};
-		if ( existing ) {
-			if ( window.openStationRenderOsSettingsPanel ) {
-				finish();
-			} else {
-				existing.addEventListener( 'load', finish );
-				existing.addEventListener( 'error', () =>
-					fail( new Error( 'failed to load os-settings-panel bundle' ) ),
-				);
-			}
-			return;
-		}
-		const s = document.createElement( 'script' );
-		s.src = scriptUrl;
-		s.async = true;
-		s.dataset.osSettingsPanel = '1';
-		s.addEventListener( 'load', finish );
-		s.addEventListener( 'error', () =>
-			fail( new Error( 'failed to load os-settings-panel bundle' ) ),
-		);
-		document.head.appendChild( s );
-	} );
-	return _panelLoadPromise;
+/** Options for {@link OsSettings.update}. */
+export interface OsSettingsUpdateOptions {
+	/** Attribute the in-flight save to a window's activity dot. */
+	windowId?: string;
 }
 
 /**
- * OpenStation Preferences controller.
+ * The Preferences store.
  *
  * Single instance per shell. Owns the persisted state, delegates
- * wallpaper painting to the {@link WallpaperLayer}, and renders the
- * configuration panel into a native window's body on demand.
- *
- * Implements `SettingsCtx` so section builders can depend on the
- * narrow interface instead of the class itself.
+ * wallpaper painting to the {@link WallpaperLayer}, applies every
+ * presentation key to the shell, and notifies subscribers on change.
  */
 /**
  * A copy of a settings patch deep enough that no object inside it is
@@ -193,124 +107,19 @@ function sameSettingsValue( a: unknown, b: unknown ): boolean {
 	return JSON.stringify( a ) === JSON.stringify( b );
 }
 
-export class OsSettings implements SettingsCtx {
+export class OsSettings {
 	public state: OsSettingsState;
-	public config: OsSettingsConfig;
 	public layer: WallpaperLayer;
 
 	/**
-	 * Teardown for whichever wallpaper's `renderEditor` is currently
-	 * mounted in the OpenStation Preferences panel. Null when no editor is active.
+	 * Subscribers to Preferences changes — the Preferences app, the
+	 * engines that read a key at use time (unfocus effects, window
+	 * links, the navigation model), and third-party tabs. Fired from
+	 * {@link save}.
 	 */
-	public activeEditorTeardown: WallpaperTeardown | null = null;
+	private listeners = new Set<( snapshot: OsSettingsSnapshot ) => void>();
 
-	/**
-	 * Unsubscribe from the settings-tab registry. Set while a panel is
-	 * mounted; cleared when the panel re-renders or the next render
-	 * takes over.
-	 *
-	 * Public because the lazy panel-render module
-	 * (`src/settings/panel.ts`) reads and writes it across renders.
-	 */
-	public tabRegistryUnsubscribe: ( () => void ) | null = null;
-
-	/**
-	 * Most-recent active settings tab id, captured from
-	 * `os-window-tab-change`. Used to keep the user on whatever tab
-	 * they picked when a registry mutation forces the panel to
-	 * re-render (e.g. when a third-party plugin live-registers a new
-	 * settings tab via the chromeless plugins-changed bridge).
-	 *
-	 * Public for the same reason as `tabRegistryUnsubscribe` above.
-	 */
-	public activeTabId: string | null = null;
-
-	/**
-	 * Aborts the previous render's `os-window-tab-change` listener.
-	 *
-	 * The tab strip lives on the window element now, not inside the
-	 * panel's render root, so it is NOT replaced when the panel
-	 * re-renders — which means a listener bound to it would survive
-	 * and stack, one more per registry mutation. One controller per
-	 * render, aborted by the next.
-	 */
-	public tabChangeAbort: AbortController | null = null;
-
-	/**
-	 * Subscribers to OpenStation Preferences state changes — third-party tabs that
-	 * need to react when the user edits AI key / accent / etc. in an
-	 * adjacent built-in tab. Fired from {@link save}.
-	 */
-	private osSettingsListeners = new Set<( snapshot: OsSettingsSnapshot ) => void>();
-
-	/** Project the private state into the public snapshot shape. */
-	public getOsSettingsSnapshot(): OsSettingsSnapshot {
-		return {
-			wallpaper: this.state.wallpaper,
-			accent: this.state.accent,
-			dockSize: this.state.dockSize,
-			windowRadius: this.state.windowRadius,
-			adminBarMode: this.state.adminBarMode,
-			desktopLayout: this.state.desktopLayout,
-			dockPlacement: this.state.dockPlacement,
-			dockBehavior: this.state.dockBehavior,
-			sideDockBehavior: this.state.sideDockBehavior,
-			dockRailRenderer: this.state.dockRailRenderer,
-			desktopTheme: this.state.desktopTheme,
-			appliedThemeRecommendations:
-				this.state.appliedThemeRecommendations.slice(),
-			unfocusEffect: this.state.unfocusEffect,
-			windowReveal: this.state.windowReveal,
-			windowRevealDuration: this.state.windowRevealDuration,
-			windowLinkRenderer: this.state.windowLinkRenderer,
-			windowLinkVisibility: this.state.windowLinkVisibility,
-			windowLinksEnabled: this.state.windowLinksEnabled,
-			windowLinkRaiseOnFocus: this.state.windowLinkRaiseOnFocus,
-			windowLinkHighlight: this.state.windowLinkHighlight,
-			ai: { ...this.state.ai },
-			nativePostsEnabled: this.state.nativePostsEnabled,
-			nativePostsHiddenColumns: this.state.nativePostsHiddenColumns.slice(),
-			nativePagesEnabled: this.state.nativePagesEnabled,
-			nativeUsersEnabled: this.state.nativeUsersEnabled,
-			nativePluginsEnabled: this.state.nativePluginsEnabled,
-			nativeCommentsEnabled: this.state.nativeCommentsEnabled,
-			stationHomeEnabled: this.state.stationHomeEnabled,
-			adminAssetCacheEnabled: this.state.adminAssetCacheEnabled,
-			windowPrewarmEnabled: this.state.windowPrewarmEnabled,
-			developerModeEnabled: this.state.developerModeEnabled,
-			foldersSharingEnabled: this.state.foldersSharingEnabled,
-			showPostStatusRibbons: this.state.showPostStatusRibbons,
-			navPlacement: { ...this.state.navPlacement },
-			navOrder: this.state.navOrder.slice(),
-			dockPromotedPositions: Object.fromEntries(
-				Object.entries( this.state.dockPromotedPositions ).map(
-					( [ k, v ] ) => [ k, { ...v } ],
-				),
-			),
-		};
-	}
-
-	public subscribeOsSettings(
-		cb: ( snapshot: OsSettingsSnapshot ) => void,
-	): () => void {
-		this.osSettingsListeners.add( cb );
-		return () => {
-			this.osSettingsListeners.delete( cb );
-		};
-	}
-
-	/**
-	 * Last `body` element a `renderPanel()` call mounted into. Tracked
-	 * so the save-failure rollback handler can re-render the panel
-	 * without the caller having to plumb the body through.
-	 *
-	 * Cleared when the body becomes detached (window closed) so a
-	 * stale handler can't paint into a dead DOM tree.
-	 */
-	private _lastRenderedBody: HTMLElement | null = null;
-
-	constructor( config: OsSettingsConfig, layer: WallpaperLayer ) {
-		this.config = config;
+	constructor( layer: WallpaperLayer ) {
 		this.layer = layer;
 		// `loadState()` primes the rollback + diff baseline itself,
 		// but only when it read the state out of user meta. Priming
@@ -322,11 +131,12 @@ export class OsSettings implements SettingsCtx {
 		this.state = loadState();
 
 		// Auto-rollback on save failure — restore the in-memory state
-		// to the last server-confirmed snapshot AND re-render the
-		// panel so the controls visually revert. Without this, the
-		// optimistic UI lies: the user toggles a setting offline, the
-		// save fails, and the toggle stays in its (incorrect) flipped
-		// position until a manual reload reconciles with the server.
+		// to the last server-confirmed snapshot and tell every
+		// subscriber, so the Preferences app repaints with the
+		// controls visually reverted. Without this, the optimistic UI
+		// lies: the user toggles a setting offline, the save fails,
+		// and the toggle stays in its (incorrect) flipped position
+		// until a manual reload reconciles with the server.
 		document.addEventListener(
 			'os-settings-save-lifecycle',
 			( e: Event ) => {
@@ -335,41 +145,36 @@ export class OsSettings implements SettingsCtx {
 				if ( ! detail ) {
 					return;
 				}
-				const openStation = ( window as unknown as {
-					wp?: {
-						os?: {
-							windowManager?: {
-								getById?: ( id: string ) => {
-									markActivity: (
-										phase: 'idle' | 'pending' | 'saving' | 'saved' | 'failed',
-										opts?: { error?: string },
-									) => void;
-								} | undefined;
-							};
-						};
-					};
-				} ).wp?.os;
-				const win = openStation?.windowManager?.getById?.( 'os-settings' );
-				if ( win ) {
-					win.markActivity( detail.phase, { error: detail.error } );
-				}
+				const manager = window.wp?.os?.windowManager;
+				manager
+					?.getById( OS_SETTINGS_WINDOW_ID )
+					?.markActivity( detail.phase, { error: detail.error } );
 				if ( detail.phase !== 'failed' || ! detail.rolledBackTo ) {
 					return;
 				}
 				this.state = detail.rolledBackTo;
 				this.apply();
-				this._notify();
-				if ( this._lastRenderedBody?.isConnected ) {
-					this.renderPanel( this._lastRenderedBody );
-				}
+				this.notify();
 			},
 		);
 
-		// Built-in dynamic wallpapers — registered here rather than in
-		// `built-in.ts` because their `resolveValue` and `renderEditor`
-		// close over state that lives on this instance.
-		registerCustomGradient( this );
-		registerCustomImageIfPresent( this.state );
+		// The state-derived built-in wallpapers, registered here
+		// because their values close over this instance's state.
+		registerCustomGradient( () => this.state );
+	}
+
+	/** A defensive copy of the state — the public snapshot. */
+	public getOsSettingsSnapshot(): OsSettingsSnapshot {
+		return cloneState( this.state );
+	}
+
+	public subscribeOsSettings(
+		cb: ( snapshot: OsSettingsSnapshot ) => void,
+	): () => void {
+		this.listeners.add( cb );
+		return () => {
+			this.listeners.delete( cb );
+		};
 	}
 
 	/**
@@ -391,6 +196,11 @@ export class OsSettings implements SettingsCtx {
 		// boot, on every settings change, and after a save-failure
 		// rollback — re-seeding on each covers all three paths.
 		seedWallpaperSettings( this.state.wallpaperSettings );
+
+		// The uploaded-image wallpaper exists exactly while the state
+		// names one. Idempotent, so the registry only wakes when the
+		// image actually changed.
+		registerCustomImageIfPresent( this.state );
 
 		// Wallpaper — look up in the registry. Fall back to the
 		// server-declared default id (via `openstation_default_wallpaper`)
@@ -496,6 +306,17 @@ export class OsSettings implements SettingsCtx {
 		}
 		root.style.setProperty( '--os-dock-width', `${ dockSize.width }px` );
 		root.style.setProperty( '--os-dock-icon-size', `${ dockSize.icon }px` );
+		// And on the shell, for the reason the accent is written twice
+		// above and the radius twice below: a desktop theme declares
+		// both dock tokens on the shell root — Legacy ships `56px` and
+		// `20px` — and that is a nearer ancestor of the dock than
+		// <body>. With a theme worn, the writes above reached the admin
+		// bar's logo slot and nothing else, and picking Large in
+		// Preferences moved the dock not at all. Inline on the shell,
+		// the user's pick outranks the theme's selector; the body write
+		// stays, because the admin bar is the shell's sibling.
+		shell.style.setProperty( '--os-dock-width', `${ dockSize.width }px` );
+		shell.style.setProperty( '--os-dock-icon-size', `${ dockSize.icon }px` );
 		root.style.setProperty(
 			'--os-window-radius',
 			`${ windowRadius.value }px`,
@@ -525,8 +346,8 @@ export class OsSettings implements SettingsCtx {
 		// attribute, because the thing it styles (`#wpadminbar`) is a
 		// SIBLING of the shell, not a descendant. PHP writes the same
 		// class on `admin_body_class` so the first paint is already
-		// correct; re-writing it here is what makes a pick in OS
-		// Settings take effect without a reload.
+		// correct; re-writing it here is what makes a pick in
+		// Preferences take effect without a reload.
 		const adminBarMode =
 			ADMIN_BAR_MODES.find( ( m ) => m.id === this.state.adminBarMode ) ??
 			ADMIN_BAR_MODES[ 0 ];
@@ -639,26 +460,28 @@ export class OsSettings implements SettingsCtx {
 			this.state = { ...base, ...cloneSettingsPatch( patch ) };
 		}
 		this.apply();
-		this._notify();
-		// A panel already on screen is showing the values that just
-		// changed under it.
-		if ( this._lastRenderedBody?.isConnected ) {
-			this.renderPanel( this._lastRenderedBody );
-		}
+		// A Preferences window already on screen is showing the values
+		// that just changed under it; it subscribes, so this is what
+		// repaints it.
+		this.notify();
 	}
 
 	/**
-	 * Persist the user's settings.
+	 * Persist the current state (localStorage now, user meta after the
+	 * debounce) and tell every subscriber. The path for a writer that
+	 * edited `state` in place; {@link update} is the path for a patch.
 	 *
 	 * With a workspace appearance active, an overridden key is written
 	 * back as the USER's value, not the workspace's — unless they
 	 * changed it since, in which case that edit is theirs and is saved.
 	 * Without this, opening Preferences on a Woo desk and pressing save
 	 * would quietly adopt the workspace's wallpaper as the user's own.
+	 * {@link update} and {@link reset} land here too, so the rule holds
+	 * for every write.
 	 */
-	public save( opts: { windowId?: string } = {} ): void {
+	public save( opts: OsSettingsUpdateOptions = {} ): void {
 		saveState( this._persistableState(), opts );
-		this._notify();
+		this.notify();
 	}
 
 	/** {@link state}, with untouched workspace overrides unwound. */
@@ -690,126 +513,120 @@ export class OsSettings implements SettingsCtx {
 		return out as unknown as OsSettingsState;
 	}
 
-	private _notify(): void {
-		if ( this.osSettingsListeners.size > 0 ) {
-			const snapshot = this.getOsSettingsSnapshot();
-			const listeners = Array.from( this.osSettingsListeners );
-			for ( const cb of listeners ) {
-				try {
-					cb( snapshot );
-				} catch ( err ) {
-					if ( typeof console !== 'undefined' ) {
-						console.error(
-							'[openstation] os-settings listener threw:',
-							err,
-						);
-					}
+	/**
+	 * Patch the state and persist it — the write behind
+	 * `wp.os.updateOsSettings()`, and what the Preferences app calls.
+	 *
+	 * Every key of `OsSettingsState` is accepted and coerced by the
+	 * same sanitizer that reads user meta, with the CURRENT value as
+	 * the fallback: an invalid field is ignored, an unknown key never
+	 * lands. The one exception is `appliedThemeRecommendations`, the
+	 * seeded-theme ledger — shell-owned, because writing it from
+	 * outside would let a caller re-arm a theme's one-time seed.
+	 *
+	 * Activating a theme through here seeds that theme's recommended
+	 * settings once, the first time this user wears it, exactly as the
+	 * Themes tab does — so the documented
+	 * `updateOsSettings( { desktopTheme } )` recipe is a full
+	 * activation rather than a bare stylesheet swap.
+	 *
+	 * Presentation keys are applied, not just saved: a caller that sets
+	 * a theme, an accent or a layout sees the change now, not on the
+	 * next page load. A patch that touches none of them skips the
+	 * apply pass — `unfocusEffect`, the reveals and the window-link
+	 * knobs reach their engines through the subscribers `save()` fires.
+	 */
+	public update(
+		patch: Partial< OsSettingsState >,
+		opts: OsSettingsUpdateOptions = {},
+	): void {
+		const incoming: Record< string, unknown > = { ...patch };
+		delete incoming.appliedThemeRecommendations;
+
+		const next = sanitizeSettings( incoming, this.state );
+		const touched = OS_SETTINGS_KEYS.filter( ( key ) => key in incoming );
+
+		let seeded = false;
+		if (
+			touched.includes( 'desktopTheme' ) &&
+			next.desktopTheme !== this.state.desktopTheme
+		) {
+			seeded =
+				Object.keys( applyThemeRecommendations( next, next.desktopTheme ) )
+					.length > 0;
+		}
+
+		Object.assign( this.state, next );
+
+		// The running service worker keeps its own copy of the
+		// prewarm flag, baked in when it installed; without telling
+		// it, turning this on leaves the worker dropping every
+		// speculation and turning it off leaves it speculating.
+		// `adminAssetCacheEnabled` needs no equivalent — it reaches
+		// the worker inside the served `sw.js` bytes, as a normal SW
+		// update.
+		if ( typeof incoming.windowPrewarmEnabled === 'boolean' ) {
+			notifyServiceWorkerPrewarm( incoming.windowPrewarmEnabled );
+		}
+
+		this.save( opts );
+		if ( seeded || touched.some( ( key ) => PRESENTATION_KEYS.has( key ) ) ) {
+			this.apply();
+		}
+	}
+
+	/**
+	 * Re-apply a theme's recommended settings — the deliberate way back
+	 * to the author's arrangement after the user has moved things
+	 * around, and the ONLY path that applies a recommendation twice.
+	 *
+	 * @return The keys written; empty when the theme recommends nothing
+	 *         this shell can apply.
+	 */
+	public applyThemeRecommendations( themeId: string ): RecommendedOsSettings {
+		const applied = applyThemeRecommendations( this.state, themeId, {
+			force: true,
+		} );
+		if ( Object.keys( applied ).length > 0 ) {
+			this.save();
+			this.apply();
+		}
+		return applied;
+	}
+
+	/**
+	 * Put every preference back to its default — the Preferences
+	 * window's Reset button, and `wp.os.resetOsSettings()`.
+	 *
+	 * The uploaded image survives. It is a pointer at something the
+	 * user made, not a preference: putting the wallpaper back to the
+	 * default is the visible thing they asked for, and throwing away
+	 * the upload on the way would be a second, silent, destructive act
+	 * they did not. It stays in the picker, one click from being
+	 * chosen again.
+	 */
+	public reset( opts: OsSettingsUpdateOptions = {} ): void {
+		const next = structuredDefaults();
+		next.wallpaper = getDefaultWallpaperId();
+		next.customImage = this.state.customImage;
+		Object.assign( this.state, next );
+		this.save( opts );
+		this.apply();
+	}
+
+	private notify(): void {
+		if ( this.listeners.size === 0 ) {
+			return;
+		}
+		const snapshot = this.getOsSettingsSnapshot();
+		for ( const cb of Array.from( this.listeners ) ) {
+			try {
+				cb( snapshot );
+			} catch ( err ) {
+				if ( typeof console !== 'undefined' ) {
+					console.error( '[openstation] os-settings listener threw:', err );
 				}
 			}
 		}
 	}
-
-	/**
-	 * Render the settings panel into the given native-window body.
-	 *
-	 * Builds three sections (wallpaper, accent, dock size) and wires
-	 * each to save/apply on change. The panel is a one-shot build per
-	 * window open — closing and re-opening renders a fresh tree.
-	 */
-	/**
-	 * Render the settings panel into the given native-window body.
-	 *
-	 * Lazy — the actual rendering logic plus every
-	 * `<os-*>` component the panel uses lives in
-	 * `src/settings/panel.ts`, compiled into its own Vite target
-	 * `os-settings-panel[.min].js`. The script is injected on the
-	 * first call below and the matching
-	 * `window.openStationRenderOsSettingsPanel( ctx, body )` global
-	 * is then invoked. Subsequent calls (registry-driven re-render,
-	 * save-failure rollback) skip the load and forward immediately.
-	 *
-	 * Why this is a `<script>`-injected sibling bundle rather than
-	 * an in-bundle dynamic import: Vite IIFE lib mode inlines
-	 * `import()` calls, so an in-bundle lazy import would give zero
-	 * byte savings. A separate Vite target is the only mechanism
-	 * that actually shrinks `desktop.min.js`. See the Stage 8
-	 * section of `BUNDLE-SIZE-REPORT.md` for the full picture.
-	 */
-	/**
-	 * Switch the active settings tab. Records the choice on
-	 * {@link activeTabId} (so the next render mounts on it) and, when
-	 * the panel is currently mounted, flips the live `<os-tabs>` value
-	 * in place so an already-open OpenStation Preferences window jumps to the tab
-	 * without a full re-render. Deep-linking entry points
-	 * (`openOsSettings({ tabId })`) call this after opening the window.
-	 *
-	 * @param tabId Settings tab id, e.g. `'ai'`, `'navigation'`.
-	 */
-	public focusTab( tabId: string ): void {
-		this.activeTabId = tabId;
-		const body = this._lastRenderedBody;
-		if ( ! body?.isConnected ) {
-			return;
-		}
-		const tabs = body.querySelector( 'os-tabs' ) as
-			| ( HTMLElement & { value?: string } )
-			| null;
-		if ( tabs ) {
-			tabs.value = tabId;
-		}
-	}
-
-	public renderPanel( body: HTMLElement ): void {
-		// The panel's stylesheet is a `deferredStyles` entry, not a
-		// boot enqueue — inject it here so the `<link>` fetches in
-		// parallel with the panel bundle below.
-		ensureDeferredStyle( 'os-settings' );
-
-		// Track the body so the save-failure rollback handler can
-		// re-render after restoring the last-confirmed state.
-		this._lastRenderedBody = body;
-
-		const fn = window.openStationRenderOsSettingsPanel;
-		if ( fn ) {
-			fn( this, body );
-			return;
-		}
-
-		// The window's own spinner has already gone: the native-window
-		// render callback that got us here returned synchronously, so
-		// `markWindowContentReady()` fired while THIS bundle is still in
-		// flight. Without an affordance of its own the panel is an empty
-		// window body — and on a rejection it was an empty window body
-		// permanently, with nothing but a console line to say why.
-		const loader = showInlineLoader( body, {
-			label: __( 'Loading preferences…' ),
-		} );
-
-		void loadOsSettingsPanelBundle(
-			this.config.osSettingsPanelBundleUrl ?? '',
-		)
-			.then( ( render ) => {
-				loader.done();
-				if ( ! body.isConnected ) {
-					return;
-				}
-				render( this, body );
-			} )
-			.catch( ( err ) => {
-				loader.fail(
-					__( 'Preferences could not be loaded.' ),
-					// Genuinely re-fetches: `loadOsSettingsPanelBundle`
-					// drops both the rejected promise and the dead
-					// `<script>` before rejecting.
-					() => this.renderPanel( body ),
-				);
-				if ( typeof console !== 'undefined' ) {
-					console.error(
-						'[openstation] OpenStation Preferences panel failed to load:',
-						err,
-					);
-				}
-			} );
-	}
 }
-

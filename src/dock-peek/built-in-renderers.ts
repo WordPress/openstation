@@ -22,7 +22,7 @@ import type { Window as WPWindow } from '../window';
 /** Window id used by the OS Settings native window. Shared with `desktop.ts`. */
 const OS_SETTINGS_ID = 'desktop-mode-os-settings';
 
-/** Window id used by the Recycle Bin native window. Shared with `recycle-bin/icon-state.ts`. */
+/** The Trash app's frozen window id. Shared with `desktop-files/recycle-bin-icon-state.ts`. */
 const RECYCLE_BIN_ID = 'desktop-mode-recycle-bin';
 
 /**

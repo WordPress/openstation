@@ -25,8 +25,8 @@ class Tests_OpenStation_AjaxSave extends WP_Ajax_UnitTestCase {
 	 * the JSON response body via the standard WP_Ajax_UnitTestCase
 	 * exception handshake.
 	 */
-	private function dispatch( $enabled, $with_nonce = true ) {
-		$_POST = array( 'enabled' => $enabled );
+	private function dispatch( $enabled, $with_nonce = true, $extra = array() ) {
+		$_POST = array_merge( array( 'enabled' => $enabled ), $extra );
 		if ( $with_nonce ) {
 			$_POST['nonce'] = wp_create_nonce( 'save-openstation' );
 		}
@@ -90,6 +90,20 @@ class Tests_OpenStation_AjaxSave extends WP_Ajax_UnitTestCase {
 	 * request and trap them in OpenStation. Send them to a plain admin
 	 * URL instead.
 	 */
+	/**
+	 * The toggle's `network` flag is client-supplied, so the handler
+	 * confirms the capability first. Off a network nobody holds it.
+	 */
+	public function test_network_claim_without_the_capability_is_ignored() {
+		$this->_setRole( 'administrator' );
+		$response = $this->dispatch( '1', true, array( 'network' => '1' ) );
+
+		$this->assertSame(
+			openstation_shell_url( admin_url( 'index.php' ), false, false ),
+			$response['data']['redirect']
+		);
+	}
+
 	public function test_disable_response_redirects_to_plain_admin_not_portal() {
 		$this->_setRole( 'administrator' );
 		update_user_meta( get_current_user_id(), 'desktop_mode_mode', '1' );

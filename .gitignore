@@ -21,6 +21,11 @@
 !/assets/js/admin-bar.js
 !/assets/js/media-library-enhanced.js
 
+# App Framework client views — `apps/<dir>/<name>.os.ts` builds to
+# `assets/js/apps/<name>[.min].js`. Its own line because the pattern
+# above only matches the top level of assets/js/.
+/assets/js/apps/
+
 # Vite bundle-visualizer reports (`${fileBase}.report.html`) — dev-only.
 /assets/js/*.report.html
 

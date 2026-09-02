@@ -47,18 +47,34 @@ function openstation_my_wordpress_register_assets() {
 		file_exists( $css_path ) ? (string) filemtime( $css_path ) : $version
 	);
 
-	$js_path = OPENSTATION_DIR . 'assets/js/my-wordpress' . $suffix . '.js';
-	wp_register_script(
-		'desktop-mode-my-wordpress',
-		OPENSTATION_URL . 'assets/js/my-wordpress' . $suffix . '.js',
-		array( 'wp-i18n' ),
-		file_exists( $js_path ) ? (string) filemtime( $js_path ) : $version,
-		true
-	);
-	wp_set_script_translations(
-		'desktop-mode-my-wordpress',
-		'desktop-mode',
-		OPENSTATION_DIR . 'languages'
-	);
+	// No script handle any more: the legacy window bundle is gone. The
+	// explorer's JS is the `my-wordpress` app's client view, registered
+	// by the App Framework host.
+	unset( $suffix );
 }
 add_action( 'init', 'openstation_my_wordpress_register_assets', 5 );
+
+/**
+ * Ride the explorer's shared stylesheet on the WP Explorer app.
+ *
+ * `my-wordpress.css` is shell infrastructure, not one window's skin:
+ * the hover card, the article slots, the footprint surface and the
+ * folder windows' preview pane all paint with its `os-my-wordpress__*`
+ * classes (desktop themes target them at palette level). The app
+ * renders those same surfaces, so the sheet travels with its window as
+ * a first-open companion — one stylesheet, every consumer.
+ *
+ * @param array  $window_args Args passed to `openstation_register_window()`.
+ * @param string $app_id      App id.
+ * @return array
+ */
+function openstation_my_wordpress_app_style( $window_args, $app_id ) {
+	if ( 'my-wordpress' !== (string) $app_id || ! is_array( $window_args ) ) {
+		return $window_args;
+	}
+	$styles                 = isset( $window_args['styles'] ) ? (array) $window_args['styles'] : array();
+	$styles[]               = 'desktop-mode-my-wordpress';
+	$window_args['styles']  = $styles;
+	return $window_args;
+}
+add_filter( 'openstation_app_window_args', 'openstation_my_wordpress_app_style', 10, 2 );

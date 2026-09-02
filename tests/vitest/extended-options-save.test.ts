@@ -1,299 +1,116 @@
 /**
- * Extended Options — save coalescing.
+ * Extended Options — the site-wide toggles are an app ACTION.
  *
- * The controls in this section stay live while a save is in flight,
- * which is deliberate: a site-wide toggle should never feel like it
- * locked up. The consequence is that the values on screen can move
- * past the values the in-flight request is carrying, and the section
- * has to notice.
- *
- * The failure this pins is silent, which is what makes it worth a
- * test: toggling off and straight back on left the checkbox enabled,
- * the server holding `false`, and no error anywhere — the divergence
- * only surfaced on the next reload.
+ * A toggle dispatches `extended` with the full option set (the server
+ * merges over what it holds), the controls stay live while the
+ * request is in flight (the framework serialises dispatches, so a
+ * second toggle lands after the first with the newest set), and a
+ * successful save announces the saved set so windows already on
+ * screen reconcile without an F5.
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { buildExtendedSection } from '../../src/settings/sections/extended';
-import type { SettingsCtx } from '../../src/settings/types';
+import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
+import { HOOKS } from '../../src/hooks';
+import { render } from '../../src/ui/core';
+import { mockViewContext } from '../../src/app-runtime/testing';
+import { renderFeatures } from '../../apps/os-settings/parts/features';
+import type { Ctx } from '../../apps/os-settings/parts/types';
+import { installOsSettingsStub, type OsSettingsStub } from './helpers/os-settings-stub';
+import { appData } from './helpers/os-settings-app';
 
-type FetchMock = ReturnType< typeof vi.fn >;
+let stub: OsSettingsStub;
+let ctx: Ctx;
+let el: HTMLElement;
+let dispatch: ReturnType< typeof vi.fn >;
 
-let fetchMock: FetchMock;
-
-function ctxStub(): SettingsCtx {
-	return {
-		config: {
-			extendedOptionsUrl: '/wp-json/desktop-mode/v1/extended-options',
-			restNonce: 'nonce',
-			extendedOptions: {
-				media_library_enhanced: true,
-				games: false,
-				agents: false,
-			},
-		},
-	} as unknown as SettingsCtx;
-}
-
-/** Options POSTed by the nth request, in call order. */
-function bodyOf( call: number ): Record< string, boolean > {
-	const init = fetchMock.mock.calls[ call ][ 1 ] as { body: string };
-	return ( JSON.parse( init.body ) as { options: Record< string, boolean > } )
-		.options;
+/** The options the nth `extended` dispatch carried, in call order. */
+function optionsOf( call: number ): Record< string, boolean > {
+	return ( dispatch.mock.calls[ call ][ 1 ] as { options: Record< string, boolean > } ).options;
 }
 
 /** Drive a checkbox the way the component does when a user clicks it. */
-function toggle( el: HTMLElement, index: number, checked: boolean ): void {
-	const boxes = el.querySelectorAll( 'os-checkbox-label' );
-	boxes[ index ].dispatchEvent(
-		new CustomEvent( 'os-checkbox-change', {
-			detail: { checked },
-			bubbles: true,
-			composed: true,
-		} ),
+function toggle( label: string, checked: boolean ): void {
+	const box = Array.from( el.querySelectorAll( 'os-checkbox-label' ) ).find(
+		( node ) => node.getAttribute( 'label' ) === label,
+	);
+	if ( ! box ) {
+		throw new Error( `no checkbox labelled "${ label }"` );
+	}
+	box.dispatchEvent(
+		new CustomEvent( 'os-checkbox-change', { detail: { checked }, bubbles: true, composed: true } ),
 	);
 }
 
-/** A response whose body echoes the options the request sent. */
-function echo( init: { body: string } ): Response {
-	const { options } = JSON.parse( init.body ) as {
-		options: Record< string, boolean >;
-	};
-	return {
-		ok: true,
-		status: 200,
-		json: async () => options,
-	} as unknown as Response;
-}
+const flush = (): Promise< void > => new Promise( ( resolve ) => setTimeout( resolve, 0 ) );
 
 beforeEach( () => {
-	fetchMock = vi.fn();
-	( window as unknown as { wp?: unknown } ).wp = { os: { fetch: fetchMock } };
+	installHooksStub();
+	stub = installOsSettingsStub();
+	el = document.createElement( 'div' );
+	document.body.appendChild( el );
+	const data = appData();
+	// The server merges and echoes the saved set — mirror that.
+	dispatch = vi.fn( async ( action: string, args?: Record< string, unknown > ) => {
+		if ( action === 'extended' ) {
+			Object.assign( data.extendedOptions!, ( args as { options: Record< string, boolean > } ).options );
+		}
+		return true;
+	} );
+	ctx = mockViewContext( { state: { tab: 'features' }, data, root: el, dispatch } );
+	const paint = (): void => render( renderFeatures( stub.state, ctx ), el );
+	ctx.repaint = paint;
+	paint();
 } );
 
 afterEach( () => {
-	delete ( window as unknown as { wp?: unknown } ).wp;
+	document.body.innerHTML = '';
+	clearHooksStub();
 } );
 
 describe( 'Extended Options — saving', () => {
-	test( 'a toggle POSTs the full option set', async () => {
-		fetchMock.mockImplementation( ( _url: string, init: { body: string } ) =>
-			Promise.resolve( echo( init ) ),
-		);
-		const el = buildExtendedSection( ctxStub() );
-
-		toggle( el, 0, false );
-		await vi.waitFor( () => expect( fetchMock ).toHaveBeenCalledOnce() );
-
-		expect( bodyOf( 0 ) ).toEqual( {
-			media_library_enhanced: false,
-			games: false,
-			agents: false,
-		} );
+	test( 'a toggle dispatches the full option set', async () => {
+		toggle( 'Enable games', true );
+		await flush();
+		expect( dispatch ).toHaveBeenCalledTimes( 1 );
+		expect( dispatch.mock.calls[ 0 ][ 0 ] ).toBe( 'extended' );
+		expect( optionsOf( 0 ) ).toEqual( { media_library_enhanced: true, games: true, agents: false } );
 	} );
 
-	test( 'a toggle during an in-flight save is persisted, not dropped', async () => {
-		let releaseFirst: () => void = () => undefined;
-		const first = new Promise< void >( ( resolve ) => {
-			releaseFirst = resolve;
-		} );
-		fetchMock.mockImplementation(
-			async ( _url: string, init: { body: string } ) => {
-				if ( fetchMock.mock.calls.length === 1 ) {
-					await first;
-				}
-				return echo( init );
-			},
-		);
-
-		const ctx = ctxStub();
-		const el = buildExtendedSection( ctx );
-
-		toggle( el, 0, false );
-		await vi.waitFor( () => expect( fetchMock ).toHaveBeenCalledOnce() );
-
-		// Second click lands while the first request is still open.
-		toggle( el, 0, true );
-		expect( fetchMock ).toHaveBeenCalledOnce();
-
-		releaseFirst();
-		await vi.waitFor( () => expect( fetchMock ).toHaveBeenCalledTimes( 2 ) );
-
-		expect( bodyOf( 0 ).media_library_enhanced ).toBe( false );
-		expect( bodyOf( 1 ).media_library_enhanced ).toBe( true );
-		// The panel's cached copy ends on the value the server kept,
-		// so re-opening Preferences shows the same state as a reload.
-		expect( ctx.config.extendedOptions?.media_library_enhanced ).toBe(
-			true,
-		);
+	test( 'a second toggle carries the newest values', async () => {
+		toggle( 'Enable games', true );
+		await flush();
+		toggle( 'Enable AI agents', true );
+		await flush();
+		expect( dispatch ).toHaveBeenCalledTimes( 2 );
+		expect( optionsOf( 1 ) ).toEqual( { media_library_enhanced: true, games: true, agents: true } );
 	} );
 
-	test( 'several mid-flight toggles coalesce into one trailing save', async () => {
-		let releaseFirst: () => void = () => undefined;
-		const first = new Promise< void >( ( resolve ) => {
-			releaseFirst = resolve;
-		} );
-		fetchMock.mockImplementation(
-			async ( _url: string, init: { body: string } ) => {
-				if ( fetchMock.mock.calls.length === 1 ) {
-					await first;
-				}
-				return echo( init );
-			},
+	test( 'a successful save announces the saved set', async () => {
+		const heard: unknown[] = [];
+		window.wp!.hooks!.addAction( HOOKS.EXTENDED_OPTIONS_CHANGED, 'test/extended', ( payload ) =>
+			heard.push( payload ),
 		);
-
-		const el = buildExtendedSection( ctxStub() );
-
-		toggle( el, 1, true );
-		await vi.waitFor( () => expect( fetchMock ).toHaveBeenCalledOnce() );
-
-		// Three more changes, across two different controls, while
-		// the first request is open.
-		toggle( el, 1, false );
-		toggle( el, 2, true );
-		toggle( el, 0, false );
-
-		releaseFirst();
-		await vi.waitFor( () => expect( fetchMock ).toHaveBeenCalledTimes( 2 ) );
-
-		expect( bodyOf( 1 ) ).toEqual( {
-			media_library_enhanced: false,
-			games: false,
-			agents: true,
-		} );
+		toggle( 'Enable games', true );
+		await flush();
+		expect( heard ).toEqual( [ { options: { media_library_enhanced: true, games: true, agents: false } } ] );
 	} );
 
-	test( 'a failed save leaves the queued change to the trailing request', async () => {
-		let releaseFirst: () => void = () => undefined;
-		const first = new Promise< void >( ( resolve ) => {
-			releaseFirst = resolve;
-		} );
-		fetchMock.mockImplementation(
-			async ( _url: string, init: { body: string } ) => {
-				if ( fetchMock.mock.calls.length === 1 ) {
-					await first;
-					return {
-						ok: false,
-						status: 500,
-						json: async () => ( { message: 'boom' } ),
-					} as unknown as Response;
-				}
-				return echo( init );
-			},
+	test( 'a failed save says so inline and announces nothing', async () => {
+		dispatch.mockResolvedValueOnce( false );
+		const heard: unknown[] = [];
+		window.wp!.hooks!.addAction( HOOKS.EXTENDED_OPTIONS_CHANGED, 'test/extended', ( payload ) =>
+			heard.push( payload ),
 		);
-
-		const el = buildExtendedSection( ctxStub() );
-
-		toggle( el, 0, false );
-		await vi.waitFor( () => expect( fetchMock ).toHaveBeenCalledOnce() );
-		toggle( el, 0, true );
-
-		releaseFirst();
-		await vi.waitFor( () => expect( fetchMock ).toHaveBeenCalledTimes( 2 ) );
-
-		expect( bodyOf( 1 ).media_library_enhanced ).toBe( true );
-		// The trailing save succeeded, so the error from the first
-		// attempt must not be left on screen.
-		expect( el.querySelector( '.os-ext__error' ) ).toBeNull();
+		toggle( 'Enable games', true );
+		await flush();
+		expect( heard ).toEqual( [] );
+		expect( el.querySelector( '.os-ext__error' ) ).not.toBeNull();
 	} );
 
-	test( 'nothing is sent without an endpoint and a nonce', () => {
-		const ctx = ctxStub();
-		ctx.config.extendedOptionsUrl = '';
-		const el = buildExtendedSection( ctx );
-
-		toggle( el, 0, false );
-		toggle( el, 0, true );
-
-		expect( fetchMock ).not.toHaveBeenCalled();
-	} );
-} );
-
-describe( 'Extended Options — the menu refresh', () => {
-	/**
-	 * Every option in this section gates a SERVER-side registration.
-	 * `games` gates the entire games module, so while it is off there
-	 * is no Games window, no desktop icon and no game list for the
-	 * shell to have heard of — and the request that writes the option
-	 * decided that on `plugins_loaded`, before the write. Only a LATER
-	 * request can report the new registrations, which is why the save
-	 * has to spend a menu refresh: without it, enabling Games saved
-	 * correctly and showed nothing until an F5.
-	 */
-	test( 'a successful save refreshes the shell registries', async () => {
-		const refreshMenu = vi.fn().mockResolvedValue( undefined );
-		( window as unknown as { wp: { os: Record< string, unknown > } } ).wp.os.refreshMenu =
-			refreshMenu;
-		fetchMock.mockImplementation( ( _url: string, init: { body: string } ) =>
-			Promise.resolve( echo( init ) ),
-		);
-		const el = buildExtendedSection( ctxStub() );
-
-		toggle( el, 1, true );
-
-		await vi.waitFor( () => expect( refreshMenu ).toHaveBeenCalledOnce() );
-	} );
-
-	test( 'a failed save refreshes nothing', async () => {
-		// The server still holds the old value, so a refresh would
-		// repaint exactly what is already on screen — and would read as
-		// confirmation of a save that did not happen.
-		const refreshMenu = vi.fn().mockResolvedValue( undefined );
-		( window as unknown as { wp: { os: Record< string, unknown > } } ).wp.os.refreshMenu =
-			refreshMenu;
-		fetchMock.mockResolvedValue( {
-			ok: false,
-			status: 500,
-			json: async () => ( { message: 'nope' } ),
-		} as unknown as Response );
-		const el = buildExtendedSection( ctxStub() );
-
-		toggle( el, 1, true );
-
-		await vi.waitFor( () => expect( fetchMock ).toHaveBeenCalledOnce() );
-		expect( refreshMenu ).not.toHaveBeenCalled();
-	} );
-
-	test( 'coalesced flips spend one refresh, not one each', async () => {
-		// The trailing save owns the refresh. Refreshing against a
-		// value we are about to change again is a wasted round trip
-		// that can also repaint a stale registry.
-		const refreshMenu = vi.fn().mockResolvedValue( undefined );
-		( window as unknown as { wp: { os: Record< string, unknown > } } ).wp.os.refreshMenu =
-			refreshMenu;
-
-		let releaseFirst: () => void = () => undefined;
-		const first = new Promise< void >( ( resolve ) => {
-			releaseFirst = resolve;
-		} );
-		fetchMock.mockImplementation(
-			async ( _url: string, init: { body: string } ) => {
-				if ( fetchMock.mock.calls.length === 1 ) {
-					await first;
-				}
-				return echo( init );
-			},
-		);
-		const el = buildExtendedSection( ctxStub() );
-
-		toggle( el, 1, true );
-		await vi.waitFor( () => expect( fetchMock ).toHaveBeenCalledOnce() );
-		toggle( el, 1, false );
-
-		releaseFirst();
-		await vi.waitFor( () => expect( fetchMock ).toHaveBeenCalledTimes( 2 ) );
-		await vi.waitFor( () => expect( refreshMenu ).toHaveBeenCalledOnce() );
-	} );
-
-	test( 'a shell without refreshMenu saves without throwing', async () => {
-		// Classic mode, and any moment before the shell has booted.
-		fetchMock.mockImplementation( ( _url: string, init: { body: string } ) =>
-			Promise.resolve( echo( init ) ),
-		);
-		const el = buildExtendedSection( ctxStub() );
-
-		toggle( el, 1, true );
-
-		await vi.waitFor( () => expect( fetchMock ).toHaveBeenCalledOnce() );
-		expect( el.querySelector( '.os-ext__error' ) ).toBeNull();
+	test( 'the section is never painted for a non-admin', () => {
+		ctx.data.isAdmin = false;
+		ctx.data.extendedOptions = null;
+		ctx.repaint();
+		expect( el.textContent ).not.toContain( 'Extended options' );
 	} );
 } );

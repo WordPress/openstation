@@ -33,6 +33,7 @@
 
 import { __ } from '../i18n';
 import { addAction, HOOKS } from '../hooks';
+import { trashByRestPath } from './rest-trash';
 import type { DragManagerApi, DragSession } from '../drag';
 import { trashManyWithUndo } from './trash';
 import { showToast } from '../toast';
@@ -49,32 +50,17 @@ import {
 } from './drag-payloads';
 
 /**
- * My WordPress entity kinds the recycle bin knows how to trash via
- * the cross-bundle `wp.os.myWordpress.trashEntity()` API. `kind`
- * here is the abstract drag-payload kind (matches `ShortcutDragData
- * .kind`), not the entity id — both posts and pages drag as
- * `'post'`. The `entityId` field on the payload disambiguates which
- * REST endpoint the trash hits.
- *
- * Limited to `'post'` for now (covers Posts + Pages). `'user'` and
- * `'media'` require different DELETE semantics (user reassignment,
- * attachment vs post-trash) — wire those when the corresponding
- * confirm + REST paths are in place.
+ * Shortcut kinds the recycle bin refuses regardless of payload:
+ * `'user'` (deleting a person needs content reassignment, not a
+ * trash) and `'attachment'` (media deletes permanently rather than
+ * trashing). Everything else — posts, pages, any CPT — is trashable
+ * when the payload carries the section's `restPath`, which is what
+ * the DELETE runs against.
  */
-const TRASHABLE_SHORTCUT_KINDS: ReadonlySet< string > = new Set( [ 'post' ] );
-
-interface MyWordpressTrashApi {
-	trashEntity?: ( entityId: string, id: number ) => Promise< void >;
-}
-
-function getMyWordpressTrashApi(): MyWordpressTrashApi | null {
-	const api = (
-		window as unknown as {
-			wp?: { os?: { myWordpress?: MyWordpressTrashApi } };
-		}
-	).wp?.os?.myWordpress;
-	return api && typeof api.trashEntity === 'function' ? api : null;
-}
+const UNTRASHABLE_SHORTCUT_KINDS: ReadonlySet< string > = new Set( [
+	'user',
+	'attachment',
+] );
 
 const TRASH_DROP_ACTIVE_ATTR = 'data-os-trash-drop-active';
 const RECYCLE_BIN_WINDOW_ID = 'desktop-mode-recycle-bin';
@@ -121,24 +107,20 @@ function isShortcutPayload(
 }
 
 /**
- * Whether a shortcut payload describes a trashable My WordPress
- * entity. Both the `entityId` (REST routing) and the My Wordpress
- * trash API must be available — otherwise the drop would either 403
- * or no-op, and we'd rather refuse it up-front so the tile snaps
- * back instead of disappearing into a silent failure.
+ * Whether a shortcut payload describes a trashable explorer entity.
+ * The `restPath` is what the DELETE runs against — a payload without
+ * one is refused up-front so the tile snaps back instead of
+ * disappearing into a silent failure.
  */
 function isTrashableShortcut( data: Partial< ShortcutDragData > ): boolean {
-	if ( ! data.kind || ! data.ref || ! data.entityId ) {
+	if ( ! data.kind || ! data.ref || ! data.restPath ) {
 		return false;
 	}
-	if ( ! TRASHABLE_SHORTCUT_KINDS.has( data.kind ) ) {
+	if ( UNTRASHABLE_SHORTCUT_KINDS.has( data.kind ) ) {
 		return false;
 	}
 	const numericRef = Number.parseInt( data.ref, 10 );
-	if ( ! Number.isFinite( numericRef ) || numericRef <= 0 ) {
-		return false;
-	}
-	return getMyWordpressTrashApi() !== null;
+	return Number.isFinite( numericRef ) && numericRef > 0;
 }
 
 function registerOn(
@@ -251,20 +233,16 @@ function registerOn(
 				return;
 			}
 			if ( isShortcutPayload( session ) ) {
-				const api = getMyWordpressTrashApi();
-				if ( ! api?.trashEntity ) {
-					return;
-				}
-				const trashEntity = api.trashEntity;
 				const set = dragShortcutItems( session.payload.data );
 				const trashing = set
 					.map( ( item ) => ( {
-						entityId: item.entityId,
+						restPath: item.restPath,
+						kind: item.kind,
 						ref: Number.parseInt( item.ref, 10 ),
 					} ) )
 					.filter(
-						( t ): t is { entityId: string; ref: number } =>
-							!! t.entityId &&
+						( t ): t is { restPath: string; kind: string; ref: number } =>
+							!! t.restPath &&
 							Number.isFinite( t.ref ) &&
 							t.ref > 0,
 					);
@@ -272,7 +250,7 @@ function registerOn(
 					return;
 				}
 				void Promise.allSettled(
-					trashing.map( ( t ) => trashEntity( t.entityId, t.ref ) ),
+					trashing.map( ( t ) => trashByRestPath( t.restPath, t.ref ) ),
 				).then( ( results ) => {
 					const failed = results.filter(
 						( r ) => r.status === 'rejected',
@@ -283,6 +261,33 @@ function registerOn(
 							'[openstation] recycle-bin: shortcut trash failed:',
 							( failure as PromiseRejectedResult ).reason,
 						);
+					}
+					// Broadcast what actually went — the payload `kind`
+					// IS the post type — so every watching surface (the
+					// explorer app's lists, the bin's own badge) drops
+					// the tile without a reload.
+					const trashed = trashing
+						.filter( ( _t, i ) => results[ i ]?.status === 'fulfilled' )
+						.reduce< Record< string, number[] > >( ( acc, t ) => {
+							( acc[ t.kind ] ??= [] ).push( t.ref );
+							return acc;
+						}, {} );
+					const announce = (
+						window.wp as
+							| {
+									os?: {
+										announceContentChange?: (
+											type: string,
+											action: string,
+											ids: number[],
+											owner?: string,
+										) => void;
+									};
+							}
+							| undefined
+					)?.os?.announceContentChange;
+					for ( const [ kind, ids ] of Object.entries( trashed ) ) {
+						announce?.( kind, 'trashed', ids, 'recycle-bin' );
 					}
 					const moved = trashing.length - failed.length;
 					if ( moved > 1 || failed.length > 0 ) {

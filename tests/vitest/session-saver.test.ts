@@ -15,6 +15,10 @@
  *   3. `updated` is the server's stale-write ordering key, and at
  *      second resolution the `keepalive` fetch and the `pagehide`
  *      beacon tie — letting a stale payload win.
+ *
+ * And the opposite symptom, "I only clicked a tab and the network
+ * panel shows a session write": a snapshot equal to the one the
+ * server last accepted is never sent.
  */
 import {
 	afterEach,
@@ -191,7 +195,8 @@ describe( 'session saver', () => {
 	} );
 
 	test( 'a queued save runs once, not once per suppressed call', async () => {
-		const save = createSessionSaver( fakeManager( [ 'a' ] ), fakeConfig() );
+		const openIds = [ 'a', 'b', 'c', 'd' ];
+		const save = createSessionSaver( fakeManager( openIds ), fakeConfig() );
 		const first = deferred< Response >();
 		trackedFetchMock.mockReturnValueOnce( first.promise );
 
@@ -199,18 +204,18 @@ describe( 'session saver', () => {
 		await vi.advanceTimersByTimeAsync( 500 );
 
 		// Three separate mutations while the request is in flight.
-		save();
-		await vi.advanceTimersByTimeAsync( 500 );
-		save();
-		await vi.advanceTimersByTimeAsync( 500 );
-		save();
-		await vi.advanceTimersByTimeAsync( 500 );
+		for ( let i = 0; i < 3; i++ ) {
+			openIds.pop();
+			save();
+			await vi.advanceTimersByTimeAsync( 500 );
+		}
 
 		first.resolve( new Response( '{}' ) );
 		await vi.advanceTimersByTimeAsync( 2000 );
 
 		// One catch-up write carrying the latest state — not three.
 		expect( trackedFetchMock ).toHaveBeenCalledTimes( 2 );
+		expect( windowIdsOfCall( 1 ) ).toEqual( [ 'a' ] );
 	} );
 
 	test( 'closing several windows a beat apart is rate limited to one write', async () => {
@@ -284,6 +289,72 @@ describe( 'session saver', () => {
 		save();
 		await vi.advanceTimersByTimeAsync( 2000 );
 		expect( trackedFetchMock ).toHaveBeenCalledTimes( 2 );
+	} );
+
+	test( 'an unchanged session is not written again, whoever asks', async () => {
+		// The regression: every pointerdown in a window re-focused it,
+		// `os-window-focused` fired for a focus that never moved, and
+		// each page switch inside OpenStation Preferences POSTed the
+		// session the server already held.
+		const save = createSessionSaver( fakeManager( [ 'a' ] ), fakeConfig() );
+
+		save();
+		await vi.advanceTimersByTimeAsync( 600 );
+		expect( trackedFetchMock ).toHaveBeenCalledTimes( 1 );
+
+		// Three "changes" that change nothing, spaced past the rate
+		// limit so only the comparison can hold them back. `updated`
+		// is a fresh `Date.now()` on every snapshot and must not count.
+		for ( let i = 0; i < 3; i++ ) {
+			save();
+			await vi.advanceTimersByTimeAsync( 2000 );
+		}
+		expect( trackedFetchMock ).toHaveBeenCalledTimes( 1 );
+	} );
+
+	test( 'a real change after suppressed no-ops still goes out', async () => {
+		const openIds = [ 'a', 'b' ];
+		const save = createSessionSaver( fakeManager( openIds ), fakeConfig() );
+
+		save();
+		await vi.advanceTimersByTimeAsync( 600 );
+		save();
+		await vi.advanceTimersByTimeAsync( 2000 );
+		expect( trackedFetchMock ).toHaveBeenCalledTimes( 1 );
+
+		openIds.pop();
+		save();
+		await vi.advanceTimersByTimeAsync( 2000 );
+		expect( trackedFetchMock ).toHaveBeenCalledTimes( 2 );
+		expect( windowIdsOfCall( 1 ) ).toEqual( [ 'a' ] );
+	} );
+
+	test( 'a write the server refused is not treated as accepted', async () => {
+		// An expired nonce answers 403 without throwing. The server is
+		// still on the older session, so the same snapshot must be
+		// sent again on the next request — not deduplicated away.
+		const save = createSessionSaver( fakeManager( [ 'a' ] ), fakeConfig() );
+		trackedFetchMock.mockResolvedValueOnce(
+			new Response( '{}', { status: 403 } ),
+		);
+
+		save();
+		await vi.advanceTimersByTimeAsync( 600 );
+		save();
+		await vi.advanceTimersByTimeAsync( 2000 );
+		expect( trackedFetchMock ).toHaveBeenCalledTimes( 2 );
+	} );
+
+	test( 'pagehide skips the beacon when the server already holds this session', async () => {
+		const sendBeacon = stubSendBeacon( () => true );
+		const save = createSessionSaver( fakeManager( [ 'a' ] ), fakeConfig() );
+
+		save();
+		await vi.advanceTimersByTimeAsync( 600 );
+		expect( trackedFetchMock ).toHaveBeenCalledTimes( 1 );
+
+		window.dispatchEvent( new Event( 'pagehide' ) );
+		expect( sendBeacon ).not.toHaveBeenCalled();
 	} );
 
 	test( 'pagehide beacons the current snapshot with the nonce on the URL', () => {

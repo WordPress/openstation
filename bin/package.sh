@@ -34,6 +34,7 @@ include=(
 	"readme.txt"
 	"LICENSE"
 	"README.md"
+	"apps"
 	"assets"
 	"includes"
 	"languages"
@@ -70,6 +71,15 @@ if (( ${#bases[@]} == 0 )); then
 	exit 1
 fi
 
+# App Framework client views are the one family of targets the sed above
+# cannot see: `discoverAppTargets()` in vite.config.js builds their
+# `fileBase` from a template literal (`apps/${name}`) rather than a
+# quoted string. Walk the same directory it walks — every
+# `apps/<dir>/<name>.os.ts` becomes `assets/js/apps/<name>[.min].js`.
+while IFS= read -r view; do
+	bases+=("apps/$(basename "$view" .os.ts)")
+done < <(git ls-files -- 'apps/*/*.os.ts')
+
 built=()
 for base in "${bases[@]}"; do
 	file="assets/js/$base.min.js"
@@ -99,11 +109,14 @@ while IFS= read -r file; do
 		echo "       Stale build output? Remove it ('git clean -fX assets/js/') and re-run." >&2
 		exit 1
 	fi
-done < <(git ls-files --others --ignored --exclude-standard -- 'assets/js/*.js')
+done < <(git ls-files --others --ignored --exclude-standard -- 'assets/js/*.js' 'assets/js/apps/*.js')
 
 git archive --worktree-attributes --prefix="$prefix/" HEAD -- "${include[@]}" | tar -x -C "$tmp"
 
 for file in "${built[@]}"; do
+	# `assets/js/apps/` holds nothing tracked, so git archive never
+	# creates it.
+	mkdir -p "$tmp/$prefix/$(dirname "$file")"
 	cp "$file" "$tmp/$prefix/$file"
 done
 

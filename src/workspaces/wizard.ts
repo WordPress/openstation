@@ -65,7 +65,7 @@ import { __ } from '../i18n';
 import {
 	createWallpaperPreviewManager,
 	type WallpaperPreviewManager,
-} from '../settings/sections/wallpaper-previews';
+} from '../wallpapers/preview-manager';
 import type { NavKind } from '../nav/types';
 import type {
 	WorkspaceAppearance,

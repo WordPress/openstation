@@ -89,6 +89,53 @@ export const textFieldStyles = css`
 		padding-inline-end: 36px;
 	}
 
+	/* Clear (x) affordance — rendered on clearable fields while they
+	 * hold a value. The kit strips native input chrome (appearance:
+	 * none takes WebKit's search-cancel button with it, and Firefox
+	 * never had one), so a clearable field owns its own. Same seat and
+	 * chrome as the reveal toggle; when both are present the clear
+	 * shifts inward so they sit side by side. */
+	.os-text-field__row--has-clear input {
+		padding-inline-end: 36px;
+	}
+	.os-text-field__row--has-reveal.os-text-field__row--has-clear input {
+		padding-inline-end: 68px;
+	}
+
+	.os-text-field__clear {
+		position: absolute;
+		inset-inline-end: 0;
+		top: 0;
+		bottom: 0;
+		width: 34px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 0;
+		border: none;
+		background: transparent;
+		color: var( --os-ui-fg-muted, #646970 );
+		cursor: pointer;
+		border-radius: 0 6px 6px 0;
+	}
+	.os-text-field__row--has-reveal .os-text-field__clear {
+		inset-inline-end: 34px;
+		border-radius: 0;
+	}
+	.os-text-field__clear:hover {
+		color: var( --os-ui-accent, #2271b1 );
+	}
+	.os-text-field__clear:focus-visible {
+		outline: none;
+		color: var( --os-ui-accent, #2271b1 );
+		/* Inset, matching the reveal toggle — see the note there. */
+		box-shadow: inset 0 0 0 2px var( --os-ui-accent, #2271b1 );
+	}
+	.os-text-field__clear:disabled {
+		opacity: 0.45;
+		cursor: default;
+	}
+
 	.os-text-field__reveal {
 		position: absolute;
 		inset-inline-end: 0;

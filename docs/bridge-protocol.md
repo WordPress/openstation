@@ -125,6 +125,18 @@ Both bridges install the forwarder behind the shared `__openStationPointerForwar
 
 Parent side: the consumer resolves the sending frame by matching `MessageEvent.source` against each `<iframe>`'s `contentWindow` (cached in a `WeakMap`), then adds that element's `left` / `top`. A message from a frame it can't resolve is dropped rather than guessed at.
 
+### Keyboard forwarders — `os-palette-cycle`, `os-window-switch`, `os-window-close-all`
+
+A keydown inside an iframe never reaches the parent document, and every admin window is an iframe — so a shell-level chord pressed while an admin page has focus would simply do nothing. The chromeless bridge claims those three chords in **capture phase**, `preventDefault()`s + `stopImmediatePropagation()`s them (winning the race against Gutenberg, TinyMCE and plugin handlers bound to the same keys), and posts the intent up instead.
+
+| Type | Direction | Carries | Purpose |
+|---|---|---|---|
+| `os-palette-cycle` | iframe → parent | *(none)* | `Cmd/Ctrl+K`. Opens the shell's command palette / Ask AI overlay rather than the in-page `core/commands` one, which the shell harvests anyway. |
+| `os-window-switch` | iframe → parent | `{ direction: 'prev' \| 'next' }` | `` ` `` / `` Shift+` ``. Cycles window focus on the active desktop. |
+| `os-window-close-all` | iframe → parent | *(none)* | `⌥⌘W` / `Ctrl+Alt+W`. Runs the shell's confirm-then-`closeAll()` path (see [`javascript-reference.md`](./javascript-reference.md#batch-close--closeall)). |
+
+The backtick forwarder — and only that one — applies a **text-entry gate** before forwarding: a bare key with no modifier has to yield to whatever the user is typing into, including the `IFRAME` case that catches Gutenberg's block canvas re-dispatching cloned keydowns. The other two carry modifiers that type nothing, so they forward from anywhere.
+
 ### Background heartbeat throttle — `os-window-active`
 
 Every chromeless iframe is a complete wp-admin page running Core's Heartbeat — 15 s in the post editor. Core only slows Heartbeat when the browser **tab** is hidden; a background desktop window is still a visible iframe, so that backoff never engages, and a desktop with several windows open fires several admin-ajax heartbeats a minute from windows the user isn't looking at.
@@ -289,6 +301,9 @@ Parent dispatch (in `src/window/iframe-bridge.ts`, wired by `bindAdminLinkDispat
 2. **Same-slug click** — `deriveWindowId(url, adminUrl)` matches the source window's `baseId` **or** the slug its iframe is currently showing (`getCurrentUrl()`). The parent calls `iframe.contentWindow.location.assign(url)`, which navigates the iframe in place AND adds a session-history entry. Pagination, list filtering, and per-window tab strips ride this path.
 
    Both slugs count because they diverge as soon as the iframe navigates in place: clicking the Menus tab in the Appearance window points the iframe at `nav-menus.php` while the window keeps `baseId: themes-php`. Matching only `baseId` would classify the Menus screen's own tab links as cross-page and spawn a fresh window per click. The live slug only ever *widens* the same-page set — it never turns an in-place navigation into a new window, so a window that has navigated away still treats a link back to its landing page as in-page.
+
+   **The entity editor of an `admin.php?page=…` screen is its own slug.** A plugin routes its whole feature through one file, so a list and the editor it drills into differ only by query args — and `id` is too generic to count everywhere (`?action=duplicate&id=3` is a row action on the list, and must run in place). The rule is written against the shape instead: on an `admin.php` URL carrying a `page`, `action=edit` makes `id` identity-bearing and `action=new` makes `action` itself identity-bearing. Every other action stays transient. WooCommerce's High-Performance Order Storage is the case that forced it — HPOS moves the order editor from `post.php?post=N&action=edit` (where `post` has always been identity) to `admin.php?page=wc-orders&action=edit&id=N`, so opening an order used to navigate the Orders list away, and the only route back was closing the window and reopening it from the dock.
+
 3. **Cross-slug click** — slug matches neither the source window's `baseId` nor its live URL. The parent calls `windowManager.open({ id, baseId, url, title, icon })` with title/icon copied from the matching dock entry. When no dock tile owns the destination, the title falls back to the `label` from the message (the clicked link's visible text), then to the derived slug as a last resort. The source iframe is left untouched, so the user keeps both contexts. When a window for the destination slug is *already open*, `open()`'s URL-aware reuse applies: if the clicked URL isn't what that window is showing (nor its home / dock landing URL), the existing window's iframe navigates to it in place — so an action URL like the post-install `plugins.php?action=activate&plugin=…&_wpnonce=…` link actually runs instead of being dropped by a bare focus.
 
 Modifier-key clicks (cmd / ctrl / shift / alt, middle-click) and links carrying a `download` attribute short-circuit the bridge's interceptor entirely — the browser's native open-in-new-tab / save path runs unchanged.
@@ -341,7 +356,7 @@ This deliberately does NOT reuse the admin-link path above: that path closes the
 |---|---|---|---|
 | `os-open-user-footprint` | iframe → parent | `{ userId: number, userName: string }` | Posted from the chromeless bridge when a `[data-os-footprint]` link is clicked (checked *before* the admin-link classifier, so the fallback `href` is never followed inside the shell). The parent opens / focuses the WP Explorer window on that user's footprint route and leaves the source window open. |
 
-**Parent dispatch** (`src/window/iframe-bridge.ts`): calls `openUserFootprintWindow( { userId, userName } )` (`src/my-wordpress/footprint-target.ts`), which stashes the target in the `desktop-mode/my-wordpress/footprint-target` shared store, then opens the window via `wp.os.openWindow`. Cold-start safe: the WP Explorer bundle reads the target on mount and subscribes for re-targets while it's already open. See [`javascript-reference.md`](javascript-reference.md) for the public `wp.os.myWordpress.openUserFootprint`.
+**Parent dispatch** (`src/window/iframe-bridge.ts`): calls `openUserFootprintWindow( { userId, userName } )` (`src/open-targets/footprint-target.ts`), which stashes the target in the `desktop-mode/my-wordpress/footprint-target` shared store, then opens the WP Explorer app (`my-wordpress`) via `wp.os.openWindow`. Cold-start safe: the app's client view reads the target on mount and subscribes for re-targets while it's already open. See [`javascript-reference.md`](javascript-reference.md).
 
 ## Top-frame escape hatch — and how to opt out
 

@@ -1365,6 +1365,21 @@
 		animation: none;
 	}
 
+	/*
+	 * The transition layer must not catch the pointer. By default it
+	 * does — the whole page reads as inert until the morph settles —
+	 * and with the root opted out of the snapshot that is worse than
+	 * pointless: the live desktop is right there under a layer that
+	 * swallows every mouseup and every pointerenter for 260ms. The
+	 * behavior module already holds a park back while a button is
+	 * down; this is the other half, so a hover that lands on a tile
+	 * while the rail is still morphing out starts its hover-intent
+	 * timer instead of waiting for the next pointer movement.
+	 */
+	html.os-dock-vt::view-transition {
+		pointer-events: none;
+	}
+
 	::view-transition-group( os-dock-os-dock ),
 	::view-transition-group( os-dock-os-side-dock ) {
 		animation-duration: 260ms;

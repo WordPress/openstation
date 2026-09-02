@@ -27,6 +27,8 @@
 		next to it.
 	-->
 	<exclude-pattern>/.claude/</exclude-pattern>
+	<!-- House sniff sources — PHPCS-convention code, not plugin code. -->
+	<exclude-pattern>/tools/phpcs/</exclude-pattern>
 
 	<!--
 		PHP only.
@@ -193,7 +195,57 @@
 		<severity>0</severity>
 	</rule>
 
+	<!--
+		App Framework template helpers. `.os.php` views are host-
+		agnostic, so they escape with `OpenStation\App\Html\esc()` /
+		`json()` / `attr()` rather than `esc_html()`, and build markup
+		with `tag()`, which escapes every attribute it emits. Naming
+		them here lets the output-escaping sniff recognise them.
+	-->
+	<rule ref="WordPress.Security.EscapeOutput">
+		<properties>
+			<property name="customEscapingFunctions" type="array">
+				<element value="esc"/>
+				<element value="json"/>
+				<element value="attr"/>
+			</property>
+			<property name="customAutoEscapedFunctions" type="array">
+				<element value="tag"/>
+			</property>
+		</properties>
+	</rule>
+
+	<!--
+		`.os.php` is the App Framework's file format (an app file is a
+		PHP file that returns an App). The extra dot is the format's
+		signature, not a naming slip.
+	-->
+	<rule ref="WordPress.Files.FileName.NotHyphenatedLowercase">
+		<exclude-pattern>*.os.php</exclude-pattern>
+	</rule>
+
 	<!-- PHP / WP version targets — match plugin headers. -->
 	<config name="testVersion" value="7.4-"/>
 	<config name="minimum_supported_wp_version" value="6.0"/>
+
+	<!--
+		House sniffs, from `tools/phpcs/` (the directory itself is
+		excluded from scanning above — sniff sources follow PHPCS's own
+		conventions, not WordPress's).
+
+		`OpenStation.Files.FileLength` is a WARNING by design: past
+		1,000 lines a file gets one encouraging nudge to split toward
+		the 300–600-line comfort zone. `phpcs -n` (the default gate)
+		hides it; `npm run lint:php:all` and editors show it. Twin rule
+		for TypeScript: `local-rules/os-file-length` in `.eslintrc.cjs`.
+	-->
+	<!--
+		`installed_paths` here REPLACES the value Composer's phpcs
+		installer wrote into vendor (it does not append), so the
+		vendor standards must be restated alongside our own directory.
+		Keep this list in step with `CodeSniffer.conf`'s when a new
+		standards package lands via Composer.
+	-->
+	<config name="installed_paths" value="tools/phpcs,vendor/phpcompatibility/php-compatibility,vendor/phpcompatibility/phpcompatibility-paragonie,vendor/phpcompatibility/phpcompatibility-wp,vendor/phpcsstandards/phpcsextra,vendor/phpcsstandards/phpcsutils,vendor/wp-coding-standards/wpcs"/>
+	<rule ref="OpenStation.Files.FileLength"/>
 </ruleset>

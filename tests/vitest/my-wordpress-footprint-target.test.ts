@@ -1,6 +1,6 @@
 /**
  * Unit tests for the cross-bundle "open this user's activity
- * footprint" hand-off (`src/my-wordpress/footprint-target.ts`) and the
+ * footprint" hand-off (`src/open-targets/footprint-target.ts`) and the
  * parent-shell bridge handler that drives it
  * (`os-open-user-footprint` in `src/window/iframe-bridge.ts`).
  *
@@ -22,11 +22,12 @@ import {
 	readFootprintTarget,
 	setFootprintTarget,
 	subscribeFootprintTarget,
-} from '../../src/my-wordpress/footprint-target';
+} from '../../src/open-targets/footprint-target';
 import { handleWindowMessage } from '../../src/window/iframe-bridge';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 
-const WINDOW_ID = 'desktop-mode-my-wordpress';
+// The explorer APP's window id — footprints render inside it now.
+const WINDOW_ID = 'my-wordpress';
 
 let openWindow: ReturnType< typeof vi.fn >;
 
@@ -194,7 +195,7 @@ describe( 'footprint-target — window-stash fallback (no shared store yet)', ()
 		delete ( window as unknown as { _wpdFootprintTarget?: unknown } )
 			._wpdFootprintTarget;
 
-		const mod = await import( '../../src/my-wordpress/footprint-target' );
+		const mod = await import( '../../src/open-targets/footprint-target' );
 		mod.setFootprintTarget( 77, 'Stash User' );
 
 		// The stash actually held the value...

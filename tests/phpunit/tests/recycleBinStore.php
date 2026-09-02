@@ -230,11 +230,14 @@ class Tests_OpenStation_RecycleBinStore extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The shell-config seed is what keeps the dock tile's art and the
+	 * icon-state module truthful before the bin window has ever
+	 * opened. (The per-window localized blob is gone — the window is
+	 * an App Framework app and its config rides the window config.)
+	 *
 	 * @covers ::openstation_recycle_bin_inject_shell_config
-	 * @covers ::openstation_recycle_bin_localize_config
 	 */
 	public function test_config_filters_inject_recycle_bin_post_types() {
-		// Test shell config injection
 		$config = apply_filters( 'openstation_shell_config', array() );
 		$this->assertIsArray( $config );
 		$this->assertArrayHasKey( 'recycleBinPostTypes', $config );
@@ -242,15 +245,7 @@ class Tests_OpenStation_RecycleBinStore extends WP_UnitTestCase {
 		$this->assertContains( 'post', $config['recycleBinPostTypes'] );
 		$this->assertContains( 'page', $config['recycleBinPostTypes'] );
 		$this->assertContains( 'attachment', $config['recycleBinPostTypes'] );
-
-		// Register the script so wp_localize_script works
-		wp_register_script( 'desktop-mode-recycle-bin', '' );
-
-		// Test localized config injection
-		openstation_recycle_bin_localize_config();
-		$data = wp_scripts()->get_data( 'desktop-mode-recycle-bin', 'data' );
-		$this->assertNotEmpty( $data );
-		$this->assertStringContainsString( 'openStationRecycleBinConfig', $data );
-		$this->assertStringContainsString( '"postTypes":["post","page","attachment"', $data );
+		$this->assertStringStartsWith( 'data:image/svg+xml', (string) $config['recycleBinIconEmpty'] );
+		$this->assertStringStartsWith( 'data:image/svg+xml', (string) $config['recycleBinIconFull'] );
 	}
 }

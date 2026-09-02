@@ -602,6 +602,16 @@ function openstation_sanitize_portal_target( $raw ) {
 
 	$file = substr( $path, strlen( $admin_path ) );
 	$file = ltrim( (string) $file, '/' );
+
+	// The network admin's own screens live one directory down and are
+	// resolved against their own list. Without this a network URL came
+	// back empty and the user was quietly forwarded to the site
+	// dashboard, which is a different admin.
+	$network = 0 === strpos( $file, 'network/' );
+	if ( $network ) {
+		$file = substr( $file, strlen( 'network/' ) );
+	}
+
 	if ( '' === $file ) {
 		$file = 'index.php';
 	}
@@ -612,7 +622,7 @@ function openstation_sanitize_portal_target( $raw ) {
 	// isn't a real core admin page (e.g. `custom_admin_page.php`)
 	// and effectively become an open redirect to a 404 page served
 	// under the admin path; the explicit allowlist closes that.
-	$target = openstation_resolve_admin_target( $file );
+	$target = openstation_resolve_admin_target( $file, $network );
 	if ( is_wp_error( $target ) ) {
 		return '';
 	}
@@ -629,6 +639,19 @@ function openstation_sanitize_portal_target( $raw ) {
 	// shell would open itself in a window, and a redirect chain built
 	// from it would loop. Fall back to the entry resolver instead.
 	if ( openstation_url_is_shell_screen( $target ) ) {
+		return '';
+	}
+
+	// `admin.php` is a bootstrap, not a page. Without a `page` arg core
+	// falls through the last `else` in `wp-admin/admin.php`, never
+	// requires `admin-header.php`, and answers 200 with an empty body —
+	// so the URL becomes a window showing nothing. The allowlist above
+	// matches filenames and cannot see the query, which is why the
+	// check belongs here, beside the shell-screen one: both are URLs
+	// that resolve but must not become a target. Returning '' hands the
+	// caller back to the entry resolver (session's focused window, else
+	// the default window, else the Dashboard).
+	if ( openstation_url_is_page_less_admin_php( $target ) ) {
 		return '';
 	}
 

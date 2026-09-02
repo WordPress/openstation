@@ -244,6 +244,11 @@ function openstation_default_os_settings() {
 		// the entry stays in the menu and left clicks on the wallpaper
 		// do nothing. Per-user.
 		'showDesktopOnWallpaperClick' => false,
+		// Whether the close-all-windows shortcut (Alt+Cmd/Ctrl+W) asks
+		// before it closes. The dialog's "Don't ask again" checkbox is
+		// what writes false; OpenStation Preferences -> Windows is what
+		// turns it back on. Per-user.
+		'confirmCloseAllWindows'      => true,
 		// Mio — a soft-body companion that floats over
 		// the wallpaper, settles onto nearby windows, and watches the
 		// pointer. Off by default; toggled from the wallpaper context
@@ -798,6 +803,10 @@ function openstation_sanitize_os_settings( $raw ) {
 		? (bool) $raw['showDesktopOnWallpaperClick']
 		: $defaults['showDesktopOnWallpaperClick'];
 
+	$confirm_close_all_windows = isset( $raw['confirmCloseAllWindows'] )
+		? (bool) $raw['confirmCloseAllWindows']
+		: $defaults['confirmCloseAllWindows'];
+
 	$mio_enabled = isset( $raw['mioEnabled'] )
 		? (bool) $raw['mioEnabled']
 		: $defaults['mioEnabled'];
@@ -968,6 +977,7 @@ function openstation_sanitize_os_settings( $raw ) {
 		'adminAssetCacheEnabled'      => $admin_asset_cache_enabled,
 		'windowPrewarmEnabled'        => $window_prewarm_enabled,
 		'showDesktopOnWallpaperClick' => $show_desktop_on_wallpaper_click,
+		'confirmCloseAllWindows'      => $confirm_close_all_windows,
 		'mioEnabled'                  => $mio_enabled,
 		'mioStyle'                    => $mio_style,
 		'showPostStatusRibbons'       => $show_post_status_ribbons,
