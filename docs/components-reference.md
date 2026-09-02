@@ -115,6 +115,13 @@ dark-surface colours:
     /* Washes, which are read against the surface they sit on. */
     --os-ui-hover:            var( --os-ui-modal-hover, rgba( 255, 255, 255, 0.08 ) );
     --os-ui-button-bg-hover:  var( --os-ui-modal-button-bg-hover, rgba( 255, 255, 255, 0.08 ) );
+    /* Cards. Their own tokens fall through to --os-ui-surface, so the
+       re-point above already reaches them — unless a desktop theme pins
+       one flat (Legacy: --os-ui-card-bg: #fff). Own the set. */
+    --os-ui-card-bg:           var( --os-ui-modal-surface, #2c3338 );
+    --os-ui-card-fg:           var( --os-ui-modal-text, #f0f0f1 );
+    --os-ui-card-border:       var( --os-ui-modal-border, rgba( 255, 255, 255, 0.25 ) );
+    --os-ui-card-border-hover: var( --os-ui-modal-border-strong, rgba( 255, 255, 255, 0.35 ) );
 }
 ```
 

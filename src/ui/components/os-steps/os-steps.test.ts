@@ -69,4 +69,49 @@ describe( '<os-steps> + <os-step>', () => {
 		// Whitespace-tolerant: the source is spaced, a minified build is not.
 		expect( stepStyles.cssText ).toMatch( /box-sizing:\s*border-box/ );
 	} );
+
+	test( 'a horizontal container stamps `trail` on its steps', async () => {
+		host.innerHTML = `
+			<os-steps horizontal>
+				<os-step title="Start"></os-step>
+				<os-step title="Name"></os-step>
+			</os-steps>
+		`;
+		await tick();
+		for ( const step of host.querySelectorAll( 'os-step' ) ) {
+			expect( step.hasAttribute( 'trail' ) ).toBe( true );
+		}
+	} );
+
+	/*
+	 * The Workspaces wizard rebuilds its trail on every step rather than
+	 * flipping `done` / `current` on the steps it has. Stamping only on
+	 * connect and re-render missed every step created afterwards, so
+	 * from the second step on the chips sat top-aligned beside labels
+	 * that were centred.
+	 */
+	test( 'steps swapped in after the container rendered are stamped too', async () => {
+		host.innerHTML = `<os-steps horizontal><os-step title="Start"></os-step></os-steps>`;
+		await tick();
+		const steps = host.querySelector( 'os-steps' )!;
+
+		const fresh = [ 'Start', 'Name', 'Apps' ].map( ( title ) => {
+			const step = document.createElement( 'os-step' );
+			step.setAttribute( 'title', title );
+			return step;
+		} );
+		steps.replaceChildren( ...fresh );
+		await tick();
+		await tick();
+
+		for ( const step of fresh ) {
+			expect( step.hasAttribute( 'trail' ) ).toBe( true );
+		}
+	} );
+
+	test( 'a vertical container leaves `trail` off its steps', async () => {
+		host.innerHTML = `<os-steps><os-step title="Start"></os-step></os-steps>`;
+		await tick();
+		expect( host.querySelector( 'os-step' )!.hasAttribute( 'trail' ) ).toBe( false );
+	} );
 } );

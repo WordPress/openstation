@@ -85,8 +85,15 @@ export class OsSteps extends Component {
 	 * style on its parent's attributes. Stamping it down is the honest
 	 * version of that, and it keeps the layout decision in one place
 	 * rather than asking every caller to repeat it on every step.
+	 *
+	 * Runs on connect, on every re-render, and on `slotchange`. The last
+	 * is for a caller that rebuilds its steps rather than mutating them:
+	 * the Workspaces wizard replaces the whole trail on each step, and a
+	 * step created after the container rendered had never been stamped,
+	 * so its chip sat top-aligned beside a centred label from the moment
+	 * the wizard moved off Start.
 	 */
-	private syncTrail(): void {
+	private syncTrail = (): void => {
 		const trail = this.hasAttribute( 'horizontal' );
 		for ( const step of Array.from( this.children ) ) {
 			if ( 'OS-STEP' !== step.tagName ) {
@@ -94,7 +101,7 @@ export class OsSteps extends Component {
 			}
 			step.toggleAttribute( 'trail', trail );
 		}
-	}
+	};
 
 	connectedCallback(): void {
 		super.connectedCallback();
@@ -103,7 +110,7 @@ export class OsSteps extends Component {
 
 	protected render() {
 		this.syncTrail();
-		return html`<ol class="os-steps__list"><slot></slot></ol>`;
+		return html`<ol class="os-steps__list"><slot @slotchange=${ this.syncTrail }></slot></ol>`;
 	}
 }
 defineComponent( 'os-steps', OsSteps );
