@@ -1946,6 +1946,8 @@ window.wp.os.saveSession();
 
 Calling it is cheap and safe to do liberally — it schedules, it does not send. Writes are trailing-edge debounced and then rate limited to at most one network request per interval, so a burst of changes collapses into a single POST. Nothing is dropped to achieve that: a call that arrives too soon is delayed rather than discarded, a call made while a request is in flight is re-sent after it settles, and `pagehide` flushes the current snapshot past both the debounce and the rate limit via `navigator.sendBeacon`. The last state always reaches the server.
 
+It also never sends what the server already has. At send time the snapshot is compared, `updated` aside, with the last one the server accepted; an equal one is not written, whoever scheduled it. A click that re-focuses the window it lands in, a switch between pages inside a window, a `saveSession()` after a mutation that turned out to be a no-op: none of those is a request. A write the server refused (an expired nonce, a 5xx) does not count as accepted, so the next change carries the whole session again.
+
 ---
 
 ### `presence` — Stable
