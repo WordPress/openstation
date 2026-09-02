@@ -268,6 +268,7 @@ import {
 	listWorkspacePresets,
 	getWorkspaceProfile,
 	provisionWorkspace,
+	reopenWorkspaceWindows,
 	registerWorkspaceCommand,
 	saveDeskToWorkspace,
 	setWorkspaceProfile,
@@ -3175,14 +3176,22 @@ function init(): void {
 				provisionWorkspace( workspaceDeps, payload.to );
 			},
 		);
-		// A widget added or removed while a workspace's column is in
-		// force is a change to THAT desk. The layer mounts or unmounts
-		// and fires; this records it on the profile, so the desk comes
-		// back the same way and the user's own list is never touched.
-		// Only under `'only'`: on a plain desk the layer already wrote
-		// the user's list itself.
+		// Adding a widget while a workspace's column is in force is a
+		// change to THAT desk: the layer mounts it and fires, and this
+		// records it on the profile so the desk keeps it. The user's own
+		// list is never touched — only under `'only'`; on a plain desk
+		// the layer already wrote the user's list itself.
+		//
+		// A REMOVAL is deliberately NOT recorded. A workspace's widget
+		// column is part of what the desk IS, defined in the wizard's
+		// Widgets step, so closing a widget from the column is a
+		// temporary hide, not an edit to the desk — and a reload brings
+		// it back, the same promise the launch-list windows keep. To
+		// take a widget off a desk for good, uncheck it in Edit, which
+		// writes the profile directly. Mirrors how a closed launch
+		// window reopens rather than dropping out of the desk.
 		const recordWidgetChange = ( id: string, visible: boolean ): void => {
-			if ( ! workspaceDeps ) {
+			if ( ! workspaceDeps || ! visible ) {
 				return;
 			}
 			const desktopId = manager.getActiveDesktopId();
@@ -3197,9 +3206,6 @@ function init(): void {
 		};
 		addAction( HOOKS.WIDGET_ADDED, 'desktop-mode/workspace-widgets', ( p: { id: string } ) =>
 			recordWidgetChange( p.id, true ),
-		);
-		addAction( HOOKS.WIDGET_REMOVED, 'desktop-mode/workspace-widgets', ( p: { id: string } ) =>
-			recordWidgetChange( p.id, false ),
 		);
 
 		// The desk the user boots onto never fires a switch, so its
@@ -3703,6 +3709,24 @@ function init(): void {
 				}
 			} ),
 		);
+	}
+
+	// A workspace's launch-list windows are part of what the desk IS,
+	// so a reload restores them: any the user closed reopen, while the
+	// ones session restore already brought back are left untouched.
+	// After restore, for the same reason `openCurrentPage` waits — both
+	// open windows, and racing `manager.open()`'s existing-check spawns
+	// duplicates. The desk's widget column and look are re-asserted in
+	// the same beat: `applyWorkspaceView` on boot runs before the widget
+	// registry has finished filling from server-sync, so a column set
+	// then can come up short.
+	if ( ! soloWindowId && workspaceDeps ) {
+		const deps = workspaceDeps;
+		void sessionRestore.then( () => {
+			const bootDesktop = manager.getActiveDesktopId();
+			reopenWorkspaceWindows( deps, bootDesktop );
+			applyWorkspaceView( deps, bootDesktop );
+		} );
 	}
 
 	// Persistence.

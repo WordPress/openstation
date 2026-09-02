@@ -22,6 +22,7 @@ import {
 	installWorkspacePresetSync,
 	listWorkspacePresets,
 	provisionWorkspace,
+	reopenWorkspaceWindows,
 	saveDeskToWorkspace,
 	setWorkspaceProfile,
 	absoluteAdminUrl,
@@ -232,6 +233,98 @@ describe( 'workspace operations', () => {
 		open.mockClear();
 		openNative.mockClear();
 		provisionWorkspace( deps, created.id );
+		expect( open ).not.toHaveBeenCalled();
+		expect( openNative ).not.toHaveBeenCalled();
+	} );
+
+	test( 'reopen brings back a closed launch window and leaves the open ones alone', async () => {
+		const open = vi
+			.spyOn( manager, 'open' )
+			.mockResolvedValue( {} as never );
+		const created = createWorkspace( deps, {
+			profile: {
+				preset: '',
+				icon: 'dashicons-desktop',
+				color: '',
+				apps: { mode: 'all', ids: [] },
+				windows: [
+					{ match: 'edit.php', url: 'post-new.php' },
+					{ match: 'my-panel' },
+				],
+				layout: 'free',
+				// Already provisioned once — this is the F5 case.
+				provisioned: true,
+			},
+		} );
+
+		// The url window is still open (session restore brought it
+		// back); the native one the user closed.
+		const openUrlId = deps.deriveWindowId(
+			absoluteAdminUrl( 'post-new.php', ADMIN_URL ),
+		);
+		vi.spyOn( manager, 'getById' ).mockImplementation( ( id: string ) =>
+			id === openUrlId ? ( {} as never ) : undefined,
+		);
+
+		reopenWorkspaceWindows( deps, created.id );
+
+		// The still-open window is not reopened…
+		expect( open ).not.toHaveBeenCalled();
+		// …and the closed native one is.
+		expect( openNative ).toHaveBeenCalledWith( 'my-panel' );
+	} );
+
+	test( 'reopen does not re-stamp provisioned or re-run the layout', () => {
+		vi.spyOn( manager, 'open' ).mockResolvedValue( {} as never );
+		vi.spyOn( manager, 'getById' ).mockReturnValue( undefined );
+		const created = createWorkspace( deps, {
+			profile: {
+				preset: '',
+				icon: 'dashicons-desktop',
+				color: '',
+				apps: { mode: 'all', ids: [] },
+				windows: [ { match: 'edit.php', url: 'edit.php' } ],
+				layout: 'tile',
+				provisioned: true,
+			},
+		} );
+		refreshLayout.mockClear();
+
+		reopenWorkspaceWindows( deps, created.id );
+
+		// The arrangement is applied once, at first provision — never
+		// on a reload, or a hand-moved window would jump back.
+		expect( refreshLayout ).not.toHaveBeenCalled();
+		expect( getWorkspaceProfile( manager, created.id )?.provisioned ).toBe(
+			true,
+		);
+	} );
+
+	test( 'reopen is a no-op on a never-provisioned desk and a plain Space', () => {
+		const open = vi
+			.spyOn( manager, 'open' )
+			.mockResolvedValue( {} as never );
+		vi.spyOn( manager, 'getById' ).mockReturnValue( undefined );
+
+		// A plain Space — no profile at all.
+		const plain = createWorkspace( deps, {} );
+		reopenWorkspaceWindows( deps, plain.id );
+
+		// A workspace whose launch list has never run: that is
+		// `provisionWorkspace`'s job, not this one's.
+		const fresh = createWorkspace( deps, {
+			profile: {
+				preset: '',
+				icon: 'dashicons-desktop',
+				color: '',
+				apps: { mode: 'all', ids: [] },
+				windows: [ { match: 'edit.php', url: 'edit.php' } ],
+				layout: 'free',
+				provisioned: false,
+			},
+		} );
+		reopenWorkspaceWindows( deps, fresh.id );
+
 		expect( open ).not.toHaveBeenCalled();
 		expect( openNative ).not.toHaveBeenCalled();
 	} );

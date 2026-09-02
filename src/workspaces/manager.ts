@@ -320,6 +320,80 @@ export function provisionWorkspace(
 }
 
 /**
+ * Reopen the launch-list windows that are not currently open.
+ *
+ * The counterpart to {@link provisionWorkspace} for a desk that has
+ * ALREADY been provisioned once. Provisioning is a one-time act — it
+ * opens the desk's windows the first time you enter it and then leaves
+ * your arrangement alone. But a launch-list window is part of what the
+ * desk IS, so closing one and reloading should bring it back: on boot
+ * this runs after session restore and opens any launch entry whose
+ * window the restore did not already reopen.
+ *
+ * Unlike provisioning it does three things differently, all so it can
+ * run on every reload without fighting the user:
+ *
+ *   - It never touches a window that is already open — no focus
+ *     stealing, no duplicate, no re-place of one you have moved.
+ *   - It does not re-run the layout. The arrangement is applied once,
+ *     when the desk is first provisioned; re-tiling on every reload
+ *     would undo any window you had repositioned by hand.
+ *   - It does not re-stamp `provisioned`, which is already true.
+ *
+ * A no-op on a plain Space, on a never-provisioned desk (that is
+ * {@link provisionWorkspace}'s job), and on a desk whose every launch
+ * window is already open.
+ */
+export function reopenWorkspaceWindows(
+	deps: WorkspaceDeps,
+	desktopId: string,
+): void {
+	const profile = getWorkspaceProfile( deps.manager, desktopId );
+	if ( ! profile || ! profile.provisioned || profile.windows.length === 0 ) {
+		return;
+	}
+
+	const launches = resolveLaunches( deps.getNavItems(), profile.windows );
+	for ( const launch of launches ) {
+		if ( launch.url ) {
+			const url = absoluteAdminUrl( launch.url, deps.adminUrl );
+			const id = deps.deriveWindowId( url );
+			// Already on screen — session restore reopened it, or it
+			// never closed. Leave it exactly where it is.
+			if ( deps.manager.getById( id ) ) {
+				continue;
+			}
+			void deps.manager
+				.open( {
+					id,
+					url,
+					title: launch.title,
+					icon: launch.item.icon,
+					desktopId,
+				} )
+				.then( ( win ) => placeLaunchedWindow( deps.manager, win, launch ) )
+				.catch( () => {
+					/* One window short is not a failed workspace. */
+				} );
+			continue;
+		}
+		if ( launch.item.windowId ) {
+			if ( deps.manager.getById( launch.item.windowId ) ) {
+				continue;
+			}
+			deps.openNative( launch.item.windowId );
+			void whenWindowOpens( deps.manager, launch.item.windowId ).then(
+				( win ) => {
+					if ( win ) {
+						placeLaunchedWindow( deps.manager, win, launch );
+					}
+				},
+			);
+		}
+	}
+}
+
+/**
  * The windows open on a desktop, as a launch list.
  *
  * "Open with what I have now" — the desktop-OS gesture of saving an
