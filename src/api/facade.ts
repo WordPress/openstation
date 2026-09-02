@@ -608,6 +608,14 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 				return;
 			}
 			( desktopApi as unknown as Record< string, unknown > )[ name ] = api;
+			// `wp.os` is the boot shim with this literal's members COPIED
+			// onto it (`installPublicApi`), not this object — so a write
+			// here alone never reached the page. The app runtime's
+			// `wp.os.apps` was the namespace that showed it.
+			const live = window.wp?.os as unknown as Record< string, unknown > | undefined;
+			if ( live && live !== ( desktopApi as unknown ) ) {
+				live[ name ] = api;
+			}
 		},
 		getWindowConfig: < T = Record< string, unknown > >(
 			id: string,

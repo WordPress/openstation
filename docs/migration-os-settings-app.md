@@ -23,3 +23,7 @@ The Preferences window (`desktop-mode-os-settings`) is an [App Framework](./app-
 ## What changed in the framework
 
 - **`$os->refresh_menu()`** is a new effect: one menu-payload refresh after the response lands, for an action that changed what the server registers. The Extended Options action uses it, and it is the framework's form of the rule in AGENTS.md ("a setting that gates a server-side registration must spend a menu refresh when it saves").
+- **`App::prefetch()`** computes `data()` once at registration and ships it with the window config, so a client view paints from the declared state the moment the window opens instead of behind a spinner for the length of the `mount` round trip — the beat in which the Preferences window's first click used to be lost. Opt-in; the app uses it because its `data()` is a handful of capability checks and options.
+- **`focus` / `blur` lifecycle actions fire on transitions.** The shell reports a focus request on every pointerdown inside a window; the runtime now gates those, so a declared `focus` handler costs one round trip per return to the window rather than one per click.
+- **The runtime asks the shell for an undefined `<os-*>` tag once per session**, not on every repaint (the Components tab's warner demo renders two such tags on purpose).
+- **`wp.os.registerNamespace()` now reaches the live `wp.os` object.** It used to write onto the facade literal only, which is why `wp.os.apps` — the app runtime's own namespace — never existed on the page.

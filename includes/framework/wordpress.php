@@ -260,10 +260,19 @@ function openstation_apps_client_bundle( array $manifest ) {
  * @param array<string,mixed> $manifest Filtered manifest.
  * @param string              $bundle   Resolved client bundle path, from
  *                                      {@see openstation_apps_client_bundle()}.
+ * @param App|null            $app      The app, for a prefetched `data()`
+ *                                      (`App::prefetch()`); null ships none.
  * @return array<string,mixed>
  */
-function openstation_apps_client_config( array $manifest, $bundle = '' ) {
-	return array(
+function openstation_apps_client_config( array $manifest, $bundle = '', $app = null ) {
+	$prefetched = array();
+	if ( $app instanceof App && ! empty( $manifest['prefetch'] ) && '' !== $bundle ) {
+		// The declared state and the request's host handle — the same
+		// inputs `mount` gets, minus the open-time params a deep link
+		// carries (the runtime waits for `mount` in that case).
+		$prefetched['data'] = $app->compute_data( new App\State( $app->defaults() ), openstation_apps_os() );
+	}
+	return $prefetched + array(
 		'client'          => '' !== $bundle,
 		'osApp'           => true,
 		'id'              => $manifest['id'],
@@ -371,7 +380,7 @@ function openstation_apps_register_windows() {
 			'dock_order' => $manifest['dock_order'],
 			'placeable'  => $manifest['placeable'],
 			'autofocus'  => $manifest['autofocus'],
-			'config'     => openstation_apps_client_config( $manifest, $bundle ),
+			'config'     => openstation_apps_client_config( $manifest, $bundle, $app ),
 		);
 
 		/**

@@ -140,6 +140,13 @@ final class App {
 	private $client = '';
 
 	/**
+	 * Whether `data()` ships with the window config. See `prefetch()`.
+	 *
+	 * @var bool
+	 */
+	private $prefetch = false;
+
+	/**
 	 * @var array<int,array<string,mixed>>
 	 */
 	private $title_bar_buttons = array();
@@ -529,6 +536,36 @@ final class App {
 	public function data( callable $data ) {
 		$this->data = $data;
 		return $this;
+	}
+
+	/**
+	 * Compute `data()` once at registration and ship it with the
+	 * window config, so a client view paints from the declared state
+	 * the moment the window opens instead of behind a spinner for the
+	 * length of the `mount` round trip (a WordPress request — hundreds
+	 * of milliseconds, and the first click on a spinner is a click
+	 * lost). `mount` still runs and refreshes both state and data.
+	 *
+	 * Opt-in, because the cost is paid on every shell page load for
+	 * every user who may open the app: right for a `data()` that is a
+	 * handful of capability checks and options, wrong for one that
+	 * runs queries.
+	 *
+	 * @param bool $prefetch Default true.
+	 * @return self
+	 */
+	public function prefetch( $prefetch = true ) {
+		$this->prefetch = (bool) $prefetch;
+		return $this;
+	}
+
+	/**
+	 * Whether `data()` is prefetched at registration.
+	 *
+	 * @return bool
+	 */
+	public function prefetches() {
+		return $this->prefetch && null !== $this->data;
 	}
 
 	/**
@@ -932,6 +969,7 @@ final class App {
 			'client'            => $this->client_path(),
 			'client_source'     => $this->client_source(),
 			'has_data'          => $this->has_data(),
+			'prefetch'          => $this->prefetches(),
 			'lifecycle'         => array_values( array_intersect( self::LIFECYCLE_ACTIONS, $this->action_names() ) ),
 		);
 	}

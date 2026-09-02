@@ -196,6 +196,32 @@ function applyAppearance( windowId: string, appearance: AppearanceDef ): void {
 	}
 }
 
+/**
+ * Focus REQUESTS into focus TRANSITIONS. A window opens focused, so
+ * the first `focus()` after creation is not a transition; every
+ * `focus()` after a `blur()` is one, and every `blur()` after a
+ * `focus()` is one. Repeats of the same side are no-ops.
+ */
+export function createFocusGate(): { focus: () => boolean; blur: () => boolean } {
+	let focused = true;
+	return {
+		focus: () => {
+			if ( focused ) {
+				return false;
+			}
+			focused = true;
+			return true;
+		},
+		blur: () => {
+			if ( ! focused ) {
+				return false;
+			}
+			focused = false;
+			return true;
+		},
+	};
+}
+
 /** The window id a body element belongs to (`wp-window-<id>`). */
 function windowIdOf( body: HTMLElement, fallback: string ): string {
 	const root = body.closest< HTMLElement >( '[id^="wp-window-"]' );
@@ -317,15 +343,41 @@ function buildRender( config: AppConfig ): RenderCallback {
 		}
 		const api = os();
 		if ( api && ( lifecycle.has( 'focus' ) || lifecycle.has( 'blur' ) ) ) {
+			// The shell reports `focused` on every focus REQUEST — each
+			// pointerdown inside an already-focused window included —
+			// while the lifecycle promises transitions. The gate turns
+			// requests into transitions, so a `focus` handler costs one
+			// round trip per return to the window, not one per click.
+			const gate = createFocusGate();
 			teardowns.push( api.onWindow( windowId, {
-				focused: lifecycle.has( 'focus' ) ? () => each( ( s ) => void s.dispatch( 'focus' ) ) : undefined,
-				blurred: lifecycle.has( 'blur' ) ? () => each( ( s ) => void s.dispatch( 'blur' ) ) : undefined,
+				focused: () => {
+					if ( gate.focus() && lifecycle.has( 'focus' ) ) {
+						each( ( s ) => void s.dispatch( 'focus' ) );
+					}
+				},
+				blurred: () => {
+					if ( gate.blur() && lifecycle.has( 'blur' ) ) {
+						each( ( s ) => void s.dispatch( 'blur' ) );
+					}
+				},
 			} ) );
 		}
 
-		// The first render of every view. Awaited so the shell keeps its
-		// loading overlay up until the body has real content.
-		await Promise.all( Array.from( byView.values(), ( s ) => s.dispatch( 'mount' ) ) );
+		// The first render of every view. With prefetched data
+		// (`App::prefetch()`) the main view paints NOW from the declared
+		// state and the shell drops its loading overlay at once; `mount`
+		// then refreshes state and data in the background. A window
+		// opened WITH params waits for `mount` instead — the state those
+		// params produce is the server's to derive, and painting the
+		// defaults first would show the wrong page for a beat. Every
+		// other view (the tab panels) waits for its own `mount` as
+		// before; each carries its own spinner.
+		const mounts = Array.from( byView.values(), ( s ) => s.dispatch( 'mount' ) );
+		const eager =
+			Object.keys( ctx?.params ?? {} ).length === 0 && byView.get( 'main' )?.paintEagerly() === true;
+		if ( ! eager ) {
+			await Promise.all( mounts );
+		}
 
 		return () => {
 			for ( const off of teardowns ) {

@@ -182,6 +182,11 @@ return App::define( ID )
 	// as before. `wp.os.openOsSettings()` is the portable opener.
 	->placement( 'none' )
 	->capabilities( 'read' )
+	// `data()` is a handful of capability checks and options, so it
+	// ships with the window and the pages paint the moment the window
+	// opens — as the legacy panel did — instead of behind a spinner for
+	// the length of the `mount` round trip.
+	->prefetch()
 	// The page is the whole declared state; the settings live in the
 	// shell's store and reach the view through `wp.os.getOsSettings()`.
 	->state( array( 'tab' => 'appearance' ) )

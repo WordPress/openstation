@@ -94,6 +94,28 @@ class Tests_OpenStation_OsSettingsApp extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The pages paint the moment the window opens: `data()` is
+	 * prefetched into the window config, so the client view does not
+	 * wait behind a spinner for the `mount` round trip — the beat in
+	 * which the legacy panel's first click used to land.
+	 *
+	 * @covers ::openstation_apps_client_config
+	 */
+	public function test_data_is_prefetched_into_the_window_config() {
+		$app      = openstation_apps_registry()->get( self::APP_ID );
+		$manifest = $app->manifest();
+		$this->assertTrue( $manifest['prefetch'] );
+
+		$config = openstation_apps_client_config( $manifest, __FILE__, $app );
+		$this->assertArrayHasKey( 'data', $config );
+		$this->assertTrue( $config['data']['isAdmin'] );
+		$this->assertArrayHasKey( 'aiAssistant', $config['data'] );
+
+		// No built client bundle, nothing to paint eagerly — no data.
+		$this->assertArrayNotHasKey( 'data', openstation_apps_client_config( $manifest, '', $app ) );
+	}
+
+	/**
 	 * @covers \OpenStation\App::allows
 	 */
 	public function test_every_shell_user_may_open_it_but_not_an_anonymous_visitor() {

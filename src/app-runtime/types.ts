@@ -67,6 +67,12 @@ export interface AppConfig {
 	tabs?: TabDef[];
 	/** The app ships a `.os.ts` client view (loaded with the window). */
 	client?: boolean;
+	/**
+	 * `App::data()` computed at registration (`App::prefetch()`), so a
+	 * client view paints from the declared state before the `mount`
+	 * round trip instead of behind a spinner for its duration.
+	 */
+	data?: unknown;
 }
 
 /** One item of a `menu` effect. */

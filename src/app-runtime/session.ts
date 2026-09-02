@@ -75,6 +75,13 @@ export interface Session {
 	) => Promise< boolean >;
 	/** Run a client-side action; re-renders without a request. */
 	local: ( action: string, args?: Record< string, unknown > ) => void;
+	/**
+	 * Paint the client view NOW from the declared state and the data
+	 * the config prefetched (`App::prefetch()`), before `mount` has
+	 * answered. False when the session has no client view or no
+	 * prefetched data — the caller then waits for `mount` as usual.
+	 */
+	paintEagerly: () => boolean;
 	/** Whether the window is paused (minimized / hidden tab). */
 	setPaused: ( paused: boolean ) => void;
 	dispose: () => void;
@@ -455,6 +462,15 @@ export function createSession( deps: SessionDeps ): Session {
 		finishRender();
 	};
 
+	/**
+	 * Tags this session already asked the shell for. A tag that is
+	 * still undefined after a load is not a component (the Components
+	 * tab renders two such tags on purpose, for its warner demo), and
+	 * asking again on every repaint would log the loader's error on
+	 * every repaint.
+	 */
+	const requestedTags = new Set< string >();
+
 	const ensureComponents = async (): Promise< void > => {
 		if ( ! host.loadComponents ) {
 			return;
@@ -462,8 +478,9 @@ export function createSession( deps: SessionDeps ): Session {
 		const missing = new Set< string >();
 		for ( const el of Array.from( root.querySelectorAll( '*' ) ) ) {
 			const tag = el.tagName.toLowerCase();
-			if ( tag.startsWith( 'os-' ) && ! customElements.get( tag ) ) {
+			if ( tag.startsWith( 'os-' ) && ! customElements.get( tag ) && ! requestedTags.has( tag ) ) {
 				missing.add( tag );
+				requestedTags.add( tag );
 			}
 		}
 		if ( missing.size > 0 ) {
@@ -694,6 +711,16 @@ export function createSession( deps: SessionDeps ): Session {
 		},
 		dispatch,
 		local: ( action, args = {} ) => runLocal( action, args ),
+		paintEagerly() {
+			if ( ! client || disposed || config.data === undefined || clientTeardown !== undefined ) {
+				return false;
+			}
+			// The same path a response takes, fed the declared state and
+			// the prefetched data: `mounted()` runs now, and the `mount`
+			// answer that follows refreshes both without a second mount.
+			apply( { ok: true, state: { ...config.state }, html: '', data: config.data, effects: [] }, state );
+			return true;
+		},
 		setPaused( value: boolean ) {
 			paused = value;
 			if ( ! value && stale ) {
