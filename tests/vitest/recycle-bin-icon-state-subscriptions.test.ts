@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { installHooksStub, clearHooksStub } from './helpers/hooks-stub';
 import { _resetAllSharedStoresForTests } from '../../src/shared-store';
 import * as bc from '../../src/broadcast';
-import { startRecycleBinIconState } from '../../src/recycle-bin/icon-state';
+import { startRecycleBinIconState } from '../../src/desktop-files/recycle-bin-icon-state';
 
 describe( 'Recycle Bin Badge Subscriptions', () => {
 	beforeEach( () => {

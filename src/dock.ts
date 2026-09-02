@@ -27,6 +27,7 @@ import {
 	tryNativeUrlRemap,
 } from './native-url-remap';
 import { persistZoneOrder as persistNavZoneOrder } from './nav/config';
+import { zoneFor } from './nav/defaults';
 import type { NavPlacement } from './nav/types';
 // The zones in paint order. One list, shared with the model that
 // decides what goes in them — two copies of an ordered enum is two
@@ -128,12 +129,14 @@ export interface SystemDockItem {
 	 * What the tile IS — which decides its default placement and the
 	 * dock zone it sits in. `'app'` (the default) for a launcher,
 	 * `'control'` for an OpenStation affordance: Mio, Overview,
-	 * System, Trash, Exit.
+	 * System, Trash, Exit. `'core'` for a tile standing in for a
+	 * WordPress menu that cannot arrive through `$menu` — the Network
+	 * Admin one, which lives on another domain.
 	 *
 	 * See `src/nav/defaults.ts`. A plugin's launcher wants `'app'`
 	 * and gets it by saying nothing.
 	 */
-	navKind?: 'app' | 'control';
+	navKind?: 'core' | 'app' | 'control';
 	/**
 	 * Cannot be moved, hidden, or reordered. Exit OpenStation is the
 	 * only one: it is the way out of the shell.
@@ -185,7 +188,7 @@ export interface DockZones {
 export function zoneForSystemTile(
 	item: SystemDockItem,
 ): keyof DockZones {
-	return 'control' === item.navKind ? 'controls' : 'apps';
+	return zoneFor( item.navKind ?? 'app' );
 }
 
 /**

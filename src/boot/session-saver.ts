@@ -38,6 +38,23 @@ const SESSION_SAVE_DEBOUNCE_MS = 500;
 const SESSION_SAVE_MIN_INTERVAL_MS = 1500;
 
 /**
+ * What a snapshot says, minus when it said it.
+ *
+ * `updated` is stamped `Date.now()` on every snapshot, so two reads of
+ * an untouched desktop never compare equal on the raw payload. Strip
+ * it and the rest IS the session: the same string means the server
+ * already holds exactly this, and a write would only bump a clock.
+ *
+ * @param payload A session snapshot.
+ * @return The snapshot as a comparable string.
+ */
+function fingerprint( payload: Session ): string {
+	const { updated, ...rest } = payload;
+	void updated;
+	return JSON.stringify( rest );
+}
+
+/**
  * Creates the debounced+immediate session saver. Returns a single
  * function that schedules a debounced REST write on each call.
  * Also exposed on `wp.os.saveSession()` for plugins that want
@@ -93,6 +110,20 @@ export function createSessionSaver(
 	let dirty = false;
 	/** When the last network write started. 0 = none yet. */
 	let lastSaveStartedAt = 0;
+	/**
+	 * The session as the server last accepted it — a write that got a
+	 * 2xx, or a beacon, which is fire-and-forget and the page's last
+	 * word either way. `null` until the first one lands.
+	 *
+	 * Most calls to the saver are not changes. Every pointerdown in a
+	 * window re-focuses it, and `os-window-focused` fires whether or
+	 * not the focus moved; the app runtime re-emits state changes
+	 * that persist nothing. Each of those used to be a POST carrying
+	 * the same session the server already held. Comparing here, at
+	 * send time, is what makes the saver honest about it: a snapshot
+	 * equal to the last accepted one is not sent, whatever asked.
+	 */
+	let lastAccepted: string | null = null;
 
 	const doSave = async (): Promise< void > => {
 		if ( inFlight ) {
@@ -109,12 +140,19 @@ export function createSessionSaver(
 			dirty = true;
 			return;
 		}
-		inFlight = true;
-		lastSaveStartedAt = Date.now();
 		// Snapshot as late as possible — after the in-flight guard —
 		// so the payload reflects the state at send time, not at the
 		// moment the save was queued.
 		const payload = manager.snapshot();
+		const current = fingerprint( payload );
+		if ( current === lastAccepted ) {
+			// Nothing changed since the server last heard from us.
+			// The rate-limit clock stays where it was: no write went
+			// out, so the next real change owes nothing to this one.
+			return;
+		}
+		inFlight = true;
+		lastSaveStartedAt = Date.now();
 
 		noteRestoreTargets( payload );
 
@@ -122,7 +160,7 @@ export function createSessionSaver(
 			// Session save is a debounced background ping — silent
 			// so the user doesn't see a spinner every time they
 			// move a window.
-			await trackedFetch(
+			const response = await trackedFetch(
 				manager,
 				config.sessionUrl,
 				{
@@ -138,6 +176,12 @@ export function createSessionSaver(
 				},
 				{ silent: true },
 			);
+			// Only a write the server took counts. A 403 from an
+			// expired nonce, or a 5xx, leaves the server on the older
+			// session, and the next change must carry this one again.
+			if ( response?.ok ) {
+				lastAccepted = current;
+			}
 		} catch ( err ) {
 			/* Network error is non-fatal — next change triggers
 			 * another save. Still worth surfacing to monitor widgets
@@ -175,6 +219,12 @@ export function createSessionSaver(
 		// and the session on disk stays at its pre-close state.
 		// Symptom: close a window, reload fast, window reappears.
 		const payload = manager.snapshot();
+		const current = fingerprint( payload );
+		if ( current === lastAccepted ) {
+			// The server already holds this exact session; a beacon
+			// would only re-stamp its clock as the tab goes away.
+			return;
+		}
 		// The unload snapshot is the most accurate one there is — it is
 		// taken as the tab goes away, after the last window the user
 		// closed or opened. Skipping it here would leave the worker
@@ -197,6 +247,11 @@ export function createSessionSaver(
 			navigator.sendBeacon &&
 			navigator.sendBeacon( beaconUrl, body )
 		) {
+			// A beacon reports nothing back. Treat it as accepted: it
+			// is the page's last word, and if the tab survives (a
+			// background tab that comes back), a snapshot equal to it
+			// has nothing new to say either.
+			lastAccepted = current;
 			return;
 		}
 		void doSave();

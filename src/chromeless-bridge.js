@@ -1029,6 +1029,38 @@
 	 *   - cross-origin URLs
 	 *   - URLs that already carry openstation_chromeless=
 	 */
+	/*
+	 * Which ADMIN a path belongs to: the site root up to and including
+	 * the first `/wp-admin/`, plus the `network/` or `user/` segment
+	 * when there is one — the client-side twin of `self_admin_url()`.
+	 * That segment is the part a site-root comparison gets wrong: the
+	 * network admin sits UNDER the main site's admin, sharing its
+	 * prefix.
+	 */
+	function adminScope( pathname ) {
+		var i = pathname.indexOf( '/wp-admin/' );
+		if ( i === -1 ) {
+			return '';
+		}
+		var rest = pathname.slice( i + 10 );
+		var sub = /^(network|user)\//.exec( rest );
+		return pathname.slice( 0, i + 10 ) + ( sub ? sub[ 0 ] : '' );
+	}
+
+	/*
+	 * Whether an admin URL belongs to a DIFFERENT admin: another site,
+	 * or the network admin seen from a site and the reverse. On a
+	 * subdirectory multisite every site shares one origin, so these used
+	 * to pass every gate as ordinary in-window navigations — which put
+	 * one admin inside another's shell, and the bridge there repainted
+	 * the dock with its own menu. See docs/multisite.md.
+	 */
+	function isOtherAdmin( url ) {
+		var ours = adminScope( window.location.pathname );
+		var theirs = adminScope( url.pathname );
+		return '' !== ours && '' !== theirs && ours !== theirs;
+	}
+
 	function rewriteAdminUrl( href, base ) {
 		if ( ! href || href.charAt( 0 ) === '#' ) {
 			return null;
@@ -1048,6 +1080,9 @@
 		if ( url.pathname.indexOf( '/wp-admin/' ) === -1 ) {
 			return null;
 		}
+		if ( isOtherAdmin( url ) ) {
+			return null;
+		}
 		if ( url.searchParams.has( 'openstation_chromeless' ) ) {
 			return null;
 		}
@@ -1061,6 +1096,7 @@
 	 * the browser navigate naturally (mailto, anchor, download, etc.).
 	 *
 	 *   'admin'       — same-origin /wp-admin/ URL we rewrite in place.
+	 *   'other-admin'  — another site, or the network admin. Browser tab.
 	 *   'external'    — http(s) URL we want the parent shell to open
 	 *                   as a sub-tab instead of navigating the iframe
 	 *                   out of wp-admin. Covers both cross-origin
@@ -1090,7 +1126,7 @@
 			url.origin === window.location.origin &&
 			url.pathname.indexOf( '/wp-admin/' ) !== -1
 		) {
-			return 'admin';
+			return isOtherAdmin( url ) ? 'other-admin' : 'admin';
 		}
 		return 'external';
 	}
@@ -1452,6 +1488,25 @@
 				 * a sandbox we don't support — swallow rather than block the
 				 * click. */
 			}
+			return;
+		}
+		if ( kind === 'other-admin' ) {
+			/*
+			 * A different admin, opened in a BROWSER TAB. Not a window
+			 * (see isOtherAdmin), and not this tab: the user has windows
+			 * open on THIS one.
+			 */
+			e.preventDefault();
+			var other;
+			try {
+				other = new URL( href, window.location.href );
+			} catch ( err ) {
+				return;
+			}
+			/* A stray flag would make the new tab a standalone
+			 * chromeless page with no way out. */
+			other.searchParams.delete( 'openstation_chromeless' );
+			window.open( other.href, '_blank', 'noopener,noreferrer' );
 			return;
 		}
 		if ( kind === 'external' ) {
@@ -2537,6 +2592,34 @@
 					type:      'os-window-switch',
 					direction: e.shiftKey ? 'prev' : 'next'
 				},
+				window.location.origin
+			);
+		} catch ( err ) { /* cross-origin parent; swallow */ }
+	}, true );
+
+	/*
+	 * Ctrl/Cmd+Alt+W forwarder — close all windows.
+	 *
+	 * Same iframe-crossing rationale as the two forwarders above.
+	 * Unlike the backtick one there is no text-entry gate: the chord
+	 * carries two modifiers, so it types nothing into a field, and
+	 * "close everything" is a reasonable thing to ask for from inside
+	 * the window you want gone.
+	 *
+	 * `e.code` rather than `e.key`, because Option+W on macOS types a
+	 * different character and the W glyph moves between layouts.
+	 */
+	document.addEventListener( 'keydown', function ( e ) {
+		if ( ! ( e.metaKey || e.ctrlKey ) ) return;
+		if ( ! e.altKey || e.shiftKey ) return;
+		if ( e.code !== 'KeyW' ) return;
+
+		e.preventDefault();
+		e.stopImmediatePropagation();
+
+		try {
+			window.parent.postMessage(
+				{ type: 'os-window-close-all' },
 				window.location.origin
 			);
 		} catch ( err ) { /* cross-origin parent; swallow */ }

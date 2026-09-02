@@ -12,7 +12,7 @@ import { join } from 'node:path';
 import { describe, expect, test } from 'vitest';
 
 const root = join( __dirname, '../..' );
-const css = readFileSync( join( root, 'assets/css/os-settings.css' ), 'utf8' );
+const css = readFileSync( join( root, 'apps/os-settings/os-settings.css' ), 'utf8' );
 const aboutStart = css.indexOf( '/*\n * About tab' );
 const nextSection = css.indexOf( '\n/*', aboutStart + 1 );
 const aboutEnd = -1 === nextSection ? css.length : nextSection;

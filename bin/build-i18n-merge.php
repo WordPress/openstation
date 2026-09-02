@@ -6,7 +6,7 @@
  *
  * Inputs (env):
  *   HANDLE_MAP_PREFIX   Source path prefix that selects which hashed
- *                       JSONs feed this handle, e.g. "src/recycle-bin/".
+ *                       JSONs feed this handle, e.g. "apps/trash/".
  *                       Files whose `source` starts with the prefix of an
  *                       earlier (more specific) handle are skipped here,
  *                       so the most specific handle should run first.

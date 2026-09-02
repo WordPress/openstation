@@ -696,8 +696,14 @@ function openstation_enqueue_toggle_assets() {
 			array(
 				'nonce'      => wp_create_nonce( 'save-openstation' ),
 				'active'     => openstation_is_enabled() && ! openstation_is_classic_request(),
-				'classicUrl' => esc_url_raw( admin_url() ),
+				// `self_admin_url()`: switching off from the network
+				// admin returns there, not to the main site.
+				'classicUrl' => esc_url_raw( self_admin_url() ),
 				'portalUrl'  => esc_url_raw( openstation_portal_url() ),
+				// Passed back on the toggle's AJAX call: the handler
+				// runs on `admin-ajax.php`, where `is_network_admin()`
+				// is always false.
+				'network'    => is_network_admin(),
 				'ajaxUrl'    => esc_url_raw( admin_url( 'admin-ajax.php' ) ),
 				'i18n'       => array(
 					'enterFullscreen' => __( 'Fullscreen', 'desktop-mode' ),
@@ -775,6 +781,10 @@ function openstation_enqueue_toggle_assets() {
 							array(
 								'keys'        => array( '⌘/Ctrl', 'K' ),
 								'description' => __( 'Open the command palette / Ask AI overlay.', 'desktop-mode' ),
+							),
+							array(
+								'keys'        => array( '⌥/Alt', '⌘/Ctrl', 'W' ),
+								'description' => __( 'Close every open window on the current desktop (asks first).', 'desktop-mode' ),
 							),
 							array(
 								'keys'        => array( 'Esc' ),

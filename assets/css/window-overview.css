@@ -558,7 +558,17 @@
 	display: flex;
 	flex-direction: column;
 	gap: 4px;
-	/* Two 22px rows and the gap between them. */
+	/*
+	 * One 22px row: Edit, which every desk has. Reserving two here
+	 * made every bar as tall as its most elaborate desk, so a user
+	 * with no workspaces at all paid a row of empty space under every
+	 * tile for a button none of their desks could show.
+	 */
+	min-height: 22px;
+}
+
+/* Two 22px rows and the gap, once some desk on the bar can restore. */
+.os-overview-top-bar__list--restorable .os-overview-top-bar__tile-actions {
 	min-height: 48px;
 }
 
@@ -654,15 +664,39 @@
 }
 
 /*
- * The "+" stretches to the full row, which since Restore moved below
- * the tiles is taller than a tile alone. That is deliberate: it is not
- * a desk, it is the place another one goes, and a full-height dashed
- * column reads as the slot rather than as a tile that lost its label.
+ * The "+" is the place another desk goes, so it is the size of one.
+ * It sits in the same wrapper a desk does, above an empty actions
+ * block, which is what keeps the dashed box level with the tiles
+ * instead of stretching over the buttons underneath them.
  */
 .os-overview-top-bar__tile--add {
 	width: 60px;
 	background: transparent;
 	border-style: dashed;
+}
+
+/*
+ * The slot's own preview band: no gradient and no rule under it, since
+ * there is nothing to preview. It keeps the band's height, which is
+ * half of what makes the dashed box a tile tall.
+ */
+.os-overview-top-bar__tile--add .os-overview-top-bar__tile-preview {
+	background: none;
+	/* Transparent, not removed. The rule is 1px of the tile's height,
+	   and dropping it left the slot a pixel short of its neighbours. */
+	border-bottom-color: transparent;
+}
+
+/*
+ * The glyph centres in the whole slot, not in the preview band it
+ * happens to sit in. The two rows are there to make the box a tile
+ * tall; a desk splits them into a picture and a name, and the slot has
+ * neither, so its one mark belongs in the middle of the box. Taking it
+ * out of flow is what lets the rows still do the measuring.
+ */
+.os-overview-top-bar__tile--add .os-overview-top-bar__tile-plus {
+	position: absolute;
+	inset: 0;
 }
 
 .os-overview-top-bar__tile--add:hover {

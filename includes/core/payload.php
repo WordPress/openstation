@@ -455,8 +455,9 @@ function openstation_build_dock_items() {
  * escape to a browser tab, which breaks the shell's navigation model.
  * Those entries are dropped from the payload instead.
  *
- * Both `admin_url()` and `home_url()` hosts count as ours: a site can
- * run its admin on a different domain than its front end.
+ * `self_admin_url()`, `admin_url()` and `home_url()` hosts all count as
+ * ours: a site can run its admin on a different domain than its front
+ * end, and the network admin lives on the network's own.
  *
  * @param string $url Absolute URL, as returned by `openstation_menu_item_url()`.
  * @return bool True when the URL is off-site.
@@ -467,7 +468,7 @@ function openstation_menu_item_is_external( $url ) {
 
 	if ( $host ) {
 		$ours = array();
-		foreach ( array( admin_url(), home_url() ) as $known ) {
+		foreach ( array( self_admin_url(), admin_url(), home_url() ) as $known ) {
 			$known_host = wp_parse_url( $known, PHP_URL_HOST );
 			if ( $known_host ) {
 				$ours[] = strtolower( $known_host );
@@ -817,6 +818,17 @@ function openstation_is_core_menu_slug( $menu_slug ) {
 		'link-manager.php',       // Link manager (legacy)
 		'update-core.php',        // Dashboard > Updates
 	);
+
+	// The two top-level network menus the site admin has no filename
+	// for: without them, Sites and Settings sat in the apps zone while
+	// Dashboard, Users, Themes and Plugins — whose filenames the site
+	// admin shares — grouped correctly. Gated on the context, since
+	// `settings.php` is plausible enough as a plugin's own top-level
+	// slug that claiming it everywhere would misfile it.
+	if ( is_network_admin() ) {
+		$core_files[] = 'sites.php';
+		$core_files[] = 'settings.php';
+	}
 
 	return in_array( $base, $core_files, true );
 }
@@ -2375,6 +2387,20 @@ function openstation_collect_native_windows_payload() {
 	if ( ! function_exists( 'openstation_native_window_registry' ) ) {
 		return $empty;
 	}
+
+	// Every native window is site-scoped, reading the current site's
+	// REST API, so in the network admin a `users.php` tile meaning
+	// "everyone on the network" would open one site's user list.
+	//
+	// This is also what disarms the client-side URL remaps there: they
+	// match on the tail of a pathname (`endsWith( '/users.php' )`) and
+	// the network admin serves same-named files one directory down, but
+	// with nothing registered `openById()` finds no window and the
+	// remap falls through to the iframe.
+	if ( is_network_admin() ) {
+		return $empty;
+	}
+
 	$registry = openstation_native_window_registry();
 	if ( ! is_array( $registry ) ) {
 		return $empty;
@@ -2651,9 +2677,13 @@ function openstation_is_admin_file_slug( $slug ) {
 /**
  * Converts a menu item slug to a full admin URL.
  *
+ * Resolution goes through `self_admin_url()`, not `admin_url()`: in the
+ * network admin the same globals carry network slugs (`sites.php`,
+ * `settings.php`) that exist only under `wp-admin/network/`.
+ *
  * Handles three slug shapes:
  *  1. Direct file references (`edit.php`, `upload.php`) — passed
- *     through `admin_url()` as-is.
+ *     through `self_admin_url()` as-is.
  *  2. Plain plugin page slugs (`my-plugin`) — routed through
  *     `admin.php?page=<slug>` with the slug `rawurlencode()`d.
  *  3. Plugin page slugs that embed extra query parameters
@@ -2716,7 +2746,7 @@ function openstation_menu_item_url( $slug ) {
 		false !== strpos( $slug, '.php' ) &&
 		( ! isset( $_parent_pages[ $slug ] ) || openstation_is_admin_file_slug( $slug ) )
 	) {
-		return esc_url_raw( admin_url( $slug ) );
+		return esc_url_raw( self_admin_url( $slug ) );
 	}
 
 	// Plugin page slug with embedded query parameters
@@ -2758,7 +2788,7 @@ function openstation_menu_item_url( $slug ) {
 		}
 	}
 
-	$url = admin_url( $host );
+	$url = self_admin_url( $host );
 	if ( ! empty( $extra_args ) ) {
 		$url = add_query_arg( $extra_args, $url );
 	}

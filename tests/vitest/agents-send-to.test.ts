@@ -1,5 +1,5 @@
 /**
- * Unit tests for `src/my-wordpress/agents-send-to.ts` — the "Send to
+ * Unit tests for `apps/my-wordpress/parts/agents-send-to.ts` — the "Send to
  * <agent>" tile-context-menu intake: kind mapping, entityKinds gating,
  * and the dispatch a pick performs.
  */
@@ -18,15 +18,14 @@ import { installHooksStub } from './helpers/hooks-stub';
 
 // The module registers its filter at import time, which requires a
 // live `window.wp.hooks` bus — install the stub first, then import.
-let sendTo: typeof import( '../../src/my-wordpress/agents-send-to' );
+let sendTo: typeof import( '../../apps/my-wordpress/parts/agents-send-to' );
 
 beforeAll( async () => {
 	installHooksStub();
-	sendTo = await import( '../../src/my-wordpress/agents-send-to' );
+	sendTo = await import( '../../apps/my-wordpress/parts/agents-send-to' );
 	sendTo.registerSendToMenuFilter();
 } );
 
-const WINDOW_ID = 'desktop-mode-my-wordpress';
 const FILTER = 'os.my-wordpress.tile-context-menu';
 
 type FetchMock = ReturnType< typeof vi.fn >;
@@ -74,26 +73,19 @@ const AGENTS = [
 ];
 
 function installConfig( overrides: Record< string, unknown > = {} ): void {
-	( window as unknown as Record< string, unknown > ).openStationWindowConfig = {
-		[ WINDOW_ID ]: {
-			restRoot: 'https://example.test/wp-json/',
+	// The intake reads the SHELL config (`wp.os.config`) for its REST
+	// root + nonce; whether the agents routes exist arrives from the
+	// explorer app's payload via `setSendToEnabled()`.
+	const w = window as unknown as { wp?: { os?: Record< string, unknown > } };
+	w.wp = w.wp ?? {};
+	( w.wp as { os?: Record< string, unknown > } ).os = {
+		...( ( w.wp as { os?: Record< string, unknown > } ).os ?? {} ),
+		config: {
+			restUrl: 'https://example.test/wp-json/',
 			restNonce: 'test-nonce',
-			entities: [],
-			perPage: 24,
-			editPostUrlBase: '',
-			agents: {
-				enabled: true,
-				canEnable: true,
-				canManage: true,
-				canInvoke: true,
-				aiAvailable: true,
-				aiStatusUrl: '',
-				connectorsUrl: '',
-				runWindowId: 'desktop-mode-agent-run',
-				...overrides,
-			},
 		},
 	};
+	sendTo.setSendToEnabled( overrides.enabled !== false );
 }
 
 function stubListFetch(): FetchMock {

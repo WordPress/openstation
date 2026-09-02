@@ -78,6 +78,32 @@ export const modalStyles = css`
 		);
 		/* A black wash over a dark row is no wash at all. */
 		--os-ui-hover: var( --os-ui-modal-hover, rgba( 255, 255, 255, 0.08 ) );
+		/* Notices slotted into the dialog. Themes declare the notice
+		   INK for light windows (Legacy pins #1d2327), and a global
+		   declaration outranks the notice's own --os-ui-fg chain — so
+		   an info hint inside the dark dialog painted near-black on
+		   near-black. Same opt-out as the text colours above, through
+		   a modal-owned name the palette declares. The tone washes
+		   and accents stay themeable: at 8–16% alpha (or as a 4px
+		   rule) they read on either surface; only the body ink dies. */
+		--os-ui-notice-color: var( --os-ui-modal-text, #f0f0f1 );
+		/* The card. Its own tokens chain through --os-ui-surface, so
+		   under the brand palette the re-point above already reaches it.
+		   A desktop theme can pin them FLAT instead — Legacy writes
+		   --os-ui-card-bg: #fff — and a flat value never consults the
+		   surface it was meant to fall through to. The card then keeps
+		   the theme's light face while its text follows the dark
+		   dialog's --os-ui-fg: the Workspaces wizard opened on four
+		   white cards whose titles were white. Surface and hairlines
+		   are re-pointed to the modal's own; the selected ring stays
+		   the theme's, because that one is an accent, not a surface. */
+		--os-ui-card-bg: var( --os-ui-modal-surface, #2c3338 );
+		--os-ui-card-fg: var( --os-ui-modal-text, #f0f0f1 );
+		--os-ui-card-border: var( --os-ui-modal-border, rgba( 255, 255, 255, 0.25 ) );
+		--os-ui-card-border-hover: var(
+			--os-ui-modal-border-strong,
+			rgba( 255, 255, 255, 0.35 )
+		);
 	}
 
 	/*

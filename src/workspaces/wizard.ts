@@ -65,7 +65,7 @@ import { __ } from '../i18n';
 import {
 	createWallpaperPreviewManager,
 	type WallpaperPreviewManager,
-} from '../settings/sections/wallpaper-previews';
+} from '../wallpapers/preview-manager';
 import type { NavKind } from '../nav/types';
 import type {
 	WorkspaceAppearance,
@@ -424,12 +424,11 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 
 	/** Start — blank, or one of the templates. */
 	const renderStart = (): void => {
-		pane.appendChild(
-			heading(
-				__( 'What is this desktop for?' ),
-				__( 'A blank desktop is one click away. A template sets up the apps, widgets, look and windows for a job — and you can change any of it.' ),
-			),
-		);
+		// The heading asks the question and the cards answer it. The
+		// subtitle under it explained what a template was and that a
+		// blank desk was one click away, both of which the cards
+		// already say in their own descriptions.
+		pane.appendChild( heading( __( 'What is this desktop for?' ) ) );
 		const grid = el( 'os-grid', `${ ROOT_CLASS }__cards` );
 		grid.setAttribute( 'columns', '2' );
 		grid.setAttribute( 'gap', '10' );
@@ -445,14 +444,18 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 			icon: string,
 			title: string,
 			desc: string,
-			color: string,
 		): void => {
 			const card = el( 'os-card', `${ ROOT_CLASS }__card` );
 			card.setAttribute( 'interactive', '' );
 			card.setAttribute( 'compact', '' );
-			if ( color ) {
-				card.style.setProperty( '--os-workspace-accent', color );
-			}
+			// The template's colour is deliberately NOT painted on the
+			// card. A preset carries the product's own hex — Woo
+			// purple, a green, a red — and four cards in four brands
+			// is a grid that belongs to nobody, least of all us. The
+			// colour still does its job where it was meant to: on the
+			// desk's overview tile, telling one desk from another.
+			// Here every glyph is the same muted tone and the selected
+			// ring is the only lit thing in the step.
 			const header = el( 'div', `${ ROOT_CLASS }__card-header` );
 			header.slot = 'header';
 			const glyph = el( 'os-icon', `${ ROOT_CLASS }__card-icon` );
@@ -488,16 +491,9 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 			'dashicons-desktop',
 			__( 'Blank desktop' ),
 			__( 'Just a new, empty desk. Turn it into a workspace later if you like.' ),
-			'',
 		);
 		for ( const preset of options.presets ) {
-			addCard(
-				preset.id,
-				preset.icon,
-				preset.label,
-				preset.description,
-				preset.color,
-			);
+			addCard( preset.id, preset.icon, preset.label, preset.description );
 		}
 		paintSelected();
 		pane.appendChild( grid );
@@ -900,8 +896,17 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 		const paintChips = (): void => {
 			chips.replaceChildren();
 			if ( draft.windows.length === 0 ) {
+				// Only offer the capture when the capture is there.
+				// `captureWindows` is an edit-mode option (a desk
+				// being created has no windows of its own to keep),
+				// so on the create pass the second half of this
+				// sentence named a button that was not in the dialog.
 				chips.appendChild(
-					hint( __( 'Nothing yet — add an app below, or capture the windows you have open.' ) ),
+					hint(
+						options.captureWindows
+							? __( 'Nothing yet — add an app below, or capture the windows you have open.' )
+							: __( 'Nothing yet — add an app below.' ),
+					),
 				);
 				return;
 			}
@@ -1027,8 +1032,27 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 			footer.appendChild( back );
 		}
 
-		// Create / Save is on EVERY step. It is the escape hatch: the
-		// wizard can be left at any point with whatever has been set.
+		// Next / Customize goes BEFORE the primary, because the primary
+		// is last. A footer that put a secondary to the right of the
+		// pink button asked the user to read the row twice: the
+		// rightmost seat is where a dialog's answer lives, and it was
+		// holding "Next" on four steps out of six and "Customize" on
+		// another, so the button under the pointer meant something
+		// different on every screen.
+		if ( ! last ) {
+			const next = el( 'os-button' );
+			next.setAttribute( 'variant', 'secondary' );
+			next.textContent = onStart ? __( 'Customize' ) : __( 'Next' );
+			next.addEventListener( 'click', () => go( stepIndex + 1 ) );
+			footer.appendChild( next );
+		}
+
+		// Create / Save is on EVERY step, and always in the same seat.
+		// It is the escape hatch: the wizard can be left at any point
+		// with whatever has been set, so it is the one thing that must
+		// never move. Keeping it primary on the Start step is what
+		// makes `+` then Enter a plain new desktop: the focus call at
+		// the bottom of this module lands on it.
 		primary = el( 'os-button' );
 		primary.setAttribute( 'variant', 'primary' );
 		if ( isEdit ) {
@@ -1042,14 +1066,6 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 		}
 		primary.addEventListener( 'click', commit );
 		footer.appendChild( primary );
-
-		if ( ! last ) {
-			const next = el( 'os-button' );
-			next.setAttribute( 'variant', 'secondary' );
-			next.textContent = onStart ? __( 'Customize' ) : __( 'Next' );
-			next.addEventListener( 'click', () => go( stepIndex + 1 ) );
-			footer.appendChild( next );
-		}
 	};
 
 	// --- Navigation -----------------------------------------------

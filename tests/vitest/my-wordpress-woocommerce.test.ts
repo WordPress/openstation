@@ -118,7 +118,7 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 		installHooksStub();
 		setConfig();
 		stubSummary( {} );
-		await import( '../../src/my-wordpress/integrations/woocommerce' );
+		await import( '../../src/plugins/my-wordpress-woocommerce/index' );
 	} );
 
 	afterAll( () => clearHooksStub() );
@@ -1086,6 +1086,23 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 			expect( actions.map( ( a ) => a.id ) ).toEqual( [ 'open-profile' ] );
 			// Something has to be the primary action.
 			expect( actions[ 0 ].variant ).toBe( 'primary' );
+		} );
+
+		test( 'a people surface whose rows carry no customer facts gets no money panel', () => {
+			// The My WordPress app's Users folder ships its rows
+			// without `openstation_woo_customer` on purpose — a person
+			// there is someone who writes. Outside the Customers
+			// section, the facts' presence is the opt-in.
+			const container = document.createElement( 'div' );
+			document.body.appendChild( container );
+			doAction( 'os.my-wordpress.preview-extras', {
+				slot: 'meta',
+				container,
+				entityId: 'users',
+				kind: 'user',
+				item: { id: 11 },
+			} );
+			expect( container.querySelector( '.os-woo-panel' ) ).toBeNull();
 		} );
 
 		test( 'a user preview asks for the customer summary', async () => {

@@ -64,6 +64,19 @@
  * remembered and applied when the morph settles, so a pointer
  * skating along the edge never stacks animations.
  *
+ * **A park never starts while a pointer button is down.** The morph's
+ * snapshot layer sits over the page until the transition settles, and
+ * a click is a pointerdown followed, a human beat later, by a
+ * pointerup: the down lands on the button the user meant, parks the
+ * rail (the pointer is far from it), and the up then lands on the
+ * transition layer — no click. Every first click in a window opened
+ * from the rail died this way, the button visibly pressing and
+ * nothing happening. So a park requested between a down and its up
+ * waits for the up. A reveal never waits: nothing is under the
+ * pointer but the line it is summoning. `dock.css` also lets pointer
+ * events through the transition layer, which is what keeps a hover
+ * over a tile alive while the rail is still morphing out.
+ *
  * Nothing here costs anything while every rail is `static`: the
  * pointer handler skips a static rail on its first line.
  */
@@ -223,6 +236,9 @@ export function installDockBehavior( deps: DockBehaviorDeps ): DockBehaviorContr
 	/** Per rail: a morph in flight, and the state requested during it. */
 	const inFlight = new Map< HTMLElement, Promise< void > >();
 	const pending = new Map< HTMLElement, boolean >();
+	/** A pointer button is held; a park asked for meanwhile waits for the release. */
+	let buttonDown = false;
+	let parkAfterRelease = false;
 
 	const rails = (): HTMLElement[] =>
 		Array.from( deps.shellBody.querySelectorAll< HTMLElement >( '.os-dock' ) );
@@ -263,6 +279,13 @@ export function installDockBehavior( deps: DockBehaviorDeps ): DockBehaviorContr
 	const setRevealed = ( rail: HTMLElement, next: boolean ): void => {
 		if ( rail.classList.contains( REVEALED_CLASS ) === next ) {
 			pending.delete( rail );
+			return;
+		}
+		if ( ! next && buttonDown ) {
+			// Mid-click. The morph would put its layer between the
+			// pointer and the button the down just pressed; park once
+			// the up has landed. See the module docblock.
+			parkAfterRelease = true;
 			return;
 		}
 		if ( inFlight.has( rail ) ) {
@@ -355,7 +378,22 @@ export function installDockBehavior( deps: DockBehaviorDeps ): DockBehaviorContr
 		} );
 	};
 	const onLayoutChanged = (): void => evaluate();
+	// Capture phase, so the flag is set before `onPointer` (bubbling)
+	// evaluates the down, and cleared before anything reacts to the up.
+	const onButtonDown = (): void => {
+		buttonDown = true;
+	};
+	const onButtonUp = (): void => {
+		buttonDown = false;
+		if ( parkAfterRelease ) {
+			parkAfterRelease = false;
+			evaluate();
+		}
+	};
 
+	document.addEventListener( 'pointerdown', onButtonDown, { capture: true, passive: true } );
+	document.addEventListener( 'pointerup', onButtonUp, { capture: true, passive: true } );
+	document.addEventListener( 'pointercancel', onButtonUp, { capture: true, passive: true } );
 	document.addEventListener( 'pointermove', onPointer, { passive: true } );
 	// A tap has no move before it: the indicator line is the target
 	// on touch, and the down is what should summon the rail.
@@ -384,6 +422,9 @@ export function installDockBehavior( deps: DockBehaviorDeps ): DockBehaviorContr
 				focusFrame = 0;
 			}
 			bodyObserver?.disconnect();
+			document.removeEventListener( 'pointerdown', onButtonDown, { capture: true } );
+			document.removeEventListener( 'pointerup', onButtonUp, { capture: true } );
+			document.removeEventListener( 'pointercancel', onButtonUp, { capture: true } );
 			document.removeEventListener( 'pointermove', onPointer );
 			document.removeEventListener( 'pointerdown', onPointer );
 			document.removeEventListener( 'focusin', onFocusChange );

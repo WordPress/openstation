@@ -266,6 +266,45 @@ function openstation_station_home_get_card_preferences( $user_id = 0 ) {
 }
 
 /**
+ * Store one explicit card choice for a user.
+ *
+ * The write half of the preference map: the Station Home app's
+ * Customize switches land here, and so may any plugin that wants to
+ * flip a card on a user's behalf. Refuses ids that are not registered
+ * for the current user, so a stale switch cannot mint a preference
+ * for a card that no longer exists.
+ *
+ * @param int    $user_id User id.
+ * @param string $id      Card id.
+ * @param bool   $enabled New explicit state.
+ * @return bool Whether the choice was stored.
+ */
+function openstation_station_home_set_card_preference( $user_id, $id, $enabled ) {
+	$user_id = (int) $user_id;
+	$id      = sanitize_key( (string) $id );
+	$cards   = openstation_station_home_get_registered_cards();
+	if ( $user_id <= 0 || '' === $id || ! isset( $cards[ $id ] ) ) {
+		return false;
+	}
+
+	$enabled            = (bool) $enabled;
+	$preferences        = openstation_station_home_get_card_preferences( $user_id );
+	$preferences[ $id ] = $enabled;
+	update_user_meta( $user_id, OPENSTATION_STATION_HOME_CARD_PREFERENCES_META, $preferences );
+
+	/**
+	 * Fires after a user opts in to or out of a Station Home card.
+	 *
+	 * @param int    $user_id User id.
+	 * @param string $id      Card id.
+	 * @param bool   $enabled New explicit state.
+	 */
+	do_action( 'openstation_station_home_card_preference_updated', $user_id, $id, $enabled );
+
+	return true;
+}
+
+/**
  * Resolve a card's effective per-user enabled state.
  *
  * @param string $id          Card id.

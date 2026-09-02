@@ -100,6 +100,7 @@ require_once OPENSTATION_DIR . 'includes/admin-bar.php';
 // `openstation_sanitize_workspace_profile()` on every desktop it reads.
 require_once OPENSTATION_DIR . 'includes/workspaces.php';
 require_once OPENSTATION_DIR . 'includes/session.php';
+require_once OPENSTATION_DIR . 'includes/multisite.php';
 require_once OPENSTATION_DIR . 'includes/presence.php';
 require_once OPENSTATION_DIR . 'includes/nonce-refresh.php';
 require_once OPENSTATION_DIR . 'includes/os-settings.php';
@@ -179,10 +180,17 @@ require_once OPENSTATION_DIR . 'includes/users-window/bootstrap.php';
 require_once OPENSTATION_DIR . 'includes/user-edit-window/bootstrap.php';
 require_once OPENSTATION_DIR . 'includes/plugins-window/bootstrap.php';
 require_once OPENSTATION_DIR . 'includes/comments-window/bootstrap.php';
-require_once OPENSTATION_DIR . 'includes/station-home/bootstrap.php';
+// Station Home is an App Framework app (`apps/station-home/`); only
+// its plugin-card registry — a public API plugins call on `init` —
+// lives here, so it exists before any app loads.
+require_once OPENSTATION_DIR . 'includes/station-home/cards.php';
 require_once OPENSTATION_DIR . 'includes/my-wordpress/bootstrap.php';
 require_once OPENSTATION_DIR . 'includes/content-graph/bootstrap.php';
-require_once OPENSTATION_DIR . 'includes/code-blue/bootstrap.php';
+// The App Framework: `.os.php` windows under `apps/` (Code Blue lives
+// there) and any directory a plugin adds. Loads after the registries
+// it registers into and after the feature modules, so an app can
+// hook them.
+require_once OPENSTATION_DIR . 'includes/framework/wordpress.php';
 require_once OPENSTATION_DIR . 'includes/living-tree/bootstrap.php';
 require_once OPENSTATION_DIR . 'includes/games/bootstrap.php';
 require_once OPENSTATION_DIR . 'includes/agents/bootstrap.php';

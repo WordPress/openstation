@@ -528,15 +528,25 @@
 }
 
 /*
- * The span, as "cols × rows", in the target's corner. A user picking
- * a 3×2 wants to know it is 3×2 before letting go; the count is what
- * makes the grid a tool rather than a decoration.
+ * The span, as "cols × rows", in the MIDDLE of the target. A user
+ * picking a 3×2 wants to know it is 3×2 before letting go; the count
+ * is what makes the grid a tool rather than a decoration, but only
+ * if it is read, and in the corner it was not. The pointer is
+ * somewhere inside the target by definition, so the centre is the
+ * shortest average trip for the eye; on a 2×5 the corner could be
+ * several hundred pixels from the hand.
+ *
+ * Centred rather than pinned to the pointer on purpose: a badge that
+ * tracked the cursor would rewrite its position every move, and a
+ * number that slides while you read it is harder to read than one
+ * that waits. It only moves when the span does.
  */
 .os-grid-snap__target::after {
 	content: attr( data-cols ) ' × ' attr( data-rows );
 	position: absolute;
-	top: 8px;
-	inset-inline-start: 10px;
+	top: 50%;
+	left: 50%;
+	transform: translate( -50%, -50% );
 	padding: 2px 7px;
 	border-radius: 6px;
 	background: var( --os-ui-scrim, rgba( 0, 0, 0, 0.55 ) );

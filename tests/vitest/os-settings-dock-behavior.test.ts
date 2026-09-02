@@ -16,7 +16,6 @@ import { OsSettings } from '../../src/settings';
 import { DEFAULTS, STORAGE_KEY } from '../../src/settings/constants';
 import { loadState } from '../../src/settings/state';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
-import type { OsSettingsConfig } from '../../src/settings/types';
 import type { WallpaperLayer } from '../../src/wallpapers/layer';
 
 const BEHAVIORS = [ 'static', 'dynamic' ] as const;
@@ -24,7 +23,7 @@ const ATTR = 'data-os-dock-behavior';
 
 function makeSettings(): OsSettings {
 	const layer = { apply: vi.fn() } as unknown as WallpaperLayer;
-	return new OsSettings( {} as OsSettingsConfig, layer );
+	return new OsSettings( layer );
 }
 
 let dock: HTMLElement;

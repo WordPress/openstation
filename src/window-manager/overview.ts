@@ -525,6 +525,17 @@ function buildOverviewTopBar( mgr: WindowManager ): HTMLElement {
 	list.className = 'os-overview-top-bar__list';
 	bar.appendChild( list );
 
+	// How many action rows every tile reserves under it. Edit is on
+	// every desk, so one row is always paid for; Restore is on the
+	// desks that have something to restore, and the bar only grows to
+	// two rows once at least one of them does. Reserved for ALL tiles
+	// or none, never per tile: the rows sit below the tile, so a tile
+	// that reserved fewer would ride up out of line with its
+	// neighbours. A user with no workspaces gets the bar they had.
+	if ( mgr._desktops.some( workspaceCanRestore ) ) {
+		list.classList.add( 'os-overview-top-bar__list--restorable' );
+	}
+
 	for ( const d of mgr._desktops ) {
 		list.appendChild( buildDesktopTile( mgr, d ) );
 	}
@@ -544,14 +555,38 @@ function buildOverviewTopBar( mgr: WindowManager ): HTMLElement {
 		);
 	}
 	addTile.setAttribute( 'aria-label', __( 'Add new desktop' ) );
+	// The same two rows a desk tile has: a preview band with the glyph
+	// centred in it, and a label strip below. Empty ones, but present,
+	// so the dashed box is the height of a tile BY CONSTRUCTION rather
+	// than by a number copied from the tile's rules that would drift
+	// the first time one of them changed. The label carries a
+	// non-breaking space because an empty span has no line box, and
+	// the strip has to be as tall as the one holding "Desktop 1".
 	addTile.innerHTML =
-		'<span class="os-overview-top-bar__tile-plus" aria-hidden="true">+</span>';
+		'<span class="os-overview-top-bar__tile-preview">' +
+		'<span class="os-overview-top-bar__tile-plus" aria-hidden="true">+</span>' +
+		'</span>' +
+		'<span class="os-overview-top-bar__tile-label" aria-hidden="true">&nbsp;</span>';
 	addTile.addEventListener( 'click', ( e: MouseEvent ) => {
 		e.preventDefault();
 		e.stopPropagation();
 		commitAddTile( mgr );
 	} );
-	list.appendChild( addTile );
+	// Wrapped like a desk, so it is the height of one. The list
+	// stretches its children to the tallest, and a desk is a tile
+	// PLUS the action rows underneath it; unwrapped, the `+` stretched
+	// to cover both and stood a third taller than the tiles beside it.
+	// The wrapper gives it the same column and an empty actions block
+	// in place of the buttons a desk has, so the dashed box ends level
+	// with the tiles and the empty row below it lines up too.
+	const addWrapper = document.createElement( 'div' );
+	addWrapper.className =
+		'os-overview-top-bar__tile-wrapper os-overview-top-bar__tile-wrapper--add';
+	addWrapper.appendChild( addTile );
+	const addActions = document.createElement( 'div' );
+	addActions.className = 'os-overview-top-bar__tile-actions';
+	addWrapper.appendChild( addActions );
+	list.appendChild( addWrapper );
 
 	return bar;
 }

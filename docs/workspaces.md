@@ -127,15 +127,21 @@ Everything on the list is visual and instantly reversible, which is the test for
 
 The wizard's **Look** step is a real picker — wallpaper swatches (the same previews the Preferences grid paints), accent swatches, and the dock's behaviour — plus **"Use the look I have now"**, which captures the shell's current appearance into the profile. `wp.os.workspaces.captureAppearance()` is the same call. The desktop theme and the finer dock settings are not in the wizard; they are set in Preferences and captured from there.
 
-## Provisioning runs once, not once per visit
+## Provisioning runs once; a reload restores the definition
 
-The launch list runs **once per workspace**, guarded by `profile.provisioned`. Close a window the workspace opened, switch away, come back — the desk stays as you left it. Without that, a workspace would refuse to be tidied.
+The launch list is **arranged once per workspace**, guarded by `profile.provisioned`. Provisioning is the first-entry act: it opens the windows and runs the layout, then leaves your arrangement alone. Switch away and back within a session and the desk stays as you left it — a workspace has to be tidyable while you work.
 
-The flag is claimed *before* the windows open: opening a window is asynchronous, and a second switch landing mid-pass would otherwise run the whole list again and leave the desk with two of everything.
+A **reload is different**. A workspace's launch-list windows and its widget column are part of what the desk *is*, not a one-time suggestion, so a reload restores that definition: any launch window you had closed reopens, and any widget you had closed remounts. On boot, `reopenWorkspaceWindows()` runs after session restore and opens only the launch entries whose window the restore did not already bring back — it never touches a window that is open, never re-runs the layout (a hand-moved window would jump), and never re-stamps `provisioned`. The widget column is re-asserted in the same beat by `applyWorkspaceView()`.
+
+So the rule a launch window and a column widget both follow: **closing one hides it for the rest of this visit; arriving at the desk again restores it.** To take a window or widget off a desk for good, drop it in the wizard's **Edit** step, which writes the profile directly — the same way you added it. This mirrors apps: you do not remove an app from a desk by closing its window.
+
+The `provisioned` flag is claimed *before* the windows open: opening a window is asynchronous, and a second switch landing mid-pass would otherwise run the whole list again and leave the desk with two of everything.
 
 The layout is applied on the next frame, not inline — every arrangement reads the work area and the windows' own boxes, and a window created in this tick has neither until the browser has laid it out.
 
-`provision( id, { force: true } )` runs it anyway. That is the user asking on purpose — Restore under a tile — which is a different question from the shell deciding on its own, so every automatic caller leaves the flag off.
+`provision( id, { force: true } )` runs the whole list and the layout again. That is the user asking on purpose — Restore under a tile — which re-tiles as well as reopens, unlike the reload pass; so every automatic caller leaves the flag off.
+
+A **closed widget is no longer recorded as an edit** to the desk. Under an `only` column, adding a widget still records it on the profile (the desk keeps what you gave it), but closing one does not remove it — otherwise the reload promise above could not hold. Permanent removal is the wizard's job.
 
 ### Keep this desk
 

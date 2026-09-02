@@ -61,12 +61,10 @@ class Tests_OpenStation_DeferredWindowStyles extends WP_UnitTestCase {
 	 *
 	 * The plugin registers on `init`, which fired during bootstrap
 	 * with no user logged in — capability-gated windows (all of
-	 * them) declined to register. Same shape the Station Home test
-	 * uses, across the whole family.
+	 * them) declined to register.
 	 */
 	private function register_built_in_windows() {
 		$registrars = array(
-			'openstation_my_wordpress_register_window',
 			'openstation_posts_window_register_window',
 			'openstation_pages_window_register_window',
 			'openstation_users_window_register_window',
@@ -75,9 +73,11 @@ class Tests_OpenStation_DeferredWindowStyles extends WP_UnitTestCase {
 			'openstation_plugins_window_register_window',
 			'openstation_content_graph_register_window',
 			'openstation_games_register_window',
-			'openstation_station_home_register_window',
 			'openstation_agent_run_window_register',
-			'openstation_code_blue_register_window',
+			// Code Blue, WP Explorer, Trash and Station Home are App
+			// Framework `.os.php` files; the framework registers every
+			// allowed app in one pass.
+			'openstation_apps_register_windows',
 			'openstation_my_wordpress_woo_customer_window_register',
 		);
 		foreach ( $registrars as $registrar ) {
@@ -90,14 +90,14 @@ class Tests_OpenStation_DeferredWindowStyles extends WP_UnitTestCase {
 	/**
 	 * Built-in windows whose stylesheet must travel as a companion
 	 * (`styles`), never as the sync-injected `style` and never as a
-	 * boot enqueue. Conditionally-registered windows (Station Home
-	 * opt-in, agents, games behind their feature gates) are asserted
-	 * only when present in the payload.
+	 * boot enqueue. Conditionally-registered windows (agents, games
+	 * behind their feature gates) are asserted only when present in
+	 * the payload.
 	 *
 	 * @var string[]
 	 */
 	const DEFERRED_WINDOW_IDS = array(
-		'desktop-mode-my-wordpress',
+		'my-wordpress',
 		'desktop-mode-posts',
 		'desktop-mode-pages',
 		'desktop-mode-users',
@@ -119,11 +119,12 @@ class Tests_OpenStation_DeferredWindowStyles extends WP_UnitTestCase {
 	 * @var string[]
 	 */
 	const ALWAYS_PRESENT = array(
-		'desktop-mode-my-wordpress',
+		'my-wordpress',
 		'desktop-mode-posts',
 		'desktop-mode-pages',
 		'desktop-mode-comments',
 		'desktop-mode-plugins',
+		'desktop-mode-dashboard',
 	);
 
 	/**
@@ -168,7 +169,7 @@ class Tests_OpenStation_DeferredWindowStyles extends WP_UnitTestCase {
 	 */
 	public function test_recycle_bin_stylesheet_stays_on_the_boot_path() {
 		$this->assertNotFalse(
-			has_action( 'admin_enqueue_scripts', 'openstation_recycle_bin_localize_config' ),
+			has_action( 'admin_enqueue_scripts', 'openstation_recycle_bin_enqueue_style' ),
 			'The recycle-bin boot attach vanished — if its enqueue moved, the dock drop-target styling moved with it.'
 		);
 	}
@@ -201,11 +202,11 @@ class Tests_OpenStation_DeferredWindowStyles extends WP_UnitTestCase {
 	 */
 	public function test_shell_surface_handles_resolve_into_the_map() {
 		$map = openstation_build_deferred_styles(
-			array( 'os-settings', 'desktop-mode-ai-assistant', 'desktop-mode-bug-report' )
+			array( 'desktop-mode-ai-assistant', 'desktop-mode-bug-report' )
 		);
 
 		$this->assertSame(
-			array( 'os-settings', 'desktop-mode-ai-assistant', 'desktop-mode-bug-report' ),
+			array( 'desktop-mode-ai-assistant', 'desktop-mode-bug-report' ),
 			array_keys( $map ),
 			'A shell-surface stylesheet handle stopped resolving — its surface will open unstyled.'
 		);

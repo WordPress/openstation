@@ -28,6 +28,7 @@
  */
 
 import { applyFilters } from '../hooks';
+import { openExplorerDetail } from '../open-targets/explorer-open';
 import { osConfirm } from '../os-confirm';
 import type { SelectionAction } from '../selection';
 import { openCreateFolderDialog } from './create-folder-dialog';
@@ -141,36 +142,20 @@ function renameFolder( placement: RestPlacementShape ): void {
 	} );
 }
 
-/** Route a "Navigate into" pick to My WordPress's detail dossier. */
+/** Route a "Navigate into" pick to the explorer's detail dossier. */
 function navigateIntoPost( placement: RestPlacementShape ): void {
 	const postId = parseInt( placement.file.ref, 10 );
 	if ( ! postId ) {
 		return;
 	}
-	const api = (
-		window.wp as
-			| {
-					os?: {
-						myWordpress?: {
-							openDetail: ( a: {
-								entityId: string;
-								postId: number;
-								postTitle: string;
-							} ) => void;
-						};
-					};
-			}
-			| undefined
-	)?.os?.myWordpress;
-	// Map the post type → the My WordPress entity id. Pages live under
+	// Map the post type → the explorer section id. Pages live under
 	// `pages`; everything else (post + CPTs) defaults to `posts`.
 	const postType =
 		typeof placement.file.postType === 'string'
 			? ( placement.file.postType as string )
 			: 'post';
-	const entityId = postType === 'page' ? 'pages' : 'posts';
-	api?.openDetail( {
-		entityId,
+	openExplorerDetail( {
+		entityId: postType === 'page' ? 'pages' : 'posts',
 		postId,
 		postTitle: placement.file.title || `#${ postId }`,
 	} );

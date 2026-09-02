@@ -21,6 +21,12 @@
 /CLAUDE.md          export-ignore
 /AGENTS.md          export-ignore
 
+# App Framework client-view sources. `apps/` ships (it holds the
+# `.os.php` windows, their PHP helpers and their stylesheets), but the
+# TypeScript beside them is source: it is built into
+# assets/js/apps/<name>.min.js, which bin/package.sh splices in.
+apps/**/*.ts       export-ignore
+
 # Source + build config (assets/js/*.js is the shipped output)
 /assets/js/*.report.html export-ignore
 /src/               export-ignore

@@ -1,12 +1,12 @@
 /**
- * Per-wallpaper settings — the shared store, the OS Settings config
- * button, and the `<os-modal>` config dialog.
+ * Per-wallpaper settings — the shared store, the Preferences app's
+ * config button, and the `<os-modal>` config dialog.
  *
  * Covers: store seed/get/publish semantics (including the
  * settings-changed action), the config button rendering only for
  * defs that ship `renderConfig`, and the dialog wiring — the
  * wallpaper's `renderConfig` receives the persisted settings and its
- * `setSettings` merges + saves + publishes.
+ * `setSettings` merges, writes the store, and publishes.
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
@@ -17,31 +17,35 @@ import {
 	seedWallpaperSettings,
 } from '../../src/wallpapers/settings-store';
 import { HOOKS } from '../../src/hooks';
+import { render } from '../../src/ui/core';
+import { mockViewContext } from '../../src/app-runtime/testing';
 import {
 	openWallpaperConfigDialog,
-	syncWallpaperConfigButton,
-} from '../../src/settings/sections/wallpaper';
-import type { SettingsCtx } from '../../src/settings/types';
+	wallpaperSection,
+} from '../../apps/os-settings/parts/wallpaper';
 import type { WallpaperConfigContext } from '../../src/wallpapers/types';
+import { installOsSettingsStub, type OsSettingsStub } from './helpers/os-settings-stub';
+import { appData, appExtra } from './helpers/os-settings-app';
 
-function slotElement(): HTMLElement {
-	const slot = document.createElement( 'div' );
-	slot.dataset.expanded = 'false';
-	slot.appendChild( document.createElement( 'div' ) );
-	document.body.appendChild( slot );
-	return slot;
-}
+let stub: OsSettingsStub;
 
-function ctxFor( wallpaper: string ): SettingsCtx {
-	return {
-		state: { wallpaper, wallpaperSettings: {} },
-		save: vi.fn(),
-		apply: vi.fn(),
-	} as unknown as SettingsCtx;
+function paint( wallpaper: string ): HTMLElement {
+	stub.state.wallpaper = wallpaper;
+	const root = document.createElement( 'div' );
+	document.body.appendChild( root );
+	const ctx = mockViewContext( {
+		state: { tab: 'appearance' },
+		data: appData(),
+		root,
+		extra: appExtra(),
+	} );
+	render( wallpaperSection( stub.state, ctx ), root );
+	return root;
 }
 
 beforeEach( () => {
 	installHooksStub();
+	stub = installOsSettingsStub();
 	seedWallpaperSettings( {} );
 } );
 
@@ -67,10 +71,8 @@ describe( 'wallpaper settings store', () => {
 
 	test( 'seed replaces prior content silently', () => {
 		const heard: unknown[] = [];
-		window.wp!.hooks!.addAction(
-			HOOKS.WALLPAPER_SETTINGS_CHANGED,
-			'test/seed',
-			( detail ) => heard.push( detail ),
+		window.wp!.hooks!.addAction( HOOKS.WALLPAPER_SETTINGS_CHANGED, 'test/seed', ( detail ) =>
+			heard.push( detail ),
 		);
 		seedWallpaperSettings( { 'test-a': { wind: 10 } } );
 		seedWallpaperSettings( { 'test-b': { size: 5 } } );
@@ -80,12 +82,9 @@ describe( 'wallpaper settings store', () => {
 	} );
 
 	test( 'publish stores values and fires the settings-changed action', () => {
-		const heard: Array<{ id?: string; settings?: Record<string, unknown> }> = [];
-		window.wp!.hooks!.addAction(
-			HOOKS.WALLPAPER_SETTINGS_CHANGED,
-			'test/publish',
-			( ...args: unknown[] ) =>
-				heard.push( args[ 0 ] as ( typeof heard )[ number ] ),
+		const heard: Array< { id?: string; settings?: Record< string, unknown > } > = [];
+		window.wp!.hooks!.addAction( HOOKS.WALLPAPER_SETTINGS_CHANGED, 'test/publish', ( ...args: unknown[] ) =>
+			heard.push( args[ 0 ] as ( typeof heard )[ number ] ),
 		);
 		publishWallpaperSettings( 'test-a', { wind: 42 } );
 		expect( getWallpaperSettings( 'test-a' ) ).toEqual( { wind: 42 } );
@@ -105,8 +104,8 @@ describe( 'wallpaper config button', () => {
 			preview: '#111111',
 			renderConfig: () => () => {},
 		} );
-		const slot = slotElement();
-		syncWallpaperConfigButton( ctxFor( 'test-configurable' ), slot );
+		const root = paint( 'test-configurable' );
+		const slot = root.querySelector< HTMLElement >( '.os-settings__wallpaper-config-slot' )!;
 		expect( slot.dataset.expanded ).toBe( 'true' );
 		expect( slot.querySelector( 'os-button' ) ).not.toBeNull();
 	} );
@@ -119,16 +118,17 @@ describe( 'wallpaper config button', () => {
 			value: '#222222',
 			preview: '#222222',
 		} );
-		const slot = slotElement();
-		slot.dataset.expanded = 'true';
-		syncWallpaperConfigButton( ctxFor( 'test-plain' ), slot );
+		const root = paint( 'test-plain' );
+		const slot = root.querySelector< HTMLElement >( '.os-settings__wallpaper-config-slot' )!;
 		expect( slot.dataset.expanded ).toBe( 'false' );
+		expect( slot.querySelector( 'os-button' ) ).toBeNull();
 	} );
 } );
 
 describe( 'wallpaper config dialog', () => {
-	test( 'renderConfig gets persisted settings; setSettings merges, saves, publishes', () => {
+	test( 'renderConfig gets persisted settings; setSettings merges, writes the store, publishes', () => {
 		seedWallpaperSettings( { 'test-configurable': { wind: 10 } } );
+		stub.state.wallpaperSettings[ 'test-configurable' ] = { wind: 10 };
 
 		let received: WallpaperConfigContext | null = null;
 		const def = {
@@ -144,18 +144,12 @@ describe( 'wallpaper config dialog', () => {
 		};
 		registry.register( def );
 
-		const ctx = ctxFor( 'test-configurable' );
-		ctx.state.wallpaperSettings[ 'test-configurable' ] = { wind: 10 };
-
-		const heard: Array<{ settings?: Record<string, unknown> }> = [];
-		window.wp!.hooks!.addAction(
-			HOOKS.WALLPAPER_SETTINGS_CHANGED,
-			'test/dialog',
-			( ...args: unknown[] ) =>
-				heard.push( args[ 0 ] as ( typeof heard )[ number ] ),
+		const heard: Array< { settings?: Record< string, unknown > } > = [];
+		window.wp!.hooks!.addAction( HOOKS.WALLPAPER_SETTINGS_CHANGED, 'test/dialog', ( ...args: unknown[] ) =>
+			heard.push( args[ 0 ] as ( typeof heard )[ number ] ),
 		);
 
-		openWallpaperConfigDialog( ctx, def );
+		openWallpaperConfigDialog( def );
 
 		const modal = document.body.querySelector( 'os-modal' );
 		expect( modal ).not.toBeNull();
@@ -164,16 +158,12 @@ describe( 'wallpaper config dialog', () => {
 		expect( received!.settings ).toEqual( { wind: 10 } );
 
 		received!.setSettings( { size: 8 } );
-		// Merge (not replace), persisted into state + saved + published.
-		expect( ctx.state.wallpaperSettings[ 'test-configurable' ] ).toEqual( {
-			wind: 10,
-			size: 8,
-		} );
-		expect( ctx.save ).toHaveBeenCalled();
-		expect( getWallpaperSettings( 'test-configurable' ) ).toEqual( {
-			wind: 10,
-			size: 8,
-		} );
+		// Merge (not replace), written through the public API, published.
+		expect( stub.updateOsSettings ).toHaveBeenCalledWith(
+			{ wallpaperSettings: { 'test-configurable': { wind: 10, size: 8 } } },
+			expect.anything(),
+		);
+		expect( getWallpaperSettings( 'test-configurable' ) ).toEqual( { wind: 10, size: 8 } );
 		expect( heard ).toHaveLength( 1 );
 		expect( heard[ 0 ].settings ).toEqual( { wind: 10, size: 8 } );
 	} );
@@ -190,13 +180,11 @@ describe( 'wallpaper config dialog', () => {
 		};
 		registry.register( def );
 
-		openWallpaperConfigDialog( ctxFor( 'test-configurable' ), def );
+		openWallpaperConfigDialog( def );
 		const modal = document.body.querySelector( 'os-modal' );
 		expect( modal ).not.toBeNull();
 
-		modal!.dispatchEvent(
-			new CustomEvent( 'os-modal-cancel', { bubbles: true } ),
-		);
+		modal!.dispatchEvent( new CustomEvent( 'os-modal-cancel', { bubbles: true } ) );
 		expect( teardown ).toHaveBeenCalledTimes( 1 );
 		expect( document.body.querySelector( 'os-modal' ) ).toBeNull();
 	} );

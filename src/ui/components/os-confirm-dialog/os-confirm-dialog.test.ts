@@ -309,6 +309,92 @@ describe( 'os-confirm-dialog', () => {
 		expect( opener.ownerDocument.activeElement ).toBe( opener );
 	} );
 
+	test( 'no remember checkbox unless rememberLabel asks for one', async () => {
+		const { osConfirm } = await load();
+		const promise = osConfirm( { message: 'X' } );
+		await tick();
+		const dialog = document.querySelector< HTMLElement >( 'os-confirm-dialog' )!;
+		expect( dialog.shadowRoot!.querySelector( '.remember' ) ).toBeNull();
+		dialog.shadowRoot!.querySelector< HTMLButtonElement >( '.btn--secondary' )!.click();
+		await promise;
+	} );
+
+	test( 'rememberLabel renders a checkbox and reports it on confirm', async () => {
+		const { osConfirm } = await load();
+		const seen: boolean[] = [];
+		const promise = osConfirm( {
+			message: 'X',
+			rememberLabel: "Don't ask again",
+			onRemember: ( remember ) => seen.push( remember ),
+		} );
+		await tick();
+		const dialog = document.querySelector< HTMLElement >( 'os-confirm-dialog' )!;
+		const box = dialog.shadowRoot!.querySelector< HTMLInputElement >(
+			'.remember__box',
+		)!;
+		expect( box ).not.toBeNull();
+		expect(
+			dialog.shadowRoot!.querySelector( '.remember__label' )!.textContent,
+		).toContain( "Don't ask again" );
+		box.checked = true;
+		dialog.shadowRoot!.querySelector< HTMLButtonElement >( '.btn--primary' )!.click();
+		await expect( promise ).resolves.toBe( true );
+		expect( seen ).toEqual( [ true ] );
+	} );
+
+	test( 'an unticked box confirms with remember false', async () => {
+		const { osConfirm } = await load();
+		const seen: boolean[] = [];
+		const promise = osConfirm( {
+			message: 'X',
+			rememberLabel: "Don't ask again",
+			onRemember: ( remember ) => seen.push( remember ),
+		} );
+		await tick();
+		const dialog = document.querySelector< HTMLElement >( 'os-confirm-dialog' )!;
+		dialog.shadowRoot!.querySelector< HTMLButtonElement >( '.btn--primary' )!.click();
+		await promise;
+		expect( seen ).toEqual( [ false ] );
+	} );
+
+	test( 'cancelling never reports a remember, ticked or not', async () => {
+		const { osConfirm } = await load();
+		const seen: boolean[] = [];
+		const promise = osConfirm( {
+			message: 'X',
+			rememberLabel: "Don't ask again",
+			onRemember: ( remember ) => seen.push( remember ),
+		} );
+		await tick();
+		const dialog = document.querySelector< HTMLElement >( 'os-confirm-dialog' )!;
+		dialog.shadowRoot!.querySelector< HTMLInputElement >(
+			'.remember__box',
+		)!.checked = true;
+		dialog.shadowRoot!.querySelector< HTMLButtonElement >( '.btn--secondary' )!.click();
+		await expect( promise ).resolves.toBe( false );
+		expect( seen ).toEqual( [] );
+	} );
+
+	test( 'the checkbox joins the tab trap', async () => {
+		const { osConfirm } = await load();
+		const promise = osConfirm( {
+			message: 'X',
+			rememberLabel: "Don't ask again",
+		} );
+		await tick();
+		const dialog = document.querySelector< HTMLElement >( 'os-confirm-dialog' )!;
+		const focusables = Array.from(
+			dialog.shadowRoot!.querySelectorAll(
+				'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+			),
+		);
+		expect( focusables[ 0 ] ).toBe(
+			dialog.shadowRoot!.querySelector( '.remember__box' ),
+		);
+		dialog.shadowRoot!.querySelector< HTMLButtonElement >( '.btn--secondary' )!.click();
+		await promise;
+	} );
+
 	test( 'without dismissable, the close button is absent', async () => {
 		const { osConfirm } = await load();
 		const promise = osConfirm( { message: 'X' } );

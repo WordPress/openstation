@@ -16,7 +16,7 @@ import { createSharedStore } from './shared-store';
 import type {
 	AgentCallToAction,
 	AgentToolCall,
-} from './my-wordpress/agents-types';
+} from './agents-types';
 
 /** The slice of an agent the chat window needs to paint its header. */
 export interface AgentChatAgent {

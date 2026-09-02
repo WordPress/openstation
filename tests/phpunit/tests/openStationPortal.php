@@ -500,12 +500,34 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$_SERVER['REQUEST_METHOD']              = 'GET';
-		$_SERVER['REQUEST_URI']                 = '/wp-admin/network/sites.php?' . OPENSTATION_PORTAL_FLAG . '=1&' . OPENSTATION_PORTAL_INTENT_FLAG . '=1';
-		$GLOBALS['pagenow']                     = 'sites.php';
+		// Not `network/sites.php`: the network admin's own screens
+		// resolve now, so an unresolvable URL has to be one no admin
+		// serves.
+		$_SERVER['REQUEST_URI']                 = '/wp-admin/not-a-real-screen.php?' . OPENSTATION_PORTAL_FLAG . '=1&' . OPENSTATION_PORTAL_INTENT_FLAG . '=1';
+		$GLOBALS['pagenow']                     = 'not-a-real-screen.php';
 		$_GET[ OPENSTATION_PORTAL_FLAG ]        = '1';
 		$_GET[ OPENSTATION_PORTAL_INTENT_FLAG ] = '1';
 
 		$this->assertSame( openstation_shell_url(), $this->capture_admin_init_redirect() );
+	}
+
+	/**
+	 * A network admin URL reaches the NETWORK shell screen, carrying
+	 * itself as the target. The two admins have separate screens
+	 * because a window on one is a window on the other's desktop
+	 * otherwise, with the wrong dock behind it.
+	 *
+	 * @covers ::openstation_sanitize_portal_target
+	 * @covers ::openstation_shell_url
+	 */
+	public function test_a_network_admin_target_resolves_to_the_network_screen() {
+		$resolved = openstation_sanitize_portal_target( '/wp-admin/network/sites.php' );
+
+		$this->assertSame( network_admin_url( 'sites.php' ), $resolved );
+		$this->assertSame(
+			openstation_shell_url( $resolved, true, true ),
+			openstation_shell_url( $resolved, true )
+		);
 	}
 
 	/**
@@ -866,6 +888,58 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'plugin=desktop-mode-cron-manager%2Fdesktop-mode-cron-manager.php', $target );
 		$this->assertStringContainsString( 'action=activate', $target );
 		$this->assertStringContainsString( '_wpnonce=abc123', $target );
+	}
+
+	/**
+	 * `wp-admin/admin.php` without a `page` arg is a bootstrap, not a
+	 * page: core falls through its last `else` branch, never requires
+	 * `admin-header.php`, and answers 200 with an empty body. The
+	 * allowlist matches filenames and cannot see that, so the guard
+	 * lives here — otherwise the URL becomes a window showing nothing.
+	 *
+	 * @covers ::openstation_sanitize_portal_target
+	 */
+	public function test_sanitize_target_rejects_page_less_admin_php() {
+		$this->assertSame( '', openstation_sanitize_portal_target( '/wp-admin/admin.php' ) );
+		$this->assertSame( '', openstation_sanitize_portal_target( '/wp-admin/admin.php?page=' ) );
+		// A query that carries everything BUT a page still renders nothing.
+		$this->assertSame( '', openstation_sanitize_portal_target( '/wp-admin/admin.php?action=edit&id=7' ) );
+	}
+
+	/**
+	 * The guard is about the missing `page`, not about `admin.php`:
+	 * every plugin screen in the admin lives at this filename.
+	 *
+	 * @covers ::openstation_sanitize_portal_target
+	 */
+	public function test_sanitize_target_keeps_admin_php_with_a_page() {
+		$this->assertSame(
+			admin_url( 'admin.php?page=jetpack' ),
+			openstation_sanitize_portal_target( '/wp-admin/admin.php?page=jetpack' )
+		);
+	}
+
+	/**
+	 * Regression: a plain GET to a page-less `admin.php` used to be
+	 * forwarded as `?target=%2Fwp-admin%2Fadmin.php&intent=1`. The
+	 * intent flag made the shell open it on every boot — and, because
+	 * the args stay in the address bar, on every reload after that.
+	 * With no resolvable target the screen resolves the entry itself.
+	 *
+	 * @covers ::openstation_redirect_plain_admin_to_portal
+	 */
+	public function test_admin_redirect_does_not_target_a_page_less_admin_php() {
+		wp_set_current_user( self::$admin_id );
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		$_SERVER['REQUEST_METHOD'] = 'GET';
+		$_SERVER['REQUEST_URI']    = '/wp-admin/admin.php';
+		$GLOBALS['pagenow']        = 'admin.php';
+
+		$redirect = $this->capture_admin_init_redirect();
+
+		$this->assertNotNull( $redirect );
+		$this->assertSame( '', $this->shell_target_of( $redirect ) );
+		$this->assertStringNotContainsString( 'intent=1', $redirect );
 	}
 
 	/**

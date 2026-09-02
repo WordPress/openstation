@@ -488,7 +488,12 @@ surfaces (`--os-window-bg`, `--os-ui-surface`,
 `--os-ui-button-bg-hover`) inside the dialog, and gives you a
 `--os-ui-modal-*` name for each: `-text`, `-text-muted`, `-border`,
 `-border-strong`, `-field-bg`, `-surface`, `-surface-elevated`,
-`-hover`, `-button-bg-hover`.
+`-hover`, `-button-bg-hover`. It also re-points the `<os-card>` surface
+set (`--os-ui-card-bg`, `--os-ui-card-fg`, `--os-ui-card-border`,
+`--os-ui-card-border-hover`) onto those same modal names, so a card in
+a dialog wears the dialog's surface and text; the card's selected ring
+(`--os-ui-card-border-selected`) is an accent, not a surface, and stays
+yours.
 
 **Theme the `--os-ui-modal-*` set, not the tokens it re-points** — a
 `--os-ui-surface` your theme sets never reaches inside a dialog, by
@@ -496,7 +501,11 @@ design. The set covers foreground *and* surface deliberately: it used
 to re-point only the text colours, which looked correct for as long as
 the palette outside the dialog was dark too, and came apart the moment
 a light theme was worn — `<os-select>` in a dialog painted a white
-trigger under near-white text.
+trigger under near-white text. The card set is there for the same
+reason one step further out: a card's tokens chain through
+`--os-ui-surface`, so the re-point reaches them until a theme pins one
+flat (`--os-ui-card-bg: #fff`), and then a light card lands in a dark
+dialog carrying the dialog's light text.
 
 The palette is not limited to window bodies: the shell's own
 body-mounted overlays — toasts, confirm dialogs, context menus, and
@@ -651,11 +660,12 @@ Read `assets/css/variables.css` for the full set.
 > re-layout. `--os-tile-w-large` / `--os-tile-h-large` do the same job
 > for image-led sections (`tileSize: 'large'`).
 
-> **`--os-window-radius` is not one of them in practice.**
-> The Window-corners preset in OpenStation Preferences writes that property as an
-> inline style on the shell root, which outranks any stylesheet rule,
-> so a theme declaring it in `tokens` has no effect on windows. The
-> user's corner preference stays the user's. If your frame artwork
+> **`--os-window-radius`, `--os-dock-width` and `--os-dock-icon-size`
+> are not among them in practice.** The Window-corners and Dock-size
+> presets in OpenStation Preferences write those properties as inline
+> styles on the shell root, which outranks any stylesheet rule, so a
+> theme declaring them in `tokens` has no effect on windows or on the
+> dock. The user's preference stays the user's. If your frame artwork
 > needs a particular radius, ask for it through
 > [`recommendedOsSettings.windowRadius`](#recommended-os-settings) —
 > that sets their preference once, on first activation, and leaves it

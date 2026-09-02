@@ -30,8 +30,14 @@
  */
 .os-workspace-wizard__trail {
 	--os-ui-steps-gap: 10px;
-	--os-ui-step-chip-size: 24px;
-	--os-ui-step-chip-font-size: 12px;
+	--os-ui-step-gap: 7px;
+	--os-ui-step-chip-size: 22px;
+	--os-ui-step-chip-font-size: 11px;
+	--os-ui-step-chip-family: var( --os-ui-font-mono, ui-monospace, monospace );
+	--os-ui-step-title-size: 11px;
+	--os-ui-step-title-family: var( --os-ui-font-mono, ui-monospace, monospace );
+	--os-ui-step-title-transform: uppercase;
+	--os-ui-step-title-spacing: 0.08em;
 	padding-bottom: 12px;
 	border-bottom: 1px solid var( --os-ui-border, rgba( 255, 251, 255, 0.14 ) );
 	white-space: nowrap;
@@ -39,12 +45,47 @@
 }
 
 /*
+ * A step you have not reached is an outline, not a filled dot. Six
+ * filled chips in a row made the trail the loudest thing in a dialog
+ * whose whole point is that step one and Enter is enough, and they
+ * carried no state either: current, done and not-yet all looked the
+ * same, so only the label weight said where you were. The lit chip has
+ * to be the only one lit for it to mean anything.
+ *
+ * Same treatment as the agent wizard's trail, through the component's
+ * own theming hooks. The host elements are in this light DOM, so the
+ * per-state overrides can select them directly.
+ */
+.os-workspace-wizard__trail os-step:not( [ done ] ):not( [ current ] ) {
+	--os-ui-step-chip-bg: transparent;
+	--os-ui-step-chip-border: 1px solid var( --os-ui-border-strong, #8c8f94 );
+	--os-ui-step-chip-fg: var( --os-ui-fg-muted, #646970 );
+}
+
+/* Done is quiet: a filled tick, muted like its label. History, not a
+   second highlight. */
+.os-workspace-wizard__trail os-step[ done ] {
+	--os-ui-step-chip-done-bg: var( --os-ui-surface-elevated, #f0f0f1 );
+	--os-ui-step-chip-fg: var( --os-ui-fg-muted, #646970 );
+}
+
+/*
  * The pane has ONE height and keeps it. A wizard that grew and shrank
  * with each step moved its own footer under the user's pointer between
- * clicks — Next in one place, then Next somewhere else. Generous
- * rather than tight: the tallest step (Apps on a site with forty
- * plugins) scrolls inside it; the shortest (Start, four cards) leaves
- * room, and room is cheaper than a jumping button.
+ * clicks — Next in one place, then Next somewhere else. The tallest
+ * step (Apps on a site with forty plugins) scrolls inside it.
+ *
+ * Sized to the steps that have something in them, not to the tallest
+ * one. Three of the six are a heading and a single switch until that
+ * switch is turned on, and at the old height they were about 45%
+ * empty: far enough past "roomy" that the dialog read as one that
+ * had failed to load. Room is cheaper than a jumping button; this much
+ * room was not buying anything.
+ *
+ * The remaining gap on those three steps is a content problem rather
+ * than a height one. The fix worth having is a preview of the desk
+ * being described, which would fill the space and answer "what am I
+ * actually choosing" on Look and Windows at the same time.
  *
  * The pane scrolls, the dialog does not. A Save button below the fold
  * is a Save button the user cannot find.
@@ -53,7 +94,7 @@
 	display: flex;
 	flex-direction: column;
 	gap: 14px;
-	height: min( 60vh, 390px );
+	height: min( 52vh, 320px );
 	overflow-y: auto;
 	/* The pane scrolls DOWN and only down. A child that wants to be
 	   wider than the dialog is a bug in the child, and a horizontal
@@ -143,13 +184,20 @@
 }
 
 /*
- * A template's colour goes on its glyph — the smallest place it can
- * live and still be the first thing the eye lands on, and the same
- * place it lives on the overview tile the card will become.
+ * One tone for every card's glyph. These used to wear the preset's own
+ * colour, which is the product's hex rather than ours, so the step
+ * opened on a purple cart, a green cap and a red pen: three brands and
+ * none of them the station's. The desk's colour still shows where it
+ * is useful, on its overview tile.
  */
 .os-workspace-wizard__card-icon {
 	flex: 0 0 auto;
-	color: var( --os-workspace-accent, var( --os-ui-fg-muted, rgba( 255, 251, 255, 0.66 ) ) );
+	color: var( --os-ui-fg-muted, rgba( 255, 251, 255, 0.66 ) );
+}
+
+/* The chosen card lights its glyph, so the eye lands on the answer. */
+.os-workspace-wizard__card[ selected ] .os-workspace-wizard__card-icon {
+	color: var( --os-ui-accent, #f252fc );
 }
 
 .os-workspace-wizard__card-desc {

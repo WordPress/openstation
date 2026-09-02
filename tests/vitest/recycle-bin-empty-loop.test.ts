@@ -12,8 +12,8 @@
  */
 
 import { describe, expect, test, vi } from 'vitest';
-import { runEmptyLoop } from '../../src/recycle-bin/empty-loop';
-import type { EmptyResponse } from '../../src/recycle-bin/rest';
+import { runEmptyLoop } from '../../apps/trash/parts/empty-loop';
+import type { EmptyResponse } from '../../apps/trash/parts/types';
 
 function makeChunkedServer( total: number, chunkSize: number ) {
 	let purgedSoFar = 0;

@@ -25,6 +25,7 @@ export default defineConfig( {
 			'@protocol/':      resolve( __dirname, 'src/protocol/' ) + '/',
 			'@ui/':            resolve( __dirname, 'src/ui/' ) + '/',
 			'@window-system/': resolve( __dirname, 'src/window-system/' ) + '/',
+			'@openstation/app': resolve( __dirname, 'src/app-runtime/client.ts' ),
 		},
 	},
 	test: {
@@ -42,7 +43,7 @@ export default defineConfig( {
 		// - `src/**/*.test.ts` for component-local specs that live
 		//   next to the code they test (one folder per component
 		//   keeps styles + logic + tests together)
-		include: [ 'tests/vitest/**/*.test.ts', 'src/**/*.test.ts' ],
+		include: [ 'tests/vitest/**/*.test.ts', 'src/**/*.test.ts', 'apps/**/*.test.ts' ],
 		// A fresh module graph per test file keeps registry state
 		// (hooks, wallpapers, modules) from leaking between
 		// top-level describes in different files.

@@ -35,10 +35,10 @@ class Tests_OpenStation_DesktopObjectTitles extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::openstation_recycle_bin_register_window
+	 * @covers ::openstation_apps_register_windows
 	 */
 	public function test_recycle_bin_window_is_titled_trash() {
-		openstation_recycle_bin_register_window();
+		openstation_apps_register_windows();
 
 		$entry = openstation_native_window_registry( 'desktop-mode-recycle-bin' );
 
@@ -49,14 +49,14 @@ class Tests_OpenStation_DesktopObjectTitles extends WP_UnitTestCase {
 	 * The bin is a dock tile and nothing else — a desktop icon is
 	 * something the user put there, not something the shell hands out.
 	 *
-	 * @covers ::openstation_recycle_bin_register_window
+	 * @covers ::openstation_apps_register_windows
 	 */
 	public function test_recycle_bin_registers_no_desktop_icon() {
 		// The registry is a process-static store, and the plugin's own
 		// `init` has already run by the time the suite starts.
 		openstation_unregister_icon( 'desktop-mode-recycle-bin' );
 
-		openstation_recycle_bin_register_window();
+		openstation_apps_register_windows();
 
 		$this->assertNull(
 			openstation_desktop_icon_registry( 'desktop-mode-recycle-bin' )
@@ -67,10 +67,10 @@ class Tests_OpenStation_DesktopObjectTitles extends WP_UnitTestCase {
 	 * Losing the icon would leave the tile with no control at all, so
 	 * the window opts into the Apps & Plugins list on its own.
 	 *
-	 * @covers ::openstation_recycle_bin_register_window
+	 * @covers ::openstation_apps_register_windows
 	 */
 	public function test_recycle_bin_tile_is_placeable() {
-		openstation_recycle_bin_register_window();
+		openstation_apps_register_windows();
 
 		$entry = openstation_native_window_registry( 'desktop-mode-recycle-bin' );
 
@@ -81,10 +81,10 @@ class Tests_OpenStation_DesktopObjectTitles extends WP_UnitTestCase {
 	 * The window id stays `desktop-mode-recycle-bin` — plugins bind
 	 * to it, and a retitle is not a re-slug.
 	 *
-	 * @covers ::openstation_recycle_bin_register_window
+	 * @covers ::openstation_apps_register_windows
 	 */
 	public function test_recycle_bin_keeps_its_window_id() {
-		openstation_recycle_bin_register_window();
+		openstation_apps_register_windows();
 
 		$this->assertIsArray(
 			openstation_native_window_registry( 'desktop-mode-recycle-bin' )
@@ -232,10 +232,10 @@ class Tests_OpenStation_DesktopObjectTitles extends WP_UnitTestCase {
 	 * from the same place: a window whose title bar disagrees with its
 	 * tile reads as two apps.
 	 *
-	 * @covers ::openstation_recycle_bin_register_window
+	 * @covers ::openstation_apps_register_windows
 	 */
 	public function test_recycle_bin_uses_its_own_svg() {
-		openstation_recycle_bin_register_window();
+		openstation_apps_register_windows();
 
 		$entry = openstation_native_window_registry( 'desktop-mode-recycle-bin' );
 

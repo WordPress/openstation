@@ -23,6 +23,12 @@ interface AdminBarConfig {
 	classicUrl?: string;
 	ajaxUrl?: string;
 	/**
+	 * Whether the page carrying this config is a network-admin screen.
+	 * Sent back on the save call so the handler lands the user in the
+	 * admin they were actually in — `admin-ajax.php` cannot tell.
+	 */
+	network?: boolean;
+	/**
 	 * Keyboard-shortcut reference content, translated server-side.
 	 * Declared here because this module owns the global; rendered by
 	 * `src/shortcuts.ts`, which owns the shape.
@@ -84,6 +90,9 @@ export async function exitOpenStation(): Promise< void > {
 	body.set( 'action', 'save-openstation' );
 	body.set( 'nonce', cfg.nonce );
 	body.set( 'enabled', '' );
+	if ( cfg.network ) {
+		body.set( 'network', '1' );
+	}
 
 	let target = fallback;
 	try {

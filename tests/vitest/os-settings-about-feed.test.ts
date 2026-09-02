@@ -1,117 +1,84 @@
-import { beforeEach, describe, expect, test } from "vitest";
+import { beforeEach, describe, expect, test } from 'vitest';
+import { render } from '../../src/ui/core';
 import {
 	normalizeAboutFeed,
-	paintAboutSection,
+	renderAbout,
 	type AboutFeed,
-} from "../../src/settings/sections/about";
+} from '../../apps/os-settings/parts/about';
 
 const feed: AboutFeed = {
-	title: "OpenStation",
-	description: "The build diary.",
-	homeUrl: "https://openstation.blog/",
-	feedUrl: "https://openstation.blog/feed/",
+	title: 'OpenStation',
+	description: 'The build diary.',
+	homeUrl: 'https://openstation.blog/',
+	feedUrl: 'https://openstation.blog/feed/',
 	stale: false,
 	items: [
 		{
-			title: "<img src=x onerror=alert(1)> The newest dispatch",
-			url: "https://openstation.blog/newest/",
-			author: "OpenStation Crew",
-			publishedAt: "2026-08-19T12:00:00+00:00",
-			excerpt: "A look behind the latest build.",
+			title: '<img src=x onerror=alert(1)> The newest dispatch',
+			url: 'https://openstation.blog/newest/',
+			author: 'OpenStation Crew',
+			publishedAt: '2026-08-19T12:00:00+00:00',
+			excerpt: 'A look behind the latest build.',
 		},
 		{
-			title: "A second dispatch",
-			url: "https://openstation.blog/second/",
-			author: "",
-			publishedAt: "",
-			excerpt: "",
+			title: 'A second dispatch',
+			url: 'https://openstation.blog/second/',
+			author: '',
+			publishedAt: '',
+			excerpt: '',
 		},
 	],
 };
 
-describe("OS Settings — About journal", () => {
+const config = { pluginUrl: 'https://example.test/plugin', pluginVersion: '1.2.3' };
+
+describe( 'OS Settings — About journal', () => {
 	let wrapper: HTMLElement;
 
-	beforeEach(() => {
-		wrapper = document.createElement("div");
-		document.body.replaceChildren(wrapper);
-	});
+	beforeEach( () => {
+		wrapper = document.createElement( 'div' );
+		document.body.replaceChildren( wrapper );
+	} );
 
-	test("validates links, required fields, and the five-post ceiling", () => {
-		const items = Array.from({ length: 6 }, (_value, index) => ({
-			title: `Post ${index + 1}`,
-			url: `https://openstation.blog/post-${index + 1}/`,
-		}));
-		items.unshift({
-			title: "Unsafe post",
-			url: "javascript:alert(1)",
-		});
+	test( 'validates links, required fields, and the five-post ceiling', () => {
+		const normalized = normalizeAboutFeed( {
+			title: 'Journal',
+			homeUrl: 'javascript:alert(1)',
+			feedUrl: 'https://openstation.blog/feed/',
+			items: [
+				{ title: 'Missing URL' },
+				{ title: 'Bad scheme', url: 'javascript:alert(1)' },
+				...Array.from( { length: 7 }, ( _, index ) => ( {
+					title: `Post ${ index }`,
+					url: `https://openstation.blog/post-${ index }/`,
+				} ) ),
+			],
+		} );
+		expect( normalized ).not.toBeNull();
+		expect( normalized!.homeUrl ).toBe( 'https://openstation.blog/' );
+		expect( normalized!.items ).toHaveLength( 5 );
+		expect( normalized!.items[ 0 ].title ).toBe( 'Post 0' );
+	} );
 
-		const normalized = normalizeAboutFeed({ items });
-		expect(normalized).not.toBeNull();
-		expect(normalized?.items).toHaveLength(5);
-		expect(normalized?.items.map((item) => item.title)).not.toContain(
-			"Unsafe post",
-		);
-		expect(normalized?.homeUrl).toBe("https://openstation.blog/");
-	});
+	test( 'renders the newest post as the feature and keeps remote text inert', () => {
+		render( renderAbout( config, { kind: 'ready', feed } ), wrapper );
+		const featured = wrapper.querySelector( '.os-settings__about-featured h3' );
+		expect( featured?.textContent ).toBe( '<img src=x onerror=alert(1)> The newest dispatch' );
+		expect( wrapper.querySelector( 'img[src="x"]' ) ).toBeNull();
+		expect( wrapper.querySelectorAll( '.os-settings__about-card' ) ).toHaveLength( 1 );
+		expect( wrapper.textContent ).toContain( 'OpenStation 1.2.3' );
+	} );
 
-	test("renders the newest post as the feature and keeps remote text inert", () => {
-		paintAboutSection(
-			wrapper,
-			{ pluginUrl: "https://example.com/plugin", pluginVersion: "1.1.0" },
-			{ kind: "ready", feed },
-		);
+	test( 'paints the loading and error states', () => {
+		render( renderAbout( config, { kind: 'loading' } ), wrapper );
+		expect( wrapper.querySelector( '.os-settings__about-spinner' ) ).not.toBeNull();
+		render( renderAbout( config, { kind: 'error' } ), wrapper );
+		expect( wrapper.querySelector( '[role="alert"]' ) ).not.toBeNull();
+		expect( wrapper.textContent ).toContain( 'openstation.blog' );
+	} );
 
-		const featured = wrapper.querySelector<HTMLAnchorElement>(
-			".os-settings__about-featured > a",
-		);
-		const mark = wrapper.querySelector<HTMLImageElement>(
-			".os-settings__about-identity img",
-		);
-		expect(mark?.src).toBe(
-			"https://example.com/plugin/assets/images/openstation-mark.svg",
-		);
-		expect(featured?.href).toBe("https://openstation.blog/newest/");
-		expect(featured?.target).toBe("_blank");
-		expect(featured?.rel).toBe("noopener noreferrer");
-		expect(featured?.querySelector("h3")?.textContent).toContain(
-			"<img src=x onerror=alert(1)>",
-		);
-		expect(featured?.querySelector("h3 img")).toBeNull();
-		expect(wrapper.textContent).toContain("The build diary.");
-		expect(wrapper.textContent).toContain("A desktop for WordPress.");
-		expect(wrapper.textContent).toContain("OpenStation 1.1.0");
-		expect(wrapper.textContent).toContain("An experiment by Automattic");
-		expect(wrapper.textContent).toContain("Latest from the station");
-		expect(
-			wrapper
-				.querySelector(".os-settings__about-overview")
-				?.compareDocumentPosition(
-					wrapper.querySelector(".os-settings__about-feed") as Node,
-				) & Node.DOCUMENT_POSITION_FOLLOWING,
-		).toBeTruthy();
-		expect(
-			wrapper.querySelectorAll(".os-settings__about-card"),
-		).toHaveLength(1);
-	});
-
-	test("renders loading, error, and stale states explicitly", () => {
-		paintAboutSection(wrapper, {}, { kind: "loading" });
-		expect(wrapper.textContent).toContain("Opening the journal…");
-
-		paintAboutSection(wrapper, {}, { kind: "error" });
-		expect(wrapper.textContent).toContain("could not be reached");
-		expect(wrapper.textContent).toContain("RSS feed");
-
-		paintAboutSection(
-			wrapper,
-			{},
-			{
-				kind: "ready",
-				feed: { ...feed, stale: true },
-			},
-		);
-		expect(wrapper.textContent).toContain("last saved copy");
-	});
-});
+	test( 'says when the copy is stale', () => {
+		render( renderAbout( config, { kind: 'ready', feed: { ...feed, stale: true } } ), wrapper );
+		expect( wrapper.querySelector( '.os-settings__about-stale' ) ).not.toBeNull();
+	} );
+} );

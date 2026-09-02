@@ -110,7 +110,8 @@ The full surface is documented in [`javascript-reference.md`](./javascript-refer
 | `ai.ask` | `( prompt: string, opts? ) => Promise<AiAnswer>` | Experimental |
 | `registerSettingsTab` | `( def: SettingsTabDef ) => void` | Stable |
 | `subscribeOsSettings` | `( cb ) => () => void` | Stable |
-| `updateOsSettings` | `( patch, opts? ) => void` | Stable |
+| `updateOsSettings` | `( patch, opts? ) => void` *(every `OsSettingsState` key)* | Stable |
+| `resetOsSettings` | `( opts? ) => void` | Stable |
 
 ### Title-bar buttons, themes, controls, slots, chrome
 
@@ -146,6 +147,23 @@ The full surface is documented in [`javascript-reference.md`](./javascript-refer
 | `desktopThemes.subscribe` | `( cb ) => () => void` | Experimental |
 | `desktopThemes.resolveIcon` | `( slot: string ) => string \| null` | Experimental |
 | `desktopThemes.applyRecommendedOsSettings` | `( themeId?: string ) => RecommendedOsSettings` | Experimental |
+
+### App Framework windows *(Experimental)*
+
+Windows declared in PHP as `.os.php` files — [`app-framework.md`](./app-framework.md). Loaded lazily with the first app window.
+
+| Member | Signature | Status |
+|---|---|---|
+| `apps.dispatch` | `( windowId: string, action: string, args?: Record<string, unknown>, view?: string ) => Promise<boolean>` | Experimental |
+| `apps.local` | `( windowId: string, action: string, args?: Record<string, unknown> ) => void` *(client-view apps; no request)* | Experimental |
+| `apps.session` | `( windowId: string, view?: string ) => Session \| undefined` | Experimental |
+| `@openstation/app` | `defineApp< State, Data >( id, { local?, view, mounted?, updated? } )`, `html`, `__`/`_n`/`_x`/`sprintf`, `formatBytes` / `formatDate`, `createPagedList` / `applySelection` *(what an `.os.ts` imports)* | Experimental |
+| `ViewContext` | `state`, `data`, `root`, `dispatch( action, args?, { confirm }? )`, `local`, `ui( factory )`, `repaint()`, `fetch( path, init? )`, `host` — see [`app-framework.md`](./app-framework.md#the-client-view--osts) | Experimental |
+| `apps.refresh` | `() => string[]` | Experimental |
+| `apps.debug` | `( windowId?: string, on?: boolean ) => void` — per-window dispatch trace in the console (`'*'` = every app window) | Experimental |
+| `apps.defineApp` / `apps.html` / i18n + list/format helpers | The client-view API mirrored at runtime for third-party client views; before the runtime loads, queue via `( window.openStationAppsPending ??= [] ).push( ( api ) => … )` — see [`app-framework.md`](./app-framework.md) | Experimental |
+
+PHP side: `App::define( $id )` fluent definition (`state`, `action` — with `mount` / `set` / `refresh` built in — `view`, `tab`, `title_bar_button`, `window_action`, `on_channel`, `theme` / `controls` / `slot`, `desktop_icon`), the `$os` handle (`auth`, `settings`, `hooks`, `cache`, `env`, `storage`, `param()`, `stored()` / `store()`, the statics `Os::page()` / `Os::facts()`, and the effects `toast` / `title` / `close` / `open` / `open_url( $url, $title, $icon )` / `badge` / `icon` / `announce` / `menu` / `send`), `openstation_app( $id )`, `openstation_app_render( $id, $state )`, filters `openstation_apps_directories` / `openstation_app_manifest` / `openstation_app_window_args` / `openstation_app_response`, actions `openstation_apps_loaded` / `openstation_app_registered`, route `POST desktop-mode/v1/apps/<id>/dispatch` — all in [`app-framework.md`](./app-framework.md) and [`hooks-reference.md` → App Framework](./hooks-reference.md#app-framework).
 
 ### Files on the desktop
 
@@ -209,7 +227,7 @@ shared-store + registries. Index:
 | `/desktop-mode/v1/agents[…]` REST routes | [`includes/rest/README.md`](../includes/rest/README.md) | Experimental |
 | `openstation_agent_*` PHP helpers, actions, filters | [`hooks-reference.md`](./hooks-reference.md#ai-agents) | Experimental |
 | `desktop-mode/agents-chat` shared-store key + `desktop-mode-agent-run` window | [`javascript-reference.md`](./javascript-reference.md#ai-agents--client-surface-experimental) | Experimental |
-| `agent` WP Explorer entity kind | `registerEntityKind()` seam | Experimental |
+| Agents section in the WP Explorer app | `apps/my-wordpress/parts/agents*` | Experimental |
 
 ### WooCommerce integration *(Experimental — inert unless WooCommerce is active)*
 
@@ -230,11 +248,12 @@ native window, all hanging off WP Explorer. Index:
 |---|---|---|
 | `openstation_register_station_home_card` | `( string $id, array $args ) => true|WP_Error` | Experimental |
 | `openstation_unregister_station_home_card` | `( string $id ) => bool` | Experimental |
+| `openstation_station_home_set_card_preference` | `( int $user_id, string $id, bool $enabled ) => bool` | Experimental |
 | `openstation_station_home_cards` | `( array $cards, int $user_id ) => array` | Experimental |
 | `openstation_station_home_card_data` | `( array $data, string $id, array $entry, int $user_id ) => array` | Experimental |
 | card lifecycle actions | registered, preference-updated, callback-error | Experimental |
 
-See [`station-home.md`](./station-home.md#plugin-cards) and the [complete plugin recipe](./examples/station-home-card.md).
+See [`station-home.md`](./station-home.md#plugin-cards) and the [complete plugin recipe](./examples/station-home-card.md). Station Home itself is an App Framework app (window id `desktop-mode-dashboard`); it has no REST routes of its own — see [`migration-station-home-app.md`](./migration-station-home-app.md).
 
 ## CustomEvents on `document`
 
@@ -267,7 +286,6 @@ Every event bubbles from `document`. See [`javascript-reference.md`](./javascrip
 | `os-default-window-changed` | Stable |
 | `os-open-ai` *(plugin-dispatched; the shell listens)* | Experimental |
 | `os-intros-reset` | Experimental |
-| `os-my-wordpress-entity-trashed` | Experimental |
 | `os-note-created` *(pinned-notes hand-off from the Note Pad widget)* | Experimental |
 | `os-auth-lost` / `os-auth-restored` *(session expiry / recovery)* | Stable |
 | `os-desktop-theme-changed` *(whole-OS reskin activated / cleared)* | Experimental |

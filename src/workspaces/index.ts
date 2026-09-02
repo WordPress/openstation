@@ -57,6 +57,7 @@ export {
 	getActiveWorkspaceProfile,
 	getWorkspaceProfile,
 	provisionWorkspace,
+	reopenWorkspaceWindows,
 	saveDeskToWorkspace,
 	setWorkspaceProfile,
 	type CreateWorkspaceOptions,

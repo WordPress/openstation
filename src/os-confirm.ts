@@ -56,11 +56,23 @@ export async function osConfirm(
 		if ( options.dismissable ) {
 			dialog.setAttribute( 'dismissable', '' );
 		}
+		if ( options.rememberLabel ) {
+			dialog.setAttribute( 'remember-label', options.rememberLabel );
+		}
 		const cleanup = ( ok: boolean ): void => {
 			dialog.remove();
 			resolve( ok );
 		};
-		dialog.addEventListener( 'os-confirm', () => cleanup( true ) );
+		dialog.addEventListener( 'os-confirm', ( e: Event ) => {
+			// Only on confirm: a question the user backed out of was
+			// never answered, so "don't ask again" cannot have been
+			// what they meant by it.
+			options.onRemember?.(
+				( e as CustomEvent< { remember?: boolean } > ).detail
+					?.remember === true,
+			);
+			cleanup( true );
+		} );
 		dialog.addEventListener( 'os-cancel', () => cleanup( false ) );
 		document.body.appendChild( dialog );
 		// Focus is the component's job — it captures the opener when
