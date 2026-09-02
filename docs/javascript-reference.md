@@ -5545,6 +5545,7 @@ Four things follow from a system tile's menu being *actions* rather than admin p
 - The panel is the same three sections an admin menu gets. The head shows the tile's icon and title and, having no landing page to open, runs the **first row** on click.
 - Live windows are resolved from the rows. An admin menu has one window key; an action menu has none, so each row that opens a window declares it with `windowId` and the section lists the union. Rows that open nothing leave it unset.
 - `onSelect` is **client-side only**. The server builds admin-menu submenus as JSON and a function cannot survive that trip; only JS-registered tiles can set it.
+- Both `onOpen` and `onSelect` receive the originating `MouseEvent` when there is one (keyboard activation and programmatic calls pass nothing), so a handler that navigates can honour the browser-tab gestures — cmd/ctrl/shift and middle click. The Network Admin tile's workspace hop (`src/multisite/hop.ts`, [multisite.md](./multisite.md#the-workspace-hop)) is the shipped example; handlers that ignore the argument are unaffected.
 - `dock-peek` stands down for the tile, the same way it does for menu tiles. Give the tile an `onOpen` that does something defensible on its own, because a keyboard or touch user never sees the menu.
 
 Declare `submenu` as a getter if the rows depend on live state — it is read fresh each time the flyout opens.

@@ -2883,7 +2883,9 @@ function init(): void {
 			// The tile's own click opens Preferences: the flyout is
 			// a hover gesture, and keyboards and touch never fan it
 			// out, so the tile has to do something defensible alone.
-			onOpen: openOsSettings,
+			// Wrapped so the click event never lands in the options
+			// parameter openOsSettings actually takes.
+			onOpen: () => openOsSettings(),
 			get submenu() {
 				// `windowId` on the rows that open one is what lets
 				// the flyout list System's live windows the way it

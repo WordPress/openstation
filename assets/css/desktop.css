@@ -1525,3 +1525,52 @@ os-notice a:focus,
 os-notice a:active {
 	color: var(--os-ui-notice-link-hover, #fffbff);
 }
+
+/* --------------------------------------------------------------------
+ * The workspace hop — cross-document view transitions between shells.
+ *
+ * Loaded only on the SHELL screen (this sheet never reaches chromeless
+ * iframes), so only shell→shell navigations transition: hopping between
+ * a site's desktop and the network admin's crossfades the two desktops
+ * instead of hard-cutting, which is what makes the per-admin sessions
+ * read as workspaces. Classic admin pages never opt in, so entering or
+ * leaving the shell stays a plain navigation, and reloads are excluded
+ * by the spec. Browsers without cross-document view transitions ignore
+ * all of this and navigate plainly. See docs/multisite.md.
+ */
+@view-transition {
+	navigation: auto;
+}
+
+/* Reduced motion swaps instantly — the hop still happens, the
+ * animation does not. */
+@media ( prefers-reduced-motion: reduce ) {
+	@view-transition {
+		navigation: none;
+	}
+}
+
+/* A gentle zoom-through: the desktop being left recedes as the one
+ * arriving settles in. Subtle on purpose — this runs on a full page
+ * swap, and anything louder reads as a reload effect. */
+::view-transition-old(root) {
+	animation: os-workspace-hop-out 220ms cubic-bezier( 0.4, 0, 1, 1 ) both;
+}
+
+::view-transition-new(root) {
+	animation: os-workspace-hop-in 280ms cubic-bezier( 0, 0, 0.2, 1 ) both;
+}
+
+@keyframes os-workspace-hop-out {
+	to {
+		opacity: 0;
+		transform: scale( 0.985 );
+	}
+}
+
+@keyframes os-workspace-hop-in {
+	from {
+		opacity: 0;
+		transform: scale( 1.015 );
+	}
+}

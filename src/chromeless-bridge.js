@@ -1096,7 +1096,10 @@
 	 * the browser navigate naturally (mailto, anchor, download, etc.).
 	 *
 	 *   'admin'       — same-origin /wp-admin/ URL we rewrite in place.
-	 *   'other-admin'  — another site, or the network admin. Browser tab.
+	 *   'other-admin'  — another site, or the network admin. The
+	 *                   workspace hop: the top tab navigates there.
+	 *                   (Modifier and middle clicks never get here —
+	 *                   the handler yields them to the browser.)
 	 *   'external'    — http(s) URL we want the parent shell to open
 	 *                   as a sub-tab instead of navigating the iframe
 	 *                   out of wp-admin. Covers both cross-origin
@@ -1492,9 +1495,16 @@
 		}
 		if ( kind === 'other-admin' ) {
 			/*
-			 * A different admin, opened in a BROWSER TAB. Not a window
-			 * (see isOtherAdmin), and not this tab: the user has windows
-			 * open on THIS one.
+			 * A different admin: the WORKSPACE HOP. Not a window (see
+			 * isOtherAdmin), and no longer a forced browser tab either —
+			 * every admin keeps its own desktop under its own session
+			 * key, so navigating the top tab there restores that
+			 * admin's desktop and leaves this one saved exactly as it
+			 * stands, with the shell stylesheet's cross-document view
+			 * transition covering the swap. A modifier or middle click
+			 * never reaches this branch — the handler yields those to
+			 * the browser, whose native new-tab behavior keeps the
+			 * side-by-side option. See docs/multisite.md.
 			 */
 			e.preventDefault();
 			var other;
@@ -1503,10 +1513,19 @@
 			} catch ( err ) {
 				return;
 			}
-			/* A stray flag would make the new tab a standalone
+			/* A stray flag would make the destination a standalone
 			 * chromeless page with no way out. */
 			other.searchParams.delete( 'openstation_chromeless' );
-			window.open( other.href, '_blank', 'noopener,noreferrer' );
+			/* No modifier check here: the handler's first guard yields
+			 * every modified and non-primary click to the browser, whose
+			 * native new-tab behavior IS the side-by-side path. */
+			try {
+				window.top.location.assign( other.href );
+			} catch ( err ) {
+				/* A host that forbids top navigation (a sandboxed
+				 * embed) still gets the tab. */
+				window.open( other.href, '_blank', 'noopener,noreferrer' );
+			}
 			return;
 		}
 		if ( kind === 'external' ) {

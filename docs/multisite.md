@@ -18,11 +18,43 @@ every admin response carries `X-Frame-Options: SAMEORIGIN` and
 
 The network admin is on the **network's** domain (`network_site_url()`
 builds from `get_network()->domain`), never the current site's, so it is
-cross-origin from any subdomain or mapped site too. So anything leaving
-the current admin **opens a browser tab**: one behaviour on all three
-shapes, and it leaves the desktop the user is standing on intact.
-Cross-admin windows are therefore not supported, and neither is a
-network-wide desktop, since windows have no site identity.
+cross-origin from any subdomain or mapped site too. Cross-admin windows
+are therefore not supported, and neither is a network-wide desktop,
+since windows have no site identity. Anything leaving the current admin
+**hops** instead — see the next section — and cross-origin URLs, which
+cannot hop through a same-origin navigation's view transition, open a
+browser tab as they always did.
+
+## The workspace hop
+
+A same-origin click that leaves the current admin — the Network Admin
+tile and its flyout rows, the Sites list's "Dashboard" links inside a
+window — **navigates this tab** to the other admin's shell. Every admin
+keeps its own desktop under its own session key (see Storage scoping),
+so each side restores exactly as it was left: hopping between the
+network admin and a site reads as switching workspaces, spelled as a
+navigation. The raw admin URL is the right target on purpose — the
+`admin_init` redirect routes it to the matching shell screen exactly as
+if it had been typed.
+
+Three qualifiers, each deliberate:
+
+- **A modifier click (cmd/ctrl/shift) or a middle click keeps the
+  browser-tab behaviour** — the universal "open elsewhere" gesture, and
+  the way to stand two desktops side by side. `hopToAdmin()` in
+  `src/multisite/hop.ts` owns the split; the dock and the bridge both
+  route through the same rule.
+- **The swap animates through a cross-document view transition.** The
+  opt-in (`@view-transition { navigation: auto }`) lives in
+  `assets/css/desktop.css`, which only the SHELL loads — chromeless
+  iframes never opt in, so ordinary in-window navigations never
+  transition, and classic admin pages don't either, so entering or
+  leaving the shell stays a plain cut. Reduced motion swaps instantly;
+  browsers without the feature navigate plainly. Pinned by
+  `tests/vitest/workspace-hop.test.ts`.
+- **Cross-origin stays a tab.** A subdomain or mapped site's admin is
+  another origin; the bridge already classes those links `external` and
+  nothing about them changed.
 
 **Same origin is not the same admin.** The unit is the **admin scope**:
 the site root up to and including the first `/wp-admin/`, plus the
@@ -32,7 +64,7 @@ sits UNDER the main site's admin and shares its prefix, so
 `/wp-admin/index.php` and `/wp-admin/network/` would read as one place.
 `adminScope()` in `src/chromeless-bridge.js` is the only copy of that
 rule (a second one in the shell drifted out of sync within a day), and
-the bridge opens a tab for any link leaving its scope — which is what the
+the bridge hops for any link leaving its scope — which is what the
 Sites list does on each "Dashboard" link. If a window ever does show
 another admin, its `os-plugins-changed` payload repaints this dock with
 that admin's menu: the symptom to recognise.
@@ -73,7 +105,8 @@ bar's Network Admin node with core's own capability gates (copied from
 `wp_admin_bar_my_sites_menu()`), and hides itself inside the network
 admin where the dock already *is* that menu. It reads
 `wp.os.config.multisite` (`MultisiteConfig` in `src/types.ts`), null
-without the capability.
+without the capability. The tile and every flyout row are workspace
+hops (see above).
 
 It registers with `navKind: 'core'`
 ([javascript-reference.md](./javascript-reference.md)), so it paints with

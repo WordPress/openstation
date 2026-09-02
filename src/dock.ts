@@ -55,8 +55,14 @@ export interface SystemDockItem {
 	title: string;
 	/** Icon — dashicons class, data URI, or URL. */
 	icon: string;
-	/** Handler invoked on click. */
-	onOpen: () => void;
+	/**
+	 * Handler invoked on click. The originating mouse event, when there
+	 * is one, rides along so a tile that navigates can honour the
+	 * browser-tab gestures (cmd/ctrl/shift and middle click) — the
+	 * Network Admin tile's workspace hop is the shipped example.
+	 * Keyboard activation and programmatic opens pass nothing.
+	 */
+	onOpen: ( event?: MouseEvent ) => void;
 	/**
 	 * Optional predicate: returns true when the system item currently
 	 * has an open window. Drives the active-dot indicator on the tile.
@@ -215,7 +221,7 @@ export interface SubmenuItem {
 	 * "Fullscreen" — rather than admin pages. `url` stays the fallback
 	 * for anything that can express itself as one.
 	 */
-	onSelect?: () => void;
+	onSelect?: ( event?: MouseEvent ) => void;
 	/**
 	 * The window this row opens, when it opens one.
 	 *
@@ -1265,7 +1271,7 @@ export class Dock {
 		);
 		// System items don't have a native admin-menu counterpart; the
 		// third arg is intentionally omitted.
-		primary.addEventListener( 'click', () => item.onOpen() );
+		primary.addEventListener( 'click', ( event ) => item.onOpen( event ) );
 
 		tile.appendChild( primary );
 		this.bindTooltipFiltered( tile, item.title, ctx );

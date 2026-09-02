@@ -284,24 +284,50 @@ describe( 'chromeless bridge: links that name another browsing context', () => {
 		expect( adminLinkMessages()[ 0 ].newContext ).toBe( false );
 	} );
 
-	test( 'another admin opens in a browser tab, not a window and not this one', () => {
-		// Subdirectory multisite: `/site2/wp-admin/` is the same origin,
-		// and `/wp-admin/network/` shares this admin's own prefix, so
-		// both used to be waved through as in-window navigations, which
-		// repainted this dock with the other admin's menu. Nor in THIS
-		// tab: the user has windows open here. The href is never stamped
-		// chromeless either, which would leave the tab with no way out.
+	test( 'another admin hops the top tab — the workspace hop', () => {
+		// `/site2/wp-admin/` shares this origin, and `/wp-admin/network/`
+		// shares this admin's own prefix, so both used to be waved
+		// through as in-window navigations, which repainted this dock
+		// with the other admin's menu. Not a window, then — but not a
+		// forced browser tab any more either: every admin keeps its own
+		// desktop under its own session key, so the top tab navigates
+		// there and each side restores as left. The href is never
+		// stamped chromeless, which would leave the destination with no
+		// way out.
+		const assign = vi.fn();
+		Object.defineProperty( window, 'top', {
+			value: { location: { assign } },
+			configurable: true,
+		} );
 		const open = vi.spyOn( window, 'open' ).mockReturnValue( null );
 
 		try {
 			for ( const path of [ '/site2/wp-admin/', '/wp-admin/network/sites.php' ] ) {
 				expect( clickLink( `<a href="${ path }">Go</a>` ) ).toBe( path );
-				expect( open ).toHaveBeenCalledWith(
-					`http://localhost${ path }`,
-					'_blank',
-					'noopener,noreferrer'
+				expect( assign ).toHaveBeenLastCalledWith(
+					`http://localhost${ path }`
 				);
 			}
+			expect( open ).not.toHaveBeenCalled();
+			expect( adminLinkMessages() ).toHaveLength( 0 );
+
+			// A modifier click is yielded whole — the handler's first
+			// guard hands it to the browser, whose native new-tab
+			// behavior is the way to stand two desktops side by side.
+			document.body.innerHTML =
+				'<a href="/wp-admin/network/sites.php">Go</a>';
+			const anchor = document.querySelector( 'a' ) as HTMLAnchorElement;
+			const modified = new MouseEvent( 'click', {
+				bubbles: true,
+				cancelable: true,
+				metaKey: true,
+			} );
+			anchor.dispatchEvent( modified );
+			// Yielded: no hop, no tab of ours, no message — the only
+			// preventDefault is the harness's own bubble-phase catch-all
+			// standing in for the browser's native new-tab handling.
+			expect( open ).not.toHaveBeenCalled();
+			expect( assign ).toHaveBeenCalledTimes( 2 );
 			expect( adminLinkMessages() ).toHaveLength( 0 );
 
 			// The rule is scope-to-scope, so everything inside THIS
@@ -310,6 +336,10 @@ describe( 'chromeless bridge: links that name another browsing context', () => {
 			expect( adminLinkMessages() ).toHaveLength( 1 );
 		} finally {
 			open.mockRestore();
+			Object.defineProperty( window, 'top', {
+				value: window,
+				configurable: true,
+			} );
 		}
 	} );
 

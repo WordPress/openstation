@@ -953,7 +953,7 @@ function buildHead(
 	// another level behind me", the one thing the head does NOT do.
 	// The row's own hover state is the whole affordance.
 
-	head.addEventListener( 'click', () => {
+	head.addEventListener( 'click', ( event ) => {
 		dismiss();
 		if ( item.menuItem ) {
 			openMenuItem( deps, item.menuItem );
@@ -962,7 +962,7 @@ function buildHead(
 		// An action menu has no landing page, so the head does what
 		// its first row does — the same thing the tile's own click
 		// does, and the reason a keyboard user is never stranded.
-		runRow( deps, item, item.submenu[ 0 ] );
+		runRow( deps, item, item.submenu[ 0 ], event );
 	} );
 
 	return head;
@@ -978,12 +978,15 @@ function runRow(
 	deps: DockConstellationDeps,
 	item: ConstellationMenu,
 	sub: SubmenuItem | undefined,
+	event?: MouseEvent,
 ): void {
 	if ( ! sub ) {
 		return;
 	}
 	if ( sub.onSelect ) {
-		sub.onSelect();
+		// The originating click, so a row that navigates can honour
+		// the browser-tab gestures (cmd/ctrl/shift, middle click).
+		sub.onSelect( event );
 		return;
 	}
 	if ( item.menuItem ) {
@@ -1128,9 +1131,9 @@ function buildSubmenuRow(
 		row.appendChild( note );
 	}
 
-	row.addEventListener( 'click', () => {
+	row.addEventListener( 'click', ( event ) => {
 		dismiss();
-		runRow( deps, item, sub );
+		runRow( deps, item, sub, event );
 	} );
 
 	return row;
