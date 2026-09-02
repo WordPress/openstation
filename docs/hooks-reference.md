@@ -1535,7 +1535,7 @@ add_filter( 'openstation_portal_auto_enable', '__return_false' );
 
 ### `openstation_admin_redirect_to_portal` — Stable
 
-Governs the `admin_init` redirect from classic `/wp-admin/` URLs into the desktop for users with OpenStation on. Return `false` to keep the user on the classic URL even when they have the mode enabled (useful for support sessions). The page then renders as classic admin — the shell boots only from its own screen (`admin.php?page=openstation`, reached through `/openstation/`), never over another admin page. A URL carrying the frozen `desktop_mode_portal` flag is an alias for the desktop and is redirected to the shell screen before this filter runs.
+Governs the `admin_init` redirect from classic `/wp-admin/` URLs into the desktop for users with OpenStation on. Return `false` to keep the user on the classic URL even when they have the mode enabled (useful for support sessions). The page then renders as classic admin — the shell boots only from its own screen (`admin.php?page=openstation`, reached through `/openstation/`), never over another admin page. A URL carrying the frozen `desktop_mode_portal` flag is an alias for the desktop and is redirected to the shell screen before this filter runs. The redirect only ever applies to navigations: a request the browser reports as a sub-resource fetch (`Sec-Fetch-Mode` other than `navigate`: Jetpack's admin-bar sparkline `<img>`, an XHR to `admin.php?page=…&noheader`) is left alone before this filter runs, so it gets the bytes it asked for.
 
 ```php
 apply_filters( 'openstation_admin_redirect_to_portal', bool $redirect, int $user_id );
