@@ -284,13 +284,13 @@ describe( 'chromeless bridge: links that name another browsing context', () => {
 		expect( adminLinkMessages()[ 0 ].newContext ).toBe( false );
 	} );
 
-	test( 'another admin is handed to the shell for its Space', () => {
+	test( 'another admin is handed to the shell for its own instance', () => {
 		// `/site2/wp-admin/` shares this origin, and `/wp-admin/network/`
 		// shares this admin's own prefix, so both used to be waved
 		// through as in-window navigations, which repainted this dock
 		// with the other admin's menu. Now the bridge classifies them
 		// itself and posts `os-iframe-other-admin-link` — the shell
-		// opens the target in that admin's own Space. Never the
+		// hops to that admin's own shell. Never the
 		// same-admin message, and never an href stamped chromeless,
 		// which would leave the destination with no way out.
 		const open = vi.spyOn( window, 'open' ).mockReturnValue( null );

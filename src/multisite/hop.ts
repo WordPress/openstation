@@ -1,14 +1,16 @@
 /**
- * The workspace hop: cross-admin navigation in the CURRENT tab.
+ * The hop: cross-admin navigation in the CURRENT tab.
  *
- * Every admin keeps its own desktop under its own session key, so
- * navigating between the network admin's shell and a site's restores
- * each one exactly as it was left — hopping IS switching workspaces,
- * spelled as a navigation. The shell's stylesheet opts both documents
- * into a cross-document view transition (see the workspace-hop block
- * in `assets/css/desktop.css`), so on supporting browsers the two
- * desktops crossfade instead of hard-cutting; elsewhere it is a plain
- * navigation.
+ * On a network every site is its own OpenStation, and each admin keeps
+ * its own desktops under its own session key, so navigating between
+ * the network admin's shell and a site's restores each instance exactly
+ * as it was left — hopping IS switching instance, spelled as a
+ * navigation. The shell's stylesheet opts both documents into a
+ * cross-document view transition (see the instance-hop block in
+ * `assets/css/desktop.css`), so on supporting browsers the two desktops
+ * crossfade instead of hard-cutting; elsewhere it is a plain
+ * navigation. The site switcher in overview (`site-switcher.ts`) and
+ * every cross-admin link take this same hop.
  *
  * A modifier click (cmd/ctrl/shift) or a middle click keeps the
  * browser-tab behavior — the universal "open elsewhere" gesture, and

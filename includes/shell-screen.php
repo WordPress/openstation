@@ -76,6 +76,25 @@ const OPENSTATION_SHELL_TARGET_ARG = 'target';
 const OPENSTATION_SHELL_INTENT_ARG = 'intent';
 
 /**
+ * Query arg asking the shell screen to boot straight into overview: how
+ * a switch from another site's overview lands in this one's, tiles and
+ * all (on a network every site is its own OpenStation, see
+ * docs/multisite.md). One-shot like the two above — read here, handed
+ * to the shell as `landInOverview`, stripped from the address bar.
+ */
+const OPENSTATION_SHELL_OVERVIEW_ARG = 'openstation_overview';
+
+/**
+ * Whether this shell-screen request asked to boot into overview.
+ *
+ * @return bool
+ */
+function openstation_shell_lands_in_overview() {
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only routing flag.
+	return openstation_is_shell_screen_request() && ! empty( $_GET[ OPENSTATION_SHELL_OVERVIEW_ARG ] );
+}
+
+/**
  * Builds the shell screen URL, optionally carrying a target.
  *
  * `$target` is an absolute same-origin admin URL or a request-URI-shaped

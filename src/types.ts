@@ -65,16 +65,6 @@ export interface Desktop {
 	/** Human-readable label, shown beneath the overview top-bar tile. */
 	label: string;
 	/**
-	 * The ADMIN this desktop hosts, when it is a site Space: an admin
-	 * scope path (`/site2/wp-admin/`, `/wp-admin/network/` — see
-	 * `src/admin-scope.ts`) on the shell's own origin. Unset for
-	 * ordinary desktops, which belong to the shell's admin. A scoped
-	 * desktop is allowed to persist windows of that admin (the session
-	 * sanitizer's one exception to per-admin scoping), and closing it
-	 * closes those windows rather than migrating them.
-	 */
-	scope?: string;
-	/**
 	 * What this desk is FOR: which apps belong on it, which windows it
 	 * opens with, how they are arranged.
 	 *
@@ -1880,12 +1870,25 @@ export interface Session {
 
 /**
  * The multisite block of {@link DesktopConfig}. Every URL in it is a
- * link OUT, never an iframe source: the network admin is on the
- * network's own domain. Null without `manage_network`.
+ * link OUT, never an iframe source: another site's shell is another
+ * OpenStation, reached by navigating to it (see docs/multisite.md).
+ * Null on a single-site install.
  */
 export interface MultisiteConfig {
 	isNetworkAdmin: boolean;
-	networkAdmin: { url: string; rows: Array< { title: string; url: string } > } | null;
+	/**
+	 * The Network Admin dock tile's rows and the network's own shell
+	 * screen. Null without `manage_network`.
+	 */
+	networkAdmin: {
+		url: string;
+		shellUrl: string;
+		rows: Array< { title: string; url: string } >;
+	} | null;
+	/** Which instance this shell is: `network`, or the blog id. */
+	current: string;
+	/** Every site the user belongs to, each with its own shell screen. */
+	sites: Array< { id: string; name: string; shellUrl: string } >;
 }
 
 /**
@@ -2312,6 +2315,14 @@ export interface DesktopConfig {
 	 * suppress) behaviour for callers that never see the new flag.
 	 */
 	fromPortalIntent?: boolean;
+	/**
+	 * True when the shell screen was asked to boot straight into
+	 * overview (`openstation_overview=1`): how a switch from another
+	 * site's overview lands in this one's, tiles and all. Read once
+	 * server-side like the boot target, and stripped from the address
+	 * bar with it, so a reload comes back to the desk.
+	 */
+	landInOverview?: boolean;
 	/**
 	 * Progressive-web-app config — endpoint URLs and the per-user
 	 * installable-pill state. Always present in shell-mode requests.

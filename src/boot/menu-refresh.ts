@@ -21,9 +21,7 @@
 
 import { HOOKS, doAction } from '../hooks';
 import { createApplyPayload } from '../menu-refresh-apply';
-import { adminScopeOf } from '../admin-scope';
 import { INITIAL_ORIGIN } from './origin';
-import type { DockItem } from '../dock';
 import type { LayoutDispatcher } from '../desktop-layout';
 import type {
 	DesktopCommandScriptServerEntry,
@@ -63,13 +61,6 @@ const UPDATES_REFRESH_DEBOUNCE_MS = 600;
 
 export interface MenuRefreshDeps {
 	layoutDispatcher: LayoutDispatcher | null;
-	/**
-	 * Where a payload's dock items go. Defaults to the dispatcher's
-	 * dock-only repaint; the shell routes it through the per-Space dock
-	 * controller so a payload from the shell's own admin cannot
-	 * overwrite a Space's menu while the user stands in that Space.
-	 */
-	applyDockItems?: ( items: DockItem[] ) => void;
 	desktopArea: HTMLElement;
 	config: DesktopConfig;
 	syncNativeWindows: ( list: NativeWindowServerEntry[] ) => Promise< void >;
@@ -113,44 +104,6 @@ export interface MenuRefreshDeps {
  *
  * @return An async function plugins can call to force a refresh.
  */
-/**
- * Whether a message came from an iframe showing ANOTHER admin — a site
- * Space's window. Resolved from the frame's MOUNT src, not the live
- * location: a frame never changes admin scope in place (the bridge
- * intercepts any link that would), so the scope it mounted with is the
- * scope it still has. Unknown sources — the window itself, a popup, a
- * frame already removed — answer `false`: they are not iframes of ours
- * to distrust, and every message from them keeps its pre-Spaces
- * treatment. Exported for tests.
- *
- * @internal
- */
-export function frameSourceIsOtherAdmin(
-	source: MessageEventSource | null,
-	shellScope: string,
-	origin: string,
-): boolean {
-	if ( ! source || shellScope === '' ) {
-		return false;
-	}
-	for ( const frame of Array.from(
-		document.querySelectorAll( 'iframe' ),
-	) ) {
-		if ( frame.contentWindow !== source ) {
-			continue;
-		}
-		try {
-			const scope = adminScopeOf(
-				new URL( frame.src, origin ).pathname,
-			);
-			return scope !== '' && scope !== shellScope;
-		} catch {
-			return false;
-		}
-	}
-	return false;
-}
-
 export function bindMenuRefresh( deps: MenuRefreshDeps ): () => Promise< void > {
 	const {
 		layoutDispatcher,
@@ -174,9 +127,7 @@ export function bindMenuRefresh( deps: MenuRefreshDeps ): () => Promise< void > 
 	} = deps;
 
 	const applyPayload = createApplyPayload( {
-		applyDockItems:
-			deps.applyDockItems ??
-			( ( items ) => layoutDispatcher?.applyDockItems( items ) ),
+		applyDockItems: ( items ) => layoutDispatcher?.applyDockItems( items ),
 		desktopArea,
 		config,
 		syncNativeWindows,
@@ -320,21 +271,6 @@ export function bindMenuRefresh( deps: MenuRefreshDeps ): () => Promise< void > 
 		}, UPDATES_REFRESH_DEBOUNCE_MS );
 	};
 
-	// The shell's own admin scope — payloads from a window that shows
-	// ANOTHER admin (a site Space) must never repaint this dock with
-	// that admin's menu, which is exactly what applying their payload
-	// would do. Scope of the EMITTING frame, not the message, because
-	// the payload carries no provenance of its own.
-	const shellScope = ( () => {
-		try {
-			return adminScopeOf( new URL( config.adminUrl ).pathname );
-		} catch {
-			return '';
-		}
-	} )();
-	const sourceIsOtherAdmin = ( source: MessageEventSource | null ): boolean =>
-		frameSourceIsOtherAdmin( source, shellScope, INITIAL_ORIGIN );
-
 	window.addEventListener( 'message', ( e: MessageEvent ) => {
 		if ( e.origin !== INITIAL_ORIGIN ) {
 			return;
@@ -367,11 +303,6 @@ export function bindMenuRefresh( deps: MenuRefreshDeps ): () => Promise< void > 
 		}
 
 		if ( data.type === 'os-plugins-changed' ) {
-			// A window on a site Space is another admin's page; its
-			// payload describes THAT admin and must be dropped whole.
-			if ( sourceIsOtherAdmin( e.source ) ) {
-				return;
-			}
 			// The chromeless bridge always embeds a fresh menu payload
 			// captured from real admin context — plugins that gate
 			// `admin_menu` on `is_admin()` at load time registered
@@ -401,15 +332,6 @@ export function bindMenuRefresh( deps: MenuRefreshDeps ): () => Promise< void > 
 		}
 
 		if ( data.type === 'os-menu-signature' ) {
-			// A site Space's window fingerprints ANOTHER admin's menu —
-			// never comparable to this dock's, so without this guard
-			// every navigation in a Space would spend a refresh probe.
-			// (`os-updates-changed` above is deliberately not guarded:
-			// plugin and theme updates are network-wide, and the probe
-			// it spends runs against this shell's own admin.)
-			if ( sourceIsOtherAdmin( e.source ) ) {
-				return;
-			}
 			// A chromeless page off the full-payload allowlist reported
 			// its menu fingerprint. If it differs from the state the dock
 			// currently reflects, the admin menu changed somewhere we

@@ -354,9 +354,9 @@ function openstation_menu_refresh_probe_payload() {
  * `WP_NETWORK_ADMIN`. A plain `admin` screen therefore turned a
  * network-admin probe into a site request for everything after it:
  * `self_admin_url()` resolved every network menu slug against the site
- * admin, and the harvested dock sent a Network Admin Space's Plugins
- * tile to the site's `plugins.php`. Read the context here, BEFORE any
- * screen exists, where the answer still comes from the request itself.
+ * admin, and a live refresh on the network shell painted a dock whose
+ * tiles opened site pages. Read the context here, BEFORE any screen
+ * exists, where the answer still comes from the request itself.
  *
  * @return string Screen id carrying the request's admin context.
  */

@@ -1680,7 +1680,6 @@ Multiple "Spaces" with windows distributed across them. Each desktop has an id, 
 interface Desktop {
     id:    string;
     label: string;
-    scope?: string;   // a site Space: the admin this desktop hosts — see below
     // A desktop with a job — which apps show on it, what it opens
     // with, how they are arranged. Absent means a plain Space, which
     // is what every session saved before workspaces carries.
@@ -1692,17 +1691,17 @@ manager.getDesktops(): Desktop[];          // every desktop, in order
 manager.getActiveDesktop(): Desktop;       // the one currently visible
 manager.getActiveDesktopId(): string;
 manager.getPrimaryDesktopId(): string;     // see below
-manager.createDesktop( init? ): Desktop;   // append a new one + return it; `init` may set `label` and `scope`
+manager.createDesktop( init? ): Desktop;   // append a new one + return it; `init` may set `label`
 manager.switchDesktop( id ): void;         // make `id` the active desktop
-manager.closeDesktop( id ): void;          // delete `id`; windows migrate to the neighbour — except a scoped desktop's own admin's windows, which close with it
+manager.closeDesktop( id ): void;          // delete `id`; windows migrate to the neighbour
 manager.renameDesktop( id, label ): boolean;  // relabel `id`; see below
 ```
-
-`scope` marks a **site Space** — a desktop hosting another admin of the same origin, expressed as an admin-scope path (`/site2/wp-admin/`, `/wp-admin/network/`; the rule lives in `src/admin-scope.ts`). It is what lets the desktop's cross-admin windows persist through the per-admin session scoping, quarantines their menu payloads, and makes closing the desktop close them. Set it through `createDesktop( { label, scope } )` — normally only by the shared cross-admin opener; see [multisite.md](./multisite.md#site-spaces).
 
 **Workspaces** build on this: a desktop plus the answer to what it is FOR — which apps show on it, which widgets sit on it, what it looks like, what it opens with. `wp.os.workspaces.*` creates them, `wp.os.workspaces.registerPreset()` adds a template, and three ship: Commerce, Learning and Publishing — named for the job, built around the products that do it. The `+` in the **overview top bar** opens a wizard whose first step is a blank desk one Enter away; Edit under a tile opens the same wizard on that desk. Overview is already the Spaces surface, and the desk itself belongs to the user's windows.
 
 The one rule the whole feature rests on: **a workspace is a view, never a write.** The rails, the widget column and the appearance are all computed on top of the user's own state and restored the moment they leave, so a workspace they delete costs them nothing. See **[Workspaces](./workspaces.md)** for the whole surface: it is documented there rather than here because it is a layer above Spaces, not a change to them.
+
+**On a network, every site is its own OpenStation** with its own desktops, and the overview top bar carries a **site switcher** above the tiles: `installOverviewHeader( build )` (`src/window-manager/overview.ts`) is the seam the shell uses to put that row there, and `openstation_overview=1` on the shell screen boots it straight into overview, a one-shot boot arg stripped from the address bar with `target` and `intent`. See [multisite.md](./multisite.md#site-instances).
 
 Lifecycle hooks fire on each operation: `HOOKS.DESKTOP_CREATED`, `HOOKS.DESKTOP_CLOSED { desktopId, migratedTo }`, `HOOKS.DESKTOP_SWITCHED { from, to }`, `HOOKS.DESKTOP_RENAMED { desktopId, label, previousLabel }`.
 
@@ -5606,7 +5605,7 @@ Four things follow from a system tile's menu being *actions* rather than admin p
 - The panel is the same three sections an admin menu gets. The head shows the tile's icon and title and, having no landing page to open, runs the **first row** on click.
 - Live windows are resolved from the rows. An admin menu has one window key; an action menu has none, so each row that opens a window declares it with `windowId` and the section lists the union. Rows that open nothing leave it unset.
 - `onSelect` is **client-side only**. The server builds admin-menu submenus as JSON and a function cannot survive that trip; only JS-registered tiles can set it.
-- Both `onOpen` and `onSelect` receive the originating `MouseEvent` when there is one (keyboard activation and programmatic calls pass nothing), so a handler that navigates can honour the browser-tab gestures — cmd/ctrl/shift and middle click. The Network Admin tile's Space opener (`src/multisite/spaces.ts`, [multisite.md](./multisite.md#site-spaces)) is the shipped example; handlers that ignore the argument are unaffected.
+- Both `onOpen` and `onSelect` receive the originating `MouseEvent` when there is one (keyboard activation and programmatic calls pass nothing), so a handler that navigates can honour the browser-tab gestures — cmd/ctrl/shift and middle click. The Network Admin tile's instance hop (`src/multisite/hop.ts`, [multisite.md](./multisite.md#site-instances)) is the shipped example; handlers that ignore the argument are unaffected.
 - `dock-peek` stands down for the tile, the same way it does for menu tiles. Give the tile an `onOpen` that does something defensible on its own, because a keyboard or touch user never sees the menu.
 
 Declare `submenu` as a getter if the rows depend on live state — it is read fresh each time the flyout opens.

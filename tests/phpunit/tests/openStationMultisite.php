@@ -18,8 +18,8 @@
  * @covers ::openstation_session_meta_key
  * @covers ::openstation_filter_wpmu_drop_tables
  * @covers ::openstation_site_table_names
- * @covers ::openstation_admin_scope_of_path
- * @covers ::openstation_session_desktop_scope
+ * @covers ::openstation_multisite_sites
+ * @covers ::openstation_shell_lands_in_overview
  * @covers ::openstation_session_window_url_ok
  * @covers ::openstation_session_url_in_scope
  * @covers ::openstation_sanitize_session
@@ -160,73 +160,20 @@ class Tests_OpenStation_Multisite extends WP_UnitTestCase {
 	}
 
 	/**
-	 * A blob written before the per-admin keys split — or by an older
-	 * client posting to the wrong scope — heals on READ, not just on the
-	 * next write. Native windows carry no admin URL and always survive.
-	 */
-	/**
-	 * KEEP IN SYNC with the table in `tests/vitest/admin-scope.test.ts`
-	 * — the PHP, shell and bridge implementations of the admin-scope
-	 * rule are pinned against these same rows.
-	 *
-	 * @covers ::openstation_admin_scope_of_path
-	 */
-	public function test_admin_scope_of_path_table() {
-		$table = array(
-			'/wp-admin/'                  => '/wp-admin/',
-			'/wp-admin/index.php'         => '/wp-admin/',
-			'/wp-admin/network/'          => '/wp-admin/network/',
-			'/wp-admin/network/sites.php' => '/wp-admin/network/',
-			'/wp-admin/user/'             => '/wp-admin/user/',
-			'/wp-admin/user/profile.php'  => '/wp-admin/user/',
-			'/site2/wp-admin/'            => '/site2/wp-admin/',
-			'/site2/wp-admin/edit.php'    => '/site2/wp-admin/',
-			'/wp-admin/network-tools.php' => '/wp-admin/',
-			'/site2/wp-admin/network/'    => '/site2/wp-admin/network/',
-			'/front-page/'                => '',
-			'/'                           => '',
-		);
-		foreach ( $table as $path => $scope ) {
-			$this->assertSame( $scope, openstation_admin_scope_of_path( $path ), $path );
-		}
-	}
-
-	/**
-	 * A desktop scope is stored only when it IS a normalized
-	 * admin-scope path — its own fixed point.
-	 *
-	 * @covers ::openstation_session_desktop_scope
-	 */
-	public function test_session_desktop_scope_validation() {
-		$this->assertSame( '/site2/wp-admin/', openstation_session_desktop_scope( array( 'scope' => '/site2/wp-admin/' ) ) );
-		$this->assertSame( '/wp-admin/network/', openstation_session_desktop_scope( array( 'scope' => '/wp-admin/network/' ) ) );
-		// Not fixed points: a page path, a full URL, free text.
-		$this->assertSame( '', openstation_session_desktop_scope( array( 'scope' => '/site2/wp-admin/edit.php' ) ) );
-		$this->assertSame( '', openstation_session_desktop_scope( array( 'scope' => 'http://example.org/site2/wp-admin/' ) ) );
-		$this->assertSame( '', openstation_session_desktop_scope( array( 'scope' => 'not a scope' ) ) );
-		$this->assertSame( '', openstation_session_desktop_scope( array() ) );
-	}
-
-	/**
-	 * The site-Space exception: a desktop persisted with a scope keeps
-	 * ITS admin's windows through sanitize — while the same window on
-	 * an unscoped desktop, or pointing at a dead desktop id, is
-	 * dropped exactly as per-admin scoping always dropped it.
+	 * Another site's window never persists in this session, whichever
+	 * desktop it sits on: on a network every site is its own
+	 * OpenStation, and a site's windows live in that site's shell.
 	 *
 	 * @covers ::openstation_sanitize_session
 	 * @covers ::openstation_session_window_url_ok
 	 */
-	public function test_scoped_desktop_persists_its_admin_windows() {
+	public function test_another_sites_window_never_persists() {
 		$foreign = set_url_scheme( 'http://' . wp_parse_url( admin_url(), PHP_URL_HOST ) . '/site2/wp-admin/index.php' );
 		$session = array(
 			'updated'  => 1000,
 			'desktops' => array(
 				array( 'id' => 'desktop-1', 'label' => 'Desktop 1' ),
-				array(
-					'id'    => 'desktop-2',
-					'label' => 'site2',
-					'scope' => '/site2/wp-admin/',
-				),
+				array( 'id' => 'desktop-2', 'label' => 'site2' ),
 			),
 			'windows'  => array(
 				array(
@@ -235,64 +182,125 @@ class Tests_OpenStation_Multisite extends WP_UnitTestCase {
 					'desktopId' => 'desktop-1',
 				),
 				array(
-					'id'        => 'space',
+					'id'        => 'foreign',
 					'url'       => $foreign,
 					'desktopId' => 'desktop-2',
-				),
-				array(
-					'id'        => 'loose',
-					'url'       => $foreign,
-					'desktopId' => 'desktop-1',
-				),
-				array(
-					'id'        => 'orphan',
-					'url'       => $foreign,
-					'desktopId' => 'desktop-gone',
 				),
 			),
 		);
 
 		$clean = openstation_sanitize_session( $session, false );
 
-		$this->assertSame( '/site2/wp-admin/', $clean['desktops'][1]['scope'] );
-		$this->assertSame( array( 'own', 'space' ), wp_list_pluck( $clean['windows'], 'id' ) );
+		$this->assertSame( array( 'own' ), wp_list_pluck( $clean['windows'], 'id' ) );
+		$this->assertArrayNotHasKey( 'scope', $clean['desktops'][1] );
 	}
 
 	/**
-	 * The same exception on READ: a stored blob's scoped desktop keeps
-	 * its windows, and losing the scope loses them.
+	 * A desktop persisted by the site-Spaces model carried a `scope`, a
+	 * desk hosting another admin. Every site is its own OpenStation now,
+	 * so the desk has nothing left to host: dropped on read, the active
+	 * desktop moved off it, and the next save writes it out.
 	 *
 	 * @covers ::openstation_get_session
 	 */
-	public function test_get_session_honours_desktop_scopes() {
+	public function test_get_session_drops_site_space_desktops() {
 		$user_id = self::factory()->user->create();
-		$foreign = set_url_scheme( 'http://' . wp_parse_url( admin_url(), PHP_URL_HOST ) . '/site2/wp-admin/index.php' );
-		$blob    = array(
-			'updated'  => 1000,
-			'desktops' => array(
-				array( 'id' => 'desktop-1', 'label' => 'Desktop 1' ),
-				array(
-					'id'    => 'desktop-2',
-					'label' => 'site2',
-					'scope' => '/site2/wp-admin/',
+		update_user_meta(
+			$user_id,
+			openstation_session_meta_key( false ),
+			array(
+				'updated'       => 1000,
+				'desktops'      => array(
+					array( 'id' => 'desktop-1', 'label' => 'Desktop 1' ),
+					array(
+						'id'    => 'desktop-2',
+						'label' => 'site2',
+						'scope' => '/site2/wp-admin/',
+					),
 				),
-			),
-			'windows'  => array(
-				array(
-					'id'        => 'space',
-					'url'       => $foreign,
-					'desktopId' => 'desktop-2',
-				),
-			),
+				'activeDesktop' => 'desktop-2',
+				'windows'       => array(),
+			)
 		);
-		update_user_meta( $user_id, openstation_session_meta_key( false ), $blob );
-		$this->assertCount( 1, openstation_get_session( $user_id, false )['windows'] );
 
-		unset( $blob['desktops'][1]['scope'] );
-		update_user_meta( $user_id, openstation_session_meta_key( false ), $blob );
-		$this->assertCount( 0, openstation_get_session( $user_id, false )['windows'] );
+		$session = openstation_get_session( $user_id, false );
+
+		$this->assertSame( array( 'desktop-1' ), wp_list_pluck( $session['desktops'], 'id' ) );
+		$this->assertSame( 'desktop-1', $session['activeDesktop'] );
 	}
 
+	/**
+	 * On a network every site is its own OpenStation: the block names
+	 * this instance, every site the user may switch to, and the network
+	 * admin only for those who can reach it.
+	 *
+	 * @covers ::openstation_multisite_payload
+	 * @covers ::openstation_multisite_sites
+	 */
+	public function test_multisite_payload_names_every_instance() {
+		if ( ! is_multisite() ) {
+			$this->markTestSkipped( 'Multisite only.' );
+		}
+		$blog_id    = get_current_blog_id();
+		$other      = self::factory()->blog->create( array( 'path' => '/switcher-other/' ) );
+		$site_admin = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $site_admin );
+
+		$payload = openstation_multisite_payload();
+		$this->assertNull( $payload['networkAdmin'], 'A site admin cannot reach the network admin.' );
+		$this->assertSame( (string) $blog_id, $payload['current'] );
+		$ids = wp_list_pluck( $payload['sites'], 'id' );
+		$this->assertContains( (string) $blog_id, $ids );
+		$this->assertNotContains( (string) $other, $ids, 'A site admin sees only the sites they belong to.' );
+		$this->assertSame(
+			get_admin_url( $blog_id, 'admin.php?page=' . OPENSTATION_SHELL_PAGE_SLUG ),
+			$payload['sites'][ array_search( (string) $blog_id, $ids, true ) ]['shellUrl']
+		);
+
+		$super = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		grant_super_admin( $super );
+		wp_set_current_user( $super );
+		$payload = openstation_multisite_payload();
+		$this->assertSame(
+			network_admin_url( 'admin.php?page=' . OPENSTATION_SHELL_PAGE_SLUG ),
+			$payload['networkAdmin']['shellUrl']
+		);
+		// A super admin can reach every site, member or not.
+		$this->assertContains( (string) $other, wp_list_pluck( $payload['sites'], 'id' ) );
+
+		// The filter is where a large network trims the row.
+		add_filter( 'openstation_multisite_sites', '__return_empty_array' );
+		$this->assertSame( array(), openstation_multisite_payload()['sites'] );
+		remove_filter( 'openstation_multisite_sites', '__return_empty_array' );
+		wp_set_current_user( 0 );
+	}
+
+	/**
+	 * The overview flag is a boot arg of the shell screen and nothing
+	 * else: how a switch from another site's overview lands in this one's.
+	 *
+	 * @covers ::openstation_shell_lands_in_overview
+	 */
+	public function test_shell_lands_in_overview_reads_the_flag() {
+		set_current_screen( OPENSTATION_SHELL_SCREEN_ID );
+		$this->assertFalse( openstation_shell_lands_in_overview() );
+
+		$_GET['openstation_overview'] = '1';
+		$this->assertTrue( openstation_shell_lands_in_overview() );
+
+		// Only the shell screen consumes it.
+		set_current_screen( 'dashboard' );
+		$this->assertFalse( openstation_shell_lands_in_overview() );
+		unset( $_GET['openstation_overview'] );
+	}
+
+	/**
+	 * A blob written before the per-admin keys split — or by an older
+	 * client posting to the wrong scope — heals on READ, not just on the
+	 * next write. Native windows carry no admin URL and always survive.
+	 *
+	 * @covers ::openstation_get_session
+	 */
 	public function test_get_session_filters_stored_windows_to_the_scope() {
 		$user_id = self::factory()->user->create();
 		update_user_meta(

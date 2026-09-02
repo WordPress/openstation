@@ -1,11 +1,11 @@
 /**
  * The Network Admin dock tile: the admin bar's Network Admin node, on
- * the dock. Every activation opens the network admin **in its Space** —
- * the desktop scoped to that admin — through the shared opener from
- * `src/multisite/spaces.ts`, which also owns the fallbacks: a browser
- * tab where the network admin is cross-origin (subdomain and mapped
- * networks cannot be framed), and on any modifier or middle click.
- * See docs/multisite.md.
+ * the dock. Every activation switches to the network admin's **own
+ * shell** — on a network every site is its own OpenStation — through
+ * the injected opener, the same hop every cross-admin link takes
+ * (`src/multisite/hop.ts`), which also honours the side-by-side
+ * gesture: a modifier or middle click opens it in a browser tab. See
+ * docs/multisite.md.
  */
 
 import type { SystemDockItem } from '../dock';
