@@ -143,4 +143,21 @@ describe( 'component requests', () => {
 		expect( loadComponents ).toHaveBeenCalledTimes( 1 );
 		expect( loadComponents ).toHaveBeenCalledWith( [ 'os-not-a-component' ] );
 	} );
+
+	it( 'never asks for a tag inside an os-preserve subtree', async () => {
+		const loadComponents = vi.fn( async () => undefined );
+		const demo = defineApp< State, Data >( 'preserve-demo', {
+			view: () => html`<div os-preserve><os-deliberately-bogus></os-deliberately-bogus></div>`,
+		} );
+		const session = createSession( {
+			root,
+			config: { ...config( { label: '' } ), id: 'preserve-demo' },
+			windowId: 'preserve-demo',
+			host: { ...host, loadComponents },
+			client: demo,
+		} );
+		session.paintEagerly();
+		await Promise.resolve();
+		expect( loadComponents ).not.toHaveBeenCalled();
+	} );
 } );

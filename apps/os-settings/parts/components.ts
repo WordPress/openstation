@@ -263,6 +263,7 @@ const warnerDemo = () => html`
 	<div
 		class="os-settings__help-warner-demo"
 		aria-hidden="true"
+		os-preserve
 		style="position:absolute;width:0;height:0;overflow:hidden;clip:rect(0 0 0 0);"
 	>
 		<os-example-console-fail-due-to-unregistered-component></os-example-console-fail-due-to-unregistered-component>

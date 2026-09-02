@@ -478,7 +478,14 @@ export function createSession( deps: SessionDeps ): Session {
 		const missing = new Set< string >();
 		for ( const el of Array.from( root.querySelectorAll( '*' ) ) ) {
 			const tag = el.tagName.toLowerCase();
-			if ( tag.startsWith( 'os-' ) && ! customElements.get( tag ) && ! requestedTags.has( tag ) ) {
+			// An `os-preserve` subtree is the app's own, in every sense:
+			// the morph never touches it, and neither does this scan (the
+			// Components tab renders two deliberately bogus tags there
+			// for its warner demo).
+			if ( ! tag.startsWith( 'os-' ) || customElements.get( tag ) || el.closest( '[os-preserve]' ) ) {
+				continue;
+			}
+			if ( ! requestedTags.has( tag ) ) {
 				missing.add( tag );
 				requestedTags.add( tag );
 			}
