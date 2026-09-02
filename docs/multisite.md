@@ -39,7 +39,12 @@ admin opens a browser tab instead, and a **modifier or middle click**
 opens one anywhere — the universal "open elsewhere" gesture.
 `createSpaceOpener()` in `src/multisite/spaces.ts` owns the whole rule;
 the dock tile and the bridge both route through the one opener, so the
-two entry points cannot disagree.
+two entry points cannot disagree. The shell's own admin never gets a
+Space — its desktop is the primary one — so a click that targets it
+while the user is standing in a Space (the main site's Dashboard row in
+the network Sites list, seen from the main site's own shell) goes home
+first rather than dropping the home admin's window onto another admin's
+desktop.
 
 The desktop carries its admin as `Desktop.scope` (an admin-scope path,
 below), and three behaviors hang off it:

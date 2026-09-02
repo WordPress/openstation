@@ -28,6 +28,7 @@ function fakeManager(): SpacesManager & {
 		opened: [] as Array< Record< string, unknown > >,
 		getDesktops: () => state.desktops,
 		getActiveDesktopId: () => state.active,
+		getPrimaryDesktopId: () => 'desktop-1',
 		switchDesktop: (
 			id: string,
 			opts?: { direction?: 'next' | 'prev' },
@@ -97,6 +98,24 @@ describe( 'createSpaceOpener', () => {
 		expect( manager.desktops ).toHaveLength( 1 );
 		expect( manager.switched ).toHaveLength( 0 );
 		expect( manager.opened ).toHaveLength( 1 );
+	} );
+
+	test( 'from inside a Space, a target in the shell\'s own admin goes home first', () => {
+		// The home admin's desktop is the primary one, never a Space:
+		// the main site's Dashboard row clicked from the network Sites
+		// window, seen from the main site's own shell, must not land
+		// the home admin's window on the Network Admin Space.
+		const manager = fakeManager();
+		const open = createSpaceOpener( { manager, adminUrl: ADMIN } );
+
+		open( 'http://example.test/site2/wp-admin/index.php' ); // into a Space
+		manager.switched.length = 0;
+		open( 'http://example.test/wp-admin/network/index.php' ); // home admin
+
+		expect( manager.desktops ).toHaveLength( 2 );
+		expect( manager.switched ).toEqual( [ [ 'desktop-1', { direction: 'prev' } ] ] );
+		expect( manager.active ).toBe( 'desktop-1' );
+		expect( manager.opened ).toHaveLength( 2 );
 	} );
 
 	test( 'cross-origin admins and modifier clicks get a browser tab', () => {

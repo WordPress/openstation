@@ -25,6 +25,7 @@ import { __ } from '../i18n';
 export interface SpacesManager {
 	getDesktops(): Array< { id: string; label: string; scope?: string } >;
 	getActiveDesktopId(): string;
+	getPrimaryDesktopId(): string;
 	switchDesktop(
 		id: string,
 		opts?: { direction?: 'next' | 'prev' },
@@ -87,11 +88,27 @@ export function createSpaceOpener( deps: {
 		}
 
 		const { manager } = deps;
-		if ( scope !== shellScope ) {
-			const desktops = manager.getDesktops();
-			const activeIdx = desktops.findIndex(
-				( d ) => d.id === manager.getActiveDesktopId(),
-			);
+		const desktops = manager.getDesktops();
+		const activeIdx = desktops.findIndex(
+			( d ) => d.id === manager.getActiveDesktopId(),
+		);
+		if ( scope === shellScope ) {
+			// The shell's own admin. Its desktop is the PRIMARY one, not
+			// a Space — so a click that lands here while the user is
+			// standing in a Space (the main site's Dashboard row in the
+			// network Sites list, seen from the main site's own shell)
+			// goes home first instead of dropping the home admin's
+			// window onto another admin's desktop.
+			if ( desktops[ activeIdx ]?.scope ) {
+				const primary = manager.getPrimaryDesktopId();
+				const primaryIdx = desktops.findIndex(
+					( d ) => d.id === primary,
+				);
+				manager.switchDesktop( primary, {
+					direction: primaryIdx > activeIdx ? 'next' : 'prev',
+				} );
+			}
+		} else {
 			const existingIdx = desktops.findIndex(
 				( d ) => d.scope === scope,
 			);
