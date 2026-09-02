@@ -133,7 +133,15 @@ describe( 'workspace operations', () => {
 		};
 	} );
 
-	afterEach( () => {
+	afterEach( async () => {
+		// `provisionWorkspace` settles two animation frames later — the
+		// layout pass and the `os.workspaces.provisioned` action. A test
+		// that returns before those frames land would leave the action to
+		// fire against a torn-down hooks stub, an unhandled error that
+		// only shows on a slow runner. Let the frames drain first.
+		await new Promise< void >( ( resolve ) =>
+			requestAnimationFrame( () => requestAnimationFrame( resolve ) ),
+		);
 		for ( const win of manager.getAll() ) {
 			win.destroy();
 		}
