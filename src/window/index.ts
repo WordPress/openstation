@@ -17,6 +17,7 @@ import type { DragGesture, GridSpan, WindowConfig, WindowState } from './../type
 import { activity } from './../activity';
 import { getSyntheticIframe } from './../connection';
 import { HOOKS, applyFilters, doAction } from './../hooks';
+import { isMobileStamped } from '../mode/stamp';
 import { __, sprintf } from './../i18n';
 import {
 	addParentSubscriber,
@@ -1338,6 +1339,11 @@ export class Window {
 					'button, [role="button"], [role="menuitem"], [role="menuitemcheckbox"], os-window-button, os-menu, os-menu-item, .os-window__menu-panel, .os-window__custom-buttons, input, select, textarea, a',
 				)
 			) {
+				return;
+			}
+			// A phone window is full-screen by contract; a double
+			// tap on the (hidden) title bar must not float it.
+			if ( isMobileStamped() ) {
 				return;
 			}
 			this.toggleMaximize();

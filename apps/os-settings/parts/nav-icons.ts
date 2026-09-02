@@ -132,6 +132,9 @@ export const NAV_ICONS: NavIconMap = {
 	 * rather than content, which is exactly what this page is: opt-ins,
 	 * developer mode, the betas.
 	 */
+	/* A single window: the phone shows exactly one. */
+	mobile: () => osIcon( 'window', NAV ),
+
 	features: () => osIcon( 'settings', NAV ),
 
 	/*

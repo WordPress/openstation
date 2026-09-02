@@ -2546,6 +2546,25 @@ export interface DesktopConfig {
 	 */
 	windowSystemBundleUrl?: string;
 	/**
+	 * Fully-qualified URL of the lazy phone-layer bundle
+	 * (`mobile[.min].js`). `src/mobile/loader.ts` injects it only
+	 * when the mode resolves to `mobile`.
+	 */
+	mobileBundleUrl?: string;
+	/**
+	 * Responsive-mode inputs from PHP (`openstation_mode_config()`):
+	 * the user's `mobileLayout` preference after the
+	 * `openstation_mode_preference` filter, the breakpoints after
+	 * `openstation_mode_breakpoints`, and the server's default
+	 * tab-bar pins after `openstation_mobile_tab_bar`. The head stamp
+	 * used the same values for the first paint.
+	 */
+	mode?: {
+		preference?: 'auto' | 'desktop' | 'mobile';
+		breakpoints?: { mobile?: number; tablet?: number };
+		tabBar?: string[];
+	};
+	/**
 	 * Whether the current user has the `manage_options` capability.
 	 */
 	currentUserIsAdmin?: boolean;

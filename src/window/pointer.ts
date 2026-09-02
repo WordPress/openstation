@@ -12,6 +12,7 @@
  */
 
 import { doAction, HOOKS } from '../hooks';
+import { isMobileStamped } from '../mode/stamp';
 import { workAreaRectOf, type WorkAreaRect } from '../work-area';
 import { createShakeDetector, dispatchShake } from './shake';
 import { DRAG_THRESHOLD_SQUARED, EDGE_MARGIN, GRAB_MARGIN } from './constants';
@@ -121,6 +122,16 @@ export function handleDragStart( win: Window, e: PointerEvent ): void {
 		target.closest( '.os-window__menu-btn' ) ||
 		target.closest( '.os-window__menu-panel' )
 	) {
+		return;
+	}
+
+	// A phone has no floating windows. The phone layer forces every
+	// window full-screen through the geometry filter; a drag here
+	// would un-state it on the first threshold crossing and leave a
+	// desktop-sized window floating on a 390px screen. The stamp is
+	// read from the document rather than imported from the shell so
+	// this bundle stays independent of the mode controller.
+	if ( isMobileStamped() ) {
 		return;
 	}
 

@@ -580,6 +580,14 @@ const TARGETS = {
 		fileBase: 'window-system',
 		iifeName: 'openStationWindowSystemBundle',
 	},
+	// The phone layer — home grid, top bar, tab bar, app switcher.
+	// Fetched by `src/mobile/loader.ts` only when the mode resolves
+	// to `mobile`; a desktop never loads it.
+	mobile: {
+		entry:    'src/mobile/entry.ts',
+		fileBase: 'mobile',
+		iifeName: 'openStationMobileBundle',
+	},
 	// Heartbeat widget — built-in PixiJS widget moved out of the
 	// main bundle in 0.18.0. Same registration shape third-party
 	// widgets use: PHP declares it via `openstation_register_widget()`

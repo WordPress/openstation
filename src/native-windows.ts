@@ -25,6 +25,7 @@
 
 import { activity } from './activity';
 import { HOOKS, addAction, doAction, removeAction } from './hooks';
+import { isMobileStamped } from './mode/stamp';
 import { injectInlineScript, loadVendorScript } from './wallpapers/vendor-loader';
 import { registerSyntheticIframe } from './connection';
 import { setPanelTabs } from './window/tab-strip';
@@ -1748,6 +1749,12 @@ export function createNativeWindowSync(
 		( payload: unknown ) => {
 			const windowId = ( payload as { windowId?: string } | null )?.windowId;
 			if ( ! windowId ) {
+				return;
+			}
+			// On a phone every window is maximized by contract, not by
+			// choice; recording that would reopen the window maximized
+			// on the desktop too.
+			if ( isMobileStamped() ) {
 				return;
 			}
 			const win = manager.getById( windowId );

@@ -295,6 +295,12 @@ import { openShortcutsWith, SHORTCUTS_WINDOW_ID } from './shortcuts';
 import { maybeShowRebrandNotice } from './rebrand-notice';
 import { osConfirm } from './os-confirm';
 import { preloadShellOverlays } from './shell-overlays/loader';
+import { renderIcon } from './icon';
+import { installMode, sanitizeModePreference, type OsModeApi } from './mode';
+import { installMobileConstraints } from './mobile/constraints';
+import { ensureMobileLoaded } from './mobile/loader';
+import { createNavItemOpener } from './mobile/open-nav-item';
+import type { MobileLayerHandle } from './mobile/types';
 import { preloadWindowSystem } from './window-system/loader';
 import type { WallpaperDef } from './wallpapers/types';
 // Each built-in plugin ships as its own lazy-loaded
@@ -655,6 +661,14 @@ export interface OpenStationPublicApi {
 	 * `docs/mio.md`.
 	 */
 	mio: MioApi;
+	/**
+	 * The responsive mode — `'desktop' | 'tablet' | 'mobile'` —
+	 * resolved from the viewport and the `mobileLayout` preference.
+	 * Read-only: `get()`, `isMobile()`, `subscribe()`. Transitions
+	 * also fire `os.mode.changed` and the `os-mode-changed`
+	 * CustomEvent. See `docs/mobile.md`.
+	 */
+	mode: OsModeApi;
 	/**
 	 * Desktop games surface. `register()` adds a game to the shared
 	 * registry (launcher grid + scoreboard tabs repaint live);
@@ -2238,6 +2252,28 @@ function init(): void {
 	);
 	osSettings.apply();
 
+	// The responsive mode. Installed before anything places a
+	// window: the phone constraints below hang off the geometry
+	// filter, and session restore fires long before the lazy phone
+	// layer could arrive. The preference follows the settings store;
+	// the viewport follows `matchMedia`.
+	const modeController = installMode( {
+		preference: sanitizeModePreference(
+			osSettings.getOsSettingsSnapshot().mobileLayout ?? config.mode?.preference,
+		),
+		breakpoints: config.mode?.breakpoints,
+	} );
+	osSettings.subscribeOsSettings( ( snap ) => {
+		modeController.setPreference( sanitizeModePreference( snap.mobileLayout ) );
+	} );
+	const mobileConstraints = installMobileConstraints( {
+		manager,
+		mode: modeController.api,
+		// Bound late: `openNativeWindowById` is declared further down
+		// the boot, and a recent is only ever opened from a tap.
+		openNative: ( id ) => openNativeWindowById( id ),
+	} );
+
 	// Mio — the desk companion. A first-class shell layer (sibling
 	// of the wallpaper, painting above every window), but the main
 	// bundle only carries the controller: the PixiJS soft body lives
@@ -2267,7 +2303,19 @@ function init(): void {
 		},
 	} );
 	const mioApi: MioApi = mio.api();
-	mio.boot();
+	// Not on a phone: the companion floats between windows on a desk
+	// the phone does not have, and its bundle is PixiJS. The first
+	// crossing into the desktop band boots it then.
+	if ( ! modeController.api.isMobile() ) {
+		mio.boot();
+	} else {
+		const unsubscribeMio = modeController.api.subscribe( ( change ) => {
+			if ( change.mode !== 'mobile' ) {
+				unsubscribeMio();
+				mio.boot();
+			}
+		} );
+	}
 
 	// Starter Widget developer-mode gate — must install its
 	// `os.widgets` filter before `widgetLayer.hydrate()`
@@ -3678,10 +3726,17 @@ function init(): void {
 		} );
 	}
 
+	// A phone restores one window — the focused one — and parks the
+	// rest as recents for the switcher. One iframe on boot, not a
+	// desktop's worth; the parked windows ride the session snapshot
+	// untouched so a desktop reload still finds them.
+	const restoreConfig = modeController.api.isMobile()
+		? mobileConstraints.trimSessionForMobile( config )
+		: config;
 	const sessionRestore = hasSession && ! soloWindowId
 		? restoreSession(
 			manager,
-			config,
+			restoreConfig,
 			desktopArea,
 			openNativeWindowById,
 		).catch( ( err ) => {
@@ -4550,6 +4605,7 @@ function init(): void {
 		connect: connectionBridge.connect,
 		getConnection: connectionBridge.getConnection,
 		mio: mioApi,
+		mode: modeController.api,
 		// Bound to the same deps bag the overview bar and the
 		// provisioner use, so `wp.os.workspaces.create( … )` and the
 		// wizard's Create are the same call.
@@ -4576,6 +4632,81 @@ function init(): void {
 		config,
 	} );
 	installPublicApi( desktopApi );
+
+	// The phone layer — a lazy bundle mounted while the mode is
+	// `mobile` and torn down when it leaves. Everything it needs is
+	// handed over here; it imports nothing from the shell at runtime.
+	let mobileLayer: MobileLayerHandle | null = null;
+	let mobileMountSeq = 0;
+	const openNavItemForMobile = createNavItemOpener( {
+		manager,
+		adminUrl: config.adminUrl,
+		openNative: openNativeWindowById,
+	} );
+	const syncMobileLayer = (): void => {
+		const seq = ++mobileMountSeq;
+		if ( ! modeController.api.isMobile() ) {
+			if ( mobileLayer ) {
+				mobileLayer.unmount();
+				mobileLayer = null;
+			}
+			return;
+		}
+		if ( mobileLayer || ! shellEl ) {
+			return;
+		}
+		const shellForMobile = shellEl;
+		ensureMobileLoaded( config.mobileBundleUrl ?? '' )
+			.then( ( api ) => {
+				// A crossing back out while the script was in flight.
+				if ( seq !== mobileMountSeq || ! modeController.api.isMobile() || mobileLayer ) {
+					return;
+				}
+				mobileLayer = api.mount( {
+					manager,
+					shell: shellForMobile,
+					area: desktopArea,
+					mode: modeController.api,
+					getNav: () => layoutDispatcher?.getNav() ?? null,
+					openNavItem: openNavItemForMobile,
+					getBadge: ( item ) =>
+						Math.max( item.menu?.badge ?? 0, iconsApi.getBadge( item.id ) ),
+					getPinnedTabIds: () => {
+						const mine = osSettings.getOsSettingsSnapshot().mobileTabs;
+						return Array.isArray( mine ) && mine.length > 0
+							? mine
+							: config.mode?.tabBar ?? [];
+					},
+					subscribeNav: ( cb ) => {
+						const unsubscribeSettings = osSettings.subscribeOsSettings( cb );
+						document.addEventListener( 'os-layout-changed', cb );
+						document.addEventListener( 'os-registry-changed', cb );
+						return () => {
+							unsubscribeSettings();
+							document.removeEventListener( 'os-layout-changed', cb );
+							document.removeEventListener( 'os-registry-changed', cb );
+						};
+					},
+					wallpaper: {
+						suspend: ( reason ) => wallpaperLayer?.suspend( reason ),
+						resume: ( reason ) => wallpaperLayer?.resume( reason ),
+					},
+					recents: mobileConstraints.recents,
+					openExternal: ( url ) => {
+						window.open( url, '_blank', 'noopener' );
+					},
+					adminUrl: config.adminUrl,
+					renderIcon: ( icon, opts ) => renderIcon( icon, opts ),
+				} );
+			} )
+			.catch( ( err ) => {
+				if ( typeof console !== 'undefined' ) {
+					console.error( '[openstation] the phone layer failed to load:', err );
+				}
+			} );
+	};
+	syncMobileLayer();
+	modeController.api.subscribe( syncMobileLayer );
 
 	// Now that `wp.os.dragManager` is on the window, register
 	// the recycle-bin drop targets (dock icon + window body). The
@@ -4913,7 +5044,20 @@ function init(): void {
 	// defs are in the registry when the user's saved list is
 	// resolved. Hydration is idempotent — safe if it fires twice
 	// (shouldn't, but defensive).
-	widgetLayer?.hydrate();
+	//
+	// Not on a phone: the widget column is hidden there, and each
+	// widget is a poller or a canvas. The first crossing into the
+	// desktop band hydrates them then.
+	if ( ! modeController.api.isMobile() ) {
+		widgetLayer?.hydrate();
+	} else {
+		const unsubscribeHydrate = modeController.api.subscribe( ( change ) => {
+			if ( change.mode !== 'mobile' ) {
+				unsubscribeHydrate();
+				widgetLayer?.hydrate();
+			}
+		} );
+	}
 
 	// Tear down any active canvas wallpaper + every mounted widget
 	// on page unload. Both hold intervals / tickers / WebGL

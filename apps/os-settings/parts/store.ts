@@ -110,6 +110,8 @@ export function openAdminUrl( url: string, title: string, icon = 'dashicons-admi
 
 /** The shell's page config — the boot facts other bundles also read. */
 export interface ShellConfig {
+	/** Responsive-mode inputs; `tabBar` is the server's default phone pins. */
+	mode?: { tabBar?: string[] } | null;
 	commentsAi?: { enabled: boolean; providerConfigured: boolean } | null;
 	aiAssistant?: {
 		available: boolean;

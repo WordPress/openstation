@@ -776,6 +776,22 @@ Fires after the user resets the one-time announcement flags in **OpenStation Pre
 
 ---
 
+### `os-mode-changed` — Experimental
+
+Fires when the responsive mode changes — the viewport crosses a breakpoint, the device rotates across one, or the user flips the `mobileLayout` preference. Mirrors the `os.mode.changed` action.
+
+```typescript
+interface OsModeChangedDetail {
+    mode: 'desktop' | 'tablet' | 'mobile';      // what the shell now renders
+    previous: 'desktop' | 'tablet' | 'mobile';
+    preference: 'auto' | 'desktop' | 'mobile';  // the override that produced it
+}
+```
+
+Only a real crossing fires it; a resize inside one band notifies nobody. The effective mode is also stamped on `<html>` as `data-os-mode`, which is the CSS hook. See [mobile.md](./mobile.md) and [`wp.os.mode`](#wposmode--experimental).
+
+---
+
 ## 2. `window.wp.os` API
 
 Populated after `os-init`. Do not access before that event fires.
@@ -2406,6 +2422,27 @@ Refcounted per reason string: two `suspend( 'my-plugin/thing' )` calls need two 
 The precise signal is the companion action **`os.wallpaper.suspend`** *(Experimental)*, fired on every suspended/resumed transition with `{ id, suspended, reasons }` (`id` = active canvas wallpaper id or `null`; `reasons` = currently held reason strings). Wallpapers that want to distinguish "tab hidden" from "game running" subscribe to it via `wp.os.hooks`.
 
 The games framework calls `suspend( 'game:<windowId>' )` / `resume(…)` around every game window automatically.
+
+---
+
+### `wp.os.mode` — Experimental
+
+Which experience the shell is rendering, resolved from the viewport and the user's `mobileLayout` preference. Read-only: the preference is a setting, written through `updateOsSettings( { mobileLayout } )`.
+
+```typescript
+interface OsModeApi {
+    get(): 'desktop' | 'tablet' | 'mobile';
+    getPreference(): 'auto' | 'desktop' | 'mobile';
+    getBreakpoints(): { mobile: number; tablet: number };  // widest px of each band, inclusive
+    isMobile(): boolean;
+    subscribe(
+        cb: ( change: { mode; previous; preference } ) => void,
+        opts?: { immediate?: boolean },   // call once right away with the current mode
+    ): () => void;                        // unsubscribe
+}
+```
+
+`tablet` is reported but, for now, renders the desktop; `mobile` mounts the phone layer (home screen, one full-screen window at a time, switcher, tab bar). Transitions fire `os.mode.changed` and `os-mode-changed`. The value is stamped on `<html data-os-mode>` for CSS. Full contract in [mobile.md](./mobile.md).
 
 ---
 
@@ -5218,6 +5255,24 @@ wp.hooks.addFilter(
 ```
 
 In practice most plugins use the `wp.os.registerWallpaper()` convenience — internally it adds a filter callback under a namespace the shell generates for you, so the raw filter API is only needed for non-additive operations.
+
+### Responsive mode and the session — Experimental
+
+| Hook | Kind | Payload / value |
+|---|---|---|
+| `os.mode.changed` | action | `{ mode, previous, preference }` — the responsive mode moved between `desktop`, `tablet` and `mobile`. Mirrored as the `os-mode-changed` CustomEvent. |
+| `os.session.snapshot` | filter | the `Session` envelope (`{ windows, desktops, activeDesktop, focused, updated }`) the window manager is about to hand to the saver. Runs on every `snapshot()`, the `pagehide` beacon included. Return it edited; a return that is not an envelope is ignored. |
+
+The phone layer uses `os.session.snapshot` to give the desktop its own numbers back (a window it forced full-screen is written with the geometry it had before) and to carry the windows a phone boot did not restore. A plugin can use it to redact a window it owns:
+
+```javascript
+wp.hooks.addFilter( 'os.session.snapshot', 'my-plugin/session', ( session ) => ( {
+    ...session,
+    windows: session.windows.filter( ( w ) => w.id !== 'my-plugin-scratch' ),
+} ) );
+```
+
+See [mobile.md](./mobile.md).
 
 ---
 

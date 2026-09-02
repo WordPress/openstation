@@ -21,6 +21,7 @@
  */
 
 import { HOOKS, doAction, applyFilters } from '../hooks';
+import { isMobileStamped } from '../mode/stamp';
 import type {
 	Desktop,
 	Session,
@@ -2436,6 +2437,14 @@ export class WindowManager {
 	// ---- Overview delegations ----
 
 	public enterOverview(): void {
+		// A phone has no desk to zoom out of: its overview is the app
+		// switcher. Every route into Overview — the System tile, a
+		// shortcut, a plugin — lands there instead; the phone layer
+		// answers the event.
+		if ( isMobileStamped() ) {
+			document.dispatchEvent( new CustomEvent( 'os-mobile-open-switcher' ) );
+			return;
+		}
 		enterOverview( this );
 	}
 	public exitOverview( selected?: Window, maximize = false ): void {
@@ -2619,7 +2628,7 @@ export class WindowManager {
 				? focused.id
 				: '';
 
-		return {
+		const session: Session = {
 			windows,
 			desktops: this.getDesktops(),
 			activeDesktop: this._activeDesktopId,
@@ -2634,6 +2643,12 @@ export class WindowManager {
 			// the user just closed. Milliseconds separate them.
 			updated: Date.now(),
 		};
+		// Last word before the saver: the phone layer hands the
+		// desktop its own geometry back here, and a plugin can redact
+		// a window it owns. A filter that returns something other
+		// than an envelope is ignored rather than trusted.
+		const filtered = applyFilters< Session >( HOOKS.SESSION_SNAPSHOT, session );
+		return filtered && Array.isArray( filtered.windows ) ? filtered : session;
 	}
 
 	/**

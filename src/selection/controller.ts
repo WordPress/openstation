@@ -126,8 +126,12 @@ function suppressNativeSelection( ref: HTMLElement ): () => void {
  * title bar would both move the window and rubber-band the icons
  * behind it.
  */
+// `.os-mobile-home` and `.os-mobile-edge` are the phone layer's home
+// grid and its back-gesture zone, both children of the desktop area:
+// a press on a home tile must reach the tile, not rubber-band the
+// files hidden under the grid.
 const DEFAULT_MARQUEE_EXCLUDE =
-	'.os-window, .os-widgets__list, .os-widgets__card, .os-widgets__add, .os-pinned-note';
+	'.os-window, .os-widgets__list, .os-widgets__card, .os-widgets__add, .os-pinned-note, .os-mobile-home, .os-mobile-edge';
 
 /**
  * Class the window manager puts on the desktop area for the duration of

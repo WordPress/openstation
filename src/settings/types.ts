@@ -390,6 +390,22 @@ export interface OsSettingsState {
 	 */
 	navOrder: string[];
 	/**
+	 * Which experience the shell renders. `'auto'` follows the
+	 * viewport (phone below the mobile breakpoint, desktop above);
+	 * `'desktop'` forces the desktop on a phone; `'mobile'` forces the
+	 * phone layer anywhere, which is how a developer previews it
+	 * without a device. Per-user.
+	 */
+	mobileLayout: 'auto' | 'desktop' | 'mobile';
+	/**
+	 * Navigation item ids pinned to the phone tab bar, in order, at
+	 * most three (Home and the switcher take the other two slots).
+	 * Empty means "use the server's default", which the
+	 * `openstation_mobile_tab_bar` filter shapes. Unknown ids survive
+	 * the round-trip so a deactivated plugin's pin comes back with it.
+	 */
+	mobileTabs: string[];
+	/**
 	 * Persisted desktop position (in CSS px) for every item the user
 	 * has promoted onto the wallpaper, keyed by item id. Missing keys
 	 * mean "no override" — the synth placement falls back to the

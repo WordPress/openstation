@@ -1681,6 +1681,39 @@ export const HOOKS = {
 	 * heartbeat noticed the expiry.
 	 */
 	AUTH_RESTORED: 'os.auth.restored',
+
+	// ------------------------------------------------------------------
+	// Responsive mode. Fired by `src/mode/index.ts` whenever the
+	// effective mode (`'desktop' | 'tablet' | 'mobile'`) changes —
+	// a viewport crossing a breakpoint, a rotation, or the user
+	// flipping the Preferences override. Mirrored as the
+	// `os-mode-changed` document CustomEvent.
+	// ------------------------------------------------------------------
+	/**
+	 * Action, payload `{ mode, previous, preference }`. `mode` is
+	 * the effective mode the shell now renders; `previous` the one
+	 * it just left; `preference` the user's `'auto' | 'desktop' |
+	 * 'mobile'` override that produced it. Surfaces that lay out
+	 * differently per mode subscribe here; the framework itself only
+	 * reports the transition and never decides what an app does
+	 * about it.
+	 */
+	MODE_CHANGED: 'os.mode.changed',
+
+	/**
+	 * Filter, the session envelope the window manager is about to
+	 * hand to the saver — `{ windows, desktops, activeDesktop,
+	 * focused, updated }`. Runs on every `snapshot()`, so it sees
+	 * the beacon on `pagehide` too. Return the envelope, edited.
+	 *
+	 * The phone layer uses it to give the desktop its own numbers
+	 * back: a window it forced full-screen is written with the
+	 * geometry it had before, and the windows a phone boot did not
+	 * restore are folded back in so a desktop reload still finds
+	 * them. A plugin can use it to redact a window it owns, or to
+	 * pin one it never wants restored.
+	 */
+	SESSION_SNAPSHOT: 'os.session.snapshot',
 } as const;
 
 /**

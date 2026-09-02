@@ -95,6 +95,9 @@ function openstation_enqueue_assets() {
 	wp_enqueue_style( 'os-openstation-layout' );
 	wp_enqueue_style( 'os-files' );
 	wp_enqueue_style( 'os-notes' );
+	// Unconditional like the layout sheet: a live crossing into the
+	// phone band must not find the phone layer unstyled.
+	wp_enqueue_style( 'os-mobile' );
 
 	// Solo mode — a single window freed into a native OS window by the
 	// desktop host. Same shell, everything but that one window hidden.
@@ -665,6 +668,14 @@ function openstation_enqueue_assets() {
 			// by the shell after first paint when no session is being
 			// restored and no `openCurrentPage` will fire.
 			'windowSystemBundleUrl'         => $lazy_bundle_url( 'window-system' ),
+			// URL of the lazy phone-layer bundle. Injected by the main
+			// bundle only when the mode resolves to `mobile`, so a
+			// desktop never fetches it. `mode` carries the preference
+			// and breakpoints the first-paint head stamp already used,
+			// plus the server's default tab-bar pins — see
+			// `includes/mobile.php`.
+			'mobileBundleUrl'               => $lazy_bundle_url( 'mobile' ),
+			'mode'                          => openstation_mode_config( get_current_user_id() ),
 			// URL of the item-visibility-menu lazy bundle — the
 			// right-click "hide from dock / desktop" menu. Injected by
 			// the main bundle's loader shim on the first right-click.
@@ -977,6 +988,19 @@ function openstation_print_preload_hints() {
 			'rel'  => 'prefetch',
 		),
 	);
+
+	// The phone layer is needed at boot on a phone and never on a
+	// desktop; the server cannot see the viewport, so the user agent
+	// decides whether the hint is worth its bytes. A wrong guess costs
+	// one low-priority fetch, never a wrong layout — the stamp and the
+	// bundle loader read the real viewport.
+	if ( openstation_mode_hint_is_mobile( get_current_user_id() ) ) {
+		$hints[] = array(
+			'href' => $build_url( 'assets/js/mobile' . $suffix . '.js' ),
+			'as'   => 'script',
+			'rel'  => 'prefetch',
+		);
+	}
 
 	/**
 	 * Filters the list of resource preload hints emitted in `<head>`.

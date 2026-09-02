@@ -18,6 +18,7 @@ defined( 'ABSPATH' ) || exit;
 - [Replace the dock rail entirely](./dock-rail-renderer.md)
 - [Gate OpenStation by role](./gate-by-role.md)
 - [React to window events](./react-to-window-events.md)
+- [Pin your app to the phone tab bar, and react to the mode](./mobile-tab-bar.md)
 - [WP Explorer — add a preview-pane action button](./my-wordpress-media-action.md)
 - [WP Explorer — custom post types and their folder](./my-wordpress-cpt-section.md)
 - [WP Explorer — add a column to the list view](./my-wordpress-list-column.md)

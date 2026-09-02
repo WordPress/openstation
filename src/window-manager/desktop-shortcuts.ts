@@ -26,6 +26,7 @@
  * preventDefault a page-scroll the user expected.
  */
 
+import { isMobileStamped } from '../mode/stamp';
 import { isTextEntryFocus } from './switcher';
 import { refreshOverviewTopBar } from './overview';
 import type { WindowManager } from './index';
@@ -231,6 +232,12 @@ export function installDesktopArrowShortcuts( mgr: WindowManager ): void {
 			// selections, Cmd/Ctrl/Alt-arrow are word-jumps or browser /
 			// OS shortcuts. Bare arrow only.
 			if ( e.ctrlKey || e.metaKey || e.altKey || e.shiftKey ) {
+				return;
+			}
+			// A phone has one screen, no virtual desktops, no Overview
+			// and no Show Desktop; a hardware keyboard's arrows belong
+			// to the page.
+			if ( isMobileStamped() ) {
 				return;
 			}
 			if (
