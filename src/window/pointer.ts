@@ -13,6 +13,7 @@
 
 import { doAction, HOOKS } from '../hooks';
 import { workAreaRectOf, type WorkAreaRect } from '../work-area';
+import { createShakeDetector, dispatchShake } from './shake';
 import { DRAG_THRESHOLD_SQUARED, EDGE_MARGIN, GRAB_MARGIN } from './constants';
 import type { Window } from './index';
 
@@ -157,6 +158,42 @@ export function handleDragStart( win: Window, e: PointerEvent ): void {
 	// (pending-flag) and we want a fresh one for each session.
 	const emitBoundsChanged = makeBoundsEmitter( win, 'drag' );
 
+	// One shake detector per drag: the run state belongs to this
+	// press, and one that outlived it would carry half a shake into
+	// the next drag.
+	const shake = createShakeDetector();
+
+	// The grid-snap modifier — Option on macOS, Alt everywhere else,
+	// one `altKey` flag on every platform. Tracked from two sources
+	// because a modifier can change while the pointer is still: the
+	// pointer event carries it on every move, and keydown/keyup catch
+	// a press or release between moves. Both funnel into one setter so
+	// the manager sees each transition exactly once.
+	let modifierDown = false;
+	let lastClientX = startClientX;
+	let lastClientY = startClientY;
+	const setModifier = ( down: boolean, clientX: number, clientY: number ): void => {
+		if ( down === modifierDown || ! win._isDragging ) {
+			return;
+		}
+		modifierDown = down;
+		win.onDragGesture?.( win, {
+			type: 'modifier',
+			active: down,
+			clientX,
+			clientY,
+		} );
+	};
+	const onModifierKey = ( ke: KeyboardEvent ): void => {
+		if ( ke.key !== 'Alt' ) {
+			return;
+		}
+		// The browser's own use for a bare Alt press (focusing the
+		// menu bar on Windows / Linux) would steal the drag.
+		ke.preventDefault();
+		setModifier( ke.type === 'keydown', lastClientX, lastClientY );
+	};
+
 	// `started` flips true once the drag has actually begun. For
 	// windows that don't need un-state (state === 'normal' etc.) we
 	// begin immediately, matching pre-threshold behavior. For
@@ -201,6 +238,12 @@ export function handleDragStart( win: Window, e: PointerEvent ): void {
 		win._isDragging = true;
 		win._dragOffsetX = cursorX - newLeft;
 		win._dragOffsetY = cursorY - newTop;
+
+		// Listen on the window, not the title bar: the keyboard does
+		// not follow pointer capture, and a keydown lands wherever
+		// focus is.
+		window.addEventListener( 'keydown', onModifierKey );
+		window.addEventListener( 'keyup', onModifierKey );
 
 		doAction( HOOKS.WINDOW_DRAG_START, { windowId: win.id } );
 	};
@@ -255,10 +298,36 @@ export function handleDragStart( win: Window, e: PointerEvent ): void {
 		win.element.style.left = `${ x }px`;
 		win.element.style.top = `${ y }px`;
 
-		// Edge snap-zone detection. The manager wires `onDragMove` to
-		// update the snap preview + arm the commit. Dragging outside
-		// the zone clears preview state.
+		lastClientX = ev.clientX;
+		lastClientY = ev.clientY;
+
+		// The modifier as the pointer event reports it. A press that
+		// happened between moves already arrived via keydown; this
+		// catches the one that happened while the pointer was moving,
+		// and a release the keyup never reported (focus left the
+		// page with the key held).
+		setModifier( ev.altKey, ev.clientX, ev.clientY );
+
+		// Gesture detection. The manager wires `onDragMove` to update
+		// the snap preview + arm the commit, or to move the grid-snap
+		// cursor while one is armed. Dragging outside the zone clears
+		// preview state.
 		win.onDragMove?.( win, ev.clientX, ev.clientY );
+
+		// A shake is published whether or not anything is listening
+		// for it: it is a gesture the platform does not have, and a
+		// plugin should be able to take it up without the shell
+		// having to know. The manager takes it up for the grid anchor.
+		const shaken = shake.feed( ev.clientX, ev.clientY, ev.timeStamp );
+		if ( shaken ) {
+			dispatchShake( win.element, shaken );
+			doAction( HOOKS.POINTER_SHAKE, { ...shaken, windowId: win.id } );
+			win.onDragGesture?.( win, {
+				type: 'shake',
+				clientX: ev.clientX,
+				clientY: ev.clientY,
+			} );
+		}
 
 		// Live bounds-changed hook — rAF-coalesced. Collision-aware
 		// wallpapers (snow piling on window tops, rain splash) listen
@@ -279,6 +348,9 @@ export function handleDragStart( win: Window, e: PointerEvent ): void {
 		win._titleBar.removeEventListener( 'pointerup', onDragEnd );
 		win._titleBar.removeEventListener( 'pointercancel', onDragEnd );
 		win._titleBar.removeEventListener( 'lostpointercapture', onDragEnd );
+		window.removeEventListener( 'keydown', onModifierKey );
+		window.removeEventListener( 'keyup', onModifierKey );
+		shake.reset();
 	};
 
 	const onDragEnd = (): void => {
@@ -310,6 +382,9 @@ export function handleDragStart( win: Window, e: PointerEvent ): void {
 			return;
 		}
 
+		// A free drop is the user placing the window themselves; it is
+		// off the grid from here on.
+		win._gridSpan = null;
 		win._emitChange( 'moved' );
 		const payload = {
 			windowId: win.id,
@@ -526,6 +601,9 @@ export function handleResizeStart( win: Window, e: PointerEvent ): void {
 		handle.removeEventListener( 'pointerup', onResizeEnd );
 		handle.removeEventListener( 'pointercancel', onResizeEnd );
 		handle.removeEventListener( 'lostpointercapture', onResizeEnd );
+		// Same as a free drop: a hand-resized window is no longer a
+		// span of cells.
+		win._gridSpan = null;
 		win._emitChange( 'resized' );
 		const payload = {
 			windowId: win.id,

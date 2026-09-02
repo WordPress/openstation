@@ -439,6 +439,14 @@ function openstation_sanitize_session( $session, $network = null ) {
 				$entry['scope']            = $d_scope;
 				$desktop_scopes[ $d_id ]   = $d_scope;
 			}
+			// A desktop's workspace profile — which apps it shows, what
+			// it opens with, how they are arranged. Optional, and only
+			// written when there is one, so a plain Space keeps the
+			// shape every session saved before workspaces existed had.
+			$profile = openstation_sanitize_workspace_profile( isset( $d['profile'] ) ? $d['profile'] : null );
+			if ( null !== $profile ) {
+				$entry['profile'] = $profile;
+			}
 			$clean_desktops[] = $entry;
 			$desktop_ids[]    = $d_id;
 			if ( count( $clean_desktops ) >= OPENSTATION_SESSION_MAX_DESKTOPS ) {
@@ -575,6 +583,16 @@ function openstation_sanitize_session( $session, $network = null ) {
 				'height'    => openstation_sanitize_session_dimension( $win['height'] ?? 600, 0, 20000 ),
 			);
 
+			// A grid-snapped window's cells, next to its pixels. On
+			// restore the cells win — they are a fraction of the desk,
+			// and the pixels are from whatever display the session was
+			// saved on. Only written when valid, so a plain window keeps
+			// the shape it always had.
+			$grid_span = openstation_sanitize_session_grid_span( $win['gridSpan'] ?? null );
+			if ( null !== $grid_span ) {
+				$entry['gridSpan'] = $grid_span;
+			}
+
 			// Marks the entry for the shell's restore path: native
 			// windows reopen through the native-window registry, not by
 			// pointing an iframe at a URL. Only written when true so
@@ -691,6 +709,57 @@ function openstation_sanitize_session_dimension( $value, $min, $max ) {
 		return (int) $max;
 	}
 	return $value;
+}
+
+/**
+ * Sanitize a window's grid placement.
+ *
+ * `{ anchor: { col, row }, cursor: { col, row }, cols, rows }`, every
+ * value an integer, the grid between 1×1 and 24×24 (the same ceiling
+ * the client's dimensions filter enforces), every cell inside it.
+ * Anything else is `null` — the window restores on its pixels, which
+ * is what a session written before grid snap does anyway.
+ *
+ * @param mixed $raw Raw span from the payload.
+ * @return array|null Sanitized span, or null.
+ */
+function openstation_sanitize_session_grid_span( $raw ) {
+	if ( ! is_array( $raw ) || ! isset( $raw['anchor'], $raw['cursor'], $raw['cols'], $raw['rows'] ) ) {
+		return null;
+	}
+	$int = static function ( $value ) {
+		return is_int( $value ) || ( is_numeric( $value ) && (string) (int) $value === (string) $value ) ? (int) $value : null;
+	};
+	$cols = $int( $raw['cols'] );
+	$rows = $int( $raw['rows'] );
+	if ( null === $cols || null === $rows || $cols < 1 || $rows < 1 || $cols > 24 || $rows > 24 ) {
+		return null;
+	}
+	$cell = static function ( $c ) use ( $int, $cols, $rows ) {
+		if ( ! is_array( $c ) || ! isset( $c['col'], $c['row'] ) ) {
+			return null;
+		}
+		$col = $int( $c['col'] );
+		$row = $int( $c['row'] );
+		if ( null === $col || null === $row || $col < 0 || $row < 0 || $col >= $cols || $row >= $rows ) {
+			return null;
+		}
+		return array(
+			'col' => $col,
+			'row' => $row,
+		);
+	};
+	$anchor = $cell( $raw['anchor'] );
+	$cursor = $cell( $raw['cursor'] );
+	if ( null === $anchor || null === $cursor ) {
+		return null;
+	}
+	return array(
+		'anchor' => $anchor,
+		'cursor' => $cursor,
+		'cols'   => $cols,
+		'rows'   => $rows,
+	);
 }
 
 /**

@@ -13,6 +13,43 @@ import type { WindowContentRef } from './window-links/types';
 export type WindowState = 'normal' | 'maximized' | 'minimized' | 'fullscreen' | 'snapped-left' | 'snapped-right';
 
 /**
+ * A gesture carried by a title-bar drag beyond its position.
+ *
+ * - `modifier` — the grid-snap key (Option on macOS, Alt elsewhere)
+ *   went down (`active: true`) or came up. Reported with the pointer's
+ *   position at that moment, which is the cell the grid anchors on.
+ * - `shake` — the pointer was shaken; see `src/window/shake.ts`.
+ *
+ * A discriminated union rather than one callback per gesture, so a new
+ * gesture is a new variant and not a new field on every window.
+ *
+ * @public
+ */
+export type DragGesture =
+	| { type: 'modifier'; active: boolean; clientX: number; clientY: number }
+	| { type: 'shake'; clientX: number; clientY: number };
+
+/**
+ * Where a grid-snapped window lives, in cells rather than pixels.
+ *
+ * A grid placement is a fraction of the work area — "the two-by-two at
+ * (1,1) of a 6×6" — and a fraction survives what pixels do not: a
+ * browser resized, a dock that moved, a session restored on a
+ * different display. The shell keeps this on the window after a grid
+ * snap and re-derives the pixels from it whenever the work area
+ * changes. Cleared by any free move, resize or state change, because
+ * those are the user saying the window is theirs to place again.
+ *
+ * @public
+ */
+export interface GridSpan {
+	anchor: { col: number; row: number };
+	cursor: { col: number; row: number };
+	cols: number;
+	rows: number;
+}
+
+/**
  * A virtual desktop ("Space" in macOS terminology).
  *
  * Each desktop owns its own set of windows. Only one desktop is
@@ -37,6 +74,18 @@ export interface Desktop {
 	 * closes those windows rather than migrating them.
 	 */
 	scope?: string;
+	/**
+	 * What this desk is FOR: which apps belong on it, which windows it
+	 * opens with, how they are arranged.
+	 *
+	 * Optional, and absent is meaningful: a desktop with no profile is
+	 * a plain Space, behaving exactly as it did before workspaces
+	 * existed. Every session saved before them is in that state, which
+	 * is why nothing in the shell may assume the field is there.
+	 *
+	 * @see import('./workspaces/types').WorkspaceProfile
+	 */
+	profile?: import( './workspaces/types' ).WorkspaceProfile;
 }
 
 /**
@@ -330,6 +379,13 @@ export interface WindowConfig {
 	 * are showing, and it round-trips through the session on its own.
 	 */
 	params?: Record< string, string | number | boolean >;
+	/**
+	 * A grid placement to restore the window onto — see
+	 * {@link GridSpan}. Passed by session restore; the shell then
+	 * derives the geometry from the CURRENT work area rather than
+	 * trusting the saved pixels, which may be from another display.
+	 */
+	gridSpan?: GridSpan;
 	/**
 	 * Per-window appearance overrides — themes (CSS variables),
 	 * controls (close / minimize / maximize layout + custom buttons),
@@ -1781,6 +1837,13 @@ export interface SessionWindow {
 	 * See {@link WindowConfig.params}.
 	 */
 	params?: Record< string, string | number | boolean >;
+	/**
+	 * Where the window sits on the grid, when it was grid-snapped —
+	 * see {@link GridSpan}. The pixels below are still saved, but on
+	 * restore the span wins: it is what keeps a 2×2 a 2×2 on a
+	 * different display.
+	 */
+	gridSpan?: GridSpan;
 	url: string;
 	title: string;
 	icon: string;
@@ -1904,6 +1967,16 @@ export interface DesktopConfig {
 	 * stylesheet reference; no JS is ever involved.
 	 */
 	serverDesktopThemes?: DesktopThemeServerEntry[];
+	/**
+	 * Workspace templates the server knows about
+	 * (`openstation_workspace_presets`). The one registry in the family
+	 * that carries no script: a template is metadata plus two token
+	 * lists, so `src/workspaces/server-sync.ts` reconciles it
+	 * synchronously. An entry naming a client built-in says only "this
+	 * one still exists"; an entry with an id of its own is registered
+	 * whole, so a plugin can ship a workspace from PHP alone.
+	 */
+	workspacePresets?: import( './workspaces/server-sync' ).WorkspacePresetServerEntry[];
 	/**
 	 * Whether this user may upload / delete desktop themes. Gates the
 	 * management controls in OS Settings → Themes; picking a theme is

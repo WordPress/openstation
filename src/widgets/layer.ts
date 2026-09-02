@@ -84,6 +84,14 @@ export class WidgetLayer {
 
 	private pluginUrl: string;
 	private enabledIds: string[];
+
+	/**
+	 * A workspace's column, while one is in force; null when the desk
+	 * shows the user's own list. Set by {@link setVisibleIds}. Every
+	 * add and remove routes on this so a change made on a workspace
+	 * desk changes that desk and never the user's persisted pick.
+	 */
+	private override: string[] | null = null;
 	private geometry: Record< string, WidgetGeometry >;
 	private dockedHeights: Record< string, number >;
 	private mounted: Map< string, MountedWidget > = new Map();
@@ -135,6 +143,16 @@ export class WidgetLayer {
 	 * so built-ins are available. Safe to call multiple times — the
 	 * `mounted` map dedupes.
 	 */
+	/**
+	 * The ids the column should show right now: a workspace's own list
+	 * while one is in force, the user's list otherwise. Every path that
+	 * decides whether a widget belongs on screen reads this rather than
+	 * `enabledIds`, which is the user's persisted pick and nothing else.
+	 */
+	private visibleIds(): readonly string[] {
+		return this.override ?? this.enabledIds;
+	}
+
 	public hydrate(): void {
 		// First-run: no saved list at all → seed with the default
 		// (currently just 'clock'). This writes through so the next
@@ -147,7 +165,7 @@ export class WidgetLayer {
 			saveEnabledIds( this.enabledIds );
 		}
 
-		for ( const id of this.enabledIds ) {
+		for ( const id of this.visibleIds() ) {
 			if ( this.mounted.has( id ) ) {
 				continue;
 			}
@@ -159,14 +177,31 @@ export class WidgetLayer {
 	/**
 	 * Add a widget by id — called by the picker after the user
 	 * selects an available entry. Idempotent.
+	 *
+	 * While a workspace's column is in force the add goes to the
+	 * desk, not to the user's list: it mounts, it fires
+	 * `WIDGET_ADDED` (which the workspace layer records on the
+	 * profile), and `enabledIds` is untouched. A workspace never
+	 * writes the user's settings, and that has to hold for a write the
+	 * user made from inside one.
 	 */
 	public add( id: string ): void {
-		if ( this.enabledIds.includes( id ) ) {
-			return;
-		}
 		if ( ! registry.get( id ) ) {
 			// Unknown id — don't persist a broken entry. Most likely a
 			// plugin was deactivated between picker-open and click.
+			return;
+		}
+		if ( this.override ) {
+			if ( this.override.includes( id ) ) {
+				return;
+			}
+			this.override = [ ...this.override, id ];
+			this.mountById( id );
+			this.paintEmptyState();
+			doAction( HOOKS.WIDGET_ADDED, { id } );
+			return;
+		}
+		if ( this.enabledIds.includes( id ) ) {
 			return;
 		}
 		this.enabledIds.push( id );
@@ -179,8 +214,26 @@ export class WidgetLayer {
 	/**
 	 * Remove a widget by id — called from the card's × button and
 	 * from the picker. Idempotent.
+	 *
+	 * Same rule as {@link add}: while a workspace's column is in force
+	 * the × takes the widget off THIS desk and leaves the user's list,
+	 * their geometry and their docked height exactly as they were —
+	 * the widget is still theirs, on their own desk. Without this
+	 * branch a widget a workspace mounted was one the user's list had
+	 * never heard of, and the × did nothing at all.
 	 */
 	public remove( id: string ): void {
+		if ( this.override ) {
+			if ( ! this.override.includes( id ) ) {
+				return;
+			}
+			this.override = this.override.filter( ( e ) => e !== id );
+			this.unmountById( id );
+			this.paintEmptyState();
+			doAction( HOOKS.WIDGET_REMOVED, { id } );
+			refreshWidgetPicker();
+			return;
+		}
 		const before = this.enabledIds.length;
 		this.enabledIds = this.enabledIds.filter( ( e ) => e !== id );
 		if ( this.enabledIds.length === before ) {
@@ -207,6 +260,18 @@ export class WidgetLayer {
 	/** Public read for the picker / external callers. */
 	public getEnabledIds(): string[] {
 		return [ ...this.enabledIds ];
+	}
+
+	/**
+	 * The widgets on screen right now, in mount order.
+	 *
+	 * Not the same as {@link getEnabledIds}: a workspace with its own
+	 * column shows what it names rather than what the user enabled, so
+	 * "what is on the desk" and "what did the user pick" can differ —
+	 * and saving a desk into its workspace needs the first.
+	 */
+	public getMountedIds(): string[] {
+		return Array.from( this.mounted.keys() );
 	}
 
 	/**
@@ -265,7 +330,10 @@ export class WidgetLayer {
 		if ( ! registry.get( id ) ) {
 			return;
 		}
-		if ( ! this.enabledIds.includes( id ) ) {
+		// The set the desk is showing, which under a workspace is the
+		// workspace's — a plugin's widget arriving late must land on
+		// the desk that names it, and only there.
+		if ( ! this.visibleIds().includes( id ) ) {
 			return;
 		}
 		if ( this.mounted.has( id ) ) {
@@ -317,6 +385,45 @@ export class WidgetLayer {
 		}
 		this.add( id );
 		return true;
+	}
+
+	/**
+	 * Show exactly these widgets, without touching what the user
+	 * enabled.
+	 *
+	 * The workspace primitive. A workspace says which widgets belong on
+	 * its desk, and switching between two of them must not rewrite the
+	 * user's own column — the same rule the navigation follows, where a
+	 * narrowed desk adds `'hidden'` placements to a computed map and
+	 * leaves `navPlacement` byte-identical. So this mounts and unmounts
+	 * and writes nothing: leave the workspace, or delete it, and the
+	 * column the user built is still there.
+	 *
+	 * Passing `null` restores that column — every id in the persisted
+	 * enabled list, and nothing else.
+	 *
+	 * An id no registry entry claims is skipped rather than reported: a
+	 * workspace naming a widget whose plugin has since been deactivated
+	 * should be a shorter column, not a broken desk. It comes back on
+	 * its own when the plugin does, because the profile still names it.
+	 *
+	 * @param ids Widgets to show, or `null` for the user's own list.
+	 */
+	public setVisibleIds( ids: readonly string[] | null ): void {
+		this.override = ids ? [ ...ids ] : null;
+		const want = new Set( this.visibleIds() );
+		for ( const id of Array.from( this.mounted.keys() ) ) {
+			if ( ! want.has( id ) ) {
+				this.unmountById( id );
+			}
+		}
+		for ( const id of want ) {
+			if ( this.mounted.has( id ) || ! registry.get( id ) ) {
+				continue;
+			}
+			this.mountById( id );
+		}
+		this.paintEmptyState();
 	}
 
 	/**

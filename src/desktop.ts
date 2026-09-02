@@ -173,6 +173,7 @@ import {
 } from './bug-report';
 import { ensureDeferredStyle } from './deferred-styles';
 import { showToast, type ToastOptions } from './toast';
+import { __, sprintf } from './i18n';
 import {
 	bootstrapPwa,
 	type NotifyOptions,
@@ -256,6 +257,35 @@ import {
 	workAreaRectOf,
 	type WorkAreaApi,
 } from './work-area';
+import {
+	applyServerWorkspacePresets,
+	applyWorkspaceView,
+	blankWorkspaceProfile,
+	captureWorkspaceAppearance,
+	captureWorkspaceWindows,
+	createWorkspace,
+	createWorkspacesApi,
+	getActiveWorkspaceProfile,
+	installWorkspaceOverviewControl,
+	installWorkspacePresetSync,
+	listWorkspacePresets,
+	getWorkspaceProfile,
+	provisionWorkspace,
+	reopenWorkspaceWindows,
+	registerWorkspaceCommand,
+	saveDeskToWorkspace,
+	setWorkspaceProfile,
+	withWorkspaceWidget,
+	workspaceProfileFromPreset,
+	type WorkspaceDeps,
+	type WorkspacesApi,
+} from './workspaces';
+import { openWorkspaceWizard } from './workspaces/wizard-loader';
+import { installGridSpanReflow } from './window-manager/grid-snap';
+import { all as listWidgetDefs } from './widgets/registry';
+import { all as listWallpaperDefs } from './wallpapers/registry';
+import { getAccents } from './settings/constants';
+import type { WorkspacePreset } from './workspaces/types';
 import {
 	OS_OVERVIEW_ICON,
 	OS_SYSTEM_ICON,
@@ -1786,6 +1816,33 @@ export interface OpenStationPublicApi {
 	 */
 	workArea: WorkAreaApi;
 	/**
+	 * Workspaces — a desktop plus the answer to what it is FOR: which
+	 * apps show on it, which widgets sit on it, which windows it opens
+	 * with, how they are arranged.
+	 *
+	 * `create()` mints a desk (optionally from a template),
+	 * `getProfile()` / `setProfile()` read and write what it is,
+	 * `arrange()` re-applies a layout, `capture()` turns the desk's
+	 * open windows into a launch list, and `registerPreset()` adds a
+	 * template of your own to the switcher.
+	 *
+	 * A workspace narrows the rails by computing the navigation with
+	 * extra `'hidden'` placements — it never writes to the user's
+	 * stored preferences, so switching desks and back leaves
+	 * `navPlacement` untouched.
+	 *
+	 * @example
+	 * ```js
+	 * wp.os.workspaces.registerPreset( {
+	 *     id: 'support', label: 'Support', description: 'Tickets and users.',
+	 *     icon: 'dashicons-sos', color: '#2271b1', layout: 'columns',
+	 *     apps: [ 'edit-comments.php', 'users.php', 'my-helpdesk' ],
+	 *     windows: [ { match: 'my-helpdesk' }, { match: 'users.php' } ],
+	 * } );
+	 * ```
+	 */
+	workspaces: WorkspacesApi;
+	/**
 	 * Multi-selection framework. `active()` returns a snapshot of the
 	 * most recent selection change anywhere in the shell;
 	 * `resolveCommonActions()` is the rule that decides what a mixed
@@ -2491,9 +2548,203 @@ function init(): void {
 		'.os-shell__body',
 	);
 	let layoutDispatcher: LayoutDispatcher | null = null;
+	// Workspaces. Stays null until the rails exist — a workspace
+	// narrows the navigation, so there is nothing for it to do before
+	// there is a navigation.
+	let workspaceDeps: WorkspaceDeps | null = null;
 	// Answered asynchronously by `isLikelyInstalled()` (Chromium only),
 	// and read by the System menu's install row each time it is built.
 	let pwaAlreadyInstalled = false;
+
+	/**
+	 * The shell's look right now, narrowed to the keys a workspace may
+	 * own. Read from the SNAPSHOT, which is the effective state — so
+	 * capturing on a desk that already has a look keeps that look
+	 * rather than reverting to the user's underneath it.
+	 */
+	const currentWorkspaceLook = (): ReturnType<
+		typeof captureWorkspaceAppearance
+	> =>
+		captureWorkspaceAppearance(
+			osSettings.getOsSettingsSnapshot() as unknown as Record<
+				string,
+				unknown
+			>,
+		);
+
+	/**
+	 * Everything the wizard shows, whichever mode it opens in.
+	 *
+	 * Passed as data — the apps it could show, the widgets, the
+	 * wallpapers and accents, the templates — and the result comes back
+	 * through one `onCreate` / `onSave`. That is what lets the wizard
+	 * live in its own lazy bundle without any cross-bundle module state:
+	 * it never reads a store, and there is no store copy of it to drift.
+	 */
+	const wizardWorld = ( deps: WorkspaceDeps ) => ( {
+		presets: listWorkspacePresets(),
+		apps: deps.getNavItems().map( ( item ) => ( {
+			id: item.id,
+			title: item.title,
+			kind: item.kind,
+			locked: item.locked,
+			// What the app opens, for the Windows step's picker. An
+			// admin menu has a url; a native window has an id; a
+			// control (Overview, Exit) has neither and is not offered.
+			url: item.menu?.url || item.entry?.url || undefined,
+			windowId: item.windowId,
+		} ) ),
+		widgets: listWidgetDefs().map( ( def ) => ( {
+			id: def.id,
+			label: def.label || def.id,
+			description: def.description,
+		} ) ),
+		enabledWidgetIds: widgetLayer?.getEnabledIds() ?? [],
+		// `preview` is the same CSS the Preferences swatches paint, so a
+		// wallpaper looks in the wizard the way it looks in the picker
+		// the user already knows.
+		wallpapers: listWallpaperDefs().map( ( def ) => ( {
+			id: def.id,
+			label: def.label,
+			preview: def.preview,
+		} ) ),
+		accents: getAccents().map( ( a ) => ( {
+			id: a.id,
+			label: a.label,
+			value: a.value,
+		} ) ),
+		resolvePreset: ( preset: WorkspacePreset ) =>
+			workspaceProfileFromPreset( preset, deps.getNavItems() ),
+		captureAppearance: currentWorkspaceLook,
+	} );
+
+	/** The `+`: open the wizard to make a desk. */
+	const createWorkspaceWithWizard = (): void => {
+		if ( ! workspaceDeps ) {
+			return;
+		}
+		const deps = workspaceDeps;
+		openWorkspaceWizard( {
+			mode: 'create',
+			...wizardWorld( deps ),
+			onCreate: ( result ) => {
+				// A template left untouched creates FROM the preset, so
+				// the `os.workspaces.profile` filter runs exactly as it
+				// would have from the old dropdown. Anything customized
+				// carries its own profile; a blank desk carries none.
+				createWorkspace( deps, {
+					label: result.label || undefined,
+					...( result.preset
+						? { preset: result.preset }
+						: { profile: result.profile ?? undefined } ),
+				} );
+			},
+		} );
+	};
+
+	/**
+	 * "Keep this desk": make the workspace open the way the desk is
+	 * now — these windows where they are, these widgets, these apps.
+	 * The one write a workspace makes on purpose, and the cheapest way
+	 * to turn a plain Space into one.
+	 */
+	const saveDesk = ( desktopId: string = manager.getActiveDesktopId() ): boolean => {
+		if ( ! workspaceDeps ) {
+			return false;
+		}
+		const nav = layoutDispatcher?.getNav();
+		let visibleAppIds: string[] | undefined;
+		if ( nav ) {
+			const onScreen = [
+				...nav.dock.core,
+				...nav.dock.apps,
+				...nav.dock.controls,
+				...nav.sidebar,
+				...nav.desktop,
+			];
+			// An ephemeral tile is there because its window is open,
+			// not because the user placed it.
+			visibleAppIds = onScreen
+				.filter( ( item ) => ! nav.ephemeral.has( item.id ) )
+				.map( ( item ) => item.id );
+		}
+		const saved = saveDeskToWorkspace( workspaceDeps, desktopId, {
+			visibleAppIds,
+			mountedWidgetIds: widgetLayer?.getMountedIds(),
+		} );
+		if ( ! saved ) {
+			return false;
+		}
+		const label =
+			manager.getDesktops().find( ( d ) => d.id === desktopId )?.label ?? '';
+		// The count is what was KEPT, which the capture already capped
+		// to what the server will store. When the desk held more, say
+		// so — a toast that promised fifteen and delivered twelve would
+		// be the one thing about this feature that lied.
+		const onDesk = manager
+			.getAll()
+			.filter( ( w ) => ( w.config.desktopId || desktopId ) === desktopId ).length;
+		const kept = saved.windows.length;
+		let message: string;
+		if ( onDesk > kept ) {
+			message = sprintf(
+				// translators: %1$s is the workspace name, %2$d the windows kept, %3$d the windows on the desk.
+				__( '%1$s will open like this — the top %2$d of %3$d windows, where they are.' ),
+				label,
+				kept,
+				onDesk,
+			);
+		} else {
+			message = sprintf(
+				// translators: %1$s is the workspace name, %2$d a number of windows.
+				__( '%1$s will open like this — %2$d windows, where they are.' ),
+				label,
+				kept,
+			);
+		}
+		showToast( { message } );
+		return true;
+	};
+
+	/** Edit under a tile: open the wizard on an existing desk. */
+	const editWorkspace = ( desktopId: string ): void => {
+		if ( ! workspaceDeps ) {
+			return;
+		}
+		const desktop = manager
+			.getDesktops()
+			.find( ( d ) => d.id === desktopId );
+		if ( ! desktop ) {
+			return;
+		}
+		const deps = workspaceDeps;
+		openWorkspaceWizard( {
+			mode: 'edit',
+			desktopId,
+			label: desktop.label,
+			// A plain Space edited for the first time starts from the
+			// blank profile rather than from nothing, so the form has
+			// something to bind to and saving turns it into a workspace.
+			profile: desktop.profile ?? blankWorkspaceProfile(),
+			...wizardWorld( deps ),
+			onSave: ( result ) => {
+				if ( result.label ) {
+					manager.renameDesktop( desktopId, result.label );
+				}
+				// `null` when the user switched everything off — the desk
+				// goes back to being a plain Space, tile and all.
+				setWorkspaceProfile( deps, desktopId, result.profile );
+			},
+			captureWindows: () => captureWorkspaceWindows( manager, desktopId ),
+			// Refused on the last desktop: `closeDesktop` would decline
+			// it anyway, and an offered action that does nothing is
+			// worse than one that isn't there.
+			onDelete:
+				manager.getDesktops().length > 1
+					? () => manager.closeDesktop( desktopId )
+					: undefined,
+		} );
+	};
 
 	/**
 	 * Does any row of this menu have a window open on the active
@@ -2832,6 +3083,11 @@ function init(): void {
 						navOrder: snap.navOrder,
 					};
 				},
+				// The active workspace's narrowing, read fresh on every
+				// repaint. The dispatcher adds it to the placement map
+				// it computes from and never writes it back — see
+				// `src/workspaces/visibility.ts`.
+				getWorkspaceProfile: () => getActiveWorkspaceProfile( manager ),
 			},
 			initialLayout,
 			config.dockItems,
@@ -2848,6 +3104,11 @@ function init(): void {
 			shellBody,
 			area: desktopArea,
 		} );
+		// A grid-snapped window is a fraction of the work area, so when
+		// the work area changes — a browser resize, a dock that moves —
+		// the window goes back on its cells. Subscribed right after the
+		// area is installed so the first real change is caught.
+		installGridSpanReflow( manager );
 		// The dynamic dock behavior's JS half — per-rail stamping and
 		// the fold / reveal state. Inert while every rail is static.
 		installDockBehavior( {
@@ -2884,6 +3145,122 @@ function init(): void {
 		mountNotch( shellEl, () => {
 			document.dispatchEvent( new CustomEvent( 'os-open-ai' ) );
 		} );
+
+		// ---- Workspaces ------------------------------------------
+		// A desktop plus the answer to what it is FOR. The deps bag is
+		// built here because it is the first point where all four
+		// pieces exist: the manager, the dispatcher's nav list, the
+		// native-window opener, and a repaint.
+		workspaceDeps = {
+			manager,
+			getNavItems: () => layoutDispatcher?.getNavItems() ?? [],
+			adminUrl: config.adminUrl,
+			deriveWindowId: ( url: string ) =>
+				deriveWindowId( url, config.adminUrl ),
+			openNative: nativeWindows.openById,
+			refreshLayout: () => layoutDispatcher?.refresh(),
+			// Mounts and unmounts only — it never writes the user's
+			// enabled list, so leaving a workspace (or deleting it)
+			// gives them back the column they built.
+			setVisibleWidgets: ( ids ) => widgetLayer?.setVisibleIds( ids ),
+			// Repaints from the user's settings with the workspace's
+			// patch on top, and hands their own values back on the way
+			// out. Nothing is persisted — see
+			// `OsSettings.setWorkspaceAppearance()`.
+			setAppearance: ( patch ) =>
+				osSettings.setWorkspaceAppearance(
+					patch as Partial< typeof osSettings.state > | null,
+				),
+		};
+		// The filter that lets the `openstation_workspace_presets` PHP
+		// filter drop a shipped template goes in BEFORE the payload
+		// lands, so a read between boot and sync already goes through
+		// it.
+		installWorkspacePresetSync();
+		applyServerWorkspacePresets( config.workspacePresets );
+		// ⌘K → `/workspace`. The pill is the discoverable route and it
+		// sits under the window layer, which is the right trade for a
+		// floating affordance and the wrong one for the only way in.
+		registerWorkspaceCommand(
+			workspaceDeps,
+			editWorkspace,
+			createWorkspaceWithWizard,
+			saveDesk,
+		);
+
+		// The picker lives in the overview top bar — overview is
+		// already the Spaces surface, and the desk itself is the
+		// user's. This hands that bar the operations it cannot build
+		// from a `WindowManager` alone; it asks for a control each
+		// time it paints.
+		installWorkspaceOverviewControl( {
+			...workspaceDeps,
+			openCreator: createWorkspaceWithWizard,
+			openEditor: editWorkspace,
+		} );
+
+		// Entering a workspace for the first time opens its windows and
+		// arranges them. On the switch rather than at creation: a desk
+		// created from the picker is switched to immediately, and one
+		// restored from a session should not re-run a launch list the
+		// restore has already replayed.
+		addAction(
+			HOOKS.DESKTOP_SWITCHED,
+			'desktop-mode/workspace-provision',
+			( payload: { to?: string } ) => {
+				if ( ! workspaceDeps || ! payload?.to ) {
+					return;
+				}
+				// The desk's look and furniture first, so its windows
+				// land on the surface they belong to rather than on
+				// the previous workspace's.
+				applyWorkspaceView( workspaceDeps, payload.to );
+				provisionWorkspace( workspaceDeps, payload.to );
+			},
+		);
+		// Adding a widget while a workspace's column is in force is a
+		// change to THAT desk: the layer mounts it and fires, and this
+		// records it on the profile so the desk keeps it. The user's own
+		// list is never touched — only under `'only'`; on a plain desk
+		// the layer already wrote the user's list itself.
+		//
+		// A REMOVAL is deliberately NOT recorded. A workspace's widget
+		// column is part of what the desk IS, defined in the wizard's
+		// Widgets step, so closing a widget from the column is a
+		// temporary hide, not an edit to the desk — and a reload brings
+		// it back, the same promise the launch-list windows keep. To
+		// take a widget off a desk for good, uncheck it in Edit, which
+		// writes the profile directly. Mirrors how a closed launch
+		// window reopens rather than dropping out of the desk.
+		const recordWidgetChange = ( id: string, visible: boolean ): void => {
+			if ( ! workspaceDeps || ! visible ) {
+				return;
+			}
+			const desktopId = manager.getActiveDesktopId();
+			const profile = getWorkspaceProfile( manager, desktopId );
+			if ( ! profile || 'only' !== profile.widgets?.mode ) {
+				return;
+			}
+			const next = withWorkspaceWidget( profile, id, visible );
+			if ( next !== profile ) {
+				setWorkspaceProfile( workspaceDeps, desktopId, next );
+			}
+		};
+		addAction( HOOKS.WIDGET_ADDED, 'desktop-mode/workspace-widgets', ( p: { id: string } ) =>
+			recordWidgetChange( p.id, true ),
+		);
+
+		// The desk the user boots onto never fires a switch, so its
+		// launch list would otherwise wait for them to leave and come
+		// back. A no-op for every desktop already provisioned, which is
+		// every one restored from a session — but the desk's look and
+		// widget column still have to be applied, because those are
+		// view state the session does not carry.
+		if ( workspaceDeps ) {
+			const bootDesktop = manager.getActiveDesktopId();
+			applyWorkspaceView( workspaceDeps, bootDesktop );
+			provisionWorkspace( workspaceDeps, bootDesktop );
+		}
 		// Tracked by the dispatcher so it re-attaches automatically
 		// after a layout rebuild. `'core'` classifies it as a
 		// shell-owned affordance; every system tile lands on the
@@ -3385,6 +3762,24 @@ function init(): void {
 				}
 			} ),
 		);
+	}
+
+	// A workspace's launch-list windows are part of what the desk IS,
+	// so a reload restores them: any the user closed reopen, while the
+	// ones session restore already brought back are left untouched.
+	// After restore, for the same reason `openCurrentPage` waits — both
+	// open windows, and racing `manager.open()`'s existing-check spawns
+	// duplicates. The desk's widget column and look are re-asserted in
+	// the same beat: `applyWorkspaceView` on boot runs before the widget
+	// registry has finished filling from server-sync, so a column set
+	// then can come up short.
+	if ( ! soloWindowId && workspaceDeps ) {
+		const deps = workspaceDeps;
+		void sessionRestore.then( () => {
+			const bootDesktop = manager.getActiveDesktopId();
+			reopenWorkspaceWindows( deps, bootDesktop );
+			applyWorkspaceView( deps, bootDesktop );
+		} );
 	}
 
 	// Persistence.
@@ -4214,6 +4609,24 @@ function init(): void {
 		connect: connectionBridge.connect,
 		getConnection: connectionBridge.getConnection,
 		mio: mioApi,
+		// Bound to the same deps bag the overview bar and the
+		// provisioner use, so `wp.os.workspaces.create( … )` and the
+		// wizard's Create are the same call.
+		workspaces: createWorkspacesApi(
+			workspaceDeps ?? {
+				manager,
+				getNavItems: () => layoutDispatcher?.getNavItems() ?? [],
+				adminUrl: config.adminUrl,
+				deriveWindowId: ( url: string ) =>
+					deriveWindowId( url, config.adminUrl ),
+				openNative: nativeWindows.openById,
+				refreshLayout: () => layoutDispatcher?.refresh(),
+			},
+			editWorkspace,
+			currentWorkspaceLook,
+			createWorkspaceWithWizard,
+			saveDesk,
+		),
 		wallpaperSuspend: {
 			suspend: ( reason: string ) => wallpaperLayer?.suspend( reason ),
 			resume: ( reason: string ) => wallpaperLayer?.resume( reason ),

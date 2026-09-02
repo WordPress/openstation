@@ -26,6 +26,7 @@ defined( 'ABSPATH' ) || exit;
 - [Window lifecycle hooks (one subscriber per state)](./window-lifecycle.md)
 - [Open a child window its owner can't cover](./child-windows.md)
 - [Custom arrange-menu action](./arrange-action.md)
+- [Ship a workspace template](./workspace-preset.md)
 - [Style a specific admin page inside the iframe](./chromeless-style-override.md)
 - [Window themes — per-window CSS variables](./window-theme.md)
 - [Register a desktop theme — whole-OS reskin from a plugin](./register-desktop-theme.md)

@@ -940,23 +940,35 @@ describe( 'WindowManager — virtual desktops', async () => {
 		// Each desktop tile was a single <button>; the close X was a child
 		// inside it, making it unreachable by Tab. Fix: wrap the tile <button>
 		// and a sibling close <button> in a <div> wrapper so both are independently
-		// focusable. The "+" create-tile stays as a direct child (no close X).
+		// focusable. The "+" create-tile is wrapped too, but only so it
+		// inherits the tile's height — its wrapper holds the tile and an
+		// empty actions block, and no rename or close.
 		test( 'each desktop tile has a wrapper with three sibling buttons', async () => {
 			const extraDesktops = [ manager.createDesktop(), manager.createDesktop() ];
 			try {
 				await manager.open( openConfig( 'a' ) );
 				manager.enterOverview();
 
-				const wrappers = manager._overviewTopBar!.querySelectorAll(
-					'.os-overview-top-bar__tile-wrapper',
+				const wrappers = Array.from(
+					manager._overviewTopBar!.querySelectorAll(
+						'.os-overview-top-bar__tile-wrapper',
+					),
 				);
 
-				// 3 desktops = 3 wrappers (the "+" tile is a direct child, not wrapped)
-				expect( wrappers ).toHaveLength( 3 );
+				// 3 desktops + the "+" slot.
+				expect( wrappers ).toHaveLength( 4 );
+
+				const deskWrappers = wrappers.filter(
+					( w ) =>
+						! w.classList.contains(
+							'os-overview-top-bar__tile-wrapper--add',
+						),
+				);
+				expect( deskWrappers ).toHaveLength( 3 );
 
 				// Tile, rename pencil, close X — the latter two are
 				// SIBLINGS of the tile, which is itself a <button>.
-				for ( const wrapper of wrappers ) {
+				for ( const wrapper of deskWrappers ) {
 					expect(
 						Array.from( wrapper.querySelectorAll( 'button' ) ).map(
 							( b ) => b.classList[ 0 ],
@@ -967,6 +979,18 @@ describe( 'WindowManager — virtual desktops', async () => {
 						'os-overview-top-bar__tile-close',
 					] );
 				}
+
+				// The "+" slot carries the tile and nothing else.
+				const addWrapper = wrappers.find( ( w ) =>
+					w.classList.contains(
+						'os-overview-top-bar__tile-wrapper--add',
+					),
+				)!;
+				expect(
+					Array.from( addWrapper.querySelectorAll( 'button' ) ).map(
+						( b ) => b.classList[ 1 ],
+					),
+				).toEqual( [ 'os-overview-top-bar__tile--add' ] );
 			} finally {
 				for ( const d of extraDesktops ) {
 					closeDesktop( manager, d.id );

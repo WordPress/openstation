@@ -1681,6 +1681,11 @@ interface Desktop {
     id:    string;
     label: string;
     scope?: string;   // a site Space: the admin this desktop hosts — see below
+    // A desktop with a job — which apps show on it, what it opens
+    // with, how they are arranged. Absent means a plain Space, which
+    // is what every session saved before workspaces carries.
+    // See docs/workspaces.md.
+    profile?: WorkspaceProfile;
 }
 
 manager.getDesktops(): Desktop[];          // every desktop, in order
@@ -1694,6 +1699,10 @@ manager.renameDesktop( id, label ): boolean;  // relabel `id`; see below
 ```
 
 `scope` marks a **site Space** — a desktop hosting another admin of the same origin, expressed as an admin-scope path (`/site2/wp-admin/`, `/wp-admin/network/`; the rule lives in `src/admin-scope.ts`). It is what lets the desktop's cross-admin windows persist through the per-admin session scoping, quarantines their menu payloads, and makes closing the desktop close them. Set it through `createDesktop( { label, scope } )` — normally only by the shared cross-admin opener; see [multisite.md](./multisite.md#site-spaces).
+
+**Workspaces** build on this: a desktop plus the answer to what it is FOR — which apps show on it, which widgets sit on it, what it looks like, what it opens with. `wp.os.workspaces.*` creates them, `wp.os.workspaces.registerPreset()` adds a template, and three ship: Commerce, Learning and Publishing — named for the job, built around the products that do it. The `+` in the **overview top bar** opens a wizard whose first step is a blank desk one Enter away; Edit under a tile opens the same wizard on that desk. Overview is already the Spaces surface, and the desk itself belongs to the user's windows.
+
+The one rule the whole feature rests on: **a workspace is a view, never a write.** The rails, the widget column and the appearance are all computed on top of the user's own state and restored the moment they leave, so a workspace they delete costs them nothing. See **[Workspaces](./workspaces.md)** for the whole surface: it is documented there rather than here because it is a layer above Spaces, not a change to them.
 
 Lifecycle hooks fire on each operation: `HOOKS.DESKTOP_CREATED`, `HOOKS.DESKTOP_CLOSED { desktopId, migratedTo }`, `HOOKS.DESKTOP_SWITCHED { from, to }`, `HOOKS.DESKTOP_RENAMED { desktopId, label, previousLabel }`.
 
@@ -4788,6 +4797,36 @@ The pairing holds even when a user re-enters overview inside the ~280 ms exit an
 | `os.arrange.snap.cell-size` | filter | Stable | filters `{ cellWidth, cellHeight }`; context `{ areaWidth, areaHeight }`. Override the auto-computed snap cell size (e.g., enforce a fixed 100×100 grid). Non-positive returns are ignored. |
 | `os.arrange.custom-action` | action | Stable | `{ id }` — fires when the user clicks a plugin-registered Arrange-menu item (registered server-side via the `openstation_arrange_menu_items` PHP filter). The `id` matches the `id` field the plugin supplied. |
 
+#### Grid snap — Option / Alt while dragging
+
+Hold **Option** (macOS) or **Alt** (Windows, Linux) while dragging a window by its title bar and the work area becomes a **6×6 grid**. The cell under the pointer when the key went down is the **anchor**; the cell under it now is the **cursor**; the window lands on the rectangle spanning the two. Drag from (1,1) to (2,2) and it is a 2×2 at the top-left; drag from (2,2) to (1,1) and it is the *same* 2×2 — the span is a bounding box, so it works backwards. **Shake the pointer** and the anchor moves to the cell the shake happened in, so a placement can be restarted without letting go. Release the key mid-drag and the drag is an ordinary one again.
+
+**The cells are contiguous; the windows are not.** A window placed on a span is inset by half a gutter (8px between neighbours, so 4px a side), so two windows on touching cells leave a gap rather than sharing an edge, the way every tiling desktop worth copying does. The inset is applied when a span becomes a window's box, so the grid lines, the cell maths and the stored `GridSpan` all still speak in whole cells, and the preview carries the same inset as the landing. A span too small to survive it keeps its cells instead of going negative.
+
+The grid is never stored in pixels: every cell is a fraction of the work area, resolved against the live rectangle on every move. A 6×6 desk on a 5K display and on a laptop are the same six columns at the same proportions, and a dock that folds away mid-drag moves the grid with it. It is laid over the **work area**, not the whole desk — a cell is a landing zone the user picks by pointing at it, and one hidden under the dock is one they cannot point at. (Edge snap and maximize deliberately use the whole area; see [`workArea`](#workarea--experimental).) While a grid snap is armed the edge zones stay quiet, so one release means one rectangle, and the desk enters grid mode: the area wears `os-area--grid-snapping` and every *other* window recedes to 45% so the grid and the landing zone read through them, while the window being held wears `os-window--grid-snapping` and stays solid — it is the thing being placed, and the question the grid answers is where it lands among the others.
+
+**A placement is kept in cells, and it stays true to the desk.** After a grid snap the window remembers its span (`GridSpan` — `{ anchor, cursor, cols, rows }`) alongside its pixels. When the work area changes — the browser is resized, a dock moves or folds, the layout switches — every grid-snapped window is put back on its cells, so a 2×2 at (1,1) is still a 2×2 at (1,1) of the *new* desk. The span rides through the session too: on restore the cells outrank the saved pixels, which is what keeps the placement across a reload onto a different display. A free drag, a hand resize, or a state change (maximize, edge snap, fullscreen — and minimize, deliberately) takes the window off the grid; each is the user saying it is theirs to place again.
+
+| Hook | Kind | Status | Payload |
+|---|---|---|---|
+| `os.grid-snap.reflowed` | action | Stable | `{ windowIds }` — the work area changed and these windows were put back on their cells. One per pass, not one per window; the per-window `os-window-changed` still fires so the session saves the new pixels. |
+| `os.grid-snap.dimensions` | filter | Stable | filters `{ cols, rows }` (the shipped 6×6); context `{ areaWidth, areaHeight }`. Returns must be positive integers no greater than 24; anything else falls back to the default rather than being clamped. |
+| `os.grid-snap.armed` | action | Stable | `{ windowId, anchor: { col, row }, dims: { cols, rows } }` — the key went down. Cells are zero-indexed from the top-left. |
+| `os.grid-snap.changed` | action | Stable | `{ windowId, anchor, cursor, rect: { x, y, width, height } }` — the span changed: on arm, on every cell the pointer crosses, on every anchor reset. `rect` is area-relative. |
+| `os.grid-snap.anchor-reset` | action | Stable | `{ windowId, anchor, reason: 'modifier' \| 'shake' }` |
+| `os.grid-snap.canceled` | action | Stable | `{ windowId }` — the key was released mid-drag; nothing landed. |
+| `os.grid-snap.committed` | action | Stable | `{ windowId, x, y, width, height, anchor, cursor, dims }` — the window has its span. `os.window.moved`, `os.window.resized` and `os.window.drag-end` fire too, so a listener that only knows windows move and resize needs no grid knowledge. |
+
+#### The shake gesture
+
+A **shake** is the pointer changing direction quickly and repeatedly while a button is held — the thing a hand does to say "no, not that" or "start again". The platform has no event for it; OpenStation does. During a window drag it is published as the **`os-pointer-shake`** CustomEvent on the window element (bubbling and composed, so a listener on `document` hears every shake and one on a window hears its own) and as the `os.pointer.shake` action, whether or not anything acts on it. The grid snap takes it up for the anchor; a plugin can take it up for anything.
+
+Detail: `{ x, y, durationMs, reversals, axis: 'x' | 'y' }`, plus `windowId` on the action. The detector (`src/window/shake.ts`, pure, reusable for any pointer) counts **reversals** — turns after at least 14px of travel — and reports a shake at five of them within a run whose reversals are never more than 320ms apart and that has lasted at least one second. Each threshold rejects one thing: amplitude rejects jitter, count rejects a single overshoot correction, the gap rejects two wiggles a pause apart, duration rejects a flick.
+
+| Hook | Kind | Status | Payload |
+|---|---|---|---|
+| `os.pointer.shake` | action | Stable | `{ x, y, durationMs, reversals, axis, windowId? }` |
+
 #### Virtual desktops ("Spaces")
 
 Each user can have multiple desktops, each owning its own set of windows. Switching desktops swaps which windows are visible without destroying any. The overview top bar surfaces tile-per-desktop UI for switching, creating, and closing.
@@ -4800,6 +4839,25 @@ Each user can have multiple desktops, each owning its own set of windows. Switch
 | `os.os.renamed` | action | Stable | `{ desktopId, label, previousLabel }` — the user renamed a desktop |
 
 Closing the last remaining desktop is rejected silently (the shell needs at least one). Closing a desktop that has windows migrates them to the surviving desktop on its left (falling back to the right when the leftmost is closed) — no work is silently destroyed.
+
+#### Workspaces
+
+A desktop plus the answer to what it is FOR. Full surface in **[Workspaces](./workspaces.md)**; the hooks:
+
+| Hook | Kind | Status | Payload |
+|---|---|---|---|
+| `os.workspaces.presets` | filter | Stable | `WorkspacePreset[]` — the switcher's template list. Return a shorter list to drop one, a longer one to add your own. |
+| `os.workspaces.profile` | filter | Stable | `WorkspaceProfile`, context `WorkspacePreset` — fires as a profile is read off a template, before the desktop is created |
+| `os.workspaces.updated` | action | Stable | `{ desktopId, profile }` — a workspace's profile changed; `profile` is `null` when it became a plain Space |
+| `os.workspaces.provisioned` | action | Stable | `{ desktopId, opened, layout }` — the launch list has run. Fires once per workspace, never once per visit |
+
+#### Arrangements added by workspaces
+
+| Hook | Kind | Status | Payload |
+|---|---|---|---|
+| `os.arrange.columns.starting` / `.applied` | action | Stable | `{ windowCount, cols }` — full-height columns, side by side. Hands off to `tile()` past four windows |
+| `os.arrange.focus.starting` / `.applied` | action | Stable | `{ windowCount, split }` — one window leading, the rest stacked in the margin |
+| `os.arrange.focus.split` | filter | Stable | filters the lead window's share of the work area (default `0.64`); context `{ windowCount, areaWidth, areaHeight }`. Returns outside `[0.3, 0.9]` fall back to the default rather than being clamped |
 
 #### Widgets
 

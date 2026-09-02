@@ -296,10 +296,12 @@ function openstation_is_portal_request() {
  *      only what they resolve to moved.
  *
  * Narrowly scoped to bail on every automated or sub-request entry point
- * — AJAX, REST, cron, admin-post.php, non-GET methods — so the hook
- * can't corrupt a form submission or break an API call. The shell
- * screen itself, chromeless loads, solo boots and classic-flagged
- * requests pass through.
+ * — AJAX, REST, cron, admin-post.php, non-GET methods, and sub-resource
+ * fetches (an `<img>`, a script or an XHR whose URL is an admin page,
+ * see {@see openstation_is_subresource_request()}) — so the hook can't
+ * corrupt a form submission, break an API call or hand an image tag an
+ * HTML document. The shell screen itself, chromeless loads, solo boots
+ * and classic-flagged requests pass through.
  *
  * Disable via the `openstation_admin_redirect_to_portal` filter (return
  * false); plain admin pages then render as classic admin and the
@@ -338,6 +340,14 @@ function openstation_redirect_plain_admin_to_portal() {
 		return;
 	}
 	if ( ! empty( $_SERVER['REQUEST_METHOD'] ) && 'GET' !== strtoupper( sanitize_text_field( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) ) ) {
+		return;
+	}
+	// The browser says what it is fetching for. An <img>, a script or
+	// an XHR aimed at an admin URL (Jetpack's admin-bar sparkline is
+	// admin.php?page=stats&noheader&proxy&chart=…) is not a user
+	// landing on a plain admin page, and forwarding it into the desktop
+	// only swaps the bytes it asked for with the shell's HTML.
+	if ( openstation_is_subresource_request() ) {
 		return;
 	}
 

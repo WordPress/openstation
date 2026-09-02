@@ -35,7 +35,7 @@ import { subscribeDesktopThemes } from '../../src/desktop-themes/registry';
 import { subscribeSettingsTabs } from '../../src/settings/registry';
 import { registerCustomGradient } from '../../src/settings/wallpaper-defs';
 import { osIcon } from '../../src/ui/icons';
-import { createWallpaperPreviewManager } from './parts/wallpaper-previews';
+import { createWallpaperPreviewManager } from '../../src/wallpapers/preview-manager';
 import { renderGradientEditor, syncEditor, teardownEditor } from './parts/wallpaper';
 import { syncLibrary } from './parts/custom-image';
 import { syncShellMirrors } from './parts/features';

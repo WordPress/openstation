@@ -57,6 +57,11 @@ import {
 	type OpenWindow,
 } from './nav';
 import { doAction, HOOKS } from './hooks';
+// Leaf imports rather than the `./workspaces` barrel: the barrel also
+// carries the switcher and the public API, and neither belongs in the
+// dispatcher's import graph.
+import type { WorkspaceProfile } from './workspaces/types';
+import { workspacePlacements } from './workspaces/visibility';
 
 /** External wiring the dispatcher needs from the shell boot path. */
 export interface LayoutDispatcherDeps {
@@ -85,6 +90,17 @@ export interface LayoutDispatcherDeps {
 	 * to thread the snapshot through.
 	 */
 	getSettings?: () => Pick< OsSettingsState, 'navPlacement' | 'navOrder' >;
+	/**
+	 * The active desktop's workspace profile, or `null` when it is a
+	 * plain Space.
+	 *
+	 * A dependency rather than a read off `windowManager`, because the
+	 * dispatcher's job is to paint what a narrowing SAYS, not to know
+	 * where a workspace stores itself. Omitting it — every caller that
+	 * has no workspaces to honour — leaves the navigation exactly as
+	 * it was.
+	 */
+	getWorkspaceProfile?: () => WorkspaceProfile | null;
 }
 
 /**
@@ -301,7 +317,16 @@ export function createLayoutDispatcher(
 		nav = computeNav( {
 			items: navItems,
 			config: {
-				placement: settings.navPlacement,
+				// A workspace narrows the rails by adding `'hidden'`
+				// entries to the placement map it is computed from —
+				// never by writing to the user's stored preferences.
+				// Switching desks and back leaves `navPlacement`
+				// byte-identical; see `src/workspaces/visibility.ts`.
+				placement: workspacePlacements(
+					settings.navPlacement,
+					navItems,
+					deps.getWorkspaceProfile?.() ?? null,
+				),
 				order: settings.navOrder,
 			},
 			layout,

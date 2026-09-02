@@ -219,6 +219,116 @@ class Tests_OpenStation_Session extends WP_UnitTestCase {
 	 *
 	 * @covers ::openstation_sanitize_session
 	 */
+	/**
+	 * A grid-snapped window's cells round-trip next to its pixels.
+	 *
+	 * On restore the cells win — they are a fraction of the desk, and
+	 * the pixels are from whatever display the session was saved on —
+	 * so losing them here would turn a 2×2 back into stale pixels.
+	 *
+	 * @covers ::openstation_sanitize_session_grid_span
+	 */
+	public function test_sanitize_keeps_a_valid_grid_span() {
+		$clean = openstation_sanitize_session(
+			array(
+				'windows' => array(
+					$this->make_window(
+						array(
+							'gridSpan' => array(
+								'anchor' => array(
+									'col' => 1,
+									'row' => 1,
+								),
+								'cursor' => array(
+									'col' => 2,
+									'row' => 2,
+								),
+								'cols'   => 6,
+								'rows'   => 6,
+							),
+						)
+					),
+				),
+			)
+		);
+		$this->assertSame(
+			array(
+				'anchor' => array(
+					'col' => 1,
+					'row' => 1,
+				),
+				'cursor' => array(
+					'col' => 2,
+					'row' => 2,
+				),
+				'cols'   => 6,
+				'rows'   => 6,
+			),
+			$clean['windows'][0]['gridSpan']
+		);
+	}
+
+	/**
+	 * A span that does not fit its own grid is dropped, not clamped:
+	 * the window restores on its pixels, as a session written before
+	 * grid snap does.
+	 *
+	 * @covers ::openstation_sanitize_session_grid_span
+	 */
+	public function test_sanitize_drops_a_malformed_grid_span() {
+		$bad = array(
+			// Cell outside the grid.
+			array(
+				'anchor' => array(
+					'col' => 6,
+					'row' => 0,
+				),
+				'cursor' => array(
+					'col' => 0,
+					'row' => 0,
+				),
+				'cols'   => 6,
+				'rows'   => 6,
+			),
+			// Grid past the ceiling the client enforces.
+			array(
+				'anchor' => array(
+					'col' => 0,
+					'row' => 0,
+				),
+				'cursor' => array(
+					'col' => 0,
+					'row' => 0,
+				),
+				'cols'   => 99,
+				'rows'   => 6,
+			),
+			// Not integers.
+			array(
+				'anchor' => array(
+					'col' => 1.5,
+					'row' => 'a',
+				),
+				'cursor' => array(
+					'col' => 0,
+					'row' => 0,
+				),
+				'cols'   => 6,
+				'rows'   => 6,
+			),
+			'not an array',
+		);
+		foreach ( $bad as $span ) {
+			$clean = openstation_sanitize_session(
+				array( 'windows' => array( $this->make_window( array( 'gridSpan' => $span ) ) ) )
+			);
+			$this->assertArrayNotHasKey( 'gridSpan', $clean['windows'][0] );
+		}
+		// And a window that never had one keeps the shape it always had.
+		$clean = openstation_sanitize_session( array( 'windows' => array( $this->make_window() ) ) );
+		$this->assertArrayNotHasKey( 'gridSpan', $clean['windows'][0] );
+	}
+
 	public function test_sanitize_keeps_native_window_params() {
 		$clean = openstation_sanitize_session(
 			array(

@@ -1404,6 +1404,67 @@ An entry you allow back in still has to survive the browser: a host that sends `
 
 ---
 
+### `openstation_workspace_presets` — Stable
+
+The workspace templates offered as cards on the wizard's Start step, beside Blank desktop. A **[workspace](workspaces.md)** is a desktop plus the answer to what it is for: which apps show on it, which windows it opens with, how they are arranged. Three ship — Commerce, Learning and Publishing, named for the job and built around the products that do it (the Commerce tokens name WooCommerce, the Learning ones name Sensei).
+
+```php
+apply_filters( 'openstation_workspace_presets', array $presets );
+```
+
+Each entry:
+
+```php
+array(
+    'id'          => string, // unique slug
+    'label'       => string, // switcher row (already translated)
+    'description' => string, // optional; one line in the editor
+    'icon'        => string, // dashicon class
+    'color'       => string, // optional '#rrggbb' accent
+    'layout'      => string, // 'free' | 'cascade' | 'tile' | 'columns' | 'focus'
+    'apps'        => array,  // optional match tokens; empty means "show everything"
+    'widgets'     => array,  // optional widget ids; empty means "the user's own column"
+    'appearance'  => array,  // optional sparse settings patch (allowlisted keys only)
+    'windows'     => array,  // optional: array( array( 'match' => …, 'url' => …, 'title' => … ) )
+    'order'       => int,    // optional; ascending. Shipped desks claim 10 / 20 / 30
+)
+```
+
+The filter has both powers. **Removing** an entry drops that template — a blog with no store has no reason to be offered a Commerce desk. **Adding** one with an id of its own registers it whole, so a plugin can ship a complete workspace from PHP with no JavaScript at all.
+
+`apps` and `windows` hold **match tokens**, not ids: each is tested as a substring against every navigable item's id, URL, window id and title, and a launch entry that matches nothing is skipped. That is what lets a template degrade on a site missing the plugin it names instead of opening four permission errors. The three shipped entries deliberately carry neither — the client already has their token lists, and a second copy here would be a second place to keep in step.
+
+`widgets` is different: widget ids are registry keys (`desktop-mode/post-stats`), so they are named exactly and need no resolving. A template that names widgets gives its desk that column while it is active; one that names none leaves the user's own column alone. One naming a widget whose plugin is absent is skipped at mount — a shorter column, not a broken desk.
+
+`appearance` is a **sparse settings patch** — wallpaper, accent, desktop theme, dock — painted on entry and handed straight back on exit. Keys outside the allowlist are dropped here rather than reaching the client: a profile is user meta round-tripped through an untrusted client, and an unfiltered patch spread onto the settings state at boot would be a way to write any settings key from anywhere. See [Appearance is a view too](workspaces.md#appearance-is-a-view-too) for the list and for what happens when a user saves Preferences while standing on an overridden desk.
+
+```php
+add_filter( 'openstation_workspace_presets', function ( $presets ) {
+    $presets[] = array(
+        'id'      => 'support',
+        'label'   => __( 'Support', 'my-ext' ),
+        'icon'    => 'dashicons-sos',
+        'color'   => '#2271b1',
+        'layout'  => 'columns',
+        'apps'    => array( 'my-helpdesk', 'edit-comments.php', 'users.php' ),
+        'widgets' => array( 'clock', 'desktop-mode/recent-comments' ),
+        'appearance' => array(
+            'wallpaper' => 'dark',
+            'accent'    => 'wp-blue',
+        ),
+        'windows' => array( array( 'match' => 'my-helpdesk' ) ),
+        'order'   => 40,
+    );
+    return $presets;
+} );
+```
+
+Every entry is sanitized, shipped ones included: an entry with no `id` is dropped, an unknown `layout` falls back to `'free'`, and one with no `label` is named after its id. A malformed template costs that template, never the wizard.
+
+See [`docs/workspaces.md`](workspaces.md) and [`docs/examples/workspace-preset.md`](examples/workspace-preset.md).
+
+---
+
 ### `openstation_arrange_menu_items` — Stable
 
 The list of plugin-contributed items appended to the admin bar's **Arrange** submenu — the dropdown that sits next to the "Switch to…" toggle when OpenStation is active. Built-ins (Cascade, Overview, Snap to grid, Tile all windows) are always present; this filter adds to them. Only invoked when the user is viewing the desktop shell.
@@ -1474,7 +1535,7 @@ add_filter( 'openstation_portal_auto_enable', '__return_false' );
 
 ### `openstation_admin_redirect_to_portal` — Stable
 
-Governs the `admin_init` redirect from classic `/wp-admin/` URLs into the desktop for users with OpenStation on. Return `false` to keep the user on the classic URL even when they have the mode enabled (useful for support sessions). The page then renders as classic admin — the shell boots only from its own screen (`admin.php?page=openstation`, reached through `/openstation/`), never over another admin page. A URL carrying the frozen `desktop_mode_portal` flag is an alias for the desktop and is redirected to the shell screen before this filter runs.
+Governs the `admin_init` redirect from classic `/wp-admin/` URLs into the desktop for users with OpenStation on. Return `false` to keep the user on the classic URL even when they have the mode enabled (useful for support sessions). The page then renders as classic admin — the shell boots only from its own screen (`admin.php?page=openstation`, reached through `/openstation/`), never over another admin page. A URL carrying the frozen `desktop_mode_portal` flag is an alias for the desktop and is redirected to the shell screen before this filter runs. The redirect only ever applies to navigations: a request the browser reports as a sub-resource fetch (`Sec-Fetch-Mode` other than `navigate`: Jetpack's admin-bar sparkline `<img>`, an XHR to `admin.php?page=…&noheader`) is left alone before this filter runs, so it gets the bytes it asked for.
 
 ```php
 apply_filters( 'openstation_admin_redirect_to_portal', bool $redirect, int $user_id );

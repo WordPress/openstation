@@ -52,7 +52,9 @@ import {
 	switchDesktop,
 	type SwitchDesktopOptions,
 } from './desktops';
-import { cascade, tile } from './arrange';
+// `focus` is already a method on the manager (raise a window), so the
+// arrangement is imported under a name that says which one it is.
+import { cascade, columns, focus as focusLayout, tile } from './arrange';
 import {
 	getSnapConfig,
 	loadSnapEnabled,
@@ -63,6 +65,15 @@ import {
 	commitSnapIfPending,
 	updateSnapZoneForDrag,
 } from './snap-zones';
+import {
+	beginGridSnap,
+	cancelGridSnap,
+	commitGridSnapIfActive,
+	GridSnapAnchorReason,
+	gridSpanRect,
+	resetGridSnapAnchor,
+	updateGridSnap,
+} from './grid-snap';
 import { destroyDesktopNameHud } from './desktop-name-hud';
 import { cancelOverviewTimers, enterOverview, exitOverview } from './overview';
 import { loadNativeWindowGeometry } from './native-window-geometry';
@@ -359,6 +370,13 @@ export class WindowManager {
 	 * @internal
 	 */
 	public _snapPreviewEl: HTMLElement | null = null;
+
+	/**
+	 * The grid-snap drag in progress — anchor, cursor, target span and
+	 * overlay. Null for an ordinary drag. See `grid-snap.ts`.
+	 * @internal
+	 */
+	public _gridSnap: import( './grid-snap' ).GridSnapSession | null = null;
 
 	/**
 	 * True while the split overview (partner picker) is up. Blocks
@@ -1140,6 +1158,23 @@ export class WindowManager {
 			desktopId: config.desktopId || this._activeDesktopId,
 		};
 
+		// A restored grid placement outranks the restored pixels: the
+		// pixels are from whatever display the session was saved on,
+		// the cells are a fraction of THIS desk. Resolved now, against
+		// the live work area, so the window is born on its cells
+		// rather than landing on stale pixels and jumping a frame
+		// later.
+		if ( config.gridSpan ) {
+			const onGrid = gridSpanRect(
+				config.gridSpan,
+				workAreaRectOf( this._desktop ),
+			);
+			fullConfig.x = onGrid.x;
+			fullConfig.y = onGrid.y;
+			fullConfig.width = onGrid.width;
+			fullConfig.height = onGrid.height;
+		}
+
 		this.cascadeIndex++;
 
 		// Construct a `Window` only once BOTH lazy bundles are
@@ -1168,6 +1203,17 @@ export class WindowManager {
 			ensureShellOverlaysLoaded( shellOverlaysBundleUrl() ),
 		] );
 		const win = system.createWindow( fullConfig );
+		// The restored placement stays with the window so the next
+		// work-area change puts it back on the same cells, and the
+		// next session save carries it forward again.
+		if ( config.gridSpan ) {
+			win._gridSpan = {
+				anchor: { ...config.gridSpan.anchor },
+				cursor: { ...config.gridSpan.cursor },
+				cols: config.gridSpan.cols,
+				rows: config.gridSpan.rows,
+			};
+		}
 
 		win.onFocusRequest = ( w: Window ) => {
 			// Mid-cascade, the window asking for focus is one the
@@ -1294,10 +1340,41 @@ export class WindowManager {
 		// snap preview on every pointermove; `onDragEnd` commits the
 		// snap (and returns true, suppressing the pointer layer's
 		// default move-end hook firing).
-		win.onDragMove = ( w, clientX ) => {
+		win.onDragMove = ( w, clientX, clientY ) => {
+			// A grid snap owns the drag while it is armed: the edge
+			// zones stay quiet so one release means one rectangle.
+			if ( this._gridSnap ) {
+				updateGridSnap( this, clientX, clientY );
+				return;
+			}
 			updateSnapZoneForDrag( this, w, clientX );
 		};
+		win.onDragGesture = ( w, gesture ) => {
+			switch ( gesture.type ) {
+				case 'modifier':
+					if ( gesture.active ) {
+						beginGridSnap( this, w, gesture.clientX, gesture.clientY );
+					} else {
+						cancelGridSnap( this );
+					}
+					break;
+				case 'shake':
+					// A shake starts the placement over from where the
+					// hand is. Outside a grid snap it is only the event,
+					// which listeners already received.
+					resetGridSnapAnchor(
+						this,
+						gesture.clientX,
+						gesture.clientY,
+						GridSnapAnchorReason.Shake,
+					);
+					break;
+			}
+		};
 		win.onDragEnd = ( w ) => {
+			if ( this._gridSnap ) {
+				return commitGridSnapIfActive( this, w );
+			}
 			if ( this._snapPendingZone ) {
 				return commitSnapIfPending( this, w );
 			}
@@ -2340,6 +2417,12 @@ export class WindowManager {
 	public tile(): void {
 		tile( this );
 	}
+	public columns(): void {
+		columns( this );
+	}
+	public focusLayout(): void {
+		focusLayout( this );
+	}
 	public isSnapEnabled(): boolean {
 		return this._snapEnabled;
 	}
@@ -2521,6 +2604,9 @@ export class WindowManager {
 				width: snap.width,
 				height: snap.height,
 				...( externalTabs.length > 0 ? { externalTabs } : {} ),
+				// Cells, alongside the pixels. On restore the cells win,
+				// which is what keeps a 2×2 a 2×2 on a different display.
+				...( w._gridSpan ? { gridSpan: { ...w._gridSpan } } : {} ),
 			};
 		} );
 		// Same two exclusions as `persistable` — a focused id pointing

@@ -97,6 +97,7 @@ The full surface is documented in [`javascript-reference.md`](./javascript-refer
 | `presence` | `PresenceApi` | Stable |
 | `workArea` | `WorkAreaApi` *(`get()` / `rectOf( areaEl? )` / `insetsOf( el )` / `subscribe( cb )` — the reachable desktop rectangle, also on `#os-shell` as `--os-work-area-*`)* | Experimental |
 | `selection` | `SelectionApi` *(`active()`, `resolveCommonActions()`, `createModel()`)* | Experimental |
+| `workspaces` | `WorkspacesApi` *(`list()`, `active()`, `getProfile()`, `setProfile()`, `create()`, `switchTo()`, `arrange()`, `provision()`, `capture()`, `captureAppearance()`, `edit()`, `openCreator()`, `saveDesk()`, `presets()`, `registerPreset()`, `unregisterPreset()` — a desktop plus what it is FOR: apps, widgets, look, windows; see [workspaces.md](./workspaces.md))* | Stable |
 
 ### Commands, palettes, AI, settings
 

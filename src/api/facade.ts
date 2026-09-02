@@ -168,6 +168,7 @@ import type { WindowConnection, ConnectOptions } from '../connection';
 import type { WallpaperDef } from '../wallpapers/types';
 import type { WallpaperSuspendApi } from '../wallpapers/layer';
 import type { MioApi } from '../mio/controller';
+import type { WorkspacesApi } from '../workspaces/api';
 import { gamesApi } from '../games/api';
 import { applyDesktopTheme } from '../desktop-themes/apply';
 import {
@@ -294,6 +295,7 @@ export interface BuildPublicApiDeps {
 	getConnection: ( connectionId: string ) => WindowConnection | null;
 	wallpaperSuspend: WallpaperSuspendApi;
 	mio: MioApi;
+	workspaces: WorkspacesApi;
 	config: DesktopConfig;
 }
 
@@ -330,6 +332,7 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 		getConnection,
 		wallpaperSuspend,
 		mio,
+		workspaces,
 		config,
 	} = deps;
 
@@ -570,6 +573,7 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 		createSharedStore,
 		presence: presenceApi,
 		workArea: workAreaApi,
+		workspaces,
 		selection: selectionApi,
 		activity,
 		heartbeat,

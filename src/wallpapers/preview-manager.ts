@@ -1,6 +1,8 @@
 /**
- * Wallpaper live previews — mounts `renderPreview` callbacks into the
- * OS Settings swatch grid.
+ * Wallpaper live previews — mounts `renderPreview` callbacks into a
+ * swatch grid: the Preferences wallpaper picker, and the Workspaces
+ * wizard's Look step. Shell code, not the Preferences app's, because
+ * two bundles share it and neither should reach into the other.
  *
  * Each `<os-swatch>` tile whose wallpaper def declares
  * `renderPreview` gets a light-DOM overlay `<div>` (slotted into the
@@ -20,15 +22,15 @@
  * (scroll-away, tab switch).
  */
 
-import { applyFilters, HOOKS } from '../../../src/hooks';
-import * as registry from '../../../src/wallpapers/registry';
-import { getWallpaperSettings } from '../../../src/wallpapers/settings-store';
+import { applyFilters, HOOKS } from '../hooks';
+import * as registry from './registry';
+import { getWallpaperSettings } from './settings-store';
 import type {
 	WallpaperDef,
 	WallpaperPreviewContext,
 	WallpaperTeardown,
-} from '../../../src/wallpapers/types';
-import { isPromise } from '../../../src/settings/utils';
+} from './types';
+import { isPromise } from '../settings/utils';
 
 /** Ceiling on simultaneously-mounted live previews. */
 const MAX_LIVE_PREVIEWS = 4;

@@ -465,6 +465,150 @@
 	opacity: 1;
 }
 
+/* ---------------------------------------------------------------
+ * Grid snap — the 6×6 desk shown while Option / Alt is held during a
+ * drag (see window-manager/grid-snap.ts).
+ *
+ * The overlay is the work area; the lines are one repeating gradient
+ * sized to a cell, and a cell is a fraction of the overlay — so the
+ * same rule draws the grid at any dimensions, on any display, and
+ * follows the work area if the dock folds away mid-drag. The target
+ * is the span the window will land on, in the same accent as the
+ * edge-snap preview so both previews read as one vocabulary.
+ * --------------------------------------------------------------- */
+.os-grid-snap {
+	position: absolute;
+	/* Same layer as the edge-snap preview: under the windows, so the
+	   one being dragged stays on top of its own landing zone. */
+	z-index: 99;
+	pointer-events: none;
+	opacity: 0;
+	transition: opacity 0.2s ease;
+	--os-grid-snap-cols: 6;
+	--os-grid-snap-rows: 6;
+	--os-grid-snap-line: color-mix(
+		in srgb,
+		var( --wp-admin-theme-color, #2271b1 ) 55%,
+		transparent
+	);
+	background-image:
+		linear-gradient( to right, var( --os-grid-snap-line ) 1px, transparent 1px ),
+		linear-gradient( to bottom, var( --os-grid-snap-line ) 1px, transparent 1px );
+	background-size:
+		calc( 100% / var( --os-grid-snap-cols ) ) 100%,
+		100% calc( 100% / var( --os-grid-snap-rows ) );
+	/* The gradient draws a line at the START of every cell; the
+	   inset ring supplies the far edges so the grid is closed. */
+	box-shadow: inset 0 0 0 1px var( --os-grid-snap-line );
+}
+
+.os-grid-snap--visible {
+	opacity: 1;
+}
+
+.os-grid-snap__target {
+	position: absolute;
+	background: color-mix(
+		in srgb,
+		var( --wp-admin-theme-color, #2271b1 ) 16%,
+		transparent
+	);
+	border: 2px solid var( --wp-admin-theme-color, #2271b1 );
+	border-radius: 10px;
+	box-shadow:
+		0 0 0 1px rgba( 255, 255, 255, 0.15 ) inset,
+		0 12px 36px rgba( 0, 0, 0, 0.22 );
+	/* Geometry animates so a cell-to-cell change slides rather than
+	   jumps; short, so it never lags the pointer by a cell. */
+	transition:
+		left 0.12s cubic-bezier( 0.2, 0, 0.2, 1 ),
+		top 0.12s cubic-bezier( 0.2, 0, 0.2, 1 ),
+		width 0.12s cubic-bezier( 0.2, 0, 0.2, 1 ),
+		height 0.12s cubic-bezier( 0.2, 0, 0.2, 1 );
+}
+
+/*
+ * The span, as "cols × rows", in the MIDDLE of the target. A user
+ * picking a 3×2 wants to know it is 3×2 before letting go; the count
+ * is what makes the grid a tool rather than a decoration, but only
+ * if it is read, and in the corner it was not. The pointer is
+ * somewhere inside the target by definition, so the centre is the
+ * shortest average trip for the eye; on a 2×5 the corner could be
+ * several hundred pixels from the hand.
+ *
+ * Centred rather than pinned to the pointer on purpose: a badge that
+ * tracked the cursor would rewrite its position every move, and a
+ * number that slides while you read it is harder to read than one
+ * that waits. It only moves when the span does.
+ */
+.os-grid-snap__target::after {
+	content: attr( data-cols ) ' × ' attr( data-rows );
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform: translate( -50%, -50% );
+	padding: 2px 7px;
+	border-radius: 6px;
+	background: var( --os-ui-scrim, rgba( 0, 0, 0, 0.55 ) );
+	color: var( --os-ui-fg-on-accent, #fff );
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.03em;
+	font-variant-numeric: tabular-nums;
+}
+
+/*
+ * The desk in grid mode. Every OTHER window recedes so the grid and
+ * the landing zone read through them; the one in hand stays solid —
+ * it is the thing being placed, and the user needs to see it, not
+ * through it. Translucent enough that the grid shows, opaque enough
+ * that the other windows are still recognisably where they are,
+ * because "will this land on top of Posts?" is the question the grid
+ * is there to answer.
+ *
+ * Opacity only: a blur or a desaturate on a live iframe is a
+ * per-frame filter on a large surface, and the drag has to stay
+ * pixel-accurate at 120Hz. Minimized windows are already hidden and
+ * need no rule.
+ */
+.os-area--grid-snapping .os-window:not( .os-window--grid-snapping ) {
+	opacity: 0.45;
+	transition: opacity 0.16s ease;
+}
+
+/* A shake moved the anchor: one pulse so the reset is seen, not inferred. */
+.os-grid-snap__target--reset {
+	animation: os-grid-snap-reset 0.32s ease;
+}
+
+@keyframes os-grid-snap-reset {
+	0% {
+		box-shadow:
+			0 0 0 1px rgba( 255, 255, 255, 0.15 ) inset,
+			0 0 0 0 var( --wp-admin-theme-color, #2271b1 );
+	}
+	60% {
+		box-shadow:
+			0 0 0 1px rgba( 255, 255, 255, 0.15 ) inset,
+			0 0 0 10px transparent;
+	}
+	100% {
+		box-shadow:
+			0 0 0 1px rgba( 255, 255, 255, 0.15 ) inset,
+			0 12px 36px rgba( 0, 0, 0, 0.22 );
+	}
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.os-grid-snap,
+	.os-grid-snap__target {
+		transition: none;
+	}
+	.os-grid-snap__target--reset {
+		animation: none;
+	}
+}
+
 /*
  * Snapped window state — `--snapped-left` / `--snapped-right` carry
  * cosmetic tweaks only. Resize handles stay visible and functional:

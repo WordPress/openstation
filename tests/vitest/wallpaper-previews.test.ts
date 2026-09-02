@@ -1,6 +1,6 @@
 /**
  * Wallpaper live previews — the OS Settings picker's lazy
- * `renderPreview` mounts (settings/sections/wallpaper-previews.ts).
+ * `renderPreview` mounts (src/wallpapers/preview-manager.ts).
  *
  * Covers: overlay creation only for defs that declare `renderPreview`,
  * visibility-driven mount/teardown, the `previewParams` seed + the
@@ -16,7 +16,7 @@ import {
 	createWallpaperPreviewManager,
 	PREVIEW_OVERLAY_CLASS,
 	type WallpaperPreviewManager,
-} from '../../apps/os-settings/parts/wallpaper-previews';
+} from '../../src/wallpapers/preview-manager';
 import type {
 	WallpaperPreviewContext,
 	WallpaperTeardown,

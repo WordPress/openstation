@@ -14,7 +14,7 @@ import type { OsSettingsState } from '../../../src/settings/types';
 import type { AiAssistantConfig } from '../../../src/settings/types';
 import type { DesktopSettingsTab } from '../../../src/settings/registry';
 import type { WallpaperTeardown } from '../../../src/wallpapers/types';
-import type { WallpaperPreviewManager } from './wallpaper-previews';
+import type { WallpaperPreviewManager } from '../../../src/wallpapers/preview-manager';
 import type { MediaItem } from './custom-image';
 import type { ComponentEntry } from './components';
 import type { AboutFeedState } from './about';

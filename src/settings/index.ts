@@ -81,6 +81,32 @@ export interface OsSettingsUpdateOptions {
  * wallpaper painting to the {@link WallpaperLayer}, applies every
  * presentation key to the shell, and notifies subscribers on change.
  */
+/**
+ * A copy of a settings patch deep enough that no object inside it is
+ * shared with the original. Every value a settings key can hold is
+ * JSON-shaped (the state round-trips through `JSON.stringify` to the
+ * server), so a JSON clone is exact rather than approximate.
+ */
+function cloneSettingsPatch< T extends Partial< OsSettingsState > >( patch: T ): T {
+	return JSON.parse( JSON.stringify( patch ) ) as T;
+}
+
+/**
+ * Whether two settings values are the same VALUE — scalars by
+ * equality, objects by shape. Identity is the wrong test for the
+ * object-valued keys: the wallpaper settings editor edits in place,
+ * so an edited record can share its reference with an untouched one.
+ */
+function sameSettingsValue( a: unknown, b: unknown ): boolean {
+	if ( a === b ) {
+		return true;
+	}
+	if ( 'object' !== typeof a || 'object' !== typeof b || null === a || null === b ) {
+		return false;
+	}
+	return JSON.stringify( a ) === JSON.stringify( b );
+}
+
 export class OsSettings {
 	public state: OsSettingsState;
 	public layer: WallpaperLayer;
@@ -379,13 +405,112 @@ export class OsSettings {
 	}
 
 	/**
+	 * The user's own settings, before any workspace override, or `null`
+	 * when none is active.
+	 *
+	 * The whole reason a workspace can repaint the desk without editing
+	 * anything: `state` becomes the overridden view, this keeps what to
+	 * hand back on the way out, and {@link save} writes from here.
+	 */
+	private baseState: OsSettingsState | null = null;
+
+	/** The active override itself, for {@link save} to compare against. */
+	private overridePatch: Partial< OsSettingsState > | null = null;
+
+	/**
+	 * Paint the desk with a workspace's appearance, or hand it back.
+	 *
+	 * A view, never a write. The user's settings survive intact in
+	 * {@link baseState} and go back on screen the moment they leave the
+	 * workspace — the same rule the navigation and the widget column
+	 * follow, and for the same reason: a workspace they delete must
+	 * cost them nothing.
+	 *
+	 * Re-entrant by design. Switching straight from one overridden desk
+	 * to another restores the base first, so the second workspace's
+	 * patch lands on the user's settings rather than on the first
+	 * workspace's.
+	 *
+	 * @param patch Sparse appearance patch, or `null` to restore.
+	 */
+	public setWorkspaceAppearance(
+		patch: Partial< OsSettingsState > | null,
+	): void {
+		const base = this.baseState ?? this.state;
+		const empty = ! patch || Object.keys( patch ).length === 0;
+		if ( empty ) {
+			// Nothing to restore and nothing to apply — a plain Space
+			// following a plain Space, which is most switches.
+			if ( ! this.baseState ) {
+				return;
+			}
+			this.state = base;
+			this.baseState = null;
+			this.overridePatch = null;
+		} else {
+			this.baseState = base;
+			// Two copies of every object-valued key — one on the state
+			// the panel edits, one kept aside to compare against at
+			// save time. With ONE object shared between them, an edit
+			// made in place (the wallpaper settings editor merges into
+			// `wallpaperSettings[ id ]` rather than replacing it) would
+			// change both at once, the comparison would still say
+			// "untouched", and the user's edit would be dropped on save.
+			this.overridePatch = cloneSettingsPatch( patch );
+			this.state = { ...base, ...cloneSettingsPatch( patch ) };
+		}
+		this.apply();
+		// A Preferences window already on screen is showing the values
+		// that just changed under it; it subscribes, so this is what
+		// repaints it.
+		this.notify();
+	}
+
+	/**
 	 * Persist the current state (localStorage now, user meta after the
 	 * debounce) and tell every subscriber. The path for a writer that
 	 * edited `state` in place; {@link update} is the path for a patch.
+	 *
+	 * With a workspace appearance active, an overridden key is written
+	 * back as the USER's value, not the workspace's — unless they
+	 * changed it since, in which case that edit is theirs and is saved.
+	 * Without this, opening Preferences on a Woo desk and pressing save
+	 * would quietly adopt the workspace's wallpaper as the user's own.
+	 * {@link update} and {@link reset} land here too, so the rule holds
+	 * for every write.
 	 */
 	public save( opts: OsSettingsUpdateOptions = {} ): void {
-		saveState( this.state, opts );
+		saveState( this._persistableState(), opts );
 		this.notify();
+	}
+
+	/** {@link state}, with untouched workspace overrides unwound. */
+	private _persistableState(): OsSettingsState {
+		const base = this.baseState;
+		const patch = this.overridePatch;
+		if ( ! base || ! patch ) {
+			return this.state;
+		}
+		// `Record<string, unknown>` for the write: indexing a mapped
+		// union by a runtime key narrows the assignable type to
+		// `never`, and there is no key-by-key form of this loop that
+		// does not restate the whole settings schema.
+		const out = { ...this.state } as unknown as Record< string, unknown >;
+		const source = patch as Record< string, unknown >;
+		const original = base as unknown as Record< string, unknown >;
+		for ( const key of Object.keys( source ) ) {
+			// Still holding exactly what the workspace asked for → the
+			// user never touched it, so their own value stands.
+			// Anything else is an edit they made on this desk, and it
+			// is theirs to keep. Compared by VALUE: the state holds its
+			// own copy of each object-valued key (see
+			// `setWorkspaceAppearance`), so an edit made in place shows
+			// up as a difference and identity would never have.
+			if ( sameSettingsValue( out[ key ], source[ key ] ) ) {
+				out[ key ] = original[ key ];
+			}
+		}
+		return out as unknown as OsSettingsState;
 	}
 
 	/**

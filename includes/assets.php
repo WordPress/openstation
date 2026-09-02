@@ -197,6 +197,16 @@ function openstation_register_assets() {
 		array( 'os-variables' ),
 		$built_version( 'assets/css/notch.css' )
 	);
+	// The workspace wizard. Scoped to `.os-workspace-wizard`, so it is
+	// inert until the user opens it from the overview bar's `+` or a
+	// tile's Edit. Those controls are styled with the rest of the bar
+	// in `window-overview.css`.
+	wp_register_style(
+		'os-workspaces',
+		OPENSTATION_URL . 'assets/css/workspaces.css',
+		array( 'os-variables', 'dashicons' ),
+		$built_version( 'assets/css/workspaces.css' )
+	);
 	// Keyboard-shortcuts window. Scoped to `.os-shortcuts`, so it is
 	// inert until the System menu opens the window, and unconditional
 	// for the same reason the layout sheet is: the window can be

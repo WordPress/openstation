@@ -1187,6 +1187,23 @@ export const HOOKS = {
 	 * smaller than `windowCount`, fall back to the original.
 	 */
 	ARRANGE_TILE_DIMENSIONS: 'os.arrange.tile.dimensions',
+	/** Action, fires before columns computes + applies new positions. Payload `{ windowCount, cols }`. */
+	ARRANGE_COLUMNS_STARTING: 'os.arrange.columns.starting',
+	/** Action, fires after columns has positioned every window. Payload `{ windowCount, cols }`. */
+	ARRANGE_COLUMNS_APPLIED: 'os.arrange.columns.applied',
+	/**
+	 * Filter on the share of the work area the focus arrangement gives
+	 * its lead window, as a fraction between 0 and 1. Receives the
+	 * default (0.64) plus a context arg `{ windowCount, areaWidth,
+	 * areaHeight }`. Returns outside `[0.3, 0.9]` fall back to the
+	 * default — a lead window that leaves no room for the stack, or no
+	 * room for itself, is not an arrangement.
+	 */
+	ARRANGE_FOCUS_SPLIT: 'os.arrange.focus.split',
+	/** Action, fires before focus computes + applies new positions. Payload `{ windowCount, split }`. */
+	ARRANGE_FOCUS_STARTING: 'os.arrange.focus.starting',
+	/** Action, fires after focus has positioned every window. Payload `{ windowCount, split }`. */
+	ARRANGE_FOCUS_APPLIED: 'os.arrange.focus.applied',
 	/** Action, fires when snap-to-grid is toggled. Payload `{ enabled }`. */
 	ARRANGE_SNAP_CHANGED: 'os.arrange.snap.changed',
 	/**
@@ -1206,6 +1223,60 @@ export const HOOKS = {
 	 * subscribe here to run their custom arrangement logic.
 	 */
 	ARRANGE_CUSTOM_ACTION: 'os.arrange.custom-action',
+
+	// ------------------------------------------------------------------
+	// Pointer gestures the platform does not have.
+	// ------------------------------------------------------------------
+	/**
+	 * Action, fires when a pointer is shaken — rapid, sustained
+	 * direction reversals while a button is held. Payload
+	 * `{ x, y, durationMs, reversals, axis: 'x' | 'y', windowId? }`;
+	 * `windowId` is set when the shake happened during a window drag.
+	 * The same detail is dispatched as the `os-pointer-shake`
+	 * CustomEvent on the element being dragged.
+	 */
+	POINTER_SHAKE: 'os.pointer.shake',
+
+	// ------------------------------------------------------------------
+	// Grid snap — hold Option / Alt while dragging and the desk becomes
+	// a 6×6 grid; the window lands on the span from the cell the key
+	// went down in to the cell under the pointer. A shake moves the
+	// anchor to the cell it happened in.
+	// ------------------------------------------------------------------
+	/**
+	 * Filter on the grid's dimensions. Receives `{ cols, rows }` (the
+	 * shipped 6×6) plus a context arg `{ areaWidth, areaHeight }`.
+	 * Returns must be positive integers no greater than 24; anything
+	 * else falls back to the default rather than being clamped.
+	 */
+	GRID_SNAP_DIMENSIONS: 'os.grid-snap.dimensions',
+	/** Action, fires when the modifier arms a grid snap. Payload `{ windowId, anchor: { col, row }, dims: { cols, rows } }`. */
+	GRID_SNAP_ARMED: 'os.grid-snap.armed',
+	/**
+	 * Action, fires whenever the target span changes — on arm, on
+	 * every cell the pointer crosses, on every anchor reset. Payload
+	 * `{ windowId, anchor, cursor, rect: { x, y, width, height } }`,
+	 * cells zero-indexed from the top-left, `rect` area-relative.
+	 */
+	GRID_SNAP_CHANGED: 'os.grid-snap.changed',
+	/** Action, fires when the anchor moves. Payload `{ windowId, anchor, reason: 'modifier' | 'shake' }`. */
+	GRID_SNAP_ANCHOR_RESET: 'os.grid-snap.anchor-reset',
+	/** Action, fires when the modifier is released mid-drag, or the drag is cancelled, without landing. Payload `{ windowId }`. */
+	GRID_SNAP_CANCELED: 'os.grid-snap.canceled',
+	/**
+	 * Action, fires once the window has been given its span. Payload
+	 * `{ windowId, x, y, width, height, anchor, cursor, dims }`. The
+	 * generic `os.window.moved` / `os.window.resized` fire too.
+	 */
+	GRID_SNAP_COMMITTED: 'os.grid-snap.committed',
+	/**
+	 * Action, fires after the work area changed and every grid-snapped
+	 * window was put back on its cells. Payload `{ windowIds }` — the
+	 * windows whose geometry actually moved. One per pass, not one per
+	 * window; the per-window `os-window-changed` still fires so the
+	 * session saves the new pixels.
+	 */
+	GRID_SNAP_REFLOWED: 'os.grid-snap.reflowed',
 
 	// ------------------------------------------------------------------
 	// Snap-zones — Windows-style edge snapping with a split-overview
@@ -1277,6 +1348,38 @@ export const HOOKS = {
 	 * default (first desktop's id) and the full `Desktop[]` list.
 	 */
 	PRIMARY_DESKTOP_ID: 'os.primary-desktop-id',
+
+	// ------------------------------------------------------------------
+	// Workspaces — a desktop plus the answer to "what is this desk for".
+	//
+	// A workspace carries which apps belong on it, which windows it
+	// opens with, and how they are arranged. See `docs/workspaces.md`.
+	// ------------------------------------------------------------------
+	/**
+	 * Filter on the list of workspace templates offered in the
+	 * switcher. Receives `WorkspacePreset[]` — the three shipped desks
+	 * plus anything `registerWorkspacePreset()` added. Return a shorter
+	 * list to drop a template the site has no use for, or a longer one
+	 * to add your own.
+	 */
+	WORKSPACE_PRESETS: 'os.workspaces.presets',
+	/**
+	 * Filter on a profile the moment it is read off a template, before
+	 * the desktop is created. Receives the `WorkspaceProfile` plus the
+	 * `WorkspacePreset` it came from. The place to add an app to a
+	 * shipped desk without redefining it.
+	 */
+	WORKSPACE_PROFILE: 'os.workspaces.profile',
+	/** Action, fires when a workspace's profile changes. Payload `{ desktopId, profile }`. */
+	WORKSPACE_UPDATED: 'os.workspaces.updated',
+	/**
+	 * Action, fires once per workspace, after its launch list has
+	 * opened and its layout has been applied. Payload
+	 * `{ desktopId, opened, layout }` — `opened` is the number of
+	 * windows the launch list actually produced, which is smaller than
+	 * the list whenever an app it names is not installed.
+	 */
+	WORKSPACE_PROVISIONED: 'os.workspaces.provisioned',
 
 	// ------------------------------------------------------------------
 	// Batch window operations.

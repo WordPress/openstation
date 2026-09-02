@@ -425,6 +425,39 @@
 	letter-spacing: 0.02em;
 }
 
+/*
+ * A workspace's identity on its overview tile — the glyph and the
+ * accent it wears on the switcher pill. Overview is where desks are
+ * compared, and a row of identical grey tiles is exactly where "which
+ * one was the shop?" gets asked. A plain Space carries neither, so
+ * these rules simply never match for one.
+ */
+.os-overview-top-bar__tile-glyph {
+	width: 24px;
+	height: 24px;
+	margin-inline-end: 6px;
+	font-size: 24px;
+	line-height: 24px;
+	color: var( --os-workspace-accent, rgba( 255, 255, 255, 0.7 ) );
+}
+
+.os-overview-top-bar__tile--tinted {
+	border-color: color-mix(
+		in srgb,
+		var( --os-workspace-accent, #f252fc ) 60%,
+		transparent
+	);
+}
+
+/*
+ * The active ring still wins: a tinted tile says which workspace it
+ * is, the ring says which one you are on, and the second question is
+ * the one overview is open to answer.
+ */
+.os-overview-top-bar__tile--tinted.os-overview-top-bar__tile--active {
+	border-color: var( --wp-admin-theme-color, #2271b1 );
+}
+
 .os-overview-top-bar__tile-label {
 	display: block;
 	padding: 6px 10px 8px;
@@ -437,9 +470,25 @@
 	text-overflow: ellipsis;
 }
 
+/*
+ * The tile, plus whatever hangs off it.
+ *
+ * A column so the Restore button can sit BELOW the tile rather than
+ * over its preview — the preview is the tile's picture of the desk,
+ * and a control laid across it covers the one thing the tile is for.
+ * `position: relative` stays for the rename / close corner buttons,
+ * which are still positioned against the wrapper.
+ *
+ * The tile keeps its content height (no `flex` on it), so when the
+ * list stretches every wrapper to the tallest, a desk with no Restore
+ * simply has empty space under its tile instead of a taller tile —
+ * every tile box stays the same size and on the same line.
+ */
 .os-overview-top-bar__tile-wrapper {
 	position: relative;
-	display: inline-block;
+	display: inline-flex;
+	flex-direction: column;
+	gap: 6px;
 }
 
 /* Tile corner buttons: rename on the leading edge, close on the
@@ -489,6 +538,98 @@
 	color: var( --os-ui-fg-on-accent, #fff );
 }
 
+/*
+ * The desk's actions — a column below the tile, separated by the
+ * wrapper's gap. Not over the preview: the preview is the tile's
+ * picture of the desk, and a bar laid across it covers the one thing
+ * the tile is there to show. Not the corners either — rename and
+ * close have those — and these two are the actions that need a word,
+ * because no glyph says "rebuild this desk" or "change what it is".
+ *
+ * Two rows. **Restore** is always visible, but only painted on a desk
+ * with something to restore, so its absence is information. **Edit**
+ * is revealed on hover and keyboard focus, like rename and close: it
+ * is a way to change the desk rather than a thing about it, and a row
+ * of Edit buttons at rest would make the bar read as a form. The
+ * column reserves both rows' height whether or not either is present,
+ * so every tile box stays on the same line.
+ */
+.os-overview-top-bar__tile-actions {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	/*
+	 * One 22px row: Edit, which every desk has. Reserving two here
+	 * made every bar as tall as its most elaborate desk, so a user
+	 * with no workspaces at all paid a row of empty space under every
+	 * tile for a button none of their desks could show.
+	 */
+	min-height: 22px;
+}
+
+/* Two 22px rows and the gap, once some desk on the bar can restore. */
+.os-overview-top-bar__list--restorable .os-overview-top-bar__tile-actions {
+	min-height: 48px;
+}
+
+.os-overview-top-bar__tile-action {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 5px;
+	height: 22px;
+	padding: 0 8px;
+	border: 1px solid rgba( 255, 255, 255, 0.14 );
+	border-radius: 8px;
+	background: var( --os-ui-scrim, rgba( 0, 0, 0, 0.42 ) );
+	color: rgba( 255, 255, 255, 0.78 );
+	font: inherit;
+	font-size: 10px;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	cursor: pointer;
+	transition:
+		opacity 0.15s ease,
+		background-color 0.15s ease,
+		border-color 0.15s ease,
+		color 0.15s ease;
+}
+
+.os-overview-top-bar__tile-action svg {
+	width: 12px;
+	height: 12px;
+	flex: 0 0 auto;
+}
+
+.os-overview-top-bar__tile-action:hover {
+	background: var( --os-ui-accent, #f252fc );
+	border-color: var( --os-ui-accent, #f252fc );
+	color: var( --os-ui-fg-on-accent, #fff );
+}
+
+.os-overview-top-bar__tile-action:focus-visible {
+	outline: 2px solid var( --wp-admin-theme-color, #2271b1 );
+	outline-offset: 2px;
+}
+
+/* Edit rests hidden; the wrapper's hover / focus brings it up. */
+.os-overview-top-bar__tile-edit {
+	opacity: 0;
+}
+
+.os-overview-top-bar__tile-wrapper:is( :hover, :focus-within )
+	.os-overview-top-bar__tile-edit,
+.os-overview-top-bar__tile-edit:focus-visible {
+	opacity: 1;
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.os-overview-top-bar__tile-action {
+		transition: none;
+	}
+}
+
 .os-overview-top-bar__tile-rename:hover {
 	background: var( --os-ui-accent, #f252fc );
 	color: var( --os-ui-fg-on-accent, #fff );
@@ -522,10 +663,40 @@
 	display: none;
 }
 
+/*
+ * The "+" is the place another desk goes, so it is the size of one.
+ * It sits in the same wrapper a desk does, above an empty actions
+ * block, which is what keeps the dashed box level with the tiles
+ * instead of stretching over the buttons underneath them.
+ */
 .os-overview-top-bar__tile--add {
 	width: 60px;
 	background: transparent;
 	border-style: dashed;
+}
+
+/*
+ * The slot's own preview band: no gradient and no rule under it, since
+ * there is nothing to preview. It keeps the band's height, which is
+ * half of what makes the dashed box a tile tall.
+ */
+.os-overview-top-bar__tile--add .os-overview-top-bar__tile-preview {
+	background: none;
+	/* Transparent, not removed. The rule is 1px of the tile's height,
+	   and dropping it left the slot a pixel short of its neighbours. */
+	border-bottom-color: transparent;
+}
+
+/*
+ * The glyph centres in the whole slot, not in the preview band it
+ * happens to sit in. The two rows are there to make the box a tile
+ * tall; a desk splits them into a picture and a name, and the slot has
+ * neither, so its one mark belongs in the middle of the box. Taking it
+ * out of flow is what lets the rows still do the measuring.
+ */
+.os-overview-top-bar__tile--add .os-overview-top-bar__tile-plus {
+	position: absolute;
+	inset: 0;
 }
 
 .os-overview-top-bar__tile--add:hover {

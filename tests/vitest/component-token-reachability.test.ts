@@ -83,6 +83,14 @@ const OPT_OUT: Readonly< Record< string, readonly string[] > > = {
 		// #1d2327), which painted an info hint near-black on the dark
 		// dialog. Re-pointed through --os-ui-modal-text, palette-owned.
 		'--os-ui-notice-color',
+		// The card's own surface set. These chain through --os-ui-surface
+		// by default, so the re-point above reaches them — until a theme
+		// pins one flat (Legacy: --os-ui-card-bg: #fff) and a light card
+		// lands in a dark dialog carrying the dialog's light text.
+		'--os-ui-card-bg',
+		'--os-ui-card-fg',
+		'--os-ui-card-border',
+		'--os-ui-card-border-hover',
 	],
 };
 
@@ -150,6 +158,8 @@ describe( 'components do not block themed tokens on :host', () => {
 			[ '--os-ui-fg', '--os-ui-surface' ],
 			[ '--os-ui-fg-muted', '--os-ui-surface-elevated' ],
 			[ '--os-ui-border', '--os-ui-border-strong' ],
+			[ '--os-ui-card-fg', '--os-ui-card-bg' ],
+			[ '--os-ui-card-border', '--os-ui-card-border-hover' ],
 		] as const ) {
 			expect(
 				optOut.has( fg ) === optOut.has( surface ),

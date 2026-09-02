@@ -1,0 +1,336 @@
+/*
+ * Workspaces — the wizard.
+ *
+ * The workspace ACTIONS are not here: Restore and Edit are controls
+ * under the overview tiles and are styled with the rest of that bar in
+ * `window-overview.css`. That is deliberate and worth stating, because
+ * the obvious alternative — a picker floating at the corner of the
+ * desk — is the wrong shape. Overview is already the Spaces surface,
+ * and the desk belongs to the user's windows, not to shell chrome
+ * hovering over them.
+ *
+ * `<os-modal>` draws the dialog surface and owns the scrim, the focus
+ * trap and Escape; `<os-steps>`, `<os-card>`, `<os-swatch-grid>` and
+ * the fields draw themselves. Everything here is the body's own
+ * stacking — where the trail sits, how the pane scrolls, how the
+ * footer splits its buttons.
+ */
+
+.os-workspace-wizard__body {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+}
+
+/*
+ * The trail reads left-to-right across the top and never wraps: a
+ * wizard whose header reflows between steps looks like a different
+ * dialog every time. Six steps at the modal's `lg` width fit with
+ * room; a plugin that adds none can never make it seven.
+ */
+.os-workspace-wizard__trail {
+	--os-ui-steps-gap: 10px;
+	--os-ui-step-gap: 7px;
+	--os-ui-step-chip-size: 22px;
+	--os-ui-step-chip-font-size: 11px;
+	--os-ui-step-chip-family: var( --os-ui-font-mono, ui-monospace, monospace );
+	--os-ui-step-title-size: 11px;
+	--os-ui-step-title-family: var( --os-ui-font-mono, ui-monospace, monospace );
+	--os-ui-step-title-transform: uppercase;
+	--os-ui-step-title-spacing: 0.08em;
+	padding-bottom: 12px;
+	border-bottom: 1px solid var( --os-ui-border, rgba( 255, 251, 255, 0.14 ) );
+	white-space: nowrap;
+	overflow-x: auto;
+}
+
+/*
+ * A step you have not reached is an outline, not a filled dot. Six
+ * filled chips in a row made the trail the loudest thing in a dialog
+ * whose whole point is that step one and Enter is enough, and they
+ * carried no state either: current, done and not-yet all looked the
+ * same, so only the label weight said where you were. The lit chip has
+ * to be the only one lit for it to mean anything.
+ *
+ * Same treatment as the agent wizard's trail, through the component's
+ * own theming hooks. The host elements are in this light DOM, so the
+ * per-state overrides can select them directly.
+ */
+.os-workspace-wizard__trail os-step:not( [ done ] ):not( [ current ] ) {
+	--os-ui-step-chip-bg: transparent;
+	--os-ui-step-chip-border: 1px solid var( --os-ui-border-strong, #8c8f94 );
+	--os-ui-step-chip-fg: var( --os-ui-fg-muted, #646970 );
+}
+
+/* Done is quiet: a filled tick, muted like its label. History, not a
+   second highlight. */
+.os-workspace-wizard__trail os-step[ done ] {
+	--os-ui-step-chip-done-bg: var( --os-ui-surface-elevated, #f0f0f1 );
+	--os-ui-step-chip-fg: var( --os-ui-fg-muted, #646970 );
+}
+
+/*
+ * The pane has ONE height and keeps it. A wizard that grew and shrank
+ * with each step moved its own footer under the user's pointer between
+ * clicks — Next in one place, then Next somewhere else. The tallest
+ * step (Apps on a site with forty plugins) scrolls inside it.
+ *
+ * Sized to the steps that have something in them, not to the tallest
+ * one. Three of the six are a heading and a single switch until that
+ * switch is turned on, and at the old height they were about 45%
+ * empty: far enough past "roomy" that the dialog read as one that
+ * had failed to load. Room is cheaper than a jumping button; this much
+ * room was not buying anything.
+ *
+ * The remaining gap on those three steps is a content problem rather
+ * than a height one. The fix worth having is a preview of the desk
+ * being described, which would fill the space and answer "what am I
+ * actually choosing" on Look and Windows at the same time.
+ *
+ * The pane scrolls, the dialog does not. A Save button below the fold
+ * is a Save button the user cannot find.
+ */
+.os-workspace-wizard__pane {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+	height: min( 52vh, 320px );
+	overflow-y: auto;
+	/* The pane scrolls DOWN and only down. A child that wants to be
+	   wider than the dialog is a bug in the child, and a horizontal
+	   scrollbar under a wizard is a worse symptom than a clipped
+	   edge — it reads as the whole dialog being broken. */
+	overflow-x: hidden;
+	/*
+	 * Room for the rings. A selected chip's ring sits 4px OUTSIDE its
+	 * box, and a focused field's bloom further still; a clipping pane
+	 * with 2px of padding cut the leading edge off both. The inline
+	 * padding pays for the ring and the matching negative margin gives
+	 * the width back, so the pane's content still lines up with the
+	 * dialog's own edges — the room is inside the clip, not inside the
+	 * layout.
+	 */
+	padding: 6px 8px 8px;
+	margin-inline: -8px;
+}
+
+/*
+ * Every child is boxed to the pane. `min-width: 0` is the part that
+ * matters: a flex item's minimum is its content width by default, so
+ * a grid or a long label could push past the dialog edge instead of
+ * wrapping or shrinking.
+ */
+.os-workspace-wizard__pane > * {
+	min-width: 0;
+	max-width: 100%;
+	box-sizing: border-box;
+}
+
+.os-workspace-wizard__pane > os-swatch-grid,
+.os-workspace-wizard__pickers > os-swatch-grid {
+	width: 100%;
+}
+
+.os-workspace-wizard__heading {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.os-workspace-wizard__title {
+	margin: 0;
+	font-size: 16px;
+	font-weight: 600;
+	line-height: 1.3;
+	color: var( --os-ui-fg, #fffbff );
+}
+
+/*
+ * A label and the control it names. The pane's gap is the step
+ * between fields; inside one, label and control are a pair.
+ */
+.os-workspace-wizard__field {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.os-workspace-wizard__label {
+	font-size: 12px;
+	font-weight: 500;
+	color: var( --os-ui-fg-muted, rgba( 255, 251, 255, 0.66 ) );
+}
+
+.os-workspace-wizard__hint {
+	margin: 0;
+	color: var( --os-ui-fg-muted, rgba( 255, 251, 255, 0.66 ) );
+	font-size: 12px;
+	line-height: 1.5;
+}
+
+/* --- Start: the cards ---------------------------------------- */
+
+.os-workspace-wizard__card {
+	--os-ui-card-gap: 6px;
+	min-height: 96px;
+	cursor: pointer;
+}
+
+.os-workspace-wizard__card-header {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	font-size: 14px;
+}
+
+/*
+ * One tone for every card's glyph. These used to wear the preset's own
+ * colour, which is the product's hex rather than ours, so the step
+ * opened on a purple cart, a green cap and a red pen: three brands and
+ * none of them the station's. The desk's colour still shows where it
+ * is useful, on its overview tile.
+ */
+.os-workspace-wizard__card-icon {
+	flex: 0 0 auto;
+	color: var( --os-ui-fg-muted, rgba( 255, 251, 255, 0.66 ) );
+}
+
+/* The chosen card lights its glyph, so the eye lands on the answer. */
+.os-workspace-wizard__card[ selected ] .os-workspace-wizard__card-icon {
+	color: var( --os-ui-accent, #f252fc );
+}
+
+.os-workspace-wizard__card-desc {
+	color: var( --os-ui-fg-muted, rgba( 255, 251, 255, 0.66 ) );
+	font-size: 12px;
+	line-height: 1.45;
+}
+
+/* --- Name: glyph and colour ---------------------------------- */
+
+/*
+ * Glyph swatches are the kit's 28px accent chips (`size="small"
+ * variant="accent"`, in a `mode="row"` grid) painted transparent, with
+ * a slotted icon; the swatch's own selected ring is what marks the
+ * choice. The slot is anchored for overlays, so the icon only has to
+ * fill and centre.
+ */
+.os-workspace-wizard__icon-swatch os-icon {
+	position: absolute;
+	inset: 0;
+	/* The component sizes its host to the glyph (16px), and `inset: 0`
+	   on a 16px box pins it to the top-left corner rather than
+	   stretching it. Own the box, then let the component's own flex
+	   centring put the glyph in the middle of it. */
+	width: 100%;
+	height: 100%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var( --os-ui-fg, #fffbff );
+	pointer-events: none;
+}
+
+/* --- Apps / Widgets: the checklist ---------------------------- */
+
+/*
+ * The list scrolls inside the pane's own scroll, capped so the mode
+ * switch above it stays in view while the user ticks boxes below.
+ */
+.os-workspace-wizard__list {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	max-height: 260px;
+	overflow-y: auto;
+	padding: 4px;
+	border: 1px solid var( --os-ui-border, rgba( 255, 251, 255, 0.14 ) );
+	border-radius: 8px;
+}
+
+/* --- Look: the pickers ----------------------------------------- */
+
+.os-workspace-wizard__pickers {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+/*
+ * The wallpaper's name, on its tile. The swatch's wallpaper variant
+ * slots content at the bottom-left; this is the same caption the
+ * Preferences grid paints, at the same weight, so the same wallpaper
+ * looks the same in both places. Above the live-preview overlay
+ * (z-index 0) so it stays readable over a moving canvas.
+ */
+.os-workspace-wizard__swatch-label {
+	display: inline-block;
+	position: relative;
+	z-index: 1;
+	max-width: 100%;
+	padding: 2px 7px;
+	font-size: 11px;
+	font-weight: 500;
+	line-height: 1.4;
+	color: var( --os-ui-fg-on-accent, #fff );
+	background: var( --os-ui-scrim, rgba( 0, 0, 0, 0.45 ) );
+	border-radius: 6px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	pointer-events: none;
+}
+
+/*
+ * A canvas wallpaper's live preview, mounted into the tile by the
+ * same manager Preferences uses. Declared here rather than borrowed
+ * from `os-settings.css`, which is a deferred sheet the wizard cannot
+ * assume is loaded.
+ */
+.os-workspace-wizard .os-settings__wallpaper-live-preview {
+	position: absolute;
+	inset: 0;
+	z-index: 0;
+	overflow: hidden;
+	pointer-events: none;
+	border-radius: 10px;
+}
+
+.os-workspace-wizard .os-settings__wallpaper-live-preview canvas {
+	display: block;
+	width: 100%;
+	height: 100%;
+}
+
+/* --- Windows: chips and actions -------------------------------- */
+
+.os-workspace-wizard__chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.os-workspace-wizard__actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+/* --- Footer ---------------------------------------------------- */
+
+/*
+ * Delete leads and everything else is pushed to the trailing edge —
+ * the destructive action sits apart from the pair the user is
+ * actually choosing between. The spacer is what does the pushing, so
+ * a footer with no Delete still lays out the same.
+ */
+.os-workspace-wizard__footer {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	width: 100%;
+}
+
+.os-workspace-wizard__spacer {
+	flex: 1 1 auto;
+}

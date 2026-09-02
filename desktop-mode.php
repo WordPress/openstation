@@ -96,6 +96,9 @@ require_once OPENSTATION_DIR . 'includes/helpers.php';
 require_once OPENSTATION_DIR . 'includes/core/payload.php';
 require_once OPENSTATION_DIR . 'includes/assets.php';
 require_once OPENSTATION_DIR . 'includes/admin-bar.php';
+// Loaded before the session: `openstation_sanitize_session()` calls
+// `openstation_sanitize_workspace_profile()` on every desktop it reads.
+require_once OPENSTATION_DIR . 'includes/workspaces.php';
 require_once OPENSTATION_DIR . 'includes/session.php';
 require_once OPENSTATION_DIR . 'includes/multisite.php';
 require_once OPENSTATION_DIR . 'includes/presence.php';
