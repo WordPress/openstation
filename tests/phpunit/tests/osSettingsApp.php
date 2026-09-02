@@ -89,8 +89,13 @@ class Tests_OpenStation_OsSettingsApp extends WP_UnitTestCase {
 			$this->assertArrayHasKey( $key, $manifest['config'] );
 		}
 		$this->assertStringContainsString( 'openstation_about_feed', $manifest['config']['aboutFeedUrl'] );
-		// The client view beside the definition.
+		// The client view beside the definition, and the sheet beside
+		// both — the one the shell used to register as `os-settings`
+		// and now rides the app as a companion style, stamped with its
+		// own filemtime by the App Framework.
 		$this->assertStringEndsWith( 'os-settings.os.ts', $manifest['client_source'] );
+		$this->assertStringEndsWith( 'apps/os-settings/os-settings.css', (string) $manifest['style'] );
+		$this->assertFileExists( (string) $manifest['style'] );
 	}
 
 	/**
