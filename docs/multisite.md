@@ -25,36 +25,56 @@ since windows have no site identity. Anything leaving the current admin
 cannot hop through a same-origin navigation's view transition, open a
 browser tab as they always did.
 
-## The workspace hop
+## Site Spaces
 
 A same-origin click that leaves the current admin — the Network Admin
 tile and its flyout rows, the Sites list's "Dashboard" links inside a
-window — **navigates this tab** to the other admin's shell. Every admin
-keeps its own desktop under its own session key (see Storage scoping),
-so each side restores exactly as it was left: hopping between the
-network admin and a site reads as switching workspaces, spelled as a
-navigation. The raw admin URL is the right target on purpose — the
-`admin_init` redirect routes it to the matching shell screen exactly as
-if it had been typed.
+window — opens the target **in that admin's own Space**: the virtual
+desktop scoped to it, created on first use (labelled after the site, or
+"Network Admin"), slid to with the desktops switcher's own animation,
+and reused by every later click for the same admin. The page itself is
+an ordinary iframe window on that desktop, which is why this only
+exists where framing does (see the table above): a **cross-origin**
+admin opens a browser tab instead, and a **modifier or middle click**
+opens one anywhere — the universal "open elsewhere" gesture.
+`createSpaceOpener()` in `src/multisite/spaces.ts` owns the whole rule;
+the dock tile and the bridge both route through the one opener, so the
+two entry points cannot disagree.
 
-Three qualifiers, each deliberate:
+The desktop carries its admin as `Desktop.scope` (an admin-scope path,
+below), and three behaviors hang off it:
 
-- **A modifier click (cmd/ctrl/shift) or a middle click keeps the
-  browser-tab behaviour** — the universal "open elsewhere" gesture, and
-  the way to stand two desktops side by side. `hopToAdmin()` in
-  `src/multisite/hop.ts` owns the split; the dock and the bridge both
-  route through the same rule.
-- **The swap animates through a cross-document view transition.** The
-  opt-in (`@view-transition { navigation: auto }`) lives in
-  `assets/css/desktop.css`, which only the SHELL loads — chromeless
-  iframes never opt in, so ordinary in-window navigations never
-  transition, and classic admin pages don't either, so entering or
-  leaving the shell stays a plain cut. Reduced motion swaps instantly;
-  browsers without the feature navigate plainly. Pinned by
-  `tests/vitest/workspace-hop.test.ts`.
-- **Cross-origin stays a tab.** A subdomain or mapped site's admin is
-  another origin; the bridge already classes those links `external` and
-  nothing about them changed.
+- **Its windows persist.** The per-admin session scoping (Storage
+  scoping) makes exactly one exception: a window whose URL's admin
+  scope equals its desktop's declared scope survives sanitize and
+  read — `openstation_session_window_url_ok()`. Same host required;
+  the scope value itself is validated as a normalized admin-scope
+  path (`openstation_session_desktop_scope()`).
+- **Closing the Space closes them.** `closeDesktop()` migrates a
+  normal desktop's windows to the neighbour; a scoped desktop's own
+  admin's windows close with it — migrating them would put another
+  admin's windows on a desktop with no business hosting them, and the
+  sanitizer would drop them at the next save anyway.
+- **Their payloads are quarantined.** A Space's window is another
+  admin's page: its `os-plugins-changed` payload describes THAT
+  admin's menu and is dropped whole, and its `os-menu-signature`
+  fingerprints are ignored (`frameSourceIsOtherAdmin()` in
+  `src/boot/menu-refresh.ts`) — otherwise the first `plugins.php`
+  opened in a Space would repaint this dock with the other admin's
+  menu, and every Space navigation would spend a refresh probe.
+  `os-updates-changed` is deliberately NOT quarantined: plugin and
+  theme updates are network-wide, and the probe it spends runs
+  against this shell's own admin.
+
+The dock stays the shell's own admin on every desktop — a Space is "a
+place to look at that admin", not that admin's full desktop; its
+windows surface as ephemeral dock tiles like any unmatched window.
+Shell-to-shell navigations that still happen (typed URLs, bookmarks, a
+kept admin bar) animate through the cross-document view-transition
+opt-in in `assets/css/desktop.css`, which only the shell loads —
+chromeless iframes and classic admin never transition, and reduced
+motion swaps instantly. Pinned by `tests/vitest/site-spaces.test.ts`
+and `tests/vitest/workspace-hop.test.ts`.
 
 **Same origin is not the same admin.** The unit is the **admin scope**:
 the site root up to and including the first `/wp-admin/`, plus the
@@ -62,10 +82,15 @@ the site root up to and including the first `/wp-admin/`, plus the
 `self_admin_url()`. A site root alone is not enough: the network admin
 sits UNDER the main site's admin and shares its prefix, so
 `/wp-admin/index.php` and `/wp-admin/network/` would read as one place.
-`adminScope()` in `src/chromeless-bridge.js` is the only copy of that
-rule (a second one in the shell drifted out of sync within a day), and
-the bridge hops for any link leaving its scope — which is what the
-Sites list does on each "Dashboard" link. If a window ever does show
+The rule has three deliberate copies — `adminScope()` in
+`src/chromeless-bridge.js` (the bridge must stay a self-contained
+plain script), `src/admin-scope.ts` for the shell, and
+`openstation_admin_scope_of_path()` in PHP — pinned against one shared
+URL table (`tests/vitest/admin-scope.test.ts` and its PHPUnit twin),
+because an unpinned second copy once drifted out of sync within a day.
+The bridge hands any link leaving its scope to the shell
+(`os-iframe-other-admin-link`) — which is what the Sites list does on
+each "Dashboard" link. If a window ever does show
 another admin, its `os-plugins-changed` payload repaints this dock with
 that admin's menu: the symptom to recognise.
 
@@ -105,8 +130,8 @@ bar's Network Admin node with core's own capability gates (copied from
 `wp_admin_bar_my_sites_menu()`), and hides itself inside the network
 admin where the dock already *is* that menu. It reads
 `wp.os.config.multisite` (`MultisiteConfig` in `src/types.ts`), null
-without the capability. The tile and every flyout row are workspace
-hops (see above).
+without the capability. The tile and every flyout row open the network
+admin in its Space (see above).
 
 It registers with `navKind: 'core'`
 ([javascript-reference.md](./javascript-reference.md)), so it paints with
@@ -138,7 +163,9 @@ desktop is saving, so the network screen's `sessionUrl` carries
 `network=1` and the handlers honour it only alongside `manage_network` —
 see `openstation_rest_session_network()`. Both read and write filter
 windows to the session's own admin scope, so a blob written before the
-keys split heals instead of leaking across.
+keys split heals instead of leaking across. The one exception is a
+desktop persisted with a `scope` — a site Space keeps its own admin's
+windows; see Site Spaces above.
 
 Deleting a subsite drops the plugin's per-site tables with Core's own —
 `openstation_filter_wpmu_drop_tables()` on the `wpmu_drop_tables`

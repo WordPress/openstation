@@ -1,11 +1,12 @@
 /**
  * The Network Admin dock tile. Two decisions worth pinning: every
- * activation HOPS — navigates this tab to the network admin's shell,
- * with a modifier click keeping the browser-tab behavior — and the
- * tile is not offered where it would be a lie.
+ * activation routes through the injected cross-admin opener (the same
+ * one the bridge's other-admin links use, so the two entry points can
+ * never disagree on where a click lands), and the tile is not offered
+ * where it would be a lie.
  */
 
-import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 import { getNetworkAdminTileDef, NETWORK_ADMIN_TILE_ID } from '../../src/multisite/dock-tiles';
 import { zoneForSystemTile } from '../../src/dock';
 import type { MultisiteConfig } from '../../src/types';
@@ -22,35 +23,22 @@ const config = ( over: Partial< MultisiteConfig > = {} ): MultisiteConfig => ( {
 	...over,
 } );
 
-const realLocation = window.location;
-let assign: ReturnType< typeof vi.fn >;
-
-beforeEach( () => {
-	assign = vi.fn();
-	Object.defineProperty( window, 'location', {
-		value: { ...realLocation, assign },
-		configurable: true,
-	} );
-} );
-
-afterEach( () => {
-	Object.defineProperty( window, 'location', {
-		value: realLocation,
-		configurable: true,
-	} );
-} );
-
 describe( 'the Network Admin tile', () => {
 	test( 'is absent without the capability, and inside the network admin', () => {
+		const opener = vi.fn();
 		// The server sends `networkAdmin: null`, not an empty row list.
-		expect( getNetworkAdminTileDef( config( { networkAdmin: null } ) ) ).toBeNull();
-		expect( getNetworkAdminTileDef( config( { isNetworkAdmin: true } ) ) ).toBeNull();
+		expect(
+			getNetworkAdminTileDef( config( { networkAdmin: null } ), opener ),
+		).toBeNull();
+		expect(
+			getNetworkAdminTileDef( config( { isNetworkAdmin: true } ), opener ),
+		).toBeNull();
 	} );
 
 	test( 'sits with the admin menus, and leaves its position to computeNav', () => {
 		// A tile that says nothing lands in the apps zone, on the
 		// wallpaper — where this one first shipped.
-		const tile = getNetworkAdminTileDef( config() );
+		const tile = getNetworkAdminTileDef( config(), vi.fn() );
 		expect( tile?.id ).toBe( NETWORK_ADMIN_TILE_ID );
 		expect( [ tile?.navKind, tile?.order, zoneForSystemTile( tile! ) ] ).toEqual( [
 			'core',
@@ -59,37 +47,25 @@ describe( 'the Network Admin tile', () => {
 		] );
 	} );
 
-	test( 'the tile and every row hop this tab to the network admin', () => {
-		const tile = getNetworkAdminTileDef( config() );
+	test( 'the tile and every row route through the opener, event and all', () => {
+		const opener = vi.fn();
+		const tile = getNetworkAdminTileDef( config(), opener );
 		const rows = tile?.submenu ?? [];
 
 		expect( rows.map( ( r ) => r.title ) ).toEqual( [ 'Dashboard', 'Sites' ] );
 		// `url` stays for surfaces that describe the row; the click
-		// routes through `onSelect`, which is the hop.
+		// routes through `onSelect`, into the shared opener.
 		expect( rows.every( ( r ) => r.url && r.onSelect ) ).toBe( true );
 
-		// The tile's own click is the keyboard and touch path.
+		// The tile's own click is the keyboard and touch path — no
+		// event to forward there.
 		tile?.onOpen();
-		rows[ 1 ].onSelect?.();
-		expect( assign.mock.calls ).toEqual( [ [ NETWORK ], [ SITES ] ] );
-	} );
+		const modified = new MouseEvent( 'click', { metaKey: true } );
+		rows[ 1 ].onSelect?.( modified );
 
-	test( 'a modifier click keeps the browser-tab behavior', () => {
-		const open = vi.spyOn( window, 'open' ).mockReturnValue( null );
-		const tile = getNetworkAdminTileDef( config() );
-
-		try {
-			tile?.onOpen( new MouseEvent( 'click', { metaKey: true } ) );
-			tile?.submenu?.[ 1 ].onSelect?.(
-				new MouseEvent( 'click', { ctrlKey: true } ),
-			);
-			expect( open.mock.calls ).toEqual( [
-				[ NETWORK, '_blank', 'noopener,noreferrer' ],
-				[ SITES, '_blank', 'noopener,noreferrer' ],
-			] );
-			expect( assign ).not.toHaveBeenCalled();
-		} finally {
-			open.mockRestore();
-		}
+		expect( opener.mock.calls ).toEqual( [
+			[ NETWORK, undefined ],
+			[ SITES, modified ],
+		] );
 	} );
 } );

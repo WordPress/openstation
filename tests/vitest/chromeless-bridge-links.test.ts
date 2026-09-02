@@ -284,27 +284,24 @@ describe( 'chromeless bridge: links that name another browsing context', () => {
 		expect( adminLinkMessages()[ 0 ].newContext ).toBe( false );
 	} );
 
-	test( 'another admin hops the top tab — the workspace hop', () => {
+	test( 'another admin is handed to the shell for its Space', () => {
 		// `/site2/wp-admin/` shares this origin, and `/wp-admin/network/`
 		// shares this admin's own prefix, so both used to be waved
 		// through as in-window navigations, which repainted this dock
-		// with the other admin's menu. Not a window, then — but not a
-		// forced browser tab any more either: every admin keeps its own
-		// desktop under its own session key, so the top tab navigates
-		// there and each side restores as left. The href is never
-		// stamped chromeless, which would leave the destination with no
-		// way out.
-		const assign = vi.fn();
-		Object.defineProperty( window, 'top', {
-			value: { location: { assign } },
-			configurable: true,
-		} );
+		// with the other admin's menu. Now the bridge classifies them
+		// itself and posts `os-iframe-other-admin-link` — the shell
+		// opens the target in that admin's own Space. Never the
+		// same-admin message, and never an href stamped chromeless,
+		// which would leave the destination with no way out.
 		const open = vi.spyOn( window, 'open' ).mockReturnValue( null );
 
 		try {
 			for ( const path of [ '/site2/wp-admin/', '/wp-admin/network/sites.php' ] ) {
 				expect( clickLink( `<a href="${ path }">Go</a>` ) ).toBe( path );
-				expect( assign ).toHaveBeenLastCalledWith(
+				const routed = posted.filter(
+					( m ) => m.type === 'os-iframe-other-admin-link'
+				);
+				expect( routed[ routed.length - 1 ].url ).toBe(
 					`http://localhost${ path }`
 				);
 			}
@@ -316,19 +313,16 @@ describe( 'chromeless bridge: links that name another browsing context', () => {
 			// behavior is the way to stand two desktops side by side.
 			document.body.innerHTML =
 				'<a href="/wp-admin/network/sites.php">Go</a>';
-			const anchor = document.querySelector( 'a' ) as HTMLAnchorElement;
-			const modified = new MouseEvent( 'click', {
-				bubbles: true,
-				cancelable: true,
-				metaKey: true,
-			} );
-			anchor.dispatchEvent( modified );
-			// Yielded: no hop, no tab of ours, no message — the only
-			// preventDefault is the harness's own bubble-phase catch-all
-			// standing in for the browser's native new-tab handling.
+			const before = posted.length;
+			( document.querySelector( 'a' ) as HTMLAnchorElement ).dispatchEvent(
+				new MouseEvent( 'click', {
+					bubbles: true,
+					cancelable: true,
+					metaKey: true,
+				} )
+			);
+			expect( posted ).toHaveLength( before );
 			expect( open ).not.toHaveBeenCalled();
-			expect( assign ).toHaveBeenCalledTimes( 2 );
-			expect( adminLinkMessages() ).toHaveLength( 0 );
 
 			// The rule is scope-to-scope, so everything inside THIS
 			// admin behaves as it always did.
@@ -336,10 +330,6 @@ describe( 'chromeless bridge: links that name another browsing context', () => {
 			expect( adminLinkMessages() ).toHaveLength( 1 );
 		} finally {
 			open.mockRestore();
-			Object.defineProperty( window, 'top', {
-				value: window,
-				configurable: true,
-			} );
 		}
 	} );
 

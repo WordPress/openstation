@@ -21,6 +21,7 @@ import {
 } from './overview';
 import { OVERVIEW_TOP_BAR_RESERVE } from './overview-constants';
 import type { WindowManager } from './index';
+import { adminScopeOf } from '../admin-scope';
 
 export function getDesktops( mgr: WindowManager ): Desktop[] {
 	return [ ...mgr._desktops ];
@@ -77,13 +78,23 @@ export function refreshDesktopVisibility( mgr: WindowManager ): void {
  * seq counter so closing + reopening doesn't reuse the same id
  * mid-session.
  */
-export function createDesktop( mgr: WindowManager ): Desktop {
+export function createDesktop(
+	mgr: WindowManager,
+	init?: { label?: string; scope?: string },
+): Desktop {
 	mgr._desktopSeq++;
 	const desktop: Desktop = {
 		id: `desktop-${ mgr._desktopSeq }`,
-		// translators: %d is the desktop number (e.g., "Desktop 2")
-		label: sprintf( __( 'Desktop %d' ), mgr._desktopSeq ),
+		label:
+			init?.label?.trim().slice( 0, DESKTOP_LABEL_MAX_LENGTH ) ||
+			// translators: %d is the desktop number (e.g., "Desktop 2")
+			sprintf( __( 'Desktop %d' ), mgr._desktopSeq ),
 	};
+	// A site Space: the desktop hosts another admin. See the field's
+	// doc on the Desktop interface.
+	if ( init?.scope ) {
+		desktop.scope = init.scope;
+	}
 	mgr._desktops.push( desktop );
 	doAction( HOOKS.DESKTOP_CREATED, { desktopId: desktop.id } );
 	return desktop;
@@ -271,10 +282,35 @@ export function closeDesktop( mgr: WindowManager, id: string ): void {
 	const survivorIdx = idx > 0 ? idx - 1 : 1;
 	const survivor = mgr._desktops[ survivorIdx ];
 
-	for ( const w of mgr._stack ) {
-		if ( w.config.desktopId === id ) {
-			w.config.desktopId = survivor.id;
+	// A site Space's own windows CLOSE with it — migrating another
+	// admin's windows onto the survivor would put them on a desktop
+	// that has no business hosting them (and the session sanitizer
+	// would drop them at the next save anyway, a silent loss dressed
+	// as a move). Windows that wandered in but belong to the shell's
+	// admin still migrate like on any other desktop.
+	const closingScope = mgr._desktops[ idx ].scope;
+	for ( const w of [ ...mgr._stack ] ) {
+		if ( w.config.desktopId !== id ) {
+			continue;
 		}
+		if (
+			closingScope &&
+			! w.config.native &&
+			adminScopeOf(
+				( () => {
+					try {
+						return new URL( w.config.url || '', window.location.href )
+							.pathname;
+					} catch {
+						return '';
+					}
+				} )(),
+			) === closingScope
+		) {
+			w.close();
+			continue;
+		}
+		w.config.desktopId = survivor.id;
 	}
 
 	mgr._desktops.splice( idx, 1 );

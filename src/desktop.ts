@@ -42,6 +42,7 @@ import { OsSettings } from './settings';
 import { OS_SETTINGS_WINDOW_ID } from './settings/constants';
 import { getExitOpenStationTileDef } from './exit-openstation';
 import { getNetworkAdminTileDef } from './multisite/dock-tiles';
+import { createSpaceOpener } from './multisite/spaces';
 import { deriveWindowId, urlMatchKey } from './utils';
 import { shellUrlWithoutBootArgs } from './shell-url';
 // Static import — `setUserEditTarget` MUST run before the user-edit
@@ -2587,6 +2588,16 @@ function init(): void {
 		}
 		return null;
 	};
+	// One opener for every cross-admin activation — the Network Admin
+	// tile and the bridge's other-admin links must never disagree on
+	// where a click lands. Finds or creates the target admin's Space,
+	// slides to it, and opens the page there; falls back to a browser
+	// tab for cross-origin admins and modifier clicks.
+	const openOtherAdmin = createSpaceOpener( {
+		manager,
+		adminUrl: config.adminUrl,
+	} );
+
 	bindAdminLinkDispatch( {
 		adminUrl: config.adminUrl,
 		deriveSlug: ( url ) => deriveWindowId( url, config.adminUrl ),
@@ -2594,6 +2605,7 @@ function init(): void {
 			void manager.open( windowConfig );
 		},
 		findDockEntry: findDockEntryForUrl,
+		openOtherAdmin,
 	} );
 
 	// Station Home claims the ordinary WordPress Dashboard URL when
@@ -3079,7 +3091,10 @@ function init(): void {
 
 		// Null on a single-site install and without `manage_network`.
 		if ( config.multisite ) {
-			const networkTile = getNetworkAdminTileDef( config.multisite );
+			const networkTile = getNetworkAdminTileDef(
+				config.multisite,
+				openOtherAdmin,
+			);
 			if ( networkTile ) {
 				layoutDispatcher.appendSystemTile( networkTile );
 			}

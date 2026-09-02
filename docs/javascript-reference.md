@@ -1680,17 +1680,20 @@ Multiple "Spaces" with windows distributed across them. Each desktop has an id, 
 interface Desktop {
     id:    string;
     label: string;
+    scope?: string;   // a site Space: the admin this desktop hosts — see below
 }
 
 manager.getDesktops(): Desktop[];          // every desktop, in order
 manager.getActiveDesktop(): Desktop;       // the one currently visible
 manager.getActiveDesktopId(): string;
 manager.getPrimaryDesktopId(): string;     // see below
-manager.createDesktop(): Desktop;          // append a new one + return it
+manager.createDesktop( init? ): Desktop;   // append a new one + return it; `init` may set `label` and `scope`
 manager.switchDesktop( id ): void;         // make `id` the active desktop
-manager.closeDesktop( id ): void;          // delete `id`; its windows migrate to the active desktop
+manager.closeDesktop( id ): void;          // delete `id`; windows migrate to the neighbour — except a scoped desktop's own admin's windows, which close with it
 manager.renameDesktop( id, label ): boolean;  // relabel `id`; see below
 ```
+
+`scope` marks a **site Space** — a desktop hosting another admin of the same origin, expressed as an admin-scope path (`/site2/wp-admin/`, `/wp-admin/network/`; the rule lives in `src/admin-scope.ts`). It is what lets the desktop's cross-admin windows persist through the per-admin session scoping, quarantines their menu payloads, and makes closing the desktop close them. Set it through `createDesktop( { label, scope } )` — normally only by the shared cross-admin opener; see [multisite.md](./multisite.md#site-spaces).
 
 Lifecycle hooks fire on each operation: `HOOKS.DESKTOP_CREATED`, `HOOKS.DESKTOP_CLOSED { desktopId, migratedTo }`, `HOOKS.DESKTOP_SWITCHED { from, to }`, `HOOKS.DESKTOP_RENAMED { desktopId, label, previousLabel }`.
 
@@ -5545,7 +5548,7 @@ Four things follow from a system tile's menu being *actions* rather than admin p
 - The panel is the same three sections an admin menu gets. The head shows the tile's icon and title and, having no landing page to open, runs the **first row** on click.
 - Live windows are resolved from the rows. An admin menu has one window key; an action menu has none, so each row that opens a window declares it with `windowId` and the section lists the union. Rows that open nothing leave it unset.
 - `onSelect` is **client-side only**. The server builds admin-menu submenus as JSON and a function cannot survive that trip; only JS-registered tiles can set it.
-- Both `onOpen` and `onSelect` receive the originating `MouseEvent` when there is one (keyboard activation and programmatic calls pass nothing), so a handler that navigates can honour the browser-tab gestures — cmd/ctrl/shift and middle click. The Network Admin tile's workspace hop (`src/multisite/hop.ts`, [multisite.md](./multisite.md#the-workspace-hop)) is the shipped example; handlers that ignore the argument are unaffected.
+- Both `onOpen` and `onSelect` receive the originating `MouseEvent` when there is one (keyboard activation and programmatic calls pass nothing), so a handler that navigates can honour the browser-tab gestures — cmd/ctrl/shift and middle click. The Network Admin tile's Space opener (`src/multisite/spaces.ts`, [multisite.md](./multisite.md#site-spaces)) is the shipped example; handlers that ignore the argument are unaffected.
 - `dock-peek` stands down for the tile, the same way it does for menu tiles. Give the tile an `onOpen` that does something defensible on its own, because a keyboard or touch user never sees the menu.
 
 Declare `submenu` as a getter if the rows depend on live state — it is read fresh each time the flyout opens.

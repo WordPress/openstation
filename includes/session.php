@@ -81,6 +81,83 @@ function openstation_session_url_in_scope( $url, $network ) {
 	return $in_network === (bool) $network;
 }
 
+/**
+ * Whether a window URL may persist in this session, given the desktop
+ * it sits on.
+ *
+ * Two ways in:
+ *
+ *  1. The session's own admin — same-origin, under this site's admin
+ *     path, on the right side of the network split. The rule every
+ *     window has always had to satisfy.
+ *  2. A site Space — a desktop persisted with a `scope` may hold
+ *     windows of exactly that admin: same HOST as this one (a Space
+ *     is an iframe arrangement, and cross-origin cannot be framed),
+ *     path whose admin scope equals the desktop's. This is the one
+ *     deliberate exception to per-admin session scoping.
+ *
+ * @param string $url           Absolute window URL.
+ * @param bool   $network       Whether the session is the network admin's.
+ * @param string $desktop_scope The window's desktop's declared scope, or ''.
+ * @return bool
+ */
+function openstation_session_window_url_ok( $url, $network, $desktop_scope = '' ) {
+	if ( openstation_url_is_same_admin( $url ) && openstation_session_url_in_scope( $url, $network ) ) {
+		return true;
+	}
+	if ( '' === $desktop_scope ) {
+		return false;
+	}
+
+	$parts       = wp_parse_url( $url );
+	$admin_parts = wp_parse_url( admin_url() );
+	if ( ! is_array( $parts ) || ! is_array( $admin_parts ) ) {
+		return false;
+	}
+	$url_host   = isset( $parts['host'] ) ? strtolower( $parts['host'] ) : '';
+	$admin_host = isset( $admin_parts['host'] ) ? strtolower( $admin_parts['host'] ) : '';
+	if ( '' === $url_host || $url_host !== $admin_host ) {
+		return false;
+	}
+
+	$path = isset( $parts['path'] ) ? $parts['path'] : '';
+	return openstation_admin_scope_of_path( $path ) === $desktop_scope;
+}
+
+/**
+ * The validated `scope` of one raw desktop entry, or ''.
+ *
+ * A scope is stored only when it IS a normalized admin-scope path —
+ * its own `openstation_admin_scope_of_path()` fixed point — which
+ * rules out full URLs, query strings, traversal and free text in one
+ * comparison.
+ *
+ * @param mixed $desktop Raw desktop entry from the client or meta.
+ * @return string
+ */
+function openstation_session_desktop_scope( $desktop ) {
+	if ( ! is_array( $desktop ) || ! isset( $desktop['scope'] ) || ! is_string( $desktop['scope'] ) ) {
+		return '';
+	}
+	$scope = $desktop['scope'];
+	if ( '' === $scope || strlen( $scope ) > 200 ) {
+		return '';
+	}
+	// Path-rooted only: the fixed-point test below cannot tell a full
+	// URL apart (the whole of `http://host/site2/wp-admin/` is its own
+	// "scope"), so anything not shaped like a clean absolute path is
+	// out before it.
+	if (
+		'/' !== $scope[0]
+		|| false !== strpos( $scope, '//' )
+		|| false !== strpos( $scope, '\\' )
+		|| false !== strpos( $scope, '..' )
+	) {
+		return '';
+	}
+	return openstation_admin_scope_of_path( $scope ) === $scope ? $scope : '';
+}
+
 /** Hard cap on persisted windows — guards against runaway meta size. */
 const OPENSTATION_SESSION_MAX_WINDOWS = 32;
 
@@ -177,17 +254,29 @@ function openstation_get_session( $user_id, $network = null ) {
 	// Scope gate on read: drop windows persisted for the other admin.
 	// Blobs written before the network admin had its own meta key mix
 	// the two, and restoring across the split would open one admin's
-	// window on the other's desktop under a colliding window id.
+	// window on the other's desktop under a colliding window id. A
+	// desktop persisted with a `scope` (a site Space) keeps ITS
+	// admin's windows — the same exception the sanitizer grants on
+	// write.
+	$scopes = array();
+	foreach ( $desktops as $d ) {
+		$d_scope = openstation_session_desktop_scope( $d );
+		if ( '' !== $d_scope && is_array( $d ) && isset( $d['id'] ) ) {
+			$scopes[ (string) $d['id'] ] = $d_scope;
+		}
+	}
 	$windows = isset( $raw['windows'] ) && is_array( $raw['windows'] ) ? array_values( $raw['windows'] ) : array();
 	$windows = array_values(
 		array_filter(
 			$windows,
-			static function ( $win ) use ( $network ) {
+			static function ( $win ) use ( $network, $scopes ) {
 				if ( ! is_array( $win ) || ! empty( $win['native'] ) ) {
 					return true;
 				}
-				$url = isset( $win['url'] ) ? (string) $win['url'] : '';
-				return openstation_session_url_in_scope( $url, $network );
+				$url       = isset( $win['url'] ) ? (string) $win['url'] : '';
+				$desktop   = isset( $win['desktopId'] ) ? (string) $win['desktopId'] : '';
+				$win_scope = isset( $scopes[ $desktop ] ) ? $scopes[ $desktop ] : '';
+				return openstation_session_window_url_ok( $url, $network, $win_scope );
 			}
 		)
 	);
@@ -317,7 +406,8 @@ function openstation_sanitize_session( $session, $network = null ) {
 	// non-existent desktops are quietly remapped to the active
 	// desktop on restore client-side, but we want server-side
 	// integrity too.
-	$desktop_ids = array();
+	$desktop_ids    = array();
+	$desktop_scopes = array();
 	if ( isset( $session['desktops'] ) && is_array( $session['desktops'] ) ) {
 		$clean_desktops = array();
 		foreach ( $session['desktops'] as $d ) {
@@ -337,10 +427,19 @@ function openstation_sanitize_session( $session, $network = null ) {
 			if ( strlen( $d_label ) > 64 ) {
 				$d_label = substr( $d_label, 0, 64 );
 			}
-			$clean_desktops[] = array(
+			$entry = array(
 				'id'    => $d_id,
 				'label' => $d_label,
 			);
+			// A site Space: the desktop hosts another admin, and its
+			// windows are allowed to address it — see
+			// openstation_session_window_url_ok().
+			$d_scope = openstation_session_desktop_scope( $d );
+			if ( '' !== $d_scope ) {
+				$entry['scope']            = $d_scope;
+				$desktop_scopes[ $d_id ]   = $d_scope;
+			}
+			$clean_desktops[] = $entry;
 			$desktop_ids[]    = $d_id;
 			if ( count( $clean_desktops ) >= OPENSTATION_SESSION_MAX_DESKTOPS ) {
 				break;
@@ -408,6 +507,19 @@ function openstation_sanitize_session( $session, $network = null ) {
 				$base_id = $id;
 			}
 
+			// Map the window to a known desktop BEFORE the URL gate —
+			// a scoped desktop (a site Space) widens what its windows
+			// may address. A client that sends a desktopId pointing at
+			// a non-existent desktop (race with a desktop close, or a
+			// malicious payload) is silently remapped to the active
+			// desktop so the window remains visible — losing it on
+			// restore would be the worse UX. The remap also strips any
+			// Space privilege the dead id might have carried.
+			$win_desktop = isset( $win['desktopId'] ) ? sanitize_key( (string) $win['desktopId'] ) : '';
+			if ( '' === $win_desktop || ! in_array( $win_desktop, $desktop_ids, true ) ) {
+				$win_desktop = $clean['activeDesktop'];
+			}
+
 			// Native windows (OS Settings, Bug Report, anything from
 			// `openstation_register_window()`) carry no admin URL —
 			// the shell reconstructs them from the registry by id. Their
@@ -423,18 +535,15 @@ function openstation_sanitize_session( $session, $network = null ) {
 				$url = '#' . $id;
 			} else {
 				$url = isset( $win['url'] ) ? esc_url_raw( (string) $win['url'] ) : '';
-				// Only allow URLs that land inside our own wp-admin — both
-				// a safety net against storing arbitrary origins in user meta
-				// and a guarantee the restore path won't try to iframe a
-				// cross-origin page. Host+path parsing rejects tricks like
-				// `//evil.com/wp-admin/…` that a raw prefix check would miss.
-				if ( '' === $url || ! openstation_url_is_same_admin( $url ) ) {
-					continue;
-				}
-				// One admin's window never persists into the other's
-				// session — the same gate the read path applies, here so
-				// a mis-scoped save can't plant it in the first place.
-				if ( ! openstation_session_url_in_scope( $url, $network ) ) {
+				// Only allow URLs this session may hold: same-origin,
+				// inside this admin — or inside the window's desktop's
+				// declared scope, the site-Space exception. Host+path
+				// parsing rejects tricks like `//evil.com/wp-admin/…`
+				// that a raw prefix check would miss, and one admin's
+				// window never persists into another's session outside
+				// a Space.
+				$win_scope = isset( $desktop_scopes[ $win_desktop ] ) ? $desktop_scopes[ $win_desktop ] : '';
+				if ( '' === $url || ! openstation_session_window_url_ok( $url, $network, $win_scope ) ) {
 					continue;
 				}
 				// Strip transient/routing flags before storage. The chromeless
@@ -450,16 +559,6 @@ function openstation_sanitize_session( $session, $network = null ) {
 			$state = isset( $win['state'] ) ? (string) $win['state'] : 'normal';
 			if ( ! in_array( $state, OPENSTATION_SESSION_STATES, true ) ) {
 				$state = 'normal';
-			}
-
-			// Map the window to a known desktop. A client that sends a
-			// desktopId pointing at a non-existent desktop (race with
-			// a desktop close, or a malicious payload) is silently
-			// remapped to the active desktop so the window remains
-			// visible — losing it on restore would be the worse UX.
-			$win_desktop = isset( $win['desktopId'] ) ? sanitize_key( (string) $win['desktopId'] ) : '';
-			if ( '' === $win_desktop || ! in_array( $win_desktop, $desktop_ids, true ) ) {
-				$win_desktop = $clean['activeDesktop'];
 			}
 
 			$entry = array(

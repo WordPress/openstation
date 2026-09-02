@@ -33,6 +33,36 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
+ * Which ADMIN a path belongs to: the site root up to and including the
+ * first `/wp-admin/`, plus the `network/` or `user/` segment when
+ * there is one — the server twin of the client-side `adminScope()`
+ * rule (the bridge's inline copy and `src/admin-scope.ts`; the three
+ * are pinned against one URL table, PHP-side in
+ * `Tests_OpenStation_Multisite`).
+ *
+ * Consumed by the session layer: a desktop persisted with a `scope`
+ * (a site Space) may hold windows of exactly that admin.
+ *
+ * @param string $path URL path.
+ * @return string The scope, or '' when the path is not an admin one.
+ */
+function openstation_admin_scope_of_path( $path ) {
+	if ( ! is_string( $path ) ) {
+		return '';
+	}
+	$i = strpos( $path, '/wp-admin/' );
+	if ( false === $i ) {
+		return '';
+	}
+	$scope = substr( $path, 0, $i + 10 );
+	$rest  = substr( $path, $i + 10 );
+	if ( preg_match( '#^(network|user)/#', (string) $rest, $m ) ) {
+		$scope .= $m[0];
+	}
+	return $scope;
+}
+
+/**
  * Returns true when `$url` is a same-origin admin URL.
  *
  * Uses parsed-URL host + path comparison rather than a prefix

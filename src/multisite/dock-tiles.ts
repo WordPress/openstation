@@ -1,24 +1,23 @@
 /**
  * The Network Admin dock tile: the admin bar's Network Admin node, on
- * the dock. Every row HOPS — navigates this tab to the network admin's
- * own shell — rather than opening a window: the network admin is on
- * another domain and WordPress refuses to be framed cross-origin. The
- * desktop being left behind is safe to leave: every admin keeps its own
- * desktop under its own session key, so the hop restores each side
- * exactly as it was, and a modifier click still opens the browser tab
- * for standing the two desktops side by side. See docs/multisite.md.
+ * the dock. Every activation opens the network admin **in its Space** —
+ * the desktop scoped to that admin — through the shared opener from
+ * `src/multisite/spaces.ts`, which also owns the fallbacks: a browser
+ * tab where the network admin is cross-origin (subdomain and mapped
+ * networks cannot be framed), and on any modifier or middle click.
+ * See docs/multisite.md.
  */
 
 import type { SystemDockItem } from '../dock';
 import type { MultisiteConfig } from '../types';
 import { __ } from '../i18n';
-import { hopToAdmin } from './hop';
 
 export const NETWORK_ADMIN_TILE_ID = 'os-network-admin';
 
 /** Null inside the network admin, where the dock already IS this menu. */
 export function getNetworkAdminTileDef(
 	multisite: MultisiteConfig,
+	openOtherAdmin: ( url: string, event?: MouseEvent ) => void,
 ): SystemDockItem | null {
 	const network = multisite.networkAdmin;
 	if ( ! network || multisite.isNetworkAdmin ) {
@@ -35,17 +34,19 @@ export function getNetworkAdminTileDef(
 		// `computeNav` decides where in that run it lands.
 		navKind: 'core',
 		// Keyboards and touch never fan the flyout out, so the tile
-		// does what its first row does: hop to the network dashboard.
-		onOpen: ( event? ) => hopToAdmin( network.url, event ),
+		// does what its first row does: the network dashboard, in the
+		// network's Space.
+		onOpen: ( event? ) => openOtherAdmin( network.url, event ),
 		get submenu() {
 			// `url` stays on the row so surfaces that describe rows can
 			// keep doing so; the click routes through `onSelect`, which
-			// is what makes the row a hop rather than the generic
-			// bare-url link-out.
+			// is what sends the row into the Space rather than the
+			// generic bare-url link-out.
 			return network.rows.map( ( { title, url } ) => ( {
 				title,
 				url,
-				onSelect: ( event?: MouseEvent ) => hopToAdmin( url, event ),
+				onSelect: ( event?: MouseEvent ) =>
+					openOtherAdmin( url, event ),
 			} ) );
 		},
 	};
