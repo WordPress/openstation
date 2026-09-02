@@ -29,6 +29,8 @@ import {
 	runAction,
 	withSendToHeading,
 } from './helpers';
+import { copyIds, copyLinks, rowInteractions } from './rows';
+import { renderTable } from './list-table';
 
 export function renderRoot( ctx: Ctx ): TemplateResult {
 	const { data, state } = ctx;
@@ -118,46 +120,9 @@ function renderTile( ctx: Ctx, section: SectionDef, item: ListItem, order: numbe
 	const { state } = ctx;
 	const isSelected = state.selected.includes( item.id );
 	const isOpen = state.item === item.id;
-	const select = ( e: MouseEvent ): void => {
-		ctx.local( 'select', {
-			item: item.id,
-			ctrl: e.ctrlKey || e.metaKey,
-			shift: e.shiftKey,
-			order,
-		} );
-		if ( ! e.ctrlKey && ! e.metaKey && ! e.shiftKey ) {
-			void ctx.dispatch( 'open', { item: item.id } );
-		}
-	};
-	const activate = (): void => {
-		// A plugin may claim "the user opened this person" — WP
-		// Explorer's `os.my-wordpress.user-activate` seam, verbatim.
-		// A shop's Customers folder opens the customer window; the
-		// built-in fallthrough keeps double-click meaning something
-		// when no subscriber answers.
-		if ( section.kind === 'user' ) {
-			const handled = shell().hooks?.applyFilters(
-				'os.my-wordpress.user-activate',
-				false,
-				{
-					entityId: section.id,
-					kind: section.kind,
-					item: item as unknown as Record< string, unknown >,
-				},
-			);
-			if ( handled === true ) {
-				return;
-			}
-			// The built-in answer, WP Explorer's: opening a person is
-			// their activity footprint — the profile editor stays one
-			// right-click (or pane button) away.
-			void ctx.dispatch( 'footprint', { user: item.id, name: item.title } );
-			return;
-		}
-		if ( item.canEdit ) {
-			void ctx.dispatch( 'edit', { item: item.id } );
-		}
-	};
+	// One definition of click / double click / right click, shared
+	// with the list view's rows (`parts/rows.ts`).
+	const row = rowInteractions( ctx, section, item, order );
 	return html`
 		<div
 			class="os-mywp__cell ${ isOpen ? 'is-open' : '' }"
@@ -165,14 +130,9 @@ function renderTile( ctx: Ctx, section: SectionDef, item: ListItem, order: numbe
 			data-mywp-drag=${ section.kind === 'user' ? 'user' : section.post_type }
 			role="option"
 			aria-selected=${ isSelected ? 'true' : 'false' }
-			@click=${ select }
-			@dblclick=${ activate }
-			@contextmenu=${ ( e: MouseEvent ) => {
-				e.preventDefault();
-				e.stopPropagation();
-				uiOf( ctx ).menu = { x: e.clientX, y: e.clientY, item };
-				ctx.repaint();
-			} }
+			@click=${ row.select }
+			@dblclick=${ row.activate }
+			@contextmenu=${ row.menu }
 		>
 			<span class="os-mywp__tilebox">
 				<os-tile
@@ -198,6 +158,12 @@ function renderTile( ctx: Ctx, section: SectionDef, item: ListItem, order: numbe
 }
 
 export function renderList( ctx: Ctx, section: SectionDef, items: ListItem[] ): TemplateResult {
+	// The list view: same rows, same selection, same drag-out and menu
+	// — a table instead of tiles, with the facts an id-minded person
+	// wants in columns. It paints its own empty state and skeletons.
+	if ( ctx.state.view === 'list' ) {
+		return renderTable( ctx, section, items );
+	}
 	if ( items.length === 0 ) {
 		return html`
 			<os-empty-state icon=${ section.icon.startsWith( 'dashicons-' ) ? section.icon : 'dashicons-portfolio' }>
@@ -404,19 +370,15 @@ export function renderMenu( ctx: Ctx, section: SectionDef ): TemplateResult | ''
 			ctx.repaint();
 		} else if ( id === 'publish' ) {
 			void ctx.dispatch( 'quick-edit', { items: targets, status: 'publish' } );
-		} else if ( id === 'copy-link' ) {
-			const links = allItems
-				.filter( ( i ) => targets.includes( i.id ) )
-				.map( ( i ) => i.link )
-				.filter( Boolean );
-			void navigator.clipboard?.writeText( links.join( '\n' ) );
-			ctx.host.toast?.( {
-				message: sprintf(
-					/* translators: %d: link count. */
-					__( 'Copied %d links.' ),
-					links.length,
-				),
-			} );
+		} else if ( id === 'copy-link' || id === 'copy-shortlink' || id === 'copy-id' ) {
+			// The clipboard verbs work over the selection, one value
+			// per line (ids comma-separated — they paste into a query).
+			const rows = allItems.filter( ( i ) => targets.includes( i.id ) );
+			if ( id === 'copy-id' ) {
+				copyIds( ctx, rows );
+			} else {
+				copyLinks( ctx, rows, id === 'copy-link' ? 'link' : 'shortlink' );
+			}
 		} else if ( id === 'trash' ) {
 			// Same confirmation as the preview pane's Trash button — an
 			// action reached from the menu must not skip the dialog its
@@ -478,7 +440,7 @@ export function renderMenu( ctx: Ctx, section: SectionDef ): TemplateResult | ''
 				: html`
 					<os-context-menu-option heading>${ __( 'Sort by' ) }</os-context-menu-option>
 					${ Object.entries( ctx.data.sortOptions ).map( ( [ value, label ] ) => html`
-						<os-context-menu-option id=${ 'sort:' + value } icon=${ value === sortValue ? 'dashicons-yes' : '' }>
+						<os-context-menu-option id=${ 'sort:' + value } ?checked=${ value === sortValue }>
 							${ label }
 						</os-context-menu-option>
 					` ) }

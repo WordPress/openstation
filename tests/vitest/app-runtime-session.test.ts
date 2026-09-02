@@ -197,11 +197,12 @@ describe( 'createSession', () => {
 		expect( closed ).toEqual( [ 'demo' ] );
 	} );
 
-	it( 'performs the shell-side effects: open_url, badge, announce, send, menu', async () => {
+	it( 'performs the shell-side effects: open_url, badge, icon, announce, send, menu', async () => {
 		const h = harness();
 		const log: unknown[] = [];
-		h.host.openUrl = ( url, title ) => log.push( [ 'url', url, title ] );
+		h.host.openUrl = ( url, title, icon ) => log.push( [ 'url', url, title, icon ] );
 		h.host.setBadge = ( id, count ) => log.push( [ 'badge', id, count ] );
+		h.host.setIcon = ( id, art ) => log.push( [ 'icon', id, art ] );
 		h.host.announce = ( type, action, ids ) => log.push( [ 'announce', type, action, ids ] );
 		h.host.send = ( channel, payload ) => log.push( [ 'send', channel, payload ] );
 		h.host.menu = ( position, items, pick ) => {
@@ -215,8 +216,9 @@ describe( 'createSession', () => {
 			effects:
 				sent.action === 'first'
 					? [
-						{ type: 'open_url', url: 'post.php?post=1', title: 'Edit' },
+						{ type: 'open_url', url: 'post.php?post=1', title: 'Edit', icon: 'dashicons-edit' },
 						{ type: 'badge', count: 3 },
+						{ type: 'icon', icon: 'data:image/svg+xml;base64,FULL' },
 						{ type: 'announce', contentType: 'post', action: 'updated', ids: [ 1 ] },
 						{ type: 'send', channel: 'ping', payload: { a: 1 } },
 						{ type: 'menu', items: [ { id: 'e', label: 'Edit', action: 'edit', args: { id: 1 }, icon: '', danger: false, disabled: false } ] },
@@ -227,8 +229,9 @@ describe( 'createSession', () => {
 		await h.session.dispatch( 'first' );
 		await flush();
 		expect( log ).toEqual( [
-			[ 'url', 'post.php?post=1', 'Edit' ],
+			[ 'url', 'post.php?post=1', 'Edit', 'dashicons-edit' ],
 			[ 'badge', 'demo', 3 ],
+			[ 'icon', 'demo', 'data:image/svg+xml;base64,FULL' ],
 			[ 'announce', 'post', 'updated', [ 1 ] ],
 			[ 'send', 'ping', { a: 1 } ],
 			[ 'menu', { x: 40, y: 50 }, [ 'e' ] ],
@@ -578,6 +581,33 @@ describe( 'createSession', () => {
 			await h.session.dispatch( 'mount' );
 			expect( typeof h.ctx().host.fetch ).toBe( 'function' );
 			expect( typeof h.ctx().host.confirm ).toBe( 'function' );
+		} );
+
+		it( 'serves App::config() as ctx.extra', async () => {
+			const root = document.createElement( 'div' );
+			document.body.appendChild( root );
+			let extra: Record< string, unknown > | undefined;
+			const session = createSession( {
+				root,
+				config: { ...config(), client: true, extra: { iconFull: 'data:x' } },
+				windowId: 'demo',
+				host: {
+					fetch: async () =>
+						jsonResponse( { ok: true, state: {}, html: '', data: null, effects: [] } ),
+				},
+				client: {
+					id: 'demo',
+					hasLocal: () => false,
+					runLocal: ( _a, s ) => s,
+					render: ( c ) => {
+						extra = ( c as Ctx ).extra;
+					},
+					mounted: () => undefined,
+				},
+			} );
+			await session.dispatch( 'mount' );
+			expect( extra ).toEqual( { iconFull: 'data:x' } );
+			session.dispose();
 		} );
 
 		it( 'state and data stay LIVE on a captured context — mounted() listeners never go stale', async () => {

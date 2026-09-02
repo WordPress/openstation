@@ -32,7 +32,7 @@ import {
 	tryNativeUrlRemap,
 } from './native-url-remap';
 import type { NativeUrlRemap } from './native-url-remap';
-import { matchesStationHomeUrl } from './station-home/model';
+import { matchesStationHomeUrl } from './open-targets/station-home-url';
 import { bindAdminLinkDispatch } from './window/iframe-bridge';
 import type { DestructiveAdminActionEntry } from './destructive-admin-actions';
 // Tile-decoration helpers and the dock-selector registry live in
@@ -161,7 +161,7 @@ import {
 	attachBroadcastBus,
 	installBroadcastReceiver,
 } from './broadcast';
-import { startRecycleBinIconState, _currentRecycleBinCount } from './recycle-bin/icon-state';
+import { startRecycleBinIconState, _currentRecycleBinCount } from './desktop-files/recycle-bin-icon-state';
 import { registerBuiltInPeekRenderers } from './dock-peek/built-in-renderers';
 import {
 	BUG_REPORT_WINDOW_ID,

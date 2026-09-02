@@ -1,5 +1,5 @@
 /**
- * Unit tests for `src/my-wordpress/agents-send-to.ts` — the "Send to
+ * Unit tests for `apps/my-wordpress/parts/agents-send-to.ts` — the "Send to
  * <agent>" tile-context-menu intake: kind mapping, entityKinds gating,
  * and the dispatch a pick performs.
  */
@@ -18,11 +18,11 @@ import { installHooksStub } from './helpers/hooks-stub';
 
 // The module registers its filter at import time, which requires a
 // live `window.wp.hooks` bus — install the stub first, then import.
-let sendTo: typeof import( '../../src/my-wordpress/agents-send-to' );
+let sendTo: typeof import( '../../apps/my-wordpress/parts/agents-send-to' );
 
 beforeAll( async () => {
 	installHooksStub();
-	sendTo = await import( '../../src/my-wordpress/agents-send-to' );
+	sendTo = await import( '../../apps/my-wordpress/parts/agents-send-to' );
 	sendTo.registerSendToMenuFilter();
 } );
 

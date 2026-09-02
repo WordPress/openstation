@@ -14,8 +14,6 @@
  *   - `openstation_recycle_bin_query_args`
  *   - `openstation_recycle_bin_items` / `openstation_recycle_bin_item`
  *   - `openstation_recycle_bin_user_can_view|restore|purge|use`
- *   - `openstation_recycle_bin_window_args` / `..._icon_args`
- *   - `openstation_recycle_bin_template_html`
  *   - actions: `..._item_captured`, `..._before/after_restore`,
  *              `..._before/after_purge`, `..._emptied`
  *

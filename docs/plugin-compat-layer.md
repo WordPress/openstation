@@ -589,8 +589,8 @@ a post's author and a comment's writer point at the same root — and it
 is what lets an order tie to a profile window opened from anywhere.
 
 The integration talks to the site window only through the public
-action contract — nothing in `src/my-wordpress/index.ts` knows
-WooCommerce exists. A third-party plugin would write exactly the same
+action contract — nothing in `apps/my-wordpress/` knows WooCommerce
+exists (the client half is its own bundle, `src/plugins/my-wordpress-woocommerce/`). A third-party plugin would write exactly the same
 code.
 
 **Known gap:** the Customers grid is band-*ordered* (VIP first, then

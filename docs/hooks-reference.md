@@ -162,7 +162,7 @@ openstation_register_station_home_card( 'my-plugin-orders', array(
 ) );
 ```
 
-`label` and a callable `callback` are required. IDs must already be `sanitize_key()`-clean. `default_enabled` defaults to `false`, making first use an explicit opt-in; a plugin may set it to `true`, after which the user can opt out. Supported callback fields are `value`, `detail`, `url`, `action_label`, `external`, and `tone` (`neutral|info|success|warning|danger`). Returning `WP_Error` or a non-array omits the card for that snapshot. `openstation_unregister_station_home_card( $id )` removes a registration.
+`label` and a callable `callback` are required. IDs must already be `sanitize_key()`-clean. `default_enabled` defaults to `false`, making first use an explicit opt-in; a plugin may set it to `true`, after which the user can opt out. Supported callback fields are `value`, `detail`, `url`, `action_label`, `external`, and `tone` (`neutral|info|success|warning|danger`). Returning `WP_Error` or a non-array omits the card for that render. `openstation_unregister_station_home_card( $id )` removes a registration; `openstation_station_home_set_card_preference( $user_id, $id, $enabled )` stores a user's explicit choice (refusing ids not registered for the current user) and is what the app's Customize switches call.
 
 Returns `true` or `WP_Error` (`openstation_invalid_station_home_card_id`, `openstation_missing_label`, `openstation_invalid_callback`, or `openstation_capability_denied`). Full recipe: [`examples/station-home-card.md`](./examples/station-home-card.md).
 
@@ -1002,7 +1002,7 @@ apply_filters( 'openstation_station_home_cards', array $cards, int $user_id ): a
 apply_filters( 'openstation_station_home_card_data', array $data, string $id, array $entry, int $user_id ): array;
 ```
 
-`openstation_station_home_cards` filters the registration map before capability-safe metadata becomes the user's picker. Add, remove, reorder, or replace entries using the same shape accepted by `openstation_register_station_home_card()`. `openstation_station_home_card_data` filters an enabled card's callback result immediately before its values are sanitized for the REST snapshot.
+`openstation_station_home_cards` filters the registration map before capability-safe metadata becomes the user's picker. Add, remove, reorder, or replace entries using the same shape accepted by `openstation_register_station_home_card()`. `openstation_station_home_card_data` filters an enabled card's callback result immediately before its values are sanitized for the render.
 
 ---
 
@@ -2903,17 +2903,7 @@ The total surfaced to the dock/icon badge. `$total` defaults to `$post_count + $
 apply_filters( 'openstation_recycle_bin_count', int $total, int $post_count, int $comment_count, int $files_count );
 ```
 
-### `openstation_recycle_bin_window_args` — Experimental (filter)
-
-Tweak the args passed to `openstation_register_window()` for the bin — useful to change dimensions, swap the icon, or drop the dock tile entirely (`'placement' => 'none'`). The bin ships its own silhouette; `openstation_recycle_bin_icon_svg()` returns the raw markup and `openstation_recycle_bin_icon_uris()` returns both states as data URIs, so a plugin substituting its own art has the same pair to replace.
-
-The bin registers **no desktop icon**, so it lands on the dock and nowhere else. That is the default, not the whole story: the window is registered `placeable`, so its row in OpenStation Preferences → Navigation offers the wallpaper, both, or hidden, like any other item.
-
-### `openstation_recycle_bin_template_html` — Experimental (filter)
-
-The full template body before it's emitted into the native-window template element. Keep the `data-os-recycle-bin-*` hooks intact so the JS bundle can find its mount points.
-
-Some are visibility hooks rather than mount points: while the bin is empty the JS hides `[data-os-recycle-bin-toolbar]` and the `<os-table>`, and shows `[data-os-recycle-bin-empty-state]`. Put added toolbar controls inside the toolbar element or they stay visible over an empty bin. A filter or search that matches nothing keeps the toolbar and shows the table's own `empty` text instead; so does a failed load, which swaps that text for a retry message.
+> **Removed with the App Framework port:** `openstation_recycle_bin_window_args` and `openstation_recycle_bin_template_html` no longer exist — the bin window is an app (`apps/trash/`) and there is no server template to filter. The general `openstation_app_manifest` filter covers what `window_args` did (dimensions, icon, placement, chrome). See [`migration-recycle-bin-app.md`](./migration-recycle-bin-app.md). The bin still ships its own silhouette (`openstation_recycle_bin_icon_svg()` / `openstation_recycle_bin_icon_uris()`), registers **no desktop icon**, and stays `placeable` — its row in OpenStation Preferences → Navigation offers the wallpaper, both, or hidden, like any other item.
 
 ### `openstation_recycle_bin_empty_chunk_size` — Experimental (filter)
 
@@ -4256,6 +4246,8 @@ The content explorer app — `apps/my-wordpress/my-wordpress.os.php` + `my-wordp
 It discovers custom post types through the **same helpers WP Explorer uses** — `openstation_my_wordpress_eligible_post_types()`, `openstation_my_wordpress_post_type_icon()`, `openstation_my_wordpress_post_type_group()`, `openstation_my_wordpress_collect_groups()` — so the `openstation_my_wordpress_post_types`, `openstation_my_wordpress_post_type_entity` (icon/group only) and `openstation_my_wordpress_post_type_groups` filters above shape both windows. **Preview actions are shared too**: descriptors collected by `openstation_my_wordpress_preview_actions` and refined by the `os.my-wordpress.preview-actions` JS filter appear in this window's pane and context menu exactly as they do in WP Explorer — one registration, two surfaces. It is a sibling of WP Explorer (`desktop-mode-my-wordpress`), not a replacement — WP Explorer keeps its id, icon and every filter.
 
 The app consumes WP Explorer's **JS extension seams** too, unchanged: `os.my-wordpress.preview-extras` fires over the preview article's `header` / `meta` / `footer` slots (post, media and user kinds; the navigate-into article carries a `meta` slot), `os.my-wordpress.list-tile` fires per rendered tile after it is in the DOM, and the `os.my-wordpress.list-bands` filter groups a section's grid into the same banded layout (declared order, tone tints, count chips, unlabelled tail band). List rows carry the REST-visible fields subscribers read — registered `show_in_rest` meta under `meta`, and one term-id array per REST-exposed taxonomy keyed by `rest_base` — so a band assigner or extras painter written for WP Explorer works here without edits.
+
+Every section also has a **list view** — an Icons / List control in the search band switches the tile canvas for a sortable table: the ID (a chip that copies itself), title with status and lock, slug, author, status, date, modified, comment count, parent (hierarchical types), word count for posts and custom post types; file name, MIME type, size, dimensions and the attached post for media; username, email, role, published-post count and registration date for users; and a per-row action cluster (edit, copy link, copy the `?p=` shortlink, more). Column headers sort through the same server orders the icon view's "Sort by" menu offers — `sort_options()` grew ID, modified, slug and comment-count orders for posts, and ID, username, email and post-count orders for users — and the rows drag, select, marquee and infinite-scroll exactly like the tiles. Selection and the open item are one state for both views — what is picked among the icons is picked among the rows, scrolled into sight — and entering the list with no order chosen lists the highest id first. Both views' context menus carry **Copy ID** and **Copy shortlink** beside Copy link, all three over a selection. The view mode and each section's hidden columns are remembered **per user** through the app's own storage (`$os->stored( 'view' )` / `'hidden-columns'`, namespaced by app id — user meta on WordPress). Plugins add columns with the [`os.my-wordpress.list-columns`](./javascript-reference.md#filter--osmy-wordpresslist-columns) JS filter.
 
 The app also carries the **Agents section** (see [AI Agents](#ai-agents)) as a root tile, listed for every user who may read agents even while the framework is off — WP Explorer's design, 1:1, including the create wizard (Describe → Meet → Powers → Summon → Launch), the face picker, the off-state preview cast, drag & drop onto the cast cards and drag-out to the desktop. The mutations run as app actions (`agent-draft` / `agent-create` / `agent-update` / `agent-delete`) through the same `openstation_agent_*` store, draft and identity functions the `/desktop-mode/v1/agents` routes wrap, behind the same read/manage/invoke gates. After a roster change the client fires the `os.agents.roster-changed` JS action (on `wp.hooks`), which WP Explorer's "Send to" menu cache listens for — trigger edits made in the app reach WP Explorer's context menus without a reload.
 

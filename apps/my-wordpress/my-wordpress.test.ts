@@ -68,6 +68,7 @@ function state( over: Partial< AppState > = {} ): AppState {
 		page: 1,
 		sort: '',
 		selected: [],
+		view: 'icons',
 		pane: 'define',
 		casting: false,
 		wstep: 0,
@@ -95,6 +96,7 @@ function data( over: Partial< AppData > = {} ): AppData {
 		tags: [],
 		previewActions: [],
 		agents: null,
+		hiddenColumns: {},
 		...over,
 	};
 }
@@ -143,10 +145,10 @@ describe( 'resolveActions', () => {
 } );
 
 describe( 'buildMenuOptions', () => {
-	it( 'matches the WP Explorer menu, in its order', () => {
+	it( 'matches the WP Explorer menu, in its order, plus the id-minded clipboard verbs', () => {
 		const labels = buildMenuOptions(
 			section(),
-			item( { status: 'draft' } ),
+			item( { status: 'draft', shortlink: 'https://example.test/?p=1' } ),
 			[ { id: 'send-pdf', label: 'Export PDF' } ],
 		).map( ( o ) => o.label );
 		expect( labels ).toEqual( [
@@ -155,9 +157,13 @@ describe( 'buildMenuOptions', () => {
 			'Edit…',
 			'Publish',
 			'Copy link',
+			'Copy shortlink',
+			'Copy ID',
 			'Move to Trash',
 			'Export PDF',
 		] );
+		// No shortlink (a non-public type, a Woo order): no entry for it.
+		expect( buildMenuOptions( section(), item( {} ), [] ).map( ( o ) => o.id ) ).not.toContain( 'copy-shortlink' );
 	} );
 
 	it( 'drops Publish for published items and gates Trash on the meta capability', () => {
@@ -174,7 +180,7 @@ describe( 'buildMenuOptions', () => {
 			item( { canDelete: false } ),
 			[],
 		).map( ( o ) => o.id );
-		expect( ids ).toEqual( [ 'edit', 'open', 'copy-link' ] );
+		expect( ids ).toEqual( [ 'edit', 'open', 'copy-link', 'copy-id' ] );
 	} );
 } );
 

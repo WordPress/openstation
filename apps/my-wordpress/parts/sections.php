@@ -50,14 +50,16 @@ function sections( Os $os ) {
 			'restPath'   => 'wp/v2/posts',
 		),
 		array(
-			'id'         => 'pages',
-			'label'      => __( 'Pages', 'desktop-mode' ),
-			'icon'       => 'dashicons-admin-page',
-			'kind'       => 'post',
-			'post_type'  => 'page',
-			'capability' => 'edit_pages',
-			'thumbnails' => true,
-			'restPath'   => 'wp/v2/pages',
+			'id'           => 'pages',
+			'label'        => __( 'Pages', 'desktop-mode' ),
+			'icon'         => 'dashicons-admin-page',
+			'kind'         => 'post',
+			'post_type'    => 'page',
+			'capability'   => 'edit_pages',
+			'thumbnails'   => true,
+			// The list view offers a Parent column to tree-shaped types.
+			'hierarchical' => true,
+			'restPath'     => 'wp/v2/pages',
 		),
 		array(
 			'id'         => 'media',
@@ -98,22 +100,23 @@ function sections( Os $os ) {
 				? openstation_my_wordpress_post_type_group( $name )
 				: null;
 			$entry      = array(
-				'id'         => 'cpt-' . $name,
-				'label'      => isset( $post_type->labels->name ) && '' !== $post_type->labels->name
+				'id'           => 'cpt-' . $name,
+				'label'        => isset( $post_type->labels->name ) && '' !== $post_type->labels->name
 					? (string) $post_type->labels->name
 					: (string) $name,
-				'icon'       => function_exists( 'openstation_my_wordpress_post_type_icon' )
+				'icon'         => function_exists( 'openstation_my_wordpress_post_type_icon' )
 					? openstation_my_wordpress_post_type_icon( $post_type )
 					: 'dashicons-admin-post',
-				'kind'       => 'post',
-				'post_type'  => (string) $name,
-				'capability' => (string) $post_type->cap->edit_posts,
-				'thumbnails' => post_type_supports( $name, 'thumbnail' ),
-				'group'      => $group ? (string) $group['id'] : null,
-				'groupLabel' => $group ? (string) $group['label'] : null,
-				'groupIcon'  => $group ? (string) $group['icon'] : null,
-				'groupOrder' => $group ? (int) $group['order'] : null,
-				'restPath'   => function_exists( 'openstation_my_wordpress_post_type_rest_path' )
+				'kind'         => 'post',
+				'post_type'    => (string) $name,
+				'capability'   => (string) $post_type->cap->edit_posts,
+				'thumbnails'   => post_type_supports( $name, 'thumbnail' ),
+				'hierarchical' => is_post_type_hierarchical( $name ),
+				'group'        => $group ? (string) $group['id'] : null,
+				'groupLabel'   => $group ? (string) $group['label'] : null,
+				'groupIcon'    => $group ? (string) $group['icon'] : null,
+				'groupOrder'   => $group ? (int) $group['order'] : null,
+				'restPath'     => function_exists( 'openstation_my_wordpress_post_type_rest_path' )
 					? (string) openstation_my_wordpress_post_type_rest_path( $post_type )
 					: '',
 			);
@@ -226,19 +229,43 @@ function sort_options( array $section ) {
 	if ( null !== $woo ) {
 		return $woo;
 	}
+	// Every column the list view can sort by is a sort option here, so
+	// the icon view's "Sort by" menu and the list view's headers are
+	// two doors onto ONE server order — a column is sortable exactly
+	// when both of its keys exist in this table.
 	if ( 'user' === $section['kind'] ) {
 		return array(
 			'default'    => array( __( 'Name A–Z', 'desktop-mode' ), 'display_name', 'ASC' ),
 			'title-desc' => array( __( 'Name Z–A', 'desktop-mode' ), 'display_name', 'DESC' ),
 			'newest'     => array( __( 'Recently registered', 'desktop-mode' ), 'registered', 'DESC' ),
+			'oldest'     => array( __( 'Longest registered', 'desktop-mode' ), 'registered', 'ASC' ),
+			'id-asc'     => array( __( 'ID, lowest first', 'desktop-mode' ), 'ID', 'ASC' ),
+			'id-desc'    => array( __( 'ID, highest first', 'desktop-mode' ), 'ID', 'DESC' ),
+			'login-asc'  => array( __( 'Username A–Z', 'desktop-mode' ), 'login', 'ASC' ),
+			'login-desc' => array( __( 'Username Z–A', 'desktop-mode' ), 'login', 'DESC' ),
+			'email-asc'  => array( __( 'Email A–Z', 'desktop-mode' ), 'email', 'ASC' ),
+			'email-desc' => array( __( 'Email Z–A', 'desktop-mode' ), 'email', 'DESC' ),
+			'posts'      => array( __( 'Most posts', 'desktop-mode' ), 'post_count', 'DESC' ),
+			'posts-asc'  => array( __( 'Fewest posts', 'desktop-mode' ), 'post_count', 'ASC' ),
 		);
 	}
-	return array(
-		'default'    => array( __( 'Newest first', 'desktop-mode' ), 'date', 'DESC' ),
-		'oldest'     => array( __( 'Oldest first', 'desktop-mode' ), 'date', 'ASC' ),
-		'title-asc'  => array( __( 'Title A–Z', 'desktop-mode' ), 'title', 'ASC' ),
-		'title-desc' => array( __( 'Title Z–A', 'desktop-mode' ), 'title', 'DESC' ),
+	$options = array(
+		'default'      => array( __( 'Newest first', 'desktop-mode' ), 'date', 'DESC' ),
+		'oldest'       => array( __( 'Oldest first', 'desktop-mode' ), 'date', 'ASC' ),
+		'title-asc'    => array( __( 'Title A–Z', 'desktop-mode' ), 'title', 'ASC' ),
+		'title-desc'   => array( __( 'Title Z–A', 'desktop-mode' ), 'title', 'DESC' ),
+		'id-asc'       => array( __( 'ID, lowest first', 'desktop-mode' ), 'ID', 'ASC' ),
+		'id-desc'      => array( __( 'ID, highest first', 'desktop-mode' ), 'ID', 'DESC' ),
+		'modified'     => array( __( 'Recently modified', 'desktop-mode' ), 'modified', 'DESC' ),
+		'modified-asc' => array( __( 'Least recently modified', 'desktop-mode' ), 'modified', 'ASC' ),
+		'slug-asc'     => array( __( 'Slug A–Z', 'desktop-mode' ), 'name', 'ASC' ),
+		'slug-desc'    => array( __( 'Slug Z–A', 'desktop-mode' ), 'name', 'DESC' ),
 	);
+	if ( 'media' !== $section['kind'] ) {
+		$options['comments']     = array( __( 'Most comments', 'desktop-mode' ), 'comment_count', 'DESC' );
+		$options['comments-asc'] = array( __( 'Fewest comments', 'desktop-mode' ), 'comment_count', 'ASC' );
+	}
+	return $options;
 }
 
 /**

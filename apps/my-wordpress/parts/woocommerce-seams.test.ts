@@ -93,6 +93,7 @@ function state( over: Partial< AppState > = {} ): AppState {
 		page: 1,
 		sort: '',
 		selected: [],
+		view: 'icons',
 		pane: 'define',
 		casting: false,
 		wstep: 0,
@@ -120,6 +121,7 @@ function data( over: Partial< AppData > = {} ): AppData {
 		tags: [],
 		previewActions: [],
 		agents: null,
+		hiddenColumns: {},
 		...over,
 	};
 }
@@ -385,7 +387,7 @@ describe( 'flat sections', () => {
 			item( { id: 41, title: '#41 · $12.00', status: 'publish', canEdit: true } ),
 			[],
 		).map( ( o ) => o.id );
-		expect( ids ).toEqual( [ 'edit', 'open', 'copy-link' ] );
+		expect( ids ).toEqual( [ 'edit', 'open', 'copy-link', 'copy-id' ] );
 	} );
 
 	it( 'hides Explore details on the pane — there is no folder behind an order', () => {

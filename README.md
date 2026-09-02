@@ -207,8 +207,6 @@ Writes one `assets/js/<target>.js` / `.min.js` pair per target, including:
 
 - `assets/js/desktop.js` / `.min.js` — main shell bundle (loaded based on `SCRIPT_DEBUG`).
 - `assets/js/iframe-bridge.js` / `.min.js` — opt-in bridge that gives any same-origin iframe access to `wp.os.iframe.*`.
-- `assets/js/recycle-bin.js` / `.min.js` — Recycle Bin native window.
-- `assets/js/station-home.js` / `.min.js` — Station Home native Dashboard.
 - `assets/js/posts-window.js` / `.min.js` — Native Posts window (the `<os-table>` replacement for the `edit.php` iframe; opt-in per user via OpenStation Preferences → Features).
 
 **Development watch** — auto-recompiles the unminified bundle on save:

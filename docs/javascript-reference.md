@@ -1861,7 +1861,7 @@ Every applied change publishes `os/art-changed` on the activity channel with `{ 
 
 `wp.os.icons.getArt( id )` reads the current override back, or `''` when the registered icon is still in charge.
 
-In-tree reference: [`src/recycle-bin/icon-state.ts`](../src/recycle-bin/icon-state.ts). The Recycle Bin uses it to draw an empty bin and a bin holding something as two states of one object. It replaced a count badge there: the badge pill is positioned onto the artwork rather than beside it, and at a 20px dock tile it covered about 30% of the icon.
+In-tree reference: [`src/desktop-files/recycle-bin-icon-state.ts`](../src/desktop-files/recycle-bin-icon-state.ts). The Recycle Bin uses it to draw an empty bin and a bin holding something as two states of one object. It replaced a count badge there: the badge pill is positioned onto the artwork rather than beside it, and at a 20px dock tile it covered about 30% of the icon.
 
 ### `icons` — Stable
 
@@ -2719,7 +2719,7 @@ An app with a client view (`<file>.os.ts`, see [`app-framework.md` → The clien
 - **`dispatch`** runs an action on a mounted app window exactly as one of its own `os-action` triggers would: the request carries the view's current state and the window's open-time params, the response is morphed in and its effects performed. Resolves `true` once applied, `false` if the window is not mounted or the dispatch failed (the failure is toasted). `view` is `main` (default) or a tab slug declared with `App::tab()` — each tab panel is its own session.
 - **`session`** is the live session object — `state` (read-only snapshot), `view`, `dispatch`, `setPaused`, `dispose`. Read `state` to react to what the window is showing; do not mutate it.
 
-Effects the runtime performs itself: `toast`, `title`, `close`, `open`, `open_url` (an admin URL in an iframe window), `badge` (dock tile + desktop icon), `announce` (`wp.os.announceContentChange`), `menu` (a context menu at the pointer whose items dispatch actions), `send` (the window's channel bus). Any other `type` is re-dispatched as **`os-app-effect`** on the app's root element (bubbles, composed) with `detail = { appId, windowId, view, effect }`. Queue one from PHP with `$os->effects->add( 'my-plugin/thing', array( … ) )`.
+Effects the runtime performs itself: `toast`, `title`, `close`, `open`, `open_url` (an admin URL in an iframe window, with an optional `icon`), `badge` (dock tile + desktop icon), `announce` (`wp.os.announceContentChange`), `menu` (a context menu at the pointer whose items dispatch actions), `send` (the window's channel bus). Any other `type` is re-dispatched as **`os-app-effect`** on the app's root element (bubbles, composed) with `detail = { appId, windowId, view, effect }`. Queue one from PHP with `$os->effects->add( 'my-plugin/thing', array( … ) )`.
 
 Inbound: an app that declared `->on_channel( $channel, $action )` receives `wp.os.connect( id ).send( channel, payload )` / `Window.send()` as a dispatch of `$action` with `$args['payload']`; declared `resize` / `show` / `hide` / `focus` / `blur` actions are dispatched on those window moments.
 
@@ -4430,7 +4430,7 @@ Posted when a link inside the iframe points off-site; the parent opens an extern
 ```
 
 #### `os-open-user-footprint` — Stable
-Posted when a `[data-os-footprint]` link is clicked inside a chromeless iframe — the "View activity footprint" row action on the classic Users table. Checked *before* the admin-link classifier, so the link's fallback `href` is never followed inside the shell. The parent opens (or focuses) the WP Explorer app on that user's footprint and leaves the source window open (it's an auxiliary peek, not a navigation away — contrast `os-iframe-admin-link`, which closes the source on a remap hit). The routing is the shared footprint target (`src/my-wordpress/footprint-target.ts`); see also `bridge-protocol.md`.
+Posted when a `[data-os-footprint]` link is clicked inside a chromeless iframe — the "View activity footprint" row action on the classic Users table. Checked *before* the admin-link classifier, so the link's fallback `href` is never followed inside the shell. The parent opens (or focuses) the WP Explorer app on that user's footprint and leaves the source window open (it's an auxiliary peek, not a navigation away — contrast `os-iframe-admin-link`, which closes the source on a remap hit). The routing is the shared footprint target (`src/open-targets/footprint-target.ts`); see also `bridge-protocol.md`.
 
 ```typescript
 { type: 'os-open-user-footprint'; userId: number; userName: string }
@@ -6428,9 +6428,9 @@ to add a section, filter
 
 The legacy explorer bundle's public API went with the legacy window. Its jobs moved to contracts that need no bundle in the tab:
 
-- **`openDetail()` / `openMedia()`** → the shared open target: stash the object in the `wp.os.createSharedStore` store keyed **`desktop-mode/my-wordpress/open-target`** (`{ kind: 'detail' | 'media', entityId, id, title, requestedAt }`), then `wp.os.openWindow( 'my-wordpress' )`. The app consumes the pending target on mount and on the store subscription — cold-start safe by construction. In-bundle code imports `openExplorerDetail()` / `openExplorerMedia()` from `src/my-wordpress/explorer-open.ts` instead of writing the store by hand.
-- **`openUserFootprint()`** → unchanged contract, new destination: `openUserFootprintWindow( { userId, userName } )` (`src/my-wordpress/footprint-target.ts`) stashes the person and opens the **app**, whose footprint surface replaced the legacy one 1:1. The classic Users table's row action still rides the `os-open-user-footprint` bridge message into this path.
-- **`trashEntity()`** → rows dragged onto the Recycle Bin carry their section's `restPath` on the shortcut payload, and the bin DELETEs against it directly (`src/my-wordpress/rest-trash.ts`). No API, no window, no config blob.
+- **`openDetail()` / `openMedia()`** → the shared open target: stash the object in the `wp.os.createSharedStore` store keyed **`desktop-mode/my-wordpress/open-target`** (`{ kind: 'detail' | 'media', entityId, id, title, requestedAt }`), then `wp.os.openWindow( 'my-wordpress' )`. The app consumes the pending target on mount and on the store subscription — cold-start safe by construction. In-bundle code imports `openExplorerDetail()` / `openExplorerMedia()` from `src/open-targets/explorer-open.ts` instead of writing the store by hand.
+- **`openUserFootprint()`** → unchanged contract, new destination: `openUserFootprintWindow( { userId, userName } )` (`src/open-targets/footprint-target.ts`) stashes the person and opens the **app**, whose footprint surface replaced the legacy one 1:1. The classic Users table's row action still rides the `os-open-user-footprint` bridge message into this path.
+- **`trashEntity()`** → rows dragged onto the Recycle Bin carry their section's `restPath` on the shortcut payload, and the bin DELETEs against it directly (`src/desktop-files/rest-trash.ts`). No API, no window, no config blob.
 - **`registerEntityKind()`** → no replacement by design. The app renders its kinds itself; a plugin adds a section through [`openstation_my_wordpress_app_sections`](./hooks-reference.md#openstation_my_wordpress_app_sections--experimental-filter) and decorates every surface through the `os.my-wordpress.*` seams on this page.
 
 ### Filter — `os.my-wordpress.preview-actions`
@@ -6772,6 +6772,83 @@ A user tile carries a `.os-my-wordpress__user-tile-sub` sub-line
 ("role · N posts" by default). Rewriting its `textContent` is the
 supported way to say something truer about the person for your
 section.
+
+### Filter — `os.my-wordpress.list-columns`
+
+Add, reorder or drop columns in the explorer's **list view** — the
+sortable table a section switches to from the Icons / List control in
+its search band. Runs on every paint of the table with the section's
+built-in columns; return the list you want rendered.
+
+```ts
+wp.hooks.addFilter(
+    'os.my-wordpress.list-columns',
+    'my-plugin/lane-column',
+    ( columns, section ) => {
+        if ( section.id !== 'cpt-ticket' ) {
+            return columns;
+        }
+        // After the title: the lane a ticket sits in, read off the
+        // row's REST-visible meta (registered with `show_in_rest`).
+        columns.splice( 2, 0, {
+            id: 'lane',
+            label: 'Lane',
+            render: ( item ) => String( item.meta?._lane ?? '—' ),
+        } );
+        return columns;
+    },
+);
+```
+
+```ts
+interface ListColumn {
+    id: string;
+    label: string;
+    /**
+     * Sortable when BOTH keys exist in the section's server orders
+     * (`data.sortOptions` — the same list the icon view's "Sort by"
+     * menu shows). `first` is what a first click applies.
+     */
+    sort?: { asc: string; desc: string; first: 'asc' | 'desc' };
+    align?: 'start' | 'end';
+    /** Tabular figures in the kit's monospace — ids, slugs, counts. */
+    mono?: boolean;
+    /** Off until the user turns it on in the column chooser. */
+    hidden?: boolean;
+    /** A CSS width, or `'1fr'` for the one column that stretches. */
+    width?: string;
+    /** Never offered in the column chooser. */
+    locked?: boolean;
+    /** A string, a number, or a template from `wp.os.apps.html`. */
+    render: ( item: ListItem, section: Section ) => string | number | TemplateResult;
+}
+```
+
+`render` runs per cell, inside a try/catch — a throwing renderer
+paints an empty cell, never breaks the table. The row is the same
+object the tiles carry: the base fields (`id`, `title`, `status`,
+`link`, `thumb`, `lockedBy`, `canEdit`, `canDelete`), the REST-visible
+extras (`meta`, one term-id array per REST-exposed taxonomy keyed by
+`rest_base`), and the list-view facts — `slug`, `author`, `authorId`,
+`date`, `modified` (ISO-8601 with the site offset), `comments`,
+`shortlink` (the `?p=<id>` link), `parent`, `parentTitle`, `words`
+for post kinds; `file`, `bytes`, `size`, `dimensions` for media;
+`login`, `email`, `roles`, `registered`, `posts` for users.
+
+The built-in ids, per kind — posts and custom post types: `id`,
+`title`, `slug`, `author`, `status`, `date`, `modified`, `comments`,
+`parent` (hierarchical types only), `words`, `actions`; media: `id`,
+`title`, `file`, `mime`, `size`, `dimensions`, `parent`, `author`,
+`date`, `modified`, `actions`; users: `id`, `title`, `login`, `email`,
+`roles`, `posts`, `registered`, `actions`. A result that drops `title`
+or `actions` gets them back (the table cannot work without either);
+a result that is not an array, or a row without an `id` and a
+`render`, is ignored.
+
+The user's column choices are remembered **per section, per user**
+(the app's own storage), keyed by these ids — so keep a plugin
+column's `id` stable across releases, or a person's hidden set will
+stop matching it.
 
 ### Action — `os.my-wordpress.group-extras`
 
@@ -7296,7 +7373,7 @@ routes wrap. The section's config (`enabled`, `canManage`,
 arrives settled on the app's dispatch payload.
 
 The "Send to <agent>" context-menu intake
-(`src/my-wordpress/agents-send-to.ts`) registers the shared
+(`apps/my-wordpress/parts/agents-send-to.ts`) registers the shared
 `os.my-wordpress.tile-context-menu` filter from the app's bundle,
 warms its agent cache from the shell's REST config, and re-warms when
 any bundle signals a roster mutation:

@@ -177,7 +177,10 @@ require_once OPENSTATION_DIR . 'includes/users-window/bootstrap.php';
 require_once OPENSTATION_DIR . 'includes/user-edit-window/bootstrap.php';
 require_once OPENSTATION_DIR . 'includes/plugins-window/bootstrap.php';
 require_once OPENSTATION_DIR . 'includes/comments-window/bootstrap.php';
-require_once OPENSTATION_DIR . 'includes/station-home/bootstrap.php';
+// Station Home is an App Framework app (`apps/station-home/`); only
+// its plugin-card registry — a public API plugins call on `init` —
+// lives here, so it exists before any app loads.
+require_once OPENSTATION_DIR . 'includes/station-home/cards.php';
 require_once OPENSTATION_DIR . 'includes/my-wordpress/bootstrap.php';
 require_once OPENSTATION_DIR . 'includes/content-graph/bootstrap.php';
 // The App Framework: `.os.php` windows under `apps/` (Code Blue lives

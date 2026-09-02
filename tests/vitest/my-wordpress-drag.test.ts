@@ -58,10 +58,9 @@ function installElementFromPointStub( regions: Array< { el: Element; rect: { x: 
 }
 
 /**
- * Replicates the exact pointerdown handler my-wordpress wires onto
- * each post / page tile (`buildEntityTile` in
- * `src/my-wordpress/index.ts`). If this test passes, the pattern in
- * production is sound.
+ * Replicates the exact pointerdown handler the WP Explorer app wires
+ * onto each post / page tile (`apps/my-wordpress/parts/wire.ts`). If
+ * this test passes, the pattern in production is sound.
  */
 function attachMyWordpressEntityDrag(
 	tile: HTMLElement,
@@ -198,9 +197,9 @@ describe( 'My WordPress entity-tile drag (regression)', () => {
 		myWordpressWindow.appendChild( bodyEl );
 		document.body.appendChild( myWordpressWindow );
 
-		// Mirror exactly what `renderInto` does in
-		// `src/my-wordpress/index.ts` — the only thing that matters
-		// for the chip text contract.
+		// Mirror exactly what the app's drop-target wiring does
+		// (`apps/my-wordpress/parts/wire.ts`) — the only thing that
+		// matters for the chip text contract.
 		manager.registerDropTarget( {
 			id: 'os-my-wordpress-reject',
 			element: bodyEl,

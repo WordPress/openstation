@@ -45,6 +45,7 @@ function state( over: Partial< AppState > = {} ): AppState {
 		page: 1,
 		sort: '',
 		selected: [],
+		view: 'icons',
 		pane: 'define',
 		casting: false,
 		wstep: 0,
@@ -72,6 +73,7 @@ function data( over: Partial< AppData > = {} ): AppData {
 		tags: [],
 		previewActions: [],
 		agents: null,
+		hiddenColumns: {},
 		...over,
 	};
 }

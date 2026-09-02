@@ -70,7 +70,7 @@ const state = {
 };
 
 /**
- * Dispatch the canonical CustomEvent that the bin's `index.ts`
+ * Dispatch the canonical CustomEvent that the Trash app's view
  * listens for. The `external` kind tells subscribers "re-fetch"
  * without confusing them about which sub-action ran.
  */
@@ -106,8 +106,8 @@ export function start(): void {
 	// Initialize seenTs to "now" — the chromeless footer will only
 	// fire `dispatchChanged` for ts > seenTs, so deletes that
 	// happened before the bin opened are out of scope. The very
-	// first `refresh()` (called by `index.ts` after start) loads
-	// the current state of the bin, which IS the truth at t=open.
+	// first paint (the app's mount response) already carries the
+	// current state of the bin, which IS the truth at t=open.
 	state.seenTs = Date.now();
 
 	// --- Fast path: chromeless postMessage ----------------------------

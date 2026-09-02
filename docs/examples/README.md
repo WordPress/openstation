@@ -20,6 +20,7 @@ defined( 'ABSPATH' ) || exit;
 - [React to window events](./react-to-window-events.md)
 - [WP Explorer — add a preview-pane action button](./my-wordpress-media-action.md)
 - [WP Explorer — custom post types and their folder](./my-wordpress-cpt-section.md)
+- [WP Explorer — add a column to the list view](./my-wordpress-list-column.md)
 - [Accept drops on your desktop icon](./tile-drop-handler.md)
 - [Add an action that works on a whole selection](./multi-selection-action.md)
 - [Window lifecycle hooks (one subscriber per state)](./window-lifecycle.md)

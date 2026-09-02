@@ -27,9 +27,8 @@
  */
 
 import { __, _n, formatDate, html, sprintf, type TemplateResult } from '@openstation/app';
-import type { UserFootprint } from '../../../src/my-wordpress/types';
 import { openUserEditWindow } from '../../../src/posts-window/user-edit-target';
-import { uiOf, type Ctx } from './types';
+import { uiOf, type Ctx, type UserFootprint } from './types';
 
 /** Per-window fetch cache — lives in the UI bag, keyed by user. */
 export interface FootprintCache {

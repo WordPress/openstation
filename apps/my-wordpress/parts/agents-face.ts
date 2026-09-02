@@ -17,10 +17,10 @@
  * that graph touches the renderer.
  */
 
-import { MIO_DEFAULTS } from '../mio/config';
-import { mioPortraitDataUri } from '../mio/portrait';
-import { mulberry32, randomMioLook } from '../mio/randomize';
-import type { MioLook } from './agents-types';
+import { MIO_DEFAULTS } from '../../../src/mio/config';
+import { mioPortraitDataUri } from '../../../src/mio/portrait';
+import { mulberry32, randomMioLook } from '../../../src/mio/randomize';
+import type { MioLook } from '../../../src/agents-types';
 
 /** How many candidates a shuffle puts in front of someone. */
 export const FACE_CANDIDATES = 12;

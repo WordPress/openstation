@@ -27,6 +27,7 @@ import {
 	_x,
 	applySelection,
 	clientAppFor,
+	copyText,
 	createMarquee,
 	createPagedList,
 	defineApp,
@@ -96,7 +97,7 @@ function buildHost(): RuntimeHost {
 		openWindow: ( id ) => {
 			api?.openWindow( id );
 		},
-		openUrl: ( url, title ) => {
+		openUrl: ( url, title, icon ) => {
 			if ( ! api ) {
 				return;
 			}
@@ -106,13 +107,30 @@ function buildHost(): RuntimeHost {
 				baseId: id,
 				url,
 				title: title || url,
-				icon: 'dashicons-admin-generic',
+				icon: icon || 'dashicons-admin-generic',
 			} );
 		},
 		setBadge: ( appId, count ) => {
 			// The desktop icon and the dock tile share the app id.
 			api?.icons.setBadge( appId, count );
 			api?.dock?.setBadge( appId, count );
+		},
+		setIcon: ( appId, art ) => {
+			// Every rail that might host the tile exposes the same
+			// `setArt( id, art )` shape and silently no-ops for ids it
+			// doesn't own — fanning to all three is the canonical
+			// pattern (see the recycle-bin icon-state module), not a
+			// hack. The rails own paint state, including survival
+			// across grid rebuilds.
+			interface ArtRail {
+				setArt?: ( id: string, value: string ) => void;
+			}
+			const rails = api as unknown as
+				| { dock?: ArtRail; taskbar?: ArtRail; icons?: ArtRail }
+				| undefined;
+			rails?.dock?.setArt?.( appId, art );
+			rails?.taskbar?.setArt?.( appId, art );
+			rails?.icons?.setArt?.( appId, art );
 		},
 		announce: ( contentType, action, ids ) => {
 			api?.announceContentChange(
@@ -347,6 +365,7 @@ const CLIENT_API = {
 	createPagedList,
 	applySelection,
 	createMarquee,
+	copyText,
 } as const;
 
 /** What a queued third-party client view receives. */

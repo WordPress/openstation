@@ -50,6 +50,7 @@ export type { TemplateResult };
 export { formatBytes, formatDate, type DateStyle } from './format';
 export { createPagedList, type PagedList, type PageEnvelope } from './paged-list';
 export { applySelection, createMarquee } from './selection';
+export { copyText } from './clipboard';
 export type { ConfirmSpec, RuntimeHost } from './types';
 
 /** A reducer run in the browser. Return the next state, or mutate and return nothing. */
@@ -84,6 +85,13 @@ export interface ViewContext< S, D > {
 	local: ( action: string, args?: Record< string, unknown > ) => void;
 	/** The mount root — for a ResizeObserver, a canvas, a focus() call. */
 	root: HTMLElement;
+	/**
+	 * What the app declared with `App::config()` — static values that
+	 * ship once with the window config instead of riding `data` on
+	 * every response (asset URLs, feature flags, the Trash app's
+	 * empty/full icon pair).
+	 */
+	readonly extra: Record< string, unknown >;
 	/**
 	 * Client-only state that must never travel to the server — an open
 	 * menu, a fetch cache, an IntersectionObserver. One bag per mounted

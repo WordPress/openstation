@@ -79,14 +79,17 @@ final class Effects {
 	 *
 	 * @param string $url   Admin URL.
 	 * @param string $title Window title; the page's own title when ''.
+	 * @param string $icon  Window icon (a Dashicons class or an image
+	 *                      URL); the shell's generic glyph when ''.
 	 * @return self
 	 */
-	public function open_url( $url, $title = '' ) {
+	public function open_url( $url, $title = '', $icon = '' ) {
 		return $this->add(
 			'open_url',
 			array(
 				'url'   => (string) $url,
 				'title' => (string) $title,
+				'icon'  => (string) $icon,
 			)
 		);
 	}
@@ -100,6 +103,18 @@ final class Effects {
 	 */
 	public function badge( $count ) {
 		return $this->add( 'badge', array( 'count' => max( 0, (int) $count ) ) );
+	}
+
+	/**
+	 * Swap the art on every rail hosting the app's tile — dock,
+	 * taskbar, desktop icon. State-driven icons (the Recycle Bin's
+	 * empty/full bin is the canonical case).
+	 *
+	 * @param string $icon SVG data URI or image URL.
+	 * @return self
+	 */
+	public function icon( $icon ) {
+		return $this->add( 'icon', array( 'icon' => (string) $icon ) );
 	}
 
 	/**

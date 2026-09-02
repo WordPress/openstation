@@ -20,7 +20,7 @@ import {
 	faceHueName,
 	faceShapeName,
 	faceSrc,
-} from '../../../src/my-wordpress/agents-face';
+} from './agents-face';
 import {
 	uiOf,
 	type AgentsPayload,

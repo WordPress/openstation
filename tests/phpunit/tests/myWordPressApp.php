@@ -314,6 +314,197 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 	}
 
 	/**
+	 * @covers \OpenStation\Apps\MyWordPress\sort_options
+	 * @covers \OpenStation\Apps\MyWordPress\tiebroken
+	 */
+	public function test_the_list_view_sorts_by_id_slug_modified_and_comments() {
+		$zulu = self::factory()->post->create(
+			array(
+				'post_title' => 'Zulu memo',
+				'post_name'  => 'aaa-first-slug',
+				'post_date'  => '2026-02-01 10:00:00',
+			)
+		);
+
+		$options = $this->dispatch( 'refresh', array( 'section' => 'posts' ) )['data']['sortOptions'];
+		foreach ( array( 'id-asc', 'id-desc', 'modified', 'modified-asc', 'slug-asc', 'slug-desc', 'comments', 'comments-asc' ) as $key ) {
+			$this->assertArrayHasKey( $key, $options, "The list view's `$key` order is offered." );
+		}
+
+		$by_id = array_column( $this->dispatch( 'sort', array( 'section' => 'posts', 'sort' => 'id-asc' ) )['data']['list']['items'], 'id' );
+		$this->assertSame( $by_id, array_values( array_unique( $by_id ) ) );
+		$sorted = $by_id;
+		sort( $sorted );
+		$this->assertSame( $sorted, $by_id, 'id-asc lists lowest ids first (the tiebreak must not flip it).' );
+
+		$by_id_desc = array_column( $this->dispatch( 'sort', array( 'section' => 'posts', 'sort' => 'id-desc' ) )['data']['list']['items'], 'id' );
+		$this->assertSame( array_reverse( $sorted ), $by_id_desc, 'id-desc lists highest ids first.' );
+
+		$by_slug = array_column( $this->dispatch( 'sort', array( 'section' => 'posts', 'sort' => 'slug-asc' ) )['data']['list']['items'], 'id' );
+		$this->assertSame( $zulu, $by_slug[0], 'Slug A–Z orders by post_name, not title.' );
+
+		// Media never offers a comment order; users offer their own set.
+		$media = $this->dispatch( 'refresh', array( 'section' => 'media' ) )['data']['sortOptions'];
+		$this->assertArrayNotHasKey( 'comments', $media );
+		$this->assertArrayHasKey( 'id-desc', $media );
+		$users = $this->dispatch( 'refresh', array( 'section' => 'users' ) )['data']['sortOptions'];
+		foreach ( array( 'id-asc', 'login-asc', 'email-desc', 'posts', 'oldest' ) as $key ) {
+			$this->assertArrayHasKey( $key, $users );
+		}
+		$by_login = array_column( $this->dispatch( 'sort', array( 'section' => 'users', 'sort' => 'login-asc' ) )['data']['list']['items'], 'login' );
+		$sorted   = $by_login;
+		// MySQL collates case-insensitively; compare the same way.
+		usort( $sorted, 'strcasecmp' );
+		$this->assertSame( $sorted, $by_login, 'Username A–Z orders by user_login.' );
+	}
+
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\post_facts
+	 * @covers \OpenStation\Apps\MyWordPress\media_facts
+	 * @covers \OpenStation\Apps\MyWordPress\user_row
+	 */
+	public function test_list_rows_carry_the_list_view_facts() {
+		$child = self::factory()->post->create(
+			array(
+				'post_type'    => 'page',
+				'post_title'   => 'Team',
+				'post_parent'  => self::$page_id,
+				'post_content' => 'one two three four five',
+			)
+		);
+		$long  = self::factory()->post->create(
+			array(
+				'post_title'   => 'Long read',
+				'post_content' => str_repeat( 'Tom &amp; Jerry go on. ', 40 ),
+				// The factory invents one otherwise; the trim path is the point.
+				'post_excerpt' => '',
+			)
+		);
+
+		$rows = $this->dispatch( 'refresh', array( 'section' => 'posts' ) )['data']['list']['items'];
+		foreach ( $rows as $candidate ) {
+			if ( $long === $candidate['id'] ) {
+				// The hover card sets this as TEXT: entities must already
+				// be characters, the trimmed-excerpt marker included.
+				$this->assertStringNotContainsString( '&hellip;', $candidate['excerpt'] );
+				$this->assertStringNotContainsString( '&amp;', $candidate['excerpt'] );
+				$this->assertStringContainsString( 'Tom & Jerry', $candidate['excerpt'] );
+				$this->assertStringContainsString( '[…]', $candidate['excerpt'] );
+			}
+		}
+
+		$rows = $this->dispatch( 'refresh', array( 'section' => 'posts' ) )['data']['list']['items'];
+		$row  = null;
+		foreach ( $rows as $candidate ) {
+			if ( self::$post_id === $candidate['id'] ) {
+				$row = $candidate;
+			}
+		}
+		$this->assertNotNull( $row );
+		$this->assertSame( 'alpha-strategy', $row['slug'] );
+		$this->assertSame( self::$admin_id, $row['authorId'] );
+		$this->assertNotSame( '', $row['author'] );
+		$this->assertMatchesRegularExpression( '/^2026-01-10T10:00:00[+-]\d\d:\d\d$/', $row['date'], 'Dates ship as ISO-8601 with the site offset.' );
+		$this->assertMatchesRegularExpression( '/^\d{4}-\d\d-\d\dT/', $row['modified'] );
+		$this->assertSame( 0, $row['comments'] );
+		$this->assertSame( home_url( '?p=' . self::$post_id ), $row['shortlink'], 'The `?p=` link that survives a permalink change.' );
+		$this->assertSame( 0, $row['parent'] );
+		$this->assertIsInt( $row['words'] );
+
+		$response = $this->dispatch( 'refresh', array( 'section' => 'pages' ) );
+		$pages    = $response['data'];
+		$this->assertTrue( $this->data_section( $response, 'pages' )['hierarchical'], 'Pages declare themselves tree-shaped for the Parent column.' );
+		$this->assertArrayNotHasKey( 'hierarchical', $this->data_section( $response, 'posts' ) );
+		$team = null;
+		foreach ( $pages['list']['items'] as $candidate ) {
+			if ( $child === $candidate['id'] ) {
+				$team = $candidate;
+			}
+		}
+		$this->assertSame( self::$page_id, $team['parent'] );
+		$this->assertSame( 'About', $team['parentTitle'] );
+		$this->assertSame( 5, $team['words'] );
+
+		$users = $this->dispatch( 'refresh', array( 'section' => 'users' ) )['data']['list']['items'];
+		$admin = null;
+		foreach ( $users as $candidate ) {
+			if ( self::$admin_id === $candidate['id'] ) {
+				$admin = $candidate;
+			}
+		}
+		$this->assertNotNull( $admin );
+		$user = get_userdata( self::$admin_id );
+		$this->assertSame( $user->user_login, $admin['login'] );
+		$this->assertSame( $user->user_email, $admin['email'] );
+		$this->assertSame( array( 'administrator' ), $admin['roles'] );
+		$this->assertMatchesRegularExpression( '/^\d{4}-\d\d-\d\dT/', $admin['registered'] );
+		$this->assertGreaterThanOrEqual( 1, $admin['posts'], 'The published-post count rides the row, counted once per page.' );
+	}
+
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\mount
+	 * @covers \OpenStation\Apps\MyWordPress\view_action
+	 */
+	public function test_the_view_mode_is_remembered_per_user() {
+		$first = $this->dispatch( 'mount' );
+		$this->assertSame( 'icons', $first['state']['view'], 'The tile canvas is the default.' );
+
+		$switched = $this->dispatch( 'view', array( 'section' => 'posts', 'view' => 'list' ) );
+		$this->assertSame( 'list', $switched['state']['view'] );
+
+		$again = $this->dispatch( 'mount' );
+		$this->assertSame( 'list', $again['state']['view'], 'The next window opens the way this one was left.' );
+
+		// Another person is not affected by this one's choice.
+		wp_set_current_user( self::$editor_id );
+		$this->assertSame( 'icons', $this->dispatch( 'mount' )['state']['view'] );
+
+		// Garbage never lands: an unknown mode falls back and is stored as such.
+		wp_set_current_user( self::$admin_id );
+		$bad = $this->dispatch( 'view', array( 'section' => 'posts', 'view' => 'kanban' ) );
+		$this->assertSame( 'icons', $bad['state']['view'] );
+		$this->assertSame( 'icons', $this->dispatch( 'mount' )['state']['view'] );
+	}
+
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\set_columns_action
+	 * @covers \OpenStation\Apps\MyWordPress\hidden_columns
+	 */
+	public function test_hidden_columns_are_remembered_per_section() {
+		$initial = $this->dispatch( 'refresh', array( 'section' => 'posts' ) );
+		$this->assertSame( array(), (array) $initial['data']['hiddenColumns'], 'Nothing remembered: the client applies its defaults.' );
+
+		// The payload ships an object (the client indexes it by section
+		// id, and an empty PHP array would encode as `[]`); read it as one.
+		$set = (array) $this->dispatch(
+			'set-columns',
+			array( 'section' => 'posts' ),
+			array( 'hidden' => array( 'author', 'Comments', 'bad key!', '', 'author' ) )
+		)['data']['hiddenColumns'];
+		$this->assertSame( array( 'author', 'comments', 'badkey' ), $set['posts'], 'Sanitised, deduplicated, order kept.' );
+
+		// An EMPTY list is a choice ("show everything"), kept as such.
+		$all = (array) $this->dispatch( 'set-columns', array( 'section' => 'posts' ), array( 'hidden' => array() ) )['data']['hiddenColumns'];
+		$this->assertSame( array(), $all['posts'] );
+
+		// Other sections are untouched; a reset forgets just this one.
+		$pages = (array) $this->dispatch( 'set-columns', array( 'section' => 'pages' ), array( 'hidden' => array( 'words' ) ) )['data']['hiddenColumns'];
+		$this->assertSame( array( 'words' ), $pages['pages'] );
+		$this->assertSame( array(), $pages['posts'] );
+		$reset = (array) $this->dispatch( 'set-columns', array( 'section' => 'posts' ), array( 'reset' => true ) )['data']['hiddenColumns'];
+		$this->assertArrayNotHasKey( 'posts', $reset );
+		$this->assertSame( array( 'words' ), $reset['pages'] );
+
+		// No section, no write.
+		$none = $this->dispatch( 'set-columns', array(), array( 'hidden' => array( 'x' ) ) );
+		$this->assertArrayNotHasKey( '', (array) $none['data']['hiddenColumns'] );
+
+		// Per user.
+		wp_set_current_user( self::$editor_id );
+		$this->assertSame( array(), (array) $this->dispatch( 'refresh', array( 'section' => 'pages' ) )['data']['hiddenColumns'] );
+	}
+
+	/**
 	 * @covers \OpenStation\Apps\MyWordPress\fetch
 	 */
 	public function test_search_narrows_the_list_and_resets_the_page() {
@@ -874,10 +1065,13 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		// surface, and finally when the app REPLACED the original
 		// outright — reclaiming the name and absorbing the last
 		// missing surface, the activity footprint (~600 lines here
-		// against the ~800 it retired with the legacy bundle). The
-		// like-for-like original it displaced measured ~32,000 lines;
-		// the whole replacement stays a third of that.
-		$this->assertLessThan( 10500, $lines, sprintf( 'My WordPress is %d lines; the budget is under 10,500 — still a third of the original it replaced.', $lines ) );
+		// against the ~800 it retired with the legacy bundle), and
+		// once more for the list view (the per-kind column model, the
+		// sortable table, the row action cluster, the column chooser —
+		// a surface the original never had). The like-for-like
+		// original it displaced measured ~32,000 lines; the whole
+		// replacement stays well under half of that.
+		$this->assertLessThan( 12500, $lines, sprintf( 'My WordPress is %d lines; the budget is under 12,500 — still well under half of the original it replaced.', $lines ) );
 
 		// The house file-length rule, pinned hard for this app: every
 		// PHP and TS source stays under 1,000 lines. The lint twins

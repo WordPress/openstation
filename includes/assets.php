@@ -443,28 +443,11 @@ function openstation_register_assets() {
 		true
 	);
 
-	// `desktop-mode-recycle-bin` — small bundle for the Recycle Bin
-	// native window. Lazy-loaded by the native-window sync the first
-	// time the bin opens; registers a render callback on
-	// `window.openStationNativeWindows['desktop-mode-recycle-bin']`.
-	$recycle_bin_js = OPENSTATION_DIR . 'assets/js/recycle-bin' . $suffix . '.js';
-	wp_register_script(
-		'desktop-mode-recycle-bin',
-		OPENSTATION_URL . 'assets/js/recycle-bin' . $suffix . '.js',
-		// `heartbeat` + `jquery` — the bin opts in to the WordPress
-		// Heartbeat API while its window is open as the catch-all
-		// real-time channel for deletes that don't render an admin
-		// footer (REST/AJAX/other tabs/WP-CLI). See
-		// `src/recycle-bin/realtime.ts` for the subscriber.
-		array( 'wp-i18n', 'heartbeat', 'jquery' ),
-		file_exists( $recycle_bin_js ) ? (string) filemtime( $recycle_bin_js ) : $version,
-		true
-	);
-	wp_set_script_translations(
-		'desktop-mode-recycle-bin',
-		'desktop-mode',
-		OPENSTATION_DIR . 'languages'
-	);
+	// The Recycle Bin window is an App Framework app (`apps/trash/`);
+	// its client view rides the app-bundle pipeline, so no dedicated
+	// script handle. The `desktop-mode-recycle-bin` STYLE handle above
+	// stays — the drag-to-trash drop-target highlight must be present
+	// at boot (dropping on the closed bin's dock tile), not window-open.
 
 	// `desktop-mode-games` — bundle for the Games hub native window
 	// (launcher grid, scoreboard, challenges client). Lazy-loaded by

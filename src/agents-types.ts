@@ -1,7 +1,11 @@
 /**
- * WP Explorer — Agents: type contracts.
+ * Agents: type contracts.
  *
- * Mirrors the REST shapes served by `includes/agents/rest.php`.
+ * Mirrors the REST shapes served by `includes/agents/rest.php`. Shared
+ * by the shell's agents modules beside this file (dispatch, chat
+ * store) and by the WP Explorer app's Agents section
+ * (`apps/my-wordpress/parts/`), which is why it lives in `src/` and
+ * not in the app.
  *
  * @public
  */

@@ -101,6 +101,10 @@ return App::define( 'my-wordpress' )
 			'page'        => 1,
 			'sort'        => '',
 			'selected'    => array(),
+			// How a section lists: the tile canvas (`icons`) or the
+			// sortable table (`list`). Remembered per user — restored
+			// on mount, saved by the `view` action.
+			'view'        => 'icons',
 			// The Agents section. `item` doubles as the selected agent;
 			// the rest is the wizard: which detail tab is open, whether
 			// the create flow is on and at which station, the agent
@@ -125,6 +129,8 @@ return App::define( 'my-wordpress' )
 		)
 	)
 	// `refresh` is the framework's built-in: recompute data(), re-render.
+	// The remembered view mode lands before the first paint.
+	->mount( __NAMESPACE__ . '\mount' )
 	// Navigation — parts/actions.php.
 	->action( 'go', __NAMESPACE__ . '\go_action' )
 	->action( 'back', __NAMESPACE__ . '\back_action' )
@@ -153,6 +159,10 @@ return App::define( 'my-wordpress' )
 			$state->set( 'page', 1 )->reset( 'selected' );
 		}
 	)
+	// The list view: the mode switch and the column chooser, both
+	// remembered per user — parts/actions.php.
+	->action( 'view', __NAMESPACE__ . '\view_action' )
+	->action( 'set-columns', __NAMESPACE__ . '\set_columns_action' )
 	// Content mutations — parts/actions.php.
 	->action( 'edit', __NAMESPACE__ . '\edit_action' )
 	->action( 'trash', __NAMESPACE__ . '\trash_action' )

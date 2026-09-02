@@ -59,8 +59,8 @@ function payload( State $state, Os $os ) {
 		$state->set( 'into', 0 )->set( 'relation', '' );
 		$into = 0;
 	}
-	$relation  = (string) $state->get( 'relation' );
-	$fp        = (int) $state->get( 'footprint' );
+	$relation = (string) $state->get( 'relation' );
+	$fp       = (int) $state->get( 'footprint' );
 	if ( $fp > 0 && false === get_userdata( $fp ) ) {
 		// The person vanished — fall back to the list, not a dead end.
 		$state->set( 'footprint', 0 )->set( 'fpName', '' );
@@ -100,5 +100,8 @@ function payload( State $state, Os $os ) {
 		'categories'     => $choices['categories'],
 		'tags'           => $choices['tags'],
 		'previewActions' => preview_actions( $os ),
+		// The list view's remembered column choices, per section.
+		// An object even when empty — the client indexes it by id.
+		'hiddenColumns'  => (object) hidden_columns( $os ),
 	);
 }

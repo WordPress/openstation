@@ -535,7 +535,7 @@ class Tests_OpenStation_AppFramework extends WP_UnitTestCase {
 	public function test_effects_are_normalised_for_the_wire() {
 		$os = Os::standalone();
 		$os->begin();
-		$os->badge( -3 )->announce( 'post', 'updated', '7' )->open_url( 'post.php?post=7&action=edit', 'Edit' )->send( 'ping', array( 1 ) )
+		$os->badge( -3 )->icon( 'data:image/svg+xml;base64,FULL' )->announce( 'post', 'updated', '7' )->open_url( 'post.php?post=7&action=edit', 'Edit', 'dashicons-edit' )->send( 'ping', array( 1 ) )
 			->menu(
 				array(
 					array( 'label' => 'Edit', 'action' => 'edit', 'args' => array( 'id' => 7 ), 'icon' => 'dashicons-edit' ),
@@ -546,14 +546,18 @@ class Tests_OpenStation_AppFramework extends WP_UnitTestCase {
 		$effects = $os->effects->all();
 
 		$this->assertSame( array( 'type' => 'badge', 'count' => 0 ), $effects[0] );
-		$this->assertSame( array( 'type' => 'announce', 'contentType' => 'post', 'action' => 'updated', 'ids' => array( 7 ) ), $effects[1] );
-		$this->assertSame( 'open_url', $effects[2]['type'] );
-		$this->assertSame( array( 'type' => 'send', 'channel' => 'ping', 'payload' => array( 1 ) ), $effects[3] );
-		$this->assertSame( 'menu', $effects[4]['type'] );
-		$this->assertCount( 2, $effects[4]['items'], 'An item without an action is dropped.' );
-		$this->assertSame( 'item-0', $effects[4]['items'][0]['id'] );
-		$this->assertSame( array( 'id' => 7 ), $effects[4]['items'][0]['args'] );
-		$this->assertTrue( $effects[4]['items'][1]['danger'] );
+		$this->assertSame( array( 'type' => 'icon', 'icon' => 'data:image/svg+xml;base64,FULL' ), $effects[1] );
+		$this->assertSame( array( 'type' => 'announce', 'contentType' => 'post', 'action' => 'updated', 'ids' => array( 7 ) ), $effects[2] );
+		$this->assertSame(
+			array( 'type' => 'open_url', 'url' => 'post.php?post=7&action=edit', 'title' => 'Edit', 'icon' => 'dashicons-edit' ),
+			$effects[3]
+		);
+		$this->assertSame( array( 'type' => 'send', 'channel' => 'ping', 'payload' => array( 1 ) ), $effects[4] );
+		$this->assertSame( 'menu', $effects[5]['type'] );
+		$this->assertCount( 2, $effects[5]['items'], 'An item without an action is dropped.' );
+		$this->assertSame( 'item-0', $effects[5]['items'][0]['id'] );
+		$this->assertSame( array( 'id' => 7 ), $effects[5]['items'][0]['args'] );
+		$this->assertTrue( $effects[5]['items'][1]['danger'] );
 	}
 
 	/**

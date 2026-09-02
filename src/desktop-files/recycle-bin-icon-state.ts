@@ -2,8 +2,12 @@
  * Recycle Bin — icon state.
  *
  * Swaps the bin's artwork between empty and holding-something, on
- * its dock/taskbar tile and its desktop icon. Stays accurate
- * without a page refresh:
+ * its dock/taskbar tile and its desktop icon. The Trash app
+ * (`apps/trash/`) owns the window; this is the one piece of the bin
+ * that stays in the always-on shell bundle, beside the drop targets
+ * that share its frozen id, because the closed tile has to be right
+ * before the app's script ever loads. Stays accurate without a page
+ * refresh:
  *
  *   - Initial value comes from the shell config
  *     (`config.recycleBinCount`), so the icon is right on the
@@ -84,13 +88,12 @@ function getDesktopApi(): OpenStationArtRails | undefined {
 /**
  * State shared across every bundle that imports this module.
  *
- * Routed through `createSharedStore` because both the always-on
- * shell bundle (`desktop.js`) and the lazy bin window bundle
- * (`recycle-bin.js`) import this file. Plain module-level `let`s
- * would compile into each bundle separately, so the bin window
- * setting `current = 0` after Empty bin would never reach the
- * shell bundle's lifecycle handlers — they'd repaint the dock
- * tile from their own stale copy on close. See
+ * Routed through `createSharedStore` so any bundle that imports
+ * this file shares one count with the always-on shell bundle
+ * (`desktop.js`). Plain module-level `let`s would compile into each
+ * bundle separately, so a second importer setting `current = 0`
+ * would never reach the shell bundle's lifecycle handlers — they'd
+ * repaint the dock tile from their own stale copy. See
  * `AGENTS.md` ➜ "Cross-bundle state".
  */
 interface BadgeState {
@@ -208,11 +211,10 @@ function paintIconState( count: number ): void {
  *     that catches AJAX list-table trash, REST DELETE, other tabs,
  *     WP-CLI, cron — anything that doesn't render an admin footer.
  *
- * The bin window's lazy-loaded `index.ts` also calls
- * `setRecycleBinCount()` after every successful `refresh()`, so
- * authoritative resets happen any time the user is looking at the
- * bin directly. The heartbeat probe runs regardless — that's the
- * fix for "badge doesn't update unless I open the bin".
+ * While the Trash app's window is open its client view pushes the
+ * exact art itself (`ctx.host.setIcon`), so the two never disagree
+ * for long. The heartbeat probe runs regardless — that's the fix
+ * for "the tile doesn't update unless I open the bin".
  *
  * @public
  *

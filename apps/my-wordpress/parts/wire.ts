@@ -20,13 +20,13 @@ import {
 	clearFootprintTarget,
 	readFootprintTarget,
 	subscribeFootprintTarget,
-} from '../../../src/my-wordpress/footprint-target';
+} from '../../../src/open-targets/footprint-target';
 import {
 	clearExplorerOpenTarget,
 	readExplorerOpenTarget,
 	subscribeExplorerOpenTarget,
 	type ExplorerOpenTarget,
-} from '../../../src/my-wordpress/explorer-open';
+} from '../../../src/open-targets/explorer-open';
 import {
 	clearAgentEditorTarget,
 	readAgentEditorTarget,
@@ -35,11 +35,11 @@ import {
 import {
 	registerSendToMenuFilter,
 	setSendToEnabled,
-} from '../../../src/my-wordpress/agents-send-to';
+} from './agents-send-to';
 import {
 	faceFromSeed,
 	hasFace,
-} from '../../../src/my-wordpress/agents-face';
+} from './agents-face';
 import {
 	agentAcceptsDrop,
 	describeDragEntity,
@@ -238,7 +238,10 @@ export function wire( ctx: Ctx ): () => void {
 		const cell = ( e.target as Element | null )?.closest< HTMLElement >(
 			'[data-mywp-drag][data-item-id]',
 		);
-		if ( ! cell ) {
+		// The list view's rows already show what the card would say,
+		// and a card following the pointer down a table covers the
+		// neighbouring rows' facts.
+		if ( ! cell || cell.closest( '[data-mywp-list]' ) ) {
 			return;
 		}
 		const id = Number( cell.getAttribute( 'data-item-id' ) );
@@ -292,6 +295,9 @@ export function wire( ctx: Ctx ): () => void {
 		const state = uiOf( ctx );
 		if ( state.menu ) {
 			state.menu = null;
+			ctx.repaint();
+		} else if ( state.columnsMenu ) {
+			state.columnsMenu = null;
 			ctx.repaint();
 		} else if ( state.zoom ) {
 			state.zoom = false;
@@ -511,19 +517,35 @@ export function afterRender( ctx: Ctx ): void {
 	// canvas, and what "load the next page" means here.
 	ui.list.sync( {
 		sentinel: ctx.root.querySelector( '[data-mywp-sentinel]' ),
-		canvas: ctx.root.querySelector< HTMLElement >( '.os-mywp__tiles' ),
+		// The scrolling element of either view — the tile grid or the
+		// list view's table wrapper — both wear `.os-mywp__canvas`.
+		canvas: ctx.root.querySelector< HTMLElement >( '.os-mywp__canvas' ),
 		load: () => ctx.dispatch( 'more' ),
 		repaint: () => ctx.repaint(),
 	} );
+	// A view switch keeps the selection; bring it into sight in the
+	// other costume — the open item first, else the first selected.
+	if ( ui.revealSelection ) {
+		ui.revealSelection = false;
+		const target = ctx.state.item > 0 ? ctx.state.item : ( ctx.state.selected[ 0 ] ?? 0 );
+		if ( target > 0 ) {
+			ctx.root
+				.querySelector< HTMLElement >( `[data-item-id="${ target }"]` )
+				?.scrollIntoView?.( { block: 'nearest' } );
+		}
+	}
 	// The context menu paints hidden (the view renders it with an
 	// inline visibility:hidden), then the shell's own placement
 	// helper measures it post-render, clamps it inside the viewport
 	// and reveals it — without the hidden frame the menu's unclamped
 	// first paint flashes at the raw pointer position before jumping
-	// into place.
-	const menuEl = ctx.root.querySelector< HTMLElement >( 'os-context-menu.os-mywp__menu' );
-	if ( menuEl && ui.menu ) {
-		clampToViewport( menuEl );
+	// into place. The column chooser is the same element, same rule.
+	for ( const menuEl of Array.from(
+		ctx.root.querySelectorAll< HTMLElement >( 'os-context-menu.os-mywp__menu' ),
+	) ) {
+		if ( ui.menu || ui.columnsMenu ) {
+			clampToViewport( menuEl );
+		}
 	}
 	// Inject the server-rendered post body — the preview pane's and
 	// the detail folder's article alike. Trusted admin content from

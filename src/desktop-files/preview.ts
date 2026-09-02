@@ -19,7 +19,7 @@
 
 import { applyFilters } from '../hooks';
 import { __, sprintf } from '../i18n';
-import { openExplorerDetail } from '../my-wordpress/explorer-open';
+import { openExplorerDetail } from '../open-targets/explorer-open';
 import { joinRestUrl } from '../rest-url';
 import { trackedFetch } from '../tracked-fetch';
 import { formatBytes } from '../os-file-drop/format-bytes';

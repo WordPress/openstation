@@ -13,13 +13,13 @@
  */
 
 import { __, html, sprintf, type TemplateResult } from '@openstation/app';
-import { openUserFootprintWindow } from '../../../src/my-wordpress/footprint-target';
+import { openUserFootprintWindow } from '../../../src/open-targets/footprint-target';
 import type {
 	Ability,
 	Agent,
 	Trigger,
 	TriggerKindDescriptor,
-} from '../../../src/my-wordpress/agents-types';
+} from '../../../src/agents-types';
 import {
 	uiOf,
 	type AgentsPayload,

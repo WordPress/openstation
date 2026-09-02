@@ -61,8 +61,7 @@ class Tests_OpenStation_DeferredWindowStyles extends WP_UnitTestCase {
 	 *
 	 * The plugin registers on `init`, which fired during bootstrap
 	 * with no user logged in — capability-gated windows (all of
-	 * them) declined to register. Same shape the Station Home test
-	 * uses, across the whole family.
+	 * them) declined to register.
 	 */
 	private function register_built_in_windows() {
 		$registrars = array(
@@ -74,10 +73,10 @@ class Tests_OpenStation_DeferredWindowStyles extends WP_UnitTestCase {
 			'openstation_plugins_window_register_window',
 			'openstation_content_graph_register_window',
 			'openstation_games_register_window',
-			'openstation_station_home_register_window',
 			'openstation_agent_run_window_register',
-			// Code Blue is an App Framework `.os.php`; the framework
-			// registers every allowed app in one pass.
+			// Code Blue, WP Explorer, Trash and Station Home are App
+			// Framework `.os.php` files; the framework registers every
+			// allowed app in one pass.
 			'openstation_apps_register_windows',
 			'openstation_my_wordpress_woo_customer_window_register',
 		);
@@ -91,9 +90,9 @@ class Tests_OpenStation_DeferredWindowStyles extends WP_UnitTestCase {
 	/**
 	 * Built-in windows whose stylesheet must travel as a companion
 	 * (`styles`), never as the sync-injected `style` and never as a
-	 * boot enqueue. Conditionally-registered windows (Station Home
-	 * opt-in, agents, games behind their feature gates) are asserted
-	 * only when present in the payload.
+	 * boot enqueue. Conditionally-registered windows (agents, games
+	 * behind their feature gates) are asserted only when present in
+	 * the payload.
 	 *
 	 * @var string[]
 	 */
@@ -125,6 +124,7 @@ class Tests_OpenStation_DeferredWindowStyles extends WP_UnitTestCase {
 		'desktop-mode-pages',
 		'desktop-mode-comments',
 		'desktop-mode-plugins',
+		'desktop-mode-dashboard',
 	);
 
 	/**
@@ -169,7 +169,7 @@ class Tests_OpenStation_DeferredWindowStyles extends WP_UnitTestCase {
 	 */
 	public function test_recycle_bin_stylesheet_stays_on_the_boot_path() {
 		$this->assertNotFalse(
-			has_action( 'admin_enqueue_scripts', 'openstation_recycle_bin_localize_config' ),
+			has_action( 'admin_enqueue_scripts', 'openstation_recycle_bin_enqueue_style' ),
 			'The recycle-bin boot attach vanished — if its enqueue moved, the dock drop-target styling moved with it.'
 		);
 	}

@@ -435,6 +435,7 @@ export function createSession( deps: SessionDeps ): Session {
 		repaint,
 		fetch: restFetch,
 		host,
+		extra: ( config.extra ?? {} ) as Record< string, unknown >,
 	} );
 
 	/** A client-side action: reduce, re-render, no request. */
@@ -493,10 +494,14 @@ export function createSession( deps: SessionDeps ): Session {
 				host.openUrl?.(
 					String( ( effect as { url: string } ).url ),
 					String( ( effect as { title?: string } ).title ?? '' ),
+					String( ( effect as { icon?: string } ).icon ?? '' ),
 				);
 				return;
 			case 'badge':
 				host.setBadge?.( config.id, Number( ( effect as { count: number } ).count ) || 0 );
+				return;
+			case 'icon':
+				host.setIcon?.( config.id, String( ( effect as { icon: string } ).icon ) );
 				return;
 			case 'announce': {
 				const e = effect as { contentType: string; action: string; ids: number[] };

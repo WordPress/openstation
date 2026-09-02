@@ -1,117 +1,45 @@
 <?php
 /**
- * OpenStation — Station Home snapshot endpoint.
+ * Station Home — the snapshot model.
+ *
+ * What the window paints, as plain data: the current user's recent
+ * work, the four site instruments, the attention queue, the
+ * capability-aware quick actions and the enabled plugin cards. Every
+ * reader is bounded — one query per number, WordPress's cached update
+ * totals, never a network request — and every string is escaped by
+ * the view, not here. Nothing in this file knows about the window.
  *
  * @package OpenStation
  */
 
+namespace OpenStation\Apps\StationHome;
+
+use OpenStation\App\Os;
+use WP_Query;
+
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Register the current-user Station Home snapshot route.
- */
-function openstation_station_home_register_rest_routes() {
-	register_rest_route(
-		'desktop-mode/v1',
-		'/station-home',
-		array(
-			'methods'             => 'GET',
-			'callback'            => 'openstation_station_home_rest_snapshot',
-			'permission_callback' => 'openstation_rest_require_enabled',
-		)
-	);
-
-	register_rest_route(
-		'desktop-mode/v1',
-		'/station-home/cards',
-		array(
-			'methods'             => 'POST',
-			'callback'            => 'openstation_station_home_rest_update_card_preference',
-			'permission_callback' => 'openstation_rest_require_enabled',
-			'args'                => array(
-				'id'      => array(
-					'required'          => true,
-					'type'              => 'string',
-					'sanitize_callback' => 'sanitize_key',
-				),
-				'enabled' => array(
-					'required'          => true,
-					'type'              => 'boolean',
-					'sanitize_callback' => 'rest_sanitize_boolean',
-				),
-			),
-		)
-	);
-}
-add_action( 'rest_api_init', 'openstation_station_home_register_rest_routes' );
-
-/**
- * Return the current Station Home snapshot.
+ * Post types that the current user can edit and that belong in
+ * recent work.
  *
- * @return WP_REST_Response
- */
-function openstation_station_home_rest_snapshot() {
-	return rest_ensure_response( openstation_station_home_build_snapshot() );
-}
-
-/**
- * Save one explicit card choice for the current user.
- *
- * Returning a fresh snapshot lets the client add or remove the card in the
- * same paint that settles the switch, without inventing a second response
- * shape for dynamic card data.
- *
- * @param WP_REST_Request $request REST request.
- * @return WP_REST_Response|WP_Error
- */
-function openstation_station_home_rest_update_card_preference( WP_REST_Request $request ) {
-	$id    = sanitize_key( (string) $request->get_param( 'id' ) );
-	$cards = openstation_station_home_get_registered_cards();
-	if ( '' === $id || ! isset( $cards[ $id ] ) ) {
-		return new WP_Error(
-			'openstation_station_home_card_not_found',
-			__( 'That Station Home card is not available.', 'desktop-mode' ),
-			array( 'status' => 404 )
-		);
-	}
-
-	$user_id     = get_current_user_id();
-	$preferences = openstation_station_home_get_card_preferences( $user_id );
-	$enabled     = rest_sanitize_boolean( $request->get_param( 'enabled' ) );
-	$preferences[ $id ] = $enabled;
-	update_user_meta( $user_id, OPENSTATION_STATION_HOME_CARD_PREFERENCES_META, $preferences );
-
-	/**
-	 * Fires after a user opts in to or out of a Station Home card.
-	 *
-	 * @param int    $user_id User id.
-	 * @param string $id      Card id.
-	 * @param bool   $enabled New explicit state.
-	 */
-	do_action( 'openstation_station_home_card_preference_updated', $user_id, $id, $enabled );
-
-	return rest_ensure_response( openstation_station_home_build_snapshot() );
-}
-
-/**
- * Post types that the current user can edit and that belong in recent work.
- *
+ * @param Os $os Host handle.
  * @return string[]
  */
-function openstation_station_home_editable_post_types() {
+function editable_post_types( Os $os ) {
 	$types = array();
 	foreach ( get_post_types( array( 'show_ui' => true ), 'objects' ) as $type ) {
 		if ( ! is_object( $type ) || 'attachment' === $type->name ) {
 			continue;
 		}
 		// Core's internal editor records (`wp_navigation`, `wp_block`,
-		// templates, styles) are implementation details rather than work a
-		// person expects to resume from a home screen. Keep Posts and Pages,
-		// then admit public UI-visible custom types.
+		// templates, styles) are implementation details rather than work
+		// a person expects to resume from a home screen. Keep Posts and
+		// Pages, then admit public UI-visible custom types.
 		if ( ! in_array( $type->name, array( 'post', 'page' ), true ) && ! $type->public ) {
 			continue;
 		}
-		if ( current_user_can( $type->cap->edit_posts ) ) {
+		if ( $os->can( $type->cap->edit_posts ) ) {
 			$types[] = $type->name;
 		}
 	}
@@ -119,13 +47,14 @@ function openstation_station_home_editable_post_types() {
 }
 
 /**
- * Query the current user's most recently modified editable content.
+ * The current user's five most recently modified editable items.
  *
+ * @param Os       $os         Host handle.
  * @param string[] $post_types Editable post types.
  * @return array[]
  */
-function openstation_station_home_recent_work( $post_types ) {
-	if ( empty( $post_types ) ) {
+function recent_work( Os $os, array $post_types ) {
+	if ( array() === $post_types ) {
 		return array();
 	}
 
@@ -133,7 +62,7 @@ function openstation_station_home_recent_work( $post_types ) {
 		array(
 			'post_type'              => $post_types,
 			'post_status'            => array( 'draft', 'pending', 'future', 'private', 'publish' ),
-			'author'                 => get_current_user_id(),
+			'author'                 => $os->auth->user_id(),
 			'posts_per_page'         => 5,
 			'orderby'                => 'modified',
 			'order'                  => 'DESC',
@@ -179,20 +108,21 @@ function openstation_station_home_recent_work( $post_types ) {
 }
 
 /**
- * Count current-user drafts across the editable Station Home types.
+ * Count the current user's drafts across the editable types.
  *
+ * @param Os       $os         Host handle.
  * @param string[] $post_types Editable post types.
  * @return int
  */
-function openstation_station_home_draft_count( $post_types ) {
-	if ( empty( $post_types ) ) {
+function draft_count( Os $os, array $post_types ) {
+	if ( array() === $post_types ) {
 		return 0;
 	}
 	$query = new WP_Query(
 		array(
 			'post_type'      => $post_types,
 			'post_status'    => 'draft',
-			'author'         => get_current_user_id(),
+			'author'         => $os->auth->user_id(),
 			'posts_per_page' => 1,
 			'fields'         => 'ids',
 			'no_found_rows'  => false,
@@ -206,7 +136,7 @@ function openstation_station_home_draft_count( $post_types ) {
  *
  * @return int
  */
-function openstation_station_home_published_count() {
+function published_count() {
 	$total = 0;
 	foreach ( array( 'post', 'page' ) as $post_type ) {
 		$counts = wp_count_posts( $post_type );
@@ -216,12 +146,14 @@ function openstation_station_home_published_count() {
 }
 
 /**
- * Count image attachments whose alternative text is empty or absent.
+ * Count image attachments whose alternative text is empty or absent —
+ * only for a user who can remediate it.
  *
+ * @param Os $os Host handle.
  * @return int
  */
-function openstation_station_home_missing_alt_count() {
-	if ( ! current_user_can( 'upload_files' ) ) {
+function missing_alt_count( Os $os ) {
+	if ( ! $os->can( 'upload_files' ) ) {
 		return 0;
 	}
 
@@ -251,12 +183,13 @@ function openstation_station_home_missing_alt_count() {
 }
 
 /**
- * Read WordPress's cached update totals without making a network request.
+ * WordPress's cached update totals — no network request is made.
  *
+ * @param Os $os Host handle.
  * @return int
  */
-function openstation_station_home_update_count() {
-	if ( ! current_user_can( 'update_core' ) && ! current_user_can( 'update_plugins' ) && ! current_user_can( 'update_themes' ) ) {
+function update_count( Os $os ) {
+	if ( ! $os->can( 'update_core' ) && ! $os->can( 'update_plugins' ) && ! $os->can( 'update_themes' ) ) {
 		return 0;
 	}
 
@@ -268,13 +201,22 @@ function openstation_station_home_update_count() {
 }
 
 /**
- * Build capability-aware quick actions.
+ * The rail's quick actions, gated per capability.
  *
+ * `url` and `external` actions are links the shell's link interceptor
+ * opens in a window (or, for `external`, a new tab). `native` and
+ * `classic` actions have no URL the interceptor may follow — a native
+ * window has none, and the classic escape is the one admin URL the
+ * interceptor deliberately refuses — so they are buttons that
+ * dispatch `launch`, which turns them into the `open` / `open_url`
+ * effects.
+ *
+ * @param Os $os Host handle.
  * @return array[]
  */
-function openstation_station_home_quick_actions() {
+function quick_actions( Os $os ) {
 	$actions = array();
-	if ( current_user_can( 'edit_posts' ) ) {
+	if ( $os->can( 'edit_posts' ) ) {
 		$actions[] = array(
 			'id'    => 'new-post',
 			'label' => __( 'New post', 'desktop-mode' ),
@@ -283,7 +225,7 @@ function openstation_station_home_quick_actions() {
 			'url'   => esc_url_raw( admin_url( 'post-new.php' ) ),
 		);
 	}
-	if ( current_user_can( 'upload_files' ) ) {
+	if ( $os->can( 'upload_files' ) ) {
 		$actions[] = array(
 			'id'    => 'upload-media',
 			'label' => __( 'Upload media', 'desktop-mode' ),
@@ -305,7 +247,6 @@ function openstation_station_home_quick_actions() {
 			'label'    => __( 'WP Explorer', 'desktop-mode' ),
 			'icon'     => 'dashicons-open-folder',
 			'kind'     => 'native',
-			// The explorer APP — the legacy native window is gone.
 			'windowId' => 'my-wordpress',
 		);
 	}
@@ -320,29 +261,18 @@ function openstation_station_home_quick_actions() {
 }
 
 /**
- * Assemble the role-aware snapshot consumed by the Station Home bundle.
+ * The attention queue: pending comments, available updates, images
+ * without alt text — each only when its count is above zero.
  *
- * @return array<string, mixed>
+ * @param int $pending     Pending comments the user may moderate.
+ * @param int $updates     Available updates the user may apply.
+ * @param int $missing_alt Images without alt text the user may fix.
+ * @return array[]
  */
-function openstation_station_home_build_snapshot() {
-	$user         = wp_get_current_user();
-	$post_types   = openstation_station_home_editable_post_types();
-	$drafts       = openstation_station_home_draft_count( $post_types );
-	$published    = openstation_station_home_published_count();
-	$comment_data = wp_count_comments();
-	$pending      = current_user_can( 'moderate_comments' ) ? (int) $comment_data->moderated : 0;
-	$updates      = openstation_station_home_update_count();
-	$missing_alt  = openstation_station_home_missing_alt_count();
-	$first_name   = trim( (string) get_user_meta( $user->ID, 'first_name', true ) );
-	$display_name = '' !== $first_name ? $first_name : $user->display_name;
-	$cards         = openstation_station_home_build_cards(
-		openstation_station_home_get_registered_cards(),
-		openstation_station_home_get_card_preferences( $user->ID )
-	);
-
-	$attention = array();
+function attention( $pending, $updates, $missing_alt ) {
+	$queue = array();
 	if ( $pending > 0 ) {
-		$attention[] = array(
+		$queue[] = array(
 			'id'          => 'comments',
 			'icon'        => 'dashicons-admin-comments',
 			'count'       => $pending,
@@ -356,7 +286,7 @@ function openstation_station_home_build_snapshot() {
 		);
 	}
 	if ( $updates > 0 ) {
-		$attention[] = array(
+		$queue[] = array(
 			'id'          => 'updates',
 			'icon'        => 'dashicons-update',
 			'count'       => $updates,
@@ -370,7 +300,7 @@ function openstation_station_home_build_snapshot() {
 		);
 	}
 	if ( $missing_alt > 0 ) {
-		$attention[] = array(
+		$queue[] = array(
 			'id'          => 'missing-alt',
 			'icon'        => 'dashicons-format-image',
 			'count'       => $missing_alt,
@@ -383,13 +313,36 @@ function openstation_station_home_build_snapshot() {
 			'url'         => esc_url_raw( admin_url( 'upload.php?mode=list' ) ),
 		);
 	}
+	return $queue;
+}
+
+/**
+ * Assemble the role-aware snapshot the view paints from.
+ *
+ * @param Os $os Host handle.
+ * @return array<string,mixed>
+ */
+function snapshot( Os $os ) {
+	$user         = wp_get_current_user();
+	$post_types   = editable_post_types( $os );
+	$drafts       = draft_count( $os, $post_types );
+	$published    = published_count();
+	$comment_data = wp_count_comments();
+	$pending      = $os->can( 'moderate_comments' ) ? (int) $comment_data->moderated : 0;
+	$updates      = update_count( $os );
+	$missing_alt  = missing_alt_count( $os );
+	$first_name   = trim( (string) get_user_meta( $user->ID, 'first_name', true ) );
+	$cards        = openstation_station_home_build_cards(
+		openstation_station_home_get_registered_cards(),
+		openstation_station_home_get_card_preferences( $user->ID )
+	);
 
 	return array(
-		'userName'     => $display_name,
-		'siteName'     => get_bloginfo( 'name' ),
-		'work'         => openstation_station_home_recent_work( $post_types ),
-		'quickActions' => openstation_station_home_quick_actions(),
-		'metrics'      => array(
+		'userName'        => '' !== $first_name ? $first_name : $user->display_name,
+		'siteName'        => get_bloginfo( 'name' ),
+		'work'            => recent_work( $os, $post_types ),
+		'quickActions'    => quick_actions( $os ),
+		'metrics'         => array(
 			array(
 				'id'    => 'drafts',
 				'label' => __( 'Drafts', 'desktop-mode' ),
@@ -415,7 +368,7 @@ function openstation_station_home_build_snapshot() {
 				'value' => $published,
 			),
 		),
-		'attention'       => $attention,
+		'attention'       => attention( $pending, $updates, $missing_alt ),
 		'cards'           => $cards['cards'],
 		'cardPreferences' => $cards['preferences'],
 	);

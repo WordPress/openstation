@@ -17,11 +17,11 @@
  * @public
  */
 
-import { addAction, addFilter, removeAction, removeFilter } from '../hooks';
-import { __, sprintf } from '../i18n';
-import { dispatchAgentSendTo } from '../agents-dispatch';
+import { addAction, addFilter, removeAction, removeFilter } from '../../../src/hooks';
+import { __, sprintf } from '../../../src/i18n';
+import { dispatchAgentSendTo } from '../../../src/agents-dispatch';
 import { listAgents } from './agents-rest';
-import type { Agent } from './agents-types';
+import type { Agent } from '../../../src/agents-types';
 
 interface TileMenuOptionLike {
 	id: string;

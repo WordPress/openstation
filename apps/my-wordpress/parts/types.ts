@@ -20,14 +20,14 @@ import type {
 	RoleChoice,
 	Trigger,
 	TriggerKindDescriptor,
-} from '../../../src/my-wordpress/agents-types';
+} from '../../../src/agents-types';
 import {
 	createPagedList,
 	type PagedList,
 	type PageEnvelope,
+	type TemplateResult,
 	type ViewContext,
 } from '@openstation/app';
-import type { UserFootprint } from '../../../src/my-wordpress/types';
 import type { DragManagerApi } from '../../../src/drag';
 
 // ------------------------------------------------------------- types
@@ -47,6 +47,8 @@ export interface SectionDef extends Record< string, unknown > {
 	 * admin screen.
 	 */
 	flat?: boolean;
+	/** A tree-shaped post type — the list view offers a Parent column. */
+	hierarchical?: boolean;
 	/** REST collection path — what a bin-drop's DELETE runs against. */
 	restPath?: string;
 	group?: string | null;
@@ -84,6 +86,60 @@ export interface ListItem extends Record< string, unknown > {
 	canEdit: boolean;
 	canDelete: boolean;
 	meta?: Record< string, unknown >;
+	// ---- the list view's facts (post and media kinds) --------------
+	/** `post_name` — what tells a `-2` slug from the post it shadows. */
+	slug?: string;
+	author?: string;
+	authorId?: number;
+	/** ISO-8601 with the site offset. */
+	date?: string;
+	/** ISO-8601 with the site offset. */
+	modified?: string;
+	comments?: number;
+	/** The `?p=<id>` link that survives a permalink change. */
+	shortlink?: string;
+	parent?: number;
+	parentTitle?: string;
+	words?: number;
+	// ---- media only ---------------------------------------------------
+	file?: string;
+	bytes?: number;
+	size?: string;
+	dimensions?: string;
+	// ---- user kind ----------------------------------------------------
+	login?: string;
+	email?: string;
+	roles?: string[];
+	/** ISO-8601 with the site offset. */
+	registered?: string;
+	posts?: number;
+}
+
+/**
+ * One column of the list view. Built-ins come from
+ * `parts/list-table.ts`; plugins add their own through the
+ * `os.my-wordpress.list-columns` filter, rendering from the row's
+ * REST-visible fields (`meta`, taxonomy term ids, the facts above).
+ */
+export interface ListColumn {
+	id: string;
+	label: string;
+	/**
+	 * The server orders the column can sort by — two `sortOptions`
+	 * keys, and which one a first click applies. A column whose keys
+	 * the section's `sortOptions` lacks renders as a plain heading.
+	 */
+	sort?: { asc: string; desc: string; first: 'asc' | 'desc' };
+	align?: 'start' | 'end';
+	/** Tabular figures in the kit's monospace — ids, slugs, counts. */
+	mono?: boolean;
+	/** Hidden until the user turns it on in the column chooser. */
+	hidden?: boolean;
+	/** A CSS width for the column, `auto` (the default) or `1fr` for the one that stretches. */
+	width?: string;
+	/** Never offered in the column chooser (the title, the actions). */
+	locked?: boolean;
+	render: ( item: ListItem, section: SectionDef ) => TemplateResult | string | number;
 }
 
 /**
@@ -180,6 +236,8 @@ export interface AppState extends Record< string, unknown > {
 	page: number;
 	sort: string;
 	selected: number[];
+	/** How a section lists: the tile canvas or the sortable table. */
+	view: 'icons' | 'list';
 	/** Agents: which detail tab is open. */
 	pane: 'define' | 'tools' | 'triggers';
 	/** Agents: whether the create wizard is on. */
@@ -342,6 +400,8 @@ export interface AppData {
 	tags: Array< { id: number; name: string } >;
 	previewActions: PreviewAction[];
 	agents: AgentsPayload | null;
+	/** The list view's remembered column choices: section id → hidden column ids. */
+	hiddenColumns: Record< string, string[] >;
 }
 
 /** One context-menu row — builtins and plugin-injected alike. */
@@ -437,6 +497,10 @@ export interface UiState {
 		tags: Array< { id?: number; label: string } >;
 	} | null;
 	zoom: boolean;
+	/** The list view's column chooser, open at these coordinates. */
+	columnsMenu: { x: number; y: number } | null;
+	/** After a view switch: scroll the open / selected row into sight once. */
+	revealSelection: boolean;
 	/**
 	 * The framework's infinitely scrolled list: page accumulation,
 	 * the one-page-per-gesture sentinel, skeletons, the short-list
@@ -479,6 +543,8 @@ function freshUi(): UiState {
 		folderSel: null,
 		quickEdit: null,
 		zoom: false,
+		columnsMenu: null,
+		revealSelection: false,
 		list: createPagedList< ListItem >(),
 		abilityQuery: '',
 		abilityOpen: new Map(),
@@ -497,4 +563,68 @@ function freshUi(): UiState {
 /** This app's slice of the framework's per-view client-only bag. */
 export function uiOf( ctx: Pick< Ctx, 'ui' > ): UiState {
 	return ctx.ui( freshUi );
+}
+
+/**
+ * Per-user activity footprint payload returned by
+ * `/desktop-mode/v1/user-footprint/<id>`. Drives the right-click
+ * "View activity footprint" surface.
+ */
+export interface UserFootprint {
+	profile: {
+		id: number;
+		name: string;
+		avatarUrl: string;
+		link: string;
+		roleLabels?: string[];
+		registered?: string;
+	};
+	range: {
+		/** YYYY-MM-DD, inclusive. */
+		from: string;
+		/** YYYY-MM-DD, inclusive. */
+		to: string;
+		/** Count of day buckets (length of `daily`). */
+		days: number;
+	};
+	daily: Array< {
+		/** YYYY-MM-DD. */
+		date: string;
+		posts: number;
+		comments: number;
+		/**
+		 * Revisions saved by the user that day, excluding the initial
+		 * save of brand-new posts (those count under `posts`), so
+		 * the heatmap registers update activity, not just
+		 * publications and comments.
+		 */
+		updates: number;
+	} >;
+	/** Sunday-indexed weekday distribution; length 7. */
+	weekday: number[];
+	/** Hour-of-day distribution in site timezone; length 24. */
+	hour: number[];
+	streak: {
+		longest: number;
+		current: number;
+		longestRange: { from: string; to: string };
+	};
+	timeline: Array< {
+		/** `'post-update'` rows are most-recent-save-per-parent rollups. */
+		kind: 'post' | 'comment' | 'post-update';
+		date: string;
+		title: string;
+		link: string;
+		status: string;
+		postId?: number;
+		type?: string;
+	} >;
+	totals: {
+		posts: number;
+		pages: number;
+		comments: number;
+		/** Lifetime revision count, excluding the initial save. */
+		updates: number;
+		mostProlificMonth?: { ym: string; n: number };
+	};
 }
