@@ -79,11 +79,6 @@ class Tests_OpenStation_Multisite extends WP_UnitTestCase {
 	}
 
 	/**
-	 * A blob written before the per-admin keys split — or by an older
-	 * client posting to the wrong scope — heals on READ, not just on the
-	 * next write. Native windows carry no admin URL and always survive.
-	 */
-	/**
 	 * Deleting a site must drop every table the plugin created there.
 	 *
 	 * @covers ::openstation_filter_wpmu_drop_tables
@@ -127,6 +122,11 @@ class Tests_OpenStation_Multisite extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * A blob written before the per-admin keys split — or by an older
+	 * client posting to the wrong scope — heals on READ, not just on the
+	 * next write. Native windows carry no admin URL and always survive.
+	 */
 	public function test_get_session_filters_stored_windows_to_the_scope() {
 		$user_id = self::factory()->user->create();
 		update_user_meta(

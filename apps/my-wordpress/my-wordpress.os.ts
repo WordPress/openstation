@@ -429,6 +429,15 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 							os-action="search"
 						></os-text-field>
 						${ renderViewSwitch( ctx ) }
+						${ section.kind === 'user' && section.canAdd
+							? html`<os-button
+									variant="secondary"
+									class="os-mywp__add-user"
+									@click=${ () => void ctx.dispatch( 'add-user' ) }
+								>
+									${ __( 'Add user' ) }
+								</os-button>`
+							: '' }
 					</div>`
 					: '' }
 				<div class="os-mywp__body">

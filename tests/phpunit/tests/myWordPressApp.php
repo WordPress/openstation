@@ -533,6 +533,37 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		$this->assertSame( 2, $response['data']['list']['page'] );
 	}
 
+	/**
+	 * Add user opens Core's own user-new.php as a window — on
+	 * multisite that screen IS the invite flow (Add Existing User,
+	 * confirmation emails, the network's Add Users setting), so the
+	 * section flags the affordance with Core's menu gate and the
+	 * action re-checks it server-side.
+	 *
+	 * @covers \OpenStation\Apps\MyWordPress\add_user_action
+	 */
+	public function test_add_user_opens_the_core_screen_for_the_allowed() {
+		$response = $this->dispatch( 'go', array( 'section' => 'users' ) );
+		$section  = $this->data_section( $response, 'users' );
+		$this->assertTrue( $section['canAdd'], 'An administrator passes on both shapes: create_users on a single site, promote_users on a network.' );
+
+		$response = $this->dispatch( 'add-user', array( 'section' => 'users' ) );
+		$opens    = $this->effects_of( $response, 'open_url' );
+		$this->assertCount( 1, $opens );
+		$this->assertStringContainsString( 'user-new.php', $opens[0]['url'] );
+	}
+
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\add_user_action
+	 */
+	public function test_add_user_refused_without_the_capability() {
+		$editor = self::factory()->user->create( array( 'role' => 'editor' ) );
+		wp_set_current_user( $editor );
+
+		$response = $this->dispatch( 'add-user', array( 'section' => 'users' ) );
+		$this->assertSame( array(), $this->effects_of( $response, 'open_url' ) );
+	}
+
 	// ----------------------------------------------------------- dossier
 
 	/**

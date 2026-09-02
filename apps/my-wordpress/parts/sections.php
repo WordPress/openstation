@@ -78,6 +78,14 @@ function sections( Os $os ) {
 			'post_type'  => '',
 			'capability' => 'list_users',
 			'thumbnails' => true,
+			// Whether the toolbar offers Add user — Core's own menu
+			// gate for user-new.php: create_users, or promote_users on
+			// multisite, where a site administrator keeps the
+			// invite-existing half even when the network withholds
+			// brand-new account creation. The add-user action
+			// re-checks server-side.
+			'canAdd'     => current_user_can( 'create_users' )
+				|| ( is_multisite() && current_user_can( 'promote_users' ) ),
 		),
 	);
 

@@ -113,6 +113,10 @@
 
 /* Search row — its own band under the header, WP Explorer style.
  * The view switch sits at its far end. */
+.os-mywp__add-user {
+	flex: 0 0 auto;
+}
+
 .os-mywp__search {
 	display: flex;
 	align-items: center;

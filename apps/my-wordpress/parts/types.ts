@@ -49,6 +49,13 @@ export interface SectionDef extends Record< string, unknown > {
 	flat?: boolean;
 	/** A tree-shaped post type — the list view offers a Parent column. */
 	hierarchical?: boolean;
+	/**
+	 * User kind only: the toolbar offers Add user, which opens Core's
+	 * user-new.php as a window — on multisite that screen is the
+	 * invite flow (Add Existing User, confirmation emails, the
+	 * network's Add Users setting). Follows Core's own menu gate.
+	 */
+	canAdd?: boolean;
 	/** REST collection path — what a bin-drop's DELETE runs against. */
 	restPath?: string;
 	group?: string | null;
