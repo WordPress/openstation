@@ -66,9 +66,25 @@ below), and three behaviors hang off it:
   theme updates are network-wide, and the probe it spends runs
   against this shell's own admin.
 
-The dock stays the shell's own admin on every desktop — a Space is "a
-place to look at that admin", not that admin's full desktop; its
-windows surface as ephemeral dock tiles like any unmatched window.
+**The dock follows the active desktop's admin.** Ordinary desktops show
+the shell's own menu; inside a Space the dock shows THAT admin's menu —
+the network menu in the Network Admin Space, a site's own menu in its
+Space — so a Space reads as that admin's desktop, dock and all. A plain
+admin page emits only a menu signature, never its dock menu, so the
+menu is harvested lazily the first time the user enters the Space: one
+hidden probe against that admin (the same `openstation_menu_refresh`
+probe live refresh uses, pointed at the Space's admin base), cached,
+and swapped in on every later switch through `applyDockItems()` — a
+dock-only repaint. `createSpaceDockController()` in
+`src/multisite/space-dock.ts` owns it. Only the admin MENU is swapped:
+system tiles (Mio, Overview, the Network Admin tile, …) stay on every
+desktop, and the full-payload quarantine above still stands — a foreign
+admin's native windows, widgets and the rest never register here.
+Until a Space's first harvest lands, the previous dock stays (never an
+empty dock); a harvest that lands after the user has left is cached
+for next time without repainting. Pinned by
+`tests/vitest/space-dock.test.ts`.
+
 Shell-to-shell navigations that still happen (typed URLs, bookmarks, a
 kept admin bar) animate through the cross-document view-transition
 opt-in in `assets/css/desktop.css`, which only the shell loads —

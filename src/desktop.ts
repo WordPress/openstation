@@ -43,6 +43,8 @@ import { OS_SETTINGS_WINDOW_ID } from './settings/constants';
 import { getExitOpenStationTileDef } from './exit-openstation';
 import { getNetworkAdminTileDef } from './multisite/dock-tiles';
 import { createSpaceOpener } from './multisite/spaces';
+import { createSpaceDockController } from './multisite/space-dock';
+import { adminScopeOf } from './admin-scope';
 import { deriveWindowId, urlMatchKey } from './utils';
 import { shellUrlWithoutBootArgs } from './shell-url';
 // Static import — `setUserEditTarget` MUST run before the user-edit
@@ -2598,6 +2600,34 @@ function init(): void {
 		adminUrl: config.adminUrl,
 	} );
 
+	// The dock follows the active desktop's admin: the shell's own menu
+	// on ordinary desktops, the Space's admin's menu inside a Space,
+	// harvested lazily on first entry and cached. Closures over the
+	// dispatcher and config, so it can be built before either is
+	// final. The full-payload quarantine in `menu-refresh.ts` stays
+	// in force — this borrows dock items only.
+	const spaceDock = createSpaceDockController( {
+		applyDockItems: ( items ) => layoutDispatcher?.applyDockItems( items ),
+		getHomeDockItems: () => config.dockItems ?? [],
+		homeScope: ( () => {
+			try {
+				return adminScopeOf( new URL( config.adminUrl ).pathname );
+			} catch {
+				return '';
+			}
+		} )(),
+		origin: window.location.origin,
+	} );
+	addAction(
+		HOOKS.DESKTOP_SWITCHED,
+		'desktop-mode/space-dock',
+		( e: { to?: string } ) => {
+			spaceDock.onSwitch(
+				manager.getDesktops().find( ( d ) => d.id === e.to )?.scope,
+			);
+		},
+	);
+
 	bindAdminLinkDispatch( {
 		adminUrl: config.adminUrl,
 		deriveSlug: ( url ) => deriveWindowId( url, config.adminUrl ),
@@ -3330,6 +3360,12 @@ function init(): void {
 			}
 		} )
 		: Promise.resolve();
+	// A restored session can land the user straight in a Space; the
+	// switch hook never fired for it, so seed the dock from wherever
+	// restore left the active desktop.
+	void sessionRestore.then( () =>
+		spaceDock.onSwitch( manager.getActiveDesktop().scope ),
+	);
 	const defaultEnabled = config.defaultWindow?.enabled !== false;
 	const defaultUrlEarly = config.defaultWindow?.url ?? '';
 	const isNativeDefault =
