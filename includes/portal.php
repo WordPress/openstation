@@ -323,6 +323,14 @@ function openstation_redirect_plain_admin_to_portal() {
 	if ( function_exists( 'openstation_is_solo_request' ) && openstation_is_solo_request() ) {
 		return;
 	}
+	// The user admin (`wp-admin/user/`, multisite's dashboard for users
+	// with no site role) renders classic. It has no shell screen of its
+	// own, and its URLs never survive the target allowlist — before
+	// this pass-through the redirect claimed the request anyway and
+	// silently forwarded the user to the site desktop's default entry.
+	if ( is_multisite() && is_user_admin() ) {
+		return;
+	}
 	if ( wp_doing_ajax() || wp_doing_cron() ) {
 		return;
 	}

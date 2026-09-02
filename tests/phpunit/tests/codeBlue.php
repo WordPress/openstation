@@ -35,6 +35,17 @@ class Tests_OpenStation_CodeBlue extends WP_UnitTestCase {
 	public static function wpSetUpBeforeClass( WP_UnitTest_Factory $factory ) {
 		self::$admin_id  = $factory->user->create( array( 'role' => 'administrator' ) );
 		self::$editor_id = $factory->user->create( array( 'role' => 'editor' ) );
+
+		// The gate reads network-wide (`manage_network_options` on
+		// multisite): the log is one file for the whole network, so a
+		// site administrator is deliberately refused there. The admin
+		// fixture is "the user allowed in", which multisite spells
+		// super admin; test_gate_denies_site_admin_on_multisite pins
+		// the refusal.
+		if ( is_multisite() ) {
+			grant_super_admin( self::$admin_id );
+		}
+
 		openstation_save_os_settings( self::$admin_id, array( 'developerModeEnabled' => true ) );
 	}
 
@@ -378,6 +389,25 @@ class Tests_OpenStation_CodeBlue extends WP_UnitTestCase {
 
 		add_filter( 'openstation_code_blue_user_can_use', '__return_false' );
 		$this->assertFalse( $app->allows( $os ) );
+	}
+
+	/**
+	 * The log is one file for the whole network, so on multisite the
+	 * gate is `manage_network_options` and a SITE administrator is
+	 * refused even with Developer mode on.
+	 *
+	 * @covers \OpenStation\Apps\CodeBlue\can_use
+	 */
+	public function test_gate_denies_site_admin_on_multisite() {
+		if ( ! is_multisite() ) {
+			$this->markTestSkipped( 'Multisite-only behavior.' );
+		}
+		$site_admin = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		openstation_save_os_settings( $site_admin, array( 'developerModeEnabled' => true ) );
+		wp_set_current_user( $site_admin );
+
+		$app = openstation_app( 'openstation-code-blue' );
+		$this->assertFalse( $app->allows( openstation_apps_os() ) );
 	}
 
 	/**

@@ -165,6 +165,7 @@ return App::define( 'my-wordpress' )
 	->action( 'set-columns', __NAMESPACE__ . '\set_columns_action' )
 	// Content mutations — parts/actions.php.
 	->action( 'edit', __NAMESPACE__ . '\edit_action' )
+	->action( 'add-user', __NAMESPACE__ . '\add_user_action' )
 	->action( 'trash', __NAMESPACE__ . '\trash_action' )
 	->action( 'sub-open', __NAMESPACE__ . '\sub_open_action' )
 	->action( 'quick-edit', __NAMESPACE__ . '\quick_edit_action' )

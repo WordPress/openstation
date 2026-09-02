@@ -2599,6 +2599,14 @@ export interface PwaConfig {
 	 * serve them. Optional: absent on payloads from older servers.
 	 */
 	swFallbackUrl?: string;
+	/**
+	 * Registration scope: the site's home path (`/`, or `/site2/` on a
+	 * subdirectory network's subsite). Each site of a network runs its
+	 * own worker; the browser routes every page to the longest
+	 * matching scope. Optional: absent on payloads from older servers,
+	 * where root scope is the historical behavior.
+	 */
+	swScope?: string;
 	/** REST URL for `GET` / `POST` of {@link PwaUserState}. */
 	stateUrl: string;
 	/** Initial per-user state. */

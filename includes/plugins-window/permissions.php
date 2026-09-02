@@ -90,11 +90,19 @@ function openstation_plugins_window_user_can_use( $user_id = null ) {
 function openstation_plugins_window_caps( $user_id = null ) {
 	$user_id = null === $user_id ? get_current_user_id() : (int) $user_id;
 
+	// On multisite, plugin files are network-wide and Core's own site
+	// screens deliberately offer no install, upload or delete — those
+	// live in the network admin, which has no native windows. A super
+	// admin HOLDS the capabilities everywhere, so a bare cap check
+	// would offer actions Core hides; the screen gate has to be ours.
+	// Same shape as `openstation_plugins_window_auto_updates_enabled()`.
+	$site_managed = ! is_multisite();
+
 	return array(
 		'activate' => $user_id > 0 && user_can( $user_id, 'activate_plugins' ),
-		'install'  => $user_id > 0 && user_can( $user_id, 'install_plugins' ),
-		'delete'   => $user_id > 0 && user_can( $user_id, 'delete_plugins' ),
-		'upload'   => $user_id > 0 && user_can( $user_id, 'upload_plugins' ),
+		'install'  => $site_managed && $user_id > 0 && user_can( $user_id, 'install_plugins' ),
+		'delete'   => $site_managed && $user_id > 0 && user_can( $user_id, 'delete_plugins' ),
+		'upload'   => $site_managed && $user_id > 0 && user_can( $user_id, 'upload_plugins' ),
 		// Mirrors Core's `current_user_can( 'update_plugins' )` gate on
 		// the inline "Update now" link in `wp_plugin_update_row()` — the
 		// JS uses it to hide the Update action for editors / non-admin

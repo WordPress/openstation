@@ -150,7 +150,23 @@ function openstation_agent_delete( $user_id, $reassign = null ) {
 		require_once ABSPATH . 'wp-admin/includes/user.php';
 	}
 
-	$deleted = wp_delete_user( (int) $user_id, $reassign );
+	// On multisite `wp_delete_user()` only removes the user from the
+	// CURRENT site — the network account (and the agent's meta with
+	// it) lives on. The agent's whole identity is its wp user, so
+	// deleting the agent means the network-wide delete.
+	if ( is_multisite() ) {
+		if ( ! function_exists( 'wpmu_delete_user' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/ms.php';
+		}
+		if ( null !== $reassign ) {
+			// `wpmu_delete_user()` has no reassign parameter; hand the
+			// current site's content over before the user goes.
+			wp_delete_user( (int) $user_id, $reassign );
+		}
+		$deleted = wpmu_delete_user( (int) $user_id );
+	} else {
+		$deleted = wp_delete_user( (int) $user_id, $reassign );
+	}
 	if ( ! $deleted ) {
 		return new WP_Error(
 			'openstation_agent_delete_failed',

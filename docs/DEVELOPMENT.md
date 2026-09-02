@@ -16,6 +16,7 @@ npm run build              # produces both assets/js/desktop{,.min}.js
 npm run env:start:tests    # first run pulls WP + MariaDB images
 npm run test:php:install   # composer install inside the tests instance (once)
 npm run test:php           # the PHPUnit run itself
+npm run test:php:multisite # same suite against a network install
 npm run lint:php           # PHPCS, errors only — this is what CI gates on
 npm run lint:php:all       # PHPCS including advisory warnings
 npm run lint:php:fix       # PHPCBF — applies every auto-fixable rule
@@ -24,7 +25,7 @@ npm run env:stop:tests     # when you're done
 
 One PHPUnit test reads build output rather than source: an app's client view is only reported when `assets/js/apps/<name>[.min].js` exists on disk, and that directory is gitignored. On a fresh clone run `npm run build` (or just `npm run build:apps`) once before `npm run test:php` — the assertion names the command if you forget.
 
-`npm run env:start` spins up a self-contained WordPress + MariaDB stack with this checkout bind-mounted as the plugin: the manual QA environment on `http://localhost:8890/wp-admin/` (`admin` / `password`). PHPUnit runs in a second, independent instance defined by `.wp-env.tests.json` (port `8891`), started with `npm run env:start:tests`; the `test:php*` scripts target it via wp-env's `--config` flag, so QA state and test runs never share a database. See [Manual QA and per-worktree instances](#manual-qa-and-per-worktree-instances-wp-env) for how the mount works and how to run one instance per git worktree.
+`npm run env:start` spins up a self-contained WordPress + MariaDB stack with this checkout bind-mounted as the plugin: the manual QA environment on `http://localhost:8890/wp-admin/` (`admin` / `password`). PHPUnit runs in a second, independent instance defined by `.wp-env.tests.json` (port `8891`), started with `npm run env:start:tests`; `npm run test:php:multisite` reuses that instance with `WP_MULTISITE=1`, so the same suite also runs against a network install (the test library reinstalls the database either way — the two runs never taint each other); the `test:php*` scripts target it via wp-env's `--config` flag, so QA state and test runs never share a database. See [Manual QA and per-worktree instances](#manual-qa-and-per-worktree-instances-wp-env) for how the mount works and how to run one instance per git worktree.
 
 ## Manual QA and per-worktree instances (wp-env)
 

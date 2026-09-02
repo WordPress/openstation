@@ -16,6 +16,8 @@
  *
  * @group openstation
  * @covers ::openstation_session_meta_key
+ * @covers ::openstation_filter_wpmu_drop_tables
+ * @covers ::openstation_site_table_names
  * @covers ::openstation_session_url_in_scope
  * @covers ::openstation_sanitize_session
  * @covers ::openstation_get_session
@@ -74,6 +76,50 @@ class Tests_OpenStation_Multisite extends WP_UnitTestCase {
 		$network_clean = openstation_sanitize_session( $session, true );
 		$this->assertCount( 1, $network_clean['windows'] );
 		$this->assertSame( admin_url( 'network/index.php' ), $network_clean['windows'][0]['url'] );
+	}
+
+	/**
+	 * Deleting a site must drop every table the plugin created there.
+	 *
+	 * @covers ::openstation_filter_wpmu_drop_tables
+	 * @covers ::openstation_site_table_names
+	 */
+	public function test_drop_tables_filter_appends_every_plugin_table() {
+		global $wpdb;
+		$core   = array( $wpdb->get_blog_prefix( 2 ) . 'posts' );
+		$tables = openstation_filter_wpmu_drop_tables( $core, 2 );
+
+		$this->assertSame( $core[0], $tables[0], 'Core tables stay in the list.' );
+		$prefix = $wpdb->get_blog_prefix( 2 );
+		foreach ( openstation_site_table_names() as $name ) {
+			$this->assertContains( $prefix . $name, $tables );
+		}
+	}
+
+	/**
+	 * The drop list is static on purpose (the games module, owner of
+	 * two tables, only loads while its toggle is on) — so this pins it
+	 * against the loaded schema helpers: a table added to a schema
+	 * without being added to the drop list fails here.
+	 *
+	 * @covers ::openstation_site_table_names
+	 */
+	public function test_drop_tables_list_covers_every_schema_helper_table() {
+		global $wpdb;
+		$helper_tables = array_values( openstation_files_table_names() );
+		if ( function_exists( 'openstation_games_table_names' ) ) {
+			$helper_tables = array_merge( $helper_tables, array_values( openstation_games_table_names() ) );
+		}
+
+		$unprefixed = array();
+		foreach ( $helper_tables as $table ) {
+			$this->assertStringStartsWith( $wpdb->prefix, $table );
+			$unprefixed[] = substr( $table, strlen( $wpdb->prefix ) );
+		}
+
+		foreach ( $unprefixed as $name ) {
+			$this->assertContains( $name, openstation_site_table_names() );
+		}
 	}
 
 	/**

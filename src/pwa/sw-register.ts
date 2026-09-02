@@ -1,25 +1,34 @@
 /**
  * OpenStation — service worker registration.
  *
- * Registers the SW served at `/openstation/sw.js` against root scope.
- * The script itself lives at `/openstation/`, so the server response
- * carries `Service-Worker-Allowed: /` to lift the scope ceiling.
+ * Registers the SW served at `<home>/openstation/sw.js` against the
+ * SITE's home-path scope (`swScope`, `/` on most installs). The script
+ * itself lives at `<home>/openstation/`, so the server response
+ * carries `Service-Worker-Allowed: <home path>` to lift the scope
+ * ceiling.
  *
- * Why root scope: a service worker has exactly one scope path, and
- * the only common ancestor of `/openstation/` and `/wp-admin/` is
- * `/`. Registering narrowly under `/openstation/` would mean the SW
- * never sees admin-page navigations — defeating the purpose for the
- * usual install target (a dashboard URL inside wp-admin). The fetch
- * handler inside the SW itself stays narrow: it only intercepts
- * openstation and wp-admin URLs, passing everything else straight
- * through. Behaviorally this is "narrow scope" from the user's POV
- * without inheriting the technical limitation.
+ * Why the home path: a service worker has exactly one scope path, and
+ * the only common ancestor of `<home>/openstation/` and
+ * `<home>/wp-admin/` is the home path itself. Registering narrowly
+ * under `openstation/` would mean the SW never sees admin-page
+ * navigations — defeating the purpose for the usual install target (a
+ * dashboard URL inside wp-admin). The fetch handler inside the SW
+ * itself stays narrow: it only intercepts openstation and wp-admin
+ * URLs under its own scope, passing everything else straight through.
+ * Behaviorally this is "narrow scope" from the user's POV without
+ * inheriting the technical limitation.
  *
- * Co-existence: another SW already on the origin (Jetpack Boost,
- * Super PWA, etc.) — at any scope, not just root — would be replaced
- * or shadowed by our root-scope `register()`. We detect any foreign
- * registration before registering and bail with a console warning
- * unless the operator explicitly opts in via the
+ * On a subdirectory network every site registers its own worker at its
+ * own path scope; the browser routes each page to the longest matching
+ * scope, so the main site's root worker and a subsite's `/site2/`
+ * worker coexist. A SIBLING site's OpenStation worker is therefore
+ * never "foreign" — see {@link isOwnSwScriptUrl}.
+ *
+ * Co-existence: another plugin's SW already on the origin (Jetpack
+ * Boost, Super PWA, etc.) — at any scope — would be replaced or
+ * shadowed by our `register()`. We detect any foreign registration
+ * before registering and bail with a console warning unless the
+ * operator explicitly opts in via the
  * `openstation_pwa_force_replace_sw` PHP filter (returning `true`
  * surfaces as `forceReplace` on the JS-side config object).
  */
@@ -171,9 +180,21 @@ function isOwnSwScriptUrl(
 		return true;
 	}
 	try {
-		const pathname = new URL( url ).pathname;
+		const parsed = new URL( url );
+		// A SIBLING site's OpenStation worker, on a subdirectory
+		// network: same origin, another site's path, but our own route
+		// shapes — the pretty `…/openstation/sw.js` or the
+		// extensionless `?openstation_sw=1` fallback. Each site scopes
+		// its own worker, so a sibling is never in our way and must
+		// not stop this site from registering.
+		if (
+			parsed.pathname.endsWith( '/openstation/sw.js' ) ||
+			parsed.searchParams.has( 'openstation_sw' )
+		) {
+			return true;
+		}
 		return OWN_LEGACY_SW_PATH_SUFFIXES.some( ( suffix ) =>
-			pathname.endsWith( suffix ),
+			parsed.pathname.endsWith( suffix ),
 		);
 	} catch {
 		return false;
@@ -272,7 +293,10 @@ export async function registerServiceWorker(
 		url: string,
 	): Promise< ServiceWorkerRegistration > =>
 		navigator.serviceWorker.register( url, {
-			scope: '/',
+			// The site's own home path — `/` on most installs, the
+			// site path on a subdirectory network's subsites. Older
+			// servers don't send it; root is their historical scope.
+			scope: config.swScope || '/',
 			updateViaCache: 'none',
 		} );
 

@@ -124,6 +124,13 @@ jobs:
       - name: Run PHPUnit
         run: npm run test:php
 
+      # Same suite against a network install. Multisite denies plain
+      # administrators a raft of capabilities (activate_plugins,
+      # update_core, edit_users, …) and swaps several user/site APIs,
+      # which is exactly where multisite-only regressions hide.
+      - name: Run PHPUnit (multisite)
+        run: npm run test:php:multisite
+
       # Errors gate; the ~800 advisory warnings still report on a local
       # `npm run lint:php:all` but never fail the build. See phpcs.xml.dist
       # for which sniffs were downgraded and why.

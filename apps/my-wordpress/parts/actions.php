@@ -274,6 +274,25 @@ function edit_action( State $state, Os $os, array $args ) {
 }
 
 /**
+ * `add-user`: open Core's Add User screen as a window. Deliberately
+ * Core's own screen rather than a bespoke form: on multisite it
+ * carries the whole invite flow — Add Existing User, confirmation
+ * emails, the network's Add Users setting — which subsite admins
+ * otherwise lose entirely. Gated the way Core gates the screen's
+ * menu entry.
+ *
+ * @param State $state State.
+ * @param Os    $os    Host handle.
+ * @return void
+ */
+function add_user_action( State $state, Os $os ) {
+	unset( $state );
+	if ( $os->can( 'create_users' ) || ( is_multisite() && $os->can( 'promote_users' ) ) ) {
+		$os->open_url( admin_url( 'user-new.php' ), __( 'Add User', 'desktop-mode' ), 'dashicons-admin-users' );
+	}
+}
+
+/**
  * `trash`: move one post to the Trash.
  *
  * @param State               $state State.

@@ -106,3 +106,44 @@ desktop is saving, so the network screen's `sessionUrl` carries
 see `openstation_rest_session_network()`. Both read and write filter
 windows to the session's own admin scope, so a blob written before the
 keys split heals instead of leaking across.
+
+Deleting a subsite drops the plugin's per-site tables with Core's own —
+`openstation_filter_wpmu_drop_tables()` on the `wpmu_drop_tables`
+filter, fed by a static name list (`openstation_site_table_names()`)
+so the cleanup works whether or not the feature that created a table is
+enabled on the request that deletes the site.
+
+## What a site admin is offered
+
+The Plugins window follows Core's multisite split: per-site activate
+and deactivate stay, while install, upload and delete never appear on a
+site desktop — plugin files are network-wide and Core's own site
+screens offer none of the three, so neither do the window's caps
+(`openstation_plugins_window_caps()`), its per-row flags, or its
+marketplace AJAX endpoints, even for a super admin who holds the
+capabilities everywhere.
+
+The WP Explorer's Users section offers **Add user**, which opens Core's
+`user-new.php` as a window — deliberately Core's screen rather than a
+bespoke form, because on multisite that screen is the invite flow: Add
+Existing User, confirmation emails, and the network's Add Users setting
+all come with it. The affordance follows Core's own menu gate
+(`create_users`, or `promote_users` on multisite).
+
+## The PWA on a network
+
+Each site registers its own service worker at its own home-path scope
+(`/` for the main site, `/site2/` for a subdirectory subsite), and the
+worker derives its portal and admin prefixes from that scope. The
+browser routes every page to the longest matching scope, so the
+workers coexist and a sibling site's worker is never "foreign" to the
+registration guard. Subdomain and domain-mapped networks are separate
+origins and always had their own workers. See
+[pwa.md](./pwa.md#why-home-path-scope-with-a-narrow-fetch-handler).
+
+## The user admin
+
+`wp-admin/user/` — multisite's dashboard for users with no site role —
+renders classic. It has no shell screen, and its URLs never survive the
+target allowlist; links to it from inside a window still open a browser
+tab through the bridge's admin-scope rule.

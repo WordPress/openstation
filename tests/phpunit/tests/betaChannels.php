@@ -47,6 +47,11 @@ class Tests_OpenStationBeta_Channels extends WP_UnitTestCase {
 	public static function wpSetUpBeforeClass( WP_UnitTest_Factory $factory ) {
 		self::$admin_id      = $factory->user->create( array( 'role' => 'administrator' ) );
 		self::$subscriber_id = $factory->user->create( array( 'role' => 'subscriber' ) );
+		// `update_plugins` is super-admin-only on multisite, and the
+		// beta installer swaps plugin files, which are network-wide.
+		if ( is_multisite() ) {
+			grant_super_admin( self::$admin_id );
+		}
 	}
 
 	public function set_up() {

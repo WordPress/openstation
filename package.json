@@ -97,6 +97,7 @@
 		"env:destroy:tests": "wp-env destroy --config=.wp-env.tests.json",
 		"test:php:install": "wp-env run --config=.wp-env.tests.json cli --env-cwd=wp-content/plugins/desktop-mode composer install",
 		"test:php": "wp-env run --config=.wp-env.tests.json cli --env-cwd=wp-content/plugins/desktop-mode vendor/bin/phpunit --configuration tests/phpunit/phpunit.xml.dist",
+		"test:php:multisite": "wp-env run --config=.wp-env.tests.json cli sh -c 'cd wp-content/plugins/desktop-mode && WP_MULTISITE=1 vendor/bin/phpunit --configuration tests/phpunit/phpunit.xml.dist'",
 		"check:plugin": "wp-env run cli wp plugin check desktop-mode",
 		"build:i18n": "bin/build-i18n.sh",
 		"extract:i18n": "bin/extract-i18n.sh",

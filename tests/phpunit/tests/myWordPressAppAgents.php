@@ -24,6 +24,15 @@ class Tests_OpenStation_MyWordPressAppAgents extends WP_UnitTestCase {
 		self::$admin_id      = $factory->user->create( array( 'role' => 'administrator' ) );
 		self::$editor_id     = $factory->user->create( array( 'role' => 'editor' ) );
 		self::$subscriber_id = $factory->user->create( array( 'role' => 'subscriber' ) );
+
+		// On multisite a plain administrator lacks the user-management
+		// capabilities agent CRUD rides on (create_users, edit_users,
+		// delete_users are super-admin-only). The admin fixture means
+		// "the user allowed to manage agents", which multisite spells
+		// super admin.
+		if ( is_multisite() ) {
+			grant_super_admin( self::$admin_id );
+		}
 	}
 
 	public function set_up() {

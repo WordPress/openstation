@@ -30,7 +30,25 @@ class Tests_OpenStation_PluginsWindowFeaturedAjax extends WP_Ajax_UnitTestCase {
 		parent::set_up();
 		$this->admin_id      = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$this->subscriber_id = self::factory()->user->create( array( 'role' => 'subscriber' ) );
+		// The admin persona means "the user who may install plugins
+		// here"; multisite spells that super admin.
+		if ( is_multisite() ) {
+			grant_super_admin( $this->admin_id );
+		}
 		delete_transient( 'dm_pwfeatured_v1' );
+	}
+
+	/**
+	 * The marketplace surfaces don't exist on a multisite site admin —
+	 * the guard denies before any cap check. The happy-path tests
+	 * below skip themselves through this helper, and
+	 * `test_multisite_denies_marketplace_even_for_super_admin` pins
+	 * the deny.
+	 */
+	private function skip_on_multisite() {
+		if ( is_multisite() ) {
+			$this->markTestSkipped( 'Marketplace surfaces are network-managed on multisite.' );
+		}
 	}
 
 	public function tear_down() {
@@ -138,7 +156,29 @@ class Tests_OpenStation_PluginsWindowFeaturedAjax extends WP_Ajax_UnitTestCase {
 		wp_set_current_user( $this->subscriber_id );
 		$response = $this->dispatch_featured();
 		$this->assertFalse( $response['success'] );
-		$this->assertSame( 'openstation_plugins_forbidden', $response['data']['code'] );
+		// On multisite the network-managed deny fires before the cap
+		// check, so the code differs while the outcome stands.
+		$this->assertSame(
+			is_multisite() ? 'openstation_plugins_network_managed' : 'openstation_plugins_forbidden',
+			$response['data']['code']
+		);
+	}
+
+	/**
+	 * On multisite the marketplace is network-managed: even a super
+	 * admin, who holds every plugin capability, is refused — the
+	 * server half of the gate that hides the Browse tab.
+	 *
+	 * @covers ::openstation_plugins_window_ajax_featured
+	 */
+	public function test_multisite_denies_marketplace_even_for_super_admin() {
+		if ( ! is_multisite() ) {
+			$this->markTestSkipped( 'Multisite-only behavior.' );
+		}
+		wp_set_current_user( $this->admin_id );
+		$response = $this->dispatch_featured();
+		$this->assertFalse( $response['success'] );
+		$this->assertSame( 'openstation_plugins_network_managed', $response['data']['code'] );
 	}
 
 	/**
@@ -163,6 +203,7 @@ class Tests_OpenStation_PluginsWindowFeaturedAjax extends WP_Ajax_UnitTestCase {
 	 * @covers ::openstation_plugins_window_ajax_featured
 	 */
 	public function test_admin_receives_curated_plus_discovered_payload() {
+		$this->skip_on_multisite();
 		wp_set_current_user( $this->admin_id );
 		$this->mock_plugins_api();
 
@@ -205,6 +246,7 @@ class Tests_OpenStation_PluginsWindowFeaturedAjax extends WP_Ajax_UnitTestCase {
 	 * @covers ::openstation_plugins_window_ajax_featured
 	 */
 	public function test_discovery_dedupes_against_curated() {
+		$this->skip_on_multisite();
 		wp_set_current_user( $this->admin_id );
 		$this->mock_plugins_api( array(
 			// Same slug appears in both the discovery feed AND the
@@ -236,6 +278,7 @@ class Tests_OpenStation_PluginsWindowFeaturedAjax extends WP_Ajax_UnitTestCase {
 	 * @covers ::openstation_plugins_window_ajax_featured
 	 */
 	public function test_response_is_cached_for_subsequent_calls() {
+		$this->skip_on_multisite();
 		wp_set_current_user( $this->admin_id );
 		$this->mock_plugins_api();
 
@@ -265,6 +308,7 @@ class Tests_OpenStation_PluginsWindowFeaturedAjax extends WP_Ajax_UnitTestCase {
 	 * @covers ::openstation_plugins_window_ajax_featured
 	 */
 	public function test_response_filter_can_inject_extra_rows() {
+		$this->skip_on_multisite();
 		wp_set_current_user( $this->admin_id );
 		$this->mock_plugins_api();
 

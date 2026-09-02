@@ -109,6 +109,7 @@ interface SWGlobal {
 	skipWaiting: () => Promise< void >;
 	clients: SWClients;
 	location: { origin: string; pathname: string };
+	registration: { scope: string };
 	/**
 	 * Config preamble injected by the PHP endpoint serving this file
 	 * (`openstation_pwa_serve_service_worker()`). Optional on purpose:
@@ -127,7 +128,23 @@ const VERSION = '0.8.0-pwa-6';
 const STATIC_CACHE = `os-static-${ VERSION }`;
 const RUNTIME_CACHE = `os-runtime-${ VERSION }`;
 const ADMIN_CACHE = `os-admin-${ VERSION }`;
-const OFFLINE_URL = '/openstation/?offline=1';
+// The path this worker was scoped to at registration — the SITE's home
+// path: '/' on most installs, '/site2/' on a subdirectory network's
+// subsite. Every portal and admin prefix below hangs off it, so each
+// site of a network runs its own copy of this worker without assuming
+// it owns the origin root (which is what kept the PWA main-site-only
+// on subdirectory networks).
+const SCOPE_PATH = ( () => {
+	try {
+		const path = new URL( sw.registration.scope ).pathname;
+		return path.endsWith( '/' ) ? path : `${ path }/`;
+	} catch {
+		// No registration in sight (tests, or an exotic host) — the
+		// historical root scope.
+		return '/';
+	}
+} )();
+const OFFLINE_URL = `${ SCOPE_PATH }openstation/?offline=1`;
 
 // Fallback plugin URL for bodies served without the config preamble.
 // See `pluginAssetBase()` for the layout caveats this covers.
@@ -269,8 +286,8 @@ sw.addEventListener( 'fetch', ( event: SWFetchEvent ) => {
 	// plus, when the shared admin-asset cache is opted in, versioned
 	// static assets anywhere WordPress serves them from (wp-includes
 	// lives outside /wp-admin/, and so do plugin/theme directories).
-	const isPortal = url.pathname.startsWith( '/openstation/' );
-	const isAdmin = url.pathname.startsWith( '/wp-admin/' );
+	const isPortal = url.pathname.startsWith( `${ SCOPE_PATH }openstation/` );
+	const isAdmin = url.pathname.startsWith( `${ SCOPE_PATH }wp-admin/` );
 	const isPluginAsset = url.pathname.includes( OWN_PLUGIN_PATH );
 
 	// Range requests must never meet the cache: answering one with a
@@ -653,12 +670,15 @@ sw.addEventListener( 'notificationclick', ( event: SWNotificationEvent ) => {
 	event.notification.close();
 	event.waitUntil(
 		( async () => {
-			const target = event.notification.data?.url ?? '/openstation/';
+			const target =
+				event.notification.data?.url ?? `${ SCOPE_PATH }openstation/`;
 			const all = await sw.clients.matchAll( {
 				type: 'window',
 				includeUncontrolled: true,
 			} );
-			const existing = all.find( ( c ) => c.url.includes( '/openstation/' ) );
+			const existing = all.find( ( c ) =>
+				c.url.includes( `${ SCOPE_PATH }openstation/` ),
+			);
 			if ( existing ) {
 				if ( typeof existing.focus === 'function' ) {
 					await existing.focus();
