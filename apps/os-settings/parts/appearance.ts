@@ -225,8 +225,23 @@ const describeBehavior = ( id: DockBehaviorId ): string =>
  * (nested interactive content is invalid). The card is a plain box,
  * the radio is the region inside it that means "this layout", and
  * the box wears the selection ring on the radio's behalf via `:has()`.
+ *
+ * The click belongs to the whole card, though, not to the radio: the
+ * two cards share a row and the same height, so the one with the
+ * shorter description has a band of nothing between its text and its
+ * control, and a click there read as a click on a card that ignored
+ * it. The card listens; the control — its label, its segments, its
+ * hint — opts out, and only that: the padding around it is card. The
+ * radio's own click — pointer or keyboard — bubbles up to the same
+ * handler.
  */
 export const layoutSection: Section = ( s ) => {
+	const pickCard = ( id: DesktopLayoutId ) => ( e: Event ): void => {
+		if ( ( e.target as Element ).closest( '.os-settings__dock-option' ) ) {
+			return;
+		}
+		update( { desktopLayout: id } );
+	};
 	const cardClass = ( id: string ): string => {
 		const classes = [ 'os-settings__layout-card' ];
 		if ( s.dockBehavior === 'dynamic' ) {
@@ -278,13 +293,12 @@ export const layoutSection: Section = ( s ) => {
 			<div class="os-settings__layout-grid" role="radiogroup" aria-label=${ __( 'Desktop layout' ) }>
 				${ DESKTOP_LAYOUTS.map( ( l ) => {
 					const selected = s.desktopLayout === l.id;
-					return html`<div class=${ cardClass( l.id ) }>
+					return html`<div class=${ cardClass( l.id ) } @click=${ pickCard( l.id as DesktopLayoutId ) }>
 						<button
 							type="button"
 							class="os-settings__layout-choice"
 							role="radio"
 							aria-checked=${ selected ? 'true' : 'false' }
-							@click=${ () => update( { desktopLayout: l.id as DesktopLayoutId } ) }
 						>
 							<span class="os-settings__layout-preview" aria-hidden="true">
 								${ ( PREVIEWS[ l.id ] ?? [] ).map(

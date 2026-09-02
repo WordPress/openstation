@@ -280,6 +280,17 @@ export class OsSettings {
 		}
 		root.style.setProperty( '--os-dock-width', `${ dockSize.width }px` );
 		root.style.setProperty( '--os-dock-icon-size', `${ dockSize.icon }px` );
+		// And on the shell, for the reason the accent is written twice
+		// above and the radius twice below: a desktop theme declares
+		// both dock tokens on the shell root — Legacy ships `56px` and
+		// `20px` — and that is a nearer ancestor of the dock than
+		// <body>. With a theme worn, the writes above reached the admin
+		// bar's logo slot and nothing else, and picking Large in
+		// Preferences moved the dock not at all. Inline on the shell,
+		// the user's pick outranks the theme's selector; the body write
+		// stays, because the admin bar is the shell's sibling.
+		shell.style.setProperty( '--os-dock-width', `${ dockSize.width }px` );
+		shell.style.setProperty( '--os-dock-icon-size', `${ dockSize.icon }px` );
 		root.style.setProperty(
 			'--os-window-radius',
 			`${ windowRadius.value }px`,

@@ -149,3 +149,34 @@ describe( 'OpenStation Preferences — the frame', () => {
 		expect( stub.resetOsSettings ).toHaveBeenCalledTimes( 1 );
 	} );
 } );
+
+describe( 'OpenStation Preferences — Appearance › Desktop layout', () => {
+	const cards = (): HTMLElement[] => Array.from( root.querySelectorAll< HTMLElement >( '.os-settings__layout-card' ) );
+
+	test( 'the whole card picks the layout, its control does not, and the radio does not pick twice', () => {
+		paint();
+		const split = cards()[ 1 ];
+		// The band of card between the description and the control,
+		// where a click used to land on nothing.
+		split.dispatchEvent( new MouseEvent( 'click', { bubbles: true } ) );
+		expect( stub.updateOsSettings ).toHaveBeenCalledTimes( 1 );
+		expect( stub.updateOsSettings ).toHaveBeenLastCalledWith( { desktopLayout: 'classic' }, expect.anything() );
+		// The padded row around the control is as blank as that band.
+		split.querySelector< HTMLElement >( '.os-settings__dock-options' )!.dispatchEvent( new MouseEvent( 'click', { bubbles: true } ) );
+		expect( stub.updateOsSettings ).toHaveBeenCalledTimes( 2 );
+
+		// The control is the one part of the card that is not the
+		// layout: picking Sidebar behavior must not also pick Split.
+		for ( const sel of [ '.os-settings__dock-option', '.os-settings__dock-option-label', '.os-settings__dock-option os-segmented' ] ) {
+			split.querySelector< HTMLElement >( sel )!.dispatchEvent( new MouseEvent( 'click', { bubbles: true } ) );
+		}
+		expect( stub.updateOsSettings ).toHaveBeenCalledTimes( 2 );
+
+		// The radio itself — pointer, or Enter and Space — is one
+		// pick, through the card, not one of its own on top.
+		const radio = cards()[ 0 ].querySelector< HTMLElement >( '.os-settings__layout-choice' )!;
+		radio.click();
+		expect( stub.updateOsSettings ).toHaveBeenCalledTimes( 3 );
+		expect( stub.updateOsSettings ).toHaveBeenLastCalledWith( { desktopLayout: 'unified' }, expect.anything() );
+	} );
+} );

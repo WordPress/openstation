@@ -715,16 +715,26 @@
  * pointer resting on a segmented control does not lift the card, and
  * a segment taking focus does not light the selection ring.
  */
+/* The whole card is the click target, bar its control: the two cards
+   share a height, so the shorter description leaves a band of card
+   between text and control, and that band picks the layout too. The
+   control is the option box — label, segments, hint — not the padded
+   row around it, which is as blank as the band above. */
 .os-settings__layout-card {
 	display: flex;
 	flex-direction: column;
 	padding: 10px;
 	background: var( --os-ui-surface-raised, rgba( 0, 0, 0, 0.04 ) );
 	border-radius: 10px;
+	cursor: pointer;
 	transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
-.os-settings__layout-card:has( .os-settings__layout-choice:hover ) {
+.os-settings__layout-card .os-settings__dock-option {
+	cursor: default;
+}
+
+.os-settings__layout-card:hover:not( :has( .os-settings__dock-option:hover ) ) {
 	transform: translateY( -2px );
 }
 
@@ -870,7 +880,7 @@
 		transition-duration: 0.01ms;
 	}
 
-	.os-settings__layout-card:has( .os-settings__layout-choice:hover ) {
+	.os-settings__layout-card:hover:not( :has( .os-settings__dock-option:hover ) ) {
 		transform: none;
 	}
 
