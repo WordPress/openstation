@@ -1,0 +1,80 @@
+/**
+ * OpenStation — App Framework runtime styles.
+ *
+ * The root every `.os.php` window mounts into. Fills the window
+ * body, declares itself a container so an app's stylesheet can use
+ * `@container` queries against the window's width, and centres the
+ * first-paint spinner until the `mount` render lands.
+ */
+
+.os-app {
+	display: flex;
+	flex-direction: column;
+	inline-size: 100%;
+	block-size: 100%;
+	min-block-size: 0;
+	overflow: hidden;
+	background: var( --os-ui-surface, #f0f0f1 );
+	color: var( --os-ui-fg, #1d2327 );
+	font-family: var(
+		--os-ui-font,
+		-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+		'Helvetica Neue', Arial, sans-serif
+	);
+	container-type: inline-size;
+}
+
+.os-app__loading {
+	display: flex;
+	flex: 1;
+	align-items: center;
+	justify-content: center;
+}
+
+/* A dispatch is in flight: dim nothing, just signal it to AT and
+   let an app style `[aria-busy]` if it wants a visible cue. */
+.os-app[aria-busy='true'] {
+	cursor: progress;
+}
+
+/* The flex-row gap filler every toolbar ends up needing. */
+.os-app__spacer {
+	flex: 1;
+}
+
+/* The drawn selection box `createMarquee()` appends to the body —
+   the same canonical selection tokens the shell's tiles wear. */
+.os-app__marquee {
+	position: fixed;
+	z-index: 100000;
+	border: 1px solid
+		var( --os-tile-focus-ring, var( --wp-admin-theme-color, #2271b1 ) );
+	border-radius: 2px;
+	background: var(
+		--os-selection-marquee-bg,
+		var( --os-ui-accent-soft, rgba( 34, 113, 177, 0.14 ) )
+	);
+	pointer-events: none;
+}
+
+/* ---------- Tone contract -------------------------------------------- */
+
+/* Any element inside an app root may carry `data-tone` and read the
+   matching status colour back through `--os-app-tone` (a swatch fill, a
+   row's accent border). Scoped to `.os-app` so the mapping never
+   retints shell chrome or admin pages outside an app window. */
+.os-app [data-tone='danger'] {
+	--os-app-tone: var( --os-ui-danger, #d63638 );
+}
+
+.os-app [data-tone='warning'] {
+	--os-app-tone: var( --os-ui-warning, #dba617 );
+}
+
+.os-app [data-tone='neutral'] {
+	--os-app-tone: var( --os-ui-fg-muted, #646970 );
+}
+
+.os-app [data-tone='info'] {
+	--os-app-tone: var( --os-ui-info-fg, #72aee6 );
+}

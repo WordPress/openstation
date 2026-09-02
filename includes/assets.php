@@ -123,11 +123,12 @@ function openstation_register_assets() {
 	 *   window-chrome → window-states → effects → window-links
 	 *   → windows
 	 *
-	 * `window-overview` and `os-settings` are deliberately NOT in this
-	 * chain — they are registered below, after `os-windows`,
-	 * so they can load deferred. Adding a sheet here means splicing it
-	 * into the chain, not appending an unrelated dependency: order is
-	 * the contract.
+	 * `window-overview` is deliberately NOT in this chain — it is
+	 * registered below, after `os-windows`, so it can load deferred.
+	 * Adding a sheet here means splicing it into the chain, not
+	 * appending an unrelated dependency: order is the contract.
+	 * (The Preferences window's sheet is not here at all: it rides
+	 * the `apps/os-settings/` app as a first-open companion style.)
 	 */
 	$window_sheets = array(
 		'os-window-chrome' => 'assets/css/window-chrome.css',
@@ -155,23 +156,17 @@ function openstation_register_assets() {
 		$previous,
 		$built_version( 'assets/css/windows.css' )
 	);
-	// These two load DEFERRED (see `openstation_defer_non_critical_styles()`):
-	// the UI they style — the OS Settings panel and the window
-	// overview — is lazy-loaded JS that can never be on screen at
-	// first paint, so ~47 KB of CSS has no business blocking render.
-	// They depend on `os-windows` so they print after it,
-	// preserving the cascade position they had as `@import`s.
+	// Loads DEFERRED (see `openstation_defer_non_critical_styles()`):
+	// the UI it styles — the window overview — is lazy-loaded JS that
+	// can never be on screen at first paint, so its CSS has no
+	// business blocking render. It depends on `os-windows` so it
+	// prints after it, preserving the cascade position it had as an
+	// `@import`.
 	wp_register_style(
 		'os-window-overview',
 		OPENSTATION_URL . 'assets/css/window-overview.css',
 		array( 'os-windows' ),
 		$built_version( 'assets/css/window-overview.css' )
-	);
-	wp_register_style(
-		'os-settings',
-		OPENSTATION_URL . 'assets/css/os-settings.css',
-		array( 'os-windows' ),
-		$built_version( 'assets/css/os-settings.css' )
 	);
 	// Solo mode — one window, no desk around it. Loads last so it can
 	// hide surfaces the sheets above declared, and only enqueues on a
@@ -443,28 +438,11 @@ function openstation_register_assets() {
 		true
 	);
 
-	// `desktop-mode-recycle-bin` — small bundle for the Recycle Bin
-	// native window. Lazy-loaded by the native-window sync the first
-	// time the bin opens; registers a render callback on
-	// `window.openStationNativeWindows['desktop-mode-recycle-bin']`.
-	$recycle_bin_js = OPENSTATION_DIR . 'assets/js/recycle-bin' . $suffix . '.js';
-	wp_register_script(
-		'desktop-mode-recycle-bin',
-		OPENSTATION_URL . 'assets/js/recycle-bin' . $suffix . '.js',
-		// `heartbeat` + `jquery` — the bin opts in to the WordPress
-		// Heartbeat API while its window is open as the catch-all
-		// real-time channel for deletes that don't render an admin
-		// footer (REST/AJAX/other tabs/WP-CLI). See
-		// `src/recycle-bin/realtime.ts` for the subscriber.
-		array( 'wp-i18n', 'heartbeat', 'jquery' ),
-		file_exists( $recycle_bin_js ) ? (string) filemtime( $recycle_bin_js ) : $version,
-		true
-	);
-	wp_set_script_translations(
-		'desktop-mode-recycle-bin',
-		'desktop-mode',
-		OPENSTATION_DIR . 'languages'
-	);
+	// The Recycle Bin window is an App Framework app (`apps/trash/`);
+	// its client view rides the app-bundle pipeline, so no dedicated
+	// script handle. The `desktop-mode-recycle-bin` STYLE handle above
+	// stays — the drag-to-trash drop-target highlight must be present
+	// at boot (dropping on the closed bin's dock tile), not window-open.
 
 	// `desktop-mode-games` — bundle for the Games hub native window
 	// (launcher grid, scoreboard, challenges client). Lazy-loaded by

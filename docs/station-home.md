@@ -8,17 +8,32 @@ Station Home is a **per-user opt-in** (`stationHomeEnabled`, default off), toggl
 
 The image is the approved design north star. Live DOM owns all text, values, state, hit targets, focus behavior, and responsive layout.
 
+## The app
+
+Station Home is an [App Framework](./app-framework.md) app — `apps/station-home/` — and the first one painted entirely on the server: an `.os.php` that declares the window, a `parts/snapshot.php` that reads the role-aware data, and a `parts/view.php` that renders the body as a function of that snapshot and the one state key the window keeps (`customizing`, whether the Customize picker is open). There is no client script. Every interaction — Refresh, Customize, a picker switch, a shell-bound quick action — is one dispatch to `POST desktop-mode/v1/apps/desktop-mode-dashboard/dispatch`, and the re-rendered body is morphed into the live window so nodes, scroll position and focus survive.
+
+| Interaction | What it is |
+|---|---|
+| Refresh | The built-in `refresh` action — a re-render, nothing to declare |
+| Customize / dismiss the picker | `customize` / `customize_close` — the `customizing` state key |
+| A picker switch | `toggle_card` (`id`, `checked`) → `openstation_station_home_set_card_preference()`; the same paint that settles the switch adds or removes the card |
+| New post, Upload media, View site, a recent row, an attention row | Plain links — the shell's link interceptor opens admin URLs in windows and lets `target="_blank"` through |
+| WP Explorer, Classic Dashboard | `launch` (`id`) → the `open` / `open_url` effects. Neither has a URL the interceptor may follow: a native window has none, and the classic escape is the one admin URL the interceptor deliberately refuses to steal back into the shell |
+| A window restored from minimized | The `show` lifecycle action — a repaint |
+| Content changed anywhere on the desktop | `watch( '*' )` — a coalesced repaint |
+
 ## Behavior
 
 - When the current user has opted in, ordinary `wp-admin/index.php` destinations remap to the native window `desktop-mode-dashboard`. Existing Dashboard menu entries, portal fallbacks, bookmarks, and default-window behavior therefore keep their current URL contract. With the opt-in off, the same URLs open the classic Dashboard as a chromeless iframe, and a saved session never restores the Station Home window.
 - **Classic Dashboard** opens `index.php?desktop_mode_classic=1` in a separate chromeless iframe window. The native URL matcher explicitly ignores that query flag, so the escape cannot loop back into Station Home.
-- The window's script and stylesheet remain lazy. They load on first Dashboard open through the native-window payload path.
-- The snapshot is read-only and current-user scoped. `GET /wp-json/desktop-mode/v1/station-home` uses the normal OpenStation REST permission gate.
-- Actions are capability-aware: post creation, media upload, WP Explorer, comment moderation, updates, and missing-alt reminders only appear when the current user can act on them.
+- The stylesheet loads on the window's first open, as every app's does. Nothing of Station Home is on the boot path but the URL matcher.
+- The greeting follows the site's clock (`wp_date`), the hour WordPress itself reasons in for scheduling and timestamps.
+- Actions are capability-aware: post creation, media upload, WP Explorer, comment moderation, updates, and missing-alt reminders only appear when the current user can act on them. `launch` resolves against the same gated list, so a button a user was never shown launches nothing.
 - Recent work is limited to five of the current user's most recently modified editable posts, pages, and public UI-visible custom post types. Core's internal editor records such as navigation, templates, and styles stay out of the list.
-- The response reads cached WordPress update data. Opening Station Home does not initiate an update check.
+- The body reads cached WordPress update data. Opening Station Home does not initiate an update check.
 - Third-party plugins can register structured cards with `openstation_register_station_home_card()`. Every card declares whether it starts on or off; each user can then opt in or out from **From your plugins → Customize**. Disabled cards do not execute their data callbacks.
-- Explicit card choices live in the current user's `openstation_station_home_card_preferences` meta map and are written through `POST /wp-json/desktop-mode/v1/station-home/cards`.
+- Explicit card choices live in the current user's `openstation_station_home_card_preferences` meta map. `openstation_station_home_set_card_preference( $user_id, $id, $enabled )` is the one write path — it refuses ids not registered for the current user and fires `openstation_station_home_card_preference_updated`.
+- A failed dispatch leaves the last body in place and says so in a toast; there is no separate error state to design for.
 
 ## Plugin cards
 
@@ -52,7 +67,7 @@ add_action( 'init', function () {
 } );
 ```
 
-The callback receives `( int $user_id, array $entry )` and runs only when its card is enabled. It returns optional plain-text `value`, `detail`, `action_label`, a safe `url`, `external` for new-tab links, and `tone` (`neutral`, `info`, `success`, `warning`, or `danger`). Returning `WP_Error`, a non-array, or throwing omits the card from that snapshot without breaking Station Home.
+The callback receives `( int $user_id, array $entry )` and runs only when its card is enabled. It returns optional plain-text `value`, `detail`, `action_label`, a safe `url`, `external` for new-tab links, and `tone` (`neutral`, `info`, `success`, `warning`, or `danger`). Returning `WP_Error`, a non-array, or throwing omits the card from that render without breaking Station Home.
 
 The registry is filterable through `openstation_station_home_cards`; enabled callback results pass through `openstation_station_home_card_data`. See the complete recipe in [`examples/station-home-card.md`](./examples/station-home-card.md).
 

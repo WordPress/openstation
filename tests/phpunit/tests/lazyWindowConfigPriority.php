@@ -31,8 +31,10 @@ class Tests_OpenStation_LazyWindowConfigPriority extends WP_UnitTestCase {
 	 */
 	public function data_lazy_window_config_localizers() {
 		return array(
-			'recycle bin' => array( 'openstation_recycle_bin_localize_config' ),
-			'games'       => array( 'openstation_games_localize_config' ),
+			// The Recycle Bin left this list when it became an App
+			// Framework app — its config ships in the window config
+			// blob, not via wp_localize_script.
+			'games' => array( 'openstation_games_localize_config' ),
 		);
 	}
 

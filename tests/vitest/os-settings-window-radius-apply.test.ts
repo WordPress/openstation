@@ -19,7 +19,6 @@ import { _resetAllSharedStoresForTests } from '../../src/shared-store';
 import { OsSettings } from '../../src/settings';
 import { STORAGE_KEY } from '../../src/settings/constants';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
-import type { OsSettingsConfig } from '../../src/settings/types';
 import type { WallpaperLayer } from '../../src/wallpapers/layer';
 
 const RADIUS_VAR = '--os-window-radius';
@@ -32,7 +31,7 @@ function makeSettings(): OsSettings {
 	// The wallpaper layer is exercised by apply() but has nothing to
 	// do with the radius; a no-op stand-in keeps this focused.
 	const layer = { apply: vi.fn() } as unknown as WallpaperLayer;
-	return new OsSettings( {} as OsSettingsConfig, layer );
+	return new OsSettings( layer );
 }
 
 beforeEach( () => {

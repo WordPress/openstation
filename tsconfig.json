@@ -21,9 +21,10 @@
 			"@layout/*":         [ "src/layout/*" ],
 			"@protocol/*":       [ "src/protocol/*" ],
 			"@ui/*":             [ "src/ui/*" ],
-			"@window-system/*":  [ "src/window-system/*" ]
+			"@window-system/*":  [ "src/window-system/*" ],
+			"@openstation/app":  [ "src/app-runtime/client.ts" ]
 		},
 		"lib": [ "es2020", "dom", "dom.iterable" ]
 	},
-	"include": [ "src/**/*.ts" ]
+	"include": [ "src/**/*.ts", "apps/**/*.ts" ]
 }

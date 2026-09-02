@@ -121,7 +121,7 @@ class Tests_OpenStation_DesktopThemesSettings extends WP_UnitTestCase {
 		$source = file_get_contents( $state );
 
 		$this->assertStringContainsString(
-			'/^[a-z0-9_-]*$/.test( parsed.desktopTheme )',
+			'desktopTheme: matching( /^[a-z0-9_-]*$/ )',
 			$source,
 			'The JS mirror must accept the empty string (note the `*`, not `+`).'
 		);

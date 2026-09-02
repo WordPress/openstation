@@ -106,56 +106,8 @@ function openstation_agents_preview_cast() {
 	return $cast;
 }
 
-/**
- * Ship the agents section config on the WP Explorer window config.
- *
- * `enabled` mirrors the `agents` extended option. When it is false the
- * section still renders — every control disabled, nothing fetched —
- * and offers `canEnable` users a way into the Features tab that turns
- * the framework on. `canManage` / `canInvoke` stay the raw capability
- * answers so that shell renders the same controls it would when the
- * flag is on, just inert; the real gate is that the REST routes do not
- * exist while off.
- *
- * `aiAvailable` is the cheap structural check (WP 7.0 AI Client +
- * Abilities API present); whether a connector is actually configured
- * is probed live by the renderer against `aiStatusUrl`, mirroring the
- * OS Settings Features tab, so a freshly configured connector is
- * picked up without a reload.
- *
- * `preview` is only sent while the flag is off, which is the only
- * state that draws it: once Agents is on, the real cast has been
- * seeded and the grid renders that instead.
- *
- * @param array $window_args Args passed to `openstation_register_window()`.
- * @return array
- */
-function openstation_agents_my_wordpress_window_args( $window_args ) {
-	if ( ! is_array( $window_args ) || ! openstation_agents_user_can_read() ) {
-		return $window_args;
-	}
-
-	if ( ! isset( $window_args['config'] ) || ! is_array( $window_args['config'] ) ) {
-		$window_args['config'] = array();
-	}
-
-	$enabled = openstation_agents_enabled();
-
-	$window_args['config']['agents'] = array(
-		'enabled'       => $enabled,
-		'canEnable'     => current_user_can( 'manage_options' ),
-		'canManage'     => openstation_agents_user_can_manage(),
-		'canInvoke'     => openstation_agents_user_can_invoke(),
-		'aiAvailable'   => function_exists( 'openstation_ai_is_available' ) && openstation_ai_is_available(),
-		'aiStatusUrl'   => esc_url_raw( rest_url( 'desktop-mode/v1/ai/status' ) ),
-		'connectorsUrl' => esc_url_raw( admin_url( 'options-connectors.php' ) ),
-		'runWindowId'   => 'desktop-mode-agent-run',
-	);
-
-	if ( ! $enabled ) {
-		$window_args['config']['agents']['preview'] = openstation_agents_preview_cast();
-	}
-
-	return $window_args;
-}
-add_filter( 'openstation_my_wordpress_window_args', 'openstation_agents_my_wordpress_window_args' );
+// (The legacy explorer window's config injection is gone with the
+// window itself. The explorer APP builds the same section config in
+// `apps/my-wordpress/parts/agents.php`, over the same
+// `openstation_agents_*` helpers — `openstation_agents_preview_cast()`
+// above included.)

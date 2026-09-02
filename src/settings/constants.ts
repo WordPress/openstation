@@ -18,6 +18,14 @@ import type { OsSettingsState } from './types';
 /** localStorage key under which preferences are serialized. */
 export const STORAGE_KEY = 'desktop-mode-os-settings';
 
+/**
+ * The OpenStation Preferences window — the `apps/os-settings/` app's
+ * id, and a FROZEN identifier (see AGENTS.md): saved sessions, the
+ * System tile's flyout row, the default-window marker and the
+ * save-activity attribution all name it.
+ */
+export const OS_SETTINGS_WINDOW_ID = 'desktop-mode-os-settings';
+
 /** Minimum resolution considered "HD" for the wallpaper picker filter. */
 export const HD_MIN_WIDTH = 1920;
 export const HD_MIN_HEIGHT = 1080;

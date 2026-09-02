@@ -46,17 +46,21 @@ class Tests_OpenStation_CssSubtreeVersion extends WP_UnitTestCase {
 	);
 
 	/**
-	 * Registered AFTER `os-windows` so they can load
-	 * deferred — the OS Settings panel and the window overview are
-	 * lazy-loaded UI that cannot be on screen at first paint. They
-	 * still need their own filemtime stamp, which is what this file
-	 * is about; they just are not part of the critical chain.
+	 * Registered AFTER `os-windows` so it can load deferred — the
+	 * window overview is lazy-loaded UI that cannot be on screen at
+	 * first paint. It still needs its own filemtime stamp, which is
+	 * what this file is about; it just is not part of the critical
+	 * chain.
+	 *
+	 * The Preferences window's sheet is not here: it lives in
+	 * `apps/os-settings/` and rides that app as a companion style,
+	 * registered and stamped by the App Framework
+	 * (`Tests_OpenStation_OsSettingsApp` pins it).
 	 *
 	 * @var array<string,string>
 	 */
 	private static $deferred = array(
 		'os-window-overview' => 'assets/css/window-overview.css',
-		'os-settings'     => 'assets/css/os-settings.css',
 	);
 
 	public function set_up() {
@@ -151,7 +155,7 @@ class Tests_OpenStation_CssSubtreeVersion extends WP_UnitTestCase {
 			'os-windows must depend on the tail of the chain.'
 		);
 
-		// The deferred pair hangs off the entry point so it prints
+		// The deferred sheet hangs off the entry point so it prints
 		// after it, holding the cascade position it had as an
 		// `@import`.
 		foreach ( array_keys( self::$deferred ) as $handle ) {

@@ -854,7 +854,7 @@
 	font-weight: 600;
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
-	background: rgba( 34, 113, 177, 0.12 );
+	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 12%, transparent );
 	color: var( --wp-admin-theme-color, #2271b1 );
 }
 
@@ -959,7 +959,7 @@
 	background: linear-gradient(
 		180deg,
 		var( --wp-admin-theme-color, #2271b1 ) 0%,
-		rgba( 34, 113, 177, 0.55 ) 100%
+		color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 55%, transparent ) 100%
 	);
 	border-radius: 3px 3px 0 0;
 	min-height: 2px;
@@ -1095,7 +1095,7 @@
 
 .os-my-wordpress__term-icon--category {
 	background: linear-gradient( 135deg, var( --os-ui-accent, #2271b1 ) 0%, var( --os-ui-accent-strong, #135e96 ) 100% );
-	box-shadow: 0 4px 12px rgba( 34, 113, 177, 0.32 );
+	box-shadow: 0 4px 12px color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 32%, transparent );
 }
 
 .os-my-wordpress__term-icon--tag {
@@ -1104,7 +1104,7 @@
 }
 
 .os-my-wordpress__user-role--category {
-	background: rgba( 34, 113, 177, 0.12 );
+	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 12%, transparent );
 	color: var( --os-ui-accent-strong, #135e96 );
 }
 
@@ -1166,7 +1166,7 @@
  * --------------------------------------------------------------- */
 
 .os-my-wordpress__comment-status--approved {
-	background: rgba( 34, 113, 177, 0.12 );
+	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 12%, transparent );
 	color: var( --os-ui-accent-strong, #135e96 );
 }
 
@@ -1199,7 +1199,7 @@
 	margin: 0 0 16px;
 	padding: 10px 14px;
 	border-left: 3px solid var( --wp-admin-theme-color, #2271b1 );
-	background: rgba( 34, 113, 177, 0.06 );
+	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 6%, transparent );
 	border-radius: 0 6px 6px 0;
 	font-size: 13px;
 }
@@ -1344,8 +1344,8 @@
 	overflow: hidden;
 	background: linear-gradient(
 		135deg,
-		rgba( 34, 113, 177, 0.18 ),
-		rgba( 34, 113, 177, 0.04 )
+		color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 18%, transparent ),
+		color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 4%, transparent )
 	);
 	box-shadow:
 		inset 0 0 0 1px rgba( 0, 0, 0, 0.08 ),
@@ -1468,8 +1468,8 @@
 	border-radius: 16px;
 	background: linear-gradient(
 		135deg,
-		rgba( 34, 113, 177, 0.10 ) 0%,
-		rgba( 34, 113, 177, 0.02 ) 60%,
+		color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 10%, transparent ) 0%,
+		color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 2%, transparent ) 60%,
 		transparent 100%
 	);
 	border: 1px solid var( --os-ui-border, #dcdcde );
@@ -1486,8 +1486,8 @@
 		0 6px 24px rgba( 0, 0, 0, 0.14 );
 	background: linear-gradient(
 		135deg,
-		rgba( 34, 113, 177, 0.18 ),
-		rgba( 34, 113, 177, 0.04 )
+		color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 18%, transparent ),
+		color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 4%, transparent )
 	);
 	display: inline-flex;
 	align-items: center;
@@ -1621,15 +1621,15 @@
 }
 
 .os-my-wordpress__footprint-cell--l1 {
-	background: rgba( 34, 113, 177, 0.25 );
+	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 25%, transparent );
 }
 
 .os-my-wordpress__footprint-cell--l2 {
-	background: rgba( 34, 113, 177, 0.5 );
+	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 50%, transparent );
 }
 
 .os-my-wordpress__footprint-cell--l3 {
-	background: rgba( 34, 113, 177, 0.75 );
+	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 75%, transparent );
 }
 
 .os-my-wordpress__footprint-cell--l4 {
@@ -1701,7 +1701,7 @@
 	background: linear-gradient(
 		180deg,
 		var( --wp-admin-theme-color, #2271b1 ) 0%,
-		rgba( 34, 113, 177, 0.55 ) 100%
+		color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 55%, transparent ) 100%
 	);
 	border-radius: 3px 3px 0 0;
 	min-height: 2px;
@@ -1735,8 +1735,8 @@
 	padding: 20px 24px;
 	background: linear-gradient(
 		135deg,
-		rgba( 34, 113, 177, 0.10 ),
-		rgba( 34, 113, 177, 0.02 )
+		color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 10%, transparent ),
+		color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 2%, transparent )
 	);
 }
 

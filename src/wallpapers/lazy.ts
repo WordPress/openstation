@@ -28,7 +28,7 @@
  *
  * State lives in a shared store because the two callers are in
  * different Vite bundles: the sync ships in `desktop.min.js`, the
- * picker in `os-settings-panel.min.js`. Module-level state would
+ * picker in the Preferences app's bundle. Module-level state would
  * give each its own copy and the picker would hydrate nothing (see
  * the cross-bundle note in AGENTS.md).
  */

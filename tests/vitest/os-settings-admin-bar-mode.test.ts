@@ -16,14 +16,13 @@ import { _resetAllSharedStoresForTests } from '../../src/shared-store';
 import { OsSettings } from '../../src/settings';
 import { STORAGE_KEY } from '../../src/settings/constants';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
-import type { OsSettingsConfig } from '../../src/settings/types';
 import type { WallpaperLayer } from '../../src/wallpapers/layer';
 
 const MODES = [ 'static', 'dynamic', 'hidden' ] as const;
 
 function makeSettings(): OsSettings {
 	const layer = { apply: vi.fn() } as unknown as WallpaperLayer;
-	return new OsSettings( {} as OsSettingsConfig, layer );
+	return new OsSettings( layer );
 }
 
 /** Which of the three mode classes are currently on the body. */

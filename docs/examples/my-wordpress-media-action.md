@@ -214,42 +214,35 @@ that slot.
 
 ## Ship your own section type
 
-Need a section beyond Posts / Pages / Users / Media? Register a
-`kind` server-side **and** a renderer client-side:
+Need a section beyond Posts / Pages / Users / Media? Register it
+server-side with [`openstation_my_wordpress_app_sections`](../hooks-reference.md#openstation_my_wordpress_app_sections--experimental-filter)
+— the explorer app renders it with the standard tile grid and preview
+pane, and every JS seam on this page fires over it, so a plugin
+decorates it exactly as it decorates the built-ins:
 
 ```php
-add_filter( 'openstation_my_wordpress_entities', function ( $entities ) {
-    $entities[] = array(
-        'id'       => 'my-orders',
-        'label'    => __( 'Orders', 'my-plugin' ),
-        'icon'     => 'dashicons-cart',
-        'restPath' => 'wp/v2/my-order',
-        'kind'     => 'my-plugin/order',
+add_filter( 'openstation_my_wordpress_app_sections', function ( $sections ) {
+    $sections[] = array(
+        'id'         => 'cpt-my-order',
+        'label'      => __( 'Orders', 'my-plugin' ),
+        'icon'       => 'dashicons-cart',
+        'kind'       => 'post',
+        'post_type'  => 'my_order',
+        'capability' => 'edit_posts',
+        'thumbnails' => false,
     );
-    return $entities;
+    return $sections;
 } );
 ```
 
-```js
-wp.os.myWordpress.registerEntityKind(
-    'my-plugin/order',
-    function ( host, entity ) {
-        host.body.replaceChildren();
-        const h = document.createElement( 'h2' );
-        h.textContent = entity.label;
-        host.body.appendChild( h );
-        // Fetch, render tiles, paint preview pane, call
-        // host.navigate(...) on drill-in, host.addTeardown(...)
-        // on every subscription.
-    },
-);
-```
+(An eligible custom post type gets its section discovered
+automatically — this filter is for the exotic cases: a hand-rolled
+list, a section behind extra gating, a relabel.)
 
-You can call `registerEntityKind` at script-load time — no timing
-guard needed. The main desktop bundle installs an early-load stub
-that buffers calls; when the lazy WP Explorer bundle mounts (on
-first open of the window), it drains the queue.
-
-The renderer receives the same `EntityRenderHost` the built-in
-sections do — paint into `host.body`, route via `host.navigate`,
-register cleanup via `host.addTeardown`.
+The legacy `registerEntityKind()` client renderer seam went with the
+legacy window — see
+[Migration — WP Explorer becomes the my-wordpress app](../migration-wp-explorer-app.md).
+Custom *rendering* now happens through the seams above:
+`os.my-wordpress.list-tile` and `os.tile.rendered` decorate tiles,
+`preview-extras` owns the pane's plugin real estate, and
+`list-bands` regroups the grid.

@@ -51,9 +51,30 @@ class Tests_OpenStation_AgentsMyWordpress extends WP_UnitTestCase {
 		add_filter( 'openstation_agents_enabled', '__return_false' );
 	}
 
+	/**
+	 * The agents section config, as the explorer APP ships it — the
+	 * legacy window's config injection is gone; the same shape now
+	 * rides the app's dispatch payload (`data.agents`), built over
+	 * the same `openstation_agents_*` helpers.
+	 */
 	private function agents_config() {
-		$args = openstation_agents_my_wordpress_window_args( array( 'config' => array() ) );
-		return isset( $args['config']['agents'] ) ? $args['config']['agents'] : null;
+		try {
+			$response = openstation_apps_runtime()->dispatch(
+				'my-wordpress',
+				array(
+					'action' => 'go',
+					'state'  => array(),
+					'args'   => array( 'section' => 'agents' ),
+				),
+				openstation_apps_os()
+			);
+		} catch ( Exception $e ) {
+			return null;
+		}
+		if ( ! is_array( $response ) || ! isset( $response['data']['agents'] ) ) {
+			return null;
+		}
+		return $response['data']['agents'];
 	}
 
 	private function entity_ids() {
@@ -98,7 +119,7 @@ class Tests_OpenStation_AgentsMyWordpress extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::openstation_agents_my_wordpress_window_args
+	 * @covers \OpenStation\Apps\MyWordPress\agents_payload
 	 */
 	public function test_window_config_reports_enabled_when_the_flag_is_on() {
 		$config = $this->agents_config();
@@ -114,7 +135,7 @@ class Tests_OpenStation_AgentsMyWordpress extends WP_UnitTestCase {
 	 * are genuinely absent while the flag is off, so a section that
 	 * tried would 404 on every paint.
 	 *
-	 * @covers ::openstation_agents_my_wordpress_window_args
+	 * @covers \OpenStation\Apps\MyWordPress\agents_payload
 	 */
 	public function test_window_config_reports_disabled_when_the_flag_is_off() {
 		$this->disable_agents();
@@ -128,7 +149,7 @@ class Tests_OpenStation_AgentsMyWordpress extends WP_UnitTestCase {
 	 * The off-state's argument for turning the feature on: the crew the
 	 * site would be seeded with, which does not exist as users yet.
 	 *
-	 * @covers ::openstation_agents_my_wordpress_window_args
+	 * @covers \OpenStation\Apps\MyWordPress\agents_payload
 	 * @covers ::openstation_agents_preview_cast
 	 */
 	public function test_the_roster_is_previewed_while_the_flag_is_off() {
@@ -157,7 +178,7 @@ class Tests_OpenStation_AgentsMyWordpress extends WP_UnitTestCase {
 	 * draws that instead, so the preview is dead weight on a payload
 	 * that ships with every WP Explorer window.
 	 *
-	 * @covers ::openstation_agents_my_wordpress_window_args
+	 * @covers \OpenStation\Apps\MyWordPress\agents_payload
 	 */
 	public function test_the_preview_is_not_sent_once_the_framework_is_on() {
 		$this->assertArrayNotHasKey( 'preview', $this->agents_config() );
@@ -232,7 +253,7 @@ class Tests_OpenStation_AgentsMyWordpress extends WP_UnitTestCase {
 	 * An editor sees the section but cannot flip the option — the
 	 * Extended options section of the Features tab is admin-only.
 	 *
-	 * @covers ::openstation_agents_my_wordpress_window_args
+	 * @covers \OpenStation\Apps\MyWordPress\agents_payload
 	 */
 	public function test_can_enable_tracks_manage_options() {
 		wp_set_current_user( self::$editor_id );
@@ -245,7 +266,7 @@ class Tests_OpenStation_AgentsMyWordpress extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::openstation_agents_my_wordpress_window_args
+	 * @covers \OpenStation\Apps\MyWordPress\agents_payload
 	 */
 	public function test_window_config_is_withheld_from_users_who_cannot_read_agents() {
 		wp_set_current_user( self::$subscriber_id );

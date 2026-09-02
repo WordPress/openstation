@@ -21,6 +21,7 @@
  */
 
 import { defineConfig } from 'vite';
+import { existsSync, readdirSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { visualizer } from 'rollup-plugin-visualizer';
 
@@ -299,24 +300,12 @@ const TARGETS = {
 		fileBase: 'gutenberg-drop-receiver',
 		iifeName: 'openStationGutenbergDropReceiver',
 	},
-	// Recycle Bin app — a thin bundle that registers a render
-	// callback on `window.openStationNativeWindows['desktop-mode-recycle-bin']`
-	// and renders a `<os-table>` populated from the REST list. The
-	// `<os-*>` elements themselves are defined by the main desktop
-	// bundle, so this module just consumes them.
-	'recycle-bin': {
-		entry:    'src/recycle-bin/index.ts',
-		fileBase: 'recycle-bin',
-		iifeName: 'openStationRecycleBin',
-	},
-	// Station Home — always-on native replacement for `index.php`.
-	// Publishes the dashboard render callback and ships only when the
-	// Dashboard entry point is opened.
-	'station-home': {
-		entry:    'src/station-home/index.ts',
-		fileBase: 'station-home',
-		iifeName: 'openStationStationHome',
-	},
+	// The Recycle Bin window is an App Framework app (`apps/trash/`),
+	// built by `build:apps`; the closed tile's art is the one piece the
+	// shell keeps (`src/desktop-files/recycle-bin-icon-state.ts`).
+	// Station Home is an App Framework app too (`apps/station-home/`),
+	// a server view with no bundle at all; the Dashboard URL matcher
+	// it needs in the shell is `src/open-targets/station-home-url.ts`.
 	// Native Posts window — `<os-table>`-driven replacement for the
 	// chromeless `edit.php` iframe, opt-in per user via OS Settings →
 	// Features. Same shape as recycle-bin: registers a render
@@ -327,21 +316,12 @@ const TARGETS = {
 		fileBase: 'posts-window',
 		iifeName: 'openStationPostsWindow',
 	},
-	// "My WordPress" file-explorer window — registers a render
-	// callback on `window.openStationNativeWindows['desktop-mode-my-wordpress']`
-	// and reuses the `<os-*>` tags defined by the main desktop bundle.
-	'my-wordpress': {
-		entry:    'src/my-wordpress/index.ts',
-		fileBase: 'my-wordpress',
-		iifeName: 'openStationMyWordpress',
-	},
-	// WooCommerce integration for the site window — subscribes to the
-	// window's `preview-extras` / `group-extras` actions to paint
-	// merchant panels. Enqueued only when WooCommerce is active, and
-	// deliberately separate from the `my-wordpress` bundle so stores
-	// without WooCommerce ship none of it.
+	// WooCommerce integration for the WP Explorer app — subscribes to
+	// the app's `preview-extras` / `group-extras` actions to paint
+	// merchant panels. Loaded as the app window's companion only when
+	// WooCommerce is active, so stores without it ship none of this.
 	'my-wordpress-woocommerce': {
-		entry:    'src/my-wordpress/integrations/woocommerce.ts',
+		entry:    'src/plugins/my-wordpress-woocommerce/index.ts',
 		fileBase: 'my-wordpress-woocommerce',
 		iifeName: 'openStationMyWordpressWoo',
 	},
@@ -355,15 +335,18 @@ const TARGETS = {
 		fileBase: 'content-graph',
 		iifeName: 'openStationContentGraph',
 	},
-	// Code Blue — error-log reader. Tails the WP debug log / PHP
-	// error log via the Code Blue REST routes and renders a severity
-	// histogram + grouped issue list. Registers a render callback on
-	// `window.openStationNativeWindows['openstation-code-blue']` and
-	// re-registers the `<os-*>` tags it instantiates (idempotent).
-	'code-blue': {
-		entry:    'src/code-blue/index.ts',
-		fileBase: 'code-blue',
-		iifeName: 'openStationCodeBlue',
+	// App Framework runtime — the ONE bundle every `.os.php` window
+	// shares. Mounts the window, dispatches `os-action` triggers to
+	// the app's REST endpoint, morphs the returned markup into place,
+	// performs effects, and wires the title-bar buttons / ⋯ rows the
+	// PHP manifest declared. Registers a render callback on
+	// `window.openStationNativeWindows[<id>]` for every app config it
+	// finds. Apps ship no JavaScript of their own — Code Blue
+	// (`apps/code-blue/`) is the shipped example.
+	'app-runtime': {
+		entry:    'src/app-runtime/index.ts',
+		fileBase: 'app-runtime',
+		iifeName: 'openStationAppRuntime',
 	},
 	// Games hub — launcher grid + scoreboard + challenges client.
 	// Registers a render callback on
@@ -471,18 +454,6 @@ const TARGETS = {
 		entry:    'src/plugins/snow-wallpaper/index.ts',
 		fileBase: 'snow-wallpaper',
 		iifeName: 'openStationSnowWallpaper',
-	},
-	// OS Settings panel — the big lazy bundle (Stage 8). Hosts every
-	// section renderer + the `<os-*>` components only the panel
-	// uses (color/range field, swatch, swatch-grid, section,
-	// segmented, tabs, panel, empty-state, checkbox-label, button,
-	// select, text-field). Loaded on the user's first Settings open
-	// by the `OsSettings.renderPanel()` stub. Publishes
-	// `window.openStationRenderOsSettingsPanel`.
-	'os-settings-panel': {
-		entry:    'src/settings/panel-entry.ts',
-		fileBase: 'os-settings-panel',
-		iifeName: 'openStationOsSettingsPanel',
 	},
 	// Mio — the desk companion: a PixiJS soft-body blob with a
 	// chroma neon outline that floats over the wallpaper, falls onto
@@ -673,10 +644,42 @@ const TARGETS = {
 
 };
 
+/**
+ * App client views: every `apps/<dir>/<name>.os.ts` is the target
+ * `app:<name>`, built to `assets/js/apps/<name>[.min].js`. Discovered
+ * here so a new app needs no registration; `bin/build-apps.mjs` walks
+ * the same directory to run one build per target.
+ */
+function discoverAppTargets() {
+	const out = {};
+	const appsDir = resolve( __dirname, 'apps' );
+	if ( ! existsSync( appsDir ) ) {
+		return out;
+	}
+	for ( const dir of readdirSync( appsDir ) ) {
+		const full = resolve( appsDir, dir );
+		if ( ! statSync( full ).isDirectory() ) {
+			continue;
+		}
+		for ( const file of readdirSync( full ) ) {
+			if ( ! file.endsWith( '.os.ts' ) ) {
+				continue;
+			}
+			const name = file.slice( 0, -'.os.ts'.length );
+			out[ `app:${ name }` ] = {
+				entry:    `apps/${ dir }/${ file }`,
+				fileBase: `apps/${ name }`,
+				iifeName: 'openStationApp_' + name.replace( /[^a-zA-Z0-9]+(.)?/g, ( _m, c ) => ( c ? c.toUpperCase() : '' ) ),
+			};
+		}
+	}
+	return out;
+}
+
 export default defineConfig( ( { mode } ) => {
 	const isProd = mode === 'production';
 	const targetKey = process.env.OPENSTATION_TARGET || 'desktop';
-	const target = TARGETS[ targetKey ];
+	const target = TARGETS[ targetKey ] || discoverAppTargets()[ targetKey ];
 	if ( ! target ) {
 		throw new Error(
 			`vite.config.js: unknown OPENSTATION_TARGET="${ targetKey }". ` +
@@ -719,6 +722,8 @@ export default defineConfig( ( { mode } ) => {
 				'@protocol/':      resolve( __dirname, 'src/protocol/' ) + '/',
 				'@ui/':            resolve( __dirname, 'src/ui/' ) + '/',
 				'@window-system/': resolve( __dirname, 'src/window-system/' ) + '/',
+				// What an `apps/*/*.os.ts` imports: `defineApp`, `html`, i18n.
+				'@openstation/app': resolve( __dirname, 'src/app-runtime/client.ts' ),
 			},
 		},
 		build: {
@@ -745,6 +750,10 @@ export default defineConfig( ( { mode } ) => {
 			},
 			rollupOptions: {
 				output: {
+					// An app's `.os.ts` exports its model for tests beside
+					// the default `defineApp()`; nothing reads the IIFE's
+					// return value, so silence Rollup's mixed-exports note.
+					exports: 'named',
 					// Vite's lib mode defaults `style.css` for bundled CSS.
 					// Rename to match the target's fileBase so a widget
 					// bundle and its co-located CSS share a name —

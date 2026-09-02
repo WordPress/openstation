@@ -88,6 +88,75 @@ describe( 'utils/deriveWindowId', () => {
 		expect( action ).toBe( list );
 	} );
 
+	test( 'separates an admin.php entity editor from its list by `id`', () => {
+		// Regression (issue #721): WooCommerce's High-Performance
+		// Order Storage moves the order editor from
+		// `post.php?post=N&action=edit` to
+		// `admin.php?page=wc-orders&action=edit&id=N`. Without the
+		// scoped `id` rule that URL derives the LIST's window id, so
+		// clicking an order navigated the Orders window away from the
+		// list and the only route back was closing the window.
+		const list = deriveWindowId(
+			`${ ADMIN }admin.php?page=wc-orders`,
+			ADMIN,
+		);
+		const first = deriveWindowId(
+			`${ ADMIN }admin.php?page=wc-orders&action=edit&id=123`,
+			ADMIN,
+		);
+		const second = deriveWindowId(
+			`${ ADMIN }admin.php?page=wc-orders&action=edit&id=456`,
+			ADMIN,
+		);
+		expect( first ).not.toBe( list );
+		expect( first ).not.toBe( second );
+		expect( first ).toBe( 'admin-php-page-wc-orders-id-123' );
+	} );
+
+	test( 'separates the blank entity editor (`action=new`) from its list', () => {
+		const list = deriveWindowId(
+			`${ ADMIN }admin.php?page=wc-orders`,
+			ADMIN,
+		);
+		const blank = deriveWindowId(
+			`${ ADMIN }admin.php?page=wc-orders&action=new`,
+			ADMIN,
+		);
+		expect( blank ).not.toBe( list );
+		expect( blank ).toBe( 'admin-php-page-wc-orders-action-new' );
+	} );
+
+	test( 'the entity-editor rule is scoped to admin.php screens with a `page`', () => {
+		// `id` stays transient everywhere else — it is a generic
+		// param and a bare `admin.php?action=edit&id=N` is not a
+		// plugin screen.
+		expect(
+			deriveWindowId( `${ ADMIN }admin.php?action=edit&id=3`, ADMIN ),
+		).toBe( deriveWindowId( `${ ADMIN }admin.php`, ADMIN ) );
+		expect(
+			deriveWindowId( `${ ADMIN }upload.php?action=edit&id=3`, ADMIN ),
+		).toBe( deriveWindowId( `${ ADMIN }upload.php`, ADMIN ) );
+	} );
+
+	test( 'row actions on an admin.php screen still resolve to the list window', () => {
+		// Only `edit` / `new` drill into an entity. Trash, duplicate,
+		// export and friends are side-effects that redirect back to
+		// the list, so they must keep the list's id and run in place.
+		const list = deriveWindowId( `${ ADMIN }admin.php?page=foo`, ADMIN );
+		expect(
+			deriveWindowId(
+				`${ ADMIN }admin.php?page=foo&action=trash&id=3&_wpnonce=abc`,
+				ADMIN,
+			),
+		).toBe( list );
+		expect(
+			deriveWindowId(
+				`${ ADMIN }admin.php?page=foo&action=export&id=3`,
+				ADMIN,
+			),
+		).toBe( list );
+	} );
+
 	test( 'separates individual term edit URLs by the `tag_ID` query arg', () => {
 		// Regression: without `tag_ID` in the identity set, every
 		// term.php URL of the same taxonomy collapses to one window, so

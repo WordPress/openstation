@@ -18,7 +18,7 @@ import { tryNativeUrlRemap } from '../native-url-remap';
 import { createSharedStore } from '../shared-store';
 import { matchDestructiveAdminAction } from '../destructive-admin-actions';
 import { setWindowContent } from '../window-links/engine';
-import { openUserFootprintWindow } from '../my-wordpress/footprint-target';
+import { openUserFootprintWindow } from '../open-targets/footprint-target';
 
 /**
  * Origin snapshot taken once at module load. Any subsequent mutation

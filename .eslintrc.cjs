@@ -148,6 +148,10 @@ module.exports = {
 		// runs, and `<os-foo>` renders as an inert un-upgraded
 		// custom element. See the rule source for details.
 		'local-rules/os-component-registration': 'error',
+		// A nudge, not a gate: past 1,000 lines a file gets one warning
+		// suggesting a split toward the 300–600-line comfort zone. The
+		// PHP twin is the `OpenStation.Files.FileLength` sniff.
+		'local-rules/os-file-length': [ 'warn', { max: 1000, idealMin: 300, idealMax: 600 } ],
 		'no-restricted-syntax': [
 			'error',
 			{

@@ -2416,15 +2416,6 @@ export interface DesktopConfig {
 	 */
 	aboutFeedUrl?: string;
 	/**
-	 * Fully-qualified URL of the lazy-loaded OS Settings panel
-	 * bundle. The main bundle ships a thin `OsSettings.renderPanel`
-	 * stub that `<script>`-injects this on first open. Holds every
-	 * panel section renderer + the ~13 `<os-*>` component classes
-	 * that only the panel uses, so nothing about Settings ships in
-	 * `desktop.min.js`.
-	 */
-	osSettingsPanelBundleUrl?: string;
-	/**
 	 * Fully-qualified URL of the lazy-loaded shell-overlays bundle.
 	 * Holds `<os-toast>`, `<os-confirm-dialog>`,
 	 * `<os-context-menu>` and their siblings — components only

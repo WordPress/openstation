@@ -4,6 +4,7 @@
 # local dev checkout.
 # One entry per line; blank lines and # comments are ignored.
 
+apps
 assets
 desktop-mode.php
 includes

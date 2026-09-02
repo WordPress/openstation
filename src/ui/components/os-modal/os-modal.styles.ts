@@ -78,6 +78,15 @@ export const modalStyles = css`
 		);
 		/* A black wash over a dark row is no wash at all. */
 		--os-ui-hover: var( --os-ui-modal-hover, rgba( 255, 255, 255, 0.08 ) );
+		/* Notices slotted into the dialog. Themes declare the notice
+		   INK for light windows (Legacy pins #1d2327), and a global
+		   declaration outranks the notice's own --os-ui-fg chain — so
+		   an info hint inside the dark dialog painted near-black on
+		   near-black. Same opt-out as the text colours above, through
+		   a modal-owned name the palette declares. The tone washes
+		   and accents stay themeable: at 8–16% alpha (or as a 4px
+		   rule) they read on either surface; only the body ink dies. */
+		--os-ui-notice-color: var( --os-ui-modal-text, #f0f0f1 );
 	}
 
 	/*

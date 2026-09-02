@@ -9,6 +9,8 @@
  * jsdom has no View Transitions API, which exercises the plain
  * fallback path; the morph itself is a browser matter.
  */
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
 	installDockBehavior,
@@ -137,6 +139,46 @@ describe( 'installDockBehavior', () => {
 		move( 300, 200 );
 		expect( revealed() ).toBe( false );
 		ctl.destroy();
+	} );
+
+	test( 'a park asked for while a pointer button is down waits for the release', () => {
+		// The morph's layer would sit between the pointer and the
+		// button the down just pressed, and the up — a human beat
+		// later — would land on the layer instead: a first click in a
+		// window opened from the rail that visibly presses and does
+		// nothing. The park waits for the up.
+		const ctl = installDockBehavior( { shellBody: body, getBehaviors } );
+		move( 800, window.innerHeight - 5 );
+		expect( revealed() ).toBe( true );
+		document.dispatchEvent(
+			new MouseEvent( 'pointerdown', { clientX: 300, clientY: 200, bubbles: true } ),
+		);
+		expect( revealed() ).toBe( true );
+		move( 310, 205 );
+		expect( revealed() ).toBe( true );
+		document.dispatchEvent(
+			new MouseEvent( 'pointerup', { clientX: 310, clientY: 205, bubbles: true } ),
+		);
+		expect( revealed() ).toBe( false );
+		ctl.destroy();
+	} );
+
+	test( 'a reveal never waits for the release', () => {
+		// A tap on the indicator line: the down IS the summons.
+		const ctl = installDockBehavior( { shellBody: body, getBehaviors } );
+		document.dispatchEvent(
+			new MouseEvent( 'pointerdown', { clientX: 800, clientY: window.innerHeight - 5, bubbles: true } ),
+		);
+		expect( revealed() ).toBe( true );
+		ctl.destroy();
+	} );
+
+	test( 'the transition layer lets the pointer through', () => {
+		// The other half of the click fix, in the stylesheet: without
+		// it, a hover that lands on a tile while the rail is still
+		// morphing out reaches nothing until the next pointer movement.
+		const css = readFileSync( join( __dirname, '../../assets/css/dock.css' ), 'utf8' );
+		expect( css ).toMatch( /html\.os-dock-vt::view-transition\s*\{[^}]*pointer-events:\s*none/ );
 	} );
 
 	test( 'the rail box does not reveal a parked rail on its own', () => {

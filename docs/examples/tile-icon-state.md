@@ -122,4 +122,4 @@ So `setArt` has no equivalent of the "show 0 while my window is active" recipe i
 - [`dock-badge.md`](./dock-badge.md), counts rather than states
 - [`../event-driven-framework.md`](../event-driven-framework.md), the mental model
 - [JavaScript Reference, `setArt`](../javascript-reference.md#setart--stable)
-- In-tree: [`src/recycle-bin/icon-state.ts`](../../src/recycle-bin/icon-state.ts)
+- In-tree: [`src/desktop-files/recycle-bin-icon-state.ts`](../../src/desktop-files/recycle-bin-icon-state.ts)

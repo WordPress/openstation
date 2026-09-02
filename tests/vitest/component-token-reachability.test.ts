@@ -79,6 +79,10 @@ const OPT_OUT: Readonly< Record< string, readonly string[] > > = {
 		'--os-ui-surface-elevated',
 		'--os-ui-border-strong',
 		'--os-ui-hover',
+		// The notice INK: themes pin it for light windows (Legacy:
+		// #1d2327), which painted an info hint near-black on the dark
+		// dialog. Re-pointed through --os-ui-modal-text, palette-owned.
+		'--os-ui-notice-color',
 	],
 };
 
