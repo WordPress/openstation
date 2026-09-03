@@ -85,6 +85,30 @@ describe( 'Extended Options — saving', () => {
 		expect( optionsOf( 1 ) ).toEqual( { media_library_enhanced: true, games: true, agents: true } );
 	} );
 
+	test( 'rapid toggles while a save is in flight carry the newest values and do not drop prior toggles', async () => {
+		dispatch.mockImplementation( async ( action: string, args?: Record< string, unknown > ) => {
+			await new Promise( ( resolve ) => setTimeout( resolve, 50 ) );
+			if ( action === 'extended' ) {
+				Object.assign( ctx.data.extendedOptions!, ( args as { options: Record< string, boolean > } ).options );
+			}
+			return true;
+		} );
+
+		// Rapidly toggle Media Library off, then Games on without awaiting first save
+		toggle( 'Enable drag-and-drop in the Media Library', false );
+		toggle( 'Enable games', true );
+
+		// Saving indicator is visible
+		expect( el.querySelector( '.os-ext__saving' ) ).not.toBeNull();
+
+		await new Promise( ( resolve ) => setTimeout( resolve, 150 ) );
+
+		expect( dispatch ).toHaveBeenCalledTimes( 2 );
+		expect( optionsOf( 0 ) ).toEqual( { media_library_enhanced: false, games: false, agents: false } );
+		expect( optionsOf( 1 ) ).toEqual( { media_library_enhanced: false, games: true, agents: false } );
+		expect( el.querySelector( '.os-ext__saving' ) ).toBeNull();
+	} );
+
 	test( 'a successful save announces the saved set', async () => {
 		const heard: unknown[] = [];
 		window.wp!.hooks!.addAction( HOOKS.EXTENDED_OPTIONS_CHANGED, 'test/extended', ( payload ) =>
