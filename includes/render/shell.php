@@ -51,8 +51,14 @@ function openstation_render_shell() {
 	$desktop_theme = function_exists( 'openstation_active_desktop_theme_slug' )
 		? openstation_active_desktop_theme_slug()
 		: '';
+
+	// A shell asked to boot into overview (a switch from another site's
+	// switcher) arrives with its desk hidden until overview is up, so the
+	// desk slides in as one piece instead of the bare desk flashing first.
+	// See `src/multisite/instance-transition.ts`.
+	$arriving = openstation_shell_lands_in_overview() ? ' os-shell--arriving' : '';
 	?>
-	<div id="os-shell" class="os-shell" data-os-scheme="<?php echo esc_attr( $scheme ); ?>"<?php echo '' !== $desktop_theme ? ' data-os-desktop-theme="' . esc_attr( $desktop_theme ) . '"' : ''; ?> role="application" aria-label="<?php esc_attr_e( 'Desktop shell', 'desktop-mode' ); ?>">
+	<div id="os-shell" class="os-shell<?php echo esc_attr( $arriving ); ?>" data-os-scheme="<?php echo esc_attr( $scheme ); ?>"<?php echo '' !== $desktop_theme ? ' data-os-desktop-theme="' . esc_attr( $desktop_theme ) . '"' : ''; ?> role="application" aria-label="<?php esc_attr_e( 'Desktop shell', 'desktop-mode' ); ?>">
 		<?php
 		/*
 		 * Wallpaper layer — sits behind both the dock and the desktop

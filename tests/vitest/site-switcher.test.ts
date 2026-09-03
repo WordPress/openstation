@@ -62,16 +62,29 @@ describe( 'the site switcher', () => {
 		expect( siteSwitcherEntries( config( { networkAdmin: null, sites: [] } ) ) ).toEqual( [] );
 	} );
 
-	test( 'picking another site hops to its shell, landing in overview', () => {
+	test( 'picking another site slides out, then hops to its shell, landing in overview', async () => {
 		const hop = vi.fn();
 		const el = buildSiteSwitcher( config(), hop );
+		const settle = () => new Promise( ( r ) => setTimeout( r, 0 ) );
 
 		el?.dispatchEvent( new CustomEvent( 'os-pick', { detail: { value: '2' } } ) );
+		// The desk slides out first; the navigation follows.
+		expect( hop ).not.toHaveBeenCalled();
+		await settle();
 		expect( hop ).toHaveBeenCalledWith( SHOP_SHELL + '&openstation_overview=1' );
+		// Shop sits after this site in the row, so the next shell enters from the right.
+		expect( sessionStorage.getItem( 'openstation-hop-direction' ) ).toBe( 'next' );
+
+		hop.mockClear();
+		el?.dispatchEvent( new CustomEvent( 'os-pick', { detail: { value: 'network' } } ) );
+		await settle();
+		expect( hop ).toHaveBeenCalledWith( NETWORK_SHELL + '&openstation_overview=1' );
+		expect( sessionStorage.getItem( 'openstation-hop-direction' ) ).toBe( 'prev' );
 
 		// This site is where the user already stands.
 		hop.mockClear();
 		el?.dispatchEvent( new CustomEvent( 'os-pick', { detail: { value: '1' } } ) );
+		await settle();
 		expect( hop ).not.toHaveBeenCalled();
 	} );
 

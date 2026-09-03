@@ -20,6 +20,7 @@
 
 import type { MultisiteConfig } from '../types';
 import { hopToAdmin, wantsBrowserTab } from './hop';
+import { leaveInstance } from './instance-transition';
 import { __ } from '../i18n';
 // The switcher is a kit component; the shell bundle registers only
 // what it uses, so the definition rides in with its one user.
@@ -136,7 +137,13 @@ export function buildSiteSwitcher(
 		if ( ! entry || value === current ) {
 			return;
 		}
-		hop( shellUrlInOverview( entry.shellUrl ) );
+		// Slide this desk out towards the site picked, then go; the
+		// shell that arrives slides its desk in from the same side.
+		const from = entries.findIndex( ( x ) => x.value === current );
+		const to = entries.findIndex( ( x ) => x.value === value );
+		void leaveInstance( to > from ? 'next' : 'prev' ).then( () =>
+			hop( shellUrlInOverview( entry.shellUrl ) ),
+		);
 	} );
 
 	return group;

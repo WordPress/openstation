@@ -44,6 +44,7 @@ import { getExitOpenStationTileDef } from './exit-openstation';
 import { getNetworkAdminTileDef } from './multisite/dock-tiles';
 import { hopToAdmin } from './multisite/hop';
 import { buildSiteSwitcher } from './multisite/site-switcher';
+import { revealInstance, stampArrival } from './multisite/instance-transition';
 import { installOverviewHeader } from './window-manager/overview';
 import { deriveWindowId, urlMatchKey } from './utils';
 import { shellUrlWithoutBootArgs } from './shell-url';
@@ -2203,6 +2204,11 @@ function init(): void {
 		}
 	}
 
+	// A shell arriving from another site's switcher paints hidden
+	// (`os-shell--arriving`, stamped server-side) until overview is up;
+	// stamp the side it slides in from while nothing has shown yet.
+	stampArrival();
+
 	const manager = new WindowManager( desktopArea );
 
 	// Wallpaper layer + registry. Built-in presets register immediately
@@ -3796,7 +3802,10 @@ function init(): void {
 	// comes back to the desk. After the boot windows exist, so overview
 	// lays out every window it will show.
 	if ( config.landInOverview && ! soloWindowId ) {
-		void bootWindowsSettled.then( () => manager.enterOverview() );
+		void bootWindowsSettled.then( () => {
+			manager.enterOverview();
+			revealInstance();
+		} );
 	}
 
 	// A workspace's launch-list windows are part of what the desk IS,

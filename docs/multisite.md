@@ -78,6 +78,22 @@ stripped from the address bar with the other two so a reload comes back
 to the desk, and honoured after the session and the entry window are in
 place, so overview lays out every window it will show.
 
+The hop is animated on both sides of the page swap, because the
+cross-document view transition can only crossfade the root and the new
+page paints its bare desk long before overview opens. The switcher
+slides the desk out towards the site it picked (`os-shell--hop-out-next`
+/ `-prev` on the shell root, for the beat before it navigates), and a
+shell asked to boot into overview arrives with its desk hidden
+(`os-shell--arriving`, stamped server-side in `openstation_render_shell()`)
+until overview is up, then slides it in from the same side, the
+direction being a one-shot `sessionStorage` hint
+(`openstation-hop-direction`) that a cross-origin site never sees, so it
+fades instead. The wallpaper never moves. A desk never stays hidden: a
+keyframe fallback in the stylesheet and a boot timer both let it in
+within seconds if nothing else does, and reduced motion skips every
+slide. `src/multisite/instance-transition.ts` drives it; pinned by
+`tests/vitest/instance-transition.test.ts`.
+
 **The dock is always this admin's, live refresh included.** The
 menu-refresh probe short-circuits `admin.php` before Core has set a
 screen, and builds a placeholder one so enqueue callbacks can run; that

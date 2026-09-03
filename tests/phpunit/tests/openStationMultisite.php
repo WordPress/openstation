@@ -295,6 +295,37 @@ class Tests_OpenStation_Multisite extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A shell asked to boot into overview arrives with its desk hidden,
+	 * stamped on the shell root so the first paint is the wallpaper alone
+	 * and the desk slides in once overview is up. Any other boot paints
+	 * the desk as it always has.
+	 *
+	 * @covers ::openstation_render_shell
+	 */
+	public function test_shell_root_is_stamped_arriving_for_an_overview_boot() {
+		$admin = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin );
+		update_user_meta( $admin, 'desktop_mode_mode', '1' );
+		set_current_screen( OPENSTATION_SHELL_SCREEN_ID );
+
+		ob_start();
+		openstation_render_shell();
+		$plain = ob_get_clean();
+		$this->assertStringContainsString( 'id="os-shell"', $plain );
+		$this->assertStringNotContainsString( 'os-shell--arriving', $plain );
+
+		$_GET['openstation_overview'] = '1';
+		ob_start();
+		openstation_render_shell();
+		$arriving = ob_get_clean();
+		unset( $_GET['openstation_overview'] );
+		$this->assertStringContainsString( 'class="os-shell os-shell--arriving"', $arriving );
+
+		delete_user_meta( $admin, 'desktop_mode_mode' );
+		wp_set_current_user( 0 );
+	}
+
+	/**
 	 * A blob written before the per-admin keys split — or by an older
 	 * client posting to the wrong scope — heals on READ, not just on the
 	 * next write. Native windows carry no admin URL and always survive.
