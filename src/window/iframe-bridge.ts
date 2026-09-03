@@ -98,6 +98,15 @@ interface AdminLinkDispatchDeps {
 	 * e.g. `options-general.php?page=foo` reached from a sub-link).
 	 */
 	findDockEntry( url: string ): AdminLinkDockEntry | null;
+	/**
+	 * Route a link that leaves this ADMIN — the bridge classifies those
+	 * itself (`os-iframe-other-admin-link`) because they must not
+	 * become windows here: the shell opens them in the target admin's
+	 * own Space (or a browser tab where it cannot be framed). Optional
+	 * so tests exercising only the same-admin dispatch need not stub
+	 * it; a missing handler drops the click rather than mis-routing it.
+	 */
+	openOtherAdmin?: ( url: string ) => void;
 }
 
 // Routed through `createSharedStore` so the deps set by the MAIN
@@ -337,6 +346,19 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 	// has wired the deps. Unbound state should only happen in tests
 	// or pre-boot; we bail out without navigating so the user sees a
 	// dropped click instead of a broken iframe state.
+	// A link that leaves this ADMIN. Deliberately its own message
+	// rather than a flag on the admin-link one: the same-admin path
+	// below consults remaps and dock entries that mean nothing in
+	// another admin, and an older shell ignoring an unknown type is a
+	// dropped click, not a mis-opened window.
+	if (
+		data.type === 'os-iframe-other-admin-link' &&
+		typeof data.url === 'string' &&
+		data.url !== ''
+	) {
+		adminLinkDepsStore.state.deps?.openOtherAdmin?.( data.url );
+	}
+
 	if (
 		data.type === 'os-iframe-admin-link' &&
 		typeof data.url === 'string' &&

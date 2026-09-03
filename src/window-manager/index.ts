@@ -2162,8 +2162,8 @@ export class WindowManager {
 	public getActiveDesktopId(): string {
 		return getActiveDesktopId( this );
 	}
-	public createDesktop(): Desktop {
-		return createDesktop( this );
+	public createDesktop( init?: { label?: string; scope?: string } ): Desktop {
+		return createDesktop( this, init );
 	}
 	public switchDesktop( id: string, opts?: SwitchDesktopOptions ): void {
 		switchDesktop( this, id, opts );

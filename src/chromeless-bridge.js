@@ -1096,7 +1096,10 @@
 	 * the browser navigate naturally (mailto, anchor, download, etc.).
 	 *
 	 *   'admin'       — same-origin /wp-admin/ URL we rewrite in place.
-	 *   'other-admin'  — another site, or the network admin. Browser tab.
+	 *   'other-admin'  — another site, or the network admin. Handed to
+	 *                   the shell, which opens it in that admin's own
+	 *                   Space. (Modifier and middle clicks never get
+	 *                   here — the handler yields them to the browser.)
 	 *   'external'    — http(s) URL we want the parent shell to open
 	 *                   as a sub-tab instead of navigating the iframe
 	 *                   out of wp-admin. Covers both cross-origin
@@ -1492,9 +1495,14 @@
 		}
 		if ( kind === 'other-admin' ) {
 			/*
-			 * A different admin, opened in a BROWSER TAB. Not a window
-			 * (see isOtherAdmin), and not this tab: the user has windows
-			 * open on THIS one.
+			 * A different admin: handed to the SHELL, which opens it in
+			 * that admin's own Space (its scoped desktop) — or a
+			 * browser tab where it cannot be framed. Not a window here
+			 * (see isOtherAdmin): a window belongs to the admin whose
+			 * dock is behind it. A modifier or middle click never
+			 * reaches this branch — the handler yields those to the
+			 * browser, whose native new-tab behavior keeps the
+			 * side-by-side option. See docs/multisite.md.
 			 */
 			e.preventDefault();
 			var other;
@@ -1503,10 +1511,16 @@
 			} catch ( err ) {
 				return;
 			}
-			/* A stray flag would make the new tab a standalone
+			/* A stray flag would make the destination a standalone
 			 * chromeless page with no way out. */
 			other.searchParams.delete( 'openstation_chromeless' );
-			window.open( other.href, '_blank', 'noopener,noreferrer' );
+			window.parent.postMessage(
+				{
+					type: 'os-iframe-other-admin-link',
+					url: other.href,
+				},
+				window.location.origin
+			);
 			return;
 		}
 		if ( kind === 'external' ) {

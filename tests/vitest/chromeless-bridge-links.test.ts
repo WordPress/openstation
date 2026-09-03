@@ -284,25 +284,45 @@ describe( 'chromeless bridge: links that name another browsing context', () => {
 		expect( adminLinkMessages()[ 0 ].newContext ).toBe( false );
 	} );
 
-	test( 'another admin opens in a browser tab, not a window and not this one', () => {
-		// Subdirectory multisite: `/site2/wp-admin/` is the same origin,
-		// and `/wp-admin/network/` shares this admin's own prefix, so
-		// both used to be waved through as in-window navigations, which
-		// repainted this dock with the other admin's menu. Nor in THIS
-		// tab: the user has windows open here. The href is never stamped
-		// chromeless either, which would leave the tab with no way out.
+	test( 'another admin is handed to the shell for its Space', () => {
+		// `/site2/wp-admin/` shares this origin, and `/wp-admin/network/`
+		// shares this admin's own prefix, so both used to be waved
+		// through as in-window navigations, which repainted this dock
+		// with the other admin's menu. Now the bridge classifies them
+		// itself and posts `os-iframe-other-admin-link` — the shell
+		// opens the target in that admin's own Space. Never the
+		// same-admin message, and never an href stamped chromeless,
+		// which would leave the destination with no way out.
 		const open = vi.spyOn( window, 'open' ).mockReturnValue( null );
 
 		try {
 			for ( const path of [ '/site2/wp-admin/', '/wp-admin/network/sites.php' ] ) {
 				expect( clickLink( `<a href="${ path }">Go</a>` ) ).toBe( path );
-				expect( open ).toHaveBeenCalledWith(
-					`http://localhost${ path }`,
-					'_blank',
-					'noopener,noreferrer'
+				const routed = posted.filter(
+					( m ) => m.type === 'os-iframe-other-admin-link'
+				);
+				expect( routed[ routed.length - 1 ].url ).toBe(
+					`http://localhost${ path }`
 				);
 			}
+			expect( open ).not.toHaveBeenCalled();
 			expect( adminLinkMessages() ).toHaveLength( 0 );
+
+			// A modifier click is yielded whole — the handler's first
+			// guard hands it to the browser, whose native new-tab
+			// behavior is the way to stand two desktops side by side.
+			document.body.innerHTML =
+				'<a href="/wp-admin/network/sites.php">Go</a>';
+			const before = posted.length;
+			( document.querySelector( 'a' ) as HTMLAnchorElement ).dispatchEvent(
+				new MouseEvent( 'click', {
+					bubbles: true,
+					cancelable: true,
+					metaKey: true,
+				} )
+			);
+			expect( posted ).toHaveLength( before );
+			expect( open ).not.toHaveBeenCalled();
 
 			// The rule is scope-to-scope, so everything inside THIS
 			// admin behaves as it always did.

@@ -1,8 +1,10 @@
 /**
  * The Network Admin dock tile: the admin bar's Network Admin node, on
- * the dock. Every row opens a BROWSER TAB — not a window, since the
- * network admin is on another domain and WordPress refuses to be framed
- * cross-origin, and not this tab, since the user has windows open here.
+ * the dock. Every activation opens the network admin **in its Space** —
+ * the desktop scoped to that admin — through the shared opener from
+ * `src/multisite/spaces.ts`, which also owns the fallbacks: a browser
+ * tab where the network admin is cross-origin (subdomain and mapped
+ * networks cannot be framed), and on any modifier or middle click.
  * See docs/multisite.md.
  */
 
@@ -15,6 +17,7 @@ export const NETWORK_ADMIN_TILE_ID = 'os-network-admin';
 /** Null inside the network admin, where the dock already IS this menu. */
 export function getNetworkAdminTileDef(
 	multisite: MultisiteConfig,
+	openOtherAdmin: ( url: string, event?: MouseEvent ) => void,
 ): SystemDockItem | null {
 	const network = multisite.networkAdmin;
 	if ( ! network || multisite.isNetworkAdmin ) {
@@ -31,11 +34,20 @@ export function getNetworkAdminTileDef(
 		// `computeNav` decides where in that run it lands.
 		navKind: 'core',
 		// Keyboards and touch never fan the flyout out, so the tile
-		// does what its first row does. A bare `url` with no `onSelect`
-		// is what the flyout links out.
-		onOpen: () => window.open( network.url, '_blank', 'noopener,noreferrer' ),
+		// does what its first row does: the network dashboard, in the
+		// network's Space.
+		onOpen: ( event? ) => openOtherAdmin( network.url, event ),
 		get submenu() {
-			return network.rows.map( ( { title, url } ) => ( { title, url } ) );
+			// `url` stays on the row so surfaces that describe rows can
+			// keep doing so; the click routes through `onSelect`, which
+			// is what sends the row into the Space rather than the
+			// generic bare-url link-out.
+			return network.rows.map( ( { title, url } ) => ( {
+				title,
+				url,
+				onSelect: ( event?: MouseEvent ) =>
+					openOtherAdmin( url, event ),
+			} ) );
 		},
 	};
 }

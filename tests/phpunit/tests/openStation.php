@@ -16,7 +16,7 @@ class Tests_OpenStation_OpenStation extends WP_UnitTestCase {
 	}
 
 	public function tear_down() {
-		unset( $_GET['openstation_chromeless'], $_GET[ OPENSTATION_CLASSIC_FLAG ] );
+		unset( $_GET['openstation_chromeless'], $_GET[ OPENSTATION_CLASSIC_FLAG ], $_SERVER['HTTP_SEC_FETCH_MODE'] );
 		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );
 		remove_all_filters( 'openstation_mode_enabled' );
 		parent::tear_down();
@@ -330,5 +330,39 @@ class Tests_OpenStation_OpenStation extends WP_UnitTestCase {
 
 		$this->assertTrue( openstation_is_enabled() );
 		$this->assertTrue( openstation_is_classic_request() );
+	}
+
+	/**
+	 * No `Sec-Fetch-Mode` header (an old browser, a proxy that strips
+	 * it) is not evidence of anything: the request is treated as the
+	 * navigation it always was.
+	 *
+	 * @covers ::openstation_is_subresource_request
+	 */
+	public function test_subresource_request_false_without_the_header() {
+		unset( $_SERVER['HTTP_SEC_FETCH_MODE'] );
+		$this->assertFalse( openstation_is_subresource_request() );
+	}
+
+	/**
+	 * @covers ::openstation_is_subresource_request
+	 */
+	public function test_subresource_request_false_for_a_navigation() {
+		$_SERVER['HTTP_SEC_FETCH_MODE'] = 'navigate';
+		$this->assertFalse( openstation_is_subresource_request() );
+	}
+
+	/**
+	 * `no-cors` is what an <img> or a <script> sends; `cors` is a
+	 * fetch() or an XHR. Neither is a user landing on a page.
+	 *
+	 * @covers ::openstation_is_subresource_request
+	 */
+	public function test_subresource_request_true_for_a_fetch() {
+		$_SERVER['HTTP_SEC_FETCH_MODE'] = 'no-cors';
+		$this->assertTrue( openstation_is_subresource_request() );
+
+		$_SERVER['HTTP_SEC_FETCH_MODE'] = 'cors';
+		$this->assertTrue( openstation_is_subresource_request() );
 	}
 }

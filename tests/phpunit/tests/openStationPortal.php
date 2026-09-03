@@ -46,6 +46,8 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		unset(
 			$_SERVER['REQUEST_URI'],
 			$_SERVER['REQUEST_METHOD'],
+			$_SERVER['HTTP_SEC_FETCH_MODE'],
+			$_SERVER['HTTP_SEC_FETCH_DEST'],
 			$_GET[ OPENSTATION_PORTAL_FLAG ],
 			$_GET[ OPENSTATION_PORTAL_INTENT_FLAG ],
 			$_GET[ OPENSTATION_CLASSIC_FLAG ],
@@ -1114,5 +1116,49 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		// as the screen's own arg.
 		$this->assertStringNotContainsString( OPENSTATION_PORTAL_INTENT_FLAG, $this->shell_target_of( $redirect ) );
 		$this->assertSame( 1, substr_count( $redirect, 'intent=1' ) );
+	}
+
+	/**
+	 * Jetpack's admin-bar sparkline is an <img> whose src is
+	 * `admin.php?page=stats&noheader&proxy&chart=…`: core skips the
+	 * header on `noheader` and the page hook echoes PNG bytes. It is a
+	 * plain admin GET by every other measure, and forwarding it to the
+	 * shell screen handed the <img> an HTML document, a broken image
+	 * with its alt text where the chart should be. The browser marks
+	 * the fetch as one, and the redirect leaves it alone.
+	 *
+	 * @covers ::openstation_redirect_plain_admin_to_portal
+	 */
+	public function test_admin_redirect_noop_on_a_subresource_fetch() {
+		wp_set_current_user( self::$admin_id );
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		$_SERVER['REQUEST_METHOD']      = 'GET';
+		$_SERVER['REQUEST_URI']         = '/wp-admin/admin.php?page=stats&noheader&proxy&chart=admin-bar-hours-scale';
+		$_SERVER['HTTP_SEC_FETCH_MODE'] = 'no-cors';
+		$_SERVER['HTTP_SEC_FETCH_DEST'] = 'image';
+		$GLOBALS['pagenow']             = 'admin.php';
+
+		$this->assertNull( $this->capture_admin_init_redirect() );
+	}
+
+	/**
+	 * The same screen loaded as a page is still forwarded: the header
+	 * tells a fetch from a navigation, not one URL from another.
+	 *
+	 * @covers ::openstation_redirect_plain_admin_to_portal
+	 */
+	public function test_admin_redirect_still_forwards_a_navigation_to_the_same_screen() {
+		wp_set_current_user( self::$admin_id );
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		$_SERVER['REQUEST_METHOD']      = 'GET';
+		$_SERVER['REQUEST_URI']         = '/wp-admin/admin.php?page=stats';
+		$_SERVER['HTTP_SEC_FETCH_MODE'] = 'navigate';
+		$_SERVER['HTTP_SEC_FETCH_DEST'] = 'document';
+		$GLOBALS['pagenow']             = 'admin.php';
+
+		$this->assertSame(
+			openstation_shell_url( admin_url( 'admin.php?page=stats' ), true ),
+			$this->capture_admin_init_redirect()
+		);
 	}
 }

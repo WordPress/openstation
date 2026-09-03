@@ -42,6 +42,9 @@ import { OsSettings } from './settings';
 import { OS_SETTINGS_WINDOW_ID } from './settings/constants';
 import { getExitOpenStationTileDef } from './exit-openstation';
 import { getNetworkAdminTileDef } from './multisite/dock-tiles';
+import { createSpaceOpener } from './multisite/spaces';
+import { createSpaceDockController } from './multisite/space-dock';
+import { adminScopeOf } from './admin-scope';
 import { deriveWindowId, urlMatchKey } from './utils';
 import { shellUrlWithoutBootArgs } from './shell-url';
 // Static import — `setUserEditTarget` MUST run before the user-edit
@@ -2838,6 +2841,44 @@ function init(): void {
 		}
 		return null;
 	};
+	// One opener for every cross-admin activation — the Network Admin
+	// tile and the bridge's other-admin links must never disagree on
+	// where a click lands. Finds or creates the target admin's Space,
+	// slides to it, and opens the page there; falls back to a browser
+	// tab for cross-origin admins and modifier clicks.
+	const openOtherAdmin = createSpaceOpener( {
+		manager,
+		adminUrl: config.adminUrl,
+	} );
+
+	// The dock follows the active desktop's admin: the shell's own menu
+	// on ordinary desktops, the Space's admin's menu inside a Space,
+	// harvested lazily on first entry and cached. Closures over the
+	// dispatcher and config, so it can be built before either is
+	// final. The full-payload quarantine in `menu-refresh.ts` stays
+	// in force — this borrows dock items only.
+	const spaceDock = createSpaceDockController( {
+		applyDockItems: ( items ) => layoutDispatcher?.applyDockItems( items ),
+		getHomeDockItems: () => config.dockItems ?? [],
+		homeScope: ( () => {
+			try {
+				return adminScopeOf( new URL( config.adminUrl ).pathname );
+			} catch {
+				return '';
+			}
+		} )(),
+		origin: window.location.origin,
+	} );
+	addAction(
+		HOOKS.DESKTOP_SWITCHED,
+		'desktop-mode/space-dock',
+		( e: { to?: string } ) => {
+			spaceDock.onSwitch(
+				manager.getDesktops().find( ( d ) => d.id === e.to )?.scope,
+			);
+		},
+	);
+
 	bindAdminLinkDispatch( {
 		adminUrl: config.adminUrl,
 		deriveSlug: ( url ) => deriveWindowId( url, config.adminUrl ),
@@ -2845,6 +2886,7 @@ function init(): void {
 			void manager.open( windowConfig );
 		},
 		findDockEntry: findDockEntryForUrl,
+		openOtherAdmin,
 	} );
 
 	// Station Home claims the ordinary WordPress Dashboard URL when
@@ -3260,7 +3302,9 @@ function init(): void {
 			// The tile's own click opens Preferences: the flyout is
 			// a hover gesture, and keyboards and touch never fan it
 			// out, so the tile has to do something defensible alone.
-			onOpen: openOsSettings,
+			// Wrapped so the click event never lands in the options
+			// parameter openOsSettings actually takes.
+			onOpen: () => openOsSettings(),
 			get submenu() {
 				// `windowId` on the rows that open one is what lets
 				// the flyout list System's live windows the way it
@@ -3454,7 +3498,10 @@ function init(): void {
 
 		// Null on a single-site install and without `manage_network`.
 		if ( config.multisite ) {
-			const networkTile = getNetworkAdminTileDef( config.multisite );
+			const networkTile = getNetworkAdminTileDef(
+				config.multisite,
+				openOtherAdmin,
+			);
 			if ( networkTile ) {
 				layoutDispatcher.appendSystemTile( networkTile );
 			}
@@ -3690,6 +3737,12 @@ function init(): void {
 			}
 		} )
 		: Promise.resolve();
+	// A restored session can land the user straight in a Space; the
+	// switch hook never fired for it, so seed the dock from wherever
+	// restore left the active desktop.
+	void sessionRestore.then( () =>
+		spaceDock.onSwitch( manager.getActiveDesktop().scope ),
+	);
 	const defaultEnabled = config.defaultWindow?.enabled !== false;
 	const defaultUrlEarly = config.defaultWindow?.url ?? '';
 	const isNativeDefault =
@@ -4389,6 +4442,12 @@ function init(): void {
 	// the same statement.
 	const refreshMenu = bindMenuRefresh( {
 		layoutDispatcher,
+		// A payload from the shell's own admin repaints the dock only
+		// while the dock shows the home menu. Inside a Space — a
+		// home-admin window living there, or a probe spent while the
+		// user stood there — the Space's menu stays; the fresh home
+		// items are picked up on the next switch home.
+		applyDockItems: ( items ) => spaceDock.applyHomeDockItems( items ),
 		desktopArea,
 		config,
 		syncNativeWindows,

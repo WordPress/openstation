@@ -18,11 +18,99 @@ every admin response carries `X-Frame-Options: SAMEORIGIN` and
 
 The network admin is on the **network's** domain (`network_site_url()`
 builds from `get_network()->domain`), never the current site's, so it is
-cross-origin from any subdomain or mapped site too. So anything leaving
-the current admin **opens a browser tab**: one behaviour on all three
-shapes, and it leaves the desktop the user is standing on intact.
-Cross-admin windows are therefore not supported, and neither is a
-network-wide desktop, since windows have no site identity.
+cross-origin from any subdomain or mapped site too. Cross-admin windows
+are therefore not supported, and neither is a network-wide desktop,
+since windows have no site identity. Anything leaving the current admin
+**hops** instead — see the next section — and cross-origin URLs, which
+cannot hop through a same-origin navigation's view transition, open a
+browser tab as they always did.
+
+## Site Spaces
+
+A same-origin click that leaves the current admin — the Network Admin
+tile and its flyout rows, the Sites list's "Dashboard" links inside a
+window — opens the target **in that admin's own Space**: the virtual
+desktop scoped to it, created on first use (labelled after the site, or
+"Network Admin"), slid to with the desktops switcher's own animation,
+and reused by every later click for the same admin. The page itself is
+an ordinary iframe window on that desktop, which is why this only
+exists where framing does (see the table above): a **cross-origin**
+admin opens a browser tab instead, and a **modifier or middle click**
+opens one anywhere — the universal "open elsewhere" gesture.
+`createSpaceOpener()` in `src/multisite/spaces.ts` owns the whole rule;
+the dock tile and the bridge both route through the one opener, so the
+two entry points cannot disagree. The shell's own admin never gets a
+Space — its desktop is the primary one — so a click that targets it
+while the user is standing in a Space (the main site's Dashboard row in
+the network Sites list, seen from the main site's own shell) goes home
+first rather than dropping the home admin's window onto another admin's
+desktop.
+
+The desktop carries its admin as `Desktop.scope` (an admin-scope path,
+below), and three behaviors hang off it:
+
+- **Its windows persist.** The per-admin session scoping (Storage
+  scoping) makes exactly one exception: a window whose URL's admin
+  scope equals its desktop's declared scope survives sanitize and
+  read — `openstation_session_window_url_ok()`. Same host required;
+  the scope value itself is validated as a normalized admin-scope
+  path (`openstation_session_desktop_scope()`).
+- **Closing the Space closes them.** `closeDesktop()` migrates a
+  normal desktop's windows to the neighbour; a scoped desktop's own
+  admin's windows close with it — migrating them would put another
+  admin's windows on a desktop with no business hosting them, and the
+  sanitizer would drop them at the next save anyway.
+- **Their payloads are quarantined.** A Space's window is another
+  admin's page: its `os-plugins-changed` payload describes THAT
+  admin's menu and is dropped whole, and its `os-menu-signature`
+  fingerprints are ignored (`frameSourceIsOtherAdmin()` in
+  `src/boot/menu-refresh.ts`) — otherwise the first `plugins.php`
+  opened in a Space would repaint this dock with the other admin's
+  menu, and every Space navigation would spend a refresh probe.
+  `os-updates-changed` is deliberately NOT quarantined: plugin and
+  theme updates are network-wide, and the probe it spends runs
+  against this shell's own admin.
+
+**The dock follows the active desktop's admin.** Ordinary desktops show
+the shell's own menu; inside a Space the dock shows THAT admin's menu —
+the network menu in the Network Admin Space, a site's own menu in its
+Space — so a Space reads as that admin's desktop, dock and all. A plain
+admin page emits only a menu signature, never its dock menu, so the
+menu is harvested lazily the first time the user enters the Space: one
+hidden probe against that admin (the same `openstation_menu_refresh`
+probe live refresh uses, pointed at the Space's admin base), cached,
+and swapped in on every later switch through `applyDockItems()` — a
+dock-only repaint. `createSpaceDockController()` in
+`src/multisite/space-dock.ts` owns it. Only the admin MENU is swapped:
+system tiles (Mio, Overview, the Network Admin tile, …) stay on every
+desktop, and the full-payload quarantine above still stands — a foreign
+admin's native windows, widgets and the rest never register here.
+Until a Space's first harvest lands, the previous dock stays (never an
+empty dock); a harvest that lands after the user has left is cached
+for next time without repainting. The shell's own live refresh (a full
+payload from one of the home admin's windows, or a probe) repaints the
+dock only while it shows the home menu: inside a Space the fresh home
+items wait for the next switch home (`applyHomeDockItems()`), so a
+home-admin window that lives on a Space, opened there or restored with
+the session, cannot paint the home menu over the Space's. Pinned by
+`tests/vitest/space-dock.test.ts`.
+
+The probe keeps the request's admin context. It short-circuits
+`admin.php` before Core has set a screen, and builds a placeholder one
+so enqueue callbacks can run; that screen is `admin-network` or
+`admin-user` where the request is (`openstation_menu_refresh_probe_screen_id()`),
+because `WP_Screen` reads a bare id's context off its suffix, and a
+plain `admin` screen turned every network probe into a site request:
+the network menu came back with every slug resolved against the site
+admin, and the Space's Plugins tile opened the site's `plugins.php`.
+Pinned by `tests/phpunit/tests/openStationMultisite.php`.
+
+Shell-to-shell navigations that still happen (typed URLs, bookmarks, a
+kept admin bar) animate through the cross-document view-transition
+opt-in in `assets/css/desktop.css`, which only the shell loads —
+chromeless iframes and classic admin never transition, and reduced
+motion swaps instantly. Pinned by `tests/vitest/site-spaces.test.ts`
+and `tests/vitest/workspace-hop.test.ts`.
 
 **Same origin is not the same admin.** The unit is the **admin scope**:
 the site root up to and including the first `/wp-admin/`, plus the
@@ -30,10 +118,15 @@ the site root up to and including the first `/wp-admin/`, plus the
 `self_admin_url()`. A site root alone is not enough: the network admin
 sits UNDER the main site's admin and shares its prefix, so
 `/wp-admin/index.php` and `/wp-admin/network/` would read as one place.
-`adminScope()` in `src/chromeless-bridge.js` is the only copy of that
-rule (a second one in the shell drifted out of sync within a day), and
-the bridge opens a tab for any link leaving its scope — which is what the
-Sites list does on each "Dashboard" link. If a window ever does show
+The rule has three deliberate copies — `adminScope()` in
+`src/chromeless-bridge.js` (the bridge must stay a self-contained
+plain script), `src/admin-scope.ts` for the shell, and
+`openstation_admin_scope_of_path()` in PHP — pinned against one shared
+URL table (`tests/vitest/admin-scope.test.ts` and its PHPUnit twin),
+because an unpinned second copy once drifted out of sync within a day.
+The bridge hands any link leaving its scope to the shell
+(`os-iframe-other-admin-link`) — which is what the Sites list does on
+each "Dashboard" link. If a window ever does show
 another admin, its `os-plugins-changed` payload repaints this dock with
 that admin's menu: the symptom to recognise.
 
@@ -73,7 +166,8 @@ bar's Network Admin node with core's own capability gates (copied from
 `wp_admin_bar_my_sites_menu()`), and hides itself inside the network
 admin where the dock already *is* that menu. It reads
 `wp.os.config.multisite` (`MultisiteConfig` in `src/types.ts`), null
-without the capability.
+without the capability. The tile and every flyout row open the network
+admin in its Space (see above).
 
 It registers with `navKind: 'core'`
 ([javascript-reference.md](./javascript-reference.md)), so it paints with
@@ -105,7 +199,9 @@ desktop is saving, so the network screen's `sessionUrl` carries
 `network=1` and the handlers honour it only alongside `manage_network` —
 see `openstation_rest_session_network()`. Both read and write filter
 windows to the session's own admin scope, so a blob written before the
-keys split heals instead of leaking across.
+keys split heals instead of leaking across. The one exception is a
+desktop persisted with a `scope` — a site Space keeps its own admin's
+windows; see Site Spaces above.
 
 Deleting a subsite drops the plugin's per-site tables with Core's own —
 `openstation_filter_wpmu_drop_tables()` on the `wpmu_drop_tables`

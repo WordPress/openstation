@@ -65,6 +65,16 @@ export interface Desktop {
 	/** Human-readable label, shown beneath the overview top-bar tile. */
 	label: string;
 	/**
+	 * The ADMIN this desktop hosts, when it is a site Space: an admin
+	 * scope path (`/site2/wp-admin/`, `/wp-admin/network/` — see
+	 * `src/admin-scope.ts`) on the shell's own origin. Unset for
+	 * ordinary desktops, which belong to the shell's admin. A scoped
+	 * desktop is allowed to persist windows of that admin (the session
+	 * sanitizer's one exception to per-admin scoping), and closing it
+	 * closes those windows rather than migrating them.
+	 */
+	scope?: string;
+	/**
 	 * What this desk is FOR: which apps belong on it, which windows it
 	 * opens with, how they are arranged.
 	 *
