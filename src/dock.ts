@@ -9,6 +9,7 @@
 
 import { activity } from './activity';
 import { applyFilters, doAction, HOOKS } from './hooks';
+import { isMobileStamped } from './mode/stamp';
 import type { WindowManager } from './window-manager';
 import { deriveWindowId } from './utils';
 import { __, _n, sprintf } from './i18n';
@@ -1792,7 +1793,10 @@ export class Dock {
 		};
 
 		tile.addEventListener( 'pointerdown', ( ev: PointerEvent ) => {
-			if ( ev.button !== 0 ) {
+			// Primary button only, and never on a phone: the reorder is
+			// its own gesture, not a DragManager session, so it refuses
+			// the phone here where the manager refuses everything else.
+			if ( ev.button !== 0 || isMobileStamped() ) {
 				return;
 			}
 			// Cancel any in-flight drag from a previous tile that may

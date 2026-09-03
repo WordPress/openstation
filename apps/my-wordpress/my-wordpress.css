@@ -271,6 +271,32 @@
 	overflow-y: auto;
 }
 
+/*
+ * A narrow window — a phone, or a desktop window pulled in under
+ * the two floors above (240px list + 430px pane). The panes stack:
+ * the list takes the window and the preview becomes a sheet along
+ * the bottom, at most 45% tall and scrolling on its own, that is
+ * there only while something is selected. An empty pane on a phone
+ * is a bar of nothing over the list. The container is the app root
+ * (`.os-app`, `app-runtime.css`).
+ */
+@container ( max-width: 640px ) {
+	.os-mywp__split {
+		grid-template-columns: minmax( 0, 1fr );
+		grid-template-rows: minmax( 0, 1fr ) auto;
+	}
+
+	.os-mywp__detail-pane {
+		border-inline-start: 0;
+		border-block-start: 1px solid var( --os-ui-border, #dcdcde );
+		max-block-size: 45%;
+	}
+
+	.os-mywp__detail-pane:has( > .os-mywp__pane-empty ) {
+		display: none;
+	}
+}
+
 /* -------------------------------------------------- quick-edit modal */
 
 .os-mywp__qe {

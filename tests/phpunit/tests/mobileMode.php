@@ -213,6 +213,9 @@ class Tests_OpenStation_MobileMode extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'w<=767?"mobile"', $script );
 		$this->assertStringContainsString( 'w<=1024?"tablet"', $script );
 		$this->assertStringContainsString( 'setAttribute("data-os-mode",m)', $script );
+		$this->assertStringContainsString( '(display-mode: standalone)', $script, 'the display is stamped from the same rule the controller runs' );
+		$this->assertStringContainsString( 'navigator.standalone===true', $script, "Safari's home-screen signal is the fallback" );
+		$this->assertStringContainsString( 'setAttribute("data-os-display",d)', $script );
 
 		$forced = openstation_mode_stamp_script(
 			'phone',
@@ -232,6 +235,29 @@ class Tests_OpenStation_MobileMode extends WP_UnitTestCase {
 			'width=device-width,initial-scale=1.0',
 			openstation_mode_viewport_meta( 'width=device-width,initial-scale=1.0' )
 		);
+	}
+
+	/**
+	 * On the shell the meta paints under the notch and turns page zoom
+	 * off — and never repeats a key the host already set.
+	 *
+	 * @covers ::openstation_mode_viewport_meta
+	 */
+	public function test_viewport_meta_widens_on_the_shell() {
+		update_user_meta( self::$user_id, 'desktop_mode_mode', '1' );
+		set_current_screen( OPENSTATION_SHELL_SCREEN_ID );
+
+		$meta = openstation_mode_viewport_meta( 'width=device-width,initial-scale=1.0' );
+		$this->assertStringContainsString( 'viewport-fit=cover', $meta );
+		$this->assertStringContainsString( 'interactive-widget=resizes-content', $meta );
+		$this->assertStringContainsString( 'maximum-scale=1', $meta );
+		$this->assertStringContainsString( 'user-scalable=no', $meta );
+
+		$kept = openstation_mode_viewport_meta( 'width=device-width,maximum-scale=2,user-scalable=yes' );
+		$this->assertSame( 1, substr_count( $kept, 'maximum-scale' ), 'a host value is kept, not doubled' );
+		$this->assertSame( 1, substr_count( $kept, 'user-scalable' ) );
+
+		delete_user_meta( self::$user_id, 'desktop_mode_mode' );
 	}
 
 	/**

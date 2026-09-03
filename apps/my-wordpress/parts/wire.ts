@@ -46,6 +46,7 @@ import {
 	dispatchAgentDrop,
 	dragKindsFromTriggers,
 } from '../../../src/agents-dispatch';
+import { isMobileStamped } from '../../../src/mode/stamp';
 import { shell, uiOf, type Ctx } from './types';
 import { sectionOf } from './helpers';
 import { agentsMountIdOf, agentsRosterStamp, openChatWindow } from './agents';
@@ -57,8 +58,10 @@ export function wire( ctx: Ctx ): () => void {
 	const teardowns: Array< () => void > = [];
 
 	// --- drag-out: rows lift into the shell DragManager -----------------
+	// Not on a phone: no drag and drop there (`docs/mobile.md`), and a
+	// press on a row is a tap.
 	const onPointerDown = ( e: PointerEvent ): void => {
-		if ( e.button !== 0 || e.shiftKey || e.ctrlKey || e.metaKey ) {
+		if ( e.button !== 0 || e.shiftKey || e.ctrlKey || e.metaKey || isMobileStamped() ) {
 			return;
 		}
 		const row = ( e.target as Element | null )?.closest< HTMLElement >( '[data-mywp-drag][data-item-id]' );
@@ -118,15 +121,18 @@ export function wire( ctx: Ctx ): () => void {
 
 	// --- marquee selection on the list canvas ---------------------------
 	// The framework's drawn marquee; the class stays ours so the app
-	// sheet keeps painting it with WP Explorer's selection tokens.
-	teardowns.push(
-		createMarquee( {
-			root,
-			canvas: '.os-mywp__canvas',
-			className: 'os-mywp__marquee',
-			select: ( ids ) => ctx.local( 'select-set', { ids } ),
-		} ),
-	);
+	// sheet keeps painting it with WP Explorer's selection tokens. A
+	// phone has no rubber band: a finger on the canvas scrolls it.
+	if ( ! isMobileStamped() ) {
+		teardowns.push(
+			createMarquee( {
+				root,
+				canvas: '.os-mywp__canvas',
+				className: 'os-mywp__marquee',
+				select: ( ids ) => ctx.local( 'select-set', { ids } ),
+			} ),
+		);
+	}
 
 	// --- infinite scroll ------------------------------------------------
 	// The framework's paged list owns the whole protocol (sentinel,
@@ -651,7 +657,7 @@ function agentsAfterRender( ctx: Ctx ): void {
 				if ( ! row.dataset.dmAgentDragOut ) {
 					row.dataset.dmAgentDragOut = '1';
 					row.addEventListener( 'pointerdown', ( e: PointerEvent ) => {
-						if ( e.button !== 0 || e.shiftKey || e.ctrlKey || e.metaKey ) {
+						if ( e.button !== 0 || e.shiftKey || e.ctrlKey || e.metaKey || isMobileStamped() ) {
 							return;
 						}
 						const manager = shell().dragManager;

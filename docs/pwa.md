@@ -264,6 +264,45 @@ Safari (macOS / iOS) doesn't fire `beforeinstallprompt`. Users add the
 app via the "Share → Add to Home Screen" gesture, which picks up our
 `apple-mobile-web-app-*` meta tags emitted from `admin_head`.
 
+## The installed app on a phone
+
+Three things the shell does so that an installed app fits a phone,
+and where each lives:
+
+**It knows it is installed.** The head stamp
+(`openstation_print_mode_stamp()`, `includes/mobile.php`) writes
+`data-os-display="standalone"` on `<html>` when the `display-mode:
+standalone` media query matches or Safari's `navigator.standalone`
+says the page was launched from the home screen, and `browser`
+otherwise; the mode controller keeps it current and exposes it as
+`wp.os.mode.getDisplay()` / `isStandalone()`. A stylesheet keys on the
+attribute the way it keys on `data-os-mode`. The two are orthogonal:
+a phone in Safari is `mobile` + `browser`.
+
+**It does not zoom.** The viewport meta on a shell request
+(`openstation_mode_viewport_meta()`) carries `viewport-fit=cover`,
+`interactive-widget=resizes-content`, `maximum-scale=1` and
+`user-scalable=no`; `src/mode/zoom-guard.ts` cancels the pinch
+gestures the browser would otherwise honour while the document is
+stamped `mobile` or `standalone` (never on a desktop in a tab, where
+zoom is an accessibility affordance); the phone layer sets
+`touch-action: pan-x pan-y` on the root and `--os-ui-field-font-size`
+to 16px, the size under which iOS zooms the page into a focused
+control. A plugin's own `<input>` inside a native window should be
+16px on a phone for the same reason; the kit's fields already are.
+
+**It paints one surface with the system.** The manifest's
+`theme_color` / `background_color`, the `theme-color` meta and the
+iOS status bar all use the shell's backstop
+(`OPENSTATION_PWA_THEME_COLOR`, `#0c0b0f`). The status bar is opaque
+(`apple-mobile-web-app-status-bar-style` = `black`,
+[`openstation_pwa_status_bar_style`](./hooks-reference.md#openstation_pwa_status_bar_style--experimental-filter)
+to change it): the page is laid out below it and
+`env( safe-area-inset-top )` is 0. The bottom edge still runs under
+the home indicator (`viewport-fit=cover`), and the phone layer's tab
+bar is fixed to that edge with `env( safe-area-inset-bottom )` as its
+bottom padding — see [mobile.md](./mobile.md#under-the-status-bar-and-over-the-home-indicator).
+
 ## What's coming next
 
 - **Phase 4 — Web Push.** VAPID keypair, REST routes for subscribe /

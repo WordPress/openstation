@@ -90,7 +90,8 @@ export const styles = css`
 	.os-tag-input__input {
 		appearance: none;
 		font: inherit;
-		font-size: 12px;
+		/* A compact field; the phone layer raises it to 16px (see os-text-field). */
+		font-size: var( --os-ui-field-font-size-compact, 12px );
 		line-height: 1.4;
 		padding: 2px 8px;
 		border: 1px solid var( --os-ui-tag-input-input-border, var( --os-ui-border, #2271b1 ) );
