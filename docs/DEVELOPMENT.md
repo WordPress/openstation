@@ -33,7 +33,7 @@ One PHPUnit test reads build output rather than source: an app's client view is 
 
 - The `"wp-content/plugins/desktop-mode": "."` mapping in `.wp-env.json` bind-mounts the directory you run `wp-env start` from straight into the container. PHP edits are live on the next request; JS changes appear after `npm run build`, because the site serves whatever is in `assets/js/` right now. The enqueued bundles' `?ver=` cache-buster is filemtime-based, so a normal browser reload picks up fresh builds.
 - wp-env keys everything to the start directory plus the config file: it hashes them and gives each combination its own containers, database, and WordPress volume under `~/.wp-env/<hash>/`. Same directory + same config, same instance, every time. That's how `.wp-env.json` (QA) and `.wp-env.tests.json` (PHPUnit) run as two fully isolated stacks from one checkout.
-- Ports: `8890` (QA instance, `.wp-env.json`) and `8891` (tests instance, `.wp-env.tests.json`). They are remapped from wp-env's defaults so the stacks coexist with a Core checkout's environment (see the PHPUnit section of `AGENTS.md`).
+- Ports: `8890` (QA instance, `.wp-env.json`), `8891` (tests instance, `.wp-env.tests.json`) and `8892` (the member instance of a local OpenStation network, `.wp-env.member.json`, see below). They are remapped from wp-env's defaults so the stacks coexist with a Core checkout's environment (see the PHPUnit section of `AGENTS.md`).
 - `bin/sync-to-wp-develop.sh` does **not** feed this instance. It mirrors the tree into a wordpress-develop checkout, which is a different environment entirely. The wp-env instance always serves the start directory live through the mount; there is no copy step to forget.
 
 ### Testing several worktrees at once
@@ -57,6 +57,17 @@ Notes:
 - **Run wp-env commands from the worktree's directory.** `env:start`, `env:stop`, `env:destroy`, their `:tests` variants, and `test:php` all resolve the instance from the current directory.
 - **Cost.** Each instance is three containers (WordPress, CLI, database). `npm run env:stop` / `env:stop:tests` parks an instance and keeps its data; `npm run env:destroy` / `env:destroy:tests` deletes it.
 - `npm run test:php` in a worktree runs inside that worktree's own tests instance, so PHPUnit is isolated per worktree too.
+
+### A local OpenStation network (two instances)
+
+[network.md](./network.md) pairs separate installs into one switcher. To try it on one machine, a third instance acts as the member:
+
+```bash
+npm run env:start          # the hub, :8890 (a multisite; pair from its network admin)
+npm run env:start:member   # the member, :8892 (a single site, admin / password)
+```
+
+Inside a container `localhost` is the container itself, so both setup scripts drop `bin/wp-env-network-dev.sh`'s mu-plugin into their instance: it rewrites `localhost:<port>` onto `host.docker.internal` through the `openstation_network_request_url` filter, and plain HTTP is allowed because wp-env sets `WP_ENVIRONMENT_TYPE` to `local`. Then, in the hub's network shell, open **Network** and add `http://localhost:8892`; in the member's shell, open **Network** and join `http://localhost:8890`. Reload either shell and open Overview: the same row on both. `npm run env:stop:member` when done.
 
 ## Measuring boot cost
 

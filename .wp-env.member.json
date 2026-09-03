@@ -1,0 +1,12 @@
+{
+	"core": null,
+	"plugins": [],
+	"mappings": {
+		"wp-content/plugins/desktop-mode": "."
+	},
+	"lifecycleScripts": {
+		"afterStart": "./bin/setup-wp-env-member.sh"
+	},
+	"port": 8892,
+	"testsEnvironment": false
+}

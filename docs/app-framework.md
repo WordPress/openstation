@@ -65,6 +65,7 @@ Everything hangs off `OpenStation\App::define( $id )`. Every method returns `$th
 | `icon( $icon )` | A Dashicons class, an image URL, or raw `<svg>` markup drawn in `currentColor`. |
 | `size( $w, $h )` / `min_size( $w, $h )` | Initial and minimum size in px. Defaults 520×400 / 280×220. |
 | `placement( 'dock' \| 'none' )` | Whether the launcher defaults to a dock tile. |
+| `admin( 'site' \| 'network' \| 'any' )` | Which admin's shell offers the window. `site` (default) is every site's shell and never the network admin's, right for an app that reads the current site; `network` is the network admin's shell only; `any` is both. |
 | `nav_kind( 'app' \| 'control' )`, `dock_order( $n )`, `placeable( $bool )`, `autofocus( $bool_or_selector )` | Forwarded to `openstation_register_window()`. |
 | `desktop_icon( array $args )` | Also put a shortcut on the wallpaper: `position`, `pinned`, `title`, `icon`. |
 

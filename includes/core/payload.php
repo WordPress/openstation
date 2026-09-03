@@ -2388,23 +2388,26 @@ function openstation_collect_native_windows_payload() {
 		return $empty;
 	}
 
-	// Every native window is site-scoped, reading the current site's
-	// REST API, so in the network admin a `users.php` tile meaning
-	// "everyone on the network" would open one site's user list.
-	//
-	// This is also what disarms the client-side URL remaps there: they
-	// match on the tail of a pathname (`endsWith( '/users.php' )`) and
-	// the network admin serves same-named files one directory down, but
-	// with nothing registered `openById()` finds no window and the
-	// remap falls through to the iframe.
-	if ( is_network_admin() ) {
-		return $empty;
-	}
-
 	$registry = openstation_native_window_registry();
 	if ( ! is_array( $registry ) ) {
 		return $empty;
 	}
+
+	// A window says which admin offers it (`admin` in its registration:
+	// `site`, `network` or `any`). Every native window OpenStation
+	// ships is site-scoped, reading the current site's REST API, so in
+	// the network admin a `users.php` tile meaning "everyone on the
+	// network" would open one site's user list; those stay off the
+	// network shell. A window that declares `network` (the Network app)
+	// is offered there and nowhere else.
+	//
+	// Dropping the site windows there is also what disarms the
+	// client-side URL remaps: they match on the tail of a pathname
+	// (`endsWith( '/users.php' )`) and the network admin serves
+	// same-named files one directory down, but with nothing registered
+	// `openById()` finds no window and the remap falls through to the
+	// iframe.
+	$registry = array_filter( $registry, 'openstation_native_window_offered_here' );
 
 	$script_data = array();
 
