@@ -144,6 +144,22 @@ export function bindTopWindowLinkInterceptor(
 
 			const windowId = deriveWindowId( url.href, config.adminUrl );
 			const dockEntry = findDockEntryForUrl( url.href, config );
+			// An anchor can name the window it opens via
+			// `data-os-window-title`. Reading the link's own text is the
+			// right default for a plain admin link, but it is only ever a
+			// guess: `textContent` concatenates across element
+			// boundaries, so an anchor assembled from several elements
+			// runs them together. The drafts widget's rows are a title
+			// span beside a "356d ago" stamp span, held apart by
+			// `justify-content: space-between` rather than by any
+			// whitespace in the markup, so they came out as
+			// "Ginza after work356d ago".
+			//
+			// Deliberately an opt-in attribute rather than a smarter
+			// reading of the DOM: joining every element boundary would
+			// break the far more common anchor whose markup is one
+			// sentence with a `<strong>` in the middle.
+			const declaredTitle = ( anchor.dataset.osWindowTitle || '' ).trim();
 			const fallbackTitle =
 				( anchor.textContent || '' ).trim() || dockEntry?.title || '';
 
@@ -175,7 +191,10 @@ export function bindTopWindowLinkInterceptor(
 				multi: !! dockEntry?.multi || isAdminBarNew,
 				url: url.href,
 				parentUrl: dockEntry?.url ?? url.href,
-				title: dockEntry?.title || fallbackTitle,
+				// A declared title outranks the dock entry: it is the
+				// anchor stating what it opens, which is more specific
+				// than the dock's name for the whole destination.
+				title: declaredTitle || dockEntry?.title || fallbackTitle,
 				icon: dockEntry?.icon || 'dashicons-admin-generic',
 				submenu: dockEntry?.submenu,
 				selfLabel: dockEntry?.selfLabel,

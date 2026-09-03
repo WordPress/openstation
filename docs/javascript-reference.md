@@ -4056,6 +4056,37 @@ Two extra args are identity-bearing **only on an `admin.php` URL carrying a `pag
 
 ---
 
+### `data-os-window-title` on an anchor — Stable
+
+Name the window an admin link opens, instead of letting the shell guess.
+
+The shell's top-window link interceptor claims every same-origin `/wp-admin/` anchor in the shell body and opens it as a window. Unless a dock entry owns the destination, it titles that window with the anchor's own text. That is right for a plain link and a guess for anything else, because `textContent` runs together across element boundaries. An anchor assembled from several elements, held apart by layout rather than by whitespace in the markup, arrives as one word:
+
+```html
+<!-- Window title: "Ginza after work356d ago" -->
+<a href="/wp-admin/post.php?post=42&action=edit">
+    <span class="title">Ginza after work</span><span class="stamp">356d ago</span>
+</a>
+```
+
+Say what the window is called and the guess is skipped:
+
+```html
+<!-- Window title: "Ginza after work • 356d ago" -->
+<a href="/wp-admin/post.php?post=42&action=edit"
+   data-os-window-title="Ginza after work • 356d ago">
+    <span class="title">Ginza after work</span><span class="stamp">356d ago</span>
+</a>
+```
+
+The attribute outranks both the link text and the dock entry that would otherwise name the window: it is the anchor stating what it opens, which is more specific than the dock's name for the whole destination. Whitespace-only values are ignored and fall through to the normal chain. Set it from JS with `link.dataset.osWindowTitle = …`.
+
+Deliberately opt-in rather than a cleverer reading of the DOM: joining every element boundary would break the far more common anchor whose markup is one sentence with a `<strong>` in the middle. Reach for it whenever a link's visible text is assembled from more than one element: a widget row, a card, a list item with a trailing badge or stamp.
+
+> **Inside a window this is a no-op.** Iframe content is a separate document realm; those clicks go through the chromeless bridge, which sends its own `label` (see [bridge-protocol.md](./bridge-protocol.md#admin-link-routing-inside-chromeless-iframes)). The attribute applies to anchors in the shell itself: widgets, desktop surfaces, rail renderers.
+
+---
+
 ### `listSystemTiles()` — Stable
 
 Snapshot of every JS-registered system tile across both rails. Returns `[]` when the layout dispatcher hasn't booted yet (rare; only happens before `os.init` fires).
