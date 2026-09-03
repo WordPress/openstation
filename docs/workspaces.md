@@ -95,6 +95,8 @@ Two things a workspace may never hide, structurally rather than by default:
 
 An **open window always keeps its tile**, even on a desk that hides its app. `computeNav` mints an ephemeral tile for any window with nowhere to minimize back into, so narrowing can never strand a window you are looking at.
 
+**On a phone there is no workspace.** While the mode is `mobile` the navigation is computed with no profile at all, so the home grid shows every app whatever desk is active; the desk's look, widget column and launch list are not applied either, and every window is on the one desk the phone shows. The desks and their profiles are untouched — they are all back on the crossing out of the band, and the session keeps recording each window on the desk it came from. See [`docs/mobile.md`](mobile.md#the-session-on-a-phone).
+
 ## Widgets are a layout, not a filter
 
 A workspace's widget column follows a **different rule from its apps**, deliberately.

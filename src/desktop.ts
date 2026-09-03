@@ -2600,6 +2600,39 @@ function init(): void {
 	// narrows the navigation, so there is nothing for it to do before
 	// there is a navigation.
 	let workspaceDeps: WorkspaceDeps | null = null;
+
+	/*
+	 * A phone has one desk and no workspace. The windows are folded
+	 * onto the active desk by `installMobileConstraints`; here the
+	 * rest of what a workspace does is switched off for as long as the
+	 * mode is `mobile`: the desk's look is not painted over the user's
+	 * settings, its widget column is not put up (there is no column),
+	 * and its launch list is not opened (a desktop's worth of iframes
+	 * on a phone that restores one window). Every workspace caller
+	 * goes through these two so the mode decides in one place, and the
+	 * crossing subscription near the phone layer's mount re-applies or
+	 * clears the view when the answer changes.
+	 */
+	const applyWorkspaceViewForMode = (
+		deps: WorkspaceDeps,
+		desktopId: string,
+	): void => {
+		if ( modeController.api.isMobile() ) {
+			deps.setAppearance?.( null );
+			deps.setVisibleWidgets?.( null );
+			return;
+		}
+		applyWorkspaceView( deps, desktopId );
+	};
+	const provisionWorkspaceForMode = (
+		deps: WorkspaceDeps,
+		desktopId: string,
+	): void => {
+		if ( modeController.api.isMobile() ) {
+			return;
+		}
+		provisionWorkspace( deps, desktopId );
+	};
 	// Answered asynchronously by `isLikelyInstalled()` (Chromium only),
 	// and read by the System menu's install row each time it is built.
 	let pwaAlreadyInstalled = false;
@@ -3135,7 +3168,15 @@ function init(): void {
 				// repaint. The dispatcher adds it to the placement map
 				// it computes from and never writes it back — see
 				// `src/workspaces/visibility.ts`.
-				getWorkspaceProfile: () => getActiveWorkspaceProfile( manager ),
+				//
+				// A phone has one desk and no workspace: its home grid
+				// shows every app whatever desk happens to be active.
+				// The crossing subscription below repaints the rails
+				// when the answer changes.
+				getWorkspaceProfile: () =>
+					modeController.api.isMobile()
+						? null
+						: getActiveWorkspaceProfile( manager ),
 			},
 			initialLayout,
 			config.dockItems,
@@ -3262,8 +3303,8 @@ function init(): void {
 				// The desk's look and furniture first, so its windows
 				// land on the surface they belong to rather than on
 				// the previous workspace's.
-				applyWorkspaceView( workspaceDeps, payload.to );
-				provisionWorkspace( workspaceDeps, payload.to );
+				applyWorkspaceViewForMode( workspaceDeps, payload.to );
+				provisionWorkspaceForMode( workspaceDeps, payload.to );
 			},
 		);
 		// Adding a widget while a workspace's column is in force is a
@@ -3306,8 +3347,8 @@ function init(): void {
 		// view state the session does not carry.
 		if ( workspaceDeps ) {
 			const bootDesktop = manager.getActiveDesktopId();
-			applyWorkspaceView( workspaceDeps, bootDesktop );
-			provisionWorkspace( workspaceDeps, bootDesktop );
+			applyWorkspaceViewForMode( workspaceDeps, bootDesktop );
+			provisionWorkspaceForMode( workspaceDeps, bootDesktop );
 		}
 		// Tracked by the dispatcher so it re-attaches automatically
 		// after a layout rebuild. `'core'` classifies it as a
@@ -3832,8 +3873,12 @@ function init(): void {
 		const deps = workspaceDeps;
 		void sessionRestore.then( () => {
 			const bootDesktop = manager.getActiveDesktopId();
-			reopenWorkspaceWindows( deps, bootDesktop );
-			applyWorkspaceView( deps, bootDesktop );
+			// Not on a phone: a desk's launch list is a desktop's worth
+			// of iframes, and the phone boot restores one window.
+			if ( ! modeController.api.isMobile() ) {
+				reopenWorkspaceWindows( deps, bootDesktop );
+			}
+			applyWorkspaceViewForMode( deps, bootDesktop );
 		} );
 	}
 
@@ -4765,6 +4810,25 @@ function init(): void {
 	};
 	syncMobileLayer();
 	modeController.api.subscribe( syncMobileLayer );
+
+	// A crossing into or out of the phone band changes what a
+	// workspace is allowed to do (see `applyWorkspaceViewForMode`):
+	// the rails narrow or widen, the desk's look goes on or comes off,
+	// and a desk never provisioned on the phone gets its launch list
+	// on arrival at the desktop. The window fold itself is the
+	// constraints module's, subscribed earlier so it runs first.
+	modeController.api.subscribe( ( change ) => {
+		if ( change.mode !== 'mobile' && change.previous !== 'mobile' ) {
+			return;
+		}
+		layoutDispatcher?.refresh();
+		if ( ! workspaceDeps ) {
+			return;
+		}
+		const active = manager.getActiveDesktopId();
+		applyWorkspaceViewForMode( workspaceDeps, active );
+		provisionWorkspaceForMode( workspaceDeps, active );
+	} );
 
 	// Now that `wp.os.dragManager` is on the window, register
 	// the recycle-bin drop targets (dock icon + window body). The

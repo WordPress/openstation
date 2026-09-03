@@ -1343,6 +1343,13 @@ export const HOOKS = {
 	/** Action, fires when a desktop is renamed. Payload `{ desktopId, label, previousLabel }`. */
 	DESKTOP_RENAMED: 'os.os.renamed',
 	/**
+	 * Action, fires when one window is moved to another desktop
+	 * (`manager.moveWindowToDesktop()`). Payload `{ windowId, from, to }`.
+	 * Not fired for the bulk migration a closed desktop performs —
+	 * that is `DESKTOP_CLOSED { migratedTo }`.
+	 */
+	WINDOW_DESKTOP_CHANGED: 'os.os.window-moved',
+	/**
 	 * Filter. Returns the id of the "primary" desktop — the one the
 	 * shell treats as canonical for batch operations. Receives the
 	 * default (first desktop's id) and the full `Desktop[]` list.

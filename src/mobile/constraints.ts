@@ -3,7 +3,7 @@
  *
  * Ships in the main bundle (it has to be in place before the first
  * `open()`, which session restore fires long before the lazy phone
- * layer could arrive). Two jobs:
+ * layer could arrive). Three jobs:
  *
  * 1. **Every window is full-screen on a phone.** One
  *    `os.window.geometry` filter forces `state: 'maximized'` on
@@ -13,7 +13,17 @@
  *    un-maximized by a plugin is re-maximized while the mode is
  *    `mobile`; a mode change re-maximizes or releases in bulk.
  *
- * 2. **A phone boot restores one window.** `trimSessionForMobile()`
+ * 2. **A phone has one desk.** A window on any other desktop is
+ *    folded onto the active one as it opens (a session restore
+ *    carries the desk a window was on; so does a parked recent), and
+ *    everything already open is folded on the crossing into
+ *    `mobile`. The desk each window came from is remembered, written
+ *    back into every session save, and handed back on the crossing
+ *    out — so the desktop finds its desks exactly as it left them.
+ *    Without this the phone restored a window `display: none` on a
+ *    desk it never shows, and a tap on its tile focused it invisibly.
+ *
+ * 3. **A phone boot restores one window.** `trimSessionForMobile()`
  *    keeps only the focused session window; the rest are parked (the
  *    phone does not list them) and the `os.session.snapshot` filter
  *    folds them back into every save with their desktop geometry
@@ -68,6 +78,8 @@ export interface MobileConstraints {
 	trimSessionForMobile( config: DesktopConfig ): DesktopConfig;
 	/** Ids the filter has forced full-screen (test seam). */
 	forcedIds(): string[];
+	/** Ids folded onto the active desk from another one (test seam). */
+	foldedIds(): string[];
 	dispose(): void;
 }
 
@@ -92,6 +104,8 @@ export function splitSessionForMobile( session: Session | undefined ): {
 export function installMobileConstraints( deps: MobileConstraintsDeps ): MobileConstraints {
 	const { manager, mode } = deps;
 	const displaced = new Map< string, DisplacedGeometry >();
+	/** The desktop a folded window belongs to, by window id. */
+	const folded = new Map< string, string >();
 	let recents: SessionWindow[] = [];
 	const recentListeners = new Set< RecentsListener >();
 	const notifyRecents = (): void => {
@@ -120,6 +134,64 @@ export function installMobileConstraints( deps: MobileConstraintsDeps ): MobileC
 			} );
 		}
 		win.maximize();
+	};
+
+	/**
+	 * Bring a window on another desktop onto the active one, keeping
+	 * the desk it came from. The first fold wins: a window folded, then
+	 * moved by a plugin, then folded again still goes back to the desk
+	 * the desktop knew.
+	 */
+	const foldIfNeeded = ( windowId: string ): void => {
+		if ( ! mode.isMobile() ) {
+			return;
+		}
+		const win = manager.getById( windowId );
+		if ( ! win ) {
+			return;
+		}
+		const active = manager.getActiveDesktopId();
+		const own = win.config.desktopId || active;
+		if ( own === active ) {
+			return;
+		}
+		if ( ! folded.has( windowId ) ) {
+			folded.set( windowId, own );
+		}
+		manager.moveWindowToDesktop( windowId, active );
+	};
+
+	/**
+	 * Hand every folded window back to its desk. A desk closed in the
+	 * meantime (a plugin, another tab's session) keeps the window on
+	 * the active one, as `closeDesktop` would have. Focus is repaired
+	 * the way `switchDesktop` repairs it: if the window in front just
+	 * left the desk, the topmost one still on it takes over.
+	 */
+	const unfoldAll = (): void => {
+		if ( folded.size === 0 ) {
+			return;
+		}
+		const desks = new Set( manager.getDesktops().map( ( d ) => d.id ) );
+		for ( const [ windowId, desktopId ] of folded ) {
+			if ( desks.has( desktopId ) ) {
+				manager.moveWindowToDesktop( windowId, desktopId );
+			}
+		}
+		folded.clear();
+		const active = manager.getActiveDesktopId();
+		const focused = manager.getFocused();
+		if ( focused && ( focused.config.desktopId || active ) !== active ) {
+			const topOnActive = [ ...manager.getAll() ]
+				.reverse()
+				.find(
+					( w ) =>
+						( w.config.desktopId || active ) === active && ! w.isMinimized(),
+				);
+			if ( topOnActive ) {
+				manager.focus( topOnActive );
+			}
+		}
 	};
 
 	/**
@@ -191,20 +263,31 @@ export function installMobileConstraints( deps: MobileConstraintsDeps ): MobileC
 	};
 	addAction( HOOKS.WINDOW_RESTORED, NS, onWindowState );
 	addAction( HOOKS.WINDOW_UNMAXIMIZED, NS, onWindowState );
-	addAction( HOOKS.WINDOW_OPENED, NS, onWindowState );
+	// An open lands on the active desk first, then goes full-screen:
+	// a restore or a parked recent arrives carrying the desk it was on.
+	addAction( HOOKS.WINDOW_OPENED, NS, ( payload: unknown ) => {
+		const id = ( payload as { windowId?: string } | null )?.windowId;
+		if ( id ) {
+			foldIfNeeded( id );
+			maximizeIfNeeded( id );
+		}
+	} );
 	addAction( HOOKS.WINDOW_CLOSED, NS, ( payload: unknown ) => {
 		const id = ( payload as { windowId?: string } | null )?.windowId;
 		if ( id ) {
 			displaced.delete( id );
+			folded.delete( id );
 		}
 	} );
 
 	// A mode change is a bulk re-state: into `mobile`, every open
-	// window goes full-screen; out of it, every window the phone
-	// forced (and only those) floats again where it was.
+	// window comes onto the one desk and goes full-screen; out of it,
+	// every window the phone forced (and only those) floats again
+	// where it was, on the desk it was on.
 	const unsubscribeMode = mode.subscribe( ( change: OsModeChange ) => {
 		if ( change.mode === 'mobile' ) {
 			for ( const win of manager.getAll() ) {
+				foldIfNeeded( win.id );
 				maximizeIfNeeded( win.id );
 			}
 			return;
@@ -212,6 +295,7 @@ export function installMobileConstraints( deps: MobileConstraintsDeps ): MobileC
 		if ( change.previous !== 'mobile' ) {
 			return;
 		}
+		unfoldAll();
 		let cascade = 0;
 		for ( const win of manager.getAll() ) {
 			const before = displaced.get( win.id );
@@ -231,28 +315,38 @@ export function installMobileConstraints( deps: MobileConstraintsDeps ): MobileC
 		displaced.clear();
 	} );
 
-	// 2. The session: hand the desktop its own numbers back, and
-	// keep carrying what this phone chose not to open.
+	// 2. The session: hand the desktop its own numbers and its own
+	// desks back, and keep carrying what this phone chose not to open.
 	addFilter< Session >( HOOKS.SESSION_SNAPSHOT, NS, ( session ) => {
 		const openIds = new Set( session.windows.map( ( w ) => w.id ) );
 		const windows = session.windows.map( ( w ) => {
 			const before = displaced.get( w.id );
-			if ( ! before || ! mode.isMobile() ) {
+			const desk = folded.get( w.id );
+			if ( ! mode.isMobile() || ( ! before && ! desk ) ) {
 				return w;
 			}
 			return {
 				...w,
-				x: before.x,
-				y: before.y,
-				width: before.width,
-				height: before.height,
-				// "Home" on a phone is every window minimized; the
-				// desktop should not wake up to that, so the state
-				// written is the one the window had before the phone.
-				state: before.state,
-				// The desktop's restore path places an `unplaced`
-				// window itself instead of trusting the pixels above.
-				...( before.unplaced ? { unplaced: true } : {} ),
+				...( before
+					? {
+						x: before.x,
+						y: before.y,
+						width: before.width,
+						height: before.height,
+						// "Home" on a phone is every window minimized;
+						// the desktop should not wake up to that, so the
+						// state written is the one the window had before
+						// the phone.
+						state: before.state,
+						// The desktop's restore path places an
+						// `unplaced` window itself instead of trusting
+						// the pixels above.
+						...( before.unplaced ? { unplaced: true } : {} ),
+					}
+					: {} ),
+				// The desk the window was on, not the one the phone
+				// folded it onto.
+				...( desk ? { desktopId: desk } : {} ),
 			};
 		} );
 		const parked = recents.filter( ( r ) => ! openIds.has( r.id ) );
@@ -342,6 +436,7 @@ export function installMobileConstraints( deps: MobileConstraintsDeps ): MobileC
 			};
 		},
 		forcedIds: () => Array.from( displaced.keys() ),
+		foldedIds: () => Array.from( folded.keys() ),
 		dispose() {
 			unsubscribeMode();
 			recentListeners.clear();

@@ -59,6 +59,8 @@ The layer ships as its own bundle, `mobile[.min].js`, fetched only when the mode
 
 Restoring a desktop's worth of windows on a phone would mean a desktop's worth of iframes. A phone boot restores **one** window, the session's focused one, and parks the rest. The phone does not list them: they belong to the desktop, and the switcher shows only what is open on the phone.
 
+**A phone has one desk.** Virtual desktops and workspaces are a desktop's way of putting things side by side, and a phone has no side. While the mode is `mobile`, every window is on the active desk: a window that arrives carrying another desk — the session's focused window restored from the desk it was on, a parked recent reopened from the switcher — is moved onto the active one as it opens (`manager.moveWindowToDesktop()`, which fires `os.os.window-moved`), and everything already open is moved on the crossing into the band. Nothing else a workspace does happens on a phone: its narrowed app list is not applied (the home grid shows every app whatever desk is active), its look is not painted over the user's settings, its widget column is not put up, and its launch list is not opened. The desk each window came from is remembered and written back into every session save, and on the crossing out every window goes back to its desk, the desk's look and launch list are applied, and the rails narrow again — so the desktop finds its desks exactly as it left them, and a desk that never had its launch list opened on the phone gets it on arrival.
+
 The desktop is not degraded by this. `WindowManager.snapshot()` runs the `os.session.snapshot` filter last, and the phone layer uses it to hand the desktop its own numbers back: a window the phone forced full-screen is written with the geometry and state it had before, and the parked windows are folded back into every save. A window the phone opened itself has no desktop geometry to keep (a fresh open on a 390px viewport gets phone-sized defaults), so it is saved as `unplaced` and the desktop places it as it would a fresh open: its own default size, cascaded. Widening a phone-sized browser back past the breakpoint does the same. A desktop reload after a phone visit finds exactly what it left, plus what the phone opened, at desktop sizes.
 
 The filter is public. A plugin can use it to redact a window it owns from the saved session, or to pin one it never wants restored:
@@ -98,6 +100,7 @@ JavaScript — see [javascript-reference.md](./javascript-reference.md):
 | `os.mode.changed` | action |
 | `os-mode-changed` | CustomEvent |
 | `os.session.snapshot` | filter |
+| `os.os.window-moved` | action — a window folded onto the phone's one desk, or handed back |
 | `data-os-mode` on `<html>` | the CSS hook |
 
 Settings: `mobileLayout`, `mobileTabs` — both through `wp.os.updateOsSettings()` like every other key.
