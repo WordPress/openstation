@@ -376,7 +376,8 @@ export const styles = css`
 		min-width: 0;
 		appearance: none;
 		font: inherit;
-		font-size: 12px;
+		/* A compact field; the phone layer raises it to 16px (see os-text-field). */
+		font-size: var( --os-ui-field-font-size-compact, 12px );
 		padding: 3px 6px;
 		border: 0;
 		background: transparent;

@@ -2442,6 +2442,8 @@ interface OsModeApi {
     getPreference(): 'auto' | 'desktop' | 'mobile';
     getBreakpoints(): { mobile: number; tablet: number };  // widest px of each band, inclusive
     isMobile(): boolean;
+    getDisplay(): 'standalone' | 'browser';  // an installed app, or a tab
+    isStandalone(): boolean;
     subscribe(
         cb: ( change: { mode; previous; preference } ) => void,
         opts?: { immediate?: boolean },   // call once right away with the current mode
@@ -2450,6 +2452,8 @@ interface OsModeApi {
 ```
 
 `tablet` is reported but, for now, renders the desktop; `mobile` mounts the phone layer (home screen, one full-screen window at a time, switcher, tab bar). Transitions fire `os.mode.changed` and `os-mode-changed`. The value is stamped on `<html data-os-mode>` for CSS. Full contract in [mobile.md](./mobile.md).
+
+The display is orthogonal to the mode: `standalone` when the document runs as an installed app (a home-screen web app on iOS, an installed PWA in Chromium — the `display-mode: standalone` media query, or Safari's `navigator.standalone`), `browser` in an ordinary tab. It is stamped on `<html data-os-display>` for CSS — `html[data-os-display="standalone"] .my-plugin-bar { … }` — by the same head stamp that writes the mode, and re-stamped live when the query flips. It carries no event of its own. See [mobile.md](./mobile.md#the-display).
 
 ---
 

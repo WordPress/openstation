@@ -73,6 +73,64 @@
 }
 
 /*
+ * A narrow window — a phone, or a desktop window pulled in. The
+ * toolbar's three groups each take a whole row instead of sharing
+ * one: the type filter scrolls sideways under the search, the
+ * selection actions share their row, and Empty Trash keeps the last
+ * row's end. Nothing overflows the window's edge. The container is
+ * the app root (`.os-app`, `app-runtime.css`).
+ */
+@container ( max-width: 560px ) {
+	.os-recycle-bin__toolbar {
+		gap: 8px;
+		padding: 8px 10px;
+	}
+
+	.os-recycle-bin__toolbar-left,
+	.os-recycle-bin__toolbar-right,
+	.os-recycle-bin__toolbar-trailing {
+		flex: 1 1 100%;
+		min-inline-size: 0;
+	}
+
+	.os-recycle-bin__toolbar-left {
+		flex-wrap: wrap;
+	}
+
+	.os-recycle-bin__toolbar-left os-segmented {
+		flex: 1 1 100%;
+		max-inline-size: 100%;
+		overflow-x: auto;
+		scrollbar-width: none;
+	}
+
+	.os-recycle-bin__toolbar-left os-text-field {
+		flex: 1 1 100%;
+	}
+
+	.os-recycle-bin__toolbar-right {
+		flex-wrap: wrap;
+	}
+
+	.os-recycle-bin__toolbar-right os-button {
+		flex: 1 1 auto;
+	}
+
+	.os-recycle-bin__count {
+		flex: 1 1 100%;
+	}
+
+	.os-recycle-bin__toolbar-trailing {
+		margin-inline-start: 0;
+		justify-content: flex-end;
+	}
+
+	.os-recycle-bin__body {
+		padding: 6px 8px 8px;
+	}
+}
+
+/*
  * NOTE — cell-content styles are now inlined in `src/recycle-bin/
  * index.ts`. `<os-table>` renders into its own shadow DOM, which
  * blocks document-level stylesheets (and Dashicons) from reaching

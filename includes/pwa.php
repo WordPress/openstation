@@ -426,10 +426,12 @@ function openstation_pwa_build_manifest() {
 		'display'                     => 'standalone',
 		'display_override'            => array( 'standalone', 'minimal-ui' ),
 		'orientation'                 => 'any',
-		// Match the shell's default surface colour. Filter to override
-		// per-site without redefining the whole manifest.
-		'theme_color'                 => '#1d2327',
-		'background_color'            => '#1d2327',
+		// The shell's backstop (`--os-backstop`): the floor under the
+		// wallpaper, and what the splash and the status bar are painted
+		// with. Filter to override per-site without redefining the
+		// whole manifest.
+		'theme_color'                 => OPENSTATION_PWA_THEME_COLOR,
+		'background_color'            => OPENSTATION_PWA_THEME_COLOR,
 		'lang'                        => get_bloginfo( 'language' ),
 		'dir'                         => is_rtl() ? 'rtl' : 'ltr',
 		'icons'                       => openstation_pwa_default_icons(),
@@ -596,6 +598,48 @@ function openstation_pwa_serve_service_worker() {
 }
 
 /**
+ * The colour the app is painted with outside the page: the manifest's
+ * `theme_color` and `background_color`, and the `theme-color` meta.
+ * The shell's backstop, `--os-backstop` in `variables.css`.
+ */
+const OPENSTATION_PWA_THEME_COLOR = '#0c0b0f';
+
+/**
+ * The iOS status-bar styles a home-screen web app may ask for.
+ *
+ * `black`: an opaque bar above the page, white glyphs; the page
+ * starts below it and `env( safe-area-inset-top )` is 0.
+ * `black-translucent`: the page runs under the bar and reads
+ * `env( safe-area-inset-top )` to keep out of it; on current iOS the
+ * bar is drawn as a translucent band over the page's top edge.
+ * `default`: the system's own bar for the appearance in force.
+ */
+const OPENSTATION_PWA_STATUS_BAR_STYLES = array( 'black', 'black-translucent', 'default' );
+
+/**
+ * The iOS status-bar style for the installed app.
+ *
+ * Defaults to `black`: the shell is near-black to its edges, so an
+ * opaque black bar above it is one continuous surface and the page
+ * is laid out below it, unambiguously. Under `black-translucent` the
+ * page extends under the bar and iOS paints the bar as a translucent
+ * band over the shell's top edge — a strip that reads as misplaced
+ * chrome rather than as immersion, on a surface that is already the
+ * bar's colour.
+ *
+ * @return string One of `black`, `black-translucent`, `default`.
+ */
+function openstation_pwa_status_bar_style() {
+	/**
+	 * Filters the iOS status-bar style for the installed app.
+	 *
+	 * @param string $style One of `black`, `black-translucent`, `default`.
+	 */
+	$style = apply_filters( 'openstation_pwa_status_bar_style', 'black' );
+	return in_array( $style, OPENSTATION_PWA_STATUS_BAR_STYLES, true ) ? $style : 'black';
+}
+
+/**
  * Emits the `<link rel="manifest">` tag and the matching theme-color
  * meta into the admin `<head>` — only when openstation is the active
  * surface for this request (no chromeless iframes, no classic admin).
@@ -617,7 +661,10 @@ function openstation_pwa_render_head_tags() {
 		'<link rel="manifest" href="%s">' . "\n",
 		esc_url( openstation_pwa_manifest_url() )
 	);
-	echo '<meta name="theme-color" content="#1d2327">' . "\n";
+	printf(
+		'<meta name="theme-color" content="%s">' . "\n",
+		esc_attr( OPENSTATION_PWA_THEME_COLOR )
+	);
 	// `mobile-web-app-capable` is the cross-browser standard;
 	// `apple-mobile-web-app-capable` is the legacy iOS-only spelling
 	// (still required by older Safari versions). Chromium logs a
@@ -626,7 +673,10 @@ function openstation_pwa_render_head_tags() {
 	// a standalone app while Chromium stops the warning.
 	echo '<meta name="mobile-web-app-capable" content="yes">' . "\n";
 	echo '<meta name="apple-mobile-web-app-capable" content="yes">' . "\n";
-	echo '<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">' . "\n";
+	printf(
+		'<meta name="apple-mobile-web-app-status-bar-style" content="%s">' . "\n",
+		esc_attr( openstation_pwa_status_bar_style() )
+	);
 	printf(
 		'<meta name="apple-mobile-web-app-title" content="%s">' . "\n",
 		esc_attr( get_bloginfo( 'name' ) )

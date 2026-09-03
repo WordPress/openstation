@@ -30,10 +30,45 @@
  * user dragging a window edge costs nothing here.
  */
 import { doAction, HOOKS } from '../hooks';
-import { stampMode, type OsMode } from './stamp';
+import { stampDisplay, stampMode, type OsDisplay, type OsMode } from './stamp';
 
-export { MODE_ATTRIBUTE, OS_MODES, readStampedMode, stampMode, isMobileStamped } from './stamp';
-export type { OsMode } from './stamp';
+export {
+	DISPLAY_ATTRIBUTE,
+	MODE_ATTRIBUTE,
+	OS_DISPLAYS,
+	OS_MODES,
+	isMobileStamped,
+	isStandaloneStamped,
+	readStampedDisplay,
+	readStampedMode,
+	stampDisplay,
+	stampMode,
+} from './stamp';
+export type { OsDisplay, OsMode } from './stamp';
+
+/** The media query an installed app matches. */
+export const STANDALONE_QUERY = '(display-mode: standalone)';
+
+/**
+ * The display for a window. Pure: `standalone` when the display-mode
+ * media query matches or Safari's `navigator.standalone` says the
+ * page was launched from the home screen, `browser` otherwise. The
+ * PHP head stamp (`openstation_mode_stamp_script()`) runs the same
+ * rule before the first paint.
+ */
+export function resolveDisplay(
+	win: Pick< globalThis.Window, 'matchMedia' > | undefined,
+	nav: { standalone?: boolean } | undefined,
+): OsDisplay {
+	const matches =
+		typeof win?.matchMedia === 'function' && win.matchMedia( STANDALONE_QUERY ).matches;
+	return displayFor( matches, nav );
+}
+
+/** The display for a query answer and Safari's flag. */
+function displayFor( queryMatches: boolean, nav: { standalone?: boolean } | undefined ): OsDisplay {
+	return queryMatches || nav?.standalone === true ? 'standalone' : 'browser';
+}
 
 /** The user's override. `'auto'` follows the viewport. */
 export type OsModePreference = 'auto' | 'desktop' | 'mobile';
@@ -83,6 +118,14 @@ export interface OsModeApi {
 	getBreakpoints(): Readonly< OsModeBreakpoints >;
 	/** `get() === 'mobile'`. */
 	isMobile(): boolean;
+	/**
+	 * How the document is displayed: `standalone` as an installed app
+	 * (a home-screen web app, an installed PWA), `browser` in a tab.
+	 * Stamped on `<html>` as `data-os-display` for CSS.
+	 */
+	getDisplay(): OsDisplay;
+	/** `getDisplay() === 'standalone'`. */
+	isStandalone(): boolean;
 	/**
 	 * Called with every transition, and — when `immediate` is set —
 	 * once right away with the current mode. Returns the
@@ -161,6 +204,8 @@ export interface InstallModeOptions {
 	root?: Element;
 	/** Defaults to the global `window`; injectable for tests. */
 	win?: Pick< globalThis.Window, 'matchMedia' | 'innerWidth' >;
+	/** Defaults to the global `navigator`; injectable for tests. */
+	nav?: { standalone?: boolean };
 }
 
 export interface ModeController {
@@ -191,6 +236,23 @@ export function installMode( opts: InstallModeOptions = {} ): ModeController {
 
 	let mode: OsMode = resolveMode( measure(), preference, breakpoints );
 	stampMode( root, mode );
+
+	// The display is stamped the same way, and re-stamped when the
+	// browser moves the document between a tab and an app window
+	// (Chromium fires the display-mode query on install).
+	const nav =
+		opts.nav ??
+		( typeof navigator !== 'undefined'
+			? ( navigator as unknown as { standalone?: boolean } )
+			: undefined );
+	const displayQuery: MediaQueryList | null =
+		typeof win.matchMedia === 'function' ? win.matchMedia( STANDALONE_QUERY ) : null;
+	let display: OsDisplay = displayFor( !! displayQuery?.matches, nav );
+	stampDisplay( root, display );
+	const updateDisplay = (): void => {
+		display = displayFor( !! displayQuery?.matches, nav );
+		stampDisplay( root, display );
+	};
 
 	const update = (): void => {
 		const next = resolveMode( measure(), preference, breakpoints );
@@ -228,12 +290,21 @@ export function installMode( opts: InstallModeOptions = {} ): ModeController {
 			queries.push( q );
 		}
 	}
+	if ( displayQuery ) {
+		if ( typeof displayQuery.addEventListener === 'function' ) {
+			displayQuery.addEventListener( 'change', updateDisplay );
+		} else if ( typeof displayQuery.addListener === 'function' ) {
+			displayQuery.addListener( updateDisplay );
+		}
+	}
 
 	const api: OsModeApi = {
 		get: () => mode,
 		getPreference: () => preference,
 		getBreakpoints: () => ( { ...breakpoints } ),
 		isMobile: () => 'mobile' === mode,
+		getDisplay: () => display,
+		isStandalone: () => 'standalone' === display,
 		subscribe( cb, subOpts ) {
 			listeners.add( cb );
 			if ( subOpts?.immediate ) {
@@ -261,6 +332,13 @@ export function installMode( opts: InstallModeOptions = {} ): ModeController {
 					q.removeEventListener( 'change', update );
 				} else if ( typeof q.removeListener === 'function' ) {
 					q.removeListener( update );
+				}
+			}
+			if ( displayQuery ) {
+				if ( typeof displayQuery.removeEventListener === 'function' ) {
+					displayQuery.removeEventListener( 'change', updateDisplay );
+				} else if ( typeof displayQuery.removeListener === 'function' ) {
+					displayQuery.removeListener( updateDisplay );
 				}
 			}
 			listeners.clear();

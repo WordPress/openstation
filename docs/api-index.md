@@ -25,7 +25,7 @@ The full surface is documented in [`javascript-reference.md`](./javascript-refer
 | `HOOKS` | `typeof HOOKS` *(typed hook-name constants)* | Stable |
 | `hooks` | `wp.hooks` bridge | Stable |
 | `saveSession` | `() => void` | Stable |
-| [`mode`](./mobile.md) | `{ get, getPreference, getBreakpoints, isMobile, subscribe }` *(the responsive mode: `desktop \| tablet \| mobile`)* | Experimental |
+| [`mode`](./mobile.md) | `{ get, getPreference, getBreakpoints, isMobile, getDisplay, isStandalone, subscribe }` *(the responsive mode: `desktop \| tablet \| mobile`; the display: `standalone \| browser`)* | Experimental |
 | `registerWindowAction` / `unregisterWindowAction` / `listWindowActions` | `( def: WindowActionDef ) => void` *(rows in every window's ⋯ menu, as verbs or checkboxes; `label`/`icon`/`isVisible`/`checked` may be per-window functions)* | Experimental |
 | [`electron`](./desktop-host.md) | `ElectronAdapterApi` *(set a window free into a real OS window; published by the Electron Adapter extension, absent in a browser)* | Experimental |
 

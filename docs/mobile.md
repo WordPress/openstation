@@ -37,6 +37,24 @@ The effective mode is stamped on the root element as `data-os-mode`. That attrib
 
 The framework only reports the mode. It never decides what an app does about it — see [event-driven-framework.md](./event-driven-framework.md).
 
+### The display
+
+Orthogonal to the mode, `wp.os.mode.getDisplay()` answers how the document is displayed: `standalone` as an installed app — a home-screen web app on iOS, an installed PWA in Chromium; the `display-mode: standalone` media query, or Safari's `navigator.standalone` — and `browser` in a tab. `isStandalone()` is the predicate. A phone in Safari is `mobile` + `browser`; the same phone with the app on its home screen is `mobile` + `standalone`, and that is the case in which `env( safe-area-inset-* )` describes real edges. The value is stamped on the root as `data-os-display`, by the same head stamp and the same controller as the mode, and re-stamped when the query flips (Chromium moves a tab into an app window on install). It carries no event; nothing in the shell needs to react to it, only to lay out under it.
+
+## Under the status bar, and over the home indicator
+
+An installed app on a phone is laid out against two system edges. The **status bar** is opaque (`apple-mobile-web-app-status-bar-style` = `black`, filterable through `openstation_pwa_status_bar_style`; see [pwa.md](./pwa.md#the-installed-app-on-a-phone)): the page starts below it, `env( safe-area-inset-top )` is 0, and the home grid's search sits a few pixels under the bar. The phone layer still pads every top surface by the inset, so a site that switches the bar to `black-translucent` gets the wallpaper under it and the content out from under it, with no other change. The **home indicator** is the bottom edge: `viewport-fit=cover` runs the page under it, and the tab bar carries `env( safe-area-inset-bottom )` as its bottom padding.
+
+The tab bar is **fixed to the viewport's bottom edge**, not laid out as the shell's last child. The shell is a viewport-sized fixed box, and a box of that shape is exactly what mobile Safari has, more than once, ended short of the screen's bottom edge (an installed app under one iOS release drew a band of nothing under the bar). A bar fixed to the edge is right whatever the shell's box does; the shell's body keeps the bar's footprint (`--_m-tabs-total`: the items, plus the inset) clear below it, so the window card and the home grid end where the bar begins. The admin-bar height token (`--wp-admin--admin-bar--height`) is 0 on a phone, so anything that still reads it measures against a bar that is not there.
+
+## The phone does not zoom
+
+A pinch, a double-tap or a focused control must never scale the page: the dock, the tab bar and the window are chrome, and a zoomed shell is a shell half off screen with no way back. Three layers say so, each covering what the others cannot:
+
+- **The viewport meta** on a shell request (`openstation_mode_viewport_meta()`) carries `maximum-scale=1` and `user-scalable=no`. Mobile Safari honours the pair for the focus zoom and, in a home-screen app, for the pinch; in a tab it has ignored them since iOS 10. Desktop browsers ignore both and keep their own zoom.
+- **The zoom guard** (`src/mode/zoom-guard.ts`, installed once at boot) cancels Safari's `gesture*` events, a two-finger `touchmove` and a control-key `wheel` while the document is stamped `mobile` or `standalone`. It reads the stamps at event time, so it follows the mode and the display without a subscription, and it never runs on a desktop in a tab, where pinch-to-zoom is an accessibility affordance.
+- **The stylesheet** sets `touch-action: pan-x pan-y` on the root (scroll, and nothing else, goes to the browser: no pinch, no double-tap) and raises every kit field to 16px through `--os-ui-field-font-size` / `--os-ui-field-font-size-compact` — under 16px iOS zooms the page into a focused control and never zooms back out. A plugin's own `<input>` inside a native window should be 16px on a phone for the same reason; WordPress's own admin forms inside an iframe window already are under 782px.
+
 ## What the phone layer does
 
 The layer ships as its own bundle, `mobile[.min].js`, fetched only when the mode resolves to `mobile` (at boot on a phone, or on the first crossing into the band later). A desktop never loads it.
@@ -50,6 +68,10 @@ The layer ships as its own bundle, `mobile[.min].js`, fetched only when the mode
 **The tab bar** has five slots: Home, up to three pinned apps, and the switcher, labelled *Open apps* (the same words as the sheet it opens, so it is not confused with the Apps section of the home grid) with the number of open apps drawn inside a rounded square, the browser tab-switcher glyph, or the windows icon when nothing is open. The pins come from the user's `mobileTabs` setting, else from the `openstation_mobile_tab_bar` filter's default (Posts, Media, Comments). A pin that resolves is the whole answer — one pin is one tab, the bar never pads it — and only when no pin resolves at all does the navigation's own order fill the bar. Preferences → Mobile shows the effective pins ticked, defaults included, so unticking one keeps the others. The Exit control and ephemeral entries are never tabs. A flick up on the bar opens the switcher.
 
 **The switcher** is also the phone's Overview: the desktop's zoom-out grid has no desk to zoom out of here. The Overview tile is not shown on a phone (the switcher is already in the tab bar), and any remaining route into it — a plugin calling `windowManager.enterOverview()` — opens the switcher instead. The bare-arrow desktop shortcuts (previous and next desktop, Overview, Show Desktop) are off on a phone too: one screen, no virtual desktops, and a hardware keyboard's arrows belong to the page. It is a sheet holding every open window as a card in a deck: each card is drawn as a small window (a title bar over a body) and the deck is laid out bottom-up, the app on screen in front and nearest the thumb, the others behind it peeking out above with their titles showing, so the pile is the picture of what the switcher holds. Tap a card to go to it, swipe it sideways to close it (the window's unsaved-changes guard still applies), × does the same for keyboards and screen readers, *Close all* at the bottom asks first. It is a dialog: focus moves in, returns on close, Escape closes.
+
+**No drag and drop.** A phone has no floating windows to drag between and no file manager to drag from, and a finger on a tile, a row or a card is a tap or a scroll. `DragManager.start()` refuses the phone, which covers every shell drag at once — wallpaper tiles, `<os-tile drag-kind>`, WP Explorer's rows and agent cards, the plugin cards, the notes, the cross-window bridge — and the three gestures that are not manager sessions refuse it themselves: the dock's reorder, the OS file-drop sentinel and manager (the lazy bundle is never fetched; the no-op still cancels the browser's open-file navigation), and WP Explorer's marquee. Drop targets stay registered; nothing reaches them. The window's own drag was already refused.
+
+**Narrow apps.** Two native windows that were laid out for a desktop's width fold under a narrow container (`@container` on the app root, so a desktop window pulled in folds the same way): Trash's toolbar takes three rows — the type filter scrolling sideways under the search, the selection actions sharing a row, Empty Trash keeping the last row's end — and WP Explorer's preview pane becomes a sheet along the bottom, at most 45% tall, present only while something is selected.
 
 **Gestures.** A drag in from the left edge is Back; the zone is a thin strip the shell owns over the iframe's edge, which is why it works over a frame the shell cannot otherwise hear. The hardware Back button is Back too, through one `history` entry the layer pushes when an app opens. A flick up on the tab bar opens the switcher. All three use Pointer Events, so a pen or a mouse drag behaves the same as a finger.
 
@@ -102,6 +124,9 @@ JavaScript — see [javascript-reference.md](./javascript-reference.md):
 | `os.session.snapshot` | filter |
 | `os.os.window-moved` | action — a window folded onto the phone's one desk, or handed back |
 | `data-os-mode` on `<html>` | the CSS hook |
+| `data-os-display` on `<html>` | the CSS hook for `standalone` / `browser` |
+
+PHP, the installed app — see [hooks-reference.md](./hooks-reference.md#progressive-web-app): `openstation_pwa_status_bar_style`.
 
 Settings: `mobileLayout`, `mobileTabs` — both through `wp.os.updateOsSettings()` like every other key.
 
@@ -113,4 +138,4 @@ Settings: `mobileLayout`, `mobileTabs` — both through `wp.os.updateOsSettings(
 
 ## Files
 
-`src/mode/` (the primitive, `stamp.ts` is the import-free leaf other bundles read), `src/mobile/` (`constraints.ts`, `loader.ts`, `open-nav-item.ts` in the main bundle; `entry.ts`, `layer.ts`, `home.ts`, `tab-bar.ts`, `switcher.ts`, `top-bar.ts`, `gestures.ts` in the phone bundle), `assets/css/mobile.css`, `includes/mobile.php`, `apps/os-settings/parts/mobile.ts`. Tests: `tests/vitest/mode.test.ts`, `tests/vitest/mobile-*.test.ts`, `tests/phpunit/tests/mobileMode.php`.
+`src/mode/` (the primitive, `stamp.ts` is the import-free leaf other bundles read, `zoom-guard.ts` the pinch guard), `src/mobile/` (`constraints.ts`, `loader.ts`, `open-nav-item.ts` in the main bundle; `entry.ts`, `layer.ts`, `home.ts`, `tab-bar.ts`, `switcher.ts`, `top-bar.ts`, `gestures.ts` in the phone bundle), `assets/css/mobile.css`, `includes/mobile.php`, `apps/os-settings/parts/mobile.ts`. Tests: `tests/vitest/mode.test.ts`, `tests/vitest/mode-display.test.ts`, `tests/vitest/zoom-guard.test.ts`, `tests/vitest/mobile-*.test.ts` (`mobile-viewport.test.ts` is the stylesheet contract above), `tests/phpunit/tests/mobileMode.php`, `tests/phpunit/tests/openStationPwaStatusBarStyle.php`.

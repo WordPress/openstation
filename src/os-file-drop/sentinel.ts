@@ -23,6 +23,7 @@
  */
 
 import { __ } from '../i18n';
+import { isMobileStamped } from '../mode/stamp';
 import { loadVendorScript } from '../wallpapers/vendor-loader';
 import { showToast } from '../toast';
 import type { CapturedDrop } from './index';
@@ -45,7 +46,9 @@ function dragCarriesFiles( ev: DragEvent ): boolean {
 }
 
 export function installFileDropSentinel( args: SentinelArgs ): () => void {
-	if ( ! args.bundleUrl ) {
+	// A phone has no file manager to drag from, and no drag and drop
+	// at all (`docs/mobile.md`); the lazy bundle is never fetched.
+	if ( ! args.bundleUrl || isMobileStamped() ) {
 		return () => undefined;
 	}
 	let loading: Promise< void > | null = null;

@@ -4681,6 +4681,31 @@ add_filter( 'openstation_pwa_manifest', static function ( array $manifest ) {
 } );
 ```
 
+### `openstation_pwa_status_bar_style` — Experimental (filter)
+
+```php
+apply_filters( 'openstation_pwa_status_bar_style', string $style );
+```
+
+The iOS status-bar style for the installed app — the value of the
+`apple-mobile-web-app-status-bar-style` meta emitted from `admin_head`.
+One of `black` (the default: an opaque bar above the page, white
+glyphs; the page starts below it and `env( safe-area-inset-top )` is
+0), `black-translucent` (the page runs under the bar and reads the
+safe-area inset to keep out of it; current iOS draws the bar as a
+translucent band over the page's top edge) or `default` (the system's
+own bar). Anything else falls back to `black`.
+
+```php
+// Run the wallpaper under the status bar.
+add_filter( 'openstation_pwa_status_bar_style', static fn () => 'black-translucent' );
+```
+
+The theme colour the bar, the splash and the manifest are painted
+with is the shell's backstop (`OPENSTATION_PWA_THEME_COLOR`, the
+`--os-backstop` value); change it through `openstation_pwa_manifest`.
+See [`docs/pwa.md`](./pwa.md#the-installed-app-on-a-phone).
+
 ### `openstation_pwa_force_replace_sw` — Stable (filter)
 
 Opt OpenStation in to replace a foreign root-scope service worker on

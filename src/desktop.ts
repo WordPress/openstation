@@ -300,6 +300,7 @@ import { osConfirm } from './os-confirm';
 import { preloadShellOverlays } from './shell-overlays/loader';
 import { renderIcon } from './icon';
 import { installMode, sanitizeModePreference, type OsModeApi } from './mode';
+import { installZoomGuard } from './mode/zoom-guard';
 import { installMobileConstraints } from './mobile/constraints';
 import { ensureMobileLoaded } from './mobile/loader';
 import { createNavItemOpener } from './mobile/open-nav-item';
@@ -2269,6 +2270,10 @@ function init(): void {
 	osSettings.subscribeOsSettings( ( snap ) => {
 		modeController.setPreference( sanitizeModePreference( snap.mobileLayout ) );
 	} );
+	// An installed app, or a phone, does not zoom: the pinch and the
+	// trackpad pinch are cancelled while either stamp is on. Reads
+	// the stamps at event time, so it needs no subscription.
+	installZoomGuard();
 	const mobileConstraints = installMobileConstraints( {
 		manager,
 		mode: modeController.api,
