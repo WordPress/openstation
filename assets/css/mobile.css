@@ -96,9 +96,9 @@ html[data-os-mode="mobile"] .os-area {
 html[data-os-mode="mobile"] .os-shell {
 	--_m-surface: var( --os-backstop, #0c0b0f );
 	--_m-surface-raised: var( --os-dock-bg, rgba( 12, 11, 15, 0.72 ) );
-	--_m-glass: var( --os-mobile-glass, rgba( 255, 251, 255, 0.1 ) );
-	--_m-glass-strong: var( --os-mobile-glass-strong, rgba( 255, 251, 255, 0.16 ) );
-	--_m-glass-border: var( --os-mobile-glass-border, rgba( 255, 251, 255, 0.14 ) );
+	--_m-glass: var( --os-mobile-glass, rgba( 255, 255, 255, 0.1 ) );
+	--_m-glass-strong: var( --os-mobile-glass-strong, rgba( 255, 255, 255, 0.16 ) );
+	--_m-glass-border: var( --os-mobile-glass-border, rgba( 255, 255, 255, 0.14 ) );
 	--_m-fg: var( --os-dock-icon-color-hover, #fffbff );
 	--_m-fg-muted: var( --os-dock-icon-color, rgba( 255, 251, 255, 0.72 ) );
 	--_m-border: var( --os-dock-border, rgba( 255, 251, 255, 0.1 ) );
