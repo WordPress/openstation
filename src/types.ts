@@ -1898,6 +1898,12 @@ export interface MultisiteConfig {
 	current: string;
 	/** Every site the user belongs to, each with its own shell screen. */
 	sites: Array< { id: string; name: string; shellUrl: string } >;
+	/**
+	 * The route that mints a hop token towards a site on another origin,
+	 * so the switch logs the user in there. Absent on a shell with nowhere
+	 * to hop to.
+	 */
+	hopUrl?: string;
 }
 
 /**
@@ -2332,6 +2338,13 @@ export interface DesktopConfig {
 	 * bar with it, so a reload comes back to the desk.
 	 */
 	landInOverview?: boolean;
+	/**
+	 * The side the desk slides in from when the shell was reached by a
+	 * switch from another origin (`openstation_hop_from`), where the
+	 * sessionStorage hint a same-origin switch leaves cannot follow.
+	 * Read once server-side and stripped like the other boot args.
+	 */
+	arrivalDirection?: 'next' | 'prev' | '';
 	/**
 	 * Progressive-web-app config — endpoint URLs and the per-user
 	 * installable-pill state. Always present in shell-mode requests.

@@ -42,7 +42,7 @@ import { OsSettings } from './settings';
 import { OS_SETTINGS_WINDOW_ID } from './settings/constants';
 import { getExitOpenStationTileDef } from './exit-openstation';
 import { getNetworkAdminTileDef } from './multisite/dock-tiles';
-import { hopToAdmin } from './multisite/hop';
+import { createHopMinter, hopToAdmin } from './multisite/hop';
 import { buildSiteSwitcher } from './multisite/site-switcher';
 import { revealInstance, stampArrival } from './multisite/instance-transition';
 import { installOverviewHeader } from './window-manager/overview';
@@ -2207,7 +2207,11 @@ function init(): void {
 	// A shell arriving from another site's switcher paints hidden
 	// (`os-shell--arriving`, stamped server-side) until overview is up;
 	// stamp the side it slides in from while nothing has shown yet.
-	stampArrival();
+	stampArrival(
+		config.arrivalDirection === 'next' || config.arrivalDirection === 'prev'
+			? config.arrivalDirection
+			: null,
+	);
 
 	const manager = new WindowManager( desktopArea );
 
@@ -2903,8 +2907,18 @@ function init(): void {
 	const openOtherAdmin = hopToAdmin;
 
 	// The site switcher above the overview's desktop tiles, on a network.
+	// A switch to another origin mints a login token first, when the
+	// shell has the route for it (a network with somewhere to hop to).
+	const hopMinter = config.multisite?.hopUrl
+		? createHopMinter( {
+			hopUrl: config.multisite.hopUrl,
+			restNonce: config.restNonce,
+		} )
+		: undefined;
 	installOverviewHeader( () =>
-		config.multisite ? buildSiteSwitcher( config.multisite ) : null,
+		config.multisite
+			? buildSiteSwitcher( config.multisite, { mint: hopMinter } )
+			: null,
 	);
 
 	bindAdminLinkDispatch( {

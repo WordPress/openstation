@@ -19,8 +19,8 @@
  */
 
 import type { MultisiteConfig } from '../types';
-import { hopToAdmin, wantsBrowserTab } from './hop';
-import { leaveInstance } from './instance-transition';
+import { hopToAdmin, wantsBrowserTab, type HopMinter } from './hop';
+import { leaveInstance, type HopDirection } from './instance-transition';
 import { __ } from '../i18n';
 // The switcher is a kit component; the shell bundle registers only
 // what it uses, so the definition rides in with its one user.
@@ -41,14 +41,36 @@ export interface SiteSwitcherEntry {
 	shellUrl: string;
 }
 
-/** The shell URL that boots into overview. */
-export function shellUrlInOverview( shellUrl: string ): string {
+/** The direction arg a cross-origin arrival slides in from. Mirrors `OPENSTATION_NETWORK_HOP_FROM_ARG`. */
+export const HOP_FROM_ARG = 'openstation_hop_from';
+
+/**
+ * The shell URL that boots into overview — and, for another origin,
+ * carries the slide direction, since the sessionStorage hint a
+ * same-origin switch leaves cannot follow the navigation there.
+ */
+export function shellUrlInOverview(
+	shellUrl: string,
+	direction?: HopDirection,
+): string {
 	try {
 		const url = new URL( shellUrl, window.location.href );
 		url.searchParams.set( OVERVIEW_ARG, '1' );
+		if ( direction && url.origin !== window.location.origin ) {
+			url.searchParams.set( HOP_FROM_ARG, direction );
+		}
 		return url.toString();
 	} catch {
 		return shellUrl;
+	}
+}
+
+/** Whether a shell URL lives on another origin than this shell. */
+export function isOtherOrigin( shellUrl: string ): boolean {
+	try {
+		return new URL( shellUrl, window.location.href ).origin !== window.location.origin;
+	} catch {
+		return false;
 	}
 }
 
@@ -83,13 +105,20 @@ export function siteSwitcherEntries(
  * user already stands is noise above their desktops.
  *
  * @param multisite The shell's multisite block.
- * @param hop       Navigation, injectable for tests. Defaults to the
- *                  same hop every cross-admin click takes.
+ * @param deps      Collaborators, both optional.
+ * @param deps.hop  The navigation; defaults to the same hop every
+ *                  cross-admin click takes.
+ * @param deps.mint Signs a login token before a hop to another origin;
+ *                  without it the user logs in there themselves.
  */
 export function buildSiteSwitcher(
 	multisite: MultisiteConfig,
-	hop: ( url: string, event?: MouseEvent ) => void = hopToAdmin,
+	deps: {
+		hop?: ( url: string, event?: MouseEvent ) => void;
+		mint?: HopMinter;
+	} = {},
 ): HTMLElement | null {
+	const hop = deps.hop ?? hopToAdmin;
 	const entries = siteSwitcherEntries( multisite );
 	if ( entries.length < 2 ) {
 		return null;
@@ -139,10 +168,18 @@ export function buildSiteSwitcher(
 		}
 		// Slide this desk out towards the site picked, then go; the
 		// shell that arrives slides its desk in from the same side.
+		// Another origin gets a login token minted meanwhile, so the
+		// user arrives logged in; a mint that fails hops without one.
 		const from = entries.findIndex( ( x ) => x.value === current );
 		const to = entries.findIndex( ( x ) => x.value === value );
-		void leaveInstance( to > from ? 'next' : 'prev' ).then( () =>
-			hop( shellUrlInOverview( entry.shellUrl ) ),
+		const direction: HopDirection = to > from ? 'next' : 'prev';
+		const plain = shellUrlInOverview( entry.shellUrl, direction );
+		const minted =
+			deps.mint && isOtherOrigin( entry.shellUrl )
+				? deps.mint( entry.shellUrl, direction ).catch( () => null )
+				: Promise.resolve( null );
+		void Promise.all( [ leaveInstance( direction ), minted ] ).then(
+			( [ , url ] ) => hop( url ?? plain ),
 		);
 	} );
 

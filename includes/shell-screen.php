@@ -95,6 +95,23 @@ function openstation_shell_lands_in_overview() {
 }
 
 /**
+ * The side this shell slides its desk in from, when it was reached by a
+ * switch from another origin: `next`, `prev`, or ''. A one-shot boot
+ * arg like the two above (`openstation_hop_from`), because the hint a
+ * same-origin switch leaves in sessionStorage never crosses origins.
+ *
+ * @return string
+ */
+function openstation_shell_arrival_direction() {
+	if ( ! openstation_is_shell_screen_request() ) {
+		return '';
+	}
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only routing flag.
+	$from = isset( $_GET[ OPENSTATION_NETWORK_HOP_FROM_ARG ] ) && is_scalar( $_GET[ OPENSTATION_NETWORK_HOP_FROM_ARG ] ) ? sanitize_key( wp_unslash( $_GET[ OPENSTATION_NETWORK_HOP_FROM_ARG ] ) ) : '';
+	return in_array( $from, array( 'next', 'prev' ), true ) ? $from : '';
+}
+
+/**
  * Builds the shell screen URL, optionally carrying a target.
  *
  * `$target` is an absolute same-origin admin URL or a request-URI-shaped

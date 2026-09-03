@@ -83,14 +83,16 @@ function takeArrivalDirection(): HopDirection | null {
 /**
  * At boot, on a shell that arrived hidden: stamp the side it should
  * slide in from, and arm the fallback reveal. A no-op on every other
- * shell.
+ * shell. `fallback` is the direction the URL carried
+ * (`config.arrivalDirection`), for an arrival from another origin
+ * where sessionStorage could not follow.
  */
-export function stampArrival(): void {
+export function stampArrival( fallback: HopDirection | null = null ): void {
 	const root = shellRoot();
 	if ( ! root || ! root.classList.contains( ARRIVING ) ) {
 		return;
 	}
-	const direction = takeArrivalDirection();
+	const direction = takeArrivalDirection() ?? fallback;
 	if ( direction ) {
 		root.classList.add( `os-shell--arriving-${ direction }` );
 	}

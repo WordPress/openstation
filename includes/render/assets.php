@@ -759,6 +759,7 @@ function openstation_enqueue_assets() {
 			// One-shot like the boot target: a switch from another
 			// site's overview lands in this one's.
 			'landInOverview'                => openstation_shell_lands_in_overview(),
+			'arrivalDirection'              => openstation_shell_arrival_direction(),
 			'pwa'                           => array(
 				'manifestUrl'    => esc_url_raw( openstation_pwa_manifest_url() ),
 				'swUrl'          => esc_url_raw( openstation_pwa_sw_url() ),

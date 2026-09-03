@@ -21,6 +21,8 @@
  * boot target, exactly as if it had been typed. See docs/multisite.md.
  */
 
+import { trackedFetch } from '../tracked-fetch';
+
 /** Whether a click asked for the browser-tab behavior instead. */
 export function wantsBrowserTab( event?: MouseEvent ): boolean {
 	return (
@@ -36,4 +38,47 @@ export function hopToAdmin( url: string, event?: MouseEvent ): void {
 		return;
 	}
 	window.location.assign( url );
+}
+
+/**
+ * The mint call the switcher makes before a hop to another origin: the
+ * shell's own REST route signs a token that logs this user in over
+ * there, and answers with the URL to navigate to (the target's shell,
+ * in overview, token attached). `null` on any failure, and the caller
+ * hops without one — the target's login screen is the fallback, never
+ * a dead switch. See `includes/network/hop.php`.
+ */
+export interface HopMinter {
+	( target: string, direction: 'next' | 'prev' ): Promise< string | null >;
+}
+
+/** Build the minter from the shell config. */
+export function createHopMinter( deps: {
+	hopUrl: string;
+	restNonce: string;
+} ): HopMinter {
+	return async ( target, direction ) => {
+		try {
+			const response = await trackedFetch(
+				deps.hopUrl,
+				{
+					method: 'POST',
+					credentials: 'same-origin',
+					headers: {
+						'Content-Type': 'application/json',
+						'X-WP-Nonce': deps.restNonce,
+					},
+					body: JSON.stringify( { target, direction } ),
+				},
+				{ source: 'desktop-mode/network-hop' },
+			);
+			if ( ! response.ok ) {
+				return null;
+			}
+			const data = ( await response.json() ) as { url?: unknown };
+			return typeof data.url === 'string' && data.url !== '' ? data.url : null;
+		} catch {
+			return null;
+		}
+	};
 }

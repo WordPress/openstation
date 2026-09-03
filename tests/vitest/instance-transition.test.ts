@@ -64,6 +64,17 @@ describe( 'the instance hop transition', () => {
 		expect( shell.classList.contains( 'os-shell--revealing' ) ).toBe( false );
 	} );
 
+	test( 'an arrival from another origin takes the direction the URL carried', () => {
+		const shell = mountShell( true );
+		stampArrival( 'next' );
+		expect( shell.classList.contains( 'os-shell--arriving-next' ) ).toBe( true );
+		// sessionStorage wins when it is there: it is this origin's own hint.
+		shell.className = 'os-shell os-shell--arriving';
+		sessionStorage.setItem( 'openstation-hop-direction', 'prev' );
+		stampArrival( 'next' );
+		expect( shell.classList.contains( 'os-shell--arriving-prev' ) ).toBe( true );
+	} );
+
 	test( 'a shell that did not arrive from a switch is left alone', () => {
 		const shell = mountShell();
 		stampArrival();

@@ -59,10 +59,19 @@ export function isShellDocumentUrl( url: URL | string, base?: string ): boolean 
  * desk to open in overview (how a switch from another site's overview
  * lands in this one's). PHP reads them once, on the request that
  * carries them, and hands the answer to the shell as `currentPage` /
- * `fromPortalIntent` / `landInOverview` — nothing on the JS side reads
- * them from the URL.
+ * `fromPortalIntent` / `landInOverview` / `arrivalDirection` — nothing on
+ * the JS side reads them from the URL. `openstation_hop` is the login
+ * token a switch from another install carries, spent server-side
+ * before the shell renders; `openstation_hop_from` is the direction it
+ * lands with.
  */
-const SHELL_BOOT_ARGS = [ 'target', 'intent', 'openstation_overview' ] as const;
+const SHELL_BOOT_ARGS = [
+	'target',
+	'intent',
+	'openstation_overview',
+	'openstation_hop',
+	'openstation_hop_from',
+] as const;
 
 /**
  * The same shell-screen URL with the consumed boot args removed, or

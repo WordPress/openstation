@@ -27,6 +27,12 @@
  * @covers ::openstation_network_hub_payload
  * @covers ::openstation_multisite_payload
  * @covers ::openstation_native_window_offered_here
+ * @covers ::openstation_network_mint_hop
+ * @covers ::openstation_network_verify_hop
+ * @covers ::openstation_network_hop_issuer_key
+ * @covers ::openstation_network_hop_user
+ * @covers ::openstation_network_hop_landing
+ * @covers ::openstation_rest_network_hop
  */
 class Tests_OpenStation_Network extends WP_UnitTestCase {
 
@@ -42,6 +48,8 @@ class Tests_OpenStation_Network extends WP_UnitTestCase {
 		if ( is_multisite() ) {
 			grant_super_admin( self::$admin_id );
 		}
+		// The mint route is for users who can open the shell at all.
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 	}
 
 	public function set_up() {
@@ -309,7 +317,10 @@ class Tests_OpenStation_Network extends WP_UnitTestCase {
 		$this->assertSame( 'member:abc', $payload['current'], 'This site is the entry carrying its key.' );
 		$this->assertSame( array( '1', 'member:abc' ), wp_list_pluck( $payload['sites'], 'id' ) );
 		$this->assertSame( 'https://hub.test/wp-admin/network/admin.php?page=openstation', $payload['networkAdmin']['shellUrl'] );
-		$this->assertSame( $payload, openstation_multisite_payload(), 'The shell config carries it as its multisite block.' );
+		$config = openstation_multisite_payload();
+		$this->assertStringContainsString( '/network/hop', $config['hopUrl'], 'And the route to mint a hop token.' );
+		unset( $config['hopUrl'] );
+		$this->assertSame( $payload, $config, 'The shell config carries it as its multisite block.' );
 
 		wp_set_current_user( self::$editor_id );
 		$this->assertNull( openstation_network_member_payload()['networkAdmin'], 'The Network Admin tile is for administrators.' );
@@ -362,6 +373,107 @@ class Tests_OpenStation_Network extends WP_UnitTestCase {
 			$this->assertSame( 'hub', $ids[0] );
 			$this->assertNull( $payload['networkAdmin'] );
 		}
+	}
+
+	// --------------------------------------------------------------- hop
+
+	/** A token as a pretend install would mint it, signed with its key. */
+	protected static function foreign_token( array $pair, array $over = array() ) {
+		$now     = time();
+		$payload = array_merge(
+			array(
+				'v'    => 1,
+				'iss'  => 'https://member.test/',
+				'aud'  => openstation_network_origin( admin_url() ),
+				'sub'  => 'visitor@example.org',
+				'name' => 'Visitor',
+				'dir'  => 'next',
+				'iat'  => $now,
+				'exp'  => $now + 60,
+				'jti'  => bin2hex( random_bytes( 8 ) ),
+			),
+			$over
+		);
+		$json = wp_json_encode( $payload );
+		return openstation_network_hop_encode( $json ) . '.' . openstation_network_hop_encode( sodium_crypto_sign_detached( $json, $pair['secret'] ) );
+	}
+
+	public function test_mint_signs_a_token_for_a_switcher_target_only() {
+		$pair         = self::remote_keypair();
+		$this->remote = static function () use ( $pair ) {
+			return self::json_response( self::member_identity( $pair['public'] ) );
+		};
+		$member = openstation_network_add_member( 'https://member.test' );
+		wp_set_current_user( self::$admin_id );
+
+		$request = new WP_REST_Request( 'POST', '/desktop-mode/v1/network/hop' );
+		$request->set_param( 'target', $member['shellUrl'] );
+		$request->set_param( 'direction', 'next' );
+		$response = rest_do_request( $request );
+		$this->assertSame( 200, $response->get_status() );
+		$minted = $response->get_data();
+
+		$this->assertStringContainsString( 'openstation_overview=1', $minted['url'] );
+		$this->assertStringContainsString( 'openstation_hop=' . $minted['token'], $minted['url'] );
+		list( $body, $sig ) = explode( '.', $minted['token'] );
+		$json    = openstation_network_hop_decode( $body );
+		$payload = json_decode( $json, true );
+		$this->assertSame( 'https://member.test', $payload['aud'] );
+		$this->assertSame( get_userdata( self::$admin_id )->user_email, $payload['sub'] );
+		$this->assertSame( 'next', $payload['dir'] );
+		$this->assertLessThanOrEqual( 60, $payload['exp'] - $payload['iat'] );
+		$this->assertTrue( openstation_network_verify( $json, sodium_bin2base64( openstation_network_hop_decode( $sig ), SODIUM_BASE64_VARIANT_ORIGINAL ), openstation_network_public_key() ), 'Signed with this install\'s key.' );
+
+		$this->assertSame( 'openstation_hop_target', openstation_network_mint_hop( 'https://stranger.test/wp-admin/admin.php?page=openstation' )->get_error_code() );
+		$this->assertSame( 'openstation_hop_same_origin', openstation_network_mint_hop( admin_url( 'admin.php?page=openstation' ) )->get_error_code() );
+
+		wp_set_current_user( 0 );
+		$this->assertSame( 401, rest_do_request( $request )->get_status(), 'Only a logged-in user mints.' );
+	}
+
+	public function test_verify_accepts_a_pinned_issuer_once_and_refuses_everything_else() {
+		$pair         = self::remote_keypair();
+		$this->remote = static function () use ( $pair ) {
+			return self::json_response( self::member_identity( $pair['public'] ) );
+		};
+		openstation_network_add_member( 'https://member.test' );
+		$visitor = self::factory()->user->create( array( 'user_email' => 'visitor@example.org' ) );
+
+		$token   = self::foreign_token( $pair );
+		$payload = openstation_network_verify_hop( $token );
+		$this->assertIsArray( $payload );
+		$this->assertSame( 'visitor@example.org', $payload['sub'] );
+		$this->assertSame( $visitor, openstation_network_hop_user( $payload )->ID );
+		$this->assertSame( 'openstation_hop_replay', openstation_network_verify_hop( $token )->get_error_code(), 'Once.' );
+
+		$this->assertNull( openstation_network_hop_user( array( 'sub' => 'nobody@example.org' ) ), 'A URL never creates a user.' );
+		$this->assertSame( 'openstation_hop_expired', openstation_network_verify_hop( self::foreign_token( $pair, array( 'exp' => time() - 3600, 'iat' => time() - 3700 ) ) )->get_error_code() );
+		$this->assertSame( 'openstation_hop_audience', openstation_network_verify_hop( self::foreign_token( $pair, array( 'aud' => 'https://elsewhere.test' ) ) )->get_error_code() );
+		$this->assertSame( 'openstation_hop_issuer', openstation_network_verify_hop( self::foreign_token( $pair, array( 'iss' => 'https://stranger.test/' ) ) )->get_error_code() );
+		$this->assertSame( 'openstation_hop_signature', openstation_network_verify_hop( self::foreign_token( self::remote_keypair() ) )->get_error_code(), 'A pinned issuer, another key.' );
+		$this->assertSame( 'openstation_hop_malformed', openstation_network_verify_hop( 'not.a.token' )->get_error_code() );
+
+		// A token this install minted for itself (a mapped domain of the
+		// same install) verifies against its own key.
+		$own = self::foreign_token(
+			array( 'secret' => sodium_base642bin( openstation_network_keypair()['secret'], SODIUM_BASE64_VARIANT_ORIGINAL ) ),
+			array( 'iss' => openstation_network_identity()['url'] )
+		);
+		$this->assertIsArray( openstation_network_verify_hop( $own ) );
+	}
+
+	public function test_landing_drops_the_token_and_keeps_the_direction() {
+		$_GET[ OPENSTATION_NETWORK_HOP_ARG ]     = 'abc.def';
+		$_GET[ OPENSTATION_SHELL_OVERVIEW_ARG ] = '1';
+		$_SERVER['REQUEST_URI']                 = '/wp-admin/admin.php?page=openstation&openstation_overview=1&openstation_hop=abc.def';
+
+		$landing = openstation_network_hop_landing( 'prev' );
+		$this->assertStringNotContainsString( 'openstation_hop=', $landing );
+		$this->assertStringContainsString( 'openstation_overview=1', $landing );
+		$this->assertStringContainsString( 'openstation_hop_from=prev', $landing );
+		$this->assertStringNotContainsString( 'openstation_hop_from', openstation_network_hop_landing( '' ) );
+
+		unset( $_GET[ OPENSTATION_NETWORK_HOP_ARG ], $_GET[ OPENSTATION_SHELL_OVERVIEW_ARG ] );
 	}
 
 	// ---------------------------------------------------- windows + app

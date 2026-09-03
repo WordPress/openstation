@@ -82,11 +82,42 @@ hub's Network Admin for the member's administrators. Picking any entry
 is the ordinary instance hop, a navigation to that install's shell
 screen with `openstation_overview=1`, landing in its overview.
 
-Nothing about a user crosses installs yet: the member's users are the
-member's, and a hop to another install lands on its login screen unless
-the browser is already logged in there. Login on arrival, through a
-token the origin signs and the target verifies against the pinned key,
-is the second half of this feature.
+## Login on arrival
+
+The browser carries no login across origins, so the origin install
+vouches for the user in the one channel the browser cannot block: the
+URL. When the switcher picks a site on another origin it asks its own
+shell for a **hop token** (`POST /desktop-mode/v1/network/hop`, a
+logged-in user with OpenStation enabled, target restricted to the
+switcher's own entries) and navigates to the URL the route answers:
+the target's shell, in overview, token attached. The token is the
+origin's Ed25519 signature over a small JSON payload: `iss` (the
+issuer's identity URL), `aud` (the target's origin), `sub` (the user's
+email), `name`, `dir` (the slide direction), `iat`, `exp` (60 seconds)
+and a random `jti`.
+
+The target spends it on `init`, before Core's `auth_redirect()` can
+send an anonymous request to the login screen
+(`openstation_network_redeem_hop()`): it looks up the key it pinned for
+`iss` (its own, its hub's, or a member's from the list), verifies the
+signature, checks `aud` against its own admin origin and `exp` against
+its clock (a minute of skew), records `jti` in a transient so the
+token is spent once, then finds the local user with that email and, if
+nobody is logged in there, sets its own auth cookie. It redirects to
+the same URL without the token and with `openstation_hop_from` carrying
+the direction, so the desk slides in from the right side even though
+the sessionStorage hint could not follow. A token that fails any check
+is dropped the same way, silently: the user lands where they would
+have without it, the login screen included.
+
+What the token cannot do: create an account (an unknown email is a
+plain login screen), replace a session (a browser already logged in as
+someone else is left alone), travel over plain HTTP outside a local
+environment, or be spent anywhere but the origin it names. What it
+shares with every magic-login link: for sixty seconds the URL is a
+credential, which HTTPS covers on the wire and the redirect covers in
+history. Same origin never mints one; the hub's own subdirectory sites
+switch as they always did.
 
 ## The Network app
 
@@ -112,6 +143,9 @@ the switcher on the next shell load.
 - `GET /desktop-mode/v1/network/identity`, public.
 - `GET /desktop-mode/v1/network`, signed by a pinned member or read by
   an administrator.
+- `POST /desktop-mode/v1/network/hop`, a logged-in user minting a hop
+  token towards one of the switcher's entries; `openstation_hop` and
+  `openstation_hop_from` are one-shot boot args of the shell screen.
 - `openstation_network_request_url` (filter): the URL one install
   reaches another by, for proxies, internal hostnames and containers.
   See [hooks-reference.md](./hooks-reference.md#openstation_network_request_url--experimental).

@@ -106,6 +106,7 @@ require_once OPENSTATION_DIR . 'includes/network/identity.php';
 require_once OPENSTATION_DIR . 'includes/network/registry.php';
 require_once OPENSTATION_DIR . 'includes/network/hub.php';
 require_once OPENSTATION_DIR . 'includes/network/member.php';
+require_once OPENSTATION_DIR . 'includes/network/hop.php';
 require_once OPENSTATION_DIR . 'includes/presence.php';
 require_once OPENSTATION_DIR . 'includes/nonce-refresh.php';
 require_once OPENSTATION_DIR . 'includes/os-settings.php';

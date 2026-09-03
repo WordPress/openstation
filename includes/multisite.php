@@ -38,7 +38,7 @@ function openstation_multisite_payload() {
 	}
 	if ( ! is_multisite() ) {
 		$member = openstation_network_member_payload();
-		return null !== $member ? $member : openstation_network_hub_payload();
+		return openstation_multisite_with_hop( null !== $member ? $member : openstation_network_hub_payload() );
 	}
 
 	$network_admin = null;
@@ -50,12 +50,28 @@ function openstation_multisite_payload() {
 		);
 	}
 
-	return array(
-		'isNetworkAdmin' => is_network_admin(),
-		'networkAdmin'   => $network_admin,
-		'current'        => is_network_admin() ? 'network' : (string) get_current_blog_id(),
-		'sites'          => openstation_multisite_sites(),
+	return openstation_multisite_with_hop(
+		array(
+			'isNetworkAdmin' => is_network_admin(),
+			'networkAdmin'   => $network_admin,
+			'current'        => is_network_admin() ? 'network' : (string) get_current_blog_id(),
+			'sites'          => openstation_multisite_sites(),
+		)
 	);
+}
+
+/**
+ * The mint route for hop tokens, on any block that has somewhere to
+ * hop to. See `includes/network/hop.php`.
+ *
+ * @param array|null $block The multisite block.
+ * @return array|null
+ */
+function openstation_multisite_with_hop( $block ) {
+	if ( is_array( $block ) ) {
+		$block['hopUrl'] = esc_url_raw( rest_url( 'desktop-mode/v1/network/hop' ) );
+	}
+	return $block;
 }
 
 /**

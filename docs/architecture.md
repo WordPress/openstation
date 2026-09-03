@@ -360,6 +360,7 @@ REST surface:
 
 - `GET  /wp-json/desktop-mode/v1/network/identity` — this install's OpenStation-network identity (name, URL, shell screen, public key). Public.
 - `GET  /wp-json/desktop-mode/v1/network` — the network as a hub lists it (sites and members), for a member signing with a pinned key or an administrator. See [network.md](./network.md).
+- `POST /wp-json/desktop-mode/v1/network/hop` — mint a signed hop token towards one of the switcher's entries, so a switch to another install logs the user in there. Body: `{ target, direction }`.
 - `GET  /wp-json/desktop-mode/v1/session` — current user's saved session.
 - `POST /wp-json/desktop-mode/v1/session` — overwrite the session. Body: `{ session: { windows: [...], desktops: [...], activeDesktop, focused, updated } }`.
 - `DELETE /wp-json/desktop-mode/v1/session` — clear it.
