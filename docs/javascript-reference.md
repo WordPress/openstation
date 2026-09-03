@@ -4072,12 +4072,14 @@ The shell's top-window link interceptor claims every same-origin `/wp-admin/` an
 Say what the window is called and the guess is skipped:
 
 ```html
-<!-- Window title: "Ginza after work • 356d ago" -->
+<!-- Window title: "Ginza after work" -->
 <a href="/wp-admin/post.php?post=42&action=edit"
-   data-os-window-title="Ginza after work • 356d ago">
+   data-os-window-title="Ginza after work">
     <span class="title">Ginza after work</span><span class="stamp">356d ago</span>
 </a>
 ```
+
+Naming the window after the thing it opens, rather than after everything the row happens to show, is usually the right call: a window title is read in the taskbar and the overview long after the click, and a relative stamp captured at open time is stale by then.
 
 The attribute outranks both the link text and the dock entry that would otherwise name the window: it is the anchor stating what it opens, which is more specific than the dock's name for the whole destination. Whitespace-only values are ignored and fall through to the normal chain. Set it from JS with `link.dataset.osWindowTitle = …`.
 

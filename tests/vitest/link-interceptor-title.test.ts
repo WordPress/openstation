@@ -84,12 +84,12 @@ afterEach( () => {
 describe( 'link interceptor: window title', () => {
 	it( 'prefers the title the anchor declares', () => {
 		const link = draftRowLink( 'Ginza after work', '356d ago' );
-		link.dataset.osWindowTitle = 'Ginza after work • 356d ago';
+		link.dataset.osWindowTitle = 'Ginza after work';
 		container.appendChild( link );
 
 		click( link );
 
-		expect( openedTitle() ).toBe( 'Ginza after work • 356d ago' );
+		expect( openedTitle() ).toBe( 'Ginza after work' );
 	} );
 
 	it( 'falls back to the link text for a plain anchor', () => {

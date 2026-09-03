@@ -228,8 +228,9 @@ describe( 'drafts widget — rendering', () => {
 
 		const link = container.querySelector( '.dm-drafts__link' ) as HTMLAnchorElement;
 		// Without this the interceptor reads the anchor's text, and the
-		// two spans have no whitespace between them to read.
-		expect( link.dataset.osWindowTitle ).toBe( 'Ginza after work • 356d ago' );
+		// two spans have no whitespace between them to read. The stamp
+		// stays in the row; the window is named after the draft.
+		expect( link.dataset.osWindowTitle ).toBe( 'Ginza after work' );
 		expect( link.textContent ).toBe( 'Ginza after work356d ago' );
 	} );
 

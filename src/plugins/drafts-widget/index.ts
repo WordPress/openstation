@@ -573,7 +573,6 @@ function render(
 		link.href = editUrl( d.id );
 
 		const titleText = draftTitle( d );
-		const stampText = timeAgo( d.modified_gmt );
 
 		const name = document.createElement( 'span' );
 		name.className = 'dm-drafts__name';
@@ -581,7 +580,7 @@ function render(
 
 		const time = document.createElement( 'span' );
 		time.className = 'dm-drafts__time';
-		time.textContent = stampText;
+		time.textContent = timeAgo( d.modified_gmt );
 
 		link.appendChild( name );
 		link.appendChild( time );
@@ -591,15 +590,11 @@ function render(
 		// two spans (they are spaced by `justify-content: space-between`)
 		// and so titles the window "Ginza after work356d ago".
 		//
-		// A whole placeholder rather than a concatenation, for the same
-		// reason `timeAgo` uses one: the separator is punctuation a
-		// locale may want to move, drop, or replace.
-		link.dataset.osWindowTitle = sprintf(
-			/* translators: 1: draft title. 2: how long ago the draft was last edited, e.g. "3d ago". */
-			__( '%1$s • %2$s' ),
-			titleText,
-			stampText,
-		);
+		// The window is named after the draft, and only the draft. The
+		// stamp is the row's own metadata: it belongs where it keeps
+		// ticking, not frozen into a title that would still claim
+		// "356d ago" after the draft had just been saved.
+		link.dataset.osWindowTitle = titleText;
 
 		// Trash button. The inner Dashicon is a light-DOM child so the
 		// global icon font reaches it, and pointer-events:none so the
