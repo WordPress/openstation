@@ -5,7 +5,7 @@
  * visual; here we just verify the attribute plumbs through).
  */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
-import './os-code';
+import { OsCode } from './os-code';
 
 const tick = (): Promise< void > => Promise.resolve();
 
@@ -30,6 +30,14 @@ describe( '<os-code>', () => {
 		await tick();
 		const code = host.querySelector( 'os-code' )!;
 		expect( code.hasAttribute( 'block' ) ).toBe( true );
+	} );
+
+	test( 'wrap attribute survives on the host for CSS to target', async () => {
+		host.innerHTML = `<os-code block wrap>foo bar</os-code>`;
+		await tick();
+		const code = host.querySelector( 'os-code' )!;
+		expect( code.hasAttribute( 'wrap' ) ).toBe( true );
+		expect( OsCode.props ).toContain( 'wrap' );
 	} );
 
 	test( 'does not install global keypress listeners', async () => {

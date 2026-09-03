@@ -7,6 +7,7 @@ import { formatBytes } from '@openstation/app';
 import { mockViewContext } from '../../src/app-runtime/testing';
 import app, {
 	BUCKETS,
+	buildReport,
 	bucketOf,
 	bucketize,
 	countBuckets,
@@ -26,6 +27,7 @@ function entry( over: Partial< LogEntry > ): LogEntry {
 		line: 1,
 		trace: '',
 		signature: 'sig',
+		origin: { kind: 'unknown', slug: '' },
 		...over,
 	};
 }
@@ -86,6 +88,29 @@ describe( 'model', () => {
 		expect( bucketize( [ entry( { timestamp: null } ) ], null, now, 12 ).columns ).toEqual( [] );
 	} );
 
+	it( 'carries the server-classified origin onto the group', () => {
+		// Attribution is `log-reader.php`'s job (`Tests_OpenStation_CodeBlue`
+		// pins the classification); the client only has to keep it.
+		const woo = { kind: 'plugin', slug: 'woocommerce' } as const;
+		const groups = groupEntries( [
+			entry( { timestamp: 1, signature: 's', origin: woo } ),
+			entry( { timestamp: 2, signature: 's', origin: woo } ),
+		] );
+		expect( groups[ 0 ].origin ).toEqual( woo );
+	} );
+
+	it( 'builds a paste-ready report carrying the environment', () => {
+		const group = groupEntries( [ entry( { timestamp: 100, level: 'fatal', label: 'PHP Fatal error', message: 'Boom', trace: '#0 {main}' } ) ] )[ 0 ];
+		const report = buildReport( group, { kind: 'plugin', slug: 'woocommerce' }, [ { label: 'PHP', value: '8.3', on: null } ] );
+		expect( report ).toContain( '### PHP Fatal error' );
+		expect( report ).toContain( 'Boom' );
+		expect( report ).toContain( '- **File:** `/a.php:1`' );
+		expect( report ).toContain( '- **Source:** Plugin — woocommerce' );
+		expect( report ).toContain( '- **Occurrences:** 1' );
+		expect( report ).toContain( '- **Environment:** PHP 8.3' );
+		expect( report ).toContain( '```\n#0 {main}\n```' );
+	} );
+
 	it( 'formats bytes like the shell', () => {
 		expect( formatBytes( 563200 ) ).toBe( '550 KB' );
 		expect( formatBytes( 1024 * 1024 * 1.25 ) ).toBe( '1.3 MB' );
@@ -113,6 +138,7 @@ describe( 'app', () => {
 		truncated: false,
 		readError: '',
 		now: 100,
+		searchUrl: 'https://duckduckgo.com/?q=%s',
 	} );
 
 	it( 'declares the instant actions as local', () => {
@@ -134,10 +160,26 @@ describe( 'app', () => {
 		expect( root.querySelector( 'os-histogram' )?.getAttribute( 'hidden-series' ) ?? '' ).toBe( '' );
 		expect( root.querySelector( '.os-cb-issue__detail' ) ).toBeNull();
 
+		// The whole row is the toggle — an error list is scanned, so
+		// expanding must not ask for aim at a chevron.
+		const row = root.querySelector( '.os-cb-issue__row' )!;
+		expect( row.tagName ).toBe( 'BUTTON' );
+		expect( row.getAttribute( 'os-action' ) ).toBe( 'toggle' );
+
 		const stack = root.querySelector( 'os-stack' );
 		app.render( { ...ctx, state: { ...state(), expanded: [ 'n' ], hidden: [ 'warning' ] } } );
 		expect( root.querySelector( 'os-stack' ) ).toBe( stack );
 		expect( root.querySelector( '.os-cb-issue__detail' ) ).not.toBeNull();
 		expect( root.querySelector( 'os-histogram' )?.getAttribute( 'hidden-series' ) ).toBe( 'warning' );
+
+		// The detail is where the error can be taken away: the full
+		// message and the file path both carry a copy button, and
+		// neither sits inside the row's button.
+		const full = root.querySelector( '.os-cb-issue__full' )!;
+		expect( full.textContent ).toBe( 'Needle' );
+		expect( full.hasAttribute( 'copy' ) && full.hasAttribute( 'wrap' ) ).toBe( true );
+		expect( full.closest( 'button' ) ).toBeNull();
+		expect( root.querySelector( '.os-cb-issue__facts os-code' )?.textContent ).toBe( '/a.php:1' );
+		expect( root.querySelector< HTMLAnchorElement >( '.os-cb-issue__search' )?.href ).toBe( 'https://duckduckgo.com/?q=Needle' );
 	} );
 } );

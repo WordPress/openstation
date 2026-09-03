@@ -572,9 +572,11 @@ function render(
 		link.className = 'dm-drafts__link';
 		link.href = editUrl( d.id );
 
+		const titleText = draftTitle( d );
+
 		const name = document.createElement( 'span' );
 		name.className = 'dm-drafts__name';
-		name.textContent = draftTitle( d );
+		name.textContent = titleText;
 
 		const time = document.createElement( 'span' );
 		time.className = 'dm-drafts__time';
@@ -582,6 +584,17 @@ function render(
 
 		link.appendChild( name );
 		link.appendChild( time );
+
+		// Name the window this row opens. Left to itself the interceptor
+		// reads the anchor's text, which has no whitespace between the
+		// two spans (they are spaced by `justify-content: space-between`)
+		// and so titles the window "Ginza after work356d ago".
+		//
+		// The window is named after the draft, and only the draft. The
+		// stamp is the row's own metadata: it belongs where it keeps
+		// ticking, not frozen into a title that would still claim
+		// "356d ago" after the draft had just been saved.
+		link.dataset.osWindowTitle = titleText;
 
 		// Trash button. The inner Dashicon is a light-DOM child so the
 		// global icon font reaches it, and pointer-events:none so the

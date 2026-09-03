@@ -520,7 +520,7 @@ add_action( 'admin_enqueue_scripts', function () {
         true
     );
     wp_enqueue_script( 'home-assistant-commands' );
-} );
+}, 5 ); // Before the shell harvests the payload at priority 10.
 openstation_register_command_script( 'home-assistant-commands' );
 ```
 
@@ -567,7 +567,7 @@ add_action( 'admin_enqueue_scripts', function () {
         true
     );
     wp_enqueue_script( 'my-plugin-titlebar' );
-} );
+}, 5 ); // Before the shell harvests the payload at priority 10.
 openstation_register_titlebar_button_script( 'my-plugin-titlebar' );
 ```
 
@@ -597,7 +597,7 @@ add_action( 'admin_enqueue_scripts', function () {
         true
     );
     wp_enqueue_script( 'my-plugin-window-actions' );
-} );
+}, 5 ); // Before the shell harvests the payload at priority 10.
 openstation_register_window_action_script( 'my-plugin-window-actions' );
 ```
 
@@ -627,7 +627,7 @@ add_action( 'admin_enqueue_scripts', function () {
         true
     );
     wp_enqueue_script( 'my-plugin-effects' );
-} );
+}, 5 ); // Before the shell harvests the payload at priority 10.
 openstation_register_unfocus_effect_script( 'my-plugin-effects' );
 ```
 
@@ -818,7 +818,7 @@ add_action( 'admin_enqueue_scripts', function () {
         true
     );
     wp_enqueue_script( 'my-plugin-link-renderer' );
-} );
+}, 5 ); // Before the shell harvests the payload at priority 10.
 openstation_register_window_link_renderer_script( 'my-plugin-link-renderer' );
 ```
 
@@ -858,7 +858,7 @@ add_action( 'admin_enqueue_scripts', function () {
         true
     );
     wp_enqueue_script( 'my-plugin-settings' );
-} );
+}, 5 ); // Before the shell harvests the payload at priority 10.
 openstation_register_settings_tab_script( 'my-plugin-settings' );
 ```
 
@@ -920,7 +920,7 @@ add_action( 'admin_enqueue_scripts', function () {
         true
     );
     wp_enqueue_script( 'my-plugin-rail' );
-} );
+}, 5 ); // Before the shell harvests the payload at priority 10.
 openstation_register_dock_rail_renderer_script( 'my-plugin-rail' );
 ```
 
@@ -2498,6 +2498,25 @@ On an ability-execution failure the payload is `{ stage: 'tool_execute', tool_na
 The Copilot's tools are [WordPress Abilities](https://developer.wordpress.org/apis/abilities-api/) — its own search/navigation abilities (`search_posts`, `search_comments`, `list_admin_pages`, …) plus **any read-only ability registered on the site** (Core's, or another plugin's), listed at `GET /wp-abilities/v1/abilities`. To give the assistant a new tool, just register a read-only ability with `wp_register_ability()` on `wp_abilities_api_init` — no opt-in step. The agent loop advertises every read-only ability and dispatches calls through `wp_get_ability()->execute()`, so its `permission_callback` and input/output schemas are enforced by Core.
 
 Only read-only abilities are offered on purpose: a search turn can be steered by attacker-controlled content (comment / post text in a tool result), so the model is never handed an ability that can change the site. See [`examples/ai-ask.md`](examples/ai-ask.md) for a full ability recipe.
+
+---
+
+### The error-investigation skill — Experimental
+
+Four abilities (`includes/ai-copilot/abilities-debugging.php`) that give an assistant — or an agent — enough to do what a developer does with a stack trace, plus a system-prompt appendix that turns them into a method. They read through Code Blue's own log model, so the assistant and the window can never disagree about what the log says or whose plugin a file belongs to.
+
+| Ability | Model-facing name | Returns |
+|---|---|---|
+| `desktop-mode/list-log-issues` | `list_log_issues` | The log parsed into **distinct issues** rather than raw lines — a fatal that fired 400 times is one entry with `count: 400`. Each carries `signature` (the id for the next call), severity, message, `file`/`line`, and `origin` (`{ kind, slug, name, version }` — whose plugin, theme or core it is). No traces: the list is triage. |
+| `desktop-mode/get-log-issue` | `get_log_issue` | One issue by `signature`, stack trace included. |
+| `desktop-mode/read-source-excerpt` | `read_source_excerpt` | Numbered source lines around a line the log named. |
+| `desktop-mode/get-site-context` | `get_site_context` | WordPress and PHP versions, debug constants, environment type, active theme, every active plugin with its version. No credentials. |
+
+**The skill proposes; it never repairs.** That is structural rather than a matter of prompting: all four are `readonly` and no writing counterpart exists, so a model handed the whole set can read the evidence and describe a patch and has no route to apply one. The prompt appendix says so in words too, because a model that does not know it cannot edit files tends to answer as though it had.
+
+**Gating.** The skill uses Code Blue's own gate — site management plus Developer mode, moved by [`openstation_code_blue_user_can_use`](#openstation_code_blue_user_can_use--experimental-filter). A user who cannot open the log window cannot read the log through an assistant either, and one filter moves both. None of the four is `mcp.public`: this site's log and source are not an external agent's business.
+
+**`read_source_excerpt` is the one to read carefully before changing.** It refuses (as errors, not empty results) any path the *current log* does not name, anything resolving outside the install (`realpath()` before the prefix test), any non-source extension, and `wp-config.php` / `.env` outright — a parse error inside `wp-config.php` does name it, and that file is the database password. Bounding reads to files the install already wrote into its own error log is what keeps this a debugging tool rather than a general file reader reachable through whatever text the model happens to be reading. `tests/phpunit/tests/aiDebuggingAbilities.php` pins every refusal; read [`agents-security.md`](./agents-security.md) before widening any of them.
 
 ---
 
@@ -4280,6 +4299,20 @@ apply_filters( 'openstation_code_blue_environment', array[] $rows ): array[]
 ```
 
 The environment rows shown as badges in the window. Each: `label`, `value` (string), `on` (bool renders an on/off tone, null renders neutral).
+
+### `openstation_code_blue_search_url` — Experimental (filter)
+
+```php
+apply_filters( 'openstation_code_blue_search_url', string $template ): string
+```
+
+The URL template behind the **Search the web** link on an expanded issue — `%s` is replaced with the URL-encoded message. Default `https://duckduckgo.com/?q=%s`. Point it at an internal wiki, a hosting knowledge base, or a support desk; return an empty string to drop the link entirely.
+
+```php
+add_filter( 'openstation_code_blue_search_url', function () {
+    return 'https://wiki.example.com/search?q=%s';
+} );
+```
 
 ### `openstation_code_blue_max_bytes` / `openstation_code_blue_max_entries` — Experimental (filter)
 

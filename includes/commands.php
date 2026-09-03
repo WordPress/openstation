@@ -41,7 +41,7 @@ defined( 'ABSPATH' ) || exit;
  *         true
  *     );
  *     wp_enqueue_script( 'home-assistant-commands' );
- * } );
+ * }, 5 ); // Before the shell harvests the payload at priority 10.
  * openstation_register_command_script( 'home-assistant-commands' );
  * ```
  *

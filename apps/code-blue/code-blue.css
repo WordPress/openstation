@@ -134,9 +134,17 @@
 	border-block-end: none;
 }
 
+/*
+ * The whole row is the control — an error list is scanned, and asking
+ * for a chevron would be asking for aim. It stays a `<button>`, which
+ * means the text inside it cannot be selected: every engine suppresses
+ * selection inside a form control. Copying is the detail panel's job
+ * instead, where the message and the trace are `<os-code copy>` and
+ * plain selectable markup rather than button content.
+ */
 .os-cb-issue__row {
 	display: flex;
-	align-items: center;
+	align-items: flex-start;
 	gap: 10px;
 	inline-size: 100%;
 	padding: 8px 12px;
@@ -163,6 +171,7 @@
 	gap: 6px;
 	flex: none;
 	inline-size: 150px;
+	min-block-size: 18px;
 	overflow: hidden;
 }
 
@@ -176,14 +185,20 @@
 	text-overflow: ellipsis;
 }
 
+/*
+ * The message wraps rather than ellipsising. A fatal error is
+ * routinely longer than any window anyone wants to open, and reading
+ * one should not cost a resize — the row grows by a line or two
+ * instead, which a list that scrolls can afford.
+ */
 .os-cb-issue__message {
 	flex: 1;
 	min-inline-size: 0;
 	font-family: var( --os-ui-font-mono, ui-monospace, Menlo, Consolas, monospace );
 	font-size: 12px;
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
+	line-height: 18px;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
 }
 
 .os-cb-issue__meta {
@@ -191,6 +206,7 @@
 	align-items: center;
 	gap: 10px;
 	flex: none;
+	min-block-size: 18px;
 	color: var( --os-ui-fg-muted, #646970 );
 	font-size: 12px;
 }
@@ -222,11 +238,34 @@
 	}
 }
 
+/*
+ * The origin badge outlives the file path at narrow widths: "which
+ * plugin" survives a resize that "which file" does not, and it is the
+ * more useful half of the pair when only one fits.
+ */
+@container ( max-width: 480px ) {
+	.os-cb-issue__origin {
+		display: none;
+	}
+}
+
 .os-cb-issue__detail {
 	display: flex;
 	flex-direction: column;
 	gap: 10px;
 	padding: 4px 14px 14px 22px;
+}
+
+/*
+ * The message again, in full and with a copy button — the row above
+ * shows the same text, but that row is a `<button>`, so this is the
+ * only place a reader can take the error away with them. Everything in
+ * the detail panel is plain markup outside the control: selectable by
+ * drag, and copyable by button for the two things anyone ever copies.
+ */
+.os-cb-issue__full {
+	font-size: 12px;
+	--os-ui-code-block-max-block-size: 220px;
 }
 
 .os-cb-issue__facts {
@@ -235,6 +274,19 @@
 	gap: 2px 14px;
 	margin: 0;
 	font-size: 12px;
+	align-items: baseline;
+}
+
+/*
+ * The file path is a copy target too (it is what gets pasted into an
+ * editor), but it sits in a definition list, not a snippet box — so
+ * the badge chrome comes off and only the copy affordance stays.
+ */
+.os-cb-issue__facts os-code {
+	--os-ui-code-bg: transparent;
+	--os-ui-code-border: none;
+	--os-ui-code-padding: 0;
+	--os-ui-code-font-size: 1em;
 }
 
 .os-cb-issue__facts dt {
@@ -247,6 +299,26 @@
 	overflow-wrap: anywhere;
 }
 
+/*
+ * The two things anyone does with an error they cannot immediately
+ * fix: hand it to someone else, or go and look it up.
+ */
+.os-cb-issue__actions {
+	margin-block-start: 2px;
+}
+
+.os-cb-issue__search {
+	font-size: 12px;
+	align-self: center;
+	color: var( --os-ui-accent, #2271b1 );
+	text-decoration: none;
+}
+
+.os-cb-issue__search:hover,
+.os-cb-issue__search:focus-visible {
+	text-decoration: underline;
+}
+
 .os-cb-issue__times {
 	font-size: 11px;
 }
@@ -257,8 +329,7 @@
 
 .os-cb-issue__trace {
 	font-size: 11px;
-	max-block-size: 320px;
-	overflow: auto;
+	--os-ui-code-block-max-block-size: 320px;
 }
 
 /* ---------- Footer -------------------------------------------------- */
