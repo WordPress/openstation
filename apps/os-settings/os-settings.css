@@ -2045,6 +2045,26 @@ html[data-os-mode="mobile"] .os-settings__layout-grid {
 	flex: 0 0 auto;
 }
 
+/*
+ * Narrow, or a phone: the sentence and the button stack. Side by side
+ * in a 360px pane the sentence wrapped to three lines beside a button
+ * squeezed to its minimum, two columns fighting for a width neither
+ * had. Under the sentence the button reads as its consequence, which
+ * is the order the copy already puts them in.
+ */
+@container ( max-width: 640px ) {
+	.os-features__danger-row {
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 8px;
+	}
+}
+html[data-os-mode="mobile"] .os-features__danger-row {
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 8px;
+}
+
 /* Heartbeat rate: 8px label-to-control, description 8px below the
  * control (4px parent gap + 4px margin). */
 .os-features__select-label {
