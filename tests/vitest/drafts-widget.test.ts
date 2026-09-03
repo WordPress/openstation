@@ -354,9 +354,11 @@ describe( 'drafts widget — AI writing assistant', () => {
 		const spark = container.querySelector( '.dm-drafts__spark' ) as HTMLElement;
 		expect( spark.tagName.toLowerCase() ).toBe( 'os-button' );
 		expect( spark.getAttribute( 'aria-expanded' ) ).toBe( 'false' );
-		expect( spark.getAttribute( 'aria-label' ) ).toBe(
-			'Suggest title, excerpt & tags',
-		);
+		// Named by slotted text rather than a host `aria-label`, which
+		// `<os-button>` cannot carry — see the accessible-names block.
+		expect(
+			spark.querySelector( '.screen-reader-text' )?.textContent,
+		).toBe( 'Suggest title, excerpt & tags' );
 	} );
 
 	test( 'row actions are os-button components, not bare buttons', async () => {
@@ -609,6 +611,100 @@ describe( 'drafts widget — AI writing assistant', () => {
 		).toBe( false );
 		// The panel survived.
 		expect( container.querySelector( '.dm-drafts__suggest' ) ).not.toBeNull();
+	} );
+} );
+
+describe( 'drafts widget — focus across refreshes', () => {
+	const twoDrafts = [
+		{ id: 5, title: { rendered: 'First' }, modified_gmt: agoIso( 60 ) },
+		{ id: 6, title: { rendered: 'Second' }, modified_gmt: agoIso( 120 ) },
+	];
+
+	/** Fire the blur nudge — the same rebuild the 60s poller drives. */
+	async function poll(): Promise< void > {
+		document.dispatchEvent( new Event( 'os-window-blurred' ) );
+		await new Promise( ( resolve ) => setTimeout( resolve, 700 ) );
+	}
+
+	function linkFor( id: number ): HTMLElement {
+		return container.querySelector(
+			`.dm-drafts__row[data-draft-id="${ id }"] .dm-drafts__link`,
+		) as HTMLElement;
+	}
+
+	test( 'a refresh leaves the keyboard on the draft it was on', async () => {
+		installShell( { drafts: twoDrafts } );
+		teardown = await getMount()( container, makeCtx() );
+
+		linkFor( 6 ).focus();
+		await poll();
+
+		// Same draft, and the node itself is the one the rebuild made.
+		expect( document.activeElement ).toBe( linkFor( 6 ) );
+	} );
+
+	// The control branch (trash / spark rather than the link) is not
+	// covered here: `<os-button>` puts its real button in a shadow root,
+	// and jsdom implements neither `delegatesFocus` nor a focusable host,
+	// so the row's buttons cannot take focus in this environment. It is
+	// exercised in a browser instead.
+	test( 'a vanished draft hands focus to the row that took its place', async () => {
+		installShell( { drafts: twoDrafts } );
+		teardown = await getMount()( container, makeCtx() );
+
+		linkFor( 5 ).focus();
+		// The draft is gone by the time the refresh lands.
+		desktop.fetch.mockImplementation( () =>
+			Promise.resolve( jsonResponse( [ twoDrafts[ 1 ] ] ) ),
+		);
+		await poll();
+
+		expect( document.activeElement ).toBe( linkFor( 6 ) );
+		expect( document.activeElement ).not.toBe( document.body );
+	} );
+
+	test( 'a refresh does not steal focus back from elsewhere', async () => {
+		installShell( { drafts: twoDrafts } );
+		teardown = await getMount()( container, makeCtx() );
+
+		const outside = document.createElement( 'button' );
+		document.body.appendChild( outside );
+		outside.focus();
+		await poll();
+
+		expect( document.activeElement ).toBe( outside );
+		outside.remove();
+	} );
+} );
+
+describe( 'drafts widget — accessible names', () => {
+	const oneDraft = [
+		{ id: 5, title: { rendered: 'Doomed' }, modified_gmt: agoIso( 60 ) },
+	];
+
+	test( 'row actions carry a slotted name, not a host aria-label', async () => {
+		installShell( { drafts: oneDraft, ai: true } );
+		teardown = await getMount()( container, makeCtx() );
+
+		for ( const cls of [ 'dm-drafts__trash', 'dm-drafts__spark' ] ) {
+			const btn = container.querySelector( `.${ cls }` ) as HTMLElement;
+			// `<os-button>` drops a host aria-label: it renders its real
+			// button in a shadow root and a custom element has no role to
+			// hang the label on. The name has to be inside the button.
+			expect( btn.getAttribute( 'aria-label' ) ).toBeNull();
+			const name = btn.querySelector( '.screen-reader-text' );
+			expect( name?.textContent?.trim() ).toBeTruthy();
+			// The tooltip stays for the pointer.
+			expect( btn.getAttribute( 'title' ) ).toBe( name?.textContent );
+		}
+	} );
+
+	test( 'the dashicon is hidden from the name', async () => {
+		installShell( { drafts: oneDraft } );
+		teardown = await getMount()( container, makeCtx() );
+
+		const icon = container.querySelector( '.dm-drafts__trash .dashicons' );
+		expect( icon?.getAttribute( 'aria-hidden' ) ).toBe( 'true' );
 	} );
 } );
 

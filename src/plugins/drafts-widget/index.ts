@@ -276,6 +276,13 @@ function applyButton(
 				check.setAttribute( 'aria-hidden', 'true' );
 				check.textContent = '✓';
 				btn.appendChild( check );
+				// The wash, the border and the ✓ all say "applied" to
+				// the eye and nothing to a screen reader; `aria-disabled`
+				// alone says "unavailable", not "this one landed".
+				const applied = document.createElement( 'span' );
+				applied.className = 'screen-reader-text';
+				applied.textContent = __( 'applied' );
+				btn.appendChild( applied );
 				onOk?.();
 			} else {
 				toast( __( 'Could not apply the suggestion.' ), 'error' );
@@ -514,15 +521,34 @@ function rowAction(
 	const btn = document.createElement( 'os-button' );
 	btn.className = className;
 	btn.setAttribute( 'variant', 'ghost' );
+	// Tooltip for the pointer.
 	btn.title = label;
-	btn.setAttribute( 'aria-label', label );
+
+	// The name is slotted, not an `aria-label` on the host.
+	//
+	// `<os-button>` renders its real `<button>` inside a shadow root and
+	// forwards neither the host's `aria-label` nor its `title`, and a
+	// custom element carries no implicit role, which makes `aria-label`
+	// on it a prohibited attribute that assistive tech drops. The label
+	// was therefore going nowhere: these two icon-only controls
+	// announced as unnamed buttons. Slotted text lands inside the
+	// `<button>`, where name-from-content picks it up.
+	//
+	// The icon is hidden from the name for the same reason: a Dashicon
+	// is a private-use glyph, and it would otherwise be read out.
 	const icon = document.createElement( 'span' );
 	icon.className = `dashicons ${ dashicon }`;
+	icon.setAttribute( 'aria-hidden', 'true' );
 	btn.appendChild( icon );
+
+	const name = document.createElement( 'span' );
+	name.className = 'screen-reader-text';
+	name.textContent = label;
+	btn.appendChild( name );
 	return btn;
 }
 
-function render(
+function renderList(
 	container: HTMLElement,
 	drafts: DraftRow[] | null,
 	error: boolean,
@@ -565,6 +591,9 @@ function render(
 	for ( const d of drafts ) {
 		const row = document.createElement( 'div' );
 		row.className = 'dm-drafts__row';
+		// Stable identity across rebuilds, so `restoreFocus` can find
+		// this row again in the list the next refresh builds.
+		row.dataset.draftId = String( d.id );
 
 		// A real anchor so the shell's admin-link interceptor opens the
 		// editor as a native window (and middle-click / modifiers behave).
@@ -674,6 +703,89 @@ async function onTrash(
 			type: 'error',
 		} );
 	}
+}
+
+/**
+ * Where the keyboard was inside the widget, in terms that outlive the
+ * elements themselves: which draft, which of its controls, and where
+ * the row sat in the list.
+ */
+interface FocusMark {
+	id: number;
+	control: string;
+	index: number;
+}
+
+/**
+ * Note what has focus before a rebuild wipes it.
+ *
+ * `document.activeElement` reports the `<os-button>` host rather than
+ * the real button inside its shadow root, which is exactly what we
+ * want: the host carries the class that says which control this is.
+ */
+function markFocus( container: HTMLElement ): FocusMark | null {
+	const active = document.activeElement;
+	if ( ! ( active instanceof HTMLElement ) || ! container.contains( active ) ) {
+		return null;
+	}
+	const row = active.closest< HTMLElement >( '.dm-drafts__row' );
+	if ( ! row?.dataset.draftId ) {
+		return null;
+	}
+	const rows = Array.from( container.querySelectorAll( '.dm-drafts__row' ) );
+	const control = [ 'dm-drafts__trash', 'dm-drafts__spark' ].find( ( c ) =>
+		active.classList.contains( c ),
+	);
+	return {
+		id: Number( row.dataset.draftId ),
+		control: control ?? 'dm-drafts__link',
+		index: rows.indexOf( row ),
+	};
+}
+
+/**
+ * Put the keyboard back where the rebuild found it.
+ *
+ * The same draft when it survived the refresh, otherwise whatever row
+ * took its place, so trashing a draft leaves focus in the list instead
+ * of stranding it on `<body>`. Restores only the focus the rebuild
+ * itself took: if the user moved on during the round-trip, they keep
+ * where they went.
+ */
+function restoreFocus( container: HTMLElement, mark: FocusMark | null ): void {
+	const active = document.activeElement;
+	if ( ! mark || ( active && active !== document.body ) ) {
+		return;
+	}
+	const rows = Array.from(
+		container.querySelectorAll< HTMLElement >( '.dm-drafts__row' ),
+	);
+	const row =
+		rows.find( ( r ) => Number( r.dataset.draftId ) === mark.id ) ??
+		rows[ Math.min( mark.index, rows.length - 1 ) ];
+	const target =
+		row?.querySelector< HTMLElement >( `.${ mark.control }` ) ??
+		row?.querySelector< HTMLElement >( '.dm-drafts__link' );
+	target?.focus( { preventScroll: true } );
+}
+
+/**
+ * Rebuild the list, keeping the keyboard where it was.
+ *
+ * Every refresh path lands here (the 60s poll, the window-lifecycle
+ * nudge, the refresh after a trash) and each one wipes the container.
+ * Without this, a poll firing while someone was tabbed onto a draft
+ * dropped them back to the top of the page mid-interaction.
+ */
+function render(
+	container: HTMLElement,
+	drafts: DraftRow[] | null,
+	error: boolean,
+	onChange: () => void,
+): void {
+	const mark = markFocus( container );
+	renderList( container, drafts, error, onChange );
+	restoreFocus( container, mark );
 }
 
 const mount = async (
