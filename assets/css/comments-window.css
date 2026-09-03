@@ -25,6 +25,9 @@
 	inline-size: 100%;
 	overflow: hidden;
 	position: relative;
+	/* A query container, so the one-pane rules at the end of this file
+	   track the WINDOW's width — a phone, or a desktop window pulled in. */
+	container-type: inline-size;
 	color: var( --os-ui-fg, #1d2327 );
 }
 
@@ -555,7 +558,56 @@ body.os-active a.os-comments__convo-post--editable {
 	cursor: pointer !important;
 }
 
-@media ( max-width: 720px ) {
-	.os-comments__split { grid-template-columns: 1fr; }
-	.os-comments__rail { display: none; }
+/* ── Narrow windows: one pane at a time ─────────────────────────── */
+/*
+ * A phone, or a desktop window pulled in. The split cannot hold two
+ * panes, so it holds one: the rail (the list of conversations) until
+ * a conversation is picked, then the conversation, with a Back control
+ * in its head that returns to the list. The bundle stamps which pane
+ * is up as `data-os-comments-pane` on the root; at a wide width the
+ * stamp changes nothing, both panes are always up. The tab strip
+ * becomes a picker the same way (`data-os-comments-tabselect`, built
+ * by the bundle beside the strip), so five tabs with counts do not
+ * wrap into two rows above a 360px list.
+ *
+ * Container-scoped rather than a media query so the rules follow the
+ * WINDOW's width; the old media query hid the rail outright under
+ * 720px, which on a phone was the whole list of conversations gone.
+ */
+.os-comments__tabselect {
+	display: none;
+	padding: 8px 12px;
+	border-block-end: 1px solid var( --os-ui-border, #dcdcde );
+	flex: 0 0 auto;
+}
+.os-comments__convo-back {
+	display: none;
+	flex: 0 0 auto;
+}
+
+@container ( max-width: 720px ) {
+	.os-comments__tabrow {
+		display: none;
+	}
+	.os-comments__tabselect {
+		display: block;
+	}
+	.os-comments__split {
+		grid-template-columns: minmax( 0, 1fr );
+	}
+	.os-comments__rail {
+		border-inline-end: 0;
+	}
+	.os-comments[data-os-comments-pane='convo'] .os-comments__rail {
+		display: none;
+	}
+	.os-comments:not( [data-os-comments-pane='convo'] ) .os-comments__convo {
+		display: none;
+	}
+	.os-comments__convo-back {
+		display: inline-flex;
+	}
+	.os-comments__convo-head {
+		padding: 10px 12px;
+	}
 }

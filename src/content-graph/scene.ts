@@ -65,6 +65,7 @@ import {
 	warmupStepLimit,
 	type Point,
 } from './layout';
+import { pinchCamera } from './pinch';
 import { ForceSim } from './sim';
 import {
 	SatelliteLayer,
@@ -243,6 +244,12 @@ const FIT_OPTIONS = {
 	maxScale: FIT_ZOOM_MAX,
 };
 const ZOOM_SENSITIVITY = 0.0008;
+/**
+ * How long after the last pinch move a pointer release is still part of
+ * the pinch. Two fingers rarely lift in the same frame; the second one
+ * up would otherwise read as a tap on whatever it was resting on.
+ */
+const PINCH_CLICK_GRACE_MS = 300;
 const CAMERA_EASE = 0.18;
 // A tiny snap distance below which we skip easing (avoids the camera
 // "buzzing" around the target by sub-pixel amounts forever).
@@ -382,6 +389,14 @@ export class GraphScene {
 	private isPanning = false;
 	private panStart = { x: 0, y: 0, wx: 0, wy: 0 };
 	private nodeClickActive = false;
+	/**
+	 * Every pointer currently down on the canvas, in canvas pixels.
+	 * Two of them are a pinch (`bindStageInput`); while one is, panning
+	 * and node dragging stand down, and a release inside
+	 * `PINCH_CLICK_GRACE_MS` of the last pinch move is not a click.
+	 */
+	private pointers = new Map< number, Point >();
+	private pinchUntil = 0;
 	private destroyed = false;
 	private tickerCb: ( ( t: { deltaTime: number } ) => void ) | null = null;
 	private resizeObserver: ResizeObserver | null = null;
@@ -848,7 +863,9 @@ export class GraphScene {
 			// Generous click tolerance even if `isDragging` never
 			// flipped — the simulation may still be settling and the
 			// cursor may have drifted a few px from the press point.
-			if ( ! isDragging && dx * dx + dy * dy <= 256 ) {
+			// A finger lifting off a pinch is not a click on the node
+			// it happened to rest on.
+			if ( ! isDragging && dx * dx + dy * dy <= 256 && ! this.pinchRecent() ) {
 				this.callbacks.onNodeClick?.( node );
 			}
 			node.pinned = this.focusedId === node.id;
@@ -908,7 +925,25 @@ export class GraphScene {
 		} );
 	}
 
+	/** Whether a pinch is under way, or ended a moment ago. */
+	private pinchRecent(): boolean {
+		return this.pointers.size >= 2 || performance.now() < this.pinchUntil;
+	}
+
+	/** A pointer event's position in the canvas's own pixels. */
+	private canvasPoint( canvas: HTMLCanvasElement, ev: PointerEvent ): Point {
+		const rect = canvas.getBoundingClientRect();
+		return { x: ev.clientX - rect.left, y: ev.clientY - rect.top };
+	}
+
 	private bindStageInput( canvas: HTMLCanvasElement ): void {
+		// The board owns every touch on it: no browser pan, no browser
+		// zoom, so two fingers reach the pinch below as pointer events
+		// instead of being taken for a page gesture. (The phone layer's
+		// zoom guard cancels page zoom at the document too; this is what
+		// makes the pinch OURS rather than merely not the browser's.)
+		canvas.style.touchAction = 'none';
+
 		canvas.addEventListener(
 			'wheel',
 			( ev: WheelEvent ) => {
@@ -934,11 +969,30 @@ export class GraphScene {
 			{ passive: false },
 		);
 
+		// Every pointer that lands on the canvas is tracked, whatever it
+		// landed on: the second finger of a pinch is as likely to touch
+		// a node as the cork. Only a pointer on bare cork starts a pan.
 		canvas.addEventListener( 'pointerdown', ( ev: PointerEvent ) => {
+			this.pointers.set( ev.pointerId, this.canvasPoint( canvas, ev ) );
+			if ( this.pointers.size === 2 ) {
+				// A second finger turns whatever was happening into a
+				// pinch: the pan stops where it is, and a node the first
+				// finger was about to drag is let go.
+				this.isPanning = false;
+				this.nodeClickActive = false;
+				if ( this.pressedNode ) {
+					this.pressedNode.pinned = this.focusedId === this.pressedNode.id;
+					this.pressedNode = null;
+					if ( this.sim ) {
+						this.sim.dragOrigin = null;
+					}
+				}
+				return;
+			}
 			if ( ev.target !== canvas ) {
 				return;
 			}
-			if ( this.nodeClickActive ) {
+			if ( this.nodeClickActive || this.pointers.size > 1 ) {
 				return;
 			}
 			this.isPanning = true;
@@ -950,7 +1004,16 @@ export class GraphScene {
 			};
 		} );
 		window.addEventListener( 'pointermove', ( ev: PointerEvent ) => {
-			if ( ! this.isPanning || this.nodeClickActive ) {
+			if ( this.pointers.has( ev.pointerId ) ) {
+				const prev = this.pointers.get( ev.pointerId ) as Point;
+				const next = this.canvasPoint( canvas, ev );
+				this.pointers.set( ev.pointerId, next );
+				if ( this.pointers.size === 2 ) {
+					this.pinch( ev.pointerId, prev );
+					return;
+				}
+			}
+			if ( ! this.isPanning || this.nodeClickActive || this.pointers.size > 1 ) {
 				return;
 			}
 			// Direct pan: write both live and target so the camera doesn't
@@ -962,7 +1025,21 @@ export class GraphScene {
 			this.targetX = newX;
 			this.targetY = newY;
 		} );
+		const release = ( ev: PointerEvent ): void => {
+			const wasPinch = this.pointers.size >= 2;
+			this.pointers.delete( ev.pointerId );
+			if ( wasPinch ) {
+				// The finger that stays is not a pan that started
+				// somewhere else; it has to touch down again to pan.
+				this.isPanning = false;
+				this.pinchUntil = performance.now() + PINCH_CLICK_GRACE_MS;
+			}
+		};
+		window.addEventListener( 'pointercancel', release );
 		window.addEventListener( 'pointerup', ( ev: PointerEvent ) => {
+			// `release` stamps the grace period when this ends a pinch,
+			// so `pinchRecent()` below still knows.
+			release( ev );
 			const nodeWasTarget = this.nodeClickActive;
 			this.nodeClickActive = false;
 			if ( ! this.isPanning ) {
@@ -971,10 +1048,44 @@ export class GraphScene {
 			const dx = ev.clientX - this.panStart.x;
 			const dy = ev.clientY - this.panStart.y;
 			this.isPanning = false;
-			if ( ! nodeWasTarget && dx * dx + dy * dy < 9 ) {
+			if ( ! nodeWasTarget && ! this.pinchRecent() && dx * dx + dy * dy < 9 ) {
 				this.callbacks.onBackgroundClick?.();
 			}
 		} );
+	}
+
+	/**
+	 * One pinch step: the pointer `movedId` went from `prev` to where
+	 * `this.pointers` now has it; the other finger is where it was.
+	 * Written to the live camera AND the targets, as the pan is, so the
+	 * easing loop has nothing older to drift back to.
+	 */
+	private pinch( movedId: number, prev: Point ): void {
+		let other: Point | null = null;
+		let moved: Point | null = null;
+		for ( const [ id, p ] of this.pointers ) {
+			if ( id === movedId ) {
+				moved = p;
+			} else {
+				other = p;
+			}
+		}
+		if ( ! moved || ! other ) {
+			return;
+		}
+		const next = pinchCamera(
+			{ scale: this.world.scale.x, x: this.world.x, y: this.world.y },
+			{ a: prev, b: other },
+			{ a: moved, b: other },
+			{ min: ZOOM_MIN, max: ZOOM_MAX },
+		);
+		this.world.scale.set( next.scale );
+		this.world.x = next.x;
+		this.world.y = next.y;
+		this.targetScale = next.scale;
+		this.targetX = next.x;
+		this.targetY = next.y;
+		this.pinchUntil = performance.now() + PINCH_CLICK_GRACE_MS;
 	}
 
 	private bindResize(): void {

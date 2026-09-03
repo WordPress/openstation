@@ -22,7 +22,7 @@ import {
 	type StatsRecentPost,
 	type UserPreviewAction,
 } from './types';
-import { actionContext, resolveActions, runAction } from './helpers';
+import { actionContext, opensOnTap, resolveActions, runAction } from './helpers';
 
 /**
  * WP Explorer's dossier blocks, in its order — the default the shared
@@ -349,6 +349,15 @@ export function renderFolder( ctx: Ctx ): TemplateResult {
 									icon=${ sub.icon }
 									?selected=${ uiOf( ctx ).folderSel === `relation:${ sub.relation }` }
 									@click=${ () => {
+										// A tap opens the folder where a
+										// double tap is not to be had.
+										if ( opensOnTap() ) {
+											if ( ! sub.disabled ) {
+												uiOf( ctx ).folderSel = null;
+												void ctx.dispatch( 'relation', { relation: sub.relation } );
+											}
+											return;
+										}
 										uiOf( ctx ).folderSel = `relation:${ sub.relation }`;
 										ctx.repaint();
 									} }
@@ -614,7 +623,16 @@ export function renderSub( ctx: Ctx ): TemplateResult {
 											icon=${ row.thumb ? '' : ( row.icon ?? 'dashicons-media-default' ) }
 											thumbnail=${ row.thumb ?? '' }
 											?selected=${ ctx.state.item === row.id }
-											@click=${ () => void ctx.dispatch( 'open', { item: row.id } ) }
+											@click=${ () => {
+												// A tap opens the editor where a double
+												// tap is not to be had; a row with no
+												// editor still opens its pane.
+												if ( opensOnTap() && row.editUrl ) {
+													void ctx.dispatch( 'sub-open', { row: row.id } );
+													return;
+												}
+												void ctx.dispatch( 'open', { item: row.id } );
+											} }
 											@dblclick=${ () => row.editUrl && void ctx.dispatch( 'sub-open', { row: row.id } ) }
 										></os-tile>
 									</span>

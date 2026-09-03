@@ -10,6 +10,9 @@
 .desktop-mode-plugins {
 	display: flex;
 	flex-direction: column;
+	/* A query container, so the narrow rules at the end of this file
+	   track the WINDOW's width — a phone, or a desktop window pulled in. */
+	container-type: inline-size;
 	height: 100%;
 	width: 100%;
 	min-height: 0;
@@ -1037,4 +1040,31 @@ os-table[ data-installed-rows ]::part( row ) {
 .os-plugins__card--featured {
 	position: relative;
 	box-shadow: 0 0 0 1px var( --wp-admin-theme-color, #2271b1 ) inset;
+}
+
+/* ─── Narrow windows ────────────────────────────────────────────── */
+/*
+ * A phone, or a desktop window pulled in. The search stops asking for
+ * 200px beside the status pills and takes its own row; the insets
+ * shrink to what a 360px screen can spare. The table's columns are
+ * narrowed in the bundle (name, status and actions on a phone), and
+ * its sticky name column is not set there at all.
+ */
+@container ( max-width: 600px ) {
+	.os-plugins__toolbar {
+		gap: 8px;
+		padding: 8px 10px;
+	}
+	.os-plugins__toolbar-left {
+		flex: 1 1 100%;
+		flex-wrap: wrap;
+	}
+	.os-plugins__toolbar-left os-text-field {
+		flex: 1 1 100%;
+		min-width: 0;
+		max-width: none;
+	}
+	.os-plugins__body {
+		padding: 6px 8px 8px;
+	}
 }

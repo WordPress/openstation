@@ -17,6 +17,9 @@
 .desktop-mode-posts {
 	display: flex;
 	flex-direction: column;
+	/* A query container, so the narrow rules at the end of this file
+	   track the WINDOW's width — a phone, or a desktop window pulled in. */
+	container-type: inline-size;
 	height: 100%;
 	width: 100%;
 	background: var( --os-ui-surface, #fff );
@@ -1431,4 +1434,43 @@ os-user-profile > .os-users__edit-layout {
 }
 .os-users__edit-activity {
 	min-width: 0;
+}
+
+/* --- Narrow windows ------------------------------------------------- */
+/*
+ * A phone, or a desktop window pulled in. The toolbar gives the status
+ * control and the search a row each instead of squeezing them beside
+ * the buttons, the insets shrink to what a 360px screen can spare, and
+ * the pager wraps rather than clipping its per-page control. The table
+ * itself is narrowed in the bundle (title and date only on a phone).
+ */
+@container ( max-width: 600px ) {
+	.os-posts__toolbar {
+		gap: 8px;
+		padding: 8px 10px;
+	}
+	.os-posts__toolbar-left {
+		flex: 1 1 100%;
+		flex-wrap: wrap;
+	}
+	.os-posts__toolbar-left > [data-os-posts-status] {
+		flex: 1 1 100%;
+		min-width: 0;
+	}
+	.os-posts__toolbar-left > [data-os-posts-search] {
+		flex: 1 1 160px;
+		min-width: 0;
+	}
+	.os-posts__toolbar-right {
+		flex: 1 1 100%;
+		flex-wrap: wrap;
+	}
+	.os-posts__body {
+		padding: 6px 8px 8px;
+	}
+	.os-posts__pager {
+		flex-wrap: wrap;
+		gap: 8px;
+		padding: 8px 10px;
+	}
 }

@@ -103,6 +103,19 @@ class Tests_OpenStation_PwaAdminAssetCache extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A release must be a byte change in the served worker, or an
+	 * installed app that never navigates never learns about it: the
+	 * bundle is content-hashed, so the version rides in the preamble.
+	 *
+	 * @covers ::openstation_pwa_sw_config_preamble
+	 */
+	public function test_preamble_carries_the_plugin_version() {
+		$config = $this->decode_preamble( openstation_pwa_sw_config_preamble() );
+
+		$this->assertSame( OPENSTATION_VERSION, $config['version'] );
+	}
+
+	/**
 	 * The served bytes must NOT depend on who is asking.
 	 *
 	 * A service worker is origin-wide, but `adminAssetCache` and

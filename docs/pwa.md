@@ -85,6 +85,40 @@ The filter resolves at shell-config build time; effective on the next
 page load. Use this when another PWA plugin's SW is shadowing
 OpenStation and you want OpenStation to take over the install path.
 
+## How a release reaches an installed app
+
+The shell's own bundles are fetched network-first (see the table
+below), so any navigation picks up a new build. The gap is that an
+installed app on a phone rarely navigates: iOS keeps the page alive in
+the background for days and brings the same document back every time
+the icon is tapped, and there is no reload button to ask for a newer
+one. Three things together close that gap:
+
+1. **Every release is a new worker.** The served `sw.js` carries the
+   plugin version in its `self.__OS_SW_CONFIG` preamble. The bundle
+   itself is content-hashed, so without this a release that touched
+   nothing under `src/pwa/` would serve byte-identical script and the
+   browser — which only installs a worker whose bytes differ — would
+   have nothing to install.
+2. **The shell checks on every return.** `registerServiceWorker()`
+   calls `registration.update()` when the page comes back to the
+   foreground (`visibilitychange` to visible, and `pageshow` from the
+   back-forward cache), at most once every five minutes and never while
+   hidden. The script is served `no-cache` and registered with
+   `updateViaCache: 'none'`, so the check always compares real bytes.
+3. **The new worker takes over and the shell reloads once.** The worker
+   `skipWaiting()`s on install and claims its clients on activate; the
+   shell's `controllerchange` handler reloads the page (throttled to
+   one reload per 30 s, and never on the very first activation, when
+   the bundle was fetched fresh anyway).
+
+So a phone picked up after a deploy checks within a second of waking
+and, when a release landed, reloads onto it. A shell running during a
+deploy is handled by the same handler. Between releases a rebuild that
+changed only `desktop.min.js` does not produce a new worker (that is the
+point of the content hash: no phantom reloads after `npm run build`);
+a cold launch of the app, or a navigation, is what picks those up.
+
 ## Caching policy
 
 | Pattern | Strategy | Why |

@@ -307,6 +307,36 @@ describe( 'the table', () => {
 		expect( uiOf( ctx ).menu ).toEqual( { x: 40, y: 50, item: expect.objectContaining( { id: 2 } ) } );
 	} );
 
+	it( 'on a phone one tap activates a row; a modifier click still only selects', () => {
+		document.documentElement.setAttribute( 'data-os-mode', 'mobile' );
+		try {
+			const local = vi.fn();
+			const dispatch = vi.fn( async () => true );
+			const { root } = mount( state(), data(), { local, dispatch } );
+			const row = root.querySelector< HTMLElement >( 'tr[data-item-id="2"]' )!;
+			row.dispatchEvent( new MouseEvent( 'click', { bubbles: true } ) );
+			expect( local ).toHaveBeenCalledWith( 'select', expect.objectContaining( { item: 2 } ) );
+			expect( dispatch ).toHaveBeenCalledWith( 'edit', { item: 2 } );
+			expect( dispatch ).not.toHaveBeenCalledWith( 'open', { item: 2 } );
+			row.dispatchEvent( new MouseEvent( 'click', { bubbles: true, shiftKey: true } ) );
+			expect( dispatch ).toHaveBeenCalledTimes( 1 );
+		} finally {
+			document.documentElement.removeAttribute( 'data-os-mode' );
+		}
+	} );
+
+	it( 'on a phone a row that cannot be edited still opens its pane on a tap', () => {
+		document.documentElement.setAttribute( 'data-os-mode', 'mobile' );
+		try {
+			const dispatch = vi.fn( async () => true );
+			const { root } = mount( state(), data( { list: page( [ item( { id: 3, canEdit: false } ) ] ) } ), { dispatch } );
+			root.querySelector< HTMLElement >( 'tr[data-item-id="3"]' )!.dispatchEvent( new MouseEvent( 'click', { bubbles: true } ) );
+			expect( dispatch ).toHaveBeenCalledWith( 'open', { item: 3 } );
+		} finally {
+			document.documentElement.removeAttribute( 'data-os-mode' );
+		}
+	} );
+
 	it( 'the action cluster edits, copies the link and the shortlink, and opens the menu', async () => {
 		const dispatch = vi.fn( async () => true );
 		const toast = vi.fn();

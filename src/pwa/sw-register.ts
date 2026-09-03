@@ -126,6 +126,80 @@ function bindControllerChangeReload(): void {
 const SW_RELOAD_THROTTLE_KEY = 'os-sw-reload-ts';
 const SW_RELOAD_THROTTLE_MS = 30_000;
 
+/**
+ * Least time between two resume-time update checks.
+ *
+ * Each check is one small request for `sw.js` (served `no-cache`, and
+ * registered with `updateViaCache: 'none'`, so the bytes are always
+ * compared). Five minutes keeps a user who flicks between apps from
+ * paying for it on every return, while a phone picked up after lunch
+ * still checks the moment it wakes.
+ */
+export const SW_RESUME_CHECK_MIN_INTERVAL_MS = 5 * 60_000;
+
+let _unbindResumeCheck: ( () => void ) | null = null;
+let _lastResumeCheckAt = 0;
+
+/**
+ * Check for a new worker whenever the page comes back to the
+ * foreground.
+ *
+ * The browser only looks for a new service worker on a navigation (and
+ * on its own 24-hour clock). An installed app on a phone rarely
+ * navigates: iOS keeps the page alive in the background for days and
+ * brings the same document back every time the icon is tapped, so the
+ * shell a user installed in May was still running in June, with no
+ * reload button anywhere to ask for a newer one — the only way out was
+ * to delete and reinstall the app. Deploys the shell would have picked
+ * up on any desktop reload never reached it.
+ *
+ * So the check is run by hand on every return: `visibilitychange` to
+ * visible (the app switcher, the lock screen, another tab) and
+ * `pageshow` (the back-forward cache), throttled to
+ * {@link SW_RESUME_CHECK_MIN_INTERVAL_MS}. `registration.update()`
+ * fetches the script and compares bytes; when they differ the new
+ * worker installs, `skipWaiting()`s, claims the page, and the
+ * `controllerchange` handler above reloads once. The served bytes carry
+ * the plugin version in their preamble, so every release IS a byte
+ * change — no release goes unnoticed for want of a navigation.
+ *
+ * Best-effort throughout: `update()` rejecting (offline, a 503 from a
+ * host mid-deploy) is the browser saying "not now", and the next return
+ * asks again.
+ */
+function bindResumeUpdateCheck( registration: ServiceWorkerRegistration ): void {
+	if ( _unbindResumeCheck ) {
+		return;
+	}
+	// The registration that just landed counts as a check.
+	_lastResumeCheckAt = Date.now();
+
+	const check = (): void => {
+		if ( typeof document !== 'undefined' && document.visibilityState === 'hidden' ) {
+			return;
+		}
+		const now = Date.now();
+		if ( now - _lastResumeCheckAt < SW_RESUME_CHECK_MIN_INTERVAL_MS ) {
+			return;
+		}
+		_lastResumeCheckAt = now;
+		try {
+			void registration.update().catch( () => {
+				/* Offline or a host mid-deploy; the next return asks again. */
+			} );
+		} catch {
+			/* An unregistered or torn-down registration; nothing to check. */
+		}
+	};
+
+	document.addEventListener( 'visibilitychange', check );
+	window.addEventListener( 'pageshow', check );
+	_unbindResumeCheck = () => {
+		document.removeEventListener( 'visibilitychange', check );
+		window.removeEventListener( 'pageshow', check );
+	};
+}
+
 function wasRecentlyReloadedForSwUpdate(): boolean {
 	try {
 		const raw = sessionStorage.getItem( SW_RELOAD_THROTTLE_KEY );
@@ -320,6 +394,9 @@ export async function registerServiceWorker(
 		// successful registration so we never reload a page that has no
 		// SW relationship in the first place.
 		bindControllerChangeReload();
+		// A phone that never navigates still learns about a release the
+		// next time the app comes to the front.
+		bindResumeUpdateCheck( _registration );
 		// Hand the worker this user's flags. They are not in the served
 		// bytes — see `notifyServiceWorkerConfig()` — so this is how it
 		// learns them at all. Sent now and again on `controllerchange`,
@@ -425,5 +502,8 @@ export function _resetSwRegistration(): void {
 	_registrationFailed = false;
 	_controllerChangeBound = false;
 	_reloadingForSwUpdate = false;
+	_unbindResumeCheck?.();
+	_unbindResumeCheck = null;
+	_lastResumeCheckAt = 0;
 	_status = 'pending';
 }

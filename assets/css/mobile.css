@@ -232,22 +232,30 @@ html[data-os-mode="mobile"] .os-shell[data-os-mobile-state="home"] .os-window {
 }
 
 /* ------------------------------------------------------------------
- * The back-gesture zone: a thin strip the shell owns over the left
- * edge of the iframe, so the pointer never belongs to the frame.
+ * The edge zones: thin strips the shell owns over both edges of the
+ * area, so a pointer that starts there never belongs to the iframe.
+ * The start edge is the Back gesture; both cancel the browser's
+ * history swipe (`bindHistorySwipeGuard` in `gestures.ts`), so they
+ * stay up on the home screen too — a swipe that navigated away would
+ * navigate away from home as well. Above the windows and the home
+ * grid, below the switcher sheet.
  * ---------------------------------------------------------------- */
 
 html[data-os-mode="mobile"] .os-mobile-edge {
 	position: absolute;
 	inset-block: 0;
-	inset-inline-start: 0;
 	width: 22px;
 	z-index: 2000;
 	touch-action: none;
 	background: transparent;
 }
 
-html[data-os-mode="mobile"] .os-shell[data-os-mobile-state="home"] .os-mobile-edge {
-	display: none;
+html[data-os-mode="mobile"] .os-mobile-edge--start {
+	inset-inline-start: 0;
+}
+
+html[data-os-mode="mobile"] .os-mobile-edge--end {
+	inset-inline-end: 0;
 }
 
 /* ------------------------------------------------------------------
@@ -414,6 +422,21 @@ html[data-os-mode="mobile"] .os-mobile-home__scroll {
 	overflow-y: auto;
 	-webkit-overflow-scrolling: touch;
 	overscroll-behavior: contain;
+}
+
+/*
+ * The grid always scrolls, by at least one pixel. A phone only rubber-
+ * bands a surface that CAN scroll, and a home screen that fits — a
+ * dozen tiles on a tall phone — was a dead surface under the thumb.
+ * The 1px past the frame makes it a scroller, and the platform then
+ * gives it the platform's own bounce at both ends, exactly the drag
+ * every native home screen has. The bottom padding is here rather than
+ * on the scroller so the last row clears the tab bar inside the same
+ * measure.
+ */
+html[data-os-mode="mobile"] .os-mobile-home__content {
+	box-sizing: border-box;
+	min-block-size: calc( 100% + 1px );
 	padding-block-end: 16px;
 }
 

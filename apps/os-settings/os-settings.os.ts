@@ -135,6 +135,21 @@ function frame( ctx: Ctx ) {
 			<p class="os-settings__search-empty" ?hidden=${ query === '' || visible > 0 }>
 				${ __( 'No settings match that.' ) }
 			</p>
+			${ /*
+			 * The same pages as a picker, for a container too narrow for
+			 * a column of them (a phone). Only one of the two is ever
+			 * shown — `os-settings.css` swaps them at the width — and both
+			 * write the same state, so the strip above still drives the
+			 * panes after a pick here.
+			 */ '' }
+			<os-select
+				class="os-settings__page-select"
+				label=${ __( 'Settings section' ) }
+				value=${ active }
+				os-bind="tab"
+			>
+				${ rows.map( ( r ) => html`<os-option value=${ r.id }>${ r.label }</os-option>` ) }
+			</os-select>
 			<os-panel class="os-settings__footer">
 				<os-button variant="ghost" @click=${ reset }>${ __( 'Reset to defaults' ) }</os-button>
 			</os-panel>

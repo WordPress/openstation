@@ -24,6 +24,7 @@ import {
 	actionContext,
 	buildMenuOptions,
 	glyph,
+	opensOnTap,
 	resolveActions,
 	resolveBanding,
 	runAction,
@@ -49,6 +50,8 @@ export function renderRoot( ctx: Ctx ): TemplateResult {
 	const ui = uiOf( ctx );
 	// Finder semantics, like WP Explorer's root: a single click only
 	// SELECTS the folder tile; double click (or Enter) navigates in.
+	// Under a finger (`opensOnTap`) the tap navigates: there is no
+	// double tap to wait for, and a folder has nothing else to say.
 	const folderTile = (
 		key: string,
 		label: string,
@@ -61,6 +64,11 @@ export function renderRoot( ctx: Ctx ): TemplateResult {
 			class="os-mywp__tile ${ ui.folderSel === key ? 'is-selected' : '' }"
 			aria-pressed=${ ui.folderSel === key ? 'true' : 'false' }
 			@click=${ () => {
+				if ( opensOnTap() ) {
+					ui.folderSel = null;
+					go();
+					return;
+				}
 				ui.folderSel = key;
 				ctx.repaint();
 			} }

@@ -24,7 +24,7 @@ import { __ } from '../i18n';
 import type { NavItem } from '../nav/types';
 import { osConfirm } from '../ui/components/os-confirm-dialog/os-confirm-dialog';
 import type { Window as DesktopWindow } from '../window';
-import { bindEdgeBack, bindSwipeDown, bindSwipeUp } from './gestures';
+import { bindEdgeBack, bindHistorySwipeGuard, bindSwipeDown, bindSwipeUp } from './gestures';
 import { createHome, homeGridItems } from './home';
 import { createSwitcher, type SwitcherCard } from './switcher';
 import { createTabBar, navItemWindowId, resolveTabBarItems } from './tab-bar';
@@ -137,10 +137,18 @@ export function mountMobileLayer( deps: MobileLayerDeps ): MobileLayerHandle {
 		onDismiss: () => closeSwitcher(),
 	} );
 
+	// Two edge zones. The start edge is the Back gesture; both cancel
+	// the browser's own history swipe (`bindHistorySwipeGuard`), which
+	// is why there is an end zone at all, and why both stay on the home
+	// screen: a swipe that left the page would leave it from home too.
 	const edge = document.createElement( 'div' );
-	edge.className = 'os-mobile-edge';
+	edge.className = 'os-mobile-edge os-mobile-edge--start';
 	edge.setAttribute( 'aria-hidden', 'true' );
 	area.appendChild( edge );
+	const edgeEnd = document.createElement( 'div' );
+	edgeEnd.className = 'os-mobile-edge os-mobile-edge--end';
+	edgeEnd.setAttribute( 'aria-hidden', 'true' );
+	area.appendChild( edgeEnd );
 
 	// ---- derived state ----------------------------------------------
 	const onActiveDesktop = ( win: DesktopWindow ): boolean => {
@@ -168,6 +176,7 @@ export function mountMobileLayer( deps: MobileLayerDeps ): MobileLayerHandle {
 	let pinned: NavItem[] = [];
 	let lastAppId: string | null = null;
 	let lastState: MobileState | null = null;
+	let lastOpenCount = 0;
 	let historyPushed = false;
 	let syncScheduled = false;
 	let heroTransition = false;
@@ -187,6 +196,17 @@ export function mountMobileLayer( deps: MobileLayerDeps ): MobileLayerHandle {
 
 	const sync = (): void => {
 		syncScheduled = false;
+		// The switcher emptied itself: the last card was closed (or the
+		// window went away underneath it). A sheet that says "Nothing
+		// open" over a hidden home is a dead end — the user would have
+		// to dismiss it by hand to reach the tiles — so it steps aside
+		// and home shows. Opening the switcher from an empty home still
+		// shows the empty message: nothing emptied there.
+		const openCount = openWindows().length;
+		if ( switcher.isOpen() && lastState === 'switcher' && openCount === 0 && lastOpenCount > 0 ) {
+			switcher.close();
+		}
+		lastOpenCount = openCount;
 		const app = appWindow();
 		const current = state();
 		shell.dataset.osMobileState = current;
@@ -562,6 +582,7 @@ export function mountMobileLayer( deps: MobileLayerDeps ): MobileLayerHandle {
 		onProgress: ( p ) => topBar.setBackProgress( p ),
 		onCommit: () => back(),
 	} );
+	const unbindGuards = [ bindHistorySwipeGuard( edge ), bindHistorySwipeGuard( edgeEnd ) ];
 	const unbindSwipeUp = bindSwipeUp( tabBar.el, { onCommit: () => openSwitcher() } );
 	// A flick down on the top bar sends the app home, the way a sheet
 	// is dismissed on a phone.
@@ -582,6 +603,9 @@ export function mountMobileLayer( deps: MobileLayerDeps ): MobileLayerHandle {
 			window.removeEventListener( 'popstate', onPopState );
 			document.removeEventListener( OPEN_SWITCHER_EVENT, onOpenSwitcherRequest );
 			unbindEdge();
+			for ( const unbind of unbindGuards ) {
+				unbind();
+			}
 			unbindSwipeUp();
 			unbindSwipeDown();
 			unsubscribeNav();
@@ -591,6 +615,7 @@ export function mountMobileLayer( deps: MobileLayerDeps ): MobileLayerHandle {
 			tabBar.el.remove();
 			switcher.el.remove();
 			edge.remove();
+			edgeEnd.remove();
 			delete shell.dataset.osMobileState;
 			shell.classList.remove( 'os-mobile' );
 			deps.wallpaper.resume( WALLPAPER_REASON );

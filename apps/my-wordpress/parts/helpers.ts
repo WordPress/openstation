@@ -11,6 +11,7 @@
  */
 
 import { __, html, type TemplateResult } from '@openstation/app';
+import { isMobileStamped } from '../../../src/mode/stamp';
 import {
 	type AppData,
 	type ListBanding,
@@ -22,6 +23,29 @@ import {
 	type PreviewActionContext,
 	type SectionDef,
 } from './types';
+
+/**
+ * Whether one tap should do what a double click does.
+ *
+ * The Finder semantics — click selects, double click opens — assume a
+ * pointer that can double click. A finger cannot, not reliably: two
+ * taps in the same spot inside 300 ms is a gesture people miss more
+ * often than they land, and a miss reads as "the app ignored me". So
+ * on a phone (the shell's own mode stamp) and under any coarse primary
+ * pointer (a tablet in desktop mode) a tap opens, and selection is
+ * what the context menu and the preview pane are for.
+ */
+export function opensOnTap( root: Element | null = null ): boolean {
+	const el = root ?? ( typeof document !== 'undefined' ? document.documentElement : null );
+	if ( el && isMobileStamped( el ) ) {
+		return true;
+	}
+	return (
+		typeof window !== 'undefined' &&
+		typeof window.matchMedia === 'function' &&
+		window.matchMedia( '(pointer: coarse)' ).matches
+	);
+}
 
 /** The identity of a list: new key, new accumulation. */
 export function listKey( state: AppState ): string {

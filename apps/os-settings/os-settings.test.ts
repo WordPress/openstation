@@ -80,6 +80,22 @@ describe( 'OpenStation Preferences — the frame', () => {
 		}
 	} );
 
+	test( 'the pages are also a picker, bound to the same state as the strip', () => {
+		paint();
+		const select = root.querySelector( '.os-settings__page-select' )!;
+		expect( select.localName ).toBe( 'os-select' );
+		expect( select.getAttribute( 'os-bind' ) ).toBe( 'tab' );
+		expect( select.getAttribute( 'value' ) ).toBe( 'appearance' );
+		expect( Array.from( select.querySelectorAll( 'os-option' ) ).map( ( o ) => o.getAttribute( 'value' ) ) ).toEqual( tabIds() );
+		// A sibling of the strip and the panes: the stylesheet lays the
+		// column out from siblings, and swaps strip for picker by width.
+		expect( select.parentElement ).toBe( root.querySelector( '#os-settings-nav' )!.parentElement );
+		( ctx.state as { tab: string } ).tab = 'features';
+		ctx.repaint();
+		expect( root.querySelector( '.os-settings__page-select' )?.getAttribute( 'value' ) ).toBe( 'features' );
+		expect( root.querySelector( '#os-settings-nav' )?.getAttribute( 'value' ) ).toBe( 'features' );
+	} );
+
 	test( 'the first row of each band opens a group', () => {
 		paint();
 		const starts = Array.from( root.querySelectorAll( '#os-settings-nav > os-tab[data-group-start="true"]' ) ).map(

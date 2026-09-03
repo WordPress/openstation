@@ -236,9 +236,20 @@ function openstation_pwa_sw_config_preamble() {
 	 * (`os-sw-config`), and the toggle pushes changes as they happen.
 	 * The worker starts with both off, so until that message lands it
 	 * simply does less — never more.
+	 *
+	 * `version` is the plugin's, and it is here so that a release is a
+	 * byte change in the served script. The bundle itself is stamped
+	 * with a content hash (see the serving function), so a release that
+	 * touched nothing under `src/pwa/` would otherwise serve the very
+	 * same bytes, and the browser — which only ever installs a worker
+	 * whose bytes differ — would have nothing to install. An installed
+	 * app on a phone rarely navigates; the shell re-checks the script on
+	 * every return to the foreground (`src/pwa/sw-register.ts`), and the
+	 * version in the preamble is what makes that check find a release.
 	 */
 	$config = array(
 		'pluginUrl' => OPENSTATION_URL,
+		'version'   => OPENSTATION_VERSION,
 	);
 	return sprintf( "self.__OS_SW_CONFIG = %s;\n", wp_json_encode( $config ) );
 }

@@ -74,6 +74,8 @@ import type {
 } from '../ui/components/os-table/os-table';
 import '../ui/components/os-button/os-button';
 import '../ui/components/os-segmented/os-segmented';
+import { isMobileStamped } from '../mode/stamp';
+import { mountStatusControl } from './status-control';
 import '../ui/components/os-menu/os-menu';
 
 export type { BulkAction, PostsWindowContext, StatusSegment } from './types';
@@ -303,6 +305,9 @@ function memoCell(
  */
 const REQUIRED_COLUMN_KEYS = new Set< string >( [ 'title' ] );
 
+/** The columns a phone shows — see `buildColumns()`. */
+const MOBILE_COLUMN_KEYS = new Set< string >( [ 'title', 'date' ] );
+
 /**
  * Read the user's hidden-column preference from the OS Settings public
  * API. Falls back to an empty list when the API isn't ready yet
@@ -378,15 +383,26 @@ function buildColumns(
 ): OsTableColumn< PostListItem >[] {
 	const all = buildAllColumns( cache, client, filterData );
 	const hidden = getHiddenColumns();
-	if ( hidden.size === 0 ) {
-		return all;
-	}
 	// Filter out user-hidden columns. The sticky `title` column is
-	// pinned visible regardless of the user's preference — without
-	// it the table has no row identity.
-	return all.filter(
-		( col ) => REQUIRED_COLUMN_KEYS.has( col.key ) || ! hidden.has( col.key ),
-	);
+	// pinned visible regardless of the user's preference — without it
+	// the table has no row identity.
+	const visible =
+		hidden.size === 0
+			? all
+			: all.filter(
+				( col ) => REQUIRED_COLUMN_KEYS.has( col.key ) || ! hidden.has( col.key ),
+			);
+	// A phone has room for the title and the date. Every other column
+	// — author, taxonomies at 360px, slug — would put the table on a
+	// sideways scroll under a sticky title, which is the one layout a
+	// thumb cannot use. The rows still carry the status badge, and the
+	// row's actions still open the editor. Applied after the user's
+	// own hidden list and the plugin filter, so nothing is hidden on
+	// the desk by a phone's rule.
+	if ( isMobileStamped( document.documentElement ) ) {
+		return visible.filter( ( col ) => MOBILE_COLUMN_KEYS.has( col.key ) );
+	}
+	return visible;
 }
 
 function _buildBaseColumns(
@@ -2261,24 +2277,15 @@ export async function renderPostsWindow(
 	);
 	const statusHost = root.querySelector< HTMLElement >( STATUS );
 
-	// Build the segmented control's children from the (filterable)
+	// Build the status control's children from the (filterable)
 	// status-segment list. Built dynamically rather than echoed by
 	// PHP so plugins can add CPT-specific statuses ("Awaiting
 	// review", "Archived") or remove segments without forking the
-	// template.
+	// template. On a phone the pill bar becomes a picker
+	// (`status-control.ts`); the `os-pick` wiring below is the same.
 	const statusSegments = resolveStatusSegments();
 	if ( statusHost ) {
-		statusHost.replaceChildren();
-		for ( const seg of statusSegments ) {
-			const el = document.createElement( 'os-segment' );
-			el.setAttribute( 'value', seg.value );
-			el.textContent = seg.label;
-			statusHost.appendChild( el );
-		}
-		// Mirror the initial view value so the right segment paints
-		// as selected on first frame (parent's `value` attribute is
-		// what `<os-segmented>` reads — see its source).
-		statusHost.setAttribute( 'value', view.status );
+		mountStatusControl( statusHost, statusSegments, view.status );
 	}
 
 	const updatePager = (): void => {

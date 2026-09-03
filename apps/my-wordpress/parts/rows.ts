@@ -11,10 +11,14 @@
  */
 
 import { __, copyText, sprintf } from '@openstation/app';
+import { opensOnTap } from './helpers';
 import { shell, uiOf, type Ctx, type ListItem, type SectionDef } from './types';
 
 export interface RowInteractions {
-	/** Click: Finder selection, and a plain click opens the pane. */
+	/**
+	 * Click: Finder selection, and a plain click opens the pane. Where
+	 * a tap is all there is (`opensOnTap`), a plain click activates.
+	 */
 	select: ( e: MouseEvent ) => void;
 	/** Double click / Enter: open in the editor (users: the footprint). */
 	activate: () => void;
@@ -34,6 +38,35 @@ export function rowInteractions(
 		uiOf( ctx ).menu = { x, y, item };
 		ctx.repaint();
 	};
+	const activate = (): void => {
+		// A plugin may claim "the user opened this person" — WP
+		// Explorer's `os.my-wordpress.user-activate` seam, verbatim.
+		// A shop's Customers folder opens the customer window; the
+		// built-in fallthrough keeps double-click meaning something
+		// when no subscriber answers.
+		if ( section.kind === 'user' ) {
+			const handled = shell().hooks?.applyFilters(
+				'os.my-wordpress.user-activate',
+				false,
+				{
+					entityId: section.id,
+					kind: section.kind,
+					item: item as unknown as Record< string, unknown >,
+				},
+			);
+			if ( handled === true ) {
+				return;
+			}
+			// The built-in answer, WP Explorer's: opening a person is
+			// their activity footprint — the profile editor stays one
+			// right-click (or pane button) away.
+			void ctx.dispatch( 'footprint', { user: item.id, name: item.title } );
+			return;
+		}
+		if ( item.canEdit ) {
+			void ctx.dispatch( 'edit', { item: item.id } );
+		}
+	};
 	return {
 		select: ( e ) => {
 			ctx.local( 'select', {
@@ -42,39 +75,19 @@ export function rowInteractions(
 				shift: e.shiftKey,
 				order,
 			} );
-			if ( ! e.ctrlKey && ! e.metaKey && ! e.shiftKey ) {
-				void ctx.dispatch( 'open', { item: item.id } );
-			}
-		},
-		activate: () => {
-			// A plugin may claim "the user opened this person" — WP
-			// Explorer's `os.my-wordpress.user-activate` seam, verbatim.
-			// A shop's Customers folder opens the customer window; the
-			// built-in fallthrough keeps double-click meaning something
-			// when no subscriber answers.
-			if ( section.kind === 'user' ) {
-				const handled = shell().hooks?.applyFilters(
-					'os.my-wordpress.user-activate',
-					false,
-					{
-						entityId: section.id,
-						kind: section.kind,
-						item: item as unknown as Record< string, unknown >,
-					},
-				);
-				if ( handled === true ) {
-					return;
-				}
-				// The built-in answer, WP Explorer's: opening a person is
-				// their activity footprint — the profile editor stays one
-				// right-click (or pane button) away.
-				void ctx.dispatch( 'footprint', { user: item.id, name: item.title } );
+			if ( e.ctrlKey || e.metaKey || e.shiftKey ) {
 				return;
 			}
-			if ( item.canEdit ) {
-				void ctx.dispatch( 'edit', { item: item.id } );
+			// One tap opens where a double tap is not to be had. An item
+			// that cannot be edited (no capability) still opens its pane,
+			// so the tap is never answered with nothing.
+			if ( opensOnTap() && ( section.kind === 'user' || item.canEdit ) ) {
+				activate();
+				return;
 			}
+			void ctx.dispatch( 'open', { item: item.id } );
 		},
+		activate,
 		menu: ( e ) => {
 			e.preventDefault();
 			e.stopPropagation();

@@ -123,6 +123,14 @@ export function createHome( host: HTMLElement, deps: HomeDeps ): HomeSurface {
 
 	const scroll = document.createElement( 'div' );
 	scroll.className = 'os-mobile-home__scroll';
+	// One child for the scroller, sized a hair taller than it
+	// (`mobile.css`): a grid that fits its screen is otherwise not a
+	// scroll container at all, and a phone gives no rubber band to a
+	// surface that cannot scroll. One overflowing pixel is enough for
+	// the platform's own bounce at both ends.
+	const content = document.createElement( 'div' );
+	content.className = 'os-mobile-home__content';
+	scroll.appendChild( content );
 
 	el.append( searchWrap, scroll );
 	host.appendChild( el );
@@ -184,33 +192,33 @@ export function createHome( host: HTMLElement, deps: HomeDeps ): HomeSurface {
 	};
 
 	const paint = (): void => {
-		scroll.replaceChildren();
+		content.replaceChildren();
 		if ( query.trim() ) {
 			const hits = filterByQuery( [ ...sections.apps, ...sections.system ], query );
 			const s = section( __( 'Results' ), hits );
 			if ( s ) {
-				scroll.appendChild( s );
+				content.appendChild( s );
 			} else {
 				const empty = document.createElement( 'p' );
 				empty.className = 'os-mobile-home__empty';
 				empty.textContent = __( 'Nothing matches.' );
-				scroll.appendChild( empty );
+				content.appendChild( empty );
 			}
 			return;
 		}
 		const apps = section( __( 'Apps' ), sections.apps );
 		const system = section( __( 'System' ), sections.system );
 		if ( apps ) {
-			scroll.appendChild( apps );
+			content.appendChild( apps );
 		}
 		if ( system ) {
-			scroll.appendChild( system );
+			content.appendChild( system );
 		}
 		if ( ! apps && ! system ) {
 			const empty = document.createElement( 'p' );
 			empty.className = 'os-mobile-home__empty';
 			empty.textContent = __( 'Nothing to show yet.' );
-			scroll.appendChild( empty );
+			content.appendChild( empty );
 		}
 	};
 

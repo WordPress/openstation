@@ -44,6 +44,8 @@ import {
  */
 const PLUGINS_CHANGED_TOPIC = 'os.plugin.changed';
 const SOURCE = 'installed-view';
+/** The columns a phone shows — see `buildColumns()` in `mountInstalledView`. */
+const MOBILE_COLUMN_KEYS = new Set< string >( [ 'name', 'status', '_actions' ] );
 interface PluginsChangedPayload {
 	source: string;
 	plugin?: string;
@@ -62,6 +64,7 @@ import type {
 	OsTableColumn,
 } from '../ui/components/os-table/os-table';
 import '../ui/components/os-badge/os-badge';
+import { isMobileStamped } from '../mode/stamp';
 import '../ui/components/os-button/os-button';
 import '../ui/components/os-segmented/os-segmented';
 import '../ui/components/os-table/os-table';
@@ -243,7 +246,14 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 	const table = document.createElement( 'os-table' ) as OsTable< InstalledPlugin >;
 	table.setAttribute( 'selectable', 'multi' );
 	table.setAttribute( 'sticky-header', '' );
-	table.setAttribute( 'sticky-columns', '1' );
+	// The name column stays put while the rest scroll under it — on a
+	// desk. On a phone there is nothing to scroll under it (the column
+	// set below fits the width), and a pinned column over a table that
+	// is itself being dragged is exactly the thing a thumb fights.
+	const phone = isMobileStamped( document.documentElement );
+	if ( ! phone ) {
+		table.setAttribute( 'sticky-columns', '1' );
+	}
 	table.setAttribute( 'hover', '' );
 	table.setAttribute( 'striped', '' );
 	table.setAttribute( 'bordered', '' );
@@ -358,7 +368,12 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 			align: 'end',
 			render: ( _value, row ) => renderActionsCell( row ),
 		} );
-		return cfg.caps.activate || cfg.caps.delete ? cols : cols.slice( 0, -1 );
+		const all = cfg.caps.activate || cfg.caps.delete ? cols : cols.slice( 0, -1 );
+		// A phone shows which plugin, whether it is on, and what can be
+		// done to it. Version, author, size and the auto-update switch
+		// are a tap away in the row's detail panel; as columns they only
+		// put the table on a sideways scroll.
+		return phone ? all.filter( ( col ) => MOBILE_COLUMN_KEYS.has( col.key ) ) : all;
 	}
 
 	// Cell renderers use INLINE styles instead of class selectors —
