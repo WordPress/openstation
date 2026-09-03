@@ -95,29 +95,63 @@ the icon is tapped, and there is no reload button to ask for a newer
 one. Three things together close that gap:
 
 1. **Every release is a new worker.** The served `sw.js` carries the
-   plugin version in its `self.__OS_SW_CONFIG` preamble. The bundle
-   itself is content-hashed, so without this a release that touched
-   nothing under `src/pwa/` would serve byte-identical script and the
-   browser — which only installs a worker whose bytes differ — would
-   have nothing to install.
+   plugin version and the shell-build stamp in its `self.__OS_SW_CONFIG`
+   preamble. The bundle itself is content-hashed, so without these a
+   release that touched nothing under `src/pwa/` would serve
+   byte-identical script and the browser — which only installs a worker
+   whose bytes differ — would have nothing to install.
 2. **The shell checks on every return.** `registerServiceWorker()`
    calls `registration.update()` when the page comes back to the
    foreground (`visibilitychange` to visible, and `pageshow` from the
    back-forward cache), at most once every five minutes and never while
    hidden. The script is served `no-cache` and registered with
    `updateViaCache: 'none'`, so the check always compares real bytes.
-3. **The new worker takes over and the shell reloads once.** The worker
-   `skipWaiting()`s on install and claims its clients on activate; the
-   shell's `controllerchange` handler reloads the page (throttled to
-   one reload per 30 s, and never on the very first activation, when
-   the bundle was fetched fresh anyway).
+3. **The new worker waits; the shell asks, and at most offers.** The
+   worker never `skipWaiting()`s on its own — it installs and sits in
+   `waiting` (the standard prompt-for-update shape). The shell finds it
+   there (`registration.waiting` at boot, or `updatefound` →
+   `installed` mid-session) and asks which shell build it was served
+   with (`os-sw-get-build` → `os-sw-build`). Same stamp as the one the
+   page booted with (`PwaConfig.shellBuild`), or unknown on either
+   side: the shell tells it to take over (`os-sw-skip-waiting`),
+   silently — caches refresh, nothing is shown. A different stamp —
+   the shell's own files really changed on the server — shows a
+   persistent toast with a **Reload** action, and the worker keeps
+   waiting until the user takes it. A release that changed nothing
+   under `assets/`, a worker-only change, or a preamble that moved for
+   another reason is a new worker and not a word to the user.
 
-So a phone picked up after a deploy checks within a second of waking
-and, when a release landed, reloads onto it. A shell running during a
-deploy is handled by the same handler. Between releases a rebuild that
-changed only `desktop.min.js` does not produce a new worker (that is the
-point of the content hash: no phantom reloads after `npm run build`);
-a cold launch of the app, or a navigation, is what picks those up.
+**The shell never reloads itself.** A desktop is somebody's work in
+progress; the reload is the user's to take, from the toast, when they
+are ready. Taking it does three things in order: the waiting worker is
+told to take over and the shell waits for `controllerchange` (bounded
+by a short timeout, so a worker that will not swap cannot hold the
+reload hostage); the session is written to the server and the
+navigation waits for the answer — an unload beacon racing the request
+that reads the session back is how two open windows once came back as
+none; then the page reloads, served by the worker that matches it.
+
+Why waiting rather than taking over on install: the activate handler
+drops the previous version's caches, so a worker that claimed a page
+still running the previous bundle left that page able to ask for a
+lazy bundle from a bucket that no longer existed. A page and its worker
+now change together. The one case where they cannot is another tab
+consenting first — the new worker claims every tab; a page that sees a
+`controllerchange` it did not ask for runs the same comparison against
+the new controller and, when the shell changed, makes the same offer.
+A first install (no controller yet) activates on its own and is never a
+takeover: the bundle came straight from the network and there is
+nothing to compare.
+
+The stamp is `openstation_shell_build_stamp()`: a content hash over
+every stylesheet in `assets/css/` and every bundle in `assets/js/`,
+memoised behind the files' (path, size, mtime) signature. Bytes, not
+clocks — a deploy rewrites every mtime whether or not the contents
+moved, and the plugin version moves on releases that never touched the
+shell. Between releases a rebuild that changed only `desktop.min.js`
+does not produce a new worker (that is the point of the worker's own
+content hash: no phantom activity after `npm run build`); a cold launch
+of the app, or a navigation, is what picks those up.
 
 ## Caching policy
 
@@ -224,6 +258,23 @@ Both messages are posted to `navigator.serviceWorker.controller` and are ignored
 
 The shell-side helpers are `speculateDocument( url )` and `rememberRestoreTargets( urls )` in `src/pwa/speculate.ts`. Policy lives in `src/pwa/sw-policy.ts` (`isSpeculatableDocument`) and the store in `src/pwa/speculative-store.ts`; both are pure and unit-tested.
 
+Three more are not gated on any opt-in — they are how a new worker and the shell agree on a takeover (see [How a release reaches an installed app](#how-a-release-reaches-an-installed-app)). The first two are posted to the WAITING worker (`registration.waiting`), not the controller:
+
+```js
+// Shell → worker: which shell build were you served with?
+{ type: 'os-sw-get-build' }
+
+// Worker → the asking client. `shellBuild` is the preamble's stamp, or
+// '' for a body served without one — which the shell reads as
+// "unknown", never as "changed".
+{ type: 'os-sw-build', shellBuild: '<16 hex chars>' }
+
+// Shell → waiting worker: take over now. The only thing that makes the
+// worker skipWaiting(); sent silently when the shell did not change,
+// and on the user's Reload when it did.
+{ type: 'os-sw-skip-waiting' }
+```
+
 ## PHP surface
 
 | Symbol | Role |
@@ -234,6 +285,7 @@ The shell-side helpers are `speculateDocument( url )` and `rememberRestoreTarget
 | `openstation_pwa_get_user_state( $user_id = 0 )` | Read the per-user PWA UI state. |
 | `openstation_pwa_update_user_state( array $patch, $user_id = 0 )` | Merge a partial update into the state. |
 | `openstation_pwa_admin_asset_cache_enabled()` | Whether the shared admin-asset cache is on (resolves the filter below). |
+| `openstation_shell_build_stamp()` | Content hash of the shell's built files (`assets/css/*.css`, `assets/js/*.js`); 16 hex characters, `''` when nothing is built. Carried by `openStationConfig.pwa.shellBuild` and by the worker preamble. |
 | `openstation_pwa_manifest` (filter) | Mutate manifest fields before encoding. |
 | `openstation_pwa_admin_asset_cache` (filter) | Force or veto the shared admin-asset cache site-wide. Default: the requesting user's `adminAssetCacheEnabled` preference (off until they opt in). |
 

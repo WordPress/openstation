@@ -5105,7 +5105,17 @@ function init(): void {
 	// callback can immediately call `wp.os.pwa.*` or the
 	// `wp.os.notify` API. No-op when `config.pwa` is absent
 	// (chromeless context, classic admin, older PHP build).
-	bootstrapPwa( config, showToast );
+	//
+	// The reload handed in is the only one the shell ever performs,
+	// and only because the user asked for it from the toast. The
+	// session goes to the server first and the navigation waits for
+	// the answer, so the desktop comes back exactly as it was left —
+	// an unload beacon racing the request that reads the session back
+	// is how two open windows once came back as none.
+	bootstrapPwa( config, showToast, async () => {
+		await saveSession.flush();
+		window.location.reload();
+	} );
 
 	// Pre-load the shell-overlays bundle (toast + confirm-dialog +
 	// context-menu component classes) in the background once we're

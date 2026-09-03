@@ -101,13 +101,27 @@ function noteRestoreTargets( payload: Session ): void {
 	}
 }
 
+/**
+ * The saver. Calling it schedules a debounced write; `flush()` writes
+ * now and resolves once the server has answered.
+ */
+export type SessionSaver = ( () => void ) & {
+	flush: () => Promise< void >;
+};
+
 export function createSessionSaver(
 	manager: WindowManager,
 	config: DesktopConfig,
-): () => void {
+): SessionSaver {
 	let debounceTimer: number | null = null;
 	let inFlight = false;
 	let dirty = false;
+	/**
+	 * The write on the wire, while there is one. `flush()` waits on it
+	 * before taking its own snapshot, so a save that predates the state
+	 * being flushed is never the last word.
+	 */
+	let activeSave: Promise< void > | null = null;
 	/** When the last network write started. 0 = none yet. */
 	let lastSaveStartedAt = 0;
 	/**
@@ -125,7 +139,7 @@ export function createSessionSaver(
 	 */
 	let lastAccepted: string | null = null;
 
-	const doSave = async (): Promise< void > => {
+	const doSave = (): Promise< void > => {
 		if ( inFlight ) {
 			// A save is already on the wire, and this call was
 			// triggered by state the in-flight payload predates.
@@ -138,7 +152,7 @@ export function createSessionSaver(
 			// quick succession on a slow connection, reload, and the
 			// second one is back.
 			dirty = true;
-			return;
+			return Promise.resolve();
 		}
 		// Snapshot as late as possible — after the in-flight guard —
 		// so the payload reflects the state at send time, not at the
@@ -149,56 +163,86 @@ export function createSessionSaver(
 			// Nothing changed since the server last heard from us.
 			// The rate-limit clock stays where it was: no write went
 			// out, so the next real change owes nothing to this one.
-			return;
+			return Promise.resolve();
 		}
 		inFlight = true;
 		lastSaveStartedAt = Date.now();
 
 		noteRestoreTargets( payload );
 
-		try {
-			// Session save is a debounced background ping — silent
-			// so the user doesn't see a spinner every time they
-			// move a window.
-			const response = await trackedFetch(
-				manager,
-				config.sessionUrl,
-				{
-					method: 'POST',
-					credentials: 'same-origin',
-					headers: {
-						'Content-Type': 'application/json',
-						'X-WP-Nonce': config.restNonce,
+		activeSave = ( async () => {
+			try {
+				// Session save is a debounced background ping — silent
+				// so the user doesn't see a spinner every time they
+				// move a window.
+				const response = await trackedFetch(
+					manager,
+					config.sessionUrl,
+					{
+						method: 'POST',
+						credentials: 'same-origin',
+						headers: {
+							'Content-Type': 'application/json',
+							'X-WP-Nonce': config.restNonce,
+						},
+						body: JSON.stringify( { session: payload } ),
+						// Best-effort: we don't block the UI on persistence.
+						keepalive: true,
 					},
-					body: JSON.stringify( { session: payload } ),
-					// Best-effort: we don't block the UI on persistence.
-					keepalive: true,
-				},
-				{ silent: true },
-			);
-			// Only a write the server took counts. A 403 from an
-			// expired nonce, or a 5xx, leaves the server on the older
-			// session, and the next change must carry this one again.
-			if ( response?.ok ) {
-				lastAccepted = current;
+					{ silent: true },
+				);
+				// Only a write the server took counts. A 403 from an
+				// expired nonce, or a 5xx, leaves the server on the older
+				// session, and the next change must carry this one again.
+				if ( response?.ok ) {
+					lastAccepted = current;
+				}
+			} catch ( err ) {
+				/* Network error is non-fatal — next change triggers
+				 * another save. Still worth surfacing to monitor widgets
+				 * so a connectivity regression doesn't go silent under
+				 * the session-beacon path. */
+				doAction( HOOKS.SHELL_ERROR, { scope: 'session-save', error: err } );
+			} finally {
+				inFlight = false;
+				activeSave = null;
+				if ( dirty ) {
+					dirty = false;
+					// Back through `schedule()`, not straight into another
+					// `doSave()`. Handing over directly would let a slow
+					// request chain into an immediate second write and
+					// sidestep both the debounce and the rate limit.
+					schedule();
+				}
 			}
-		} catch ( err ) {
-			/* Network error is non-fatal — next change triggers
-			 * another save. Still worth surfacing to monitor widgets
-			 * so a connectivity regression doesn't go silent under
-			 * the session-beacon path. */
-			doAction( HOOKS.SHELL_ERROR, { scope: 'session-save', error: err } );
-		} finally {
-			inFlight = false;
-			if ( dirty ) {
-				dirty = false;
-				// Back through `schedule()`, not straight into another
-				// `doSave()`. Handing over directly would let a slow
-				// request chain into an immediate second write and
-				// sidestep both the debounce and the rate limit.
-				schedule();
-			}
+		} )();
+		return activeSave;
+	};
+
+	/**
+	 * Write now, and resolve once the server has answered.
+	 *
+	 * For the one caller about to leave the page on purpose — the
+	 * reload the shell offers after a deploy changed its files. The
+	 * unload beacon is fire-and-forget, and a navigation started in
+	 * the same breath can have the server read the session back before
+	 * the beacon's write lands; the desktop then comes back as the
+	 * older snapshot. Waiting for the answer is the whole difference.
+	 * A write already on the wire finishes first, since its snapshot
+	 * may predate the state being flushed. Never rejects: a failed
+	 * write is the same best-effort it always was, and the caller
+	 * navigates either way.
+	 */
+	const flush = async (): Promise< void > => {
+		if ( debounceTimer !== null ) {
+			clearTimeout( debounceTimer );
+			debounceTimer = null;
 		}
+		while ( activeSave ) {
+			await activeSave;
+		}
+		dirty = false;
+		await doSave();
 	};
 
 	const flushImmediately = (): void => {
@@ -294,5 +338,5 @@ export function createSessionSaver(
 		}
 	} );
 
-	return schedule;
+	return Object.assign( schedule, { flush } );
 }

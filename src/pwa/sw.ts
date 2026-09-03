@@ -91,6 +91,8 @@ interface SWExtendableEvent {
 }
 interface SWMessageEvent {
 	data?: unknown;
+	/** The window client that posted the message, when there is one. */
+	source?: { postMessage: ( data: unknown ) => void } | null;
 	waitUntil: ( p: Promise< unknown > ) => void;
 }
 interface SWEventMap {
@@ -184,13 +186,13 @@ let windowPrewarmEnabled = CONFIG.windowPrewarm;
  * between an anonymous and a logged-in request — so any in-scope
  * logged-out navigation (the interim-login iframe, logging out) served
  * a different script, which the browser treats as an update, installs,
- * and activates. The shell's `controllerchange` handler then hard-
- * reloads the desktop out from under the user.
+ * and activates. At the time the shell hard-reloaded the desktop on
+ * every such takeover.
  *
- * The served bytes are now identical for everyone (`pluginUrl` only)
- * and the shell pushes the per-user values at boot. Starting both off
- * is the safe default: until the message lands the worker simply does
- * less.
+ * The served bytes are now identical for everyone (site-level values
+ * only) and the shell pushes the per-user values at boot. Starting
+ * both off is the safe default: until the message lands the worker
+ * simply does less.
  */
 let adminAssetCacheEnabled = CONFIG.adminAssetCache;
 
@@ -230,9 +232,17 @@ const PRECACHE_PATHS: readonly string[] = [
 	'assets/images/wp-logo.png',
 ];
 
+// No `skipWaiting()` here, on purpose. A new worker installs and then
+// WAITS; it takes over only when the shell tells it to
+// (`os-sw-skip-waiting`), which the shell does silently when the
+// shell's own files did not change and on the user's click when they
+// did. Taking over on install swapped the worker under a page still
+// running the previous bundle — and the activate handler below drops
+// the previous version's caches, so that page could ask for a lazy
+// bundle from a bucket that no longer existed. The page and its
+// worker now change together, or not at all.
 sw.addEventListener( 'install', ( event: SWExtendableEvent ) => {
 	event.waitUntil( precache() );
-	void sw.skipWaiting();
 } );
 
 sw.addEventListener( 'activate', ( event: SWExtendableEvent ) => {
@@ -535,6 +545,30 @@ sw.addEventListener( 'message', ( event: SWMessageEvent ) => {
 	const data = event.data as
 		| { type?: string; url?: string; urls?: unknown }
 		| undefined;
+
+	// "Which shell were you served with?" — asked of a worker that has
+	// just installed and is waiting, so the shell can tell a deploy that
+	// changed its own files from one that changed nothing it is
+	// running. The answer is the preamble's stamp; a body served without
+	// one answers '' and the shell treats that as "unknown", never as
+	// "changed".
+	if ( data && data.type === 'os-sw-get-build' ) {
+		try {
+			event.source?.postMessage( {
+				type: 'os-sw-build',
+				shellBuild: CONFIG.shellBuild,
+			} );
+		} catch {
+			// A client gone between the ask and the answer.
+		}
+		return;
+	}
+
+	// The shell's consent to take over — see the install handler.
+	if ( data && data.type === 'os-sw-skip-waiting' ) {
+		void sw.skipWaiting();
+		return;
+	}
 
 	// The two per-user flags: the prewarm toggle applied to the RUNNING
 	// worker, and the boot-time sync of both. Neither is in the served

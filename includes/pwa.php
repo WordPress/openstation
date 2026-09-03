@@ -246,12 +246,101 @@ function openstation_pwa_sw_config_preamble() {
 	 * app on a phone rarely navigates; the shell re-checks the script on
 	 * every return to the foreground (`src/pwa/sw-register.ts`), and the
 	 * version in the preamble is what makes that check find a release.
+	 *
+	 * `shellBuild` is the content hash of the shell's own built files
+	 * ({@see openstation_shell_build_stamp()}). It makes a deploy that
+	 * changed the shell a new worker too, and — more importantly — it
+	 * tells the shell, when that worker takes over mid-session, whether
+	 * the shell it is running is the one the server now serves. A new
+	 * worker is never a reason to reload on its own: a release that
+	 * changed nothing under `assets/` produces a worker whose
+	 * `shellBuild` equals the running shell's, and the shell stays put.
 	 */
 	$config = array(
-		'pluginUrl' => OPENSTATION_URL,
-		'version'   => OPENSTATION_VERSION,
+		'pluginUrl'  => OPENSTATION_URL,
+		'version'    => OPENSTATION_VERSION,
+		'shellBuild' => openstation_shell_build_stamp(),
 	);
 	return sprintf( "self.__OS_SW_CONFIG = %s;\n", wp_json_encode( $config ) );
+}
+
+/**
+ * Content hash of the shell's built front-end: every stylesheet under
+ * `assets/css/` and every bundle under `assets/js/`.
+ *
+ * "Did the shell change?" answered from bytes, not clocks. A deploy
+ * rewrites every file's mtime whether or not its contents moved, and
+ * the plugin version moves on releases that never touched the shell;
+ * neither is a reason to disturb a desktop someone is working in. The
+ * stamp changes exactly when a shell file's bytes do.
+ *
+ * Two readers: `openStationConfig.pwa.shellBuild`, which the shell
+ * boots with, and the served service worker's preamble, so the worker
+ * knows which shell it was served alongside. When a worker takes over
+ * a running shell the two are compared, and only a difference — a real
+ * change in the shell files — earns the user an offer to reload. See
+ * `src/pwa/sw-register.ts`.
+ *
+ * Hashing a few megabytes of bundles on every shell request would be
+ * wasteful, so the stamp is memoised in one transient behind the cheap
+ * signature of the same files (path, size, mtime). A deploy changes
+ * the signature and the hash is recomputed once; identical bytes come
+ * out as the identical stamp, and a touched-but-unchanged file costs a
+ * single rehash.
+ *
+ * @param string|null $dir Plugin directory to read. `OPENSTATION_DIR` by
+ *                         default; tests hand in a fixture.
+ * @return string Sixteen hex characters, or '' when nothing is built.
+ */
+function openstation_shell_build_stamp( $dir = null ) {
+	static $memo = array();
+
+	$dir = null === $dir ? OPENSTATION_DIR : trailingslashit( $dir );
+
+	$files = array();
+	foreach ( array( 'assets/css/*.css', 'assets/js/*.js' ) as $pattern ) {
+		$matches = glob( $dir . $pattern );
+		if ( is_array( $matches ) ) {
+			$files = array_merge( $files, $matches );
+		}
+	}
+	sort( $files );
+	if ( empty( $files ) ) {
+		return '';
+	}
+
+	$signature = array( $dir );
+	foreach ( $files as $file ) {
+		$signature[] = substr( $file, strlen( $dir ) ) . ':' . filesize( $file ) . ':' . filemtime( $file );
+	}
+	$signature = md5( implode( "\n", $signature ) );
+
+	if ( isset( $memo[ $signature ] ) ) {
+		return $memo[ $signature ];
+	}
+
+	$cached = get_transient( 'openstation_shell_build' );
+	if ( is_array( $cached ) && isset( $cached['signature'], $cached['stamp'] ) && $cached['signature'] === $signature && is_string( $cached['stamp'] ) ) {
+		$memo[ $signature ] = $cached['stamp'];
+		return $cached['stamp'];
+	}
+
+	$hashes = array();
+	foreach ( $files as $file ) {
+		$hashes[] = substr( $file, strlen( $dir ) ) . ':' . md5_file( $file );
+	}
+	$stamp = substr( md5( implode( "\n", $hashes ) ), 0, 16 );
+
+	$memo[ $signature ] = $stamp;
+	set_transient(
+		'openstation_shell_build',
+		array(
+			'signature' => $signature,
+			'stamp'     => $stamp,
+		),
+		DAY_IN_SECONDS
+	);
+	return $stamp;
 }
 
 /**
@@ -580,15 +669,15 @@ function openstation_pwa_serve_service_worker() {
 	// `npm run build` rewrites `sw.min.js` on every run, bumping its
 	// mtime even when the SW source is byte-identical. Each rebuild
 	// produced a different stamp → different SW response → browser
-	// installed a "new" SW → `controllerchange` fired → the
-	// `bindControllerChangeReload` hook in `src/pwa/sw-register.ts`
-	// auto-reloaded the page. The user observed a "phantom reload"
-	// 2–3s after every `npm run build`, even when only an unrelated
-	// bundle (e.g. `desktop.min.js`) had changed.
+	// installed a "new" SW → `controllerchange` fired → the shell of
+	// the day auto-reloaded the page. The user observed a "phantom
+	// reload" 2–3s after every `npm run build`, even when only an
+	// unrelated bundle (e.g. `desktop.min.js`) had changed.
 	//
 	// A content hash collapses identical bodies onto identical stamps
-	// — only a *real* change in `src/pwa/sw.ts` triggers the SW
-	// update / reload pipeline. `md5` is plenty for an integrity
+	// — only a *real* change in `src/pwa/sw.ts` installs a new worker.
+	// (The shell no longer reloads on a new worker at all; see
+	// `src/pwa/sw-register.ts`.) `md5` is plenty for an integrity
 	// stamp here (no security implications) and short enough that the
 	// inline comment stays under one line.
 	$stamp = substr( md5( $body ), 0, 16 );
