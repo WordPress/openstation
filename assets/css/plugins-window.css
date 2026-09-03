@@ -1086,5 +1086,35 @@ html[data-os-mode="mobile"] .os-plugins__toolbar-left os-text-field {
 	max-width: none;
 }
 html[data-os-mode="mobile"] .os-plugins__body {
-	padding: 6px 8px 8px;
+	padding: 0;
+}
+
+/*
+ * The phone's list is a card per row (`<os-table stacked>`, set by
+ * the bundle through `stack-on-phone.ts`) running edge to edge, and
+ * the selection's actions are a bar along the bottom of the window —
+ * the bundle moves the toolbar's bulk strip there and marks it. A
+ * flex sibling of the body, so the cards end where it begins; it
+ * clears the home indicator on an installed app.
+ */
+.os-plugins__bulk.os-plugins__bulk--footer {
+	flex: 0 0 auto;
+	flex-wrap: wrap;
+	gap: 8px;
+	padding: 10px 12px calc( 10px + env( safe-area-inset-bottom, 0px ) );
+	border-block-start: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
+	background: var( --os-ui-surface-elevated, #f6f7f7 );
+	box-shadow: 0 -6px 18px rgba( 0, 0, 0, 0.06 );
+}
+
+.os-plugins__bulk.os-plugins__bulk--footer[hidden] {
+	display: none;
+}
+
+.os-plugins__bulk.os-plugins__bulk--footer .os-plugins__bulk-count {
+	flex: 1 1 100%;
+}
+
+.os-plugins__bulk.os-plugins__bulk--footer os-button {
+	flex: 1 1 auto;
 }

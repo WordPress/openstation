@@ -43,6 +43,12 @@
  *   - **Loading state.** `loading` paints shimmering skeleton rows.
  *   - **Empty state.** `<slot name="empty">` lets the host project a
  *     CTA; the `empty` attribute is the text fallback.
+ *   - **Stacked layout.** `stacked` lays every row out as a card —
+ *     the first column as its title, the others as labelled lines,
+ *     a label-less column as a row of actions — for a phone or any
+ *     width a table cannot fit. Same `columns`, same `data`, same
+ *     selection and events; no header, no sticky columns, nothing to
+ *     scroll sideways. `column.stack` overrides a column's role.
  *
  * ## Programmatic API surface
  *
@@ -168,7 +174,20 @@ export interface OsTableColumn< T = Record< string, unknown > > {
 	minWidth?: string;
 	/** Custom cell renderer. Return a string, Node, or `html\`\``. */
 	render?: ( value: unknown, row: T, index: number ) => string | Node | TemplateResult;
+	/**
+	 * The column's role when the table is `stacked` (a card per
+	 * row). Defaults: the first data column is the `title`, a column
+	 * with no label is the `actions` row, every other column is a
+	 * `meta` line captioned with its label. `hidden` leaves the
+	 * column out of the card without removing it from `columns`, so
+	 * the desk's table and the phone's cards share one descriptor
+	 * list.
+	 */
+	stack?: OsTableStackRole;
 }
+
+/** How a column presents inside a stacked row — see {@link OsTableColumn.stack}. */
+export type OsTableStackRole = 'title' | 'meta' | 'actions' | 'hidden';
 
 /**
  * Sub-table descriptor — independent of the parent's row type so a
@@ -234,6 +253,7 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		'loading',
 		'loadingRows',
 		'selectable',
+		'stacked',
 	] as const;
 	static styles = [ styles ];
 
@@ -281,6 +301,12 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 				type: '"single" | "multi"',
 				description:
 					'Auto-prepend a checkbox column. `multi` puts a select-all checkbox in the header; `single` enforces at-most-one selected.',
+			},
+			{
+				name: 'stacked',
+				type: 'boolean',
+				description:
+					'Lay every row out as a card instead of a table row: the first column is the title, the others are labelled lines, a label-less column is the actions row (`column.stack` overrides the role per column). No header, no sticky columns, nothing scrolls sideways — the layout for a phone, or any width the columns cannot fit. Selection, sub-tables, row clicks and every event work unchanged.',
 			},
 		],
 		events: [
@@ -345,6 +371,8 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 	private _filterCache = new Map< string, FilterInputCache >();
 
 	private _paintScheduled = false;
+	/** `stacked` as read at the start of the current paint. */
+	private _stacked = false;
 	private _stickyHeaderWarned = false;
 	private _stickyRaceWarned = false;
 	private _resizeObserver: ResizeObserver | null = null;
@@ -801,6 +829,7 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		}
 
 		const cols = this._effectiveColumns();
+		this._stacked = this.hasAttribute( 'stacked' );
 		const stickyN = this._readStickyColumns();
 		this._lastStickyIndex = this._computeLastStickyIndex( cols, stickyN );
 
@@ -1281,7 +1310,11 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 			return;
 		}
 		for ( const { row, index } of filtered ) {
-			tbody.appendChild( this._buildBodyRow( row, index, cols, stickyN ) );
+			tbody.appendChild(
+				this._stacked
+					? this._buildStackedRow( row, index, cols )
+					: this._buildBodyRow( row, index, cols, stickyN ),
+			);
 			if ( this._expanded.has( index ) && this._subTable ) {
 				const sub = this._subTable( row, index );
 				if ( sub ) {
@@ -1354,6 +1387,73 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		return tr;
 	}
 
+	/**
+	 * One row as a card (the `stacked` layout). The system cells —
+	 * the checkbox, the expander — stay real cells along the leading
+	 * edge; every data column is painted into one `td.stack-body` as
+	 * a `.stack-cell` carrying its role (`title`, `meta`, `actions`)
+	 * and, for a meta line, the column's label as its caption. The
+	 * row keeps its id, its index, its selection class and its click,
+	 * so `_syncSelectionDom`, `scrollToRow` and the row-click event
+	 * need no second code path.
+	 */
+	private _buildStackedRow(
+		row: T,
+		rowIndex: number,
+		cols: OsTableColumn< T >[],
+	): HTMLTableRowElement {
+		const tr = document.createElement( 'tr' );
+		tr.setAttribute( 'part', 'row' );
+		tr.classList.add( 'stack-row' );
+		tr.dataset.rowIndex = String( rowIndex );
+		const id = this._getRowId( row, rowIndex );
+		tr.dataset.rowId = String( id );
+		if ( this._selection.has( id ) ) {
+			tr.classList.add( 'is-selected' );
+		}
+		tr.addEventListener( 'click', ( e: Event ) => {
+			this._onRowClick( row, rowIndex, e );
+		} );
+		const body = document.createElement( 'td' );
+		body.className = 'stack-body';
+		let dataIndex = 0;
+		let span = 0;
+		for ( let i = 0; i < cols.length; i++ ) {
+			const col = cols[ i ];
+			if ( col.key === SELECT_KEY || col.key === EXPANDER_KEY ) {
+				tr.appendChild( this._buildBodyCell( col, i, row, rowIndex, 0 ) );
+				continue;
+			}
+			span++;
+			const role = stackRole( col, dataIndex++ );
+			if ( role === 'hidden' ) {
+				continue;
+			}
+			const cell = document.createElement( 'div' );
+			cell.className = `stack-cell stack-${ role }`;
+			cell.dataset.key = col.key;
+			if ( role === 'meta' && col.label ) {
+				const label = document.createElement( 'span' );
+				label.className = 'stack-label';
+				label.textContent = col.label;
+				cell.appendChild( label );
+			}
+			const value = document.createElement( 'span' );
+			value.className = 'stack-value';
+			const raw = ( row as Record< string, unknown > )[ col.key ];
+			if ( col.render ) {
+				this._mountCellContent( value, col.render( raw, row, rowIndex ) );
+			} else if ( raw !== null && raw !== undefined ) {
+				value.textContent = String( raw );
+			}
+			cell.appendChild( value );
+			body.appendChild( cell );
+		}
+		body.colSpan = Math.max( 1, span );
+		tr.appendChild( body );
+		return tr;
+	}
+
 	private _buildBodyCell(
 		col: OsTableColumn< T >,
 		colIndex: number,
@@ -1383,6 +1483,20 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 				}
 			} );
 			td.appendChild( cb );
+			if ( this._stacked ) {
+				// On a card the whole leading cell is the tap target
+				// (`os-table.styles.ts` gives it 44px), not the 22px box
+				// inside it: a tap beside the box toggles the row, and is
+				// not also a row click.
+				td.setAttribute( 'data-noclick', '' );
+				td.addEventListener( 'click', ( e: Event ) => {
+					if ( e.target !== td ) {
+						return;
+					}
+					cb.checked = ! cb.checked;
+					cb.dispatchEvent( new Event( 'change' ) );
+				} );
+			}
 			return td;
 		}
 
@@ -1675,7 +1789,9 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		stickyN: number,
 		col: OsTableColumn< T >,
 	): boolean {
-		if ( col.sticky === false ) {
+		// A card has no columns to pin; `column.sticky` and the
+		// attribute both stand down while the layout is stacked.
+		if ( this._stacked || col.sticky === false ) {
 			return false;
 		}
 		if ( col.sticky === true ) {
@@ -1910,6 +2026,26 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 
 function isTemplateResult( v: unknown ): v is TemplateResult {
 	return !! v && ( v as { __wpdHtml?: boolean } ).__wpdHtml === true;
+}
+
+/**
+ * A column's role inside a stacked row: its own `stack` when set,
+ * else the first data column is the title, a label-less column is
+ * the actions row (that is what a label-less column IS in every
+ * table in the shell — the trailing buttons), and the rest are
+ * meta lines.
+ */
+export function stackRole(
+	col: Pick< OsTableColumn, 'label' | 'stack' >,
+	dataIndex: number,
+): OsTableStackRole {
+	if ( col.stack ) {
+		return col.stack;
+	}
+	if ( dataIndex === 0 ) {
+		return 'title';
+	}
+	return col.label ? 'meta' : 'actions';
 }
 
 /**

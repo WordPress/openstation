@@ -204,7 +204,7 @@ import {
 	type PresenceApi,
 } from './presence';
 import { recentlyMarqueed, type SelectionApi } from './selection';
-import { type ActivityApi } from './activity';
+import { activity, type ActivityApi } from './activity';
 import { bootHeartbeatBus, type HeartbeatBus } from './heartbeat';
 import { bootPluginPresenceWatch } from './plugin-presence';
 import { bootContentChangesHeartbeat } from './content-changes/heartbeat';
@@ -4805,6 +4805,10 @@ function init(): void {
 					},
 					adminUrl: config.adminUrl,
 					renderIcon: ( icon, opts ) => renderIcon( icon, opts ),
+					// The art a tile wears on any rail, so the grid's tile
+					// says what the dock's does (the bin's full/empty mark).
+					getArt: ( item ) => iconsApi.getArt( item.id ) || dock?.getArt( item.id ) || '',
+					subscribeArt: ( cb ) => activity.subscribe( 'os/art-changed', () => cb() ),
 				} );
 			} )
 			.catch( ( err ) => {

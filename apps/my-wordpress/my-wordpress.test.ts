@@ -196,6 +196,48 @@ describe( 'view', () => {
 		return root;
 	}
 
+	it( 'on a phone an opened item is a page over the list, and Back closes it', async () => {
+		document.documentElement.setAttribute( 'data-os-mode', 'mobile' );
+		const calls: Array< [ string, Record< string, unknown > | undefined ] > = [];
+		try {
+			const root = mount(
+				state( { section: 'posts', item: 2 } ),
+				data( {
+					list: page( [ item( { id: 1 } ), item( { id: 2, title: 'Beta' } ) ] ),
+					detail: { kind: 'post', id: 2, title: 'Beta', facts: [], canEdit: true, canDelete: true },
+				} ),
+				async ( action, args ) => {
+					calls.push( [ action, args ] );
+					return true;
+				},
+			);
+			expect( root.querySelector( '.os-mywp__detail-page' ) ).not.toBeNull();
+			expect( root.querySelector( '.os-mywp__split' ) ).toBeNull();
+			expect( root.querySelector( '.os-mywp__detail-title' )?.textContent ).toBe( 'Beta' );
+			// The trail: site › Posts (a link now) › Beta.
+			expect( root.querySelector( '.os-mywp__crumb-current' )?.textContent ).toBe( 'Beta' );
+			const links = Array.from( root.querySelectorAll( '.os-mywp__crumb-link' ) ).map( ( l ) => l.textContent );
+			expect( links ).toContain( 'Posts' );
+			root.querySelector< HTMLButtonElement >( '.os-mywp__back' )!.click();
+			await Promise.resolve();
+			expect( calls ).toEqual( [ [ 'open', { item: 0 } ] ] );
+		} finally {
+			document.documentElement.removeAttribute( 'data-os-mode' );
+		}
+	} );
+
+	it( 'on a desk an opened item is the pane beside the list', () => {
+		const root = mount(
+			state( { section: 'posts', item: 2 } ),
+			data( {
+				list: page( [ item( { id: 2, title: 'Beta' } ) ] ),
+				detail: { kind: 'post', id: 2, title: 'Beta', facts: [], canEdit: true, canDelete: true },
+			} ),
+		);
+		expect( root.querySelector( '.os-mywp__split' ) ).not.toBeNull();
+		expect( root.querySelector( '.os-mywp__detail-page' ) ).toBeNull();
+	} );
+
 	it( 'paints the root grid with counted tiles and group folders', () => {
 		const root = mount(
 			state(),

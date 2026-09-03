@@ -111,6 +111,13 @@ export interface RowButtonOptions {
 	icon: string;
 	onClick: () => void;
 	variant?: string;
+	/**
+	 * Print the label beside the icon, at a finger's height. A 30px
+	 * icon-only square is right in a row on a desk and wrong on a
+	 * card under a thumb: too small to hit, and a glyph alone has to
+	 * be learned.
+	 */
+	labelled?: boolean;
 }
 
 /**
@@ -169,14 +176,18 @@ export function makeRowButton( opts: RowButtonOptions ): HTMLElement {
 		}
 	};
 
+	const labelled = opts.labelled === true;
 	btn.style.cssText = [
 		'display: inline-flex',
 		'align-items: center',
 		'justify-content: center',
-		'flex: 0 0 30px',
-		'width: 30px',
-		'height: 30px',
-		'padding: 0',
+		labelled ? 'gap: 6px' : '',
+		labelled ? 'flex: 0 0 auto' : 'flex: 0 0 30px',
+		labelled ? 'width: auto' : 'width: 30px',
+		labelled ? 'height: 36px' : 'height: 30px',
+		labelled ? 'padding: 0 12px' : 'padding: 0',
+		labelled ? 'font-size: 13px' : '',
+		labelled ? 'font-weight: 600' : '',
 		'margin: 0',
 		'border: 1px solid ' + restBorder,
 		'border-radius: 6px',
@@ -239,6 +250,13 @@ export function makeRowButton( opts: RowButtonOptions ): HTMLElement {
 		btn.appendChild( svg );
 	}
 
+	if ( labelled ) {
+		const text = document.createElement( 'span' );
+		text.textContent = opts.label;
+		text.style.cssText = 'white-space: nowrap; line-height: 1;';
+		btn.appendChild( text );
+	}
+
 	btn.addEventListener( 'click', ( e: Event ) => {
 		e.stopPropagation();
 		opts.onClick();
@@ -252,19 +270,36 @@ export interface RowActionHandlers {
 	onPurge: ( ref: RecycleBinItemRef ) => void;
 }
 
+export interface ColumnOptions {
+	/**
+	 * Built for a phone, where the table is a card per row
+	 * (`<os-table stacked>`): the title may take two lines instead of
+	 * one ellipsized at 320px, and the row buttons print their labels.
+	 */
+	phone?: boolean;
+}
+
 /**
  * Build the columns descriptor both bins share. Filterable via the
  * public `openstation.recycleBin.columns` JS hook, mirroring the PHP
- * `openstation_recycle_bin_columns` extension point.
+ * `openstation_recycle_bin_columns` extension point. Every column
+ * declares its role on a card (`stack`), so the phone needs no
+ * second descriptor list.
  */
 export function buildColumns(
 	handlers: RowActionHandlers,
+	options: ColumnOptions = {},
 ): OsTableColumn< RecycleBinItem >[] {
+	const phone = options.phone === true;
+	const titleStyle = phone
+		? 'font-weight:600;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere;'
+		: 'font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:320px;';
 	const cols: OsTableColumn< RecycleBinItem >[] = [
 		{
 			key: 'title',
 			label: __( 'Title' ),
 			sortable: true,
+			stack: 'title',
 			render: ( _v, row ) => {
 				// One-cell layout: optional thumbnail (image
 				// attachments only) inline at the start, then the
@@ -296,8 +331,7 @@ export function buildColumns(
 					'display:flex;align-items:center;gap:8px;min-width:0;';
 				titleRow.appendChild( makeTypeBadge( row ) );
 				const title = document.createElement( 'span' );
-				title.style.cssText =
-					'font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:320px;';
+				title.style.cssText = titleStyle;
 				const decodedTitle = decodeHTML( row.title );
 				title.textContent = decodedTitle;
 				title.title = decodedTitle;
@@ -323,6 +357,7 @@ export function buildColumns(
 			key: 'deleted_at',
 			label: __( 'Deleted' ),
 			sortable: true,
+			stack: 'meta',
 			width: '180px',
 			sortValue: ( row ) => Date.parse( row.deleted_at + 'Z' ) || 0,
 			render: ( _v, row ) => {
@@ -337,22 +372,26 @@ export function buildColumns(
 			key: 'deleted_by',
 			label: __( 'By' ),
 			sortable: true,
+			stack: 'meta',
 			width: '160px',
 			render: ( _v, row ) => row.deleted_by || '—',
 		},
 		{
 			key: '__actions',
 			label: '',
+			stack: 'actions',
 			width: '96px',
 			align: 'end',
 			render: ( _v, row ) => {
 				const wrap = document.createElement( 'span' );
-				wrap.style.cssText =
-					'display:inline-flex;gap:4px;justify-content:flex-end;align-items:center;flex-wrap:nowrap;white-space:nowrap;line-height:1;';
+				wrap.style.cssText = phone
+					? 'display:flex;gap:8px;align-items:center;flex-wrap:wrap;line-height:1;'
+					: 'display:inline-flex;gap:4px;justify-content:flex-end;align-items:center;flex-wrap:nowrap;white-space:nowrap;line-height:1;';
 				if ( row.can_restore ) {
 					wrap.appendChild( makeRowButton( {
 						label: __( 'Restore' ),
 						icon: 'restore',
+						labelled: phone,
 						onClick: () =>
 							handlers.onRestore( { id: row.id, type: row.type } ),
 					} ) );
@@ -362,6 +401,7 @@ export function buildColumns(
 						label: __( 'Delete forever' ),
 						icon: 'trash',
 						variant: 'danger',
+						labelled: phone,
 						onClick: () =>
 							handlers.onPurge( { id: row.id, type: row.type } ),
 					} ) );

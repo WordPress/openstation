@@ -1891,7 +1891,7 @@ wp.os.icons?.setArt?.( 'my-bin', '' );  // restore the registered icon
 
 Every applied change publishes `os/art-changed` on the activity channel with `{ itemId, icon, rail: 'dock' | 'taskbar' | 'icon' }`.
 
-`wp.os.icons.getArt( id )` reads the current override back, or `''` when the registered icon is still in charge.
+`wp.os.icons.getArt( id )` and `wp.os.dock.getArt( id )` read the current override back, or `''` when the registered icon is still in charge. The phone's home grid reads both: its tiles are not a rail's, so a `setArt` never reaches them directly, and the grid repaints from the getters on every `os/art-changed` — a bin that fills on the desk fills on the phone too.
 
 In-tree reference: [`src/desktop-files/recycle-bin-icon-state.ts`](../src/desktop-files/recycle-bin-icon-state.ts). The Recycle Bin uses it to draw an empty bin and a bin holding something as two states of one object. It replaced a count badge there: the badge pill is positioned onto the artwork rather than beside it, and at a 20px dock tile it covered about 30% of the icon.
 

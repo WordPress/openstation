@@ -780,3 +780,93 @@ describe( '<os-table>', () => {
 		expect( cell?.textContent?.trim() ).toBe( '>> Alice' );
 	} );
 } );
+
+describe( '<os-table stacked> — a card per row', () => {
+	let host: HTMLElement;
+	beforeEach( () => {
+		host = document.createElement( 'div' );
+		document.body.appendChild( host );
+	} );
+	afterEach( () => host.remove() );
+
+	const columns: OsTableColumn< User >[] = [
+		{ key: 'name', label: 'Name', sticky: true },
+		{ key: 'email', label: 'Email' },
+		{ key: 'role', label: 'Role', stack: 'hidden' },
+		{ key: 'logins', label: '', render: () => 'ACT' },
+	];
+
+	async function mount( attrs: string ): Promise< OsTable< User > > {
+		host.innerHTML = `<os-table ${ attrs }></os-table>`;
+		await tick();
+		const table = host.querySelector( 'os-table' ) as OsTable< User >;
+		table.columns = columns;
+		table.data = sampleData;
+		await tick();
+		return table;
+	}
+
+	test( 'paints the first column as the title, labelled columns as meta lines, the label-less one as actions', async () => {
+		const table = await mount( 'stacked' );
+		const row = table.shadowRoot!.querySelector( 'tbody tr' )!;
+		expect( row.classList.contains( 'stack-row' ) ).toBe( true );
+		const body = row.querySelector( 'td.stack-body' )!;
+		expect( body ).not.toBeNull();
+		const title = body.querySelector( '.stack-cell.stack-title' )!;
+		expect( title.textContent?.trim() ).toBe( 'Alice' );
+		expect( title.querySelector( '.stack-label' ) ).toBeNull();
+		const meta = body.querySelector( '.stack-cell.stack-meta' )!;
+		expect( meta.querySelector( '.stack-label' )?.textContent ).toBe( 'Email' );
+		expect( meta.querySelector( '.stack-value' )?.textContent ).toBe( 'alice@a.com' );
+		const actions = body.querySelector( '.stack-cell.stack-actions' )!;
+		expect( actions.textContent?.trim() ).toBe( 'ACT' );
+	} );
+
+	test( 'a column marked hidden is left out of the card, and stays in `columns`', async () => {
+		const table = await mount( 'stacked' );
+		const body = table.shadowRoot!.querySelector( 'tbody tr td.stack-body' )!;
+		expect( body.querySelector( '[data-key="role"]' ) ).toBeNull();
+		expect( table.columns.map( ( c ) => c.key ) ).toContain( 'role' );
+	} );
+
+	test( 'no cell is sticky, whatever the attribute or the column says', async () => {
+		const table = await mount( 'stacked sticky-columns="2"' );
+		expect( table.shadowRoot!.querySelector( '.is-sticky' ) ).toBeNull();
+	} );
+
+	test( 'the checkbox cell stays a real cell, and a tap on the cell itself toggles the row', async () => {
+		const table = await mount( 'stacked selectable="multi"' );
+		table.getRowId = ( row ) => row.name;
+		await tick();
+		const row = table.shadowRoot!.querySelector( 'tbody tr' )!;
+		const td = row.querySelector< HTMLElement >( 'td.col-select' )!;
+		expect( td ).not.toBeNull();
+		expect( td.hasAttribute( 'data-noclick' ) ).toBe( true );
+		const clicks: unknown[] = [];
+		table.addEventListener( 'os-table-row-click', ( e ) => clicks.push( e ) );
+		td.dispatchEvent( new MouseEvent( 'click', { bubbles: true, composed: true } ) );
+		expect( Array.from( table.selection ) ).toEqual( [ 'Alice' ] );
+		expect( clicks ).toHaveLength( 0 );
+		td.dispatchEvent( new MouseEvent( 'click', { bubbles: true, composed: true } ) );
+		expect( table.selection.size ).toBe( 0 );
+	} );
+
+	test( 'a click on the card is still a row click', async () => {
+		const table = await mount( 'stacked' );
+		const clicks: number[] = [];
+		table.addEventListener( 'os-table-row-click', ( e ) =>
+			clicks.push( ( e as CustomEvent< { index: number } > ).detail.index ),
+		);
+		const title = table.shadowRoot!.querySelectorAll( 'tbody tr .stack-title' )[ 1 ] as HTMLElement;
+		title.dispatchEvent( new MouseEvent( 'click', { bubbles: true, composed: true } ) );
+		expect( clicks ).toEqual( [ 1 ] );
+	} );
+
+	test( 'removing the attribute paints the grid again', async () => {
+		const table = await mount( 'stacked' );
+		table.removeAttribute( 'stacked' );
+		await tick();
+		expect( table.shadowRoot!.querySelector( 'tbody tr.stack-row' ) ).toBeNull();
+		expect( table.shadowRoot!.querySelectorAll( 'tbody tr:first-child td' ) ).toHaveLength( 4 );
+	} );
+} );

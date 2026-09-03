@@ -45,7 +45,13 @@ import {
 const PLUGINS_CHANGED_TOPIC = 'os.plugin.changed';
 const SOURCE = 'installed-view';
 /** The columns a phone shows — see `buildColumns()` in `mountInstalledView`. */
-const MOBILE_COLUMN_KEYS = new Set< string >( [ 'name', 'status', '_actions' ] );
+/**
+ * The columns a phone shows — a card per row there (`<os-table
+ * stacked>`), so the version and the author are labelled lines under
+ * the name rather than widths to find. The size and the auto-update
+ * switch stay in the row's detail panel.
+ */
+const MOBILE_COLUMN_KEYS = new Set< string >( [ 'name', 'status', 'version', 'author', '_actions' ] );
 interface PluginsChangedPayload {
 	source: string;
 	plugin?: string;
@@ -64,7 +70,7 @@ import type {
 	OsTableColumn,
 } from '../ui/components/os-table/os-table';
 import '../ui/components/os-badge/os-badge';
-import { isMobileStamped } from '../mode/stamp';
+import { stackOnPhone } from '../ui/components/os-table/stack-on-phone';
 import '../ui/components/os-button/os-button';
 import '../ui/components/os-segmented/os-segmented';
 import '../ui/components/os-table/os-table';
@@ -247,13 +253,10 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 	table.setAttribute( 'selectable', 'multi' );
 	table.setAttribute( 'sticky-header', '' );
 	// The name column stays put while the rest scroll under it — on a
-	// desk. On a phone there is nothing to scroll under it (the column
-	// set below fits the width), and a pinned column over a table that
-	// is itself being dragged is exactly the thing a thumb fights.
-	const phone = isMobileStamped( document.documentElement );
-	if ( ! phone ) {
-		table.setAttribute( 'sticky-columns', '1' );
-	}
+	// desk. On a phone the table is a card per row (`stack-on-phone.ts`
+	// lifts the pin), and the column set below is narrowed to match.
+	table.setAttribute( 'sticky-columns', '1' );
+	const phone = stackOnPhone( table );
 	table.setAttribute( 'hover', '' );
 	table.setAttribute( 'striped', '' );
 	table.setAttribute( 'bordered', '' );
@@ -300,6 +303,13 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 	tableWrap.appendChild( table );
 
 	host.append( toolbar, tableWrap );
+	// A phone: the selection's actions along the bottom of the window
+	// — under the thumb, and still there once the toolbar has scrolled
+	// away — instead of a strip in the toolbar.
+	if ( phone ) {
+		bulkBar.classList.add( 'os-plugins__bulk--footer' );
+		host.appendChild( bulkBar );
+	}
 
 	// ─── Selection → bulk-bar ──────────────────────────────────────
 	const selectionListener = ( ev: Event ): void => {

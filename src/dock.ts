@@ -884,6 +884,21 @@ export class Dock {
 	}
 
 	/**
+	 * The art a tile is currently wearing through {@link setArt}, or
+	 * `''` while the server-declared icon is in charge. The phone's
+	 * home grid reads this: its tiles are not this rail's, so a
+	 * `setArt` never reaches them, and without it the bin's tile
+	 * there would show empty while the bin held something.
+	 *
+	 * @public
+	 *
+	 * @param itemId Tile id.
+	 */
+	public getArt( itemId: string ): string {
+		return this.artOverrides.get( itemId ) ?? '';
+	}
+
+	/**
 	 * The icon a tile was registered with, menu item or system item.
 	 * Used to put things back when an art override is cleared.
 	 */

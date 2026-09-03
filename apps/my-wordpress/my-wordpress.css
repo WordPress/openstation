@@ -297,6 +297,38 @@
 	}
 }
 
+/*
+ * The phone's item page (`renderBody` in `my-wordpress.os.ts`): the
+ * opened item takes the whole body, pushed over the list, with Back
+ * in the header and the trail one step longer. The pane's own ✕ is
+ * redundant beside Back and goes; the action row stacks so every
+ * button is a full-width finger's target.
+ */
+.os-mywp__detail-page {
+	flex: 1 1 auto;
+	min-block-size: 0;
+	overflow-y: auto;
+	-webkit-overflow-scrolling: touch;
+}
+
+.os-mywp__detail-page .os-mywp__pane-close {
+	display: none;
+}
+
+.os-mywp__detail-page .os-mywp__detail {
+	padding: 16px 16px 24px;
+}
+
+.os-mywp__detail-page .os-mywp__actions {
+	flex-direction: column;
+	align-items: stretch;
+	align-self: stretch;
+}
+
+.os-mywp__detail-page .os-mywp__actions os-button {
+	inline-size: 100%;
+}
+
 /* -------------------------------------------------- quick-edit modal */
 
 .os-mywp__qe {

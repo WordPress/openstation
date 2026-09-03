@@ -454,6 +454,174 @@ export const styles = css`
 		box-shadow: inset -3px 0 0 0 var( --os-ui-accent, #2271b1 );
 	}
 
+	/* ---------------------------------------------------------------
+	 * Stacked layout — a card per row (the phone's list).
+	 *
+	 * The table elements stay (the paint path, the selection sync and
+	 * the events are shared with the grid); they are simply laid out
+	 * as blocks. A row is a flex line: the leading system cells (the
+	 * checkbox, the expander) sit at the start, and one td.stack-body
+	 * holds the data columns as a column of .stack-cell blocks. The row
+	 * owns the background now, so the cells paint nothing — the
+	 * stripe, hover and selection overlays move up one level.
+	 * ------------------------------------------------------------- */
+	:host( [ stacked ] ) .scroll {
+		border: 0;
+		border-radius: 0;
+	}
+	:host( [ stacked ] ) table,
+	:host( [ stacked ] ) tbody {
+		display: block;
+		width: 100%;
+	}
+	:host( [ stacked ] ) colgroup,
+	:host( [ stacked ] ) thead {
+		display: none;
+	}
+	:host( [ stacked ] ) tbody tr {
+		display: flex;
+		align-items: flex-start;
+		gap: 12px;
+		padding: 12px 14px;
+		border-bottom: 1px solid var( --_border );
+		background-color: var( --_bg );
+	}
+	:host( [ stacked ] ) tbody tr:last-child {
+		border-bottom: 0;
+	}
+	:host( [ stacked ] ) tbody td,
+	:host( [ stacked ] ) tbody tr.is-selected td,
+	:host( [ stacked ] ) tbody tr.is-selected:hover td,
+	:host( [ stacked ] [ striped ] ) tbody tr:nth-child( odd ) td,
+	:host( [ stacked ] [ hover ] ) tbody tr:hover td {
+		display: block;
+		padding: 0;
+		border: 0;
+		background-color: transparent;
+		background-image: none;
+		box-shadow: none;
+		min-width: 0;
+		width: auto;
+		vertical-align: baseline;
+	}
+	:host( [ stacked ] [ hover ] ) tbody tr:hover {
+		background-image: linear-gradient(
+			var( --_row-hover ),
+			var( --_row-hover )
+		);
+	}
+	:host( [ stacked ] ) tbody tr.is-selected,
+	:host( [ stacked ] ) tbody tr.is-selected:hover {
+		background-color: color-mix(
+			in srgb,
+			var( --wp-admin-theme-color, #2271b1 ) 10%,
+			var( --_bg )
+		);
+		background-image: none;
+		box-shadow: inset 3px 0 0 0 var( --os-ui-accent, #2271b1 );
+	}
+	:host( [ stacked ] ) tbody:dir( rtl ) tr.is-selected {
+		box-shadow: inset -3px 0 0 0 var( --os-ui-accent, #2271b1 );
+	}
+	/* The leading cells: the checkbox cell is the tap target — 44px
+	   square through its padding, pulled back by a negative margin so
+	   the box itself still sits where the card's inset puts it. */
+	:host( [ stacked ] ) tbody td.col-select,
+	:host( [ stacked ] ) tbody td.col-expander {
+		flex: 0 0 auto;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		min-width: 0;
+	}
+	:host( [ stacked ] ) tbody td.col-select {
+		width: 44px;
+		height: 44px;
+		margin: -11px 0 -11px -11px;
+		cursor: pointer;
+	}
+	:host( [ stacked ] ) .select-row-checkbox {
+		width: 22px;
+		height: 22px;
+	}
+	:host( [ stacked ] ) tbody td.col-expander {
+		width: 28px;
+		height: 22px;
+		margin-inline-start: -4px;
+	}
+	:host( [ stacked ] ) tbody td.stack-body {
+		flex: 1 1 auto;
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+		min-width: 0;
+	}
+	.stack-cell {
+		display: flex;
+		align-items: baseline;
+		gap: 6px;
+		min-width: 0;
+		line-height: 1.4;
+	}
+	.stack-title {
+		font-size: 15px;
+		font-weight: 600;
+		line-height: 1.35;
+	}
+	.stack-meta {
+		font-size: 13px;
+	}
+	.stack-label {
+		flex: 0 0 auto;
+		font-size: 12px;
+		color: var( --os-ui-text-muted, var( --os-ui-fg-muted, rgba( 0, 0, 0, 0.55 ) ) );
+	}
+	.stack-label::after {
+		content: '·';
+		margin-inline-start: 6px;
+	}
+	.stack-value {
+		flex: 1 1 auto;
+		min-width: 0;
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: 6px;
+	}
+	.stack-actions {
+		margin-block-start: 6px;
+	}
+	.stack-actions .stack-value {
+		gap: 8px;
+	}
+	/* Anything a renderer sized for a cell — a fixed-width action
+	   cluster, a right-aligned wrap — flows with the card instead. */
+	.stack-actions .stack-value > * {
+		justify-content: flex-start;
+		max-width: 100%;
+	}
+	:host( [ stacked ] ) tr.subtable,
+	:host( [ stacked ] ) tr.empty,
+	:host( [ stacked ] ) tr.skeleton {
+		display: block;
+		padding: 0;
+	}
+	:host( [ stacked ] ) tr.subtable td {
+		background-image: linear-gradient(
+			var( --_stripe ),
+			var( --_stripe )
+		);
+	}
+	:host( [ stacked ] ) tr.subtable .subtable-inner {
+		padding: 8px 14px 12px;
+	}
+	:host( [ stacked ] ) tr.empty td {
+		padding: 24px;
+	}
+	:host( [ stacked ] ) tr.skeleton td {
+		padding: 16px 14px;
+	}
+
 	/* Loading skeleton. */
 	tbody tr.skeleton td {
 		padding: var( --_cell-padding );

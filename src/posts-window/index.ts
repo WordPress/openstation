@@ -75,6 +75,7 @@ import type {
 import '../ui/components/os-button/os-button';
 import '../ui/components/os-segmented/os-segmented';
 import { isMobileStamped } from '../mode/stamp';
+import { stackOnPhone } from '../ui/components/os-table/stack-on-phone';
 import { mountStatusControl } from './status-control';
 import '../ui/components/os-menu/os-menu';
 
@@ -305,8 +306,13 @@ function memoCell(
  */
 const REQUIRED_COLUMN_KEYS = new Set< string >( [ 'title' ] );
 
-/** The columns a phone shows — see `buildColumns()`. */
-const MOBILE_COLUMN_KEYS = new Set< string >( [ 'title', 'date' ] );
+/**
+ * The columns a phone shows — see `buildColumns()`. A card per row
+ * there (`<os-table stacked>`), so a column is a labelled line under
+ * the title rather than a width to find: the author and the date
+ * (and a page's parent) fit where a grid had room for the title.
+ */
+const MOBILE_COLUMN_KEYS = new Set< string >( [ 'title', 'author', 'parent', 'date' ] );
 
 /**
  * Read the user's hidden-column preference from the OS Settings public
@@ -2272,6 +2278,13 @@ export async function renderPostsWindow(
 	const bulkBar = root.querySelector< HTMLElement >( BULK );
 	const countEl = root.querySelector< HTMLElement >( COUNT );
 	const bulkActionsHost = root.querySelector< HTMLElement >( BULK_ACTIONS_HOST );
+	// A phone: a card per row, and the selection's actions along the
+	// bottom of the panel — under the thumb, and still there once the
+	// toolbar has scrolled away — instead of a strip in the toolbar.
+	if ( stackOnPhone( table ) && bulkBar ) {
+		bulkBar.classList.add( 'os-posts__bulk--footer' );
+		( bulkBar.closest( '.os-posts__panel' ) ?? root ).appendChild( bulkBar );
+	}
 	const trailingExtras = root.querySelector< HTMLElement >(
 		TOOLBAR_TRAILING_EXTRAS,
 	);
