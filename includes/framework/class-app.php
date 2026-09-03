@@ -80,6 +80,7 @@ final class App {
 	 * @var array<string,mixed>
 	 */
 	private $nav = array(
+		'admin'      => 'site',
 		'placement'  => 'dock',
 		'nav_kind'   => 'app',
 		'dock_order' => 0,
@@ -291,6 +292,21 @@ final class App {
 	 */
 	public function placement( $placement ) {
 		$this->nav['placement'] = 'none' === $placement ? 'none' : 'dock';
+		return $this;
+	}
+
+	/**
+	 * Which admin's shell offers the window. `site` (the default) is
+	 * every site's shell and never the network admin's — right for an
+	 * app that reads the current site; `network` is the network admin's
+	 * shell only; `any` is both. On a single-site install the network
+	 * admin does not exist, so `network` there offers the app nowhere.
+	 *
+	 * @param string $admin `site` | `network` | `any`.
+	 * @return self
+	 */
+	public function admin( $admin ) {
+		$this->nav['admin'] = in_array( $admin, array( 'site', 'network', 'any' ), true ) ? $admin : 'site';
 		return $this;
 	}
 
@@ -949,6 +965,7 @@ final class App {
 			'height'            => $this->size['height'],
 			'min_width'         => $this->size['min_width'],
 			'min_height'        => $this->size['min_height'],
+			'admin'             => $this->nav['admin'],
 			'placement'         => $this->nav['placement'],
 			'nav_kind'          => $this->nav['nav_kind'],
 			'dock_order'        => $this->nav['dock_order'],

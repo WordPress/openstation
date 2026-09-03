@@ -149,6 +149,13 @@ defined( 'ABSPATH' ) || exit;
  *                                  OpenStation Preferences → Navigation
  *                                  pick wins, and so does a right-click
  *                                  "Keep in dock".
+ *     @type string   $admin        'site' | 'network' | 'any'. Default
+ *                                  'site': offered on every site's
+ *                                  shell and never on the network
+ *                                  admin's, which is right for a window
+ *                                  that reads the current site's REST
+ *                                  API. 'network' is the network
+ *                                  admin's shell only; 'any' is both.
  *     @type string   $nav_kind     'app' | 'control'. Default 'app'.
  *                                  What the window IS, which decides
  *                                  where its launcher defaults to (apps
@@ -248,6 +255,7 @@ function openstation_register_window( $id, $args = array() ) {
 		'min_width'        => 280,
 		'min_height'       => 220,
 		'placement'        => 'dock',
+		'admin'            => 'site',
 		'nav_kind'         => 'app',
 		'dock_order'       => 0,
 		'placeable'        => false,
@@ -258,6 +266,9 @@ function openstation_register_window( $id, $args = array() ) {
 		'config'           => array(),
 	);
 	$args     = wp_parse_args( $args, $defaults );
+	if ( ! in_array( $args['admin'], array( 'site', 'network', 'any' ), true ) ) {
+		$args['admin'] = 'site';
+	}
 
 	// Capability gate — ALL listed caps must match. Fail closed.
 	foreach ( (array) $args['capabilities'] as $cap ) {
@@ -343,6 +354,8 @@ function openstation_register_window( $id, $args = array() ) {
 		'min_height'       => (int) $args['min_height'],
 		'placement'        => $placement,
 		'nav_kind'         => $nav_kind,
+		// Which admin's shell offers it; see the `admin` arg.
+		'admin'            => $args['admin'],
 		// Sort key among system tiles, ascending. `0` (the default)
 		// puts a plugin's tile ahead of the shell's own trailing
 		// cluster — Mio 10, Overview 20, System 30 — which is where a
@@ -1093,3 +1106,20 @@ function openstation_render_native_window_templates() {
 	}
 }
 add_action( 'admin_footer', 'openstation_render_native_window_templates', 20 );
+
+/**
+ * Whether a registered window is offered on the admin this request is
+ * in: the network admin's shell offers `network` and `any` windows,
+ * every site's shell offers `site` and `any`. See the `admin` arg of
+ * {@see openstation_register_window()}.
+ *
+ * @param array<string,mixed> $entry Registry entry.
+ * @return bool
+ */
+function openstation_native_window_offered_here( $entry ) {
+	$admin = isset( $entry['admin'] ) ? (string) $entry['admin'] : 'site';
+	if ( 'any' === $admin ) {
+		return true;
+	}
+	return is_network_admin() ? 'network' === $admin : 'site' === $admin;
+}

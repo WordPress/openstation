@@ -29,3 +29,7 @@ enable_guidelines_experiment() {
 }
 
 enable_guidelines_experiment cli
+
+# Let this instance pair with the member instance (`.wp-env.member.json`)
+# as an OpenStation network; see bin/wp-env-network-dev.sh.
+./bin/wp-env-network-dev.sh
