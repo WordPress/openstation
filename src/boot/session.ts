@@ -23,7 +23,27 @@ import {
 import type { WindowManager } from '../window-manager';
 import { workAreaRectOf } from '../work-area';
 import type { Window } from '../window';
-import type { DesktopConfig, Session, WindowConfig } from '../types';
+import type { DesktopConfig, Session, SessionWindow, WindowConfig } from '../types';
+
+/**
+ * The geometry a saved window restores at: its pixels clamped to the
+ * viewport, and its state. Not applied to an `unplaced` window (one
+ * the phone opened, whose pixels are phone defaults): that one is
+ * left to the manager, which places it as it would a fresh open.
+ */
+function placedGeometry(
+	win: SessionWindow,
+	rect: Parameters< typeof clampGeometryToViewport >[ 1 ],
+): Pick< WindowConfig, 'x' | 'y' | 'width' | 'height' | 'initialState' > {
+	const clamped = clampGeometryToViewport( win, rect );
+	return {
+		x: clamped.x,
+		y: clamped.y,
+		width: clamped.width,
+		height: clamped.height,
+		initialState: win.state,
+	};
+}
 
 /**
  * Whether the saved payload carries meaningful shell state to restore.
@@ -170,14 +190,12 @@ export async function restoreSession(
 		if ( ! win.native ) {
 			continue;
 		}
-		const clamped = clampGeometryToViewport( win, rect );
 		nativeSeeds[ win.id ] = {
 			desktopId: win.desktopId,
-			initialState: win.state,
-			x: clamped.x,
-			y: clamped.y,
-			width: clamped.width,
-			height: clamped.height,
+			// A window the phone opened has no desktop geometry to
+			// restore (`unplaced`): leave it to the manager's own
+			// placement, as a fresh open would.
+			...( win.unplaced ? {} : placedGeometry( win, rect ) ),
 			// What the window was showing, not just which window it
 			// was. A native window is addressed by id, so without this
 			// a singleton that retargets (the profile editor, the
@@ -217,7 +235,6 @@ export async function restoreSession(
 			continue;
 		}
 
-		const clamped = clampGeometryToViewport( win, rect );
 		// Resolve the owning dock entry from the CURRENT URL first —
 		// a window navigated onto another menu's page belongs to that
 		// menu now. When the URL matches nothing (an off-menu
@@ -259,11 +276,9 @@ export async function restoreSession(
 			parentUrl: dockEntry?.url ?? win.url,
 			title: win.title,
 			icon: win.icon || 'dashicons-admin-generic',
-			x: clamped.x,
-			y: clamped.y,
-			width: clamped.width,
-			height: clamped.height,
-			initialState: win.state,
+			// See the native seeds above: an `unplaced` window is
+			// placed by the manager, not by the phone's pixels.
+			...( win.unplaced ? {} : placedGeometry( win, rect ) ),
 			submenu: dockEntry?.submenu,
 			selfLabel: dockEntry?.selfLabel,
 			// Cells outrank the clamped pixels — see `gridSpan` on

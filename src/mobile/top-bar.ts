@@ -19,8 +19,6 @@ export interface TopBarInfo {
 
 export interface TopBarDeps {
 	renderIcon: ( icon: string, opts: { title: string; className?: string } ) => HTMLElement;
-	/** Send the app to the background (home, window kept). */
-	onMinimize: () => void;
 	/** Close the app the bar is showing. */
 	onClose: () => void;
 }
@@ -53,15 +51,10 @@ export function createTopBar( host: HTMLElement, deps: TopBarDeps ): TopBarSurfa
 	const controls = document.createElement( 'div' );
 	controls.className = 'os-mobile-top__controls';
 
-	// Minimize: the app goes to the background and its window stays
-	// alive in the switcher — the phone's "home" from inside the app.
-	const minimize = document.createElement( 'button' );
-	minimize.type = 'button';
-	minimize.className = 'os-mobile-top__button os-mobile-top__minimize';
-	minimize.setAttribute( 'aria-label', __( 'Minimize app' ) );
-	minimize.appendChild( osIcon( 'minimize', { size: 20 } ) );
-	minimize.addEventListener( 'click', deps.onMinimize );
-
+	// The one control: × closes the app. Leaving it alive is not a
+	// button here: the tab bar's Home, the edge swipe, the hardware
+	// Back and a flick down on this bar all do that, the way a phone
+	// keeps "go home" in the system and "close" in the switcher.
 	const close = document.createElement( 'button' );
 	close.type = 'button';
 	close.className = 'os-mobile-top__button os-mobile-top__close';
@@ -69,7 +62,7 @@ export function createTopBar( host: HTMLElement, deps: TopBarDeps ): TopBarSurfa
 	close.appendChild( osIcon( 'close', { size: 20 } ) );
 	close.addEventListener( 'click', deps.onClose );
 
-	controls.append( minimize, close );
+	controls.append( close );
 	el.append( identity, controls );
 	host.appendChild( el );
 

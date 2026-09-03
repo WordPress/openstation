@@ -22,7 +22,6 @@
 import { addAction, HOOKS, removeAction } from '../hooks';
 import { __ } from '../i18n';
 import type { NavItem } from '../nav/types';
-import type { SessionWindow } from '../types';
 import { osConfirm } from '../ui/components/os-confirm-dialog/os-confirm-dialog';
 import type { Window as DesktopWindow } from '../window';
 import { bindEdgeBack, bindSwipeDown, bindSwipeUp } from './gestures';
@@ -108,7 +107,6 @@ export function mountMobileLayer( deps: MobileLayerDeps ): MobileLayerHandle {
 	// ---- surfaces ---------------------------------------------------
 	const topBar = createTopBar( shell, {
 		renderIcon: deps.renderIcon,
-		onMinimize: () => goHome(),
 		onClose: () => closeApp(),
 	} );
 	if ( shellBody ) {
@@ -416,31 +414,24 @@ export function mountMobileLayer( deps: MobileLayerDeps ): MobileLayerHandle {
 		}
 		goHome();
 	};
+	/**
+	 * What the switcher lists: the windows open on this phone, most
+	 * recent first. Windows a phone boot parked (the session diet in
+	 * `constraints.ts`) are not listed: they belong to the desktop and
+	 * go back to it untouched.
+	 */
 	const cards = (): SwitcherCard[] => {
 		const current = appWindow();
-		const open = openWindows()
+		return openWindows()
 			.slice()
 			.reverse()
 			.map< SwitcherCard >( ( win ) => ( {
 				id: win.id,
-				kind: 'open',
 				title: liveTitle( win ),
 				icon: win.config.icon,
 				subtitle: subtitleFor( win ),
 				active: win === current,
 			} ) );
-		const openIds = new Set( open.map( ( c ) => c.id ) );
-		const recent = deps.recents
-			.list()
-			.filter( ( r ) => ! openIds.has( r.id ) )
-			.map< SwitcherCard >( ( r ) => ( {
-				id: r.id,
-				kind: 'recent',
-				title: r.title,
-				icon: r.icon,
-				subtitle: '',
-			} ) );
-		return [ ...open, ...recent ];
 	};
 	const openSwitcher = (): void => {
 		switcher.open( cards() );
@@ -457,8 +448,6 @@ export function mountMobileLayer( deps: MobileLayerDeps ): MobileLayerHandle {
 			openSwitcher();
 		}
 	};
-	const recentById = ( id: string ): SessionWindow | undefined =>
-		deps.recents.list().find( ( r ) => r.id === id );
 	const pickCard = ( card: SwitcherCard ): void => {
 		// The app already on screen: nothing to go to, nothing to morph.
 		if ( card.active ) {
@@ -468,21 +457,6 @@ export function mountMobileLayer( deps: MobileLayerDeps ): MobileLayerHandle {
 		const cardEl = switcher.el.querySelector< HTMLElement >(
 			`.os-mobile-card[data-card-id="${ escapeAttr( card.id ) }"]`,
 		);
-		if ( card.kind === 'recent' ) {
-			const recent = recentById( card.id );
-			transition(
-				cardEl,
-				async () => {
-					switcher.close();
-					if ( recent ) {
-						deps.recents.open( recent );
-						await nextWindowEvent();
-					}
-				},
-				() => appWindow()?.element ?? null,
-			);
-			return;
-		}
 		const win = manager.getById( card.id );
 		transition(
 			cardEl,
@@ -499,11 +473,7 @@ export function mountMobileLayer( deps: MobileLayerDeps ): MobileLayerHandle {
 		);
 	};
 	const closeCard = ( card: SwitcherCard ): void => {
-		if ( card.kind === 'recent' ) {
-			deps.recents.forget( card.id );
-		} else {
-			manager.getById( card.id )?.close();
-		}
+		manager.getById( card.id )?.close();
 		// `close()` may be vetoed (unsaved changes); repaint from truth
 		// on the next frame either way.
 		scheduleSync();
@@ -597,7 +567,6 @@ export function mountMobileLayer( deps: MobileLayerDeps ): MobileLayerHandle {
 	// is dismissed on a phone.
 	const unbindSwipeDown = bindSwipeDown( topBar.el, { onCommit: () => goHome() } );
 	const unsubscribeNav = deps.subscribeNav( refreshNav );
-	const unsubscribeRecents = deps.recents.subscribe( scheduleSync );
 
 	refreshNav();
 	sync();
@@ -616,7 +585,6 @@ export function mountMobileLayer( deps: MobileLayerDeps ): MobileLayerHandle {
 			unbindSwipeUp();
 			unbindSwipeDown();
 			unsubscribeNav();
-			unsubscribeRecents();
 			switcher.close();
 			topBar.el.remove();
 			home.el.remove();

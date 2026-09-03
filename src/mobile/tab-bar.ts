@@ -123,6 +123,7 @@ export function createTabBar( host: HTMLElement, deps: TabBarDeps ): TabBarSurfa
 	let buttons: HTMLButtonElement[] = [];
 	let countEl: HTMLElement | null = null;
 	let switcherButton: HTMLButtonElement | null = null;
+	let switcherIcon: HTMLElement | null = null;
 
 	const button = ( id: string, label: string, glyph: Node ): HTMLButtonElement => {
 		const b = document.createElement( 'button' );
@@ -149,9 +150,13 @@ export function createTabBar( host: HTMLElement, deps: TabBarDeps ): TabBarSurfa
 			}
 		}
 		if ( countEl ) {
-			countEl.textContent = state.openCount > 0 ? String( state.openCount ) : '';
 			countEl.hidden = state.openCount === 0;
+			countEl.textContent = countEl.hidden ? '' : String( Math.min( state.openCount, 99 ) );
 		}
+		// With something open the glyph IS the count, in a rounded
+		// square (the browser tab-switcher convention); with nothing
+		// open the windows icon stands in for it.
+		switcherIcon?.classList.toggle( 'os-mobile-tabs__icon--counted', state.openCount > 0 );
 		if ( switcherButton ) {
 			switcherButton.setAttribute(
 				'aria-label',
@@ -193,11 +198,15 @@ export function createTabBar( host: HTMLElement, deps: TabBarDeps ): TabBarSurfa
 				buttons.push( b );
 			}
 
-			switcherButton = button( 'switcher', __( 'Apps' ), osIcon( 'windows', { size: 22 } ) );
+			// "Open apps", the same words as the sheet it opens: the Home
+			// grid already has a section called Apps, and one word for
+			// both was what made the switcher hard to find.
+			switcherButton = button( 'switcher', __( 'Open apps' ), osIcon( 'windows', { size: 22 } ) );
+			switcherIcon = switcherButton.querySelector< HTMLElement >( '.os-mobile-tabs__icon' );
 			countEl = document.createElement( 'span' );
 			countEl.className = 'os-mobile-tabs__count';
 			countEl.setAttribute( 'aria-hidden', 'true' );
-			switcherButton.querySelector( '.os-mobile-tabs__icon' )?.appendChild( countEl );
+			switcherIcon?.appendChild( countEl );
 			switcherButton.addEventListener( 'click', deps.onSwitcher );
 			buttons.push( switcherButton );
 

@@ -210,6 +210,51 @@ class Tests_OpenStation_Session extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A window opened on a phone carries `unplaced`: its pixels are
+	 * phone defaults and the desktop must place it afresh. The marker
+	 * survives sanitizing, and a plain window never grows one.
+	 *
+	 * @covers ::openstation_sanitize_session
+	 */
+	public function test_sanitize_keeps_unplaced_marker() {
+		$session = array(
+			'desktops'      => array( array( 'id' => 'desktop-1', 'label' => 'A' ) ),
+			'activeDesktop' => 'desktop-1',
+			'windows'       => array(
+				array(
+					'id'       => 'edit-php',
+					'url'      => admin_url( 'edit.php' ),
+					'title'    => 'Posts',
+					'icon'     => 'dashicons-admin-post',
+					'state'    => 'normal',
+					'x'        => 58,
+					'y'        => 70,
+					'width'    => 320,
+					'height'   => 591,
+					'unplaced' => true,
+				),
+				array(
+					'id'     => 'upload-php',
+					'url'    => admin_url( 'upload.php' ),
+					'title'  => 'Media',
+					'icon'   => 'dashicons-admin-media',
+					'state'  => 'normal',
+					'x'      => 120,
+					'y'      => 90,
+					'width'  => 900,
+					'height' => 700,
+				),
+			),
+		);
+
+		$clean = openstation_sanitize_session( $session );
+
+		$this->assertCount( 2, $clean['windows'] );
+		$this->assertTrue( $clean['windows'][0]['unplaced'] );
+		$this->assertArrayNotHasKey( 'unplaced', $clean['windows'][1] );
+	}
+
+	/**
 	 * A native window is addressed by id, and its id is its identity:
 	 * `desktop-mode-user-edit` is "the profile editor", not "the
 	 * profile editor for user 12". Params are the only record of WHAT

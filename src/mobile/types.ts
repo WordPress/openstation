@@ -17,8 +17,8 @@ import type { WindowManager } from '../window-manager';
 
 /**
  * Windows a phone boot chose not to restore. They stay in the
- * session (see `os.session.snapshot`) and show in the switcher as
- * cold cards that open on tap.
+ * session (see `os.session.snapshot`) and go back to the desktop
+ * untouched; the phone does not list them.
  */
 export interface MobileRecents {
 	list(): SessionWindow[];
@@ -50,7 +50,6 @@ export interface MobileLayerDeps {
 		suspend( reason: string ): void;
 		resume( reason: string ): void;
 	};
-	recents: MobileRecents;
 	/** Open a URL outside the shell (a new browser tab). */
 	openExternal: ( url: string ) => void;
 	/** The admin base — window ids are derived against it. */

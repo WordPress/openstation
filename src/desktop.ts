@@ -4691,7 +4691,6 @@ function init(): void {
 						suspend: ( reason ) => wallpaperLayer?.suspend( reason ),
 						resume: ( reason ) => wallpaperLayer?.resume( reason ),
 					},
-					recents: mobileConstraints.recents,
 					openExternal: ( url ) => {
 						window.open( url, '_blank', 'noopener' );
 					},

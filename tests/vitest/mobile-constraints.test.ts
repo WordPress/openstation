@@ -110,6 +110,13 @@ const sessionWin = ( id: string, over: Partial< SessionWindow > = {} ): SessionW
 	...over,
 } );
 
+// The desktop default a phone-born window gets when the viewport
+// widens is measured against the work area; give it one to measure.
+vi.mock( '../../src/work-area', async ( importOriginal ) => ( {
+	...( await importOriginal< typeof import('../../src/work-area') >() ),
+	workAreaRectOf: () => ( { x: 0, y: 0, width: 1400, height: 900 } ),
+} ) );
+
 describe( 'splitSessionForMobile', () => {
 	test( 'keeps the focused window, parks the rest; nothing focused restores nothing', () => {
 		const session: Session = {
@@ -183,8 +190,13 @@ describe( 'installMobileConstraints', () => {
 		expect( trimmed.session.windows.map( ( w ) => w.id ) ).toEqual( [ 'b' ] );
 		expect( c.recents.list().map( ( w ) => w.id ) ).toEqual( [ 'a' ] );
 
-		// The filter runs for `b` as restore opens it.
-		applyFilters( HOOKS.WINDOW_GEOMETRY, { x: 1, y: 2, width: 500, height: 400, state: 'normal' }, ctx( 'b' ) );
+		// The filter runs for `b` as restore opens it (a restore pins
+		// the saved geometry, so nothing about it is a phone default).
+		applyFilters(
+			HOOKS.WINDOW_GEOMETRY,
+			{ x: 1, y: 2, width: 500, height: 400, state: 'normal' },
+			{ ...ctx( 'b' ), callerPinned: true },
+		);
 
 		// The phone is at home: `b` is minimized, full-screen sized.
 		const snapshot: Session = {
@@ -197,6 +209,7 @@ describe( 'installMobileConstraints', () => {
 		const saved = applyFilters( HOOKS.SESSION_SNAPSHOT, snapshot );
 		expect( saved.windows.map( ( w ) => w.id ) ).toEqual( [ 'b', 'a' ] );
 		expect( saved.windows[ 0 ] ).toMatchObject( { state: 'normal', x: 1, y: 2, width: 500, height: 400 } );
+		expect( saved.windows[ 0 ] ).not.toHaveProperty( 'unplaced' );
 		expect( saved.windows[ 1 ] ).toEqual( sessionWin( 'a' ) );
 
 		// Opening `a` by any route drops it from the recents.
@@ -239,6 +252,43 @@ describe( 'installMobileConstraints', () => {
 		expect( seedWindowRestoreState ).toHaveBeenCalledWith( { n: expect.objectContaining( { params: { post: 3 } } ) } );
 		expect( openNative ).toHaveBeenCalledWith( 'n' );
 		expect( c.recents.list() ).toEqual( [] );
+		c.dispose();
+	} );
+
+	test( 'a window the phone opened is saved unplaced; leaving mobile gives it the desktop default', () => {
+		const mode = fakeMode( 'mobile' );
+		const fresh = fakeWin( 'p', { maximized: true } );
+		const { manager } = fakeManager( [ fresh ] );
+		const c = installMobileConstraints( { manager, mode: mode.api, openNative: () => false } );
+
+		// A tap on a home tile: nothing saved, nothing pinned, and the
+		// defaults the manager computed are sized for 390px.
+		applyFilters(
+			HOOKS.WINDOW_GEOMETRY,
+			{ x: 58, y: 70, width: 320, height: 591, state: 'normal' },
+			ctx( 'p' ),
+		);
+		const snapshot: Session = {
+			windows: [ sessionWin( 'p', { state: 'minimized', x: 0, y: 0, width: 390, height: 800 } ) ],
+			desktops: [],
+			activeDesktop: 'desktop-1',
+			focused: 'p',
+			updated: 2,
+		};
+		const saved = applyFilters( HOOKS.SESSION_SNAPSHOT, snapshot );
+		expect( saved.windows[ 0 ] ).toMatchObject( { state: 'normal', unplaced: true } );
+
+		// Widened past the breakpoint, the window floats at the
+		// desktop's own default (80% of the mocked 1400×900 work area,
+		// cascaded from 40,40), not at 320×591.
+		mode.set( 'desktop' );
+		expect( fresh.toggleMaximize ).toHaveBeenCalledTimes( 1 );
+		expect( ( fresh as unknown as { _savedGeometry?: unknown } )._savedGeometry ).toEqual( {
+			x: 40,
+			y: 40,
+			width: 1120,
+			height: 720,
+		} );
 		c.dispose();
 	} );
 

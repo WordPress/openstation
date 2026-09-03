@@ -83,6 +83,7 @@ html[data-os-mode="mobile"] .os-shell {
 	--_m-accent-dim: var( --os-ui-accent-dim, rgba( 242, 82, 252, 0.35 ) );
 	--_m-danger: var( --os-ui-danger, #d63638 );
 	--_m-radius: 14px;
+	--_m-gap: 8px;
 	--_m-top-h: 48px;
 	--_m-tabs-h: 56px;
 	--_m-safe-top: env( safe-area-inset-top, 0px );
@@ -121,13 +122,28 @@ html[data-os-mode="mobile"] .os-mobile-switcher__sheet {
 }
 
 /* ------------------------------------------------------------------
- * 2. Windows: one at a time, edge to edge.
+ * 2. Windows: one at a time, a card on the desk.
+ *
+ * The window is inset from the edges by `--_m-gap`, rounded and
+ * shadowed, so the desk shows around it and the app reads as a card
+ * sitting on something (the switcher draws it the same way). `inset`
+ * with `!important` beats the inline left/top/width/height that
+ * `maximize()` writes; the inline values stay what they were, which
+ * is what the session hands back to the desktop.
  * ---------------------------------------------------------------- */
 
 html[data-os-mode="mobile"] .os-window {
-	border-radius: 0 !important;
-	box-shadow: none !important;
-	border: 0 !important;
+	border-radius: var( --_m-radius ) !important;
+	border: 1px solid var( --_m-border ) !important;
+	box-shadow: 0 12px 32px rgba( 0, 0, 0, 0.45 ) !important;
+	overflow: hidden;
+}
+
+html[data-os-mode="mobile"] .os-window--maximized {
+	inset: var( --_m-gap ) calc( var( --_m-gap ) + var( --_m-safe-right ) ) var( --_m-gap )
+		calc( var( --_m-gap ) + var( --_m-safe-left ) ) !important;
+	width: auto !important;
+	height: auto !important;
 }
 
 /*
@@ -200,6 +216,12 @@ html[data-os-mode="mobile"] .os-shell[data-os-mobile-state="home"] .os-mobile-ed
  * 3a. The top bar.
  * ---------------------------------------------------------------- */
 
+/*
+ * The bar sits on the desk, not on the window: no fill and no rule
+ * under it, only a scrim so the title reads over any wallpaper, and
+ * the window card starts `--_m-gap` below it. Icon and name above a
+ * card is the picture the switcher draws too.
+ */
 html[data-os-mode="mobile"] .os-mobile-top {
 	display: flex;
 	align-items: center;
@@ -208,9 +230,8 @@ html[data-os-mode="mobile"] .os-mobile-top {
 	min-height: var( --_m-top-h );
 	padding-block-start: var( --_m-safe-top );
 	padding-inline: calc( 4px + var( --_m-safe-left ) ) calc( 4px + var( --_m-safe-right ) );
-	background: var( --_m-surface );
+	background: linear-gradient( to bottom, rgba( 0, 0, 0, 0.45 ), rgba( 0, 0, 0, 0 ) );
 	color: var( --_m-fg );
-	border-block-end: 1px solid var( --_m-border );
 	position: relative;
 	z-index: 3000;
 }
@@ -235,10 +256,9 @@ html[data-os-mode="mobile"] .os-mobile-top--peeking .os-mobile-top__identity {
 }
 
 /*
- * The two controls, round glass buttons: minimize (the app goes to
- * the background, its window kept) and × (the app closes). Both
- * morph the app back into its tile; the bar also answers a flick
- * down with minimize.
+ * One control, a round glass ×: the app closes and morphs back into
+ * its tile. The bar also answers a flick down by sending the app
+ * home, window kept.
  */
 html[data-os-mode="mobile"] .os-mobile-top__controls {
 	display: inline-flex;
@@ -272,10 +292,6 @@ html[data-os-mode="mobile"] .os-mobile-top__button:focus-visible {
 	outline-offset: 2px;
 }
 
-html[data-os-mode="mobile"] .os-mobile-top__minimize {
-	color: var( --_m-fg-muted );
-}
-
 html[data-os-mode="mobile"] .os-mobile-top__icon {
 	display: inline-flex;
 	width: 24px;
@@ -303,6 +319,7 @@ html[data-os-mode="mobile"] .os-mobile-top__title {
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
+	text-shadow: 0 1px 2px rgba( 0, 0, 0, 0.6 );
 }
 
 /* ------------------------------------------------------------------
@@ -432,8 +449,7 @@ html[data-os-mode="mobile"] .os-mobile-tile__glyph.dashicons {
 }
 
 html[data-os-mode="mobile"] .os-mobile-tile__badge,
-html[data-os-mode="mobile"] .os-mobile-tabs__badge,
-html[data-os-mode="mobile"] .os-mobile-tabs__count {
+html[data-os-mode="mobile"] .os-mobile-tabs__badge {
 	position: absolute;
 	inset-block-start: -6px;
 	inset-inline-end: -6px;
@@ -450,11 +466,31 @@ html[data-os-mode="mobile"] .os-mobile-tabs__count {
 	box-shadow: 0 0 0 2px var( --_m-surface );
 }
 
+/*
+ * The switcher's glyph is the number of open apps inside a rounded
+ * square, the browser tab-switcher convention, so it reads as "this
+ * many open" and not as a notification (and the accent stays the
+ * active tab's alone). With nothing open the windows icon shows.
+ */
 html[data-os-mode="mobile"] .os-mobile-tabs__count {
-	background: var( --_m-accent );
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	/* Stroke included: the neighbours' glyphs ink about 19px of their 22px box. */
+	box-sizing: border-box;
+	width: 20px;
+	height: 20px;
+	border: 2px solid currentColor;
+	border-radius: 5px;
+	font-size: 11px;
+	font-weight: 700;
+	line-height: 1;
+	letter-spacing: -0.02em;
+	color: inherit;
 }
 
-html[data-os-mode="mobile"] .os-mobile-tabs__count[hidden] {
+html[data-os-mode="mobile"] .os-mobile-tabs__count[hidden],
+html[data-os-mode="mobile"] .os-mobile-tabs__icon--counted > :not( .os-mobile-tabs__count ) {
 	display: none;
 }
 
@@ -635,6 +671,12 @@ html[data-os-mode="mobile"] .os-mobile-switcher__close:focus-visible {
 	outline-offset: -2px;
 }
 
+/*
+ * The list is laid out bottom-up (`column-reverse`) so the deck sits
+ * at the bottom with its front card nearest the thumb, and a scroll
+ * container in this direction starts scrolled to the front. The DOM
+ * order is unchanged.
+ */
 html[data-os-mode="mobile"] .os-mobile-switcher__list {
 	flex: 1 1 auto;
 	min-height: 0;
@@ -643,17 +685,26 @@ html[data-os-mode="mobile"] .os-mobile-switcher__list {
 	overscroll-behavior: contain;
 	padding: 4px 12px 12px;
 	display: flex;
-	flex-direction: column;
-	gap: 8px;
+	flex-direction: column-reverse;
+	gap: 16px;
 }
 
-html[data-os-mode="mobile"] .os-mobile-switcher__subheading {
-	margin: 10px 4px 0;
-	font-size: 11px;
-	font-weight: 600;
-	letter-spacing: 0.04em;
-	text-transform: uppercase;
-	color: var( --_m-fg-muted );
+html[data-os-mode="mobile"] .os-mobile-deck {
+	display: flex;
+	flex-direction: column;
+}
+
+/*
+ * The pile. Cards are laid out bottom-up too, so the first card in
+ * the DOM (the most recent, the one in front) is the lowest; each
+ * card that follows is pulled down under the one before it by
+ * `--_m-card-peek` less than its height, so only its title bar shows.
+ * `switcher.ts` sets the z-order, front card highest.
+ */
+html[data-os-mode="mobile"] .os-mobile-deck__cards {
+	display: flex;
+	flex-direction: column-reverse;
+	padding-block-end: 2px;
 }
 
 html[data-os-mode="mobile"] .os-mobile-switcher__empty {
@@ -673,16 +724,29 @@ html[data-os-mode="mobile"] .os-mobile-switcher__footer[hidden] {
 	display: none;
 }
 
+/*
+ * A card is a small window: an opaque surface (glass over the solid
+ * backstop, so the card behind never shows through), a title bar,
+ * and a lighter body. The shadow is cast upward, onto the card
+ * behind.
+ */
 html[data-os-mode="mobile"] .os-mobile-card {
+	--_m-card-h: 132px;
+	--_m-card-peek: 58px;
 	position: relative;
-	display: flex;
-	align-items: stretch;
-	background: var( --_m-glass );
+	display: block;
+	height: var( --_m-card-h );
+	background: linear-gradient( var( --_m-glass ), var( --_m-glass ) ) var( --_m-surface );
 	border: 1px solid var( --_m-border );
-	border-radius: 12px;
+	border-radius: var( --_m-radius );
+	box-shadow: 0 -8px 24px rgba( 0, 0, 0, 0.4 );
 	touch-action: pan-y;
 	will-change: transform;
 	transition: transform 200ms var( --_m-ease ), opacity 200ms var( --_m-ease );
+}
+
+html[data-os-mode="mobile"] .os-mobile-card + .os-mobile-card {
+	margin-block-end: calc( var( --_m-card-peek ) - var( --_m-card-h ) );
 }
 
 html[data-os-mode="mobile"] .os-mobile-card--dragging {
@@ -695,15 +759,10 @@ html[data-os-mode="mobile"] .os-mobile-card--out {
 	pointer-events: none;
 }
 
-html[data-os-mode="mobile"] .os-mobile-card--recent {
-	opacity: 0.8;
-	border-style: dashed;
-}
-
 /* The app on screen: outlined in the accent, labelled, not a target. */
 html[data-os-mode="mobile"] .os-mobile-card--active {
 	border-color: var( --_m-accent-dim );
-	box-shadow: 0 0 0 1px var( --_m-accent-dim );
+	box-shadow: 0 0 0 1px var( --_m-accent-dim ), 0 -8px 24px rgba( 0, 0, 0, 0.4 );
 }
 
 html[data-os-mode="mobile"] .os-mobile-card__status {
@@ -726,14 +785,34 @@ html[data-os-mode="mobile"] .os-mobile-card__body {
 	background: transparent;
 	border: 0;
 	color: inherit;
-	flex: 1 1 auto;
-	min-width: 0;
+	position: absolute;
+	inset: 0;
+	display: flex;
+	flex-direction: column;
+	padding: 0;
+	text-align: start;
+	border-radius: inherit;
+}
+
+/* The title bar: exactly the strip that shows when the card is behind another. */
+html[data-os-mode="mobile"] .os-mobile-card__bar {
+	flex: 0 0 auto;
+	height: var( --_m-card-peek );
 	display: flex;
 	align-items: center;
 	gap: 12px;
-	padding: 12px 8px 12px 12px;
-	text-align: start;
-	border-radius: 12px;
+	padding-inline: 12px 52px;
+	min-width: 0;
+}
+
+/* The body: a lighter page surface, its bottom under the card in front. */
+html[data-os-mode="mobile"] .os-mobile-card__preview {
+	flex: 1 1 auto;
+	margin-inline: 10px;
+	border-radius: 10px 10px 0 0;
+	background: var( --_m-glass-strong );
+	border: 1px solid var( --_m-border );
+	border-block-end: 0;
 }
 
 html[data-os-mode="mobile"] .os-mobile-card__body:focus-visible {
@@ -786,15 +865,19 @@ html[data-os-mode="mobile"] .os-mobile-card__subtitle {
 
 html[data-os-mode="mobile"] .os-mobile-card__close {
 	appearance: none;
-	background: transparent;
-	border: 0;
+	background: var( --_m-glass );
+	border: 1px solid var( --_m-border );
 	color: var( --_m-fg-muted );
-	width: 44px;
-	flex: 0 0 auto;
+	position: absolute;
+	inset-block-start: 11px;
+	inset-inline-end: 10px;
+	width: 36px;
+	height: 36px;
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	border-radius: 12px;
+	border-radius: 999px;
+	-webkit-tap-highlight-color: transparent;
 }
 
 html[data-os-mode="mobile"] .os-mobile-card__close:focus-visible {

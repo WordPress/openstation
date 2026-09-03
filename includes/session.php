@@ -495,6 +495,14 @@ function openstation_sanitize_session( $session, $network = null ) {
 				$entry['gridSpan'] = $grid_span;
 			}
 
+			// A window the phone layer opened with no desktop geometry to
+			// keep: its pixels are a phone's defaults, and the shell's
+			// restore path places it afresh instead of trusting them.
+			// Only written when true so plain sessions keep their shape.
+			if ( ! empty( $win['unplaced'] ) ) {
+				$entry['unplaced'] = true;
+			}
+
 			// Marks the entry for the shell's restore path: native
 			// windows reopen through the native-window registry, not by
 			// pointing an iframe at a URL. Only written when true so

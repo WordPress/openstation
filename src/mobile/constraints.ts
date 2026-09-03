@@ -14,11 +14,13 @@
  *    `mobile`; a mode change re-maximizes or releases in bulk.
  *
  * 2. **A phone boot restores one window.** `trimSessionForMobile()`
- *    keeps only the focused session window; the rest become
- *    *recents* — cold cards in the switcher — and the
- *    `os.session.snapshot` filter folds them back into every save
- *    with their desktop geometry intact, so a desktop reload after a
- *    phone visit finds exactly what it left.
+ *    keeps only the focused session window; the rest are parked (the
+ *    phone does not list them) and the `os.session.snapshot` filter
+ *    folds them back into every save with their desktop geometry
+ *    intact, so a desktop reload after a phone visit finds exactly
+ *    what it left. A window the phone opened itself has no desktop
+ *    geometry to keep: it is saved as `unplaced`, and the desktop
+ *    places it as a fresh open.
  *
  * Nothing here lays anything out; `assets/css/mobile.css` hides the
  * chrome and the phone layer paints its own.
@@ -32,6 +34,7 @@ import type {
 	WindowGeometryContext,
 	WindowManager,
 } from '../window-manager';
+import { workAreaRectOf } from '../work-area';
 import type { MobileRecents } from './types';
 
 const NS = 'openstation/mobile';
@@ -45,6 +48,8 @@ interface DisplacedGeometry {
 	width: number;
 	height: number;
 	state: WindowState;
+	/** No desktop ever placed this window: the numbers are a phone's defaults. */
+	unplaced: boolean;
 }
 
 export interface MobileConstraintsDeps {
@@ -111,9 +116,36 @@ export function installMobileConstraints( deps: MobileConstraintsDeps ): MobileC
 				width: snap.width,
 				height: snap.height,
 				state: snap.state,
+				unplaced: false,
 			} );
 		}
 		win.maximize();
+	};
+
+	/**
+	 * The desktop's default for a window nobody placed: the rule
+	 * `WindowManager` applies to a fresh open (80% of the work area,
+	 * capped at 1200×800, cascaded), repeated here for a window the
+	 * phone opened and a widened viewport is now seeing for the first
+	 * time. `null` before the work area exists.
+	 */
+	const desktopDefaultGeometry = (
+		index: number,
+	): { x: number; y: number; width: number; height: number } | null => {
+		const area = workAreaRectOf();
+		if ( area.width <= 0 || area.height <= 0 ) {
+			return null;
+		}
+		const margin = 12;
+		const width = Math.min( Math.round( area.width * 0.8 ), 1200 );
+		const height = Math.min( Math.round( area.height * 0.8 ), 800 );
+		const step = 40 + ( index % 8 ) * 30;
+		return {
+			x: Math.max( area.x + margin, Math.min( area.x + step, area.x + area.width - width - margin ) ),
+			y: Math.max( area.y + margin, Math.min( area.y + step, area.y + area.height - height - margin ) ),
+			width,
+			height,
+		};
 	};
 
 	// 1. The filter — the whole placement policy in one place.
@@ -136,6 +168,11 @@ export function installMobileConstraints( deps: MobileConstraintsDeps ): MobileC
 				width: geometry.width,
 				height: geometry.height,
 				state: geometry.state ?? 'normal',
+				// A fresh open on a phone (a home tile, a tab) arrives
+				// with defaults sized for 390px. Nothing about them is
+				// the desktop's, so they are marked and never handed
+				// back as if they were.
+				unplaced: ! ctx.hasSavedGeometry && ! ctx.callerPinned,
 			} );
 			// Keep the desktop's x/y/width/height: `maximize()` reads
 			// them into the window's saved geometry, which is what an
@@ -175,10 +212,21 @@ export function installMobileConstraints( deps: MobileConstraintsDeps ): MobileC
 		if ( change.previous !== 'mobile' ) {
 			return;
 		}
+		let cascade = 0;
 		for ( const win of manager.getAll() ) {
-			if ( displaced.has( win.id ) && win.isMaximized() ) {
-				win.toggleMaximize();
+			const before = displaced.get( win.id );
+			if ( ! before || ! win.isMaximized() ) {
+				continue;
 			}
+			// A window born on the phone would un-maximize to a
+			// phone's numbers: give it the desktop's own default first.
+			if ( before.unplaced ) {
+				const placed = desktopDefaultGeometry( cascade++ );
+				if ( placed ) {
+					win._savedGeometry = placed;
+				}
+			}
+			win.toggleMaximize();
 		}
 		displaced.clear();
 	} );
@@ -202,6 +250,9 @@ export function installMobileConstraints( deps: MobileConstraintsDeps ): MobileC
 				// desktop should not wake up to that, so the state
 				// written is the one the window had before the phone.
 				state: before.state,
+				// The desktop's restore path places an `unplaced`
+				// window itself instead of trusting the pixels above.
+				...( before.unplaced ? { unplaced: true } : {} ),
 			};
 		} );
 		const parked = recents.filter( ( r ) => ! openIds.has( r.id ) );
@@ -243,6 +294,12 @@ export function installMobileConstraints( deps: MobileConstraintsDeps ): MobileC
 					title: win.title,
 					icon: win.icon || 'dashicons-admin-generic',
 					desktopId: win.desktopId,
+					// Its desktop pixels ride along, so the filter above
+					// sees a pinned open and keeps them for the desktop.
+					x: win.x,
+					y: win.y,
+					width: win.width,
+					height: win.height,
 					submenu: menuEntry?.submenu,
 					selfLabel: menuEntry?.selfLabel,
 					multi: !! menuEntry?.multi,

@@ -2,9 +2,14 @@
  * OpenStation — phone layer: the app switcher.
  *
  * A sheet over the app listing every open window as a card, most
- * recent first, then the *recents* — windows a phone boot chose not
- * to restore, cold until tapped. Tap a card to go to it; swipe it
- * sideways to close it; "Close all" at the bottom.
+ * recent first. Tap a card to go to it; swipe it sideways to close
+ * it; "Close all" at the bottom.
+ *
+ * The cards are a deck. Each one is drawn as a small window (a title
+ * bar over a body surface) and the deck is laid out bottom-up by
+ * `mobile.css`, so the front card sits nearest the thumb and every
+ * card behind it peeks out above with its title showing. The pile is
+ * the picture of what the switcher holds: windows on top of windows.
  *
  * The switcher is a dialog: focus moves in when it opens, returns to
  * where it was when it closes, and Escape closes it. Cards are plain
@@ -15,11 +20,8 @@ import { __, sprintf } from '../i18n';
 import { osIcon } from '../ui/icons';
 import { SWIPE_INTENT_PX, swipeOutcome } from './gestures';
 
-export type SwitcherCardKind = 'open' | 'recent';
-
 export interface SwitcherCard {
 	id: string;
-	kind: SwitcherCardKind;
 	title: string;
 	icon: string;
 	subtitle: string;
@@ -102,9 +104,8 @@ export function createSwitcher( host: HTMLElement, deps: SwitcherDeps ): Switche
 
 	const card = ( c: SwitcherCard ): HTMLElement => {
 		const wrap = document.createElement( 'div' );
-		wrap.className = `os-mobile-card os-mobile-card--${ c.kind }`;
+		wrap.className = 'os-mobile-card';
 		wrap.dataset.cardId = c.id;
-		wrap.dataset.cardKind = c.kind;
 		if ( c.active ) {
 			wrap.classList.add( 'os-mobile-card--active' );
 		}
@@ -115,16 +116,7 @@ export function createSwitcher( host: HTMLElement, deps: SwitcherDeps ): Switche
 		if ( c.active ) {
 			body.setAttribute( 'aria-current', 'true' );
 		}
-		body.setAttribute(
-			'aria-label',
-			c.kind === 'recent'
-				? sprintf(
-					/* translators: %s: window title. */
-					__( 'Reopen %s' ),
-					c.title,
-				)
-				: c.title,
-		);
+		body.setAttribute( 'aria-label', c.title );
 		const icon = document.createElement( 'span' );
 		icon.className = 'os-mobile-card__icon';
 		icon.appendChild( deps.renderIcon( c.icon, { title: c.title, className: 'os-mobile-card__glyph' } ) );
@@ -135,7 +127,7 @@ export function createSwitcher( host: HTMLElement, deps: SwitcherDeps ): Switche
 		title.textContent = c.title;
 		const subtitle = document.createElement( 'span' );
 		subtitle.className = 'os-mobile-card__subtitle';
-		subtitle.textContent = c.kind === 'recent' ? __( 'Recent · tap to reopen' ) : c.subtitle;
+		subtitle.textContent = c.subtitle;
 		text.append( title, subtitle );
 		if ( c.active ) {
 			const chip = document.createElement( 'span' );
@@ -143,7 +135,15 @@ export function createSwitcher( host: HTMLElement, deps: SwitcherDeps ): Switche
 			chip.textContent = __( 'Active' );
 			title.appendChild( chip );
 		}
-		body.append( icon, text );
+		// A small window: the title bar, then the body surface the next
+		// card in the deck overlaps.
+		const bar = document.createElement( 'span' );
+		bar.className = 'os-mobile-card__bar';
+		bar.append( icon, text );
+		const preview = document.createElement( 'span' );
+		preview.className = 'os-mobile-card__preview';
+		preview.setAttribute( 'aria-hidden', 'true' );
+		body.append( bar, preview );
 		body.addEventListener( 'click', () => deps.onPick( c ) );
 
 		const close = document.createElement( 'button' );
@@ -153,7 +153,7 @@ export function createSwitcher( host: HTMLElement, deps: SwitcherDeps ): Switche
 			'aria-label',
 			sprintf(
 				/* translators: %s: window title. */
-				c.kind === 'recent' ? __( 'Forget %s' ) : __( 'Close %s' ),
+				__( 'Close %s' ),
 				c.title,
 			),
 		);
@@ -285,6 +285,26 @@ export function createSwitcher( host: HTMLElement, deps: SwitcherDeps ): Switche
 		} );
 	};
 
+	/**
+	 * One deck. The DOM order stays most-recent-first (what a screen
+	 * reader hears, where focus lands); the stylesheet lays the pile
+	 * out bottom-up, which reverses the paint order, so the z-order is
+	 * set here to put the first card in front.
+	 */
+	const deck = ( cards: readonly SwitcherCard[] ): HTMLElement => {
+		const section = document.createElement( 'section' );
+		section.className = 'os-mobile-deck';
+		const pile = document.createElement( 'div' );
+		pile.className = 'os-mobile-deck__cards';
+		cards.forEach( ( c, i ) => {
+			const wrap = card( c );
+			wrap.style.zIndex = String( cards.length - i );
+			pile.appendChild( wrap );
+		} );
+		section.appendChild( pile );
+		return section;
+	};
+
 	const paint = ( cards: readonly SwitcherCard[] ): void => {
 		list.replaceChildren();
 		if ( cards.length === 0 ) {
@@ -295,17 +315,8 @@ export function createSwitcher( host: HTMLElement, deps: SwitcherDeps ): Switche
 			footer.hidden = true;
 			return;
 		}
-		let recentHeading: HTMLElement | null = null;
-		for ( const c of cards ) {
-			if ( c.kind === 'recent' && ! recentHeading ) {
-				recentHeading = document.createElement( 'h3' );
-				recentHeading.className = 'os-mobile-switcher__subheading';
-				recentHeading.textContent = __( 'Recent' );
-				list.appendChild( recentHeading );
-			}
-			list.appendChild( card( c ) );
-		}
-		footer.hidden = ! cards.some( ( c ) => c.kind === 'open' );
+		list.appendChild( deck( cards ) );
+		footer.hidden = false;
 	};
 
 	return {

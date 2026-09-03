@@ -4,7 +4,7 @@
  *
  * Pins the state derivation (home ⇔ nothing un-minimized), the
  * surfaces' visibility per state, the switcher's cards (open windows
- * most-recent-first, then recents), Back as minimize, the ⋯ menu,
+ * most-recent-first), Back as minimize, the ⋯ menu,
  * and a clean unmount.
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
@@ -13,7 +13,6 @@ import { mountMobileLayer } from '../../src/mobile/layer';
 import type { MobileLayerDeps } from '../../src/mobile/types';
 import type { OsModeApi } from '../../src/mode';
 import type { NavItem, NavResult } from '../../src/nav/types';
-import type { SessionWindow } from '../../src/types';
 import type { WindowManager } from '../../src/window-manager';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 
@@ -120,7 +119,6 @@ function shellDom() {
 function deps( wins: FakeWin[], over: Partial< MobileLayerDeps > = {} ) {
 	const { shell, area } = shellDom();
 	const { manager, focus, closeAll } = fakeManager( wins );
-	const recents: SessionWindow[] = [];
 	const nav: NavResult = {
 		dock: { core: [ navItem( 'edit.php', 'Posts' ), navItem( 'upload.php', 'Media' ) ], apps: [], controls: [] },
 		sidebar: [],
@@ -130,12 +128,6 @@ function deps( wins: FakeWin[], over: Partial< MobileLayerDeps > = {} ) {
 	const openNavItem = vi.fn( () => true );
 	const openExternal = vi.fn();
 	const wallpaper = { suspend: vi.fn(), resume: vi.fn() };
-	const recentsApi = {
-		list: () => recents.slice(),
-		open: vi.fn(),
-		forget: vi.fn(),
-		subscribe: () => () => undefined,
-	};
 	const d: MobileLayerDeps = {
 		manager,
 		shell,
@@ -147,7 +139,6 @@ function deps( wins: FakeWin[], over: Partial< MobileLayerDeps > = {} ) {
 		getPinnedTabIds: () => [ 'edit.php' ],
 		subscribeNav: () => () => undefined,
 		wallpaper,
-		recents: recentsApi,
 		openExternal,
 		adminUrl: ADMIN,
 		renderIcon: ( _i, o ) => {
@@ -157,7 +148,7 @@ function deps( wins: FakeWin[], over: Partial< MobileLayerDeps > = {} ) {
 		},
 		...over,
 	};
-	return { d, shell, area, focus, closeAll, recents, openNavItem, openExternal, wallpaper, recentsApi };
+	return { d, shell, area, focus, closeAll, openNavItem, openExternal, wallpaper };
 }
 
 const flush = async (): Promise< void > => {
@@ -234,29 +225,17 @@ describe( 'mountMobileLayer', () => {
 		layer.unmount();
 	} );
 
-	test( 'the switcher lists open windows most-recent-first, then recents; picks and closes', async () => {
+	test( 'the switcher lists open windows most-recent-first; picks and closes', async () => {
 		const a = fakeWin( 'a', 'Alpha' );
 		const b = fakeWin( 'b', 'Beta' );
 		const wins = [ a, b ];
-		const { d, shell, focus, recents, recentsApi } = deps( wins );
-		recents.push( {
-			id: 'r',
-			url: `${ ADMIN }r`,
-			title: 'Recent one',
-			icon: 'dashicons-admin-generic',
-			state: 'normal',
-			x: 0,
-			y: 0,
-			width: 1,
-			height: 1,
-		} );
+		const { d, shell, focus } = deps( wins );
 		const layer = mountMobileLayer( d );
 
 		layer.openSwitcher();
 		expect( layer.getState() ).toBe( 'switcher' );
 		const cards = Array.from( shell.querySelectorAll< HTMLElement >( '.os-mobile-card' ) );
-		expect( cards.map( ( c ) => c.dataset.cardId ) ).toEqual( [ 'b', 'a', 'r' ] );
-		expect( cards[ 2 ].dataset.cardKind ).toBe( 'recent' );
+		expect( cards.map( ( c ) => c.dataset.cardId ) ).toEqual( [ 'b', 'a' ] );
 		expect( document.activeElement ).toBe( cards[ 0 ].querySelector( '.os-mobile-card__body' ) );
 
 		// The app on screen is marked, and tapping it only dismisses.
@@ -276,11 +255,6 @@ describe( 'mountMobileLayer', () => {
 		expect( layer.getState() ).toBe( 'app' );
 
 		layer.openSwitcher();
-		const recentCard = shell.querySelector< HTMLElement >( '.os-mobile-card[data-card-id="r"]' );
-		( recentCard?.querySelector( '.os-mobile-card__body' ) as HTMLButtonElement ).click();
-		expect( recentsApi.open ).toHaveBeenCalledWith( expect.objectContaining( { id: 'r' } ) );
-
-		layer.openSwitcher();
 		const closeB = shell.querySelector< HTMLButtonElement >( '.os-mobile-card[data-card-id="b"] .os-mobile-card__close' );
 		closeB?.click();
 		await new Promise( ( r ) => setTimeout( r, 260 ) );
@@ -293,29 +267,23 @@ describe( 'mountMobileLayer', () => {
 		layer.unmount();
 	} );
 
-	test( 'the top bar has two controls: minimize keeps the window, × leaves the screen at once and closes', async () => {
+	test( 'the top bar has one control: × leaves the screen at once and closes', () => {
 		const w = fakeWin( 'w', 'Posts' );
 		const { d, shell } = deps( [ w ] );
 		const layer = mountMobileLayer( d );
 		const top = shell.querySelector( '.os-mobile-top' ) as HTMLElement;
-		expect( top.querySelectorAll( 'button' ).length ).toBe( 2 );
+		// Leaving the app with its window kept is the system's job
+		// (Home tab, edge swipe, hardware Back, a flick down on the
+		// bar), so the bar offers no minimize.
+		expect( top.querySelectorAll( 'button' ).length ).toBe( 1 );
+		expect( top.querySelector( '.os-mobile-top__minimize' ) ).toBeNull();
 
-		const minimize = top.querySelector( '.os-mobile-top__minimize' ) as HTMLButtonElement;
-		expect( minimize.getAttribute( 'aria-label' ) ).toBe( 'Minimize app' );
-		minimize.click();
-		await flush();
-		expect( w.minimize ).toHaveBeenCalledTimes( 1 );
-		expect( w.close ).not.toHaveBeenCalled();
-		expect( layer.getState() ).toBe( 'home' );
-
-		w.restore();
-		await flush();
 		const close = top.querySelector( '.os-mobile-top__close' ) as HTMLButtonElement;
 		expect( close.getAttribute( 'aria-label' ) ).toBe( 'Close app' );
 		close.click();
-		// Minimized in the same tick — the screen does not wait for the
-		// close handshake — and the close is asked for right behind it.
-		expect( w.minimize ).toHaveBeenCalledTimes( 2 );
+		// Minimized in the same tick (the screen does not wait for the
+		// close handshake) and the close is asked for right behind it.
+		expect( w.minimize ).toHaveBeenCalledTimes( 1 );
 		expect( w.close ).toHaveBeenCalledTimes( 1 );
 		layer.unmount();
 	} );

@@ -1834,6 +1834,15 @@ export interface SessionWindow {
 	 * different display.
 	 */
 	gridSpan?: GridSpan;
+	/**
+	 * `true` for a window the phone layer opened with no desktop
+	 * geometry to keep: the pixels below are the defaults a 390px
+	 * viewport produced, not anything a desktop chose. On restore
+	 * they are ignored and the desktop places the window as it would
+	 * a fresh open. Only written when true, so every other session
+	 * keeps its shape.
+	 */
+	unplaced?: boolean;
 	url: string;
 	title: string;
 	icon: string;
