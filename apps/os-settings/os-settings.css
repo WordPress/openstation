@@ -1811,6 +1811,52 @@
 	}
 }
 
+/*
+ * The same fold, keyed on the shell's phone mode. The phone experience
+ * is a MODE, not a width — a developer previews it in a wide browser,
+ * a phone turned sideways passes 640px — and no size query can say
+ * "the shell is a phone right now". `html[data-os-mode="mobile"]` can.
+ */
+html[data-os-mode="mobile"] .os-settings {
+	grid-template-columns: minmax( 0, 1fr );
+	grid-template-rows: auto minmax( 0, 1fr ) auto;
+}
+html[data-os-mode="mobile"] .os-settings > os-tabs {
+	display: none;
+}
+html[data-os-mode="mobile"] .os-settings__page-select {
+	display: block;
+	grid-column: 1;
+	grid-row: 1;
+	padding: 12px 12px 10px;
+	background: var( --os-ui-surface, #fff );
+}
+html[data-os-mode="mobile"] .os-settings__search,
+html[data-os-mode="mobile"] .os-settings__search-empty,
+html[data-os-mode="mobile"] .os-settings__search-empty[ hidden ] {
+	display: none;
+}
+html[data-os-mode="mobile"] .os-settings > os-tabpanel {
+	grid-column: 1;
+	grid-row: 2;
+	padding: 16px 12px 28px;
+}
+html[data-os-mode="mobile"] .os-settings__page-header {
+	margin-block-end: 20px;
+}
+html[data-os-mode="mobile"] .os-settings os-section {
+	margin-block-end: 24px;
+}
+html[data-os-mode="mobile"] .os-settings os-section::part( body ) {
+	padding: 12px;
+}
+html[data-os-mode="mobile"] .os-settings > .os-settings__footer {
+	grid-row: 3;
+}
+html[data-os-mode="mobile"] .os-settings__layout-grid {
+	grid-template-columns: minmax( 0, 1fr );
+}
+
 /* Components tab — split-pane layout. Don't scroll the whole panel;
    let the inner grid distribute height to nav + detail, each with
    their own overflow.

@@ -390,6 +390,30 @@ function edit_url( array $section, $id ) {
 }
 
 /**
+ * The title a window opened on an item's editor should wear.
+ *
+ * An iframe never reports its own title, so a window opened on a bare
+ * URL keeps that URL as its name for as long as it lives — on a phone
+ * the top bar then reads `…/wp-admin/post.php?post=…`. The item's own
+ * title is what the user tapped; the window says the same.
+ *
+ * @param array<string,mixed> $section Section descriptor.
+ * @param int                 $id      Item id.
+ * @return string The title, or '' when the item is gone.
+ */
+function edit_title( array $section, $id ) {
+	if ( 'user' === $section['kind'] ) {
+		$user = get_userdata( (int) $id );
+		return $user ? (string) $user->display_name : '';
+	}
+	$post = get_post( (int) $id );
+	if ( ! $post ) {
+		return '';
+	}
+	return '' !== $post->post_title ? (string) $post->post_title : __( '(no title)', 'desktop-mode' );
+}
+
+/**
  * The dossier payload for the open item — everything the detail pane
  * paints, per kind.
  *

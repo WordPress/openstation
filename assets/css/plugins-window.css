@@ -1068,3 +1068,23 @@ os-table[ data-installed-rows ]::part( row ) {
 		padding: 6px 8px 8px;
 	}
 }
+
+/* The same, keyed on the shell's phone mode: the phone experience at
+ * any width (a wide browser previewing it, a phone turned sideways),
+ * which no size query can express. */
+html[data-os-mode="mobile"] .os-plugins__toolbar {
+	gap: 8px;
+	padding: 8px 10px;
+}
+html[data-os-mode="mobile"] .os-plugins__toolbar-left {
+	flex: 1 1 100%;
+	flex-wrap: wrap;
+}
+html[data-os-mode="mobile"] .os-plugins__toolbar-left os-text-field {
+	flex: 1 1 100%;
+	min-width: 0;
+	max-width: none;
+}
+html[data-os-mode="mobile"] .os-plugins__body {
+	padding: 6px 8px 8px;
+}

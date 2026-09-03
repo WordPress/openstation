@@ -54,6 +54,30 @@
 	}
 }
 
+/* The same, keyed on the shell's phone mode: the phone experience at
+   any width (a wide browser previewing it, a phone turned sideways),
+   which no size query can express. */
+html[data-os-mode="mobile"] .os-cb {
+	overflow-y: auto;
+	-webkit-overflow-scrolling: touch;
+}
+
+html[data-os-mode="mobile"] .os-cb__source,
+html[data-os-mode="mobile"] .os-cb__search {
+	min-inline-size: 0;
+	flex: 1 1 140px;
+}
+
+html[data-os-mode="mobile"] .os-cb > .os-cb__issues {
+	flex: none;
+	min-block-size: 0;
+}
+
+html[data-os-mode="mobile"] .os-cb__list {
+	flex: none;
+	overflow-y: visible;
+}
+
 .os-cb__source,
 .os-cb__search {
 	min-inline-size: 200px;

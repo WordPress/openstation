@@ -1474,3 +1474,35 @@ os-user-profile > .os-users__edit-layout {
 		padding: 8px 10px;
 	}
 }
+
+/* The same, keyed on the shell's phone mode: the phone experience at
+ * any width (a wide browser previewing it, a phone turned sideways),
+ * which no size query can express. */
+html[data-os-mode="mobile"] .os-posts__toolbar {
+	gap: 8px;
+	padding: 8px 10px;
+}
+html[data-os-mode="mobile"] .os-posts__toolbar-left {
+	flex: 1 1 100%;
+	flex-wrap: wrap;
+}
+html[data-os-mode="mobile"] .os-posts__toolbar-left > [data-os-posts-status] {
+	flex: 1 1 100%;
+	min-width: 0;
+}
+html[data-os-mode="mobile"] .os-posts__toolbar-left > [data-os-posts-search] {
+	flex: 1 1 160px;
+	min-width: 0;
+}
+html[data-os-mode="mobile"] .os-posts__toolbar-right {
+	flex: 1 1 100%;
+	flex-wrap: wrap;
+}
+html[data-os-mode="mobile"] .os-posts__body {
+	padding: 6px 8px 8px;
+}
+html[data-os-mode="mobile"] .os-posts__pager {
+	flex-wrap: wrap;
+	gap: 8px;
+	padding: 8px 10px;
+}

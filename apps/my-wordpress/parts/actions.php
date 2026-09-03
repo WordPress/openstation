@@ -253,7 +253,10 @@ function footprint_action( State $state, Os $os, array $args ) {
 function sub_open_post_action( State $state, Os $os, array $args ) {
 	$id = (int) ( $args['post'] ?? 0 );
 	if ( $id > 0 && $os->can( 'edit_post', $id ) ) {
-		$os->open_url( admin_url( 'post.php?post=' . $id . '&action=edit' ) );
+		$os->open_url(
+			admin_url( 'post.php?post=' . $id . '&action=edit' ),
+			edit_title( array( 'kind' => 'post' ), $id )
+		);
 	}
 }
 
@@ -269,7 +272,7 @@ function edit_action( State $state, Os $os, array $args ) {
 	$section = section_of( $os, (string) $state->get( 'section' ) );
 	$id      = (int) ( $args['item'] ?? 0 );
 	if ( $section && allowed( $os, $section, $id, 'edit' ) ) {
-		$os->open_url( edit_url( $section, $id ) );
+		$os->open_url( edit_url( $section, $id ), edit_title( $section, $id ), (string) ( $section['icon'] ?? '' ) );
 	}
 }
 

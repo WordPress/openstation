@@ -570,9 +570,13 @@ body.os-active a.os-comments__convo-post--editable {
  * by the bundle beside the strip), so five tabs with counts do not
  * wrap into two rows above a 360px list.
  *
- * Container-scoped rather than a media query so the rules follow the
- * WINDOW's width; the old media query hid the rail outright under
- * 720px, which on a phone was the whole list of conversations gone.
+ * Two ways in, the same rules twice: a container query for a window
+ * pulled narrow on a desk, and the shell's phone mode
+ * (`html[data-os-mode="mobile"]`), which is the phone experience at
+ * ANY width — a developer previewing it in a wide browser, a phone
+ * turned sideways past 720px — and cannot be expressed as a size. The
+ * old media query hid the rail outright under 720px, which on a phone
+ * was the whole list of conversations gone.
  */
 .os-comments__tabselect {
 	display: none;
@@ -610,4 +614,29 @@ body.os-active a.os-comments__convo-post--editable {
 	.os-comments__convo-head {
 		padding: 10px 12px;
 	}
+}
+
+html[data-os-mode="mobile"] .os-comments__tabrow {
+	display: none;
+}
+html[data-os-mode="mobile"] .os-comments__tabselect {
+	display: block;
+}
+html[data-os-mode="mobile"] .os-comments__split {
+	grid-template-columns: minmax( 0, 1fr );
+}
+html[data-os-mode="mobile"] .os-comments__rail {
+	border-inline-end: 0;
+}
+html[data-os-mode="mobile"] .os-comments[data-os-comments-pane='convo'] .os-comments__rail {
+	display: none;
+}
+html[data-os-mode="mobile"] .os-comments:not( [data-os-comments-pane='convo'] ) .os-comments__convo {
+	display: none;
+}
+html[data-os-mode="mobile"] .os-comments__convo-back {
+	display: inline-flex;
+}
+html[data-os-mode="mobile"] .os-comments__convo-head {
+	padding: 10px 12px;
 }
