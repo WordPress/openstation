@@ -719,12 +719,14 @@ interface FocusMark {
 /**
  * Note what has focus before a rebuild wipes it.
  *
- * `document.activeElement` reports the `<os-button>` host rather than
- * the real button inside its shadow root, which is exactly what we
- * want: the host carries the class that says which control this is.
+ * `activeElement` reports the `<os-button>` host rather than the real
+ * button inside its shadow root, which is exactly what we want: the
+ * host carries the class that says which control this is. It is read
+ * off the container's own document, not the global one, because a
+ * widget can be mounted inside a window's iframe.
  */
 function markFocus( container: HTMLElement ): FocusMark | null {
-	const active = document.activeElement;
+	const active = container.ownerDocument.activeElement;
 	if ( ! ( active instanceof HTMLElement ) || ! container.contains( active ) ) {
 		return null;
 	}
@@ -753,8 +755,9 @@ function markFocus( container: HTMLElement ): FocusMark | null {
  * where they went.
  */
 function restoreFocus( container: HTMLElement, mark: FocusMark | null ): void {
-	const active = document.activeElement;
-	if ( ! mark || ( active && active !== document.body ) ) {
+	const doc = container.ownerDocument;
+	const active = doc.activeElement;
+	if ( ! mark || ( active && active !== doc.body ) ) {
 		return;
 	}
 	const rows = Array.from(
