@@ -465,14 +465,31 @@ function openstation_pwa_build_manifest() {
  *      when the operator has uploaded a brand mark for their site.
  *   2. Plugin-bundled icons under `assets/pwa/` — the official
  *      openstation brand mark (the same artwork shown on the
- *      WordPress.org plugin directory listing). Sizes 128 / 192 /
- *      256 / 512 cover everything from notification badges to splash
- *      screens.
+ *      WordPress.org plugin directory listing).
  *
- * Purpose is `'any'` rather than `'any maskable'` — the brand icon
- * has rounded corners + transparent padding that Android's adaptive
- * mask would crop into. Plugins shipping a full-bleed maskable
- * variant should replace the array via `openstation_pwa_manifest`.
+ * **The bundled artwork is full-bleed, opaque and square.** Every
+ * platform masks a home-screen tile itself, and it fills any
+ * transparency first: iOS fills with white, then rounds. Artwork that
+ * rounds its own corners therefore installs as a mark floating on a
+ * white square, which is exactly how the pre-full-bleed set installed
+ * on iOS. Do not re-round these files, and do not reintroduce alpha.
+ *
+ * Three purposes go out for the bundled set, because the platforms
+ * genuinely want three different pictures:
+ *
+ *   - `any`        the tile as drawn.
+ *   - `maskable`   the same tile at 80%, so Android's adaptive masks
+ *                  (circle, squircle, teardrop, depending on the
+ *                  launcher) crop into margin rather than into the
+ *                  mark.
+ *   - `monochrome` the silhouette alone, for Android 13+ themed
+ *                  icons, which recolour it to the wallpaper palette.
+ *
+ * A Site Icon gets `any` only. The other two purposes describe how a
+ * specific piece of artwork is composed, and we know that about ours
+ * and not about theirs — declaring someone's logo maskable when it is
+ * not is how you get a cropped logo, and pairing their `any` with our
+ * `monochrome` would put the OpenStation mark on their app.
  *
  * @return array<int, array<string, string>>
  */
@@ -498,18 +515,51 @@ function openstation_pwa_default_icons() {
 		}
 	}
 
-	if ( empty( $icons ) ) {
-		foreach ( array( 128, 192, 256, 512 ) as $size ) {
+	if ( ! empty( $icons ) ) {
+		return $icons;
+	}
+
+	$bundled = array(
+		'any'        => array( 128, 180, 192, 256, 512 ),
+		'maskable'   => array( 192, 512 ),
+		'monochrome' => array( 192, 512 ),
+	);
+
+	foreach ( $bundled as $purpose => $sizes ) {
+		foreach ( $sizes as $size ) {
 			$icons[] = array(
-				'src'     => OPENSTATION_URL . "assets/pwa/icon-{$size}.png",
+				'src'     => openstation_pwa_bundled_icon_url( $size, $purpose ),
 				'sizes'   => "{$size}x{$size}",
 				'type'    => 'image/png',
-				'purpose' => 'any',
+				'purpose' => $purpose,
 			);
 		}
 	}
 
 	return $icons;
+}
+
+/**
+ * Builds the URL of one bundled icon file.
+ *
+ * The three purposes are three different files, and the filenames say
+ * which: `icon-192.png`, `icon-maskable-192.png`, `icon-mono-192.png`.
+ * Kept in one place so the head tags and the manifest cannot drift
+ * apart on a rename.
+ *
+ * @param int    $size    Square pixel size.
+ * @param string $purpose One of `any` | `maskable` | `monochrome`.
+ * @return string Absolute URL.
+ */
+function openstation_pwa_bundled_icon_url( $size, $purpose = 'any' ) {
+	$infix = '';
+	if ( 'maskable' === $purpose ) {
+		$infix = 'maskable-';
+	} elseif ( 'monochrome' === $purpose ) {
+		$infix = 'mono-';
+	}
+
+	return OPENSTATION_URL . "assets/pwa/icon-{$infix}{$size}.png";
 }
 
 /**
@@ -681,8 +731,39 @@ function openstation_pwa_render_head_tags() {
 		'<meta name="apple-mobile-web-app-title" content="%s">' . "\n",
 		esc_attr( get_bloginfo( 'name' ) )
 	);
+	printf(
+		'<link rel="apple-touch-icon" sizes="180x180" href="%s">' . "\n",
+		esc_url( openstation_pwa_apple_touch_icon_url() )
+	);
 }
 add_action( 'admin_head', 'openstation_pwa_render_head_tags', 1 );
+
+/**
+ * Resolves the 180×180 tile iOS uses for a home-screen install.
+ *
+ * Core does emit an `apple-touch-icon` from the Site Icon, but only on
+ * `wp_head` and `login_head` — `wp_site_icon()` is not hooked to
+ * `admin_head` at all. So inside wp-admin, which is the only place
+ * anyone installs this app from, there is no tile unless we emit one.
+ * That is why four bundled PNGs could sit in `assets/pwa/` and still
+ * never reach an iPhone.
+ *
+ * 180 is iPhone @3x and the size iOS downscales from for everything
+ * smaller, so one link covers the family.
+ *
+ * @return string Absolute URL.
+ */
+function openstation_pwa_apple_touch_icon_url() {
+	$site_icon_id = (int) get_option( 'site_icon' );
+	if ( $site_icon_id > 0 ) {
+		$url = get_site_icon_url( 180 );
+		if ( is_string( $url ) && '' !== $url ) {
+			return $url;
+		}
+	}
+
+	return openstation_pwa_bundled_icon_url( 180 );
+}
 
 /**
  * Reads the per-user PWA UI state.
