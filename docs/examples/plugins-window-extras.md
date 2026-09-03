@@ -40,7 +40,7 @@ addFilter(
 );
 ```
 
-> Until the JS filter registry lands, you can also subclass the segmented control or layer your own segment via the `openstation_plugins_window_template_html` filter.
+> Until the JS filter registry lands, the Browse segments are the app's own; there is no server template to filter (the window is an App Framework app with a client view).
 
 ---
 
@@ -151,19 +151,16 @@ This action only fires for the `wp_ajax_openstation_plugins_upload` route. Insta
 
 ## 5. Land on the Browse tab when opening the window from your own UI
 
-The bundle reads an initial-tab hint from a shared store. Set it BEFORE `openById( 'desktop-mode-plugins' )`:
+The Plugins window is an App Framework app; the landing tab is its open-time `tab` param. Pass it with the open:
 
 ```ts
-import { setPluginsWindowTab } from 'openstation/plugins-window/tab-target';
-
 const myButton = document.querySelector( '#explore-plugins' )!;
 myButton.addEventListener( 'click', () => {
-    setPluginsWindowTab( 'browse' );
-    window.wp.os.openWindow( 'desktop-mode-plugins' );
+    window.wp.os.openWindow( 'desktop-mode-plugins', { params: { tab: 'browse' } } );
 } );
 ```
 
-Backed by `wp.os.createSharedStore` so multiple bundles read the same value. The hint is consumed (cleared) on first read by the render callback, so a subsequent open without an explicit hint defaults back to "installed".
+The app reads the param on `mount`; if the window is already open, the shell writes the new params onto it and the app switches tabs through its `reopen` lifecycle action. Params ride the session, so a reload brings the window back on the same tab. An open without params leaves an open window where it is and lands a fresh one on "installed". (`plugin-install.php` reaches the same tab through the URL remap's `params` hook.)
 
 ---
 

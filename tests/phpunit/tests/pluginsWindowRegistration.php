@@ -1,13 +1,16 @@
 <?php
 /**
- * Tests for the native Plugins window's PHP registration + cap gates.
+ * Tests for the Plugins app's PHP parts: the capability gates
+ * (`apps/plugins/parts/permissions.php`) and the REST field
+ * decorators on `/wp/v2/plugins` (`apps/plugins/parts/rest-fields.php`).
  *
- * The Plugins window is gated on `activate_plugins` (broad gate) plus
- * the `nativePluginsEnabled` opt-out toggle. Per-action mutation caps
+ * The app is gated on `activate_plugins` (broad gate) plus the
+ * `nativePluginsEnabled` opt-out toggle. Per-action mutation caps
  * (`install_plugins`, `delete_plugins`, `upload_plugins`) are
- * enforced inside the AJAX callbacks themselves; these tests cover
- * the registration gate + the per-row capability surface
- * (`openstation_plugins_window_caps`).
+ * enforced inside the AJAX callbacks and Core's REST controller; these
+ * tests cover the gate + the per-row capability surface
+ * (`openstation_plugins_window_caps`). The app itself — manifest,
+ * `data()`, the dispatch cycle — is `pluginsApp.php`.
  *
  * @package WordPress
  * @subpackage UnitTests

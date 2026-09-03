@@ -290,8 +290,8 @@ function injectInline( code: string ): void {
  *
  * For harvested handle data that has to land even though the bundle
  * it belongs to is NOT being fetched: two native windows can share
- * one script URL (Posts / Pages / Users / Profile all ride
- * `os-posts-window`), and the URL-keyed dedupe means only the first
+ * one script URL (every App Framework window rides
+ * `openstation-app-runtime`), and the URL-keyed dedupe means only the first
  * window's load carries its extras through `loadVendorScript`. The
  * sibling's per-entry data — most critically its synthesized
  * `openStationWindowConfig[ id ]` assignment — is injected through

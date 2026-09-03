@@ -24,8 +24,12 @@ const read = ( rel: string ): string => readFileSync( join( ROOT, rel ), 'utf8' 
 
 const table = String( ( styles as unknown as { cssText?: string } ).cssText ?? styles );
 const bin = read( 'assets/css/recycle-bin.css' );
-const posts = read( 'assets/css/posts-window.css' );
-const plugins = read( 'assets/css/plugins-window.css' );
+// The list layout Posts, Pages and Users share is the framework's
+// (`.os-app-list__*` in the runtime sheet); the two canvases keep
+// their fold in the Posts app's own sheet.
+const lists = read( 'assets/css/app-runtime.css' );
+const posts = read( 'apps/posts/posts.css' );
+const plugins = read( 'apps/plugins/plugins.css' );
 const explorer = read( 'apps/my-wordpress/my-wordpress.css' );
 
 /** The declarations of one rule, by a unique selector fragment. */
@@ -120,15 +124,17 @@ describe( 'Trash', () => {
 
 describe( 'Posts, Pages and Users', () => {
 	test( 'the moved bulk strip is a bottom bar that clears the home indicator', () => {
-		const bar = block( posts, '.os-posts__toolbar-right.os-posts__bulk--footer {' );
+		const bar = block( lists, '.os-app-list__toolbar-right.os-app-list__bulk--footer {' );
 		expect( bar ).toMatch( /safe-area-inset-bottom/ );
 		expect( bar ).toMatch( /border-block-start/ );
-		expect( block( posts, '.os-posts__toolbar-right.os-posts__bulk--footer[hidden] {' ) ).toMatch( /display:\s*none/ );
-		expect( block( posts, '.os-posts__toolbar-right.os-posts__bulk--footer .os-posts__bulk-actions > * {' ) ).toMatch( /flex:\s*1 1 auto/ );
+		expect( block( lists, '.os-app-list__toolbar-right.os-app-list__bulk--footer[hidden] {' ) ).toMatch( /display:\s*none/ );
+		expect( block( lists, '.os-app-list__toolbar-right.os-app-list__bulk--footer .os-app-list__bulk-actions > * {' ) ).toMatch( /flex:\s*1 1 auto/ );
 	} );
 
-	test( 'on a phone the cards run edge to edge', () => {
-		expect( block( posts, 'html[data-os-mode="mobile"] .os-posts__body {' ) ).toMatch( /padding:\s*0/ );
+	test( 'on a phone the cards run edge to edge, and the status control and search take a row each', () => {
+		expect( block( lists, 'html[data-os-mode="mobile"] .os-app-list__body {' ) ).toMatch( /padding:\s*0/ );
+		expect( block( lists, 'html[data-os-mode="mobile"] .os-app-list__toolbar-left > .os-app-list__status {' ) ).toMatch( /flex:\s*1 1 100%/ );
+		expect( block( lists, 'html[data-os-mode="mobile"] .os-app-list__toolbar-left > .os-app-list__search {' ) ).toMatch( /flex:\s*1 1 160px/ );
 	} );
 
 	test( 'the Categories and Tags editors fold under the stage on a phone, and only while a term is focused', () => {

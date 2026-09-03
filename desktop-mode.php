@@ -175,12 +175,11 @@ require_once OPENSTATION_DIR . 'includes/recycle-bin/bootstrap.php';
 require_once OPENSTATION_DIR . 'includes/desktop-files/bootstrap.php';
 require_once OPENSTATION_DIR . 'includes/desktop-themes/bootstrap.php';
 require_once OPENSTATION_DIR . 'includes/notes/bootstrap.php';
-require_once OPENSTATION_DIR . 'includes/posts-window/bootstrap.php';
-require_once OPENSTATION_DIR . 'includes/pages-window/bootstrap.php';
-require_once OPENSTATION_DIR . 'includes/users-window/bootstrap.php';
-require_once OPENSTATION_DIR . 'includes/user-edit-window/bootstrap.php';
-require_once OPENSTATION_DIR . 'includes/plugins-window/bootstrap.php';
-require_once OPENSTATION_DIR . 'includes/comments-window/bootstrap.php';
+// Posts, Pages, Users, User Edit, Plugins and Comments are App
+// Framework apps (`apps/posts/`, `apps/pages/`, `apps/users/`,
+// `apps/user-edit/`, `apps/plugins/`, `apps/comments/`): each `.os.php`
+// pulls in its own PHP parts (permissions, REST fields and routes,
+// AJAX handlers) when the framework loads it on `init`.
 // Station Home is an App Framework app (`apps/station-home/`); only
 // its plugin-card registry — a public API plugins call on `init` —
 // lives here, so it exists before any app loads.

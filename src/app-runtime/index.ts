@@ -34,7 +34,10 @@ import {
 	formatBytes,
 	formatDate,
 	html,
+	mountMenuCheckboxes,
+	pager,
 	sprintf,
+	statusControl,
 } from './client';
 import { createSession, setSessionDebug, type Session } from './session';
 import type { AppConfig, AppearanceDef, ControlDef, RuntimeHost } from './types';
@@ -341,6 +344,29 @@ function buildRender( config: AppConfig ): RenderCallback {
 			}
 			host.send = ( channel, payload ) => ctx.window.send( channel, payload );
 		}
+		// A singleton asked to open while already open — a deep link
+		// landing on a live window, `wp.os.openWindow( id, { params } )`
+		// from another surface. The shell has already written the new
+		// params onto the window; adopt them on every session so
+		// `$os->params` answers with the new subject, then let the app
+		// retarget through its `reopen` handler.
+		const onReopened = ( ev: Event ): void => {
+			const detail = ( ev as CustomEvent< {
+				windowId?: string;
+				params?: Record< string, string | number | boolean >;
+			} > ).detail;
+			if ( ! detail || detail.windowId !== windowId ) {
+				return;
+			}
+			const next = detail.params ?? {};
+			each( ( s ) => s.setParams( next ) );
+			if ( lifecycle.has( 'reopen' ) ) {
+				each( ( s ) => void s.dispatch( 'reopen', { params: next } ) );
+			}
+		};
+		document.addEventListener( 'os-window-reopened', onReopened );
+		teardowns.push( () => document.removeEventListener( 'os-window-reopened', onReopened ) );
+
 		const api = os();
 		if ( api && ( lifecycle.has( 'focus' ) || lifecycle.has( 'blur' ) ) ) {
 			// The shell reports `focused` on every focus REQUEST — each
@@ -429,6 +455,9 @@ const CLIENT_API = {
 	applySelection,
 	createMarquee,
 	copyText,
+	statusControl,
+	pager,
+	mountMenuCheckboxes,
 } as const;
 
 /** What a queued third-party client view receives. */

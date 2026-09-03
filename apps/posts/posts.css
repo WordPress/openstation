@@ -1,0 +1,828 @@
+/**
+ * OpenStation — Posts app styles.
+ *
+ * The list layout (toolbar, body, pager, tabs, the phone rules) is the
+ * framework's `.os-app-list*` family in `assets/css/app-runtime.css`;
+ * this sheet owns what is the Posts window's alone: the term canvases
+ * — the Categories mind map and the Tags cloud — and their phone fold.
+ * Cell-content styles are inlined in `parts/cells.ts`, since <os-table>
+ * paints into its own shadow root.
+ */
+
+.os-posts__terms-host,
+.os-posts__terms {
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 auto;
+	min-height: 0;
+	min-width: 0;
+}
+
+/* ---------------------------------------------------------------
+ * Categories tab — Pixi mindmap (the only Categories view).
+ *
+ * Hybrid render: Pixi canvas paints circles + edges, an HTML overlay
+ * paints labels + count badges + the inline editor + post mini-cards.
+ * The overlay keeps text crisp at any zoom; the canvas keeps the
+ * graph hardware-accelerated. */
+.os-mindmap {
+	flex: 1 1 auto;
+	min-height: 0;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	/* Mindmap canvas — dot grid + theme-tinted vignettes. The dot
+	 * grid is the canonical "infinite thinking surface" texture
+	 * (Miro / Obsidian Canvas / Excalidraw all use it); pairs nicely
+	 * with radial trees because the dots give the user a sense of
+	 * pan/zoom motion without dominating the node colors. The two
+	 * offset vignettes add light, atmospheric depth — a touch of
+	 * ambient lighting in the admin theme hue. */
+	background:
+		radial-gradient(
+			circle,
+			rgba( 0, 0, 0, 0.06 ) 1px,
+			transparent 1.5px
+		) 0 0 / 24px 24px,
+		radial-gradient(
+			ellipse at 28% 22%,
+			color-mix(
+				in srgb,
+				var( --wp-admin-theme-color, #2271b1 ) 8%,
+				transparent
+			),
+			transparent 60%
+		),
+		radial-gradient(
+			ellipse at 78% 80%,
+			color-mix(
+				in srgb,
+				var( --wp-admin-theme-color, #2271b1 ) 5%,
+				transparent
+			),
+			transparent 58%
+		),
+		var( --os-ui-surface, #fff );
+}
+
+.os-mindmap__toolbar {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 10px 14px;
+	border-bottom: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
+	background: rgba( 255, 255, 255, 0.6 );
+	backdrop-filter: blur( 8px );
+	/* New stacking context so the search dropdown (z-index inside)
+	 * paints above the pixi canvas in the layout sibling below. Without
+	 * this, the canvas (later in DOM, no z-index) wins the paint order
+	 * and the dropdown renders BEHIND the chips/nodes — clicks then land
+	 * on the canvas instead of the dropdown items. */
+	position: relative;
+	z-index: 2;
+}
+
+.os-mindmap__btn {
+	appearance: none;
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding: 6px 10px;
+	font: inherit;
+	font-size: 12px;
+	font-weight: 500;
+	border: 1px solid var( --os-ui-border, #c3c4c7 );
+	border-radius: 6px;
+	background: transparent;
+	color: var( --os-ui-fg, #1d2327 );
+	cursor: pointer;
+	transition: background-color 0.12s ease, border-color 0.12s ease,
+		color 0.12s ease;
+}
+
+.os-mindmap__btn:hover {
+	background: var( --os-ui-hover, rgba( 0, 0, 0, 0.04 ) );
+	border-color: var( --wp-admin-theme-color, #2271b1 );
+}
+
+.os-mindmap__btn--primary {
+	background: var( --wp-admin-theme-color, #2271b1 );
+	color: var( --os-ui-fg-on-accent, #fff );
+	border-color: transparent;
+}
+
+.os-mindmap__btn--primary:hover {
+	filter: brightness( 1.05 );
+	background: var( --wp-admin-theme-color, #2271b1 );
+	color: var( --os-ui-fg-on-accent, #fff );
+}
+
+.os-mindmap__btn--secondary {
+	background: var( --os-ui-hover, rgba( 0, 0, 0, 0.04 ) );
+}
+
+.os-mindmap__btn--danger {
+	color: var( --os-ui-danger, #d63638 );
+	border-color: transparent;
+}
+
+.os-mindmap__btn--danger:hover {
+	background: color-mix( in srgb, var( --os-ui-danger, #d63638 ) 10%, transparent );
+	border-color: color-mix( in srgb, var( --os-ui-danger, #d63638 ) 35%, transparent );
+}
+
+.os-mindmap__btn--danger.is-armed {
+	background: var( --os-ui-danger, #d63638 );
+	color: var( --os-ui-fg-on-accent, #fff );
+	border-color: transparent;
+}
+
+.os-mindmap__hint {
+	flex: 1 1 auto;
+	font-size: 12px;
+	font-style: italic;
+	color: var( --os-ui-fg-muted, #50575e );
+	text-align: end;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.os-mindmap__search {
+	position: relative;
+	flex: 0 1 280px;
+	min-width: 180px;
+}
+
+.os-mindmap__search-input {
+	width: 100%;
+	padding: 6px 10px;
+	border: 1px solid var( --os-ui-border, #d8dde4 );
+	border-radius: 6px;
+	background: var( --os-ui-surface, #fff );
+	color: inherit;
+	font: inherit;
+	font-size: 13px;
+}
+
+.os-mindmap__search-input:focus {
+	outline: none;
+	border-color: var( --os-ui-accent, var( --wp-admin-theme-color, #2271b1 ) );
+	box-shadow: 0 0 0 3px
+		var( --os-ui-accent-soft, rgba( 34, 113, 177, 0.18 ) );
+}
+
+.os-mindmap__search-results {
+	position: absolute;
+	top: calc( 100% + 4px );
+	inset-inline-start: 0;
+	inset-inline-end: 0;
+	margin: 0;
+	padding: 4px;
+	list-style: none;
+	background: var( --os-ui-surface-elevated, #fff );
+	border: 1px solid var( --os-ui-border, #d8dde4 );
+	border-radius: 8px;
+	box-shadow: 0 6px 18px rgba( 17, 24, 39, 0.08 );
+	z-index: 100;
+	max-height: 300px;
+	overflow-y: auto;
+}
+
+.os-mindmap__search-result {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	width: 100%;
+	padding: 6px 10px;
+	background: transparent;
+	border: 0;
+	border-radius: 6px;
+	color: inherit;
+	cursor: pointer;
+	text-align: start;
+	font: inherit;
+	font-size: 13px;
+}
+
+.os-mindmap__search-result:hover,
+.os-mindmap__search-result.is-active {
+	background: var( --os-ui-hover, rgba( 79, 139, 243, 0.08 ) );
+}
+
+.os-mindmap__search-title {
+	flex: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.os-mindmap__search-meta {
+	font-size: 11px;
+	color: var( --os-ui-fg-muted, #6b7280 );
+	white-space: nowrap;
+}
+
+/* Two-column layout: Pixi stage on the left, fixed sidebar on the
+ * right. The sidebar always renders — empty-state copy when no node
+ * is focused, full editor form otherwise — so the editing surface
+ * never covers the post nodes. */
+.os-mindmap__layout {
+	display: flex;
+	flex: 1 1 auto;
+	min-height: 0;
+	min-width: 0;
+}
+
+.os-mindmap__stage {
+	position: relative;
+	flex: 1 1 auto;
+	min-height: 0;
+	min-width: 0;
+	overflow: hidden;
+	/* Fade in once the very first `fitToView()` has run — without
+	 * this the canvas briefly paints its tree at the unfitted
+	 * default transform on the frame between mount and the first
+	 * rAF, which the user saw as a flash. */
+	transition: opacity 200ms ease;
+}
+
+.os-mindmap__stage.is-loading {
+	opacity: 0;
+}
+
+.os-mindmap__sidebar {
+	flex: 0 0 320px;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	padding: 16px;
+	border-inline-start: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
+	background: var( --os-ui-surface, #fff );
+	color: var( --os-ui-fg, #1d2327 );
+	overflow-y: auto;
+	min-height: 0;
+}
+
+.os-mindmap__sidebar-empty {
+	flex: 1 1 auto;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	color: var( --os-ui-fg-muted, #50575e );
+	text-align: center;
+	padding: 24px 8px;
+}
+
+.os-mindmap__sidebar-empty .dashicons {
+	font-size: 36px;
+	width: 36px;
+	height: 36px;
+	opacity: 0.5;
+}
+
+.os-mindmap__sidebar-empty-title {
+	font-size: 13px;
+	font-weight: 600;
+	color: var( --os-ui-fg, #1d2327 );
+}
+
+.os-mindmap__sidebar-empty-hint {
+	font-size: 12px;
+	font-style: italic;
+	max-width: 220px;
+}
+
+.os-mindmap__sidebar-header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var( --os-ui-fg-muted, #50575e );
+}
+
+.os-mindmap__sidebar-dot {
+	width: 10px;
+	height: 10px;
+	border-radius: 50%;
+	flex: 0 0 10px;
+}
+
+.os-mindmap__sidebar-slug {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.os-mindmap__sidebar-label {
+	font-size: 11px;
+	font-weight: 500;
+	color: var( --os-ui-fg-muted, #50575e );
+	margin-block-start: 4px;
+}
+
+.os-mindmap__sidebar-meta {
+	font-size: 12px;
+	color: var( --os-ui-fg-muted, #50575e );
+	padding-block: 4px;
+}
+
+.os-mindmap__canvas {
+	display: block;
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	touch-action: none;
+}
+
+/* Spotlight: dim the world container while a node is deployed so
+ * the focused branch reads as the foreground. Implemented as a
+ * filter on the canvas itself because category and post chips are
+ * Pixi nodes inside the canvas — there is no longer an HTML overlay
+ * we can selectively dim. The canvas keeps full alpha so the
+ * focused-node + post fan stay vivid; only the discs/chips outside
+ * the focus area look muted via the slight desaturation in JS
+ * (drawEdges + chip-color logic dim non-focused branches). */
+
+/* Editor lives in the sidebar — no longer a floating popover, so no
+ * positioning, shadow or backdrop. Just a vertical stack of inputs +
+ * actions. (Kept the class so the form's children still hit the
+ * existing input/button styles below.) */
+.os-mindmap__editor {
+	display: contents;
+}
+
+.os-mindmap__editor-name {
+	appearance: none;
+	font: inherit;
+	font-size: 14px;
+	font-weight: 600;
+	padding: 6px 8px;
+	border: 1px solid var( --os-ui-border, #c3c4c7 );
+	border-radius: 6px;
+	background: var( --os-ui-surface, #fff );
+	color: inherit;
+}
+
+.os-mindmap__editor-name:focus,
+.os-mindmap__editor-desc:focus {
+	outline: none;
+	border-color: var( --wp-admin-theme-color, #2271b1 );
+	box-shadow: 0 0 0 2px
+		color-mix(
+			in srgb,
+			var( --wp-admin-theme-color, #2271b1 ) 25%,
+			transparent
+		);
+}
+
+.os-mindmap__editor-desc {
+	appearance: none;
+	font: inherit;
+	font-size: 12px;
+	padding: 6px 8px;
+	border: 1px solid var( --os-ui-border, #c3c4c7 );
+	border-radius: 6px;
+	background: var( --os-ui-surface, #fff );
+	color: inherit;
+	resize: vertical;
+	min-height: 46px;
+}
+
+.os-mindmap__editor-actions {
+	display: flex;
+	gap: 6px;
+	flex-wrap: wrap;
+}
+
+.os-mindmap__editor-actions .os-mindmap__btn {
+	flex: 1 1 auto;
+	justify-content: center;
+}
+
+.os-mindmap__empty {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	pointer-events: none;
+	color: var( --os-ui-fg-muted, #50575e );
+	font-size: 13px;
+	font-style: italic;
+	text-align: center;
+	padding: 0 24px;
+}
+
+/* ---------------------------------------------------------------------
+ * Tag cloud (Tags tab)
+ *
+ * Same surface shape as the Categories mindmap — toolbar across the
+ * top, Pixi stage on the left, fixed-width sidebar editor on the right
+ * — but with a hashtag-pill metaphor instead of circles. The Pixi-side
+ * code (`tags-cloud.ts`) paints chips, post satellites, and the pager
+ * directly into the canvas; this stylesheet only owns the chrome
+ * around the canvas (toolbar, sidebar form, empty states).
+ * ------------------------------------------------------------------ */
+.os-tagcloud {
+	flex: 1 1 auto;
+	min-height: 0;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	background:
+		repeating-linear-gradient(
+			135deg,
+			transparent 0,
+			transparent 22px,
+			color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 4%, transparent ) 22px,
+			color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 4%, transparent ) 23px
+		),
+		radial-gradient(
+			circle at 30% 20%,
+			color-mix(
+				in srgb,
+				var( --wp-admin-theme-color, #2271b1 ) 6%,
+				transparent
+			),
+			transparent 65%
+		),
+		var( --os-ui-surface, #fff );
+}
+
+.os-tagcloud__toolbar {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 10px 14px;
+	border-bottom: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
+	background: rgba( 255, 255, 255, 0.6 );
+	backdrop-filter: blur( 8px );
+	/* Stacking context for the search dropdown — see the matching
+	 * comment on `.os-mindmap__toolbar`. */
+	position: relative;
+	z-index: 2;
+}
+
+.os-tagcloud__btn {
+	appearance: none;
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding: 6px 10px;
+	font: inherit;
+	font-size: 12px;
+	font-weight: 500;
+	border: 1px solid var( --os-ui-border, #c3c4c7 );
+	border-radius: 6px;
+	background: transparent;
+	color: var( --os-ui-fg, #1d2327 );
+	cursor: pointer;
+	transition: background-color 0.12s ease, border-color 0.12s ease,
+		color 0.12s ease;
+}
+
+.os-tagcloud__btn:hover {
+	background: var( --os-ui-hover, rgba( 0, 0, 0, 0.04 ) );
+	border-color: var( --wp-admin-theme-color, #2271b1 );
+}
+
+.os-tagcloud__btn--primary {
+	background: var( --wp-admin-theme-color, #2271b1 );
+	color: var( --os-ui-fg-on-accent, #fff );
+	border-color: transparent;
+}
+
+.os-tagcloud__btn--primary:hover {
+	filter: brightness( 1.05 );
+	background: var( --wp-admin-theme-color, #2271b1 );
+	color: var( --os-ui-fg-on-accent, #fff );
+}
+
+.os-tagcloud__btn--danger {
+	color: var( --os-ui-danger, #d63638 );
+	border-color: transparent;
+}
+
+.os-tagcloud__btn--danger:hover {
+	background: color-mix( in srgb, var( --os-ui-danger, #d63638 ) 10%, transparent );
+	border-color: color-mix( in srgb, var( --os-ui-danger, #d63638 ) 35%, transparent );
+}
+
+.os-tagcloud__btn--danger.is-armed {
+	background: var( --os-ui-danger, #d63638 );
+	color: var( --os-ui-fg-on-accent, #fff );
+	border-color: transparent;
+}
+
+.os-tagcloud__hint {
+	flex: 1 1 auto;
+	font-size: 12px;
+	font-style: italic;
+	color: var( --os-ui-fg-muted, #50575e );
+	text-align: end;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.os-tagcloud__search {
+	position: relative;
+	flex: 0 1 280px;
+	min-width: 180px;
+}
+
+.os-tagcloud__search-input {
+	width: 100%;
+	padding: 6px 10px;
+	border: 1px solid var( --os-ui-border, #d8dde4 );
+	border-radius: 6px;
+	background: var( --os-ui-surface, #fff );
+	color: inherit;
+	font: inherit;
+	font-size: 13px;
+}
+
+.os-tagcloud__search-input:focus {
+	outline: none;
+	border-color: var( --os-ui-accent, var( --wp-admin-theme-color, #2271b1 ) );
+	box-shadow: 0 0 0 3px
+		var( --os-ui-accent-soft, rgba( 34, 113, 177, 0.18 ) );
+}
+
+.os-tagcloud__search-results {
+	position: absolute;
+	top: calc( 100% + 4px );
+	inset-inline-start: 0;
+	inset-inline-end: 0;
+	margin: 0;
+	padding: 4px;
+	list-style: none;
+	background: var( --os-ui-surface-elevated, #fff );
+	border: 1px solid var( --os-ui-border, #d8dde4 );
+	border-radius: 8px;
+	box-shadow: 0 6px 18px rgba( 17, 24, 39, 0.08 );
+	z-index: 100;
+	max-height: 300px;
+	overflow-y: auto;
+}
+
+.os-tagcloud__search-result {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	width: 100%;
+	padding: 6px 10px;
+	background: transparent;
+	border: 0;
+	border-radius: 6px;
+	color: inherit;
+	cursor: pointer;
+	text-align: start;
+	font: inherit;
+	font-size: 13px;
+}
+
+.os-tagcloud__search-result:hover,
+.os-tagcloud__search-result.is-active {
+	background: var( --os-ui-hover, rgba( 79, 139, 243, 0.08 ) );
+}
+
+.os-tagcloud__search-title {
+	flex: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.os-tagcloud__search-meta {
+	font-size: 11px;
+	color: var( --os-ui-fg-muted, #6b7280 );
+	white-space: nowrap;
+}
+
+.os-tagcloud__layout {
+	display: flex;
+	flex: 1 1 auto;
+	min-height: 0;
+	min-width: 0;
+}
+
+.os-tagcloud__stage {
+	position: relative;
+	flex: 1 1 auto;
+	min-height: 0;
+	min-width: 0;
+	overflow: hidden;
+	transition: opacity 200ms ease;
+}
+
+.os-tagcloud__stage.is-loading {
+	opacity: 0;
+}
+
+.os-tagcloud__sidebar {
+	flex: 0 0 320px;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	padding: 16px;
+	border-inline-start: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
+	background: var( --os-ui-surface, #fff );
+	color: var( --os-ui-fg, #1d2327 );
+	overflow-y: auto;
+	min-height: 0;
+}
+
+.os-tagcloud__sidebar-empty {
+	flex: 1 1 auto;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	color: var( --os-ui-fg-muted, #50575e );
+	text-align: center;
+	padding: 24px 8px;
+}
+
+.os-tagcloud__sidebar-empty .dashicons {
+	font-size: 36px;
+	width: 36px;
+	height: 36px;
+	opacity: 0.5;
+}
+
+.os-tagcloud__sidebar-empty-title {
+	font-size: 13px;
+	font-weight: 600;
+	color: var( --os-ui-fg, #1d2327 );
+	margin: 0;
+}
+
+.os-tagcloud__sidebar-empty-hint {
+	font-size: 12px;
+	font-style: italic;
+	max-width: 240px;
+	margin: 0;
+}
+
+.os-tagcloud__sidebar-header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var( --os-ui-fg-muted, #50575e );
+}
+
+.os-tagcloud__sidebar-dot {
+	width: 10px;
+	height: 10px;
+	border-radius: 50%;
+	flex: 0 0 10px;
+}
+
+.os-tagcloud__sidebar-slug {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.os-tagcloud__sidebar-label {
+	font-size: 11px;
+	font-weight: 500;
+	color: var( --os-ui-fg-muted, #50575e );
+	margin-block-start: 4px;
+}
+
+.os-tagcloud__sidebar-meta {
+	font-size: 12px;
+	color: var( --os-ui-fg-muted, #50575e );
+	padding-block: 4px;
+}
+
+.os-tagcloud__canvas {
+	display: block;
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	touch-action: none;
+}
+
+.os-tagcloud__editor-name {
+	appearance: none;
+	font: inherit;
+	font-size: 14px;
+	font-weight: 600;
+	padding: 6px 8px;
+	border: 1px solid var( --os-ui-border, #c3c4c7 );
+	border-radius: 6px;
+	background: var( --os-ui-surface, #fff );
+	color: inherit;
+}
+
+.os-tagcloud__editor-name:focus,
+.os-tagcloud__editor-desc:focus {
+	outline: none;
+	border-color: var( --wp-admin-theme-color, #2271b1 );
+	box-shadow: 0 0 0 2px
+		color-mix(
+			in srgb,
+			var( --wp-admin-theme-color, #2271b1 ) 25%,
+			transparent
+		);
+}
+
+.os-tagcloud__editor-desc {
+	appearance: none;
+	font: inherit;
+	font-size: 12px;
+	padding: 6px 8px;
+	border: 1px solid var( --os-ui-border, #c3c4c7 );
+	border-radius: 6px;
+	background: var( --os-ui-surface, #fff );
+	color: inherit;
+	resize: vertical;
+	min-height: 46px;
+}
+
+.os-tagcloud__editor-actions {
+	display: flex;
+	gap: 6px;
+	flex-wrap: wrap;
+}
+
+.os-tagcloud__editor-actions .os-tagcloud__btn {
+	flex: 1 1 auto;
+	justify-content: center;
+}
+
+.os-tagcloud__empty {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	pointer-events: none;
+	color: var( --os-ui-fg-muted, #50575e );
+	font-size: 13px;
+	font-style: italic;
+	text-align: center;
+	padding: 0 24px;
+}
+
+/*
+ * Categories (the mind map) and Tags (the cloud) keep a 320px editor
+ * beside the stage on a desk. A phone has no beside: the editor
+ * folds UNDER the stage as a sheet — at most half the height, its own
+ * scroll, clearing the home indicator — and only while a term is
+ * focused; while it would only say "select a node" it is not there,
+ * and the stage has the whole screen. The same fold under a narrow
+ * container, for a desk window pulled in.
+ */
+html[data-os-mode="mobile"] .os-mindmap__layout,
+html[data-os-mode="mobile"] .os-tagcloud__layout {
+	flex-direction: column;
+}
+html[data-os-mode="mobile"] .os-mindmap__sidebar,
+html[data-os-mode="mobile"] .os-tagcloud__sidebar {
+	flex: 0 0 auto;
+	max-block-size: 50%;
+	border-inline-start: 0;
+	border-block-start: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
+	padding: 12px 16px calc( 12px + env( safe-area-inset-bottom, 0px ) );
+	box-shadow: 0 -6px 18px rgba( 0, 0, 0, 0.06 );
+}
+html[data-os-mode="mobile"] .os-mindmap__sidebar:has( > .os-mindmap__sidebar-empty ),
+html[data-os-mode="mobile"] .os-tagcloud__sidebar:has( > .os-tagcloud__sidebar-empty ) {
+	display: none;
+}
+@container ( max-width: 640px ) {
+	.os-mindmap__layout,
+	.os-tagcloud__layout {
+		flex-direction: column;
+	}
+	.os-mindmap__sidebar,
+	.os-tagcloud__sidebar {
+		flex: 0 0 auto;
+		max-block-size: 50%;
+		border-inline-start: 0;
+		border-block-start: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
+	}
+	.os-mindmap__sidebar:has( > .os-mindmap__sidebar-empty ),
+	.os-tagcloud__sidebar:has( > .os-tagcloud__sidebar-empty ) {
+		display: none;
+	}
+}

@@ -160,13 +160,17 @@ src/
 │                            #   (`wp.os.files`), the Recycle Bin's drop
 │                            #   targets and closed-tile art.
 ├── open-targets/            # Cross-bundle "open the app on X" hand-offs
-│                            #   (shared-store targets for `apps/`).
-├── posts-window/            # Feature windows — one directory per
-├── plugins-window/          #   window, each compiled to its own
-├── comments-window/         #   lazy Vite bundle (see the `build:*`
-├── content-graph/           #   scripts in package.json). Whole
-├── ai-assistant/            #   windows built on the App Framework
-│                            #   live under `apps/`, not here.
+│                            #   (params-based doors for `apps/`, e.g.
+│                            #   `openUserEditWindow()`).
+├── content-graph/           # Feature windows — one directory per
+├── ai-assistant/            #   window, each compiled to its own lazy
+│                            #   Vite bundle (see the `build:*` scripts
+│                            #   in package.json). Whole windows built
+│                            #   on the App Framework — Posts, Pages,
+│                            #   Users, User Edit, Plugins, Comments,
+│                            #   Trash, WP Explorer, Code Blue, Station
+│                            #   Home, Preferences — live under `apps/`,
+│                            #   not here.
 ├── wallpapers/              # Registry, layer, built-ins, types, vendor
 │                            #   script loader.
 ├── widgets/                 # Registry, layer, picker, frame
@@ -284,10 +288,10 @@ Strings flow through three files per locale in `languages/`:
 - `desktop-mode-{locale}-{handle}.json` — JS translation bundles.
   WordPress's `wp_set_script_translations()` looks up these files by
   the script handle, NOT by source-file hash, because we pass a path
-  argument from `includes/assets.php`. Today three handles have
-  populated bundles — `openstation` (the main shell),
-  `os-posts-window`, and `desktop-mode-recycle-bin`; see
-  `bin/build-i18n.sh` for the handle to source-prefix map.
+  argument from `includes/assets.php` (and, for an app's client view,
+  from `includes/framework/wordpress.php` under the handle
+  `openstation-app-<id>-client`). See `bin/build-i18n.sh` for the
+  handle to source-prefix map — every `apps/<dir>/` has an entry.
 
 ### POT header fields
 

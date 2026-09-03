@@ -123,7 +123,7 @@ function comments_ai_action( State $state, Os $os, array $args ) {
 	}
 	$enabled = ! empty( $args['enabled'] );
 	update_option( OPENSTATION_COMMENTS_AI_OPTION, $enabled, false );
-	/** This action is documented in includes/comments-window/ai-moderation.php */
+	/** This action is documented in apps/comments/parts/ai-moderation.php */
 	do_action( 'openstation_comments_ai_toggled', $enabled );
 }
 

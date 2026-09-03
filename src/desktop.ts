@@ -47,23 +47,6 @@ import { createSpaceDockController } from './multisite/space-dock';
 import { adminScopeOf } from './admin-scope';
 import { deriveWindowId, urlMatchKey } from './utils';
 import { shellUrlWithoutBootArgs } from './shell-url';
-// Static import — `setUserEditTarget` MUST run before the user-edit
-// window's render callback reads the target, and the render callback
-// fires synchronously inside `openById` (`manager.open` → `hydrateNative`
-// → render). Going through `void import().then( setUserEditTarget )` added
-// a 2-microtask delay that consistently lost the race in real-world
-// network conditions: the render callback's own `.then` chain queued
-// before the setUserEditTarget chain resolved, `readUserEditTarget`
-// returned `null`, the fallback to `cfg.currentUserId` kicked in, and
-// the form mounted for the viewer instead of the clicked user.
-import { setUserEditTarget as setUserEditTargetSync } from './posts-window/user-edit-target';
-// Same synchronous-before-open rationale as the user-edit target above:
-// the comments remap stashes the `?p=<id>` post filter here so the
-// conversation renderer scopes its rail on first paint.
-import {
-	setCommentsPostFilter,
-	clearCommentsPostFilter,
-} from './comments-window/post-filter';
 import {
 	HOOKS,
 	addAction,
@@ -3033,18 +3016,16 @@ function init(): void {
 	} );
 
 	// Native User Edit window — claims `user-edit.php?user_id=N`
-	// AND `profile.php` (the viewer's own profile shortcut). Sets
-	// the target user id via the shared-store helper before the
-	// shell calls openById; the render callback reads it back to
-	// know which user to load. Same opt-in flag as the Users list
-	// — if you turned that off, you presumably want the classic
-	// edit screen too.
-	// `user-edit.php?user_id=N` and `profile.php` open the
-	// dedicated **`desktop-mode-user-edit`** native window. The
-	// Users-list window has its OWN built-in Profile tab pinned to
-	// the viewer; this remap is for the per-user profile flow.
-	// `onMatch` stashes the target user id in the shared store so
-	// the user-edit render callback knows which user to load.
+	// AND `profile.php` (the viewer's own profile shortcut). Same
+	// opt-in flag as the Users list — if you turned that off, you
+	// presumably want the classic edit screen too. The Users-list
+	// window has its OWN built-in Profile tab pinned to the viewer;
+	// this remap is for the per-user profile flow. The target user
+	// rides as an open-time param: the app reads `$os->param(
+	// 'userId' )` on mount, retargets through its `reopen` handler
+	// when the singleton is already open, and the session restores
+	// it after a reload. `profile.php` carries no id and lands on
+	// the viewer's own profile.
 	registerNativeUrlRemap( {
 		id: 'desktop-mode-user-edit',
 		nativeWindowId: 'desktop-mode-user-edit',
@@ -3068,21 +3049,12 @@ function init(): void {
 			return false;
 		},
 		enabled: ( snapshot ) => snapshot.nativeUsersEnabled === true,
-		onMatch: ( _url, parsed ) => {
+		params: ( _url, parsed ) => {
 			const userId = parseInt(
 				parsed.searchParams.get( 'user_id' ) ?? '0',
 				10,
 			);
-			if ( userId > 0 ) {
-				// Set synchronously — see import comment above. The
-				// render callback that reads this target fires before
-				// the next microtask flush, so any async path here
-				// races and loses.
-				setUserEditTargetSync( userId );
-			}
-			// `profile.php` with no user_id falls through to the
-			// render callback's `currentUserId` fallback — no need
-			// to set a target.
+			return userId > 0 ? { userId } : undefined;
 		},
 	} );
 
@@ -3098,16 +3070,14 @@ function init(): void {
 		matches: ( _url, parsed ) =>
 			parsed.pathname.endsWith( '/edit-comments.php' ),
 		enabled: ( snapshot ) => snapshot.nativeCommentsEnabled === true,
-		onMatch: ( _url, parsed ) => {
+		params: ( _url, parsed ) => {
 			// `edit-comments.php?p=<id>` scopes the list to one post
-			// (WP's own "comments on this post" link). Thread it through
-			// so the native window opens filtered; a plain open clears it.
+			// (WP's own "comments on this post" link). It rides as the
+			// window's `post` param — the app scopes its rail on mount
+			// and re-scopes through `reopen` when already open; a plain
+			// open carries `0` and clears the scope.
 			const postId = parseInt( parsed.searchParams.get( 'p' ) ?? '0', 10 );
-			if ( postId > 0 ) {
-				setCommentsPostFilter( postId );
-			} else {
-				clearCommentsPostFilter();
-			}
+			return { post: postId > 0 ? postId : 0 };
 		},
 	} );
 
@@ -3128,14 +3098,14 @@ function init(): void {
 			);
 		},
 		enabled: ( snapshot ) => snapshot.nativePluginsEnabled === true,
-		onMatch: ( _url, parsed ) => {
-			const tab = parsed.pathname.endsWith( '/plugin-install.php' )
+		// The landing tab rides as the window's `tab` param: the app
+		// activates it on mount, and through `reopen` when the window
+		// is already open.
+		params: ( _url, parsed ) => ( {
+			tab: parsed.pathname.endsWith( '/plugin-install.php' )
 				? 'browse'
-				: 'installed';
-			void import( './plugins-window/tab-target' ).then( ( m ) => {
-				m.setPluginsWindowTab( tab );
-			} );
-		},
+				: 'installed',
+		} ),
 	} );
 
 	if ( bottomDockEl && shellEl && shellBody && config.dockItems ) {

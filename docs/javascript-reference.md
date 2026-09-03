@@ -2775,6 +2775,10 @@ wp.os.apps.refresh(): string[];   // re-scan window configs for app definitions;
 
 An app with a client view (`<file>.os.ts`, see [`app-framework.md` → The client view](./app-framework.md#the-client-view--osts)) publishes `window.openStationApps[ id ]` from its bundle; `session.data` is what its `App::data()` returned on the last server response.
 
+`wp.os.apps` also mirrors everything an in-repo `.os.ts` imports from `@openstation/app`, for a client view built outside this repo: `defineApp`, `html`, `__` / `_n` / `_x` / `sprintf`, `formatBytes` / `formatDate`, `createPagedList` / `applySelection` / `createMarquee`, `copyText`, and the list-window furniture `statusControl` / `pager` / `mountMenuCheckboxes` (see [`app-framework.md` → The client view](./app-framework.md#the-client-view--osts)). A companion script that loads before the runtime queues on `window.openStationAppsPending` instead.
+
+When a live app window is reopened with params (`wp.os.openWindow( id, { params } )`, a URL remap's `params` hook), the runtime adopts the new params on every session of that window — later dispatches carry them — and dispatches the app's `reopen` lifecycle action when declared; see the `os-window-reopened` event.
+
 - **`dispatch`** runs an action on a mounted app window exactly as one of its own `os-action` triggers would: the request carries the view's current state and the window's open-time params, the response is morphed in and its effects performed. Resolves `true` once applied, `false` if the window is not mounted or the dispatch failed (the failure is toasted). `view` is `main` (default) or a tab slug declared with `App::tab()` — each tab panel is its own session.
 - **`session`** is the live session object — `state` (read-only snapshot), `view`, `dispatch`, `setPaused`, `dispose`. Read `state` to react to what the window is showing; do not mutate it.
 
@@ -6521,11 +6525,11 @@ placements you recognize; see
 
 ## Native Plugins window
 
-The `desktop-mode-plugins` native window replaces the chromeless `plugins.php` and `plugin-install.php` iframes. Two tabs (Installed + Browse), a `<os-flyout>` detail panel, .zip upload (button + drop-on-window), and drag-card-to-dock pinning via the framework drag bridge.
+The `desktop-mode-plugins` native window replaces the chromeless `plugins.php` and `plugin-install.php` iframes. Three tabs (Installed, Add Plugin, OpenStation plugins), a `<os-flyout>` detail panel, .zip upload (button + drop-on-window), and drag-card-to-dock pinning via the framework drag bridge. It is an [App Framework](./app-framework.md) app — `apps/plugins/` — whose installed list is a `data()` over `openstation_app_rest( 'GET', 'wp/v2/plugins' )` (every `openstation_*` REST field included), whose activate / deactivate / delete / bulk are server actions running Core's controller in-process, and whose install, update, upload, browse, info and reviews stay on admin-ajax.
 
 ### URL routing
 
-Both `plugins.php` and `plugin-install.php` are claimed by `registerNativeUrlRemap`. The latter stashes a `tab: 'browse'` hint in the shared store `'desktop-mode/plugins-window/tab-target'` so the bundle's first paint activates the Browse tab. When `nativePluginsEnabled` is `false`, the click falls through to the classic iframe path.
+Both `plugins.php` and `plugin-install.php` are claimed by `registerNativeUrlRemap`. The remap passes the landing tab as the window's open-time param — `{ tab: 'installed' | 'browse' }` — which the app reads on `mount` and, when the window is already open, through its `reopen` lifecycle action. Any surface can do the same: `wp.os.openWindow( 'desktop-mode-plugins', { params: { tab: 'browse' } } )` (`'featured'` lands on the OpenStation plugins tab). When `nativePluginsEnabled` is `false`, the click falls through to the classic iframe path.
 
 **Threading state into the window a remap opens.** A remap entry may declare a `params( url, parsed )` hook returning open-time [`params`](#wposopenwindow-id-opts---stable) for its native window. **Prefer it over a shared store**: params are persisted with the session and staged back on restore, so the window reopens on the same subject after a reload — a shared store does not survive the reload and the window comes back on its default. A throwing hook is logged and the window still opens, the same tolerance `onMatch` has. Remaps that declare no hook call the opener with one argument exactly as before.
 
@@ -6551,26 +6555,16 @@ Cards in the Browse gallery call `wp.os.dragManager.start({ … })` on pointer-d
 }
 ```
 
-The bundle pre-installs a drop target on the dock element that accepts this payload type and calls `wp.os.registerSystemTile()` to pin a transient tile pointing at the plugin's wp.org page. **Plugin authors can register their own drop targets** (e.g. on a custom canvas) that filter on `payload.type === 'wporg-plugin'` and react to a card drop with no further coordination.
+The app pre-installs a drop target on the dock element that accepts this payload type and calls `wp.os.registerSystemTile()` to pin a transient tile that opens the plugin's wp.org page. **Plugin authors can register their own drop targets** (e.g. on a custom canvas) that filter on `payload.type === 'wporg-plugin'` and react to a card drop with no further coordination.
 
 ### Live-refresh
 
-After every install / activate / deactivate / delete the bundle calls `await wp.os.refreshMenu()`. That spawns a hidden chromeless iframe to capture the real-admin-context menu payload (handles plugins that gate `admin_menu` on `is_admin()`) — same primitive the chromeless bridge uses. Plugin authors that mutate plugin state from elsewhere should mirror this:
+After every activate / deactivate / delete the app's server action performs the `$os->refresh_menu()` effect (`wp.os.refreshMenu()`), and after an install or upload the client calls it. That spawns a hidden chromeless iframe to capture the real-admin-context menu payload (handles plugins that gate `admin_menu` on `is_admin()`) — same primitive the chromeless bridge uses. The `os.plugin.changed` broadcast the app emits carries `source: 'plugins-app'`. Plugin authors that mutate plugin state from elsewhere should mirror this:
 
 ```ts
 await myInstallFlow();
 await window.wp.os.refreshMenu();
 ```
-
-### Shared state — initial tab hint
-
-```ts
-import { setPluginsWindowTab } from 'openstation/plugins-window/tab-target';
-
-setPluginsWindowTab( 'browse' ); // call BEFORE openById( 'desktop-mode-plugins' )
-```
-
-Backed by `wp.os.createSharedStore( 'desktop-mode/plugins-window/tab-target', … )` so multiple bundles see the same value.
 
 ---
 

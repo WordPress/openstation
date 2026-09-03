@@ -540,6 +540,96 @@ add_filter( 'openstation_native_window_allowed_html', 'openstation_apps_allowed_
 // ------------------------------------------------------------------ REST
 
 /**
+ * Run a REST request in-process and hand back what the browser would
+ * have received: the same controller, the same permission checks,
+ * every `register_rest_field()` a plugin added, `_fields` applied and
+ * `_embed` expanded — minus the HTTP round trip.
+ *
+ * This is how a list app's `data()` reads the collections WordPress
+ * already knows how to serve (`wp/v2/posts`, `wp/v2/users`,
+ * `wp/v2/comments`, `wp/v2/plugins`) instead of re-implementing a
+ * query per window: the filters plugin authors already hook
+ * (`rest_post_query`, the REST fields, the `_fields` projections the
+ * `openstation_*_window_query_args` filters shape) keep working
+ * because the request IS a REST request. `rest_do_request()` alone
+ * skips `rest_post_dispatch`, which is where `_fields` is applied,
+ * and never embeds; this helper does both.
+ *
+ * @param string              $method `GET` | `POST` | `DELETE` | ….
+ * @param string              $route  Route below the REST root (`wp/v2/posts`).
+ * @param array<string,mixed> $query  Query params (`per_page`, `_fields`, `_embed`, …).
+ * @param array<string,mixed> $body   Body params for a write.
+ * @return array{ok:bool,status:int,data:mixed,total:int,pages:int,error:string,code:string}
+ */
+function openstation_app_rest( $method, $route, array $query = array(), array $body = array() ) {
+	$request = new WP_REST_Request( strtoupper( (string) $method ), '/' . ltrim( (string) $route, '/' ) );
+	if ( array() !== $query ) {
+		$request->set_query_params( $query );
+	}
+	if ( array() !== $body ) {
+		$request->set_body_params( $body );
+		$request->set_header( 'Content-Type', 'application/json' );
+		$request->set_body( (string) wp_json_encode( $body ) );
+	}
+
+	$server   = rest_get_server();
+	$response = rest_do_request( $request );
+	/** This filter is documented in wp-includes/rest-api/class-wp-rest-server.php */
+	$response = apply_filters( 'rest_post_dispatch', rest_ensure_response( $response ), $server, $request ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Core's own post-dispatch pass (`_fields`), replayed for an in-process request.
+
+	if ( $response->is_error() ) {
+		$error = $response->as_error();
+		return array(
+			'ok'     => false,
+			'status' => (int) $response->get_status(),
+			'data'   => null,
+			'total'  => 0,
+			'pages'  => 0,
+			'error'  => $error ? (string) $error->get_error_message() : '',
+			'code'   => $error ? (string) $error->get_error_code() : '',
+		);
+	}
+
+	$embed   = isset( $query['_embed'] ) ? rest_parse_embed_param( $query['_embed'] ) : false;
+	$data    = $server->response_to_data( $response, $embed );
+	$headers = $response->get_headers();
+	return array(
+		'ok'     => true,
+		'status' => (int) $response->get_status(),
+		'data'   => $data,
+		'total'  => isset( $headers['X-WP-Total'] ) ? (int) $headers['X-WP-Total'] : ( is_array( $data ) ? count( $data ) : 0 ),
+		'pages'  => isset( $headers['X-WP-TotalPages'] ) ? (int) $headers['X-WP-TotalPages'] : 1,
+		'error'  => '',
+		'code'   => '',
+	);
+}
+
+/**
+ * A REST collection as the paged-list envelope a client view renders
+ * from — {@see \OpenStation\App\Os::page()} — plus an `error` key
+ * ('' on success) so a list can paint "could not load" instead of an
+ * empty table when the collection refused the request.
+ *
+ * `page` and `per_page` are read from `$query` (defaults 1 / 20).
+ *
+ * @param string              $route Route below the REST root.
+ * @param array<string,mixed> $query Query params.
+ * @return array{items:array<int,mixed>,total:int,pages:int,page:int,perPage:int,error:string}
+ */
+function openstation_app_rest_page( $route, array $query = array() ) {
+	$page     = isset( $query['page'] ) ? max( 1, (int) $query['page'] ) : 1;
+	$per_page = isset( $query['per_page'] ) ? max( 1, (int) $query['per_page'] ) : 20;
+	$result   = openstation_app_rest( 'GET', $route, $query );
+	$items    = $result['ok'] && is_array( $result['data'] ) ? array_values( $result['data'] ) : array();
+	$envelope = Os::page( $items, $result['ok'] ? $result['total'] : 0, $page, $per_page );
+	if ( $result['ok'] ) {
+		$envelope['pages'] = max( 1, (int) $result['pages'] );
+	}
+	$envelope['error'] = $result['ok'] ? '' : (string) $result['error'];
+	return $envelope;
+}
+
+/**
  * Register the dispatch route.
  */
 function openstation_apps_register_routes() {

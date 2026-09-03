@@ -4,7 +4,7 @@
  * A table on a phone is a card list: `stacked` on, sticky columns off.
  * The decision reads the shell's mode stamp rather than the window's
  * width, for the same reason the status control does
- * (`src/posts-window/status-control.ts`): a desktop window pulled
+ * (`statusControl()` in `src/app-runtime/list-ui.ts`): a desktop window pulled
  * narrow keeps its grid, which scrolls sideways under a mouse, and a
  * phone gets the cards even in landscape, where the window is wider
  * than any container threshold. Idempotent, and it puts the grid

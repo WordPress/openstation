@@ -52,8 +52,13 @@ declare -a HANDLE_MAP=(
 	"apps/trash/=openstation-app-desktop-mode-recycle-bin-client"
 	"apps/my-wordpress/=openstation-app-my-wordpress-client"
 	"apps/code-blue/=openstation-app-openstation-code-blue-client"
+	"apps/posts/=openstation-app-desktop-mode-posts-client"
+	"apps/pages/=openstation-app-desktop-mode-pages-client"
+	"apps/users/=openstation-app-desktop-mode-users-client"
+	"apps/user-edit/=openstation-app-desktop-mode-user-edit-client"
+	"apps/plugins/=openstation-app-desktop-mode-plugins-client"
+	"apps/comments/=openstation-app-desktop-mode-comments-client"
 	"src/plugins/my-wordpress-woocommerce/=os-my-wordpress-woocommerce"
-	"src/posts-window/=os-posts-window"
 	"src/=openstation"
 )
 
@@ -85,7 +90,7 @@ for po in "${po_files[@]}"; do
 	# pass each handle the list of MORE-specific prefixes that come
 	# before it in HANDLE_MAP, so a catch-all entry like `src/=...`
 	# does not also pull in strings already claimed by a narrower
-	# prefix like `src/posts-window/=...`.
+	# prefix like `apps/posts/=...`.
 	previous_prefixes=""
 	for entry in "${HANDLE_MAP[@]}"; do
 		prefix="${entry%%=*}"

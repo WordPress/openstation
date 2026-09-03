@@ -84,6 +84,12 @@ export interface Session {
 	paintEagerly: () => boolean;
 	/** Whether the window is paused (minimized / hidden tab). */
 	setPaused: ( paused: boolean ) => void;
+	/**
+	 * Adopt new open-time params — a singleton reopened on another
+	 * subject. Every dispatch after this carries them, so `$os->params`
+	 * answers with what the window shows NOW.
+	 */
+	setParams: ( params: Record< string, string | number | boolean > ) => void;
 	dispose: () => void;
 }
 
@@ -120,7 +126,7 @@ function warnOnce( key: string, message: string ): void {
 export function createSession( deps: SessionDeps ): Session {
 	const { root, config, windowId, host, signal, client } = deps;
 	const view = deps.view ?? 'main';
-	const params = deps.params ?? {};
+	let params = deps.params ?? {};
 
 	let state: Record< string, unknown > = { ...config.state };
 	let data: unknown;
@@ -734,6 +740,9 @@ export function createSession( deps: SessionDeps ): Session {
 				stale = false;
 				refresh();
 			}
+		},
+		setParams( next ) {
+			params = { ...next };
 		},
 		dispose() {
 			disposed = true;

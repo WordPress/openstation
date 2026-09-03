@@ -57,6 +57,291 @@
 	pointer-events: none;
 }
 
+/* ---------- The ⋯ menu section --------------------------------------- */
+
+/* A checkbox section `mountMenuCheckboxes()` appends to the window's
+   title-bar ⋯ menu ("Show columns"). The label is a small-caps
+   separator; the toggles are real <os-menu-item role="menuitemcheckbox">
+   nodes, so they pick up the menu's own styling. */
+.os-app__menu-section {
+	margin-top: 4px;
+	padding: 6px 12px 2px;
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var( --os-ui-fg-muted, #50575e );
+	border-top: 1px solid var( --os-ui-border, #dcdcde );
+	pointer-events: none;
+}
+
+/* ---------- List windows --------------------------------------------- */
+
+/* The layout every list window shares (Posts, Pages, Users, and any
+   list a plugin ships): a toolbar across the top, a flex-1 body that
+   hosts an <os-table>, a footer pager. The table is told to size to
+   the body via `--os-ui-table-max-height: 100%` so its sticky header
+   engages without an outer scrollbar. Cell-content styles are NOT
+   here — <os-table> renders into its own shadow DOM, which document
+   stylesheets never reach; cells carry inline styles. */
+.os-app-list {
+	display: flex;
+	flex-direction: column;
+	/* A query container, so the narrow rules below track the WINDOW's
+	   width — a phone, or a desktop window pulled in. */
+	container-type: inline-size;
+	height: 100%;
+	width: 100%;
+	min-height: 0;
+	background: var( --os-ui-surface, #fff );
+	color: var( --os-ui-fg, #1d2327 );
+}
+
+/* Tabs strip — auto-height; only the active panel below grows. */
+.os-app-list__tabs {
+	flex: 0 0 auto;
+}
+
+/* Sibling panels under one flex column. The hidden ones are UA
+   display:none via the `hidden` attribute; the visible one stretches
+   to fill the remaining height. */
+.os-app-list__panel {
+	flex: 1 1 auto;
+	min-height: 0;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+}
+
+.os-app-list__panel[hidden] {
+	display: none;
+}
+
+.os-app-list__toolbar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 12px;
+	padding: 10px 14px;
+	border-bottom: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
+	background: var( --os-ui-surface-elevated, #f6f7f7 );
+}
+
+.os-app-list__toolbar-left,
+.os-app-list__toolbar-right,
+.os-app-list__toolbar-trailing {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+/* Honour the `hidden` attribute over the explicit `display: flex`. */
+.os-app-list__toolbar-right[hidden] {
+	display: none;
+}
+
+.os-app-list__toolbar-trailing {
+	margin-inline-start: auto;
+}
+
+.os-app-list__count {
+	font-size: 12px;
+	font-weight: 600;
+	color: var( --os-ui-fg-muted, #50575e );
+	font-variant-numeric: tabular-nums;
+	padding-inline-end: 4px;
+}
+
+.os-app-list__body {
+	flex: 1 1 auto;
+	/* `min-width: 0` is the load-bearing piece — without it the flex
+	   item's intrinsic width (the table's column sum) becomes its hard
+	   minimum, pushes the table past the window's edge and turns the
+	   WHOLE WINDOW into a horizontal scroller. With it the item shrinks
+	   and the table's own scroll container takes the overflow. */
+	min-width: 0;
+	min-height: 0;
+	display: flex;
+	padding: 8px 12px;
+}
+
+.os-app-list__body os-table {
+	flex: 1 1 auto;
+	min-width: 0;
+	--os-ui-table-max-height: 100%;
+}
+
+.os-app-list__empty {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 12px;
+	padding: 48px 24px;
+	color: var( --os-ui-fg-muted, #50575e );
+	text-align: center;
+}
+
+.os-app-list__empty .dashicons {
+	font-size: 40px;
+	width: 40px;
+	height: 40px;
+	color: var( --os-ui-fg-muted, #a7aaad );
+}
+
+.os-app-list__empty p {
+	margin: 0;
+}
+
+.os-app-list__empty-hint {
+	font-size: 13px;
+	color: var( --os-ui-fg-muted, #646970 );
+}
+
+.os-app-list__pager {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 10px 14px;
+	border-top: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
+	background: var( --os-ui-surface-elevated, #f6f7f7 );
+	font-size: 13px;
+}
+
+.os-app-list__pager-meta {
+	color: var( --os-ui-fg-muted, #50575e );
+	font-variant-numeric: tabular-nums;
+}
+
+.os-app-list__pager-nav {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.os-app-list__pager-perpage {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	color: var( --os-ui-fg-muted, #50575e );
+	font-size: 12px;
+	margin-inline-start: 8px;
+}
+
+.os-app-list__pager-perpage select {
+	padding: 4px 6px;
+	border: 1px solid var( --os-ui-border, #c3c4c7 );
+	border-radius: 4px;
+	background: var( --os-ui-surface, #fff );
+	color: var( --os-ui-fg, #1d2327 );
+	font: inherit;
+}
+
+/* Narrow windows — a phone, or a desktop window pulled in. The toolbar
+   gives the status control and the search a row each instead of
+   squeezing them beside the buttons, the insets shrink to what a 360px
+   screen can spare, and the pager wraps rather than clipping its
+   per-page control. */
+@container ( max-width: 600px ) {
+	.os-app-list__toolbar {
+		gap: 8px;
+		padding: 8px 10px;
+	}
+	.os-app-list__toolbar-left {
+		flex: 1 1 100%;
+		flex-wrap: wrap;
+	}
+	.os-app-list__toolbar-left > .os-app-list__status {
+		flex: 1 1 100%;
+		min-width: 0;
+	}
+	.os-app-list__toolbar-left > .os-app-list__search {
+		flex: 1 1 160px;
+		min-width: 0;
+	}
+	.os-app-list__toolbar-right {
+		flex: 1 1 100%;
+		flex-wrap: wrap;
+	}
+	.os-app-list__body {
+		padding: 6px 8px 8px;
+	}
+	.os-app-list__pager {
+		flex-wrap: wrap;
+		gap: 8px;
+		padding: 8px 10px;
+	}
+}
+
+/* The same, keyed on the shell's phone mode: the phone experience at
+   any width (a wide browser previewing it, a phone turned sideways),
+   which no size query can express. */
+html[data-os-mode="mobile"] .os-app-list__toolbar {
+	gap: 8px;
+	padding: 8px 10px;
+}
+html[data-os-mode="mobile"] .os-app-list__toolbar-left {
+	flex: 1 1 100%;
+	flex-wrap: wrap;
+}
+html[data-os-mode="mobile"] .os-app-list__toolbar-left > .os-app-list__status {
+	flex: 1 1 100%;
+	min-width: 0;
+}
+html[data-os-mode="mobile"] .os-app-list__toolbar-left > .os-app-list__search {
+	flex: 1 1 160px;
+	min-width: 0;
+}
+html[data-os-mode="mobile"] .os-app-list__toolbar-right {
+	flex: 1 1 100%;
+	flex-wrap: wrap;
+}
+/* The phone's list is a card per row running edge to edge. */
+html[data-os-mode="mobile"] .os-app-list__body {
+	padding: 0;
+}
+html[data-os-mode="mobile"] .os-app-list__pager {
+	flex-wrap: wrap;
+	gap: 8px;
+	padding: 8px 10px;
+}
+
+/* The phone's list is a card per row (<os-table stacked>, set through
+   `stack-on-phone.ts`) running edge to edge, and the selection's
+   actions are a bar along the bottom of the panel — where the thumb
+   is, and still there once the toolbar has scrolled away. The bar is
+   a flex sibling of the body, so the cards end where it begins; it
+   clears the home indicator on an installed app. */
+.os-app-list__toolbar-right.os-app-list__bulk--footer {
+	flex: 0 0 auto;
+	flex-wrap: wrap;
+	gap: 8px;
+	padding: 10px 12px calc( 10px + env( safe-area-inset-bottom, 0px ) );
+	border-block-start: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
+	background: var( --os-ui-surface-elevated, #f6f7f7 );
+	box-shadow: 0 -6px 18px rgba( 0, 0, 0, 0.06 );
+}
+
+.os-app-list__toolbar-right.os-app-list__bulk--footer[hidden] {
+	display: none;
+}
+
+.os-app-list__toolbar-right.os-app-list__bulk--footer .os-app-list__count {
+	flex: 1 1 100%;
+}
+
+.os-app-list__toolbar-right.os-app-list__bulk--footer .os-app-list__bulk-actions {
+	display: flex;
+	flex: 1 1 100%;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.os-app-list__toolbar-right.os-app-list__bulk--footer .os-app-list__bulk-actions > * {
+	flex: 1 1 auto;
+}
+
 /* ---------- Tone contract -------------------------------------------- */
 
 /* Any element inside an app root may carry `data-tone` and read the

@@ -1016,9 +1016,9 @@ function declareServerTabs(
  *
  * The payload ships script data ONCE per handle
  * (`nativeWindowScriptData`) because several windows share one
- * bundle — Posts, Pages, Users and Profile all ride
- * `os-posts-window`, and inlining each entry's resolved copy
- * serialized the same blobs four times over. Entries reference
+ * bundle — every App Framework window rides the one
+ * `openstation-app-runtime` handle, and inlining each entry's
+ * resolved copy serialized the same blobs once per window. Entries reference
  * handles; this join puts the resolved url / inline data back on
  * each entry, companions and tabs included.
  *
@@ -1245,8 +1245,9 @@ export function createNativeWindowSync(
 	 *
 	 * The script TAG dedupes by URL, but the harvested data an entry
 	 * carries is not guaranteed to have ridden the tag that loaded
-	 * the URL. Four windows share `os-posts-window[.min].js` (Posts,
-	 * Pages, Users, Profile); with the handle-keyed script-data map,
+	 * the URL. Every app window shares `app-runtime[.min].js` (and
+	 * did share the legacy list bundle before the App Framework port);
+	 * with the handle-keyed script-data map,
 	 * every sibling hydrates from the SAME blobs — including the
 	 * whole handle's `openStationWindowConfig[ id ]` set — so this
 	 * replay is normally a harmless idempotent repeat. It stays

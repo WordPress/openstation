@@ -169,6 +169,13 @@ final class App {
 	private $config = array();
 
 	/**
+	 * Config callables resolved when the manifest is built.
+	 *
+	 * @var callable[]
+	 */
+	private $config_lazy = array();
+
+	/**
 	 * Extra tabs: `value => array( label, view, position )`.
 	 *
 	 * @var array<string,array<string,mixed>>
@@ -729,12 +736,35 @@ final class App {
 	 * Extra values shipped to the client runtime, readable as
 	 * `wp.os.getWindowConfig( id ).extra`.
 	 *
-	 * @param array<string,mixed> $config Serialisable values.
+	 * Pass a callable — `function (): array` — for values that depend
+	 * on who is asking (capability flags, the viewer's id, a filtered
+	 * option): it runs when the manifest is built, for the acting user
+	 * at that moment, rather than once when the definition file loads.
+	 *
+	 * @param array<string,mixed>|callable $config Serialisable values, or a callable returning them.
 	 * @return self
 	 */
-	public function config( array $config ) {
-		$this->config = array_merge( $this->config, $config );
+	public function config( $config ) {
+		if ( is_callable( $config ) ) {
+			$this->config_lazy[] = $config;
+			return $this;
+		}
+		$this->config = array_merge( $this->config, (array) $config );
 		return $this;
+	}
+
+	/**
+	 * The config extra: the static values, with every lazy callable's
+	 * result merged over them in declaration order.
+	 *
+	 * @return array<string,mixed>
+	 */
+	public function resolved_config() {
+		$config = $this->config;
+		foreach ( $this->config_lazy as $callable ) {
+			$config = array_merge( $config, (array) call_user_func( $callable, $this ) );
+		}
+		return $config;
 	}
 
 	// ----------------------------------------------------------- readers
@@ -930,8 +960,14 @@ final class App {
 	/**
 	 * Lifecycle moments the runtime reports as actions — only when
 	 * the app declared a handler of that name.
+	 *
+	 * `reopen` fires when the window is asked to open while it is
+	 * already open — `wp.os.openWindow( id, { params } )` on a live
+	 * singleton, a deep link landing on a window that exists. The
+	 * shell writes the NEW params onto the window first, so the
+	 * handler reads them through `$os->params` and retargets.
 	 */
-	const LIFECYCLE_ACTIONS = array( 'resize', 'show', 'hide', 'focus', 'blur' );
+	const LIFECYCLE_ACTIONS = array( 'resize', 'show', 'hide', 'focus', 'blur', 'reopen' );
 
 	/**
 	 * The whole window as data — everything a host needs to register
@@ -962,7 +998,7 @@ final class App {
 			'title_bar_buttons' => $this->title_bar_buttons,
 			'window_actions'    => $this->window_actions,
 			'appearance'        => $this->appearance,
-			'config'            => $this->config,
+			'config'            => $this->resolved_config(),
 			'tabs'              => $this->tabs(),
 			'channels'          => $this->channels,
 			'watch'             => $this->watch,

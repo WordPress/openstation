@@ -2,6 +2,8 @@
 
 A `<os-table>`-driven replacement for the chromeless `edit.php` iframe. Server-paginated, sortable, filterable, multi-select bulk-trash, sub-row excerpt + featured image. **Opt-in Beta** — fresh installs use the classic iframe; users turn it on via **OpenStation Preferences → Features → Beta features → Use the native Posts window**. The dock tile stays where it is; only the destination changes.
 
+The window is an [App Framework](../app-framework.md) app — `apps/posts/` (and `apps/pages/` for Pages, which reuses its parts). Its list is a `data()` over `openstation_app_rest_page( 'wp/v2/posts', … )`, so every REST field, `_embed` and the query-args filter below reach the rows exactly as they reached the old bundle; paging, filtering and sorting are the app's state; "Move to trash" is a server action. See [`migration-list-apps.md`](../migration-list-apps.md) for what the port removed.
+
 > Status: **Experimental**. Hook names are stable; the JS column-filter shape may grow.
 
 ## How the swap works
@@ -286,7 +288,7 @@ add_filter( 'openstation_posts_window_query_args', function ( $args ) {
 } );
 ```
 
-The bundle threads `post_type` straight through to `/wp/v2/posts` (or, if your CPT registers its own REST base, swap `postsUrl` via `openstation_posts_window_args`). v1 ships with `post`; v1.1 will add a CPT picker in the toolbar.
+The app threads `post_type` straight through to `/wp/v2/posts`. A CPT that registers its own REST base needs its own route: filter the app's manifest (`openstation_app_manifest` for `$id === 'desktop-mode-posts'`) or ship a sibling app on the same parts. v1 ships with `post`; v1.1 will add a CPT picker in the toolbar.
 
 ## Add a custom REST query param
 
@@ -320,9 +322,8 @@ The recycle bin window is already a subscriber — that's how trashing 12 posts 
 PHP:
 - `openstation_posts_window_user_can_register( $can, $user_id )` — the registration gate. Default: `edit_posts`. Returning `false` skips registration entirely, so every click falls through to the chromeless `edit.php` iframe.
 - `openstation_posts_window_user_can_use( $can, $user_id )` — the combined informational check: capability AND the user has turned the opt-in toggle on. No routing effect; for callers that need the combined answer (analytics, an arrange-menu entry).
-- `openstation_posts_window_args( $args )` — args passed to `openstation_register_window()` (title, icon, dimensions, config blob).
-- `openstation_posts_window_template_html( $html )` — the rendered template HTML before `wp_kses`.
-- `openstation_posts_window_query_args( $args )` — outbound REST query params (`_fields`, `_embed`, `post_type`).
+- `openstation_app_manifest( $manifest, $id, $app )` — the window's registration (title, icon, dimensions, config extra) for `$id === 'desktop-mode-posts'`; the former `openstation_posts_window_args` / `_template_html` filters are gone with the template.
+- `openstation_posts_window_query_args( $args )` — the REST query the app's `data()` runs (`_fields`, `_embed`, `post_type`).
 
 JavaScript:
 - `openstation.postsWindow.columns` (filter) — column descriptors before `table.columns =` is set.

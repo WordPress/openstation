@@ -26,7 +26,7 @@ locations remain authoritative.
 | `components.php` slicing — 5 registries under `includes/registries/` (native-windows, window-tabs, icons, wallpapers, widgets) | `includes/registries/*.php` | Stable — components.php is a thin remainder (~400 LOC) |
 | `render.php` slicing — 8 files under `includes/render/` (body-classes, assets, asset-guard, shell, chromeless-bridge, chromeless-title-actions, classic-link-interceptor, media-grid-query) | `includes/render/*.php` | Stable — render.php is a ~40-line umbrella |
 | REST-route centralization under `includes/rest/`, `ai-copilot/search.php` split | planned | Planned |
-| Heavy native-window decomposition (posts-window / my-wordpress / recycle-bin into `model.ts` / `ui.ts` / `commands.ts`) | planned `src/features/<name>/` | Planned |
+| Heavy native windows rebuilt as App Framework apps (Posts, Pages, Users, User Edit, Plugins, Comments, Trash, WP Explorer, Code Blue, Station Home, Preferences) | `apps/<name>/` | Stable |
 | Web-component base class (`Component`) + design-token catalogue | `src/ui/core/component.ts` (pre-existing) + `src/ui/core/tokens.ts` | Stable |
 | Extension base library — `OpenStation_Extension_Window` / `OpenStation_Extension_Rest` PHP bases + `createExtensionWindow` TS helper | `extensions/base/` | Stable |
 | Cross-bundle layout single-source-of-truth (`getCurrentLayout` / `subscribeLayout`) | `src/layout/` | Stable |
@@ -110,7 +110,7 @@ The watcher stops pinging after three consecutive "still here" answers, and any 
 
 State lives in a `createSharedStore` because this module compiles into both the main bundle and the lazy `window-system` one.
 
-The native Plugins window keeps its own faster path (`isOpenStationSelf()` / `reloadOutOfOpenStation()` in `src/plugins-window/rest.ts`), since it knows which plugin the user just acted on.
+The Plugins app keeps its own faster path (the self-deactivate check in `apps/plugins/`), since it knows which plugin the user just acted on.
 
 ## Navigation
 
@@ -245,7 +245,7 @@ The payload builders harvest each registered handle's `extra['data']` (localize)
 
 Two further pieces the boot config deliberately does NOT carry, because the boot page delivers them another way: `nativeWindows[].templateHtml` is stripped (`''`) — every registered window's template is server-printed as a real `<template>` tag at `admin_footer` @ 20, before footer scripts, and `ensureTemplate()` adopts it by id; the payload copy exists for mid-session activations, so bridge and probe payloads keep theirs. And `serverDesktopThemes[]` entries ship without `cssText` / `tokens` (`cssDeferred: true`) — see [desktop-themes.md](./desktop-themes.md) for the on-demand fetch that fills them. The command-palette manifest plays the same trick on Core's `initializeCommandPalette` inline: the embedded ~20 KB menu-command list is stripped and the call synthesized against `window.__openStationMenuCommands`, the copy the boot page already ships for the shell harvester's classification lookup.
 
-Keying the data by handle is also what keeps **shared bundles** correct (Posts, Pages, Users and Profile all ride `os-posts-window`): script data is a property of the handle, not of the window, so one map entry serves however many windows name it — where the old inline shape serialized the same blobs once per window (~100 KB of the boot payload was that repetition). The synthesized `openStationWindowConfig[ id ]` assignments group into the handle's `l10n` for the same reason: the shell fetches a URL once, and a bundle can serve one window from inside another (the Users window mounts the Profile form, which reads the user-edit config), so whichever entry loads the bundle must deliver the whole handle's config set. On the client, the script *tag* dedupes by URL but each entry's inline data is replayed on that entry's own first open regardless — the second window onto an already-loaded bundle still gets its data injected before its render callback runs.
+Keying the data by handle is also what keeps **shared bundles** correct (every App Framework window rides the one `openstation-app-runtime` handle, with its own client view as a companion): script data is a property of the handle, not of the window, so one map entry serves however many windows name it — where the old inline shape serialized the same blobs once per window (~100 KB of the boot payload was that repetition). The synthesized `openStationWindowConfig[ id ]` assignments group into the handle's `l10n` for the same reason: the shell fetches a URL once, and a bundle can serve one window from inside another, so whichever entry loads the bundle must deliver the whole handle's config set. On the client, the script *tag* dedupes by URL but each entry's inline data is replayed on that entry's own first open regardless — the second window onto an already-loaded bundle still gets its data injected before its render callback runs.
 
 **Deduping by URL alone is not enough for Core packages**, which is what a lazily-delivered bundle's dependency closure is made of. Core concatenates everything below `wp-includes/js/` and `wp-admin/js/` into a single `load-scripts.php` response — on by default in wp-admin, off under `SCRIPT_DEBUG` or an explicit `CONCATENATE_SCRIPTS = false`, which is why no developer environment shows this — so `wp-hooks` and its neighbours are in the tab with no `<script src>` carrying their path. A path-only presence test therefore answered "absent", the loader appended the file, and re-executing it assigned a *fresh registry* to `window.wp.hooks`: every subscriber the shell installed at boot went deaf while the actions kept firing on the new one, and every window sat under its loading overlay. A blob is not opaque, though — it names the handles it carries in its own query string, because that is how `load-scripts.php` knows what to serve. `src/script-presence.ts` reads them back and answers `isScriptInDocument( { url, handle } )` from both signals; every payload that ships a script URL ships its handle alongside for exactly this reason, and that is why `handle` on a `scriptDeps` entry or a `commandPalette.scripts` entry is load-bearing rather than informational.
 
@@ -643,8 +643,9 @@ REST-exposed.
 ## CSS layering
 
 Core layering only — feature windows ship their own per-feature sheets
-(`os-settings.css`, `posts-window.css`, `recycle-bin.css`, `ai-assistant.css`,
-`desktop-files.css`, `effects.css`, …), all registered in `includes/assets.php`.
+(`recycle-bin.css`, `ai-assistant.css`, `desktop-files.css`, `effects.css`, …),
+all registered in `includes/assets.php`; an App Framework window's sheet is
+`apps/<dir>/<name>.css`, registered by the framework on the window's first open.
 
 ```
 assets/css/

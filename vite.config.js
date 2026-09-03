@@ -306,16 +306,10 @@ const TARGETS = {
 	// Station Home is an App Framework app too (`apps/station-home/`),
 	// a server view with no bundle at all; the Dashboard URL matcher
 	// it needs in the shell is `src/open-targets/station-home-url.ts`.
-	// Native Posts window — `<os-table>`-driven replacement for the
-	// chromeless `edit.php` iframe, opt-in per user via OS Settings →
-	// Features. Same shape as recycle-bin: registers a render
-	// callback on `window.openStationNativeWindows['desktop-mode-posts']`
-	// and consumes the `<os-*>` tags defined by the main bundle.
-	'posts-window': {
-		entry:    'src/posts-window/index.ts',
-		fileBase: 'posts-window',
-		iifeName: 'openStationPostsWindow',
-	},
+	// Posts, Pages, Users, User Edit, Plugins and Comments are App
+	// Framework apps (`apps/posts/`, `apps/pages/`, `apps/users/`,
+	// `apps/user-edit/`, `apps/plugins/`, `apps/comments/`), built by
+	// `build:apps` into `assets/js/apps/<name>[.min].js`.
 	// WooCommerce integration for the WP Explorer app — subscribes to
 	// the app's `preview-extras` / `group-extras` actions to paint
 	// merchant panels. Loaded as the app window's companion only when
@@ -328,7 +322,7 @@ const TARGETS = {
 	// Content Graph — PixiJS-driven force-directed map of every post
 	// and page (and any opt-in public CPT) wired together by their
 	// internal hyperlinks. Lazy-loads PixiJS via the same module
-	// registry the wallpapers + posts-window mindmap use. Registers a
+	// registry the wallpapers + the Posts app's mindmap use. Registers a
 	// render callback on `window.openStationNativeWindows['desktop-mode-content-graph']`.
 	'content-graph': {
 		entry:    'src/content-graph/index.ts',
@@ -386,29 +380,6 @@ const TARGETS = {
 		entry:    'src/pwa/sw.ts',
 		fileBase: 'sw',
 		iifeName: 'openStationServiceWorker',
-	},
-	// Native Comments window — replaces the chromeless
-	// `edit-comments.php` iframe with a `<os-table>`-driven moderation
-	// queue: Pending/All/Spam/Trash/Mine tabs, bulk + undo,
-	// inline reply, keyboard nav, spam confidence score, author
-	// insights drawer. Same shape as posts-window: registers a
-	// render callback on
-	// `window.openStationNativeWindows['desktop-mode-comments']`.
-	'comments-window': {
-		entry:    'src/comments-window/index.ts',
-		fileBase: 'comments-window',
-		iifeName: 'openStationCommentsWindow',
-	},
-	// Native Plugins window — replaces the chromeless `plugins.php`
-	// and `plugin-install.php` iframes with a `<os-tabs>`-driven
-	// installed list + browse-the-repo gallery + detail flyout. Same
-	// shape as posts-window: registers a render callback on
-	// `window.openStationNativeWindows['desktop-mode-plugins']` and
-	// consumes the `<os-*>` tags defined by the main desktop bundle.
-	'plugins-window': {
-		entry:    'src/plugins-window/index.ts',
-		fileBase: 'plugins-window',
-		iifeName: 'openStationPluginsWindow',
 	},
 	// AI Assistant — moved out of the main bundle in 0.8.4. The
 	// main `desktop[.min].js` bundle ships a tiny `AiAssistantStub`

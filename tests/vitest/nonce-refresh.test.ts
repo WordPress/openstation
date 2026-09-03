@@ -115,6 +115,42 @@ describe( 'nonce-refresh', () => {
 		expect( cfg.updatesNonce ).toBe( 'fresh-updates' );
 	} );
 
+	test( 'rewrites the Plugins APP nonces where App::config() put them — under `extra`', () => {
+		const handlers = installFakeJQuery();
+		const extra = { ajaxNonce: 'stale-ajax', updatesNonce: 'stale-updates', adminUrl: '/wp-admin/' };
+		shellWindow().openStationWindowConfig = {
+			'desktop-mode-plugins': {
+				osApp:     true,
+				restNonce: 'stale-rest',
+				extra,
+			},
+		};
+
+		bootHeartbeatBus();
+		bootNonceRefresh();
+
+		handlers[ 'heartbeat-tick' ]?.(
+			{},
+			{
+				desktop_mode_nonces: {
+					wp_rest:                'fresh-rest',
+					'desktop-mode-plugins': 'fresh-ajax',
+					updates:                'fresh-updates',
+				},
+			},
+		);
+
+		const cfg = shellWindow().openStationWindowConfig?.[
+			'desktop-mode-plugins'
+		] as { restNonce: string; extra: Record< string, string >; ajaxNonce?: string };
+		expect( cfg.restNonce ).toBe( 'fresh-rest' );
+		// Rewritten IN PLACE on the same object the app reads through
+		// `ctx.extra`, and never copied to the top level.
+		expect( extra.ajaxNonce ).toBe( 'fresh-ajax' );
+		expect( extra.updatesNonce ).toBe( 'fresh-updates' );
+		expect( cfg.ajaxNonce ).toBeUndefined();
+	} );
+
 	test( 'refreshes restNonce on EVERY native window blob, not just plugins', () => {
 		const handlers = installFakeJQuery();
 		shellWindow().openStationWindowConfig = {

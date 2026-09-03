@@ -284,38 +284,8 @@ function openstation_register_assets() {
 		file_exists( $recycle_bin_css ) ? (string) filemtime( $recycle_bin_css ) : $version
 	);
 
-	// `filemtime` for the native Posts window CSS — same rationale as
-	// the recycle-bin CSS: bundle iterates faster than the plugin
-	// version and stale caches are worse than the cost of a 304.
-	$posts_window_css = OPENSTATION_DIR . 'assets/css/posts-window.css';
-	wp_register_style(
-		'os-posts-window',
-		OPENSTATION_URL . 'assets/css/posts-window.css',
-		array( 'os-variables', 'dashicons' ),
-		file_exists( $posts_window_css ) ? (string) filemtime( $posts_window_css ) : $version
-	);
-
-	// Native Plugins window CSS — same `filemtime`-cache-bust posture
-	// as the Posts/Recycle Bin styles.
-	$plugins_window_css = OPENSTATION_DIR . 'assets/css/plugins-window.css';
-	wp_register_style(
-		'os-plugins-window',
-		OPENSTATION_URL . 'assets/css/plugins-window.css',
-		array( 'os-variables', 'dashicons' ),
-		file_exists( $plugins_window_css ) ? (string) filemtime( $plugins_window_css ) : $version
-	);
-
-	// Native Comments window CSS — same `filemtime` posture.
-	$comments_window_css = OPENSTATION_DIR . 'assets/css/comments-window.css';
-	wp_register_style(
-		'os-comments-window',
-		OPENSTATION_URL . 'assets/css/comments-window.css',
-		array( 'os-variables', 'dashicons' ),
-		file_exists( $comments_window_css ) ? (string) filemtime( $comments_window_css ) : $version
-	);
-
 	// Files-on-the-Desktop tile + layer styles. `filemtime` for the
-	// same reason as the recycle-bin / posts-window CSS: this file
+	// same reason as the recycle-bin CSS: this file
 	// iterates faster than the plugin version, and a stale cache
 	// would mask a real fix.
 	$desktop_files_css = OPENSTATION_DIR . 'assets/css/desktop-files.css';
@@ -517,63 +487,6 @@ function openstation_register_assets() {
 	);
 	wp_set_script_translations(
 		'os-game-alphabet-soup',
-		'desktop-mode',
-		OPENSTATION_DIR . 'languages'
-	);
-
-	// `os-posts-window` — small bundle for the native Posts
-	// window. Lazy-loaded by the native-window sync the first time the
-	// window opens (via the dock-click swap when the user opts in);
-	// registers a render callback on
-	// `window.openStationNativeWindows['desktop-mode-posts']`.
-	$posts_window_js = OPENSTATION_DIR . 'assets/js/posts-window' . $suffix . '.js';
-	wp_register_script(
-		'os-posts-window',
-		OPENSTATION_URL . 'assets/js/posts-window' . $suffix . '.js',
-		array( 'wp-i18n' ),
-		file_exists( $posts_window_js ) ? (string) filemtime( $posts_window_js ) : $version,
-		true
-	);
-	wp_set_script_translations(
-		'os-posts-window',
-		'desktop-mode',
-		OPENSTATION_DIR . 'languages'
-	);
-
-	// `os-plugins-window` — small bundle for the native
-	// Plugins window. Lazy-loaded by the native-window sync the first
-	// time the window opens (via the dock-click swap when the user
-	// opts in); registers a render callback on
-	// `window.openStationNativeWindows['desktop-mode-plugins']`.
-	$plugins_window_js = OPENSTATION_DIR . 'assets/js/plugins-window' . $suffix . '.js';
-	wp_register_script(
-		'os-plugins-window',
-		OPENSTATION_URL . 'assets/js/plugins-window' . $suffix . '.js',
-		array( 'wp-i18n' ),
-		file_exists( $plugins_window_js ) ? (string) filemtime( $plugins_window_js ) : $version,
-		true
-	);
-	wp_set_script_translations(
-		'os-plugins-window',
-		'desktop-mode',
-		OPENSTATION_DIR . 'languages'
-	);
-
-	// `os-comments-window` — small bundle for the native
-	// Comments window. Lazy-loaded by the native-window sync the first
-	// time the window opens (via the dock-click swap when the user
-	// opts in); registers a render callback on
-	// `window.openStationNativeWindows['desktop-mode-comments']`.
-	$comments_window_js = OPENSTATION_DIR . 'assets/js/comments-window' . $suffix . '.js';
-	wp_register_script(
-		'os-comments-window',
-		OPENSTATION_URL . 'assets/js/comments-window' . $suffix . '.js',
-		array( 'wp-i18n' ),
-		file_exists( $comments_window_js ) ? (string) filemtime( $comments_window_js ) : $version,
-		true
-	);
-	wp_set_script_translations(
-		'os-comments-window',
 		'desktop-mode',
 		OPENSTATION_DIR . 'languages'
 	);
