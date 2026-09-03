@@ -795,4 +795,108 @@ class Tests_OpenStation_AppFramework extends WP_UnitTestCase {
 		$this->assertSame( 'Demo', $whole['manifest']['title'] );
 		$this->assertStringContainsString( '<os-display value="9">', $whole['html'] );
 	}
+
+	// ---------------------------------------------------- client bundles
+
+	/**
+	 * The manifest names the definition file: the one thing about an
+	 * app's location a release install still has.
+	 *
+	 * @covers \OpenStation\App::manifest
+	 */
+	public function test_manifest_carries_the_definition_file() {
+		$this->assertSame( '', $this->demo_app()->manifest()['file'], 'Built in code: no file.' );
+
+		$dir = trailingslashit( get_temp_dir() ) . 'os-apps-' . wp_generate_password( 6, false );
+		mkdir( $dir );
+		$this->temp_paths[] = $dir;
+		file_put_contents( $dir . '/on-disk.os.php', '<?php return OpenStation\App::define( "on-disk-app" )->title( "Disk" )->view( static function () { echo "x"; } );' );
+		$this->temp_paths[] = $dir . '/on-disk.os.php';
+
+		$registry = new Registry();
+		$registry->load_dir( $dir );
+
+		$this->assertSame( realpath( $dir . '/on-disk.os.php' ), $registry->get( 'on-disk-app' )->manifest()['file'] );
+	}
+
+	/**
+	 * A release install ships no `.os.ts` (`.gitattributes` export-ignores
+	 * every `.ts` under `apps/`) but does ship the bundle `bin/package.sh`
+	 * splices in, so the bundle has to resolve from the `.os.php` alone.
+	 * This is the shape that broke Preferences, WP Explorer and Code Blue
+	 * on a packaged site: every client-view window opened empty, because
+	 * the host shipped `client: false` and the runtime asked the server
+	 * for a view the app does not have.
+	 *
+	 * @covers ::openstation_apps_client_bundle
+	 * @covers ::openstation_apps_client_base
+	 */
+	public function test_client_bundle_resolves_from_the_definition_file_when_the_source_is_absent() {
+		$file = realpath( OPENSTATION_DIR . 'apps/code-blue/code-blue.os.php' );
+		$this->assertNotFalse( $file );
+
+		$bundle = openstation_apps_client_bundle(
+			array(
+				'client'        => '',
+				'client_source' => '',
+				'file'          => $file,
+			)
+		);
+
+		// Real build output: CI runs `npm run build:apps` before PHPUnit.
+		$this->assertStringContainsString(
+			'assets/js/apps/code-blue',
+			wp_normalize_path( $bundle ),
+			'No built client view found — run `npm run build:apps` (or `npm run build`) first.'
+		);
+		$this->assertFileExists( $bundle );
+	}
+
+	/**
+	 * A checkout (with the source) and a release (without) resolve the
+	 * same bundle for every shipped app.
+	 *
+	 * @covers ::openstation_apps_client_bundle
+	 */
+	public function test_every_shipped_client_view_resolves_without_its_source() {
+		$checked = 0;
+		foreach ( openstation_apps_registry()->all() as $app ) {
+			$manifest = $app->manifest();
+			if ( '' === $manifest['client_source'] ) {
+				continue;
+			}
+			$with    = openstation_apps_client_bundle( $manifest );
+			$without = openstation_apps_client_bundle( array( 'client_source' => '' ) + $manifest );
+			$this->assertNotSame( '', $with, $app->id() . ': no built client view — run `npm run build:apps` first.' );
+			$this->assertSame( $with, $without, $app->id() . ': a release install must find the same bundle as a checkout.' );
+			++$checked;
+		}
+		$this->assertGreaterThan( 0, $checked, 'At least one shipped app has a client view.' );
+	}
+
+	/**
+	 * The by-convention bundle belongs to OpenStation's own `apps/`. An app
+	 * shipped from elsewhere declares its bundle with `App::client()` and
+	 * is never handed ours on the strength of a shared file name.
+	 *
+	 * @covers ::openstation_apps_client_base
+	 */
+	public function test_client_bundle_is_not_resolved_for_a_foreign_definition_file() {
+		$dir = trailingslashit( get_temp_dir() ) . 'os-apps-' . wp_generate_password( 6, false );
+		mkdir( $dir );
+		$this->temp_paths[] = $dir;
+		file_put_contents( $dir . '/code-blue.os.php', '<?php return OpenStation\App::define( "foreign-code-blue" )->title( "Foreign" )->view( static function () { echo "x"; } );' );
+		file_put_contents( $dir . '/code-blue.os.ts', '' );
+		$this->temp_paths[] = $dir . '/code-blue.os.php';
+		$this->temp_paths[] = $dir . '/code-blue.os.ts';
+
+		$registry = new Registry();
+		$registry->load_dir( $dir );
+		$manifest = $registry->get( 'foreign-code-blue' )->manifest();
+
+		$this->assertStringEndsWith( 'code-blue.os.ts', $manifest['client_source'], 'The source beside it is still reported.' );
+		$this->assertSame( '', openstation_apps_client_base( $manifest ) );
+		$this->assertSame( '', openstation_apps_client_bundle( $manifest ) );
+		$this->assertSame( '', openstation_apps_client_base( array( 'client' => '', 'client_source' => '', 'file' => '' ) ), 'Built in code: nothing to look up.' );
+	}
 }
