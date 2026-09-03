@@ -22,13 +22,16 @@
  *   <os-code block copy>
  *     SELECT * FROM wp_posts WHERE post_status = 'publish';
  *   </os-code>
+ *
+ *   <!-- Long lines fold instead of scrolling sideways -->
+ *   <os-code block wrap>…a stack trace…</os-code>
  */
 
 import { Component, defineComponent, html } from '../../core';
 import { styles } from './os-code.styles';
 
 export class OsCode extends Component {
-	static props = [ 'block', 'copy' ] as const;
+	static props = [ 'block', 'copy', 'wrap' ] as const;
 	static styles = [ styles ];
 
 	static help = {
@@ -47,7 +50,13 @@ export class OsCode extends Component {
 				name: 'copy',
 				type: 'boolean',
 				description:
-					'When present, adds a copy-to-clipboard button. Always visible (dimmed) on inline variants; hover/focus-revealed in the top-right corner on `block`. Fires a `os-copy` event after a successful copy.',
+					'When present, adds a copy-to-clipboard button — a 24px control, dimmed until hover, beside the code inline and in the top-right corner on `block` (where the snippet reserves that corner so the button never covers its first line). Fires a `os-copy` event after a successful copy.',
+			},
+			{
+				name: 'wrap',
+				type: 'boolean',
+				description:
+					'When present, long lines fold instead of scrolling sideways — the content’s own line breaks still stand. Reach for it on `block` snippets that live in a narrow surface (a stack trace in a window a third of the screen wide) where the alternative is asking the reader to widen the window.',
 			},
 		],
 		slots: [
@@ -66,6 +75,15 @@ export class OsCode extends Component {
 			{ name: '--os-ui-code-border', default: '1px solid rgba(0,0,0,0.08)' },
 			{ name: '--os-ui-code-padding', default: '0.1em 0.4em' },
 			{ name: '--os-ui-code-block-padding', default: '10px 12px' },
+			{ name: '--os-ui-code-copy-size', default: '24px' },
+			{ name: '--os-ui-code-copy-gap', default: '8px', description: 'Inline variant — distance between the code and its copy button.' },
+			{ name: '--os-ui-code-copy-inset', default: '42px', description: 'Block variant — the end padding that keeps the first line clear of the copy button.' },
+			{
+				name: '--os-ui-code-block-max-block-size',
+				default: 'none',
+				description:
+					'Block variant only — cap the snippet box and let it scroll past that height. The `code` element is what scrolls, so the copy button stays put.',
+			},
 			{ name: '--os-ui-code-border-radius', default: '4px' },
 			{ name: '--os-ui-code-font-family', default: 'ui-monospace, …' },
 			{ name: '--os-ui-code-font-size', default: '0.92em' },
@@ -174,6 +192,7 @@ export class OsCode extends Component {
 						class="copy"
 						part="copy"
 						aria-label="${ this._copied ? 'Copied' : 'Copy code to clipboard' }"
+						title="${ this._copied ? 'Copied' : 'Copy to clipboard' }"
 						@click=${ this._onCopy }
 				  >
 						${ this._copied ? '✓' : '⧉' }

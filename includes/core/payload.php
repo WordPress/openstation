@@ -2303,7 +2303,7 @@ function openstation_warn_unresolvable_script_handle( $function_name, $kind, $ha
 		esc_html( $function_name ),
 		sprintf(
 			/* translators: 1: kind ("Command"/"Settings-tab"/"Title-bar button"), 2: handle. */
-			esc_html__( '%1$s script handle "%2$s" is not registered with WordPress (no `wp_register_script` call found). The script will not load.', 'desktop-mode' ),
+			esc_html__( '%1$s script handle "%2$s" could not be resolved: no `wp_register_script( \'%2$s\', … )` call had run by the time the shell harvested its payload. Register the handle on `admin_enqueue_scripts` at priority 5 or earlier — the harvest itself runs at priority 10, and a handle registered alongside it may or may not exist yet depending on plugin load order. Until then the script will not load.', 'desktop-mode' ),
 			esc_html( $kind ),
 			esc_html( $handle )
 		),

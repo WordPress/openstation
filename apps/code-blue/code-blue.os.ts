@@ -14,7 +14,7 @@
  * then the view. `code-blue.test.ts` exercises the model directly.
  */
 
-import { __, _n, defineApp, formatBytes, formatDate, html, sprintf } from '@openstation/app';
+import { __, _n, copyText, defineApp, formatBytes, formatDate, html, sprintf } from '@openstation/app';
 
 // ------------------------------------------------------------ types
 
@@ -33,6 +33,14 @@ export interface LogEntry {
 	line: number;
 	trace: string;
 	signature: string;
+	/** Whose code the file belongs to — classified server-side by `log-reader.php`. */
+	origin: Origin;
+}
+
+/** Whose code a file belongs to. `slug` is a directory name, not a plugin title. */
+export interface Origin {
+	kind: 'plugin' | 'mu-plugin' | 'theme' | 'core' | 'unknown';
+	slug: string;
 }
 
 interface LogSource {
@@ -72,6 +80,7 @@ interface Data {
 	truncated: boolean;
 	readError: string;
 	now: number;
+	searchUrl: string;
 }
 
 export interface IssueGroup {
@@ -87,6 +96,7 @@ export interface IssueGroup {
 	lastTs: number | null;
 	trace: string;
 	occurrences: number[];
+	origin: Origin;
 }
 
 // ------------------------------------------------------------ model
@@ -153,6 +163,7 @@ export function groupEntries( entries: readonly LogEntry[] ): IssueGroup[] {
 				lastTs: e.timestamp,
 				trace: e.trace,
 				occurrences: e.timestamp === null ? [] : [ e.timestamp ],
+				origin: e.origin ?? UNKNOWN_ORIGIN,
 			} );
 			continue;
 		}
@@ -165,6 +176,7 @@ export function groupEntries( entries: readonly LogEntry[] ): IssueGroup[] {
 		g.message = e.message;
 		g.file = e.file;
 		g.line = e.line;
+		g.origin = e.origin ?? UNKNOWN_ORIGIN;
 		if ( e.trace.length > g.trace.length ) {
 			g.trace = e.trace;
 		}
@@ -205,6 +217,8 @@ export function bucketize( entries: readonly LogEntry[], since: number | null, n
 	return { start, end, columns };
 }
 
+const UNKNOWN_ORIGIN: Origin = { kind: 'unknown', slug: '' };
+
 const rowKey = ( g: IssueGroup ): string => g.signature; // Signatures are already the stable identity.
 const envTone = ( on: boolean | null ): string => {
 	if ( on === null ) {
@@ -221,6 +235,52 @@ const emptyCopy = ( hasSource: boolean, filtered: boolean ): [ string, string ] 
 	}
 	return [ __( 'The log is clean' ), __( 'No entries were recorded in this time range.' ) ];
 };
+const originKindLabel = ( kind: Origin[ 'kind' ] ): string =>
+	( {
+		plugin: __( 'Plugin' ),
+		'mu-plugin': __( 'Must-use plugin' ),
+		theme: __( 'Theme' ),
+		core: __( 'WordPress core' ),
+		unknown: __( 'Unknown' ),
+	} )[ kind ];
+
+const originLabel = ( o: Origin ): string =>
+	o.slug === ''
+		? originKindLabel( o.kind )
+		: sprintf( /* translators: 1: origin kind, e.g. "Plugin". 2: directory slug, e.g. "woocommerce". */ __( '%1$s — %2$s' ), originKindLabel( o.kind ), o.slug );
+
+/**
+ * One issue as a paste-ready Markdown report — the thing that actually
+ * gets typed by hand into a GitHub issue or a support thread, assembled
+ * from what this window already knows: the message, where it came from,
+ * how often, and the environment it happened in. Copying an error
+ * without its PHP version and its debug flags is how a bug report
+ * becomes a conversation about what the reporter forgot to include.
+ */
+export function buildReport( g: IssueGroup, origin: Origin, environment: readonly EnvRow[] ): string {
+	const facts: string[] = [];
+	if ( g.file !== '' ) {
+		facts.push( `- **File:** \`${ g.line > 0 ? `${ g.file }:${ g.line }` : g.file }\`` );
+	}
+	if ( 'unknown' !== origin.kind ) {
+		facts.push( `- **Source:** ${ originLabel( origin ) }` );
+	}
+	facts.push( `- **Occurrences:** ${ g.count }` );
+	if ( g.firstTs !== null ) {
+		facts.push( `- **First seen:** ${ fullTime( g.firstTs ) }` );
+	}
+	if ( g.lastTs !== null ) {
+		facts.push( `- **Last seen:** ${ fullTime( g.lastTs ) }` );
+	}
+	facts.push( `- **Environment:** ${ environment.map( ( r ) => `${ r.label } ${ r.value }` ).join( ' · ' ) }` );
+
+	const blocks = [ `### ${ g.label }`, g.message, facts.join( '\n' ) ];
+	if ( g.trace !== '' ) {
+		blocks.push( `\`\`\`\n${ g.trace }\n\`\`\`` );
+	}
+	return `${ blocks.join( '\n\n' ) }\n`;
+}
+
 const fullTime = ( sec: number ): string => formatDate( sec * 1000, 'datetime' );
 const fileBase = ( path: string ): string => path.split( /[\\/]/ ).pop() || path;
 const iso = ( sec: number ): string => formatDate( sec * 1000, 'iso' );
@@ -238,7 +298,7 @@ export default defineApp< State, Data >( 'openstation-code-blue', {
 		},
 	},
 
-	view: ( { state, data } ) => {
+	view: ( { state, data, host } ) => {
 		const labels: Record< Bucket, string > = { error: __( 'Errors' ), warning: __( 'Warnings' ), deprecated: __( 'Deprecated' ), info: __( 'Info' ) };
 		const span = RANGE_SECONDS[ state.range ] ?? 86400;
 		const since = span > 0 ? data.now - span : null;
@@ -254,15 +314,25 @@ export default defineApp< State, Data >( 'openstation-code-blue', {
 		const clearDisabled = ! source || ( source.exists && ! source.writable );
 		const empty = emptyCopy( !! source, filtered );
 
+		const copyReport = ( g: IssueGroup, origin: Origin ) => {
+			void copyText( buildReport( g, origin, data.environment ) ).then( ( ok ) =>
+				host.toast?.( { message: ok ? __( 'Report copied to the clipboard.' ) : __( 'Copying the report failed.' ) } ),
+			);
+		};
+
 		const issue = ( g: IssueGroup ) => {
 			const key = rowKey( g );
 			const open = state.expanded.includes( key );
+			const origin = g.origin;
 			return html`
-				<li class="os-cb-issue" data-tone=${ TONES[ g.bucket ] }>
+				<li class="os-cb-issue" os-key=${ key } data-tone=${ TONES[ g.bucket ] }>
 					<button type="button" class="os-cb-issue__row" os-action="toggle" os-arg-key=${ key } aria-expanded=${ open ? 'true' : 'false' }>
 						<span class="os-cb-issue__level"><span class="os-cb-swatch" data-tone=${ TONES[ g.bucket ] }></span><span class="os-cb-issue__label">${ g.label }</span></span>
-						<span class="os-cb-issue__message" title=${ g.message }>${ g.message }</span>
+						<span class="os-cb-issue__message">${ g.message }</span>
 						<span class="os-cb-issue__meta">
+							${ 'unknown' !== origin.kind
+								? html`<os-badge no-dot tone="neutral" class="os-cb-issue__origin" title=${ originLabel( origin ) }>${ origin.slug !== '' ? origin.slug : originKindLabel( origin.kind ) }</os-badge>`
+								: '' }
 							${ g.file !== '' ? html`<span class="os-cb-issue__file">${ g.line > 0 ? `${ fileBase( g.file ) }:${ g.line }` : fileBase( g.file ) }</span>` : '' }
 							<os-badge no-dot>×${ g.count.toLocaleString() }</os-badge>
 							${ g.lastTs !== null ? html`<os-relative-time compact class="os-cb-issue__when" datetime=${ iso( g.lastTs ) }></os-relative-time>` : '' }
@@ -271,8 +341,10 @@ export default defineApp< State, Data >( 'openstation-code-blue', {
 					${ open
 						? html`
 							<div class="os-cb-issue__detail">
+								<os-code block copy wrap class="os-cb-issue__full">${ g.message }</os-code>
 								<dl class="os-cb-issue__facts">
-									${ g.file !== '' ? html`<dt>${ __( 'File' ) }</dt><dd>${ g.line > 0 ? `${ g.file }:${ g.line }` : g.file }</dd>` : '' }
+									${ g.file !== '' ? html`<dt>${ __( 'File' ) }</dt><dd><os-code copy wrap>${ g.line > 0 ? `${ g.file }:${ g.line }` : g.file }</os-code></dd>` : '' }
+									${ 'unknown' !== origin.kind ? html`<dt>${ __( 'Source' ) }</dt><dd>${ originLabel( origin ) }</dd>` : '' }
 									${ g.firstTs !== null ? html`<dt>${ __( 'First seen' ) }</dt><dd>${ fullTime( g.firstTs ) }</dd>` : '' }
 									${ g.lastTs !== null ? html`<dt>${ __( 'Last seen' ) }</dt><dd>${ fullTime( g.lastTs ) }</dd>` : '' }
 									<dt>${ __( 'Occurrences' ) }</dt><dd>${ g.count.toLocaleString() }</dd>
@@ -283,7 +355,14 @@ export default defineApp< State, Data >( 'openstation-code-blue', {
 										${ g.occurrences.slice( 0, 8 ).map( ( ts ) => html`<os-badge no-dot tone="neutral">${ fullTime( ts ) }</os-badge>` ) }
 									</os-cluster>`
 									: '' }
-								${ g.trace !== '' ? html`<os-code block class="os-cb-issue__trace">${ g.trace }</os-code>` : '' }
+								${ g.trace !== '' ? html`<os-code block copy wrap class="os-cb-issue__trace">${ g.trace }</os-code>` : '' }
+								<os-cluster gap="8" class="os-cb-issue__actions">
+									<os-button variant="secondary" @click=${ () => copyReport( g, origin ) }>${ __( 'Copy report' ) }</os-button>
+									${ data.searchUrl !== ''
+										? html`<a class="os-cb-issue__search" target="_blank" rel="noreferrer noopener"
+											href=${ data.searchUrl.replace( '%s', encodeURIComponent( g.message ) ) }>${ __( 'Search the web ↗' ) }</a>`
+										: '' }
+								</os-cluster>
 							</div>`
 						: '' }
 				</li>`;

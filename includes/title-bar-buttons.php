@@ -34,7 +34,7 @@ defined( 'ABSPATH' ) || exit;
  *         true
  *     );
  *     wp_enqueue_script( 'my-plugin-titlebar' );
- * } );
+ * }, 5 ); // Before the shell harvests the payload at priority 10.
  * openstation_register_titlebar_button_script( 'my-plugin-titlebar' );
  * ```
  *

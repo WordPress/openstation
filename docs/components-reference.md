@@ -185,7 +185,7 @@ you relabel the host, e.g. Maximize ⇄ Restore.
 | `<os-ribbon>` | `OsRibbon` | `os-ribbon/os-ribbon.ts` | Corner ribbon for tiles. |
 | `<os-chip>` | `OsChip` | `os-chip/os-chip.ts` | Tag/category chip with tone. |
 | `<os-key>` | `OsKey` | `os-key/os-key.ts` | Keyboard shortcut display. |
-| `<os-code>` | `OsCode` | `os-code/os-code.ts` | Inline / block monospace code with copy. |
+| `<os-code>` | `OsCode` | `os-code/os-code.ts` | Inline / block monospace code with copy; `wrap` folds long lines instead of scrolling them sideways. |
 | `<os-spinner>` | `OsSpinner` | `os-spinner/os-spinner.ts` | Loading spinner with preset variants; `preset="inline"` is a bare arc for text-adjacent use. |
 | `<os-progress-bar>` | `OsProgressBar` | `os-progress-bar/os-progress-bar.ts` | Determinate or indeterminate progress. |
 | `<os-save-status>` | `OsSaveStatus` | `os-save-status/os-save-status.ts` | Save indicator (idle / saving / saved / failed). `variant="ring"` is the window title bar's status ring: outline for every phase but success, which fills. |
