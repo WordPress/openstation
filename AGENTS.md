@@ -356,19 +356,10 @@ npm run env:start:tests   # idempotent; brings the PHPUnit wp-env instance up if
 npm run test:php          # full suite
 npm run test:php -- --filter='Tests_OpenStation_Render'   # one class
 npm run test:php:multisite   # same suite as a network install (CI runs both; no extra containers)
-npm run env:stop:tests    # always, before you report results; the stack stays up (three containers, visible in Docker) until you stop it
+npm run env:stop:tests    # before you report results; nothing stops the stack for you
 ```
 
-`npm run env:start` is for the manual-QA instance only; it no longer brings up test containers. The reverse is also true: nothing stops the tests instance for you. `npm run test:php` neither starts nor stops it, and that is deliberate: a start on every run would cost seconds of wp-env setup per `--filter` iteration, and a stop after every run would throw the warm stack away.
-
-**That is the script's behaviour, not yours. If you started the tests instance for a request, stop it with `npm run env:stop:tests` before you report the results**, whether you ran the whole suite or a single `--filter`. "Done" means the end of the request that needed the suite, not a moment the user has to declare. Keep the stack warm between your own iterations inside that request; do not keep it up "in case" the user asks for another run (a cold restart costs about seven seconds), and leave it running only when the user explicitly asks for that. A `wp-env-<dir>-tests-<hash>` project sitting in Docker next to the QA one is a stack somebody left up, not something `env:start` created. Do not stop one whose `<dir>` is not your checkout: it belongs to another session.
-
-Every checkout gets its own wp-env project (the hash comes from the config file's path, so the directory is part of it), but they all bind port 8891, so a second checkout (a worktree under `.claude/worktrees/`, say) fails to start with `Bind for 0.0.0.0:8891 failed: port is already allocated` while the first checkout's tests stack is up. Do not stop the other stack; override the port for yours instead, in the same shell call as every command that uses it. The port is baked into the WordPress image, so a `start` with a different value rebuilds it and recreates the containers (about 27 seconds instead of 7); `env:stop:tests` finds the project by config path and works with or without the variable. For a long-lived worktree, a git-ignored `.wp-env.tests.override.json` holding `{ "port": 8895 }` makes the plain commands do the right thing (see [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md#manual-qa-and-per-worktree-instances-wp-env)):
-
-```bash
-export WP_ENV_PORT=8895
-npm run env:start:tests && npm run test:php; npm run env:stop:tests
-```
+`npm run env:start` is for the manual-QA instance only; it no longer brings up test containers. Nothing stops the tests instance either, and `npm run test:php` does neither on purpose (a start per run would slow every `--filter` iteration; a stop per run would throw the warm stack away). So keep the stack warm while you iterate on a request, and stop it before you report, whether that was the whole suite or one class; a restart costs a few seconds, so never leave it up "in case". Never stop a `wp-env-<dir>-tests-<hash>` project whose `<dir>` is not your checkout: it belongs to another session. A second checkout (a worktree) hits `port is already allocated` on 8891 while the main checkout's stack is up; give it its own port (`WP_ENV_PORT=8895`, or the override file described in [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md#manual-qa-and-per-worktree-instances-wp-env)) instead of stopping the other stack.
 
 History: an earlier port collision against `wordpress-develop-wordpress-develop-1` (8889) made starting wp-env destructive. The remapped ports remove that hazard, wp-env and the Core checkout can both be up at the same time.
 
