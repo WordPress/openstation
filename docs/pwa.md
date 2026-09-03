@@ -16,11 +16,53 @@ copy-paste recipes see
 
 | Surface | Behaviour |
 |---|---|
+| **App icons** | Full-bleed, opaque, square PNGs under `assets/pwa/`. The bundled set declares three purposes: `any` (128/180/192/256/512), `maskable` (192/512, the tile at 80% so Android's adaptive masks crop into margin), and `monochrome` (192/512, the silhouette Android 13+ recolours). A WordPress Site Icon takes priority and goes out as `any` only. The shell also emits `<link rel="apple-touch-icon" sizes="180x180">` into the admin head, because core hooks `wp_site_icon()` to `wp_head` and `login_head` but **not** `admin_head` — without it an iPhone installing from wp-admin has no tile. See [the icon rule](#the-icon-rule-full-bleed-opaque-square). |
 | **Web app manifest** | Served at `/openstation/manifest.webmanifest`. Site name + short name, theme color, icons (Site Icon when set, plugin logo otherwise), `start_url=/wp-admin/admin.php?page=openstation` (the shell screen, which resolves the entry from the saved session; installs made with the older `index.php?desktop_mode_portal=1` start URL still land there through the alias redirect), `scope=/wp-admin/` (narrowed from `/` so front-end links escape the PWA window; the manifest `id` stays at `/openstation/` so existing installs aren't reset). Filterable via `openstation_pwa_manifest`. |
 | **Service worker** | Served at `<home>/openstation/sw.js` with `Service-Worker-Allowed: <home path>`. Registered at the site's home-path scope (`/` on most installs, the site path on a subdirectory network's subsites) with a deliberately narrow fetch handler — it only intercepts paths under its scope's `openstation/` and `wp-admin/`, plus the plugin's own static assets. wp-admin HTML is **always** network-first (nonces would otherwise drift). |
 | **Install hint** | A system tile on the dock (`id: 'os-pwa-install'`) registered on shell boot — except when the shell is already running standalone. It is removed live when display-mode flips to standalone or when `getInstalledRelatedApps()` reports the app installed (Chromium); on Safari / Firefox it persists as a fallback. Clicking it dispatches the browser install prompt when the site is currently installable, otherwise shows a contextual toast ("already installed", "not yet"). |
 | **Local notifications** | `wp.os.notify({ title, body, icon, tag, onClick })` — uses the browser `Notification` API, falls back to a toast when permission is denied or the browser doesn't support it. |
 | **Push notifications** | **Not in v1.** The SW registers a no-op `push` handler (claimed so future v2 push payloads aren't silently dropped); the `notificationclick` handler is live — it closes the notification, focuses an existing `/openstation/` window client, or opens `notification.data.url` (default `/openstation/`) when none exists. The same `wp.os.notify` shape will route through the SW's `showNotification` once push is wired. |
+
+## The icon rule: full-bleed, opaque, square
+
+**Every platform masks a home-screen tile itself, and it fills any transparency
+first.** iOS fills with white and then applies its squircle. Android crops to
+whatever shape the launcher prefers: a circle, a squircle, a rounded square, a
+teardrop.
+
+So artwork that rounds its own corners installs as a mark floating on a white
+square. That is not a theoretical failure, it is how the pre-full-bleed set
+installed on an iPhone. The bundled files in `assets/pwa/` are therefore square,
+edge to edge, with no alpha anywhere. **Do not re-round them and do not
+reintroduce transparency.**
+
+### Three purposes, three files
+
+| Purpose | Files | What the platform does with it |
+|---|---|---|
+| `any` | `icon-{128,180,192,256,512}.png` | Used as-is, masked by the platform. 192 and 512 are named explicitly because Chrome's installability heuristic looks for those exact `sizes` strings. |
+| `maskable` | `icon-maskable-{192,512}.png` | The same tile at 80% on the same ground. Android crops into the margin instead of into the mark. |
+| `monochrome` | `icon-mono-{192,512}.png` | Android 13+ themed icons. The launcher recolours the silhouette to the wallpaper palette, so this one is alpha by design. |
+
+### Why a Site Icon gets `any` and nothing else
+
+`maskable` and `monochrome` are claims about how a specific piece of artwork is
+composed. We know that about ours and not about someone else's: declaring an
+operator's logo maskable when it is not gets it cropped, and pairing their `any`
+with our `monochrome` would put the OpenStation mark on their app. So
+`openstation_pwa_default_icons()` resolves a Site Icon to `any` only, and the
+maskable and monochrome entries appear exactly when the bundled set is in use.
+
+A corollary worth knowing when someone reports a white tile: **a site with a
+Site Icon never sees the bundled files at all.** If the Site Icon has
+transparent corners, the fix is that upload, not this plugin.
+
+### Regenerating the artwork
+
+The PNGs are generated from the brand logomark, not drawn per size. The tool
+and its proof page live in the design repo alongside the brand assets; it
+renders one 1024px master through headless Chrome (the tile's halo and drop
+shadows are real SVG filters) and resamples every size from it.
 
 ## Why home-path scope (with a narrow fetch handler)
 
@@ -95,29 +137,63 @@ the icon is tapped, and there is no reload button to ask for a newer
 one. Three things together close that gap:
 
 1. **Every release is a new worker.** The served `sw.js` carries the
-   plugin version in its `self.__OS_SW_CONFIG` preamble. The bundle
-   itself is content-hashed, so without this a release that touched
-   nothing under `src/pwa/` would serve byte-identical script and the
-   browser — which only installs a worker whose bytes differ — would
-   have nothing to install.
+   plugin version and the shell-build stamp in its `self.__OS_SW_CONFIG`
+   preamble. The bundle itself is content-hashed, so without these a
+   release that touched nothing under `src/pwa/` would serve
+   byte-identical script and the browser — which only installs a worker
+   whose bytes differ — would have nothing to install.
 2. **The shell checks on every return.** `registerServiceWorker()`
    calls `registration.update()` when the page comes back to the
    foreground (`visibilitychange` to visible, and `pageshow` from the
    back-forward cache), at most once every five minutes and never while
    hidden. The script is served `no-cache` and registered with
    `updateViaCache: 'none'`, so the check always compares real bytes.
-3. **The new worker takes over and the shell reloads once.** The worker
-   `skipWaiting()`s on install and claims its clients on activate; the
-   shell's `controllerchange` handler reloads the page (throttled to
-   one reload per 30 s, and never on the very first activation, when
-   the bundle was fetched fresh anyway).
+3. **The new worker waits; the shell asks, and at most offers.** The
+   worker never `skipWaiting()`s on its own — it installs and sits in
+   `waiting` (the standard prompt-for-update shape). The shell finds it
+   there (`registration.waiting` at boot, or `updatefound` →
+   `installed` mid-session) and asks which shell build it was served
+   with (`os-sw-get-build` → `os-sw-build`). Same stamp as the one the
+   page booted with (`PwaConfig.shellBuild`), or unknown on either
+   side: the shell tells it to take over (`os-sw-skip-waiting`),
+   silently — caches refresh, nothing is shown. A different stamp —
+   the shell's own files really changed on the server — shows a
+   persistent toast with a **Reload** action, and the worker keeps
+   waiting until the user takes it. A release that changed nothing
+   under `assets/`, a worker-only change, or a preamble that moved for
+   another reason is a new worker and not a word to the user.
 
-So a phone picked up after a deploy checks within a second of waking
-and, when a release landed, reloads onto it. A shell running during a
-deploy is handled by the same handler. Between releases a rebuild that
-changed only `desktop.min.js` does not produce a new worker (that is the
-point of the content hash: no phantom reloads after `npm run build`);
-a cold launch of the app, or a navigation, is what picks those up.
+**The shell never reloads itself.** A desktop is somebody's work in
+progress; the reload is the user's to take, from the toast, when they
+are ready. Taking it does three things in order: the waiting worker is
+told to take over and the shell waits for `controllerchange` (bounded
+by a short timeout, so a worker that will not swap cannot hold the
+reload hostage); the session is written to the server and the
+navigation waits for the answer — an unload beacon racing the request
+that reads the session back is how two open windows once came back as
+none; then the page reloads, served by the worker that matches it.
+
+Why waiting rather than taking over on install: the activate handler
+drops the previous version's caches, so a worker that claimed a page
+still running the previous bundle left that page able to ask for a
+lazy bundle from a bucket that no longer existed. A page and its worker
+now change together. The one case where they cannot is another tab
+consenting first — the new worker claims every tab; a page that sees a
+`controllerchange` it did not ask for runs the same comparison against
+the new controller and, when the shell changed, makes the same offer.
+A first install (no controller yet) activates on its own and is never a
+takeover: the bundle came straight from the network and there is
+nothing to compare.
+
+The stamp is `openstation_shell_build_stamp()`: a content hash over
+every stylesheet in `assets/css/` and every bundle in `assets/js/`,
+memoised behind the files' (path, size, mtime) signature. Bytes, not
+clocks — a deploy rewrites every mtime whether or not the contents
+moved, and the plugin version moves on releases that never touched the
+shell. Between releases a rebuild that changed only `desktop.min.js`
+does not produce a new worker (that is the point of the worker's own
+content hash: no phantom activity after `npm run build`); a cold launch
+of the app, or a navigation, is what picks those up.
 
 ## Caching policy
 
@@ -224,6 +300,23 @@ Both messages are posted to `navigator.serviceWorker.controller` and are ignored
 
 The shell-side helpers are `speculateDocument( url )` and `rememberRestoreTargets( urls )` in `src/pwa/speculate.ts`. Policy lives in `src/pwa/sw-policy.ts` (`isSpeculatableDocument`) and the store in `src/pwa/speculative-store.ts`; both are pure and unit-tested.
 
+Three more are not gated on any opt-in — they are how a new worker and the shell agree on a takeover (see [How a release reaches an installed app](#how-a-release-reaches-an-installed-app)). The first two are posted to the WAITING worker (`registration.waiting`), not the controller:
+
+```js
+// Shell → worker: which shell build were you served with?
+{ type: 'os-sw-get-build' }
+
+// Worker → the asking client. `shellBuild` is the preamble's stamp, or
+// '' for a body served without one — which the shell reads as
+// "unknown", never as "changed".
+{ type: 'os-sw-build', shellBuild: '<16 hex chars>' }
+
+// Shell → waiting worker: take over now. The only thing that makes the
+// worker skipWaiting(); sent silently when the shell did not change,
+// and on the user's Reload when it did.
+{ type: 'os-sw-skip-waiting' }
+```
+
 ## PHP surface
 
 | Symbol | Role |
@@ -234,6 +327,7 @@ The shell-side helpers are `speculateDocument( url )` and `rememberRestoreTarget
 | `openstation_pwa_get_user_state( $user_id = 0 )` | Read the per-user PWA UI state. |
 | `openstation_pwa_update_user_state( array $patch, $user_id = 0 )` | Merge a partial update into the state. |
 | `openstation_pwa_admin_asset_cache_enabled()` | Whether the shared admin-asset cache is on (resolves the filter below). |
+| `openstation_shell_build_stamp()` | Content hash of the shell's built files (`assets/css/*.css`, `assets/js/*.js`); 16 hex characters, `''` when nothing is built. Carried by `openStationConfig.pwa.shellBuild` and by the worker preamble. |
 | `openstation_pwa_manifest` (filter) | Mutate manifest fields before encoding. |
 | `openstation_pwa_admin_asset_cache` (filter) | Force or veto the shared admin-asset cache site-wide. Default: the requesting user's `adminAssetCacheEnabled` preference (off until they opt in). |
 

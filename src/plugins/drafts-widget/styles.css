@@ -54,7 +54,8 @@
 	border-radius: 8px;
 }
 
-.dm-drafts__row:hover {
+.dm-drafts__row:hover,
+.dm-drafts__row:has( a.dm-drafts__link:focus-visible ) {
 	background: color-mix( in srgb, currentColor 10%, transparent );
 }
 
@@ -71,8 +72,64 @@
 	justify-content: space-between;
 	gap: 10px;
 	padding: 6px 8px;
-	color: inherit;
 	text-decoration: none;
+}
+
+/*
+ * Colour and focus ring, restated with the element in the selector.
+ *
+ * wp-admin repaints every `<a>` on interaction: `a:hover, a:active`
+ * to #135e96 and `a:focus` to #043959, plus a hairline ring and a 2px
+ * radius. Those selectors out-specify a plain
+ * `.dm-drafts__link { color: inherit }`, so the row a user had just
+ * clicked went dark navy on dark glass, about 1.5:1 against the card
+ * it sits on. The one draft they could no longer read was the one
+ * they were working on. Leading `a.` out-specifies core in turn, and
+ * every interactive state is named so none of them can leak back.
+ *
+ * The ring is ours for the same reason the text is. Core's is the
+ * neat accent on a 2px radius: it neither follows the row's 8px
+ * corner nor holds contrast on a card that can be arbitrarily light
+ * or dark, since the widget is glass over the wallpaper.
+ * `--dm-drafts-accent` (defined further down) is the accent already
+ * mixed toward `currentColor` for exactly that reason.
+ */
+a.dm-drafts__link,
+a.dm-drafts__link:hover,
+a.dm-drafts__link:focus,
+a.dm-drafts__link:active,
+a.dm-drafts__link:visited {
+	color: inherit;
+	border-radius: 8px;
+}
+
+/*
+ * Press feedback.
+ *
+ * Core's was a colour swap (`a:active` to #135e96), and it went out
+ * with the rest of the leak above, which left a press saying nothing
+ * at all. The shell answers a press with a scale rather than a hue:
+ * `.os-constellation__row`, a row of this same shape, uses the same
+ * 0.985. It costs no colour, which is what a card sitting on an
+ * arbitrary wallpaper can least afford to spend, and unlike a hover
+ * fill it works under a finger as well as a pointer.
+ */
+a.dm-drafts__link:active {
+	transform: scale( 0.985 );
+}
+
+a.dm-drafts__link:focus-visible {
+	outline: 2px solid var( --dm-drafts-accent, #2271b1 );
+	outline-offset: -2px;
+	box-shadow: none;
+}
+
+/* Core rings on `:focus`, not `:focus-visible`, so a click parks a
+   ring on the row long after the draft has opened in its window.
+   Keyboard focus keeps the ring above; pointer focus drops it. */
+a.dm-drafts__link:focus:not( :focus-visible ) {
+	outline: none;
+	box-shadow: none;
 }
 
 /*
@@ -107,10 +164,18 @@
 }
 
 .dm-drafts__row:hover .dm-drafts__trash,
-.dm-drafts__row:hover .dm-drafts__spark,
+.dm-drafts__row:hover .dm-drafts__spark {
+	opacity: 0.65;
+}
+
+/* Keyboard focus goes to full strength, where the pointer only gets
+   there on hover: at 0.65 the control's own focus ring was being faded
+   along with it, and a focus indicator is the one thing that cannot
+   afford to be three-quarters there. `:focus-within` on the host
+   matches when the button inside the shadow root has focus. */
 .dm-drafts__trash:focus-within,
 .dm-drafts__spark:focus-within {
-	opacity: 0.65;
+	opacity: 1;
 }
 
 .dm-drafts__trash:hover {

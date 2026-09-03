@@ -11,6 +11,16 @@
  * menu, matching `.page-title-action` on its `href`. A button is
  * hidden only when its destination is a tab in the same window.
  *
+ * The match is on `href`, at any depth inside `.wrap`. Core renders
+ * the button as a direct child, but a plugin is free to move it: on
+ * a Jetpack site the external-media package lifts core's "Add Media
+ * File" out of `.wrap` into a `div.wpcom-media-library-action-buttons`
+ * of its own so it can append "Import Media" beside it, and Big Sky
+ * inserts "Generate Image" into the same box. A `>` combinator stops
+ * at the wrapper and every one of those buttons survives next to the
+ * tab that already leads there. Depth says nothing about where a
+ * button goes, so it is not part of the test.
+ *
  * Matching is on the exact href, never a partial path compare. A
  * missed match leaves a redundant button; a loose match takes away
  * the only route to a page. So these all stay visible:
@@ -172,7 +182,7 @@ function openstation_chromeless_title_action_css( $tab_urls ) {
 		}
 
 		foreach ( $hrefs as $href ) {
-			$selectors[] = '.os-chromeless .wrap > .page-title-action[href="'
+			$selectors[] = '.os-chromeless .wrap .page-title-action[href="'
 				. openstation_chromeless_css_attr_value( $href ) . '"]' . $exclusions;
 		}
 	}
