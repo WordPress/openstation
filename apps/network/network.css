@@ -1,0 +1,117 @@
+/* Network — the window that says who belongs. Tokens only; every
+ * literal is the pre-brand fallback. */
+
+.os-network {
+	display: grid;
+	gap: 20px;
+	padding: 20px 24px;
+}
+
+.os-network__section {
+	display: grid;
+	gap: 12px;
+}
+
+.os-network__header {
+	display: grid;
+	gap: 8px;
+}
+
+.os-network__title {
+	margin: 0;
+	font-size: 18px;
+	font-weight: 600;
+	color: var( --os-ui-fg, #1d2327 );
+}
+
+.os-network__subtitle {
+	margin: 0;
+	font-size: 14px;
+	font-weight: 600;
+	color: var( --os-ui-fg, #1d2327 );
+}
+
+.os-network__lede,
+.os-network__meta {
+	margin: 0;
+	font-size: 13px;
+	line-height: 1.5;
+	color: var( --os-ui-fg-muted, #646970 );
+}
+
+.os-network__code {
+	display: inline-block;
+	margin-top: 4px;
+	padding: 2px 6px;
+	border-radius: 4px;
+	font-size: 12px;
+	background: var( --os-ui-surface-2, rgba( 0, 0, 0, 0.06 ) );
+	color: var( --os-ui-fg, #1d2327 );
+	user-select: all;
+}
+
+.os-network__actions {
+	display: flex;
+	gap: 8px;
+}
+
+.os-network__sites {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: grid;
+	gap: 6px;
+}
+
+.os-network__site {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 10px 12px;
+	border-radius: 8px;
+	background: var( --os-ui-surface-2, rgba( 0, 0, 0, 0.04 ) );
+}
+
+.os-network__site-main {
+	display: grid;
+	gap: 2px;
+	min-width: 0;
+}
+
+.os-network__site-name {
+	font-size: 13px;
+	color: var( --os-ui-fg, #1d2327 );
+}
+
+.os-network__site-url,
+.os-network__site-error {
+	font-size: 12px;
+	color: var( --os-ui-fg-muted, #646970 );
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.os-network__site-error {
+	color: var( --os-ui-danger, #d63638 );
+	white-space: normal;
+}
+
+.os-network__site-side {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-shrink: 0;
+}
+
+.os-network__form {
+	display: flex;
+	align-items: flex-end;
+	gap: 8px;
+}
+
+.os-network__address {
+	flex: 1;
+	min-width: 0;
+}

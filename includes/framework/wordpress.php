@@ -431,6 +431,7 @@ function openstation_apps_register_windows() {
 			'dock_order' => $manifest['dock_order'],
 			'placeable'  => $manifest['placeable'],
 			'autofocus'  => $manifest['autofocus'],
+			'admin'      => isset( $manifest['admin'] ) ? $manifest['admin'] : 'site',
 			'config'     => openstation_apps_client_config( $manifest, $bundle, $app ),
 		);
 

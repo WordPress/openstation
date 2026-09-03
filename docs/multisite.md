@@ -33,7 +33,9 @@ desktops and session (one per admin, see Storage scoping). Switching
 site is a navigation to that site's shell, animated by the
 cross-document view transition the shell's stylesheet opts into
 (`assets/css/desktop.css`; same-origin only, and reduced motion swaps
-instantly). Nothing is emulated: the site's shell is the site's shell.
+instantly). Nothing is emulated: the site's shell is the site's shell. Installs that
+live elsewhere join the same switcher through an OpenStation network;
+see [network.md](./network.md).
 
 **The site switcher** is a row above the desktop tiles in overview: an
 `<os-segmented>` naming the Network Admin (with `manage_network`) and
@@ -127,11 +129,15 @@ stand in, since the directories share filenames that mean different
 things), and menu URLs, `currentPage` and `adminUrl`, which resolve
 through `self_admin_url()` rather than `admin_url()`.
 
-**Native windows are not offered there.** Every one OpenStation ships is
-site-scoped — Posts, Users and the rest read the current site's REST API
-— so a `users.php` tile meaning "everyone on the network" would have
-opened one site's user list. That server-side gate is also what disarms
-the client-side URL remaps there.
+**Site-scoped native windows are not offered there.** Every one
+OpenStation ships reads the current site's REST API — Posts, Users and
+the rest — so a `users.php` tile meaning "everyone on the network" would
+have opened one site's user list. A window says which admin offers it
+(`admin` in `openstation_register_window()`, `App::admin()` for an app:
+`site`, the default, `network`, or `any`), and the payload keeps the
+ones that belong (`openstation_native_window_offered_here()`); the
+Network app is the one that declares `network`. Dropping the site
+windows there is also what disarms the client-side URL remaps.
 
 ## The Network Admin dock tile
 

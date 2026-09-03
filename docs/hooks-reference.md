@@ -1420,6 +1420,16 @@ add_filter( 'openstation_multisite_sites', function ( $sites ) {
 } );
 ```
 
+### `openstation_network_request_url` — Experimental
+
+The URL one install of an OpenStation network reaches another by ([network.md](network.md)). The address a site is known by is not always the address its server can be reached at: an internal hostname behind a proxy, a container beside another container. Identity and pinned keys stay keyed by the public URL; only the wire address changes.
+
+```php
+apply_filters( 'openstation_network_request_url', string $url, string $base );
+```
+
+`$url` is the full request URL about to be made; `$base` is the install's public URL. `bin/wp-env-network-dev.sh` uses it to route two local wp-env instances through Docker's host gateway.
+
 ### `openstation_workspace_presets` — Stable
 
 The workspace templates offered as cards on the wizard's Start step, beside Blank desktop. A **[workspace](workspaces.md)** is a desktop plus the answer to what it is for: which apps show on it, which windows it opens with, how they are arranged. Three ship — Commerce, Learning and Publishing, named for the job and built around the products that do it (the Commerce tokens name WooCommerce, the Learning ones name Sensei).
