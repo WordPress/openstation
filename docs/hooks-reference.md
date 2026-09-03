@@ -520,7 +520,7 @@ add_action( 'admin_enqueue_scripts', function () {
         true
     );
     wp_enqueue_script( 'home-assistant-commands' );
-} );
+}, 5 ); // Before the shell harvests the payload at priority 10.
 openstation_register_command_script( 'home-assistant-commands' );
 ```
 
@@ -567,7 +567,7 @@ add_action( 'admin_enqueue_scripts', function () {
         true
     );
     wp_enqueue_script( 'my-plugin-titlebar' );
-} );
+}, 5 ); // Before the shell harvests the payload at priority 10.
 openstation_register_titlebar_button_script( 'my-plugin-titlebar' );
 ```
 
@@ -597,7 +597,7 @@ add_action( 'admin_enqueue_scripts', function () {
         true
     );
     wp_enqueue_script( 'my-plugin-window-actions' );
-} );
+}, 5 ); // Before the shell harvests the payload at priority 10.
 openstation_register_window_action_script( 'my-plugin-window-actions' );
 ```
 
@@ -627,7 +627,7 @@ add_action( 'admin_enqueue_scripts', function () {
         true
     );
     wp_enqueue_script( 'my-plugin-effects' );
-} );
+}, 5 ); // Before the shell harvests the payload at priority 10.
 openstation_register_unfocus_effect_script( 'my-plugin-effects' );
 ```
 
@@ -818,7 +818,7 @@ add_action( 'admin_enqueue_scripts', function () {
         true
     );
     wp_enqueue_script( 'my-plugin-link-renderer' );
-} );
+}, 5 ); // Before the shell harvests the payload at priority 10.
 openstation_register_window_link_renderer_script( 'my-plugin-link-renderer' );
 ```
 
@@ -858,7 +858,7 @@ add_action( 'admin_enqueue_scripts', function () {
         true
     );
     wp_enqueue_script( 'my-plugin-settings' );
-} );
+}, 5 ); // Before the shell harvests the payload at priority 10.
 openstation_register_settings_tab_script( 'my-plugin-settings' );
 ```
 
@@ -920,7 +920,7 @@ add_action( 'admin_enqueue_scripts', function () {
         true
     );
     wp_enqueue_script( 'my-plugin-rail' );
-} );
+}, 5 ); // Before the shell harvests the payload at priority 10.
 openstation_register_dock_rail_renderer_script( 'my-plugin-rail' );
 ```
 
@@ -2517,6 +2517,25 @@ Only read-only abilities are offered on purpose: a search turn can be steered by
 
 ---
 
+### The error-investigation skill — Experimental
+
+Four abilities (`includes/ai-copilot/abilities-debugging.php`) that give an assistant — or an agent — enough to do what a developer does with a stack trace, plus a system-prompt appendix that turns them into a method. They read through Code Blue's own log model, so the assistant and the window can never disagree about what the log says or whose plugin a file belongs to.
+
+| Ability | Model-facing name | Returns |
+|---|---|---|
+| `desktop-mode/list-log-issues` | `list_log_issues` | The log parsed into **distinct issues** rather than raw lines — a fatal that fired 400 times is one entry with `count: 400`. Each carries `signature` (the id for the next call), severity, message, `file`/`line`, and `origin` (`{ kind, slug, name, version }` — whose plugin, theme or core it is). No traces: the list is triage. |
+| `desktop-mode/get-log-issue` | `get_log_issue` | One issue by `signature`, stack trace included. |
+| `desktop-mode/read-source-excerpt` | `read_source_excerpt` | Numbered source lines around a line the log named. |
+| `desktop-mode/get-site-context` | `get_site_context` | WordPress and PHP versions, debug constants, environment type, active theme, every active plugin with its version. No credentials. |
+
+**The skill proposes; it never repairs.** That is structural rather than a matter of prompting: all four are `readonly` and no writing counterpart exists, so a model handed the whole set can read the evidence and describe a patch and has no route to apply one. The prompt appendix says so in words too, because a model that does not know it cannot edit files tends to answer as though it had.
+
+**Gating.** The skill uses Code Blue's own gate — site management plus Developer mode, moved by [`openstation_code_blue_user_can_use`](#openstation_code_blue_user_can_use--experimental-filter). A user who cannot open the log window cannot read the log through an assistant either, and one filter moves both. None of the four is `mcp.public`: this site's log and source are not an external agent's business.
+
+**`read_source_excerpt` is the one to read carefully before changing.** It refuses (as errors, not empty results) any path the *current log* does not name, anything resolving outside the install (`realpath()` before the prefix test), any non-source extension, and `wp-config.php` / `.env` outright — a parse error inside `wp-config.php` does name it, and that file is the database password. Bounding reads to files the install already wrote into its own error log is what keeps this a debugging tool rather than a general file reader reachable through whatever text the model happens to be reading. `tests/phpunit/tests/aiDebuggingAbilities.php` pins every refusal; read [`agents-security.md`](./agents-security.md) before widening any of them.
+
+---
+
 ## OS-file drop manager — Experimental
 
 The drop manager (`src/os-file-drop/`) catches files dragged from the user's native OS (Finder / Explorer / Nautilus) anywhere on the shell and routes them through a confirmation dialog before uploading to the Media Library. See [`docs/examples/os-file-drop.md`](examples/os-file-drop.md) for the full recipe.
@@ -2568,6 +2587,48 @@ apply_filters( 'openstation_drop_enabled', bool $enabled, int $user_id );
 
 ---
 
+## Responsive mode — Experimental
+
+The shell renders `desktop`, `tablet` (reported, rendered as desktop for now) or `mobile` — the phone layer. The mode is resolved client-side from the viewport and the user's preference (`src/mode/index.ts`); PHP cannot see the viewport, so what it shapes is the inputs. All three live in `includes/mobile.php`. Full contract: [mobile.md](./mobile.md).
+
+### `openstation_mode_preference` — Experimental (filter)
+
+```php
+apply_filters( 'openstation_mode_preference', string $preference, int $user_id );
+```
+
+The user's `mobileLayout` setting — `'auto'` (follow the viewport), `'desktop'` (force the desktop on a phone) or `'mobile'` (force the phone layer anywhere) — before it reaches the shell config **and the head stamp**, so the first paint honours the filter too. Anything other than those three strings falls back to the saved value.
+
+```php
+add_filter( 'openstation_mode_preference', function ( $preference, $user_id ) {
+    return user_can( $user_id, 'my_plugin_kiosk' ) ? 'desktop' : $preference;
+}, 10, 2 );
+```
+
+### `openstation_mode_breakpoints` — Experimental (filter)
+
+```php
+apply_filters( 'openstation_mode_breakpoints', array $breakpoints );
+// default: array( 'mobile' => 767, 'tablet' => 1024 )
+```
+
+The widest viewport (CSS px, inclusive) of each band. The invariant `0 < mobile < tablet` is enforced after the filter: a `tablet` at or below `mobile` is raised to `mobile + 1`, a non-numeric or non-positive value falls back to its default.
+
+### `openstation_mobile_tab_bar` — Experimental (filter)
+
+```php
+apply_filters( 'openstation_mobile_tab_bar', array $ids );
+// default: array( 'menu-posts', 'menu-media', 'menu-comments' )
+```
+
+The navigation ids pinned to the phone tab bar's three middle slots for a user who has not chosen their own (`mobileTabs` in OpenStation Preferences → Mobile overrides this when set). Ids are the same the `navOrder` setting uses — an admin menu's hook name (`menu-posts`, `toplevel_page_woocommerce`) or a native window id — and pass through `sanitize_key()`. Duplicates are dropped, only the first three survive, and an id the site does not have is skipped by the shell.
+
+### The head stamp and the viewport meta
+
+Two hooks fire on shell requests without a filter of their own: `openstation_print_mode_stamp()` on `admin_head @ 0` prints the inline script that writes `data-os-mode` on `<html>` (the CSS hook every mode-aware stylesheet keys on), and `openstation_mode_viewport_meta()` on Core's `admin_viewport_meta` appends `viewport-fit=cover,interactive-widget=resizes-content`. Both read the filtered preference and breakpoints above.
+
+---
+
 ## Planned (not yet fired)
 
 The filters and actions below are **reserved names** documented for forward compatibility. They will land with the phase indicated. Do not register listeners in production code until the status flips to Stable.
@@ -2595,14 +2656,14 @@ apply_filters( 'openstation_icon',         array  $icon_config, string $icon_id 
 
 > `openstation_icons` and `openstation_wallpapers` and the widget registry filter are **shipped** — see their Stable entries above. `openstation_widgets` is not a PHP filter; the JS-side `os.widgets` filter is the canonical hook (widgets are declared via `openstation_register_widget()` server-side).
 
-### Responsive — Phase 5–6
+### Responsive — later phases
 ```php
-apply_filters( 'openstation_mode_type',           string $mode );   // 'desktop' | 'tablet' | 'mobile'
 apply_filters( 'openstation_mobile_grid_items',   array  $items );
-apply_filters( 'openstation_mobile_tab_bar',      array  $tabs );
 apply_filters( 'openstation_mobile_app_switcher', array  $cards );
 apply_filters( 'openstation_tablet_split_config', array  $config );
 ```
+
+> The mode itself, its breakpoints and the tab-bar pins are **shipped** — see [Responsive mode](#responsive-mode--experimental). The reserved `openstation_mode_type` name was retired without firing: the server never sees a viewport, so what it can shape is the *preference*, which is `openstation_mode_preference`. The home grid and the switcher are computed client-side from the navigation model and the window manager; the two reserved names above are for a server-side view of them, if one is ever needed.
 
 ### Native windows — reserved extensions
 ```php
@@ -4296,6 +4357,20 @@ apply_filters( 'openstation_code_blue_environment', array[] $rows ): array[]
 ```
 
 The environment rows shown as badges in the window. Each: `label`, `value` (string), `on` (bool renders an on/off tone, null renders neutral).
+
+### `openstation_code_blue_search_url` — Experimental (filter)
+
+```php
+apply_filters( 'openstation_code_blue_search_url', string $template ): string
+```
+
+The URL template behind the **Search the web** link on an expanded issue — `%s` is replaced with the URL-encoded message. Default `https://duckduckgo.com/?q=%s`. Point it at an internal wiki, a hosting knowledge base, or a support desk; return an empty string to drop the link entirely.
+
+```php
+add_filter( 'openstation_code_blue_search_url', function () {
+    return 'https://wiki.example.com/search?q=%s';
+} );
+```
 
 ### `openstation_code_blue_max_bytes` / `openstation_code_blue_max_entries` — Experimental (filter)
 

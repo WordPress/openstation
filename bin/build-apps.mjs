@@ -9,11 +9,17 @@
  * Adding a new `.os.ts` needs no registration anywhere.
  */
 import { spawnSync } from 'node:child_process';
-import { readdirSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const root = new URL( '..', import.meta.url ).pathname;
+const root = fileURLToPath( new URL( '..', import.meta.url ) );
 const appsDir = join( root, 'apps' );
+
+if ( ! existsSync( appsDir ) ) {
+	console.log( 'build:apps — no apps directory found.' );
+	process.exit( 0 );
+}
 
 const names = [];
 for ( const dir of readdirSync( appsDir ) ) {

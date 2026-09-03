@@ -214,6 +214,26 @@ describe( 'drafts widget — rendering', () => {
 		expect( link.getAttribute( 'href' ) ).toContain( 'post.php?post=99&action=edit' );
 	} );
 
+	test( 'names the window it opens, so the stamp cannot run into the title', async () => {
+		installShell( {
+			drafts: [
+				{
+					id: 99,
+					title: { rendered: 'Ginza after work' },
+					modified_gmt: agoIso( 356 * 86400 ),
+				},
+			],
+		} );
+		teardown = await getMount()( container, makeCtx() );
+
+		const link = container.querySelector( '.dm-drafts__link' ) as HTMLAnchorElement;
+		// Without this the interceptor reads the anchor's text, and the
+		// two spans have no whitespace between them to read. The stamp
+		// stays in the row; the window is named after the draft.
+		expect( link.dataset.osWindowTitle ).toBe( 'Ginza after work' );
+		expect( link.textContent ).toBe( 'Ginza after work356d ago' );
+	} );
+
 	test( 'falls back to a placeholder when a draft has no title', async () => {
 		installShell( {
 			drafts: [ { id: 3, title: { rendered: '' }, modified_gmt: agoIso( 10 ) } ],

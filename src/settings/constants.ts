@@ -340,6 +340,8 @@ export const DEFAULTS: OsSettingsState = {
 	foldersSharingEnabled: true,
 	navPlacement: {},
 	navOrder: [],
+	mobileLayout: 'auto',
+	mobileTabs: [],
 	dockPromotedPositions: {},
 };
 

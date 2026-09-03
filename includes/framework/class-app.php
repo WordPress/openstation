@@ -968,6 +968,7 @@ final class App {
 			'watch'             => $this->watch,
 			'client'            => $this->client_path(),
 			'client_source'     => $this->client_source(),
+			'file'              => $this->file,
 			'has_data'          => $this->has_data(),
 			'prefetch'          => $this->prefetches(),
 			'lifecycle'         => array_values( array_intersect( self::LIFECYCLE_ACTIONS, $this->action_names() ) ),

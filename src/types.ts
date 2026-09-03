@@ -1834,6 +1834,15 @@ export interface SessionWindow {
 	 * different display.
 	 */
 	gridSpan?: GridSpan;
+	/**
+	 * `true` for a window the phone layer opened with no desktop
+	 * geometry to keep: the pixels below are the defaults a 390px
+	 * viewport produced, not anything a desktop chose. On restore
+	 * they are ignored and the desktop places the window as it would
+	 * a fresh open. Only written when true, so every other session
+	 * keeps its shape.
+	 */
+	unplaced?: boolean;
 	url: string;
 	title: string;
 	icon: string;
@@ -2566,6 +2575,25 @@ export interface DesktopConfig {
 	 * (now async) `<script>`-injects this on demand.
 	 */
 	windowSystemBundleUrl?: string;
+	/**
+	 * Fully-qualified URL of the lazy phone-layer bundle
+	 * (`mobile[.min].js`). `src/mobile/loader.ts` injects it only
+	 * when the mode resolves to `mobile`.
+	 */
+	mobileBundleUrl?: string;
+	/**
+	 * Responsive-mode inputs from PHP (`openstation_mode_config()`):
+	 * the user's `mobileLayout` preference after the
+	 * `openstation_mode_preference` filter, the breakpoints after
+	 * `openstation_mode_breakpoints`, and the server's default
+	 * tab-bar pins after `openstation_mobile_tab_bar`. The head stamp
+	 * used the same values for the first paint.
+	 */
+	mode?: {
+		preference?: 'auto' | 'desktop' | 'mobile';
+		breakpoints?: { mobile?: number; tablet?: number };
+		tabBar?: string[];
+	};
 	/**
 	 * Whether the current user has the `manage_options` capability.
 	 */

@@ -104,6 +104,7 @@ require_once OPENSTATION_DIR . 'includes/multisite.php';
 require_once OPENSTATION_DIR . 'includes/presence.php';
 require_once OPENSTATION_DIR . 'includes/nonce-refresh.php';
 require_once OPENSTATION_DIR . 'includes/os-settings.php';
+require_once OPENSTATION_DIR . 'includes/mobile.php';
 // The About journal is still lazy — this file only registers its authenticated
 // AJAX action. Load the registration unconditionally so alternate admin-ajax
 // bootstraps cannot skip it while classifying the request shape.

@@ -14,6 +14,7 @@
 use OpenStation\App\State;
 use function OpenStation\Apps\CodeBlue\level_map;
 use function OpenStation\Apps\CodeBlue\make_entry;
+use function OpenStation\Apps\CodeBlue\origin;
 use function OpenStation\Apps\CodeBlue\parse;
 use function OpenStation\Apps\CodeBlue\read;
 use function OpenStation\Apps\CodeBlue\signature;
@@ -173,6 +174,86 @@ class Tests_OpenStation_CodeBlue extends WP_UnitTestCase {
 		$this->assertSame( array( 'info', 'info', 'info' ), array_column( $entries, 'level' ) );
 		$this->assertNull( $entries[0]['timestamp'] );
 		$this->assertSame( 'custom message', $entries[2]['message'] );
+	}
+
+	/**
+	 * Attribution has one implementation. The window renders what this
+	 * returns and the debugging abilities report it verbatim, so a
+	 * second copy anywhere would let the two disagree about whose bug
+	 * a fatal is.
+	 *
+	 * @covers \OpenStation\Apps\CodeBlue\origin
+	 */
+	public function test_origin_reads_ownership_off_the_path() {
+		$content = '/var/www/html/wp-content';
+
+		$this->assertSame(
+			array(
+				'kind' => 'plugin',
+				'slug' => 'woocommerce',
+			),
+			origin( $content . '/plugins/woocommerce/includes/class-wc.php', $content )
+		);
+		// Single-file plugins and mu-plugins have no directory to be
+		// named by, so the basename is the slug.
+		$this->assertSame(
+			array(
+				'kind' => 'plugin',
+				'slug' => 'hello',
+			),
+			origin( $content . '/plugins/hello.php', $content )
+		);
+		$this->assertSame(
+			array(
+				'kind' => 'mu-plugin',
+				'slug' => 'loader',
+			),
+			origin( $content . '/mu-plugins/loader.php', $content )
+		);
+		$this->assertSame(
+			array(
+				'kind' => 'theme',
+				'slug' => 'twentytwentyfour',
+			),
+			origin( $content . '/themes/twentytwentyfour/functions.php', $content )
+		);
+		$this->assertSame( 'core', origin( '/var/www/html/wp-includes/post.php', $content )['kind'] );
+		$this->assertSame( 'plugin', origin( 'C:\\www\\wp-content\\plugins\\acf\\acf.php', 'C:\\www\\wp-content' )['kind'] );
+
+		// A wrong attribution sends someone into the wrong codebase, so
+		// anything unclear answers `unknown` rather than guessing.
+		$this->assertSame( 'unknown', origin( '/opt/vendor/thing.php', $content )['kind'] );
+		$this->assertSame( 'unknown', origin( '', $content )['kind'] );
+		$this->assertSame( 'unknown', origin( $content . '/plugins/woocommerce/x.php', '' )['kind'] );
+	}
+
+	/**
+	 * Entries carry their attribution, including entries a plugin's own
+	 * parser contributed through the filter — `parse()` never sees those.
+	 *
+	 * @covers \OpenStation\Apps\CodeBlue\read
+	 */
+	public function test_read_attributes_every_entry_including_filtered_ones() {
+		$this->make_temp_log( "[22-Aug-2026 09:14:02 UTC] PHP Warning:  Boom in /a.php on line 1\n" );
+		add_filter(
+			'openstation_code_blue_entries',
+			static function ( $entries ) {
+				$entries[] = make_entry( 1, 'error', 'Custom', 'Other in ' . WP_CONTENT_DIR . '/themes/mine/x.php on line 2' );
+				return $entries;
+			}
+		);
+
+		$entries = read( openstation_apps_os(), $this->source( 'test-log' ) )['entries'];
+
+		$this->assertCount( 2, $entries );
+		$this->assertSame( 'unknown', $entries[0]['origin']['kind'] );
+		$this->assertSame(
+			array(
+				'kind' => 'theme',
+				'slug' => 'mine',
+			),
+			$entries[1]['origin']
+		);
 	}
 
 	/**

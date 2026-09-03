@@ -149,6 +149,8 @@ Three action names are built in: **`mount`** (the first render), **`set`** (a bo
 
 `style( $path )` names a stylesheet for the body. Omit it and the framework looks for `<app dir>/<id>.css`, then `<app dir>/<file>.css` (the definition file's name without `.os.php`). The sheet is injected on the window's first open, after the runtime's own, and never reaches chromeless iframes.
 
+`client( $path )` names the built client view the same way. Omit it and, for an app inside OpenStation's own `apps/`, the framework loads `assets/js/apps/<file>[.min].js`, the bundle `npm run build:apps` compiles from the `<file>.os.ts` beside the definition. The lookup is keyed on the definition file's name, never on the TypeScript being present: the source is export-ignored from the release zip and only the bundle ships, so a packaged install resolves the same script a checkout does. An app shipped from another plugin declares its bundle with `client( $path )`; a shared file name never hands it OpenStation's.
+
 The runtime sheet also carries the **tone contract**: inside an app root, any element with `data-tone` set to `danger`, `warning`, `neutral` or `info` can read the matching status colour back through `var( --os-app-tone, <fallback> )` — a severity swatch, a row's accent border. The mapping is scoped to `.os-app`, so it never retints shell chrome or admin pages outside an app window. It also ships `.os-app__spacer` (`flex: 1`), the toolbar gap filler, so apps stop re-declaring it.
 
 ### Readers

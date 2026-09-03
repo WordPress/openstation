@@ -119,6 +119,57 @@ function make_entry( $timestamp, $level, $label, $message ) {
 }
 
 /**
+ * Whose code is this? The first question anyone asks of a log line,
+ * and the last one the log itself answers — the path is right there in
+ * every entry, and reading `wp-content/plugins/<slug>/` off it turns
+ * "some fatal error" into "WooCommerce's fatal error", which is the
+ * difference between triage and archaeology.
+ *
+ * Deliberately conservative: a path that is not clearly under the
+ * content directory or clearly inside core answers `unknown` rather
+ * than guessing, because a wrong attribution sends someone into the
+ * wrong codebase. Single-file plugins and mu-plugins keep their
+ * basename as the slug; there is no directory to name them by.
+ *
+ * This is the ONLY implementation. The window renders what it returns
+ * and the debugging abilities report it verbatim — a second copy of
+ * this classification would let the two disagree about whose bug it is.
+ *
+ * @param string $file        Absolute path from a log entry, may be ''.
+ * @param string $content_dir The install's `wp-content` equivalent.
+ * @return array{kind:string,slug:string} `kind` is one of `plugin`,
+ *                                        `mu-plugin`, `theme`, `core`, `unknown`.
+ */
+function origin( $file, $content_dir ) {
+	$path    = str_replace( '\\', '/', (string) $file );
+	$content = rtrim( str_replace( '\\', '/', (string) $content_dir ), '/' );
+	if ( '' !== $content && 0 === strpos( $path, $content . '/' ) ) {
+		$rest = substr( $path, strlen( $content ) + 1 );
+		if ( preg_match( '#^(plugins|mu-plugins|themes)/([^/]+)#', $rest, $m ) ) {
+			$kinds = array(
+				'plugins'    => 'plugin',
+				'mu-plugins' => 'mu-plugin',
+				'themes'     => 'theme',
+			);
+			return array(
+				'kind' => $kinds[ $m[1] ],
+				'slug' => preg_replace( '/\.php$/', '', $m[2] ),
+			);
+		}
+	}
+	if ( preg_match( '#/wp-(admin|includes)/#', $path ) ) {
+		return array(
+			'kind' => 'core',
+			'slug' => '',
+		);
+	}
+	return array(
+		'kind' => 'unknown',
+		'slug' => '',
+	);
+}
+
+/**
  * Parse `22-Aug-2026 09:14:02 UTC` (or the same without a zone,
  * read as UTC).
  *
@@ -380,6 +431,14 @@ function read( Os $os, array $source ) {
 	 * @param string  $raw     The scanned tail.
 	 */
 	$entries = (array) $os->filter( 'openstation_code_blue_entries', parse( $tail['raw'] ), $source, $tail['raw'] );
+
+	// Attribution runs AFTER the filter so entries a plugin's own parser
+	// contributed are attributed too — `parse()` never sees them.
+	$content_dir = $os->env->content_dir();
+	foreach ( $entries as $index => $entry ) {
+		$entries[ $index ]['origin'] = origin( isset( $entry['file'] ) ? $entry['file'] : '', $content_dir );
+	}
+
 	$dropped = max( 0, count( $entries ) - $max_entries );
 	if ( $dropped > 0 ) {
 		$entries = array_slice( $entries, -$max_entries );
@@ -421,6 +480,28 @@ function clear( Os $os, array $source ) {
 	 */
 	$os->action( 'openstation_code_blue_log_cleared', $source['id'], $source['path'] );
 	return true;
+}
+
+/**
+ * The URL template the "Search the web" link on an issue resolves
+ * against — `%s` is the URL-encoded message. Looking an unfamiliar
+ * error up is the next thing anyone does after reading it, and where
+ * they look is a house style: an agency may want its own wiki, a
+ * hosting platform its own knowledge base.
+ *
+ * Return an empty string to drop the link entirely.
+ *
+ * @param Os $os Host handle.
+ * @return string URL template containing `%s`, or '' for no link.
+ */
+function search_url( Os $os ) {
+	/**
+	 * Filter the search URL template for a log message.
+	 *
+	 * @param string $template `%s` is replaced with the URL-encoded
+	 *                         message. Empty string hides the link.
+	 */
+	return (string) $os->filter( 'openstation_code_blue_search_url', 'https://duckduckgo.com/?q=%s' );
 }
 
 /**

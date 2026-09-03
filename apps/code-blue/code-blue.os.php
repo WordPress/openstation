@@ -136,6 +136,7 @@ return App::define( 'openstation-code-blue' )
 				'truncated'   => $read ? $read['truncated'] : false,
 				'readError'   => $read ? $read['error'] : '',
 				'now'         => time(),
+				'searchUrl'   => search_url( $os ),
 			);
 		}
 	);

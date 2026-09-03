@@ -234,9 +234,10 @@ function openstation_apps_style_handle( $id ) {
 /**
  * The built client-view bundle for an app, or '' when it has none.
  *
- * An explicit `App::client( $path )` wins. Otherwise an app that
- * ships `<file>.os.ts` beside its `.os.php` inside this plugin is
- * built by `npm run build:apps` into `assets/js/apps/<file>[.min].js`.
+ * An explicit `App::client( $path )` wins. Otherwise an app inside
+ * this plugin's own `apps/` is looked up by convention: `npm run
+ * build:apps` compiles `apps/<dir>/<file>.os.ts` into
+ * `assets/js/apps/<file>[.min].js`, and that bundle is what ships.
  *
  * @param array<string,mixed> $manifest Filtered manifest.
  * @return string Absolute path of the built script, or ''.
@@ -245,12 +246,62 @@ function openstation_apps_client_bundle( array $manifest ) {
 	if ( ! empty( $manifest['client'] ) ) {
 		return is_file( $manifest['client'] ) ? (string) $manifest['client'] : '';
 	}
-	if ( empty( $manifest['client_source'] ) ) {
+	$base = openstation_apps_client_base( $manifest );
+	if ( '' === $base ) {
 		return '';
 	}
-	$name  = preg_replace( '/\.os\.ts$/', '', basename( (string) $manifest['client_source'] ) );
-	$built = OPENSTATION_DIR . 'assets/js/apps/' . $name . openstation_asset_suffix() . '.js';
+	$built = OPENSTATION_DIR . 'assets/js/apps/' . $base . openstation_asset_suffix() . '.js';
 	return is_file( $built ) ? $built : '';
+}
+
+/**
+ * The name an app's by-convention client bundle is built under, or ''
+ * for an app that has no such bundle.
+ *
+ * The bundle is named after the definition file: `<file>.os.php` and
+ * `<file>.os.ts` share a base, and the build writes
+ * `assets/js/apps/<file>[.min].js`. So the name is read off the
+ * `.os.php`, the one file a release install is guaranteed to have.
+ * The `.os.ts` is source: `.gitattributes` export-ignores every `.ts`
+ * under `apps/`, and `bin/package.sh` splices the built bundle into
+ * the zip in its place. Keying the lookup on the source's presence is
+ * how every client-view window (Preferences, WP Explorer, Code Blue,
+ * the Recycle Bin) came to open empty on a packaged site: the host
+ * shipped `client: false`, and the runtime asked the server for a
+ * view those apps do not have.
+ *
+ * Only apps under this plugin's `apps/` qualify. That is the directory
+ * the build walks, and an app another plugin ships through
+ * `openstation_apps_directories` declares its bundle with
+ * `App::client()`: a shared file name must never hand it ours.
+ *
+ * @param array<string,mixed> $manifest Filtered manifest.
+ * @return string Bundle base name (`code-blue`), or ''.
+ */
+function openstation_apps_client_base( array $manifest ) {
+	$file = '';
+	foreach ( array( 'client_source', 'file' ) as $key ) {
+		if ( ! empty( $manifest[ $key ] ) && is_string( $manifest[ $key ] ) ) {
+			$file = $manifest[ $key ];
+			break;
+		}
+	}
+	if ( '' === $file ) {
+		return '';
+	}
+
+	$apps = realpath( OPENSTATION_DIR . 'apps' );
+	$dir  = realpath( dirname( $file ) );
+	if ( false === $apps || false === $dir ) {
+		return '';
+	}
+	$apps = trailingslashit( wp_normalize_path( $apps ) );
+	$dir  = trailingslashit( wp_normalize_path( $dir ) );
+	if ( 0 !== strpos( $dir, $apps ) ) {
+		return '';
+	}
+
+	return (string) preg_replace( '/\.os\.(php|ts)$/', '', basename( $file ) );
 }
 
 /**

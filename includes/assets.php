@@ -189,6 +189,17 @@ function openstation_register_assets() {
 		array( 'os-dock' ),
 		$built_version( 'assets/css/dock-peek.css' )
 	);
+	// The phone layer. Every rule is scoped to
+	// `html[data-os-mode="mobile"]`, so the sheet is inert on a
+	// desktop and the first paint on a phone is already right (the
+	// head stamp writes the attribute before any stylesheet applies).
+	// Depends on the dock and window sheets because it overrides them.
+	wp_register_style(
+		'os-mobile',
+		OPENSTATION_URL . 'assets/css/mobile.css',
+		array( 'os-variables', 'dashicons', 'os-dock', 'os-windows' ),
+		$built_version( 'assets/css/mobile.css' )
+	);
 	// The notch — the shell's top-centre voice and the site
 	// assistant's front door. Scoped to `.os-notch`.
 	wp_register_style(

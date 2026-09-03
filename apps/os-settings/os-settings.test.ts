@@ -66,9 +66,9 @@ describe( 'OpenStation Preferences — the frame', () => {
 
 	test( 'lists the built-in pages in order, Components for admins only, About last', () => {
 		paint();
-		expect( tabIds() ).toEqual( [ 'appearance', 'themes', 'windows', 'navigation', 'features', 'help', 'about' ] );
+		expect( tabIds() ).toEqual( [ 'appearance', 'themes', 'windows', 'navigation', 'mobile', 'features', 'help', 'about' ] );
 		paint( false );
-		expect( tabIds() ).toEqual( [ 'appearance', 'themes', 'windows', 'navigation', 'features', 'about' ] );
+		expect( tabIds() ).toEqual( [ 'appearance', 'themes', 'windows', 'navigation', 'mobile', 'features', 'about' ] );
 	} );
 
 	test( 'the strip and the panes are siblings, one pane per page', () => {
@@ -96,7 +96,7 @@ describe( 'OpenStation Preferences — the frame', () => {
 		} );
 		registerSettingsTab( { id: 'acme', label: 'Acme', order: 15, render } );
 		paint();
-		expect( tabIds() ).toEqual( [ 'appearance', 'themes', 'ext-acme', 'windows', 'navigation', 'features', 'help', 'about' ] );
+		expect( tabIds() ).toEqual( [ 'appearance', 'themes', 'ext-acme', 'windows', 'navigation', 'mobile', 'features', 'help', 'about' ] );
 		mountRegistryTabs( ctx, pageRows( ctx ) );
 		mountRegistryTabs( ctx, pageRows( ctx ) );
 		expect( render ).toHaveBeenCalledTimes( 1 );
@@ -139,7 +139,7 @@ describe( 'OpenStation Preferences — the frame', () => {
 		expect( root.querySelector< HTMLElement >( '.os-settings__search-empty' )?.hidden ).toBe( false );
 		input.value = '';
 		input.dispatchEvent( new Event( 'input' ) );
-		expect( visibleTabIds() ).toHaveLength( 7 );
+		expect( visibleTabIds() ).toHaveLength( 8 );
 	} );
 
 	test( 'Reset to defaults is the public reset', () => {

@@ -168,6 +168,7 @@ import type { WindowConnection, ConnectOptions } from '../connection';
 import type { WallpaperDef } from '../wallpapers/types';
 import type { WallpaperSuspendApi } from '../wallpapers/layer';
 import type { MioApi } from '../mio/controller';
+import type { OsModeApi } from '../mode';
 import type { WorkspacesApi } from '../workspaces/api';
 import { gamesApi } from '../games/api';
 import { applyDesktopTheme } from '../desktop-themes/apply';
@@ -204,7 +205,7 @@ export const RESERVED_NAMESPACE_KEYS: ReadonlySet< string > = new Set( [
 	'registerSystemTile', 'registerWindow', 'openWindow', 'openNewWindow',
 	'cloneTemplate', 'onWindow', 'createInfiniteList', 'startOAuth',
 	'repaintLoadingOverlays',
-	'loadVendorScript', 'getWallpaperSurfaces', 'wallpaper', 'games',
+	'loadVendorScript', 'getWallpaperSurfaces', 'wallpaper', 'games', 'mode',
 	'registerModule',
 	'loadModules', 'whenReady', 'ready', 'isReady', 'setDefaultWindow',
 	'refreshMenu', 'config', 'ai', 'dragBridge', 'dragManager', 'registerCommand',
@@ -295,6 +296,8 @@ export interface BuildPublicApiDeps {
 	getConnection: ( connectionId: string ) => WindowConnection | null;
 	wallpaperSuspend: WallpaperSuspendApi;
 	mio: MioApi;
+	/** `wp.os.mode` — the responsive mode (`src/mode/index.ts`). */
+	mode: OsModeApi;
 	workspaces: WorkspacesApi;
 	config: DesktopConfig;
 }
@@ -332,6 +335,7 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 		getConnection,
 		wallpaperSuspend,
 		mio,
+		mode,
 		workspaces,
 		config,
 	} = deps;
@@ -379,6 +383,7 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 		getWallpaperSurfaces: () => collectWallpaperSurfaces( manager ),
 		wallpaper: wallpaperSuspend,
 		mio,
+		mode,
 		games: gamesApi,
 		registerWindow,
 		openWindow: openWindowById,

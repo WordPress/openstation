@@ -43,7 +43,7 @@ defined( 'ABSPATH' ) || exit;
  *         true
  *     );
  *     wp_enqueue_script( 'my-plugin-window-actions' );
- * } );
+ * }, 5 ); // Before the shell harvests the payload at priority 10.
  * openstation_register_window_action_script( 'my-plugin-window-actions' );
  * ```
  *

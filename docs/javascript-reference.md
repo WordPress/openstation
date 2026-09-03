@@ -776,6 +776,22 @@ Fires after the user resets the one-time announcement flags in **OpenStation Pre
 
 ---
 
+### `os-mode-changed` — Experimental
+
+Fires when the responsive mode changes — the viewport crosses a breakpoint, the device rotates across one, or the user flips the `mobileLayout` preference. Mirrors the `os.mode.changed` action.
+
+```typescript
+interface OsModeChangedDetail {
+    mode: 'desktop' | 'tablet' | 'mobile';      // what the shell now renders
+    previous: 'desktop' | 'tablet' | 'mobile';
+    preference: 'auto' | 'desktop' | 'mobile';  // the override that produced it
+}
+```
+
+Only a real crossing fires it; a resize inside one band notifies nobody. The effective mode is also stamped on `<html>` as `data-os-mode`, which is the CSS hook. See [mobile.md](./mobile.md) and [`wp.os.mode`](#wposmode--experimental).
+
+---
+
 ## 2. `window.wp.os` API
 
 Populated after `os-init`. Do not access before that event fires.
@@ -2408,6 +2424,27 @@ Refcounted per reason string: two `suspend( 'my-plugin/thing' )` calls need two 
 The precise signal is the companion action **`os.wallpaper.suspend`** *(Experimental)*, fired on every suspended/resumed transition with `{ id, suspended, reasons }` (`id` = active canvas wallpaper id or `null`; `reasons` = currently held reason strings). Wallpapers that want to distinguish "tab hidden" from "game running" subscribe to it via `wp.os.hooks`.
 
 The games framework calls `suspend( 'game:<windowId>' )` / `resume(…)` around every game window automatically.
+
+---
+
+### `wp.os.mode` — Experimental
+
+Which experience the shell is rendering, resolved from the viewport and the user's `mobileLayout` preference. Read-only: the preference is a setting, written through `updateOsSettings( { mobileLayout } )`.
+
+```typescript
+interface OsModeApi {
+    get(): 'desktop' | 'tablet' | 'mobile';
+    getPreference(): 'auto' | 'desktop' | 'mobile';
+    getBreakpoints(): { mobile: number; tablet: number };  // widest px of each band, inclusive
+    isMobile(): boolean;
+    subscribe(
+        cb: ( change: { mode; previous; preference } ) => void,
+        opts?: { immediate?: boolean },   // call once right away with the current mode
+    ): () => void;                        // unsubscribe
+}
+```
+
+`tablet` is reported but, for now, renders the desktop; `mobile` mounts the phone layer (home screen, one full-screen window at a time, switcher, tab bar). Transitions fire `os.mode.changed` and `os-mode-changed`. The value is stamped on `<html data-os-mode>` for CSS. Full contract in [mobile.md](./mobile.md).
 
 ---
 
@@ -4055,6 +4092,39 @@ Two extra args are identity-bearing **only on an `admin.php` URL carrying a `pag
 
 ---
 
+### `data-os-window-title` on an anchor — Stable
+
+Name the window an admin link opens, instead of letting the shell guess.
+
+The shell's top-window link interceptor claims every same-origin `/wp-admin/` anchor in the shell body and opens it as a window. Unless a dock entry owns the destination, it titles that window with the anchor's own text. That is right for a plain link and a guess for anything else, because `textContent` runs together across element boundaries. An anchor assembled from several elements, held apart by layout rather than by whitespace in the markup, arrives as one word:
+
+```html
+<!-- Window title: "Ginza after work356d ago" -->
+<a href="/wp-admin/post.php?post=42&action=edit">
+    <span class="title">Ginza after work</span><span class="stamp">356d ago</span>
+</a>
+```
+
+Say what the window is called and the guess is skipped:
+
+```html
+<!-- Window title: "Ginza after work" -->
+<a href="/wp-admin/post.php?post=42&action=edit"
+   data-os-window-title="Ginza after work">
+    <span class="title">Ginza after work</span><span class="stamp">356d ago</span>
+</a>
+```
+
+Naming the window after the thing it opens, rather than after everything the row happens to show, is usually the right call: a window title is read in the taskbar and the overview long after the click, and a relative stamp captured at open time is stale by then.
+
+The attribute outranks both the link text and the dock entry that would otherwise name the window: it is the anchor stating what it opens, which is more specific than the dock's name for the whole destination. Whitespace-only values are ignored and fall through to the normal chain. Set it from JS with `link.dataset.osWindowTitle = …`.
+
+Deliberately opt-in rather than a cleverer reading of the DOM: joining every element boundary would break the far more common anchor whose markup is one sentence with a `<strong>` in the middle. Reach for it whenever a link's visible text is assembled from more than one element: a widget row, a card, a list item with a trailing badge or stamp.
+
+> **Inside a window this is a no-op.** Iframe content is a separate document realm; those clicks go through the chromeless bridge, which sends its own `label` (see [bridge-protocol.md](./bridge-protocol.md#admin-link-routing-inside-chromeless-iframes)). The attribute applies to anchors in the shell itself: widgets, desktop surfaces, rail renderers.
+
+---
+
 ### `listSystemTiles()` — Stable
 
 Snapshot of every JS-registered system tile across both rails. Returns `[]` when the layout dispatcher hasn't booted yet (rare; only happens before `os.init` fires).
@@ -5220,6 +5290,24 @@ wp.hooks.addFilter(
 ```
 
 In practice most plugins use the `wp.os.registerWallpaper()` convenience — internally it adds a filter callback under a namespace the shell generates for you, so the raw filter API is only needed for non-additive operations.
+
+### Responsive mode and the session — Experimental
+
+| Hook | Kind | Payload / value |
+|---|---|---|
+| `os.mode.changed` | action | `{ mode, previous, preference }` — the responsive mode moved between `desktop`, `tablet` and `mobile`. Mirrored as the `os-mode-changed` CustomEvent. |
+| `os.session.snapshot` | filter | the `Session` envelope (`{ windows, desktops, activeDesktop, focused, updated }`) the window manager is about to hand to the saver. Runs on every `snapshot()`, the `pagehide` beacon included. Return it edited; a return that is not an envelope is ignored. |
+
+The phone layer uses `os.session.snapshot` to give the desktop its own numbers back (a window it forced full-screen is written with the geometry it had before) and to carry the windows a phone boot did not restore. A plugin can use it to redact a window it owns:
+
+```javascript
+wp.hooks.addFilter( 'os.session.snapshot', 'my-plugin/session', ( session ) => ( {
+    ...session,
+    windows: session.windows.filter( ( w ) => w.id !== 'my-plugin-scratch' ),
+} ) );
+```
+
+See [mobile.md](./mobile.md).
 
 ---
 

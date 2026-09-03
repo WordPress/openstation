@@ -16,6 +16,7 @@ import { renderWindows } from './windows';
 import { renderFeatures } from './features';
 import { renderThemes } from './themes';
 import { renderNavigation } from './navigation';
+import { renderMobile } from './mobile';
 import { renderComponents } from './components';
 import { renderAboutPage } from './about';
 import { NAV_ICONS } from './nav-icons';
@@ -132,6 +133,18 @@ export function pageRows( ctx: Ctx ): PageRow[] {
 			label: __( 'Navigation' ),
 			icon: NAV_ICONS.navigation,
 			panel: ( s, c ) => html`${ pageHeader( __( 'Navigation' ) ) }${ renderNavigation( s, c ) }`,
+		},
+		{
+			// Next to Navigation: the phone is another arrangement of
+			// the same items.
+			id: 'mobile',
+			order: 24,
+			label: __( 'Mobile' ),
+			icon: NAV_ICONS.mobile,
+			panel: ( s, c ) => html`${ pageHeader(
+				__( 'Mobile' ),
+				__( 'On a phone the desktop becomes a home screen, one full-screen app at a time, and a tab bar. Choose when that happens and what the bar holds.' ),
+			) }${ renderMobile( s, c ) }`,
 		},
 		{
 			id: 'features',
