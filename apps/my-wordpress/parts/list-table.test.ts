@@ -325,6 +325,57 @@ describe( 'the table', () => {
 		}
 	} );
 
+	it( 'a finger held still on a row opens its menu and the release is not a tap; a drift or a lift cancels', () => {
+		vi.useFakeTimers();
+		try {
+			const dispatch = vi.fn( async () => true );
+			const { root, ctx } = mount( state(), data(), { dispatch } );
+			const row = root.querySelector< HTMLElement >( 'tr[data-item-id="2"]' )!;
+			const touch = ( type: string, x: number, y: number ): PointerEvent => {
+				const e = new MouseEvent( type, { bubbles: true, clientX: x, clientY: y } ) as unknown as PointerEvent;
+				Object.defineProperties( e, {
+					pointerId: { value: 7 },
+					isPrimary: { value: true },
+					pointerType: { value: 'touch' },
+				} );
+				return e;
+			};
+
+			// Held still for half a second: the menu, where the finger is.
+			row.dispatchEvent( touch( 'pointerdown', 40, 50 ) );
+			vi.advanceTimersByTime( 499 );
+			expect( uiOf( ctx ).menu ).toBeNull();
+			vi.advanceTimersByTime( 1 );
+			expect( uiOf( ctx ).menu ).toEqual( { x: 40, y: 50, item: expect.objectContaining( { id: 2 } ) } );
+			row.dispatchEvent( touch( 'pointerup', 40, 50 ) );
+			row.dispatchEvent( new MouseEvent( 'click', { bubbles: true } ) );
+			expect( dispatch ).not.toHaveBeenCalled();
+
+			// Lifted early: nothing.
+			uiOf( ctx ).menu = null;
+			row.dispatchEvent( touch( 'pointerdown', 40, 50 ) );
+			vi.advanceTimersByTime( 300 );
+			row.dispatchEvent( touch( 'pointerup', 40, 50 ) );
+			vi.advanceTimersByTime( 500 );
+			expect( uiOf( ctx ).menu ).toBeNull();
+
+			// Drifted (a scroll): nothing.
+			row.dispatchEvent( touch( 'pointerdown', 40, 50 ) );
+			row.dispatchEvent( touch( 'pointermove', 40, 80 ) );
+			vi.advanceTimersByTime( 600 );
+			expect( uiOf( ctx ).menu ).toBeNull();
+
+			// A mouse has a right button; its press is not a menu.
+			const mouse = new MouseEvent( 'pointerdown', { bubbles: true, clientX: 1, clientY: 1 } ) as unknown as PointerEvent;
+			Object.defineProperties( mouse, { pointerId: { value: 1 }, isPrimary: { value: true }, pointerType: { value: 'mouse' } } );
+			row.dispatchEvent( mouse );
+			vi.advanceTimersByTime( 600 );
+			expect( uiOf( ctx ).menu ).toBeNull();
+		} finally {
+			vi.useRealTimers();
+		}
+	} );
+
 	it( 'on a phone a row that cannot be edited still opens its pane on a tap', () => {
 		document.documentElement.setAttribute( 'data-os-mode', 'mobile' );
 		try {

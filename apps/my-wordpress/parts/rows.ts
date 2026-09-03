@@ -12,6 +12,7 @@
 
 import { __, copyText, sprintf } from '@openstation/app';
 import { opensOnTap } from './helpers';
+import { longPress, type LongPressHandlers } from './long-press';
 import { shell, uiOf, type Ctx, type ListItem, type SectionDef } from './types';
 
 export interface RowInteractions {
@@ -26,6 +27,8 @@ export interface RowInteractions {
 	menu: ( e: MouseEvent ) => void;
 	/** The same menu, anchored under an element (a row's ⋯ button). */
 	menuAt: ( anchor: Element ) => void;
+	/** The same menu on a finger held still — the touch right-click (`long-press.ts`). */
+	press: LongPressHandlers;
 }
 
 export function rowInteractions(
@@ -97,6 +100,7 @@ export function rowInteractions(
 			const rect = anchor.getBoundingClientRect();
 			openMenu( rect.left, rect.bottom + 2 );
 		},
+		press: longPress( openMenu ),
 	};
 }
 

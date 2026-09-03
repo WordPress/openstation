@@ -1947,3 +1947,29 @@ summary.dm-agents__category:focus-visible {
 	align-self: flex-start;
 	margin-block-end: 4px;
 }
+
+/*
+ * Long press is the touch right-click (`parts/long-press.ts`). What
+ * the browser would do with a held finger — iOS's callout, a text
+ * selection creeping across a label — is turned off on the pressable
+ * surfaces, and only where a finger is the pointer: on a desk the
+ * labels stay selectable.
+ */
+@media ( pointer: coarse ) {
+	.os-mywp__tile,
+	.os-mywp__cell,
+	.os-mywp__row,
+	.os-mywp__canvas {
+		-webkit-touch-callout: none;
+		-webkit-user-select: none;
+		user-select: none;
+	}
+}
+html[data-os-mode="mobile"] .os-mywp__tile,
+html[data-os-mode="mobile"] .os-mywp__cell,
+html[data-os-mode="mobile"] .os-mywp__row,
+html[data-os-mode="mobile"] .os-mywp__canvas {
+	-webkit-touch-callout: none;
+	-webkit-user-select: none;
+	user-select: none;
+}

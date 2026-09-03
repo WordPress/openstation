@@ -30,6 +30,7 @@ import {
 	runAction,
 	withSendToHeading,
 } from './helpers';
+import { longPress } from './long-press';
 import { copyIds, copyLinks, rowInteractions } from './rows';
 import { renderTable } from './list-table';
 
@@ -141,6 +142,10 @@ function renderTile( ctx: Ctx, section: SectionDef, item: ListItem, order: numbe
 			@click=${ row.select }
 			@dblclick=${ row.activate }
 			@contextmenu=${ row.menu }
+			@pointerdown=${ row.press.pointerdown }
+			@pointermove=${ row.press.pointermove }
+			@pointerup=${ row.press.pointerup }
+			@pointercancel=${ row.press.pointercancel }
 		>
 			<span class="os-mywp__tilebox">
 				<os-tile
@@ -185,6 +190,15 @@ export function renderList( ctx: Ctx, section: SectionDef, items: ListItem[] ): 
 		ui.menu = { x: e.clientX, y: e.clientY, item: null };
 		ctx.repaint();
 	};
+	// The canvas menu on a finger held still on the cork; a press that
+	// began on a tile is the tile's.
+	const canvasPress = longPress(
+		( x, y ) => {
+			ui.menu = { x, y, item: null };
+			ctx.repaint();
+		},
+		( e ) => ! ( e.target as Element | null )?.closest( '[data-item-id]' ),
+	);
 	const hasMore = ui.list.hasMore();
 	// The page being fetched paints as skeleton tiles — WP Explorer's
 	// loading placeholders. They occupy the incoming page's real
@@ -231,6 +245,10 @@ export function renderList( ctx: Ctx, section: SectionDef, items: ListItem[] ): 
 				role="listbox"
 				aria-multiselectable="true"
 				@contextmenu=${ canvasMenu }
+				@pointerdown=${ canvasPress.pointerdown }
+				@pointermove=${ canvasPress.pointermove }
+				@pointerup=${ canvasPress.pointerup }
+				@pointercancel=${ canvasPress.pointercancel }
 			>
 				${ sorted.map( ( band ) => {
 					const rows = byBand.get( band.id ) ?? [];
@@ -272,6 +290,10 @@ export function renderList( ctx: Ctx, section: SectionDef, items: ListItem[] ): 
 			role="listbox"
 			aria-multiselectable="true"
 			@contextmenu=${ canvasMenu }
+			@pointerdown=${ canvasPress.pointerdown }
+			@pointermove=${ canvasPress.pointermove }
+			@pointerup=${ canvasPress.pointerup }
+			@pointercancel=${ canvasPress.pointercancel }
 		>
 			${ items.map( ( item ) => renderTile( ctx, section, item, order ) ) }
 			${ ghostCells }

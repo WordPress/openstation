@@ -28,6 +28,7 @@ import {
 	type SectionDef,
 } from './types';
 import { glyph } from './helpers';
+import { longPress } from './long-press';
 import { copyIdMessage, copyLinks, copyWithToast, rowInteractions } from './rows';
 
 // ------------------------------------------------------------ columns
@@ -523,6 +524,10 @@ function renderRow(
 			@click=${ row.select }
 			@dblclick=${ row.activate }
 			@contextmenu=${ row.menu }
+			@pointerdown=${ row.press.pointerdown }
+			@pointermove=${ row.press.pointermove }
+			@pointerup=${ row.press.pointerup }
+			@pointercancel=${ row.press.pointercancel }
 			@keydown=${ onKey }
 		>
 			${ columns.map( ( column ) => cell( ctx, column, item, section, order ) ) }
@@ -611,12 +616,25 @@ export function renderTable( ctx: Ctx, section: SectionDef, items: ListItem[] ):
 		ui.menu = { x: e.clientX, y: e.clientY, item: null };
 		ctx.repaint();
 	};
+	// The canvas menu on a finger held still beside the rows; a press
+	// that began on a row is the row's.
+	const canvasPress = longPress(
+		( x, y ) => {
+			ui.menu = { x, y, item: null };
+			ctx.repaint();
+		},
+		( e ) => ! ( e.target as Element | null )?.closest( '[data-item-id]' ),
+	);
 
 	return html`
 		<div
 			class="os-mywp__canvas os-mywp__table-wrap"
 			data-mywp-list
 			@contextmenu=${ canvasMenu }
+			@pointerdown=${ canvasPress.pointerdown }
+			@pointermove=${ canvasPress.pointermove }
+			@pointerup=${ canvasPress.pointerup }
+			@pointercancel=${ canvasPress.pointercancel }
 		>
 			<table
 				class="os-mywp__table"
