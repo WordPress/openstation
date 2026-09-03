@@ -862,6 +862,21 @@ describe( '<os-table stacked> — a card per row', () => {
 		expect( clicks ).toEqual( [ 1 ] );
 	} );
 
+	test( 'the loading skeleton is a card per row, not a grid of bars', async () => {
+		host.innerHTML = `<os-table stacked loading loading-rows="3"></os-table>`;
+		await tick();
+		const table = host.querySelector( 'os-table' ) as OsTable< User >;
+		table.columns = columns;
+		await tick();
+		const rows = table.shadowRoot!.querySelectorAll( 'tbody tr.skeleton' );
+		expect( rows ).toHaveLength( 3 );
+		for ( const row of rows ) {
+			expect( row.classList.contains( 'stack-row' ) ).toBe( true );
+			expect( row.querySelectorAll( 'td' ) ).toHaveLength( 1 );
+			expect( row.querySelectorAll( 'td.stack-body .skeleton-bar' ) ).toHaveLength( 2 );
+		}
+	} );
+
 	test( 'removing the attribute paints the grid again', async () => {
 		const table = await mount( 'stacked' );
 		table.removeAttribute( 'stacked' );

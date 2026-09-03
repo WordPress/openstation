@@ -1545,3 +1545,47 @@ html[data-os-mode="mobile"] .os-posts__pager {
 .os-posts__toolbar-right.os-posts__bulk--footer .os-posts__bulk-actions > * {
 	flex: 1 1 auto;
 }
+
+/*
+ * Categories (the mind map) and Tags (the cloud) keep a 320px editor
+ * beside the stage on a desk. A phone has no beside: the editor
+ * folds UNDER the stage as a sheet — at most half the height, its own
+ * scroll, clearing the home indicator — and only while a term is
+ * focused; while it would only say "select a node" it is not there,
+ * and the stage has the whole screen. The same fold under a narrow
+ * container, for a desk window pulled in.
+ */
+html[data-os-mode="mobile"] .os-mindmap__layout,
+html[data-os-mode="mobile"] .os-tagcloud__layout {
+	flex-direction: column;
+}
+html[data-os-mode="mobile"] .os-mindmap__sidebar,
+html[data-os-mode="mobile"] .os-tagcloud__sidebar {
+	flex: 0 0 auto;
+	max-block-size: 50%;
+	border-inline-start: 0;
+	border-block-start: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
+	padding: 12px 16px calc( 12px + env( safe-area-inset-bottom, 0px ) );
+	box-shadow: 0 -6px 18px rgba( 0, 0, 0, 0.06 );
+}
+html[data-os-mode="mobile"] .os-mindmap__sidebar:has( > .os-mindmap__sidebar-empty ),
+html[data-os-mode="mobile"] .os-tagcloud__sidebar:has( > .os-tagcloud__sidebar-empty ) {
+	display: none;
+}
+@container ( max-width: 640px ) {
+	.os-mindmap__layout,
+	.os-tagcloud__layout {
+		flex-direction: column;
+	}
+	.os-mindmap__sidebar,
+	.os-tagcloud__sidebar {
+		flex: 0 0 auto;
+		max-block-size: 50%;
+		border-inline-start: 0;
+		border-block-start: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
+	}
+	.os-mindmap__sidebar:has( > .os-mindmap__sidebar-empty ),
+	.os-tagcloud__sidebar:has( > .os-tagcloud__sidebar-empty ) {
+		display: none;
+	}
+}

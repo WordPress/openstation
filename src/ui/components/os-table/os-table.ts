@@ -1348,6 +1348,24 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		const tr = document.createElement( 'tr' );
 		tr.classList.add( 'skeleton' );
 		tr.setAttribute( 'aria-hidden', 'true' );
+		if ( this._stacked ) {
+			// A card's skeleton is a card: a title-length bar over a
+			// shorter meta bar, in one cell — one bar per column would
+			// paint a grid's worth of bars stacked in a block, which
+			// reads as a table that broke.
+			tr.classList.add( 'stack-row' );
+			const td = document.createElement( 'td' );
+			td.className = 'stack-body';
+			td.colSpan = Math.max( 1, cols.length );
+			for ( const widthPct of [ 55 + ( ( seed * 7 ) % 25 ), 30 + ( ( seed * 11 ) % 15 ) ] ) {
+				const bar = document.createElement( 'span' );
+				bar.className = 'skeleton-bar';
+				bar.style.width = `${ widthPct }%`;
+				td.appendChild( bar );
+			}
+			tr.appendChild( td );
+			return tr;
+		}
 		for ( const _c of cols ) {
 			const td = document.createElement( 'td' );
 			const bar = document.createElement( 'span' );

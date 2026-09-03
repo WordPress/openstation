@@ -38,6 +38,30 @@ function block( css: string, selector: string ): string {
 }
 
 describe( '<os-table stacked> is a card list', () => {
+	test( 'every :host() argument is one compound selector', () => {
+		// A space between two attribute selectors inside :host() makes
+		// a descendant selector, which :host() rejects — and a rule
+		// list with one invalid selector is dropped whole, silently.
+		// That is how every card kept the grid's borders and stripes
+		// on the first pass.
+		expect( table ).not.toMatch( /:host\(\s*\[[^\]]*\]\s+\[/ );
+	} );
+
+	test( 'the cell chrome of the grid — border, stripe, hover, selection, column border — is undone for cards', () => {
+		const list = table.slice(
+			table.indexOf( ':host( [ stacked ] ) tbody td,' ),
+			table.indexOf( '{', table.indexOf( ':host( [ stacked ] ) tbody td,' ) ),
+		);
+		expect( list ).toContain( ':host( [ stacked ][ striped ] ) tbody tr:nth-child( odd ) td' );
+		expect( list ).toContain( ':host( [ stacked ][ hover ] ) tbody tr:hover td' );
+		expect( list ).toContain( ':host( [ stacked ][ bordered ] ) tbody td' );
+		expect( list ).toContain( ':host( [ stacked ] ) tbody tr.is-selected td' );
+	} );
+
+	test( 'the loading skeleton is a card too', () => {
+		expect( block( table, ':host( [ stacked ] ) tr.skeleton {' ) ).toMatch( /padding:\s*14px/ );
+	} );
+
 	test( 'the header and the column widths are gone, the table is a block', () => {
 		expect( block( table, ':host( [ stacked ] ) colgroup,' ) ).toMatch( /display:\s*none/ );
 		expect( block( table, ':host( [ stacked ] ) table,' ) ).toMatch( /display:\s*block/ );
@@ -95,6 +119,18 @@ describe( 'Posts, Pages and Users', () => {
 
 	test( 'on a phone the cards run edge to edge', () => {
 		expect( block( posts, 'html[data-os-mode="mobile"] .os-posts__body {' ) ).toMatch( /padding:\s*0/ );
+	} );
+
+	test( 'the Categories and Tags editors fold under the stage on a phone, and only while a term is focused', () => {
+		expect( block( posts, 'html[data-os-mode="mobile"] .os-mindmap__layout,' ) ).toMatch( /flex-direction:\s*column/ );
+		const sidebar = block( posts, 'html[data-os-mode="mobile"] .os-mindmap__sidebar,' );
+		expect( sidebar ).toMatch( /max-block-size:\s*50%/ );
+		expect( sidebar ).toMatch( /border-inline-start:\s*0/ );
+		expect( sidebar ).toMatch( /safe-area-inset-bottom/ );
+		expect(
+			block( posts, 'html[data-os-mode="mobile"] .os-mindmap__sidebar:has( > .os-mindmap__sidebar-empty ),' ),
+		).toMatch( /display:\s*none/ );
+		expect( posts ).toContain( 'html[data-os-mode="mobile"] .os-tagcloud__sidebar:has( > .os-tagcloud__sidebar-empty )' );
 	} );
 } );
 

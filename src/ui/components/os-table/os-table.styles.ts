@@ -173,7 +173,12 @@ export const styles = css`
 
 	/* Hover + stripe — both overlays stack. background-image accepts a
 	   comma-separated list, painted top-to-bottom. */
-	:host( [ hover ] [ striped ] )
+	/* One compound selector inside :host() — a space between the two
+	   attribute selectors would make it a descendant selector, which
+	   :host() rejects, and the browser would drop the whole rule
+	   without a word. (That is what it did, until it was written this
+	   way.) */
+	:host( [ hover ][ striped ] )
 		tbody
 		tr:nth-child( odd ):hover
 		td {
@@ -489,11 +494,19 @@ export const styles = css`
 	:host( [ stacked ] ) tbody tr:last-child {
 		border-bottom: 0;
 	}
+	/* Every cell rule the grid has — the base, the stripe, the hover,
+	   the selection tint, the column border — is undone here in one
+	   list, at a specificity above each of them. The attribute pairs
+	   inside :host() are ONE compound selector each (no space): a
+	   space would make the list invalid and the browser would drop it
+	   whole, leaving every card with the grid's chrome. */
 	:host( [ stacked ] ) tbody td,
 	:host( [ stacked ] ) tbody tr.is-selected td,
 	:host( [ stacked ] ) tbody tr.is-selected:hover td,
-	:host( [ stacked ] [ striped ] ) tbody tr:nth-child( odd ) td,
-	:host( [ stacked ] [ hover ] ) tbody tr:hover td {
+	:host( [ stacked ][ striped ] ) tbody tr:nth-child( odd ) td,
+	:host( [ stacked ][ hover ] ) tbody tr:hover td,
+	:host( [ stacked ][ hover ][ striped ] ) tbody tr:nth-child( odd ):hover td,
+	:host( [ stacked ][ bordered ] ) tbody td {
 		display: block;
 		padding: 0;
 		border: 0;
@@ -504,7 +517,7 @@ export const styles = css`
 		width: auto;
 		vertical-align: baseline;
 	}
-	:host( [ stacked ] [ hover ] ) tbody tr:hover {
+	:host( [ stacked ][ hover ] ) tbody tr:hover {
 		background-image: linear-gradient(
 			var( --_row-hover ),
 			var( --_row-hover )
@@ -601,8 +614,7 @@ export const styles = css`
 		max-width: 100%;
 	}
 	:host( [ stacked ] ) tr.subtable,
-	:host( [ stacked ] ) tr.empty,
-	:host( [ stacked ] ) tr.skeleton {
+	:host( [ stacked ] ) tr.empty {
 		display: block;
 		padding: 0;
 	}
@@ -618,8 +630,16 @@ export const styles = css`
 	:host( [ stacked ] ) tr.empty td {
 		padding: 24px;
 	}
-	:host( [ stacked ] ) tr.skeleton td {
-		padding: 16px 14px;
+	:host( [ stacked ] ) tr.skeleton {
+		display: block;
+		padding: 14px;
+		border-bottom: 1px solid var( --_border );
+	}
+	:host( [ stacked ] ) tr.skeleton td.stack-body {
+		gap: 8px;
+	}
+	:host( [ stacked ] ) tr.skeleton .skeleton-bar:first-child {
+		height: 15px;
 	}
 
 	/* Loading skeleton. */
