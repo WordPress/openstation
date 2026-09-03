@@ -48,14 +48,24 @@ describe( '<os-table stacked> is a card list', () => {
 	} );
 
 	test( 'the cell chrome of the grid — border, stripe, hover, selection, column border — is undone for cards', () => {
-		const list = table.slice(
-			table.indexOf( ':host( [ stacked ] ) tbody td,' ),
-			table.indexOf( '{', table.indexOf( ':host( [ stacked ] ) tbody td,' ) ),
-		);
+		const start = table.indexOf( ':host( [ stacked ] ) tbody tr.is-selected td,' );
+		const list = table.slice( start, table.indexOf( '{', start ) );
 		expect( list ).toContain( ':host( [ stacked ][ striped ] ) tbody tr:nth-child( odd ) td' );
 		expect( list ).toContain( ':host( [ stacked ][ hover ] ) tbody tr:hover td' );
 		expect( list ).toContain( ':host( [ stacked ][ bordered ] ) tbody td' );
-		expect( list ).toContain( ':host( [ stacked ] ) tbody tr.is-selected td' );
+		expect( list ).toContain( ':host( [ stacked ] ) tbody tr.is-selected:hover td' );
+	} );
+
+	test( 'that list is paint only — a layout property in it would reflow the card under the pointer', () => {
+		const start = table.indexOf( ':host( [ stacked ] ) tbody tr.is-selected td,' );
+		const body = table.slice( table.indexOf( '{', start ), table.indexOf( '}', start ) );
+		expect( body ).not.toMatch( /\bdisplay\s*:/ );
+		expect( body ).not.toMatch( /\bwidth\s*:/ );
+		expect( body ).not.toMatch( /\bvertical-align\s*:/ );
+		// The base cell rule is where the layout lives.
+		const base = block( table, ':host( [ stacked ] ) tbody td {' );
+		expect( base ).toMatch( /display:\s*block/ );
+		expect( base ).toMatch( /width:\s*auto/ );
 	} );
 
 	test( 'the loading skeleton is a card too', () => {
@@ -71,7 +81,7 @@ describe( '<os-table stacked> is a card list', () => {
 		const row = block( table, ':host( [ stacked ] ) tbody tr {' );
 		expect( row ).toMatch( /display:\s*flex/ );
 		expect( row ).toMatch( /padding:\s*12px 14px/ );
-		const cell = block( table, ':host( [ stacked ] ) tbody td,' );
+		const cell = block( table, ':host( [ stacked ] ) tbody td {' );
 		expect( cell ).toMatch( /display:\s*block/ );
 		expect( cell ).toMatch( /background-color:\s*transparent/ );
 	} );

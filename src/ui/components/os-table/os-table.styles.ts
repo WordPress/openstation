@@ -500,13 +500,7 @@ export const styles = css`
 	   inside :host() are ONE compound selector each (no space): a
 	   space would make the list invalid and the browser would drop it
 	   whole, leaving every card with the grid's chrome. */
-	:host( [ stacked ] ) tbody td,
-	:host( [ stacked ] ) tbody tr.is-selected td,
-	:host( [ stacked ] ) tbody tr.is-selected:hover td,
-	:host( [ stacked ][ striped ] ) tbody tr:nth-child( odd ) td,
-	:host( [ stacked ][ hover ] ) tbody tr:hover td,
-	:host( [ stacked ][ hover ][ striped ] ) tbody tr:nth-child( odd ):hover td,
-	:host( [ stacked ][ bordered ] ) tbody td {
+	:host( [ stacked ] ) tbody td {
 		display: block;
 		padding: 0;
 		border: 0;
@@ -516,6 +510,23 @@ export const styles = css`
 		min-width: 0;
 		width: auto;
 		vertical-align: baseline;
+	}
+	/* PAINT ONLY in this list. It outranks the cell-type rules below
+	   (the checkbox cell, the expander, the card body), so a layout
+	   property here — display, width — would apply on hover and on a
+	   selected row and not otherwise, and the card would reflow under
+	   the pointer. Layout lives in the base rule above alone. */
+	:host( [ stacked ] ) tbody tr.is-selected td,
+	:host( [ stacked ] ) tbody tr.is-selected:hover td,
+	:host( [ stacked ][ striped ] ) tbody tr:nth-child( odd ) td,
+	:host( [ stacked ][ hover ] ) tbody tr:hover td,
+	:host( [ stacked ][ hover ][ striped ] ) tbody tr:nth-child( odd ):hover td,
+	:host( [ stacked ][ bordered ] ) tbody td {
+		padding: 0;
+		border: 0;
+		background-color: transparent;
+		background-image: none;
+		box-shadow: none;
 	}
 	:host( [ stacked ][ hover ] ) tbody tr:hover {
 		background-image: linear-gradient(
