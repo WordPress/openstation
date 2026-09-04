@@ -2361,8 +2361,8 @@ function openstation_flush_script_handle_registries() {
  * receipt (`hydrateServerEntries()` in `src/native-windows.ts`).
  *
  * The split exists because script data is a property of the HANDLE,
- * not of the window: Posts, Pages, Users and Profile all ride
- * `os-posts-window`, and inlining each entry's resolved copy
+ * not of the window: every App Framework window rides
+ * `openstation-app-runtime`, and inlining each entry's resolved copy
  * serialized the same localize blobs and the same shared config set
  * four times over — `scriptL10n` alone was ~100 KB of the boot
  * payload, most of it repetition. The synthesized

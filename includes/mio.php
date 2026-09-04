@@ -77,7 +77,20 @@ function openstation_mio_default_config() {
 			// sheen — a flat gradient over dead black. One number here
 			// turns both back on for a whole site.
 			'iridescence'  => 0,
-			'outlineWidth' => 3,
+			// The artwork's ring is 13 units on a body of roughly 240 —
+			// 5.4%, or 6px at this radius. That 6 is the whole drawn
+			// ring, chroma and white line together, split two to one.
+			'outlineWidth' => 4,
+			// The white line the artwork draws between the body and the
+			// chroma. It reaches INWARD, so thickening it eats into the
+			// body rather than widening the ring — 'outlineWidth' keeps
+			// meaning the coloured band whatever this says.
+			//
+			// Must match `MIO_DEFAULTS` in `src/mio/config.ts`.
+			'linerWidth'   => 2,
+			// Starlight again: the brand has one white, and the line and
+			// the eyes are both drawn in it.
+			'linerColor'   => '#fffbff',
 			// Reach of the light, as a multiple of Mio's own radius:
 			// `10` carries the wash about one and a half radii past the
 			// outline. Deliberately generous — Mio sits on a dark desk
@@ -152,8 +165,8 @@ function openstation_mio_default_config() {
  *         'appearance' => array( radius, bodyColor, bodyAlpha, hueStart,
  *                                hueSpan, hueDrift, hueLoop, hueAngle,
  *                                saturation, lightness, iridescence,
- *                                outlineWidth, glow, glowBlur,
- *                                eyeColor, eyeScale ),
+ *                                outlineWidth, linerWidth, linerColor,
+ *                                glow, glowBlur, eyeColor, eyeScale ),
  *         'physics'    => array( points, shapePreset, shapeLobes,
  *                                shapeAmount, shapeAngle, shapeShuffle,
  *                                radialStiffness, edgeStiffness,
@@ -223,6 +236,8 @@ function openstation_mio_look_appearance_keys() {
 		'lightness',
 		'iridescence',
 		'outlineWidth',
+		'linerWidth',
+		'linerColor',
 		'glow',
 		'glowBlur',
 		'eyeColor',
@@ -279,6 +294,7 @@ function openstation_mio_look_limits() {
 		'lightness'       => array( 0.15, 1 ),
 		'iridescence'     => array( 0, 2 ),
 		'outlineWidth'    => array( 0.5, 24 ),
+		'linerWidth'      => array( 0, 12 ),
 		'glow'            => array( 0, 20 ),
 		'eyeScale'        => array( 0.05, 0.6 ),
 		'shapeLobes'      => array( 0, 8 ),
@@ -376,7 +392,7 @@ function openstation_mio_clamp_look( $raw ) {
 				$out[ $key ] = in_array( $value, $presets, true ) ? $value : $default;
 				continue;
 			}
-			if ( 'bodyColor' === $key || 'eyeColor' === $key ) {
+			if ( 'bodyColor' === $key || 'eyeColor' === $key || 'linerColor' === $key ) {
 				$out[ $key ] = openstation_mio_color_int( $value, openstation_mio_color_int( $default ) );
 				continue;
 			}
@@ -461,7 +477,7 @@ function openstation_sanitize_mio_look( $raw ) {
 				}
 			} elseif ( is_string( $value ) ) {
 				// The only string-valued keys are `shapePreset` and the
-				// two colours in `#rrggbb` form.
+				// three colours in `#rrggbb` form.
 				$clean[ $group ][ $key ] = sanitize_text_field( $value );
 			}
 		}

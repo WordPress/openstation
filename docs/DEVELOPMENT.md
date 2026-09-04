@@ -21,6 +21,10 @@ npm run lint:php           # PHPCS, errors only — this is what CI gates on
 npm run lint:php:all       # PHPCS including advisory warnings
 npm run lint:php:fix       # PHPCBF — applies every auto-fixable rule
 npm run env:stop:tests     # when you're done
+
+# Dead-code detectors (advisory; neither gates CI):
+npm run lint:unused        # knip — unused files, exports and types under src/ and apps/
+npm run lint:css:unused    # class selectors in the app + runtime sheets nothing emits
 ```
 
 One PHPUnit test reads build output rather than source: an app's client view is only reported when `assets/js/apps/<name>[.min].js` exists on disk, and that directory is gitignored. On a fresh clone run `npm run build` (or just `npm run build:apps`) once before `npm run test:php` — the assertion names the command if you forget.
@@ -106,11 +110,20 @@ The ruleset separates two things that the standard reports identically:
   - **`WordPress.DB.PreparedSQL.InterpolatedNotPrepared`.** Table names cannot be placeholders below WordPress 6.2, which introduced `%i`. The plugin supports 6.0, so custom-table queries interpolate `{$tables['…']}` and pass values through `prepare()`. Revisit if the minimum ever moves to 6.2.
   - **Docblock coverage.** 1186 of the 1248 functions under `includes/` carry one, so the standard matches the house style — the gap is a tail to close, not a convention to abandon. Holding CI red until it is closed would only teach everyone to ignore the job.
 
-Before reaching for a `phpcs:ignore`, check that the finding is genuinely not a defect, and put the reason on the same line. Prefer a scoped `disable`/`enable` pair over a file-wide `disable`: the AJAX handlers in `includes/plugins-window/ajax.php` verify their nonce inside a shared guard function, which the sniff cannot follow, but the exemption is scoped to the `$_POST` reads so a handler that forgets the guard still trips.
+Before reaching for a `phpcs:ignore`, check that the finding is genuinely not a defect, and put the reason on the same line. Prefer a scoped `disable`/`enable` pair over a file-wide `disable`: the AJAX handlers in `apps/plugins/parts/ajax.php` verify their nonce inside a shared guard function, which the sniff cannot follow, but the exemption is scoped to the `$_POST` reads so a handler that forgets the guard still trips.
 
 `npm run lint:php:fix` runs PHPCBF. It is safe on formatting but it has one known rough edge: its `Squiz.PHP.EmbeddedPhp` fix splits multi-line inline comments inside templates and leaves the continuation lines misaligned. Skim the diff for comments before committing.
 
 Extensions under `extensions/` are excluded here and scanned against their own rulesets — they ship as separate plugins with their own prefixes and text domains.
+
+### Dead code — two detectors, both advisory
+
+ESLint catches an unused import or local inside a file; it cannot see an export nothing imports, a file nothing reaches, or a stylesheet rule nothing emits. Two scripts cover that ground and are meant to be run before a refactor PR, not on every save:
+
+- **`npm run lint:unused`** runs [knip](https://knip.dev) with the repo's `knip.json` (the Vite/Vitest plugins are off there — `vite.config.js` is CommonJS and knip's loader trips on it — so every bundle entry is listed by hand). It reports files nothing reaches, exports used only inside their own file (drop the `export`), and exported types nothing imports. Read the "unused exports" list with the file open: a symbol used in its own file is over-exported, a symbol with no other reference is dead.
+- **`npm run lint:css:unused`** (`bin/unused-css.sh`) greps every `.class` selector of the app sheets and the runtime sheet over the TypeScript and PHP that could emit it, and lists the misses; pass a sheet path to check one. The markup here is built in templates, so the HTML-driven CSS pruners have nothing to look at; this literal scan is the honest first pass. A hit proves nothing (a longer name contains a shorter one); a miss is a rule to look at — the cells rendered inside `<os-table>`'s shadow root, for one, can never be reached by a document sheet.
+
+PHP has no equivalent worth wiring: a WordPress plugin calls functions by string name from hooks, so the static tools (`psalm --find-unused-code`, PHPStan's unused rules) report every hook callback as dead. A grep for the function name is the reliable test.
 
 ### File length — a nudge, not a gate
 
@@ -160,13 +173,17 @@ src/
 │                            #   (`wp.os.files`), the Recycle Bin's drop
 │                            #   targets and closed-tile art.
 ├── open-targets/            # Cross-bundle "open the app on X" hand-offs
-│                            #   (shared-store targets for `apps/`).
-├── posts-window/            # Feature windows — one directory per
-├── plugins-window/          #   window, each compiled to its own
-├── comments-window/         #   lazy Vite bundle (see the `build:*`
-├── content-graph/           #   scripts in package.json). Whole
-├── ai-assistant/            #   windows built on the App Framework
-│                            #   live under `apps/`, not here.
+│                            #   (params-based doors for `apps/`, e.g.
+│                            #   `openUserEditWindow()`).
+├── content-graph/           # Feature windows — one directory per
+├── ai-assistant/            #   window, each compiled to its own lazy
+│                            #   Vite bundle (see the `build:*` scripts
+│                            #   in package.json). Whole windows built
+│                            #   on the App Framework — Posts, Pages,
+│                            #   Users, User Edit, Plugins, Comments,
+│                            #   Trash, WP Explorer, Code Blue, Station
+│                            #   Home, Preferences — live under `apps/`,
+│                            #   not here.
 ├── wallpapers/              # Registry, layer, built-ins, types, vendor
 │                            #   script loader.
 ├── widgets/                 # Registry, layer, picker, frame
@@ -198,7 +215,7 @@ bundles (and the TS entry behind each) are the `build:*` scripts in
 `package.json`, resolved via `OPENSTATION_TARGET` in `vite.config.js`.
 App client views are the exception to that list: every
 `apps/<dir>/<name>.os.ts` is discovered by `vite.config.js` as the target
-`app:<name>` and built by `npm run build:apps` (part of `npm run build`)
+`app:<name>` and built by `npm run build:apps` (part of `npm run build`; a shared element two apps mount, such as `<os-user-profile>`, is a fixed target of its own — `npm run build:user-profile`)
 into `assets/js/apps/<name>[.min].js` — see
 [`app-framework.md`](./app-framework.md#the-client-view--osts).
 
@@ -284,10 +301,10 @@ Strings flow through three files per locale in `languages/`:
 - `desktop-mode-{locale}-{handle}.json` — JS translation bundles.
   WordPress's `wp_set_script_translations()` looks up these files by
   the script handle, NOT by source-file hash, because we pass a path
-  argument from `includes/assets.php`. Today three handles have
-  populated bundles — `openstation` (the main shell),
-  `os-posts-window`, and `desktop-mode-recycle-bin`; see
-  `bin/build-i18n.sh` for the handle to source-prefix map.
+  argument from `includes/assets.php` (and, for an app's client view,
+  from `includes/framework/wordpress.php` under the handle
+  `openstation-app-<id>-client`). See `bin/build-i18n.sh` for the
+  handle to source-prefix map — every `apps/<dir>/` has an entry.
 
 ### POT header fields
 

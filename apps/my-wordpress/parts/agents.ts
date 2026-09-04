@@ -20,7 +20,7 @@ import {
 	hasFace,
 } from './agents-face';
 import { openAgentChat } from '../../../src/agents-chat-store';
-import { createSharedStore } from '../../../src/shared-store';
+import { openUserEditWindow } from '../../../src/open-targets/user-edit-window';
 import type {
 	Agent,
 	PreviewAgent,
@@ -157,39 +157,25 @@ export function openChatWindow( payload: AgentsPayload, agent: Agent ): void {
 }
 
 /**
- * Open the agent's USER profile — same three-step hand-off the users
- * grid uses: seed the user-edit target store, open the native window,
- * fall back to the iframe profile.
+ * Open the agent's USER profile — the same door the users grid uses
+ * (the User Edit app, on this person), falling back to the iframe
+ * profile when the native window is not registered.
  */
 export function openAgentProfile( agent: AppAgent ): void {
-	const target = createSharedStore< {
-		userId: number | null;
-		requestedAt: number;
-		tabRequested: boolean;
-	} >( 'desktop-mode/user-edit/target', () => ( {
-		userId: null,
-		requestedAt: 0,
-		tabRequested: false,
-	} ) );
-	target.state.userId = agent.id;
-	target.state.requestedAt = Date.now();
-	target.state.tabRequested = true;
-	target.notify();
-
-	const desktop = shell();
-	const opened = desktop.openWindow?.( 'desktop-mode-user-edit', {
+	openUserEditWindow( agent.id, {
 		source: 'agents/profile',
-		// Survives a reload; the shared store above does not.
-		params: { userId: agent.id },
+		fallback: () => {
+			if ( ! agent.profileUrl ) {
+				return;
+			}
+			shell().windowManager?.open( {
+				id: `user-edit-${ agent.id }`,
+				url: agent.profileUrl,
+				title: agent.name,
+				icon: 'dashicons-admin-users',
+			} );
+		},
 	} );
-	if ( ! opened && agent.profileUrl ) {
-		desktop.windowManager?.open( {
-			id: `user-edit-${ agent.id }`,
-			url: agent.profileUrl,
-			title: agent.name,
-			icon: 'dashicons-admin-users',
-		} );
-	}
 }
 
 /**

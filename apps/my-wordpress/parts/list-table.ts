@@ -18,7 +18,7 @@
  */
 
 import { __, _n, formatDate, html, sprintf, type TemplateResult } from '@openstation/app';
-import { openUserEditWindow } from '../../../src/posts-window/user-edit-target';
+import { openUserEditWindow } from '../../../src/open-targets/user-edit-window';
 import {
 	shell,
 	uiOf,

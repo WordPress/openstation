@@ -22,6 +22,7 @@ These four cover ~90% of plugin code. Reach for them before anything else:
 | [`wp.os.ready( cb )`](#whenready--ready--isready) | Run a callback once the shell has booted (or immediately if already booted). Idiomatic boot pattern for any script enqueued with the `openstation` dep. | **Stable** |
 | [`wp.os.openWindow( id, opts? )`](#wposopenwindow-id-opts---stable) | Open or focus a registered native window by id. Symmetric with `openstation_register_window( $id, … )` PHP-side. | **Stable** |
 | [`wp.os.loadWindowScript( id )`](#wposloadwindowscript-id---stable) | Load a native window's bundle without opening it — for reaching an API the bundle publishes on `wp.os`. Window bundles load on first open. | **Stable** |
+| [`wp.os.prewarmWindow( id )`](#wposprewarmwindow-id---experimental) | Warm a closed native window ahead of its open: bundles into the tab, and an app window's first `mount` sent now and held for the click. What the dock does on hover intent. | **Experimental** |
 | [`wp.os.loadComponents( tags? )`](#wposloadcomponents-tags---stable) | Make `<os-*>` tags upgrade on demand. The runtime route to the component kit for plugin code that can't import the modules at build time. | **Stable** |
 | [`wp.os.getWindowParams( id )`](#wposgetwindowparams-id---stable) | What an open window is showing right now — for code with no render callback to read `ctx.params` from. | **Stable** |
 | [`wp.os.registerNativeUrlRemap( entry )`](#wposregisternativeurlremap-entry---stable) | Claim an admin URL for a native window, so every open path in the shell routes to it instead of an iframe. | **Stable** |
@@ -1418,6 +1419,22 @@ Resolves `true` once the bundle is in the tab — immediately on a repeat call, 
 
 Companion bundles declared via the window's `'scripts'` arg load first, in declaration order, exactly as they would on an open — and companion stylesheets (`'styles'`) are injected too, so a bundle whose API renders into the page arrives styled.
 
+---
+
+### `wp.os.prewarmWindow( id )` — Experimental
+
+Warm a registered native window **ahead of its open**.
+
+```typescript
+wp.os.prewarmWindow( id: string ): Promise< boolean >;
+```
+
+Two things happen. The window's bundles come into the tab exactly as `loadWindowScript()` brings them (a no-op once they are there — the shell also prefetches every deferred bundle in idle time after boot, so this is mostly a parse). Then, for an [App Framework](./app-framework.md) window, the runtime sends the window's **first `mount` request now** — the same body the opening window would send, the declared state and no params — and holds the answer for ~30 s. The open that follows takes it instead of fetching: the frame paints from the client `placeholder`, and the rows are on screen a frame later.
+
+This is what the dock does on a sustained mouse hover over a native window's tile — a system tile, a launcher synthesised from a registered icon, or a menu URL a native remap captures (Posts, Users, Plugins, Comments with their native windows on) — when **Prewarm windows on hover** is enabled; iframe tiles get `windowManager.prewarm()` from the same gesture. A plugin with its own intent signal (a focused row, a pointer heading for a button) calls it directly.
+
+Resolves `true` when a mount was started; `false` when there was nothing to warm — an unknown id, a window that is already open, a native window that is not an app, or one warmed a moment ago. A warm is taken **once**, by the next default open; a window opened with params (a deep link) always fetches, since its state is the server's to derive; a warm that failed is dropped and the open fetches as it always did.
+
 
 ---
 
@@ -1891,7 +1908,7 @@ wp.os.icons?.setArt?.( 'my-bin', '' );  // restore the registered icon
 
 Every applied change publishes `os/art-changed` on the activity channel with `{ itemId, icon, rail: 'dock' | 'taskbar' | 'icon' }`.
 
-`wp.os.icons.getArt( id )` reads the current override back, or `''` when the registered icon is still in charge.
+`wp.os.icons.getArt( id )` and `wp.os.dock.getArt( id )` read the current override back, or `''` when the registered icon is still in charge. The phone's home grid reads both: its tiles are not a rail's, so a `setArt` never reaches them directly, and the grid repaints from the getters on every `os/art-changed` — a bin that fills on the desk fills on the phone too.
 
 In-tree reference: [`src/desktop-files/recycle-bin-icon-state.ts`](../src/desktop-files/recycle-bin-icon-state.ts). The Recycle Bin uses it to draw an empty bin and a bin holding something as two states of one object. It replaced a count badge there: the badge pill is positioned onto the artwork rather than beside it, and at a 20px dock tile it covered about 30% of the icon.
 
@@ -2771,9 +2788,14 @@ wp.os.apps.dispatch( windowId: string, action: string, args?: Record< string, un
 wp.os.apps.local( windowId: string, action: string, args?: Record< string, unknown > ): void;   // client-view apps: no request
 wp.os.apps.session( windowId: string, view?: string ): Session | undefined;
 wp.os.apps.refresh(): string[];   // re-scan window configs for app definitions; returns newly registered ids
+wp.os.apps.prewarm( id: string ): boolean;   // send a closed app window's first `mount` now; the open takes the answer. Prefer wp.os.prewarmWindow( id ), which loads the bundles first.
 ```
 
 An app with a client view (`<file>.os.ts`, see [`app-framework.md` → The client view](./app-framework.md#the-client-view--osts)) publishes `window.openStationApps[ id ]` from its bundle; `session.data` is what its `App::data()` returned on the last server response.
+
+`wp.os.apps` also mirrors everything an in-repo `.os.ts` imports from `@openstation/app`, for a client view built outside this repo: `defineApp`, `html`, `__` / `_n` / `_x` / `sprintf`, `formatBytes` / `formatDate`, `createPagedList` / `applySelection` / `createMarquee`, `copyText`, and the list-window furniture `statusControl` / `pager` / `mountMenuCheckboxes` (see [`app-framework.md` → The client view](./app-framework.md#the-client-view--osts)). A companion script that loads before the runtime queues on `window.openStationAppsPending` instead.
+
+When a live app window is reopened with params (`wp.os.openWindow( id, { params } )`, a URL remap's `params` hook), the runtime adopts the new params on every session of that window — later dispatches carry them — and dispatches the app's `reopen` lifecycle action when declared; see the `os-window-reopened` event.
 
 - **`dispatch`** runs an action on a mounted app window exactly as one of its own `os-action` triggers would: the request carries the view's current state and the window's open-time params, the response is morphed in and its effects performed. Resolves `true` once applied, `false` if the window is not mounted or the dispatch failed (the failure is toasted). `view` is `main` (default) or a tab slug declared with `App::tab()` — each tab panel is its own session.
 - **`session`** is the live session object — `state` (read-only snapshot), `view`, `dispatch`, `setPaused`, `dispose`. Read `state` to react to what the window is showing; do not mutate it.
@@ -3821,7 +3843,7 @@ Register a tab in the OpenStation Preferences window. The tab is appended (or so
 | Field | Type | Notes |
 |---|---|---|
 | `isAdmin` | `boolean` | `true` when current user has `manage_options`. |
-| `getOsSettings()` | `function` | Snapshot of the persisted OpenStation Preferences state — `{ wallpaper, accent, dockSize, windowRadius, unfocusEffect, ai: { enabled } }` plus `adminBarMode` (`'static'` \| `'dynamic'` \| `'hidden'` — how the WordPress admin bar presents above the shell; emitted as a `os-admin-bar-<mode>` body class), `desktopLayout`, `dockPlacement` (`'bottom'` \| `'left'` \| `'right'` — which edge the dock sits on; read by the one-rail layouts, ignored by `classic`), `dockBehavior` (`'static'` \| `'dynamic'` — the dock always on screen, or folded into a thin indicator line at its edge and morphed back when the pointer reaches that edge; stamped as `data-os-dock-behavior` on the rail; a dynamic rail reserves no [work area](#workarea--experimental)), `sideDockBehavior` (the same choice for the `classic` layout's sidebar, its own rail on its own edge; ignored by the one-rail layouts), `dockRailRenderer`, `desktopTheme`, `appliedThemeRecommendations`, the native-window opt-ins (`nativePostsEnabled`, `nativePostsHiddenColumns`, `nativePagesEnabled`, `nativeUsersEnabled`, `nativePluginsEnabled`, `nativeCommentsEnabled`, `stationHomeEnabled` — Station Home as the Dashboard, default off), `adminAssetCacheEnabled` (the service worker's shared admin-asset cache, Experimental, default off — informational: the cache is enforced inside the SW, and changes apply via a SW update on the next reload), `windowPrewarmEnabled` (hover-intent window prewarming, Experimental, default off — the dock reads it live at hover time and calls `windowManager.prewarm()`), `developerModeEnabled`, `foldersSharingEnabled`, `navPlacement`, `navOrder`, and `dockPromotedPositions` — plus `customAccent`, `customGradient`, `customImage`, `wallpaperSettings`, `libraryHdOnly`, `heartbeatRate`, `showDesktopOnWallpaperClick`, `confirmCloseAllWindows`, `mioEnabled` and `mioStyle` — the snapshot IS the whole `OsSettingsState`; see `src/settings/types.ts` for the authoritative shape. `navPlacement` maps a nav-item id to `'rail' | 'desktop' | 'both' | 'hidden'` and `navOrder` is a flat ordering hint across every rail zone; both replaced the pre-navigation `itemVisibility` / `dockOrder` (see [migration-navigation.md](./migration-navigation.md)). `unfocusEffect` is the active unfocused-window effect id (`'darken'` default, `'none'` disables). `windowReveal` is the active window-reveal id — the clip-path transition that uncovers a window's content when it finishes loading (`'none'` by default; reveals are opt-in) — and `windowRevealDuration` is the global speed override in ms (`0`, the default, means each reveal keeps its own timing). `ai.enabled` is the per-user AI assistant toggle (opt-in, default off; enable-able only once a provider is configured in Settings → Connectors). `developerModeEnabled` (default `false`) gates developer-facing surfaces — the Starter Widget in the add-widget picker and the OpenStation Preferences → Components tab's missing-import-warner demo — set from OpenStation Preferences → Features. **Removed:** `ai.apiKey`, `ai.transport`, `ai.provider` and `ai.model` were removed — credentials live in WordPress Core's Settings → Connectors and provider + model selection is delegated to the Core AI Client. Read-only; returns a defensive copy. |
+| `getOsSettings()` | `function` | Snapshot of the persisted OpenStation Preferences state — `{ wallpaper, accent, dockSize, windowRadius, unfocusEffect, ai: { enabled } }` plus `adminBarMode` (`'static'` \| `'dynamic'` \| `'hidden'` — how the WordPress admin bar presents above the shell; emitted as a `os-admin-bar-<mode>` body class), `desktopLayout`, `dockPlacement` (`'bottom'` \| `'left'` \| `'right'` — which edge the dock sits on; read by the one-rail layouts, ignored by `classic`), `dockBehavior` (`'static'` \| `'dynamic'` — the dock always on screen, or folded into a thin indicator line at its edge and morphed back when the pointer reaches that edge; stamped as `data-os-dock-behavior` on the rail; a dynamic rail reserves no [work area](#workarea--experimental)), `sideDockBehavior` (the same choice for the `classic` layout's sidebar, its own rail on its own edge; ignored by the one-rail layouts), `dockRailRenderer`, `desktopTheme`, `appliedThemeRecommendations`, the native-window opt-ins (`nativePostsEnabled`, `nativePostsHiddenColumns`, `nativePagesEnabled`, `nativeUsersEnabled`, `nativePluginsEnabled`, `nativeCommentsEnabled`, `stationHomeEnabled` — Station Home as the Dashboard, default off), `adminAssetCacheEnabled` (the service worker's shared admin-asset cache, Experimental, default off — informational: the cache is enforced inside the SW, and changes apply via a SW update on the next reload), `windowPrewarmEnabled` (hover-intent window prewarming, Experimental, default off — the dock reads it live at hover time and calls `windowManager.prewarm()` for an iframe tile, `wp.os.prewarmWindow()` for a native one), `developerModeEnabled`, `foldersSharingEnabled`, `navPlacement`, `navOrder`, and `dockPromotedPositions` — plus `customAccent`, `customGradient`, `customImage`, `wallpaperSettings`, `libraryHdOnly`, `heartbeatRate`, `showDesktopOnWallpaperClick`, `confirmCloseAllWindows`, `mioEnabled` and `mioStyle` — the snapshot IS the whole `OsSettingsState`; see `src/settings/types.ts` for the authoritative shape. `navPlacement` maps a nav-item id to `'rail' | 'desktop' | 'both' | 'hidden'` and `navOrder` is a flat ordering hint across every rail zone; both replaced the pre-navigation `itemVisibility` / `dockOrder` (see [migration-navigation.md](./migration-navigation.md)). `unfocusEffect` is the active unfocused-window effect id (`'darken'` default, `'none'` disables). `windowReveal` is the active window-reveal id — the clip-path transition that uncovers a window's content when it finishes loading (`'none'` by default; reveals are opt-in) — and `windowRevealDuration` is the global speed override in ms (`0`, the default, means each reveal keeps its own timing). `ai.enabled` is the per-user AI assistant toggle (opt-in, default off; enable-able only once a provider is configured in Settings → Connectors). `developerModeEnabled` (default `false`) gates developer-facing surfaces — the Starter Widget in the add-widget picker and the OpenStation Preferences → Components tab's missing-import-warner demo — set from OpenStation Preferences → Features. **Removed:** `ai.apiKey`, `ai.transport`, `ai.provider` and `ai.model` were removed — credentials live in WordPress Core's Settings → Connectors and provider + model selection is delegated to the Core AI Client. Read-only; returns a defensive copy. |
 | `subscribeOsSettings( cb )` | `function` | Subscribe to in-panel OpenStation Preferences changes (user toggles a feature in the Features tab, etc.). Returns an unsubscribe function. Fires on local edits only — cross-device changes arrive on the next page load. |
 
 ```javascript
@@ -5037,7 +5059,7 @@ All window actions include at minimum `{ windowId: string }` — additional fiel
 |---|---|---|---|
 | `os.window.geometry` | filter | Stable | `( geometry, ctx ) => geometry` — last call before `WindowConfig` is baked. See [the geometry filter section below](#window-geometry-filter) for the contract and a recipe. |
 | `os.window.opened` | action | Stable | `{ windowId, page, title, url }` |
-| `os.window.reopened` | action | Stable | `{ windowId, baseId, wasMinimized, navigated }` — fires when `openWindow()` is called for an already-open window; `navigated` is `true` when the request carried a URL the window wasn't showing and the framework navigated the existing iframe to it in place |
+| `os.window.reopened` | action | Stable | `{ windowId, baseId, wasMinimized, navigated, params }` — fires when `openWindow()` is called for an already-open window; `navigated` is `true` when the request carried a URL the window wasn't showing and the framework navigated the existing iframe to it in place; `params` are the window's open-time params AFTER the request's were written onto it (an App Framework window retargets from them through its `reopen` action) |
 | `os.window.content-loading` | action | Stable | `{ windowId }` — fires on the loading entry edge (construction + every `markContentLoading()`). Edge-triggered. |
 | `os.window.content-loaded` | action | Stable | `{ windowId }` — fires on the loading → ready transition (iframe `load` / `os-ready`, native render Promise resolves, or `markContentLoaded()`). Edge-triggered. |
 | `os.window.loading-overlay` | filter | Stable | `(host: HTMLElement, ctx: { windowId, config }) → HTMLElement`. Receives the default overlay element (or whatever a per-window `config.loading.render` produced) and may mutate it or return a replacement. Plugins use this to brand every window's loader, swap the spinner preset, append status text. |
@@ -6519,13 +6541,27 @@ placements you recognize; see
 
 ---
 
+## Users and User Edit — `<os-user-profile>`
+
+The profile surface both windows show (sidebar summary, the profile form, the activity / insights panel) is one custom element, `<os-user-profile>`, shipped as its own companion bundle — `assets/js/apps/user-profile[.min].js`, script handle `openstation-user-profile` — registered by `apps/users/parts/profile-script.php` and appended to the Users and User Edit windows through `openstation_app_window_args`. A plugin that wants the same surface in its own window appends the handle the same way.
+
+```html
+<os-user-profile user-id="12"></os-user-profile>
+```
+
+- `user-id` (attribute) — the person. A change re-mounts the element on the new id; without one it idles.
+- `config`, `fetch`, `toast` (properties) — the app that mounts it feeds `ctx.extra` (the facts: role / locale / colour-scheme / contact-method maps and capability flags), `ctx.fetch` and `ctx.host.toast`, so the requests are attributed to that window. Unfed, the element falls back to the shell's REST root, nonce and toast.
+- `refreshInsights()` — re-read the insights panel (a save does it for its own element).
+
+The Users app mounts it only when its Profile tab is picked; the User Edit app mounts it on the `userId` its params name (`0` or none: the viewer), and retargets through the `reopen` lifecycle when asked to open on someone else.
+
 ## Native Plugins window
 
-The `desktop-mode-plugins` native window replaces the chromeless `plugins.php` and `plugin-install.php` iframes. Two tabs (Installed + Browse), a `<os-flyout>` detail panel, .zip upload (button + drop-on-window), and drag-card-to-dock pinning via the framework drag bridge.
+The `desktop-mode-plugins` native window replaces the chromeless `plugins.php` and `plugin-install.php` iframes. Three tabs (Installed, Add Plugin, OpenStation plugins), a `<os-flyout>` detail panel, .zip upload (button + drop-on-window), and drag-card-to-dock pinning via the framework drag bridge. It is an [App Framework](./app-framework.md) app — `apps/plugins/` — whose installed list is a `data()` over `openstation_app_rest( 'GET', 'wp/v2/plugins' )` (every `openstation_*` REST field included), whose activate / deactivate / delete / bulk are server actions running Core's controller in-process, and whose install, update, upload, browse, info and reviews stay on admin-ajax.
 
 ### URL routing
 
-Both `plugins.php` and `plugin-install.php` are claimed by `registerNativeUrlRemap`. The latter stashes a `tab: 'browse'` hint in the shared store `'desktop-mode/plugins-window/tab-target'` so the bundle's first paint activates the Browse tab. When `nativePluginsEnabled` is `false`, the click falls through to the classic iframe path.
+Both `plugins.php` and `plugin-install.php` are claimed by `registerNativeUrlRemap`. The remap passes the landing tab as the window's open-time param — `{ tab: 'installed' | 'browse' }` — which the app reads on `mount` and, when the window is already open, through its `reopen` lifecycle action. Any surface can do the same: `wp.os.openWindow( 'desktop-mode-plugins', { params: { tab: 'browse' } } )` (`'featured'` lands on the OpenStation plugins tab). When `nativePluginsEnabled` is `false`, the click falls through to the classic iframe path.
 
 **Threading state into the window a remap opens.** A remap entry may declare a `params( url, parsed )` hook returning open-time [`params`](#wposopenwindow-id-opts---stable) for its native window. **Prefer it over a shared store**: params are persisted with the session and staged back on restore, so the window reopens on the same subject after a reload — a shared store does not survive the reload and the window comes back on its default. A throwing hook is logged and the window still opens, the same tolerance `onMatch` has. Remaps that declare no hook call the opener with one argument exactly as before.
 
@@ -6551,26 +6587,16 @@ Cards in the Browse gallery call `wp.os.dragManager.start({ … })` on pointer-d
 }
 ```
 
-The bundle pre-installs a drop target on the dock element that accepts this payload type and calls `wp.os.registerSystemTile()` to pin a transient tile pointing at the plugin's wp.org page. **Plugin authors can register their own drop targets** (e.g. on a custom canvas) that filter on `payload.type === 'wporg-plugin'` and react to a card drop with no further coordination.
+The app pre-installs a drop target on the dock element that accepts this payload type and calls `wp.os.registerSystemTile()` to pin a transient tile that opens the plugin's wp.org page. **Plugin authors can register their own drop targets** (e.g. on a custom canvas) that filter on `payload.type === 'wporg-plugin'` and react to a card drop with no further coordination.
 
 ### Live-refresh
 
-After every install / activate / deactivate / delete the bundle calls `await wp.os.refreshMenu()`. That spawns a hidden chromeless iframe to capture the real-admin-context menu payload (handles plugins that gate `admin_menu` on `is_admin()`) — same primitive the chromeless bridge uses. Plugin authors that mutate plugin state from elsewhere should mirror this:
+After every activate / deactivate / delete the app's server action performs the `$os->refresh_menu()` effect (`wp.os.refreshMenu()`), and after an install or upload the client calls it. That spawns a hidden chromeless iframe to capture the real-admin-context menu payload (handles plugins that gate `admin_menu` on `is_admin()`) — same primitive the chromeless bridge uses. The `os.plugin.changed` broadcast the app emits carries `source: 'plugins-app'`. Plugin authors that mutate plugin state from elsewhere should mirror this:
 
 ```ts
 await myInstallFlow();
 await window.wp.os.refreshMenu();
 ```
-
-### Shared state — initial tab hint
-
-```ts
-import { setPluginsWindowTab } from 'openstation/plugins-window/tab-target';
-
-setPluginsWindowTab( 'browse' ); // call BEFORE openById( 'desktop-mode-plugins' )
-```
-
-Backed by `wp.os.createSharedStore( 'desktop-mode/plugins-window/tab-target', … )` so multiple bundles see the same value.
 
 ---
 

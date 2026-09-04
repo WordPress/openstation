@@ -58,7 +58,7 @@ export interface AppConfig {
 	extra: Record< string, unknown >;
 	/** Every declared action name. */
 	actions?: string[];
-	/** Declared lifecycle handlers: `resize` | `show` | `hide` | `focus` | `blur`. */
+	/** Declared lifecycle handlers: `resize` | `show` | `hide` | `focus` | `blur` | `reopen`. */
 	lifecycle?: string[];
 	/** Channel → action subscriptions. */
 	channels?: Record< string, string >;
@@ -73,6 +73,17 @@ export interface AppConfig {
 	 * round trip instead of behind a spinner for its duration.
 	 */
 	data?: unknown;
+}
+
+/**
+ * The `source` tag every content-change broadcast an app window
+ * produces carries — through the `announce` effect or `ctx.host.announce`
+ * — so the same window's `watch()` can tell its own echo from a change
+ * made elsewhere and skip the redundant refresh: the dispatch that
+ * announced already returned the fresh `data()`.
+ */
+export function appAnnounceSource( windowId: string ): string {
+	return `openstation-app-runtime:${ windowId }`;
 }
 
 /** One item of a `menu` effect. */
@@ -132,10 +143,11 @@ export interface RuntimeHost {
 	fetch: (
 		input: string,
 		init?: RequestInit,
-		opts?: { windowId?: string; source?: string },
+		opts?: { windowId?: string; source?: string; silent?: boolean },
 	) => Promise< Response >;
 	confirm?: ( options: ConfirmSpec & { confirmLabel?: string } ) => Promise< boolean >;
-	toast?: ( options: { message: string } ) => void;
+	/** A toast; `duration` in ms overrides the shell's default dwell. */
+	toast?: ( options: { message: string; duration?: number } ) => void;
 	setTitle?: ( windowId: string, title: string ) => void;
 	closeWindow?: ( windowId: string ) => void;
 	openWindow?: ( id: string ) => void;
@@ -162,8 +174,12 @@ export interface RuntimeHost {
 	 * server registers.
 	 */
 	refreshMenu?: () => void;
-	/** Subscribe to a shell broadcast topic (`'*'` = all); returns the unsubscribe. */
-	onBroadcast?: ( topic: string, cb: ( firedTopic: string ) => void ) => () => void;
+	/**
+	 * Subscribe to a shell broadcast topic (`'*'` = all); returns the
+	 * unsubscribe. The callback also receives the payload, so a watch
+	 * can skip a broadcast this very window produced.
+	 */
+	onBroadcast?: ( topic: string, cb: ( firedTopic: string, payload?: unknown ) => void ) => () => void;
 	loadComponents?: ( tags: string[] ) => Promise< void >;
 	applyAppearance?: ( windowId: string, appearance: AppearanceDef ) => void;
 }

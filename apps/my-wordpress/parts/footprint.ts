@@ -27,7 +27,7 @@
  */
 
 import { __, _n, formatDate, html, sprintf, type TemplateResult } from '@openstation/app';
-import { openUserEditWindow } from '../../../src/posts-window/user-edit-target';
+import { openUserEditWindow } from '../../../src/open-targets/user-edit-window';
 import { uiOf, type Ctx, type UserFootprint } from './types';
 
 /** Per-window fetch cache — lives in the UI bag, keyed by user. */

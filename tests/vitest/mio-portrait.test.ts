@@ -156,6 +156,10 @@ describe( 'mio portraits', () => {
 			'path',
 			'use',
 			'rect',
+			// The inner line is a stroke clipped to the body: SVG
+			// strokes are centred on their path and cannot be offset to
+			// one side, so the outer half is thrown away instead.
+			'clipPath',
 		] );
 		for ( const c of CASES ) {
 			const svg = render( c );

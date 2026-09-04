@@ -28,16 +28,21 @@ import {
 	applySelection,
 	clientAppFor,
 	copyText,
+	createListTableSync,
 	createMarquee,
 	createPagedList,
 	defineApp,
 	formatBytes,
 	formatDate,
 	html,
+	mountMenuCheckboxes,
+	pager,
 	sprintf,
+	statusControl,
 } from './client';
+import { startPrewarm } from './prewarm';
 import { createSession, setSessionDebug, type Session } from './session';
-import type { AppConfig, AppearanceDef, ControlDef, RuntimeHost } from './types';
+import { appAnnounceSource, type AppConfig, type AppearanceDef, type ControlDef, type RuntimeHost } from './types';
 
 const OWNER = 'openstation-app-runtime';
 const RESIZE_DEBOUNCE_MS = 200;
@@ -64,8 +69,12 @@ function sessionOf( windowId: string, view = 'main' ): Session | undefined {
 	return sessions.get( windowId )?.get( view );
 }
 
-/** The shell surface the sessions use, built once from `wp.os`. */
-function buildHost(): RuntimeHost {
+/**
+ * The shell surface the sessions use, built from `wp.os` per window —
+ * the window id tags every content-change announce, so the window's
+ * own `watch()` can skip its own echo.
+ */
+function buildHost( ownerWindowId: string ): RuntimeHost {
 	const api = os();
 	return {
 		fetch: ( input, init, opts ) => {
@@ -86,7 +95,9 @@ function buildHost(): RuntimeHost {
 			} );
 		},
 		toast: ( options ) => {
-			api?.showToast( { message: options.message } );
+			api?.showToast(
+				options.duration ? { message: options.message, duration: options.duration } : { message: options.message },
+			);
 		},
 		setTitle: ( windowId, title ) => {
 			api?.windowManager.getById( windowId )?.setTitle( title );
@@ -137,7 +148,7 @@ function buildHost(): RuntimeHost {
 				contentType,
 				action as Parameters< typeof api.announceContentChange >[ 1 ],
 				ids,
-				OWNER,
+				appAnnounceSource( ownerWindowId ),
 			);
 		},
 		menu: ( position, items, pick ) => {
@@ -165,7 +176,7 @@ function buildHost(): RuntimeHost {
 			}
 		},
 		onBroadcast: ( topic, cb ) =>
-			api?.subscribe( topic, ( _payload, meta ) => cb( meta.topic ) ) ?? ( () => undefined ),
+			api?.subscribe( topic, ( payload, meta ) => cb( meta.topic, payload ) ) ?? ( () => undefined ),
 		loadComponents: ( tags ) => api?.loadComponents( tags ) ?? Promise.resolve(),
 		applyAppearance: ( windowId, appearance ) => applyAppearance( windowId, appearance ),
 	};
@@ -271,7 +282,7 @@ function registerChrome( config: AppConfig ): void {
 function buildRender( config: AppConfig ): RenderCallback {
 	return async ( body, ctx ) => {
 		const windowId = windowIdOf( body, config.id );
-		const host = buildHost();
+		const host = buildHost( windowId );
 		const lifecycle = new Set( config.lifecycle ?? [] );
 		const teardowns: Array< () => void > = [];
 
@@ -341,6 +352,29 @@ function buildRender( config: AppConfig ): RenderCallback {
 			}
 			host.send = ( channel, payload ) => ctx.window.send( channel, payload );
 		}
+		// A singleton asked to open while already open — a deep link
+		// landing on a live window, `wp.os.openWindow( id, { params } )`
+		// from another surface. The shell has already written the new
+		// params onto the window; adopt them on every session so
+		// `$os->params` answers with the new subject, then let the app
+		// retarget through its `reopen` handler.
+		const onReopened = ( ev: Event ): void => {
+			const detail = ( ev as CustomEvent< {
+				windowId?: string;
+				params?: Record< string, string | number | boolean >;
+			} > ).detail;
+			if ( ! detail || detail.windowId !== windowId ) {
+				return;
+			}
+			const next = detail.params ?? {};
+			each( ( s ) => s.setParams( next ) );
+			if ( lifecycle.has( 'reopen' ) ) {
+				each( ( s ) => void s.dispatch( 'reopen', { params: next } ) );
+			}
+		};
+		document.addEventListener( 'os-window-reopened', onReopened );
+		teardowns.push( () => document.removeEventListener( 'os-window-reopened', onReopened ) );
+
 		const api = os();
 		if ( api && ( lifecycle.has( 'focus' ) || lifecycle.has( 'blur' ) ) ) {
 			// The shell reports `focused` on every focus REQUEST — each
@@ -364,9 +398,11 @@ function buildRender( config: AppConfig ): RenderCallback {
 		}
 
 		// The first render of every view. With prefetched data
-		// (`App::prefetch()`) the main view paints NOW from the declared
-		// state and the shell drops its loading overlay at once; `mount`
-		// then refreshes state and data in the background. A window
+		// (`App::prefetch()`) or a client `placeholder` the main view
+		// paints NOW from the declared state and the shell drops its
+		// loading overlay at once; `mount` then refreshes state and data
+		// in the background (a placeholder paint shows the busy mark
+		// and `ctx.loading` until it does). A window
 		// opened WITH params waits for `mount` instead — the state those
 		// params produce is the server's to derive, and painting the
 		// defaults first would show the wrong page for a beat. Every
@@ -429,6 +465,10 @@ const CLIENT_API = {
 	applySelection,
 	createMarquee,
 	copyText,
+	statusControl,
+	pager,
+	mountMenuCheckboxes,
+	createListTableSync,
 } as const;
 
 /** What a queued third-party client view receives. */
@@ -496,4 +536,20 @@ os()?.registerNamespace( 'apps', {
 	session: ( windowId: string, view = 'main' ) => sessionOf( windowId, view ),
 	/** Re-scan window configs for app definitions. */
 	refresh: () => registerApps(),
+	/**
+	 * Send a closed app window's first `mount` ahead of its open — the
+	 * dock's hover intent. The open then takes the answer instead of
+	 * fetching. `false` for an open window, an unknown id, or one
+	 * already warm; see `wp.os.prewarmWindow( id )` for the door the
+	 * shell uses (it loads the bundles first).
+	 */
+	prewarm: ( id: string ) => {
+		const config = ( window as unknown as RuntimeGlobals ).openStationWindowConfig?.[ id ] as
+			| Partial< AppConfig >
+			| undefined;
+		if ( ! config || config.osApp !== true || sessions.has( id ) ) {
+			return false;
+		}
+		return startPrewarm( config as AppConfig, buildHost( id ).fetch );
+	},
 } );

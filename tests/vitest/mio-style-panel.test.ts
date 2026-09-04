@@ -340,7 +340,12 @@ describe( 'Mio style panel', () => {
 		const { openMioStylePanel } = await load();
 		openMioStylePanel();
 
-		const field = panel()!.querySelector( 'os-color-field' );
+		// By label, not by position: the panel has three colour fields
+		// and which one comes first is a layout decision.
+		const field = [
+			...panel()!.querySelectorAll( 'os-color-field' ),
+		].find( ( el ) => 'Body colour' === el.getAttribute( 'label' ) );
+		expect( field ).toBeDefined();
 		field!.dispatchEvent(
 			new CustomEvent( 'os-color-change', { detail: { value: '#ff00aa' } } ),
 		);

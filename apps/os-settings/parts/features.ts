@@ -333,7 +333,7 @@ const betaSection: Section = ( s ) => {
 			${ beta(
 				'windowPrewarmEnabled',
 				__( 'Prewarm windows on hover (experimental)' ),
-				__( 'Starts loading a page in a hidden window while you hover its dock icon, so the window appears already rendered when you click. Uses extra memory for one speculative window at a time.' ),
+				__( 'Starts loading a window while you hover its dock icon, so it appears already rendered when you click: an admin page in a hidden window, or a native window’s first request sent ahead of the open. Uses extra memory for one speculative page at a time.' ),
 			) }
 			${ beta(
 				'adminAssetCacheEnabled',

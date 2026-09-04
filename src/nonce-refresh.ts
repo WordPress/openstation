@@ -147,15 +147,17 @@ export function bootNonceRefresh(): void {
  *
  *   - `wp_rest` backs `window.openStationConfig.restNonce`
  *      (used by `injectRestNonce()` shell-wide) and the
- *      per-window blob for the Plugins window.
- *   - `desktop-mode-plugins` backs the Plugins window's
+ *      per-window blob of every app window.
+ *   - `desktop-mode-plugins` backs the Plugins app's
  *      `ajaxNonce` (admin-ajax handlers we own).
- *   - `updates` backs the Plugins window's `updatesNonce`
+ *   - `updates` backs the Plugins app's `updatesNonce`
  *      (Core's wp.updates install/update handlers).
  *
- * Other native windows that stash a `restNonce` (Posts, Pages,
- * Users, Comments, …) are picked up by the `wp_rest` target
- * generically — see `updateAllRestNonces`. New per-window
+ * The Plugins app ships both through `App::config()`, so they live
+ * under the blob's `extra` (`wp.os.getWindowConfig( id ).extra`) and
+ * the app reads them at call time — the rewrite lands in place.
+ * Every app window's `restNonce` is picked up by the `wp_rest`
+ * target generically — see `updateAllRestNonces`. New per-window
  * action strings need their own `registerNonceTarget()` call,
  * either inline below or from the feature module itself.
  */
@@ -204,8 +206,23 @@ function writeWindowConfigField(
 ): void {
 	const blobs = readWindowConfigs();
 	const blob = blobs?.[ windowId ];
-	if ( blob && typeof blob === 'object' ) {
-		( blob as Record< string, unknown > )[ field ] = value;
+	if ( ! blob || typeof blob !== 'object' ) {
+		return;
+	}
+	const record = blob as Record< string, unknown >;
+	// An App Framework window keeps its `App::config()` values under
+	// `extra`; a legacy blob keeps them at the top level; a blob may
+	// carry the same name in both (a nonce the runtime sends AND the
+	// app reads). Rewrite every copy that exists, so no reader is left
+	// with a stale one.
+	const extra = record.extra;
+	let written = false;
+	if ( extra && typeof extra === 'object' && field in ( extra as Record< string, unknown > ) ) {
+		( extra as Record< string, unknown > )[ field ] = value;
+		written = true;
+	}
+	if ( field in record || ! written ) {
+		record[ field ] = value;
 	}
 }
 

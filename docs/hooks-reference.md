@@ -2696,7 +2696,7 @@ if ( is_wp_error( $result ) ) {
 >
 > **`styles`** *(optional, `string[]`)* — companion stylesheet handles injected on the window's **first open**, after the window's own `style`, in declared order. The styles-side mirror of `scripts`, with deliberately different timing from `style`: the window's own stylesheet lands when the window registers (so a mid-session activation paints), but a companion sheet exists to be deferred — one that only paints surfaces inside the window is dead weight on every document that never shows it, chromeless iframes included. Injected-after means a companion's equal-specificity overrides win by source order, the same guarantee a `wp_register_style()` dependency gives on the print path — but declare real dependencies on the handle anyway, so the eager `preload_script` path resolves them. Unregistered handles drop silently.
 >
-> **`preload_script`** *(optional, `bool`, default `false`)* — load `script` (and `scripts`, and enqueue `styles`) at shell boot instead. Opt in **only** when the bundle has a job to do whether or not the window is ever opened: a dock-badge poller, an API it installs on `wp.os`. Prefer splitting that job into an always-loaded bundle over paying the whole window's weight on every admin page. For a one-off call into an API a window's bundle publishes, [`wp.os.loadWindowScript( id )`](./javascript-reference.md#wposloadwindowscript-id---stable) fetches it on demand without this flag.
+> **`preload_script`** *(optional, `bool`, default `false`)* — load `script` (and `scripts`, and enqueue `styles`) at shell boot instead. Opt in **only** when the bundle has a job to do whether or not the window is ever opened: a dock-badge poller, an API it installs on `wp.os`. Prefer splitting that job into an always-loaded bundle over paying the whole window's weight on every admin page. The download is not the reason to opt in: the shell prefetches every deferred window's bundles and companion styles in idle time after boot (`<link rel="prefetch">`, skipped under Save-Data), so the flag buys execution at boot, not a warm cache. For a one-off call into an API a window's bundle publishes, [`wp.os.loadWindowScript( id )`](./javascript-reference.md#wposloadwindowscript-id---stable) fetches it on demand without this flag.
 
 > **Wallpaper and widget `script` handles defer too**, with no flag to think about. `openstation_register_wallpaper()`'s bundle loads when the wallpaper is applied or the picker opens (the shell paints the swatch from your `preview` / `label` / `description` meanwhile); `openstation_register_widget()`'s loads when the widget mounts (the picker row comes entirely from your metadata). Both contracts — `window.openStationWallpapers[ id ]` and `window.openStationWidgets[ id ]` — are unchanged. See [`migration-lazy-window-scripts.md`](./migration-lazy-window-scripts.md).
 
@@ -3200,7 +3200,7 @@ See [`docs/examples/recycle-bin.md`](./examples/recycle-bin.md) for end-to-end r
 
 ## Native Posts window
 
-`<os-table>`-driven native window that replaces the chromeless `edit.php` iframe. **Opt-in Beta** — fresh installs land on the classic iframe; users turn it on via **OpenStation Preferences → Features → Beta features → Use the native Posts window** (persisted as `OsSettingsState.nativePostsEnabled`, default `false`). The dock tile that points at `edit.php` is unchanged — every click path consults the URL → native-window remap registry first and falls back to the iframe on no-match. See [`examples/native-posts.md`](./examples/native-posts.md) for end-to-end recipes.
+`<os-table>`-driven native window that replaces the chromeless `edit.php` iframe. **Opt-in Beta** — fresh installs land on the classic iframe; users turn it on via **OpenStation Preferences → Features → Beta features → Use the native Posts window** (persisted as `OsSettingsState.nativePostsEnabled`, default `false`). The dock tile that points at `edit.php` is unchanged — every click path consults the URL → native-window remap registry first and falls back to the iframe on no-match. An [App Framework](./app-framework.md) app — `apps/posts/` — whose list is a `data()` over `openstation_app_rest_page( 'wp/v2/posts', … )` (so every REST field and the query-args filter below reach the rows exactly as they reached the old bundle), whose paging / filtering / sorting are its state, and whose "Move to trash" is a server action; the Categories mind map and the Tags cloud are its two canvases. The registration (title, size, config extra) is filterable through [`openstation_app_manifest`](#openstation_app_manifest--experimental-filter) for `$id === 'desktop-mode-posts'`. See [`examples/native-posts.md`](./examples/native-posts.md) for end-to-end recipes and [`migration-list-apps.md`](./migration-list-apps.md) for what the port removed.
 
 ### `openstation_posts_window_user_can_register` — Stable *(filter)*
 
@@ -3224,25 +3224,9 @@ apply_filters( 'openstation_posts_window_user_can_use', bool $can, int $user_id 
 
 To keep a user or role on the classic iframe, return `false` from `openstation_posts_window_user_can_register` instead. Note that "force the native window on for everyone" is not possible from either PHP filter — the opt-in lives in the JS-side settings snapshot.
 
-### `openstation_posts_window_args` — Experimental *(filter)*
-
-Args passed to `openstation_register_window( 'desktop-mode-posts', … )`. Customize the title / icon / dimensions, or extend the `config` blob with extra REST URLs the bundle should know about.
-
-```php
-apply_filters( 'openstation_posts_window_args', array $args );
-```
-
-### `openstation_posts_window_template_html` — Experimental *(filter)*
-
-The full template body before it's `wp_kses`'d into the native-window template element. Keep the `data-os-posts-*` hooks intact so the JS bundle can find its mount points (search input, status segmented, table, bulk bar, pager).
-
-```php
-apply_filters( 'openstation_posts_window_template_html', string $html );
-```
-
 ### `openstation_posts_window_query_args` — Experimental *(filter)*
 
-Default outbound REST query args the bundle merges into every `/wp/v2/posts` request. Drop in `'post_type' => 'product'` to point the window at a CPT, or extend `_fields` to ship more columns. The bundle merges page / per_page / search / status / sort args on top.
+Default query args the app's `data()` merges into every `/wp/v2/posts` request. Drop in `'post_type' => 'product'` to point the window at a CPT, or extend `_fields` to ship more columns. The app merges page / per_page / search / status / sort / author / tags args on top.
 
 ```php
 apply_filters( 'openstation_posts_window_query_args', array $args );
@@ -3270,7 +3254,7 @@ Every JS hook below is also documented on `wp.hooks` so plugins can register wit
 | `openstation.postsWindow.opened` | action | — | `( ctx: PostsWindowContext )` — fired after the first paint with a populated table. |
 | `openstation.postsWindow.dataLoaded` | action | — | `( payload: { items, total, totalPages, page } )` — fired after every successful refresh. |
 
-`PostsWindowContext`: `{ body, table, refresh(), getSelectedIds(), getSelectedRows(), getCurrentParams() }` — see [`src/posts-window/types.ts`](../src/posts-window/types.ts) for the full TypeScript surface.
+`PostsWindowContext`: `{ body, table, refresh(), getSelectedIds(), getSelectedRows(), getCurrentParams() }` — see [`apps/posts/parts/types.ts`](../apps/posts/parts/types.ts) for the full TypeScript surface.
 
 ### CustomEvents (same payloads as the hook-bus actions)
 
@@ -3314,7 +3298,7 @@ Returning `false` from `enabled` (or `matches`) lets the click fall through. An 
 
 ## Native Pages window
 
-Reuses the Posts window bundle (the registration passes `mode: 'pages'` on the config blob as the JS-side discriminator) to replace the chromeless `edit.php?post_type=page` iframe — parent column, menu-order default sort, Template column, "Front page" / "Posts page" badges. Per-user opt-in Beta (default `false`) via OpenStation Preferences → Features → Beta features → `nativePagesEnabled`.
+Reuses the Posts app's parts (`apps/pages/` imports them from `apps/posts/parts/`; the config extra carries `mode: 'pages'` as the client-side discriminator) to replace the chromeless `edit.php?post_type=page` iframe — parent column, menu-order default sort, Template column, "Front page" / "Posts page" badges. Per-user opt-in Beta (default `false`) via OpenStation Preferences → Features → Beta features → `nativePagesEnabled`. The registration is filterable through [`openstation_app_manifest`](#openstation_app_manifest--experimental-filter) for `$id === 'desktop-mode-pages'`.
 
 ### `openstation_pages_window_user_can_register` — Stable *(filter)*
 
@@ -3332,29 +3316,13 @@ apply_filters( 'openstation_pages_window_user_can_use', bool $can, int $user_id 
 
 The combined cap-and-opt-in answer (`edit_pages` AND `nativePagesEnabled`). Informational only — it does not affect registration or the dock-click remap; same semantics as `openstation_posts_window_user_can_use`.
 
-### `openstation_pages_window_args` — Experimental *(filter)*
-
-```php
-apply_filters( 'openstation_pages_window_args', array $window_args ): array
-```
-
-Filters the args passed to `openstation_register_window( 'desktop-mode-pages', … )` — title, icon, dimensions, `config` blob (including `frontPageId`, `postsPageId`, and the `pageTemplates` label map).
-
-### `openstation_pages_window_template_html` — Experimental *(filter)*
-
-```php
-apply_filters( 'openstation_pages_window_template_html', string $html ): string
-```
-
-The full template body before it's `wp_kses`'d into the native-window template element. Keep the `data-os-posts-*` hooks intact — the shared bundle reuses the Posts mount points.
-
 ### `openstation_pages_window_query_args` — Experimental *(filter)*
 
 ```php
 apply_filters( 'openstation_pages_window_query_args', array $args ): array
 ```
 
-Default outbound REST query args the bundle merges into every `/wp/v2/pages` request. Defaults include `orderby=menu_order`, `order=asc`, and a `_fields` whitelist carrying `parent`, `menu_order`, `slug`, `link`, `template`, `openstation_lock`, and `openstation_comment_count` for the Pages-only columns.
+Default query args the app's `data()` merges into every `/wp/v2/pages` request. Defaults include `orderby=menu_order`, `order=asc`, and a `_fields` whitelist carrying `parent`, `menu_order`, `slug`, `link`, `template`, `openstation_lock`, and `openstation_comment_count` for the Pages-only columns.
 
 ### `openstation_pages_window_template_labels` — Experimental *(filter)*
 
@@ -3368,9 +3336,9 @@ The `{ slug: label }` map for the active theme's registered page templates, used
 
 ## Native Plugins window
 
-A two-tab native window that replaces the chromeless `plugins.php` (Installed list) and `plugin-install.php` (Browse the .org repo) iframes. **Opt-in Beta** — fresh installs land on the classic iframe; users turn it on via **OpenStation Preferences → Features → Beta features → Use the native Plugins window** (persisted as `OsSettingsState.nativePluginsEnabled`, default `false`). `plugin-editor.php` is intentionally NOT claimed; that surface stays on the existing iframe.
+A three-tab native window (Installed, Add Plugin, OpenStation plugins) that replaces the chromeless `plugins.php` (Installed list) and `plugin-install.php` (Browse the .org repo) iframes. **Opt-in Beta** — fresh installs land on the classic iframe; users turn it on via **OpenStation Preferences → Features → Beta features → Use the native Plugins window** (persisted as `OsSettingsState.nativePluginsEnabled`, default `false`). `plugin-editor.php` is intentionally NOT claimed; that surface stays on the existing iframe.
 
-Architecture summary: read paths use Core REST (`/wp/v2/plugins`); admin-only paths (browse / info / reviews / .zip upload) live on `admin-ajax.php` (`wp_ajax_openstation_plugins_*`) so we never need to `require_once ABSPATH . 'wp-admin/…'`. Install-by-slug delegates to Core's existing `wp_ajax_install_plugin` handler. Mutations are followed by `wp.os.refreshMenu()` so the dock repaints live.
+Architecture summary: an [App Framework](./app-framework.md) app (`apps/plugins/`). The installed list is the app's `data()` over Core REST (`openstation_app_rest( 'GET', 'wp/v2/plugins' )`, every REST-field decorator below included); activate / deactivate / delete / bulk are server actions running Core's controller in-process; admin-only paths (browse / info / reviews / .zip upload / featured) live on `admin-ajax.php` (`wp_ajax_openstation_plugins_*`) so we never need to `require_once ABSPATH . 'wp-admin/…'`. Install-by-slug delegates to Core's existing `wp_ajax_install_plugin` handler. Mutations perform the `$os->refresh_menu()` effect so the dock repaints live. The landing tab is the window's `tab` open-time param. The registration is filterable through [`openstation_app_manifest`](#openstation_app_manifest--experimental-filter) for `$id === 'desktop-mode-plugins'`; see [`migration-list-apps.md`](./migration-list-apps.md).
 
 ### `openstation_plugins_window_user_can_register` — Stable *(filter)*
 
@@ -3387,14 +3355,6 @@ Combined cap-and-opt-in. Returns `true` when the user has `activate_plugins` AND
 ```php
 apply_filters( 'openstation_plugins_window_user_can_use', bool $can, int $user_id ): bool
 ```
-
-### `openstation_plugins_window_args` — Experimental *(filter)*
-
-Last-mile mutation of the args passed to `openstation_register_window( 'desktop-mode-plugins', … )`. Title, icon, default size, config blob — same shape as the Posts/Users window filter.
-
-### `openstation_plugins_window_template_html` — Experimental *(filter)*
-
-Filters the rendered template HTML before `wp_kses` runs. Keep `data-os-plugins-{root,tabs,installed-host,browse-host,featured-host,flyout}` intact or rename them and update the matching constants in `src/plugins-window/index.ts`.
 
 ### `openstation_plugins_window_browse_args` — Stable *(filter)*
 
@@ -3472,7 +3432,7 @@ Short-circuit the lazy refresh of the `update_plugins` site transient that runs 
 apply_filters( 'openstation_plugins_window_refresh_updates', bool $refresh, bool $force ): bool
 ```
 
-Return `false` to skip the refresh — useful for hosts that run their own update orchestration (managed WordPress, internal mirrors) and don't want REST hits to potentially trigger a wp.org HTTPS check. The filter is also called on the explicit force-refresh path (when the in-window Refresh button passes `?openstation_force_refresh=1`); returning `false` there keeps the no-network posture even on user-initiated refreshes. Inspect `$force` to apply different policies for opportunistic vs. user-initiated refreshes.
+Return `false` to skip the refresh — useful for hosts that run their own update orchestration (managed WordPress, internal mirrors) and don't want REST hits to potentially trigger a wp.org HTTPS check. The filter is also called on the explicit force-refresh path (the app's `reload` action — the window's Refresh button — primes the check with `$force = true`); returning `false` there keeps the no-network posture even on user-initiated refreshes. Inspect `$force` to apply different policies for opportunistic vs. user-initiated refreshes.
 
 ### `openstation_plugins_window_auto_updates_enabled` — Experimental *(filter)*
 
@@ -3538,9 +3498,9 @@ apply_filters( 'openstation_plugins_featured_response', array $payload, array $c
 
 ## Native Comments window
 
-Replaces the chromeless `edit-comments.php` iframe with a moderation queue native window: Pending / All / Spam / Trash / Mine tabs, bulk approve / spam / trash with an 8-second undo, inline reply editor, keyboard moderation (`j/k/a/s/d/r/e/u/?`), spam-confidence chip per row, author-insights drawer.
+Replaces the chromeless `edit-comments.php` iframe with a conversation view: a Pending / All / Spam / Trash / Mine tab strip over a rail of conversations, the selected thread with its nested replies and per-message approve / spam / trash / edit actions, and a docked reply composer. An [App Framework](./app-framework.md) app — `apps/comments/` — whose rail is a `data()` over `openstation_app_rest_page( 'wp/v2/comments', … )` and whose moderation, reply and edit are server actions; the REST routes below stay for other consumers and share one PHP function per operation with the actions. `edit-comments.php?p=<id>` reaches it as the window's `post` open-time param (`0` clears the scope; a live window re-scopes through the `reopen` lifecycle). See [`migration-list-apps.md`](./migration-list-apps.md).
 
-Per-user opt-in Beta (default `false`) via OpenStation Preferences → Features → Beta features → `nativeCommentsEnabled`. URL remap claims `edit-comments.php`; `comment.php?action=editcomment&c=…` still falls through to the chromeless iframe path.
+Per-user opt-in Beta (default `false`) via OpenStation Preferences → Features → Beta features → `nativeCommentsEnabled`. URL remap claims `edit-comments.php`; `comment.php?action=editcomment&c=…` still falls through to the chromeless iframe path. The registration itself (title, size, config extra) is filterable through [`openstation_app_manifest`](#openstation_app_manifest--experimental-filter) for `$id === 'desktop-mode-comments'`.
 
 ### `openstation_comments_window_user_can_register` — Stable *(filter)*
 
@@ -3558,29 +3518,13 @@ apply_filters( 'openstation_comments_window_user_can_use', bool $can, int $user_
 
 Combined cap-and-opt-in check. Hooks here override the default ("can register AND the user toggled `nativeCommentsEnabled` on").
 
-### `openstation_comments_window_args` — Experimental *(filter)*
-
-```php
-apply_filters( 'openstation_comments_window_args', array $window_args ): array
-```
-
-Filters the args passed to `openstation_register_window()` for the Comments window — title, icon, dimensions, `config` blob. The `config` keys are the bundle's source of truth; treat the shape as Experimental.
-
-### `openstation_comments_window_template_html` — Experimental *(filter)*
-
-```php
-apply_filters( 'openstation_comments_window_template_html', string $html ): string
-```
-
-Filters the rendered template body. The output is run through `openstation_kses_native_window_template()` after this filter, so unsafe HTML is dropped regardless.
-
 ### `openstation_comments_window_query_args` — Experimental *(filter)*
 
 ```php
 apply_filters( 'openstation_comments_window_query_args', array $args ): array
 ```
 
-Filters the outbound `wp/v2/comments` query args the bundle uses for its first list paint. Use to whitelist additional `_fields`, override `per_page`, or scope the default tab.
+Filters the `wp/v2/comments` query args the app's `data()` runs for the rail. Use to whitelist additional `_fields`, override `per_page` (the page size is this filter's alone), or scope the default tab. The default `_fields` no longer request `openstation_replies_count` and `openstation_can_moderate`: the app computes the reply counts for the page in one grouped query and ships the moderation cap in its config extra. Both fields stay registered for REST consumers — add them back here if you read them off the rows.
 
 ### `openstation_comments_window_spam_score` — Experimental *(filter)*
 
@@ -3590,21 +3534,13 @@ apply_filters( 'openstation_comments_window_spam_score', int $score, WP_Comment 
 
 Filters the 0–100 spam-confidence score the bundle paints per row. Hook here to plug in an AI-provider fallback when Akismet isn't installed but a OpenStation AI provider is configured. Return value is clamped to `0..100`.
 
-### `openstation_comments_window_reply_editor` — Experimental *(filter)*
-
-```php
-apply_filters( 'openstation_comments_window_reply_editor', string $editor, int $user_id ): string
-```
-
-Selects the inline-reply editor flavor — `'rich'` (default contenteditable rich editor), `'plain'` (textarea), or `'gutenberg'` (planned — currently falls back to `'rich'`).
-
 ### `openstation_comments_window_after_bulk` — Stable *(action)*
 
 ```php
 do_action( 'openstation_comments_window_after_bulk', string $action, int[] $processed, int[] $skipped );
 ```
 
-Fires after `/desktop-mode/v1/comments/bulk` finishes a batch. `$action` is one of `approve|unapprove|spam|unspam|trash|untrash`. `$processed` is the list of ids successfully acted on; `$skipped` is the list that failed a per-target cap or soft error.
+Fires after a moderation batch finishes — from `/desktop-mode/v1/comments/bulk` and from the app's `moderate` action alike, since both run `openstation_comments_window_moderate()`. `$action` is one of `approve|unapprove|spam|unspam|trash|untrash`. `$processed` is the list of ids successfully acted on; `$skipped` is the list that failed a per-target cap or soft error.
 
 ### `openstation_comments_ai_is_enabled` — Experimental *(filter)*
 
@@ -3626,7 +3562,7 @@ Fires after the Comments AI moderation toggle is changed via `POST /desktop-mode
 
 ## Native Users window
 
-Reuses the Posts window bundle (`mode: 'users'` config discriminator) to replace the chromeless `users.php` iframe: role filter, bulk role change / delete / remove, "Add new user" form, per-row quick actions, and a Profile tab. Per-user opt-in Beta (default `false`) via OpenStation Preferences → Features → Beta features → `nativeUsersEnabled`. UI-side gating is UX polish only — the REST routes re-validate every capability and per-target permission before mutating anything.
+Replaces the chromeless `users.php` iframe: role filter, bulk role change / delete / remove, "Add new user" form, per-row quick actions, and a Profile tab. An [App Framework](./app-framework.md) app — `apps/users/` — whose list is a `data()` over `openstation_app_rest_page( 'wp/v2/users', … )` and whose mutations (`bulk-role`, `bulk-delete`, `send-reset`, `resend-welcome`, `create`) are server actions sharing one PHP function each with the REST routes below. Per-user opt-in Beta (default `false`) via OpenStation Preferences → Features → Beta features → `nativeUsersEnabled`. UI-side gating is UX polish only — every action and route re-validates every capability and per-target permission before mutating anything. The registration (title, size, config extra) is filterable through [`openstation_app_manifest`](#openstation_app_manifest--experimental-filter) for `$id === 'desktop-mode-users'`. See [`migration-list-apps.md`](./migration-list-apps.md).
 
 ### `openstation_users_window_user_can_register` — Stable *(filter)*
 
@@ -3652,29 +3588,13 @@ apply_filters( 'openstation_users_window_assignable_roles', string[] $slugs, int
 
 The role slugs `$viewer_id` may assign to `$target_id`. Default: the keys of core's `get_editable_roles()` evaluated from the viewer's perspective (empty when the viewer lacks `promote_users`). Use it to LOCK DOWN role assignment further — e.g. "site managers can't promote anyone to administrator". Returning an empty array fully disables role mutation for the viewer. Returning a superset widens the REST endpoints too — both the bulk-role route and the create-user route validate the requested role against this same filtered list, so only add roles you genuinely intend to make assignable.
 
-### `openstation_users_window_args` — Experimental *(filter)*
-
-```php
-apply_filters( 'openstation_users_window_args', array $window_args ): array
-```
-
-Filters the args passed to `openstation_register_window( 'desktop-mode-users', … )` — title, icon, dimensions, `config` blob (capability flags, role maps, locale map, REST mutation routes).
-
-### `openstation_users_window_template_html` — Experimental *(filter)*
-
-```php
-apply_filters( 'openstation_users_window_template_html', string $html ): string
-```
-
-The full template body before it's `wp_kses`'d into the native-window template element.
-
 ### `openstation_users_window_query_args` — Experimental *(filter)*
 
 ```php
 apply_filters( 'openstation_users_window_query_args', array $args ): array
 ```
 
-Default outbound REST query args the bundle merges into every `/wp/v2/users` request. Defaults ship a `_fields` whitelist (including the `openstation_user_stats`, `openstation_last_login`, `openstation_presence`, `openstation_can_edit`, and `openstation_assignable_roles` REST fields), `context=edit` (required for `email` / `roles` / `registered_date` to appear at all), and `per_page=20`.
+Default query args the app's `data()` merges into every `/wp/v2/users` request. Defaults ship a `_fields` whitelist (including the `openstation_last_login`, `openstation_presence` and `openstation_can_edit` REST fields), `context=edit` (required for `email` / `roles` / `registered_date` to appear at all), and `per_page=20`. Not in the default whitelist, because the app has them cheaper: `openstation_user_stats` (the page's counts come from two grouped queries, `openstation_users_window_stats_for()`, merged into the rows), `openstation_assignable_roles` (the config extra carries the viewer's assignable roles), `url` and `description`. All four stay available — add them here if you read them off the rows.
 
 ### `openstation_users_window_user_created` — Stable *(action)*
 
@@ -3682,7 +3602,7 @@ Default outbound REST query args the bundle merges into every `/wp/v2/users` req
 do_action( 'openstation_users_window_user_created', int $user_id, WP_User $user, array $args );
 ```
 
-Fires after the Users window's create-user REST route has created a new account (and queued the optional notification email). `$args` is the sanitized `wp_insert_user()` arg array used for creation.
+Fires after the Users window has created a new account — through the app's `create` action or the `POST /desktop-mode/v1/users` route, which share one function — and queued the optional notification email. `$args` is the sanitized `wp_insert_user()` arg array used for creation.
 
 ### `openstation_users_window_login_recorded` — Stable *(action)*
 
@@ -3696,7 +3616,7 @@ Fires on `wp_login` after the last-login user meta has been written — piggy-ba
 
 ## Native User Edit window
 
-A native profile-editing window (`desktop-mode-user-edit`) that opens when a row in the native Users window is clicked, or when a chromeless `user-edit.php?user_id=N` navigation is remapped. The window is registered for any logged-in user (everyone has a profile to edit); per-target capability is re-checked at REST time — saving uses core's `/wp/v2/users/<id>` PUT, which enforces `edit_user`, and the insights endpoint applies the same check.
+A native profile-editing window (`desktop-mode-user-edit`) that opens when a row in the native Users window is clicked, or when a chromeless `user-edit.php?user_id=N` navigation is remapped. An [App Framework](./app-framework.md) app — `apps/user-edit/` — whose subject is the window's `userId` open-time param (`wp.os.openWindow( 'desktop-mode-user-edit', { params: { userId } } )`, or `openUserEditWindow()` from `src/open-targets/user-edit-window.ts`): `mount` reads it, falling back to the viewer's own profile (`profile.php`), and a live window retargets through the `reopen` lifecycle. The window is registered for any logged-in user (everyone has a profile to edit); per-target capability is re-checked at REST time — saving uses core's `/wp/v2/users/<id>` PUT, which enforces `edit_user`, and the insights endpoint applies the same check. The registration is filterable through [`openstation_app_manifest`](#openstation_app_manifest--experimental-filter) for `$id === 'desktop-mode-user-edit'`.
 
 ### `openstation_user_edit_window_user_can_register` — Experimental *(filter)*
 
@@ -3705,22 +3625,6 @@ apply_filters( 'openstation_user_edit_window_user_can_register', bool $can, int 
 ```
 
 Fires inside the `openstation_user_edit_window_user_can_register()` helper. Default: `true` for any logged-in user. The framework's own registration path consults this helper — returning `false` from the filter skips registering the window entirely.
-
-### `openstation_user_edit_window_args` — Experimental *(filter)*
-
-```php
-apply_filters( 'openstation_user_edit_window_args', array $window_args ): array
-```
-
-Filters the args passed to `openstation_register_window( 'desktop-mode-user-edit', … )` — title, icon, dimensions, `config` blob (role / locale / color-scheme maps, contact methods, insights endpoint base).
-
-### `openstation_user_edit_window_template_html` — Experimental *(filter)*
-
-```php
-apply_filters( 'openstation_user_edit_window_template_html', string $html ): string
-```
-
-The template body (a `<os-user-profile>` host element) before it's `wp_kses`'d into the native-window template element.
 
 ### `openstation_user_edit_window_insights` — Experimental *(filter)*
 

@@ -115,6 +115,59 @@ describe( 'nonce-refresh', () => {
 		expect( cfg.updatesNonce ).toBe( 'fresh-updates' );
 	} );
 
+	test( 'rewrites the Plugins APP nonces where App::config() put them — under `extra`', () => {
+		const handlers = installFakeJQuery();
+		const extra = { ajaxNonce: 'stale-ajax', updatesNonce: 'stale-updates', adminUrl: '/wp-admin/' };
+		shellWindow().openStationWindowConfig = {
+			'desktop-mode-plugins': {
+				osApp:     true,
+				restNonce: 'stale-rest',
+				extra,
+			},
+		};
+
+		bootHeartbeatBus();
+		bootNonceRefresh();
+
+		handlers[ 'heartbeat-tick' ]?.(
+			{},
+			{
+				desktop_mode_nonces: {
+					wp_rest:                'fresh-rest',
+					'desktop-mode-plugins': 'fresh-ajax',
+					updates:                'fresh-updates',
+				},
+			},
+		);
+
+		const cfg = shellWindow().openStationWindowConfig?.[
+			'desktop-mode-plugins'
+		] as { restNonce: string; extra: Record< string, string >; ajaxNonce?: string };
+		expect( cfg.restNonce ).toBe( 'fresh-rest' );
+		// Rewritten IN PLACE on the same object the app reads through
+		// `ctx.extra`, and never copied to the top level.
+		expect( extra.ajaxNonce ).toBe( 'fresh-ajax' );
+		expect( extra.updatesNonce ).toBe( 'fresh-updates' );
+		expect( cfg.ajaxNonce ).toBeUndefined();
+	} );
+
+	test( 'a field present at BOTH levels of an app blob is rewritten in both', () => {
+		const handlers = installFakeJQuery();
+		const extra = { ajaxNonce: 'stale-extra' };
+		shellWindow().openStationWindowConfig = {
+			'desktop-mode-plugins': { osApp: true, ajaxNonce: 'stale-top', extra },
+		};
+
+		bootHeartbeatBus();
+		bootNonceRefresh();
+
+		handlers[ 'heartbeat-tick' ]?.( {}, { desktop_mode_nonces: { 'desktop-mode-plugins': 'fresh' } } );
+
+		const cfg = shellWindow().openStationWindowConfig?.[ 'desktop-mode-plugins' ] as Record< string, unknown >;
+		expect( extra.ajaxNonce ).toBe( 'fresh' );
+		expect( cfg.ajaxNonce ).toBe( 'fresh' );
+	} );
+
 	test( 'refreshes restNonce on EVERY native window blob, not just plugins', () => {
 		const handlers = installFakeJQuery();
 		shellWindow().openStationWindowConfig = {

@@ -53,10 +53,18 @@ defined( 'ABSPATH' ) || exit;
  */
 function openstation_recycle_bin_icon_svg( $full = false ) {
 	// The lid and the handle travel together. In the full state the
-	// pair is knocked askew, which is the whole difference at the top
-	// of the mark.
+	// pair is lifted clear of the rim and tipped, hinged at the far
+	// corner, the way a lid sits on a bin that has too much in it.
+	//
+	// It was a 2.5-unit lift at 8 degrees, which on the 20px dock
+	// tile and the 58px home tile was no difference at all: the bin
+	// read as empty while it held things. At 4 units and 12 degrees
+	// (a positive angle turns clockwise about the far corner, so the
+	// near end rises) the lid's near end clears the rim by a fifth
+	// of the body's height and its far end by nine units, and the
+	// wedge of light under it survives every size the mark is drawn.
 	$lid_transform = $full
-		? ' transform="translate(0 -2.5) rotate(8 32 21.5)"'
+		? ' transform="translate(0 -4) rotate(12 52 21.5)"'
 		: '';
 
 	$svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">'
@@ -100,6 +108,14 @@ function openstation_recycle_bin_icon_svg( $full = false ) {
 		$svg .= '<path d="M29.7 38 27.4 39.5 24.7 39.6 23.6 37.1 24.1 34.4 26.8 34.1 29.2 35.1'
 			. 'ZM39.4 44.1 36.7 43.5 34.8 41.6 35.8 39.1 38.1 37.6 40.2 39.3 41.1 41.8'
 			. 'ZM28.1 50.4 27 47.9 27.4 45.2 30 44.6 32.6 45.6 32.4 48.3 31 50.5Z"'
+			. ' fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/>';
+		// A fourth, larger sheet rides the rim under the lifted end of
+		// the lid — the one element of the full state that is legible
+		// at 20px, where the balls inside the body are a texture at
+		// best. Same seven-point construction, twice the radius,
+		// straddling the rim (y 28.5) so it reads as spilling out
+		// rather than sitting in.
+		$svg .= '<path d="M30 26 27.3 30 22.7 31.7 19.5 28.2 18.6 23.4 22.8 20.7 27.6 21.6Z"'
 			. ' fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/>';
 	}
 

@@ -8,9 +8,11 @@
  * iframe, whose row-action click is routed through the window-system
  * bundle's `handleWindowMessage`. Module-level state in one bundle is
  * invisible to another (see `AGENTS.md` § "Cross-bundle state"), so
- * the target user is threaded through `wp.os.createSharedStore` — the
- * same mechanism `src/posts-window/user-edit-target.ts` uses for the
- * User Edit window.
+ * the target user is threaded through `wp.os.createSharedStore`. (The
+ * User Edit window, an App Framework app, takes its subject as an
+ * open-time param instead — see `user-edit-window.ts` beside this
+ * file; this store predates that contract and stays for the
+ * footprint's own hand-off.)
  *
  * Flow:
  *   1. A caller (parent shell handler, plugin code) invokes
@@ -98,7 +100,7 @@ let _store: SharedStoreApi< FootprintTarget > | null = null;
  * is available. Returns `null` until then, which routes `set`/`read`
  * to the `window._wpdFootprintTarget` stash fallback.
  *
- * Known, accepted trade-off (mirrors `user-edit-target.ts`): a target
+ * Known, accepted trade-off of the shared-store hand-off: a target
  * stashed via the fallback BEFORE the store exists is NOT promoted
  * into the store once it initialises. A subsequent `readFootprintTarget`
  * after init reads the freshly-created store (empty) and the stash is
@@ -136,7 +138,7 @@ export function setFootprintTarget( userId: number, userName = '' ): void {
 		store.state.requestedAt = Date.now();
 		// `createSharedStore` is mutate-then-notify; subscribers don't
 		// fire on field assignment alone. Easy to forget, silent
-		// failure when you do — see `user-edit-target.ts`.
+		// failure when you do.
 		store.notify();
 		return;
 	}

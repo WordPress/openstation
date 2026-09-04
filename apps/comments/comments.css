@@ -1,0 +1,686 @@
+/*
+ * Comments app — two-pane conversation view.
+ *
+ * Thread rail (left) + nested conversation (right) + composer.
+ * Variables come from `variables.css`; this file just maps them onto
+ * the comments-specific markup so the window picks up theme +
+ * color-scheme changes for free. Controls that have a `<os-*>`
+ * component are styled through that component's documented custom
+ * properties rather than re-implemented here.
+ */
+
+.os-comments {
+	display: flex;
+	flex-direction: column;
+	/*
+	 * `block-size` (not `min-block-size`) — pins the container to the
+	 * window body's exact height so the inner flex column has a fixed
+	 * frame to distribute against. With `min-block-size` the scrolling
+	 * panes grew past the frame and pushed the composer off the bottom
+	 * edge of the window. `box-sizing: border-box` keeps any padding
+	 * inside the 100% box.
+	 */
+	box-sizing: border-box;
+	block-size: 100%;
+	inline-size: 100%;
+	overflow: hidden;
+	position: relative;
+	/* A query container, so the one-pane rules at the end of this file
+	   track the WINDOW's width — a phone, or a desktop window pulled in. */
+	container-type: inline-size;
+	color: var( --os-ui-fg, #1d2327 );
+}
+
+/*
+ * Any element inside the comments window that opts into HTML's
+ * `hidden` attribute is hidden — full stop. Without this rule the
+ * `display: flex` on `__msg-actions` would win against the UA
+ * stylesheet's bare `[hidden]` selector (class beats element), and
+ * the action row would stay on screen underneath the inline comment
+ * editor that just replaced it. Authoritative single override.
+ */
+.os-comments [hidden] {
+	display: none !important;
+}
+
+/*
+ * Local fallback for core's visually-hidden helper. wp-admin defines
+ * `.screen-reader-text` and the shell renders inside wp-admin, but the
+ * status dots and link hints below are meaningless without it — worth
+ * not depending on load order for.
+ */
+.os-comments .screen-reader-text {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	overflow: hidden;
+	clip-path: inset( 50% );
+	white-space: nowrap;
+	border: 0;
+}
+
+/* ── Tab strip ───────────────────────────────────────────────── */
+/*
+ * `<os-tabs>` brings its own chrome, roving tabindex and focus ring.
+ * All that's needed here is the strip's place in the column and the
+ * count chip slotted into each `<os-tab>` (light DOM, so a plain
+ * descendant selector reaches it).
+ */
+.os-comments__tabrow {
+	flex: 0 0 auto;
+	padding-inline: 12px;
+	border-block-end: 1px solid var( --os-ui-border, #dcdcde );
+}
+
+/* `<os-badge no-dot>` owns the pill — this is spacing only. */
+.os-comments__tab-count {
+	--os-ui-badge-padding: 1px 6px;
+	--os-ui-badge-font: 500 11px/1.4 var( --os-font, system-ui );
+	margin-inline-start: 6px;
+	font-variant-numeric: tabular-nums;
+}
+
+/* ── Split ───────────────────────────────────────────────────── */
+.os-comments__split {
+	flex: 1 1 auto;
+	min-block-size: 0;
+	display: grid;
+	grid-template-columns: 306px 1fr;
+	overflow: hidden;
+}
+
+/* ── Left rail ───────────────────────────────────────────────── */
+.os-comments__rail {
+	border-inline-end: 1px solid var( --os-ui-border, #dcdcde );
+	display: flex;
+	flex-direction: column;
+	min-block-size: 0;
+	background: var( --os-ui-surface-sunken, #fbfbfc );
+}
+
+.os-comments__search {
+	padding: 12px;
+	flex: 0 0 auto;
+}
+
+.os-comments__search os-text-field {
+	display: block;
+	width: 100%;
+}
+
+.os-comments__list {
+	overflow-y: auto;
+	flex: 1 1 auto;
+	min-block-size: 0;
+}
+
+/* "Scoped to one post" banner at the top of the rail. */
+.os-comments__rail-filter {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	padding: 8px 14px;
+	font-size: 12px;
+	background: color-mix( in srgb, var( --os-ui-accent, #2271b1 ) 8%, transparent );
+	border-block-end: 1px solid var( --os-ui-border, #dcdcde );
+}
+.os-comments__rail-filter-label {
+	color: var( --os-ui-fg, #1d2327 );
+	font-weight: 600;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.os-comments__rail-filter-clear {
+	flex: 0 0 auto;
+	--os-ui-button-padding: 0;
+	font-size: 12px;
+}
+
+/* `role="listitem"` wrapper — the row itself has to stay a button. */
+.os-comments__thread-slot {
+	display: block;
+}
+
+.os-comments__thread {
+	display: grid;
+	grid-template-columns: 36px 1fr auto;
+	gap: 10px;
+	padding: 12px 14px;
+	cursor: pointer;
+	border-block-end: 1px solid color-mix( in srgb, currentColor 6%, transparent );
+	position: relative;
+	text-align: start;
+	appearance: none;
+	background: transparent;
+	border-inline: 0;
+	border-block-start: 0;
+	font: inherit;
+	color: inherit;
+	width: 100%;
+}
+
+.os-comments__thread:hover {
+	background: var( --os-ui-hover, rgba( 0, 0, 0, 0.045 ) );
+}
+
+.os-comments__thread:focus-visible {
+	outline: 2px solid var( --os-ui-accent, #2271b1 );
+	outline-offset: -2px;
+}
+
+.os-comments__thread.is-selected {
+	background: color-mix( in srgb, var( --os-ui-accent, #2271b1 ) 8%, transparent );
+}
+
+.os-comments__thread.is-selected::before {
+	content: "";
+	position: absolute;
+	inset-inline-start: 0;
+	inset-block: 0;
+	width: 3px;
+	background: var( --os-ui-accent, #2271b1 );
+}
+
+/* In-flight moderation on this conversation. */
+.os-comments__thread.is-busy {
+	opacity: 0.5;
+	pointer-events: none;
+}
+
+/*
+ * Avatar. `<os-avatar>` owns the circle, the hue, the initials
+ * fallback and its own sizing (via the `size` attribute) — anything
+ * set here would be a light-DOM author style overriding the
+ * component's `:host` rules, so this stays to layout only.
+ */
+.os-comments__disc {
+	flex: 0 0 auto;
+}
+
+.os-comments__thread-main {
+	min-width: 0;
+}
+
+.os-comments__thread-name {
+	font-size: 13.5px;
+	font-weight: 600;
+	color: var( --os-ui-fg, #1d2327 );
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.os-comments__thread-snip {
+	font-size: 12.5px;
+	color: var( --os-ui-fg-muted, #50575e );
+	margin-block-start: 2px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.os-comments__thread-post {
+	font-size: 11.5px;
+	color: var( --os-ui-fg-faint, #787c82 );
+	margin-block-start: 3px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/*
+ * The rail before its first answer: silhouettes where the
+ * conversations land. Same shimmer the table's skeleton rows wear,
+ * through the palette's skeleton pair.
+ */
+.os-comments__thread-slot--ghost .os-comments__thread {
+	cursor: default;
+	pointer-events: none;
+}
+
+.os-comments__ghost {
+	display: block;
+	border-radius: 3px;
+	background: linear-gradient(
+		90deg,
+		var( --os-skeleton-low, rgba( 0, 0, 0, 0.06 ) ) 0%,
+		var( --os-skeleton-high, rgba( 0, 0, 0, 0.14 ) ) 50%,
+		var( --os-skeleton-low, rgba( 0, 0, 0, 0.06 ) ) 100%
+	);
+	background-size: 200% 100%;
+	animation: os-comments-ghost 1.4s ease-in-out infinite;
+}
+
+.os-comments__ghost--disc {
+	width: 36px;
+	height: 36px;
+	border-radius: 50%;
+}
+
+.os-comments__ghost--line {
+	height: 12px;
+	width: 70%;
+	margin-block-start: 4px;
+}
+
+.os-comments__ghost--short {
+	width: 45%;
+}
+
+@keyframes os-comments-ghost {
+	0% {
+		background-position: 200% 50%;
+	}
+	100% {
+		background-position: -200% 50%;
+	}
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.os-comments__ghost {
+		animation: none;
+	}
+}
+
+.os-comments__thread-meta {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+	gap: 6px;
+	flex: 0 0 auto;
+}
+
+.os-comments__thread-time {
+	font-size: 11px;
+	color: var( --os-ui-fg-faint, #787c82 );
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+/*
+ * Rail status: a `<os-badge>` with no room for its label, so the pill
+ * collapses to the tone dot the component already paints. Driven
+ * through the badge's own variable surface rather than by overriding
+ * its `:host` rules from the light DOM — the tone palette still owns
+ * the colour. The label rides along as slotted screen-reader text, so
+ * the hue is never the only carrier of the meaning.
+ */
+.os-comments__status {
+	--os-ui-badge-padding: 0;
+	--os-ui-badge-bg: transparent;
+	--os-ui-badge-border: 0;
+	--os-ui-badge-gap: 0;
+	flex: 0 0 auto;
+	position: relative;
+}
+
+.os-comments__reply-count {
+	--os-ui-badge-padding: 1px 6px;
+	--os-ui-badge-font: 500 10.5px/1.4 var( --os-font, system-ui );
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+	position: relative;
+}
+
+.os-comments__load-more {
+	display: flex;
+	justify-content: center;
+	padding: 12px;
+}
+
+/* ── Right pane: conversation ────────────────────────────────── */
+.os-comments__convo {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	min-block-size: 0;
+	background: var( --os-ui-surface, #fff );
+}
+
+/* `<os-empty-state>` owns the icon + copy; this is placement only. */
+.os-comments__placeholder {
+	margin: auto;
+	padding: 40px 24px;
+	display: block;
+}
+
+.os-comments__convo-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 14px 18px;
+	border-block-end: 1px solid var( --os-ui-border, #dcdcde );
+	flex: 0 0 auto;
+}
+.os-comments__convo-context {
+	min-width: 0;
+}
+.os-comments__convo-kicker {
+	font-size: 11px;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var( --os-ui-fg-faint, #787c82 );
+	font-weight: 600;
+}
+.os-comments__convo-post {
+	font-size: 15px;
+	font-weight: 600;
+	color: var( --os-ui-fg, #1d2327 );
+	margin-block-start: 2px;
+	display: block;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/*
+ * The post title doubles as the "edit this post" affordance. The
+ * pencil sits at 55% opacity so the title reads as interactive at
+ * rest — a hover-only hint would be invisible to anyone who never
+ * hovers, and invisible on touch entirely.
+ */
+a.os-comments__convo-post--editable {
+	text-decoration: none;
+	color: var( --os-ui-fg, #1d2327 );
+}
+.os-comments__convo-post-pencil {
+	margin-inline-start: 6px;
+	vertical-align: -2px;
+	opacity: 0.55;
+	color: var( --os-ui-fg-muted, #50575e );
+}
+a.os-comments__convo-post--editable:hover,
+a.os-comments__convo-post--editable:focus-visible {
+	color: var( --os-ui-accent, #2271b1 );
+	text-decoration: underline;
+}
+a.os-comments__convo-post--editable:hover .os-comments__convo-post-pencil,
+a.os-comments__convo-post--editable:focus-visible .os-comments__convo-post-pencil {
+	opacity: 1;
+	color: inherit;
+}
+a.os-comments__convo-post--editable:focus-visible {
+	outline: 2px solid var( --os-ui-accent, #2271b1 );
+	outline-offset: 2px;
+	border-radius: 3px;
+}
+
+.os-comments__convo-head-actions {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex: 0 0 auto;
+}
+.os-comments__convo-link {
+	color: var( --os-ui-accent, #2271b1 );
+	font-size: 12.5px;
+	text-decoration: none;
+	white-space: nowrap;
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+}
+.os-comments__convo-link:hover { text-decoration: underline; }
+.os-comments__convo-link:focus-visible {
+	outline: 2px solid var( --os-ui-accent, #2271b1 );
+	outline-offset: 2px;
+	border-radius: 3px;
+}
+
+/* The block editor's `external` glyph — inherits the link colour. */
+.os-comments__ext-icon {
+	width: 18px;
+	height: 18px;
+	fill: currentColor;
+	flex: 0 0 auto;
+}
+
+.os-comments__thread-scroll {
+	padding: 18px 18px 6px;
+	overflow-y: auto;
+	flex: 1 1 auto;
+	min-block-size: 0;
+}
+
+/* A message + its nested children */
+.os-comments__msg {
+	display: grid;
+	grid-template-columns: 34px 1fr;
+	gap: 12px;
+}
+.os-comments__msg-rail {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+}
+.os-comments__msg-line {
+	flex: 1 1 auto;
+	width: 2px;
+	background: var( --os-ui-border, #dcdcde );
+	margin-block-start: 6px;
+	border-radius: 2px;
+}
+.os-comments__msg-body {
+	min-width: 0;
+	padding-block-end: 12px;
+}
+.os-comments__msg-head {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+.os-comments__msg-name {
+	font-weight: 600;
+	font-size: 13.5px;
+	color: var( --os-ui-fg, #1d2327 );
+}
+.os-comments__msg-you {
+	--os-ui-badge-padding: 0 5px;
+	--os-ui-badge-font: 600 10.5px/1.4 var( --os-font, system-ui );
+}
+.os-comments__msg-time {
+	font-size: 11.5px;
+	color: var( --os-ui-fg-faint, #787c82 );
+	font-variant-numeric: tabular-nums;
+}
+
+/*
+ * Status chip on any message that isn't approved. A pending reply
+ * buried in an approved thread is exactly what a moderator is
+ * looking for — the tint alone doesn't carry that.
+ */
+/* Tone + pill come from `<os-badge>`; only the metrics are ours. */
+.os-comments__msg-status {
+	--os-ui-badge-padding: 0 5px;
+	--os-ui-badge-font: 600 10.5px/1.4 var( --os-font, system-ui );
+}
+
+.os-comments__msg[ data-status="spam" ] .os-comments__msg-text,
+.os-comments__msg[ data-status="trash" ] .os-comments__msg-text {
+	opacity: 0.65;
+}
+
+.os-comments__msg-text {
+	font-size: 13.5px;
+	line-height: 1.5;
+	color: var( --os-ui-fg, #2c3338 );
+	margin-block-start: 4px;
+	overflow-wrap: anywhere;
+}
+
+/*
+ * Per-message inline actions — always visible, the whole point.
+ *
+ * Styled as wp-admin's own comment row actions: chrome-less links
+ * separated by pipes (`Approve | Reply | Edit | Spam | Trash`) rather
+ * than a row of buttons. Each pipe is a real `__act-sep` node the view
+ * places between the actions this viewer actually got (every button
+ * is a shadow host, so generated content on it is at the mercy of
+ * slotting), never dangling at either end.
+ */
+.os-comments__msg-actions {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-block-start: 8px;
+	flex-wrap: wrap;
+	font-size: 12.5px;
+}
+
+.os-comments__act {
+	--os-ui-button-padding: 0;
+	--os-ui-button-fg: var( --os-ui-accent, #2271b1 );
+	font-size: 12.5px;
+	line-height: 1.4;
+}
+
+/*
+ * The separator belongs to the row, not to either link — so it stays
+ * out of the underline, out of both hit targets, and (via
+ * `aria-hidden`) out of the accessibility tree.
+ */
+.os-comments__act-sep {
+	color: var( --os-ui-fg-faint, #c3c4c7 );
+	user-select: none;
+	pointer-events: none;
+}
+
+.os-comments__act.is-danger {
+	--os-ui-button-fg: var( --os-ui-danger, #b32d2e );
+}
+
+.os-comments__nested {
+	margin-block-start: 12px;
+}
+
+/* ── Composer ────────────────────────────────────────────────── */
+.os-comments__composer {
+	border-block-start: 1px solid var( --os-ui-border, #dcdcde );
+	background: var( --os-ui-surface-elevated, #f6f7f7 );
+	padding: 12px 18px 16px;
+	flex: 0 0 auto;
+}
+.os-comments__composer.is-empty {
+	display: none;
+}
+.os-comments__composer-to {
+	font-size: 12px;
+	color: var( --os-ui-fg-muted, #50575e );
+	margin-block-end: 8px;
+}
+.os-comments__composer-to b {
+	color: var( --os-ui-fg, #1d2327 );
+}
+.os-comments__composer-row {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 8px;
+	margin-block-start: 10px;
+}
+.os-comments__composer-hint {
+	font-size: 11.5px;
+	color: var( --os-ui-fg-faint, #787c82 );
+	margin-inline-end: auto;
+}
+
+.os-comments__reply-input {
+	display: block;
+	width: 100%;
+}
+
+/* Cursor override: the shell forces `cursor: default !important`. */
+body.os-active .os-comments__thread,
+body.os-active .os-comments__convo-link,
+body.os-active a.os-comments__convo-post--editable {
+	cursor: pointer !important;
+}
+
+/* ── Narrow windows: one pane at a time ─────────────────────────── */
+/*
+ * A phone, or a desktop window pulled in. The split cannot hold two
+ * panes, so it holds one: the rail (the list of conversations) until
+ * a conversation is picked, then the conversation, with a Back control
+ * in its head that returns to the list. The view stamps which pane
+ * is up as `data-os-comments-pane` on the root; at a wide width the
+ * stamp changes nothing, both panes are always up. The tab strip
+ * becomes a picker the same way (`data-os-comments-tabselect`, rendered
+ * beside the strip), so five tabs with counts do not wrap into two
+ * rows above a 360px list.
+ *
+ * Two ways in, the same rules twice: a container query for a window
+ * pulled narrow on a desk, and the shell's phone mode
+ * (`html[data-os-mode="mobile"]`), which is the phone experience at
+ * ANY width — a developer previewing it in a wide browser, a phone
+ * turned sideways past 720px — and cannot be expressed as a size. The
+ * rail is never hidden outright: on a phone it IS the list of
+ * conversations.
+ */
+.os-comments__tabselect {
+	display: none;
+	padding: 8px 12px;
+	border-block-end: 1px solid var( --os-ui-border, #dcdcde );
+	flex: 0 0 auto;
+}
+.os-comments__convo-back {
+	display: none;
+	flex: 0 0 auto;
+}
+
+@container ( max-width: 720px ) {
+	.os-comments__tabrow {
+		display: none;
+	}
+	.os-comments__tabselect {
+		display: block;
+	}
+	.os-comments__split {
+		grid-template-columns: minmax( 0, 1fr );
+	}
+	.os-comments__rail {
+		border-inline-end: 0;
+	}
+	.os-comments[data-os-comments-pane='convo'] .os-comments__rail {
+		display: none;
+	}
+	.os-comments:not( [data-os-comments-pane='convo'] ) .os-comments__convo {
+		display: none;
+	}
+	.os-comments__convo-back {
+		display: inline-flex;
+	}
+	.os-comments__convo-head {
+		padding: 10px 12px;
+	}
+}
+
+html[data-os-mode="mobile"] .os-comments__tabrow {
+	display: none;
+}
+html[data-os-mode="mobile"] .os-comments__tabselect {
+	display: block;
+}
+html[data-os-mode="mobile"] .os-comments__split {
+	grid-template-columns: minmax( 0, 1fr );
+}
+html[data-os-mode="mobile"] .os-comments__rail {
+	border-inline-end: 0;
+}
+html[data-os-mode="mobile"] .os-comments[data-os-comments-pane='convo'] .os-comments__rail {
+	display: none;
+}
+html[data-os-mode="mobile"] .os-comments:not( [data-os-comments-pane='convo'] ) .os-comments__convo {
+	display: none;
+}
+html[data-os-mode="mobile"] .os-comments__convo-back {
+	display: inline-flex;
+}
+html[data-os-mode="mobile"] .os-comments__convo-head {
+	padding: 10px 12px;
+}

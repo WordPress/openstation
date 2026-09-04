@@ -981,7 +981,7 @@ function calmed( config: MioConfig ): MioConfig {
 	};
 }
 
-/** Build the five stacked Graphics layers. */
+/** Build the stacked Graphics layers, back to front. */
 function buildLayers(
 	pixi: typeof import( 'pixi.js' ),
 	app: Application,
@@ -992,6 +992,7 @@ function buildLayers(
 	const bloom: Graphics = new pixi.Graphics();
 	const body: Graphics = new pixi.Graphics();
 	const sheen: Graphics = new pixi.Graphics();
+	const liner: Graphics = new pixi.Graphics();
 	const core: Graphics = new pixi.Graphics();
 	const eyes: Graphics = new pixi.Graphics();
 
@@ -1009,11 +1010,24 @@ function buildLayers(
 	root.addChild( bloom );
 	root.addChild( body );
 	root.addChild( sheen );
+	// Over the sheen, under the ring: the inner line is flat white and
+	// nothing is allowed to tint it — an additive shell across it would
+	// make it a second, dimmer part of the gradient.
+	root.addChild( liner );
 	root.addChild( core );
 	root.addChild( eyes );
 	app.stage.addChild( root );
 
-	const layers: MioLayers = { root, halo, bloom, body, sheen, core, eyes };
+	const layers: MioLayers = {
+		root,
+		halo,
+		bloom,
+		body,
+		sheen,
+		liner,
+		core,
+		eyes,
+	};
 	applyGlow( pixi, layers, config );
 	applySheenBlur( pixi, layers, config );
 	return layers;

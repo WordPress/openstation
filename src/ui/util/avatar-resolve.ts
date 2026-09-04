@@ -118,6 +118,16 @@ export async function resolveAvatarUrl(
 }
 
 /**
+ * The avatar URL to show from a REST `avatar_urls` map (a post's
+ * embedded author, a user, a comment author): the 48px rendition,
+ * else the 96, else the 24, else nothing — the one pick every list
+ * makes.
+ */
+export function pickAvatarUrl( urls: Record< string, string > | undefined | null ): string {
+	return urls?.[ '48' ] ?? urls?.[ '96' ] ?? urls?.[ '24' ] ?? '';
+}
+
+/**
  * Fire-and-forget convenience: probe the URL and set / remove the
  * `src` attribute on the given `<os-avatar>` element when the
  * probe resolves. Safe to call from cell renderers — guards against

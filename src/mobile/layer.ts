@@ -116,6 +116,7 @@ export function mountMobileLayer( deps: MobileLayerDeps ): MobileLayerHandle {
 	const home = createHome( area, {
 		renderIcon: deps.renderIcon,
 		getBadge: deps.getBadge,
+		getArt: deps.getArt,
 		onOpen: ( item ) => openItem( item ),
 	} );
 
@@ -588,6 +589,9 @@ export function mountMobileLayer( deps: MobileLayerDeps ): MobileLayerHandle {
 	// is dismissed on a phone.
 	const unbindSwipeDown = bindSwipeDown( topBar.el, { onCommit: () => goHome() } );
 	const unsubscribeNav = deps.subscribeNav( refreshNav );
+	// A tile's art changing on a rail (the bin filling or emptying)
+	// repaints the grid, which reads it through `getArt`.
+	const unsubscribeArt = deps.subscribeArt?.( refreshNav ) ?? ( () => undefined );
 
 	refreshNav();
 	sync();
@@ -609,6 +613,7 @@ export function mountMobileLayer( deps: MobileLayerDeps ): MobileLayerHandle {
 			unbindSwipeUp();
 			unbindSwipeDown();
 			unsubscribeNav();
+			unsubscribeArt();
 			switcher.close();
 			topBar.el.remove();
 			home.el.remove();

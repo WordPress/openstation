@@ -1,0 +1,19 @@
+{
+	"$schema": "https://unpkg.com/knip@5/schema.json",
+	"vitest": false,
+	"vite": false,
+	"eslint": false,
+	"entry": [
+		"apps/*/*.os.ts",
+		"apps/users/profile/index.ts",
+		"src/*.ts",
+		"src/*/index.ts",
+		"src/*/entry.ts",
+		"src/**/*.test.ts",
+		"apps/**/*.test.ts",
+		"tests/vitest/**/*.ts"
+	],
+	"project": [ "src/**/*.ts", "apps/**/*.ts" ],
+	"ignoreDependencies": [ ".*" ],
+	"paths": { "@openstation/app": [ "src/app-runtime/client.ts" ] }
+}

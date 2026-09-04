@@ -4,7 +4,7 @@
  *
  * Provides the async-job scheduler and user-resolution helpers used by the
  * Comments-window moderation feature (see
- * `includes/comments-window/ai-moderation.php`) to queue comment analysis
+ * `apps/comments/parts/ai-moderation.php`) to queue comment analysis
  * outside the HTTP request that triggered the comment. Moderation stays
  * responsive even when the provider is slow.
  *

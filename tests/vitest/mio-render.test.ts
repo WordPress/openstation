@@ -12,13 +12,16 @@ import { describe, expect, test } from 'vitest';
 import { MIO_DEFAULTS } from '../../src/mio/config';
 import {
 	buildRibbon,
+	drawMio,
 	eyeLayout,
 	fillBand,
 	fillSheen,
+	type MioLayers,
 	type RenderFrame,
 	type RibbonSample,
 } from '../../src/mio/render';
 import type { Particle } from '../../src/mio/environment';
+import type { MioAppearance } from '../../src/mio/types';
 
 /** A rim of `n` points on a circle of `r` about the origin. */
 function ring( n: number, r = 50 ): Particle[] {
@@ -328,6 +331,123 @@ describe( 'fillSheen', () => {
 			6,
 		);
 		expect( alphas( 0 ) ).toHaveLength( 0 );
+	} );
+} );
+
+describe( 'the inner line', () => {
+	/** Layer names `drawMio` draws into. */
+	const NAMES = [
+		'halo',
+		'bloom',
+		'body',
+		'sheen',
+		'liner',
+		'core',
+		'eyes',
+	] as const;
+
+	/**
+	 * Run a whole frame with a recorder behind every layer.
+	 *
+	 * Through `drawMio` rather than through `fillLiner` directly,
+	 * because half of what is being asserted is the wiring: which
+	 * config key feeds the pass, and that its boundary is computed the
+	 * same way the `core` band computes the one it meets.
+	 */
+	function draw(
+		over: Partial< MioAppearance > = {},
+	): Record< ( typeof NAMES )[ number ], ReturnType< typeof recorder > > {
+		const recs = Object.fromEntries(
+			NAMES.map( ( name ) => [ name, recorder() ] ),
+		) as Record< ( typeof NAMES )[ number ], ReturnType< typeof recorder > >;
+		const layers = Object.fromEntries(
+			NAMES.map( ( name ) => {
+				const g = recs[ name ].g;
+				// `drawMio` clears every layer and gives the eyes a
+				// rounded rect; neither is geometry this test reads.
+				Object.assign( g, { clear: () => g, roundRect: () => g } );
+				return [ name, g ];
+			} ),
+		) as unknown as MioLayers;
+
+		drawMio(
+			layers,
+			{
+				rim: ring( 12 ),
+				centre: CENTRE,
+				radius: 50,
+				elapsed: 0,
+				gaze: null,
+				blink: 0,
+				tilt: { x: 1, y: 0 },
+			},
+			{ ...MIO_DEFAULTS.appearance, ...over },
+		);
+		return recs;
+	}
+
+	test( 'the shipped Mio wears one, in one flat colour', () => {
+		// The artwork's white line between the black body and the
+		// chroma. Flat, deliberately: the hue sweep and the glint
+		// belong to the tube, and a line that picked up either would
+		// read as a second, dimmer ring.
+		const { liner } = draw();
+		expect( liner.cells.length ).toBeGreaterThan( 0 );
+		expect( new Set( liner.colors ) ).toEqual(
+			new Set( [ MIO_DEFAULTS.appearance.linerColor ] ),
+		);
+	} );
+
+	test( 'meets the ring exactly — no seam, no overlap', () => {
+		// The liner's outer boundary and the core's inner boundary are
+		// the same offset of the same samples, so they have to come out
+		// bit-identical. Anything less is either a hairline of body
+		// showing between the two or a doubled edge.
+		const { liner, core } = draw();
+		expect( liner.cells ).toHaveLength( core.cells.length );
+
+		for ( let i = 0; i < liner.cells.length; i++ ) {
+			const inner = core.cells[ i ];
+			const outer = liner.cells[ i ];
+			// The core traces its inner edge backwards to close the
+			// path: `lineTo( innerB )`, then a curve back to `innerA`.
+			const innerB = inner.find( ( c ) => 'lineTo' === c.op )!.args;
+			const backToA = inner.filter(
+				( c ) => 'quadraticCurveTo' === c.op,
+			)[ 1 ].args;
+			// The liner traces the same edge forwards, as its outer one.
+			const outerA = outer.find( ( c ) => 'moveTo' === c.op )!.args;
+			const toOuterB = outer.find(
+				( c ) => 'quadraticCurveTo' === c.op,
+			)!.args;
+
+			expect( outerA ).toEqual( backToA.slice( 2, 4 ) );
+			expect( toOuterB.slice( 2, 4 ) ).toEqual( innerB );
+			// And the same control point, so the two curves are the
+			// same curve rather than two arcs through the same ends.
+			expect( toOuterB.slice( 0, 2 ) ).toEqual( backToA.slice( 0, 2 ) );
+		}
+	} );
+
+	test( 'reaches inward, so the ring keeps its own width', () => {
+		// Thickening the line eats into the body; it never moves the
+		// chroma outward. The core's geometry must not budge.
+		const thin = draw( { linerWidth: 1 } );
+		const fat = draw( { linerWidth: 9 } );
+		expect( fat.core.cmds ).toEqual( thin.core.cmds );
+
+		// And the line itself does grow, inward.
+		const reach = ( rec: ReturnType< typeof recorder > ): number => {
+			const radii = rec.cmds
+				.filter( ( c ) => 'moveTo' === c.op || 'lineTo' === c.op )
+				.map( ( c ) => Math.hypot( c.args[ 0 ], c.args[ 1 ] ) );
+			return Math.max( ...radii ) - Math.min( ...radii );
+		};
+		expect( reach( fat.liner ) ).toBeGreaterThan( reach( thin.liner ) );
+	} );
+
+	test( 'zero draws nothing at all', () => {
+		expect( draw( { linerWidth: 0 } ).liner.cmds ).toHaveLength( 0 );
 	} );
 } );
 

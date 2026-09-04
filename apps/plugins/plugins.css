@@ -1,0 +1,672 @@
+/**
+ * Plugins app — the window's own styles.
+ *
+ * What the framework's list furniture (`app-runtime.css`, the
+ * `.os-app-list__*` classes) does not cover: the tab panels' clipping,
+ * the card galleries, the detail flyout, the upload dialog, the
+ * window-wide .zip drop overlay and the card drag ghost. The Installed
+ * table's cells and its detail panel render inside `<os-table>`'s
+ * shadow root, which this stylesheet never reaches — those rules are
+ * `parts/styles.ts`, adopted onto the table once.
+ */
+
+/* ─── Frame ─────────────────────────────────────────────────────── */
+
+.desktop-mode-plugins {
+	max-width: 100%;
+	min-width: 0;
+	/* `<os-flyout>` rests at `translateX( 110% )` when closed and would
+	 * otherwise create a phantom horizontal scroll; clipping here AND
+	 * `position: relative` make THIS element its containing block. */
+	overflow: hidden;
+	position: relative;
+	box-sizing: border-box;
+}
+
+.os-plugins__tabs {
+	border-block-end: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
+}
+
+/* Belt + braces — never let a child stretch the panel past the window
+ * width; the `<os-table>` host was once sized by content. */
+.os-plugins__panel {
+	max-width: 100%;
+	overflow: hidden;
+}
+
+.os-plugins__installed,
+.os-plugins__browse,
+.os-plugins__featured {
+	flex: 1 1 auto;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+}
+
+/* The search beside the status pills, on a desk. */
+.desktop-mode-plugins .os-app-list__toolbar-left > .os-app-list__search {
+	flex: 1 1 240px;
+	min-width: 200px;
+	max-width: 360px;
+}
+
+/* Row-click cue — the plugin name expands the detail panel. */
+os-table[ data-installed-rows ]::part( row ) {
+	cursor: pointer;
+}
+
+/* ─── Galleries ─────────────────────────────────────────────────── */
+
+.os-plugins__gallery {
+	display: grid;
+	grid-template-columns: repeat( auto-fill, minmax( 280px, 1fr ) );
+	gap: 14px;
+	padding: 16px;
+	flex: 1 1 auto;
+	min-height: 0;
+	min-width: 0;
+	max-width: 100%;
+	overflow-x: hidden;
+	overflow-y: auto;
+	align-content: start;
+	box-sizing: border-box;
+}
+
+.os-plugins__gallery-sentinel {
+	height: 1px;
+}
+
+.os-plugins__gallery-status {
+	padding: 12px 16px;
+	color: var( --os-ui-fg-muted, #666 );
+	text-align: center;
+	margin: 0;
+}
+
+/* ─── Cards ─────────────────────────────────────────────────────── */
+
+/* The card chrome (padding, border, radius, hover lift, focus ring,
+ * reduced motion) is `<os-card>`'s; only gallery-specific tweaks here. */
+
+.os-plugins__card.os-plugins__card--skeleton {
+	gap: 8px;
+}
+
+.os-plugins__card-header {
+	display: flex;
+	gap: 12px;
+	align-items: center;
+}
+
+.os-plugins__card-icon {
+	flex: 0 0 auto;
+	width: 56px;
+	height: 56px;
+	border-radius: 10px;
+	overflow: hidden;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	background: var( --os-ui-surface-sunken, rgba( 0, 0, 0, 0.04 ) );
+}
+
+.os-plugins__card-icon img {
+	width: 100%;
+	height: 100%;
+	object-fit: contain;
+	opacity: 0;
+	transition: opacity 180ms ease;
+}
+
+.os-plugins__card-icon img.is-loaded {
+	opacity: 1;
+}
+
+.os-plugins__card-icon-fallback {
+	font-size: 28px;
+	width: 28px;
+	height: 28px;
+	color: var( --os-ui-fg-muted, #888 );
+}
+
+.os-plugins__card-titleblock {
+	min-width: 0;
+	flex: 1 1 auto;
+}
+
+.os-plugins__card-title {
+	margin: 0 0 2px 0;
+	font-size: 1rem;
+	font-weight: 600;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.os-plugins__card-byline {
+	margin: 0;
+	color: var( --os-ui-fg-muted, #777 );
+	font-size: 0.82rem;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.os-plugins__card-desc {
+	margin: 0;
+	color: var( --os-ui-fg, #333 );
+	font-size: 0.88rem;
+	line-height: 1.45;
+	display: -webkit-box;
+	-webkit-line-clamp: 3;
+	line-clamp: 3;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+
+.os-plugins__card-footer {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	margin-top: auto;
+}
+
+.os-plugins__card-meta {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	font-size: 0.78rem;
+	color: var( --os-ui-fg-muted, #666 );
+}
+
+.os-plugins__card-installs {
+	font-size: 0.78em;
+	color: var( --os-ui-fg-muted, #888 );
+}
+
+/* Curated cards get a soft inset border + an `<os-ribbon>` stamped on
+ * the top-end corner; the card host carries `position: relative` so
+ * the ribbon anchors to the card itself. */
+.os-plugins__card--featured {
+	position: relative;
+	box-shadow: 0 0 0 1px var( --wp-admin-theme-color, #2271b1 ) inset;
+}
+
+/* ─── Stars ─────────────────────────────────────────────────────── */
+
+.os-plugins__stars {
+	display: inline-flex;
+	align-items: center;
+	gap: 2px;
+}
+
+.os-plugins__star .dashicons {
+	font-size: 14px;
+	width: 14px;
+	height: 14px;
+	color: var( --os-ui-warning, rgb( 245, 175, 0 ) );
+}
+
+.os-plugins__star .dashicons-star-empty {
+	color: var( --os-ui-fg-faint, rgba( 0, 0, 0, 0.25 ) );
+}
+
+.os-plugins__stars-count {
+	margin-inline-start: 4px;
+	color: var( --os-ui-fg-muted, #888 );
+	font-size: 0.78em;
+}
+
+/* ─── Skeleton lines (gallery + flyout) ─────────────────────────── */
+
+.os-plugins__skeleton {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: 16px;
+}
+
+.os-plugins__skeleton-line {
+	display: block;
+	height: 12px;
+	border-radius: 4px;
+	background: linear-gradient(
+		90deg,
+		var( --os-ui-surface-sunken, rgba( 0, 0, 0, 0.06 ) ) 0%,
+		var( --os-ui-hover, rgba( 0, 0, 0, 0.1 ) ) 50%,
+		var( --os-ui-surface-sunken, rgba( 0, 0, 0, 0.06 ) ) 100%
+	);
+	background-size: 200% 100%;
+	animation: dm-plugins-shimmer 1.4s linear infinite;
+}
+
+@keyframes dm-plugins-shimmer {
+	from {
+		background-position: 100% 0;
+	}
+	to {
+		background-position: -100% 0;
+	}
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.os-plugins__skeleton-line {
+		animation: none;
+	}
+}
+
+/* ─── Detail flyout ─────────────────────────────────────────────── */
+
+[data-os-plugins-flyout] {
+	width: min( 560px, calc( 100% - 28px ) );
+}
+
+.os-plugins__flyout {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	min-height: 0;
+}
+
+.os-plugins__flyout-hero {
+	position: relative;
+	padding: 16px 56px 14px 18px;
+	border-block-end: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
+	flex: 0 0 auto;
+	overflow: hidden;
+	/* Mirror the flyout shell's corner radius so a banner stops at the
+	 * rounded top edge instead of bleeding past it. */
+	border-start-start-radius: 14px;
+	border-start-end-radius: 14px;
+}
+
+/* Circular glass close button, floating over the banner. */
+.os-plugins__flyout-close {
+	position: absolute;
+	inset-block-start: 12px;
+	inset-inline-end: 12px;
+	width: 32px;
+	height: 32px;
+	padding: 0;
+	border: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
+	border-radius: 50%;
+	background: var( --os-ui-surface, rgba( 255, 255, 255, 0.78 ) );
+	-webkit-backdrop-filter: blur( 12px ) saturate( 160% );
+	backdrop-filter: blur( 12px ) saturate( 160% );
+	box-shadow:
+		0 1px 4px rgba( 0, 0, 0, 0.1 ),
+		0 0 0 1px rgba( 255, 255, 255, 0.4 ) inset;
+	color: var( --os-ui-fg, #333 );
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	z-index: 2;
+	transition:
+		transform 150ms ease,
+		background 150ms ease,
+		border-color 150ms ease,
+		box-shadow 150ms ease;
+}
+
+.os-plugins__flyout-close:hover {
+	background: var( --os-ui-surface-elevated, rgba( 255, 255, 255, 0.96 ) );
+	transform: scale( 1.06 );
+	border-color: var( --os-ui-border-strong, rgba( 0, 0, 0, 0.16 ) );
+	box-shadow:
+		0 4px 10px rgba( 0, 0, 0, 0.14 ),
+		0 0 0 1px rgba( 255, 255, 255, 0.5 ) inset;
+}
+
+.os-plugins__flyout-close:active {
+	transform: scale( 0.96 );
+}
+
+.os-plugins__flyout-close:focus-visible {
+	outline: 2px solid var( --wp-admin-theme-color, #2271b1 );
+	outline-offset: 2px;
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.os-plugins__flyout-close {
+		transition: none;
+	}
+	.os-plugins__flyout-close:hover,
+	.os-plugins__flyout-close:active {
+		transform: none;
+	}
+}
+
+.os-plugins__flyout-banner {
+	position: absolute;
+	inset: 0;
+	background-size: cover;
+	background-position: center;
+	opacity: 0;
+	transition: opacity 220ms ease;
+	z-index: 0;
+}
+
+.os-plugins__flyout-banner.has-banner {
+	opacity: 0.18;
+}
+
+.os-plugins__flyout-hero-inner {
+	position: relative;
+	display: flex;
+	gap: 12px;
+	align-items: center;
+	z-index: 1;
+}
+
+.os-plugins__flyout-hero-icon {
+	width: 64px;
+	height: 64px;
+	border-radius: 12px;
+	overflow: hidden;
+	background: var( --os-ui-surface-sunken, rgba( 0, 0, 0, 0.04 ) );
+	flex: 0 0 auto;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.os-plugins__flyout-hero-icon img {
+	width: 100%;
+	height: 100%;
+	object-fit: contain;
+}
+
+.os-plugins__flyout-hero-text {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.os-plugins__flyout-hero-title {
+	margin: 0 0 4px;
+	font-size: 1.2rem;
+	font-weight: 600;
+}
+
+.os-plugins__flyout-hero-byline {
+	margin: 0 0 6px;
+	color: var( --os-ui-fg-muted, #666 );
+}
+
+.os-plugins__flyout-meta-row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px 16px;
+	font-size: 0.78rem;
+	color: var( --os-ui-fg-muted, #666 );
+	margin-top: 6px;
+}
+
+.os-plugins__flyout-tabs {
+	flex: 0 0 auto;
+	border-block-end: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
+}
+
+.os-plugins__flyout-body {
+	padding: 16px 18px;
+	flex: 1 1 auto;
+	overflow: auto;
+	min-height: 0;
+}
+
+.os-plugins__flyout-footer {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	padding: 12px 16px;
+	border-block-start: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
+	flex: 0 0 auto;
+}
+
+.os-plugins__flyout-footer-right {
+	display: inline-flex;
+	gap: 6px;
+}
+
+.os-plugins__flyout-wporg {
+	font-size: 0.86rem;
+}
+
+.os-plugins__flyout-error {
+	color: var( --os-ui-danger, rgb( 184, 50, 50 ) );
+	padding: 16px;
+}
+
+.os-plugins__html {
+	font-size: 0.92rem;
+	line-height: 1.5;
+}
+
+.os-plugins__html h3,
+.os-plugins__html h4 {
+	margin-top: 1em;
+}
+
+.os-plugins__empty-line {
+	margin: 0;
+	padding: 12px 0;
+	color: var( --os-ui-fg-muted, #666 );
+	font-size: 0.92rem;
+}
+
+.os-plugins__screenshots {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+}
+
+.os-plugins__screenshot img {
+	max-width: 100%;
+	border-radius: 8px;
+	border: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
+}
+
+.os-plugins__screenshot figcaption {
+	font-size: 0.84rem;
+	color: var( --os-ui-fg-muted, #666 );
+	margin-top: 6px;
+}
+
+/* ─── Upload dialog ─────────────────────────────────────────────── */
+
+.os-plugins__upload-overlay {
+	position: absolute;
+	inset: 0;
+	background: var( --os-ui-scrim, rgba( 0, 0, 0, 0.32 ) );
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 20;
+	animation: dm-plugins-fade-in 180ms ease both;
+}
+
+.os-plugins__upload-card {
+	width: min( 480px, calc( 100% - 32px ) );
+	background: var( --os-ui-card-bg, #fff );
+	border-radius: 14px;
+	padding: 22px 22px 18px;
+	box-shadow: var( --os-ui-shadow-lg, 0 16px 48px rgba( 0, 0, 0, 0.32 ) );
+	animation: dm-plugins-pop-in 220ms cubic-bezier( 0.22, 1, 0.36, 1 ) both;
+}
+
+@keyframes dm-plugins-fade-in {
+	from { opacity: 0; }
+	to   { opacity: 1; }
+}
+
+@keyframes dm-plugins-pop-in {
+	from { transform: scale( 0.96 ); opacity: 0; }
+	to   { transform: none;          opacity: 1; }
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.os-plugins__upload-overlay,
+	.os-plugins__upload-card {
+		animation: none;
+	}
+}
+
+.os-plugins__upload-heading {
+	margin: 0 0 4px;
+	font-size: 1.1rem;
+}
+
+.os-plugins__upload-lede {
+	margin: 0 0 16px;
+	color: var( --os-ui-fg-muted, #666 );
+	font-size: 0.9em;
+}
+
+.os-plugins__upload-dropzone {
+	border: 2px dashed var( --os-ui-border-strong, rgba( 0, 0, 0, 0.18 ) );
+	border-radius: 12px;
+	padding: 24px 16px;
+	text-align: center;
+	cursor: pointer;
+	transition: border-color 150ms ease, background 150ms ease;
+}
+
+.os-plugins__upload-dropzone.is-hovered,
+.os-plugins__upload-dropzone.has-file {
+	border-color: var( --wp-admin-theme-color, #2271b1 );
+	background: var( --os-ui-accent-wash, rgba( 34, 113, 177, 0.05 ) );
+}
+
+.os-plugins__upload-icon {
+	font-size: 32px;
+	width: 32px;
+	height: 32px;
+	color: var( --os-ui-fg-muted, #888 );
+	margin-block-end: 6px;
+}
+
+.os-plugins__upload-hint {
+	margin: 0 0 4px;
+}
+
+.os-plugins__upload-filename {
+	margin: 0;
+	font-size: 0.86em;
+	color: var( --os-ui-fg, #333 );
+	font-family: var( --os-ui-font-mono, ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace );
+}
+
+.os-plugins__upload-status {
+	margin: 12px 0 0;
+	font-size: 0.86em;
+}
+
+.os-plugins__upload-status[ data-tone='error' ] {
+	color: var( --os-ui-danger, rgb( 184, 50, 50 ) );
+}
+
+.os-plugins__upload-status[ data-tone='success' ] {
+	color: var( --os-ui-success-fg, rgb( 25, 120, 65 ) );
+}
+
+.os-plugins__upload-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+	margin-block-start: 14px;
+}
+
+.os-plugins__upload-success-heading {
+	margin: 4px 0 6px;
+	font-size: 1rem;
+	color: var( --os-ui-success-fg, rgb( 25, 120, 65 ) );
+}
+
+.os-plugins__upload-success-detail {
+	margin: 0 0 6px;
+	color: var( --os-ui-fg, #333 );
+	font-family: var( --os-ui-font-mono, ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace );
+	font-size: 0.9em;
+}
+
+/* ─── Window-level .zip drop overlay ────────────────────────────── */
+
+.os-plugins__window-drop {
+	position: absolute;
+	inset: 12px;
+	border: 2px dashed var( --wp-admin-theme-color, #2271b1 );
+	border-radius: 14px;
+	background: var( --os-ui-accent-wash, rgba( 34, 113, 177, 0.08 ) );
+	color: var( --wp-admin-theme-color, #2271b1 );
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 1.05rem;
+	font-weight: 600;
+	pointer-events: none;
+	opacity: 0;
+	transition: opacity 180ms ease;
+	z-index: 9;
+}
+
+.has-zip-dragover .os-plugins__window-drop {
+	opacity: 1;
+}
+
+/* ─── Drag a card to the dock ───────────────────────────────────── */
+
+.os-plugins__drag-ghost {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 14px;
+	background: var( --os-ui-card-bg, #fff );
+	border-radius: 999px;
+	box-shadow: var( --os-ui-shadow-md, 0 6px 20px rgba( 0, 0, 0, 0.18 ) );
+	font-size: 0.92rem;
+	font-weight: 600;
+	max-width: 240px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.os-plugins__drag-ghost img {
+	width: 24px;
+	height: 24px;
+	border-radius: 6px;
+}
+
+.os-plugins__drag-ghost-fallback {
+	color: var( --os-ui-fg-muted, #888 );
+	font-size: 22px;
+}
+
+[ data-plugins-card-drop-active ] {
+	outline: 2px dashed var( --wp-admin-theme-color, #2271b1 );
+	outline-offset: 2px;
+}
+
+/* ─── Featured tab ──────────────────────────────────────────────── */
+
+.os-plugins__featured-intro {
+	padding: 20px 20px 4px;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.os-plugins__featured-heading {
+	margin: 0;
+	font-size: 1.15em;
+	font-weight: 600;
+}
+
+.os-plugins__featured-blurb {
+	margin: 0;
+	color: var( --os-ui-fg-muted, #666 );
+	font-size: 0.9em;
+	line-height: 1.45;
+}

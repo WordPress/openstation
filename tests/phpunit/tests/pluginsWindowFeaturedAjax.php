@@ -1,9 +1,9 @@
 <?php
 /**
- * Tests for the Plugins window's Featured tab AJAX endpoint + curated
- * slug helper.
+ * Tests for the Plugins app's Featured tab AJAX endpoint + curated
+ * slug helper (`apps/plugins/parts/featured.php`).
  *
- * The Featured tab is the third tab in the native Plugins window. It
+ * The Featured tab is the third tab in the Plugins app. It
  * surfaces plugins that depend on OpenStation — manually curated for
  * now (wp.org's plugins_api has no usable `requires_plugins` filter)
  * and topped up at runtime by scanning the popular-plugins feed for

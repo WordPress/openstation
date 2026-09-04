@@ -69,6 +69,15 @@
 
 .os-recycle-bin__body os-table {
 	flex: 1 1 auto;
+	/*
+	 * A flex item's minimum size is its content's, and this content
+	 * is a table whose columns refuse to wrap: without the 0 the
+	 * table grows past the body, the body (which does not scroll)
+	 * clips it, and the table's own scroller — the one thing that can
+	 * scroll sideways — never overflows. This is what made a long
+	 * title unreachable in a narrow window.
+	 */
+	min-inline-size: 0;
 	--os-ui-table-max-height: 100%;
 }
 
@@ -128,6 +137,75 @@
 	.os-recycle-bin__body {
 		padding: 6px 8px 8px;
 	}
+}
+
+/*
+ * The phone (the shell's mode stamp, at any width). The list is a
+ * card per row (`<os-table stacked>`, set by the app) running edge to
+ * edge; the search leads the toolbar, with the type chips scrolling
+ * under it; and the selection's actions are a bar along the bottom
+ * of the window, under the thumb, instead of a row in the toolbar
+ * the list has scrolled away from. The bar is a flex sibling of the
+ * body, so the cards end where it begins.
+ */
+html[data-os-mode="mobile"] .os-recycle-bin__toolbar {
+	gap: 8px;
+	padding: 8px 10px;
+}
+
+html[data-os-mode="mobile"] .os-recycle-bin__toolbar-left,
+html[data-os-mode="mobile"] .os-recycle-bin__toolbar-trailing {
+	flex: 1 1 100%;
+	min-inline-size: 0;
+}
+
+html[data-os-mode="mobile"] .os-recycle-bin__toolbar-left {
+	flex-wrap: wrap;
+}
+
+html[data-os-mode="mobile"] .os-recycle-bin__toolbar-left os-text-field {
+	order: -1;
+	flex: 1 1 100%;
+}
+
+html[data-os-mode="mobile"] .os-recycle-bin__toolbar-left os-segmented {
+	flex: 1 1 100%;
+	max-inline-size: 100%;
+	overflow-x: auto;
+	scrollbar-width: none;
+}
+
+html[data-os-mode="mobile"] .os-recycle-bin__toolbar-trailing {
+	margin-inline-start: 0;
+	justify-content: flex-end;
+}
+
+html[data-os-mode="mobile"] .os-recycle-bin__body {
+	padding: 0;
+}
+
+.os-recycle-bin__bulk {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	padding: 10px 12px calc( 10px + env( safe-area-inset-bottom, 0px ) );
+	border-block-start: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
+	background: var( --os-ui-surface-elevated, #f6f7f7 );
+	box-shadow: 0 -6px 18px rgba( 0, 0, 0, 0.06 );
+}
+
+.os-recycle-bin__bulk[hidden] {
+	display: none;
+}
+
+.os-recycle-bin__bulk .os-recycle-bin__count {
+	flex: 1 1 100%;
+	padding-inline-end: 0;
+}
+
+.os-recycle-bin__bulk os-button {
+	flex: 1 1 auto;
 }
 
 /*

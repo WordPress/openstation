@@ -1,13 +1,16 @@
 <?php
 /**
- * Tests for the native Plugins window's PHP registration + cap gates.
+ * Tests for the Plugins app's PHP parts: the capability gates
+ * (`apps/plugins/parts/permissions.php`) and the REST field
+ * decorators on `/wp/v2/plugins` (`apps/plugins/parts/rest-fields.php`).
  *
- * The Plugins window is gated on `activate_plugins` (broad gate) plus
- * the `nativePluginsEnabled` opt-out toggle. Per-action mutation caps
+ * The app is gated on `activate_plugins` (broad gate) plus the
+ * `nativePluginsEnabled` opt-out toggle. Per-action mutation caps
  * (`install_plugins`, `delete_plugins`, `upload_plugins`) are
- * enforced inside the AJAX callbacks themselves; these tests cover
- * the registration gate + the per-row capability surface
- * (`openstation_plugins_window_caps`).
+ * enforced inside the AJAX callbacks and Core's REST controller; these
+ * tests cover the gate + the per-row capability surface
+ * (`openstation_plugins_window_caps`). The app itself — manifest,
+ * `data()`, the dispatch cycle — is `pluginsApp.php`.
  *
  * @package WordPress
  * @subpackage UnitTests
@@ -916,54 +919,6 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 		$this->assertNull(
 			openstation_plugins_window_local_icon_url( '' )
 		);
-	}
-
-	// ----------------------------------------------------------------
-	// Force-refresh query-string detector — GH#202.
-	// ----------------------------------------------------------------
-
-	/**
-	 * @covers ::openstation_plugins_window_force_refresh_requested
-	 */
-	public function test_force_refresh_detector_returns_false_when_param_absent() {
-		unset( $_GET['openstation_force_refresh'] );
-		$this->assertFalse( openstation_plugins_window_force_refresh_requested() );
-	}
-
-	/**
-	 * @covers ::openstation_plugins_window_force_refresh_requested
-	 */
-	public function test_force_refresh_detector_accepts_one() {
-		$_GET['openstation_force_refresh'] = '1';
-		try {
-			$this->assertTrue( openstation_plugins_window_force_refresh_requested() );
-		} finally {
-			unset( $_GET['openstation_force_refresh'] );
-		}
-	}
-
-	/**
-	 * @covers ::openstation_plugins_window_force_refresh_requested
-	 */
-	public function test_force_refresh_detector_accepts_true() {
-		$_GET['openstation_force_refresh'] = 'true';
-		try {
-			$this->assertTrue( openstation_plugins_window_force_refresh_requested() );
-		} finally {
-			unset( $_GET['openstation_force_refresh'] );
-		}
-	}
-
-	/**
-	 * @covers ::openstation_plugins_window_force_refresh_requested
-	 */
-	public function test_force_refresh_detector_rejects_other_values() {
-		$_GET['openstation_force_refresh'] = '0';
-		try {
-			$this->assertFalse( openstation_plugins_window_force_refresh_requested() );
-		} finally {
-			unset( $_GET['openstation_force_refresh'] );
-		}
 	}
 
 	// ----------------------------------------------------------------

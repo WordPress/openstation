@@ -68,6 +68,7 @@ export function randomMioLook( random: () => number = Math.random ): MioLook {
 	// gradient; over about 220° the sweep wraps far enough round the
 	// wheel to come back to where it started.
 	const span = round( between( 55, 215 ), 1 ) * ( chance( 0.5 ) ? 1 : -1 );
+	const outlineWidth = round( between( 2, 7 ), 0.5 );
 
 	return {
 		appearance: {
@@ -83,7 +84,21 @@ export function randomMioLook( random: () => number = Math.random ): MioLook {
 			hueDrift: chance( 0.15 ) ? round( between( -8, 8 ), 1 ) : 0,
 			saturation: round( between( 0.68, 1 ), 0.01 ),
 			lightness: round( between( 0.52, 0.78 ), 0.01 ),
-			outlineWidth: round( between( 2, 7 ), 0.5 ),
+			outlineWidth,
+			// Derived from the ring rather than rolled, for two
+			// reasons. The line only looks right in proportion to the
+			// chroma beside it — a hairline inside a 7px ring reads as
+			// a mistake — and a draw taken here would shift every
+			// number after it, which would re-roll the face of every
+			// agent that has a seed and no portrait yet. The shipped
+			// Mio splits its ring two to one, so a random one does
+			// too; and it is never `0`, because a Mio without the line
+			// is a coloured edge rather than a lit tube.
+			linerWidth: Math.max( 1, round( outlineWidth / 2, 0.5 ) ),
+			// Starlight, for the reason the eyes are: the brand has one
+			// white and a randomizer with a second opinion about it is
+			// just a way to ship an off-white line.
+			linerColor: MIO_DEFAULTS.appearance.linerColor,
 			// Bracketing the shipped `10`, roughly two thirds of a
 			// radius to two and a half. Below that the ring reads as
 			// drawn rather than lit; above it the wash starts competing

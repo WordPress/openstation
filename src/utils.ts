@@ -3,6 +3,19 @@
  */
 
 /**
+ * The wp-admin base URL the shell booted with, for building admin
+ * links the shell intercepts (`post.php?post=…`, `edit-comments.php`).
+ * Falls back to the conventional path before the shell has published
+ * its config.
+ */
+export function adminBaseUrl(): string {
+	const desktop = ( window as unknown as {
+		wp?: { os?: { config?: { adminUrl?: string } } };
+	} ).wp?.os;
+	return desktop?.config?.adminUrl || '/wp-admin/';
+}
+
+/**
  * Query args that meaningfully differentiate admin pages.
  *
  * `post_type` separates Posts from Pages (both are edit.php). `page` is

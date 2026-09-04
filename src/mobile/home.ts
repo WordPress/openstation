@@ -89,6 +89,13 @@ export function filterByQuery( items: readonly NavItem[], query: string ): NavIt
 export interface HomeDeps {
 	renderIcon: ( icon: string, opts: { title: string; className?: string } ) => HTMLElement;
 	getBadge: ( item: NavItem ) => number;
+	/**
+	 * The art an item's tile is wearing on the desk's rails through
+	 * `setArt` (the bin's full/empty drawing), or `''` for the
+	 * declared icon. The grid paints it in the icon's place, so a
+	 * tile here says what the dock's says.
+	 */
+	getArt?: ( item: NavItem ) => string;
 	onOpen: ( item: NavItem ) => void;
 }
 
@@ -149,7 +156,10 @@ export function createHome( host: HTMLElement, deps: HomeDeps ): HomeSurface {
 		const iconWrap = document.createElement( 'span' );
 		iconWrap.className = 'os-mobile-tile__icon';
 		iconWrap.appendChild(
-			deps.renderIcon( item.icon, { title: item.title, className: 'os-mobile-tile__glyph' } ),
+			deps.renderIcon( deps.getArt?.( item ) || item.icon, {
+				title: item.title,
+				className: 'os-mobile-tile__glyph',
+			} ),
 		);
 		const badge = deps.getBadge( item );
 		if ( badge > 0 ) {

@@ -42,6 +42,8 @@ const APPEARANCE_KEYS: readonly ( keyof MioAppearance )[] = [
 	'lightness',
 	'iridescence',
 	'outlineWidth',
+	'linerWidth',
+	'linerColor',
 	'glow',
 	'glowBlur',
 	'eyeColor',

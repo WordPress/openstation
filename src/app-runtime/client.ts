@@ -51,6 +51,23 @@ export { formatBytes, formatDate, type DateStyle } from './format';
 export { createPagedList, type PagedList, type PageEnvelope } from './paged-list';
 export { applySelection, createMarquee } from './selection';
 export { copyText } from './clipboard';
+export {
+	statusControl,
+	pager,
+	mountMenuCheckboxes,
+	type StatusSegment,
+	type StatusControlOptions,
+	type PagerOptions,
+	type MenuCheckboxesOptions,
+	type MenuCheckboxes,
+} from './list-ui';
+export {
+	createListTableSync,
+	type ListTableLike,
+	type ListTableSync,
+	type ListTableSyncOptions,
+	type ListTableSyncResult,
+} from './list-table';
 export type { ConfirmSpec, RuntimeHost } from './types';
 
 /** A reducer run in the browser. Return the next state, or mutate and return nothing. */
@@ -86,6 +103,12 @@ export interface ViewContext< S, D > {
 	/** The mount root — for a ResizeObserver, a canvas, a focus() call. */
 	root: HTMLElement;
 	/**
+	 * The window this view is mounted in — the app id for a singleton,
+	 * an instance id for a duplicate. What `wp.os.relations`,
+	 * `wp.os.onWindow()` and `updateOsSettings( …, { windowId } )` key on.
+	 */
+	readonly windowId: string;
+	/**
 	 * What the app declared with `App::config()` — static values that
 	 * ship once with the window config instead of riding `data` on
 	 * every response (asset URLs, feature flags, the Trash app's
@@ -109,11 +132,32 @@ export interface ViewContext< S, D > {
 	fetch: ( path: string, init?: RequestInit ) => Promise< Response >;
 	/** The shell surface the runtime itself runs on — toast, confirm, menu, open. */
 	host: RuntimeHost;
+	/**
+	 * `true` while `data` is the app's own `placeholder` — the frame
+	 * painted the moment the window opened, before the first server
+	 * answer. `false` from the first response on (and always false for
+	 * data that came prefetched with the window config). What a view
+	 * reads to show a skeleton instead of "nothing found".
+	 */
+	readonly loading: boolean;
 }
 
 export interface ClientAppDef< S, D > {
 	/** Actions that run in the browser. Anything else dispatches to PHP. */
 	local?: Record< string, LocalAction< S, D > >;
+	/**
+	 * The `data` to paint from BEFORE `mount` has answered — an empty
+	 * list, zero counts — so the window's frame (its toolbar, tabs,
+	 * pager, the table's skeleton) is on screen the moment it opens
+	 * instead of behind the shell's overlay for a whole WordPress
+	 * request. `mount` then replaces it with the real `data()`;
+	 * `ctx.loading` is `true` in between. The client-side counterpart
+	 * of `App::prefetch()`, for a `data()` that runs queries and must
+	 * not be computed on every boot. A window opened with params (a
+	 * deep link) still waits for `mount`, since its state is the
+	 * server's to derive.
+	 */
+	placeholder?: ( state: S ) => D;
 	/** The body, as a function of state + data. */
 	view: ( ctx: ViewContext< S, D > ) => TemplateResult;
 	/** After the first render. Return a teardown for close. */
@@ -134,6 +178,8 @@ export interface ClientApp {
 	) => Record< string, unknown >;
 	render: ( ctx: ViewContext< Record< string, unknown >, unknown > ) => void;
 	mounted: ( ctx: ViewContext< Record< string, unknown >, unknown > ) => void | ( () => void );
+	/** The `data` to paint from before `mount` answers, when the app declared one. */
+	placeholder?: ( state: Record< string, unknown > ) => unknown;
 }
 
 interface ClientGlobals {
@@ -167,6 +213,10 @@ export function defineApp< S extends Record< string, unknown >, D >(
 		},
 		mounted: ( ctx ) => def.mounted?.( ctx as unknown as ViewContext< S, D > ),
 	};
+	const { placeholder } = def;
+	if ( placeholder ) {
+		app.placeholder = ( state ) => placeholder( state as S );
+	}
 	const globals = window as unknown as ClientGlobals;
 	( globals.openStationApps ??= {} )[ id ] = app;
 	return app;
