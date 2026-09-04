@@ -12,7 +12,7 @@
  * stacks classes, loses the saved floating geometry, or forgets the
  * pre-minimize state surfaces as a hard failure.
  */
-import { afterEach, beforeEach, describe, expect, test } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { Window } from '../../src/window';
 import type { WindowConfig } from '../../src/types';
 import {
@@ -565,5 +565,72 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 		handle.win.toggleMaximize();
 
 		expect( observed ).toEqual( [ 'maximized', 'maximized' ] );
+	} );
+
+	test( 'minimize and restore invoke WAAPI flight animation when dock tile is present', () => {
+		// WAAPI flight drives the scale-to-dock motion when geometry and
+		// an animation engine are available. `--minimizing` and `--restoring`
+		// keep the window interactive/visible during flight before the final
+		// state class lands.
+		const dockEl = document.createElement( 'div' );
+		dockEl.className = 'os-dock__item';
+		dockEl.setAttribute( 'data-os-window-base-id', 'w1' );
+		dockEl.getBoundingClientRect = vi.fn( () => ( {
+			left: 500,
+			top: 700,
+			right: 548,
+			bottom: 748,
+			width: 48,
+			height: 48,
+			x: 500,
+			y: 700,
+			toJSON: () => {},
+		} ) );
+		document.body.appendChild( dockEl );
+
+		handle.win.element.getBoundingClientRect = vi.fn( () => ( {
+			left: 40,
+			top: 60,
+			right: 840,
+			bottom: 660,
+			width: 800,
+			height: 600,
+			x: 40,
+			y: 60,
+			toJSON: () => {},
+		} ) );
+
+		const animateSpy = vi.fn( () => ( {
+			onfinish: null,
+			oncancel: null,
+			cancel: vi.fn(),
+		} ) );
+		handle.win.element.animate = animateSpy as unknown as typeof handle.win.element.animate;
+
+		handle.win.minimize();
+		expect( handle.win.element.classList.contains( 'os-window--minimizing' ) ).toBe( true );
+		expect( animateSpy ).toHaveBeenCalledTimes( 1 );
+
+		handle.win.restore();
+		expect( handle.win.element.classList.contains( 'os-window--restoring' ) ).toBe( true );
+		expect( animateSpy ).toHaveBeenCalledTimes( 2 );
+
+		dockEl.remove();
+	} );
+
+	test( 'minimize skips WAAPI animation when prefers-reduced-motion is active', () => {
+		// Accessibility guard: when reduced motion is requested, genie
+		// flight must be bypassed so the window minimizes immediately.
+		const origMatchMedia = window.matchMedia;
+		window.matchMedia = vi.fn().mockReturnValue( { matches: true } );
+
+		const animateSpy = vi.fn();
+		handle.win.element.animate = animateSpy as unknown as typeof handle.win.element.animate;
+
+		handle.win.minimize();
+		expect( handle.win.element.classList.contains( 'os-window--minimized' ) ).toBe( true );
+		expect( animateSpy ).not.toHaveBeenCalled();
+
+		window.matchMedia = origMatchMedia;
 	} );
 } );

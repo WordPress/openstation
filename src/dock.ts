@@ -1264,6 +1264,10 @@ export class Dock {
 		);
 		tile.className = filteredClasses.join( ' ' );
 		tile.dataset.systemId = item.id;
+		// Genie minimize: Window looks for its dock tile via
+		// `[data-os-window-base-id="…"]` so the animation can fly to
+		// the correct icon. System tiles are keyed by their own id.
+		( tile.dataset as unknown as Record< string, string > ).osWindowBaseId = item.id;
 		// The constellation resolves a flyout from this attribute the
 		// way it resolves a menu one from `data-menu-slug`, and
 		// `dock-peek` stands down on it for the same reason it stands
@@ -1429,6 +1433,10 @@ export class Dock {
 		// the peek card never appears even when the native window
 		// is open.
 		const baseId = this.resolveItemBaseId( item );
+		// Genie minimize: Window looks for `[data-os-window-base-id="…"]`
+		// so the animation can fly to the exact icon. Must be set before
+		// the `DOCK_TILE_ELEMENT` filter in case a decorator wraps the tile.
+		( tile.dataset as unknown as Record< string, string > ).osWindowBaseId = baseId;
 		const teardown = attachDockPeek( {
 			tile,
 			item: {
@@ -2448,7 +2456,12 @@ export class Dock {
 		if ( item.windowId && ! item.url ) {
 			const existing = this.windowManager.getById( item.windowId );
 			if ( existing ) {
+				// Read before focus() — restore() mutates state to 'normal'.
+				const wasMinimized = existing.state === 'minimized';
 				this.windowManager.focus( existing );
+				if ( wasMinimized ) {
+					existing.restore();
+				}
 				return;
 			}
 			const wp = ( window as unknown as {

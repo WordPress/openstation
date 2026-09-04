@@ -364,16 +364,27 @@
 }
 
 /*
- * Minimized state — fade + scale down.
- * Uses opacity + pointer-events instead of display: none so the
- * CSS transition can animate the change. The window is invisible
- * and non-interactive but stays in the DOM for a smooth restore.
+ * Minimized state — window is hidden and non-interactive at the dock.
+ * Uses opacity + pointer-events + transition: none so neither state
+ * changes nor WAAPI animation teardown trigger accidental transitions.
  */
 .os-window--minimized {
 	opacity: 0;
-	transform: scale(0.92) translateY(16px);
 	pointer-events: none;
-	will-change: transform, opacity;
+	transition: none !important;
+}
+
+/*
+ * Genie helpers — active only during the WAAPI flight to/from the
+ * dock. Disable the base `left/top/width/height/transform/opacity`
+ * transition so the CSS transition doesn't fight the WAAPI
+ * `element.animate()` that drives the scale-to-dock motion. The
+ * minimized class is applied AFTER the minimizing flight lands, and
+ * the restoring class is removed AFTER the restoring flight lands.
+ */
+.os-window--minimizing,
+.os-window--restoring {
+	transition: none !important;
 }
 
 /*
@@ -417,6 +428,11 @@
 	}
 	.os-window--opening {
 		animation-duration: 0.01ms !important;
+	}
+	.os-window--minimizing,
+	.os-window--restoring {
+		animation: none !important;
+		transition: none !important;
 	}
 }
 
