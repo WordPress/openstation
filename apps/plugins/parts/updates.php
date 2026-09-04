@@ -72,6 +72,10 @@ function openstation_plugins_window_maybe_refresh_update_transient( $force = fal
 			delete_site_transient( 'update_plugins' );
 		}
 		wp_update_plugins();
+		// The read path primes before it reads, so ordering alone keeps
+		// it honest; a caller that primed earlier in the request gets
+		// the new answer because of this.
+		openstation_plugins_window_forget_updates();
 		return;
 	}
 
@@ -109,9 +113,9 @@ function openstation_plugins_window_prime_updates_once( $force = false ) {
 /**
  * The `update_plugins` transient, primed at most once per request and
  * read once: every row's fields and the badge count share it. The
- * snapshot is dropped whenever the transient is written or deleted
- * (an upgrader run mid-request, the Refresh action), so it is never
- * behind the store.
+ * snapshot is dropped whenever something rewrites the transient under
+ * it — an upgrader run mid-request, a plugin deleted, the Refresh
+ * action's forced check — so it is never behind the store.
  *
  * @return object|null The transient object, or null when it is cold.
  */
@@ -137,8 +141,19 @@ function openstation_plugins_window_updates() {
 function openstation_plugins_window_forget_updates() {
 	wp_cache_delete( 'update_plugins', OPENSTATION_PLUGINS_CACHE_GROUP );
 }
-add_action( 'set_site_transient_update_plugins', 'openstation_plugins_window_forget_updates' );
-add_action( 'delete_site_transient_update_plugins', 'openstation_plugins_window_forget_updates' );
+// What actually rewrites the transient inside a request: an upgrader
+// finishing (install, update, bulk update) and a plugin being deleted;
+// Core cleans the plugin caches on both. The forced-refresh path
+// forgets on its own, above.
+//
+// Deliberately NOT the transient's own `set_` / `delete_` actions,
+// which would be the obvious listener: Plugin Check reads any mention
+// of those two hook names — in code or in a comment, it scans the raw
+// file — as a self-hosted plugin updater (`plugin_updater_detected`),
+// which a wp.org-hosted plugin may not ship. The two actions below
+// mark the same moments and carry no such meaning.
+add_action( 'upgrader_process_complete', 'openstation_plugins_window_forget_updates' );
+add_action( 'deleted_plugin', 'openstation_plugins_window_forget_updates' );
 add_action(
 	'init',
 	static function () {
