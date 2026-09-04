@@ -42,6 +42,15 @@ export interface MobileLayerDeps {
 	openNavItem: ( item: NavItem ) => boolean;
 	/** Live badge count for an item — server count plus client overrides. */
 	getBadge: ( item: NavItem ) => number;
+	/**
+	 * The art an item's tile wears on the desk's rails (`setArt`), or
+	 * `''` for its declared icon. The home grid paints it in place of
+	 * the icon so a state a tile carries — the bin holding something —
+	 * is the same on the phone.
+	 */
+	getArt?: ( item: NavItem ) => string;
+	/** Notifies when any rail's art changes; the grid repaints. */
+	subscribeArt?: ( cb: () => void ) => () => void;
 	/** Ids pinned to the tab bar, user preference first, server default second. */
 	getPinnedTabIds: () => string[];
 	/** Fires when navigation or the pinned tabs may have changed. */

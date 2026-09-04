@@ -7,6 +7,7 @@
 import { describe, expect, test, vi } from 'vitest';
 import {
 	bindEdgeBack,
+	bindHistorySwipeGuard,
 	bindSwipeDown,
 	bindSwipeUp,
 	EDGE_BACK_THRESHOLD,
@@ -76,6 +77,27 @@ describe( 'bindEdgeBack', () => {
 		zone.dispatchEvent( pointer( 'pointerdown', { x: 4, y: 100 } ) );
 		zone.dispatchEvent( pointer( 'pointerup', { x: 200, y: 100 } ) );
 		expect( onCommit ).toHaveBeenCalledTimes( 1 );
+	} );
+} );
+
+describe( 'bindHistorySwipeGuard', () => {
+	test( 'cancels the touchstart that would begin the browser swipe, and nothing after unbind', () => {
+		const zone = document.createElement( 'div' );
+		const unbind = bindHistorySwipeGuard( zone );
+
+		const start = new Event( 'touchstart', { bubbles: true, cancelable: true } );
+		zone.dispatchEvent( start );
+		expect( start.defaultPrevented ).toBe( true );
+
+		// A non-cancelable start (the browser already committed) is left alone.
+		const late = new Event( 'touchstart', { bubbles: true, cancelable: false } );
+		zone.dispatchEvent( late );
+		expect( late.defaultPrevented ).toBe( false );
+
+		unbind();
+		const after = new Event( 'touchstart', { bubbles: true, cancelable: true } );
+		zone.dispatchEvent( after );
+		expect( after.defaultPrevented ).toBe( false );
 	} );
 } );
 

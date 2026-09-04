@@ -34,6 +34,7 @@
  * `_cancel( session, reason )` exit.
  */
 
+import { isMobileStamped } from '../mode/stamp';
 import { DropTargetRegistry } from './drop-target-registry';
 import { mountGhost, type GhostHandle } from './ghost';
 import { installRecovery } from './recovery';
@@ -106,6 +107,13 @@ export class DragManager implements DragManagerApi {
 		}
 		// Primary button only.
 		if ( opts.origin.button !== 0 ) {
+			return null;
+		}
+		// A phone has no drag and drop. Every shell drag starts here,
+		// so one refusal covers the tiles, the rows, the cards and the
+		// cross-window bridge: the pointerdown falls through to the
+		// source's own tap handling, as it does for a second button.
+		if ( isMobileStamped() ) {
 			return null;
 		}
 

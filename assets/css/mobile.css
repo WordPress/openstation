@@ -46,8 +46,28 @@ html[data-os-mode="mobile"].wp-toolbar {
 	padding-top: 0 !important;
 }
 
+/*
+ * The shell starts at the top edge, and the admin-bar height token
+ * says so too: anything that still reads it (the notch's offset, a
+ * plugin's own chrome) measures against a bar that is not there.
+ */
 html[data-os-mode="mobile"] .os-shell {
 	inset-block-start: 0;
+	--wp-admin--admin-bar--height: 0px;
+}
+
+/*
+ * No page zoom. `pan-x pan-y` keeps every scroll and hands nothing
+ * else to the browser: no pinch, no double-tap. The viewport meta
+ * says the same (`maximum-scale=1`, `openstation_mode_viewport_meta()`)
+ * and `src/mode/zoom-guard.ts` cancels the gesture where a browser
+ * ignores both. `overscroll-behavior: none` is the rubber band at the
+ * document's edges — the shell is fixed and has no document to pull.
+ */
+html[data-os-mode="mobile"],
+html[data-os-mode="mobile"] body {
+	touch-action: pan-x pan-y;
+	overscroll-behavior: none;
 }
 
 /* The work area is the whole area: no dock band to keep clear of. */
@@ -69,19 +89,29 @@ html[data-os-mode="mobile"] .os-area {
  * glass over the wallpaper, light glyphs — so every phone surface
  * reads them, and a desktop theme that reskins the dock reskins the
  * phone with it. Bars and sheets sit on the solid backstop, the same
- * floor the shell paints under everything.
+ * floor the shell paints under everything. What the dock has no word
+ * for — the glass a tile is cut from, the shadows, the scrims — is
+ * the `--os-mobile-*` family in `variables.css`.
  */
 html[data-os-mode="mobile"] .os-shell {
 	--_m-surface: var( --os-backstop, #0c0b0f );
 	--_m-surface-raised: var( --os-dock-bg, rgba( 12, 11, 15, 0.72 ) );
-	--_m-glass: rgba( 255, 251, 255, 0.1 );
-	--_m-glass-strong: rgba( 255, 251, 255, 0.16 );
+	--_m-glass: var( --os-mobile-glass, rgba( 255, 255, 255, 0.1 ) );
+	--_m-glass-strong: var( --os-mobile-glass-strong, rgba( 255, 255, 255, 0.16 ) );
+	--_m-glass-border: var( --os-mobile-glass-border, rgba( 255, 255, 255, 0.14 ) );
 	--_m-fg: var( --os-dock-icon-color-hover, #fffbff );
 	--_m-fg-muted: var( --os-dock-icon-color, rgba( 255, 251, 255, 0.72 ) );
 	--_m-border: var( --os-dock-border, rgba( 255, 251, 255, 0.1 ) );
 	--_m-accent: var( --os-ui-accent, #f252fc );
 	--_m-accent-dim: var( --os-ui-accent-dim, rgba( 242, 82, 252, 0.35 ) );
 	--_m-danger: var( --os-ui-danger, #d63638 );
+	--_m-tile-shadow: var( --os-mobile-tile-shadow, 0 8px 20px rgba( 0, 0, 0, 0.35 ) );
+	--_m-card-shadow: var( --os-mobile-card-shadow, 0 -8px 24px rgba( 0, 0, 0, 0.4 ) );
+	--_m-sheet-shadow: var( --os-mobile-sheet-shadow, 0 -12px 40px rgba( 0, 0, 0, 0.45 ) );
+	--_m-window-shadow: var( --os-mobile-window-shadow, 0 12px 32px rgba( 0, 0, 0, 0.45 ) );
+	--_m-scrim: var( --os-mobile-scrim, rgba( 0, 0, 0, 0.55 ) );
+	--_m-top-scrim: var( --os-mobile-top-scrim, rgba( 0, 0, 0, 0.45 ) );
+	--_m-label-shadow: var( --os-mobile-label-shadow, 0 1px 2px rgba( 0, 0, 0, 0.6 ) );
 	--_m-radius: 14px;
 	--_m-gap: 8px;
 	--_m-top-h: 48px;
@@ -90,7 +120,15 @@ html[data-os-mode="mobile"] .os-shell {
 	--_m-safe-bottom: env( safe-area-inset-bottom, 0px );
 	--_m-safe-left: env( safe-area-inset-left, 0px );
 	--_m-safe-right: env( safe-area-inset-right, 0px );
+	/* The tab bar's whole footprint: its items, and the home indicator under them. */
+	--_m-tabs-total: calc( var( --_m-tabs-h ) + 8px + var( --_m-safe-bottom ) );
 	--_m-ease: cubic-bezier( 0.2, 0.8, 0.2, 1 );
+	/*
+	 * Every kit field on the phone is 16px: below that, iOS zooms the
+	 * page into a focused control and never zooms back out.
+	 */
+	--os-ui-field-font-size: 16px;
+	--os-ui-field-font-size-compact: 16px;
 }
 
 /*
@@ -135,7 +173,7 @@ html[data-os-mode="mobile"] .os-mobile-switcher__sheet {
 html[data-os-mode="mobile"] .os-window {
 	border-radius: var( --_m-radius ) !important;
 	border: 1px solid var( --_m-border ) !important;
-	box-shadow: 0 12px 32px rgba( 0, 0, 0, 0.45 ) !important;
+	box-shadow: var( --_m-window-shadow ) !important;
 	overflow: hidden;
 }
 
@@ -194,22 +232,30 @@ html[data-os-mode="mobile"] .os-shell[data-os-mobile-state="home"] .os-window {
 }
 
 /* ------------------------------------------------------------------
- * The back-gesture zone: a thin strip the shell owns over the left
- * edge of the iframe, so the pointer never belongs to the frame.
+ * The edge zones: thin strips the shell owns over both edges of the
+ * area, so a pointer that starts there never belongs to the iframe.
+ * The start edge is the Back gesture; both cancel the browser's
+ * history swipe (`bindHistorySwipeGuard` in `gestures.ts`), so they
+ * stay up on the home screen too — a swipe that navigated away would
+ * navigate away from home as well. Above the windows and the home
+ * grid, below the switcher sheet.
  * ---------------------------------------------------------------- */
 
 html[data-os-mode="mobile"] .os-mobile-edge {
 	position: absolute;
 	inset-block: 0;
-	inset-inline-start: 0;
 	width: 22px;
 	z-index: 2000;
 	touch-action: none;
 	background: transparent;
 }
 
-html[data-os-mode="mobile"] .os-shell[data-os-mobile-state="home"] .os-mobile-edge {
-	display: none;
+html[data-os-mode="mobile"] .os-mobile-edge--start {
+	inset-inline-start: 0;
+}
+
+html[data-os-mode="mobile"] .os-mobile-edge--end {
+	inset-inline-end: 0;
 }
 
 /* ------------------------------------------------------------------
@@ -230,7 +276,7 @@ html[data-os-mode="mobile"] .os-mobile-top {
 	min-height: var( --_m-top-h );
 	padding-block-start: var( --_m-safe-top );
 	padding-inline: calc( 4px + var( --_m-safe-left ) ) calc( 4px + var( --_m-safe-right ) );
-	background: linear-gradient( to bottom, rgba( 0, 0, 0, 0.45 ), rgba( 0, 0, 0, 0 ) );
+	background: linear-gradient( to bottom, var( --_m-top-scrim ), transparent );
 	color: var( --_m-fg );
 	position: relative;
 	z-index: 3000;
@@ -319,7 +365,7 @@ html[data-os-mode="mobile"] .os-mobile-top__title {
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
-	text-shadow: 0 1px 2px rgba( 0, 0, 0, 0.6 );
+	text-shadow: var( --_m-label-shadow );
 }
 
 /* ------------------------------------------------------------------
@@ -351,9 +397,23 @@ html[data-os-mode="mobile"] .os-mobile-home[hidden] {
 	}
 }
 
+/*
+ * The search is a phone's search: a rounded glass field, 16px type
+ * (the size under which iOS zooms the page into it), no hairline
+ * box. The kit field reads the public tokens re-pointed here.
+ */
 html[data-os-mode="mobile"] .os-mobile-home__search {
 	flex: 0 0 auto;
 	padding-block: 4px 8px;
+	--os-window-bg: var( --_m-glass );
+	--os-ui-border: var( --_m-glass-border );
+	--os-ui-field-radius: 12px;
+}
+
+html[data-os-mode="mobile"] .os-mobile-home__search os-text-field {
+	backdrop-filter: blur( 14px ) saturate( 140% );
+	-webkit-backdrop-filter: blur( 14px ) saturate( 140% );
+	border-radius: 12px;
 }
 
 html[data-os-mode="mobile"] .os-mobile-home__scroll {
@@ -362,6 +422,21 @@ html[data-os-mode="mobile"] .os-mobile-home__scroll {
 	overflow-y: auto;
 	-webkit-overflow-scrolling: touch;
 	overscroll-behavior: contain;
+}
+
+/*
+ * The grid always scrolls, by at least one pixel. A phone only rubber-
+ * bands a surface that CAN scroll, and a home screen that fits — a
+ * dozen tiles on a tall phone — was a dead surface under the thumb.
+ * The 1px past the frame makes it a scroller, and the platform then
+ * gives it the platform's own bounce at both ends, exactly the drag
+ * every native home screen has. The bottom padding is here rather than
+ * on the scroller so the last row clears the tab bar inside the same
+ * measure.
+ */
+html[data-os-mode="mobile"] .os-mobile-home__content {
+	box-sizing: border-box;
+	min-block-size: calc( 100% + 1px );
 	padding-block-end: 16px;
 }
 
@@ -372,7 +447,7 @@ html[data-os-mode="mobile"] .os-mobile-home__heading {
 	letter-spacing: 0.04em;
 	text-transform: uppercase;
 	color: var( --_m-fg-muted );
-	text-shadow: 0 1px 2px rgba( 0, 0, 0, 0.5 );
+	text-shadow: var( --_m-label-shadow );
 }
 
 html[data-os-mode="mobile"] .os-mobile-home__empty {
@@ -423,8 +498,8 @@ html[data-os-mode="mobile"] .os-mobile-tile__icon {
 	justify-content: center;
 	border-radius: 16px;
 	background: var( --_m-glass );
-	border: 1px solid var( --_m-border );
-	box-shadow: 0 8px 20px rgba( 0, 0, 0, 0.35 );
+	border: 1px solid var( --_m-glass-border );
+	box-shadow: var( --_m-tile-shadow );
 	backdrop-filter: blur( 14px ) saturate( 140% );
 	-webkit-backdrop-filter: blur( 14px ) saturate( 140% );
 	transition: transform 120ms var( --_m-ease ), background 120ms var( --_m-ease );
@@ -504,15 +579,26 @@ html[data-os-mode="mobile"] .os-mobile-tile__label {
 	-webkit-line-clamp: 2;
 	-webkit-box-orient: vertical;
 	overflow: hidden;
-	text-shadow: 0 1px 2px rgba( 0, 0, 0, 0.6 );
+	text-shadow: var( --_m-label-shadow );
 }
 
 /* ------------------------------------------------------------------
  * 3c. The tab bar.
+ *
+ * Anchored to the viewport's bottom edge, not laid out as the last
+ * child of the shell. The shell is a viewport-sized fixed box, and a
+ * box of that shape is exactly what mobile Safari has, more than
+ * once, ended short of the screen's bottom edge (an installed app
+ * under one iOS release drew a band of nothing under the bar). A
+ * bar fixed to the edge is right whatever the shell's box does; the
+ * shell's body keeps the bar's footprint clear below it, so the
+ * window card and the home grid end where the bar begins.
  * ---------------------------------------------------------------- */
 
 html[data-os-mode="mobile"] .os-mobile-tabs {
-	flex: 0 0 auto;
+	position: fixed;
+	inset-inline: 0;
+	inset-block-end: 0;
 	display: grid;
 	grid-auto-flow: column;
 	grid-auto-columns: 1fr;
@@ -522,9 +608,12 @@ html[data-os-mode="mobile"] .os-mobile-tabs {
 	padding-inline: var( --_m-safe-left ) var( --_m-safe-right );
 	background: var( --_m-surface );
 	border-block-start: 1px solid var( --_m-border );
-	position: relative;
 	z-index: 3000;
 	touch-action: pan-x;
+}
+
+html[data-os-mode="mobile"] .os-shell__body {
+	padding-block-end: var( --_m-tabs-total );
 }
 
 html[data-os-mode="mobile"] .os-mobile-tabs__item {
@@ -603,7 +692,7 @@ html[data-os-mode="mobile"] .os-mobile-switcher[hidden] {
 html[data-os-mode="mobile"] .os-mobile-switcher__backdrop {
 	position: absolute;
 	inset: 0;
-	background: rgba( 0, 0, 0, 0.55 );
+	background: var( --_m-scrim );
 	animation: os-mobile-fade-in 160ms var( --_m-ease ) both;
 }
 
@@ -630,7 +719,7 @@ html[data-os-mode="mobile"] .os-mobile-switcher__sheet {
 	border: 1px solid var( --_m-border );
 	border-block-end: 0;
 	padding-block-end: var( --_m-safe-bottom );
-	box-shadow: 0 -12px 40px rgba( 0, 0, 0, 0.45 );
+	box-shadow: var( --_m-sheet-shadow );
 	animation: os-mobile-sheet-in 200ms var( --_m-ease ) both;
 }
 
@@ -739,7 +828,7 @@ html[data-os-mode="mobile"] .os-mobile-card {
 	background: linear-gradient( var( --_m-glass ), var( --_m-glass ) ) var( --_m-surface );
 	border: 1px solid var( --_m-border );
 	border-radius: var( --_m-radius );
-	box-shadow: 0 -8px 24px rgba( 0, 0, 0, 0.4 );
+	box-shadow: var( --_m-card-shadow );
 	touch-action: pan-y;
 	will-change: transform;
 	transition: transform 200ms var( --_m-ease ), opacity 200ms var( --_m-ease );
@@ -762,7 +851,7 @@ html[data-os-mode="mobile"] .os-mobile-card--out {
 /* The app on screen: outlined in the accent, labelled, not a target. */
 html[data-os-mode="mobile"] .os-mobile-card--active {
 	border-color: var( --_m-accent-dim );
-	box-shadow: 0 0 0 1px var( --_m-accent-dim ), 0 -8px 24px rgba( 0, 0, 0, 0.4 );
+	box-shadow: 0 0 0 1px var( --_m-accent-dim ), var( --_m-card-shadow );
 }
 
 html[data-os-mode="mobile"] .os-mobile-card__status {

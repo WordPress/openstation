@@ -1721,41 +1721,49 @@
 	font-size: 13px;
 }
 
-/* Narrow windows: the sidebar would eat the pane, so fall back to the
-   stacked layout the panel had before. Container-scoped, so it tracks
-   the WINDOW being dragged narrow rather than the browser viewport. */
+/*
+ * The page picker: the sidebar's pages as one `<os-select>`, drawn
+ * only where the sidebar is not (below). It is in the DOM at every
+ * width so the two never disagree about which page is open — both
+ * bind `tab` — and hidden here rather than left out, because the
+ * strip is what drives the panes and must stay.
+ */
+.os-settings__page-select {
+	display: none;
+}
+
+/* Narrow windows: the sidebar would eat the pane, so the column of
+   pages becomes a picker across the top and the pane takes the whole
+   width. Container-scoped, so it tracks the WINDOW being dragged
+   narrow rather than the browser viewport — a phone and a desktop
+   window pulled in fold the same way. */
 @container ( max-width: 640px ) {
 	.os-settings {
 		grid-template-columns: minmax( 0, 1fr );
 		grid-template-rows: auto minmax( 0, 1fr ) auto;
 	}
+	/*
+	 * The strip stays in the DOM and keeps driving the panes (it is
+	 * the element that toggles their `hidden`), but it does not paint:
+	 * a column of full-bleed 40px rows laid sideways read as a strip of
+	 * wide chips, and there is no reaching into the component's shadow
+	 * root from a container query to make it a real tab strip. The
+	 * picker below says the same thing in one row.
+	 */
 	.os-settings > os-tabs {
+		display: none;
+	}
+	.os-settings__page-select {
+		display: block;
 		grid-column: 1;
 		grid-row: 1;
-		flex-direction: row;
-		overflow-x: auto;
-		overflow-y: hidden;
-	}
-	/*
-	 * Back to a strip, so the group gap becomes horizontal.
-	 *
-	 * The rows KEEP their vertical treatment, which this rule cannot
-	 * reach: it is styled inside the component's shadow root off
-	 * `data-orientation`, and a container query has no way in there.
-	 * They are full-bleed 40px rows laid in a horizontal line, which
-	 * reads as a strip of wide chips rather than as the compact tab
-	 * strip this width wants. Fixing it properly means the component
-	 * choosing its own layout at a width, not the panel overriding it
-	 * from outside; only the gap is restated here.
-	 */
-	.os-settings > os-tabs > os-tab[ data-group-start='true' ] {
-		margin-top: 0;
-		margin-inline-start: 20px;
+		padding: 12px 12px 10px;
+		background: var( --os-ui-surface, #fff );
 	}
 	/*
 	 * The search field goes with the sidebar's width, which it no
-	 * longer has: a full-bleed input above a horizontal strip reads as
-	 * the window's search rather than the nav's. The strip is short
+	 * longer has: a full-bleed input above a picker reads as the
+	 * window's search rather than the nav's. The picker is short
 	 * enough at this width to scan without it.
 	 */
 	.os-settings__search,
@@ -1763,9 +1771,26 @@
 	.os-settings__search-empty[ hidden ] {
 		display: none;
 	}
+	/*
+	 * The pane's inset was set for a wide desk. At this width the
+	 * window is the screen, and 32px a side of a 360px screen is a
+	 * fifth of it gone before a control is drawn; the section boxes
+	 * inside tighten in step so the content, not the chrome, is what
+	 * fills the column.
+	 */
 	.os-settings > os-tabpanel {
 		grid-column: 1;
 		grid-row: 2;
+		padding: 16px 12px 28px;
+	}
+	.os-settings__page-header {
+		margin-block-end: 20px;
+	}
+	.os-settings os-section {
+		margin-block-end: 24px;
+	}
+	.os-settings os-section::part( body ) {
+		padding: 12px;
 	}
 	/*
 	 * Row 3, not row 4. The wide layout has four rows and puts the
@@ -1784,6 +1809,52 @@
 	.os-settings__layout-grid {
 		grid-template-columns: minmax( 0, 1fr );
 	}
+}
+
+/*
+ * The same fold, keyed on the shell's phone mode. The phone experience
+ * is a MODE, not a width — a developer previews it in a wide browser,
+ * a phone turned sideways passes 640px — and no size query can say
+ * "the shell is a phone right now". `html[data-os-mode="mobile"]` can.
+ */
+html[data-os-mode="mobile"] .os-settings {
+	grid-template-columns: minmax( 0, 1fr );
+	grid-template-rows: auto minmax( 0, 1fr ) auto;
+}
+html[data-os-mode="mobile"] .os-settings > os-tabs {
+	display: none;
+}
+html[data-os-mode="mobile"] .os-settings__page-select {
+	display: block;
+	grid-column: 1;
+	grid-row: 1;
+	padding: 12px 12px 10px;
+	background: var( --os-ui-surface, #fff );
+}
+html[data-os-mode="mobile"] .os-settings__search,
+html[data-os-mode="mobile"] .os-settings__search-empty,
+html[data-os-mode="mobile"] .os-settings__search-empty[ hidden ] {
+	display: none;
+}
+html[data-os-mode="mobile"] .os-settings > os-tabpanel {
+	grid-column: 1;
+	grid-row: 2;
+	padding: 16px 12px 28px;
+}
+html[data-os-mode="mobile"] .os-settings__page-header {
+	margin-block-end: 20px;
+}
+html[data-os-mode="mobile"] .os-settings os-section {
+	margin-block-end: 24px;
+}
+html[data-os-mode="mobile"] .os-settings os-section::part( body ) {
+	padding: 12px;
+}
+html[data-os-mode="mobile"] .os-settings > .os-settings__footer {
+	grid-row: 3;
+}
+html[data-os-mode="mobile"] .os-settings__layout-grid {
+	grid-template-columns: minmax( 0, 1fr );
 }
 
 /* Components tab — split-pane layout. Don't scroll the whole panel;
@@ -1972,6 +2043,26 @@
 
 .os-features__danger-row > os-button {
 	flex: 0 0 auto;
+}
+
+/*
+ * Narrow, or a phone: the sentence and the button stack. Side by side
+ * in a 360px pane the sentence wrapped to three lines beside a button
+ * squeezed to its minimum, two columns fighting for a width neither
+ * had. Under the sentence the button reads as its consequence, which
+ * is the order the copy already puts them in.
+ */
+@container ( max-width: 640px ) {
+	.os-features__danger-row {
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 8px;
+	}
+}
+html[data-os-mode="mobile"] .os-features__danger-row {
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 8px;
 }
 
 /* Heartbeat rate: 8px label-to-control, description 8px below the

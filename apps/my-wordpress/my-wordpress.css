@@ -271,6 +271,64 @@
 	overflow-y: auto;
 }
 
+/*
+ * A narrow window — a phone, or a desktop window pulled in under
+ * the two floors above (240px list + 430px pane). The panes stack:
+ * the list takes the window and the preview becomes a sheet along
+ * the bottom, at most 45% tall and scrolling on its own, that is
+ * there only while something is selected. An empty pane on a phone
+ * is a bar of nothing over the list. The container is the app root
+ * (`.os-app`, `app-runtime.css`).
+ */
+@container ( max-width: 640px ) {
+	.os-mywp__split {
+		grid-template-columns: minmax( 0, 1fr );
+		grid-template-rows: minmax( 0, 1fr ) auto;
+	}
+
+	.os-mywp__detail-pane {
+		border-inline-start: 0;
+		border-block-start: 1px solid var( --os-ui-border, #dcdcde );
+		max-block-size: 45%;
+	}
+
+	.os-mywp__detail-pane:has( > .os-mywp__pane-empty ) {
+		display: none;
+	}
+}
+
+/*
+ * The phone's item page (`renderBody` in `my-wordpress.os.ts`): the
+ * opened item takes the whole body, pushed over the list, with Back
+ * in the header and the trail one step longer. The pane's own ✕ is
+ * redundant beside Back and goes; the action row stacks so every
+ * button is a full-width finger's target.
+ */
+.os-mywp__detail-page {
+	flex: 1 1 auto;
+	min-block-size: 0;
+	overflow-y: auto;
+	-webkit-overflow-scrolling: touch;
+}
+
+.os-mywp__detail-page .os-mywp__pane-close {
+	display: none;
+}
+
+.os-mywp__detail-page .os-mywp__detail {
+	padding: 16px 16px 24px;
+}
+
+.os-mywp__detail-page .os-mywp__actions {
+	flex-direction: column;
+	align-items: stretch;
+	align-self: stretch;
+}
+
+.os-mywp__detail-page .os-mywp__actions os-button {
+	inline-size: 100%;
+}
+
 /* -------------------------------------------------- quick-edit modal */
 
 .os-mywp__qe {
@@ -1920,4 +1978,30 @@ summary.dm-agents__category:focus-visible {
 .dm-agents__back {
 	align-self: flex-start;
 	margin-block-end: 4px;
+}
+
+/*
+ * Long press is the touch right-click (`parts/long-press.ts`). What
+ * the browser would do with a held finger — iOS's callout, a text
+ * selection creeping across a label — is turned off on the pressable
+ * surfaces, and only where a finger is the pointer: on a desk the
+ * labels stay selectable.
+ */
+@media ( pointer: coarse ) {
+	.os-mywp__tile,
+	.os-mywp__cell,
+	.os-mywp__row,
+	.os-mywp__canvas {
+		-webkit-touch-callout: none;
+		-webkit-user-select: none;
+		user-select: none;
+	}
+}
+html[data-os-mode="mobile"] .os-mywp__tile,
+html[data-os-mode="mobile"] .os-mywp__cell,
+html[data-os-mode="mobile"] .os-mywp__row,
+html[data-os-mode="mobile"] .os-mywp__canvas {
+	-webkit-touch-callout: none;
+	-webkit-user-select: none;
+	user-select: none;
 }

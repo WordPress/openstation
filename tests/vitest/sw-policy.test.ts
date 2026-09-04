@@ -166,6 +166,7 @@ describe( 'readSwConfig', () => {
 			adminAssetCache: false,
 			windowPrewarm: false,
 			pluginUrl: FALLBACK,
+			shellBuild: '',
 		} );
 		expect( readSwConfig( 'garbage', FALLBACK ).adminAssetCache ).toBe(
 			false,
@@ -206,5 +207,18 @@ describe( 'readSwConfig', () => {
 		expect(
 			readSwConfig( { pluginUrl: '/relative/only/' }, FALLBACK ).pluginUrl,
 		).toBe( FALLBACK );
+	} );
+
+	it( 'reads a hex shell-build stamp and nothing else', () => {
+		expect(
+			readSwConfig( { shellBuild: '0123456789abcdef' }, FALLBACK ).shellBuild,
+		).toBe( '0123456789abcdef' );
+		// A body without a stamp, or with something that is not one,
+		// reports '' — "unknown", which the shell never reads as a change.
+		expect( readSwConfig( {}, FALLBACK ).shellBuild ).toBe( '' );
+		expect( readSwConfig( { shellBuild: 42 }, FALLBACK ).shellBuild ).toBe( '' );
+		expect(
+			readSwConfig( { shellBuild: '<script>' }, FALLBACK ).shellBuild,
+		).toBe( '' );
 	} );
 } );

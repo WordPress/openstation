@@ -148,6 +148,40 @@ class Tests_OpenStation_ChromelessTitleActions extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A plugin may re-parent the button, and it still duplicates the
+	 * tab when it does.
+	 *
+	 * Jetpack's external-media package moves core's "Add Media File"
+	 * anchor into a `div.wpcom-media-library-action-buttons` so it can
+	 * put "Import Media" beside it, and Big Sky drops "Generate Image"
+	 * into the same box. With a `>` combinator none of the three is
+	 * reached, so a Media window shows the row of buttons under a tab
+	 * strip that already carries the same three destinations.
+	 */
+	public function test_matches_buttons_a_plugin_has_moved_out_of_the_wrap() {
+		$this->set_menu(
+			'upload.php',
+			array(
+				array( 'Library', 'upload_files', 'upload.php' ),
+				array( 'Add Media File', 'upload_files', 'media-new.php' ),
+			)
+		);
+
+		$css = $this->css();
+
+		$this->assertNotEmpty( $this->selectors( $css ) );
+		$this->assertStringNotContainsString( '.wrap > .page-title-action', $css );
+
+		foreach ( explode( ',', trim( strtok( $css, '{' ) ) ) as $selector ) {
+			$this->assertStringStartsWith(
+				'.os-chromeless .wrap .page-title-action[',
+				trim( $selector ),
+				'Depth inside .wrap says nothing about where a button goes.'
+			);
+		}
+	}
+
+	/**
 	 * The regression this module exists to prevent.
 	 *
 	 * On `plugin-install.php` the parent menu is `plugins.php`, whose

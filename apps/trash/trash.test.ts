@@ -191,3 +191,57 @@ describe( 'the trash app view', () => {
 		expect( app.hasLocal( 'purge' ) ).toBe( false );
 	} );
 } );
+
+describe( 'the trash app on a phone', () => {
+	beforeEach( () => {
+		document.documentElement.setAttribute( 'data-os-mode', 'mobile' );
+	} );
+	afterEach( () => {
+		document.documentElement.removeAttribute( 'data-os-mode' );
+	} );
+
+	it( 'lays the table out as cards, with labelled row buttons', () => {
+		const { root } = mount();
+		const table = root.querySelector( '[data-os-trash-table]' )!;
+		expect( table.hasAttribute( 'stacked' ) ).toBe( true );
+		const columns = ( table as unknown as { columns: Array< { key: string; stack?: string } > } ).columns;
+		expect( columns.map( ( c ) => [ c.key, c.stack ] ) ).toEqual( [
+			[ 'title', 'title' ],
+			[ 'deleted_at', 'meta' ],
+			[ 'deleted_by', 'meta' ],
+			[ '__actions', 'actions' ],
+		] );
+		const actions = columns.find( ( c ) => c.key === '__actions' ) as unknown as {
+			render: ( v: unknown, row: RecycleBinItem ) => HTMLElement;
+		};
+		const cell = actions.render( undefined, item() );
+		const labels = Array.from( cell.querySelectorAll( 'button' ) ).map( ( b ) => b.textContent?.trim() );
+		expect( labels ).toEqual( [ 'Restore', 'Delete forever' ] );
+	} );
+
+	it( 'moves the selection actions to a bar along the bottom, without Pin to desktop', () => {
+		const { root, ctx } = mount();
+		expect( root.querySelector( '.os-recycle-bin__toolbar-right' ) ).toBeNull();
+		const bar = root.querySelector( '.os-recycle-bin__bulk' )!;
+		expect( bar ).not.toBeNull();
+		expect( bar.hasAttribute( 'hidden' ) ).toBe( true );
+		type UiBag = { selected: Array< { id: number; type: string } > };
+		( ctx.ui( () => ( {} ) ) as UiBag ).selected = [ { id: 1, type: 'post' } ];
+		app.render( ctx );
+		const shown = root.querySelector( '.os-recycle-bin__bulk' )!;
+		expect( shown.hasAttribute( 'hidden' ) ).toBe( false );
+		const labels = Array.from( shown.querySelectorAll( 'os-button' ) ).map( ( b ) => b.textContent?.trim() );
+		expect( labels ).toEqual( [ 'Restore', 'Delete forever' ] );
+		expect( renderedText( shown ) ).toContain( '1 selected' );
+	} );
+
+	it( 'goes back to the grid when the stamp is lifted', () => {
+		const { root, ctx } = mount();
+		document.documentElement.removeAttribute( 'data-os-mode' );
+		app.render( ctx );
+		const table = root.querySelector( '[data-os-trash-table]' )!;
+		expect( table.hasAttribute( 'stacked' ) ).toBe( false );
+		expect( root.querySelector( '.os-recycle-bin__bulk' ) ).toBeNull();
+		expect( root.querySelector( '.os-recycle-bin__toolbar-right' ) ).not.toBeNull();
+	} );
+} );

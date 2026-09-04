@@ -307,6 +307,87 @@ describe( 'the table', () => {
 		expect( uiOf( ctx ).menu ).toEqual( { x: 40, y: 50, item: expect.objectContaining( { id: 2 } ) } );
 	} );
 
+	it( 'on a phone one tap activates a row; a modifier click still only selects', () => {
+		document.documentElement.setAttribute( 'data-os-mode', 'mobile' );
+		try {
+			const local = vi.fn();
+			const dispatch = vi.fn( async () => true );
+			const { root } = mount( state(), data(), { local, dispatch } );
+			const row = root.querySelector< HTMLElement >( 'tr[data-item-id="2"]' )!;
+			row.dispatchEvent( new MouseEvent( 'click', { bubbles: true } ) );
+			expect( local ).toHaveBeenCalledWith( 'select', expect.objectContaining( { item: 2 } ) );
+			expect( dispatch ).toHaveBeenCalledWith( 'edit', { item: 2 } );
+			expect( dispatch ).not.toHaveBeenCalledWith( 'open', { item: 2 } );
+			row.dispatchEvent( new MouseEvent( 'click', { bubbles: true, shiftKey: true } ) );
+			expect( dispatch ).toHaveBeenCalledTimes( 1 );
+		} finally {
+			document.documentElement.removeAttribute( 'data-os-mode' );
+		}
+	} );
+
+	it( 'a finger held still on a row opens its menu and the release is not a tap; a drift or a lift cancels', () => {
+		vi.useFakeTimers();
+		try {
+			const dispatch = vi.fn( async () => true );
+			const { root, ctx } = mount( state(), data(), { dispatch } );
+			const row = root.querySelector< HTMLElement >( 'tr[data-item-id="2"]' )!;
+			const touch = ( type: string, x: number, y: number ): PointerEvent => {
+				const e = new MouseEvent( type, { bubbles: true, clientX: x, clientY: y } ) as unknown as PointerEvent;
+				Object.defineProperties( e, {
+					pointerId: { value: 7 },
+					isPrimary: { value: true },
+					pointerType: { value: 'touch' },
+				} );
+				return e;
+			};
+
+			// Held still for half a second: the menu, where the finger is.
+			row.dispatchEvent( touch( 'pointerdown', 40, 50 ) );
+			vi.advanceTimersByTime( 499 );
+			expect( uiOf( ctx ).menu ).toBeNull();
+			vi.advanceTimersByTime( 1 );
+			expect( uiOf( ctx ).menu ).toEqual( { x: 40, y: 50, item: expect.objectContaining( { id: 2 } ) } );
+			row.dispatchEvent( touch( 'pointerup', 40, 50 ) );
+			row.dispatchEvent( new MouseEvent( 'click', { bubbles: true } ) );
+			expect( dispatch ).not.toHaveBeenCalled();
+
+			// Lifted early: nothing.
+			uiOf( ctx ).menu = null;
+			row.dispatchEvent( touch( 'pointerdown', 40, 50 ) );
+			vi.advanceTimersByTime( 300 );
+			row.dispatchEvent( touch( 'pointerup', 40, 50 ) );
+			vi.advanceTimersByTime( 500 );
+			expect( uiOf( ctx ).menu ).toBeNull();
+
+			// Drifted (a scroll): nothing.
+			row.dispatchEvent( touch( 'pointerdown', 40, 50 ) );
+			row.dispatchEvent( touch( 'pointermove', 40, 80 ) );
+			vi.advanceTimersByTime( 600 );
+			expect( uiOf( ctx ).menu ).toBeNull();
+
+			// A mouse has a right button; its press is not a menu.
+			const mouse = new MouseEvent( 'pointerdown', { bubbles: true, clientX: 1, clientY: 1 } ) as unknown as PointerEvent;
+			Object.defineProperties( mouse, { pointerId: { value: 1 }, isPrimary: { value: true }, pointerType: { value: 'mouse' } } );
+			row.dispatchEvent( mouse );
+			vi.advanceTimersByTime( 600 );
+			expect( uiOf( ctx ).menu ).toBeNull();
+		} finally {
+			vi.useRealTimers();
+		}
+	} );
+
+	it( 'on a phone a row that cannot be edited still opens its pane on a tap', () => {
+		document.documentElement.setAttribute( 'data-os-mode', 'mobile' );
+		try {
+			const dispatch = vi.fn( async () => true );
+			const { root } = mount( state(), data( { list: page( [ item( { id: 3, canEdit: false } ) ] ) } ), { dispatch } );
+			root.querySelector< HTMLElement >( 'tr[data-item-id="3"]' )!.dispatchEvent( new MouseEvent( 'click', { bubbles: true } ) );
+			expect( dispatch ).toHaveBeenCalledWith( 'open', { item: 3 } );
+		} finally {
+			document.documentElement.removeAttribute( 'data-os-mode' );
+		}
+	} );
+
 	it( 'the action cluster edits, copies the link and the shortlink, and opens the menu', async () => {
 		const dispatch = vi.fn( async () => true );
 		const toast = vi.fn();

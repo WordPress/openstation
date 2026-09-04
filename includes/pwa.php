@@ -236,11 +236,111 @@ function openstation_pwa_sw_config_preamble() {
 	 * (`os-sw-config`), and the toggle pushes changes as they happen.
 	 * The worker starts with both off, so until that message lands it
 	 * simply does less — never more.
+	 *
+	 * `version` is the plugin's, and it is here so that a release is a
+	 * byte change in the served script. The bundle itself is stamped
+	 * with a content hash (see the serving function), so a release that
+	 * touched nothing under `src/pwa/` would otherwise serve the very
+	 * same bytes, and the browser — which only ever installs a worker
+	 * whose bytes differ — would have nothing to install. An installed
+	 * app on a phone rarely navigates; the shell re-checks the script on
+	 * every return to the foreground (`src/pwa/sw-register.ts`), and the
+	 * version in the preamble is what makes that check find a release.
+	 *
+	 * `shellBuild` is the content hash of the shell's own built files
+	 * ({@see openstation_shell_build_stamp()}). It makes a deploy that
+	 * changed the shell a new worker too, and — more importantly — it
+	 * tells the shell, when that worker takes over mid-session, whether
+	 * the shell it is running is the one the server now serves. A new
+	 * worker is never a reason to reload on its own: a release that
+	 * changed nothing under `assets/` produces a worker whose
+	 * `shellBuild` equals the running shell's, and the shell stays put.
 	 */
 	$config = array(
-		'pluginUrl' => OPENSTATION_URL,
+		'pluginUrl'  => OPENSTATION_URL,
+		'version'    => OPENSTATION_VERSION,
+		'shellBuild' => openstation_shell_build_stamp(),
 	);
 	return sprintf( "self.__OS_SW_CONFIG = %s;\n", wp_json_encode( $config ) );
+}
+
+/**
+ * Content hash of the shell's built front-end: every stylesheet under
+ * `assets/css/` and every bundle under `assets/js/`.
+ *
+ * "Did the shell change?" answered from bytes, not clocks. A deploy
+ * rewrites every file's mtime whether or not its contents moved, and
+ * the plugin version moves on releases that never touched the shell;
+ * neither is a reason to disturb a desktop someone is working in. The
+ * stamp changes exactly when a shell file's bytes do.
+ *
+ * Two readers: `openStationConfig.pwa.shellBuild`, which the shell
+ * boots with, and the served service worker's preamble, so the worker
+ * knows which shell it was served alongside. When a worker takes over
+ * a running shell the two are compared, and only a difference — a real
+ * change in the shell files — earns the user an offer to reload. See
+ * `src/pwa/sw-register.ts`.
+ *
+ * Hashing a few megabytes of bundles on every shell request would be
+ * wasteful, so the stamp is memoised in one transient behind the cheap
+ * signature of the same files (path, size, mtime). A deploy changes
+ * the signature and the hash is recomputed once; identical bytes come
+ * out as the identical stamp, and a touched-but-unchanged file costs a
+ * single rehash.
+ *
+ * @param string|null $dir Plugin directory to read. `OPENSTATION_DIR` by
+ *                         default; tests hand in a fixture.
+ * @return string Sixteen hex characters, or '' when nothing is built.
+ */
+function openstation_shell_build_stamp( $dir = null ) {
+	static $memo = array();
+
+	$dir = null === $dir ? OPENSTATION_DIR : trailingslashit( $dir );
+
+	$files = array();
+	foreach ( array( 'assets/css/*.css', 'assets/js/*.js' ) as $pattern ) {
+		$matches = glob( $dir . $pattern );
+		if ( is_array( $matches ) ) {
+			$files = array_merge( $files, $matches );
+		}
+	}
+	sort( $files );
+	if ( empty( $files ) ) {
+		return '';
+	}
+
+	$signature = array( $dir );
+	foreach ( $files as $file ) {
+		$signature[] = substr( $file, strlen( $dir ) ) . ':' . filesize( $file ) . ':' . filemtime( $file );
+	}
+	$signature = md5( implode( "\n", $signature ) );
+
+	if ( isset( $memo[ $signature ] ) ) {
+		return $memo[ $signature ];
+	}
+
+	$cached = get_transient( 'openstation_shell_build' );
+	if ( is_array( $cached ) && isset( $cached['signature'], $cached['stamp'] ) && $cached['signature'] === $signature && is_string( $cached['stamp'] ) ) {
+		$memo[ $signature ] = $cached['stamp'];
+		return $cached['stamp'];
+	}
+
+	$hashes = array();
+	foreach ( $files as $file ) {
+		$hashes[] = substr( $file, strlen( $dir ) ) . ':' . md5_file( $file );
+	}
+	$stamp = substr( md5( implode( "\n", $hashes ) ), 0, 16 );
+
+	$memo[ $signature ] = $stamp;
+	set_transient(
+		'openstation_shell_build',
+		array(
+			'signature' => $signature,
+			'stamp'     => $stamp,
+		),
+		DAY_IN_SECONDS
+	);
+	return $stamp;
 }
 
 /**
@@ -426,10 +526,12 @@ function openstation_pwa_build_manifest() {
 		'display'                     => 'standalone',
 		'display_override'            => array( 'standalone', 'minimal-ui' ),
 		'orientation'                 => 'any',
-		// Match the shell's default surface colour. Filter to override
-		// per-site without redefining the whole manifest.
-		'theme_color'                 => '#1d2327',
-		'background_color'            => '#1d2327',
+		// The shell's backstop (`--os-backstop`): the floor under the
+		// wallpaper, and what the splash and the status bar are painted
+		// with. Filter to override per-site without redefining the
+		// whole manifest.
+		'theme_color'                 => OPENSTATION_PWA_THEME_COLOR,
+		'background_color'            => OPENSTATION_PWA_THEME_COLOR,
 		'lang'                        => get_bloginfo( 'language' ),
 		'dir'                         => is_rtl() ? 'rtl' : 'ltr',
 		'icons'                       => openstation_pwa_default_icons(),
@@ -463,14 +565,31 @@ function openstation_pwa_build_manifest() {
  *      when the operator has uploaded a brand mark for their site.
  *   2. Plugin-bundled icons under `assets/pwa/` — the official
  *      openstation brand mark (the same artwork shown on the
- *      WordPress.org plugin directory listing). Sizes 128 / 192 /
- *      256 / 512 cover everything from notification badges to splash
- *      screens.
+ *      WordPress.org plugin directory listing).
  *
- * Purpose is `'any'` rather than `'any maskable'` — the brand icon
- * has rounded corners + transparent padding that Android's adaptive
- * mask would crop into. Plugins shipping a full-bleed maskable
- * variant should replace the array via `openstation_pwa_manifest`.
+ * **The bundled artwork is full-bleed, opaque and square.** Every
+ * platform masks a home-screen tile itself, and it fills any
+ * transparency first: iOS fills with white, then rounds. Artwork that
+ * rounds its own corners therefore installs as a mark floating on a
+ * white square, which is exactly how the pre-full-bleed set installed
+ * on iOS. Do not re-round these files, and do not reintroduce alpha.
+ *
+ * Three purposes go out for the bundled set, because the platforms
+ * genuinely want three different pictures:
+ *
+ *   - `any`        the tile as drawn.
+ *   - `maskable`   the same tile at 80%, so Android's adaptive masks
+ *                  (circle, squircle, teardrop, depending on the
+ *                  launcher) crop into margin rather than into the
+ *                  mark.
+ *   - `monochrome` the silhouette alone, for Android 13+ themed
+ *                  icons, which recolour it to the wallpaper palette.
+ *
+ * A Site Icon gets `any` only. The other two purposes describe how a
+ * specific piece of artwork is composed, and we know that about ours
+ * and not about theirs — declaring someone's logo maskable when it is
+ * not is how you get a cropped logo, and pairing their `any` with our
+ * `monochrome` would put the OpenStation mark on their app.
  *
  * @return array<int, array<string, string>>
  */
@@ -496,18 +615,51 @@ function openstation_pwa_default_icons() {
 		}
 	}
 
-	if ( empty( $icons ) ) {
-		foreach ( array( 128, 192, 256, 512 ) as $size ) {
+	if ( ! empty( $icons ) ) {
+		return $icons;
+	}
+
+	$bundled = array(
+		'any'        => array( 128, 180, 192, 256, 512 ),
+		'maskable'   => array( 192, 512 ),
+		'monochrome' => array( 192, 512 ),
+	);
+
+	foreach ( $bundled as $purpose => $sizes ) {
+		foreach ( $sizes as $size ) {
 			$icons[] = array(
-				'src'     => OPENSTATION_URL . "assets/pwa/icon-{$size}.png",
+				'src'     => openstation_pwa_bundled_icon_url( $size, $purpose ),
 				'sizes'   => "{$size}x{$size}",
 				'type'    => 'image/png',
-				'purpose' => 'any',
+				'purpose' => $purpose,
 			);
 		}
 	}
 
 	return $icons;
+}
+
+/**
+ * Builds the URL of one bundled icon file.
+ *
+ * The three purposes are three different files, and the filenames say
+ * which: `icon-192.png`, `icon-maskable-192.png`, `icon-mono-192.png`.
+ * Kept in one place so the head tags and the manifest cannot drift
+ * apart on a rename.
+ *
+ * @param int    $size    Square pixel size.
+ * @param string $purpose One of `any` | `maskable` | `monochrome`.
+ * @return string Absolute URL.
+ */
+function openstation_pwa_bundled_icon_url( $size, $purpose = 'any' ) {
+	$infix = '';
+	if ( 'maskable' === $purpose ) {
+		$infix = 'maskable-';
+	} elseif ( 'monochrome' === $purpose ) {
+		$infix = 'mono-';
+	}
+
+	return OPENSTATION_URL . "assets/pwa/icon-{$infix}{$size}.png";
 }
 
 /**
@@ -567,15 +719,15 @@ function openstation_pwa_serve_service_worker() {
 	// `npm run build` rewrites `sw.min.js` on every run, bumping its
 	// mtime even when the SW source is byte-identical. Each rebuild
 	// produced a different stamp → different SW response → browser
-	// installed a "new" SW → `controllerchange` fired → the
-	// `bindControllerChangeReload` hook in `src/pwa/sw-register.ts`
-	// auto-reloaded the page. The user observed a "phantom reload"
-	// 2–3s after every `npm run build`, even when only an unrelated
-	// bundle (e.g. `desktop.min.js`) had changed.
+	// installed a "new" SW → `controllerchange` fired → the shell of
+	// the day auto-reloaded the page. The user observed a "phantom
+	// reload" 2–3s after every `npm run build`, even when only an
+	// unrelated bundle (e.g. `desktop.min.js`) had changed.
 	//
 	// A content hash collapses identical bodies onto identical stamps
-	// — only a *real* change in `src/pwa/sw.ts` triggers the SW
-	// update / reload pipeline. `md5` is plenty for an integrity
+	// — only a *real* change in `src/pwa/sw.ts` installs a new worker.
+	// (The shell no longer reloads on a new worker at all; see
+	// `src/pwa/sw-register.ts`.) `md5` is plenty for an integrity
 	// stamp here (no security implications) and short enough that the
 	// inline comment stays under one line.
 	$stamp = substr( md5( $body ), 0, 16 );
@@ -593,6 +745,48 @@ function openstation_pwa_serve_service_worker() {
 	// `--` separator (an em-dash silently fails to satisfy phpcs).
 	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- JS bytes from disk.
 	echo $body;
+}
+
+/**
+ * The colour the app is painted with outside the page: the manifest's
+ * `theme_color` and `background_color`, and the `theme-color` meta.
+ * The shell's backstop, `--os-backstop` in `variables.css`.
+ */
+const OPENSTATION_PWA_THEME_COLOR = '#0c0b0f';
+
+/**
+ * The iOS status-bar styles a home-screen web app may ask for.
+ *
+ * `black`: an opaque bar above the page, white glyphs; the page
+ * starts below it and `env( safe-area-inset-top )` is 0.
+ * `black-translucent`: the page runs under the bar and reads
+ * `env( safe-area-inset-top )` to keep out of it; on current iOS the
+ * bar is drawn as a translucent band over the page's top edge.
+ * `default`: the system's own bar for the appearance in force.
+ */
+const OPENSTATION_PWA_STATUS_BAR_STYLES = array( 'black', 'black-translucent', 'default' );
+
+/**
+ * The iOS status-bar style for the installed app.
+ *
+ * Defaults to `black`: the shell is near-black to its edges, so an
+ * opaque black bar above it is one continuous surface and the page
+ * is laid out below it, unambiguously. Under `black-translucent` the
+ * page extends under the bar and iOS paints the bar as a translucent
+ * band over the shell's top edge — a strip that reads as misplaced
+ * chrome rather than as immersion, on a surface that is already the
+ * bar's colour.
+ *
+ * @return string One of `black`, `black-translucent`, `default`.
+ */
+function openstation_pwa_status_bar_style() {
+	/**
+	 * Filters the iOS status-bar style for the installed app.
+	 *
+	 * @param string $style One of `black`, `black-translucent`, `default`.
+	 */
+	$style = apply_filters( 'openstation_pwa_status_bar_style', 'black' );
+	return in_array( $style, OPENSTATION_PWA_STATUS_BAR_STYLES, true ) ? $style : 'black';
 }
 
 /**
@@ -617,7 +811,10 @@ function openstation_pwa_render_head_tags() {
 		'<link rel="manifest" href="%s">' . "\n",
 		esc_url( openstation_pwa_manifest_url() )
 	);
-	echo '<meta name="theme-color" content="#1d2327">' . "\n";
+	printf(
+		'<meta name="theme-color" content="%s">' . "\n",
+		esc_attr( OPENSTATION_PWA_THEME_COLOR )
+	);
 	// `mobile-web-app-capable` is the cross-browser standard;
 	// `apple-mobile-web-app-capable` is the legacy iOS-only spelling
 	// (still required by older Safari versions). Chromium logs a
@@ -626,13 +823,47 @@ function openstation_pwa_render_head_tags() {
 	// a standalone app while Chromium stops the warning.
 	echo '<meta name="mobile-web-app-capable" content="yes">' . "\n";
 	echo '<meta name="apple-mobile-web-app-capable" content="yes">' . "\n";
-	echo '<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">' . "\n";
+	printf(
+		'<meta name="apple-mobile-web-app-status-bar-style" content="%s">' . "\n",
+		esc_attr( openstation_pwa_status_bar_style() )
+	);
 	printf(
 		'<meta name="apple-mobile-web-app-title" content="%s">' . "\n",
 		esc_attr( get_bloginfo( 'name' ) )
 	);
+	printf(
+		'<link rel="apple-touch-icon" sizes="180x180" href="%s">' . "\n",
+		esc_url( openstation_pwa_apple_touch_icon_url() )
+	);
 }
 add_action( 'admin_head', 'openstation_pwa_render_head_tags', 1 );
+
+/**
+ * Resolves the 180×180 tile iOS uses for a home-screen install.
+ *
+ * Core does emit an `apple-touch-icon` from the Site Icon, but only on
+ * `wp_head` and `login_head` — `wp_site_icon()` is not hooked to
+ * `admin_head` at all. So inside wp-admin, which is the only place
+ * anyone installs this app from, there is no tile unless we emit one.
+ * That is why four bundled PNGs could sit in `assets/pwa/` and still
+ * never reach an iPhone.
+ *
+ * 180 is iPhone @3x and the size iOS downscales from for everything
+ * smaller, so one link covers the family.
+ *
+ * @return string Absolute URL.
+ */
+function openstation_pwa_apple_touch_icon_url() {
+	$site_icon_id = (int) get_option( 'site_icon' );
+	if ( $site_icon_id > 0 ) {
+		$url = get_site_icon_url( 180 );
+		if ( is_string( $url ) && '' !== $url ) {
+			return $url;
+		}
+	}
+
+	return openstation_pwa_bundled_icon_url( 180 );
+}
 
 /**
  * Reads the per-user PWA UI state.

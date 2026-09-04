@@ -777,10 +777,9 @@ function openstation_enqueue_assets() {
 				// preferences, so putting them in the script bytes made
 				// the body differ between an anonymous and a logged-in
 				// request — and any in-scope logged-out navigation then
-				// installed a "new" worker and tripped the shell's
-				// `controllerchange` reload. The bytes are identical for
-				// everyone now; the shell posts these to the worker at
-				// boot.
+				// installed a "new" worker, which at the time reloaded
+				// the shell. The bytes are identical for everyone now;
+				// the shell posts these to the worker at boot.
 				//
 				// Computed server-side, not read from the settings
 				// snapshot client-side, because
@@ -791,6 +790,12 @@ function openstation_enqueue_assets() {
 					'adminAssetCache' => (bool) openstation_pwa_admin_asset_cache_enabled(),
 					'windowPrewarm'   => ! empty( openstation_get_os_settings( get_current_user_id() )['windowPrewarmEnabled'] ),
 				),
+				// The build this shell document belongs to. When a new
+				// worker takes over mid-session the shell asks it for
+				// the stamp it was served with and compares; only a
+				// difference — the shell's own files changed on the
+				// server — offers the user a reload. Never automatic.
+				'shellBuild'     => openstation_shell_build_stamp(),
 				'stateUrl'       => esc_url_raw( rest_url( 'desktop-mode/v1/pwa-state' ) ),
 				'state'          => openstation_pwa_get_user_state( get_current_user_id() ),
 				// Mirrors the manifest's `name` field — used by the

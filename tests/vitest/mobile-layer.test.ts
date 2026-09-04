@@ -267,6 +267,54 @@ describe( 'mountMobileLayer', () => {
 		layer.unmount();
 	} );
 
+	test( 'closing the last card empties the switcher, which steps aside for home', async () => {
+		const only = fakeWin( 'only', 'Only' );
+		const wins = [ only ];
+		const { d, shell } = deps( wins );
+		// The manager's close removes the window and announces it, as
+		// the real one does once the handshake is through.
+		only.close = vi.fn( () => {
+			wins.splice( wins.indexOf( only ), 1 );
+			document.dispatchEvent( new CustomEvent( 'os-window-closed' ) );
+		} );
+		const layer = mountMobileLayer( d );
+
+		layer.openSwitcher();
+		expect( layer.getState() ).toBe( 'switcher' );
+		shell.querySelector< HTMLButtonElement >( '.os-mobile-card__close' )?.click();
+		await new Promise( ( r ) => setTimeout( r, 260 ) );
+		await flush();
+		expect( only.close ).toHaveBeenCalledTimes( 1 );
+		expect( layer.getState() ).toBe( 'home' );
+		expect( shell.dataset.osMobileState ).toBe( 'home' );
+		expect( ( shell.querySelector( '.os-mobile-home' ) as HTMLElement ).hidden ).toBe( false );
+
+		// Opening the switcher from an empty home still shows it: nothing
+		// emptied, the user asked for the sheet.
+		layer.openSwitcher();
+		await flush();
+		expect( layer.getState() ).toBe( 'switcher' );
+		expect( shell.querySelector( '.os-mobile-switcher__empty' ) ).not.toBeNull();
+		layer.unmount();
+	} );
+
+	test( 'both edges carry a zone that cancels the browser history swipe, on home too', () => {
+		const { d, shell } = deps( [] );
+		const layer = mountMobileLayer( d );
+		expect( layer.getState() ).toBe( 'home' );
+		const zones = shell.querySelectorAll< HTMLElement >( '.os-mobile-edge' );
+		expect( zones.length ).toBe( 2 );
+		expect( zones[ 0 ].classList.contains( 'os-mobile-edge--start' ) ).toBe( true );
+		expect( zones[ 1 ].classList.contains( 'os-mobile-edge--end' ) ).toBe( true );
+		for ( const zone of zones ) {
+			const start = new Event( 'touchstart', { bubbles: true, cancelable: true } );
+			zone.dispatchEvent( start );
+			expect( start.defaultPrevented ).toBe( true );
+		}
+		layer.unmount();
+		expect( shell.querySelector( '.os-mobile-edge' ) ).toBeNull();
+	} );
+
 	test( 'the top bar has one control: × leaves the screen at once and closes', () => {
 		const w = fakeWin( 'w', 'Posts' );
 		const { d, shell } = deps( [ w ] );

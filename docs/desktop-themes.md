@@ -391,6 +391,10 @@ dark frame around a white page.
 | `--os-ui-surface-elevated` | Headers, raised strips |
 | `--os-ui-surface-sunken` | Wells, recessed areas |
 | `--os-ui-field-bg`, `--os-ui-field-border`, `--os-ui-field-fg` | Inputs written in the **light DOM** — a plugin's own `<input>` / `<select>` / `<textarea>` inside a window body. The kit's own `<os-text-field>` and friends resolve their surface inside their shadow roots and don't read these. |
+| `--os-ui-field-font-size`, `--os-ui-field-font-size-compact`, `--os-ui-field-radius` | The kit fields' type size (`13px`; the compact one, `12px`, is the tag input and the category picker's create field) and corner (`6px`). The phone layer raises both sizes to `16px` — the size under which iOS zooms the page into a focused control — and rounds the home search. |
+| `--os-mobile-glass`, `--os-mobile-glass-strong`, `--os-mobile-glass-border` | The phone layer: the glass a home tile, a round control and a switcher card are cut from, its pressed state, and its edge. The rest of the phone reads the dock tokens (fill, glyph, line). |
+| `--os-mobile-tile-shadow`, `--os-mobile-card-shadow`, `--os-mobile-sheet-shadow`, `--os-mobile-window-shadow`, `--os-mobile-label-shadow` | The phone layer's shadows: under a tile, a switcher card, the switcher sheet, the window card, and the label text over the wallpaper. Whole `box-shadow` / `text-shadow` values. |
+| `--os-mobile-scrim`, `--os-mobile-top-scrim` | The phone layer's scrims: behind the switcher, and the fade the top bar's title sits on. |
 | `--os-ui-fg` | Body text |
 | `--os-ui-fg-muted` | Secondary text, metadata |
 | `--os-ui-fg-faint` | Disabled text |

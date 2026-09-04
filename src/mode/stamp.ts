@@ -43,3 +43,36 @@ export function readStampedMode( root: Element ): OsMode | null {
 export function isMobileStamped( root: Element | null = typeof document !== 'undefined' ? document.documentElement : null ): boolean {
 	return !! root && root.getAttribute( MODE_ATTRIBUTE ) === 'mobile';
 }
+
+/**
+ * How the document is displayed: `standalone` when it runs as an
+ * installed app (a home-screen web app on iOS, an installed PWA in
+ * Chromium), `browser` in an ordinary tab. Orthogonal to the mode —
+ * a phone in Safari is `mobile` + `browser`; the same phone with the
+ * app on its home screen is `mobile` + `standalone` — and it is what
+ * decides whether `env( safe-area-inset-* )` describes a real edge.
+ */
+export type OsDisplay = 'standalone' | 'browser';
+
+export const OS_DISPLAYS: readonly OsDisplay[] = [ 'standalone', 'browser' ];
+
+/** Attribute the display is stamped into, on `<html>`. */
+export const DISPLAY_ATTRIBUTE = 'data-os-display';
+
+/** Write the display on the root element, only when it changed. */
+export function stampDisplay( root: Element, display: OsDisplay ): void {
+	if ( root.getAttribute( DISPLAY_ATTRIBUTE ) !== display ) {
+		root.setAttribute( DISPLAY_ATTRIBUTE, display );
+	}
+}
+
+/** Read a previously stamped display. `null` when nothing valid is there. */
+export function readStampedDisplay( root: Element ): OsDisplay | null {
+	const raw = root.getAttribute( DISPLAY_ATTRIBUTE );
+	return OS_DISPLAYS.includes( raw as OsDisplay ) ? ( raw as OsDisplay ) : null;
+}
+
+/** Whether the document is currently stamped `standalone`. */
+export function isStandaloneStamped( root: Element | null = typeof document !== 'undefined' ? document.documentElement : null ): boolean {
+	return !! root && root.getAttribute( DISPLAY_ATTRIBUTE ) === 'standalone';
+}

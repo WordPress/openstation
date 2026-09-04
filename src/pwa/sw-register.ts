@@ -57,99 +57,305 @@ export type SwRegistrationStatus =
 
 let _registration: ServiceWorkerRegistration | null = null;
 let _registrationFailed = false;
-let _controllerChangeBound = false;
-let _reloadingForSwUpdate = false;
+let _updatesBound = false;
+let _shellUpdateAnnounced = false;
+/** The installed worker waiting for the shell's consent, if any. */
+let _waitingWorker: ServiceWorker | null = null;
+/** A swap this page asked for; the next `controllerchange` is it. */
+let _swapExpected = false;
+/** Resolvers waiting on that `controllerchange`. */
+let _swapListeners: Array< () => void > = [];
 let _status: SwRegistrationStatus = 'pending';
 
+/** What the shell is told when a new worker carries a new shell build. */
+export interface ShellUpdateInfo {
+	/** The stamp this document booted with. */
+	current: string;
+	/** The stamp the new worker was served with. */
+	served: string;
+}
+
 /**
- * Wire up the auto-reload on SW takeover. Two scenarios distinguished:
- *
- *   - **Cold start** — page loaded with NO prior SW controller, then
- *     just registered + activated one. No reload: the bundle was
- *     fetched directly from the network (the SW couldn't have
- *     intercepted requests it didn't yet exist for), so it's already
- *     fresh. Reloading here would be a gratuitous flicker on every
- *     first PWA open.
- *
- *   - **Deploy mid-session** — page was already controlled by an
- *     older SW, the new SW just activated and replaced it. Reload
- *     once so subsequent fetches go through the new SW (which is
- *     network-first for JS) and the freshly-deployed bundle takes
- *     effect immediately.
- *
- * The discriminator is `navigator.serviceWorker.controller` at bind
- * time: truthy → already controlled (any future controllerchange is
- * a deploy); falsy → cold start (the upcoming controllerchange is
- * the first activation, no reload needed).
- *
- * Idempotent — guarded by `_controllerChangeBound` /
- * `_reloadingForSwUpdate` so a second controllerchange event (rare,
- * but spec-permitted) doesn't loop.
+ * How long a worker gets to answer `os-sw-get-build`. A worker that
+ * never answers is treated as "unknown".
  */
-function bindControllerChangeReload(): void {
-	if ( _controllerChangeBound ) {
+const BUILD_REPLY_TIMEOUT_MS = 5000;
+
+/**
+ * How long {@link applyPendingUpdate} waits for the swap it asked for.
+ * The reload it precedes is the user's; if the worker never takes
+ * over, the reload still happens, onto the old worker, and the new one
+ * is found waiting again on the next boot.
+ */
+const SWAP_TIMEOUT_MS = 3000;
+
+/**
+ * Watch the registration for a new worker, and decide what to do with
+ * one — the update policy, in one place.
+ *
+ * A new worker installs and then WAITS (the worker never
+ * `skipWaiting()`s on its own — see `src/pwa/sw.ts`). Waiting is where
+ * the shell finds it, on two paths: `registration.waiting` already set
+ * when this page registers (a deploy that landed before this boot, or
+ * a boot on a tab that never consented), and `updatefound` →
+ * `installed` for one arriving mid-session. Either way the shell asks
+ * the worker which shell build it was served with, and compares that
+ * with its own (`PwaConfig.shellBuild`):
+ *
+ *   - **Same stamp**, or unknown on either side (an older server, a
+ *     body served without a preamble, a worker that does not answer):
+ *     the shell's files did not change, or nobody can tell. The worker
+ *     is told to take over silently. Caches refresh; nothing is shown;
+ *     nothing reloads.
+ *   - **Different stamp**: the shell's files really changed on the
+ *     server. `onShellUpdated` runs — once per page — so the shell can
+ *     *offer* a reload. The worker keeps waiting until the user takes
+ *     the offer ({@link applyPendingUpdate}) or every tab closes.
+ *
+ * Nothing here reloads. The shell never reloads itself: a desktop is
+ * somebody's work in progress.
+ *
+ * `controllerchange` is the swap having happened. When this page asked
+ * for it, that is the signal {@link applyPendingUpdate} waits on. When
+ * it did not — another tab consented, and the new worker claimed this
+ * one too — the page is now running an old bundle under a new worker,
+ * which is exactly the situation the waiting pattern avoids on a single
+ * tab; the same comparison runs against the controller and, when the
+ * shell changed, the same offer is made.
+ *
+ * A first install — no controller when the worker installs — activates
+ * on its own and is never a takeover: this page's bundle came straight
+ * from the network, and there is nothing to compare.
+ */
+function watchForUpdates(
+	registration: ServiceWorkerRegistration,
+	config: Pick< PwaConfig, 'shellBuild' >,
+	onShellUpdated?: ( info: ShellUpdateInfo ) => void,
+): void {
+	if ( _updatesBound ) {
 		return;
 	}
-	_controllerChangeBound = true;
-	const hadInitialController = !! navigator.serviceWorker.controller;
+	_updatesBound = true;
+	const current = typeof config.shellBuild === 'string' ? config.shellBuild : '';
+
+	const consider = ( worker: ServiceWorker, waiting: boolean ): void => {
+		void askWorkerForBuild( worker ).then( ( served ) => {
+			const changed = current !== '' && served !== '' && served !== current;
+			if ( ! changed ) {
+				if ( waiting ) {
+					requestSwap( worker );
+				}
+				return;
+			}
+			if ( waiting ) {
+				_waitingWorker = worker;
+			}
+			if ( _shellUpdateAnnounced || ! onShellUpdated ) {
+				return;
+			}
+			_shellUpdateAnnounced = true;
+			onShellUpdated( { current, served } );
+		} );
+	};
+
+	// The worker in `installing` reports through `statechange`; only
+	// one that reaches `installed` while this page is controlled is a
+	// waiting update (a first install activates on its own).
+	const track = ( worker: ServiceWorker | null ): void => {
+		if ( ! worker || typeof worker.addEventListener !== 'function' ) {
+			return;
+		}
+		worker.addEventListener( 'statechange', () => {
+			if ( worker.state === 'installed' && navigator.serviceWorker.controller ) {
+				consider( worker, true );
+			}
+		} );
+	};
+
+	if ( registration.waiting && navigator.serviceWorker.controller ) {
+		consider( registration.waiting, true );
+	}
+	track( registration.installing ?? null );
+	if ( typeof registration.addEventListener === 'function' ) {
+		registration.addEventListener( 'updatefound', () => {
+			track( registration.installing ?? null );
+		} );
+	}
+
 	navigator.serviceWorker.addEventListener( 'controllerchange', () => {
-		if ( ! hadInitialController ) {
-			// Cold start — first-ever SW activation for this page.
-			// Bundle is already fresh; no reload.
+		_waitingWorker = null;
+		if ( _swapExpected ) {
+			_swapExpected = false;
+			const listeners = _swapListeners;
+			_swapListeners = [];
+			for ( const done of listeners ) {
+				done();
+			}
 			return;
 		}
-		if ( _reloadingForSwUpdate ) {
-			return;
+		// A swap this page did not ask for. Not a first activation —
+		// `updatefound` never led here without a controller — but
+		// another tab's consent, or a worker that activated because
+		// every other tab closed. Compare, and offer if it matters.
+		const controller = navigator.serviceWorker.controller;
+		if ( controller ) {
+			consider( controller, false );
 		}
-		// Throttle reloads to prevent infinite cycles under DevTools'
-		// "Application → Service Workers → Update on reload". That flag
-		// forces an install + activate on every page load even when the
-		// SW bytes are byte-identical, so every reload we trigger here
-		// causes ANOTHER `controllerchange` on the next load, which
-		// triggers another reload, ad infinitum.
-		//
-		// Window: 30s. Real-deploy reloads coalesce across rapid
-		// successive activations; the user picks up the new bundle on
-		// the next reload past the window.
-		if ( wasRecentlyReloadedForSwUpdate() ) {
-			return;
-		}
-		markReloadedForSwUpdate();
-		_reloadingForSwUpdate = true;
-		// One-frame delay so any in-flight UI work has a chance to
-		// settle before the navigation. Not strictly required, but
-		// avoids a class of "click → reload races input" surprises.
-		setTimeout( () => window.location.reload(), 0 );
 	} );
 }
 
-const SW_RELOAD_THROTTLE_KEY = 'os-sw-reload-ts';
-const SW_RELOAD_THROTTLE_MS = 30_000;
-
-function wasRecentlyReloadedForSwUpdate(): boolean {
+/**
+ * Tell a waiting worker to take over. The `controllerchange` that
+ * follows is expected, and {@link applyPendingUpdate} may be waiting on
+ * it.
+ */
+function requestSwap( worker: ServiceWorker ): void {
+	_swapExpected = true;
 	try {
-		const raw = sessionStorage.getItem( SW_RELOAD_THROTTLE_KEY );
-		const last = raw ? Number.parseInt( raw, 10 ) : 0;
-		if ( ! Number.isFinite( last ) || last <= 0 ) {
-			return false;
-		}
-		return Date.now() - last < SW_RELOAD_THROTTLE_MS;
+		worker.postMessage( { type: 'os-sw-skip-waiting' } );
 	} catch {
-		// sessionStorage may be unavailable (private mode, blocked
-		// storage). Without it we can't throttle, so default to
-		// "no recent reload" and let the reload fire. The infinite-
-		// loop scenario it guards against requires DevTools, which is
-		// itself unlikely to coincide with storage being blocked.
-		return false;
+		_swapExpected = false;
 	}
 }
 
-function markReloadedForSwUpdate(): void {
-	try {
-		sessionStorage.setItem( SW_RELOAD_THROTTLE_KEY, String( Date.now() ) );
-	} catch {
-		// See `wasRecentlyReloadedForSwUpdate` — swallow.
+/**
+ * Take the offered update: make the waiting worker current, and
+ * resolve once it is (or after {@link SWAP_TIMEOUT_MS}). Resolves at
+ * once when there is nothing waiting — the new worker already took over
+ * through another tab. Never reloads; the caller does that, after the
+ * session has reached the server.
+ */
+export function applyPendingUpdate(): Promise< void > {
+	const worker = _waitingWorker;
+	if ( ! worker ) {
+		return Promise.resolve();
 	}
+	return new Promise( ( resolve ) => {
+		let done = false;
+		const finish = (): void => {
+			if ( done ) {
+				return;
+			}
+			done = true;
+			window.clearTimeout( timer );
+			resolve();
+		};
+		const timer = window.setTimeout( finish, SWAP_TIMEOUT_MS );
+		_swapListeners.push( finish );
+		requestSwap( worker );
+		if ( ! _swapExpected ) {
+			finish();
+		}
+	} );
+}
+
+/**
+ * Ask a worker which shell build it was served with. Resolves `''` on
+ * no answer in time, or an answer without a usable stamp.
+ */
+function askWorkerForBuild( worker: ServiceWorker ): Promise< string > {
+	return new Promise( ( resolve ) => {
+		let done = false;
+		let timer = 0;
+		const onMessage = ( ev: MessageEvent ): void => {
+			const data = ev.data as { type?: unknown; shellBuild?: unknown } | null;
+			if ( data && data.type === 'os-sw-build' ) {
+				finish( typeof data.shellBuild === 'string' ? data.shellBuild : '' );
+			}
+		};
+		const finish = ( value: string ): void => {
+			if ( done ) {
+				return;
+			}
+			done = true;
+			window.clearTimeout( timer );
+			navigator.serviceWorker.removeEventListener( 'message', onMessage );
+			resolve( value );
+		};
+		timer = window.setTimeout( () => finish( '' ), BUILD_REPLY_TIMEOUT_MS );
+		navigator.serviceWorker.addEventListener( 'message', onMessage );
+		try {
+			worker.postMessage( { type: 'os-sw-get-build' } );
+		} catch {
+			finish( '' );
+		}
+	} );
+}
+
+/**
+ * Least time between two resume-time update checks.
+ *
+ * Each check is one small request for `sw.js` (served `no-cache`, and
+ * registered with `updateViaCache: 'none'`, so the bytes are always
+ * compared). Five minutes keeps a user who flicks between apps from
+ * paying for it on every return, while a phone picked up after lunch
+ * still checks the moment it wakes.
+ */
+export const SW_RESUME_CHECK_MIN_INTERVAL_MS = 5 * 60_000;
+
+let _unbindResumeCheck: ( () => void ) | null = null;
+let _lastResumeCheckAt = 0;
+
+/**
+ * Check for a new worker whenever the page comes back to the
+ * foreground.
+ *
+ * The browser only looks for a new service worker on a navigation (and
+ * on its own 24-hour clock). An installed app on a phone rarely
+ * navigates: iOS keeps the page alive in the background for days and
+ * brings the same document back every time the icon is tapped, so the
+ * shell a user installed in May was still running in June, with no
+ * reload button anywhere to ask for a newer one — the only way out was
+ * to delete and reinstall the app. Deploys the shell would have picked
+ * up on any desktop reload never reached it.
+ *
+ * So the check is run by hand on every return: `visibilitychange` to
+ * visible (the app switcher, the lock screen, another tab) and
+ * `pageshow` (the back-forward cache), throttled to
+ * {@link SW_RESUME_CHECK_MIN_INTERVAL_MS}. `registration.update()`
+ * fetches the script and compares bytes; when they differ the new
+ * worker installs and waits, and {@link watchForUpdates} asks it
+ * whether the shell's own files changed. The served bytes carry the
+ * plugin version and the shell-build stamp in their preamble, so every
+ * release IS a byte change — no release goes unnoticed for want of a
+ * navigation — and only a release that changed the shell is ever
+ * mentioned to the user.
+ *
+ * Best-effort throughout: `update()` rejecting (offline, a 503 from a
+ * host mid-deploy) is the browser saying "not now", and the next return
+ * asks again.
+ */
+function bindResumeUpdateCheck( registration: ServiceWorkerRegistration ): void {
+	if ( _unbindResumeCheck ) {
+		return;
+	}
+	// The registration that just landed counts as a check.
+	_lastResumeCheckAt = Date.now();
+
+	const check = (): void => {
+		if ( typeof document !== 'undefined' && document.visibilityState === 'hidden' ) {
+			return;
+		}
+		const now = Date.now();
+		if ( now - _lastResumeCheckAt < SW_RESUME_CHECK_MIN_INTERVAL_MS ) {
+			return;
+		}
+		_lastResumeCheckAt = now;
+		try {
+			void registration.update().catch( () => {
+				/* Offline or a host mid-deploy; the next return asks again. */
+			} );
+		} catch {
+			/* An unregistered or torn-down registration; nothing to check. */
+		}
+	};
+
+	document.addEventListener( 'visibilitychange', check );
+	window.addEventListener( 'pageshow', check );
+	_unbindResumeCheck = () => {
+		document.removeEventListener( 'visibilitychange', check );
+		window.removeEventListener( 'pageshow', check );
+	};
 }
 
 /**
@@ -242,7 +448,17 @@ function sendCurrentConfigToWorker(): void {
 
 export async function registerServiceWorker(
 	config: PwaConfig | undefined,
-	options: { forceReplace?: boolean } = {},
+	options: {
+		forceReplace?: boolean;
+		/**
+		 * Runs once when a new worker reports a shell-build stamp
+		 * different from the one this page booted with — the shell's
+		 * files really changed on the server. See
+		 * {@link watchForUpdates}. The shell offers a reload; it never
+		 * performs one. Taking the offer is {@link applyPendingUpdate}.
+		 */
+		onShellUpdated?: ( info: ShellUpdateInfo ) => void;
+	} = {},
 ): Promise< ServiceWorkerRegistration | null > {
 	if ( typeof navigator === 'undefined' || ! ( 'serviceWorker' in navigator ) ) {
 		_status = 'unsupported';
@@ -316,10 +532,13 @@ export async function registerServiceWorker(
 			_registration = await attempt( config.swFallbackUrl );
 		}
 		_status = 'registered';
-		// Auto-reload when the new SW takes control. Bound only after a
-		// successful registration so we never reload a page that has no
-		// SW relationship in the first place.
-		bindControllerChangeReload();
+		// Learn about a new worker. Bound only after a successful
+		// registration so a page with no SW relationship is never asked
+		// anything.
+		watchForUpdates( _registration, config, options.onShellUpdated );
+		// A phone that never navigates still learns about a release the
+		// next time the app comes to the front.
+		bindResumeUpdateCheck( _registration );
 		// Hand the worker this user's flags. They are not in the served
 		// bytes — see `notifyServiceWorkerConfig()` — so this is how it
 		// learns them at all. Sent now and again on `controllerchange`,
@@ -423,7 +642,13 @@ export function getServiceWorkerRegistration(): ServiceWorkerRegistration | null
 export function _resetSwRegistration(): void {
 	_registration = null;
 	_registrationFailed = false;
-	_controllerChangeBound = false;
-	_reloadingForSwUpdate = false;
+	_updatesBound = false;
+	_shellUpdateAnnounced = false;
+	_waitingWorker = null;
+	_swapExpected = false;
+	_swapListeners = [];
+	_unbindResumeCheck?.();
+	_unbindResumeCheck = null;
+	_lastResumeCheckAt = 0;
 	_status = 'pending';
 }

@@ -36,6 +36,7 @@
 
 import { __, _n, applySelection, defineApp, html, sprintf, type TemplateResult } from '@openstation/app';
 import type { Agent } from '../../src/agents-types';
+import { isMobileStamped } from '../../src/mode/stamp';
 import {
 	uiOf,
 	type AppData,
@@ -127,6 +128,13 @@ function renderBody(
 	}
 	if ( inFolder ) {
 		return renderFolder( ctx );
+	}
+	// On a phone an opened item is a page of its own, pushed over the
+	// list with Back in the header — the way a phone shows the detail
+	// of a row. A pane beside the list has no room, and a sheet along
+	// the bottom read as a preview of the thing rather than the thing.
+	if ( ctx.state.item > 0 && isMobileStamped() ) {
+		return html`<div class="os-mywp__detail-page">${ renderDetail( ctx, section ) }</div>`;
 	}
 	// The preview pane stays in both views — the list's columns
 	// scroll sideways inside their own pane rather than push it out.
@@ -291,6 +299,10 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 		const sep = (): TemplateResult => html`<span class="os-mywp__sep" aria-hidden="true">›</span>`;
 		const inFolder = section && state.into > 0;
 		const inSub = inFolder && state.relation !== '';
+		// The phone's item page (`renderBody`): one more step in the
+		// trail, and Back closes it rather than leaving the section.
+		const onItemPage =
+			!! section && ! inFolder && section.kind !== 'agent' && state.item > 0 && isMobileStamped();
 		const crumbs: Array< TemplateResult > = [];
 		if ( ! depth ) {
 			crumbs.push( current( payload.siteName ) );
@@ -307,10 +319,14 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 			if ( section ) {
 				crumbs.push( sep() );
 				crumbs.push(
-					inFolder || inFootprint
+					inFolder || inFootprint || onItemPage
 						? link( section.label, () => void ctx.dispatch( 'go', { group: state.group, section: section.id } ) )
 						: current( section.label ),
 				);
+			}
+			if ( onItemPage && payload.detail ) {
+				crumbs.push( sep() );
+				crumbs.push( current( payload.detail.title ) );
 			}
 			if ( inFootprint ) {
 				crumbs.push( sep() );
@@ -411,7 +427,13 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 			<div class="os-mywp" tabindex="-1">
 				<header class="os-mywp__header">
 					${ depth
-						? html`<button type="button" class="os-mywp__back" aria-label=${ __( 'Back' ) } @click=${ () => void ctx.dispatch( 'back' ) }>‹</button>`
+						? html`<button
+							type="button"
+							class="os-mywp__back"
+							aria-label=${ __( 'Back' ) }
+							@click=${ () =>
+								void ctx.dispatch( onItemPage ? 'open' : 'back', onItemPage ? { item: 0 } : undefined ) }
+						>‹</button>`
 						: '' }
 					<nav class="os-mywp__crumbs">${ crumbs }</nav>
 				</header>
@@ -455,7 +477,18 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 		`;
 	},
 
-	mounted: ( ctx ) => wire( ctx ),
+	mounted: ( ctx ) => {
+		const unwire = wire( ctx );
+		// The body reads the shell's mode stamp (the phone's item page);
+		// a crossing between the desk and the phone band repaints
+		// nothing on its own.
+		const onModeChange = (): void => ctx.repaint();
+		document.addEventListener( 'os-mode-changed', onModeChange );
+		return () => {
+			unwire();
+			document.removeEventListener( 'os-mode-changed', onModeChange );
+		};
+	},
 
 	updated: ( ctx ) => afterRender( ctx ),
 } );

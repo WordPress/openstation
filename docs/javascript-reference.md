@@ -904,6 +904,7 @@ manager.getPrimaryDesktopId(): string;
 manager.createDesktop(): Desktop;
 manager.switchDesktop( id: string ): void;
 manager.closeDesktop( id: string ): void;
+manager.moveWindowToDesktop( windowId: string, desktopId: string ): boolean;
 ```
 
 **`config` shape passed to `open()` / `openNew()`:**
@@ -1711,7 +1712,10 @@ manager.createDesktop( init? ): Desktop;   // append a new one + return it; `ini
 manager.switchDesktop( id ): void;         // make `id` the active desktop
 manager.closeDesktop( id ): void;          // delete `id`; windows migrate to the neighbour
 manager.renameDesktop( id, label ): boolean;  // relabel `id`; see below
+manager.moveWindowToDesktop( windowId, desktopId ): boolean;  // one window to another desk; see below
 ```
+
+`moveWindowToDesktop()` moves one window and nothing else about it — geometry, state, focus order and iframe stay as they are; it shows or hides at once according to whether its new desk is the active one. `false` when either id is unknown, `true` (and nothing fired) when it is already there. The phone layer uses it to fold every desk onto the active one while the mode is `mobile` (see [`docs/mobile.md`](./mobile.md#the-session-on-a-phone)) — the session still records each window on the desk it came from, so leaving the mode puts everything back; a plugin can use it for a "move to desk" action.
 
 **Workspaces** build on this: a desktop plus the answer to what it is FOR — which apps show on it, which widgets sit on it, what it looks like, what it opens with. `wp.os.workspaces.*` creates them, `wp.os.workspaces.registerPreset()` adds a template, and three ship: Commerce, Learning and Publishing — named for the job, built around the products that do it. The `+` in the **overview top bar** opens a wizard whose first step is a blank desk one Enter away; Edit under a tile opens the same wizard on that desk. Overview is already the Spaces surface, and the desk itself belongs to the user's windows.
 
@@ -1719,7 +1723,7 @@ The one rule the whole feature rests on: **a workspace is a view, never a write.
 
 **On a network, every site is its own OpenStation** with its own desktops, and the overview top bar carries a **site switcher** above the tiles: `installOverviewHeader( build )` (`src/window-manager/overview.ts`) is the seam the shell uses to put that row there, and `openstation_overview=1` on the shell screen boots it straight into overview, a one-shot boot arg stripped from the address bar with `target` and `intent`; so are `openstation_hop`, the login token a switch from another install carries (spent server-side before the shell renders), and `openstation_hop_from`, the direction it lands with (`config.arrivalDirection`). The switch animates on both sides through shell-root classes (`os-shell--arriving`, `os-shell--hop-out-next` / `-prev`) and a one-shot `sessionStorage` hint, `openstation-hop-direction`. See [multisite.md](./multisite.md#site-instances).
 
-Lifecycle hooks fire on each operation: `HOOKS.DESKTOP_CREATED`, `HOOKS.DESKTOP_CLOSED { desktopId, migratedTo }`, `HOOKS.DESKTOP_SWITCHED { from, to }`, `HOOKS.DESKTOP_RENAMED { desktopId, label, previousLabel }`.
+Lifecycle hooks fire on each operation: `HOOKS.DESKTOP_CREATED`, `HOOKS.DESKTOP_CLOSED { desktopId, migratedTo }`, `HOOKS.DESKTOP_SWITCHED { from, to }`, `HOOKS.DESKTOP_RENAMED { desktopId, label, previousLabel }`, `HOOKS.WINDOW_DESKTOP_CHANGED { windowId, from, to }`.
 
 `renameDesktop()` trims the label and caps it at **64 characters**, matching the session sanitizer, and returns `false` without firing the hook when the id is unknown or the name is blank or unchanged. It persists through the normal session save. Users reach it from the overview top bar: hovering a tile reveals a rename pencil beside the close ×, and clicking it edits in place (Enter commits, Escape reverts, blur commits).
 
@@ -1886,7 +1890,7 @@ wp.os.icons?.setArt?.( 'my-bin', '' );  // restore the registered icon
 
 Every applied change publishes `os/art-changed` on the activity channel with `{ itemId, icon, rail: 'dock' | 'taskbar' | 'icon' }`.
 
-`wp.os.icons.getArt( id )` reads the current override back, or `''` when the registered icon is still in charge.
+`wp.os.icons.getArt( id )` and `wp.os.dock.getArt( id )` read the current override back, or `''` when the registered icon is still in charge. The phone's home grid reads both: its tiles are not a rail's, so a `setArt` never reaches them directly, and the grid repaints from the getters on every `os/art-changed` — a bin that fills on the desk fills on the phone too.
 
 In-tree reference: [`src/desktop-files/recycle-bin-icon-state.ts`](../src/desktop-files/recycle-bin-icon-state.ts). The Recycle Bin uses it to draw an empty bin and a bin holding something as two states of one object. It replaced a count badge there: the badge pill is positioned onto the artwork rather than beside it, and at a 20px dock tile it covered about 30% of the icon.
 
@@ -2437,6 +2441,8 @@ interface OsModeApi {
     getPreference(): 'auto' | 'desktop' | 'mobile';
     getBreakpoints(): { mobile: number; tablet: number };  // widest px of each band, inclusive
     isMobile(): boolean;
+    getDisplay(): 'standalone' | 'browser';  // an installed app, or a tab
+    isStandalone(): boolean;
     subscribe(
         cb: ( change: { mode; previous; preference } ) => void,
         opts?: { immediate?: boolean },   // call once right away with the current mode
@@ -2445,6 +2451,8 @@ interface OsModeApi {
 ```
 
 `tablet` is reported but, for now, renders the desktop; `mobile` mounts the phone layer (home screen, one full-screen window at a time, switcher, tab bar). Transitions fire `os.mode.changed` and `os-mode-changed`. The value is stamped on `<html data-os-mode>` for CSS. Full contract in [mobile.md](./mobile.md).
+
+The display is orthogonal to the mode: `standalone` when the document runs as an installed app (a home-screen web app on iOS, an installed PWA in Chromium — the `display-mode: standalone` media query, or Safari's `navigator.standalone`), `browser` in an ordinary tab. It is stamped on `<html data-os-display>` for CSS — `html[data-os-display="standalone"] .my-plugin-bar { … }` — by the same head stamp that writes the mode, and re-stamped live when the query flips. It carries no event of its own. See [mobile.md](./mobile.md#the-display).
 
 ---
 
@@ -4906,6 +4914,7 @@ Each user can have multiple desktops, each owning its own set of windows. Switch
 | `os.os.closed` | action | Stable | `{ desktopId, migratedTo }` — `migratedTo` is the desktop that received any orphaned windows |
 | `os.os.switched` | action | Stable | `{ from, to }` — the active desktop changed |
 | `os.os.renamed` | action | Stable | `{ desktopId, label, previousLabel }` — the user renamed a desktop |
+| `os.os.window-moved` | action | Experimental | `{ windowId, from, to }` — one window moved to another desktop through `manager.moveWindowToDesktop()`; the bulk migration of a closed desktop is `os.os.closed` instead |
 
 Closing the last remaining desktop is rejected silently (the shell needs at least one). Closing a desktop that has windows migrates them to the surviving desktop on its left (falling back to the right when the leftmost is closed) — no work is silently destroyed.
 

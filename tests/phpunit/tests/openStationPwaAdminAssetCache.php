@@ -103,6 +103,34 @@ class Tests_OpenStation_PwaAdminAssetCache extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A release must be a byte change in the served worker, or an
+	 * installed app that never navigates never learns about it: the
+	 * bundle is content-hashed, so the version rides in the preamble.
+	 *
+	 * @covers ::openstation_pwa_sw_config_preamble
+	 */
+	public function test_preamble_carries_the_plugin_version() {
+		$config = $this->decode_preamble( openstation_pwa_sw_config_preamble() );
+
+		$this->assertSame( OPENSTATION_VERSION, $config['version'] );
+	}
+
+	/**
+	 * The worker carries the shell-build stamp it was served with, so a
+	 * shell it takes over mid-session can tell whether the shell's own
+	 * files changed — the only change that is ever mentioned to the
+	 * user. Same value the shell boots with, same source.
+	 *
+	 * @covers ::openstation_pwa_sw_config_preamble
+	 */
+	public function test_preamble_carries_the_shell_build_stamp() {
+		$config = $this->decode_preamble( openstation_pwa_sw_config_preamble() );
+
+		$this->assertArrayHasKey( 'shellBuild', $config );
+		$this->assertSame( openstation_shell_build_stamp(), $config['shellBuild'] );
+	}
+
+	/**
 	 * The served bytes must NOT depend on who is asking.
 	 *
 	 * A service worker is origin-wide, but `adminAssetCache` and
@@ -110,9 +138,9 @@ class Tests_OpenStation_PwaAdminAssetCache extends WP_UnitTestCase {
 	 * script made the body differ between an anonymous and a logged-in
 	 * request, so any in-scope logged-out navigation — the interim-login
 	 * iframe, logging out — served a different script. The browser
-	 * treats different bytes as an update, installs it, activates it,
-	 * and the shell's `controllerchange` handler hard-reloads the
-	 * desktop. The shell posts both flags to the running worker instead.
+	 * treats different bytes as an update, installs it, and activates
+	 * it — which, at the time, hard-reloaded the desktop. The shell
+	 * posts both flags to the running worker instead.
 	 *
 	 * @covers ::openstation_pwa_sw_config_preamble
 	 */

@@ -23,7 +23,9 @@
  * @public
  */
 
-import { __, defineApp, html, sprintf } from '@openstation/app';
+import { __, defineApp, html, sprintf, type TemplateResult } from '@openstation/app';
+import { isMobileStamped } from '../../src/mode/stamp';
+import { stackOnPhone } from '../../src/ui/components/os-table/stack-on-phone';
 import { runEmptyLoop } from './parts/empty-loop';
 import * as realtime from './parts/realtime';
 import {
@@ -73,6 +75,8 @@ interface UiState {
 	refreshTimer: number | null;
 	/** The tile art last pushed to the rails — swap only on change. */
 	lastArt: string;
+	/** Whether the columns were last built for a phone (`null`: not yet). */
+	phoneColumns: boolean | null;
 }
 
 const freshUi = (): UiState => ( {
@@ -82,6 +86,7 @@ const freshUi = (): UiState => ( {
 	empty: { mode: 'idle', purged: 0, total: 0 },
 	refreshTimer: null,
 	lastArt: '',
+	phoneColumns: null,
 } );
 
 /**
@@ -301,12 +306,45 @@ function emptyButtonLabel( ui: UiState ): string {
 	);
 }
 
+/**
+ * The selection's actions: the count, Restore, Pin to desktop and
+ * Delete forever. In the toolbar on a desk; on a phone the same
+ * controls are a bar along the bottom of the window, where the
+ * thumb is, and Pin to desktop is not offered — a phone has no
+ * desktop to pin to.
+ */
+function bulkActions( ctx: Ctx, ui: UiState, phone: boolean ): TemplateResult {
+	return html`
+		<span class="os-recycle-bin__count">${ sprintf(
+			/* translators: %d: selected row count. */
+			__( '%d selected' ),
+			ui.selected.length,
+		) }</span>
+		<os-button variant="secondary" @click=${ () => void restoreRefs( ctx, collectSelected( ctx ) ) }>
+			<span class="dashicons dashicons-image-rotate" aria-hidden="true"></span>
+			${ __( 'Restore' ) }
+		</os-button>
+		${ phone
+			? ''
+			: html`<os-button variant="secondary" @click=${ () => void pinRefs( ctx, collectSelected( ctx ) ) }>
+				<span class="dashicons dashicons-desktop" aria-hidden="true"></span>
+				${ __( 'Pin to desktop' ) }
+			</os-button>` }
+		<os-button variant="danger" @click=${ () => void purgeRefs( ctx, collectSelected( ctx ) ) }>
+			<span class="dashicons dashicons-trash" aria-hidden="true"></span>
+			${ __( 'Delete forever' ) }
+		</os-button>
+	`;
+}
+
 export default defineApp< AppState, AppData >( APP_ID, {
 	view: ( ctx ) => {
 		const { state, data } = ctx;
 		const ui = ctx.ui( freshUi );
 		const hasItems = data.total > 0;
 		const emptying = ui.empty.mode !== 'idle';
+		const phone = isMobileStamped();
+		const selecting = ui.selected.length > 0;
 		return html`
 			<div class="desktop-mode-recycle-bin" data-os-recycle-bin-root>
 				<header class="os-recycle-bin__toolbar" ?hidden=${ ! hasItems }>
@@ -326,25 +364,11 @@ export default defineApp< AppState, AppData >( APP_ID, {
 							placeholder=${ __( 'Search trash…' ) }
 						></os-text-field>
 					</div>
-					<div class="os-recycle-bin__toolbar-right" ?hidden=${ ui.selected.length === 0 }>
-						<span class="os-recycle-bin__count">${ sprintf(
-							/* translators: %d: selected row count. */
-							__( '%d selected' ),
-							ui.selected.length,
-						) }</span>
-						<os-button variant="secondary" @click=${ () => void restoreRefs( ctx, collectSelected( ctx ) ) }>
-							<span class="dashicons dashicons-image-rotate" aria-hidden="true"></span>
-							${ __( 'Restore' ) }
-						</os-button>
-						<os-button variant="secondary" @click=${ () => void pinRefs( ctx, collectSelected( ctx ) ) }>
-							<span class="dashicons dashicons-desktop" aria-hidden="true"></span>
-							${ __( 'Pin to desktop' ) }
-						</os-button>
-						<os-button variant="danger" @click=${ () => void purgeRefs( ctx, collectSelected( ctx ) ) }>
-							<span class="dashicons dashicons-trash" aria-hidden="true"></span>
-							${ __( 'Delete forever' ) }
-						</os-button>
-					</div>
+					${ phone
+						? ''
+						: html`<div class="os-recycle-bin__toolbar-right" ?hidden=${ ! selecting }>
+							${ bulkActions( ctx, ui, false ) }
+						</div>` }
 					<div class="os-recycle-bin__toolbar-trailing">
 						<os-button variant="ghost" os-action="refresh" title=${ __( 'Refresh' ) }>
 							<span class="dashicons dashicons-update" aria-hidden="true"></span>
@@ -379,6 +403,11 @@ export default defineApp< AppState, AppData >( APP_ID, {
 						?hidden=${ ! hasItems }
 					></os-table>
 				</div>
+				${ phone && hasItems
+					? html`<footer class="os-recycle-bin__bulk" ?hidden=${ ! selecting }>
+						${ bulkActions( ctx, ui, true ) }
+					</footer>`
+					: '' }
 			</div>
 		`;
 	},
@@ -408,9 +437,15 @@ export default defineApp< AppState, AppData >( APP_ID, {
 			}, 200 );
 		};
 		document.addEventListener( 'os-recycle-bin-changed', onExternalChange );
+		// The view reads the shell's mode stamp (the bulk bar's place,
+		// the cards); a crossing between the desk and the phone band
+		// is the one change that repaints nothing on its own.
+		const onModeChange = (): void => ctx.repaint();
+		document.addEventListener( 'os-mode-changed', onModeChange );
 		return () => {
 			realtime.stop();
 			document.removeEventListener( 'os-recycle-bin-changed', onExternalChange );
+			document.removeEventListener( 'os-mode-changed', onModeChange );
 			if ( ui.refreshTimer !== null ) {
 				window.clearTimeout( ui.refreshTimer );
 			}
@@ -423,15 +458,25 @@ export default defineApp< AppState, AppData >( APP_ID, {
 			return;
 		}
 		const ui = ctx.ui( freshUi );
-		// One-time wiring: columns (the shared renderers), composite
-		// row identity (post #5 and comment #5 coexist), default sort,
-		// and the selection listener that repaints the bulk bar.
+		// A card per row on a phone (`stack-on-phone.ts`), and the
+		// columns built for it: labelled row buttons, a title that may
+		// take two lines. Rebuilt only when the answer changes.
+		const phone = stackOnPhone( el );
+		if ( phone !== ui.phoneColumns ) {
+			ui.phoneColumns = phone;
+			el.columns = buildColumns(
+				{
+					onRestore: ( ref ) => void restoreRefs( ctx, [ ref ] ),
+					onPurge: ( ref ) => void purgeRefs( ctx, [ ref ] ),
+				},
+				{ phone },
+			);
+		}
+		// One-time wiring: composite row identity (post #5 and comment
+		// #5 coexist), default sort, and the selection listener that
+		// repaints the bulk bar.
 		if ( ! el.hasAttribute( 'data-os-trash-wired' ) ) {
 			el.setAttribute( 'data-os-trash-wired', '' );
-			el.columns = buildColumns( {
-				onRestore: ( ref ) => void restoreRefs( ctx, [ ref ] ),
-				onPurge: ( ref ) => void purgeRefs( ctx, [ ref ] ),
-			} );
 			el.getRowId = ( row ) => `${ row.type }:${ row.id }`;
 			el.sort = { key: 'deleted_at', direction: 'desc' };
 			el.addEventListener( 'os-table-selection-change', () => {

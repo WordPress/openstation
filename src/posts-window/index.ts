@@ -74,6 +74,9 @@ import type {
 } from '../ui/components/os-table/os-table';
 import '../ui/components/os-button/os-button';
 import '../ui/components/os-segmented/os-segmented';
+import { isMobileStamped } from '../mode/stamp';
+import { stackOnPhone } from '../ui/components/os-table/stack-on-phone';
+import { mountStatusControl } from './status-control';
 import '../ui/components/os-menu/os-menu';
 
 export type { BulkAction, PostsWindowContext, StatusSegment } from './types';
@@ -304,6 +307,14 @@ function memoCell(
 const REQUIRED_COLUMN_KEYS = new Set< string >( [ 'title' ] );
 
 /**
+ * The columns a phone shows — see `buildColumns()`. A card per row
+ * there (`<os-table stacked>`), so a column is a labelled line under
+ * the title rather than a width to find: the author and the date
+ * (and a page's parent) fit where a grid had room for the title.
+ */
+const MOBILE_COLUMN_KEYS = new Set< string >( [ 'title', 'author', 'parent', 'date' ] );
+
+/**
  * Read the user's hidden-column preference from the OS Settings public
  * API. Falls back to an empty list when the API isn't ready yet
  * (defensive: `renderPostsWindow` runs after `wp.os` is populated,
@@ -378,15 +389,26 @@ function buildColumns(
 ): OsTableColumn< PostListItem >[] {
 	const all = buildAllColumns( cache, client, filterData );
 	const hidden = getHiddenColumns();
-	if ( hidden.size === 0 ) {
-		return all;
-	}
 	// Filter out user-hidden columns. The sticky `title` column is
-	// pinned visible regardless of the user's preference — without
-	// it the table has no row identity.
-	return all.filter(
-		( col ) => REQUIRED_COLUMN_KEYS.has( col.key ) || ! hidden.has( col.key ),
-	);
+	// pinned visible regardless of the user's preference — without it
+	// the table has no row identity.
+	const visible =
+		hidden.size === 0
+			? all
+			: all.filter(
+				( col ) => REQUIRED_COLUMN_KEYS.has( col.key ) || ! hidden.has( col.key ),
+			);
+	// A phone has room for the title and the date. Every other column
+	// — author, taxonomies at 360px, slug — would put the table on a
+	// sideways scroll under a sticky title, which is the one layout a
+	// thumb cannot use. The rows still carry the status badge, and the
+	// row's actions still open the editor. Applied after the user's
+	// own hidden list and the plugin filter, so nothing is hidden on
+	// the desk by a phone's rule.
+	if ( isMobileStamped( document.documentElement ) ) {
+		return visible.filter( ( col ) => MOBILE_COLUMN_KEYS.has( col.key ) );
+	}
+	return visible;
 }
 
 function _buildBaseColumns(
@@ -2256,29 +2278,27 @@ export async function renderPostsWindow(
 	const bulkBar = root.querySelector< HTMLElement >( BULK );
 	const countEl = root.querySelector< HTMLElement >( COUNT );
 	const bulkActionsHost = root.querySelector< HTMLElement >( BULK_ACTIONS_HOST );
+	// A phone: a card per row, and the selection's actions along the
+	// bottom of the panel — under the thumb, and still there once the
+	// toolbar has scrolled away — instead of a strip in the toolbar.
+	if ( stackOnPhone( table ) && bulkBar ) {
+		bulkBar.classList.add( 'os-posts__bulk--footer' );
+		( bulkBar.closest( '.os-posts__panel' ) ?? root ).appendChild( bulkBar );
+	}
 	const trailingExtras = root.querySelector< HTMLElement >(
 		TOOLBAR_TRAILING_EXTRAS,
 	);
 	const statusHost = root.querySelector< HTMLElement >( STATUS );
 
-	// Build the segmented control's children from the (filterable)
+	// Build the status control's children from the (filterable)
 	// status-segment list. Built dynamically rather than echoed by
 	// PHP so plugins can add CPT-specific statuses ("Awaiting
 	// review", "Archived") or remove segments without forking the
-	// template.
+	// template. On a phone the pill bar becomes a picker
+	// (`status-control.ts`); the `os-pick` wiring below is the same.
 	const statusSegments = resolveStatusSegments();
 	if ( statusHost ) {
-		statusHost.replaceChildren();
-		for ( const seg of statusSegments ) {
-			const el = document.createElement( 'os-segment' );
-			el.setAttribute( 'value', seg.value );
-			el.textContent = seg.label;
-			statusHost.appendChild( el );
-		}
-		// Mirror the initial view value so the right segment paints
-		// as selected on first frame (parent's `value` attribute is
-		// what `<os-segmented>` reads — see its source).
-		statusHost.setAttribute( 'value', view.status );
+		mountStatusControl( statusHost, statusSegments, view.status );
 	}
 
 	const updatePager = (): void => {

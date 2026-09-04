@@ -12,6 +12,7 @@
 
 import { __, sprintf } from '../i18n';
 import { decodeHTML } from '../utils';
+import { osIcon } from '../ui/icons';
 import { applyAvatarSrc } from '../ui/util/avatar-resolve';
 import {
 	fetchComments,
@@ -42,6 +43,7 @@ import '../ui/components/os-button/os-button';
 import '../ui/components/os-empty-state/os-empty-state';
 import '../ui/components/os-icon/os-icon';
 import '../ui/components/os-relative-time/os-relative-time';
+import '../ui/components/os-select/os-select';
 import '../ui/components/os-spinner/os-spinner';
 import '../ui/components/os-text-field/os-text-field';
 import '../ui/components/os-textarea/os-textarea';
@@ -61,9 +63,13 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 
 interface Ctx {
 	cfg: CommentsConfig;
+	/** The window's root; carries `data-os-comments-pane` (see `showPane`). */
+	rootEl: HTMLElement;
 	listEl: HTMLElement;
 	convoEl: HTMLElement;
 	tabsEl: HTMLElement;
+	/** The tab strip as a picker, for a narrow container (see `mountTabSelect`). */
+	tabSelectEl: HTMLElement | null;
 	statusEl: HTMLElement | null;
 	tab: CommentTab;
 	search: string;
@@ -440,6 +446,76 @@ function setActiveTab( tabsEl: HTMLElement, tabValue: string ): void {
 }
 
 /**
+ * Which pane a narrow window shows: the rail (the list) or the
+ * conversation. Stamped on the root for the stylesheet; at a wide
+ * width the stamp changes nothing, both panes are always up.
+ */
+function showPane( ctx: Ctx, pane: 'rail' | 'convo' ): void {
+	ctx.rootEl.dataset.osCommentsPane = pane;
+}
+
+/** A tab's own words, without the count chip painted into it. */
+function tabLabel( tab: HTMLElement ): string {
+	let text = '';
+	tab.childNodes.forEach( ( node ) => {
+		if ( node.nodeType === Node.TEXT_NODE ) {
+			text += node.textContent ?? '';
+		}
+	} );
+	return text.trim();
+}
+
+/**
+ * The tab strip as an `<os-select>`, placed right after it. The
+ * stylesheet shows one or the other by the container's width; both
+ * change the same tab through `applyTab`, so whichever is up, the
+ * other is already right when the width changes.
+ */
+function mountTabSelect( tabsEl: HTMLElement, onPick: ( value: CommentTab ) => void ): HTMLElement {
+	const select = document.createElement( 'os-select' );
+	select.className = `${ NS }__tabselect`;
+	select.setAttribute( 'data-os-comments-tabselect', '' );
+	const label = tabsEl.getAttribute( 'label' );
+	if ( label ) {
+		select.setAttribute( 'aria-label', label );
+	}
+	tabsEl.after( select );
+	select.addEventListener( 'os-pick', ( e ) => {
+		const value = ( e as CustomEvent< { value: string } > ).detail?.value;
+		if ( value ) {
+			onPick( value as CommentTab );
+		}
+	} );
+	return select;
+}
+
+/** Repaint the picker's rows from the strip: labels, counts, and the active tab. */
+function syncTabSelect( ctx: Ctx ): void {
+	const select = ctx.tabSelectEl;
+	if ( ! select ) {
+		return;
+	}
+	const items = Array.from( ctx.tabsEl.querySelectorAll< HTMLElement >( 'os-tab' ) ).map( ( tab ) => {
+		const count = tab.querySelector( `.${ NS }__tab-count` )?.textContent?.trim();
+		const label = tabLabel( tab );
+		return {
+			value: tab.getAttribute( 'value' ) ?? '',
+			label: count
+				? sprintf(
+					/* translators: 1: tab label, 2: comment count. */
+					__( '%1$s (%2$s)' ),
+					label,
+					count,
+				)
+				: label,
+		};
+	} );
+	( select as unknown as { items: typeof items } ).items = items;
+	select.setAttribute( 'value', ctx.tab );
+	( select as unknown as { value: string } ).value = ctx.tab;
+}
+
+/**
  * Paint the per-tab count chips.
  *
  * "Mine" is deliberately left bare — the counts endpoint reports the
@@ -476,6 +552,7 @@ function paintTabCounts( tabsEl: HTMLElement, counts: CommentCounts ): void {
 async function refreshCounts( ctx: Ctx ): Promise< void > {
 	try {
 		paintTabCounts( ctx.tabsEl, await fetchCounts( ctx.cfg ) );
+		syncTabSelect( ctx );
 	} catch {
 		// Counts are decoration — a failure must never break the rail.
 	}
@@ -542,7 +619,13 @@ function threadItem( ctx: Ctx, row: CommentRow ): HTMLElement {
 	}
 
 	item.append( avatar( row, 36 ), main, meta );
-	item.addEventListener( 'click', () => selectThread( ctx, row ) );
+	item.addEventListener( 'click', () => {
+		selectThread( ctx, row );
+		// The user asked for this one: on a narrow window that is the
+		// moment the list gives way to the conversation. (The rail's
+		// own auto-select of the first thread does not.)
+		showPane( ctx, 'convo' );
+	} );
 	slot.appendChild( item );
 	return slot;
 }
@@ -727,6 +810,8 @@ function emptyState(
 }
 
 function showPlaceholder( ctx: Ctx ): void {
+	// Nothing to read: a narrow window shows the list (or its empty state).
+	showPane( ctx, 'rail' );
 	ctx.convoEl.replaceChildren(
 		emptyState(
 			'format-chat',
@@ -804,16 +889,29 @@ async function renderConvo(
 	scroll.appendChild( renderMessage( ctx, rootRow, byParent ) );
 
 	ctx.convoEl.replaceChildren(
-		convoHead( rootRow ),
+		convoHead( ctx, rootRow ),
 		scroll,
 		composer( ctx, rootRow ),
 	);
 	scroll.scrollTop = prevScroll;
 }
 
-function convoHead( root: CommentRow ): HTMLElement {
+function convoHead( ctx: Ctx, root: CommentRow ): HTMLElement {
 	const head = document.createElement( 'div' );
 	head.className = `${ NS }__convo-head`;
+
+	// Back to the list. Painted only where the list is not beside the
+	// conversation (the stylesheet's narrow rules); the list is still
+	// there at any width, so the control is honest everywhere.
+	const back = document.createElement( 'os-button' );
+	back.className = `${ NS }__convo-back`;
+	back.setAttribute( 'variant', 'ghost' );
+	back.setAttribute( 'aria-label', __( 'Back to conversations' ) );
+	back.setAttribute( 'title', __( 'Back to conversations' ) );
+	back.appendChild( osIcon( 'chevron-right', { size: 18, rotate: 180 } ) );
+	back.addEventListener( 'click', () => showPane( ctx, 'rail' ) );
+	head.appendChild( back );
+
 	const ctxBox = document.createElement( 'div' );
 	ctxBox.className = `${ NS }__convo-context`;
 	const kicker = document.createElement( 'div' );
@@ -1281,6 +1379,7 @@ export async function renderConversation( body: HTMLElement ): Promise< void > {
 	if ( ! listEl || ! convoEl || ! tabsEl ) {
 		return;
 	}
+	const rootEl = body.querySelector< HTMLElement >( '[data-os-comments-root]' ) ?? body;
 	const searchEl = body.querySelector< HTMLElement >( '[data-os-comments-search]' );
 	const statusEl = body.querySelector< HTMLElement >( '[data-os-comments-status]' );
 
@@ -1291,9 +1390,11 @@ export async function renderConversation( body: HTMLElement ): Promise< void > {
 
 	const ctx: Ctx = {
 		cfg,
+		rootEl,
 		listEl,
 		convoEl,
 		tabsEl,
+		tabSelectEl: null,
 		statusEl,
 		tab: initialFilter > 0 ? 'all' : 'pending',
 		search: '',
@@ -1323,16 +1424,24 @@ export async function renderConversation( body: HTMLElement ): Promise< void > {
 
 	// Tabs — `<os-tabs>` owns aria-selected + roving tabindex; we only
 	// set the initial value (a filtered open starts on All) and listen.
-	setActiveTab( tabsEl, ctx.tab );
-	tabsEl.addEventListener( 'os-tab-change', ( e ) => {
-		const next = ( ( e as CustomEvent< { value: string } > ).detail?.value ||
-			'pending' ) as CommentTab;
+	// The picker beside the strip (for a narrow window) lands here too.
+	const applyTab = ( next: CommentTab ): void => {
 		if ( next === ctx.tab ) {
 			return;
 		}
 		ctx.tab = next;
+		setActiveTab( tabsEl, next );
+		syncTabSelect( ctx );
+		// A new list: a narrow window shows it.
+		showPane( ctx, 'rail' );
 		void loadRail( ctx );
+	};
+	setActiveTab( tabsEl, ctx.tab );
+	tabsEl.addEventListener( 'os-tab-change', ( e ) => {
+		applyTab( ( ( e as CustomEvent< { value: string } > ).detail?.value || 'pending' ) as CommentTab );
 	} );
+	ctx.tabSelectEl = mountTabSelect( tabsEl, applyTab );
+	syncTabSelect( ctx );
 
 	// Search (debounced)
 	let searchTimer: number | null = null;
@@ -1363,6 +1472,7 @@ export async function renderConversation( body: HTMLElement ): Promise< void > {
 		if ( next > 0 ) {
 			ctx.tab = 'all';
 			setActiveTab( tabsEl, 'all' );
+			syncTabSelect( ctx );
 		}
 		void loadRail( ctx ).then( () => ctx.announceIdentity( ctx.postFilter ) );
 	} );

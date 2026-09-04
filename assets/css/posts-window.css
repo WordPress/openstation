@@ -17,6 +17,9 @@
 .desktop-mode-posts {
 	display: flex;
 	flex-direction: column;
+	/* A query container, so the narrow rules at the end of this file
+	   track the WINDOW's width — a phone, or a desktop window pulled in. */
+	container-type: inline-size;
 	height: 100%;
 	width: 100%;
 	background: var( --os-ui-surface, #fff );
@@ -1431,4 +1434,158 @@ os-user-profile > .os-users__edit-layout {
 }
 .os-users__edit-activity {
 	min-width: 0;
+}
+
+/* --- Narrow windows ------------------------------------------------- */
+/*
+ * A phone, or a desktop window pulled in. The toolbar gives the status
+ * control and the search a row each instead of squeezing them beside
+ * the buttons, the insets shrink to what a 360px screen can spare, and
+ * the pager wraps rather than clipping its per-page control. The table
+ * itself is narrowed in the bundle (title and date only on a phone).
+ */
+@container ( max-width: 600px ) {
+	.os-posts__toolbar {
+		gap: 8px;
+		padding: 8px 10px;
+	}
+	.os-posts__toolbar-left {
+		flex: 1 1 100%;
+		flex-wrap: wrap;
+	}
+	.os-posts__toolbar-left > [data-os-posts-status] {
+		flex: 1 1 100%;
+		min-width: 0;
+	}
+	.os-posts__toolbar-left > [data-os-posts-search] {
+		flex: 1 1 160px;
+		min-width: 0;
+	}
+	.os-posts__toolbar-right {
+		flex: 1 1 100%;
+		flex-wrap: wrap;
+	}
+	.os-posts__body {
+		padding: 6px 8px 8px;
+	}
+	.os-posts__pager {
+		flex-wrap: wrap;
+		gap: 8px;
+		padding: 8px 10px;
+	}
+}
+
+/* The same, keyed on the shell's phone mode: the phone experience at
+ * any width (a wide browser previewing it, a phone turned sideways),
+ * which no size query can express. */
+html[data-os-mode="mobile"] .os-posts__toolbar {
+	gap: 8px;
+	padding: 8px 10px;
+}
+html[data-os-mode="mobile"] .os-posts__toolbar-left {
+	flex: 1 1 100%;
+	flex-wrap: wrap;
+}
+html[data-os-mode="mobile"] .os-posts__toolbar-left > [data-os-posts-status] {
+	flex: 1 1 100%;
+	min-width: 0;
+}
+html[data-os-mode="mobile"] .os-posts__toolbar-left > [data-os-posts-search] {
+	flex: 1 1 160px;
+	min-width: 0;
+}
+html[data-os-mode="mobile"] .os-posts__toolbar-right {
+	flex: 1 1 100%;
+	flex-wrap: wrap;
+}
+/* The phone's list is a card per row running edge to edge — see the
+ * bulk-bar block below. */
+html[data-os-mode="mobile"] .os-posts__body {
+	padding: 0;
+}
+html[data-os-mode="mobile"] .os-posts__pager {
+	flex-wrap: wrap;
+	gap: 8px;
+	padding: 8px 10px;
+}
+
+/*
+ * The phone's list is a card per row (`<os-table stacked>`, set by
+ * the bundle through `stack-on-phone.ts`) running edge to edge, and
+ * the selection's actions are a bar along the bottom of the panel —
+ * the bundle moves the toolbar's bulk strip there and marks it. The
+ * bar is a flex sibling of the body, so the cards end where it
+ * begins; it clears the home indicator on an installed app.
+ */
+.os-posts__toolbar-right.os-posts__bulk--footer {
+	flex: 0 0 auto;
+	flex-wrap: wrap;
+	gap: 8px;
+	padding: 10px 12px calc( 10px + env( safe-area-inset-bottom, 0px ) );
+	border-block-start: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
+	background: var( --os-ui-surface-elevated, #f6f7f7 );
+	box-shadow: 0 -6px 18px rgba( 0, 0, 0, 0.06 );
+}
+
+.os-posts__toolbar-right.os-posts__bulk--footer[hidden] {
+	display: none;
+}
+
+.os-posts__toolbar-right.os-posts__bulk--footer .os-posts__count {
+	flex: 1 1 100%;
+}
+
+.os-posts__toolbar-right.os-posts__bulk--footer .os-posts__bulk-actions {
+	display: flex;
+	flex: 1 1 100%;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.os-posts__toolbar-right.os-posts__bulk--footer .os-posts__bulk-actions > * {
+	flex: 1 1 auto;
+}
+
+/*
+ * Categories (the mind map) and Tags (the cloud) keep a 320px editor
+ * beside the stage on a desk. A phone has no beside: the editor
+ * folds UNDER the stage as a sheet — at most half the height, its own
+ * scroll, clearing the home indicator — and only while a term is
+ * focused; while it would only say "select a node" it is not there,
+ * and the stage has the whole screen. The same fold under a narrow
+ * container, for a desk window pulled in.
+ */
+html[data-os-mode="mobile"] .os-mindmap__layout,
+html[data-os-mode="mobile"] .os-tagcloud__layout {
+	flex-direction: column;
+}
+html[data-os-mode="mobile"] .os-mindmap__sidebar,
+html[data-os-mode="mobile"] .os-tagcloud__sidebar {
+	flex: 0 0 auto;
+	max-block-size: 50%;
+	border-inline-start: 0;
+	border-block-start: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
+	padding: 12px 16px calc( 12px + env( safe-area-inset-bottom, 0px ) );
+	box-shadow: 0 -6px 18px rgba( 0, 0, 0, 0.06 );
+}
+html[data-os-mode="mobile"] .os-mindmap__sidebar:has( > .os-mindmap__sidebar-empty ),
+html[data-os-mode="mobile"] .os-tagcloud__sidebar:has( > .os-tagcloud__sidebar-empty ) {
+	display: none;
+}
+@container ( max-width: 640px ) {
+	.os-mindmap__layout,
+	.os-tagcloud__layout {
+		flex-direction: column;
+	}
+	.os-mindmap__sidebar,
+	.os-tagcloud__sidebar {
+		flex: 0 0 auto;
+		max-block-size: 50%;
+		border-inline-start: 0;
+		border-block-start: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
+	}
+	.os-mindmap__sidebar:has( > .os-mindmap__sidebar-empty ),
+	.os-tagcloud__sidebar:has( > .os-tagcloud__sidebar-empty ) {
+		display: none;
+	}
 }
