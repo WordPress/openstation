@@ -107,12 +107,12 @@ function status_badge( $status ) {
 function site_row( array $site, $can_remove ) {
 	$is_member = 'member' === $site['kind'];
 	?>
-	<li class="os-network__site" os-key="<?php echo esc( $site['id'] ); ?>">
+	<li class="os-network__site" os-key="<?php echo esc( $site['id'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- esc() escapes. ?>">
 		<div class="os-network__site-main">
-			<strong class="os-network__site-name"><?php echo esc( $site['name'] ); ?></strong>
-			<span class="os-network__site-url"><?php echo esc( $site['url'] ); ?></span>
+			<strong class="os-network__site-name"><?php echo esc( $site['name'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- esc() escapes. ?></strong>
+			<span class="os-network__site-url"><?php echo esc( $site['url'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- esc() escapes. ?></span>
 			<?php if ( ! empty( $site['error'] ) ) : ?>
-				<span class="os-network__site-error"><?php echo esc( $site['error'] ); ?></span>
+				<span class="os-network__site-error"><?php echo esc( $site['error'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- esc() escapes. ?></span>
 			<?php endif; ?>
 		</div>
 		<div class="os-network__site-side">
@@ -123,6 +123,7 @@ function site_row( array $site, $can_remove ) {
 				echo tag( 'os-badge', array( 'tone' => 'neutral' ), esc( __( 'This network', 'desktop-mode' ) ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Built by tag(); see above.
 			}
 			if ( $is_member && $can_remove ) {
+				// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Built by tag(); see above.
 				echo tag(
 					'os-button',
 					array(
@@ -134,7 +135,7 @@ function site_row( array $site, $can_remove ) {
 						'os-confirm-label' => __( 'Remove', 'desktop-mode' ),
 					),
 					esc( __( 'Remove', 'desktop-mode' ) )
-				); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Built by tag(); see above.
+				);
 			}
 			?>
 		</div>
@@ -156,12 +157,12 @@ function address_form( State $state, $label, $action, $button, $placeholder = 'h
 	<div class="os-network__form">
 		<os-text-field
 			class="os-network__address"
-			label="<?php echo esc( $label ); ?>"
-			placeholder="<?php echo esc( $placeholder ); ?>"
-			value="<?php echo esc( (string) $state->get( 'url' ) ); ?>"
+			label="<?php echo esc( $label ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- esc() escapes. ?>"
+			placeholder="<?php echo esc( $placeholder ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- esc() escapes. ?>"
+			value="<?php echo esc( (string) $state->get( 'url' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- esc() escapes. ?>"
 			os-bind="url"
 		></os-text-field>
-		<os-button variant="primary" os-action="<?php echo esc( $action ); ?>"><?php echo esc( $button ); ?></os-button>
+		<os-button variant="primary" os-action="<?php echo esc( $action ); ?>"><?php echo esc( $button ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- esc() escapes. ?></os-button>
 	</div>
 	<?php
 }
@@ -173,10 +174,10 @@ function address_form( State $state, $label, $action, $button, $placeholder = 'h
  */
 function notices( State $state ) {
 	if ( '' !== (string) $state->get( 'error' ) ) {
-		echo '<os-notice tone="danger" os-action="dismiss">' . esc( (string) $state->get( 'error' ) ) . '</os-notice>';
+		echo '<os-notice tone="danger" os-action="dismiss">' . esc( (string) $state->get( 'error' ) ) . '</os-notice>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- esc() escapes.
 	}
 	if ( '' !== (string) $state->get( 'notice' ) ) {
-		echo '<os-notice tone="success" os-action="dismiss">' . esc( (string) $state->get( 'notice' ) ) . '</os-notice>';
+		echo '<os-notice tone="success" os-action="dismiss">' . esc( (string) $state->get( 'notice' ) ) . '</os-notice>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- esc() escapes.
 	}
 }
 
@@ -196,6 +197,7 @@ function hub_view( State $state, Os $os ) {
 			<h2 class="os-network__title"><?php esc_html_e( 'Sites in this network', 'desktop-mode' ); ?></h2>
 			<p class="os-network__lede">
 				<?php
+				// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- esc() escapes.
 				echo esc(
 					$os->env->is_network()
 						? __( 'The sites of this WordPress network, and the OpenStation installs that joined it from elsewhere. Every one of them shows the same site switcher.', 'desktop-mode' )
@@ -230,7 +232,7 @@ function hub_view( State $state, Os $os ) {
 		<h3 class="os-network__subtitle"><?php esc_html_e( 'Add a site', 'desktop-mode' ); ?></h3>
 		<p class="os-network__lede">
 			<?php esc_html_e( 'An install anywhere, with OpenStation active and reachable over HTTPS. Its key is pinned when it is added; on that site, open Network and enter this address to finish pairing:', 'desktop-mode' ); ?>
-			<code class="os-network__code"><?php echo esc( $identity['url'] ); ?></code>
+			<code class="os-network__code"><?php echo esc( $identity['url'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- esc() escapes. ?></code>
 		</p>
 		<?php address_form( $state, __( 'Site address', 'desktop-mode' ), 'add', __( 'Add site', 'desktop-mode' ) ); ?>
 	</section>
@@ -251,16 +253,16 @@ function member_view( State $state, Os $os ) {
 			<h2 class="os-network__title">
 				<?php
 				/* translators: %s: network name. */
-				echo esc( sprintf( __( 'This site belongs to %s', 'desktop-mode' ), $hub['name'] ) );
+				echo esc( sprintf( __( 'This site belongs to %s', 'desktop-mode' ), $hub['name'] ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- esc() escapes.
 				?>
 			</h2>
 			<p class="os-network__lede">
-				<span class="os-network__site-url"><?php echo esc( $hub['url'] ); ?></span>
+				<span class="os-network__site-url"><?php echo esc( $hub['url'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- esc() escapes. ?></span>
 				<?php if ( $hub['fetched'] > 0 ) : ?>
 					<span class="os-network__meta">
 						<?php
 						/* translators: %s: date and time. */
-						echo esc( sprintf( __( 'Site list synced %s.', 'desktop-mode' ), $os->env->format_datetime( $hub['fetched'] ) ) );
+						echo esc( sprintf( __( 'Site list synced %s.', 'desktop-mode' ), $os->env->format_datetime( $hub['fetched'] ) ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- esc() escapes.
 						?>
 					</span>
 				<?php endif; ?>
@@ -268,7 +270,7 @@ function member_view( State $state, Os $os ) {
 			<?php if ( '' !== $hub['error'] ) : ?>
 				<os-notice tone="warning">
 					<?php
-					echo esc( $hub['error'] );
+					echo esc( $hub['error'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- esc() escapes.
 					echo ' ';
 					esc_html_e( 'Until the network has added this site, the switcher stays as it was.', 'desktop-mode' );
 					?>
@@ -320,7 +322,7 @@ function unpaired_view( State $state, Os $os ) {
 		<h2 class="os-network__title"><?php esc_html_e( 'Join a network', 'desktop-mode' ); ?></h2>
 		<p class="os-network__lede">
 			<?php esc_html_e( 'Enter the address of the OpenStation network this site belongs to. Its administrator adds this site there by this address:', 'desktop-mode' ); ?>
-			<code class="os-network__code"><?php echo esc( $identity['url'] ); ?></code>
+			<code class="os-network__code"><?php echo esc( $identity['url'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- esc() escapes. ?></code>
 		</p>
 		<?php address_form( $state, __( 'Network address', 'desktop-mode' ), 'join', __( 'Join', 'desktop-mode' ) ); ?>
 	</section>
@@ -340,7 +342,7 @@ function unpaired_view( State $state, Os $os ) {
  */
 function render( State $state, Os $os ) {
 	$mode = mode( $os );
-	echo '<div class="os-network os-network--' . esc( $mode ) . '">';
+	echo '<div class="os-network os-network--' . esc( $mode ) . '">'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- esc() escapes.
 	notices( $state );
 	if ( 'hub' === $mode ) {
 		hub_view( $state, $os );
