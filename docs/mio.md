@@ -42,6 +42,7 @@ Off by default. Users switch it on from its **dock tile**, and can hide the tile
   - [A gradient that loops](#a-gradient-that-loops)
   - [The hologram](#the-hologram)
   - [The interior sheen](#the-interior-sheen)
+  - [The inner line](#the-inner-line)
 - [PHP API](#php-api)
 - [JavaScript API](#javascript-api)
 - [Hooks](#hooks)
@@ -272,7 +273,7 @@ Right-click is bound to the **handle**, the only part of the layer that takes po
 | Shape | `shapePreset`, `shapeLobes` (polygon only), `shapeAmount`, `shapeAngle`, `shapeShuffle` |
 | Idle | `idleWobble` (on/off + strength), `idleWobbleSpeed` |
 | Colour | `hueStart`, `hueSpan`, `saturation`, `lightness` |
-| Ring | `outlineWidth`, `glow` |
+| Ring | `outlineWidth`, `linerWidth`, `linerColor`, `glow` |
 | Gradient | `hueAngle`, `hueLoop`, `hueSpin`, `hueDrift` |
 | Hologram | Holographic on/off, `iridescence` |
 | Body | `bodyColor`, `bodyAlpha` |
@@ -287,6 +288,8 @@ Right-click is bound to the **handle**, the only part of the layer that takes po
 The **Corners** slider appears only for `Polygon` (`custom`), the one preset that reads `shapeLobes`. A control that does nothing for ten of the eleven shapes teaches people to ignore it.
 
 **The `Glow` slider only moves the glow.** Reach used to be a multiple of `outlineWidth`, so the two sliders multiplied: thickening the ring inflated the wash eightfold on its way from `0.5` to `24`, and there was no way to ask for a fat ring with a tight glow or a hairline with a wide one. It is a multiple of Mio's own *radius* now, and a function of `glow` alone. The range moved with the meaning — `0–20`, shipping at `10`.
+
+**`Inner line` and `Thickness` do not fight either.** The line reaches inward from the ring's inner edge, so it thickens by eating into the body; `Thickness` keeps meaning the coloured band alone. Dragging it to `0` takes the line away entirely, which is the pre-brand look and a legitimate thing to want — it is just not what the artwork does.
 
 **There is no "soften the glow" toggle.** `glowBlur` stays on. It was briefly a checkbox, on the reasoning that a crisp halo is a different look and a cheaper render — reasoning that belonged to a halo drawn as one flat band, where the blur was decoration. It is not one any more: each glow pass is a [ramp of concentric shells](#and-it-has-to-fall-off), and a flat shell against a flat shell is a hard edge, so unblurred the ramp shows as the handful of contour rings it is built from. Off is not the crisp version of this glow, it is the unfinished one. The key survives in the config for `openstation_mio_config`, which is where a site that needs the two filter passes back for performance can still drop them.
 
@@ -469,13 +472,14 @@ This is a general facility, not Mio-private one: any shell-side feature that nee
 
 ## Rendering the chroma ring
 
-Five passes over one resampled outline, back to front:
+Six passes over one resampled outline, back to front:
 
 1. **halo** — very wide, very faint, additive, optionally blurred. Light spilling onto the wallpaper. A [dilated silhouette ramped to nothing](#a-glow-is-a-dilated-silhouette-not-a-fat-outline), not a wide ring.
 2. **bloom** — medium width, additive, optionally blurred. The bright fringe hugging the tube; the same dilation and the same ramp, shorter and brighter.
 3. **body** — the black fill. Drawn *after* the glow passes on purpose: it masks their inner halves, which is what makes the inside read as black rather than muddy purple.
 4. **sheen** — concentric shells of faint additive colour over that fill. The [interior sheen](#the-interior-sheen).
-5. **core** — a thin near-white band. The over-exposed centre of the tube.
+5. **liner** — a flat white band hugging the body just inside the ring. The [inner line](#the-inner-line).
+6. **core** — a thin near-white band. The over-exposed centre of the tube.
 
 ### The ribbon
 
@@ -593,7 +597,7 @@ Two numbers reproduce four stops, because the brand's own ramp is near-linear in
 
 **`lightness` is the ring's brightest point, not its average.** `chromaRing` rides a cosine hump from `0.72×` to `1×` over it, so the value that makes the lit side reach Miomesh's brightest stop (`#A580FF`, `0.751`) is `0.75`.
 
-And the two flat colours are named palette colours, not the obvious approximations: the eyes are **Starlight** `#fffbff`, which is what the brand's mascot fills its two eye pills with, and the body is **Void** `#0c0b0f`. The brand's Mio is `fill="none"` — a stroked outline over the Void page — which the shell cannot copy, because Mio floats over whatever wallpaper the user picked and a transparent body would show it through. So it is filled with the colour that background is. Neither `#000000` nor `#ffffff` is in the palette.
+And the three flat colours are named palette colours, not the obvious approximations: the eyes and the [inner line](#the-inner-line) are **Starlight** `#fffbff`, which is what the brand's mascot fills its two eye pills with, and the body is **Void** `#0c0b0f`. The brand's Mio is `fill="none"` — a stroked outline over the Void page — which the shell cannot copy, because Mio floats over whatever wallpaper the user picked and a transparent body would show it through. So it is filled with the colour that background is. Neither `#000000` nor `#ffffff` is in the palette.
 
 > **This drifted once, and the way it drifted is the reason it now has a test.** The endpoints were `#EF42E8 → #5E8BFF`, neither of them a brand colour: the ring overshot Pulse by 6° into a hotter magenta and ran 21° past `#4B3EFF` into a blue nothing in the palette reaches. Every colour *inside* Miomesh was still present, so anything that asked "is there magenta and blue in it" passed the whole time. `hueAngle` had Pulse on the lower right, so the gradient ran backwards. `lightness` was being read as an average, so the ring rendered `0.475`–`0.661` against Miomesh's `0.622`–`0.751` — all of it darker than the darkest stop of the gradient it was reproducing.
 >
@@ -650,6 +654,22 @@ They are **additive**, so the sheen can only ever lift the interior toward colou
 
 The sheen's rake is the ring's turned a quarter turn, and its hue ramp runs at a different rate — an inside that simply repeated the edge would read as a blurred copy of it rather than as a second surface catching the same light. It scales with `appearance.iridescence`, so `0` restores a flat black body and drops the blur pass entirely.
 
+### The inner line
+
+Between the black body and the chroma there is a crisp white line, and it is not decoration: it is what makes the ring read as a **lit tube seen edge-on** rather than as a coloured edge drawn around a shape. The artwork has always had one. The renderer did not, and everything about the ring measured correct the whole time it was missing — the hues, the endpoints, the falloff — because nothing measures the thing that is not there.
+
+It is `appearance.linerWidth` (px, `0` draws none) in `appearance.linerColor`, which ships as [Starlight](#mio-wears-the-brand), the same white as the eyes. **The pair splits the artwork's own stroke.** Miomesh's Mio is drawn with a 13-unit ring on a body of roughly 240 — 5.4%, which on the shipped radius is 6px — and that 6 is the *whole* ring, chroma and line together. So they ship two to one: `outlineWidth` `4`, `linerWidth` `2`. The line is not a hairline hint that the ring is lit; it is a third of what the ring is.
+
+**It reaches inward.** The band runs from `-outlineWidth / 2` — the ring's own inner edge — further in, so thickening it eats into the body rather than widening the ring. That is what keeps `outlineWidth` meaning the coloured band and nothing else, the same separation the [`Glow` slider](#what-it-can-change-and-what-it-cant) was given: two sliders that multiply are two sliders that cannot be aimed.
+
+Its outer boundary is computed exactly as the `core` band computes its *inner* one, so the two share their edge coordinates bit for bit and tile with neither seam nor overlap — the [anti-beading invariant](#bands-not-strokes) applied between two passes rather than between two cells. `mio-render.test.ts` asserts that equality directly, control points included.
+
+**Flat, and drawn over the sheen.** One colour all the way round: the hue sweep and the glint belong to the tube, and a line that picked up either would read as a second, dimmer ring. It sits above the [interior sheen](#the-interior-sheen) in the stack for the same reason — an additive shell across it would tint it.
+
+Like `core` it keeps the normal offset, because a line has to be an even width and [a dilation's is not](#a-glow-is-a-dilated-silhouette-not-a-fat-outline) — and so it inherits the same limit, folding once the reach passes the local radius of curvature. The two spend that budget from opposite halves of the outline, which is why `linerWidth` stops at half of what `outlineWidth` allows.
+
+Portraits draw it too, by the only means SVG offers: a stroke is centred on its path and cannot be offset to one side, so the line is stroked at the full width it would need if it reached both ways and a `clipPath` throws the outer half away. The chroma stroke painted over it covers the inner reach, and what is left is the same band the live renderer fills.
+
 ### The face
 
 Eyes are [Starlight](#mio-wears-the-brand) pills that inherit a fraction of the body's squash, offset toward the pointer with a saturating response (clamped inside the face), and blink on a randomised 2.6–7.1 s schedule.
@@ -672,7 +692,8 @@ which is exactly what a face picker needs.
 
 A **portrait** is a Mio at rest, as an SVG string: the rest shape
 sampled into a path, stroked with the chroma ramp as a single linear
-gradient, plus two eye pills. No simulation, no PixiJS, no DOM.
+gradient over a clipped white [inner line](#the-inner-line), plus two
+eye pills. No simulation, no PixiJS, no DOM.
 
 It exists twice on purpose.
 
@@ -777,7 +798,9 @@ add_filter( 'openstation_mio_config', function ( $config ) {
 | `saturation` | `1` | 0–1 | Ring saturation. Miomesh runs `0.966`–`1`; Pulse is the only stop under full. |
 | `lightness` | `0.75` | 0.15–1 | Ring lightness at its **brightest** point — `chromaRing` rides a cosine hump from `0.72×` to `1×` over it. Miomesh's brightest stop, `#A580FF`, is `0.751`. |
 | `iridescence` | `0` | 0–2 | Strength of the [holographic response](#the-hologram) and of the [interior sheen](#the-interior-sheen). `0` — the official Mio has neither. Above `1` is deliberately over-driven. |
-| `outlineWidth` | `3` | 0.5–24 | Crisp core band width. Independent of the glow — a thin core inside a wide glow is the whole look, and it used to be unreachable because the glow scaled off this. |
+| `outlineWidth` | `4` | 0.5–24 | Crisp core band width. Independent of the glow — a thin core inside a wide glow is the whole look, and it used to be unreachable because the glow scaled off this. With `linerWidth` it makes up the artwork's 6px ring. |
+| `linerWidth` | `2` | 0–12 | Width of the [inner line](#the-inner-line), the white band between the body and the chroma. Half the chroma band, which is [how the artwork splits its stroke](#the-inner-line). It reaches *inward*, so this eats into the body rather than widening the ring. `0` draws none. |
+| `linerColor` | `#fffbff` | colour | Inner line fill. **Starlight** — the same white as the eyes; see [Mio wears the brand](#mio-wears-the-brand). |
 | `glow` | `10` | 0–20 | How far the light carries past the outline, as a multiple of Mio's own radius ÷ 6ish. `0` disables both glow passes. See [the falloff](#and-it-has-to-fall-off). |
 | `glowBlur` | `true` | bool | Run a `BlurFilter` over both glow passes. No UI switches it off — the shells are what the ramp is built from and unblurred they read as contour rings. Here for sites that need the two filter passes back. |
 | `eyeColor` | `#fffbff` | colour | Eye fill. **Starlight** — see [Mio wears the brand](#mio-wears-the-brand). |

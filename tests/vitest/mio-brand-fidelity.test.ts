@@ -161,6 +161,19 @@ describe( 'Mio wears the brand', () => {
 		// over Void.
 		expect( MIO_DEFAULTS.appearance.bodyColor ).toBe( VOID );
 		expect( MIO_DEFAULTS.appearance.eyeColor ).toBe( STARLIGHT );
+		// The inner line is the third, and it is the same white as the
+		// eyes: the brand has one, and a line drawn a shade off it
+		// would read as a rendering fault rather than as a choice.
+		expect( MIO_DEFAULTS.appearance.linerColor ).toBe( STARLIGHT );
+	} );
+
+	test( 'and the inner line the artwork draws is really there', () => {
+		// The drawn Mio is a white line with the chroma outside it, not
+		// a coloured edge against black. Shipping without the line was
+		// the drift this pins: everything about the ring measured
+		// correct while the thing that makes it read as a lit tube was
+		// simply absent.
+		expect( MIO_DEFAULTS.appearance.linerWidth ).toBeGreaterThan( 0 );
 	} );
 
 	test( 'the shipped look really is the flat gradient, not the hologram', () => {

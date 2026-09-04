@@ -373,19 +373,23 @@ function openstation_mio_portrait_svg( $look = array(), $size = 96, $id_suffix =
 	// The shipped defaults write colours as CSS hex strings because
 	// that is what reads well in a config array; a clamped look carries
 	// them as ints. Normalise so this draws the same either way.
-	$appearance['bodyColor'] = openstation_mio_color_int( $appearance['bodyColor'] );
-	$appearance['eyeColor']  = openstation_mio_color_int( $appearance['eyeColor'] );
+	$appearance['bodyColor']  = openstation_mio_color_int( $appearance['bodyColor'] );
+	$appearance['eyeColor']   = openstation_mio_color_int( $appearance['eyeColor'] );
+	$appearance['linerColor'] = openstation_mio_color_int( $appearance['linerColor'] );
 
 	// Only [A-Za-z0-9_-] survives, so a caller cannot close the
 	// attribute and write markup through this parameter.
 	$uid      = preg_replace( '/[^A-Za-z0-9_-]/', '', (string) $id_suffix );
 	$ring_id  = 'r' . $uid;
 	$shape_id = 's' . $uid;
+	$clip_id  = 'c' . $uid;
 
 	// Work on a canonical 100-unit radius and let the viewBox scale it,
 	// so the same path serves a 24px avatar and a 176px hero.
 	$radius = 100.0;
-	$stroke = $appearance['outlineWidth'] * ( $radius / $defaults['appearance']['radius'] );
+	$scale  = $radius / $defaults['appearance']['radius'];
+	$stroke = $appearance['outlineWidth'] * $scale;
+	$liner  = $appearance['linerWidth'] * $scale;
 	$reach  = ( $appearance['glow'] / 10.0 ) * $radius * 0.18;
 	$shells = openstation_mio_portrait_glow_shells();
 	$half   = $radius * openstation_mio_portrait_extent( $physics )
@@ -428,14 +432,34 @@ function openstation_mio_portrait_svg( $look = array(), $size = 96, $id_suffix =
 			. ' fill="' . openstation_mio_portrait_hex( $appearance['eyeColor'] ) . '"/>';
 	};
 
+	// The inner line, clipped to the body.
+	//
+	// SVG strokes are centred on their path and cannot be offset to one
+	// side, so the line is drawn at the full width it would need if it
+	// reached both ways — `stroke + liner * 2` — and the clip throws
+	// the outer half away. What is left runs from the outline inward,
+	// and the chroma stroke below is painted over its inner reach, so
+	// the visible white is exactly the band between the two. That is
+	// the same geometry `fillLiner()` produces in the live renderer, by
+	// the only means SVG offers.
+	$line = '';
+	if ( $liner > 0 ) {
+		$line = '<use href="#' . $shape_id . '" fill="none"'
+			. ' stroke="' . openstation_mio_portrait_hex( $appearance['linerColor'] ) . '"'
+			. ' stroke-width="' . openstation_mio_portrait_fix( $stroke + $liner * 2.0 ) . '"'
+			. ' stroke-linejoin="round" clip-path="url(#' . $clip_id . ')"/>';
+	}
+
 	return '<svg xmlns="http://www.w3.org/2000/svg" width="' . (int) $size . '" height="' . (int) $size . '"'
 		. ' viewBox="-' . $box . ' -' . $box . ' ' . $span . ' ' . $span . '">'
 		. '<defs><linearGradient id="' . $ring_id . '" x1="0" y1="0" x2="0.85" y2="1">' . $stops . '</linearGradient>'
-		. '<path id="' . $shape_id . '" d="' . $d . '"/></defs>'
+		. '<path id="' . $shape_id . '" d="' . $d . '"/>'
+		. '<clipPath id="' . $clip_id . '"><use href="#' . $shape_id . '"/></clipPath></defs>'
 		. $glow
 		. '<use href="#' . $shape_id . '" fill="' . openstation_mio_portrait_hex( $appearance['bodyColor'] ) . '"'
-		. ' fill-opacity="' . openstation_mio_portrait_fix( $appearance['bodyAlpha'] ) . '"'
-		. ' stroke="url(#' . $ring_id . ')"'
+		. ' fill-opacity="' . openstation_mio_portrait_fix( $appearance['bodyAlpha'] ) . '"/>'
+		. $line
+		. '<use href="#' . $shape_id . '" fill="none" stroke="url(#' . $ring_id . ')"'
 		. ' stroke-width="' . openstation_mio_portrait_fix( $stroke ) . '" stroke-linejoin="round"/>'
 		. $eye( -$eye_gap )
 		. $eye( $eye_gap )

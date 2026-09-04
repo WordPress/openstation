@@ -146,7 +146,7 @@ function slider(
 }
 
 function colour(
-	key: 'bodyColor' | 'eyeColor',
+	key: 'bodyColor' | 'eyeColor' | 'linerColor',
 	label: string,
 	appearance: MioAppearance,
 	onChange: ( partial: Partial< MioAppearance > ) => void,
@@ -482,6 +482,22 @@ function openMioStylePanelImmediate(): void {
 					current,
 					set,
 				),
+				// The white line between the body and the chroma. It
+				// reaches inward, so this thickens the line by eating
+				// into the body rather than by widening the ring —
+				// "Thickness" above keeps meaning the coloured band.
+				slider(
+					{
+						key: 'linerWidth',
+						label: __( 'Inner line' ),
+						min: 0,
+						max: 12,
+						step: 0.5,
+					},
+					current,
+					set,
+				),
+				colour( 'linerColor', __( 'Inner line colour' ), appearance, set ),
 				slider(
 					{
 						key: 'glow',

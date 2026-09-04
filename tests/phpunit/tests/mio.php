@@ -58,6 +58,8 @@ class Tests_OpenStation_Mio extends WP_UnitTestCase {
 			'lightness',
 			'iridescence',
 			'outlineWidth',
+			'linerWidth',
+			'linerColor',
 			'glow',
 			'glowBlur',
 			'eyeColor',

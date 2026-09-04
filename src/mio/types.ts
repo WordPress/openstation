@@ -92,6 +92,18 @@ export interface MioAppearance {
 	/** Width of the crisp core stroke, in CSS pixels. */
 	outlineWidth: number;
 	/**
+	 * Width of the inner line, in CSS pixels. `0` draws none.
+	 *
+	 * The crisp white line between the black body and the chroma ring —
+	 * the artwork's own, and the thing that makes the ring read as a
+	 * lit tube rather than as a coloured edge. It sits *inside* the
+	 * outline, so it eats into the body rather than widening the ring:
+	 * the chroma band stays {@link outlineWidth} whatever this says.
+	 */
+	linerWidth: number;
+	/** Inner line colour (24-bit RGB int). Starlight by design. */
+	linerColor: number;
+	/**
 	 * Glow spread multiplier. `1` is the reference bloom; `0`
 	 * disables the halo passes entirely (cheapest render).
 	 */

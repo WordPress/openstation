@@ -97,7 +97,11 @@ class Tests_OpenStation_MioPortrait extends WP_UnitTestCase {
 		$svg = openstation_mio_portrait_svg( array(), 96, 'x' );
 
 		preg_match_all( '/<\/?([A-Za-z][\w:-]*)/', $svg, $m );
-		$allowed = array( 'svg', 'defs', 'linearGradient', 'stop', 'path', 'use', 'rect' );
+		// `clipPath` is the inner line: an SVG stroke is centred on its
+		// path and cannot be offset to one side, so the line is drawn
+		// at twice the width it needs and the outer half is clipped
+		// away.
+		$allowed = array( 'svg', 'defs', 'linearGradient', 'stop', 'path', 'use', 'rect', 'clipPath' );
 		foreach ( array_unique( $m[1] ) as $tag ) {
 			$this->assertContains( $tag, $allowed, "Unexpected <{$tag}> in a portrait." );
 		}

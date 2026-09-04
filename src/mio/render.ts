@@ -77,6 +77,9 @@
  *      fill, so the interior catches the hologram the way a
  *      holographic film over dark card does: emphatically black, with
  *      just enough colour in it to say the surface is not painted.
+ *   3c. `liner` — the crisp inner line, a flat white band hugging the
+ *      body just inside the ring. The artwork's own, and what makes
+ *      the ring read as a lit tube rather than as a coloured edge.
  *   4. `core`  — a thin, near-white stroke. The over-exposed centre
  *      of the tube, pushed hardest to white wherever the hologram's
  *      glint is sitting this frame.
@@ -168,6 +171,7 @@ export interface MioLayers {
 	bloom: Graphics;
 	body: Graphics;
 	sheen: Graphics;
+	liner: Graphics;
 	core: Graphics;
 	eyes: Graphics;
 }
@@ -487,6 +491,62 @@ export function fillBand(
 		( s ) => offset( s, outer ),
 		( s ) => offset( s, -inner ),
 		alpha,
+		stride,
+	);
+}
+
+/**
+ * Draw the inner line: the crisp white band between body and ring.
+ *
+ * **It reaches inward, and that is the whole design.** The drawn Mio
+ * wears a white line *inside* its chroma, so the ring reads as a lit
+ * tube seen edge-on rather than as a coloured outline. Growing the ring
+ * outward instead would move the silhouette every time the line was
+ * thickened; reaching inward leaves `outlineWidth` meaning exactly what
+ * it meant before, and costs a couple of pixels of body — which is what
+ * the artwork spends too.
+ *
+ * Its outer boundary is `-outlineWidth / 2`, computed the same way the
+ * `core` band computes its *inner* boundary, so the two share their
+ * edge coordinates bit for bit and tile with neither seam nor overlap.
+ * That is the same invariant that makes one band continuous, applied
+ * between two passes.
+ *
+ * Flat, not ramped: the line is one colour all the way round. The hue
+ * sweep and the glint belong to the tube, and a white line that picked
+ * up either would read as a second, dimmer ring.
+ *
+ * **It keeps the normal offset, and inherits its limit.** Like `core`,
+ * this is a band of even width, which a dilation cannot give — so like
+ * `core` it folds once the reach passes the local radius of curvature.
+ * The two spend the same budget from opposite halves of the outline,
+ * which is why `linerWidth` stops at half of what `outlineWidth` allows.
+ *
+ * @param g       Target graphics, already cleared.
+ * @param samples Ribbon samples.
+ * @param color   Flat fill colour.
+ * @param width   Line width, in px. `0` draws nothing.
+ * @param outline The ring's own width; the line starts at half of it.
+ * @param stride  Samples spanned per cell.
+ */
+export function fillLiner(
+	g: Graphics,
+	samples: readonly RibbonSample[],
+	color: number,
+	width: number,
+	outline: number,
+	stride: number = 2,
+): void {
+	if ( width <= 0 ) {
+		return;
+	}
+	fillBand(
+		g,
+		samples,
+		[ color ],
+		-outline * 0.5,
+		outline * 0.5 + width,
+		1,
 		stride,
 	);
 }
@@ -912,7 +972,7 @@ function clamp( v: number, lo: number, hi: number ): number {
 /**
  * Draw one frame into the supplied layers.
  *
- * Cheap enough to run every tick: six `Graphics.clear()` calls plus
+ * Cheap enough to run every tick: seven `Graphics.clear()` calls plus
  * one curved cell per pair of ribbon samples per band.
  */
 export function drawMio(
@@ -1033,6 +1093,20 @@ export function drawMio(
 			cells( 8 ),
 		);
 	}
+
+	// 3c — the inner line, over the sheen so nothing tints it. Flat
+	// white, reaching inward from the ring's inner edge: the artwork
+	// draws one, and it is what separates the black body from the
+	// chroma instead of letting the two meet.
+	layers.liner.clear();
+	fillLiner(
+		layers.liner,
+		samples,
+		appearance.linerColor,
+		appearance.linerWidth,
+		w,
+		fine,
+	);
 
 	// 4 — the crisp, over-exposed core of the tube. The hologram's
 	// glint decides how far each patch is pushed toward white, so the

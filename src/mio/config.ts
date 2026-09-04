@@ -114,9 +114,27 @@ export const MIO_DEFAULTS: MioConfig = {
 		 * whole site.
 		 */
 		iridescence: 0,
-		// The artwork strokes its ring at 13 units on a body of roughly
-		// 240 — 5.4%, which at this radius is 3px.
-		outlineWidth: 3,
+		/*
+		 * The artwork strokes its ring at 13 units on a body of roughly
+		 * 240 — 5.4%, which on this radius is 6px. That 6 is the WHOLE
+		 * drawn ring, chroma and white line together, and it splits
+		 * two to one.
+		 */
+		outlineWidth: 4,
+		/*
+		 * The white line the artwork draws between the body and the
+		 * chroma — see "The inner line" in `docs/mio.md`. Half the
+		 * chroma band beside it; the two together are the 6px the
+		 * artwork's stroke comes to.
+		 *
+		 * It reaches inward, so this is the one of the pair that costs
+		 * body rather than ring: the chroma stays 4px whatever this
+		 * says.
+		 */
+		linerWidth: 2,
+		// Starlight again: the brand's white is one colour, and the
+		// line and the eyes are both drawn in it.
+		linerColor: 0xfffbff,
 		// Reach of the light, as a multiple of Mio's own radius (see
 		// `GLOW_REACH` in `render.ts`): `10` carries the wash about one
 		// and a half radii past the outline.
@@ -205,6 +223,12 @@ const LIMITS = {
 	lightness: [ 0.15, 1 ],
 	iridescence: [ 0, 2 ],
 	outlineWidth: [ 0.5, 24 ],
+	// Lower than `outlineWidth`'s, because this one reaches *inward*
+	// and a band offset along its own normals folds once it passes the
+	// local radius of curvature. The core already spends half the
+	// outline width on that budget; twelve is what is left before a
+	// notched silhouette starts crossing itself on the inside.
+	linerWidth: [ 0, 12 ],
 	// Reach is a multiple of Mio's radius now, not of the outline
 	// width, so the ceiling had to move: the old `3` used to mean
 	// "three times a stroke that could itself be 24 px", and on its own
@@ -358,6 +382,12 @@ export function sanitizeMioConfig(
 			base.appearance.outlineWidth,
 			LIMITS.outlineWidth,
 		),
+		linerWidth: num(
+			a.linerWidth,
+			base.appearance.linerWidth,
+			LIMITS.linerWidth,
+		),
+		linerColor: color( a.linerColor, base.appearance.linerColor ),
 		glow: num( a.glow, base.appearance.glow, LIMITS.glow ),
 		glowBlur: bool( a.glowBlur, base.appearance.glowBlur ),
 		eyeColor: color( a.eyeColor, base.appearance.eyeColor ),

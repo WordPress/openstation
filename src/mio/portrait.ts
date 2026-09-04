@@ -201,7 +201,9 @@ export function mioPortraitSvg(
 	// Work on a canonical 100-unit radius and let the viewBox scale it,
 	// so the same path serves a 24px avatar and a 176px hero.
 	const radius = 100;
-	const stroke = a.outlineWidth * ( radius / MIO_DEFAULTS.appearance.radius );
+	const scale = radius / MIO_DEFAULTS.appearance.radius;
+	const stroke = a.outlineWidth * scale;
+	const liner = a.linerWidth * scale;
 	// `glow` is a multiple of the radius, and the outermost shell is
 	// drawn at the full reach either side of the outline.
 	const reach = ( a.glow / 10 ) * radius * 0.18;
@@ -222,6 +224,7 @@ export function mioPortraitSvg(
 	const uid = String( idSuffix ).replace( /[^A-Za-z0-9_-]/g, '' );
 	const ringId = `r${ uid }`;
 	const shapeId = `s${ uid }`;
+	const clipId = `c${ uid }`;
 
 	const stops = ring
 		.map( ( rgb, i ) => {
@@ -252,14 +255,34 @@ export function mioPortraitSvg(
 		` width="${ fix( eyeW ) }" height="${ fix( eyeH ) }"` +
 		` rx="${ fix( eyeW / 2 ) }" fill="${ hex( a.eyeColor ) }"/>`;
 
+	// The inner line, clipped to the body.
+	//
+	// SVG strokes are centred on their path and cannot be offset to one
+	// side, so the line is drawn at the full width it would need if it
+	// reached both ways — `stroke + liner * 2` — and the clip throws
+	// the outer half away. What is left runs from the outline inward,
+	// and the chroma stroke below is painted over its inner reach, so
+	// the visible white is exactly the band between the two. That is
+	// the same geometry `fillLiner` produces in the live renderer, by
+	// the only means SVG offers.
+	const line =
+		liner > 0
+			? `<use href="#${ shapeId }" fill="none" stroke="${ hex( a.linerColor ) }"` +
+				` stroke-width="${ fix( stroke + liner * 2 ) }"` +
+				` stroke-linejoin="round" clip-path="url(#${ clipId })"/>`
+			: '';
+
 	return (
 		`<svg xmlns="http://www.w3.org/2000/svg" width="${ size }" height="${ size }"` +
 		` viewBox="-${ box } -${ box } ${ span } ${ span }">` +
 		`<defs><linearGradient id="${ ringId }" x1="0" y1="0" x2="0.85" y2="1">${ stops }</linearGradient>` +
-		`<path id="${ shapeId }" d="${ d }"/></defs>` +
+		`<path id="${ shapeId }" d="${ d }"/>` +
+		`<clipPath id="${ clipId }"><use href="#${ shapeId }"/></clipPath></defs>` +
 		glow +
 		`<use href="#${ shapeId }" fill="${ hex( a.bodyColor ) }"` +
-		` fill-opacity="${ fix( a.bodyAlpha ) }" stroke="url(#${ ringId })"` +
+		` fill-opacity="${ fix( a.bodyAlpha ) }"/>` +
+		line +
+		`<use href="#${ shapeId }" fill="none" stroke="url(#${ ringId })"` +
 		` stroke-width="${ fix( stroke ) }" stroke-linejoin="round"/>` +
 		eye( -eyeGap ) +
 		eye( eyeGap ) +
