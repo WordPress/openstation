@@ -84,6 +84,7 @@ export function mockViewContext< S extends Record< string, unknown >, D >(
 		},
 		extra: {},
 		windowId: 'test-window',
+		loading: false,
 		...seed,
 	};
 }

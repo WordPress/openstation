@@ -285,6 +285,7 @@ export interface BuildPublicApiDeps {
 		},
 	) => boolean;
 	loadWindowScriptById: ( id: string ) => Promise< boolean >;
+	prewarmWindowById: ( id: string ) => Promise< boolean >;
 	placeSystemTile: ( item: SystemDockItem ) => void;
 	setDefaultWindow: ( url: string | null ) => Promise< void >;
 	refreshMenu: () => Promise< void >;
@@ -324,6 +325,7 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 		openWindowById,
 		openNewWindowById,
 		loadWindowScriptById,
+		prewarmWindowById,
 		placeSystemTile,
 		setDefaultWindow,
 		refreshMenu,
@@ -389,6 +391,7 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 		openWindow: openWindowById,
 		openNewWindow: openNewWindowById,
 		loadWindowScript: loadWindowScriptById,
+		prewarmWindow: prewarmWindowById,
 		// No dep injection — the loader reads its URL off the boot
 		// config and owns its own single-flight state, so the facade
 		// hands the function through untouched.

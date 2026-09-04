@@ -81,6 +81,11 @@ function announcePostIdentity( ctx: Ctx, postId: number, title?: string ): void 
 }
 
 export default defineApp< AppState, AppData >( APP_ID, {
+	// The frame paints the moment the window opens — the tabs (bare, no
+	// counts yet), the search, ghost rows in the rail — and the
+	// conversations land with `mount`.
+	placeholder: () => ( {} ),
+
 	view: ( ctx ) => {
 		const { state, data } = ctx;
 		const ui = ctx.ui( freshUi );

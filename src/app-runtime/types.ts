@@ -143,7 +143,7 @@ export interface RuntimeHost {
 	fetch: (
 		input: string,
 		init?: RequestInit,
-		opts?: { windowId?: string; source?: string },
+		opts?: { windowId?: string; source?: string; silent?: boolean },
 	) => Promise< Response >;
 	confirm?: ( options: ConfirmSpec & { confirmLabel?: string } ) => Promise< boolean >;
 	/** A toast; `duration` in ms overrides the shell's default dwell. */

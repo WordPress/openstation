@@ -974,6 +974,14 @@ export interface NativeWindowSync {
 	 * API there?" check is the honest test of whether it worked.
 	 */
 	loadScriptById: ( id: string ) => Promise< boolean >;
+	/**
+	 * Hover-intent prewarm of a closed app window: bring its bundles
+	 * into the tab and send its first `mount` ahead of the open, so the
+	 * click paints the rows instead of requesting them. `false` for an
+	 * unknown id, an open window, a window that is not an App Framework
+	 * app, or one already warm.
+	 */
+	prewarmById: ( id: string ) => Promise< boolean >;
 }
 
 /**
@@ -1391,6 +1399,78 @@ export function createNativeWindowSync(
 	};
 
 	/**
+	 * Warm the cache for every deferred window once the shell is idle.
+	 *
+	 * Deferring a bundle to the first open (above) is right for the
+	 * page's weight — nothing parses or runs for a window never
+	 * opened — but it put the whole download on the click: the first
+	 * Posts open waited on the runtime, the app's bundle and its
+	 * sheet before its `mount` request could even start. A
+	 * `<link rel="prefetch">` per asset, appended after the sync has
+	 * settled and the browser is idle, fetches them at the lowest
+	 * priority into the HTTP cache without executing anything, so
+	 * the `<script>` the open appends is served from cache. Same
+	 * hint the shell emits for its own lazy bundles in `<head>`.
+	 *
+	 * Skipped under Save-Data and on a 2G link — a phone on a metered
+	 * connection did not ask for a megabyte of windows it may never
+	 * open — and never for a window already in the tab (a
+	 * `preload_script` one, or one opened before the idle callback
+	 * ran). One hint per URL for the page, however many windows
+	 * share a bundle or how many syncs arrive.
+	 */
+	const prefetchedUrls = new Set< string >();
+	const prefetchAsset = ( href: string | undefined, as: 'script' | 'style' ): void => {
+		if ( ! href || prefetchedUrls.has( href ) || loadedScripts.has( href ) || loadedStyles.has( href ) ) {
+			return;
+		}
+		prefetchedUrls.add( href );
+		const link = document.createElement( 'link' );
+		link.rel = 'prefetch';
+		link.as = as;
+		link.href = href;
+		document.head.appendChild( link );
+	};
+
+	const prefetchDeferredBundles = (): void => {
+		const connection = (
+			navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }
+		).connection;
+		if ( connection?.saveData || /2g$/.test( connection?.effectiveType ?? '' ) ) {
+			return;
+		}
+		for ( const entry of entriesById.values() ) {
+			if ( entry.preloadScript ) {
+				continue;
+			}
+			for ( const companion of entry.companionScripts ?? [] ) {
+				prefetchAsset( companion.scriptUrl, 'script' );
+			}
+			prefetchAsset( entry.scriptUrl, 'script' );
+			for ( const companion of entry.companionStyles ?? [] ) {
+				prefetchAsset( companion.styleUrl, 'style' );
+			}
+		}
+	};
+
+	let prefetchScheduled = false;
+	const schedulePrefetch = (): void => {
+		if ( prefetchScheduled ) {
+			return;
+		}
+		prefetchScheduled = true;
+		const run = (): void => {
+			prefetchScheduled = false;
+			prefetchDeferredBundles();
+		};
+		if ( typeof window.requestIdleCallback === 'function' ) {
+			window.requestIdleCallback( run, { timeout: 4000 } );
+		} else {
+			window.setTimeout( run, 1500 );
+		}
+	};
+
+	/**
 	 * Build the render callback the window manager will invoke once
 	 * the window element is in the DOM.
 	 *
@@ -1593,6 +1673,9 @@ export function createNativeWindowSync(
 				await registerTile( entry );
 			}
 		}
+
+		// Every tile is up; the bundles behind them can start arriving.
+		schedulePrefetch();
 	};
 
 	const openById = (
@@ -1797,7 +1880,28 @@ export function createNativeWindowSync(
 		return true;
 	};
 
-	return { sync, openById, openNewById, loadScriptById };
+	/**
+	 * The dock's hover intent for a native window: the bundles first
+	 * (a repeat call resolves on the settled load), then the runtime's
+	 * own prewarm, which sends the app's first `mount` and holds the
+	 * answer for the open. A window that is already open has nothing
+	 * to warm, and a native window that is not an app (no runtime
+	 * `prewarm` to call, or a config the runtime does not own) gets
+	 * its bundles into the tab and no more.
+	 */
+	const prewarmById = async ( id: string ): Promise< boolean > => {
+		const entry = entriesById.get( id );
+		if ( ! entry || manager.getById( id ) ) {
+			return false;
+		}
+		await ensureScript( entry );
+		const apps = (
+			window as unknown as { wp?: { os?: { apps?: { prewarm?: ( appId: string ) => boolean } } } }
+		).wp?.os?.apps;
+		return apps?.prewarm?.( id ) === true;
+	};
+
+	return { sync, openById, openNewById, loadScriptById, prewarmById };
 }
 
 export function cloneTemplate(

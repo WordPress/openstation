@@ -27,6 +27,7 @@ The six native list windows are now `.os.php` apps under `apps/` — `apps/posts
 
 ## Unchanged
 
+- The open. A window paints its frame the moment it opens — the client view's `placeholder` ([app-framework.md](./app-framework.md#the-client-view--osts)), with the table's skeleton or the rail's ghost rows until `mount` lands the page — and the shell prefetches every app bundle and sheet in idle time after boot, so a first open waits on neither the download nor the shell's overlay. With "Prewarm windows on hover" on, a hover over the tile sends the window's first `mount` ahead of the click (`wp.os.prewarmWindow()`), and the rows are there when it opens.
 - The gates: `openstation_{posts,pages,users,plugins,comments}_window_user_can_register` / `_user_can_use`, `openstation_user_edit_window_user_can_register`, `openstation_users_window_assignable_roles`.
 - The query-args filters: `openstation_{posts,pages,users,comments}_window_query_args`, `openstation_pages_window_template_labels` — the same `_fields` / `_embed` / `post_type` reach the same Core REST controllers, in-process, so every `register_rest_field()`, the `rest_post_query` tags-AND filter and the `openstation_*` fields land on the rows exactly as before.
 - Every REST route under `/desktop-mode/v1`: `/term-counts`, `/tag-cooccurrence`, `/users*`, `/users/{id}/*`, `/comments/*` — see [`includes/rest/README.md`](../includes/rest/README.md) for the new handler files. The app actions share one PHP function per operation with them.

@@ -77,7 +77,8 @@ export interface AppData {
 	railKey?: string;
 	/** `null`: nothing selected or the read failed; absent: unchanged. */
 	thread?: Thread | null;
-	counts: CommentCounts;
+	/** Absent only while the app paints its placeholder: the tabs stay bare. */
+	counts?: CommentCounts;
 }
 
 /** `App::config()` — static facts shipped once with the window. */

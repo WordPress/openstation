@@ -40,6 +40,7 @@ import {
 	sprintf,
 	statusControl,
 } from './client';
+import { startPrewarm } from './prewarm';
 import { createSession, setSessionDebug, type Session } from './session';
 import { appAnnounceSource, type AppConfig, type AppearanceDef, type ControlDef, type RuntimeHost } from './types';
 
@@ -397,9 +398,11 @@ function buildRender( config: AppConfig ): RenderCallback {
 		}
 
 		// The first render of every view. With prefetched data
-		// (`App::prefetch()`) the main view paints NOW from the declared
-		// state and the shell drops its loading overlay at once; `mount`
-		// then refreshes state and data in the background. A window
+		// (`App::prefetch()`) or a client `placeholder` the main view
+		// paints NOW from the declared state and the shell drops its
+		// loading overlay at once; `mount` then refreshes state and data
+		// in the background (a placeholder paint shows the busy mark
+		// and `ctx.loading` until it does). A window
 		// opened WITH params waits for `mount` instead — the state those
 		// params produce is the server's to derive, and painting the
 		// defaults first would show the wrong page for a beat. Every
@@ -533,4 +536,20 @@ os()?.registerNamespace( 'apps', {
 	session: ( windowId: string, view = 'main' ) => sessionOf( windowId, view ),
 	/** Re-scan window configs for app definitions. */
 	refresh: () => registerApps(),
+	/**
+	 * Send a closed app window's first `mount` ahead of its open — the
+	 * dock's hover intent. The open then takes the answer instead of
+	 * fetching. `false` for an open window, an unknown id, or one
+	 * already warm; see `wp.os.prewarmWindow( id )` for the door the
+	 * shell uses (it loads the bundles first).
+	 */
+	prewarm: ( id: string ) => {
+		const config = ( window as unknown as RuntimeGlobals ).openStationWindowConfig?.[ id ] as
+			| Partial< AppConfig >
+			| undefined;
+		if ( ! config || config.osApp !== true || sessions.has( id ) ) {
+			return false;
+		}
+		return startPrewarm( config as AppConfig, buildHost( id ).fetch );
+	},
 } );

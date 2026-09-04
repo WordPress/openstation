@@ -1331,6 +1331,10 @@ export class Dock {
 		} );
 		this.peekTeardowns.set( `system:${ item.id }`, teardown );
 
+		// A system tile IS its native window's launcher: the same
+		// hover intent that warms an iframe page warms the window.
+		this.bindPrewarmDwell( tile, () => this.prewarmNativeWindow( item.id ) );
+
 		return applyFilters< HTMLElement >(
 			HOOKS.DOCK_TILE_ELEMENT,
 			tile,
@@ -2289,22 +2293,93 @@ export class Dock {
 	 * hidden speculative window while the user is still deciding, and
 	 * let `windowManager.open()` adopt it on the actual click.
 	 *
+	 * Two kinds of warm, one gesture. An iframe page gets a hidden
+	 * speculative window (`windowManager.prewarm()`), adopted by the
+	 * click. A native window — a system tile, a launcher synthesised
+	 * from a registered icon, or a menu URL a native remap captures
+	 * (Posts, Users, Plugins, Comments when their native windows are
+	 * on) — gets `wp.os.prewarmWindow( id )`: its bundles into the tab
+	 * and, for an App Framework window, its first `mount` request sent
+	 * now and held for the open, so the click paints rows it would
+	 * otherwise have had to request.
+	 *
 	 * Deliberately narrow: mouse pointers only (touch has no hover),
-	 * iframe pages only (native windows render instantly anyway),
-	 * same-origin only (cross-origin URLs can't be iframed), and never
-	 * for URLs a native-window remap would capture. The dwell delay
-	 * matches the dock-peek's hover-intent timing so the two
-	 * affordances read as one gesture.
+	 * same-origin only for iframes (cross-origin URLs can't be
+	 * iframed), never a URL that acts. The dwell delay matches the
+	 * dock-peek's hover-intent timing so the two affordances read as
+	 * one gesture.
 	 */
 	private bindHoverPrewarm( tile: HTMLElement, item: DockItem ): void {
-		// No URL means there is no iframe document to warm: either a
-		// native-window tile (`windowId` with no `url`, which
-		// `openPage` routes to the registry) or a tile with nothing to
-		// open at all. Both are handled by the same check — a native
-		// tile is exactly the `! item.url` case.
 		if ( ! item.url ) {
+			// No URL means there is no iframe document to warm. A
+			// launcher synthesised from a registered icon carries the
+			// native window it targets; a tile with nothing to open at
+			// all has nothing to warm either.
+			const { windowId } = item;
+			if ( windowId ) {
+				this.bindPrewarmDwell( tile, () => this.prewarmNativeWindow( windowId ) );
+			}
 			return;
 		}
+		this.bindPrewarmDwell( tile, () => {
+			// A URL the native replacement is in charge of warms THAT
+			// window; the iframe page it stands for would never open.
+			const nativeId = resolveNativeUrlRemap( item.url );
+			if ( nativeId ) {
+				this.prewarmNativeWindow( nativeId );
+				return;
+			}
+			// Cross-origin URLs open in a browser tab — no iframe to warm.
+			try {
+				const parsed = new URL( item.url, window.location.href );
+				if ( parsed.origin !== window.location.origin ) {
+					return;
+				}
+				// Prewarming LOADS the page, so a dock item whose URL
+				// acts would have acted — on hover, with no click. A
+				// plugin is free to put `admin.php?action=…&_wpnonce=…`
+				// behind a menu entry, and `post-new.php` mints an
+				// auto-draft merely by rendering. The service worker's
+				// speculative documents have always refused these;
+				// hover prewarming builds a real hidden window and did
+				// not, so the two paths now share one predicate.
+				if ( urlActs( parsed ) ) {
+					return;
+				}
+				// The shell screen boots a desktop, not a window's page.
+				if ( isShellDocumentUrl( parsed ) ) {
+					return;
+				}
+			} catch {
+				return;
+			}
+			const baseId = this.deriveWindowId( item.url );
+			// Same config `openPage` will pass, so the adoption
+			// check in `open()` sees an exact match.
+			void this.windowManager.prewarm( {
+				id: baseId,
+				baseId,
+				url: item.url,
+				parentUrl: item.url,
+				title: item.title,
+				icon: item.icon.startsWith( 'dashicons-' )
+					? item.icon
+					: 'dashicons-admin-generic',
+				submenu: item.submenu,
+				selfLabel: item.selfLabel,
+				multi: !! item.multi,
+			} );
+		} );
+	}
+
+	/**
+	 * The hover-intent gesture itself: a mouse pointer resting on the
+	 * tile for the dwell, with the "Prewarm windows on hover" toggle
+	 * read live at hover time, runs `warm` once. Leaving cancels; so
+	 * does pressing, because the click path takes over from there and
+	 * a fast click must never race its own prewarm.
+	 */
+	private bindPrewarmDwell( tile: HTMLElement, warm: () => void ): void {
 		const DWELL_MS = 180;
 		let dwellTimer: number | undefined;
 		const cancel = () => {
@@ -2331,60 +2406,31 @@ export class Dock {
 			if ( ! os?.getOsSettings?.().windowPrewarmEnabled ) {
 				return;
 			}
-			// Cross-origin URLs open in a browser tab, and remapped
-			// URLs open as native windows — neither wants an iframe
-			// warmed for it.
-			try {
-				const parsed = new URL( item.url, window.location.href );
-				if ( parsed.origin !== window.location.origin ) {
-					return;
-				}
-				// Prewarming LOADS the page, so a dock item whose URL
-				// acts would have acted — on hover, with no click. A
-				// plugin is free to put `admin.php?action=…&_wpnonce=…`
-				// behind a menu entry, and `post-new.php` mints an
-				// auto-draft merely by rendering. The service worker's
-				// speculative documents have always refused these;
-				// hover prewarming builds a real hidden window and did
-				// not, so the two paths now share one predicate.
-				if ( urlActs( parsed ) ) {
-					return;
-				}
-				// The shell screen boots a desktop, not a window's page.
-				if ( isShellDocumentUrl( parsed ) ) {
-					return;
-				}
-			} catch {
-				return;
-			}
-			if ( resolveNativeUrlRemap( item.url ) ) {
-				return;
-			}
 			cancel();
 			dwellTimer = window.setTimeout( () => {
 				dwellTimer = undefined;
-				const baseId = this.deriveWindowId( item.url );
-				// Same config `openPage` will pass, so the adoption
-				// check in `open()` sees an exact match.
-				void this.windowManager.prewarm( {
-					id: baseId,
-					baseId,
-					url: item.url,
-					parentUrl: item.url,
-					title: item.title,
-					icon: item.icon.startsWith( 'dashicons-' )
-						? item.icon
-						: 'dashicons-admin-generic',
-					submenu: item.submenu,
-					selfLabel: item.selfLabel,
-					multi: !! item.multi,
-				} );
+				warm();
 			}, DWELL_MS );
 		} );
 		tile.addEventListener( 'pointerleave', cancel );
-		// The click path takes over from here — cancel a pending dwell
-		// so a fast click never races its own prewarm.
 		tile.addEventListener( 'pointerdown', cancel );
+	}
+
+	/**
+	 * Warm a native window through the public door, which loads its
+	 * bundles and, for an app, sends its first `mount` ahead of the
+	 * open. An open window has nothing to warm; the click will focus it.
+	 */
+	private prewarmNativeWindow( id: string ): void {
+		if ( this.windowManager.getById( id ) ) {
+			return;
+		}
+		const os = (
+			window as unknown as {
+				wp?: { os?: { prewarmWindow?: ( windowId: string ) => Promise< boolean > } };
+			}
+		).wp?.os;
+		void os?.prewarmWindow?.( id );
 	}
 
 	private openPage( item: DockItem ): void {

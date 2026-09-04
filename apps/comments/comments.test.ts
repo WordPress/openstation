@@ -59,12 +59,13 @@ const thread = ( rows: CommentRow[], truncated = false ): AppData[ 'thread' ] =>
 
 const EXTRA = { canModerate: true, canEditComments: true, currentUserId: 7 };
 
-function mount( state: Partial< AppState > = {}, payload: AppData = data(), extra: Record< string, unknown > = EXTRA ) {
+function mount( state: Partial< AppState > = {}, payload: AppData = data(), extra: Record< string, unknown > = EXTRA, loading = false ) {
 	const root = document.createElement( 'div' );
 	document.body.appendChild( root );
 	const ctx = mockViewContext< AppState, AppData >( {
 		state: { tab: 'pending', search: '', page: 1, post: 0, selected: 0, gen: 0, ...state },
 		data: payload,
+		loading,
 		root,
 		extra,
 		windowId: 'desktop-mode-comments',
@@ -150,6 +151,23 @@ describe( 'tabs', () => {
 } );
 
 describe( 'rail', () => {
+	it( 'declares a placeholder: ghost rows and bare tabs before mount, never "No conversations yet"', () => {
+		const placeholder = app.placeholder!( {} ) as AppData;
+		expect( placeholder ).toEqual( {} );
+
+		const { root } = mount( {}, placeholder, EXTRA, true );
+		expect( root.querySelectorAll( '.os-comments__thread-slot--ghost' ) ).toHaveLength( 6 );
+		expect( root.querySelector( '.os-comments__thread-slot--ghost' )?.getAttribute( 'aria-hidden' ) ).toBe( 'true' );
+		expect( root.querySelector( '.os-comments__list os-empty-state' ) ).toBeNull();
+		expect( root.querySelector( '.os-comments__search os-text-field' ) ).not.toBeNull();
+		const pending = Array.from( root.querySelectorAll( 'os-tab' ) ).find( ( t ) => t.getAttribute( 'value' ) === 'pending' )!;
+		expect( renderedText( pending ).trim() ).toBe( 'Pending' );
+
+		const settled = mount( {}, data( {}, [] ) );
+		expect( settled.root.querySelectorAll( '.os-comments__thread-slot--ghost' ) ).toHaveLength( 0 );
+		expect( settled.root.querySelector( '.os-comments__list os-empty-state' ) ).not.toBeNull();
+	} );
+
 	it( 'paints one button per conversation with author, snippet, post title and reply count', () => {
 		const { root } = mount( { selected: 1 }, data( {}, [ row(), row( { id: 2, author_name: 'Bob', openstation_replies_count: 4 } ) ] ) );
 		const items = Array.from( root.querySelectorAll( '.os-comments__thread' ) );

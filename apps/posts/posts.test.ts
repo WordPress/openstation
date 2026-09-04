@@ -80,7 +80,7 @@ function restFetch() {
 	} );
 }
 
-function mount( s: Partial< ListState > = {}, d: ListData = data( [ row( 1 ), row( 2 ) ] ), extra: Partial< ListExtra > = {}, which = app ) {
+function mount( s: Partial< ListState > = {}, d: ListData = data( [ row( 1 ), row( 2 ) ] ), extra: Partial< ListExtra > = {}, which = app, loading = false ) {
 	const root = document.createElement( 'div' );
 	document.body.appendChild( root );
 	const dispatch = vi.fn( async () => true );
@@ -88,6 +88,7 @@ function mount( s: Partial< ListState > = {}, d: ListData = data( [ row( 1 ), ro
 	const ctx = mockViewContext< ListState, ListData >( {
 		state: state( s ),
 		data: d,
+		loading,
 		root,
 		extra: { mode: 'posts', editPostUrlBase: 'http://x.test/wp-admin/post.php', newPostUrl: 'http://x.test/wp-admin/post-new.php', defaultOrderby: 'date', defaultOrder: 'desc', ...extra },
 		dispatch,
@@ -150,6 +151,20 @@ afterEach( () => {
 } );
 
 describe( 'the frame', () => {
+	it( 'declares a placeholder: the frame paints before mount, on the declared page size, with no "No posts" for the beat', () => {
+		const placeholder = app.placeholder!( state( { page: 2, perPage: 50 } ) ) as ListData;
+		expect( placeholder ).toEqual( { list: { items: [], total: 0, pages: 0, page: 2, perPage: 50, error: '', code: '' } } );
+
+		const summary = ( root: HTMLElement ): string => root.querySelector( '.os-app-list__pager-meta' )?.textContent?.trim() ?? '';
+		const { root, table } = mount( { page: 2, perPage: 50 }, placeholder, {}, app, true );
+		expect( root.querySelector( 'os-segmented' ) ).not.toBeNull();
+		expect( table() ).not.toBeNull();
+		expect( summary( root ) ).toBe( '' );
+
+		const settled = mount( {}, data( [] ) );
+		expect( summary( settled.root ) ).toBe( 'No posts' );
+	} );
+
 	it( 'paints the tabs, the toolbar bound to filter, the table and the pager', () => {
 		const { root } = mount();
 		expect( root.querySelector( '[data-os-posts-root]' )!.classList.contains( 'desktop-mode-posts' ) ).toBe( true );

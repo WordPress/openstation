@@ -336,7 +336,7 @@ function listPanel( ctx: Ctx, ui: UiState, phone: boolean, rows: UserListItem[] 
 			page: list.page,
 			pages: list.pages,
 			perPage: state.perPage,
-			summary: pagerSummary( ctx, rows ),
+			summary: ctx.loading ? '' : pagerSummary( ctx, rows ),
 			labels: { previous: __( 'Previous' ), next: __( 'Next' ), perPage: __( 'Per page' ) },
 		} ) }
 	</os-tabpanel>`;
@@ -349,6 +349,12 @@ export default defineApp< UsersState, UsersData >( APP_ID, {
 			state.tab = String( args.value ?? 'all' );
 		},
 	},
+
+	// The frame paints the moment the window opens — tabs, toolbar, the
+	// table's skeleton — and the rows land with `mount`.
+	placeholder: ( state ) => ( {
+		list: { items: [], total: 0, pages: 0, page: state.page, perPage: state.perPage },
+	} ),
 
 	view: ( ctx ) => {
 		const { state } = ctx;
@@ -425,6 +431,8 @@ export default defineApp< UsersState, UsersData >( APP_ID, {
 			onResendWelcome: ( row ) => resendWelcome( ctx, row ),
 			toast: ( message ) => say( ctx, message ),
 		};
+		// The frame before the first answer paints the table's skeleton.
+		table( ctx )?.toggleAttribute( 'loading', ctx.loading );
 		ui.sync.sync( {
 			table: table( ctx ) as unknown as ListTableLike< UserListItem > | null,
 			rows,

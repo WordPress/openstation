@@ -158,10 +158,11 @@ Windows declared in PHP as `.os.php` files — [`app-framework.md`](./app-framew
 | `apps.dispatch` | `( windowId: string, action: string, args?: Record<string, unknown>, view?: string ) => Promise<boolean>` | Experimental |
 | `apps.local` | `( windowId: string, action: string, args?: Record<string, unknown> ) => void` *(client-view apps; no request)* | Experimental |
 | `apps.session` | `( windowId: string, view?: string ) => Session \| undefined` | Experimental |
-| `@openstation/app` | `defineApp< State, Data >( id, { local?, view, mounted?, updated? } )`, `html`, `__`/`_n`/`_x`/`sprintf`, `formatBytes` / `formatDate`, `createPagedList` / `applySelection` / `createMarquee`, `copyText`, the list-window furniture `statusControl` / `pager` / `mountMenuCheckboxes` / `createListTableSync` *(what an `.os.ts` imports)* | Experimental |
-| `ViewContext` | `state`, `data`, `root`, `windowId`, `extra`, `dispatch( action, args?, { confirm }? )`, `local`, `ui( factory )`, `repaint()`, `fetch( path, init? )`, `host` — see [`app-framework.md`](./app-framework.md#the-client-view--osts) | Experimental |
+| `@openstation/app` | `defineApp< State, Data >( id, { local?, placeholder?, view, mounted?, updated? } )`, `html`, `__`/`_n`/`_x`/`sprintf`, `formatBytes` / `formatDate`, `createPagedList` / `applySelection` / `createMarquee`, `copyText`, the list-window furniture `statusControl` / `pager` / `mountMenuCheckboxes` / `createListTableSync` *(what an `.os.ts` imports)* | Experimental |
+| `ViewContext` | `state`, `data`, `loading`, `root`, `windowId`, `extra`, `dispatch( action, args?, { confirm }? )`, `local`, `ui( factory )`, `repaint()`, `fetch( path, init? )`, `host` — see [`app-framework.md`](./app-framework.md#the-client-view--osts) | Experimental |
 | `openUserEditWindow` | `( userId: number, { source?, fallback? }? ) => boolean` — `src/open-targets/user-edit-window.ts`: open (or retarget) the User Edit app on one person through its `userId` param | Experimental |
 | `apps.refresh` | `() => string[]` | Experimental |
+| `apps.prewarm` | `( id: string ) => boolean` — send a closed app window's first `mount` ahead of its open; `wp.os.prewarmWindow( id )` is the door that loads the bundles first | Experimental |
 | `apps.debug` | `( windowId?: string, on?: boolean ) => void` — per-window dispatch trace in the console (`'*'` = every app window) | Experimental |
 | `apps.defineApp` / `apps.html` / i18n + list/format helpers | The client-view API mirrored at runtime for third-party client views; before the runtime loads, queue via `( window.openStationAppsPending ??= [] ).push( ( api ) => … )` — see [`app-framework.md`](./app-framework.md) | Experimental |
 

@@ -232,6 +232,60 @@
 	text-overflow: ellipsis;
 }
 
+/*
+ * The rail before its first answer: silhouettes where the
+ * conversations land. Same shimmer the table's skeleton rows wear,
+ * through the palette's skeleton pair.
+ */
+.os-comments__thread-slot--ghost .os-comments__thread {
+	cursor: default;
+	pointer-events: none;
+}
+
+.os-comments__ghost {
+	display: block;
+	border-radius: 3px;
+	background: linear-gradient(
+		90deg,
+		var( --os-skeleton-low, rgba( 0, 0, 0, 0.06 ) ) 0%,
+		var( --os-skeleton-high, rgba( 0, 0, 0, 0.14 ) ) 50%,
+		var( --os-skeleton-low, rgba( 0, 0, 0, 0.06 ) ) 100%
+	);
+	background-size: 200% 100%;
+	animation: os-comments-ghost 1.4s ease-in-out infinite;
+}
+
+.os-comments__ghost--disc {
+	width: 36px;
+	height: 36px;
+	border-radius: 50%;
+}
+
+.os-comments__ghost--line {
+	height: 12px;
+	width: 70%;
+	margin-block-start: 4px;
+}
+
+.os-comments__ghost--short {
+	width: 45%;
+}
+
+@keyframes os-comments-ghost {
+	0% {
+		background-position: 200% 50%;
+	}
+	100% {
+		background-position: -200% 50%;
+	}
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.os-comments__ghost {
+		animation: none;
+	}
+}
+
 .os-comments__thread-meta {
 	display: flex;
 	flex-direction: column;

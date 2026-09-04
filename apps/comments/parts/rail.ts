@@ -175,6 +175,22 @@ function threadItem( ctx: Ctx, ui: UiState, row: CommentRow ): TemplateResult {
 	</div>`;
 }
 
+/** How many silhouettes the rail shows before its first page. */
+const GHOST_ROWS = 6;
+
+/** A conversation's silhouette, for the beat before the rail has any. */
+function ghostItem(): TemplateResult {
+	return html`<div class="${ NS }__thread-slot ${ NS }__thread-slot--ghost" aria-hidden="true">
+		<div class="${ NS }__thread">
+			<span class="${ NS }__ghost ${ NS }__ghost--disc"></span>
+			<div class="${ NS }__thread-main">
+				<span class="${ NS }__ghost ${ NS }__ghost--line"></span>
+				<span class="${ NS }__ghost ${ NS }__ghost--line ${ NS }__ghost--short"></span>
+			</div>
+		</div>
+	</div>`;
+}
+
 /** "Load more" footer — only when the server says there's another page. */
 function loadMoreRow( ctx: Ctx, ui: UiState ): TemplateResult {
 	const more = (): void => {
@@ -205,6 +221,10 @@ export function rail( ctx: Ctx, ui: UiState, rows: CommentRow[], error: string )
 			__( 'Could not load comments' ),
 			__( 'Check your connection and try another tab.' ),
 		);
+	} else if ( ctx.loading ) {
+		// The frame is up before the first answer: silhouettes where the
+		// conversations will land, never "No conversations yet".
+		body = Array.from( { length: GHOST_ROWS }, ghostItem );
 	} else if ( rows.length === 0 ) {
 		body = scoped
 			? emptyState(

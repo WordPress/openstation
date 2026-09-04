@@ -24,6 +24,7 @@ import {
 } from './bindings';
 import type { ClientApp } from './client';
 import { morphChildren } from './morph';
+import { takePrewarm } from './prewarm';
 import {
 	appAnnounceSource,
 	type AppConfig,
@@ -77,10 +78,11 @@ export interface Session {
 	/** Run a client-side action; re-renders without a request. */
 	local: ( action: string, args?: Record< string, unknown > ) => void;
 	/**
-	 * Paint the client view NOW from the declared state and the data
-	 * the config prefetched (`App::prefetch()`), before `mount` has
-	 * answered. False when the session has no client view or no
-	 * prefetched data — the caller then waits for `mount` as usual.
+	 * Paint the client view NOW from the declared state and either the
+	 * data the config prefetched (`App::prefetch()`) or the client's own
+	 * `placeholder`, before `mount` has answered. False when the session
+	 * has no client view, or neither — the caller then waits for
+	 * `mount` as usual.
 	 */
 	paintEagerly: () => boolean;
 	/** Whether the window is paused (minimized / hidden tab). */
@@ -131,6 +133,8 @@ export function createSession( deps: SessionDeps ): Session {
 
 	let state: Record< string, unknown > = { ...config.state };
 	let data: unknown;
+	/** `data` is the client's `placeholder`: painted before any server answer. */
+	let loading = false;
 	/** `undefined` until the client view first painted; then its teardown or null. */
 	let clientTeardown: ( () => void ) | null | undefined;
 	let disposed = false;
@@ -211,6 +215,21 @@ export function createSession( deps: SessionDeps ): Session {
 		// echo and must survive it.
 		const sentState = state;
 		try {
+			// A hover on the dock tile may have sent this window's first
+			// `mount` already (`wp.os.apps.prewarm`); the answer is taken
+			// once, for the default open only — a deep link derives its
+			// state on the server. A warm that failed falls through to
+			// the request it stood in for.
+			if ( action === 'mount' && view === 'main' && Object.keys( params ).length === 0 ) {
+				const warmed = await takePrewarm( config.id );
+				if ( disposed ) {
+					return false;
+				}
+				if ( warmed ) {
+					apply( warmed, sentState );
+					return true;
+				}
+			}
 			const headers: Record< string, string > = {
 				Accept: 'application/json',
 				'Content-Type': 'application/json',
@@ -343,7 +362,7 @@ export function createSession( deps: SessionDeps ): Session {
 		auditTriggers();
 	};
 
-	const apply = ( payload: DispatchResponse, sentState: Record< string, unknown > ): void => {
+	const apply = ( payload: DispatchResponse, sentState: Record< string, unknown >, placeholder = false ): void => {
 		// The response echoes the state AS OF when its request was
 		// sent. Anything written locally since — an os-bind keystroke,
 		// a `local` reducer — is newer than that echo, and adopting the
@@ -362,6 +381,7 @@ export function createSession( deps: SessionDeps ): Session {
 		state = next;
 		if ( client ) {
 			data = payload.data;
+			loading = placeholder;
 			const first = clientTeardown === undefined;
 			client.render( viewContext() );
 			finishRender();
@@ -437,6 +457,9 @@ export function createSession( deps: SessionDeps ): Session {
 		},
 		get data() {
 			return data;
+		},
+		get loading() {
+			return loading;
 		},
 		root,
 		windowId,
@@ -739,13 +762,22 @@ export function createSession( deps: SessionDeps ): Session {
 		dispatch,
 		local: ( action, args = {} ) => runLocal( action, args ),
 		paintEagerly() {
-			if ( ! client || disposed || config.data === undefined || clientTeardown !== undefined ) {
+			if ( ! client || disposed || clientTeardown !== undefined ) {
 				return false;
 			}
+			// Prefetched data is the real thing; a placeholder is the
+			// app's own stand-in until `mount` answers, and the view is
+			// told so through `ctx.loading`.
+			const prefetched = config.data !== undefined;
+			if ( ! prefetched && ! client.placeholder ) {
+				return false;
+			}
+			const declared = { ...config.state };
+			const payload = prefetched ? config.data : client.placeholder?.( declared );
 			// The same path a response takes, fed the declared state and
-			// the prefetched data: `mounted()` runs now, and the `mount`
-			// answer that follows refreshes both without a second mount.
-			apply( { ok: true, state: { ...config.state }, html: '', data: config.data, effects: [] }, state );
+			// that data: `mounted()` runs now, and the `mount` answer that
+			// follows refreshes both without a second mount.
+			apply( { ok: true, state: declared, html: '', data: payload, effects: [] }, state, ! prefetched );
 			return true;
 		},
 		setPaused( value: boolean ) {

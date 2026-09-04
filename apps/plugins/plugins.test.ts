@@ -107,12 +107,14 @@ function mount(
 	data: Partial< AppData > = {},
 	over: Partial< PluginsExtra > = {},
 	host: Partial< RuntimeHost > = {},
+	loading = false,
 ) {
 	const root = document.createElement( 'div' );
 	document.body.appendChild( root );
 	const ctx = mockViewContext< AppState, AppData >( {
 		state: { tab: 'installed', status: '', search: '', browse: 'featured', query: '', ...state },
 		data: { installed: [ row() ], error: '', ...data },
+		loading,
 		root,
 		extra: extra( over ) as unknown as Record< string, unknown >,
 		host: { fetch: ( input, init ) => globalThis.fetch( input, init ), ...host },
@@ -142,6 +144,18 @@ afterEach( () => {
 } );
 
 describe( 'the plugins app view', () => {
+	it( 'declares a placeholder: the frame paints before mount with the installed table in its skeleton', () => {
+		expect( app.placeholder!( {} ) ).toEqual( { installed: [], error: '' } );
+
+		const { root } = mount( {}, { installed: [] }, {}, {}, true );
+		expect( root.querySelector( '[data-os-plugins-tabs]' ) ).not.toBeNull();
+		expect( root.querySelector( 'os-segmented' ) ).not.toBeNull();
+		expect( root.querySelector( '[data-os-plugins-table]' )?.hasAttribute( 'loading' ) ).toBe( true );
+
+		const settled = mount();
+		expect( settled.root.querySelector( '[data-os-plugins-table]' )?.hasAttribute( 'loading' ) ).toBe( false );
+	} );
+
 	it( 'paints the three tabs on the state tab, bound to it, with the framework list frame', () => {
 		const { root } = mount( { tab: 'browse' } );
 		expect( root.querySelector( '[data-os-plugins-root]' )?.classList.contains( 'os-app-list' ) ).toBe( true );

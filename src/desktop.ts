@@ -766,6 +766,20 @@ export interface OpenStationPublicApi {
 	 */
 	loadWindowScript: ( id: string ) => Promise< boolean >;
 	/**
+	 * Warm a closed native window ahead of its open: its bundles into
+	 * the tab, and — for an App Framework window — its first `mount`
+	 * request sent now and held for the open, which then paints the
+	 * answer instead of requesting it. What the dock does on a
+	 * sustained hover when "Prewarm windows on hover" is on; a plugin
+	 * with its own intent signal calls it directly.
+	 *
+	 * Resolves `true` when a mount was started, `false` when there was
+	 * nothing to warm: an unknown id, an open window, a window that is
+	 * not an app, or one warmed a moment ago (a warm stays good for
+	 * ~30 s, and is taken once).
+	 */
+	prewarmWindow: ( id: string ) => Promise< boolean >;
+	/**
 	 * Make `<os-*>` tags upgrade, fetching the component kit if the
 	 * page doesn't already have them.
 	 *
@@ -4678,6 +4692,7 @@ function init(): void {
 		openWindowById: nativeWindows.openById,
 		openNewWindowById: nativeWindows.openNewById,
 		loadWindowScriptById: nativeWindows.loadScriptById,
+		prewarmWindowById: nativeWindows.prewarmById,
 		placeSystemTile,
 		setDefaultWindow,
 		refreshMenu,

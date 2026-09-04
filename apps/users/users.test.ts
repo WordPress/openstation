@@ -63,10 +63,11 @@ const facts: ProfileConfig = {
 
 const actions: RowActions = { onSendReset: () => undefined, onResendWelcome: () => undefined, toast: () => undefined };
 
-function mount( state: Partial< UsersState > = {}, data: Partial< UsersData > = {}, extra: Partial< ProfileConfig > = {} ) {
+function mount( state: Partial< UsersState > = {}, data: Partial< UsersData > = {}, extra: Partial< ProfileConfig > = {}, loading = false ) {
 	const root = document.createElement( 'div' );
 	document.body.appendChild( root );
 	const ctx = mockViewContext< UsersState, UsersData >( {
+		loading,
 		state: {
 			page: 1,
 			perPage: 20,
@@ -101,6 +102,20 @@ afterEach( () => {
 } );
 
 describe( 'the users app view', () => {
+	it( 'declares a placeholder: the frame paints before mount with the table in its skeleton and no page summary', () => {
+		const placeholder = app.placeholder!( { page: 1, perPage: 20 } ) as UsersData;
+		expect( placeholder ).toEqual( { list: { items: [], total: 0, pages: 0, page: 1, perPage: 20 } } );
+
+		const { root, table } = mount( {}, placeholder, {}, true );
+		expect( root.querySelector( 'os-segmented' ) ).not.toBeNull();
+		expect( table?.hasAttribute( 'loading' ) ).toBe( true );
+		expect( root.textContent ).not.toContain( 'Page 1 of' );
+
+		const settled = mount();
+		expect( settled.table?.hasAttribute( 'loading' ) ).toBe( false );
+		expect( settled.root.textContent ).toContain( 'Page 1 of 1' );
+	} );
+
 	it( 'paints the three tabs, and gates Add new on create_users', () => {
 		const { root } = mount();
 		const tabs = Array.from( root.querySelectorAll( 'os-tab' ) ).map( ( t ) => t.getAttribute( 'value' ) );

@@ -331,7 +331,10 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 		const isPages = mode === 'pages';
 		const extra = ctx.extra as ListExtra;
 		let summary: string;
-		if ( total === 0 ) {
+		if ( ctx.loading ) {
+			// The frame before the first answer: no "No posts" for a beat.
+			summary = '';
+		} else if ( total === 0 ) {
 			summary = isPages ? __( 'No pages' ) : __( 'No posts' );
 		} else {
 			const format = isPages
@@ -424,6 +427,13 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 				state.tag = Array.isArray( args.tag ) ? ( args.tag as number[] ) : [];
 			},
 		},
+
+		// The frame paints the moment the window opens — the tabs, the
+		// toolbar, the pager and the table's skeleton (the runtime's busy
+		// mark drives it, see `mounted`) — and the rows land with `mount`.
+		placeholder: ( state ) => ( {
+			list: { items: [], total: 0, pages: 0, page: state.page, perPage: state.perPage, error: '', code: '' },
+		} ),
 
 		view: ( ctx ) => {
 			const ui = ctx.ui( freshUi );
@@ -565,6 +575,11 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 			const table = tableOf( ctx );
 			if ( ! table ) {
 				return;
+			}
+			// The placeholder paint: the skeleton is up before the busy
+			// mark the observer in `mounted` follows has even been set.
+			if ( ctx.loading ) {
+				table.setAttribute( 'loading', '' );
 			}
 			const ui = ctx.ui( freshUi );
 			const { state, data } = ctx;

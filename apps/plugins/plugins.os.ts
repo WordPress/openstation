@@ -322,6 +322,10 @@ export default defineApp< AppState, AppData >( APP_ID, {
 		set: () => undefined,
 	},
 
+	// The frame paints the moment the window opens — the tabs, the
+	// toolbar, the table's skeleton — and the rows land with `mount`.
+	placeholder: () => ( { installed: [], error: '' } ),
+
 	view: ( ctx ) => {
 		const ui = uiOf( ctx );
 		const { caps } = ui.host.extra;
@@ -461,6 +465,8 @@ export default defineApp< AppState, AppData >( APP_ID, {
 		const el = table( ctx );
 		if ( el ) {
 			syncInstalledTable( el, host, ui.installed, { status: ctx.state.status, search: ctx.state.search } );
+			// The frame before the first answer paints the table's skeleton.
+			el.toggleAttribute( 'loading', ctx.loading );
 		}
 
 		if ( host.extra.caps.install ) {
