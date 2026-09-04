@@ -352,24 +352,35 @@ const betaSection: Section = ( s ) => {
  * saved set; the announcement lets every window already on screen
  * reconcile against it.
  */
+/** Active save count to keep the saving state accurate across overlapping dispatches. */
+let inFlightExtendedSaves = 0;
+
 async function saveExtended( ctx: Ctx, options: ExtendedOptions ): Promise< void > {
 	const ui = uiOf( ctx ).features;
 	ui.extendedSaving = true;
 	ui.extendedError = '';
-	ctx.repaint();
-	const ok = await ctx.dispatch( 'extended', { options } );
-	ui.extendedSaving = false;
-	if ( ok && ctx.data.extendedOptions ) {
-		try {
-			doAction( HOOKS.EXTENDED_OPTIONS_CHANGED, { options: ctx.data.extendedOptions } );
-		} catch {
-			// A surface that fails to reconcile is its own problem; the
-			// option is saved either way.
-		}
-	} else if ( ! ok ) {
-		ui.extendedError = __( 'The options could not be saved.' );
+	if ( ctx.data.extendedOptions ) {
+		Object.assign( ctx.data.extendedOptions, options );
 	}
 	ctx.repaint();
+	inFlightExtendedSaves++;
+	try {
+		const ok = await ctx.dispatch( 'extended', { options } );
+		if ( ok && ctx.data.extendedOptions ) {
+			try {
+				doAction( HOOKS.EXTENDED_OPTIONS_CHANGED, { options: ctx.data.extendedOptions } );
+			} catch {
+				// A surface that fails to reconcile is its own problem; the
+				// option is saved either way.
+			}
+		} else if ( ! ok ) {
+			ui.extendedError = __( 'The options could not be saved.' );
+		}
+	} finally {
+		inFlightExtendedSaves--;
+		ui.extendedSaving = inFlightExtendedSaves > 0;
+		ctx.repaint();
+	}
 }
 
 /** Admin-only, platform-wide toggles — stored in `wp_options`. */
