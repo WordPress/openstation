@@ -45,6 +45,7 @@ import type {
 	NativeWindowServerEntry,
 	NativeWindowTabEntry,
 	NativeWindowWireEntry,
+	WindowConfig,
 } from './types';
 import type { WindowManager } from './window-manager';
 import type { Window as DesktopWindow } from './window';
@@ -957,6 +958,23 @@ export interface NativeWindowSync {
 	) => boolean;
 
 	/**
+	 * Recreate one saved native-window instance through its registered
+	 * owner. Unlike {@link openNewById}, the registry lookup uses the
+	 * stable base id while the manager receives the exact saved instance
+	 * id and restore-time state.
+	 *
+	 * Framework boot helper; callers opening a new window should use
+	 * {@link openById} or {@link openNewById}.
+	 *
+	 * @internal
+	 */
+	restoreById: (
+		instanceId: string,
+		baseId: string,
+		state: NativeWindowRestoreState,
+	) => boolean;
+
+	/**
 	 * Load a registered native window's bundle (companions first,
 	 * then the window's own script) WITHOUT opening the window.
 	 *
@@ -983,6 +1001,21 @@ export interface NativeWindowSync {
 	 */
 	prewarmById: ( id: string ) => Promise< boolean >;
 }
+
+/** State owned by session restore rather than a native-window definition. */
+export type NativeWindowRestoreState = Partial<
+	Pick<
+		WindowConfig,
+		| 'desktopId'
+		| 'x'
+		| 'y'
+		| 'width'
+		| 'height'
+		| 'initialState'
+		| 'params'
+		| 'gridSpan'
+	>
+>;
 
 /**
  * Declare a server-registered native window's tabs in the window
@@ -1591,6 +1624,38 @@ export function createNativeWindowSync(
 		} );
 	};
 
+	/**
+	 * Rebuild a saved instance without asking the registry to recognise
+	 * its generated id. The base id finds the owning definition; the
+	 * saved id and state go straight to `openNew()` so no restore data
+	 * can linger and retarget a later user-initiated open.
+	 */
+	const restoreFromEntry = (
+		entry: NativeWindowServerEntry,
+		instanceId: string,
+		state: NativeWindowRestoreState,
+	): void => {
+		const finalRender = buildRender( entry );
+		const size = resolveSizeForEntry( entry );
+
+		void manager.openNew( {
+			id: instanceId,
+			baseId: entry.id,
+			native: true,
+			url: `#${ entry.id }`,
+			title: entry.title,
+			icon: entry.icon,
+			width: size.width,
+			height: size.height,
+			minWidth: entry.minWidth,
+			minHeight: entry.minHeight,
+			render: finalRender,
+			autofocus: entry.autofocus,
+			ownerHandle: entry.ownerHandle || entry.scriptHandle,
+			...state,
+		} );
+	};
+
 	const registerTile = async (
 		entry: NativeWindowServerEntry,
 	): Promise< void > => {
@@ -1719,6 +1784,19 @@ export function createNativeWindowSync(
 			source: opts.source ?? 'api',
 		} );
 		openNewFromEntry( entry, opts.params );
+		return true;
+	};
+
+	const restoreById = (
+		instanceId: string,
+		baseId: string,
+		state: NativeWindowRestoreState,
+	): boolean => {
+		const entry = entriesById.get( baseId );
+		if ( ! entry ) {
+			return false;
+		}
+		restoreFromEntry( entry, instanceId, state );
 		return true;
 	};
 
@@ -1901,7 +1979,14 @@ export function createNativeWindowSync(
 		return apps?.prewarm?.( id ) === true;
 	};
 
-	return { sync, openById, openNewById, loadScriptById, prewarmById };
+	return {
+		sync,
+		openById,
+		openNewById,
+		restoreById,
+		loadScriptById,
+		prewarmById,
+	};
 }
 
 export function cloneTemplate(

@@ -49,6 +49,7 @@ function setupHarness(): Harness {
 	const managerOpen = vi.fn();
 	const manager = {
 		open: managerOpen,
+		openNew: managerOpen,
 		getById: () => null,
 		getByBaseIdOnActiveDesktop: () => undefined,
 		getFocused: () => null,
@@ -301,6 +302,31 @@ describe( 'native-windows.createNativeWindowSync — live activation / deactivat
 
 		await sync( [] );
 		expect( openById( 'calculator' ) ).toBe( false );
+	} );
+
+	test( 'restoreById resolves a saved instance through its registered base id', async () => {
+		const h = setupHarness();
+		const { sync, restoreById } = createNativeWindowSync(
+			depsFromHarness( h ),
+		);
+
+		await sync( [ entry( 'fleet-site' ) ] );
+		expect(
+			restoreById( 'fleet-site-4', 'fleet-site', {
+				desktopId: 'desktop-2',
+				params: { site: 'bravo' },
+			} ),
+		).toBe( true );
+
+		expect( h.managerOpen ).toHaveBeenCalledWith(
+			expect.objectContaining( {
+				id: 'fleet-site-4',
+				baseId: 'fleet-site',
+				desktopId: 'desktop-2',
+				params: { site: 'bravo' },
+			} ),
+		);
+		expect( restoreById( 'gone-2', 'gone', {} ) ).toBe( false );
 	} );
 
 	describe( 'remembered window size (issue #203)', () => {

@@ -91,7 +91,6 @@ function fakeManager( wins: FakeWin[], desks: string[] = [ 'desktop-1' ] ) {
 		wins.push( w );
 		return w;
 	} );
-	const seedWindowRestoreState = vi.fn();
 	// The manager's own rule: a move re-homes the window and nothing
 	// else; the stack order stands for focus order, last is in front.
 	const moveWindowToDesktop = vi.fn( ( id: string, desktopId: string ) => {
@@ -112,9 +111,8 @@ function fakeManager( wins: FakeWin[], desks: string[] = [ 'desktop-1' ] ) {
 		moveWindowToDesktop,
 		focus,
 		openNew,
-		seedWindowRestoreState,
 	} as unknown as WindowManager;
-	return { manager, openNew, seedWindowRestoreState, moveWindowToDesktop, focus };
+	return { manager, openNew, moveWindowToDesktop, focus };
 }
 
 const sessionWin = ( id: string, over: Partial< SessionWindow > = {} ): SessionWindow => ( {
@@ -241,7 +239,7 @@ describe( 'installMobileConstraints', () => {
 	test( 'recents.open reopens an iframe window with its tabs, a native one through the registry', async () => {
 		const mode = fakeMode( 'mobile' );
 		const wins: FakeWin[] = [];
-		const { manager, openNew, seedWindowRestoreState } = fakeManager( wins );
+		const { manager, openNew } = fakeManager( wins );
 		const openNative = vi.fn( () => true );
 		const c = installMobileConstraints( { manager, mode: mode.api, openNative } );
 		const notify = vi.fn();
@@ -269,8 +267,10 @@ describe( 'installMobileConstraints', () => {
 		expect( c.recents.list().map( ( r ) => r.id ) ).toEqual( [ 'n' ] );
 
 		c.recents.open( c.recents.list()[ 0 ] );
-		expect( seedWindowRestoreState ).toHaveBeenCalledWith( { n: expect.objectContaining( { params: { post: 3 } } ) } );
-		expect( openNative ).toHaveBeenCalledWith( 'n' );
+		expect( openNative ).toHaveBeenCalledWith( 'n', 'n', {
+			desktopId: undefined,
+			params: { post: 3 },
+		} );
 		expect( c.recents.list() ).toEqual( [] );
 		c.dispose();
 	} );

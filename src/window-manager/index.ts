@@ -207,6 +207,15 @@ export class WindowManager {
 	 * Empty outside of session restore.
 	 */
 	private _pendingRestoreState = new Map< string, Partial< WindowConfig > >();
+	/** Saved instance ids held for the framework's ordered boot restore. */
+	private _reservedRestoreIds = new Set< string >();
+
+	/**
+	 * Instance ids selected by window constructions that are waiting on
+	 * the lazy window-system bundles. They are already claimed even
+	 * though their Window objects are not in the stack yet.
+	 */
+	private _openingWindowIds = new Set< string >();
 
 	/**
 	 * The one prewarmed (hidden, speculative) window, if any — built by
@@ -919,7 +928,9 @@ export class WindowManager {
 	): Promise< Window > {
 		const baseId = config.baseId || config.id;
 		const nextId =
-			config.id !== baseId && ! this.getById( config.id )
+			config.id !== baseId &&
+			! this.getById( config.id ) &&
+			! this._openingWindowIds.has( config.id )
 				? config.id
 				: this.nextInstanceId( baseId );
 		const cascadeX = 40 + ( this.cascadeIndex % 8 ) * CASCADE_OFFSET;
@@ -950,6 +961,7 @@ export class WindowManager {
 		const staged = this._pendingRestoreState.get( config.id );
 		if ( staged ) {
 			this._pendingRestoreState.delete( config.id );
+			this._reservedRestoreIds.delete( config.id );
 			config = { ...config, ...staged };
 		}
 
@@ -1200,10 +1212,20 @@ export class WindowManager {
 		// case where the click races the preloads — session
 		// restore at boot, or a plugin opening a window
 		// programmatically right after init.
-		const [ system ] = await Promise.all( [
+		this._openingWindowIds.add( config.id );
+		const bundles = Promise.all( [
 			ensureWindowSystemLoaded( windowSystemBundleUrl() ),
 			ensureShellOverlaysLoaded( shellOverlaysBundleUrl() ),
 		] );
+		let loaded: Awaited< typeof bundles >;
+		try {
+			loaded = await bundles;
+		} catch ( err ) {
+			this._openingWindowIds.delete( config.id );
+			throw err;
+		}
+		this._openingWindowIds.delete( config.id );
+		const [ system ] = loaded;
 		const win = system.createWindow( fullConfig );
 		// The restored placement stays with the window so the next
 		// work-area change puts it back on the same cells, and the
@@ -1439,7 +1461,11 @@ export class WindowManager {
 	 * stack.
 	 */
 	private nextInstanceId( baseId: string ): string {
-		const taken = new Set( this._stack.map( ( w ) => w.id ) );
+		const taken = new Set( [
+			...this._stack.map( ( w ) => w.id ),
+			...this._openingWindowIds,
+			...this._reservedRestoreIds,
+		] );
 		if ( ! taken.has( baseId ) ) {
 			return baseId;
 		}
@@ -2678,16 +2704,39 @@ export class WindowManager {
 	 * before triggering the opens, and `createWindow` applies it to
 	 * whichever window claims each id. Entries are consumed on first
 	 * use, so a later user-initiated open of the same window is
-	 * unaffected. Ids that never open (a plugin deactivated since the
-	 * session was saved) simply leave a stale entry behind, which the
-	 * next `seedWindowRestoreState` call clears.
+	 * unaffected. Session restore explicitly discards ids whose owners
+	 * are missing, then clears the staging map when it finishes.
+	 * Its internal `reserveIds` option also keeps an in-progress saved
+	 * id out of normal `openNew()` slot allocation until its turn.
 	 *
 	 * Call BEFORE the opens it should apply to.
 	 */
 	public seedWindowRestoreState(
 		entries: Record< string, Partial< WindowConfig > >,
+		opts: { reserveIds?: boolean } = {},
 	): void {
 		this._pendingRestoreState = new Map( Object.entries( entries ) );
+		this._reservedRestoreIds = opts.reserveIds
+			? new Set( Object.keys( entries ) )
+			: new Set();
+	}
+
+	/**
+	 * Drop staged restore data for one id, or all ids when omitted.
+	 * Session restore uses this immediately before passing state directly
+	 * to a native owner, and after skipped owners, so abandoned state can
+	 * never affect a later fresh window that reuses the id.
+	 *
+	 * @internal
+	 */
+	public discardWindowRestoreState( id?: string ): void {
+		if ( id ) {
+			this._pendingRestoreState.delete( id );
+			this._reservedRestoreIds.delete( id );
+			return;
+		}
+		this._pendingRestoreState.clear();
+		this._reservedRestoreIds.clear();
 	}
 
 	public seedDesktops( desktops: Desktop[], activeDesktopId: string ): void {

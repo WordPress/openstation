@@ -45,6 +45,7 @@ import type {
 	WindowManager,
 } from '../window-manager';
 import { workAreaRectOf } from '../work-area';
+import type { OpenNativeWindow } from '../boot/session';
 import type { MobileRecents } from './types';
 
 const NS = 'openstation/mobile';
@@ -65,8 +66,8 @@ interface DisplacedGeometry {
 export interface MobileConstraintsDeps {
 	manager: WindowManager;
 	mode: OsModeApi;
-	/** Opens a native window by id; `false` when nothing answers. */
-	openNative: ( id: string ) => boolean;
+	/** Opens or restores a native window; `false` when nothing answers. */
+	openNative: OpenNativeWindow;
 }
 
 export interface MobileConstraints {
@@ -365,13 +366,12 @@ export function installMobileConstraints( deps: MobileConstraintsDeps ): MobileC
 		open( win ) {
 			recentsApi.forget( win.id );
 			if ( win.native ) {
-				manager.seedWindowRestoreState( {
-					[ win.id ]: {
+				if (
+					! deps.openNative( win.id, win.baseId || win.id, {
 						desktopId: win.desktopId,
 						...( win.params ? { params: win.params } : {} ),
-					},
-				} );
-				if ( ! deps.openNative( win.id ) ) {
+					} )
+				) {
 					return;
 				}
 				return;

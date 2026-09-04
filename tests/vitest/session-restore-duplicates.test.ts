@@ -16,6 +16,7 @@
  */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { restoreSession } from '../../src/boot/session';
+import type { NativeWindowRestoreState } from '../../src/native-windows';
 import { WindowManager } from '../../src/window-manager';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 import type { DesktopConfig, Session, SessionWindow } from '../../src/types';
@@ -236,23 +237,28 @@ describe( 'restoreSession — native windows', () => {
 
 	/**
 	 * Stand-in for the shell's `openNativeWindowById` — same contract:
-	 * open the window for known ids, return false for anything the
-	 * registry no longer knows about.
+	 * resolve the saved instance through a known base id, return false
+	 * for anything the registry no longer knows about.
 	 */
-	const opener = ( known: string[] ) => ( id: string ) => {
-		if ( ! known.includes( id ) ) {
+	const opener = ( known: string[] ) => (
+		id: string,
+		baseId = id,
+		state: NativeWindowRestoreState = {},
+	) => {
+		if ( ! known.includes( baseId ) ) {
 			return false;
 		}
-		void manager.open( {
+		void manager.openNew( {
 			id,
-			baseId: id,
+			baseId,
 			native: true,
-			url: `#${ id }`,
+			url: `#${ baseId }`,
 			title: 'OS Settings',
 			icon: 'dashicons-desktop',
 			render: ( body: HTMLElement ) => {
 				body.textContent = id;
 			},
+			...state,
 		} );
 		return true;
 	};
@@ -311,6 +317,78 @@ describe( 'restoreSession — native windows', () => {
 		);
 	} );
 
+	test( 'restores multiple native instances through one registered base id', async () => {
+		const config = desktopConfig( [
+			nativeEntry( {
+				id: 'fleet-site',
+				baseId: 'fleet-site',
+				params: { site: 'alpha' },
+			} ),
+			nativeEntry( {
+				id: 'fleet-site-4',
+				baseId: 'fleet-site',
+				params: { site: 'bravo' },
+			} ),
+		] );
+
+		await restoreSession(
+			manager,
+			config,
+			desktop,
+			opener( [ 'fleet-site' ] ),
+		);
+
+		expect( manager.getAll().map( ( win ) => win.id ).sort() ).toEqual( [
+			'fleet-site',
+			'fleet-site-4',
+		] );
+		expect( manager.getById( 'fleet-site' )?.config.params ).toEqual( {
+			site: 'alpha',
+		} );
+		expect( manager.getById( 'fleet-site-4' )?.config.params ).toEqual( {
+			site: 'bravo',
+		} );
+	} );
+
+	test( 'a fresh native instance opened during restore keeps its requested params', async () => {
+		const config = desktopConfig( [
+			nativeEntry( {
+				id: 'fleet-site',
+				baseId: 'fleet-site',
+				params: { site: 'alpha' },
+			} ),
+			nativeEntry( {
+				id: 'fleet-site-2',
+				baseId: 'fleet-site',
+				params: { site: 'bravo' },
+			} ),
+		] );
+
+		const restoring = restoreSession(
+			manager,
+			config,
+			desktop,
+			opener( [ 'fleet-site' ] ),
+		);
+		const fresh = await manager.openNew( {
+			id: 'fleet-site',
+			baseId: 'fleet-site',
+			native: true,
+			url: '#fleet-site',
+			title: 'Fleet site',
+			icon: 'dashicons-admin-site',
+			params: { site: 'charlie' },
+			render: () => undefined,
+		} );
+		await restoring;
+
+		expect( fresh.id ).toBe( 'fleet-site-3' );
+		expect( fresh.config.params ).toEqual( { site: 'charlie' } );
+		expect( manager.getById( 'fleet-site-2' )?.config.params ).toEqual( {
+			site: 'bravo',
+		} );
+	} );
+
 	test( 'skips a native window whose owner is gone, keeping the rest', async () => {
 		const config = desktopConfig( [
 			nativeEntry( { id: 'gone-plugin-panel', baseId: 'gone-plugin-panel' } ),
@@ -326,6 +404,43 @@ describe( 'restoreSession — native windows', () => {
 
 		expect( manager.getById( 'gone-plugin-panel' ) ).toBeUndefined();
 		expect( manager.getById( 'edit-php' ) ).toBeDefined();
+	} );
+
+	test( 'a skipped native restore cannot retarget a later reused instance id', async () => {
+		const config = desktopConfig( [
+			nativeEntry( {
+				id: 'gone-plugin-panel-2',
+				baseId: 'gone-plugin-panel',
+				params: { site: 'saved-destination' },
+			} ),
+		] );
+
+		await restoreSession( manager, config, desktop, opener( [] ) );
+		await manager.openNew( {
+			id: 'gone-plugin-panel',
+			baseId: 'gone-plugin-panel',
+			native: true,
+			url: '#gone-plugin-panel',
+			title: 'Panel',
+			icon: 'dashicons-admin-generic',
+			params: { site: 'first-fresh-destination' },
+			render: () => undefined,
+		} );
+		const reused = await manager.openNew( {
+			id: 'gone-plugin-panel',
+			baseId: 'gone-plugin-panel',
+			native: true,
+			url: '#gone-plugin-panel',
+			title: 'Panel',
+			icon: 'dashicons-admin-generic',
+			params: { site: 'second-fresh-destination' },
+			render: () => undefined,
+		} );
+
+		expect( reused.id ).toBe( 'gone-plugin-panel-2' );
+		expect( reused.config.params ).toEqual( {
+			site: 'second-fresh-destination',
+		} );
 	} );
 
 	test( 'restores native and iframe windows side by side, focus included', async () => {
@@ -485,5 +600,16 @@ describe( 'WindowManager.openNew — instance id allocation', () => {
 		const second = await manager.openNew( cfg( 'edit-php', 'edit-php' ) );
 		expect( first.id ).toBe( 'edit-php' );
 		expect( second.id ).toBe( 'edit-php-2' );
+	} );
+
+	test( 'concurrent opens reserve ids before lazy bundles settle', async () => {
+		const first = manager.openNew( cfg( 'edit-php', 'edit-php' ) );
+		const second = manager.openNew( cfg( 'edit-php', 'edit-php' ) );
+		const windows = await Promise.all( [ first, second ] );
+
+		expect( windows.map( ( win ) => win.id ) ).toEqual( [
+			'edit-php',
+			'edit-php-2',
+		] );
 	} );
 } );

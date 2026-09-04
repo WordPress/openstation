@@ -134,6 +134,7 @@ import {
 	createNativeWindowSync,
 	createRegisterWindow,
 	hydrateServerEntries,
+	type NativeWindowRestoreState,
 	type WindowLifecycleHandlers,
 } from './native-windows';
 import { iconsApi, renderDesktopIcons, type IconsApi } from './desktop-icons';
@@ -327,6 +328,7 @@ import type {
 	DesktopConfig,
 	DesktopWallpaperServerEntry,
 	NativeWindowDef,
+	WindowConfig,
 } from './types';
 import type { Window as DesktopWindow } from './window';
 
@@ -2282,7 +2284,8 @@ function init(): void {
 		mode: modeController.api,
 		// Bound late: `openNativeWindowById` is declared further down
 		// the boot, and a recent is only ever opened from a tap.
-		openNative: ( id ) => openNativeWindowById( id ),
+		openNative: ( id, baseId, state ) =>
+			openNativeWindowById( id, baseId, state ),
 	} );
 
 	// Mio — the desk companion. A first-class shell layer (sibling
@@ -3520,12 +3523,19 @@ function init(): void {
 	 * `manager.open` so the admin-bar button, the dock system tile,
 	 * and any future widget all reach the same window instance.
 	 */
-	function openBugReport(): void {
+	function openBugReport(
+		instanceId = BUG_REPORT_WINDOW_ID,
+		state?: NativeWindowRestoreState,
+	): void {
 		// The window's stylesheet is a `deferredStyles` entry, not a
 		// boot enqueue — inject on first open.
 		ensureDeferredStyle( 'desktop-mode-bug-report' );
-		void manager.open( {
-			id: BUG_REPORT_WINDOW_ID,
+		const bugReportConfig: Partial< WindowConfig > & {
+			id: string;
+			url: string;
+			title: string;
+		} = {
+			id: instanceId,
 			baseId: BUG_REPORT_WINDOW_ID,
 			url: `#${ BUG_REPORT_WINDOW_ID }`,
 			title: 'Report a bug',
@@ -3536,7 +3546,11 @@ function init(): void {
 			height: 620,
 			minWidth: 420,
 			minHeight: 480,
-		} );
+			...state,
+		};
+		void ( state
+			? manager.openNew( bugReportConfig )
+			: manager.open( bugReportConfig ) );
 	}
 
 	// Admin-bar "Report a bug" button. Inline JS in
@@ -3700,21 +3714,33 @@ function init(): void {
 	 * belonged to a plugin that has since been deactivated. Callers
 	 * treat that as "nothing to open", not as an error.
 	 */
-	function openNativeWindowById( nativeId: string ): boolean {
+	function openNativeWindowById(
+		nativeId: string,
+		baseId?: string,
+		state?: NativeWindowRestoreState,
+	): boolean {
+		const registeredId = baseId || nativeId;
 		// Station Home is opt-in (OS Settings → Features). Refusing the
 		// id here — not just in the URL remap above — is what keeps a
 		// saved session from resurrecting the window for a user who
 		// never opted in: every 1.1.2 session has it open, and restore
 		// reopens native windows by id without consulting the remap.
 		if (
-			nativeId === 'desktop-mode-dashboard' &&
+			registeredId === 'desktop-mode-dashboard' &&
 			osSettings.getOsSettingsSnapshot().stationHomeEnabled !== true
 		) {
 			return false;
 		}
-		if ( nativeId === BUG_REPORT_WINDOW_ID ) {
-			openBugReport();
+		if ( registeredId === BUG_REPORT_WINDOW_ID ) {
+			openBugReport( nativeId, state );
 			return true;
+		}
+		if ( state ) {
+			return nativeWindows.restoreById(
+				nativeId,
+				registeredId,
+				state,
+			);
 		}
 		return nativeWindows.openById( nativeId );
 	}

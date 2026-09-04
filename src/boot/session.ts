@@ -21,6 +21,7 @@ import {
 	findDockEntryForWindowId,
 } from './geometry';
 import type { WindowManager } from '../window-manager';
+import type { NativeWindowRestoreState } from '../native-windows';
 import { workAreaRectOf } from '../work-area';
 import type { Window } from '../window';
 import type { DesktopConfig, Session, SessionWindow, WindowConfig } from '../types';
@@ -82,16 +83,20 @@ export function hasRestorableSession(
 }
 
 /**
- * Reopen a native window by id. Supplied by `desktop.ts`, which owns
- * the dispatch: shell built-ins (OS Settings, Bug Report) have their
- * own openers, everything else routes to
- * `nativeWindows.openById( id )`.
+ * Reopen a native window from its saved instance identity. Supplied by
+ * `desktop.ts`, which owns the dispatch: shell built-ins (OS Settings,
+ * Bug Report) have their own openers, everything else routes through
+ * the native-window registry using the stable base id.
  *
  * Returns `false` when nothing answers to that id — a plugin
  * deactivated since the session was saved. The restore skips those
  * silently; a missing plugin isn't an error worth surfacing at boot.
  */
-export type OpenNativeWindow = ( id: string ) => boolean;
+export type OpenNativeWindow = (
+	instanceId: string,
+	baseId?: string,
+	state?: NativeWindowRestoreState,
+) => boolean;
 
 /**
  * Wait for a window to appear in the manager, for openers that don't
@@ -149,10 +154,10 @@ function waitForWindow(
  * windows are reconstructed from their saved URL. Native windows
  * (`native: true` — OS Settings, Bug Report, anything registered via
  * `openstation_register_window()`) have no URL to iframe: they're
- * reopened by asking their owner through `openNative`, with the saved
- * geometry / desktop / state staged via
- * `manager.seedWindowRestoreState()` so the opener's own config
- * doesn't flatten them back to defaults.
+ * reopened by asking their owner through `openNative`. The stable
+ * `baseId` selects the registered definition while the saved instance
+ * id and restore-time state are passed separately, so duplicate native
+ * instances return under the same identities they were saved with.
  */
 export async function restoreSession(
 	manager: WindowManager,
@@ -180,12 +185,11 @@ export async function restoreSession(
 		);
 	}
 
-	// Stage every native window's saved geometry / desktop / state
-	// before triggering any open. The openers build their own
-	// `manager.open()` config from the registry and have no argument
-	// to carry restore-time values, so the manager merges these in by
-	// id as each window is constructed.
-	const nativeSeeds: Record< string, Partial< WindowConfig > > = {};
+	// Reserve every saved native instance id before restoring in session
+	// order. Native windows can wait on lazy framework and app bundles;
+	// the reservations prevent a user opening another copy during that
+	// wait from claiming an id the session is about to use.
+	const nativeSeeds: Record< string, NativeWindowRestoreState > = {};
 	for ( const win of config.session.windows ) {
 		if ( ! win.native ) {
 			continue;
@@ -209,7 +213,7 @@ export async function restoreSession(
 		};
 	}
 	if ( Object.keys( nativeSeeds ).length > 0 ) {
-		manager.seedWindowRestoreState( nativeSeeds );
+		manager.seedWindowRestoreState( nativeSeeds, { reserveIds: true } );
 	}
 
 	for ( const win of config.session.windows ) {
@@ -218,7 +222,17 @@ export async function restoreSession(
 		// id — a plugin deactivated since the session was saved — in
 		// which case there's simply no window to restore.
 		if ( win.native ) {
-			if ( ! openNative?.( win.id ) ) {
+			// Release this id immediately before its synchronous opener
+			// claims it as in-flight. The state itself is passed directly;
+			// nothing remains that a later fresh open could consume.
+			manager.discardWindowRestoreState( win.id );
+			if (
+				! openNative?.(
+					win.id,
+					win.baseId || win.id,
+					nativeSeeds[ win.id ],
+				)
+			) {
 				continue;
 			}
 			// Barrier: the openers are fire-and-forget, so without this
@@ -303,6 +317,11 @@ export async function restoreSession(
 			}
 		}
 	}
+
+	// Every saved native id has either been claimed or skipped. Clear
+	// anything left by a missing opener before a later user action can
+	// reuse that generated id.
+	manager.discardWindowRestoreState();
 
 	// Restore focus to whichever window the user left focused. If
 	// that id is no longer around (e.g., the saved focus pointed at
