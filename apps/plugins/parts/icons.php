@@ -221,3 +221,16 @@ function openstation_plugins_window_local_icon_url( $plugin_file ) {
 	wp_cache_set( 'icon:' . $plugin_file, null === $url ? 0 : $url, OPENSTATION_PLUGINS_CACHE_GROUP );
 	return $url;
 }
+
+add_action(
+	'init',
+	static function () {
+		// Which file a plugin folder ships as its icon cannot change
+		// inside a request, so the probe above memoises its answer —
+		// but it is a memo, not a cache: a persistent object cache
+		// would keep it across requests and outlive an update that
+		// changed the file.
+		wp_cache_add_non_persistent_groups( OPENSTATION_PLUGINS_CACHE_GROUP );
+	},
+	0
+);

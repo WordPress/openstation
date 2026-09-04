@@ -72,10 +72,6 @@ function openstation_plugins_window_maybe_refresh_update_transient( $force = fal
 			delete_site_transient( 'update_plugins' );
 		}
 		wp_update_plugins();
-		// The read path primes before it reads, so ordering alone keeps
-		// it honest; a caller that primed earlier in the request gets
-		// the new answer because of this.
-		openstation_plugins_window_forget_updates();
 		return;
 	}
 
@@ -111,57 +107,28 @@ function openstation_plugins_window_prime_updates_once( $force = false ) {
 }
 
 /**
- * The `update_plugins` transient, primed at most once per request and
- * read once: every row's fields and the badge count share it. The
- * snapshot is dropped whenever something rewrites the transient under
- * it — an upgrader run mid-request, a plugin deleted, the Refresh
- * action's forced check — so it is never behind the store.
+ * The `update_plugins` transient, primed at most once per request:
+ * every row's fields and the badge count read it through here.
+ *
+ * Deliberately NOT memoised on top of Core. `get_site_transient()` is
+ * already an in-memory read after the first call of a request, and a
+ * memo of our own would have to be invalidated whenever anything else
+ * rewrites the transient — an upgrader finishing, a forced refresh, a
+ * test priming a fixture. The obvious listeners for that are the
+ * transient's own set/delete hooks, and Plugin Check reads any mention
+ * of those two names as a self-hosted plugin updater
+ * (`plugin_updater_detected`), which a wp.org-hosted plugin may not
+ * ship. Reading Core's cache every time costs nothing and cannot go
+ * stale.
  *
  * @return object|null The transient object, or null when it is cold.
  */
 function openstation_plugins_window_updates() {
-	$found    = false;
-	$snapshot = wp_cache_get( 'update_plugins', OPENSTATION_PLUGINS_CACHE_GROUP, false, $found );
-	if ( $found ) {
-		return is_object( $snapshot ) ? $snapshot : null;
-	}
 	openstation_plugins_window_prime_updates_once();
 	$updates = get_site_transient( 'update_plugins' );
-	// A refresh inside the call above set the transient and reset the
-	// snapshot — record what was read AFTER it.
-	wp_cache_set( 'update_plugins', is_object( $updates ) ? $updates : 0, OPENSTATION_PLUGINS_CACHE_GROUP );
 	return is_object( $updates ) ? $updates : null;
 }
 
-/**
- * Forget the snapshot — the transient just changed under it.
- *
- * @return void
- */
-function openstation_plugins_window_forget_updates() {
-	wp_cache_delete( 'update_plugins', OPENSTATION_PLUGINS_CACHE_GROUP );
-}
-// What actually rewrites the transient inside a request: an upgrader
-// finishing (install, update, bulk update) and a plugin being deleted;
-// Core cleans the plugin caches on both. The forced-refresh path
-// forgets on its own, above.
-//
-// Deliberately NOT the transient's own `set_` / `delete_` actions,
-// which would be the obvious listener: Plugin Check reads any mention
-// of those two hook names — in code or in a comment, it scans the raw
-// file — as a self-hosted plugin updater (`plugin_updater_detected`),
-// which a wp.org-hosted plugin may not ship. The two actions below
-// mark the same moments and carry no such meaning.
-add_action( 'upgrader_process_complete', 'openstation_plugins_window_forget_updates' );
-add_action( 'deleted_plugin', 'openstation_plugins_window_forget_updates' );
-add_action(
-	'init',
-	static function () {
-		// The snapshot is a per-request memo, never a cross-request cache.
-		wp_cache_add_non_persistent_groups( OPENSTATION_PLUGINS_CACHE_GROUP );
-	},
-	0
-);
 
 /**
  * `openstation_update_available` callback.
