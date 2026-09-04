@@ -202,6 +202,45 @@ describe( 'native-windows — deferred bundle loading', () => {
 		expect( render ).toHaveBeenCalledTimes( 1 );
 	} );
 
+	test( 'a restored instance keeps its saved id while its bundle loads lazily', async () => {
+		const h = setupHarness();
+		const e = entry( 'fleet-site' );
+		installTemplate( e );
+		const { sync, restoreById } = createNativeWindowSync(
+			depsFromHarness( h ),
+		);
+		await sync( [ e ] );
+
+		const render = vi.fn();
+		vi.mocked( vendorLoader.loadVendorScript ).mockImplementation(
+			async ( url: string ) => {
+				loaded.push( url );
+				(
+					window as unknown as {
+						openStationNativeWindows: Record< string, unknown >;
+					}
+				).openStationNativeWindows[ 'fleet-site' ] = render;
+			},
+		);
+
+		expect(
+			restoreById( 'fleet-site-3', 'fleet-site', {
+				params: { site: 'charlie' },
+			} ),
+		).toBe( true );
+		await runRender( h.managerOpen );
+
+		expect( h.managerOpen.mock.calls[ 0 ][ 0 ] ).toEqual(
+			expect.objectContaining( {
+				id: 'fleet-site-3',
+				baseId: 'fleet-site',
+				params: { site: 'charlie' },
+			} ),
+		);
+		expect( loaded ).toEqual( [ 'https://example.test/fleet-site.js' ] );
+		expect( render ).toHaveBeenCalledTimes( 1 );
+	} );
+
 	test( 'the second open reuses the loaded bundle', async () => {
 		const h = setupHarness();
 		const e = entry( 'calculator' );
