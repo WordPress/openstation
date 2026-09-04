@@ -1404,6 +1404,22 @@ An entry you allow back in still has to survive the browser: a host that sends `
 
 ---
 
+### `openstation_multisite_sites` — Experimental
+
+The sites the overview's site switcher offers on a network: every site the user belongs to (`get_blogs_of_user()`, minus the archived, spam and deleted) and, for a super admin, the network's sites by path up to the first 20, each with its own shell screen. On a network every site is its own OpenStation, and picking one navigates to it. See [multisite.md](multisite.md#site-instances).
+
+```php
+apply_filters( 'openstation_multisite_sites', array $sites );
+```
+
+Each entry: `id` (the blog id, as a string), `name`, `shellUrl` (that site's shell screen). Trim it on a large network, reorder it, or rename an entry; a site dropped here is not offered, though the admin bar still reaches it.
+
+```php
+add_filter( 'openstation_multisite_sites', function ( $sites ) {
+    return array_slice( $sites, 0, 6 );
+} );
+```
+
 ### `openstation_workspace_presets` — Stable
 
 The workspace templates offered as cards on the wizard's Start step, beside Blank desktop. A **[workspace](workspaces.md)** is a desktop plus the answer to what it is for: which apps show on it, which windows it opens with, how they are arranged. Three ship — Commerce, Learning and Publishing, named for the job and built around the products that do it (the Commerce tokens name WooCommerce, the Learning ones name Sensei).

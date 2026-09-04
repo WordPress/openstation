@@ -19,7 +19,7 @@ import { _n, __, sprintf } from '../i18n';
 import { osIconSvg } from '../ui/icons';
 import type { Desktop } from '../types';
 import { computeOverviewLayout, type OverviewLayoutItem } from './geometry';
-import { OVERVIEW_TOP_BAR_RESERVE } from './overview-constants';
+import { overviewTopBarReserve } from './overview-constants';
 import {
 	closeDesktop,
 	createDesktop,
@@ -262,7 +262,7 @@ export function enterOverview( mgr: WindowManager ): void {
 	const layout = computeOverviewLayout(
 		eligible,
 		targetRect,
-		OVERVIEW_TOP_BAR_RESERVE,
+		overviewTopBarReserve( mgr._overviewTopBar ),
 	);
 
 	mgr._overviewLabels.clear();
@@ -516,10 +516,41 @@ export function cancelOverviewTimers( mgr: WindowManager ): void {
 	mgr._overviewExitFinalizer = null;
 }
 
+/**
+ * A row the shell puts ABOVE the desktop tiles — the site switcher on a
+ * network, where every site is its own OpenStation with its own desks.
+ * Overview cannot build it (it has a `WindowManager` and nothing else),
+ * so the shell installs a builder once at boot and every bar build
+ * calls it; `null` from the builder means no row, which is what every
+ * single-site shell and every existing overview test gets.
+ */
+let overviewHeaderBuilder: ( () => HTMLElement | null ) | null = null;
+
+/**
+ * Install the builder for the row above the desktop tiles. Returns a
+ * teardown so a discarded shell leaves nothing behind.
+ */
+export function installOverviewHeader(
+	build: () => HTMLElement | null,
+): () => void {
+	overviewHeaderBuilder = build;
+	return () => {
+		overviewHeaderBuilder = null;
+	};
+}
+
 /** Build the overview top bar — a tile per virtual desktop plus "+". */
 function buildOverviewTopBar( mgr: WindowManager ): HTMLElement {
 	const bar = document.createElement( 'div' );
 	bar.className = 'os-overview-top-bar';
+
+	const header = overviewHeaderBuilder?.();
+	if ( header ) {
+		const row = document.createElement( 'div' );
+		row.className = 'os-overview-top-bar__header';
+		row.appendChild( header );
+		bar.appendChild( row );
+	}
 
 	const list = document.createElement( 'div' );
 	list.className = 'os-overview-top-bar__list';

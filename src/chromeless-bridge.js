@@ -1495,14 +1495,14 @@
 		}
 		if ( kind === 'other-admin' ) {
 			/*
-			 * A different admin: handed to the SHELL, which opens it in
-			 * that admin's own Space (its scoped desktop) — or a
-			 * browser tab where it cannot be framed. Not a window here
-			 * (see isOtherAdmin): a window belongs to the admin whose
-			 * dock is behind it. A modifier or middle click never
-			 * reaches this branch — the handler yields those to the
-			 * browser, whose native new-tab behavior keeps the
-			 * side-by-side option. See docs/multisite.md.
+			 * A different admin: handed to the SHELL, which hops to
+			 * that admin's own shell — on a network every site is its
+			 * own OpenStation. Not a window here (see isOtherAdmin): a
+			 * window belongs to the admin whose dock is behind it. A
+			 * modifier or middle click never reaches this branch — the
+			 * handler yields those to the browser, whose native new-tab
+			 * behavior keeps the side-by-side option. See
+			 * docs/multisite.md.
 			 */
 			e.preventDefault();
 			var other;

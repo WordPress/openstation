@@ -1,9 +1,10 @@
 <?php
 /**
- * OpenStation — Multisite integration: the network admin menu payload,
- * mirroring the admin bar's Network Admin node (its rows are links OUT,
- * never window sources — see docs/multisite.md), and the per-site table
- * cleanup when a subsite is deleted.
+ * OpenStation — Multisite integration: the shell's multisite block (which
+ * instance this shell is, the sites the user may switch to, the network
+ * admin menu mirroring the admin bar's Network Admin node — every URL a
+ * link OUT, never a window source, see docs/multisite.md), and the
+ * per-site table cleanup when a subsite is deleted.
  *
  * @package OpenStation
  */
@@ -11,50 +12,127 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Null on single-site installs and for users who cannot reach the
- * network admin, which is what keeps the tile from registering.
+ * The multisite block of the shell config.
+ *
+ * On a network every site is its own OpenStation, and so is the network
+ * admin: the block says which instance this shell is, lists every site
+ * the user may switch to (the overview's site switcher), and carries
+ * the Network Admin tile's rows. Null on a single-site install;
+ * `networkAdmin` null for users who cannot reach the network admin,
+ * which is what keeps the tile from registering.
  *
  * @return array|null
  */
 function openstation_multisite_payload() {
-	if ( ! is_multisite() || ! is_user_logged_in() || ! current_user_can( 'manage_network' ) ) {
+	if ( ! is_multisite() || ! is_user_logged_in() ) {
 		return null;
 	}
 
-	// Capability gates copied one for one from
-	// `wp_admin_bar_my_sites_menu()`, so the tile can never offer a
-	// screen the admin bar would have hidden.
-	$network = esc_url_raw( network_admin_url() );
-	$rows    = array(
-		array(
-			'title' => __( 'Dashboard', 'desktop-mode' ),
-			'url'   => $network,
-		),
-	);
-	$gated   = array(
-		'manage_sites'           => array( 'sites.php', __( 'Sites', 'desktop-mode' ) ),
-		'manage_network_users'   => array( 'users.php', __( 'Users', 'desktop-mode' ) ),
-		'manage_network_themes'  => array( 'themes.php', __( 'Themes', 'desktop-mode' ) ),
-		'manage_network_plugins' => array( 'plugins.php', __( 'Plugins', 'desktop-mode' ) ),
-		'manage_network_options' => array( 'settings.php', __( 'Settings', 'desktop-mode' ) ),
-	);
+	$network_admin = null;
+	if ( current_user_can( 'manage_network' ) ) {
+		// Capability gates copied one for one from
+		// `wp_admin_bar_my_sites_menu()`, so the tile can never offer a
+		// screen the admin bar would have hidden.
+		$network = esc_url_raw( network_admin_url() );
+		$rows    = array(
+			array(
+				'title' => __( 'Dashboard', 'desktop-mode' ),
+				'url'   => $network,
+			),
+		);
+		$gated   = array(
+			'manage_sites'           => array( 'sites.php', __( 'Sites', 'desktop-mode' ) ),
+			'manage_network_users'   => array( 'users.php', __( 'Users', 'desktop-mode' ) ),
+			'manage_network_themes'  => array( 'themes.php', __( 'Themes', 'desktop-mode' ) ),
+			'manage_network_plugins' => array( 'plugins.php', __( 'Plugins', 'desktop-mode' ) ),
+			'manage_network_options' => array( 'settings.php', __( 'Settings', 'desktop-mode' ) ),
+		);
 
-	foreach ( $gated as $capability => $row ) {
-		if ( current_user_can( $capability ) ) {
-			$rows[] = array(
-				'title' => $row[1],
-				'url'   => esc_url_raw( network_admin_url( $row[0] ) ),
-			);
+		foreach ( $gated as $capability => $row ) {
+			if ( current_user_can( $capability ) ) {
+				$rows[] = array(
+					'title' => $row[1],
+					'url'   => esc_url_raw( network_admin_url( $row[0] ) ),
+				);
+			}
 		}
+
+		$network_admin = array(
+			'url'      => $network,
+			'shellUrl' => esc_url_raw( network_admin_url( 'admin.php?page=' . OPENSTATION_SHELL_PAGE_SLUG ) ),
+			'rows'     => $rows,
+		);
 	}
 
 	return array(
 		'isNetworkAdmin' => is_network_admin(),
-		'networkAdmin'   => array(
-			'url'  => $network,
-			'rows' => $rows,
-		),
+		'networkAdmin'   => $network_admin,
+		'current'        => is_network_admin() ? 'network' : (string) get_current_blog_id(),
+		'sites'          => openstation_multisite_sites(),
 	);
+}
+
+/**
+ * How many of the network's sites a super admin's switcher lists beyond
+ * their own: the network Sites screen's first page. A row, not a
+ * directory — a larger network picks its set through the filter below.
+ */
+const OPENSTATION_MULTISITE_SWITCHER_SITES = 20;
+
+/**
+ * The sites the user may switch to, each with its own shell screen.
+ *
+ * The user's own sites first — `get_blogs_of_user()`, the list behind
+ * the admin bar's My Sites, minus the archived, spam and deleted, in
+ * the order Core keeps them — then, for a super admin, who can reach
+ * every site whether or not they are a member, the network's sites by
+ * path up to {@see OPENSTATION_MULTISITE_SWITCHER_SITES}.
+ *
+ * @return array[] Each `id` (the blog id, as a string), `name`, `shellUrl`.
+ */
+function openstation_multisite_sites() {
+	$names = array();
+	foreach ( get_blogs_of_user( get_current_user_id() ) as $blog ) {
+		$names[ (int) $blog->userblog_id ] = (string) $blog->blogname;
+	}
+	if ( current_user_can( 'manage_network' ) ) {
+		$network_sites = get_sites(
+			array(
+				'number'   => OPENSTATION_MULTISITE_SWITCHER_SITES,
+				'archived' => 0,
+				'spam'     => 0,
+				'deleted'  => 0,
+				'orderby'  => 'path',
+				'order'    => 'ASC',
+			)
+		);
+		foreach ( $network_sites as $site ) {
+			$blog_id = (int) $site->blog_id;
+			if ( ! isset( $names[ $blog_id ] ) ) {
+				$names[ $blog_id ] = (string) $site->blogname;
+			}
+		}
+	}
+
+	$sites = array();
+	foreach ( $names as $blog_id => $name ) {
+		$sites[] = array(
+			'id'       => (string) $blog_id,
+			'name'     => $name,
+			'shellUrl' => esc_url_raw( get_admin_url( $blog_id, 'admin.php?page=' . OPENSTATION_SHELL_PAGE_SLUG ) ),
+		);
+	}
+
+	/**
+	 * Filters the sites the overview's site switcher offers.
+	 *
+	 * Trim it on a large network, reorder it, rename an entry, or build
+	 * a different set. A site dropped here is not offered, though the
+	 * admin bar still reaches it.
+	 *
+	 * @param array[] $sites Each `id` (blog id as a string), `name`, `shellUrl`.
+	 */
+	return apply_filters( 'openstation_multisite_sites', $sites );
 }
 
 /**

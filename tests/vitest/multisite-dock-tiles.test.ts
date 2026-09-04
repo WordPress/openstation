@@ -18,8 +18,11 @@ const config = ( over: Partial< MultisiteConfig > = {} ): MultisiteConfig => ( {
 	isNetworkAdmin: false,
 	networkAdmin: {
 		url: NETWORK,
+		shellUrl: NETWORK + 'admin.php?page=openstation',
 		rows: [ { title: 'Dashboard', url: NETWORK }, { title: 'Sites', url: SITES } ],
 	},
+	current: '1',
+	sites: [],
 	...over,
 } );
 

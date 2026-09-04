@@ -51,14 +51,18 @@ export function isShellDocumentUrl( url: URL | string, base?: string ): boolean 
 
 /**
  * The shell screen's one-shot boot args, mirroring
- * `OPENSTATION_SHELL_TARGET_ARG` and `OPENSTATION_SHELL_INTENT_ARG`.
+ * `OPENSTATION_SHELL_TARGET_ARG`, `OPENSTATION_SHELL_INTENT_ARG` and
+ * `OPENSTATION_SHELL_OVERVIEW_ARG`.
  *
- * `target` names the page the shell opens first and `intent` says the
- * user asked for it by name. PHP reads both once, on the request that
+ * `target` names the page the shell opens first, `intent` says the
+ * user asked for it by name, and `openstation_overview` asks for the
+ * desk to open in overview (how a switch from another site's overview
+ * lands in this one's). PHP reads them once, on the request that
  * carries them, and hands the answer to the shell as `currentPage` /
- * `fromPortalIntent` — nothing on the JS side reads them from the URL.
+ * `fromPortalIntent` / `landInOverview` — nothing on the JS side reads
+ * them from the URL.
  */
-const SHELL_BOOT_ARGS = [ 'target', 'intent' ] as const;
+const SHELL_BOOT_ARGS = [ 'target', 'intent', 'openstation_overview' ] as const;
 
 /**
  * The same shell-screen URL with the consumed boot args removed, or

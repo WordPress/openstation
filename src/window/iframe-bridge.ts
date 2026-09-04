@@ -101,10 +101,11 @@ interface AdminLinkDispatchDeps {
 	/**
 	 * Route a link that leaves this ADMIN — the bridge classifies those
 	 * itself (`os-iframe-other-admin-link`) because they must not
-	 * become windows here: the shell opens them in the target admin's
-	 * own Space (or a browser tab where it cannot be framed). Optional
-	 * so tests exercising only the same-admin dispatch need not stub
-	 * it; a missing handler drops the click rather than mis-routing it.
+	 * become windows here: on a network every site is its own
+	 * OpenStation, so the shell hops to the target admin's own shell.
+	 * Optional so tests exercising only the same-admin dispatch need
+	 * not stub it; a missing handler drops the click rather than
+	 * mis-routing it.
 	 */
 	openOtherAdmin?: ( url: string ) => void;
 }

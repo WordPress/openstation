@@ -328,11 +328,36 @@
 	left: 50%;
 	transform: translateX( -50% );
 	z-index: 2;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 10px;
 	opacity: 0;
 	pointer-events: none;
 	transition:
 		opacity 0.22s ease 0.06s,
 		transform 0.28s cubic-bezier( 0.2, 0, 0.2, 1 ) 0.06s;
+}
+
+/* The row above the desktop tiles — the site switcher on a network,
+ * where every site is its own OpenStation with its own desks. Its own
+ * panel, so the switcher reads as the thing the tiles hang under, not
+ * as one more tile. `OVERVIEW_TOP_BAR_HEADER_RESERVE` in
+ * `overview-constants.ts` is this row's height plus the gap. */
+.os-overview-top-bar__header {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 6px 8px;
+	border-radius: 14px;
+	background-color: var( --os-ui-scrim, rgba( 0, 0, 0, 0.32 ) );
+	backdrop-filter: blur( 18px ) saturate( 140% );
+	-webkit-backdrop-filter: blur( 18px ) saturate( 140% );
+	box-shadow:
+		0 8px 28px rgba( 0, 0, 0, 0.35 ),
+		inset 0 0 0 1px rgba( 255, 255, 255, 0.08 );
+	max-width: min( 92vw, 960px );
+	overflow-x: auto;
 }
 
 .os-area--overview .os-overview-top-bar {

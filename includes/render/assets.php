@@ -749,12 +749,16 @@ function openstation_enqueue_assets() {
 				)
 				: null,
 			'currentUserIsAdmin'            => current_user_can( 'manage_options' ),
-			// Null on single-site installs and without `manage_network`,
-			// which is what keeps the dock tile from registering.
+			// Null on single-site installs; its `networkAdmin` null
+			// without `manage_network`, which is what keeps the dock
+			// tile from registering.
 			'multisite'                     => openstation_multisite_payload(),
 			'portalUrl'                     => esc_url( openstation_portal_url() ),
 			'fromPortal'                    => $from_portal,
 			'fromPortalIntent'              => $from_portal_intent,
+			// One-shot like the boot target: a switch from another
+			// site's overview lands in this one's.
+			'landInOverview'                => openstation_shell_lands_in_overview(),
 			'pwa'                           => array(
 				'manifestUrl'    => esc_url_raw( openstation_pwa_manifest_url() ),
 				'swUrl'          => esc_url_raw( openstation_pwa_sw_url() ),
