@@ -23,6 +23,7 @@ The six native list windows are now `.os.php` apps under `apps/` — `apps/posts
 | One `dm_pwsz_<md5>` size transient per plugin | One `dm_pwsz_map` transient for the whole install, read once per request and invalidated on `upgrader_process_complete` / `deleted_plugin`. |
 | The Browse request's `updated` sort and `tag` filter; `banners`, `contributors`, `donate_link` in the wp.org calls | Removed — nothing in the window offered them. `openstation_plugins_window_browse_args` no longer sees a `tag` in its raw params. |
 | The dock drop-target id `os-plugins-window/dock` | `desktop-mode-plugins/dock`. |
+| A plugin `delete` dispatch reaching Core's controller on a network | Refused, like the admin-ajax half already was. `openstation_plugins_window_caps()` is the screen gate — Core's site plugins screen offers no Delete, the files are the network admin's — and a super admin holds `delete_plugins`, so the action enforces the gate rather than the bare capability. |
 
 ## Unchanged
 

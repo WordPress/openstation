@@ -109,6 +109,23 @@ function is_self( $plugin ) {
  * @return array{ok:bool,name:string,error:string}
  */
 function mutate( $plugin, $status ) {
+	// The screen gate, server-side. `openstation_plugins_window_caps()`
+	// is what hides Delete on a network — Core's site plugins screen has
+	// none, the files are the network admin's — but a super admin HOLDS
+	// `delete_plugins`, so Core's controller would let a dispatch from a
+	// stale client through. The admin-ajax half of the app enforces the
+	// same gate in its guard; this is the REST half.
+	$caps    = openstation_plugins_window_caps();
+	$allowed = 'delete' === $status ? ! empty( $caps['delete'] ) : ! empty( $caps['activate'] );
+	if ( ! $allowed ) {
+		return array(
+			'ok'    => false,
+			'name'  => $plugin,
+			'error' => is_multisite() && 'delete' === $status
+				? __( 'Plugins are managed from the network admin on this site.', 'desktop-mode' )
+				: __( 'You are not allowed to do that.', 'desktop-mode' ),
+		);
+	}
 	if ( 'delete' === $status ) {
 		$result = openstation_app_rest( 'DELETE', 'wp/v2/plugins/' . $plugin, array( 'force' => 'true' ) );
 	} else {

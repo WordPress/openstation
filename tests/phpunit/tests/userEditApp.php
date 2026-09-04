@@ -25,6 +25,13 @@ class Tests_OpenStation_UserEditApp extends WP_UnitTestCase {
 	public function set_up() {
 		parent::set_up();
 		wp_set_current_user( self::$admin_id );
+		// Editing SOMEONE ELSE is `manage_network_users` on a network
+		// (`map_meta_cap`, `edit_user`), so the persona this window is
+		// built for — a user who may edit other people here — is a super
+		// admin there and a plain administrator on a single site.
+		if ( is_multisite() ) {
+			grant_super_admin( self::$admin_id );
+		}
 	}
 
 	public function tear_down() {
