@@ -54,6 +54,14 @@ export interface PostsRestClient {
 		categoryIds: number[],
 	): Promise< { id: number; categories: number[] } >;
 	fetchTerms( taxonomy: 'categories' | 'tags', params?: TermsListParams ): Promise< TermsListPage >;
+	/**
+	 * Every term of a taxonomy, 100 per page up to five pages — what a
+	 * canvas mounts from. Counts are Core's publish-only numbers here;
+	 * the canvases replace them with the any-status map from
+	 * `fetchTermCounts()` right after (one cached query instead of one
+	 * COUNT per term).
+	 */
+	fetchAllTerms( taxonomy: 'categories' | 'tags' ): Promise< TermRow[] >;
 	fetchTagCooccurrence(
 		taxonomy?: 'tags' | 'categories',
 		limit?: number,
@@ -165,8 +173,8 @@ export function createPostsRestClient( restFetch: RestFetch ): PostsRestClient {
 	};
 
 	const termRow = ( t: Partial< TermRow >, fallbackId = 0 ): TermRow => {
-		// Prefer the any-status count (drafts + pending included) when
-		// the server emits it; fall back to core's `count`.
+		// A response that carries the any-status count (a third-party
+		// projection) wins over core's publish-only `count`.
 		const anyCount = ( t as { openstation_count?: number } ).openstation_count;
 		return {
 			id: ( t.id as number ) ?? fallbackId,
@@ -176,6 +184,30 @@ export function createPostsRestClient( restFetch: RestFetch ): PostsRestClient {
 			count: typeof anyCount === 'number' ? anyCount : ( ( t.count as number ) ?? 0 ),
 			description: ( t.description as string ) ?? '',
 			isDefault: ( t as { openstation_is_default?: boolean } ).openstation_is_default === true,
+		};
+	};
+
+	const fetchTerms = async ( taxonomy: 'categories' | 'tags', params: TermsListParams = {} ): Promise< TermsListPage > => {
+		// `openstation_count` is deliberately NOT requested: it costs one
+		// COUNT query per term, and the bulk `/term-counts` map the
+		// canvases fetch right after answers for every term from one
+		// cached query. `openstation_is_default` is one option read.
+		const { data, headers } = await request< Array< Partial< TermRow > > >(
+			`wp/v2/${ taxonomy }${ qs( {
+				per_page: params.perPage ?? 50,
+				page: params.page ?? 1,
+				_fields: 'id,name,slug,parent,count,description,openstation_is_default',
+				orderby: params.orderby ?? 'name',
+				order: params.order ?? 'asc',
+				search: params.search,
+				parent: typeof params.parent === 'number' && params.parent >= 0 ? params.parent : undefined,
+			} ) }`,
+			{ method: 'GET' },
+		);
+		return {
+			items: Array.isArray( data ) ? data.map( ( t ) => termRow( t ) ) : [],
+			total: parseInt( headers.get( 'X-WP-Total' ) ?? '0', 10 ) || 0,
+			totalPages: parseInt( headers.get( 'X-WP-TotalPages' ) ?? '0', 10 ) || 0,
 		};
 	};
 
@@ -287,24 +319,20 @@ export function createPostsRestClient( restFetch: RestFetch ): PostsRestClient {
 			return data;
 		},
 
-		async fetchTerms( taxonomy, params = {} ) {
-			const { data, headers } = await request< Array< Partial< TermRow > > >(
-				`wp/v2/${ taxonomy }${ qs( {
-					per_page: params.perPage ?? 50,
-					page: params.page ?? 1,
-					_fields: 'id,name,slug,parent,count,description,openstation_count,openstation_is_default',
-					orderby: params.orderby ?? 'name',
-					order: params.order ?? 'asc',
-					search: params.search,
-					parent: typeof params.parent === 'number' && params.parent >= 0 ? params.parent : undefined,
-				} ) }`,
-				{ method: 'GET' },
-			);
-			return {
-				items: Array.isArray( data ) ? data.map( ( t ) => termRow( t ) ) : [],
-				total: parseInt( headers.get( 'X-WP-Total' ) ?? '0', 10 ) || 0,
-				totalPages: parseInt( headers.get( 'X-WP-TotalPages' ) ?? '0', 10 ) || 0,
-			};
+		fetchTerms,
+
+		async fetchAllTerms( taxonomy ) {
+			const all: TermRow[] = [];
+			let page = 1;
+			while ( page <= 5 ) {
+				const res = await fetchTerms( taxonomy, { page, perPage: 100 } );
+				all.push( ...res.items );
+				if ( page >= res.totalPages ) {
+					break;
+				}
+				page++;
+			}
+			return all;
 		},
 
 		async fetchTagCooccurrence( taxonomy = 'tags', limit = 8 ) {
@@ -344,15 +372,7 @@ export function createPostsRestClient( restFetch: RestFetch ): PostsRestClient {
 				body: JSON.stringify( patch ),
 			} );
 			broadcastTermChange( taxonomy === 'categories' ? 'category' : 'post_tag', 'updated', id );
-			return {
-				id: data.id ?? id,
-				name: data.name ?? '',
-				slug: data.slug ?? '',
-				parent: data.parent ?? 0,
-				count: data.count ?? 0,
-				description: data.description ?? '',
-				isDefault: ( data.isDefault as boolean | undefined ) ?? false,
-			};
+			return termRow( data, id );
 		},
 
 		async deleteTerm( taxonomy, id ) {

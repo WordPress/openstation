@@ -28,6 +28,7 @@ import {
 	applySelection,
 	clientAppFor,
 	copyText,
+	createListTableSync,
 	createMarquee,
 	createPagedList,
 	defineApp,
@@ -40,7 +41,7 @@ import {
 	statusControl,
 } from './client';
 import { createSession, setSessionDebug, type Session } from './session';
-import type { AppConfig, AppearanceDef, ControlDef, RuntimeHost } from './types';
+import { appAnnounceSource, type AppConfig, type AppearanceDef, type ControlDef, type RuntimeHost } from './types';
 
 const OWNER = 'openstation-app-runtime';
 const RESIZE_DEBOUNCE_MS = 200;
@@ -67,8 +68,12 @@ function sessionOf( windowId: string, view = 'main' ): Session | undefined {
 	return sessions.get( windowId )?.get( view );
 }
 
-/** The shell surface the sessions use, built once from `wp.os`. */
-function buildHost(): RuntimeHost {
+/**
+ * The shell surface the sessions use, built from `wp.os` per window —
+ * the window id tags every content-change announce, so the window's
+ * own `watch()` can skip its own echo.
+ */
+function buildHost( ownerWindowId: string ): RuntimeHost {
 	const api = os();
 	return {
 		fetch: ( input, init, opts ) => {
@@ -89,7 +94,9 @@ function buildHost(): RuntimeHost {
 			} );
 		},
 		toast: ( options ) => {
-			api?.showToast( { message: options.message } );
+			api?.showToast(
+				options.duration ? { message: options.message, duration: options.duration } : { message: options.message },
+			);
 		},
 		setTitle: ( windowId, title ) => {
 			api?.windowManager.getById( windowId )?.setTitle( title );
@@ -140,7 +147,7 @@ function buildHost(): RuntimeHost {
 				contentType,
 				action as Parameters< typeof api.announceContentChange >[ 1 ],
 				ids,
-				OWNER,
+				appAnnounceSource( ownerWindowId ),
 			);
 		},
 		menu: ( position, items, pick ) => {
@@ -168,7 +175,7 @@ function buildHost(): RuntimeHost {
 			}
 		},
 		onBroadcast: ( topic, cb ) =>
-			api?.subscribe( topic, ( _payload, meta ) => cb( meta.topic ) ) ?? ( () => undefined ),
+			api?.subscribe( topic, ( payload, meta ) => cb( meta.topic, payload ) ) ?? ( () => undefined ),
 		loadComponents: ( tags ) => api?.loadComponents( tags ) ?? Promise.resolve(),
 		applyAppearance: ( windowId, appearance ) => applyAppearance( windowId, appearance ),
 	};
@@ -274,7 +281,7 @@ function registerChrome( config: AppConfig ): void {
 function buildRender( config: AppConfig ): RenderCallback {
 	return async ( body, ctx ) => {
 		const windowId = windowIdOf( body, config.id );
-		const host = buildHost();
+		const host = buildHost( windowId );
 		const lifecycle = new Set( config.lifecycle ?? [] );
 		const teardowns: Array< () => void > = [];
 
@@ -458,6 +465,7 @@ const CLIENT_API = {
 	statusControl,
 	pager,
 	mountMenuCheckboxes,
+	createListTableSync,
 } as const;
 
 /** What a queued third-party client view receives. */

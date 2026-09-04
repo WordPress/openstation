@@ -2,8 +2,9 @@
 /**
  * Tests for the Users app — the App Framework port of the native
  * Users window: the manifest, the gate, the list `data()` over
- * `wp/v2/users`, and the bulk-role / bulk-delete / create / email
- * actions end to end.
+ * `wp/v2/users` with the page's stats in two grouped queries, the
+ * sort, and the bulk-role / bulk-delete / create / email actions end
+ * to end.
  *
  * @package WordPress
  * @subpackage UnitTests
@@ -104,7 +105,7 @@ class Tests_OpenStation_UsersApp extends WP_UnitTestCase {
 		// A profile saved elsewhere repaints the list.
 		$this->assertSame( array( 'user' ), $manifest['watch'] );
 		$this->assertSame(
-			array( 'filter', 'page', 'bulk-role', 'bulk-delete', 'send-reset', 'resend-welcome', 'create' ),
+			array( 'filter', 'page', 'sort', 'bulk-role', 'bulk-delete', 'send-reset', 'resend-welcome', 'create' ),
 			$manifest['actions']
 		);
 		$this->assertSame( 1, $manifest['state']['page'] );
@@ -146,6 +147,9 @@ class Tests_OpenStation_UsersApp extends WP_UnitTestCase {
 		$this->assertArrayHasKey( '', $config['locales'] );
 		$this->assertSame( get_option( 'default_role' ), $config['defaultRole'] );
 		$this->assertNotEmpty( $config['colorSchemes'] );
+		$this->assertSame( wp_get_user_contact_methods(), $config['contactMethods'] );
+		// Both windows read the same memoised facts.
+		$this->assertSame( $config, openstation_apps_registry()->get( 'desktop-mode-user-edit' )->manifest()['config'] );
 
 		wp_set_current_user( self::$editor_id );
 		$config = $app->manifest()['config'];
@@ -174,15 +178,127 @@ class Tests_OpenStation_UsersApp extends WP_UnitTestCase {
 			}
 		}
 		$this->assertNotNull( $row );
-		// `context=edit` fields and the five REST fields, as before.
+		// The `context=edit` fields the columns paint, and the REST
+		// fields that are cheap per row.
 		$this->assertArrayHasKey( 'email', $row );
 		$this->assertSame( array( 'editor' ), $row['roles'] );
 		$this->assertArrayHasKey( 'registered_date', $row );
-		$this->assertSame( array( 'posts', 'pages', 'comments' ), array_keys( $row['openstation_user_stats'] ) );
 		$this->assertArrayHasKey( 'openstation_last_login', $row );
 		$this->assertContains( $row['openstation_presence'], array( 'online', 'inactive', 'offline' ) );
 		$this->assertTrue( $row['openstation_can_edit'] );
-		$this->assertContains( 'editor', $row['openstation_assignable_roles'] );
+		// The stats ride in from the grouped page query, not the field.
+		$this->assertSame( array( 'posts', 'pages', 'comments' ), array_keys( $row['openstation_user_stats'] ) );
+		// A query per row, and the app has both cheaper: not asked for.
+		$this->assertArrayNotHasKey( 'openstation_assignable_roles', $row );
+		$this->assertArrayNotHasKey( 'url', $row );
+		$this->assertArrayNotHasKey( 'description', $row );
+	}
+
+	/**
+	 * The Content column's numbers: one page of users costs two grouped
+	 * queries however many rows, and counts what the per-user REST
+	 * field counts (published posts and pages, approved comments).
+	 *
+	 * @covers ::openstation_users_window_stats_for
+	 */
+	public function test_the_page_stats_cost_two_queries_however_many_rows() {
+		global $wpdb;
+		$post = self::factory()->post->create( array( 'post_author' => self::$editor_id ) );
+		self::factory()->post->create(
+			array(
+				'post_author' => self::$editor_id,
+				'post_type'   => 'page',
+			)
+		);
+		self::factory()->post->create(
+			array(
+				'post_author' => self::$editor_id,
+				'post_status' => 'draft',
+			)
+		);
+		self::factory()->comment->create(
+			array(
+				'user_id'         => self::$editor_id,
+				'comment_post_ID' => $post,
+			)
+		);
+		self::factory()->comment->create(
+			array(
+				'user_id'          => self::$editor_id,
+				'comment_post_ID'  => $post,
+				'comment_approved' => '0',
+			)
+		);
+
+		$before = $wpdb->num_queries;
+		$stats  = openstation_users_window_stats_for( array( self::$admin_id, self::$editor_id, self::$subscriber_id ) );
+		$this->assertSame( 2, $wpdb->num_queries - $before );
+		$this->assertSame(
+			array(
+				'posts'    => 1,
+				'pages'    => 1,
+				'comments' => 1,
+			),
+			$stats[ self::$editor_id ]
+		);
+		$this->assertSame(
+			array(
+				'posts'    => 0,
+				'pages'    => 0,
+				'comments' => 0,
+			),
+			$stats[ self::$subscriber_id ],
+			'every id asked for is answered'
+		);
+		$this->assertSame( array(), openstation_users_window_stats_for( array() ) );
+
+		// The list carries them under the REST field's name.
+		$response = $this->dispatch( 'mount', array( 'search' => 'Edgar Editor' ) );
+		$this->assertSame( $stats[ self::$editor_id ], $response['data']['list']['items'][0]['openstation_user_stats'] );
+	}
+
+	/**
+	 * A column header click: the collection's `orderby` keys only, and
+	 * a direction that is one of two.
+	 *
+	 * @covers \OpenStation\App\Runtime::dispatch
+	 */
+	public function test_sort_validates_the_column_and_the_direction() {
+		$asc = $this->dispatch(
+			'sort',
+			array(),
+			array(
+				'orderby' => 'email',
+				'order'   => 'asc',
+			)
+		);
+		$this->assertSame( 'email', $asc['state']['orderby'] );
+		$this->assertSame( 'asc', $asc['state']['order'] );
+		$desc = $this->dispatch(
+			'sort',
+			array(),
+			array(
+				'orderby' => 'email',
+				'order'   => 'DESC',
+			)
+		);
+		$this->assertSame( 'desc', $desc['state']['order'] );
+		$this->assertSame(
+			array_reverse( wp_list_pluck( $asc['data']['list']['items'], 'id' ) ),
+			wp_list_pluck( $desc['data']['list']['items'], 'id' ),
+			'the same page, the other way round'
+		);
+
+		$bogus = $this->dispatch(
+			'sort',
+			array( 'orderby' => 'email' ),
+			array(
+				'orderby' => 'user_pass',
+				'order'   => 'sideways',
+			)
+		);
+		$this->assertSame( 'name', $bogus['state']['orderby'], 'an unknown column falls back to the name' );
+		$this->assertSame( 'asc', $bogus['state']['order'] );
 	}
 
 	/**
@@ -340,6 +456,57 @@ class Tests_OpenStation_UsersApp extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'already in use', $response['state']['createError'] );
 		$this->assertSame( 'add-new', $response['state']['tab'], 'a failure keeps the form open' );
 		$this->assertFalse( get_user_by( 'login', 'brand-new' ) );
+	}
+
+	/**
+	 * A role outside the viewer's `editable_roles` is refused, and the
+	 * form learns which field to mark.
+	 *
+	 * @covers \OpenStation\App\Runtime::dispatch
+	 */
+	public function test_create_refuses_a_role_the_viewer_cannot_assign_and_names_the_field() {
+		$narrow = static function ( $roles ) {
+			unset( $roles['administrator'] );
+			return $roles;
+		};
+		add_filter( 'editable_roles', $narrow );
+		$response = $this->dispatch(
+			'create',
+			array( 'tab' => 'add-new' ),
+			array(
+				'values' => array(
+					'username' => 'wannabe',
+					'email'    => 'wannabe@example.com',
+					'role'     => 'administrator',
+				),
+			)
+		);
+		remove_filter( 'editable_roles', $narrow );
+		$this->assertTrue( $response['ok'] );
+		$this->assertSame( 'role', $response['state']['createField'] );
+		$this->assertStringContainsString( 'not allowed to assign', $response['state']['createError'] );
+		$this->assertSame( 'add-new', $response['state']['tab'] );
+		$this->assertFalse( get_user_by( 'login', 'wannabe' ) );
+	}
+
+	/**
+	 * @covers \OpenStation\App\Runtime::dispatch
+	 */
+	public function test_resend_welcome_emails_throttles_and_refuses_a_viewer_without_edit_users() {
+		add_filter( 'pre_wp_mail', '__return_true' );
+		$first = $this->dispatch( 'resend-welcome', array(), array( 'id' => self::$subscriber_id ) );
+		remove_filter( 'pre_wp_mail', '__return_true' );
+		$this->assertTrue( $first['ok'] );
+		$this->assertStringContainsString( 'Welcome email resent to', $this->effects( $first, 'toast' )[0]['message'] );
+
+		$second = $this->dispatch( 'resend-welcome', array(), array( 'id' => self::$subscriber_id ) );
+		$this->assertStringContainsString( 'already sent recently', $this->effects( $second, 'toast' )[0]['message'] );
+
+		wp_set_current_user( self::$editor_id );
+		add_filter( 'openstation_users_window_user_can_register', '__return_true' );
+		$refused = $this->dispatch( 'resend-welcome', array(), array( 'id' => self::$subscriber_id ) );
+		remove_filter( 'openstation_users_window_user_can_register', '__return_true' );
+		$this->assertStringContainsString( 'not allowed to email', $this->effects( $refused, 'toast' )[0]['message'] );
 	}
 
 	/**

@@ -1,323 +1,61 @@
 /**
- * Native Plugins window — shell + tab styles.
+ * Plugins app — the window's own styles.
  *
- * Bundle iterates fast; this stylesheet is `filemtime`-cache-busted
- * via `wp_register_style`. Heavy view-specific styles (gallery
- * cards, detail-flyout hero) ship here too so a single CSS handle
- * covers the whole window.
+ * What the framework's list furniture (`app-runtime.css`, the
+ * `.os-app-list__*` classes) does not cover: the tab panels' clipping,
+ * the card galleries, the detail flyout, the upload dialog, the
+ * window-wide .zip drop overlay and the card drag ghost. The Installed
+ * table's cells and its detail panel render inside `<os-table>`'s
+ * shadow root, which this stylesheet never reaches — those rules are
+ * `parts/styles.ts`, adopted onto the table once.
  */
 
+/* ─── Frame ─────────────────────────────────────────────────────── */
+
 .desktop-mode-plugins {
-	display: flex;
-	flex-direction: column;
-	/* A query container, so the narrow rules at the end of this file
-	   track the WINDOW's width — a phone, or a desktop window pulled in. */
-	container-type: inline-size;
-	height: 100%;
-	width: 100%;
-	min-height: 0;
-	min-width: 0;
 	max-width: 100%;
-	/* Clip horizontal overflow at every level — `<os-flyout>` when
-	 * closed sits at `transform: translateX(110%)` and would
-	 * otherwise create a phantom scroll out to its off-screen
-	 * resting position. We need `overflow-x` AND `position:
-	 * relative` so the flyout's `position: absolute` containing
-	 * block resolves to THIS element (not a higher ancestor). */
-	overflow-x: hidden;
-	overflow-y: hidden;
+	min-width: 0;
+	/* `<os-flyout>` rests at `translateX( 110% )` when closed and would
+	 * otherwise create a phantom horizontal scroll; clipping here AND
+	 * `position: relative` make THIS element its containing block. */
+	overflow: hidden;
 	position: relative;
 	box-sizing: border-box;
 }
 
 .os-plugins__tabs {
 	border-block-end: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
-	flex: 0 0 auto;
 }
 
+/* Belt + braces — never let a child stretch the panel past the window
+ * width; the `<os-table>` host was once sized by content. */
 .os-plugins__panel {
-	flex: 1 1 auto;
-	min-height: 0;
-	min-width: 0;
 	max-width: 100%;
-	display: flex;
-	flex-direction: column;
-	box-sizing: border-box;
-	/* Belt + braces — never let a child stretch the panel past the
-	 * window width. Earlier the right-hand side of the window would
-	 * scroll into empty space because the os-table host was sized
-	 * by content rather than container. */
 	overflow: hidden;
 }
 
-/* Honour the `hidden` attribute — `<os-tabs>` toggles it on inactive
- * panels, but our explicit `display: flex` above wins by specificity.
- * Without this rule every panel renders concurrently in the first
- * panel slot. */
-.os-plugins__panel[ hidden ] {
-	display: none;
-}
-
 .os-plugins__installed,
-.os-plugins__browse {
+.os-plugins__browse,
+.os-plugins__featured {
 	flex: 1 1 auto;
 	min-height: 0;
 	display: flex;
 	flex-direction: column;
 }
 
-/* ─── Toolbar ───────────────────────────────────────────────────── */
-
-.os-plugins__toolbar {
-	display: flex;
-	align-items: center;
-	gap: 12px;
-	padding: 12px 16px;
-	border-block-end: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
-	flex-wrap: wrap;
-}
-
-.os-plugins__toolbar-left {
-	display: flex;
-	align-items: center;
-	gap: 12px;
-	flex: 1 1 auto;
-	min-width: 0;
-}
-
-.os-plugins__toolbar-left os-text-field {
+/* The search beside the status pills, on a desk. */
+.desktop-mode-plugins .os-app-list__toolbar-left > .os-app-list__search {
 	flex: 1 1 240px;
 	min-width: 200px;
 	max-width: 360px;
 }
 
-.os-plugins__toolbar-right {
-	display: flex;
-	align-items: center;
-	gap: 8px;
+/* Row-click cue — the plugin name expands the detail panel. */
+os-table[ data-installed-rows ]::part( row ) {
+	cursor: pointer;
 }
 
-.os-plugins__toolbar-trailing {
-	display: flex;
-	align-items: center;
-	gap: 6px;
-}
-
-.os-plugins__bulk {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	padding-inline: 8px;
-}
-
-.os-plugins__bulk-count {
-	font-size: 0.85em;
-	color: var( --os-ui-fg-muted, #555 );
-}
-
-/* ─── Body / table ──────────────────────────────────────────────── */
-
-.os-plugins__body {
-	flex: 1 1 auto;
-	min-height: 0;
-	min-width: 0;
-	max-width: 100%;
-	overflow: hidden;
-	display: flex;
-	flex-direction: column;
-	box-sizing: border-box;
-	/* Inset matching the Posts/Pages/Users windows so the table
-	 * doesn't kiss the window's left/right borders. */
-	padding: 8px 12px 12px;
-}
-
-.os-plugins__body os-table {
-	flex: 1 1 auto;
-	min-height: 0;
-	min-width: 0;
-	max-width: 100%;
-	width: 100%;
-	box-sizing: border-box;
-	/* The `<os-table>` ships with its own scroll container, but it
-	 * needs a constrained height to know when to start scrolling.
-	 * Without `--os-ui-table-max-height` set, sticky-header silently
-	 * disables itself and the table grows to its full intrinsic
-	 * height instead of scrolling inside the panel.
-	 *
-	 * NO `overflow` here — os-table's internal `.scroll` div
-	 * handles scrolling. An outer `overflow: auto` here was
-	 * causing a phantom horizontal scrollbar that revealed empty
-	 * space to the right of the table because the host was sized
-	 * by content (icon cell + actions cell) rather than container. */
-	--os-ui-table-max-height: 100%;
-}
-
-.os-plugins__empty {
-	text-align: center;
-	padding: 32px 16px;
-	color: var( --os-ui-fg-muted, #666 );
-}
-
-.os-plugins__empty .dashicons {
-	font-size: 32px;
-	width: 32px;
-	height: 32px;
-	display: inline-block;
-	margin-block-end: 8px;
-	opacity: 0.6;
-}
-
-/* ─── Cells ─────────────────────────────────────────────────────── */
-
-.os-plugins__name-cell {
-	display: flex;
-	align-items: center;
-	gap: 12px;
-	min-width: 0;
-	padding-block: 4px;
-}
-
-.os-plugins__name-icon {
-	flex: 0 0 40px;
-	width: 40px;
-	height: 40px;
-	max-width: 40px;
-	max-height: 40px;
-	border-radius: 8px;
-	overflow: hidden;
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	background: var( --os-ui-surface-sunken, rgba( 0, 0, 0, 0.04 ) );
-}
-
-/* Hard-clamp the inner image too — wp.org SVG icons are unsized,
- * which left the user agent stretching them to the document's full
- * width when the parent ever became `auto`. */
-.os-plugins__name-icon img,
-.os-plugins__name-icon svg {
-	width: 100%;
-	height: 100%;
-	max-width: 100%;
-	max-height: 100%;
-	object-fit: contain;
-	display: block;
-	transition: opacity 180ms ease;
-}
-
-.os-plugins__name-icon-fallback {
-	font-size: 22px;
-	width: 22px;
-	height: 22px;
-	line-height: 22px;
-	color: var( --os-ui-fg-muted, #888 );
-}
-
-.os-plugins__name-text {
-	display: flex;
-	flex-direction: column;
-	gap: 2px;
-	min-width: 0;
-	flex: 1 1 auto;
-}
-
-/* Force the title + path to actually stack — `<strong>` and `<span>`
- * are `display: inline` by default, and `display: flex` on the
- * parent doesn't always force flex-item layout when the cell
- * surrounding them comes from a third-party component (the user
- * reported them rendering on the same line). */
-.os-plugins__name-text > strong,
-.os-plugins__name-text > span {
-	display: block;
-}
-
-.os-plugins__name-text > strong {
-	font-weight: 600;
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
-}
-
-.os-plugins__name-path {
-	font-size: 0.78em;
-	color: var( --os-ui-fg-muted, #888 );
-	font-family: var( --os-ui-font-mono, ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace );
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
-}
-
-.os-plugins__badge {
-	display: inline-flex;
-	align-items: center;
-	gap: 6px;
-	padding: 2px 10px 2px 8px;
-	border-radius: 999px;
-	font-size: 0.78em;
-	font-weight: 600;
-	letter-spacing: 0.01em;
-	text-transform: none;
-	line-height: 1.4;
-	white-space: nowrap;
-}
-
-/* Coloured dot prepended to the badge label — provides the
- * status-at-a-glance signal without relying on text alone. */
-.os-plugins__badge::before {
-	content: '';
-	width: 6px;
-	height: 6px;
-	border-radius: 50%;
-	background: currentColor;
-	flex: 0 0 auto;
-	display: inline-block;
-}
-
-.os-plugins__badge.is-active {
-	background: rgba( 35, 165, 90, 0.14 );
-	color: rgb( 22, 110, 55 );
-}
-
-.os-plugins__badge.is-inactive {
-	background: rgba( 120, 120, 120, 0.12 );
-	color: var( --os-ui-fg-muted, #555 );
-}
-
-.os-plugins__version-cell {
-	display: flex;
-	align-items: center;
-	gap: 6px;
-	flex-wrap: wrap;
-}
-
-.os-plugins__update-badge {
-	font-size: 0.78em;
-	background: var( --os-ui-notice-warning-bg, rgba( 250, 175, 0, 0.18 ) );
-	color: var( --os-ui-warning-fg, rgb( 145, 95, 0 ) );
-	padding: 1px 7px;
-	border-radius: 999px;
-	font-weight: 600;
-}
-
-.os-plugins__author-cell {
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
-}
-
-.os-plugins__row-actions {
-	display: inline-flex;
-	gap: 8px;
-	align-items: center;
-	justify-content: flex-end;
-	flex-wrap: nowrap;
-}
-
-.os-plugins__row-actions os-button {
-	flex: 0 0 auto;
-}
-
-/* ─── Browse — gallery ──────────────────────────────────────────── */
+/* ─── Galleries ─────────────────────────────────────────────────── */
 
 .os-plugins__gallery {
 	display: grid;
@@ -328,10 +66,6 @@
 	min-height: 0;
 	min-width: 0;
 	max-width: 100%;
-	/* Vertical scroll only — `auto-fill` with `1fr` already prevents
-	 * children from exceeding the container width, but we still
-	 * clamp `overflow-x` defensively so a misbehaving card can't
-	 * stretch the gallery. */
 	overflow-x: hidden;
 	overflow-y: auto;
 	align-content: start;
@@ -349,13 +83,10 @@
 	margin: 0;
 }
 
-/* ─── Browse — card ─────────────────────────────────────────────── */
+/* ─── Cards ─────────────────────────────────────────────────────── */
 
-/* The card chrome (padding, gap, border, radius, hover lift, focus
- * ring, reduced-motion fallback) all comes from `<os-card>` —
- * `:host([interactive])` handles the hover transform, the kit's
- * `prefers-reduced-motion` rule kills the transition. We layer
- * gallery-specific tweaks here; nothing duplicates the kit. */
+/* The card chrome (padding, border, radius, hover lift, focus ring,
+ * reduced motion) is `<os-card>`'s; only gallery-specific tweaks here. */
 
 .os-plugins__card.os-plugins__card--skeleton {
 	gap: 8px;
@@ -449,6 +180,19 @@
 	color: var( --os-ui-fg-muted, #666 );
 }
 
+.os-plugins__card-installs {
+	font-size: 0.78em;
+	color: var( --os-ui-fg-muted, #888 );
+}
+
+/* Curated cards get a soft inset border + an `<os-ribbon>` stamped on
+ * the top-end corner; the card host carries `position: relative` so
+ * the ribbon anchors to the card itself. */
+.os-plugins__card--featured {
+	position: relative;
+	box-shadow: 0 0 0 1px var( --wp-admin-theme-color, #2271b1 ) inset;
+}
+
 /* ─── Stars ─────────────────────────────────────────────────────── */
 
 .os-plugins__stars {
@@ -461,22 +205,17 @@
 	font-size: 14px;
 	width: 14px;
 	height: 14px;
-	color: rgb( 245, 175, 0 );
+	color: var( --os-ui-warning, rgb( 245, 175, 0 ) );
 }
 
 .os-plugins__star .dashicons-star-empty {
-	color: var( --os-ui-fg-muted, rgba( 0, 0, 0, 0.25 ) );
+	color: var( --os-ui-fg-faint, rgba( 0, 0, 0, 0.25 ) );
 }
 
 .os-plugins__stars-count {
 	margin-inline-start: 4px;
 	color: var( --os-ui-fg-muted, #888 );
 	font-size: 0.78em;
-}
-
-.os-plugins__card-installs {
-	font-size: 0.78em;
-	color: var( --os-ui-fg-muted, #888 );
 }
 
 /* ─── Skeleton lines (gallery + flyout) ─────────────────────────── */
@@ -494,9 +233,9 @@
 	border-radius: 4px;
 	background: linear-gradient(
 		90deg,
-		rgba( 0, 0, 0, 0.06 ) 0%,
-		rgba( 0, 0, 0, 0.10 ) 50%,
-		rgba( 0, 0, 0, 0.06 ) 100%
+		var( --os-ui-surface-sunken, rgba( 0, 0, 0, 0.06 ) ) 0%,
+		var( --os-ui-hover, rgba( 0, 0, 0, 0.1 ) ) 50%,
+		var( --os-ui-surface-sunken, rgba( 0, 0, 0, 0.06 ) ) 100%
 	);
 	background-size: 200% 100%;
 	animation: dm-plugins-shimmer 1.4s linear infinite;
@@ -517,7 +256,7 @@
 	}
 }
 
-/* ─── Flyout detail ─────────────────────────────────────────────── */
+/* ─── Detail flyout ─────────────────────────────────────────────── */
 
 [data-os-plugins-flyout] {
 	width: min( 560px, calc( 100% - 28px ) );
@@ -536,15 +275,13 @@
 	border-block-end: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
 	flex: 0 0 auto;
 	overflow: hidden;
-	/* Mirror the flyout shell's outer corner radius (`<os-flyout>`
-	 * uses 14px) so a banner background-image stops at the rounded
-	 * top edge instead of bleeding past it. */
+	/* Mirror the flyout shell's corner radius so a banner stops at the
+	 * rounded top edge instead of bleeding past it. */
 	border-start-start-radius: 14px;
 	border-start-end-radius: 14px;
 }
 
-/* ─── Flyout close — circular glass button ──────────────────────── */
-
+/* Circular glass close button, floating over the banner. */
 .os-plugins__flyout-close {
 	position: absolute;
 	inset-block-start: 12px;
@@ -552,16 +289,13 @@
 	width: 32px;
 	height: 32px;
 	padding: 0;
-	/* Glass close button. Tokenized so it follows the palette: a white
-	   disc on a dark flyout is the one control you cannot miss, in the
-	   wrong sense. Literals unchanged for the unthemed look. */
 	border: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
 	border-radius: 50%;
 	background: var( --os-ui-surface, rgba( 255, 255, 255, 0.78 ) );
 	-webkit-backdrop-filter: blur( 12px ) saturate( 160% );
 	backdrop-filter: blur( 12px ) saturate( 160% );
 	box-shadow:
-		0 1px 4px rgba( 0, 0, 0, 0.10 ),
+		0 1px 4px rgba( 0, 0, 0, 0.1 ),
 		0 0 0 1px rgba( 255, 255, 255, 0.4 ) inset;
 	color: var( --os-ui-fg, #333 );
 	display: inline-flex;
@@ -701,95 +435,8 @@
 }
 
 .os-plugins__flyout-error {
-	color: rgb( 184, 50, 50 );
+	color: var( --os-ui-danger, rgb( 184, 50, 50 ) );
 	padding: 16px;
-}
-
-/* ─── Histogram (Reviews tab) ───────────────────────────────────── */
-
-.os-plugins__histogram {
-	display: flex;
-	flex-direction: column;
-	gap: 6px;
-	margin-block-end: 16px;
-}
-
-.os-plugins__histogram-row {
-	display: grid;
-	grid-template-columns: 32px 1fr 48px;
-	gap: 8px;
-	align-items: center;
-	font-size: 0.82rem;
-}
-
-.os-plugins__histogram-track {
-	background: var( --os-ui-surface-sunken, rgba( 0, 0, 0, 0.06 ) );
-	border-radius: 999px;
-	height: 6px;
-	overflow: hidden;
-}
-
-.os-plugins__histogram-fill {
-	display: block;
-	height: 100%;
-	background: rgb( 245, 175, 0 );
-	border-radius: 999px;
-	transition: width 220ms ease;
-}
-
-.os-plugins__histogram-count {
-	color: var( --os-ui-fg-muted, #777 );
-	text-align: end;
-}
-
-.os-plugins__reviews-list {
-	display: flex;
-	flex-direction: column;
-	gap: 12px;
-}
-
-.os-plugins__review {
-	border: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
-	border-radius: 10px;
-	padding: 12px 14px;
-	background: var( --os-ui-card-bg, #fff );
-}
-
-.os-plugins__review-head {
-	display: flex;
-	align-items: center;
-	gap: 12px;
-	margin-block-end: 6px;
-	flex-wrap: wrap;
-}
-
-.os-plugins__review-author {
-	font-weight: 600;
-}
-
-.os-plugins__review-date {
-	margin-inline-start: auto;
-	font-size: 0.78em;
-	color: var( --os-ui-fg-muted, #888 );
-}
-
-.os-plugins__review-excerpt {
-	margin: 0;
-	font-size: 0.92em;
-	line-height: 1.5;
-	color: var( --os-ui-fg, #333 );
-}
-
-.os-plugins__review-link {
-	display: inline-block;
-	margin-block-start: 6px;
-	font-size: 0.82em;
-}
-
-.os-plugins__reviews-loading,
-.os-plugins__reviews-fallback {
-	color: var( --os-ui-fg-muted, #888 );
-	font-size: 0.92em;
 }
 
 .os-plugins__html {
@@ -800,6 +447,13 @@
 .os-plugins__html h3,
 .os-plugins__html h4 {
 	margin-top: 1em;
+}
+
+.os-plugins__empty-line {
+	margin: 0;
+	padding: 12px 0;
+	color: var( --os-ui-fg-muted, #666 );
+	font-size: 0.92rem;
 }
 
 .os-plugins__screenshots {
@@ -838,7 +492,7 @@
 	background: var( --os-ui-card-bg, #fff );
 	border-radius: 14px;
 	padding: 22px 22px 18px;
-	box-shadow: 0 16px 48px rgba( 0, 0, 0, 0.32 );
+	box-shadow: var( --os-ui-shadow-lg, 0 16px 48px rgba( 0, 0, 0, 0.32 ) );
 	animation: dm-plugins-pop-in 220ms cubic-bezier( 0.22, 1, 0.36, 1 ) both;
 }
 
@@ -882,7 +536,7 @@
 .os-plugins__upload-dropzone.is-hovered,
 .os-plugins__upload-dropzone.has-file {
 	border-color: var( --wp-admin-theme-color, #2271b1 );
-	background: rgba( 34, 113, 177, 0.05 );
+	background: var( --os-ui-accent-wash, rgba( 34, 113, 177, 0.05 ) );
 }
 
 .os-plugins__upload-icon {
@@ -910,11 +564,11 @@
 }
 
 .os-plugins__upload-status[ data-tone='error' ] {
-	color: rgb( 184, 50, 50 );
+	color: var( --os-ui-danger, rgb( 184, 50, 50 ) );
 }
 
 .os-plugins__upload-status[ data-tone='success' ] {
-	color: rgb( 25, 120, 65 );
+	color: var( --os-ui-success-fg, rgb( 25, 120, 65 ) );
 }
 
 .os-plugins__upload-actions {
@@ -927,7 +581,7 @@
 .os-plugins__upload-success-heading {
 	margin: 4px 0 6px;
 	font-size: 1rem;
-	color: rgb( 25, 120, 65 );
+	color: var( --os-ui-success-fg, rgb( 25, 120, 65 ) );
 }
 
 .os-plugins__upload-success-detail {
@@ -944,7 +598,7 @@
 	inset: 12px;
 	border: 2px dashed var( --wp-admin-theme-color, #2271b1 );
 	border-radius: 14px;
-	background: rgba( 34, 113, 177, 0.08 );
+	background: var( --os-ui-accent-wash, rgba( 34, 113, 177, 0.08 ) );
 	color: var( --wp-admin-theme-color, #2271b1 );
 	display: flex;
 	align-items: center;
@@ -961,7 +615,7 @@
 	opacity: 1;
 }
 
-/* ─── Drag ghost ────────────────────────────────────────────────── */
+/* ─── Drag a card to the dock ───────────────────────────────────── */
 
 .os-plugins__drag-ghost {
 	display: inline-flex;
@@ -970,7 +624,7 @@
 	padding: 8px 14px;
 	background: var( --os-ui-card-bg, #fff );
 	border-radius: 999px;
-	box-shadow: 0 6px 20px rgba( 0, 0, 0, 0.18 );
+	box-shadow: var( --os-ui-shadow-md, 0 6px 20px rgba( 0, 0, 0, 0.18 ) );
 	font-size: 0.92rem;
 	font-weight: 600;
 	max-width: 240px;
@@ -994,22 +648,8 @@
 	outline: 2px dashed var( --wp-admin-theme-color, #2271b1 );
 	outline-offset: 2px;
 }
-/* Row-click cue — pointer-cursor on Installed-tab body rows so users
- * discover that clicking the plugin name expands the detail panel.
- * `<os-table>` exposes each body `<tr>` as a `row` shadow part. */
 
-os-table[ data-installed-rows ]::part( row ) {
-	cursor: pointer;
-}
-
-/* ─── Featured tab ─────────────────────────────────────────────── */
-
-.os-plugins__featured {
-	display: flex;
-	flex-direction: column;
-	min-height: 0;
-	flex: 1 1 auto;
-}
+/* ─── Featured tab ──────────────────────────────────────────────── */
 
 .os-plugins__featured-intro {
 	padding: 20px 20px 4px;
@@ -1029,92 +669,4 @@ os-table[ data-installed-rows ]::part( row ) {
 	color: var( --os-ui-fg-muted, #666 );
 	font-size: 0.9em;
 	line-height: 1.45;
-}
-
-/* Curated cards get a soft inset border + a `<os-ribbon>` stamped
- * onto the top-end corner. The card host carries `position: relative`
- * so the ribbon's `position: absolute` anchors to the card itself,
- * not to whatever positioned ancestor lives further out. The ribbon
- * owns its own clipping geometry; nothing else here needs to know
- * about the diagonal. */
-.os-plugins__card--featured {
-	position: relative;
-	box-shadow: 0 0 0 1px var( --wp-admin-theme-color, #2271b1 ) inset;
-}
-
-/* ─── Narrow windows ────────────────────────────────────────────── */
-/*
- * A phone, or a desktop window pulled in. The search stops asking for
- * 200px beside the status pills and takes its own row; the insets
- * shrink to what a 360px screen can spare. The table's columns are
- * narrowed in the bundle (name, status and actions on a phone), and
- * its sticky name column is not set there at all.
- */
-@container ( max-width: 600px ) {
-	.os-plugins__toolbar {
-		gap: 8px;
-		padding: 8px 10px;
-	}
-	.os-plugins__toolbar-left {
-		flex: 1 1 100%;
-		flex-wrap: wrap;
-	}
-	.os-plugins__toolbar-left os-text-field {
-		flex: 1 1 100%;
-		min-width: 0;
-		max-width: none;
-	}
-	.os-plugins__body {
-		padding: 6px 8px 8px;
-	}
-}
-
-/* The same, keyed on the shell's phone mode: the phone experience at
- * any width (a wide browser previewing it, a phone turned sideways),
- * which no size query can express. */
-html[data-os-mode="mobile"] .os-plugins__toolbar {
-	gap: 8px;
-	padding: 8px 10px;
-}
-html[data-os-mode="mobile"] .os-plugins__toolbar-left {
-	flex: 1 1 100%;
-	flex-wrap: wrap;
-}
-html[data-os-mode="mobile"] .os-plugins__toolbar-left os-text-field {
-	flex: 1 1 100%;
-	min-width: 0;
-	max-width: none;
-}
-html[data-os-mode="mobile"] .os-plugins__body {
-	padding: 0;
-}
-
-/*
- * The phone's list is a card per row (`<os-table stacked>`, set by
- * the bundle through `stack-on-phone.ts`) running edge to edge, and
- * the selection's actions are a bar along the bottom of the window —
- * the bundle moves the toolbar's bulk strip there and marks it. A
- * flex sibling of the body, so the cards end where it begins; it
- * clears the home indicator on an installed app.
- */
-.os-plugins__bulk.os-plugins__bulk--footer {
-	flex: 0 0 auto;
-	flex-wrap: wrap;
-	gap: 8px;
-	padding: 10px 12px calc( 10px + env( safe-area-inset-bottom, 0px ) );
-	border-block-start: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
-	background: var( --os-ui-surface-elevated, #f6f7f7 );
-	box-shadow: 0 -6px 18px rgba( 0, 0, 0, 0.06 );
-}
-
-.os-plugins__bulk.os-plugins__bulk--footer[hidden] {
-	display: none;
-}
-
-.os-plugins__bulk.os-plugins__bulk--footer .os-plugins__bulk-count {
-	flex: 1 1 100%;
-}
-
-.os-plugins__bulk.os-plugins__bulk--footer os-button {
-	flex: 1 1 auto;
 }

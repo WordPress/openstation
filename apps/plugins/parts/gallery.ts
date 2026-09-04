@@ -6,15 +6,20 @@
  * everything but their source: the Browse gallery pages through
  * `plugins_api( 'query_plugins' )` with an IntersectionObserver
  * sentinel (infinite scroll), the Featured gallery loads the curated
- * + discovered list once. Card CTAs read the installed state off the
- * app's live `data()` and repaint whenever it changes, so an install
- * or activation anywhere (the table, the flyout, the upload dialog,
- * the chromeless bridge) flips them without a fetch of their own.
+ * + discovered list once. Neither fetches until its tab is the one on
+ * screen. Card CTAs read the installed state off the app's live
+ * `data()` and repaint whenever it changes, so an install or activation
+ * anywhere (the table, the flyout, the upload dialog, the chromeless
+ * bridge) flips them without a fetch of their own.
  *
  * @public
  */
 
 import { __, sprintf } from '@openstation/app';
+// The galleries paint under `os-preserve` hosts, outside the runtime's
+// on-demand component loading — the tags they build register here.
+import '../../../src/ui/components/os-ribbon/os-ribbon';
+import { setBusy } from './actions';
 import { buildCard, buildSkeletonCard, repaintCardCta, type CardCallbacks, type InstalledIndex } from './card';
 import { makeCardDraggable } from './card-drag';
 import { openDetailFlyout } from './flyout-detail';
@@ -26,8 +31,6 @@ import {
 	type PluginsHost,
 	type WpOrgBrowsePlugin,
 } from './types';
-import '../../../src/ui/components/os-card/os-card';
-import '../../../src/ui/components/os-ribbon/os-ribbon';
 
 const BROWSE_PAGE_SIZE = 24;
 
@@ -38,40 +41,25 @@ interface GalleryDeps {
 
 /** What a mounted gallery keeps between paints. */
 interface GalleryCore {
-	plugins: WpOrgBrowsePlugin[];
-	cardsBySlug: Map< string, HTMLElement >;
+	/** Every plugin painted, by slug — the CTA repaint and the dedupe read it. */
+	plugins: Map< string, { plugin: WpOrgBrowsePlugin; card: HTMLElement } >;
 	callbacks: CardCallbacks;
 	installedIndex: () => InstalledIndex;
 	/** Repaint every card's CTA against the current installed list. */
 	repaintCtas: () => void;
 	addCard: ( gallery: HTMLElement, plugin: WpOrgBrowsePlugin, before: Node | null, featured: boolean ) => void;
+	clear: () => void;
 	showStatus: ( status: HTMLElement, message: string ) => void;
 	hideStatus: ( status: HTMLElement ) => void;
 }
 
 function createCore( deps: GalleryDeps ): GalleryCore {
 	const { host } = deps;
-	const cardsBySlug = new Map< string, HTMLElement >();
-	const plugins: WpOrgBrowsePlugin[] = [];
+	const plugins = new Map< string, { plugin: WpOrgBrowsePlugin; card: HTMLElement } >();
 	const installedIndex = (): InstalledIndex =>
 		new Map( host.installed.map( ( r ) => [ indexKeyFor( r ), r ] ) );
 
-	const setCtaBusy = ( card: HTMLElement, label: string ): ( () => void ) => {
-		const cta = card.querySelector< HTMLElement >( '[data-plugin-card-cta]' );
-		const original = cta?.textContent ?? '';
-		cta?.setAttribute( 'busy', '' );
-		cta?.setAttribute( 'disabled', '' );
-		if ( cta ) {
-			cta.textContent = label;
-		}
-		return () => {
-			cta?.removeAttribute( 'busy' );
-			cta?.removeAttribute( 'disabled' );
-			if ( cta ) {
-				cta.textContent = original;
-			}
-		};
-	};
+	const cta = ( card: HTMLElement ): HTMLElement | null => card.querySelector< HTMLElement >( '[data-plugin-card-cta]' );
 
 	const callbacks: CardCallbacks = {
 		onOpen: ( slug, hint ) => {
@@ -81,7 +69,7 @@ function createCore( deps: GalleryDeps ): GalleryCore {
 			}
 		},
 		onInstall: async ( plugin, card ) => {
-			const restore = setCtaBusy( card, __( 'Installing…', 'desktop-mode' ) );
+			const restore = setBusy( cta( card ), __( 'Installing…', 'desktop-mode' ) );
 			const ok = await installBySlug( host, plugin.slug, plugin.name );
 			if ( ! ok ) {
 				restore();
@@ -89,7 +77,7 @@ function createCore( deps: GalleryDeps ): GalleryCore {
 			repaintCtas();
 		},
 		onActivate: async ( installed, card ) => {
-			const restore = setCtaBusy( card, __( 'Activating…', 'desktop-mode' ) );
+			const restore = setBusy( cta( card ), __( 'Activating…', 'desktop-mode' ) );
 			const ok = await activatePlugin( host, installed );
 			if ( ! ok ) {
 				restore();
@@ -100,17 +88,13 @@ function createCore( deps: GalleryDeps ): GalleryCore {
 
 	const repaintCtas = (): void => {
 		const index = installedIndex();
-		for ( const [ slug, card ] of cardsBySlug ) {
-			const plugin = plugins.find( ( p ) => p.slug === slug );
-			if ( plugin ) {
-				repaintCardCta( card, plugin, index, callbacks );
-			}
+		for ( const { plugin, card } of plugins.values() ) {
+			repaintCardCta( card, plugin, index, callbacks );
 		}
 	};
 
 	return {
 		plugins,
-		cardsBySlug,
 		callbacks,
 		installedIndex,
 		repaintCtas,
@@ -126,9 +110,9 @@ function createCore( deps: GalleryDeps ): GalleryCore {
 			}
 			makeCardDraggable( card, plugin );
 			gallery.insertBefore( card, before );
-			cardsBySlug.set( plugin.slug, card );
-			plugins.push( plugin );
+			plugins.set( plugin.slug, { plugin, card } );
 		},
+		clear: () => plugins.clear(),
 		showStatus: ( status, message ) => {
 			status.hidden = false;
 			status.textContent = message;
@@ -143,8 +127,14 @@ function createCore( deps: GalleryDeps ): GalleryCore {
 // ─── Browse ────────────────────────────────────────────────────────
 
 export interface BrowseGallery {
-	/** Re-wire after a paint; a changed filter / query starts over. */
-	sync: ( opts: { gallery: HTMLElement | null; status: HTMLElement | null; filter: BrowseFilter; query: string } ) => void;
+	/** Re-wire after a paint; a changed filter / query starts over once the tab is on screen. */
+	sync: ( opts: {
+		gallery: HTMLElement | null;
+		status: HTMLElement | null;
+		filter: BrowseFilter;
+		query: string;
+		active: boolean;
+	} ) => void;
 	/** Start over on the current filter / query (the Refresh button). */
 	reset: () => void;
 	repaintCtas: () => void;
@@ -175,8 +165,7 @@ export function createBrowseGallery( deps: GalleryDeps ): BrowseGallery {
 		page = 1;
 		totalPages = 0;
 		exhausted = false;
-		core.plugins.length = 0;
-		core.cardsBySlug.clear();
+		core.clear();
 		gallery.replaceChildren();
 		for ( let i = 0; i < 6; i++ ) {
 			gallery.appendChild( buildSkeletonCard() );
@@ -224,7 +213,7 @@ export function createBrowseGallery( deps: GalleryDeps ): BrowseGallery {
 				return;
 			}
 			for ( const plugin of incoming ) {
-				if ( plugin?.slug && ! core.cardsBySlug.has( plugin.slug ) ) {
+				if ( plugin?.slug && ! core.plugins.has( plugin.slug ) ) {
 					core.addCard( gallery, plugin, sentinel, false );
 				}
 			}
@@ -275,7 +264,9 @@ export function createBrowseGallery( deps: GalleryDeps ): BrowseGallery {
 				}
 			}
 			const next = `${ opts.filter }|${ opts.query }`;
-			if ( gallery && next !== key ) {
+			// A hidden tab never fetches: the first load waits for the
+			// user to open Browse, and a filter typed elsewhere waits too.
+			if ( gallery && opts.active && next !== key ) {
 				key = next;
 				filter = opts.filter;
 				query = opts.query;
@@ -294,22 +285,23 @@ export function createBrowseGallery( deps: GalleryDeps ): BrowseGallery {
 // ─── Featured ──────────────────────────────────────────────────────
 
 export interface FeaturedGallery {
-	/** Re-wire after a paint; loads once on the first host it sees. */
-	sync: ( opts: { gallery: HTMLElement | null; status: HTMLElement | null } ) => void;
+	/** Re-wire after a paint; loads once, the first time its tab is on screen. */
+	sync: ( opts: { gallery: HTMLElement | null; status: HTMLElement | null; active: boolean } ) => void;
 	repaintCtas: () => void;
 }
 
 export function createFeaturedGallery( deps: GalleryDeps ): FeaturedGallery {
 	const core = createCore( deps );
 	let gallery: HTMLElement | null = null;
+	let loaded = false;
 
 	const load = async ( status: HTMLElement | null ): Promise< void > => {
 		if ( ! gallery ) {
 			return;
 		}
+		loaded = true;
 		gallery.replaceChildren();
-		core.cardsBySlug.clear();
-		core.plugins.length = 0;
+		core.clear();
 		for ( let i = 0; i < 3; i++ ) {
 			gallery.appendChild( buildSkeletonCard() );
 		}
@@ -322,7 +314,7 @@ export function createFeaturedGallery( deps: GalleryDeps ): FeaturedGallery {
 				}
 			}
 			if ( status ) {
-				if ( core.plugins.length === 0 ) {
+				if ( core.plugins.size === 0 ) {
 					core.showStatus( status, __( 'No featured plugins yet.', 'desktop-mode' ) );
 				} else {
 					core.hideStatus( status );
@@ -330,6 +322,7 @@ export function createFeaturedGallery( deps: GalleryDeps ): FeaturedGallery {
 			}
 		} catch ( err ) {
 			gallery.replaceChildren();
+			loaded = false;
 			if ( status ) {
 				core.showStatus(
 					status,
@@ -347,6 +340,9 @@ export function createFeaturedGallery( deps: GalleryDeps ): FeaturedGallery {
 		sync: ( opts ) => {
 			if ( opts.gallery && opts.gallery !== gallery ) {
 				gallery = opts.gallery;
+				loaded = false;
+			}
+			if ( gallery && opts.active && ! loaded ) {
 				void load( opts.status );
 			}
 		},

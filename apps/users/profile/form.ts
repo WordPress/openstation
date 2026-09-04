@@ -15,53 +15,52 @@ import '../../../src/ui/components/os-icon/os-icon';
 import '../../../src/ui/components/os-select/os-select';
 import '../../../src/ui/components/os-text-field/os-text-field';
 import '../../../src/ui/components/os-textarea/os-textarea';
-import {
-	copyQuietly,
-	fetchUser,
-	generateStrongPassword,
-	resolveProfileConfig,
-	saveUser,
-	toast,
-} from './profile-client';
-import { mountProfileAsideAt } from './profile-insights';
-import {
-	buildAdminColorPicker,
-	buildAppPasswordsRow,
-	buildSessionsRow,
-	checkboxField,
-} from './profile-options';
-import type { OsFormElement, OsSelectElement, UserEditRecord } from './types';
+import { generateStrongPassword } from '../parts/password';
+import { copyQuietly, fetchUser, saveUser } from './client';
+import { roleChips } from './insights';
+import { buildAdminColorPicker, buildAppPasswordsRow, buildSessionsRow, checkboxField } from './options';
+import type { OsFormElement, OsSelectElement, ProfileHost, UserEditRecord } from './types';
 
 const HEADING =
 	'margin:18px 0 4px;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--os-ui-fg-muted, #50575e);';
+
+export interface ProfileFormHooks {
+	/** The record saved: the host repaints what else shows it (the aside). */
+	onSaved?: ( user: UserEditRecord ) => void;
+}
 
 /**
  * Load the user and mount the form into `host`. Resolves with the
  * record; rejects (after painting the failure) when the load fails.
  */
-export async function mountProfileFormAt( host: HTMLElement, userId: number ): Promise< UserEditRecord > {
-	host.replaceChildren();
+export async function mountProfileFormAt(
+	el: HTMLElement,
+	userId: number,
+	host: ProfileHost,
+	hooks: ProfileFormHooks = {},
+): Promise< UserEditRecord > {
+	el.replaceChildren();
 	const skeleton = document.createElement( 'div' );
 	skeleton.className = 'os-user-edit__skeleton';
 	skeleton.style.cssText =
 		'display:flex;align-items:center;justify-content:center;padding:48px;color:var(--os-ui-fg-muted, #50575e);font-size:13px;';
 	skeleton.textContent = __( 'Loading profile…' );
-	host.appendChild( skeleton );
+	el.appendChild( skeleton );
 
 	let user: UserEditRecord;
 	try {
-		user = await fetchUser( userId );
+		user = await fetchUser( host, userId );
 	} catch ( err ) {
-		host.replaceChildren();
+		el.replaceChildren();
 		const msg = document.createElement( 'p' );
 		msg.style.cssText = 'padding:32px;color:var(--os-ui-danger, #b32d2e);font-size:13px;text-align:center;';
 		// translators: %s is an error message.
 		msg.textContent = sprintf( __( 'Could not load profile (%s).' ), String( ( err as Error ).message ?? err ) );
-		host.appendChild( msg );
+		el.appendChild( msg );
 		throw err;
 	}
-	host.replaceChildren();
-	mountProfileForm( host, user, userId );
+	el.replaceChildren();
+	mountProfileForm( el, user, userId, host, hooks );
 	return user;
 }
 
@@ -93,8 +92,32 @@ function passwordField( name: string, label: string, placeholder: string ): HTML
 	return el;
 }
 
-function mountProfileForm( host: HTMLElement, user: UserEditRecord, userId: number ): void {
-	const cfg = resolveProfileConfig();
+interface TextFieldOpts {
+	required?: boolean;
+	type?: string;
+	readonly?: boolean;
+}
+
+function textField( name: string, label: string, value: string, opts: TextFieldOpts = {} ): HTMLElement {
+	const el = document.createElement( 'os-text-field' ) as HTMLElement & { value?: string };
+	el.setAttribute( 'name', name );
+	el.setAttribute( 'label', label );
+	el.setAttribute( 'value', value );
+	el.value = value;
+	if ( opts.required ) {
+		el.setAttribute( 'required', '' );
+	}
+	if ( opts.readonly ) {
+		el.setAttribute( 'readonly', '' );
+	}
+	if ( opts.type ) {
+		el.setAttribute( 'type', opts.type );
+	}
+	return el;
+}
+
+function mountProfileForm( el: HTMLElement, user: UserEditRecord, userId: number, host: ProfileHost, hooks: ProfileFormHooks ): void {
+	const cfg = host.config;
 	const wrap = document.createElement( 'div' );
 	wrap.className = 'os-user-edit__profile';
 
@@ -107,7 +130,7 @@ function mountProfileForm( host: HTMLElement, user: UserEditRecord, userId: numb
 	// save so the chips reflect the saved record.
 	const header = document.createElement( 'div' );
 	header.setAttribute( 'slot', 'header' );
-	let profileHeader = buildProfileHeader( user );
+	let profileHeader = buildProfileHeader( user, cfg );
 	header.appendChild( profileHeader );
 	form.appendChild( header );
 
@@ -143,9 +166,7 @@ function mountProfileForm( host: HTMLElement, user: UserEditRecord, userId: numb
 	form.appendChild( bio );
 
 	// — Account —
-	form.appendChild(
-		select( 'locale', __( 'Language' ), cfg.locales ?? { '': __( 'Site default' ) }, String( user.locale ?? '' ) ),
-	);
+	form.appendChild( select( 'locale', __( 'Language' ), cfg.locales ?? { '': __( 'Site default' ) }, String( user.locale ?? '' ) ) );
 
 	// The role select is hidden only on self-edit (admins demoting
 	// themselves is a footgun; core's profile.php hides it too).
@@ -160,9 +181,8 @@ function mountProfileForm( host: HTMLElement, user: UserEditRecord, userId: numb
 		form.appendChild( select( 'roles[0]', __( 'Role' ), roleMap, currentRole ) );
 	}
 
-	// — Personal Options — the `Personal Options` section of
-	// `wp-admin/user-edit.php`, which core renders for ANY user the
-	// viewer can edit: an admin editing user N sets N's preferences.
+	// — Personal Options — the section of `wp-admin/user-edit.php`
+	// core renders for ANY user the viewer can edit.
 	form.appendChild( heading( __( 'Personal options' ) ) );
 	const flag = ( key: string, fallback: string ): boolean => String( meta[ key ] ?? fallback ) !== 'false';
 	form.appendChild(
@@ -173,29 +193,22 @@ function mountProfileForm( host: HTMLElement, user: UserEditRecord, userId: numb
 		} ),
 	);
 	form.appendChild(
-		checkboxField(
-			'meta.syntax_highlighting',
-			__( 'Disable syntax highlighting when editing code' ),
-			! flag( 'syntax_highlighting', '' ),
-			{ trueValue: 'false', falseValue: 'true', fullWidth: true },
-		),
-	);
-	form.appendChild(
-		checkboxField(
-			'meta.comment_shortcuts',
-			__( 'Enable keyboard shortcuts for comment moderation' ),
-			String( meta.comment_shortcuts ?? 'false' ) === 'true',
-			{ fullWidth: true },
-		),
-	);
-	form.appendChild(
-		checkboxField( 'meta.show_admin_bar_front', __( 'Show toolbar when viewing site' ), flag( 'show_admin_bar_front', 'true' ), {
+		checkboxField( 'meta.syntax_highlighting', __( 'Disable syntax highlighting when editing code' ), ! flag( 'syntax_highlighting', '' ), {
+			trueValue: 'false',
+			falseValue: 'true',
 			fullWidth: true,
 		} ),
 	);
 	form.appendChild(
-		buildAdminColorPicker( cfg.colorSchemes ?? {}, String( meta.admin_color ?? 'fresh' ), { livePreview: isSelfEdit } ),
+		checkboxField( 'meta.comment_shortcuts', __( 'Enable keyboard shortcuts for comment moderation' ), String( meta.comment_shortcuts ?? 'false' ) === 'true', {
+			fullWidth: true,
+		} ),
 	);
+	form.appendChild(
+		checkboxField( 'meta.show_admin_bar_front', __( 'Show toolbar when viewing site' ), flag( 'show_admin_bar_front', 'true' ), { fullWidth: true } ),
+	);
+	const picker = buildAdminColorPicker( cfg.colorSchemes ?? {}, String( meta.admin_color ?? 'fresh' ), { livePreview: isSelfEdit } );
+	form.appendChild( picker );
 
 	// — Account management —
 	form.appendChild( heading( __( 'Account management' ) ) );
@@ -223,23 +236,17 @@ function mountProfileForm( host: HTMLElement, user: UserEditRecord, userId: numb
 			field.setAttribute( 'value', next );
 		}
 		copyQuietly( next );
-		toast( __( 'Password generated and copied to clipboard.' ), 'success' );
+		host.toast( __( 'Password generated and copied to clipboard.' ), 'success' );
 	} );
 	pwdRow.appendChild( genBtn );
 	form.appendChild( pwdRow );
 	form.appendChild( pwdConfirm );
 
-	form.appendChild( buildSessionsRow( userId, isSelfEdit ) );
-	form.appendChild( buildAppPasswordsRow( userId ) );
+	form.appendChild( buildSessionsRow( host, userId, isSelfEdit ) );
+	form.appendChild( buildAppPasswordsRow( host, userId ) );
 
-	// Multisite super-admin grant — a super-admin editing someone else.
-	if ( ! isSelfEdit && cfg.isMultisite && meta.is_super_admin !== undefined ) {
-		form.appendChild(
-			checkboxField( 'meta.is_super_admin', __( 'Grant super admin privileges for the network' ), Boolean( meta.is_super_admin ), {
-				fullWidth: true,
-			} ),
-		);
-	}
+	// Revert puts the previewed chrome back with the fields.
+	form.addEventListener( 'os-form-reset', () => picker.revert() );
 
 	let pending = false;
 	form.addEventListener( 'os-form-submit', ( e ) => {
@@ -295,51 +302,49 @@ function mountProfileForm( host: HTMLElement, user: UserEditRecord, userId: numb
 			patch.meta = metaPatch;
 		}
 
-		const result = await saveUser( userId, patch );
+		const result = await saveUser( host, userId, patch );
 		pending = false;
 		form.setBusy( false );
 
 		if ( ! result.ok ) {
 			const summary = result.message ?? mapErrorCode( result.error ) ?? __( 'Save failed.' );
 			form.setError( summary );
-			toast( summary, 'error' );
+			host.toast( summary, 'error' );
 			for ( const field of Object.keys( result.fieldErrors ?? {} ) ) {
 				form.setFieldInvalid( field );
 			}
+			// The chrome goes back to the saved scheme; the pick stays
+			// so the user can fix the rest and save again.
+			picker.revert();
 			// eslint-disable-next-line no-console
 			console.warn( '[user-edit] save failed', { code: result.error, message: result.message } );
 			return;
 		}
 
-		toast( __( 'Profile saved.' ), 'success' );
-		// The Users list (and any live listener) refreshes this row.
-		const shell = window.wp?.os;
-		if ( shell && typeof shell.broadcast === 'function' ) {
-			shell.broadcast( 'os.user.changed', { source: 'user-edit-window', action: 'updated', ids: [ userId ] } );
+		host.toast( __( 'Profile saved.' ), 'success' );
+		if ( typeof metaPatch.admin_color === 'string' ) {
+			picker.commit( metaPatch.admin_color );
 		}
 		for ( const field of [ pwd, pwdConfirm ] ) {
 			field.value = '';
 			field.setAttribute( 'value', '' );
 		}
 		// Reflect the saved record: the header chips repaint with the
-		// new display name / role, the aside re-fetches.
+		// new display name / role; the host repaints its aside.
 		if ( result.user ) {
 			Object.assign( user, result.user );
-			const next = buildProfileHeader( user );
+			const next = buildProfileHeader( user, cfg );
 			profileHeader.replaceWith( next );
 			profileHeader = next;
-			const aside = host.ownerDocument?.querySelector< HTMLElement >( '[data-os-user-profile-aside]' );
-			if ( aside ) {
-				void mountProfileAsideAt( aside, userId, true );
-			}
+			hooks.onSaved?.( user );
 		}
 	};
 
 	wrap.appendChild( form );
-	host.appendChild( wrap );
+	el.appendChild( wrap );
 }
 
-function buildProfileHeader( user: UserEditRecord ): HTMLElement {
+function buildProfileHeader( user: UserEditRecord, cfg: ProfileHost[ 'config' ] ): HTMLElement {
 	const wrap = document.createElement( 'div' );
 	wrap.className = 'os-user-edit__header';
 	wrap.style.cssText = 'display:flex;align-items:center;gap:16px;margin:0 0 12px;';
@@ -367,47 +372,20 @@ function buildProfileHeader( user: UserEditRecord ): HTMLElement {
 	text.appendChild( name );
 
 	const sub = document.createElement( 'div' );
-	sub.style.cssText =
-		'display:flex;align-items:center;gap:6px;font-size:12px;color:var(--os-ui-fg-muted, #50575e);flex-wrap:wrap;';
+	sub.style.cssText = 'display:flex;align-items:center;gap:6px;font-size:12px;color:var(--os-ui-fg-muted, #50575e);flex-wrap:wrap;';
 	const handle = document.createElement( 'span' );
 	handle.textContent = `@${ user.username }`;
-	const dot = document.createElement( 'span' );
-	dot.textContent = '·';
-	dot.setAttribute( 'aria-hidden', 'true' );
-	const roleSpan = document.createElement( 'span' );
-	roleSpan.textContent = ( Array.isArray( user.roles ) ? user.roles.join( ', ' ) : '' ) || __( 'No role' );
-	sub.append( handle, dot, roleSpan );
+	sub.appendChild( handle );
+	const chips = roleChips( Array.isArray( user.roles ) ? user.roles : [], cfg );
+	chips.style.justifyContent = 'flex-start';
+	sub.appendChild( chips );
 	text.appendChild( sub );
 	wrap.appendChild( text );
 	return wrap;
 }
 
-interface TextFieldOpts {
-	required?: boolean;
-	type?: string;
-	readonly?: boolean;
-}
-
-function textField( name: string, label: string, value: string, opts: TextFieldOpts = {} ): HTMLElement {
-	const el = document.createElement( 'os-text-field' ) as HTMLElement & { value?: string };
-	el.setAttribute( 'name', name );
-	el.setAttribute( 'label', label );
-	el.setAttribute( 'value', value );
-	el.value = value;
-	if ( opts.required ) {
-		el.setAttribute( 'required', '' );
-	}
-	if ( opts.readonly ) {
-		el.setAttribute( 'readonly', '' );
-	}
-	if ( opts.type ) {
-		el.setAttribute( 'type', opts.type );
-	}
-	return el;
-}
-
 /** WP-style display-name candidates: username, nickname, names and their combinations. */
-export function displayNameCandidates( user: UserEditRecord ): Array< { value: string; label: string } > {
+function displayNameCandidates( user: UserEditRecord ): Array< { value: string; label: string } > {
 	const candidates = new Set< string >();
 	const add = ( s: string ): void => {
 		const t = s.trim();

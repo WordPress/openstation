@@ -922,54 +922,6 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 	}
 
 	// ----------------------------------------------------------------
-	// Force-refresh query-string detector — GH#202.
-	// ----------------------------------------------------------------
-
-	/**
-	 * @covers ::openstation_plugins_window_force_refresh_requested
-	 */
-	public function test_force_refresh_detector_returns_false_when_param_absent() {
-		unset( $_GET['openstation_force_refresh'] );
-		$this->assertFalse( openstation_plugins_window_force_refresh_requested() );
-	}
-
-	/**
-	 * @covers ::openstation_plugins_window_force_refresh_requested
-	 */
-	public function test_force_refresh_detector_accepts_one() {
-		$_GET['openstation_force_refresh'] = '1';
-		try {
-			$this->assertTrue( openstation_plugins_window_force_refresh_requested() );
-		} finally {
-			unset( $_GET['openstation_force_refresh'] );
-		}
-	}
-
-	/**
-	 * @covers ::openstation_plugins_window_force_refresh_requested
-	 */
-	public function test_force_refresh_detector_accepts_true() {
-		$_GET['openstation_force_refresh'] = 'true';
-		try {
-			$this->assertTrue( openstation_plugins_window_force_refresh_requested() );
-		} finally {
-			unset( $_GET['openstation_force_refresh'] );
-		}
-	}
-
-	/**
-	 * @covers ::openstation_plugins_window_force_refresh_requested
-	 */
-	public function test_force_refresh_detector_rejects_other_values() {
-		$_GET['openstation_force_refresh'] = '0';
-		try {
-			$this->assertFalse( openstation_plugins_window_force_refresh_requested() );
-		} finally {
-			unset( $_GET['openstation_force_refresh'] );
-		}
-	}
-
-	// ----------------------------------------------------------------
 	// `openstation_auto_update` REST field — per-row auto-update state.
 	// ----------------------------------------------------------------
 

@@ -21,7 +21,7 @@ import { __, sprintf } from '../../i18n';
 import { trackedFetch } from '../../tracked-fetch';
 import type { WidgetContext, WidgetTeardown } from '../../widgets/types';
 import { startVisibilityAwarePoller } from '../../widgets/poller';
-import { decodeHTML } from '../../utils';
+import { adminBaseUrl as adminUrl, decodeHTML } from '../../utils';
 
 interface DesktopApi {
 	confirm?( opts: {
@@ -429,13 +429,6 @@ interface DraftRow {
 }
 
 /** Base admin URL, e.g. `http://site/wp-admin/` (trailing slash). */
-function adminUrl(): string {
-	const desktop = ( window as unknown as {
-		wp?: { os?: { config?: { adminUrl?: string } } };
-	} ).wp?.os;
-	return desktop?.config?.adminUrl || '/wp-admin/';
-}
-
 function editUrl( id: number ): string {
 	return `${ adminUrl() }post.php?post=${ id }&action=edit`;
 }

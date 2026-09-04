@@ -64,7 +64,7 @@ export function openUserEditWindow(
 	}
 	const desktop = ( window as unknown as { wp?: { os?: DesktopFacade } } ).wp?.os;
 	const opened = desktop?.openWindow?.( USER_EDIT_WINDOW_ID, {
-		source: opts.source ?? 'my-wordpress/user-tile',
+		source: opts.source ?? 'user-edit/open',
 		params: { userId },
 	} );
 

@@ -9,8 +9,9 @@
  *                            cap that gates "can read the comments screen"
  *                            for any author (their own comments). The REST
  *                            controller does per-row checks.
- *   - `moderate_comments`  → approve / unapprove / spam / trash actions and
- *                            the reply composer.
+ *   - `moderate_comments`  → approve / unapprove / spam / trash actions.
+ *   - `edit_posts`         → the reply composer (per-target: `edit_post`
+ *                            on the parent's post, server-checked).
  *   - `edit_comment`       → edit a comment's text (per-target, server-checked).
  *
  * UI-side gating is purely UX polish — every action and every REST

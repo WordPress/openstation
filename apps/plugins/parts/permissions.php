@@ -129,13 +129,10 @@ function openstation_plugins_window_caps( $user_id = null ) {
  *       && ( ! is_multisite() || $this->screen->in_admin( 'network' ) );
  *
  * `wp_is_auto_update_enabled_for_type()` lives in
- * `wp-admin/includes/update.php`. On admin requests `init` fires
- * INSIDE `wp-load.php`, BEFORE `wp-admin/admin.php` requires its
- * includes — so by the time native windows register their config on
- * `init` priority 20, the helper isn't loaded yet. We lazy-require
- * it from this gate so the config blob always reflects the true
- * state. (The check is gated by `is_admin()` so REST / front-end
- * requests don't pay the cost.)
+ * `wp-admin/includes/update.php`, which is not loaded when the app's
+ * config resolves (the manifest is built on a REST request as often
+ * as on an admin one), so the gate requires it itself — the config
+ * blob then reflects the true state wherever it is computed.
  *
  * On multisite, only network admins can toggle plugin auto-updates —
  * Core gates the column on the network screen specifically, but we
@@ -150,18 +147,10 @@ function openstation_plugins_window_auto_updates_enabled( $user_id = null ) {
 
 	$enabled = false;
 	if ( $user_id > 0 && user_can( $user_id, 'update_plugins' ) ) {
-		// Lazy-require Core's admin update helper if it hasn't been
-		// loaded yet. Same posture `wp_ajax_install_plugin` uses for
-		// `plugins_api()` — admin-side files are safe to load when
-		// we're in admin context. We guard with `is_admin()` so REST
-		// / front-end requests don't pull in admin includes.
-		if ( ! function_exists( 'wp_is_auto_update_enabled_for_type' ) && is_admin() ) {
+		if ( ! function_exists( 'wp_is_auto_update_enabled_for_type' ) ) {
 			require_once ABSPATH . 'wp-admin/includes/update.php';
 		}
-		if (
-			function_exists( 'wp_is_auto_update_enabled_for_type' )
-			&& wp_is_auto_update_enabled_for_type( 'plugin' )
-		) {
+		if ( wp_is_auto_update_enabled_for_type( 'plugin' ) ) {
 			if ( is_multisite() ) {
 				// Network-only — match Core's `screen->in_admin( 'network' )`
 				// gate as closely as we can outside a screen context.

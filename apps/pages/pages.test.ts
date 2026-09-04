@@ -1,7 +1,7 @@
 /**
  * Pages app — the Posts list body composed for pages: every string
- * picks the page noun, the hierarchical columns paint, and there are
- * no taxonomy tabs.
+ * picks the page noun, the hierarchical columns paint, the declared
+ * sort is the fallback, and there are no taxonomy tabs or cells.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockViewContext } from '../../src/app-runtime/testing';
@@ -31,16 +31,25 @@ function row( id: number, over: Partial< PostListItem > = {} ): PostListItem {
 function mount( items: PostListItem[] ) {
 	const root = document.createElement( 'div' );
 	document.body.appendChild( root );
+	const dispatch = vi.fn( async () => true );
 	const ctx = mockViewContext< ListState, ListData >( {
 		state: { page: 1, perPage: 20, search: '', status: '', orderby: 'menu_order', order: 'asc', author: [], tag: [] },
-		data: { list: { items, total: items.length, pages: items.length ? 1 : 0, page: 1, perPage: 20, error: '' } },
+		data: { list: { items, total: items.length, pages: items.length ? 1 : 0, page: 1, perPage: 20, error: '', code: '' } },
 		root,
-		extra: { mode: 'pages', newPostUrl: 'http://x.test/wp-admin/post-new.php?post_type=page', frontPageId: 1, pageTemplates: { '': 'Default template' } },
+		extra: {
+			mode: 'pages',
+			newPostUrl: 'http://x.test/wp-admin/post-new.php?post_type=page',
+			defaultOrderby: 'menu_order',
+			defaultOrder: 'asc',
+			frontPageId: 1,
+			pageTemplates: { '': 'Default template' },
+		},
+		dispatch,
 		host: { fetch: ( i, init ) => globalThis.fetch( i, init ), openUrl: vi.fn(), confirm: vi.fn( async () => true ) },
 	} );
 	ctx.repaint = () => app.render( ctx );
 	app.render( ctx );
-	return { root, ctx };
+	return { root, ctx, dispatch };
 }
 
 beforeEach( () => {
@@ -67,16 +76,18 @@ describe( 'the pages view', () => {
 		expect( ctx.host.openUrl ).toHaveBeenCalledWith( 'http://x.test/wp-admin/post-new.php?post_type=page', 'Add New Page', 'dashicons-admin-page' );
 	} );
 
-	it( 'paints the hierarchical columns, sorted by menu order', () => {
-		const { root } = mount( [ row( 1 ), row( 2, { parent: 1 } ) ] );
+	it( 'paints the hierarchical columns, sorted by menu order, and falls back to it when a sort is cleared', () => {
+		const { root, dispatch } = mount( [ row( 1 ), row( 2, { parent: 1 } ) ] );
 		const table = root.querySelector( '[data-os-posts-table]' ) as HTMLElement & {
 			columns?: Array< { key: string } >;
-			sort?: { key: string; direction: string };
+			sort?: { key: string; direction: string } | null;
 		};
 		expect( ( table.columns ?? [] ).map( ( c ) => c.key ) ).toEqual( [ 'title', 'author', 'parent', 'template', 'slug', 'comments', 'date' ] );
 		// `menu_order` is no column, so no header wears a sort arrow —
 		// the table refuses a sort it cannot show.
 		expect( table.sort ).toBeNull();
+		table.dispatchEvent( new CustomEvent( 'os-table-sort-change', { detail: { sort: null } } ) );
+		expect( dispatch ).toHaveBeenCalledWith( 'sort', { orderby: 'menu_order', order: 'asc' } );
 	} );
 
 	it( 'says "No pages" when empty', () => {

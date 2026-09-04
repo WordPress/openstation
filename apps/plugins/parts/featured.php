@@ -93,9 +93,7 @@ function openstation_plugins_window_ajax_featured() {
 		return;
 	}
 
-	if ( ! function_exists( 'plugins_api' ) ) {
-		require_once ABSPATH . 'wp-admin/includes/plugin-install.php';
-	}
+	openstation_plugins_window_load_plugins_api();
 
 	$cache_key = 'dm_pwfeatured_v1';
 	$cached    = get_transient( $cache_key );
@@ -108,7 +106,7 @@ function openstation_plugins_window_ajax_featured() {
 	$seen_slugs = array();
 	$fields     = array(
 		'icons'             => true,
-		'banners'           => true,
+		'banners'           => false,
 		'short_description' => true,
 		'description'       => false,
 		'sections'          => false,

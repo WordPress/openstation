@@ -10,9 +10,8 @@
 
 import type { TermNeighbor } from './types';
 
-export const MIN_FONT_SIZE = 11;
-export const MAX_FONT_SIZE = 28;
-export const CHIP_NAME_MAX_CHARS = 22;
+const MIN_FONT_SIZE = 11;
+const MAX_FONT_SIZE = 28;
 // Extra padding around each chip's AABB so they don't kiss — ~12px
 // reads as a sticker wall, not a brick.
 const SPIRAL_PADDING = 14;
@@ -41,11 +40,7 @@ export function fontSizeFor( count: number, max: number ): number {
 	return Math.round( MIN_FONT_SIZE + ( MAX_FONT_SIZE - MIN_FONT_SIZE ) * ratio );
 }
 
-export function truncateChipName( name: string ): string {
-	return name.length > CHIP_NAME_MAX_CHARS ? name.slice( 0, CHIP_NAME_MAX_CHARS - 1 ) + '…' : name;
-}
-
-export function aabbIntersect( a: Aabb, b: Aabb ): boolean {
+function aabbIntersect( a: Aabb, b: Aabb ): boolean {
 	return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 }
 
@@ -54,7 +49,7 @@ export function aabbIntersect( a: Aabb, b: Aabb ): boolean {
  * the lint rule bans them); the 2^31 modulus keeps multiplication
  * exact across long slugs.
  */
-export function slugHash( slug: string ): number {
+function slugHash( slug: string ): number {
 	let h = 0;
 	for ( let i = 0; i < slug.length; i++ ) {
 		h = ( h * 31 + slug.charCodeAt( i ) ) % 2147483647;

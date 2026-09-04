@@ -3,20 +3,21 @@
  *
  * Part of the `desktop-mode-plugins` client view. The Installed table,
  * the gallery cards, the detail flyout and the upload dialog all
- * activate, deactivate, delete and install plugins; the legacy window
- * carried a copy of each flow per surface. One copy here: activate /
- * deactivate / delete are app actions (a dispatch — the server runs
- * Core's REST controller, toasts, refreshes the dock and returns the
- * fresh list), install rides Core's `wp_ajax_install_plugin` and then
- * re-reads `data()`. The one thing only the client can do — leave for
- * the classic admin once OpenStation deactivated or deleted ITSELF —
- * happens here after the dispatch lands.
+ * activate, deactivate, delete and install plugins. One copy here:
+ * activate / deactivate / delete are app actions (a dispatch — the
+ * server runs Core's REST controller, toasts, refreshes the dock and
+ * returns the fresh list), install rides Core's
+ * `wp_ajax_install_plugin` and then re-reads `data()`. The one thing
+ * only the client can do — leave for the classic admin once
+ * OpenStation deactivated or deleted ITSELF — happens here after the
+ * dispatch lands.
  *
  * @public
  */
 
 import { __, sprintf } from '@openstation/app';
-import { decodeEntities } from './card';
+import { decodeHTML } from '../../../src/utils';
+import { leaveForClassicAdmin } from '../../../src/exit-openstation';
 import { describeError, isActiveStatus, type InstalledPlugin, type PluginsHost } from './types';
 
 /**
@@ -41,7 +42,7 @@ export function leaveAfterSelfMutation( host: PluginsHost, deleted: boolean ): v
 			: __( 'OpenStation deactivated. Reloading…', 'desktop-mode' ),
 		2000,
 	);
-	host.rest.reloadOutOfOpenStation();
+	leaveForClassicAdmin( host.extra.adminUrl ?? '' );
 }
 
 /** Activate one plugin. Resolves true once the fresh list landed. */
@@ -121,10 +122,10 @@ export async function installBySlug( host: PluginsHost, slug: string, name: stri
 		sprintf(
 			/* translators: %s: plugin name */
 			__( 'Installed %s.', 'desktop-mode' ),
-			decodeEntities( name ),
+			decodeHTML( name ),
 		),
 	);
 	host.broadcastChange( { plugin: slug, action: 'install' } );
-	void host.rest.refreshFrameworkMenu();
+	host.refreshMenu();
 	return true;
 }

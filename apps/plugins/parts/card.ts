@@ -11,9 +11,12 @@
  */
 
 import { __, sprintf } from '@openstation/app';
-import { isActiveStatus, stripHtml, type InstalledPlugin, type WpOrgBrowsePlugin } from './types';
-import '../../../src/ui/components/os-button/os-button';
+// Cards paint under `os-preserve` hosts, outside the runtime's
+// on-demand component loading — the tag registers here.
 import '../../../src/ui/components/os-card/os-card';
+import { decodeHTML } from '../../../src/utils';
+import { fallbackGlyph, stripHtml } from './html';
+import { isActiveStatus, type InstalledPlugin, type WpOrgBrowsePlugin } from './types';
 
 /** Installed rows keyed by wp.org slug (text domain) — what the CTA reads. */
 export type InstalledIndex = Map< string, InstalledPlugin >;
@@ -61,31 +64,31 @@ export function buildCard(
 		img.decoding = 'async';
 		img.addEventListener( 'load', () => img.classList.add( 'is-loaded' ) );
 		img.addEventListener( 'error', () => {
-			iconWrap.replaceChildren( buildFallbackGlyph() );
+			iconWrap.replaceChildren( fallbackGlyph( 'os-plugins__card-icon-fallback' ) );
 		} );
 		iconWrap.appendChild( img );
 	} else {
-		iconWrap.appendChild( buildFallbackGlyph() );
+		iconWrap.appendChild( fallbackGlyph( 'os-plugins__card-icon-fallback' ) );
 	}
 
 	const titleBlock = document.createElement( 'div' );
 	titleBlock.className = 'os-plugins__card-titleblock';
 	const title = document.createElement( 'h3' );
 	title.className = 'os-plugins__card-title';
-	title.textContent = decodeEntities( plugin.name );
+	title.textContent = decodeHTML( plugin.name );
 	const byline = document.createElement( 'p' );
 	byline.className = 'os-plugins__card-byline';
-	byline.innerHTML = sprintf(
+	byline.textContent = sprintf(
 		/* translators: %s: plugin author name (HTML-stripped) */
 		__( 'by %s', 'desktop-mode' ),
-		`<span>${ escapeHtml( stripHtml( plugin.author ?? '' ) ) }</span>`,
+		stripHtml( plugin.author ?? '' ),
 	);
 	titleBlock.append( title, byline );
 	header.append( iconWrap, titleBlock );
 
 	const desc = document.createElement( 'p' );
 	desc.className = 'os-plugins__card-desc';
-	desc.textContent = decodeEntities( plugin.short_description ?? '' );
+	desc.textContent = decodeHTML( plugin.short_description ?? '' );
 
 	const footer = document.createElement( 'footer' );
 	footer.className = 'os-plugins__card-footer';
@@ -199,13 +202,6 @@ export function buildStarCluster( rating0to100: number, totalRatings: number ): 
 	return wrap;
 }
 
-function buildFallbackGlyph(): HTMLElement {
-	const fallback = document.createElement( 'span' );
-	fallback.className = 'dashicons dashicons-admin-plugins os-plugins__card-icon-fallback';
-	fallback.setAttribute( 'aria-hidden', 'true' );
-	return fallback;
-}
-
 /** Pick the best available icon URL (svg > 256 > 128 > 1x > default). */
 export function pickIcon( icons: Record< string, string > | undefined ): string | null {
 	if ( ! icons ) {
@@ -229,7 +225,7 @@ export function pickIcon( icons: Record< string, string > | undefined ): string 
  * Format an active-installs count like wp.org does:
  * 50 → "50+ active", 1,234 → "1,000+ active", 5,000,000 → "5+ million active".
  */
-export function formatInstalls( n: number ): string {
+function formatInstalls( n: number ): string {
 	if ( n <= 0 ) {
 		return __( 'Fewer than 10 active', 'desktop-mode' );
 	}
@@ -253,27 +249,12 @@ function roundTo3SigFigs( n: number ): number {
 	return Math.floor( n / order ) * order;
 }
 
-export function formatThousands( n: number ): string {
+function formatThousands( n: number ): string {
 	try {
 		return new Intl.NumberFormat().format( n );
 	} catch {
 		return String( n );
 	}
-}
-
-const _entityCache = document.createElement( 'textarea' );
-export function decodeEntities( html: string ): string {
-	if ( ! html ) {
-		return '';
-	}
-	_entityCache.innerHTML = html;
-	return _entityCache.value;
-}
-
-export function escapeHtml( raw: string ): string {
-	const tmp = document.createElement( 'div' );
-	tmp.textContent = raw;
-	return tmp.innerHTML;
 }
 
 /** A placeholder card for a page still loading. */

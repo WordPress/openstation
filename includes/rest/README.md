@@ -30,10 +30,10 @@ All in-tree routes register under `desktop-mode/v1`. Extensions are expected to 
 | `/users/bulk-delete` | POST | `apps/users/parts/rest.php` | `delete_users` (`remove_users` on multisite) |
 | `/users/{id}/send-password-reset` | POST | `apps/users/parts/rest.php` | `edit_users` |
 | `/users/{id}/resend-welcome` | POST | `apps/users/parts/rest.php` | `edit_users` |
-| `/users/{id}/insights` | GET | `apps/user-edit/parts/rest.php` | `edit_user` on the target user |
-| `/users/{id}/destroy-sessions` | POST | `apps/user-edit/parts/rest.php` | `edit_user` on the target user |
-| `/users/{id}/application-passwords` | GET / POST | `apps/user-edit/parts/rest.php` | `edit_user` on the target user |
-| `/users/{id}/application-passwords/{uuid}` | DELETE | `apps/user-edit/parts/rest.php` | `edit_user` on the target user |
+| `/users/{id}/insights` | GET | `apps/user-edit/parts/insights.php` | `edit_user` on the target user |
+| `/users/{id}/destroy-sessions` | POST | `apps/user-edit/parts/account.php` | `edit_user` on the target user |
+| `/users/{id}/application-passwords` | GET / POST | `apps/user-edit/parts/account.php` | `edit_user` on the target user |
+| `/users/{id}/application-passwords/{uuid}` | DELETE | `apps/user-edit/parts/account.php` | `edit_user` on the target user |
 | `/comments/bulk` | POST | `apps/comments/parts/rest.php` | `moderate_comments` |
 | `/comments/reply` | POST | `apps/comments/parts/rest.php` | `edit_posts` |
 | `/comments/insights/{email}` | GET | `apps/comments/parts/rest.php` | `moderate_comments` |

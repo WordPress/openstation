@@ -211,14 +211,19 @@ function writeWindowConfigField(
 	}
 	const record = blob as Record< string, unknown >;
 	// An App Framework window keeps its `App::config()` values under
-	// `extra`; a legacy blob keeps them at the top level. Rewrite the
-	// one the field lives in, so neither shape reads a stale nonce.
+	// `extra`; a legacy blob keeps them at the top level; a blob may
+	// carry the same name in both (a nonce the runtime sends AND the
+	// app reads). Rewrite every copy that exists, so no reader is left
+	// with a stale one.
 	const extra = record.extra;
+	let written = false;
 	if ( extra && typeof extra === 'object' && field in ( extra as Record< string, unknown > ) ) {
 		( extra as Record< string, unknown > )[ field ] = value;
-		return;
+		written = true;
 	}
-	record[ field ] = value;
+	if ( field in record || ! written ) {
+		record[ field ] = value;
+	}
 }
 
 function readShellConfig(): { restNonce?: unknown } | undefined {

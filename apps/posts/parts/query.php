@@ -82,31 +82,37 @@ function openstation_posts_app_state( $orderby = 'date', $order = 'desc' ) {
 }
 
 /**
- * The static facts the client view reads through `ctx.extra`.
+ * The REST `orderby` values a column click may set. Anything else
+ * (a plugin column core cannot sort by) falls back to the declared
+ * default rather than reaching `WP_Query` as a stray key.
  *
- * @param string $mode `posts` | `pages`.
+ * @return string[]
+ */
+function openstation_posts_app_allowed_orderby() {
+	return array( 'date', 'title', 'author', 'modified', 'comment_count', 'menu_order' );
+}
+
+/**
+ * The static facts the client view reads through `ctx.extra`: the
+ * mode, the editor URLs and the declared default sort — what the
+ * client returns to when a column sort is cleared. The Pages app
+ * layers its own facts on top in `openstation_pages_app_config()`.
+ *
+ * @param string $mode    `posts` | `pages`.
+ * @param string $orderby Default sort column.
+ * @param string $order   Default direction.
  * @return array<string,mixed>
  */
-function openstation_posts_app_config( $mode ) {
-	$config = array(
+function openstation_posts_app_config( $mode, $orderby = 'date', $order = 'desc' ) {
+	return array(
 		'mode'            => 'pages' === $mode ? 'pages' : 'posts',
 		'editPostUrlBase' => esc_url_raw( admin_url( 'post.php' ) ),
 		'newPostUrl'      => 'pages' === $mode
 			? esc_url_raw( add_query_arg( 'post_type', 'page', admin_url( 'post-new.php' ) ) )
 			: esc_url_raw( admin_url( 'post-new.php' ) ),
-		'currentUserId'   => (int) get_current_user_id(),
-		'defaultPerPage'  => 20,
+		'defaultOrderby'  => (string) $orderby,
+		'defaultOrder'    => 'asc' === $order ? 'asc' : 'desc',
 	);
-	if ( 'pages' === $mode ) {
-		// Reading-page assignments — the title cell paints "Front page"
-		// / "Posts page" badges on matching rows. `0` when unset.
-		$config['frontPageId']   = (int) get_option( 'page_on_front', 0 );
-		$config['postsPageId']   = (int) get_option( 'page_for_posts', 0 );
-		$config['pageTemplates'] = function_exists( 'openstation_pages_window_template_labels' )
-			? openstation_pages_window_template_labels()
-			: array();
-	}
-	return $config;
 }
 
 /**
@@ -190,12 +196,12 @@ function openstation_posts_app_query( array $defaults, State $state ) {
 function openstation_posts_app_data( $route, array $defaults, State $state ) {
 	$query = openstation_posts_app_query( $defaults, $state );
 	$list  = openstation_app_rest_page( $route, $query );
-	// A page past the end comes back EMPTY — as Core's
-	// `rest_post_invalid_page_number` refusal, or as an empty page on
-	// a controller that tolerates it. Either way the typical cause is
-	// the user on page 7 raising per-page from 10 to 100: land on page
-	// 1 silently rather than render an empty table.
-	if ( array() === $list['items'] && $query['page'] > 1 ) {
+	// A page past the end — Core's `rest_post_invalid_page_number`
+	// refusal, or an empty page on a controller that tolerates it —
+	// lands on page 1 silently rather than render an empty table. A
+	// refusal for any other reason (a capability, a bad argument) is
+	// never retried: the error reaches the client as it is.
+	if ( openstation_app_rest_page_is_out_of_range( $list ) ) {
 		$state->set( 'page', 1 );
 		$query['page'] = 1;
 		$list          = openstation_app_rest_page( $route, $query );
@@ -232,17 +238,24 @@ function openstation_posts_app_page( State $state, array $args ) {
 
 /**
  * `sort` — a column header click; the client maps the column key to
- * the REST `orderby` value.
+ * the REST `orderby` value, and the server only keeps one it knows:
+ * anything outside `openstation_posts_app_allowed_orderby()` is the
+ * app's declared default.
  *
- * @param State               $state Declared state.
- * @param array<string,mixed> $args  `orderby`, `order`.
+ * @param State               $state           Declared state.
+ * @param array<string,mixed> $args            `orderby`, `order`.
+ * @param string              $default_orderby The app's default sort column.
+ * @param string              $default_order   The app's default direction.
  * @return void
  */
-function openstation_posts_app_sort( State $state, array $args ) {
+function openstation_posts_app_sort( State $state, array $args, $default_orderby = 'date', $default_order = 'desc' ) {
 	$orderby = isset( $args['orderby'] ) ? sanitize_key( (string) $args['orderby'] ) : '';
-	$order   = isset( $args['order'] ) && 'asc' === strtolower( (string) $args['order'] ) ? 'asc' : 'desc';
-	$state->set( 'orderby', '' !== $orderby ? $orderby : 'date' );
-	$state->set( 'order', $order );
+	if ( ! in_array( $orderby, openstation_posts_app_allowed_orderby(), true ) ) {
+		$orderby = (string) $default_orderby;
+	}
+	$order = isset( $args['order'] ) ? strtolower( (string) $args['order'] ) : (string) $default_order;
+	$state->set( 'orderby', $orderby );
+	$state->set( 'order', 'asc' === $order ? 'asc' : 'desc' );
 }
 
 /**

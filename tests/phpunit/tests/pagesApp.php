@@ -89,6 +89,22 @@ class Tests_OpenStation_PagesApp extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'post_type=page', $config['newPostUrl'] );
 		$this->assertSame( 'Default template', $config['pageTemplates'][''] );
 		$this->assertSame( 'Wide', $config['pageTemplates']['page-wide.php'] );
+		// The declared sort travels with the config.
+		$this->assertSame( 'menu_order', $config['defaultOrderby'] );
+		$this->assertSame( 'asc', $config['defaultOrder'] );
+		$this->assertSame( $config, openstation_pages_app_config(), 'The manifest reads the Pages layer, which wraps the shared facts.' );
+	}
+
+	/**
+	 * @covers ::openstation_posts_app_sort
+	 */
+	public function test_sort_falls_back_to_menu_order() {
+		$response = $this->dispatch( 'sort', array( 'orderby' => 'title' ), array( 'orderby' => 'wordCount' ) );
+		$this->assertSame( 'menu_order', $response['state']['orderby'] );
+		$this->assertSame( 'asc', $response['state']['order'] );
+		$response = $this->dispatch( 'sort', array(), array( 'orderby' => 'comment_count', 'order' => 'desc' ) );
+		$this->assertSame( 'comment_count', $response['state']['orderby'] );
+		$this->assertSame( 'desc', $response['state']['order'] );
 	}
 
 	/**

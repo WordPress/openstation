@@ -5041,7 +5041,7 @@ All window actions include at minimum `{ windowId: string }` — additional fiel
 |---|---|---|---|
 | `os.window.geometry` | filter | Stable | `( geometry, ctx ) => geometry` — last call before `WindowConfig` is baked. See [the geometry filter section below](#window-geometry-filter) for the contract and a recipe. |
 | `os.window.opened` | action | Stable | `{ windowId, page, title, url }` |
-| `os.window.reopened` | action | Stable | `{ windowId, baseId, wasMinimized, navigated }` — fires when `openWindow()` is called for an already-open window; `navigated` is `true` when the request carried a URL the window wasn't showing and the framework navigated the existing iframe to it in place |
+| `os.window.reopened` | action | Stable | `{ windowId, baseId, wasMinimized, navigated, params }` — fires when `openWindow()` is called for an already-open window; `navigated` is `true` when the request carried a URL the window wasn't showing and the framework navigated the existing iframe to it in place; `params` are the window's open-time params AFTER the request's were written onto it (an App Framework window retargets from them through its `reopen` action) |
 | `os.window.content-loading` | action | Stable | `{ windowId }` — fires on the loading entry edge (construction + every `markContentLoading()`). Edge-triggered. |
 | `os.window.content-loaded` | action | Stable | `{ windowId }` — fires on the loading → ready transition (iframe `load` / `os-ready`, native render Promise resolves, or `markContentLoaded()`). Edge-triggered. |
 | `os.window.loading-overlay` | filter | Stable | `(host: HTMLElement, ctx: { windowId, config }) → HTMLElement`. Receives the default overlay element (or whatever a per-window `config.loading.render` produced) and may mutate it or return a replacement. Plugins use this to brand every window's loader, swap the spinner preset, append status text. |
@@ -6522,6 +6522,20 @@ placements you recognize; see
 [examples/desktop-file-storage.md](examples/desktop-file-storage.md#extend-the-preview-pane-eg-pdfs).
 
 ---
+
+## Users and User Edit — `<os-user-profile>`
+
+The profile surface both windows show (sidebar summary, the profile form, the activity / insights panel) is one custom element, `<os-user-profile>`, shipped as its own companion bundle — `assets/js/apps/user-profile[.min].js`, script handle `openstation-user-profile` — registered by `apps/users/parts/profile-script.php` and appended to the Users and User Edit windows through `openstation_app_window_args`. A plugin that wants the same surface in its own window appends the handle the same way.
+
+```html
+<os-user-profile user-id="12"></os-user-profile>
+```
+
+- `user-id` (attribute) — the person. A change re-mounts the element on the new id; without one it idles.
+- `config`, `fetch`, `toast` (properties) — the app that mounts it feeds `ctx.extra` (the facts: role / locale / colour-scheme / contact-method maps and capability flags), `ctx.fetch` and `ctx.host.toast`, so the requests are attributed to that window. Unfed, the element falls back to the shell's REST root, nonce and toast.
+- `refreshInsights()` — re-read the insights panel (a save does it for its own element).
+
+The Users app mounts it only when its Profile tab is picked; the User Edit app mounts it on the `userId` its params name (`0` or none: the viewer), and retargets through the `reopen` lifecycle when asked to open on someone else.
 
 ## Native Plugins window
 

@@ -7,8 +7,8 @@
  * @public
  */
 
-import { __, _n, sprintf } from '../../../src/i18n';
-import { hexOf, showToast } from './canvas/pixi';
+import { __, _n, sprintf } from '@openstation/app';
+import { hexOf } from './canvas/pixi';
 import {
 	armedDeleteButton,
 	bindDraftKeys,
@@ -24,8 +24,6 @@ import {
 import type { PostsRestClient } from './rest';
 import type { TermRow } from './types';
 
-const PREFIX = 'os-mindmap';
-
 /** The node facts the sidebar reads and writes back. */
 export interface MindNodeInfo {
 	id: number;
@@ -40,6 +38,7 @@ export interface MindNodeInfo {
 export interface MindmapSidebarHost {
 	sidebar: HTMLElement;
 	client: PostsRestClient;
+	toast: ( title: string, err: unknown ) => void;
 	terms: () => TermRow[];
 	setTerms: ( next: TermRow[] ) => void;
 	node: ( id: number ) => MindNodeInfo | undefined;
@@ -62,7 +61,6 @@ function paintDraft( host: MindmapSidebarHost, d: { parent: number } ): void {
 	const color = parentNode ? parentNode.color : host.clusterColor( host.terms().length );
 	sidebarHeader(
 		sidebar,
-		PREFIX,
 		hexOf( color ),
 		parentNode
 			? sprintf(
@@ -72,16 +70,16 @@ function paintDraft( host: MindmapSidebarHost, d: { parent: number } ): void {
 			)
 			: __( 'New root category' ),
 	);
-	const nameInput = sidebarInput( sidebar, PREFIX, __( 'Name' ), '', __( 'e.g. Recipes' ) );
+	const nameInput = sidebarInput( sidebar, __( 'Name' ), '', __( 'e.g. Recipes' ) );
 	// Create is gated on a name — drop the cursor straight in.
 	requestAnimationFrame( () => nameInput.focus() );
-	const slugInput = sidebarSlugInput( sidebar, PREFIX, '' );
-	const descInput = sidebarTextarea( sidebar, PREFIX, '' );
+	const slugInput = sidebarSlugInput( sidebar, '' );
+	const descInput = sidebarTextarea( sidebar, '' );
 
-	const createBtn = sidebarButton( PREFIX, 'primary', __( 'Create' ) );
+	const createBtn = sidebarButton( 'primary', __( 'Create' ) );
 	// The danger style keeps the dual-action row symmetric with the
 	// editor's Save / Delete pair.
-	const cancelBtn = sidebarButton( PREFIX, 'danger', __( 'Cancel' ) );
+	const cancelBtn = sidebarButton( 'danger', __( 'Cancel' ) );
 	const cancel = (): void => {
 		host.setDraft( null );
 		paintSidebar( host );
@@ -101,10 +99,10 @@ function paintDraft( host: MindmapSidebarHost, d: { parent: number } ): void {
 			const next: TermRow = {
 				id: created.id,
 				name: created.name,
-				slug: ( created as unknown as { slug?: string } ).slug || '',
+				slug: created.slug || '',
 				parent: created.parent,
 				count: 0,
-				description: ( created as unknown as { description?: string } ).description || '',
+				description: created.description || '',
 				isDefault: false,
 			};
 			// `createCategory` returns the existing match on term_exists —
@@ -119,26 +117,25 @@ function paintDraft( host: MindmapSidebarHost, d: { parent: number } ): void {
 			await host.loadPosts();
 		} catch ( err ) {
 			createBtn.disabled = false;
-			showToast( __( 'Couldn’t create:' ), err );
+			host.toast( __( 'Couldn’t create:' ), err );
 		}
 	};
 	createBtn.addEventListener( 'click', () => void handleCreate() );
 	cancelBtn.addEventListener( 'click', cancel );
 	bindDraftKeys( nameInput, () => void handleCreate(), cancel );
-	sidebarActions( sidebar, PREFIX, [ createBtn, cancelBtn ] );
+	sidebarActions( sidebar, [ createBtn, cancelBtn ] );
 }
 
 function paintEditor( host: MindmapSidebarHost, node: MindNodeInfo ): void {
 	const { sidebar, client } = host;
 	const id = node.id;
-	sidebarHeader( sidebar, PREFIX, hexOf( node.color ), `#${ id }` );
+	sidebarHeader( sidebar, hexOf( node.color ), `#${ id }` );
 	const term = host.terms().find( ( t ) => t.id === id );
-	const nameInput = sidebarInput( sidebar, PREFIX, __( 'Name' ), node.name, __( 'Name' ) );
-	const slugInput = sidebarSlugInput( sidebar, PREFIX, term?.slug || '' );
-	const descInput = sidebarTextarea( sidebar, PREFIX, node.description || '' );
+	const nameInput = sidebarInput( sidebar, __( 'Name' ), node.name, __( 'Name' ) );
+	const slugInput = sidebarSlugInput( sidebar, term?.slug || '' );
+	const descInput = sidebarTextarea( sidebar, node.description || '' );
 	sidebarMeta(
 		sidebar,
-		PREFIX,
 		sprintf(
 			/* translators: %d: post count. */
 			_n( '%d post in this category.', '%d posts in this category.', node.count ),
@@ -146,7 +143,7 @@ function paintEditor( host: MindmapSidebarHost, node: MindNodeInfo ): void {
 		),
 	);
 
-	const addChildBtn = sidebarButton( PREFIX, 'secondary', __( '+ Child' ) );
+	const addChildBtn = sidebarButton( 'secondary', __( '+ Child' ) );
 	addChildBtn.addEventListener( 'click', () => {
 		host.setDraft( { parent: id } );
 		paintSidebar( host );
@@ -155,7 +152,7 @@ function paintEditor( host: MindmapSidebarHost, node: MindNodeInfo ): void {
 	// Make root: drag-and-drop reparents within the tree, but there is
 	// no drop target for "no parent" — this is the only path to promote
 	// a deep child into a top-level cluster.
-	const makeRootBtn = node.parent && node.parent !== 0 ? sidebarButton( PREFIX, 'secondary', __( 'Make root' ) ) : null;
+	const makeRootBtn = node.parent && node.parent !== 0 ? sidebarButton( 'secondary', __( 'Make root' ) ) : null;
 	if ( makeRootBtn ) {
 		makeRootBtn.title = __( 'Promote this category to a top-level root (no parent).' );
 		makeRootBtn.addEventListener( 'click', async () => {
@@ -169,12 +166,12 @@ function paintEditor( host: MindmapSidebarHost, node: MindNodeInfo ): void {
 				host.buildTree();
 				paintSidebar( host );
 			} catch ( err ) {
-				showToast( __( 'Couldn’t reparent:' ), err );
+				host.toast( __( 'Couldn’t reparent:' ), err );
 			}
 		} );
 	}
 
-	const saveBtn = sidebarButton( PREFIX, 'primary', __( 'Save' ) );
+	const saveBtn = sidebarButton( 'primary', __( 'Save' ) );
 	saveBtn.addEventListener( 'click', async () => {
 		const name = nameInput.value.trim();
 		if ( ! name ) {
@@ -201,17 +198,17 @@ function paintEditor( host: MindmapSidebarHost, node: MindNodeInfo ): void {
 			}
 			host.setTerms(
 				host.terms().map( ( t ) =>
-					t.id === id ? { ...t, name: updated.name, description: updated.description, slug: updated.slug ?? t.slug } : t,
+					t.id === id ? { ...t, name: updated.name, description: updated.description, slug: updated.slug || t.slug } : t,
 				),
 			);
 			host.relayoutNode( id );
 			paintSidebar( host );
 		} catch ( err ) {
-			showToast( __( 'Couldn’t save:' ), err );
+			host.toast( __( 'Couldn’t save:' ), err );
 		}
 	} );
 
-	const delBtn = armedDeleteButton( PREFIX, async () => {
+	const delBtn = armedDeleteButton( async () => {
 		try {
 			await client.deleteTerm( 'categories', id );
 			host.setTerms( host.terms().filter( ( t ) => t.id !== id ) );
@@ -220,11 +217,11 @@ function paintEditor( host: MindmapSidebarHost, node: MindNodeInfo ): void {
 			host.buildTree();
 			paintSidebar( host );
 		} catch ( err ) {
-			showToast( __( 'Couldn’t delete:' ), err );
+			host.toast( __( 'Couldn’t delete:' ), err );
 		}
 	} );
 
-	sidebarActions( sidebar, PREFIX, makeRootBtn ? [ addChildBtn, makeRootBtn, saveBtn, delBtn ] : [ addChildBtn, saveBtn, delBtn ] );
+	sidebarActions( sidebar, makeRootBtn ? [ addChildBtn, makeRootBtn, saveBtn, delBtn ] : [ addChildBtn, saveBtn, delBtn ] );
 }
 
 /**
@@ -242,7 +239,6 @@ export function paintSidebar( host: MindmapSidebarHost ): void {
 	if ( focusId === null ) {
 		sidebarEmpty(
 			host.sidebar,
-			PREFIX,
 			'dashicons-admin-tools',
 			__( 'No category selected' ),
 			__( 'Click a node on the mindmap to edit its name, description, and posts.' ),

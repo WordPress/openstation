@@ -46,7 +46,7 @@ return App::define( 'desktop-mode-pages' )
 	)
 	->config(
 		static function () {
-			return openstation_posts_app_config( 'pages' );
+			return openstation_pages_app_config();
 		}
 	)
 	->state( openstation_posts_app_state( 'menu_order', 'asc' ) )
@@ -65,7 +65,7 @@ return App::define( 'desktop-mode-pages' )
 	->action(
 		'sort',
 		static function ( State $state, Os $os, array $args ) {
-			openstation_posts_app_sort( $state, $args );
+			openstation_posts_app_sort( $state, $args, 'menu_order', 'asc' );
 		}
 	)
 	->action(

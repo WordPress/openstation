@@ -2,49 +2,57 @@
  * `<os-user-profile>` — the read-only surfaces over the insights
  * payload: the sidebar summary (avatar, roles, completeness, KPI
  * tiles, 12-month sparkline) and the activity feed below the form
- * (recent posts + comments, sessions and app-password summary).
+ * (recent posts + comments, sessions and app-password summary). Pure
+ * painters: the element fetches the payload once and hands it to both.
  */
 
-import { __, _n, sprintf } from '@openstation/app';
-import { fetchInsights, relativeFromIso, relativeTime } from './profile-client';
-import type { UserInsightsPayload } from './types';
+import { __, _n, formatDate, sprintf } from '@openstation/app';
+import { relativeTimeNode, serverDateMs } from './client';
+import type { ProfileConfig, UserInsightsPayload } from './types';
 
-async function loadInsightsInto( host: HTMLElement, userId: number, fresh: boolean ): Promise< UserInsightsPayload | null > {
-	host.replaceChildren();
-	const skeleton = document.createElement( 'div' );
-	skeleton.style.cssText =
-		'display:flex;align-items:center;justify-content:center;padding:32px;color:var(--os-ui-fg-muted, #50575e);font-size:13px;';
-	skeleton.textContent = __( 'Loading insights…' );
-	host.appendChild( skeleton );
-	try {
-		return await fetchInsights( userId, fresh );
-	} catch ( err ) {
-		host.replaceChildren();
-		const msg = document.createElement( 'p' );
-		msg.style.cssText = 'padding:24px;color:var(--os-ui-danger, #b32d2e);font-size:13px;text-align:center;';
-		// translators: %s is an error message.
-		msg.textContent = sprintf( __( 'Could not load insights (%s).' ), String( ( err as Error ).message ?? err ) );
-		host.appendChild( msg );
-		return null;
+const CARD = 'border:1px solid var(--os-ui-border, #dcdcde);border-radius:10px;padding:14px 16px;';
+const MUTED_HEAD =
+	'color:var(--os-ui-fg-muted, #50575e);font-size:11px;text-transform:uppercase;letter-spacing:0.04em;font-weight:600;';
+const CHIP =
+	'display:inline-flex;padding:2px 8px;border-radius:10px;background:var(--os-ui-badge-info-bg, rgba(34,113,177,0.10));color:var(--os-ui-info-fg, #0a4b78);font-size:11px;font-weight:600;';
+
+function div( css: string, text?: string | Node ): HTMLElement {
+	const el = document.createElement( 'div' );
+	el.style.cssText = css;
+	if ( typeof text === 'string' ) {
+		el.textContent = text;
+	} else if ( text ) {
+		el.appendChild( text );
 	}
+	return el;
+}
+
+/** The "Loading…" placeholder both regions show while the payload is on its way. */
+export function paintInsightsLoading( host: HTMLElement ): void {
+	host.replaceChildren(
+		div(
+			'display:flex;align-items:center;justify-content:center;padding:32px;color:var(--os-ui-fg-muted, #50575e);font-size:13px;',
+			__( 'Loading insights…' ),
+		),
+	);
+}
+
+/** The failure both regions show. */
+export function paintInsightsError( host: HTMLElement, err: unknown ): void {
+	const msg = document.createElement( 'p' );
+	msg.style.cssText = 'padding:24px;color:var(--os-ui-danger, #b32d2e);font-size:13px;text-align:center;';
+	// translators: %s is an error message.
+	msg.textContent = sprintf( __( 'Could not load insights (%s).' ), String( ( err as Error )?.message ?? err ) );
+	host.replaceChildren( msg );
 }
 
 /** The compact summary for the sidebar (`<aside>`). */
-export async function mountProfileAsideAt( host: HTMLElement, userId: number, fresh: boolean ): Promise< void > {
-	const data = await loadInsightsInto( host, userId, fresh );
-	if ( ! data ) {
-		return;
-	}
-	host.replaceChildren( buildAsideSummary( data ), buildAsideStatGrid( data ), buildContentSparkline( data ) );
+export function paintAside( host: HTMLElement, data: UserInsightsPayload, cfg: ProfileConfig ): void {
+	host.replaceChildren( buildAsideSummary( data, cfg ), buildAsideStatGrid( data ), buildContentSparkline( data ) );
 }
 
 /** The full-width activity feed below the form. */
-export async function mountProfileActivityAt( host: HTMLElement, userId: number, fresh: boolean ): Promise< void > {
-	const data = await loadInsightsInto( host, userId, fresh );
-	if ( ! data ) {
-		return;
-	}
-	host.replaceChildren();
+export function paintActivity( host: HTMLElement, data: UserInsightsPayload ): void {
 	const wrap = document.createElement( 'div' );
 	wrap.className = 'os-user-edit__activity';
 	const heading = document.createElement( 'h3' );
@@ -52,24 +60,30 @@ export async function mountProfileActivityAt( host: HTMLElement, userId: number,
 	heading.style.cssText =
 		'margin:24px 0 12px;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--os-ui-fg-muted, #50575e);';
 	wrap.append( heading, buildRecentLists( data ), buildSecurityPanel( data ) );
-	host.appendChild( wrap );
+	host.replaceChildren( wrap );
 }
 
-const CARD = 'border:1px solid var(--os-ui-border, #dcdcde);border-radius:10px;padding:14px 16px;';
-const MUTED_HEAD =
-	'color:var(--os-ui-fg-muted, #50575e);font-size:11px;text-transform:uppercase;letter-spacing:0.04em;font-weight:600;';
-
-function div( css: string, text?: string ): HTMLElement {
-	const el = document.createElement( 'div' );
-	el.style.cssText = css;
-	if ( text !== undefined ) {
-		el.textContent = text;
+/** Role chips, labelled from the catalogue the host ships. */
+export function roleChips( roles: string[], cfg: ProfileConfig ): HTMLElement {
+	const wrap = div( 'display:flex;flex-wrap:wrap;gap:4px;justify-content:center;' );
+	const labels = cfg.allRoles ?? {};
+	for ( const role of roles ) {
+		const chip = document.createElement( 'span' );
+		chip.textContent = labels[ role ] ?? role;
+		chip.style.cssText = CHIP;
+		wrap.appendChild( chip );
 	}
-	return el;
+	if ( roles.length === 0 ) {
+		const noRole = document.createElement( 'span' );
+		noRole.textContent = __( 'No role' );
+		noRole.style.cssText = 'font-size:11px;color:var(--os-ui-fg-muted, #8c8f94);';
+		wrap.appendChild( noRole );
+	}
+	return wrap;
 }
 
 /** Aside top — avatar + name + role chips + completeness bar. */
-function buildAsideSummary( data: UserInsightsPayload ): HTMLElement {
+function buildAsideSummary( data: UserInsightsPayload, cfg: ProfileConfig ): HTMLElement {
 	const card = div(
 		[
 			'display:flex',
@@ -80,8 +94,6 @@ function buildAsideSummary( data: UserInsightsPayload ): HTMLElement {
 			'padding:16px',
 			'border:1px solid var(--os-ui-border, #dcdcde)',
 			'border-radius:12px',
-			// The palette's card surface — a `--wp-admin-theme-*` name
-			// came up undefined on every desktop theme, light-on-light.
 			'background:var(--os-ui-card-bg, var(--os-ui-surface, #f6f7f7))',
 		].join( ';' ),
 	);
@@ -92,22 +104,7 @@ function buildAsideSummary( data: UserInsightsPayload ): HTMLElement {
 	avatar.style.cssText = 'width:72px;height:72px;border-radius:50%;flex-shrink:0;';
 	card.appendChild( avatar );
 	card.appendChild( div( 'font-size:15px;font-weight:600;letter-spacing:-0.01em;', data.displayName || `#${ data.userId }` ) );
-
-	const roles = div( 'display:flex;flex-wrap:wrap;gap:4px;justify-content:center;' );
-	for ( const role of data.roles ) {
-		const chip = document.createElement( 'span' );
-		chip.textContent = role;
-		chip.style.cssText =
-			'display:inline-flex;padding:2px 8px;border-radius:10px;background:var(--os-ui-badge-info-bg, rgba(34,113,177,0.10));color:var(--os-ui-info-fg, #0a4b78);font-size:11px;font-weight:600;';
-		roles.appendChild( chip );
-	}
-	if ( data.roles.length === 0 ) {
-		const noRole = document.createElement( 'span' );
-		noRole.textContent = __( 'No role' );
-		noRole.style.cssText = 'font-size:11px;color:var(--os-ui-fg-muted, #8c8f94);';
-		roles.appendChild( noRole );
-	}
-	card.appendChild( roles );
+	card.appendChild( roleChips( data.roles, cfg ) );
 
 	const completeness = data.profileCompleteness;
 	if ( completeness && completeness.total > 0 ) {
@@ -122,8 +119,6 @@ function buildAsideSummary( data: UserInsightsPayload ): HTMLElement {
 		pct.textContent = `${ completeness.percent }%`;
 		top.append( lbl, pct );
 		cwrap.appendChild( top );
-		// The palette's unlit-track token; a raw black wash is invisible
-		// on a dark card.
 		const track = div(
 			'height:4px;border-radius:999px;background:var(--os-ui-holo-track, rgba(0,0,0,0.06));position:relative;overflow:hidden;',
 		);
@@ -141,7 +136,7 @@ function buildAsideSummary( data: UserInsightsPayload ): HTMLElement {
 /** Aside KPI tiles — 2x2 grid of compact stat cards. */
 function buildAsideStatGrid( data: UserInsightsPayload ): HTMLElement {
 	const grid = div( 'display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;' );
-	const tile = ( label: string, value: string, sub?: string ): HTMLElement => {
+	const tile = ( label: string, value: string | Node, sub?: string ): HTMLElement => {
 		const card = div(
 			'border:1px solid var(--os-ui-border, #dcdcde);border-radius:8px;padding:8px 10px;display:flex;flex-direction:column;gap:1px;min-width:0;',
 		);
@@ -180,8 +175,8 @@ function buildAsideStatGrid( data: UserInsightsPayload ): HTMLElement {
 	grid.appendChild(
 		tile(
 			__( 'Last login' ),
-			stats.lastLoginAt ? relativeTime( stats.lastLoginAt ) : __( 'Never' ),
-			stats.lastLoginAt ? new Date( stats.lastLoginAt * 1000 ).toLocaleDateString() : undefined,
+			stats.lastLoginAt ? relativeTimeNode( stats.lastLoginAt ) : __( 'Never' ),
+			stats.lastLoginAt ? formatDate( stats.lastLoginAt * 1000, 'long' ) : undefined,
 		),
 	);
 	let memberValue = '—';
@@ -190,11 +185,7 @@ function buildAsideStatGrid( data: UserInsightsPayload ): HTMLElement {
 		memberValue = sprintf( _n( '%d day', '%d days', stats.daysSinceRegistration ), stats.daysSinceRegistration );
 	}
 	grid.appendChild(
-		tile(
-			__( 'Member' ),
-			memberValue,
-			stats.registeredAt ? new Date( stats.registeredAt * 1000 ).toLocaleDateString() : undefined,
-		),
+		tile( __( 'Member' ), memberValue, stats.registeredAt ? formatDate( stats.registeredAt * 1000, 'long' ) : undefined ),
 	);
 	return grid;
 }
@@ -251,7 +242,8 @@ function buildContentSparkline( data: UserInsightsPayload ): HTMLElement {
 
 interface RecentItem {
 	primary: string;
-	secondary: string;
+	when: string;
+	context?: string;
 	tag: string | null;
 	badge: string | null;
 }
@@ -264,7 +256,7 @@ function buildRecentLists( data: UserInsightsPayload ): HTMLElement {
 			__( 'No recent posts.' ),
 			data.recentPosts.map( ( p ) => ( {
 				primary: p.title,
-				secondary: relativeFromIso( p.dateGmt ),
+				when: p.dateGmt,
 				tag: p.status !== 'publish' ? p.status : null,
 				// translators: %d is a count of comments.
 				badge: p.commentCount > 0 ? sprintf( __( '%d 💬' ), p.commentCount ) : null,
@@ -275,15 +267,14 @@ function buildRecentLists( data: UserInsightsPayload ): HTMLElement {
 		buildRecentList(
 			__( 'Recent comments' ),
 			__( 'No recent comments.' ),
-			data.recentComments.map( ( c ) => {
-				const when = relativeFromIso( c.dateGmt );
-				return {
-					primary: c.excerpt || __( '(empty comment)' ),
-					secondary: c.postTitle ? `${ __( 'on' ) } "${ c.postTitle }" · ${ when }` : when,
-					tag: c.approved ? null : __( 'pending' ),
-					badge: null,
-				};
-			} ),
+			data.recentComments.map( ( c ) => ( {
+				primary: c.excerpt || __( '(empty comment)' ),
+				when: c.dateGmt,
+				// translators: %s is a post title.
+				context: c.postTitle ? sprintf( __( 'on "%s"' ), c.postTitle ) : undefined,
+				tag: c.approved ? null : __( 'pending' ),
+				badge: null,
+			} ) ),
 		),
 	);
 	return wrap;
@@ -325,7 +316,12 @@ function buildRecentList( title: string, emptyText: string, items: RecentItem[] 
 			top.appendChild( badge );
 		}
 		li.appendChild( top );
-		li.appendChild( div( 'font-size:11px;color:var(--os-ui-fg-muted, #8c8f94);', item.secondary ) );
+		const meta = div( 'font-size:11px;color:var(--os-ui-fg-muted, #8c8f94);' );
+		if ( item.context ) {
+			meta.append( item.context, ' · ' );
+		}
+		meta.appendChild( Number.isFinite( serverDateMs( item.when ) ) ? relativeTimeNode( item.when ) : document.createTextNode( '—' ) );
+		li.appendChild( meta );
 		list.appendChild( li );
 	}
 	card.appendChild( list );
@@ -337,13 +333,9 @@ function buildSecurityPanel( data: UserInsightsPayload ): HTMLElement {
 	card.appendChild( div( 'font-size:13px;font-weight:600;margin:0 0 10px;', __( 'Active sessions & app access' ) ) );
 	const grid = div( 'display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:12px;' );
 
-	const tile = ( label: string, value: string, sub: string ): HTMLElement => {
+	const tile = ( label: string, value: string, sub: string | Node ): HTMLElement => {
 		const el = div( 'display:flex;flex-direction:column;gap:2px;font-size:12px;' );
-		el.append(
-			div( MUTED_HEAD, label ),
-			div( 'font-size:18px;font-weight:600;', value ),
-			div( 'color:var(--os-ui-fg-muted, #8c8f94);', sub ),
-		);
+		el.append( div( MUTED_HEAD, label ), div( 'font-size:18px;font-weight:600;', value ), div( 'color:var(--os-ui-fg-muted, #8c8f94);', sub ) );
 		return el;
 	};
 
@@ -351,16 +343,16 @@ function buildSecurityPanel( data: UserInsightsPayload ): HTMLElement {
 		tile(
 			__( 'Active sessions' ),
 			String( data.sessions.length ),
-			data.sessions.some( ( s ) => s.current )
-				? __( 'Includes the current device.' )
-				: __( 'Logged in across multiple devices.' ),
+			data.sessions.some( ( s ) => s.current ) ? __( 'Includes the current device.' ) : __( 'Logged in across multiple devices.' ),
 		),
 	);
 	const apps = data.applicationPasswords;
-	let appSub: string;
+	let appSub: string | Node;
 	if ( apps.lastUsedAt && apps.lastUsedName ) {
-		// translators: %1$s is the app password name, %2$s is a relative time.
-		appSub = sprintf( __( '"%1$s" last used %2$s' ), apps.lastUsedName, relativeTime( apps.lastUsedAt ) );
+		const frag = document.createDocumentFragment();
+		// translators: %s is the app password name.
+		frag.append( sprintf( __( '"%s" last used' ), apps.lastUsedName ), ' ', relativeTimeNode( apps.lastUsedAt ) );
+		appSub = frag;
 	} else {
 		appSub = apps.total ? __( 'No recent use.' ) : __( 'No app passwords issued yet.' );
 	}

@@ -736,10 +736,12 @@ final class App {
 	 * Extra values shipped to the client runtime, readable as
 	 * `wp.os.getWindowConfig( id ).extra`.
 	 *
-	 * Pass a callable — `function (): array` — for values that depend
-	 * on who is asking (capability flags, the viewer's id, a filtered
-	 * option): it runs when the manifest is built, for the acting user
-	 * at that moment, rather than once when the definition file loads.
+	 * Pass a callable — `function ( App $app ): array` — for values
+	 * that depend on who is asking (capability flags, the viewer's id,
+	 * a filtered option): it runs when the manifest is built, for the
+	 * acting user at that moment, rather than once when the definition
+	 * file loads. Keep it cheap: the manifest is built on every request
+	 * that registers windows, so memoise anything that scans.
 	 *
 	 * @param array<string,mixed>|callable $config Serialisable values, or a callable returning them.
 	 * @return self

@@ -3,22 +3,21 @@
  *
  * Part of the `desktop-mode-plugins` client view. What the framework
  * does NOT cover for this window: the wp.org marketplace (browse /
- * info / reviews / featured, `parts/ajax.php`), the .zip upload
- * (`parts/ajax.php`), and the install / update / auto-update toggles
- * that go through Core's own `wp.updates` handlers with the `updates`
- * nonce. Every call goes through `trackedFetch` attributed to the
- * window so the title-bar activity indicator picks it up. Activate /
+ * info / reviews / featured, `parts/ajax.php` + `parts/reviews.php` +
+ * `parts/featured.php`), the .zip upload (`parts/upload.php`), and the
+ * install / update / auto-update toggles that go through Core's own
+ * `wp.updates` handlers with the `updates` nonce. Every call goes
+ * through `ctx.fetch`, so it is attributed to the window (the
+ * title-bar activity indicator) and aborted with it. Activate /
  * deactivate / delete are app actions (`plugins.os.php`), not here.
  *
  * The nonces are read from the window config at call time, never
- * cached in a closure: the shell's nonce refresh rewrites
- * `ajaxNonce` / `updatesNonce` in place when a session's nonces roll.
+ * cached in a closure: the shell's nonce refresh rewrites `ajaxNonce`
+ * / `updatesNonce` in place when a session's nonces roll.
  *
  * @public
  */
 
-import { leaveForClassicAdmin } from '../../../src/exit-openstation';
-import { trackedFetch } from '../../../src/tracked-fetch';
 import type {
 	BrowseFilter,
 	FeaturedPlugin,
@@ -30,14 +29,12 @@ import type {
 	WpOrgBrowsePlugin,
 	WpOrgPluginInfo,
 } from './types';
-
-const WINDOW_ID = 'desktop-mode-plugins';
+import { fullPluginFile } from './types';
 
 export interface PluginsRest {
 	browsePlugins: ( args?: {
 		browse?: BrowseFilter;
 		search?: string;
-		tag?: string;
 		page?: number;
 		perPage?: number;
 	} ) => Promise< { plugins: WpOrgBrowsePlugin[]; info: Record< string, unknown > } >;
@@ -58,17 +55,13 @@ export interface PluginsRest {
 	uploadPluginZip: ( file: File, options?: { overwrite?: boolean } ) => Promise< UploadPluginResult >;
 	/** True when `pluginFile` is OpenStation itself. */
 	isOpenStationSelf: ( pluginFile: string ) => boolean;
-	/** Leave the shell for the classic Dashboard after a self-deactivate. */
-	reloadOutOfOpenStation: () => void;
-	/** Repaint the dock + taskbar after a mutation (best-effort). */
-	refreshFrameworkMenu: () => Promise< void >;
 }
 
-/** Build the client over a live reader of the window config. */
-export function createPluginsRest( extra: () => PluginsExtra ): PluginsRest {
-	const shellFetch = ( input: RequestInfo, init?: RequestInit ): Promise< Response > =>
-		trackedFetch( input, init, { windowId: WINDOW_ID, source: 'desktop-mode/plugins-window' } );
+/** The fetch the client rides — `ctx.fetch`, or a test's stand-in. */
+export type RestFetch = ( url: string, init?: RequestInit ) => Promise< Response >;
 
+/** Build the client over a live reader of the window config and the view's fetch. */
+export function createPluginsRest( extra: () => PluginsExtra, fetcher: RestFetch ): PluginsRest {
 	/**
 	 * Encode the args as `application/x-www-form-urlencoded` (the format
 	 * Core's wp.updates expects) and unwrap the `{ success, data }`
@@ -88,13 +81,9 @@ export function createPluginsRest( extra: () => PluginsExtra ): PluginsRest {
 				body.set( key, String( value ) );
 			}
 		}
-		const response = await shellFetch( cfg.ajaxUrl, {
+		const response = await fetcher( cfg.ajaxUrl, {
 			method: 'POST',
-			credentials: 'same-origin',
-			headers: {
-				'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-				Accept: 'application/json',
-			},
+			headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
 			body,
 		} );
 		return unwrapAjaxEnvelope< T >( await readJsonOrThrow( response ), response.status );
@@ -108,28 +97,15 @@ export function createPluginsRest( extra: () => PluginsExtra ): PluginsRest {
 			formData.set( '_ajax_nonce', cfg.ajaxNonce );
 		}
 		// No Content-Type — the browser appends the boundary.
-		const response = await shellFetch( cfg.ajaxUrl, {
-			method: 'POST',
-			credentials: 'same-origin',
-			body: formData,
-		} );
+		const response = await fetcher( cfg.ajaxUrl, { method: 'POST', body: formData } );
 		return unwrapAjaxEnvelope< T >( await readJsonOrThrow( response ), response.status );
 	};
-
-	/**
-	 * Core's `update-plugin` / `toggle-auto-updates` handlers key on the
-	 * FULL filename (`foo/foo.php`) while Core's REST controller strips
-	 * the extension — re-append it, or the transient lookup misses.
-	 */
-	const fullFile = ( plugin: InstalledPlugin ): string =>
-		plugin.plugin.endsWith( '.php' ) ? plugin.plugin : plugin.plugin + '.php';
 
 	return {
 		browsePlugins: ( args = {} ) =>
 			ajaxRequest( 'openstation_plugins_browse', {
 				browse: args.browse,
 				search: args.search,
-				tag: args.tag,
 				page: args.page,
 				per_page: args.perPage,
 			} ),
@@ -143,12 +119,13 @@ export function createPluginsRest( extra: () => PluginsExtra ): PluginsRest {
 		// Core's `wp_ajax_update_plugin` — the exact handler the classic
 		// screen's "Update now" hits. Callers MUST serialise through
 		// `enqueueUpdateJob`: concurrent upgrader runs corrupt the
-		// `update_plugins` transient.
+		// `update_plugins` transient. Core keys on the FULL filename
+		// where its REST controller strips the extension.
 		updateInstalledPlugin: ( plugin ) =>
 			ajaxRequest< UpdatePluginResult >(
 				'update-plugin',
 				{
-					plugin: fullFile( plugin ),
+					plugin: fullPluginFile( plugin.plugin ),
 					slug:
 						plugin.openstation_update_available?.slug ||
 						plugin.textdomain ||
@@ -161,7 +138,7 @@ export function createPluginsRest( extra: () => PluginsExtra ): PluginsRest {
 		toggleAutoUpdate: async ( plugin, state ) => {
 			await ajaxRequest< unknown >(
 				'toggle-auto-updates',
-				{ type: 'plugin', asset: fullFile( plugin ), state },
+				{ type: 'plugin', asset: fullPluginFile( plugin.plugin ), state },
 				'updates',
 			);
 		},
@@ -178,24 +155,10 @@ export function createPluginsRest( extra: () => PluginsExtra ): PluginsRest {
 			const trim = ( s: string ): string => ( s.endsWith( '.php' ) ? s.slice( 0, -4 ) : s );
 			return self !== '' && trim( self ) === trim( pluginFile );
 		},
-		reloadOutOfOpenStation: () => {
-			leaveForClassicAdmin( extra().adminUrl ?? '' );
-		},
-		refreshFrameworkMenu: async () => {
-			const refresh = window.wp?.os?.refreshMenu;
-			if ( typeof refresh !== 'function' ) {
-				return;
-			}
-			try {
-				await refresh();
-			} catch {
-				// Best-effort; never throw from a refresh call.
-			}
-		},
 	};
 }
 
-async function readJsonOrThrow( response: Response ): Promise< unknown > {
+export async function readJsonOrThrow( response: Response ): Promise< unknown > {
 	let json: unknown;
 	try {
 		json = await response.json();
@@ -217,7 +180,7 @@ async function readJsonOrThrow( response: Response ): Promise< unknown > {
 	return json;
 }
 
-function unwrapAjaxEnvelope< T >( json: unknown, status: number ): T {
+export function unwrapAjaxEnvelope< T >( json: unknown, status: number ): T {
 	if ( typeof json === 'object' && json !== null && 'success' in json ) {
 		const env = json as { success: boolean; data?: unknown };
 		if ( env.success ) {

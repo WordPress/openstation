@@ -43,6 +43,22 @@ function openstation_pages_window_default_query_args() {
 }
 
 /**
+ * The Pages app's `ctx.extra`: the shared list facts under the pages
+ * mode, plus the reading-page assignments (the title cell paints the
+ * "Front page" / "Posts page" badges on matching rows; `0` when
+ * unset) and the page-template label map.
+ *
+ * @return array<string,mixed>
+ */
+function openstation_pages_app_config() {
+	$config                  = openstation_posts_app_config( 'pages', 'menu_order', 'asc' );
+	$config['frontPageId']   = (int) get_option( 'page_on_front', 0 );
+	$config['postsPageId']   = (int) get_option( 'page_for_posts', 0 );
+	$config['pageTemplates'] = openstation_pages_window_template_labels();
+	return $config;
+}
+
+/**
  * Build the `{ slug: label }` map for the active theme's registered
  * page templates. The Template column paints friendly labels instead
  * of raw filenames.

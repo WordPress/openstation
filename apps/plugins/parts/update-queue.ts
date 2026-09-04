@@ -1,5 +1,5 @@
 /**
- * Native Plugins window — single-flight update queue.
+ * Plugins app — single-flight update queue.
  *
  * Mirrors Core's `wp.updates.ajaxLocked` + `wp.updates.queue` semantics
  * (see `wp-admin/js/updates.js`): plugin updates MUST run one at a
@@ -7,12 +7,12 @@
  * snapshot — `Plugin_Upgrader` writes to it on completion, so two
  * concurrent updates can interleave and corrupt each other's view of
  * pending updates. Core enforces this with a global lock and a FIFO
- * queue; we do the same, scoped to this window.
+ * queue; this does the same, scoped to the window.
  *
- * Exposed as a thin Promise wrapper: callers just `await
- * enqueueUpdateJob( () => updateInstalledPlugin( row ) )` and get the
- * result. Cancellation is intentionally NOT supported — once an
- * update is in flight the upgrader is past the point of safe abort.
+ * A thin Promise wrapper: callers `await enqueueUpdateJob( () =>
+ * updateInstalledPlugin( row ) )` and get the result. Cancellation is
+ * intentionally NOT supported — once an update is in flight the
+ * upgrader is past the point of safe abort.
  *
  * @public
  */
@@ -44,16 +44,6 @@ export function enqueueUpdateJob< T >( run: () => Promise< T > ): Promise< T > {
 	} );
 }
 
-/** Number of jobs waiting (excludes the one currently running). */
-export function pendingUpdateJobs(): number {
-	return queue.length;
-}
-
-/** True while a job is mid-flight. */
-export function isUpdateInFlight(): boolean {
-	return inFlight;
-}
-
 async function drain(): Promise< void > {
 	if ( inFlight ) {
 		return;
@@ -70,10 +60,9 @@ async function drain(): Promise< void > {
 		job.reject( err );
 	} finally {
 		inFlight = false;
-		// Yield to the microtask queue so the resolver's
-		// `.then` handlers run before the next job begins —
-		// keeps the "row finishes, next row spinner appears"
-		// transition crisp in the UI.
+		// Yield to the microtask queue so the resolver's `.then`
+		// handlers run before the next job begins — keeps the "row
+		// finishes, next row spinner appears" transition crisp.
 		void Promise.resolve().then( drain );
 	}
 }

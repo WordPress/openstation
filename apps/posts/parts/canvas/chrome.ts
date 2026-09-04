@@ -2,16 +2,20 @@
  * Posts app — the HTML chrome around a term canvas: the toolbar (its
  * buttons, the fuzzy-search box, the hint), the stage the canvas
  * paints into, the sidebar editor column, and the search dropdown's
- * keyboard + mouse wiring. The two canvases differ only by their
- * class prefix and their buttons.
+ * keyboard + mouse wiring. One class family (`os-term-canvas__*`) for
+ * both canvases; the host wears a modifier for the surface's own look.
  *
  * @public
  */
 
-import { _n, sprintf } from '../../../../src/i18n';
+import { _n, sprintf } from '@openstation/app';
+
+/** The class family every term canvas paints with. */
+export const CANVAS_PREFIX = 'os-term-canvas';
 
 export interface ChromeButton {
-	className: string;
+	/** Button variant: `primary`, `secondary`, `danger`, or '' for the plain one. */
+	variant?: string;
 	icon: string;
 	label: string;
 	title?: string;
@@ -27,6 +31,15 @@ export interface CanvasChrome {
 	searchResults: HTMLUListElement;
 }
 
+/** A toolbar / sidebar button in the canvas family. */
+export function canvasButton( variant: string, label: string ): HTMLButtonElement {
+	const btn = document.createElement( 'button' );
+	btn.type = 'button';
+	btn.className = `${ CANVAS_PREFIX }__btn${ variant ? ` ${ CANVAS_PREFIX }__btn--${ variant }` : '' }`;
+	btn.textContent = label;
+	return btn;
+}
+
 /**
  * Build the chrome into `host`. The stage starts `is-loading`
  * (opacity 0) until the first fit-to-view, so the canvas never
@@ -34,19 +47,20 @@ export interface CanvasChrome {
  */
 export function buildCanvasChrome(
 	host: HTMLElement,
-	prefix: string,
+	modifier: string,
 	opts: { buttons: ChromeButton[]; searchPlaceholder: string; searchAria: string; hint: string },
 ): CanvasChrome {
 	host.replaceChildren();
-	host.classList.add( prefix );
+	host.classList.add( CANVAS_PREFIX, modifier );
 
 	const toolbar = document.createElement( 'div' );
-	toolbar.className = `${ prefix }__toolbar`;
+	toolbar.className = `${ CANVAS_PREFIX }__toolbar`;
 	const buttons = opts.buttons.map( ( b ) => {
-		const btn = document.createElement( 'button' );
-		btn.type = 'button';
-		btn.className = b.className;
-		btn.innerHTML = `<span class="dashicons ${ b.icon }" aria-hidden="true"></span>` + b.label;
+		const btn = canvasButton( b.variant ?? '', '' );
+		const icon = document.createElement( 'span' );
+		icon.className = `dashicons ${ b.icon }`;
+		icon.setAttribute( 'aria-hidden', 'true' );
+		btn.replaceChildren( icon, document.createTextNode( b.label ) );
 		if ( b.title ) {
 			btn.title = b.title;
 		}
@@ -54,32 +68,32 @@ export function buildCanvasChrome(
 		return btn;
 	} );
 	const searchWrap = document.createElement( 'div' );
-	searchWrap.className = `${ prefix }__search`;
+	searchWrap.className = `${ CANVAS_PREFIX }__search`;
 	const searchInput = document.createElement( 'input' );
 	searchInput.type = 'search';
-	searchInput.className = `${ prefix }__search-input`;
+	searchInput.className = `${ CANVAS_PREFIX }__search-input`;
 	searchInput.placeholder = opts.searchPlaceholder;
 	searchInput.setAttribute( 'aria-label', opts.searchAria );
 	searchWrap.appendChild( searchInput );
 	const searchResults = document.createElement( 'ul' );
-	searchResults.className = `${ prefix }__search-results`;
+	searchResults.className = `${ CANVAS_PREFIX }__search-results`;
 	searchResults.hidden = true;
 	searchWrap.appendChild( searchResults );
 	const hint = document.createElement( 'span' );
-	hint.className = `${ prefix }__hint`;
+	hint.className = `${ CANVAS_PREFIX }__hint`;
 	hint.textContent = opts.hint;
 	toolbar.appendChild( searchWrap );
 	toolbar.appendChild( hint );
 	host.appendChild( toolbar );
 
 	const layout = document.createElement( 'div' );
-	layout.className = `${ prefix }__layout`;
+	layout.className = `${ CANVAS_PREFIX }__layout`;
 	host.appendChild( layout );
 	const stage = document.createElement( 'div' );
-	stage.className = `${ prefix }__stage is-loading`;
+	stage.className = `${ CANVAS_PREFIX }__stage is-loading`;
 	layout.appendChild( stage );
 	const sidebar = document.createElement( 'aside' );
-	sidebar.className = `${ prefix }__sidebar`;
+	sidebar.className = `${ CANVAS_PREFIX }__sidebar`;
 	layout.appendChild( sidebar );
 
 	return { toolbar, stage, sidebar, buttons, searchWrap, searchInput, searchResults };
@@ -93,14 +107,13 @@ export function buildCanvasChrome(
  */
 export function wireCanvasSearch< T extends { id: number; count: number; name: string } >(
 	chrome: CanvasChrome,
-	prefix: string,
 	opts: { matches: ( q: string ) => T[]; select: ( item: T ) => void },
 ): () => void {
 	const { searchInput, searchResults, searchWrap } = chrome;
 	let currentMatches: T[] = [];
 	let selectedIndex = 0;
 	const repaintHighlight = (): void => {
-		searchResults.querySelectorAll< HTMLButtonElement >( `.${ prefix }__search-result` ).forEach( ( el, i ) => {
+		searchResults.querySelectorAll< HTMLButtonElement >( `.${ CANVAS_PREFIX }__search-result` ).forEach( ( el, i ) => {
 			const active = i === selectedIndex;
 			el.classList.toggle( 'is-active', active );
 			if ( active ) {
@@ -135,15 +148,15 @@ export function wireCanvasSearch< T extends { id: number; count: number; name: s
 			const li = document.createElement( 'li' );
 			const btn = document.createElement( 'button' );
 			btn.type = 'button';
-			btn.className = `${ prefix }__search-result`;
+			btn.className = `${ CANVAS_PREFIX }__search-result`;
 			if ( i === 0 ) {
 				btn.classList.add( 'is-active' );
 			}
 			const nameEl = document.createElement( 'span' );
-			nameEl.className = `${ prefix }__search-title`;
+			nameEl.className = `${ CANVAS_PREFIX }__search-title`;
 			nameEl.textContent = item.name || `#${ item.id }`;
 			const countEl = document.createElement( 'span' );
-			countEl.className = `${ prefix }__search-meta`;
+			countEl.className = `${ CANVAS_PREFIX }__search-meta`;
 			countEl.textContent = sprintf(
 				/* translators: %d: number of posts assigned to a term. */
 				_n( '%d post', '%d posts', item.count ),

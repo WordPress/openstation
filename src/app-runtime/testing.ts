@@ -83,6 +83,7 @@ export function mockViewContext< S extends Record< string, unknown >, D >(
 			fetch: ( input, init ) => globalThis.fetch( input, init ),
 		},
 		extra: {},
+		windowId: 'test-window',
 		...seed,
 	};
 }

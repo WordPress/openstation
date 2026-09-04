@@ -13,7 +13,8 @@
 
 import { __, sprintf } from '@openstation/app';
 import { pickIcon } from './card';
-import { stripHtml, type WpOrgBrowsePlugin } from './types';
+import { fallbackGlyph, stripHtml, wpOrgUrl } from './html';
+import type { WpOrgBrowsePlugin } from './types';
 
 /**
  * Mark a card element as a drag source. Idempotent.
@@ -68,7 +69,7 @@ export function installPluginDropTargets(): () => void {
 	}
 
 	const off = manager.registerDropTarget( {
-		id: 'os-plugins-window/dock',
+		id: 'desktop-mode-plugins/dock',
 		element: dock,
 		accept: ( p ) => p.type === 'wporg-plugin',
 		onEnter: () => {
@@ -88,7 +89,7 @@ export function installPluginDropTargets(): () => void {
 			const icon =
 				typeof data.iconUrl === 'string' && data.iconUrl ? data.iconUrl : 'dashicons-admin-plugins';
 			const homepage = String( data.homepage ?? '' );
-			const url = homepage !== '' ? homepage : `https://wordpress.org/plugins/${ encodeURIComponent( slug ) }/`;
+			const url = homepage !== '' ? homepage : wpOrgUrl( slug );
 			desktop.registerSystemTile( {
 				id: `wporg-plugin-${ slug }`,
 				title: name,
@@ -141,9 +142,7 @@ function buildGhost(
 		img.alt = '';
 		ghost.appendChild( img );
 	} else {
-		const fallback = document.createElement( 'span' );
-		fallback.className = 'dashicons dashicons-admin-plugins os-plugins__drag-ghost-fallback';
-		ghost.appendChild( fallback );
+		ghost.appendChild( fallbackGlyph( 'os-plugins__drag-ghost-fallback' ) );
 	}
 	const label = document.createElement( 'span' );
 	label.textContent = plugin.name;

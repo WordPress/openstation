@@ -32,7 +32,7 @@
 		}
 	},
 	"scripts": {
-		"build": "npm run vendor:pixi && npm run build:desktop && npm run build:iframe-bridge && npm run build:chromeless-bridge && npm run build:gutenberg-drop-receiver && npm run build:my-wordpress-woocommerce && npm run build:content-graph && npm run build:app-runtime && npm run build:apps && npm run build:ai-assistant && npm run build:animated-logo-wallpaper && npm run build:living-tree-wallpaper && npm run build:snow-wallpaper && npm run build:shell-overlays && npm run build:file-drop && npm run build:files-overlays && npm run build:notes && npm run build:dock-constellation && npm run build:window-link-visuals && npm run build:components && npm run build:mio && npm run build:window-system && npm run build:mobile && npm run build:item-visibility-menu && npm run build:workspace-wizard && npm run build:release-card && npm run build:games && npm run build:game-inkfall && npm run build:game-alphabet-soup && npm run build:widget-heartbeat && npm run build:widget-recent-comments && npm run build:widget-post-stats && npm run build:widget-site-views && npm run build:widget-jazz-quote && npm run build:widget-starter && npm run build:widget-notes && npm run build:widget-focus-timer && npm run build:widget-drafts && npm run build:agent-run-window && npm run build:pwa-sw",
+		"build": "npm run vendor:pixi && npm run build:desktop && npm run build:iframe-bridge && npm run build:chromeless-bridge && npm run build:gutenberg-drop-receiver && npm run build:my-wordpress-woocommerce && npm run build:content-graph && npm run build:app-runtime && npm run build:user-profile && npm run build:apps && npm run build:ai-assistant && npm run build:animated-logo-wallpaper && npm run build:living-tree-wallpaper && npm run build:snow-wallpaper && npm run build:shell-overlays && npm run build:file-drop && npm run build:files-overlays && npm run build:notes && npm run build:dock-constellation && npm run build:window-link-visuals && npm run build:components && npm run build:mio && npm run build:window-system && npm run build:mobile && npm run build:item-visibility-menu && npm run build:workspace-wizard && npm run build:release-card && npm run build:games && npm run build:game-inkfall && npm run build:game-alphabet-soup && npm run build:widget-heartbeat && npm run build:widget-recent-comments && npm run build:widget-post-stats && npm run build:widget-site-views && npm run build:widget-jazz-quote && npm run build:widget-starter && npm run build:widget-notes && npm run build:widget-focus-timer && npm run build:widget-drafts && npm run build:agent-run-window && npm run build:pwa-sw",
 		"build:desktop": "vite build --mode development && vite build --mode production",
 		"build:iframe-bridge": "OPENSTATION_TARGET=iframe-bridge vite build --mode development && OPENSTATION_TARGET=iframe-bridge vite build --mode production",
 		"build:chromeless-bridge": "OPENSTATION_TARGET=chromeless-bridge vite build --mode development && OPENSTATION_TARGET=chromeless-bridge vite build --mode production",
@@ -40,6 +40,7 @@
 		"build:my-wordpress-woocommerce": "OPENSTATION_TARGET=my-wordpress-woocommerce vite build --mode development && OPENSTATION_TARGET=my-wordpress-woocommerce vite build --mode production",
 		"build:content-graph": "OPENSTATION_TARGET=content-graph vite build --mode development && OPENSTATION_TARGET=content-graph vite build --mode production",
 		"build:app-runtime": "OPENSTATION_TARGET=app-runtime vite build --mode development && OPENSTATION_TARGET=app-runtime vite build --mode production",
+		"build:user-profile": "OPENSTATION_TARGET=user-profile vite build --mode development && OPENSTATION_TARGET=user-profile vite build --mode production",
 		"build:apps": "node bin/build-apps.mjs",
 		"build:ai-assistant": "OPENSTATION_TARGET=ai-assistant vite build --mode development && OPENSTATION_TARGET=ai-assistant vite build --mode production",
 		"build:animated-logo-wallpaper": "OPENSTATION_TARGET=animated-logo-wallpaper vite build --mode development && OPENSTATION_TARGET=animated-logo-wallpaper vite build --mode production",
@@ -78,6 +79,8 @@
 		"lint:fix": "eslint 'src/**/*.ts' --fix",
 		"lint:php": "wp-env run --config=.wp-env.tests.json cli --env-cwd=wp-content/plugins/desktop-mode vendor/bin/phpcs -n",
 		"lint:php:all": "wp-env run --config=.wp-env.tests.json cli --env-cwd=wp-content/plugins/desktop-mode vendor/bin/phpcs",
+		"lint:unused": "npx --yes knip@5 --no-progress --include files,exports,types",
+		"lint:css:unused": "bin/unused-css.sh",
 		"lint:php:fix": "wp-env run --config=.wp-env.tests.json cli --env-cwd=wp-content/plugins/desktop-mode vendor/bin/phpcbf",
 		"typecheck": "tsc --noEmit",
 		"package": "bin/package.sh",

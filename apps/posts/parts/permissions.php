@@ -1,19 +1,19 @@
 <?php
 /**
- * OpenStation — Native Posts Window: capability gate.
+ * Posts app — the capability gates.
  *
- * The native Posts window is gated on TWO conditions, both required:
+ * The Posts window answers two questions, each filterable:
  *
- *   1. The current user can `edit_posts` (parity with `edit.php`).
- *   2. The user has flipped `nativePostsEnabled` on in OS Settings →
- *      Features. This keeps the iframe path the default — the toggle
- *      is purely additive.
+ *   1. May the app be registered for this user? Cap-only (`edit_posts`,
+ *      parity with `edit.php`) — the app's `can()` gate.
+ *   2. Has the user opted into the native window? Cap AND the
+ *      `nativePostsEnabled` toggle in OS Settings → Features — the
+ *      combined answer for any caller that wants it; the dock-click
+ *      remap reads the toggle from the JS-side settings snapshot.
  *
- * Filterable so plugins can:
- *   - widen the gate to a custom role (return true for, say, contributor)
- *   - close it on a per-user basis (force the iframe back on)
- *   - bypass the opt-in entirely on a managed install ("everyone gets the
- *     native window")
+ * Filterable so plugins can widen the gate to a custom role, close it
+ * per user (force the iframe back on), or bypass the opt-in on a
+ * managed install ("everyone gets the native window").
  *
  * @package OpenStation
  */
@@ -21,19 +21,17 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Whether the user is eligible to have the native Posts window
- * REGISTERED for them at boot. Cap-only check — the opt-in toggle is
- * a runtime, JS-side gate (handled by the URL → native-window remap
- * registry) so that flipping the setting takes effect immediately,
- * without forcing an F5.
+ * Whether the user is eligible to have the Posts app registered.
+ * Cap-only: the opt-in toggle is a runtime, JS-side gate (the URL →
+ * app remap registry), so flipping the setting takes effect at once,
+ * without an F5.
  *
- * Why split: the registration runs once on `init` per page load. If
- * we gated registration on the opt-in too, a user who toggled the
- * setting on AFTER load would have the window unregistered for the
- * remainder of the session, and the dock-click remap would fall
- * through to the iframe path despite the setting being on.
- * Registering eagerly costs nothing for opted-out users (the dock
- * remap simply doesn't fire) and unblocks instant feedback.
+ * Why split: registration runs once on `init` per page load. Gating
+ * it on the opt-in too would leave a user who toggles the setting on
+ * AFTER load with no app for the rest of the session, and the
+ * dock-click remap would fall through to the iframe path despite the
+ * setting being on. Registering eagerly costs nothing for opted-out
+ * users (the remap simply doesn't fire).
  *
  * @param int|null $user_id Optional. Defaults to `get_current_user_id()`.
  * @return bool
@@ -44,13 +42,13 @@ function openstation_posts_window_user_can_register( $user_id = null ) {
 	$can = $user_id > 0 && user_can( $user_id, 'edit_posts' );
 
 	/**
-	 * Filter whether the current user is eligible to have the native
-	 * Posts window registered. This is the boot-time check; runtime
-	 * "should the dock click use the native window?" is the JS-side
+	 * Filter whether the current user is eligible to have the Posts
+	 * app registered. This is the boot-time check; runtime "should the
+	 * dock click use the native window?" is the JS-side
 	 * `nativePostsEnabled` flag.
 	 *
-	 * Returning `false` skips the entire registration — no script
-	 * handle, no template, no entry in the native-window registry.
+	 * Returning `false` skips the whole registration — no manifest, no
+	 * entry in the apps registry.
 	 *
 	 * @param bool $can     Default: `edit_posts` capability.
 	 * @param int  $user_id User being checked.
@@ -63,11 +61,11 @@ function openstation_posts_window_user_can_register( $user_id = null ) {
 }
 
 /**
- * Whether the user has opted into the native Posts experience.
- * Cap-and-opt-in check — kept for any caller that needs the combined
- * answer (e.g. analytics, an arrange-menu entry). Boot registration
- * uses {@see openstation_posts_window_user_can_register()} instead;
- * runtime dock-click swap uses the JS-side snapshot.
+ * Whether the user has opted into the native Posts experience: the
+ * cap AND the toggle. The combined answer for any caller that needs
+ * it (analytics, an arrange-menu entry). Registration uses
+ * {@see openstation_posts_window_user_can_register()}; the dock-click
+ * remap reads the JS-side settings snapshot.
  *
  * @param int|null $user_id Optional. Defaults to `get_current_user_id()`.
  * @return bool

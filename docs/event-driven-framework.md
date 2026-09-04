@@ -100,7 +100,7 @@ stateDiagram-v2
 | CustomEvent | Detail |
 |---|---|
 | `os-window-opened`      | `{ windowId, page, title, url }` |
-| `os-window-reopened`    | `{ windowId, baseId, wasMinimized, navigated }` — `navigated`: the request carried a URL the window wasn't showing, so the existing iframe navigated to it in place |
+| `os-window-reopened`    | `{ windowId, baseId, wasMinimized, navigated, params }` — `navigated`: the request carried a URL the window wasn't showing, so the existing iframe navigated to it in place; `params`: the window's open-time params after the request's were written onto it |
 | `os-window-focused`     | `{ windowId }` |
 | `os-window-blurred`     | `{ windowId, focusedTo }` |
 | `os-window-child-blocked` | `{ windowId, childWindowId }` — a focus request for `windowId` went to its child window instead; the owner cannot come to the front while the child is open |

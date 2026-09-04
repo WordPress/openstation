@@ -7,8 +7,7 @@
  * @public
  */
 
-import { __, _n, sprintf } from '../../../src/i18n';
-import { showToast } from './canvas/pixi';
+import { __, _n, sprintf } from '@openstation/app';
 import {
 	armedDeleteButton,
 	bindDraftKeys,
@@ -24,8 +23,6 @@ import {
 import type { PostsRestClient } from './rest';
 import type { TermRow } from './types';
 
-const PREFIX = 'os-tagcloud';
-
 export interface TagInfo {
 	id: number;
 	name: string;
@@ -38,6 +35,7 @@ export interface TagInfo {
 export interface CloudSidebarHost {
 	sidebar: HTMLElement;
 	client: PostsRestClient;
+	toast: ( title: string, err: unknown ) => void;
 	themeHue: number;
 	terms: () => TermRow[];
 	setTerms: ( next: TermRow[] ) => void;
@@ -57,12 +55,12 @@ export interface CloudSidebarHost {
 
 function paintDraft( host: CloudSidebarHost ): void {
 	const { sidebar, client } = host;
-	sidebarHeader( sidebar, PREFIX, `hsl( ${ host.themeHue }deg 60% 55% )`, __( 'New tag' ) );
-	const nameInput = sidebarInput( sidebar, PREFIX, __( 'Name' ), '', __( 'e.g. featured' ) );
+	sidebarHeader( sidebar, `hsl( ${ host.themeHue }deg 60% 55% )`, __( 'New tag' ) );
+	const nameInput = sidebarInput( sidebar, __( 'Name' ), '', __( 'e.g. featured' ) );
 	requestAnimationFrame( () => nameInput.focus() );
-	const descInput = sidebarTextarea( sidebar, PREFIX, '' );
-	const createBtn = sidebarButton( PREFIX, 'primary', __( 'Create' ) );
-	const cancelBtn = sidebarButton( PREFIX, 'danger', __( 'Cancel' ) );
+	const descInput = sidebarTextarea( sidebar, '' );
+	const createBtn = sidebarButton( 'primary', __( 'Create' ) );
+	const cancelBtn = sidebarButton( 'danger', __( 'Cancel' ) );
 	const cancel = (): void => {
 		host.setDraft( false );
 		paintSidebar( host );
@@ -79,10 +77,10 @@ function paintDraft( host: CloudSidebarHost ): void {
 			const next: TermRow = {
 				id: created.id,
 				name: created.name,
-				slug: ( created as unknown as { slug?: string } ).slug || '',
+				slug: created.slug || '',
 				parent: 0,
 				count: 0,
-				description: ( created as unknown as { description?: string } ).description || '',
+				description: created.description || '',
 				isDefault: false,
 			};
 			if ( ! host.terms().some( ( t ) => t.id === next.id ) ) {
@@ -95,10 +93,10 @@ function paintDraft( host: CloudSidebarHost ): void {
 				try {
 					const updated = await client.updateTerm( 'tags', created.id, { description: desc } );
 					host.setTerms(
-						host.terms().map( ( t ) => ( t.id === updated.id ? { ...t, description: updated.description ?? desc } : t ) ),
+						host.terms().map( ( t ) => ( t.id === updated.id ? { ...t, description: updated.description || desc } : t ) ),
 					);
-				} catch {
-					showToast( __( 'Tag created but description failed:' ), null );
+				} catch ( err ) {
+					host.toast( __( 'Tag created but description failed:' ), err );
 				}
 			}
 			host.setDraft( false );
@@ -108,26 +106,25 @@ function paintDraft( host: CloudSidebarHost ): void {
 			await host.loadPosts();
 		} catch ( err ) {
 			createBtn.disabled = false;
-			showToast( __( 'Couldn’t create:' ), err );
+			host.toast( __( 'Couldn’t create:' ), err );
 		}
 	};
 	createBtn.addEventListener( 'click', () => void handleCreate() );
 	cancelBtn.addEventListener( 'click', cancel );
 	bindDraftKeys( nameInput, () => void handleCreate(), cancel );
-	sidebarActions( sidebar, PREFIX, [ createBtn, cancelBtn ] );
+	sidebarActions( sidebar, [ createBtn, cancelBtn ] );
 }
 
 function paintEditor( host: CloudSidebarHost, box: TagInfo ): void {
 	const { sidebar, client } = host;
 	const id = box.id;
-	sidebarHeader( sidebar, PREFIX, `hsl( ${ box.hue }deg 60% 55% )`, `#${ id }` );
+	sidebarHeader( sidebar, `hsl( ${ box.hue }deg 60% 55% )`, `#${ id }` );
 	const term = host.terms().find( ( t ) => t.id === id );
-	const nameInput = sidebarInput( sidebar, PREFIX, __( 'Name' ), box.name, __( 'Name' ) );
-	const slugInput = sidebarSlugInput( sidebar, PREFIX, term?.slug || '' );
-	const descInput = sidebarTextarea( sidebar, PREFIX, box.description || '' );
+	const nameInput = sidebarInput( sidebar, __( 'Name' ), box.name, __( 'Name' ) );
+	const slugInput = sidebarSlugInput( sidebar, term?.slug || '' );
+	const descInput = sidebarTextarea( sidebar, box.description || '' );
 	sidebarMeta(
 		sidebar,
-		PREFIX,
 		sprintf(
 			/* translators: %d: post count. */
 			_n( '%d post tagged with this.', '%d posts tagged with this.', box.count ),
@@ -135,7 +132,7 @@ function paintEditor( host: CloudSidebarHost, box: TagInfo ): void {
 		),
 	);
 
-	const saveBtn = sidebarButton( PREFIX, 'primary', __( 'Save' ) );
+	const saveBtn = sidebarButton( 'primary', __( 'Save' ) );
 	saveBtn.addEventListener( 'click', async () => {
 		const name = nameInput.value.trim();
 		if ( ! name ) {
@@ -153,19 +150,19 @@ function paintEditor( host: CloudSidebarHost, box: TagInfo ): void {
 		}
 		try {
 			const updated = await client.updateTerm( 'tags', id, patch );
-			host.applyTagUpdate( id, { name: updated.name, description: updated.description, slug: updated.slug ?? box.slug } );
+			host.applyTagUpdate( id, { name: updated.name, description: updated.description, slug: updated.slug || box.slug } );
 			host.setTerms(
 				host.terms().map( ( t ) =>
-					t.id === id ? { ...t, name: updated.name, description: updated.description, slug: updated.slug ?? t.slug } : t,
+					t.id === id ? { ...t, name: updated.name, description: updated.description, slug: updated.slug || t.slug } : t,
 				),
 			);
 			paintSidebar( host );
 		} catch ( err ) {
-			showToast( __( 'Couldn’t save:' ), err );
+			host.toast( __( 'Couldn’t save:' ), err );
 		}
 	} );
 
-	const delBtn = armedDeleteButton( PREFIX, async () => {
+	const delBtn = armedDeleteButton( async () => {
 		try {
 			await client.deleteTerm( 'tags', id );
 			host.setTerms( host.terms().filter( ( t ) => t.id !== id ) );
@@ -175,10 +172,10 @@ function paintEditor( host: CloudSidebarHost, box: TagInfo ): void {
 			host.buildCloud();
 			paintSidebar( host );
 		} catch ( err ) {
-			showToast( __( 'Couldn’t delete:' ), err );
+			host.toast( __( 'Couldn’t delete:' ), err );
 		}
 	} );
-	sidebarActions( sidebar, PREFIX, [ saveBtn, delBtn ] );
+	sidebarActions( sidebar, [ saveBtn, delBtn ] );
 }
 
 export function paintSidebar( host: CloudSidebarHost ): void {
@@ -191,11 +188,9 @@ export function paintSidebar( host: CloudSidebarHost ): void {
 	if ( focusId === null ) {
 		sidebarEmpty(
 			host.sidebar,
-			PREFIX,
 			'dashicons-tag',
 			__( 'No tag selected' ),
 			__( 'Click a tag on the cloud to edit it, or click + Add tag to create a new one.' ),
-			true,
 		);
 		return;
 	}

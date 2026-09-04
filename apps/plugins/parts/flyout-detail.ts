@@ -5,34 +5,36 @@
  * inline-end edge over the active tab: a hero (banner + icon + name +
  * author + rating + installs), `<os-tabs>` for Overview / Screenshots
  * / Reviews / Changelog / FAQ, and an action footer pinned to the
- * bottom (Install / Activate / Deactivate / Delete + the wp.org link).
- * `plugin_information` fetches on open only; reviews on tab activation.
+ * bottom (Install, or the same verbs the table offers, plus the wp.org
+ * link). `plugin_information` fetches on open only (cached per slug
+ * for the window); reviews on tab activation. Every open takes a new
+ * generation, so a slow fetch for one slug never paints into the
+ * next.
  *
  * @public
  */
 
-import { __, sprintf } from '@openstation/app';
+import { __, formatDate, sprintf } from '@openstation/app';
 import { osIconSvg } from '../../../src/ui/icons';
-import { buildStarCluster, pickIcon } from './card';
-import { humanDate, sanitizeHtml } from './html';
-import { activatePlugin, deactivatePlugin, deletePlugin, installBySlug } from './mutations';
-import {
-	describeError,
-	isActiveStatus,
-	stripHtml,
-	type PluginsHost,
-	type WpOrgBrowsePlugin,
-	type WpOrgPluginInfo,
-} from './types';
-import '../../../src/ui/components/os-button/os-button';
+// The flyout paints under an `os-preserve` host, outside the runtime's
+// on-demand component loading — the tags it builds register here.
 import '../../../src/ui/components/os-tabs/os-tabs';
+import { pluginActionButtons, setBusy } from './actions';
+import { buildStarCluster, pickIcon } from './card';
+import { externalLink, htmlBlock, sanitizeHtml, sanitizeLinks, stripHtml, wpOrgUrl } from './html';
+import { installBySlug } from './mutations';
+import { REVIEW_STYLES, renderReviews } from './reviews';
+import { describeError, type PluginsHost, type WpOrgBrowsePlugin, type WpOrgPluginInfo } from './types';
 
 type DetailTab = 'overview' | 'screenshots' | 'reviews' | 'changelog' | 'faq';
 
+/** The open the flyout is currently showing; a newer open supersedes it. */
+let generation = 0;
+
 /**
  * Open the flyout for a slug. The `<os-flyout data-os-plugins-flyout>`
- * is in the template; we paint into it. `hint` (a Browse row) paints
- * the hero eagerly so the user sees something immediately.
+ * is in the view; we paint into it. `hint` (a Browse row) paints the
+ * hero eagerly so the user sees something immediately.
  */
 export function openDetailFlyout(
 	flyout: HTMLElement,
@@ -40,43 +42,59 @@ export function openDetailFlyout(
 	hint: WpOrgBrowsePlugin | undefined,
 	host: PluginsHost,
 ): void {
+	const mine = ++generation;
+	const current = (): boolean => mine === generation && flyout.isConnected;
 	flyout.replaceChildren();
 
 	const card = document.createElement( 'div' );
 	card.className = 'os-plugins__flyout';
+	const style = document.createElement( 'style' );
+	style.textContent = REVIEW_STYLES;
 	const hero = buildHeroSkeleton( hint );
 	const tabs = buildTabs();
 	const body = document.createElement( 'div' );
 	body.className = 'os-plugins__flyout-body';
 	const footer = document.createElement( 'footer' );
 	footer.className = 'os-plugins__flyout-footer';
-	card.append( hero.root, tabs.root, body, footer );
+	card.append( style, hero.root, tabs.root, body, footer );
 	flyout.appendChild( card );
 	flyout.setAttribute( 'open', '' );
 
-	let info: WpOrgPluginInfo | null = null;
-	const reviewsCache = { loaded: false };
+	let info: WpOrgPluginInfo | null = host.caches.info.get( slug ) ?? null;
 	const refreshFooter = (): void => {
 		paintFooter( footer, slug, info, host, () => flyout.removeAttribute( 'open' ), refreshFooter );
 	};
 	refreshFooter();
 
-	tabs.onChange( ( tab ) => paintTabBody( body, tab, info, slug, reviewsCache, host ) );
-	paintTabBody( body, 'overview', info, slug, reviewsCache, host );
+	const paint = ( tab: DetailTab ): void => paintTabBody( body, tab, info, slug, host );
+	tabs.onChange( paint );
+	if ( info ) {
+		paintHero( hero, info );
+	}
+	paint( 'overview' );
 
+	if ( info ) {
+		return;
+	}
 	void ( async () => {
 		try {
-			info = await host.rest.fetchPluginInfo( slug );
+			const fetched = await host.rest.fetchPluginInfo( slug );
+			host.caches.info.set( slug, fetched );
+			if ( ! current() ) {
+				return;
+			}
+			info = fetched;
 			paintHero( hero, info );
 			refreshFooter();
-			paintTabBody( body, tabs.current(), info, slug, reviewsCache, host );
+			paint( tabs.current() );
 		} catch ( err ) {
-			body.innerHTML = '';
+			if ( ! current() ) {
+				return;
+			}
 			const failure = document.createElement( 'p' );
 			failure.className = 'os-plugins__flyout-error';
-			failure.textContent =
-				err instanceof Error ? err.message : __( 'Could not load plugin details.', 'desktop-mode' );
-			body.appendChild( failure );
+			failure.textContent = err instanceof Error ? err.message : __( 'Could not load plugin details.', 'desktop-mode' );
+			body.replaceChildren( failure );
 		}
 	} )();
 }
@@ -109,17 +127,14 @@ function buildHeroSkeleton( hint?: WpOrgBrowsePlugin ): HeroParts {
 	const byline = document.createElement( 'p' );
 	byline.className = 'os-plugins__flyout-hero-byline';
 	const meta = document.createElement( 'div' );
-	meta.className = 'os-plugins__flyout-hero-meta';
 	const stars = document.createElement( 'div' );
-	stars.className = 'os-plugins__flyout-hero-stars';
 	meta.appendChild( stars );
 	text.append( title, byline, meta );
 	inner.append( icon, text );
 	root.appendChild( inner );
 
-	// Circular glass close button, floating over the banner. A plain
-	// `<button>` so every visual is inline-styleable; `data-flyout-close`
-	// is the contract `<os-flyout>` listens for.
+	// Circular glass close button, floating over the banner.
+	// `data-flyout-close` is the contract `<os-flyout>` listens for.
 	const close = document.createElement( 'button' );
 	close.type = 'button';
 	close.className = 'os-plugins__flyout-close';
@@ -171,9 +186,9 @@ function paintHero( parts: HeroParts, info: WpOrgPluginInfo ): void {
 	);
 	const updated = document.createElement( 'span' );
 	updated.textContent = sprintf(
-		/* translators: %s: human-readable date string from wp.org */
+		/* translators: %s: date the plugin was last updated */
 		__( 'Updated %s', 'desktop-mode' ),
-		humanDate( info.last_updated ),
+		info.last_updated ? formatDate( info.last_updated.slice( 0, 10 ), 'long' ) : '—',
 	);
 	metaRow.append( installs, updated );
 	if ( info.tested ) {
@@ -221,14 +236,7 @@ function buildTabs(): {
 	return { root, current: () => current, onChange: ( cb ) => subscribers.add( cb ) };
 }
 
-function paintTabBody(
-	body: HTMLElement,
-	tab: DetailTab,
-	info: WpOrgPluginInfo | null,
-	slug: string,
-	reviewsCache: { loaded: boolean },
-	host: PluginsHost,
-): void {
+function paintTabBody( body: HTMLElement, tab: DetailTab, info: WpOrgPluginInfo | null, slug: string, host: PluginsHost ): void {
 	body.replaceChildren();
 	if ( ! info ) {
 		body.appendChild( buildSkeletonLines( 4 ) );
@@ -243,70 +251,18 @@ function paintTabBody(
 	} else if ( tab === 'faq' ) {
 		body.appendChild( buildHtmlSection( info.sections?.faq ?? '' ) );
 	} else {
-		body.appendChild( buildRatingsHistogram( info ) );
-		body.appendChild( buildReviewsList( slug, reviewsCache, host ) );
+		body.appendChild( renderReviews( host, slug, info ) );
 	}
-}
-
-function buildReviewsList( slug: string, reviewsCache: { loaded: boolean }, host: PluginsHost ): HTMLElement {
-	const list = document.createElement( 'div' );
-	list.className = 'os-plugins__reviews-list';
-	const loadingLine = document.createElement( 'p' );
-	loadingLine.className = 'os-plugins__reviews-loading';
-	loadingLine.textContent = __( 'Loading recent reviews…', 'desktop-mode' );
-	list.appendChild( loadingLine );
-	if ( reviewsCache.loaded ) {
-		return list;
-	}
-	void ( async () => {
-		try {
-			const resp = await host.rest.fetchPluginReviews( slug );
-			list.replaceChildren();
-			if ( ! resp.parsed || resp.items.length === 0 ) {
-				const fallback = document.createElement( 'p' );
-				fallback.className = 'os-plugins__reviews-fallback';
-				fallback.innerHTML = sprintf(
-					/* translators: %s: anchor tag with link to wp.org reviews */
-					__( 'Recent reviews aren’t available right now. %s', 'desktop-mode' ),
-					`<a href="https://wordpress.org/plugins/${ encodeURIComponent(
-						slug,
-					) }/#reviews" target="_blank" rel="noopener">${ __( 'Read reviews on WordPress.org ↗', 'desktop-mode' ) }</a>`,
-				);
-				list.appendChild( fallback );
-			} else {
-				for ( const item of resp.items ) {
-					list.appendChild( buildReviewCard( item ) );
-				}
-			}
-			reviewsCache.loaded = true;
-		} catch {
-			list.replaceChildren();
-			const failure = document.createElement( 'p' );
-			failure.className = 'os-plugins__reviews-fallback';
-			failure.textContent = __( 'Could not load reviews.', 'desktop-mode' );
-			list.appendChild( failure );
-		}
-	} )();
-	return list;
 }
 
 function buildHtmlSection( html: string ): HTMLElement {
-	const wrap = document.createElement( 'div' );
-	wrap.className = 'os-plugins__html';
 	if ( ! html ) {
+		const wrap = document.createElement( 'div' );
+		wrap.className = 'os-plugins__html';
 		wrap.appendChild( emptyLine( __( 'No content available.', 'desktop-mode' ) ) );
 		return wrap;
 	}
-	wrap.innerHTML = sanitizeHtml( html );
-	openLinksInNewTab( wrap );
-	return wrap;
-}
-
-function openLinksInNewTab( wrap: HTMLElement ): void {
-	wrap.querySelectorAll( 'a' ).forEach( ( a ) => {
-		a.setAttribute( 'target', '_blank' );
-		a.setAttribute( 'rel', 'noopener nofollow' );
-	} );
+	return htmlBlock( html, 'os-plugins__html' );
 }
 
 function emptyLine( text: string ): HTMLElement {
@@ -330,83 +286,17 @@ function buildScreenshots( shots: Record< string, { src: string; caption: string
 		const img = document.createElement( 'img' );
 		img.src = shot.src;
 		img.loading = 'lazy';
-		img.alt = shot.caption ?? '';
+		img.alt = stripHtml( shot.caption ?? '' );
 		fig.appendChild( img );
 		if ( shot.caption ) {
 			const cap = document.createElement( 'figcaption' );
 			cap.innerHTML = sanitizeHtml( shot.caption );
-			openLinksInNewTab( cap );
+			sanitizeLinks( cap );
 			fig.appendChild( cap );
 		}
 		wrap.appendChild( fig );
 	}
 	return wrap;
-}
-
-function buildRatingsHistogram( info: WpOrgPluginInfo ): HTMLElement {
-	const wrap = document.createElement( 'div' );
-	wrap.className = 'os-plugins__histogram';
-	const ratings = info.ratings ?? {};
-	const total = Object.values( ratings ).reduce( ( a, b ) => a + ( typeof b === 'number' ? b : 0 ), 0 );
-	if ( total === 0 ) {
-		wrap.appendChild( emptyLine( __( 'No ratings yet.', 'desktop-mode' ) ) );
-		return wrap;
-	}
-	for ( let star = 5; star >= 1; star-- ) {
-		const count = ratings[ String( star ) ] ?? 0;
-		const row = document.createElement( 'div' );
-		row.className = 'os-plugins__histogram-row';
-		const label = document.createElement( 'span' );
-		label.className = 'os-plugins__histogram-label';
-		label.textContent = sprintf(
-			/* translators: %d: number of stars (1–5) */
-			__( '%d ★', 'desktop-mode' ),
-			star,
-		);
-		const track = document.createElement( 'span' );
-		track.className = 'os-plugins__histogram-track';
-		const fill = document.createElement( 'span' );
-		fill.className = 'os-plugins__histogram-fill';
-		fill.style.width = `${ Math.round( ( count / total ) * 100 ) }%`;
-		track.appendChild( fill );
-		const num = document.createElement( 'span' );
-		num.className = 'os-plugins__histogram-count';
-		num.textContent = new Intl.NumberFormat().format( count );
-		row.append( label, track, num );
-		wrap.appendChild( row );
-	}
-	return wrap;
-}
-
-function buildReviewCard( item: { author: string; stars: number; excerpt: string; date: string; url: string } ): HTMLElement {
-	const card = document.createElement( 'article' );
-	card.className = 'os-plugins__review';
-	const head = document.createElement( 'header' );
-	head.className = 'os-plugins__review-head';
-	const author = document.createElement( 'span' );
-	author.className = 'os-plugins__review-author';
-	author.textContent = item.author || __( 'Anonymous', 'desktop-mode' );
-	head.append( author, buildStarCluster( ( item.stars / 5 ) * 100, 0 ) );
-	if ( item.date ) {
-		const date = document.createElement( 'time' );
-		date.className = 'os-plugins__review-date';
-		date.textContent = item.date;
-		head.appendChild( date );
-	}
-	const body = document.createElement( 'p' );
-	body.className = 'os-plugins__review-excerpt';
-	body.textContent = item.excerpt;
-	card.append( head, body );
-	if ( item.url ) {
-		const link = document.createElement( 'a' );
-		link.href = item.url;
-		link.target = '_blank';
-		link.rel = 'noopener nofollow';
-		link.textContent = __( 'Read on WordPress.org ↗', 'desktop-mode' );
-		link.className = 'os-plugins__review-link';
-		card.appendChild( link );
-	}
-	return card;
 }
 
 function buildSkeletonLines( count: number ): HTMLElement {
@@ -434,61 +324,37 @@ function paintFooter(
 	const installed = host.installedFor( slug );
 
 	const left = document.createElement( 'div' );
-	left.className = 'os-plugins__flyout-footer-left';
-	const wpOrg = document.createElement( 'a' );
-	wpOrg.href = `https://wordpress.org/plugins/${ encodeURIComponent( slug ) }/`;
-	wpOrg.target = '_blank';
-	wpOrg.rel = 'noopener';
-	wpOrg.className = 'os-plugins__flyout-wporg';
-	wpOrg.textContent = __( 'View on WordPress.org ↗', 'desktop-mode' );
-	left.appendChild( wpOrg );
+	left.appendChild( externalLink( wpOrgUrl( slug ), __( 'View on WordPress.org ↗', 'desktop-mode' ), 'os-plugins__flyout-wporg' ) );
 
 	const right = document.createElement( 'div' );
 	right.className = 'os-plugins__flyout-footer-right';
 
-	const button = ( label: string, variant: string, onClick: () => void ): void => {
-		const b = document.createElement( 'os-button' );
-		b.setAttribute( 'variant', variant );
-		b.textContent = label;
-		b.addEventListener( 'click', onClick );
-		right.appendChild( b );
-	};
-
 	if ( installed ) {
-		if ( caps.activate ) {
-			if ( isActiveStatus( installed.status ) ) {
-				button( __( 'Deactivate', 'desktop-mode' ), 'secondary', () => {
-					void deactivatePlugin( host, installed ).then( repaint );
-				} );
-			} else {
-				button( __( 'Activate', 'desktop-mode' ), 'primary', () => {
-					void activatePlugin( host, installed ).then( repaint );
-				} );
-			}
-		}
-		if ( caps.delete && installed.status === 'inactive' ) {
-			button( __( 'Delete', 'desktop-mode' ), 'danger', () => {
-				void deletePlugin( host, installed ).then( ( ok ) => {
-					if ( ok ) {
+		right.append(
+			...pluginActionButtons( host, installed, {
+				size: '',
+				onDone: ( ok, verb ) => {
+					if ( ok && verb === 'delete' ) {
 						close();
+					} else {
+						repaint();
 					}
-				} );
-			} );
-		}
+				},
+			} ),
+		);
 	} else if ( caps.install ) {
-		button( __( 'Install', 'desktop-mode' ), 'primary', () => {
-			const btn = right.querySelector< HTMLElement >( 'os-button' );
-			btn?.setAttribute( 'busy', '' );
-			btn?.setAttribute( 'disabled', '' );
-			if ( btn ) {
-				btn.textContent = __( 'Installing…', 'desktop-mode' );
-			}
+		const btn = document.createElement( 'os-button' );
+		btn.setAttribute( 'variant', 'primary' );
+		btn.textContent = __( 'Install', 'desktop-mode' );
+		btn.addEventListener( 'click', () => {
+			setBusy( btn, __( 'Installing…', 'desktop-mode' ) );
 			// Either way the footer repaints: Activate on success, the
 			// Install button back on failure (the toast said why).
 			void installBySlug( host, slug, info?.name ?? slug )
 				.catch( ( err ) => host.toast( describeError( err ), 6000 ) )
 				.finally( repaint );
 		} );
+		right.appendChild( btn );
 	}
 
 	footer.append( left, right );

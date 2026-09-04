@@ -138,29 +138,31 @@ describe( 'Posts, Pages and Users', () => {
 	} );
 
 	test( 'the Categories and Tags editors fold under the stage on a phone, and only while a term is focused', () => {
-		expect( block( posts, 'html[data-os-mode="mobile"] .os-mindmap__layout,' ) ).toMatch( /flex-direction:\s*column/ );
-		const sidebar = block( posts, 'html[data-os-mode="mobile"] .os-mindmap__sidebar,' );
+		// One canvas base (`.os-term-canvas`) serves the mind map and the
+		// tag cloud; the fold is written once.
+		expect( block( posts, 'html[data-os-mode="mobile"] .os-term-canvas__layout {' ) ).toMatch( /flex-direction:\s*column/ );
+		const sidebar = block( posts, 'html[data-os-mode="mobile"] .os-term-canvas__sidebar {' );
 		expect( sidebar ).toMatch( /max-block-size:\s*50%/ );
 		expect( sidebar ).toMatch( /border-inline-start:\s*0/ );
 		expect( sidebar ).toMatch( /safe-area-inset-bottom/ );
 		expect(
-			block( posts, 'html[data-os-mode="mobile"] .os-mindmap__sidebar:has( > .os-mindmap__sidebar-empty ),' ),
+			block( posts, 'html[data-os-mode="mobile"] .os-term-canvas__sidebar:has( > .os-term-canvas__sidebar-empty ) {' ),
 		).toMatch( /display:\s*none/ );
-		expect( posts ).toContain( 'html[data-os-mode="mobile"] .os-tagcloud__sidebar:has( > .os-tagcloud__sidebar-empty )' );
+		// The same fold under a narrow desk window.
+		expect( posts ).toMatch( /@container \( max-width: 640px \)[\s\S]*\.os-term-canvas__layout \{/ );
 	} );
 } );
 
 describe( 'Plugins', () => {
-	test( 'the moved bulk strip is a bottom bar that clears the home indicator', () => {
-		const bar = block( plugins, '.os-plugins__bulk.os-plugins__bulk--footer {' );
-		expect( bar ).toMatch( /safe-area-inset-bottom/ );
-		expect( bar ).toMatch( /border-block-start/ );
-		expect( block( plugins, '.os-plugins__bulk.os-plugins__bulk--footer[hidden] {' ) ).toMatch( /display:\s*none/ );
-		expect( block( plugins, '.os-plugins__bulk.os-plugins__bulk--footer os-button {' ) ).toMatch( /flex:\s*1 1 auto/ );
-	} );
+	const view = read( 'apps/plugins/plugins.os.ts' );
 
-	test( 'on a phone the cards run edge to edge', () => {
-		expect( block( plugins, 'html[data-os-mode="mobile"] .os-plugins__body {' ) ).toMatch( /padding:\s*0/ );
+	test( 'the installed list wears the framework list layout — its phone rules are the runtime sheet’s', () => {
+		expect( view ).toContain( 'os-app-list__bulk--footer' );
+		expect( view ).toContain( 'os-app-list__toolbar-right' );
+		expect( view ).toContain( 'os-app-list__body' );
+		// Nothing of that layout is re-declared in the app's own sheet.
+		expect( plugins ).not.toContain( '.os-plugins__bulk--footer' );
+		expect( plugins ).not.toMatch( /html\[data-os-mode="mobile"\] \.os-plugins__body/ );
 	} );
 } );
 

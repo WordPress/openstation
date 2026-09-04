@@ -7,17 +7,17 @@
 import { __, sprintf } from '@openstation/app';
 import '../../../src/ui/components/os-button/os-button';
 import '../../../src/ui/components/os-checkbox-label/os-checkbox-label';
+import '../../../src/ui/components/os-relative-time/os-relative-time';
 import '../../../src/ui/components/os-text-field/os-text-field';
 import {
 	copyQuietly,
 	createAppPassword,
 	destroySessions,
 	listAppPasswords,
-	relativeTime,
+	relativeTimeNode,
 	revokeAppPassword,
-	toast,
-} from './profile-client';
-import type { AppPasswordItem, ColorSchemeInfo } from './types';
+} from './client';
+import type { AppPasswordItem, ColorSchemeInfo, ProfileHost } from './types';
 
 interface CheckboxFieldOpts {
 	trueValue?: string;
@@ -30,12 +30,7 @@ interface CheckboxFieldOpts {
  * `'false'`) on its `value` attribute, so it round-trips through WP's
  * user-meta storage where the personal-options keys are strings.
  */
-export function checkboxField(
-	name: string,
-	label: string,
-	checked: boolean,
-	opts: CheckboxFieldOpts = {},
-): HTMLElement {
+export function checkboxField( name: string, label: string, checked: boolean, opts: CheckboxFieldOpts = {} ): HTMLElement {
 	const trueValue = opts.trueValue ?? 'true';
 	const falseValue = opts.falseValue ?? 'false';
 	const wrap = document.createElement( 'span' );
@@ -65,8 +60,8 @@ export function checkboxField(
  * `#color-picker .color-option` handler) — only on self-edit, since
  * previewing another user's scheme would change the viewer's chrome.
  */
-export function applyColorSchemePreview( slug: string, info: ColorSchemeInfo ): void {
-	if ( info.url ) {
+export function applyColorSchemePreview( slug: string, info: ColorSchemeInfo | undefined ): void {
+	if ( info?.url ) {
 		let link = document.getElementById( 'colors-css' ) as HTMLLinkElement | null;
 		if ( ! link ) {
 			link = document.createElement( 'link' );
@@ -87,6 +82,14 @@ export function applyColorSchemePreview( slug: string, info: ColorSchemeInfo ): 
 	document.body.classList.add( next );
 }
 
+/** The colour picker element, with the hooks the form needs around a save. */
+export interface ColorPickerElement extends HTMLElement {
+	/** Back to the saved scheme — the selection AND the previewed chrome. */
+	revert(): void;
+	/** The scheme is saved now: the next revert lands here. */
+	commit( slug: string ): void;
+}
+
 /**
  * Radio-grid picker for the WP admin colour schemes: scheme name +
  * a strip of mini swatches per tile. Emits the chosen slug through a
@@ -97,8 +100,8 @@ export function buildAdminColorPicker(
 	schemes: Record< string, ColorSchemeInfo >,
 	current: string,
 	opts: { livePreview?: boolean } = {},
-): HTMLElement {
-	const wrap = document.createElement( 'div' );
+): ColorPickerElement {
+	const wrap = document.createElement( 'div' ) as unknown as ColorPickerElement;
 	wrap.setAttribute( 'full-width', '' );
 	wrap.style.cssText = 'display:flex;flex-direction:column;gap:6px;';
 
@@ -119,7 +122,8 @@ export function buildAdminColorPicker(
 	grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill, minmax(140px, 1fr));gap:8px;';
 	wrap.appendChild( grid );
 
-	const updateSelected = ( slug: string ): void => {
+	let saved = current;
+	const select = ( slug: string ): void => {
 		hidden.value = slug;
 		hidden.setAttribute( 'value', slug );
 		for ( const t of Array.from( grid.children ) ) {
@@ -128,6 +132,11 @@ export function buildAdminColorPicker(
 			tile.style.borderColor = on ? 'var(--wp-admin-theme-color, #2271b1)' : 'var(--os-ui-border, #dcdcde)';
 			tile.style.boxShadow = on ? '0 0 0 1px var(--wp-admin-theme-color, #2271b1) inset' : 'none';
 			tile.setAttribute( 'aria-checked', on ? 'true' : 'false' );
+		}
+	};
+	const preview = ( slug: string ): void => {
+		if ( opts.livePreview ) {
+			applyColorSchemePreview( slug, schemes[ slug ] );
 		}
 	};
 
@@ -139,9 +148,6 @@ export function buildAdminColorPicker(
 		tile.style.cssText = [
 			'appearance:none',
 			'border:1px solid var(--os-ui-border, #dcdcde)',
-			// Palette card surface — a `--wp-admin-theme-*` name is not
-			// an OpenStation token; on a dark desktop the tile fell back
-			// to white and the inherited theme text vanished on it.
 			'background:var(--os-ui-card-bg, var(--os-ui-surface, #fff))',
 			'color:inherit',
 			'border-radius:8px',
@@ -175,14 +181,20 @@ export function buildAdminColorPicker(
 		tile.appendChild( name );
 
 		tile.addEventListener( 'click', () => {
-			updateSelected( slug );
-			if ( opts.livePreview ) {
-				applyColorSchemePreview( slug, info );
-			}
+			select( slug );
+			preview( slug );
 		} );
 		grid.appendChild( tile );
 	}
-	updateSelected( current );
+	select( current );
+
+	wrap.revert = () => {
+		select( saved );
+		preview( saved );
+	};
+	wrap.commit = ( slug ) => {
+		saved = slug;
+	};
 	return wrap;
 }
 
@@ -190,13 +202,13 @@ export function buildAdminColorPicker(
  * "Log out everywhere else" — on admin-edits-other this is "log them
  * out everywhere"; on self-edit it spares the current device.
  */
-export function buildSessionsRow( userId: number, isSelfEdit: boolean ): HTMLElement {
+export function buildSessionsRow( host: ProfileHost, userId: number, isSelfEdit: boolean ): HTMLElement {
 	const wrap = document.createElement( 'div' );
 	wrap.setAttribute( 'full-width', '' );
 	wrap.style.cssText = 'display:flex;align-items:center;gap:12px;flex-wrap:wrap;';
 
 	const label = document.createElement( 'span' );
-	label.style.cssText = 'font-size:13px;color:var(--os-fg, inherit);';
+	label.style.cssText = 'font-size:13px;';
 	label.textContent = __( 'Active sessions' );
 	wrap.appendChild( label );
 
@@ -207,11 +219,11 @@ export function buildSessionsRow( userId: number, isSelfEdit: boolean ): HTMLEle
 	btn.addEventListener( 'click', async ( e ) => {
 		e.preventDefault();
 		try {
-			await destroySessions( userId, isSelfEdit ? 'others' : 'all' );
-			toast( __( 'Sessions destroyed.' ), 'success' );
+			await destroySessions( host, userId, isSelfEdit ? 'others' : 'all' );
+			host.toast( __( 'Sessions destroyed.' ), 'success' );
 		} catch ( err ) {
 			// translators: %s is an error message.
-			toast( sprintf( __( 'Could not destroy sessions (%s).' ), String( ( err as Error ).message ?? err ) ), 'error' );
+			host.toast( sprintf( __( 'Could not destroy sessions (%s).' ), String( ( err as Error ).message ?? err ) ), 'error' );
 		}
 	} );
 	wrap.appendChild( btn );
@@ -219,19 +231,16 @@ export function buildSessionsRow( userId: number, isSelfEdit: boolean ): HTMLEle
 }
 
 /** Application Passwords: the list, revoke per row, and a creator. */
-export function buildAppPasswordsRow( userId: number ): HTMLElement {
+export function buildAppPasswordsRow( host: ProfileHost, userId: number ): HTMLElement {
 	const wrap = document.createElement( 'div' );
 	wrap.setAttribute( 'full-width', '' );
 	wrap.style.cssText =
 		'display:flex;flex-direction:column;gap:8px;border:1px solid var(--os-ui-border, #dcdcde);border-radius:8px;padding:12px 14px;';
 
-	const heading = document.createElement( 'div' );
-	heading.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;';
 	const headLabel = document.createElement( 'span' );
 	headLabel.textContent = __( 'Application passwords' );
 	headLabel.style.cssText = 'font-size:13px;font-weight:600;';
-	heading.appendChild( headLabel );
-	wrap.appendChild( heading );
+	wrap.appendChild( headLabel );
 
 	const list = document.createElement( 'ul' );
 	list.style.cssText = 'list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;';
@@ -270,8 +279,7 @@ export function buildAppPasswordsRow( userId: number ): HTMLElement {
 			const meta = document.createElement( 'span' );
 			meta.style.cssText = 'color:var(--os-ui-fg-muted, #8c8f94);';
 			if ( item.last_used ) {
-				// translators: %s is a relative time.
-				meta.textContent = sprintf( __( 'last used %s' ), relativeTime( item.last_used ) );
+				meta.append( __( 'last used' ), ' ', relativeTimeNode( item.last_used ) );
 			} else {
 				meta.textContent = __( 'never used' );
 			}
@@ -283,11 +291,11 @@ export function buildAppPasswordsRow( userId: number ): HTMLElement {
 			revoke.addEventListener( 'click', async ( e ) => {
 				e.preventDefault();
 				try {
-					await revokeAppPassword( userId, item.uuid );
+					await revokeAppPassword( host, userId, item.uuid );
 					row.remove();
-					toast( __( 'Application password revoked.' ), 'success' );
+					host.toast( __( 'Application password revoked.' ), 'success' );
 				} catch ( err ) {
-					toast( String( ( err as Error ).message ?? err ), 'error' );
+					host.toast( String( ( err as Error ).message ?? err ), 'error' );
 				}
 			} );
 			row.appendChild( revoke );
@@ -297,7 +305,7 @@ export function buildAppPasswordsRow( userId: number ): HTMLElement {
 
 	const refresh = async (): Promise< void > => {
 		try {
-			renderItems( await listAppPasswords( userId ) );
+			renderItems( await listAppPasswords( host, userId ) );
 		} catch {
 			// non-fatal; leave list empty
 		}
@@ -308,19 +316,19 @@ export function buildAppPasswordsRow( userId: number ): HTMLElement {
 		e.preventDefault();
 		const name = String( nameInput.value ?? '' ).trim();
 		if ( ! name ) {
-			toast( __( 'Application password name is required.' ), 'error' );
+			host.toast( __( 'Application password name is required.' ), 'error' );
 			return;
 		}
 		try {
-			const password = await createAppPassword( userId, name );
+			const password = await createAppPassword( host, userId, name );
 			// translators: %s is an application password.
-			toast( sprintf( __( 'Created. Copy the password now: %s' ), password ), 'success' );
+			host.toast( sprintf( __( 'Created. Copy the password now: %s' ), password ), 'success' );
 			copyQuietly( password );
 			nameInput.value = '';
 			nameInput.setAttribute( 'value', '' );
 			void refresh();
 		} catch ( err ) {
-			toast( String( ( err as Error ).message ?? err ), 'error' );
+			host.toast( String( ( err as Error ).message ?? err ), 'error' );
 		}
 	} );
 

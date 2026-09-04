@@ -186,7 +186,7 @@
 	font-size: 40px;
 	width: 40px;
 	height: 40px;
-	color: var( --os-ui-fg-muted, #a7aaad );
+	color: var( --os-ui-fg-faint, #a7aaad );
 }
 
 .os-app-list__empty p {
@@ -195,7 +195,7 @@
 
 .os-app-list__empty-hint {
 	font-size: 13px;
-	color: var( --os-ui-fg-muted, #646970 );
+	color: var( --os-ui-fg-muted, #50575e );
 }
 
 .os-app-list__pager {
@@ -227,15 +227,6 @@
 	color: var( --os-ui-fg-muted, #50575e );
 	font-size: 12px;
 	margin-inline-start: 8px;
-}
-
-.os-app-list__pager-perpage select {
-	padding: 4px 6px;
-	border: 1px solid var( --os-ui-border, #c3c4c7 );
-	border-radius: 4px;
-	background: var( --os-ui-surface, #fff );
-	color: var( --os-ui-fg, #1d2327 );
-	font: inherit;
 }
 
 /* Narrow windows — a phone, or a desktop window pulled in. The toolbar
@@ -274,9 +265,11 @@
 	}
 }
 
-/* The same, keyed on the shell's phone mode: the phone experience at
-   any width (a wide browser previewing it, a phone turned sideways),
-   which no size query can express. */
+/* The same declarations, keyed on the shell's phone mode: the phone
+   experience at any width (a wide browser previewing it, a phone
+   turned sideways), which no size query can express. A container
+   query and a stamp selector cannot share one rule list, so the
+   block is repeated on purpose — keep the two in step. */
 html[data-os-mode="mobile"] .os-app-list__toolbar {
 	gap: 8px;
 	padding: 8px 10px;
@@ -320,7 +313,7 @@ html[data-os-mode="mobile"] .os-app-list__pager {
 	padding: 10px 12px calc( 10px + env( safe-area-inset-bottom, 0px ) );
 	border-block-start: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
 	background: var( --os-ui-surface-elevated, #f6f7f7 );
-	box-shadow: 0 -6px 18px rgba( 0, 0, 0, 0.06 );
+	box-shadow: var( --os-ui-shadow-sheet, 0 -6px 18px rgba( 0, 0, 0, 0.06 ) );
 }
 
 .os-app-list__toolbar-right.os-app-list__bulk--footer[hidden] {

@@ -146,7 +146,7 @@ table.selection = new Set( savedIds );      // bulk replace
 
 **Ids must be unique across the whole data set.** If the table mixes entity kinds whose id sequences are independent (e.g. posts and comments carry numeric ids from different tables), qualify the id with the kind — ``getRowId = ( row ) => `${ row.type }:${ row.id }` `` — or two different rows will share one selection key and select (and act) together.
 
-**Destructive consumers: clear the selection when the data set changes.** Selection deliberately survives `data` reassignment, so ids from a previous page / search / filter linger invisibly. If your bulk actions consume `table.selection` (trash, delete, role changes…), call `table.clearSelection()` whenever the query changes — otherwise a forgotten off-page selection rides silently into the next action. See `src/comments-window/index.ts` and `src/posts-window/index.ts` for the pattern.
+**Destructive consumers: clear the selection when the data set changes.** Selection deliberately survives `data` reassignment, so ids from a previous page / search / filter linger invisibly. If your bulk actions consume `table.selection` (trash, delete, role changes…), call `table.clearSelection()` whenever the query changes — otherwise a forgotten off-page selection rides silently into the next action. `createListTableSync()` from `@openstation/app` does this for a list app (a changed `listKey` clears, a changed data set prunes); see `apps/posts/parts/app.ts` for the pattern.
 
 ## Sticky columns and sticky header
 

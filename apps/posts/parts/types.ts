@@ -44,6 +44,7 @@ export interface ListData {
 		page: number;
 		perPage: number;
 		error: string;
+		code: string;
 	};
 }
 
@@ -52,8 +53,9 @@ export interface ListExtra {
 	mode?: PostsMode;
 	editPostUrlBase?: string;
 	newPostUrl?: string;
-	currentUserId?: number;
-	defaultPerPage?: number;
+	/** The declared default sort — what clearing a column sort returns to. */
+	defaultOrderby?: string;
+	defaultOrder?: 'asc' | 'desc';
 	frontPageId?: number;
 	postsPageId?: number;
 	pageTemplates?: Record< string, string >;
@@ -141,6 +143,7 @@ export interface TagTerm {
 	id: number;
 	name: string;
 	slug: string;
+	description?: string;
 	count?: number;
 	link?: string;
 }
@@ -151,6 +154,7 @@ export interface CategoryTerm {
 	name: string;
 	slug: string;
 	parent: number;
+	description?: string;
 	count?: number;
 	link?: string;
 }

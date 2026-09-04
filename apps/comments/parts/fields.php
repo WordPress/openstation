@@ -28,24 +28,22 @@ function openstation_comments_window_default_query_args() {
 	// edit.
 	$context = current_user_can( 'moderate_comments' ) ? 'edit' : 'view';
 	$args    = array(
-
-		/*
-		 * Exactly the fields the conversation view renders — no more.
-		 * Every `openstation_*` field is a computed REST field, and
-		 * `openstation_replies_count` runs its own `get_comments()`
-		 * COUNT per row, so an over-broad `_fields` is a per-row query
-		 * multiplier. The scoring fields (`spam_score`, `link_count`,
-		 * `akismet`, `ai_verdict`) are NOT requested here: nothing in
-		 * the conversation UI reads them, and computing them costs a
-		 * meta read (or worse) per row. Re-add them via the filter
-		 * below if a plugin surfaces them.
-		 */
+		// Exactly the fields the conversation view renders — no more.
+		// Every `openstation_*` field is computed per row, so an
+		// over-broad `_fields` is a per-row query multiplier. The
+		// viewer-wide facts (`openstation_can_moderate`) and the reply
+		// counts (`openstation_replies_count`, one COUNT per row) are
+		// not requested: the app ships the first with its config and
+		// computes the second in one grouped query. The scoring fields
+		// (`spam_score`, `link_count`, `akismet`, `ai_verdict`) cost a
+		// meta read or worse per row and nothing in the view reads them.
+		// Widen the projection through the filter below when a plugin
+		// surfaces one of them.
 		'_fields'  =>
 			'id,post,parent,author,author_name,author_avatar_urls,'
 			. 'date_gmt,content,status,'
 			. 'openstation_post_title,openstation_post_link,'
-			. 'openstation_can_edit,openstation_can_moderate,'
-			. 'openstation_replies_count',
+			. 'openstation_can_edit',
 		'context'  => $context,
 		'per_page' => 20,
 		// 'hold' = pending. Use the wp/v2 status names where they differ
@@ -216,8 +214,9 @@ function openstation_comments_window_register_rest_fields() {
 				if ( $id <= 0 ) {
 					return null;
 				}
+				// Akismet stores one of `true`, `false` or `pending`.
 				$result = (string) get_comment_meta( $id, 'akismet_result', true );
-				return '' === $result ? null : $result; // 'true' | 'false' | 'pending'.
+				return '' === $result ? null : $result;
 			},
 			'schema'       => $readonly( __( 'Akismet verdict if the plugin is installed (null otherwise).', 'desktop-mode' ), array( 'string', 'null' ) ),
 		)

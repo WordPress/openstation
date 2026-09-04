@@ -3024,8 +3024,7 @@ function init(): void {
 	// rides as an open-time param: the app reads `$os->param(
 	// 'userId' )` on mount, retargets through its `reopen` handler
 	// when the singleton is already open, and the session restores
-	// it after a reload. `profile.php` carries no id and lands on
-	// the viewer's own profile.
+	// it after a reload.
 	registerNativeUrlRemap( {
 		id: 'desktop-mode-user-edit',
 		nativeWindowId: 'desktop-mode-user-edit',
@@ -3050,11 +3049,16 @@ function init(): void {
 		},
 		enabled: ( snapshot ) => snapshot.nativeUsersEnabled === true,
 		params: ( _url, parsed ) => {
+			// `profile.php` carries no id and lands on the viewer's own
+			// profile — sent as an explicit 0 so a live window open on
+			// someone ELSE retargets to the viewer instead of keeping
+			// its previous subject (the shell leaves params alone on a
+			// param-less reopen).
 			const userId = parseInt(
 				parsed.searchParams.get( 'user_id' ) ?? '0',
 				10,
 			);
-			return userId > 0 ? { userId } : undefined;
+			return { userId: userId > 0 ? userId : 0 };
 		},
 	} );
 

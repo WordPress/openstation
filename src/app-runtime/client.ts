@@ -61,6 +61,13 @@ export {
 	type MenuCheckboxesOptions,
 	type MenuCheckboxes,
 } from './list-ui';
+export {
+	createListTableSync,
+	type ListTableLike,
+	type ListTableSync,
+	type ListTableSyncOptions,
+	type ListTableSyncResult,
+} from './list-table';
 export type { ConfirmSpec, RuntimeHost } from './types';
 
 /** A reducer run in the browser. Return the next state, or mutate and return nothing. */
@@ -95,6 +102,12 @@ export interface ViewContext< S, D > {
 	local: ( action: string, args?: Record< string, unknown > ) => void;
 	/** The mount root — for a ResizeObserver, a canvas, a focus() call. */
 	root: HTMLElement;
+	/**
+	 * The window this view is mounted in — the app id for a singleton,
+	 * an instance id for a duplicate. What `wp.os.relations`,
+	 * `wp.os.onWindow()` and `updateOsSettings( …, { windowId } )` key on.
+	 */
+	readonly windowId: string;
 	/**
 	 * What the app declared with `App::config()` — static values that
 	 * ship once with the window config instead of riding `data` on

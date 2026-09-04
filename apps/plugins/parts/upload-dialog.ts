@@ -7,14 +7,16 @@
  * swaps to a post-install panel with an Activate button — the classic
  * `update.php?action=upload-plugin` flow, scoped to this window. The
  * window-level drop overlay opens it with the dropped file pre-applied.
+ * Everything it listens to lives on its own overlay, so closing the
+ * window takes the dialog and its listeners with it.
  *
  * @public
  */
 
-import { __, sprintf } from '@openstation/app';
+import { __, formatBytes, sprintf } from '@openstation/app';
+import { setBusy } from './actions';
 import { activatePlugin } from './mutations';
 import type { InstalledPlugin, PluginsHost, UploadPluginResult } from './types';
-import '../../../src/ui/components/os-button/os-button';
 
 /**
  * Open the dialog. Resolves with the upload result on success, or
@@ -105,10 +107,10 @@ export function openUploadDialog(
 			fileLabel.hidden = ! file;
 			if ( file ) {
 				fileLabel.textContent = sprintf(
-					/* translators: 1: file name, 2: file size in KB */
-					__( '%1$s · %2$s KB', 'desktop-mode' ),
+					/* translators: 1: file name, 2: file size */
+					__( '%1$s · %2$s', 'desktop-mode' ),
 					file.name,
-					Math.round( file.size / 1024 ).toString(),
+					formatBytes( file.size ),
 				);
 				submitBtn.removeAttribute( 'disabled' );
 			} else {
@@ -155,16 +157,16 @@ export function openUploadDialog(
 		} );
 
 		const close = ( result: UploadPluginResult | null ): void => {
-			document.removeEventListener( 'keydown', onKey );
 			overlay.remove();
 			resolve( result );
 		};
-		const onKey = ( ev: KeyboardEvent ): void => {
+		// Escape closes — heard on the overlay, where focus lives, so the
+		// listener goes with the dialog rather than outliving the window.
+		overlay.addEventListener( 'keydown', ( ev: KeyboardEvent ) => {
 			if ( ev.key === 'Escape' && ! uploading ) {
 				close( null );
 			}
-		};
-		document.addEventListener( 'keydown', onKey );
+		} );
 		cancelBtn.addEventListener( 'click', () => {
 			if ( ! uploading ) {
 				close( null );
@@ -185,19 +187,16 @@ export function openUploadDialog(
 			setFile( prefilled );
 		}
 
-		const setBusy = ( busy: boolean ): void => {
+		let restoreBusy: ( () => void ) | null = null;
+		const setUploading = ( busy: boolean ): void => {
 			uploading = busy;
-			for ( const btn of [ submitBtn, cancelBtn ] ) {
-				if ( busy ) {
-					btn.setAttribute( 'disabled', '' );
-				} else {
-					btn.removeAttribute( 'disabled' );
-				}
-			}
 			if ( busy ) {
-				submitBtn.setAttribute( 'busy', '' );
+				restoreBusy = setBusy( submitBtn );
+				cancelBtn.setAttribute( 'disabled', '' );
 			} else {
-				submitBtn.removeAttribute( 'busy' );
+				restoreBusy?.();
+				restoreBusy = null;
+				cancelBtn.removeAttribute( 'disabled' );
 			}
 		};
 
@@ -205,7 +204,7 @@ export function openUploadDialog(
 			if ( ! pickedFile ) {
 				return;
 			}
-			setBusy( true );
+			setUploading( true );
 			showStatus(
 				overwrite
 					? __( 'Replacing existing plugin…', 'desktop-mode' )
@@ -219,12 +218,12 @@ export function openUploadDialog(
 				// keep the dock in sync in case the plugin registers a menu.
 				void host.refresh();
 				host.broadcastChange( { plugin: result.plugin_file, action: 'install' } );
-				void host.rest.refreshFrameworkMenu();
+				host.refreshMenu();
 				showSuccessPanel( result );
 			} catch ( err ) {
 				const errStatus = ( err as Error & { status?: number } ).status;
 				const errCode = ( err as Error & { code?: string } ).code;
-				setBusy( false );
+				setUploading( false );
 				if ( ! overwrite && ( errStatus === 409 || errCode === 'folder_exists' ) ) {
 					showStatus( __( 'A plugin with the same folder name is already installed.', 'desktop-mode' ), 'info' );
 					const ok = await host.confirm( {
@@ -298,8 +297,7 @@ export function openUploadDialog(
 					return;
 				}
 				uploading = true;
-				activateBtn.setAttribute( 'busy', '' );
-				activateBtn.setAttribute( 'disabled', '' );
+				const restore = setBusy( activateBtn );
 				closeBtn.setAttribute( 'disabled', '' );
 				// The app action keys off the extensionless path, as Core's
 				// REST controller spells it; the upload handler returned
@@ -315,8 +313,7 @@ export function openUploadDialog(
 					uploading = false;
 					closeBtn.removeAttribute( 'disabled' );
 					if ( ! ok ) {
-						activateBtn.removeAttribute( 'busy' );
-						activateBtn.removeAttribute( 'disabled' );
+						restore();
 						return;
 					}
 					// Read confirmation and dismiss on your own schedule —

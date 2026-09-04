@@ -1,7 +1,7 @@
 /**
  * Comments — the client half: the pure helpers and renders of the
  * view into jsdom (tabs and counts, the rail, the scope banner, the
- * conversation, the composer, the phone pane stamp).
+ * conversation, the composer, the phone pane stamp, the live region).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockViewContext, renderedText } from '../../src/app-runtime/testing';
@@ -9,6 +9,8 @@ import app, {
 	buildTree,
 	freshUi,
 	normalizeStatus,
+	pickAvatarUrl,
+	plainText,
 	snippet,
 	statusLabel,
 	statusTone,
@@ -32,15 +34,20 @@ function row( over: Partial< CommentRow > = {} ): CommentRow {
 		openstation_post_title: 'A post &amp; more',
 		openstation_post_link: 'https://example.test/a-post',
 		openstation_can_edit: true,
-		openstation_can_moderate: true,
 		openstation_replies_count: 0,
 		...over,
 	};
 }
 
+type Rail = NonNullable< AppData[ 'rail' ] >;
+
+function envelope( items: CommentRow[], over: Partial< Rail > = {} ): Rail {
+	return { items, total: items.length, pages: 1, page: 1, perPage: 20, error: '', code: '', ...over };
+}
+
 function data( over: Partial< AppData > = {}, items: CommentRow[] = [ row() ] ): AppData {
 	return {
-		rail: { items, total: items.length, pages: 1, page: 1, perPage: 20, error: '' },
+		rail: envelope( items ),
 		railKey: 'pending|||0',
 		thread: null,
 		counts: { pending: 3, approved: 5, spam: 1, trash: 2, total: 11 },
@@ -48,23 +55,31 @@ function data( over: Partial< AppData > = {}, items: CommentRow[] = [ row() ] ):
 	};
 }
 
-function mount(
-	state: Partial< AppState > = {},
-	payload: AppData = data(),
-	extra: Record< string, unknown > = { canModerate: true, currentUserId: 7 },
-) {
+const thread = ( rows: CommentRow[], truncated = false ): AppData[ 'thread' ] => ( { rows, truncated } );
+
+const EXTRA = { canModerate: true, canEditComments: true, currentUserId: 7 };
+
+function mount( state: Partial< AppState > = {}, payload: AppData = data(), extra: Record< string, unknown > = EXTRA ) {
 	const root = document.createElement( 'div' );
 	document.body.appendChild( root );
 	const ctx = mockViewContext< AppState, AppData >( {
-		state: { tab: 'pending', search: '', page: 1, perPage: 20, post: 0, selected: 0, gen: 0, ...state },
+		state: { tab: 'pending', search: '', page: 1, post: 0, selected: 0, gen: 0, ...state },
 		data: payload,
 		root,
 		extra,
+		windowId: 'desktop-mode-comments',
 	} );
 	ctx.repaint = () => app.render( ctx );
 	ctx.dispatch = vi.fn( async () => true );
 	app.render( ctx );
 	return { root, ctx, ui: ctx.ui( freshUi ) as UiState };
+}
+
+/** Re-render with a new payload, the way a dispatch response would. */
+function respond( ctx: ReturnType< typeof mount >[ 'ctx' ], payload: AppData, state: Partial< AppState > = {} ): void {
+	( ctx as unknown as { data: AppData; state: AppState } ).data = payload;
+	( ctx as unknown as { state: AppState } ).state = { ...ctx.state, ...state };
+	app.render( ctx );
 }
 
 beforeEach( () => {
@@ -73,6 +88,7 @@ beforeEach( () => {
 
 afterEach( () => {
 	vi.restoreAllMocks();
+	vi.useRealTimers();
 } );
 
 describe( 'helpers', () => {
@@ -86,8 +102,17 @@ describe( 'helpers', () => {
 		expect( statusTone( 'spam' ) ).toBe( 'danger' );
 	} );
 
-	it( 'flattens a comment body into a one-line snippet', () => {
+	it( 'reads a body as plain text — raw when the row carries it, the rendered markup stripped otherwise', () => {
+		expect( plainText( row( { content: { raw: 'Raw & <b>kept</b>', rendered: '<p>x</p>' } } ) ) ).toBe( 'Raw & <b>kept</b>' );
+		expect( plainText( row( { content: { rendered: '<p>Hello\n  <b>there</b> &amp; you</p>' } } ) ) ).toContain( 'Hello' );
 		expect( snippet( row( { content: { rendered: '<p>Hello\n  <b>there</b> &amp; you</p>' } } ) ) ).toBe( 'Hello there & you' );
+	} );
+
+	it( 'picks the 48px avatar, then 96, then 24', () => {
+		expect( pickAvatarUrl( { 24: 's', 48: 'm', 96: 'l' } ) ).toBe( 'm' );
+		expect( pickAvatarUrl( { 24: 's', 96: 'l' } ) ).toBe( 'l' );
+		expect( pickAvatarUrl( { 24: 's' } ) ).toBe( 's' );
+		expect( pickAvatarUrl( undefined ) ).toBe( '' );
 	} );
 
 	it( 'groups thread rows by parent', () => {
@@ -139,12 +164,21 @@ describe( 'rail', () => {
 		expect( root.querySelector( '.os-comments__search os-text-field' )?.getAttribute( 'os-action' ) ).toBe( 'filter' );
 	} );
 
+	it( 'escapes what a commenter wrote: names and post titles render as text', () => {
+		const hostile = row( { author_name: '<script>alert(1)</script>', openstation_post_title: '<img src=x onerror=alert(2)>' } );
+		const { root } = mount( { selected: 1 }, data( { thread: thread( [ hostile ] ) }, [ hostile ] ) );
+		expect( root.querySelector( 'script' ) ).toBeNull();
+		expect( root.querySelector( 'img' ) ).toBeNull();
+		expect( renderedText( root.querySelector( '.os-comments__thread-name' )! ) ).toContain( '<script>alert(1)</script>' );
+		expect( renderedText( root.querySelector( '.os-comments__convo-post' )! ) ).toContain( '<img src=x onerror=alert(2)>' );
+	} );
+
 	it( 'a click selects the conversation and shows the pane; re-picking the open one is local', () => {
 		const { root, ctx, ui } = mount( {}, data( {}, [ row(), row( { id: 2 } ) ] ) );
 		( root.querySelectorAll( '.os-comments__thread' )[ 1 ] as HTMLElement ).click();
 		expect( ctx.dispatch ).toHaveBeenCalledWith( 'select', { id: 2 } );
 		expect( ui.pane ).toBe( 'convo' );
-		const open = mount( { selected: 1 }, data( { thread: [ row() ] } ) );
+		const open = mount( { selected: 1 }, data( { thread: thread( [ row() ] ) } ) );
 		( open.root.querySelector( '.os-comments__thread' ) as HTMLElement ).click();
 		expect( open.ctx.dispatch ).not.toHaveBeenCalled();
 	} );
@@ -154,7 +188,7 @@ describe( 'rail', () => {
 			root.querySelector( '.os-comments__list os-empty-state' )?.getAttribute( 'heading' ) ?? '';
 		expect( heading( mount( {}, data( {}, [] ) ).root ) ).toBe( 'No conversations yet' );
 		expect( heading( mount( { post: 10 }, data( {}, [] ) ).root ) ).toBe( 'Nothing on this post here' );
-		const failed = mount( {}, data( { rail: { items: [], total: 0, pages: 1, page: 1, perPage: 20, error: 'nope' } }, [] ) );
+		const failed = mount( {}, data( { rail: envelope( [], { error: 'nope', code: 'rest_forbidden' } ) }, [] ) );
 		expect( heading( failed.root ) ).toBe( 'Could not load comments' );
 		expect( failed.root.querySelector( '.os-comments__rail-filter' ) ).toBeNull();
 	} );
@@ -167,17 +201,23 @@ describe( 'rail', () => {
 		expect( ctx.dispatch ).toHaveBeenCalledWith( 'filter', { post: 0 } );
 	} );
 
-	it( 'offers Load more only while the server reports another page, and accumulates pages', () => {
-		const page1 = data( { rail: { items: [ row( { id: 1 } ) ], total: 2, pages: 2, page: 1, perPage: 1, error: '' } } );
+	it( 'offers Load more only while the server reports another page, asks for the page after the state’s, and accumulates', () => {
+		const page1 = data( { rail: envelope( [ row( { id: 1 } ) ], { total: 2, pages: 2, perPage: 1 } ) } );
 		const { root, ctx } = mount( {}, page1 );
 		const more = root.querySelector( '.os-comments__load-more os-button' ) as HTMLElement;
 		expect( more ).not.toBeNull();
 		more.click();
 		expect( ctx.dispatch ).toHaveBeenCalledWith( 'page', { page: 2 } );
-		( ctx as unknown as { data: AppData } ).data = data( { rail: { items: [ row( { id: 2 } ) ], total: 2, pages: 2, page: 2, perPage: 1, error: '' } } );
-		app.render( ctx );
+		respond( ctx, data( { rail: envelope( [ row( { id: 2 } ) ], { total: 2, pages: 2, page: 2, perPage: 1 } ) } ), { page: 2 } );
 		expect( root.querySelectorAll( '.os-comments__thread' ) ).toHaveLength( 2 );
 		expect( root.querySelector( '.os-comments__load-more' ) ).toBeNull();
+	} );
+
+	it( 'a response without a rail keeps the accumulated rows on screen', () => {
+		const { root, ctx } = mount( {}, data( {}, [ row( { id: 1 } ), row( { id: 2 } ) ] ) );
+		respond( ctx, { counts: data().counts, thread: thread( [ row( { id: 2 } ) ] ) }, { selected: 2 } );
+		expect( root.querySelectorAll( '.os-comments__thread' ) ).toHaveLength( 2 );
+		expect( root.querySelector( '.os-comments__convo .os-comments__msg' )?.getAttribute( 'data-id' ) ).toBe( '2' );
 	} );
 } );
 
@@ -189,11 +229,11 @@ describe( 'conversation', () => {
 	} );
 
 	it( 'paints the head, the nested thread, the status chips and the composer', () => {
-		const thread = [
+		const rows = [
 			row( { id: 1, status: 'approve' } ),
 			row( { id: 2, parent: 1, author: 7, author_name: 'Me', status: 'hold', content: { rendered: '<p>A reply</p>' } } ),
 		];
-		const { root } = mount( { selected: 1 }, data( { thread } ) );
+		const { root } = mount( { selected: 1 }, data( { thread: thread( rows ) } ) );
 		expect( renderedText( root.querySelector( '.os-comments__convo-kicker' )! ) ).toBe( 'In response to' );
 		const link = root.querySelector< HTMLAnchorElement >( 'a.os-comments__convo-post--editable' )!;
 		expect( link.getAttribute( 'href' ) ).toContain( 'post.php?post=10&action=edit' );
@@ -208,16 +248,42 @@ describe( 'conversation', () => {
 		const actions = Array.from( root.querySelectorAll( '.os-comments__msg[data-id="1"] > .os-comments__msg-body > .os-comments__msg-actions os-button' ) ).map( ( b ) => b.textContent?.trim() );
 		expect( actions ).toEqual( [ 'Unapprove', 'Reply', 'Edit', 'Spam', 'Trash' ] );
 		expect( renderedText( root.querySelector( '.os-comments__composer-to' )! ) ).toContain( 'Alice' );
+		expect( root.querySelector( '.os-comments__truncated' ) ).toBeNull();
 	} );
 
-	it( 'hides the composer for a viewer who cannot moderate, and the moderation verbs the row denies', () => {
-		const { root } = mount( { selected: 1 }, data( { thread: [ row( { openstation_can_moderate: false, openstation_can_edit: false } ) ] } ), { canModerate: false } );
+	it( 'a thread the server cut off says so', () => {
+		const { root } = mount( { selected: 1 }, data( { thread: thread( [ row() ], true ) } ) );
+		expect( root.querySelector( '.os-comments__truncated' ) ).not.toBeNull();
+	} );
+
+	it( 'a thread that failed to load paints the root alone', () => {
+		const { root } = mount( { selected: 1 }, data( { thread: null } ) );
+		expect( root.querySelectorAll( '.os-comments__msg' ) ).toHaveLength( 1 );
+	} );
+
+	it( 'an author who may reply but not moderate gets Reply and the composer, and no moderation verbs', () => {
+		const { root } = mount(
+			{ selected: 1 },
+			data( { thread: thread( [ row( { openstation_can_edit: false } ) ] ) } ),
+			{ canModerate: false, canEditComments: true },
+		);
+		const actions = Array.from( root.querySelectorAll( '.os-comments__msg-actions os-button' ) ).map( ( b ) => b.textContent?.trim() );
+		expect( actions ).toEqual( [ 'Reply' ] );
+		expect( root.querySelector( '.os-comments__composer' )?.classList.contains( 'is-empty' ) ).toBe( false );
+	} );
+
+	it( 'hides the composer and every verb for a viewer who can neither reply nor moderate', () => {
+		const { root } = mount(
+			{ selected: 1 },
+			data( { thread: thread( [ row( { openstation_can_edit: false } ) ] ) } ),
+			{ canModerate: false, canEditComments: false },
+		);
 		expect( root.querySelector( '.os-comments__composer' )?.classList.contains( 'is-empty' ) ).toBe( true );
 		expect( root.querySelectorAll( '.os-comments__msg-actions os-button' ) ).toHaveLength( 0 );
 	} );
 
 	it( 'a moderation verb dispatches with the row id; spam and trash ask first', () => {
-		const { root, ctx } = mount( { selected: 1 }, data( { thread: [ row() ] } ) );
+		const { root, ctx } = mount( { selected: 1 }, data( { thread: thread( [ row() ] ) } ) );
 		const buttons = Array.from( root.querySelectorAll< HTMLElement >( '.os-comments__msg-actions os-button' ) );
 		buttons[ 0 ].click();
 		expect( ctx.dispatch ).toHaveBeenCalledWith( 'moderate', { ids: [ 1 ], action: 'approve' }, { confirm: null } );
@@ -230,8 +296,8 @@ describe( 'conversation', () => {
 	} );
 
 	it( 'Reply retargets the composer; Send dispatches the draft and Enter sends too', async () => {
-		const thread = [ row( { id: 1 } ), row( { id: 2, parent: 1, author_name: 'Bob' } ) ];
-		const { root, ctx, ui } = mount( { selected: 1 }, data( { thread } ) );
+		const rows = [ row( { id: 1 } ), row( { id: 2, parent: 1, author_name: 'Bob' } ) ];
+		const { root, ctx, ui } = mount( { selected: 1 }, data( { thread: thread( rows ) } ) );
 		const replyButtons = Array.from( root.querySelectorAll< HTMLElement >( '.os-comments__msg[data-id="2"] .os-comments__msg-actions os-button' ) );
 		replyButtons[ 1 ].click();
 		expect( ui.replyTo ).toBe( 2 );
@@ -249,7 +315,7 @@ describe( 'conversation', () => {
 	} );
 
 	it( 'an empty reply is a toast, not a request', () => {
-		const { root, ctx } = mount( { selected: 1 }, data( { thread: [ row() ] } ) );
+		const { root, ctx } = mount( { selected: 1 }, data( { thread: thread( [ row() ] ) } ) );
 		const toast = vi.fn();
 		ctx.host.toast = toast;
 		( root.querySelector( '.os-comments__composer-row os-button' ) as HTMLElement ).click();
@@ -258,7 +324,7 @@ describe( 'conversation', () => {
 	} );
 
 	it( 'Edit opens the inline editor seeded with the text, Cancel closes it, Save dispatches', async () => {
-		const { root, ctx, ui } = mount( { selected: 1 }, data( { thread: [ row( { content: { raw: 'Raw text', rendered: '<p>Raw text</p>' } } ) ] } ) );
+		const { root, ctx, ui } = mount( { selected: 1 }, data( { thread: thread( [ row( { content: { raw: 'Raw text', rendered: '<p>Raw text</p>' } } ) ] ) } ) );
 		const edit = Array.from( root.querySelectorAll< HTMLElement >( '.os-comments__msg-actions os-button' ) )[ 2 ];
 		edit.click();
 		expect( ui.editing ).toBe( 1 );
@@ -281,18 +347,40 @@ describe( 'conversation', () => {
 		expect( ctx.dispatch ).toHaveBeenCalledWith( 'edit', { id: 1, content: 'Edited' } );
 	} );
 
-	it( 'a change of conversation resets the composer', () => {
-		const { ctx, ui } = mount( { selected: 1 }, data( { thread: [ row() ] }, [ row(), row( { id: 2 } ) ] ) );
+	it( 'a change of conversation resets the composer AND clears its field', () => {
+		const { root, ctx, ui } = mount( { selected: 1 }, data( { thread: thread( [ row() ] ) }, [ row(), row( { id: 2 } ) ] ) );
+		const clear = vi.fn();
+		( root.querySelector( '.os-comments__composer .os-comments__reply-input' ) as HTMLElement & { clear?: () => void } ).clear = clear;
 		ui.draft = 'half-written';
 		ui.replyTo = 1;
-		( ctx as unknown as { state: AppState } ).state = { ...ctx.state, selected: 2 };
-		app.render( ctx );
+		respond( ctx, data( { thread: thread( [ row( { id: 2 } ) ] ) }, [ row(), row( { id: 2 } ) ] ), { selected: 2 } );
 		expect( ui.draft ).toBe( '' );
 		expect( ui.replyTo ).toBe( 0 );
+		expect( clear ).toHaveBeenCalledTimes( 1 );
+		// A repaint on the same conversation leaves the field alone.
+		app.render( ctx );
+		expect( clear ).toHaveBeenCalledTimes( 1 );
+	} );
+
+	it( 'keeps only the bodies of the thread on screen', () => {
+		const { ctx, ui } = mount( { selected: 1 }, data( { thread: thread( [ row( { id: 1 } ), row( { id: 2, parent: 1 } ) ] ) } ) );
+		expect( Array.from( ui.bodies.keys() ) ).toEqual( [ 1, 2 ] );
+		respond( ctx, data( { thread: thread( [ row( { id: 3 } ) ] ) }, [ row( { id: 3 } ) ] ), { selected: 3 } );
+		expect( Array.from( ui.bodies.keys() ) ).toEqual( [ 3 ] );
+	} );
+
+	it( 'rebuilds the tree only when the rows change', () => {
+		const rows = [ row( { id: 1 } ), row( { id: 2, parent: 1 } ) ];
+		const { ctx, ui } = mount( { selected: 1 }, data( { thread: thread( rows ) } ) );
+		const built = ui.tree.byParent;
+		ctx.repaint();
+		expect( ui.tree.byParent ).toBe( built );
+		respond( ctx, data( { thread: thread( [ row( { id: 1 } ) ] ) } ) );
+		expect( ui.tree.byParent ).not.toBe( built );
 	} );
 
 	it( 'Back returns a narrow window to the rail', () => {
-		const { root, ctx, ui } = mount( { selected: 1 }, data( { thread: [ row() ] } ) );
+		const { root, ctx, ui } = mount( { selected: 1 }, data( { thread: thread( [ row() ] ) } ) );
 		ui.pane = 'convo';
 		ctx.repaint();
 		expect( root.querySelector( '[data-os-comments-root]' )?.getAttribute( 'data-os-comments-pane' ) ).toBe( 'convo' );
@@ -302,34 +390,48 @@ describe( 'conversation', () => {
 	} );
 } );
 
+describe( 'avatars', () => {
+	it( 'a reused avatar node re-probes when its address changes', () => {
+		const { root, ctx } = mount( { selected: 1 }, data( {}, [ row( { id: 1, author_avatar_urls: { 48: 'https://a.test/1' } } ) ] ) );
+		const disc = root.querySelector( '.os-comments__thread os-avatar' )!;
+		expect( disc.getAttribute( 'data-avatar-applied' ) ).toBe( 'https://a.test/1' );
+		respond( ctx, data( {}, [ row( { id: 2, author_avatar_urls: { 48: 'https://a.test/2' } } ) ] ), { selected: 2 } );
+		const again = root.querySelector( '.os-comments__thread os-avatar' )!;
+		expect( again.getAttribute( 'data-avatar-src' ) ).toBe( 'https://a.test/2' );
+		expect( again.getAttribute( 'data-avatar-applied' ) ).toBe( 'https://a.test/2' );
+	} );
+} );
+
 describe( 'live region and identity', () => {
-	it( 'the status node is the single polite live region', () => {
-		const { root } = mount();
+	it( 'the status node is the single polite live region, and it re-announces the same sentence', async () => {
+		vi.useFakeTimers();
+		const { root, ctx, ui } = mount( { selected: 1 }, data( { thread: thread( [ row() ] ) } ) );
 		const status = root.querySelector( '[data-os-comments-status]' )!;
 		expect( status.getAttribute( 'role' ) ).toBe( 'status' );
 		expect( status.getAttribute( 'aria-live' ) ).toBe( 'polite' );
+		expect( status.classList.contains( 'os-comments__live' ) ).toBe( true );
+
+		const approve = root.querySelector< HTMLElement >( '.os-comments__msg-actions os-button' )!;
+		approve.click();
+		await Promise.resolve();
+		await Promise.resolve();
+		// Cleared first…
+		expect( ui.status ).toBe( '' );
+		vi.runAllTimers();
+		// …then set on the next tick, so a second identical outcome is a DOM change too.
+		expect( ui.status ).toBe( 'Comment approved.' );
+		expect( status.textContent ).toBe( 'Comment approved.' );
+		expect( ctx.dispatch ).toHaveBeenCalledTimes( 1 );
 	} );
 
 	it( 'a post scope announces the identity to the relations engine once, and a cleared scope clears it', () => {
 		const set = vi.fn();
 		( window as unknown as { wp?: unknown } ).wp = { os: { relations: { set } } };
-		const win = document.createElement( 'div' );
-		win.id = 'wp-window-desktop-mode-comments';
-		document.body.appendChild( win );
-		const root = document.createElement( 'div' );
-		win.appendChild( root );
-		const ctx = mockViewContext< AppState, AppData >( {
-			state: { tab: 'all', search: '', page: 1, perPage: 20, post: 10, selected: 0, gen: 0 },
-			data: data(),
-			root,
-			extra: {},
-		} );
-		app.render( ctx );
+		const { ctx } = mount( { tab: 'all', post: 10 } );
 		app.render( ctx );
 		expect( set ).toHaveBeenCalledTimes( 1 );
 		expect( set ).toHaveBeenCalledWith( 'desktop-mode-comments', expect.objectContaining( { type: 'comment', id: 10, label: 'A post & more' } ) );
-		( ctx as unknown as { state: AppState } ).state = { ...ctx.state, post: 0 };
-		app.render( ctx );
+		respond( ctx, data(), { post: 0 } );
 		expect( set ).toHaveBeenLastCalledWith( 'desktop-mode-comments', null );
 		delete ( window as unknown as { wp?: unknown } ).wp;
 	} );

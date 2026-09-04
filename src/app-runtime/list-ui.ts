@@ -16,8 +16,8 @@
  *   - {@link statusControl} writes `os-bind` (the status key) and
  *     `os-action` (the action that resets to page 1 and re-queries).
  *   - {@link pager} dispatches `os-action="<pageAction>"` with
- *     `os-arg-page` for Previous / Next, and binds the per-page select
- *     to a state key with the same re-query action.
+ *     `os-arg-page` for Previous / Next, and binds the per-page
+ *     `<os-select>` to a state key with the same re-query action.
  *   - {@link mountMenuCheckboxes} is imperative: the ⋯ menu belongs
  *     to the window chrome, outside the app's mount root.
  *
@@ -147,13 +147,14 @@ export function pager( opts: PagerOptions ): TemplateResult {
 			</os-button>
 			<label class="os-app-list__pager-perpage">
 				${ opts.labels.perPage }
-				<select
+				<os-select
 					os-bind=${ opts.perPageBind ?? 'perPage' }
 					os-action=${ opts.perPageAction ?? 'filter' }
-					.value=${ String( perPage ) }
+					value=${ String( perPage ) }
+					aria-label=${ opts.labels.perPage }
 				>${ options.map(
-					( n ) => html`<option value=${ n } ?selected=${ n === perPage }>${ n }</option>`,
-				) }</select>
+					( n ) => html`<os-option value=${ n }>${ n }</os-option>`,
+				) }</os-select>
 			</label>
 		</div>
 	</footer>`;

@@ -52,8 +52,13 @@ declare -a HANDLE_MAP=(
 	"apps/trash/=openstation-app-desktop-mode-recycle-bin-client"
 	"apps/my-wordpress/=openstation-app-my-wordpress-client"
 	"apps/code-blue/=openstation-app-openstation-code-blue-client"
+	# A prefix may name several handles (comma-separated) when more than
+	# one bundle compiles the same source: the Posts parts ride the Pages
+	# bundle too, and the profile parts ship as their own companion.
+	"apps/posts/parts/=openstation-app-desktop-mode-posts-client,openstation-app-desktop-mode-pages-client"
 	"apps/posts/=openstation-app-desktop-mode-posts-client"
 	"apps/pages/=openstation-app-desktop-mode-pages-client"
+	"apps/users/profile/=openstation-user-profile"
 	"apps/users/=openstation-app-desktop-mode-users-client"
 	"apps/user-edit/=openstation-app-desktop-mode-user-edit-client"
 	"apps/plugins/=openstation-app-desktop-mode-plugins-client"
@@ -94,15 +99,20 @@ for po in "${po_files[@]}"; do
 	previous_prefixes=""
 	for entry in "${HANDLE_MAP[@]}"; do
 		prefix="${entry%%=*}"
-		handle="${entry#*=}"
+		handles="${entry#*=}"
 
-		HANDLE_MAP_PREFIX="$prefix" \
-		HANDLE_OUT_FILE="$LANG_DIR/${DOMAIN}-${locale}-${handle}.json" \
-		HANDLE_SOURCES_DIR="$out_dir" \
-		HANDLE_LOCALE="$locale" \
-		HANDLE_DOMAIN="$DOMAIN" \
-		HANDLE_EXCLUDE_PREFIXES="$previous_prefixes" \
-			php "$PLUGIN_DIR/bin/build-i18n-merge.php"
+		# One JSON per handle the prefix names; the same sources land in
+		# each, so every bundle that compiles them has its strings.
+		IFS=',' read -r -a handle_list <<< "$handles"
+		for handle in "${handle_list[@]}"; do
+			HANDLE_MAP_PREFIX="$prefix" \
+			HANDLE_OUT_FILE="$LANG_DIR/${DOMAIN}-${locale}-${handle}.json" \
+			HANDLE_SOURCES_DIR="$out_dir" \
+			HANDLE_LOCALE="$locale" \
+			HANDLE_DOMAIN="$DOMAIN" \
+			HANDLE_EXCLUDE_PREFIXES="$previous_prefixes" \
+				php "$PLUGIN_DIR/bin/build-i18n-merge.php"
+		done
 
 		previous_prefixes="${previous_prefixes}${prefix}"$'\n'
 	done

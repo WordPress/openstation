@@ -2,8 +2,7 @@
 /**
  * Posts app — the taxonomy surface the Categories and Tags canvases
  * read: the `openstation_count` / `openstation_is_default` REST fields
- * on category and post_tag, the tags AND-match switch on
- * `rest_post_query`, the shared terms cache version, and the
+ * on category and post_tag, the shared terms cache version, and the
  * `/desktop-mode/v1/term-counts` and `/tag-cooccurrence` routes.
  *
  * Plain PHP part of `apps/posts/posts.os.php`, pulled in with
@@ -16,42 +15,14 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Switch the post-tag tax_query operator from the WP REST default `IN`
- * (any-of, OR) to `AND` (every-of, intersection) when the Posts window
- * client opts in via the `openstation_tags_match=all` URL flag.
+ * The permission callback both routes share: the surface is the Posts
+ * window's, so it opens to whoever can edit posts.
  *
- * The flag is sent only when more than one tag is selected — single-
- * tag queries are unaffected because AND with one term is identical
- * to IN. The filter is scoped to GET `/wp/v2/posts`-style queries so
- * other endpoints' tax_query semantics aren't touched.
- *
- * @param array           $args    `WP_Query` args after the REST controller
- *                                 prepared them.
- * @param WP_REST_Request $request Active REST request.
- * @return array Possibly-mutated args.
+ * @return bool
  */
-function openstation_posts_window_tags_and_filter( $args, $request ) {
-	if ( ! ( $request instanceof WP_REST_Request ) ) {
-		return $args;
-	}
-	$flag = $request->get_param( 'openstation_tags_match' );
-	if ( 'all' !== $flag ) {
-		return $args;
-	}
-	if ( empty( $args['tax_query'] ) || ! is_array( $args['tax_query'] ) ) {
-		return $args;
-	}
-	foreach ( $args['tax_query'] as $key => $clause ) {
-		if ( ! is_array( $clause ) ) {
-			continue;
-		}
-		if ( isset( $clause['taxonomy'] ) && 'post_tag' === $clause['taxonomy'] ) {
-			$args['tax_query'][ $key ]['operator'] = 'AND';
-		}
-	}
-	return $args;
+function openstation_posts_window_rest_permission() {
+	return current_user_can( 'edit_posts' );
 }
-add_filter( 'rest_post_query', 'openstation_posts_window_tags_and_filter', 10, 2 );
 
 /**
  * Surface a "non-trashed posts" count alongside core's `count` field
@@ -192,9 +163,7 @@ function openstation_posts_window_register_term_counts_route() {
 		array(
 			'methods'             => 'GET',
 			'callback'            => 'openstation_posts_window_term_counts_callback',
-			'permission_callback' => function () {
-				return current_user_can( 'edit_posts' );
-			},
+			'permission_callback' => 'openstation_posts_window_rest_permission',
 			'args'                => array(
 				'taxonomy' => array(
 					'required'          => true,
@@ -334,9 +303,7 @@ function openstation_posts_window_register_tag_cooccurrence_route() {
 		array(
 			'methods'             => 'GET',
 			'callback'            => 'openstation_posts_window_tag_cooccurrence_callback',
-			'permission_callback' => function () {
-				return current_user_can( 'edit_posts' );
-			},
+			'permission_callback' => 'openstation_posts_window_rest_permission',
 			'args'                => array(
 				'taxonomy' => array(
 					'required'          => false,

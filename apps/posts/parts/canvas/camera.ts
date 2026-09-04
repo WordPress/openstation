@@ -9,7 +9,7 @@
  */
 
 import { workAreaInsetsOf } from '../../../../src/work-area';
-import type { PixiApp, PixiContainer, PixiNamespace, PixiPoint } from './pixi';
+import type { PixiApp, PixiContainer, PixiNamespace, PixiPoint, PixiPointerEvent } from './pixi';
 
 /** The keep-out ring the satellite posts deploy on. */
 export const POST_RING_RADIUS = 170;
@@ -47,8 +47,16 @@ export const createInteraction = (): Interaction => ( {
 
 /** Stop a Pixi pointer event and mark the interaction. */
 export function stopBubble( interaction: Interaction, e: unknown ): void {
-	( e as { stopPropagation?: () => void } ).stopPropagation?.();
+	( e as PixiPointerEvent ).stopPropagation?.();
 	interaction.pixiInteractionAt = performance.now();
+}
+
+/** How far a pointer travelled since a press — a tap stays under a few px. */
+export function pointerTravel( from: PixiPoint | null, ev?: PixiPointerEvent ): number {
+	if ( ! from || ! ev?.global ) {
+		return Infinity;
+	}
+	return Math.hypot( ev.global.x - from.x, ev.global.y - from.y );
 }
 
 /** Whether a DOM click on the canvas is a genuine "tap on empty space". */
@@ -216,7 +224,7 @@ export function watchStageSize(
 	pixi: PixiNamespace,
 	app: PixiApp,
 	stage: HTMLElement,
-	hooks: { onFirstFit: () => void; onSettle: () => void },
+	hooks: { onFirstFit: () => void; onSettle: () => void; onResize?: () => void },
 ): () => void {
 	let firstFitDone = false;
 	let settledW = 0;
@@ -250,6 +258,9 @@ export function watchStageSize(
 		// Render NOW so a continuous resize gesture never leaves the
 		// canvas blank between ticker frames.
 		app.render();
+		// The stage came back (a tab switched to, a window restored):
+		// the caller's loop may resume.
+		hooks.onResize?.();
 	};
 	const ro = new ResizeObserver( onResize );
 	ro.observe( stage );

@@ -24,11 +24,6 @@ export function morphChildren( parent: Element, html: string ): void {
 	morphChildList( parent, Array.from( template.content.childNodes ) );
 }
 
-/** Morph one live element against a detached target element. */
-export function morphElement( from: Element, to: Element ): void {
-	morphNode( from, to, from.ownerDocument.activeElement );
-}
-
 function keyOf( node: Node ): string | null {
 	if ( node.nodeType !== Node.ELEMENT_NODE ) {
 		return null;

@@ -83,14 +83,15 @@ describe( 'pager', () => {
 		expect( buttons[ 1 ].hasAttribute( 'disabled' ) ).toBe( true );
 	} );
 
-	test( 'the per-page select binds its state key, dispatches the re-query action and reflects the current size', () => {
+	test( 'the per-page picker binds its state key, dispatches the re-query action and reflects the current size', () => {
 		const host = document.createElement( 'div' );
 		render( pager( { page: 1, pages: 3, perPage: 50, summary: '', labels, perPageAction: 'requery' } ), host );
-		const select = host.querySelector< HTMLSelectElement >( 'select' );
+		const select = host.querySelector( 'os-select' );
 		expect( select?.getAttribute( 'os-bind' ) ).toBe( 'perPage' );
 		expect( select?.getAttribute( 'os-action' ) ).toBe( 'requery' );
-		expect( select?.value ).toBe( '50' );
-		expect( Array.from( select?.options ?? [] ).map( ( o ) => o.value ) ).toEqual( [ '10', '20', '50', '100' ] );
+		expect( select?.getAttribute( 'value' ) ).toBe( '50' );
+		expect( select?.getAttribute( 'aria-label' ) ).toBe( 'Per page' );
+		expect( Array.from( host.querySelectorAll( 'os-option' ) ).map( ( o ) => o.getAttribute( 'value' ) ) ).toEqual( [ '10', '20', '50', '100' ] );
 	} );
 } );
 

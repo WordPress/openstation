@@ -42,7 +42,6 @@ export interface PluginsExtra {
 		update: boolean;
 	};
 	autoUpdatesEnabled: boolean;
-	currentUserId: number;
 	/** OpenStation's own plugin path, without `.php`, as Core's REST controller spells it. */
 	selfPluginFile: string;
 	/** Root wp-admin URL — where a self-deactivate lands. */
@@ -53,6 +52,9 @@ export type Ctx = ViewContext< AppState, AppData >;
 
 export type PluginsTab = 'installed' | 'browse' | 'featured';
 
+/** Core's plugin statuses; `network-active` only exists on a network. */
+export type PluginStatus = 'active' | 'inactive' | 'network-active';
+
 /**
  * A row from Core's `/wp/v2/plugins` list, with our REST-field
  * decorators (`openstation_*`) attached. Optional fields may be absent
@@ -61,7 +63,7 @@ export type PluginsTab = 'installed' | 'browse' | 'featured';
 export interface InstalledPlugin {
 	/** Plugin file path relative to `wp-content/plugins/`, minus `.php`. The row id. */
 	plugin: string;
-	status: 'active' | 'inactive' | 'active-network';
+	status: PluginStatus;
 	name: string;
 	plugin_uri?: string;
 	author?: string;
@@ -108,7 +110,6 @@ export interface WpOrgBrowsePlugin {
 	name: string;
 	version: string;
 	author: string;
-	author_profile?: string;
 	homepage?: string;
 	short_description: string;
 	rating: number;
@@ -116,37 +117,25 @@ export interface WpOrgBrowsePlugin {
 	active_installs: number;
 	last_updated: string;
 	tested: string;
-	requires?: string;
 	requires_php?: string;
 	icons?: Record< string, string >;
-	banners?: Record< string, string >;
-	download_link?: string;
 }
 
-/** The `plugin_information` payload — sections, screenshots, ratings. */
+/** The `plugin_information` payload — sections, screenshots, ratings, banners. */
 export interface WpOrgPluginInfo extends WpOrgBrowsePlugin {
 	sections?: Record< string, string >;
 	screenshots?: Record< string, { src: string; caption: string } >;
 	ratings?: Record< string, number >;
-	contributors?: Record< string, { profile: string; avatar: string; display_name: string } >;
-	donate_link?: string;
+	banners?: Record< string, string >;
 }
 
 /** A Featured-tab card: a Browse row plus the curated flag. */
 export interface FeaturedPlugin extends WpOrgBrowsePlugin {
 	featured?: boolean;
-	requires_plugins?: string[];
 }
 
 /** Browse filters (the wp.org `browse` arg whitelist). */
-export type BrowseFilter =
-	| 'featured'
-	| 'popular'
-	| 'recommended'
-	| 'favorites'
-	| 'new'
-	| 'beta'
-	| 'updated';
+export type BrowseFilter = 'featured' | 'popular' | 'recommended' | 'favorites' | 'new' | 'beta';
 
 /** A review parsed from the wp.org plugin reviews page. */
 export interface PluginReview {
@@ -172,7 +161,6 @@ export interface UpdatePluginResult {
 	newVersion: string;
 	plugin: string;
 	pluginName: string;
-	debug?: string[];
 }
 
 /** Response of `wp_ajax_openstation_plugins_upload`. */
@@ -187,8 +175,9 @@ export interface UploadPluginResult {
 /**
  * Cross-window sync topic: emitted after every plugin mutation so
  * another surface (the chromeless bridge emits it too, from a
- * `plugins.php` iframe) can refresh. `source` lets the app skip its
- * own emissions — its mutations already returned fresh data.
+ * `plugins.php` iframe; the Heartbeat relay as `source: 'heartbeat'`)
+ * can refresh. `source` lets the app skip its own emissions — its
+ * mutations already returned fresh data.
  */
 export const PLUGINS_CHANGED_TOPIC = 'os.plugin.changed';
 export const PLUGINS_CHANGED_SOURCE = 'plugins-app';
@@ -196,20 +185,32 @@ export const PLUGINS_CHANGED_SOURCE = 'plugins-app';
 export interface PluginsChangedPayload {
 	source: string;
 	plugin?: string;
-	action?:
-		| 'activate'
-		| 'deactivate'
-		| 'delete'
-		| 'install'
-		| 'update'
-		| 'auto-update'
-		| 'bulk';
+	action?: 'activate' | 'deactivate' | 'delete' | 'install' | 'update' | 'auto-update' | 'bulk';
+	/** The Heartbeat relay's shape: `crc32( plugin file )` per plugin. */
+	ids?: number[];
+}
+
+/** The in-flight state the action buttons paint from — one bag per window. */
+export interface BusyState {
+	/** Rows in the update queue (enqueued or in flight) — the Update button disables. */
+	updating: Set< string >;
+	/** Rows whose auto-update toggle is in flight — the cell paints a spinner. */
+	autoUpdating: Set< string >;
+	/** Status painted before the server answers, keyed by plugin path. */
+	optimistic: Map< string, PluginStatus >;
+}
+
+/** What wp.org told this window already — per slug, for the window's life. */
+export interface WpOrgCaches {
+	info: Map< string, WpOrgPluginInfo >;
+	reviews: Map< string, PluginReviewsResponse >;
 }
 
 /**
  * What every part works against: the live config, the live installed
- * list, the admin-ajax client, and the framework's dispatch / toast /
- * confirm — built once per mounted view by `plugins.os.ts`.
+ * list, the admin-ajax client, the busy state and the wp.org caches,
+ * and the framework's dispatch / toast / confirm — built once per
+ * mounted view by `plugins.os.ts`.
  */
 export interface PluginsHost {
 	readonly extra: PluginsExtra;
@@ -217,6 +218,8 @@ export interface PluginsHost {
 	readonly installed: InstalledPlugin[];
 	readonly rest: PluginsRest;
 	readonly root: HTMLElement;
+	readonly busy: BusyState;
+	readonly caches: WpOrgCaches;
 	/** A server action (a round trip); resolves once its response was applied. */
 	dispatch: Ctx[ 'dispatch' ];
 	/** Re-read `data()` — after an admin-ajax mutation the server did not see. */
@@ -230,10 +233,17 @@ export interface PluginsHost {
 		cancelLabel?: string;
 		danger?: boolean;
 	} ) => Promise< boolean >;
+	/** Repaint the dock + taskbar after a mutation the server did not perform. */
+	refreshMenu: () => void;
 	/** The installed row matching a wp.org slug (text domain) or plugin path. */
 	installedFor: ( slug: string ) => InstalledPlugin | undefined;
-	/** Tell other surfaces a plugin changed (skips our own listener). */
-	broadcastChange: ( payload: Omit< PluginsChangedPayload, 'source' > ) => void;
+	/**
+	 * Tell other surfaces a plugin changed (skips our own listener), and
+	 * remember the plugins it touched (`payload.plugin`, plus `touched`
+	 * for a bulk run) so the Heartbeat relay of the same change is not
+	 * mistaken for an external one.
+	 */
+	broadcastChange: ( payload: Omit< PluginsChangedPayload, 'source' >, touched?: string[] ) => void;
 }
 
 /** The key a Browse / Featured card looks an installed row up by. */
@@ -245,7 +255,7 @@ export function indexKeyFor( plugin: InstalledPlugin ): string {
 }
 
 export function isActiveStatus( status: string | undefined ): boolean {
-	return status === 'active' || status === 'active-network';
+	return status === 'active' || status === 'network-active';
 }
 
 export function describeError( err: unknown ): string {
@@ -255,8 +265,26 @@ export function describeError( err: unknown ): string {
 	return String( err );
 }
 
-export function stripHtml( html: string ): string {
-	const tmp = document.createElement( 'div' );
-	tmp.innerHTML = html;
-	return tmp.textContent ?? '';
+/** The full file Core's transient and upgrader key on (`foo/foo.php`). */
+export function fullPluginFile( plugin: string ): string {
+	return plugin.endsWith( '.php' ) ? plugin : plugin + '.php';
+}
+
+/**
+ * The id the Heartbeat relay gives a plugin — `crc32()` of the plugin
+ * file, as `openstation_content_changes_plugin_id()` computes it — so a
+ * relayed `os.plugin.changed` can be matched to a plugin this window
+ * just mutated itself.
+ */
+export function pluginChangeId( pluginFile: string ): number {
+	/* eslint-disable no-bitwise -- CRC-32 is bit arithmetic; this mirrors PHP's crc32(). */
+	let crc = 0xffffffff;
+	for ( let i = 0; i < pluginFile.length; i++ ) {
+		crc ^= pluginFile.charCodeAt( i ) & 0xff;
+		for ( let bit = 0; bit < 8; bit++ ) {
+			crc = crc & 1 ? ( crc >>> 1 ) ^ 0xedb88320 : crc >>> 1;
+		}
+	}
+	return Math.max( 1, ( crc ^ 0xffffffff ) >>> 0 );
+	/* eslint-enable no-bitwise */
 }

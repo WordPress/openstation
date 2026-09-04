@@ -1,17 +1,19 @@
 /**
  * Plugins app — wp.org HTML, made safe.
  *
- * Part of the `desktop-mode-plugins` client view. wp.org returns
- * HTML strings (descriptions, changelogs, FAQs, screenshot captions);
- * the detail panel and the flyout both inject them, so one allow-list
- * serves both: scripts, iframes and event handlers stripped; headings,
- * paragraphs, lists, links, images and code kept; link and image URLs
- * must pass {@link isSafeUrl} or the attribute goes.
+ * Part of the `desktop-mode-plugins` client view. wp.org returns HTML
+ * strings (descriptions, changelogs, FAQs, screenshot captions, author
+ * bylines); the detail panel, the flyout and the cards all inject or
+ * read them, so one parser and one allow-list serve every surface.
+ * Markup is parsed with `DOMParser` — an inert document, so an `<img>`
+ * in a description never loads and an `onerror` never fires before
+ * the sanitiser has seen it — and only then walked: scripts, iframes
+ * and event handlers stripped; headings, paragraphs, lists, links,
+ * images and code kept; link and image URLs must pass {@link isSafeUrl}
+ * or the attribute goes.
  *
  * @public
  */
-
-import { __, sprintf } from '@openstation/app';
 
 const ALLOWED_TAGS = new Set( [
 	'A', 'ABBR', 'B', 'BLOCKQUOTE', 'BR', 'CODE', 'DD', 'DEL', 'DIV', 'DL', 'DT', 'EM',
@@ -23,6 +25,17 @@ const ALLOWED_TAGS = new Set( [
 const ALLOWED_ATTRS = new Set( [
 	'href', 'src', 'alt', 'title', 'name', 'rel', 'target', 'colspan', 'rowspan',
 ] );
+
+/** The `rel` every outbound wp.org link wears. */
+const LINK_REL = 'noopener noreferrer';
+
+/**
+ * Parse untrusted HTML into an INERT body — no image loads, no script
+ * runs — and hand back that body for walking.
+ */
+export function parseHtml( html: string ): HTMLElement {
+	return new DOMParser().parseFromString( `<body>${ html }</body>`, 'text/html' ).body;
+}
 
 /**
  * True when the URL carries no scheme (relative) or an allow-listed
@@ -44,80 +57,77 @@ export function isSafeUrl( raw: string ): boolean {
 
 /** The permissive allow-list. Disallowed elements collapse to their text. */
 export function sanitizeHtml( html: string ): string {
-	const wrap = document.createElement( 'div' );
-	wrap.innerHTML = html;
-	const walker = document.createTreeWalker( wrap, NodeFilter.SHOW_ELEMENT );
+	const body = parseHtml( html );
 	const toRemove: Element[] = [];
-	let current: Element | null = walker.currentNode as Element;
-	while ( current ) {
-		const next = walker.nextNode() as Element | null;
-		if ( current !== wrap ) {
-			if ( ! ALLOWED_TAGS.has( current.tagName ) ) {
-				toRemove.push( current );
-			} else {
-				for ( const attr of Array.from( current.attributes ) ) {
-					if ( ! ALLOWED_ATTRS.has( attr.name.toLowerCase() ) ) {
-						current.removeAttribute( attr.name );
-					}
-				}
-				for ( const urlAttr of [ 'href', 'src' ] ) {
-					const value = current.getAttribute( urlAttr ) ?? '';
-					if ( value && ! isSafeUrl( value ) ) {
-						current.removeAttribute( urlAttr );
-					}
-				}
+	for ( const el of Array.from( body.querySelectorAll( '*' ) ) ) {
+		if ( ! ALLOWED_TAGS.has( el.tagName ) ) {
+			toRemove.push( el );
+			continue;
+		}
+		for ( const attr of Array.from( el.attributes ) ) {
+			if ( ! ALLOWED_ATTRS.has( attr.name.toLowerCase() ) ) {
+				el.removeAttribute( attr.name );
 			}
 		}
-		current = next;
+		for ( const urlAttr of [ 'href', 'src' ] ) {
+			const value = el.getAttribute( urlAttr ) ?? '';
+			if ( value && ! isSafeUrl( value ) ) {
+				el.removeAttribute( urlAttr );
+			}
+		}
 	}
-	for ( const el of toRemove ) {
-		el.replaceWith( document.createTextNode( el.textContent ?? '' ) );
+	// Innermost first, so a disallowed element inside another keeps
+	// its text exactly once.
+	for ( const el of toRemove.reverse() ) {
+		el.replaceWith( body.ownerDocument.createTextNode( el.textContent ?? '' ) );
 	}
-	return wrap.innerHTML;
+	return body.innerHTML;
+}
+
+/** The text of an HTML string, tags dropped — parsed inert. */
+export function stripHtml( html: string ): string {
+	return html ? ( parseHtml( html ).textContent ?? '' ) : '';
+}
+
+/** Text made safe for an HTML slot. */
+export function escapeHtml( raw: string ): string {
+	return raw
+		.replace( /&/g, '&amp;' )
+		.replace( /</g, '&lt;' )
+		.replace( />/g, '&gt;' )
+		.replace( /"/g, '&quot;' );
+}
+
+/** A sanitised HTML block, its links opening in a new tab. */
+export function htmlBlock( html: string, className: string ): HTMLElement {
+	const wrap = document.createElement( 'div' );
+	wrap.className = className;
+	wrap.innerHTML = sanitizeHtml( html );
+	sanitizeLinks( wrap );
+	return wrap;
 }
 
 /** Every link opens in a new tab and never fires the table's row click. */
-export function sanitizeLinks( wrap: HTMLElement, rel = 'noopener noreferrer' ): void {
+export function sanitizeLinks( wrap: HTMLElement ): void {
 	wrap.querySelectorAll( 'a' ).forEach( ( a ) => {
 		a.setAttribute( 'target', '_blank' );
-		a.setAttribute( 'rel', rel );
+		a.setAttribute( 'rel', LINK_REL );
 		a.setAttribute( 'data-noclick', '' );
 	} );
 }
 
-/** A `YYYY-MM-DD…` string as the user's locale date; anything else verbatim. */
-export function humanDate( raw: string | undefined ): string {
-	if ( ! raw ) {
-		return '—';
+/** An `<a>` to an outside page, opening in a new tab. */
+export function externalLink( href: string, text: string, className = '' ): HTMLAnchorElement {
+	const a = document.createElement( 'a' );
+	a.href = href;
+	a.target = '_blank';
+	a.rel = LINK_REL;
+	a.textContent = text;
+	if ( className ) {
+		a.className = className;
 	}
-	const m = /^(\d{4})-(\d{2})-(\d{2})/.exec( raw );
-	if ( ! m ) {
-		return raw;
-	}
-	try {
-		return new Date( Date.UTC( +m[ 1 ], +m[ 2 ] - 1, +m[ 3 ] ) ).toLocaleDateString();
-	} catch {
-		return raw;
-	}
-}
-
-/** Kilobytes as "12 KB" / "1.4 MB"; `—` when unknown. */
-export function formatSize( kb: number | null | undefined ): string {
-	if ( kb === null || kb === undefined ) {
-		return '—';
-	}
-	if ( kb < 1024 ) {
-		return sprintf(
-			/* translators: %d: size in kilobytes */
-			__( '%d KB', 'desktop-mode' ),
-			kb,
-		);
-	}
-	return sprintf(
-		/* translators: %s: size in megabytes (one decimal) */
-		__( '%s MB', 'desktop-mode' ),
-		( kb / 1024 ).toFixed( 1 ),
-	);
+	a.setAttribute( 'data-noclick', '' );
+	return a;
 }
 
 /** An `<os-button>` that opens `href` in a new tab. */
@@ -130,7 +140,20 @@ export function linkButton( variant: string, label: string, href: string, size?:
 	btn.textContent = label;
 	btn.setAttribute( 'data-noclick', '' );
 	btn.addEventListener( 'click', () => {
-		window.open( href, '_blank', 'noopener,noreferrer' );
+		window.open( href, '_blank', LINK_REL.replace( ' ', ',' ) );
 	} );
 	return btn;
+}
+
+/** The placeholder glyph every icon slot paints when there is no art. */
+export function fallbackGlyph( className = '' ): HTMLElement {
+	const span = document.createElement( 'span' );
+	span.className = `dashicons dashicons-admin-plugins${ className ? ' ' + className : '' }`;
+	span.setAttribute( 'aria-hidden', 'true' );
+	return span;
+}
+
+/** The wp.org directory page of a slug. */
+export function wpOrgUrl( slug: string, hash = '' ): string {
+	return `https://wordpress.org/plugins/${ encodeURIComponent( slug ) }/${ hash }`;
 }

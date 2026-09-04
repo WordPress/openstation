@@ -133,16 +133,16 @@ function threadItem( ctx: Ctx, ui: UiState, row: CommentRow ): TemplateResult {
 	const pick = (): void => {
 		// The user asked for this one: on a narrow window that is the
 		// moment the list gives way to the conversation. Re-picking the
-		// conversation already on screen is a no-op — it used to throw
-		// away scroll position and a half-written reply.
+		// conversation already on screen is local — a request would
+		// throw away scroll position and a half-written reply.
 		ui.pane = 'convo';
-		if ( selected && ctx.data.thread ) {
+		if ( selected && ui.thread ) {
 			ctx.repaint();
 			return;
 		}
 		void ctx.dispatch( 'select', { id: row.id } );
 	};
-	const replies = row.openstation_replies_count;
+	const replies = row.openstation_replies_count ?? 0;
 	// `role="listitem"` lives on a wrapper: on the button it would
 	// override the button role and cost the row its keyboard semantics.
 	// `aria-current` (not `aria-selected`) is the signal for a list of
@@ -180,7 +180,7 @@ function loadMoreRow( ctx: Ctx, ui: UiState ): TemplateResult {
 	const more = (): void => {
 		ui.loadingMore = true;
 		ctx.repaint();
-		void ctx.dispatch( 'page', { page: ctx.data.rail.page + 1 } ).finally( () => {
+		void ctx.dispatch( 'page', { page: ctx.state.page + 1 } ).finally( () => {
 			ui.loadingMore = false;
 			ctx.repaint();
 		} );
@@ -190,12 +190,16 @@ function loadMoreRow( ctx: Ctx, ui: UiState ): TemplateResult {
 	</div>`;
 }
 
-/** The rail: search, scope banner, the conversations, Load more. */
-export function rail( ctx: Ctx, ui: UiState, rows: CommentRow[] ): TemplateResult {
-	const { state, data } = ctx;
+/**
+ * The rail: search, scope banner, the conversations, Load more.
+ * `error` is the last rail envelope's — a response that left the rail
+ * out (a `select`) neither raises nor clears it.
+ */
+export function rail( ctx: Ctx, ui: UiState, rows: CommentRow[], error: string ): TemplateResult {
+	const { state } = ctx;
 	const scoped = state.post > 0;
 	let body: TemplateResult | TemplateResult[];
-	if ( data.rail.error ) {
+	if ( error ) {
 		body = emptyState(
 			'warning',
 			__( 'Could not load comments' ),
@@ -227,9 +231,9 @@ export function rail( ctx: Ctx, ui: UiState, rows: CommentRow[] ): TemplateResul
 			></os-text-field>
 		</div>
 		<div class="${ NS }__list" role="list" aria-label=${ __( 'Conversations' ) } data-os-comments-list>
-			${ scoped && ! data.rail.error ? filterBanner( ctx, ui, rows ) : '' }
+			${ scoped && ! error ? filterBanner( ctx, ui, rows ) : '' }
 			${ body }
-			${ ! data.rail.error && rows.length > 0 && ui.list.hasMore() ? loadMoreRow( ctx, ui ) : '' }
+			${ ! error && rows.length > 0 && ui.list.hasMore() ? loadMoreRow( ctx, ui ) : '' }
 		</div>
 	</aside>`;
 }

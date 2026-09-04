@@ -4,48 +4,38 @@
  * `createPostsApp( id, options )` declares the whole list window as a
  * function of the state the `.os.php` declares and the page `data()`
  * returns: the toolbar (status control, search, bulk bar, plugin
- * extras, Refresh, Add New), the `<os-table>` fed through `updated()`,
- * the pager, and — for Posts — the in-body tabs that mount the
- * Categories mind map and the Tags cloud on first activation.
- *
- * What the framework absorbed from the legacy bundle: the REST list
- * fetch and its config blob (`data()` + `ctx.extra`), the pager and
- * status wiring (`os-bind` / `os-action` over `parts/query.php`), the
- * `os.post.changed` subscription (`watch`), the loading overlay, and
- * the teardown choreography.
+ * extras, Refresh, Add New), the `<os-table>` kept in step through
+ * `createListTableSync()`, the pager, and — for Posts — the in-body
+ * tabs that mount the Categories mind map and the Tags cloud on first
+ * activation.
  *
  * @public
  */
 
 import {
 	__,
+	createListTableSync,
 	defineApp,
 	html,
 	mountMenuCheckboxes,
 	pager,
 	sprintf,
 	statusControl,
+	type ListTableSync,
 	type MenuCheckboxes,
 	type TemplateResult,
-	type ViewContext,
 } from '@openstation/app';
+import type { ListTableLike } from '@openstation/app';
 import { isMobileStamped } from '../../../src/mode/stamp';
-import { stackOnPhone } from '../../../src/ui/components/os-table/stack-on-phone';
 import type { OsTable } from '../../../src/ui/components/os-table/os-table';
+import { buildSubRow } from './cells/basic';
+import { broadcastFreshCategoryTreeToPickers, clearCategoryTreeCache } from './cells/categories';
+import type { CellCache, CellEnv, CellRenderers } from './cells/env';
+import { refreshParentTitleRoster } from './cells/pages';
 import {
-	broadcastFreshCategoryTreeToPickers,
-	clearCategoryTreeCache,
-	refreshParentTitleRoster,
-	type CellCache,
-	type CellEnv,
-} from './cells';
-import {
-	HOOK_ACTION_DATA_LOADED,
 	HOOK_ACTION_OPENED,
-	REQUIRED_COLUMN_KEYS,
-	buildAllColumns,
-	buildBulkActionButton,
 	buildColumns,
+	columnLabels,
 	defaultBulkActions,
 	getHiddenColumns,
 	mapColumnToOrderby,
@@ -56,52 +46,52 @@ import {
 	type ColumnFilterData,
 } from './columns';
 import { createPostsRestClient, type PostsRestClient } from './rest';
-import type {
-	BulkAction,
-	ListData,
-	ListExtra,
-	ListState,
-	PostListItem,
-	PostsListParams,
-	PostsMode,
-	PostsWindowContext,
-} from './types';
+import type { BulkAction, ListData, ListExtra, ListState, PostListItem, PostsMode, PostsWindowContext } from './types';
+import { fireDataLoaded, postsContext, runBulkAction, tableOf, type Ctx } from './window-context';
 
-export type Ctx = ViewContext< ListState, ListData >;
+const LOG = '[openstation:desktop-mode-posts]';
 
 /** A term canvas: mounts into a host, returns its teardown. */
 export type TermsCanvas = ( host: HTMLElement, env: CanvasEnv ) => Promise< () => void >;
 
+/** What a canvas needs from the app — its doors to the shell go through `ctx`. */
 export interface CanvasEnv {
 	client: PostsRestClient;
 	extra: ListExtra;
-	/** The window this canvas lives in — for the fullscreen exit before opening a post. */
-	windowId: string;
+	/** Open an admin URL in an iframe window. */
+	openUrl: ( url: string, title: string, icon: string ) => void;
+	/** Say a mutation failed, with the server's reason. */
+	toast: ( title: string, err: unknown ) => void;
+	/** Leave the list window's fullscreen, where a new window would open behind it. */
+	leaveFullscreen: () => void;
 }
 
-export interface PostsAppOptions {
+interface PostsAppOptions {
 	/** The Categories / Tags tabs (Posts only). */
 	terms?: { categories: TermsCanvas; tags: TermsCanvas };
+	/** The taxonomy cells (Posts only) — the Pages bundle ships none. */
+	cells?: CellRenderers;
 }
 
 const TAG_PAGE_SIZE = 50;
 
 interface UiState {
 	client: PostsRestClient | null;
+	env: CellEnv | null;
 	cellCache: CellCache;
+	table: ListTableSync< PostListItem >;
 	filterData: ColumnFilterData;
 	columnsKey: string;
-	fingerprint: string;
-	listKey: string;
+	hidden: Set< string > | null;
 	selected: number;
-	bulkButtons: HTMLElement[];
-	extras: HTMLElement[];
+	bulkActions: BulkAction[] | null;
+	extras: HTMLElement[] | null;
+	postsCtx: PostsWindowContext | null;
 	tab: string;
 	canvases: { categories: ( () => void ) | null; tags: ( () => void ) | null };
 	canvasPending: Set< string >;
 	menu: MenuCheckboxes | null;
-	wired: boolean;
-	postsCtx: PostsWindowContext | null;
+	disposed: boolean;
 	tagPage: number;
 	tagTotalPages: number;
 	tagFetching: boolean;
@@ -109,20 +99,21 @@ interface UiState {
 
 const freshUi = (): UiState => ( {
 	client: null,
+	env: null,
 	cellCache: new Map(),
+	table: createListTableSync< PostListItem >(),
 	filterData: { authors: [], tags: [] },
 	columnsKey: '',
-	fingerprint: '',
-	listKey: '',
+	hidden: null,
 	selected: 0,
-	bulkButtons: [],
-	extras: [],
+	bulkActions: null,
+	extras: null,
+	postsCtx: null,
 	tab: 'posts',
 	canvases: { categories: null, tags: null },
 	canvasPending: new Set(),
 	menu: null,
-	wired: false,
-	postsCtx: null,
+	disposed: false,
 	tagPage: 0,
 	tagTotalPages: 1,
 	tagFetching: false,
@@ -130,14 +121,6 @@ const freshUi = (): UiState => ( {
 
 const modeOf = ( extra: Record< string, unknown > ): PostsMode =>
 	( extra as ListExtra ).mode === 'pages' ? 'pages' : 'posts';
-
-const tableOf = ( ctx: Ctx ): OsTable< PostListItem > | null =>
-	ctx.root.querySelector< OsTable< PostListItem > >( '[data-os-posts-table]' );
-
-const windowIdOf = ( ctx: Ctx, fallback: string ): string => {
-	const win = ctx.root.closest< HTMLElement >( '[id^="wp-window-"]' );
-	return win ? win.id.slice( 'wp-window-'.length ) : fallback;
-};
 
 /** Stable key for the page — identical rows skip the table repaint. */
 function fingerprint( items: PostListItem[] ): string {
@@ -151,93 +134,62 @@ function clientOf( ctx: Ctx, ui: UiState ): PostsRestClient {
 	return ui.client;
 }
 
-function cellEnv( ctx: Ctx, ui: UiState ): CellEnv {
+/** The hidden-column set, read from the settings once and kept in step by the subscription. */
+function hiddenOf( ui: UiState ): Set< string > {
+	if ( ! ui.hidden ) {
+		ui.hidden = getHiddenColumns();
+	}
+	return ui.hidden;
+}
+
+function toast( ctx: Ctx, title: string, err: unknown ): void {
+	let reason = '';
+	if ( err instanceof Error ) {
+		reason = err.message;
+	} else if ( err !== null && err !== undefined ) {
+		reason = String( err );
+	}
+	ctx.host.toast?.( { message: `${ title } ${ reason }`.trim(), duration: 6000 } );
+}
+
+function cellEnv( ctx: Ctx, ui: UiState, cells: CellRenderers ): CellEnv {
+	if ( ! ui.env ) {
+		ui.env = {
+			extra: ctx.extra as ListExtra,
+			client: clientOf( ctx, ui ),
+			cells,
+			openUrl: ( url, title, icon ) => ctx.host.openUrl?.( url, title, icon ),
+			confirm: ( options ) => ctx.host.confirm?.( options ) ?? Promise.resolve( false ),
+			toast: ( title, err ) => toast( ctx, title, err ),
+			announce: ( action, ids ) => ctx.host.announce?.( 'post', action, ids ),
+			parentTitles: new Map(),
+			categories: { tree: null, pickers: new Set() },
+		};
+	}
+	return ui.env;
+}
+
+function canvasEnv( ctx: Ctx, ui: UiState ): CanvasEnv {
 	return {
-		extra: ctx.extra as ListExtra,
 		client: clientOf( ctx, ui ),
+		extra: ctx.extra as ListExtra,
 		openUrl: ( url, title, icon ) => ctx.host.openUrl?.( url, title, icon ),
-		confirm: ( options ) => ctx.host.confirm?.( options ) ?? Promise.resolve( false ),
-	};
-}
-
-function currentParams( state: ListState ): PostsListParams {
-	return {
-		page: state.page,
-		perPage: state.perPage,
-		search: state.search || undefined,
-		status: state.status || undefined,
-		orderby: state.orderby,
-		order: state.order,
-		author: state.author.length > 0 ? state.author : undefined,
-		tag: state.tag.length > 0 ? state.tag : undefined,
-	};
-}
-
-/** The plugin-facing context — one per mounted window. */
-function postsContext( ctx: Ctx, table: OsTable< PostListItem > ): PostsWindowContext {
-	const context: PostsWindowContext = {
-		body: ctx.root,
-		table,
-		refresh: () => ctx.dispatch( 'refresh' ).then( () => undefined ),
-		getSelectedIds: () => Array.from( table.selection ?? [] ).map( ( id ) => Number( id ) ),
-		getSelectedRows: () => {
-			const ids = new Set( context.getSelectedIds() );
-			return ( table.data ?? [] ).filter( ( r ) => ids.has( r.id ) );
+		toast: ( title, err ) => toast( ctx, title, err ),
+		leaveFullscreen: () => {
+			// The window manager is the shell's public surface; a window
+			// in fullscreen would open the editor behind itself.
+			const win = window.wp?.os?.windowManager?.getById?.( ctx.windowId ) as
+				| { isFullscreen?: () => boolean; toggleFullscreen?: () => void }
+				| undefined;
+			if ( win?.isFullscreen?.() ) {
+				win.toggleFullscreen?.();
+			}
 		},
-		getCurrentParams: () => currentParams( ctx.state ),
 	};
-	return context;
-}
-
-/** Confirm if asked, run, then clear + refresh unless the runner opted out. */
-async function runBulkAction( ctx: Ctx, action: BulkAction, postsCtx: PostsWindowContext ): Promise< void > {
-	const ids = postsCtx.getSelectedIds();
-	if ( ids.length === 0 ) {
-		return;
-	}
-	const { confirm } = action;
-	if ( confirm ) {
-		const message =
-			typeof confirm === 'function'
-				? confirm( ids.length )
-				: sprintf(
-					/* translators: %d: row count. */
-					confirm,
-					ids.length,
-				);
-		const ok = await ( ctx.host.confirm?.( { message, danger: true } ) ?? Promise.resolve( false ) );
-		if ( ! ok ) {
-			return;
-		}
-	}
-	try {
-		if ( ( await action.run( ids, postsCtx ) ) === false ) {
-			return;
-		}
-	} catch ( err ) {
-		// eslint-disable-next-line no-console
-		console.error( `[posts-window] bulk action "${ action.id }" failed`, err );
-	}
-	postsCtx.table.clearSelection();
-	await postsCtx.refresh();
-}
-
-function fireDataLoaded( data: ListData ): void {
-	const detail = {
-		items: data.list.items,
-		total: data.list.total,
-		totalPages: data.list.pages,
-		page: data.list.page,
-	};
-	const hooks = window.wp?.hooks;
-	if ( hooks && typeof hooks.doAction === 'function' ) {
-		hooks.doAction( HOOK_ACTION_DATA_LOADED, detail );
-	}
-	document.dispatchEvent( new CustomEvent( 'os-posts-window-data-loaded', { detail } ) );
 }
 
 /** Tags load page-by-page; `os-multiselect-load-more` drives the next. */
-async function fetchNextTagPage( ctx: Ctx, ui: UiState ): Promise< void > {
+export async function fetchNextTagPage( ctx: Ctx, ui: UiState ): Promise< void > {
 	if ( ui.tagFetching || ui.tagPage >= ui.tagTotalPages ) {
 		return;
 	}
@@ -273,16 +225,28 @@ const sameIds = ( a: number[], b: number[] ): boolean => a.length === b.length &
 
 /** One-time table wiring: identity, sub-row, sort + filter + selection listeners. */
 function wireTable( ctx: Ctx, ui: UiState, table: OsTable< PostListItem > ): void {
+	const extra = ctx.extra as ListExtra;
 	table.getRowId = ( row ) => row.id;
-	table.subTable = ( row ) => ( ctx.ui( freshUi ), buildSubRow( row ) );
-	table.sort = { key: mapOrderbyToColumn( ctx.state.orderby ), direction: ctx.state.order };
+	table.subTable = ( row ) => buildSubRow( row );
+	// The arrow only on a header that exists: `menu_order` is no
+	// column, and the table refuses a sort it cannot show.
+	const sortKey = mapOrderbyToColumn( ctx.state.orderby );
+	table.sort = table.columns.some( ( c ) => c.key === sortKey ) ? { key: sortKey, direction: ctx.state.order } : null;
 	table.addEventListener( 'os-table-selection-change', () => {
 		ui.selected = table.selection?.size ?? 0;
 		ctx.repaint();
 	} );
+	// Clearing a column sort returns to the DECLARED default — `date
+	// desc` for posts, `menu_order asc` for pages.
 	table.addEventListener( 'os-table-sort-change', ( e: Event ) => {
 		const sort = ( e as CustomEvent< { sort: { key: string; direction: 'asc' | 'desc' } | null } > ).detail?.sort;
-		void ctx.dispatch( 'sort', sort ? { orderby: mapColumnToOrderby( sort.key ), order: sort.direction } : { orderby: 'date', order: 'desc' } );
+		const defaultOrderby = extra.defaultOrderby ?? 'date';
+		void ctx.dispatch(
+			'sort',
+			sort
+				? { orderby: mapColumnToOrderby( sort.key, defaultOrderby ), order: sort.direction }
+				: { orderby: defaultOrderby, order: extra.defaultOrder ?? 'desc' },
+		);
 	} );
 	// Column filter dropdowns (Author, Tags): comma-joined ids in the
 	// table's filter map, written to the state, then a `filter` round
@@ -299,18 +263,15 @@ function wireTable( ctx: Ctx, ui: UiState, table: OsTable< PostListItem > ): voi
 	} );
 }
 
-// `buildSubRow` is imported lazily below to keep the cells module the
-// one owner of every renderer.
-import { buildSubRow } from './cells';
-
 /**
  * Declare the list window's client view.
  *
  * @param id      The app id (`desktop-mode-posts` | `desktop-mode-pages`).
- * @param options The term canvases, for Posts.
+ * @param options The term canvases and taxonomy cells, for Posts.
  */
 export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 	const terms = options.terms;
+	const cells: CellRenderers = options.cells ?? {};
 
 	const mountCanvas = ( ctx: Ctx, ui: UiState, which: 'categories' | 'tags' ): void => {
 		if ( ! terms || ui.canvases[ which ] || ui.canvasPending.has( which ) ) {
@@ -321,32 +282,46 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 			return;
 		}
 		ui.canvasPending.add( which );
-		const env: CanvasEnv = { client: clientOf( ctx, ui ), extra: ctx.extra as ListExtra, windowId: windowIdOf( ctx, id ) };
-		void terms[ which ]( host, env )
+		void terms[ which ]( host, canvasEnv( ctx, ui ) )
 			.then( ( teardown ) => {
+				// The window closed while PixiJS was loading: nothing to keep.
+				if ( ui.disposed ) {
+					teardown();
+					return;
+				}
 				ui.canvases[ which ] = teardown;
 			} )
 			.catch( ( err ) => {
 				// eslint-disable-next-line no-console
-				console.error( `[posts-window] ${ which } canvas failed`, err );
+				console.error( `${ LOG } ${ which } canvas failed`, err );
 			} )
 			.finally( () => ui.canvasPending.delete( which ) );
 	};
 
-	const bulkBar = ( ui: UiState, footer: boolean ): TemplateResult => html`
-		<div
-			class="os-app-list__toolbar-right os-posts__toolbar-right ${ footer ? 'os-app-list__bulk--footer os-posts__bulk--footer' : '' }"
-			data-os-posts-bulk
-			?hidden=${ ui.selected === 0 }
-		>
-			<span class="os-app-list__count os-posts__count" data-os-posts-count>${ sprintf(
-				/* translators: %d: selected row count. */
-				__( '%d selected' ),
-				ui.selected,
-			) }</span>
-			<span class="os-app-list__bulk-actions os-posts__bulk-actions" data-os-posts-bulk-actions>${ ui.bulkButtons }</span>
-		</div>
-	`;
+	const bulkBar = ( ctx: Ctx, ui: UiState, mode: PostsMode, footer: boolean ): TemplateResult => {
+		// Resolved once, on the first paint: the registry filter sees the
+		// same defaults it always did, and every button dispatches
+		// against the live selection at click time.
+		if ( ! ui.bulkActions ) {
+			ui.bulkActions = resolveBulkActions( defaultBulkActions( mode, ( ids ) => ctx.dispatch( 'trash', { ids } ) ) );
+		}
+		return html`
+			<div class="os-app-list__toolbar-right ${ footer ? 'os-app-list__bulk--footer' : '' }" data-os-posts-bulk ?hidden=${ ui.selected === 0 }>
+				<span class="os-app-list__count" data-os-posts-count>${ sprintf(
+					/* translators: %d: selected row count. */
+					__( '%d selected' ),
+					ui.selected,
+				) }</span>
+				<span class="os-app-list__bulk-actions" data-os-posts-bulk-actions>${ ui.bulkActions.map(
+					( action ) => html`<os-button
+						variant=${ action.variant ?? 'secondary' }
+						data-os-posts-bulk-action=${ action.id }
+						@click=${ () => void runBulkAction( ctx, action, postsContext( ctx, ui ) ) }
+					>${ action.icon ? html`<span class="dashicons ${ action.icon }" aria-hidden="true"></span>` : '' } ${ action.label }</os-button>`,
+				) }</span>
+			</div>
+		`;
+	};
 
 	const listPanel = ( ctx: Ctx, ui: UiState, mode: PostsMode, phone: boolean ): TemplateResult => {
 		const { state, data } = ctx;
@@ -370,9 +345,13 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 				isPages ? __( 'Add New Page' ) : __( 'Add New Post' ),
 				isPages ? 'dashicons-admin-page' : 'dashicons-admin-post',
 			);
+		// Plugin-injected toolbar nodes, resolved once with the live context.
+		if ( ! ui.extras ) {
+			ui.extras = resolveToolbarTrailing( postsContext( ctx, ui ) );
+		}
 		return html`
-			<header class="os-app-list__toolbar os-posts__toolbar" data-os-posts-toolbar>
-				<div class="os-app-list__toolbar-left os-posts__toolbar-left">
+			<header class="os-app-list__toolbar" data-os-posts-toolbar>
+				<div class="os-app-list__toolbar-left">
 					${ statusControl( {
 						segments: resolveStatusSegments(),
 						value: state.status,
@@ -391,9 +370,9 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 						placeholder=${ isPages ? __( 'Search pages…' ) : __( 'Search posts…' ) }
 					></os-text-field>
 				</div>
-				${ phone ? '' : bulkBar( ui, false ) }
-				<div class="os-app-list__toolbar-trailing os-posts__toolbar-trailing">
-					<span class="os-posts__toolbar-extras" data-os-posts-toolbar-extras>${ ui.extras }</span>
+				${ phone ? '' : bulkBar( ctx, ui, mode, false ) }
+				<div class="os-app-list__toolbar-trailing">
+					<span data-os-posts-toolbar-extras>${ ui.extras }</span>
 					<os-button variant="ghost" os-action="refresh" data-os-posts-refresh title=${ __( 'Refresh' ) }>
 						<span class="dashicons dashicons-update" aria-hidden="true"></span>
 					</os-button>
@@ -403,10 +382,8 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 					</os-button>
 				</div>
 			</header>
-			${ list?.error
-				? html`<os-notice tone="danger" class="os-posts__notice">${ list.error }</os-notice>`
-				: '' }
-			<div class="os-app-list__body os-posts__body" data-os-posts-body>
+			${ list?.error ? html`<os-notice tone="danger">${ list.error }</os-notice>` : '' }
+			<div class="os-app-list__body" data-os-posts-body>
 				<os-table
 					data-os-posts-table
 					os-preserve
@@ -417,10 +394,10 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 					striped
 					bordered
 				>
-					<div slot="empty" class="os-app-list__empty os-posts__empty">
+					<div slot="empty" class="os-app-list__empty">
 						<span class="dashicons ${ isPages ? 'dashicons-admin-page' : 'dashicons-admin-post' }" aria-hidden="true"></span>
 						<p>${ isPages ? __( 'No pages found.' ) : __( 'No posts found.' ) }</p>
-						<p class="os-app-list__empty-hint os-posts__empty-hint">
+						<p class="os-app-list__empty-hint">
 							${ __( 'Try a different search or change the status filter.' ) }
 						</p>
 					</div>
@@ -436,7 +413,7 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 				perPageAction: 'filter',
 				labels: { previous: __( 'Previous' ), next: __( 'Next' ), perPage: __( 'Per page' ) },
 			} ) }
-			${ phone ? bulkBar( ui, true ) : '' }
+			${ phone ? bulkBar( ctx, ui, mode, true ) : '' }
 		`;
 	};
 
@@ -456,7 +433,7 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 			const rootClass = `os-app-list desktop-mode-posts${ mode === 'pages' ? ' desktop-mode-pages' : '' }`;
 			if ( ! terms ) {
 				return html`<div class=${ rootClass } data-os-posts-root>
-					<div class="os-app-list__panel os-posts__panel">${ panel }</div>
+					<div class="os-app-list__panel">${ panel }</div>
 				</div>`;
 			}
 			const onTab = ( e: Event ): void => {
@@ -467,16 +444,16 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 				}
 			};
 			return html`<div class=${ rootClass } data-os-posts-root>
-				<os-tabs value=${ ui.tab } class="os-app-list__tabs os-posts__tabs" @os-tab-change=${ onTab }>
+				<os-tabs value=${ ui.tab } class="os-app-list__tabs" @os-tab-change=${ onTab }>
 					<os-tab value="posts">${ __( 'All posts' ) }</os-tab>
 					<os-tab value="categories">${ __( 'Categories' ) }</os-tab>
 					<os-tab value="tags">${ __( 'Tags' ) }</os-tab>
 				</os-tabs>
-				<os-tabpanel for="posts" class="os-app-list__panel os-posts__panel">${ panel }</os-tabpanel>
-				<os-tabpanel for="categories" class="os-app-list__panel os-posts__panel">
+				<os-tabpanel for="posts" class="os-app-list__panel">${ panel }</os-tabpanel>
+				<os-tabpanel for="categories" class="os-app-list__panel">
 					<div data-os-posts-cats-host class="os-posts__terms-host" os-preserve></div>
 				</os-tabpanel>
-				<os-tabpanel for="tags" class="os-app-list__panel os-posts__panel">
+				<os-tabpanel for="tags" class="os-app-list__panel">
 					<div data-os-posts-tags-host class="os-posts__terms-host" os-preserve></div>
 				</os-tabpanel>
 			</div>`;
@@ -484,23 +461,8 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 
 		mounted: ( ctx ) => {
 			const ui = ctx.ui( freshUi );
-			const table = tableOf( ctx );
 			const teardowns: Array< () => void > = [];
-			const env = cellEnv( ctx, ui );
-			const mode = modeOf( ctx.extra );
-			const windowId = windowIdOf( ctx, id );
-
-			if ( table ) {
-				const postsCtx = postsContext( ctx, table );
-				ui.postsCtx = postsCtx;
-				const actions = resolveBulkActions(
-					defaultBulkActions( mode, ( ids ) => ctx.dispatch( 'trash', { ids } ) ),
-				);
-				ui.bulkButtons = actions.map( ( action ) =>
-					buildBulkActionButton( action, ( a ) => void runBulkAction( ctx, a, postsCtx ) ),
-				);
-				ui.extras = resolveToolbarTrailing( postsCtx );
-			}
+			const env = cellEnv( ctx, ui, cells );
 
 			// The table's skeleton while a round trip is in flight — the
 			// runtime marks the root busy; the table follows it.
@@ -519,16 +481,13 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 			void fetchNextTagPage( ctx, ui );
 
 			// "Show columns" in the window's ⋯ menu, over the OS setting.
-			const repaintMenu = (): void => ui.menu?.refresh();
 			ui.menu = mountMenuCheckboxes( ctx.root, {
 				section: __( 'Show columns' ),
 				prefix: id,
-				items: buildAllColumns( env, new Map() )
-					.filter( ( c ) => ! REQUIRED_COLUMN_KEYS.has( c.key ) )
-					.map( ( c ) => ( { key: c.key, label: c.label || c.key } ) ),
-				isChecked: ( key ) => ! getHiddenColumns().has( key ),
+				items: columnLabels( env ),
+				isChecked: ( key ) => ! hiddenOf( ui ).has( key ),
 				onToggle: ( key ) => {
-					const hidden = getHiddenColumns();
+					const hidden = hiddenOf( ui );
 					if ( hidden.has( key ) ) {
 						hidden.delete( key );
 					} else {
@@ -536,7 +495,7 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 					}
 					const api = window.wp?.os;
 					if ( api && typeof api.updateOsSettings === 'function' ) {
-						api.updateOsSettings( { nativePostsHiddenColumns: Array.from( hidden ).sort() }, { windowId } );
+						api.updateOsSettings( { nativePostsHiddenColumns: Array.from( hidden ).sort() }, { windowId: ctx.windowId } );
 					}
 					ctx.repaint();
 				},
@@ -547,16 +506,18 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 			// columns and the menu's checked state.
 			const api = window.wp?.os;
 			if ( api && typeof api.subscribeOsSettings === 'function' ) {
-				let lastHidden = JSON.stringify( Array.from( getHiddenColumns() ).sort() );
+				let lastHidden = Array.from( hiddenOf( ui ) ).sort().join( ',' );
 				teardowns.push(
 					api.subscribeOsSettings( () => {
-						const next = JSON.stringify( Array.from( getHiddenColumns() ).sort() );
-						if ( next === lastHidden ) {
+						const next = getHiddenColumns();
+						const key = Array.from( next ).sort().join( ',' );
+						if ( key === lastHidden ) {
 							return;
 						}
-						lastHidden = next;
+						lastHidden = key;
+						ui.hidden = next;
 						ctx.repaint();
-						repaintMenu();
+						ui.menu?.refresh();
 					} ),
 				);
 			}
@@ -566,8 +527,8 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 				teardowns.push(
 					api.subscribe( 'os.term.changed', ( payload: unknown ) => {
 						if ( ( payload as { taxonomy?: string } | null )?.taxonomy === 'category' ) {
-							clearCategoryTreeCache();
-							broadcastFreshCategoryTreeToPickers( clientOf( ctx, ui ) );
+							clearCategoryTreeCache( env );
+							broadcastFreshCategoryTreeToPickers( env );
 						}
 					} ),
 				);
@@ -578,27 +539,25 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 			document.addEventListener( 'os-mode-changed', onModeChange );
 			teardowns.push( () => document.removeEventListener( 'os-mode-changed', onModeChange ) );
 
-			ctx.repaint();
-
 			// The lifecycle action AFTER the first paint, so subscribers
 			// read live data and can call `ctx.refresh()` on a populated
 			// table.
-			if ( ui.postsCtx ) {
-				const hooks = window.wp?.hooks;
-				if ( hooks && typeof hooks.doAction === 'function' ) {
-					hooks.doAction( HOOK_ACTION_OPENED, ui.postsCtx );
-				}
-				document.dispatchEvent( new CustomEvent( 'os-posts-window-opened', { detail: ui.postsCtx } ) );
+			const postsCtx = postsContext( ctx, ui );
+			const hooks = window.wp?.hooks;
+			if ( hooks && typeof hooks.doAction === 'function' ) {
+				hooks.doAction( HOOK_ACTION_OPENED, postsCtx );
 			}
+			document.dispatchEvent( new CustomEvent( 'os-posts-window-opened', { detail: postsCtx } ) );
 
 			return () => {
+				ui.disposed = true;
 				for ( const off of teardowns ) {
 					off();
 				}
 				ui.canvases.categories?.();
 				ui.canvases.tags?.();
 				ui.canvases = { categories: null, tags: null };
-				clearCategoryTreeCache();
+				clearCategoryTreeCache( env );
 			};
 		},
 
@@ -609,40 +568,36 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 			}
 			const ui = ctx.ui( freshUi );
 			const { state, data } = ctx;
-			if ( ! ui.wired ) {
-				ui.wired = true;
-				wireTable( ctx, ui, table );
-			}
-			// A card per row on a phone, and the columns built for it —
-			// rebuilt when the phone answer, the hidden set or the filter
-			// options change.
-			const phone = stackOnPhone( table );
-			const columnsKey = `${ phone ? 1 : 0 }|${ Array.from( getHiddenColumns() ).sort().join( ',' ) }|${ filterSig( ui.filterData ) }`;
+			const env = cellEnv( ctx, ui, cells );
+			// The columns rebuild when the hidden set or the filter options
+			// change (the phone crossing is the sync's own concern).
+			const columnsKey = `${ Array.from( hiddenOf( ui ) ).sort().join( ',' ) }|${ filterSig( ui.filterData ) }`;
 			if ( columnsKey !== ui.columnsKey ) {
 				ui.columnsKey = columnsKey;
 				ui.cellCache.clear();
-				table.columns = buildColumns( cellEnv( ctx, ui ), ui.cellCache, ui.filterData, phone );
-			}
-			// A query change replaces the result set — ids picked under
-			// the previous view must not ride into the next bulk action.
-			// A watch-driven refresh keeps the selection the user is
-			// building.
-			const listKey = [ state.page, state.perPage, state.search, state.status, state.orderby, state.order, state.author.join( ',' ), state.tag.join( ',' ) ].join( '|' );
-			if ( listKey !== ui.listKey ) {
-				ui.listKey = listKey;
-				if ( ( table.selection?.size ?? 0 ) > 0 ) {
-					table.clearSelection();
-				}
-				ui.selected = 0;
+				ui.table.invalidateColumns();
 			}
 			const items = data?.list?.items ?? [];
-			const next = fingerprint( items );
-			if ( next !== ui.fingerprint ) {
-				ui.fingerprint = next;
+			const result = ui.table.sync( {
+				// `<os-table>` exposes `data` read-only; the sync writes through
+				// its setter, which is the one the component declares.
+				table: table as unknown as ListTableLike< PostListItem >,
+				rows: items,
+				listKey: [ state.page, state.perPage, state.search, state.status, state.orderby, state.order, state.author.join( ',' ), state.tag.join( ',' ) ].join( '|' ),
+				fingerprint: fingerprint( items ),
+				columns: ( phone ) => {
+					ui.cellCache.clear();
+					return buildColumns( env, ui.cellCache, ui.filterData, phone, hiddenOf( ui ) );
+				},
+				wire: () => wireTable( ctx, ui, table ),
+				onSelection: ( kept ) => {
+					ui.selected = kept.length;
+				},
+			} );
+			if ( result.dataChanged ) {
 				// A real data change: fresh DOM for the new rows.
 				ui.cellCache.clear();
-				refreshParentTitleRoster( items );
-				table.data = items;
+				refreshParentTitleRoster( env, items );
 				if ( data ) {
 					fireDataLoaded( data );
 				}

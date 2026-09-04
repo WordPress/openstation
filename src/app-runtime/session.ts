@@ -24,14 +24,15 @@ import {
 } from './bindings';
 import type { ClientApp } from './client';
 import { morphChildren } from './morph';
-import type {
-	AppConfig,
-	Binding,
-	ConfirmSpec,
-	DispatchResponse,
-	Effect,
-	MenuItemDef,
-	RuntimeHost,
+import {
+	appAnnounceSource,
+	type AppConfig,
+	type Binding,
+	type ConfirmSpec,
+	type DispatchResponse,
+	type Effect,
+	type MenuItemDef,
+	type RuntimeHost,
 } from './types';
 
 export interface SessionDeps {
@@ -438,6 +439,7 @@ export function createSession( deps: SessionDeps ): Session {
 			return data;
 		},
 		root,
+		windowId,
 		dispatch: (
 			action: string,
 			args: Record< string, unknown > = {},
@@ -694,19 +696,31 @@ export function createSession( deps: SessionDeps ): Session {
 			refreshQueued = false;
 		} );
 	};
+	// A broadcast this very window produced — the `announce` effect of
+	// its own action, or `ctx.host.announce` from its client view — is
+	// an echo: the dispatch that announced it already returned the
+	// fresh `data()`, and a second round trip would only repaint what
+	// is on screen (and tear down every cell the user just edited).
+	const ownSource = appAnnounceSource( windowId );
+	const isOwnEcho = ( payload: unknown ): boolean =>
+		!! payload && typeof payload === 'object' && ( payload as { source?: unknown } ).source === ownSource;
 	if ( host.onBroadcast ) {
 		for ( const type of config.watch ?? [] ) {
 			if ( type === '*' ) {
 				// Any content change: the wildcard subscription hears every
 				// broadcast, so filter down to the content-change envelope.
-				listeners.push( host.onBroadcast( '*', ( topic ) => {
-					if ( /^os\..+\.changed$/.test( topic ) ) {
+				listeners.push( host.onBroadcast( '*', ( topic, payload ) => {
+					if ( /^os\..+\.changed$/.test( topic ) && ! isOwnEcho( payload ) ) {
 						refresh();
 					}
 				} ) );
 				continue;
 			}
-			listeners.push( host.onBroadcast( `os.${ type }.changed`, refresh ) );
+			listeners.push( host.onBroadcast( `os.${ type }.changed`, ( _topic, payload ) => {
+				if ( ! isOwnEcho( payload ) ) {
+					refresh();
+				}
+			} ) );
 		}
 	}
 

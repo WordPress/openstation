@@ -9,8 +9,11 @@
  *
  *   - `openstation_comments_window_moderate()`      ↔ POST /comments/bulk
  *   - `openstation_comments_window_create_reply()`  ↔ POST /comments/reply
- *   - `openstation_comments_window_author_insights()` ↔ GET /comments/insights/<email>
  *   - `openstation_comments_window_counts()`        ↔ GET /comments/counts
+ *
+ * `openstation_comments_window_author_insights()` ↔ GET /comments/insights/<email>
+ * is a public route for plugins and integrations; the app itself does
+ * not call it.
  *
  * SECURITY POSTURE
  * ================
@@ -118,6 +121,17 @@ function openstation_comments_window_moderate( array $ids, $action ) {
 }
 
 /**
+ * Whether a comment body is empty once its markup is gone — the one
+ * definition of "blank" the reply and the edit share.
+ *
+ * @param string $content Body.
+ * @return bool
+ */
+function openstation_comments_window_is_blank( $content ) {
+	return '' === trim( wp_strip_all_tags( (string) $content ) );
+}
+
+/**
  * Post a reply under a comment as the current user. Wraps
  * `wp_new_comment()` with the same defaults core's
  * `wp_ajax_replyto_comment` uses, and the same per-target gate:
@@ -149,7 +163,7 @@ function openstation_comments_window_create_reply( $parent_id, $content ) {
 		);
 	}
 
-	if ( '' === trim( wp_strip_all_tags( $content ) ) ) {
+	if ( openstation_comments_window_is_blank( $content ) ) {
 		return new WP_Error(
 			'openstation_comments_empty_reply',
 			__( 'Reply cannot be empty.', 'desktop-mode' ),

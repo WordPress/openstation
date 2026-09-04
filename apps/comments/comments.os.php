@@ -2,13 +2,12 @@
 /**
  * Comments — the moderation window, as an OpenStation app.
  *
- * The App Framework rebuild of the native Comments window; it claims
- * the frozen id `desktop-mode-comments` (see AGENTS.md), so the URL
- * remap, the dock tile, the saved sessions and every window-links
- * identity keep working unchanged. A two-pane conversation view: the
- * rail of conversations on the left, the nested thread with its
- * actions and composer on the right, painted by the client view
- * (`comments.os.ts`) from the `data()` below.
+ * Claims the frozen id `desktop-mode-comments` (see AGENTS.md), so the
+ * URL remap, the dock tile, the saved sessions and every window-links
+ * identity key on it. A two-pane conversation view: the rail of
+ * conversations on the left, the nested thread with its actions and
+ * composer on the right, painted by the client view (`comments.os.ts`)
+ * from the `data()` below.
  *
  * (Header kept short on purpose: Plugin Check's direct-access scan
  * reads only the first 50 raw lines, and the guard below must land
@@ -59,28 +58,6 @@ return App::define( 'desktop-mode-comments' )
 				'currentUserId'   => (int) get_current_user_id(),
 				'canModerate'     => current_user_can( 'moderate_comments' ),
 				'canEditComments' => current_user_can( 'edit_posts' ),
-				'replyEditor'     => (string) apply_filters(
-					/**
-					 * Filter the reply editor implementation the app mounts.
-					 *
-					 * - `'rich'`      — built-in editor (default).
-					 * - `'gutenberg'` — full @wordpress/block-editor (follow-up surface).
-					 * - `'plain'`     — plain textarea, no toolbar.
-					 *
-					 * @param string $editor    Editor flavor slug.
-					 * @param int    $viewer_id Current user id.
-					 */
-					'openstation_comments_window_reply_editor',
-					'rich',
-					(int) get_current_user_id()
-				),
-				// Cap-gated mirror of what the REST endpoint returns, so the
-				// Preferences UI can branch on it without a separate fetch.
-				'aiModeration'    => array(
-					'enabled'            => \openstation_comments_ai_is_enabled(),
-					'providerConfigured' => \openstation_comments_ai_provider_configured(),
-					'canManage'          => current_user_can( 'manage_options' ),
-				),
 			);
 		}
 	)
@@ -89,13 +66,12 @@ return App::define( 'desktop-mode-comments' )
 			'tab'      => 'pending',
 			'search'   => '',
 			'page'     => 1,
-			'perPage'  => PER_PAGE,
 			// The `edit-comments.php?p=<id>` scope; 0 is every post.
 			'post'     => 0,
 			// The conversation on screen; 0 is the placeholder.
 			'selected' => 0,
-			// Bumped by every mutation so the client's page accumulation
-			// starts clean, the way the old rail reloaded page 1.
+			// Bumped by every mutation that moves rows between views, so
+			// the client's page accumulation starts clean from page 1.
 			'gen'      => 0,
 		)
 	)

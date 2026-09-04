@@ -7,9 +7,8 @@
  * @public
  */
 
-import type { PagedList, ViewContext } from '@openstation/app';
+import type { PageEnvelope, PagedList, ViewContext } from '@openstation/app';
 
-export type CommentStatus = 'approved' | 'hold' | 'spam' | 'trash';
 export type CommentTab = 'pending' | 'all' | 'spam' | 'trash' | 'mine';
 
 export type BulkAction =
@@ -22,9 +21,9 @@ export type BulkAction =
 
 /**
  * One row of `wp/v2/comments`, exactly as the collection serialises it
- * under the app's default `_fields` projection (`parts/fields.php`).
- * The optional block is registered server-side but not requested by
- * default — each is a computed field whose cost is paid per row.
+ * under the app's default `_fields` projection (`parts/fields.php`),
+ * plus `openstation_replies_count`, which `data()` merges in from one
+ * grouped query for the rail's rows.
  */
 export interface CommentRow {
 	[ key: string ]: unknown;
@@ -36,25 +35,12 @@ export interface CommentRow {
 	author_avatar_urls: Record< string, string >;
 	date_gmt: string;
 	content: { rendered?: string; raw?: string };
-	status: CommentStatus | string;
+	/** `approved` | `hold` | `spam` | `trash`, in whichever spelling the collection used. */
+	status: string;
 	openstation_post_title: string;
 	openstation_post_link: string;
 	openstation_can_edit: boolean;
-	openstation_can_moderate: boolean;
-	openstation_replies_count: number;
-	author_email?: string;
-	openstation_spam_score?: number;
-	openstation_link_count?: number;
-	openstation_akismet?: 'true' | 'false' | 'pending' | null;
-	openstation_ai_verdict?: AiVerdict | null;
-}
-
-export interface AiVerdict {
-	spam: boolean;
-	harmful: boolean;
-	topic: string;
-	summary: string;
-	analyzedAt: number;
+	openstation_replies_count?: number;
 }
 
 export interface CommentCounts {
@@ -70,24 +56,27 @@ export interface AppState extends Record< string, unknown > {
 	tab: CommentTab;
 	search: string;
 	page: number;
-	perPage: number;
 	post: number;
 	selected: number;
 	gen: number;
 }
 
-/** What `data()` returns. */
+/** The selected conversation's rows, and whether the server cut them off. */
+export interface Thread {
+	rows: CommentRow[];
+	truncated: boolean;
+}
+
+/**
+ * What `data()` returns. A half an action left untouched is omitted
+ * (`select` sends no rail, Load more sends no thread) and the client
+ * keeps what it has.
+ */
 export interface AppData {
-	rail: {
-		items: CommentRow[];
-		total: number;
-		pages: number;
-		page: number;
-		perPage: number;
-		error: string;
-	};
-	railKey: string;
-	thread: CommentRow[] | null;
+	rail?: PageEnvelope< CommentRow > & { error: string; code: string };
+	railKey?: string;
+	/** `null`: nothing selected or the read failed; absent: unchanged. */
+	thread?: Thread | null;
 	counts: CommentCounts;
 }
 
@@ -96,7 +85,6 @@ export interface AppExtra {
 	currentUserId?: number;
 	canModerate?: boolean;
 	canEditComments?: boolean;
-	replyEditor?: 'rich' | 'gutenberg' | 'plain';
 }
 
 export type Ctx = ViewContext< AppState, AppData >;
@@ -120,6 +108,10 @@ export interface UiState {
 	loadingMore: boolean;
 	/** The rail's page accumulation. */
 	list: PagedList< CommentRow >;
+	/** The thread last received — kept while a response leaves it out. */
+	thread: Thread | null;
+	/** The tree built from `thread.rows`, keyed on that array's identity. */
+	tree: { rows: CommentRow[] | null; byParent: Map< number, CommentRow[] > };
 	/** The post id last announced to the window-links engine. */
 	announcedPost: number;
 	/** The selection the composer was last reset for. */

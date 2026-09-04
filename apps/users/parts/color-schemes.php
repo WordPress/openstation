@@ -1,9 +1,8 @@
 <?php
 /**
- * User Edit app — the admin colour scheme catalogue.
- *
- * Shared with the Users app (its Profile tab hosts the same
- * `<os-user-profile>` component), which requires this file by path.
+ * Users — the admin colour scheme catalogue `<os-user-profile>`'s
+ * picker offers, one of the profile facts both the Users app and the
+ * User Edit app ship (`parts/facts.php`).
  *
  * @package OpenStation
  */

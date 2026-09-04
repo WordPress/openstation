@@ -91,11 +91,24 @@ class Tests_OpenStation_PostsApp extends WP_UnitTestCase {
 	public function test_config_carries_the_static_facts_for_the_acting_user() {
 		$config = $this->app()->manifest()['config'];
 		$this->assertSame( 'posts', $config['mode'] );
-		$this->assertSame( $this->admin_id, $config['currentUserId'] );
 		$this->assertStringContainsString( 'post.php', $config['editPostUrlBase'] );
 		$this->assertStringContainsString( 'post-new.php', $config['newPostUrl'] );
-		$this->assertSame( 20, $config['defaultPerPage'] );
+		// The declared sort travels with the config: the client returns
+		// to it when a column sort is cleared.
+		$this->assertSame( 'date', $config['defaultOrderby'] );
+		$this->assertSame( 'desc', $config['defaultOrder'] );
 		$this->assertArrayNotHasKey( 'frontPageId', $config );
+		$this->assertArrayNotHasKey( 'currentUserId', $config, 'Nothing reads the acting user id; it is not shipped.' );
+		$this->assertArrayNotHasKey( 'defaultPerPage', $config, 'The per-page default is the declared state.' );
+	}
+
+	/**
+	 * @covers ::openstation_posts_app_config
+	 */
+	public function test_config_helper_normalises_the_default_order() {
+		$this->assertSame( 'asc', openstation_posts_app_config( 'posts', 'title', 'asc' )['defaultOrder'] );
+		$this->assertSame( 'desc', openstation_posts_app_config( 'posts', 'title', 'sideways' )['defaultOrder'] );
+		$this->assertSame( 'posts', openstation_posts_app_config( 'other' )['mode'] );
 	}
 
 	// ------------------------------------------------------------- gate
@@ -297,6 +310,50 @@ class Tests_OpenStation_PostsApp extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A column core cannot sort by (a plugin column, a typo) never
+	 * reaches `WP_Query`: the sort falls back to the declared default.
+	 *
+	 * @covers ::openstation_posts_app_sort
+	 */
+	public function test_sort_only_keeps_an_orderby_it_knows() {
+		$bogus = $this->dispatch( 'sort', array( 'orderby' => 'title' ), array( 'orderby' => 'wordCount', 'order' => 'sideways' ) );
+		$this->assertTrue( $bogus['ok'] );
+		$this->assertSame( 'date', $bogus['state']['orderby'] );
+		$this->assertSame( 'desc', $bogus['state']['order'] );
+		$this->assertSame( '', $bogus['data']['list']['error'] );
+
+		$state = new OpenStation\App\State( openstation_posts_app_state() );
+		openstation_posts_app_sort( $state, array( 'orderby' => 'comment_count', 'order' => 'asc' ), 'menu_order', 'asc' );
+		$this->assertSame( 'comment_count', $state->get( 'orderby' ) );
+		$this->assertSame( 'asc', $state->get( 'order' ) );
+		openstation_posts_app_sort( $state, array( 'orderby' => 'DROP TABLE' ), 'menu_order', 'asc' );
+		$this->assertSame( 'menu_order', $state->get( 'orderby' ) );
+		$this->assertSame( 'asc', $state->get( 'order' ), 'No direction sent: the declared default direction.' );
+		openstation_posts_app_sort( $state, array(), 'date', 'desc' );
+		$this->assertSame( 'date', $state->get( 'orderby' ) );
+		$this->assertSame( 'desc', $state->get( 'order' ) );
+	}
+
+	/**
+	 * Only a page past the end lands on page 1; a refusal for any
+	 * other reason surfaces as the error it is, on the page asked for.
+	 *
+	 * @covers ::openstation_posts_app_data
+	 */
+	public function test_a_refused_query_is_not_retried_on_page_one() {
+		self::factory()->post->create_many( 3 );
+		// A state key the client never writes but the schema allows: an
+		// unknown `orderby` makes the collection refuse the request.
+		$response = $this->dispatch( 'refresh', array( 'orderby' => 'bogus', 'page' => 2 ) );
+		$this->assertTrue( $response['ok'] );
+		$this->assertSame( 2, $response['state']['page'], 'The page stays where the user put it.' );
+		$list = $response['data']['list'];
+		$this->assertSame( array(), $list['items'] );
+		$this->assertNotSame( '', $list['error'] );
+		$this->assertSame( 'rest_invalid_param', $list['code'] );
+	}
+
+	/**
 	 * @covers \OpenStation\App\Runtime::dispatch
 	 */
 	public function test_empty_result_reports_zero_pages() {
@@ -344,7 +401,36 @@ class Tests_OpenStation_PostsApp extends WP_UnitTestCase {
 		$response = $this->dispatch( 'trash', array(), array( 'ids' => array( $post ) ) );
 		$this->assertTrue( $response['ok'] );
 		$this->assertSame( 'publish', get_post_status( $post ) );
-		$this->assertContains( 'toast', wp_list_pluck( $response['effects'], 'type' ) );
 		$this->assertNotContains( 'announce', wp_list_pluck( $response['effects'], 'type' ) );
+		$toast = null;
+		foreach ( $response['effects'] as $effect ) {
+			if ( 'toast' === $effect['type'] ) {
+				$toast = $effect;
+			}
+		}
+		$this->assertNotNull( $toast );
+		$this->assertSame( '1 item could not be moved to the trash.', $toast['message'] );
+
+		$other = self::factory()->post->create( array( 'post_author' => $this->admin_id ) );
+		$both  = $this->dispatch( 'trash', array(), array( 'ids' => array( $post, $other ) ) );
+		$this->assertSame( '2 items could not be moved to the trash.', $both['effects'][0]['message'] );
+	}
+
+	// ------------------------------------------------------- terms REST
+
+	/**
+	 * @covers ::openstation_posts_window_rest_permission
+	 */
+	public function test_terms_routes_share_one_named_permission_callback() {
+		$routes = rest_get_server()->get_routes( 'desktop-mode/v1' );
+		foreach ( array( '/desktop-mode/v1/term-counts', '/desktop-mode/v1/tag-cooccurrence' ) as $route ) {
+			$this->assertArrayHasKey( $route, $routes );
+			$this->assertSame( 'openstation_posts_window_rest_permission', $routes[ $route ][0]['permission_callback'] );
+		}
+		wp_set_current_user( $this->editor_id );
+		$this->assertTrue( openstation_posts_window_rest_permission() );
+		wp_set_current_user( $this->subscriber_id );
+		$this->assertFalse( openstation_posts_window_rest_permission() );
+		$this->assertFalse( function_exists( 'openstation_posts_window_tags_and_filter' ), 'The tags AND-match switch is gone with the flag no client sends.' );
 	}
 }

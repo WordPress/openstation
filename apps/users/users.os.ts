@@ -1,85 +1,92 @@
 /**
  * Users — the client view of the Users app.
  *
- * The 1:1 rebuild of the legacy Users window's body: the same tab
- * strip (All users / Add new / Profile), toolbar, `<os-table>` painted
- * through the cell renderers in `parts/table.ts`, bulk bar, pager and
- * phone layout. What the framework absorbed: the REST client and its
- * config blob (actions + `data()` + `ctx.extra`), the pager and
- * status-control wiring (`pager()` / `statusControl()`), the
- * `os.user.changed` subscription (`watch( 'user' )`), and the
- * hand-built toolbar wiring — the view is a function of state.
+ * The tab strip (All users / Add new / Profile), the toolbar (presence
+ * segments, search, Add new), the `<os-table>` painted through the
+ * cell renderers in `parts/table.ts`, the bulk bar (a role change, a
+ * reassign-and-delete) in the toolbar on a desk and along the bottom
+ * on a phone, and the pager. The table is a preserved element the
+ * framework's `createListTableSync()` keeps in step from `updated()`.
  *
- * `<os-user-profile>` (`parts/os-user-profile.ts`) is the whole
- * profile surface, shared with the User Edit app; the Profile tab
- * pins it to the viewer, a row click opens the User Edit window on
- * someone else through the shared door in `src/open-targets/`.
+ * The Profile tab hosts `<os-user-profile>` from the companion bundle
+ * (`apps/users/profile/`), fed this app's facts, REST access and toast
+ * as properties, and pinned to the viewer only while the tab is open.
  *
  * @public
  */
 
 import {
 	__,
+	createListTableSync,
 	defineApp,
 	html,
 	pager,
 	sprintf,
 	statusControl,
+	type ListTableSync,
 	type TemplateResult,
 	type ViewContext,
 } from '@openstation/app';
+import type { ListTableLike } from '@openstation/app';
 import { isMobileStamped } from '../../src/mode/stamp';
-import { stackOnPhone } from '../../src/ui/components/os-table/stack-on-phone';
 import type { OsTable } from '../../src/ui/components/os-table/os-table';
-import { addUserForm, syncAddUserForm } from './parts/add-user';
-import './parts/os-user-profile';
+import { addUserForm, syncAddUserForm, type AddUserFormSync } from './parts/add-user';
+import type { OsUserProfile } from './profile/index';
 import {
+	SORT_KEYS,
 	STATUS_SEGMENTS,
 	applyStatusFilter,
 	buildColumns,
 	forgetRow,
 	openProfile,
+	rowKey,
 	type UserCellCache,
 } from './parts/table';
-import type { ProfileConfig, UserListItem, UsersData, UsersState } from './parts/types';
+import type { ProfileConfig, RowActions, UserListItem, UsersData, UsersState } from './parts/types';
 
 const APP_ID = 'desktop-mode-users';
+
+/** How long a toast dwells: errors longer, so the reason can be read. */
+const TOAST_MS: Record< string, number | undefined > = { success: 5000, error: 8000, info: undefined };
 
 type Ctx = ViewContext< UsersState, UsersData >;
 
 /** Client-only per-window state — none of it may reach the server. */
 interface UiState {
 	cache: UserCellCache;
+	sync: ListTableSync< UserListItem >;
 	/** The selected row ids. */
 	selected: number[];
-	/** page|perPage|search|status — a change clears the selection. */
-	listKey: string;
-	/** Per-row change detection, so only a changed row's cells rebuild. */
+	/** What each row last painted as, so only a changed row's cells rebuild. */
 	rows: Map< number, string >;
-	/** Whether the columns were last built for a phone (`null`: not yet). */
-	phoneColumns: boolean | null;
-	wired: boolean;
 	/** The bulk bar's role pick. */
 	bulkRole: string;
-	/** The `created` counter the Add User form was last reset for. */
-	createdPainted: number;
+	/** Who inherits the content of deleted users (single site). */
+	reassign: { id: number; name: string } | null;
+	/** The Add User form's last painted answer. */
+	addForm: AddUserFormSync;
+	profileWired: boolean;
 }
 
 const freshUi = (): UiState => ( {
 	cache: new Map(),
+	sync: createListTableSync< UserListItem >(),
 	selected: [],
-	listKey: '',
 	rows: new Map(),
-	phoneColumns: null,
-	wired: false,
 	bulkRole: '',
-	createdPainted: 0,
+	reassign: null,
+	addForm: { created: 0, error: '', field: '' },
+	profileWired: false,
 } );
 
 const table = ( ctx: Ctx ): OsTable< UserListItem > | null =>
-	ctx.root.querySelector< OsTable< UserListItem > >( '[data-os-posts-table]' );
+	ctx.root.querySelector< OsTable< UserListItem > >( '[data-os-users-table]' );
 
 const cfgOf = ( ctx: Ctx ): ProfileConfig => ctx.extra as ProfileConfig;
+
+const say = ( ctx: Ctx, message: string, duration?: number ): void => {
+	ctx.host.toast?.( duration ? { message, duration } : { message } );
+};
 
 /** The selection at CLICK time, so the confirm count and the payload describe one set. */
 function selectedIds( ctx: Ctx ): number[] {
@@ -122,16 +129,22 @@ async function deleteSelected( ctx: Ctx ): Promise< void > {
 	if ( ids.length === 0 ) {
 		return;
 	}
-	const multisite = cfgOf( ctx ).isMultisite === true;
+	const cfg = cfgOf( ctx );
+	const ui = ctx.ui( freshUi );
+	const multisite = cfg.isMultisite === true;
+	const reassign = multisite ? null : ui.reassign ?? viewerAsReassign( cfg );
 	let message: string;
 	if ( multisite ) {
 		// translators: %d is a user count.
 		message = sprintf( __( 'Remove %d user(s) from this site? Their network account stays.' ), ids.length );
+	} else if ( reassign ) {
+		// translators: %1$d is a user count, %2$s is a user name.
+		message = sprintf( __( 'Permanently delete %1$d user(s)? Their content is attributed to %2$s. This cannot be undone.' ), ids.length, reassign.name );
 	} else {
 		// translators: %d is a user count.
 		message = sprintf( __( 'Permanently delete %d user(s)? Their content is deleted too. This cannot be undone.' ), ids.length );
 	}
-	const ok = await ctx.dispatch( 'bulk-delete', { ids }, {
+	const ok = await ctx.dispatch( 'bulk-delete', { ids, reassign: reassign?.id ?? 0 }, {
 		confirm: {
 			title: multisite ? __( 'Remove selected users from this site?' ) : __( 'Delete selected users?' ),
 			message,
@@ -142,6 +155,11 @@ async function deleteSelected( ctx: Ctx ): Promise< void > {
 	if ( ok ) {
 		clearSelection( ctx );
 	}
+}
+
+/** The viewer, the default heir of deleted users' content — as wp-admin proposes. */
+function viewerAsReassign( cfg: ProfileConfig ): { id: number; name: string } | null {
+	return cfg.currentUserId ? { id: cfg.currentUserId, name: __( 'you' ) } : null;
 }
 
 function sendReset( ctx: Ctx, row: UserListItem ): void {
@@ -166,61 +184,102 @@ function resendWelcome( ctx: Ctx, row: UserListItem ): void {
 	} );
 }
 
+/** Who deleted users' content goes to: a picker over the site's users, defaulting to the viewer. */
+function reassignPicker( ctx: Ctx, ui: UiState, ids: number[] ): TemplateResult {
+	const chosen = ui.reassign ?? viewerAsReassign( cfgOf( ctx ) );
+	return html`<span class="os-users__reassign">
+		<span class="os-users__reassign-label">${ __( 'Attribute content to' ) }</span>
+		<strong class="os-users__reassign-name">${ chosen ? chosen.name : '—' }</strong>
+		<os-user-search
+			class="os-users__reassign-search"
+			placeholder=${ __( 'Change…' ) }
+			exclude=${ ids.join( ',' ) }
+			@os-user-pick=${ ( e: Event ) => {
+				const user = ( e as CustomEvent< { user: { id: number; name: string } } > ).detail?.user;
+				if ( user ) {
+					ui.reassign = { id: user.id, name: user.name };
+					ctx.repaint();
+				}
+			} }
+		></os-user-search>
+	</span>`;
+}
+
 /**
  * The selection's actions: the count, the role change (for a viewer
- * who can promote, with roles to assign) and Delete (for one who can
- * delete). In the toolbar on a desk; a bar along the bottom on a phone.
+ * who can promote, with roles to assign), the reassign picker and
+ * Delete (for one who can delete). In the toolbar on a desk; a bar
+ * along the bottom on a phone.
  */
 function bulkActions( ctx: Ctx, ui: UiState, phone: boolean ): TemplateResult {
 	const cfg = cfgOf( ctx );
 	const assignable = cfg.assignableRoles ?? {};
 	const selecting = ui.selected.length > 0;
 	return html`<div
-		class="os-app-list__toolbar-right os-posts__toolbar-right ${ phone ? 'os-app-list__bulk--footer' : '' }"
-		data-os-posts-bulk
+		class="os-app-list__toolbar-right ${ phone ? 'os-app-list__bulk--footer' : '' }"
+		data-os-users-bulk
 		?hidden=${ ! selecting }
 	>
-		<span class="os-app-list__count os-posts__count" data-os-posts-count>${ sprintf(
+		<span class="os-app-list__count" data-os-users-count>${ sprintf(
 			// translators: %d is a count of selected users.
 			__( '%d selected' ),
 			ui.selected.length,
 		) }</span>
-		<span class="os-app-list__bulk-actions os-posts__bulk-actions" data-os-posts-bulk-actions>
+		<span class="os-app-list__bulk-actions" data-os-users-bulk-actions>
 			${ cfg.canPromote && Object.keys( assignable ).length > 0
-				? html`<span style="display:inline-flex;align-items:center;gap:6px;">
-					<select
+				? html`<span class="os-users__bulk-group">
+					<os-select
 						class="os-users__bulk-role"
 						aria-label=${ __( 'Set role to…' ) }
-						@change=${ ( e: Event ) => {
-							ui.bulkRole = ( e.currentTarget as HTMLSelectElement ).value;
+						value=${ ui.bulkRole }
+						@os-pick=${ ( e: Event ) => {
+							ui.bulkRole = String( ( e as CustomEvent< { value: string } > ).detail?.value ?? '' );
 						} }
 					>
-						<option value="">${ __( 'Set role to…' ) }</option>
-						${ Object.entries( assignable ).map(
-							( [ slug, label ] ) => html`<option value=${ slug }>${ label }</option>`,
-						) }
-					</select>
+						<os-option value="">${ __( 'Set role to…' ) }</os-option>
+						${ Object.entries( assignable ).map( ( [ slug, label ] ) => html`<os-option value=${ slug }>${ label }</os-option>` ) }
+					</os-select>
 					<os-button variant="primary" @click=${ () => void applyBulkRole( ctx ) }>${ __( 'Apply' ) }</os-button>
 				</span>`
 				: '' }
 			${ cfg.canDelete
-				? html`<os-button variant="danger" @click=${ () => void deleteSelected( ctx ) }>
-					<span class="dashicons dashicons-trash" aria-hidden="true"></span>
-					${ cfg.isMultisite ? __( 'Remove from site' ) : __( 'Delete' ) }
-				</os-button>`
+				? html`<span class="os-users__bulk-group">
+					${ cfg.isMultisite ? '' : reassignPicker( ctx, ui, ui.selected ) }
+					<os-button variant="danger" @click=${ () => void deleteSelected( ctx ) }>
+						<span class="dashicons dashicons-trash" aria-hidden="true"></span>
+						${ cfg.isMultisite ? __( 'Remove from site' ) : __( 'Delete' ) }
+					</os-button>
+				</span>`
 				: '' }
 		</span>
 	</div>`;
 }
 
-function listPanel( ctx: Ctx, ui: UiState, phone: boolean ): TemplateResult {
+function pagerSummary( ctx: Ctx, rows: UserListItem[] ): string {
+	const { state, data } = ctx;
+	const list = data.list;
+	if ( state.status ) {
+		// A client-side slice of one page: the server's totals would
+		// describe rows the filter hid.
+		return sprintf(
+			// translators: %1$d is the matching row count, %2$d the page's row count.
+			__( '%1$d of %2$d on this page match' ),
+			rows.length,
+			list.items.length,
+		);
+	}
+	// translators: %1$d current page, %2$d total pages, %3$d total rows.
+	return sprintf( __( 'Page %1$d of %2$d · %3$d users' ), list.page, Math.max( 1, list.pages ), list.total );
+}
+
+function listPanel( ctx: Ctx, ui: UiState, phone: boolean, rows: UserListItem[] ): TemplateResult {
 	const { state, data } = ctx;
 	const cfg = cfgOf( ctx );
 	const list = data.list;
 	const canAct = cfg.canEdit === true || cfg.canPromote === true || cfg.canDelete === true;
-	return html`<os-tabpanel for="all" class="os-app-list__panel os-posts__panel" ?hidden=${ state.tab !== 'all' }>
-		<header class="os-app-list__toolbar os-posts__toolbar" data-os-posts-toolbar>
-			<div class="os-app-list__toolbar-left os-posts__toolbar-left">
+	return html`<os-tabpanel for="all" class="os-app-list__panel" ?hidden=${ state.tab !== 'all' }>
+		<header class="os-app-list__toolbar" data-os-users-toolbar>
+			<div class="os-app-list__toolbar-left">
 				${ statusControl( {
 					segments: STATUS_SEGMENTS(),
 					value: state.status,
@@ -231,7 +290,7 @@ function listPanel( ctx: Ctx, ui: UiState, phone: boolean ): TemplateResult {
 				} ) }
 				<os-text-field
 					class="os-app-list__search"
-					data-os-posts-search
+					data-os-users-search
 					type="search"
 					os-bind="search"
 					os-action="filter"
@@ -240,23 +299,23 @@ function listPanel( ctx: Ctx, ui: UiState, phone: boolean ): TemplateResult {
 				></os-text-field>
 			</div>
 			${ phone ? '' : bulkActions( ctx, ui, false ) }
-			<div class="os-app-list__toolbar-trailing os-posts__toolbar-trailing">
-				<os-button variant="ghost" os-action="refresh" data-os-posts-refresh title=${ __( 'Refresh' ) }>
+			<div class="os-app-list__toolbar-trailing">
+				<os-button variant="ghost" os-action="refresh" data-os-users-refresh title=${ __( 'Refresh' ) }>
 					<span class="dashicons dashicons-update" aria-hidden="true"></span>
 				</os-button>
 				${ cfg.canCreate
-					? html`<os-button variant="primary" data-os-posts-new os-action="tab" os-arg-value="add-new">
+					? html`<os-button variant="primary" data-os-users-new os-action="tab" os-arg-value="add-new">
 						<span class="dashicons dashicons-plus" aria-hidden="true"></span>
 						${ __( 'Add new' ) }
 					</os-button>`
 					: '' }
 			</div>
 		</header>
-		<div class="os-app-list__body os-posts__body" data-os-posts-body>
+		<div class="os-app-list__body" data-os-users-body>
 			${ list.error
 				? html`<os-notice tone="danger">${ __( 'Could not load users. Try Refresh.' ) } ${ list.error }</os-notice>`
 				: html`<os-table
-					data-os-posts-table
+					data-os-users-table
 					os-preserve
 					selectable=${ canAct ? 'multi' : '' }
 					sticky-header
@@ -265,10 +324,10 @@ function listPanel( ctx: Ctx, ui: UiState, phone: boolean ): TemplateResult {
 					striped
 					bordered
 				>
-					<div slot="empty" class="os-app-list__empty os-posts__empty">
+					<div slot="empty" class="os-app-list__empty">
 						<span class="dashicons dashicons-admin-users" aria-hidden="true"></span>
 						<p>${ __( 'No users found.' ) }</p>
-						<p class="os-app-list__empty-hint os-posts__empty-hint">${ __( 'Try a different search or change the role filter.' ) }</p>
+						<p class="os-app-list__empty-hint">${ __( 'Try a different search or change the role filter.' ) }</p>
 					</div>
 				</os-table>` }
 		</div>
@@ -277,13 +336,7 @@ function listPanel( ctx: Ctx, ui: UiState, phone: boolean ): TemplateResult {
 			page: list.page,
 			pages: list.pages,
 			perPage: state.perPage,
-			summary: sprintf(
-				// translators: %1$d current page, %2$d total pages, %3$d total rows.
-				__( 'Page %1$d of %2$d · %3$d users' ),
-				list.page,
-				Math.max( 1, list.pages ),
-				list.total,
-			),
+			summary: pagerSummary( ctx, rows ),
 			labels: { previous: __( 'Previous' ), next: __( 'Next' ), perPage: __( 'Per page' ) },
 		} ) }
 	</os-tabpanel>`;
@@ -302,26 +355,25 @@ export default defineApp< UsersState, UsersData >( APP_ID, {
 		const cfg = cfgOf( ctx );
 		const ui = ctx.ui( freshUi );
 		const phone = isMobileStamped();
-		return html`<div class="os-app-list desktop-mode-posts desktop-mode-users" data-os-posts-root>
-			<os-tabs
-				value=${ state.tab }
-				os-bind="tab"
-				class="os-app-list__tabs os-users__tabs"
-				label=${ __( 'Users' ) }
-				data-os-users-tabs
-			>
+		const rows = applyStatusFilter( ctx.data.list.items, state.status );
+		return html`<div class="os-app-list desktop-mode-users" data-os-users-root>
+			<os-tabs value=${ state.tab } os-bind="tab" class="os-app-list__tabs os-users__tabs" label=${ __( 'Users' ) } data-os-users-tabs>
 				<os-tab value="all">${ __( 'All users' ) }</os-tab>
 				${ cfg.canCreate ? html`<os-tab value="add-new">${ __( 'Add new' ) }</os-tab>` : '' }
 				<os-tab value="edit" data-os-users-edit-tab>${ __( 'Profile' ) }</os-tab>
 			</os-tabs>
-			${ listPanel( ctx, ui, phone ) }
+			${ listPanel( ctx, ui, phone, rows ) }
 			${ cfg.canCreate
 				? html`<os-tabpanel for="add-new" class="os-users__add-panel" ?hidden=${ state.tab !== 'add-new' }>
-					${ addUserForm( cfg ) }
+					${ addUserForm( cfg, ( message ) => say( ctx, message ) ) }
 				</os-tabpanel>`
 				: '' }
 			<os-tabpanel for="edit" class="os-users__edit-panel" ?hidden=${ state.tab !== 'edit' }>
-				<os-user-profile os-preserve data-os-user-profile-self user-id=${ cfg.currentUserId ?? '' }></os-user-profile>
+				<os-user-profile
+					os-preserve
+					data-os-user-profile-self
+					user-id=${ state.tab === 'edit' && cfg.currentUserId ? String( cfg.currentUserId ) : '' }
+				></os-user-profile>
 			</os-tabpanel>
 		</div>`;
 	},
@@ -340,79 +392,74 @@ export default defineApp< UsersState, UsersData >( APP_ID, {
 	updated: ( ctx ) => {
 		const ui = ctx.ui( freshUi );
 		const { state, data } = ctx;
-		ui.createdPainted = syncAddUserForm( ctx.root, state, ui.createdPainted );
+		const cfg = cfgOf( ctx );
+		ui.addForm = syncAddUserForm( ctx.root, state, ui.addForm );
 
-		const el = table( ctx );
-		if ( ! el ) {
-			return;
+		// The Profile tab's element takes this app's facts, REST access
+		// and toast as properties — once; the attribute drives the rest.
+		const profile = ctx.root.querySelector< OsUserProfile >( 'os-user-profile' );
+		if ( profile && ! ui.profileWired ) {
+			ui.profileWired = true;
+			profile.config = cfg;
+			profile.fetch = ctx.fetch;
+			profile.toast = ( message, kind ) => say( ctx, message, TOAST_MS[ kind ?? 'info' ] );
 		}
-		// A card per row on a phone, and the columns built for it.
-		const phone = stackOnPhone( el );
-		if ( phone !== ui.phoneColumns ) {
-			ui.phoneColumns = phone;
-			el.columns = buildColumns(
-				ui.cache,
-				cfgOf( ctx ),
-				{
-					onSendReset: ( row ) => sendReset( ctx, row ),
-					onResendWelcome: ( row ) => resendWelcome( ctx, row ),
-				},
-				phone,
-			);
-		}
-		if ( ! ui.wired ) {
-			ui.wired = true;
-			el.getRowId = ( row ) => row.id;
-			el.sort = { key: 'name', direction: 'asc' };
-			el.addEventListener( 'os-table-selection-change', () => {
-				ui.selected = selectedIds( ctx );
-				ctx.repaint();
-			} );
-			// Whole-row click → the User Edit window on THAT user (cells
-			// marked `data-noclick` keep their own behaviour).
-			el.addEventListener( 'os-table-row-click', ( e: Event ) => {
-				const id = ( e as CustomEvent< { row?: UserListItem } > ).detail?.row?.id;
-				if ( typeof id === 'number' && id > 0 ) {
-					openProfile( id );
-				}
-			} );
-		}
-		// A query change replaces the result set — ids picked under the
-		// previous view must not ride into the next bulk action.
-		const listKey = `${ state.page }|${ state.perPage }|${ state.search }|${ state.status }`;
-		if ( listKey !== ui.listKey ) {
-			ui.listKey = listKey;
-			if ( ( el.selection?.size ?? 0 ) > 0 ) {
-				el.clearSelection();
-			}
-			ui.selected = [];
-		}
-		// Assign the rows only when something changed, and rebuild only
-		// the cells of the rows that did — a profile saved elsewhere
-		// repaints its row without flickering the rest.
+
 		const rows = applyStatusFilter( data.list.items, state.status );
-		const next = new Map( rows.map( ( row ) => [ row.id, JSON.stringify( row ) ] ) );
-		let changed = next.size !== ui.rows.size;
-		for ( const [ id, json ] of next ) {
-			if ( ui.rows.get( id ) !== json ) {
-				changed = true;
+		// Only a changed row's cells rebuild; the fingerprint is the sum.
+		const next = new Map( rows.map( ( row ) => [ row.id, rowKey( row ) ] ) );
+		for ( const [ id, key ] of next ) {
+			if ( ui.rows.get( id ) !== key ) {
 				forgetRow( ui.cache, id );
 			}
 		}
 		for ( const id of ui.rows.keys() ) {
 			if ( ! next.has( id ) ) {
-				changed = true;
 				forgetRow( ui.cache, id );
 			}
 		}
-		if ( changed ) {
-			ui.rows = next;
-			el.data = rows;
-			const kept = selectedIds( ctx ).filter( ( id ) => next.has( id ) );
-			if ( kept.length !== ( el.selection?.size ?? 0 ) ) {
-				el.selection = kept;
-				ui.selected = kept;
-			}
-		}
+		ui.rows = next;
+
+		const actions: RowActions = {
+			onSendReset: ( row ) => sendReset( ctx, row ),
+			onResendWelcome: ( row ) => resendWelcome( ctx, row ),
+			toast: ( message ) => say( ctx, message ),
+		};
+		ui.sync.sync( {
+			table: table( ctx ) as unknown as ListTableLike< UserListItem > | null,
+			rows,
+			listKey: `${ state.page }|${ state.perPage }|${ state.search }|${ state.status }|${ state.orderby }|${ state.order }`,
+			fingerprint: Array.from( next.values() ).join( '\n' ),
+			columns: ( phone ) => buildColumns( ui.cache, cfg, actions, phone ),
+			wire: ( el ) => {
+				const t = el as unknown as OsTable< UserListItem >;
+				t.getRowId = ( row ) => row.id;
+				t.sort = { key: 'identity', direction: state.order === 'desc' ? 'desc' : 'asc' };
+				t.addEventListener( 'os-table-selection-change', () => {
+					ui.selected = selectedIds( ctx );
+					ctx.repaint();
+				} );
+				// A sortable header: the collection sorts server-side.
+				t.addEventListener( 'os-table-sort-change', ( e: Event ) => {
+					const sort = ( e as CustomEvent< { sort: { key: string; direction: 'asc' | 'desc' } | null } > ).detail?.sort;
+					void ctx.dispatch( 'sort', {
+						orderby: sort ? SORT_KEYS[ sort.key ] ?? 'name' : 'name',
+						order: sort?.direction ?? 'asc',
+					} );
+				} );
+				// Whole-row click → the User Edit window on THAT user (cells
+				// marked `data-noclick` keep their own behaviour).
+				t.addEventListener( 'os-table-row-click', ( e: Event ) => {
+					const id = ( e as CustomEvent< { row?: UserListItem } > ).detail?.row?.id;
+					if ( typeof id === 'number' && id > 0 ) {
+						openProfile( id, actions );
+					}
+				} );
+			},
+			onSelection: ( kept ) => {
+				ui.selected = kept.map( Number );
+				queueMicrotask( () => ctx.repaint() );
+			},
+		} );
 	},
 } );

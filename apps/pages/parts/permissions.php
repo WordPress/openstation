@@ -1,18 +1,19 @@
 <?php
 /**
- * OpenStation — Native Pages Window: capability gate.
+ * Pages app — the capability gates, the Posts app's twins.
  *
- * The native Pages window is gated on TWO conditions, both required:
+ * The Pages window answers two questions, each filterable:
  *
- *   1. The current user can `edit_pages` (parity with `edit.php?post_type=page`).
- *   2. The user has `nativePagesEnabled` on in OS Settings → Features.
- *      The toggle is purely additive — flipped off, the iframe path is
- *      restored without F5.
+ *   1. May the app be registered for this user? Cap-only
+ *      (`edit_pages`, parity with `edit.php?post_type=page`) — the
+ *      app's `can()` gate.
+ *   2. Has the user opted into the native window? Cap AND the
+ *      `nativePagesEnabled` toggle in OS Settings → Features; flipped
+ *      off, the iframe path returns without an F5.
  *
- * Filterable so plugins can:
- *   - widen the gate to a custom role
- *   - close it on a per-user basis (force the iframe back on)
- *   - bypass the opt-in entirely on a managed install
+ * Filterable so plugins can widen the gate to a custom role, close it
+ * per user (force the iframe back on), or bypass the opt-in on a
+ * managed install.
  *
  * @package OpenStation
  */
@@ -20,10 +21,9 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Whether the user is eligible to have the native Pages window
- * REGISTERED for them at boot. Cap-only check — the opt-in toggle is
- * a runtime, JS-side gate (handled by the URL → native-window remap
- * registry) so flipping the setting takes effect immediately.
+ * Whether the user is eligible to have the Pages app registered.
+ * Cap-only: the opt-in toggle is a runtime, JS-side gate (the URL →
+ * app remap registry), so flipping the setting takes effect at once.
  *
  * @param int|null $user_id Optional. Defaults to `get_current_user_id()`.
  * @return bool
@@ -34,9 +34,9 @@ function openstation_pages_window_user_can_register( $user_id = null ) {
 	$can = $user_id > 0 && user_can( $user_id, 'edit_pages' );
 
 	/**
-	 * Filter whether the current user is eligible to have the native
-	 * Pages window registered. This is the boot-time check; runtime
-	 * "should the dock click use the native window?" is the JS-side
+	 * Filter whether the current user is eligible to have the Pages
+	 * app registered. This is the boot-time check; runtime "should the
+	 * dock click use the native window?" is the JS-side
 	 * `nativePagesEnabled` flag.
 	 *
 	 * @param bool $can     Default: `edit_pages` capability.
@@ -50,10 +50,11 @@ function openstation_pages_window_user_can_register( $user_id = null ) {
 }
 
 /**
- * Combined cap-and-opt-in check. Boot registration uses
- * {@see openstation_pages_window_user_can_register()}; the JS-side
- * remap reads the OS-settings snapshot directly. This helper is for
- * any caller that wants the combined answer.
+ * Whether the user has opted into the native Pages experience: the
+ * cap AND the toggle. Registration uses
+ * {@see openstation_pages_window_user_can_register()}; the dock-click
+ * remap reads the JS-side settings snapshot. This is the combined
+ * answer for any caller that wants it.
  *
  * @param int|null $user_id Optional.
  * @return bool

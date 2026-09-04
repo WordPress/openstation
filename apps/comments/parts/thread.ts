@@ -20,12 +20,13 @@ import {
 	authorName,
 	avatar,
 	bodyNode,
-	buildTree,
 	emptyState,
 	externalIcon,
 	normalizeStatus,
+	plainText,
 	statusBadge,
 	timestamp,
+	treeFor,
 } from './helpers';
 import type { AppExtra, BulkAction, CommentRow, Ctx, UiState } from './types';
 
@@ -35,10 +36,19 @@ function extra( ctx: Ctx ): AppExtra {
 	return ctx.extra as AppExtra;
 }
 
-/** Push a short sentence into the window's polite live region. */
-function announce( ctx: Ctx, ui: UiState, text: string ): void {
-	ui.status = text;
+/**
+ * Push a short sentence into the window's polite live region. Cleared
+ * first and set on the next tick: a screen reader announces a live
+ * region on a DOM change, and the same sentence twice in a row (two
+ * approvals) is no change at all.
+ */
+export function announce( ctx: Ctx, ui: UiState, text: string ): void {
+	ui.status = '';
 	ctx.repaint();
+	window.setTimeout( () => {
+		ui.status = text;
+		ctx.repaint();
+	}, 0 );
 }
 
 /** Read from the textarea the runtime's events wrote into `ui`. */
@@ -80,8 +90,7 @@ function openInlineEdit( ctx: Ctx, ui: UiState, row: CommentRow ): void {
 		// The seed is bound once, when the editor mounts; the draft
 		// tracks the keystrokes. Binding the draft back would re-set the
 		// textarea's value under the caret on every repaint.
-		ui.editSeed =
-			row.content?.raw ?? decodeHTML( ( row.content?.rendered ?? '' ).replace( /<[^>]*>/g, '' ) );
+		ui.editSeed = plainText( row );
 		ui.editDraft = ui.editSeed;
 		ctx.repaint();
 	}
@@ -159,12 +168,13 @@ function actionButton(
 function messageActions( ctx: Ctx, ui: UiState, row: CommentRow ): TemplateResult {
 	const status = normalizeStatus( row );
 	const canModerate = !! extra( ctx ).canModerate;
+	const canReply = !! extra( ctx ).canEditComments;
 	const busyOn = ( action: string ): boolean => ui.busy === `${ row.id }:${ action }`;
 
 	// Order mirrors wp-admin's comment row actions: the moderation verb
 	// first, then the authoring verbs, then the two destructive ones.
 	const items: TemplateResult[] = [];
-	if ( row.openstation_can_moderate ) {
+	if ( canModerate ) {
 		const approveAction: BulkAction = status === 'approved' ? 'unapprove' : 'approve';
 		items.push(
 			actionButton(
@@ -175,15 +185,16 @@ function messageActions( ctx: Ctx, ui: UiState, row: CommentRow ): TemplateResul
 			),
 		);
 	}
-	// Replying posts a comment — gate on the same cap the reply route
-	// enforces, so the action isn't offered to someone it will 403.
-	if ( canModerate ) {
+	// Replying posts a comment — gated on `edit_posts`, the cap the
+	// reply action and route enforce (the parent's post is re-checked
+	// server-side), so the action isn't offered to someone it will 403.
+	if ( canReply ) {
 		items.push( actionButton( __( 'Reply' ), 'default', false, () => openComposerFor( ctx, ui, row ) ) );
 	}
 	if ( row.openstation_can_edit ) {
 		items.push( actionButton( __( 'Edit' ), 'default', false, () => openInlineEdit( ctx, ui, row ) ) );
 	}
-	if ( row.openstation_can_moderate ) {
+	if ( canModerate ) {
 		if ( status !== 'spam' ) {
 			items.push( actionButton( __( 'Spam' ), 'danger', busyOn( 'spam' ), () => void moderate( ctx, ui, row.id, 'spam' ) ) );
 		}
@@ -300,8 +311,8 @@ function convoHead( ctx: Ctx, ui: UiState, root: CommentRow ): TemplateResult {
 }
 
 function composer( ctx: Ctx, ui: UiState, root: CommentRow, rows: CommentRow[] ): TemplateResult {
-	if ( ! extra( ctx ).canModerate ) {
-		// Nothing to compose with — the reply route would reject it.
+	if ( ! extra( ctx ).canEditComments ) {
+		// Nothing to compose with — the reply action would refuse it.
 		return html`<div class="${ NS }__composer is-empty" data-target=${ root.id }></div>`;
 	}
 	const target = rows.find( ( r ) => r.id === ui.replyTo ) ?? root;
@@ -338,8 +349,8 @@ function composer( ctx: Ctx, ui: UiState, root: CommentRow, rows: CommentRow[] )
 /**
  * The conversation pane: the placeholder when nothing is selected,
  * otherwise the head, the scrolling thread and the composer. The
- * thread rows come from `data.thread`; when that read failed the
- * root alone is painted, as the old bundle did.
+ * thread rows are the last ones received (`ui.thread`); when that
+ * read failed the root alone is painted.
  */
 export function conversation( ctx: Ctx, ui: UiState, root: CommentRow | undefined ): TemplateResult {
 	if ( ! root ) {
@@ -349,12 +360,17 @@ export function conversation( ctx: Ctx, ui: UiState, root: CommentRow | undefine
 			__( 'Pick one from the list to read and reply.' ),
 		) }</section>`;
 	}
-	const rows = ctx.data.thread ?? [ root ];
-	const byParent = buildTree( rows );
+	const rows = ui.thread?.rows ?? [ root ];
+	const byParent = treeFor( ui, rows );
 	const rootRow = rows.find( ( r ) => r.id === root.id ) ?? root;
 	return html`<section class="${ NS }__convo" data-os-comments-convo>
 		${ convoHead( ctx, ui, rootRow ) }
-		<div class="${ NS }__thread-scroll">${ message( ctx, ui, rootRow, byParent ) }</div>
+		<div class="${ NS }__thread-scroll">
+			${ message( ctx, ui, rootRow, byParent ) }
+			${ ui.thread?.truncated
+				? html`<os-notice class="${ NS }__truncated" tone="info">${ __( 'This conversation is longer than shown; open the post to read the rest.' ) }</os-notice>`
+				: '' }
+		</div>
 		${ composer( ctx, ui, rootRow, rows ) }
 	</section>`;
 }

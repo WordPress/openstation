@@ -1,14 +1,16 @@
 <?php
 /**
- * Users — the native Users window, as an OpenStation app.
+ * Users — the Users window, as an OpenStation app.
  *
  * Claims the FROZEN id `desktop-mode-users` (see AGENTS.md) so the
  * `users.php` URL remap, session restores and every hook keep
  * working. The body is `users.os.ts`, a client view over the rows
  * `data()` reads from `wp/v2/users` in-process — the same collection,
- * fields and filterable query the legacy bundle fetched over HTTP.
- * The mutations are actions over the functions in `parts/rest.php`,
- * which the `desktop-mode/v1/users*` routes still expose.
+ * fields and filterable query, plus a page of content counts in two
+ * grouped queries. The mutations are actions over the functions in
+ * `parts/rest.php`, which the `desktop-mode/v1/users*` routes expose
+ * too. The Profile tab hosts `<os-user-profile>` from the companion
+ * bundle `parts/profile-script.php` registers.
  *
  * (Header kept short on purpose: Plugin Check's direct-access scan
  * reads only the first 50 raw lines, and the guard below must land
@@ -30,11 +32,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 require_once __DIR__ . '/parts/permissions.php';
 require_once __DIR__ . '/parts/login-tracker.php';
+require_once __DIR__ . '/parts/color-schemes.php';
 require_once __DIR__ . '/parts/fields.php';
+require_once __DIR__ . '/parts/facts.php';
 require_once __DIR__ . '/parts/rest.php';
-// The Profile tab hosts the same `<os-user-profile>` the User Edit
-// app does; its colour-scheme catalogue lives beside that app.
-require_once dirname( __DIR__ ) . '/user-edit/parts/color-schemes.php';
+require_once __DIR__ . '/parts/profile-script.php';
+
+/** The `orderby` values `wp/v2/users` accepts that the table offers. */
+const SORT_KEYS = array( 'name', 'registered_date', 'email' );
 
 /**
  * The query the list reads — the filterable defaults plus the state.
@@ -56,40 +61,7 @@ function list_query( State $state ) {
 }
 
 /**
- * The static facts the client view reads once (`ctx.extra`).
- *
- * @return array<string,mixed>
- */
-function facts() {
-	$viewer_id = (int) get_current_user_id();
-	// The app is never registered for a visitor; skip the catalogue
-	// work (locales, colour schemes) on every anonymous request.
-	if ( $viewer_id <= 0 ) {
-		return array();
-	}
-	return array(
-		'currentUserId'   => $viewer_id,
-		'editPostUrlBase' => esc_url_raw( admin_url( 'user-edit.php' ) ),
-		// Capability flags — UI hides actions the viewer can't perform.
-		// Every action re-checks, so a tampered flag changes nothing.
-		'canEdit'         => current_user_can( 'edit_users' ),
-		'canPromote'      => current_user_can( 'promote_users' ),
-		'canCreate'       => current_user_can( 'create_users' ),
-		'canDelete'       => is_multisite() ? current_user_can( 'remove_users' ) : current_user_can( 'delete_users' ),
-		'isMultisite'     => is_multisite(),
-		'assignableRoles' => openstation_users_window_role_label_map( $viewer_id ),
-		'allRoles'        => openstation_users_window_all_roles_map(),
-		'locales'         => openstation_users_window_locales_map(),
-		'siteLocale'      => (string) get_locale(),
-		'defaultRole'     => (string) get_option( 'default_role', 'subscriber' ),
-		/** This filter is documented in wp-includes/user.php */
-		'contactMethods'  => (array) apply_filters( 'user_contactmethods', array(), null ), // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Core's filter; the window must offer the same contact fields profile.php does.
-		'colorSchemes'    => openstation_user_edit_window_color_schemes(),
-	);
-}
-
-/**
- * Say what a mutation did, the way the legacy bundle did.
+ * Say what a mutation did.
  *
  * @param Os              $os     Host handle.
  * @param array|\WP_Error $result The mutation's answer.
@@ -103,6 +75,23 @@ function report( Os $os, $result, callable $ok ) {
 	}
 	$os->toast( $ok( $result ) );
 	return true;
+}
+
+/**
+ * How many of a bulk result's rows succeeded.
+ *
+ * @param array<string,mixed> $result Bulk result.
+ * @return int
+ */
+function ok_count( array $result ) {
+	return count(
+		array_filter(
+			(array) $result['results'],
+			static function ( $row ) {
+				return ! empty( $row['ok'] );
+			}
+		)
+	);
 }
 
 return App::define( 'desktop-mode-users' )
@@ -119,14 +108,14 @@ return App::define( 'desktop-mode-users' )
 		}
 	)
 	// Resolved when the window registers, for the viewer registering it.
-	->config( __NAMESPACE__ . '\facts' )
+	->config( 'openstation_users_profile_facts' )
 	->state(
 		array(
 			'page'        => 1,
 			'perPage'     => 20,
 			'search'      => '',
 			// The presence filter (All / Online / Active 30d / Never
-			// logged in) — a client-side slice of the page, as before.
+			// logged in) — a client-side slice of the page.
 			'status'      => '',
 			'orderby'     => 'name',
 			'order'       => 'asc',
@@ -152,6 +141,15 @@ return App::define( 'desktop-mode-users' )
 			$state->set( 'page', max( 1, (int) ( $args['page'] ?? 1 ) ) );
 		}
 	)
+	// A column header click; the table's keys map to the collection's.
+	->action(
+		'sort',
+		static function ( State $state, Os $os, array $args ) {
+			$orderby = sanitize_key( (string) ( $args['orderby'] ?? 'name' ) );
+			$state->set( 'orderby', in_array( $orderby, SORT_KEYS, true ) ? $orderby : 'name' );
+			$state->set( 'order', 'desc' === strtolower( (string) ( $args['order'] ?? 'asc' ) ) ? 'desc' : 'asc' );
+		}
+	)
 	->action(
 		'bulk-role',
 		static function ( State $state, Os $os, array $args ) {
@@ -165,7 +163,7 @@ return App::define( 'desktop-mode-users' )
 				$os,
 				$result,
 				static function ( array $result ) use ( $ids ) {
-					$ok = count( array_filter( $result['results'], static fn( $row ) => ! empty( $row['ok'] ) ) );
+					$ok = ok_count( $result );
 					if ( 0 === $ok ) {
 						return __( 'No users updated.', 'desktop-mode' );
 					}
@@ -191,7 +189,7 @@ return App::define( 'desktop-mode-users' )
 				$os,
 				$result,
 				static function ( array $result ) use ( $ids ) {
-					$ok = count( array_filter( $result['results'], static fn( $row ) => ! empty( $row['ok'] ) ) );
+					$ok = ok_count( $result );
 					// translators: %1$d users deleted, %2$d skipped.
 					return sprintf( __( '%1$d user(s) deleted (%2$d skipped).', 'desktop-mode' ), $ok, count( $ids ) - $ok );
 				}
@@ -267,18 +265,26 @@ return App::define( 'desktop-mode-users' )
 		}
 	)
 	// A profile saved in the User Edit window, a role changed here, a
-	// user created anywhere: the list repaints.
+	// user created anywhere: the list repaints (the app's own announces
+	// are skipped by the runtime — the action already returned the rows).
 	->watch( 'user' )
 	->data(
 		static function ( State $state ) {
 			$list = openstation_app_rest_page( 'wp/v2/users', list_query( $state ) );
 			// Page out of range — the user was on page 7 and changed the
-			// page size. Core refuses the page outright
-			// (`rest_user_invalid_page_number`), so the answer is empty
-			// either way: land on page 1 rather than paint an empty table.
-			if ( array() === $list['items'] && $state->get( 'page' ) > 1 ) {
+			// page size. Land on page 1 rather than paint an empty table.
+			if ( $state->get( 'page' ) > 1 && openstation_app_rest_page_is_out_of_range( $list ) ) {
 				$state->set( 'page', 1 );
 				$list = openstation_app_rest_page( 'wp/v2/users', list_query( $state ) );
+			}
+			// The Content column: the page's counts in two grouped
+			// queries, merged in under the name the REST field uses.
+			$stats = openstation_users_window_stats_for( wp_list_pluck( $list['items'], 'id' ) );
+			foreach ( $list['items'] as $i => $row ) {
+				$id = isset( $row['id'] ) ? (int) $row['id'] : 0;
+				if ( isset( $stats[ $id ] ) ) {
+					$list['items'][ $i ]['openstation_user_stats'] = $stats[ $id ];
+				}
 			}
 			return array( 'list' => $list );
 		}

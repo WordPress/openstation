@@ -8,41 +8,38 @@
  * @public
  */
 
-import { __ } from '../../../../src/i18n';
+import { __ } from '@openstation/app';
+import { CANVAS_PREFIX, canvasButton } from './chrome';
 
-export function sidebarHeader( sidebar: HTMLElement, prefix: string, color: string, label: string ): void {
+const P = CANVAS_PREFIX;
+
+export function sidebarHeader( sidebar: HTMLElement, color: string, label: string ): void {
 	const header = document.createElement( 'div' );
-	header.className = `${ prefix }__sidebar-header`;
+	header.className = `${ P }__sidebar-header`;
 	const dot = document.createElement( 'span' );
-	dot.className = `${ prefix }__sidebar-dot`;
+	dot.className = `${ P }__sidebar-dot`;
 	dot.style.background = color;
 	const code = document.createElement( 'code' );
-	code.className = `${ prefix }__sidebar-slug`;
+	code.className = `${ P }__sidebar-slug`;
 	code.textContent = label;
 	header.appendChild( dot );
 	header.appendChild( code );
 	sidebar.appendChild( header );
 }
 
-function labelFor( sidebar: HTMLElement, prefix: string, text: string ): void {
+function labelFor( sidebar: HTMLElement, text: string ): void {
 	const label = document.createElement( 'label' );
-	label.className = `${ prefix }__sidebar-label`;
+	label.className = `${ P }__sidebar-label`;
 	label.textContent = text;
 	sidebar.appendChild( label );
 }
 
 /** A labelled text input. */
-export function sidebarInput(
-	sidebar: HTMLElement,
-	prefix: string,
-	label: string,
-	value: string,
-	placeholder: string,
-): HTMLInputElement {
-	labelFor( sidebar, prefix, label );
+export function sidebarInput( sidebar: HTMLElement, label: string, value: string, placeholder: string ): HTMLInputElement {
+	labelFor( sidebar, label );
 	const input = document.createElement( 'input' );
 	input.type = 'text';
-	input.className = `${ prefix }__editor-name`;
+	input.className = `${ P }__editor-name`;
 	input.value = value;
 	input.placeholder = placeholder;
 	sidebar.appendChild( input );
@@ -54,8 +51,8 @@ export function sidebarInput(
  * user sees what will actually be saved; `autocapitalize="off"` keeps
  * phone keyboards from capitalising the first character.
  */
-export function sidebarSlugInput( sidebar: HTMLElement, prefix: string, value: string ): HTMLInputElement {
-	const input = sidebarInput( sidebar, prefix, __( 'Slug' ), value, __( 'auto-from-name' ) );
+export function sidebarSlugInput( sidebar: HTMLElement, value: string ): HTMLInputElement {
+	const input = sidebarInput( sidebar, __( 'Slug' ), value, __( 'auto-from-name' ) );
 	input.spellcheck = false;
 	input.autocapitalize = 'off';
 	input.addEventListener( 'input', () => {
@@ -70,10 +67,10 @@ export function sidebarSlugInput( sidebar: HTMLElement, prefix: string, value: s
 	return input;
 }
 
-export function sidebarTextarea( sidebar: HTMLElement, prefix: string, value: string ): HTMLTextAreaElement {
-	labelFor( sidebar, prefix, __( 'Description' ) );
+export function sidebarTextarea( sidebar: HTMLElement, value: string ): HTMLTextAreaElement {
+	labelFor( sidebar, __( 'Description' ) );
 	const textarea = document.createElement( 'textarea' );
-	textarea.className = `${ prefix }__editor-desc`;
+	textarea.className = `${ P }__editor-desc`;
 	textarea.value = value;
 	textarea.placeholder = __( 'Description (optional)' );
 	textarea.rows = 4;
@@ -81,59 +78,38 @@ export function sidebarTextarea( sidebar: HTMLElement, prefix: string, value: st
 	return textarea;
 }
 
-export function sidebarMeta( sidebar: HTMLElement, prefix: string, text: string ): void {
+export function sidebarMeta( sidebar: HTMLElement, text: string ): void {
 	const meta = document.createElement( 'p' );
-	meta.className = `${ prefix }__sidebar-meta`;
+	meta.className = `${ P }__sidebar-meta`;
 	meta.textContent = text;
 	sidebar.appendChild( meta );
 }
 
-export function sidebarButton( prefix: string, variant: string, label: string ): HTMLButtonElement {
-	const btn = document.createElement( 'button' );
-	btn.type = 'button';
-	btn.className = `${ prefix }__btn${ variant ? ` ${ prefix }__btn--${ variant }` : '' }`;
-	btn.textContent = label;
-	return btn;
-}
+export const sidebarButton = canvasButton;
 
-export function sidebarActions( sidebar: HTMLElement, prefix: string, buttons: HTMLElement[] ): void {
+export function sidebarActions( sidebar: HTMLElement, buttons: HTMLElement[] ): void {
 	const actions = document.createElement( 'div' );
-	actions.className = `${ prefix }__editor-actions`;
+	actions.className = `${ P }__editor-actions`;
 	for ( const b of buttons ) {
 		actions.appendChild( b );
 	}
 	sidebar.appendChild( actions );
 }
 
-/**
- * The empty state when nothing is focused. `classed` names the title
- * and hint the way the tag cloud's stylesheet expects; the mind map's
- * uses bare elements.
- */
-export function sidebarEmpty(
-	sidebar: HTMLElement,
-	prefix: string,
-	icon: string,
-	title: string,
-	hint: string,
-	classed = false,
-): void {
+/** The empty state when nothing is focused. */
+export function sidebarEmpty( sidebar: HTMLElement, icon: string, title: string, hint: string ): void {
 	const empty = document.createElement( 'div' );
-	empty.className = `${ prefix }__sidebar-empty`;
+	empty.className = `${ P }__sidebar-empty`;
 	const iconEl = document.createElement( 'span' );
 	iconEl.className = `dashicons ${ icon }`;
 	iconEl.setAttribute( 'aria-hidden', 'true' );
 	empty.appendChild( iconEl );
 	const titleEl = document.createElement( 'h3' );
-	if ( classed ) {
-		titleEl.className = `${ prefix }__sidebar-empty-title`;
-	}
+	titleEl.className = `${ P }__sidebar-empty-title`;
 	titleEl.textContent = title;
 	empty.appendChild( titleEl );
 	const help = document.createElement( 'p' );
-	if ( classed ) {
-		help.className = `${ prefix }__sidebar-empty-hint`;
-	}
+	help.className = `${ P }__sidebar-empty-hint`;
 	help.textContent = hint;
 	empty.appendChild( help );
 	sidebar.appendChild( empty );
@@ -143,8 +119,8 @@ export function sidebarEmpty(
  * Delete as a two-click gesture: the first click arms the button
  * ("Click again to delete") for 2.5s, the second runs it.
  */
-export function armedDeleteButton( prefix: string, onDelete: () => Promise< void > ): HTMLButtonElement {
-	const delBtn = sidebarButton( prefix, 'danger', __( 'Delete' ) );
+export function armedDeleteButton( onDelete: () => Promise< void > ): HTMLButtonElement {
+	const delBtn = canvasButton( 'danger', __( 'Delete' ) );
 	let armResetTimer: number | null = null;
 	delBtn.addEventListener( 'click', async () => {
 		if ( ! delBtn.classList.contains( 'is-armed' ) ) {

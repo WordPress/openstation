@@ -1,8 +1,9 @@
 /**
  * User Edit app — the client view: `<os-user-profile>` on the state's
- * id, re-pointed in place when the id changes.
+ * id, re-pointed in place when the id changes, fed the app's facts,
+ * REST access and toast as properties.
  */
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mockViewContext } from '../../src/app-runtime/testing';
 import app from './user-edit.os';
 
@@ -10,17 +11,22 @@ interface State extends Record< string, unknown > {
 	userId: number;
 }
 
+type ProfileEl = HTMLElement & { config?: unknown; fetch?: unknown; toast?: ( m: string, k?: string ) => void };
+
 function mount( userId: number ) {
 	const root = document.createElement( 'div' );
 	document.body.appendChild( root );
+	const toast = vi.fn();
 	const ctx = mockViewContext< State, { userId: number } >( {
 		state: { userId },
 		data: { userId },
 		root,
+		extra: { currentUserId: 1, allRoles: { editor: 'Editor' } },
+		host: { fetch: globalThis.fetch, toast },
 	} );
 	ctx.repaint = () => app.render( ctx );
 	app.render( ctx );
-	return { root, ctx };
+	return { root, ctx, toast };
 }
 
 afterEach( () => {
@@ -28,13 +34,19 @@ afterEach( () => {
 } );
 
 describe( 'the user edit app view', () => {
-	it( 'hosts <os-user-profile> on the state id, inside the legacy window root', () => {
-		const { root } = mount( 7 );
+	it( 'hosts <os-user-profile> on the state id, inside the window root, fed the app’s properties', () => {
+		const { root, ctx, toast } = mount( 7 );
 		const host = root.querySelector( '.os-user-edit-window[data-os-user-edit-window-root]' );
 		expect( host ).not.toBeNull();
-		const profile = host?.querySelector( 'os-user-profile[data-os-user-profile-host]' );
+		const profile = host?.querySelector< ProfileEl >( 'os-user-profile[data-os-user-profile-host]' );
 		expect( profile?.getAttribute( 'user-id' ) ).toBe( '7' );
-		expect( customElements.get( 'os-user-profile' ) ).toBeDefined();
+		// The element itself ships in the companion bundle, not here.
+		expect( profile?.config ).toEqual( ctx.extra );
+		expect( profile?.fetch ).toBe( ctx.fetch );
+		profile?.toast?.( 'Saved', 'success' );
+		expect( toast ).toHaveBeenCalledWith( { message: 'Saved', duration: 5000 } );
+		profile?.toast?.( 'Broke', 'error' );
+		expect( toast ).toHaveBeenCalledWith( { message: 'Broke', duration: 8000 } );
 	} );
 
 	it( 'a retarget flips the attribute on the SAME element — the component re-mounts in place', () => {

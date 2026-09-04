@@ -118,11 +118,11 @@ class Tests_OpenStation_PluginsApp extends WP_UnitTestCase {
 		// The config blob the client reads: the static half plus the
 		// per-viewer half (caps, nonces, the auto-updates gate).
 		$config = $manifest['config'];
-		foreach ( array( 'ajaxUrl', 'ajaxNonce', 'updatesNonce', 'caps', 'autoUpdatesEnabled', 'currentUserId', 'selfPluginFile', 'adminUrl' ) as $key ) {
-			$this->assertArrayHasKey( $key, $config, $key );
-		}
+		$this->assertSame(
+			array( 'ajaxUrl', 'selfPluginFile', 'adminUrl', 'ajaxNonce', 'updatesNonce', 'caps', 'autoUpdatesEnabled' ),
+			array_keys( $config )
+		);
 		$this->assertSame( openstation_plugins_window_caps( self::$admin_id ), $config['caps'] );
-		$this->assertSame( self::$admin_id, $config['currentUserId'] );
 		$this->assertStringEndsWith( 'admin-ajax.php', $config['ajaxUrl'] );
 		$this->assertSame( substr( plugin_basename( OPENSTATION_FILE ), 0, -4 ), $config['selfPluginFile'] );
 		$this->assertStringEndsNotWith( '.php', $config['selfPluginFile'] );
@@ -237,6 +237,115 @@ class Tests_OpenStation_PluginsApp extends WP_UnitTestCase {
 		$response = $this->dispatch( 'bulk', array(), array( 'plugins' => array( $plugin ), 'do' => 'deactivate' ) );
 		$this->assertFalse( is_plugin_active( self::FIXTURE ) );
 		$this->assertSame( '1 plugin(s) deactivated.', $response['effects'][0]['message'] );
+	}
+
+	/**
+	 * @covers \OpenStation\App\Runtime::dispatch
+	 */
+	public function test_delete_removes_an_inactive_plugin_from_disk() {
+		$folder = 'dm-plugins-app-delete-fixture';
+		$file   = $folder . '/' . $folder . '.php';
+		wp_mkdir_p( WP_PLUGIN_DIR . '/' . $folder );
+		file_put_contents( WP_PLUGIN_DIR . '/' . $file, "<?php\n/**\n * Plugin Name: Delete Fixture\n */\n" );
+		wp_cache_delete( 'plugins', 'plugins' );
+		try {
+			$response = $this->dispatch( 'delete', array(), array( 'plugin' => substr( $file, 0, -4 ) ) );
+			$caps     = openstation_plugins_window_caps( self::$admin_id );
+			$this->assertTrue( $response['ok'] );
+			if ( $caps['delete'] ) {
+				$this->assertFileDoesNotExist( WP_PLUGIN_DIR . '/' . $file );
+				$this->assertStringContainsString( 'deleted', $response['effects'][0]['message'] );
+				$this->assertContains( 'refresh_menu', wp_list_pluck( $response['effects'], 'type' ) );
+				$this->assertNotContains( substr( $file, 0, -4 ), wp_list_pluck( $response['data']['installed'], 'plugin' ) );
+			} else {
+				// A network: plugin files are managed from the network admin.
+				$this->assertFileExists( WP_PLUGIN_DIR . '/' . $file );
+				$this->assertStringContainsString( 'Delete failed', $response['effects'][0]['message'] );
+			}
+		} finally {
+			if ( file_exists( WP_PLUGIN_DIR . '/' . $file ) ) {
+				unlink( WP_PLUGIN_DIR . '/' . $file );
+				rmdir( WP_PLUGIN_DIR . '/' . $folder );
+			}
+			wp_cache_delete( 'plugins', 'plugins' );
+		}
+	}
+
+	/**
+	 * @covers \OpenStation\App\Runtime::dispatch
+	 */
+	public function test_an_unknown_bulk_verb_is_a_toast_and_touches_nothing() {
+		$plugin   = substr( self::FIXTURE, 0, -4 );
+		$response = $this->dispatch( 'bulk', array(), array( 'plugins' => array( $plugin ), 'do' => 'explode' ) );
+		$this->assertTrue( $response['ok'] );
+		$this->assertSame( 'Unknown bulk action.', $response['effects'][0]['message'] );
+		$this->assertNotContains( 'refresh_menu', wp_list_pluck( $response['effects'], 'type' ) );
+		$this->assertFalse( is_plugin_active( self::FIXTURE ) );
+
+		// An empty selection is no toast at all.
+		$response = $this->dispatch( 'bulk', array(), array( 'plugins' => array( '../evil' ), 'do' => 'activate' ) );
+		$this->assertTrue( $response['ok'] );
+		$this->assertSame( array(), $response['effects'] );
+	}
+
+	/**
+	 * Deactivating or deleting OpenStation itself skips the menu
+	 * refresh (a hidden admin-page load that would probe a dead
+	 * plugin) — the client leaves for the classic admin instead.
+	 *
+	 * @covers \OpenStation\Apps\Plugins\is_self
+	 */
+	public function test_is_self_recognises_openstations_own_path() {
+		$self = substr( plugin_basename( OPENSTATION_FILE ), 0, -4 );
+		$this->assertTrue( \OpenStation\Apps\Plugins\is_self( $self ) );
+		$this->assertFalse( \OpenStation\Apps\Plugins\is_self( $self . '.php' ) );
+		$this->assertFalse( \OpenStation\Apps\Plugins\is_self( substr( self::FIXTURE, 0, -4 ) ) );
+		$this->assertFalse( \OpenStation\Apps\Plugins\is_self( '' ) );
+	}
+
+	/**
+	 * A failed collection read is an error string in `data()`, never a
+	 * fatal or an empty list masquerading as a healthy one.
+	 *
+	 * @covers \OpenStation\App\Runtime::dispatch
+	 */
+	public function test_data_reports_a_failed_collection_read() {
+		$broken = static function ( $response, $handler, $request ) {
+			if ( '/wp/v2/plugins' === $request->get_route() ) {
+				return new WP_Error( 'boom', 'The plugins folder is unreadable.', array( 'status' => 500 ) );
+			}
+			return $response;
+		};
+		add_filter( 'rest_request_before_callbacks', $broken, 10, 3 );
+		try {
+			$response = $this->dispatch( 'mount' );
+		} finally {
+			remove_filter( 'rest_request_before_callbacks', $broken, 10 );
+		}
+		$this->assertTrue( $response['ok'] );
+		$this->assertSame( array(), $response['data']['installed'] );
+		$this->assertStringContainsString( 'unreadable', $response['data']['error'] );
+	}
+
+	/**
+	 * A network-activated plugin (a status only a network has) offers
+	 * no activate or delete, and deactivate only to a network admin.
+	 *
+	 * @covers ::openstation_plugins_window_field_can_manage
+	 */
+	public function test_can_manage_treats_network_active_as_active_but_network_managed() {
+		$can = openstation_plugins_window_field_can_manage(
+			array(
+				'plugin' => 'akismet/akismet',
+				'status' => 'network-active',
+			)
+		);
+		$this->assertFalse( $can['activate'] );
+		$this->assertFalse( $can['delete'] );
+		$this->assertSame( current_user_can( 'manage_network_plugins' ), $can['deactivate'] );
+		if ( is_multisite() ) {
+			$this->assertTrue( $can['deactivate'], 'A super admin manages network plugins.' );
+		}
 	}
 
 	/**

@@ -342,6 +342,15 @@ const TARGETS = {
 		fileBase: 'app-runtime',
 		iifeName: 'openStationAppRuntime',
 	},
+	// `<os-user-profile>` — the profile surface the Users app's Profile
+	// tab and the User Edit app both mount. One bundle registered as a
+	// companion script of both windows (see `apps/users/profile/`)
+	// instead of a copy compiled into each app's client view.
+	'user-profile': {
+		entry:    'apps/users/profile/index.ts',
+		fileBase: 'apps/user-profile',
+		iifeName: 'openStationUserProfile',
+	},
 	// Games hub — launcher grid + scoreboard + challenges client.
 	// Registers a render callback on
 	// `window.openStationNativeWindows['desktop-mode-games']`; the

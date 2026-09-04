@@ -4,9 +4,10 @@
  * The Posts app's list body, composed for pages: `parts/app.ts` under
  * `apps/posts/` reads `ctx.extra.mode` and paints the hierarchical
  * column set (Parent, Template, Slug, Comments), the front-page /
- * posts-page badges and the page copy; there are no taxonomy tabs.
- * Sanctioned cross-app reuse — the two windows are one list surface
- * over two collections, and both `.os.php` entries note it.
+ * posts-page badges and the page copy. No taxonomy tabs and no
+ * taxonomy cells, so this bundle carries neither picker. Sanctioned
+ * cross-app reuse — the two windows are one list surface over two
+ * collections, and both `.os.php` entries note it.
  *
  * @public
  */

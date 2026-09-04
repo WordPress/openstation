@@ -73,15 +73,29 @@
 	color: var( --os-ui-fg-muted, #50575e );
 }
 
-/* The bulk bar's role pick — a native select in the toolbar. */
+/* The bulk bar's clusters: the role pick + Apply, and the reassign
+   picker + Delete. */
+.os-users__bulk-group {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	flex-wrap: wrap;
+}
 .os-users__bulk-role {
-	padding: 4px 8px;
-	border-radius: 4px;
-	border: 1px solid var( --os-ui-border, #dcdcde );
-	background: var( --os-ui-field-bg, var( --os-ui-surface, #fff ) );
-	color: inherit;
-	font: inherit;
-	font-size: 13px;
+	min-width: 160px;
+}
+.os-users__reassign {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 12px;
+	color: var( --os-ui-fg-muted, #50575e );
+}
+.os-users__reassign-name {
+	color: var( --os-ui-fg, #1d2327 );
+}
+.os-users__reassign-search {
+	min-width: 160px;
 }
 
 /* Narrow-window trim — at < 540px the side padding gets in the way
@@ -108,15 +122,6 @@
 .os-users__edit-panel[ hidden ] {
 	display: none;
 }
-/* `<os-user-profile>` slotted as a tabpanel child fills the height
-   itself so its internal scroll container takes the remaining space. */
-.os-users__edit-panel > os-user-profile {
-	flex: 1 1 auto;
-	min-height: 0;
-	display: flex;
-	flex-direction: column;
-}
-
 /* The User Edit window. The body is a chromeless host;
    `<os-user-profile>` fills the whole space and owns its own scroll.
    Without `min-height: 0` on the chain, the inner `overflow-y: auto`
@@ -128,14 +133,11 @@
 	height: 100%;
 	min-height: 0;
 }
-.os-user-edit-window > os-user-profile {
-	flex: 1 1 auto;
-	min-height: 0;
-	display: flex;
-	flex-direction: column;
-}
-/* The component itself — light-DOM host of the layout. */
+/* The component — the light-DOM host of the layout — fills whatever
+   hosts it (the Profile tab panel, the User Edit window) so its
+   internal scroll container takes the remaining space. */
 os-user-profile {
+	flex: 1 1 auto;
 	display: flex;
 	flex-direction: column;
 	min-height: 0;

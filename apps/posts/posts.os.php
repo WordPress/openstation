@@ -56,7 +56,7 @@ return App::define( 'desktop-mode-posts' )
 	// user — not once when this file loads.
 	->config(
 		static function () {
-			return openstation_posts_app_config( 'posts' );
+			return openstation_posts_app_config( 'posts', 'date', 'desc' );
 		}
 	)
 	->state( openstation_posts_app_state( 'date', 'desc' ) )
@@ -75,7 +75,7 @@ return App::define( 'desktop-mode-posts' )
 	->action(
 		'sort',
 		static function ( State $state, Os $os, array $args ) {
-			openstation_posts_app_sort( $state, $args );
+			openstation_posts_app_sort( $state, $args, 'date', 'desc' );
 		}
 	)
 	->action(

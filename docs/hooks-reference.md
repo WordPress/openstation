@@ -3432,7 +3432,7 @@ Short-circuit the lazy refresh of the `update_plugins` site transient that runs 
 apply_filters( 'openstation_plugins_window_refresh_updates', bool $refresh, bool $force ): bool
 ```
 
-Return `false` to skip the refresh — useful for hosts that run their own update orchestration (managed WordPress, internal mirrors) and don't want REST hits to potentially trigger a wp.org HTTPS check. The filter is also called on the explicit force-refresh path (when the in-window Refresh button passes `?openstation_force_refresh=1`); returning `false` there keeps the no-network posture even on user-initiated refreshes. Inspect `$force` to apply different policies for opportunistic vs. user-initiated refreshes.
+Return `false` to skip the refresh — useful for hosts that run their own update orchestration (managed WordPress, internal mirrors) and don't want REST hits to potentially trigger a wp.org HTTPS check. The filter is also called on the explicit force-refresh path (the app's `reload` action — the window's Refresh button — primes the check with `$force = true`); returning `false` there keeps the no-network posture even on user-initiated refreshes. Inspect `$force` to apply different policies for opportunistic vs. user-initiated refreshes.
 
 ### `openstation_plugins_window_auto_updates_enabled` — Experimental *(filter)*
 
@@ -3524,7 +3524,7 @@ Combined cap-and-opt-in check. Hooks here override the default ("can register AN
 apply_filters( 'openstation_comments_window_query_args', array $args ): array
 ```
 
-Filters the `wp/v2/comments` query args the app's `data()` runs for the rail. Use to whitelist additional `_fields`, override `per_page`, or scope the default tab.
+Filters the `wp/v2/comments` query args the app's `data()` runs for the rail. Use to whitelist additional `_fields`, override `per_page` (the page size is this filter's alone), or scope the default tab. The default `_fields` no longer request `openstation_replies_count` and `openstation_can_moderate`: the app computes the reply counts for the page in one grouped query and ships the moderation cap in its config extra. Both fields stay registered for REST consumers — add them back here if you read them off the rows.
 
 ### `openstation_comments_window_spam_score` — Experimental *(filter)*
 
@@ -3533,14 +3533,6 @@ apply_filters( 'openstation_comments_window_spam_score', int $score, WP_Comment 
 ```
 
 Filters the 0–100 spam-confidence score the bundle paints per row. Hook here to plug in an AI-provider fallback when Akismet isn't installed but a OpenStation AI provider is configured. Return value is clamped to `0..100`.
-
-### `openstation_comments_window_reply_editor` — Experimental *(filter)*
-
-```php
-apply_filters( 'openstation_comments_window_reply_editor', string $editor, int $user_id ): string
-```
-
-Selects the inline-reply editor flavor — `'rich'` (default contenteditable rich editor), `'plain'` (textarea), or `'gutenberg'` (planned — currently falls back to `'rich'`).
 
 ### `openstation_comments_window_after_bulk` — Stable *(action)*
 
@@ -3602,7 +3594,7 @@ The role slugs `$viewer_id` may assign to `$target_id`. Default: the keys of cor
 apply_filters( 'openstation_users_window_query_args', array $args ): array
 ```
 
-Default query args the app's `data()` merges into every `/wp/v2/users` request. Defaults ship a `_fields` whitelist (including the `openstation_user_stats`, `openstation_last_login`, `openstation_presence`, `openstation_can_edit`, and `openstation_assignable_roles` REST fields), `context=edit` (required for `email` / `roles` / `registered_date` to appear at all), and `per_page=20`.
+Default query args the app's `data()` merges into every `/wp/v2/users` request. Defaults ship a `_fields` whitelist (including the `openstation_last_login`, `openstation_presence` and `openstation_can_edit` REST fields), `context=edit` (required for `email` / `roles` / `registered_date` to appear at all), and `per_page=20`. Not in the default whitelist, because the app has them cheaper: `openstation_user_stats` (the page's counts come from two grouped queries, `openstation_users_window_stats_for()`, merged into the rows), `openstation_assignable_roles` (the config extra carries the viewer's assignable roles), `url` and `description`. All four stay available — add them here if you read them off the rows.
 
 ### `openstation_users_window_user_created` — Stable *(action)*
 

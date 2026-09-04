@@ -9,19 +9,14 @@
  */
 
 import { __, html, type TemplateResult } from '@openstation/app';
-import { decodeHTML } from '../../../src/utils';
+import { pickAvatarUrl } from '../../../src/ui/util/avatar-resolve';
+import { adminBaseUrl as adminUrl, decodeHTML } from '../../../src/utils';
+
+export { adminUrl, pickAvatarUrl };
 import type { BulkAction, CommentRow, UiState } from './types';
 
 /** CSS class prefix for everything the view renders. */
 export const NS = 'os-comments';
-
-/** wp-admin base URL, for building editor links the shell intercepts. */
-export function adminUrl(): string {
-	const desktop = ( window as unknown as {
-		wp?: { os?: { config?: { adminUrl?: string } } };
-	} ).wp?.os;
-	return desktop?.config?.adminUrl || '/wp-admin/';
-}
 
 export function normalizeStatus( row: CommentRow ): string {
 	const s = String( row.status );
@@ -86,9 +81,19 @@ export function timestamp( gmt: string, className: string, compact = false ): Te
 	return html`<os-relative-time class=${ className } datetime=${ gmt } ?compact=${ compact }></os-relative-time>`;
 }
 
+/**
+ * A comment's body as plain text: the rendered HTML with its tags gone
+ * and its entities decoded (or the raw text when the row carries it).
+ */
+export function plainText( row: CommentRow ): string {
+	if ( typeof row.content?.raw === 'string' ) {
+		return row.content.raw;
+	}
+	return decodeHTML( ( row.content?.rendered ?? '' ).replace( /<[^>]*>/g, ' ' ) );
+}
+
 export function snippet( row: CommentRow ): string {
-	const raw = row.content?.rendered ?? row.content?.raw ?? '';
-	return decodeHTML( raw.replace( /<[^>]*>/g, ' ' ) ).replace( /\s+/g, ' ' ).trim();
+	return plainText( row ).replace( /\s+/g, ' ' ).trim();
 }
 
 export function authorName( row: CommentRow | undefined ): string {
@@ -103,11 +108,7 @@ export function authorName( row: CommentRow | undefined ): string {
  * avatar, so the initials tile shows instead of an empty circle.
  */
 export function avatar( row: CommentRow, size: number ): TemplateResult {
-	const url =
-		row.author_avatar_urls?.[ '48' ] ??
-		row.author_avatar_urls?.[ '96' ] ??
-		row.author_avatar_urls?.[ '24' ] ??
-		'';
+	const url = pickAvatarUrl( row.author_avatar_urls );
 	return html`<os-avatar
 		class="${ NS }__disc"
 		name=${ row.author_name || '?' }
@@ -137,14 +138,6 @@ export function emptyState( icon: string, heading: string, description = '' ): T
 		heading=${ heading }
 		description=${ description }
 	></os-empty-state>`;
-}
-
-/** Spinner row — while a pane is fetching its first payload. */
-export function loadingRow(): TemplateResult {
-	return html`<div class="${ NS }__list-loading">
-		<os-spinner size="24"></os-spinner>
-		<span class="screen-reader-text">${ __( 'Loading…' ) }</span>
-	</div>`;
 }
 
 /**
@@ -204,6 +197,17 @@ export function buildTree( rows: CommentRow[] ): Map< number, CommentRow[] > {
 }
 
 /**
+ * The tree for the thread on screen, rebuilt only when the rows
+ * array itself changed — a live-region or busy repaint reuses it.
+ */
+export function treeFor( ui: UiState, rows: CommentRow[] ): Map< number, CommentRow[] > {
+	if ( ui.tree.rows !== rows ) {
+		ui.tree = { rows, byParent: buildTree( rows ) };
+	}
+	return ui.tree.byParent;
+}
+
+/**
  * A comment's rendered body as a node the renderer keeps. The REST
  * `content.rendered` is trusted HTML (core's comment filters ran on
  * it); the kit's `html` tag would escape it, so it is set through
@@ -220,4 +224,14 @@ export function bodyNode( ui: UiState, row: CommentRow ): HTMLElement {
 	el.innerHTML = rendered;
 	ui.bodies.set( row.id, { html: rendered, el } );
 	return el;
+}
+
+/** Forget the bodies of comments no longer in the thread on screen. */
+export function pruneBodies( ui: UiState, rows: CommentRow[] ): void {
+	const keep = new Set( rows.map( ( r ) => r.id ) );
+	for ( const id of Array.from( ui.bodies.keys() ) ) {
+		if ( ! keep.has( id ) ) {
+			ui.bodies.delete( id );
+		}
+	}
 }

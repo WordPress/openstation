@@ -11,24 +11,13 @@
  * @public
  */
 
-import { __, _n, sprintf } from '../../../src/i18n';
+import { __, _n, sprintf } from '@openstation/app';
 import '../../../src/ui/components/os-table/os-table';
 import '../../../src/ui/components/os-multiselect/os-multiselect';
 import type { OsTableColumn } from '../../../src/ui/components/os-table/os-table';
-import {
-	buildAuthorCell,
-	buildCategoriesCell,
-	buildCommentsCell,
-	buildDateCell,
-	buildParentCell,
-	buildSlugCell,
-	buildTagsCell,
-	buildTemplateCell,
-	buildTitleCell,
-	memoCell,
-	type CellCache,
-	type CellEnv,
-} from './cells';
+import { buildAuthorCell, buildDateCell, buildTitleCell } from './cells/basic';
+import { memoCell, type CellCache, type CellEnv } from './cells/env';
+import { buildCommentsCell, buildParentCell, buildSlugCell, buildTemplateCell } from './cells/pages';
 import type {
 	AuthorOption,
 	BulkAction,
@@ -38,12 +27,14 @@ import type {
 	TagOption,
 } from './types';
 
-export const HOOK_FILTER_COLUMNS = 'openstation.postsWindow.columns';
-export const HOOK_FILTER_STATUS_SEGMENTS = 'openstation.postsWindow.statusSegments';
-export const HOOK_FILTER_BULK_ACTIONS = 'openstation.postsWindow.bulkActions';
-export const HOOK_FILTER_TOOLBAR_TRAILING = 'openstation.postsWindow.toolbarTrailing';
+const HOOK_FILTER_COLUMNS = 'openstation.postsWindow.columns';
+const HOOK_FILTER_STATUS_SEGMENTS = 'openstation.postsWindow.statusSegments';
+const HOOK_FILTER_BULK_ACTIONS = 'openstation.postsWindow.bulkActions';
+const HOOK_FILTER_TOOLBAR_TRAILING = 'openstation.postsWindow.toolbarTrailing';
 export const HOOK_ACTION_OPENED = 'openstation.postsWindow.opened';
 export const HOOK_ACTION_DATA_LOADED = 'openstation.postsWindow.dataLoaded';
+
+const LOG = '[openstation:desktop-mode-posts]';
 
 /**
  * Title is the always-visible sticky column — toggling it would leave
@@ -55,7 +46,10 @@ export const REQUIRED_COLUMN_KEYS = new Set< string >( [ 'title' ] );
  * The columns a phone shows: a card per row (`<os-table stacked>`)
  * has room for the title, the author, a page's parent and the date.
  */
-export const MOBILE_COLUMN_KEYS = new Set< string >( [ 'title', 'author', 'parent', 'date' ] );
+const MOBILE_COLUMN_KEYS = new Set< string >( [ 'title', 'author', 'parent', 'date' ] );
+
+/** The REST `orderby` values a column click may send; anything else is the default. */
+export const ALLOWED_ORDERBY = [ 'date', 'title', 'author', 'modified', 'comment_count', 'menu_order' ] as const;
 
 /** The user's hidden-column preference, from the OS Settings API. */
 export function getHiddenColumns(): Set< string > {
@@ -87,7 +81,7 @@ export interface ColumnFilterData {
 	loadMoreTags?: () => void;
 }
 
-export const EMPTY_FILTER_DATA: ColumnFilterData = { authors: [], tags: [] };
+const EMPTY_FILTER_DATA: ColumnFilterData = { authors: [], tags: [] };
 
 interface FilterTagOption {
 	id: number;
@@ -195,7 +189,7 @@ function buildBaseColumns( env: CellEnv, cache: CellCache, filterData: ColumnFil
 				key: 'parent',
 				label: __( 'Parent' ),
 				width: '200px',
-				render: ( _v, row ) => memoCell( cache, row.id, 'parent', () => buildParentCell( row ) ),
+				render: ( _v, row ) => memoCell( cache, row.id, 'parent', () => buildParentCell( row, env ) ),
 			},
 			{
 				key: 'template',
@@ -207,7 +201,7 @@ function buildBaseColumns( env: CellEnv, cache: CellCache, filterData: ColumnFil
 				key: 'slug',
 				label: __( 'Slug' ),
 				width: '200px',
-				render: ( _v, row ) => memoCell( cache, row.id, 'slug', () => buildSlugCell( row ) ),
+				render: ( _v, row ) => memoCell( cache, row.id, 'slug', () => buildSlugCell( row, env ) ),
 			},
 			{
 				key: 'comments',
@@ -220,16 +214,20 @@ function buildBaseColumns( env: CellEnv, cache: CellCache, filterData: ColumnFil
 		];
 	}
 
-	return [
-		titleCol,
-		authorCol,
-		{
+	// The taxonomy cells arrive with the Posts entry; a build without
+	// them (the Pages bundle) never asks for this branch.
+	const cols: OsTableColumn< PostListItem >[] = [ titleCol, authorCol ];
+	const { categories, tags } = env.cells;
+	if ( categories ) {
+		cols.push( {
 			key: 'categories',
 			label: __( 'Categories' ),
 			width: '260px',
-			render: ( _v, row ) => memoCell( cache, row.id, 'categories', () => buildCategoriesCell( row, env ) ),
-		},
-		{
+			render: ( _v, row ) => memoCell( cache, row.id, 'categories', () => categories( row, env ) ),
+		} );
+	}
+	if ( tags ) {
+		cols.push( {
 			key: 'tags',
 			label: __( 'Tags' ),
 			// Flexes with the space; the minimum holds ~4 chips on a line.
@@ -247,10 +245,11 @@ function buildBaseColumns( env: CellEnv, cache: CellCache, filterData: ColumnFil
 						onLoadMore: filterData.loadMoreTags,
 					},
 				),
-			render: ( _v, row ) => memoCell( cache, row.id, 'tags', () => buildTagsCell( row, env ) ),
-		},
-		dateCol,
-	];
+			render: ( _v, row ) => memoCell( cache, row.id, 'tags', () => tags( row, env ) ),
+		} );
+	}
+	cols.push( dateCol );
+	return cols;
 }
 
 /**
@@ -269,6 +268,13 @@ export function buildAllColumns(
 		: cols;
 }
 
+/** The togglable columns' keys and labels — what the ⋯ menu needs, nothing more. */
+export function columnLabels( env: CellEnv ): Array< { key: string; label: string } > {
+	return buildAllColumns( env, new Map() )
+		.filter( ( c ) => ! REQUIRED_COLUMN_KEYS.has( c.key ) )
+		.map( ( c ) => ( { key: c.key, label: c.label || c.key } ) );
+}
+
 /**
  * The columns the table paints: the filtered list minus the user's
  * hidden set (title stays), narrowed to the phone set on a phone —
@@ -279,9 +285,9 @@ export function buildColumns(
 	cache: CellCache,
 	filterData: ColumnFilterData = EMPTY_FILTER_DATA,
 	phone = false,
+	hidden: ReadonlySet< string > = getHiddenColumns(),
 ): OsTableColumn< PostListItem >[] {
 	const all = buildAllColumns( env, cache, filterData );
-	const hidden = getHiddenColumns();
 	const visible =
 		hidden.size === 0 ? all : all.filter( ( col ) => REQUIRED_COLUMN_KEYS.has( col.key ) || ! hidden.has( col.key ) );
 	return phone ? visible.filter( ( col ) => MOBILE_COLUMN_KEYS.has( col.key ) ) : visible;
@@ -309,7 +315,7 @@ export function resolveStatusSegments(): StatusSegment[] {
 		return Array.isArray( out ) && out.length > 0 ? ( out as StatusSegment[] ) : defaults;
 	} catch ( err ) {
 		// eslint-disable-next-line no-console
-		console.error( '[posts-window] status-segments filter threw; falling back to defaults:', err );
+		console.error( `${ LOG } status-segments filter threw; falling back to defaults:`, err );
 		return defaults;
 	}
 }
@@ -368,7 +374,7 @@ export function resolveBulkActions( defaults: BulkAction[] ): BulkAction[] {
 		return Array.isArray( out ) ? ( out as BulkAction[] ) : defaults;
 	} catch ( err ) {
 		// eslint-disable-next-line no-console
-		console.error( '[posts-window] bulk-actions filter threw; falling back to defaults:', err );
+		console.error( `${ LOG } bulk-actions filter threw; falling back to defaults:`, err );
 		return defaults;
 	}
 }
@@ -383,33 +389,17 @@ export function resolveToolbarTrailing( ctx: PostsWindowContext ): HTMLElement[]
 		return Array.isArray( out ) ? out.filter( ( el ): el is HTMLElement => el instanceof HTMLElement ) : [];
 	} catch ( err ) {
 		// eslint-disable-next-line no-console
-		console.error( '[posts-window] toolbar-trailing filter threw; ignoring:', err );
+		console.error( `${ LOG } toolbar-trailing filter threw; ignoring:`, err );
 		return [];
 	}
 }
 
-/** A `<os-button>` for a registered bulk action. */
-export function buildBulkActionButton( action: BulkAction, run: ( target: BulkAction ) => void ): HTMLElement {
-	const btn = document.createElement( 'os-button' );
-	btn.setAttribute( 'variant', action.variant ?? 'secondary' );
-	btn.setAttribute( 'data-os-posts-bulk-action', action.id );
-	if ( action.icon ) {
-		const icon = document.createElement( 'span' );
-		icon.className = `dashicons ${ action.icon }`;
-		icon.setAttribute( 'aria-hidden', 'true' );
-		btn.appendChild( icon );
-	}
-	btn.appendChild( document.createTextNode( ' ' + action.label ) );
-	btn.addEventListener( 'click', () => run( action ) );
-	return btn;
-}
-
 /**
  * Map a column key to the REST `orderby` value. Unknown keys (plugin
- * columns) fall back to `date` — core's collections cannot sort by
- * them anyway.
+ * columns) fall back to the declared default — core's collections
+ * cannot sort by them anyway.
  */
-export function mapColumnToOrderby( key: string ): string {
+export function mapColumnToOrderby( key: string, fallback = 'date' ): string {
 	switch ( key ) {
 		case 'title':
 		case 'author':
@@ -419,7 +409,7 @@ export function mapColumnToOrderby( key: string ): string {
 		case 'comments':
 			return 'comment_count';
 		default:
-			return 'date';
+			return fallback;
 	}
 }
 

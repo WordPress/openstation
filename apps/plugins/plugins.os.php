@@ -35,7 +35,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 require_once __DIR__ . '/parts/permissions.php';
 require_once __DIR__ . '/parts/rest-fields.php';
+require_once __DIR__ . '/parts/updates.php';
+require_once __DIR__ . '/parts/icons.php';
 require_once __DIR__ . '/parts/ajax.php';
+require_once __DIR__ . '/parts/reviews.php';
+require_once __DIR__ . '/parts/upload.php';
 require_once __DIR__ . '/parts/featured.php';
 
 /** The window's tabs. Browse and Featured share the `install` gate. */
@@ -271,7 +275,6 @@ return App::define( 'desktop-mode-plugins' )
 				// on the admin page load (it needs an admin include),
 				// which is why it rides the config rather than `data()`.
 				'autoUpdatesEnabled' => openstation_plugins_window_auto_updates_enabled(),
-				'currentUserId'      => (int) get_current_user_id(),
 			);
 		}
 	)
@@ -294,7 +297,7 @@ return App::define( 'desktop-mode-plugins' )
 	->action(
 		'reload',
 		static function ( State $state, Os $os ) {
-			openstation_plugins_window_maybe_refresh_update_transient( true );
+			openstation_plugins_window_prime_updates_once( true );
 			$os->refresh_menu();
 		}
 	)

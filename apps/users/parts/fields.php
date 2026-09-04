@@ -1,12 +1,16 @@
 <?php
 /**
  * Users app — the collection query, the REST fields on the `user`
- * resource, and the role / locale maps.
+ * resource, the role / locale maps, and the page's content stats.
  *
  * The app's `data()` reads `wp/v2/users` in-process with the query
  * {@see openstation_users_window_default_query_args()} shapes, so
- * every row carries the five `openstation_*` fields registered here
- * exactly as the browser would have received them.
+ * every row carries the `openstation_*` fields it asks for exactly as
+ * the browser would have received them. The content counts are NOT
+ * asked for per row: `openstation_users_window_stats_for()` computes
+ * a whole page in two grouped queries and `data()` merges them in
+ * (the `openstation_user_stats` REST field stays registered for other
+ * consumers, at its per-row cost).
  *
  * @package OpenStation
  */
@@ -24,9 +28,8 @@ function openstation_users_window_default_query_args() {
 		// fields registered below. Skipping the whitelist would pull
 		// every meta + every embedded link the user controller emits.
 		'_fields'  =>
-			'id,name,slug,email,url,description,roles,registered_date,avatar_urls,'
-			. 'openstation_user_stats,openstation_last_login,openstation_presence,'
-			. 'openstation_can_edit,openstation_assignable_roles',
+			'id,name,slug,email,roles,registered_date,avatar_urls,'
+			. 'openstation_last_login,openstation_presence,openstation_can_edit',
 		// `context=edit` is required because `email`, `roles`, and
 		// `registered_date` are edit-context-only on `/wp/v2/users`.
 		// The window is already gated on `list_users`, the cap
@@ -114,6 +117,63 @@ function openstation_users_window_locales_map() {
 }
 
 /**
+ * The published post / page and approved comment counts of a page of
+ * users, in two grouped queries — the same numbers
+ * `count_user_posts( $id, $type, true )` and a `get_comments` COUNT
+ * give per user, without the three round trips per row.
+ *
+ * @param int[] $ids User ids.
+ * @return array<int,array{posts:int,pages:int,comments:int}> Keyed by user id; every id present.
+ */
+function openstation_users_window_stats_for( array $ids ) {
+	global $wpdb;
+	$ids = array_values( array_unique( array_filter( array_map( 'intval', $ids ) ) ) );
+	$out = array();
+	foreach ( $ids as $id ) {
+		$out[ $id ] = array(
+			'posts'    => 0,
+			'pages'    => 0,
+			'comments' => 0,
+		);
+	}
+	if ( array() === $ids ) {
+		return $out;
+	}
+	$in    = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+	$types = post_type_exists( 'page' ) ? array( 'post', 'page' ) : array( 'post' );
+	$rows  = $wpdb->get_results(
+		$wpdb->prepare(
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- `$in` is a list of `%d` placeholders.
+			"SELECT post_author, post_type, COUNT(*) AS cnt FROM {$wpdb->posts} WHERE post_author IN ( $in ) AND post_status = 'publish' AND post_type IN ( " . implode( ',', array_fill( 0, count( $types ), '%s' ) ) . ' ) GROUP BY post_author, post_type',
+			array_merge( $ids, $types )
+		),
+		ARRAY_A
+	);
+	foreach ( (array) $rows as $row ) {
+		$author = (int) $row['post_author'];
+		$key    = 'page' === $row['post_type'] ? 'pages' : 'posts';
+		if ( isset( $out[ $author ] ) ) {
+			$out[ $author ][ $key ] = (int) $row['cnt'];
+		}
+	}
+	$rows = $wpdb->get_results(
+		$wpdb->prepare(
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- `$in` is a list of `%d` placeholders.
+			"SELECT user_id, COUNT(*) AS cnt FROM {$wpdb->comments} WHERE user_id IN ( $in ) AND comment_approved = '1' GROUP BY user_id",
+			$ids
+		),
+		ARRAY_A
+	);
+	foreach ( (array) $rows as $row ) {
+		$user = (int) $row['user_id'];
+		if ( isset( $out[ $user ] ) ) {
+			$out[ $user ]['comments'] = (int) $row['cnt'];
+		}
+	}
+	return $out;
+}
+
+/**
  * Register the Users REST fields on the `user` resource.
  *
  * Fields:
@@ -128,7 +188,10 @@ function openstation_users_window_locales_map() {
  * partially public — published authors are visible to anyone), so
  * `openstation_last_login` and `openstation_presence` gate on
  * `list_users` (or self) inside their callbacks; `openstation_user_stats`
- * stays open because it only counts published content.
+ * stays open because it only counts published content. The list asks
+ * for the first three only; the stats and the assignable roles are a
+ * query per row, and the app has both cheaper (a grouped page of
+ * stats, the viewer's assignable roles in the config extra).
  */
 function openstation_users_window_register_rest_fields() {
 	$readonly = static function ( $description, $type, $extra = array() ) {

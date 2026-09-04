@@ -10,7 +10,7 @@
  * @public
  */
 
-import { __ } from '../../../../src/i18n';
+import { __ } from '@openstation/app';
 
 export interface PixiPoint {
 	x: number;
@@ -85,7 +85,24 @@ export interface PixiNamespace {
 	Circle: new ( x: number, y: number, r: number ) => unknown;
 }
 
+/** A Pixi pointer event, as far as the canvases read it. */
+export interface PixiPointerEvent {
+	global: PixiPoint;
+	stopPropagation?: () => void;
+}
+
 export const FONT_FAMILY = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+
+/**
+ * Chip text rasterisation resolution: every glyph at 4× detail, crisp
+ * through the world's full zoom range and on HiDPI displays.
+ */
+export const CHIP_TEXT_RES = 4;
+
+/** Cut a label to `max` characters with an ellipsis. */
+export function truncate( text: string, max: number ): string {
+	return text.length > max ? text.slice( 0, max - 1 ) + '…' : text;
+}
 
 /**
  * Load PixiJS through the shell's module registry. On failure the
@@ -140,7 +157,7 @@ export async function createPixiApp(
  * Destroy an Application without touching Pixi's page-global pools
  * (see the note on `PixiApp.destroy`), and empty the host.
  */
-export function destroyPixiApp( app: PixiApp, host: HTMLElement, hostClass: string ): void {
+export function destroyPixiApp( app: PixiApp, host: HTMLElement, hostClasses: string[] ): void {
 	try {
 		app.ticker?.stop();
 	} catch {
@@ -152,7 +169,7 @@ export function destroyPixiApp( app: PixiApp, host: HTMLElement, hostClass: stri
 		// Best-effort — Pixi sometimes throws on teardown races.
 	}
 	host.replaceChildren();
-	host.classList.remove( hostClass );
+	host.classList.remove( ...hostClasses );
 }
 
 export function readAdminThemeHue(): number {
@@ -176,7 +193,7 @@ export function readAdminThemeHue(): number {
 	}
 }
 
-export function rgbToHue( r: number, g: number, b: number ): number {
+function rgbToHue( r: number, g: number, b: number ): number {
 	const rn = r / 255;
 	const gn = g / 255;
 	const bn = b / 255;
@@ -252,24 +269,9 @@ export function hexOf( color: number ): string {
 	return `#${ color.toString( 16 ).padStart( 6, '0' ) }`;
 }
 
+/** The text of an HTML fragment (a rendered post title). */
 export function stripTags( html: string ): string {
 	const tmp = document.createElement( 'div' );
 	tmp.innerHTML = html;
 	return tmp.textContent || tmp.innerText || '';
-}
-
-export function showToast( title: string, err: unknown ): void {
-	let reason = '';
-	if ( err instanceof Error ) {
-		reason = err.message;
-	} else if ( err !== null ) {
-		reason = String( err );
-	}
-	const api = window.wp?.os;
-	if ( api && typeof api.showToast === 'function' ) {
-		api.showToast( { message: `${ title } ${ reason }`.trim(), duration: 6000 } );
-		return;
-	}
-	// eslint-disable-next-line no-console
-	console.error( title, err );
 }

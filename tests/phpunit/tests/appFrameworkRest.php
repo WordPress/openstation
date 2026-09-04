@@ -118,13 +118,61 @@ class Tests_OpenStation_AppFrameworkRest extends WP_UnitTestCase {
 			)
 		);
 
-		$this->assertSame( array( 'items', 'total', 'pages', 'page', 'perPage', 'error' ), array_keys( $page ) );
+		$this->assertSame( array( 'items', 'total', 'pages', 'page', 'perPage', 'error', 'code' ), array_keys( $page ) );
 		$this->assertCount( 2, $page['items'] );
 		$this->assertSame( 5, $page['total'] );
 		$this->assertSame( 3, $page['pages'] );
 		$this->assertSame( 2, $page['page'] );
 		$this->assertSame( 2, $page['perPage'] );
 		$this->assertSame( '', $page['error'] );
+		$this->assertSame( '', $page['code'] );
+	}
+
+	/**
+	 * @covers ::openstation_app_rest_page
+	 */
+	public function test_page_sends_its_defaults_so_the_envelope_describes_the_page_served() {
+		self::factory()->post->create_many( 12 );
+
+		$page = openstation_app_rest_page( 'wp/v2/posts', array( '_fields' => 'id', 'status' => 'any' ) );
+
+		// Core would have served 10 without a `per_page`; the envelope
+		// says 20, so the helper sends 20.
+		$this->assertSame( 20, $page['perPage'] );
+		$this->assertCount( 12, $page['items'] );
+		$this->assertSame( 1, $page['pages'] );
+	}
+
+	/**
+	 * @covers ::openstation_app_rest_page_is_out_of_range
+	 */
+	public function test_a_page_past_the_end_is_out_of_range_but_a_refusal_is_not() {
+		self::factory()->post->create_many( 2 );
+
+		$beyond = openstation_app_rest_page( 'wp/v2/posts', array( 'page' => 9, 'per_page' => 2, '_fields' => 'id', 'status' => 'any' ) );
+		$this->assertSame( array(), $beyond['items'] );
+		$this->assertSame( 'rest_post_invalid_page_number', $beyond['code'] );
+		$this->assertTrue( openstation_app_rest_page_is_out_of_range( $beyond ) );
+
+		$refused = openstation_app_rest_page( 'wp/v2/posts', array( 'page' => 2, 'orderby' => 'no-such-key', '_fields' => 'id' ) );
+		$this->assertSame( array(), $refused['items'] );
+		$this->assertSame( 'rest_invalid_param', $refused['code'] );
+		$this->assertFalse( openstation_app_rest_page_is_out_of_range( $refused ) );
+
+		$this->assertFalse( openstation_app_rest_page_is_out_of_range( openstation_app_rest_page( 'wp/v2/posts', array( '_fields' => 'id' ) ) ) );
+	}
+
+	/**
+	 * @covers ::openstation_app_rest
+	 */
+	public function test_a_single_resource_is_one_thing_however_many_fields_it_has() {
+		$post_id = self::factory()->post->create();
+
+		$result = openstation_app_rest( 'GET', 'wp/v2/posts/' . $post_id, array( 'context' => 'edit' ) );
+
+		$this->assertTrue( $result['ok'] );
+		$this->assertSame( 1, $result['total'] );
+		$this->assertSame( 1, $result['pages'] );
 	}
 
 	/**

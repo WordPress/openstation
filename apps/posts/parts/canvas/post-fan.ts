@@ -7,16 +7,24 @@
  * @public
  */
 
-import { __ } from '../../../../src/i18n';
+import { __ } from '@openstation/app';
 import type { CanvasEnv } from '../app';
 import { POST_RING_RADIUS, stopBubble, type Interaction } from './camera';
-import { FONT_FAMILY, showToast, stripTags, type PixiContainer, type PixiGraphics, type PixiNamespace, type PixiText } from './pixi';
+import {
+	FONT_FAMILY,
+	stripTags,
+	truncate,
+	type PixiContainer,
+	type PixiGraphics,
+	type PixiNamespace,
+	type PixiText,
+} from './pixi';
 
-export const POST_PER_PAGE = 10;
+const POST_PER_PAGE = 10;
 const POST_TITLE_MAX_CHARS = 22;
 const POSTS_CACHE_TTL_MS = 60_000;
 
-export interface PostMini {
+interface PostMini {
 	id: number;
 	title: string;
 	editUrl: string;
@@ -72,7 +80,6 @@ export interface PostFan {
 	focusId: number | null;
 	focusPage: number;
 	focusTotalPages: number;
-	readonly posts: Map< number, PostMini >;
 	/** Fetch (or serve from cache) and render the fan for the focus. */
 	load(): Promise< void >;
 	/** Drop the fan and hide the pager. */
@@ -87,36 +94,8 @@ export interface PostFan {
 	syncChips( counterScale: number ): void;
 }
 
-/**
- * Open a post's editor in a shell window — the same path the table's
- * title links use — after leaving the list window's fullscreen, where
- * a normal-z window would otherwise open behind it.
- */
-export function openPostWindow( env: CanvasEnv, editUrl: string, title?: string ): void {
-	const api = window.wp?.os;
-	const wm = api?.windowManager;
-	const derive = api?.deriveWindowId;
-	const listWin =
-		wm && typeof ( wm as { getById?: ( id: string ) => unknown } ).getById === 'function'
-			? ( wm as { getById: ( id: string ) => { isFullscreen?: () => boolean; toggleFullscreen?: () => void } | undefined } ).getById( env.windowId )
-			: undefined;
-	if ( listWin && typeof listWin.isFullscreen === 'function' && typeof listWin.toggleFullscreen === 'function' && listWin.isFullscreen() ) {
-		listWin.toggleFullscreen();
-	}
-	if ( wm && typeof derive === 'function' ) {
-		const id = derive( editUrl );
-		wm.open( { id, baseId: id, url: editUrl, title: title ?? editUrl, icon: 'dashicons-admin-post' } );
-		return;
-	}
-	try {
-		window.open( editUrl, '_blank' );
-	} catch {
-		window.location.assign( editUrl );
-	}
-}
-
 export function createPostFan( deps: PostFanDeps ): PostFan {
-	const { pixi, postLayer, postChipLayer, postEdgeGfx, interaction } = deps;
+	const { pixi, postLayer, postChipLayer, postEdgeGfx, interaction, env } = deps;
 	const posts = new Map< number, PostMini >();
 	const chips = new Map< number, PostChip >();
 	const cache = new Map< string, PostsCacheEntry >();
@@ -213,8 +192,7 @@ export function createPostFan( deps: PostFanDeps ): PostFan {
 	}
 
 	function layoutChip( chip: PostChip, post: PostMini ): void {
-		const displayTitle =
-			post.title.length > POST_TITLE_MAX_CHARS ? post.title.slice( 0, POST_TITLE_MAX_CHARS - 1 ) + '…' : post.title;
+		const displayTitle = truncate( post.title, POST_TITLE_MAX_CHARS );
 		if ( chip.titleText.text !== displayTitle ) {
 			chip.titleText.text = displayTitle;
 		}
@@ -270,7 +248,10 @@ export function createPostFan( deps: PostFanDeps ): PostFan {
 		container.on( 'pointerdown', ( e ) => stopBubble( interaction, e ) );
 		container.on( 'pointertap', () => {
 			// Open the post AND release the camera in the same gesture.
-			openPostWindow( deps.env, post.editUrl, post.title );
+			// Leave the list window's fullscreen first, where a normal-z
+			// window would open behind it.
+			env.leaveFullscreen();
+			env.openUrl( post.editUrl, post.title, 'dashicons-admin-post' );
 			deps.onOpenPost();
 		} );
 		container.on( 'pointerover', () => {
@@ -330,7 +311,6 @@ export function createPostFan( deps: PostFanDeps ): PostFan {
 		focusId: null,
 		focusPage: 1,
 		focusTotalPages: 1,
-		posts,
 		async load() {
 			if ( fan.focusId === null ) {
 				return;
@@ -344,16 +324,17 @@ export function createPostFan( deps: PostFanDeps ): PostFan {
 				return;
 			}
 			try {
-				const res = await deps.env.client.fetchTermPosts( deps.param, termId, fan.focusPage, POST_PER_PAGE );
+				const res = await env.client.fetchTermPosts( deps.param, termId, fan.focusPage, POST_PER_PAGE );
 				if ( mySeq !== loadSeq || fan.focusId !== termId ) {
 					return;
 				}
-				const base = deps.env.extra.editPostUrlBase ?? '';
+				const base = env.extra.editPostUrlBase ?? '';
+				const sep = base.includes( '?' ) ? '&' : '?';
 				const entry: PostsCacheEntry = {
 					items: res.items.map( ( p ) => ( {
 						id: p.id,
 						title: stripTags( p.title ),
-						editUrl: `${ base }?post=${ p.id }&action=edit`,
+						editUrl: `${ base }${ sep }post=${ p.id }&action=edit`,
 					} ) ),
 					totalPages: res.totalPages,
 					realTotal: res.total,
@@ -362,7 +343,7 @@ export function createPostFan( deps: PostFanDeps ): PostFan {
 				cache.set( key, entry );
 				apply( entry, termId );
 			} catch ( err ) {
-				showToast( __( 'Couldn’t load posts:' ), err );
+				env.toast( __( 'Couldn’t load posts:' ), err );
 			}
 		},
 		clear() {

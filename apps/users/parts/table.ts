@@ -3,21 +3,23 @@
  * the presence filter and its client-side slice.
  *
  * Cells render inside `<os-table>`'s shadow DOM, which document
- * stylesheets never reach, so they carry inline styles. Every
- * cap-gated affordance reads `ctx.extra` (`canEdit`, …) AND the
- * per-row `openstation_can_edit` flag; the flags are UX hints — the
- * server re-checks every action.
+ * stylesheets never reach, so they carry inline styles (palette
+ * tokens with their pre-brand literals as fallbacks). Every cap-gated
+ * affordance reads the config (`canEdit`) AND the per-row
+ * `openstation_can_edit` flag; the flags are UX hints — the server
+ * re-checks every action.
  */
 
-import { __ } from '@openstation/app';
+import { __, copyText, formatDate } from '@openstation/app';
 import { isMobileStamped } from '../../../src/mode/stamp';
-import { applyAvatarSrc } from '../../../src/ui/util/avatar-resolve';
+import { applyAvatarSrc, pickAvatarUrl } from '../../../src/ui/util/avatar-resolve';
 import { openUserEditWindow } from '../../../src/open-targets/user-edit-window';
 import '../../../src/ui/components/os-avatar/os-avatar';
 import '../../../src/ui/components/os-icon/os-icon';
+import '../../../src/ui/components/os-relative-time/os-relative-time';
 import type { OsTableColumn } from '../../../src/ui/components/os-table/os-table';
-import { relativeTime, toast } from './profile-client';
-import type { ProfileConfig, UserListItem } from './types';
+import { relativeTimeNode, serverDateMs } from '../profile/client';
+import type { ListConfig, RowActions, UserListItem } from './types';
 
 /** The presence filter above the table — a client-side slice of the page. */
 export const STATUS_SEGMENTS = (): Array< { value: string; label: string } > => [
@@ -47,6 +49,34 @@ export function applyStatusFilter( rows: UserListItem[], status: string ): UserL
 /** The columns a phone shows — a card per row, labelled lines under the name. */
 const MOBILE_COLUMN_KEYS = new Set< string >( [ 'identity', 'email', 'role', 'last_login', 'actions' ] );
 
+/** The table's sortable columns → the `orderby` values `wp/v2/users` accepts. */
+export const SORT_KEYS: Record< string, string > = {
+	identity: 'name',
+	email: 'email',
+	registered: 'registered_date',
+};
+
+/**
+ * What a row paints, as one string: the cells are memoised per row
+ * and rebuilt only when this changes — a profile saved elsewhere
+ * repaints its row without flickering the rest.
+ */
+export function rowKey( row: UserListItem ): string {
+	const s = row.openstation_user_stats;
+	return [
+		row.id,
+		row.name,
+		row.slug,
+		row.email ?? '',
+		( row.roles ?? [] ).join( ',' ),
+		row.registered_date ?? '',
+		row.openstation_last_login ?? '',
+		row.openstation_presence ?? '',
+		row.openstation_can_edit ? 1 : 0,
+		s ? `${ s.posts }/${ s.pages }/${ s.comments }` : '',
+	].join( '|' );
+}
+
 /**
  * Per-(rowId, columnKey) cell-node cache, so selection / pagination
  * repaints don't rebuild every avatar image (the avatar blink).
@@ -73,14 +103,11 @@ export function forgetRow( cache: UserCellCache, id: number ): void {
 	}
 }
 
-export interface RowActions {
-	onSendReset: ( row: UserListItem ) => void;
-	onResendWelcome: ( row: UserListItem ) => void;
-}
-
 const MUTED = 'var(--os-ui-fg-muted, #8c8f94)';
+const CHIP =
+	'display:inline-flex;align-items:center;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:var(--os-ui-badge-info-bg, rgba(34,113,177,0.10));color:var(--os-ui-info-fg, #0a4b78);white-space:nowrap;';
 
-function buildIdentityCell( row: UserListItem, cfg: ProfileConfig ): HTMLElement {
+function buildIdentityCell( row: UserListItem, actions: RowActions ): HTMLElement {
 	const cell = document.createElement( 'span' );
 	cell.style.cssText = 'display:flex;align-items:center;gap:10px;min-width:0;';
 
@@ -92,8 +119,7 @@ function buildIdentityCell( row: UserListItem, cfg: ProfileConfig ): HTMLElement
 		avatar.setAttribute( 'name', row.name );
 	}
 	avatar.setAttribute( 'presence', row.openstation_presence ?? 'offline' );
-	const avatars = row.avatar_urls ?? {};
-	const rawAvatar = avatars[ '48' ] ?? avatars[ '96' ] ?? avatars[ '24' ] ?? '';
+	const rawAvatar = pickAvatarUrl( row.avatar_urls );
 	if ( rawAvatar ) {
 		applyAvatarSrc( avatar, rawAvatar );
 	}
@@ -101,13 +127,13 @@ function buildIdentityCell( row: UserListItem, cfg: ProfileConfig ): HTMLElement
 
 	const text = document.createElement( 'span' );
 	text.style.cssText = 'display:flex;flex-direction:column;min-width:0;line-height:1.25;';
-	const name = document.createElement( 'a' );
-	name.href = `${ cfg.editPostUrlBase ?? '' }?user_id=${ row.id }`;
+	const name = document.createElement( 'button' );
+	name.type = 'button';
 	name.textContent = row.name || `#${ row.id }`;
 	name.title = name.textContent;
 	name.setAttribute( 'data-noclick', '' );
 	name.style.cssText =
-		'font-weight:600;color:inherit;text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px;';
+		'appearance:none;background:transparent;border:none;padding:0;font:inherit;font-weight:600;color:inherit;cursor:pointer;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px;';
 	name.addEventListener( 'mouseenter', () => {
 		name.style.textDecoration = 'underline';
 	} );
@@ -117,7 +143,7 @@ function buildIdentityCell( row: UserListItem, cfg: ProfileConfig ): HTMLElement
 	name.addEventListener( 'click', ( e ) => {
 		e.preventDefault();
 		e.stopPropagation();
-		openProfile( row.id );
+		openProfile( row.id, actions );
 	} );
 	text.appendChild( name );
 	if ( row.slug ) {
@@ -131,18 +157,18 @@ function buildIdentityCell( row: UserListItem, cfg: ProfileConfig ): HTMLElement
 }
 
 /** Open the User Edit window on this person; say so when the door is missing. */
-export function openProfile( userId: number ): void {
+export function openProfile( userId: number, actions: RowActions ): void {
 	openUserEditWindow( userId, {
 		source: 'users-window/row-click',
 		fallback: () => {
 			// eslint-disable-next-line no-console
-			console.error( '[users] openWindow("desktop-mode-user-edit") returned false — window not registered server-side.' );
-			toast( __( 'Profile window not registered — see console.' ), 'error' );
+			console.error( '[openstation:desktop-mode-users] the User Edit window is not registered for this user.' );
+			actions.toast( __( 'Profile window not registered — see console.' ) );
 		},
 	} );
 }
 
-function buildEmailCell( row: UserListItem ): HTMLElement {
+function buildEmailCell( row: UserListItem, actions: RowActions ): HTMLElement {
 	const cell = document.createElement( 'button' );
 	cell.type = 'button';
 	const email = typeof row.email === 'string' ? row.email : '';
@@ -170,22 +196,23 @@ function buildEmailCell( row: UserListItem ): HTMLElement {
 		if ( ! email ) {
 			return;
 		}
-		void navigator.clipboard
-			?.writeText( email )
-			.then( () => {
-				cell.textContent = __( 'Copied!' );
-				cell.style.color = 'var(--wp-admin-theme-color, #2271b1)';
-				setTimeout( () => {
-					cell.textContent = email;
-					cell.style.color = '';
-				}, 1200 );
-			} )
-			.catch( () => undefined );
+		void copyText( email ).then( ( ok ) => {
+			if ( ! ok ) {
+				actions.toast( __( 'Could not copy the email address.' ) );
+				return;
+			}
+			cell.textContent = __( 'Copied!' );
+			cell.style.color = 'var(--wp-admin-theme-color, #2271b1)';
+			setTimeout( () => {
+				cell.textContent = email;
+				cell.style.color = '';
+			}, 1200 );
+		} );
 	} );
 	return cell;
 }
 
-function buildRoleCell( row: UserListItem, cfg: ProfileConfig ): HTMLElement {
+function buildRoleCell( row: UserListItem, cfg: ListConfig ): HTMLElement {
 	const cell = document.createElement( 'span' );
 	cell.style.cssText = 'display:inline-flex;flex-wrap:wrap;gap:4px;min-width:0;';
 	const roles = Array.isArray( row.roles ) ? row.roles : [];
@@ -200,8 +227,7 @@ function buildRoleCell( row: UserListItem, cfg: ProfileConfig ): HTMLElement {
 	for ( const slug of roles ) {
 		const chip = document.createElement( 'span' );
 		chip.textContent = labels[ slug ] ?? slug;
-		chip.style.cssText =
-			'display:inline-flex;align-items:center;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:rgba(34,113,177,0.10);color:#0a4b78;white-space:nowrap;';
+		chip.style.cssText = CHIP;
 		cell.appendChild( chip );
 	}
 	return cell;
@@ -237,43 +263,22 @@ function buildStatsCell( row: UserListItem ): HTMLElement {
 	return cell;
 }
 
-function buildLastLoginCell( row: UserListItem ): HTMLElement {
+/** A ticking "3 days ago" over a time, or a muted fallback word. */
+function timeCell( value: number | string | null | undefined, never: string ): HTMLElement {
 	const cell = document.createElement( 'span' );
 	cell.style.cssText = 'font-size:13px;font-variant-numeric:tabular-nums;';
-	const ts = row.openstation_last_login;
-	if ( ! ts || typeof ts !== 'number' ) {
-		cell.textContent = __( 'Never' );
+	const ms = serverDateMs( value );
+	if ( ! Number.isFinite( ms ) ) {
+		cell.textContent = never;
 		cell.style.color = MUTED;
 		return cell;
 	}
-	cell.textContent = relativeTime( ts );
-	cell.title = new Date( ts * 1000 ).toLocaleString();
+	cell.appendChild( relativeTimeNode( value ) );
+	cell.title = formatDate( ms, 'datetime' );
 	return cell;
 }
 
-function buildRegisteredCell( row: UserListItem ): HTMLElement {
-	const cell = document.createElement( 'span' );
-	cell.style.cssText = 'font-size:13px;font-variant-numeric:tabular-nums;';
-	const raw = typeof row.registered_date === 'string' ? row.registered_date : '';
-	if ( ! raw ) {
-		cell.textContent = '—';
-		cell.style.color = MUTED;
-		return cell;
-	}
-	// `edit` context returns an ISO string with offset; only append
-	// `Z` when no zone suffix is present.
-	const hasTz = /[Zz]|[+-]\d{2}:?\d{2}$/.test( raw );
-	const ts = Math.floor( Date.parse( hasTz ? raw : raw + 'Z' ) / 1000 );
-	if ( ! Number.isFinite( ts ) ) {
-		cell.textContent = raw;
-		return cell;
-	}
-	cell.textContent = relativeTime( ts );
-	cell.title = new Date( ts * 1000 ).toLocaleString();
-	return cell;
-}
-
-function buildActionsCell( row: UserListItem, cfg: ProfileConfig, actions: RowActions ): HTMLElement {
+function buildActionsCell( row: UserListItem, cfg: ListConfig, actions: RowActions ): HTMLElement {
 	const cell = document.createElement( 'span' );
 	cell.style.cssText = 'display:inline-flex;gap:4px;align-items:center;';
 	if ( cfg.canEdit !== true || row.openstation_can_edit !== true ) {
@@ -286,8 +291,6 @@ function buildActionsCell( row: UserListItem, cfg: ProfileConfig, actions: RowAc
 		btn.type = 'button';
 		btn.title = label;
 		btn.setAttribute( 'aria-label', label );
-		// Palette tokens — `--wp-admin-theme-*` names fell back to
-		// light literals on every dark desktop theme.
 		btn.style.cssText =
 			'appearance:none;border:1px solid var(--os-ui-border, #dcdcde);background:var(--os-ui-btn-bg, #fff);color:inherit;padding:4px 6px;border-radius:4px;cursor:pointer;line-height:1;';
 		const ic = document.createElement( 'os-icon' );
@@ -310,7 +313,7 @@ function buildActionsCell( row: UserListItem, cfg: ProfileConfig, actions: RowAc
 /** The column descriptors, for a desk or a phone. */
 export function buildColumns(
 	cache: UserCellCache,
-	cfg: ProfileConfig,
+	cfg: ListConfig,
 	actions: RowActions,
 	phone: boolean = isMobileStamped(),
 ): OsTableColumn< UserListItem >[] {
@@ -318,16 +321,17 @@ export function buildColumns(
 		{
 			key: 'identity',
 			label: __( 'Name' ),
-			sortable: false,
+			sortable: true,
 			sticky: true,
 			minWidth: '260px',
-			render: ( _v, row ) => memo( cache, row.id, 'identity', () => buildIdentityCell( row, cfg ) ),
+			render: ( _v, row ) => memo( cache, row.id, 'identity', () => buildIdentityCell( row, actions ) ),
 		},
 		{
 			key: 'email',
 			label: __( 'Email' ),
+			sortable: true,
 			minWidth: '220px',
-			render: ( _v, row ) => memo( cache, row.id, 'email', () => buildEmailCell( row ) ),
+			render: ( _v, row ) => memo( cache, row.id, 'email', () => buildEmailCell( row, actions ) ),
 		},
 		{
 			key: 'role',
@@ -351,20 +355,18 @@ export function buildColumns(
 			width: '140px',
 			sortable: false,
 			sortValue: ( row ) => ( typeof row.openstation_last_login === 'number' ? row.openstation_last_login : 0 ),
-			render: ( _v, row ) => memo( cache, row.id, 'last_login', () => buildLastLoginCell( row ) ),
+			render: ( _v, row ) => memo( cache, row.id, 'last_login', () => timeCell( row.openstation_last_login, __( 'Never' ) ) ),
 		},
 		{
 			key: 'registered',
 			label: __( 'Registered' ),
 			width: '140px',
 			sortable: true,
-			render: ( _v, row ) => memo( cache, row.id, 'registered', () => buildRegisteredCell( row ) ),
+			render: ( _v, row ) => memo( cache, row.id, 'registered', () => timeCell( row.registered_date, '—' ) ),
 		},
 	];
 	// Quick actions — only when the viewer has any edit cap; the cell
 	// falls back to "—" per row when `openstation_can_edit` is false.
-	// Not memoised: its closure captures `row`, which changes between
-	// fetches — cheap to rebuild, fewer surprises.
 	if ( cfg.canEdit === true ) {
 		cols.push( {
 			key: 'actions',
@@ -372,7 +374,7 @@ export function buildColumns(
 			stack: 'actions',
 			width: '110px',
 			sortable: false,
-			render: ( _v, row ) => buildActionsCell( row, cfg, actions ),
+			render: ( _v, row ) => memo( cache, row.id, 'actions', () => buildActionsCell( row, cfg, actions ) ),
 		} );
 	}
 	return phone ? cols.filter( ( col ) => MOBILE_COLUMN_KEYS.has( col.key ) ) : cols;
