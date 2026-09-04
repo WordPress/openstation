@@ -41,7 +41,18 @@ export interface SwConfig {
 	 * `wp-content` layout (Bedrock, moved `WP_CONTENT_DIR`, …).
 	 */
 	pluginUrl: string;
+	/**
+	 * Content hash of the shell's built files at the moment this worker
+	 * was served (`openstation_shell_build_stamp()`). The shell asks a
+	 * worker that takes over mid-session for it and compares it with
+	 * its own boot-time stamp: a difference means the shell files on the
+	 * server really changed. Empty for a body served without one.
+	 */
+	shellBuild: string;
 }
+
+/** What a shell-build stamp looks like: short hex, nothing else. */
+const SHELL_BUILD_RE = /^[a-f0-9]{8,64}$/;
 
 /**
  * How the fetch handler should treat a same-origin GET:
@@ -93,6 +104,7 @@ export function readSwConfig(
 		adminAssetCache: false,
 		windowPrewarm: false,
 		pluginUrl: fallbackPluginUrl,
+		shellBuild: '',
 	};
 	if ( ! raw || typeof raw !== 'object' ) {
 		return cfg;
@@ -100,6 +112,9 @@ export function readSwConfig(
 	const obj = raw as Record< string, unknown >;
 	cfg.adminAssetCache = obj.adminAssetCache === true;
 	cfg.windowPrewarm = obj.windowPrewarm === true;
+	if ( typeof obj.shellBuild === 'string' && SHELL_BUILD_RE.test( obj.shellBuild ) ) {
+		cfg.shellBuild = obj.shellBuild;
+	}
 	if (
 		typeof obj.pluginUrl === 'string' &&
 		obj.pluginUrl.startsWith( 'http' )

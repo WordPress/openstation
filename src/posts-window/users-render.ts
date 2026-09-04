@@ -43,6 +43,9 @@ import '../ui/components/os-avatar/os-avatar';
 import '../ui/components/os-button/os-button';
 import '../ui/components/os-icon/os-icon';
 import '../ui/components/os-segmented/os-segmented';
+import { isMobileStamped } from '../mode/stamp';
+import { stackOnPhone } from '../ui/components/os-table/stack-on-phone';
+import { mountStatusControl } from './status-control';
 
 interface ConfirmOptions {
 	title?: string;
@@ -697,6 +700,7 @@ function buildColumns(
 		cols.push( {
 			key: 'actions',
 			label: __( 'Actions' ),
+			stack: 'actions',
 			width: '110px',
 			sortable: false,
 			render: ( _v, row ) =>
@@ -707,8 +711,19 @@ function buildColumns(
 		} );
 	}
 
+	// A phone shows who, how to reach them, what they are, when they
+	// were last here, and what can be done — as a card per row
+	// (`<os-table stacked>`), where a column is a labelled line under
+	// the name rather than a width to find. The content counts and the
+	// registration date stay on the desk.
+	if ( isMobileStamped( document.documentElement ) ) {
+		return cols.filter( ( col ) => MOBILE_COLUMN_KEYS.has( col.key ) );
+	}
 	return cols;
 }
+
+/** The columns a phone shows — see `buildColumns()`. */
+const MOBILE_COLUMN_KEYS = new Set< string >( [ 'identity', 'email', 'role', 'last_login', 'actions' ] );
 
 // ─── Status segments + role filter ──────────────────────────────────
 
@@ -827,17 +842,18 @@ export async function renderUsersWindow(
 	const countEl = root.querySelector< HTMLElement >( COUNT );
 	const bulkActionsHost = root.querySelector< HTMLElement >( BULK_ACTIONS_HOST );
 	const statusHost = root.querySelector< HTMLElement >( STATUS );
+	// A phone: a card per row, and the selection's actions along the
+	// bottom of the panel instead of a strip in the toolbar.
+	if ( stackOnPhone( table ) && bulkBar ) {
+		bulkBar.classList.add( 'os-posts__bulk--footer' );
+		( bulkBar.closest( '.os-posts__panel' ) ?? root ).appendChild( bulkBar );
+	}
 
-	// Status segments — Online / Recent / Never logged in.
+	// Status segments — Online / Recent / Never logged in. A picker
+	// rather than pills on a phone (`status-control.ts`); same event.
 	if ( statusHost ) {
-		statusHost.replaceChildren();
-		for ( const seg of defaultStatusSegments() ) {
-			const el = document.createElement( 'os-segment' );
-			el.setAttribute( 'value', seg.value );
-			el.textContent = seg.label;
-			statusHost.appendChild( el );
-		}
-		statusHost.addEventListener( 'os-pick', ( e: Event ) => {
+		const control = mountStatusControl( statusHost, defaultStatusSegments(), view.status );
+		control.addEventListener( 'os-pick', ( e: Event ) => {
 			const detail = ( e as CustomEvent< { value: string } > ).detail;
 			view.status = detail?.value ?? '';
 			view.page = 1;

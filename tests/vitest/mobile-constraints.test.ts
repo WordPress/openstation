@@ -10,7 +10,10 @@
  *   folds the parked recents in until they are opened;
  * - `splitSessionForMobile` restores the focused window only;
  * - a crossing out of `mobile` un-maximizes exactly the windows the
- *   phone forced.
+ *   phone forced;
+ * - a window on another desk is folded onto the active one as it
+ *   opens and on the crossing in, the session records the desk it
+ *   came from, and the crossing out hands it back.
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { HOOKS, applyFilters, doAction } from '../../src/hooks';
@@ -47,7 +50,7 @@ function fakeMode( initial: OsMode ) {
 
 interface FakeWin {
 	id: string;
-	config: { baseId?: string };
+	config: { baseId?: string; desktopId?: string };
 	minimized: boolean;
 	maximized: boolean;
 	isMinimized: () => boolean;
@@ -81,20 +84,37 @@ function fakeWin( id: string, over: Partial< FakeWin > = {} ): FakeWin {
 	return w;
 }
 
-function fakeManager( wins: FakeWin[] ) {
-	const openNew = vi.fn( async ( cfg: { id: string } ) => {
+function fakeManager( wins: FakeWin[], desks: string[] = [ 'desktop-1' ] ) {
+	const openNew = vi.fn( async ( cfg: { id: string; desktopId?: string } ) => {
 		const w = fakeWin( cfg.id );
+		w.config.desktopId = cfg.desktopId ?? 'desktop-1';
 		wins.push( w );
 		return w;
 	} );
 	const seedWindowRestoreState = vi.fn();
+	// The manager's own rule: a move re-homes the window and nothing
+	// else; the stack order stands for focus order, last is in front.
+	const moveWindowToDesktop = vi.fn( ( id: string, desktopId: string ) => {
+		const w = wins.find( ( x ) => x.id === id );
+		if ( ! w || ! desks.includes( desktopId ) ) {
+			return false;
+		}
+		w.config.desktopId = desktopId;
+		return true;
+	} );
+	const focus = vi.fn();
 	const manager = {
 		getAll: () => wins.slice(),
 		getById: ( id: string ) => wins.find( ( w ) => w.id === id ),
+		getFocused: () => wins[ wins.length - 1 ],
+		getActiveDesktopId: () => 'desktop-1',
+		getDesktops: () => desks.map( ( id ) => ( { id, label: id } ) ),
+		moveWindowToDesktop,
+		focus,
 		openNew,
 		seedWindowRestoreState,
 	} as unknown as WindowManager;
-	return { manager, openNew, seedWindowRestoreState };
+	return { manager, openNew, seedWindowRestoreState, moveWindowToDesktop, focus };
 }
 
 const sessionWin = ( id: string, over: Partial< SessionWindow > = {} ): SessionWindow => ( {
@@ -289,6 +309,91 @@ describe( 'installMobileConstraints', () => {
 			width: 1120,
 			height: 720,
 		} );
+		c.dispose();
+	} );
+
+	test( 'a window opened on another desk is folded onto the active one; the session records its own desk', () => {
+		const mode = fakeMode( 'mobile' );
+		// The session's focused window, restored on the desk it was on.
+		const restored = fakeWin( 'r', { config: { baseId: 'r', desktopId: 'desktop-2' } } );
+		const here = fakeWin( 'h', { config: { baseId: 'h', desktopId: 'desktop-1' } } );
+		const wins = [ restored, here ];
+		const { manager, moveWindowToDesktop } = fakeManager( wins, [ 'desktop-1', 'desktop-2' ] );
+		const c = installMobileConstraints( { manager, mode: mode.api, openNative: () => false } );
+
+		doAction( HOOKS.WINDOW_OPENED, { windowId: 'r' } );
+		doAction( HOOKS.WINDOW_OPENED, { windowId: 'h' } );
+		expect( moveWindowToDesktop ).toHaveBeenCalledTimes( 1 );
+		expect( moveWindowToDesktop ).toHaveBeenCalledWith( 'r', 'desktop-1' );
+		expect( restored.config.desktopId ).toBe( 'desktop-1' );
+		expect( c.foldedIds() ).toEqual( [ 'r' ] );
+
+		// Every save writes the desk the window came from, not the
+		// phone's; a window that was already here is untouched.
+		const snapshot: Session = {
+			windows: [
+				sessionWin( 'r', { desktopId: 'desktop-1', state: 'maximized' } ),
+				sessionWin( 'h', { desktopId: 'desktop-1' } ),
+			],
+			desktops: [ { id: 'desktop-1', label: 'Desktop 1' }, { id: 'desktop-2', label: 'Desktop 2' } ],
+			activeDesktop: 'desktop-1',
+			focused: 'r',
+			updated: 2,
+		};
+		const saved = applyFilters( HOOKS.SESSION_SNAPSHOT, snapshot );
+		// The desk it came from, with the geometry the full-screen
+		// belt-and-braces displaced (its snapshot said `normal`).
+		expect( saved.windows[ 0 ] ).toMatchObject( { id: 'r', desktopId: 'desktop-2', state: 'normal', x: 10, y: 20 } );
+		// A window that was already on this desk keeps its desk; only
+		// its geometry is handed back.
+		expect( saved.windows[ 1 ] ).toMatchObject( { id: 'h', desktopId: 'desktop-1', x: 10, y: 20 } );
+
+		// Closed on the phone: nothing left to hand back.
+		doAction( HOOKS.WINDOW_CLOSED, { windowId: 'r' } );
+		expect( c.foldedIds() ).toEqual( [] );
+
+		// Not on a phone, the desk a window opens on is its own.
+		mode.set( 'desktop' );
+		const later = fakeWin( 'd', { config: { baseId: 'd', desktopId: 'desktop-2' } } );
+		wins.push( later );
+		doAction( HOOKS.WINDOW_OPENED, { windowId: 'd' } );
+		expect( moveWindowToDesktop ).toHaveBeenCalledTimes( 1 );
+		c.dispose();
+	} );
+
+	test( 'crossing into mobile folds every desk; crossing out hands each window back and repairs focus', () => {
+		const mode = fakeMode( 'desktop' );
+		const away = fakeWin( 'a', { config: { baseId: 'a', desktopId: 'desktop-2' } } );
+		const gone = fakeWin( 'g', { config: { baseId: 'g', desktopId: 'desktop-3' } } );
+		const here = fakeWin( 'h', { config: { baseId: 'h', desktopId: 'desktop-1' } } );
+		// `away` last: it is the window in front when the phone leaves.
+		const desks = [ 'desktop-1', 'desktop-2', 'desktop-3' ];
+		const { manager, moveWindowToDesktop, focus } = fakeManager( [ here, gone, away ], desks );
+		const c = installMobileConstraints( { manager, mode: mode.api, openNative: () => false } );
+
+		mode.set( 'mobile' );
+		// `h` is already on the active desk and is left alone.
+		expect( moveWindowToDesktop.mock.calls ).toEqual( [
+			[ 'g', 'desktop-1' ],
+			[ 'a', 'desktop-1' ],
+		] );
+		expect( c.foldedIds() ).toEqual( [ 'g', 'a' ] );
+		expect( manager.getAll().every( ( w ) => w.config.desktopId === 'desktop-1' ) ).toBe( true );
+
+		// A desk closed while the phone had its window: the window
+		// stays where the desktop would have migrated it anyway.
+		desks.splice( desks.indexOf( 'desktop-3' ), 1 );
+
+		mode.set( 'desktop' );
+		expect( away.config.desktopId ).toBe( 'desktop-2' );
+		expect( gone.config.desktopId ).toBe( 'desktop-1' );
+		expect( here.config.desktopId ).toBe( 'desktop-1' );
+		expect( c.foldedIds() ).toEqual( [] );
+		// The window in front went back to desktop-2, so the topmost
+		// window still on the active desk takes the focus — as a
+		// desktop switch would have done.
+		expect( focus ).toHaveBeenCalledTimes( 1 );
+		expect( ( focus.mock.calls[ 0 ][ 0 ] as FakeWin ).id ).toBe( 'g' );
 		c.dispose();
 	} );
 

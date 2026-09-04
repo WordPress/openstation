@@ -48,6 +48,7 @@ import {
 	getActiveDesktop,
 	getActiveDesktopId,
 	getDesktops,
+	moveWindowToDesktop,
 	renameDesktop,
 	seedDesktops,
 	switchDesktop,
@@ -2174,6 +2175,14 @@ export class WindowManager {
 	}
 	public renameDesktop( id: string, label: string ): boolean {
 		return renameDesktop( this, id, label );
+	}
+	/**
+	 * Move one window to another desktop; it shows or hides at once
+	 * according to whether that desktop is the active one. `false`
+	 * when either id is unknown.
+	 */
+	public moveWindowToDesktop( windowId: string, desktopId: string ): boolean {
+		return moveWindowToDesktop( this, windowId, desktopId );
 	}
 
 	/**

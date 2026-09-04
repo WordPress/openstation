@@ -160,13 +160,15 @@ WordPress renders a `.page-title-action` button beside the page `<h1>` on most l
 **Fix**: on chromeless requests the module walks `$submenu[ $parent_file ]`, resolves each entry through `openstation_menu_item_url()`, and adds one inline rule per URL to the `os-chromeless` stylesheet:
 
 ```css
-.os-chromeless .wrap > .page-title-action[href="https://example.com/wp-admin/post-new.php"],
-.os-chromeless .wrap > .page-title-action[href="post-new.php"] {
+.os-chromeless .wrap .page-title-action[href="https://example.com/wp-admin/post-new.php"],
+.os-chromeless .wrap .page-title-action[href="post-new.php"] {
     display: none;
 }
 ```
 
 Both spellings, because a CSS attribute selector compares the attribute's parsed value, which is entity-decoded but not resolved against the document URL: core writes the absolute URL, plenty of plugins hand-write the admin-relative one. Inline CSS rather than a DOM pass so the rule is in `<head>` before first paint (no button that appears and then vanishes) and the element stays in the DOM for the core scripts that toggle it.
+
+**The button is matched at any depth inside `.wrap`.** Core renders it as a direct child of the wrap, but a plugin is free to re-parent it, and on a Jetpack site one does: the external-media package lifts core's "Add Media File" anchor into a `div.wpcom-media-library-action-buttons` of its own so it can append "Import Media" beside it, and Big Sky's image studio inserts "Generate Image" into the same box. A child combinator stops at that wrapper, so a Media window shows a row of buttons under a tab strip that already leads to the same places. Depth says nothing about where a button goes, so it is not part of the test.
 
 **Matching is on the exact href**, and that is the entire design. What the rule does *not* hide:
 

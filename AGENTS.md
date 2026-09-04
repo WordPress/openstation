@@ -356,9 +356,10 @@ npm run env:start:tests   # idempotent; brings the PHPUnit wp-env instance up if
 npm run test:php          # full suite
 npm run test:php -- --filter='Tests_OpenStation_Render'   # one class
 npm run test:php:multisite   # same suite as a network install (CI runs both; no extra containers)
+npm run env:stop:tests    # before you report results; nothing stops the stack for you
 ```
 
-`npm run env:start` is for the manual-QA instance only; it no longer brings up test containers.
+`npm run env:start` is for the manual-QA instance only; it no longer brings up test containers. Nothing stops the tests instance either, and `npm run test:php` does neither on purpose (a start per run would slow every `--filter` iteration; a stop per run would throw the warm stack away). So keep the stack warm while you iterate on a request, and stop it before you report, whether that was the whole suite or one class; a restart costs a few seconds, so never leave it up "in case". Never stop a `wp-env-<dir>-tests-<hash>` project whose `<dir>` is not your checkout: it belongs to another session. A second checkout (a worktree) hits `port is already allocated` on 8891 while the main checkout's stack is up; give it its own port (`WP_ENV_PORT=8895`, or the override file described in [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md#manual-qa-and-per-worktree-instances-wp-env)) instead of stopping the other stack.
 
 History: an earlier port collision against `wordpress-develop-wordpress-develop-1` (8889) made starting wp-env destructive. The remapped ports remove that hazard, wp-env and the Core checkout can both be up at the same time.
 

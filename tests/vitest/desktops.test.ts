@@ -146,6 +146,33 @@ describe( 'WindowManager — virtual desktops', async () => {
 		expect( b.element.style.display ).toBe( 'none' );
 	} );
 
+	test( 'moveWindowToDesktop re-homes one window, shows or hides it at once, fires window-moved', async () => {
+		const a = await manager.open( openConfig( 'a' ) );
+		const second = manager.createDesktop();
+		const log = recordActions( hooks, [ 'os.os.window-moved' ] );
+
+		expect( manager.moveWindowToDesktop( 'a', second.id ) ).toBe( true );
+		expect( a.config.desktopId ).toBe( second.id );
+		expect( a.element.style.display ).toBe( 'none' );
+		expect( log ).toEqual( [
+			{ name: 'os.os.window-moved', args: [ { windowId: 'a', from: 'desktop-1', to: second.id } ] },
+		] );
+
+		// Back onto the active desk: visible again.
+		expect( manager.moveWindowToDesktop( 'a', 'desktop-1' ) ).toBe( true );
+		expect( a.element.style.display ).toBe( '' );
+		expect( log ).toHaveLength( 2 );
+
+		// Already there: a no-op that reports success and fires nothing.
+		expect( manager.moveWindowToDesktop( 'a', 'desktop-1' ) ).toBe( true );
+		expect( log ).toHaveLength( 2 );
+
+		// Unknown window or desk: refused.
+		expect( manager.moveWindowToDesktop( 'nope', second.id ) ).toBe( false );
+		expect( manager.moveWindowToDesktop( 'a', 'desktop-99' ) ).toBe( false );
+		expect( a.config.desktopId ).toBe( 'desktop-1' );
+	} );
+
 	test( 'switchDesktop fires desktop.switched with from + to ids', async () => {
 		const second = manager.createDesktop();
 		const log = recordActions( hooks, DESKTOP_HOOKS );

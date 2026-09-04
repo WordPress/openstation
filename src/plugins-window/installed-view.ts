@@ -44,6 +44,14 @@ import {
  */
 const PLUGINS_CHANGED_TOPIC = 'os.plugin.changed';
 const SOURCE = 'installed-view';
+/** The columns a phone shows — see `buildColumns()` in `mountInstalledView`. */
+/**
+ * The columns a phone shows — a card per row there (`<os-table
+ * stacked>`), so the version and the author are labelled lines under
+ * the name rather than widths to find. The size and the auto-update
+ * switch stay in the row's detail panel.
+ */
+const MOBILE_COLUMN_KEYS = new Set< string >( [ 'name', 'status', 'version', 'author', '_actions' ] );
 interface PluginsChangedPayload {
 	source: string;
 	plugin?: string;
@@ -62,6 +70,7 @@ import type {
 	OsTableColumn,
 } from '../ui/components/os-table/os-table';
 import '../ui/components/os-badge/os-badge';
+import { stackOnPhone } from '../ui/components/os-table/stack-on-phone';
 import '../ui/components/os-button/os-button';
 import '../ui/components/os-segmented/os-segmented';
 import '../ui/components/os-table/os-table';
@@ -243,7 +252,11 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 	const table = document.createElement( 'os-table' ) as OsTable< InstalledPlugin >;
 	table.setAttribute( 'selectable', 'multi' );
 	table.setAttribute( 'sticky-header', '' );
+	// The name column stays put while the rest scroll under it — on a
+	// desk. On a phone the table is a card per row (`stack-on-phone.ts`
+	// lifts the pin), and the column set below is narrowed to match.
 	table.setAttribute( 'sticky-columns', '1' );
+	const phone = stackOnPhone( table );
 	table.setAttribute( 'hover', '' );
 	table.setAttribute( 'striped', '' );
 	table.setAttribute( 'bordered', '' );
@@ -290,6 +303,13 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 	tableWrap.appendChild( table );
 
 	host.append( toolbar, tableWrap );
+	// A phone: the selection's actions along the bottom of the window
+	// — under the thumb, and still there once the toolbar has scrolled
+	// away — instead of a strip in the toolbar.
+	if ( phone ) {
+		bulkBar.classList.add( 'os-plugins__bulk--footer' );
+		host.appendChild( bulkBar );
+	}
 
 	// ─── Selection → bulk-bar ──────────────────────────────────────
 	const selectionListener = ( ev: Event ): void => {
@@ -358,7 +378,12 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 			align: 'end',
 			render: ( _value, row ) => renderActionsCell( row ),
 		} );
-		return cfg.caps.activate || cfg.caps.delete ? cols : cols.slice( 0, -1 );
+		const all = cfg.caps.activate || cfg.caps.delete ? cols : cols.slice( 0, -1 );
+		// A phone shows which plugin, whether it is on, and what can be
+		// done to it. Version, author, size and the auto-update switch
+		// are a tap away in the row's detail panel; as columns they only
+		// put the table on a sideways scroll.
+		return phone ? all.filter( ( col ) => MOBILE_COLUMN_KEYS.has( col.key ) ) : all;
 	}
 
 	// Cell renderers use INLINE styles instead of class selectors —

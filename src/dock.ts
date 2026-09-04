@@ -9,6 +9,7 @@
 
 import { activity } from './activity';
 import { applyFilters, doAction, HOOKS } from './hooks';
+import { isMobileStamped } from './mode/stamp';
 import type { WindowManager } from './window-manager';
 import { deriveWindowId } from './utils';
 import { __, _n, sprintf } from './i18n';
@@ -880,6 +881,21 @@ export class Dock {
 			icon: svg,
 			rail: this.rail,
 		} );
+	}
+
+	/**
+	 * The art a tile is currently wearing through {@link setArt}, or
+	 * `''` while the server-declared icon is in charge. The phone's
+	 * home grid reads this: its tiles are not this rail's, so a
+	 * `setArt` never reaches them, and without it the bin's tile
+	 * there would show empty while the bin held something.
+	 *
+	 * @public
+	 *
+	 * @param itemId Tile id.
+	 */
+	public getArt( itemId: string ): string {
+		return this.artOverrides.get( itemId ) ?? '';
 	}
 
 	/**
@@ -1792,7 +1808,10 @@ export class Dock {
 		};
 
 		tile.addEventListener( 'pointerdown', ( ev: PointerEvent ) => {
-			if ( ev.button !== 0 ) {
+			// Primary button only, and never on a phone: the reorder is
+			// its own gesture, not a DragManager session, so it refuses
+			// the phone here where the manager refuses everything else.
+			if ( ev.button !== 0 || isMobileStamped() ) {
 				return;
 			}
 			// Cancel any in-flight drag from a previous tile that may

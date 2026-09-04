@@ -146,6 +146,28 @@ describe( 'createHome (DOM)', () => {
 		home.setHidden( true );
 		expect( home.el.hidden ).toBe( true );
 	} );
+
+	test( "paints a tile's rail art in place of its icon, and the icon when there is none", () => {
+		const host = document.createElement( 'div' );
+		const painted: string[] = [];
+		const home = createHome( host, {
+			renderIcon: ( icon, opts ) => {
+				painted.push( icon );
+				return renderIcon( icon, opts );
+			},
+			getBadge: () => 0,
+			getArt: ( i ) => ( i.id === 'desktop-mode-recycle-bin' ? 'data:image/svg+xml;base64,FULL' : '' ),
+			onOpen: () => undefined,
+		} );
+		home.render( nav( {
+			dock: {
+				core: [ item( 'edit.php', { icon: 'dashicons-admin-post' } ) ],
+				apps: [ item( 'desktop-mode-recycle-bin', { icon: 'data:image/svg+xml;base64,EMPTY' } ) ],
+				controls: [],
+			},
+		} ) );
+		expect( painted ).toEqual( [ 'dashicons-admin-post', 'data:image/svg+xml;base64,FULL' ] );
+	} );
 } );
 
 describe( 'createTabBar (DOM)', () => {

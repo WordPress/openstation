@@ -12,11 +12,14 @@ export const textareaStyles = css`
 	${ holoTokens }
 	${ holoField }
 
+	/* Sizing tokens: see os-text-field.styles.ts. */
 	:host {
+		--_field-size: var( --os-ui-field-font-size, 13px );
+		--_field-radius: var( --os-ui-field-radius, 6px );
 		display: flex;
 		flex-direction: column;
 		gap: 4px;
-		font-size: 13px;
+		font-size: var( --_field-size );
 		color: var( --os-ui-fg, #1d2327 );
 		min-width: 0;
 	}
@@ -39,9 +42,9 @@ export const textareaStyles = css`
 		padding: 8px 10px;
 		background: var( --os-window-bg, #fff );
 		border: 1px solid var( --os-ui-border, #dcdcde );
-		border-radius: 6px;
+		border-radius: var( --_field-radius );
 		font: inherit;
-		font-size: 13px;
+		font-size: var( --_field-size );
 		line-height: 1.45;
 		color: var( --os-ui-fg, #1d2327 );
 		resize: vertical;

@@ -244,6 +244,32 @@ html.wp-toolbar:has( body.os-chromeless ) {
 	display: none;
 }
 
+/*
+ * Core offsets every title action by `top: -3px` (common.css) so it
+ * sits on the H1's baseline. Chromeless hides the H1, and the first
+ * thing in the frame has nothing above it to overlap: the offset
+ * pulls the button's top border under the window's content edge and
+ * it renders cropped. The offset has no baseline left to meet here,
+ * so drop it.
+ *
+ * The margins are the same 12px the rule above gives a lone button,
+ * applied to whatever element a plugin grouped its buttons in. On a
+ * Jetpack site that is `div.wpcom-media-library-action-buttons`
+ * (external-media moves core's "Add Media File" into it so it can
+ * append "Import Media"; Big Sky adds "Generate Image" beside them),
+ * and a group is not a `.page-title-action`, so it picks up neither
+ * the margin nor the block layout and lands flush against the top.
+ * `:has()` reaches the group whatever a plugin decided to call it.
+ */
+.os-chromeless .wrap .page-title-action {
+	top: 0;
+}
+
+.os-chromeless .wrap :has( > .page-title-action ) {
+	margin-top: 12px;
+	margin-bottom: 12px;
+}
+
 /* ---------------------------------------------------------------
  * WooCommerce "embed page" header overlay — page-scoped.
  *

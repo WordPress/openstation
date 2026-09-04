@@ -205,7 +205,7 @@ import {
 	type PresenceApi,
 } from './presence';
 import { recentlyMarqueed, type SelectionApi } from './selection';
-import { type ActivityApi } from './activity';
+import { activity, type ActivityApi } from './activity';
 import { bootHeartbeatBus, type HeartbeatBus } from './heartbeat';
 import { bootPluginPresenceWatch } from './plugin-presence';
 import { bootContentChangesHeartbeat } from './content-changes/heartbeat';
@@ -301,6 +301,7 @@ import { osConfirm } from './os-confirm';
 import { preloadShellOverlays } from './shell-overlays/loader';
 import { renderIcon } from './icon';
 import { installMode, sanitizeModePreference, type OsModeApi } from './mode';
+import { installZoomGuard } from './mode/zoom-guard';
 import { installMobileConstraints } from './mobile/constraints';
 import { ensureMobileLoaded } from './mobile/loader';
 import { createNavItemOpener } from './mobile/open-nav-item';
@@ -2275,6 +2276,10 @@ function init(): void {
 	osSettings.subscribeOsSettings( ( snap ) => {
 		modeController.setPreference( sanitizeModePreference( snap.mobileLayout ) );
 	} );
+	// An installed app, or a phone, does not zoom: the pinch and the
+	// trackpad pinch are cancelled while either stamp is on. Reads
+	// the stamps at event time, so it needs no subscription.
+	installZoomGuard();
 	const mobileConstraints = installMobileConstraints( {
 		manager,
 		mode: modeController.api,
@@ -2606,6 +2611,39 @@ function init(): void {
 	// narrows the navigation, so there is nothing for it to do before
 	// there is a navigation.
 	let workspaceDeps: WorkspaceDeps | null = null;
+
+	/*
+	 * A phone has one desk and no workspace. The windows are folded
+	 * onto the active desk by `installMobileConstraints`; here the
+	 * rest of what a workspace does is switched off for as long as the
+	 * mode is `mobile`: the desk's look is not painted over the user's
+	 * settings, its widget column is not put up (there is no column),
+	 * and its launch list is not opened (a desktop's worth of iframes
+	 * on a phone that restores one window). Every workspace caller
+	 * goes through these two so the mode decides in one place, and the
+	 * crossing subscription near the phone layer's mount re-applies or
+	 * clears the view when the answer changes.
+	 */
+	const applyWorkspaceViewForMode = (
+		deps: WorkspaceDeps,
+		desktopId: string,
+	): void => {
+		if ( modeController.api.isMobile() ) {
+			deps.setAppearance?.( null );
+			deps.setVisibleWidgets?.( null );
+			return;
+		}
+		applyWorkspaceView( deps, desktopId );
+	};
+	const provisionWorkspaceForMode = (
+		deps: WorkspaceDeps,
+		desktopId: string,
+	): void => {
+		if ( modeController.api.isMobile() ) {
+			return;
+		}
+		provisionWorkspace( deps, desktopId );
+	};
 	// Answered asynchronously by `isLikelyInstalled()` (Chromium only),
 	// and read by the System menu's install row each time it is built.
 	let pwaAlreadyInstalled = false;
@@ -3115,7 +3153,15 @@ function init(): void {
 				// repaint. The dispatcher adds it to the placement map
 				// it computes from and never writes it back — see
 				// `src/workspaces/visibility.ts`.
-				getWorkspaceProfile: () => getActiveWorkspaceProfile( manager ),
+				//
+				// A phone has one desk and no workspace: its home grid
+				// shows every app whatever desk happens to be active.
+				// The crossing subscription below repaints the rails
+				// when the answer changes.
+				getWorkspaceProfile: () =>
+					modeController.api.isMobile()
+						? null
+						: getActiveWorkspaceProfile( manager ),
 			},
 			initialLayout,
 			config.dockItems,
@@ -3242,8 +3288,8 @@ function init(): void {
 				// The desk's look and furniture first, so its windows
 				// land on the surface they belong to rather than on
 				// the previous workspace's.
-				applyWorkspaceView( workspaceDeps, payload.to );
-				provisionWorkspace( workspaceDeps, payload.to );
+				applyWorkspaceViewForMode( workspaceDeps, payload.to );
+				provisionWorkspaceForMode( workspaceDeps, payload.to );
 			},
 		);
 		// Adding a widget while a workspace's column is in force is a
@@ -3286,8 +3332,8 @@ function init(): void {
 		// view state the session does not carry.
 		if ( workspaceDeps ) {
 			const bootDesktop = manager.getActiveDesktopId();
-			applyWorkspaceView( workspaceDeps, bootDesktop );
-			provisionWorkspace( workspaceDeps, bootDesktop );
+			applyWorkspaceViewForMode( workspaceDeps, bootDesktop );
+			provisionWorkspaceForMode( workspaceDeps, bootDesktop );
 		}
 		// Tracked by the dispatcher so it re-attaches automatically
 		// after a layout rebuild. `'core'` classifies it as a
@@ -3821,8 +3867,12 @@ function init(): void {
 		const deps = workspaceDeps;
 		void sessionRestore.then( () => {
 			const bootDesktop = manager.getActiveDesktopId();
-			reopenWorkspaceWindows( deps, bootDesktop );
-			applyWorkspaceView( deps, bootDesktop );
+			// Not on a phone: a desk's launch list is a desktop's worth
+			// of iframes, and the phone boot restores one window.
+			if ( ! modeController.api.isMobile() ) {
+				reopenWorkspaceWindows( deps, bootDesktop );
+			}
+			applyWorkspaceViewForMode( deps, bootDesktop );
 		} );
 	}
 
@@ -4738,6 +4788,10 @@ function init(): void {
 					},
 					adminUrl: config.adminUrl,
 					renderIcon: ( icon, opts ) => renderIcon( icon, opts ),
+					// The art a tile wears on any rail, so the grid's tile
+					// says what the dock's does (the bin's full/empty mark).
+					getArt: ( item ) => iconsApi.getArt( item.id ) || dock?.getArt( item.id ) || '',
+					subscribeArt: ( cb ) => activity.subscribe( 'os/art-changed', () => cb() ),
 				} );
 			} )
 			.catch( ( err ) => {
@@ -4748,6 +4802,25 @@ function init(): void {
 	};
 	syncMobileLayer();
 	modeController.api.subscribe( syncMobileLayer );
+
+	// A crossing into or out of the phone band changes what a
+	// workspace is allowed to do (see `applyWorkspaceViewForMode`):
+	// the rails narrow or widen, the desk's look goes on or comes off,
+	// and a desk never provisioned on the phone gets its launch list
+	// on arrival at the desktop. The window fold itself is the
+	// constraints module's, subscribed earlier so it runs first.
+	modeController.api.subscribe( ( change ) => {
+		if ( change.mode !== 'mobile' && change.previous !== 'mobile' ) {
+			return;
+		}
+		layoutDispatcher?.refresh();
+		if ( ! workspaceDeps ) {
+			return;
+		}
+		const active = manager.getActiveDesktopId();
+		applyWorkspaceViewForMode( workspaceDeps, active );
+		provisionWorkspaceForMode( workspaceDeps, active );
+	} );
 
 	// Now that `wp.os.dragManager` is on the window, register
 	// the recycle-bin drop targets (dock icon + window body). The
@@ -5019,7 +5092,17 @@ function init(): void {
 	// callback can immediately call `wp.os.pwa.*` or the
 	// `wp.os.notify` API. No-op when `config.pwa` is absent
 	// (chromeless context, classic admin, older PHP build).
-	bootstrapPwa( config, showToast );
+	//
+	// The reload handed in is the only one the shell ever performs,
+	// and only because the user asked for it from the toast. The
+	// session goes to the server first and the navigation waits for
+	// the answer, so the desktop comes back exactly as it was left —
+	// an unload beacon racing the request that reads the session back
+	// is how two open windows once came back as none.
+	bootstrapPwa( config, showToast, async () => {
+		await saveSession.flush();
+		window.location.reload();
+	} );
 
 	// Pre-load the shell-overlays bundle (toast + confirm-dialog +
 	// context-menu component classes) in the background once we're

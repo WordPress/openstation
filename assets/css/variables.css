@@ -442,6 +442,18 @@ body.os-active {
 	--os-ui-field-border: #4d4a52;
 	--os-ui-field-fg: #fffbff;
 
+	/*
+	 * Field sizing. The kit's own `<os-text-field>` and `<os-textarea>`
+	 * (and every kit control that hosts a typing input) read these for
+	 * the control's type size and corner. The phone layer raises the
+	 * size to 16px — below that, iOS zooms the whole page into a
+	 * focused control and never zooms back — and rounds its search;
+	 * a theme may do the same anywhere.
+	 */
+	--os-ui-field-font-size: 13px;
+	--os-ui-field-font-size-compact: 12px;
+	--os-ui-field-radius: 6px;
+
 	/* Text — Starlight down through the Shade ramp. */
 	--os-ui-fg: #fffbff;
 	--os-ui-fg-muted: #b3afb5;
@@ -1365,6 +1377,28 @@ body.os-active {
 	--os-dock-floating-border-top: rgba(255, 251, 255, 0.18);
 	--os-dock-floating-highlight: rgba(255, 251, 255, 0.1);
 	--os-dock-floating-shadow: rgba(0, 0, 0, 0.55);
+
+	/*
+	 * The phone layer (`mobile.css`). Its surfaces are the dock's
+	 * family — translucent glass over the wallpaper, light glyphs —
+	 * and read the dock tokens above for fill, text and lines. What
+	 * the dock has no word for is declared here: the glass a tile, a
+	 * round control and a switcher card are cut from, its pressed
+	 * state, the shadow under a tile, the scrim behind the switcher,
+	 * and the label shadow that keeps text legible over any wallpaper.
+	 * A desktop theme that reskins the dock reskins the phone with it;
+	 * one that wants the phone alone has these.
+	 */
+	--os-mobile-glass: rgba(255, 251, 255, 0.1);
+	--os-mobile-glass-strong: rgba(255, 251, 255, 0.16);
+	--os-mobile-glass-border: rgba(255, 251, 255, 0.14);
+	--os-mobile-tile-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+	--os-mobile-card-shadow: 0 -8px 24px rgba(0, 0, 0, 0.4);
+	--os-mobile-sheet-shadow: 0 -12px 40px rgba(0, 0, 0, 0.45);
+	--os-mobile-window-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+	--os-mobile-scrim: rgba(0, 0, 0, 0.55);
+	--os-mobile-top-scrim: rgba(0, 0, 0, 0.45);
+	--os-mobile-label-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
 
 	/*
 	 * ---- The OpenStation layout ---------------------------------

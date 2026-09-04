@@ -11,6 +11,10 @@
  * a pen or a mouse drag behaves the same as a finger and jsdom can
  * drive them in tests. Every binder returns its unbind function.
  *
+ * The one exception is `bindHistorySwipeGuard()`, which listens to
+ * `touchstart` on purpose: it exists to cancel the BROWSER's edge
+ * gesture, and that gesture is only cancellable from the touch event.
+ *
  * The iframes are the reason the back gesture needs its own zone:
  * a pointer that starts over an iframe belongs to that document,
  * and the shell never hears about it. The zone is a thin strip the
@@ -149,6 +153,36 @@ export function bindEdgeBack( zone: HTMLElement, opts: EdgeBackOptions ): () => 
 		zone.removeEventListener( 'pointermove', onMove );
 		zone.removeEventListener( 'pointerup', onUp );
 		zone.removeEventListener( 'pointercancel', onCancel );
+	};
+}
+
+/**
+ * Cancel the browser's history swipe where it starts.
+ *
+ * Mobile Safari (in a tab and as an installed app) and Chrome for
+ * Android navigate history on a drag in from either edge of the
+ * screen. On a phone that gesture lands on top of the shell's own:
+ * a drag from the left edge is Back into the app, and a drag from the
+ * right edge is nothing — but the browser reads both as "leave this
+ * page", and a shell with one history entry of its own leaves for
+ * good. Neither `touch-action` nor `overscroll-behavior` reaches this
+ * gesture; the only thing that does is cancelling the `touchstart`
+ * that begins it, which is what this binder does on the edge zones.
+ *
+ * Cancelling `touchstart` also cancels the click the touch would have
+ * become, which is why the guard lives on the zones alone: nothing
+ * under them wants a tap. Pointer Events are unaffected, so the back
+ * gesture bound to the same zone keeps working.
+ */
+export function bindHistorySwipeGuard( zone: HTMLElement ): () => void {
+	const onTouchStart = ( e: Event ): void => {
+		if ( e.cancelable ) {
+			e.preventDefault();
+		}
+	};
+	zone.addEventListener( 'touchstart', onTouchStart, { passive: false } );
+	return () => {
+		zone.removeEventListener( 'touchstart', onTouchStart );
 	};
 }
 

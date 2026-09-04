@@ -2674,6 +2674,16 @@ export interface PwaConfig {
 	 * openstation installability.
 	 */
 	forceReplaceSw?: boolean;
+	/**
+	 * Content hash of the shell's built files this document was served
+	 * with (`openstation_shell_build_stamp()`). Compared against the
+	 * stamp a service worker taking over mid-session reports, so the
+	 * shell can tell a deploy that changed its own files from one that
+	 * did not. Optional: absent on payloads from older servers, in which
+	 * case no comparison is possible and the shell never offers a
+	 * reload.
+	 */
+	shellBuild?: string;
 }
 
 /**

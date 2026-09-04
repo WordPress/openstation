@@ -183,12 +183,17 @@ function openstation_mode_hint_is_mobile( $user_id = null ) {
 }
 
 /**
- * The inline script that stamps `data-os-mode` on `<html>`.
+ * The inline script that stamps `data-os-mode` and `data-os-display`
+ * on `<html>`.
  *
- * Mirrors `resolveMode()` in `src/mode/index.ts`: a forced
- * preference wins; otherwise the width is compared with the two
- * breakpoints. Kept to one statement with no dependencies so it can
- * run before anything else in the document.
+ * Mirrors `resolveMode()` and `resolveDisplay()` in
+ * `src/mode/index.ts`: a forced preference wins; otherwise the width
+ * is compared with the two breakpoints. The display is `standalone`
+ * when the document runs as an installed app — the `display-mode`
+ * media query matches, or Safari's `navigator.standalone` says the
+ * page was launched from the home screen — and `browser` otherwise.
+ * Kept to one statement with no dependencies so it can run before
+ * anything else in the document.
  *
  * @param string $preference  `auto`, `desktop` or `mobile`.
  * @param array  $breakpoints { mobile: int, tablet: int }.
@@ -204,8 +209,11 @@ function openstation_mode_stamp_script( $preference, $breakpoints ) {
 	return '(function(){var p=' . wp_json_encode( $preference ) . ','
 		. 'w=window.innerWidth||0,'
 		. 'm=p==="mobile"?"mobile":p==="desktop"?"desktop":'
-		. 'w<=' . $mobile . '?"mobile":w<=' . $tablet . '?"tablet":"desktop";'
-		. 'document.documentElement.setAttribute("data-os-mode",m);})();';
+		. 'w<=' . $mobile . '?"mobile":w<=' . $tablet . '?"tablet":"desktop",'
+		. 'd=(window.matchMedia&&window.matchMedia("(display-mode: standalone)").matches)'
+		. '||navigator.standalone===true?"standalone":"browser",'
+		. 'h=document.documentElement;'
+		. 'h.setAttribute("data-os-mode",m);h.setAttribute("data-os-display",d);})();';
 }
 
 /**
@@ -240,6 +248,13 @@ add_action( 'admin_head', 'openstation_print_mode_stamp', 0 );
  * and read `env(safe-area-inset-*)`; `interactive-widget=
  * resizes-content` makes the on-screen keyboard shrink the layout
  * rather than overlay it (Chrome for Android; ignored elsewhere).
+ * `maximum-scale=1,user-scalable=no` turns page zoom off: the shell
+ * is an application surface, not a document — a pinch or a focus
+ * zoom leaves the dock, the tab bar and every window half off
+ * screen with no way back. Mobile Safari honours the pair for the
+ * focus zoom and, in a home-screen app, for the pinch; where it
+ * does not, `src/mode/zoom-guard.ts` cancels the gesture itself.
+ * Desktop browsers ignore both and keep their own zoom.
  *
  * @param string $meta The viewport meta content.
  * @return string
@@ -254,6 +269,12 @@ function openstation_mode_viewport_meta( $meta ) {
 	}
 	if ( false === strpos( $meta, 'interactive-widget' ) ) {
 		$meta .= ',interactive-widget=resizes-content';
+	}
+	if ( false === strpos( $meta, 'maximum-scale' ) ) {
+		$meta .= ',maximum-scale=1';
+	}
+	if ( false === strpos( $meta, 'user-scalable' ) ) {
+		$meta .= ',user-scalable=no';
 	}
 	return $meta;
 }

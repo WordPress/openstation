@@ -21,6 +21,63 @@
 	flex: none;
 }
 
+/*
+ * A narrow container — a phone, or a desktop window pulled in — has no
+ * height to spare for fixed regions: the toolbar wraps to three rows,
+ * the stat tiles to two, the chart keeps its height, and the issue list
+ * was left its 120px minimum with its own scrollbar inside it, which a
+ * thumb reads as "this does not scroll". So at this width the window
+ * page-scrolls instead: every region takes its natural height and the
+ * root is the one scroller. The two fields stop demanding 200px each
+ * and share the row.
+ */
+@container ( max-width: 640px ) {
+	.os-cb {
+		overflow-y: auto;
+		-webkit-overflow-scrolling: touch;
+	}
+
+	.os-cb__source,
+	.os-cb__search {
+		min-inline-size: 0;
+		flex: 1 1 140px;
+	}
+
+	.os-cb > .os-cb__issues {
+		flex: none;
+		min-block-size: 0;
+	}
+
+	.os-cb__list {
+		flex: none;
+		overflow-y: visible;
+	}
+}
+
+/* The same, keyed on the shell's phone mode: the phone experience at
+   any width (a wide browser previewing it, a phone turned sideways),
+   which no size query can express. */
+html[data-os-mode="mobile"] .os-cb {
+	overflow-y: auto;
+	-webkit-overflow-scrolling: touch;
+}
+
+html[data-os-mode="mobile"] .os-cb__source,
+html[data-os-mode="mobile"] .os-cb__search {
+	min-inline-size: 0;
+	flex: 1 1 140px;
+}
+
+html[data-os-mode="mobile"] .os-cb > .os-cb__issues {
+	flex: none;
+	min-block-size: 0;
+}
+
+html[data-os-mode="mobile"] .os-cb__list {
+	flex: none;
+	overflow-y: visible;
+}
+
 .os-cb__source,
 .os-cb__search {
 	min-inline-size: 200px;

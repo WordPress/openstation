@@ -16,6 +16,7 @@
  * here fails, because the menu never moves.
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import { menuStyles } from '../../src/ui/components/os-context-menu/os-context-menu.styles';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 
 /** Tall enough that it cannot fit below a click near the bottom. */
@@ -220,5 +221,22 @@ describe( 'floating menus clamp to the viewport', () => {
 		expect(
 			parseFloat( fly.style.top ) + MENU_HEIGHT,
 		).toBeLessThanOrEqual( window.innerHeight );
+	} );
+} );
+
+describe( 'a menu taller than the screen', () => {
+	/*
+	 * The clamp can only slide a box that fits. A menu with more rows
+	 * than a phone has height — WP Explorer's item menu — has to cap
+	 * itself to the viewport and scroll inside, or the clamp parks it
+	 * at the top edge with its tail cut off and no way to reach it.
+	 * jsdom lays nothing out, so the contract is pinned on the sheet.
+	 */
+	test( 'caps itself to the viewport and scrolls inside', () => {
+		const open = menuStyles.cssText.split( ':host( [ open ] ) {' )[ 1 ]?.split( '}' )[ 0 ] ?? '';
+		expect( open ).toContain( 'max-block-size: calc( 100vh - 16px )' );
+		expect( open ).toContain( 'max-block-size: calc( 100dvh - 16px )' );
+		expect( open ).toContain( 'overflow-y: auto' );
+		expect( open ).toContain( 'box-sizing: border-box' );
 	} );
 } );

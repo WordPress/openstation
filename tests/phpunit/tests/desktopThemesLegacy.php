@@ -186,7 +186,10 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 		$tokens = $this->manifest()['tokens'];
 		$why    = 'Legacy is a frozen snapshot — mint a new theme instead of moving it.';
 
-		$this->assertCount( 469, $tokens, $why );
+		// 469 collected, plus the three kit-field sizing tokens and the
+		// ten phone-layer tokens minted after the snapshot, each at the
+		// value its consuming rule falls back to.
+		$this->assertCount( 482, $tokens, $why );
 		foreach ( array(
 			'--os-bg'             => 'linear-gradient( 135deg, #1d2327 0%, #2c3338 50%, #1d2327 100% )',
 			'--os-titlebar-bg'    => '#f0f0f1',

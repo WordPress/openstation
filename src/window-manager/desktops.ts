@@ -72,6 +72,45 @@ export function refreshDesktopVisibility( mgr: WindowManager ): void {
 }
 
 /**
+ * Move one window to another desktop, keeping everything else about
+ * it — geometry, state, focus order, iframe — exactly as it is. The
+ * window shows or hides at once according to whether its new desktop
+ * is the active one.
+ *
+ * `false` when either id is unknown; a no-op `true` when the window
+ * is already there. The one caller in-tree is the phone layer, which
+ * folds every desktop onto the active one while the mode is `mobile`
+ * and hands each window back on the way out; a plugin can use it for
+ * a "move to desk" action of its own.
+ */
+export function moveWindowToDesktop(
+	mgr: WindowManager,
+	windowId: string,
+	desktopId: string,
+): boolean {
+	const win = mgr._stack.find( ( w ) => w.id === windowId );
+	if ( ! win || ! mgr._desktops.some( ( d ) => d.id === desktopId ) ) {
+		return false;
+	}
+	const from = win.config.desktopId || mgr._activeDesktopId;
+	if ( from === desktopId ) {
+		return true;
+	}
+	win.config.desktopId = desktopId;
+	if ( mgr._overviewActive ) {
+		relayoutOverviewForActiveDesktop( mgr );
+	} else {
+		applyDesktopVisibility( mgr, win );
+	}
+	doAction( HOOKS.WINDOW_DESKTOP_CHANGED, {
+		windowId,
+		from,
+		to: desktopId,
+	} );
+	return true;
+}
+
+/**
  * Append a brand-new desktop and return it. The new desktop's label
  * is auto-numbered (`Desktop 2`, `Desktop 3`, …) using the monotonic
  * seq counter so closing + reopening doesn't reuse the same id

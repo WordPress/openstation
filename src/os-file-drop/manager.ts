@@ -33,6 +33,7 @@
  */
 
 import { applyFilters, doAction } from '../hooks';
+import { isMobileStamped } from '../mode/stamp';
 import { showToast } from '../toast';
 import { FILE_DROP_HOOKS } from './hooks';
 import { collectDroppedTree, snapshotEntries } from './traversal';
@@ -184,8 +185,9 @@ export function mountOsFileDropManager( opts: MountOptions ): MountedManager {
 	if ( host.__openStationOsFileDropMounted ) {
 		return host.__openStationOsFileDropMounted;
 	}
-	if ( ! opts.config.enabled ) {
-		// User lacks `upload_files` — still mount a no-op so the
+	if ( ! opts.config.enabled || isMobileStamped() ) {
+		// User lacks `upload_files`, or this is a phone (no drag and
+		// drop, `docs/mobile.md`) — still mount a no-op so the
 		// browser's default "open file" navigation doesn't fire
 		// when a user drags a file in. Cancel the events but
 		// don't surface a dialog.

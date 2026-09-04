@@ -131,7 +131,9 @@ describe( 'installMode', () => {
 		expect( ctl.api.get() ).toBe( 'mobile' );
 		expect( ctl.api.isMobile() ).toBe( true );
 		expect( ctl.api.getPreference() ).toBe( 'auto' );
-		expect( mm.lists.map( ( l ) => l.px ) ).toEqual( [ 767, 1024 ] );
+		// The width crossings; the display-mode query (no px) is the
+		// display stamp's, pinned in mode-display.test.ts.
+		expect( mm.lists.map( ( l ) => l.px ).filter( ( px ) => px > 0 ) ).toEqual( [ 767, 1024 ] );
 		ctl.dispose();
 	} );
 

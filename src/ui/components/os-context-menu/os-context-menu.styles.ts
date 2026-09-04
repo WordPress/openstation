@@ -51,6 +51,23 @@ export const menuStyles = css`
 		display: block;
 		animation: os-holo-enter var( --_holo-t-fast ) var( --_holo-ease );
 		transform-origin: top left;
+		/*
+		 * Never taller than the screen. A long menu on a phone — WP
+		 * Explorer's item menu runs past twenty rows — used to open
+		 * off the bottom edge with no way to reach the rest: the
+		 * viewport clamp in menu-position.ts can only slide a box that
+		 * fits. Capped to the viewport (the dynamic unit follows the
+		 * phone's collapsing browser bar; the static one is the floor
+		 * for engines without it), the menu scrolls inside itself and
+		 * the clamp has a box it can place. Submenu flyouts are
+		 * separate elements, so the overflow clips nothing of theirs.
+		 */
+		box-sizing: border-box;
+		max-block-size: calc( 100vh - 16px );
+		max-block-size: calc( 100dvh - 16px );
+		overflow-y: auto;
+		overscroll-behavior: contain;
+		-webkit-overflow-scrolling: touch;
 	}
 
 	:host( [ open ]:dir( rtl ) ) {
