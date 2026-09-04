@@ -4,7 +4,7 @@ Tags: admin, dashboard, desktop, productivity, ai
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.1.5
+Stable tag: 1.1.6
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -169,6 +169,39 @@ The **Inkfall** game's word list (`assets/games/inkfall/words.txt`) is generated
 * **[LDNOOBW English list](https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words)** (CC-BY 4.0) — used as an exclusion filter.
 
 == Changelog ==
+
+= 1.1.6 =
+* Fix: Script loading: read the concat blob's handle list, so a lazily-loaded package stops replacing wp.hooks
+* Fix: Shell boot: a target is one-shot and must be a real page, so a reload stops opening an empty window
+* Add close all windows keybinds.
+* Multisite: support the network admin, and scope desktops per site
+* App Framework — a window in one PHP file (.osx.php + optional .os.ts), Code Blue & WP Explorer rebuilt on it
+* App Framework DX: warn on the silent footguns, trace dispatches, open client views to third parties
+* Trash: the Recycle Bin rebuilt on the App Framework — 659 lines against 1,869, the frozen id claimed, the legacy window deleted whole
+* Station Home: the native Dashboard rebuilt on the App Framework — 931 lines against 1,323, no client script, the legacy window deleted whole
+* WP Explorer: a list view — ids, slugs, dates and counts in sortable columns, remembered per user
+* OpenStation Preferences: the settings window rebuilt on the App Framework — 4,858 lines against 7,136, the panel bundle deleted whole
+* WooCommerce orders open on new window
+* Multisite: drop deleted sites' tables, Core parity for site admins, per-site PWA, and a multisite CI job
+* [Proposal] Workspaces — desktops that know what they're for
+* Fix portal redirect: leave sub-resource fetches alone, so Jetpack's admin-bar sparkline renders
+* Multisite: Site Spaces — another admin opens on its own desktop
+* App Framework: find an app's client bundle without its TypeScript source, so packaged installs open client-view apps
+* Code Blue: read the error without resizing, and a read-only skill that investigates it
+* Drafts: name a draft's window after the draft, not the whole row
+* Mobile: the phone layer — wp.os.mode, full-screen apps, switcher, tab bar
+* Mobile: one desk on a phone — fold every desktop, switch workspaces off
+* Mobile: fit the installed app to a phone — display stamp, no zoom, anchored tab bar
+* Mobile: the native apps on a phone — one tap, one pane, pinch, and a self-updating PWA
+* PWA: the shell never reloads itself — a waiting worker, a build stamp, and a Reload the user takes
+* Chromeless: fix in-page title actions a plugin has grouped
+* Drafts: fix the row's interaction states and name its actions
+* App icons: full-bleed tiles, three purposes, and an apple-touch-icon
+* Mobile: the list windows as cards, a bin that looks full, Explorer's item as a page
+* Apps: Posts, Pages, Users, User Edit, Plugins and Comments become App Framework apps
+* Mio: the inner line the artwork always had
+* Preserve rapid extended options saves
+* Multisite: every site is its own OpenStation, with a site switcher in overview
 
 = 1.1.5 =
 * Add OpenStation Beta: install builds from PR branches, trunk, or stable
