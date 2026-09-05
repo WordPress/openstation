@@ -95,17 +95,24 @@ export function clampGeometryToViewport(
 ): { x: number; y: number; width: number; height: number } {
 	const originX = rect.x ?? 0;
 	const originY = rect.y ?? 0;
-	const maxW = Math.max( 200, rect.width - VIEWPORT_CLAMP_MARGIN * 2 );
-	const maxH = Math.max( 200, rect.height - VIEWPORT_CLAMP_MARGIN * 2 );
+
+	const marginX = rect.width > VIEWPORT_CLAMP_MARGIN * 2 ? VIEWPORT_CLAMP_MARGIN : 0;
+	const marginY = rect.height > VIEWPORT_CLAMP_MARGIN * 2 ? VIEWPORT_CLAMP_MARGIN : 0;
+
+	const availableW = Math.max( 40, rect.width - marginX * 2 );
+	const availableH = Math.max( 40, rect.height - marginY * 2 );
+
+	const maxW = Math.min( rect.width, availableW );
+	const maxH = Math.min( rect.height, availableH );
 
 	const width = Math.min( win.width, maxW );
 	const height = Math.min( win.height, maxH );
 
-	const maxX = originX + Math.max( 0, rect.width - width - VIEWPORT_CLAMP_MARGIN );
-	const maxY = originY + Math.max( 0, rect.height - height - VIEWPORT_CLAMP_MARGIN );
+	const maxX = originX + Math.max( 0, rect.width - width - marginX );
+	const maxY = originY + Math.max( 0, rect.height - height - marginY );
 
-	const x = Math.max( originX + VIEWPORT_CLAMP_MARGIN, Math.min( win.x, maxX ) );
-	const y = Math.max( originY + VIEWPORT_CLAMP_MARGIN, Math.min( win.y, maxY ) );
+	const x = Math.max( originX + marginX, Math.min( win.x, maxX ) );
+	const y = Math.max( originY + marginY, Math.min( win.y, maxY ) );
 
 	return { x, y, width, height };
 }

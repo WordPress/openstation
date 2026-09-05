@@ -1426,3 +1426,29 @@
 		transition: none;
 	}
 }
+
+@media ( max-width: 480px ), ( max-height: 400px ) {
+	.os-dock[ data-os-dock-placement="bottom" ] {
+		padding: 3px 6px;
+		margin-bottom: 4px;
+		border-radius: 12px;
+		gap: 3px;
+	}
+
+	.os-dock__item {
+		width: 30px;
+	}
+
+	.os-dock__item-primary {
+		width: 30px;
+		height: 30px;
+		border-radius: 6px;
+	}
+
+	.os-dock__item-primary svg,
+	.os-dock__item-primary .dashicons {
+		width: 16px;
+		height: 16px;
+		font-size: 16px;
+	}
+}
