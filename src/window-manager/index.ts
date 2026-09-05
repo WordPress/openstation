@@ -80,7 +80,11 @@ import { destroyDesktopNameHud } from './desktop-name-hud';
 import { cancelOverviewTimers, enterOverview, exitOverview } from './overview';
 import { loadNativeWindowGeometry } from './native-window-geometry';
 import { clampWindowPosition } from '../window/pointer';
-import { workAreaRectOf, type WorkAreaRect } from '../work-area';
+import {
+	subscribeWorkArea,
+	workAreaRectOf,
+	type WorkAreaRect,
+} from '../work-area';
 
 /** Base z-index for desktop windows. */
 const BASE_Z_INDEX = 100;
@@ -266,6 +270,7 @@ export class WindowManager {
 	 * can stay snapped to the available area.
 	 */
 	private desktopResizeObserver: ResizeObserver | null = null;
+	private unsubscribeWorkArea: ( () => void ) | null = null;
 
 	/**
 	 * Debounce timer that clears `--reflowing` from stateful windows
@@ -414,6 +419,9 @@ export class WindowManager {
 			);
 			this.desktopResizeObserver.observe( desktop );
 		}
+		this.unsubscribeWorkArea = subscribeWorkArea( () =>
+			this.reflowStatefulWindows(),
+		);
 		this.installIframeFocusBridge();
 	}
 
@@ -537,11 +545,28 @@ export class WindowManager {
 			} else if ( w.state === 'normal' ) {
 				const currentX = parseInt( w.element.style.left, 10 ) || 0;
 				const currentY = parseInt( w.element.style.top, 10 ) || 0;
-				const width = w.element.offsetWidth || 0;
+				let width = w.element.offsetWidth || 0;
+				let height = w.element.offsetHeight || 0;
+				let dimensionsChanged = false;
 
-				const safe = clampWindowPosition( currentX, currentY, width, area );
+				const workArea = workAreaRectOf( this._desktop );
+				const maxW = Math.max( 40, workArea.width - 24 );
+				const maxH = Math.max( 40, workArea.height - 24 );
 
-				if ( currentX !== safe.x || currentY !== safe.y ) {
+				if ( workArea.width > 0 && width > maxW ) {
+					width = maxW;
+					w.element.style.width = `${ width }px`;
+					dimensionsChanged = true;
+				}
+				if ( workArea.height > 0 && height > maxH ) {
+					height = maxH;
+					w.element.style.height = `${ height }px`;
+					dimensionsChanged = true;
+				}
+
+				const safe = clampWindowPosition( currentX, currentY, width, workArea );
+
+				if ( dimensionsChanged || currentX !== safe.x || currentY !== safe.y ) {
 					w.element.classList.add( 'os-window--reflowing' );
 					w.element.style.left = `${ safe.x }px`;
 					w.element.style.top = `${ safe.y }px`;
@@ -1125,14 +1150,26 @@ export class WindowManager {
 			typeof v === 'number' && Number.isFinite( v ) ? v : fallback;
 		const safeFiltered: ResolvedWindowGeometry =
 			filtered && typeof filtered === 'object' ? filtered : preFilterGeometry;
-		const finalWidth = Math.max(
+		const effectiveMinW =
+			desktopRect.width > 0 ? Math.min( minWidth, desktopRect.width ) : minWidth;
+		const effectiveMinH =
+			desktopRect.height > 0 ? Math.min( minHeight, desktopRect.height ) : minHeight;
+
+		let finalWidth = Math.max(
 			coalesce( safeFiltered.width, resolvedWidth ),
-			minWidth,
+			effectiveMinW,
 		);
-		const finalHeight = Math.max(
+		let finalHeight = Math.max(
 			coalesce( safeFiltered.height, resolvedHeight ),
-			minHeight,
+			effectiveMinH,
 		);
+
+		if ( ! hasExplicitWidth && desktopRect.width > 0 && finalWidth > desktopRect.width ) {
+			finalWidth = desktopRect.width;
+		}
+		if ( ! hasExplicitHeight && desktopRect.height > 0 && finalHeight > desktopRect.height ) {
+			finalHeight = desktopRect.height;
+		}
 		const finalX = coalesce( safeFiltered.x, resolvedX );
 		const finalY = coalesce( safeFiltered.y, resolvedY );
 		const finalState: WindowState | undefined =
@@ -2478,6 +2515,10 @@ export class WindowManager {
 		if ( this._overviewActive ) {
 			exitOverview( this );
 		}
+		this.desktopResizeObserver?.disconnect();
+		this.desktopResizeObserver = null;
+		this.unsubscribeWorkArea?.();
+		this.unsubscribeWorkArea = null;
 		this.discardPrewarmed();
 		cancelOverviewTimers( this );
 		destroyDesktopNameHud();

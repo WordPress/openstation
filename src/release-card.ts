@@ -31,7 +31,7 @@ const CLOSE_ICON = osIconSvg( 'close', { size: null } );
 
 const STYLES = `
 .dm-release-card {
-	position: relative; box-sizing: border-box; width: 268px; padding: 11px;
+	position: relative; box-sizing: border-box; width: 268px; max-width: calc( 100vw - 32px ); max-height: calc( 100vh - 64px ); overflow-y: auto; padding: 11px;
 	border-radius: 14px; color: #fff;
 	font-family: var( --os-font, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif );
 	background: #34373f; border: 1px solid rgba( 255, 255, 255, 0.14 );

@@ -743,12 +743,18 @@ export function clampWindowPosition(
 	width: number,
 	bounds: WorkAreaRect,
 ): { x: number; y: number } {
-	const minX = bounds.x + GRAB_MARGIN - width;
-	const maxX = bounds.x + bounds.width - GRAB_MARGIN;
+	const grabX = Math.min( GRAB_MARGIN, Math.max( 10, bounds.width / 4 ) );
+	const grabY = Math.min( GRAB_MARGIN, Math.max( 10, bounds.height / 4 ) );
+
+	const minX =
+		bounds.width < width + grabX
+			? bounds.x
+			: bounds.x + grabX - width;
+	const maxX = Math.max( minX, bounds.x + bounds.width - grabX );
 	const safeX = Math.max( minX, Math.min( x, maxX ) );
 
 	const minY = bounds.y + EDGE_MARGIN;
-	const maxY = bounds.y + bounds.height - GRAB_MARGIN;
+	const maxY = Math.max( minY, bounds.y + bounds.height - grabY );
 	const safeY = Math.max( minY, Math.min( y, maxY ) );
 
 	return { x: safeX, y: safeY };
