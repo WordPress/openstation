@@ -4,9 +4,10 @@ import { decodeHTML } from '../../../src/utils';
 import '../../../src/ui/components/os-checkbox/os-checkbox';
 import '../../../src/ui/components/os-stat/os-stat';
 import '../../../src/ui/components/os-select/os-select';
-import { buildColumns, type ColumnFilterData } from './columns';
+import { buildColumns, pluginColumns, type ColumnFilterData } from './columns';
 import { authorOf, buildEditPostUrl, featuredMediaOf, STATUS_LABELS, termRecordsOf, titleOf, type CellEnv } from './cells/env';
 import { tableOf, type Ctx } from './window-context';
+import type { OsTableColumn } from '../../../src/ui/components/os-table/os-table';
 import type { PostListItem } from './types';
 
 export interface DeskState {
@@ -116,7 +117,27 @@ function contentId( ctx: Ctx, row: PostListItem ): TemplateResult {
 	} }><span class="screen-reader-text">${ label }</span><span aria-hidden="true">#${ row.id }</span><span class="dashicons dashicons-admin-page" aria-hidden="true"></span></os-button>`;
 }
 
-function story( ctx: Ctx, ui: DeskState, row: PostListItem, focused: number | undefined ): TemplateResult {
+/**
+ * A plugin column's cell for the card, or nothing when the renderer painted
+ * nothing. A renderer that returns an empty node for "absent" (the documented
+ * way to keep a table column aligned) must not leave a labelled blank on
+ * every card that has no value.
+ */
+function pluginStat( col: OsTableColumn< PostListItem >, row: PostListItem ): TemplateResult | '' {
+	const value = ( row as Record< string, unknown > )[ col.key ];
+	let node: unknown = '';
+	if ( col.render ) {
+		node = col.render( value as never, row, 0 );
+	} else if ( value !== null && value !== undefined ) {
+		node = String( value );
+	}
+	if ( node === null || node === undefined || node === '' || ( node instanceof Element && ! node.childNodes.length && ! node.textContent ) ) {
+		return '';
+	}
+	return html`<div class="os-posts-desk__plugin-stat" data-column=${ col.key }><span class="os-posts-desk__plugin-stat-value">${ node }</span><span class="os-posts-desk__plugin-stat-label">${ col.label || col.key }</span></div>`;
+}
+
+function story( ctx: Ctx, ui: DeskState, row: PostListItem, focused: number | undefined, extras: OsTableColumn< PostListItem >[] = [] ): TemplateResult {
 	const pages = ctx.extra.mode === 'pages';
 	const title = titleOf( row ) || __( '(no title)' );
 	const media = featuredMediaOf( row );
@@ -164,6 +185,7 @@ function story( ctx: Ctx, ui: DeskState, row: PostListItem, focused: number | un
 			<os-stat data-metric="words" value="—" label=${ __( 'Words' ) } title=${ __( 'Words in the complete page or post body' ) }></os-stat>
 			<os-stat data-metric="comments" value=${ typeof row.openstation_comment_count === 'number' ? String( row.openstation_comment_count ) : '—' } label=${ __( 'Comments' ) } title=${ __( 'Approved comments' ) }></os-stat>
 			${ ! pages ? html`<os-stat value=${ String( row.tags?.length ?? 0 ) } label=${ __( 'Tags' ) }></os-stat>` : '' }
+			${ extras.map( ( col ) => pluginStat( col, row ) ) }
 		</div>
 		${ row.openstation_lock ? html`<p class="os-posts-desk__lock"><span class="dashicons dashicons-lock" aria-hidden="true"></span>${ sprintf( /* translators: %s: person editing. */ __( '%s is editing' ), row.openstation_lock.userName ) }</p>` : '' }
 		<footer class="os-posts-desk__story-foot">
@@ -226,9 +248,12 @@ export function renderDesk( ctx: Ctx, ui: DeskState, env: CellEnv, filters: Colu
 	const emptyTitle = ctx.extra.mode === 'pages' ? __( 'No pages found.' ) : __( 'No posts found.' );
 	const rows = ctx.data?.list.items ?? [];
 	const focused = rows.find( ( row ) => row.id === ui.focused ) ?? rows[ 0 ];
+	// Resolved once per paint, not per card: the columns filter runs on every
+	// call, and a feed of fifty cards should ask it once.
+	const extras = rows.length ? pluginColumns( env, filters, hidden ) : [];
 	return html`<div class="os-posts-desk__workspace ${ ui.focused !== null && focused ? 'has-detail' : '' }" ?hidden=${ ui.view !== 'desk' }>
 		<div class="os-posts-desk__feed" aria-label=${ ctx.extra.mode === 'pages' ? __( 'Page directory' ) : __( 'Stories' ) }>
-			${ rows.length ? rows.map( ( row ) => story( ctx, ui, row, ui.peek ? focused?.id : undefined ) ) : html`<div class="os-posts-desk__empty"><span class="dashicons dashicons-welcome-write-blog" aria-hidden="true"></span><h3>${ ctx.loading ? __( 'Opening your workspace…' ) : emptyTitle }</h3><p>${ ctx.loading ? __( 'Your content will appear here.' ) : __( 'Try a different search or change the status filter.' ) }</p></div>` }
+			${ rows.length ? rows.map( ( row ) => story( ctx, ui, row, ui.peek ? focused?.id : undefined, extras ) ) : html`<div class="os-posts-desk__empty"><span class="dashicons dashicons-welcome-write-blog" aria-hidden="true"></span><h3>${ ctx.loading ? __( 'Opening your workspace…' ) : emptyTitle }</h3><p>${ ctx.loading ? __( 'Your content will appear here.' ) : __( 'Try a different search or change the status filter.' ) }</p></div>` }
 			${ tail ?? '' }
 		</div>
 		${ ui.peek ? inspector( ctx, ui, env, filters, hidden, focused ) : '' }

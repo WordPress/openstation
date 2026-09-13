@@ -268,6 +268,22 @@ export function buildAllColumns(
 		: cols;
 }
 
+/**
+ * The columns a plugin appended — everything `buildColumns()` returns that
+ * is not one of the shell's own. The writing-desk card paints these beside
+ * its Words / Comments / Tags stats (#812), the same set the inspector
+ * already paints, so the Show columns preference governs all three views.
+ * Derived from the base list, never from a hard-coded set of keys.
+ */
+export function pluginColumns(
+	env: CellEnv,
+	filterData: ColumnFilterData = EMPTY_FILTER_DATA,
+	hidden: ReadonlySet< string > = getHiddenColumns(),
+): OsTableColumn< PostListItem >[] {
+	const base = new Set( buildBaseColumns( env, new Map(), filterData ).map( ( c ) => c.key ) );
+	return buildColumns( env, new Map(), filterData, false, hidden ).filter( ( col ) => ! base.has( col.key ) );
+}
+
 /** The togglable columns' keys and labels — what the ⋯ menu needs, nothing more. */
 export function columnLabels( env: CellEnv ): Array< { key: string; label: string } > {
 	return buildAllColumns( env, new Map() )
