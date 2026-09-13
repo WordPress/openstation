@@ -416,7 +416,8 @@ export function installWorkArea( deps: WorkAreaInstallDeps ): WorkAreaController
 				continue;
 			}
 			const ro = new ResizeObserver( measure );
-			ro.observe( el );
+			// Padding and borders are part of the band the dock covers.
+			ro.observe( el, { box: 'border-box' } );
 			railObservers.set( el, ro );
 		}
 	};

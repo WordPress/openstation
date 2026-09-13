@@ -23,7 +23,7 @@ document.addEventListener( 'os-init', () => {
 } );
 ```
 
-`rect` is in the same coordinate space a window's `x` / `y` resolve in, so no conversion. The shell's own default placements (open, restore, cascade, tile) already do this; you only need it for geometry you pin yourself. Maximize and snap deliberately fill the whole area, dock band included — an explicit ask for everything — so don't expect a maximized window to stop at `rect`. For windows you register rather than open by hand, the [`os.window.geometry`](../javascript-reference.md#oswindowgeometry-filter--stable) filter receives the same rectangle as `ctx.workArea`:
+`rect` is in the same coordinate space a window's `x` / `y` resolve in, so no conversion. The shell's own default placements (open, restore, cascade, tile) already do this; you only need it for geometry you pin yourself. Maximize and snap also stop at the work-area boundary and automatically reflow when the dock changes size, placement or behavior. For windows you register rather than open by hand, the [`os.window.geometry`](../javascript-reference.md#oswindowgeometry-filter--stable) filter receives the same rectangle as `ctx.workArea`:
 
 ```js
 wp.hooks.addFilter( 'os.window.geometry', 'my-plugin/bottom-right', ( geometry, ctx ) => {
@@ -57,7 +57,7 @@ function fitGraph( host, bounds ) {
 }
 ```
 
-Zero everywhere while the host is fully inside the work area; only a maximized window (or one dragged low) reports a `bottom`.
+Zero everywhere while the host is fully inside the work area, including a maximized window. A window dragged below that boundary reports a `bottom`.
 
 ## 3. Reserve the same band from CSS
 
@@ -91,7 +91,7 @@ Both fire once per actual change and never on a same-numbers re-measure.
 
 ## What claims an inset, and what doesn't
 
-Only chrome that floats **over** the desktop area claims a band: today, the bottom dock pill, and whatever a custom [dock-rail renderer](./dock-rail-renderer.md) floats over it (every `.os-dock` in the shell body is measured). A dock set to the **Dynamic** behavior (Preferences → Appearance → Desktop layout → Dock behavior) folds into a thin indicator line at its edge and claims nothing; the work area is then the whole desktop. A left or right dock is a flex sibling of the area, so the area is already narrower and the inset is 0. The admin bar sits above the shell in every mode, so the `viewport` rectangle is already below it. The notch floats and deliberately claims nothing.
+Only chrome that floats **over** the desktop area claims a band: today, the bottom dock pill, and whatever a custom [dock-rail renderer](./dock-rail-renderer.md) floats over it (every `.os-dock` in the shell body is measured, using the edge nearest its centre so a wide bottom rail stays a bottom inset). A dock set to the **Dynamic** behavior (Preferences → Appearance → Desktop layout → Dock behavior) folds into a thin indicator line at its edge and claims nothing; the work area is then the whole desktop. A left or right dock is a flex sibling of the area, so the area is already narrower and the inset is 0. The admin bar sits above the shell in every mode, so the `viewport` rectangle is already below it. The notch floats and deliberately claims nothing.
 
 There is no API for a plugin to claim a band of its own, and that is on purpose: a work area is only useful while few things carve it. If your plugin ships chrome that genuinely needs one, open an issue and say why.
 
