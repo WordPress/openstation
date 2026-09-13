@@ -123,6 +123,40 @@ Note the tests cannot catch this class of mistake: PHPUnit builds fresh tables a
 
 The counterpart rule: a *filter or action* name that happens to match a stored key is **not** frozen — decouple it. `openstation_desktop_themes` (the filter) and `desktop_mode_desktop_themes` (the option) deliberately no longer share a string.
 
+### A status is not a permission — gate every read on the object, its parent, and the password
+
+Six shipped read paths disclosed content to any logged-in Subscriber, and every one made the same move: it read a **status column** as an authorization decision. `post_status = 'publish'` was taken to mean "anyone may read this body"; `comment_approved = '1'` was taken to mean "anyone may see this discussion". Neither is true. WordPress splits the decision across four independent gates, and a read path has to ask all four:
+
+| Gate | Question it answers | Asked with |
+|---|---|---|
+| Status + capability | May this caller see that the object exists? | `current_user_can( 'read_post', $id )` |
+| Post password | May this caller see the **body**? | `post_password_required( $post )` |
+| Post type viewability | Does this type have a readable front end at all? | `is_post_type_viewable( $type )` |
+| The parent | May this caller read the object this one hangs off? | the same four questions, on the parent |
+
+**`read_post` alone is not a gate on a published post.** `map_meta_cap()` resolves `read_post` on any `publish`-status post to the type's `read` capability — plain `read` on every type registered with `map_meta_cap`, which every logged-in user holds. So a bare `read_post` check passes for a password-protected post (it is `publish`) and for a published row of a plugin's internal CPT (an order, a submission log, a queue entry). Both shipped: `desktop-mode/get-post` returned the raw sealed body, and the comment tools returned WooCommerce order notes.
+
+Three helpers in-tree already answer the whole question — copy one rather than writing a fourth:
+
+- `openstation_ai_can_read_post()` / `openstation_ai_can_read_comment_parent()` (`includes/ai-copilot/search.php`) — search's answer, short-circuiting on `is_post_publicly_viewable()`.
+- `openstation_my_wordpress_can_read_comment_post()` (`includes/my-wordpress/comment-stats.php`) — Core's single-read answer, keeping `read_post` as the floor for viewable types.
+
+Both mirror `WP_REST_Comments_Controller::check_read_post_permission()`. **When a rule here is unclear, the answer is whatever Core's REST controller for that object does** — go read it, don't reason from first principles.
+
+Then five follow-ons, each of which shipped as its own leak:
+
+1. **A child is gated on its parent, and a thread never leaves that parent.** A comment record carries the parent's title, permalink and excerpt, so "approved" hands out exactly what the post's own gate withholds — and an approved comment outlives its post being switched to private or back to draft. `comment_post_ID` and `comment_parent` are independent columns, so a readable comment can name a parent, or be named by a reply, stored against a post the caller cannot read: scope the thread to the post you authorized, and re-test each thread member's own status, because a member reached by id never passed a status-filtered query.
+2. **Model output is never an authorization input.** The `/ai/search` answer schema carries an `entity_id` and the user's query steers the model, so that id is attacker-controlled — a search turn can be driven by comment or post text someone else wrote. Hydration re-checks readability itself instead of trusting the id came out of a filtered tool result. Treat anything a model names as an id from the internet.
+3. **`readonly` is a blast-radius limit, not an access gate.** A `readonly` + `show_in_rest` ability is dispatched by Core over plain `GET` behind the `read` capability, so every Subscriber holds the key; three of the six leaks were read-only abilities, and a fourth rode the Copilot's own search endpoint. Gate in the `permission_callback` — every dispatch path (the REST `run` route, the agent runner, the Copilot tool loop) converges on `WP_Ability::execute()`, so that one callback covers all three.
+4. **Counters leak what the rows hide.** `found_posts`, `total`, and a per-status `counts` breakdown answer "does the hidden thing match?", an oracle for exactly the content the items list withheld. Filter the counts and the items over the same set.
+5. **`get_post( 0 )` and `get_comment( 0 )` return the globals.** An orphaned comment, or a `\d+` route parameter that matched a zero, is otherwise authorized against whatever another plugin left in `$GLOBALS['post']`. Guard the zero explicitly, before the fetch.
+
+**Where to gate.** In the query only when the rule is the same for every caller: `has_password => false` is, so `search_posts` filters there and keeps `items` and `total` honest in one move. Per-caller readability is not expressible as query vars — an Administrator reads private posts, a reader who entered a password reads that post — so it runs per row, after the query, and `total` then over-counts what the batch returns. That trade is Core's too. Document it on the surface instead of designing it away, and never cache a per-caller payload under a caller-independent key.
+
+**A route's permission callback is the module's gate, never `is_user_logged_in()`.** A window gated at `edit_posts` whose REST route admits any logged-in user has no gate at all. Route through the module's own filterable helper (`openstation_my_wordpress_user_can_use()` is the pattern) so a site that narrows the window narrows the data with it. Object-level checks still belong in the callback rather than the permission callback whenever an in-process caller invokes the callback directly.
+
+Before writing any read path over posts, comments, terms or users, work the checklist in [`docs/agents-security.md`](docs/agents-security.md#checklist-for-new-work), and record the route's real gate in the table in [`includes/rest/README.md`](includes/rest/README.md) — a row that reads "logged-in" is a review flag, not a description. The guards are `tests/phpunit/tests/aiNativeSearch.php`, `agentsAbilities.php`, `myWordpressCommentStats.php` and `myWordpressTermStats.php`; a new read path gets a Subscriber-versus-restricted-object test in the same shape.
+
 ### Use `wp.os.fetch` (or `trackedFetch`), never raw `fetch()`
 
 **Every HTTP call from the shell must route through the framework helper** so the request feeds the active window's loading spinner + the activity bus. Two equivalent entry points:
@@ -383,6 +417,8 @@ The full index lives in [`docs/README.md`](docs/README.md). Quick reference:
 | `docs/architecture.md` | A new rendering path, persistence layer, REST route, or payload shape lands; build tooling shifts. |
 | `docs/data-model.md` | A table, post type, meta key, option, transient, upload directory or cron hook is added, renamed or removed. **The inventory of every stored name lives there**; a new store without a row on that page is invisible to the next person asking "where does X live?". Read before touching a `desktop_mode_*` value (they are frozen, see above). |
 | `docs/api-index.md` | Any public API surface changes (PHP, JS, or events). |
+| `docs/agents-security.md` | **Read before writing or widening ANY read path** over posts, comments, terms or users — an ability, a REST route, an AI tool, an app action — and before adding a trigger intake. Carries the authorization checklist the leaks above came from; update it when a boundary moves. |
+| `includes/rest/README.md` | A REST route is added or removed, or its permission gate changes. The Permission column is the gate's written contract: state the capability AND the object-level checks, and treat a bare "logged-in" as something to justify. |
 | `docs/hooks-reference.md` | Any `apply_filters()` / `do_action()` change: add, rename, remove, signature, default, or status. **The PHP hook contract.** |
 | `docs/javascript-reference.md` | Any CustomEvent shape, postMessage bridge message, `wp.os.*` method/property, user meta key, or query flag changes. **The JS contract.** |
 | `docs/bridge-protocol.md` | The postMessage bridge protocol, lifecycle steps, or internal sniff points change. |
