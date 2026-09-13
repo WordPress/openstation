@@ -1538,6 +1538,18 @@ export function createNativeWindowSync(
 			// No-op once the bundle is in the tab — the second open of
 			// a window resolves on an already-settled promise.
 			await ensureScript( entry );
+			// A live registry refresh can add another App Framework
+			// window after the shared runtime bundle has already loaded.
+			// In that case `ensureScript()` replays this entry's inline
+			// config, but the runtime's boot-time scan has already run.
+			// Re-scan synchronously before reading the native registry so
+			// the first click can hydrate the newly published app.
+			const apps = (
+				window.wp?.os as unknown as
+					| { apps?: { refresh?: () => unknown } }
+					| undefined
+			)?.apps;
+			apps?.refresh?.();
 			// Read the callback AFTER the load: on a lazy window this
 			// is the moment it exists.
 			const render = readGlobalRegistry()[ entry.id ];
