@@ -3,12 +3,18 @@
  * Tests for the `/desktop-mode/v1/user-footprint/<id>` REST
  * endpoint's timeline permission model.
  *
- * The route is open to any logged-in user, but timeline rows whose
- * underlying post is not published must only be emitted when the
- * viewer passes `current_user_can( 'read_post' )` for that post —
- * draft / pending / private / future titles must not leak to
- * ordinary logged-in users across the posts, post-update, and
- * comment branches.
+ * The route is open to any logged-in user, but the payload is
+ * tiered on `list_users` (or the subject viewing themselves).
+ * Timeline rows whose underlying post is not published are only
+ * emitted when the viewer passes `current_user_can( 'read_post' )`
+ * for that post — draft / pending / private / future titles must
+ * not leak to ordinary logged-in users across the posts,
+ * post-update, and comment branches.
+ *
+ * The aggregates carry the same rule, because a count discloses on
+ * its own: `totals.posts` / `totals.pages` are publish-only for an
+ * unprivileged viewer, and the `updates` rollups (lifetime and
+ * per-day) only count revisions whose parent is published.
  *
  * @package WordPress
  * @subpackage UnitTests
@@ -176,6 +182,120 @@ class Tests_OpenStation_MyWordpressUserFootprint extends WP_UnitTestCase {
 		$timeline = $response->get_data()['timeline'];
 		$updates  = wp_list_filter( $timeline, array( 'kind' => 'post-update' ) );
 		$this->assertContains( $draft, wp_list_pluck( $updates, 'postId' ) );
+	}
+
+	/**
+	 * The lifetime totals are a disclosure in their own right: a
+	 * subscriber must not learn how many drafts, pending, private or
+	 * scheduled posts another user is sitting on. Only the published
+	 * ones count.
+	 *
+	 * @covers ::openstation_my_wordpress_user_footprint_callback
+	 */
+	public function test_subscriber_totals_count_published_only() {
+		self::factory()->post->create(
+			array(
+				'post_author' => self::$author_id,
+				'post_status' => 'pending',
+				'post_title'  => 'Awaiting review',
+			)
+		);
+		self::factory()->post->create(
+			array(
+				'post_author' => self::$author_id,
+				'post_status' => 'publish',
+				'post_type'   => 'page',
+				'post_title'  => 'Public page',
+			)
+		);
+		self::factory()->post->create(
+			array(
+				'post_author' => self::$author_id,
+				'post_status' => 'draft',
+				'post_type'   => 'page',
+				'post_title'  => 'Secret page',
+			)
+		);
+
+		wp_set_current_user( self::$subscriber_id );
+		$totals = $this->dispatch_footprint( self::$author_id )->get_data()['totals'];
+
+		// One published post (the fixture) and one published page.
+		$this->assertSame( 1, $totals['posts'], 'Draft, private and pending posts must not be counted.' );
+		$this->assertSame( 1, $totals['pages'], 'A draft page must not be counted.' );
+	}
+
+	/**
+	 * A privileged viewer keeps the unfiltered totals — the gate
+	 * withholds nothing they are entitled to.
+	 *
+	 * @covers ::openstation_my_wordpress_user_footprint_callback
+	 */
+	public function test_privileged_viewer_totals_include_unpublished() {
+		wp_set_current_user( self::$admin_id );
+		$totals = $this->dispatch_footprint( self::$author_id )->get_data()['totals'];
+
+		// Published + draft + private, from the fixtures.
+		$this->assertSame( 3, $totals['posts'] );
+	}
+
+	/**
+	 * The subject sees their own unpublished work counted, without
+	 * holding `list_users`.
+	 *
+	 * @covers ::openstation_my_wordpress_user_footprint_callback
+	 */
+	public function test_subject_sees_own_unpublished_totals() {
+		wp_set_current_user( self::$author_id );
+		$totals = $this->dispatch_footprint( self::$author_id )->get_data()['totals'];
+
+		$this->assertSame( 3, $totals['posts'] );
+	}
+
+	/**
+	 * The `updates` rollups follow the same rule as the timeline rows
+	 * they summarise: a revision on a parent the caller cannot read is
+	 * not counted, per day or lifetime. Otherwise the heatmap reports
+	 * "this user edited something private on Tuesday" — exactly what
+	 * the per-row timeline gate withholds.
+	 *
+	 * @covers ::openstation_my_wordpress_user_footprint_callback
+	 */
+	public function test_update_counts_exclude_unreadable_parents() {
+		$draft = self::factory()->post->create(
+			array(
+				'post_author'   => self::$author_id,
+				'post_status'   => 'draft',
+				'post_title'    => 'Draft in progress',
+				'post_date'     => '2026-01-01 00:00:00',
+				'post_date_gmt' => '2026-01-01 00:00:00',
+			)
+		);
+		wp_set_current_user( self::$author_id );
+		wp_update_post(
+			array(
+				'ID'           => $draft,
+				'post_content' => 'A later save creates a revision.',
+			)
+		);
+
+		wp_set_current_user( self::$subscriber_id );
+		$data = $this->dispatch_footprint( self::$author_id )->get_data();
+		$this->assertSame(
+			0,
+			$data['totals']['updates'],
+			'A revision on an unreadable draft must not reach the lifetime count.'
+		);
+		$this->assertSame(
+			0,
+			array_sum( wp_list_pluck( $data['daily'], 'updates' ) ),
+			'…nor any heatmap cell.'
+		);
+
+		// The privileged viewer still gets the update.
+		wp_set_current_user( self::$admin_id );
+		$data = $this->dispatch_footprint( self::$author_id )->get_data();
+		$this->assertGreaterThan( 0, $data['totals']['updates'] );
 	}
 
 	/**

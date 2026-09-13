@@ -10,14 +10,25 @@
  * 30). The right-click "View activity footprint" action in the My
  * WordPress users folder paints from this single payload.
  *
- * Permission: any logged-in user (the dossier route already has
- * the same gate). Sensitive fields (email, IP) are NOT returned
- * from this endpoint — `user-stats.php` carries those for the
- * preview pane, and the footprint focuses on activity patterns.
- * Timeline rows whose underlying post is not published are only
- * emitted when the viewer passes `current_user_can( 'read_post' )`
- * for that post, so draft/pending/private/future titles never leak
- * to ordinary logged-in users.
+ * Permission: any logged-in user, then tiered in the handler on
+ * `list_users` (or the subject viewing their own footprint), the
+ * same split `user-stats.php` uses. Sensitive fields (email, IP)
+ * are NOT returned from this endpoint — `user-stats.php` carries
+ * those for the preview pane, and the footprint focuses on
+ * activity patterns.
+ *
+ * **An unprivileged viewer sees published activity only, in every
+ * section.** Timeline rows whose underlying post is not published
+ * are emitted only when the viewer passes
+ * `current_user_can( 'read_post' )` for that post, so
+ * draft/pending/private/future titles never leak. The aggregates
+ * carry the same rule, and they have to: a count is a disclosure
+ * on its own, so `totals.posts` / `totals.pages` are publish-only
+ * and the `updates` rollups (per-day and lifetime) only count
+ * revisions whose PARENT is published. Otherwise the heatmap and
+ * the hero stats put back, as numbers, what the per-row gate
+ * withholds — how much unpublished work a user is sitting on, and
+ * which day they last touched something private.
  *
  * Payload shape:
  *
@@ -185,8 +196,19 @@ function openstation_my_wordpress_user_footprint_callback( $request ) {
 	// updates an editor makes to someone else's post show up on the
 	// editor's footprint — same shape GitHub's contribution graph
 	// uses for commits across repos you don't own.
-	$update_rows   = $wpdb->get_results(
+	//
+	// A revision's parent carries the visibility, and an unprivileged
+	// viewer only learns about edits to PUBLISHED parents: the
+	// timeline already drops `post-update` rows on parents the caller
+	// cannot `read_post`, so counting them here would put back, as a
+	// heatmap cell and a hero stat, exactly what that per-row gate
+	// withholds — "this administrator edited something private on
+	// Tuesday". Privileged viewers keep the unfiltered count, so the
+	// clause is added rather than swapped.
+	$update_parent_sql = $can_see_private ? '' : "AND p.post_status = 'publish'";
+	$update_rows       = $wpdb->get_results(
 		$wpdb->prepare(
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- literal parent-status clause chosen above.
 			"SELECT DATE(r.post_date_gmt) AS d, COUNT(*) AS n
 			FROM {$wpdb->posts} r
 			INNER JOIN {$wpdb->posts} p ON r.post_parent = p.ID
@@ -195,6 +217,7 @@ function openstation_my_wordpress_user_footprint_callback( $request ) {
 				AND r.post_status = 'inherit'
 				AND r.post_date_gmt > p.post_date_gmt
 				AND r.post_date_gmt >= %s
+				{$update_parent_sql}
 			GROUP BY d
 			ORDER BY d ASC",
 			$user_id,
@@ -436,21 +459,35 @@ function openstation_my_wordpress_user_footprint_callback( $request ) {
 	$timeline = array_slice( $timeline, 0, 30 );
 
 	// ---- Totals + most-prolific month -----------------------------------
-	$totals_posts    = (int) $wpdb->get_var(
+	// The lifetime counts answer "how much has this user written", and
+	// for an unprivileged viewer that means PUBLISHED work only. Every
+	// other aggregate in this payload is already publish-only (daily,
+	// weekday, hour, streak, mostProlificMonth) and the timeline gates
+	// each row on `read_post`, so counting drafts here made `totals`
+	// the one section that contradicted the rest of its own file: a
+	// Subscriber could read how many drafts, pending, private and
+	// scheduled posts any administrator was sitting on, and watch the
+	// number move.
+	$totals_status_sql = $can_see_private
+		? "post_status NOT IN ( 'auto-draft', 'inherit', 'trash' )"
+		: "post_status = 'publish'";
+	$totals_posts      = (int) $wpdb->get_var(
 		$wpdb->prepare(
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- literal status clause chosen above.
 			"SELECT COUNT(*) FROM {$wpdb->posts}
 			WHERE post_author = %d
 				AND post_type = 'post'
-				AND post_status NOT IN ( 'auto-draft', 'inherit', 'trash' )",
+				AND {$totals_status_sql}",
 			$user_id
 		)
 	);
-	$totals_pages    = (int) $wpdb->get_var(
+	$totals_pages      = (int) $wpdb->get_var(
 		$wpdb->prepare(
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- literal status clause chosen above.
 			"SELECT COUNT(*) FROM {$wpdb->posts}
 			WHERE post_author = %d
 				AND post_type = 'page'
-				AND post_status NOT IN ( 'auto-draft', 'inherit', 'trash' )",
+				AND {$totals_status_sql}",
 			$user_id
 		)
 	);
@@ -466,12 +503,14 @@ function openstation_my_wordpress_user_footprint_callback( $request ) {
 	// definition so the hero stat and heatmap rollups agree.
 	$totals_updates = (int) $wpdb->get_var(
 		$wpdb->prepare(
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- literal parent-status clause chosen above.
 			"SELECT COUNT(*) FROM {$wpdb->posts} r
 			INNER JOIN {$wpdb->posts} p ON r.post_parent = p.ID
 			WHERE r.post_author = %d
 				AND r.post_type = 'revision'
 				AND r.post_status = 'inherit'
-				AND r.post_date_gmt > p.post_date_gmt",
+				AND r.post_date_gmt > p.post_date_gmt
+				{$update_parent_sql}",
 			$user_id
 		)
 	);

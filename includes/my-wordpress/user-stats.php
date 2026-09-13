@@ -15,6 +15,11 @@
  * published-only counts and recent posts). Sensitive fields
  * (email, registered date, role) are gated on the cap.
  *
+ * For the unprivileged subset, `publish` alone is not the test for
+ * the custom-post-type count: a type with no readable front end
+ * holds `publish` rows a visitor could never open, so that count
+ * asks `is_post_type_viewable()` as well.
+ *
  * @package OpenStation
  */
 
@@ -196,22 +201,60 @@ function openstation_my_wordpress_user_stats_callback( $request ) {
 		)
 	);
 
-	// Total content (posts + pages + any custom public post types).
-	// Same gating as above: published-only unless privileged.
-	$cpt_status_sql = $can_see_private
-		? "post_status NOT IN ( 'auto-draft', 'inherit', 'trash' )"
-		: "post_status = 'publish'";
-	$cpt_count      = (int) $wpdb->get_var(
-		$wpdb->prepare(
-			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- literal status clause chosen above.
-			"SELECT COUNT(*)
-			FROM {$wpdb->posts}
-			WHERE post_author = %d
-				AND post_type NOT IN ( 'post', 'page', 'attachment', 'revision', 'nav_menu_item' )
-				AND {$cpt_status_sql}",
-			$user_id
-		)
-	);
+	// Total content in custom post types.
+	//
+	// Two gates for an unprivileged viewer, because `publish` is not
+	// visibility on its own. The status has to be `publish`, AND the
+	// TYPE has to be one a visitor could actually open: a plugin's
+	// internal type (an order, a submission log, an internal note)
+	// registers rows with a `publish` status and no front end at all,
+	// so an exclusion list naming the types we know about counts every
+	// type we don't. Ask `is_post_type_viewable()` instead, which is
+	// the same question the comment tools and the term-stats endpoint
+	// settled on. Privileged viewers keep the whole count.
+	if ( $can_see_private ) {
+		$cpt_count = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*)
+				FROM {$wpdb->posts}
+				WHERE post_author = %d
+					AND post_type NOT IN ( 'post', 'page', 'attachment', 'revision', 'nav_menu_item' )
+					AND post_status NOT IN ( 'auto-draft', 'inherit', 'trash' )",
+				$user_id
+			)
+		);
+	} else {
+		// Viewable types minus the ones counted separately above.
+		$countable = array_diff(
+			array_keys(
+				array_filter(
+					get_post_types( array(), 'objects' ),
+					static function ( $type ) {
+						return is_post_type_viewable( $type );
+					}
+				)
+			),
+			array( 'post', 'page', 'attachment' )
+		);
+
+		if ( $countable ) {
+			// A literal %s placeholder list, bound through prepare().
+			$type_placeholders = implode( ', ', array_fill( 0, count( $countable ), '%s' ) );
+			$cpt_count         = (int) $wpdb->get_var(
+				$wpdb->prepare(
+					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- literal placeholder list built above; values bound below.
+					"SELECT COUNT(*)
+					FROM {$wpdb->posts}
+					WHERE post_author = %d
+						AND post_type IN ( {$type_placeholders} )
+						AND post_status = 'publish'",
+					array_merge( array( $user_id ), array_values( $countable ) )
+				)
+			);
+		} else {
+			$cpt_count = 0;
+		}
+	}
 
 	$counts = array(
 		'posts'            => $post_counts,

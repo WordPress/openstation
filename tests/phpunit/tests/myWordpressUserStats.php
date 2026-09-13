@@ -39,6 +39,10 @@ class Tests_OpenStation_MyWordpressUserStats extends WP_UnitTestCase {
 		do_action( 'rest_api_init' );
 
 		register_post_type( 'dm_test_book', array( 'public' => true ) );
+		// A plugin's internal type: `publish` rows with no front end
+		// a visitor could open. The shape an order, a submission log
+		// or an internal note takes.
+		register_post_type( 'dm_test_internal', array( 'public' => false ) );
 
 		// The author's content: 2 published + 1 draft + 1 private
 		// post, 1 published + 1 draft page, 1 published + 1 draft CPT.
@@ -108,6 +112,13 @@ class Tests_OpenStation_MyWordpressUserStats extends WP_UnitTestCase {
 				'post_status' => 'draft',
 			)
 		);
+		self::factory()->post->create(
+			array(
+				'post_author' => self::$author_id,
+				'post_type'   => 'dm_test_internal',
+				'post_status' => 'publish',
+			)
+		);
 
 		// One approved comment on a published post, one on a draft.
 		self::factory()->comment->create(
@@ -126,6 +137,7 @@ class Tests_OpenStation_MyWordpressUserStats extends WP_UnitTestCase {
 
 	public function tear_down() {
 		unregister_post_type( 'dm_test_book' );
+		unregister_post_type( 'dm_test_internal' );
 		remove_all_filters( 'openstation_my_wordpress_user_stats' );
 		parent::tear_down();
 	}
@@ -215,6 +227,28 @@ class Tests_OpenStation_MyWordpressUserStats extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A published row of a post type with no readable front end is
+	 * not counted for an unprivileged viewer. `publish` is not
+	 * visibility on its own, and an exclusion list naming the types we
+	 * know about counts every type we don't — a plugin's orders,
+	 * submission log or internal notes among them.
+	 *
+	 * @covers ::openstation_my_wordpress_user_stats_callback
+	 */
+	public function test_unprivileged_viewer_cpt_count_excludes_non_viewable_types() {
+		wp_set_current_user( self::$subscriber_id );
+		$counts = $this->dispatch( self::$author_id )->get_data()['counts'];
+
+		// Only the published `dm_test_book` row: the published
+		// `dm_test_internal` row has no front end to be public on.
+		$this->assertSame(
+			1,
+			$counts['cpt'],
+			'A published row of a non-viewable post type must not be counted.'
+		);
+	}
+
+	/**
 	 * Sensitive profile fields stay gated on the cap.
 	 *
 	 * @covers ::openstation_my_wordpress_user_stats_callback
@@ -246,7 +280,9 @@ class Tests_OpenStation_MyWordpressUserStats extends WP_UnitTestCase {
 		$this->assertSame( 1, $counts['posts']['private'] );
 		$this->assertSame( 4, $counts['posts']['total'] );
 		$this->assertSame( 1, $counts['pages']['draft'] );
-		$this->assertSame( 2, $counts['cpt'] );
+		// Published + draft book, plus the published internal-type row:
+		// a privileged viewer counts every type.
+		$this->assertSame( 3, $counts['cpt'] );
 		$this->assertSame( 2, $counts['commentsReceived'] );
 
 		$ids = wp_list_pluck( $data['recent'], 'id' );
