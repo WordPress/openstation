@@ -100,6 +100,12 @@ function openstation_my_wordpress_icon_svg() {
  *     (`rest-post-type.php`).
  *   - The per-comment dossier route
  *     `desktop-mode/v1/comment-stats/<id>` (`comment-stats.php`).
+ *   - The user and term dossier routes
+ *     `desktop-mode/v1/user-stats/<id>`,
+ *     `desktop-mode/v1/user-footprint/<id>` and
+ *     `desktop-mode/v1/term-stats/<taxonomy>/<id>` (`user-stats.php`,
+ *     `user-footprint.php`, `term-stats.php`), which then scope their
+ *     payloads to what the caller may read.
  *   - Whether the WooCommerce integration's boot config ships, so the
  *     client can reach the order / customer / product surfaces at all
  *     — those routes still enforce their own Woo capabilities on top

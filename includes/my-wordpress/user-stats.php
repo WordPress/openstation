@@ -9,11 +9,14 @@
  * categories, role + member-since) without forcing the client to
  * make N parallel REST calls.
  *
- * Permissions: anyone with `list_users` — or the subject user
- * viewing their own dossier — sees full data; everyone else sees
+ * Permissions: the My WordPress module's gate,
+ * `openstation_my_wordpress_user_can_use()` (`edit_posts` unless a site
+ * filters it), so a site that narrows WP Explorer narrows this data
+ * with it. Past that gate, anyone with `list_users` (or the subject
+ * user viewing their own dossier) sees full data; everyone else sees
  * the public subset (display name, avatar, post archive link,
- * published-only counts and recent posts). Sensitive fields
- * (email, registered date, role) are gated on the cap.
+ * published-only counts and recent posts). Sensitive fields (email,
+ * registered date, role) are gated on the cap.
  *
  * For the unprivileged subset, `publish` alone is not the test for
  * the counts that reach beyond the subject's own posts and pages
@@ -40,9 +43,10 @@ function openstation_my_wordpress_register_user_stats_route() {
 			'methods'             => WP_REST_Server::READABLE,
 			'callback'            => 'openstation_my_wordpress_user_stats_callback',
 			'permission_callback' => static function () {
-				// Logged-in users only — author archives are public,
-				// but the dossier mixes counts that aren't.
-				return is_user_logged_in();
+				// The module's gate, so a site that narrows WP Explorer
+				// narrows this data with it. The per-viewer scoping lives
+				// in the callback, which in-process callers invoke directly.
+				return openstation_my_wordpress_user_can_use();
 			},
 			'args'                => array(
 				'id' => array(

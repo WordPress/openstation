@@ -8,11 +8,12 @@
  * activity sparkline, milestones. Powers the right preview pane in
  * the My WordPress folder when a term is selected.
  *
- * Permissions: any logged-in user with `read` (default for most
- * roles) — terms are public-facing data on the WP site, so the same
- * cap that lets you read the front-end is enough to inspect their
- * stats. Author archives are also public so listing top authors is
- * not new disclosure.
+ * Permissions: the My WordPress module's gate,
+ * `openstation_my_wordpress_user_can_use()` (`edit_posts` unless a site
+ * filters it), so a site that narrows WP Explorer narrows this data
+ * with it. Terms are public-facing data and author archives are
+ * public, so the term row and its top authors are no new disclosure to
+ * anyone past that gate.
  *
  * That reasoning covers the term row and the aggregates over its
  * *published* posts; it does not carry to the unpublished posts inside
@@ -43,7 +44,10 @@ function openstation_my_wordpress_register_term_stats_route() {
 			'methods'             => WP_REST_Server::READABLE,
 			'callback'            => 'openstation_my_wordpress_term_stats_callback',
 			'permission_callback' => static function () {
-				return is_user_logged_in() && current_user_can( 'read' );
+				// The module's gate, so a site that narrows WP Explorer
+				// narrows this data with it. The per-viewer scoping lives
+				// in the callback, which in-process callers invoke directly.
+				return openstation_my_wordpress_user_can_use();
 			},
 			'args'                => array(
 				'taxonomy' => array(

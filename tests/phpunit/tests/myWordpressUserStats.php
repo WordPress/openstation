@@ -3,7 +3,9 @@
  * Tests for the `/desktop-mode/v1/user-stats/<id>` REST endpoint's
  * permission model.
  *
- * Viewers without `list_users` (and who aren't the subject user)
+ * The route wears the My WordPress module's gate (`edit_posts` by
+ * default). Past it, viewers without `list_users` (and who aren't the
+ * subject user)
  * must only ever see published content: the recent-posts list, the
  * post/page counts, the CPT count, and both comment counts must not
  * leak draft / pending / private / future material, nor rows of a
@@ -20,6 +22,7 @@
 class Tests_OpenStation_MyWordpressUserStats extends WP_UnitTestCase {
 
 	protected static $admin_id;
+	protected static $contributor_id;
 	protected static $subscriber_id;
 	protected static $author_id;
 
@@ -28,9 +31,10 @@ class Tests_OpenStation_MyWordpressUserStats extends WP_UnitTestCase {
 	private $private_post_id;
 
 	public static function wpSetUpBeforeClass( WP_UnitTest_Factory $factory ) {
-		self::$admin_id      = $factory->user->create( array( 'role' => 'administrator' ) );
-		self::$subscriber_id = $factory->user->create( array( 'role' => 'subscriber' ) );
-		self::$author_id     = $factory->user->create( array( 'role' => 'author' ) );
+		self::$admin_id       = $factory->user->create( array( 'role' => 'administrator' ) );
+		self::$contributor_id = $factory->user->create( array( 'role' => 'contributor' ) );
+		self::$subscriber_id  = $factory->user->create( array( 'role' => 'subscriber' ) );
+		self::$author_id      = $factory->user->create( array( 'role' => 'author' ) );
 	}
 
 	public function set_up() {
@@ -172,7 +176,7 @@ class Tests_OpenStation_MyWordpressUserStats extends WP_UnitTestCase {
 	 * @covers ::openstation_my_wordpress_user_stats_callback
 	 */
 	public function test_unprivileged_viewer_sees_published_recent_only() {
-		wp_set_current_user( self::$subscriber_id );
+		wp_set_current_user( self::$contributor_id );
 		$data = $this->dispatch( self::$author_id )->get_data();
 
 		$this->assertNotEmpty( $data['recent'] );
@@ -194,7 +198,7 @@ class Tests_OpenStation_MyWordpressUserStats extends WP_UnitTestCase {
 	 * @covers ::openstation_my_wordpress_user_stats_callback
 	 */
 	public function test_unprivileged_viewer_gets_publish_only_counts() {
-		wp_set_current_user( self::$subscriber_id );
+		wp_set_current_user( self::$contributor_id );
 		$counts = $this->dispatch( self::$author_id )->get_data()['counts'];
 
 		$this->assertSame(
@@ -220,7 +224,7 @@ class Tests_OpenStation_MyWordpressUserStats extends WP_UnitTestCase {
 	 * @covers ::openstation_my_wordpress_user_stats_callback
 	 */
 	public function test_unprivileged_viewer_cpt_and_comment_counts_exclude_non_public() {
-		wp_set_current_user( self::$subscriber_id );
+		wp_set_current_user( self::$contributor_id );
 		$counts = $this->dispatch( self::$author_id )->get_data()['counts'];
 
 		$this->assertSame( 1, $counts['cpt'] );
@@ -237,7 +241,7 @@ class Tests_OpenStation_MyWordpressUserStats extends WP_UnitTestCase {
 	 * @covers ::openstation_my_wordpress_user_stats_callback
 	 */
 	public function test_unprivileged_viewer_cpt_count_excludes_non_viewable_types() {
-		wp_set_current_user( self::$subscriber_id );
+		wp_set_current_user( self::$contributor_id );
 		$counts = $this->dispatch( self::$author_id )->get_data()['counts'];
 
 		// Only the published `dm_test_book` row: the published
@@ -289,7 +293,7 @@ class Tests_OpenStation_MyWordpressUserStats extends WP_UnitTestCase {
 			);
 		}
 
-		wp_set_current_user( self::$subscriber_id );
+		wp_set_current_user( self::$contributor_id );
 		$counts = $this->dispatch( self::$author_id )->get_data()['counts'];
 		// Only the comment on the published post.
 		$this->assertSame( 1, $counts['commentsLeft'] );
@@ -324,7 +328,7 @@ class Tests_OpenStation_MyWordpressUserStats extends WP_UnitTestCase {
 		wp_set_current_user( self::$admin_id );
 		$this->assertSame( 3, $this->dispatch( self::$author_id )->get_data()['counts']['cpt'] );
 
-		wp_set_current_user( self::$subscriber_id );
+		wp_set_current_user( self::$contributor_id );
 		$this->assertSame( 1, $this->dispatch( self::$author_id )->get_data()['counts']['cpt'] );
 	}
 
@@ -334,7 +338,7 @@ class Tests_OpenStation_MyWordpressUserStats extends WP_UnitTestCase {
 	 * @covers ::openstation_my_wordpress_user_stats_callback
 	 */
 	public function test_unprivileged_viewer_profile_omits_sensitive_fields() {
-		wp_set_current_user( self::$subscriber_id );
+		wp_set_current_user( self::$contributor_id );
 		$profile = $this->dispatch( self::$author_id )->get_data()['profile'];
 
 		$this->assertArrayNotHasKey( 'email', $profile );
@@ -385,5 +389,28 @@ class Tests_OpenStation_MyWordpressUserStats extends WP_UnitTestCase {
 
 		$ids = wp_list_pluck( $data['recent'], 'id' );
 		$this->assertContains( $this->draft_post_id, $ids );
+	}
+	/**
+	 * The route wears the My WordPress module's gate: a Subscriber, who
+	 * cannot open WP Explorer, cannot read this dossier either.
+	 *
+	 * @covers ::openstation_my_wordpress_register_user_stats_route
+	 */
+	public function test_subscriber_is_rejected_by_route() {
+		wp_set_current_user( self::$subscriber_id );
+		$this->assertSame( 403, $this->dispatch( self::$author_id )->get_status() );
+	}
+
+	/**
+	 * A site that narrows the module through its filter locks this route
+	 * down with it, administrators included.
+	 *
+	 * @covers ::openstation_my_wordpress_register_user_stats_route
+	 */
+	public function test_filter_narrowed_route_refuses_admins() {
+		add_filter( 'openstation_my_wordpress_user_can_use', '__return_false' );
+
+		wp_set_current_user( self::$admin_id );
+		$this->assertSame( 403, $this->dispatch( self::$author_id )->get_status() );
 	}
 }

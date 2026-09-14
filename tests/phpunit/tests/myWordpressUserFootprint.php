@@ -3,8 +3,8 @@
  * Tests for the `/desktop-mode/v1/user-footprint/<id>` REST
  * endpoint's permission model.
  *
- * The route is open to any logged-in user, and activity is gated per
- * post. Timeline rows whose underlying post the viewer may not see
+ * The route wears the My WordPress module's gate (`edit_posts` by
+ * default), and past it activity is gated per post. Timeline rows whose underlying post the viewer may not see
  * (an unpublished post they cannot `read_post`, a published row of a
  * type with no front end, a comment's sealed or deleted parent) are
  * dropped, so those titles must not leak to ordinary logged-in users
@@ -13,7 +13,7 @@
  * The aggregates carry the same gate, because a count discloses on
  * its own: `totals` and each day's `comments` and `updates` are
  * grouped for the per-row gate, so they never report what the rows
- * withhold, and they include what the rows show, for a Subscriber
+ * withhold, and they include what the rows show, for a Contributor
  * and an Editor alike.
  *
  * @package WordPress
@@ -27,6 +27,7 @@ class Tests_OpenStation_MyWordpressUserFootprint extends WP_UnitTestCase {
 	protected static $admin_id;
 	protected static $editor_id;
 	protected static $author_id;
+	protected static $contributor_id;
 	protected static $subscriber_id;
 
 	private $published_id;
@@ -34,10 +35,11 @@ class Tests_OpenStation_MyWordpressUserFootprint extends WP_UnitTestCase {
 	private $private_id;
 
 	public static function wpSetUpBeforeClass( WP_UnitTest_Factory $factory ) {
-		self::$admin_id      = $factory->user->create( array( 'role' => 'administrator' ) );
-		self::$editor_id     = $factory->user->create( array( 'role' => 'editor' ) );
-		self::$author_id     = $factory->user->create( array( 'role' => 'author' ) );
-		self::$subscriber_id = $factory->user->create( array( 'role' => 'subscriber' ) );
+		self::$admin_id       = $factory->user->create( array( 'role' => 'administrator' ) );
+		self::$editor_id      = $factory->user->create( array( 'role' => 'editor' ) );
+		self::$author_id      = $factory->user->create( array( 'role' => 'author' ) );
+		self::$contributor_id = $factory->user->create( array( 'role' => 'contributor' ) );
+		self::$subscriber_id  = $factory->user->create( array( 'role' => 'subscriber' ) );
 	}
 
 	public function set_up() {
@@ -84,13 +86,13 @@ class Tests_OpenStation_MyWordpressUserFootprint extends WP_UnitTestCase {
 	}
 
 	/**
-	 * A subscriber viewing another user's footprint only sees rows
+	 * A contributor viewing another user's footprint only sees rows
 	 * for published posts — drafts and private posts are dropped.
 	 *
 	 * @covers ::openstation_my_wordpress_user_footprint_callback
 	 */
-	public function test_subscriber_does_not_see_unpublished_titles_in_timeline() {
-		wp_set_current_user( self::$subscriber_id );
+	public function test_contributor_does_not_see_unpublished_titles_in_timeline() {
+		wp_set_current_user( self::$contributor_id );
 
 		$response = $this->dispatch_footprint( self::$author_id );
 		$this->assertSame( 200, $response->get_status() );
@@ -142,7 +144,7 @@ class Tests_OpenStation_MyWordpressUserFootprint extends WP_UnitTestCase {
 			)
 		);
 
-		wp_set_current_user( self::$subscriber_id );
+		wp_set_current_user( self::$contributor_id );
 		$ids = $this->timeline_post_ids( $this->dispatch_footprint( self::$author_id ) );
 		$this->assertNotContains( $admins_draft, $ids );
 
@@ -179,7 +181,7 @@ class Tests_OpenStation_MyWordpressUserFootprint extends WP_UnitTestCase {
 			)
 		);
 
-		wp_set_current_user( self::$subscriber_id );
+		wp_set_current_user( self::$contributor_id );
 		$response = $this->dispatch_footprint( self::$author_id );
 		$this->assertNotContains( $draft, $this->timeline_post_ids( $response ) );
 
@@ -193,13 +195,13 @@ class Tests_OpenStation_MyWordpressUserFootprint extends WP_UnitTestCase {
 
 	/**
 	 * The lifetime totals are a disclosure in their own right: a
-	 * subscriber must not learn how many drafts, pending, private or
+	 * contributor must not learn how many drafts, pending, private or
 	 * scheduled posts another user is sitting on. Only the published
 	 * ones count.
 	 *
 	 * @covers ::openstation_my_wordpress_user_footprint_callback
 	 */
-	public function test_subscriber_totals_count_published_only() {
+	public function test_contributor_totals_count_published_only() {
 		self::factory()->post->create(
 			array(
 				'post_author' => self::$author_id,
@@ -224,7 +226,7 @@ class Tests_OpenStation_MyWordpressUserFootprint extends WP_UnitTestCase {
 			)
 		);
 
-		wp_set_current_user( self::$subscriber_id );
+		wp_set_current_user( self::$contributor_id );
 		$totals = $this->dispatch_footprint( self::$author_id )->get_data()['totals'];
 
 		// One published post (the fixture) and one published page.
@@ -286,7 +288,7 @@ class Tests_OpenStation_MyWordpressUserFootprint extends WP_UnitTestCase {
 			)
 		);
 
-		wp_set_current_user( self::$subscriber_id );
+		wp_set_current_user( self::$contributor_id );
 		$data = $this->dispatch_footprint( self::$author_id )->get_data();
 		$this->assertSame(
 			0,
@@ -356,8 +358,8 @@ class Tests_OpenStation_MyWordpressUserFootprint extends WP_UnitTestCase {
 		$this->assertSame( 1, $data['totals']['updates'] );
 		$this->assertSame( 1, array_sum( wp_list_pluck( $data['daily'], 'updates' ) ) );
 
-		// A Subscriber, reading neither draft, gets neither counted.
-		wp_set_current_user( self::$subscriber_id );
+		// A Contributor, reading neither draft, gets neither counted.
+		wp_set_current_user( self::$contributor_id );
 		$data = $this->dispatch_footprint( self::$author_id )->get_data();
 		$this->assertSame( 1, $data['totals']['posts'] );
 		$this->assertSame( 0, $data['totals']['updates'] );
@@ -366,7 +368,7 @@ class Tests_OpenStation_MyWordpressUserFootprint extends WP_UnitTestCase {
 	/**
 	 * A published row of a type with no readable front end is not public
 	 * activity. An edit to one reaches neither the update counts nor the
-	 * timeline for a Subscriber, while an administrator, who can edit the
+	 * timeline for a Contributor, while an administrator, who can edit the
 	 * row, keeps both.
 	 *
 	 * @covers ::openstation_my_wordpress_user_footprint_callback
@@ -376,8 +378,9 @@ class Tests_OpenStation_MyWordpressUserFootprint extends WP_UnitTestCase {
 		register_post_type(
 			'dm_fp_internal',
 			array(
-				'public'   => false,
-				'supports' => array( 'title', 'editor', 'revisions' ),
+				'public'       => false,
+				'map_meta_cap' => true,
+				'supports'     => array( 'title', 'editor', 'revisions' ),
 			)
 		);
 		$record = self::factory()->post->create(
@@ -398,7 +401,7 @@ class Tests_OpenStation_MyWordpressUserFootprint extends WP_UnitTestCase {
 			)
 		);
 
-		wp_set_current_user( self::$subscriber_id );
+		wp_set_current_user( self::$contributor_id );
 		$data = $this->dispatch_footprint( self::$author_id )->get_data();
 		$this->assertSame( 0, $data['totals']['updates'] );
 		$this->assertSame( 0, array_sum( wp_list_pluck( $data['daily'], 'updates' ) ) );
@@ -414,7 +417,7 @@ class Tests_OpenStation_MyWordpressUserFootprint extends WP_UnitTestCase {
 	 * Comments carry the comment dossier's parent gate into the counts as
 	 * well as the rows. A comment on a private post, a password-protected
 	 * post, a published row of a type with no front end, or a post that
-	 * no longer exists is withheld from a Subscriber everywhere: no
+	 * no longer exists is withheld from a Contributor everywhere: no
 	 * timeline row, no heatmap cell (so no streak day), no lifetime count.
 	 * An administrator keeps all of them.
 	 *
@@ -422,7 +425,13 @@ class Tests_OpenStation_MyWordpressUserFootprint extends WP_UnitTestCase {
 	 * @covers ::openstation_my_wordpress_footprint_can_see_post
 	 */
 	public function test_comment_counts_follow_the_comment_row_gate() {
-		register_post_type( 'dm_fp_internal', array( 'public' => false ) );
+		register_post_type(
+			'dm_fp_internal',
+			array(
+				'public'       => false,
+				'map_meta_cap' => true,
+			)
+		);
 		$parents = array(
 			$this->published_id,
 			self::factory()->post->create(
@@ -458,7 +467,7 @@ class Tests_OpenStation_MyWordpressUserFootprint extends WP_UnitTestCase {
 			);
 		}
 
-		wp_set_current_user( self::$subscriber_id );
+		wp_set_current_user( self::$contributor_id );
 		$data = $this->dispatch_footprint( self::$author_id )->get_data();
 		$this->assertSame( 1, $data['totals']['comments'] );
 		$this->assertSame( 1, array_sum( wp_list_pluck( $data['daily'], 'comments' ) ) );
@@ -522,5 +531,81 @@ class Tests_OpenStation_MyWordpressUserFootprint extends WP_UnitTestCase {
 		wp_set_current_user( 0 );
 		$response = $this->dispatch_footprint( self::$author_id );
 		$this->assertSame( 401, $response->get_status() );
+	}
+	/**
+	 * A plugin that filters `read_post` for a single post moves the counts
+	 * with the rows. The Editor can read every draft the subject holds
+	 * until a filter hides one of them: that draft, and the comment on
+	 * it, leave the timeline and the counts alike, while the fixture
+	 * draft, identical in type, status and authorship, stays in both.
+	 *
+	 * @covers ::openstation_my_wordpress_footprint_visible_counts
+	 * @covers ::openstation_my_wordpress_footprint_can_see_post
+	 */
+	public function test_a_per_post_capability_filter_reaches_the_counts() {
+		$hidden = self::factory()->post->create(
+			array(
+				'post_author' => self::$author_id,
+				'post_status' => 'draft',
+				'post_title'  => 'Embargoed draft',
+			)
+		);
+		foreach ( array( $this->draft_id, $hidden ) as $parent ) {
+			self::factory()->comment->create(
+				array(
+					'comment_post_ID'  => $parent,
+					'user_id'          => self::$author_id,
+					'comment_approved' => '1',
+				)
+			);
+		}
+		add_filter(
+			'map_meta_cap',
+			static function ( $caps, $cap, $user_id, $args ) use ( $hidden ) {
+				if ( 'read_post' === $cap && isset( $args[0] ) && (int) $args[0] === $hidden ) {
+					return array( 'do_not_allow' );
+				}
+				return $caps;
+			},
+			10,
+			4
+		);
+
+		wp_set_current_user( self::$editor_id );
+		$data = $this->dispatch_footprint( self::$author_id )->get_data();
+
+		$post_rows = $this->timeline_ids_of_kind( $data, 'post' );
+		$this->assertNotContains( $hidden, $post_rows );
+		$this->assertContains( $this->draft_id, $post_rows );
+		// Published + the fixture draft + private, without the hidden draft.
+		$this->assertSame( 3, $data['totals']['posts'] );
+
+		$this->assertSame( array( $this->draft_id ), $this->timeline_ids_of_kind( $data, 'comment' ) );
+		$this->assertSame( 1, $data['totals']['comments'] );
+		$this->assertSame( 1, array_sum( wp_list_pluck( $data['daily'], 'comments' ) ) );
+	}
+
+	/**
+	 * The route wears the My WordPress module's gate: a Subscriber, who
+	 * cannot open WP Explorer, cannot read this dossier either.
+	 *
+	 * @covers ::openstation_my_wordpress_register_user_footprint_route
+	 */
+	public function test_subscriber_is_rejected_by_route() {
+		wp_set_current_user( self::$subscriber_id );
+		$this->assertSame( 403, $this->dispatch_footprint( self::$author_id )->get_status() );
+	}
+
+	/**
+	 * A site that narrows the module through its filter locks this route
+	 * down with it, administrators included.
+	 *
+	 * @covers ::openstation_my_wordpress_register_user_footprint_route
+	 */
+	public function test_filter_narrowed_route_refuses_admins() {
+		add_filter( 'openstation_my_wordpress_user_can_use', '__return_false' );
+
+		wp_set_current_user( self::$admin_id );
+		$this->assertSame( 403, $this->dispatch_footprint( self::$author_id )->get_status() );
 	}
 }
