@@ -498,6 +498,56 @@ describe( 'native-windows — deferred bundle loading', () => {
 		expect( inject.mock.calls.length ).toBe( calls );
 	} );
 
+	test( 'a late App Framework window refreshes its registry before first render', async () => {
+		const h = setupHarness();
+		const first = entry( 'first-app', {
+			scriptUrl: 'https://example.test/app-runtime.js',
+		} );
+		const late = entry( 'late-app', {
+			scriptUrl: 'https://example.test/app-runtime.js',
+			scriptL10n: [ 'window.openStationWindowConfig["late-app"]={osApp:true};' ],
+		} );
+		installTemplate( first );
+		installTemplate( late );
+
+		const globals = window as unknown as {
+			openStationNativeWindows: Record< string, ReturnType< typeof vi.fn > >;
+			openStationWindowConfig: Record< string, { osApp?: boolean } >;
+		};
+		globals.openStationWindowConfig = {};
+		const inject = vi
+			.spyOn( vendorLoader, 'injectInlineScript' )
+			.mockImplementation( ( code: string ) => {
+				expect( code ).toContain( 'late-app' );
+				globals.openStationWindowConfig[ 'late-app' ] = { osApp: true };
+			} );
+		const registry = globals.openStationNativeWindows;
+		registry[ 'first-app' ] = vi.fn();
+		const lateRender = vi.fn();
+		const refresh = vi.fn( () => {
+			if ( globals.openStationWindowConfig[ 'late-app' ]?.osApp === true ) {
+				registry[ 'late-app' ] = lateRender;
+			}
+		} );
+		( window.wp as unknown as { os: { apps: { refresh: () => void } } } ).os = {
+			apps: { refresh },
+		};
+
+		const { sync, openById } = createNativeWindowSync( depsFromHarness( h ) );
+		await sync( [ first ] );
+		openById( 'first-app' );
+		await runRender( h.managerOpen, 0 );
+
+		await sync( [ first, late ] );
+		openById( 'late-app' );
+		await runRender( h.managerOpen, 1 );
+
+		expect( loaded ).toEqual( [ 'https://example.test/app-runtime.js' ] );
+		expect( inject ).toHaveBeenCalledTimes( 1 );
+		expect( refresh ).toHaveBeenCalled();
+		expect( lateRender ).toHaveBeenCalledTimes( 1 );
+	} );
+
 	test( 'concurrent opens of two windows sharing a bundle both get their data', async () => {
 		const inject = vi
 			.spyOn( vendorLoader, 'injectInlineScript' )

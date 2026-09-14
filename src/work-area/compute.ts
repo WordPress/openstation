@@ -91,19 +91,20 @@ export function rectLike(
 /**
  * Which edge of `area` a piece of overlapping chrome is anchored to.
  *
- * The nearest edge wins — measured from the chrome's own outer side
- * to the matching side of the area, so a pill floating 12px above the
- * bottom edge is "bottom" however wide or narrow it is. Ties (a rail
- * that runs the full height of the area is 0px from top, bottom AND
- * one side) go to the pair the rail's orientation suggests: taller
- * than wide → left / right, otherwise top / bottom.
+ * The nearest edge to the chrome's centre wins. Measuring from its
+ * outer edges mistakes a wide bottom pill for a side rail when it
+ * almost fills the viewport: its side margin can be smaller than its
+ * bottom gap. A one-tile pill still belongs to the bottom even when
+ * it is taller than wide. Ties follow the rail's orientation.
  */
 export function edgeFor( area: RectLike, chrome: RectLike ): WorkAreaEdge {
+	const centerX = chrome.left + chrome.width / 2;
+	const centerY = chrome.top + chrome.height / 2;
 	const distances: Record< WorkAreaEdge, number > = {
-		top: Math.abs( chrome.top - area.top ),
-		bottom: Math.abs( area.bottom - chrome.bottom ),
-		left: Math.abs( chrome.left - area.left ),
-		right: Math.abs( area.right - chrome.right ),
+		top: Math.abs( centerY - area.top ),
+		bottom: Math.abs( area.bottom - centerY ),
+		left: Math.abs( centerX - area.left ),
+		right: Math.abs( area.right - centerX ),
 	};
 	const vertical = chrome.height > chrome.width;
 	const preferred: WorkAreaEdge[] = vertical

@@ -22,6 +22,7 @@
  */
 
 import { doAction, HOOKS } from '../hooks';
+import { workAreaRectOf } from '../work-area';
 import type { Window } from '../window';
 import { enterSplitOverview } from './split-overview';
 import type { WindowManager } from './index';
@@ -55,22 +56,20 @@ export function detectSnapZone(
 
 /**
  * Compute the final bounds (in desktop-area-local coordinates) for a
- * given snap zone. Always exactly half the desktop area's width,
- * full height — the whole area, dock band included, since snapping is
- * an explicit ask for the edge (the same rule as maximize; see
- * `src/window/index.ts`). Rounded to whole pixels so the preview
+ * given snap zone. Half the work area's width and its full height,
+ * keeping the dock's safe area clear. Rounded to whole pixels so the preview
  * rectangle and the committed window line up pixel-perfectly.
  */
 export function snapZoneBounds(
 	mgr: WindowManager,
 	zone: SnapZone,
 ): { x: number; y: number; width: number; height: number } {
-	const rect = mgr._desktop.getBoundingClientRect();
+	const rect = workAreaRectOf( mgr._desktop );
 	const halfW = Math.floor( rect.width / 2 );
 	const height = Math.floor( rect.height );
 	return {
-		x: zone === 'left' ? 0 : rect.width - halfW,
-		y: 0,
+		x: zone === 'left' ? rect.x : rect.x + rect.width - halfW,
+		y: rect.y,
 		width: halfW,
 		height,
 	};

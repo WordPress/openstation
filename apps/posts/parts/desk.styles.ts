@@ -266,6 +266,30 @@ export const deskStyles = css`
 	flex: 1 1 100px;
 }
 
+/* A plugin column on the card: value over label, the os-stat silhouette at
+   the strip's scale, so Provenance or any other registered cell sits beside
+   Words / Comments / Tags without pretending to be a number. */
+.os-posts-desk__plugin-stat {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	min-width: 0;
+}
+
+.os-posts-desk__plugin-stat-value {
+	display: flex;
+	align-items: center;
+	min-height: 22px;
+}
+
+.os-posts-desk__plugin-stat-label {
+	font-size: 10px;
+	line-height: 1.2;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var( --os-ui-fg-muted, #646970 );
+}
+
 .os-posts-desk__lock {
 	font-size: 11px;
 	color: var( --os-ui-warning, #996800 );

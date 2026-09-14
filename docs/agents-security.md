@@ -220,6 +220,31 @@ Registering an ability agents can call:
       counts rows the batch withholds. Gate in the query only where the
       rule is the same for every caller, as `search_posts` does with
       `has_password => false`.
+- [ ] Does it ask the **post type** whether it has a readable front
+      end? `map_meta_cap()` resolves `read_post` on a *published* post
+      to the type's `read` cap — plain `read` on any type registered
+      with `map_meta_cap`, which every logged-in user holds. So a
+      published row of a plugin's internal CPT (an order, a submission
+      log, a queue entry) reads like a public post until
+      `is_post_type_viewable()` is asked separately. Fall back to
+      `edit_post` for a non-viewable type.
+- [ ] Do the **counts** cover the same set as the items? `found_posts`,
+      `total` and a per-status breakdown answer "does the hidden thing
+      match?" — an oracle for exactly what the item list withheld.
+      Filter both over one set, or say on the surface that `total`
+      over-counts (which is what a per-row gate forces, and what Core's
+      comments controller also does).
+- [ ] Does it guard a **zero id** before fetching? `get_post( 0 )` and
+      `get_comment( 0 )` fall back to `$GLOBALS['post']` /
+      `$GLOBALS['comment']`, so an orphaned comment — or a `\d+` route
+      parameter that matched a zero — is otherwise authorized against
+      whatever another plugin left in the global.
+- [ ] If an id reaches it from **model output**, does it re-check
+      readability itself? `/ai/search`'s `entity_id` comes out of the
+      model's answer and the user's query steers it, so it is
+      attacker-controlled: a turn can be driven by comment or post text
+      someone else wrote. Never treat "the search tools only return
+      readable rows" as proof of where an id came from.
 - [ ] Would a contributor invoking it through an admin-role agent get
       more than they should? (If the ceiling is doing all the work,
       say so in the ability's description.)
@@ -235,6 +260,29 @@ Registering an ability agents can call:
       raw stored markup is the worked example — an agent told only by
       its own instructions leaves every other agent guessing, and a
       cautious one stops rather than risk writing rendered HTML back.
+
+Adding a REST route or an app action that READS content:
+
+The same checklist applies — an ability is only one dispatch shape, and
+the leaks that were plain REST routes were leaks for the same reasons.
+Four additions specific to a route:
+
+- [ ] Is the `permission_callback` the **module's own gate**, not
+      `is_user_logged_in()`? A window gated at `edit_posts` whose route
+      admits any logged-in user has no gate. Route through the
+      filterable helper — `openstation_my_wordpress_user_can_use()` is
+      the pattern — so a site that narrows the window narrows the data
+      with it.
+- [ ] Do the **object-level** checks live in the callback rather than
+      the permission callback, where an in-process caller that invokes
+      the callback directly still hits them?
+- [ ] Does the aggregate it returns stay scoped to the caller? A
+      per-status count, a "recent" list or a top-authors roll-up is
+      about the objects *inside* the container, and the container being
+      public says nothing about them. A viewer-dependent payload must
+      never be cached under a container-only key.
+- [ ] Is the route's real gate written into the table in
+      [`includes/rest/README.md`](../includes/rest/README.md)?
 
 Adding a trigger intake:
 
@@ -255,6 +303,16 @@ Touching guard.php:
 `tests/phpunit/tests/agentsSecurity.php` asserts each boundary above as
 a property rather than as behavior. If you change anything in this
 document, that suite should change with it.
+
+The read-path checklist above has its own guards, each pinning a
+Subscriber against a restricted object rather than pinning a return
+shape: `aiNativeSearch.php` (search tools and entity hydration),
+`agentsAbilities.php` (the get-post password gate),
+`myWordpressCommentStats.php` (route gate, parent-post readability,
+thread scoping, zero ids) and `myWordpressTermStats.php` (readable
+statuses, count oracle, hidden taxonomies). A new read path gets a test
+in that shape: give a low-capability user a restricted object and assert
+on what does **not** come back, counters included.
 
 ## See also
 

@@ -80,7 +80,7 @@ import { destroyDesktopNameHud } from './desktop-name-hud';
 import { cancelOverviewTimers, enterOverview, exitOverview } from './overview';
 import { loadNativeWindowGeometry } from './native-window-geometry';
 import { clampWindowPosition } from '../window/pointer';
-import { workAreaRectOf, type WorkAreaRect } from '../work-area';
+import { subscribeWorkArea, workAreaRectOf, type WorkAreaRect } from '../work-area';
 
 /** Base z-index for desktop windows. */
 const BASE_Z_INDEX = 100;
@@ -276,6 +276,9 @@ export class WindowManager {
 	 */
 	private desktopResizeObserver: ResizeObserver | null = null;
 
+	/** Release the dock safe-area subscription when the manager is destroyed. */
+	private _unsubscribeWorkArea: () => void;
+
 	/**
 	 * Debounce timer that clears `--reflowing` from stateful windows
 	 * once the user stops resizing the viewport. Null when no resize
@@ -423,6 +426,7 @@ export class WindowManager {
 			);
 			this.desktopResizeObserver.observe( desktop );
 		}
+		this._unsubscribeWorkArea = subscribeWorkArea( () => this.reflowStatefulWindows() );
 		this.installIframeFocusBridge();
 	}
 
@@ -479,13 +483,13 @@ export class WindowManager {
 
 	/**
 	 * Re-apply state-driven bounds to any window whose geometry is
-	 * derived from the desktop area's dimensions: maximized (full
-	 * area) and snapped-left / snapped-right (half area). Also
+	 * derived from the work area's dimensions: maximized (full
+	 * work area) and snapped-left / snapped-right (half work area). Also
 	 * clamps normal (floating) windows to the GRAB_MARGIN boundaries
 	 * so they are not stranded off-screen when the viewport shrinks.
 	 *
-	 * Called from the desktop-area ResizeObserver so shrinking the
-	 * browser window drags the windows along with it.
+	 * Called when the desktop resizes or the measured work area changes,
+	 * including dock size, placement and behavior changes.
 	 *
 	 * Inlines the geometry writes instead of calling `applySnap` —
 	 * that method emits `_emitChange('state')` which would spam the
@@ -512,16 +516,7 @@ export class WindowManager {
 			if ( ! parent ) {
 				continue;
 			}
-			// Same rectangle `Window` sizes against on maximize / snap:
-			// the whole desktop area. Stateful windows and a dragged
-			// window may sit under the dock by the user's choice; only
-			// default placement keeps clear of it.
-			const area = {
-				x: 0,
-				y: 0,
-				width: parent.clientWidth,
-				height: parent.clientHeight,
-			};
+			const area = workAreaRectOf( parent );
 			if ( w.state === 'maximized' ) {
 				w.element.classList.add( 'os-window--reflowing' );
 				w.element.style.left = `${ area.x }px`;
@@ -548,7 +543,13 @@ export class WindowManager {
 				const currentY = parseInt( w.element.style.top, 10 ) || 0;
 				const width = w.element.offsetWidth || 0;
 
-				const safe = clampWindowPosition( currentX, currentY, width, area );
+				// Manual placement still uses the whole desktop.
+				const safe = clampWindowPosition( currentX, currentY, width, {
+					x: 0,
+					y: 0,
+					width: parent.clientWidth,
+					height: parent.clientHeight,
+				} );
 
 				if ( currentX !== safe.x || currentY !== safe.y ) {
 					w.element.classList.add( 'os-window--reflowing' );
@@ -2501,6 +2502,12 @@ export class WindowManager {
 	 * entered or was already cleanly exited.
 	 */
 	public destroy(): void {
+		this._unsubscribeWorkArea();
+		this.desktopResizeObserver?.disconnect();
+		if ( this._reflowRestoreTimer !== null ) {
+			window.clearTimeout( this._reflowRestoreTimer );
+			this._reflowRestoreTimer = null;
+		}
 		if ( this._overviewActive ) {
 			exitOverview( this );
 		}

@@ -57,6 +57,22 @@ describe( 'computeInsets', () => {
 		} );
 	} );
 
+	test( 'a nearly full-width bottom pill does not claim a side band', () => {
+		const pill = bottomPill( AREA.width - 6 );
+		expect( edgeFor( AREA, pill ) ).toBe( 'bottom' );
+		expect( computeInsets( AREA, [ pill ] ) ).toEqual( {
+			top: 0, right: 0, bottom: 84, left: 0,
+		} );
+	} );
+
+	test( 'a nearly full-height side rail does not claim the top band', () => {
+		const rail = rectLike( 12, AREA.top + 3, 64, AREA.height - 6 );
+		expect( edgeFor( AREA, rail ) ).toBe( 'left' );
+		expect( computeInsets( AREA, [ rail ] ) ).toEqual( {
+			top: 0, right: 0, bottom: 0, left: 84,
+		} );
+	} );
+
 	test( 'a side rail beside the area (no overlap) claims nothing', () => {
 		// The left dock is a flex sibling: the area starts where the
 		// rail ends.
