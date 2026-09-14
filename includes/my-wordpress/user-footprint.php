@@ -68,11 +68,13 @@
  * creation, i.e. the user opened an existing post and saved it
  * again. The initial save (which WordPress also writes as a revision)
  * is excluded so the per-day "updates" count doesn't double up with
- * the per-day "posts" count. On a dated post that means every
- * revision newer than the post's date. A draft or pending post has
- * no date yet (`post_date_gmt` stays zero until it is published or
- * scheduled), so there it means every revision after the post's
- * first one.
+ * the per-day "posts" count. So every revision after a post's first
+ * one is an update, whenever it was saved: while the post was a
+ * draft, before a scheduled post went live, or after. The first
+ * revision counts too when it is newer than the post's date, as when
+ * a post that never had a revision is edited later; a draft or
+ * pending post has no date yet (`post_date_gmt` stays zero), so its
+ * first revision never does.
  *
  * @package OpenStation
  */
@@ -350,13 +352,16 @@ function openstation_my_wordpress_user_footprint_callback( $request ) {
 	// shape GitHub's contribution graph uses for commits across repos you
 	// don't own.
 	//
-	// "Not the initial save" is a date test on a dated post: the revision
-	// is newer than the post. A draft or pending post has no date yet
-	// (`post_date_gmt` stays zero until it is published or scheduled), so
-	// every revision would pass, the very first Save Draft included.
-	// There it means "not the post's first revision" instead. The lifetime
-	// count and the timeline query below carry the same clause; keep the
-	// three in step.
+	// "Not the initial save" cannot be a date test alone, because a post's
+	// date is when it goes live. A draft or pending post has none yet
+	// (`post_date_gmt` stays zero) and a scheduled post's is in the
+	// future, so every save made before publication compares as older
+	// than the post and would never count, not even once it is published.
+	// Every revision after the post's first therefore counts, and the
+	// first counts only when it is newer than a real post date, as when a
+	// post that never had a revision is edited later. The lifetime count
+	// and the timeline query below carry the same clause; keep the three
+	// in step.
 	$update_rows   = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT DATE(r.post_date_gmt) AS d,
@@ -369,10 +374,10 @@ function openstation_my_wordpress_user_footprint_callback( $request ) {
 				AND r.post_status = 'inherit'
 				AND (
 					( p.post_date_gmt <> '0000-00-00 00:00:00' AND r.post_date_gmt > p.post_date_gmt )
-					OR ( p.post_date_gmt = '0000-00-00 00:00:00' AND EXISTS (
+					OR EXISTS (
 						SELECT 1 FROM {$wpdb->posts} r0
 						WHERE r0.post_parent = p.ID AND r0.post_type = 'revision' AND r0.ID < r.ID
-					) )
+					)
 				)
 				AND r.post_date_gmt >= %s
 			GROUP BY d, post_id
@@ -542,10 +547,10 @@ function openstation_my_wordpress_user_footprint_callback( $request ) {
 				AND r.post_status = 'inherit'
 				AND (
 					( p.post_date_gmt <> '0000-00-00 00:00:00' AND r.post_date_gmt > p.post_date_gmt )
-					OR ( p.post_date_gmt = '0000-00-00 00:00:00' AND EXISTS (
+					OR EXISTS (
 						SELECT 1 FROM {$wpdb->posts} r0
 						WHERE r0.post_parent = p.ID AND r0.post_type = 'revision' AND r0.ID < r.ID
-					) )
+					)
 				)
 				AND p.post_status NOT IN ( 'auto-draft', 'inherit', 'trash' )
 			GROUP BY r.post_parent
@@ -687,10 +692,10 @@ function openstation_my_wordpress_user_footprint_callback( $request ) {
 				AND r.post_status = 'inherit'
 				AND (
 					( p.post_date_gmt <> '0000-00-00 00:00:00' AND r.post_date_gmt > p.post_date_gmt )
-					OR ( p.post_date_gmt = '0000-00-00 00:00:00' AND EXISTS (
+					OR EXISTS (
 						SELECT 1 FROM {$wpdb->posts} r0
 						WHERE r0.post_parent = p.ID AND r0.post_type = 'revision' AND r0.ID < r.ID
-					) )
+					)
 				)
 			GROUP BY post_id",
 			array_merge( $open_args, array( $user_id ) )

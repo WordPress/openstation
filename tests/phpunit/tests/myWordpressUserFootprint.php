@@ -496,7 +496,9 @@ class Tests_OpenStation_MyWordpressUserFootprint extends WP_UnitTestCase {
 	 * A draft has no date until it is published, so "newer than the post"
 	 * cannot tell its first save from a later one. The first revision a
 	 * draft gets records its creation and is not an update; the next one
-	 * is.
+	 * is. Publishing the draft later dates it after both saves, and the
+	 * second save stays an update rather than dropping out as an edit
+	 * that predates the post.
 	 *
 	 * @covers ::openstation_my_wordpress_user_footprint_callback
 	 */
@@ -532,6 +534,18 @@ class Tests_OpenStation_MyWordpressUserFootprint extends WP_UnitTestCase {
 		$this->assertSame( 1, $data['totals']['updates'] );
 		$this->assertSame( 1, array_sum( wp_list_pluck( $data['daily'], 'updates' ) ) );
 		$this->assertContains( $draft, $this->timeline_ids_of_kind( $data, 'post-update' ) );
+
+		wp_update_post(
+			array(
+				'ID'          => $draft,
+				'post_status' => 'publish',
+			)
+		);
+		$this->assertNotSame( '0000-00-00 00:00:00', get_post( $draft )->post_date_gmt );
+		$data = $this->dispatch_footprint( self::$author_id )->get_data();
+		$this->assertSame( 1, $data['totals']['updates'] );
+		$this->assertSame( 1, array_sum( wp_list_pluck( $data['daily'], 'updates' ) ) );
+		$this->assertContains( $draft, $this->timeline_ids_of_kind( $data, 'post-update' ) );
 	}
 
 	/**
@@ -544,6 +558,43 @@ class Tests_OpenStation_MyWordpressUserFootprint extends WP_UnitTestCase {
 		$response = $this->dispatch_footprint( self::$author_id );
 		$this->assertSame( 401, $response->get_status() );
 	}
+	/**
+	 * A scheduled post's date is its future publication time, so every
+	 * save made before it goes live is older than the post. Those saves
+	 * are still updates: the first records the post, and each later one
+	 * counts in the lifetime total, the heatmap and the timeline.
+	 *
+	 * @covers ::openstation_my_wordpress_user_footprint_callback
+	 */
+	public function test_saves_before_a_scheduled_date_count_as_updates() {
+		wp_set_current_user( self::$author_id );
+		$in_a_week = gmdate( 'Y-m-d H:i:s', time() + WEEK_IN_SECONDS );
+		$scheduled = self::factory()->post->create(
+			array(
+				'post_author'   => self::$author_id,
+				'post_status'   => 'future',
+				'post_title'    => 'Scheduled scoop',
+				'post_date'     => $in_a_week,
+				'post_date_gmt' => $in_a_week,
+			)
+		);
+		foreach ( array( 'First save.', 'Second save.', 'Third save.' ) as $content ) {
+			wp_update_post(
+				array(
+					'ID'           => $scheduled,
+					'post_content' => $content,
+				)
+			);
+		}
+		$this->assertSame( 'future', get_post_status( $scheduled ) );
+
+		$data = $this->dispatch_footprint( self::$author_id )->get_data();
+		// Three saves: the first records the post, the other two are updates.
+		$this->assertSame( 2, $data['totals']['updates'] );
+		$this->assertSame( 2, array_sum( wp_list_pluck( $data['daily'], 'updates' ) ) );
+		$this->assertContains( $scheduled, $this->timeline_ids_of_kind( $data, 'post-update' ) );
+	}
+
 	/**
 	 * A plugin that filters `read_post` for a single post moves the counts
 	 * with the rows. The Editor can read every draft the subject holds
