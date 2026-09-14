@@ -42,6 +42,7 @@ import {
 	resolveStatusSegments,
 	resolveToolbarTrailing,
 	type ColumnFilterData,
+	type HiddenColumnsSettingKey,
 } from './columns';
 import { createPostsRestClient, type PostsRestClient } from './rest';
 import type { BulkAction, ListData, ListExtra, ListState, PostListItem, PostsMode, PostsWindowContext } from './types';
@@ -147,9 +148,9 @@ function clientOf( ctx: Ctx, ui: UiState ): PostsRestClient {
 }
 
 /** The hidden-column set, read from the settings once and kept in step by the subscription. */
-function hiddenOf( ui: UiState ): Set< string > {
+function hiddenOf( ui: UiState, settingKey: HiddenColumnsSettingKey ): Set< string > {
 	if ( ! ui.hidden ) {
-		ui.hidden = getHiddenColumns();
+		ui.hidden = getHiddenColumns( settingKey );
 	}
 	return ui.hidden;
 }
@@ -284,6 +285,8 @@ function wireTable( ctx: Ctx, ui: UiState, table: OsTable< PostListItem > ): voi
 export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 	const terms = options.terms;
 	const cells: CellRenderers = options.cells ?? {};
+	const hiddenColumnsKey: HiddenColumnsSettingKey =
+		id === 'desktop-mode-pages' ? 'nativePagesHiddenColumns' : 'nativePostsHiddenColumns';
 
 	const mountCanvas = ( ctx: Ctx, ui: UiState, which: 'categories' | 'tags' ): void => {
 		if ( ! terms || ui.canvases[ which ] || ui.canvasPending.has( which ) ) {
@@ -380,7 +383,7 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 			</header>
 			${ list?.error ? html`<os-notice tone="danger">${ list.error }</os-notice>` : '' }
 			${ deskTools( displayCtx, ui.desk ) }
-			${ renderDesk( displayCtx, ui.desk, env, ui.filterData, hiddenOf( ui ), ui.feed.tail() ) }
+			${ renderDesk( displayCtx, ui.desk, env, ui.filterData, hiddenOf( ui, hiddenColumnsKey ), ui.feed.tail() ) }
 			<div class="os-app-list__body" data-os-posts-body ?hidden=${ ui.desk.view !== 'table' }>
 				<os-table
 					data-os-posts-table
@@ -491,9 +494,9 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 				section: __( 'Show columns' ),
 				prefix: id,
 				items: columnLabels( env ),
-				isChecked: ( key ) => ! hiddenOf( ui ).has( key ),
+				isChecked: ( key ) => ! hiddenOf( ui, hiddenColumnsKey ).has( key ),
 				onToggle: ( key ) => {
-					const hidden = hiddenOf( ui );
+					const hidden = hiddenOf( ui, hiddenColumnsKey );
 					if ( hidden.has( key ) ) {
 						hidden.delete( key );
 					} else {
@@ -501,7 +504,7 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 					}
 					const api = window.wp?.os;
 					if ( api && typeof api.updateOsSettings === 'function' ) {
-						api.updateOsSettings( { nativePostsHiddenColumns: Array.from( hidden ).sort() }, { windowId: ctx.windowId } );
+						api.updateOsSettings( { [ hiddenColumnsKey ]: Array.from( hidden ).sort() }, { windowId: ctx.windowId } );
 					}
 					ctx.repaint();
 				},
@@ -512,10 +515,10 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 			// columns and the menu's checked state.
 			const api = window.wp?.os;
 			if ( api && typeof api.subscribeOsSettings === 'function' ) {
-				let lastHidden = Array.from( hiddenOf( ui ) ).sort().join( ',' );
+				let lastHidden = Array.from( hiddenOf( ui, hiddenColumnsKey ) ).sort().join( ',' );
 				teardowns.push(
 					api.subscribeOsSettings( () => {
-						const next = getHiddenColumns();
+						const next = getHiddenColumns( hiddenColumnsKey );
 						const key = Array.from( next ).sort().join( ',' );
 						if ( key === lastHidden ) {
 							return;
@@ -587,7 +590,7 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 			const env = cellEnv( ctx, ui, cells );
 			// The columns rebuild when the hidden set or the filter options
 			// change (the phone crossing is the sync's own concern).
-			const columnsKey = `${ Array.from( hiddenOf( ui ) ).sort().join( ',' ) }|${ filterSig( ui.filterData ) }`;
+			const columnsKey = `${ Array.from( hiddenOf( ui, hiddenColumnsKey ) ).sort().join( ',' ) }|${ filterSig( ui.filterData ) }`;
 			if ( columnsKey !== ui.columnsKey ) {
 				ui.columnsKey = columnsKey;
 				ui.cellCache.clear();
@@ -603,7 +606,7 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 				fingerprint: fingerprint( items ),
 				columns: ( phone ) => {
 					ui.cellCache.clear();
-					return buildColumns( env, ui.cellCache, ui.filterData, phone, hiddenOf( ui ) );
+					return buildColumns( env, ui.cellCache, ui.filterData, phone, hiddenOf( ui, hiddenColumnsKey ) );
 				},
 				wire: () => wireTable( ctx, ui, table ),
 				onSelection: ( kept ) => {

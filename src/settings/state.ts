@@ -252,6 +252,12 @@ const SANITIZERS: Sanitizers = {
 				.slice( 0, 32 )
 			: fallback.slice(),
 	nativePagesEnabled: bool,
+	nativePagesHiddenColumns: ( raw, fallback ) =>
+		Array.isArray( raw )
+			? raw
+				.filter( ( v ): v is string => typeof v === 'string' && v !== '' )
+				.slice( 0, 32 )
+			: fallback.slice(),
 	nativeUsersEnabled: bool,
 	nativePluginsEnabled: bool,
 	nativeCommentsEnabled: bool,
@@ -538,6 +544,7 @@ export function cloneState( state: OsSettingsState ): OsSettingsState {
 		},
 		appliedThemeRecommendations: state.appliedThemeRecommendations.slice(),
 		nativePostsHiddenColumns: state.nativePostsHiddenColumns.slice(),
+		nativePagesHiddenColumns: state.nativePagesHiddenColumns.slice(),
 		navPlacement: { ...state.navPlacement },
 		navOrder: state.navOrder.slice(),
 		dockPromotedPositions: Object.fromEntries(

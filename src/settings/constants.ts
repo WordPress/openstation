@@ -302,6 +302,7 @@ export const DEFAULTS: OsSettingsState = {
 	// Same opt-in Beta posture as Posts — fresh installs keep the
 	// iframe; users opt in to the native Pages window.
 	nativePagesEnabled: false,
+	nativePagesHiddenColumns: [],
 	// Native Users window — same opt-in Beta posture. Capability-gated
 	// server-side (the window is only registered for users with
 	// `list_users`), so this toggle only affects the small set of

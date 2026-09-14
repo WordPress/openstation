@@ -54,7 +54,11 @@ function mount( items: PostListItem[] ) {
 
 beforeEach( () => {
 	( window as unknown as { wp?: unknown } ).wp = {
-		os: { getOsSettings: () => ( { nativePostsHiddenColumns: [] } ) },
+		os: {
+			getOsSettings: () => ( { nativePostsHiddenColumns: [], nativePagesHiddenColumns: [] } ),
+			updateOsSettings: vi.fn(),
+			subscribeOsSettings: () => () => undefined,
+		},
 		hooks: { applyFilters: ( _n: string, v: unknown ) => v, doAction: () => undefined },
 	};
 } );
@@ -114,5 +118,107 @@ describe( 'the pages view', () => {
 	it( 'says "No pages" when empty', () => {
 		const { root } = mount( [] );
 		expect( root.querySelector( '.os-posts-desk__empty h3' )?.textContent ).toBe( 'No pages found.' );
+	} );
+
+	it( 'the ⋯ menu lists togglable page columns and toggling writes nativePagesHiddenColumns', () => {
+		const update = vi.fn();
+		( window as unknown as { wp: { os: { getOsSettings: unknown; updateOsSettings: unknown; subscribeOsSettings: unknown } } } ).wp.os = {
+			getOsSettings: () => ( { nativePagesHiddenColumns: [] } ),
+			updateOsSettings: update,
+			subscribeOsSettings: () => () => undefined,
+		};
+		const win = document.createElement( 'div' );
+		win.className = 'os-window';
+		const panel = document.createElement( 'div' );
+		panel.className = 'os-window__menu-panel';
+		win.appendChild( panel );
+		document.body.appendChild( win );
+		const { ctx, root } = mount( [ row( 1 ) ] );
+		win.appendChild( root );
+		app.mounted?.( ctx );
+		const items = Array.from( panel.querySelectorAll( 'os-menu-item' ) ).map( ( el ) => el.getAttribute( 'value' ) );
+		expect( items ).toEqual( [
+			'desktop-mode-pages:author',
+			'desktop-mode-pages:parent',
+			'desktop-mode-pages:template',
+			'desktop-mode-pages:slug',
+			'desktop-mode-pages:comments',
+			'desktop-mode-pages:date',
+		] );
+		panel.dispatchEvent( new CustomEvent( 'os-menu-item-click', { detail: { value: 'desktop-mode-pages:author' } } ) );
+		expect( update ).toHaveBeenCalledWith( { nativePagesHiddenColumns: [ 'author' ] }, { windowId: 'test-window' } );
+	} );
+
+	it( 'paints the author column in Pages when only Posts hid it', () => {
+		( window as unknown as { wp: { os: { getOsSettings: unknown } } } ).wp.os.getOsSettings = () => ( {
+			nativePostsHiddenColumns: [ 'author' ],
+			nativePagesHiddenColumns: [],
+		} );
+		const { root } = mount( [ row( 1 ) ] );
+		const table = root.querySelector( '[data-os-posts-table]' ) as HTMLElement & {
+			columns?: Array< { key: string } >;
+		};
+		expect( ( table.columns ?? [] ).map( ( c ) => c.key ) ).toContain( 'author' );
+	} );
+
+	it( 'the Pages column menu shows Author checked when only Posts hid it', () => {
+		( window as unknown as { wp: { os: { getOsSettings: unknown } } } ).wp.os.getOsSettings = () => ( {
+			nativePostsHiddenColumns: [ 'author' ],
+			nativePagesHiddenColumns: [],
+		} );
+		const win = document.createElement( 'div' );
+		win.className = 'os-window';
+		const panel = document.createElement( 'div' );
+		panel.className = 'os-window__menu-panel';
+		win.appendChild( panel );
+		document.body.appendChild( win );
+		const { ctx, root } = mount( [ row( 1 ) ] );
+		win.appendChild( root );
+		app.mounted?.( ctx );
+		const authorItem = panel.querySelector( 'os-menu-item[value="desktop-mode-pages:author"]' );
+		expect( authorItem?.hasAttribute( 'checked' ) ).toBe( true );
+	} );
+
+	it( 'toggling a Pages column writes only that column, not the Posts set', () => {
+		const update = vi.fn();
+		( window as unknown as { wp: { os: { getOsSettings: unknown; updateOsSettings: unknown; subscribeOsSettings: unknown } } } ).wp.os = {
+			getOsSettings: () => ( {
+				nativePostsHiddenColumns: [ 'author' ],
+				nativePagesHiddenColumns: [],
+			} ),
+			updateOsSettings: update,
+			subscribeOsSettings: () => () => undefined,
+		};
+		const win = document.createElement( 'div' );
+		win.className = 'os-window';
+		const panel = document.createElement( 'div' );
+		panel.className = 'os-window__menu-panel';
+		win.appendChild( panel );
+		document.body.appendChild( win );
+		const { ctx, root } = mount( [ row( 1 ) ] );
+		win.appendChild( root );
+		app.mounted?.( ctx );
+		panel.dispatchEvent( new CustomEvent( 'os-menu-item-click', { detail: { value: 'desktop-mode-pages:parent' } } ) );
+		expect( update ).toHaveBeenCalledWith( { nativePagesHiddenColumns: [ 'parent' ] }, { windowId: 'test-window' } );
+	} );
+
+	it( 'rebuilds page columns when nativePagesHiddenColumns changes elsewhere', () => {
+		let settingsListener: ( () => void ) | null = null;
+		( window as unknown as { wp: { os: { getOsSettings: unknown; subscribeOsSettings: unknown } } } ).wp.os = {
+			getOsSettings: () => ( { nativePagesHiddenColumns: [] } ),
+			subscribeOsSettings: ( cb: () => void ) => {
+				settingsListener = cb;
+				return () => undefined;
+			},
+		};
+		const { ctx, root } = mount( [ row( 1 ) ] );
+		app.mounted?.( ctx );
+		const table = root.querySelector( '[data-os-posts-table]' ) as HTMLElement & {
+			columns?: Array< { key: string } >;
+		};
+		expect( ( table.columns ?? [] ).map( ( c ) => c.key ) ).toContain( 'author' );
+		( window as unknown as { wp: { os: { getOsSettings: unknown } } } ).wp.os.getOsSettings = () => ( { nativePagesHiddenColumns: [ 'author' ] } );
+		settingsListener!();
+		expect( ( table.columns ?? [] ).map( ( c ) => c.key ) ).not.toContain( 'author' );
 	} );
 } );

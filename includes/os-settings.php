@@ -211,6 +211,11 @@ function openstation_default_os_settings() {
 		// every column is visible. The sticky 'title' column is always
 		// shown — the UI prevents toggling it.
 		'nativePostsHiddenColumns'    => array(),
+		// Per-user list of column keys hidden in the native Pages
+		// window (e.g. array( 'author', 'parent' )). Empty array means
+		// every column is visible. The sticky 'title' column is always
+		// shown — the UI prevents toggling it.
+		'nativePagesHiddenColumns'    => array(),
 		// Per-user opt-IN for the native Pages window. Same posture as
 		// nativePostsEnabled — defaults OFF (Beta), users opt in to swap
 		// the classic `edit.php?post_type=page` iframe for the native UI.
@@ -777,6 +782,25 @@ function openstation_sanitize_os_settings( $raw ) {
 		$native_posts_hidden_columns = array_slice( array_values( array_unique( $native_posts_hidden_columns ) ), 0, 32 );
 	}
 
+	$native_pages_hidden_columns = $defaults['nativePagesHiddenColumns'];
+	if ( isset( $raw['nativePagesHiddenColumns'] ) && is_array( $raw['nativePagesHiddenColumns'] ) ) {
+		$native_pages_hidden_columns = array();
+		foreach ( $raw['nativePagesHiddenColumns'] as $col ) {
+			if ( ! is_string( $col ) || '' === $col ) {
+				continue;
+			}
+			$slug = sanitize_key( $col );
+			if ( '' === $slug ) {
+				continue;
+			}
+			$native_pages_hidden_columns[] = $slug;
+		}
+		// Cap to a sane upper bound — far more than any plausible
+		// column count, but blocks a malicious payload from bloating
+		// user meta indefinitely.
+		$native_pages_hidden_columns = array_slice( array_values( array_unique( $native_pages_hidden_columns ) ), 0, 32 );
+	}
+
 	$native_pages_enabled = isset( $raw['nativePagesEnabled'] )
 		? (bool) $raw['nativePagesEnabled']
 		: $defaults['nativePagesEnabled'];
@@ -1001,6 +1025,7 @@ function openstation_sanitize_os_settings( $raw ) {
 		'nativePostsEnabled'          => $native_posts_enabled,
 		'nativePostsHiddenColumns'    => $native_posts_hidden_columns,
 		'nativePagesEnabled'          => $native_pages_enabled,
+		'nativePagesHiddenColumns'    => $native_pages_hidden_columns,
 		'nativeUsersEnabled'          => $native_users_enabled,
 		'nativePluginsEnabled'        => $native_plugins_enabled,
 		'nativeCommentsEnabled'       => $native_comments_enabled,
