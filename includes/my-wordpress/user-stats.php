@@ -22,10 +22,13 @@
  * the counts that reach beyond the subject's own posts and pages
  * (`cpt`, `commentsReceived`, `commentsLeft`): a type with no readable
  * front end holds `publish` rows a visitor could never open, so those
- * counts ask `is_post_type_viewable()` as well, and the comment counts
- * also skip password-protected and deleted parents. For every viewer,
- * `cpt` leaves out the post types Core registers (`_builtin`). The
- * payload is viewer-dependent: never cache it under a subject-only key.
+ * counts ask `is_post_type_viewable()` as well. The comment counts also
+ * skip password-protected and deleted parents, and ask the comment
+ * dossier's gate of every parent they count, so a plugin that filters
+ * `read_post` for a single published post takes its comments out of
+ * them. For every viewer, `cpt` leaves out the post types Core
+ * registers (`_builtin`). The payload is viewer-dependent: never cache
+ * it under a subject-only key.
  *
  * @package OpenStation
  */
@@ -59,6 +62,49 @@ function openstation_my_wordpress_register_user_stats_route() {
 	);
 }
 add_action( 'rest_api_init', 'openstation_my_wordpress_register_user_stats_route' );
+
+/**
+ * Sum per-parent comment counts over the parents the viewer may read.
+ *
+ * The query behind the rows has already kept only published, unsealed
+ * parents of a viewable type. That settles the parent's status, type
+ * and password, but not the post itself: `read_post` is filterable per
+ * post, and the comment dossier asks it of a published parent too, so a
+ * plugin can withhold one post and `/comment-stats` then refuses its
+ * comments. Every parent goes through that same gate,
+ * openstation_my_wordpress_can_read_comment_post(), so a count never
+ * reports comments the dossier withholds. The parents are loaded in one
+ * query, and each is decided once per request.
+ *
+ * @param array[]|null $rows     Rows carrying the parent's `post_id` and its comment count `n`.
+ * @param bool[]       $verdicts Gate answers already reached in this request, keyed by post id.
+ * @return int
+ */
+function openstation_my_wordpress_user_stats_readable_comment_count( $rows, array &$verdicts ) {
+	$rows   = (array) $rows;
+	$unseen = array();
+	foreach ( $rows as $row ) {
+		$id = (int) $row['post_id'];
+		if ( $id > 0 && ! isset( $verdicts[ $id ] ) ) {
+			$unseen[ $id ] = $id;
+		}
+	}
+	if ( $unseen ) {
+		_prime_post_caches( array_values( $unseen ), false, false );
+	}
+
+	$total = 0;
+	foreach ( $rows as $row ) {
+		$id = (int) $row['post_id'];
+		if ( ! isset( $verdicts[ $id ] ) ) {
+			$verdicts[ $id ] = openstation_my_wordpress_can_read_comment_post( $id > 0 ? get_post( $id ) : null );
+		}
+		if ( $verdicts[ $id ] ) {
+			$total += (int) $row['n'];
+		}
+	}
+	return $total;
+}
 
 /**
  * Aggregator callback. Returns the dossier shape (see file
@@ -190,9 +236,17 @@ function openstation_my_wordpress_user_stats_callback( $request ) {
 	// the question the comment tools and the term-stats endpoint settled
 	// on. A comment count also skips a password-protected parent, whose
 	// comments are sealed along with it, and a parent that no longer
-	// exists. Privileged viewers keep every count whole.
+	// exists. Those three settle the parent's status, type and password,
+	// but not the post itself: `read_post` is filterable per post, so each
+	// comment count also asks the comment dossier's gate of every parent
+	// it counts, through
+	// openstation_my_wordpress_user_stats_readable_comment_count().
+	// Privileged viewers keep every count whole.
 	$viewable_types = array_values( array_filter( get_post_types(), 'is_post_type_viewable' ) );
 	$viewable_list  = implode( ', ', array_fill( 0, count( $viewable_types ), '%s' ) );
+
+	// Gate answers per parent post, shared by both comment counts.
+	$comment_verdicts = array();
 
 	// Comments received on posts authored by this user, approved only.
 	if ( $can_see_private ) {
@@ -208,19 +262,22 @@ function openstation_my_wordpress_user_stats_callback( $request ) {
 			)
 		);
 	} elseif ( $viewable_types ) {
-		$comments_received = (int) $wpdb->get_var(
+		$received_rows     = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT COUNT(c.comment_ID)
+				"SELECT p.ID AS post_id, COUNT(c.comment_ID) AS n
 				FROM {$wpdb->comments} c
 				INNER JOIN {$wpdb->posts} p ON c.comment_post_ID = p.ID
 				WHERE p.post_author = %d
 					AND c.comment_approved = '1'
 					AND p.post_status = 'publish'
 					AND p.post_password = ''
-					AND p.post_type IN ( {$viewable_list} )",
+					AND p.post_type IN ( {$viewable_list} )
+				GROUP BY p.ID",
 				array_merge( array( $user_id ), $viewable_types )
-			)
+			),
+			ARRAY_A
 		);
+		$comments_received = openstation_my_wordpress_user_stats_readable_comment_count( $received_rows, $comment_verdicts );
 	} else {
 		$comments_received = 0;
 	}
@@ -237,19 +294,22 @@ function openstation_my_wordpress_user_stats_callback( $request ) {
 			)
 		);
 	} elseif ( $viewable_types ) {
-		$comments_left = (int) $wpdb->get_var(
+		$left_rows     = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT COUNT(c.comment_ID)
+				"SELECT p.ID AS post_id, COUNT(c.comment_ID) AS n
 				FROM {$wpdb->comments} c
 				INNER JOIN {$wpdb->posts} p ON c.comment_post_ID = p.ID
 				WHERE c.user_id = %d
 					AND c.comment_approved = '1'
 					AND p.post_status = 'publish'
 					AND p.post_password = ''
-					AND p.post_type IN ( {$viewable_list} )",
+					AND p.post_type IN ( {$viewable_list} )
+				GROUP BY p.ID",
 				array_merge( array( $user_id ), $viewable_types )
-			)
+			),
+			ARRAY_A
 		);
+		$comments_left = openstation_my_wordpress_user_stats_readable_comment_count( $left_rows, $comment_verdicts );
 	} else {
 		$comments_left = 0;
 	}

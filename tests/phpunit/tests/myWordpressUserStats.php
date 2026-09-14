@@ -5,13 +5,13 @@
  *
  * The route wears the My WordPress module's gate (`edit_posts` by
  * default). Past it, viewers without `list_users` (and who aren't the
- * subject user)
- * must only ever see published content: the recent-posts list, the
- * post/page counts, the CPT count, and both comment counts must not
- * leak draft / pending / private / future material, nor rows of a
- * post type with no readable front end.
- * Privileged viewers (`list_users`, or the subject themselves) get
- * the full dossier.
+ * subject user) must only ever see published content: the recent-posts
+ * list, the post/page counts, the CPT count, and both comment counts
+ * must not leak draft / pending / private / future material, nor rows
+ * of a post type with no readable front end. The comment counts also
+ * ask the comment dossier's parent gate of each post they count.
+ * Privileged viewers (`list_users`, or the subject themselves) get the
+ * full dossier.
  *
  * @package WordPress
  * @subpackage UnitTests
@@ -305,6 +305,73 @@ class Tests_OpenStation_MyWordpressUserStats extends WP_UnitTestCase {
 		$this->assertSame( 5, $counts['commentsLeft'] );
 		// Both fixture comments, plus the four above on the subject's posts.
 		$this->assertSame( 6, $counts['commentsReceived'] );
+	}
+
+	/**
+	 * `read_post` is filterable per post, and the comment dossier asks it
+	 * of a comment's parent even when that parent is published. A plugin
+	 * that withholds one published post from a viewer takes that post's
+	 * comments out of both counts, the ones the subject received and the
+	 * ones they left, while comments on posts the viewer can still read
+	 * keep counting.
+	 *
+	 * @covers ::openstation_my_wordpress_user_stats_callback
+	 * @covers ::openstation_my_wordpress_user_stats_readable_comment_count
+	 */
+	public function test_comment_counts_follow_a_per_post_read_filter() {
+		$members_only = self::factory()->post->create(
+			array(
+				'post_author' => self::$author_id,
+				'post_status' => 'publish',
+				'post_title'  => 'Members only',
+			)
+		);
+		// The subject comments on both published posts, and someone else
+		// comments on the members-only one.
+		foreach ( array( $this->published_post_id, $members_only ) as $parent ) {
+			self::factory()->comment->create(
+				array(
+					'comment_post_ID'  => $parent,
+					'user_id'          => self::$author_id,
+					'comment_approved' => '1',
+				)
+			);
+		}
+		self::factory()->comment->create(
+			array(
+				'comment_post_ID'  => $members_only,
+				'comment_approved' => '1',
+			)
+		);
+
+		wp_set_current_user( self::$contributor_id );
+		$counts = $this->dispatch( self::$author_id )->get_data()['counts'];
+		// The fixture's comment and the subject's on the fixture post, plus
+		// both comments on the members-only post.
+		$this->assertSame( 4, $counts['commentsReceived'] );
+		$this->assertSame( 2, $counts['commentsLeft'] );
+
+		$contributor = self::$contributor_id;
+		add_filter(
+			'map_meta_cap',
+			static function ( $caps, $cap, $user_id, $args ) use ( $members_only, $contributor ) {
+				if ( 'read_post' === $cap && isset( $args[0] ) && (int) $args[0] === $members_only && (int) $user_id === $contributor ) {
+					return array( 'do_not_allow' );
+				}
+				return $caps;
+			},
+			10,
+			4
+		);
+		$this->assertFalse(
+			openstation_my_wordpress_can_read_comment_post( get_post( $members_only ) ),
+			'The comment dossier refuses the members-only post.'
+		);
+
+		$counts = $this->dispatch( self::$author_id )->get_data()['counts'];
+		// Only the comments on the fixture post are left.
+		$this->assertSame( 2, $counts['commentsReceived'] );
+		$this->assertSame( 1, $counts['commentsLeft'] );
 	}
 
 	/**
