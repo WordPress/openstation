@@ -34,6 +34,15 @@ class Tests_OpenStation_MyWordpressUserFootprint extends WP_UnitTestCase {
 	private $draft_id;
 	private $private_id;
 
+	/**
+	 * A GMT datetime one day before the test run. A parent dated here
+	 * predates any revision the test saves, so that revision counts as an
+	 * update, without tying the fixture to a calendar date.
+	 *
+	 * @var string
+	 */
+	private $a_day_ago;
+
 	public static function wpSetUpBeforeClass( WP_UnitTest_Factory $factory ) {
 		self::$admin_id       = $factory->user->create( array( 'role' => 'administrator' ) );
 		self::$editor_id      = $factory->user->create( array( 'role' => 'editor' ) );
@@ -44,6 +53,8 @@ class Tests_OpenStation_MyWordpressUserFootprint extends WP_UnitTestCase {
 
 	public function set_up() {
 		parent::set_up();
+
+		$this->a_day_ago = gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS );
 
 		wp_set_current_user( self::$admin_id );
 		do_action( 'rest_api_init' );
@@ -169,8 +180,8 @@ class Tests_OpenStation_MyWordpressUserFootprint extends WP_UnitTestCase {
 				'post_author'   => self::$author_id,
 				'post_status'   => 'draft',
 				'post_title'    => 'Draft in progress',
-				'post_date'     => '2026-01-01 00:00:00',
-				'post_date_gmt' => '2026-01-01 00:00:00',
+				'post_date'     => $this->a_day_ago,
+				'post_date_gmt' => $this->a_day_ago,
 			)
 		);
 		wp_set_current_user( self::$author_id );
@@ -276,8 +287,8 @@ class Tests_OpenStation_MyWordpressUserFootprint extends WP_UnitTestCase {
 				'post_author'   => self::$author_id,
 				'post_status'   => 'draft',
 				'post_title'    => 'Draft in progress',
-				'post_date'     => '2026-01-01 00:00:00',
-				'post_date_gmt' => '2026-01-01 00:00:00',
+				'post_date'     => $this->a_day_ago,
+				'post_date_gmt' => $this->a_day_ago,
 			)
 		);
 		wp_set_current_user( self::$author_id );
@@ -333,8 +344,8 @@ class Tests_OpenStation_MyWordpressUserFootprint extends WP_UnitTestCase {
 				'post_author'   => self::$author_id,
 				'post_status'   => 'draft',
 				'post_title'    => 'Draft being edited',
-				'post_date'     => '2026-01-01 00:00:00',
-				'post_date_gmt' => '2026-01-01 00:00:00',
+				'post_date'     => $this->a_day_ago,
+				'post_date_gmt' => $this->a_day_ago,
 			)
 		);
 		wp_set_current_user( self::$author_id );
@@ -389,8 +400,8 @@ class Tests_OpenStation_MyWordpressUserFootprint extends WP_UnitTestCase {
 				'post_type'     => 'dm_fp_internal',
 				'post_status'   => 'publish',
 				'post_title'    => 'Internal record',
-				'post_date'     => '2026-01-01 00:00:00',
-				'post_date_gmt' => '2026-01-01 00:00:00',
+				'post_date'     => $this->a_day_ago,
+				'post_date_gmt' => $this->a_day_ago,
 			)
 		);
 		wp_set_current_user( self::$author_id );
