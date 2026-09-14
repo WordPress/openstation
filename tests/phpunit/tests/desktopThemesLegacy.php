@@ -213,6 +213,61 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Literal defaults inherited from the shell palette, excluding local overrides.
+	 *
+	 * A descendant's component alias is not a body default. Adding it to Legacy
+	 * would affect unrelated controls without overriding that local declaration.
+	 * This stylesheet uses flat declaration blocks; inspect exact selector-list
+	 * members so descendants and similarly named classes cannot enter the palette.
+	 *
+	 * @param string $css Palette stylesheet.
+	 * @return array<string, bool> Literal token names.
+	 */
+	private function palette_literals( $css ) {
+		$css = preg_replace( '~/\*.*?\*/~s', '', $css );
+		preg_match_all( '/([^{}]+)\{([^{}]*)\}/', $css, $rules, PREG_SET_ORDER );
+		$literals = array();
+		foreach ( $rules as $rule ) {
+			$selectors = array_map( 'trim', explode( ',', $rule[1] ) );
+			if ( ! in_array( 'body.os-active', $selectors, true ) ) {
+				continue;
+			}
+			preg_match_all( '/(--os-[a-z0-9-]+)\s*:\s*([^;]+);/', $rule[2], $declarations, PREG_SET_ORDER );
+			foreach ( $declarations as $declaration ) {
+				// Derived values follow the upstream theme token or accent picker.
+				if ( false !== strpos( $declaration[2], 'var(' ) || false !== strpos( $declaration[2], 'var (' ) ) {
+					continue;
+				}
+				$literals[ $declaration[1] ] = true;
+			}
+		}
+		return $literals;
+	}
+
+	/** Global literals stay covered even when a descendant derives the same token. */
+	public function test_palette_literal_scope_excludes_component_overrides() {
+		$css = '
+			/* body.os-active { --os-comment: red; } */
+			body.os-active {
+				--os-global: #123456;
+				--os-derived: var(--os-global);
+			}
+			body.os-active .os-mio-callout {
+				--os-ui-button-border: 0;
+				--os-ui-button-bg: transparent;
+				--os-global: var(--os-local);
+			}
+			body.os-active-other { --os-unrelated: red; }
+			body.os-active .first, body.os-active .second { --os-local: red; }
+			body.os-active, .another-root { --os-grouped: blue; }
+		';
+		$this->assertSame(
+			array( '--os-global' => true, '--os-grouped' => true ),
+			$this->palette_literals( $css )
+		);
+	}
+
+	/**
 	 * Every token the palette declares, Legacy answers.
 	 *
 	 * This is the guard for the whole class of bug, and it is worth
@@ -263,21 +318,7 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 		$css = file_get_contents( OPENSTATION_DIR . 'assets/css/variables.css' );
 		$this->assertIsString( $css, 'The palette stylesheet ships with the plugin.' );
 
-		// Comments carry token names in prose; strip before matching.
-		$css = preg_replace( '~/\*.*?\*/~s', '', $css );
-
-		preg_match_all( '/(--os-[a-z0-9-]+)\s*:\s*([^;]+);/', $css, $m, PREG_SET_ORDER );
-
-		$literals = array();
-		foreach ( $m as $decl ) {
-			// A value naming another custom property is a derivation —
-			// it follows whatever Legacy (or the picker) sets upstream,
-			// and pinning it would freeze that.
-			if ( false !== strpos( $decl[2], 'var(' ) || false !== strpos( $decl[2], 'var (' ) ) {
-				continue;
-			}
-			$literals[ $decl[1] ] = true;
-		}
+		$literals = $this->palette_literals( $css );
 
 		/*
 		 * `--os-ui-accent-dim` is a literal in the palette and still

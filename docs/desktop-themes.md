@@ -187,8 +187,9 @@ how the palette declares a token before answering it:
 
 One accent to declare, and everything the palette computes from it
 follows. `Tests_OpenStation_DesktopThemesLegacy` asserts both halves —
-that Legacy answers every palette literal, and that it answers none of
-the accent-driven derivations.
+that Legacy answers every literal in the shared `body.os-active` palette,
+and that it answers none of the accent-driven derivations. Component-scoped
+overrides are not global palette defaults and do not need snapshot entries.
 
 *Context-dependent tokens* — `--os-fg`, `--os-tooltip-bg` / `-fg` —
 **used to be on that list and are not any more.** The
