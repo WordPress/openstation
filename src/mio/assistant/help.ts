@@ -56,7 +56,12 @@ export function searchMioHelp( documents: readonly MioDocument[], query: string 
 			return { section, score: identity + terms.reduce( ( score, term ) => score + ( body.has( term ) ? 1 : 0 ) + ( heading.has( term ) ? 10 : 0 ), 0 ) };
 		} ).sort( ( a, b ) => b.score - a.score );
 		const best = scored[ 0 ];
-		const excerpt = best?.section.markdown.slice( 0, 3200 ) ?? '';
+		const source = best?.section.markdown ?? '';
+		let end = Math.min( source.length, 3200 );
+		if ( end < source.length && /[\uD800-\uDBFF]/.test( source[ end - 1 ] ) ) {
+			end--;
+		}
+		const excerpt = source.slice( 0, end );
 		return { ...metadata( doc ), score: best?.score ?? 0, section: best?.section.id, excerpt, truncated: ( best?.section.markdown.length ?? 0 ) > excerpt.length,
 			sections: scored.slice( 0, 2 ).map( ( item ) => ( { id: item.section.id, title: item.section.title } ) ) };
 	} ).filter( ( doc ) => doc.score > 0 ).sort( ( a, b ) => b.score - a.score ).slice( 0, 4 );

@@ -70,7 +70,7 @@ export class OsTextarea extends Component {
 			{ name: 'maxlength', type: 'integer (string)' },
 			{ name: 'minlength', type: 'integer (string)' },
 			{ name: 'invalid', type: 'boolean attribute', description: 'Sets aria-invalid + error styling.' },
-			{ name: 'auto-grow', type: 'boolean attribute', description: 'Grows up to max-rows as the user types.' },
+			{ name: 'auto-grow', type: 'boolean attribute', description: 'Grows up to max-rows as the user types, then scrolls vertically.' },
 			{ name: 'max-rows', type: 'integer (string)', default: '8' },
 			{
 				name: 'submit-on-enter',
@@ -163,7 +163,7 @@ export class OsTextarea extends Component {
 	}
 
 	private _onKeyDown( e: KeyboardEvent ): void {
-		if ( ! this._boolAttr( 'submit-on-enter' ) ) {
+		if ( ! this._boolAttr( 'submit-on-enter' ) || e.isComposing || e.keyCode === 229 ) {
 			return;
 		}
 		if ( e.key === 'Enter' && ! e.shiftKey && ! e.altKey && ! e.metaKey && ! e.ctrlKey ) {
@@ -192,11 +192,17 @@ export class OsTextarea extends Component {
 				: parseFloat( lineHeightRaw ) || fontSize * 1.45;
 		const paddingTop = parseFloat( cs.paddingTop ) || 0;
 		const paddingBottom = parseFloat( cs.paddingBottom ) || 0;
-		const max = lineHeight * maxRows + paddingTop + paddingBottom;
+		const border = ( parseFloat( cs.borderTopWidth ) || 0 ) + ( parseFloat( cs.borderBottomWidth ) || 0 );
+		const max = lineHeight * maxRows + paddingTop + paddingBottom + border;
 
 		ta.style.height = 'auto';
-		const next = Math.min( ta.scrollHeight, max );
-		ta.style.height = `${ next }px`;
+		ta.style.overflowY = 'hidden';
+		// A wrapping placeholder must not keep an empty composer expanded.
+		const contentHeight = ta.value ? ta.scrollHeight + border
+			: lineHeight * ( Number( this._attr( 'rows' ) ) || 3 ) + paddingTop + paddingBottom + border;
+		const next = Math.min( contentHeight, max );
+		ta.style.height = `${ Math.ceil( next ) }px`;
+		ta.style.overflowY = contentHeight > Math.ceil( max ) ? 'auto' : 'hidden';
 	}
 
 	/** Public helper for callers that programmatically set `.value` and want autosize to re-run. */

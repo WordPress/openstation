@@ -217,8 +217,8 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 	 *
 	 * A descendant's component alias is not a body default. Adding it to Legacy
 	 * would affect unrelated controls without overriding that local declaration.
-	 * This stylesheet uses flat declaration blocks; inspect exact selector-list
-	 * members so descendants and similarly named classes cannot enter the palette.
+	 * This stylesheet uses flat declaration blocks. Cover compound selectors
+	 * (including window-wide defaults), but exclude descendant/component aliases.
 	 *
 	 * @param string $css Palette stylesheet.
 	 * @return array<string, bool> Literal token names.
@@ -228,8 +228,7 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 		preg_match_all( '/([^{}]+)\{([^{}]*)\}/', $css, $rules, PREG_SET_ORDER );
 		$literals = array();
 		foreach ( $rules as $rule ) {
-			$selectors = array_map( 'trim', explode( ',', $rule[1] ) );
-			if ( ! in_array( 'body.os-active', $selectors, true ) ) {
+			if ( ! $this->has_palette_selector( $rule[1] ) ) {
 				continue;
 			}
 			preg_match_all( '/(--os-[a-z0-9-]+)\s*:\s*([^;]+);/', $rule[2], $declarations, PREG_SET_ORDER );
@@ -242,6 +241,53 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 			}
 		}
 		return $literals;
+	}
+
+	/**
+	 * Whether a selector list includes a compound selector, not a descendant.
+	 *
+	 * Spaces and commas inside :not(), :is() or attribute strings are not
+	 * combinators. Strip those interiors before inspecting each list member.
+	 *
+	 * @param string $selectors CSS selector list.
+	 * @return bool Whether the rule carries a palette default.
+	 */
+	private function has_palette_selector( $selectors ) {
+		$outer = '';
+		$depth = 0;
+		$quote = '';
+		for ( $index = 0, $length = strlen( $selectors ); $index < $length; $index++ ) {
+			$char = $selectors[ $index ];
+			if ( '\\' === $char ) {
+				$index++;
+				if ( 0 === $depth && '' === $quote ) {
+					$outer .= '_';
+				}
+				continue;
+			}
+			if ( '' !== $quote ) {
+				if ( $quote === $char ) {
+					$quote = '';
+				}
+				continue;
+			}
+			if ( '"' === $char || "'" === $char ) {
+				$quote = $char;
+			} elseif ( '(' === $char || '[' === $char ) {
+				$depth++;
+			} elseif ( ')' === $char || ']' === $char ) {
+				$depth--;
+			} elseif ( 0 === $depth ) {
+				$outer .= $char;
+			}
+		}
+		foreach ( explode( ',', $outer ) as $selector ) {
+			$selector = trim( $selector );
+			if ( '' !== $selector && ! preg_match( '/[\s>+~|]/', $selector ) ) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/** Global literals stay covered even when a descendant derives the same token. */
@@ -262,9 +308,29 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 			body.os-active, .another-root { --os-grouped: blue; }
 		';
 		$this->assertSame(
-			array( '--os-global' => true, '--os-grouped' => true ),
+			array( '--os-global' => true, '--os-unrelated' => true, '--os-grouped' => true ),
 			$this->palette_literals( $css )
 		);
+	}
+
+	/** Window-wide defaults must remain covered independently of body defaults. */
+	public function test_palette_literals_include_compound_window_rules() {
+		$css = '
+			.os-window:not( .os-window--native ) { --os-window-reveal-surface: #fff; }
+			.os-window:is( .a, :not( .b ) ) { --os-nested: red; }
+			.os-window[data-label="one, two > three"] { --os-attribute: blue; }
+			body.os-active > .os-mio-callout { --os-child: red; }
+			.os-window + .os-mio-callout { --os-adjacent: red; }
+			.os-window ~ .os-mio-callout { --os-sibling: red; }
+			body.os-active .os-window:not( .native, .other ) { --os-descendant: red; }
+			body.os-active .local, .os-window:not( .native ) { --os-mixed-list: blue; }
+		';
+		$this->assertSame(
+			array( '--os-window-reveal-surface' => true, '--os-nested' => true, '--os-attribute' => true, '--os-mixed-list' => true ),
+			$this->palette_literals( $css )
+		);
+		$palette = file_get_contents( OPENSTATION_DIR . 'assets/css/variables.css' );
+		$this->assertArrayHasKey( '--os-window-reveal-surface', $this->palette_literals( $palette ) );
 	}
 
 	/**

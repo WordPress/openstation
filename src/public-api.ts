@@ -346,4 +346,4 @@ export type { OsAvatarPresence, OsBadgeTone, OsLogRowRenderer } from './ui/compo
 // against the recognised set rather than hard-coding strings.
 export type { OsButtonVariant } from './ui/components/os-button/os-button';
 
-export type { MioArgumentError, MioValidationResult, MioOperationOutcome, MioOperation, MioCallContext, MioTurnContext, MioTurnSummary, MioHistoryEntry, MioHistory, MioCallout, MioWindowContext, MioWindowLease, MioAbility, MioDocument, MioConversationStore, MioChatMessage } from './mio/assistant/types';
+export type { MioResponseAction, MioResponseActionContext, MioResponseContext, MioArgumentError, MioValidationResult, MioOperationOutcome, MioOperation, MioCallContext, MioTurnContext, MioTurnSummary, MioHistoryEntry, MioHistory, MioCallout, MioWindowContext, MioWindowLease, MioAbility, MioDocument, MioConversationStore, MioChatMessage } from './mio/assistant/types';

@@ -68,4 +68,4 @@ If a documented hook behaves differently than what's written here, that is a bug
 
 - **[Window-scoped MIO](./mio-window-assistant.md)** — Experimental. Opt-in residency, linked Markdown help, private chainable actions and memory-only themed chat. [Preferences help example](../apps/os-settings/help/index.md).
 
-- [Repairable form edits with MIO](examples/mio-form-editing.md) — Experimental: structured validation, revisioned operations, status reconciliation and large-document history.
+- [Repairable form edits with MIO](examples/mio-form-editing.md) — Experimental: structured validation, revisioned operations, status reconciliation, large-document history and receipt-bound Preview buttons.

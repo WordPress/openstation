@@ -4921,6 +4921,8 @@ if ( wp.os.isReady() ) {
 
 The desk companion. Full documentation in [mio.md](./mio.md).
 
+Window contexts can supply `responseActions({messageId, summary, operations})` for up to three app-owned read/navigation buttons on a settled reply. `MioResponseAction`, `MioResponseActionContext` and `MioResponseContext` are exported types. `MioChatMessage.id` and `actionIds` are optional opaque references; executable callbacks stay lease-local and are never sent to the provider or revived from storage. See [response buttons](mio-window-assistant.md#assistant-response-buttons) for validation, cancellation and ownership contracts.
+
 | Hook | Kind | Status | Payload |
 |---|---|---|---|
 | `os.mio.config` | filter | Experimental | `MioConfig → MioConfig` — last word on appearance + physics before mount, on top of the `openstation_mio_config` PHP filter. Re-sanitized after your filter runs, so out-of-range values are clamped rather than rejected |

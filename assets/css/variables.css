@@ -1836,6 +1836,7 @@ body.os-active .os-mio-chat-launcher {
 	--os-ui-button-bg-hover: var(--os-mio-chat-hover-bg, #f0f0f1);
 }
 
+body.os-active .os-mio-chat os-button[variant="primary"],
 body.os-active .os-mio-chat os-button[variant="holo"] {
 	--os-ui-button-fg: var(--os-ui-holo-ink, #1d2327);
 }

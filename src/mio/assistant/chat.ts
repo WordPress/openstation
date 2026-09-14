@@ -1,5 +1,8 @@
 /** MIO's floating conversation. The shared escaped Markdown renderer keeps model markup inert. */
+import '../../ui/components/os-textarea/os-textarea';
+import type { OsTextarea } from '../../ui/components/os-textarea/os-textarea';
 import { __ } from '../../i18n';
+import { mioResponseActionRow } from './response-action-row';
 import { renderMarkdown } from '../../markdown';
 import type { MioSession } from './session';
 
@@ -54,12 +57,14 @@ export function mountMioChat(
 		panel.dataset.thinking = String( thinking );
 		log.setAttribute( 'aria-busy', String( thinking ) );
 	} );
-	const input = document.createElement( 'os-text-field' );
-	input.setAttribute( 'label', __( 'Message MIO' ) );
-	input.setAttribute( 'hide-label', '' );
+	const input = document.createElement( 'os-textarea' ) as OsTextarea;
+	input.setAttribute( 'aria-label', __( 'Message MIO' ) );
+	input.setAttribute( 'rows', '1' );
+	input.setAttribute( 'auto-grow', '' );
+	input.setAttribute( 'max-rows', '2' );
+	input.setAttribute( 'submit-on-enter', '' );
 	input.setAttribute( 'placeholder', __( 'Make this space yours…' ) );
 	input.setAttribute( 'maxlength', '4000' );
-	input.setAttribute( 'autocomplete', 'off' );
 	const send = document.createElement( 'os-button' );
 	send.setAttribute( 'variant', 'holo' );
 	send.textContent = __( 'Send' );
@@ -76,16 +81,31 @@ export function mountMioChat(
 	);
 	panel.append( header, log, activity, form, privacy );
 	host.appendChild( panel );
+	let inputWidth = -1;
+	const inputResize = new ResizeObserver( ( entries ) => {
+		const width = entries[ 0 ]?.contentRect.width;
+		if ( width !== undefined && width !== inputWidth ) {
+			inputWidth = width; input.refreshAutosize();
+		}
+	} );
+	inputResize.observe( input );
 	let draft = '';
 	let busy = false;
 	let destroyed = false;
 	let renderedLast = '';
+	const bubbles = new Map<string, { bubble: HTMLElement; update:() => void; destroy: () => void }>();
 	const paint = (): void => {
 		const scroll = log.scrollTop;
 		const messages = session.conversation.read();
 		const last = JSON.stringify( messages[ messages.length - 1 ] ?? null );
-		log.replaceChildren();
-		for ( const message of messages ) {
+		const live = new Set<string>();
+		for ( const [ index, message ] of messages.entries() ) {
+			const key = `${ message.id ?? index }:${ message.role }:${ message.text }`;
+			live.add( key );
+			const existing = bubbles.get( key );
+			if ( existing ) {
+				existing.update(); continue;
+			}
 			const bubble = document.createElement( 'div' );
 			bubble.className = `os-mio-chat__message os-mio-chat__message--${ message.role }`;
 			if ( message.role === 'assistant' ) {
@@ -93,7 +113,18 @@ export function mountMioChat(
 			} else {
 				bubble.textContent = message.text;
 			}
+			const row = mioResponseActionRow( message, session.responseActions );
+			if ( message.role === 'assistant' ) {
+				bubble.appendChild( row.element );
+			}
+			row.update();
+			bubbles.set( key, { bubble, update: row.update, destroy: row.destroy } );
 			log.appendChild( bubble );
+		}
+		for ( const [ key, entry ] of bubbles ) {
+			if ( ! live.has( key ) ) {
+				entry.destroy(); entry.bubble.remove(); bubbles.delete( key );
+			}
 		}
 		const newest = log.lastElementChild as HTMLElement | null;
 		// Start a new message at its beginning, including replies taller than
@@ -101,6 +132,13 @@ export function mountMioChat(
 		log.scrollTop = last !== renderedLast && newest ? newest.offsetTop : scroll;
 		renderedLast = last;
 	};
+	const unsubscribeActions = session.responseActions.subscribe( () => {
+		const scroll = log.scrollTop;
+		for ( const entry of bubbles.values() ) {
+			entry.update();
+		}
+		log.scrollTop = scroll;
+	} );
 	const submit = async (): Promise<void> => {
 		if ( busy || ! draft.trim() ) {
 			return;
@@ -111,7 +149,7 @@ export function mountMioChat(
 		status.textContent = __( 'MIO is thinking…' );
 		const query = draft;
 		draft = '';
-		input.setAttribute( 'value', '' );
+		input.clear();
 		try {
 			const answer = session.ask( query );
 			paint();
@@ -153,15 +191,21 @@ export function mountMioChat(
 		}
 	} );
 	paint();
-	void customElements.whenDefined( 'os-text-field' ).then( () => {
+	void customElements.whenDefined( 'os-textarea' ).then( () => {
 		if ( ! destroyed ) {
-			input.shadowRoot?.querySelector( 'input' )?.focus();
+			input.focusInput();
 		}
 	} );
 	return {
 		destroy: () => {
 			destroyed = true;
+			inputResize.disconnect();
 			unsubscribeThinking();
+			unsubscribeActions();
+			for ( const entry of bubbles.values() ) {
+				entry.destroy();
+			}
+			bubbles.clear();
 			session.cancel();
 			panel.remove();
 		},

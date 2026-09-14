@@ -41,3 +41,25 @@ Provider responses are intentionally not snapshot-tested. Judge factual groundin
 - With a caller-owned large draft, verify full reads preserve all fields, only superseded reads are compacted, and a request exceeding the UTF-8 byte budget is stopped before HTTP.
 - Cancel a pending save, inspect its operation using the application's read-only status resolver, and confirm that reconciliation never calls the write action again. Permission loss must remain terminal.
 - Read a help file past 12,000 characters using its continuation cursor, then use a section ID to fetch a late rule directly. Exact component IDs should rank ahead of common words.
+
+
+## Response action fixture
+
+Run `npx vite --host 127.0.0.1 --port 8897` from the plugin root and open
+`http://127.0.0.1:8897/tests/e2e/mio/response-actions.html`. This isolated fixture
+simulates one form save and provider loop. It never contacts WordPress or an AI
+provider. Send any message to create the saved reply.
+
+- Preview opens/focuses the bound form 42 region. Provider/save counters stay fixed;
+  a double click while pending produces one preview. Click again after completion.
+- Read saved form details produces a local error; the saved reply stays intact.
+- Tab to buttons, activate with Enter/Space, and check polite pending/error output.
+  Focus must remain on the same button after an error; navigating may focus preview.
+- Close during the pending read, reopen, then retry. No preview opens from canceled work.
+- Revoke access after rendering and click Preview: no navigation and a local availability error.
+- Toggle narrow layout and RTL; controls wrap without clipping. Check default tokens,
+  light and dark chat token overrides, and reduced-motion settings.
+
+Vitest additionally covers confirmed receipt binding after switching forms, failed
+validation/unknown outcomes, immutable snapshots, descriptor validation, disposal,
+conversation eviction, restored custom stores and provider-history exclusion.

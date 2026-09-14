@@ -1,4 +1,5 @@
 /** A bounded, cancellable tool loop. Only this window's live allowlist can run. */
+import { MioResponseActions } from './response-actions';
 import { mioHelpAbilities, searchMioHelp } from './help';
 import { assertMioRequestBudget } from './budget';
 import { MIO_LIMITS, MioOperations, MioValidationError, observe, outcomeOf, failureSummary } from './operations';
@@ -8,9 +9,9 @@ import type { MioCallContext, MioChatMessage, MioConversationStore, MioTransport
 export function memoryMioConversation(): MioConversationStore {
 	let messages: MioChatMessage[] = [];
 	return {
-		read: () => messages.map( ( message ) => ( { ...message } ) ),
+		read: () => messages.map( ( message ) => ( { ...message, ...( message.actionIds ? { actionIds: [ ...message.actionIds ] } : {} ) } ) ),
 		write: ( next ) => {
-			messages = next.slice( -40 ).map( ( message ) => ( { ...message } ) );
+			messages = next.slice( -40 ).map( ( message ) => ( { ...message, ...( message.actionIds ? { actionIds: [ ...message.actionIds ] } : {} ) } ) );
 		},
 		clear: () => {
 			messages = [];
@@ -24,6 +25,7 @@ export class MioSession {
 	private abortTurn: ( () => void ) | null = null;
 	private thinkingListeners = new Set<( thinking: boolean ) => void>();
 	public readonly operations: MioOperations;
+	public readonly responseActions: MioResponseActions;
 
 	public constructor(
 		private context: MioWindowContext,
@@ -32,6 +34,7 @@ export class MioSession {
 		public readonly conversation = memoryMioConversation(),
 	) {
 		this.operations = new MioOperations( context );
+		this.responseActions = new MioResponseActions( context, () => ! this.disposed && active(), () => conversation.read() );
 	}
 
 	public subscribeThinking( listener: ( thinking: boolean ) => void ): () => void {
@@ -46,11 +49,12 @@ export class MioSession {
 		}
 	}
 	public cancel(): void {
+		this.responseActions.cancel();
 		this.pending?.abort(); this.abortTurn?.(); this.abortTurn = null;
 		this.pending = null; this.notifyThinking();
 	}
 	public dispose(): void {
-		this.disposed = true; this.cancel(); this.conversation.clear(); this.thinkingListeners.clear();
+		this.disposed = true; this.responseActions.dispose(); this.cancel(); this.conversation.clear(); this.thinkingListeners.clear();
 	}
 
 	public async ask( query: string ): Promise<string> {
@@ -95,8 +99,24 @@ export class MioSession {
 			}
 		};
 		this.pending = controller; this.abortTurn = abort; this.notifyThinking();
-		const messages = [ ...this.conversation.read(), { role: 'user' as const, text: query } ];
-		this.conversation.write( messages );
+		const messages = [ ...this.conversation.read().slice( -39 ), { role: 'user' as const, text: query, id: crypto.randomUUID() } ];
+		this.conversation.write( messages ); this.responseActions.prune();
+		const finish = ( text: string ): void => {
+			const message: MioChatMessage = { role: 'assistant', text, id: crypto.randomUUID() };
+			const actionIds = this.responseActions.create( Object.freeze( {
+				messageId: message.id!, summary: Object.freeze( summary() ),
+				operations: Object.freeze( this.operations.list().filter( ( entry ) => entry.turnId === turnId ).map( ( entry ) => Object.freeze( entry ) ) ),
+			} ) );
+			if ( actionIds.length ) {
+				message.actionIds = actionIds;
+			}
+			// The app callback can close this window synchronously.
+			if ( this.disposed || this.pending !== controller ) {
+				this.responseActions.prune(); return;
+			}
+			this.conversation.write( [ ...messages, message ].slice( -40 ) );
+			this.responseActions.prune();
+		};
 		const outcomes: unknown[] = [];
 		const attemptedWrites = new Set<string>();
 		const repeats = new Map<string, number>();
@@ -123,7 +143,7 @@ export class MioSession {
 				}
 				revision = this.context.revision?.();
 				const prompt = await this.context.prompt(); guard();
-				const history = { messages: messages.slice( -20 ), help: searchMioHelp( this.context.documents, query ), outcomes };
+				const history = { messages: messages.slice( -20 ).map( ( { role, text } ) => ( { role, text } ) ), help: searchMioHelp( this.context.documents, query ), outcomes };
 				const request = { prompt, transcript: JSON.stringify( this.context.compactHistory ? this.context.compactHistory( structuredClone( history ), turnContext() ) : history ), tools: offered.map( ( { name, description, parameters, effect } ) => ( { name, description: `[Effect: ${ effect ?? 'write' }] ${ description }`, parameters } ) ) };
 				assertMioRequestBudget( request ); guard();
 				const turn = await this.transport( request, signal ); guard();
@@ -134,8 +154,7 @@ export class MioSession {
 					if ( typeof turn.message !== 'string' || ! turn.message.trim() ) {
 						throw new Error( 'MIO returned no answer.' );
 					}
-					this.conversation.write( [ ...messages, { role: 'assistant', text: turn.message } ] );
-					status = 'completed'; return turn.message;
+					status = 'completed'; finish( turn.message ); return turn.message;
 				}
 				for ( const call of turn.calls ) {
 					guard();
@@ -233,7 +252,7 @@ export class MioSession {
 		} catch ( error ) {
 			if ( this.pending === controller ) {
 				const detail = error instanceof Error ? error.message : String( error );
-				this.conversation.write( [ ...messages, { role: 'assistant', text: `${ detail } ${ failureSummary( summary() ) }` } ] );
+				finish( `${ detail } ${ failureSummary( summary() ) }` );
 			}
 			throw error;
 		} finally {

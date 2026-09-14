@@ -217,3 +217,67 @@ test( 'an operation observer that closes the window cannot leave a write queued 
 	expect( save.run ).not.toHaveBeenCalled();
 	expect( session.operations.list()[ 0 ].status ).toBe( 'rejected' );
 } );
+
+describe( 'reviewed Unicode and terminal-validation boundaries', () => {
+	test.each( [ '😀', '𠀀' ] )( 'search and help cursors never split the astral character %s', character => {
+		const prefix = 'x'.repeat( 3199 );
+		const search = searchMioHelp( [ { id: 'emoji.md', title: 'Emoji', markdown: prefix + character + 'tail' } ], 'emoji' )[ 0 ];
+		expect( search.excerpt ).toBe( prefix ); expect( search.truncated ).toBe( true );
+		for ( const section of [ undefined, 'rules' ] ) {
+			const heading = '# Rules\n';
+			const markdown = heading + 'x'.repeat( 11999 - heading.length ) + character + 'tail';
+			const docs = [ { id: 'emoji.md', title: 'Emoji', markdown } ];
+			const first = linkedMioHelp( docs, 'emoji.md', section );
+			const second = linkedMioHelp( docs, 'emoji.md', section, first.cursor! );
+			expect( first.markdown ).toHaveLength( 11999 );
+			expect( second.markdown ).toBe( character + 'tail' );
+			expect( first.markdown + second.markdown ).toBe( markdown );
+			expect( second.cursor ).toBeNull();
+		}
+	} );
+
+	test( 'astral characters cost four UTF-8 bytes and twelve bytes in the PHP-escaped tool catalog', () => {
+		expect( mioBytes( '😀𠀀' ) ).toBe( 8 );
+		const request = { prompt: '😀'.repeat( 4000 ), transcript: '{}', tools: [] };
+		expect( () => assertMioRequestBudget( request ) ).not.toThrow();
+		try { assertMioRequestBudget( { ...request, prompt: request.prompt + '😀' } ); throw new Error( 'Expected overflow' ); }
+		catch ( error ) { expect( error ).toMatchObject( { scope: 'prompt', usedBytes: 16004, limitBytes: 16000 } ); }
+		const tools = [ { name: 'x', description: '', parameters: { type: 'object' } } ];
+		const room = 96000 - JSON.stringify( tools ).length;
+		tools[ 0 ].description = '😀'.repeat( Math.floor( room / 12 ) ) + 'a'.repeat( room % 12 );
+		expect( () => assertMioRequestBudget( { prompt: '', transcript: '', tools } ) ).not.toThrow();
+		tools[ 0 ].description += '😀';
+		try { assertMioRequestBudget( { prompt: '', transcript: '', tools } ); throw new Error( 'Expected overflow' ); }
+		catch ( error ) { expect( error ).toMatchObject( { scope: 'tools', usedBytes: 96012, limitBytes: 96000 } ); }
+	} );
+
+	test.each( [ 0, 1 ] )( 'argument budget accepts exactly 96 KB and repairs a multibyte overflow (%i)', async extra => {
+		const room = 96000 - JSON.stringify( { text: '' } ).length;
+		const argumentsText = JSON.stringify( { text: '😀'.repeat( Math.floor( room / 4 ) + extra ) + 'a'.repeat( room % 4 ) } );
+		expect( mioBytes( argumentsText ) ).toBe( 96000 + extra * 4 );
+		expect( argumentsText.length ).toBeLessThan( 96000 );
+		const save = ability( { validate: vi.fn( () => true ), run: vi.fn( () => ( { saved: true } ) ) } );
+		const transport = scripted( [ { message: '', calls: [ { name: 'save', arguments: argumentsText } ] }, ...( extra ? [ { message: '', calls: [ call( 'save', { text: 'Small repaired candidate' } ) ] } ] : [] ), done ] );
+		const session = new MioSession( context( [ save ] ), transport, () => true );
+		await session.ask( 'Save' );
+		expect( save.validate ).toHaveBeenCalledOnce(); expect( save.run ).toHaveBeenCalledOnce();
+		if ( extra ) {
+			const feedback = JSON.parse( transport.mock.calls[ 1 ][ 0 ].transcript ).outcomes[ 0 ].result;
+			expect( feedback ).toMatchObject( { effect: 'none', retryable: true, errors: [ { code: 'argument_budget' } ] } );
+			expect( session.operations.list().map( operation => operation.status ) ).toEqual( [ 'rejected', 'confirmed' ] );
+		}
+	} );
+
+	test.each( [ 'validator', 'run' ] )( 'retryable:false is terminal in %s, including the rest of a chained batch', async phase => {
+		const terminal = { ...failure, retryable: false };
+		const save = ability( { validate: () => phase === 'validator' ? terminal : true, run: vi.fn( () => ( { effect: 'none', status: 'rejected', errors: terminal.errors, retryable: false } ) ) } );
+		const later = ability( { name: 'later', run: vi.fn() } );
+		const transport = scripted( [ { message: '', calls: [ call( 'save', {} ), call( 'later', {} ) ] }, done ] );
+		const session = new MioSession( context( [ save, later ] ), transport, () => true );
+		await expect( session.ask( 'Save' ) ).rejects.toThrow( 'validation is terminal' );
+		expect( transport ).toHaveBeenCalledOnce(); expect( later.run ).not.toHaveBeenCalled();
+		expect( save.run ).toHaveBeenCalledTimes( phase === 'validator' ? 0 : 1 );
+		expect( session.operations.list().map( operation => operation.status ) ).toEqual( [ 'rejected' ] );
+		expect( session.conversation.read().at( -1 )?.text ).toContain( 'confirmed writes: 0; unknown write outcomes: 0' );
+	} );
+} );

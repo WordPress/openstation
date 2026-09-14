@@ -29,7 +29,7 @@ return () => lease.dispose();
 
 `lease.openChat(): Promise<void>` opens this context's floating chat only while its window is focused. It requires MIO to already be enabled and waits for the lazy bundle; it never changes the on/off preference. The dock's MIO toggle controls the companion, launcher and chat together. Only a focused registered window with the MIO API and AI available gets the accessible **Ask MIO** button. Its idle background is translucent while its text retains contrast; hover uses the opaque chat hover surface. The mascot stays hidden inside an idle window, fading in only for an open chat or an explicit callout. Disabling MIO closes chat and cancels pending work immediately.
 
-Every registration automatically adds a MIO portrait toggle to that window’s title bar. `enabled?: boolean` initializes window consent (default `true`). `lease.isEnabled()` reads that local choice; `lease.setEnabled(boolean)` changes it. The diagonal slash means disabled in this window. The choice belongs to the live lease and is not persisted. Disabling locally cancels work and releases residency without changing the dock’s master preference. The master switch fades all these controls out/in and preserves each window’s choice; invisible controls cannot receive keyboard focus or activation.
+Every registration automatically adds a MIO portrait toggle to that window’s title bar. `enabled?: boolean` initializes the per-window choice (default `true`). Registration is the app author’s opt-in; it does not show a separate end-user consent prompt. The user enables MIO globally and can disable it per window, or the app can register with `enabled: false` to start that window disabled. `lease.isEnabled()` reads that local choice; `lease.setEnabled(boolean)` changes it. The diagonal slash means disabled in this window. The choice belongs to the live lease and is not persisted. Disabling locally cancels work and releases residency without changing the dock’s master preference. The master switch fades all these controls out/in and preserves each window’s choice; invisible controls cannot receive keyboard focus or activation.
 
 `wp.os.mio.getWindowId(): string | null` reports the selected owner; `null` means desktop. While MIO is switched off there is no active owner; registrations remain available for the next enable. Existing appearance, position and toggle methods remain available.
 
@@ -66,7 +66,7 @@ Focus on another registered window hands MIO to it. Focus on an unregistered win
 
 `os.mio.owner-changed` is a `wp.hooks` action with `{windowId: string|null, previousWindowId: string|null}`. It fires at the handoff, between shrink and grow. It carries no prompt, conversation or tool data. There is no matching document CustomEvent.
 
-Dispose the lease when its app unmounts. This cancels work, closes the chat, clears its memory, disconnects observers, and releases ownership. A single live window may register only one context. To change the active instructions or actions, use the dynamic callbacks; to replace the registration, dispose first.
+Dispose the lease when its app unmounts. As a defensive fallback, removal of its host or residency frame from the document automatically disposes the registration at the next DOM mutation delivery, even without a focus event. Synchronous DOM moves that reconnect the host before delivery retain the lease. This cancels work, closes the chat, clears its memory, disconnects observers, and releases ownership. A single live window may register only one context. To change the active instructions or actions, use the dynamic callbacks; to replace the registration, dispose first.
 
 `os.mio.window-enabled-changed` is a `wp.hooks` action with `{windowId: string, enabled: boolean}` when local consent changes. `os.mio.thinking-changed` carries `{windowId: string, thinking: boolean}` when the active window’s pending turn starts or stops. Both are Experimental and carry no conversation data; neither has a matching document CustomEvent.
 
@@ -151,7 +151,7 @@ MIO eases toward a chat anchor through the soft-body simulation’s damped sprin
 
 A pending turn blends a visible pondering pose into the mascot itself: its silhouette breathes and tilts with its face, the eyes look around and softly narrow, and its existing ring colours sweep gently. Matching chat dots and a title-bar pulse accompany the mascot. The pose transforms only the drawing, preserving the physics position and chat anchor. Stop, close, focus changes and disabling MIO end this transient state. Reduced motion retains a static tilted, upward-looking expression and still dots. A disabled halo stays disabled; the face and silhouette still express thinking. Thinking never overwrites the user’s appearance settings.
 
-The floating, nonmodal conversation uses the component kit's buttons and text field, the shared escaped Markdown renderer for assistant replies, a polite live log, a keyboard-accessible launcher, Escape to close, and Stop while a turn is running. New messages reveal their beginning rather than jumping to the end of a long reply; the reader then controls scrolling. It is separate from the decorative `aria-hidden` MIO canvas. Closing chat preserves its window's memory; closing the window or reloading removes it. Different windows never share backscroll.
+The floating, nonmodal conversation uses the component kit's buttons and auto-growing textarea, the shared escaped Markdown renderer for assistant replies, a polite live log, a keyboard-accessible launcher, Escape to close, and Stop while a turn is running. New messages reveal their beginning rather than jumping to the end of a long reply; the reader then controls scrolling. It is separate from the decorative `aria-hidden` MIO canvas. Closing chat preserves its window's memory; closing the window or reloading removes it. Different windows never share backscroll.
 
 The default `MioConversationStore` is bounded, in-memory storage with `read`, `write` and `clear`; the session accepts that interface internally as the future persistence seam. There is currently **no persistent store and no persistence opt-in on window registration**. Preferences never writes transcripts to localStorage, sessionStorage, user meta, options or logs. The `/mio/turn` route makes no application transcript records and returns `Cache-Control: no-store, private`. Provider retention and independently installed request logging are outside this application-level guarantee.
 
@@ -183,3 +183,32 @@ Limits: eight provider rounds and sixteen tool executions per message; 220 KB re
 See [`apps/os-settings/parts/mio.ts`](../apps/os-settings/parts/mio.ts), the action modules beside it, and the [linked user help](../apps/os-settings/help/index.md). The example covers all built-in non-destructive Preferences controls. File uploads deliberately open the picker for user selection; arbitrary third-party tab/dialog controls require their own validated actions. Deleting themes, purging shares and resetting all preferences are excluded.
 
 Tests exercise context handoff, late replies, sequential saves, invalid arguments, capability loss, help links, private discovery and memory-only history. The worked recipe is [Register a window companion](examples/mio-window-assistant.md).
+
+## Assistant response buttons
+
+`MioWindowContext.responseActions(context)` optionally supplies frontend controls for a settled assistant message. It runs synchronously **once per message**, after constructing the final message and summary and before `onTurnEnd`. It receives `{messageId, summary, operations}`: a stable shell-generated message ID, a frozen turn summary and frozen, content-free operation snapshots from **this turn only**. It also runs for a retained failure reply, allowing an explicitly labelled read-only status control. It does not run after disposal or for discarded late replies. Throwing from the callback or returning an invalid descriptor cannot alter the answer or confirmed receipts.
+
+Derive a success action from confirmed operations and an app-owned receipt-to-resource map. Never infer a saved resource from assistant prose, model arguments or the currently selected item. For a Preview button, require a completed turn without unknown writes and bind the original saved form ID in its closure. A failed validation must not create a success action; unknown saves require reconciliation first. The app owns this policy because read-only status/help controls are also useful after failure.
+
+A `MioResponseAction` descriptor contains:
+
+| Field | Contract |
+|---|---|
+| `id` | Unique within this message; nonblank string of at most 80 characters. |
+| `label` | Plain text, 1–40 characters. Never interpreted as HTML. |
+| `ariaLabel?` | Optional full accessible name, 1–160 characters. |
+| `icon?` | Dashicon name with optional `dashicons-` prefix, using lowercase letters, digits and hyphens. Invalid names are omitted; unknown kit names show no glyph. No SVG, URLs or HTML. |
+| `emphasis?` | `primary` or `secondary` (default). Only the first primary keeps that emphasis. |
+| `effect` | `read` or `navigate`. The callback must not save, publish, submit or otherwise write. |
+| `allowed?()` | Synchronous current permission/availability check at render and immediately before invocation. Exceptions deny access. |
+| `run({signal, messageId, turnId})` | Frontend callback; no model request. Honor cancellation before fetching or opening a destination. |
+
+The shell examines at most 100 descriptors, omits invalid entries and duplicate IDs, and retains at most three actions. Controls use `os-button` and existing chat/component tokens, wrap on narrow windows, and expose a “Suggested actions” group and polite per-action progress/error status. Availability is refreshed when rendering and on activation; app permissions still need authoritative server checks. Errors remain beside the button, preserve the assistant message and never enter provider history. Only another deliberate click retries an action. A pending button cannot start another invocation, including after cancellation while an app promise is still settling.
+
+The shell invokes `run` directly in the click handler, preserving the user gesture until the callback's first await. Prefer a native preview window with a stable per-resource ID. Browser-tab fallbacks must preserve popup authorization themselves (for example opening a blank tab synchronously, navigating after an authenticated URL arrives, and closing it on failure). Successfully opening a destination may change focus and close this chat; that does not retroactively turn completed navigation into failure.
+
+`MioChatMessage` gains optional `id` and `actionIds`. These are opaque references, not descriptors. Callbacks, labels, errors, nonce-bearing URLs and resource closures stay in a lease-local registry; the model-facing message history contains only role/text. Closing chat aborts pending button work but retains eligible callbacks for reopening. Disposing the lease removes them permanently. Evicting messages releases their callbacks; the registry retains actions for at most the last 40 messages even with a custom store. Store eviction is reconciled on message writes, render and click. Restoring serialized messages into another session cannot recreate controls. Stable message and button nodes preserve focus and scroll during status changes.
+
+See [Preview a saved form](examples/mio-form-editing.md#preview-a-saved-form) for the consumer adapter. There is no provider/PHP transport change, no model-selected action catalog, and no write/destructive response-button API.
+
+The MIO composer starts at one line and wraps up to two visible lines. Longer drafts scroll vertically inside the input. Enter sends; Shift+Enter adds a newline, and IME composition does not send. Sending clears and shrinks the input; resizing its window remeasures wrapping.

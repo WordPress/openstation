@@ -95,4 +95,4 @@ defined( 'ABSPATH' ) || exit;
 
 If your use case isn't here, check [Hooks Reference](../hooks-reference.md) and [JavaScript Reference](../javascript-reference.md) — everything we fire is documented there.
 
-- [Repairable form edits with MIO](mio-form-editing.md) — Experimental: structured validation, revisioned operations, status reconciliation and large-document history.
+- [Repairable form edits with MIO](mio-form-editing.md) — Experimental: structured validation, revisioned operations, status reconciliation, large-document history and receipt-bound Preview buttons.

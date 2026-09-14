@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>MIO response actions — isolated QA</title>
+	<link rel="stylesheet" href="/assets/css/variables.css">
+	<link rel="stylesheet" href="/assets/css/desktop.css">
+	<style>
+		body { margin: 0; padding: 24px; background: var(--os-window-bg, #fff); color: var(--os-ui-fg, #1d2327); font: 14px system-ui; }
+		main { max-width: 900px; margin-inline: auto; }
+		#chat { position: relative; height: 620px; max-width: 480px; }
+		#chat .os-mio-chat { inset-inline: 0; inset-block-end: 0; width: auto; max-width: 100%; }
+		#preview { border: 1px solid var(--os-ui-border, #c3c4c7); padding: 16px; margin-block: 16px; }
+		body.qa-light { --os-mio-chat-bg: #fff; --os-mio-chat-fg: #1d2327; --os-mio-chat-muted: #50575e; }
+		.screen-reader-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+		.toolbar { display: flex; flex-wrap: wrap; gap: 8px; }
+	</style>
+</head>
+<body class="os-active">
+	<main>
+		<h1>MIO response actions</h1>
+		<p>Isolated fixture: simulated provider and save. No WordPress requests or real forms.</p>
+		<div class="toolbar">
+			<os-button id="reopen">Reopen chat</os-button>
+			<os-button id="permission">Revoke preview access</os-button>
+			<os-button id="theme">Toggle light chat</os-button>
+			<os-button id="direction">Toggle RTL</os-button>
+			<os-button id="narrow">Toggle narrow window</os-button>
+		</div>
+		<p id="counts" role="status"></p>
+		<section id="preview" role="region" aria-label="Saved form preview" tabindex="-1" hidden></section>
+		<div id="chat"></div>
+	</main>
+	<script type="module" src="./response-actions.ts"></script>
+</body>
+</html>

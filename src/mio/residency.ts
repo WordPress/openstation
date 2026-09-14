@@ -11,6 +11,7 @@ import type { MioWindowContext, MioWindowLease } from './assistant/types';
 import type { MioHandle } from './types';
 
 interface Resident {
+	dispose?: () => void;
 	enabled: boolean;
 	thinking: boolean;
 	calloutVisible: boolean;
@@ -37,6 +38,13 @@ interface ResidencyOptions {
 
 export class MioResidency {
 	private residents = new Map<string, Resident>();
+	private attachmentObserver = new MutationObserver( () => {
+		for ( const resident of this.residents.values() ) {
+			if ( ! resident.context.host.isConnected || ! resident.frame.isConnected ) {
+				resident.dispose?.();
+			}
+		}
+	} );
 	private owner: Resident | null = null;
 	private chat: MioChatHandle | null = null;
 	private chatPlacement: ReturnType<typeof followMioChat> | null = null;
@@ -130,6 +138,7 @@ export class MioResidency {
 			this.syncVisibility();
 		} );
 		this.residents.set( id, resident );
+		this.attachmentObserver.observe( document.body, { childList: true, subtree: true } );
 		const setEnabled = ( enabled: boolean ): void => {
 			if ( this.residents.get( id ) !== resident || resident.enabled === enabled ) {
 				return;
@@ -151,13 +160,13 @@ export class MioResidency {
 			this.syncThinking();
 		} );
 		const openChat = async (): Promise<void> => {
-			if ( ! this.canChat() || ! resident.enabled || this.options.focused() !== id || this.residents.get( id ) !== resident ) {
+			if ( ! context.host.isConnected || ! this.canChat() || ! resident.enabled || this.options.focused() !== id || this.residents.get( id ) !== resident ) {
 				return;
 			}
 			await this.options.ready();
-			await window.wp?.os?.loadComponents( [ 'os-button', 'os-text-field' ] );
+			await window.wp?.os?.loadComponents( [ 'os-button', 'os-textarea' ] );
 			await this.moving;
-			if ( ! this.canChat() || ! resident.enabled || this.owner !== resident || this.options.focused() !== id ) {
+			if ( ! context.host.isConnected || ! this.canChat() || ! resident.enabled || this.owner !== resident || this.options.focused() !== id ) {
 				return;
 			}
 			this.closeChat();
@@ -179,6 +188,29 @@ export class MioResidency {
 					error instanceof Error ? error.message : __( 'MIO could not open.' );
 			} );
 		} );
+		const dispose = (): void => {
+			if ( this.residents.get( id ) !== resident ) {
+				return;
+			}
+			this.residents.delete( id );
+			resident.session.dispose();
+			resident.callout?.dispose();
+			resident.toggle?.dispose();
+			observer.disconnect();
+			this.refresh();
+			// The layer may still be shrinking here. Move it out before removing its parent.
+			const layer = this.options.layer();
+			if ( layer && frame.contains( layer ) ) {
+				this.options.shell.appendChild( layer );
+				delete layer.dataset.mioWindow;
+				delete layer.dataset.mioThinking;
+			}
+			frame.remove();
+			if ( ! this.residents.size ) {
+				this.attachmentObserver.disconnect();
+			}
+		};
+		resident.dispose = dispose;
 		this.refresh();
 		return {
 			showCallout: ( callout ) => resident.callout?.show( callout ),
@@ -188,25 +220,7 @@ export class MioResidency {
 			openChat,
 			getOperations: () => resident.session.operations.list(),
 			inspectOperation: ( callId, signal = new AbortController().signal ) => resident.session.operations.inspect( callId, signal ),
-			dispose: () => {
-				if ( this.residents.get( id ) !== resident ) {
-					return;
-				}
-				this.residents.delete( id );
-				resident.session.dispose();
-				resident.callout?.dispose();
-				resident.toggle?.dispose();
-				observer.disconnect();
-				this.refresh();
-				// The layer may still be shrinking here. Move it out before removing its parent.
-				const layer = this.options.layer();
-				if ( layer && frame.contains( layer ) ) {
-					this.options.shell.appendChild( layer );
-					delete layer.dataset.mioWindow;
-					delete layer.dataset.mioThinking;
-				}
-				frame.remove();
-			},
+			dispose,
 		};
 	}
 
@@ -218,7 +232,7 @@ export class MioResidency {
 		if ( this.owner ) {
 			this.owner.button.hidden = ! this.canChat();
 			if ( focus ) {
-				this.owner.button.focus();
+				( this.owner.button.shadowRoot?.querySelector<HTMLButtonElement>( 'button' ) ?? this.owner.button ).focus();
 			}
 		}
 		this.syncCallouts();

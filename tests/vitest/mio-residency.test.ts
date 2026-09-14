@@ -201,3 +201,77 @@ describe( 'MIO window ownership', () => {
 		lease.dispose();
 	} );
 } );
+
+test( 'closing chat restores focus to the actual launcher button in shadow DOM', async () => {
+	await import( '../../src/ui/components/os-button/os-button' );
+	const shell = document.createElement( 'div' ); const layer = document.createElement( 'div' );
+	shell.append( layer ); document.body.append( shell );
+	const residency = new MioResidency( { shell, layer: () => layer, focused: () => 'focus-return', handle: () => null, enabled: () => true, ready: async () => {} } );
+	const lease = residency.register( 'focus-return', makeWindow( 'focus-return' ) ); await flush();
+	const launcher = document.querySelector<HTMLElement>( '#wp-window-focus-return .os-mio-chat-launcher' )!;
+	const panel = document.createElement( 'section' );
+	const input = document.createElement( 'input' ); panel.append( input );
+	window.openStationMountMioChat = vi.fn( host => { host.append( panel ); input.focus(); return { destroy: () => panel.remove() }; } );
+	await lease.openChat(); expect( document.activeElement ).toBe( input );
+	residency.closeChat( true );
+	expect( document.activeElement ).toBe( launcher );
+	expect( launcher.shadowRoot!.activeElement ).toBe( launcher.shadowRoot!.querySelector( 'button' ) );
+	lease.dispose(); delete window.openStationMountMioChat; await flush();
+} );
+
+test.each( [ 'host', 'window' ] )( 'a detached %s releases current ownership without a focus event', async target => {
+	const shell = document.createElement( 'div' ); const layer = document.createElement( 'div' ); shell.append( layer ); document.body.append( shell );
+	const residency = new MioResidency( { shell, layer: () => layer, focused: () => 'detached', handle: () => null, enabled: () => true, ready: async () => {} } );
+	const context = makeWindow( 'detached' );
+	const lease = residency.register( 'detached', context ); await flush();
+	const destroy = vi.fn(); window.openStationMountMioChat = vi.fn( () => ( { destroy } ) ); await lease.openChat();
+	const originalWindow = document.getElementById( 'wp-window-detached' )!;
+	( target === 'host' ? context.host : originalWindow ).remove();
+	await flush(); await flush();
+	expect( destroy ).toHaveBeenCalledOnce(); expect( residency.getWindowId() ).toBeNull();
+	expect( layer.parentElement ).toBe( shell ); expect( layer.isConnected ).toBe( true );
+	expect( layer.dataset.mioWindow ).toBeUndefined();
+	expect( originalWindow.querySelector( '.os-mio-residence' ) ).toBeNull();
+	await lease.openChat(); expect( window.openStationMountMioChat ).toHaveBeenCalledOnce();
+	// A stale lease cannot interfere with a replacement registration.
+	if ( target === 'window' ) { document.body.append( originalWindow ); } else { originalWindow.append( context.host ); }
+	const replacement = residency.register( 'detached', context ); await flush();
+	lease.dispose(); expect( residency.getWindowId() ).toBe( 'detached' ); replacement.dispose();
+	delete window.openStationMountMioChat; await flush();
+} );
+
+test( 'synchronous host reconnection preserves its live lease', async () => {
+	const shell = document.createElement( 'div' ); const layer = document.createElement( 'div' ); shell.append( layer ); document.body.append( shell );
+	const context = makeWindow( 'reconnect' ); const parent = context.host.parentElement!;
+	const residency = new MioResidency( { shell, layer: () => layer, focused: () => 'reconnect', handle: () => null, enabled: () => true, ready: async () => {} } );
+	const lease = residency.register( 'reconnect', context ); await flush();
+	context.host.remove(); parent.append( context.host ); await flush();
+	expect( residency.getWindowId() ).toBe( 'reconnect' );
+	expect( parent.querySelector( '.os-mio-residence' ) ).not.toBeNull();
+	lease.dispose(); await flush();
+} );
+
+test.each( [ 'shrink', 'grow' ] )( 'disposing the current owner during %s cancels stale transitions and restores the shell', async phase => {
+	const shell = document.createElement( 'div' ); const layer = document.createElement( 'div' ); shell.append( layer ); document.body.append( shell );
+	const animations: Array<{ resolve: () => void; cancel: ReturnType<typeof vi.fn> }> = [];
+	layer.animate = vi.fn( () => {
+		let resolve!: () => void; let reject!: ( reason: Error ) => void;
+		const finished = new Promise<void>( ( done, fail ) => { resolve = done; reject = fail; } );
+		const cancel = vi.fn( () => reject( new DOMException( 'Canceled', 'AbortError' ) ) );
+		animations.push( { resolve, cancel } ); return { finished, cancel } as unknown as Animation;
+	} );
+	const handle = { getPosition: () => ( { x: 240, y: 150 } ), setPosition: vi.fn(), setAnimating: vi.fn(), applyConfig: vi.fn(), destroy: vi.fn() };
+	const residency = new MioResidency( { shell, layer: () => layer, focused: () => 'moving', handle: () => handle, enabled: () => true, ready: async () => {} } );
+	const lease = residency.register( 'moving', makeWindow( 'moving' ) ); await flush();
+	if ( phase === 'grow' ) { animations[ 0 ].resolve(); await flush(); expect( layer.dataset.mioWindow ).toBe( 'moving' ); }
+	const stale = animations.at( -1 )!;
+	expect( residency.getWindowId() ).toBe( 'moving' ); lease.dispose();
+	expect( stale.cancel ).toHaveBeenCalled();
+	expect( layer.isConnected ).toBe( true ); expect( layer.parentElement ).toBe( shell );
+	expect( document.querySelector( '.os-mio-residence' ) ).toBeNull();
+	stale.resolve(); await flush(); // A late completion must not reclaim the removed frame.
+	animations.at( -1 )!.resolve(); await flush(); animations.at( -1 )!.resolve(); await flush();
+	expect( residency.getWindowId() ).toBeNull(); expect( layer.dataset.mioWindow ).toBeUndefined();
+	expect( layer.parentElement ).toBe( shell ); expect( layer.style.opacity ).toBe( '' );
+	expect( handle.setPosition ).toHaveBeenLastCalledWith( 240, 150 );
+} );

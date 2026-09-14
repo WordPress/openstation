@@ -112,3 +112,48 @@ The name assertions above describe entries produced by this app; validate extern
 The shell gives one user message three validation failures, sixteen calls and eight model rounds. Starting a fresh edit resource does not reset those counters. Each actual invocation receives a distinct call/idempotency ID; a duplicate write cannot be repeated just by reordering JSON keys. The server must still reject stale revisions and bind its idempotency key to the same payload. Client-side deduplication is not a replacement for server concurrency control.
 
 If the user closes the editor while a request is in flight, retain only the operation metadata your app needs for reconciliation. A retained lease can call `await lease.inspectOperation(callId)` after disposal; this invokes only `forms.operationStatus`, never `validateAndSave`. The application can also query its endpoint after reload using its own stored IDs. Confirmed receipts survive late network errors. An unknown outcome means “inspect status,” not “submit the same draft again.”
+
+## Preview a saved form
+
+Extend the adapter above with `responseActions`. The following is consumer code for an application-owned Forms API; OpenStation does not ship the external Forms plugin. Remember the saved form ID **inside the successful save callback**, keyed by the authoritative receipt. Keep this map bounded (for example the latest 64 receipts) and clear it when disposing the editor. If an older receipt has been evicted, omit its action. Do not persist preview URLs or use a model-supplied form ID.
+
+```typescript
+const savedFormsByReceipt = new Map<string, number>();
+
+// Inside saveForm.run, after validateAndSave returns an authoritative success:
+savedFormsByReceipt.set(result.receipt, result.formId);
+while (savedFormsByReceipt.size > 64) {
+    savedFormsByReceipt.delete(savedFormsByReceipt.keys().next().value!);
+}
+// Then return the confirmed MioOperationOutcome shown above.
+
+// Add this property to the window registration:
+responseActions: ({summary, operations}) => {
+    if (summary.status !== 'completed' || summary.unknownWrites > 0) return [];
+    const saved = [...operations].reverse().find(operation =>
+        operation.ability === 'save_form_edit' &&
+        operation.status === 'confirmed' &&
+        operation.receipt && savedFormsByReceipt.has(operation.receipt)
+    );
+    if (!saved?.receipt) return [];
+    const formId = savedFormsByReceipt.get(saved.receipt)!;
+    return [{
+        id: 'preview-saved-form', label: 'Preview',
+        ariaLabel: 'Preview the saved form', icon: 'dashicons-visibility',
+        emphasis: 'primary', effect: 'navigate',
+        allowed: () => ctx.root.isConnected && forms.canEdit(),
+        run: async ({signal}) => {
+            // Authenticated read; extend this app wrapper to accept AbortSignal.
+            // The server must reject a deleted form or revoked permission.
+            const form = await forms.getForm(formId, signal);
+            signal.throwIfAborted();
+            // App-owned native opener, keyed by form.id to reuse its window.
+            openPreviewWindow(form.id, form.title, form.previewUrl);
+        },
+    }];
+},
+```
+
+Use the native `openPreviewWindow` directly. A convenience helper that first saves dirty content would make this read/navigation button perform an undeclared write. Preview addresses the latest **saved** definition of the bound form, even after switching the editor to another form. It does not reconstruct the historical revision at the time of the chat message. Refresh its nonced URL through authenticated WordPress on each click; do not bake it into the conversation.
+
+Duplicate clicks share one pending invocation. Once it finishes, a later click can focus the same preview again. Closing chat aborts the read; reopening the same live conversation restores eligible actions. Disposing the editor removes its callbacks. A local fetch/opening failure appears alongside the button, leaves the saved reply intact, and never invokes the provider or automatically retries.

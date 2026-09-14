@@ -39,6 +39,8 @@ export interface MioWindowContext {
 	onTurnEnd?: ( summary: MioTurnSummary ) => void;
 	onTurnAbort?: ( context: MioTurnContext ) => void;
 	onOperation?: ( operation: MioOperation ) => void;
+	/** App-owned read/navigation buttons, resolved once from the settled turn. */
+	responseActions?: ( context: MioResponseContext ) => readonly MioResponseAction[];
 	/** Read-only application endpoint; must never retry a write. */
 	operationStatus?: ( operation: MioOperation, signal: AbortSignal ) => Promise<MioOperationOutcome>;
 	/** Optional app-owned history representation; no automatic document truncation. */
@@ -53,6 +55,37 @@ export interface MioWindowContext {
 export interface MioChatMessage {
 	role: 'user' | 'assistant';
 	text: string;
+	id?: string;
+	/** Opaque lease-local references; never executable definitions. */
+	actionIds?: readonly string[];
+}
+
+export interface MioResponseAction {
+	/** Unique within this message, 1–80 characters. */
+	id: string;
+	/** Plain text, 1–40 characters. */
+	label: string;
+	ariaLabel?: string;
+	/** A Dashicon identifier; no markup or URL. */
+	icon?: string;
+	emphasis?: 'primary' | 'secondary';
+	/** Callbacks must not save, submit, publish or otherwise write. */
+	effect: 'read' | 'navigate';
+	allowed?: () => boolean;
+	run: ( context: MioResponseActionContext ) => void | Promise<void>;
+}
+
+export interface MioResponseActionContext {
+	signal: AbortSignal;
+	messageId: string;
+	turnId: string;
+}
+
+export interface MioResponseContext {
+	messageId: string;
+	summary: Readonly<MioTurnSummary>;
+	/** Frozen snapshots of this turn only, with no arguments or result bodies. */
+	operations: readonly Readonly<MioOperation>[];
 }
 
 /** Explicit extension point; the default implementation is memory only. */
