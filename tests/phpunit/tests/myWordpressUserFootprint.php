@@ -1,20 +1,20 @@
 <?php
 /**
  * Tests for the `/desktop-mode/v1/user-footprint/<id>` REST
- * endpoint's timeline permission model.
+ * endpoint's permission model.
  *
- * The route is open to any logged-in user, but the payload is
- * tiered on `list_users` (or the subject viewing themselves).
- * Timeline rows whose underlying post is not published are only
- * emitted when the viewer passes `current_user_can( 'read_post' )`
- * for that post — draft / pending / private / future titles must
- * not leak to ordinary logged-in users across the posts,
- * post-update, and comment branches.
+ * The route is open to any logged-in user, and activity is gated per
+ * post. Timeline rows whose underlying post the viewer may not see
+ * (an unpublished post they cannot `read_post`, a published row of a
+ * type with no front end, a comment's sealed or deleted parent) are
+ * dropped, so those titles must not leak to ordinary logged-in users
+ * across the posts, post-update, and comment branches.
  *
- * The aggregates carry the same rule, because a count discloses on
- * its own: `totals.posts` / `totals.pages` are publish-only for an
- * unprivileged viewer, and the `updates` rollups (lifetime and
- * per-day) only count revisions whose parent is published.
+ * The aggregates carry the same gate, because a count discloses on
+ * its own: `totals` and each day's `comments` and `updates` are
+ * grouped for the per-row gate, so they never report what the rows
+ * withhold, and they include what the rows show, for a Subscriber
+ * and an Editor alike.
  *
  * @package WordPress
  * @subpackage UnitTests
@@ -25,6 +25,7 @@
 class Tests_OpenStation_MyWordpressUserFootprint extends WP_UnitTestCase {
 
 	protected static $admin_id;
+	protected static $editor_id;
 	protected static $author_id;
 	protected static $subscriber_id;
 
@@ -34,6 +35,7 @@ class Tests_OpenStation_MyWordpressUserFootprint extends WP_UnitTestCase {
 
 	public static function wpSetUpBeforeClass( WP_UnitTest_Factory $factory ) {
 		self::$admin_id      = $factory->user->create( array( 'role' => 'administrator' ) );
+		self::$editor_id     = $factory->user->create( array( 'role' => 'editor' ) );
 		self::$author_id     = $factory->user->create( array( 'role' => 'author' ) );
 		self::$subscriber_id = $factory->user->create( array( 'role' => 'subscriber' ) );
 	}
@@ -65,6 +67,11 @@ class Tests_OpenStation_MyWordpressUserFootprint extends WP_UnitTestCase {
 				'post_title'  => 'Private notes',
 			)
 		);
+	}
+
+	public function tear_down() {
+		unregister_post_type( 'dm_fp_internal' );
+		parent::tear_down();
 	}
 
 	private function dispatch_footprint( $user_id ) {
@@ -296,6 +303,214 @@ class Tests_OpenStation_MyWordpressUserFootprint extends WP_UnitTestCase {
 		wp_set_current_user( self::$admin_id );
 		$data = $this->dispatch_footprint( self::$author_id )->get_data();
 		$this->assertGreaterThan( 0, $data['totals']['updates'] );
+	}
+
+	/**
+	 * Post ids of the timeline rows of one kind.
+	 *
+	 * @param array  $data Footprint payload.
+	 * @param string $kind Row kind.
+	 * @return int[]
+	 */
+	private function timeline_ids_of_kind( $data, $kind ) {
+		return array_values( wp_list_pluck( wp_list_filter( $data['timeline'], array( 'kind' => $kind ) ), 'postId' ) );
+	}
+
+	/**
+	 * An Editor holds no `list_users`, but can read another user's drafts
+	 * and private posts, so the timeline lists them. The counts summarise
+	 * those same rows and have to count them too, rather than contradict
+	 * the timeline painted next to them.
+	 *
+	 * @covers ::openstation_my_wordpress_user_footprint_callback
+	 * @covers ::openstation_my_wordpress_footprint_visible_counts
+	 */
+	public function test_editor_counts_agree_with_the_rows_they_can_read() {
+		$draft = self::factory()->post->create(
+			array(
+				'post_author'   => self::$author_id,
+				'post_status'   => 'draft',
+				'post_title'    => 'Draft being edited',
+				'post_date'     => '2026-01-01 00:00:00',
+				'post_date_gmt' => '2026-01-01 00:00:00',
+			)
+		);
+		wp_set_current_user( self::$author_id );
+		wp_update_post(
+			array(
+				'ID'           => $draft,
+				'post_content' => 'A later save creates a revision.',
+			)
+		);
+
+		wp_set_current_user( self::$editor_id );
+		$data = $this->dispatch_footprint( self::$author_id )->get_data();
+
+		$post_rows = $this->timeline_ids_of_kind( $data, 'post' );
+		$this->assertContains( $this->draft_id, $post_rows );
+		$this->assertContains( $this->private_id, $post_rows );
+		// Published + the fixture draft + the draft above + private.
+		$this->assertSame( 4, $data['totals']['posts'] );
+
+		$this->assertContains( $draft, $this->timeline_ids_of_kind( $data, 'post-update' ) );
+		$this->assertSame( 1, $data['totals']['updates'] );
+		$this->assertSame( 1, array_sum( wp_list_pluck( $data['daily'], 'updates' ) ) );
+
+		// A Subscriber, reading neither draft, gets neither counted.
+		wp_set_current_user( self::$subscriber_id );
+		$data = $this->dispatch_footprint( self::$author_id )->get_data();
+		$this->assertSame( 1, $data['totals']['posts'] );
+		$this->assertSame( 0, $data['totals']['updates'] );
+	}
+
+	/**
+	 * A published row of a type with no readable front end is not public
+	 * activity. An edit to one reaches neither the update counts nor the
+	 * timeline for a Subscriber, while an administrator, who can edit the
+	 * row, keeps both.
+	 *
+	 * @covers ::openstation_my_wordpress_user_footprint_callback
+	 * @covers ::openstation_my_wordpress_footprint_can_see_post
+	 */
+	public function test_updates_to_a_non_viewable_type_stay_with_viewers_who_can_edit_it() {
+		register_post_type(
+			'dm_fp_internal',
+			array(
+				'public'   => false,
+				'supports' => array( 'title', 'editor', 'revisions' ),
+			)
+		);
+		$record = self::factory()->post->create(
+			array(
+				'post_author'   => self::$admin_id,
+				'post_type'     => 'dm_fp_internal',
+				'post_status'   => 'publish',
+				'post_title'    => 'Internal record',
+				'post_date'     => '2026-01-01 00:00:00',
+				'post_date_gmt' => '2026-01-01 00:00:00',
+			)
+		);
+		wp_set_current_user( self::$author_id );
+		wp_update_post(
+			array(
+				'ID'           => $record,
+				'post_content' => 'The subject edits the record.',
+			)
+		);
+
+		wp_set_current_user( self::$subscriber_id );
+		$data = $this->dispatch_footprint( self::$author_id )->get_data();
+		$this->assertSame( 0, $data['totals']['updates'] );
+		$this->assertSame( 0, array_sum( wp_list_pluck( $data['daily'], 'updates' ) ) );
+		$this->assertNotContains( $record, $this->timeline_ids_of_kind( $data, 'post-update' ) );
+
+		wp_set_current_user( self::$admin_id );
+		$data = $this->dispatch_footprint( self::$author_id )->get_data();
+		$this->assertSame( 1, $data['totals']['updates'] );
+		$this->assertContains( $record, $this->timeline_ids_of_kind( $data, 'post-update' ) );
+	}
+
+	/**
+	 * Comments carry the comment dossier's parent gate into the counts as
+	 * well as the rows. A comment on a private post, a password-protected
+	 * post, a published row of a type with no front end, or a post that
+	 * no longer exists is withheld from a Subscriber everywhere: no
+	 * timeline row, no heatmap cell (so no streak day), no lifetime count.
+	 * An administrator keeps all of them.
+	 *
+	 * @covers ::openstation_my_wordpress_user_footprint_callback
+	 * @covers ::openstation_my_wordpress_footprint_can_see_post
+	 */
+	public function test_comment_counts_follow_the_comment_row_gate() {
+		register_post_type( 'dm_fp_internal', array( 'public' => false ) );
+		$parents = array(
+			$this->published_id,
+			self::factory()->post->create(
+				array(
+					'post_author' => self::$admin_id,
+					'post_status' => 'private',
+				)
+			),
+			self::factory()->post->create(
+				array(
+					'post_author'   => self::$admin_id,
+					'post_status'   => 'publish',
+					'post_password' => 'secret',
+				)
+			),
+			self::factory()->post->create(
+				array(
+					'post_author' => self::$admin_id,
+					'post_type'   => 'dm_fp_internal',
+					'post_status' => 'publish',
+				)
+			),
+			// A post that has since been deleted.
+			999999,
+		);
+		foreach ( $parents as $parent ) {
+			self::factory()->comment->create(
+				array(
+					'comment_post_ID'  => $parent,
+					'user_id'          => self::$author_id,
+					'comment_approved' => '1',
+				)
+			);
+		}
+
+		wp_set_current_user( self::$subscriber_id );
+		$data = $this->dispatch_footprint( self::$author_id )->get_data();
+		$this->assertSame( 1, $data['totals']['comments'] );
+		$this->assertSame( 1, array_sum( wp_list_pluck( $data['daily'], 'comments' ) ) );
+		$this->assertSame( array( $this->published_id ), $this->timeline_ids_of_kind( $data, 'comment' ) );
+
+		wp_set_current_user( self::$admin_id );
+		$data = $this->dispatch_footprint( self::$author_id )->get_data();
+		$this->assertSame( 5, $data['totals']['comments'] );
+		$this->assertSame( 5, array_sum( wp_list_pluck( $data['daily'], 'comments' ) ) );
+		$this->assertCount( 5, $this->timeline_ids_of_kind( $data, 'comment' ) );
+	}
+
+	/**
+	 * A draft has no date until it is published, so "newer than the post"
+	 * cannot tell its first save from a later one. The first revision a
+	 * draft gets records its creation and is not an update; the next one
+	 * is.
+	 *
+	 * @covers ::openstation_my_wordpress_user_footprint_callback
+	 */
+	public function test_first_save_of_an_undated_draft_is_not_an_update() {
+		wp_set_current_user( self::$author_id );
+		$draft = self::factory()->post->create(
+			array(
+				'post_author' => self::$author_id,
+				'post_status' => 'draft',
+				'post_title'  => 'Fresh draft',
+			)
+		);
+		$this->assertSame( '0000-00-00 00:00:00', get_post( $draft )->post_date_gmt );
+
+		wp_update_post(
+			array(
+				'ID'           => $draft,
+				'post_content' => 'First save.',
+			)
+		);
+		$data = $this->dispatch_footprint( self::$author_id )->get_data();
+		$this->assertSame( 0, $data['totals']['updates'] );
+		$this->assertSame( 0, array_sum( wp_list_pluck( $data['daily'], 'updates' ) ) );
+		$this->assertNotContains( $draft, $this->timeline_ids_of_kind( $data, 'post-update' ) );
+
+		wp_update_post(
+			array(
+				'ID'           => $draft,
+				'post_content' => 'Second save.',
+			)
+		);
+		$data = $this->dispatch_footprint( self::$author_id )->get_data();
+		$this->assertSame( 1, $data['totals']['updates'] );
+		$this->assertSame( 1, array_sum( wp_list_pluck( $data['daily'], 'updates' ) ) );
+		$this->assertContains( $draft, $this->timeline_ids_of_kind( $data, 'post-update' ) );
 	}
 
 	/**

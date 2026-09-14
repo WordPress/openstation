@@ -4071,7 +4071,7 @@ apply_filters( 'openstation_my_wordpress_user_stats', array $payload, int $user_
 
 The aggregated per-user dossier payload returned by `GET /desktop-mode/v1/user-stats/<id>` — drives the right-pane preview for a selected user (Author / Contributors sub-folders, and the Users folder root). Plugins can drop additional sections (badges, milestones, contribution streaks) without forking the JS render.
 
-The payload is permission-shaped before this filter runs: viewers without `list_users` (who are not the subject user) receive a published-only dossier — the recent-posts list is restricted to `publish`, `counts.posts` / `counts.pages` collapse to published-only totals, and sensitive profile fields (email, registered date, role) are withheld.
+The payload is permission-shaped before this filter runs: viewers without `list_users` (who are not the subject user) receive a published-only dossier. The recent-posts list is restricted to `publish`, `counts.posts` / `counts.pages` collapse to published-only totals, `counts.cpt`, `counts.commentsReceived` and `counts.commentsLeft` only count published rows of a viewable post type (`is_post_type_viewable()`), the comment counts also skipping password-protected and deleted parents, and sensitive profile fields (email, username, registered date, roles) are withheld. For every viewer, `counts.cpt` leaves out the post types Core registers (`_builtin`). The payload is viewer-dependent, so never cache it under a subject-only key.
 
 ### `openstation_my_wordpress_user_footprint` — Experimental (filter)
 
@@ -4081,7 +4081,7 @@ apply_filters( 'openstation_my_wordpress_user_footprint', array $payload, int $u
 
 The per-user activity-footprint payload returned by `GET /desktop-mode/v1/user-footprint/<id>` — drives the full-body "View activity footprint" surface (right-click on a user tile → footprint). Carries a year of day-by-day activity, weekday + hour-of-day distribution, streak math, recent-events timeline, and totals. Plugins can extend the timeline with their own activity rows (deploys, badges earned, etc.) or replace the streak math with a domain-specific definition.
 
-Timeline rows whose underlying post is not published (draft, pending, private, future) are only emitted when the viewer passes `current_user_can( 'read_post' )` for that post — the gate applies across the post, post-update, and comment row sources — so unpublished titles never leak to ordinary logged-in users.
+The payload is permission-shaped before this filter runs, per post rather than per viewer tier. A timeline row is only emitted when the viewer may see its post: a public status of a viewable post type for everyone, `current_user_can( 'read_post' )` for any other status, `edit_post` for a post type with no readable front end, and, for comment rows, the comment dossier's parent gate (a password-protected parent needs `edit_post`, a deleted one `moderate_comments`). Every count that can reach those posts (`totals.posts`, `totals.pages`, `totals.comments`, `totals.updates`, and each day's `comments` / `updates`, which `streak` is computed from) applies the same gate, so a count never reports activity the timeline withholds: a Subscriber gets published work only, and an Editor's totals include the drafts their timeline lists. `profile.roleLabels` and `profile.registered` stay gated on `list_users` or the subject viewing themselves. The payload is viewer-dependent, so never cache it under a subject-only key.
 
 ### `openstation_user_footprint_row_action` — Stable (filter)
 

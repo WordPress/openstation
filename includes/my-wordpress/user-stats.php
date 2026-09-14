@@ -16,9 +16,13 @@
  * (email, registered date, role) are gated on the cap.
  *
  * For the unprivileged subset, `publish` alone is not the test for
- * the custom-post-type count: a type with no readable front end
- * holds `publish` rows a visitor could never open, so that count
- * asks `is_post_type_viewable()` as well.
+ * the counts that reach beyond the subject's own posts and pages
+ * (`cpt`, `commentsReceived`, `commentsLeft`): a type with no readable
+ * front end holds `publish` rows a visitor could never open, so those
+ * counts ask `is_post_type_viewable()` as well, and the comment counts
+ * also skip password-protected and deleted parents. For every viewer,
+ * `cpt` leaves out the post types Core registers (`_builtin`). The
+ * payload is viewer-dependent: never cache it under a subject-only key.
  *
  * @package OpenStation
  */
@@ -172,83 +176,112 @@ function openstation_my_wordpress_user_stats_callback( $request ) {
 		);
 	}
 
+	// ----- Counts beyond the subject's own posts and pages -------------
+	// For a viewer without `list_users`, each count below takes two gates,
+	// because `publish` is not visibility on its own: the row has to be
+	// published, AND its post type has to be one a visitor could actually
+	// open. A plugin's internal type (an order, a submission log, an
+	// internal note) registers rows with a `publish` status and no front
+	// end at all, so the type list comes from `is_post_type_viewable()`,
+	// the question the comment tools and the term-stats endpoint settled
+	// on. A comment count also skips a password-protected parent, whose
+	// comments are sealed along with it, and a parent that no longer
+	// exists. Privileged viewers keep every count whole.
+	$viewable_types = array_values( array_filter( get_post_types(), 'is_post_type_viewable' ) );
+	$viewable_list  = implode( ', ', array_fill( 0, count( $viewable_types ), '%s' ) );
+
 	// Comments received on posts authored by this user, approved only.
-	// Non-privileged viewers only see engagement on published content.
-	$received_status_sql = $can_see_private
-		? "p.post_status NOT IN ( 'auto-draft', 'trash' )"
-		: "p.post_status = 'publish'";
-	$comments_received   = (int) $wpdb->get_var(
-		$wpdb->prepare(
-			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- literal status clause chosen above.
-			"SELECT COUNT(c.comment_ID)
-			FROM {$wpdb->comments} c
-			INNER JOIN {$wpdb->posts} p ON c.comment_post_ID = p.ID
-			WHERE p.post_author = %d
-				AND c.comment_approved = '1'
-				AND {$received_status_sql}",
-			$user_id
-		)
-	);
+	if ( $can_see_private ) {
+		$comments_received = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(c.comment_ID)
+				FROM {$wpdb->comments} c
+				INNER JOIN {$wpdb->posts} p ON c.comment_post_ID = p.ID
+				WHERE p.post_author = %d
+					AND c.comment_approved = '1'
+					AND p.post_status NOT IN ( 'auto-draft', 'trash' )",
+				$user_id
+			)
+		);
+	} elseif ( $viewable_types ) {
+		$comments_received = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(c.comment_ID)
+				FROM {$wpdb->comments} c
+				INNER JOIN {$wpdb->posts} p ON c.comment_post_ID = p.ID
+				WHERE p.post_author = %d
+					AND c.comment_approved = '1'
+					AND p.post_status = 'publish'
+					AND p.post_password = ''
+					AND p.post_type IN ( {$viewable_list} )",
+				array_merge( array( $user_id ), $viewable_types )
+			)
+		);
+	} else {
+		$comments_received = 0;
+	}
 
 	// Comments left BY this user (regardless of post author).
-	$comments_left = (int) $wpdb->get_var(
-		$wpdb->prepare(
-			"SELECT COUNT(*)
-			FROM {$wpdb->comments}
-			WHERE user_id = %d
-				AND comment_approved = '1'",
-			$user_id
-		)
-	);
-
-	// Total content in custom post types.
-	//
-	// Two gates for an unprivileged viewer, because `publish` is not
-	// visibility on its own. The status has to be `publish`, AND the
-	// TYPE has to be one a visitor could actually open: a plugin's
-	// internal type (an order, a submission log, an internal note)
-	// registers rows with a `publish` status and no front end at all,
-	// so an exclusion list naming the types we know about counts every
-	// type we don't. Ask `is_post_type_viewable()` instead, which is
-	// the same question the comment tools and the term-stats endpoint
-	// settled on. Privileged viewers keep the whole count.
 	if ( $can_see_private ) {
-		$cpt_count = (int) $wpdb->get_var(
+		$comments_left = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*)
+				FROM {$wpdb->comments}
+				WHERE user_id = %d
+					AND comment_approved = '1'",
+				$user_id
+			)
+		);
+	} elseif ( $viewable_types ) {
+		$comments_left = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(c.comment_ID)
+				FROM {$wpdb->comments} c
+				INNER JOIN {$wpdb->posts} p ON c.comment_post_ID = p.ID
+				WHERE c.user_id = %d
+					AND c.comment_approved = '1'
+					AND p.post_status = 'publish'
+					AND p.post_password = ''
+					AND p.post_type IN ( {$viewable_list} )",
+				array_merge( array( $user_id ), $viewable_types )
+			)
+		);
+	} else {
+		$comments_left = 0;
+	}
+
+	// Total content in custom post types. Every type Core registers is
+	// left out (`_builtin`): posts and pages because they are counted
+	// above, and the rest (attachments, revisions, menu items, synced
+	// patterns, templates, navigation menus, global styles, changesets,
+	// oEmbed caches, ...) because none of it is a custom post type. An
+	// exclusion list naming a handful of them counted every one it did
+	// not name.
+	$builtin_types = array_values( get_post_types( array( '_builtin' => true ) ) );
+	if ( $can_see_private ) {
+		$builtin_list = implode( ', ', array_fill( 0, count( $builtin_types ), '%s' ) );
+		$cpt_count    = (int) $wpdb->get_var(
 			$wpdb->prepare(
 				"SELECT COUNT(*)
 				FROM {$wpdb->posts}
 				WHERE post_author = %d
-					AND post_type NOT IN ( 'post', 'page', 'attachment', 'revision', 'nav_menu_item' )
+					AND post_type NOT IN ( {$builtin_list} )
 					AND post_status NOT IN ( 'auto-draft', 'inherit', 'trash' )",
-				$user_id
+				array_merge( array( $user_id ), $builtin_types )
 			)
 		);
 	} else {
-		// Viewable types minus the ones counted separately above.
-		$countable = array_diff(
-			array_keys(
-				array_filter(
-					get_post_types( array(), 'objects' ),
-					static function ( $type ) {
-						return is_post_type_viewable( $type );
-					}
-				)
-			),
-			array( 'post', 'page', 'attachment' )
-		);
-
-		if ( $countable ) {
-			// A literal %s placeholder list, bound through prepare().
-			$type_placeholders = implode( ', ', array_fill( 0, count( $countable ), '%s' ) );
-			$cpt_count         = (int) $wpdb->get_var(
+		$cpt_types = array_values( array_diff( $viewable_types, $builtin_types ) );
+		if ( $cpt_types ) {
+			$cpt_list  = implode( ', ', array_fill( 0, count( $cpt_types ), '%s' ) );
+			$cpt_count = (int) $wpdb->get_var(
 				$wpdb->prepare(
-					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- literal placeholder list built above; values bound below.
 					"SELECT COUNT(*)
 					FROM {$wpdb->posts}
 					WHERE post_author = %d
-						AND post_type IN ( {$type_placeholders} )
+						AND post_type IN ( {$cpt_list} )
 						AND post_status = 'publish'",
-					array_merge( array( $user_id ), array_values( $countable ) )
+					array_merge( array( $user_id ), $cpt_types )
 				)
 			);
 		} else {

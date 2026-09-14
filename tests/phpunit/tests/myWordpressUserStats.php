@@ -5,8 +5,9 @@
  *
  * Viewers without `list_users` (and who aren't the subject user)
  * must only ever see published content: the recent-posts list, the
- * post/page counts, the CPT count, and the comments-received count
- * must not leak draft / pending / private / future material.
+ * post/page counts, the CPT count, and both comment counts must not
+ * leak draft / pending / private / future material, nor rows of a
+ * post type with no readable front end.
  * Privileged viewers (`list_users`, or the subject themselves) get
  * the full dossier.
  *
@@ -249,6 +250,85 @@ class Tests_OpenStation_MyWordpressUserStats extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Both comment counts reach past the subject's own published posts,
+	 * so a viewer without `list_users` gets the CPT count's two gates on
+	 * them (a published parent of a viewable type) plus two of their own:
+	 * the parent is not password-protected, and it still exists.
+	 * Privileged viewers keep every comment.
+	 *
+	 * @covers ::openstation_my_wordpress_user_stats_callback
+	 */
+	public function test_unprivileged_comment_counts_cover_readable_parents_only() {
+		$parents = array(
+			$this->published_post_id,
+			$this->draft_post_id,
+			self::factory()->post->create(
+				array(
+					'post_author'   => self::$author_id,
+					'post_status'   => 'publish',
+					'post_password' => 'secret',
+				)
+			),
+			self::factory()->post->create(
+				array(
+					'post_author' => self::$author_id,
+					'post_type'   => 'dm_test_internal',
+					'post_status' => 'publish',
+				)
+			),
+			// A post that has since been deleted.
+			999999,
+		);
+		foreach ( $parents as $parent ) {
+			self::factory()->comment->create(
+				array(
+					'comment_post_ID'  => $parent,
+					'user_id'          => self::$author_id,
+					'comment_approved' => '1',
+				)
+			);
+		}
+
+		wp_set_current_user( self::$subscriber_id );
+		$counts = $this->dispatch( self::$author_id )->get_data()['counts'];
+		// Only the comment on the published post.
+		$this->assertSame( 1, $counts['commentsLeft'] );
+		// The fixture's comment on the published post, plus the one above.
+		$this->assertSame( 2, $counts['commentsReceived'] );
+
+		wp_set_current_user( self::$admin_id );
+		$counts = $this->dispatch( self::$author_id )->get_data()['counts'];
+		$this->assertSame( 5, $counts['commentsLeft'] );
+		// Both fixture comments, plus the four above on the subject's posts.
+		$this->assertSame( 6, $counts['commentsReceived'] );
+	}
+
+	/**
+	 * `counts.cpt` counts custom post types, so the types Core registers
+	 * stay out of it for every viewer: a synced pattern or a navigation
+	 * menu the subject saved is not custom-post-type content.
+	 *
+	 * @covers ::openstation_my_wordpress_user_stats_callback
+	 */
+	public function test_cpt_count_leaves_out_core_built_in_types() {
+		foreach ( array( 'wp_block', 'wp_navigation' ) as $type ) {
+			self::factory()->post->create(
+				array(
+					'post_author' => self::$author_id,
+					'post_type'   => $type,
+					'post_status' => 'publish',
+				)
+			);
+		}
+
+		wp_set_current_user( self::$admin_id );
+		$this->assertSame( 3, $this->dispatch( self::$author_id )->get_data()['counts']['cpt'] );
+
+		wp_set_current_user( self::$subscriber_id );
+		$this->assertSame( 1, $this->dispatch( self::$author_id )->get_data()['counts']['cpt'] );
+	}
+
+	/**
 	 * Sensitive profile fields stay gated on the cap.
 	 *
 	 * @covers ::openstation_my_wordpress_user_stats_callback
@@ -281,7 +361,7 @@ class Tests_OpenStation_MyWordpressUserStats extends WP_UnitTestCase {
 		$this->assertSame( 4, $counts['posts']['total'] );
 		$this->assertSame( 1, $counts['pages']['draft'] );
 		// Published + draft book, plus the published internal-type row:
-		// a privileged viewer counts every type.
+		// a privileged viewer counts every custom type.
 		$this->assertSame( 3, $counts['cpt'] );
 		$this->assertSame( 2, $counts['commentsReceived'] );
 
