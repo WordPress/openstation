@@ -4,15 +4,16 @@
  * endpoint's permission model.
  *
  * The route wears the My WordPress module's gate (`edit_posts` by
- * default), and past it activity is gated per post. Timeline rows whose underlying post the viewer may not see
- * (an unpublished post they cannot `read_post`, a published row of a
- * type with no front end, a comment's sealed or deleted parent) are
- * dropped, so those titles must not leak to ordinary logged-in users
- * across the posts, post-update, and comment branches.
+ * default), and past it activity is gated per post. Timeline rows
+ * whose underlying post the viewer may not see (an unpublished post
+ * they cannot `read_post`, a published row of a type with no front
+ * end, a comment's sealed or deleted parent) are dropped, so those
+ * titles must not leak to ordinary logged-in users across the posts,
+ * post-update, and comment branches.
  *
  * The aggregates carry the same gate, because a count discloses on
- * its own: `totals` and each day's `comments` and `updates` are
- * grouped for the per-row gate, so they never report what the rows
+ * its own: `totals` and each day's `comments` and `updates` ask that
+ * gate of every post they count, so they never report what the rows
  * withhold, and they include what the rows show, for a Contributor
  * and an Editor alike.
  *
