@@ -85,6 +85,7 @@ export function extraMioActions(
 		},
 		{
 			name: 'open_section',
+			effect: 'none',
 			description:
 				'Open a Preferences section. Use appearance, themes, windows, navigation, mobile, features, about, or help (Components; admin only).',
 			parameters: objectSchema( {
@@ -99,6 +100,7 @@ export function extraMioActions(
 		},
 		{
 			name: 'search_settings',
+			effect: 'none',
 			description: 'Filter the Preferences sidebar by text.',
 			parameters: objectSchema( { query: { type: 'string' } } ),
 			validate: ( args ) =>
@@ -115,6 +117,7 @@ export function extraMioActions(
 		},
 		{
 			name: 'open_image_picker',
+			effect: 'none',
 			description:
 				'Show the wallpaper image picker. Upload requires the user to select a local file; library offers existing images.',
 			parameters: objectSchema( { source: { type: 'string', enum: [ 'library', 'upload' ] } } ),
@@ -132,6 +135,7 @@ export function extraMioActions(
 		},
 		{
 			name: 'search_wallpaper_images',
+			effect: 'read',
 			description:
 				'Search image attachments in the media library. Returns verified ids and dimensions for select_wallpaper_image.',
 			parameters: objectSchema( {
@@ -201,6 +205,7 @@ export function extraMioActions(
 		},
 		{
 			name: 'open_theme_upload',
+			effect: 'none',
 			description:
 				'Show the desktop theme upload tile. The user must choose the ZIP from their device.',
 			parameters: objectSchema( {} ),
@@ -213,6 +218,7 @@ export function extraMioActions(
 		},
 		{
 			name: 'open_wallpaper_settings',
+			effect: 'none',
 			description: 'Open the active wallpaper’s custom settings dialog, when available.',
 			parameters: objectSchema( {} ),
 			validate: ( args ) => exactKeys( args, [] ),
@@ -260,6 +266,7 @@ export function extraMioActions(
 		},
 		{
 			name: 'open_component_reference',
+			effect: 'none',
 			description:
 				'Inspect a kit component’s documentation and interactive example. Administrator only.',
 			parameters: objectSchema( { tag: { type: 'string' } } ),
@@ -276,6 +283,7 @@ export function extraMioActions(
 		},
 		{
 			name: 'list_components',
+			effect: 'read',
 			description: 'List available component references.',
 			parameters: objectSchema( {} ),
 			validate: ( args ) => exactKeys( args, [] ),
@@ -284,6 +292,7 @@ export function extraMioActions(
 		},
 		{
 			name: 'show_connectors_location',
+			effect: 'read',
 			description:
 				'Explain where to connect the AI provider. Credentials must be entered by the user in WordPress Connectors.',
 			parameters: objectSchema( {} ),

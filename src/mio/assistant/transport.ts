@@ -1,9 +1,11 @@
 /** Same-origin, nonce-authenticated transport. No conversation persistence. */
+import { assertMioRequestBudget } from './budget';
 import { trackedFetch } from '../../tracked-fetch';
 import type { MioTransport, MioTurn } from './types';
 
 export function createMioTransport( windowId: string ): MioTransport {
 	return async ( request, signal ) => {
+		assertMioRequestBudget( request );
 		const config = window.wp?.os?.config;
 		if ( ! config?.aiSearchUrl || ! config.restNonce ) {
 			throw new Error(

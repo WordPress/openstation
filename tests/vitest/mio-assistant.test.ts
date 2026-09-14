@@ -57,7 +57,7 @@ describe( 'MIO private action loop', () => {
 		const session = new MioSession( context( [ ability ] ), async () => ( { message: '', calls: [ call( 'one' ), call( 'two' ) ] } ), () => true );
 		await expect( session.ask( 'Both' ) ).rejects.toThrow( 'unavailable' );
 		expect( ability.run ).toHaveBeenCalledTimes( 1 );
-		expect( session.conversation.read().at( -1 )?.text ).toContain( '1 earlier actions completed' );
+		expect( session.conversation.read().at( -1 )?.text ).toContain( 'confirmed writes: 1' );
 	} );
 	test.each( [ { name: 'delete_all', arguments: '{}' }, { name: 'change', arguments: '{"value":"x","extra":true}' }, { name: 'change', arguments: '[]' } ] )( 'rejects unoffered or malformed calls %#', async ( bad ) => {
 		const ability = noop();
@@ -117,8 +117,8 @@ test( 'thinking stops on cancel immediately and a stale reply cannot stop a newe
 
 test( 'freezes read results before subsequent actions mutate the same store', async () => {
 	const state = { wallpaper: 'galaxy' };
-	const read = { ...noop(), name: 'read', validate: () => true, run: () => state };
-	const change = { ...noop(), run: () => { state.wallpaper = 'dark'; return { changed: true }; } };
+	const read = { ...noop(), effect: 'read' as const, name: 'read', validate: () => true, run: () => state };
+	const change = { ...noop(), run: () => { state.wallpaper = 'dark'; return { saved: true, changed: true }; } };
 	const transport = vi.fn<MioTransport>().mockResolvedValueOnce( { message: '', calls: [ { name: 'read', arguments: '{}' }, call( 'dark' ) ] } ).mockResolvedValueOnce( done );
 	const session = new MioSession( context( [ read, change ] ), transport, () => true );
 	await session.ask( 'Change Galaxy to Graphite' );

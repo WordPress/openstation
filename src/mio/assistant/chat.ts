@@ -119,7 +119,8 @@ export function mountMioChat(
 			status.textContent = '';
 		} catch ( error ) {
 			if ( error instanceof Error && error.name === 'AbortError' ) {
-				status.textContent = __( 'Stopped. Completed changes remain applied.' );
+				const unknown = session.operations.list().some( ( operation ) => operation.effect === 'write' && operation.status === 'unknown' );
+				status.textContent = unknown ? __( 'Stopped. A submitted save may still complete.' ) : __( 'Stopped.' );
 			} else {
 				status.textContent =
 					error instanceof Error

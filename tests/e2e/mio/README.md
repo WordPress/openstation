@@ -36,3 +36,8 @@ Provider responses are intentionally not snapshot-tested. Judge factual groundin
 - Toggle the MIO dock button: Features → MIO API tracks it immediately. Toggle the checkbox: the dock active indicator, mascot, title-bar icon, chat and tips follow. Reload and confirm the choice persists.
 - Disable Show MIO on wallpaper in Make it yours: MIO stays hidden on the desktop, but window chat and undismissed tips still appear. The MIO dock context menu can restore wallpaper visibility. Features shows the same choice; reload preserves it.
 - With MIO API on, disable AI assistant: Ask MIO disappears, but About still offers its undismissed blog callout. Re-enable AI with a compatible connector: Ask MIO returns. Without a connector (or AI support), it stays hidden; window controls and callouts remain usable.
+
+- With a consumer implementing structured validation, provide invalid arguments twice and verify MIO receives exact field paths and saves once after correction. A third invalid candidate stops without claiming a save.
+- With a caller-owned large draft, verify full reads preserve all fields, only superseded reads are compacted, and a request exceeding the UTF-8 byte budget is stopped before HTTP.
+- Cancel a pending save, inspect its operation using the application's read-only status resolver, and confirm that reconciliation never calls the write action again. Permission loss must remain terminal.
+- Read a help file past 12,000 characters using its continuation cursor, then use a section ID to fetch a late rule directly. Exact component IDs should rank ahead of common words.

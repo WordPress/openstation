@@ -78,12 +78,12 @@ Do not put secrets in prompts or documents. The current prompt, bounded recent c
 
 ## Linked Markdown retrieval
 
-A `MioDocument` is `{id, title, markdown}`. Use relative Markdown paths for ids. The Preferences example imports its nine `.md?raw` files through Vite, so the help travels in its app bundle. No server directory, upload path or arbitrary URL is exposed.
+A `MioDocument` is `{id, title, markdown, version?, topics?, componentIds?}`. Optional metadata identifies the documentation revision, topics and exact kit component IDs; retrieval returns it to the caller. Use relative Markdown paths for ids. The Preferences example imports its nine `.md?raw` files through Vite, so the help travels in its app bundle. No server directory, upload path or arbitrary URL is exposed.
 
 The session provides two private read tools:
 
-- `search_help({query})`: keyword retrieval over document headings and sections, returning up to four relevant excerpts.
-- `read_help({id})`: a bounded full document plus the manifest ids linked from it. Relative links, `../` paths and fragments resolve within the supplied collection. External and missing links are excluded.
+- `search_help({query})`: deterministic lexical retrieval returning up to four hits with document metadata, a section id, section titles, an excerpt and `truncated`. Exact document IDs, titles, topics and component IDs rank first; common stop words are ignored.
+- `read_help({id, section?, cursor?})`: up to 12,000 characters of the document or selected heading section, its section manifest, linked document IDs, `truncated`, and a continuation `cursor` (null at the end). Continue with the same id and section. Cursors are bound to the document content and selection; stale or invalid cursors produce repairable feedback. Heading IDs are slugged and duplicate headings receive numeric suffixes; fenced-code headings are ignored. Relative links, `../` paths and fragments resolve within the collection; external and missing links are excluded.
 
 The latest user's message also seeds retrieval before generation. This is lexical retrieval, not embedding search. Documents and links remain caller-owned; the search never crawls the web. Keep documents focused, use the labels people see in the app, explain defaults/limits, and cross-link related tasks.
 
@@ -96,9 +96,11 @@ Each item returned by `abilities()` has:
 | `name` | Unique within this context, lowercase letter followed by letters, digits or underscores; maximum 64 characters. `search_help` and `read_help` are reserved by the session. |
 | `description` | Explain what the action changes, scope, and side effects. |
 | `parameters` | Object JSON Schema advertised to the provider. |
-| `validate(args)` | Required runtime validator. Reject unknown keys, invalid types/ranges and unavailable ids. A schema alone does not authorize execution. |
+| `validate(args, context?)` | Required synchronous validator returning a boolean or `{ok:true}` / `{ok:false, errors, retryable}`. Reject unknown keys, invalid types/ranges and unavailable ids. The framework supplies the call context; existing one-argument validators still work. |
 | `allowed?()` | Optional live permission/availability predicate; checked when advertising and again before executing. |
-| `run(args, signal)` | Execute the validated operation and return its outcome. Honor cancellation before starting any write and pass the signal into cancellable requests. Throw on failure. |
+| `run(args, signal, context)` | Execute only after validation. Existing two-argument implementations still work. Honor cancellation before submitting writes; use the stable context IDs and revision to bind app-owned operations. |
+| `effect?` | `read`, `validate`, `write` or `none` (nonpersistent UI operations). Omission conservatively means `write`. Reads can refresh; writes cannot be replayed automatically. |
+| `history?(entry, context)` | Return a compact object replacing this call’s default history representation. `entry` contains name, callId, args and result. Preserve authoritative outcomes and use app-owned references for large documents. For a semantic no-effect rejection, compact data is attached to the mandatory error feedback. |
 
 The action list is rebuilt each round and before each call. A model response cannot invoke unoffered tools or fall back to global commands. For server writes use the app's authenticated actions or existing REST endpoints; their capability and nonce checks remain authoritative. Browser registration is an application scope boundary, not isolation from another trusted same-origin plugin's JavaScript.
 
@@ -106,9 +108,42 @@ The action list is rebuilt each round and before each call. A model response can
 
 ## Chains, cancellation and honest results
 
-The client runs at most sixteen tool calls **sequentially** per user message, across up to eight model rounds. It reevaluates focus, registration and permission before each execution. Tool results go back to the next round, allowing reads followed by dependent changes. Repeated identical calls are stopped. A failed or uncertain write is never automatically replayed.
+The client allows at most sixteen attempted calls across eight provider rounds per user message. Rejected arguments consume the call budget. Three validation failures exhaust the per-turn correction allowance, even if the model opens another edit or calls a different validator. Two rejected candidates can therefore be repaired before the third candidate succeeds. A rejected call stops the remainder of that response's batch and returns feedback before any dependent action runs.
 
-A chain is not a transaction. Earlier completed actions remain applied if a later one fails or the user presses Stop. Closing chat, moving focus or disposing the window aborts the pending request and prevents late replies from dispatching more actions. Already submitted server writes may still complete; cancellation is not rollback. Return meaningful results rather than an optimistic “done.” Each outcome is serialized immediately, preserving historical read results even when later actions mutate the same store. Preferences waits for the existing save lifecycle and compares the requested values with the completed save’s `savedSettings` snapshot before returning a saved result. Its result includes `changed` and `changes: [{setting, before, after}]`, captured from before the optimistic update. Use this evidence to distinguish a change from an already-selected value; the dynamic prompt’s current state is refreshed after the action.
+Argument errors use `{code, path, message, suggestion?}` (for example `$.fields[2].name`). Malformed JSON, a non-object envelope or arguments over 96,000 UTF-8 bytes are repairable only after identifying an offered, currently allowed tool. Oversized arguments require a smaller patch or draft reference, not silent slicing. Boolean `false` becomes a generic schema error at `$`; structured validators provide precise paths. Feedback is bounded to twenty errors, with bounded code/path/message/suggestion lengths. `retryable:false`, unavailable actions, permission failures and cancellation are terminal. An exception thrown by `run` is always terminal: it cannot establish that no write happened.
+
+A tool performing semantic validation inside `run` may explicitly return `{effect:'none', status:'rejected', errors, retryable:true, data?}`. This means **no write was submitted** and shares the same correction allowance. Do not use this outcome for a timeout or uncertain server response. The same rejected candidate can receive feedback again until the budget is exhausted; it is never described as a completed save.
+
+Reads and validation-only calls may repeat up to four times for the same name/arguments, within the overall call budget. Identical writes are compared with object keys normalized and are blocked once attempted, unless an explicit no-effect rejection proved that nothing was written. Failure messages distinguish completed reads, rejected candidates, confirmed writes and unknown write outcomes.
+
+Successful writes return `{effect:'write', status:'confirmed', receipt, data?}`. Receipts are nonempty strings of at most 500 characters, unique per logical write. Reusing a receipt for another call is terminal and cannot count as another confirmed write. Prefer an authoritative server receipt. Existing `{saved:true, ...}` results remain accepted as explicit acknowledgements and receive a client call-ID receipt; that acknowledgement is **not server-side idempotency**. An unacknowledged write or `{effect:'write', status:'unknown'}` stops the turn. A successful non-writing no-op can return `{effect:'none', status:'completed', data?}`.
+
+A chain is not a transaction. Earlier completed actions remain applied if a later one fails or the user presses Stop. Closing chat, moving focus or disposing the window aborts the pending request and prevents late replies from dispatching more actions. Already submitted server writes may still complete; cancellation is not rollback. Return meaningful results rather than an optimistic “done.” Each history result is serialized immediately, preserving historical read results even when later actions mutate the same store. Preferences waits for the existing save lifecycle and compares the requested values with the completed save’s `savedSettings` snapshot before returning a saved result. Its result includes `changed` and `changes: [{setting, before, after}]`, captured from before the optimistic update. Use this evidence to distinguish a change from an already-selected value; the dynamic prompt’s current state is refreshed after the action.
+
+## Turn identity and operation lifecycle
+
+`run` receives `{turnId, callId, idempotencyKey, windowId, revision, signal, limits, validationFailures, validationRemaining}` as its third argument. `turnId` is created by the shell once per user message; call IDs and idempotency keys identify individual invocations. Apps cannot reset the correction allowance by beginning another edit. Residency supplies the actual window instance ID. Optional `revision: () => string` is evaluated for the live document/window state; the app must enforce optimistic concurrency on the server as well.
+
+A context may supply these synchronous observers:
+
+- `onTurnBegin(context)` once before the first provider request.
+- `onTurnAbort(context)` once when stopped, disposed or losing focus/availability. This fires immediately, including while a submitted write is unresolved.
+- `onTurnEnd(summary)` once when the asynchronous turn settles, with `status` (`completed`, `failed`, `aborted`), call and validation counts, reads, confirmed writes and unknown write outcomes. If a transport never settles, abort still fires; end awaits settlement.
+- `onOperation(operation)` when an identified call starts or resolves. Observer exceptions do not control execution or cause retries.
+
+`lease.getOperations()` returns defensive copies of up to 64 content-free records: turn/call/idempotency IDs, window/revision, ability, declared effect, status and optional receipt. This memory-only ledger contains neither arguments nor conversation. It remains inspectable through a retained lease after disposal; it is released when the lease/session is garbage collected. Closing the window still clears the chat transcript.
+
+Set `operationStatus: async (operation, signal) => outcome` to call your application's **read-only**, authenticated operation-status endpoint. `lease.inspectOperation(callId, signal?)` uses that resolver to reconcile an unresolved write; it never invokes `run`. A definitive no-effect rejection marks the operation rejected; an authoritative confirmation records its receipt. Repeated inspection of a confirmed operation returns the receipt, and a late cancellation/network failure cannot erase it. Status inspection can work through a retained lease after closing the window. For reconciliation across reloads, the application must retain its own operation identifiers and endpoint; MIO does not persist them.
+
+Use `context.idempotencyKey` as the server's logical-operation key, alongside capability checks, current document revision and payload identity. A status endpoint must authorize access to that operation. Possessing an ID grants no permission, and an unknown outcome never authorizes automatic replay. The framework supplies these client extension points; it does not install a generic write or operation-status route on behalf of apps.
+
+## Complete documents and request budgets
+
+Default tool history retains the result, call identity and effect/status evidence; it does **not** resend the tool's full input arguments. An ability's `history` callback can retain `{editId, documentHash, byteLength, errors}` instead of another copy of YAML. A window's `compactHistory(history, turnContext)` may replace the complete model-facing history representation, for example retaining only the latest necessary full candidate while keeping older receipts and validation errors. These callbacks affect the model context, not the visible conversation. They are synchronous and application-owned; preserve any fields the model needs, or supply a read tool for their immutable resource reference. The framework never silently slices a form definition to fit.
+
+Before every transport call, MIO measures serialized UTF-8 bytes against the PHP limits: prompt 16,000; transcript 96,000; tool definitions 96,000 (including PHP's Unicode/slash escaping); complete JSON request 220,000. The built-in transport checks again before HTTP. Overflow throws `MioBudgetError` with `code:'mio_request_budget'`, `scope`, `usedBytes`, `limitBytes` and `remainingBytes`. No provider request is sent and no candidate is silently truncated. A large committed result can still exceed the next-round budget; its receipt remains in the ledger for accurate reconciliation.
+
+For larger forms, use app-owned draft resources, edit IDs, revisioned reads and diff/patch operations instead of repeating complete documents. The [form editing recipe](examples/mio-form-editing.md) demonstrates the lifecycle, repair and compaction contracts. The regression suite edits a complete UTF-8 document larger than 40 KB through two repair attempts and help reads without exceeding the transcript cap or dropping fields.
 
 ## Conversation and themed chat
 

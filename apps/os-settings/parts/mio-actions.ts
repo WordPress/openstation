@@ -60,10 +60,11 @@ export function preferencesMioAbilities( ctx: Ctx ): MioAbility[] {
 			run: ( args, signal ) => patch( { [ key ]: args.value }, signal ),
 		} );
 	}
-	return [
+	const actions: MioAbility[] = [
 		...setters,
 		{
 			name: 'list_options',
+			effect: 'read',
 			description:
 				'List live themes (including surface colours), wallpapers, accents, effects, navigation and phone pin choices. Read before selecting ids.',
 			parameters: objectSchema( {} ),
@@ -72,6 +73,7 @@ export function preferencesMioAbilities( ctx: Ctx ): MioAbility[] {
 		},
 		{
 			name: 'read_settings',
+			effect: 'read',
 			description:
 				'Read current preferences, active section and capability-gated site options.',
 			parameters: objectSchema( {} ),
@@ -179,7 +181,7 @@ export function preferencesMioAbilities( ctx: Ctx ): MioAbility[] {
 			validate: ( args ) => exactKeys( args, [] ),
 			run: async ( _args, signal ) => {
 				if ( ! settings().desktopTheme ) {
-					return { changed: false, reason: 'System default has no recommended layout.' };
+					return { effect: 'none', status: 'completed', data: { changed: false, reason: 'System default has no recommended layout.' } };
 				}
 				return saveForMio( () => {
 					if ( ! applyThemeRecommendations( settings().desktopTheme ) ) {
@@ -190,4 +192,5 @@ export function preferencesMioAbilities( ctx: Ctx ): MioAbility[] {
 		},
 		...extraMioActions( ctx, patch ),
 	];
+	return actions.map( ( action ) => ( { effect: 'write', ...action } ) );
 }

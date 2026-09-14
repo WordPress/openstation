@@ -67,3 +67,5 @@ If you are **building a plugin** that interacts with the desktop shell — opens
 If a documented hook behaves differently than what's written here, that is a bug in either the code or the docs. Open an issue or PR. Do not work around it silently — the docs are source of truth for plugin authors.
 
 - **[Window-scoped MIO](./mio-window-assistant.md)** — Experimental. Opt-in residency, linked Markdown help, private chainable actions and memory-only themed chat. [Preferences help example](../apps/os-settings/help/index.md).
+
+- [Repairable form edits with MIO](examples/mio-form-editing.md) — Experimental: structured validation, revisioned operations, status reconciliation and large-document history.

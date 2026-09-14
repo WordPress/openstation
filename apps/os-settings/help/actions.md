@@ -50,3 +50,7 @@ Focus changes, chat close, window close and Stop cancel pending work. A submitte
 The public WordPress Abilities registry remains unchanged. Destructive resets/deletions, arbitrary URLs, raw settings bags, arbitrary app dispatch and filesystem access are absent. Third-party apps follow the same opt-in pattern with their own help, prompt and validated actions.
 
 `clear_wallpaper_image` takes no arguments. It clears the wallpaper selection and returns an active image wallpaper to the default; the Media Library attachment is preserved. This is reversible by selecting the image again.
+
+## Repair and outcome reporting
+
+MIO may correct invalid arguments twice before a third validation failure ends the user turn. Corrections do not count as saved actions. Read tools can refresh options or settings after a change; a completed or uncertain write must not be replayed. Status summaries distinguish reads, rejected candidates, confirmed writes and unknown write outcomes. Permission failures and cancelled requests are terminal. Read longer help documents using their section IDs or continuation cursor when `truncated` is true.

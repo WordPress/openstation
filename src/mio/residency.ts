@@ -116,7 +116,7 @@ export class MioResidency {
 			button,
 			observer,
 			session: new MioSession(
-				context,
+				{ ...context, windowId: id },
 				createMioTransport( id ),
 				() =>
 					this.canChat() && resident.enabled &&
@@ -186,6 +186,8 @@ export class MioResidency {
 			isEnabled: () => resident.enabled,
 			setEnabled,
 			openChat,
+			getOperations: () => resident.session.operations.list(),
+			inspectOperation: ( callId, signal = new AbortController().signal ) => resident.session.operations.inspect( callId, signal ),
 			dispose: () => {
 				if ( this.residents.get( id ) !== resident ) {
 					return;

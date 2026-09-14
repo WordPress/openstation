@@ -1,3 +1,4 @@
+import type { MioCallContext } from '../../src/mio/assistant/types';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { preferencesMioAbilities } from './parts/mio-actions';
 import { preferencesMioDocuments } from './parts/mio';
@@ -12,6 +13,8 @@ import { installHooksStub, clearHooksStub } from '../../tests/vitest/helpers/hoo
 import { mockViewContext } from '../../src/app-runtime/testing';
 import { uiOf, type Ctx } from './parts/types';
 import type { MioTransport } from '../../src/mio/assistant/types';
+
+const callContext = { turnId: 'test', callId: 'test:1', idempotencyKey: 'test:1', effect: 'write', limits: { rounds: 8, calls: 16, validationFailures: 3, repeatedReads: 4 }, validationFailures: 0, validationRemaining: 3, signal: new AbortController().signal } as MioCallContext;
 
 let stub: OsSettingsStub;
 let ctx: Ctx;
@@ -66,10 +69,10 @@ describe( 'Preferences private MIO integration', () => {
 		stub.state.wallpaper = 'galaxy';
 		const action = preferencesMioAbilities( ctx ).find( ( ability ) => ability.name === 'set_wallpaper' )!;
 		const signal = new AbortController().signal;
-		expect( await action.run( { value: 'dark' }, signal ) ).toMatchObject( {
+		expect( await action.run( { value: 'dark' }, signal, callContext ) ).toMatchObject( {
 			saved: true, changed: true, changes: [ { setting: 'wallpaper', before: 'galaxy', after: 'dark' } ],
 		} );
-		expect( await action.run( { value: 'dark' }, signal ) ).toMatchObject( { saved: true, changed: false, changes: [] } );
+		expect( await action.run( { value: 'dark' }, signal, callContext ) ).toMatchObject( { saved: true, changed: false, changes: [] } );
 	} );
 	test( 'does not mistake an earlier concurrent save for confirmation of its own change', async () => {
 		const before = { ...stub.state };
@@ -78,7 +81,7 @@ describe( 'Preferences private MIO integration', () => {
 		} );
 		const action = preferencesMioAbilities( ctx ).find( ( a ) => a.name === 'set_window_radius' )!;
 		let resolved = false;
-		const pending = action.run( { value: 'round' }, new AbortController().signal ) as Promise<unknown>;
+		const pending = action.run( { value: 'round' }, new AbortController().signal, callContext ) as Promise<unknown>;
 		void pending.then( () => {
 			resolved = true;
 		} );
@@ -100,7 +103,7 @@ describe( 'Preferences private MIO integration', () => {
 		const action = preferencesMioAbilities( ctx ).find(
 			( ability ) => ability.name === 'set_window_radius',
 		)!;
-		await expect( action.run( { value: 'round' }, new AbortController().signal ) ).rejects.toThrow(
+		await expect( action.run( { value: 'round' }, new AbortController().signal, callContext ) ).rejects.toThrow(
 			'Save failed',
 		);
 	} );
@@ -134,12 +137,12 @@ describe( 'Preferences private MIO integration', () => {
 		stub.state.wallpaper = 'custom-image';
 		stub.state.customImage = { id: 19, url: 'https://example.test/photo.jpg' };
 		const actions = preferencesMioAbilities( ctx );
-		await actions.find( ( a ) => a.name === 'clear_wallpaper_image' )!.run( {}, new AbortController().signal );
+		await actions.find( ( a ) => a.name === 'clear_wallpaper_image' )!.run( {}, new AbortController().signal, callContext );
 		expect( stub.state.customImage ).toBeNull();
 		expect( stub.state.wallpaper ).not.toBe( 'custom-image' );
 		expect( ctx.fetch ).not.toHaveBeenCalled();
 		ctx.root.innerHTML = '<os-tabpanel for="windows">Rounded corners</os-tabpanel>';
-		await actions.find( ( a ) => a.name === 'search_settings' )!.run( { query: 'corners' }, new AbortController().signal );
+		await actions.find( ( a ) => a.name === 'search_settings' )!.run( { query: 'corners' }, new AbortController().signal, callContext );
 		expect( uiOf( ctx ).search.index?.get( 'windows' ) ).toContain( 'corners' );
 	} );
 	test( 'administrator-only abilities disappear when capability is lost', () => {
