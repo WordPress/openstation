@@ -25,6 +25,8 @@
 
 import type { Application, Container, Graphics } from 'pixi.js';
 import { doAction } from '../hooks';
+import { resizeMioCanvas } from './canvas-resize';
+import { advanceMioThinking, mioThinkingExpression } from './thinking';
 import {
 	clampOutsideChrome,
 	collectObstacles,
@@ -374,6 +376,8 @@ export async function mountMio(
 	let nextBlinkAt = BLINK_MIN_GAP + Math.random() * BLINK_MAX_EXTRA;
 	let blinkStartedAt = -1;
 	let dragging = false;
+	let anchor: { x: number; y: number } | null = null;
+	let persistentAnchor = false;
 	/** Seconds the body has been continuously buried in a window. */
 	let trappedFor = 0;
 	let dragPointerId: number | null = null;
@@ -388,6 +392,7 @@ export async function mountMio(
 	// `hueDrift`, so `calmed()` zeroing that for reduced motion stills
 	// the shimmer here too without a second preference to read.
 	let tiltAngle = 0;
+	let thinking = 0;
 	let tilt = { x: 1, y: 0 };
 	/** Live `prefers-reduced-motion`, kept current by `onMotionChange`. */
 	let reducedMotion =
@@ -461,6 +466,12 @@ export async function mountMio(
 	 * throttle interval. See `obstacle-track.ts`.
 	 */
 	const readSurfaces = ( nowMs: number ): void => {
+		if ( host.dataset.mioWindow ) {
+			origin = originOf();
+			desk.reset();
+			obstacles = [];
+			return;
+		}
 		if ( nowMs - lastSurfaceRead >= SURFACE_REFRESH_MS ) {
 			lastSurfaceRead = nowMs;
 			origin = originOf();
@@ -529,6 +540,9 @@ export async function mountMio(
 			return;
 		}
 		dragging = true;
+		if ( ! persistentAnchor ) {
+			anchor = null;
+		}
 		dragPointerId = e.pointerId;
 		// Grab offset: Mio keeps its position relative to the
 		// cursor instead of snapping its centre under it.
@@ -664,6 +678,32 @@ export async function mountMio(
 	// ------------------------------------------------------------------
 	// Frame.
 	// ------------------------------------------------------------------
+	let blink = 0;
+	const paint = (): void => {
+		const cursor = pointer.get();
+		const expression = mioThinkingExpression(
+			{
+				rim: body.rim,
+				centre: body.core,
+				radius: body.radius,
+				elapsed,
+				gaze: cursor ? toLayer( cursor ) : null,
+				blink,
+				tilt,
+			},
+			config.appearance, thinking, reducedMotion,
+		);
+		drawMio( layers, expression.frame, expression.appearance );
+
+		// Ride the handle on the body. Anchored on the *rim centroid*,
+		// not the rest position, so a squashed or mid-throw Mio is
+		// still grabbable where it actually looks like it is.
+		const half = ( body.radius * HANDLE_SCALE ) / 2;
+		handle.style.transform = `translate3d(${ body.core.x - half }px, ${
+			body.core.y - half
+		}px, 0)`;
+	};
+
 	const tick = (): void => {
 		if ( destroyed || ! animating ) {
 			return;
@@ -743,6 +783,7 @@ export async function mountMio(
 			obstacles,
 			bounds,
 			dragTarget,
+			anchor: dragging ? null : anchor,
 		} );
 
 		updateTilt( seconds );
@@ -753,7 +794,7 @@ export async function mountMio(
 		if ( blinkStartedAt < 0 && elapsed >= nextBlinkAt ) {
 			blinkStartedAt = elapsed;
 		}
-		let blink = 0;
+		blink = 0;
 		if ( blinkStartedAt >= 0 ) {
 			const t = ( elapsed - blinkStartedAt ) / BLINK_DURATION;
 			if ( t >= 1 ) {
@@ -764,28 +805,8 @@ export async function mountMio(
 			}
 		}
 
-		const cursor = pointer.get();
-		drawMio(
-			layers,
-			{
-				rim: body.rim,
-				centre: body.core,
-				radius: body.radius,
-				elapsed,
-				gaze: cursor ? toLayer( cursor ) : null,
-				blink,
-				tilt,
-			},
-			config.appearance,
-		);
-
-		// Ride the handle on the body. Anchored on the *rim centroid*,
-		// not the rest position, so a squashed or mid-throw Mio is
-		// still grabbable where it actually looks like it is.
-		const half = ( body.radius * HANDLE_SCALE ) / 2;
-		handle.style.transform = `translate3d(${ body.core.x - half }px, ${
-			body.core.y - half
-		}px, 0)`;
+		thinking = advanceMioThinking( thinking, host.dataset.mioThinking === 'true', seconds, reducedMotion );
+		paint();
 	};
 
 	app.ticker.add( tick );
@@ -811,21 +832,23 @@ export async function mountMio(
 			return;
 		}
 		const { width, height } = size();
-		app.renderer.resize( width, height );
-		origin = originOf();
-		// Every obstacle coordinate is layer-local, so a new origin
-		// re-bases the lot at once. That is a discontinuity, not motion:
-		// drop the interpolation history rather than lerp the whole desk
-		// across the rebase.
-		desk.reset();
-		// Pull Mio back inside a shrunken shell.
-		const r = body.radius;
-		const x = clamp( body.core.x, r, Math.max( r, width - r ) );
-		const y = clamp( body.core.y, r, Math.max( r, height - r ) );
-		if ( x !== body.core.x || y !== body.core.y ) {
-			translateBody( body, x, y );
-			forgetMotion();
-		}
+		resizeMioCanvas( app, { width, height }, () => {
+			origin = originOf();
+			// Every obstacle coordinate is layer-local, so a new origin
+			// re-bases the lot at once. That is a discontinuity, not motion:
+			// drop the interpolation history rather than lerp the whole desk
+			// across the rebase.
+			desk.reset();
+			// Pull Mio back inside a shrunken shell.
+			const r = body.radius;
+			const x = clamp( body.core.x, r, Math.max( r, width - r ) );
+			const y = clamp( body.core.y, r, Math.max( r, height - r ) );
+			if ( x !== body.core.x || y !== body.core.y ) {
+				translateBody( body, x, y );
+				forgetMotion();
+			}
+			paint();
+		} );
 	} );
 	resizeObserver.observe( host );
 
@@ -867,6 +890,10 @@ export async function mountMio(
 	return {
 		getPosition: () => toViewport(),
 		setPosition: ( x: number, y: number ) => {
+			anchor = null;
+			origin = originOf();
+			desk.reset();
+			obstacles = [];
 			const bounds = size();
 			const r = body.radius;
 			translateBody(
@@ -876,6 +903,12 @@ export async function mountMio(
 			);
 			forgetMotion();
 			savePosition( toViewport() );
+		},
+		setAnchor: ( position, persistent = true ) => {
+			// A handoff may have just removed its scale transform between ticks.
+			origin = originOf();
+			anchor = position ? toLayer( position ) : null;
+			persistentAnchor = persistent;
 		},
 		setAnimating,
 		applyConfig: ( next: MioConfig ) => {

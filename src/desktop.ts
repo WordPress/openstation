@@ -2304,11 +2304,18 @@ function init(): void {
 	const mioShellEl = document.getElementById( 'os-shell' );
 	const mio = new MioController( {
 		shell: mioShellEl ?? document.body,
+		focusedWindow: () => {
+			const win = manager.getFocused();
+			return win && manager.isActive( win.id ) ? win.id : null;
+		},
 		bundleUrl: config.mioBundleUrl ?? '',
 		serverConfig: config.mio,
 		enabled: osSettings.state.mioEnabled,
+		wallpaperVisible: () => osSettings.state.mioShowOnWallpaper,
+		chatAvailable: () => !! ( osSettings.state.ai.enabled && config.aiAssistant?.available && config.aiAssistant.assistantProviderConfigured ),
 		persist: ( enabled: boolean ) => {
 			osSettings.state.mioEnabled = enabled;
+			osSettings.state.mioApiEnabled = enabled;
 			osSettings.save();
 		},
 		// The look someone builds in "Make it yours" rides the OS
@@ -2324,6 +2331,8 @@ function init(): void {
 		},
 	} );
 	const mioApi: MioApi = mio.api();
+	osSettings.subscribeOsSettings( ( snapshot ) => mio.syncEnabled( snapshot.mioEnabled ) );
+	document.addEventListener( 'os-ai-status-changed', () => mio.refreshWindowAvailability() );
 	// Not on a phone: the companion floats between windows on a desk
 	// the phone does not have, and its bundle is PixiJS. The first
 	// crossing into the desktop band boots it then.

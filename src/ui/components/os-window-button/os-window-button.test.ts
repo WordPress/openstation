@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, test } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import './os-window-button';
 
 const tick = (): Promise<void> => Promise.resolve();
@@ -119,6 +119,21 @@ describe( '<os-window-button>', () => {
 		expect( btn.hasAttribute( 'aria-label' ) ).toBe( false );
 	} );
 
+	test.each( [ '', 'icon-src="https://example.com/x.png"' ] )( 'forwards toggle and disabled states %s', async ( icon ) => {
+		host.innerHTML = `<os-window-button ${ icon } aria-pressed="false" disabled></os-window-button>`;
+		await tick(); await tick();
+		const el = host.querySelector( 'os-window-button' )!;
+		const button = el.shadowRoot!.querySelector( 'button' )!;
+		const activate = vi.fn(); el.addEventListener( 'os-button-activate', activate );
+		expect( button.disabled ).toBe( true );
+		expect( button.getAttribute( 'aria-pressed' ) ).toBe( 'false' );
+		button.click(); expect( activate ).not.toHaveBeenCalled();
+		el.removeAttribute( 'disabled' ); el.setAttribute( 'aria-pressed', 'true' );
+		await tick(); await tick();
+		expect( button.disabled ).toBe( false );
+		expect( button.getAttribute( 'aria-pressed' ) ).toBe( 'true' );
+		button.click(); expect( activate ).toHaveBeenCalledOnce();
+	} );
 	test( 'switching the icon attribute repaints the svg', async () => {
 		host.innerHTML = `<os-window-button icon="minimize"></os-window-button>`;
 		await tick();

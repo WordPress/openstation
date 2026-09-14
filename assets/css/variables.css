@@ -141,6 +141,20 @@
  * `openstation_enqueue_desktop_theme_style()`.
  */
 body.os-active {
+	/* MIO's conversation follows desktop themes through these public tokens. */
+	--os-mio-chat-bg: var(--os-ui-modal-bg, #15151e);
+	--os-mio-chat-fg: var(--os-ui-modal-text, #f4f4fb);
+	--os-mio-chat-muted: var(--os-ui-modal-text-muted, #b4b4c6);
+	--os-mio-chat-hover-bg: color-mix(in srgb, var(--os-mio-chat-bg, #fff) 90%, var(--os-mio-chat-fg, #1d2327));
+	--os-mio-chat-border: color-mix(in srgb, var(--os-ui-accent, #a855f7) 40%, transparent);
+	--os-mio-chat-user-bg: color-mix(in srgb, var(--os-ui-accent, #3f6dff) 15%, transparent);
+	--os-mio-chat-glow: color-mix(in srgb, var(--os-ui-accent-dim, #ff4fd8) 10%, transparent);
+	--os-mio-launcher-bg: color-mix(in srgb, var(--os-mio-chat-bg, #fff) 62%, transparent);
+	--os-mio-callout-bg: var(--os-mio-chat-bg, #15151e);
+	--os-mio-callout-fg: var(--os-mio-chat-fg, #f4f4fb);
+	--os-mio-callout-border: color-mix(in srgb, var(--os-ui-accent-dim, #a855f7) 32%, transparent);
+	--os-mio-chat-radius: max(18px, var(--os-window-radius, 22px));
+
 	/*
 	 * ---- Desk --------------------------------------------------
 	 *
@@ -1804,3 +1818,40 @@ body.os-active {
  * The `data-os-scheme` attribute is still stamped on the
  * shell root for plugins and themes that key off it.
  */
+
+/* The chat is a MIO surface even when its owning window wears a light theme.
+ * Component colours remain reachable through the public MIO token family. */
+body.os-active .os-mio-chat,
+body.os-active .os-mio-chat-launcher {
+	--os-ui-fg: var(--os-mio-chat-fg, #1d2327);
+	--os-ui-fg-muted: var(--os-mio-chat-muted, #646970);
+	--os-window-bg: var(--os-mio-chat-bg, #fff);
+	--os-ui-border: var(--os-mio-chat-border, #c3c4c7);
+}
+
+/* Ghost labels sit on the chat; the hero button owns a lighter mesh. */
+body.os-active .os-mio-chat os-button[variant="ghost"],
+body.os-active .os-mio-chat-launcher {
+	--os-ui-button-fg: var(--os-mio-chat-fg, #1d2327);
+	--os-ui-button-bg-hover: var(--os-mio-chat-hover-bg, #f0f0f1);
+}
+
+body.os-active .os-mio-chat os-button[variant="holo"] {
+	--os-ui-button-fg: var(--os-ui-holo-ink, #1d2327);
+}
+
+/* The component owns the launcher's single border and rounded surface. */
+body.os-active .os-mio-chat-launcher {
+	--os-ui-button-bg: var(--os-mio-launcher-bg, #ffffffa0);
+	--os-ui-button-border: 1px solid var(--os-mio-chat-border, #c3c4c7);
+	--os-ui-button-border-radius: var(--os-mio-chat-radius, 22px);
+}
+
+body.os-active .os-mio-callout {
+	--os-ui-button-border: 0;
+	--os-ui-button-border-radius: 50%;
+	--os-ui-button-padding: 0;
+	--os-ui-button-bg: transparent;
+	--os-ui-button-fg: var(--os-mio-callout-fg, #382b38);
+	--os-ui-button-bg-hover: color-mix(in srgb, var(--os-mio-callout-fg, #382b38) 10%, transparent);
+}

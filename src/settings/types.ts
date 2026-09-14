@@ -340,6 +340,10 @@ export interface OsSettingsState {
 	 * time it flips true. Off by default. See `docs/mio.md`.
 	 */
 	mioEnabled: boolean;
+	/** Compatibility alias for the MIO master switch (mioEnabled). */
+	mioApiEnabled: boolean;
+	/** Show the enabled companion on wallpaper, independently of window invitations. */
+	mioShowOnWallpaper: boolean;
 	/**
 	 * The user's own Mio, as built in "Make it yours" — colours, ring,
 	 * glow, hologram, and silhouette. Only the keys they actually

@@ -261,6 +261,8 @@ const SANITIZERS: Sanitizers = {
 	showDesktopOnWallpaperClick: bool,
 	confirmCloseAllWindows: bool,
 	mioEnabled: bool,
+	mioApiEnabled: bool,
+	mioShowOnWallpaper: bool,
 	// Shape check only — what a *legal* hue or silhouette is stays
 	// `sanitizeMioConfig`'s call, and it runs on everything headed for
 	// the simulation whatever route it arrived by.
@@ -311,6 +313,14 @@ export function sanitizeSettings(
 		}
 		out[ key ] = table[ key ]( source[ key ], out[ key ] );
 	}
+	// Both names address one master switch. A partial alias write is accepted;
+	// a full snapshot uses the longstanding dock preference as its authority.
+	if ( typeof source.mioEnabled === 'boolean' ) {
+		out.mioEnabled = source.mioEnabled;
+	} else if ( typeof source.mioApiEnabled === 'boolean' ) {
+		out.mioEnabled = source.mioApiEnabled;
+	}
+	out.mioApiEnabled = out.mioEnabled;
 	return out as unknown as OsSettingsState;
 }
 
@@ -693,7 +703,7 @@ function _postToServer( state: OsSettingsState, windowId?: string | null ): void
 		// only. Treat as success so optimistic indicators don't hang
 		// in "saving" forever; we'll re-sync on the next successful
 		// save attempt.
-		_emitSaveLifecycle( 'saved' );
+		_emitSaveLifecycle( 'saved', undefined, undefined, state );
 		return;
 	}
 
@@ -703,7 +713,7 @@ function _postToServer( state: OsSettingsState, windowId?: string | null ): void
 		// request keeps a re-render or a set-to-the-same-value from
 		// costing a round trip, and — more importantly — from being
 		// one more chance to post a stale field.
-		_emitSaveLifecycle( 'saved' );
+		_emitSaveLifecycle( 'saved', undefined, undefined, state );
 		return;
 	}
 
@@ -756,7 +766,7 @@ function _postToServer( state: OsSettingsState, windowId?: string | null ): void
 			// exactly what must not be posted again. Taken at
 			// request time, not here — see `sentSnapshot`.
 			_lastConfirmedState = sentSnapshot;
-			_emitSaveLifecycle( 'saved' );
+			_emitSaveLifecycle( 'saved', undefined, undefined, sentSnapshot );
 		} )
 		.catch( ( err ) => {
 			/* Save failed — REVERT both localStorage and the
@@ -847,14 +857,20 @@ export interface OsSettingsSaveLifecycleDetail {
 	 * failure before a successful baseline exists).
 	 */
 	rolledBackTo?: OsSettingsState;
+	/** Snapshot this successful save represents, independent of newer optimistic edits. */
+	savedSettings?: OsSettingsState;
 }
 
 function _emitSaveLifecycle(
 	phase: OsSettingsSavePhase,
 	error?: string,
 	rolledBackTo?: OsSettingsState | null,
+	savedSettings?: OsSettingsState,
 ): void {
 	const detail: OsSettingsSaveLifecycleDetail = { phase };
+	if ( savedSettings ) {
+		detail.savedSettings = cloneState( savedSettings );
+	}
 	if ( error ) {
 		detail.error = error;
 	}

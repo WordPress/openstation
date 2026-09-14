@@ -15,6 +15,40 @@ class Tests_OpenStation_OsSettings extends WP_UnitTestCase {
 
 	/**
 	 * @covers ::openstation_default_os_settings
+	 * @covers ::openstation_sanitize_os_settings
+	 * @covers ::openstation_save_os_settings
+	 * @covers ::openstation_get_os_settings
+	 */
+	public function test_mio_master_aliases_and_wallpaper_preference_round_trip() {
+		$this->assertFalse( openstation_default_os_settings()['mioApiEnabled'] );
+		$this->assertTrue( openstation_default_os_settings()['mioShowOnWallpaper'] );
+		$user = self::factory()->user->create();
+		openstation_save_os_settings( $user, array( 'mioEnabled' => true, 'mioApiEnabled' => false, 'mioShowOnWallpaper' => false ) );
+		$saved = openstation_get_os_settings( $user );
+		$this->assertTrue( $saved['mioEnabled'] );
+		$this->assertTrue( $saved['mioApiEnabled'] );
+		$this->assertFalse( $saved['mioShowOnWallpaper'] );
+		$this->assertTrue( openstation_sanitize_os_settings( array( 'mioApiEnabled' => true ) )['mioEnabled'] );
+	}
+
+	/** @covers ::openstation_rest_save_os_settings */
+	public function test_mio_alias_only_rest_patch_overrides_saved_master() {
+		$user = self::factory()->user->create();
+		wp_set_current_user( $user );
+		openstation_save_os_settings( $user, array( 'mioEnabled' => true ) );
+		foreach ( array( array( 'mioApiEnabled' => false ), array( 'mioEnabled' => true ) ) as $patch ) {
+			$request = new WP_REST_Request( 'POST' );
+			$request->set_param( 'settings', $patch );
+			openstation_rest_save_os_settings( $request );
+			$saved = openstation_get_os_settings( $user );
+			$this->assertSame( reset( $patch ), $saved['mioEnabled'] );
+			$this->assertSame( $saved['mioEnabled'], $saved['mioApiEnabled'] );
+		}
+	}
+
+
+	/**
+	 * @covers ::openstation_default_os_settings
 	 */
 	public function test_default_includes_desktop_layout() {
 		$defaults = openstation_default_os_settings();

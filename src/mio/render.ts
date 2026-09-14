@@ -156,6 +156,8 @@ export interface RenderFrame {
 	gaze: { x: number; y: number } | null;
 	/** 0 = eyes fully open, 1 = fully shut. */
 	blink: number;
+	/** Optional face rotation in radians, matching an expressive silhouette pose. */
+	faceTilt?: number;
 	/**
 	 * Direction the hologram's virtual light rakes across the ring,
 	 * magnitude `0`–`1` for strength. Steered by Mio's motion —
@@ -956,10 +958,17 @@ export function eyeLayout(
 	const gap = r * 0.28 * clamp( squashX, 0.5, 1.6 );
 	// Sit the pair slightly above the geometric centre — the
 	// reference face reads as looking out, not down.
-	const cy = frame.centre.y - r * 0.02 + gy;
+	const cy = -r * 0.02 + gy;
+	const tilt = frame.faceTilt ?? 0;
+	const cos = Math.cos( tilt );
+	const sin = Math.sin( tilt );
+	const eye = ( x: number ) => ( {
+		x: frame.centre.x + x * cos - cy * sin,
+		y: frame.centre.y + x * sin + cy * cos,
+	} );
 	return {
-		left: { x: frame.centre.x - gap + gx, y: cy },
-		right: { x: frame.centre.x + gap + gx, y: cy },
+		left: eye( -gap + gx ),
+		right: eye( gap + gx ),
 		width,
 		height: height * ( 1 - clamp( frame.blink, 0, 1 ) * 0.94 ),
 	};

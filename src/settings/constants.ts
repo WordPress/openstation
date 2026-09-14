@@ -329,6 +329,8 @@ export const DEFAULTS: OsSettingsState = {
 	// Windows is what turns it back on.
 	confirmCloseAllWindows: true,
 	mioEnabled: false,
+	mioApiEnabled: false,
+	mioShowOnWallpaper: true,
 	// No opinions: the user has not been to "Make it yours" yet, so
 	// they get whatever Mio the site ships.
 	mioStyle: { appearance: {}, physics: {} },

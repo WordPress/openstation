@@ -23,6 +23,7 @@
  * @public
  */
 
+import { mountPreferencesMio } from './parts/mio';
 import { __, defineApp, html } from '@openstation/app';
 import * as wallpapers from '../../src/wallpapers/registry';
 import { hydrateAll } from '../../src/wallpapers/lazy';
@@ -195,6 +196,7 @@ export default defineApp< AppState, AppData >( APP_ID, {
 
 		const repaint = (): void => ctx.repaint();
 		const offs = [
+			mountPreferencesMio( ctx ),
 			// Any settings change, whoever made it — this window, the
 			// right-click menu, `wp.os.updateOsSettings()`, the rollback
 			// after a failed save.

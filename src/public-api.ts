@@ -345,3 +345,5 @@ export type { OsAvatarPresence, OsBadgeTone, OsLogRowRenderer } from './ui/compo
 // Stable variant enum for <os-button> — plugins can narrow props
 // against the recognised set rather than hard-coding strings.
 export type { OsButtonVariant } from './ui/components/os-button/os-button';
+
+export type { MioCallout, MioWindowContext, MioWindowLease, MioAbility, MioDocument, MioConversationStore, MioChatMessage } from './mio/assistant/types';

@@ -36,7 +36,8 @@ import { showToast } from './toast';
 import { joinRestUrl } from './rest-url';
 
 interface OpenStationShim {
-	getOsSettings?: () => { desktopLayout?: NavLayout };
+	getOsSettings?: () => { desktopLayout?: NavLayout; mioShowOnWallpaper?: boolean };
+	updateOsSettings?: ( patch: { mioShowOnWallpaper: boolean } ) => void;
 	openOsSettings?: ( opts?: { tabId?: string } ) => void;
 }
 
@@ -170,6 +171,17 @@ function openItemVisibilityMenuImmediate(
 		| { kind: 'separator' };
 
 	const options: MenuOption[] = [];
+
+	// Remain reachable even when the companion itself is hidden on wallpaper.
+	if ( item.id === 'os-mio-toggle' ) {
+		const shown = getApi()?.getOsSettings?.().mioShowOnWallpaper !== false;
+		options.push( {
+			id: 'mio-wallpaper',
+			label: shown ? __( 'Hide MIO on wallpaper' ) : __( 'Show MIO on wallpaper' ),
+			icon: shown ? 'dashicons-hidden' : 'dashicons-visibility',
+			onPick: () => getApi()?.updateOsSettings?.( { mioShowOnWallpaper: ! shown } ),
+		}, { kind: 'separator' } );
+	}
 
 	if ( opts.surface === 'dock' ) {
 		if ( onRail( placement ) ) {

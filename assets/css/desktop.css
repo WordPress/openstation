@@ -1744,3 +1744,292 @@ os-notice a:active {
 		transition: none;
 	}
 }
+
+/* A residency frame follows the window body without scrolling with its contents. */
+.os-mio-residence {
+	position: absolute;
+	z-index: 50;
+	pointer-events: none;
+	overflow: hidden;
+	container-type: inline-size;
+}
+
+.os-mio-residence[hidden],
+.os-mio-chat-launcher[hidden] {
+	display: none;
+}
+
+.os-mio-chat-launcher {
+	position: absolute;
+	inset-inline-end: 20px;
+	inset-block-end: 18px;
+	pointer-events: auto;
+}
+
+.os-mio-chat {
+	position: absolute;
+	inset-inline-end: 16px;
+	inset-block-end: 16px;
+	inline-size: min(380px, calc(100% - 32px));
+	max-block-size: calc(100% - 32px);
+	box-sizing: border-box;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	padding: 18px;
+	pointer-events: auto;
+	color: var(--os-mio-chat-fg, #1d2327);
+	background: var(--os-mio-chat-bg, #fff);
+	border: 1px solid var(--os-mio-chat-border, #c3c4c7);
+	border-radius: var(--os-mio-chat-radius, 16px);
+	box-shadow: 0 8px 40px var(--os-mio-chat-glow, #00000020);
+	animation: os-mio-chat-enter 180ms ease-out;
+}
+
+.os-mio-chat header {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+
+.os-mio-chat header strong {
+	letter-spacing: .14em;
+}
+
+.os-mio-chat header span {
+	flex: 1;
+	font-size: 11px;
+	color: var(--os-mio-chat-muted, #646970);
+}
+
+.os-mio-chat__log {
+	position: relative;
+	min-block-size: 60px;
+	max-block-size: 300px;
+	overflow: auto;
+	overscroll-behavior: contain;
+}
+
+.os-mio-chat__message {
+	margin-block: 0 10px;
+	padding: 10px 12px;
+	line-height: 1.6;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+
+.os-mio-chat__message--user {
+	border-radius: 16px 16px 4px 16px;
+	background: var(--os-mio-chat-user-bg, #f0f0f1);
+}
+
+.os-mio-chat__composer {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.os-mio-chat__composer os-text-field {
+	flex: 1;
+	min-inline-size: 0;
+}
+
+.os-mio-chat__status,
+.os-mio-chat small {
+	margin: 0;
+	font-size: 11px;
+	line-height: 1.5;
+	color: var(--os-mio-chat-muted, #646970);
+}
+
+@keyframes os-mio-chat-enter {
+	from { opacity: 0; transform: translateY(6px) scale(.98); }
+	to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.os-mio-chat { animation: none; }
+}
+
+.os-mio-residence > .os-mio { z-index: 0; }
+.os-mio-chat, .os-mio-chat-launcher { z-index: 1; }
+
+.os-mio-chat [hidden] {
+	display: none !important;
+}
+
+.os-mio-chat__message--assistant {
+	white-space: normal;
+}
+
+.os-mio-chat__message p {
+	margin-block: 0 8px;
+}
+
+.os-mio-chat__message ul,
+.os-mio-chat__message ol {
+	margin-block: 8px;
+	padding-inline-start: 20px;
+}
+
+.os-mio-chat__message a {
+	color: inherit;
+	text-decoration: underline;
+}
+
+/* Shared MIO chrome: the same portrait with a softly revealed off-state slash. */
+.os-mio-window-toggle svg {
+	width: 20px;
+	height: 20px;
+	overflow: visible;
+}
+
+.os-mio-window-toggle__slash {
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 2.4;
+	stroke-linecap: round;
+	opacity: 0;
+	stroke-dasharray: 26;
+	stroke-dashoffset: 26;
+	transition: opacity 240ms ease, stroke-dashoffset 240ms ease;
+}
+
+.os-mio-window-toggle[data-mio-disabled="true"] .os-mio-window-toggle__slash {
+	opacity: 1;
+	stroke-dashoffset: 0;
+}
+
+.os-mio-chat__activity {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-height: 18px;
+}
+
+.os-mio-chat__thinking {
+	display: inline-flex;
+	align-items: center;
+	gap: 3px;
+	width: 24px;
+	flex-shrink: 0;
+	opacity: 0;
+	color: var(--os-mio-chat-muted, #646970);
+	transition: opacity 240ms ease;
+}
+
+.os-mio-chat[data-thinking="true"] .os-mio-chat__thinking {
+	opacity: 1;
+}
+
+.os-mio-chat__thinking i {
+	width: 4px;
+	height: 4px;
+	border-radius: 50%;
+	background: currentColor;
+	animation: os-mio-thinking 1.6s ease-in-out infinite;
+	animation-play-state: paused;
+}
+
+.os-mio-chat__thinking i:nth-child(2) { animation-delay: 160ms; }
+.os-mio-chat__thinking i:nth-child(3) { animation-delay: 320ms; }
+.os-mio-chat[data-thinking="true"] .os-mio-chat__thinking i { animation-play-state: running; }
+.os-mio-window-toggle[data-mio-thinking="true"] circle { animation: os-mio-thinking 2.4s ease-in-out infinite; }
+
+@keyframes os-mio-thinking {
+	0%, 100% { opacity: 0.45; }
+	50% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.os-mio-window-toggle__slash,
+	.os-mio-chat__thinking { transition: none; }
+	.os-mio-chat__thinking i,
+	.os-mio-window-toggle[data-mio-thinking="true"] circle { animation: none; }
+}
+
+.os-mio-window-toggle {
+	max-inline-size: 30px;
+	opacity: 1;
+	visibility: visible;
+	transition: opacity 180ms ease, max-inline-size 240ms ease, visibility 0s;
+}
+
+.os-mio-window-toggle[data-mio-available="false"] {
+	max-inline-size: 0;
+	opacity: 0;
+	visibility: hidden;
+	overflow: hidden;
+	pointer-events: none;
+	transition: opacity 180ms ease, max-inline-size 240ms ease, visibility 0s 180ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.os-mio-window-toggle,
+	.os-mio-window-toggle[data-mio-available="false"] { transition: none; }
+}
+
+/* The launcher stays available; the companion only speaks when invited. */
+.os-mio > canvas,
+.os-mio > .os-mio__handle {
+	transition: opacity 180ms ease, visibility 180ms;
+}
+
+.os-mio[data-mio-visible="false"] > canvas,
+.os-mio[data-mio-visible="false"] > .os-mio__handle {
+	opacity: 0;
+	visibility: hidden;
+	pointer-events: none;
+}
+
+.os-mio-callout {
+	position: absolute;
+	z-index: 2;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	max-inline-size: calc(100% - 16px);
+	box-sizing: border-box;
+	padding-block: 6px;
+	padding-inline: 15px 6px;
+	border: 1px solid var(--os-mio-callout-border, #d6b8cb);
+	border-radius: 22px;
+	background: var(--os-mio-callout-bg, #ffe0cf);
+	color: var(--os-mio-callout-fg, #382b38);
+	box-shadow: 0 4px 16px var(--os-mio-chat-glow, #00000020);
+	font-size: 12px;
+	line-height: 1.5;
+	font-weight: 500;
+	pointer-events: auto;
+	animation: os-mio-chat-enter 180ms ease-out;
+}
+
+.os-mio-callout os-button::part(button) {
+	inline-size: 26px;
+	block-size: 26px;
+	font-size: 17px;
+	line-height: 1;
+}
+
+/* A small rounded tail joins the companion without a second outlined shape. */
+.os-mio-callout::after {
+	content: "";
+	position: absolute;
+	inset-block-end: -4px;
+	inset-inline-end: 18px;
+	inline-size: 8px;
+	block-size: 8px;
+	background: inherit;
+	border-inline-end: inherit;
+	border-block-end: inherit;
+	border-end-end-radius: 3px;
+	transform: rotate(45deg);
+}
+
+.os-mio-callout[hidden] { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+	.os-mio > canvas,
+	.os-mio > .os-mio__handle { transition: none; }
+	.os-mio-callout { animation: none; }
+}

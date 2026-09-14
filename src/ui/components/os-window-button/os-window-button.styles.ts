@@ -52,15 +52,19 @@ export const styles = css`
 	 * three abreast at the very edge of the window — the bloom would
 	 * spill onto its neighbours and off the title bar entirely.
 	 */
-	button:active {
+	button:active:not(:disabled) {
 		transform: scale( 0.9 );
 	}
 	@media ( prefers-reduced-motion: reduce ) {
-		button:active {
+		button:active:not(:disabled) {
 			transform: none;
 		}
 	}
-	button:hover {
+	button:disabled {
+		opacity: 0.5;
+		cursor: default;
+	}
+	button:hover:not(:disabled) {
 		color: var( --os-ui-btn-color-hover, currentColor );
 		background-color: var( --os-ui-btn-bg-hover, var( --os-ui-hover, rgba( 0, 0, 0, 0.06 ) ) );
 	}

@@ -1,7 +1,7 @@
 /**
  * OpenStation — Mio controller (shell side).
  *
- * The always-on half of Mio: a few hundred bytes in
+ * The always-on lifecycle and residency wiring for Mio in
  * `desktop[.min].js` that own the layer element, the on/off
  * preference, and the lazy load of the real thing.
  *
@@ -12,10 +12,12 @@
  *
  * Mio is a **first-class shell layer**, not a widget: it owns
  * a sibling of the wallpaper inside `#os-shell`, paints
- * above every window, and is not bound by the widget column's
- * placement rules. Widgets are cards on a rail; Mio roams.
+ * above the desktop until an explicitly registered window claims it.
+ * The residency frame then confines it to that window’s body.
  */
 
+import { MioResidency } from './residency';
+import type { MioWindowContext, MioWindowLease } from './assistant/types';
 import { applyFilters, doAction, HOOKS } from '../hooks';
 import { loadVendorScript } from '../wallpapers/vendor-loader';
 import { MIO_DEFAULTS, sanitizeMioConfig } from './config';
@@ -86,23 +88,15 @@ export const MIO_TILE_ID = 'os-mio-toggle';
  * second, always-on mask path in `src/icon.ts` and would throw the
  * gradient away even on an untinted dock.
  */
-const MIO_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
-<defs><linearGradient id="mio" x1="19" y1="19" x2="5" y2="5" gradientUnits="userSpaceOnUse">
-<stop offset="0" stop-color="#3f6dff"/><stop offset=".5" stop-color="#a855f7"/><stop offset="1" stop-color="#ff4fd8"/>
-</linearGradient></defs>
-<circle cx="12" cy="12" r="8.2" fill="none" stroke="url(#mio)" stroke-width="2.6"/>
-<rect x="8" y="9.6" width="2.9" height="4.8" rx="1.45" fill="#fff"/>
-<rect x="13.1" y="9.6" width="2.9" height="4.8" rx="1.45" fill="#fff"/>
-</svg>`;
-
-/** The same art as a data URI, ready for `renderIcon()`. */
-export const MIO_TILE_ICON = `data:image/svg+xml;base64,${ btoa(
-	MIO_ICON_SVG,
-) }`;
+export { MIO_TILE_ICON } from './icon';
 
 export interface MioControllerOptions {
 	/** Shell element the layer is appended to. */
 	shell: HTMLElement;
+	focusedWindow?: () => string | null;
+	/** Live AI opt-in and compatible connector readiness. Callouts do not need AI. */
+	chatAvailable?: () => boolean;
+	wallpaperVisible?: () => boolean;
 	/** URL of the lazy Mio bundle, from the shell config. */
 	bundleUrl: string;
 	/** Server-side config (`openstation_mio_config` filter output). */
@@ -133,6 +127,10 @@ export interface MioControllerOptions {
  * @public
  */
 export interface MioApi {
+	/** Opt this live window instance into residency and private assistance. */
+	registerWindow: ( windowId: string, context: MioWindowContext ) => MioWindowLease;
+	/** Current window owner, or null on the desktop. */
+	getWindowId: () => string | null;
 	/** Whether Mio is currently switched on. */
 	isEnabled: () => boolean;
 	/** Switch Mio on. Resolves once it is on screen. */
@@ -187,8 +185,10 @@ export interface MioApi {
 
 export class MioController {
 	private options: MioControllerOptions;
+	private residency: MioResidency;
 	private layer: HTMLElement | null = null;
 	private handle: MioHandle | null = null;
+	private mounting: { generation: number; promise: Promise<void> } | null = null;
 	/**
 	 * A stopped-but-alive instance, kept across a disable.
 	 *
@@ -228,6 +228,16 @@ export class MioController {
 
 	public constructor( options: MioControllerOptions ) {
 		this.options = options;
+		this.residency = new MioResidency( {
+			shell: options.shell,
+			focused: options.focusedWindow ?? ( () => null ),
+			layer: () => this.layer,
+			handle: () => this.handle,
+			enabled: () => this.enabled,
+			chatAvailable: options.chatAvailable,
+			wallpaperVisible: options.wallpaperVisible,
+			ready: () => this.mount(),
+		} );
 		this.enabled = options.enabled;
 		// Before `resolveConfig()`, which layers the look over the
 		// site's Mio and must therefore already have one.
@@ -242,8 +252,21 @@ export class MioController {
 		}
 	}
 
+	/** Apply saved preferences and rollbacks without writing them back again. */
+	public syncEnabled( enabled: boolean ): void {
+		void this.setEnabled( enabled, false );
+		this.residency.refresh();
+	}
+
+	/** Reconcile live settings and connector status without remounting the mascot. */
+	public refreshWindowAvailability(): void {
+		this.residency.refresh();
+	}
+
 	public api(): MioApi {
 		return {
+			registerWindow: ( id, context ) => this.residency.register( id, context ),
+			getWindowId: () => this.residency.getWindowId(),
 			isEnabled: () => this.enabled,
 			enable: () => this.setEnabled( true ),
 			disable: () => {
@@ -290,13 +313,15 @@ export class MioController {
 	 * Turn Mio on or off, persisting the preference and firing
 	 * the lifecycle action. Re-entrant-safe.
 	 */
-	public async setEnabled( next: boolean ): Promise< void > {
+	public async setEnabled( next: boolean, persist = true ): Promise< void > {
 		if ( next === this.enabled ) {
 			return;
 		}
 		this.enabled = next;
 		this.generation++;
-		this.options.persist( next );
+		if ( persist ) {
+			this.options.persist( next );
+		}
 		doAction( next ? 'os.mio.enabled' : 'os.mio.disabled', {} );
 		// Repaint the dock tile's active dot. Its `isOpen()` asks
 		// whether the companion is on screen, which is not a question
@@ -361,6 +386,7 @@ export class MioController {
 		const el = document.createElement( 'div' );
 		el.id = MIO_LAYER_ID;
 		el.className = 'os-mio';
+		el.dataset.mioVisible = String( this.options.wallpaperVisible?.() ?? true );
 		// Decorative: Mio conveys no information a screen
 		// reader needs, and its drag handle is not a control.
 		el.setAttribute( 'aria-hidden', 'true' );
@@ -369,7 +395,20 @@ export class MioController {
 		return el;
 	}
 
-	private async mount(): Promise< void > {
+	private mount(): Promise<void> {
+		if ( this.mounting?.generation === this.generation ) {
+			return this.mounting.promise;
+		}
+		const promise = this.mountInstance().finally( () => {
+			if ( this.mounting?.promise === promise ) {
+				this.mounting = null;
+			}
+		} );
+		this.mounting = { generation: this.generation, promise };
+		return promise;
+	}
+
+	private async mountInstance(): Promise< void > {
 		const generation = this.generation;
 		if ( this.handle ) {
 			return;
@@ -385,6 +424,7 @@ export class MioController {
 			parked.handle.setAnimating( true );
 			this.handle = parked.handle;
 			this.layer = parked.layer;
+			this.residency.refresh();
 			return;
 		}
 		try {
@@ -407,7 +447,11 @@ export class MioController {
 			host: this.ensureLayer(),
 			config: this.config,
 			position: readPosition(),
-			savePosition: writePosition,
+			savePosition: ( pos ) => {
+				if ( ! this.residency.getWindowId() ) {
+					writePosition( pos );
+				}
+			},
 		} );
 		if ( ! handle ) {
 			// Pixi refused to start. Drop the empty layer rather than
@@ -434,6 +478,7 @@ export class MioController {
 			return;
 		}
 		this.handle = handle;
+		this.residency.refresh();
 	}
 
 	/**
@@ -450,16 +495,19 @@ export class MioController {
 	 * a zero-size host is the top-left corner.
 	 */
 	private unmount(): void {
+		const wasResident = this.residency.getWindowId() !== null;
+		this.residency.closeChat();
 		const handle = this.handle;
 		const layer = this.layer;
 		this.handle = null;
 		this.layer = null;
+		this.residency.refresh();
 		if ( ! handle || ! layer ) {
 			layer?.remove();
 			return;
 		}
 		const resting = handle.getPosition();
-		if ( resting ) {
+		if ( resting && ! wasResident ) {
 			writePosition( resting );
 		}
 		handle.setAnimating( false );

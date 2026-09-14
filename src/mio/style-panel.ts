@@ -9,7 +9,7 @@
  * the thing being edited is right there and the preview *is* the
  * product.
  *
- * **Look only.** The panel exposes `appearance` plus the five *shape*
+ * **Appearance and presence.** The wallpaper checkbox controls presence separately; the remaining panel exposes `appearance` plus the five *shape*
  * keys, and nothing else. No stiffnesses, no damping, no pressure:
  * those are the site's, they interact, and a user who makes Mio
  * unstable from a slider has no way to know which slider did it. A
@@ -334,6 +334,11 @@ function openMioStylePanelImmediate(): void {
 				: [];
 
 		body.replaceChildren(
+			section( __( 'Desktop' ), [
+				toggle( __( 'Show MIO on wallpaper' ), window.wp?.os?.getOsSettings?.().mioShowOnWallpaper !== false,
+					( shown ) => window.wp?.os?.updateOsSettings?.( { mioShowOnWallpaper: shown } ),
+				),
+			] ),
 			section( __( 'Shape' ), [
 				shapePicker( physics.shapePreset, ( preset ) => {
 					set( { shapePreset: preset } );

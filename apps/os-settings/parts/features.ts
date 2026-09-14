@@ -188,6 +188,18 @@ const featuresSection: Section = ( s, ctx ) => {
 					aiAssistant.assistantProviderConfigured ? '' : providerNotice( aiAssistant.connectorsUrl ),
 				)
 				: '' }
+			${ item(
+				__( 'MIO API' ),
+				s.mioApiEnabled,
+				( e ) => update( { mioApiEnabled: pickedChecked( e ) } ),
+				__( 'Enables MIO and its window integrations. This is the same switch as the MIO dock button. Ask MIO also requires the AI assistant and a configured connector.' ),
+			) }
+			${ item(
+				__( 'Show MIO on wallpaper' ),
+				s.mioShowOnWallpaper,
+				( e ) => update( { mioShowOnWallpaper: pickedChecked( e ) } ),
+				__( 'Let MIO roam the desktop. Turn this off to keep it hidden until a window opens chat or invites it to show a tip.' ),
+			) }
 			${ commentsAi
 				? item(
 					__( 'Score new comments with AI' ),

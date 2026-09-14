@@ -101,6 +101,7 @@ describe( 'updateOsSettings — writers', () => {
 			heartbeatRate: 30,
 			confirmCloseAllWindows: false,
 			mioEnabled: true,
+			mioApiEnabled: false,
 		} );
 		expect( h.store.state.customAccent ).toBe( '#123456' );
 		expect( h.store.state.customGradient ).toEqual( { from: '#000000', to: '#ffffff', angle: 90 } );
@@ -110,9 +111,22 @@ describe( 'updateOsSettings — writers', () => {
 		expect( h.store.state.heartbeatRate ).toBe( 30 );
 		expect( h.store.state.confirmCloseAllWindows ).toBe( false );
 		expect( h.store.state.mioEnabled ).toBe( true );
+		expect( h.store.state.mioApiEnabled ).toBe( true );
 		// `null` is a real value for the image: "no image".
 		h.api.updateOsSettings( { customImage: null } );
 		expect( h.store.state.customImage ).toBeNull();
+	} );
+
+	test( 'MIO aliases synchronize in both directions and wallpaper visibility stays independent', () => {
+		for ( const patch of [ { mioApiEnabled: true }, { mioEnabled: false }, { mioEnabled: true }, { mioApiEnabled: false } ] ) {
+			h.api.updateOsSettings( patch );
+			expect( h.store.state.mioEnabled ).toBe( Object.values( patch )[ 0 ] );
+			expect( h.store.state.mioApiEnabled ).toBe( h.store.state.mioEnabled );
+		}
+		h.api.updateOsSettings( { mioEnabled: true, mioShowOnWallpaper: false } );
+		expect( h.store.state.mioEnabled ).toBe( true );
+		expect( h.store.state.mioApiEnabled ).toBe( true );
+		expect( h.store.state.mioShowOnWallpaper ).toBe( false );
 	} );
 
 	test( 'ignores invalid values, keeping the current one', () => {

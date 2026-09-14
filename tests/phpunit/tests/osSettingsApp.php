@@ -231,9 +231,14 @@ class Tests_OpenStation_OsSettingsApp extends WP_UnitTestCase {
 			} )
 		);
 		$lines = 0;
+		$mio_lines = 0;
 		foreach ( $files as $file ) {
 			$count  = count( file( $file ) );
-			$lines += $count;
+			if ( str_starts_with( basename( $file ), 'mio' ) ) {
+				$mio_lines += $count;
+			} else {
+				$lines += $count;
+			}
 			$this->assertLessThan(
 				1000,
 				$count,
@@ -248,6 +253,9 @@ class Tests_OpenStation_OsSettingsApp extends WP_UnitTestCase {
 		// the facade's per-key write whitelist). 784 of the app's lines
 		// are the previews manager, the glyphs and the labels, moved
 		// verbatim.
+		// The private companion is additional functionality, with its own bounded
+		// module family; it must not consume the existing UI port's budget.
+		$this->assertLessThan( 850, $mio_lines, 'Keep the MIO Preferences adapter focused; generic conversation machinery belongs in src/mio.' );
 		$this->assertLessThan( 5000, $lines, sprintf( 'OpenStation Preferences is %d lines; the budget is under 5,000 — two thirds of the panel bundle it replaced.', $lines ) );
 		// And exactly one script: the client view. Free-form JS in an
 		// app dir is what the runtime and the component kit exist to

@@ -536,3 +536,7 @@ src/app-runtime/list-ui.ts      statusControl(), pager(), mountMenuCheckboxes() 
 ```
 
 Tests: `tests/phpunit/tests/appFramework.php`, `tests/phpunit/tests/appFrameworkRest.php`, `tests/phpunit/tests/codeBlue.php`, `tests/phpunit/tests/stationHomeApp.php`, `tests/phpunit/tests/osSettingsApp.php`, `tests/phpunit/tests/{posts,pages,users,userEdit,plugins,comments}App.php`, `tests/vitest/app-runtime-*.test.ts`.
+
+### A window-scoped MIO companion
+
+An app may opt its live window into MIO from `mounted(ctx)` with `wp.os.mio.registerWindow(ctx.windowId, { host: ctx.root, title, prompt, documents, abilities })`. Return the lease’s disposal in the app teardown; keep prompts and abilities dynamic by reading current state inside callbacks. Private action handlers should use existing permission-checked `ctx.dispatch()` operations, not global WordPress ability registration. [Full contract](./mio-window-assistant.md) and [worked example](./examples/mio-window-assistant.md); Preferences uses this same API.

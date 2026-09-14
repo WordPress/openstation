@@ -176,6 +176,8 @@ in the value, or on `beforeinput`, where it can still be refused.
 | `<os-button>` | `OsButton` | `os-button/os-button.ts` | Primary / secondary / ghost button. |
 | `<os-window-button>` | `OsWindowButton` | `os-window-button/os-window-button.ts` | Title-bar icon button (minimize / maximize / close / custom). |
 
+`<os-window-button disabled>` forwards disabled state to its native button, preventing activation and keyboard focus. Optional `aria-pressed="true|false|mixed"` is forwarded to that same focusable button; `active` controls its visual pressed state.
+
 `<os-window-button>` paints an `aria-hidden` glyph inside a shadow
 `<button>`, so it has no accessible name of its own — **always set
 `aria-label` on the host**. The component forwards it onto that inner

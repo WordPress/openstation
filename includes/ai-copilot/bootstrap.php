@@ -19,3 +19,5 @@ require_once __DIR__ . '/hooks.php';
 require_once __DIR__ . '/search.php';
 require_once __DIR__ . '/abilities.php';
 require_once __DIR__ . '/abilities-debugging.php';
+
+require_once __DIR__ . '/mio.php';

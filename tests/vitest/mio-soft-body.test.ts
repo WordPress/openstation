@@ -1505,3 +1505,29 @@ describe( 'rim resolution', () => {
 		expect( body.rim ).toHaveLength( 3 );
 	} );
 } );
+
+ describe( 'conversation attraction', () => {
+	test( 'approaches from any distance without jumping, settles, and blends a reversed destination', () => {
+		const body = createSoftBody( 100, 100, 40, 24 );
+		const target = { x: 1050, y: 650 };
+		stepSoftBody( body, 1 / 60, input( { anchor: target } ) );
+		expect( body.core.x ).toBeGreaterThan( 100 );
+		expect( body.core.x ).toBeLessThan( 120 );
+		for ( let i = 0; i < 240; i++ ) { stepSoftBody( body, 1 / 60, input( { anchor: target } ) ); }
+		expect( body.core.x ).toBeCloseTo( target.x, 0 );
+		expect( body.core.y ).toBeCloseTo( target.y, 0 );
+		stepSoftBody( body, 1 / 60, input( { anchor: { x: 100, y: 100 } } ) );
+		expect( body.core.x ).toBeGreaterThan( 1030 );
+		for ( let i = 0; i < 240; i++ ) { stepSoftBody( body, 1 / 60, input( { anchor: { x: 100, y: 100 } } ) ); }
+		expect( body.core.x ).toBeCloseTo( 100, 0 );
+	} );
+	test( 'lets dragging override the anchor, then returns after release', () => {
+		const body = createSoftBody( 900, 500, 40, 24 );
+		const anchor = { x: 900, y: 500 };
+		for ( let i = 0; i < 180; i++ ) { stepSoftBody( body, 1 / 60, input( { anchor, dragTarget: { x: 150, y: 150 } } ) ); }
+		expect( body.core.x ).toBeLessThan( 180 );
+		for ( let i = 0; i < 240; i++ ) { stepSoftBody( body, 1 / 60, input( { anchor } ) ); }
+		expect( body.core.x ).toBeCloseTo( 900, 0 );
+		expect( body.core.y ).toBeCloseTo( 500, 0 );
+	} );
+} );

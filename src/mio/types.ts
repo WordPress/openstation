@@ -444,6 +444,8 @@ export interface MioHandle {
 	getPosition: () => { x: number; y: number };
 	/** Teleport the body (keeps the soft-body deformation coherent). */
 	setPosition: ( x: number, y: number ) => void;
+	/** Ease toward a viewport point. Persistent anchors survive dragging; null releases it. */
+	setAnchor?: ( position: { x: number; y: number } | null, persistent?: boolean ) => void;
 	/** Pause / resume the simulation without unmounting. */
 	setAnimating: ( animating: boolean ) => void;
 	/** Live-apply a configuration change. */

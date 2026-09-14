@@ -4,7 +4,7 @@
  * me.
  *
  * The contract worth defending is the *scope*: the panel may touch
- * appearance and the look-physics keys (silhouette, shuffle, idle
+ * wallpaper visibility, appearance and the look-physics keys (silhouette, shuffle, idle
  * wobble), and nothing else. The spring constants belong to the site —
  * they interact, and an unstable Mio is not debuggable from a slider —
  * and `radius` is a layout decision. A control that quietly changed
@@ -41,8 +41,10 @@ function stubApi(): {
 	resets: number;
 	commits: number;
 	config: MioConfig;
+	wallpaperVisible: boolean;
 } {
 	const state = {
+		wallpaperVisible: true,
 		writes: [] as LookPartial[],
 		appearanceWrites: [] as Partial< MioAppearance >[],
 		physicsWrites: [] as Partial< MioLookPhysics >[],
@@ -55,6 +57,8 @@ function stubApi(): {
 	};
 	( window as unknown as { wp: Record< string, unknown > } ).wp = {
 		os: {
+			getOsSettings: () => ( { mioShowOnWallpaper: state.wallpaperVisible } ),
+			updateOsSettings: ( patch: { mioShowOnWallpaper: boolean } ) => { state.wallpaperVisible = patch.mioShowOnWallpaper; },
 			mio: {
 				getConfig: () => state.config,
 				setStyle: ( partial: LookPartial ) => {
@@ -123,6 +127,17 @@ describe( 'Mio style panel', () => {
 		expect( options ).toHaveLength( 1 );
 		expect( options[ 0 ].textContent ).toBe( 'Make it yours' );
 		expect( ( menu as HTMLElement ).style.left ).toBe( '120px' );
+	} );
+
+	test( 'wallpaper visibility writes the presence preference without changing the look', async () => {
+		const state = stubApi();
+		const { openMioStylePanel } = await load();
+		openMioStylePanel();
+		const checkbox = Array.from( panel()!.querySelectorAll( 'os-checkbox' ) ).find( item => item.getAttribute( 'label' ) === 'Show MIO on wallpaper' )!;
+		expect( checkbox ).toBeDefined();
+		checkbox.dispatchEvent( new CustomEvent( 'os-checkbox-change', { detail: { checked: false } } ) );
+		expect( state.wallpaperVisible ).toBe( false );
+		expect( state.writes ).toHaveLength( 0 );
 	} );
 
 	test( 'picking the entry closes the menu and opens the panel', async () => {

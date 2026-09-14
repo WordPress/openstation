@@ -343,6 +343,8 @@ export interface StepInput {
 	 * coordinates. `null` when not dragging.
 	 */
 	dragTarget: { x: number; y: number } | null;
+	/** Unlimited-range conversation attraction. Dragging always takes precedence. */
+	anchor?: { x: number; y: number } | null;
 }
 
 /**
@@ -654,6 +656,18 @@ function substep( body: SoftBody, dt: number, input: StepInput ): void {
 		const hold = physics.magnetDamping * strength;
 		extX -= centre.vx * hold;
 		extY -= centre.vy * hold;
+	}
+
+	if ( input.anchor && ! dragTarget ) {
+		// A critically damped spring retains momentum when the destination changes.
+		// No distance cutoff, teleport, or velocity reset at either end.
+		const r = body.radius;
+		const x = clamp( input.anchor.x, r, Math.max( r, bounds.width - r ) );
+		const y = clamp( input.anchor.y, r, Math.max( r, bounds.height - r ) );
+		const stiffness = 48;
+		const damping = 2 * Math.sqrt( stiffness );
+		extX = ( x - centre.x ) * stiffness - centre.vx * damping;
+		extY = ( y - centre.y ) * stiffness - centre.vy * damping;
 	}
 
 	// --- Drag. --------------------------------------------------------

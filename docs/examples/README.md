@@ -46,6 +46,7 @@ defined( 'ABSPATH' ) || exit;
 - [Register a wallpaper (CSS + canvas)](./register-wallpaper.md)
 - [Register a game — launcher tile, scoreboard, challenges (Experimental)](./register-game.md)
 - [Restyle and drive Mio (Experimental)](./mio-customization.md)
+- [Register a window companion (Experimental)](./mio-window-assistant.md)
 - [Register a widget — polling, storage, canvas charts](./register-widget.md)
 - [Add an opt-in card to Station Home](./station-home-card.md)
 - [Register a desktop icon (Jorvy)](./register-icon.md)

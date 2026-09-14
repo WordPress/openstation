@@ -79,6 +79,26 @@ async function respond( n: number ): Promise< void > {
 }
 
 describe( 'OS Settings — overlapping saves', () => {
+	test( 'saved events expose only the submitted snapshot, without aliasing queued changes', async () => {
+		const state = bootedSession();
+		state.windowRadius = 'sharp';
+		const snapshots: OsSettingsState[] = [];
+		const listener = ( event: Event ) => {
+			const detail = ( event as CustomEvent ).detail;
+			if ( detail.phase === 'saved' ) { snapshots.push( detail.savedSettings ); }
+		};
+		document.addEventListener( 'os-settings-save-lifecycle', listener );
+		try {
+			state.dockSize = 'large'; state_.saveState( state ); await tick();
+			state.windowRadius = 'round'; state_.saveState( state ); await tick();
+			await respond( 0 );
+			expect( snapshots[ 0 ].windowRadius ).toBe( 'sharp' );
+			snapshots[ 0 ].windowRadius = 'default';
+			await respond( 1 );
+			expect( snapshots[ 1 ].windowRadius ).toBe( 'round' );
+			expect( state.windowRadius ).toBe( 'round' );
+		} finally { document.removeEventListener( 'os-settings-save-lifecycle', listener ); }
+	} );
 	test( 'a second change does not start while the first is in flight', async () => {
 		const state = bootedSession();
 

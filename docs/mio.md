@@ -4,7 +4,7 @@
 
 Mio is OpenStation's desk companion: a soft-body blob wrapped in a continuous, holographic neon ring, with two pill eyes that follow your cursor. It drifts over the wallpaper — breathing gently, never quite the same shape twice — is drawn to nearby windows like a magnet, and can be picked up and thrown anywhere on the desk.
 
-It is a **first-class shell layer**, not a widget. Widgets are cards pinned to a rail with a fixed placement contract; Mio owns its own layer inside `#os-shell`, paints above every window, and goes where it likes. That distinction is the whole point — a companion that had to live in the widget column wouldn't be a companion.
+It is a **first-class shell layer**, not a widget. A focused window can explicitly opt in to hosting MIO and its private assistant; see [Window-scoped MIO](./mio-window-assistant.md). Widgets are cards pinned to a rail with a fixed placement contract; Mio owns its own layer inside `#os-shell`, paints above every window, and goes where it likes. That distinction is the whole point — a companion that had to live in the widget column wouldn't be a companion.
 
 Off by default. Users switch it on from its **dock tile**, and can hide the tile itself from OpenStation Preferences → Navigation.
 
@@ -75,7 +75,7 @@ Two halves, split so a user who never switches Mio on never downloads it.
 
 | Piece | Ships in | Job |
 |---|---|---|
-| `src/mio/controller.ts` | `desktop[.min].js` (always) | Owns the layer element and the on/off preference; script-injects the bundle below on first activation. ~2 kB. |
+| `src/mio/controller.ts` | `desktop[.min].js` (always) | Owns the layer element and the on/off preference; script-injects the bundle below on first activation. Includes the window-residency coordinator. |
 | `src/mio/entry.ts` → `assets/js/mio[.min].js` | Lazy | PixiJS app, soft-body simulation, renderer, drag, pointer tracking. ~25 kB min, plus the shared vendored PixiJS. |
 
 ### What it costs a shell that has it switched off
@@ -84,7 +84,7 @@ The whole of it, and it is worth being precise because the answer is "almost not
 
 - **No script and no stylesheet** are enqueued for Mio, ever. Nothing in `includes/render/assets.php` registers one.
 - The shell config carries two keys: `mioBundleUrl` (a URL string) and `mio` (the appearance + physics blob — **~470 bytes gzipped**). The config ships whether or not Mio is on, because fetching it on first toggle would mean the `openstation_mio_config` filter silently didn't apply until the next reload.
-- In the always-on bundle: `MioController` (~2 kB) and the dock tile's definition (a few hundred bytes).
+- In the always-on bundle: `MioController` (including window residency and the private session loop) and the dock tile's definition (a few hundred bytes).
 - PixiJS, the soft body, the renderer, the pointer tracker and the ~25 kB Mio bundle are **script-injected on the first toggle** and never touched otherwise.
 
 Hiding the dock tile from Navigation removes the tile, not the controller — the controller is what would restore Mio the user had left switched on, so it boots regardless.
@@ -862,6 +862,8 @@ One thing is browser-local, in `localStorage`: the resting position (`desktop-mo
 
 | Member | Signature | Notes |
 |---|---|---|
+| `registerWindow` | `(windowId, context) => MioWindowLease` | Opt in a live window; dynamic prompt, linked help and private abilities. See [window context](./mio-window-assistant.md). |
+| `getWindowId` | `() => string \| null` | Selected window owner; null means desktop. |
 | `isEnabled` | `() => boolean` | |
 | `enable` | `() => Promise<void>` | Persists the preference; resolves once on screen. |
 | `disable` | `() => void` | Persists; stops and hides Mio. Does *not* release the WebGL context — see [Switching off parks, it does not destroy](#switching-off-parks-it-does-not-destroy). |
@@ -903,6 +905,7 @@ All fire through `wp.hooks` on the `os.mio.*` namespace.
 | Hook | Type | Status | Payload |
 |---|---|---|---|
 | `os.mio.config` | filter | Experimental | `MioConfig` — last word on appearance/physics before mount. Re-sanitized after your filter runs. |
+| `os.mio.owner-changed` | action | Experimental | `{windowId: string \| null, previousWindowId: string \| null}` — ownership handoff. |
 | `os.mio.enabled` | action | Experimental | `{}` — user switched it on. |
 | `os.mio.disabled` | action | Experimental | `{}` — user switched it off. |
 | `os.mio.mounted` | action | Experimental | `{ position: { x, y } }` — on screen and simulating. |
@@ -929,7 +932,7 @@ The dock tile is a normal system tile (`id: 'os-mio-toggle'`), so `wp.os.getSyst
 
 ## Accessibility
 
-Mio is decorative: the layer carries `aria-hidden="true"` and exposes no controls. It conveys no information, so nothing is lost to assistive technology.
+The MIO canvas is decorative: the layer carries `aria-hidden="true"` and exposes no controls. The separate window chat has an accessible launcher, labelled nonmodal dialog, live log, keyboard input, Escape and Stop. See [window chat](./mio-window-assistant.md#conversation-and-themed-chat).
 
 **Reduced motion** is honoured in the simulation rather than by hiding Mio. Under `prefers-reduced-motion: reduce` the idle bob (`floatAmplitude`), the ring shimmer (`hueDrift`, and with it the hologram's ambient rake) and the silhouette shuffle (`shapeShuffle`) are all zeroed, so Mio holds still until the user interacts with it. Motion the user causes — a drag, a fall onto a window they just opened — is kept: WCAG's concern is unsolicited animation, and a companion that refuses to move when you pick it up isn't accessible, it's broken. A user who wants none of it switches Mio off from the same menu they switched it on.
 
@@ -960,3 +963,11 @@ Two consequences worth knowing:
 The position is read **before** the layer is hidden. A hidden host reports zero size, and every position derived from a zero-size host is the top-left corner — which is exactly the bug that shipped when the teardown was merely deferred rather than removed. The `ResizeObserver` ignores a detached or zero-size host for the same reason.
 
 A dark backstop on the shell (`--os-backstop`) covers the rest of the class: the shell sits over the white classic-admin page, so *any* layer failing to paint for a frame used to show white. Now the worst case is the desk's own colour.
+
+Window registrations automatically get a per-window MIO title-bar toggle, with a diagonal slash when locally disabled. The dock’s master switch fades those controls out and in. Chat uses an unlimited-range spring anchor: MIO returns after release and glides home on close. Pending turns blend a transient thinking expression with reduced-motion support. See [window context lifecycle](./mio-window-assistant.md).
+
+Inside a registered window MIO is hidden until chat opens or the caller requests a control callout. Closing chat hides it again unless a tip is active. Callouts use a spring anchor and a dismissible dark bubble matching the chat surface; their dismissal lives only as long as the window lease. Canvas resizing immediately repaints the renderer, preventing a cleared buffer from flashing during window resize. See [callouts](./mio-window-assistant.md#explicit-control-callouts).
+
+The dock’s MIO button and Features → **MIO API** share one per-user master switch (`mioEnabled`, default `false`). `mioApiEnabled` is a synchronized compatibility alias: either name can be patched, and `mioEnabled` wins if both are supplied. Switching off closes chat, cancels pending work, hides the mascot and window controls, and suspends leases. Re-enabling resumes existing leases and preserves per-window choices and callout dismissals.
+
+`mioShowOnWallpaper` (default `true`) controls only the desktop mascot. Turn off **Show MIO on wallpaper** in Features or MIO’s **Make it yours** panel to keep window chat and explicit callouts available without a desktop companion. The MIO dock tile’s right-click menu also offers Show/Hide MIO on wallpaper, so the preference remains reachable while the mascot is hidden. Ask MIO additionally requires enabled AI support and a compatible connector; speech bubbles work without AI. See [availability](./mio-window-assistant.md#availability-switches).

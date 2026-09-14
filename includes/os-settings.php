@@ -254,6 +254,8 @@ function openstation_default_os_settings() {
 		// pointer. Off by default; toggled from the wallpaper context
 		// menu. Per-user. See `docs/mio.md`.
 		'mioEnabled'                  => false,
+		'mioApiEnabled'               => false,
+		'mioShowOnWallpaper'          => true,
 		// The user's own Mio, as built in "Make it yours": partial
 		// appearance + silhouette overrides, both empty until they
 		// touch a control. Stored per user rather than per browser
@@ -813,7 +815,7 @@ function openstation_sanitize_os_settings( $raw ) {
 
 	$mio_enabled = isset( $raw['mioEnabled'] )
 		? (bool) $raw['mioEnabled']
-		: $defaults['mioEnabled'];
+		: ( isset( $raw['mioApiEnabled'] ) ? (bool) $raw['mioApiEnabled'] : $defaults['mioEnabled'] );
 
 	// A missing key means "no look saved yet", which sanitizes to the
 	// same pair of empty arrays the defaults carry — so this needs no
@@ -1010,6 +1012,8 @@ function openstation_sanitize_os_settings( $raw ) {
 		'showDesktopOnWallpaperClick' => $show_desktop_on_wallpaper_click,
 		'confirmCloseAllWindows'      => $confirm_close_all_windows,
 		'mioEnabled'                  => $mio_enabled,
+		'mioApiEnabled'               => $mio_enabled,
+		'mioShowOnWallpaper'          => isset( $raw['mioShowOnWallpaper'] ) ? (bool) $raw['mioShowOnWallpaper'] : $defaults['mioShowOnWallpaper'],
 		'mioStyle'                    => $mio_style,
 		'showPostStatusRibbons'       => $show_post_status_ribbons,
 		'developerModeEnabled'        => $developer_mode_enabled,
@@ -1119,6 +1123,11 @@ function openstation_rest_save_os_settings( WP_REST_Request $request ) {
 	// schema happens to guard.
 	if ( ! is_array( $payload ) ) {
 		return rest_ensure_response( openstation_get_os_settings( $user_id ) );
+	}
+
+	// Normalize an alias-only patch before merging it with the saved master value.
+	if ( ! array_key_exists( 'mioEnabled', $payload ) && array_key_exists( 'mioApiEnabled', $payload ) ) {
+		$payload['mioEnabled'] = $payload['mioApiEnabled'];
 	}
 
 	openstation_save_os_settings(

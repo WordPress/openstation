@@ -96,6 +96,20 @@ describe( 'OpenStation Preferences — the frame', () => {
 		expect( root.querySelector( '#os-settings-nav' )?.getAttribute( 'value' ) ).toBe( 'features' );
 	} );
 
+	test( 'offers the MIO API checkbox without requiring AI or administrator access', () => {
+		paint( false );
+		const checkbox = root.querySelector<HTMLElement>( 'os-checkbox-label[label="MIO API"]' )!;
+		expect( checkbox ).not.toBeNull();
+		expect( checkbox.hasAttribute( 'checked' ) ).toBe( false );
+		expect( checkbox.hasAttribute( 'disabled' ) ).toBe( false );
+		checkbox.dispatchEvent( new CustomEvent( 'os-checkbox-change', { detail: { checked: true } } ) );
+		expect( stub.updateOsSettings.mock.calls[ 0 ][ 0 ] ).toEqual( { mioApiEnabled: true } );
+		const wallpaper = root.querySelector<HTMLElement>( 'os-checkbox-label[label="Show MIO on wallpaper"]' )!;
+		expect( wallpaper.hasAttribute( 'checked' ) ).toBe( true );
+		wallpaper.dispatchEvent( new CustomEvent( 'os-checkbox-change', { detail: { checked: false } } ) );
+		expect( stub.updateOsSettings ).toHaveBeenLastCalledWith( { mioShowOnWallpaper: false }, { windowId: 'desktop-mode-os-settings' } );
+	} );
+
 	test( 'the first row of each band opens a group', () => {
 		paint();
 		const starts = Array.from( root.querySelectorAll( '#os-settings-nav > os-tab[data-group-start="true"]' ) ).map(

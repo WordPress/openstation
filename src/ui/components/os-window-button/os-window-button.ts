@@ -147,7 +147,7 @@ function sanitizeIconSrc( raw: string ): string {
 }
 
 export class OsWindowButton extends Component {
-	static props = [ 'icon', 'icon-src', 'active', 'danger' ] as const;
+	static props = [ 'icon', 'icon-src', 'active', 'danger', 'disabled' ] as const;
 	static styles = [ styles ];
 
 	/**
@@ -166,7 +166,7 @@ export class OsWindowButton extends Component {
 	 * the native ARIA reflection.
 	 */
 	static get observedAttributes(): string[] {
-		return [ ...super.observedAttributes, 'aria-label' ];
+		return [ ...super.observedAttributes, 'aria-label', 'aria-pressed' ];
 	}
 
 	static help = {
@@ -175,6 +175,8 @@ export class OsWindowButton extends Component {
 			'Chrome button used in native-window title bars. Built-in icons cover the standard controls (minimize, maximize, fullscreen, detach, close, menu). Focused/unfocused coloring is driven by --os-ui-btn-* CSS custom properties the window shell owns.',
 		status: 'stable',
 		props: [
+			{ name: 'disabled', type: 'boolean attribute', description: 'Disables native activation and removes the button from keyboard navigation.' },
+			{ name: 'aria-pressed', type: "'true' | 'false' | 'mixed'", description: 'Optional toggle state forwarded to the focusable shadow button.' },
 			{
 				name: 'icon',
 				type: "'minimize' | 'maximize' | 'fullscreen' | 'fullscreen-exit' | 'detach' | 'reload' | 'close' | 'menu'",
@@ -248,7 +250,7 @@ export class OsWindowButton extends Component {
 			// deaf to `--os-ui-btn-color`, so a themed close button would
 			// stop turning white on a focused title bar.
 			return html`
-				<button type="button" aria-label="${ label }">
+				<button type="button" aria-label="${ label }" aria-pressed="${ this.getAttribute( 'aria-pressed' ) || '' }" ?disabled="${ this.hasAttribute( 'disabled' ) }">
 					<span
 						class="themed-icon"
 						aria-hidden="true"
@@ -259,7 +261,7 @@ export class OsWindowButton extends Component {
 			`;
 		}
 		return html`
-			<button type="button" aria-label="${ label }">
+			<button type="button" aria-label="${ label }" aria-pressed="${ this.getAttribute( 'aria-pressed' ) || '' }" ?disabled="${ this.hasAttribute( 'disabled' ) }">
 				<svg
 					width="14"
 					height="14"
@@ -364,6 +366,9 @@ export class OsWindowButton extends Component {
 		// Callers who want to suppress activation should not bind
 		// a `os-button-activate` listener in the first place.
 		button.addEventListener( 'click', () => {
+			if ( this.hasAttribute( 'disabled' ) ) {
+				return;
+			}
 			this.dispatchEvent(
 				new CustomEvent( 'os-button-activate', {
 					bubbles: true,
