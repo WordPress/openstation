@@ -7,6 +7,11 @@ OpenStation catches files dragged from the host operating system
 surface in the shell — the wallpaper, a folder window, a native
 window, or a chromeless admin iframe — and routes them through
 a confirmation dialog before uploading to the Media Library.
+The one exception inside an iframe: a drop on a native
+`<input type="file">`, or on Core's upload box around one
+(Upload Plugin, Upload Theme), goes to that input and never
+reaches the shell — see
+[`bridge-protocol.md`](../bridge-protocol.md#os-file-drop-forwarder--os-file-drop).
 
 The dialog opens with every field pre-filled (`title`, `altText`,
 `caption`, `description`, `filename`) but every field is editable
