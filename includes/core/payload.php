@@ -1874,6 +1874,10 @@ function openstation_resolve_script_dependencies( $handle ) {
 			continue;
 		}
 		$payload = openstation_resolve_script_payload( $dep_handle );
+		// An alias (no `src`) stays in the list when it carries inline
+		// data — that data is the whole reason it was declared, and a
+		// plugin's config blob commonly rides one. Nothing to fetch
+		// AND nothing to run is the only thing dropped.
 		if ( '' === $payload['url']
 			&& empty( $payload['before'] )
 			&& empty( $payload['after'] )
@@ -1921,8 +1925,12 @@ function openstation_resolve_script_dependencies( $handle ) {
  * `WP_Scripts::do_item()` would have used.
  *
  * Returns an empty payload (`array( 'url' => '' )`) when the handle
- * is unregistered or has no source — callers treat that as "no
- * script to load."
+ * is unregistered. A registered handle with no source — an alias
+ * carrying only inline data — also comes back with an empty `url`,
+ * but its `before` / `after` / `l10n` are kept: callers that load a
+ * bundle treat an empty `url` as "nothing to fetch", and the
+ * dependency walk ({@see openstation_resolve_script_dependencies()})
+ * still replays what the alias would have printed.
  *
  * Shared between `openstation_register_window()` and
  * `openstation_register_widget()` (and every other registration that
@@ -1952,17 +1960,28 @@ function openstation_resolve_script_payload( $handle ) {
 	}
 	$registered = $wp_scripts->registered[ $handle ];
 	$src        = is_string( $registered->src ) ? $registered->src : '';
-	if ( '' === $src ) {
-		return $empty;
-	}
 
-	// Normalize relative paths + attach cache-bust ver.
-	$resolved = $src;
-	if ( 0 === strpos( $resolved, '/' ) && 0 !== strpos( $resolved, '//' ) ) {
-		$resolved = site_url( $resolved );
-	}
-	if ( ! empty( $registered->ver ) ) {
-		$resolved = add_query_arg( 'ver', $registered->ver, $resolved );
+	// A handle with no `src` is an ALIAS — WordPress's supported way
+	// to ship inline-only JavaScript (`wp_register_script( $h, false )`
+	// plus `wp_add_inline_script()`), and a common home for a plugin's
+	// config blob: registering it as a *dependency* of every bundle is
+	// what guarantees the config runs first, whatever the enqueue
+	// order. `WP_Scripts::do_item()` prints an alias's localized data
+	// and its before/after snippets and returns before the `<script
+	// src>` it does not have. The payload mirrors that: `url` stays
+	// empty (there is nothing to fetch) and the inline data is kept,
+	// so a dependency walk can replay it. Translations are not: Core
+	// only prints those for a handle it printed a tag for.
+	$resolved = '';
+	if ( '' !== $src ) {
+		// Normalize relative paths + attach cache-bust ver.
+		$resolved = $src;
+		if ( 0 === strpos( $resolved, '/' ) && 0 !== strpos( $resolved, '//' ) ) {
+			$resolved = site_url( $resolved );
+		}
+		if ( ! empty( $registered->ver ) ) {
+			$resolved = add_query_arg( 'ver', $registered->ver, $resolved );
+		}
 	}
 
 	// Harvest `extra` data the lazy-load path would otherwise drop.
@@ -2000,7 +2019,7 @@ function openstation_resolve_script_payload( $handle ) {
 	// pipeline emits before the script body. `print_translations(
 	// $handle, false )` returns the snippet without echoing.
 	$translations = '';
-	if ( method_exists( $wp_scripts, 'print_translations' ) ) {
+	if ( '' !== $resolved && method_exists( $wp_scripts, 'print_translations' ) ) {
 		$captured = $wp_scripts->print_translations( $handle, false );
 		if ( is_string( $captured ) ) {
 			$translations = $captured;
@@ -2176,22 +2195,14 @@ function openstation_build_command_palette_assets_payload() {
 	$script_probe->all_deps( $script_roots );
 	foreach ( $script_probe->to_do as $handle ) {
 		$payload = openstation_resolve_script_payload( $handle );
-		if ( '' === $payload['url'] ) {
-			// Src-less aggregator — keep it only for its inline data.
-			$registered = isset( $scripts->registered[ $handle ] ) ? $scripts->registered[ $handle ] : null;
-			if ( $registered ) {
-				foreach ( array( 'before', 'after' ) as $position ) {
-					if ( isset( $registered->extra[ $position ] ) && is_array( $registered->extra[ $position ] ) ) {
-						$payload[ $position ] = array_values( array_filter( array_map( 'strval', $registered->extra[ $position ] ) ) );
-					}
-				}
-				if ( ! empty( $registered->extra['data'] ) && is_string( $registered->extra['data'] ) ) {
-					$payload['l10n'][] = $registered->extra['data'];
-				}
-			}
-			if ( empty( $payload['before'] ) && empty( $payload['after'] ) && empty( $payload['l10n'] ) ) {
-				continue;
-			}
+		// A src-less aggregator is kept only for its inline data — the
+		// resolver harvests that for an alias — and dropped when it
+		// carries none.
+		if ( '' === $payload['url']
+			&& empty( $payload['before'] )
+			&& empty( $payload['after'] )
+			&& empty( $payload['l10n'] ) ) {
+			continue;
 		}
 		// Core's `initializeCommandPalette( {…} )` inline embeds the
 		// serialized admin-menu command list — ~20 KB that the boot
@@ -2367,6 +2378,10 @@ function openstation_flush_script_handle_registries() {
  * translations, see `openstation_resolve_script_payload()` — lives
  * ONCE per handle in `scriptData`, and the shell joins the two on
  * receipt (`hydrateServerEntries()` in `src/native-windows.ts`).
+ * Each loadable handle's entry also names its dependency closure in
+ * `deps` (ordered handles, every one of them a key of the same map)
+ * so the lazy loader can bring a bundle's declared packages — and
+ * a src-less alias carrying its config — into the tab before it.
  *
  * The split exists because script data is a property of the HANDLE,
  * not of the window: every App Framework window rides
@@ -2385,7 +2400,7 @@ function openstation_flush_script_handle_registries() {
  * duplication problem worth a second map ( companion styles across
  * the whole registry total ~2 KB ).
  *
- * @return array{windows:array[],scriptData:array<string,array{url:string,before:string[],after:string[],l10n:string[],translations:string}>}
+ * @return array{windows:array[],scriptData:array<string,array{url:string,before:string[],after:string[],l10n:string[],translations:string,deps:string[]}>}
  */
 function openstation_collect_native_windows_payload() {
 	$empty = array(
@@ -2419,22 +2434,57 @@ function openstation_collect_native_windows_payload() {
 
 	$script_data = array();
 
+	// Handles resolved as a bundle to LOAD (a window's script, a
+	// companion, a tab) and what that visit answered — the handle, or
+	// '' for nothing to load — as opposed to reached only as
+	// somebody's dependency. A handle can be both — resolved as a
+	// dependency first, then named as a window's own script — and
+	// only the bundle visit computes its own closure.
+	$resolved_as_bundle = array();
+
 	// Resolve a handle into the map, once. Returns the handle when it
 	// resolved to something loadable, '' when it did not (never
 	// registered, no src) — the same silent drop the inline shape
 	// applied to companions and tab scripts.
-	$collect_handle = static function ( $handle ) use ( &$script_data ) {
+	//
+	// The handle's dependency closure rides along as `deps`: an
+	// ordered handle list, each of which lands in the same map. A
+	// bundle delivered lazily never goes through WordPress's own
+	// dependency resolution — the loader injects one URL — so a
+	// window declaring `wp-api-fetch` found `wp.apiFetch` undefined,
+	// and one whose config rides a src-less alias handle (a common
+	// shape: `wp_register_script( $h, false )` plus
+	// `wp_add_inline_script()`, declared as the bundle's dependency
+	// so it always runs first) booted with no config at all. Anything
+	// the document already ran is skipped on the client, so a page
+	// that carried the packages anyway pays nothing.
+	$collect_handle = static function ( $handle ) use ( &$script_data, &$resolved_as_bundle ) {
 		$handle = (string) $handle;
 		if ( '' === $handle ) {
 			return '';
 		}
-		if ( isset( $script_data[ $handle ] ) ) {
-			return $handle;
+		if ( isset( $resolved_as_bundle[ $handle ] ) ) {
+			return $resolved_as_bundle[ $handle ];
 		}
-		$payload = openstation_resolve_script_payload( $handle );
+		$payload = isset( $script_data[ $handle ] )
+			? $script_data[ $handle ]
+			: openstation_resolve_script_payload( $handle );
 		if ( '' === $payload['url'] ) {
+			$resolved_as_bundle[ $handle ] = '';
 			return '';
 		}
+		$resolved_as_bundle[ $handle ] = $handle;
+		$deps                          = array();
+		foreach ( openstation_resolve_script_dependencies( $handle ) as $dep ) {
+			$dep_handle = (string) $dep['handle'];
+			unset( $dep['handle'] );
+			if ( ! isset( $script_data[ $dep_handle ] ) ) {
+				$dep['deps']                = array();
+				$script_data[ $dep_handle ] = $dep;
+			}
+			$deps[] = $dep_handle;
+		}
+		$payload['deps']        = $deps;
 		$script_data[ $handle ] = $payload;
 		return $handle;
 	};

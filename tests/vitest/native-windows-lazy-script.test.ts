@@ -396,6 +396,99 @@ describe( 'native-windows — deferred bundle loading', () => {
 		);
 	} );
 
+	test( 'hydration resolves a handle\'s dependency closure out of the same map', async () => {
+		const wire = {
+			...entry( 'forms' ),
+			scriptUrl: undefined,
+			scriptHandle: 'forms-builder',
+			companionScripts: [ 'forms-extra' ],
+			tabs: [
+				{ value: 'entries', label: 'Entries', isMain: false, scriptHandle: 'forms-entries' },
+			],
+		} as unknown as Parameters< typeof hydrateServerEntries >[ 0 ][ 0 ];
+
+		const [ hydrated ] = hydrateServerEntries( [ wire ], {
+			'forms-builder': {
+				url: 'https://example.test/builder.js',
+				deps: [ 'wp-hooks', 'forms-config', 'never-in-map' ],
+			},
+			'forms-extra': {
+				url: 'https://example.test/extra.js',
+				deps: [ 'forms-config' ],
+			},
+			'forms-entries': {
+				url: 'https://example.test/entries.js',
+				deps: [ 'forms-config' ],
+			},
+			'wp-hooks': { url: 'https://example.test/hooks.js' },
+			// The alias: nothing to fetch, its config to replay.
+			'forms-config': { url: '', before: [ 'window.allTerrainForms={};' ] },
+		} );
+
+		expect( hydrated.scriptDeps ).toEqual( [
+			{
+				handle: 'wp-hooks',
+				url: 'https://example.test/hooks.js',
+				before: undefined,
+				after: undefined,
+				l10n: undefined,
+				translations: undefined,
+			},
+			{
+				handle: 'forms-config',
+				url: '',
+				before: [ 'window.allTerrainForms={};' ],
+				after: undefined,
+				l10n: undefined,
+				translations: undefined,
+			},
+		] );
+		expect( hydrated.companionScripts?.[ 0 ].scriptDeps?.map( ( d ) => d.handle ) ).toEqual( [
+			'forms-config',
+		] );
+		expect( hydrated.tabs?.[ 0 ].scriptDeps?.map( ( d ) => d.handle ) ).toEqual( [
+			'forms-config',
+		] );
+	} );
+
+	test( 'a handle without a closure hydrates with no deps at all', async () => {
+		const wire = {
+			...entry( 'plain' ),
+			scriptUrl: undefined,
+			scriptHandle: 'plain-bundle',
+		} as unknown as Parameters< typeof hydrateServerEntries >[ 0 ][ 0 ];
+
+		const [ hydrated ] = hydrateServerEntries( [ wire ], {
+			'plain-bundle': { url: 'https://example.test/plain.js', deps: [] },
+		} );
+
+		expect( hydrated.scriptDeps ).toBeUndefined();
+	} );
+
+	test( 'the loader is handed the closure with the bundle', async () => {
+		const h = setupHarness();
+		const deps = [
+			{ handle: 'forms-config', url: '', before: [ 'window.allTerrainForms={};' ] },
+		];
+		const e = entry( 'deps-window', { scriptDeps: deps } );
+		installTemplate( e );
+		const { sync, openById } = createNativeWindowSync( depsFromHarness( h ) );
+		await sync( [ e ] );
+
+		let extras: unknown;
+		vi.mocked( vendorLoader.loadVendorScript ).mockImplementation(
+			async ( url: string, x?: unknown ) => {
+				loaded.push( url );
+				extras = x;
+			},
+		);
+		openById( 'deps-window' );
+		await runRender( h.managerOpen );
+
+		expect( loaded ).toEqual( [ 'https://example.test/deps-window.js' ] );
+		expect( ( extras as { deps?: unknown } ).deps ).toEqual( deps );
+	} );
+
 	test( 'hydration passes old-format inline entries through untouched', async () => {
 		const inline = entry( 'legacy', {
 			scriptL10n: [ 'window.legacy=1;' ],

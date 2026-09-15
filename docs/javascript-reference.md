@@ -5701,7 +5701,7 @@ The built-in Snow wallpaper (`src/plugins/snow-wallpaper/`) is the canonical in-
 | `registerWallpaper( def )` | Stable | Add a wallpaper to the registry + re-apply |
 | `registerWidget( def )` | Stable | Add a widget to the registry |
 | `registerSystemTile( item )` | Stable | Add a JS-owned launcher tile to the bottom dock rail, alongside plugin admin menus. Returns nothing; fires `os.dock.item-appended`. See "System tiles" below. |
-| `loadVendorScript( url, extras? )` | Stable | Memoized `<script>` injector. Low-level; most plugins use `needs` instead. Never re-executes something the document already ran — pass `extras.handle` whenever you know the WP script handle, since a Core package delivered inside a `load-scripts.php` concat blob has no `<script src>` of its own to match on. |
+| `loadVendorScript( url, extras? )` | Stable | Memoized `<script>` injector. Low-level; most plugins use `needs` instead. Never re-executes something the document already ran — pass `extras.handle` whenever you know the WP script handle, since a Core package delivered inside a `load-scripts.php` concat blob has no `<script src>` of its own to match on. `extras.deps` is an ordered dependency list loaded first; an entry with an empty `url` is a src-less alias whose inline data is replayed in print order, once per document. |
 | `getWallpaperSurfaces()` | Stable | Live `WallpaperSurface[]` for collision-aware wallpapers. See "Wallpaper surfaces" below. |
 | `registerModule( def )` | Stable | Register a shared vendor library under a stable id. |
 | `loadModules( ids )` | Stable | Imperatively load registered modules. Usually unnecessary — canvas wallpapers declare `needs[]` and the shell resolves. |

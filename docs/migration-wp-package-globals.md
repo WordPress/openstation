@@ -86,7 +86,9 @@ subscribed before that point goes deaf; re-running `wp-data` wipes
 every registered store.
 
 "Already in the document" is answered by handle as well as by URL,
-because on a stock wp-admin the URL alone cannot answer it. Core
+because on a stock wp-admin the URL alone cannot answer it. A tag Core
+printed under the handle's own id (`<handle>-js`, or
+`<handle>-js-before` and its siblings for inline data) counts. Core
 concatenates every script below `wp-includes/js/` and `wp-admin/js/`
 into a single `load-scripts.php` response — the wp-admin default, off
 under `SCRIPT_DEBUG` or `CONCATENATE_SCRIPTS = false` — so those
@@ -96,12 +98,36 @@ the shell reads them back (`src/script-presence.ts`). Nothing is
 asked of you: the handles ride along in the payload OpenStation
 builds from your registration.
 
-**No other lazy path does this yet.** Native-window scripts, command
-scripts, settings-tab scripts, wallpapers, games and desktop-file
-openers all travel the same loader, but their payload builders do not
-resolve a closure. If one of those needs a `@wordpress/*` package,
-either enqueue the handle normally so WordPress resolves it, or load
-the package yourself before use — do not rely on load order.
+**Native-window bundles close it the same way.** The handle a window
+registers as its `script` — and each companion in `scripts`, and each
+tab script — ships its closure in the window payload, and the loader
+replays it before the bundle on first open. A window activated
+mid-session therefore boots with the same packages it would have had
+from a cold reload.
+
+**A src-less alias handle is replayed too.** `wp_register_script( $h,
+false )` plus `wp_add_inline_script()` is WordPress's supported way to
+ship inline-only JavaScript, and a common home for a plugin's config
+blob — declared as a dependency of every bundle so the config always
+runs first, whatever the enqueue order. The alias has nothing to fetch,
+so its inline data is replayed in print order (localized data, then
+`before`, then `after`) with no `<script src>` in between, once per
+document, and not at all when Core already printed it — the
+`<script id="<handle>-js-before">` Core leaves behind is the evidence.
+That is the case that surfaced this: a window whose builder read its
+config off exactly such an alias opened, after a live activation, with
+the config undefined.
+
+**Every other lazy path ships its closure the same way** — command
+scripts, settings-tab scripts, dock-rail renderers, title-bar buttons,
+window actions, unfocus effects, window-link renderers, window themes,
+controls, slots and chromes, wallpapers, games and desktop-file
+openers. That uniformity is load-bearing rather than tidy: the loader
+memoizes by URL, so whichever path fetches a bundle *first* decides
+what ran before it. A plugin that registers one bundle as both a
+window's `script` and a command script had the command sync win that
+race on a live activation, and the bundle ran without the config alias
+it declared. Declare what you use, on every handle, and it works.
 
 The loader side of the mechanism is generic, so extending the
 remaining builders is a payload change rather than a new mechanism.

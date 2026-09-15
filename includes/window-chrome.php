@@ -243,6 +243,9 @@ function openstation_build_window_theme_scripts_payload() {
 			'scriptAfter'        => $payload['after'],
 			'scriptL10n'         => $payload['l10n'],
 			'scriptTranslations' => $payload['translations'],
+			// The handle's dependency closure, replayed before the bundle
+			// on its lazy load — see `openstation_resolve_script_dependencies()`.
+			'scriptDeps'         => openstation_resolve_script_dependencies( $handle ),
 		);
 		$seen[ $handle ] = true;
 	}
@@ -284,6 +287,9 @@ function openstation_build_window_themes_payload() {
 			'scriptAfter'        => $payload['after'],
 			'scriptL10n'         => $payload['l10n'],
 			'scriptTranslations' => $payload['translations'],
+			// The handle's dependency closure, replayed before the bundle
+			// on its lazy load — see `openstation_resolve_script_dependencies()`.
+			'scriptDeps'         => openstation_resolve_script_dependencies( $handle ),
 		);
 	}
 	return $out;
@@ -473,6 +479,9 @@ function openstation_build_window_control_scripts_payload() {
 			'scriptAfter'        => $payload['after'],
 			'scriptL10n'         => $payload['l10n'],
 			'scriptTranslations' => $payload['translations'],
+			// The handle's dependency closure, replayed before the bundle
+			// on its lazy load — see `openstation_resolve_script_dependencies()`.
+			'scriptDeps'         => openstation_resolve_script_dependencies( $handle ),
 		);
 		$seen[ $handle ] = true;
 	}
@@ -512,6 +521,9 @@ function openstation_build_window_controls_payload() {
 			'scriptAfter'        => $payload['after'],
 			'scriptL10n'         => $payload['l10n'],
 			'scriptTranslations' => $payload['translations'],
+			// The handle's dependency closure, replayed before the bundle
+			// on its lazy load — see `openstation_resolve_script_dependencies()`.
+			'scriptDeps'         => openstation_resolve_script_dependencies( $handle ),
 		);
 	}
 	return $out;
@@ -703,6 +715,9 @@ function openstation_build_window_slot_scripts_payload() {
 			'scriptAfter'        => $payload['after'],
 			'scriptL10n'         => $payload['l10n'],
 			'scriptTranslations' => $payload['translations'],
+			// The handle's dependency closure, replayed before the bundle
+			// on its lazy load — see `openstation_resolve_script_dependencies()`.
+			'scriptDeps'         => openstation_resolve_script_dependencies( $handle ),
 		);
 		$seen[ $handle ] = true;
 	}
@@ -740,6 +755,9 @@ function openstation_build_window_slots_payload() {
 			'scriptAfter'        => $payload['after'],
 			'scriptL10n'         => $payload['l10n'],
 			'scriptTranslations' => $payload['translations'],
+			// The handle's dependency closure, replayed before the bundle
+			// on its lazy load — see `openstation_resolve_script_dependencies()`.
+			'scriptDeps'         => openstation_resolve_script_dependencies( $handle ),
 		);
 	}
 	return $out;
@@ -904,6 +922,9 @@ function openstation_build_window_chrome_scripts_payload() {
 			'scriptAfter'        => $payload['after'],
 			'scriptL10n'         => $payload['l10n'],
 			'scriptTranslations' => $payload['translations'],
+			// The handle's dependency closure, replayed before the bundle
+			// on its lazy load — see `openstation_resolve_script_dependencies()`.
+			'scriptDeps'         => openstation_resolve_script_dependencies( $handle ),
 		);
 		$seen[ $handle ] = true;
 	}
@@ -940,6 +961,9 @@ function openstation_build_window_chromes_payload() {
 			'scriptAfter'        => $payload['after'],
 			'scriptL10n'         => $payload['l10n'],
 			'scriptTranslations' => $payload['translations'],
+			// The handle's dependency closure, replayed before the bundle
+			// on its lazy load — see `openstation_resolve_script_dependencies()`.
+			'scriptDeps'         => openstation_resolve_script_dependencies( $handle ),
 		);
 	}
 	return $out;

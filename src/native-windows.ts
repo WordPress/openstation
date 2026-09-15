@@ -38,6 +38,7 @@ import {
 import type { SystemDockItem } from './dock';
 import type {
 	NativeRenderContext,
+	LazyScriptDependency,
 	NativeWindowCompanionScript,
 	NativeWindowDef,
 	NativeWindowIframeContent,
@@ -1074,6 +1075,33 @@ export function hydrateServerEntries(
 	scriptData?: NativeWindowScriptData,
 ): NativeWindowServerEntry[] {
 	const data = scriptData ?? {};
+	// A handle's dependency closure is an ordered handle list whose
+	// members live in the same map; resolve it into the shape the
+	// loader replays. A member missing from the map (a payload from
+	// an older server, or a dep that resolved to nothing) is skipped
+	// — the loader would have had nothing to do with it anyway.
+	const depsOf = ( handle: string | undefined ): LazyScriptDependency[] | undefined => {
+		const own = handle ? data[ handle ] : undefined;
+		if ( ! own?.deps || own.deps.length === 0 ) {
+			return undefined;
+		}
+		const deps: LazyScriptDependency[] = [];
+		for ( const depHandle of own.deps ) {
+			const dep = data[ depHandle ];
+			if ( ! dep ) {
+				continue;
+			}
+			deps.push( {
+				handle: depHandle,
+				url: dep.url ?? '',
+				before: dep.before,
+				after: dep.after,
+				l10n: dep.l10n,
+				translations: dep.translations,
+			} );
+		}
+		return deps.length > 0 ? deps : undefined;
+	};
 	return entries.map( ( entry ) => {
 		const own = entry.scriptHandle ? data[ entry.scriptHandle ] : undefined;
 
@@ -1094,6 +1122,7 @@ export function hydrateServerEntries(
 				scriptAfter: resolved.after,
 				scriptL10n: resolved.l10n,
 				scriptTranslations: resolved.translations,
+				scriptDeps: depsOf( companion ),
 			} );
 		}
 
@@ -1112,6 +1141,7 @@ export function hydrateServerEntries(
 					scriptAfter: resolved?.after,
 					scriptL10n: resolved?.l10n,
 					scriptTranslations: resolved?.translations,
+					scriptDeps: depsOf( tab.scriptHandle ),
 				};
 			},
 		);
@@ -1123,6 +1153,7 @@ export function hydrateServerEntries(
 			scriptAfter: entry.scriptAfter ?? own?.after,
 			scriptL10n: entry.scriptL10n ?? own?.l10n,
 			scriptTranslations: entry.scriptTranslations ?? own?.translations,
+			scriptDeps: entry.scriptDeps ?? depsOf( entry.scriptHandle ),
 			companionScripts: companions,
 			tabs,
 		};
@@ -1342,6 +1373,7 @@ export function createNativeWindowSync(
 			scriptL10n?: string[];
 			scriptBefore?: string[];
 			scriptAfter?: string[];
+			scriptDeps?: LazyScriptDependency[];
 		},
 	): Promise< void > => {
 		const url = script.scriptUrl;
@@ -1366,6 +1398,13 @@ export function createNativeWindowSync(
 			l10n: script.scriptL10n,
 			before: script.scriptBefore,
 			after: script.scriptAfter,
+			// The packages the bundle declares — the loader brings
+			// them into the tab first, in order, skipping anything
+			// the document already ran. A window's bundle never goes
+			// through WordPress's own dependency resolution when it
+			// is fetched lazily, and a plugin's config commonly rides
+			// a src-less alias declared as exactly such a dependency.
+			deps: script.scriptDeps,
 		} )
 			.catch( ( err ) => {
 				// Load failed — surface via SHELL_ERROR. The window

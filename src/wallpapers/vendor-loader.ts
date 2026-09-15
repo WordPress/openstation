@@ -22,6 +22,14 @@ import { findScriptByPath, isScriptInDocument } from '../script-presence';
 const pending = new Map<string, Promise<void>>();
 
 /**
+ * Handles of src-less ALIAS dependencies whose inline data this
+ * loader has already replayed. An alias has no URL for the memo above
+ * to key on, and its data — a plugin's config blob, typically — must
+ * run once per document, not once per bundle that declares it.
+ */
+const replayedAliases = new Set< string >();
+
+/**
  * Inline `extra` data harvested from a registered WP script handle by
  * {@link openstation_resolve_script_payload} on the server. Without
  * this, the lazy-load path would silently drop everything attached
@@ -79,6 +87,14 @@ export interface ScriptExtras {
 	 *
 	 * Anything already in the document is skipped, so this costs
 	 * nothing on a page that had the packages anyway.
+	 *
+	 * An entry with an empty `url` is a src-less ALIAS handle —
+	 * `wp_register_script( $h, false )` plus `wp_add_inline_script()`,
+	 * WordPress's supported way to ship inline-only JavaScript, and a
+	 * common home for a plugin's config blob (declared as the bundle's
+	 * dependency so it always runs first). There is nothing to fetch;
+	 * its inline data is replayed in print order instead, once per
+	 * document, and not at all when Core already printed it.
 	 */
 	deps?: Array< { url: string } & ScriptExtras >;
 }
@@ -121,7 +137,11 @@ export function loadVendorScript(
 	const deps = extras?.deps;
 	if ( deps && deps.length > 0 ) {
 		const loadDep = ( dep: { url: string } & ScriptExtras ) => {
-			if ( ! dep.url || isScriptInDocument( dep ) ) {
+			if ( isScriptInDocument( dep ) ) {
+				return Promise.resolve();
+			}
+			if ( ! dep.url ) {
+				replayAlias( dep );
 				return Promise.resolve();
 			}
 			return loadVendorScript( dep.url, { ...dep, deps: undefined } );
@@ -143,6 +163,37 @@ export function loadVendorScript(
 	const promise = injectScriptTag( url, extras );
 	pending.set( url, promise );
 	return promise;
+}
+
+/**
+ * Replay a src-less alias dependency's inline data, once.
+ *
+ * What `WP_Scripts::do_item()` prints for a handle with no `src`:
+ * localized data, then the `before` snippets, then the `after` ones,
+ * and no `<script src>` in between. Synchronous — an inline
+ * `<script>` runs during `appendChild()` — so the bundle that
+ * declared the alias finds its globals set by the time its own tag
+ * is appended. Keyed by handle: an alias without one cannot be told
+ * apart from its next occurrence and is replayed each time it is
+ * asked for, which is still the print pipeline's own behaviour for
+ * an anonymous snippet.
+ */
+function replayAlias( dep: ScriptExtras ): void {
+	if ( dep.handle ) {
+		if ( replayedAliases.has( dep.handle ) ) {
+			return;
+		}
+		replayedAliases.add( dep.handle );
+	}
+	for ( const code of dep.l10n ?? [] ) {
+		injectInline( code );
+	}
+	for ( const code of dep.before ?? [] ) {
+		injectInline( code );
+	}
+	for ( const code of dep.after ?? [] ) {
+		injectInline( code );
+	}
 }
 
 /**

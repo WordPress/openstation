@@ -148,6 +148,9 @@ function openstation_build_desktop_window_action_scripts_payload() {
 			'scriptAfter'        => $payload['after'],
 			'scriptL10n'         => $payload['l10n'],
 			'scriptTranslations' => $payload['translations'],
+			// The handle's dependency closure, replayed before the bundle
+			// on its lazy load — see `openstation_resolve_script_dependencies()`.
+			'scriptDeps'         => openstation_resolve_script_dependencies( $handle ),
 		);
 		$seen[ $handle ] = true;
 	}

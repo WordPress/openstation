@@ -35,6 +35,9 @@ export function createWindowChromeRegistrySync(): (
 		try {
 			await loadVendorScript( entry.scriptUrl, {
 				translations: entry.scriptTranslations,
+				// The packages the bundle declares, brought in first; the
+				// document skips what it already ran.
+				deps: entry.scriptDeps,
 				l10n: entry.scriptL10n,
 				before: entry.scriptBefore,
 				after: entry.scriptAfter,

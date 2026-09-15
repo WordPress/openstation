@@ -30,12 +30,18 @@
  * round-trip, and nothing to keep in sync with a boot-time snapshot
  * that a later print would invalidate.
  *
- * A script is therefore in the document when EITHER holds:
+ * A script is therefore in the document when ANY of these holds:
  *
  *   - some `<script src>` serves the same origin + path, or
- *   - its handle is listed in a `load-scripts.php` blob.
+ *   - its handle is listed in a `load-scripts.php` blob, or
+ *   - Core printed a tag under the handle's own id — `<handle>-js`
+ *     for the file, `<handle>-js-before` / `-after` / `-extra` /
+ *     `-translations` for its inline data. That last signal is the
+ *     only one a src-less ALIAS handle can give: it has no file to
+ *     find and no blob to be listed in, and yet Core printed its
+ *     inline data (a plugin's config blob, typically) exactly once.
  *
- * The second test needs the caller to know the handle. Every
+ * The handle tests need the caller to know the handle. Every
  * server-built payload carries one — `openstation_resolve_script_-`
  * `dependencies()` stamps `handle` on every dependency it resolves —
  * while a plugin calling `wp.os.loadVendorScript( url )` with a bare
@@ -193,6 +199,37 @@ export function concatenatedScriptHandles(): Set< string > {
 }
 
 /**
+ * The id suffixes `WP_Scripts::do_item()` stamps on what it prints
+ * for one handle: the `<script src>` itself and each inline chunk.
+ */
+const PRINTED_ID_SUFFIXES = [
+	'-js',
+	'-js-before',
+	'-js-after',
+	'-js-extra',
+	'-js-translations',
+];
+
+/**
+ * Whether Core printed anything for the handle — a tag carrying one
+ * of the ids `do_item()` assigns. Answers for an alias handle, which
+ * leaves no other trace: no file to match, nothing in a concat blob,
+ * only the inline `<script id="<handle>-js-before">` it printed.
+ *
+ * @param handle WordPress script handle.
+ * @return `true` when a Core-printed tag for the handle is present.
+ */
+export function printedScriptHandleInDocument( handle: string ): boolean {
+	if ( ! handle ) {
+		return false;
+	}
+	return PRINTED_ID_SUFFIXES.some( ( suffix ) => {
+		const tag = document.getElementById( handle + suffix );
+		return !! tag && tag.tagName === 'SCRIPT';
+	} );
+}
+
+/**
  * Whether this document has already been given the script.
  *
  * The one test every lazy loader should ask before appending a tag.
@@ -206,5 +243,11 @@ export function isScriptInDocument( ref: ScriptRef ): boolean {
 	if ( ref.url && findScriptByPath( ref.url ) ) {
 		return true;
 	}
-	return !! ref.handle && concatenatedScriptHandles().has( ref.handle );
+	if ( ! ref.handle ) {
+		return false;
+	}
+	return (
+		concatenatedScriptHandles().has( ref.handle ) ||
+		printedScriptHandleInDocument( ref.handle )
+	);
 }

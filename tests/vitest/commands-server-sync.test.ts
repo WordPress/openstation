@@ -63,6 +63,26 @@ describe( 'commands/server-sync.ts', () => {
 		);
 	} );
 
+	test( 'hands the loader the dependency closure with the bundle', async () => {
+		const { sync, loader } = await loadModules();
+		const spy = vi
+			.spyOn( loader, 'loadVendorScript' )
+			.mockResolvedValue( undefined );
+		const deps = [
+			{ handle: 'plugin-a-config', url: '', before: [ 'window.pluginA={};' ] },
+		];
+
+		const run = sync.createCommandRegistrySync();
+		await run( [
+			{ handle: 'plugin-a', scriptUrl: 'https://example.test/a.js', scriptDeps: deps },
+		] );
+
+		expect( spy ).toHaveBeenCalledWith(
+			'https://example.test/a.js',
+			expect.objectContaining( { deps } ),
+		);
+	} );
+
 	test( 'is idempotent — a second sync with the same handles is a no-op', async () => {
 		const { sync, loader } = await loadModules();
 		const spy = vi

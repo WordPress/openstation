@@ -76,6 +76,42 @@ class Tests_OpenStation_Commands extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The handle's dependency closure ships with it.
+	 *
+	 * A command script is fetched lazily on activation and never goes
+	 * through WordPress's own dependency resolution; and because the
+	 * loader memoizes by URL, whichever path fetches a bundle FIRST
+	 * decides what ran before it. AllTerrain Forms registers its
+	 * builder bundle as a command script too, so the command sync won
+	 * that race on a live activation and the bundle ran without the
+	 * src-less config alias it declares. Every lazy payload ships the
+	 * closure for exactly that reason.
+	 *
+	 * @covers ::openstation_build_desktop_command_scripts_payload
+	 */
+	public function test_payload_ships_the_dependency_closure() {
+		$alias  = 'cmd-test-config-' . uniqid();
+		$handle = 'cmd-test-d-' . uniqid();
+		wp_register_script( $alias, false, array(), '1.0.0', true );
+		wp_add_inline_script( $alias, 'window.cmdTestConfig={};', 'before' );
+		wp_register_script( $handle, 'https://example.test/cmd.js', array( $alias ), '1.0.0', true );
+		openstation_register_command_script( $handle );
+
+		$entry = null;
+		foreach ( openstation_build_desktop_command_scripts_payload() as $p ) {
+			if ( $p['handle'] === $handle ) {
+				$entry = $p;
+				break;
+			}
+		}
+		$this->assertNotNull( $entry );
+		$this->assertCount( 1, $entry['scriptDeps'] );
+		$this->assertSame( $alias, $entry['scriptDeps'][0]['handle'] );
+		$this->assertSame( '', $entry['scriptDeps'][0]['url'] );
+		$this->assertSame( array( 'window.cmdTestConfig={};' ), $entry['scriptDeps'][0]['before'] );
+	}
+
+	/**
 	 * @covers ::openstation_build_desktop_command_scripts_payload
 	 */
 	public function test_payload_omits_unresolvable_handles() {

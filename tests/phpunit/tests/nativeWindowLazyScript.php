@@ -584,4 +584,82 @@ class Tests_OpenStation_NativeWindowLazyScript extends WP_UnitTestCase {
 			$payload['nativeWindowScriptData']['demo-extra']['before']
 		);
 	}
+
+	// --------------------------------------------------------------
+	// Dependency closure
+	// --------------------------------------------------------------
+
+	/**
+	 * A window's bundle ships the packages it declares.
+	 *
+	 * WordPress resolves a script's dependencies when it enqueues it;
+	 * a bundle the shell fetches lazily never goes through that, so
+	 * whatever the handle declared — a `wp-*` package, or a plugin's
+	 * own src-less config alias — was simply absent when it ran. The
+	 * closure rides the handle's map entry as an ordered handle list,
+	 * and every member lands in the same map so a shared package is
+	 * serialized once.
+	 *
+	 * @covers ::openstation_collect_native_windows_payload
+	 */
+	public function test_script_ships_its_dependency_closure() {
+		$this->register_demo_script( 'demo-base', 'https://example.test/base.js' );
+		wp_register_script( 'demo-config', false, array( 'demo-base' ), '1.0.0', true );
+		wp_add_inline_script( 'demo-config', 'window.demoConfig={c:3};', 'before' );
+		$this->register_demo_script( 'demo-main', 'https://example.test/main.js' );
+		wp_scripts()->registered['demo-main']->deps = array( 'demo-config' );
+
+		$this->register_demo_window( 'demo-deps-window', array( 'script' => 'demo-main' ) );
+
+		$data = $this->script_data();
+		$this->assertSame( array( 'demo-base', 'demo-config' ), $data['demo-main']['deps'] );
+
+		$this->assertArrayHasKey( 'demo-base', $data );
+		$this->assertStringContainsString( 'base.js', $data['demo-base']['url'] );
+
+		// The alias: nothing to fetch, its inline data intact.
+		$this->assertArrayHasKey( 'demo-config', $data );
+		$this->assertSame( '', $data['demo-config']['url'] );
+		$this->assertSame( array( 'window.demoConfig={c:3};' ), $data['demo-config']['before'] );
+	}
+
+	/**
+	 * A handle that is somebody's dependency AND a window's own script
+	 * gets its own closure computed when it is named as a script — the
+	 * dependency visit alone does not settle it.
+	 *
+	 * @covers ::openstation_collect_native_windows_payload
+	 */
+	public function test_a_dependency_named_as_a_script_resolves_its_own_closure() {
+		$this->register_demo_script( 'demo-base', 'https://example.test/base.js' );
+		$this->register_demo_script( 'demo-shared', 'https://example.test/shared.js' );
+		wp_scripts()->registered['demo-shared']->deps = array( 'demo-base' );
+		$this->register_demo_script( 'demo-main', 'https://example.test/main.js' );
+		wp_scripts()->registered['demo-main']->deps = array( 'demo-shared' );
+
+		// Registration order puts the dependency visit first.
+		$this->register_demo_window( 'demo-first', array( 'script' => 'demo-main' ) );
+		$this->register_demo_window( 'demo-second', array( 'script' => 'demo-shared' ) );
+
+		$data = $this->script_data();
+		$this->assertSame( array( 'demo-base', 'demo-shared' ), $data['demo-main']['deps'] );
+		$this->assertSame( array( 'demo-base' ), $data['demo-shared']['deps'] );
+	}
+
+	/**
+	 * A window whose `script` is itself an alias still has no bundle
+	 * to load: `scriptHandle` stays empty, as it always did.
+	 *
+	 * @covers ::openstation_collect_native_windows_payload
+	 */
+	public function test_alias_as_a_window_script_is_still_nothing_to_load() {
+		wp_register_script( 'demo-alias-only', false, array(), '1.0.0', true );
+		wp_add_inline_script( 'demo-alias-only', 'window.demoAlias=1;', 'before' );
+
+		$this->register_demo_window( 'demo-alias-window', array( 'script' => 'demo-alias-only' ) );
+
+		$entry = $this->payload_entry( 'demo-alias-window' );
+		$this->assertSame( '', $entry['scriptHandle'] );
+		$this->assertSame( 'demo-alias-only', $entry['ownerHandle'] );
+	}
 }

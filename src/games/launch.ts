@@ -30,7 +30,7 @@
 
 import * as registry from './registry';
 import { ensureDeferredStyle } from '../deferred-styles';
-import type { DesktopConfig } from '../types';
+import type { DesktopConfig, LazyScriptDependency } from '../types';
 import { startPlaytimeTracker } from './playtime';
 import type { PlaytimeTracker } from './playtime';
 import { ingestChallenges } from './challenges-store';
@@ -85,6 +85,7 @@ interface DesktopGlobal {
 			l10n?: string[];
 			before?: string[];
 			after?: string[];
+			deps?: LazyScriptDependency[];
 		},
 	) => Promise< void >;
 	windowManager?: {
@@ -163,6 +164,9 @@ export async function ensureGameRender(
 	}
 	await loadVendorScript( entry.scriptUrl, {
 		translations: entry.scriptTranslations,
+		// The packages the bundle declares, brought in first; the
+		// document skips what it already ran.
+		deps: entry.scriptDeps,
 		l10n: entry.scriptL10n,
 		before: entry.scriptBefore,
 		after: entry.scriptAfter,
