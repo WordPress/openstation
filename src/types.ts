@@ -865,6 +865,44 @@ export interface MonitorEntry {
  * travels in, so the shell's loader replays `wp_localize_script` /
  * `wp_add_inline_script` / translation data identically.
  */
+/**
+ * One entry of a lazily-delivered bundle's dependency closure, in the
+ * shape the loader replays it: the package's resolved URL plus the
+ * inline data WordPress would have printed around it.
+ *
+ * WordPress resolves a script's dependencies when it ENQUEUES it, so
+ * a normally-printed bundle finds its packages already there. A
+ * bundle delivered lazily never goes through that: one declaring
+ * `wp-api-fetch` found `wp.apiFetch` undefined at mount, and one
+ * whose config rides a src-less alias handle booted with no config.
+ * Anything already in the document is skipped. See
+ * `docs/migration-wp-package-globals.md`.
+ *
+ * @public
+ */
+export interface LazyScriptDependency {
+	/**
+	 * The package's WP script handle. Load-bearing, not
+	 * informational: on a stock wp-admin these packages arrive
+	 * concatenated into one `load-scripts.php` blob and have no
+	 * `<script src>` of their own, so the handle is the only way
+	 * the shell can tell they are already here. See
+	 * `src/script-presence.ts`.
+	 */
+	handle?: string;
+	/**
+	 * Resolved URL to fetch. Empty for a src-less ALIAS handle —
+	 * `wp_register_script( $h, false )` plus `wp_add_inline_script()`
+	 * — whose inline data is replayed in print order with nothing
+	 * fetched in between.
+	 */
+	url: string;
+	before?: string[];
+	after?: string[];
+	l10n?: string[];
+	translations?: string;
+}
+
 export interface NativeWindowCompanionScript {
 	scriptUrl: string;
 	scriptHandle: string;
@@ -872,6 +910,8 @@ export interface NativeWindowCompanionScript {
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
+	/** The companion's declared packages, replayed before it loads. */
+	scriptDeps?: LazyScriptDependency[];
 }
 
 /**
@@ -890,6 +930,14 @@ export type NativeWindowScriptData = Record<
 		after?: string[];
 		l10n?: string[];
 		translations?: string;
+		/**
+		 * The handle's dependency closure in load order — every one a
+		 * key of this same map, so a package shared by several bundles
+		 * is serialized once. Present on handles the server resolved
+		 * as a bundle to load; absent on one reached only as a
+		 * dependency. An alias dependency has an empty `url` here.
+		 */
+		deps?: string[];
 	}
 >;
 
@@ -995,6 +1043,14 @@ export interface NativeWindowServerEntry {
 	/** `wp.i18n.setLocaleData(…)` snippet from `wp_set_script_translations()`. Injected before everything. */
 	scriptTranslations?: string;
 	/**
+	 * The packages `script` declares, in load order, replayed before
+	 * the bundle on its lazy load. The same closure WordPress would
+	 * have resolved had it printed the handle itself — `wp-*`
+	 * packages and a plugin's own src-less config alias alike.
+	 * Anything already in the document is skipped.
+	 */
+	scriptDeps?: LazyScriptDependency[];
+	/**
 	 * Companion bundles (`scripts` arg) loaded in order immediately
 	 * before `scriptUrl`. For code that extends the window from
 	 * outside it — subscribing to actions the window's own bundle
@@ -1082,6 +1138,8 @@ export interface NativeWindowTabEntry {
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
+	/** The tab script's declared packages, replayed before it loads. */
+	scriptDeps?: LazyScriptDependency[];
 }
 
 /**
@@ -1134,22 +1192,7 @@ export interface DesktopWidgetServerEntry {
 	 * deferred. Anything already in the document is skipped. See
 	 * `docs/migration-wp-package-globals.md`.
 	 */
-	scriptDeps?: Array< {
-		/**
-		 * The package's WP script handle. Load-bearing, not
-		 * informational: on a stock wp-admin these packages arrive
-		 * concatenated into one `load-scripts.php` blob and have no
-		 * `<script src>` of their own, so the handle is the only way
-		 * the shell can tell they are already here. See
-		 * `src/script-presence.ts`.
-		 */
-		handle?: string;
-		url: string;
-		before?: string[];
-		after?: string[];
-		l10n?: string[];
-		translations?: string;
-	} >;
+	scriptDeps?: LazyScriptDependency[];
 }
 
 /**
@@ -1193,6 +1236,8 @@ export interface DesktopWallpaperServerEntry {
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
+	/** The handle's declared packages, replayed before the bundle on its lazy load. */
+	scriptDeps?: LazyScriptDependency[];
 }
 
 /**
@@ -1283,6 +1328,8 @@ export interface DesktopGameServerEntry {
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
+	/** The handle's declared packages, replayed before the bundle on its lazy load. */
+	scriptDeps?: LazyScriptDependency[];
 }
 
 /**
@@ -1308,6 +1355,8 @@ export interface DesktopCommandScriptServerEntry {
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
+	/** The handle's declared packages, replayed before the bundle on its lazy load. */
+	scriptDeps?: LazyScriptDependency[];
 }
 
 /**
@@ -1326,6 +1375,8 @@ export interface DesktopDockRailRendererScriptServerEntry {
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
+	/** The handle's declared packages, replayed before the bundle on its lazy load. */
+	scriptDeps?: LazyScriptDependency[];
 }
 
 /**
@@ -1360,6 +1411,8 @@ export interface DesktopCommandServerEntry {
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
+	/** The handle's declared packages, replayed before the bundle on its lazy load. */
+	scriptDeps?: LazyScriptDependency[];
 }
 
 /**
@@ -1383,6 +1436,8 @@ export interface DesktopSettingsTabScriptServerEntry {
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
+	/** The handle's declared packages, replayed before the bundle on its lazy load. */
+	scriptDeps?: LazyScriptDependency[];
 }
 
 /**
@@ -1403,6 +1458,8 @@ export interface DesktopTitleBarButtonScriptServerEntry {
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
+	/** The handle's declared packages, replayed before the bundle on its lazy load. */
+	scriptDeps?: LazyScriptDependency[];
 }
 
 /**
@@ -1424,6 +1481,8 @@ export interface DesktopWindowActionScriptServerEntry {
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
+	/** The handle's declared packages, replayed before the bundle on its lazy load. */
+	scriptDeps?: LazyScriptDependency[];
 }
 
 /**
@@ -1445,6 +1504,8 @@ export interface DesktopUnfocusEffectScriptServerEntry {
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
+	/** The handle's declared packages, replayed before the bundle on its lazy load. */
+	scriptDeps?: LazyScriptDependency[];
 }
 
 /**
@@ -1466,6 +1527,8 @@ export interface DesktopWindowLinkRendererScriptServerEntry {
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
+	/** The handle's declared packages, replayed before the bundle on its lazy load. */
+	scriptDeps?: LazyScriptDependency[];
 }
 
 /**
@@ -1486,6 +1549,8 @@ export interface DesktopWindowThemeScriptServerEntry {
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
+	/** The handle's declared packages, replayed before the bundle on its lazy load. */
+	scriptDeps?: LazyScriptDependency[];
 }
 
 /**
@@ -1511,6 +1576,8 @@ export interface DesktopWindowThemeServerEntry {
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
+	/** The handle's declared packages, replayed before the bundle on its lazy load. */
+	scriptDeps?: LazyScriptDependency[];
 }
 
 /**
@@ -1526,6 +1593,8 @@ export interface DesktopWindowControlScriptServerEntry {
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
+	/** The handle's declared packages, replayed before the bundle on its lazy load. */
+	scriptDeps?: LazyScriptDependency[];
 }
 
 /**
@@ -1546,6 +1615,8 @@ export interface DesktopWindowControlServerEntry {
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
+	/** The handle's declared packages, replayed before the bundle on its lazy load. */
+	scriptDeps?: LazyScriptDependency[];
 }
 
 /**
@@ -1561,6 +1632,8 @@ export interface DesktopWindowSlotScriptServerEntry {
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
+	/** The handle's declared packages, replayed before the bundle on its lazy load. */
+	scriptDeps?: LazyScriptDependency[];
 }
 
 /**
@@ -1582,6 +1655,8 @@ export interface DesktopWindowSlotServerEntry {
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
+	/** The handle's declared packages, replayed before the bundle on its lazy load. */
+	scriptDeps?: LazyScriptDependency[];
 }
 
 /**
@@ -1632,6 +1707,8 @@ export interface DesktopWindowChromeScriptServerEntry {
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
+	/** The handle's declared packages, replayed before the bundle on its lazy load. */
+	scriptDeps?: LazyScriptDependency[];
 }
 
 /**
@@ -1649,6 +1726,8 @@ export interface DesktopWindowChromeServerEntry {
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
+	/** The handle's declared packages, replayed before the bundle on its lazy load. */
+	scriptDeps?: LazyScriptDependency[];
 }
 
 /**
@@ -1680,6 +1759,8 @@ export interface DesktopSettingsTabServerEntry {
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
+	/** The handle's declared packages, replayed before the bundle on its lazy load. */
+	scriptDeps?: LazyScriptDependency[];
 }
 
 /**

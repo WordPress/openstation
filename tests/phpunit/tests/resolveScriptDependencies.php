@@ -227,4 +227,67 @@ class Tests_OpenStation_ResolveScriptDependencies extends WP_UnitTestCase {
 		$this->assertSame( array(), openstation_resolve_script_dependencies( 'os-test-nope' ) );
 		$this->assertSame( array(), openstation_resolve_script_dependencies( '' ) );
 	}
+
+	/**
+	 * A src-less ALIAS dependency is kept for its inline data.
+	 *
+	 * `wp_register_script( $h, false )` plus `wp_add_inline_script()`
+	 * is WordPress's supported way to ship inline-only JavaScript,
+	 * and a common home for a plugin's config blob — declared as a
+	 * dependency of every bundle so the config always runs first,
+	 * whatever the enqueue order. AllTerrain Forms ships exactly
+	 * that, and its builder window opened after a live activation
+	 * with no `window.allTerrainForms` because the alias resolved to
+	 * an empty payload and was dropped from the closure.
+	 *
+	 * @covers ::openstation_resolve_script_dependencies
+	 * @covers ::openstation_resolve_script_payload
+	 */
+	public function test_alias_dependency_keeps_its_inline_data() {
+		wp_register_script( 'os-test-config', false, array(), '1.0.0', true );
+		wp_add_inline_script( 'os-test-config', 'window.osTestConfig={a:1};', 'before' );
+		wp_add_inline_script( 'os-test-config', 'window.osTestConfigReady=true;', 'after' );
+		wp_localize_script( 'os-test-config', 'osTestL10n', array( 'b' => '2' ) );
+		$this->register( 'os-test-bundle', array( 'os-test-config' ) );
+
+		$resolved = openstation_resolve_script_dependencies( 'os-test-bundle' );
+
+		$this->assertCount( 1, $resolved );
+		$this->assertSame( 'os-test-config', $resolved[0]['handle'] );
+		// Nothing to fetch — the client replays the inline data and
+		// appends no `<script src>`.
+		$this->assertSame( '', $resolved[0]['url'] );
+		$this->assertSame( array( 'window.osTestConfig={a:1};' ), $resolved[0]['before'] );
+		$this->assertSame( array( 'window.osTestConfigReady=true;' ), $resolved[0]['after'] );
+		$this->assertCount( 1, $resolved[0]['l10n'] );
+		$this->assertStringContainsString( 'osTestL10n', $resolved[0]['l10n'][0] );
+	}
+
+	/**
+	 * An alias carrying nothing is the one thing still dropped: there
+	 * is neither a file to fetch nor a snippet to run.
+	 *
+	 * @covers ::openstation_resolve_script_dependencies
+	 */
+	public function test_empty_alias_dependency_is_dropped() {
+		wp_register_script( 'os-test-empty-alias', false, array(), '1.0.0', true );
+		$this->register( 'os-test-bundle', array( 'os-test-empty-alias' ) );
+
+		$this->assertSame( array(), openstation_resolve_script_dependencies( 'os-test-bundle' ) );
+	}
+
+	/**
+	 * An alias that aggregates real packages contributes them to the
+	 * closure, in order, whether or not it carries inline data of
+	 * its own.
+	 *
+	 * @covers ::openstation_resolve_script_dependencies
+	 */
+	public function test_alias_dependency_still_walks_through_to_its_own_deps() {
+		$this->register( 'os-test-base' );
+		wp_register_script( 'os-test-group', false, array( 'os-test-base' ), '1.0.0', true );
+		$this->register( 'os-test-bundle', array( 'os-test-group' ) );
+
+		$this->assertSame( array( 'os-test-base' ), $this->resolved_handles( 'os-test-bundle' ) );
+	}
 }

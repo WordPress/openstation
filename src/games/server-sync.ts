@@ -49,6 +49,7 @@ export function stubFromServerEntry(
 		scriptL10n: entry.scriptL10n,
 		scriptBefore: entry.scriptBefore,
 		scriptAfter: entry.scriptAfter,
+		scriptDeps: entry.scriptDeps,
 	};
 }
 

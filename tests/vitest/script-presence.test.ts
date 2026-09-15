@@ -19,6 +19,7 @@ import {
 	concatenatedScriptHandles,
 	findScriptByPath,
 	isScriptInDocument,
+	printedScriptHandleInDocument,
 } from '../../src/script-presence';
 
 /** Append a `<script src>` exactly as the document would carry it. */
@@ -173,5 +174,59 @@ describe( 'isScriptInDocument', () => {
 		printConcatBlob( [ 'wp-hooks' ] );
 
 		expect( isScriptInDocument( { handle: 'wp-hooks' } ) ).toBe( true );
+	} );
+} );
+
+describe( 'printedScriptHandleInDocument', () => {
+	/** An inline tag exactly as `WP_Scripts::print_inline_script()` prints it. */
+	function printInline( id: string, code: string ): void {
+		const tag = document.createElement( 'script' );
+		tag.id = id;
+		tag.textContent = code;
+		document.head.append( tag );
+	}
+
+	it( 'sees an alias handle through the inline tag Core printed for it', () => {
+		// `wp_register_script( $h, false )` + `wp_add_inline_script()`:
+		// no file, no concat blob, only this.
+		printInline( 'acme-config-js-before', 'window.acmeConfig={};' );
+
+		expect( printedScriptHandleInDocument( 'acme-config' ) ).toBe( true );
+		expect( isScriptInDocument( { handle: 'acme-config', url: '' } ) ).toBe(
+			true,
+		);
+	} );
+
+	it( 'sees a file handle through the id on its own tag', () => {
+		const tag = document.createElement( 'script' );
+		tag.id = 'acme-widget-js';
+		tag.src = 'https://site.test/wp-content/plugins/acme/widget.js?ver=1';
+		document.head.append( tag );
+
+		expect( printedScriptHandleInDocument( 'acme-widget' ) ).toBe( true );
+	} );
+
+	it( 'accepts every inline position Core stamps', () => {
+		for ( const suffix of [ '-js-after', '-js-extra', '-js-translations' ] ) {
+			document.head.innerHTML = '';
+			printInline( `acme${ suffix }`, '1;' );
+			expect( printedScriptHandleInDocument( 'acme' ) ).toBe( true );
+		}
+	} );
+
+	it( 'says no for a handle nothing was printed under', () => {
+		printInline( 'other-js-before', '1;' );
+
+		expect( printedScriptHandleInDocument( 'acme-config' ) ).toBe( false );
+		expect( isScriptInDocument( { handle: 'acme-config' } ) ).toBe( false );
+	} );
+
+	it( 'ignores a non-script element that happens to carry the id', () => {
+		const div = document.createElement( 'div' );
+		div.id = 'acme-js';
+		document.body.append( div );
+
+		expect( printedScriptHandleInDocument( 'acme' ) ).toBe( false );
+		div.remove();
 	} );
 } );

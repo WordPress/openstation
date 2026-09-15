@@ -17,6 +17,8 @@
  *
  * @public
  */
+import type { LazyScriptDependency } from '../types';
+
 export interface GameScoreColumn {
 	/** Slug key into the score row's `meta` map (or `score`). */
 	key: string;
@@ -139,6 +141,8 @@ export interface GameRegistryEntry {
 	scriptL10n?: string[];
 	scriptBefore?: string[];
 	scriptAfter?: string[];
+	/** The bundle's declared packages, replayed before it on first launch. */
+	scriptDeps?: LazyScriptDependency[];
 }
 
 /**

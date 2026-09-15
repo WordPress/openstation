@@ -123,3 +123,107 @@ describe( 'loadVendorScript — no double injection', () => {
 		expect( enqueued.dataset.loaded ).toBe( '1' );
 	} );
 } );
+
+/**
+ * A src-less alias dependency — `wp_register_script( $h, false )` plus
+ * `wp_add_inline_script()`, the shape a plugin's config blob commonly
+ * takes — has nothing to fetch. Its inline data is what the bundle
+ * declaring it needs, and it must run once: not never (the AllTerrain
+ * Forms builder opened after a live activation with no
+ * `window.allTerrainForms`), and not once per bundle that declares it.
+ */
+describe( 'loadVendorScript — alias dependencies', () => {
+	beforeEach( () => {
+		document.head.innerHTML = '';
+		document.body.innerHTML = '';
+	} );
+
+	afterEach( () => {
+		document.head.innerHTML = '';
+		document.body.innerHTML = '';
+	} );
+
+	/**
+	 * The dependency walk is a promise chain — each dependency waits
+	 * for the one before it — so even an alias's synchronous replay
+	 * lands a task later. Nothing fires `load` in jsdom for an
+	 * injected src, so the returned promise itself never settles here.
+	 */
+	const flush = () => new Promise( ( r ) => setTimeout( r, 0 ) );
+
+	function inlineTags(): string[] {
+		return Array.from(
+			document.querySelectorAll< HTMLScriptElement >(
+				'script[data-os-vendor-inline]',
+			),
+		).map( ( tag ) => tag.textContent ?? '' );
+	}
+
+	test( 'replays an alias dependency in print order, with nothing fetched', async () => {
+		const url = 'http://example.test/wp-content/plugins/x/assets/js/alias-a.js';
+		void loadVendorScript( url, {
+			deps: [
+				{
+					handle: 'x-config',
+					url: '',
+					l10n: [ 'var xL10n={};' ],
+					before: [ 'window.xConfig={a:1};' ],
+					after: [ 'window.xConfigReady=true;' ],
+				},
+			],
+		} );
+		await flush();
+
+		// The alias's data precedes the bundle tag, in print order.
+		expect( inlineTags() ).toEqual( [
+			'var xL10n={};',
+			'window.xConfig={a:1};',
+			'window.xConfigReady=true;',
+		] );
+		expect( scriptCount( '/alias-a.js' ) ).toBe( 1 );
+		// No `<script src>` was appended for the alias itself.
+		expect( scriptCount( 'x-config' ) ).toBe( 0 );
+	} );
+
+	test( 'an alias is replayed once however many bundles declare it', async () => {
+		const alias = {
+			handle: 'x-shared-config',
+			url: '',
+			before: [ 'window.xShared=1;' ],
+		};
+		void loadVendorScript(
+			'http://example.test/wp-content/plugins/x/assets/js/alias-b.js',
+			{ deps: [ alias ] },
+		);
+		void loadVendorScript(
+			'http://example.test/wp-content/plugins/x/assets/js/alias-c.js',
+			{ deps: [ alias ] },
+		);
+		await flush();
+
+		expect( inlineTags().filter( ( c ) => c === 'window.xShared=1;' ) ).toHaveLength(
+			1,
+		);
+	} );
+
+	test( 'an alias Core already printed is not replayed', async () => {
+		// What `wp_print_scripts()` left behind for the alias at boot.
+		const printed = document.createElement( 'script' );
+		printed.id = 'x-boot-config-js-before';
+		printed.textContent = 'window.xBoot={};';
+		document.head.appendChild( printed );
+
+		void loadVendorScript(
+			'http://example.test/wp-content/plugins/x/assets/js/alias-d.js',
+			{
+				deps: [
+					{ handle: 'x-boot-config', url: '', before: [ 'window.xBoot={};' ] },
+				],
+			},
+		);
+		await flush();
+
+		expect( inlineTags() ).toEqual( [] );
+		expect( scriptCount( '/alias-d.js' ) ).toBe( 1 );
+	} );
+} );
