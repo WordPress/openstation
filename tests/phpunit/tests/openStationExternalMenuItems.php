@@ -268,6 +268,40 @@ class Tests_OpenStation_ExternalMenuItems extends WP_UnitTestCase {
 		);
 	}
 
+	public function test_host_filter_on_self_admin_url_does_not_move_a_restored_original_off_site() {
+		global $menu, $submenu;
+		// wpcomsh's `wpcomsh_update_plugin_link_destination()`: on the
+		// default WordPress.com interface every `self_admin_url()` call
+		// for the installer answers with the Calypso URL. Resolved through
+		// that filter, the hidden wp-admin original reads as off-site too
+		// and Plugins loses Add Plugin altogether.
+		add_filter(
+			'self_admin_url',
+			static function ( $url, $path ) {
+				if ( ! strpos( $url, '/plugin-install.php' ) || strpos( $path, '?' ) ) {
+					return $url;
+				}
+				return 'https://wordpress.com/plugins/example.com';
+			},
+			10,
+			2
+		);
+		$menu                   = array( $this->make_menu_row( 'Plugins', 'activate_plugins', 'plugins.php' ) );
+		$submenu['plugins.php'] = array(
+			array( 'Add Plugin', 'install_plugins', 'https://wordpress.com/plugins/example.com' ),
+			array( 'Installed Plugins', 'activate_plugins', 'plugins.php' ),
+			array( 'Add Plugin', 'install_plugins', 'plugin-install.php', '', 'hide-if-js' ),
+		);
+
+		$items = openstation_build_dock_items();
+
+		$this->assertSame( 'Installed Plugins', $items[0]['selfLabel'] );
+		$this->assertSame(
+			array( admin_url( 'plugin-install.php' ) ),
+			wp_list_pluck( $items[0]['submenu'], 'url' )
+		);
+	}
+
 	public function test_container_menu_whose_children_were_all_off_site_is_dropped() {
 		global $menu, $submenu;
 		// The WordPress.com Upgrades shape: `add_menu_page()` with a

@@ -455,9 +455,10 @@ function openstation_build_dock_items() {
  * escape to a browser tab, which breaks the shell's navigation model.
  * Those entries are dropped from the payload instead.
  *
- * `self_admin_url()`, `admin_url()` and `home_url()` hosts all count as
- * ours: a site can run its admin on a different domain than its front
- * end, and the network admin lives on the network's own.
+ * The menu's own admin (`openstation_menu_admin_url()`), `admin_url()`
+ * and `home_url()` hosts all count as ours: a site can run its admin on
+ * a different domain than its front end, and the network admin lives on
+ * the network's own.
  *
  * @param string $url Absolute URL, as returned by `openstation_menu_item_url()`.
  * @return bool True when the URL is off-site.
@@ -468,7 +469,7 @@ function openstation_menu_item_is_external( $url ) {
 
 	if ( $host ) {
 		$ours = array();
-		foreach ( array( self_admin_url(), admin_url(), home_url() ) as $known ) {
+		foreach ( array( openstation_menu_admin_url(), admin_url(), home_url() ) as $known ) {
 			$known_host = wp_parse_url( $known, PHP_URL_HOST );
 			if ( $known_host ) {
 				$ours[] = strtolower( $known_host );
@@ -2685,15 +2686,43 @@ function openstation_is_admin_file_slug( $slug ) {
 }
 
 /**
+ * The admin URL a menu slug resolves against.
+ *
+ * Follows the admin the request is in: the network admin's own URL there,
+ * because its globals carry network slugs (`sites.php`, `settings.php`)
+ * that exist only under `wp-admin/network/`, and the site admin's
+ * everywhere else.
+ *
+ * The same answer `self_admin_url()` gives, without its filter. That
+ * filter receives the path, so a host can use it to send one screen
+ * somewhere else, and WordPress.com points `plugin-install.php` at its own
+ * installer. Resolved through it, the wp-admin original of a menu row the
+ * host replaced reads as off-site, and the dock drops it along with the
+ * replacement, which is how Plugins > Add Plugin disappears there.
+ *
+ * @param string $path Optional. Path relative to the admin URL.
+ * @return string Absolute admin URL.
+ */
+function openstation_menu_admin_url( $path = '' ) {
+	if ( is_network_admin() ) {
+		return network_admin_url( $path );
+	}
+	if ( is_user_admin() ) {
+		return user_admin_url( $path );
+	}
+	return admin_url( $path );
+}
+
+/**
  * Converts a menu item slug to a full admin URL.
  *
- * Resolution goes through `self_admin_url()`, not `admin_url()`: in the
- * network admin the same globals carry network slugs (`sites.php`,
- * `settings.php`) that exist only under `wp-admin/network/`.
+ * Resolution goes through {@see openstation_menu_admin_url()}, which
+ * follows the admin the request is in without passing through the
+ * filterable `self_admin_url()`.
  *
  * Handles three slug shapes:
  *  1. Direct file references (`edit.php`, `upload.php`) — passed
- *     through `self_admin_url()` as-is.
+ *     through `openstation_menu_admin_url()` as-is.
  *  2. Plain plugin page slugs (`my-plugin`) — routed through
  *     `admin.php?page=<slug>` with the slug `rawurlencode()`d.
  *  3. Plugin page slugs that embed extra query parameters
@@ -2756,7 +2785,7 @@ function openstation_menu_item_url( $slug ) {
 		false !== strpos( $slug, '.php' ) &&
 		( ! isset( $_parent_pages[ $slug ] ) || openstation_is_admin_file_slug( $slug ) )
 	) {
-		return esc_url_raw( self_admin_url( $slug ) );
+		return esc_url_raw( openstation_menu_admin_url( $slug ) );
 	}
 
 	// Plugin page slug with embedded query parameters
@@ -2798,7 +2827,7 @@ function openstation_menu_item_url( $slug ) {
 		}
 	}
 
-	$url = self_admin_url( $host );
+	$url = openstation_menu_admin_url( $host );
 	if ( ! empty( $extra_args ) ) {
 		$url = add_query_arg( $extra_args, $url );
 	}

@@ -141,8 +141,14 @@ Two things then have to know about `wp-admin/network/`: the target
 allowlist, which resolves the network's own filenames through
 `openstation_network_admin_target_allowlist()` (the site list cannot
 stand in, since the directories share filenames that mean different
-things), and menu URLs, `currentPage` and `adminUrl`, which resolve
-through `self_admin_url()` rather than `admin_url()`.
+things), and the URLs that follow the admin the request is in:
+`currentPage` and `adminUrl` through `self_admin_url()`, and menu URLs
+through `openstation_menu_admin_url()`. That helper gives the same answer
+as `self_admin_url()` without its filter, which receives the path: a host
+can use it to send one screen elsewhere, and WordPress.com points
+`plugin-install.php` at its own installer. Resolved through the filter,
+that screen's wp-admin menu row reads as off-site and the dock drops
+Plugins > Add Plugin.
 
 **Site-scoped native windows are not offered there.** Every one
 OpenStation ships reads the current site's REST API — Posts, Users and
