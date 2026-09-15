@@ -1796,6 +1796,125 @@
 		return false;
 	}
 	/*
+	 * A native `<input type="file">` the drop belongs to.
+	 *
+	 * Core's Upload Plugin and Upload Theme boxes are one file input
+	 * inside `form.wp-upload-form` and no script at all: nothing
+	 * there calls `preventDefault()`, so the forwarder below took a
+	 * plugin zip dropped on the box and opened the shell's Media
+	 * Library dialog over it. Outside the shell the browser drops a
+	 * file straight into a file input. Keep that promise, and extend
+	 * it to the whole box the input sits in — the box is the
+	 * affordance the page shows.
+	 *
+	 * Resolves the input under the pointer, or the ONE file input of
+	 * the `.wp-upload-form` the pointer is inside. Two inputs make
+	 * the drop ambiguous, and a hidden one (Media › Add New keeps its
+	 * no-JS `#async-upload` behind plupload) could not show the user
+	 * what it took — both fall through to the shell as before.
+	 */
+	function bridgeNativeFileInputFor( target ) {
+		if ( ! target || ! target.closest ) {
+			return null;
+		}
+		var input = target.closest( 'input[type="file"]' );
+		if ( ! input ) {
+			var form = target.closest( 'form.wp-upload-form' );
+			if ( ! form ) {
+				return null;
+			}
+			var inputs = form.querySelectorAll( 'input[type="file"]' );
+			if ( inputs.length !== 1 ) {
+				return null;
+			}
+			input = inputs[ 0 ];
+		}
+		if ( input.disabled ) {
+			return null;
+		}
+		if (
+			typeof input.getClientRects === 'function' &&
+			input.getClientRects().length === 0
+		) {
+			return null;
+		}
+		return input;
+	}
+	/*
+	 * Give the input the dropped files the way the browser's own
+	 * drop-on-a-file-input does: a non-`multiple` input takes the
+	 * first file only, and `change` fires so whatever watches the
+	 * control sees the pick — common.js enables Install Now on it.
+	 * Trimming to one file needs a `DataTransfer` to build the list;
+	 * where that is missing the list is handed over whole.
+	 */
+	function bridgeHandFilesToInput( input, list ) {
+		if ( ! list || list.length === 0 ) {
+			return false;
+		}
+		try {
+			var picked = list;
+			if (
+				list.length > 1 &&
+				! input.multiple &&
+				typeof DataTransfer === 'function'
+			) {
+				var dt = new DataTransfer();
+				dt.items.add( list[ 0 ] );
+				picked = dt.files;
+			}
+			input.files = picked;
+		} catch ( err ) {
+			return false;
+		}
+		input.dispatchEvent( new Event( 'input', { bubbles: true } ) );
+		input.dispatchEvent( new Event( 'change', { bubbles: true } ) );
+		return true;
+	}
+	/*
+	 * The box a file drag is currently over, stamped so
+	 * `chromeless.css` can outline it. Core paints no hover state on
+	 * its upload boxes, and inside the shell people had learned the
+	 * box would NOT take a drop. `dragover` stops the moment the drag
+	 * leaves the frame or is cancelled, with no event here to rely
+	 * on, so a short watchdog clears the mark — the parent's drop
+	 * manager keeps the same one.
+	 */
+	var bridgeDropZoneAttr = 'data-os-file-drop-active';
+	var bridgeDropZone = null;
+	var bridgeDropZoneWatchdog = null;
+	function bridgeClearDropZone() {
+		if ( bridgeDropZone ) {
+			bridgeDropZone.removeAttribute( bridgeDropZoneAttr );
+			bridgeDropZone = null;
+		}
+		if ( bridgeDropZoneWatchdog !== null ) {
+			clearTimeout( bridgeDropZoneWatchdog );
+			bridgeDropZoneWatchdog = null;
+		}
+	}
+	function bridgeMarkDropZone( input ) {
+		var zone = input
+			? input.closest( 'form.wp-upload-form' ) || input
+			: null;
+		if ( zone !== bridgeDropZone ) {
+			if ( bridgeDropZone ) {
+				bridgeDropZone.removeAttribute( bridgeDropZoneAttr );
+			}
+			bridgeDropZone = zone;
+			if ( zone ) {
+				zone.setAttribute( bridgeDropZoneAttr, '' );
+			}
+		}
+		if ( bridgeDropZoneWatchdog !== null ) {
+			clearTimeout( bridgeDropZoneWatchdog );
+			bridgeDropZoneWatchdog = null;
+		}
+		if ( zone ) {
+			bridgeDropZoneWatchdog = setTimeout( bridgeClearDropZone, 250 );
+		}
+	}
+	/*
 	 * Bubble phase (not capture): the inner-most handler — Gutenberg's
 	 * drop zone, the legacy media uploader, or a third-party plugin
 	 * like "Administrador de archivos WP" — runs FIRST and gets the
@@ -1803,7 +1922,7 @@
 	 * forwarder then runs LAST at the document level and yields to
 	 * anyone who already took ownership.
 	 *
-	 * Two bail conditions, in order:
+	 * Three bail conditions, in order:
 	 *   1. `bridgeDropTargetWantsFile()` — the curated allowlist
 	 *      (Gutenberg, wp.media, anything tagged `[data-drop-zone]`).
 	 *      Kept as the primary check so the well-known core surfaces
@@ -1816,6 +1935,10 @@
 	 *      some inner handler has taken the drop — yield so plugins
 	 *      outside the allowlist (WP File Manager, Yoast, etc.) keep
 	 *      their native UX.
+	 *   3. `bridgeNativeFileInputFor()` — a file input under the drop,
+	 *      or the one inside the `.wp-upload-form` box around it, gets
+	 *      the files itself. Core's upload boxes have no script, so
+	 *      neither of the two above ever fires for them.
 	 */
 	document.addEventListener( 'dragover', function ( ev ) {
 		if ( ! bridgeHasFiles( ev ) ) {
@@ -1827,6 +1950,7 @@
 		if ( ev.defaultPrevented ) {
 			return;
 		}
+		bridgeMarkDropZone( bridgeNativeFileInputFor( ev.target ) );
 		ev.preventDefault();
 		if ( ev.dataTransfer ) {
 			ev.dataTransfer.dropEffect = 'copy';
@@ -1836,11 +1960,26 @@
 		if ( ! bridgeHasFiles( ev ) ) {
 			return;
 		}
+		bridgeClearDropZone();
 		if ( bridgeDropTargetWantsFile( ev.target ) ) {
 			return;
 		}
 		if ( ev.defaultPrevented ) {
 			return;
+		}
+		var input = bridgeNativeFileInputFor( ev.target );
+		if ( input && ev.dataTransfer && ev.dataTransfer.files ) {
+			if ( bridgeHandFilesToInput( input, ev.dataTransfer.files ) ) {
+				ev.preventDefault();
+				ev.stopPropagation();
+				return;
+			}
+			if ( ev.target === input ) {
+				// `files` could not be set from script; the browser's
+				// own drop-on-a-file-input default action still can,
+				// provided nothing cancels the event.
+				return;
+			}
 		}
 		ev.preventDefault();
 		ev.stopPropagation();

@@ -547,6 +547,25 @@ html.wp-toolbar:has( body.os-chromeless ) {
 }
 
 /* ---------------------------------------------------------------
+ * A file drag over a native upload box.
+ *
+ * The chromeless bridge hands an OS-file drop to Core's own
+ * `<input type="file">` when it lands on one, or anywhere on the
+ * `form.wp-upload-form` box around it (Upload Plugin, Upload
+ * Theme), and stamps `data-os-file-drop-active` on that box while
+ * the drag is over it. Outside the shell the box gives no sign it
+ * will take a drop; inside, the shell used to take the file
+ * instead, so people learned it would not. Say so while it can.
+ *
+ * Core's own admin colour, read the way common.css reads it, not
+ * the station's: this is a wp-admin control on a wp-admin page.
+ * --------------------------------------------------------------- */
+.os-chromeless [data-os-file-drop-active] {
+	outline: 2px dashed var( --wp-admin-theme-color, #3858e9 );
+	outline-offset: -2px;
+}
+
+/* ---------------------------------------------------------------
  * Appearance → Themes workspace
  *
  * Core's one-theme state renders the Theme Details dialog inline and
