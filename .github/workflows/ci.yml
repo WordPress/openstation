@@ -124,13 +124,6 @@ jobs:
       - name: Run PHPUnit
         run: npm run test:php
 
-      # Same suite against a network install. Multisite denies plain
-      # administrators a raft of capabilities (activate_plugins,
-      # update_core, edit_users, …) and swaps several user/site APIs,
-      # which is exactly where multisite-only regressions hide.
-      - name: Run PHPUnit (multisite)
-        run: npm run test:php:multisite
-
       # Errors gate; the ~800 advisory warnings still report on a local
       # `npm run lint:php:all` but never fail the build. See phpcs.xml.dist
       # for which sniffs were downgraded and why.
@@ -169,6 +162,49 @@ jobs:
             vendor/bin/phpcs \
             --standard=extensions/openstation-beta/phpcs.xml.dist \
             extensions/openstation-beta/openstation-beta.php extensions/openstation-beta/includes
+
+  # Same suite against a network install. Multisite denies plain
+  # administrators a raft of capabilities (activate_plugins,
+  # update_core, edit_users, …) and swaps several user/site APIs,
+  # which is exactly where multisite-only regressions hide. A job of
+  # its own so it runs in parallel with the single-site suite instead
+  # of doubling that job's time.
+  php-multisite:
+    name: PHPUnit multisite · PHP ${{ matrix.php }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: [ '8.3', '8.4' ]
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build app client views
+        run: npm run build:apps
+
+      - name: Start wp-env (tests instance)
+        env:
+          WP_ENV_PHP_VERSION: ${{ matrix.php }}
+        run: npm run env:start:tests
+
+      - name: Install PHP dev dependencies
+        run: npm run test:php:install
+
+      - name: Run PHPUnit (multisite)
+        run: npm run test:php:multisite
 
   plugin-check:
     name: Plugin Check
