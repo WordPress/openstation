@@ -58,7 +58,11 @@ network picks its own set. An install that joined from elsewhere through
 an OpenStation network (`kind: 'member'` on its entry) is marked as
 **external**: a mark before its name, one line before the first of them,
 and a tooltip that says so, so the row reads as this network's own sites
-and then the ones that joined it. `switchToSite( multisite, value )` in
+and then the ones that joined it. A site of this network where OpenStation is not
+active (`active: false` on its entry) has no shell screen to switch to:
+it wears the same mark, and any click on it opens its regular `wp-admin`
+(`adminUrl`) in a browser tab, leaving the current segment selected;
+Tab steps over it. `switchToSite( multisite, value )` in
 the same module is the switch itself, the one a pick takes, and the shell
 also runs it for an app's `hop` effect (`$os->effects->add( 'hop',
 array( 'site' => $id ) )`, which is how the Network window's Open buttons
@@ -156,8 +160,11 @@ the rest — so a `users.php` tile meaning "everyone on the network" would
 have opened one site's user list. A window says which admin offers it
 (`admin` in `openstation_register_window()`, `App::admin()` for an app:
 `site`, the default, `network`, or `any`), and the payload keeps the
-ones that belong (`openstation_native_window_offered_here()`); the
-Network app is the one that declares `network`. Dropping the site
+ones that belong (`openstation_native_window_offered_here()`). The
+Network app and OpenStation Preferences declare `any`: Preferences edits
+the user's own settings, which apply on every shell, and its site-wide
+options on the network admin are the main site's, the options that
+admin runs on. Dropping the site
 windows there is also what disarms the client-side URL remaps.
 
 ## The Network Admin dock tile

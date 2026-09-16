@@ -418,7 +418,7 @@ const extendedSection: Section = ( _s, ctx ) => {
 			${ toggle(
 				'network',
 				__( 'Enable OpenStation Network' ),
-				__( 'Pairs this install with other OpenStation installs into one network: a Network app in the dock, a key and a registry, and a site switcher that moves between installs and logs you in on arrival. Off by default — while off, none of the network module loads, on the server or in the browser, and a multisite keeps its own site switcher. Pairings are kept across a disable and reappear when re-enabled.' ),
+				__( 'Pairs this install with other OpenStation installs into one network: a Network app on the desktop, a key and a registry, and a site switcher that moves between installs and logs you in on arrival. Off by default — while off, none of the network module loads, on the server or in the browser, and a multisite keeps its own site switcher. Pairings are kept across a disable and reappear when re-enabled.' ),
 			) }
 			${ toggle(
 				'games',

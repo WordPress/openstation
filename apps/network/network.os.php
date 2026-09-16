@@ -442,6 +442,10 @@ return App::define( APP_ID )
 	// super admin's job wherever they stand, and each row is a way to
 	// another site.
 	->admin( 'any' )
+	// A desktop icon rather than a dock tile, like WP Explorer: the icon
+	// has its own row in Preferences > Navigation.
+	->placement( 'none' )
+	->desktop_icon()
 	->can( __NAMESPACE__ . '\\can_use' )
 	->state(
 		array(

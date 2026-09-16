@@ -2969,3 +2969,21 @@ html[data-os-mode="mobile"] .os-features__danger-row {
 	font-size: 22px;
 	line-height: 1;
 }
+
+/* The best search result: its page, enclosing section and one control. */
+.os-settings [ data-settings-search-page ] {
+	outline: 2px solid var( --os-ui-accent, #2271b1 );
+	outline-offset: -2px;
+	border-radius: 6px;
+}
+
+.os-settings os-section[ data-settings-search-section ]::part( body ) {
+	border-color: var( --os-ui-accent, #2271b1 );
+}
+
+.os-settings [ data-settings-search-control ] {
+	outline: 2px solid var( --os-ui-accent, #2271b1 );
+	outline-offset: 4px;
+	border-radius: 4px;
+	scroll-margin-block: 24px;
+}

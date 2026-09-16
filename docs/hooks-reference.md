@@ -1412,7 +1412,7 @@ The sites the overview's site switcher offers on a network: every site the user 
 apply_filters( 'openstation_multisite_sites', array $sites );
 ```
 
-Each entry: `id` (the blog id, as a string, or `member:<id>` for an install of an OpenStation network), `name`, `shellUrl` (that site's shell screen), `kind` (`local` for a site of this network, `member` for an install that joined from elsewhere, which the switcher marks as external). Trim it on a large network, reorder it, or rename an entry; a site dropped here is not offered, though the admin bar still reaches it.
+Each entry: `id` (the blog id, as a string, or `member:<id>` for an install of an OpenStation network), `name`, `shellUrl` (that site's shell screen), `adminUrl` and `active` on a site of this network (whether OpenStation is active there; a site without it opens `adminUrl` in a browser tab instead), `kind` (`local` for a site of this network, `member` for an install that joined from elsewhere, which the switcher marks as external). Trim it on a large network, reorder it, or rename an entry; a site dropped here is not offered, though the admin bar still reaches it.
 
 ```php
 add_filter( 'openstation_multisite_sites', function ( $sites ) {

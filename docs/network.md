@@ -175,7 +175,9 @@ it (`site`, the default and the right one for every site-scoped window;
 belong instead of leaving the network admin empty
 (`openstation_native_window_offered_here()`). The gate is
 `manage_network` on a multisite and `manage_options` elsewhere, so on a
-multisite only a super admin sees it, wherever they stand.
+multisite only a super admin sees it, wherever they stand. It opens from a
+desktop icon, not a dock tile, so Preferences > Navigation lists it and
+the user can move it to the dock or hide it.
 
 Three faces: the **hub's** (every site with its status, Check sites,
 Add external site); a **member's** (the network it belongs to, the list

@@ -49,6 +49,11 @@ export interface SiteSwitcherEntry {
 	external: boolean;
 	/** Another install than this shell's, so a switch there mints a login token. */
 	foreign: boolean;
+	/**
+	 * A site without OpenStation has no shell to switch to: its regular
+	 * admin, opened in a browser tab instead.
+	 */
+	tabUrl?: string;
 }
 
 /** The direction arg a cross-origin arrival slides in from. Mirrors `OPENSTATION_NETWORK_HOP_FROM_ARG`. */
@@ -108,6 +113,7 @@ export function siteSwitcherEntries(
 			shellUrl: site.shellUrl,
 			external: site.kind === 'member',
 			foreign: site.foreign === true,
+			tabUrl: site.active === false ? site.adminUrl : undefined,
 		} );
 	}
 	return entries;
@@ -142,6 +148,10 @@ export function switchToSite(
 		return false;
 	}
 	const entry = entries[ to ];
+	if ( entry.tabUrl ) {
+		window.open( entry.tabUrl, '_blank', 'noopener' );
+		return true;
+	}
 	// Slide this desk out towards the site picked, then go; the shell
 	// that arrives slides its desk in from the same side. Another
 	// INSTALL gets a login token minted meanwhile, so the user arrives
@@ -199,11 +209,16 @@ export function installSiteSwitcherKeys(
 		) {
 			return;
 		}
-		const entries = siteSwitcherEntries( multisite );
+		// A site without OpenStation opens a browser tab, not a switch, so
+		// Tab steps over it.
+		const current = multisite.current ?? '';
+		const entries = siteSwitcherEntries( multisite ).filter(
+			( x ) => ! x.tabUrl || x.value === current,
+		);
 		if ( entries.length < 2 ) {
 			return;
 		}
-		const at = entries.findIndex( ( x ) => x.value === ( multisite.current ?? '' ) );
+		const at = entries.findIndex( ( x ) => x.value === current );
 		const step = e.shiftKey ? -1 : 1;
 		const next = entries[ ( at + step + entries.length ) % entries.length ];
 		e.preventDefault();
@@ -267,6 +282,14 @@ export function buildSiteSwitcher(
 			spoken.className = 'screen-reader-text';
 			spoken.textContent = __( 'External site:' ) + ' ';
 			segment.appendChild( spoken );
+		} else if ( entry.tabUrl ) {
+			segment.setAttribute( 'data-opens-tab', '' );
+			segment.title = __( 'OpenStation is not active on this site. Opens its admin in a new tab.' );
+			segment.appendChild( externalMark() );
+			const spoken = document.createElement( 'span' );
+			spoken.className = 'screen-reader-text';
+			spoken.textContent = __( 'Opens in a new tab:' ) + ' ';
+			segment.appendChild( spoken );
 		}
 		segment.appendChild( document.createTextNode( entry.label ) );
 		group.appendChild( segment );
@@ -278,14 +301,22 @@ export function buildSiteSwitcher(
 	// this one. `auxclick` is the middle button, which never fires
 	// `click` at all.
 	const openBeside = ( e: MouseEvent ): void => {
-		if ( ! wantsBrowserTab( e ) ) {
-			return;
-		}
 		const segment = ( e.target as Element | null )?.closest( 'os-segment' );
 		const entry = segment
 			? byValue.get( segment.getAttribute( 'value' ) ?? '' )
 			: undefined;
 		if ( ! entry ) {
+			return;
+		}
+		// A site without OpenStation always opens beside this one, on
+		// any click, so the current segment stays lit.
+		if ( entry.tabUrl && ( e.type === 'click' || 1 === e.button ) ) {
+			e.preventDefault();
+			e.stopPropagation();
+			window.open( entry.tabUrl, '_blank', 'noopener' );
+			return;
+		}
+		if ( ! wantsBrowserTab( e ) ) {
 			return;
 		}
 		e.preventDefault();

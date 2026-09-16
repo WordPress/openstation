@@ -83,6 +83,54 @@ describe( 'the site switcher', () => {
 		expect( siteSwitcherEntries( config() ).map( ( e ) => e.external ) ).toEqual( [ false, false, false ] );
 	} );
 
+	test( 'a site without OpenStation is marked and opens its admin in a browser tab', async () => {
+		const hop = vi.fn();
+		const picked = vi.fn();
+		const open = vi.spyOn( window, 'open' ).mockReturnValue( null );
+		const settle = () => new Promise( ( r ) => setTimeout( r, 0 ) );
+		const multisite = config( {
+			sites: [
+				{ id: '1', name: 'Main', shellUrl: MAIN_SHELL, active: true },
+				{ id: '3', name: 'Blog', shellUrl: 'http://example.test/blog/wp-admin/admin.php?page=openstation', adminUrl: 'http://example.test/blog/wp-admin/', active: false },
+				{ id: '2', name: 'Shop', shellUrl: SHOP_SHELL, foreign: true },
+			],
+		} );
+		const el = buildSiteSwitcher( multisite, { hop } );
+		document.body.appendChild( el as HTMLElement );
+		el?.addEventListener( 'os-pick', picked );
+
+		const blog = el?.querySelector( 'os-segment[value="3"]' ) as HTMLElement;
+		expect( blog.hasAttribute( 'data-opens-tab' ) ).toBe( true );
+		expect( blog.querySelector( '.os-site-switcher__mark' ) ).not.toBeNull();
+		expect( blog.textContent ).toBe( 'Opens in a new tab: Blog' );
+		// It is still this network's site: no divider.
+		expect( el?.querySelector( '.os-site-switcher__divider' ) ).toBeNull();
+
+		// A plain click opens the admin beside this shell and never re-selects.
+		const click = new MouseEvent( 'click', { bubbles: true, cancelable: true } );
+		blog.dispatchEvent( click );
+		expect( click.defaultPrevented ).toBe( true );
+		expect( open ).toHaveBeenCalledWith( 'http://example.test/blog/wp-admin/', '_blank', 'noopener' );
+		expect( picked ).not.toHaveBeenCalled();
+
+		// Reached any other way, it still never hops to the missing shell.
+		open.mockClear();
+		expect( switchToSite( multisite, '3', { hop } ) ).toBe( true );
+		expect( open ).toHaveBeenCalledWith( 'http://example.test/blog/wp-admin/', '_blank', 'noopener' );
+
+		// Tab steps over it, to the next site with a shell.
+		open.mockClear();
+		const teardown = installSiteSwitcherKeys( { multisite: () => multisite, isShown: () => true, hop } );
+		document.dispatchEvent( new KeyboardEvent( 'keydown', { key: 'Tab', bubbles: true, cancelable: true } ) );
+		await settle();
+		expect( open ).not.toHaveBeenCalled();
+		expect( hop ).toHaveBeenCalledWith( SHOP_SHELL + '&openstation_overview=1&openstation_hop_from=next' );
+
+		teardown();
+		open.mockRestore();
+		el?.remove();
+	} );
+
 	test( 'switchToSite takes the same hop a pick does, for a value the row offers and nowhere else', async () => {
 		const hop = vi.fn();
 		const settle = () => new Promise( ( r ) => setTimeout( r, 0 ) );

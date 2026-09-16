@@ -3896,6 +3896,8 @@ See [`docs/examples/connect-to-window.md`](./examples/connect-to-window.md) for 
 
 Register a tab in the OpenStation Preferences window. The tab is appended (or sorted-in by `order`) alongside the built-in tabs — Appearance, Themes, Windows, Navigation, Features, Components, About — and renders its body via your `render( body, ctx )` callback.
 
+The sidebar search filters pages using rendered text and component labels. Preferences picks a single best matching control across the rendered pages, opens its page, and highlights the sidebar entry, enclosing `<os-section>`, and control. Control labels rank above option text, section headings, and descriptions; exact text ranks above prefixes and substrings. Ties use page order, so even a broad query highlights only one control. Clearing the query removes the highlight. For searchable plugin controls, use the kit's labelled form controls inside `<os-section heading="…" description="…">`; these attributes remain searchable even though the kit renders them in shadow DOM. Hidden controls and preserved component-demo subtrees are excluded from control highlighting.
+
 **Definition shape:**
 
 | Field | Type | Required | Notes |

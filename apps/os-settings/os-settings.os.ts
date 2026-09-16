@@ -43,12 +43,12 @@ import { syncShellMirrors } from './parts/features';
 import { afterComponentsRender } from './parts/components';
 import { ensureAboutLoaded } from './parts/about';
 import {
-	buildSearchIndex,
 	mountRegistryTabs,
 	navGroup,
 	pageRows,
 	type PageRow,
 } from './parts/pages';
+import { highlightSearchMatch, searchSettings } from './parts/search';
 import { APP_ID, reset, settings, subscribe } from './parts/store';
 import { uiOf, type AppData, type AppState, type Ctx, type UiState } from './parts/types';
 
@@ -88,11 +88,7 @@ function frame( ctx: Ctx ) {
 		query === '' || ( index?.get( row.id ) ?? '' ).includes( query );
 	let visible = 0;
 	const onSearch = ( e: Event ): void => {
-		// Built on first use, not at render: the panes have to be in
-		// the DOM, and most sessions never type in this field at all.
-		ui.search.index ??= buildSearchIndex( ctx.root, rows );
-		ui.search.query = ( e.target as HTMLInputElement ).value.trim().toLowerCase();
-		ctx.repaint();
+		searchSettings( ctx, ( e.target as HTMLInputElement ).value );
 	};
 	return html`
 		<div class="os-settings">
@@ -231,5 +227,6 @@ export default defineApp< AppState, AppData >( APP_ID, {
 		afterComponentsRender( ctx );
 		ensureAboutLoaded( ctx );
 		syncShellMirrors( ctx );
+		highlightSearchMatch( ctx );
 	},
 } );

@@ -73,6 +73,8 @@ class Tests_OpenStation_OsSettingsApp extends WP_UnitTestCase {
 		// No launcher of its own: the System tile answers for it.
 		$this->assertSame( 'none', $manifest['placement'] );
 		$this->assertNull( $manifest['desktop_icon'] );
+		// The System tile opens it on the network admin's shell too.
+		$this->assertSame( 'any', $manifest['admin'] );
 		// The gear, drawn in currentColor.
 		$this->assertStringStartsWith( 'data:image/svg+xml', (string) $manifest['icon'] );
 		$this->assertStringContainsString( 'currentColor', (string) $manifest['icon_svg'] );
