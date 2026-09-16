@@ -34,14 +34,13 @@ export function getNetworkAdminTileDef(
 		// `computeNav` decides where in that run it lands.
 		navKind: 'core',
 		// Keyboards and touch never fan the flyout out, so the tile
-		// does what its first row does: the network dashboard, in the
-		// network's Space.
+		// does what its first row does: the network dashboard.
 		onOpen: ( event? ) => openOtherAdmin( network.url, event ),
 		get submenu() {
 			// `url` stays on the row so surfaces that describe rows can
 			// keep doing so; the click routes through `onSelect`, which
-			// is what sends the row into the Space rather than the
-			// generic bare-url link-out.
+			// takes the hop to the network admin's shell rather than the
+			// generic bare-url link-out to a new tab.
 			return network.rows.map( ( { title, url } ) => ( {
 				title,
 				url,
