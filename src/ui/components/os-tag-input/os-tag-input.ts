@@ -89,6 +89,7 @@ export interface OsTagItem {
 
 export class OsTagInput extends Component {
 	static props = [
+		'name',
 		'label',
 		'placeholder',
 		'add-label',
@@ -108,6 +109,7 @@ export class OsTagInput extends Component {
 			'Multi-tag picker with autocomplete and free-form creation. Purely presentational — emits os-tag-suggest / os-tag-add / os-tag-remove and lets the consumer drive REST + optimistic UI.',
 		status: 'stable',
 		props: [
+			{ name: 'name', type: 'string', description: 'Key used by an enclosing os-form to collect, populate and reset this field.' },
 			{
 				name: 'label',
 				type: 'string',
