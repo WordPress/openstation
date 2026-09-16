@@ -32,8 +32,16 @@ defined( 'ABSPATH' ) || exit;
  */
 function openstation_get_accent_colors() {
 	$defaults = array(
-		// The brand accents lead the list: Pulse is the identity
-		// colour and the shipped default, Nebula its softer twin.
+		// Starlight leads and is the shipped default: the station
+		// starts neutral, with its on states and focus ring in the
+		// brand's light, and colour is something a user opts into.
+		// Then the brand accents: Pulse, the identity colour, and
+		// Nebula, its softer twin.
+		array(
+			'id'    => 'starlight',
+			'label' => __( 'Starlight', 'desktop-mode' ),
+			'value' => '#fffbff',
+		),
 		array(
 			'id'    => 'pulse',
 			'label' => __( 'Pulse', 'desktop-mode' ),

@@ -260,7 +260,7 @@ export const selectStyles = css`
 	.os-select__option[ data-active ],
 	.os-select__option:hover {
 		background: var( --os-ui-accent, #2271b1 );
-		color: var( --os-ui-fg-on-accent, #fff );
+		color: var( --os-ui-accent-ink, var( --os-ui-fg-on-accent, #fff ) );
 	}
 
 	.os-select__option[ aria-disabled='true' ] {

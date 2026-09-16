@@ -445,11 +445,11 @@ describe( 'the system default recommends the brand accent', () => {
 		expect(
 			applyThemeRecommendations( state, SYSTEM_DEFAULT_THEME ),
 		).toEqual( {
-			accent: 'pulse',
+			accent: 'starlight',
 			desktopLayout: 'unified',
 			dockPlacement: 'bottom',
 		} );
-		expect( state.accent ).toBe( 'pulse' );
+		expect( state.accent ).toBe( 'starlight' );
 		expect( state.desktopLayout ).toBe( 'unified' );
 		expect( state.dockPlacement ).toBe( 'bottom' );
 		// Not the empty string: the ledger is a list of theme slugs and
@@ -474,11 +474,11 @@ describe( 'the system default recommends the brand accent', () => {
 				force: true,
 			} ),
 		).toEqual( {
-			accent: 'pulse',
+			accent: 'starlight',
 			desktopLayout: 'unified',
 			dockPlacement: 'bottom',
 		} );
-		expect( state.accent ).toBe( 'pulse' );
+		expect( state.accent ).toBe( 'starlight' );
 	} );
 
 	test( 'an accent the site no longer offers is dropped, not written', () => {

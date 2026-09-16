@@ -202,7 +202,7 @@ export const dialogStyles = css`
 
 	.btn--primary {
 		background: var( --wp-admin-theme-color, #2271b1 );
-		color: var( --os-ui-fg-on-accent, #fff );
+		color: var( --os-ui-accent-ink, var( --os-ui-fg-on-accent, #fff ) );
 	}
 	.btn--primary:hover {
 		filter: brightness( 1.08 );

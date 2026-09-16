@@ -160,7 +160,7 @@ export const segmentStyles = css`
 	:host( [ aria-checked='true' ] ) button {
 		color: var(
 			--os-ui-segmented-selected-fg,
-			var( --os-ui-fg-on-accent, #fff )
+			var( --os-ui-accent-ink, var( --os-ui-fg-on-accent, #fff ) )
 		);
 		transition-duration: var( --_holo-t-fast );
 	}

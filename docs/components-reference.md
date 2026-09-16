@@ -295,6 +295,9 @@ Declared in `assets/css/variables.css`, on `body.os-active` (never `:root` — t
 | `--os-ui-holo-track` | The unlit half — switch tracks, empty progress. |
 | `--os-ui-tab-edge` | The selected row's leading edge in a vertical `<os-tabs>`. The flat accent, so the row says "this one" in the same colour as every control beside it. |
 | `--os-ui-tab-wash` / `--os-ui-tab-bloom` | That row's surface wash, and the bloom the edge throws back across it. Both ambient, so both resolve through `--os-ui-accent-dim`. |
+| `--os-ui-tab-edge-width` / `--os-ui-tab-bloom-opacity` | How much of the edge and the bloom show. `0px` and `0` in the OpenStation palette, which marks the row by lifting it instead; `2px` and `1` is the earlier look. |
+| `--os-ui-tab-fill` / `--os-ui-tab-radius` / `--os-ui-tab-inset` | The selected row's flat fill, corner radius and distance from the sidebar's edges. Starlight 8%, 8px and 8px by default (a pill); `transparent`, 0 and 0 is the full-bleed row. |
+| `--os-ui-swatch-ring-width` / `--os-ui-swatch-lift` / `--os-ui-swatch-badge-bg` | How a chosen `<os-swatch>` tile is marked: the width of its accent ring, a lift (hairline plus shadow) drawn with it, and the tick badge in its corner (`transparent` removes it). |
 | `--os-ui-accent-dim` | Pulse one step back (same hue, S and L pulled down together). **The single knob for how loud the station is** — every ambient use of the accent resolves through it. |
 | `--os-ui-focus-ring` | The **target** ring: buttons, switches, checkboxes, swatches. Built to survive landing on a bright mesh. |
 | `--os-ui-focus-ring-field` | The **field** ring: quieter, tightens the input's own border. A form of twelve inputs should not look alarmed. |

@@ -533,6 +533,16 @@ body.os-active {
 
 	/* Accent — the identity moment. */
 	--os-ui-accent: #f252fc;
+	/*
+	 * Ink on the accent FILL: the tick in a checked box, the dot in a
+	 * radio, the label of a primary button. Distinct from
+	 * `--os-ui-fg-on-accent`, which the shell reads as "light text on
+	 * a dark surface" in seventy-odd places that are not the accent.
+	 * Starlight here for Pulse; the accent picker rewrites it inline
+	 * to Void whenever the chosen accent is light (Starlight, Sirius,
+	 * Nebula, Lagoon), so the pair always agree.
+	 */
+	--os-ui-accent-ink: #fffbff;
 	--os-ui-accent-strong: #ec9bff;
 	--os-ui-accent-soft: color-mix(in srgb, var(--os-ui-accent-dim) 14%, transparent);
 	/*
@@ -775,20 +785,19 @@ body.os-active {
 	 */
 	--os-ui-holo-track-edge: #66636b;
 	/*
-	 * Focus. One ring for the whole kit — Pulse, offset, over a soft
-	 * halo, so it reads on Obsidian, on a mesh, and on the near-white
+	 * Focus. One ring for the whole kit — the accent, offset by a Void
+	 * gap, so it reads on Obsidian, on a mesh, and on the near-white
 	 * of a legacy theme alike.
 	 *
-	 * Note which layer dims and which does not. The RING is full Pulse
-	 * and stays there: it is the only thing on screen saying where the
-	 * keyboard is, and a focus indicator is the last place to trade
-	 * legibility for calm. Only the bloom behind it comes down, from
-	 * 45% to 30%, and onto the dim — which is the layer that was
-	 * making a focused control look like it was on fire.
+	 * The RING is full accent and stays there: it is the only thing on
+	 * screen saying where the keyboard is, and a focus indicator is the
+	 * last place to trade legibility for calm. The bloom that used to
+	 * sit behind it is gone: it was the layer that made a focused
+	 * control look like it was on fire, and the Void gap already does
+	 * the work of separating the ring from whatever it lands on.
 	 */
 	--os-ui-focus-ring: 0 0 0 2px rgba(12, 11, 15, 0.9),
-		0 0 0 4px var(--os-ui-accent, #f252fc),
-		0 0 12px 2px color-mix(in srgb, var(--os-ui-accent-dim) 30%, transparent);
+		0 0 0 4px var(--os-ui-accent, #f252fc);
 	/*
 	 * …and one for FIELDS, which is a different problem. A text input
 	 * already has a border to thicken and it sits in a column of other
@@ -806,25 +815,26 @@ body.os-active {
 	 * OpenStation Preferences, and any native window that lays its
 	 * pages down the side rather than across the top.
 	 *
-	 * Three layers, and the split is the whole point. Colour repeated
-	 * down nine rows is wallpaper, so the accent is spent as a
-	 * two-pixel EDGE and the row itself gets only a wash that falls
-	 * away: it appears where it is cheap to look at and expensive to
-	 * ignore.
+	 * Depth, not colour. The selected row is a lifted pill: a flat
+	 * Starlight fill at 8%, rounded at the guide's inner radius and
+	 * held 8px off the sidebar's edges. The row says "this one" by
+	 * sitting a step above its neighbours, the way a pressed key does,
+	 * which is a cue that reads the same whatever accent the user
+	 * picked and needs no colour of its own.
 	 *
-	 * `-edge` is the accent the user picked, flat. It used to be
-	 * Miomesh, and a mesh does hold up at 2px where a radial one
-	 * would crop to an arbitrary lilac — but the edge is the loudest
-	 * thing on the page that says "this row", and a row that says it
-	 * in Pulse while the controls beside it say it in the chosen
-	 * accent reads as two systems.
-	 *
-	 * `-wash` and `-bloom` are AMBIENT accent, so both resolve through
-	 * `--os-ui-accent-dim` like every other glow in the kit. Turning
-	 * the station down is still one edit. The Starlight stop in the
-	 * middle of the wash is what keeps the row from reading as a pink
-	 * smear: it lifts the surface under the label rather than tinting
-	 * it, and it is gone by the time the row ends.
+	 * The three coloured layers `<os-tabs>` can draw are still
+	 * declared, and still DERIVED from the accent: `-edge` is the
+	 * accent flat, `-wash` and `-bloom` resolve through
+	 * `--os-ui-accent-dim` like every other ambient use. That is what
+	 * keeps a picked accent reaching the row, on this palette and on
+	 * Legacy alike (see `desktopThemesLegacy.php`: a theme cannot
+	 * answer a derived token, so a derivation is shared). What this
+	 * palette turns off is their PRESENCE, through literal tokens a
+	 * theme answers on its own: the edge is 0 wide and the bloom is at
+	 * 0 opacity here, and 2px and 1 on Legacy, so the earlier look is
+	 * one theme away rather than deleted. The wash stays on: over the
+	 * flat fill it is the faint tint of whatever accent was chosen,
+	 * which on Starlight is nothing and on Pulse is a hint.
 	 */
 	--os-ui-tab-edge: linear-gradient(
 		var(--os-ui-accent, #f252fc),
@@ -841,6 +851,29 @@ body.os-active {
 		color-mix(in srgb, var(--os-ui-accent-dim) 26%, transparent),
 		transparent
 	);
+	--os-ui-tab-edge-width: 0px;
+	--os-ui-tab-bloom-opacity: 0;
+	--os-ui-tab-fill: rgba(255, 251, 255, 0.08);
+	--os-ui-tab-radius: 8px;
+	--os-ui-tab-inset: 8px;
+
+	/*
+	 * The chosen tile in a swatch grid (wallpapers, the theme and
+	 * layout cards in Preferences, and any grid a plugin builds from
+	 * `<os-swatch>`), same split. The ring is the accent and stays
+	 * derived; this palette sets its width to 0 and lifts the tile
+	 * instead: a hairline holds its silhouette, a shadow sets it above
+	 * the grid, and a Starlight disc with a tick cut out of it sits in
+	 * the corner so the choice is legible on a tile whose artwork is
+	 * itself near-white. Legacy answers 2px, no lift, no badge. The
+	 * accent chips in the colour row keep their ring whatever these
+	 * say: a colour is the whole content there, and a lift on a 28px
+	 * square is invisible.
+	 */
+	--os-ui-swatch-ring-width: 0px;
+	--os-ui-swatch-lift: 0 0 0 1px rgba(255, 251, 255, 0.18),
+		0 12px 24px -12px rgba(0, 0, 0, 0.8);
+	--os-ui-swatch-badge-bg: #fffbff;
 
 	/*
 	 * ---- Motion --------------------------------------------------
@@ -994,8 +1027,8 @@ body.os-active {
 	 * there: a slotted link is a document-tree element, so wp-admin's
 	 * bare `a` rule outranks anything the shadow root says about it.
 	 */
-	--os-ui-notice-link: #ec9bff;
-	--os-ui-notice-link-hover: #fffbff;
+	--os-ui-notice-link: #fffbff;
+	--os-ui-notice-link-hover: #ccc8ce;
 	--os-ui-badge-danger-bg: rgba(255, 90, 90, 0.16);
 	--os-ui-badge-success-bg: rgba(147, 240, 198, 0.16);
 	--os-ui-badge-warning-bg: rgba(248, 242, 182, 0.16);
@@ -1347,12 +1380,20 @@ body.os-active {
 	--os-dock-bg: rgba(12, 11, 15, 0.72);
 	--os-dock-icon-color: rgba(255, 251, 255, 0.72);
 	--os-dock-icon-color-hover: #fffbff;
-	--os-dock-item-bg-hover: rgba(242, 82, 252, 0.18);
+	--os-dock-item-bg-hover: rgba(255, 251, 255, 0.08);
+	/*
+	 * The tile whose window is in front sits on a lit plate: the same
+	 * Starlight wash the hover uses, one step brighter, so "this is the
+	 * app you are in" reads as depth rather than as a coloured mark.
+	 * The running dot under every open app stays; a lit plate says
+	 * which one is in front, the dots say which ones are open.
+	 */
+	--os-dock-item-bg-focused: rgba(255, 251, 255, 0.1);
 	/*
 	 * The status indicator and the focus ring, and both say "this
 	 * one" about a tile the user chose — so they read the accent
-	 * rather than a fixed Pulse. Pulse is still what an untouched
-	 * install shows, because that is what the picker starts on.
+	 * rather than a fixed colour. Starlight is what an untouched
+	 * install shows, because that is the accent the picker starts on.
 	 */
 	--os-dock-item-outline: var(--os-ui-accent, #f252fc);
 	/*
@@ -1377,15 +1418,19 @@ body.os-active {
 	 * WordPress-to-OpenStation boundary Pulse and dropped the
 	 * core-to-plugin one to a hairline, on the theory that only one
 	 * boundary was worth reading. Two weights in one short rail read as
-	 * two unrelated ideas instead of one system, so both are now the
-	 * same line: Pulse at the waist, falling away to nothing at both
+	 * two unrelated ideas instead of one system, so both are the same
+	 * line: the accent at the waist, falling away to nothing at both
 	 * ends, with a soft glow to hold it against the dock tint.
 	 *
 	 * Resolved one step back from the accent through
-	 * `--os-ui-accent-dim`, where every ambient use of Pulse resolves,
-	 * so "tone the station down" stays one edit.
+	 * `--os-ui-accent-dim`, where every ambient use resolves, so it
+	 * follows a picked accent and a theme's alike. How much of it
+	 * shows is the separate, literal `-opacity`: a divider is
+	 * structure, and structure on this palette is quiet, so it sits at
+	 * a quarter here. Legacy answers 1.
 	 */
 	--os-dock-divider: color-mix(in srgb, var(--os-ui-accent-dim) 70%, transparent);
+	--os-dock-divider-opacity: 0.25;
 	--os-dock-floating-bg: rgba(12, 11, 15, 0.62);
 	--os-dock-floating-border: rgba(255, 251, 255, 0.12);
 	--os-dock-floating-border-top: rgba(255, 251, 255, 0.18);
@@ -1616,44 +1661,52 @@ body.os-active {
 		#ffffff 58%
 	);
 	/*
-	 * The crown. Holomesh, masked away before the joint for the same
-	 * reason. It is on exactly ONE tab at a time — that is what keeps
-	 * the mesh an identity moment instead of wallpaper, and it is the
-	 * rule the rest of the kit follows. Set it to `none` to get the
-	 * plain frosted plate back.
+	 * The crown. Holomesh over the top of the plate, masked away before
+	 * the joint, on exactly ONE tab at a time. Off in this palette: the
+	 * plain frosted plate is the tab, and the one identity moment on a
+	 * window is left to the wallpaper behind it. A theme that wants the
+	 * mesh back declares `var(--os-mesh-holo)` here, at around 0.3.
 	 */
-	--os-tabs-active-crown: var(--os-mesh-holo);
+	--os-tabs-active-crown: none;
 	--os-tabs-active-crown-opacity: 0.3;
 	/*
 	 * The rail: one continuous line around the silhouette of
-	 * page-plus-tab.
+	 * page-plus-tab, painted as a background-image through a mask,
+	 * which is why it is a gradient and not a colour. It is the accent
+	 * the user picked, flat, and it stays derived so the pick reaches
+	 * it on every theme.
 	 *
-	 * This is the one place the accent is spent on the tab strip, and
-	 * spending it here is what lets the tab itself stay uncoloured —
-	 * so it is the accent the user picked, flat, and not Pulsemesh.
-	 * A mesh here would be the accent everywhere else on the tab
-	 * strip disagreeing with the one line that carries it. Written as
-	 * a gradient rather than a colour because the rail is painted as
-	 * a background-image through a mask.
-	 *
-	 * Set it to `none` for the plain frosted plate with no line.
+	 * On this palette it is drawn at 0 opacity. The plate already
+	 * reads as "this tab" by being the one white shape on an Obsidian
+	 * strip that joins the page below it; a coloured line around that
+	 * silhouette was saying the same thing a second time, on every
+	 * window on the desk. The opacity is the literal a theme answers
+	 * (Legacy: 1), and the width stays at 2px because the strip's
+	 * geometry is built on it: the plate sits on the rail whether or
+	 * not the rail is visible, so turning it back on costs no seam.
 	 */
 	--os-tabs-rail: linear-gradient(
 		var(--os-ui-accent, #f252fc),
 		var(--os-ui-accent, #f252fc)
 	);
+	--os-tabs-rail-opacity: 0;
 	--os-tabs-rail-width: 2px;
 	--os-media-tile-bg: rgba(255, 251, 255, 0.05);
 	--os-media-visual-bg: rgba(255, 251, 255, 0.04);
 	--os-skeleton-low: rgba(255, 251, 255, 0.05);
 	--os-skeleton-high: rgba(255, 251, 255, 0.13);
-	--os-drop-preview-bg: rgba(242, 82, 252, 0.1);
-	--os-drop-preview-border: rgba(242, 82, 252, 0.55);
+	--os-drop-preview-bg: rgba(255, 251, 255, 0.08);
+	--os-drop-preview-border: rgba(255, 251, 255, 0.45);
 
 	/*
 	 * File tiles — anywhere a `.os-file-tile` (or sibling
 	 * canvas tile) renders. The defaults match the desk: Starlight
-	 * labels over a dark sky, with a Pulse selection wash.
+	 * labels over a dark sky, and a selected tile is a lifted
+	 * Starlight plate, the same language as the selected row in the
+	 * Preferences sidebar, one step brighter than the hover wash so
+	 * the two states stay apart. The accent ring around it is a
+	 * derived colour with a literal width; this palette sets the
+	 * width to 0 (Legacy keeps 1px) so selection is depth, not colour.
 	 *
 	 * Surfaces that are light in their own right override these in
 	 * their own scope, e.g.:
@@ -1669,7 +1722,8 @@ body.os-active {
 	--os-tile-fg: var(--os-fg, #fffbff);
 	--os-tile-fg-muted: rgba(255, 251, 255, 0.7);
 	--os-tile-hover-bg: rgba(255, 251, 255, 0.12);
-	--os-tile-selected-bg: rgba(242, 82, 252, 0.24);
+	--os-tile-selected-bg: rgba(255, 251, 255, 0.16);
+	--os-tile-selected-ring-width: 0px;
 	--os-tile-focus-ring: var(--wp-admin-theme-color, #f252fc);
 	--os-tile-shortcut-bg: rgba(12, 11, 15, 0.7);
 	--os-tile-shortcut-fg: #fffbff;

@@ -65,6 +65,7 @@ export const DEFAULT_WALLPAPER_ID = 'galaxy';
 export const CUSTOM_ACCENT_ID = 'custom';
 
 export const DEFAULT_ACCENTS: readonly AccentColor[] = [
+	{ id: 'starlight', label: 'Starlight', value: '#fffbff' },
 	{ id: 'pulse', label: 'Pulse', value: '#f252fc' },
 	{ id: 'nebula', label: 'Nebula', value: '#ec9bff' },
 	{ id: 'sirius', label: 'Sirius', value: '#9af2ff' },
@@ -228,7 +229,9 @@ export const DESKTOP_LAYOUTS = [
 
 export const DEFAULTS: OsSettingsState = {
 	wallpaper: DEFAULT_WALLPAPER_ID,
-	accent: 'pulse',
+	// Starlight, not Pulse: a fresh desk is neutral and the brand
+	// colour is a choice. Mirrors `openstation_default_os_settings()`.
+	accent: 'starlight',
 	// Only read when `accent` is CUSTOM_ACCENT_ID. Seeded with Pulse so
 	// picking Custom before touching the colour field is a no-op rather
 	// than a jump to black.

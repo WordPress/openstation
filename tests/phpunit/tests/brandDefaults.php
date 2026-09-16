@@ -96,9 +96,9 @@ class Tests_OpenStation_BrandDefaults extends WP_UnitTestCase {
 	 * @covers ::openstation_get_accent_colors
 	 * @covers ::openstation_default_os_settings
 	 */
-	public function test_pulse_is_the_default_accent() {
+	public function test_starlight_is_the_default_accent() {
 		$defaults = openstation_default_os_settings();
-		$this->assertSame( 'pulse', $defaults['accent'] );
+		$this->assertSame( 'starlight', $defaults['accent'] );
 
 		$accents = openstation_get_accent_colors();
 		$byId    = array();
@@ -106,13 +106,14 @@ class Tests_OpenStation_BrandDefaults extends WP_UnitTestCase {
 			$byId[ $accent['id'] ] = $accent['value'];
 		}
 
-		$this->assertArrayHasKey( 'pulse', $byId, 'the default accent is one that exists' );
-		$this->assertSame( '#f252fc', $byId['pulse'], 'Pulse, the identity accent' );
+		$this->assertArrayHasKey( 'starlight', $byId, 'the default accent is one that exists' );
+		$this->assertSame( '#fffbff', $byId['starlight'], 'Starlight, the neutral default' );
+		$this->assertSame( '#f252fc', $byId['pulse'], 'Pulse, the identity accent, is still offered' );
 		$this->assertSame( '#ec9bff', $byId['nebula'], 'Nebula, its softer twin' );
 		$this->assertSame(
-			'pulse',
+			'starlight',
 			$accents[0]['id'],
-			'the brand accent leads the picker'
+			'the neutral default leads the picker; the brand colour is a choice'
 		);
 	}
 
