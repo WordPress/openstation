@@ -650,6 +650,9 @@ class Tests_OpenStation_Network extends WP_UnitTestCase {
 		$app      = $registry->get( 'openstation-network' );
 		$this->assertNotNull( $app );
 		$this->assertSame( 'any', $app->manifest()['admin'] );
+		// A desktop icon, not a dock tile, so Preferences > Navigation lists it.
+		$this->assertSame( 'none', $app->manifest()['placement'] );
+		$this->assertIsArray( $app->manifest()['desktop_icon'] );
 
 		wp_set_current_user( self::$editor_id );
 		$this->assertFalse( $app->allows( openstation_apps_os() ) );
@@ -661,6 +664,8 @@ class Tests_OpenStation_Network extends WP_UnitTestCase {
 		openstation_apps_register_windows();
 		$entry = openstation_native_window_registry()['openstation-network'];
 		$this->assertSame( $app->manifest()['admin'], $entry['admin'] );
+		$this->assertContains( 'openstation-network', wp_list_pluck( openstation_build_desktop_icons_payload(), 'id' ) );
+		openstation_unregister_icon( 'openstation-network' );
 		$ids_on = static function ( $screen ) {
 			set_current_screen( $screen );
 			return wp_list_pluck( openstation_collect_native_windows_payload()['windows'], 'id' );
