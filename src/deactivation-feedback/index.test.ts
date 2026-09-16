@@ -1,0 +1,124 @@
+/**
+ * Tests for the deactivation feedback dialog.
+ *
+ * Two promises are worth guarding: nothing is sent unless the admin
+ * clicks Send, and the deactivation goes ahead whatever the send did.
+ */
+import { beforeEach, describe, expect, test, vi } from 'vitest';
+
+type FetchArgs = ( url: string, init?: RequestInit, opts?: unknown ) => Promise< unknown >;
+
+const trackedFetch = vi.fn< FetchArgs >( () => Promise.resolve( new Response( '{"sent":true}' ) ) );
+vi.mock( '../tracked-fetch', () => ( {
+	trackedFetch: ( url: string, init?: RequestInit, opts?: unknown ) => trackedFetch( url, init, opts ),
+} ) );
+
+import { interceptPluginsScreen, type DeactivationFeedbackConfig } from './index';
+
+const PLUGIN = 'desktop-mode/desktop-mode.php';
+const HREF = 'http://example.test/wp-admin/plugins.php?action=deactivate&plugin=desktop-mode%2Fdesktop-mode.php';
+
+function config(): DeactivationFeedbackConfig {
+	return {
+		plugin: PLUGIN,
+		restUrl: 'http://example.test/wp-json/desktop-mode/v1/feedback/deactivation',
+		restNonce: 'nonce123',
+		context: 'classic',
+	};
+}
+
+/** A classic plugins.php row for our plugin, plus one for a bystander. */
+function mountRows(): HTMLAnchorElement {
+	document.body.innerHTML =
+		'<table><tbody>' +
+		'<tr data-plugin="akismet/akismet.php"><td><span class="deactivate"><a href="http://example.test/other">Deactivate</a></span></td></tr>' +
+		`<tr data-plugin="${ PLUGIN }"><td><span class="deactivate"><a href="${ HREF }">Deactivate</a></span></td></tr>` +
+		'</tbody></table>';
+	return document.querySelector< HTMLAnchorElement >( `tr[data-plugin="${ PLUGIN }"] a` )!;
+}
+
+const dialog = (): HTMLElement | null => document.querySelector( '.os-deactivation-feedback' );
+const button = ( which: 'ghost' | 'primary' ): HTMLButtonElement =>
+	document.querySelector< HTMLButtonElement >( `.os-deactivation-feedback__btn--${ which }` )!;
+
+async function settle(): Promise< void > {
+	for ( let i = 0; i < 5; i++ ) {
+		await Promise.resolve();
+	}
+}
+
+beforeEach( () => {
+	trackedFetch.mockClear();
+	trackedFetch.mockImplementation( () => Promise.resolve( new Response( '{"sent":true}' ) ) );
+} );
+
+describe( 'interceptPluginsScreen', () => {
+	test( 'Skip sends nothing and follows the Deactivate link', async () => {
+		const link = mountRows();
+		const navigate = vi.fn();
+		expect( interceptPluginsScreen( config(), { navigate } ) ).toBe( true );
+
+		link.dispatchEvent( new MouseEvent( 'click', { bubbles: true, cancelable: true, button: 0 } ) );
+		expect( dialog() ).not.toBeNull();
+		expect( navigate ).not.toHaveBeenCalled();
+		// Send is inert until a reason is picked.
+		expect( button( 'primary' ).disabled ).toBe( true );
+
+		button( 'ghost' ).click();
+		await settle();
+
+		expect( trackedFetch ).not.toHaveBeenCalled();
+		expect( dialog() ).toBeNull();
+		expect( navigate ).toHaveBeenCalledWith( HREF );
+	} );
+
+	test( 'Send posts once and still deactivates when the route fails', async () => {
+		trackedFetch.mockImplementation( () => Promise.reject( new Error( 'offline' ) ) );
+		const link = mountRows();
+		const navigate = vi.fn();
+		interceptPluginsScreen( config(), { navigate } );
+		link.dispatchEvent( new MouseEvent( 'click', { bubbles: true, cancelable: true, button: 0 } ) );
+
+		const radio = document.querySelector< HTMLInputElement >( 'input[value="broke_something"]' )!;
+		radio.checked = true;
+		radio.dispatchEvent( new Event( 'change', { bubbles: true } ) );
+		const details = document.querySelector< HTMLTextAreaElement >( '.os-deactivation-feedback__details' )!;
+		expect( details.placeholder ).toMatch( /page or plugin/ );
+		details.value = 'Elementor editor went blank';
+		expect( button( 'primary' ).disabled ).toBe( false );
+
+		document.querySelector< HTMLFormElement >( '.os-deactivation-feedback__card' )!
+			.dispatchEvent( new Event( 'submit', { bubbles: true, cancelable: true } ) );
+		await settle();
+
+		expect( trackedFetch ).toHaveBeenCalledTimes( 1 );
+		const [ url, init, opts ] = trackedFetch.mock.calls[ 0 ];
+		expect( url ).toBe( config().restUrl );
+		expect( init?.method ).toBe( 'POST' );
+		expect( ( init?.headers as Record< string, string > )[ 'X-WP-Nonce' ] ).toBe( 'nonce123' );
+		expect( JSON.parse( String( init?.body ) ) ).toEqual( {
+			reason: 'broke_something',
+			details: 'Elementor editor went blank',
+			context: 'classic',
+		} );
+		expect( opts ).toMatchObject( { silent: true } );
+		expect( dialog() ).toBeNull();
+		expect( navigate ).toHaveBeenCalledWith( HREF );
+	} );
+
+	test( 'Escape is Skip, and a screen without our row wires nothing', async () => {
+		document.body.innerHTML = '<table><tbody><tr data-plugin="akismet/akismet.php"><td><span class="deactivate"><a href="#">x</a></span></td></tr></tbody></table>';
+		expect( interceptPluginsScreen( config(), { navigate: vi.fn() } ) ).toBe( false );
+
+		const link = mountRows();
+		const navigate = vi.fn();
+		interceptPluginsScreen( config(), { navigate } );
+		link.dispatchEvent( new MouseEvent( 'click', { bubbles: true, cancelable: true, button: 0 } ) );
+		document.dispatchEvent( new KeyboardEvent( 'keydown', { key: 'Escape', bubbles: true } ) );
+		await settle();
+
+		expect( trackedFetch ).not.toHaveBeenCalled();
+		expect( dialog() ).toBeNull();
+		expect( navigate ).toHaveBeenCalledWith( HREF );
+	} );
+} );

@@ -48,6 +48,7 @@ function extra( over: Partial< PluginsExtra > = {} ): PluginsExtra {
 		autoUpdatesEnabled: true,
 		selfPluginFile: 'desktop-mode/desktop-mode',
 		adminUrl: 'http://example.test/wp-admin/',
+		deactivationFeedback: null,
 		...over,
 	};
 }

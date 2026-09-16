@@ -1188,6 +1188,42 @@ Return `false` to suppress the dialog — useful for managed-host onboarding flo
 
 ---
 
+### `openstation_deactivation_feedback_enabled` — Experimental
+
+Whether the deactivation feedback dialog exists on this site. It gates all three surfaces at once: the bundle on `plugins.php` (classic, chromeless and network admin), the native Plugins app's config block, and the `POST /desktop-mode/v1/feedback/deactivation` route, which answers `403` when this returns `false`.
+
+```php
+apply_filters( 'openstation_deactivation_feedback_enabled', bool $enabled );
+```
+
+```php
+add_filter( 'openstation_deactivation_feedback_enabled', '__return_false' );
+```
+
+---
+
+### `openstation_deactivation_feedback_payload` — Experimental
+
+The anonymous submission, after it is built and before it is forwarded. The keys are the ones `readme.txt` discloses under "External services" (`id`, `reason`, `details`, `plugin_version`, `wp_version`, `php_version`, `locale`, `multisite`, `install_age_days`, `ever_enabled`, `enabled_user_count`, `first_enable_delay_days`, `deactivator_enabled`, `active_plugins`, `context`). Return an empty array to suppress the send; the route still answers `200` with `sent: false`.
+
+```php
+apply_filters( 'openstation_deactivation_feedback_payload', array $payload );
+```
+
+Do not add anything that identifies the site or the person: the disclosure in `readme.txt` is the contract, and `tests/phpunit/tests/deactivationFeedback.php` pins the key list.
+
+---
+
+### `openstation_deactivation_feedback_endpoint` — Experimental
+
+The collector URL. Hosts that run their own collector point this at it; it receives the payload above as a JSON `POST` with a three-second timeout and no redirects. An empty string skips the forward.
+
+```php
+apply_filters( 'openstation_deactivation_feedback_endpoint', string $url );
+```
+
+---
+
 ### `openstation_shell_config` — Stable
 
 The JS configuration blob injected as `window.openStationConfig`. Powers the window manager, dock, and session restore. Filter this to inject custom payloads the shell can read at boot.

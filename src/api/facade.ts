@@ -206,6 +206,7 @@ export const RESERVED_NAMESPACE_KEYS: ReadonlySet< string > = new Set( [
 	'cloneTemplate', 'onWindow', 'createInfiniteList', 'startOAuth',
 	'repaintLoadingOverlays',
 	'loadVendorScript', 'getWallpaperSurfaces', 'wallpaper', 'games', 'mode',
+	'deactivationFeedback',
 	'registerModule',
 	'loadModules', 'whenReady', 'ready', 'isReady', 'setDefaultWindow',
 	'refreshMenu', 'config', 'ai', 'dragBridge', 'dragManager', 'registerCommand',

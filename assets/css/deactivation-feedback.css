@@ -1,0 +1,254 @@
+/*
+ * Deactivation feedback dialog.
+ *
+ * One optional question asked when an admin deactivates OpenStation.
+ * Renders on the classic `plugins.php`, inside a chromeless window and
+ * over the native Plugins app, so it is plain classed DOM under the
+ * `.os-deactivation-feedback` namespace rather than `<os-*>` components:
+ * the kit is not loaded on the classic screen, and one renderer that
+ * works everywhere beats two.
+ *
+ * The scrim and card follow `assets/css/announce.css`, quieter: this is
+ * a form, not a poster. Colours are literals for the same reason that
+ * file gives — the sheet loads where `variables.css` does not.
+ */
+
+.os-deactivation-feedback,
+.os-deactivation-feedback * {
+	box-sizing: border-box;
+}
+
+.os-deactivation-feedback {
+	position: fixed;
+	inset: 0;
+	/* Above every window, the dock and the welcome dialog's own layer. */
+	z-index: 100001;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 24px;
+	background: rgba(12, 11, 15, 0.62);
+	backdrop-filter: blur(10px) saturate(130%);
+	-webkit-backdrop-filter: blur(10px) saturate(130%);
+	animation: os-deactivation-feedback-fade 240ms ease-out;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+		"Helvetica Neue", Arial, sans-serif;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+}
+
+@keyframes os-deactivation-feedback-fade {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
+}
+
+@keyframes os-deactivation-feedback-pop {
+	0% {
+		opacity: 0;
+		transform: translateY(10px) scale(0.98);
+	}
+	100% {
+		opacity: 1;
+		transform: translateY(0) scale(1);
+	}
+}
+
+.os-deactivation-feedback__card {
+	position: relative;
+	width: 100%;
+	max-width: 520px;
+	max-height: calc(100vh - 48px);
+	overflow: auto;
+	padding: 28px 32px 24px;
+	border-radius: 18px;
+	background: #fffbff;
+	color: #1a1721;
+	box-shadow: 0 1px 0 rgba(255, 255, 255, 0.85) inset,
+		0 30px 60px -20px rgba(26, 23, 33, 0.55),
+		0 18px 36px -18px rgba(242, 82, 252, 0.35);
+	animation: os-deactivation-feedback-pop 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Holographic hairline, as on the announcement card. */
+.os-deactivation-feedback__card::before {
+	content: "";
+	position: absolute;
+	inset: -1px;
+	border-radius: inherit;
+	padding: 1px;
+	background: linear-gradient(
+		135deg,
+		rgba(242, 82, 252, 0.65),
+		rgba(236, 155, 255, 0.55),
+		rgba(147, 240, 198, 0.55)
+	);
+	-webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+	mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+	-webkit-mask-composite: xor;
+	mask-composite: exclude;
+	pointer-events: none;
+}
+
+.os-deactivation-feedback__title {
+	margin: 0 0 6px;
+	font-size: 20px;
+	line-height: 1.25;
+	font-weight: 700;
+	letter-spacing: -0.01em;
+	color: #0c0b0f;
+}
+
+.os-deactivation-feedback__subtitle {
+	margin: 0 0 18px;
+	font-size: 13.5px;
+	line-height: 1.5;
+	color: #6b6771;
+}
+
+.os-deactivation-feedback__reasons {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin: 0 0 14px;
+}
+
+.os-deactivation-feedback__reason {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 9px 12px;
+	border: 1px solid rgba(26, 23, 33, 0.12);
+	border-radius: 10px;
+	font-size: 14px;
+	line-height: 1.3;
+	color: #1a1721;
+	cursor: pointer;
+	transition: border-color 120ms ease, background 120ms ease;
+}
+
+.os-deactivation-feedback__reason:hover {
+	border-color: rgba(242, 82, 252, 0.45);
+	background: rgba(242, 82, 252, 0.04);
+}
+
+.os-deactivation-feedback__reason:has(input:checked) {
+	border-color: #f252fc;
+	background: rgba(242, 82, 252, 0.08);
+}
+
+.os-deactivation-feedback__reason:has(input:focus-visible) {
+	outline: 2px solid #f252fc;
+	outline-offset: 2px;
+}
+
+.os-deactivation-feedback__reason input {
+	margin: 0;
+	accent-color: #f252fc;
+}
+
+.os-deactivation-feedback__details {
+	display: block;
+	width: 100%;
+	min-height: 72px;
+	margin: 0 0 14px;
+	padding: 10px 12px;
+	border: 1px solid rgba(26, 23, 33, 0.16);
+	border-radius: 10px;
+	background: #fff;
+	color: #1a1721;
+	font: inherit;
+	font-size: 14px;
+	line-height: 1.45;
+	resize: vertical;
+}
+
+.os-deactivation-feedback__details:focus-visible {
+	outline: 2px solid #f252fc;
+	outline-offset: 1px;
+	border-color: transparent;
+}
+
+.os-deactivation-feedback__disclosure {
+	margin: 0 0 18px;
+	font-size: 12px;
+	line-height: 1.5;
+	color: #6b6771;
+}
+
+.os-deactivation-feedback__actions {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 10px;
+}
+
+.os-deactivation-feedback__btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 38px;
+	padding: 8px 18px;
+	font: inherit;
+	font-size: 14px;
+	font-weight: 600;
+	line-height: 1;
+	border-radius: 10px;
+	border: 1px solid transparent;
+	cursor: pointer;
+	transition: transform 120ms ease, box-shadow 120ms ease,
+		background 120ms ease, color 120ms ease;
+}
+
+.os-deactivation-feedback__btn:focus-visible {
+	outline: 2px solid #f252fc;
+	outline-offset: 2px;
+}
+
+.os-deactivation-feedback__btn[disabled] {
+	opacity: 0.6;
+	cursor: default;
+}
+
+.os-deactivation-feedback__btn--ghost {
+	background: transparent;
+	color: #6b6771;
+}
+
+.os-deactivation-feedback__btn--ghost:hover {
+	color: #1a1721;
+	background: rgba(26, 23, 33, 0.06);
+}
+
+.os-deactivation-feedback__btn--primary,
+.os-deactivation-feedback__btn--primary:hover,
+.os-deactivation-feedback__btn--primary:focus {
+	color: #fffbff;
+}
+
+.os-deactivation-feedback__btn--primary {
+	background: linear-gradient(135deg, #2a2533, #a12bb0 45%, #f252fc);
+	background-size: 180% 180%;
+	box-shadow: 0 10px 24px -10px rgba(242, 82, 252, 0.75);
+}
+
+.os-deactivation-feedback__btn--primary:hover:not([disabled]) {
+	background-position: 100% 50%;
+	transform: translateY(-1px);
+}
+
+/* Reduced motion stops the movement, never the paint. */
+@media (prefers-reduced-motion: reduce) {
+	.os-deactivation-feedback,
+	.os-deactivation-feedback__card {
+		animation: none;
+	}
+
+	.os-deactivation-feedback__btn,
+	.os-deactivation-feedback__reason {
+		transition: none;
+	}
+}

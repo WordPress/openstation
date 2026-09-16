@@ -479,6 +479,16 @@ const TARGETS = {
 		fileBase: 'release-card',
 		iifeName: 'openStationReleaseCardBundle',
 	},
+	// Deactivation feedback — the one-question dialog shown when an
+	// admin deactivates OpenStation. Enqueued on `plugins.php` (classic
+	// and chromeless, where no `<os-*>` kit exists, hence plain DOM)
+	// and lazy-loaded by the native Plugins app. Publishes
+	// `window.openStationDeactivationFeedback`.
+	'deactivation-feedback': {
+		entry:    'src/deactivation-feedback/entry.ts',
+		fileBase: 'deactivation-feedback',
+		iifeName: 'openStationDeactivationFeedbackBundle',
+	},
 	// Shell overlays — toast, confirm dialog, context menus (Stage 9).
 	// Components for action-triggered overlays that aren't constructed
 	// at first paint. Preloaded by main after first paint via

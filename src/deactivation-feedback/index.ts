@@ -1,0 +1,327 @@
+/**
+ * Deactivation feedback — one optional question before OpenStation is
+ * deactivated.
+ *
+ * Three surfaces show it: the classic `plugins.php`, the same page
+ * inside a chromeless window, and the native Plugins app. The first
+ * two have no `<os-*>` kit (the classic screen loads none of the
+ * shell), so this is plain classed DOM under `.os-deactivation-feedback`
+ * with styles in `assets/css/deactivation-feedback.css`. One renderer
+ * that works everywhere beats two; this is the deliberate exception to
+ * the "use os-* components" rule, for the same reason
+ * `includes/welcome-dialog.php` gives.
+ *
+ * Nothing is sent unless the admin clicks Send. Both buttons resolve
+ * the promise, and the caller deactivates either way — a failed or
+ * slow send never keeps anyone on the page.
+ *
+ * Nothing here is stored on the site: the answer goes to the REST
+ * route, which forwards it and forgets it.
+ */
+
+import { __ } from '../i18n';
+import { trackedFetch } from '../tracked-fetch';
+
+export type DeactivationFeedbackContext = 'classic' | 'chromeless' | 'app';
+
+export interface DeactivationFeedbackConfig {
+	/** `plugin_basename()` of OpenStation — the row the interceptor watches. */
+	plugin: string;
+	/** `POST /desktop-mode/v1/feedback/deactivation`. */
+	restUrl: string;
+	/**
+	 * The REST nonce. Empty in-shell: `wp.os.fetch` injects the live
+	 * one, and a snapshot from the app config goes stale after a
+	 * nonce refresh.
+	 */
+	restNonce: string;
+	context: DeactivationFeedbackContext;
+	/**
+	 * The dialog stylesheet, for the lazy in-shell path where nothing
+	 * enqueued it. Injected once when the document lacks it.
+	 */
+	styleUrl?: string;
+}
+
+export interface DeactivationFeedbackApi {
+	/** Opens the dialog; resolves when the user picks either button. Sends only on "Send". */
+	ask: ( config: DeactivationFeedbackConfig ) => Promise< void >;
+}
+
+/** The reasons offered, in display order; the slugs are the route's enum. */
+export const REASONS: ReadonlyArray< { value: string; label: () => string } > = [
+	{ value: 'broke_something', label: () => __( 'It broke something' ) },
+	{ value: 'too_slow', label: () => __( 'It was too slow' ) },
+	{ value: 'didnt_understand', label: () => __( "I didn't understand it" ) },
+	{ value: 'not_for_me', label: () => __( "It's not for me" ) },
+	{ value: 'other', label: () => __( 'Something else' ) },
+];
+
+/** Longest free text sent; the server truncates to the same length. */
+export const DETAILS_MAX = 1000;
+
+/** How long Send waits for the route before deactivating anyway. */
+export const SEND_TIMEOUT_MS = 4000;
+
+/** The id WordPress gives the enqueued stylesheet's `<link>`. */
+const STYLE_ELEMENT_ID = 'os-deactivation-feedback-css';
+
+/** Everything inside the card that can take focus, in tab order. */
+const FOCUSABLE = 'input:not([disabled]), textarea:not([disabled]), button:not([disabled]), a[href]';
+
+let open = false;
+
+function ensureStylesheet( url: string | undefined, doc: Document ): void {
+	if ( ! url || doc.getElementById( STYLE_ELEMENT_ID ) ) {
+		return;
+	}
+	const link = doc.createElement( 'link' );
+	link.id = STYLE_ELEMENT_ID;
+	link.rel = 'stylesheet';
+	link.href = url;
+	doc.head.appendChild( link );
+}
+
+interface DialogParts {
+	scrim: HTMLElement;
+	form: HTMLFormElement;
+	details: HTMLTextAreaElement;
+	skip: HTMLButtonElement;
+	send: HTMLButtonElement;
+	reason: () => string;
+}
+
+/** Build the scrim + card. Exported so a test can read the markup. */
+export function buildDeactivationDialog( doc: Document = document ): DialogParts {
+	const scrim = doc.createElement( 'div' );
+	scrim.className = 'os-deactivation-feedback';
+	scrim.setAttribute( 'role', 'dialog' );
+	scrim.setAttribute( 'aria-modal', 'true' );
+	scrim.setAttribute( 'aria-labelledby', 'os-deactivation-feedback-title' );
+
+	const card = doc.createElement( 'form' );
+	card.className = 'os-deactivation-feedback__card';
+	card.noValidate = true;
+	scrim.appendChild( card );
+
+	const title = doc.createElement( 'h2' );
+	title.id = 'os-deactivation-feedback-title';
+	title.className = 'os-deactivation-feedback__title';
+	title.textContent = __( "Before you go, what didn't work?" );
+	card.appendChild( title );
+
+	const subtitle = doc.createElement( 'p' );
+	subtitle.className = 'os-deactivation-feedback__subtitle';
+	subtitle.textContent = __( 'Optional. One answer helps us fix what sent you away.' );
+	card.appendChild( subtitle );
+
+	const group = doc.createElement( 'div' );
+	group.className = 'os-deactivation-feedback__reasons';
+	group.setAttribute( 'role', 'radiogroup' );
+	group.setAttribute( 'aria-labelledby', 'os-deactivation-feedback-title' );
+	for ( const opt of REASONS ) {
+		const label = doc.createElement( 'label' );
+		label.className = 'os-deactivation-feedback__reason';
+		const input = doc.createElement( 'input' );
+		input.type = 'radio';
+		input.name = 'reason';
+		input.value = opt.value;
+		label.appendChild( input );
+		const text = doc.createElement( 'span' );
+		text.textContent = opt.label();
+		label.appendChild( text );
+		group.appendChild( label );
+	}
+	card.appendChild( group );
+
+	const details = doc.createElement( 'textarea' );
+	details.className = 'os-deactivation-feedback__details';
+	details.name = 'details';
+	details.maxLength = DETAILS_MAX;
+	details.rows = 3;
+	details.setAttribute( 'aria-label', __( 'Details (optional)' ) );
+	details.placeholder = __( 'Anything else? (optional)' );
+	card.appendChild( details );
+
+	const disclosure = doc.createElement( 'p' );
+	disclosure.className = 'os-deactivation-feedback__disclosure';
+	disclosure.textContent = __(
+		'What we send: your answer, the plugin, WordPress and PHP versions, your site language, and how long OpenStation was installed. Nothing that identifies you or your site.',
+	);
+	card.appendChild( disclosure );
+
+	const actions = doc.createElement( 'div' );
+	actions.className = 'os-deactivation-feedback__actions';
+	card.appendChild( actions );
+
+	const skip = doc.createElement( 'button' );
+	skip.type = 'button';
+	skip.className = 'os-deactivation-feedback__btn os-deactivation-feedback__btn--ghost';
+	skip.textContent = __( 'Skip and deactivate' );
+	actions.appendChild( skip );
+
+	const send = doc.createElement( 'button' );
+	send.type = 'submit';
+	send.className = 'os-deactivation-feedback__btn os-deactivation-feedback__btn--primary';
+	send.textContent = __( 'Send and deactivate' );
+	// Nothing to send until a reason is picked; the route requires one.
+	send.disabled = true;
+	actions.appendChild( send );
+
+	const reason = (): string =>
+		( card.querySelector< HTMLInputElement >( 'input[name="reason"]:checked' )?.value ) ?? '';
+
+	card.addEventListener( 'change', () => {
+		const picked = reason();
+		send.disabled = picked === '';
+		// The first reason is the one where a name helps most.
+		details.placeholder =
+			picked === 'broke_something'
+				? __( 'Which page or plugin?' )
+				: __( 'Anything else? (optional)' );
+	} );
+
+	return { scrim, form: card, details, skip, send, reason };
+}
+
+/** POST the answer; resolves whatever happens, within the timeout. */
+async function postAnswer(
+	config: DeactivationFeedbackConfig,
+	reason: string,
+	details: string,
+): Promise< void > {
+	const headers: Record< string, string > = { 'Content-Type': 'application/json' };
+	if ( config.restNonce ) {
+		headers[ 'X-WP-Nonce' ] = config.restNonce;
+	}
+	const request = trackedFetch(
+		config.restUrl,
+		{
+			method: 'POST',
+			headers,
+			body: JSON.stringify( {
+				reason,
+				details: details.slice( 0, DETAILS_MAX ),
+				context: config.context,
+			} ),
+		},
+		{ source: 'desktop-mode/deactivation-feedback', silent: true },
+	).then(
+		() => undefined,
+		() => undefined,
+	);
+	let timer: ReturnType< typeof setTimeout > | undefined;
+	const timeout = new Promise< void >( ( resolve ) => {
+		timer = setTimeout( resolve, SEND_TIMEOUT_MS );
+	} );
+	await Promise.race( [ request, timeout ] );
+	if ( timer !== undefined ) {
+		clearTimeout( timer );
+	}
+}
+
+/**
+ * Open the dialog and resolve when the user picks either button.
+ * Sends only on "Send", and only once a reason is picked. A second
+ * call while one is open resolves immediately.
+ */
+export function askDeactivationFeedback( config: DeactivationFeedbackConfig ): Promise< void > {
+	if ( open ) {
+		return Promise.resolve();
+	}
+	open = true;
+	const doc = document;
+	ensureStylesheet( config.styleUrl, doc );
+
+	const parts = buildDeactivationDialog( doc );
+	const previouslyFocused = doc.activeElement as HTMLElement | null;
+
+	return new Promise< void >( ( resolve ) => {
+		let settled = false;
+		const finish = (): void => {
+			if ( settled ) {
+				return;
+			}
+			settled = true;
+			doc.removeEventListener( 'keydown', onKeydown, true );
+			parts.scrim.remove();
+			open = false;
+			previouslyFocused?.focus?.();
+			resolve();
+		};
+
+		const onKeydown = ( event: KeyboardEvent ): void => {
+			if ( event.key === 'Escape' ) {
+				event.preventDefault();
+				finish();
+				return;
+			}
+			if ( event.key !== 'Tab' ) {
+				return;
+			}
+			const focusable = Array.from( parts.scrim.querySelectorAll< HTMLElement >( FOCUSABLE ) );
+			if ( focusable.length === 0 ) {
+				return;
+			}
+			const first = focusable[ 0 ];
+			const last = focusable[ focusable.length - 1 ];
+			const active = doc.activeElement;
+			if ( event.shiftKey && ( active === first || ! parts.scrim.contains( active ) ) ) {
+				event.preventDefault();
+				last.focus();
+			} else if ( ! event.shiftKey && active === last ) {
+				event.preventDefault();
+				first.focus();
+			}
+		};
+
+		parts.skip.addEventListener( 'click', finish );
+		parts.form.addEventListener( 'submit', ( event ) => {
+			event.preventDefault();
+			const reason = parts.reason();
+			if ( reason === '' || settled ) {
+				return;
+			}
+			parts.send.disabled = true;
+			parts.skip.disabled = true;
+			parts.send.textContent = __( 'Sending…' );
+			void postAnswer( config, reason, parts.details.value ).then( finish, finish );
+		} );
+
+		doc.addEventListener( 'keydown', onKeydown, true );
+		doc.body.appendChild( parts.scrim );
+		parts.scrim.querySelector< HTMLElement >( 'input[name="reason"]' )?.focus();
+	} );
+}
+
+export interface InterceptDeps {
+	/** Where the Deactivate link goes once the dialog is done. */
+	navigate?: ( href: string ) => void;
+	doc?: Document;
+}
+
+/**
+ * Classic / chromeless `plugins.php`: intercept the Deactivate link
+ * on OpenStation's own row, ask, then follow the link. Bulk
+ * deactivation with OpenStation checked is left alone.
+ *
+ * @return True when a link was found and wired.
+ */
+export function interceptPluginsScreen( config: DeactivationFeedbackConfig, deps: InterceptDeps = {} ): boolean {
+	const doc = deps.doc ?? document;
+	const navigate = deps.navigate ?? ( ( href: string ) => window.location.assign( href ) );
+	const plugin = config.plugin.replace( /["\\]/g, '\\$&' );
+	const link = doc.querySelector< HTMLAnchorElement >( `tr[data-plugin="${ plugin }"] .deactivate a[href]` );
+	if ( ! link ) {
+		return false;
+	}
+	link.addEventListener( 'click', ( event ) => {
+		if ( event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey ) {
+			return;
+		}
+		event.preventDefault();
+		const href = link.href;
+		void askDeactivationFeedback( config ).then( () => navigate( href ) );
+	} );
+	return true;
+}

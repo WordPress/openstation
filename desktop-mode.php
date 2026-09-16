@@ -195,6 +195,10 @@ require_once OPENSTATION_DIR . 'includes/living-tree/bootstrap.php';
 require_once OPENSTATION_DIR . 'includes/games/bootstrap.php';
 require_once OPENSTATION_DIR . 'includes/agents/bootstrap.php';
 require_once OPENSTATION_DIR . 'includes/network/bootstrap.php';
+// Deactivation feedback: the dialog on the Plugins screen and the
+// REST route it posts to. Unconditional so the route registers on
+// REST requests; it stores nothing on the site.
+require_once OPENSTATION_DIR . 'includes/feedback/bootstrap.php';
 require_once OPENSTATION_DIR . 'includes/pwa.php';
 require_once OPENSTATION_DIR . 'includes/compat/divi.php';
 

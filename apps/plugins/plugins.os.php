@@ -293,6 +293,9 @@ return App::define( 'desktop-mode-plugins' )
 				// on the admin page load (it needs an admin include),
 				// which is why it rides the config rather than `data()`.
 				'autoUpdatesEnabled' => openstation_plugins_window_auto_updates_enabled(),
+				// The deactivation feedback dialog's lazy bundle and
+				// route; `null` when the feature is filtered off.
+				'deactivationFeedback' => openstation_deactivation_feedback_app_config(),
 			);
 		}
 	)

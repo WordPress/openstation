@@ -47,6 +47,16 @@ export interface PluginsExtra {
 	selfPluginFile: string;
 	/** Root wp-admin URL — where a self-deactivate lands. */
 	adminUrl: string;
+	/**
+	 * The deactivation feedback dialog's lazy bundle and route, or
+	 * `null` when the feature is filtered off. Asked before a
+	 * self-deactivate; see `parts/mutations.ts`.
+	 */
+	deactivationFeedback: {
+		script: { url: string; translations?: string };
+		styleUrl: string;
+		restUrl: string;
+	} | null;
 }
 
 export type Ctx = ViewContext< AppState, AppData >;

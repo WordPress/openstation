@@ -397,6 +397,32 @@ function openstation_register_assets() {
 		true
 	);
 
+	// `os-deactivation-feedback` — the dialog that asks one optional
+	// question when an admin deactivates OpenStation. Enqueued on
+	// `plugins.php` (classic, chromeless and network admin) by
+	// `includes/feedback/deactivation.php`, and lazy-loaded by the
+	// native Plugins app from its config block. Plain DOM on purpose:
+	// the classic screen has no `<os-*>` kit.
+	wp_register_script(
+		'os-deactivation-feedback',
+		OPENSTATION_URL . 'assets/js/deactivation-feedback' . $suffix . '.js',
+		array( 'wp-i18n' ),
+		$built_version( 'assets/js/deactivation-feedback' . $suffix . '.js' ),
+		true
+	);
+	wp_set_script_translations(
+		'os-deactivation-feedback',
+		'desktop-mode',
+		OPENSTATION_DIR . 'languages'
+	);
+	$feedback_css = OPENSTATION_DIR . 'assets/css/deactivation-feedback.css';
+	wp_register_style(
+		'os-deactivation-feedback',
+		OPENSTATION_URL . 'assets/css/deactivation-feedback.css',
+		array(),
+		file_exists( $feedback_css ) ? (string) filemtime( $feedback_css ) : $version
+	);
+
 	// `os-chromeless-bridge` — the iframe side of every window,
 	// enqueued on `admin_footer` by
 	// `openstation_chromeless_bridge_script()` with its per-request
