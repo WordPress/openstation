@@ -252,6 +252,18 @@ The script is the single source of truth for the include list and runs `npm run 
 
 i18n re-extraction is a batched pre-translation step, not a per-PR chore. Don't run `npm run build:i18n` as part of a feature branch unless the PR is specifically a translation refresh; the noise dilutes the diff and creates churn with other in-flight branches.
 
+### Add a test only when it would catch a real bug
+
+**Not every change needs a test.** Every test runs on every PR push, and suite growth is the main reason CI keeps getting slower. Before adding one, ask: would it fail on a bug we'd otherwise ship? If not, leave it out.
+
+- **Test behavior, not source text.** Reading a stylesheet, source file or doc from disk to assert a string is there is for the deliberate guards named in this file, not for pinning a change you just made.
+- **Don't restate the implementation.** A test that mocks every collaborator and asserts the mocks were called proves nothing.
+- **One case per distinct path.** Near-identical cases with different inputs add time, not coverage.
+- **Extend an existing test file before creating a new one.** Vitest sets up jsdom and runs `tests/vitest/setup.ts` once per file, roughly half a second of worker time, so a new file with three tiny tests costs more than the tests themselves.
+- **A regression test is for a bug that could plausibly come back**, not a one-off slip.
+
+When a change breaks a test, don't just rewrite the assertion to match. Decide whether it caught a real regression or pinned an implementation detail, and delete or rewrite it in the second case.
+
 ---
 
 ## Process reminders
