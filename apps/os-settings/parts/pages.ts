@@ -236,7 +236,7 @@ export function mountRegistryTabs( ctx: Ctx, rows: PageRow[] ): void {
  * them is light-DOM text no matter how prominent it looks on screen —
  * and every section title in the panel is one of them.
  */
-const TEXT_ATTRIBUTES = [ 'heading', 'description', 'label', 'placeholder' ] as const;
+const TEXT_ATTRIBUTES = [ 'heading', 'description', 'label', 'aria-label', 'placeholder' ] as const;
 
 /**
  * What each page can be found by: built from the rendered panes
@@ -244,15 +244,15 @@ const TEXT_ATTRIBUTES = [ 'heading', 'description', 'label', 'placeholder' ] as 
  * Windows, "galaxy" finds Appearance, "beta" finds Features — none of
  * which is a page name. Every pane is in the DOM from the first paint
  * (toggled with `hidden`, not mounted on demand), so their text is
- * readable without showing anything. Built on first use: most
- * sessions never type in the field.
+ * readable without showing anything. Rebuilt when the search changes
+ * so newly rendered registry content is included.
  */
 export function buildSearchIndex( root: HTMLElement, rows: PageRow[] ): Map< string, string > {
 	const index = new Map< string, string >();
 	for ( const row of rows ) {
 		const pane = root.querySelector( `os-tabpanel[for="${ row.id }"]` );
 		const parts: string[] = [ row.label, pane?.textContent ?? '' ];
-		for ( const el of Array.from( pane?.querySelectorAll( '[heading],[description],[label],[placeholder]' ) ?? [] ) ) {
+		for ( const el of Array.from( pane?.querySelectorAll( '[heading],[description],[label],[aria-label],[placeholder]' ) ?? [] ) ) {
 			for ( const attr of TEXT_ATTRIBUTES ) {
 				parts.push( el.getAttribute( attr ) ?? '' );
 			}

@@ -110,7 +110,7 @@ export interface UiState {
 	};
 	/** Null until the About page is first shown. */
 	about: AboutFeedState | null;
-	/** The nav search: the query, and the index built on first use. */
+	/** The nav search: the query, and the latest rendered page index. */
 	search: { query: string; index: Map< string, string > | null };
 	/** Which registry tab each host element was last painted with. */
 	mountedTabs: WeakMap< HTMLElement, DesktopSettingsTab >;

@@ -4,7 +4,8 @@ import type { OsSettingsState } from '../../../src/settings/types';
 import { SNOW_LIMITS } from '../../../src/plugins/snow-wallpaper/settings';
 import { all as listWallpapers } from '../../../src/wallpapers/registry';
 import { publishWallpaperSettings } from '../../../src/wallpapers/settings-store';
-import { buildSearchIndex, pageRows } from './pages';
+import { pageRows } from './pages';
+import { searchSettings } from './search';
 import { getDefaultWallpaperId } from '../../../src/settings/constants';
 import { exactKeys, objectSchema } from './mio-actions';
 import { settings, shellConfig } from './store';
@@ -101,17 +102,14 @@ export function extraMioActions(
 		{
 			name: 'search_settings',
 			effect: 'none',
-			description: 'Filter the Preferences sidebar by text.',
+			description: 'Search Preferences and highlight the single best matching control.',
 			parameters: objectSchema( { query: { type: 'string' } } ),
 			validate: ( args ) =>
 				exactKeys( args, [ 'query' ] ) &&
 				typeof args.query === 'string' &&
 				args.query.length <= 200,
 			run: ( args ) => {
-				const search = uiOf( ctx ).search;
-				search.index ??= buildSearchIndex( ctx.root, pageRows( ctx ) );
-				search.query = ( args.query as string ).toLowerCase().trim();
-				ctx.repaint();
+				searchSettings( ctx, args.query as string );
 				return { filtered: args.query };
 			},
 		},

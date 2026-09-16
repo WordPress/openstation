@@ -15,6 +15,7 @@ import {
 import { clientAppFor } from '../../src/app-runtime/client';
 import app from './os-settings.os';
 import { mountRegistryTabs, pageRows } from './parts/pages';
+import { searchSettings } from './parts/search';
 import type { Ctx } from './parts/types';
 
 let stub: OsSettingsStub;
@@ -39,6 +40,10 @@ function paint( isAdmin = true ): void {
 		extra: appExtra(),
 	} );
 	ctx.repaint = () => app.render( ctx as never );
+	ctx.local = ( action, args = {} ) => {
+		Object.assign( ctx.state, app.runLocal( action, ctx.state, args, ctx.data ) );
+		ctx.repaint();
+	};
 	app.render( ctx as never );
 }
 
@@ -48,6 +53,7 @@ beforeEach( () => {
 } );
 
 afterEach( () => {
+	vi.restoreAllMocks();
 	unregisterSettingsTab( 'acme' );
 	document.body.innerHTML = '';
 	clearHooksStub();
@@ -184,6 +190,96 @@ describe( 'OpenStation Preferences — the frame', () => {
 		input.value = '';
 		input.dispatchEvent( new Event( 'input' ) );
 		expect( visibleTabIds() ).toHaveLength( 8 );
+	} );
+
+	test( 'a unique setting opens its page and highlights exactly one control and its section', () => {
+		paint();
+		const input = root.querySelector< HTMLInputElement >( '.os-settings__search-input' )!;
+		input.focus();
+		input.value = '  CoRnErS  ';
+		input.dispatchEvent( new Event( 'input' ) );
+		expect( ctx.state.tab ).toBe( 'windows' );
+		expect( root.querySelectorAll( '[data-settings-search-control]' ) ).toHaveLength( 1 );
+		expect( root.querySelector( '[data-settings-search-control]' )?.getAttribute( 'label' ) ).toBe( 'Window corners' );
+		expect( root.querySelectorAll( '[data-settings-search-section]' ) ).toHaveLength( 1 );
+		expect( root.querySelector( '[data-settings-search-section]' )?.getAttribute( 'heading' ) ).toBe( 'Window corners' );
+		expect( root.querySelectorAll( '[data-settings-search-page]' ) ).toHaveLength( 1 );
+		expect( input.ownerDocument.activeElement ).toBe( input );
+		ctx.repaint();
+		expect( root.querySelectorAll( '[data-settings-search-control]' ) ).toHaveLength( 1 );
+	} );
+
+	test( 'empty and missing queries remove a previous highlight', () => {
+		paint();
+		const input = root.querySelector< HTMLInputElement >( '.os-settings__search-input' )!;
+		for ( const query of [ 'zzzz-nothing', '' ] ) {
+			input.value = 'corners';
+			input.dispatchEvent( new Event( 'input' ) );
+			expect( root.querySelectorAll( '[data-settings-search-control]' ) ).toHaveLength( 1 );
+			input.value = query;
+			input.dispatchEvent( new Event( 'input' ) );
+			expect( root.querySelectorAll( '[data-settings-search-control], [data-settings-search-section], [data-settings-search-page]' ) ).toHaveLength( 0 );
+		}
+	} );
+
+	test( 'programmatic searches update the field, page and highlight together', () => {
+		paint();
+		searchSettings( ctx, 'Reveal speed' );
+		expect( root.querySelector< HTMLInputElement >( '.os-settings__search-input' )?.value ).toBe( 'Reveal speed' );
+		expect( ctx.state.tab ).toBe( 'windows' );
+		expect( root.querySelector( '[data-settings-search-control]' )?.getAttribute( 'label' ) ).toBe( 'Reveal speed' );
+		searchSettings( ctx, '' );
+		expect( root.querySelector< HTMLInputElement >( '.os-settings__search-input' )?.value ).toBe( '' );
+		expect( root.querySelector( '[data-settings-search-control]' ) ).toBeNull();
+	} );
+
+	test( 'scrolls after the page opens, skips repeat paints and abandons cleared results', async () => {
+		paint();
+		const frames: FrameRequestCallback[] = [];
+		vi.spyOn( window, 'requestAnimationFrame' ).mockImplementation( ( callback ) => frames.push( callback ) );
+		const control = root.querySelector< HTMLElement >( 'os-select[label="Reveal speed"]' )!;
+		control.scrollIntoView = vi.fn();
+		searchSettings( ctx, 'reveal speed' );
+		expect( control.scrollIntoView ).not.toHaveBeenCalled();
+		await vi.waitFor( () => expect( control.closest( '[hidden]' ) === null ).toBe( true ) );
+		for ( const callback of frames.splice( 0 ) ) {
+			callback( 0 );
+		}
+		expect( control.scrollIntoView ).toHaveBeenCalledTimes( 1 );
+		ctx.repaint();
+		expect( frames ).toHaveLength( 0 );
+		searchSettings( ctx, '' );
+		searchSettings( ctx, 'reveal speed' );
+		searchSettings( ctx, '' );
+		for ( const callback of frames.splice( 0 ) ) {
+			callback( 0 );
+		}
+		expect( control.scrollIntoView ).toHaveBeenCalledTimes( 1 );
+	} );
+
+	test( 'a broad query highlights only the first best control, and refinement moves it', () => {
+		paint();
+		const input = root.querySelector< HTMLInputElement >( '.os-settings__search-input' )!;
+		input.value = 'reveal';
+		input.dispatchEvent( new Event( 'input' ) );
+		expect( root.querySelectorAll( '[data-settings-search-control]' ) ).toHaveLength( 1 );
+		expect( root.querySelector( '[data-settings-search-control]' )?.getAttribute( 'label' ) ).toBe( 'Reveal style' );
+		input.value = 'reveal speed';
+		input.dispatchEvent( new Event( 'input' ) );
+		expect( root.querySelectorAll( '[data-settings-search-control]' ) ).toHaveLength( 1 );
+		expect( root.querySelector( '[data-settings-search-control]' )?.getAttribute( 'label' ) ).toBe( 'Reveal speed' );
+		expect( root.querySelectorAll( '[data-settings-search-section]' ) ).toHaveLength( 1 );
+		expect( root.querySelectorAll( '[data-settings-search-page]' ) ).toHaveLength( 1 );
+	} );
+
+	test( 'a precise label distinguishes controls sharing the same section', () => {
+		paint();
+		const input = root.querySelector< HTMLInputElement >( '.os-settings__search-input' )!;
+		input.value = 'reveal speed';
+		input.dispatchEvent( new Event( 'input' ) );
+		expect( root.querySelectorAll( '[data-settings-search-control]' ) ).toHaveLength( 1 );
+		expect( root.querySelector( '[data-settings-search-control]' )?.getAttribute( 'label' ) ).toBe( 'Reveal speed' );
+		expect( root.querySelector( '[data-settings-search-section]' )?.getAttribute( 'heading' ) ).toBe( 'Window reveal' );
 	} );
 
 	test( 'Reset to defaults is the public reset', () => {
