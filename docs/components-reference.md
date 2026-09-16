@@ -80,6 +80,9 @@ of `{ label, id? }` objects. Scalar fields retain their existing string values;
 convert numbers explicitly at the storage boundary. Structured values are assigned
 through the component's `value` setter and are not serialized into attributes.
 `reset()` restores the initial field values, including checked switches and tags.
+Structured-cloneable data is copied at capture and on each reset, so editing a
+tag object or array cannot overwrite those defaults. Opaque, non-cloneable custom
+field values retain their existing identity semantics.
 
 `setBusy(true)` makes the fields inert and blocks button, Enter and programmatic
 submission until cleared. Set it before the first asynchronous operation and clear
@@ -90,6 +93,11 @@ Tag add/remove events are intents: the app still updates `tags.value` explicitly
 
 See [editing a mixed-field record](examples/form-record-editor.md) for a complete
 load/save/reset pattern.
+
+Date fields (`date`, `datetime-local`, `month`, `week`) keep the browser's native
+picker. In browsers exposing the calendar indicator styling hook, its glyph reads
+`--os-ui-fg-muted`, matching the field's other affordances across dark and light
+themes. Forced-colors mode uses the system button text color.
 
 ### A raw `<input>` in the shell is not a styling choice
 

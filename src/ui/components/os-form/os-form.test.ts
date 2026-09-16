@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import type { OsForm } from './os-form';
+import type { OsTagInput } from '../os-tag-input/os-tag-input';
 import './os-form';
 import '../os-switch/os-switch';
 import '../os-range-field/os-range-field';
@@ -186,6 +187,38 @@ describe( '<os-form>', () => {
 		expect( form.shadowRoot!.querySelector( '.fields' )!.hasAttribute( 'inert' ) ).toBe( false );
 		form.submit();
 		expect( submissions ).toBe( 2 );
+	} );
+
+	test( 'tag edits cannot mutate the initial snapshot, including after a reset', async () => {
+		host.innerHTML = '<os-form><os-tag-input name="tags"></os-tag-input></os-form>';
+		const form = host.querySelector< OsForm >( 'os-form' )!;
+		const tags = host.querySelector< OsTagInput >( 'os-tag-input' )!;
+		tags.value = [ { id: 7, label: 'Initial' } ];
+		await tick();
+
+		for ( let attempt = 0; attempt < 2; attempt++ ) {
+			const values = form.getValues().tags as OsTagInput[ 'value' ];
+			values[ 0 ].label = 'Edited';
+			values.push( { label: 'Added' } );
+			tags.value = values;
+			form.reset();
+			expect( tags.value ).toEqual( [ { id: 7, label: 'Initial' } ] );
+		}
+	} );
+
+	test( 'busy preserves field disabled settings when cleared', async () => {
+		host.innerHTML = `<os-form>
+			<os-text-field name="editable" value="Keep"></os-text-field>
+			<os-text-field name="locked" value="Locked" disabled></os-text-field>
+		</os-form>`;
+		const form = host.querySelector< OsForm >( 'os-form' )!;
+		form.setBusy( true );
+		await tick();
+		form.setBusy( false );
+		await tick();
+		expect( form.querySelector( '[name="editable"]' )!.hasAttribute( 'disabled' ) ).toBe( false );
+		expect( form.querySelector( '[name="locked"]' )!.hasAttribute( 'disabled' ) ).toBe( true );
+		expect( form.getValues() ).toEqual( { editable: 'Keep', locked: 'Locked' } );
 	} );
 
 	test( 'forwards real slider and color changes to the form input bus', async () => {

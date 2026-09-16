@@ -397,7 +397,7 @@ dark frame around a white page.
 | `--os-mobile-tile-shadow`, `--os-mobile-card-shadow`, `--os-mobile-sheet-shadow`, `--os-mobile-window-shadow`, `--os-mobile-label-shadow` | The phone layer's shadows: under a tile, a switcher card, the switcher sheet, the window card, and the label text over the wallpaper. Whole `box-shadow` / `text-shadow` values. |
 | `--os-mobile-scrim`, `--os-mobile-top-scrim` | The phone layer's scrims: behind the switcher, and the fade the top bar's title sits on. |
 | `--os-ui-fg` | Body text |
-| `--os-ui-fg-muted` | Secondary text, metadata |
+| `--os-ui-fg-muted` | Secondary text, metadata, and text-field calendar indicators |
 | `--os-ui-fg-faint` | Disabled text |
 | `--os-ui-fg-on-accent` | Text on a filled accent / danger surface. **Not `--os-ui-accent-text`** — that name doesn't exist, and because an undefined custom property just yields to the `var()` fallback, writing it produces no error and no visible clue. If a colour you set is being ignored, check the name against this table first. |
 | `--os-ui-border` | Hairlines |

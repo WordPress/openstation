@@ -87,6 +87,20 @@ interface InitialSnapshot {
 	checked: boolean | null;
 }
 
+/** Copy data values so edits never share the form's reset snapshot. */
+function copySnapshotValue( value: unknown ): unknown {
+	if ( value === null || typeof value !== 'object' ) {
+		return value;
+	}
+	try {
+		return structuredClone( value );
+	} catch {
+		// Custom fields may expose opaque values (e.g. DOM nodes or
+		// functions). Preserve their existing identity-based contract.
+		return value;
+	}
+}
+
 export class OsForm extends Component {
 	static props = [
 		'submit-label',
@@ -420,7 +434,7 @@ export class OsForm extends Component {
 				}
 				continue;
 			}
-			this._writeField( field, snap.value );
+			this._writeField( field, copySnapshotValue( snap.value ) );
 		}
 		this.dispatchEvent(
 			new CustomEvent( 'os-form-reset', {
@@ -514,7 +528,7 @@ export class OsForm extends Component {
 				( field.tagName === 'INPUT' &&
 					( field as HTMLInputElement ).type === 'checkbox' );
 			this._initial.set( name, {
-				value: this._readField( field ),
+				value: copySnapshotValue( this._readField( field ) ),
 				checked: isCheckbox ? Boolean( this._readField( field ) ) : null,
 			} );
 		}
