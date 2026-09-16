@@ -277,7 +277,7 @@ profile screen). AI agents are ordinary `wp_users` rows flagged with
 | `_desktop_mode_width`, `_desktop_mode_height` | attachments | Cached image dimensions for the Media Library; a one-time backfill is flagged by the `desktop_mode_media_dims_backfilled` option. |
 | `_openstation_stored_file_id` | attachments | The stored file this attachment was created from (→ `desktop_mode_stored_files.id`). |
 | `_openstation_stored_file_key` | attachments | Deduplication key of that stored file. |
-| `_desktop_mode_ai_analysis` | comments | Result of the AI moderation pass. |
+| `_desktop_mode_ai_analysis` | comments | Verdict written by the on-demand `desktop-mode/analyze-comment` ability. |
 
 ## Options (`wp_options`)
 
@@ -288,7 +288,6 @@ profile screen). AI agents are ordinary `wp_users` rows flagged with
 | `desktop_mode_migration_version` | Migrations | Last data migration applied (`includes/migrations.php`). |
 | `desktop_mode_extended_options` | Preferences | Site-wide extended options: Media Library enhancement, Games, AI agents, OpenStation Network, plus `window_prewarm` and `admin_asset_cache` (both default `true`; administrator opt-outs apply on shell reload). |
 | `desktop_mode_desktop_themes` | Desktop themes | Themes uploaded as ZIPs and the active selection; their files go to `uploads/desktop-mode-themes/`. |
-| `desktop_mode_comments_ai_moderation` | AI Copilot | Whether comment moderation by AI is on. |
 | `desktop_mode_agents_defaults_seeded` | Agents | Flag: default agents already created. |
 | `desktop_mode_media_dims_backfilled` | Media | Flag: dimensions backfill done. |
 | `desktop_mode_notes_rev` | Notes | Global notes revision; invalidates the per-user cache. |

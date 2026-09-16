@@ -2263,7 +2263,7 @@ Credentials and model routing are owned by **WordPress 7.0 Core**: configure a p
 
 > The built-in Copilot tools are [WordPress Abilities](https://developer.wordpress.org/apis/abilities-api/), listed at `GET /wp-abilities/v1/abilities`. Register a read-only ability and the assistant picks it up automatically — see "Extending the Copilot's tools" below.
 
-> **Removed.** Automatic AI analysis of posts, pages, and taxonomy terms was removed — the copilot now only analyzes comments (for the spam score), and the AI assistant finds content with WordPress's native keyword search. The following filters/actions no longer fire and have been removed: `openstation_ai_supported_post_types`, `openstation_ai_supported_taxonomies`, `openstation_ai_supported_types`, `openstation_ai_schema_content`, `openstation_ai_post_prompt`, `openstation_ai_term_prompt`, `openstation_ai_post_analyzed`, `openstation_ai_term_analyzed`.
+> **Removed.** Automatic AI analysis of posts, pages, and taxonomy terms was removed — the copilot performs no background analysis (automatic comment scoring was removed later, see [`migration-comments-ai-scoring.md`](./migration-comments-ai-scoring.md)), and the AI assistant finds content with WordPress's native keyword search. The following filters/actions no longer fire and have been removed: `openstation_ai_supported_post_types`, `openstation_ai_supported_taxonomies`, `openstation_ai_supported_types`, `openstation_ai_schema_content`, `openstation_ai_post_prompt`, `openstation_ai_term_prompt`, `openstation_ai_post_analyzed`, `openstation_ai_term_analyzed`.
 
 ### `openstation_ai_schema_comment` — Experimental
 
@@ -3591,22 +3591,6 @@ do_action( 'openstation_comments_window_after_bulk', string $action, int[] $proc
 ```
 
 Fires after a moderation batch finishes — from `/desktop-mode/v1/comments/bulk` and from the app's `moderate` action alike, since both run `openstation_comments_window_moderate()`. `$action` is one of `approve|unapprove|spam|unspam|trash|untrash`. `$processed` is the list of ids successfully acted on; `$skipped` is the list that failed a per-target cap or soft error.
-
-### `openstation_comments_ai_is_enabled` — Experimental *(filter)*
-
-```php
-apply_filters( 'openstation_comments_ai_is_enabled', bool $enabled ): bool
-```
-
-Whether AI moderation for new comments is enabled. Site-wide, not per-user — hooks here override the `desktop_mode_comments_ai_moderation` site option, which is useful for gating by environment (staging vs. production) or by feature flag.
-
-### `openstation_comments_ai_toggled` — Experimental *(action)*
-
-```php
-do_action( 'openstation_comments_ai_toggled', bool $enabled );
-```
-
-Fires after the Comments AI moderation toggle is changed via `POST /desktop-mode/v1/comments/ai-settings`. `$enabled` is the new state.
 
 ---
 

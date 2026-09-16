@@ -20,7 +20,7 @@ Each takes a boolean `value`:
 
 `set_window_links_enabled`, `set_window_link_raise_on_focus`, `set_window_link_highlight`, `set_show_desktop_on_wallpaper_click`, `set_show_post_status_ribbons`, `set_developer_mode_enabled`, `set_folders_sharing_enabled`, `set_station_home_enabled`, `set_native_posts_enabled`, `set_native_pages_enabled`, `set_native_users_enabled`, `set_native_plugins_enabled`, `set_native_comments_enabled`, `set_confirm_close_all_windows`, `set_library_hd_only`.
 
-`set_ai_assistant` and `set_comments_ai` take boolean `enabled`; they are availability/capability-gated. The six `set_extended_*` actions also take boolean `enabled`; see [Features](features.md) for every name and scope.
+`set_ai_assistant` takes boolean `enabled`; it is availability/capability-gated. The six `set_extended_*` actions also take boolean `enabled`; see [Features](features.md) for every name and scope.
 
 ## Utilities
 

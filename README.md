@@ -61,7 +61,7 @@ Zero Core patches. Every feature is wired through public WordPress hooks.
   Wallpaper-layer shortcuts via `openstation_register_icon()` — targets a registered native window or an admin URL.
 
 - **AI Assistant + slash commands**
-  Cmd+K palette backed by an OpenAI agentic loop whose `search_posts` / `search_pages` / `search_comments` tools run WordPress's native keyword search. Admin-configured API key + model picker. The only automatic AI analysis is comment spam scoring (on comment save), which feeds the comments-window spam score; posts, pages, and terms are not analyzed. `wp.os.registerCommand()` adds slash commands with autocomplete (`suggest()`), confirm dialogs (`ctx.confirm()`), and full lifecycle hooks (`before-run` / `after-run` / `error`). Built-in `/open [window]` is extensible via `os.open-command.items`.
+  Cmd+K palette backed by an OpenAI agentic loop whose `search_posts` / `search_pages` / `search_comments` tools run WordPress's native keyword search. Admin-configured API key + model picker. No content is analyzed in the background: every AI call is one a user asked for. `wp.os.registerCommand()` adds slash commands with autocomplete (`suggest()`), confirm dialogs (`ctx.confirm()`), and full lifecycle hooks (`before-run` / `after-run` / `error`). Built-in `/open [window]` is extensible via `os.open-command.items`.
 
 - **Palette registry**
   Cmd+K cycles through all registered palettes (`wp.os.registerPalette()`) — the AI assistant is palette 0 by default; additional plugin overlays share the shortcut.

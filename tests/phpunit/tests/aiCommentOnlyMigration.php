@@ -22,6 +22,8 @@ class Tests_OpenStation_AiCommentOnlyMigration extends WP_UnitTestCase {
 	public function tear_down() {
 		wp_unschedule_hook( 'desktop_mode_ai_analyze_post' );
 		wp_unschedule_hook( 'desktop_mode_ai_analyze_term' );
+		wp_unschedule_hook( 'desktop_mode_ai_analyze_comment' );
+		delete_option( 'desktop_mode_comments_ai_moderation' );
 		parent::tear_down();
 	}
 
@@ -50,21 +52,43 @@ class Tests_OpenStation_AiCommentOnlyMigration extends WP_UnitTestCase {
 	}
 
 	/**
-	 * The comment analysis event is NOT touched — it is the surviving job.
+	 * Migration 2 stays scoped to post/term: the comment hook is
+	 * migration 8's to clear, and a migration that reached past its
+	 * own job list would be clearing events on someone else's behalf.
 	 *
 	 * @covers ::openstation_migrate_unschedule_post_term_ai
 	 */
-	public function test_migration_leaves_comment_job_alone() {
+	public function test_migration_two_leaves_the_comment_job_alone() {
 		wp_schedule_single_event( time() + 100, 'desktop_mode_ai_analyze_comment', array( 5, 1 ) );
 
 		openstation_migrate_unschedule_post_term_ai();
 
 		$this->assertNotFalse(
 			wp_next_scheduled( 'desktop_mode_ai_analyze_comment', array( 5, 1 ) ),
-			'Comment analysis (the surviving job) must not be unscheduled.'
+			'Migration 2 must not unschedule the comment job.'
 		);
+	}
 
-		wp_unschedule_hook( 'desktop_mode_ai_analyze_comment' );
+	/**
+	 * Migration 8 retires comment scoring: a site upgrading with the
+	 * toggle on and a job still queued keeps neither.
+	 *
+	 * @covers ::openstation_migrate_remove_comments_ai
+	 */
+	public function test_migration_eight_clears_the_comment_job_and_option() {
+		update_option( 'desktop_mode_comments_ai_moderation', true, false );
+		wp_schedule_single_event( time() + 100, 'desktop_mode_ai_analyze_comment', array( 5, 1 ) );
+
+		openstation_migrate_remove_comments_ai();
+
+		$this->assertFalse(
+			wp_next_scheduled( 'desktop_mode_ai_analyze_comment', array( 5, 1 ) ),
+			'The comment analysis event should be unscheduled.'
+		);
+		$this->assertFalse(
+			get_option( 'desktop_mode_comments_ai_moderation', false ),
+			'The retired toggle should leave no option row behind.'
+		);
 	}
 
 	/**

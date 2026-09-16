@@ -8,8 +8,9 @@
  *   - Meta read/write helpers so the job callback never touches meta keys
  *     directly; the key name lives in one place.
  *
- * Comment analysis is the only auto-analysis the copilot performs (it feeds
- * the comments-window spam score). Posts, pages, and terms are not analyzed.
+ * Nothing is analyzed automatically. Comment analysis runs on demand only,
+ * through the `desktop-mode/analyze-comment` ability; posts, pages and terms
+ * are not analyzed at all.
  *
  * Meta key: `_desktop_mode_ai_analysis` (prefixed underscore → hidden from
  * the Custom Fields UI by default).

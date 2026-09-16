@@ -45,8 +45,6 @@ export interface AppData {
 	canManageDesktopThemes: boolean;
 	/** Null for a non-admin: the section is never painted for them. */
 	extendedOptions: ExtendedOptions | null;
-	/** Null when the Comments AI feature is not loaded. */
-	commentsAi: { enabled: boolean; providerConfigured: boolean } | null;
 	/** Null when the AI Copilot is not loaded. */
 	aiAssistant: AiAssistantConfig | null;
 }
@@ -100,7 +98,6 @@ export interface UiState {
 		resetting: boolean;
 		extendedSaving: boolean;
 		extendedError: string;
-		commentsAiSaving: boolean;
 	};
 	components: {
 		entries: ComponentEntry[] | null;
@@ -141,7 +138,6 @@ export const freshUi = (): UiState => ( {
 		resetting: false,
 		extendedSaving: false,
 		extendedError: '',
-		commentsAiSaving: false,
 	},
 	components: { entries: null, activeTag: '', query: '', paintedTag: '' },
 	about: null,

@@ -77,7 +77,7 @@ The optional AI Assistant sends data to the **AI provider you configure in WordP
 When the AI Assistant is enabled and a user invokes it (via Cmd+K or the slash-command palette):
 
 * **What is sent:** the user's prompt, the conversation history for the active session, and tool-call metadata. The plugin's built-in tools (`search_posts`, `search_pages`, `search_comments`) run WordPress's native keyword search and may include excerpts of the matching posts/pages/comments in tool results, which are then sent back to the provider as part of the agentic loop.
-* **When it is sent:** on user-initiated AI requests, and (if an administrator enables "Score new comments with AI") on comment-save hooks for spam analysis. Posts, pages, and taxonomy terms are not sent automatically.
+* **When it is sent:** on user-initiated AI requests only. Nothing is sent automatically — posts, pages, comments and taxonomy terms are never analyzed in the background.
 * **Why it is sent:** to obtain model completions and tool-call decisions that drive the AI Assistant.
 * **Who provides the service:** whichever provider you configured in Settings → Connectors. Which provider (and endpoint) receives the data depends entirely on that configuration. Review the chosen provider's own terms and privacy policy (e.g. OpenAI, Anthropic, or Google).
 

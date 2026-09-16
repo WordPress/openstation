@@ -38,7 +38,6 @@ All in-tree routes register under `desktop-mode/v1`. Extensions are expected to 
 | `/comments/reply` | POST | `apps/comments/parts/rest.php` | `edit_posts` |
 | `/comments/insights/{email}` | GET | `apps/comments/parts/rest.php` | `moderate_comments` |
 | `/comments/counts` | GET | `apps/comments/parts/rest.php` | `edit_posts` |
-| `/comments/ai-settings` | GET / POST | `apps/comments/parts/ai-moderation.php` | `manage_options` |
 | `/content-graph/post-types` | GET | `includes/content-graph/rest.php` | `edit_posts` (filterable via `openstation_content_graph_user_can_use`) |
 | `/content-graph/nodes` | GET | `includes/content-graph/rest.php` | `edit_posts` (filterable via `openstation_content_graph_user_can_use`) |
 | `/content-graph/post/{id}` | GET | `includes/content-graph/rest.php` | `edit_posts` (filterable via `openstation_content_graph_user_can_use`) |

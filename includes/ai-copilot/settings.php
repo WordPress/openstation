@@ -57,8 +57,8 @@ function openstation_ai_is_available() {
  * The baseline capability gate: a no-network, deterministic
  * `is_supported_for_text_generation()` probe against the AI Client registry
  * (which Core populates from the configured Connectors). This is what plain
- * text-generation features — e.g. comment scoring, which only needs structured
- * text output — gate on. The agentic assistant needs more; see
+ * text-generation features — the on-demand comment analysis ability, which
+ * only needs structured text output — gate on. The agentic assistant needs more; see
  * {@see openstation_ai_assistant_provider_configured()}.
  *
  * Credentials are supplied by Core from the configured Connector; no API request
@@ -156,9 +156,9 @@ function openstation_ai_is_enabled( $user_id ) {
  * - `assistantProviderConfigured` — a provider that supports text generation
  *   *and* function calling (what the agentic assistant needs). Gates the Cmd+K
  *   assistant, its admin-bar icon, and the "AI assistant" toggle in Features.
- * - `providerConfigured` — the baseline text-generation gate. Comment scoring
- *   (which only needs text output) gates on this; the client uses it for the
- *   "Score new comments with AI" mirror.
+ * - `providerConfigured` — the baseline text-generation gate, for the calls
+ *   that need text output but not function calling (the Drafts writing
+ *   assistant, the on-demand comment analysis ability).
  *
  * Provider + model selection is delegated to the Core AI Client, so there is no
  * per-user preference to carry here.

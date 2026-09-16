@@ -72,7 +72,7 @@ export interface AiAssistantConfig {
 	available: boolean;
 	/**
 	 * Baseline: a text-generation provider is configured in Settings →
-	 * Connectors. Comment scoring (text output only) gates on this.
+	 * Connectors. Features that need text output only gate on this.
 	 */
 	providerConfigured: boolean;
 	/**

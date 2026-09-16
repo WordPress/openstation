@@ -80,9 +80,9 @@ class Tests_OpenStation_OsSettingsApp extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'currentColor', (string) $manifest['icon_svg'] );
 		// The page is the whole state.
 		$this->assertSame( array( 'tab' => 'appearance' ), $manifest['state'] );
-		// The server surface: the four site-truth writes, plus focus.
+		// The server surface: the three site-truth writes, plus focus.
 		$this->assertSame(
-			array( 'extended', 'comments-ai', 'reset-intros', 'purge-shares', 'focus' ),
+			array( 'extended', 'reset-intros', 'purge-shares', 'focus' ),
 			$manifest['actions']
 		);
 		$this->assertSame( array( 'focus' ), $manifest['lifecycle'] );
@@ -163,7 +163,6 @@ class Tests_OpenStation_OsSettingsApp extends WP_UnitTestCase {
 		// The admin-only sections are never painted for an editor —
 		// their facts do not even travel.
 		$this->assertNull( $data['extendedOptions'] );
-		$this->assertNull( $data['commentsAi'] );
 	}
 
 	/**
@@ -188,7 +187,7 @@ class Tests_OpenStation_OsSettingsApp extends WP_UnitTestCase {
 	 */
 	public function test_site_truth_actions_refuse_a_non_admin() {
 		wp_set_current_user( self::$editor_id );
-		foreach ( array( 'extended', 'comments-ai', 'purge-shares' ) as $action ) {
+		foreach ( array( 'extended', 'purge-shares' ) as $action ) {
 			$response = $this->dispatch( $action, array(), array( 'enabled' => true, 'options' => array( 'games' => true ) ) );
 			$this->assertFalse( $response['ok'], "$action must refuse an editor" );
 			$this->assertSame( 500, $response['status'] );

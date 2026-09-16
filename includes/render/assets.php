@@ -722,32 +722,6 @@ function openstation_enqueue_assets() {
 			// every user — the shell skips the challenges Heartbeat
 			// channel when the framework is off.
 			'gamesEnabled'                  => openstation_games_enabled(),
-			// Comments-window AI moderation toggle — surfaced at the
-			// shell level so the OS Settings → Features tab can render
-			// the toggle without depending on the Comments window
-			// being registered for this user. URL is the same
-			// endpoint the comments-window config exposes; state is
-			// `null` for non-admins (the UI hides the row entirely).
-			'commentsAiUrl'                 => esc_url_raw( rest_url( 'desktop-mode/v1/comments/ai-settings' ) ),
-			// Non-null only for admins on a site where the Core AI stack is
-			// present. Comment scoring routes through the AI Client (WP 7.0+),
-			// so on older WordPress the whole row is hidden — same as the
-			// assistant toggle — rather than shown disabled pointing at a
-			// Settings → Connectors screen that doesn't exist there.
-			'commentsAi'                    => (
-				current_user_can( 'manage_options' )
-				&& function_exists( 'openstation_ai_is_available' )
-				&& openstation_ai_is_available()
-			)
-				? array(
-					'enabled'            => function_exists( 'openstation_comments_ai_is_enabled' )
-						? openstation_comments_ai_is_enabled()
-						: false,
-					'providerConfigured' => function_exists( 'openstation_comments_ai_provider_configured' )
-						? openstation_comments_ai_provider_configured()
-						: false,
-				)
-				: null,
 			'currentUserIsAdmin'            => current_user_can( 'manage_options' ),
 			// Null on single-site installs; its `networkAdmin` null
 			// without `manage_network`, which is what keeps the dock

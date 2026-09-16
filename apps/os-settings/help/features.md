@@ -50,10 +50,6 @@ These switches affect the whole site and all users. MIO offers them only when Pr
 
 Changes merge over existing options and use the app's `extended` action. A separate menu refresh reflects newly enabled registrations. Asset-cache and window-prewarm mirrors apply on shell reload. MIO must not silently reload a page that might hold unsaved work.
 
-## AI comment scoring
-
-`set_comments_ai` controls site-wide AI comment scoring. It is administrator-only and requires the comments AI provider to be configured. It uses the existing `comments-ai` app action and refreshes the shell's availability mirror. It is separate from your personal AI assistant toggle.
-
 ## Welcome introductions
 
 `show_introductions_again` makes welcome introductions eligible to display on their next open. It clears only the seen-introduction markers. It does not reset preferences or delete content.

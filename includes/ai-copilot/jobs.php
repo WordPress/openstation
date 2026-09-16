@@ -3,10 +3,13 @@
  * OpenStation — AI Copilot WP-Cron jobs.
  *
  * Registers the async comment-analysis hook that scores a comment for
- * spam/harmful content and stores the verdict in comment meta. The job is
- * scheduled by the Comments-window moderation feature (which is opt-in and
- * off by default) with a short delay so it runs outside the HTTP request that
- * triggered the comment.
+ * spam/harmful content and stores the verdict in comment meta.
+ *
+ * Nothing in the plugin schedules this hook: automatic comment scoring was
+ * removed (`docs/migration-comments-ai-scoring.md`). The callback is kept
+ * because the hook name is a frozen identifier that a site may still have
+ * queued events for, and because an external plugin re-implementing the
+ * feature can schedule it rather than re-deriving the prompt and schema.
  *
  * Generation routes through the WordPress AI Client (`wp_ai_client_prompt()`),
  * which sources credentials from Settings → Connectors — the copilot never
@@ -35,8 +38,8 @@ function openstation_ai_job_analyze_comment( $comment_id, $user_id ) {
 	$user_id    = (int) $user_id;
 
 	// No usable text-generation provider is configured in Connectors — nothing
-	// to do. The scheduler already checks this, but the job runs async so we
-	// re-check to avoid emitting failed requests if the provider was removed.
+	// to do. Whoever queued the event may have checked already, but the job runs
+	// async, so re-check to avoid failed requests if the provider was removed.
 	if ( ! openstation_ai_provider_configured() ) {
 		return;
 	}

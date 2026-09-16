@@ -29,7 +29,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 require_once __DIR__ . '/parts/permissions.php';
 require_once __DIR__ . '/parts/spam-score.php';
-require_once __DIR__ . '/parts/ai-moderation.php';
 require_once __DIR__ . '/parts/fields.php';
 require_once __DIR__ . '/parts/rest.php';
 require_once __DIR__ . '/parts/app.php';

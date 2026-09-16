@@ -16,8 +16,8 @@
  *          previously-approved comment.
  *
  * The score caps at 100 and floors at 0. Sites can shape this score
- * via the `openstation_comments_window_spam_score` filter — that's
- * where the AI fallback hooks (`ai-moderation.php`).
+ * via the `openstation_comments_window_spam_score` filter — that is
+ * the seam an external moderation plugin folds its own verdict into.
  *
  * @package OpenStation
  */

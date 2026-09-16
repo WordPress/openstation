@@ -3,12 +3,11 @@
  * site-wide Extended Options.
  *
  * Per-user switches write the store. The three surfaces that are
- * SERVER truth rather than a preference — Extended Options, the
- * comments-AI toggle, the intro reset, the folder-sharing purge — are
- * app actions: PHP does the write, `data()` comes back with the new
- * facts, and the ones that gated a server-side registration spend the
- * `refresh_menu` effect so the shell learns what the server would now
- * register without an F5.
+ * SERVER truth rather than a preference — Extended Options, the intro
+ * reset, the folder-sharing purge — are app actions: PHP does the
+ * write, `data()` comes back with the new facts, and the ones that
+ * gated a server-side registration spend the `refresh_menu` effect so
+ * the shell learns what the server would now register without an F5.
  */
 
 import { __, html, sprintf } from '@openstation/app';
@@ -82,25 +81,6 @@ const providerNotice = ( connectorsUrl: string ) => html`
 	</os-notice>
 `;
 
-/**
- * The comments-AI toggle is a SITE option, persisted by the
- * `comments-ai` action. The shell's page config keeps a mirror other
- * bundles read at load; it is updated from the fresh data so a window
- * already open obeys the new value.
- */
-async function toggleCommentsAi( ctx: Ctx, enabled: boolean ): Promise< void > {
-	const ui = uiOf( ctx ).features;
-	if ( ui.commentsAiSaving ) {
-		return;
-	}
-	ui.commentsAiSaving = true;
-	ctx.repaint();
-	await ctx.dispatch( 'comments-ai', { enabled } );
-	ui.commentsAiSaving = false;
-	syncShellMirrors( ctx );
-	ctx.repaint();
-}
-
 async function resetIntros( ctx: Ctx ): Promise< void > {
 	const ui = uiOf( ctx ).features;
 	if ( ui.resetting ) {
@@ -137,15 +117,12 @@ export function syncShellMirrors( ctx: Ctx ): void {
 			document.dispatchEvent( new CustomEvent( 'os-ai-status-changed' ) );
 		}
 	}
-	if ( ctx.data.commentsAi && cfg.commentsAi ) {
-		Object.assign( cfg.commentsAi, ctx.data.commentsAi );
-	}
 }
 
 // ---------------------------------------------------------- sections
 
 const featuresSection: Section = ( s, ctx ) => {
-	const { aiAssistant, commentsAi, isAdmin } = ctx.data;
+	const { aiAssistant, isAdmin } = ctx.data;
 	const ui = uiOf( ctx ).features;
 	const onHeartbeatRate = ( e: Event ): void => {
 		const next = Number( pickedValue( e ) );
@@ -200,16 +177,6 @@ const featuresSection: Section = ( s, ctx ) => {
 				( e ) => update( { mioShowOnWallpaper: pickedChecked( e ) } ),
 				__( 'Let MIO roam the desktop. Turn this off to keep it hidden until a window opens chat or invites it to show a tip.' ),
 			) }
-			${ commentsAi
-				? item(
-					__( 'Score new comments with AI' ),
-					commentsAi.enabled,
-					( e ) => void toggleCommentsAi( ctx, pickedChecked( e ) ),
-					__( 'Rates incoming comments so you can triage the queue faster.' ),
-					ui.commentsAiSaving || ! commentsAi.providerConfigured,
-					commentsAi.providerConfigured ? '' : providerNotice( aiAssistant?.connectorsUrl ?? '' ),
-				)
-				: '' }
 			<div class="os-features__item">
 				<os-checkbox-label
 					label=${ __( 'Window links' ) }

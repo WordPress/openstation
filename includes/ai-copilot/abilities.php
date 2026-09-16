@@ -400,9 +400,12 @@ add_action( 'wp_abilities_api_init', 'openstation_ai_register_abilities' );
  * Registers the comment-spam analysis ability.
  *
  * Not offered to the model during a search turn (see
- * {@see openstation_ai_search_ability_names()}); the moderation pipeline
- * resolves and executes it directly ({@see openstation_ai_analyze_comment_now()}
- * runs through it). Exposed in the abilities catalog for observability + reuse.
+ * {@see openstation_ai_search_ability_names()}) — a search turn can be driven
+ * by attacker-controlled comment text, and this one spends provider tokens.
+ * It is an on-demand ability: a caller with `moderate_comments` runs it for one
+ * comment and gets the verdict back. Automatic scoring on comment save was
+ * removed (`docs/migration-comments-ai-scoring.md`), so nothing in the plugin
+ * invokes it on its own.
  *
  * @return void
  */
@@ -411,7 +414,7 @@ function openstation_ai_register_comment_analysis_ability() {
 		'desktop-mode/analyze-comment',
 		array(
 			'label'               => __( 'Analyze comment for spam', 'desktop-mode' ),
-			'description'         => 'Runs the AI spam/harm analysis for a single comment and returns its structured verdict ({ topic, ai_summary, harmful, spam }). Used by comment moderation to score incoming comments.',
+			'description'         => 'Runs the AI spam/harm analysis for a single comment and returns its structured verdict ({ topic, ai_summary, harmful, spam }). On-demand only: nothing in the plugin runs it automatically.',
 			'category'            => OPENSTATION_AI_ABILITY_CATEGORY,
 			'input_schema'        => array(
 				'type'                 => 'object',

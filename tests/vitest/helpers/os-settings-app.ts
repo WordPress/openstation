@@ -10,7 +10,6 @@ export function appData( overrides: Partial< AppData > = {} ): AppData {
 		canUpload: true,
 		canManageDesktopThemes: true,
 		extendedOptions: { window_prewarm: true, admin_asset_cache: true, media_library_enhanced: true, games: false, agents: false, network: false },
-		commentsAi: null,
 		aiAssistant: null,
 		...overrides,
 	};

@@ -95,36 +95,10 @@ function data( State $state, Os $os ) {
 		'extendedOptions'        => $admin && function_exists( 'openstation_get_extended_options' )
 			? openstation_get_extended_options()
 			: null,
-		'commentsAi'             => $admin && function_exists( 'openstation_comments_ai_is_enabled' )
-			? array(
-				'enabled'            => openstation_comments_ai_is_enabled(),
-				'providerConfigured' => openstation_comments_ai_provider_configured(),
-			)
-			: null,
 		'aiAssistant'            => function_exists( 'openstation_ai_assistant_config' )
 			? openstation_ai_assistant_config( $os->auth->user_id() )
 			: null,
 	);
-}
-
-/**
- * The comments-AI toggle: a site option, the same write the
- * `POST desktop-mode/v1/comments/ai-settings` route makes.
- *
- * @param State               $state Unused.
- * @param Os                  $os    Host handle.
- * @param array<string,mixed> $args  `enabled` (bool).
- * @return void
- */
-function comments_ai_action( State $state, Os $os, array $args ) {
-	require_admin( $os );
-	if ( ! defined( 'OPENSTATION_COMMENTS_AI_OPTION' ) ) {
-		return;
-	}
-	$enabled = ! empty( $args['enabled'] );
-	update_option( OPENSTATION_COMMENTS_AI_OPTION, $enabled, false );
-	/** This action is documented in apps/comments/parts/ai-moderation.php */
-	do_action( 'openstation_comments_ai_toggled', $enabled );
 }
 
 /**
@@ -203,7 +177,6 @@ return App::define( ID )
 		}
 	)
 	->action( 'extended', __NAMESPACE__ . '\extended_action' )
-	->action( 'comments-ai', __NAMESPACE__ . '\comments_ai_action' )
 	->action(
 		'reset-intros',
 		static function ( State $state, Os $os ) {

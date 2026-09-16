@@ -82,7 +82,6 @@ export function preferencesMioAbilities( ctx: Ctx ): MioAbility[] {
 				settings: settings(),
 				section: ctx.state.tab,
 				extendedOptions: ctx.data.extendedOptions,
-				commentsAi: ctx.data.commentsAi,
 			} ),
 		},
 		{

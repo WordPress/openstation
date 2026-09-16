@@ -57,7 +57,7 @@ defined( 'ABSPATH' ) || exit;
  *   placement the shell had auto-placed for it and closes the hole that
  *   leaves in the icon column.
  */
-const OPENSTATION_MIGRATION_VERSION = 7;
+const OPENSTATION_MIGRATION_VERSION = 8;
 
 /**
  * Option storing the highest migration version that has run. autoload=no.
@@ -160,6 +160,10 @@ function openstation_run_pending_migrations( $from ) {
 
 	if ( $from < 7 ) {
 		openstation_migrate_seed_agent_faces();
+	}
+
+	if ( $from < 8 ) {
+		openstation_migrate_remove_comments_ai();
 	}
 }
 
@@ -612,6 +616,31 @@ function openstation_migrate_os_settings_optin() {
 function openstation_migrate_unschedule_post_term_ai() {
 	wp_unschedule_hook( 'desktop_mode_ai_analyze_post' );
 	wp_unschedule_hook( 'desktop_mode_ai_analyze_term' );
+}
+
+/**
+ * Migration 8 — retire the "Score new comments with AI" feature.
+ *
+ * Automatic AI scoring of incoming comments was removed: nothing
+ * schedules `desktop_mode_ai_analyze_comment` any more, and the
+ * `desktop_mode_comments_ai_moderation` option no longer gates
+ * anything. Queued single-events would simply no-op, but we clear
+ * them so the cron array stays tidy and `wp cron event list` doesn't
+ * show an orphaned hook.
+ *
+ * The option row is dropped too — unlike a frozen identifier that
+ * still has a reader, this one has none left, so leaving it would
+ * only strand a value no code consults.
+ *
+ * Existing `_desktop_mode_ai_analysis` comment meta is left in place
+ * (hidden, harmless, and still what the on-demand
+ * `desktop-mode/analyze-comment` ability writes).
+ *
+ * @return void
+ */
+function openstation_migrate_remove_comments_ai() {
+	wp_unschedule_hook( 'desktop_mode_ai_analyze_comment' );
+	delete_option( 'desktop_mode_comments_ai_moderation' );
 }
 
 /**

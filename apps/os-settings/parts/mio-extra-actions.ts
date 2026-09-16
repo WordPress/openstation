@@ -38,7 +38,6 @@ export function extraMioActions(
 		return {
 			saved: true,
 			extendedOptions: ctx.data.extendedOptions,
-			commentsAi: ctx.data.commentsAi,
 		};
 	};
 	return [
@@ -58,15 +57,6 @@ export function extraMioActions(
 					} ),
 			} ),
 		),
-		{
-			name: 'set_comments_ai',
-			description:
-				'Enable or disable site-wide AI comment scoring. Requires a configured provider and administrator rights.',
-			parameters: bool,
-			validate: validBool,
-			allowed: () => ctx.data.isAdmin && !! ctx.data.commentsAi?.providerConfigured,
-			run: ( args ) => dispatch( 'comments-ai', { enabled: args.enabled } ),
-		},
 		{
 			name: 'set_ai_assistant',
 			description:
