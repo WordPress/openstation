@@ -1908,6 +1908,10 @@ export interface MultisiteConfig {
 		id: string;
 		name: string;
 		shellUrl: string;
+		/** The site's regular admin, where a site without OpenStation opens instead. */
+		adminUrl?: string;
+		/** False for a site of this network where OpenStation is not active, so it has no shell screen. */
+		active?: boolean;
 		kind?: 'local' | 'member';
 		/**
 		 * Another install than this shell's, whatever its origin: a

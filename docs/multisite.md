@@ -58,7 +58,11 @@ network picks its own set. An install that joined from elsewhere through
 an OpenStation network (`kind: 'member'` on its entry) is marked as
 **external**: a mark before its name, one line before the first of them,
 and a tooltip that says so, so the row reads as this network's own sites
-and then the ones that joined it. `switchToSite( multisite, value )` in
+and then the ones that joined it. A site of this network where OpenStation is not
+active (`active: false` on its entry) has no shell screen to switch to:
+it wears the same mark, and any click on it opens its regular `wp-admin`
+(`adminUrl`) in a browser tab, leaving the current segment selected;
+Tab steps over it. `switchToSite( multisite, value )` in
 the same module is the switch itself, the one a pick takes, and the shell
 also runs it for an app's `hop` effect (`$os->effects->add( 'hop',
 array( 'site' => $id ) )`, which is how the Network window's Open buttons

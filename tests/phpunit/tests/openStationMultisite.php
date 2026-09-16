@@ -268,6 +268,19 @@ class Tests_OpenStation_Multisite extends WP_UnitTestCase {
 		// A super admin can reach every site, member or not.
 		$this->assertContains( (string) $other, wp_list_pluck( $payload['sites'], 'id' ) );
 
+		// Without OpenStation on a site, the switcher opens its regular
+		// admin instead of a shell screen that is not there.
+		$plugin      = plugin_basename( OPENSTATION_FILE );
+		$active_here = get_option( 'active_plugins', array() );
+		update_option( 'active_plugins', array( $plugin ) );
+		$by_id = array_column( openstation_multisite_payload()['sites'], null, 'id' );
+		$this->assertTrue( $by_id[ (string) $blog_id ]['active'] );
+		$this->assertFalse( $by_id[ (string) $other ]['active'] );
+		$this->assertSame( get_admin_url( $other ), $by_id[ (string) $other ]['adminUrl'] );
+		update_blog_option( $other, 'active_plugins', array( $plugin ) );
+		$this->assertTrue( array_column( openstation_multisite_payload()['sites'], null, 'id' )[ (string) $other ]['active'] );
+		update_option( 'active_plugins', $active_here );
+
 		// The filter is where a large network trims the row.
 		add_filter( 'openstation_multisite_sites', '__return_empty_array' );
 		$this->assertSame( array(), openstation_multisite_payload()['sites'] );

@@ -152,6 +152,25 @@ function openstation_multisite_network_sites() {
 }
 
 /**
+ * Whether OpenStation runs on a site of this network.
+ *
+ * @param int $blog_id The site.
+ * @return bool
+ */
+function openstation_multisite_active_on( $blog_id ) {
+	$plugin = plugin_basename( OPENSTATION_FILE );
+	if ( isset( get_site_option( 'active_sitewide_plugins', array() )[ $plugin ] ) ) {
+		return true;
+	}
+	// Running here without being in this site's list means the plugin is
+	// loaded some other way (an mu-plugin loader), which reaches every site.
+	if ( ! in_array( $plugin, (array) get_option( 'active_plugins', array() ), true ) ) {
+		return true;
+	}
+	return in_array( $plugin, (array) get_blog_option( $blog_id, 'active_plugins', array() ), true );
+}
+
+/**
  * The sites the user may switch to, each with its own shell screen.
  *
  * The user's own sites first — `get_blogs_of_user()`, the list behind
@@ -182,6 +201,8 @@ function openstation_multisite_sites() {
 			'id'       => (string) $blog_id,
 			'name'     => $name,
 			'shellUrl' => esc_url_raw( get_admin_url( $blog_id, 'admin.php?page=' . OPENSTATION_SHELL_PAGE_SLUG ) ),
+			'adminUrl' => esc_url_raw( get_admin_url( $blog_id ) ),
+			'active'   => openstation_multisite_active_on( $blog_id ),
 			'kind'     => 'local',
 			'foreign'  => false,
 		);
@@ -204,7 +225,9 @@ function openstation_multisite_sites() {
 	 * admin bar still reaches it.
 	 *
 	 * @param array[] $sites Each `id` (blog id as a string, or `member:<id>`), `name`, `shellUrl`,
-	 *                       `kind` (`local` for a site of this network, `member` for an install
+	 *                       `adminUrl` and `active` (whether OpenStation runs there; the switcher
+	 *                       opens a site without it at `adminUrl` in a browser tab) on a site of
+	 *                       this network, `kind` (`local` for a site of this network, `member` for an install
 	 *                       that joined from elsewhere, which the switcher marks as external),
 	 *                       `foreign` (whether the entry is another install, which a switch to
 	 *                       it needs a login token for).
