@@ -814,7 +814,21 @@ document.dispatchEvent( new CustomEvent( 'os-open-ai' ) );
 
 ### `os-intros-reset` — Experimental
 
-Fires after the user resets the one-time announcement flags in **OpenStation Preferences → Features** and the REST delete succeeds. The shell itself does nothing in response — it is dispatched purely so bundles that cache their own dismissed-dialog state can invalidate it and let the dialog appear again without an F5. No detail payload.
+Fires after the user resets the one-time announcement flags in **OpenStation Preferences → Features** and the REST delete succeeds. It is dispatched so bundles that cache their own dismissed-dialog state can invalidate it and let the dialog appear again without an F5; the shell's one built-in listener is the shell tour, which restarts immediately (see `os-shell-tour-start`). No detail payload.
+
+---
+
+### `os-shell-tour-start` — Experimental
+
+Dispatch on `document` to start (or restart) the first-boot shell tour on demand: three `<os-coachmark>` cards — open a window, snap it, press ⌘K — each of which completes when the user actually does the thing (`os.window.opened`, `os.snap.zone-committed`, `os-palette-opened`) and each of which carries a **Do it for me**. **Take the tour** in OpenStation Preferences → Features dispatches exactly this; `os-intros-reset` starts the tour too. No detail payload.
+
+```javascript
+document.dispatchEvent( new CustomEvent( 'os-shell-tour-start' ) );
+```
+
+The tour lives in its own lazy bundle (`config.shellTourBundleUrl`), injected on first use. On boot it starts by itself, 1.2 s after the desk settles, unless `config.shellTour` is `false` (the `openstation_show_shell_tour` filter said no), `config.seenIntros` already contains `shell-tour`, the shell is painting a solo window, the phone layer is active, or another announcement owns this boot (the rebrand notice or a pending core-update card). Skip, Escape or Done records `shell-tour` in the seen-intros registry once, so the tour never returns on its own; the explicit event and the reset ignore the boot gate.
+
+`config.firstRun` carries the first-run stamps read-only — `{ installedAt, firstEnabledAt, enabledAt }`, epoch seconds, `0` when unknown: when the plugin was installed, when anyone on the site first enabled it, and when this user did. See `includes/first-run/stamps.php`.
 
 ---
 

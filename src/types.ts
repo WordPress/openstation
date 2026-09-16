@@ -2545,6 +2545,26 @@ export interface DesktopConfig {
 	/** REST base for the seen-intros surface (`…/v1/intros`). */
 	seenIntrosUrl?: string;
 	/**
+	 * Whether this site offers the first-boot shell tour (the
+	 * `openstation_show_shell_tour` filter). Whether THIS user already
+	 * had it is `seenIntros` containing `shell-tour`. See
+	 * `src/shell-tour/`.
+	 */
+	shellTour?: boolean;
+	/** Fully-qualified URL of the lazy shell-tour bundle. */
+	shellTourBundleUrl?: string;
+	/**
+	 * The first-run stamps, epoch seconds, `0` when unknown: when the
+	 * plugin was installed, when anyone on the site first enabled it,
+	 * and when this user did. Read-only; see
+	 * `includes/first-run/stamps.php`.
+	 */
+	firstRun?: {
+		installedAt?: number;
+		firstEnabledAt?: number;
+		enabledAt?: number;
+	};
+	/**
 	 * Wallpaper slug applied on first boot for a new user. Filterable
 	 * server-side via `openstation_default_wallpaper`. Optional — an
 	 * empty string falls back to the TS default.

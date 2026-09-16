@@ -98,6 +98,15 @@ async function resetIntros( ctx: Ctx ): Promise< void > {
 }
 
 /**
+ * "Take the tour": the shell's tour loader listens for this event and
+ * starts (or restarts) the first-boot coachmarks. No state here — the
+ * tour is not the Preferences window's to run, only to ask for.
+ */
+function startShellTour(): void {
+	document.dispatchEvent( new CustomEvent( 'os-shell-tour-start' ) );
+}
+
+/**
  * Keep the page config's AI mirrors in step with the server facts
  * `data()` carries — after every paint, because the `focus` lifecycle
  * action re-probes them whenever the window regains focus, which is
@@ -264,6 +273,14 @@ const featuresSection: Section = ( s, ctx ) => {
 				</p>
 				<os-button variant="secondary" ?disabled=${ ui.resetting } @click=${ () => void resetIntros( ctx ) }>
 					${ ui.resetting ? __( 'Resetting…' ) : __( 'Reset what’s-new dialogs' ) }
+				</os-button>
+			</div>
+			<div class="os-features__row">
+				<p class="os-features__hint">
+					${ __( 'Replays the 20-second first-boot tour: open a window, snap it, find anything.' ) }
+				</p>
+				<os-button variant="secondary" @click=${ startShellTour }>
+					${ __( 'Take the tour' ) }
 				</os-button>
 			</div>
 		</os-section>

@@ -192,6 +192,7 @@ you relabel the host, e.g. Maximize ⇄ Restore.
 | `<os-action-menu>` | `OsActionMenu` | `os-action-menu/os-action-menu.ts` | Button-anchored dropdown with top-layer placement, arrow/Home/End navigation, Escape/outside dismissal and focus restoration. Accepts translated `text` and accessible `label`; wraps context-menu options and their `os-context-menu-pick` event. |
 | `<os-context-menu>` / `<os-context-menu-option>` | `OsContextMenu`, `OsContextMenuOption` | `os-context-menu/os-context-menu.ts` | Right-click / long-press menu. |
 | `<os-flyout>` | `OsFlyout` | `os-flyout/os-flyout.ts` | Anchored popover. Supports placement strategies. |
+| `<os-coachmark>` | `OsCoachmark` | `os-coachmark/os-coachmark.ts` | Anchored callout with a step counter ("1 of 3"). Outlines the `anchor` element and floats a card beside it in the top layer, no scrim; `os-coachmark-primary` / `-secondary` / `-dismiss`. The shell tour is built from it. |
 | `<os-modal>` | `OsModal` | `os-modal/os-modal.ts` | Full-overlay modal with focus trap. |
 | `<os-confirm-dialog>` | `OsConfirmDialog`, `osConfirm` | `os-confirm-dialog/os-confirm-dialog.ts` | Confirm prompt — use `await osConfirm({...})` (never `window.confirm`). |
 | `<os-toast>` / `<os-toast-container>` | `OsToast`, `OsToastContainer` | `os-toast/os-toast.ts` | Top-right (top inline-end) toast notifications. |

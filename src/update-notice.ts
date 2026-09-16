@@ -87,6 +87,22 @@ export interface UpdateNoticeDeps {
 }
 
 /**
+ * The dismissal key for a pending core update.
+ *
+ * Keyed on the exact available version, so dismissing 7.0.1 doesn't
+ * also hide a later 7.0.2 (a newer release is a new notice). Exported
+ * so the shell tour can ask "will the release card show this boot?"
+ * with the same answer this module gives.
+ */
+export function coreUpdateDismissKey( update: CoreUpdateInfo ): string {
+	const exact =
+		typeof update.available === 'string' && update.available
+			? update.available
+			: update.version;
+	return `desktop-mode/core-update:${ exact }`;
+}
+
+/**
  * "WordPress X is available." — with the codename when one is present
  * ("WordPress 7.0 "Armstrong" is available.").
  */
@@ -125,13 +141,7 @@ export async function maybeShowUpdate( deps: UpdateNoticeDeps ): Promise< void >
 			? update.branch
 			: version;
 	const crossing = update.crossing === true;
-	// Key dismissal on the exact available version, so dismissing 7.0.1
-	// doesn't also hide a later 7.0.2 (a newer release is a new notice).
-	const exact =
-		typeof update.available === 'string' && update.available
-			? update.available
-			: version;
-	const dismissKey = `desktop-mode/core-update:${ exact }`;
+	const dismissKey = coreUpdateDismissKey( update );
 	if ( isNoticeDismissed( dismissKey ) ) {
 		return;
 	}

@@ -209,4 +209,43 @@ class Tests_OpenStation_AjaxSave extends WP_Ajax_UnitTestCase {
 
 		$this->assertSame( $expected_id, $received_id );
 	}
+
+	/**
+	 * The toggle is one of the two writers of the first-run stamps
+	 * (the portal is the other). Enabling stamps the user and the site
+	 * once and fires `openstation_user_enabled`; disabling fires
+	 * `openstation_user_disabled` and leaves the stamps alone.
+	 */
+	public function test_toggle_records_the_first_run_stamps_and_fires_the_actions() {
+		$this->_setRole( 'administrator' );
+		delete_option( OPENSTATION_FIRST_ENABLED_AT_OPTION );
+		$enabled  = 0;
+		$disabled = 0;
+		add_action(
+			'openstation_user_enabled',
+			static function () use ( &$enabled ) {
+				++$enabled;
+			}
+		);
+		add_action(
+			'openstation_user_disabled',
+			static function () use ( &$disabled ) {
+				++$disabled;
+			}
+		);
+
+		$this->dispatch( '1' );
+		$user_at = openstation_get_user_enabled_at( get_current_user_id() );
+		$this->assertGreaterThan( 0, $user_at );
+		$this->assertNotNull( openstation_get_first_enabled_stamp() );
+		$this->assertSame( 1, $enabled );
+
+		$this->dispatch( '' );
+		$this->assertSame( 1, $disabled );
+		$this->assertSame( $user_at, openstation_get_user_enabled_at( get_current_user_id() ) );
+
+		remove_all_actions( 'openstation_user_enabled' );
+		remove_all_actions( 'openstation_user_disabled' );
+		delete_option( OPENSTATION_FIRST_ENABLED_AT_OPTION );
+	}
 }

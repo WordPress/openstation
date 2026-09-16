@@ -150,6 +150,9 @@ function openstation_handle_portal_request( $wp ) {
 	// links keep working; they just don't silently mutate user-meta.
 	if ( $auto_enable && openstation_portal_is_same_origin_navigation() && '1' !== get_user_meta( $user_id, 'desktop_mode_mode', true ) ) {
 		update_user_meta( $user_id, 'desktop_mode_mode', '1' );
+		// Same stamps + action as the AJAX toggle; the portal is the
+		// second of the two paths that turn a user on.
+		openstation_record_user_enabled( $user_id );
 	}
 
 	// Pick the page the shell opens first. An explicit `target` query

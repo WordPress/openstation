@@ -186,6 +186,29 @@ function openstation_register_seen_intros_routes() {
 add_action( 'rest_api_init', 'openstation_register_seen_intros_routes' );
 
 /**
+ * The intro slugs whose dismissal is accepted from an account that has
+ * NOT enabled OpenStation.
+ *
+ * Exactly the intros that render in the classic admin while the shell
+ * is off: the welcome dialog and the activation nudge. Everything else
+ * is shown inside the shell and keeps the strict gate. Adding a slug
+ * here is adding a classic-admin surface; the allowlist is the review
+ * point, so keep it a literal list.
+ *
+ * @return string[]
+ */
+function openstation_seen_intros_classic_admin_slugs() {
+	$slugs = array();
+	if ( defined( 'OPENSTATION_WELCOME_INTRO_SLUG' ) ) {
+		$slugs[] = OPENSTATION_WELCOME_INTRO_SLUG;
+	}
+	if ( defined( 'OPENSTATION_ACTIVATION_NUDGE_INTRO_SLUG' ) ) {
+		$slugs[] = OPENSTATION_ACTIVATION_NUDGE_INTRO_SLUG;
+	}
+	return $slugs;
+}
+
+/**
  * Permission gate for the seen-intros routes.
  *
  * In-shell announcements (the rebrand notice, and anything a plugin
@@ -194,15 +217,16 @@ add_action( 'rest_api_init', 'openstation_register_seen_intros_routes' );
  * {@see openstation_rest_require_enabled()} gate — `read` alone is
  * insufficient (every role, Subscriber included, carries `read`).
  *
- * The one exception is the first-run welcome dialog
- * ({@see OPENSTATION_WELCOME_INTRO_SLUG}): it renders in the *classic*
+ * The exceptions are the classic-admin intros
+ * ({@see openstation_seen_intros_classic_admin_slugs()}): the first-run
+ * welcome dialog and the activation nudge both render in the *classic*
  * admin precisely when OpenStation is NOT enabled, which is the only
- * state it ever appears in. Gating its dismissal behind
+ * state they ever appear in. Gating their dismissal behind
  * `openstation_rest_require_enabled()` would make the dismissal POST
  * return 403 every time, so the slug could never be recorded as seen and
- * the dialog re-rendered on every classic-admin page load. We therefore
- * let that single slug through for any logged-in `read`-capable account
- * (the exact audience the dialog is shown to); writing one's own
+ * the dialog / notice re-rendered on every classic-admin page load. We
+ * therefore let those slugs through for any logged-in `read`-capable
+ * account (the exact audience they are shown to); writing one's own
  * dismissal flag carries no privileged surface. The DELETE /intros route
  * ("Reset what's-new dialogs") carries no slug and keeps the strict gate.
  *
@@ -211,7 +235,7 @@ add_action( 'rest_api_init', 'openstation_register_seen_intros_routes' );
  */
 function openstation_rest_seen_intros_permission( WP_REST_Request $request ) {
 	$slug = sanitize_key( (string) $request->get_param( 'slug' ) );
-	if ( defined( 'OPENSTATION_WELCOME_INTRO_SLUG' ) && OPENSTATION_WELCOME_INTRO_SLUG === $slug ) {
+	if ( '' !== $slug && in_array( $slug, openstation_seen_intros_classic_admin_slugs(), true ) ) {
 		if ( ! is_user_logged_in() ) {
 			return new WP_Error(
 				'rest_forbidden',

@@ -479,6 +479,15 @@ const TARGETS = {
 		fileBase: 'release-card',
 		iifeName: 'openStationReleaseCardBundle',
 	},
+	// Shell tour — the three first-boot coachmarks (`<os-coachmark>` +
+	// the step driver). Only a user's first boot, a reset or "Take the
+	// tour" needs it; injected by `src/shell-tour/loader.ts` from the
+	// main bundle. Publishes `window.openStationShellTour`.
+	'shell-tour': {
+		entry:    'src/shell-tour/entry.ts',
+		fileBase: 'shell-tour',
+		iifeName: 'openStationShellTourBundle',
+	},
 	// Shell overlays — toast, confirm dialog, context menus (Stage 9).
 	// Components for action-triggered overlays that aren't constructed
 	// at first paint. Preloaded by main after first paint via
