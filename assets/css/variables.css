@@ -815,29 +815,25 @@ body.os-active {
 	 * OpenStation Preferences, and any native window that lays its
 	 * pages down the side rather than across the top.
 	 *
-	 * Depth, not colour. The selected row is a lifted pill: a flat
-	 * Starlight fill at 8%, rounded at the guide's inner radius and
-	 * held 8px off the sidebar's edges. The row says "this one" by
-	 * sitting a step above its neighbours, the way a pressed key does,
-	 * which is a cue that reads the same whatever accent the user
-	 * picked and needs no colour of its own.
+	 * The one selection on the station that keeps the accent. The row
+	 * runs full-bleed and says "this one" with a 2px accent line at its
+	 * leading edge, the bloom that line throws back across the row, and
+	 * a wash fading out towards the label. Everywhere else a selection
+	 * is a surface (a grey key, an outline, a flat fill); the sidebar is
+	 * where you are, and the brand marks it.
 	 *
-	 * The three coloured layers `<os-tabs>` can draw are still
-	 * declared, and still DERIVED from the accent: `-edge` is the
-	 * accent flat, `-wash` and `-bloom` resolve through
-	 * `--os-ui-accent-dim` like every other ambient use. That is what
-	 * keeps a picked accent reaching the row, on this palette and on
-	 * Legacy alike (see `desktopThemesLegacy.php`: a theme cannot
-	 * answer a derived token, so a derivation is shared). What this
-	 * palette turns off is their PRESENCE, through literal tokens a
-	 * theme answers on its own: the edge is 0 wide and the bloom is at
-	 * 0 opacity here, and 2px and 1 on Legacy, so the earlier look is
-	 * one theme away rather than deleted. The wash is off here too, and
-	 * that holds whatever accent is picked: the selected row is the flat
-	 * fill and nothing else. Its opacity scales every stop of the
-	 * gradient (a background image has no opacity of its own, and both
-	 * of the row's pseudo-elements are already spent on the edge and
-	 * the bloom); Legacy answers 1.
+	 * The three coloured layers are DERIVED from the accent: `-edge` is
+	 * the accent flat, `-wash` and `-bloom` resolve through
+	 * `--os-ui-accent-dim` like every other ambient use, so a picked
+	 * accent reaches the row on this palette and on Legacy alike (see
+	 * `desktopThemesLegacy.php`: a theme cannot answer a derived token,
+	 * so a derivation is shared). How much of each shows, and the row's
+	 * shape, are literals a theme answers on its own: edge width, wash
+	 * and bloom opacity, and a fill, radius and inset that together
+	 * would turn the row into a lifted pill. The wash's opacity scales
+	 * every stop of the gradient, because a background image has no
+	 * opacity of its own and both of the row's pseudo-elements are
+	 * already spent on the edge and the bloom.
 	 */
 	--os-ui-tab-edge: linear-gradient(
 		var(--os-ui-accent, #f252fc),
@@ -859,12 +855,12 @@ body.os-active {
 		color-mix(in srgb, var(--os-ui-accent-dim) 26%, transparent),
 		transparent
 	);
-	--os-ui-tab-edge-width: 0px;
-	--os-ui-tab-wash-opacity: 0;
-	--os-ui-tab-bloom-opacity: 0;
-	--os-ui-tab-fill: rgba(255, 251, 255, 0.08);
-	--os-ui-tab-radius: 8px;
-	--os-ui-tab-inset: 8px;
+	--os-ui-tab-edge-width: 2px;
+	--os-ui-tab-wash-opacity: 1;
+	--os-ui-tab-bloom-opacity: 1;
+	--os-ui-tab-fill: transparent;
+	--os-ui-tab-radius: 0px;
+	--os-ui-tab-inset: 0px;
 
 	/*
 	 * `<os-segmented>`, same split again. The thumb and its label still
@@ -1472,19 +1468,15 @@ body.os-active {
 	 * WordPress-to-OpenStation boundary Pulse and dropped the
 	 * core-to-plugin one to a hairline, on the theory that only one
 	 * boundary was worth reading. Two weights in one short rail read as
-	 * two unrelated ideas instead of one system, so both are the same
-	 * line: the accent at the waist, falling away to nothing at both
+	 * two unrelated ideas instead of one system, so both are now the
+	 * same line: Pulse at the waist, falling away to nothing at both
 	 * ends, with a soft glow to hold it against the dock tint.
 	 *
 	 * Resolved one step back from the accent through
-	 * `--os-ui-accent-dim`, where every ambient use resolves, so it
-	 * follows a picked accent and a theme's alike. How much of it
-	 * shows is the separate, literal `-opacity`: a divider is
-	 * structure, and structure on this palette is quiet, so it sits at
-	 * a quarter here. Legacy answers 1.
+	 * `--os-ui-accent-dim`, where every ambient use of Pulse resolves,
+	 * so "tone the station down" stays one edit.
 	 */
 	--os-dock-divider: color-mix(in srgb, var(--os-ui-accent-dim) 70%, transparent);
-	--os-dock-divider-opacity: 0.25;
 	--os-dock-floating-bg: rgba(12, 11, 15, 0.62);
 	--os-dock-floating-border: rgba(255, 251, 255, 0.12);
 	--os-dock-floating-border-top: rgba(255, 251, 255, 0.18);

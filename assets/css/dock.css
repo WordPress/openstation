@@ -99,16 +99,6 @@
 	color: var( --os-dock-icon-color-hover, var( --os-ui-fg-on-accent, #fff ) );
 }
 
-/*
- * How much of every divider shows. The divider's COLOUR stays derived
- * from the accent (see `--os-dock-divider` in variables.css); this is
- * the literal a palette or theme turns it down with. Falls back to
- * fully visible, which is every placement's earlier look.
- */
-.os-dock__separator {
-	opacity: var( --os-dock-divider-opacity, 1 );
-}
-
 .os-dock__item-primary:hover {
 	background-color: var(
 		--os-dock-item-bg-hover,

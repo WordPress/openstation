@@ -117,8 +117,8 @@ export const tabStyles = css`
 		 * layers above are colours a palette derives from the accent;
 		 * these are literals that say how much of each layer shows and
 		 * what the row is shaped like. The fallbacks are the full-bleed
-		 * row with a 2px edge and a full bloom; the OpenStation palette
-		 * answers 0, 0, a Starlight fill and 8px twice, which is what
+		 * row with a 2px edge and a full bloom, which is also what the
+		 * OpenStation palette answers; a fill with a radius and an inset
 		 * makes the selected row a lifted pill instead.
 		 */
 		--_tab-edge-w: var( --os-ui-tab-edge-width, 2px );

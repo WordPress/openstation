@@ -555,12 +555,12 @@ brand's Holomesh, transcribed into CSS in `--os-mesh-holo`.
 | `--os-ui-holo-track` | The unlit half — switch tracks, empty progress. |
 | `--os-ui-tab-edge` | The leading edge on the selected row of a vertical `<os-tabs>`. The flat accent; derived, so leave it to the palette. |
 | `--os-ui-tab-wash`, `--os-ui-tab-bloom` | That row's surface wash and the bloom the edge throws back across it. Both ambient, so both resolve through `--os-ui-accent-dim`; also derived. |
-| `--os-ui-tab-edge-width`, `--os-ui-tab-bloom-opacity`, `--os-ui-tab-wash-opacity` | How much of the edge, the bloom and the accent wash show. The OpenStation palette answers `0px`, `0` and `0`, which is what makes its selected row a flat pill that no accent tints; Legacy answers `2px`, `1` and `1`. |
+| `--os-ui-tab-edge-width`, `--os-ui-tab-bloom-opacity`, `--os-ui-tab-wash-opacity` | How much of the edge, the bloom and the accent wash show. The OpenStation palette and Legacy both answer `2px`, `1` and `1`: an accent line at the row's leading edge, its glow and a wash. `0px`, `0` and `0` leave the row to its fill. |
 | `--os-ui-segmented-selected-accent`, `--os-ui-segmented-selected-base` | How much of the accent the selected segment's pill and label take, mixed towards `-base` and the text colour. The OpenStation palette answers `0%` and a mid-grey key that clears 3:1 against its Void track (whatever the accent); Legacy answers `100%`. |
 | `--os-ui-segmented-edge`, `--os-ui-segmented-selected-shadow` | Box shadows for the track's edge and under the selected key. The OpenStation palette answers a 10% Starlight hairline and a small drop shadow; Legacy answers `none` for both. |
 | `--os-ui-segmented-hover-bg`, `--os-ui-segmented-hover-sheen` | An unselected segment under the pointer: a shade, and the holographic film. The OpenStation palette answers a faint Starlight lift and `none`; Legacy answers `transparent` and `none`. |
 | `--os-ai-accent`, `--os-ai-row-fill`, `--os-ai-tile-fill` | How much of the accent the Site assistant's chrome takes (its header tint and mark, search icon, lit row and icon tiles), mixed towards a neutral, and the flat fills a lit row and an icon tile sit on. The OpenStation palette answers `0%` and 8% and 6% Starlight; Legacy answers `100%` and `transparent`. The command icons read the accent directly in both. |
-| `--os-ui-tab-fill`, `--os-ui-tab-radius`, `--os-ui-tab-inset` | The selected row's own surface and shape: a flat fill under the wash, its corner radius, and how far it sits off the sidebar's edges. Starlight 8%, 8px and 8px by default; `transparent`, 0 and 0 is the full-bleed row an edge can sit on. |
+| `--os-ui-tab-fill`, `--os-ui-tab-radius`, `--os-ui-tab-inset` | The selected row's own surface and shape: a flat fill under the wash, its corner radius, and how far it sits off the sidebar's edges. The OpenStation palette and Legacy answer `transparent`, 0 and 0, the full-bleed row an edge can sit on; a fill with a radius and an inset makes it a lifted pill. |
 | `--os-ui-swatch-ring-width`, `--os-ui-swatch-lift` | How a chosen `<os-swatch>` tile (and the theme and layout cards in Preferences) is marked: the width of its accent ring, and a lift (stroke plus shadow) drawn with it. The OpenStation palette answers `0px` and a lift; Legacy `2px` and none. |
 | `--os-ui-swatch-badge-bg` | The disc with a tick in the corner of a chosen tile. Starlight by default; `transparent` removes the badge. |
 | `--os-ui-accent-dim` | The accent, one step back. Every *ambient* use of it — glows, washes, focus blooms — resolves through this, so it is the single knob for how loud a theme reads. |
@@ -851,7 +851,6 @@ sits *on* it:
 | `--os-dock-icon-color-hover` | The glyph on hover / peek |
 | `--os-dock-item-bg-hover` | The wash behind a hovered tile |
 | `--os-dock-item-bg-focused` | The plate under the tile whose window is in front |
-| `--os-dock-divider-opacity` | How much of the group dividers shows; their colour stays derived from the accent |
 | `--os-dock-item-outline` | The keyboard focus ring and the tile status indicator (active dot, all-minimized ring) |
 
 ```json

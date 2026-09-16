@@ -47,7 +47,6 @@
 		"--os-dock-icon-size": "20px",
 		"--os-dock-indicator-length": "180px",
 		"--os-dock-indicator-thickness": "5px",
-		"--os-dock-divider-opacity": "1",
 		"--os-dock-item-bg-focused": "transparent",
 		"--os-dock-item-bg-hover": "rgba( 255, 255, 255, 0.15 )",
 		"--os-dock-item-outline": "rgba( 255, 255, 255, 0.7 )",
