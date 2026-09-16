@@ -37,7 +37,7 @@ export class OsGrid extends Component {
 			'Neutral CSS grid container. The 2-D twin of <os-stack>/<os-cluster>. No role is emitted — callers wrap in role="grid"/"radiogroup" if warranted.',
 		status: 'stable',
 		props: [
-			{ name: 'min-item-width', type: 'positive number (px)', description: 'Experimental. Opt into automatic column fitting at this minimum item width. Overrides columns; spans clamp to the available columns.' },
+			{ name: 'min-item-width', type: 'positive number (px)', description: 'Opt into automatic column fitting at this minimum item width. Overrides columns; spans clamp to the available columns.' },
 			{
 				name: 'columns',
 				type: 'integer',

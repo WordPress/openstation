@@ -65,6 +65,67 @@ try {
 	await page.waitForFunction( () => ! document.querySelector( '#split' ).shadowRoot.querySelector( '.compact' ) );
 	close( Number( await divider.getAttribute( 'aria-valuenow' ) ), restored );
 
+	// Layout reflows during a gesture must not roll it back or poison the next drag.
+	const robust = page.locator( '#robust' );
+	const robustDivider = robust.locator( '[role="separator"]' );
+	await robust.scrollIntoViewIfNeeded();
+	for ( let attempt = 0; attempt < 12; attempt++ ) {
+		const before = Number( await robustDivider.getAttribute( 'aria-valuenow' ) );
+		const box = await robustDivider.boundingBox();
+		const delta = attempt % 2 === 0 ? 25 : -25;
+		await page.mouse.move( box.x + 4, box.y + 30 );
+		await page.mouse.down();
+		await page.mouse.move( box.x + 4 + delta, box.y + 30, { steps: 3 } );
+		await robust.evaluate( ( el, width ) => el.style.width = width, attempt % 2 === 0 ? '860px' : '900px' );
+		await page.waitForFunction( ( width ) => Math.abs( Number( document.querySelector( '#robust' ).shadowRoot.querySelector( '[role=separator]' ).getAttribute( 'aria-valuemin' ) ) - 160 / ( width - 8 ) * 100 ) < 0.01, attempt % 2 === 0 ? 860 : 900 );
+		assert.equal( await robust.locator( '.shield' ).isVisible(), true );
+		await page.mouse.move( box.x + 4 + delta * 2, box.y + 30, { steps: 3 } );
+		await page.mouse.up();
+		const after = Number( await robustDivider.getAttribute( 'aria-valuenow' ) );
+		assert.ok( delta > 0 ? after > before : after < before, `drag ${ attempt } snapped back` );
+		assert.equal( await robust.locator( '.shield' ).isVisible(), false );
+	}
+	const embedded = await robust.locator( 'iframe' ).boundingBox();
+	const handleOverFrame = await robustDivider.boundingBox();
+	const beforeFrame = Number( await robustDivider.getAttribute( 'aria-valuenow' ) );
+	await page.mouse.move( handleOverFrame.x + 4, handleOverFrame.y + 30 );
+	await page.mouse.down();
+	await page.mouse.move( embedded.x + embedded.width * 0.75, embedded.y + 50, { steps: 5 } );
+	await page.mouse.up();
+	assert.ok( Number( await robustDivider.getAttribute( 'aria-valuenow' ) ) > beforeFrame );
+	assert.equal( await robust.locator( '.shield' ).isVisible(), false );
+	const visuals = await robustDivider.evaluate( ( el ) => ( {
+		seam: getComputedStyle( el, '::before' ).width,
+		grip: getComputedStyle( el, '::after' ).height,
+		background: getComputedStyle( el ).backgroundColor,
+	} ) );
+	assert.deepEqual( visuals, { seam: '1px', grip: '28px', background: 'rgba(0, 0, 0, 0)' } );
+
+	// Reproduce a release that reaches the browser but not the separator:
+	// native lostpointercapture must commit, not undo, the visible resize.
+	await robust.evaluate( ( el ) => {
+		el.setAttribute( 'position', '50' );
+		window.releaseChanges = [];
+		el.addEventListener( 'os-split-change', ( e ) => window.releaseChanges.push( e.detail.position ) );
+	} );
+	for ( let attempt = 0; attempt < 8; attempt++ ) {
+		const box = await robustDivider.boundingBox();
+		const before = Number( await robustDivider.getAttribute( 'aria-valuenow' ) );
+		const delta = attempt % 2 === 0 ? -40 : 40;
+		await page.mouse.move( box.x + 4, box.y + 30 );
+		await page.mouse.down();
+		await page.mouse.move( box.x + 4 + delta, box.y + 30, { steps: 4 } );
+		const dragged = Number( await robustDivider.getAttribute( 'aria-valuenow' ) );
+		assert.ok( delta < 0 ? dragged < before : dragged > before );
+		if ( attempt % 2 === 0 ) {
+			await page.evaluate( () => document.addEventListener( 'pointerup', ( e ) => e.stopImmediatePropagation(), { capture: true, once: true } ) );
+		}
+		await page.mouse.up();
+		await page.waitForFunction( () => document.querySelector( '#robust' ).shadowRoot.querySelector( '.shield' ).hidden );
+		assert.equal( Number( await robustDivider.getAttribute( 'aria-valuenow' ) ), dragged, 'release must preserve the last visible size' );
+		assert.equal( await page.evaluate( () => window.releaseChanges.length ), attempt + 1 );
+	}
+
 	const vertical = page.locator( '#vertical' );
 	await vertical.locator( '[role="separator"]' ).focus();
 	await page.keyboard.press( 'ArrowDown' );
@@ -106,7 +167,7 @@ try {
 	assert.equal( await comments.evaluate( ( el ) => el.scrollWidth > el.clientWidth ), false );
 	await page.screenshot( { path: '/tmp/os-layout-comments.png' } );
 	assert.deepEqual( errors, [] );
-	console.log( 'PASS: grid spans/reflow, frame scrolling, split sizing, pointer, keyboard, RTL, cancellation, narrow panes, vertical split, phone overflow, actual Comments composer and narrow navigation.' );
+	console.log( 'PASS: grid spans/reflow, frame scrolling, split sizing, pointer, keyboard, RTL, cancellation, narrow panes, vertical split, phone overflow, repeated reflow drags, real iframe crossing, actual Comments composer and narrow navigation.' );
 } finally {
 	await browser.close();
 	await server.close();

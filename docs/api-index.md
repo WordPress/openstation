@@ -354,8 +354,8 @@ When a status changes (Experimental → Stable, or anything → removed), update
 
 | Surface | Contract | Status |
 |---|---|---|
-| `os-app-frame` | Header/toolbar/footer slots; scrolling body or `contained` child | Experimental |
-| `os-split` | Bounded start/end panes, pointer/keyboard resizing, explicit narrow mode; `os-split-change` `{ position }` | Experimental |
-| `os-grid` extensions | `min-item-width`, child `col-span` / `row-span` (1–12) | Experimental |
+| `os-app-frame` | Header/toolbar/footer slots; scrolling body or `contained` child | Stable |
+| `os-split` | Bounded start/end panes, pointer/keyboard resizing, explicit narrow mode; `os-split-change` `{ position }` | Stable |
+| `os-grid` extensions | `min-item-width`, child `col-span` / `row-span` (1–12) | Stable |
 
 See [app layout recipes](./examples/app-layouts.md) for attributes, sizing and examples.

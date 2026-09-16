@@ -39,8 +39,8 @@ The search box above the list filters on the flattened descriptor, not just the 
 | `<os-row>` | `OsRow` | `os-row/os-row.ts` | Twelve-track grid; children declare column widths with `col`. |
 | `<os-stack>` | `OsStack` | `os-stack/os-stack.ts` | Vertical flex stack with consistent gap. |
 | `<os-cluster>` | `OsCluster` | `os-cluster/os-cluster.ts` | Wrapped flex row for chips / tags / actions. |
-| `<os-app-frame>` | `OsAppFrame` | `os-app-frame/os-app-frame.ts` | Experimental: persistent header, toolbar and footer around a scrolling or contained body. |
-| `<os-split>` | `OsSplit` | `os-split/os-split.ts` | Experimental: responsive panes with pointer/keyboard resizing and explicit narrow-pane selection. |
+| `<os-app-frame>` | `OsAppFrame` | `os-app-frame/os-app-frame.ts` | Stable: persistent header, toolbar and footer around a scrolling or contained body. |
+| `<os-split>` | `OsSplit` | `os-split/os-split.ts` | Stable: responsive panes with pointer/keyboard resizing and explicit narrow-pane selection. |
 | `<os-grid>` | `OsGrid` | `os-grid/os-grid.ts` | Fixed or automatically fitting columns with child column/row spans. |
 | `<os-card>` | `OsCard` | `os-card/os-card.ts` | Bordered surface for entity-card UIs. |
 | `<os-display>` | `OsDisplay` | `os-display/os-display.ts` | Hero / display-typography container. |

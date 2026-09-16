@@ -150,14 +150,10 @@ describe( 'help examples', () => {
 	} );
 
 	test.each( files )( '%s declares its intended stability', ( name, src ) => {
-		// Existing kit contracts stay stable. The app-layout APIs are
-		// explicitly experimental while their first consumers exercise
-		// their sizing and narrow-pane contracts (docs/examples/app-layouts.md).
-		const experimentalLayouts = new Set( [ 'os-app-frame', 'os-split' ] );
 		expect(
-			src.includes( "status: 'experimental'" ),
+			src.includes( "status: 'stable'" ),
 			`${ name } has an unexpected stability label.`,
-		).toBe( experimentalLayouts.has( name ) );
+		).toBe( true );
 	} );
 
 	test( 'exampleInit wires listeners by assignment, never by accumulation', () => {

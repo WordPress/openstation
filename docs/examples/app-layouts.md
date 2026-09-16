@@ -1,7 +1,7 @@
 # App layout recipes
 
-`os-app-frame` and `os-split` are **Experimental**. The existing `os-grid`
-contract is **Stable**; automatic fitting and child spans are **Experimental**.
+`os-app-frame`, `os-split`, and `os-grid`, including automatic column fitting
+and child column/row spans, are **Stable**.
 Use these in PHP views or client `html` templates. Load the components first:
 `await wp.os.loadComponents( [ 'os-app-frame', 'os-split', 'os-grid', 'os-panel', 'os-stack', 'os-cluster', 'os-button' ] )`,
 or import their leaf modules when building in this repository. Components appear
@@ -83,7 +83,10 @@ pane's percentage of space excluding the 8px divider, default 35. `min-start`
 and `min-end` are pixel minima, default 160 each. When both cannot fit, they
 scale proportionally. Without `resizable`, there is no interactive divider.
 `::part(start)`, `::part(end)`, and `::part(divider)` expose the regions;
-the divider reads `--os-ui-border` and `--os-ui-accent`.
+the divider keeps an 8px pointer target around a hairline and rounded grip.
+The seam reads `--os-ui-border`, the grip reads `--os-ui-fg-faint`,
+and hover, dragging and keyboard focus use `--os-ui-accent`. Reduced motion
+disables the color transition.
 
 At `collapse-at` pixels or narrower (default 600), horizontal splits use `narrow`:
 `stack` (default) shows both panes vertically, `start` or `end` shows only that
@@ -96,9 +99,12 @@ when the shell explicitly selects phone mode.
 
 Provide a translated `label` for the focusable separator. Arrow keys move it
 2 percentage points; Shift moves 10; Home/End go to the pane limits. Horizontal
-arrows follow physical direction in RTL. Escape or pointer cancellation cancels
-a drag. Pointer capture and a temporary shield keep dragging reliable over
-iframes. The separator exposes orientation, current value, limits and its
+arrows follow physical direction in RTL. Escape or `pointercancel` rolls back
+a drag. Losing pointer capture without a preceding cancellation commits the
+last visible position, even if `pointerup` never reaches the separator.
+Layout reflow during a drag keeps it active at its current position;
+crossing into narrow mode cancels it. Pointer capture and a temporary shield
+keep dragging reliable over iframes. The separator exposes orientation, current value, limits and its
 controlled pane to assistive technology. Layout containers add no tab stops
 apart from an enabled separator.
 

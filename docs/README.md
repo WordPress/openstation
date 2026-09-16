@@ -72,4 +72,4 @@ If a documented hook behaves differently than what's written here, that is a bug
 
 ## App layout containers
 
-[App layout recipes](./examples/app-layouts.md) — **Experimental** app frame, resizable split panes, and responsive grid/span extensions. Includes dashboard, settings, list/detail and editor/preview examples.
+[App layout recipes](./examples/app-layouts.md) — **Stable** app frame, resizable split panes, and responsive grid/span extensions. Includes dashboard, settings, list/detail and editor/preview examples.

@@ -39,4 +39,9 @@ window.ready = true;
 <os-split class="example" direction="vertical" resizable label="Resize preview" min-start="80" min-end="80" id="vertical">
 <os-panel slot="start">Editor</os-panel><os-panel slot="end">Preview</os-panel>
 </os-split>
+<h2>Reflow and iframe dragging</h2>
+<os-split class="example" id="robust" resizable label="Resize embedded preview" collapse-at="400">
+<os-panel slot="start">Drag repeatedly while this layout changes size.</os-panel>
+<iframe slot="end" title="Embedded preview" srcdoc="<p>A real iframe under the drag path.</p>"></iframe>
+</os-split>
 </html>

@@ -8,7 +8,7 @@ export class OsAppFrame extends Component {
 	static help = {
 		title: 'App frame',
 		summary: 'Header, toolbar and footer stay visible while the body scrolls. Use contained when a split pane or table owns scrolling.',
-		status: 'experimental',
+		status: 'stable',
 		props: [ { name: 'contained', type: 'boolean', description: 'Fill the body with children that own their scrolling; disables frame scrolling.' } ],
 		slots: [
 			{ name: 'header', description: 'Title or tabs.' },

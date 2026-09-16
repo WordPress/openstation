@@ -9,7 +9,7 @@ export class OsSplit extends Component {
 	static help = {
 		title: 'Split pane',
 		summary: 'List/detail or editor/preview panes. Optional accessible resizing; narrow windows stack or show the pane chosen by the app.',
-		status: 'experimental',
+		status: 'stable',
 		props: [
 			{ name: 'position', type: 'number (%)', default: '35', description: 'Start pane share of usable space, excluding the divider.' },
 			{ name: 'min-start', type: 'number (px)', default: '160', description: 'Start pane minimum. Minima scale proportionally if they cannot both fit.' },
@@ -32,18 +32,27 @@ export class OsSplit extends Component {
 	private observer: ResizeObserver | null = null;
 	private width = 0;
 	private height = 0;
-	private drag: { id: number; origin: number; position: number; target: HTMLElement } | null = null;
+	private drag: { id: number; origin: number; last: number; position: number; initial: number; target: HTMLElement } | null = null;
 
 	connectedCallback(): void {
 		super.connectedCallback();
 		if ( typeof ResizeObserver !== 'undefined' ) {
 			this.observer = new ResizeObserver( ( entries ) => {
-				// A resized coordinate space invalidates the original drag origin.
-				this.cancelDrag();
-				this.width = entries[ 0 ].contentRect.width;
-				this.height = entries[ 0 ].contentRect.height;
+				const { width, height } = entries[ 0 ].contentRect;
+				if ( width === this.width && height === this.height ) {
+					return;
+				}
+				const position = this.positionValue();
+				this.width = width;
+				this.height = height;
 				if ( this.isCompact() ) {
 					this.cancelDrag();
+				} else if ( this.drag ) {
+					// Continue from the last pointer position when the container
+					// reflows; an observer notification is not a user cancellation.
+					this.setPosition( position );
+					this.drag.origin = this.drag.last;
+					this.drag.position = this.positionValue();
 				}
 				this.requestUpdate();
 			} );
@@ -58,7 +67,7 @@ export class OsSplit extends Component {
 	}
 
 	attributeChangedCallback( name: string, oldValue: string | null, newValue: string | null ): void {
-		if ( oldValue !== newValue && name !== 'position' ) {
+		if ( oldValue !== newValue && name === 'direction' ) {
 			this.cancelDrag();
 		}
 		super.attributeChangedCallback( name, oldValue, newValue );
@@ -124,7 +133,7 @@ export class OsSplit extends Component {
 		e.preventDefault();
 		const target = e.currentTarget as HTMLElement;
 		target.focus();
-		this.drag = { id: e.pointerId, origin: this.coordinate( e ), position: this.positionValue(), target };
+		this.drag = { id: e.pointerId, origin: this.coordinate( e ), last: this.coordinate( e ), position: this.positionValue(), initial: this.positionValue(), target };
 		target.setPointerCapture( e.pointerId );
 		this.requestUpdate();
 	};
@@ -133,6 +142,7 @@ export class OsSplit extends Component {
 		if ( this.drag?.id !== e.pointerId ) {
 			return;
 		}
+		this.drag.last = this.coordinate( e );
 		this.setPosition( this.drag.position + ( this.coordinate( e ) - this.drag.origin ) * this.sign() / Math.max( 1, this.extent() ) * 100 );
 	};
 
@@ -143,18 +153,33 @@ export class OsSplit extends Component {
 		}
 		this.drag = null;
 		if ( ! commit ) {
-			this.setPosition( drag.position );
+			this.setPosition( drag.initial );
 		}
 		if ( drag.target.hasPointerCapture( drag.id ) ) {
 			drag.target.releasePointerCapture( drag.id );
 		}
 		this.requestUpdate();
-		if ( commit && this.positionValue() !== drag.position ) {
+		if ( commit && this.positionValue() !== drag.initial ) {
 			this.emit( 'os-split-change', { position: this.positionValue() } );
 		}
 	}
 
 	private cancelDrag = (): void => this.finishDrag( false );
+
+	private onCancel = ( e: PointerEvent ): void => {
+		if ( this.drag?.id === e.pointerId ) {
+			this.cancelDrag();
+		}
+	};
+
+	private onLostCapture = ( e: PointerEvent ): void => {
+		if ( this.drag?.id === e.pointerId ) {
+			// Release can lose capture without delivering pointerup here.
+			// Keep the last visible size; only an explicit cancellation
+			// rolls back. A preceding pointercancel already cleared drag.
+			this.finishDrag( true );
+		}
+	};
 
 	private onUp = ( e: PointerEvent ): void => {
 		if ( this.drag?.id === e.pointerId ) {
@@ -228,13 +253,13 @@ export class OsSplit extends Component {
 		}
 		return html`<div class="layout ${ this.isCompact() ? 'compact ' + mode : '' }">
 			<div class="pane start" part="start" id="start" tabindex="-1"><slot name="start"></slot></div>
-			<div class="divider ${ enabled ? 'enabled' : '' }" part="divider"
+			<div class="divider ${ enabled ? 'enabled' : '' } ${ this.drag ? 'dragging' : '' }" part="divider"
 				role=${ enabled ? 'separator' : 'presentation' } aria-hidden=${ enabled ? 'false' : 'true' } tabindex=${ enabled ? '0' : '-1' }
 				aria-label=${ this.getAttribute( 'label' ) || __( 'Resize panes' ) }
 				aria-controls="start" aria-orientation=${ this.isVertical() ? 'horizontal' : 'vertical' }
 				aria-valuemin=${ String( min ) } aria-valuemax=${ String( max ) } aria-valuenow=${ String( position ) }
 				@pointerdown=${ this.onDown } @pointermove=${ this.onMove } @pointerup=${ this.onUp }
-				@pointercancel=${ this.cancelDrag } @lostpointercapture=${ this.cancelDrag } @keydown=${ this.onKey }></div>
+				@pointercancel=${ this.onCancel } @lostpointercapture=${ this.onLostCapture } @keydown=${ this.onKey }></div>
 			<div class="pane end" part="end" tabindex="-1"><slot name="end"></slot></div>
 		</div><div class="shield" ?hidden=${ ! this.drag } aria-hidden="true"></div>`;
 	}
