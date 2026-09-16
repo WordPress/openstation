@@ -702,7 +702,12 @@ confirmation dialog. The full pipeline is hookable via
 
 Iframes forward OS drops to the parent shell via
 `postMessage` of type `os-file-drop` with a
-`{ files: File[], x, y }` payload — same-origin only.
+`{ files: File[], x, y }` payload — same-origin only. A drop
+that lands on a native `<input type="file">`, or anywhere on
+Core's `form.wp-upload-form` box around one (Upload Plugin,
+Upload Theme), is handed to that input instead and never
+reaches the shell — see
+[`bridge-protocol.md`](bridge-protocol.md#os-file-drop-forwarder--os-file-drop).
 
 See [`docs/examples/os-file-drop.md`](examples/os-file-drop.md)
 for two end-to-end recipes (stamping the active folder on

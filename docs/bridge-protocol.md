@@ -95,12 +95,14 @@ When the user drags a file from the host operating system onto a chromeless admi
 |---|---|---|---|
 | `os-file-drop` | iframe → parent | `{ files: File[], x: number, y: number }` | Native-OS file drop captured inside the iframe. Same-origin only — `postMessage` preserves `File` identity. The parent's `OsFileDropManager` resolves the source iframe's `data-window-id` via `MessageEvent.source` and routes the files through the drop pipeline. |
 
-The forwarder listens in **bubble phase** at the iframe's `document`, so any in-page drop receiver runs first and gets the chance to claim the drop. Two bail conditions, in order:
+The forwarder listens in **bubble phase** at the iframe's `document`, so any in-page drop receiver runs first and gets the chance to claim the drop. Three bail conditions, in order:
 
 1. **Curated allowlist** — `.components-drop-zone`, `[data-drop-zone]`, `.uploader-window`, `.media-frame-content` always yield, so Gutenberg's media uploader and the legacy media library keep working as before even on edge cases that skip the spec dance.
 2. **`event.defaultPrevented === true`** — any inner handler that called `preventDefault()` on `dragover` or `drop` is signalling ownership per the HTML5 drag-and-drop contract. The forwarder yields. Third-party plugin drop zones (e.g. "Administrador de archivos WP") that already work in classic admin keep working untouched inside OpenStation iframes — no opt-in required.
 
-Only drops where neither bail fires (the empty page background, or an inner handler that never called `preventDefault()`) escalate to the shell.
+3. **A native file input under the drop** — an `<input type="file">` the pointer is on, or the single file input inside the `form.wp-upload-form` box the pointer is in (Core's Upload Plugin and Upload Theme), receives the files the way a drop outside the shell would: the bridge sets `files`, fires `input` and `change` (Core's `common.js` enables Install Now on the latter) and claims the event. A non-`multiple` input takes the first file only. A disabled or unrendered input, or a box with several, does not qualify — Media › Add New keeps its no-JS `#async-upload` hidden behind plupload, and a drop there still escalates. While a file drag hovers a qualifying box the bridge stamps `data-os-file-drop-active` on it, and `assets/css/chromeless.css` draws the outline.
+
+Only drops where none of the three fires (the empty page background, or an inner handler that never called `preventDefault()`) escalate to the shell.
 
 ### Drag-hover heartbeat — `os-drag-hover`
 
