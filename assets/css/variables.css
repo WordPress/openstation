@@ -1132,14 +1132,29 @@ body.os-active {
 	 * white cluster labels on a pale lilac chip at 1.9:1. It keeps its
 	 * own colour, and the label keeps carrying on it.
 	 *
-	 * The graph's toolbar is chrome, though, and it does follow. The
-	 * count pill on an ACTIVE filter chip is a 70%-white fill, and it
-	 * was carrying `--os-ui-accent-strong` numerals — Nebula on white,
-	 * ~1.7:1. It is one more bright fill naming its own dark text, the
-	 * same escape hatch `--os-ui-ribbon-fg` and `--os-ui-step-chip-fg`
-	 * take, and for the same reason.
+	 * The graph's toolbar is chrome, though, and it follows the same
+	 * split as selection everywhere else: the accent stays derived, a
+	 * literal says how much of it shows. An ON filter chip mixes its
+	 * edge, wash and text from the accent by `-accent`, towards the
+	 * neutrals below; this palette answers 0%, so an on chip reads like
+	 * the selected theme card in Preferences, a Starlight outline around
+	 * the dark surface. Legacy answers 100%. An OFF chip sits on the
+	 * toolbar with the strong border as its edge, because the plain
+	 * border is the toolbar's own colour and a chip drawn with it has no
+	 * outline at all.
+	 *
+	 * The count pill is the strong border's grey on both, with Starlight
+	 * numerals: muted numerals on that grey land at 4.0:1, under what
+	 * 12px text needs.
 	 */
-	--os-ui-cg-chip-count-fg-active: #0c0b0f;
+	--os-ui-cg-chip-accent: 0%;
+	--os-ui-cg-chip-border: #4d4a52;
+	--os-ui-cg-chip-border-active: #fffbff;
+	--os-ui-cg-chip-fill-active: #1a1721;
+	--os-ui-cg-chip-count-bg: #4d4a52;
+	--os-ui-cg-chip-count-fg: #fffbff;
+	--os-ui-cg-chip-count-bg-active: #4d4a52;
+	--os-ui-cg-chip-count-fg-active: #fffbff;
 
 	/*
 	 * ---- The widget card's public token contract ----------------
