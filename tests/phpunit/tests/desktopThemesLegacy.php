@@ -191,11 +191,13 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 		// (tab edge width, bloom opacity, fill, radius and inset; swatch
 		// ring width, lift and badge; dock focused plate and divider
 		// opacity; tab-strip rail opacity; file-tile ring width), the
-		// accent-ink token and the seven content-graph chip tokens (accent
+		// accent-ink token, the seven content-graph chip tokens (accent
 		// amount; edge and on edge; on fill; count pill fill and numerals,
-		// off and on) minted after the snapshot, each at the value its
+		// off and on), the tab wash opacity, and the six segmented tokens
+		// (track edge; selected accent amount, base and shadow; hover
+		// shade and film) minted after the snapshot, each at the value its
 		// consuming rule falls back to.
-		$this->assertCount( 502, $tokens, $why );
+		$this->assertCount( 509, $tokens, $why );
 		foreach ( array(
 			'--os-bg'             => 'linear-gradient( 135deg, #1d2327 0%, #2c3338 50%, #1d2327 100% )',
 			'--os-titlebar-bg'    => '#f0f0f1',

@@ -130,7 +130,7 @@ export const styles = css`
 	/*
 	 * Chosen. Two layers, and the palette decides how much of each
 	 * shows: a flat accent ring whose width is a token (2px unless the
-	 * palette says otherwise), and a lift (a hairline plus a shadow)
+	 * palette says otherwise), and a lift (a stroke plus a shadow)
 	 * that is nothing unless the palette declares one. The OpenStation
 	 * palette sets the ring to 0 and lifts the tile instead; Legacy
 	 * keeps the ring. Never the mesh either way: the brand reserves

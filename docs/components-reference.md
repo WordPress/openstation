@@ -251,7 +251,7 @@ you relabel the host, e.g. Maximize ⇄ Restore.
 
 The kit wears the [OpenStation brand](https://nuriapenya.github.io/open-station-brand/), and the brand ships five mesh gradients with one instruction attached: *"meshes reserved for hero surfaces."* `src/ui/holo.ts` is how a control gets to be one without every component reinventing what holographic means.
 
-**It is a moment, not a skin.** Form controls (checkboxes, radios, switches, sliders, the segmented thumb) wear the flat accent when they are on; selection and state across the kit resolve through `--os-ui-accent`, which follows the accent the user picked in OpenStation Preferences; the mesh appears only where a single surface speaks for the brand, such as `<os-button variant="holo">`. A panel where every surface is iridescent has no identity moments left to spend.
+**It is a moment, not a skin.** Form controls (checkboxes, radios, switches, sliders) wear the flat accent when they are on, and so does the segmented thumb unless the palette says otherwise (the OpenStation palette makes it a mid-grey key on a Void track); selection and state across the kit resolve through `--os-ui-accent`, which follows the accent the user picked in OpenStation Preferences; the mesh appears only where a single surface speaks for the brand, such as `<os-button variant="holo">`. A panel where every surface is iridescent has no identity moments left to spend.
 
 Three treatments, in ascending loudness:
 
@@ -295,9 +295,12 @@ Declared in `assets/css/variables.css`, on `body.os-active` (never `:root` — t
 | `--os-ui-holo-track` | The unlit half — switch tracks, empty progress. |
 | `--os-ui-tab-edge` | The selected row's leading edge in a vertical `<os-tabs>`. The flat accent, so the row says "this one" in the same colour as every control beside it. |
 | `--os-ui-tab-wash` / `--os-ui-tab-bloom` | That row's surface wash, and the bloom the edge throws back across it. Both ambient, so both resolve through `--os-ui-accent-dim`. |
-| `--os-ui-tab-edge-width` / `--os-ui-tab-bloom-opacity` | How much of the edge and the bloom show. `0px` and `0` in the OpenStation palette, which marks the row by lifting it instead; `2px` and `1` is the earlier look. |
+| `--os-ui-tab-edge-width` / `--os-ui-tab-bloom-opacity` / `--os-ui-tab-wash-opacity` | How much of the edge, the bloom and the accent wash show. `0px`, `0` and `0` in the OpenStation palette, which marks the row with its flat fill alone whatever the accent; `2px`, `1` and `1` is the earlier look. |
+| `--os-ui-segmented-selected-accent` / `--os-ui-segmented-selected-base` | How much of the accent the selected `<os-segmented>` pill and its label take, as a percentage mixed towards `-base` (the pill) and `--os-ui-fg` (the label). The OpenStation palette answers `0%` and a mid-grey that clears 3:1 against its Void `--os-ui-segmented-bg` track, so the control ignores the picker; unset is `100%`, the accent pill. `--os-ui-segmented-selected-bg` / `-fg` still override both outright. |
+| `--os-ui-segmented-edge` / `--os-ui-segmented-selected-shadow` | Box shadows for the track's edge and under the selected key. The OpenStation palette answers a 10% Starlight hairline and a small drop shadow; unset is `none` for both. |
+| `--os-ui-segmented-hover-bg` / `--os-ui-segmented-hover-sheen` | What an unselected segment shows under the pointer: a shade, and the holographic film. The OpenStation palette answers a faint Starlight lift and `none`; unset is no shade and the kit's film. |
 | `--os-ui-tab-fill` / `--os-ui-tab-radius` / `--os-ui-tab-inset` | The selected row's flat fill, corner radius and distance from the sidebar's edges. Starlight 8%, 8px and 8px by default (a pill); `transparent`, 0 and 0 is the full-bleed row. |
-| `--os-ui-swatch-ring-width` / `--os-ui-swatch-lift` / `--os-ui-swatch-badge-bg` | How a chosen `<os-swatch>` tile is marked: the width of its accent ring, a lift (hairline plus shadow) drawn with it, and the tick badge in its corner (`transparent` removes it). |
+| `--os-ui-swatch-ring-width` / `--os-ui-swatch-lift` / `--os-ui-swatch-badge-bg` | How a chosen `<os-swatch>` tile is marked: the width of its accent ring, a lift (stroke plus shadow) drawn with it, and the tick badge in its corner (`transparent` removes it). |
 | `--os-ui-accent-dim` | Pulse one step back (same hue, S and L pulled down together). **The single knob for how loud the station is** — every ambient use of the accent resolves through it. |
 | `--os-ui-focus-ring` | The **target** ring: buttons, switches, checkboxes, swatches. Built to survive landing on a bright mesh. |
 | `--os-ui-focus-ring-field` | The **field** ring: quieter, tightens the input's own border. A form of twelve inputs should not look alarmed. |

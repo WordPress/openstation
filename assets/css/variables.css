@@ -832,9 +832,12 @@ body.os-active {
 	 * palette turns off is their PRESENCE, through literal tokens a
 	 * theme answers on its own: the edge is 0 wide and the bloom is at
 	 * 0 opacity here, and 2px and 1 on Legacy, so the earlier look is
-	 * one theme away rather than deleted. The wash stays on: over the
-	 * flat fill it is the faint tint of whatever accent was chosen,
-	 * which on Starlight is nothing and on Pulse is a hint.
+	 * one theme away rather than deleted. The wash is off here too, and
+	 * that holds whatever accent is picked: the selected row is the flat
+	 * fill and nothing else. Its opacity scales every stop of the
+	 * gradient (a background image has no opacity of its own, and both
+	 * of the row's pseudo-elements are already spent on the edge and
+	 * the bloom); Legacy answers 1.
 	 */
 	--os-ui-tab-edge: linear-gradient(
 		var(--os-ui-accent, #f252fc),
@@ -842,8 +845,13 @@ body.os-active {
 	);
 	--os-ui-tab-wash: linear-gradient(
 		90deg,
-		color-mix(in srgb, var(--os-ui-accent-dim) 16%, transparent) 0%,
-		rgba(255, 251, 255, 0.04) 42%,
+		color-mix(
+				in srgb,
+				var(--os-ui-accent-dim) calc(16% * var(--os-ui-tab-wash-opacity, 1)),
+				transparent
+			)
+			0%,
+		rgba(255, 251, 255, calc(0.04 * var(--os-ui-tab-wash-opacity, 1))) 42%,
 		transparent 100%
 	);
 	--os-ui-tab-bloom: linear-gradient(
@@ -852,26 +860,57 @@ body.os-active {
 		transparent
 	);
 	--os-ui-tab-edge-width: 0px;
+	--os-ui-tab-wash-opacity: 0;
 	--os-ui-tab-bloom-opacity: 0;
 	--os-ui-tab-fill: rgba(255, 251, 255, 0.08);
 	--os-ui-tab-radius: 8px;
 	--os-ui-tab-inset: 8px;
 
 	/*
+	 * `<os-segmented>`, same split again. The thumb and its label still
+	 * mix from the accent, so Legacy and any theme that answers 100%
+	 * keep a coloured pill that follows the picker. This palette answers
+	 * 0%: a Void track with the chosen option as a mid-grey key and a
+	 * Starlight label, whatever accent is picked.
+	 *
+	 * The key's grey is set by contrast, not by taste. The first pass
+	 * used the sidebar row's grey, and it sat at 1.37:1 against the
+	 * track and 1.15:1 against the card around it, so the key read as a
+	 * hole in the track rather than a thing pressed into it. This grey
+	 * clears 3:1 against Void, what a selected state needs against its
+	 * neighbours, and still carries its Starlight label at 5.7:1. A
+	 * small shadow under it and a hairline around the track do the
+	 * rest: without the hairline, a Void track on the page behind the
+	 * dock options measured 1.05:1 and all but disappeared.
+	 *
+	 * Under the pointer an unselected option takes a faint Starlight
+	 * lift instead of the holographic film.
+	 */
+	--os-ui-segmented-bg: #0c0b0f;
+	--os-ui-segmented-edge: inset 0 0 0 1px rgba(255, 251, 255, 0.1);
+	--os-ui-segmented-selected-accent: 0%;
+	--os-ui-segmented-selected-base: #67636e;
+	--os-ui-segmented-selected-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+	--os-ui-segmented-hover-bg: rgba(255, 251, 255, 0.06);
+	--os-ui-segmented-hover-sheen: none;
+
+	/*
 	 * The chosen tile in a swatch grid (wallpapers, the theme and
 	 * layout cards in Preferences, and any grid a plugin builds from
 	 * `<os-swatch>`), same split. The ring is the accent and stays
 	 * derived; this palette sets its width to 0 and lifts the tile
-	 * instead: a hairline holds its silhouette, a shadow sets it above
-	 * the grid, and a Starlight disc with a tick cut out of it sits in
-	 * the corner so the choice is legible on a tile whose artwork is
-	 * itself near-white. Legacy answers 2px, no lift, no badge. The
-	 * accent chips in the colour row keep their ring whatever these
-	 * say: a colour is the whole content there, and a lift on a 28px
-	 * square is invisible.
+	 * instead: a solid Starlight stroke outlines it, a shadow sets it
+	 * above the grid, and a Starlight disc with a tick cut out of it
+	 * sits in the corner. The stroke is Starlight rather than the
+	 * accent, like the badge, so the chosen tile stands out the same
+	 * way whichever accent is picked; a translucent hairline was too
+	 * faint on the dark theme cards. Legacy answers 2px, no lift, no
+	 * badge. The accent chips in the colour row keep their ring
+	 * whatever these say: a colour is the whole content there, and a
+	 * lift on a 28px square is invisible.
 	 */
 	--os-ui-swatch-ring-width: 0px;
-	--os-ui-swatch-lift: 0 0 0 1px rgba(255, 251, 255, 0.18),
+	--os-ui-swatch-lift: 0 0 0 1px #fffbff,
 		0 12px 24px -12px rgba(0, 0, 0, 0.8);
 	--os-ui-swatch-badge-bg: #fffbff;
 
