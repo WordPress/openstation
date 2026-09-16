@@ -1216,7 +1216,7 @@ Do not add anything that identifies the site or the person: the disclosure in `r
 
 ### `openstation_deactivation_feedback_endpoint` — Experimental
 
-The collector URL. Hosts that run their own collector point this at it; it receives the payload above as a JSON `POST` with a three-second timeout and no redirects. An empty string skips the forward.
+The intake URL, `https://openstation.blog/wp-json/openstation-feedback/v1/deactivation` by default (the OpenStation Feedback Intake plugin on the plugin's own site). Hosts that run their own intake point this at it; it receives the payload above as a JSON `POST` with a three-second timeout and no redirects. An empty string skips the forward.
 
 ```php
 apply_filters( 'openstation_deactivation_feedback_endpoint', string $url );

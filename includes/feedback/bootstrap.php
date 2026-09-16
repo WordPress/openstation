@@ -3,8 +3,8 @@
  * OpenStation — feedback module bootstrap.
  *
  * The deactivation feedback dialog: one optional question asked when a
- * site admin deactivates OpenStation, forwarded server-side to a
- * collector we run. Nothing in this module writes to the site — no
+ * site admin deactivates OpenStation, forwarded server-side to the
+ * intake plugin on openstation.blog. Nothing in this module writes to the site — no
  * option, no user meta, no transient, no table — which is why
  * `docs/data-model.md` has no row for it. The only state is the
  * submission itself, and it leaves the site the moment it is sent.
@@ -21,11 +21,14 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Where a submission is forwarded. Filterable through
- * `openstation_deactivation_feedback_endpoint` for hosts that run
- * their own collector.
+ * Where a submission is forwarded: the OpenStation Feedback Intake
+ * plugin on openstation.blog, the site the About tab already reads
+ * (`OPENSTATION_ABOUT_SITE_URL` in `includes/about-feed.php`), so the
+ * disclosure names a host users have already seen named. Filterable
+ * through `openstation_deactivation_feedback_endpoint` for hosts that
+ * run their own intake.
  */
-const OPENSTATION_FEEDBACK_ENDPOINT = 'https://feedback.openstation.me/v1/deactivation';
+const OPENSTATION_FEEDBACK_ENDPOINT = 'https://openstation.blog/wp-json/openstation-feedback/v1/deactivation';
 
 /**
  * Whether the deactivation feedback dialog is on for this site.

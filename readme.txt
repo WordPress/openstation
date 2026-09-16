@@ -92,7 +92,7 @@ When an administrator deactivates OpenStation, a dialog asks one optional questi
 * **What is sent:** the reason you picked, the optional details you typed, the OpenStation, WordPress and PHP versions, your site language, whether the site is a network, how long OpenStation was installed, whether anyone on the site had turned it on (and how many people), whether the person deactivating had it on, the number of active plugins, and where the dialog was shown. Nothing that identifies you or your site: no URL, no site id, no email, no user name, no plugin names, and no IP address is stored. Each submission carries a random id used only to ignore an accidental retry.
 * **When it is sent:** only when you click Send in the dialog shown on deactivation. There is no background ping.
 * **Why it is sent:** to learn what did not work so it can be fixed.
-* **Who provides the service:** the request goes from your server to a collector operated by Automattic for this plugin. Review the [Automattic Privacy Policy](https://automattic.com/privacy/). Site owners can turn the dialog off with the `openstation_deactivation_feedback_enabled` filter.
+* **Who provides the service:** the request goes from your server to [openstation.blog](https://openstation.blog/), the plugin's own site, operated by Automattic. Review the [Automattic Privacy Policy](https://automattic.com/privacy/). Site owners can turn the dialog off with the `openstation_deactivation_feedback_enabled` filter.
 
 **WordPress.org plugin information**
 

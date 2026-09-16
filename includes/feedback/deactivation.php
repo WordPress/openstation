@@ -16,7 +16,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-/** The reasons the dialog offers, as the slugs the collector stores. */
+/** The reasons the dialog offers, as the slugs the intake stores. */
 const OPENSTATION_FEEDBACK_REASONS = array( 'broke_something', 'too_slow', 'didnt_understand', 'not_for_me', 'other' );
 
 /** Where a submission came from. */
@@ -135,7 +135,7 @@ function openstation_feedback_days_since_option( $option ) {
  * Build the anonymous payload for one submission.
  *
  * Deliberately no site id, no home URL hash, no user data. The random
- * per-submission id exists only so the collector can ignore a retry.
+ * per-submission id exists only so the intake can ignore a retry.
  * Every field is listed in `readme.txt` under "External services";
  * add one here and add it there in the same change.
  *
@@ -182,7 +182,7 @@ function openstation_deactivation_feedback_payload( $reason, $details = '', $con
 }
 
 /**
- * Forward one payload to the collector. Synchronous, short and
+ * Forward one payload to the intake. Synchronous, short and
  * best-effort: the plugin is about to be deactivated, so a cron job
  * would never run, and the admin should wait three seconds at most.
  *
@@ -191,8 +191,9 @@ function openstation_deactivation_feedback_payload( $reason, $details = '', $con
  */
 function openstation_deactivation_feedback_forward( array $payload ) {
 	/**
-	 * Filters the collector URL. Hosts that run their own collector
-	 * point this at it; it receives the JSON payload by POST.
+	 * Filters the intake URL. Hosts that run their own intake (an
+	 * internal one, say) point this at it; it receives the JSON
+	 * payload by POST.
 	 *
 	 * @param string $endpoint Default {@see OPENSTATION_FEEDBACK_ENDPOINT}.
 	 */
