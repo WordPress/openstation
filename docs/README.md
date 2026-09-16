@@ -69,3 +69,7 @@ If a documented hook behaves differently than what's written here, that is a bug
 - **[Window-scoped MIO](./mio-window-assistant.md)** — Experimental. Opt-in residency, linked Markdown help, private chainable actions and memory-only themed chat. [Preferences help example](../apps/os-settings/help/index.md).
 
 - [Repairable form edits with MIO](examples/mio-form-editing.md) — Experimental: structured validation, revisioned operations, status reconciliation, large-document history and receipt-bound Preview buttons.
+
+## App layout containers
+
+[App layout recipes](./examples/app-layouts.md) — **Experimental** app frame, resizable split panes, and responsive grid/span extensions. Includes dashboard, settings, list/detail and editor/preview examples.

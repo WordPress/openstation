@@ -8047,3 +8047,7 @@ first in-page navigation. See
 - [Examples — Window controls](./examples/window-controls.md)
 - [Examples — Window slots](./examples/window-slot.md)
 - [Examples — Custom window chrome (Experimental)](./examples/custom-chrome.md)
+
+## `os-split-change` — Experimental
+
+`<os-split>` emits a bubbling, composed CustomEvent after a committed pointer or keyboard resize, with `detail: { position: number }`. Position is the start pane percentage of usable space, excluding the divider. Programmatic attributes, automatic resizing and cancelled drags emit no event. The App Framework accepts `os-on="os-split-change"` and treats it as the natural `os-split` event; actions receive `position`. The component does not persist layout. See [app layout recipes](./examples/app-layouts.md) for keyboard behavior, bounds and responsive panes.

@@ -9,6 +9,8 @@ The shell ships a small set of layout components that compose into the usual nat
 
 None of these are mandatory — mix and match as the window's UI dictates.
 
+For responsive grids with spans, persistent app toolbars and resizable panes, see [app layout recipes](./app-layouts.md).
+
 ## The 12-column grid
 
 `<os-row>` is Bootstrap-style: 12 equal tracks, children declare their width via `col="N"` (1..12). The `col` attribute lives on the **child**, not on `<os-row>`, so any element type works:

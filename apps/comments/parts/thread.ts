@@ -354,7 +354,7 @@ function composer( ctx: Ctx, ui: UiState, root: CommentRow, rows: CommentRow[] )
  */
 export function conversation( ctx: Ctx, ui: UiState, root: CommentRow | undefined ): TemplateResult {
 	if ( ! root ) {
-		return html`<section class="${ NS }__convo" data-os-comments-convo>${ emptyState(
+		return html`<section slot="end" class="${ NS }__convo" data-os-comments-convo>${ emptyState(
 			'format-chat',
 			__( 'No conversation selected' ),
 			__( 'Pick one from the list to read and reply.' ),
@@ -363,7 +363,7 @@ export function conversation( ctx: Ctx, ui: UiState, root: CommentRow | undefine
 	const rows = ui.thread?.rows ?? [ root ];
 	const byParent = treeFor( ui, rows );
 	const rootRow = rows.find( ( r ) => r.id === root.id ) ?? root;
-	return html`<section class="${ NS }__convo" data-os-comments-convo>
+	return html`<section slot="end" class="${ NS }__convo" data-os-comments-convo>
 		${ convoHead( ctx, ui, rootRow ) }
 		<div class="${ NS }__thread-scroll">
 			${ message( ctx, ui, rootRow, byParent ) }

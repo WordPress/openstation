@@ -16,7 +16,9 @@
  * @public
  */
 
-import { createPagedList, defineApp, html } from '@openstation/app';
+import '../../src/ui/components/os-app-frame/os-app-frame';
+import '../../src/ui/components/os-split/os-split';
+import { __, createPagedList, defineApp, html } from '@openstation/app';
 import { applyAvatarSrc } from '../../src/ui/util/avatar-resolve';
 import { decodeHTML } from '../../src/utils';
 import { NS, pruneBodies } from './parts/helpers';
@@ -111,14 +113,17 @@ export default defineApp< AppState, AppData >( APP_ID, {
 		// Nothing to read: a narrow window shows the list.
 		const pane = root ? ui.pane : 'rail';
 		return html`
-			<div class="${ NS } ${ NS }--conversation" data-os-comments-root data-os-comments-pane=${ pane }>
-				${ tabs( ctx, ui ) }
-				<div class="${ NS }__split">
+			<os-app-frame contained class="${ NS } ${ NS }--conversation" data-os-comments-root data-os-comments-pane=${ pane }>
+				<div slot="header">${ tabs( ctx, ui ) }</div>
+				<os-split class="${ NS }__split" resizable label=${ __( 'Resize conversations' ) }
+					collapse-at="720" min-start="240" min-end="300"
+					narrow=${ pane === 'convo' ? 'end' : 'start' }
+					?compact=${ document.documentElement.dataset.osMode === 'mobile' }>
 					${ rail( ctx, ui, rows, data.rail?.error ?? '' ) }
 					${ conversation( ctx, ui, root ) }
-				</div>
-				<div class="${ NS }__live screen-reader-text" role="status" aria-live="polite" data-os-comments-status>${ ui.status }</div>
-			</div>
+				</os-split>
+				<div slot="footer" class="${ NS }__live screen-reader-text" role="status" aria-live="polite" data-os-comments-status>${ ui.status }</div>
+			</os-app-frame>
 		`;
 	},
 
