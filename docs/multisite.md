@@ -156,8 +156,11 @@ the rest — so a `users.php` tile meaning "everyone on the network" would
 have opened one site's user list. A window says which admin offers it
 (`admin` in `openstation_register_window()`, `App::admin()` for an app:
 `site`, the default, `network`, or `any`), and the payload keeps the
-ones that belong (`openstation_native_window_offered_here()`); the
-Network app is the one that declares `network`. Dropping the site
+ones that belong (`openstation_native_window_offered_here()`). The
+Network app and OpenStation Preferences declare `any`: Preferences edits
+the user's own settings, which apply on every shell, and its site-wide
+options on the network admin are the main site's, the options that
+admin runs on. Dropping the site
 windows there is also what disarms the client-side URL remaps.
 
 ## The Network Admin dock tile

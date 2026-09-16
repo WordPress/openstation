@@ -181,6 +181,9 @@ return App::define( ID )
 	// and answers for it on the rail (`NavItem.answersFor`), exactly
 	// as before. `wp.os.openOsSettings()` is the portable opener.
 	->placement( 'none' )
+	// The settings are the user's own, so the network admin's shell
+	// offers the window too; its site options there are the main site's.
+	->admin( 'any' )
 	->capabilities( 'read' )
 	// `data()` is a handful of capability checks and options, so it
 	// ships with the window and the pages paint the moment the window
