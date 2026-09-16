@@ -171,6 +171,115 @@ function openstation_multisite_active_on( $blog_id ) {
 }
 
 /**
+ * My Sites inside a window: its row links follow the shell instead of
+ * opening as tabs of the Dashboard window. Visit opens a browser tab;
+ * this site's Dashboard goes back to Home; another site's hops to its
+ * shell when OpenStation is active there, or opens its wp-admin in a
+ * browser tab. The bridge leaves `_blank` and `_top` links to the
+ * browser, and a top-level navigation is the same hop the shell takes.
+ *
+ * @return void
+ */
+function openstation_multisite_my_sites_load() {
+	if ( ! is_multisite() || ! openstation_is_chromeless_request() ) {
+		return;
+	}
+	// Decided up front: Core runs the filter while switched to each
+	// site, where `openstation_multisite_active_on()` would read that
+	// site's plugin list as this one's.
+	$current = get_current_blog_id();
+	$active  = array();
+	foreach ( get_blogs_of_user( get_current_user_id() ) as $blog ) {
+		$active[ (int) $blog->userblog_id ] = openstation_multisite_active_on( (int) $blog->userblog_id );
+	}
+	add_filter(
+		'myblogs_blog_actions',
+		static function ( $actions, $user_blog ) use ( $current, $active ) {
+			$blog_id = (int) $user_blog->userblog_id;
+			return openstation_multisite_my_sites_actions( $actions, $blog_id, $current, ! empty( $active[ $blog_id ] ) );
+		},
+		10,
+		2
+	);
+}
+add_action( 'load-my-sites.php', 'openstation_multisite_my_sites_load' );
+
+/**
+ * One My Sites row's links, rewritten for the shell. Runs switched to
+ * that site, as Core's `myblogs_blog_actions` does, and leaves markup
+ * it does not recognise alone.
+ *
+ * @param string $actions         The row's links.
+ * @param int    $blog_id         The row's site.
+ * @param int    $current_blog_id The site whose shell the window is in.
+ * @param bool   $active          Whether OpenStation runs on the row's site.
+ * @return string
+ */
+function openstation_multisite_my_sites_actions( $actions, $blog_id, $current_blog_id, $active ) {
+	$home  = esc_url( home_url() );
+	$admin = esc_url( admin_url() );
+
+	if ( $blog_id === $current_blog_id ) {
+		$dashboard = "<a href='" . esc_url( admin_url( 'index.php' ) ) . "'>";
+	} elseif ( $active ) {
+		$dashboard = "<a href='" . $admin . "' target='_top'>";
+	} else {
+		$dashboard = "<a href='" . $admin . "' target='_blank' rel='noopener'>";
+	}
+
+	return str_replace(
+		array( "<a href='" . $home . "'>", "<a href='" . $admin . "'>" ),
+		array( "<a href='" . $home . "' target='_blank' rel='noopener'>", $dashboard ),
+		(string) $actions
+	);
+}
+
+/**
+ * The network Sites list inside a window: the same rules as My Sites,
+ * minus a current site, since the network admin is its own instance.
+ * Visit opens a browser tab, and Dashboard hops to the site's shell
+ * when OpenStation is active there, or opens its wp-admin in a tab.
+ *
+ * @return void
+ */
+function openstation_multisite_sites_list_load() {
+	if ( ! is_network_admin() || ! openstation_is_chromeless_request() ) {
+		return;
+	}
+	add_filter(
+		'manage_sites_action_links',
+		static function ( $actions, $blog_id ) {
+			return openstation_multisite_sites_row_actions( (array) $actions, openstation_multisite_active_on( (int) $blog_id ) );
+		},
+		10,
+		2
+	);
+}
+add_action( 'load-sites.php', 'openstation_multisite_sites_list_load' );
+
+/**
+ * One network Sites row's actions, with a browsing context on the two
+ * links that leave the network admin. A link that already names one
+ * is left alone.
+ *
+ * @param array<string,string> $actions The row's actions, keyed as Core keys them.
+ * @param bool                 $active  Whether OpenStation runs on the row's site.
+ * @return array<string,string>
+ */
+function openstation_multisite_sites_row_actions( array $actions, $active ) {
+	$targets = array(
+		'visit'   => '_blank',
+		'backend' => $active ? '_top' : '_blank',
+	);
+	foreach ( $targets as $key => $target ) {
+		if ( isset( $actions[ $key ] ) && is_string( $actions[ $key ] ) && false === strpos( $actions[ $key ], 'target=' ) ) {
+			$actions[ $key ] = (string) preg_replace( '/^<a /', '<a target="' . $target . '" ', $actions[ $key ], 1 );
+		}
+	}
+	return $actions;
+}
+
+/**
  * The sites the user may switch to, each with its own shell screen.
  *
  * The user's own sites first — `get_blogs_of_user()`, the list behind

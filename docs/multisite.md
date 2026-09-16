@@ -92,6 +92,19 @@ one place. If a window ever does show another admin, its
 `os-plugins-changed` payload repaints this dock with that admin's menu:
 the symptom to recognise.
 
+**My Sites follows the same rules.** Inside a window, Core's row links
+would open as tabs of the Dashboard window, so
+`openstation_multisite_my_sites_actions()` rewrites them through
+`myblogs_blog_actions`: Visit opens a browser tab, this site's Dashboard
+points at `index.php` so the window goes back to Home, and another site's
+Dashboard is a `target="_top"` navigation (the hop, which also works
+across origins) when OpenStation is active there, or a browser tab when
+it is not. The bridge leaves `_blank` and `_top` links on those URLs to
+the browser. The network Sites list gets the same treatment through
+`manage_sites_action_links` (`openstation_multisite_sites_row_actions()`),
+minus a current site: Visit opens a browser tab, and Dashboard is
+`_top` or `_blank` by the same test.
+
 **Landing in overview.** `openstation_overview` is a one-shot boot arg
 of the shell screen, like `target` and `intent`: read once server-side
 (`openstation_shell_lands_in_overview()`) into `config.landInOverview`,

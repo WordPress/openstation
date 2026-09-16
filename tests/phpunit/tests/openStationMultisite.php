@@ -230,6 +230,72 @@ class Tests_OpenStation_Multisite extends WP_UnitTestCase {
 	}
 
 	/**
+	 * My Sites inside a window: Visit opens a browser tab, this site's
+	 * Dashboard goes back to Home, and another site's hops to its shell
+	 * or, without OpenStation there, opens in a browser tab.
+	 *
+	 * @covers ::openstation_multisite_my_sites_actions
+	 */
+	public function test_my_sites_row_links_follow_the_shell() {
+		if ( ! is_multisite() ) {
+			$this->markTestSkipped( 'Multisite only.' );
+		}
+		$current = get_current_blog_id();
+		$other   = self::factory()->blog->create( array( 'path' => '/my-sites-other/' ) );
+
+		// Core's markup, built while switched to the row's site.
+		$row = static function ( $blog_id, $active ) use ( $current ) {
+			switch_to_blog( $blog_id );
+			$core    = "<a href='" . esc_url( home_url() ) . "'>Visit</a> | <a href='" . esc_url( admin_url() ) . "'>Dashboard</a>";
+			$actions = openstation_multisite_my_sites_actions( $core, $blog_id, $current, $active );
+			$urls    = array( esc_url( home_url() ), esc_url( admin_url() ), esc_url( admin_url( 'index.php' ) ) );
+			restore_current_blog();
+			return array( $actions, $urls );
+		};
+
+		list( $actions, $urls ) = $row( $current, true );
+		$this->assertStringContainsString( "<a href='{$urls[0]}' target='_blank' rel='noopener'>Visit</a>", $actions );
+		$this->assertStringContainsString( "<a href='{$urls[2]}'>Dashboard</a>", $actions );
+
+		list( $actions, $urls ) = $row( $other, true );
+		$this->assertStringContainsString( "<a href='{$urls[0]}' target='_blank' rel='noopener'>Visit</a>", $actions );
+		$this->assertStringContainsString( "<a href='{$urls[1]}' target='_top'>Dashboard</a>", $actions );
+
+		list( $actions, $urls ) = $row( $other, false );
+		$this->assertStringContainsString( "<a href='{$urls[1]}' target='_blank' rel='noopener'>Dashboard</a>", $actions );
+
+		// Markup it does not recognise is left alone.
+		$this->assertSame( '<a href="https://example.org/">Visit</a>', openstation_multisite_my_sites_actions( '<a href="https://example.org/">Visit</a>', $other, $current, true ) );
+	}
+
+	/**
+	 * The network Sites list inside a window: Visit opens a browser tab,
+	 * and Dashboard hops to the site's shell or, without OpenStation
+	 * there, opens in a browser tab.
+	 *
+	 * @covers ::openstation_multisite_sites_row_actions
+	 */
+	public function test_network_sites_row_links_follow_the_shell() {
+		$actions = array(
+			'edit'    => '<a href="http://example.org/wp-admin/network/site-info.php?id=2">Edit</a>',
+			'backend' => '<a href="http://site2.example.org/wp-admin/" class="edit">Dashboard</a>',
+			'visit'   => '<a href="http://site2.example.org/" rel="bookmark">Visit</a>',
+		);
+
+		$active = openstation_multisite_sites_row_actions( $actions, true );
+		$this->assertSame( $actions['edit'], $active['edit'], 'A link inside the network admin stays a window link.' );
+		$this->assertSame( '<a target="_top" href="http://site2.example.org/wp-admin/" class="edit">Dashboard</a>', $active['backend'] );
+		$this->assertSame( '<a target="_blank" href="http://site2.example.org/" rel="bookmark">Visit</a>', $active['visit'] );
+
+		$inactive = openstation_multisite_sites_row_actions( $actions, false );
+		$this->assertSame( '<a target="_blank" href="http://site2.example.org/wp-admin/" class="edit">Dashboard</a>', $inactive['backend'] );
+
+		// A link that already names a browsing context is left alone.
+		$named = array( 'visit' => '<a href="http://site2.example.org/" target="_self">Visit</a>' );
+		$this->assertSame( $named, openstation_multisite_sites_row_actions( $named, true ) );
+	}
+
+	/**
 	 * On a network every site is its own OpenStation: the block names
 	 * this instance, every site the user may switch to, and the network
 	 * admin only for those who can reach it.
