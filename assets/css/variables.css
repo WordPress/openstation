@@ -1635,6 +1635,19 @@ body.os-active {
 	);
 	--os-ai-panel-bg: rgba(26, 23, 33, 0.97);
 	/*
+	 * The Site assistant, the same split as selection everywhere else:
+	 * its header tint and mark, search icon, lit row and icon tiles still
+	 * mix from the accent, and so does its send button; --os-ai-accent
+	 * says how much. This palette
+	 * answers 0%, so the chrome is neutral and a lit row is the flat 8%
+	 * Starlight of the Preferences sidebar; Legacy answers 100%. The
+	 * command icons keep the accent here too: they read it directly, so
+	 * the colour stays in the pictures and out of the chrome.
+	 */
+	--os-ai-accent: 0%;
+	--os-ai-row-fill: rgba(255, 251, 255, 0.08);
+	--os-ai-tile-fill: rgba(255, 251, 255, 0.06);
+	/*
 	 * ---- Window tab strip ---------------------------------------
 	 *
 	 * A window with sub-pages reads as three surfaces stacked in

@@ -1852,7 +1852,7 @@ export class AiAssistant implements AiAssistantApi {
 		el.className = 'os-ai';
 		el.setAttribute( 'role', 'dialog' );
 		el.setAttribute( 'aria-modal', 'true' );
-		el.setAttribute( 'aria-label', __( 'Site Assistant' ) );
+		el.setAttribute( 'aria-label', __( 'Site assistant' ) );
 		el.setAttribute( 'aria-hidden', 'true' );
 		el.setAttribute( 'hidden', '' );
 
@@ -1861,7 +1861,7 @@ export class AiAssistant implements AiAssistantApi {
 			<div class="os-ai__panel">
 				<div class="os-ai__header">
 					<span class="os-ai__header-icon">${ ICON_SITE_LOGO }</span>
-					<span class="os-ai__header-label">${ this._esc( __( 'Site Assistant' ) ) }</span>
+					<span class="os-ai__header-label">${ this._esc( __( 'Site assistant' ) ) }</span>
 					<div class="os-ai__modes" role="group" aria-label="${ this._esc(
 						__( 'Assistant mode' ),
 					) }" hidden>
