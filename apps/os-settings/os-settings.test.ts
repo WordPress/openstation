@@ -133,7 +133,7 @@ describe( 'OpenStation Preferences — the frame', () => {
 		expect( root.querySelector( 'os-tabpanel[for="ext-acme"]' )?.textContent ).toContain( 'acme body' );
 		const tabCtx = render.mock.calls[ 0 ][ 1 ];
 		expect( tabCtx.isAdmin ).toBe( true );
-		expect( tabCtx.getOsSettings() ).toMatchObject( { accent: 'starlight' } );
+		expect( tabCtx.getOsSettings() ).toMatchObject( { accent: 'pulse' } );
 	} );
 
 	test( 'a registry tab draws the icon-set glyph it names, and a spacer otherwise', () => {

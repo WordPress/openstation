@@ -217,11 +217,11 @@ describe( 'updateOsSettings — theme activation', () => {
 		h.api.updateOsSettings( { accent: 'teal', desktopLayout: 'classic', dockPlacement: 'left' } );
 		const applied = h.api.desktopThemes.applyRecommendedOsSettings( '' );
 		expect( applied ).toEqual( {
-			accent: 'starlight',
+			accent: 'pulse',
 			desktopLayout: 'unified',
 			dockPlacement: 'bottom',
 		} );
-		expect( h.store.state.accent ).toBe( 'starlight' );
+		expect( h.store.state.accent ).toBe( 'pulse' );
 		expect( h.store.state.desktopLayout ).toBe( 'unified' );
 		expect( h.store.state.dockPlacement ).toBe( 'bottom' );
 	} );
@@ -237,7 +237,7 @@ describe( 'resetOsSettings', () => {
 		h.save.mockClear();
 		h.apply.mockClear();
 		h.api.resetOsSettings();
-		expect( h.store.state.accent ).toBe( 'starlight' );
+		expect( h.store.state.accent ).toBe( 'pulse' );
 		expect( h.store.state.wallpaper ).toBe( 'galaxy' );
 		expect( h.store.state.customImage ).toEqual( { id: 3, url: 'https://example.test/wall.jpg' } );
 		expect( h.save ).toHaveBeenCalledTimes( 1 );

@@ -61,7 +61,7 @@ const SYSTEM_DEFAULT_LEDGER_KEY = 'system-default';
  * and tab underline of a magenta-accented station.
  */
 const SYSTEM_DEFAULT_RECOMMENDATIONS: RecommendedOsSettings = {
-	accent: 'starlight',
+	accent: 'pulse',
 	desktopLayout: 'unified',
 	dockPlacement: 'bottom',
 };
