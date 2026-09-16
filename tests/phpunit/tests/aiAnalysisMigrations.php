@@ -1,10 +1,11 @@
 <?php
 /**
- * Tests for migration v2 — unscheduling leftover post/term AI analysis jobs.
+ * Tests for the AI-analysis retirement migrations.
  *
- * Post and taxonomy-term analysis was removed. The migration
- * clears any `desktop_mode_ai_analyze_post` / `desktop_mode_ai_analyze_term`
- * cron events that prior versions may have queued.
+ * Migration 2 cleared the post/term analysis jobs when that analysis was
+ * removed; migration 8 cleared the comment analysis job and the toggle
+ * option when automatic comment scoring followed. Each migration stays
+ * scoped to its own jobs, and the runner stamps the high-water mark.
  *
  * @package WordPress
  * @subpackage UnitTests
@@ -12,7 +13,7 @@
  * @group openstation
  * @group os-ai
  */
-class Tests_OpenStation_AiCommentOnlyMigration extends WP_UnitTestCase {
+class Tests_OpenStation_AiAnalysisMigrations extends WP_UnitTestCase {
 
 	public function set_up() {
 		parent::set_up();
