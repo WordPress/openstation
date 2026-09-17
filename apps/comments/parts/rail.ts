@@ -240,7 +240,7 @@ export function rail( ctx: Ctx, ui: UiState, rows: CommentRow[], error: string )
 	} else {
 		body = rows.map( ( row ) => threadItem( ctx, ui, row ) );
 	}
-	return html`<aside class="${ NS }__rail" aria-label=${ __( 'Conversations' ) }>
+	return html`<aside slot="start" class="${ NS }__rail" aria-label=${ __( 'Conversations' ) }>
 		<div class="${ NS }__search">
 			<os-text-field
 				label=${ __( 'Search comments' ) }

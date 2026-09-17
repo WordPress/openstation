@@ -94,6 +94,8 @@ const OPENSTATION_OS_SETTINGS_REVEAL_DURATION_MAX = 4000;
 function openstation_default_os_settings() {
 	return array(
 		'wallpaper'                   => 'galaxy',
+		// Pulse, the brand's signature. Mirrors `DEFAULTS` in
+		// `src/settings/constants.ts`.
 		'accent'                      => 'pulse',
 		// Only read when `accent` is `custom`. Seeded with Pulse so
 		// picking Custom before touching the wheel is a no-op rather

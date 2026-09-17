@@ -26,8 +26,8 @@
 .os-content-graph__toolbar {
 	display: flex;
 	align-items: center;
-	gap: 12px;
-	padding: 10px 14px;
+	gap: 8px;
+	padding: 8px 16px;
 	border-bottom: 1px solid var( --os-ui-border, #e2e6ec );
 	background: var( --os-ui-surface-elevated, #fff );
 	flex-wrap: wrap;
@@ -36,20 +36,35 @@
 .os-content-graph__filters {
 	display: flex;
 	align-items: center;
-	gap: 6px;
+	gap: 8px;
 	flex-wrap: wrap;
 }
 
+/*
+ * Filter chips: toggle buttons, one per post type, all on by default.
+ *
+ * Same box as the `<os-select>` trigger beside them (8px block
+ * padding, 13px type at 1.5, a 1px border), so the row holds one
+ * height instead of three.
+ *
+ * The edge has its own token because an OFF chip is only an edge and a
+ * label, and it is the chip the user has to find again to undo a
+ * filter. The palette's plain border is the toolbar's own colour, so
+ * an off chip drawn with it has no outline at all.
+ */
 .os-content-graph__chip {
 	display: inline-flex;
 	align-items: center;
 	gap: 6px;
-	padding: 5px 10px;
-	border: 1px solid var( --os-ui-border, #d8dde4 );
+	padding: 8px 12px;
+	border: 1px solid
+		var( --os-ui-cg-chip-border, var( --os-ui-border, #d8dde4 ) );
 	border-radius: 999px;
 	background: transparent;
 	color: var( --os-ui-fg-muted, #5a6473 );
-	font-size: 12px;
+	font: inherit;
+	font-size: 13px;
+	line-height: 1.5;
 	cursor: pointer;
 	transition: background 0.12s ease, border-color 0.12s ease,
 		color 0.12s ease;
@@ -60,43 +75,89 @@
 	color: var( --os-ui-fg, #1a1f2b );
 }
 
-.os-content-graph__chip.is-active {
-	border-color: var( --os-ui-accent, #2c6be5 );
-	background: var( --os-ui-accent-soft, rgba( 44, 107, 229, 0.12 ) );
-	color: var( --os-ui-accent-strong, #1f4ea8 );
+.os-content-graph__chip:focus-visible {
+	outline: none;
+	box-shadow: var(
+		--os-ui-focus-ring,
+		0 0 0 2px var( --wp-admin-theme-color, #2271b1 )
+	);
+}
+
+/*
+ * On. Colour still derives from the accent (edge, wash and text), so a
+ * picked accent and a desktop theme both reach the chip. How MUCH of it
+ * shows is `--os-ui-cg-chip-accent`, a literal a palette answers on its
+ * own: each of the three layers is mixed from the accent by that
+ * amount, towards a neutral the palette also names. This palette
+ * answers 0%, so an on chip is the selected theme card in miniature: a
+ * Starlight outline around a dark fill. Legacy answers 100%, which is
+ * the accent chip exactly as it was.
+ *
+ * On and off differ in more than a shade: the outline is the brightest
+ * edge on the row and the fill is the darkest, against an off chip's
+ * grey edge on the toolbar itself.
+ */
+.os-content-graph__chip[aria-pressed='true'] {
+	border-color: color-mix(
+		in srgb,
+		var( --os-ui-accent, #2c6be5 ) var( --os-ui-cg-chip-accent, 100% ),
+		var( --os-ui-cg-chip-border-active, var( --os-ui-border-strong, #8c8f94 ) )
+	);
+	background-color: color-mix(
+		in srgb,
+		var( --os-ui-accent-soft, rgba( 44, 107, 229, 0.12 ) )
+			var( --os-ui-cg-chip-accent, 100% ),
+		transparent
+	);
+	background-image: linear-gradient(
+		var( --os-ui-cg-chip-fill-active, transparent ),
+		var( --os-ui-cg-chip-fill-active, transparent )
+	);
+	color: color-mix(
+		in srgb,
+		var( --os-ui-accent-strong, #1f4ea8 ) var( --os-ui-cg-chip-accent, 100% ),
+		var( --os-ui-fg, #1a1f2b )
+	);
 }
 
 .os-content-graph__chip .dashicons {
-	font-size: 14px;
-	width: 14px;
-	height: 14px;
-	line-height: 14px;
+	font-size: 16px;
+	width: 16px;
+	height: 16px;
+	line-height: 16px;
 }
 
 .os-content-graph__chip-count {
 	font-variant-numeric: tabular-nums;
-	font-size: 11px;
-	background: var( --os-ui-surface, #f1f3f7 );
-	padding: 1px 6px;
+	font-size: 12px;
+	line-height: 16px;
+	background: var(
+		--os-ui-cg-chip-count-bg,
+		var( --os-ui-surface, #f1f3f7 )
+	);
+	color: var( --os-ui-cg-chip-count-fg, inherit );
+	padding: 0 6px;
 	border-radius: 999px;
 }
 
 /*
- * The count pill on an ACTIVE chip is a bright fill, and the chip's
- * own text colour is `--os-ui-accent-strong` — a light tint, by design,
- * because the chip body around it is a dark accent wash. The two meet
- * on this pill and cancel out (Nebula on 70% white is ~1.7:1).
- *
- * So the pill names its own text, exactly the way `--os-ui-ribbon-fg`
- * and `--os-ui-step-chip-fg` do for the other bright fills in the kit.
- * Unset it inherits the chip's colour, which is what a light theme
- * wants — there the chip text is already dark.
+ * The count pill on an ON chip. Pre-brand it is a bright 70%-white fill
+ * over the accent wash, and it names its own text colour, exactly the
+ * way `--os-ui-ribbon-fg` and `--os-ui-step-chip-fg` do for the other
+ * bright fills in the kit: the chip's own colour on that pill would
+ * cancel out. Both halves are tokens, so a palette that has no bright
+ * fill here can say so. Unset, the text inherits the chip's colour,
+ * which is what a light theme wants.
  */
-.os-content-graph__chip.is-active .os-content-graph__chip-count {
-	background: rgba( 255, 255, 255, 0.7 );
+.os-content-graph__chip[aria-pressed='true'] .os-content-graph__chip-count {
+	background: var(
+		--os-ui-cg-chip-count-bg-active,
+		rgba( 255, 255, 255, 0.7 )
+	);
 	color: var( --os-ui-cg-chip-count-fg-active, inherit );
 }
 
+/* The kit field fills the column; the results list hangs off it. */
 .os-content-graph__search {
 	position: relative;
 	flex: 1;
@@ -104,20 +165,9 @@
 	max-width: 320px;
 }
 
-.os-content-graph__search-input {
+.os-content-graph__search os-text-field {
+	display: block;
 	width: 100%;
-	padding: 6px 10px;
-	border: 1px solid var( --os-ui-border, #d8dde4 );
-	border-radius: 6px;
-	background: var( --os-ui-surface, #fff );
-	color: inherit;
-	font-size: 13px;
-}
-
-.os-content-graph__search-input:focus {
-	outline: none;
-	border-color: var( --os-ui-accent, #2c6be5 );
-	box-shadow: 0 0 0 3px var( --os-ui-accent-soft, rgba( 44, 107, 229, 0.18 ) );
 }
 
 .os-content-graph__search-results {
@@ -211,7 +261,7 @@
 
 .os-content-graph__toolbar-status {
 	margin-left: 8px;
-	font-size: 11px;
+	font-size: 12px;
 	color: var( --os-ui-fg-muted, #6b7280 );
 	font-variant-numeric: tabular-nums;
 }
@@ -747,7 +797,7 @@
 .os-content-graph__btn--primary {
 	border-color: var( --os-ui-accent, #2c6be5 );
 	background: var( --os-ui-accent, #2c6be5 );
-	color: var( --os-ui-fg-on-accent, #fff );
+	color: var( --os-ui-accent-ink, var( --os-ui-fg-on-accent, #fff ) );
 }
 
 .os-content-graph__btn--primary:hover {

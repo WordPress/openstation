@@ -804,7 +804,7 @@ export const holoCheck = css`
 		top: 46%;
 		width: 3.5px;
 		height: 7.5px;
-		border: solid var( --os-ui-fg-on-accent, #fff );
+		border: solid var( --os-ui-accent-ink, var( --os-ui-fg-on-accent, #fff ) );
 		border-width: 0 2px 2px 0;
 		transform: translate( -50%, -50% ) rotate( 45deg );
 		animation: os-holo-tick 180ms cubic-bezier( 0.3, 1.4, 0.6, 1 );
@@ -820,7 +820,7 @@ export const holoCheck = css`
 		height: 2px;
 		border: 0;
 		border-radius: 1px;
-		background: var( --os-ui-fg-on-accent, #fff );
+		background: var( --os-ui-accent-ink, var( --os-ui-fg-on-accent, #fff ) );
 		transform: translate( -50%, -50% );
 	}
 
@@ -832,7 +832,7 @@ export const holoCheck = css`
 		width: 6px;
 		height: 6px;
 		border-radius: 50%;
-		background: var( --os-ui-fg-on-accent, #fff );
+		background: var( --os-ui-accent-ink, var( --os-ui-fg-on-accent, #fff ) );
 		transform: translate( -50%, -50% );
 		animation: os-holo-tick 180ms cubic-bezier( 0.3, 1.4, 0.6, 1 );
 	}

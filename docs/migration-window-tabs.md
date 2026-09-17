@@ -66,7 +66,7 @@ windowEl.addEventListener( 'os-window-tab-change', ( e ) => {
 
 CSS or JS targeting `os-tabs` **inside a native window body** no longer matches anything. There is no drop-in selector to swap in, and that is deliberate: the strip is window chrome now, shared with every other window, and a plugin restyling it would be restyling the shell.
 
-Retint it through the tokens the strip reads instead, which reach every window and every desktop theme: `--os-tabs-bg` and `--os-tabs-bg-unfocused` (the track), `--os-tabs-color` (inactive labels), `--os-tabs-rail` and `--os-tabs-rail-width` (the accent line), `--os-tabs-radius`, `--os-tabs-slide`. On a native window the active tab wears `--os-window-bg`, the same token that paints the body it belongs to.
+Retint it through the tokens the strip reads instead, which reach every window and every desktop theme: `--os-tabs-bg` and `--os-tabs-bg-unfocused` (the track), `--os-tabs-color` (inactive labels), `--os-tabs-rail`, `--os-tabs-rail-width` and `--os-tabs-rail-opacity` (the accent line, hidden at `0` on the default palette), `--os-tabs-radius`, `--os-tabs-slide`. On a native window the active tab wears `--os-window-bg`, the same token that paints the body it belongs to.
 
 ### Driving tabs from JS
 

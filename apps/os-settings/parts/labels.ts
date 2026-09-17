@@ -20,6 +20,8 @@ import type {
 
 export function translateAccentLabel( id: AccentId, fallback: string ): string {
 	switch ( id ) {
+		case 'starlight':
+			return __( 'Starlight' );
 		case 'wp-blue':
 			return __( 'WordPress Blue' );
 		case 'indigo':

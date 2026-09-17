@@ -4,7 +4,17 @@
  * A system-level command palette that floats above the entire shell,
  * including the WP admin bar. Visually modeled on macOS Spotlight and
  * Linear's command menu — frosted-glass backdrop, spring-physics panel
- * entrance, large search input, accent-tinted header.
+ * entrance, large search input.
+ *
+ * ## How much accent the chrome shows
+ *
+ * Every accent-derived surface below (the header tint and its mark, the
+ * search icon, a selected or hovered row, the icon tiles) mixes the
+ * accent by --os-ai-accent towards a neutral. Unset that is 100%, the
+ * accent-tinted panel this has always been; the OpenStation palette
+ * answers 0% and lifts rows and tiles with --os-ai-row-fill and
+ * --os-ai-tile-fill instead. The command icons themselves are not part
+ * of it: they read the accent directly, in every palette.
  *
  * z-index 10000 puts this above --os-z-adminbar (9991) so the
  * overlay truly covers the full viewport.
@@ -101,6 +111,7 @@
 	background-size: var( --os-ui-dialog-bg-image-size, auto );
 	background-position: var( --os-ui-dialog-bg-image-position, center );
 	color: var( --os-ui-fg, #1d2327 );
+	font-family: var( --os-ui-font, inherit );
 	border-radius: 16px;
 	overflow: hidden;
 
@@ -133,11 +144,15 @@
 	align-items: center;
 	gap: 8px;
 	padding: 10px 14px;
-	/* Gradient fades from a very faint accent tint to white — visible
-	   on fresh/blue schemes, subtle on light schemes. */
+	/* A faint accent tint fading to the surface, at --os-ai-accent's
+	   strength: flat when that is 0. */
 	background: linear-gradient(
 		to bottom,
-		color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 8%, var( --os-ui-surface, #fff ) ),
+		color-mix(
+			in srgb,
+			var( --wp-admin-theme-color, #2271b1 ) calc( var( --os-ai-accent, 100% ) * 0.08 ),
+			var( --os-ui-surface, #fff )
+		),
 		var( --os-ui-surface, #fff )
 	);
 	border-bottom: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.06 ) );
@@ -146,20 +161,33 @@
 .os-ai__header-icon {
 	display: flex;
 	align-items: center;
-	color: var( --wp-admin-theme-color, #2271b1 );
-	/* Glow so the sparkle feels alive on dark or saturated themes */
+	color: color-mix(
+		in srgb,
+		var( --wp-admin-theme-color, #2271b1 ) var( --os-ai-accent, 100% ),
+		var( --os-ui-fg, #1d2327 )
+	);
+	/* The glow fades out with the accent, so a neutral mark has none. */
 	filter: drop-shadow(
-		0 0 5px color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 55%, transparent )
+		0 0 5px
+			color-mix(
+				in srgb,
+				var( --wp-admin-theme-color, #2271b1 ) calc( var( --os-ai-accent, 100% ) * 0.55 ),
+				transparent
+			)
 	);
 }
 
+/* Sentence case at body size, like a window title, rather than a
+   tracked uppercase eyebrow. */
 .os-ai__header-label {
 	flex: 1;
-	font-size: 11px;
-	font-weight: 700;
-	letter-spacing: 0.09em;
-	text-transform: uppercase;
-	color: var( --wp-admin-theme-color, #2271b1 );
+	font-size: 13px;
+	font-weight: 500;
+	color: color-mix(
+		in srgb,
+		var( --wp-admin-theme-color, #2271b1 ) var( --os-ai-accent, 100% ),
+		var( --os-ui-fg, #1d2327 )
+	);
 }
 
 /* Mode switch (Commands ↔ AI) — a small segmented pill in the header.
@@ -228,19 +256,27 @@
 	border-bottom-color: var( --os-ui-border, rgba( 0, 0, 0, 0.06 ) );
 }
 
-/* Input-row sparkle — visible always, tints toward the accent on focus
-   so the panel reads as "AI assistant" rather than "search box". */
+/* Input-row icon: dim at rest, full strength on focus. At rest it is
+   the accent at 55% alpha, mixed by --os-ai-accent towards the faint
+   text colour; focused, the accent mixed towards the text colour. */
 .os-ai__input-icon {
 	flex-shrink: 0;
 	display: flex;
 	align-items: center;
-	color: var( --wp-admin-theme-color, #2271b1 );
-	opacity: 0.55;
-	transition: opacity 0.18s ease, transform 0.18s ease;
+	color: color-mix(
+		in srgb,
+		color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 55%, transparent ) var( --os-ai-accent, 100% ),
+		var( --os-ui-fg-faint, #c3c4c7 )
+	);
+	transition: color 0.18s ease, transform 0.18s ease;
 }
 
 .os-ai__input-wrap:has( .os-ai__input:focus ) .os-ai__input-icon {
-	opacity: 1;
+	color: color-mix(
+		in srgb,
+		var( --wp-admin-theme-color, #2271b1 ) var( --os-ai-accent, 100% ),
+		var( --os-ui-fg, #1d2327 )
+	);
 	transform: scale( 1.08 );
 }
 
@@ -308,8 +344,23 @@
 	height: 30px;
 	border: none;
 	border-radius: 8px;
-	background: var( --wp-admin-theme-color, #2271b1 );
-	color: var( --os-ui-fg-on-accent, #fff );
+	/* An accent key at --os-ai-accent's strength. At 0 it is an icon tile
+	   like the command rows' (the neutral fill, the glyph in the accent);
+	   at 100% the filled accent button with its ink. */
+	background-color: color-mix(
+		in srgb,
+		var( --wp-admin-theme-color, #2271b1 ) var( --os-ai-accent, 100% ),
+		transparent
+	);
+	background-image: linear-gradient(
+		var( --os-ai-tile-fill, transparent ),
+		var( --os-ai-tile-fill, transparent )
+	);
+	color: color-mix(
+		in srgb,
+		var( --os-ui-accent-ink, var( --os-ui-fg-on-accent, #fff ) ) var( --os-ai-accent, 100% ),
+		var( --wp-admin-theme-color, #2271b1 )
+	);
 	cursor: pointer;
 	padding: 0;
 	opacity: 0;
@@ -653,7 +704,7 @@ body.os-active .os-ai__settings-link {
 	border: none;
 	border-radius: 8px;
 	background: var( --wp-admin-theme-color, #2271b1 );
-	color: var( --os-ui-fg-on-accent, #fff );
+	color: var( --os-ui-accent-ink, var( --os-ui-fg-on-accent, #fff ) );
 	font: inherit;
 	font-size: 12px;
 	font-weight: 500;
@@ -805,10 +856,36 @@ body.os-active .os-ai__settings-link {
 	align-items: center;
 }
 
+/* The lit row: an accent wash and edge at --os-ai-accent's strength,
+   over the row fill the palette names. Shared with the args-mode rows
+   below through the same two custom properties. */
+.os-ai {
+	--_row-wash: color-mix(
+		in srgb,
+		var( --wp-admin-theme-color, #2271b1 ) calc( var( --os-ai-accent, 100% ) * 0.08 ),
+		var( --os-ui-surface, #fff )
+	);
+	--_row-edge: color-mix(
+		in srgb,
+		color-mix(
+			in srgb,
+			var( --wp-admin-theme-color, #2271b1 ) 25%,
+			var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) )
+		)
+		var( --os-ai-accent, 100% ),
+		transparent
+	);
+	--_row-fill: linear-gradient(
+		var( --os-ai-row-fill, transparent ),
+		var( --os-ai-row-fill, transparent )
+	);
+}
+
 .os-ai__cmd-item:hover,
 .os-ai__cmd-item.is-selected {
-	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 8%, var( --os-ui-surface, #fff ) );
-	border-color: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 25%, var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) ) );
+	background-color: var( --_row-wash );
+	background-image: var( --_row-fill );
+	border-color: var( --_row-edge );
 }
 
 /*
@@ -824,8 +901,9 @@ body.os-active .os-ai__settings-link {
 	border-color: transparent;
 }
 .os-ai__cmd-list--kb-nav .os-ai__cmd-item.is-selected:hover {
-	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 8%, var( --os-ui-surface, #fff ) );
-	border-color: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 25%, var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) ) );
+	background-color: var( --_row-wash );
+	background-image: var( --_row-fill );
+	border-color: var( --_row-edge );
 }
 
 .os-ai__cmd-item:focus-visible {
@@ -841,8 +919,18 @@ body.os-active .os-ai__settings-link {
 	width: 36px;
 	height: 36px;
 	font-size: 20px;
+	/* The glyph is the accent in every palette; only its tile follows
+	   --os-ai-accent. */
 	color: var( --wp-admin-theme-color, #2271b1 );
-	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 10%, var( --os-ui-surface, #fff ) );
+	background-color: color-mix(
+		in srgb,
+		var( --wp-admin-theme-color, #2271b1 ) calc( var( --os-ai-accent, 100% ) * 0.1 ),
+		var( --os-ui-surface, #fff )
+	);
+	background-image: linear-gradient(
+		var( --os-ai-tile-fill, transparent ),
+		var( --os-ai-tile-fill, transparent )
+	);
 	border-radius: 7px;
 }
 
@@ -916,8 +1004,9 @@ body.os-active .os-ai__settings-link {
 	align-items: flex-start;
 	gap: 10px;
 	padding: 10px 12px;
-	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 10%, var( --os-ui-surface, #fff ) );
-	border: 1px solid color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 30%, var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) ) );
+	background-color: var( --_row-wash );
+	background-image: var( --_row-fill );
+	border: 1px solid var( --_row-edge );
 	border-radius: 8px;
 }
 
@@ -967,8 +1056,9 @@ body.os-active .os-ai__settings-link {
 
 .os-ai__cmd-suggest-item:hover,
 .os-ai__cmd-suggest-item.is-selected {
-	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 8%, var( --os-ui-surface, #fff ) );
-	border-color: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 25%, var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) ) );
+	background-color: var( --_row-wash );
+	background-image: var( --_row-fill );
+	border-color: var( --_row-edge );
 }
 
 .os-ai__cmd-suggest-label {

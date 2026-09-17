@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><title>Comments layout integration</title>
+<link rel="stylesheet" href="/apps/comments/comments.css">
+<style>
+body { margin: 16px; font: 14px system-ui; }
+#app { width: 960px; max-width: 100%; height: 560px; border: 1px solid #aaa; }
+.screen-reader-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+</style>
+<div id="app"></div>
+<script type="module">
+import '/src/ui/components/index.ts';
+import { mockViewContext } from '/src/app-runtime/testing.ts';
+import app, { freshUi } from '/apps/comments/comments.os.ts';
+const comment = {
+ id: 1, post: 10, parent: 0, author: 0, author_name: 'Alice', author_avatar_urls: {},
+ date_gmt: '2026-01-01 10:00:00', content: { rendered: '<p>A conversation with enough content to scroll.</p>'.repeat(40) },
+ status: 'hold', openstation_post_title: 'A post', openstation_post_link: '#post',
+ openstation_can_edit: true, openstation_replies_count: 0,
+};
+const ctx = mockViewContext({
+ root: document.querySelector('#app'),
+ state: { tab:'all', search:'', page:1, post:0, selected:1, gen:0 },
+ data: { rail:{ items:[comment], total:1, pages:1, page:1, perPage:20, error:'', code:'' }, railKey:'all', thread:{rows:[comment],truncated:false},counts:{pending:1,approved:0,spam:0,trash:0,total:1} },
+ extra:{canModerate:true,canEditComments:true,currentUserId:7}, windowId:'desktop-mode-comments'
+});
+ctx.repaint = () => app.render(ctx);
+ctx.ui(freshUi).pane = 'convo';
+app.render(ctx);
+window.ready = true;
+</script></html>

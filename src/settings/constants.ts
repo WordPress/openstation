@@ -69,6 +69,7 @@ export const DEFAULT_ACCENTS: readonly AccentColor[] = [
 	{ id: 'nebula', label: 'Nebula', value: '#ec9bff' },
 	{ id: 'sirius', label: 'Sirius', value: '#9af2ff' },
 	{ id: 'lagoon', label: 'Lagoon', value: '#9f98ff' },
+	{ id: 'starlight', label: 'Starlight', value: '#fffbff' },
 	{ id: 'wp-blue', label: 'WordPress Blue', value: '#2271b1' },
 	{ id: 'indigo', label: 'Indigo', value: '#3858e9' },
 	{ id: 'teal', label: 'Teal', value: '#04a4cc' },
@@ -228,6 +229,8 @@ export const DESKTOP_LAYOUTS = [
 
 export const DEFAULTS: OsSettingsState = {
 	wallpaper: DEFAULT_WALLPAPER_ID,
+	// Pulse, the brand's signature. Mirrors
+	// `openstation_default_os_settings()`.
 	accent: 'pulse',
 	// Only read when `accent` is CUSTOM_ACCENT_ID. Seeded with Pulse so
 	// picking Custom before touching the colour field is a no-op rather

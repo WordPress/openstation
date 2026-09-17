@@ -8,12 +8,18 @@ import { holoTokens, holoSheen } from '../../holo';
  * the visual decisions co-located (the parent pill + the inner
  * buttons share a visual language).
  *
- * ## The selected segment wears the accent
+ * ## The selected segment
  *
- * Flat accent, not the mesh: selection states across the kit resolve
- * through --os-ui-accent (checkboxes, switches, sliders, rings), and
- * the segmented pill says "this one" in the same voice. The meshes
- * stay reserved for hero surfaces.
+ * Flat, never the mesh: the meshes stay reserved for hero surfaces.
+ * Its colour is mixed from the accent by
+ * --os-ui-segmented-selected-accent, towards
+ * --os-ui-segmented-selected-base for the pill and the plain text
+ * colour for its label. Unset that is 100%, the accent pill every other
+ * on state wears (checkboxes, switches, sliders); the OpenStation
+ * palette answers 0%, a mid-grey key on a Void track that does not
+ * follow the picker. Two more tokens draw its depth, both nothing
+ * unless a palette declares them: --os-ui-segmented-edge around the
+ * track and --os-ui-segmented-selected-shadow under the key.
  *
  * A caller who wants a different pill has two declarations to write:
  * `--os-ui-segmented-selected-image: <gradient>` and
@@ -32,6 +38,7 @@ export const segmentedStyles = css`
 		background: var( --os-ui-segmented-bg, var( --os-ui-hover, rgba( 0, 0, 0, 0.05 ) ) );
 		border-radius: 8px;
 		gap: 2px;
+		box-shadow: var( --os-ui-segmented-edge, none );
 	}
 
 	/*
@@ -63,9 +70,18 @@ export const segmentedStyles = css`
 		border-radius: 6px;
 		background-color: var(
 			--os-ui-segmented-selected-bg,
-			var( --os-ui-accent, #2271b1 )
+			color-mix(
+				in srgb,
+				var( --os-ui-accent, #2271b1 )
+					var( --os-ui-segmented-selected-accent, 100% ),
+				var(
+					--os-ui-segmented-selected-base,
+					var( --os-ui-surface, #fff )
+				)
+			)
 		);
 		background-image: var( --os-ui-segmented-selected-image, none );
+		box-shadow: var( --os-ui-segmented-selected-shadow, none );
 		background-size: 220% 220%;
 		background-position: 22% 28%;
 		background-repeat: no-repeat;
@@ -113,6 +129,25 @@ export const segmentStyles = css`
 	:host {
 		flex: 1 1 auto;
 		min-width: 0;
+		/*
+		 * The hover film, re-pointed for segments only: a palette can
+		 * switch it off here without taking it from every button in
+		 * the kit. A private alias, so nothing public is pinned on
+		 * the host.
+		 */
+		--_holo-sheen: var(
+			--os-ui-segmented-hover-sheen,
+			var(
+				--os-ui-holo-sheen,
+				linear-gradient(
+					124deg,
+					rgba( 159, 214, 255, 0.1 ) 0%,
+					rgba( 236, 155, 255, 0.12 ) 34%,
+					rgba( 242, 82, 252, 0.1 ) 58%,
+					rgba( 147, 240, 198, 0.09 ) 100%
+				)
+			)
+		);
 	}
 	button {
 		appearance: none;
@@ -135,9 +170,14 @@ export const segmentStyles = css`
 	}
 
 	/* An unselected segment lifts toward its own text colour under
-	   the pointer; the holographic film underneath does the rest. */
+	   the pointer, over a shade the palette names (none unless it
+	   does), with the holographic film underneath unless the palette
+	   turns that off. */
 	button:hover {
 		color: var( --os-ui-fg, #1d2327 );
+	}
+	:host( :not( [ aria-checked='true' ] ) ) button:hover {
+		background-color: var( --os-ui-segmented-hover-bg, transparent );
 	}
 
 	button:focus-visible {
@@ -151,7 +191,7 @@ export const segmentStyles = css`
 	 * the child at the same time would land instantly and give the
 	 * pill something to race.
 	 *
-	 * All the child does is take the on-accent ink, on the fast
+	 * All the child does is take the pill's ink, on the fast
 	 * duration so the text has flipped by the time the pill gets
 	 * there rather than after. No weight bump: the accent pill
 	 * already says which one, and bold would make the control jitter
@@ -160,7 +200,12 @@ export const segmentStyles = css`
 	:host( [ aria-checked='true' ] ) button {
 		color: var(
 			--os-ui-segmented-selected-fg,
-			var( --os-ui-fg-on-accent, #fff )
+			color-mix(
+				in srgb,
+				var( --os-ui-accent-ink, var( --os-ui-fg-on-accent, #fff ) )
+					var( --os-ui-segmented-selected-accent, 100% ),
+				var( --os-ui-fg, #1d2327 )
+			)
 		);
 		transition-duration: var( --_holo-t-fast );
 	}

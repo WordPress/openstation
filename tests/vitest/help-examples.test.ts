@@ -149,17 +149,11 @@ describe( 'help examples', () => {
 		).toBe( false );
 	} );
 
-	test.each( files )( '%s does not claim to be experimental', ( name, src ) => {
-		// The kit shipped; every component in it is stable. A badge
-		// that says "experimental" on a component three other windows
-		// already depend on is not a caveat, it is stale metadata —
-		// and it tells plugin authors not to rely on something they
-		// safely can. `OsHelpStatus` still accepts the value, for a
-		// component that genuinely is one.
+	test.each( files )( '%s declares its intended stability', ( name, src ) => {
 		expect(
-			src.includes( "status: 'experimental'" ),
-			`${ name } is marked experimental.`,
-		).toBe( false );
+			src.includes( "status: 'stable'" ),
+			`${ name } has an unexpected stability label.`,
+		).toBe( true );
 	} );
 
 	test( 'exampleInit wires listeners by assignment, never by accumulation', () => {

@@ -203,15 +203,16 @@
 
 /* The CANONICAL selection pair every tile in the shell wears
  * (`.os-file-tile--selected` in desktop-files.css): the
- * `--os-tile-selected-bg` wash under an inset `--os-tile-focus-ring`
- * ring that resolves to the admin scheme colour. The root folder
- * tiles are plain buttons rather than `<os-tile>`s, so they restate
- * the same chains — reading `--os-ui-accent` here painted the raw
- * brand Pulse instead of the theme's selection, which is exactly the
- * divergence the shared tokens exist to prevent. */
+ * `--os-tile-selected-bg` fill under an inset `--os-tile-focus-ring`
+ * ring whose width the palette decides (0 on OpenStation's, 1px on
+ * Legacy). The root folder tiles are plain buttons rather than
+ * `<os-tile>`s, so they restate the same chains — reading
+ * `--os-ui-accent` here painted the raw brand Pulse instead of the
+ * theme's selection, which is exactly the divergence the shared
+ * tokens exist to prevent. */
 .os-mywp__tile.is-selected {
 	background: var( --os-tile-selected-bg, rgba( 34, 113, 177, 0.14 ) );
-	box-shadow: inset 0 0 0 1px
+	box-shadow: inset 0 0 0 var( --os-tile-selected-ring-width, 1px )
 		var( --os-tile-focus-ring, var( --wp-admin-theme-color, #2271b1 ) );
 }
 

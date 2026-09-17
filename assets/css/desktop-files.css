@@ -722,16 +722,17 @@
 	color: var( --os-fg-on-light, var( --os-ui-fg, #1d2327 ) );
 }
 
-/* Selected file tile — light-blue accent on the wallpaper, soft
- * accent inside light-context windows. Variable-driven so plugins
- * can retune. */
+/* Selected file tile — a fill, and an inset accent ring whose width
+ * the palette decides (0 on OpenStation's, which lifts the tile with
+ * the fill alone; 1px on Legacy). Variable-driven so plugins can
+ * retune. */
 .os-file-tile--selected,
 .os-file-tile--selected:hover {
 	background: var(
 		--os-tile-selected-bg,
 		rgba( 34, 113, 177, 0.18 )
 	);
-	box-shadow: inset 0 0 0 1px
+	box-shadow: inset 0 0 0 var( --os-tile-selected-ring-width, 1px )
 		var( --os-tile-focus-ring, var( --wp-admin-theme-color, #2271b1 ) );
 }
 

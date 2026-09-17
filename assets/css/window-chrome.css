@@ -1038,6 +1038,9 @@
 	bottom: 0;
 	height: var( --_tab-stroke );
 	background-image: var( --os-tabs-rail, none );
+	/* The rail's colour is derived from the accent; how much of it
+	   shows is a literal the palette answers. 1 is the earlier look. */
+	opacity: var( --os-tabs-rail-opacity, 1 );
 	background-size: var( --_tab-strip-w, 100% ) 100%;
 	background-repeat: no-repeat;
 	pointer-events: none;
@@ -1127,6 +1130,9 @@
 		calc( ( var( --_tab-radius ) + var( --_tab-stroke ) ) * -1 )
 		0;
 	background-image: var( --os-tabs-rail, none );
+	/* The rail's colour is derived from the accent; how much of it
+	   shows is a literal the palette answers. 1 is the earlier look. */
+	opacity: var( --os-tabs-rail-opacity, 1 );
 	background-size: var( --_tab-strip-w, 100% ) 100%;
 	background-position:
 		calc(

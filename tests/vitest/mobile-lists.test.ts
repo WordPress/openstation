@@ -170,7 +170,9 @@ describe( 'Plugins', () => {
 	test( 'a narrow window gives the inspector a full pane and clears the library', () => {
 		expect( plugins ).toMatch( /@container \( max-width: 760px \)/ );
 		expect( block( plugins, '.os-plugins__workspace[data-detail-open="true"] > .os-plugins__library {' ) ).toMatch( /display:\s*none/ );
-		expect( plugins ).toContain( 'minmax( min( 100%, 310px ), 1fr )' );
+		// Card fitting belongs to the shared grid; the browser layout suite
+		// verifies its actual geometry below the requested minimum.
+		expect( read( 'apps/plugins/parts/installed-library.ts' ) ).toContain( '<os-grid class="os-plugins__module-grid" min-item-width="310" gap="12">' );
 	} );
 } );
 

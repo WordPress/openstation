@@ -112,13 +112,29 @@ export const tabStyles = css`
 			--os-ui-tab-bloom,
 			linear-gradient( 90deg, rgba( 242, 82, 252, 0.26 ), transparent )
 		);
+		/*
+		 * Presence and shape, as distinct from colour. The three
+		 * layers above are colours a palette derives from the accent;
+		 * these are literals that say how much of each layer shows and
+		 * what the row is shaped like. The fallbacks are the full-bleed
+		 * row with a 2px edge and a full bloom, which is also what the
+		 * OpenStation palette answers; a fill with a radius and an inset
+		 * makes the selected row a lifted pill instead.
+		 */
+		--_tab-edge-w: var( --os-ui-tab-edge-width, 2px );
+		--_tab-bloom-o: var( --os-ui-tab-bloom-opacity, 1 );
+		--_tab-fill: var( --os-ui-tab-fill, transparent );
+		--_tab-radius: var( --os-ui-tab-radius, 0px );
+		--_tab-inset: var( --os-ui-tab-inset, 0px );
 	}
 	/*
-	 * A row, not a chip. Full-bleed to both edges of the sidebar so
-	 * the accent can sit ON the boundary; the 20px inline-start
-	 * padding is what holds the label off it. No radius for the same
-	 * reason: a rounded row would pull the edge inward and leave a
-	 * notch above and below it.
+	 * A row, not a chip. With no inset it runs full-bleed to both
+	 * edges of the sidebar so an edge can sit ON the boundary, and the
+	 * 20px inline-start padding is what holds the label off it. When a
+	 * palette asks for an inset, the padding gives up the same amount
+	 * so the label stays put and only the row's silhouette moves.
+	 * overflow: hidden clips the edge and bloom pseudos to whatever
+	 * radius the palette chose.
 	 *
 	 * 40px tall and 14px Regular: Body Small, straight off the brand
 	 * guide. isolation confines the two pseudos below to this row.
@@ -128,11 +144,13 @@ export const tabStyles = css`
 		align-items: center;
 		gap: 11px;
 		isolation: isolate;
-		width: 100%;
+		overflow: hidden;
+		width: calc( 100% - 2 * var( --_tab-inset ) );
 		min-height: 40px;
-		padding: 0 14px 0 20px;
+		padding: 0 14px 0 calc( 20px - var( --_tab-inset ) );
 		margin-bottom: 0;
-		border-radius: 0;
+		margin-inline: var( --_tab-inset );
+		border-radius: var( --_tab-radius );
 		text-align: start;
 		font-size: 14px;
 		font-weight: 400;
@@ -177,7 +195,7 @@ export const tabStyles = css`
 		inset-inline: 0 auto;
 		inset-block: 0;
 		z-index: -1;
-		width: 2px;
+		width: var( --_tab-edge-w );
 		height: auto;
 		border-radius: 0;
 		background-image: var( --_tab-edge );
@@ -209,6 +227,7 @@ export const tabStyles = css`
 		opacity: 0;
 	}
 	:host( [ data-orientation='vertical' ][ aria-selected='true' ] ) button {
+		background-color: var( --_tab-fill );
 		background-image: var( --_tab-wash );
 		/*
 		 * No weight bump. Body Small is Regular, and the edge already
@@ -231,7 +250,7 @@ export const tabStyles = css`
 	}
 	:host( [ data-orientation='vertical' ][ aria-selected='true' ] )
 		button::before {
-		opacity: 1;
+		opacity: var( --_tab-bloom-o );
 	}
 	@media ( prefers-reduced-motion: reduce ) {
 		:host( [ data-orientation='vertical' ] ) button::before,
