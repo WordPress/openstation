@@ -310,8 +310,9 @@ function openstation_render_welcome_dialog() {
 		position: absolute;
 		overflow: hidden;
 		border-radius: 9px;
-		background: var( --_obsidian );
-		border: 1px solid rgba( 255, 251, 255, 0.09 );
+		/* The window greys sit a step above the palette's dark ramp so the art reads against Void. */
+		background: #201d28;
+		border: 1px solid rgba( 255, 251, 255, 0.12 );
 		box-shadow: 0 18px 36px -12px rgba( 0, 0, 0, 0.7 );
 		font-size: 9px;
 		line-height: 1;
@@ -325,13 +326,13 @@ function openstation_render_welcome_dialog() {
 		height: 24px;
 		padding: 0 8px;
 		font-weight: 500;
-		color: var( --_cloud );
-		border-bottom: 1px solid rgba( 255, 251, 255, 0.06 );
+		color: var( --_mist );
+		border-bottom: 1px solid rgba( 255, 251, 255, 0.08 );
 	}
 	.os-welcome__bar-title { display: flex; align-items: center; gap: 8px; }
 	.os-welcome__bar-title i { width: 7px; height: 7px; border: 1px solid var( --_osmium ); border-radius: 50%; }
 	.os-welcome__bar-ctl { display: flex; gap: 8px; }
-	.os-welcome__bar-ctl i { display: block; width: 6px; height: 6px; border: 1px solid var( --_pewter ); border-radius: 1.5px; }
+	.os-welcome__bar-ctl i { display: block; width: 6px; height: 6px; border: 1px solid #77747c; border-radius: 1.5px; }
 	.os-welcome__bar-ctl i:first-child { height: 0; border-width: 1px 0 0; margin-top: 3px; border-radius: 0; }
 	.os-welcome__rows { padding: 8px; }
 	.os-welcome__row {
@@ -340,27 +341,27 @@ function openstation_render_welcome_dialog() {
 		align-items: center;
 		gap: 8px;
 		height: 24px;
-		border-bottom: 1px solid rgba( 255, 251, 255, 0.05 );
+		border-bottom: 1px solid rgba( 255, 251, 255, 0.07 );
 	}
-	.os-welcome__row i { width: 7px; height: 7px; border: 1px solid var( --_silver ); border-radius: 2px; }
-	.os-welcome__row b { height: 5px; border-radius: 3px; background: var( --_silver ); }
-	.os-welcome__row em { height: 9px; border-radius: 999px; background: var( --_astro ); }
+	.os-welcome__row i { width: 7px; height: 7px; border: 1px solid #5c5963; border-radius: 2px; }
+	.os-welcome__row b { height: 5px; border-radius: 3px; background: #5c5963; }
+	.os-welcome__row em { height: 9px; border-radius: 999px; background: #3e3b46; }
 	.os-welcome__row--head b,
-	.os-welcome__row--head em { background: var( --_astro ); }
-	.os-welcome__row--selected { background: rgba( 255, 251, 255, 0.035 ); }
+	.os-welcome__row--head em { background: #3e3b46; }
+	.os-welcome__row--selected { background: rgba( 255, 251, 255, 0.05 ); }
 	.os-welcome__thumbs { padding: 8px; display: grid; grid-template-columns: repeat( 4, 1fr ); gap: 8px; }
 	.os-welcome__thumbs i {
 		display: block;
 		aspect-ratio: 1;
 		border-radius: 4px;
-		background: linear-gradient( 150deg, #2b2733, #1f1c26 );
-		border: 1px solid rgba( 255, 251, 255, 0.04 );
+		background: linear-gradient( 150deg, #34303d, #27242f );
+		border: 1px solid rgba( 255, 251, 255, 0.06 );
 	}
-	.os-welcome__thumbs i:nth-child( 3n + 1 ) { background: linear-gradient( 150deg, #312c3b, #221f2a ); }
+	.os-welcome__thumbs i:nth-child( 3n + 1 ) { background: linear-gradient( 150deg, #3a3444, #2a2633 ); }
 	.os-welcome__thumbs i:nth-child( 5 ) {
 		background:
 			radial-gradient( circle at 70% 30%, rgba( 236, 155, 255, 0.22 ), transparent 60% ),
-			linear-gradient( 150deg, #2d2836, #1d1a23 );
+			linear-gradient( 150deg, #36313f, #25222c );
 	}
 
 	/* ---- Content column ------------------------------------------- */
