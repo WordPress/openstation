@@ -127,6 +127,36 @@ describe( 'shell tour', () => {
 		expect( mark().hasAttribute( 'step' ) ).toBe( false );
 	} );
 
+	test( '"Do it for me" on step 1 activates the dock tile\'s primary button, else the fallback', async () => {
+		// The dock binds its open handler on the inner primary button,
+		// not on the tile; clicking the tile itself opened nothing.
+		const dock = document.createElement( 'div' );
+		dock.className = 'os-dock';
+		dock.innerHTML =
+			'<div class="os-dock__item" data-nav-id="menu-posts"><button class="os-dock__item-primary">Posts</button></div>';
+		document.body.appendChild( dock );
+		const opened = vi.fn();
+		dock.querySelector( '.os-dock__item-primary' )!.addEventListener( 'click', opened );
+
+		startShellTour( deps );
+		await settle();
+		expect( mark().anchor ).toBe( dock.querySelector( '.os-dock__item' ) );
+		mark().shadowRoot!.querySelector< HTMLElement >( 'os-button.primary' )!.click();
+		expect( opened ).toHaveBeenCalledTimes( 1 );
+		expect( deps.openFallbackWindow ).not.toHaveBeenCalled();
+		// Still step 1: the window opens asynchronously and the hook advances it.
+		expect( mark().getAttribute( 'step' ) ).toBe( '1' );
+
+		endShellTour();
+		dock.remove();
+		startShellTour( deps );
+		await settle();
+		// The ended coachmark lingers 60 ms to restore focus; take the new one.
+		const marks = document.querySelectorAll< OsCoachmark >( 'os-coachmark' );
+		marks[ marks.length - 1 ].shadowRoot!.querySelector< HTMLElement >( 'os-button.primary' )!.click();
+		expect( deps.openFallbackWindow ).toHaveBeenCalledTimes( 1 );
+	} );
+
 	test( 'the boot gate yields to other announcements and the phone layer', () => {
 		const base = { seenIntros: [] } as unknown as DesktopConfig;
 		const desktop = (): boolean => false;

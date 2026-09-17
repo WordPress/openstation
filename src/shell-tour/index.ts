@@ -183,7 +183,10 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 			doIt: () => {
 				const tile = findDockTile();
 				if ( tile ) {
-					tile.click();
+					// The dock binds its open handler on the inner
+					// primary button, not on the tile; a click on the
+					// tile itself reaches nothing.
+					( tile.querySelector< HTMLElement >( '.os-dock__item-primary' ) ?? tile ).click();
 				} else {
 					deps.openFallbackWindow();
 				}
