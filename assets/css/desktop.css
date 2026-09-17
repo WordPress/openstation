@@ -1075,6 +1075,12 @@ body.os-has-fullscreen-window .os-shell {
 	opacity: 1;
 }
 
+@media ( hover: none ) {
+	.os-widgets__card-close {
+		opacity: 0.7;
+	}
+}
+
 .os-widgets__card-close:hover {
 	background: var( --os-ui-danger, #d63638 );
 	color: var( --os-ui-fg-on-accent, #fff );
