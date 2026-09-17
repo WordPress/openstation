@@ -336,6 +336,34 @@ function openstation_my_wordpress_woo_coupon_refs( $coupon ) {
 }
 
 /**
+ * The human label for an order: its number, plus the billing name
+ * when the order has one.
+ *
+ * @param WC_Abstract_Order $order Order to label.
+ * @return string
+ */
+function openstation_my_wordpress_woo_order_title( $order ) {
+	$name = method_exists( $order, 'get_formatted_billing_full_name' )
+		? trim( $order->get_formatted_billing_full_name() )
+		: '';
+
+	if ( '' !== $name ) {
+		return sprintf(
+			/* translators: 1: order number, 2: customer name. */
+			__( 'Order #%1$s · %2$s', 'desktop-mode' ),
+			$order->get_order_number(),
+			$name
+		);
+	}
+
+	return sprintf(
+		/* translators: %s: order number. */
+		__( 'Order #%s', 'desktop-mode' ),
+		$order->get_order_number()
+	);
+}
+
+/**
  * Announce an identity for WooCommerce's own screens, and hang the
  * shop's links off the identities the built-in detection already
  * produces.
@@ -357,25 +385,10 @@ function openstation_my_wordpress_woo_content_identity( $identity, $screen ) {
 	// empty, so the hyperlink/media/term extractor finds nothing.
 	$order = openstation_my_wordpress_woo_current_order();
 	if ( $order && openstation_my_wordpress_woo_can_read_orders() ) {
-		$name = method_exists( $order, 'get_formatted_billing_full_name' )
-			? trim( $order->get_formatted_billing_full_name() )
-			: '';
-
 		$identity = array(
 			'type'  => 'shop_order',
 			'id'    => (int) $order->get_id(),
-			'label' => '' !== $name
-				? sprintf(
-					/* translators: 1: order number, 2: customer name. */
-					__( 'Order #%1$s · %2$s', 'desktop-mode' ),
-					$order->get_order_number(),
-					$name
-				)
-				: sprintf(
-					/* translators: %s: order number. */
-					__( 'Order #%s', 'desktop-mode' ),
-					$order->get_order_number()
-				),
+			'label' => openstation_my_wordpress_woo_order_title( $order ),
 		);
 
 		$links = openstation_my_wordpress_woo_order_refs( $order );
@@ -1142,6 +1155,41 @@ function openstation_my_wordpress_woo_related_entities( $related, $identity, $sc
 }
 
 /**
+ * Name the order-edit window after the order it shows.
+ *
+ * @param string $hook_suffix Current admin page hook suffix (unused).
+ * @return void
+ */
+function openstation_my_wordpress_woo_order_window_title( $hook_suffix ) {
+	unset( $hook_suffix );
+	if ( ! openstation_my_wordpress_woo_active() || ! openstation_my_wordpress_woo_can_read_orders() ) {
+		return;
+	}
+
+	$order = openstation_my_wordpress_woo_current_order();
+	if ( ! $order ) {
+		return;
+	}
+
+	// `JSON_HEX_TAG` neutralises a `</script>` smuggled in through the billing name
+	$title_json = wp_json_encode(
+		openstation_my_wordpress_woo_order_title( $order ),
+		JSON_HEX_TAG | JSON_UNESCAPED_SLASHES
+	);
+	if ( false === $title_json ) {
+		return;
+	}
+	?>
+	<script>
+		window.parent.postMessage(
+			{ type: 'os-title-change', title: <?php echo $title_json; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_json_encode( …, JSON_HEX_TAG ) output is a JSON string literal, not markup. ?> },
+			window.location.origin
+		);
+	</script>
+	<?php
+}
+
+/**
  * Boot the relations wiring.
  *
  * Priority 20 on the identity filter so a site that overrides the
@@ -1152,5 +1200,6 @@ function openstation_my_wordpress_woo_related_entities( $related, $identity, $sc
 function openstation_my_wordpress_woo_relations_boot() {
 	add_filter( 'openstation_window_content_identity', 'openstation_my_wordpress_woo_content_identity', 20, 2 );
 	add_filter( 'openstation_window_related_entities', 'openstation_my_wordpress_woo_related_entities', 20, 3 );
+	add_action( 'openstation_chromeless_after', 'openstation_my_wordpress_woo_order_window_title' );
 }
 openstation_my_wordpress_woo_relations_boot();

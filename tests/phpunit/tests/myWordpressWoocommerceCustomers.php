@@ -135,6 +135,57 @@ class Tests_OpenStation_MyWordpressWoocommerceCustomers extends WP_UnitTestCase 
 		);
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_woo_order_window_title
+	 */
+	public function test_order_window_title_prints_nothing_without_woocommerce() {
+		ob_start();
+		openstation_my_wordpress_woo_order_window_title( 'index.php' );
+		$html = (string) ob_get_clean();
+
+		$this->assertSame( '', $html );
+	}
+
+	/**
+	 * @covers ::openstation_my_wordpress_woo_order_title
+	 */
+	public function test_order_title_includes_the_customer_name() {
+		$order = new class() {
+			public function get_formatted_billing_full_name() {
+				return 'John Smith';
+			}
+
+			public function get_order_number() {
+				return '5632';
+			}
+		};
+
+		$this->assertSame(
+			'Order #5632 · John Smith',
+			openstation_my_wordpress_woo_order_title( $order )
+		);
+	}
+
+	/**
+	 * @covers ::openstation_my_wordpress_woo_order_title
+	 */
+	public function test_order_title_omits_an_empty_customer_name() {
+		$order = new class() {
+			public function get_formatted_billing_full_name() {
+				return '  ';
+			}
+
+			public function get_order_number() {
+				return '5632';
+			}
+		};
+
+		$this->assertSame(
+			'Order #5632',
+			openstation_my_wordpress_woo_order_title( $order )
+		);
+	}
+
 	// ────────────────────────────────────────────────────────────────
 	// The reviews screen. A tie needs BOTH windows to have an
 	// identity, and WooCommerce moved reviews off `edit-comments.php`
