@@ -653,7 +653,7 @@
 .os-overview-top-bar__tile-action:hover {
 	background: var( --os-ui-accent, #f252fc );
 	border-color: var( --os-ui-accent, #f252fc );
-	color: var( --os-ui-fg-on-accent, #fff );
+	color: var( --os-ui-accent-ink, var( --os-ui-fg-on-accent, #fff ) );
 }
 
 .os-overview-top-bar__tile-action:focus-visible {
@@ -680,7 +680,7 @@
 
 .os-overview-top-bar__tile-rename:hover {
 	background: var( --os-ui-accent, #f252fc );
-	color: var( --os-ui-fg-on-accent, #fff );
+	color: var( --os-ui-accent-ink, var( --os-ui-fg-on-accent, #fff ) );
 }
 
 /*

@@ -797,7 +797,7 @@
 .os-content-graph__btn--primary {
 	border-color: var( --os-ui-accent, #2c6be5 );
 	background: var( --os-ui-accent, #2c6be5 );
-	color: var( --os-ui-fg-on-accent, #fff );
+	color: var( --os-ui-accent-ink, var( --os-ui-fg-on-accent, #fff ) );
 }
 
 .os-content-graph__btn--primary:hover {

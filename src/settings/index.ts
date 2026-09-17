@@ -28,33 +28,6 @@
 import type { WallpaperLayer } from '../wallpapers/layer';
 import * as registry from '../wallpapers/registry';
 import { seedWallpaperSettings } from '../wallpapers/settings-store';
-
-/**
- * Whether text on a fill of this colour should be dark.
- *
- * WCAG relative luminance, with the threshold set between the two
- * brand accents that sit closest to it: Pulse (0.32) keeps the
- * Starlight ink the brand pairs it with, Lagoon (0.37), Nebula (0.49),
- * Sirius (0.78) and Starlight itself take Void. Anything that is not
- * a six-digit hex reads as dark, which keeps the palette's own
- * Starlight ink.
- */
-export function accentWantsDarkInk( hex: string ): boolean {
-	const match = /^#?([0-9a-f]{6})$/i.exec( hex.trim() );
-	if ( ! match ) {
-		return false;
-	}
-	const linear = ( pair: string ): number => {
-		const s = parseInt( pair, 16 ) / 255;
-		return s <= 0.03928 ? s / 12.92 : ( ( s + 0.055 ) / 1.055 ) ** 2.4;
-	};
-	const hexRgb = match[ 1 ];
-	const luminance =
-		0.2126 * linear( hexRgb.slice( 0, 2 ) ) +
-		0.7152 * linear( hexRgb.slice( 2, 4 ) ) +
-		0.0722 * linear( hexRgb.slice( 4, 6 ) );
-	return luminance > 0.35;
-}
 import {
 	ADMIN_BAR_MODES,
 	CUSTOM_ACCENT_ID,
@@ -93,6 +66,33 @@ import {
 	registerCustomGradient,
 	registerCustomImageIfPresent,
 } from './wallpaper-defs';
+
+/**
+ * Whether text on a fill of this colour should be dark.
+ *
+ * WCAG relative luminance, with the threshold set between the two
+ * brand accents that sit closest to it: Pulse (0.32) keeps the
+ * Starlight ink the brand pairs it with, Lagoon (0.37), Nebula (0.49),
+ * Sirius (0.78) and Starlight itself take Void. Anything that is not
+ * a six-digit hex reads as dark, which keeps the palette's own
+ * Starlight ink.
+ */
+export function accentWantsDarkInk( hex: string ): boolean {
+	const match = /^#?([0-9a-f]{6})$/i.exec( hex.trim() );
+	if ( ! match ) {
+		return false;
+	}
+	const linear = ( pair: string ): number => {
+		const s = parseInt( pair, 16 ) / 255;
+		return s <= 0.03928 ? s / 12.92 : ( ( s + 0.055 ) / 1.055 ) ** 2.4;
+	};
+	const hexRgb = match[ 1 ];
+	const luminance =
+		0.2126 * linear( hexRgb.slice( 0, 2 ) ) +
+		0.7152 * linear( hexRgb.slice( 2, 4 ) ) +
+		0.0722 * linear( hexRgb.slice( 4, 6 ) );
+	return luminance > 0.35;
+}
 
 /** Options for {@link OsSettings.update}. */
 export interface OsSettingsUpdateOptions {
