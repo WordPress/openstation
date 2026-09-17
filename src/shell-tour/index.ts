@@ -296,6 +296,7 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 			ended = true;
 			controller.abort();
 			removeAction( HOOKS.WINDOW_OPENED, NS );
+			removeAction( HOOKS.WINDOW_REOPENED, NS );
 			removeAction( HOOKS.SNAP_ZONE_COMMITTED, NS );
 			// Let the coachmark run its close (focus restore) before
 			// the node goes; a removed element cannot hand focus back.
@@ -312,13 +313,23 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 	current = handle;
 
 	// ---- Step signals ------------------------------------------------
-	addAction< [ { windowId?: string } ] >( HOOKS.WINDOW_OPENED, NS, ( detail ) => {
+	// Step 1 is satisfied by a window ARRIVING, which is two signals,
+	// not one: a fresh open, and a reopen when that screen was already
+	// on the desk. The dock tile calls `open()` either way, and the
+	// manager answers an already-open singleton with `WINDOW_REOPENED`
+	// instead, so listening only for `WINDOW_OPENED` left "Do it for
+	// me" dead for anyone who had Posts open when they took the tour.
+	// Not `WINDOW_FOCUSED`: the manager's own note says it double-fires
+	// on alt-tab and never fires when the window is already focused.
+	const windowArrived = ( detail?: { windowId?: string } ): void => {
 		if ( index !== 0 ) {
 			return;
 		}
 		openedId = typeof detail?.windowId === 'string' ? detail.windowId : '';
 		advance();
-	} );
+	};
+	addAction< [ { windowId?: string } ] >( HOOKS.WINDOW_OPENED, NS, windowArrived );
+	addAction< [ { windowId?: string } ] >( HOOKS.WINDOW_REOPENED, NS, windowArrived );
 	addAction( HOOKS.SNAP_ZONE_COMMITTED, NS, () => {
 		if ( index === 1 ) {
 			advance();

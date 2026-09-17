@@ -127,6 +127,24 @@ describe( 'shell tour', () => {
 		expect( mark().hasAttribute( 'step' ) ).toBe( false );
 	} );
 
+	test( 'step 1 also advances when the screen was already open (reopen, not open)', async () => {
+		// Taking the tour with Posts already on the desk: the dock tile
+		// still calls open(), but the manager answers an existing
+		// singleton with WINDOW_REOPENED, so a tour listening only for
+		// WINDOW_OPENED left "Do it for me" dead.
+		startShellTour( deps );
+		await settle();
+		expect( mark().getAttribute( 'step' ) ).toBe( '1' );
+
+		const win = fakeWindow( 'w9' );
+		windows.set( 'w9', win );
+		hooks.doAction( HOOKS.WINDOW_REOPENED, { windowId: 'w9' } );
+
+		expect( mark().getAttribute( 'step' ) ).toBe( '2' );
+		// The reopened window is the one step 2 snaps and anchors to.
+		expect( mark().anchor ).toBe( win.element );
+	} );
+
 	test( '"Do it for me" on step 1 activates the dock tile\'s primary button, else the fallback', async () => {
 		// The dock binds its open handler on the inner primary button,
 		// not on the tile; clicking the tile itself opened nothing.
