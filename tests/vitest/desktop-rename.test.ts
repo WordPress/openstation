@@ -64,7 +64,7 @@ describe( 'virtual desktops — overview tiles', () => {
 		manager._overviewTopBar!.querySelector< T >(
 			`.os-overview-top-bar__tile-${ name }`,
 		);
-	const renameButton = () => part( 'rename' )!;
+	const renameButton = () => part( 'edit' )!;
 	const labelEl = () => part( 'label' )!;
 	const editing = (): boolean => labelEl().hasAttribute( 'contenteditable' );
 	const press = ( key: string ): void => {

@@ -108,6 +108,7 @@ class Tests_OpenStation_BrandDefaults extends WP_UnitTestCase {
 
 		$this->assertArrayHasKey( 'pulse', $byId, 'the default accent is one that exists' );
 		$this->assertSame( '#f252fc', $byId['pulse'], 'Pulse, the identity accent' );
+		$this->assertSame( '#fffbff', $byId['starlight'], 'Starlight, the colourless choice, is offered' );
 		$this->assertSame( '#ec9bff', $byId['nebula'], 'Nebula, its softer twin' );
 		$this->assertSame(
 			'pulse',

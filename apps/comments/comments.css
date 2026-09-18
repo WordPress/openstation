@@ -10,20 +10,8 @@
  */
 
 .os-comments {
-	display: flex;
-	flex-direction: column;
-	/*
-	 * `block-size` (not `min-block-size`) — pins the container to the
-	 * window body's exact height so the inner flex column has a fixed
-	 * frame to distribute against. With `min-block-size` the scrolling
-	 * panes grew past the frame and pushed the composer off the bottom
-	 * edge of the window. `box-sizing: border-box` keeps any padding
-	 * inside the 100% box.
-	 */
 	box-sizing: border-box;
-	block-size: 100%;
 	inline-size: 100%;
-	overflow: hidden;
 	position: relative;
 	/* A query container, so the one-pane rules at the end of this file
 	   track the WINDOW's width — a phone, or a desktop window pulled in. */
@@ -82,18 +70,8 @@
 	font-variant-numeric: tabular-nums;
 }
 
-/* ── Split ───────────────────────────────────────────────────── */
-.os-comments__split {
-	flex: 1 1 auto;
-	min-block-size: 0;
-	display: grid;
-	grid-template-columns: 306px 1fr;
-	overflow: hidden;
-}
-
 /* ── Left rail ───────────────────────────────────────────────── */
 .os-comments__rail {
-	border-inline-end: 1px solid var( --os-ui-border, #dcdcde );
 	display: flex;
 	flex-direction: column;
 	min-block-size: 0;
@@ -640,18 +618,6 @@ body.os-active a.os-comments__convo-post--editable {
 	.os-comments__tabselect {
 		display: block;
 	}
-	.os-comments__split {
-		grid-template-columns: minmax( 0, 1fr );
-	}
-	.os-comments__rail {
-		border-inline-end: 0;
-	}
-	.os-comments[data-os-comments-pane='convo'] .os-comments__rail {
-		display: none;
-	}
-	.os-comments:not( [data-os-comments-pane='convo'] ) .os-comments__convo {
-		display: none;
-	}
 	.os-comments__convo-back {
 		display: inline-flex;
 	}
@@ -665,18 +631,6 @@ html[data-os-mode="mobile"] .os-comments__tabrow {
 }
 html[data-os-mode="mobile"] .os-comments__tabselect {
 	display: block;
-}
-html[data-os-mode="mobile"] .os-comments__split {
-	grid-template-columns: minmax( 0, 1fr );
-}
-html[data-os-mode="mobile"] .os-comments__rail {
-	border-inline-end: 0;
-}
-html[data-os-mode="mobile"] .os-comments[data-os-comments-pane='convo'] .os-comments__rail {
-	display: none;
-}
-html[data-os-mode="mobile"] .os-comments:not( [data-os-comments-pane='convo'] ) .os-comments__convo {
-	display: none;
 }
 html[data-os-mode="mobile"] .os-comments__convo-back {
 	display: inline-flex;

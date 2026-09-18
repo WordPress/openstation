@@ -117,11 +117,19 @@ export const textFieldStyles = css`
 	}
 
 	/* Clear (x) affordance — rendered on clearable fields while they
-	 * hold a value. The kit strips native input chrome (appearance:
-	 * none takes WebKit's search-cancel button with it, and Firefox
-	 * never had one), so a clearable field owns its own. Same seat and
+	 * hold a value, so a clearable field owns its own. Same seat and
 	 * chrome as the reveal toggle; when both are present the clear
-	 * shifts inward so they sit side by side. */
+	 * shifts inward so they sit side by side.
+	 *
+	 * appearance: none on the input does NOT take WebKit's own
+	 * search-cancel button with it: a type="search" field still drew
+	 * one, in system blue, beside this one. A clearable field hides
+	 * it, since it has its own. A search field that is not clearable
+	 * keeps the native one, the only clear it has. */
+	:host( [ clearable ] ) input::-webkit-search-cancel-button {
+		-webkit-appearance: none;
+		display: none;
+	}
 	.os-text-field__row--has-clear input {
 		padding-inline-end: 36px;
 	}

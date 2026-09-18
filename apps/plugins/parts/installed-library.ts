@@ -5,6 +5,7 @@
 import { __, formatBytes, html, sprintf, type TemplateResult } from '@openstation/app';
 import '../../../src/ui/components/os-button/os-button';
 import '../../../src/ui/components/os-checkbox/os-checkbox';
+import '../../../src/ui/components/os-grid/os-grid';
 import { changeInstalledView } from './view-preference';
 import { syncInstalledTable, type InstalledTableState } from './installed-table';
 import { libraryStyles } from './library.styles';
@@ -523,9 +524,9 @@ export function installedPanel( ctx: Ctx, host: PluginsHost, ui: InstalledUi ): 
 											>`
 										: '' }
 								</div>
-								<div class="os-plugins__module-grid">
+								<os-grid class="os-plugins__module-grid" min-item-width="310" gap="12">
 									${ members.map( ( row ) => pluginCard( ctx, host, ui, row ) ) }
-								</div>
+								</os-grid>
 							</section>`
 						: '';
 				} ) }

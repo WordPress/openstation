@@ -369,6 +369,83 @@ html.wp-toolbar:has( body.os-chromeless ) {
 }
 
 /* ---------------------------------------------------------------
+ * Metabox screens — the one-column breakpoint is 160px too early.
+ *
+ * Core collapses every `#poststuff` two-column screen (the classic
+ * post editor, any CPT editor, a WooCommerce order) to one column
+ * at `max-width: 850px`. That number is a VIEWPORT width, and it is
+ * sized for a viewport that still has the 160px admin menu in it:
+ * at 851px core leaves roughly 650px of usable content — less than
+ * the 763px the two columns actually need (`#post-body-content`'s
+ * 463px floor plus the 300px sidebar reservation), which is why
+ * core's own two-column layout scrolls sideways just above the
+ * breakpoint.
+ *
+ * A chromeless iframe hides the admin menu, so the same 851px gives
+ * 835px of content — comfortably two columns — and core stacks it
+ * anyway. The sidebar then lands BELOW the editor, and since the
+ * classic editor grows to fit its text, a long post pushes Publish,
+ * Categories, Tags and Featured image thousands of pixels down the
+ * page. The user's word for that is "vanished".
+ *
+ * Same shape as the WooCommerce header fix at the top of this file:
+ * the page reserved space for a sidebar we removed, so reclaim the
+ * reservation. Two columns stay until the content really stops
+ * fitting: 763px of content, plus the 16px `#wpbody-content` gutter
+ * above, plus up to 17px for a classic vertical scrollbar — which a
+ * media query does NOT subtract from the width it matches on, the
+ * same reason `100vw` overflows a scrolling page. That is 796px.
+ * Below it, core's one-column layout is correct and stays.
+ *
+ * The reservation is written flow-relative rather than as core's
+ * `margin-right` / `float: right`, because core ships the mirrored
+ * values in a separate `edit-rtl.css` and this file has no RTL
+ * build — one logical declaration lands on the correct side in
+ * both directions. `float: right` stays ahead of `float:
+ * inline-end` as the fallback.
+ *
+ * Attachments keep core's own, wider, 1200px breakpoint: the media
+ * editor's sidebar carries the whole attachment form and needs the
+ * room. `.post-type-attachment` is excluded rather than re-stacked
+ * so that rule keeps working untouched.
+ *
+ * Verifying: open a post with a few thousand words in a window
+ * ~800px wide. Publish/Categories/Tags sit beside the editor, not
+ * under it, and the page has no horizontal scrollbar.
+ * --------------------------------------------------------------- */
+@media only screen and ( min-width: 796px ) and ( max-width: 850px ) {
+	.os-chromeless:not( .post-type-attachment ) #wpbody-content #poststuff #post-body.columns-2 {
+		margin-inline-end: 300px;
+	}
+
+	.os-chromeless:not( .post-type-attachment ) #wpbody-content #post-body.columns-2 #postbox-container-1 {
+		float: right;
+		float: inline-end;
+		margin-inline-end: -300px;
+		width: 280px;
+	}
+
+	.os-chromeless:not( .post-type-attachment ) #poststuff #post-body.columns-2 #side-sortables {
+		min-height: 250px;
+		width: 280px;
+	}
+
+	/*
+	 * Core hides the Layout radios with the two-column layout. They
+	 * are the way back to one column, so they come back with it.
+	 *
+	 * `edit.css` is part of the `wp-admin` bundle and loads on every
+	 * screen, so that hide reaches the Dashboard's own 1-4 column
+	 * radios too. Only un-hide them where this block actually gave a
+	 * layout back.
+	 */
+	.os-chromeless:not( .post-type-attachment ):has( #post-body.columns-2 ) .screen-layout,
+	.os-chromeless:not( .post-type-attachment ):has( #post-body.columns-2 ) .columns-prefs {
+		display: block;
+	}
+}
+
+/* ---------------------------------------------------------------
  * Block Editor — hide Gutenberg chrome that would break the window.
  *
  * The fullscreen-mode close button (the "W" logo top-left of the editor)

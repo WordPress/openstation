@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><title>Layout containers</title>
+<style>
+body { font: 14px system-ui; margin: 24px; }
+.example { width: 900px; max-width: 100%; height: 340px; margin-block: 20px; border: 1px solid #aaa; }
+os-grid > div { background: #eee; padding: 16px; min-height: 60px; }
+header, footer { padding: 12px; background: #ddd; }
+.long { height: 1000px; padding: 12px; }
+</style>
+<script type="module">
+import '/src/ui/components/os-grid/os-grid.ts';
+import '/src/ui/components/os-app-frame/os-app-frame.ts';
+import '/src/ui/components/os-split/os-split.ts';
+import '/src/ui/components/os-panel/os-panel.ts';
+import '/src/ui/components/os-stack/os-stack.ts';
+import '/src/ui/components/os-cluster/os-cluster.ts';
+import '/src/ui/components/os-button/os-button.ts';
+window.ready = true;
+</script>
+<h1>Layout containers</h1>
+<h2>Dashboard</h2>
+<os-grid id="grid" min-item-width="220" gap="12" style="width: 900px; max-width: 100%">
+<div id="wide" col-span="2">Main card</div><div id="tall" row-span="2">Tall card</div><div>Summary</div><div>Activity</div>
+</os-grid>
+<h2>Scrolling app body</h2>
+<os-app-frame id="frame" class="example">
+<header slot="header">Header</header><os-cluster slot="toolbar"><os-button>Save</os-button></os-cluster>
+<div class="long">Scrollable content</div><footer slot="footer">Ready</footer>
+</os-app-frame>
+<h2>List and detail</h2>
+<os-app-frame contained class="example" id="split-frame">
+<header slot="header">Items</header>
+<os-split id="split" resizable label="Resize item list" min-start="180" min-end="240" collapse-at="600">
+<os-stack slot="start"><os-button>First item</os-button><os-button>Second item</os-button></os-stack>
+<os-panel slot="end"><div class="long">Selected item</div></os-panel>
+</os-split><footer slot="footer">2 items</footer>
+</os-app-frame>
+<h2>Editor and preview</h2>
+<os-split class="example" direction="vertical" resizable label="Resize preview" min-start="80" min-end="80" id="vertical">
+<os-panel slot="start">Editor</os-panel><os-panel slot="end">Preview</os-panel>
+</os-split>
+<h2>Reflow and iframe dragging</h2>
+<os-split class="example" id="robust" resizable label="Resize embedded preview" collapse-at="400">
+<os-panel slot="start">Drag repeatedly while this layout changes size.</os-panel>
+<iframe slot="end" title="Embedded preview" srcdoc="<p>A real iframe under the drag path.</p>"></iframe>
+</os-split>
+</html>

@@ -133,6 +133,16 @@ describe( 'workspaces — overview top bar', () => {
 		expect( openEditor ).toHaveBeenCalledWith( 'desktop-1' );
 	} );
 
+	test( "the tile's pencil opens the wizard instead of renaming inline", () => {
+		install();
+		manager.enterOverview();
+		const bar = manager._overviewTopBar!;
+		bar.querySelector< HTMLElement >( '.os-overview-top-bar__tile-edit' )!.click();
+
+		expect( openEditor ).toHaveBeenCalledWith( 'desktop-1' );
+		expect( bar.querySelector( '[contenteditable]' ) ).toBeNull();
+	} );
+
 	test( 'a plain Space has nothing to restore', () => {
 		// A button that visibly does nothing is worse than no button,
 		// so its absence is information: this desk holds no workspace.

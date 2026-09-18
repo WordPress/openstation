@@ -53,12 +53,19 @@ export function renderToolbar(
 
 	const chipsRow = document.createElement( 'div' );
 	chipsRow.className = 'os-content-graph__filters';
+	chipsRow.setAttribute( 'role', 'group' );
+	chipsRow.setAttribute( 'aria-label', __( 'Show post types' ) );
 	host.appendChild( chipsRow );
 
+	// Each chip is a toggle button, and `aria-pressed` is its state for
+	// assistive tech and for the stylesheet alike: one attribute, so
+	// what a screen reader announces and what the chip shows cannot
+	// drift apart.
 	for ( const type of postTypes ) {
 		const chip = document.createElement( 'button' );
 		chip.type = 'button';
-		chip.className = 'os-content-graph__chip is-active';
+		chip.className = 'os-content-graph__chip';
+		chip.setAttribute( 'aria-pressed', 'true' );
 		chip.dataset.slug = type.slug;
 		chip.innerHTML =
 			`<span class="dashicons ${ escapeAttr( type.icon ) }" aria-hidden="true"></span>` +
@@ -67,11 +74,10 @@ export function renderToolbar(
 		chip.addEventListener( 'click', () => {
 			if ( active.has( type.slug ) ) {
 				active.delete( type.slug );
-				chip.classList.remove( 'is-active' );
 			} else {
 				active.add( type.slug );
-				chip.classList.add( 'is-active' );
 			}
+			chip.setAttribute( 'aria-pressed', String( active.has( type.slug ) ) );
 			callbacks.onTypesChange( Array.from( active ) );
 		} );
 		chipsRow.appendChild( chip );
@@ -79,14 +85,15 @@ export function renderToolbar(
 
 	const searchWrap = document.createElement( 'div' );
 	searchWrap.className = 'os-content-graph__search';
-	const searchInput = document.createElement( 'input' );
-	searchInput.type = 'search';
-	searchInput.className = 'os-content-graph__search-input';
-	searchInput.placeholder = __( 'Search nodes…' );
+	const searchInput = document.createElement( 'os-text-field' );
+	searchInput.setAttribute( 'type', 'search' );
 	searchInput.setAttribute(
-		'aria-label',
+		'label',
 		__( 'Search posts and pages in the graph' ),
 	);
+	searchInput.setAttribute( 'hide-label', '' );
+	searchInput.setAttribute( 'clearable', '' );
+	searchInput.setAttribute( 'placeholder', __( 'Search nodes…' ) );
 	searchWrap.appendChild( searchInput );
 
 	const dropdown = document.createElement( 'ul' );
@@ -96,8 +103,12 @@ export function renderToolbar(
 
 	host.appendChild( searchWrap );
 
+	// The field keeps its value on the host, reflected two-way.
+	const searchValue = (): string =>
+		( searchInput as HTMLElement & { value?: string } ).value ?? '';
+
 	const handleSearchInput = (): void => {
-		const q = searchInput.value.trim().toLowerCase();
+		const q = searchValue().trim().toLowerCase();
 		if ( q.length === 0 ) {
 			dropdown.hidden = true;
 			dropdown.replaceChildren();
@@ -117,7 +128,7 @@ export function renderToolbar(
 				`<span class="os-content-graph__search-title">${ escapeHtml( m.title || '#' + m.id ) }</span>` +
 				`<span class="os-content-graph__search-type">${ escapeHtml( m.type ) }</span>`;
 			btn.addEventListener( 'click', () => {
-				searchInput.value = '';
+				( searchInput as HTMLElement & { value?: string } ).value = '';
 				dropdown.hidden = true;
 				dropdown.replaceChildren();
 				callbacks.onSearchSelect( m );
@@ -127,9 +138,12 @@ export function renderToolbar(
 		}
 		dropdown.hidden = matches.length === 0;
 	};
-	searchInput.addEventListener( 'input', handleSearchInput );
-	searchInput.addEventListener( 'focus', handleSearchInput );
-	searchInput.addEventListener( 'blur', () => {
+	// `focusin` / `focusout` rather than `focus` / `blur`: the input
+	// lives in the field's shadow root, and only the bubbling pair
+	// reaches the host.
+	searchInput.addEventListener( 'os-input-change', handleSearchInput );
+	searchInput.addEventListener( 'focusin', handleSearchInput );
+	searchInput.addEventListener( 'focusout', () => {
 		// Delay so click on a result still registers.
 		setTimeout( () => {
 			dropdown.hidden = true;
@@ -180,9 +194,8 @@ export function renderToolbar(
 	const actions = document.createElement( 'div' );
 	actions.className = 'os-content-graph__actions';
 
-	const fit = document.createElement( 'button' );
-	fit.type = 'button';
-	fit.className = 'os-content-graph__btn';
+	const fit = document.createElement( 'os-button' );
+	fit.setAttribute( 'variant', 'ghost' );
 	fit.innerHTML =
 		'<span class="dashicons dashicons-editor-expand" aria-hidden="true"></span>' +
 		`<span>${ escapeHtml( __( 'Fit' ) ) }</span>`;
@@ -190,8 +203,11 @@ export function renderToolbar(
 	fit.addEventListener( 'click', () => callbacks.onFitToView() );
 	actions.appendChild( fit );
 
+	// A live region, so the count a filter change produces is announced
+	// rather than only drawn. It changes once per load, not per frame.
 	const status = document.createElement( 'span' );
 	status.className = 'os-content-graph__toolbar-status';
+	status.setAttribute( 'role', 'status' );
 	actions.appendChild( status );
 
 	host.appendChild( actions );

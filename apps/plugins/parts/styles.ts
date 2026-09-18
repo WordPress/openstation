@@ -64,7 +64,7 @@ const PANEL_STYLES = `
 .os-plugins__detail-faq-q:hover { background: var( --os-ui-hover, rgba( 0, 0, 0, 0.025 ) ); }
 .os-plugins__detail-faq-q-text { flex: 1 1 auto; font-size: 14px; font-weight: 600; color: var( --os-ui-fg, inherit ); line-height: 1.4; }
 .os-plugins__detail-faq-chevron { flex: 0 0 auto; width: 24px; height: 24px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: var( --os-ui-hover, rgba( 0, 0, 0, 0.05 ) ); color: var( --os-ui-fg-muted, #555 ); transition: transform 200ms cubic-bezier( 0.2, 0.8, 0.2, 1 ), background 160ms ease; }
-.os-plugins__detail-faq-item[open] .os-plugins__detail-faq-chevron { transform: rotate( 180deg ); background: var( --wp-admin-theme-color, #2271b1 ); color: var( --os-ui-fg-on-accent, #fff ); }
+.os-plugins__detail-faq-item[open] .os-plugins__detail-faq-chevron { transform: rotate( 180deg ); background: var( --wp-admin-theme-color, #2271b1 ); color: var( --os-ui-accent-ink, var( --os-ui-fg-on-accent, #fff ) ); }
 .os-plugins__detail-faq-a { padding: 4px 16px 16px; border-block-start: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.06 ) ); background: var( --os-ui-surface-subtle, rgba( 0, 0, 0, 0.012 ) ); }
 @media ( prefers-reduced-motion: reduce ) { .os-plugins__detail-faq-chevron, .os-plugins__detail-faq-item { transition: none; } }
 @media ( max-width: 720px ) { .os-plugins__reviews-grid, .os-plugins__detail-grid { grid-template-columns: 1fr !important; } }

@@ -135,7 +135,9 @@ export const styles = css`
 	/* Primary */
 	:host( [ variant='primary' ] ) button {
 		background-color: var( --os-ui-button-bg, var( --wp-admin-theme-color, #2271b1 ) );
-		color: var( --os-ui-button-fg, var( --os-ui-fg-on-accent, #fff ) );
+		/* The fill is the accent, so the label is the accent's ink: the
+		   picker flips it to Void when the chosen accent is light. */
+		color: var( --os-ui-button-fg, var( --os-ui-accent-ink, var( --os-ui-fg-on-accent, #fff ) ) );
 		border: var( --os-ui-button-border, 1px solid transparent );
 	}
 	:host( [ variant='primary' ] ) button:hover:not( :disabled ) {

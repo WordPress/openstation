@@ -239,18 +239,18 @@ describe( 'Pulse is spent where it is stated, not where it is spread', () => {
 		}
 	} );
 
-	test( 'the focus RING itself stays at full strength', () => {
-		// Only the bloom behind it dims. A focus indicator is the last
-		// place to trade legibility for calm — it is the one thing on
-		// screen saying where the keyboard is.
+	test( 'the focus RING itself stays at full strength, with no bloom', () => {
+		// A focus indicator is the last place to trade legibility for
+		// calm — it is the one thing on screen saying where the keyboard
+		// is — so the ring is the undimmed accent. The bloom that used
+		// to sit behind it is gone rather than dimmed: the Void gap
+		// already separates the ring from whatever it lands on.
 		//
 		// The ring reads the accent rather than naming Pulse: focus is a
-		// selection signal, and it was the only one that did not follow
-		// the colour the user picked. Undimmed is the part that matters
-		// here, and `--os-ui-accent` is the undimmed one.
+		// selection signal, and it follows the colour the user picked.
 		const ring = declared( '--os-ui-focus-ring' ) ?? '';
 		expect( ring ).toContain( '0 0 0 4px var(--os-ui-accent, #f252fc)' );
-		expect( ring ).toContain( '--os-ui-accent-dim' );
+		expect( ring ).not.toContain( '--os-ui-accent-dim' );
 	} );
 } );
 

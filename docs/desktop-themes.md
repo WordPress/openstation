@@ -406,6 +406,7 @@ dark frame around a white page.
 | `--os-ui-scrim` | Modal + overlay backdrop |
 | `--os-ui-accent` | Primary action |
 | `--os-ui-accent-strong` | Its hover / active state |
+| `--os-ui-accent-ink` | Ink on the accent fill: the tick in a checked box, the dot in a radio, a primary button's label. **Not `--os-ui-fg-on-accent`**, which the shell reads as light text on any dark surface (toasts, dock labels, tile captions); accent fills read this first and fall back to that. The palette declares Starlight and Legacy `#fff`, but the accent picker writes it inline next to `--os-ui-accent` (Void for a light accent, Starlight otherwise), so inside the shell the user's pick decides it. |
 | `--os-ui-danger`, `--os-ui-danger-hover` | Destructive actions |
 | `--os-ui-warning-fg`, `--os-ui-warning-bg`, `--os-ui-warning-border` | Warning notices |
 | `--os-ui-info-fg`, `--os-ui-info-bg` | Info notices |
@@ -553,8 +554,21 @@ brand's Holomesh, transcribed into CSS in `--os-mesh-holo`.
 | `--os-ui-holo-edge`, `--os-ui-holo-edge-quiet` | The iridescent hairline, lit and at rest. |
 | `--os-ui-holo-glow`, `--os-ui-holo-glow-strong` | The bloom around a lit surface. |
 | `--os-ui-holo-track` | The unlit half — switch tracks, empty progress. |
-| `--os-ui-tab-edge` | The leading edge on the selected row of a vertical `<os-tabs>`. The flat accent by default. |
-| `--os-ui-tab-wash`, `--os-ui-tab-bloom` | That row's surface wash and the bloom the edge throws back across it. Both ambient, so both resolve through `--os-ui-accent-dim`. |
+| `--os-ui-tab-edge` | The leading edge on the selected row of a vertical `<os-tabs>`. The flat accent; derived, so leave it to the palette. |
+| `--os-ui-tab-wash`, `--os-ui-tab-bloom` | That row's surface wash and the bloom the edge throws back across it. Both ambient, so both resolve through `--os-ui-accent-dim`; also derived. |
+| `--os-ui-tab-edge-width`, `--os-ui-tab-bloom-opacity`, `--os-ui-tab-wash-opacity` | How much of the edge, the bloom and the accent wash show. The OpenStation palette and Legacy both answer `2px`, `1` and `1`: an accent line at the row's leading edge, its glow and a wash. `0px`, `0` and `0` leave the row to its fill. |
+| `--os-ui-segmented-selected-accent`, `--os-ui-segmented-selected-base` | How much of the accent the selected segment's pill and label take, mixed towards `-base` and the text colour. The OpenStation palette answers `0%` and a mid-grey key that clears 3:1 against its Void track (whatever the accent); Legacy answers `100%`. |
+| `--os-ui-segmented-edge`, `--os-ui-segmented-selected-shadow` | Box shadows for the track's edge and under the selected key. The OpenStation palette answers a 10% Starlight hairline and a small drop shadow; Legacy answers `none` for both. |
+| `--os-ui-segmented-hover-bg`, `--os-ui-segmented-hover-sheen` | An unselected segment under the pointer: a shade, and the holographic film. The OpenStation palette answers a faint Starlight lift and `none`; Legacy answers `transparent` and `none`. |
+| `--os-ai-accent`, `--os-ai-row-fill`, `--os-ai-tile-fill` | How much of the accent the Site assistant's chrome takes (its header tint and mark, search icon, lit row and icon tiles), mixed towards a neutral, and the flat fills a lit row and an icon tile sit on. The OpenStation palette answers `0%` and 8% and 6% Starlight; Legacy answers `100%` and `transparent`. The command icons read the accent directly in both. |
+| `--os-ui-cg-chip-accent`, `--os-ui-cg-chip-border-active`, `--os-ui-cg-chip-fill-active` | How much of the accent an on Content Graph filter chip takes (its edge, wash and label, each mixed towards a neutral), the edge it mixes towards, and a flat fill under the wash. The OpenStation palette answers `0%`, a Starlight edge and the darkest fill on the row, so an on chip reads like the selected theme card in Preferences; Legacy answers `100%`, `#8c8f94` and `transparent`. |
+| `--os-ui-cg-chip-border` | The edge of an off chip, the one a user has to find again to undo a filter. It has its own token because the palette's plain border is the toolbar's own colour, so a chip drawn with it has no outline. The OpenStation palette answers its strong border grey; Legacy `#dcdcde`. |
+| `--os-ui-cg-chip-count-bg`, `--os-ui-cg-chip-count-fg`, `--os-ui-cg-chip-count-bg-active`, `--os-ui-cg-chip-count-fg-active` | The count pill and its numerals, on an off chip and on an on chip. The OpenStation palette answers the strong border grey with Starlight numerals on both, because muted numerals on that grey land at 4.0:1, under what 12px text needs; Legacy answers `#fff` off and 70% white on, with numerals that inherit the chip's colour. |
+| `--os-ui-tab-fill`, `--os-ui-tab-radius`, `--os-ui-tab-inset` | The selected row's own surface and shape: a flat fill under the wash, its corner radius, and how far it sits off the sidebar's edges. The OpenStation palette and Legacy answer `transparent`, 0 and 0, the full-bleed row an edge can sit on; a fill with a radius and an inset makes it a lifted pill. |
+| `--os-ui-swatch-ring-width`, `--os-ui-swatch-lift` | How a chosen `<os-swatch>` tile (and the theme and layout cards in Preferences) is marked: the width of its accent ring, and a lift (stroke plus shadow) drawn with it. The OpenStation palette answers `0px` and a lift; Legacy `2px` and none. |
+| `--os-ui-swatch-badge-bg` | The disc with a tick in the corner of a chosen tile. Starlight by default; `transparent` removes the badge. |
+| `--os-tile-selected-ring-width` | The width of the accent ring inside a selected file tile (on the desk, in folder windows and in WP Explorer), drawn in `--os-tile-focus-ring` over the `--os-tile-selected-bg` fill. The OpenStation palette answers `0px`, so the lifted fill alone marks the tile; Legacy answers `1px`. |
+| `--os-tabs-rail-opacity` | How much of the accent line under a window's tab strip shows (`--os-tabs-rail`, `--os-tabs-rail-width`). The OpenStation palette answers `0`, because the active tab's plate already joins the page below it; Legacy answers `1`. The rail keeps its width while hidden, since the strip's geometry is built on it, so turning it back on moves nothing. |
 | `--os-ui-accent-dim` | The accent, one step back. Every *ambient* use of it — glows, washes, focus blooms — resolves through this, so it is the single knob for how loud a theme reads. |
 | `--os-ui-focus-ring` | Focus on a *target*: buttons, switches, checkboxes, swatches. |
 | `--os-ui-focus-ring-field` | Focus on a *field*: quieter, tightens the input's own border. |
@@ -842,6 +856,7 @@ sits *on* it:
 | `--os-dock-icon-color` | The glyph at rest |
 | `--os-dock-icon-color-hover` | The glyph on hover / peek |
 | `--os-dock-item-bg-hover` | The wash behind a hovered tile |
+| `--os-dock-item-bg-focused` | The plate under the tile whose window is in front |
 | `--os-dock-item-outline` | The keyboard focus ring and the tile status indicator (active dot, all-minimized ring) |
 
 ```json

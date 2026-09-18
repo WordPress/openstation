@@ -128,19 +128,51 @@ export const styles = css`
 		box-shadow: var( --_holo-focus );
 	}
 	/*
-	 * Chosen. A flat accent ring, not the mesh: the brand reserves
-	 * meshes for hero surfaces, and in OpenStation Preferences that
-	 * budget is spent on the sidebar's selected-row edge. A grid of
-	 * mesh-ringed tiles beside it is wallpaper.
+	 * Chosen. Two layers, and the palette decides how much of each
+	 * shows: a flat accent ring whose width is a token (2px unless the
+	 * palette says otherwise), and a lift (a stroke plus a shadow)
+	 * that is nothing unless the palette declares one. The OpenStation
+	 * palette sets the ring to 0 and lifts the tile instead; Legacy
+	 * keeps the ring. Never the mesh either way: the brand reserves
+	 * meshes for hero surfaces, and a grid of iridescent tiles is
+	 * wallpaper.
 	 *
-	 * box-shadow rather than border so the ring sits OUTSIDE the
+	 * box-shadow rather than border so both layers sit OUTSIDE the
 	 * tile, which matters for a wallpaper swatch: the artwork is the
 	 * content, and a ring drawn on top of it would crop the thing the
 	 * user is choosing.
 	 */
 	button[ aria-pressed='true' ] {
 		border-color: transparent;
-		box-shadow: 0 0 0 2px var( --os-ui-accent, #2271b1 );
+		box-shadow: 0 0 0 var( --os-ui-swatch-ring-width, 2px ) var( --os-ui-accent, #2271b1 ),
+			var( --os-ui-swatch-lift, 0 0 0 0 transparent );
+	}
+	/*
+	 * The badge: a disc with the tick punched out of it, so the tile's
+	 * own artwork shows through the tick and one colour is enough. It
+	 * is drawn on every chosen tile and painted from a token with a
+	 * transparent fallback, which is how a palette that marks its
+	 * selection with a ring gets no badge without knowing this exists.
+	 * Not on the accent chips: the ring is the whole statement there.
+	 */
+	:host( :not( [ variant='accent' ] ) ) button[ aria-pressed='true' ]::after {
+		content: '';
+		position: absolute;
+		top: 6px;
+		inset-inline-end: 6px;
+		width: 18px;
+		height: 18px;
+		border-radius: 50%;
+		background: var( --os-ui-swatch-badge-bg, transparent );
+		pointer-events: none;
+		-webkit-mask: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 12.5l4 4 8-9'/%3E%3C/svg%3E" )
+				center / 12px no-repeat,
+			linear-gradient( #000 0 0 );
+		-webkit-mask-composite: xor;
+		mask: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 12.5l4 4 8-9'/%3E%3C/svg%3E" )
+				center / 12px no-repeat,
+			linear-gradient( #000 0 0 );
+		mask-composite: exclude;
 	}
 	/* See the accent-variant note: focus wins while it is visible. */
 	button[ aria-pressed='true' ]:focus-visible {

@@ -43,6 +43,8 @@ export { OsIcon } from './os-icon/os-icon';
 export { OsBody } from './os-body/os-body';
 export { OsPanel } from './os-panel/os-panel';
 export { OsRow } from './os-row/os-row';
+export { OsAppFrame } from './os-app-frame/os-app-frame';
+export { OsSplit } from './os-split/os-split';
 export { OsGrid } from './os-grid/os-grid';
 export { OsDisplay } from './os-display/os-display';
 export { OsDisclosure } from './os-disclosure/os-disclosure';

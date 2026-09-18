@@ -137,4 +137,47 @@ class Tests_OpenStation_PostsWindowSettings extends WP_UnitTestCase {
 		$loaded = openstation_get_os_settings( $user_id );
 		$this->assertFalse( $loaded['nativePostsEnabled'] );
 	}
+
+	/**
+	 * @covers ::openstation_default_os_settings
+	 */
+	public function test_default_includes_hidden_columns() {
+		$defaults = openstation_default_os_settings();
+		$this->assertArrayHasKey( 'nativePostsHiddenColumns', $defaults );
+		$this->assertArrayHasKey( 'nativePagesHiddenColumns', $defaults );
+		$this->assertSame( array(), $defaults['nativePostsHiddenColumns'] );
+		$this->assertSame( array(), $defaults['nativePagesHiddenColumns'] );
+	}
+
+	/**
+	 * @covers ::openstation_sanitize_os_settings
+	 */
+	public function test_sanitize_hidden_columns() {
+		$clean = openstation_sanitize_os_settings(
+			array(
+				'nativePostsHiddenColumns' => array( 'author', 'tags', 'invalid@key!' ),
+				'nativePagesHiddenColumns' => array( 'author', 'parent' ),
+			)
+		);
+		$this->assertSame( array( 'author', 'tags', 'invalidkey' ), $clean['nativePostsHiddenColumns'] );
+		$this->assertSame( array( 'author', 'parent' ), $clean['nativePagesHiddenColumns'] );
+	}
+
+	/**
+	 * @covers ::openstation_save_os_settings
+	 * @covers ::openstation_get_os_settings
+	 */
+	public function test_user_meta_round_trip_keeps_hidden_columns_independently() {
+		$user_id = self::factory()->user->create();
+		openstation_save_os_settings(
+			$user_id,
+			array(
+				'nativePostsHiddenColumns' => array( 'author' ),
+				'nativePagesHiddenColumns' => array( 'date' ),
+			)
+		);
+		$loaded = openstation_get_os_settings( $user_id );
+		$this->assertSame( array( 'author' ), $loaded['nativePostsHiddenColumns'] );
+		$this->assertSame( array( 'date' ), $loaded['nativePagesHiddenColumns'] );
+	}
 }

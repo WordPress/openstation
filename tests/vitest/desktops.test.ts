@@ -993,7 +993,7 @@ describe( 'WindowManager — virtual desktops', async () => {
 				);
 				expect( deskWrappers ).toHaveLength( 3 );
 
-				// Tile, rename pencil, close X — the latter two are
+				// Tile, edit pencil, close X — the latter two are
 				// SIBLINGS of the tile, which is itself a <button>.
 				for ( const wrapper of deskWrappers ) {
 					expect(
@@ -1002,7 +1002,7 @@ describe( 'WindowManager — virtual desktops', async () => {
 						),
 					).toEqual( [
 						'os-overview-top-bar__tile',
-						'os-overview-top-bar__tile-rename',
+						'os-overview-top-bar__tile-edit',
 						'os-overview-top-bar__tile-close',
 					] );
 				}

@@ -454,3 +454,22 @@ describe( 'live region and identity', () => {
 		delete ( window as unknown as { wp?: unknown } ).wp;
 	} );
 } );
+
+it( 'uses the shared frame/split and preserves divider position across app repaints', async () => {
+	const { root, ctx, ui } = mount( { selected: 1 } );
+	const split = root.querySelector( 'os-split' )!;
+	expect( root.querySelector( 'os-app-frame[contained]' ) ).not.toBeNull();
+	expect( split.querySelector( '[slot="start"]' ) ).not.toBeNull();
+	expect( split.querySelector( '[slot="end"]' ) ).not.toBeNull();
+	split.setAttribute( 'position', '42' );
+	ui.pane = 'convo';
+	ctx.repaint();
+	await Promise.resolve();
+	expect( root.querySelector( 'os-split' ) ).toBe( split );
+	expect( split.getAttribute( 'position' ) ).toBe( '42' );
+	expect( split.getAttribute( 'narrow' ) ).toBe( 'end' );
+	document.documentElement.dataset.osMode = 'mobile';
+	ctx.repaint();
+	expect( split.hasAttribute( 'compact' ) ).toBe( true );
+	delete document.documentElement.dataset.osMode;
+} );

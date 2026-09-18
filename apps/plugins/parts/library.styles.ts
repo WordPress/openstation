@@ -187,12 +187,6 @@ export const libraryStyles = css`
 	color: var( --os-ui-fg-muted, #646970 );
 }
 
-.os-plugins__module-grid {
-	display: grid;
-	grid-template-columns: repeat( auto-fill, minmax( min( 100%, 310px ), 1fr ) );
-	gap: 12px;
-}
-
 .os-plugins__module {
 	min-inline-size: 0;
 	--os-ui-card-padding: 18px;

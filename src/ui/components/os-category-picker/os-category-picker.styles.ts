@@ -409,7 +409,7 @@ export const styles = css`
 			[ disabled ]
 		) {
 		background: var( --wp-admin-theme-color, #2271b1 );
-		color: var( --os-ui-fg-on-accent, #fff );
+		color: var( --os-ui-accent-ink, var( --os-ui-fg-on-accent, #fff ) );
 	}
 	.os-cat__create-submit:hover:not( [ disabled ] ) {
 		filter: brightness( 1.05 );
@@ -448,7 +448,7 @@ export const styles = css`
 	.os-cat__row[ data-selected='true' ] .os-cat__check {
 		background: var( --wp-admin-theme-color, #2271b1 );
 		border-color: var( --wp-admin-theme-color, #2271b1 );
-		color: var( --os-ui-fg-on-accent, #fff );
+		color: var( --os-ui-accent-ink, var( --os-ui-fg-on-accent, #fff ) );
 	}
 	.os-cat__check svg {
 		display: block;

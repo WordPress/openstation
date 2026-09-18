@@ -67,6 +67,33 @@ import {
 	registerCustomImageIfPresent,
 } from './wallpaper-defs';
 
+/**
+ * Whether text on a fill of this colour should be dark.
+ *
+ * WCAG relative luminance, with the threshold set between the two
+ * brand accents that sit closest to it: Pulse (0.32) keeps the
+ * Starlight ink the brand pairs it with, Lagoon (0.37), Nebula (0.49),
+ * Sirius (0.78) and Starlight itself take Void. Anything that is not
+ * a six-digit hex reads as dark, which keeps the palette's own
+ * Starlight ink.
+ */
+export function accentWantsDarkInk( hex: string ): boolean {
+	const match = /^#?([0-9a-f]{6})$/i.exec( hex.trim() );
+	if ( ! match ) {
+		return false;
+	}
+	const linear = ( pair: string ): number => {
+		const s = parseInt( pair, 16 ) / 255;
+		return s <= 0.03928 ? s / 12.92 : ( ( s + 0.055 ) / 1.055 ) ** 2.4;
+	};
+	const hexRgb = match[ 1 ];
+	const luminance =
+		0.2126 * linear( hexRgb.slice( 0, 2 ) ) +
+		0.7152 * linear( hexRgb.slice( 2, 4 ) ) +
+		0.0722 * linear( hexRgb.slice( 4, 6 ) );
+	return luminance > 0.35;
+}
+
 /** Options for {@link OsSettings.update}. */
 export interface OsSettingsUpdateOptions {
 	/** Attribute the in-flight save to a window's activity dot. */
@@ -261,6 +288,22 @@ export class OsSettings {
 		// moves the title bars and leaves every control pink.
 		root.style.setProperty( '--os-ui-accent', accentValue );
 		/*
+		 * Whatever sits ON the accent fill (the tick in a checked box,
+		 * the label of a primary button) has to flip with it. The
+		 * palette declares Starlight, which is right for Pulse and the
+		 * WordPress swatches and wrong for the light ones: Starlight
+		 * text on a Starlight or Sirius fill is not text. Written inline
+		 * for the same reason the accent is, so the pair always agree.
+		 *
+		 * `--os-ui-accent-ink`, not `--os-ui-fg-on-accent`: the latter
+		 * is read by seventy-odd rules as "light text on a dark thing"
+		 * (toasts, dock labels, tile captions), and only a handful of
+		 * those things are the accent. Flipping it to Void for a light
+		 * accent blanked every caption on a dark wallpaper tile.
+		 */
+		const accentInk = accentWantsDarkInk( accentValue ) ? '#0c0b0f' : '#fffbff';
+		root.style.setProperty( '--os-ui-accent-ink', accentInk );
+		/*
 		 * The ambient layer resolves one step back through
 		 * `--os-ui-accent-dim` — the dock divider, the selected
 		 * sidebar row's wash and bloom, every glow. It has to move
@@ -298,6 +341,7 @@ export class OsSettings {
 		 * user's pick is authoritative in both places.
 		 */
 		shell.style.setProperty( '--os-ui-accent', accentValue );
+		shell.style.setProperty( '--os-ui-accent-ink', accentInk );
 		if ( accentDim === null ) {
 			shell.style.removeProperty( '--os-ui-accent-dim' );
 		} else {
