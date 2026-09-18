@@ -671,6 +671,14 @@ export interface OpenStationPublicApi {
 	 * `openstation_register_game()`.
 	 */
 	games: GamesApi;
+	/**
+	 * The deactivation feedback dialog. Published by the lazy
+	 * `deactivation-feedback[.min].js` bundle once it has loaded —
+	 * absent until then. The native Plugins app is its one in-shell
+	 * caller; the classic `plugins.php` runs the same bundle without
+	 * the shell.
+	 */
+	deactivationFeedback?: import( './deactivation-feedback' ).DeactivationFeedbackApi;
 	/** Convenience: register a widget via `os.widgets` filter. */
 	registerWidget: ( def: import( './widgets/types' ).WidgetDef ) => void;
 	/**

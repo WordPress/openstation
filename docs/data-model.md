@@ -252,6 +252,7 @@ profile screen). AI agents are ordinary `wp_users` rows flagged with
 | `meta_key` | Module | Content |
 |---|---|---|
 | `desktop_mode_mode` | Core | The user's opt-in: `1` turns the shell on. |
+| `openstation_enabled_at` | First run | Epoch seconds of the user's first enable; absent until then. Written by `openstation_record_user_enabled()` from the admin-bar toggle and the portal. |
 | `desktop_mode_os_settings` | Preferences | Every OpenStation Preferences value (appearance, windows, navigation, features). REST-synced through `/wp-json/desktop-mode/v1/os-settings`. |
 | `desktop_mode_session` | Session | Open windows and their geometry for restore. On multisite the key is suffixed: `_{blog_id}` on a secondary site, `_network` in the network admin. |
 | `desktop_mode_default_window` | Core | The window that opens on arrival. |
@@ -296,6 +297,8 @@ profile screen). AI agents are ordinary `wp_users` rows flagged with
 | `_desktop_mode_content_changes_log` | Content changes | Recent content changes for the feed, capped at 100 entries (`autoload = no`). |
 | `_desktop_mode_recycle_bin_change_ts` | Recycle Bin | Timestamp of the last bin change, for the badge (`autoload = no`). |
 | `openstation_app_store` | App Framework | The `Store` contract with `site` scope. |
+| `openstation_installed_at` | First run | `{ at, via }`: when the plugin was activated (`autoload = no`). `via` is `activation` from the activation hook, `backfill` when reconstructed on `admin_init` for an install that predates the stamp; a backfilled age reads as unknown everywhere. |
+| `openstation_first_enabled_at` | First run | `{ at, via }`: the first time any user turned OpenStation on (`autoload = no`). Written by `openstation_record_user_enabled()`. |
 
 ## Transients
 

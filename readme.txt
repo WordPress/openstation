@@ -68,7 +68,7 @@ Extend OpenStation through documented PHP and JavaScript APIs. Register windows,
 
 = External services =
 
-No external service is required for OpenStation's desktop interface. The optional AI Assistant and two user-initiated enrichment features make the external requests described below.
+No external service is required for OpenStation's desktop interface. The optional AI Assistant, two user-initiated enrichment features and an optional feedback form on deactivation make the external requests described below.
 
 **AI Assistant**
 
@@ -84,6 +84,15 @@ When the AI Assistant is enabled and a user invokes it (via Cmd+K or the slash-c
 **URL shortcut favicons**
 
 When an authorized user creates a desktop shortcut to an external URL, OpenStation asks that URL for its page HTML and favicon so the shortcut can display the site's icon. The request is made from your WordPress server and sends the requested URL, the server's IP address, an OpenStation user-agent string, and normal HTTP request metadata to the operator of that site. This happens only when a user creates the shortcut. The destination site's terms and privacy policy apply.
+
+**Deactivation feedback**
+
+When an administrator deactivates OpenStation, a dialog asks one optional question about why. Nothing is sent unless you click **Send and deactivate**; **Skip and deactivate** sends nothing, and both deactivate the plugin.
+
+* **What is sent:** the reasons you ticked, the optional details you typed, the OpenStation, WordPress and PHP versions, your site language, whether the site is a network, how long OpenStation was installed, whether anyone on the site had turned it on (how many people, and how many days after install the first one did), whether the person deactivating had it on, the number of active plugins, and where the dialog was shown. Nothing that identifies you or your site: no URL, no site id, no email, no user name, no plugin names, and no IP address is stored. Each submission carries a random id used only to ignore an accidental retry.
+* **When it is sent:** only when you click Send in the dialog shown on deactivation. There is no background ping.
+* **Why it is sent:** to learn what did not work so it can be fixed.
+* **Who provides the service:** the request goes from your server to [openstation.blog](https://openstation.blog/), the plugin's own site, operated by Automattic. Review the [Automattic Privacy Policy](https://automattic.com/privacy/). Site owners can turn the dialog off with the `openstation_deactivation_feedback_enabled` filter.
 
 **WordPress.org plugin information**
 
@@ -124,7 +133,7 @@ Most plugin admin pages open as windows without special integration. Plugins tha
 
 = Does the plugin require an external service to function? =
 
-No. The desktop shell, windowing, dock, taskbar, virtual desktops, widgets, wallpapers, and extension APIs work without an external service. The optional AI Assistant requires a configured AI provider. OpenStation also makes limited, user-initiated requests to resolve URL-shortcut favicons and display WordPress.org plugin information. See "External services" in the description.
+No. The desktop shell, windowing, dock, taskbar, virtual desktops, widgets, wallpapers, and extension APIs work without an external service. The optional AI Assistant requires a configured AI provider. OpenStation also makes limited, user-initiated requests to resolve URL-shortcut favicons and display WordPress.org plugin information, and offers an optional, one-click feedback form when you deactivate. See "External services" in the description.
 
 = Does it patch WordPress core? =
 

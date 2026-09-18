@@ -2595,6 +2595,26 @@ Server-side defaults come from the `openstation_mio_config` PHP filter; the `os.
 
 ---
 
+### `wp.os.deactivationFeedback` — Experimental
+
+The dialog that asks one optional question before OpenStation is deactivated. Published by the lazy `deactivation-feedback[.min].js` bundle, so it is **absent** until that bundle has loaded; the native Plugins app loads it through `wp.os.loadVendorScript()` right before a self-deactivate, and the classic `plugins.php` runs the same bundle without the shell (there it publishes `window.openStationDeactivationFeedback` and intercepts the Deactivate link on OpenStation's own row).
+
+```typescript
+interface DeactivationFeedbackApi {
+    ask( config: {
+        plugin: string;                              // plugin_basename() of OpenStation
+        restUrl: string;                             // POST /desktop-mode/v1/feedback/deactivation
+        restNonce: string;                           // '' in-shell: wp.os.fetch injects the live one
+        context: 'classic' | 'chromeless' | 'app';
+        styleUrl?: string;                           // injected once when the document lacks the sheet
+    } ): Promise< void >;
+}
+```
+
+`ask()` resolves when the user picks either button. Nothing is sent unless they click **Send**, a send waits at most four seconds, and the promise resolves whatever the route answered — the caller deactivates either way. A second call while the dialog is open resolves at once. Plain DOM under `.os-deactivation-feedback` (styles in `assets/css/deactivation-feedback.css`), not `<os-*>` components, because the classic screen has no kit.
+
+---
+
 ### `wp.os.games` — Experimental
 
 The desktop games surface: a shared registry (the hub's game grid + per-game detail panel repaint live), and a launcher that opens games in native windows.

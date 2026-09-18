@@ -984,6 +984,34 @@ add_action( 'openstation_chromeless_after', function ( $hook_suffix ) {
 
 ---
 
+### `openstation_user_enabled` — Experimental
+
+Fires when a user turns OpenStation on, from either path that does so (the admin-bar toggle's AJAX handler and the portal's auto-enable), after the first-run stamps are written: the user's own `openstation_enabled_at` meta and, on the first enable anywhere on the site, the `openstation_first_enabled_at` option. Fires on every enable, not only the first for that user; `$first_on_site` is `true` only when nobody on the site had enabled before.
+
+```php
+do_action( 'openstation_user_enabled', int $user_id, bool $first_on_site );
+```
+
+```php
+add_action( 'openstation_user_enabled', function ( $user_id, $first_on_site ) {
+    if ( $first_on_site ) {
+        // The install just became an activated install.
+    }
+}, 10, 2 );
+```
+
+---
+
+### `openstation_user_disabled` — Experimental
+
+Fires when a user switches back to the classic admin from the admin-bar toggle. No stamp is written (the enable stamps are "first time" facts and survive a switch back), so this is the other half of the lifecycle and nothing more.
+
+```php
+do_action( 'openstation_user_disabled', int $user_id );
+```
+
+---
+
 ### `openstation_prepare_window` — Planned
 Will fire once per window the shell is about to construct (both on fresh open and session restore). Planned signature:
 
@@ -1185,6 +1213,42 @@ The filter only fires after OpenStation has already verified that:
 Dismissal persists through the same `POST /desktop-mode/v1/intros/seen` route the in-shell announcements use, with one wrinkle: because the dialog only appears while OpenStation is **disabled**, that route makes a scoped exception for the `activation-welcome` slug and accepts it from any logged-in `read`-capable account (every other slug still requires OpenStation enabled). Without it the dismissal would `403` and the dialog would re-appear on every classic-admin page load.
 
 Return `false` to suppress the dialog — useful for managed-host onboarding flows that ship their own welcome UX.
+
+---
+
+### `openstation_deactivation_feedback_enabled` — Experimental
+
+Whether the deactivation feedback dialog exists on this site. It gates all three surfaces at once: the bundle on `plugins.php` (classic, chromeless and network admin), the native Plugins app's config block, and the `POST /desktop-mode/v1/feedback/deactivation` route, which answers `403` when this returns `false`.
+
+```php
+apply_filters( 'openstation_deactivation_feedback_enabled', bool $enabled );
+```
+
+```php
+add_filter( 'openstation_deactivation_feedback_enabled', '__return_false' );
+```
+
+---
+
+### `openstation_deactivation_feedback_payload` — Experimental
+
+The anonymous submission, after it is built and before it is forwarded. The keys are the ones `readme.txt` discloses under "External services" (`id`, `reasons`, `details`, `plugin_version`, `wp_version`, `php_version`, `locale`, `multisite`, `install_age_days`, `ever_enabled`, `enabled_user_count`, `first_enable_delay_days`, `deactivator_enabled`, `active_plugins`, `context`). Return an empty array to suppress the send; the route still answers `200` with `sent: false`.
+
+```php
+apply_filters( 'openstation_deactivation_feedback_payload', array $payload );
+```
+
+Do not add anything that identifies the site or the person: the disclosure in `readme.txt` is the contract, and `tests/phpunit/tests/deactivationFeedback.php` pins the key list.
+
+---
+
+### `openstation_deactivation_feedback_endpoint` — Experimental
+
+The intake URL, `https://openstation.blog/wp-json/openstation-feedback/v1/deactivation` by default (the OpenStation Feedback Intake plugin on the plugin's own site). Hosts that run their own intake point this at it; it receives the payload above as a JSON `POST` with a three-second timeout and no redirects. An empty string skips the forward.
+
+```php
+apply_filters( 'openstation_deactivation_feedback_endpoint', string $url );
+```
 
 ---
 

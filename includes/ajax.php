@@ -39,6 +39,15 @@ function openstation_ajax_save() {
 
 	update_user_meta( get_current_user_id(), 'desktop_mode_mode', $enabled );
 
+	// The first-run stamps and the enable / disable actions. One helper
+	// shared with the portal's auto-enable so the two writers cannot
+	// drift — see `includes/first-run/stamps.php`.
+	if ( '1' === $enabled ) {
+		openstation_record_user_enabled( get_current_user_id() );
+	} else {
+		openstation_record_user_disabled( get_current_user_id() );
+	}
+
 	// Tell the client where to land.
 	//
 	// Enabling from classic admin: land on the shell screen with the

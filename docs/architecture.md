@@ -112,6 +112,12 @@ State lives in a `createSharedStore` because this module compiles into both the 
 
 The Plugins app keeps its own faster path (the self-deactivate check in `apps/plugins/`), since it knows which plugin the user just acted on.
 
+### The deactivation feedback dialog
+
+Before OpenStation is deactivated, one optional question. Three surfaces show it and all three post to the same `POST /desktop-mode/v1/feedback/deactivation` route: the classic `plugins.php` (the primary surface, since the sites we most need to hear from never opened the shell), the same page in a chromeless window, and the native Plugins app, which lazy-loads the bundle before a self-deactivate (`askBeforeSelfDeactivate()` in `apps/plugins/parts/mutations.ts`). One plain-DOM renderer (`src/deactivation-feedback/`) serves all three, because the classic screen has no `<os-*>` kit.
+
+The browser posts to the site and the site forwards to the intake (`includes/feedback/`): a small WordPress plugin on openstation.blog, the host the About tab already reads, which stores each submission in a table read from that site's wp-admin. Not browser-direct: ad blockers drop third-party telemetry hosts, the intake then sees the server's IP rather than the person's, and the payload is assembled in PHP where a host can filter it or turn the feature off. The forward is synchronous, three seconds at most, and best-effort — the plugin is about to be deactivated, so no cron callback of ours would ever run. Nothing is stored on the site. The payload has no site id and no URL hash; `readme.txt` lists every field, and the PHPUnit suite pins that list.
+
 ## Navigation
 
 Everything the shell can put in front of you — WordPress's admin menus, plugin menus, installed apps, OpenStation's own controls — is one flat list of **nav items**, and where each one shows up is a pure function of what it IS plus the user's preference. The model lives in `src/nav/`; `computeNav()` is the whole specification, and every surface renders what it returns.
