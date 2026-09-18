@@ -240,7 +240,7 @@ site desktop — plugin files are network-wide and Core's own site
 screens offer none of the three, so neither do the window's caps
 (`openstation_plugins_window_caps()`), its per-row flags, or its
 marketplace AJAX endpoints, even for a super admin who holds the
-capabilities everywhere. The same goes for the Plugin File Editor link:
+capabilities everywhere. The same goes for the Plugin File Editor tab:
 Core's site menu has no editor row, and the site screen only redirects
 to the network admin's.
 

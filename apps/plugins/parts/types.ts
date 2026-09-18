@@ -41,15 +41,17 @@ export interface PluginsExtra {
 		delete: boolean;
 		upload: boolean;
 		update: boolean;
-		/** `edit_plugins` on a single site — Core's Plugin File Editor gate. */
-		edit: boolean;
 	};
 	autoUpdatesEnabled: boolean;
 	/** OpenStation's own plugin path, without `.php`, as Core's REST controller spells it. */
 	selfPluginFile: string;
 	/** Root wp-admin URL — where a self-deactivate lands. */
 	adminUrl: string;
-	/** Core's Plugin File Editor (`plugin-editor.php`), opened as its own window. */
+	/**
+	 * Core's Plugin File Editor (`plugin-editor.php`), opened as its own
+	 * window from the editor tab. `''` unless Core lists it under Plugins
+	 * for this viewer (single site, classic theme, `edit_plugins`).
+	 */
 	editorUrl: string;
 }
 

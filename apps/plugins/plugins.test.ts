@@ -44,11 +44,11 @@ function extra( over: Partial< PluginsExtra > = {} ): PluginsExtra {
 		ajaxUrl: AJAX_URL,
 		ajaxNonce: 'plugins-window-nonce',
 		updatesNonce: 'updates-nonce',
-		caps: { activate: true, install: true, delete: true, upload: true, update: true, edit: true },
+		caps: { activate: true, install: true, delete: true, upload: true, update: true },
 		autoUpdatesEnabled: true,
 		selfPluginFile: 'desktop-mode/desktop-mode',
 		adminUrl: 'http://example.test/wp-admin/',
-		editorUrl: 'http://example.test/wp-admin/plugin-editor.php',
+		editorUrl: '',
 		...over,
 	};
 }
@@ -190,7 +190,7 @@ describe( 'the plugins app view', () => {
 	} );
 
 	it( 'hides the marketplace tabs without the install capability', () => {
-		const { root } = mount( {}, {}, { caps: { activate: true, install: false, delete: false, upload: false, update: true, edit: false } } );
+		const { root } = mount( {}, {}, { caps: { activate: true, install: false, delete: false, upload: false, update: true } } );
 		expect( root.querySelectorAll( 'os-tab' ).length ).toBe( 1 );
 		expect( root.querySelector( '[data-os-plugins-browse-host]' ) ).toBeNull();
 		expect( root.querySelector( '[data-os-plugins-featured-host]' ) ).toBeNull();
@@ -231,17 +231,29 @@ describe( 'the plugins app view', () => {
 		expect( root.querySelector( '[data-os-plugins-browse-host] .dashicons-upload' ) ).not.toBeNull();
 		expect( root.querySelector( '[os-bind="browse"]' )?.getAttribute( 'value' ) ).toBe( 'featured' );
 		expect( root.querySelector( '[os-bind="query"]' ) ).not.toBeNull();
-		const no = mount( {}, {}, { caps: { activate: true, install: true, delete: true, upload: false, update: true, edit: true } } );
+		const no = mount( {}, {}, { caps: { activate: true, install: true, delete: true, upload: false, update: true } } );
 		expect( no.root.querySelector( '[data-os-plugins-browse-host] .dashicons-upload' ) ).toBeNull();
 	} );
 
-	it( 'opens Core’s Plugin File Editor as a window, only for a viewer who may edit plugins', () => {
+	it( 'offers the Plugin File Editor as a tab that opens Core’s editor in its own window', () => {
 		const openUrl = vi.fn();
-		const { root } = mount( {}, {}, {}, { openUrl } );
-		root.querySelector< HTMLElement >( '[data-os-plugins-editor]' )?.click();
+		const { root, ctx } = mount( {}, {}, { editorUrl: 'http://example.test/wp-admin/plugin-editor.php' }, { openUrl } );
+		const tabs = root.querySelector< HTMLElement & { value: string } >( '[data-os-plugins-tabs]' )!;
+		const editor = root.querySelector< HTMLElement >( '[data-os-plugins-editor]' )!;
+		expect( editor.getAttribute( 'value' ) ).not.toBe( 'installed' );
+
+		editor.dispatchEvent( new CustomEvent( 'os-tab-pick', { bubbles: true, composed: true, detail: { value: editor.getAttribute( 'value' ) } } ) );
 		expect( openUrl ).toHaveBeenCalledWith( 'http://example.test/wp-admin/plugin-editor.php', 'Plugin File Editor', 'dashicons-admin-plugins' );
-		const no = mount( {}, {}, { caps: { activate: true, install: true, delete: true, upload: true, update: true, edit: false } } );
-		expect( no.root.querySelector( '[data-os-plugins-editor]' ) ).toBeNull();
+
+		// Arrow keys select the tab they land on; the editor tab hands it back.
+		tabs.value = editor.getAttribute( 'value' )!;
+		tabs.dispatchEvent( new CustomEvent( 'os-tab-change', { bubbles: true, detail: { value: tabs.value } } ) );
+		expect( tabs.value ).toBe( 'installed' );
+		expect( ctx.state.tab ).toBe( 'installed' );
+
+		// No editor URL (a block theme, multisite, no `edit_plugins`): no tab.
+		const none = mount();
+		expect( none.root.querySelector( '[data-os-plugins-editor]' ) ).toBeNull();
 	} );
 
 	it( 'does not fetch a gallery until its tab is on screen', () => {
@@ -561,7 +573,7 @@ describe( 'the actions', () => {
 		expect( labels( fakeHost( { installed: rows } ), [ 'jetpack/jetpack' ] ) ).toEqual( [ 'Deactivate' ] );
 		expect( labels( fakeHost( { installed: rows } ), [] ) ).toEqual( [] );
 
-		const cfg = extra( { caps: { activate: true, install: false, delete: false, upload: false, update: false, edit: false } } );
+		const cfg = extra( { caps: { activate: true, install: false, delete: false, upload: false, update: false } } );
 		expect( labels( fakeHost( { installed: rows, extra: cfg } ), all ) ).toEqual( [ 'Activate', 'Deactivate' ] );
 	} );
 } );
@@ -847,7 +859,7 @@ describe( 'the installed plugin library', () => {
 
 	it( 'shows auto-update policy in the inspector and honors capability gates', () => {
 		const { root } = mount( {}, { installed: [ row( { openstation_auto_update: { supported: true, enabled: true, forced: true } } ) ] },
-			{ caps: { install: false, activate: false, delete: false, update: false, upload: false, edit: false } } );
+			{ caps: { install: false, activate: false, delete: false, update: false, upload: false } } );
 		expect( root.querySelector( '.os-plugins__module-actions os-button' ) ).toBeNull();
 		click( root, '[data-plugin-details]' );
 		expect( root.querySelector( '.os-plugins__inspector-updates' )?.textContent ).toContain( 'Auto-updates enabled' );

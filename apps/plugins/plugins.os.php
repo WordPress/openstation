@@ -274,9 +274,6 @@ return App::define( 'desktop-mode-plugins' )
 			// Where the client goes after a self-deactivate: the classic
 			// Dashboard, never a reload of a possibly dead `?page=` URL.
 			'adminUrl'       => esc_url_raw( admin_url() ),
-			// Core's Plugin File Editor stays Core's screen; the Installed
-			// tab opens it as a window for a viewer holding `caps.edit`.
-			'editorUrl'      => esc_url_raw( admin_url( 'plugin-editor.php' ) ),
 		)
 	)
 	// The per-viewer half, resolved when the manifest is built for the
@@ -296,6 +293,10 @@ return App::define( 'desktop-mode-plugins' )
 				// on the admin page load (it needs an admin include),
 				// which is why it rides the config rather than `data()`.
 				'autoUpdatesEnabled' => openstation_plugins_window_auto_updates_enabled(),
+				// Core's Plugin File Editor stays Core's screen: a tab
+				// opens it as its own window, offered only where Core
+				// lists it under Plugins (`''` everywhere else).
+				'editorUrl'          => openstation_plugins_window_editor_url(),
 			);
 		}
 	)

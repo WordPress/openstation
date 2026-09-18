@@ -119,12 +119,11 @@ class Tests_OpenStation_PluginsApp extends WP_UnitTestCase {
 		// per-viewer half (caps, nonces, the auto-updates gate).
 		$config = $manifest['config'];
 		$this->assertSame(
-			array( 'ajaxUrl', 'selfPluginFile', 'adminUrl', 'editorUrl', 'ajaxNonce', 'updatesNonce', 'caps', 'autoUpdatesEnabled' ),
+			array( 'ajaxUrl', 'selfPluginFile', 'adminUrl', 'ajaxNonce', 'updatesNonce', 'caps', 'autoUpdatesEnabled', 'editorUrl' ),
 			array_keys( $config )
 		);
 		$this->assertSame( openstation_plugins_window_caps( self::$admin_id ), $config['caps'] );
 		$this->assertStringEndsWith( 'admin-ajax.php', $config['ajaxUrl'] );
-		$this->assertStringEndsWith( 'plugin-editor.php', $config['editorUrl'] );
 		$this->assertSame( substr( plugin_basename( OPENSTATION_FILE ), 0, -4 ), $config['selfPluginFile'] );
 		$this->assertStringEndsNotWith( '.php', $config['selfPluginFile'] );
 		$this->assertSame( 1, wp_verify_nonce( $config['ajaxNonce'], 'desktop-mode-plugins' ) );

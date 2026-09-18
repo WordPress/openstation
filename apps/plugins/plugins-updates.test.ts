@@ -33,7 +33,7 @@ function mount( view: 'cards' | 'table' ) {
 		data: { installed: [ plugin( 'alpha' ), plugin( 'beta' ) ], error: '' },
 		extra: {
 			ajaxUrl: 'https://example.test/wp-admin/admin-ajax.php', ajaxNonce: 'nonce', updatesNonce: 'updates',
-			caps: { activate: true, delete: true, install: false, upload: false, update: true, edit: false },
+			caps: { activate: true, delete: true, install: false, upload: false, update: true },
 		},
 		fetch,
 	} );

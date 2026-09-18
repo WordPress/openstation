@@ -2,7 +2,8 @@
  * Plugins — the client view of the Plugins app.
  *
  * The body of the Plugins window: the tab strip (Installed / Add
- * Plugin / OpenStation plugins), the Installed plugin library
+ * Plugin / OpenStation plugins, plus a Plugin File Editor tab that
+ * opens Core's editor as its own window), the Installed plugin library
  * and its selection tray, the Browse toolbar
  * and card gallery with the .zip upload and the window-wide drop
  * overlay, the curated gallery, and the detail flyout. The framework
@@ -150,6 +151,51 @@ const uiOf = ( ctx: Ctx ): UiState =>
 const flyout = ( ctx: Ctx ): HTMLElement | null =>
 	ctx.root.querySelector< HTMLElement >( '[data-os-plugins-flyout]' );
 
+/**
+ * The Plugin File Editor tab. It is Core's screen, opened as its own
+ * window, so the tab launches rather than selects: it has no panel, and
+ * `state.tab` never takes its value.
+ */
+const EDITOR_TAB = 'plugin-editor';
+
+function editorTab( ctx: Ctx, ui: UiState ): TemplateResult | string {
+	const url = ui.host.extra.editorUrl;
+	if ( ! url ) {
+		return '';
+	}
+	const label = __( 'Plugin File Editor', 'desktop-mode' );
+	const open = (): void => ctx.host.openUrl?.( url, label, 'dashicons-admin-plugins' );
+	return html`<os-tab
+		value=${ EDITOR_TAB }
+		data-os-plugins-editor
+		title=${ __( 'Opens in its own window', 'desktop-mode' ) }
+		@os-tab-pick=${ ( ev: Event ) => {
+			// Kept from the strip, which would select a tab with no panel.
+			ev.stopPropagation();
+			open();
+		} }
+		@keydown=${ ( ev: KeyboardEvent ) => {
+			if ( ev.key === 'Enter' || ev.key === ' ' ) {
+				ev.preventDefault();
+				open();
+			}
+		} }
+	>${ label } ↗</os-tab>`;
+}
+
+/**
+ * Arrow keys select the tab they land on. The editor tab keeps focus
+ * (Enter or Space opens it) but hands the selection back, before the
+ * runtime's `os-bind` can write it into `state.tab`.
+ */
+function keepEditorUnselected( ctx: Ctx, ev: Event ): void {
+	if ( ( ev as CustomEvent< { value: string } > ).detail?.value !== EDITOR_TAB ) {
+		return;
+	}
+	ev.stopPropagation();
+	( ev.currentTarget as HTMLElement & { value: string } ).value = ctx.state.tab;
+}
+
 const BROWSE_FILTERS: ReadonlyArray< { value: BrowseFilter; label: () => string } > = [
 	{ value: 'featured', label: () => __( 'Featured', 'desktop-mode' ) },
 	{ value: 'popular', label: () => __( 'Popular', 'desktop-mode' ) },
@@ -234,12 +280,19 @@ export default defineApp< AppState, AppData >( APP_ID, {
 		const tab = ctx.state.tab;
 		return html`
 			<div class="os-app-list desktop-mode-plugins" data-os-plugins-root>
-				<os-tabs value=${ tab } class="os-app-list__tabs os-plugins__tabs" data-os-plugins-tabs os-bind="tab">
+				<os-tabs
+					value=${ tab }
+					class="os-app-list__tabs os-plugins__tabs"
+					data-os-plugins-tabs
+					os-bind="tab"
+					@os-tab-change=${ ( ev: Event ) => keepEditorUnselected( ctx, ev ) }
+				>
 					<os-tab value="installed">${ __( 'Installed', 'desktop-mode' ) }</os-tab>
 					${ caps.install
 						? html`<os-tab value="browse">${ __( 'Add Plugin', 'desktop-mode' ) }</os-tab>
 							<os-tab value="featured">${ __( 'OpenStation plugins', 'desktop-mode' ) }</os-tab>`
 						: '' }
+					${ editorTab( ctx, ui ) }
 				</os-tabs>
 				<os-tabpanel for="installed" class="os-app-list__panel os-plugins__panel" ?hidden=${ tab !== 'installed' }>
 					<div class="os-plugins__installed" data-os-plugins-installed-host>

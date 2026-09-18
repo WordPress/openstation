@@ -406,28 +406,15 @@ export function installedPanel( ctx: Ctx, host: PluginsHost, ui: InstalledUi ): 
 						<span class="os-plugins__eyebrow">${ __( 'YOUR WORDPRESS, EXTENDED', 'desktop-mode' ) }</span>
 						<h2>${ __( 'Make room for possibility.', 'desktop-mode' ) }</h2>
 					</div>
-					<div class="os-plugins__library-actions">
-						${ host.extra.caps.edit
-							? html`<os-button
-								variant="ghost"
-								size="small"
-								data-os-plugins-editor
-								@click=${ () => ctx.host.openUrl?.( host.extra.editorUrl, __( 'Plugin File Editor', 'desktop-mode' ), 'dashicons-admin-plugins' ) }
-							>
-								<span class="dashicons dashicons-editor-code" aria-hidden="true"></span>
-								${ __( 'Plugin File Editor', 'desktop-mode' ) }
-							</os-button>`
-							: '' }
-						<os-button
-							variant="ghost"
-							size="small"
-							os-action="reload"
-							aria-label=${ __( 'Refresh plugins', 'desktop-mode' ) }
-							title=${ __( 'Refresh plugins', 'desktop-mode' ) }
-						>
-							<span class="dashicons dashicons-update" aria-hidden="true"></span>
-						</os-button>
-					</div>
+					<os-button
+						variant="ghost"
+						size="small"
+						os-action="reload"
+						aria-label=${ __( 'Refresh plugins', 'desktop-mode' ) }
+						title=${ __( 'Refresh plugins', 'desktop-mode' ) }
+					>
+						<span class="dashicons dashicons-update" aria-hidden="true"></span>
+					</os-button>
 				</div>
 				<nav class="os-plugins__collections" aria-label=${ __( 'Filter plugins', 'desktop-mode' ) }>
 					${ filters.map(
