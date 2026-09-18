@@ -1264,7 +1264,12 @@ export class WindowManager {
 			if ( this._cascadeDepth > 0 ) {
 				return;
 			}
-			const visible = this._stack.filter( ( x ) => x.state !== 'minimized' );
+			const activeDesktopId = this.getActiveDesktopId();
+			const visible = this._stack.filter(
+				( x ) =>
+					( x.config.desktopId || activeDesktopId ) === activeDesktopId &&
+					x.state !== 'minimized',
+			);
 			if ( visible.length > 0 ) {
 				this.focus( visible[ visible.length - 1 ] );
 			}
@@ -1503,6 +1508,11 @@ export class WindowManager {
 	 * the call sites so every focus path is covered by construction:
 	 * click-to-focus, dock activation, taskbar, alt-tab, open-reuse.
 	 *
+	 * When the target window belongs to an inactive virtual desktop,
+	 * `focus()` automatically switches to that desktop first so the window
+	 * is revealed and properly focused rather than remaining hidden
+	 * behind `display: none` at 0×0.
+	 *
 	 * @param winOrId Window to focus, or its id.
 	 */
 	public focus( winOrId: Window | string ): void {
@@ -1540,6 +1550,18 @@ export class WindowManager {
 			// Fall through: the child is focused exactly as if it had
 			// been the argument, so it lands on top and fires the
 			// normal blur/focus pair.
+		}
+
+		// Virtual desktop alignment. If the target window belongs to a
+		// different virtual desktop, switch to it so focus never lands on an
+		// invisible (`display: none`, 0×0) window while leaving the visible
+		// desktop unfocused.
+		const targetDesktopId = win.config.desktopId || this._activeDesktopId;
+		if (
+			targetDesktopId !== this._activeDesktopId &&
+			this._desktops.some( ( d ) => d.id === targetDesktopId )
+		) {
+			this.switchDesktop( targetDesktopId, { skipFocus: true } );
 		}
 
 		// Capture the previously-focused window BEFORE the splice/push
