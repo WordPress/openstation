@@ -305,6 +305,7 @@ Every event bubbles from `document`. See [`javascript-reference.md`](./javascrip
 | `os-default-window-changed` | Stable |
 | `os-open-ai` *(plugin-dispatched; the shell listens)* | Experimental |
 | `os-intros-reset` | Experimental |
+| `os-shell-tour-start` *(plugin-dispatched; the shell listens)* | Experimental |
 | `os-note-created` *(pinned-notes hand-off from the Note Pad widget)* | Experimental |
 | `os-auth-lost` / `os-auth-restored` *(session expiry / recovery)* | Stable |
 | `os-desktop-theme-changed` *(whole-OS reskin activated / cleared)* | Experimental |

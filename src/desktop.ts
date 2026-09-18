@@ -284,6 +284,7 @@ import {
 import { toggleFullscreen } from './fullscreen';
 import { openShortcutsWith, SHORTCUTS_WINDOW_ID } from './shortcuts';
 import { maybeShowRebrandNotice } from './rebrand-notice';
+import { installShellTour } from './shell-tour/loader';
 import { osConfirm } from './os-confirm';
 import { preloadShellOverlays } from './shell-overlays/loader';
 import { renderIcon } from './icon';
@@ -5089,6 +5090,28 @@ function init(): void {
 	// announcement. Fire-and-forget: it sleeps until the desk has
 	// settled before mounting, which boot should not block on.
 	void maybeShowRebrandNotice( { config } );
+	// The first-boot tour: three coachmarks (open a window, snap it,
+	// press ⌘K) on a user's first boot, and on demand after that
+	// ("Take the tour", "Reset what's-new dialogs"). Steps advance on
+	// the real events; the shell only lends the tour its own
+	// entry points so the lazy bundle never reads shell module state.
+	installShellTour( {
+		config,
+		windowManager: manager,
+		isMobile: () => modeController.api.isMobile(),
+		openPalette: () => openPaletteOnly( 'desktop-mode-ai-assistant' ),
+		openFallbackWindow: () => {
+			const url = `${ config.adminUrl }edit.php`;
+			const id = deriveWindowId( url, config.adminUrl );
+			void manager.open( {
+				id,
+				baseId: id,
+				url,
+				title: __( 'Posts' ),
+				icon: 'dashicons-admin-post',
+			} );
+		},
+	} );
 	if ( typeof config.filesUrl === 'string' && config.filesUrl ) {
 		filesRest.installRestDeps( {
 			baseUrl: config.filesUrl,

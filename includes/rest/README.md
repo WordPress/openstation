@@ -14,7 +14,7 @@ All in-tree routes register under `desktop-mode/v1`. Extensions are expected to 
 |---|---|---|---|
 | `/session` | GET / POST / DELETE | `includes/session.php` | logged-in + OpenStation enabled |
 | `/default-window` | POST | `includes/default-window.php` | logged-in + OpenStation enabled |
-| `/intros/seen` | POST | `includes/seen-intros.php` | logged-in + OpenStation enabled |
+| `/intros/seen` | POST | `includes/seen-intros.php` | logged-in + OpenStation enabled; the two classic-admin slugs (`activation-welcome`, `activation-nudge`) are accepted from any logged-in `read` account, since both render only while OpenStation is off |
 | `/intros` | DELETE | `includes/seen-intros.php` | logged-in + OpenStation enabled |
 | `/os-settings` | GET / POST | `includes/os-settings.php` | logged-in + OpenStation enabled |
 | `/extended-options` | GET / POST | `includes/extended-options.php` | `manage_options` |

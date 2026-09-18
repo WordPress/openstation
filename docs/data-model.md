@@ -200,6 +200,7 @@ The sections below name the exact tables and keys.
 | Recycle Bin | | | ● | ● | ● | | |
 | Presence | | | | | ● | | |
 | Preferences and session | | ● | | | ● | | |
+| First run | | ● | | | ● | | |
 | App Framework `Store` | | ● | | | ● | | |
 | Desktop themes | | | | | ● | | ● |
 | Media Library | | | ● | | ● | | |
@@ -259,6 +260,7 @@ profile screen). AI agents are ordinary `wp_users` rows flagged with
 | `desktop_mode_pwa_state` | PWA | Install / prompt state. |
 | `desktop_mode_seen_intros` | Onboarding | Intros already shown. |
 | `desktop_mode_rebrand_notice` | Onboarding | Rebrand notice dismissed. |
+| `openstation_enabled_at` | First run | Epoch seconds of the user's first enable; absent until then. Written by `openstation_record_user_enabled()` from the admin-bar toggle and the portal. |
 | `desktop_mode_game_playtime` | Games | Lifetime play time per game. |
 | `desktop_mode_game_playtime_days` | Games | Play time per day (rolling window). |
 | `openstation_station_home_card_preferences` | Station Home | Which home cards are shown or hidden. |
@@ -296,6 +298,8 @@ profile screen). AI agents are ordinary `wp_users` rows flagged with
 | `_desktop_mode_content_changes_log` | Content changes | Recent content changes for the feed, capped at 100 entries (`autoload = no`). |
 | `_desktop_mode_recycle_bin_change_ts` | Recycle Bin | Timestamp of the last bin change, for the badge (`autoload = no`). |
 | `openstation_app_store` | App Framework | The `Store` contract with `site` scope. |
+| `openstation_installed_at` | First run | `{ at, via }`: when the plugin was activated (`autoload = no`). `via` is `activation` from the activation hook, `backfill` when reconstructed on `admin_init` for an install that predates the stamp; a backfilled age reads as unknown everywhere. |
+| `openstation_first_enabled_at` | First run | `{ at, via }`: the first time any user turned OpenStation on (`autoload = no`). Migration 9 writes `at: 0, via: backfill` for a site that already had users in the shell. Its presence is what stops the activation nudge. |
 
 ## Transients
 

@@ -960,6 +960,28 @@ do_action( 'openstation_oauth_relay_connected', string $service, int $user_id );
 
 ---
 
+### `openstation_user_enabled` — Stable
+
+Fires when a user turns OpenStation on, from either of the two paths that do so: the admin-bar toggle (`openstation_ajax_save()`) and the `/openstation/` portal's auto-enable. Runs after the first-run stamps are written — `openstation_enabled_at` on the user (their first enable) and `openstation_first_enabled_at` on the site (the site's first enable, any user) — so a listener can read them.
+
+```php
+do_action( 'openstation_user_enabled', int $user_id, bool $first_on_site );
+```
+
+`$first_on_site` is `true` exactly once per site: the enable that turned an install into an activated install. The action itself fires on every enable, not only a user's first; compare `openstation_get_user_enabled_at( $user_id )` with `time()` for that.
+
+---
+
+### `openstation_user_disabled` — Stable
+
+Fires when a user turns OpenStation off through the admin-bar toggle. No stamp changes: the enabled-at stamps are "first time" facts and survive a switch back to classic.
+
+```php
+do_action( 'openstation_user_disabled', int $user_id );
+```
+
+---
+
 ### `openstation_chromeless_after` — Stable
 Fires in the `admin_footer` of chromeless iframe requests. Receives the current admin page's `$hook_suffix`.
 
@@ -1185,6 +1207,34 @@ The filter only fires after OpenStation has already verified that:
 Dismissal persists through the same `POST /desktop-mode/v1/intros/seen` route the in-shell announcements use, with one wrinkle: because the dialog only appears while OpenStation is **disabled**, that route makes a scoped exception for the `activation-welcome` slug and accepts it from any logged-in `read`-capable account (every other slug still requires OpenStation enabled). Without it the dismissal would `403` and the dialog would re-appear on every classic-admin page load.
 
 Return `false` to suppress the dialog — useful for managed-host onboarding flows that ship their own welcome UX.
+
+---
+
+### `openstation_show_activation_nudge` — Stable
+
+Decides whether the activation nudge — a dismissible admin notice on the Dashboard and Plugins screens (and their network twins) saying "OpenStation is installed but not turned on", with **Turn on OpenStation** (the portal link) and **Not now** — renders for the current user on the current request.
+
+```php
+apply_filters( 'openstation_show_activation_nudge', bool $show, int $user_id );
+```
+
+The filter only fires after every built-in gate has passed: the user can `activate_plugins`, does not have OpenStation on, nobody on the site has ever enabled it (`openstation_first_enabled_at` is absent), the install stamp is real (`via: activation`, never a backfill) and under 14 days old, the screen is one of the four, the request is not chromeless, and the user has not clicked **Not now** (the `activation-nudge` slug in `desktop_mode_seen_intros`, wiped by "Reset what's-new dialogs" like every other intro). The welcome dialog is the first touch; this is the second, quieter one, and both stop the moment anyone on the site enables.
+
+Return `false` to suppress it, e.g. from a managed-host onboarding flow.
+
+---
+
+### `openstation_show_shell_tour` — Stable
+
+Decides whether the first-boot shell tour — three coachmarks: open a window, snap it, press ⌘K — is offered to a user. Shipped to the shell as `config.shellTour`.
+
+```php
+apply_filters( 'openstation_show_shell_tour', bool $offer, int $user_id );
+```
+
+Whether the user already took or skipped it is not this filter's question: that is the `shell-tour` slug in `desktop_mode_seen_intros`, which the shell reads from `config.seenIntros`. Existing users are marked seen by migration 9 on update, so only a genuinely new user boots into the tour; "Reset what's-new dialogs" and the **Take the tour** button in OpenStation Preferences → Features replay it regardless of this filter's boot-time answer — the filter gates the automatic first-boot start, not the explicit request.
+
+Return `false` to switch the automatic tour off site-wide or for a role.
 
 ---
 
